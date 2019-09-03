@@ -147,28 +147,34 @@
  *	sleep until the page's busy state changes, after which the caller
  *	must re-lookup the page and re-evaluate its state.
  *
- *	The queue field is the index of the page queue containing the
- *	page, or PQ_NONE if the page is not enqueued.  The queue lock of a
- *	page is the page queue lock corresponding to the page queue index,
- *	or the page lock (P) for the page if it is not enqueued.  To modify
- *	the queue field, the queue lock for the old value of the field must
- *	be held.  It is invalid for a page's queue field to transition
- *	between two distinct page queue indices.  That is, when updating
- *	the queue field, either the new value or the old value must be
- *	PQ_NONE.
+ *	The queue field is the index of the page queue containing the page,
+ *	or PQ_NONE if the page is not enqueued.  The queue lock of a page is
+ *	the page queue lock corresponding to the page queue index, or the
+ *	page lock (P) for the page if it is not enqueued.  To modify the
+ *	queue field, the queue lock for the old value of the field must be
+ *	held.  There is one exception to this rule: the page daemon may
+ *	transition the queue field from PQ_INACTIVE to PQ_NONE immediately
+ *	prior to freeing a page during an inactive queue scan.  At that
+ *	point the page has already been physically dequeued and no other
+ *	references to that vm_page structure exist.
  *
  *	To avoid contention on page queue locks, page queue operations
- *	(enqueue, dequeue, requeue) are batched using per-CPU queues.
- *	A deferred operation is requested by inserting an entry into a
- *	batch queue; the entry is simply a pointer to the page, and the
- *	request type is encoded in the page's aflags field using the values
- *	in PGA_QUEUE_STATE_MASK.  The type-stability of struct vm_pages is
+ *	(enqueue, dequeue, requeue) are batched using per-CPU queues.  A
+ *	deferred operation is requested by inserting an entry into a batch
+ *	queue; the entry is simply a pointer to the page, and the request
+ *	type is encoded in the page's aflags field using the values in
+ *	PGA_QUEUE_STATE_MASK.  The type-stability of struct vm_pages is
  *	crucial to this scheme since the processing of entries in a given
- *	batch queue may be deferred indefinitely.  In particular, a page
- *	may be freed before its pending batch queue entries have been
- *	processed.  The page lock (P) must be held to schedule a batched
- *	queue operation, and the page queue lock must be held in order to
- *	process batch queue entries for the page queue.
+ *	batch queue may be deferred indefinitely.  In particular, a page may
+ *	be freed before its pending batch queue entries have been processed.
+ *	The page lock (P) must be held to schedule a batched queue
+ *	operation, and the page queue lock must be held in order to process
+ *	batch queue entries for the page queue.  There is one exception to
+ *	this rule: the thread freeing a page may schedule a dequeue without
+ *	holding the page lock.  In this scenario the only other thread which
+ *	may hold a reference to the page is the page daemon, which is
+ *	careful to avoid modifying the page's queue state once the dequeue
+ *	has been requested by setting PGA_DEQUEUE.
  */
 
 #if PAGE_SIZE == 4096
@@ -578,6 +584,7 @@ void vm_page_set_valid_range(vm_page_t m, int base, int size);
 int vm_page_sleep_if_busy(vm_page_t m, const char *msg);
 vm_offset_t vm_page_startup(vm_offset_t vaddr);
 void vm_page_sunbusy(vm_page_t m);
+void vm_page_swapqueue(vm_page_t m, uint8_t oldq, uint8_t newq);
 int vm_page_trysbusy(vm_page_t m);
 void vm_page_unhold_pages(vm_page_t *ma, int count);
 void vm_page_unswappable(vm_page_t m);
@@ -667,7 +674,29 @@ void vm_page_assert_pga_writeable(vm_page_t m, uint8_t bits);
  * destinations.  In order that we can easily use a 32-bit operation, we
  * require that the aflags field be 32-bit aligned.
  */
-CTASSERT(offsetof(struct vm_page, aflags) % sizeof(uint32_t) == 0);
+_Static_assert(offsetof(struct vm_page, aflags) % sizeof(uint32_t) == 0,
+    "aflags field is not 32-bit aligned");
+
+/*
+ * We want to be able to update the aflags and queue fields atomically in
+ * the same operation.
+ */
+_Static_assert(offsetof(struct vm_page, aflags) / sizeof(uint32_t) ==
+    offsetof(struct vm_page, queue) / sizeof(uint32_t),
+    "aflags and queue fields do not belong to the same 32-bit word");
+_Static_assert(offsetof(struct vm_page, queue) % sizeof(uint32_t) == 2,
+    "queue field is at an unexpected offset");
+_Static_assert(sizeof(((struct vm_page *)NULL)->queue) == 1,
+    "queue field has an unexpected size");
+
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define	VM_PAGE_AFLAG_SHIFT	0
+#define	VM_PAGE_QUEUE_SHIFT	16
+#else
+#define	VM_PAGE_AFLAG_SHIFT	24
+#define	VM_PAGE_QUEUE_SHIFT	8
+#endif
+#define	VM_PAGE_QUEUE_MASK	(0xff << VM_PAGE_QUEUE_SHIFT)
 
 /*
  *	Clear the given bits in the specified page.
@@ -689,12 +718,7 @@ vm_page_aflag_clear(vm_page_t m, uint8_t bits)
 	 * within this word are handled properly by the atomic update.
 	 */
 	addr = (void *)&m->aflags;
-	KASSERT(((uintptr_t)addr & (sizeof(uint32_t) - 1)) == 0,
-	    ("vm_page_aflag_clear: aflags is misaligned"));
-	val = bits;
-#if BYTE_ORDER == BIG_ENDIAN
-	val <<= 24;
-#endif
+	val = bits << VM_PAGE_AFLAG_SHIFT;
 	atomic_clear_32(addr, val);
 }
 
@@ -714,14 +738,44 @@ vm_page_aflag_set(vm_page_t m, uint8_t bits)
 	 * within this word are handled properly by the atomic update.
 	 */
 	addr = (void *)&m->aflags;
-	KASSERT(((uintptr_t)addr & (sizeof(uint32_t) - 1)) == 0,
-	    ("vm_page_aflag_set: aflags is misaligned"));
-	val = bits;
-#if BYTE_ORDER == BIG_ENDIAN
-	val <<= 24;
-#endif
+	val = bits << VM_PAGE_AFLAG_SHIFT;
 	atomic_set_32(addr, val);
-} 
+}
+
+/*
+ *	Atomically update the queue state of the page.  The operation fails if
+ *	any of the queue flags in "fflags" are set or if the "queue" field of
+ *	the page does not match the expected value; if the operation is
+ *	successful, the flags in "nflags" are set and all other queue state
+ *	flags are cleared.
+ */
+static inline bool
+vm_page_pqstate_cmpset(vm_page_t m, uint32_t oldq, uint32_t newq,
+    uint32_t fflags, uint32_t nflags)
+{
+	uint32_t *addr, nval, oval, qsmask;
+
+	vm_page_assert_locked(m);
+
+	fflags <<= VM_PAGE_AFLAG_SHIFT;
+	nflags <<= VM_PAGE_AFLAG_SHIFT;
+	newq <<= VM_PAGE_QUEUE_SHIFT;
+	oldq <<= VM_PAGE_QUEUE_SHIFT;
+	qsmask = ((PGA_DEQUEUE | PGA_REQUEUE | PGA_REQUEUE_HEAD) <<
+	    VM_PAGE_AFLAG_SHIFT) | VM_PAGE_QUEUE_MASK;
+
+	addr = (void *)&m->aflags;
+	oval = atomic_load_32(addr);
+	do {
+		if ((oval & fflags) != 0)
+			return (false);
+		if ((oval & VM_PAGE_QUEUE_MASK) != oldq)
+			return (false);
+		nval = (oval & ~qsmask) | nflags | newq;
+	} while (!atomic_fcmpset_32(addr, &oval, nval));
+
+	return (true);
+}
 
 /*
  *	vm_page_dirty:
