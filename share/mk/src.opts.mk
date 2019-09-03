@@ -153,7 +153,6 @@ __DEFAULT_YES_OPTIONS = \
     OFED \
     OPENSSL \
     PAM \
-    PC_SYSINSTALL \
     PF \
     PKGBOOTSTRAP \
     PMC \
