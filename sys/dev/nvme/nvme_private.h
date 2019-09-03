@@ -556,4 +556,7 @@ void	nvme_notify_ns(struct nvme_controller *ctrlr, int nsid);
 void	nvme_ctrlr_intx_handler(void *arg);
 void	nvme_ctrlr_poll(struct nvme_controller *ctrlr);
 
+int	nvme_ctrlr_suspend(struct nvme_controller *ctrlr);
+int	nvme_ctrlr_resume(struct nvme_controller *ctrlr);
+
 #endif /* __NVME_PRIVATE_H__ */
