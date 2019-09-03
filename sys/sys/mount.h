@@ -368,23 +368,20 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 /*
  * Internal filesystem control flags stored in mnt_kern_flag.
  *
- * MNTK_UNMOUNT locks the mount entry so that name lookup cannot proceed
- * past the mount point.  This keeps the subtree stable during mounts
- * and unmounts.
+ * MNTK_UNMOUNT locks the mount entry so that name lookup cannot
+ * proceed past the mount point.  This keeps the subtree stable during
+ * mounts and unmounts.  When non-forced unmount flushes all vnodes
+ * from the mp queue, the MNTK_UNMOUNT flag prevents insmntque() from
+ * queueing new vnodes.
  *
  * MNTK_UNMOUNTF permits filesystems to detect a forced unmount while
  * dounmount() is still waiting to lock the mountpoint. This allows
  * the filesystem to cancel operations that might otherwise deadlock
  * with the unmount attempt (used by NFS).
- *
- * MNTK_NOINSMNTQ is strict subset of MNTK_UNMOUNT. They are separated
- * to allow for failed unmount attempt to restore the syncer vnode for
- * the mount.
  */
 #define MNTK_UNMOUNTF	0x00000001	/* forced unmount in progress */
 #define MNTK_ASYNC	0x00000002	/* filtered async flag */
 #define MNTK_SOFTDEP	0x00000004	/* async disabled by softdep */
-#define MNTK_NOINSMNTQ	0x00000008	/* insmntque is not allowed */
 #define	MNTK_DRAINING	0x00000010	/* lock draining is happening */
 #define	MNTK_REFEXPIRE	0x00000020	/* refcount expiring is happening */
 #define MNTK_EXTENDED_SHARED	0x00000040 /* Allow shared locking for more ops */
