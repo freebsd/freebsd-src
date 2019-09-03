@@ -167,6 +167,7 @@ struct vm_object {
 		struct {
 			void *swp_tmpfs;
 			struct pctrie swp_blks;
+			vm_ooffset_t writemappings;
 		} swp;
 	} un_pager;
 	struct ucred *cred;
