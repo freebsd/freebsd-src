@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 static int    nvme_pci_probe(device_t);
 static int    nvme_pci_attach(device_t);
 static int    nvme_pci_detach(device_t);
+static int    nvme_pci_suspend(device_t);
+static int    nvme_pci_resume(device_t);
 
 static void nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr);
 
@@ -51,6 +53,8 @@ static device_method_t nvme_pci_methods[] = {
 	DEVMETHOD(device_probe,     nvme_pci_probe),
 	DEVMETHOD(device_attach,    nvme_pci_attach),
 	DEVMETHOD(device_detach,    nvme_pci_detach),
+	DEVMETHOD(device_suspend,   nvme_pci_suspend),
+	DEVMETHOD(device_resume,    nvme_pci_resume),
 	DEVMETHOD(device_shutdown,  nvme_shutdown),
 	{ 0, 0 }
 };
@@ -331,4 +335,22 @@ nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr)
 	}
 
 	ctrlr->msix_enabled = 1;
+}
+
+static int
+nvme_pci_suspend(device_t dev)
+{
+	struct nvme_controller	*ctrlr;
+
+	ctrlr = DEVICE2SOFTC(dev);
+	return (nvme_ctrlr_suspend(ctrlr));
+}
+
+static int
+nvme_pci_resume(device_t dev)
+{
+	struct nvme_controller	*ctrlr;
+
+	ctrlr = DEVICE2SOFTC(dev);
+	return (nvme_ctrlr_resume(ctrlr));
 }
