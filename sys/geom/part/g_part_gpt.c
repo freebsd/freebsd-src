@@ -54,6 +54,14 @@ __FBSDID("$FreeBSD$");
 
 FEATURE(geom_part_gpt, "GEOM partitioning class for GPT partitions support");
 
+SYSCTL_DECL(_kern_geom_part);
+static SYSCTL_NODE(_kern_geom_part, OID_AUTO, gpt, CTLFLAG_RW, 0,
+    "GEOM_PART_GPT GUID Partition Table");
+
+static u_int allow_nesting = 0;
+SYSCTL_UINT(_kern_geom_part_gpt, OID_AUTO, allow_nesting,
+    CTLFLAG_RWTUN, &allow_nesting, 0, "Allow GPT to be nested inside other schemes");
+
 CTASSERT(offsetof(struct gpt_hdr, padding) == 92);
 CTASSERT(sizeof(struct gpt_ent) == 128);
 
@@ -652,8 +660,8 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	struct g_part_gpt_table *table;
 	size_t tblsz;
 
-	/* We don't nest, which means that our depth should be 0. */
-	if (basetable->gpt_depth != 0)
+	/* Our depth should be 0 unless nesting was explicitly enabled. */
+	if (!allow_nesting && basetable->gpt_depth != 0)
 		return (ENXIO);
 
 	table = (struct g_part_gpt_table *)basetable;
@@ -815,8 +823,8 @@ g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 	u_char *buf;
 	int error, index, pri, res;
 
-	/* We don't nest, which means that our depth should be 0. */
-	if (table->gpt_depth != 0)
+	/* Our depth should be 0 unless nesting was explicitly enabled. */
+	if (!allow_nesting && table->gpt_depth != 0)
 		return (ENXIO);
 
 	pp = cp->provider;
