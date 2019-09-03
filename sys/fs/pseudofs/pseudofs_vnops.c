@@ -132,6 +132,24 @@ pfs_visible(struct thread *td, struct pfs_node *pn, pid_t pid,
 	PFS_RETURN (0);
 }
 
+static int
+pfs_lookup_proc(pid_t pid, struct proc **p)
+{
+	struct proc *proc;
+
+	proc = pfind(pid);
+	if (proc == NULL)
+		return (0);
+	if ((proc->p_flag & P_WEXIT) != 0) {
+		PROC_UNLOCK(proc);
+		return (0);
+	}
+	_PHOLD(proc);
+	PROC_UNLOCK(proc);
+	*p = proc;
+	return (1);
+}
+
 /*
  * Verify permissions
  */
@@ -791,11 +809,17 @@ pfs_readdir(struct vop_readdir_args *va)
 	if (resid == 0)
 		PFS_RETURN (0);
 
+	if (!pfs_lookup_proc(pid, &proc))
+		PFS_RETURN (ENOENT);
+
 	sx_slock(&allproc_lock);
 	pfs_lock(pd);
+	PROC_LOCK(proc);
 
         /* check if the directory is visible to the caller */
-        if (!pfs_visible(curthread, pd, pid, &proc)) {
+        if (!pfs_visible_proc(curthread, pd, proc)) {
+		_PRELE(proc);
+		PROC_UNLOCK(proc);
 		sx_sunlock(&allproc_lock);
 		pfs_unlock(pd);
                 PFS_RETURN (ENOENT);
@@ -807,8 +831,10 @@ pfs_readdir(struct vop_readdir_args *va)
 	for (pn = NULL, p = NULL; offset > 0; offset -= PFS_DELEN) {
 		if (pfs_iterate(curthread, proc, pd, &pn, &p) == -1) {
 			/* nothing left... */
-			if (proc != NULL)
+			if (proc != NULL) {
+				_PRELE(proc);
 				PROC_UNLOCK(proc);
+			}
 			pfs_unlock(pd);
 			sx_sunlock(&allproc_lock);
 			PFS_RETURN (0);
@@ -859,8 +885,10 @@ pfs_readdir(struct vop_readdir_args *va)
 		offset += PFS_DELEN;
 		resid -= PFS_DELEN;
 	}
-	if (proc != NULL)
+	if (proc != NULL) {
+		_PRELE(proc);
 		PROC_UNLOCK(proc);
+	}
 	pfs_unlock(pd);
 	sx_sunlock(&allproc_lock);
 	i = 0;
