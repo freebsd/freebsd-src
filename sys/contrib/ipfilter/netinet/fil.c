@@ -4973,7 +4973,7 @@ frrequest(softc, unit, req, data, set, makecopy)
 	 * (this meaning no pointers are included).
 	 */
 	pp = (u_int *)(fp->fr_caddr + fp->fr_dsize);
-	for (p = (u_int *)fp->fr_data; p < pp; p++)
+	for (fp->fr_cksum = 0, p = (u_int *)fp->fr_data; p < pp; p++)
 		fp->fr_cksum += *p;
 
 	WRITE_ENTER(&softc->ipf_mutex);
