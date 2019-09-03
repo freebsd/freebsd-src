@@ -2078,7 +2078,7 @@ vn_vget_ino_gen(struct vnode *vp, vn_get_ino_t alloc, void *alloc_arg,
 	VOP_UNLOCK(vp, 0);
 	error = alloc(mp, alloc_arg, lkflags, rvp);
 	vfs_unbusy(mp);
-	if (*rvp != vp)
+	if (error != 0 || *rvp != vp)
 		vn_lock(vp, ltype | LK_RETRY);
 	if (vp->v_iflag & VI_DOOMED) {
 		if (error == 0) {
