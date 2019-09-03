@@ -36,6 +36,7 @@ __RCSID("$NetBSD: makecontext.c,v 1.5 2009/12/14 01:07:42 matt Exp $");
 #endif
 
 #include <sys/param.h>
+#define	_WANT_MIPS_REGNUM
 #include <machine/regnum.h>
 
 #include <stdarg.h>

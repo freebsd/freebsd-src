@@ -34,7 +34,6 @@
 
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
-#include <machine/regnum.h>
 
 #include "SYS.h"
 

@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#define	_WANT_MIPS_REGNUM
 #include <sys/ptrace.h>
 
 #include <err.h>
