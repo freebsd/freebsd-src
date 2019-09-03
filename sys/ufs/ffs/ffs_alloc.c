@@ -1137,10 +1137,15 @@ retry:
 					(allocfcn_t *)ffs_nodealloccg);
 	if (ino == 0)
 		goto noinodes;
-	error = ffs_vget(pvp->v_mount, ino, LK_EXCLUSIVE, vpp);
+
+	/*
+	 * Get rid of the cached old vnode, force allocation of a new vnode
+	 * for this inode.
+	 */
+	error = ffs_vgetf(pvp->v_mount, ino, LK_EXCLUSIVE, vpp, FFSV_REPLACE);
 	if (error) {
 		error1 = ffs_vgetf(pvp->v_mount, ino, LK_EXCLUSIVE, vpp,
-		    FFSV_FORCEINSMQ);
+		    FFSV_FORCEINSMQ | FFSV_REPLACE);
 		ffs_vfree(pvp, ino, mode);
 		if (error1 == 0) {
 			ip = VTOI(*vpp);
@@ -1176,7 +1181,6 @@ dup_alloc:
 		ip->i_din2->di_birthtime = ts.tv_sec;
 		ip->i_din2->di_birthnsec = ts.tv_nsec;
 	}
-	ufs_prepare_reclaim(*vpp);
 	ip->i_flag = 0;
 	(*vpp)->v_vflag = 0;
 	(*vpp)->v_type = VNON;

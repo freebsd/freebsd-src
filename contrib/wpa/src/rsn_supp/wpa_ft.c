@@ -18,6 +18,7 @@
 #include "drivers/driver.h"
 #include "wpa.h"
 #include "wpa_i.h"
+#include "pmksa_cache.h"
 
 #ifdef CONFIG_IEEE80211R
 
@@ -27,15 +28,23 @@ int wpa_derive_ptk_ft(struct wpa_sm *sm, const unsigned char *src_addr,
 	u8 ptk_name[WPA_PMK_NAME_LEN];
 	const u8 *anonce = key->key_nonce;
 	int use_sha384 = wpa_key_mgmt_sha384(sm->key_mgmt);
+	const u8 *mpmk;
+	size_t mpmk_len;
 
-	if (sm->xxkey_len == 0) {
+	if (sm->xxkey_len > 0) {
+		mpmk = sm->xxkey;
+		mpmk_len = sm->xxkey_len;
+	} else if (sm->cur_pmksa) {
+		mpmk = sm->cur_pmksa->pmk;
+		mpmk_len = sm->cur_pmksa->pmk_len;
+	} else {
 		wpa_printf(MSG_DEBUG, "FT: XXKey not available for key "
 			   "derivation");
 		return -1;
 	}
 
 	sm->pmk_r0_len = use_sha384 ? SHA384_MAC_LEN : PMK_LEN;
-	if (wpa_derive_pmk_r0(sm->xxkey, sm->xxkey_len, sm->ssid,
+	if (wpa_derive_pmk_r0(mpmk, mpmk_len, sm->ssid,
 			      sm->ssid_len, sm->mobility_domain,
 			      sm->r0kh_id, sm->r0kh_id_len, sm->own_addr,
 			      sm->pmk_r0, sm->pmk_r0_name, use_sha384) < 0)
@@ -819,10 +828,10 @@ static int wpa_ft_process_igtk_subelem(struct wpa_sm *sm, const u8 *igtk_elem,
 			   igtk_elem + 2, 6, igtk, igtk_len) < 0) {
 		wpa_printf(MSG_WARNING, "WPA: Failed to set IGTK to the "
 			   "driver.");
-		os_memset(igtk, 0, sizeof(igtk));
+		forced_memzero(igtk, sizeof(igtk));
 		return -1;
 	}
-	os_memset(igtk, 0, sizeof(igtk));
+	forced_memzero(igtk, sizeof(igtk));
 
 	return 0;
 }

@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2016
+.Dd August 28, 2019
 .Dt FETCH 3
 .Os
 .Sh NAME
@@ -53,6 +53,7 @@
 .Nm fetchPutHTTP ,
 .Nm fetchStatHTTP ,
 .Nm fetchListHTTP ,
+.Nm fetchReqHTTP ,
 .Nm fetchXGetFTP ,
 .Nm fetchGetFTP ,
 .Nm fetchPutFTP ,
@@ -111,6 +112,8 @@
 .Fn fetchStatHTTP "struct url *u" "struct url_stat *us" "const char *flags"
 .Ft struct url_ent *
 .Fn fetchListHTTP "struct url *u" "const char *flags"
+.Ft FILE *
+.Fn fetchReqHTTP "struct url *u" "const char *method" "const char *flags" "const char *content_type" "const char *body"
 .Ft FILE *
 .Fn fetchXGetFTP "struct url *u" "struct url_stat *us" "const char *flags"
 .Ft FILE *
@@ -355,9 +358,10 @@ and password "anonymous@<hostname>".
 .Sh HTTP SCHEME
 The
 .Fn fetchXGetHTTP ,
-.Fn fetchGetHTTP
-and
+.Fn fetchGetHTTP ,
 .Fn fetchPutHTTP
+and
+.Fn fetchReqHTTP
 functions implement the HTTP/1.1 protocol.
 With a little luck, there is
 even a chance that they comply with RFC2616 and RFC2617.
@@ -386,6 +390,18 @@ will send a conditional
 .Li If-Modified-Since
 HTTP header to only fetch the content if it is newer than
 .Va ims_time .
+.Pp
+The function
+.Fn fetchReqHTTP
+can be used to make requests with an arbitrary HTTP verb,
+including POST, DELETE, CONNECT, OPTIONS, TRACE or PATCH.
+This can be done by setting the argument
+.Fa method
+to the intended verb, such as
+.Ql POST ,
+and
+.Fa body
+to the content.
 .Pp
 Since there seems to be no good way of implementing the HTTP PUT
 method in a manner consistent with the rest of the

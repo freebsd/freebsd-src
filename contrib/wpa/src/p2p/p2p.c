@@ -1066,22 +1066,6 @@ static int p2p_run_after_scan(struct p2p_data *p2p)
 	struct p2p_device *dev;
 	enum p2p_after_scan op;
 
-	if (p2p->after_scan_tx) {
-		p2p->after_scan_tx_in_progress = 1;
-		p2p_dbg(p2p, "Send pending Action frame at p2p_scan completion");
-		p2p->cfg->send_action(p2p->cfg->cb_ctx,
-				      p2p->after_scan_tx->freq,
-				      p2p->after_scan_tx->dst,
-				      p2p->after_scan_tx->src,
-				      p2p->after_scan_tx->bssid,
-				      (u8 *) (p2p->after_scan_tx + 1),
-				      p2p->after_scan_tx->len,
-				      p2p->after_scan_tx->wait_time, NULL);
-		os_free(p2p->after_scan_tx);
-		p2p->after_scan_tx = NULL;
-		return 1;
-	}
-
 	op = p2p->start_after_scan;
 	p2p->start_after_scan = P2P_AFTER_SCAN_NOTHING;
 	switch (op) {
@@ -1646,17 +1630,6 @@ int p2p_connect(struct p2p_data *p2p, const u8 *peer_addr,
 	if (p2p->state != P2P_IDLE)
 		p2p_stop_find(p2p);
 
-	if (p2p->after_scan_tx) {
-		/*
-		 * We need to drop the pending frame to avoid issues with the
-		 * new GO Negotiation, e.g., when the pending frame was from a
-		 * previous attempt at starting a GO Negotiation.
-		 */
-		p2p_dbg(p2p, "Dropped previous pending Action frame TX that was waiting for p2p_scan completion");
-		os_free(p2p->after_scan_tx);
-		p2p->after_scan_tx = NULL;
-	}
-
 	dev->wps_method = wps_method;
 	dev->oob_pw_id = oob_pw_id;
 	dev->status = P2P_SC_SUCCESS;
@@ -1667,7 +1640,6 @@ int p2p_connect(struct p2p_data *p2p, const u8 *peer_addr,
 		os_memcpy(p2p->after_scan_peer, peer_addr, ETH_ALEN);
 		return 0;
 	}
-	p2p->start_after_scan = P2P_AFTER_SCAN_NOTHING;
 
 	return p2p_connect_send(p2p, dev);
 }
@@ -3050,8 +3022,6 @@ void p2p_flush(struct p2p_data *p2p)
 		p2p_device_free(p2p, dev);
 	}
 	p2p_free_sd_queries(p2p);
-	os_free(p2p->after_scan_tx);
-	p2p->after_scan_tx = NULL;
 	p2p->ssid_set = 0;
 	p2ps_prov_free(p2p);
 	p2p_reset_pending_pd(p2p);
@@ -3079,13 +3049,6 @@ int p2p_unauthorize(struct p2p_data *p2p, const u8 *addr)
 	dev->oob_pw_id = 0;
 	dev->flags &= ~P2P_DEV_WAIT_GO_NEG_RESPONSE;
 	dev->flags &= ~P2P_DEV_WAIT_GO_NEG_CONFIRM;
-
-	/* Check if after_scan_tx is for this peer. If so free it */
-	if (p2p->after_scan_tx &&
-	    os_memcmp(addr, p2p->after_scan_tx->dst, ETH_ALEN) == 0) {
-		os_free(p2p->after_scan_tx);
-		p2p->after_scan_tx = NULL;
-	}
 
 	return 0;
 }
@@ -3476,23 +3439,6 @@ static void p2p_prov_disc_cb(struct p2p_data *p2p, int success)
 }
 
 
-static int p2p_check_after_scan_tx_continuation(struct p2p_data *p2p)
-{
-	if (p2p->after_scan_tx_in_progress) {
-		p2p->after_scan_tx_in_progress = 0;
-		if (p2p->start_after_scan != P2P_AFTER_SCAN_NOTHING &&
-		    p2p_run_after_scan(p2p))
-			return 1;
-		if (p2p->state == P2P_SEARCH) {
-			p2p_dbg(p2p, "Continue find after after_scan_tx completion");
-			p2p_continue_find(p2p);
-		}
-	}
-
-	return 0;
-}
-
-
 static void p2p_prov_disc_resp_cb(struct p2p_data *p2p, int success)
 {
 	p2p_dbg(p2p, "Provision Discovery Response TX callback: success=%d",
@@ -3506,18 +3452,14 @@ static void p2p_prov_disc_resp_cb(struct p2p_data *p2p, int success)
 	p2p->pending_action_state = P2P_NO_PENDING_ACTION;
 
 	if (!success)
-		goto continue_search;
+		return;
 
 	if (!p2p->cfg->prov_disc_resp_cb ||
 	    p2p->cfg->prov_disc_resp_cb(p2p->cfg->cb_ctx) < 1)
-		goto continue_search;
+		return;
 
 	p2p_dbg(p2p,
 		"Post-Provision Discovery operations started - do not try to continue other P2P operations");
-	return;
-
-continue_search:
-	p2p_check_after_scan_tx_continuation(p2p);
 }
 
 
@@ -3807,7 +3749,6 @@ void p2p_send_action_cb(struct p2p_data *p2p, unsigned int freq, const u8 *dst,
 			p2p->send_action_in_progress = 0;
 			p2p->cfg->send_action_done(p2p->cfg->cb_ctx);
 		}
-		p2p_check_after_scan_tx_continuation(p2p);
 		break;
 	case P2P_PENDING_GO_NEG_REQUEST:
 		p2p_go_neg_req_cb(p2p, success);
@@ -3835,8 +3776,6 @@ void p2p_send_action_cb(struct p2p_data *p2p, unsigned int freq, const u8 *dst,
 		break;
 	case P2P_PENDING_INVITATION_RESPONSE:
 		p2p_invitation_resp_cb(p2p, success);
-		if (p2p->inv_status != P2P_SC_SUCCESS)
-			p2p_check_after_scan_tx_continuation(p2p);
 		break;
 	case P2P_PENDING_DEV_DISC_REQUEST:
 		p2p_dev_disc_req_cb(p2p, success);
@@ -3848,8 +3787,6 @@ void p2p_send_action_cb(struct p2p_data *p2p, unsigned int freq, const u8 *dst,
 		p2p_go_disc_req_cb(p2p, success);
 		break;
 	}
-
-	p2p->after_scan_tx_in_progress = 0;
 }
 
 
@@ -4974,26 +4911,6 @@ int p2p_send_action(struct p2p_data *p2p, unsigned int freq, const u8 *dst,
 		    size_t len, unsigned int wait_time)
 {
 	int res, scheduled;
-
-	if (p2p->p2p_scan_running) {
-		p2p_dbg(p2p, "Delay Action frame TX until p2p_scan completes");
-		if (p2p->after_scan_tx) {
-			p2p_dbg(p2p, "Dropped previous pending Action frame TX");
-			os_free(p2p->after_scan_tx);
-		}
-		p2p->after_scan_tx = os_malloc(sizeof(*p2p->after_scan_tx) +
-					       len);
-		if (p2p->after_scan_tx == NULL)
-			return -1;
-		p2p->after_scan_tx->freq = freq;
-		os_memcpy(p2p->after_scan_tx->dst, dst, ETH_ALEN);
-		os_memcpy(p2p->after_scan_tx->src, src, ETH_ALEN);
-		os_memcpy(p2p->after_scan_tx->bssid, bssid, ETH_ALEN);
-		p2p->after_scan_tx->len = len;
-		p2p->after_scan_tx->wait_time = wait_time;
-		os_memcpy(p2p->after_scan_tx + 1, buf, len);
-		return 0;
-	}
 
 	res = p2p->cfg->send_action(p2p->cfg->cb_ctx, freq, dst, src, bssid,
 				    buf, len, wait_time, &scheduled);

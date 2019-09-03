@@ -71,7 +71,6 @@ int vlapic_set_intr_ready(struct vlapic *vlapic, int vector, bool level);
  */
 void vlapic_post_intr(struct vlapic *vlapic, int hostcpu, int ipinum);
 
-void vlapic_set_error(struct vlapic *vlapic, uint32_t mask);
 void vlapic_fire_cmci(struct vlapic *vlapic);
 int vlapic_trigger_lvt(struct vlapic *vlapic, int vector);
 

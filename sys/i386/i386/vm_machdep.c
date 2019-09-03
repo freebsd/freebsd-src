@@ -86,14 +86,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_param.h>
 
-#ifndef NSFBUFS
-#define	NSFBUFS		(512 + maxusers * 16)
-#endif
-
-_Static_assert(OFFSETOF_CURTHREAD == offsetof(struct pcpu, pc_curthread),
-    "OFFSETOF_CURTHREAD does not correspond with offset of pc_curthread.");
-_Static_assert(OFFSETOF_CURPCB == offsetof(struct pcpu, pc_curpcb),
-    "OFFSETOF_CURPCB does not correspond with offset of pc_curpcb.");
 _Static_assert(__OFFSETOF_MONITORBUF == offsetof(struct pcpu, pc_monitorbuf),
     "__OFFSETOF_MONITORBUF does not correspond with offset of pc_monitorbuf.");
 

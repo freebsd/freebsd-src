@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <login_cap.h>
 #include <paths.h>
 #include <pwd.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -428,7 +427,6 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
     rlim_t	p;
     mode_t	mymask;
     login_cap_t *llc = NULL;
-    struct sigaction sa, prevsa;
     struct rtprio rtp;
     int error;
 
@@ -521,16 +519,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 
     /* Inform the kernel about current login class */
     if (lc != NULL && lc->lc_class != NULL && (flags & LOGIN_SETLOGINCLASS)) {
-	/*
-	 * XXX: This is a workaround to fail gracefully in case the kernel
-	 *      does not support setloginclass(2).
-	 */
-	bzero(&sa, sizeof(sa));
-	sa.sa_handler = SIG_IGN;
-	sigfillset(&sa.sa_mask);
-	sigaction(SIGSYS, &sa, &prevsa);
 	error = setloginclass(lc->lc_class);
-	sigaction(SIGSYS, &prevsa, NULL);
 	if (error != 0) {
 	    syslog(LOG_ERR, "setloginclass(%s): %m", lc->lc_class);
 #ifdef notyet

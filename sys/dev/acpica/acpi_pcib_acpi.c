@@ -323,9 +323,9 @@ acpi_pcib_osc(struct acpi_hpcib_softc *sc, uint32_t osc_ctl)
 	if (osc_ctl != 0 && (sc->ap_osc_ctl & osc_ctl) == osc_ctl)
 		return (0);
 
-	/* Support Field: Extended PCI Config Space, MSI */
+	/* Support Field: Extended PCI Config Space, PCI Segment Groups, MSI */
 	cap_set[PCI_OSC_SUPPORT] = PCIM_OSC_SUPPORT_EXT_PCI_CONF |
-	    PCIM_OSC_SUPPORT_MSI;
+	    PCIM_OSC_SUPPORT_SEG_GROUP | PCIM_OSC_SUPPORT_MSI;
 
 	/* Control Field */
 	cap_set[PCI_OSC_CTL] = sc->ap_osc_ctl | osc_ctl;

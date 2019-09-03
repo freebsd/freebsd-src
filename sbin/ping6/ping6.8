@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 22, 2014
+.Dd August 22, 2019
 .Dt PING6 8
 .Os
 .Sh NAME
@@ -40,12 +40,9 @@ packets to network hosts
 .Sh SYNOPSIS
 .Nm
 .\" without ipsec, or new ipsec
-.Op Fl DdfHmnNoqrRtvwW
+.Op Fl aAdDfHnNoOquvyY
 .\" old ipsec
 .\" .Op Fl ADdEfmnNqRtvwW
-.Bk -words
-.Op Fl a Ar addrtype
-.Ek
 .Bk -words
 .Op Fl b Ar bufsiz
 .Ek
@@ -53,10 +50,7 @@ packets to network hosts
 .Op Fl c Ar count
 .Ek
 .Bk -words
-.Op Fl g Ar gateway
-.Ek
-.Bk -words
-.Op Fl h Ar hoplimit
+.Op Fl e Ar gateway
 .Ek
 .Bk -words
 .Op Fl I Ar interface
@@ -65,13 +59,13 @@ packets to network hosts
 .Op Fl i Ar wait
 .Ek
 .Bk -words
-.Op Fl x Ar waittime
-.Ek
-.Bk -words
-.Op Fl X Ar timeout
+.Op Fl k Ar addrtype
 .Ek
 .Bk -words
 .Op Fl l Ar preload
+.Ek
+.Bk -words
+.Op Fl m Ar hoplimit
 .Ek
 .Bk -words
 .\" new ipsec
@@ -85,6 +79,12 @@ packets to network hosts
 .Ek
 .Bk -words
 .Op Fl s Ar packetsize
+.Ek
+.Bk -words
+.Op Fl t Ar timeout
+.Ek
+.Bk -words
+.Op Fl W Ar waittime
 .Ek
 .Bk -words
 .Op Ar hops ...
@@ -110,10 +110,10 @@ header formatted as documented in RFC2463.
 The options are as follows:
 .Bl -tag -width Ds
 .\" old ipsec
-.\" .It Fl A
+.\" .It Fl Z
 .\" Enables transport-mode IPsec authentication header
 .\" (experimental).
-.It Fl a Ar addrtype
+.It Fl k Ar addrtype
 Generate ICMPv6 Node Information Node Addresses query, rather than echo-request.
 .Ar addrtype
 must be a string constructed of the following characters.
@@ -172,7 +172,7 @@ Only the super-user may use this option.
 .Bf -emphasis
 This can be very hard on a network and should be used with caution.
 .Ef
-.It Fl g Ar gateway
+.It Fl e Ar gateway
 Specifies to use
 .Ar gateway
 as the next hop to the destination.
@@ -182,7 +182,7 @@ Specifies to try reverse-lookup of IPv6 addresses.
 The
 .Nm
 utility does not try reverse-lookup unless the option is specified.
-.It Fl h Ar hoplimit
+.It Fl m Ar hoplimit
 Set the IPv6 hoplimit.
 .It Fl I Ar interface
 Source packets with the given interface address.
@@ -197,12 +197,12 @@ The default is to wait for one second between each packet.
 This option is incompatible with the
 .Fl f
 option.
-.It Fl x Ar waittime
+.It Fl W Ar waittime
 Time in milliseconds to wait for a reply for each packet sent.
 If a reply arrives later,
 the packet is not printed as replied,
 but considered as replied when calculating statistics.
-.It Fl X Ar timeout
+.It Fl t Ar timeout
 Specify a timeout,
 in seconds,
 before ping exits regardless of how many packets have been received.
@@ -214,12 +214,12 @@ is specified,
 sends that many packets as fast as possible before falling into its normal
 mode of behavior.
 Only the super-user may use this option.
-.It Fl m
+.It Fl u
 By default,
 .Nm
 asks the kernel to fragment packets to fit into the minimum IPv6 MTU.
 The
-.Fl m
+.Fl u
 option
 will suppress the behavior in the following two levels:
 when the option is specified once, the behavior will be disabled for
@@ -270,13 +270,13 @@ specifies IPsec policy to be used for the probe.
 Quiet output.
 Nothing is displayed except the summary lines at startup time and
 when finished.
-.It Fl r
+.It Fl a
 Audible.
 Include a bell
 .Tn ( ASCII
 0x07)
 character in the output when any packet is received.
-.It Fl R
+.It Fl A
 Audible.
 Output a bell
 .Tn ( ASCII
@@ -301,12 +301,12 @@ header data.
 You may need to specify
 .Fl b
 as well to extend socket buffer size.
-.It Fl t
+.It Fl O
 Generate ICMPv6 Node Information supported query types query,
 rather than echo-request.
 .Fl s
 has no effect if
-.Fl t
+.Fl O
 is specified.
 .It Fl v
 Verbose output.
@@ -314,20 +314,20 @@ Verbose output.
 packets other than
 .Tn ECHO_RESPONSE
 that are received are listed.
-.It Fl w
+.It Fl y
 Generate ICMPv6 Node Information DNS Name query, rather than echo-request.
 .Fl s
 has no effect if
-.Fl w
+.Fl y
 is specified.
-.It Fl W
+.It Fl Y
 Same as
-.Fl w ,
+.Fl y ,
 but with old packet format based on 03 draft.
 This option is present for backward compatibility.
 .Fl s
 has no effect if
-.Fl w
+.Fl y
 is specified.
 .It Ar hops
 IPv6 addresses for intermediate nodes,

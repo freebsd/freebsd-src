@@ -5771,7 +5771,7 @@ sctp_startup_mcore_threads(void)
 #endif
 
 void
-sctp_pcb_init()
+sctp_pcb_init(void)
 {
 	/*
 	 * SCTP initialization for the PCB structures should be called by

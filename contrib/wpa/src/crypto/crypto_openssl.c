@@ -570,8 +570,8 @@ int crypto_dh_derive_secret(u8 generator, const u8 *prime, size_t prime_len,
 		failed = !q || !ctx || !tmp ||
 			!BN_mod_exp(tmp, pub, q, p, ctx) ||
 			!BN_is_one(tmp);
-		BN_clear(q);
-		BN_clear(tmp);
+		BN_clear_free(q);
+		BN_clear_free(tmp);
 		BN_CTX_free(ctx);
 		if (failed)
 			goto fail;
@@ -580,8 +580,8 @@ int crypto_dh_derive_secret(u8 generator, const u8 *prime, size_t prime_len,
 	res = crypto_mod_exp(pubkey, pubkey_len, privkey, privkey_len,
 			     prime, prime_len, secret, len);
 fail:
-	BN_clear(pub);
-	BN_clear(p);
+	BN_clear_free(pub);
+	BN_clear_free(p);
 	return res;
 }
 
@@ -1303,6 +1303,18 @@ int crypto_bignum_to_bin(const struct crypto_bignum *a,
 	if (padlen > buflen)
 		return -1;
 
+	if (padlen) {
+#ifdef OPENSSL_IS_BORINGSSL
+		if (BN_bn2bin_padded(buf, padlen, (const BIGNUM *) a) == 0)
+			return -1;
+		return padlen;
+#else /* OPENSSL_IS_BORINGSSL */
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(LIBRESSL_VERSION_NUMBER)
+		return BN_bn2binpad((const BIGNUM *) a, buf, padlen);
+#endif
+#endif
+	}
+
 	num_bytes = BN_num_bytes((const BIGNUM *) a);
 	if ((size_t) num_bytes > buflen)
 		return -1;
@@ -1473,12 +1485,6 @@ int crypto_bignum_cmp(const struct crypto_bignum *a,
 		      const struct crypto_bignum *b)
 {
 	return BN_cmp((const BIGNUM *) a, (const BIGNUM *) b);
-}
-
-
-int crypto_bignum_bits(const struct crypto_bignum *a)
-{
-	return BN_num_bits((const BIGNUM *) a);
 }
 
 
@@ -1870,7 +1876,7 @@ struct crypto_ecdh * crypto_ecdh_init(int group)
 {
 	struct crypto_ecdh *ecdh;
 	EVP_PKEY *params = NULL;
-	EC_KEY *ec_params;
+	EC_KEY *ec_params = NULL;
 	EVP_PKEY_CTX *kctx = NULL;
 
 	ecdh = os_zalloc(sizeof(*ecdh));
@@ -1913,6 +1919,7 @@ struct crypto_ecdh * crypto_ecdh_init(int group)
 	}
 
 done:
+	EC_KEY_free(ec_params);
 	EVP_PKEY_free(params);
 	EVP_PKEY_CTX_free(kctx);
 
@@ -2052,13 +2059,17 @@ struct wpabuf * crypto_ecdh_set_peerkey(struct crypto_ecdh *ecdh, int inc_y,
 	secret = wpabuf_alloc(secret_len);
 	if (!secret)
 		goto fail;
-	if (EVP_PKEY_derive(ctx, wpabuf_put(secret, secret_len),
-			    &secret_len) != 1) {
+	if (EVP_PKEY_derive(ctx, wpabuf_put(secret, 0), &secret_len) != 1) {
 		wpa_printf(MSG_ERROR,
 			   "OpenSSL: EVP_PKEY_derive(2) failed: %s",
 			   ERR_error_string(ERR_get_error(), NULL));
 		goto fail;
 	}
+	if (secret->size != secret_len)
+		wpa_printf(MSG_DEBUG,
+			   "OpenSSL: EVP_PKEY_derive(2) changed secret_len %d -> %d",
+			   (int) secret->size, (int) secret_len);
+	wpabuf_put(secret, secret_len);
 
 done:
 	BN_free(x);

@@ -65,6 +65,13 @@ SDT_PROBE_DECLARE(lockstat, , , sx__spin);
 SDT_PROBE_DECLARE(lockstat, , , sx__upgrade);
 SDT_PROBE_DECLARE(lockstat, , , sx__downgrade);
 
+SDT_PROBE_DECLARE(lockstat, , , lockmgr__acquire);
+SDT_PROBE_DECLARE(lockstat, , , lockmgr__release);
+SDT_PROBE_DECLARE(lockstat, , , lockmgr__disown);
+SDT_PROBE_DECLARE(lockstat, , , lockmgr__block);
+SDT_PROBE_DECLARE(lockstat, , , lockmgr__upgrade);
+SDT_PROBE_DECLARE(lockstat, , , lockmgr__downgrade);
+
 SDT_PROBE_DECLARE(lockstat, , , thread__spin);
 
 #define	LOCKSTAT_WRITER		0

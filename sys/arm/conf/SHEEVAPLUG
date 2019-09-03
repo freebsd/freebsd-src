@@ -11,8 +11,6 @@ include 	"../mv/kirkwood/std.db88f6xxx"
 
 options 	SOC_MV_KIRKWOOD
 
-makeoptions	WERROR="-Werror"
-
 options 	HZ=1000
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	INET			# InterNETworking

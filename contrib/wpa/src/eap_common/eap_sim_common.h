@@ -226,5 +226,6 @@ int eap_sim_msg_add_encr_end(struct eap_sim_msg *msg, u8 *k_encr,
 			     int attr_pad);
 
 void eap_sim_report_notification(void *msg_ctx, int notification, int aka);
+int eap_sim_anonymous_username(const u8 *id, size_t id_len);
 
 #endif /* EAP_SIM_COMMON_H */

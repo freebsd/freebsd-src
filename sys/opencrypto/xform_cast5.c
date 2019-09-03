@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <opencrypto/cast.h>
 #include <opencrypto/xform_enc.h>
 
-static	int cast5_setkey(u_int8_t **, u_int8_t *, int);
+static	int cast5_setkey(u_int8_t **, const u_int8_t *, int);
 static	void cast5_encrypt(caddr_t, u_int8_t *);
 static	void cast5_decrypt(caddr_t, u_int8_t *);
 static	void cast5_zerokey(u_int8_t **);
@@ -85,7 +85,7 @@ cast5_decrypt(caddr_t key, u_int8_t *blk)
 }
 
 static int
-cast5_setkey(u_int8_t **sched, u_int8_t *key, int len)
+cast5_setkey(u_int8_t **sched, const u_int8_t *key, int len)
 {
 	int err;
 

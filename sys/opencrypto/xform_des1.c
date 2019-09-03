@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <crypto/des/des.h>
 #include <opencrypto/xform_enc.h>
 
-static	int des1_setkey(u_int8_t **, u_int8_t *, int);
+static	int des1_setkey(u_int8_t **, const u_int8_t *, int);
 static	void des1_encrypt(caddr_t, u_int8_t *);
 static	void des1_decrypt(caddr_t, u_int8_t *);
 static	void des1_zerokey(u_int8_t **);
@@ -75,23 +75,21 @@ struct enc_xform enc_xform_des = {
 static void
 des1_encrypt(caddr_t key, u_int8_t *blk)
 {
-	des_cblock *cb = (des_cblock *) blk;
 	des_key_schedule *p = (des_key_schedule *) key;
 
-	des_ecb_encrypt(cb, cb, p[0], DES_ENCRYPT);
+	des_ecb_encrypt(blk, blk, p[0], DES_ENCRYPT);
 }
 
 static void
 des1_decrypt(caddr_t key, u_int8_t *blk)
 {
-	des_cblock *cb = (des_cblock *) blk;
 	des_key_schedule *p = (des_key_schedule *) key;
 
-	des_ecb_encrypt(cb, cb, p[0], DES_DECRYPT);
+	des_ecb_encrypt(blk, blk, p[0], DES_DECRYPT);
 }
 
 static int
-des1_setkey(u_int8_t **sched, u_int8_t *key, int len)
+des1_setkey(u_int8_t **sched, const u_int8_t *key, int len)
 {
 	des_key_schedule *p;
 	int err;
@@ -99,7 +97,7 @@ des1_setkey(u_int8_t **sched, u_int8_t *key, int len)
 	p = KMALLOC(sizeof (des_key_schedule),
 		M_CRYPTO_DATA, M_NOWAIT|M_ZERO);
 	if (p != NULL) {
-		des_set_key((des_cblock *) key, p[0]);
+		des_set_key(key, p[0]);
 		err = 0;
 	} else
 		err = ENOMEM;

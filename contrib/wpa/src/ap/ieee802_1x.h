@@ -39,6 +39,8 @@ u8 * ieee802_1x_get_radius_class(struct eapol_state_machine *sm, size_t *len,
 				 int idx);
 struct wpabuf * ieee802_1x_get_radius_cui(struct eapol_state_machine *sm);
 const u8 * ieee802_1x_get_key(struct eapol_state_machine *sm, size_t *len);
+const u8 * ieee802_1x_get_session_id(struct eapol_state_machine *sm,
+				     size_t *len);
 void ieee802_1x_notify_port_enabled(struct eapol_state_machine *sm,
 				    int enabled);
 void ieee802_1x_notify_port_valid(struct eapol_state_machine *sm,
@@ -57,6 +59,8 @@ int add_common_radius_attr(struct hostapd_data *hapd,
 			   struct hostapd_radius_attr *req_attr,
 			   struct sta_info *sta,
 			   struct radius_msg *msg);
+int add_sqlite_radius_attr(struct hostapd_data *hapd, struct sta_info *sta,
+			   struct radius_msg *msg, int acct);
 void ieee802_1x_encapsulate_radius(struct hostapd_data *hapd,
 				   struct sta_info *sta,
 				   const u8 *eap, size_t len);

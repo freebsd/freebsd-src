@@ -46,6 +46,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_kern_tls.h"
 #include "opt_vlan.h"
 #include "opt_ratelimit.h"
 
@@ -103,7 +104,7 @@ struct ifvlantrunk {
 	int		refcnt;
 };
 
-#ifdef RATELIMIT
+#if defined(KERN_TLS) || defined(RATELIMIT)
 struct vlan_snd_tag {
 	struct m_snd_tag com;
 	struct m_snd_tag *tag;
@@ -278,7 +279,7 @@ static	void trunk_destroy(struct ifvlantrunk *trunk);
 static	void vlan_init(void *foo);
 static	void vlan_input(struct ifnet *ifp, struct mbuf *m);
 static	int vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr);
-#ifdef RATELIMIT
+#if defined(KERN_TLS) || defined(RATELIMIT)
 static	int vlan_snd_tag_alloc(struct ifnet *,
     union if_snd_tag_alloc_params *, struct m_snd_tag **);
 static	int vlan_snd_tag_modify(struct m_snd_tag *,
@@ -293,6 +294,8 @@ static	int vlan_setflag(struct ifnet *ifp, int flag, int status,
 static	int vlan_setflags(struct ifnet *ifp, int status);
 static	int vlan_setmulti(struct ifnet *ifp);
 static	int vlan_transmit(struct ifnet *ifp, struct mbuf *m);
+static	int vlan_output(struct ifnet *ifp, struct mbuf *m,
+    const struct sockaddr *dst, struct route *ro);
 static	void vlan_unconfig(struct ifnet *ifp);
 static	void vlan_unconfig_locked(struct ifnet *ifp, int departing);
 static	int vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t tag);
@@ -1064,7 +1067,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_transmit = vlan_transmit;
 	ifp->if_qflush = vlan_qflush;
 	ifp->if_ioctl = vlan_ioctl;
-#ifdef RATELIMIT
+#if defined(KERN_TLS) || defined(RATELIMIT)
 	ifp->if_snd_tag_alloc = vlan_snd_tag_alloc;
 	ifp->if_snd_tag_modify = vlan_snd_tag_modify;
 	ifp->if_snd_tag_query = vlan_snd_tag_query;
@@ -1157,7 +1160,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 
 	BPF_MTAP(ifp, m);
 
-#ifdef RATELIMIT
+#if defined(KERN_TLS) || defined(RATELIMIT)
 	if (m->m_pkthdr.csum_flags & CSUM_SND_TAG) {
 		struct vlan_snd_tag *vst;
 		struct m_snd_tag *mst;
@@ -1207,6 +1210,27 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	NET_EPOCH_EXIT(et);
 	return (error);
 }
+
+static int
+vlan_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
+    struct route *ro)
+{
+	struct epoch_tracker et;
+	struct ifvlan *ifv;
+	struct ifnet *p;
+
+	NET_EPOCH_ENTER(et);
+	ifv = ifp->if_softc;
+	if (TRUNK(ifv) == NULL) {
+		NET_EPOCH_EXIT(et);
+		m_freem(m);
+		return (ENETDOWN);
+	}
+	p = PARENT(ifv);
+	NET_EPOCH_EXIT(et);
+	return p->if_output(ifp, m, dst, ro);
+}
+
 
 /*
  * The ifp->if_qflush entry point for vlan(4) is a no-op.
@@ -1423,12 +1447,17 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid)
 	 */
 	ifp->if_mtu = p->if_mtu - ifv->ifv_mtufudge;
 	ifp->if_baudrate = p->if_baudrate;
-	ifp->if_output = p->if_output;
 	ifp->if_input = p->if_input;
 	ifp->if_resolvemulti = p->if_resolvemulti;
 	ifp->if_addrlen = p->if_addrlen;
 	ifp->if_broadcastaddr = p->if_broadcastaddr;
 	ifp->if_pcp = ifv->ifv_pcp;
+
+	/*
+	 * We wrap the parent's if_output using vlan_output to ensure that it
+	 * can't become stale.
+	 */
+	ifp->if_output = vlan_output;
 
 	/*
 	 * Copy only a selected subset of flags from the parent.
@@ -1741,6 +1770,20 @@ vlan_capabilities(struct ifvlan *ifv)
 	cap |= (p->if_capabilities & IFCAP_NOMAP);
 	ena |= (mena & IFCAP_NOMAP);
 
+	/*
+	 * If the parent interface can offload encryption and segmentation
+	 * of TLS records over TCP, propagate it's capability to the VLAN
+	 * interface.
+	 *
+	 * All TLS drivers in the tree today can deal with VLANs.  If
+	 * this ever changes, then a new IFCAP_VLAN_TXTLS can be
+	 * defined.
+	 */
+	if (p->if_capabilities & IFCAP_TXTLS)
+		cap |= p->if_capabilities & IFCAP_TXTLS;
+	if (p->if_capenable & IFCAP_TXTLS)
+		ena |= mena & IFCAP_TXTLS;
+
 	ifp->if_capabilities = cap;
 	ifp->if_capenable = ena;
 	ifp->if_hwassist = hwa;
@@ -1972,7 +2015,7 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	return (error);
 }
 
-#ifdef RATELIMIT
+#if defined(KERN_TLS) || defined(RATELIMIT)
 static int
 vlan_snd_tag_alloc(struct ifnet *ifp,
     union if_snd_tag_alloc_params *params,

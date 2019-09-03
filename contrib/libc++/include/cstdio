@@ -73,7 +73,6 @@ int fputc(int c, FILE* stream);
 int fputs(const char* restrict s, FILE* restrict stream);
 int getc(FILE* stream);
 int getchar(void);
-char* gets(char* s);  // removed in C++14
 int putc(int c, FILE* stream);
 int putchar(int c);
 int puts(const char* s);
@@ -152,9 +151,6 @@ using ::tmpnam;
 
 #ifndef _LIBCPP_HAS_NO_STDIN
 using ::getchar;
-#if _LIBCPP_STD_VER <= 11 && !defined(_LIBCPP_MSVCRT)
-using ::gets;
-#endif
 using ::scanf;
 using ::vscanf;
 #endif

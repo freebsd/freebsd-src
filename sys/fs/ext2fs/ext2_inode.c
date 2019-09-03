@@ -639,6 +639,5 @@ ext2_reclaim(struct vop_reclaim_args *ap)
 	vfs_hash_remove(vp);
 	free(vp->v_data, M_EXT2NODE);
 	vp->v_data = 0;
-	vnode_destroy_vobject(vp);
 	return (0);
 }

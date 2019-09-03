@@ -457,7 +457,7 @@ static struct domainset *
 _domainset_create(struct domainset *domain, struct domainlist *freelist)
 {
 	struct domainset *ndomain;
-	int i, j, max;
+	int i, j;
 
 	KASSERT(domain->ds_cnt <= vm_ndomains,
 	    ("invalid domain count in domainset %p", domain));
@@ -476,8 +476,7 @@ _domainset_create(struct domainset *domain, struct domainlist *freelist)
 	if (ndomain == NULL) {
 		LIST_INSERT_HEAD(&cpuset_domains, domain, ds_link);
 		domain->ds_cnt = DOMAINSET_COUNT(&domain->ds_mask);
-		max = DOMAINSET_FLS(&domain->ds_mask) + 1;
-		for (i = 0, j = 0; i < max; i++)
+		for (i = 0, j = 0; i < DOMAINSET_FLS(&domain->ds_mask); i++)
 			if (DOMAINSET_ISSET(i, &domain->ds_mask))
 				domain->ds_order[j++] = i;
 	}
@@ -500,25 +499,31 @@ _domainset_create(struct domainset *domain, struct domainlist *freelist)
 static bool
 domainset_empty_vm(struct domainset *domain)
 {
-	int i, j, max;
+	domainset_t empty;
+	int i, j;
 
-	max = DOMAINSET_FLS(&domain->ds_mask) + 1;
-	for (i = 0; i < max; i++)
-		if (DOMAINSET_ISSET(i, &domain->ds_mask) && VM_DOMAIN_EMPTY(i))
-			DOMAINSET_CLR(i, &domain->ds_mask);
+	DOMAINSET_ZERO(&empty);
+	for (i = 0; i < vm_ndomains; i++)
+		if (VM_DOMAIN_EMPTY(i))
+			DOMAINSET_SET(i, &empty);
+	if (DOMAINSET_SUBSET(&empty, &domain->ds_mask))
+		return (true);
+
+	/* Remove empty domains from the set and recompute. */
+	DOMAINSET_NAND(&domain->ds_mask, &empty);
 	domain->ds_cnt = DOMAINSET_COUNT(&domain->ds_mask);
-	max = DOMAINSET_FLS(&domain->ds_mask) + 1;
-	for (i = j = 0; i < max; i++) {
+	for (i = j = 0; i < DOMAINSET_FLS(&domain->ds_mask); i++)
 		if (DOMAINSET_ISSET(i, &domain->ds_mask))
 			domain->ds_order[j++] = i;
-		else if (domain->ds_policy == DOMAINSET_POLICY_PREFER &&
-		    domain->ds_prefer == i && domain->ds_cnt > 1) {
-			domain->ds_policy = DOMAINSET_POLICY_ROUNDROBIN;
-			domain->ds_prefer = -1;
-		}
+
+	/* Convert a PREFER policy referencing an empty domain to RR. */
+	if (domain->ds_policy == DOMAINSET_POLICY_PREFER &&
+	    DOMAINSET_ISSET(domain->ds_prefer, &empty)) {
+		domain->ds_policy = DOMAINSET_POLICY_ROUNDROBIN;
+		domain->ds_prefer = -1;
 	}
 
-	return (DOMAINSET_EMPTY(&domain->ds_mask));
+	return (false);
 }
 
 /*
@@ -2151,6 +2156,14 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	DOMAINSET_COPY(mask, &domain.ds_mask);
 	domain.ds_policy = policy;
 
+	/*
+	 * Sanitize the provided mask.
+	 */
+	if (!DOMAINSET_SUBSET(&all_domains, &domain.ds_mask)) {
+		error = EINVAL;
+		goto out;
+	}
+
 	/* Translate preferred policy into a mask and fallback. */
 	if (policy == DOMAINSET_POLICY_PREFER) {
 		/* Only support a single preferred domain. */
@@ -2160,12 +2173,12 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 		}
 		domain.ds_prefer = DOMAINSET_FFS(&domain.ds_mask) - 1;
 		/* This will be constrained by domainset_shadow(). */
-		DOMAINSET_FILL(&domain.ds_mask);
+		DOMAINSET_COPY(&all_domains, &domain.ds_mask);
 	}
 
 	/*
-	 *  When given an impossible policy, fall back to interleaving
-	 *  across all domains
+	 * When given an impossible policy, fall back to interleaving
+	 * across all domains.
 	 */
 	if (domainset_empty_vm(&domain))
 		domainset_copy(&domainset2, &domain);

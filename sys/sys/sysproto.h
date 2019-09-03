@@ -1804,6 +1804,14 @@ struct copy_file_range_args {
 	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
 	char flags_l_[PADL_(unsigned int)]; unsigned int flags; char flags_r_[PADR_(unsigned int)];
 };
+struct __sysctlbyname_args {
+	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
+	char namelen_l_[PADL_(size_t)]; size_t namelen; char namelen_r_[PADR_(size_t)];
+	char old_l_[PADL_(void *)]; void * old; char old_r_[PADR_(void *)];
+	char oldlenp_l_[PADL_(size_t *)]; size_t * oldlenp; char oldlenp_r_[PADR_(size_t *)];
+	char new_l_[PADL_(void *)]; void * new; char new_r_[PADR_(void *)];
+	char newlen_l_[PADL_(size_t)]; size_t newlen; char newlen_r_[PADR_(size_t)];
+};
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_sys_exit(struct thread *, struct sys_exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
@@ -2190,6 +2198,7 @@ int	sys_fhlinkat(struct thread *, struct fhlinkat_args *);
 int	sys_fhreadlink(struct thread *, struct fhreadlink_args *);
 int	sys_funlinkat(struct thread *, struct funlinkat_args *);
 int	sys_copy_file_range(struct thread *, struct copy_file_range_args *);
+int	sys___sysctlbyname(struct thread *, struct __sysctlbyname_args *);
 
 #ifdef COMPAT_43
 
@@ -3098,6 +3107,7 @@ int	freebsd11_mknodat(struct thread *, struct freebsd11_mknodat_args *);
 #define	SYS_AUE_fhreadlink	AUE_NULL
 #define	SYS_AUE_funlinkat	AUE_UNLINKAT
 #define	SYS_AUE_copy_file_range	AUE_NULL
+#define	SYS_AUE___sysctlbyname	AUE_SYSCTL
 
 #undef PAD_
 #undef PADL_

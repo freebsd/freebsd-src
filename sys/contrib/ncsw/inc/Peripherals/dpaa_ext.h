@@ -57,8 +57,12 @@
 
 #include <machine/endian.h>
 
+#ifndef __BYTE_ORDER__
 #define __BYTE_ORDER__ BYTE_ORDER
+#endif
+#ifndef __ORDER_BIG_ENDIAN__
 #define __ORDER_BIG_ENDIAN__	BIG_ENDIAN
+#endif
 
 /**************************************************************************//**
  @Description   Frame descriptor

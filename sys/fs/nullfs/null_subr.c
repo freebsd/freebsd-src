@@ -222,9 +222,6 @@ null_nodeget(mp, lowervp, vpp)
 	 * provide ready to use vnode.
 	 */
 	if (VOP_ISLOCKED(lowervp) != LK_EXCLUSIVE) {
-		KASSERT((MOUNTTONULLMOUNT(mp)->nullm_flags & NULLM_CACHE) != 0,
-		    ("lowervp %p is not excl locked and cache is disabled",
-		    lowervp));
 		vn_lock(lowervp, LK_UPGRADE | LK_RETRY);
 		if ((lowervp->v_iflag & VI_DOOMED) != 0) {
 			vput(lowervp);

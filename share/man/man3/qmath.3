@@ -1,0 +1,389 @@
+.\"
+.\" Copyright (c) 2018 Netflix, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification, immediately at the beginning of the file.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 4, 2019
+.Dt QMATH 3
+.Os
+.Sh NAME
+.Nm qmath
+.Nd fixed-point math library based on the
+.Dq Q
+number format
+.Sh SYNOPSIS
+.In sys/qmath.h
+.Sh DESCRIPTION
+The
+.Nm
+data types and APIs support fixed-point math based on the
+.Dq Q
+number format.
+The APIs have been built around the following data types:
+.Vt s8q_t ,
+.Vt u8q_t ,
+.Vt s16q_t ,
+.Vt u16q_t ,
+.Vt s32q_t ,
+.Vt u32q_t ,
+.Vt s64q_t ,
+and
+.Vt u64q_t ,
+which are referred to generically in the earlier API definitions as
+.Fa QTYPE .
+The
+.Fa ITYPE
+refers to the
+.Xr stdint 7
+integer types.
+.Fa NTYPE
+is used to refer to any numeric type and is therefore a superset of
+.Fa QTYPE
+and
+.Fa ITYPE .
+.Pp
+This scheme can represent Q numbers with
+.Bq 2, 4, 6, 8, 16, 32, 48
+bits of precision after the binary radix point,
+depending on the
+.Fa rpshft
+argument to
+.Fn Q_INI .
+The number of bits available for the integral component is not explicitly
+specified, and implicitly consumes the remaining available bits of the chosen Q
+data type.
+.Pp
+Operations on Q numbers maintain the precision of their arguments.
+The fractional component is truncated to fit into the destination,
+with no rounding.
+None of the operations is affected by the floating-point environment.
+.Pp
+For more details, see the
+.Sx IMPLEMENTATION DETAILS
+below.
+.Sh LIST OF FUNCTIONS
+.de Cl
+.Bl -column "isgreaterequal" "bessel function of the second kind of the order 0"
+.Em "Name	Description"
+..
+.Ss Functions which create/initialise a Q number
+.Cl
+.Xr Q_INI 3	initialise a Q number
+.El
+.Ss Numeric functions which operate on two Q numbers
+.Cl
+.Xr Q_QADDQ 3	addition
+.Xr Q_QDIVQ 3	division
+.Xr Q_QMULQ 3	multiplication
+.Xr Q_QSUBQ 3	subtraction
+.Xr Q_NORMPREC 3	normalisation
+.Xr Q_QMAXQ 3	maximum function
+.Xr Q_QMINQ 3	minimum function
+.Xr Q_QCLONEQ 3	identical copy
+.Xr Q_QCPYVALQ 3	representational copy
+.El
+.Ss Numeric functions which apply integers to a Q number
+.Cl
+.Xr Q_QADDI 3	addition
+.Xr Q_QDIVI 3	division
+.Xr Q_QMULI 3	multiplication
+.Xr Q_QSUBI 3	subtraction
+.Xr Q_QFRACI 3	fraction
+.Xr Q_QCPYVALI 3	overwrite
+.El
+.Ss Numeric functions which operate on a single Q number
+.Cl
+.Xr Q_QABS 3	absolute value
+.Xr Q_Q2D 3	double representation
+.Xr Q_Q2F 3	float representation
+.El
+.Ss Comparison and logic functions
+.Cl
+.Xr Q_SIGNED 3	determine sign
+.Xr Q_LTZ 3	less than zero
+.Xr Q_PRECEQ 3	compare bits
+.Xr Q_QLTQ 3	less than
+.Xr Q_QLEQ 3	less or equal
+.Xr Q_QGTQ 3	greater than
+.Xr Q_QGEQ 3	greater or equal
+.Xr Q_QEQ 3	equal
+.Xr Q_QNEQ 3	not equal
+.Xr Q_OFLOW 3	would overflow
+.Xr Q_RELPREC 3	relative precision
+.El
+.Ss Functions which manipulate the control/sign data bits
+.Cl
+.Xr Q_SIGNSHFT 3	sign bit position
+.Xr Q_SSIGN 3	sign bit
+.Xr Q_CRAWMASK 3	control bitmask
+.Xr Q_SRAWMASK 3	sign bitmask
+.Xr Q_GCRAW 3	raw control bits
+.Xr Q_GCVAL 3	value of control bits
+.Xr Q_SCVAL 3	set control bits
+.El
+.Ss Functions which manipulate the combined integer/fractional data bits
+.Cl
+.Xr Q_IFRAWMASK 3	integer/fractional bitmask
+.Xr Q_IFVALIMASK 3	value of integer bits
+.Xr Q_IFVALFMASK 3	value of fractional bits
+.Xr Q_GIFRAW 3	raw integer/fractional bits
+.Xr Q_GIFABSVAL 3	absolute value of fractional bits
+.Xr Q_GIFVAL 3	real value of fractional bits
+.Xr Q_SIFVAL 3	set integer/fractional bits
+.Xr Q_SIFVALS 3	set separate integer/fractional values
+.El
+.Ss Functions which manipulate the integer data bits
+.Cl
+.Xr Q_IRAWMASK 3	integer bitmask
+.Xr Q_GIRAW 3	raw integer bits
+.Xr Q_GIABSVAL 3	absolute value of integer bits
+.Xr Q_GIVAL 3	real value of integer bits
+.Xr Q_SIVAL 3	set integer bits
+.El
+.Ss Functions which manipulate the fractional data bits
+.Cl
+.Xr Q_FRAWMASK 3	fractional bitmask
+.Xr Q_GFRAW 3	raw fractional bits
+.Xr Q_GFABSVAL 3	absolute value of fractional bits
+.Xr Q_GFVAL 3	real value of fractional bits
+.Xr Q_SFVAL 3	set fractional bits
+.El
+.Ss Miscellaneous functions/variables
+.Cl
+.Xr Q_NCBITS 3	number of reserved control bits
+.Xr Q_BT 3	C data type
+.Xr Q_TC 3	casted data type
+.Xr Q_NTBITS 3	number of total bits
+.Xr Q_NFCBITS 3	number of control-encoded fractional bits
+.Xr Q_MAXNFBITS 3	number of maximum fractional bits
+.Xr Q_NFBITS 3	number of effective fractional bits
+.Xr Q_NIBITS 3	number of integer bits
+.Xr Q_RPSHFT 3	bit position of radix point
+.Xr Q_ABS 3	absolute value
+.Xr Q_MAXSTRLEN 3	number of characters to render string
+.Xr Q_TOSTR 3	render string
+.Xr Q_SHL 3	left-shifted value
+.Xr Q_SHR 3	right-shifted value
+.Xr Q_DEBUG 3	render debugging information
+.Xr Q_DFV2BFV 3	convert decimal fractional value
+.El
+.Sh IMPLEMENTATION DETAILS
+The
+.Nm
+data types and APIs support fixed-point math based on the
+.Dq Q
+number format.
+This implementation uses the Q notation
+.Em Qm.n ,
+where
+.Em m
+specifies the number of bits for integral data
+.Pq excluding the sign bit for signed types ,
+and
+.Em n
+specifies the number of bits for fractional data.
+.Pp
+The APIs have been built around the following q_t derived data types:
+.Bd -literal -offset indent
+typedef int8_t		s8q_t;
+typedef uint8_t		u8q_t;
+typedef int16_t		s16q_t;
+typedef uint16_t	u16q_t;
+typedef int32_t		s32q_t;
+typedef uint32_t	u32q_t;
+typedef int64_t		s64q_t;
+typedef uint64_t	u64q_t;
+.Ed
+.Pp
+These types are referred to generically in the earlier API definitions as
+.Fa QTYPE ,
+while
+.Fa ITYPE
+refers to the
+.Xr stdint 7
+integer types the Q data types are derived from.
+.Fa NTYPE
+is used to refer to any numeric type and is therefore a superset of
+.Fa QTYPE
+and
+.Fa ITYPE .
+.Pp
+The 3 least significant bits
+.Pq LSBs
+of all q_t data types are reserved for embedded control data:
+.Bl -dash
+.It
+bits 1-2 specify the binary radix point shift index operand, with 00,01,10,11 ==
+1,2,3,4.
+.It
+bit 3 specifies the radix point shift index operand multiplier as 2
+.Pq 0
+or 16
+.Pq 1 .
+.El
+.Pp
+This scheme can therefore represent Q numbers with
+.Bq 2,4,6,8,16,32,48,64
+bits of precision after the binary radix point.
+The number of bits available for the integral component is not explicitly
+specified, and implicitly consumes the remaining available bits of the chosen Q
+data type.
+.Pp
+Additionally, the most significant bit
+.Pq MSB
+of signed Q types stores the sign bit, with bit value 0 representing a positive
+number and bit value 1 representing a negative number.
+Negative numbers are stored as absolute values with the sign bit set, rather
+than the more typical two's complement representation.
+This avoids having to bit shift negative numbers, which can result in undefined
+behaviour from some compilers.
+.Pp
+This binary representation used for Q numbers therefore comprises a set of
+distinct data bit types and associated bit counts.
+Data bit types/labels, listed in LSB to MSB order, are: control
+.Sq C ,
+fractional
+.Sq F ,
+integer
+.Sq I
+and sign
+.Sq S .
+The following example illustrates the binary representation of a Q20.8 number
+represented using a s32q_t variable:
+.Bd -literal -offset indent
+M                                                             L
+S                                                             S
+B                                                             B
+
+3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1
+1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+
+S I I I I I I I I I I I I I I I I I I I I F F F F F F F F C C C
+.Ed
+.Pp
+Important bit counts are: total, control, control-encoded fractional, maximum
+fractional, effective fractional and integer bits.
+.Pp
+The count of total bits is derived from the size of the q_t data type.
+For example, a s32q_t has 32 total bits.
+.Pp
+The count of control-encoded fractional bits is derived from calculating the
+number of fractional bits per the control bit encoding scheme.
+For example, the control bits binary value of 101 encodes a fractional bit
+count of 2 x 16 = 32 fractional bits.
+.Pp
+The count of maximum fractional bits is derived from the difference between the
+counts of total bits and control/sign bits.
+For example, a s32q_t has a maximum of 32 - 3 - 1 = 28 fractional bits.
+.Pp
+The count of effective fractional bits is derived from the minimum of the
+control-encoded fractional bits and the maximum fractional bits.
+For example, a s32q_t with 32 control-encoded fractional bits is effectively
+limited to 28 fractional bits.
+.Pp
+The count of integer bits is derived from the difference between the counts of
+total bits and all other non-integer data bits
+.Pq the sum of control, fractional and sign bits.
+For example, a s32q_t with 8 effective fractional bits has 32 - 3 - 8 - 1 = 20 integer
+bits.
+The count of integer bits can be zero if all available numeric data bits have
+been reserved for fractional data, e.g., when the number of control-encoded
+fractional bits is greater than or equal to the underlying Q data type's maximum
+fractional bits.
+.Sh EXAMPLES
+.Ss Calculating area of a circle with r=4.2 and rpshft=16
+.Bd -literal -offset indent
+u64q_t a, pi, r;
+char buf[32]
+
+Q_INI(&a, 0, 0, 16);
+Q_INI(&pi, 3, 14159, 16);
+Q_INI(&r, 4, 2, 16);
+
+Q_QCLONEQ(&a, r);
+Q_QMULQ(&a, r);
+Q_QMULQ(&a, pi);
+
+Q_TOSTR(a, -1, 10, buf, sizeof(buf));
+printf("%s\\n", buf);
+.Ed
+.Ss Debugging
+Declare a Q20.8 s32q_t number
+.Fa s32 ,
+initialise it with the fixed-point value for 5/3, and render a debugging
+representation of the variable
+.Pq including its full precision decimal C-string representation ,
+to the console:
+.Bd -literal -offset indent
+s32q_t s32;
+Q_INI(&s32, 0, 0, 8);
+Q_QFRACI(&s32, 5, 3);
+char buf[Q_MAXSTRLEN(s32, 10)];
+Q_TOSTR(s32, -1, 10, buf, sizeof(buf));
+printf(Q_DEBUG(s32, "", "\\n\\ttostr=%s\\n\\n", 0), buf);
+.Ed
+.Pp
+The above code outputs the following to the console:
+.Bd -literal -offset indent
+"s32"@0x7fffffffe7d4
+	type=s32q_t, Qm.n=Q20.8, rpshft=11, imin=0xfff00001, \\
+imax=0xfffff
+	qraw=0x00000d53
+	imask=0x7ffff800, fmask=0x000007f8, cmask=0x00000007, \\
+ifmask=0x7ffffff8
+	iraw=0x00000800, iabsval=0x1, ival=0x1
+	fraw=0x00000550, fabsval=0xaa, fval=0xaa
+	tostr=1.664
+.Ed
+.Pp
+Note: The
+.Qq \e
+present in the rendered output above indicates a manual line break inserted to
+keep the man page within 80 columns and is not part of the actual output.
+.Sh SEE ALSO
+.Xr errno 2 ,
+.Xr math 3 ,
+.Xr Q_FRAWMASK 3 ,
+.Xr Q_IFRAWMASK 3 ,
+.Xr Q_INI 3 ,
+.Xr Q_IRAWMASK 3 ,
+.Xr Q_QABS 3 ,
+.Xr Q_QADDI 3 ,
+.Xr Q_QADDQ 3 ,
+.Xr Q_SIGNED 3 ,
+.Xr Q_SIGNSHFT 3 ,
+.Xr stdint 7
+.Sh HISTORY
+The
+.Nm
+functions first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+functions and this manual page were written by
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org
+and sponsored by Netflix, Inc.

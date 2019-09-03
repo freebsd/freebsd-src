@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <crypto/camellia/camellia.h>
 #include <opencrypto/xform_enc.h>
 
-static	int cml_setkey(u_int8_t **, u_int8_t *, int);
+static	int cml_setkey(u_int8_t **, const u_int8_t *, int);
 static	void cml_encrypt(caddr_t, u_int8_t *);
 static	void cml_decrypt(caddr_t, u_int8_t *);
 static	void cml_zerokey(u_int8_t **);
@@ -87,7 +87,7 @@ cml_decrypt(caddr_t key, u_int8_t *blk)
 }
 
 static int
-cml_setkey(u_int8_t **sched, u_int8_t *key, int len)
+cml_setkey(u_int8_t **sched, const u_int8_t *key, int len)
 {
 	int err;
 
@@ -96,7 +96,7 @@ cml_setkey(u_int8_t **sched, u_int8_t *key, int len)
 	*sched = KMALLOC(sizeof(camellia_ctx), M_CRYPTO_DATA,
 	    M_NOWAIT|M_ZERO);
 	if (*sched != NULL) {
-		camellia_set_key((camellia_ctx *) *sched, (u_char *) key,
+		camellia_set_key((camellia_ctx *) *sched, key,
 		    len * 8);
 		err = 0;
 	} else

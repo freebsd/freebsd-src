@@ -649,8 +649,7 @@ netmap_sync_kloop(struct netmap_priv_d *priv, struct nmreq_header *hdr)
 	}
 
 	/* Validate notification options. */
-	opt = nmreq_findoption((struct nmreq_option *)(uintptr_t)hdr->nr_options,
-				NETMAP_REQ_OPT_SYNC_KLOOP_MODE);
+	opt = nmreq_getoption(hdr, NETMAP_REQ_OPT_SYNC_KLOOP_MODE);
 	if (opt != NULL) {
 		struct nmreq_opt_sync_kloop_mode *mode_opt =
 		    (struct nmreq_opt_sync_kloop_mode *)opt;
@@ -664,14 +663,8 @@ netmap_sync_kloop(struct netmap_priv_d *priv, struct nmreq_header *hdr)
 		}
 		opt->nro_status = 0;
 	}
-	opt = nmreq_findoption((struct nmreq_option *)(uintptr_t)hdr->nr_options,
-				NETMAP_REQ_OPT_SYNC_KLOOP_EVENTFDS);
+	opt = nmreq_getoption(hdr, NETMAP_REQ_OPT_SYNC_KLOOP_EVENTFDS);
 	if (opt != NULL) {
-		err = nmreq_checkduplicate(opt);
-		if (err) {
-			opt->nro_status = err;
-			goto out;
-		}
 		if (opt->nro_size != sizeof(*eventfds_opt) +
 			sizeof(eventfds_opt->eventfds[0]) * num_rings) {
 			/* Option size not consistent with the number of

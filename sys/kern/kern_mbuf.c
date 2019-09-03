@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_param.h"
+#include "opt_kern_tls.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -41,10 +42,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/domain.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
+#include <sys/ktls.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/protosw.h>
+#include <sys/refcount.h>
 #include <sys/sf_buf.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
@@ -112,10 +115,10 @@ int nmbjumbop;			/* limits number of page size jumbo clusters */
 int nmbjumbo9;			/* limits number of 9k jumbo clusters */
 int nmbjumbo16;			/* limits number of 16k jumbo clusters */
 
-bool mb_use_ext_pgs;		/* use EXT_PGS mbufs for sendfile */
+bool mb_use_ext_pgs;		/* use EXT_PGS mbufs for sendfile & TLS */
 SYSCTL_BOOL(_kern_ipc, OID_AUTO, mb_use_ext_pgs, CTLFLAG_RWTUN,
     &mb_use_ext_pgs, 0,
-    "Use unmapped mbufs for sendfile(2)");
+    "Use unmapped mbufs for sendfile(2) and TLS offload");
 
 static quad_t maxmbufmem;	/* overall real memory limit for all mbufs */
 
@@ -708,14 +711,14 @@ mb_dtor_pack(void *mem, int size, void *arg)
 #endif
 	/*
 	 * If there are processes blocked on zone_clust, waiting for pages
-	 * to be freed up, * cause them to be woken up by draining the
-	 * packet zone.  We are exposed to a race here * (in the check for
+	 * to be freed up, cause them to be woken up by draining the
+	 * packet zone.  We are exposed to a race here (in the check for
 	 * the UMA_ZFLAG_FULL) where we might miss the flag set, but that
 	 * is deliberate. We don't want to acquire the zone lock for every
 	 * mbuf free.
 	 */
 	if (uma_zone_exhausted_nolock(zone_clust))
-		zone_drain(zone_pack);
+		uma_zone_reclaim(zone_pack, UMA_RECLAIM_DRAIN);
 }
 
 /*
@@ -1281,13 +1284,27 @@ mb_free_ext(struct mbuf *m)
 			uma_zfree(zone_jumbo16, m->m_ext.ext_buf);
 			uma_zfree(zone_mbuf, mref);
 			break;
-		case EXT_PGS:
+		case EXT_PGS: {
+#ifdef KERN_TLS
+			struct mbuf_ext_pgs *pgs;
+			struct ktls_session *tls;
+#endif
+
 			KASSERT(mref->m_ext.ext_free != NULL,
 			    ("%s: ext_free not set", __func__));
 			mref->m_ext.ext_free(mref);
-			uma_zfree(zone_extpgs, mref->m_ext.ext_pgs);
+#ifdef KERN_TLS
+			pgs = mref->m_ext.ext_pgs;
+			tls = pgs->tls;
+			if (tls != NULL &&
+			    !refcount_release_if_not_last(&tls->refcount))
+				ktls_enqueue_to_free(pgs);
+			else
+#endif
+				uma_zfree(zone_extpgs, mref->m_ext.ext_pgs);
 			uma_zfree(zone_mbuf, mref);
 			break;
+		}
 		case EXT_SFBUF:
 		case EXT_NET_DRV:
 		case EXT_MOD_TYPE:
@@ -1345,7 +1362,7 @@ m_clget(struct mbuf *m, int how)
 	 * we might be able to loosen a few clusters up on the drain.
 	 */
 	if ((how & M_NOWAIT) && (m->m_ext.ext_buf == NULL)) {
-		zone_drain(zone_pack);
+		uma_zone_reclaim(zone_pack, UMA_RECLAIM_DRAIN);
 		uma_zalloc_arg(zone_clust, m, how);
 	}
 	MBUF_PROBE2(m__clget, m, how);

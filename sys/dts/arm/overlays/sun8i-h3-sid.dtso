@@ -10,5 +10,10 @@
 		compatible = "allwinner,sun8i-h3-sid";
 		reg = <0x1c14000 0x400>;
 		status = "okay";
+
+		/* Data cells */
+		ths_calib: calib@234 {
+			reg = <0x234 0x2>;
+		};
 	};
 };

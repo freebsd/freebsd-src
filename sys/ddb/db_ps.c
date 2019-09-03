@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 
 static void	dumpthread(volatile struct proc *p, volatile struct thread *td,
 		    int all);
+static void	db_ps_proc(struct proc *p);
 static int	ps_mode;
 
 /*
@@ -105,146 +106,157 @@ dump_args(volatile struct proc *p)
 void
 db_ps(db_expr_t addr, bool hasaddr, db_expr_t count, char *modif)
 {
-	volatile struct proc *p, *pp;
-	volatile struct thread *td;
-	struct ucred *cred;
-	struct pgrp *pgrp;
-	char state[9];
-	int np, rflag, sflag, dflag, lflag, wflag;
+	struct proc *p;
+	int i, j;
 
 	ps_mode = modif[0] == 'a' ? PRINT_ARGS : PRINT_NONE;
-	np = nprocs;
-
-	if (!LIST_EMPTY(&allproc))
-		p = LIST_FIRST(&allproc);
-	else
-		p = &proc0;
 
 #ifdef __LP64__
 	db_printf("  pid  ppid  pgrp   uid  state   wmesg   wchan               cmd\n");
 #else
 	db_printf("  pid  ppid  pgrp   uid  state   wmesg   wchan       cmd\n");
 #endif
-	while (--np >= 0 && !db_pager_quit) {
-		if (p == NULL) {
-			db_printf("oops, ran out of processes early!\n");
-			break;
+
+	if (!LIST_EMPTY(&allproc))
+		p = LIST_FIRST(&allproc);
+	else
+		p = &proc0;
+	for (; p != NULL && !db_pager_quit; p = LIST_NEXT(p, p_list))
+		db_ps_proc(p);
+
+	/*
+	 * Do zombies.
+	 */
+	for (i = 0; i < pidhashlock + 1 && !db_pager_quit; i++) {
+		for (j = i; j <= pidhash && !db_pager_quit; j += pidhashlock + 1) {
+			LIST_FOREACH(p, &pidhashtbl[j], p_hash) {
+				if (p->p_state == PRS_ZOMBIE)
+					db_ps_proc(p);
+			}
 		}
-		pp = p->p_pptr;
-		if (pp == NULL)
-			pp = p;
+	}
+}
 
-		cred = p->p_ucred;
-		pgrp = p->p_pgrp;
-		db_printf("%5d %5d %5d %5d ", p->p_pid, pp->p_pid,
-		    pgrp != NULL ? pgrp->pg_id : 0,
-		    cred != NULL ? cred->cr_ruid : 0);
+static void
+db_ps_proc(struct proc *p)
+{
+	volatile struct proc *pp;
+	volatile struct thread *td;
+	struct ucred *cred;
+	struct pgrp *pgrp;
+	char state[9];
+	int rflag, sflag, dflag, lflag, wflag;
 
-		/* Determine our primary process state. */
-		switch (p->p_state) {
-		case PRS_NORMAL:
-			if (P_SHOULDSTOP(p))
-				state[0] = 'T';
-			else {
-				/*
-				 * One of D, L, R, S, W.  For a
-				 * multithreaded process we will use
-				 * the state of the thread with the
-				 * highest precedence.  The
-				 * precendence order from high to low
-				 * is R, L, D, S, W.  If no thread is
-				 * in a sane state we use '?' for our
-				 * primary state.
-				 */
-				rflag = sflag = dflag = lflag = wflag = 0;
-				FOREACH_THREAD_IN_PROC(p, td) {
-					if (td->td_state == TDS_RUNNING ||
-					    td->td_state == TDS_RUNQ ||
-					    td->td_state == TDS_CAN_RUN)
-						rflag++;
-					if (TD_ON_LOCK(td))
-						lflag++;
-					if (TD_IS_SLEEPING(td)) {
-						if (!(td->td_flags & TDF_SINTR))
-							dflag++;
-						else
-							sflag++;
-					}
-					if (TD_AWAITING_INTR(td))
-						wflag++;
+	pp = p->p_pptr;
+	if (pp == NULL)
+		pp = p;
+
+	cred = p->p_ucred;
+	pgrp = p->p_pgrp;
+	db_printf("%5d %5d %5d %5d ", p->p_pid, pp->p_pid,
+	    pgrp != NULL ? pgrp->pg_id : 0,
+	    cred != NULL ? cred->cr_ruid : 0);
+
+	/* Determine our primary process state. */
+	switch (p->p_state) {
+	case PRS_NORMAL:
+		if (P_SHOULDSTOP(p))
+			state[0] = 'T';
+		else {
+			/*
+			 * One of D, L, R, S, W.  For a
+			 * multithreaded process we will use
+			 * the state of the thread with the
+			 * highest precedence.  The
+			 * precendence order from high to low
+			 * is R, L, D, S, W.  If no thread is
+			 * in a sane state we use '?' for our
+			 * primary state.
+			 */
+			rflag = sflag = dflag = lflag = wflag = 0;
+			FOREACH_THREAD_IN_PROC(p, td) {
+				if (td->td_state == TDS_RUNNING ||
+				    td->td_state == TDS_RUNQ ||
+				    td->td_state == TDS_CAN_RUN)
+					rflag++;
+				if (TD_ON_LOCK(td))
+					lflag++;
+				if (TD_IS_SLEEPING(td)) {
+					if (!(td->td_flags & TDF_SINTR))
+						dflag++;
+					else
+						sflag++;
 				}
-				if (rflag)
-					state[0] = 'R';
-				else if (lflag)
-					state[0] = 'L';
-				else if (dflag)
-					state[0] = 'D';
-				else if (sflag)
-					state[0] = 'S';
-				else if (wflag)
-					state[0] = 'W';
-				else
-					state[0] = '?';
+				if (TD_AWAITING_INTR(td))
+					wflag++;
 			}
-			break;
-		case PRS_NEW:
-			state[0] = 'N';
-			break;
-		case PRS_ZOMBIE:
-			state[0] = 'Z';
-			break;
-		default:
-			state[0] = 'U';
-			break;
+			if (rflag)
+				state[0] = 'R';
+			else if (lflag)
+				state[0] = 'L';
+			else if (dflag)
+				state[0] = 'D';
+			else if (sflag)
+				state[0] = 'S';
+			else if (wflag)
+				state[0] = 'W';
+			else
+				state[0] = '?';
 		}
-		state[1] = '\0';
+		break;
+	case PRS_NEW:
+		state[0] = 'N';
+		break;
+	case PRS_ZOMBIE:
+		state[0] = 'Z';
+		break;
+	default:
+		state[0] = 'U';
+		break;
+	}
+	state[1] = '\0';
 
-		/* Additional process state flags. */
-		if (!(p->p_flag & P_INMEM))
-			strlcat(state, "W", sizeof(state));
-		if (p->p_flag & P_TRACED)
-			strlcat(state, "X", sizeof(state));
-		if (p->p_flag & P_WEXIT && p->p_state != PRS_ZOMBIE)
-			strlcat(state, "E", sizeof(state));
-		if (p->p_flag & P_PPWAIT)
-			strlcat(state, "V", sizeof(state));
-		if (p->p_flag & P_SYSTEM || p->p_lock > 0)
-			strlcat(state, "L", sizeof(state));
-		if (p->p_pgrp != NULL && p->p_session != NULL &&
-		    SESS_LEADER(p))
-			strlcat(state, "s", sizeof(state));
-		/* Cheated here and didn't compare pgid's. */
-		if (p->p_flag & P_CONTROLT)
-			strlcat(state, "+", sizeof(state));
-		if (cred != NULL && jailed(cred))
-			strlcat(state, "J", sizeof(state));
-		db_printf(" %-6.6s ", state);
-		if (p->p_flag & P_HADTHREADS) {
+	/* Additional process state flags. */
+	if (!(p->p_flag & P_INMEM))
+		strlcat(state, "W", sizeof(state));
+	if (p->p_flag & P_TRACED)
+		strlcat(state, "X", sizeof(state));
+	if (p->p_flag & P_WEXIT && p->p_state != PRS_ZOMBIE)
+		strlcat(state, "E", sizeof(state));
+	if (p->p_flag & P_PPWAIT)
+		strlcat(state, "V", sizeof(state));
+	if (p->p_flag & P_SYSTEM || p->p_lock > 0)
+		strlcat(state, "L", sizeof(state));
+	if (p->p_pgrp != NULL && p->p_session != NULL &&
+	    SESS_LEADER(p))
+		strlcat(state, "s", sizeof(state));
+	/* Cheated here and didn't compare pgid's. */
+	if (p->p_flag & P_CONTROLT)
+		strlcat(state, "+", sizeof(state));
+	if (cred != NULL && jailed(cred))
+		strlcat(state, "J", sizeof(state));
+	db_printf(" %-6.6s ", state);
+	if (p->p_flag & P_HADTHREADS) {
 #ifdef __LP64__
-			db_printf(" (threaded)                  ");
+		db_printf(" (threaded)                  ");
 #else
-			db_printf(" (threaded)          ");
+		db_printf(" (threaded)          ");
 #endif
-			if (p->p_flag & P_SYSTEM)
-				db_printf("[");
-			db_printf("%s", p->p_comm);
-			if (p->p_flag & P_SYSTEM)
-				db_printf("]");
-			if (ps_mode == PRINT_ARGS) {
-				db_printf(" ");
-				dump_args(p);
-			}
-			db_printf("\n");
+		if (p->p_flag & P_SYSTEM)
+			db_printf("[");
+		db_printf("%s", p->p_comm);
+		if (p->p_flag & P_SYSTEM)
+			db_printf("]");
+		if (ps_mode == PRINT_ARGS) {
+			db_printf(" ");
+			dump_args(p);
 		}
-		FOREACH_THREAD_IN_PROC(p, td) {
-			dumpthread(p, td, p->p_flag & P_HADTHREADS);
-			if (db_pager_quit)
-				break;
-		}
-
-		p = LIST_NEXT(p, p_list);
-		if (p == NULL && np > 0)
-			p = LIST_FIRST(&zombproc);
+		db_printf("\n");
+	}
+	FOREACH_THREAD_IN_PROC(p, td) {
+		dumpthread(p, td, p->p_flag & P_HADTHREADS);
+		if (db_pager_quit)
+			break;
 	}
 }
 

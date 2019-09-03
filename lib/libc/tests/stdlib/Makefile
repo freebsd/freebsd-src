@@ -14,6 +14,9 @@ ATF_TESTS_CXX+=		cxa_thread_atexit_test
 ATF_TESTS_CXX+=		cxa_thread_atexit_nothr_test
 .endif
 
+# All architectures on FreeBSD have fenv.h
+CFLAGS+=	-D__HAVE_FENV
+
 # Not sure why this isn't defined for all architectures, since most
 # have long double.
 .if ${MACHINE_CPUARCH} == "aarch64" || \

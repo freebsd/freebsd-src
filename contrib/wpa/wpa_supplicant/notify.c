@@ -18,6 +18,7 @@
 #include "dbus/dbus_new.h"
 #include "rsn_supp/wpa.h"
 #include "fst/fst.h"
+#include "crypto/tls.h"
 #include "driver_i.h"
 #include "scan.h"
 #include "p2p_supplicant.h"
@@ -786,42 +787,41 @@ void wpas_notify_sta_authorized(struct wpa_supplicant *wpa_s,
 }
 
 
-void wpas_notify_certification(struct wpa_supplicant *wpa_s, int depth,
-			       const char *subject, const char *altsubject[],
-			       int num_altsubject, const char *cert_hash,
-			       const struct wpabuf *cert)
+void wpas_notify_certification(struct wpa_supplicant *wpa_s,
+			       struct tls_cert_data *cert,
+			       const char *cert_hash)
 {
-	wpa_msg(wpa_s, MSG_INFO, WPA_EVENT_EAP_PEER_CERT
-		"depth=%d subject='%s'%s%s",
-		depth, subject, cert_hash ? " hash=" : "",
-		cert_hash ? cert_hash : "");
+	int i;
 
-	if (cert) {
+	wpa_msg(wpa_s, MSG_INFO, WPA_EVENT_EAP_PEER_CERT
+		"depth=%d subject='%s'%s%s%s",
+		cert->depth, cert->subject, cert_hash ? " hash=" : "",
+		cert_hash ? cert_hash : "",
+		cert->tod ? " tod=1" : "");
+
+	if (cert->cert) {
 		char *cert_hex;
-		size_t len = wpabuf_len(cert) * 2 + 1;
+		size_t len = wpabuf_len(cert->cert) * 2 + 1;
 		cert_hex = os_malloc(len);
 		if (cert_hex) {
-			wpa_snprintf_hex(cert_hex, len, wpabuf_head(cert),
-					 wpabuf_len(cert));
+			wpa_snprintf_hex(cert_hex, len, wpabuf_head(cert->cert),
+					 wpabuf_len(cert->cert));
 			wpa_msg_ctrl(wpa_s, MSG_INFO,
 				     WPA_EVENT_EAP_PEER_CERT
 				     "depth=%d subject='%s' cert=%s",
-				     depth, subject, cert_hex);
+				     cert->depth, cert->subject, cert_hex);
 			os_free(cert_hex);
 		}
 	}
 
-	if (altsubject) {
-		int i;
-
-		for (i = 0; i < num_altsubject; i++)
-			wpa_msg(wpa_s, MSG_INFO, WPA_EVENT_EAP_PEER_ALT
-				"depth=%d %s", depth, altsubject[i]);
-	}
+	for (i = 0; i < cert->num_altsubject; i++)
+		wpa_msg(wpa_s, MSG_INFO, WPA_EVENT_EAP_PEER_ALT
+			"depth=%d %s", cert->depth, cert->altsubject[i]);
 
 	/* notify the new DBus API */
-	wpas_dbus_signal_certification(wpa_s, depth, subject, altsubject,
-				       num_altsubject, cert_hash, cert);
+	wpas_dbus_signal_certification(wpa_s, cert->depth, cert->subject,
+				       cert->altsubject, cert->num_altsubject,
+				       cert_hash, cert->cert);
 }
 
 
@@ -901,7 +901,7 @@ void wpas_notify_mesh_group_started(struct wpa_supplicant *wpa_s,
 
 void wpas_notify_mesh_group_removed(struct wpa_supplicant *wpa_s,
 				    const u8 *meshid, u8 meshid_len,
-				    int reason_code)
+				    u16 reason_code)
 {
 	if (wpa_s->p2p_mgmt)
 		return;
@@ -922,7 +922,7 @@ void wpas_notify_mesh_peer_connected(struct wpa_supplicant *wpa_s,
 
 
 void wpas_notify_mesh_peer_disconnected(struct wpa_supplicant *wpa_s,
-					const u8 *peer_addr, int reason_code)
+					const u8 *peer_addr, u16 reason_code)
 {
 	if (wpa_s->p2p_mgmt)
 		return;

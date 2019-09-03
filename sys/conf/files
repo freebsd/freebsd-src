@@ -2470,7 +2470,6 @@ dev/netmap/netmap_monitor.c	optional netmap
 dev/netmap/netmap_null.c	optional netmap
 dev/netmap/netmap_offloadings.c	optional netmap
 dev/netmap/netmap_pipe.c	optional netmap
-dev/netmap/netmap_pt.c		optional netmap
 dev/netmap/netmap_vale.c	optional netmap
 # compile-with "${NORMAL_C} -Wconversion -Wextra"
 dev/nfsmb/nfsmb.c		optional nfsmb pci
@@ -2479,10 +2478,12 @@ dev/nmdm/nmdm.c			optional nmdm
 dev/null/null.c			standard
 dev/nvd/nvd.c			optional nvd nvme
 dev/nvme/nvme.c			optional nvme
+dev/nvme/nvme_ahci.c		optional nvme ahci
 dev/nvme/nvme_ctrlr.c		optional nvme
 dev/nvme/nvme_ctrlr_cmd.c	optional nvme
 dev/nvme/nvme_ns.c		optional nvme
 dev/nvme/nvme_ns_cmd.c		optional nvme
+dev/nvme/nvme_pci.c		optional nvme pci
 dev/nvme/nvme_qpair.c		optional nvme
 dev/nvme/nvme_sim.c		optional nvme scbus
 dev/nvme/nvme_sysctl.c		optional nvme
@@ -3861,6 +3862,7 @@ kern/tty_ttydisc.c		standard
 kern/uipc_accf.c		standard
 kern/uipc_debug.c		optional ddb
 kern/uipc_domain.c		standard
+kern/uipc_ktls.c		optional kern_tls
 kern/uipc_mbuf.c		standard
 kern/uipc_mbuf2.c		standard
 kern/uipc_mbufhash.c		standard
@@ -3997,8 +3999,6 @@ libkern/strtoul.c		standard
 libkern/strtouq.c		standard
 libkern/strvalid.c		standard
 libkern/timingsafe_bcmp.c	standard
-libkern/zlib.c			optional crypto | geom_uzip | ipsec | \
-	ipsec_support | mxge | netgraph_deflate | ddb_ctf | gzio
 contrib/zlib/adler32.c	optional crypto | geom_uzip | ipsec | \
 	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib
 contrib/zlib/compress.c	optional crypto | geom_uzip | ipsec | \

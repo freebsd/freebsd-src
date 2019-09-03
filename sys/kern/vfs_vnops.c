@@ -2097,7 +2097,7 @@ vn_vget_ino_gen(struct vnode *vp, vn_get_ino_t alloc, void *alloc_arg,
 	VOP_UNLOCK(vp, 0);
 	error = alloc(mp, alloc_arg, lkflags, rvp);
 	vfs_unbusy(mp);
-	if (*rvp != vp)
+	if (error != 0 || *rvp != vp)
 		vn_lock(vp, ltype | LK_RETRY);
 	if (vp->v_iflag & VI_DOOMED) {
 		if (error == 0) {
@@ -2275,9 +2275,13 @@ vn_seek(struct file *fp, off_t offset, int whence, struct thread *td)
 		break;
 	case SEEK_DATA:
 		error = fo_ioctl(fp, FIOSEEKDATA, &offset, cred, td);
+		if (error == ENOTTY)
+			error = EINVAL;
 		break;
 	case SEEK_HOLE:
 		error = fo_ioctl(fp, FIOSEEKHOLE, &offset, cred, td);
+		if (error == ENOTTY)
+			error = EINVAL;
 		break;
 	default:
 		error = EINVAL;

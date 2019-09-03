@@ -347,12 +347,22 @@ ahci_attach(device_t dev)
 		if ((ctlr->ichannels & (1 << unit)) == 0)
 			device_disable(child);
 	}
+	/* Attach any remapped NVME device */
+	for (; unit < ctlr->channels + ctlr->remapped_devices; unit++) {
+		child = device_add_child(dev, "nvme", -1);
+		if (child == NULL) {
+			device_printf(dev, "failed to add remapped NVMe device");
+			    continue;
+		}
+		device_set_ivars(child, (void *)(intptr_t)(unit | AHCI_REMAPPED_UNIT));
+	}
+
 	if (ctlr->caps & AHCI_CAP_EMS) {
 		child = device_add_child(dev, "ahciem", -1);
 		if (child == NULL)
 			device_printf(dev, "failed to add enclosure device\n");
 		else
-			device_set_ivars(child, (void *)(intptr_t)-1);
+			device_set_ivars(child, (void *)(intptr_t)AHCI_EM_UNIT);
 	}
 	bus_generic_attach(dev);
 	return (0);
@@ -497,6 +507,12 @@ ahci_intr(void *data)
 				ctlr->interrupt[unit].function(arg);
 		}
 	}
+	for (; unit < ctlr->channels + ctlr->remapped_devices; unit++) {
+		if ((arg = ctlr->interrupt[unit].argument)) {
+			ctlr->interrupt[unit].function(arg);
+		}
+	}
+
 	/* AHCI declares level triggered IS. */
 	if (!(ctlr->quirks & AHCI_Q_EDGEIS))
 		ATA_OUTL(ctlr->r_mem, AHCI_IS, is);
@@ -546,12 +562,25 @@ ahci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct resource *res;
 	rman_res_t st;
 	int offset, size, unit;
+	bool is_em, is_remapped;
 
 	unit = (intptr_t)device_get_ivars(child);
+	is_em = is_remapped = false;
+	if (unit & AHCI_REMAPPED_UNIT) {
+		unit &= AHCI_UNIT;
+		unit -= ctlr->channels;
+		is_remapped = true;
+	} else if (unit & AHCI_EM_UNIT) {
+		unit &= AHCI_UNIT;
+		is_em = true;
+	}
 	res = NULL;
 	switch (type) {
 	case SYS_RES_MEMORY:
-		if (unit >= 0) {
+		if (is_remapped) {
+			offset = ctlr->remap_offset + unit * ctlr->remap_size;
+			size = ctlr->remap_size;
+		} else if (!is_em) {
 			offset = AHCI_OFFSET + (unit << 7);
 			size = 128;
 		} else if (*rid == 0) {
@@ -612,7 +641,7 @@ ahci_setup_intr(device_t dev, device_t child, struct resource *irq,
     void *argument, void **cookiep)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
-	int unit = (intptr_t)device_get_ivars(child);
+	int unit = (intptr_t)device_get_ivars(child) & AHCI_UNIT;
 
 	if (filter != NULL) {
 		printf("ahci.c: we cannot use a filter here\n");
@@ -628,7 +657,7 @@ ahci_teardown_intr(device_t dev, device_t child, struct resource *irq,
     void *cookie)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
-	int unit = (intptr_t)device_get_ivars(child);
+	int unit = (intptr_t)device_get_ivars(child) & AHCI_UNIT;
 
 	ctlr->interrupt[unit].function = NULL;
 	ctlr->interrupt[unit].argument = NULL;
@@ -638,12 +667,13 @@ ahci_teardown_intr(device_t dev, device_t child, struct resource *irq,
 int
 ahci_print_child(device_t dev, device_t child)
 {
-	int retval, channel;
+	intptr_t ivars;
+	int retval;
 
 	retval = bus_print_child_header(dev, child);
-	channel = (int)(intptr_t)device_get_ivars(child);
-	if (channel >= 0)
-		retval += printf(" at channel %d", channel);
+	ivars = (intptr_t)device_get_ivars(child);
+	if ((ivars & AHCI_EM_UNIT) == 0)
+		retval += printf(" at channel %d", (int)ivars & AHCI_UNIT);
 	retval += bus_print_child_footer(dev, child);
 	return (retval);
 }
@@ -652,11 +682,11 @@ int
 ahci_child_location_str(device_t dev, device_t child, char *buf,
     size_t buflen)
 {
-	int channel;
+	intptr_t ivars;
 
-	channel = (int)(intptr_t)device_get_ivars(child);
-	if (channel >= 0)
-		snprintf(buf, buflen, "channel=%d", channel);
+	ivars = (intptr_t)device_get_ivars(child);
+	if ((ivars & AHCI_EM_UNIT) == 0)
+		snprintf(buf, buflen, "channel=%d", (int)ivars & AHCI_UNIT);
 	return (0);
 }
 

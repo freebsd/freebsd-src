@@ -296,11 +296,6 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 	ncl_releasesillyrename(vp, ap->a_td);
 	mtx_unlock(&np->n_mtx);
 
-	/*
-	 * Destroy the vm object and flush associated pages.
-	 */
-	vnode_destroy_vobject(vp);
-
 	if (NFS_ISV4(vp) && vp->v_type == VREG)
 		/*
 		 * We can now safely close any remaining NFSv4 Opens for

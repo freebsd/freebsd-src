@@ -1783,6 +1783,14 @@ rack_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th, struct tc
 			TCPSTAT_INC(tcps_rcvpartduppack);
 			TCPSTAT_ADD(tcps_rcvpartdupbyte, todrop);
 		}
+		if (tp->t_flags & TF_SACK_PERMIT) {
+			/*
+			 * record the left, to-be-dropped edge of data
+			 * here, for use as dsack block further down
+			 */
+			tcp_update_sack_list(tp, th->th_seq,
+			    th->th_seq + todrop);
+		}
 		*drop_hdrlen += todrop;	/* drop from the top afterwards */
 		th->th_seq += todrop;
 		tlen -= todrop;
@@ -4900,7 +4908,8 @@ dodata:				/* XXX */
 		    (TCPS_HAVEESTABLISHED(tp->t_state) ||
 		    tfo_syn)) {
 			if (DELAY_ACK(tp, tlen) || tfo_syn) {
-				rack_timer_cancel(tp, rack, rack->r_ctl.rc_rcvtime, __LINE__);
+				rack_timer_cancel(tp, rack,
+				    rack->r_ctl.rc_rcvtime, __LINE__);
 				tp->t_flags |= TF_DELACK;
 			} else {
 				rack->r_wanted_output++;
@@ -4934,18 +4943,29 @@ dodata:				/* XXX */
 			 * DSACK actually handled in the fastpath
 			 * above.
 			 */
-			tcp_update_sack_list(tp, save_start, save_start + save_tlen);
+			tcp_update_sack_list(tp, save_start,
+			    save_start + save_tlen);
 		} else if ((tlen > 0) && SEQ_GT(tp->rcv_nxt, save_rnxt)) {
 			/*
 			 * Cleaning sackblks by using zero length
 			 * update.
 			 */
-			tcp_update_sack_list(tp, save_start, save_start);
+			if ((tp->rcv_numsacks >= 1) &&
+			    (tp->sackblks[0].end == save_start)) {
+				/* partial overlap, recorded at todrop above */
+				tcp_update_sack_list(tp, tp->sackblks[0].start,
+				    tp->sackblks[0].end);
+			} else {
+				tcp_update_dsack_list(tp, save_start,
+				    save_start + save_tlen);
+			}
 		} else if ((tlen > 0) && (tlen >= save_tlen)) {
 			/* Update of sackblks. */
-			tcp_update_sack_list(tp, save_start, save_start + save_tlen);
+			tcp_update_dsack_list(tp, save_start,
+			    save_start + save_tlen);
 		} else if (tlen > 0) {
-			tcp_update_sack_list(tp, save_start, save_start+tlen);
+			tcp_update_dsack_list(tp, save_start,
+			    save_start + tlen);
 		}
 	} else {
 		m_freem(m);
@@ -4967,7 +4987,8 @@ dodata:				/* XXX */
 			 * now.
 			 */
 			if (tp->t_flags & TF_NEEDSYN) {
-				rack_timer_cancel(tp, rack, rack->r_ctl.rc_rcvtime, __LINE__);
+				rack_timer_cancel(tp, rack,
+				    rack->r_ctl.rc_rcvtime, __LINE__);
 				tp->t_flags |= TF_DELACK;
 			} else {
 				tp->t_flags |= TF_ACKNOW;
@@ -4984,7 +5005,8 @@ dodata:				/* XXX */
 			tp->t_starttime = ticks;
 			/* FALLTHROUGH */
 		case TCPS_ESTABLISHED:
-			rack_timer_cancel(tp, rack, rack->r_ctl.rc_rcvtime, __LINE__);
+			rack_timer_cancel(tp, rack,
+			    rack->r_ctl.rc_rcvtime, __LINE__);
 			tcp_state_change(tp, TCPS_CLOSE_WAIT);
 			break;
 
@@ -4993,7 +5015,8 @@ dodata:				/* XXX */
 			 * acked so enter the CLOSING state.
 			 */
 		case TCPS_FIN_WAIT_1:
-			rack_timer_cancel(tp, rack, rack->r_ctl.rc_rcvtime, __LINE__);
+			rack_timer_cancel(tp, rack,
+			    rack->r_ctl.rc_rcvtime, __LINE__);
 			tcp_state_change(tp, TCPS_CLOSING);
 			break;
 
@@ -5003,7 +5026,8 @@ dodata:				/* XXX */
 			 * other standard timers.
 			 */
 		case TCPS_FIN_WAIT_2:
-			rack_timer_cancel(tp, rack, rack->r_ctl.rc_rcvtime, __LINE__);
+			rack_timer_cancel(tp, rack,
+			    rack->r_ctl.rc_rcvtime, __LINE__);
 			INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 			tcp_twstart(tp);
 			return (1);
@@ -5012,7 +5036,8 @@ dodata:				/* XXX */
 	/*
 	 * Return any desired output.
 	 */
-	if ((tp->t_flags & TF_ACKNOW) || (sbavail(&so->so_snd) > (tp->snd_max - tp->snd_una))) {
+	if ((tp->t_flags & TF_ACKNOW) ||
+	    (sbavail(&so->so_snd) > (tp->snd_max - tp->snd_una))) {
 		rack->r_wanted_output++;
 	}
 	INP_WLOCK_ASSERT(tp->t_inpcb);
@@ -6971,6 +6996,12 @@ rack_output(struct tcpcb *tp)
 	struct ip6_hdr *ip6 = NULL;
 	int32_t isipv6;
 #endif
+#ifdef KERN_TLS
+	const bool hw_tls = (so->so_snd.sb_flags & SB_TLS_IFNET) != 0;
+#else
+	const bool hw_tls = false;
+#endif
+
 	/* setup and take the cache hits here */
 	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	inp = rack->rc_inp;
@@ -7405,9 +7436,6 @@ again:
 		    (tp->t_state == TCPS_SYN_RECEIVED))
 			flags &= ~TH_SYN;
 #endif
-		sb_offset--, len++;
-		if (sbavail(sb) == 0)
-			len = 0;
 	}
 	/*
 	 * Be careful not to send data and/or FIN on SYN segments. This
@@ -7949,7 +7977,7 @@ send:
 		 * sb_offset in the socket buffer chain.
 		 */
 		mb = sbsndptr_noadv(sb, sb_offset, &moff);
-		if (len <= MHLEN - hdrlen - max_linkhdr) {
+		if (len <= MHLEN - hdrlen - max_linkhdr && !hw_tls) {
 			m_copydata(mb, moff, (int)len,
 			    mtod(m, caddr_t)+hdrlen);
 			if (SEQ_LT(tp->snd_nxt, tp->snd_max))
@@ -7963,7 +7991,8 @@ send:
 			else
 				msb = sb;
 			m->m_next = tcp_m_copym(/*tp, */ mb, moff, &len,
-			    if_hw_tsomaxsegcount, if_hw_tsomaxsegsize, msb /*, 0, NULL*/);
+			    if_hw_tsomaxsegcount, if_hw_tsomaxsegsize, msb,
+			    hw_tls /*, NULL */);
 			if (len <= (tp->t_maxseg - optlen)) {
 				/* 
 				 * Must have ran out of mbufs for the copy
