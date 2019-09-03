@@ -36,7 +36,6 @@
  * $FreeBSD$
  */
 
-#include <machine/regnum.h>
 #include <machine/asm.h>
 
 #if 0
@@ -59,19 +58,19 @@
 
 LEAF(_setjmp)
 	.set	noreorder
-	REG_LI	v0, 0xACEDBADE			# sigcontext magic number
-	REG_S	ra, (2 * SZREG)(a0)		# sc_pc = return address
-	REG_S	v0, (3 * SZREG)(a0)		#   saved in sc_regs[0]
-	REG_S	s0, ((S0 + 3) * SZREG)(a0)
-	REG_S	s1, ((S1 + 3) * SZREG)(a0)
-	REG_S	s2, ((S2 + 3) * SZREG)(a0)
-	REG_S	s3, ((S3 + 3) * SZREG)(a0)
-	REG_S	s4, ((S4 + 3) * SZREG)(a0)
-	REG_S	s5, ((S5 + 3) * SZREG)(a0)
-	REG_S	s6, ((S6 + 3) * SZREG)(a0)
-	REG_S	s7, ((S7 + 3) * SZREG)(a0)
-	REG_S	sp, ((SP + 3) * SZREG)(a0)
-	REG_S	s8, ((S8 + 3) * SZREG)(a0)
+	REG_LI	v0, _JB_MAGIC__SETJMP		# sigcontext magic number
+	REG_S	v0, (_JB_MAGIC * SZREG)(a0)	#   saved in sc_regs[0]
+	REG_S	ra, (_JB_REG_RA * SZREG)(a0)	# sc_pc = return address
+	REG_S	s0, (_JB_REG_S0 * SZREG)(a0)
+	REG_S	s1, (_JB_REG_S1 * SZREG)(a0)
+	REG_S	s2, (_JB_REG_S2 * SZREG)(a0)
+	REG_S	s3, (_JB_REG_S3 * SZREG)(a0)
+	REG_S	s4, (_JB_REG_S4 * SZREG)(a0)
+	REG_S	s5, (_JB_REG_S5 * SZREG)(a0)
+	REG_S	s6, (_JB_REG_S6 * SZREG)(a0)
+	REG_S	s7, (_JB_REG_S7 * SZREG)(a0)
+	REG_S	sp, (_JB_REG_SP * SZREG)(a0)
+	REG_S	s8, (_JB_REG_S8 * SZREG)(a0)
 	j	ra
 	move	v0, zero
 END(_setjmp)
@@ -82,21 +81,21 @@ LEAF(_longjmp)
 	.cprestore 16
 #endif  
 	.set    noreorder
-	REG_L	v0, (3 * SZREG)(a0)		# get magic number
-	REG_L	ra, (2 * SZREG)(a0)
-	bne	v0, 0xACEDBADE, botch		# jump if error
+	REG_L	v0, (_JB_MAGIC * SZREG)(a0)	# get magic number
+	REG_L	ra, (_JB_REG_RA * SZREG)(a0)
+	bne	v0, _JB_MAGIC__SETJMP, botch	# jump if error
 
 	addu	sp, sp, 32			# does not matter, sanity
-	REG_L	s0, ((S0 + 3) * SZREG)(a0)
-	REG_L	s1, ((S1 + 3) * SZREG)(a0)
-	REG_L	s2, ((S2 + 3) * SZREG)(a0)
-	REG_L	s3, ((S3 + 3) * SZREG)(a0)
-	REG_L	s4, ((S4 + 3) * SZREG)(a0)
-	REG_L	s5, ((S5 + 3) * SZREG)(a0)
-	REG_L	s6, ((S6 + 3) * SZREG)(a0)
-	REG_L	s7, ((S7 + 3) * SZREG)(a0)
-	REG_L	sp, ((SP + 3) * SZREG)(a0)
-	REG_L	s8, ((S8 + 3) * SZREG)(a0)
+	REG_L	s0, (_JB_REG_S0 * SZREG)(a0)
+	REG_L	s1, (_JB_REG_S1 * SZREG)(a0)
+	REG_L	s2, (_JB_REG_S2 * SZREG)(a0)
+	REG_L	s3, (_JB_REG_S3 * SZREG)(a0)
+	REG_L	s4, (_JB_REG_S4 * SZREG)(a0)
+	REG_L	s5, (_JB_REG_S5 * SZREG)(a0)
+	REG_L	s6, (_JB_REG_S6 * SZREG)(a0)
+	REG_L	s7, (_JB_REG_S7 * SZREG)(a0)
+	REG_L	sp, (_JB_REG_SP * SZREG)(a0)
+	REG_L	s8, (_JB_REG_S8 * SZREG)(a0)
 
 	j	ra
 	move	v0, a1
