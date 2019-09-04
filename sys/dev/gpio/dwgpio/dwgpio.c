@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015, 2019 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -29,13 +29,10 @@
  */
 
 /*
- * SOCFPGA General-Purpose I/O Interface.
+ * Synopsys® DesignWare® APB General Purpose Programming I/O
+ * (DW_apb_gpio) peripheral.
+ *
  * Chapter 22, Cyclone V Device Handbook (CV-5V2 2014.07.22)
- */
-
-/*
- * The GPIO modules are instances of the Synopsys® DesignWare® APB General
- * Purpose Programming I/O (DW_apb_gpio) peripheral.
  */
 
 #include <sys/cdefs.h>
@@ -53,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <sys/mutex.h>
 #include <sys/gpio.h>
+#include <sys/reboot.h>
 
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/openfirm.h>
@@ -64,14 +62,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 
 #include "gpio_if.h"
+#include "dwgpio_if.h"
 
-#define READ4(_sc, _reg) \
-	bus_read_4((_sc)->res[0], _reg)
-#define WRITE4(_sc, _reg, _val) \
-	bus_write_4((_sc)->res[0], _reg, _val)
+#define READ4(_sc, _reg)	DWGPIO_READ((_sc)->parent, _reg)
+#define WRITE4(_sc, _reg, _val)	DWGPIO_WRITE((_sc)->parent, _reg, _val)
 
-#define	GPIO_SWPORTA_DR		0x00	/* Port A Data Register */
-#define	GPIO_SWPORTA_DDR	0x04	/* Port A Data Direction Register */
+#define	GPIO_SWPORT_DR(n)	(0x00 + 0xc * (n)) /* Port n Data Register */
+#define	GPIO_SWPORT_DDR(n)	(0x04 + 0xc * (n)) /* Port n Data Direction */
 #define	GPIO_INTEN		0x30	/* Interrupt Enable Register */
 #define	GPIO_INTMASK		0x34	/* Interrupt Mask Register */
 #define	GPIO_INTTYPE_LEVEL	0x38	/* Interrupt Level Register */
@@ -80,7 +77,7 @@ __FBSDID("$FreeBSD$");
 #define	GPIO_RAW_INTSTATUS	0x44	/* Raw Interrupt Status Register */
 #define	GPIO_DEBOUNCE		0x48	/* Debounce Enable Register */
 #define	GPIO_PORTA_EOI		0x4C	/* Clear Interrupt Register */
-#define	GPIO_EXT_PORTA		0x50	/* External Port A Register */
+#define	GPIO_EXT_PORT(n)	(0x50 + 0x4 * (n)) /* External Port n */
 #define	GPIO_LS_SYNC		0x60	/* Synchronization Level Register */
 #define	GPIO_ID_CODE		0x64	/* ID Code Register */
 #define	GPIO_VER_ID_CODE	0x6C	/* GPIO Version Register */
@@ -88,13 +85,6 @@ __FBSDID("$FreeBSD$");
 #define	 ENCODED_ID_PWIDTH_M	0x1f	/* Width of GPIO Port N Mask */
 #define	 ENCODED_ID_PWIDTH_S(n)	(5 * n)	/* Width of GPIO Port N Shift */
 #define	GPIO_CONFIG_REG1	0x74	/* Configuration Register 1 */
-
-enum port_no {
-	PORTA,
-	PORTB,
-	PORTC,
-	PORTD,
-};
 
 #define	NR_GPIO_MAX	32	/* Maximum pins per port */
 
@@ -106,43 +96,35 @@ enum port_no {
 /*
  * GPIO interface
  */
-static device_t socfpga_gpio_get_bus(device_t);
-static int socfpga_gpio_pin_max(device_t, int *);
-static int socfpga_gpio_pin_getcaps(device_t, uint32_t, uint32_t *);
-static int socfpga_gpio_pin_getname(device_t, uint32_t, char *);
-static int socfpga_gpio_pin_getflags(device_t, uint32_t, uint32_t *);
-static int socfpga_gpio_pin_setflags(device_t, uint32_t, uint32_t);
-static int socfpga_gpio_pin_set(device_t, uint32_t, unsigned int);
-static int socfpga_gpio_pin_get(device_t, uint32_t, unsigned int *);
-static int socfpga_gpio_pin_toggle(device_t, uint32_t pin);
+static device_t dwgpio_get_bus(device_t);
+static int dwgpio_pin_max(device_t, int *);
+static int dwgpio_pin_getcaps(device_t, uint32_t, uint32_t *);
+static int dwgpio_pin_getname(device_t, uint32_t, char *);
+static int dwgpio_pin_getflags(device_t, uint32_t, uint32_t *);
+static int dwgpio_pin_setflags(device_t, uint32_t, uint32_t);
+static int dwgpio_pin_set(device_t, uint32_t, unsigned int);
+static int dwgpio_pin_get(device_t, uint32_t, unsigned int *);
+static int dwgpio_pin_toggle(device_t, uint32_t pin);
 
-struct socfpga_gpio_softc {
-	struct resource		*res[1];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-
+struct dwgpio_softc {
 	device_t		dev;
 	device_t		busdev;
+	device_t		parent;
 	struct mtx		sc_mtx;
 	int			gpio_npins;
 	struct gpio_pin		gpio_pins[NR_GPIO_MAX];
-};
-
-struct socfpga_gpio_softc *gpio_sc;
-
-static struct resource_spec socfpga_gpio_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
+	phandle_t		node;
+	int			port;
 };
 
 static int
-socfpga_gpio_probe(device_t dev)
+dwgpio_probe(device_t dev)
 {
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "snps,dw-apb-gpio"))
+	if (!ofw_bus_is_compatible(dev, "snps,dw-apb-gpio-port"))
 		return (ENXIO);
 
 	device_set_desc(dev, "DesignWare General-Purpose I/O Interface");
@@ -150,41 +132,32 @@ socfpga_gpio_probe(device_t dev)
 }
 
 static int
-socfpga_gpio_attach(device_t dev)
+dwgpio_attach(device_t dev)
 {
-	struct socfpga_gpio_softc *sc;
+	struct dwgpio_softc *sc;
 	int version;
 	int nr_pins;
 	int cfg2;
 	int i;
 
 	sc = device_get_softc(dev);
+	sc->parent = device_get_parent(dev);
+	sc->node = ofw_bus_get_node(dev);
 	sc->dev = dev;
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
-	if (bus_alloc_resources(dev, socfpga_gpio_spec, sc->res)) {
-		device_printf(dev, "could not allocate resources\n");
-		mtx_destroy(&sc->sc_mtx);
+	if ((OF_getencprop(sc->node, "reg", &sc->port, sizeof(sc->port))) <= 0)
 		return (ENXIO);
-	}
 
-	/* Memory interface */
-	sc->bst = rman_get_bustag(sc->res[0]);
-	sc->bsh = rman_get_bushandle(sc->res[0]);
-
-	gpio_sc = sc;
+	printf("port %d\n", sc->port);
 
 	version =  READ4(sc, GPIO_VER_ID_CODE);
-#if 0
-	device_printf(sc->dev, "Version = 0x%08x\n", version);
-#endif
+	if (boothowto & RB_VERBOSE)
+		device_printf(sc->dev, "Version = 0x%08x\n", version);
 
-	/*
-	 * Take number of pins from hardware.
-	 * XXX: Assume we have GPIO port A only.
-	 */
+	/* Grab number of pins from hardware. */
 	cfg2 = READ4(sc, GPIO_CONFIG_REG2);
-	nr_pins = (cfg2 >> ENCODED_ID_PWIDTH_S(PORTA)) & \
+	nr_pins = (cfg2 >> ENCODED_ID_PWIDTH_S(sc->port)) & \
 			ENCODED_ID_PWIDTH_M;
 	sc->gpio_npins = nr_pins + 1;
 
@@ -192,14 +165,13 @@ socfpga_gpio_attach(device_t dev)
 		sc->gpio_pins[i].gp_pin = i;
 		sc->gpio_pins[i].gp_caps = DEFAULT_CAPS;
 		sc->gpio_pins[i].gp_flags =
-		    (READ4(sc, GPIO_SWPORTA_DDR) & (1 << i)) ?
+		    (READ4(sc, GPIO_SWPORT_DDR(sc->port)) & (1 << i)) ?
 		    GPIO_PIN_OUTPUT: GPIO_PIN_INPUT;
 		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME,
-		    "socfpga_gpio%d.%d", device_get_unit(dev), i);
+		    "dwgpio%d.%d", device_get_unit(dev), i);
 	}
 	sc->busdev = gpiobus_attach_bus(dev);
 	if (sc->busdev == NULL) {
-		bus_release_resources(dev, socfpga_gpio_spec, sc->res);
 		mtx_destroy(&sc->sc_mtx);
 		return (ENXIO);
 	}
@@ -208,9 +180,9 @@ socfpga_gpio_attach(device_t dev)
 }
 
 static device_t
-socfpga_gpio_get_bus(device_t dev)
+dwgpio_get_bus(device_t dev)
 {
-	struct socfpga_gpio_softc *sc;
+	struct dwgpio_softc *sc;
 
 	sc = device_get_softc(dev);
 
@@ -218,9 +190,9 @@ socfpga_gpio_get_bus(device_t dev)
 }
 
 static int
-socfpga_gpio_pin_max(device_t dev, int *maxpin)
+dwgpio_pin_max(device_t dev, int *maxpin)
 {
-	struct socfpga_gpio_softc *sc;
+	struct dwgpio_softc *sc;
 
 	sc = device_get_softc(dev);
 
@@ -230,9 +202,9 @@ socfpga_gpio_pin_max(device_t dev, int *maxpin)
 }
 
 static int
-socfpga_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
+dwgpio_pin_getname(device_t dev, uint32_t pin, char *name)
 {
-	struct socfpga_gpio_softc *sc;
+	struct dwgpio_softc *sc;
 	int i;
 
 	sc = device_get_softc(dev);
@@ -252,9 +224,9 @@ socfpga_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
 }
 
 static int
-socfpga_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
+dwgpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 {
-	struct socfpga_gpio_softc *sc;
+	struct dwgpio_softc *sc;
 	int i;
 
 	sc = device_get_softc(dev);
@@ -274,9 +246,9 @@ socfpga_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 }
 
 static int
-socfpga_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
+dwgpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 {
-	struct socfpga_gpio_softc *sc;
+	struct dwgpio_softc *sc;
 	int i;
 
 	sc = device_get_softc(dev);
@@ -296,9 +268,9 @@ socfpga_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 }
 
 static int
-socfpga_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
+dwgpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 {
-	struct socfpga_gpio_softc *sc;
+	struct dwgpio_softc *sc;
 	int i;
 
 	sc = device_get_softc(dev);
@@ -311,16 +283,16 @@ socfpga_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 		return (EINVAL);
 
 	GPIO_LOCK(sc);
-	*val = (READ4(sc, GPIO_EXT_PORTA) & (1 << i)) ? 1 : 0;
+	*val = (READ4(sc, GPIO_EXT_PORT(sc->port)) & (1 << i)) ? 1 : 0;
 	GPIO_UNLOCK(sc);
 
 	return (0);
 }
 
 static int
-socfpga_gpio_pin_toggle(device_t dev, uint32_t pin)
+dwgpio_pin_toggle(device_t dev, uint32_t pin)
 {
-	struct socfpga_gpio_softc *sc;
+	struct dwgpio_softc *sc;
 	int reg;
 	int i;
 
@@ -334,12 +306,12 @@ socfpga_gpio_pin_toggle(device_t dev, uint32_t pin)
 		return (EINVAL);
 
 	GPIO_LOCK(sc);
-	reg = READ4(sc, GPIO_SWPORTA_DR);
+	reg = READ4(sc, GPIO_SWPORT_DR(sc->port));
 	if (reg & (1 << i))
 		reg &= ~(1 << i);
 	else
 		reg |= (1 << i);
-	WRITE4(sc, GPIO_SWPORTA_DR, reg);
+	WRITE4(sc, GPIO_SWPORT_DR(sc->port), reg);
 	GPIO_UNLOCK(sc);
 
 	return (0);
@@ -347,7 +319,7 @@ socfpga_gpio_pin_toggle(device_t dev, uint32_t pin)
 
 
 static void
-socfpga_gpio_pin_configure(struct socfpga_gpio_softc *sc,
+dwgpio_pin_configure(struct dwgpio_softc *sc,
     struct gpio_pin *pin, unsigned int flags)
 {
 	int reg;
@@ -358,7 +330,7 @@ socfpga_gpio_pin_configure(struct socfpga_gpio_softc *sc,
 	 * Manage input/output
 	 */
 
-	reg = READ4(sc, GPIO_SWPORTA_DDR);
+	reg = READ4(sc, GPIO_SWPORT_DDR(sc->port));
 	if (flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) {
 		pin->gp_flags &= ~(GPIO_PIN_INPUT|GPIO_PIN_OUTPUT);
 		if (flags & GPIO_PIN_OUTPUT) {
@@ -370,15 +342,15 @@ socfpga_gpio_pin_configure(struct socfpga_gpio_softc *sc,
 		}
 	}
 
-	WRITE4(sc, GPIO_SWPORTA_DDR, reg);
+	WRITE4(sc, GPIO_SWPORT_DDR(sc->port), reg);
 	GPIO_UNLOCK(sc);
 }
 
 
 static int
-socfpga_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
+dwgpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 {
-	struct socfpga_gpio_softc *sc;
+	struct dwgpio_softc *sc;
 	int i;
 
 	sc = device_get_softc(dev);
@@ -390,15 +362,15 @@ socfpga_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	if (i >= sc->gpio_npins)
 		return (EINVAL);
 
-	socfpga_gpio_pin_configure(sc, &sc->gpio_pins[i], flags);
+	dwgpio_pin_configure(sc, &sc->gpio_pins[i], flags);
 
 	return (0);
 }
 
 static int
-socfpga_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
+dwgpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 {
-	struct socfpga_gpio_softc *sc;
+	struct dwgpio_softc *sc;
 	int reg;
 	int i;
 
@@ -413,41 +385,41 @@ socfpga_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 		return (EINVAL);
 
 	GPIO_LOCK(sc);
-	reg = READ4(sc, GPIO_SWPORTA_DR);
+	reg = READ4(sc, GPIO_SWPORT_DR(sc->port));
 	if (value)
 		reg |= (1 << i);
 	else
 		reg &= ~(1 << i);
-	WRITE4(sc, GPIO_SWPORTA_DR, reg);
+	WRITE4(sc, GPIO_SWPORT_DR(sc->port), reg);
 	GPIO_UNLOCK(sc);
 
 	return (0);
 }
 
-static device_method_t socfpga_gpio_methods[] = {
-	DEVMETHOD(device_probe,		socfpga_gpio_probe),
-	DEVMETHOD(device_attach,	socfpga_gpio_attach),
+static device_method_t dwgpio_methods[] = {
+	DEVMETHOD(device_probe,		dwgpio_probe),
+	DEVMETHOD(device_attach,	dwgpio_attach),
 
 	/* GPIO protocol */
-	DEVMETHOD(gpio_get_bus,		socfpga_gpio_get_bus),
-	DEVMETHOD(gpio_pin_max,		socfpga_gpio_pin_max),
-	DEVMETHOD(gpio_pin_getname,	socfpga_gpio_pin_getname),
-	DEVMETHOD(gpio_pin_getcaps,	socfpga_gpio_pin_getcaps),
-	DEVMETHOD(gpio_pin_getflags,	socfpga_gpio_pin_getflags),
-	DEVMETHOD(gpio_pin_get,		socfpga_gpio_pin_get),
-	DEVMETHOD(gpio_pin_toggle,	socfpga_gpio_pin_toggle),
-	DEVMETHOD(gpio_pin_setflags,	socfpga_gpio_pin_setflags),
-	DEVMETHOD(gpio_pin_set,		socfpga_gpio_pin_set),
+	DEVMETHOD(gpio_get_bus,		dwgpio_get_bus),
+	DEVMETHOD(gpio_pin_max,		dwgpio_pin_max),
+	DEVMETHOD(gpio_pin_getname,	dwgpio_pin_getname),
+	DEVMETHOD(gpio_pin_getcaps,	dwgpio_pin_getcaps),
+	DEVMETHOD(gpio_pin_getflags,	dwgpio_pin_getflags),
+	DEVMETHOD(gpio_pin_get,		dwgpio_pin_get),
+	DEVMETHOD(gpio_pin_toggle,	dwgpio_pin_toggle),
+	DEVMETHOD(gpio_pin_setflags,	dwgpio_pin_setflags),
+	DEVMETHOD(gpio_pin_set,		dwgpio_pin_set),
 	{ 0, 0 }
 };
 
-static driver_t socfpga_gpio_driver = {
+static driver_t dwgpio_driver = {
 	"gpio",
-	socfpga_gpio_methods,
-	sizeof(struct socfpga_gpio_softc),
+	dwgpio_methods,
+	sizeof(struct dwgpio_softc),
 };
 
-static devclass_t socfpga_gpio_devclass;
+static devclass_t dwgpio_devclass;
 
-DRIVER_MODULE(socfpga_gpio, simplebus, socfpga_gpio_driver,
-    socfpga_gpio_devclass, 0, 0);
+DRIVER_MODULE(dwgpio, dwgpiobus, dwgpio_driver,
+    dwgpio_devclass, 0, 0);
