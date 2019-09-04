@@ -618,7 +618,6 @@ OLD_FILES+=boot/boot0
 OLD_FILES+=boot/boot0sio
 OLD_FILES+=boot/boot1
 OLD_FILES+=boot/boot1.efi
-OLD_FILES+=boot/boot1.efifat
 OLD_FILES+=boot/boot2
 OLD_FILES+=boot/brand.4th
 OLD_FILES+=boot/cdboot
