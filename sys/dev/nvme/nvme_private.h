@@ -297,6 +297,9 @@ struct nvme_controller {
 	/** timeout period in seconds */
 	uint32_t		timeout_period;
 
+	/** doorbell stride */
+	uint32_t		dstrd;
+
 	struct nvme_qpair	adminq;
 	struct nvme_qpair	*ioq;
 

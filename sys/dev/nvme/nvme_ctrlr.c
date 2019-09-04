@@ -90,19 +90,25 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	struct nvme_qpair	*qpair;
 	uint32_t		cap_lo;
 	uint16_t		mqes;
-	int			i, error, num_entries, num_trackers;
-
-	num_entries = NVME_IO_ENTRIES;
-	TUNABLE_INT_FETCH("hw.nvme.io_entries", &num_entries);
+	int			i, error, num_entries, num_trackers, max_entries;
 
 	/*
-	 * NVMe spec sets a hard limit of 64K max entries, but
-	 *  devices may specify a smaller limit, so we need to check
-	 *  the MQES field in the capabilities register.
+	 * NVMe spec sets a hard limit of 64K max entries, but devices may
+	 * specify a smaller limit, so we need to check the MQES field in the
+	 * capabilities register. We have to cap the number of entries to the
+	 * current stride allows for in BAR 0/1, otherwise the remainder entries
+	 * are inaccessable. MQES should reflect this, and this is just a
+	 * fail-safe.
 	 */
+	max_entries =
+	    (rman_get_size(ctrlr->resource) - nvme_mmio_offsetof(doorbell[0])) /
+	    (1 << (ctrlr->dstrd + 1));
+	num_entries = NVME_IO_ENTRIES;
+	TUNABLE_INT_FETCH("hw.nvme.io_entries", &num_entries);
 	cap_lo = nvme_mmio_read_4(ctrlr, cap_lo);
 	mqes = NVME_CAP_LO_MQES(cap_lo);
 	num_entries = min(num_entries, mqes + 1);
+	num_entries = min(num_entries, max_entries);
 
 	num_trackers = NVME_IO_TRACKERS;
 	TUNABLE_INT_FETCH("hw.nvme.io_trackers", &num_trackers);
@@ -110,9 +116,9 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	num_trackers = max(num_trackers, NVME_MIN_IO_TRACKERS);
 	num_trackers = min(num_trackers, NVME_MAX_IO_TRACKERS);
 	/*
-	 * No need to have more trackers than entries in the submit queue.
-	 *  Note also that for a queue size of N, we can only have (N-1)
-	 *  commands outstanding, hence the "-1" here.
+	 * No need to have more trackers than entries in the submit queue.  Note
+	 * also that for a queue size of N, we can only have (N-1) commands
+	 * outstanding, hence the "-1" here.
 	 */
 	num_trackers = min(num_trackers, (num_entries-1));
 
@@ -1120,7 +1126,6 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	uint32_t	cap_lo;
 	uint32_t	cap_hi;
 	uint32_t	to;
-	uint8_t		dstrd;
 	uint8_t		mpsmin;
 	int		status, timeout_period;
 
@@ -1128,14 +1133,8 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 
 	mtx_init(&ctrlr->lock, "nvme ctrlr lock", NULL, MTX_DEF);
 
-	/*
-	 * Software emulators may set the doorbell stride to something
-	 *  other than zero, but this driver is not set up to handle that.
-	 */
 	cap_hi = nvme_mmio_read_4(ctrlr, cap_hi);
-	dstrd = NVME_CAP_HI_DSTRD(cap_hi);
-	if (dstrd != 0)
-		return (ENXIO);
+	ctrlr->dstrd = NVME_CAP_HI_DSTRD(cap_hi) + 2;
 
 	mpsmin = NVME_CAP_HI_MPSMIN(cap_hi);
 	ctrlr->min_page_size = 1 << (12 + mpsmin);
