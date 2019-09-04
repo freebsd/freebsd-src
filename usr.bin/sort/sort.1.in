@@ -33,7 +33,7 @@
 .\"
 .\"     @(#)sort.1	8.1 (Berkeley) 6/6/93
 .\"
-.Dd March 19, 2015
+.Dd September 4, 2019
 .Dt SORT 1
 .Os
 .Sh NAME
@@ -607,7 +607,7 @@ and are still supported but their use is highly discouraged.
 A
 .Nm
 command first appeared in
-.At v3 .
+.At v1 .
 .Sh AUTHORS
 .An Gabor Kovesdan Aq Mt gabor@FreeBSD.org ,
 .Pp
