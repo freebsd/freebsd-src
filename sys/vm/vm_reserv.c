@@ -258,7 +258,8 @@ sysctl_vm_reserv_fullpop(SYSCTL_HANDLER_ARGS)
 	for (segind = 0; segind < vm_phys_nsegs; segind++) {
 		seg = &vm_phys_segs[segind];
 		paddr = roundup2(seg->start, VM_LEVEL_0_SIZE);
-		while (paddr + VM_LEVEL_0_SIZE <= seg->end) {
+		while (paddr + VM_LEVEL_0_SIZE > paddr && paddr +
+		    VM_LEVEL_0_SIZE <= seg->end) {
 			rv = &vm_reserv_array[paddr >> VM_LEVEL_0_SHIFT];
 			fullpop += rv->popcnt == VM_LEVEL_0_NPAGES;
 			paddr += VM_LEVEL_0_SIZE;
@@ -851,7 +852,8 @@ vm_reserv_init(void)
 	for (segind = 0; segind < vm_phys_nsegs; segind++) {
 		seg = &vm_phys_segs[segind];
 		paddr = roundup2(seg->start, VM_LEVEL_0_SIZE);
-		while (paddr + VM_LEVEL_0_SIZE <= seg->end) {
+		while (paddr + VM_LEVEL_0_SIZE > paddr && paddr +
+		    VM_LEVEL_0_SIZE <= seg->end) {
 			vm_reserv_array[paddr >> VM_LEVEL_0_SHIFT].pages =
 			    PHYS_TO_VM_PAGE(paddr);
 			paddr += VM_LEVEL_0_SIZE;
