@@ -77,12 +77,10 @@ modules-${target}:
 	    ${target:S/^reinstall$/install/:S/^clobber$/cleandir/}
 .endif
 .for module in ${LOCAL_MODULES}
-.if !empty(module)
 	@${ECHODIR} "===> ${module} (${target:S/^reinstall$/install/:S/^clobber$/cleandir/})"
 	@cd ${LOCAL_MODULES_DIR}/${module}; ${MKMODULESENV} ${MAKE} \
 	    DIRPRFX="${module}/" \
 	    ${target:S/^reinstall$/install/:S/^clobber$/cleandir/}
-.endif
 .endfor
 .endif
 .endfor
