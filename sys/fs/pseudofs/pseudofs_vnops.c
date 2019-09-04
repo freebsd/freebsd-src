@@ -809,23 +809,28 @@ pfs_readdir(struct vop_readdir_args *va)
 	if (resid == 0)
 		PFS_RETURN (0);
 
-	if (!pfs_lookup_proc(pid, &proc))
+	proc = NULL;
+	if (pid != NO_PID && !pfs_lookup_proc(pid, &proc))
 		PFS_RETURN (ENOENT);
 
 	sx_slock(&allproc_lock);
 	pfs_lock(pd);
-	PROC_LOCK(proc);
 
-        /* check if the directory is visible to the caller */
-        if (!pfs_visible_proc(curthread, pd, proc)) {
-		_PRELE(proc);
-		PROC_UNLOCK(proc);
-		sx_sunlock(&allproc_lock);
-		pfs_unlock(pd);
-                PFS_RETURN (ENOENT);
-	}
 	KASSERT(pid == NO_PID || proc != NULL,
 	    ("%s(): no process for pid %lu", __func__, (unsigned long)pid));
+
+	if (pid != NO_PID) {
+		PROC_LOCK(proc);
+
+		/* check if the directory is visible to the caller */
+		if (!pfs_visible_proc(curthread, pd, proc)) {
+			_PRELE(proc);
+			PROC_UNLOCK(proc);
+			sx_sunlock(&allproc_lock);
+			pfs_unlock(pd);
+			PFS_RETURN (ENOENT);
+		}
+	}
 
 	/* skip unwanted entries */
 	for (pn = NULL, p = NULL; offset > 0; offset -= PFS_DELEN) {
