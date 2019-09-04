@@ -37,7 +37,9 @@
 #   -V OLD_FILES -V OLD_LIBS -V OLD_DIRS check-old | \
 #   xargs -n1 | sort | uniq -d;
 # done
- 
+
+# 20190904: Remove boot1.efifat
+OLD_FILES+=boot/boot1.efifat
 # 20190903: pc-sysinstall(8) removed
 OLD_FILES+=usr/share/examples/pc-sysinstall/README
 OLD_FILES+=usr/share/examples/pc-sysinstall/pc-autoinstall.conf
