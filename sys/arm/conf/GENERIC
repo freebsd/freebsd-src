@@ -153,6 +153,7 @@ device		nxprtc			# NXP RTCs: PCA/PFC212x PCA/PCF85xx
 device		s35390a			# Seiko s3539x RTCs
 
 # GPIO
+device		dwgpio			# Synopsys DesignWare APB GPIO Controller
 device		gpio
 device		gpiobacklight
 device		gpioled
