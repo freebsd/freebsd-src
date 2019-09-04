@@ -4448,7 +4448,7 @@ nfsrv_proxyds(struct nfsrv_descript *nd, struct vnode *vp, off_t off, int cnt,
 			 * delegation issued to a client for the file.
 			 */
 			if (nfsrv_pnfsgetdsattr == 0 ||
-			    nfsrv_checkdsattr(nd, vp, p) == 0) {
+			    nfsrv_checkdsattr(vp, p) == 0) {
 				free(buf, M_TEMP);
 				return (error);
 			}

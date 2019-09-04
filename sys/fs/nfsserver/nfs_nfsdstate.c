@@ -7999,7 +7999,7 @@ nfsrv_freealldevids(void)
  */
 #define	NFSCLIDVECSIZE	6
 APPLESTATIC int
-nfsrv_checkdsattr(struct nfsrv_descript *nd, vnode_t vp, NFSPROC_T *p)
+nfsrv_checkdsattr(vnode_t vp, NFSPROC_T *p)
 {
 	fhandle_t fh, *tfhp;
 	struct nfsstate *stp;
