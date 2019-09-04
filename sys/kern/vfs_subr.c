@@ -1102,7 +1102,6 @@ vnlru_free_locked(int count, struct vfsops *mnt_op)
 		    ("Removing vnode not on freelist"));
 		KASSERT((vp->v_iflag & VI_ACTIVE) == 0,
 		    ("Mangling active vnode"));
-		TAILQ_REMOVE(&vnode_free_list, vp, v_actfreelist);
 
 		/*
 		 * Don't recycle if our vnode is from different type
@@ -1114,7 +1113,6 @@ vnlru_free_locked(int count, struct vfsops *mnt_op)
 		 */
 		if ((mnt_op != NULL && (mp = vp->v_mount) != NULL &&
 		    mp->mnt_op != mnt_op) || !VI_TRYLOCK(vp)) {
-			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_actfreelist);
 			continue;
 		}
 		VNASSERT((vp->v_iflag & VI_FREE) != 0 && vp->v_holdcnt == 0,
@@ -1129,11 +1127,8 @@ vnlru_free_locked(int count, struct vfsops *mnt_op)
 		 * activating.
 		 */
 		freevnodes--;
-		vp->v_iflag &= ~VI_FREE;
-		VNODE_REFCOUNT_FENCE_REL();
-		refcount_acquire(&vp->v_holdcnt);
-
 		mtx_unlock(&vnode_free_list_mtx);
+		vholdl(vp);
 		VI_UNLOCK(vp);
 		vtryrecycle(vp);
 		/*
