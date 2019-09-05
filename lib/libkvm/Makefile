@@ -1,9 +1,9 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 # $FreeBSD$
 
-PACKAGE=lib${LIB}
 LIB=	kvm
 
+PACKAGE=	runtime
 SHLIBDIR?= /lib
 SHLIB_MAJOR=	7
 CFLAGS+=-DNO__SCCSID -I${.CURDIR}

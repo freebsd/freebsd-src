@@ -4,7 +4,7 @@ SHLIBDIR?=	/lib
 
 .include <src.opts.mk>
 
-PACKAGE=lib${LIB}
+PACKAGE=	runtime
 LIB=		kiconv
 SRCS=		kiconv_sysctl.c xlat16_iconv.c xlat16_sysctl.c
 SRCS+=		quirks.c

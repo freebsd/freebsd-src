@@ -3,6 +3,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE	 = runtime
 PROG	 = passwd
 BINOWN	 = root
 BINMODE	 = 4555

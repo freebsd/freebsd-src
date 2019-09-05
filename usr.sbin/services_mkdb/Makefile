@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	runtime
+
 CONFS=	services
 PROG=	services_mkdb
 MAN=	services_mkdb.8
