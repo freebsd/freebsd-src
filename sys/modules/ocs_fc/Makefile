@@ -41,6 +41,6 @@ SRCS += ocs_cam.c
 
 CINCS = -I. 
 
-CLEANFILES += ${PROG}.debug ${PROG}.symbols cscope.* .depend.*
+CLEANFILES += ${PROG}.debug ${PROG}.symbols cscope.*
 
 .include <bsd.kmod.mk>
