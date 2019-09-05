@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016-2018 Netflix Inc.
+ * Copyright (c) 2016-2018 Netflix, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
