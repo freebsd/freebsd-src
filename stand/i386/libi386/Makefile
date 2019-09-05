@@ -14,6 +14,9 @@ SRCS=	bio.c biosacpi.c biosdisk.c biosmem.c biospnp.c \
 SRCS+=  devicename_stubs.c
 CFLAGS+= -I${ZFSSRC}
 
+.PATH:	${SYSDIR}/teken
+SRCS+=	teken.c
+
 BOOT_COMCONSOLE_PORT?= 0x3f8
 CFLAGS+=	-DCOMPORT=${BOOT_COMCONSOLE_PORT}
 
@@ -37,8 +40,9 @@ CFLAGS+= -DSMBIOS_NETWORK_ENDIAN_UUID
 .endif
 .endif
 
-# Include simple terminal emulation (cons25-compatible)
-CFLAGS+= -DTERM_EMU
+# terminal emulation
+CFLAGS.vidconsole.c+= -I${SRCTOP}/sys/teken
+CFLAGS.teken.c+= -I${SRCTOP}/sys/teken
 
 # XXX: make alloca() useable
 CFLAGS+= -Dalloca=__builtin_alloca
