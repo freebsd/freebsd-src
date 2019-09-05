@@ -118,8 +118,8 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 
 	/*
 	 * Our best estimate for the maximum number of I/Os that we should
-	 * noramlly have in flight at one time. This should be viewed as a hint,
-	 * not a hard limit and will need to be revisitted when the upper layers
+	 * normally have in flight at one time. This should be viewed as a hint,
+	 * not a hard limit and will need to be revisited when the upper layers
 	 * of the storage system grows multi-queue support.
 	 */
 	ctrlr->max_hw_pend_io = num_trackers * ctrlr->num_io_queues * 3 / 4;
@@ -344,10 +344,10 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 	return (nvme_ctrlr_wait_for_ready(ctrlr, 1));
 }
 
-int
-nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
+static void
+nvme_ctrlr_disable_qpairs(struct nvme_controller *ctrlr)
 {
-	int i, err;
+	int i;
 
 	nvme_admin_qpair_disable(&ctrlr->adminq);
 	/*
@@ -359,6 +359,14 @@ nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 		for (i = 0; i < ctrlr->num_io_queues; i++)
 			nvme_io_qpair_disable(&ctrlr->ioq[i]);
 	}
+}
+
+int
+nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
+{
+	int err;
+
+	nvme_ctrlr_disable_qpairs(ctrlr);
 
 	DELAY(100*1000);
 
@@ -481,7 +489,7 @@ nvme_ctrlr_create_qpairs(struct nvme_controller *ctrlr)
 }
 
 static int
-nvme_ctrlr_destroy_qpairs(struct nvme_controller *ctrlr)
+nvme_ctrlr_delete_qpairs(struct nvme_controller *ctrlr)
 {
 	struct nvme_completion_poll_status	status;
 	struct nvme_qpair			*qpair;
@@ -820,7 +828,7 @@ nvme_ctrlr_configure_int_coalescing(struct nvme_controller *ctrlr)
 }
 
 static void
-nvme_ctrlr_start(void *ctrlr_arg)
+nvme_ctrlr_start(void *ctrlr_arg, bool resetting)
 {
 	struct nvme_controller *ctrlr = ctrlr_arg;
 	uint32_t old_num_io_queues;
@@ -833,7 +841,7 @@ nvme_ctrlr_start(void *ctrlr_arg)
 	 *  the number of I/O queues supported, so cannot reset
 	 *  the adminq again here.
 	 */
-	if (ctrlr->is_resetting)
+	if (resetting)
 		nvme_qpair_reset(&ctrlr->adminq);
 
 	for (i = 0; i < ctrlr->num_io_queues; i++)
@@ -854,7 +862,7 @@ nvme_ctrlr_start(void *ctrlr_arg)
 	 *  explicit specify how many queues it will use.  This value should
 	 *  never change between resets, so panic if somehow that does happen.
 	 */
-	if (ctrlr->is_resetting) {
+	if (resetting) {
 		old_num_io_queues = ctrlr->num_io_queues;
 		if (nvme_ctrlr_set_num_qpairs(ctrlr) != 0) {
 			nvme_ctrlr_fail(ctrlr);
@@ -894,7 +902,7 @@ nvme_ctrlr_start_config_hook(void *arg)
 
 	if (nvme_ctrlr_set_num_qpairs(ctrlr) == 0 &&
 	    nvme_ctrlr_construct_io_qpairs(ctrlr) == 0)
-		nvme_ctrlr_start(ctrlr);
+		nvme_ctrlr_start(ctrlr, false);
 	else
 		nvme_ctrlr_fail(ctrlr);
 
@@ -923,7 +931,7 @@ nvme_ctrlr_reset_task(void *arg, int pending)
 	 */
 	pause("nvmereset", hz / 10);
 	if (status == 0)
-		nvme_ctrlr_start(ctrlr);
+		nvme_ctrlr_start(ctrlr, true);
 	else
 		nvme_ctrlr_fail(ctrlr);
 
@@ -946,7 +954,7 @@ nvme_ctrlr_poll(struct nvme_controller *ctrlr)
 }
 
 /*
- * Poll the single-vector intertrupt case: num_io_queues will be 1 and
+ * Poll the single-vector interrupt case: num_io_queues will be 1 and
  * there's only a single vector. While we're polling, we mask further
  * interrupts in the controller.
  */
@@ -1012,7 +1020,7 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 		if (is_user_buffer) {
 			/*
 			 * Ensure the user buffer is wired for the duration of
-			 *  this passthrough command.
+			 *  this pass-through command.
 			 */
 			PHOLD(curproc);
 			buf = getpbuf(NULL);
@@ -1031,7 +1039,7 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 	} else
 		req = nvme_allocate_request_null(nvme_pt_done, pt);
 
-	/* Assume userspace already converted to little-endian */
+	/* Assume user space already converted to little-endian */
 	req->cmd.opc = pt->cmd.opc;
 	req->cmd.fuse = pt->cmd.fuse;
 	req->cmd.rsvd2 = pt->cmd.rsvd2;
@@ -1206,7 +1214,7 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 
 	if (ctrlr->is_initialized) {
 		if (!gone)
-			nvme_ctrlr_destroy_qpairs(ctrlr);
+			nvme_ctrlr_delete_qpairs(ctrlr);
 		for (i = 0; i < ctrlr->num_io_queues; i++)
 			nvme_io_qpair_destroy(&ctrlr->ioq[i]);
 		free(ctrlr->ioq, M_NVME);
@@ -1305,4 +1313,88 @@ nvme_ctrlr_get_data(struct nvme_controller *ctrlr)
 {
 
 	return (&ctrlr->cdata);
+}
+
+int
+nvme_ctrlr_suspend(struct nvme_controller *ctrlr)
+{
+	int to = hz;
+
+	/*
+	 * Can't touch failed controllers, so it's already suspended.
+	 */
+	if (ctrlr->is_failed)
+		return (0);
+
+	/*
+	 * We don't want the reset taskqueue running, since it does similar
+	 * things, so prevent it from running after we start. Wait for any reset
+	 * that may have been started to complete. The reset process we follow
+	 * will ensure that any new I/O will queue and be given to the hardware
+	 * after we resume (though there should be none).
+	 */
+	while (atomic_cmpset_32(&ctrlr->is_resetting, 0, 1) == 0 && to-- > 0)
+		pause("nvmesusp", 1);
+	if (to <= 0) {
+		nvme_printf(ctrlr,
+		    "Competing reset task didn't finish. Try again later.\n");
+		return (EWOULDBLOCK);
+	}
+
+	/*
+	 * Per Section 7.6.2 of NVMe spec 1.4, to properly suspend, we need to
+	 * delete the hardware I/O queues, and then shutdown. This properly
+	 * flushes any metadata the drive may have stored so it can survive
+	 * having its power removed and prevents the unsafe shutdown count from
+	 * incriminating. Once we delete the qpairs, we have to disable them
+	 * before shutting down. The delay is out of paranoia in
+	 * nvme_ctrlr_hw_reset, and is repeated here (though we should have no
+	 * pending I/O that the delay copes with).
+	 */
+	nvme_ctrlr_delete_qpairs(ctrlr);
+	nvme_ctrlr_disable_qpairs(ctrlr);
+	DELAY(100*1000);
+	nvme_ctrlr_shutdown(ctrlr);
+
+	return (0);
+}
+
+int
+nvme_ctrlr_resume(struct nvme_controller *ctrlr)
+{
+
+	/*
+	 * Can't touch failed controllers, so nothing to do to resume.
+	 */
+	if (ctrlr->is_failed)
+		return (0);
+
+	/*
+	 * Have to reset the hardware twice, just like we do on attach. See
+	 * nmve_attach() for why.
+	 */
+	if (nvme_ctrlr_hw_reset(ctrlr) != 0)
+		goto fail;
+	if (nvme_ctrlr_hw_reset(ctrlr) != 0)
+		goto fail;
+
+	/*
+	 * Now that we're reset the hardware, we can restart the controller. Any
+	 * I/O that was pending is requeued. Any admin commands are aborted with
+	 * an error. Once we've restarted, take the controller out of reset.
+	 */
+	nvme_ctrlr_start(ctrlr, true);
+	atomic_cmpset_32(&ctrlr->is_resetting, 1, 0);
+
+	return (0);
+fail:
+	/*
+	 * Since we can't bring the controller out of reset, announce and fail
+	 * the controller. However, we have to return success for the resume
+	 * itself, due to questionable APIs.
+	 */
+	nvme_printf(ctrlr, "Failed to reset on resume, failing.\n");
+	nvme_ctrlr_fail(ctrlr);
+	atomic_cmpset_32(&ctrlr->is_resetting, 1, 0);
+	return (0);
 }
