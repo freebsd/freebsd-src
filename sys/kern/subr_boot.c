@@ -10,7 +10,7 @@
  * Copyright (c) 2014 Roger Pau Monné <roger.pau@citrix.com>
  * All Rights Reserved.
  * Copyright (c) 2018 Kyle Evans <kevans@FreeBSD.org>
- * Copyright (c) 2018 Netflix, Inc.
+ * Copyright (c) 2018 Netflix
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
