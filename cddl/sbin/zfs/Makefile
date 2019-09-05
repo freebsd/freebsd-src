@@ -2,6 +2,7 @@
 
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/cmd/zfs
 
+PACKAGE=	runtime
 PROG=	zfs
 MAN=	zfs.8 zfs-program.8
 SRCS=	zfs_main.c zfs_iter.c
