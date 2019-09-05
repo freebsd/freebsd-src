@@ -2,6 +2,7 @@
 
 .PATH: ${SRCTOP}/cddl/compat/opensolaris/lib/libumem
 
+PACKAGE=	runtime
 LIB=	umem
 SRCS=	umem.c
 WARNS?=	3

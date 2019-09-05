@@ -3,6 +3,7 @@
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libuutil/common
 .PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/common/avl
 
+PACKAGE=	runtime
 LIB=	uutil
 SRCS=	avl.c \
 	uu_alloc.c \
