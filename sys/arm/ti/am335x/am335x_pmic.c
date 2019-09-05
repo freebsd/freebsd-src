@@ -56,13 +56,9 @@ __FBSDID("$FreeBSD$");
 
 #include "iicbus_if.h"
 
-#define MAX_IIC_DATA_SIZE	2
-
-
 struct am335x_pmic_softc {
 	device_t		sc_dev;
 	uint32_t		sc_addr;
-	struct intr_config_hook enum_hook;
 	struct resource		*sc_irq_res;
 	void			*sc_intrhand;
 };
@@ -79,30 +75,13 @@ static void am335x_pmic_shutdown(void *, int);
 static int
 am335x_pmic_read(device_t dev, uint8_t addr, uint8_t *data, uint8_t size)
 {
-	struct am335x_pmic_softc *sc = device_get_softc(dev);
-	struct iic_msg msg[] = {
-		{ sc->sc_addr, IIC_M_WR, 1, &addr },
-		{ sc->sc_addr, IIC_M_RD, size, data },
-	};
-	return (iicbus_transfer(dev, msg, 2));
+	return (iicdev_readfrom(dev, addr, data, size, IIC_INTRWAIT));
 }
 
 static int
 am335x_pmic_write(device_t dev, uint8_t address, uint8_t *data, uint8_t size)
 {
-	uint8_t buffer[MAX_IIC_DATA_SIZE + 1];
-	struct am335x_pmic_softc *sc = device_get_softc(dev);
-	struct iic_msg msg[] = {
-		{ sc->sc_addr, IIC_M_WR, size + 1, buffer },
-	};
-
-	if (size > MAX_IIC_DATA_SIZE)
-		return (ENOMEM);
-
-	buffer[0] = address;
-	memcpy(buffer + 1, data, size);
-
-	return (iicbus_transfer(dev, msg, 1));
+	return (iicdev_writeto(dev, address, data, size, IIC_INTRWAIT));
 }
 
 static void
@@ -220,10 +199,9 @@ am335x_pmic_setvo(device_t dev, uint8_t vo)
 }
 
 static void
-am335x_pmic_start(void *xdev)
+am335x_pmic_start(struct am335x_pmic_softc *sc)
 {
-	struct am335x_pmic_softc *sc;
-	device_t dev = (device_t)xdev;
+	device_t dev;
 	struct tps65217_status_reg status_reg;
 	struct tps65217_chipid_reg chipid_reg;
 	uint8_t reg, vo;
@@ -231,8 +209,7 @@ am335x_pmic_start(void *xdev)
 	char pwr[4][11] = {"Battery", "USB", "AC", "USB and AC"};
 	int rv;
 
-	sc = device_get_softc(dev);
-
+	dev = sc->sc_dev;
 	am335x_pmic_read(dev, TPS65217_CHIPID_REG, (uint8_t *)&chipid_reg, 1);
 	switch (chipid_reg.chip) {
 		case TPS65217A:
@@ -275,8 +252,6 @@ am335x_pmic_start(void *xdev)
 	EVENTHANDLER_REGISTER(shutdown_final, am335x_pmic_shutdown, dev,
 	    SHUTDOWN_PRI_LAST);
 
-	config_intrhook_disestablish(&sc->enum_hook);
-
 	/* Unmask all interrupts and clear pending status */
 	reg = 0;
 	am335x_pmic_write(dev, TPS65217_INT_REG, &reg, 1);
@@ -308,11 +283,7 @@ am335x_pmic_attach(device_t dev)
 		/* return (ENXIO); */
 	}
 
-	sc->enum_hook.ich_func = am335x_pmic_start;
-	sc->enum_hook.ich_arg = dev;
-
-	if (config_intrhook_establish(&sc->enum_hook) != 0)
-		return (ENOMEM);
+	am335x_pmic_start(sc);
 
 	return (0);
 }
