@@ -5,6 +5,7 @@ SUBDIR=		engines
 
 .include <bsd.own.mk>
 
+PACKAGE=	runtime
 LIB=		crypto
 SHLIB_MAJOR=	111
 VERSION_MAP=	${.CURDIR}/Version.map
