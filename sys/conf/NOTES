@@ -2385,6 +2385,7 @@ device		lpbb
 device		pcfclock
 
 # General Purpose I/O pins
+device		dwgpio		# Synopsys DesignWare APB GPIO Controller
 device  	gpio		# gpio interfaces and bus support
 device  	gpiobacklight	# sysctl control of gpio-based backlight
 device  	gpioiic		# i2c via gpio bitbang
