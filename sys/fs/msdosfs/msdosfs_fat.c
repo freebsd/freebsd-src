@@ -1145,10 +1145,8 @@ markvoldirty(struct msdosfsmount *pmp, int dirty)
 	byteoffset = FATOFS(pmp, 1);
 	fatblock(pmp, byteoffset, &bn, &bsize, &bo);
 	error = bread(pmp->pm_devvp, bn, bsize, NOCRED, &bp);
-	if (error) {
-		brelse(bp);
+	if (error)
 		return (error);
-	}
 
 	/*
 	 * Get the current value of the FAT entry and set/clear the relevant
