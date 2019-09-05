@@ -1628,7 +1628,7 @@ cpuset_thread0(void)
 	/*
 	 * Initialize the unit allocator. 0 and 1 are allocated above.
 	 */
-	cpuset_unr = new_unrhdr(2, INT_MAX, NULL);
+	cpuset_unr = new_unrhdr(3, INT_MAX, NULL);
 
 	/*
 	 * If MD code has not initialized per-domain cpusets, place all
