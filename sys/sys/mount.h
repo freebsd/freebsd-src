@@ -651,6 +651,18 @@ struct nameidata;
 struct sysctl_req;
 struct mntarg;
 
+/*
+ * N.B., vfs_cmount is the ancient vfsop invoked by the old mount(2) syscall.
+ * The new way is vfs_mount.
+ *
+ * vfs_cmount implementations typically translate arguments from their
+ * respective old per-FS structures into the key-value list supported by
+ * nmount(2), then use kernel_mount(9) to mimic nmount(2) from kernelspace.
+ *
+ * Filesystems with mounters that use nmount(2) do not need to and should not
+ * implement vfs_cmount.  Hopefully a future cleanup can remove vfs_cmount and
+ * mount(2) entirely.
+ */
 typedef int vfs_cmount_t(struct mntarg *ma, void *data, uint64_t flags);
 typedef int vfs_unmount_t(struct mount *mp, int mntflags);
 typedef int vfs_root_t(struct mount *mp, int flags, struct vnode **vpp);
