@@ -347,6 +347,16 @@ ahci_attach(device_t dev)
 		if ((ctlr->ichannels & (1 << unit)) == 0)
 			device_disable(child);
 	}
+	/* Attach any remapped NVME device */
+	for (; unit < ctlr->channels + ctlr->remapped_devices; unit++) {
+		child = device_add_child(dev, "nvme", -1);
+		if (child == NULL) {
+			device_printf(dev, "failed to add remapped NVMe device");
+			    continue;
+		}
+		device_set_ivars(child, (void *)(intptr_t)(unit | AHCI_REMAPPED_UNIT));
+	}
+
 	if (ctlr->caps & AHCI_CAP_EMS) {
 		child = device_add_child(dev, "ahciem", -1);
 		if (child == NULL)
@@ -497,6 +507,12 @@ ahci_intr(void *data)
 				ctlr->interrupt[unit].function(arg);
 		}
 	}
+	for (; unit < ctlr->channels + ctlr->remapped_devices; unit++) {
+		if ((arg = ctlr->interrupt[unit].argument)) {
+			ctlr->interrupt[unit].function(arg);
+		}
+	}
+
 	/* AHCI declares level triggered IS. */
 	if (!(ctlr->quirks & AHCI_Q_EDGEIS))
 		ATA_OUTL(ctlr->r_mem, AHCI_IS, is);
@@ -546,12 +562,23 @@ ahci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct resource *res;
 	rman_res_t st;
 	int offset, size, unit;
+	bool is_remapped;
 
 	unit = (intptr_t)device_get_ivars(child);
+	if (unit & AHCI_REMAPPED_UNIT) {
+		unit &= ~AHCI_REMAPPED_UNIT;
+		unit -= ctlr->channels;
+		is_remapped = true;
+	} else
+		is_remapped = false;
 	res = NULL;
 	switch (type) {
 	case SYS_RES_MEMORY:
-		if (unit >= 0) {
+		if (is_remapped) {
+			offset = ctlr->remap_offset + unit * ctlr->remap_size;
+			size = ctlr->remap_size;
+		}
+		else if (unit >= 0) {
 			offset = AHCI_OFFSET + (unit << 7);
 			size = 128;
 		} else if (*rid == 0) {
@@ -612,7 +639,7 @@ ahci_setup_intr(device_t dev, device_t child, struct resource *irq,
     void *argument, void **cookiep)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
-	int unit = (intptr_t)device_get_ivars(child);
+	int unit = (intptr_t)device_get_ivars(child) & ~AHCI_REMAPPED_UNIT;
 
 	if (filter != NULL) {
 		printf("ahci.c: we cannot use a filter here\n");
@@ -628,7 +655,7 @@ ahci_teardown_intr(device_t dev, device_t child, struct resource *irq,
     void *cookie)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
-	int unit = (intptr_t)device_get_ivars(child);
+	int unit = (intptr_t)device_get_ivars(child) & ~AHCI_REMAPPED_UNIT;
 
 	ctlr->interrupt[unit].function = NULL;
 	ctlr->interrupt[unit].argument = NULL;
@@ -641,7 +668,7 @@ ahci_print_child(device_t dev, device_t child)
 	int retval, channel;
 
 	retval = bus_print_child_header(dev, child);
-	channel = (int)(intptr_t)device_get_ivars(child);
+	channel = (int)(intptr_t)device_get_ivars(child) & ~AHCI_REMAPPED_UNIT;
 	if (channel >= 0)
 		retval += printf(" at channel %d", channel);
 	retval += bus_print_child_footer(dev, child);
@@ -654,7 +681,7 @@ ahci_child_location_str(device_t dev, device_t child, char *buf,
 {
 	int channel;
 
-	channel = (int)(intptr_t)device_get_ivars(child);
+	channel = (int)(intptr_t)device_get_ivars(child) & ~AHCI_REMAPPED_UNIT;
 	if (channel >= 0)
 		snprintf(buf, buflen, "channel=%d", channel);
 	return (0);
