@@ -476,7 +476,7 @@ sdhci_set_power(struct sdhci_slot *slot, u_char power)
 		DELAY(100);
 	}
 	if (!(RD1(slot, SDHCI_POWER_CONTROL) & SDHCI_POWER_ON))
-		slot_printf(slot, "Bus power failed to enable");
+		slot_printf(slot, "Bus power failed to enable\n");
 
 	if (slot->quirks & SDHCI_QUIRK_INTEL_POWER_UP_RESET) {
 		WR1(slot, SDHCI_POWER_CONTROL, pwr | 0x10);
@@ -1111,7 +1111,7 @@ no_tuning:
 	slot->timeout = 10;
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(slot->bus),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(slot->bus)), OID_AUTO,
-	    "timeout", CTLFLAG_RW, &slot->timeout, 0,
+	    "timeout", CTLFLAG_RWTUN, &slot->timeout, 0,
 	    "Maximum timeout for SDHCI transfers (in secs)");
 	TASK_INIT(&slot->card_task, 0, sdhci_card_task, slot);
 	TIMEOUT_TASK_INIT(taskqueue_swi_giant, &slot->card_delayed_task, 0,
