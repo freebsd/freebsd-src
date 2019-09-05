@@ -2574,6 +2574,7 @@ dev/nsp/nsp_pccard.c		optional nsp pccard
 dev/null/null.c			standard
 dev/nvd/nvd.c			optional nvd nvme
 dev/nvme/nvme.c			optional nvme
+dev/nvme/nvme_ahci.c		optional nvme ahci
 dev/nvme/nvme_ctrlr.c		optional nvme
 dev/nvme/nvme_ctrlr_cmd.c	optional nvme
 dev/nvme/nvme_ns.c		optional nvme
