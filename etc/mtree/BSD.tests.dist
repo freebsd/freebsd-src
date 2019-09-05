@@ -1018,6 +1018,8 @@
         ..
         opensm
         ..
+        patch
+        ..
         pr
         ..
         printf
