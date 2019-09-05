@@ -167,11 +167,21 @@ struct ads111x_softc {
 static int
 ads111x_write_2(struct ads111x_softc *sc, int reg, int val) 
 {
-	uint8_t data[2];
+	uint8_t data[3];
+	struct iic_msg msgs[1];
+	uint8_t slaveaddr;
 
-	be16enc(data, val);
+	slaveaddr = iicbus_get_addr(sc->dev);
 
-	return (iic2errno(iicdev_writeto(sc->dev, reg, data, 2, IIC_WAIT)));
+	data[0] = reg;
+	be16enc(&data[1], val);
+
+	msgs[0].slave = slaveaddr;
+	msgs[0].flags = IIC_M_WR;
+	msgs[0].len   = sizeof(data);
+	msgs[0].buf   = data;
+
+	return (iicbus_transfer_excl(sc->dev, msgs, nitems(msgs), IIC_WAIT));
 }
 
 static int
