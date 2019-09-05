@@ -62,7 +62,6 @@ static driver_t nvme_pci_driver = {
 };
 
 DRIVER_MODULE(nvme, pci, nvme_pci_driver, nvme_devclass, NULL, 0);
-MODULE_VERSION(nvme_pci, 1);
 
 static struct _pcsid
 {
