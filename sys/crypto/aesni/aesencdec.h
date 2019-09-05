@@ -1,7 +1,8 @@
 /*-
  * Copyright 2013 John-Mark Gurney <jmg@FreeBSD.org>
- * Copyright 2015 Netflix, Inc.
  * All rights reserved.
+ *
+ * Copyright 2015 Netflix, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
