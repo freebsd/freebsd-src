@@ -30,8 +30,8 @@ _ACL_PROGS=		getfacl setfacl
 TEST_METADATA.$t+=	required_programs="perl zpool ${_ACL_PROGS}"
 .endfor
 
-# .for t in 00 02
-# TEST_METADATA.$t+=	required_programs="perl ${_ACL_PROGS}"
-# .endfor
+.for t in 00 02
+TEST_METADATA.$t+=	required_programs="perl ${_ACL_PROGS}"
+.endfor
 
 .include <bsd.test.mk>
