@@ -263,12 +263,15 @@ main(int argc, char **argv)
 			mask = 0;
 			break;
 		case HAVE_REPS | HAVE_BEGIN | HAVE_ENDER:
-			if (reps == 0)
-				errx(1, "infinite sequences cannot be bounded");
-			else if (reps == 1)
-				s = 0.0;
-			else
-				s = (ender - begin) / (reps - 1);
+			if (!randomize) {
+				if (reps == 0)
+					errx(1, "infinite sequences cannot "
+					    "be bounded");
+				else if (reps == 1)
+					s = 0.0;
+				else
+					s = (ender - begin) / (reps - 1);
+			}
 			mask = 0;
 			break;
 		case HAVE_REPS | HAVE_BEGIN | HAVE_ENDER | HAVE_STEP:
