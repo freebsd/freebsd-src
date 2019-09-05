@@ -180,6 +180,13 @@ CFLAGS+=-I.
 
 all: ${PROG}
 
+CLEANFILES+= teken_state.h
+teken.c: teken_state.h
+
+teken_state.h: ${SYSDIR}/teken/sequences
+	awk -f ${SYSDIR}/teken/gensequences \
+		${SYSDIR}/teken/sequences > teken_state.h
+
 .if !defined(NO_OBJ)
 _ILINKS=machine
 .if ${MACHINE} != ${MACHINE_CPUARCH} && ${MACHINE} != "arm64"
