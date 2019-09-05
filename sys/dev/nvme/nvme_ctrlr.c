@@ -1211,12 +1211,14 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 	if (ctrlr->cdev)
 		destroy_dev(ctrlr->cdev);
 
-	if (!gone)
-		nvme_ctrlr_destroy_qpairs(ctrlr);
-	for (i = 0; i < ctrlr->num_io_queues; i++)
-		nvme_io_qpair_destroy(&ctrlr->ioq[i]);
-	free(ctrlr->ioq, M_NVME);
-	nvme_admin_qpair_destroy(&ctrlr->adminq);
+	if (ctrlr->is_initialized) {
+		if (!gone)
+			nvme_ctrlr_destroy_qpairs(ctrlr);
+		for (i = 0; i < ctrlr->num_io_queues; i++)
+			nvme_io_qpair_destroy(&ctrlr->ioq[i]);
+		free(ctrlr->ioq, M_NVME);
+		nvme_admin_qpair_destroy(&ctrlr->adminq);
+	}
 
 	/*
 	 *  Notify the controller of a shutdown, even though this is due to
