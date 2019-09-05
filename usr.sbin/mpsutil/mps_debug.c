@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2018 Netflix, Inc.
- * All rights reserved.
  * Written by: Scott Long <scottl@freebsd.org>
  *
  * Redistribution and use in source and binary forms, with or without

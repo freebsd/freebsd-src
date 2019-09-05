@@ -2,7 +2,6 @@
  * Copyright (c) 2015 Baptiste Daroussin <bapt@FreeBSD.org>
  *
  * Copyright (c) 2015 Netflix, Inc.
- * All rights reserved.
  * Written by: Scott Long <scottl@freebsd.org>
  *
  * Copyright (c) 2008 Yahoo!, Inc.
