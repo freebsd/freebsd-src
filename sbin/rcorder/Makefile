@@ -1,7 +1,7 @@
 #       $NetBSD: Makefile,v 1.1 1999/11/23 05:28:20 mrg Exp $
 # $FreeBSD$
 
-PACKAGE=runtime
+PACKAGE=rc
 PROG=   rcorder
 SRCS=   ealloc.c hash.c rcorder.c
 MAN=	rcorder.8
