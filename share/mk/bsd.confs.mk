@@ -44,9 +44,9 @@ STAGE_SETS+=	${group:C,[/*],_,g}
 .      if defined(NO_ROOT)
 .        if !defined(${group}TAGS) || ! ${${group}TAGS:Mpackage=*}
 .          if defined(${group}PACKAGE)
-${group}TAGS+=		package=${${group}PACKAGE:Uruntime}
+${group}TAGS+=		package=${${group}PACKAGE:Uutilities}
 .          else
-${group}TAGS+=		package=${PACKAGE:Uruntime}
+${group}TAGS+=		package=${PACKAGE:Uutilities}
 .          endif
 .        endif
 ${group}TAGS+=		config

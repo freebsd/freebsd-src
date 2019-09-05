@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-PACKAGE=lib${LIB}
-
 INCS=	capsicum_helpers.h
 
 MAN+=	capsicum_helpers.3

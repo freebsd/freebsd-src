@@ -40,7 +40,7 @@ STAGE_SETS+=	${group:C,[/*],_,g}
 
 .if defined(NO_ROOT)
 .if !defined(${group}TAGS) || ! ${${group}TAGS:Mpackage=*}
-${group}TAGS+=		package=${${group}PACKAGE:Uruntime}
+${group}TAGS+=		package=${${group}PACKAGE:Uutilities}
 .endif
 ${group}TAG_ARGS=	-T ${${group}TAGS:[*]:S/ /,/g}
 .endif
