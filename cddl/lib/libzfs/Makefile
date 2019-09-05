@@ -6,6 +6,7 @@
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libzfs/common
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libcmdutils/common
 
+PACKAGE=	runtime
 LIB=	zfs
 LIBADD=	md pthread umem util uutil m avl bsdxml geom nvpair z zfs_core
 SRCS=	deviceid.c \

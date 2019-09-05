@@ -2,6 +2,7 @@
 
 .PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/common/avl
 
+PACKAGE=	runtime
 LIB=	avl
 SRCS=	avl.c
 WARNS?=	3
