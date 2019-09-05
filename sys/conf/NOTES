@@ -2525,6 +2525,7 @@ device		iicoc		# OpenCores I2C controller support
 # I2C peripheral devices
 #
 device		ad7418		# Analog Devices temp and voltage sensor
+device		ads111x		# Texas Instruments ADS101x and ADS111x ADCs
 device		ds1307		# Dallas DS1307 RTC and compatible
 device		ds13rtc		# All Dallas/Maxim ds13xx chips
 device		ds1672		# Dallas DS1672 RTC
