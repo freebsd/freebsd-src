@@ -35,7 +35,12 @@
 #include <sys/lock.h>
 #include <sys/systm.h>
 #define	teken_assert(x)		MPASS(x)
-#else /* !(__FreeBSD__ && _KERNEL) */
+#elif defined(__FreeBSD__) && defined(_STANDALONE)
+#include <stand.h>
+#include <sys/limits.h>
+#include <assert.h>
+#define	teken_assert(x)		assert(x)
+#else /* !(__FreeBSD__ && _STANDALONE) */
 #include <sys/types.h>
 #include <assert.h>
 #include <limits.h>
@@ -43,7 +48,7 @@
 #include <stdio.h>
 #include <string.h>
 #define	teken_assert(x)		assert(x)
-#endif /* __FreeBSD__ && _KERNEL */
+#endif /* __FreeBSD__ && _STANDALONE */
 
 /* debug messages */
 #define	teken_printf(x,...)
