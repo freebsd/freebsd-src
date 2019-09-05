@@ -2,7 +2,6 @@
 
 .include <src.opts.mk>
 
-PACKAGE=lib${LIB}
 LIB=	proc
 
 SRCS=	crc32.c			\

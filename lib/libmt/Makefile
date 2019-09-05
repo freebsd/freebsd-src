@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-PACKAGE=lib${LIB}
 LIB=		mt
 SHLIBDIR?=	/lib
 SRCS=		mtlib.c
