@@ -817,7 +817,7 @@ DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind14Registers_or1k6jumptoEv)
 //  thread_state pointer is in a0
 //
   .p2align 2
-DEFINE_LIBUNWIND_PRIVATE_FUNCTION(_ZN9libunwind15Registers_riscv6jumptoEv)
+DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind15Registers_riscv6jumptoEv)
 #ifdef __riscv_float_abi_double
   fld    f0, (8 * 32 + 8 * 0)(a0)
   fld    f1, (8 * 32 + 8 * 1)(a0)

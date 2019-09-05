@@ -557,7 +557,7 @@ DEFINE_LIBUNWIND_FUNCTION(__unw_getcontext)
 #elif defined(__ppc__)
 
 //
-// extern int unw_getcontext(unw_context_t* thread_state)
+// extern int __unw_getcontext(unw_context_t* thread_state)
 //
 // On entry:
 //  thread_state pointer is in r3
@@ -948,12 +948,12 @@ DEFINE_LIBUNWIND_FUNCTION(__unw_getcontext)
 #elif defined(__riscv)
 
 #
-# extern int unw_getcontext(unw_context_t* thread_state)
+# extern int __unw_getcontext(unw_context_t* thread_state)
 #
 # On entry:
 #  thread_state pointer is in a0
 #
-DEFINE_LIBUNWIND_FUNCTION(unw_getcontext)
+DEFINE_LIBUNWIND_FUNCTION(__unw_getcontext)
   // x0 is zero
   sd    x1, (8 * 1)(a0)
   sd    x2, (8 * 2)(a0)
