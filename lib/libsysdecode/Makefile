@@ -107,7 +107,7 @@ MLINKS+=sysdecode_mask.3 sysdecode_accessmode.3 \
 	sysdecode_mask.3 sysdecode_wait4_options.3 \
 	sysdecode_mask.3 sysdecode_wait6_options.3
 
-CLEANFILES= ioctl.c tables.h
+CLEANFILES= ioctl.c ioctl.c.tmp tables.h
 
 .if defined(COMPAT_32BIT)
 CPP+=	-m32
