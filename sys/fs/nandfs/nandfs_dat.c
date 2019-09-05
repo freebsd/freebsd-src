@@ -295,10 +295,11 @@ nandfs_get_dat_bdescs_ioctl(struct nandfs_device *nffsdev,
     struct nandfs_argv *nargv)
 {
 	struct nandfs_bdesc *bd;
-	size_t size;
+	size_t size, sizecheck;
 	int error;
 
-	if (nargv->nv_nmembs >= SIZE_MAX / sizeof(struct nandfs_bdesc))
+	sizecheck = nargv->nv_nmembs;
+	if (sizecheck >= SIZE_MAX / sizeof(struct nandfs_bdesc))
 		return (EINVAL);
 		
 	size = nargv->nv_nmembs * sizeof(struct nandfs_bdesc);
