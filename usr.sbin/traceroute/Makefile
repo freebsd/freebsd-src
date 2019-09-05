@@ -5,6 +5,7 @@
 TRACEROUTE_DISTDIR?= ${SRCTOP}/contrib/traceroute
 .PATH: ${TRACEROUTE_DISTDIR}
 
+PACKAGE=	runtime
 PROG=	traceroute
 MAN=	traceroute.8
 SRCS=	as.c version.c traceroute.c ifaddrlist.c findsaddr-udp.c

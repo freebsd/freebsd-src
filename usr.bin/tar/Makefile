@@ -3,6 +3,7 @@
 
 _LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
+PACKAGE=	runtime
 PROG=	bsdtar
 BSDTAR_VERSION_STRING=	3.4.0
 

@@ -16,6 +16,7 @@
 TRACEROUTE_DISTDIR?= ${SRCTOP}/contrib/traceroute
 .PATH: ${TRACEROUTE_DISTDIR}
 
+PACKAGE=	runtime
 PROG=	traceroute6
 MAN=	traceroute6.8
 SRCS=	as.c traceroute6.c
