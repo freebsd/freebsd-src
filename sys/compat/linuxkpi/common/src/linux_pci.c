@@ -171,12 +171,10 @@ linux_pci_attach(device_t dev)
 		pdev->dev.irq = LINUX_IRQ_INVALID;
 	pdev->irq = pdev->dev.irq;
 
-	if (pdev->bus == NULL) {
-		pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK | M_ZERO);
-		pbus->self = pdev;
-		pbus->number = pci_get_bus(dev);
-		pdev->bus = pbus;
-	}
+	pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK | M_ZERO);
+	pbus->self = pdev;
+	pbus->number = pci_get_bus(dev);
+	pdev->bus = pbus;
 
 	spin_lock(&pci_lock);
 	list_add(&pdev->links, &pci_devices);
@@ -184,6 +182,7 @@ linux_pci_attach(device_t dev)
 
 	error = pdrv->probe(pdev, id);
 	if (error) {
+		free(pdev->bus, M_DEVBUF);
 		spin_lock(&pci_lock);
 		list_del(&pdev->links);
 		spin_unlock(&pci_lock);
@@ -202,6 +201,7 @@ linux_pci_detach(device_t dev)
 	pdev = device_get_softc(dev);
 
 	pdev->pdrv->remove(pdev);
+	free(pdev->bus, M_DEVBUF);
 
 	spin_lock(&pci_lock);
 	list_del(&pdev->links);
