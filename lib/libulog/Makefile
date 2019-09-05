@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-PACKAGE=lib${LIB}
 SHLIBDIR?=/lib
 
 .include <src.opts.mk>
