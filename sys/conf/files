@@ -2578,6 +2578,7 @@ dev/nvme/nvme_ctrlr.c		optional nvme
 dev/nvme/nvme_ctrlr_cmd.c	optional nvme
 dev/nvme/nvme_ns.c		optional nvme
 dev/nvme/nvme_ns_cmd.c		optional nvme
+dev/nvme/nvme_pci.c		optional nvme pci
 dev/nvme/nvme_qpair.c		optional nvme
 dev/nvme/nvme_sim.c		optional nvme scbus
 dev/nvme/nvme_sysctl.c		optional nvme
