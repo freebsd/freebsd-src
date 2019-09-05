@@ -202,8 +202,8 @@ dumpitem(const char *label, struct hid_item *h)
 {
 	if ((h->flags & HIO_CONST) && !verbose)
 		return;
-	printf("%s rid=%d size=%d count=%d page=%s usage=%s%s%s", label,
-	       h->report_ID, h->report_size, h->report_count,
+	printf("%s rid=%d pos=%d size=%d count=%d page=%s usage=%s%s%s", label,
+	       h->report_ID, h->pos, h->report_size, h->report_count,
 	       hid_usage_page(HID_PAGE(h->usage)),
 	       hid_usage_in_page(h->usage),
 	       h->flags & HIO_CONST ? " Const" : "",
