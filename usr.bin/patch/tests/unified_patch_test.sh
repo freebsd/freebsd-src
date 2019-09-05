@@ -102,7 +102,8 @@ file_creation_body()
 # commits.  If a file is created by a diff, patch(1) will happily duplicate the
 # contents as many times as you apply the diff.  It should instead detect that
 # a source of /dev/null creates the file, so it shouldn't exist.  Furthermore,
-# the reverse of creation is deletion -- hence the next test.
+# the reverse of creation is deletion -- hence the next test, which ensures that
+# the file is removed if it's empty once the patch is reversed.
 atf_test_case file_nodupe
 file_nodupe_body()
 {
@@ -126,8 +127,18 @@ file_removal_body()
 	echo "x" > foo
 	diff -u /dev/null foo > foo.diff
 
+	# Check that the file is removed completely if it was sourced from
+	# /dev/null
 	atf_check -x "patch -Rs < foo.diff"
-	atf_check -s not-exit:0 -o ignore stat foo
+	atf_check -s not-exit:0 -e ignore stat foo
+
+	# But if it had been modified, we'll only remove the portion that the
+	# patch would have created.  This makes us compatible with GNU patch's
+	# behavior, at least.  Whether that is the sane action or not is a
+	# question for further study, and then this comment may be removed.
+	printf "x\ny\n" > foo
+	atf_check -x "patch -Rs < foo.diff"
+	atf_check -o inline:"y\n" cat foo
 }
 
 atf_init_test_cases()
