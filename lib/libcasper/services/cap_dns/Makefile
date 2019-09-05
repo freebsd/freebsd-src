@@ -4,7 +4,7 @@ SHLIBDIR?=	/lib/casper
 
 .include <src.opts.mk>
 
-PACKAGE=libcasper
+PACKAGE=	runtime
 
 SHLIB_MAJOR=	2
 INCSDIR?=	${INCLUDEDIR}/casper
