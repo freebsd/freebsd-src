@@ -504,7 +504,7 @@ fuse_vnop_bmap(struct vop_bmap_args *ap)
 	if (runp != NULL) {
 		error = fuse_vnode_size(vp, &filesize, td->td_ucred, td);
 		if (error == 0)
-			*runp = MIN(MAX(0, filesize / biosize - lbn - 1),
+			*runp = MIN(MAX(0, filesize / (off_t)biosize - lbn - 1),
 				    maxrun);
 		else
 			*runp = 0;
