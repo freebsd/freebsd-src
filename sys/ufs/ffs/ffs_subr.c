@@ -102,7 +102,6 @@ ffs_blkatoff(struct vnode *vp, off_t offset, char **res, struct buf **bpp)
 	*bpp = NULL;
 	error = bread(vp, lbn, bsize, NOCRED, &bp);
 	if (error) {
-		brelse(bp);
 		return (error);
 	}
 	if (res)

@@ -300,7 +300,6 @@ retry:
 	 */
 	error = bread_gb(vp, lbprev, osize, NOCRED, gbflags, &bp);
 	if (error) {
-		brelse(bp);
 		return (error);
 	}
 
