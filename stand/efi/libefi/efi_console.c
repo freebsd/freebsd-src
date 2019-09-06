@@ -159,7 +159,7 @@ efi_text_printchar(const teken_pos_t *p)
 	}
 
 	attr = EFI_TEXT_ATTR(teken_color_to_efi_color[fg],
-	    teken_color_to_efi_color[bg]);
+	    teken_color_to_efi_color[bg] & 0x7);
 
 	conout->SetCursorPosition(conout, p->tp_col, p->tp_row);
 
