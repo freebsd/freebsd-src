@@ -198,7 +198,7 @@ struct tv32 {
 #define F_DONTFRAG	0x1000000
 #define F_NOUSERDATA	(F_NODEADDR | F_FQDN | F_FQDNOLD | F_SUPTYPES)
 #define	F_WAITTIME	0x2000000
-u_int options;
+static u_int options;
 
 #define IN6LEN		sizeof(struct in6_addr)
 #define SA6LEN		sizeof(struct sockaddr_in6)
@@ -279,7 +279,7 @@ static void	 pr_suptypes(struct icmp6_nodeinfo *, size_t);
 static void	 pr_nodeaddr(struct icmp6_nodeinfo *, int);
 static int	 myechoreply(const struct icmp6_hdr *);
 static int	 mynireply(const struct icmp6_nodeinfo *);
-static char *dnsdecode(const u_char **, const u_char *, const u_char *,
+static const char *dnsdecode(const u_char *, const u_char *, const u_char *,
     char *, size_t);
 static void	 pr_pack(u_char *, int, struct msghdr *);
 static void	 pr_exthdrs(struct msghdr *);
@@ -1304,7 +1304,7 @@ pinger(void)
 	struct iovec iov[2];
 	int i, cc;
 	struct icmp6_nodeinfo *nip;
-	int seq;
+	uint16_t seq;
 
 	if (npackets && ntransmitted >= npackets)
 		return(-1);	/* no more transmission */
@@ -1430,10 +1430,26 @@ mynireply(const struct icmp6_nodeinfo *nip)
 		return 0;
 }
 
-static char *
-dnsdecode(const u_char **sp, const u_char *ep, const u_char *base, char *buf,
+/*
+ * Decode a name from a DNS message.
+ *
+ * Format of the message is described in RFC 1035 subsection 4.1.4.
+ *
+ * Arguments:
+ *   sp     - Pointer to a DNS pointer octet or to the first octet of a label
+ *            in the message.
+ *   ep     - Pointer to the end of the message (one step past the last octet).
+ *   base   - Pointer to the beginning of the message.
+ *   buf    - Buffer into which the decoded name will be saved.
+ *   bufsiz - Size of the buffer 'buf'.
+ *
+ * Return value:
+ *   Pointer to an octet immediately following the ending zero octet
+ *   of the decoded label, or NULL if an error occured.
+ */
+static const char *
+dnsdecode(const u_char *sp, const u_char *ep, const u_char *base, char *buf,
 	size_t bufsiz)
-	/*base for compressed name*/
 {
 	int i;
 	const u_char *cp;
@@ -1441,14 +1457,14 @@ dnsdecode(const u_char **sp, const u_char *ep, const u_char *base, char *buf,
 	const u_char *comp;
 	int l;
 
-	cp = *sp;
+	cp = sp;
 	*buf = '\0';
 
 	if (cp >= ep)
 		return NULL;
 	while (cp < ep) {
 		i = *cp;
-		if (i == 0 || cp != *sp) {
+		if (i == 0 || cp != sp) {
 			if (strlcat((char *)buf, ".", bufsiz) >= bufsiz)
 				return NULL;	/*result overrun*/
 		}
@@ -1462,7 +1478,7 @@ dnsdecode(const u_char **sp, const u_char *ep, const u_char *base, char *buf,
 				return NULL;
 
 			comp = base + (i & 0x3f);
-			if (dnsdecode(&comp, cp, base, cresult,
+			if (dnsdecode(comp, cp, base, cresult,
 			    sizeof(cresult)) == NULL)
 				return NULL;
 			if (strlcat(buf, cresult, bufsiz) >= bufsiz)
@@ -1486,8 +1502,7 @@ dnsdecode(const u_char **sp, const u_char *ep, const u_char *base, char *buf,
 	if (i != 0)
 		return NULL;	/*not terminated*/
 	cp++;
-	*sp = cp;
-	return buf;
+	return cp;
 }
 
 /*
@@ -1507,7 +1522,8 @@ pr_pack(u_char *buf, int cc, struct msghdr *mhdr)
 	int hoplim;
 	struct sockaddr *from;
 	int fromlen;
-	u_char *cp = NULL, *dp, *end = buf + cc;
+	const u_char *cp = NULL;
+	u_char *dp, *end = buf + cc;
 	struct in6_pktinfo *pktinfo = NULL;
 	struct timeval tv, tp;
 	struct tv32 *tpp;
@@ -1679,9 +1695,10 @@ pr_pack(u_char *buf, int cc, struct msghdr *mhdr)
 			} else {
 				i = 0;
 				while (cp < end) {
-					if (dnsdecode((const u_char **)&cp, end,
+					cp = dnsdecode((const u_char *)cp, end,
 					    (const u_char *)(ni + 1), dnsname,
-					    sizeof(dnsname)) == NULL) {
+					    sizeof(dnsname));
+					if (cp == NULL) {
 						printf("???");
 						break;
 					}
@@ -2461,8 +2478,9 @@ pr_icmph(struct icmp6_hdr *icp, u_char *end)
 				}
 				printf(", subject=%s", niqcode[ni->ni_code]);
 				cp = (const u_char *)(ni + 1);
-				if (dnsdecode(&cp, end, NULL, dnsname,
-				    sizeof(dnsname)) != NULL)
+				cp = dnsdecode(cp, end, NULL, dnsname,
+				    sizeof(dnsname));
+				if (cp != NULL)
 					printf("(%s)", dnsname);
 				else
 					printf("(invalid)");
