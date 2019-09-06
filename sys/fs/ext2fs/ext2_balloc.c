@@ -78,7 +78,6 @@ ext2_ext_balloc(struct inode *ip, uint32_t lbn, int size,
 	} else {
 		error = bread(vp, lbn, fs->e2fs_bsize, NOCRED, &bp);
 		if (error) {
-			brelse(bp);
 			return (error);
 		}
 	}
@@ -142,7 +141,6 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 		if (nb != 0) {
 			error = bread(vp, lbn, fs->e2fs_bsize, NOCRED, &bp);
 			if (error) {
-				brelse(bp);
 				return (error);
 			}
 			bp->b_blkno = fsbtodb(fs, nb);
@@ -219,7 +217,6 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 		error = bread(vp,
 		    indirs[i].in_lbn, (int)fs->e2fs_bsize, NOCRED, &bp);
 		if (error) {
-			brelse(bp);
 			return (error);
 		}
 		bap = (e2fs_daddr_t *)bp->b_data;

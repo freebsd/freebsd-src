@@ -415,7 +415,6 @@ ext4_ext_find_extent(struct inode *ip, daddr_t block,
 		error = bread(ip->i_devvp, fsbtodb(ip->i_e2fs, blk),
 		    ip->i_e2fs->e2fs_bsize, NOCRED, &bp);
 		if (error) {
-			brelse(bp);
 			goto error;
 		}
 
@@ -824,7 +823,6 @@ ext4_ext_split(struct inode *ip, struct ext4_extent_path *path,
 		error = bread(ip->i_devvp, fsbtodb(fs, newblk),
 		    (int)fs->e2fs_bsize, NOCRED, &bp);
 		if (error) {
-			brelse(bp);
 			goto cleanup;
 		}
 
@@ -1452,7 +1450,6 @@ ext4_read_extent_tree_block(struct inode *ip, e4fs_daddr_t pblk,
 	error = bread(ip->i_devvp, fsbtodb(fs, pblk),
 	    fs->e2fs_bsize, NOCRED, &bp);
 	if (error) {
-		brelse(bp);
 		return (NULL);
 	}
 

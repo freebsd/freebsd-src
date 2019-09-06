@@ -1313,7 +1313,6 @@ ext2_nodealloccg(struct inode *ip, int cg, daddr_t ipref, int mode)
 	    e2fs_gd_get_i_bitmap(&fs->e2fs_gd[cg])),
 	    (int)fs->e2fs_bsize, NOCRED, &bp);
 	if (error) {
-		brelse(bp);
 		EXT2_LOCK(ump);
 		return (0);
 	}
@@ -1417,7 +1416,6 @@ ext2_blkfree(struct inode *ip, e4fs_daddr_t bno, long size)
 	    fsbtodb(fs, e2fs_gd_get_b_bitmap(&fs->e2fs_gd[cg])),
 	    (int)fs->e2fs_bsize, NOCRED, &bp);
 	if (error) {
-		brelse(bp);
 		return;
 	}
 	bbp = (char *)bp->b_data;
@@ -1464,7 +1462,6 @@ ext2_vfree(struct vnode *pvp, ino_t ino, int mode)
 	    fsbtodb(fs, e2fs_gd_get_i_bitmap(&fs->e2fs_gd[cg])),
 	    (int)fs->e2fs_bsize, NOCRED, &bp);
 	if (error) {
-		brelse(bp);
 		return (0);
 	}
 	ibp = (char *)bp->b_data;
