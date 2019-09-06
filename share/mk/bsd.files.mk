@@ -101,11 +101,16 @@ ${group}NAME_${file}?=	${${group}NAME}
 .else
 ${group}NAME_${file}?=	${file:T}
 .endif # defined(${group}NAME)
-STAGE_AS_SETS+=	${file}
 STAGE_AS_${file}= ${${group}NAME_${file}}
-# XXX {group}OWN,GRP,MODE
-STAGE_DIR.${file}= ${STAGE_OBJTOP}${${_${group}DIR_${file}}}
-stage_as.${file}: ${file}
+# we cannot use file safely as a set name
+# since we cannot? apply :T
+# but we can use the ${group}DIR_${file}
+# as a set - meta.stage.mk will :O:u for us
+# we need to expand ${group}DIR_${file} and replace
+# all '/' and '*' with '_' to make a safe target name.
+STAGE_AS_SETS+=	${${_${group}DIR_${file}}:C,[/*],_,g}
+STAGE_DIR.${${_${group}DIR_${file}}:C,[/*],_,g}= ${STAGE_OBJTOP}${${group}DIR_${file}}
+stage_as.${${_${group}DIR_${file}}:C,[/*],_,g}: ${file}
 
 installfiles-${group}: _${group}INS1_${file}
 _${group}INS1_${file}: installdirs-${_${group}DIR_${file}} _${group}INS_${file}
@@ -122,12 +127,16 @@ realinstall: installfiles
 .ORDER: beforeinstall installfiles
 
 .if ${MK_STAGING} != "no"
+.if ${FILESGROUPS:@g@${$g}@} != ""
 .if !empty(STAGE_SETS)
 buildfiles: stage_files
 STAGE_TARGETS+= stage_files
+stage_files:
 .if !empty(STAGE_AS_SETS)
 buildfiles: stage_as
 STAGE_TARGETS+= stage_as
+stage_as:
+.endif
 .endif
 .endif
 .endif
