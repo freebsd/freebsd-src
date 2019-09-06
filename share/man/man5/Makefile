@@ -27,6 +27,7 @@ MAN=	acct.5 \
 	forward.5 \
 	fs.5 \
 	fstab.5 \
+	fusefs.5 \
 	group.5 \
 	hosts.5 \
 	hosts.equiv.5 \

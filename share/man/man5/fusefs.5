@@ -1,0 +1,147 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2019 The FreeBSD Foundation
+.\"
+.\" This software was developed by BFF Storage Systems, LLC under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd April 13, 2019
+.Dt FUSEFS 5
+.Os
+.Sh NAME
+.Nm fusefs
+.Nd "File system in USErspace"
+.Sh SYNOPSIS
+To link into the kernel:
+.Bd -ragged -offset indent
+.Cd "options FUSEFS"
+.Ed
+.Pp
+To load as a loadable kernel module:
+.Pp
+.Dl "kldload fusefs"
+.Sh DESCRIPTION
+The
+.Nm
+driver implements a file system that is serviced by a userspace program.
+.Pp
+There are many uses for
+.Nm .
+Userspace daemons can access libraries or programming languages that cannot run
+in kernel-mode, for example.
+.Nm
+is also useful for developing and debugging file systems, because a crash of
+the daemon will not take down the entire operating system.
+Finally, the
+.Nm
+API is portable.
+Many daemons can run on multiple operating systems with minimal modifications.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va vfs.fusefs.kernelabi_major
+Major version of the FUSE kernel ABI supported by this driver.
+.It Va vfs.fusefs.kernelabi_minor
+Minor version of the FUSE kernel ABI supported by this driver.
+.It Va vfs.fusefs.data_cache_mode
+Controls how
+.Nm
+will cache file data.
+A value of 0 will disable caching entirely.
+Every data access will be forwarded to the daemon.
+A value of 1 will select write-through caching.
+Reads will be cached in the VFS layer as usual.
+Writes will be immediately forwarded to the daemon, and also added to the cache.
+A value of 2 will select write-back caching.
+Reads and writes will both be cached, and writes will occasionally be flushed
+to the daemon by the page daemon.
+Write-back caching is usually unsafe, especially for FUSE file systems that
+require network access.
+.It Va vfs.fusefs.lookup_cache_enable
+Controls whether
+.Nm
+will cache lookup responses from the file system.
+FUSE file systems indicate whether lookup responses should be cacheable, but
+it may be useful to globally disable caching them if a file system is
+misbehaving.
+.\" Undocumented sysctls
+.\" ====================
+.\" Counters: I intend to rename to vfs.fusefs.stats.* for clarity
+.\" vfs.fusefs.lookup_cache_{hits, misses}
+.\" vfs.fusefs.filehandle_count
+.\" vfs.fusefs.ticker_count
+.\" vfs.fusefs.node_count
+.\"
+.\" vfs.fusefs.version - useless since the driver moved in-tree
+.\" vfs.fusefs.reclaim_revoked: I don't understand it well-enough
+.\" vfs.fusefs.sync_unmount: dead code
+.\" vfs.fusefs.enforce_dev_perms: I don't understand it well enough.
+.\" vfs.fusefs.init_backgrounded: dead code
+.\" vfs.fusefs.iov_credit: I don't understand it well enough
+.\" vfs.fusefs.iov_permanent_bufsize: I don't understand it well enough
+.\" vfs.fusefs.fix_broken_io: I don't understand it well enough
+.\" vfs.fusefs.sync_resize: useless and should be removed
+.\" vfs.fusefs.refresh_size: probably useless?
+.\" vfs.fusefs.mmap_enable: why is this optional?
+.\" vfs.fusefs.data_cache_invalidate: what is this needed for?
+.Sh SEE ALSO
+.Xr mount_fusefs 8
+.Sh HISTORY
+The
+.Nm fuse
+driver was written as the part of the
+.Fx
+implementation of the FUSE userspace file system framework (see
+.Xr https://github.com/libfuse/libfuse )
+and first appeared in the
+.Pa sysutils/fusefs-kmod
+port, supporting
+.Fx 6.0 .
+It was added to the base system in
+.Fx 10.0 ,
+and renamed to
+.Nm
+for
+.Fx 12.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm fuse
+driver was originally written by
+.An Csaba Henk
+as a Google Summer of Code project in 2005.
+It was further developed by
+.An Ilya Putsikau
+during Google Summer of Code 2011, and that version was integrated into the
+base system by
+.An Attilio Rao Aq Mt attilio@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Alan Somers Aq Mt asomers@FreeBSD.org .
