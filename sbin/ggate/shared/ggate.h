@@ -47,8 +47,8 @@
 #define	GGATE_FLAG_RDONLY	0x0001
 #define	GGATE_FLAG_WRONLY	0x0002
 /*
- * If GGATE_FLAG_SEND not GGATE_FLAG_RECV flag is set, this is initial
- * connection.
+ * If neither the GGATE_FLAG_SEND nor the GGATE_FLAG_RECV flag is
+ * set - this is initial connection.
  * If GGATE_FLAG_SEND flag is set - this is socket to send data.
  * If GGATE_FLAG_RECV flag is set - this is socket to receive data.
  */
