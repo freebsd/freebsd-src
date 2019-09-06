@@ -455,7 +455,11 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, uint64_t off)
 	ret = 0;
 	firstaddr = lastaddr = 0;
 	ehdr = ef->ehdr;
+#ifdef __powerpc__
+	if (ef->kernel) {
+#else
 	if (ehdr->e_type == ET_EXEC) {
+#endif
 #if defined(__i386__) || defined(__amd64__)
 #if __ELF_WORD_SIZE == 64
 		/* x86_64 relocates after locore */
@@ -481,12 +485,11 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, uint64_t off)
 			 * it's loaded at a 16MB boundary for now...
 			 */
 			off += 0x01000000;
-			ehdr->e_entry += off;
+		}
+		ehdr->e_entry += off;
 #ifdef ELF_VERBOSE
-			printf("Converted entry 0x%jx\n", (uintmax_t)ehdr->e_entry);
+		printf("Converted entry 0x%jx\n", (uintmax_t)ehdr->e_entry);
 #endif
-		} else
-			off = 0;
 #elif defined(__arm__) && !defined(EFI)
 		/*
 		 * The elf headers in arm kernels specify virtual addresses in
