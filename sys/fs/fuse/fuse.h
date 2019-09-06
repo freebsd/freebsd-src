@@ -197,26 +197,27 @@ do {						\
 #define FUSE_TRACE                      0
 #endif
 
-#define DEBUGX(cond, fmt, ...) do {                     \
-    if (((cond))) {                                     \
-        printf("%s: " fmt, __func__, ## __VA_ARGS__);   \
-    } } while (0)
+#define DEBUGX(cond, fmt, ...) do {					\
+	if (((cond))) {							\
+		printf("%s: " fmt, __func__, ## __VA_ARGS__);		\
+	}								\
+} while (0)
 
-#define fuse_lck_mtx_lock(mtx) do {                                     \
-    DEBUGX(FUSE_DEBUG_LOCK, "0:   lock(%s): %s@%d by %d\n",             \
-        __STRING(mtx), __func__, __LINE__, curthread->td_proc->p_pid);  \
-    mtx_lock(&(mtx));                                                   \
-    DEBUGX(FUSE_DEBUG_LOCK, "1:   lock(%s): %s@%d by %d\n",             \
-        __STRING(mtx), __func__, __LINE__, curthread->td_proc->p_pid);  \
-    } while (0)
+#define fuse_lck_mtx_lock(mtx) do {						\
+	DEBUGX(FUSE_DEBUG_LOCK, "0:   lock(%s): %s@%d by %d\n",			\
+	    __STRING(mtx), __func__, __LINE__, curthread->td_proc->p_pid);	\
+	mtx_lock(&(mtx));							\
+	DEBUGX(FUSE_DEBUG_LOCK, "1:   lock(%s): %s@%d by %d\n",			\
+	    __STRING(mtx), __func__, __LINE__, curthread->td_proc->p_pid);	\
+} while (0)
 
-#define fuse_lck_mtx_unlock(mtx) do {                                   \
-    DEBUGX(FUSE_DEBUG_LOCK, "0: unlock(%s): %s@%d by %d\n",             \
-        __STRING(mtx), __func__, __LINE__, curthread->td_proc->p_pid);  \
-    mtx_unlock(&(mtx));                                                 \
-    DEBUGX(FUSE_DEBUG_LOCK, "1: unlock(%s): %s@%d by %d\n",             \
-        __STRING(mtx), __func__, __LINE__, curthread->td_proc->p_pid);  \
-    } while (0)
+#define fuse_lck_mtx_unlock(mtx) do {						\
+	DEBUGX(FUSE_DEBUG_LOCK, "0: unlock(%s): %s@%d by %d\n",			\
+	    __STRING(mtx), __func__, __LINE__, curthread->td_proc->p_pid);	\
+	mtx_unlock(&(mtx));							\
+	DEBUGX(FUSE_DEBUG_LOCK, "1: unlock(%s): %s@%d by %d\n",			\
+	    __STRING(mtx), __func__, __LINE__, curthread->td_proc->p_pid);	\
+} while (0)
 
 void fuse_ipc_init(void);
 void fuse_ipc_destroy(void);
