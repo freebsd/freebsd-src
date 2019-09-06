@@ -143,7 +143,7 @@
 
 /* misc */
 
-SYSCTL_DECL(_vfs_fuse);
+SYSCTL_DECL(_vfs_fusefs);
 
 /* Fuse locking */
 
