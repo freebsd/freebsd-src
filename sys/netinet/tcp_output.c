@@ -195,7 +195,7 @@ tcp_output(struct tcpcb *tp)
 	uint32_t recwin, sendwin;
 	int off, flags, error = 0;	/* Keep compiler happy */
 	u_int if_hw_tsomaxsegcount = 0;
-	u_int if_hw_tsomaxsegsize;
+	u_int if_hw_tsomaxsegsize = 0;
 	struct mbuf *m;
 	struct ip *ip = NULL;
 #ifdef TCPDEBUG
