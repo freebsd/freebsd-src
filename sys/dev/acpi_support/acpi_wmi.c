@@ -62,6 +62,7 @@ ACPI_MODULE_NAME("ACPI_WMI");
 #define ACPI_WMI_REGFLAG_METHOD		0x2	/* GUID flag: Method call */
 #define ACPI_WMI_REGFLAG_STRING		0x4	/* GUID flag: String */
 #define ACPI_WMI_REGFLAG_EVENT		0x8	/* GUID flag: Event */
+#define ACPI_WMI_BMOF_UUID "05901221-D566-11D1-B2F0-00A0C9062910"
 
 /*
  * acpi_wmi driver private structure
@@ -74,6 +75,8 @@ struct acpi_wmi_softc {
 	struct sbuf	wmistat_sbuf;	/* sbuf for /dev/wmistat output */
 	pid_t		wmistat_open_pid; /* pid operating on /dev/wmistat */
 	int		wmistat_bufptr;	/* /dev/wmistat ptr to buffer position */
+	char 	        *mofbuf;
+	
 	TAILQ_HEAD(wmi_info_list_head, wmi_info) wmi_info_list;
 };
 
@@ -274,6 +277,29 @@ acpi_wmi_attach(device_t dev)
 	}
 	ACPI_SERIAL_END(acpi_wmi);
 
+	if (acpi_wmi_provides_guid_string_method(dev, ACPI_WMI_BMOF_UUID)) {
+		ACPI_BUFFER out = { ACPI_ALLOCATE_BUFFER, NULL };
+		ACPI_OBJECT *obj;
+
+		device_printf(dev, "Embedded MOF found\n");
+		status = acpi_wmi_get_block_method(dev,  ACPI_WMI_BMOF_UUID,
+		    0, &out);
+		if (ACPI_SUCCESS(status)) {
+			obj = out.Pointer;
+			if (obj && obj->Type == ACPI_TYPE_BUFFER) {
+				SYSCTL_ADD_OPAQUE(device_get_sysctl_ctx(dev),
+				    SYSCTL_CHILDREN(
+				        device_get_sysctl_tree(dev)),
+				    OID_AUTO, "bmof", 
+				    CTLFLAG_RD | CTLFLAG_MPSAFE,
+				    obj->Buffer.Pointer,
+				    obj->Buffer.Length,
+				    "A", "MOF Blob");
+			}
+		}
+		sc->mofbuf = out.Pointer;
+	}
+		
 	if (ret == 0) {
 		bus_generic_probe(dev);
 		ret = bus_generic_attach(dev);
@@ -321,6 +347,7 @@ acpi_wmi_detach(device_t dev)
 		sc->wmistat_open_pid = 0;
 		destroy_dev(sc->wmistat_dev_t);
 		ret = 0;
+		AcpiOsFree(sc->mofbuf);
 	}
 	ACPI_SERIAL_END(acpi_wmi);
 
