@@ -18,7 +18,7 @@ PROG=	mld6query
 MAN=	mld6query.8
 SRCS=	mld6.c
 
-CFLAGS+= -DIPSEC -DUSE_RFC2292BIS
+CFLAGS+= -DIPSEC
 
 WARNS?=	2
 
