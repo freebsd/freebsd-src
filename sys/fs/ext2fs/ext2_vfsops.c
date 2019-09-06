@@ -651,7 +651,6 @@ ext2_compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 			 * because this function could be called from
 			 * MNT_UPDATE path.
 			 */
-			brelse(bp);
 			return (error);
 		}
 		if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_64BIT)) {
