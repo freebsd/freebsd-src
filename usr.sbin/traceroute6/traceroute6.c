@@ -331,9 +331,7 @@ u_long datalen = 20;			/* How much data */
 #define	ICMP6ECHOLEN	8
 /* XXX: 2064 = 127(max hops in type 0 rthdr) * sizeof(ip6_hdr) + 16(margin) */
 char rtbuf[2064];
-#ifdef USE_RFC2292BIS
 struct ip6_rthdr *rth;
-#endif
 struct cmsghdr *cmsg;
 
 char *source = NULL;
@@ -434,7 +432,6 @@ main(int argc, char *argv[])
 				    "traceroute6: unknown host %s\n", optarg);
 				exit(1);
 			}
-#ifdef USE_RFC2292BIS
 			if (rth == NULL) {
 				/*
 				 * XXX: We can't detect the number of
@@ -455,12 +452,6 @@ main(int argc, char *argv[])
 				    optarg);
 				exit(1);
 			}
-#else  /* old advanced API */
-			if (cmsg == NULL)
-				cmsg = inet6_rthdr_init(rtbuf, IPV6_RTHDR_TYPE_0);
-			inet6_rthdr_add(cmsg, (struct in6_addr *)hp->h_addr,
-			    IPV6_RTHDR_LOOSE);
-#endif
 			freehostent(hp);
 			break;
 		case 'I':
@@ -762,7 +753,6 @@ main(int argc, char *argv[])
 	if (options & SO_DONTROUTE)
 		(void) setsockopt(sndsock, SOL_SOCKET, SO_DONTROUTE,
 		    (char *)&on, sizeof(on));
-#ifdef USE_RFC2292BIS
 	if (rth) {/* XXX: there is no library to finalize the header... */
 		rth->ip6r_len = rth->ip6r_segleft * 2;
 		if (setsockopt(sndsock, IPPROTO_IPV6, IPV6_RTHDR,
@@ -772,17 +762,6 @@ main(int argc, char *argv[])
 			exit(1);
 		}
 	}
-#else  /* old advanced API */
-	if (cmsg != NULL) {
-		inet6_rthdr_lasthop(cmsg, IPV6_RTHDR_LOOSE);
-		if (setsockopt(sndsock, IPPROTO_IPV6, IPV6_PKTOPTIONS,
-		    rtbuf, cmsg->cmsg_len) < 0) {
-			fprintf(stderr, "setsockopt(IPV6_PKTOPTIONS): %s\n",
-			    strerror(errno));
-			exit(1);
-		}
-	}
-#endif /* USE_RFC2292BIS */
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 	/*
