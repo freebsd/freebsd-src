@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
+#include <sys/sockbuf.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
@@ -56,11 +58,14 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
+#include <netinet/in_pcb.h>
+#include <netinet6/in6_pcb.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_lro.h>
 #include <netinet/tcp_var.h>
-
+#include <netinet/tcp_hpts.h>
+#include <netinet/tcp_log_buf.h>
 #include <netinet6/ip6_var.h>
 
 #include <machine/in_cksum.h>
@@ -79,10 +84,46 @@ static int	tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m,
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, lro,  CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP LRO");
 
+static long tcplro_stacks_wanting_mbufq = 0;
+counter_u64_t tcp_inp_lro_direct_queue;
+counter_u64_t tcp_inp_lro_wokeup_queue;
+counter_u64_t tcp_inp_lro_compressed;
+counter_u64_t tcp_inp_lro_single_push;
+counter_u64_t tcp_inp_lro_locks_taken;
+counter_u64_t tcp_inp_lro_sack_wake;
+
 static unsigned	tcp_lro_entries = TCP_LRO_ENTRIES;
+static int32_t hold_lock_over_compress = 0;
+SYSCTL_INT(_net_inet_tcp_lro, OID_AUTO, hold_lock, CTLFLAG_RW,
+    &hold_lock_over_compress, 0,
+    "Do we hold the lock over the compress of mbufs?");
 SYSCTL_UINT(_net_inet_tcp_lro, OID_AUTO, entries,
     CTLFLAG_RDTUN | CTLFLAG_MPSAFE, &tcp_lro_entries, 0,
     "default number of LRO entries");
+SYSCTL_COUNTER_U64(_net_inet_tcp_lro, OID_AUTO, fullqueue, CTLFLAG_RD,
+    &tcp_inp_lro_direct_queue, "Number of lro's fully queued to transport");
+SYSCTL_COUNTER_U64(_net_inet_tcp_lro, OID_AUTO, wokeup, CTLFLAG_RD,
+    &tcp_inp_lro_wokeup_queue, "Number of lro's where we woke up transport via hpts");
+SYSCTL_COUNTER_U64(_net_inet_tcp_lro, OID_AUTO, compressed, CTLFLAG_RD,
+    &tcp_inp_lro_compressed, "Number of lro's compressed and sent to transport");
+SYSCTL_COUNTER_U64(_net_inet_tcp_lro, OID_AUTO, single, CTLFLAG_RD,
+    &tcp_inp_lro_single_push, "Number of lro's sent with single segment");
+SYSCTL_COUNTER_U64(_net_inet_tcp_lro, OID_AUTO, lockcnt, CTLFLAG_RD,
+    &tcp_inp_lro_locks_taken, "Number of lro's inp_wlocks taken");
+SYSCTL_COUNTER_U64(_net_inet_tcp_lro, OID_AUTO, sackwakeups, CTLFLAG_RD,
+    &tcp_inp_lro_sack_wake, "Number of wakeups caused by sack/fin");
+
+void
+tcp_lro_reg_mbufq(void)
+{
+	atomic_fetchadd_long(&tcplro_stacks_wanting_mbufq, 1);
+}
+
+void
+tcp_lro_dereg_mbufq(void)
+{
+	atomic_fetchadd_long(&tcplro_stacks_wanting_mbufq, -1);
+}
 
 static __inline void
 tcp_lro_active_insert(struct lro_ctrl *lc, struct lro_head *bucket,
@@ -162,6 +203,36 @@ tcp_lro_init_args(struct lro_ctrl *lc, struct ifnet *ifp,
 	return (0);
 }
 
+static struct tcphdr *
+tcp_lro_get_th(struct lro_entry *le, struct mbuf *m)
+{
+	struct ether_header *eh;
+	struct tcphdr *th = NULL;
+#ifdef INET6
+	struct ip6_hdr *ip6 = NULL;	/* Keep compiler happy. */
+#endif
+#ifdef INET
+	struct ip *ip4 = NULL;		/* Keep compiler happy. */
+#endif
+
+	eh = mtod(m, struct ether_header *);
+	switch (le->eh_type) {
+#ifdef INET6
+	case ETHERTYPE_IPV6:
+		ip6 = (struct ip6_hdr *)(eh + 1);
+		th = (struct tcphdr *)(ip6 + 1);
+		break;
+#endif
+#ifdef INET
+	case ETHERTYPE_IP:
+		ip4 = (struct ip *)(eh + 1);
+		th = (struct tcphdr *)(ip4 + 1);
+		break;
+#endif
+	}
+	return (th);
+}
+
 void
 tcp_lro_free(struct lro_ctrl *lc)
 {
@@ -192,7 +263,6 @@ tcp_lro_free(struct lro_ctrl *lc)
 	lc->lro_mbuf_data = NULL;
 }
 
-#ifdef TCP_LRO_UPDATE_CSUM
 static uint16_t
 tcp_lro_csum_th(struct tcphdr *th)
 {
@@ -275,7 +345,6 @@ tcp_lro_rx_csum_fixup(struct lro_entry *le, void *l3hdr, struct tcphdr *th,
 
 	return (c & 0xffff);
 }
-#endif
 
 static void
 tcp_lro_rx_done(struct lro_ctrl *lc)
@@ -297,7 +366,7 @@ tcp_lro_flush_inactive(struct lro_ctrl *lc, const struct timeval *timeout)
 	if (LIST_EMPTY(&lc->lro_active))
 		return;
 
-	getmicrotime(&tv);
+	getmicrouptime(&tv);
 	timevalsub(&tv, timeout);
 	LIST_FOREACH_SAFE(le, &lc->lro_active, next, le_tmp) {
 		if (timevalcmp(&tv, &le->mtime, >=)) {
@@ -307,11 +376,113 @@ tcp_lro_flush_inactive(struct lro_ctrl *lc, const struct timeval *timeout)
 	}
 }
 
-void
-tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
+#ifdef INET6
+static int
+tcp_lro_rx_ipv6(struct lro_ctrl *lc, struct mbuf *m, struct ip6_hdr *ip6,
+    struct tcphdr **th)
 {
 
-	if (le->append_cnt > 0) {
+	/* XXX-BZ we should check the flow-label. */
+
+	/* XXX-BZ We do not yet support ext. hdrs. */
+	if (ip6->ip6_nxt != IPPROTO_TCP)
+		return (TCP_LRO_NOT_SUPPORTED);
+
+	/* Find the TCP header. */
+	*th = (struct tcphdr *)(ip6 + 1);
+
+	return (0);
+}
+#endif
+
+#ifdef INET
+static int
+tcp_lro_rx_ipv4(struct lro_ctrl *lc, struct mbuf *m, struct ip *ip4,
+    struct tcphdr **th)
+{
+	int csum_flags;
+	uint16_t csum;
+
+	if (ip4->ip_p != IPPROTO_TCP)
+		return (TCP_LRO_NOT_SUPPORTED);
+
+	/* Ensure there are no options. */
+	if ((ip4->ip_hl << 2) != sizeof (*ip4))
+		return (TCP_LRO_CANNOT);
+
+	/* .. and the packet is not fragmented. */
+	if (ip4->ip_off & htons(IP_MF|IP_OFFMASK))
+		return (TCP_LRO_CANNOT);
+
+	/* Legacy IP has a header checksum that needs to be correct. */
+	csum_flags = m->m_pkthdr.csum_flags;
+	if (csum_flags & CSUM_IP_CHECKED) {
+		if (__predict_false((csum_flags & CSUM_IP_VALID) == 0)) {
+			lc->lro_bad_csum++;
+			return (TCP_LRO_CANNOT);
+		}
+	} else {
+		csum = in_cksum_hdr(ip4);
+		if (__predict_false((csum) != 0)) {
+			lc->lro_bad_csum++;
+			return (TCP_LRO_CANNOT);
+		}
+	}
+	/* Find the TCP header (we assured there are no IP options). */
+	*th = (struct tcphdr *)(ip4 + 1);
+	return (0);
+}
+#endif
+
+static void
+tcp_lro_log(struct tcpcb *tp, struct lro_ctrl *lc,
+	    struct lro_entry *le, struct mbuf *m, int frm, int32_t tcp_data_len,
+	    uint32_t th_seq , uint32_t th_ack, uint16_t th_win)
+{
+	if (tp->t_logstate != TCP_LOG_STATE_OFF) {
+		union tcp_log_stackspecific log;
+		struct timeval tv;
+		uint32_t cts;
+		
+		cts = tcp_get_usecs(&tv);
+		memset(&log, 0, sizeof(union tcp_log_stackspecific));
+		log.u_bbr.flex8 = frm;
+		log.u_bbr.flex1 = tcp_data_len;
+		if (m)
+			log.u_bbr.flex2 = m->m_pkthdr.len;
+		else
+			log.u_bbr.flex2 = 0;
+		log.u_bbr.flex3 = le->append_cnt;
+		log.u_bbr.flex4 = le->p_len;
+		log.u_bbr.flex5 = le->m_head->m_pkthdr.len;
+		log.u_bbr.delRate = le->m_head->m_flags;
+		log.u_bbr.rttProp = le->m_head->m_pkthdr.rcv_tstmp;
+		log.u_bbr.flex6 = lc->lro_length_lim;
+		log.u_bbr.flex7 = lc->lro_ackcnt_lim;
+		log.u_bbr.inflight = th_seq;
+		log.u_bbr.timeStamp = cts;
+		log.u_bbr.epoch = le->next_seq;
+		log.u_bbr.delivered = th_ack;
+		log.u_bbr.lt_epoch = le->ack_seq;
+		log.u_bbr.pacing_gain = th_win;
+		log.u_bbr.cwnd_gain = le->window;
+		log.u_bbr.cur_del_rate = (uint64_t)m;
+		log.u_bbr.bw_inuse = (uint64_t)le->m_head;
+		log.u_bbr.pkts_out = le->mbuf_cnt;	/* Total mbufs added */
+		log.u_bbr.applimited = le->ulp_csum;
+		log.u_bbr.lost = le->mbuf_appended;
+		TCP_LOG_EVENTP(tp, NULL,
+			       &tp->t_inpcb->inp_socket->so_rcv,
+			       &tp->t_inpcb->inp_socket->so_snd,
+			       TCP_LOG_LRO, 0,
+			       0, &log, false, &tv);
+	}
+}
+
+static void
+tcp_flush_out_le(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le, int locked)
+{
+	if (le->append_cnt > 1) {
 		struct tcphdr *th;
 		uint16_t p_len;
 
@@ -335,13 +506,10 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 		case ETHERTYPE_IP:
 		{
 			struct ip *ip4;
-#ifdef TCP_LRO_UPDATE_CSUM
 			uint32_t cl;
 			uint16_t c;
-#endif
 
 			ip4 = le->le_ip4;
-#ifdef TCP_LRO_UPDATE_CSUM
 			/* Fix IP header checksum for new length. */
 			c = ~ip4->ip_sum;
 			cl = c;
@@ -351,9 +519,6 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 				cl = (cl >> 16) + (cl & 0xffff);
 			c = cl;
 			ip4->ip_sum = ~c;
-#else
-			ip4->ip_sum = TCP_LRO_INVALID_CSUM;
-#endif
 			ip4->ip_len = p_len;
 			th = (struct tcphdr *)(ip4 + 1);
 			le->m_head->m_pkthdr.csum_flags = CSUM_DATA_VALID |
@@ -379,7 +544,6 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 			ts_ptr[1] = htonl(le->tsval);
 			ts_ptr[2] = le->tsecr;
 		}
-#ifdef TCP_LRO_UPDATE_CSUM
 		/* Update the TCP header checksum. */
 		le->ulp_csum += p_len;
 		le->ulp_csum += tcp_lro_csum_th(th);
@@ -388,14 +552,429 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 			    (le->ulp_csum & 0xffff);
 		th->th_sum = (le->ulp_csum & 0xffff);
 		th->th_sum = ~th->th_sum;
-#else
-		th->th_sum = TCP_LRO_INVALID_CSUM;
+		if (tp && locked) {
+			tcp_lro_log(tp, lc, le, NULL, 7, 0, 0, 0, 0);
+		}
+	}
+	/* 
+	 * Break any chain, this is not set to NULL on the singleton 
+	 * case m_nextpkt points to m_head. Other case set them 
+	 * m_nextpkt to NULL in push_and_replace.
+	 */
+	le->m_head->m_nextpkt = NULL;
+	le->m_head->m_pkthdr.lro_nsegs = le->append_cnt;
+	if (tp && locked) {
+		tcp_lro_log(tp, lc, le, le->m_head, 8, 0, 0, 0, 0);
+	}
+	(*lc->ifp->if_input)(lc->ifp, le->m_head);
+	lc->lro_queued += le->append_cnt;
+}
+
+static void
+tcp_set_le_to_m(struct lro_ctrl *lc, struct lro_entry *le, struct mbuf *m)
+{
+	struct ether_header *eh;
+	void *l3hdr = NULL;		/* Keep compiler happy. */
+	struct tcphdr *th;
+#ifdef INET6
+	struct ip6_hdr *ip6 = NULL;	/* Keep compiler happy. */
+#endif
+#ifdef INET
+	struct ip *ip4 = NULL;		/* Keep compiler happy. */
+#endif
+	uint32_t *ts_ptr;
+	int error, l, ts_failed = 0;
+	uint16_t tcp_data_len;
+	uint16_t csum;
+
+	error = -1;
+	eh = mtod(m, struct ether_header *);
+	/*
+	 * We must reset the other pointers since the mbuf
+	 * we were pointing too is about to go away.
+	 */
+	switch (le->eh_type) {
+#ifdef INET6
+	case ETHERTYPE_IPV6:
+		l3hdr = ip6 = (struct ip6_hdr *)(eh + 1);
+		error = tcp_lro_rx_ipv6(lc, m, ip6, &th);
+		le->le_ip6 = ip6;
+		le->source_ip6 = ip6->ip6_src;
+		le->dest_ip6 = ip6->ip6_dst;
+		le->p_len = m->m_pkthdr.len - ETHER_HDR_LEN - sizeof(*ip6);
+		break;
+#endif
+#ifdef INET
+	case ETHERTYPE_IP:
+		l3hdr = ip4 = (struct ip *)(eh + 1);
+		error = tcp_lro_rx_ipv4(lc, m, ip4, &th);
+		le->le_ip4 = ip4;
+		le->source_ip4 = ip4->ip_src.s_addr;
+		le->dest_ip4 = ip4->ip_dst.s_addr;
+		le->p_len = m->m_pkthdr.len - ETHER_HDR_LEN;
+		break;
 #endif
 	}
+	KASSERT(error == 0, ("%s: le=%p tcp_lro_rx_xxx failed\n",
+				    __func__, le));
+	ts_ptr = (uint32_t *)(th + 1);
+	l = (th->th_off << 2);
+	l -= sizeof(*th);
+	if (l != 0 &&
+	    (__predict_false(l != TCPOLEN_TSTAMP_APPA) ||
+	     (*ts_ptr != ntohl(TCPOPT_NOP<<24|TCPOPT_NOP<<16|
+			       TCPOPT_TIMESTAMP<<8|TCPOLEN_TIMESTAMP)))) {
+		/* We have failed to find a timestamp some other option? */
+		ts_failed = 1;
+	}
+	if ((l != 0) && (ts_failed == 0)) {
+		le->timestamp = 1;
+		le->tsval = ntohl(*(ts_ptr + 1));
+		le->tsecr = *(ts_ptr + 2);
+	} else
+		le->timestamp = 0;
+	le->source_port = th->th_sport;
+	le->dest_port = th->th_dport;
+	/* Pull out the csum */
+	tcp_data_len = m->m_pkthdr.lro_len;
+	le->next_seq = ntohl(th->th_seq) + tcp_data_len;
+	le->ack_seq = th->th_ack;
+	le->window = th->th_win;
+	csum = th->th_sum;
+	/* Setup the data pointers */
+	le->m_head = m;
+	le->m_tail = m_last(m);
+	le->append_cnt = 0;
+	le->ulp_csum = tcp_lro_rx_csum_fixup(le, l3hdr, th, tcp_data_len,
+					     ~csum); 
+	le->append_cnt++;
+	th->th_sum = csum;	/* Restore checksum on first packet. */
+}
 
-	le->m_head->m_pkthdr.lro_nsegs = le->append_cnt + 1;
-	(*lc->ifp->if_input)(lc->ifp, le->m_head);
-	lc->lro_queued += le->append_cnt + 1;
+static void
+tcp_push_and_replace(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le, struct mbuf *m, int locked)
+{
+	/*
+	 * Push up the stack the current le and replace
+	 * it with m. 
+	 */
+	struct mbuf *msave;
+
+	/* Grab off the next and save it */
+	msave = le->m_head->m_nextpkt;
+	le->m_head->m_nextpkt = NULL;
+	/* Now push out the old le entry */
+	tcp_flush_out_le(tp, lc, le, locked);
+	/*
+	 * Now to replace the data properly in the le 
+	 * we have to reset the tcp header and
+	 * other fields.
+	 */
+	tcp_set_le_to_m(lc, le, m);
+	/* Restore the next list */
+	m->m_nextpkt = msave;
+}
+
+static void
+tcp_lro_condense(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le, int locked)
+{
+	/* 
+	 * Walk through the mbuf chain we 
+	 * have on tap and compress/condense 
+	 * as required.
+	 */
+	uint32_t *ts_ptr;
+	struct mbuf *m;
+	struct tcphdr *th;
+	uint16_t tcp_data_len, csum_upd;
+	int l;
+
+	/* 
+	 * First we must check the lead (m_head) 
+	 * we must make sure that it is *not* 
+	 * something that should be sent up
+	 * right away (sack etc).
+	 */
+again:
+
+	m = le->m_head->m_nextpkt;
+	if (m == NULL) {
+		/* Just the one left */
+		return;
+	}
+	th = tcp_lro_get_th(le, le->m_head);
+	KASSERT(th != NULL, 
+		("le:%p m:%p th comes back NULL?", le, le->m_head));
+	l = (th->th_off << 2);
+	l -= sizeof(*th);
+	ts_ptr = (uint32_t *)(th + 1);
+	if (l != 0 && (__predict_false(l != TCPOLEN_TSTAMP_APPA) ||
+		       (*ts_ptr != ntohl(TCPOPT_NOP<<24|TCPOPT_NOP<<16|
+					 TCPOPT_TIMESTAMP<<8|TCPOLEN_TIMESTAMP)))) {
+		/*
+		 * Its not the timestamp. We can't
+		 * use this guy as the head.
+		 */
+		le->m_head->m_nextpkt = m->m_nextpkt;
+		tcp_push_and_replace(tp, lc, le, m, locked);
+		goto again;
+	}
+	if ((th->th_flags & ~(TH_ACK | TH_PUSH)) != 0) {
+		/*
+		 * Make sure that previously seen segements/ACKs are delivered
+		 * before this segment, e.g. FIN.
+		 */
+		le->m_head->m_nextpkt = m->m_nextpkt;
+		tcp_push_and_replace(tp, lc, le, m, locked);
+		goto again;
+	}
+	while((m = le->m_head->m_nextpkt) != NULL) {
+		/* 
+		 * condense m into le, first
+		 * pull m out of the list.
+		 */
+		le->m_head->m_nextpkt = m->m_nextpkt;
+		m->m_nextpkt = NULL;
+		/* Setup my data */
+		tcp_data_len = m->m_pkthdr.lro_len;
+		th = tcp_lro_get_th(le, m);
+		KASSERT(th != NULL, 
+			("le:%p m:%p th comes back NULL?", le, m));
+		ts_ptr = (uint32_t *)(th + 1);
+		l = (th->th_off << 2);
+		l -= sizeof(*th);
+		if (tp && locked) {
+			tcp_lro_log(tp, lc, le, m, 1, 0, 0, 0, 0);
+		}
+		if (le->append_cnt >= lc->lro_ackcnt_lim) {
+			if (tp && locked) {
+				tcp_lro_log(tp, lc, le, m, 2, 0, 0, 0, 0);
+			}
+			tcp_push_and_replace(tp, lc, le, m, locked);
+			goto again;
+		}
+		if (le->p_len > (lc->lro_length_lim - tcp_data_len)) {
+			/* Flush now if appending will result in overflow. */
+			if (tp && locked) {
+				tcp_lro_log(tp, lc, le, m, 3, tcp_data_len, 0, 0, 0);
+			}
+			tcp_push_and_replace(tp, lc, le, m, locked);
+			goto again;
+		}
+		if (l != 0 && (__predict_false(l != TCPOLEN_TSTAMP_APPA) ||
+			       (*ts_ptr != ntohl(TCPOPT_NOP<<24|TCPOPT_NOP<<16|
+						 TCPOPT_TIMESTAMP<<8|TCPOLEN_TIMESTAMP)))) {
+			/*
+			 * Maybe a sack in the new one? We need to
+			 * start all over after flushing the
+			 * current le. We will go up to the beginning
+			 * and flush it (calling the replace again possibly
+			 * or just returning).
+			 */
+			tcp_push_and_replace(tp, lc, le, m, locked);
+			goto again;
+		}
+		if ((th->th_flags & ~(TH_ACK | TH_PUSH)) != 0) {
+			tcp_push_and_replace(tp, lc, le, m, locked);
+			goto again;
+		}
+		if (l != 0) {
+			uint32_t tsval = ntohl(*(ts_ptr + 1));
+			/* Make sure timestamp values are increasing. */
+			if (TSTMP_GT(le->tsval, tsval))  {
+				tcp_push_and_replace(tp, lc, le, m, locked);
+				goto again;
+			}
+			le->tsval = tsval;
+			le->tsecr = *(ts_ptr + 2);
+		}
+		/* Try to append the new segment. */
+		if (__predict_false(ntohl(th->th_seq) != le->next_seq ||
+				    (tcp_data_len == 0 &&
+				     le->ack_seq == th->th_ack &&
+				     le->window == th->th_win))) {
+			/* Out of order packet or duplicate ACK. */
+			if (tp && locked) {
+				tcp_lro_log(tp, lc, le, m, 4, tcp_data_len,
+					    ntohl(th->th_seq),
+					    th->th_ack,
+					    th->th_win);
+			}
+			tcp_push_and_replace(tp, lc, le, m, locked);
+			goto again;
+		}
+		if (tcp_data_len || SEQ_GT(ntohl(th->th_ack), ntohl(le->ack_seq))) {
+			le->next_seq += tcp_data_len;
+			le->ack_seq = th->th_ack;
+			le->window = th->th_win;
+		} else if (th->th_ack == le->ack_seq) {
+			le->window = WIN_MAX(le->window, th->th_win);
+		}
+		csum_upd = m->m_pkthdr.lro_csum;
+		le->ulp_csum += csum_upd;
+		if (tcp_data_len == 0) {
+			le->append_cnt++;
+			le->mbuf_cnt--;
+			if (tp && locked) {
+				tcp_lro_log(tp, lc, le, m, 5, tcp_data_len,
+					    ntohl(th->th_seq),
+					    th->th_ack,
+					    th->th_win);
+			}
+			m_freem(m);
+			continue;
+		}
+		le->append_cnt++;
+		le->mbuf_appended++;
+		le->p_len += tcp_data_len;
+		/*
+		 * Adjust the mbuf so that m_data points to the first byte of
+		 * the ULP payload.  Adjust the mbuf to avoid complications and
+		 * append new segment to existing mbuf chain.
+		 */
+		m_adj(m, m->m_pkthdr.len - tcp_data_len);
+		if (tp && locked) {
+			tcp_lro_log(tp, lc, le, m, 6, tcp_data_len,
+					    ntohl(th->th_seq),
+					    th->th_ack,
+					    th->th_win);
+		}
+		m_demote_pkthdr(m);
+		le->m_tail->m_next = m;
+		le->m_tail = m_last(m);
+	}
+}
+
+static void
+tcp_queue_pkts(struct tcpcb *tp, struct lro_entry *le)
+{
+	if (tp->t_in_pkt == NULL) {
+		/* Nothing yet there */
+		tp->t_in_pkt = le->m_head;
+		tp->t_tail_pkt = le->m_last_mbuf;
+	} else {
+		/* Already some there */
+		tp->t_tail_pkt->m_nextpkt = le->m_head;
+		tp->t_tail_pkt = le->m_last_mbuf;
+	}
+	le->m_head = NULL;
+	le->m_last_mbuf = NULL;
+}
+
+void
+tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
+{
+	struct tcpcb *tp = NULL;
+	int locked = 0;
+#ifdef TCPHPTS
+	struct inpcb *inp = NULL;
+	int need_wakeup = 0, can_queue = 0;
+	struct epoch_tracker et;	
+
+	/* Now lets lookup the inp first */
+	CURVNET_SET(lc->ifp->if_vnet);
+	if (tcplro_stacks_wanting_mbufq == 0)
+		goto skip_lookup;
+	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+	switch (le->eh_type) {
+#ifdef INET6
+	case ETHERTYPE_IPV6:
+		inp = in6_pcblookup(&V_tcbinfo, &le->source_ip6,
+				    le->source_port, &le->dest_ip6,le->dest_port,
+				    INPLOOKUP_WLOCKPCB,
+				    lc->ifp);
+		break;
+#endif
+#ifdef INET
+	case ETHERTYPE_IP:
+		inp = in_pcblookup(&V_tcbinfo, le->le_ip4->ip_src,
+				   le->source_port, le->le_ip4->ip_dst, le->dest_port,
+				   INPLOOKUP_WLOCKPCB,
+				   lc->ifp);
+		break;
+#endif
+	}
+	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	if (inp && ((inp->inp_flags & (INP_DROPPED|INP_TIMEWAIT)) ||
+		    (inp->inp_flags2 & INP_FREED))) {
+		/* We don't want this guy */
+		INP_WUNLOCK(inp);		
+		inp = NULL;
+	}
+	if (inp && (inp->inp_flags2 & INP_SUPPORTS_MBUFQ)) {
+		/* The transport supports mbuf queuing */
+		can_queue = 1;
+		if (le->need_wakeup ||
+		    ((inp->inp_in_input == 0) &&
+		     ((inp->inp_flags2 & INP_MBUF_QUEUE_READY) == 0))) {
+			/* 
+			 * Either the transport is off on a keep-alive
+			 * (it has the queue_ready flag clear and its
+			 *  not already been woken) or the entry has
+			 * some urgent thing (FIN or possibly SACK blocks).
+			 * This means we need to wake the transport up by
+			 * putting it on the input pacer. 
+			 */
+			need_wakeup = 1;
+			if ((inp->inp_flags2 & INP_DONT_SACK_QUEUE) &&
+			    (le->need_wakeup != 1)) {
+				/*
+				 * Prohibited from a sack wakeup.
+				 */
+				need_wakeup = 0;
+			}
+		}
+		/* Do we need to be awoken due to lots of data or acks? */
+		if ((le->tcp_tot_p_len >= lc->lro_length_lim) ||
+		    (le->mbuf_cnt >= lc->lro_ackcnt_lim))
+			need_wakeup = 1;
+	}
+	if (inp) {
+		tp = intotcpcb(inp);
+		locked = 1;
+	} else
+		tp = NULL;
+	if (can_queue) {
+		counter_u64_add(tcp_inp_lro_direct_queue, 1);
+		tcp_lro_log(tp, lc, le, NULL, 22, need_wakeup,
+			    inp->inp_flags2, inp->inp_in_input, le->need_wakeup);
+		tcp_queue_pkts(tp, le);
+		if (need_wakeup) {
+			/* 
+			 * We must get the guy to wakeup via
+			 * hpts.
+			 */
+			counter_u64_add(tcp_inp_lro_wokeup_queue, 1);
+			if (le->need_wakeup)
+				counter_u64_add(tcp_inp_lro_sack_wake, 1);
+			tcp_queue_to_input(inp);
+		}
+	}
+	if (inp && (hold_lock_over_compress == 0)) {
+		/* Unlock it */
+		locked = 0;
+		tp = NULL;
+		counter_u64_add(tcp_inp_lro_locks_taken, 1);
+		INP_WUNLOCK(inp);
+	}
+	if (can_queue == 0) {
+skip_lookup:
+#endif
+		/* Old fashioned lro method */
+		if (le->m_head != le->m_last_mbuf)  {
+			counter_u64_add(tcp_inp_lro_compressed, 1);
+			tcp_lro_condense(tp, lc, le, locked);
+		} else
+			counter_u64_add(tcp_inp_lro_single_push, 1);
+		tcp_flush_out_le(tp, lc, le, locked);
+#ifdef TCPHPTS
+	}
+	if (inp && locked) {
+		counter_u64_add(tcp_inp_lro_locks_taken, 1);
+		INP_WUNLOCK(inp);
+	}
+	CURVNET_RESTORE();
+#endif
 	lc->lro_flushed++;
 	bzero(le, sizeof(*le));
 	LIST_INSERT_HEAD(&lc->lro_free, le, next);
@@ -537,65 +1116,12 @@ done:
 	lc->lro_mbuf_count = 0;
 }
 
-#ifdef INET6
-static int
-tcp_lro_rx_ipv6(struct lro_ctrl *lc, struct mbuf *m, struct ip6_hdr *ip6,
-    struct tcphdr **th)
+static void
+lro_set_mtime(struct timeval *tv, struct timespec *ts)
 {
-
-	/* XXX-BZ we should check the flow-label. */
-
-	/* XXX-BZ We do not yet support ext. hdrs. */
-	if (ip6->ip6_nxt != IPPROTO_TCP)
-		return (TCP_LRO_NOT_SUPPORTED);
-
-	/* Find the TCP header. */
-	*th = (struct tcphdr *)(ip6 + 1);
-
-	return (0);
+	tv->tv_sec = ts->tv_sec;
+	tv->tv_usec = ts->tv_nsec / 1000;
 }
-#endif
-
-#ifdef INET
-static int
-tcp_lro_rx_ipv4(struct lro_ctrl *lc, struct mbuf *m, struct ip *ip4,
-    struct tcphdr **th)
-{
-	int csum_flags;
-	uint16_t csum;
-
-	if (ip4->ip_p != IPPROTO_TCP)
-		return (TCP_LRO_NOT_SUPPORTED);
-
-	/* Ensure there are no options. */
-	if ((ip4->ip_hl << 2) != sizeof (*ip4))
-		return (TCP_LRO_CANNOT);
-
-	/* .. and the packet is not fragmented. */
-	if (ip4->ip_off & htons(IP_MF|IP_OFFMASK))
-		return (TCP_LRO_CANNOT);
-
-	/* Legacy IP has a header checksum that needs to be correct. */
-	csum_flags = m->m_pkthdr.csum_flags;
-	if (csum_flags & CSUM_IP_CHECKED) {
-		if (__predict_false((csum_flags & CSUM_IP_VALID) == 0)) {
-			lc->lro_bad_csum++;
-			return (TCP_LRO_CANNOT);
-		}
-	} else {
-		csum = in_cksum_hdr(ip4);
-		if (__predict_false((csum) != 0)) {
-			lc->lro_bad_csum++;
-			return (TCP_LRO_CANNOT);
-		}
-	}
-
-	/* Find the TCP header (we assured there are no IP options). */
-	*th = (struct tcphdr *)(ip4 + 1);
-
-	return (0);
-}
-#endif
 
 static int
 tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
@@ -613,12 +1139,17 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 	uint32_t *ts_ptr;
 	tcp_seq seq;
 	int error, ip_len, l;
-	uint16_t eh_type, tcp_data_len;
+	uint16_t eh_type, tcp_data_len, need_flush;
 	struct lro_head *bucket;
-	int force_flush = 0;
+	struct timespec arrv;
 
 	/* We expect a contiguous header [eh, ip, tcp]. */
-
+	if ((m->m_flags & (M_TSTMP_LRO|M_TSTMP)) == 0) {
+		/* If no hardware or arrival stamp on the packet add arrival */
+		nanouptime(&arrv);
+		m->m_pkthdr.rcv_tstmp = (arrv.tv_sec * 1000000000) + arrv.tv_nsec;
+		m->m_flags |= M_TSTMP_LRO;
+	}
 	eh = mtod(m, struct ether_header *);
 	eh_type = ntohs(eh->ether_type);
 	switch (eh_type) {
@@ -677,49 +1208,35 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 
 		m_adj(m, -l);
 	}
-
 	/*
 	 * Check TCP header constraints.
 	 */
-	/* Ensure no bits set besides ACK or PSH. */
-	if ((th->th_flags & ~(TH_ACK | TH_PUSH)) != 0) {
-		if (th->th_flags & TH_SYN)
-			return (TCP_LRO_CANNOT);
-		/*
-		 * Make sure that previously seen segements/ACKs are delivered
-		 * before this segement, e.g. FIN.
-		 */
-		force_flush = 1;
-	}
-
-	/* XXX-BZ We lose a ACK|PUSH flag concatenating multiple segments. */
-	/* XXX-BZ Ideally we'd flush on PUSH? */
-
-	/*
-	 * Check for timestamps.
-	 * Since the only option we handle are timestamps, we only have to
-	 * handle the simple case of aligned timestamps.
-	 */
+	if (th->th_flags & TH_SYN)
+		return (TCP_LRO_CANNOT);
+	if ((th->th_flags & ~(TH_ACK | TH_PUSH)) != 0)
+		need_flush = 1;
+	else
+		need_flush = 0;
 	l = (th->th_off << 2);
+	ts_ptr = (uint32_t *)(th + 1);
 	tcp_data_len -= l;
 	l -= sizeof(*th);
-	ts_ptr = (uint32_t *)(th + 1);
 	if (l != 0 && (__predict_false(l != TCPOLEN_TSTAMP_APPA) ||
-	    (*ts_ptr != ntohl(TCPOPT_NOP<<24|TCPOPT_NOP<<16|
-	    TCPOPT_TIMESTAMP<<8|TCPOLEN_TIMESTAMP)))) {
-		/*
-		 * Make sure that previously seen segements/ACKs are delivered
-		 * before this segement.
+		       (*ts_ptr != ntohl(TCPOPT_NOP<<24|TCPOPT_NOP<<16|
+					 TCPOPT_TIMESTAMP<<8|TCPOLEN_TIMESTAMP)))) {
+		/* 
+		 * We have an option besides Timestamps, maybe
+		 * it is a sack (most likely) which means we
+		 * will probably need to wake up a sleeper (if
+		 * the guy does queueing).
 		 */
-		force_flush = 1;
+		need_flush = 2;
 	}
 
 	/* If the driver did not pass in the checksum, set it now. */
 	if (csum == 0x0000)
 		csum = th->th_sum;
-
 	seq = ntohl(th->th_seq);
-
 	if (!use_hash) {
 		bucket = &lc->lro_hash[0];
 	} else if (M_HASHTYPE_ISHASH(m)) {
@@ -736,13 +1253,13 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 #ifdef INET6
 		case ETHERTYPE_IPV6:
 			hash = ip6->ip6_src.s6_addr32[0] +
-			    ip6->ip6_dst.s6_addr32[0];
+				ip6->ip6_dst.s6_addr32[0];
 			hash += ip6->ip6_src.s6_addr32[1] +
-			    ip6->ip6_dst.s6_addr32[1];
+				ip6->ip6_dst.s6_addr32[1];
 			hash += ip6->ip6_src.s6_addr32[2] +
-			    ip6->ip6_dst.s6_addr32[2];
+				ip6->ip6_dst.s6_addr32[2];
 			hash += ip6->ip6_src.s6_addr32[3] +
-			    ip6->ip6_dst.s6_addr32[3];
+				ip6->ip6_dst.s6_addr32[3];
 			break;
 #endif
 		default:
@@ -764,9 +1281,9 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 #ifdef INET6
 		case ETHERTYPE_IPV6:
 			if (bcmp(&le->source_ip6, &ip6->ip6_src,
-			    sizeof(struct in6_addr)) != 0 ||
+				 sizeof(struct in6_addr)) != 0 ||
 			    bcmp(&le->dest_ip6, &ip6->ip6_dst,
-			    sizeof(struct in6_addr)) != 0)
+				 sizeof(struct in6_addr)) != 0)
 				continue;
 			break;
 #endif
@@ -778,108 +1295,34 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 			break;
 #endif
 		}
-
-		if (force_flush) {
-			/* Timestamps mismatch; this is a FIN, etc */
-			tcp_lro_active_remove(le);
-			tcp_lro_flush(lc, le);
-			return (TCP_LRO_CANNOT);
-		}
-
-		/* Flush now if appending will result in overflow. */
-		if (le->p_len > (lc->lro_length_lim - tcp_data_len)) {
-			tcp_lro_active_remove(le);
-			tcp_lro_flush(lc, le);
-			break;
-		}
-
-		/* Try to append the new segment. */
-		if (__predict_false(seq != le->next_seq ||
-		    (tcp_data_len == 0 &&
-		    le->ack_seq == th->th_ack &&
-		    le->window == th->th_win))) {
-			/* Out of order packet or duplicate ACK. */
-			tcp_lro_active_remove(le);
-			tcp_lro_flush(lc, le);
-			return (TCP_LRO_CANNOT);
-		}
-
-		if (l != 0) {
-			uint32_t tsval = ntohl(*(ts_ptr + 1));
-			/* Make sure timestamp values are increasing. */
-			/* XXX-BZ flip and use TSTMP_GEQ macro for this? */
-			if (__predict_false(le->tsval > tsval ||
-			    *(ts_ptr + 2) == 0))
-				return (TCP_LRO_CANNOT);
-			le->tsval = tsval;
-			le->tsecr = *(ts_ptr + 2);
-		}
-		if (tcp_data_len || SEQ_GT(ntohl(th->th_ack), ntohl(le->ack_seq))) {
-			le->next_seq += tcp_data_len;
-			le->ack_seq = th->th_ack;
-			le->window = th->th_win;
-			le->append_cnt++;
-		} else if (th->th_ack == le->ack_seq) {
-			le->window = WIN_MAX(le->window, th->th_win);
-			le->append_cnt++;
+		if (tcp_data_len || SEQ_GT(ntohl(th->th_ack), ntohl(le->ack_seq)) ||
+		    (th->th_ack == le->ack_seq)) {
+			m->m_pkthdr.lro_len = tcp_data_len;
 		} else {
 			/* no data and old ack */
-			le->append_cnt++;
 			m_freem(m);
 			return (0);
 		}
-#ifdef TCP_LRO_UPDATE_CSUM
-		le->ulp_csum += tcp_lro_rx_csum_fixup(le, l3hdr, th,
-		    tcp_data_len, ~csum);
-#endif
-
-		if (tcp_data_len == 0) {
-			m_freem(m);
-			/*
-			 * Flush this LRO entry, if this ACK should not
-			 * be further delayed.
-			 */
-			if (le->append_cnt >= lc->lro_ackcnt_lim) {
-				tcp_lro_active_remove(le);
-				tcp_lro_flush(lc, le);
-			}
-			return (0);
-		}
-
-		le->p_len += tcp_data_len;
-
-		/*
-		 * Adjust the mbuf so that m_data points to the first byte of
-		 * the ULP payload.  Adjust the mbuf to avoid complications and
-		 * append new segment to existing mbuf chain.
-		 */
-		m_adj(m, m->m_pkthdr.len - tcp_data_len);
-		m_demote_pkthdr(m);
-
-		le->m_tail->m_next = m;
-		le->m_tail = m_last(m);
-
-		/*
-		 * If a possible next full length packet would cause an
-		 * overflow, pro-actively flush now.
-		 */
-		if (le->p_len > (lc->lro_length_lim - lc->ifp->if_mtu)) {
-			tcp_lro_active_remove(le);
-			tcp_lro_flush(lc, le);
-		} else
-			getmicrotime(&le->mtime);
-
+		if (need_flush)
+			le->need_wakeup = need_flush;
+		/* Save of the data only csum */
+		m->m_pkthdr.rcvif = lc->ifp;
+		m->m_pkthdr.lro_csum = tcp_lro_rx_csum_fixup(le, l3hdr, th,
+						      tcp_data_len, ~csum);
+		th->th_sum = csum;	/* Restore checksum */
+		/* Save off the tail I am appending too (prev) */
+		le->m_prev_last = le->m_last_mbuf;
+		/* Mark me in the last spot */
+		le->m_last_mbuf->m_nextpkt = m;
+		/* Now set the tail to me  */
+		le->m_last_mbuf = m;
+		le->mbuf_cnt++;
+		m->m_nextpkt = NULL;
+		/* Add to the total size of data */
+		le->tcp_tot_p_len += tcp_data_len;
+		lro_set_mtime(&le->mtime, &arrv);
 		return (0);
 	}
-
-	if (force_flush) {
-		/*
-		 * Nothing to flush, but this segment can not be further
-		 * aggregated/delayed.
-		 */
-		return (TCP_LRO_CANNOT);
-	}
-
 	/* Try to find an empty slot. */
 	if (LIST_EMPTY(&lc->lro_free))
 		return (TCP_LRO_NO_ENTRIES);
@@ -888,7 +1331,7 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 	le = LIST_FIRST(&lc->lro_free);
 	LIST_REMOVE(le, next);
 	tcp_lro_active_insert(lc, bucket, le);
-	getmicrotime(&le->mtime);
+	lro_set_mtime(&le->mtime, &arrv);
 
 	/* Start filling in details. */
 	switch (eh_type) {
@@ -910,10 +1353,9 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 		le->p_len = m->m_pkthdr.len - ETHER_HDR_LEN;
 		break;
 #endif
-	}
+	} 
 	le->source_port = th->th_sport;
 	le->dest_port = th->th_dport;
-
 	le->next_seq = seq + tcp_data_len;
 	le->ack_seq = th->th_ack;
 	le->window = th->th_win;
@@ -922,26 +1364,31 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 		le->tsval = ntohl(*(ts_ptr + 1));
 		le->tsecr = *(ts_ptr + 2);
 	}
-
-#ifdef TCP_LRO_UPDATE_CSUM
-	/*
-	 * Do not touch the csum of the first packet.  However save the
-	 * "adjusted" checksum of just the source and destination addresses,
-	 * the next header and the TCP payload.  The length and TCP header
-	 * parts may change, so we remove those from the saved checksum and
-	 * re-add with final values on tcp_lro_flush() if needed.
-	 */
 	KASSERT(le->ulp_csum == 0, ("%s: le=%p le->ulp_csum=0x%04x\n",
-	    __func__, le, le->ulp_csum));
+				    __func__, le, le->ulp_csum));
 
+	le->append_cnt = 0;
 	le->ulp_csum = tcp_lro_rx_csum_fixup(le, l3hdr, th, tcp_data_len,
-	    ~csum);
-	th->th_sum = csum;	/* Restore checksum on first packet. */
-#endif
-
+					     ~csum);
+	le->append_cnt++;
+	th->th_sum = csum;	/* Restore checksum */
 	le->m_head = m;
+	m->m_pkthdr.rcvif = lc->ifp;
+	le->mbuf_cnt = 1;
+	if (need_flush)
+		le->need_wakeup = need_flush;
+	else
+		le->need_wakeup = 0;
 	le->m_tail = m_last(m);
-
+	le->m_last_mbuf = m;
+	m->m_nextpkt = NULL;
+	le->m_prev_last = NULL;
+	/* 
+	 * We keep the total size here for cross checking when we may need
+	 * to flush/wakeup in the MBUF_QUEUE case.
+	 */
+	le->tcp_tot_p_len = tcp_data_len;
+	m->m_pkthdr.lro_len = tcp_data_len;
 	return (0);
 }
 
@@ -955,6 +1402,8 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 void
 tcp_lro_queue_mbuf(struct lro_ctrl *lc, struct mbuf *mb)
 {
+	struct timespec arrv;
+
 	/* sanity checks */
 	if (__predict_false(lc->ifp == NULL || lc->lro_mbuf_data == NULL ||
 	    lc->lro_mbuf_max == 0)) {
@@ -971,7 +1420,15 @@ tcp_lro_queue_mbuf(struct lro_ctrl *lc, struct mbuf *mb)
 		(*lc->ifp->if_input) (lc->ifp, mb);
 		return;
 	}
+	/* Arrival Stamp the packet */
 
+	if ((mb->m_flags & M_TSTMP) == 0) {
+		/* If no hardware or arrival stamp on the packet add arrival */
+		nanouptime(&arrv);
+		mb->m_pkthdr.rcv_tstmp = ((arrv.tv_sec * 1000000000) +
+			                  arrv.tv_nsec);
+		mb->m_flags |= M_TSTMP_LRO;
+	}
 	/* create sequence number */
 	lc->lro_mbuf_data[lc->lro_mbuf_count].seq =
 	    (((uint64_t)M_HASHTYPE_GET(mb)) << 56) |
