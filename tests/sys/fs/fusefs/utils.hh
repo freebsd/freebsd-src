@@ -83,7 +83,9 @@ class FuseTest : public ::testing::Test {
 		m_async(false),
 		m_noclusterr(false),
 		m_nointr(false),
-		m_time_gran(1)
+		m_time_gran(1),
+		m_maxbcachebuf(0),
+		m_maxphys(0)
 	{}
 
 	virtual void SetUp();

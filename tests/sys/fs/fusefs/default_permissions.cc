@@ -503,7 +503,7 @@ TEST_F(Create, eacces)
 	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 		.WillOnce(Invoke(ReturnErrno(ENOENT)));
 
-	EXPECT_EQ(-1, open(FULLPATH, O_CREAT | O_EXCL, 0644));
+	ASSERT_EQ(-1, open(FULLPATH, O_CREAT | O_EXCL, 0644));
 	EXPECT_EQ(EACCES, errno);
 }
 

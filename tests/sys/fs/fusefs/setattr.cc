@@ -548,6 +548,8 @@ TEST_F(Setattr, truncate_discards_cached_data) {
 	free(r1buf);
 	free(r0buf);
 	free(w0buf);
+
+	leak(fd);
 }
 
 /* Change a file's timestamps */
