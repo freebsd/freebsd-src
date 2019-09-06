@@ -255,6 +255,8 @@ TEST_F(NoAllowOther, disallowed_beneath_root)
 		}
 	);
 	ASSERT_EQ(0, WEXITSTATUS(status));
+
+	leak(dfd);
 }
 
 /* 

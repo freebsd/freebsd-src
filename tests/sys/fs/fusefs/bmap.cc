@@ -158,4 +158,6 @@ TEST_F(Bmap, default_)
 	EXPECT_EQ(arg.bn, lbn * m_maxbcachebuf / DEV_BSIZE);
 	EXPECT_EQ(arg.runp, 0);
 	EXPECT_EQ(arg.runb, m_maxphys / m_maxbcachebuf - 1);
+
+	leak(fd);
 }

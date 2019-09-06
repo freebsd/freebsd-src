@@ -90,6 +90,7 @@ TEST_F(Release, dup)
 	EXPECT_LE(0, fd) << strerror(errno);
 
 	fd2 = dup(fd);
+	ASSERT_LE(0, fd2) << strerror(errno);
 
 	ASSERT_EQ(0, close(fd2)) << strerror(errno);
 	ASSERT_EQ(0, close(fd)) << strerror(errno);
