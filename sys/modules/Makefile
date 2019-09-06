@@ -135,7 +135,7 @@ SUBDIR=	\
 	filemon \
 	firewire \
 	firmware \
-	fuse \
+	fusefs \
 	${_fxp} \
 	gem \
 	geom \
