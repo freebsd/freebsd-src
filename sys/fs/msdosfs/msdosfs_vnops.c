@@ -758,7 +758,6 @@ msdosfs_write(struct vop_write_args *ap)
 			 */
 			error = bread(thisvp, bn, pmp->pm_bpcluster, cred, &bp);
 			if (error) {
-				brelse(bp);
 				break;
 			}
 		}
@@ -1225,7 +1224,6 @@ abortit:
 			      NOCRED, &bp);
 		if (error) {
 			/* XXX should downgrade to ro here, fs is corrupt */
-			brelse(bp);
 			VOP_UNLOCK(fvp, 0);
 			goto bad;
 		}
@@ -1593,7 +1591,6 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 			break;
 		error = bread(pmp->pm_devvp, bn, blsize, NOCRED, &bp);
 		if (error) {
-			brelse(bp);
 			return (error);
 		}
 		n = min(n, blsize - bp->b_resid);
