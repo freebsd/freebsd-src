@@ -96,7 +96,8 @@ static struct winsize ws;
 static kvm_t   *kd;
 static time_t	now;		/* the current time of day */
 static int	ttywidth;	/* width of tty */
-static int	argwidth;	/* width of tty */
+static int	fromwidth = 0;	/* max width of "from" field */
+static int	argwidth;	/* width of arguments */
 static int	header = 1;	/* true if -h flag: don't print heading */
 static int	nflag;		/* true if -n flag: don't convert addrs */
 static int	dflag;		/* true if -d flag: output debug info */
@@ -116,13 +117,15 @@ static struct entry {
 	struct	kinfo_proc *kp;		/* `most interesting' proc */
 	char	*args;			/* arg list of interesting process */
 	struct	kinfo_proc *dkp;	/* debug option proc list */
+	char	*from;			/* "from": name or addr */
+	char	*save_from;		/* original "from": name or addr */
 } *ep, *ehead = NULL, **nextp = &ehead;
 
 #define	debugproc(p) *(&((struct kinfo_proc *)p)->ki_udata)
 
 #define	W_DISPUSERSIZE	10
 #define	W_DISPLINESIZE	8
-#define	W_DISPHOSTSIZE	40
+#define	W_MAXHOSTSIZE	40
 
 static void		 pr_header(time_t *, int);
 static struct stat	*ttystat(char *);
@@ -209,6 +212,13 @@ main(int argc, char *argv[])
 
 	setutxent();
 	for (nusers = 0; (utmp = getutxent()) != NULL;) {
+		struct addrinfo hints, *res;
+		struct sockaddr_storage ss;
+		struct sockaddr *sa = (struct sockaddr *)&ss;
+		struct sockaddr_in *lsin = (struct sockaddr_in *)&ss;
+		struct sockaddr_in6 *lsin6 = (struct sockaddr_in6 *)&ss;
+		int isaddr;
+
 		if (utmp->ut_type != USER_PROCESS)
 			continue;
 		if (!(stp = ttystat(utmp->ut_line)))
@@ -250,8 +260,77 @@ main(int argc, char *argv[])
 		}
 		if ((ep->idle = now - touched) < 0)
 			ep->idle = 0;
+
+		save_p = p = *ep->utmp.ut_host ? ep->utmp.ut_host : "-";
+		if ((x_suffix = strrchr(p, ':')) != NULL) {
+			if ((dot = strchr(x_suffix, '.')) != NULL &&
+			    strchr(dot+1, '.') == NULL)
+				*x_suffix++ = '\0';
+			else
+				x_suffix = NULL;
+		}
+
+		isaddr = 0;
+		memset(&ss, '\0', sizeof(ss));
+		if (inet_pton(AF_INET6, p, &lsin6->sin6_addr) == 1) {
+			lsin6->sin6_len = sizeof(*lsin6);
+			lsin6->sin6_family = AF_INET6;
+			isaddr = 1;
+		} else if (inet_pton(AF_INET, p, &lsin->sin_addr) == 1) {
+			lsin->sin_len = sizeof(*lsin);
+			lsin->sin_family = AF_INET;
+			isaddr = 1;
+		}
+		if (nflag == 0) {
+			/* Attempt to change an IP address into a name */
+			if (isaddr && realhostname_sa(fn, sizeof(fn), sa,
+			    sa->sa_len) == HOSTNAME_FOUND)
+				p = fn;
+		} else if (!isaddr && nflag > 1) {
+			/*
+			 * If a host has only one A/AAAA RR, change a
+			 * name into an IP address
+			 */
+			memset(&hints, 0, sizeof(hints));
+			hints.ai_flags = AI_PASSIVE;
+			hints.ai_family = AF_UNSPEC;
+			hints.ai_socktype = SOCK_STREAM;
+			if (getaddrinfo(p, NULL, &hints, &res) == 0) {
+				if (res->ai_next == NULL &&
+				    getnameinfo(res->ai_addr, res->ai_addrlen,
+					fn, sizeof(fn), NULL, 0,
+					NI_NUMERICHOST) == 0)
+					p = fn;
+				freeaddrinfo(res);
+			}
+		}
+
+		if (x_suffix) {
+			(void)snprintf(buf, sizeof(buf), "%s:%s", p, x_suffix);
+			p = buf;
+		}
+		ep->from = strdup(p);
+		if ((i = strlen(p)) > fromwidth)
+			fromwidth = i;
+		if (save_p != p)
+			ep->save_from = strdup(save_p);
 	}
 	endutxent();
+
+#define HEADER_USER		"USER"
+#define HEADER_TTY		"TTY"
+#define HEADER_FROM		"FROM"
+#define HEADER_LOGIN_IDLE	"LOGIN@  IDLE "
+#define HEADER_WHAT		"WHAT\n"
+#define WUSED  (W_DISPUSERSIZE + W_DISPLINESIZE + fromwidth + \
+		sizeof(HEADER_LOGIN_IDLE) + 3)	/* header width incl. spaces */ 
+
+
+	if ((int) sizeof(HEADER_FROM) > fromwidth)
+		fromwidth = sizeof(HEADER_FROM);
+	fromwidth++;
+	if (fromwidth > W_MAXHOSTSIZE)
+		fromwidth = W_MAXHOSTSIZE;
 
 	xo_open_container("uptime-information");
 
@@ -265,17 +344,10 @@ main(int argc, char *argv[])
 			exit(0);
 		}
 
-#define HEADER_USER		"USER"
-#define HEADER_TTY		"TTY"
-#define HEADER_FROM		"FROM"
-#define HEADER_LOGIN_IDLE	"LOGIN@  IDLE "
-#define HEADER_WHAT		"WHAT\n"
-#define WUSED  (W_DISPUSERSIZE + W_DISPLINESIZE + W_DISPHOSTSIZE + \
-		sizeof(HEADER_LOGIN_IDLE) + 3)	/* header width incl. spaces */ 
 		xo_emit("{T:/%-*.*s} {T:/%-*.*s} {T:/%-*.*s}  {T:/%s}", 
 				W_DISPUSERSIZE, W_DISPUSERSIZE, HEADER_USER,
 				W_DISPLINESIZE, W_DISPLINESIZE, HEADER_TTY,
-				W_DISPHOSTSIZE, W_DISPHOSTSIZE, HEADER_FROM,
+				fromwidth, fromwidth, HEADER_FROM,
 				HEADER_LOGIN_IDLE HEADER_WHAT);
 	}
 
@@ -350,64 +422,10 @@ main(int argc, char *argv[])
 	xo_open_list("user-entry");
 
 	for (ep = ehead; ep != NULL; ep = ep->next) {
-		struct addrinfo hints, *res;
-		struct sockaddr_storage ss;
-		struct sockaddr *sa = (struct sockaddr *)&ss;
-		struct sockaddr_in *lsin = (struct sockaddr_in *)&ss;
-		struct sockaddr_in6 *lsin6 = (struct sockaddr_in6 *)&ss;
 		time_t t;
-		int isaddr;
 
 		xo_open_instance("user-entry");
 
-		save_p = p = *ep->utmp.ut_host ? ep->utmp.ut_host : "-";
-		if ((x_suffix = strrchr(p, ':')) != NULL) {
-			if ((dot = strchr(x_suffix, '.')) != NULL &&
-			    strchr(dot+1, '.') == NULL)
-				*x_suffix++ = '\0';
-			else
-				x_suffix = NULL;
-		}
-
-		isaddr = 0;
-		memset(&ss, '\0', sizeof(ss));
-		if (inet_pton(AF_INET6, p, &lsin6->sin6_addr) == 1) {
-			lsin6->sin6_len = sizeof(*lsin6);
-			lsin6->sin6_family = AF_INET6;
-			isaddr = 1;
-		} else if (inet_pton(AF_INET, p, &lsin->sin_addr) == 1) {
-			lsin->sin_len = sizeof(*lsin);
-			lsin->sin_family = AF_INET;
-			isaddr = 1;
-		}
-		if (nflag == 0) {
-			/* Attempt to change an IP address into a name */
-			if (isaddr && realhostname_sa(fn, sizeof(fn), sa,
-			    sa->sa_len) == HOSTNAME_FOUND)
-				p = fn;
-		} else if (!isaddr && nflag > 1) {
-			/*
-			 * If a host has only one A/AAAA RR, change a
-			 * name into an IP address
-			 */
-			memset(&hints, 0, sizeof(hints));
-			hints.ai_flags = AI_PASSIVE;
-			hints.ai_family = AF_UNSPEC;
-			hints.ai_socktype = SOCK_STREAM;
-			if (getaddrinfo(p, NULL, &hints, &res) == 0) {
-				if (res->ai_next == NULL &&
-				    getnameinfo(res->ai_addr, res->ai_addrlen,
-					fn, sizeof(fn), NULL, 0,
-					NI_NUMERICHOST) == 0)
-					p = fn;
-				freeaddrinfo(res);
-			}
-		}
-
-		if (x_suffix) {
-			(void)snprintf(buf, sizeof(buf), "%s:%s", p, x_suffix);
-			p = buf;
-		}
 		if (dflag) {
 		        xo_open_container("process-table");
 		        xo_open_list("process-entry");
@@ -435,10 +453,10 @@ main(int argc, char *argv[])
 			 strncmp(ep->utmp.ut_line, "cua", 3) ?
 			 ep->utmp.ut_line : ep->utmp.ut_line + 3) : "-");
 
-		if (save_p && save_p != p)
-		    xo_attr("address", "%s", save_p);
+		if (ep->save_from)
+		    xo_attr("address", "%s", ep->save_from);
 		xo_emit("{:from/%-*.*s/%@**@s} ",
-		    W_DISPHOSTSIZE, W_DISPHOSTSIZE, *p ? p : "-");
+		    fromwidth, fromwidth, ep->from);
 		t = ep->utmp.ut_tv.tv_sec;
 		longattime = pr_attime(&t, &now);
 		longidle = pr_idle(ep->idle);
