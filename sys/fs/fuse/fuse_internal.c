@@ -58,11 +58,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/module.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
-#include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
@@ -70,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sdt.h>
 #include <sys/sx.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
@@ -94,8 +94,13 @@ __FBSDID("$FreeBSD$");
 #include "fuse_file.h"
 #include "fuse_param.h"
 
-#define FUSE_DEBUG_MODULE INTERNAL
-#include "fuse_debug.h"
+SDT_PROVIDER_DECLARE(fuse);
+/* 
+ * Fuse trace probe:
+ * arg0: verbosity.  Higher numbers give more verbose messages
+ * arg1: Textual message
+ */
+SDT_PROBE_DEFINE2(fuse, , internal, trace, "int", "char*");
 
 #ifdef ZERO_PAD_INCOMPLETE_BUFS
 static int isbzero(void *buf, size_t len);
@@ -126,8 +131,6 @@ fuse_internal_access(struct vnode *vp,
 	 * kludge.
 	 */
 	/* return 0;*/
-
-	fuse_trace_printf_func();
 
 	mp = vnode_mount(vp);
 	vtype = vnode_vtype(vp);
@@ -204,13 +207,71 @@ fuse_internal_access(struct vnode *vp,
 	return err;
 }
 
+/*
+ * Cache FUSE attributes from feo, in attr cache associated with vnode 'vp'.
+ * Optionally, if argument 'vap' is not NULL, store a copy of the converted
+ * attributes there as well.
+ *
+ * If the nominal attribute cache TTL is zero, do not cache on the 'vp' (but do
+ * return the result to the caller).
+ */
+void
+fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
+	uint64_t attr_valid, uint32_t attr_valid_nsec, struct vattr *vap)
+{
+	struct mount *mp;
+	struct fuse_vnode_data *fvdat;
+	struct vattr *vp_cache_at;
+
+	mp = vnode_mount(vp);
+	fvdat = VTOFUD(vp);
+
+	/* Honor explicit do-not-cache requests from user filesystems. */
+	if (attr_valid == 0 && attr_valid_nsec == 0)
+		fvdat->valid_attr_cache = false;
+	else
+		fvdat->valid_attr_cache = true;
+
+	vp_cache_at = VTOVA(vp);
+
+	if (vap == NULL && vp_cache_at == NULL)
+		return;
+
+	if (vap == NULL)
+		vap = vp_cache_at;
+
+	vattr_null(vap);
+
+	vap->va_fsid = mp->mnt_stat.f_fsid.val[0];
+	vap->va_fileid = attr->ino;
+	vap->va_mode = attr->mode & ~S_IFMT;
+	vap->va_nlink     = attr->nlink;
+	vap->va_uid       = attr->uid;
+	vap->va_gid       = attr->gid;
+	vap->va_rdev      = attr->rdev;
+	vap->va_size      = attr->size;
+	/* XXX on i386, seconds are truncated to 32 bits */
+	vap->va_atime.tv_sec  = attr->atime;
+	vap->va_atime.tv_nsec = attr->atimensec;
+	vap->va_mtime.tv_sec  = attr->mtime;
+	vap->va_mtime.tv_nsec = attr->mtimensec;
+	vap->va_ctime.tv_sec  = attr->ctime;
+	vap->va_ctime.tv_nsec = attr->ctimensec;
+	vap->va_blocksize = PAGE_SIZE;
+	vap->va_type = IFTOVT(attr->mode);
+	vap->va_bytes = attr->blocks * S_BLKSIZE;
+	vap->va_flags = 0;
+
+	if (vap != vp_cache_at && vp_cache_at != NULL)
+		memcpy(vp_cache_at, vap, sizeof(*vap));
+}
+
+
 /* fsync */
 
 int
 fuse_internal_fsync_callback(struct fuse_ticket *tick, struct uio *uio)
 {
-	fuse_trace_printf_func();
-
 	if (tick->tk_aw_ohead.error == ENOSYS) {
 		fsess_set_notimpl(tick->tk_data->mp, fticket_opcode(tick));
 	}
@@ -226,8 +287,6 @@ fuse_internal_fsync(struct vnode *vp,
 	int op = FUSE_FSYNC;
 	struct fuse_fsync_in *ffsi;
 	struct fuse_dispatcher fdi;
-
-	fuse_trace_printf_func();
 
 	if (vnode_isdir(vp)) {
 		op = FUSE_FSYNCDIR;
@@ -386,8 +445,6 @@ fuse_internal_remove(struct vnode *dvp,
 	err = 0;
 	fvdat = VTOFUD(vp);
 
-	debug_printf("dvp=%p, cnp=%p, op=%d\n", vp, cnp, op);
-
 	fdisp_init(&fdi, cnp->cn_namelen + 1);
 	fdisp_make_vp(&fdi, op, dvp, cnp->cn_thread, cnp->cn_cred);
 
@@ -442,8 +499,6 @@ fuse_internal_newentry_makerequest(struct mount *mp,
     size_t bufsize,
     struct fuse_dispatcher *fdip)
 {
-	debug_printf("fdip=%p\n", fdip);
-
 	fdip->iosize = bufsize + cnp->cn_namelen + 1;
 
 	fdisp_make(fdip, op, mp, dnid, cnp->cn_thread, cnp->cn_cred);
@@ -477,7 +532,8 @@ fuse_internal_newentry_core(struct vnode *dvp,
 		    feo->nodeid, 1);
 		return err;
 	}
-	cache_attrs(*vpp, feo, NULL);
+	fuse_internal_cache_attrs(*vpp, &feo->attr, feo->attr_valid,
+		feo->attr_valid_nsec, NULL);
 
 	return err;
 }
@@ -526,9 +582,6 @@ fuse_internal_forget_send(struct mount *mp,
 	struct fuse_dispatcher fdi;
 	struct fuse_forget_in *ffi;
 
-	debug_printf("mp=%p, nodeid=%ju, nlookup=%ju\n",
-	    mp, (uintmax_t)nodeid, (uintmax_t)nlookup);
-
 	/*
          * KASSERT(nlookup > 0, ("zero-times forget for vp #%llu",
          *         (long long unsigned) nodeid));
@@ -574,7 +627,8 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 
 	/* XXX: Do we want to check anything further besides this? */
 	if (fiio->major < 7) {
-		debug_printf("userpace version too low\n");
+		SDT_PROBE2(fuse, , internal, trace, 1,
+			"userpace version too low");
 		err = EPROTONOSUPPORT;
 		goto out;
 	}
