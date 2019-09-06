@@ -390,6 +390,9 @@ fuse_internal_invalidate_entry(struct mount *mp, struct uio *uio)
 	if ((err = uiomove(&fnieo, sizeof(fnieo), uio)) != 0)
 		return (err);
 
+	if (fnieo.namelen > sizeof(name))
+		return (EINVAL);
+
 	if ((err = uiomove(name, fnieo.namelen, uio)) != 0)
 		return (err);
 	name[fnieo.namelen] = '\0';
