@@ -107,13 +107,12 @@ static void* statter(void* arg) {
 	struct stat sb;
 
 	name = (const char*)arg;
-	stat(name, &sb);
-	return 0;
+	return ((void*)(intptr_t)stat(name, &sb));
 }
 
 /*
  * A kevent's data field should contain the number of operations available to
- * be immediately rea.
+ * be immediately read.
  */
 TEST_F(Kqueue, data)
 {
@@ -124,6 +123,7 @@ TEST_F(Kqueue, data)
 	uint64_t bar_ino = 43;
 	uint64_t baz_ino = 44;
 	Sequence seq;
+	void *th_ret;
 
 	ASSERT_EQ(0, sem_init(&sem0, 0, 0)) << strerror(errno);
 	ASSERT_EQ(0, sem_init(&sem1, 0, 0)) << strerror(errno);
@@ -216,9 +216,12 @@ TEST_F(Kqueue, data)
 	nap();		// Allow th1 and th2 to send their ops to the daemon
 	EXPECT_EQ(0, sem_post(&sem1)) << strerror(errno);
 
-	pthread_join(th0, NULL);
-	pthread_join(th1, NULL);
-	pthread_join(th2, NULL);
+	pthread_join(th0, &th_ret);
+	ASSERT_EQ(-1, (intptr_t)th_ret);
+	pthread_join(th1, &th_ret);
+	ASSERT_EQ(-1, (intptr_t)th_ret);
+	pthread_join(th2, &th_ret);
+	ASSERT_EQ(-1, (intptr_t)th_ret);
 
 	EXPECT_EQ(1, nready0);
 	EXPECT_EQ(2, nready1);

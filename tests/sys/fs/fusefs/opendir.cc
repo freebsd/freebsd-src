@@ -86,7 +86,7 @@ TEST_F(Opendir, enoent)
 	expect_lookup(RELPATH, ino);
 	expect_opendir(ino, O_RDONLY, ReturnErrno(ENOENT));
 
-	EXPECT_NE(0, open(FULLPATH, O_DIRECTORY));
+	ASSERT_EQ(-1, open(FULLPATH, O_DIRECTORY));
 	EXPECT_EQ(ENOENT, errno);
 }
 
@@ -112,6 +112,7 @@ TEST_F(Opendir, open)
 	const char FULLPATH[] = "mountpoint/some_dir";
 	const char RELPATH[] = "some_dir";
 	uint64_t ino = 42;
+	int fd;
 
 	expect_lookup(RELPATH, ino);
 	expect_opendir(ino, O_RDONLY,
@@ -119,7 +120,10 @@ TEST_F(Opendir, open)
 		SET_OUT_HEADER_LEN(out, open);
 	}));
 
-	EXPECT_LE(0, open(FULLPATH, O_DIRECTORY)) << strerror(errno);
+	fd = open(FULLPATH, O_DIRECTORY);
+	EXPECT_LE(0, fd) << strerror(errno);
+
+	leak(fd);
 }
 
 /* Directories can be opened O_EXEC for stuff like fchdir(2) */
@@ -138,6 +142,8 @@ TEST_F(Opendir, open_exec)
 
 	fd = open(FULLPATH, O_EXEC | O_DIRECTORY);
 	ASSERT_LE(0, fd) << strerror(errno);
+
+	leak(fd);
 }
 
 TEST_F(Opendir, opendir)
