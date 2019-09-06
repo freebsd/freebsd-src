@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2011
+.Dd Sep 5, 2019
 .Dt ACPI_WMI 4
 .Os
 .Sh NAME
@@ -56,6 +56,15 @@ information about GUIDs found in the system.
 .It Pa /dev/wmistat%d
 WMI status device.
 .El
+.Sh SYSCTLS
+The following sysctl node is currently implemented:
+.Bl -tag 
+.It Va dev.acpi_wmi.%d.bmof
+Managed Object Format (MOF) blob.
+You can obtain human readable output by bmf2mof in bmfdec tool.
+(https://github.com/pali/bmfdec)
+.El
+
 .Sh EXAMPLES
 .Bd -literal
 # cat /dev/wmistat0
@@ -72,6 +81,20 @@ GUID                                  INST EXPE METH STR EVENT OID
 {8232DE3D-663D-4327-A8F4-E293ADB9BF05}   0 NO   NO   NO  NO    BG
 {8F1F6436-9F42-42C8-BADC-0E9424F20C9A}   0 NO   NO   NO  NO    BH
 {8F1F6435-9F42-42C8-BADC-0E9424F20C9A}   0 NO   NO   NO  NO    BI
+# sysctl -b dev.acpi_wmi.0.bmof |bmf2mof
+[abstract]
+class Lenovo_BIOSElement {
+};
+
+[WMI, Dynamic, Provider("WMIProv"), WmiExpense(1), Description("Bios Setting"),
+GUID("{51F5230E-9677-46cd-A1CF-C0B23EE34DB7}"), Locale("MS\\0x409")]
+class Lenovo_BiosSetting : Lenovo_BiosElement {
+  [key, read] String InstanceName;
+    [read] Boolean Active;
+      [WmiDataId(1), Description("BIOS setting")] String CurrentSetting;
+      };
+   ...
+
 .Ed
 .Sh SEE ALSO
 .Xr acpi 4
@@ -91,6 +114,9 @@ Work has been inspired by the Linux acpi-wmi driver written by Carlos Corbacho.
 .Pp
 See http://www.microsoft.com/whdc/system/pnppwr/wmi/wmi-acpi.mspx for
 the specification of ACPI-WMI.
+.Pp
+MOF part has been inspired by the Linux wmi-bmof driver
+written by Andy Lutomirski.
 .Pp
 This manual page was written by
 .An Michael Gmelin Aq Mt freebsd@grem.de .
