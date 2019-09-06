@@ -67,11 +67,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <sys/buf.h>
+#include <sys/sdt.h>
 #include <sys/sysctl.h>
 
 #include "fuse.h"
@@ -98,6 +100,7 @@ SYSCTL_INT(_vfs_fusefs, OID_AUTO, kernelabi_major, CTLFLAG_RD,
     SYSCTL_NULL_INT_PTR, FUSE_KERNEL_VERSION, "FUSE kernel abi major version");
 SYSCTL_INT(_vfs_fusefs, OID_AUTO, kernelabi_minor, CTLFLAG_RD,
     SYSCTL_NULL_INT_PTR, FUSE_KERNEL_MINOR_VERSION, "FUSE kernel abi minor version");
+SDT_PROVIDER_DEFINE(fuse);
 
 /******************************
  *

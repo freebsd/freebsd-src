@@ -159,65 +159,8 @@ do {						\
 		(cred) = (td)->td_ucred;	\
 } while (0)
 
-/* Debug related stuff */
-
-#ifndef FUSE_DEBUG_DEVICE
-#define FUSE_DEBUG_DEVICE               0
-#endif
-
-#ifndef FUSE_DEBUG_FILE
-#define FUSE_DEBUG_FILE                 0
-#endif
-
-#ifndef FUSE_DEBUG_INTERNAL
-#define FUSE_DEBUG_INTERNAL             0
-#endif
-
-#ifndef FUSE_DEBUG_IO
-#define FUSE_DEBUG_IO                   0
-#endif
-
-#ifndef FUSE_DEBUG_IPC
-#define FUSE_DEBUG_IPC                  0
-#endif
-
-#ifndef FUSE_DEBUG_LOCK
-#define FUSE_DEBUG_LOCK                 0
-#endif
-
-#ifndef FUSE_DEBUG_VFSOPS
-#define FUSE_DEBUG_VFSOPS               0
-#endif
-
-#ifndef FUSE_DEBUG_VNOPS
-#define FUSE_DEBUG_VNOPS                0
-#endif
-
-#ifndef FUSE_TRACE
-#define FUSE_TRACE                      0
-#endif
-
-#define DEBUGX(cond, fmt, ...) do {					\
-	if (((cond))) {							\
-		printf("%s: " fmt, __func__, ## __VA_ARGS__);		\
-	}								\
-} while (0)
-
-#define fuse_lck_mtx_lock(mtx) do {						\
-	DEBUGX(FUSE_DEBUG_LOCK, "0:   lock(%s): %s@%d by %d\n",			\
-	    __STRING(mtx), __func__, __LINE__, curthread->td_proc->p_pid);	\
-	mtx_lock(&(mtx));							\
-	DEBUGX(FUSE_DEBUG_LOCK, "1:   lock(%s): %s@%d by %d\n",			\
-	    __STRING(mtx), __func__, __LINE__, curthread->td_proc->p_pid);	\
-} while (0)
-
-#define fuse_lck_mtx_unlock(mtx) do {						\
-	DEBUGX(FUSE_DEBUG_LOCK, "0: unlock(%s): %s@%d by %d\n",			\
-	    __STRING(mtx), __func__, __LINE__, curthread->td_proc->p_pid);	\
-	mtx_unlock(&(mtx));							\
-	DEBUGX(FUSE_DEBUG_LOCK, "1: unlock(%s): %s@%d by %d\n",			\
-	    __STRING(mtx), __func__, __LINE__, curthread->td_proc->p_pid);	\
-} while (0)
+#define fuse_lck_mtx_lock(mtx) mtx_lock(&(mtx))
+#define fuse_lck_mtx_unlock(mtx) mtx_unlock(&(mtx))
 
 void fuse_ipc_init(void);
 void fuse_ipc_destroy(void);
