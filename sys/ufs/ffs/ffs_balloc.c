@@ -173,7 +173,6 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		if (nb != 0 && ip->i_size >= smalllblktosize(fs, lbn + 1)) {
 			error = bread(vp, lbn, fs->fs_bsize, NOCRED, &bp);
 			if (error) {
-				brelse(bp);
 				return (error);
 			}
 			bp->b_blkno = fsbtodb(fs, nb);
@@ -189,7 +188,6 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 			if (nsize <= osize) {
 				error = bread(vp, lbn, osize, NOCRED, &bp);
 				if (error) {
-					brelse(bp);
 					return (error);
 				}
 				bp->b_blkno = fsbtodb(fs, nb);
@@ -292,7 +290,6 @@ retry:
 		error = bread(vp,
 		    indirs[i].in_lbn, (int)fs->fs_bsize, NOCRED, &bp);
 		if (error) {
-			brelse(bp);
 			goto fail;
 		}
 		bap = (ufs1_daddr_t *)bp->b_data;
@@ -665,7 +662,6 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			error = bread_gb(vp, -1 - lbn, fs->fs_bsize, NOCRED,
 			    gbflags, &bp);
 			if (error) {
-				brelse(bp);
 				return (error);
 			}
 			bp->b_blkno = fsbtodb(fs, nb);
@@ -683,7 +679,6 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				error = bread_gb(vp, -1 - lbn, osize, NOCRED,
 				    gbflags, &bp);
 				if (error) {
-					brelse(bp);
 					return (error);
 				}
 				bp->b_blkno = fsbtodb(fs, nb);
@@ -771,7 +766,6 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			error = bread_gb(vp, lbn, fs->fs_bsize, NOCRED,
 			    gbflags, &bp);
 			if (error) {
-				brelse(bp);
 				return (error);
 			}
 			bp->b_blkno = fsbtodb(fs, nb);
@@ -788,7 +782,6 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				error = bread_gb(vp, lbn, osize, NOCRED,
 				    gbflags, &bp);
 				if (error) {
-					brelse(bp);
 					return (error);
 				}
 				bp->b_blkno = fsbtodb(fs, nb);
@@ -892,7 +885,6 @@ retry:
 		error = bread(vp,
 		    indirs[i].in_lbn, (int)fs->fs_bsize, NOCRED, &bp);
 		if (error) {
-			brelse(bp);
 			goto fail;
 		}
 		bap = (ufs2_daddr_t *)bp->b_data;

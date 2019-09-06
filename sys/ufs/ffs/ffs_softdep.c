@@ -6698,7 +6698,6 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 	error = bread(ump->um_devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
 	    (int)fs->fs_bsize, cred, &bp);
 	if (error) {
-		brelse(bp);
 		softdep_error("softdep_journal_freeblocks", error);
 		return;
 	}
