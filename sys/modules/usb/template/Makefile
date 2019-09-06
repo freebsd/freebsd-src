@@ -42,6 +42,7 @@ SRCS=	opt_bus.h opt_usb.h device_if.h bus_if.h usb_if.h vnode_if.h usbdevs.h \
 	usb_template_phone.c \
 	usb_template_serialnet.c \
 	usb_template_midi.c \
-	usb_template_multi.c
+	usb_template_multi.c \
+	usb_template_cdceem.c
 
 .include <bsd.kmod.mk>
