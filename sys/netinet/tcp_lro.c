@@ -845,6 +845,7 @@ again:
 	}
 }
 
+#ifdef TCPHPTS
 static void
 tcp_queue_pkts(struct tcpcb *tp, struct lro_entry *le)
 {
@@ -860,6 +861,7 @@ tcp_queue_pkts(struct tcpcb *tp, struct lro_entry *le)
 	le->m_head = NULL;
 	le->m_last_mbuf = NULL;
 }
+#endif
 
 void
 tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
@@ -959,7 +961,7 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 	}
 	if (can_queue == 0) {
 skip_lookup:
-#endif
+#endif /* TCPHPTS */
 		/* Old fashioned lro method */
 		if (le->m_head != le->m_last_mbuf)  {
 			counter_u64_add(tcp_inp_lro_compressed, 1);
