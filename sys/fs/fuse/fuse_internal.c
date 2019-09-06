@@ -373,7 +373,6 @@ fuse_internal_readdir_processdata(struct uio *uio,
 
 /* remove */
 
-#define INVALIDATE_CACHED_VATTRS_UPON_UNLINK 1
 int
 fuse_internal_remove(struct vnode *dvp,
     struct vnode *vp,
@@ -381,15 +380,11 @@ fuse_internal_remove(struct vnode *dvp,
     enum fuse_opcode op)
 {
 	struct fuse_dispatcher fdi;
+	struct fuse_vnode_data *fvdat;
+	int err;
 
-	struct vattr *vap = VTOVA(vp);
-
-#if INVALIDATE_CACHED_VATTRS_UPON_UNLINK
-	int need_invalidate = 0;
-	uint64_t target_nlink = 0;
-
-#endif
-	int err = 0;
+	err = 0;
+	fvdat = VTOFUD(vp);
 
 	debug_printf("dvp=%p, cnp=%p, op=%d\n", vp, cnp, op);
 
@@ -398,13 +393,6 @@ fuse_internal_remove(struct vnode *dvp,
 
 	memcpy(fdi.indata, cnp->cn_nameptr, cnp->cn_namelen);
 	((char *)fdi.indata)[cnp->cn_namelen] = '\0';
-
-#if INVALIDATE_CACHED_VATTRS_UPON_UNLINK
-	if (vap->va_nlink > 1) {
-		need_invalidate = 1;
-		target_nlink = vap->va_nlink;
-	}
-#endif
 
 	err = fdisp_wait_answ(&fdi);
 	fdisp_destroy(&fdi);
@@ -483,13 +471,13 @@ fuse_internal_newentry_core(struct vnode *dvp,
 	if ((err = fuse_internal_checkentry(feo, vtyp))) {
 		return err;
 	}
-	err = fuse_vnode_get(mp, feo->nodeid, dvp, vpp, cnp, vtyp);
+	err = fuse_vnode_get(mp, feo, feo->nodeid, dvp, vpp, cnp, vtyp);
 	if (err) {
 		fuse_internal_forget_send(mp, cnp->cn_thread, cnp->cn_cred,
 		    feo->nodeid, 1);
 		return err;
 	}
-	cache_attrs(*vpp, feo);
+	cache_attrs(*vpp, feo, NULL);
 
 	return err;
 }
@@ -563,6 +551,7 @@ fuse_internal_vnode_disappear(struct vnode *vp)
 
 	ASSERT_VOP_ELOCKED(vp, "fuse_internal_vnode_disappear");
 	fvdat->flag |= FN_REVOKED;
+	fvdat->valid_attr_cache = false;
 	cache_purge(vp);
 }
 
