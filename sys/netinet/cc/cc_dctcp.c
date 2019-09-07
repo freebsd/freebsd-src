@@ -123,7 +123,7 @@ dctcp_ack_received(struct cc_var *ccv, uint16_t type)
 			newreno_cc_algo.ack_received(ccv, type);
 
 		if (type == CC_DUPACK)
-			bytes_acked = CCV(ccv, t_maxseg);
+			bytes_acked = min(ccv->bytes_this_ack, CCV(ccv, t_maxseg));
 
 		if (type == CC_ACK)
 			bytes_acked = ccv->bytes_this_ack;
@@ -133,6 +133,8 @@ dctcp_ack_received(struct cc_var *ccv, uint16_t type)
 
 		/* Update total marked bytes. */
 		if (dctcp_data->ece_curr) {
+			//XXRMS: For fluid-model DCTCP, update
+			//cwnd here during for RTT fairness
 			if (!dctcp_data->ece_prev
 			    && bytes_acked > CCV(ccv, t_maxseg)) {
 				dctcp_data->bytes_ecn +=
@@ -166,18 +168,20 @@ dctcp_after_idle(struct cc_var *ccv)
 {
 	struct dctcp *dctcp_data;
 
-	dctcp_data = ccv->cc_data;
+	if (CCV(ccv, t_flags) & TF_ECN_PERMIT) {
+		dctcp_data = ccv->cc_data;
 
-	/* Initialize internal parameters after idle time */
-	dctcp_data->bytes_ecn = 0;
-	dctcp_data->bytes_total = 0;
-	dctcp_data->save_sndnxt = CCV(ccv, snd_nxt);
-	dctcp_data->alpha = V_dctcp_alpha;
-	dctcp_data->ece_curr = 0;
-	dctcp_data->ece_prev = 0;
-	dctcp_data->num_cong_events = 0;
+		/* Initialize internal parameters after idle time */
+		dctcp_data->bytes_ecn = 0;
+		dctcp_data->bytes_total = 0;
+		dctcp_data->save_sndnxt = CCV(ccv, snd_nxt);
+		dctcp_data->alpha = V_dctcp_alpha;
+		dctcp_data->ece_curr = 0;
+		dctcp_data->ece_prev = 0;
+		dctcp_data->num_cong_events = 0;
+	}
 
-	dctcp_cc_algo.after_idle = newreno_cc_algo.after_idle;
+	newreno_cc_algo.after_idle(ccv);
 }
 
 static void
@@ -228,63 +232,66 @@ static void
 dctcp_cong_signal(struct cc_var *ccv, uint32_t type)
 {
 	struct dctcp *dctcp_data;
-	u_int win, mss;
+	u_int cwin, mss;
 
-	dctcp_data = ccv->cc_data;
-	win = CCV(ccv, snd_cwnd);
-	mss = CCV(ccv, t_maxseg);
+	if (CCV(ccv, t_flags) & TF_ECN_PERMIT) {
+		dctcp_data = ccv->cc_data;
+		cwin = CCV(ccv, snd_cwnd);
+		mss = CCV(ccv, t_maxseg);
 
-	switch (type) {
-	case CC_NDUPACK:
-		if (!IN_FASTRECOVERY(CCV(ccv, t_flags))) {
-			if (!IN_CONGRECOVERY(CCV(ccv, t_flags))) {
-				CCV(ccv, snd_ssthresh) = mss *
-				    max(win / 2 / mss, 2);
-				dctcp_data->num_cong_events++;
-			} else {
-				/* cwnd has already updated as congestion
-				 * recovery. Reverse cwnd value using
-				 * snd_cwnd_prev and recalculate snd_ssthresh
-				 */
-				win = CCV(ccv, snd_cwnd_prev);
-				CCV(ccv, snd_ssthresh) =
-				    max(win / 2 / mss, 2) * mss;
+		switch (type) {
+		case CC_NDUPACK:
+			if (!IN_FASTRECOVERY(CCV(ccv, t_flags))) {
+				if (!IN_CONGRECOVERY(CCV(ccv, t_flags))) {
+					CCV(ccv, snd_ssthresh) =
+					    max(cwin / 2, 2 * mss);
+					dctcp_data->num_cong_events++;
+				} else {
+					/* cwnd has already updated as congestion
+					 * recovery. Reverse cwnd value using
+					 * snd_cwnd_prev and recalculate snd_ssthresh
+					 */
+					cwin = CCV(ccv, snd_cwnd_prev);
+					CCV(ccv, snd_ssthresh) =
+					    max(cwin / 2, 2 * mss);
+				}
+				ENTER_RECOVERY(CCV(ccv, t_flags));
 			}
-			ENTER_RECOVERY(CCV(ccv, t_flags));
-		}
-		break;
-	case CC_ECN:
-		/*
-		 * Save current snd_cwnd when the host encounters both
-		 * congestion recovery and fast recovery.
-		 */
-		CCV(ccv, snd_cwnd_prev) = win;
-		if (!IN_CONGRECOVERY(CCV(ccv, t_flags))) {
-			if (V_dctcp_slowstart &&
-			    dctcp_data->num_cong_events++ == 0) {
-				CCV(ccv, snd_ssthresh) =
-				    mss * max(win / 2 / mss, 2);
-				dctcp_data->alpha = MAX_ALPHA_VALUE;
-				dctcp_data->bytes_ecn = 0;
-				dctcp_data->bytes_total = 0;
-				dctcp_data->save_sndnxt = CCV(ccv, snd_nxt);
-			} else
-				CCV(ccv, snd_ssthresh) = max((win - ((win *
-				    dctcp_data->alpha) >> 11)) / mss, 2) * mss;
-			CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
-			ENTER_CONGRECOVERY(CCV(ccv, t_flags));
-		}
-		dctcp_data->ece_curr = 1;
-		break;
-	case CC_RTO:
-		if (CCV(ccv, t_flags) & TF_ECN_PERMIT) {
+			break;
+		case CC_ECN:
+			/*
+			 * Save current snd_cwnd when the host encounters both
+			 * congestion recovery and fast recovery.
+			 */
+			CCV(ccv, snd_cwnd_prev) = cwin;
+			if (!IN_CONGRECOVERY(CCV(ccv, t_flags))) {
+				if (V_dctcp_slowstart &&
+				    dctcp_data->num_cong_events++ == 0) {
+					CCV(ccv, snd_ssthresh) =
+					    max(cwin / 2, 2 * mss);
+					dctcp_data->alpha = MAX_ALPHA_VALUE;
+					dctcp_data->bytes_ecn = 0;
+					dctcp_data->bytes_total = 0;
+					dctcp_data->save_sndnxt = CCV(ccv, snd_nxt);
+				} else
+					CCV(ccv, snd_ssthresh) = 
+					    max((cwin - (((uint64_t)cwin *
+					    dctcp_data->alpha) >> (DCTCP_SHIFT+1))), 
+					    2 * mss);
+				CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
+				ENTER_CONGRECOVERY(CCV(ccv, t_flags));
+			}
+			dctcp_data->ece_curr = 1;
+			break;
+		case CC_RTO:
 			CCV(ccv, t_flags) |= TF_ECN_SND_CWR;
 			dctcp_update_alpha(ccv);
 			dctcp_data->save_sndnxt += CCV(ccv, t_maxseg);
 			dctcp_data->num_cong_events++;
+			break;
 		}
-		break;
-	}
+	} else
+		newreno_cc_algo.cong_signal(ccv, type);
 }
 
 static void
@@ -304,7 +311,7 @@ dctcp_conn_init(struct cc_var *ccv)
 static void
 dctcp_post_recovery(struct cc_var *ccv)
 {
-	dctcp_cc_algo.post_recovery = newreno_cc_algo.post_recovery;
+	newreno_cc_algo.post_recovery(ccv);
 
 	if (CCV(ccv, t_flags) & TF_ECN_PERMIT)
 		dctcp_update_alpha(ccv);
@@ -330,8 +337,8 @@ dctcp_ecnpkt_handler(struct cc_var *ccv)
 	delay_ack = 1;
 
 	/*
-	 * DCTCP responses an ACK immediately when the CE state
-	 * in between this segment and the last segment is not same.
+	 * DCTCP responds with an ACK immediately when the CE state
+	 * in between this segment and the last segment has changed.
 	 */
 	if (ccflag & CCF_IPHDR_CE) {
 		if (!dctcp_data->ce_prev && (ccflag & CCF_DELACK))
@@ -351,8 +358,6 @@ dctcp_ecnpkt_handler(struct cc_var *ccv)
 
 	if (delay_ack == 0)
 		ccv->flags |= CCF_ACKNOW;
-	else
-		ccv->flags &= ~CCF_ACKNOW;
 }
 
 /*
