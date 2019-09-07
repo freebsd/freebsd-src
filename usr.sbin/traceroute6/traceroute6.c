@@ -985,7 +985,7 @@ wait_for_reply(int sock, struct msghdr *mhdr)
 	if (poll(pfd, 1, waittime * 1000) > 0)
 		cc = recvmsg(rcvsock, mhdr, 0);
 
-	return(cc);
+	return (cc);
 #else
 	fd_set *fdsp;
 	struct timeval wait;
@@ -1002,7 +1002,7 @@ wait_for_reply(int sock, struct msghdr *mhdr)
 		cc = recvmsg(rcvsock, mhdr, 0);
 
 	free(fdsp);
-	return(cc);
+	return (cc);
 #endif
 }
 
@@ -1168,10 +1168,10 @@ get_hoplim(struct msghdr *mhdr)
 		if (cm->cmsg_level == IPPROTO_IPV6 &&
 		    cm->cmsg_type == IPV6_HOPLIMIT &&
 		    cm->cmsg_len == CMSG_LEN(sizeof(int)))
-			return(*(int *)CMSG_DATA(cm));
+			return (*(int *)CMSG_DATA(cm));
 	}
 
-	return(-1);
+	return (-1);
 }
 
 double
@@ -1282,7 +1282,7 @@ packet_ok(struct msghdr *mhdr, int cc, int seq)
 				strlcpy(hbuf, "invalid", sizeof(hbuf));
 			printf("data too short (%d bytes) from %s\n", cc, hbuf);
 		}
-		return(0);
+		return (0);
 	}
 	icp = (struct icmp6_hdr *)buf;
 #endif
@@ -1305,7 +1305,7 @@ packet_ok(struct msghdr *mhdr, int cc, int seq)
 	if (rcvpktinfo == NULL || hlimp == NULL) {
 		warnx("failed to get received hop limit or packet info");
 #if 0
-		return(0);
+		return (0);
 #else
 		rcvhlim = 0;	/*XXX*/
 #endif
@@ -1329,7 +1329,7 @@ packet_ok(struct msghdr *mhdr, int cc, int seq)
 		if ((up = get_uphdr(hip, (u_char *)(buf + cc))) == NULL) {
 			if (verbose)
 				warnx("failed to get upper layer header");
-			return(0);
+			return (0);
 		}
 		switch (useproto) {
 		case IPPROTO_ICMPV6:
@@ -1424,7 +1424,7 @@ packet_ok(struct msghdr *mhdr, int cc, int seq)
 		if (cc % WIDTH != 0)
 			printf("\n");
 	}
-	return(0);
+	return (0);
 }
 
 /*
@@ -1438,7 +1438,7 @@ get_uphdr(struct ip6_hdr *ip6, u_char *lim)
 	static u_char none_hdr[1]; /* Fake pointer for IPPROTO_NONE. */
 
 	if (cp + sizeof(*ip6) > lim)
-		return(NULL);
+		return (NULL);
 
 	nh = ip6->ip6_nxt;
 	cp += sizeof(struct ip6_hdr);
@@ -1446,15 +1446,15 @@ get_uphdr(struct ip6_hdr *ip6, u_char *lim)
 	while (lim - cp >= (nh == IPPROTO_NONE ? 0 : 8)) {
 		switch (nh) {
 		case IPPROTO_ESP:
-			return(NULL);
+			return (NULL);
 		case IPPROTO_ICMPV6:
-			return(useproto == nh ? cp : NULL);
+			return (useproto == nh ? cp : NULL);
 		case IPPROTO_SCTP:
 		case IPPROTO_TCP:
 		case IPPROTO_UDP:
-			return(useproto == nh ? cp : NULL);
+			return (useproto == nh ? cp : NULL);
 		case IPPROTO_NONE:
-			return(useproto == nh ? none_hdr : NULL);
+			return (useproto == nh ? none_hdr : NULL);
 		case IPPROTO_FRAGMENT:
 			hlen = sizeof(struct ip6_frag);
 			nh = ((struct ip6_frag *)cp)->ip6f_nxt;
@@ -1472,7 +1472,7 @@ get_uphdr(struct ip6_hdr *ip6, u_char *lim)
 		cp += hlen;
 	}
 
-	return(NULL);
+	return (NULL);
 }
 
 void
