@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd March 23, 2019
+.Dd July 23, 2019
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -607,6 +607,10 @@ Default is false.
 .It Va insecure_syn
 Use criteria defined in RFC793 instead of RFC5961 for accepting SYN segments.
 Default is false.
+.It Va ts_offset_per_conn
+When initializing the TCP timestamps, use a per connection offset instead of a
+per host pair offset.
+Default is to use per connection offsets as recommended in RFC 7323.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
