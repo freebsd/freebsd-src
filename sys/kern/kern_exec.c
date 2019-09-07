@@ -616,7 +616,9 @@ interpret:
 		 * The vnode lock is held over this entire period
 		 * so nothing should illegitimately be blocked.
 		 */
-		VOP_UNSET_TEXT_CHECKED(imgp->vp);
+		MPASS(imgp->textset);
+		VOP_UNSET_TEXT_CHECKED(newtextvp);
+		imgp->textset = false;
 		/* free name buffer and old vnode */
 		if (args->fname != NULL)
 			NDFREE(&nd, NDF_ONLY_PNBUF);
