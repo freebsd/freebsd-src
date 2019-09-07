@@ -74,7 +74,7 @@ static uint8_t hid_get_byte(struct hid_data *s, const uint16_t wSize);
 #define	MAXUSAGE 64
 #define	MAXPUSH 4
 #define	MAXID 16
-#define	MAXLOCCNT 1024
+#define	MAXLOCCNT 2048
 
 struct hid_pos_data {
 	int32_t rid;
