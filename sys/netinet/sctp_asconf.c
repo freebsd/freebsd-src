@@ -1366,7 +1366,7 @@ sctp_asconf_queue_add(struct sctp_tcb *stcb, struct sctp_ifa *ifa,
 		if (sctp_asconf_queue_mgmt(stcb,
 		    stcb->asoc.asconf_addr_del_pending,
 		    SCTP_DEL_IP_ADDRESS) == 0) {
-			SCTPDBG(SCTP_DEBUG_ASCONF2, "asconf_queue_add: queing pending delete\n");
+			SCTPDBG(SCTP_DEBUG_ASCONF2, "asconf_queue_add: queuing pending delete\n");
 			pending_delete_queued = 1;
 			/* clear out the pending delete info */
 			stcb->asoc.asconf_del_pending = 0;
