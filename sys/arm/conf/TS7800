@@ -10,8 +10,6 @@ include 	"../mv/orion/std.ts7800"
 
 options 	SOC_MV_ORION
 
-makeoptions	WERROR="-Werror"
-
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols

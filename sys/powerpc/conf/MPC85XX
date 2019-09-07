@@ -12,7 +12,6 @@ machine		powerpc	powerpc
 
 include 	"dpaa/config.dpaa"
 makeoptions	DEBUG="-Wa,-me500 -g"
-makeoptions	WERROR="-Werror -Wno-format -Wno-redundant-decls"
 makeoptions	NO_MODULES=yes
 
 options 	FPU_EMU

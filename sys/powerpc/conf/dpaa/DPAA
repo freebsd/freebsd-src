@@ -12,7 +12,7 @@ cpu		BOOKE_E500
 
 machine		powerpc powerpc
 #makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
-makeoptions	WERROR="-Werror -Wno-format -Wno-redundant-decls"
+#makeoptions	WERROR="-Werror -Wno-format -Wno-redundant-decls"
 makeoptions	NO_MODULES=yes
 
 # Platform support
