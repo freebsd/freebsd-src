@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #ifndef HZ
-#  if defined(__mips__) || defined(__arm__) || defined(__riscv)
+#  if defined(__mips__) || defined(__arm__)
 #    define	HZ 100
 #  else
 #    define	HZ 1000
