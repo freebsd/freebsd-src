@@ -1794,7 +1794,8 @@ rack_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th, struct tc
 		 * DSACK - add SACK block for dropped range
 		 */
 		if (tp->t_flags & TF_SACK_PERMIT) {
-			tcp_update_sack_list(tp, th->th_seq, th->th_seq + tlen);
+			tcp_update_sack_list(tp, th->th_seq,
+			    th->th_seq + todrop);
 			/*
 			 * ACK now, as the next in-sequence segment
 			 * will clear the DSACK block again
@@ -4853,7 +4854,8 @@ dodata:				/* XXX */
 		    (TCPS_HAVEESTABLISHED(tp->t_state) ||
 		    tfo_syn)) {
 			if (DELAY_ACK(tp, tlen) || tfo_syn) {
-				rack_timer_cancel(tp, rack, rack->r_ctl.rc_rcvtime, __LINE__);
+				rack_timer_cancel(tp, rack,
+				    rack->r_ctl.rc_rcvtime, __LINE__);
 				tp->t_flags |= TF_DELACK;
 			} else {
 				rack->r_wanted_output++;
@@ -4887,18 +4889,29 @@ dodata:				/* XXX */
 			 * DSACK actually handled in the fastpath
 			 * above.
 			 */
-			tcp_update_sack_list(tp, save_start, save_start + save_tlen);
+			tcp_update_sack_list(tp, save_start,
+			    save_start + save_tlen);
 		} else if ((tlen > 0) && SEQ_GT(tp->rcv_nxt, save_rnxt)) {
 			/*
 			 * Cleaning sackblks by using zero length
 			 * update.
 			 */
-			tcp_update_sack_list(tp, save_start, save_start);
+			if ((tp->rcv_numsacks >= 1) &&
+			    (tp->sackblks[0].end == save_start)) {
+				/* partial overlap, recorded at todrop above */
+				tcp_update_sack_list(tp, tp->sackblks[0].start,
+				    tp->sackblks[0].end);
+			} else {
+				tcp_update_dsack_list(tp, save_start,
+				    save_start + save_tlen);
+			}
 		} else if ((tlen > 0) && (tlen >= save_tlen)) {
 			/* Update of sackblks. */
-			tcp_update_sack_list(tp, save_start, save_start + save_tlen);
+			tcp_update_dsack_list(tp, save_start,
+			    save_start + save_tlen);
 		} else if (tlen > 0) {
-			tcp_update_sack_list(tp, save_start, save_start+tlen);
+			tcp_update_dsack_list(tp, save_start,
+			    save_start + tlen);
 		}
 	} else {
 		m_freem(m);
@@ -4920,7 +4933,8 @@ dodata:				/* XXX */
 			 * now.
 			 */
 			if (tp->t_flags & TF_NEEDSYN) {
-				rack_timer_cancel(tp, rack, rack->r_ctl.rc_rcvtime, __LINE__);
+				rack_timer_cancel(tp, rack,
+				    rack->r_ctl.rc_rcvtime, __LINE__);
 				tp->t_flags |= TF_DELACK;
 			} else {
 				tp->t_flags |= TF_ACKNOW;
@@ -4937,7 +4951,8 @@ dodata:				/* XXX */
 			tp->t_starttime = ticks;
 			/* FALLTHROUGH */
 		case TCPS_ESTABLISHED:
-			rack_timer_cancel(tp, rack, rack->r_ctl.rc_rcvtime, __LINE__);
+			rack_timer_cancel(tp, rack,
+			    rack->r_ctl.rc_rcvtime, __LINE__);
 			tcp_state_change(tp, TCPS_CLOSE_WAIT);
 			break;
 
@@ -4946,7 +4961,8 @@ dodata:				/* XXX */
 			 * acked so enter the CLOSING state.
 			 */
 		case TCPS_FIN_WAIT_1:
-			rack_timer_cancel(tp, rack, rack->r_ctl.rc_rcvtime, __LINE__);
+			rack_timer_cancel(tp, rack,
+			    rack->r_ctl.rc_rcvtime, __LINE__);
 			tcp_state_change(tp, TCPS_CLOSING);
 			break;
 
@@ -4956,7 +4972,8 @@ dodata:				/* XXX */
 			 * other standard timers.
 			 */
 		case TCPS_FIN_WAIT_2:
-			rack_timer_cancel(tp, rack, rack->r_ctl.rc_rcvtime, __LINE__);
+			rack_timer_cancel(tp, rack,
+			    rack->r_ctl.rc_rcvtime, __LINE__);
 			INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 			tcp_twstart(tp);
 			return (1);
@@ -4965,7 +4982,8 @@ dodata:				/* XXX */
 	/*
 	 * Return any desired output.
 	 */
-	if ((tp->t_flags & TF_ACKNOW) || (sbavail(&so->so_snd) > (tp->snd_max - tp->snd_una))) {
+	if ((tp->t_flags & TF_ACKNOW) ||
+	    (sbavail(&so->so_snd) > (tp->snd_max - tp->snd_una))) {
 		rack->r_wanted_output++;
 	}
 	INP_WLOCK_ASSERT(tp->t_inpcb);
@@ -5038,6 +5056,7 @@ rack_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/* Clean receiver SACK report if present */
 	if (tp->rcv_numsacks)
 		tcp_clean_sackreport(tp);
+
 	TCPSTAT_INC(tcps_preddat);
 	tp->rcv_nxt += tlen;
 	/*
@@ -8571,6 +8590,10 @@ out:
 	 * retransmit.  In persist state, just set snd_max.
 	 */
 	if (error == 0) {
+		if (TCPS_HAVEESTABLISHED(tp->t_state) &&
+		    (tp->t_flags & TF_SACK_PERMIT) &&
+		    tp->rcv_numsacks > 0)
+		    tcp_clean_dsack_blocks(tp);
 		if (len == 0)
 			counter_u64_add(rack_out_size[TCP_MSS_ACCT_SNDACK], 1);
 		else if (len == 1) {
