@@ -212,6 +212,8 @@ main(int argc, char *argv[])
 							q++;
 						mv->mv_len = q - p + 1;
 						mv->mv_value = malloc(mv->mv_len);
+						if (mv->mv_value == NULL)
+							err(1, "malloc");
 						memcpy(mv->mv_value, p, mv->mv_len - 1);
 						((char *)mv->mv_value)[mv->mv_len - 1] = '\0';
 						break;
