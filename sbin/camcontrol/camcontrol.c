@@ -420,7 +420,7 @@ getdevlist(struct cam_device *device)
 	ccb->cgdl.status = CAM_GDEVLIST_MORE_DEVS;
 	while (ccb->cgdl.status == CAM_GDEVLIST_MORE_DEVS) {
 		if (cam_send_ccb(device, ccb) < 0) {
-			perror("error getting device list");
+			warn("error getting device list");
 			cam_freeccb(ccb);
 			return (1);
 		}
@@ -769,7 +769,7 @@ print_dev_mmcsd(struct device_match_result *dev_result, char *tmpstr)
 	advi->buf = (uint8_t *)&mmc_ident_data;
 
 	if (cam_send_ccb(dev, ccb) < 0) {
-		warn("error sending CAMIOCOMMAND ioctl");
+		warn("error sending XPT_DEV_ADVINFO CCB");
 		cam_freeccb(ccb);
 		cam_close_device(dev);
 		return (1);
@@ -811,7 +811,7 @@ nvme_get_cdata(struct cam_device *dev, struct nvme_controller_data *cdata)
 	advi->buf = (uint8_t *)cdata;
 
 	if (cam_send_ccb(dev, ccb) < 0) {
-		warn("error sending CAMIOCOMMAND ioctl");
+		warn("error sending XPT_DEV_ADVINFO CCB");
 		cam_freeccb(ccb);
 		cam_close_device(dev);
 		return(1);
@@ -876,13 +876,7 @@ testunitready(struct cam_device *device, int task_attr, int retry_count,
 
 	if (cam_send_ccb(device, ccb) < 0) {
 		if (quiet == 0)
-			perror("error sending test unit ready");
-
-		if (arglist & CAM_ARG_VERBOSE) {
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-		}
-
+			warn("error sending TEST UNIT READY command");
 		cam_freeccb(ccb);
 		return (1);
 	}
@@ -945,13 +939,7 @@ scsistart(struct cam_device *device, int startstop, int loadeject,
 		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
 
 	if (cam_send_ccb(device, ccb) < 0) {
-		perror("error sending start unit");
-
-		if (arglist & CAM_ARG_VERBOSE) {
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-		}
-
+		warn("error sending START STOP UNIT command");
 		cam_freeccb(ccb);
 		return (1);
 	}
@@ -1114,13 +1102,7 @@ scsiinquiry(struct cam_device *device, int task_attr, int retry_count,
 		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
 
 	if (cam_send_ccb(device, ccb) < 0) {
-		perror("error sending SCSI inquiry");
-
-		if (arglist & CAM_ARG_VERBOSE) {
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-		}
-
+		warn("error sending INQUIRY command");
 		cam_freeccb(ccb);
 		return (1);
 	}
@@ -1196,13 +1178,7 @@ scsiserial(struct cam_device *device, int task_attr, int retry_count,
 		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
 
 	if (cam_send_ccb(device, ccb) < 0) {
-		warn("error getting serial number");
-
-		if (arglist & CAM_ARG_VERBOSE) {
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-		}
-
+		warn("error sending INQUIRY command");
 		cam_freeccb(ccb);
 		free(serial_buf);
 		return (1);
@@ -1802,12 +1778,6 @@ scsi_cam_pass_16_send(struct cam_device *device, union ccb *ccb, int quiet)
 			warn("error sending ATA %s via pass_16",
 			     ata_op_string(&ata_cmd));
 		}
-
-		if (arglist & CAM_ARG_VERBOSE) {
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-		}
-
 		return (1);
 	}
 
@@ -1849,12 +1819,6 @@ ata_cam_send(struct cam_device *device, union ccb *ccb, int quiet)
 			warn("error sending ATA %s",
 			     ata_op_string(&(ccb->ataio.cmd)));
 		}
-
-		if (arglist & CAM_ARG_VERBOSE) {
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-		}
-
 		return (1);
 	}
 
@@ -4127,13 +4091,7 @@ next_batch:
 	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
 
 	if (cam_send_ccb(device, ccb) < 0) {
-		perror("error reading defect list");
-
-		if (arglist & CAM_ARG_VERBOSE) {
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-		}
-
+		warn("error sending READ DEFECT DATA command");
 		error = 1;
 		goto defect_bailout;
 	}
@@ -5268,7 +5226,7 @@ tagcontrol(struct cam_device *device, int argc, char **argv,
 
 
 		if (cam_send_ccb(device, ccb) < 0) {
-			perror("error sending XPT_REL_SIMQ CCB");
+			warn("error sending XPT_REL_SIMQ CCB");
 			retval = 1;
 			goto tagcontrol_bailout;
 		}
@@ -5292,7 +5250,7 @@ tagcontrol(struct cam_device *device, int argc, char **argv,
 	ccb->ccb_h.func_code = XPT_GDEV_STATS;
 
 	if (cam_send_ccb(device, ccb) < 0) {
-		perror("error sending XPT_GDEV_STATS CCB");
+		warn("error sending XPT_GDEV_STATS CCB");
 		retval = 1;
 		goto tagcontrol_bailout;
 	}
@@ -5508,9 +5466,6 @@ get_cpi(struct cam_device *device, struct ccb_pathinq *cpi)
 	ccb->ccb_h.func_code = XPT_PATH_INQ;
 	if (cam_send_ccb(device, ccb) < 0) {
 		warn("get_cpi: error sending Path Inquiry CCB");
-		if (arglist & CAM_ARG_VERBOSE)
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
 		retval = 1;
 		goto get_cpi_bailout;
 	}
@@ -5545,10 +5500,7 @@ get_cgd(struct cam_device *device, struct ccb_getdev *cgd)
 	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cgd);
 	ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 	if (cam_send_ccb(device, ccb) < 0) {
-		warn("get_cgd: error sending Path Inquiry CCB");
-		if (arglist & CAM_ARG_VERBOSE)
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
+		warn("get_cgd: error sending Get type information CCB");
 		retval = 1;
 		goto get_cgd_bailout;
 	}
@@ -6104,10 +6056,7 @@ get_print_cts(struct cam_device *device, int user_settings, int quiet,
 		ccb->cts.type = CTS_TYPE_USER_SETTINGS;
 
 	if (cam_send_ccb(device, ccb) < 0) {
-		perror("error sending XPT_GET_TRAN_SETTINGS CCB");
-		if (arglist & CAM_ARG_VERBOSE)
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
+		warn("error sending XPT_GET_TRAN_SETTINGS CCB");
 		retval = 1;
 		goto get_print_cts_bailout;
 	}
@@ -6234,32 +6183,13 @@ ratecontrol(struct cam_device *device, int task_attr, int retry_count,
 			break;
 		}
 	}
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cpi);
 	/*
 	 * Grab path inquiry information, so we can determine whether
 	 * or not the initiator is capable of the things that the user
 	 * requests.
 	 */
-	ccb->ccb_h.func_code = XPT_PATH_INQ;
-	if (cam_send_ccb(device, ccb) < 0) {
-		perror("error sending XPT_PATH_INQ CCB");
-		if (arglist & CAM_ARG_VERBOSE) {
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-		}
-		retval = 1;
+	if ((retval = get_cpi(device, &cpi)) != 0)
 		goto ratecontrol_bailout;
-	}
-	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		warnx("XPT_PATH_INQ CCB failed");
-		if (arglist & CAM_ARG_VERBOSE) {
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-		}
-		retval = 1;
-		goto ratecontrol_bailout;
-	}
-	bcopy(&ccb->cpi, &cpi, sizeof(struct ccb_pathinq));
 	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cts);
 	if (quiet == 0) {
 		fprintf(stdout, "%s parameters:\n",
@@ -6447,11 +6377,7 @@ ratecontrol(struct cam_device *device, int task_attr, int retry_count,
 		}
 		ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 		if (cam_send_ccb(device, ccb) < 0) {
-			perror("error sending XPT_SET_TRAN_SETTINGS CCB");
-			if (arglist & CAM_ARG_VERBOSE) {
-				cam_error_print(device, ccb, CAM_ESF_ALL,
-						CAM_EPF_ALL, stderr);
-			}
+			warn("error sending XPT_SET_TRAN_SETTINGS CCB");
 			retval = 1;
 			goto ratecontrol_bailout;
 		}
@@ -6685,11 +6611,7 @@ doreport:
 		 * errors are expected.
 		 */
 		if (retval < 0) {
-			warn("error sending CAMIOCOMMAND ioctl");
-			if (arglist & CAM_ARG_VERBOSE) {
-				cam_error_print(device, ccb, CAM_ESF_ALL,
-						CAM_EPF_ALL, stderr);
-			}
+			warn("error sending TEST UNIT READY command");
 			error = 1;
 			goto scsiformat_bailout;
 		}
@@ -6876,11 +6798,7 @@ sanitize_wait_scsi(struct cam_device *device, union ccb *ccb, int task_attr, int
 		 * errors are expected.
 		 */
 		if (retval < 0) {
-			warn("error sending CAMIOCOMMAND ioctl");
-			if (arglist & CAM_ARG_VERBOSE) {
-				cam_error_print(device, ccb, CAM_ESF_ALL,
-						CAM_EPF_ALL, stderr);
-			}
+			warn("error sending TEST UNIT READY command");
 			return (1);
 		}
 
@@ -7418,11 +7336,6 @@ retry:
 
 	if (cam_send_ccb(device, ccb) < 0) {
 		warn("error sending REPORT LUNS command");
-
-		if (arglist & CAM_ARG_VERBOSE)
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-
 		retval = 1;
 		goto bailout;
 	}
@@ -7674,11 +7587,6 @@ scsireadcapacity(struct cam_device *device, int argc, char **argv,
 
 	if (cam_send_ccb(device, ccb) < 0) {
 		warn("error sending READ CAPACITY command");
-
-		if (arglist & CAM_ARG_VERBOSE)
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-
 		retval = 1;
 		goto bailout;
 	}
@@ -7721,11 +7629,6 @@ long_only:
 
 	if (cam_send_ccb(device, ccb) < 0) {
 		warn("error sending READ CAPACITY (16) command");
-
-		if (arglist & CAM_ARG_VERBOSE)
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-
 		retval = 1;
 		goto bailout;
 	}
@@ -9579,7 +9482,7 @@ retry_alloc:
 		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
 
 	if (cam_send_ccb(device, ccb) < 0) {
-		perror("error sending REPORT SUPPORTED OPERATION CODES");
+		warn("error sending REPORT SUPPORTED OPERATION CODES command");
 		retval = 1;
 		goto bailout;
 	}
