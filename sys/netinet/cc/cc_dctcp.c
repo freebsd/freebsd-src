@@ -56,8 +56,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/cc/cc.h>
 #include <netinet/cc/cc_module.h>
 
-#define MAX_ALPHA_VALUE 1024
-VNET_DEFINE_STATIC(uint32_t, dctcp_alpha) = 0;
+#define DCTCP_SHIFT 10
+#define MAX_ALPHA_VALUE (1<<DCTCP_SHIFT)
+VNET_DEFINE_STATIC(uint32_t, dctcp_alpha) = MAX_ALPHA_VALUE;
 #define V_dctcp_alpha	    VNET(dctcp_alpha)
 VNET_DEFINE_STATIC(uint32_t, dctcp_shift_g) = 4;
 #define	V_dctcp_shift_g	    VNET(dctcp_shift_g)
@@ -65,14 +66,14 @@ VNET_DEFINE_STATIC(uint32_t, dctcp_slowstart) = 0;
 #define	V_dctcp_slowstart   VNET(dctcp_slowstart)
 
 struct dctcp {
-	int     bytes_ecn;	/* # of marked bytes during a RTT */
-	int     bytes_total;	/* # of acked bytes during a RTT */
-	int     alpha;		/* the fraction of marked bytes */
-	int     ce_prev;	/* CE state of the last segment */
-	int     save_sndnxt;	/* end sequence number of the current window */
-	int	ece_curr;	/* ECE flag in this segment */
-	int	ece_prev;	/* ECE flag in the last segment */
-	uint32_t    num_cong_events; /* # of congestion events */
+	uint32_t bytes_ecn;	  /* # of marked bytes during a RTT */
+	uint32_t bytes_total;	  /* # of acked bytes during a RTT */
+	int      alpha;		  /* the fraction of marked bytes */
+	int      ce_prev;	  /* CE state of the last segment */
+	tcp_seq  save_sndnxt;	  /* end sequence number of the current window */
+	int      ece_curr;	  /* ECE flag in this segment */
+	int      ece_prev;	  /* ECE flag in the last segment */
+	uint32_t num_cong_events; /* # of congestion events */
 };
 
 static MALLOC_DEFINE(M_dctcp, "dctcp data",
@@ -369,18 +370,18 @@ dctcp_update_alpha(struct cc_var *ccv)
 	dctcp_data->bytes_total = max(dctcp_data->bytes_total, 1);
 
 	/*
-	 * Update alpha: alpha = (1 - g) * alpha + g * F.
+	 * Update alpha: alpha = (1 - g) * alpha + g * M.
 	 * Here:
 	 * g is weight factor
 	 *	recommaded to be set to 1/16
 	 *	small g = slow convergence between competitive DCTCP flows
 	 *	large g = impacts low utilization of bandwidth at switches
-	 * F is fraction of marked segments in last RTT
+	 * M is fraction of marked segments in last RTT
 	 *	updated every RTT
 	 * Alpha must be round to 0 - MAX_ALPHA_VALUE.
 	 */
-	dctcp_data->alpha = min(alpha_prev - (alpha_prev >> V_dctcp_shift_g) +
-	    (dctcp_data->bytes_ecn << (10 - V_dctcp_shift_g)) /
+	dctcp_data->alpha = ulmin(alpha_prev - (alpha_prev >> V_dctcp_shift_g) +
+	    ((uint64_t)dctcp_data->bytes_ecn << (DCTCP_SHIFT - V_dctcp_shift_g)) /
 	    dctcp_data->bytes_total, MAX_ALPHA_VALUE);
 
 	/* Initialize internal parameters for next alpha calculation */
@@ -398,14 +399,10 @@ dctcp_alpha_handler(SYSCTL_HANDLER_ARGS)
 	new = V_dctcp_alpha;
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error == 0 && req->newptr != NULL) {
-		if (new > 1)
+		if (new > MAX_ALPHA_VALUE)
 			error = EINVAL;
-		else {
-			if (new > MAX_ALPHA_VALUE)
-				V_dctcp_alpha = MAX_ALPHA_VALUE;
-			else
-				V_dctcp_alpha = new;
-		}
+		else
+			V_dctcp_alpha = new;
 	}
 
 	return (error);
@@ -420,7 +417,7 @@ dctcp_shift_g_handler(SYSCTL_HANDLER_ARGS)
 	new = V_dctcp_shift_g;
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error == 0 && req->newptr != NULL) {
-		if (new > 1)
+		if (new > DCTCP_SHIFT)
 			error = EINVAL;
 		else
 			V_dctcp_shift_g = new;
@@ -454,7 +451,7 @@ SYSCTL_NODE(_net_inet_tcp_cc, OID_AUTO, dctcp, CTLFLAG_RW, NULL,
 SYSCTL_PROC(_net_inet_tcp_cc_dctcp, OID_AUTO, alpha,
     CTLFLAG_VNET|CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(dctcp_alpha), 0,
     &dctcp_alpha_handler,
-    "IU", "dctcp alpha parameter");
+    "IU", "dctcp alpha parameter at start of session");
 
 SYSCTL_PROC(_net_inet_tcp_cc_dctcp, OID_AUTO, shift_g,
     CTLFLAG_VNET|CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(dctcp_shift_g), 4,
