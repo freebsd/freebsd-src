@@ -92,11 +92,11 @@ sctp_send_initiate_ack(struct sctp_inpcb *, struct sctp_tcb *,
 
 struct mbuf *
 sctp_arethere_unrecognized_parameters(struct mbuf *, int, int *,
-    struct sctp_chunkhdr *, int *);
+    struct sctp_chunkhdr *, int *, int *);
 void sctp_queue_op_err(struct sctp_tcb *, struct mbuf *);
 
 int
-sctp_send_cookie_echo(struct mbuf *, int, struct sctp_tcb *,
+sctp_send_cookie_echo(struct mbuf *, int, int, struct sctp_tcb *,
     struct sctp_nets *);
 
 void sctp_send_cookie_ack(struct sctp_tcb *);
