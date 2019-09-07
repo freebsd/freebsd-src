@@ -4912,12 +4912,11 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			inp->sctp_flags |= SCTP_PCB_FLAGS_WAS_CONNECTED;
 			if (so) {
 				SOCKBUF_LOCK(&so->so_rcv);
-				if (so->so_rcv.sb_cc == 0) {
-					so->so_state &= ~(SS_ISCONNECTING |
-					    SS_ISDISCONNECTING |
-					    SS_ISCONFIRMING |
-					    SS_ISCONNECTED);
-				}
+				so->so_state &= ~(SS_ISCONNECTING |
+				    SS_ISDISCONNECTING |
+				    SS_ISCONFIRMING |
+				    SS_ISCONNECTED);
+				so->so_state |= SS_ISDISCONNECTED;
 				socantrcvmore_locked(so);
 				socantsendmore(so);
 				sctp_sowwakeup(inp, so);
