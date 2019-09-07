@@ -100,6 +100,9 @@
 
 #define	CPU_REV_THUNDERX2_0	0x00
 
+/* APM / Ampere Part Number */
+#define CPU_PART_EMAG8180	0x000
+
 #define	CPU_IMPL(midr)	(((midr) >> 24) & 0xff)
 #define	CPU_PART(midr)	(((midr) >> 4) & 0xfff)
 #define	CPU_VAR(midr)	(((midr) >> 20) & 0xf)
