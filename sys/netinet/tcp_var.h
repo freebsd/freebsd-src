@@ -798,6 +798,7 @@ VNET_DECLARE(struct inpcbinfo, tcbinfo);
 #define	V_tcp_do_autosndbuf		VNET(tcp_do_autosndbuf)
 #define	V_tcp_do_ecn			VNET(tcp_do_ecn)
 #define	V_tcp_do_rfc1323		VNET(tcp_do_rfc1323)
+#define V_tcp_ts_offset_per_conn	VNET(tcp_ts_offset_per_conn)
 #define	V_tcp_do_rfc3042		VNET(tcp_do_rfc3042)
 #define	V_tcp_do_rfc3390		VNET(tcp_do_rfc3390)
 #define	V_tcp_do_rfc3465		VNET(tcp_do_rfc3465)
