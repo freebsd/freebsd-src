@@ -231,6 +231,7 @@ class FuseTest : public ::testing::Test {
 	 * to document the leakage, and provide a single point of suppression
 	 * for static analyzers.
 	 */
+	/* coverity[+close: arg-0] */
 	static void leak(int fd __unused) {}
 
 	/*
