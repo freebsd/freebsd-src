@@ -1878,13 +1878,11 @@ ata_cam_send(struct cam_device *device, union ccb *ccb, int quiet)
 static int
 ata_do_pass_16(struct cam_device *device, union ccb *ccb, int retries,
 	       u_int32_t flags, u_int8_t protocol, u_int8_t ata_flags,
-	       u_int8_t tag_action, u_int8_t command, u_int8_t features,
-	       u_int64_t lba, u_int8_t sector_count, u_int8_t *data_ptr,
+	       u_int8_t tag_action, u_int8_t command, u_int16_t features,
+	       u_int64_t lba, u_int16_t sector_count, u_int8_t *data_ptr,
 	       u_int16_t dxfer_len, int timeout, int quiet)
 {
 	if (data_ptr != NULL) {
-		ata_flags |= AP_FLAG_BYT_BLOK_BYTES |
-			    AP_FLAG_TLEN_SECT_CNT;
 		if (flags & CAM_DIR_OUT)
 			ata_flags |= AP_FLAG_TDIR_TO_DEV;
 		else
@@ -1935,44 +1933,10 @@ ata_try_pass_16(struct cam_device *device)
 }
 
 static int
-ata_do_28bit_cmd(struct cam_device *device, union ccb *ccb, int retries,
-		 u_int32_t flags, u_int8_t protocol, u_int8_t tag_action,
-		 u_int8_t command, u_int8_t features, u_int32_t lba,
-		 u_int8_t sector_count, u_int8_t *data_ptr, u_int16_t dxfer_len,
-		 int timeout, int quiet)
-{
-
-
-	switch (ata_try_pass_16(device)) {
-	case -1:
-		return (1);
-	case 1:
-		/* Try using SCSI Passthrough */
-		return ata_do_pass_16(device, ccb, retries, flags, protocol,
-				      0, tag_action, command, features, lba,
-				      sector_count, data_ptr, dxfer_len,
-				      timeout, quiet);
-	}
-
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->ataio);
-	cam_fill_ataio(&ccb->ataio,
-		       retries,
-		       NULL,
-		       flags,
-		       tag_action,
-		       data_ptr,
-		       dxfer_len,
-		       timeout);
-
-	ata_28bit_cmd(&ccb->ataio, command, features, lba, sector_count);
-	return ata_cam_send(device, ccb, quiet);
-}
-
-static int
 ata_do_cmd(struct cam_device *device, union ccb *ccb, int retries,
 	   u_int32_t flags, u_int8_t protocol, u_int8_t ata_flags,
-	   u_int8_t tag_action, u_int8_t command, u_int8_t features,
-	   u_int64_t lba, u_int8_t sector_count, u_int8_t *data_ptr,
+	   u_int8_t tag_action, u_int8_t command, u_int16_t features,
+	   u_int64_t lba, u_int16_t sector_count, u_int8_t *data_ptr,
 	   u_int16_t dxfer_len, int timeout, int force48bit)
 {
 	int retval;
@@ -2219,14 +2183,15 @@ atahpa_password(struct cam_device *device, int retry_count,
 			   retry_count,
 			   /*flags*/CAM_DIR_OUT,
 			   /*protocol*/protocol,
-			   /*ata_flags*/AP_FLAG_CHK_COND,
+			   /*ata_flags*/AP_FLAG_BYT_BLOK_BLOCKS |
+			    AP_FLAG_TLEN_SECT_CNT | AP_FLAG_CHK_COND,
 			   /*tag_action*/MSG_SIMPLE_Q_TAG,
 			   /*command*/cmd,
 			   /*features*/ATA_HPA_FEAT_SET_PWD,
 			   /*lba*/0,
-			   /*sector_count*/0,
+			   /*sector_count*/sizeof(*pwd) / 512,
 			   /*data_ptr*/(u_int8_t*)pwd,
-			   /*dxfer_len*/sizeof(struct ata_set_max_pwd),
+			   /*dxfer_len*/sizeof(*pwd),
 			   timeout ? timeout : 1000,
 			   is48bit);
 
@@ -2286,14 +2251,15 @@ atahpa_unlock(struct cam_device *device, int retry_count,
 			   retry_count,
 			   /*flags*/CAM_DIR_OUT,
 			   /*protocol*/protocol,
-			   /*ata_flags*/AP_FLAG_CHK_COND,
+			   /*ata_flags*/AP_FLAG_BYT_BLOK_BLOCKS |
+			    AP_FLAG_TLEN_SECT_CNT | AP_FLAG_CHK_COND,
 			   /*tag_action*/MSG_SIMPLE_Q_TAG,
 			   /*command*/cmd,
 			   /*features*/ATA_HPA_FEAT_UNLOCK,
 			   /*lba*/0,
-			   /*sector_count*/0,
+			   /*sector_count*/sizeof(*pwd) / 512,
 			   /*data_ptr*/(u_int8_t*)pwd,
-			   /*dxfer_len*/sizeof(struct ata_set_max_pwd),
+			   /*dxfer_len*/sizeof(*pwd),
 			   timeout ? timeout : 1000,
 			   is48bit);
 
@@ -2463,45 +2429,32 @@ ata_do_identify(struct cam_device *device, int retry_count, int timeout,
 		return (1);
 	}
 
-	error = ata_do_28bit_cmd(device,
-				 ccb,
-				 /*retries*/retry_count,
-				 /*flags*/CAM_DIR_IN,
-				 /*protocol*/AP_PROTO_PIO_IN,
-				 /*tag_action*/MSG_SIMPLE_Q_TAG,
-				 /*command*/command,
-				 /*features*/0,
-				 /*lba*/0,
-				 /*sector_count*/0,
-				 /*data_ptr*/(u_int8_t *)ptr,
-				 /*dxfer_len*/sizeof(struct ata_params),
-				 /*timeout*/timeout ? timeout : 30 * 1000,
-				 /*quiet*/1);
+retry:
+	error = ata_do_cmd(device,
+			   ccb,
+			   /*retries*/retry_count,
+			   /*flags*/CAM_DIR_IN,
+			   /*protocol*/AP_PROTO_PIO_IN,
+			   /*ata_flags*/AP_FLAG_BYT_BLOK_BLOCKS |
+			    AP_FLAG_TLEN_SECT_CNT,
+			   /*tag_action*/MSG_SIMPLE_Q_TAG,
+			   /*command*/command,
+			   /*features*/0,
+			   /*lba*/0,
+			   /*sector_count*/sizeof(struct ata_params) / 512,
+			   /*data_ptr*/(u_int8_t *)ptr,
+			   /*dxfer_len*/sizeof(struct ata_params),
+			   /*timeout*/timeout ? timeout : 30 * 1000,
+			   /*force48bit*/0);
 
 	if (error != 0) {
-		if (retry_command == 0) {
-			free(ptr);
-			return (1);
+		if (retry_command != 0) {
+			command = retry_command;
+			retry_command = 0;
+			goto retry;
 		}
-		error = ata_do_28bit_cmd(device,
-					 ccb,
-					 /*retries*/retry_count,
-					 /*flags*/CAM_DIR_IN,
-					 /*protocol*/AP_PROTO_PIO_IN,
-					 /*tag_action*/MSG_SIMPLE_Q_TAG,
-					 /*command*/retry_command,
-					 /*features*/0,
-					 /*lba*/0,
-					 /*sector_count*/0,
-					 /*data_ptr*/(u_int8_t *)ptr,
-					 /*dxfer_len*/sizeof(struct ata_params),
-					 /*timeout*/timeout ? timeout : 30 * 1000,
-					 /*quiet*/0);
-
-		if (error != 0) {
-			free(ptr);
-			return (1);
-		}
+		free(ptr);
+		return (1);
 	}
 
 	ident_buf = (struct ata_params *)ptr;
@@ -2687,20 +2640,21 @@ atasecurity_freeze(struct cam_device *device, union ccb *ccb,
 	if (quiet == 0)
 		atasecurity_notify(ATA_SECURITY_FREEZE_LOCK, NULL);
 
-	return ata_do_28bit_cmd(device,
-				ccb,
-				retry_count,
-				/*flags*/CAM_DIR_NONE,
-				/*protocol*/AP_PROTO_NON_DATA,
-				/*tag_action*/MSG_SIMPLE_Q_TAG,
-				/*command*/ATA_SECURITY_FREEZE_LOCK,
-				/*features*/0,
-				/*lba*/0,
-				/*sector_count*/0,
-				/*data_ptr*/NULL,
-				/*dxfer_len*/0,
-				/*timeout*/timeout,
-				/*quiet*/0);
+	return ata_do_cmd(device,
+			  ccb,
+			  retry_count,
+			  /*flags*/CAM_DIR_NONE,
+			  /*protocol*/AP_PROTO_NON_DATA,
+			  /*ata_flags*/0,
+			  /*tag_action*/MSG_SIMPLE_Q_TAG,
+			  /*command*/ATA_SECURITY_FREEZE_LOCK,
+			  /*features*/0,
+			  /*lba*/0,
+			  /*sector_count*/0,
+			  /*data_ptr*/NULL,
+			  /*dxfer_len*/0,
+			  /*timeout*/timeout,
+			  /*force48bit*/0);
 }
 
 static int
@@ -2712,20 +2666,22 @@ atasecurity_unlock(struct cam_device *device, union ccb *ccb,
 	if (quiet == 0)
 		atasecurity_notify(ATA_SECURITY_UNLOCK, pwd);
 
-	return ata_do_28bit_cmd(device,
-				ccb,
-				retry_count,
-				/*flags*/CAM_DIR_OUT,
-				/*protocol*/AP_PROTO_PIO_OUT,
-				/*tag_action*/MSG_SIMPLE_Q_TAG,
-				/*command*/ATA_SECURITY_UNLOCK,
-				/*features*/0,
-				/*lba*/0,
-				/*sector_count*/0,
-				/*data_ptr*/(u_int8_t *)pwd,
-				/*dxfer_len*/sizeof(*pwd),
-				/*timeout*/timeout,
-				/*quiet*/0);
+	return ata_do_cmd(device,
+			  ccb,
+			  retry_count,
+			  /*flags*/CAM_DIR_OUT,
+			  /*protocol*/AP_PROTO_PIO_OUT,
+			  /*ata_flags*/AP_FLAG_BYT_BLOK_BLOCKS |
+			    AP_FLAG_TLEN_SECT_CNT,
+			  /*tag_action*/MSG_SIMPLE_Q_TAG,
+			  /*command*/ATA_SECURITY_UNLOCK,
+			  /*features*/0,
+			  /*lba*/0,
+			  /*sector_count*/sizeof(*pwd) / 512,
+			  /*data_ptr*/(u_int8_t *)pwd,
+			  /*dxfer_len*/sizeof(*pwd),
+			  /*timeout*/timeout,
+			  /*force48bit*/0);
 }
 
 static int
@@ -2736,20 +2692,22 @@ atasecurity_disable(struct cam_device *device, union ccb *ccb,
 
 	if (quiet == 0)
 		atasecurity_notify(ATA_SECURITY_DISABLE_PASSWORD, pwd);
-	return ata_do_28bit_cmd(device,
-				ccb,
-				retry_count,
-				/*flags*/CAM_DIR_OUT,
-				/*protocol*/AP_PROTO_PIO_OUT,
-				/*tag_action*/MSG_SIMPLE_Q_TAG,
-				/*command*/ATA_SECURITY_DISABLE_PASSWORD,
-				/*features*/0,
-				/*lba*/0,
-				/*sector_count*/0,
-				/*data_ptr*/(u_int8_t *)pwd,
-				/*dxfer_len*/sizeof(*pwd),
-				/*timeout*/timeout,
-				/*quiet*/0);
+	return ata_do_cmd(device,
+			  ccb,
+			  retry_count,
+			  /*flags*/CAM_DIR_OUT,
+			  /*protocol*/AP_PROTO_PIO_OUT,
+			  /*ata_flags*/AP_FLAG_BYT_BLOK_BLOCKS |
+			    AP_FLAG_TLEN_SECT_CNT,
+			  /*tag_action*/MSG_SIMPLE_Q_TAG,
+			  /*command*/ATA_SECURITY_DISABLE_PASSWORD,
+			  /*features*/0,
+			  /*lba*/0,
+			  /*sector_count*/sizeof(*pwd) / 512,
+			  /*data_ptr*/(u_int8_t *)pwd,
+			  /*dxfer_len*/sizeof(*pwd),
+			  /*timeout*/timeout,
+			  /*force48bit*/0);
 }
 
 
@@ -2795,20 +2753,21 @@ atasecurity_erase(struct cam_device *device, union ccb *ccb,
 	if (quiet == 0)
 		atasecurity_notify(ATA_SECURITY_ERASE_PREPARE, NULL);
 
-	error = ata_do_28bit_cmd(device,
-				 ccb,
-				 retry_count,
-				 /*flags*/CAM_DIR_NONE,
-				 /*protocol*/AP_PROTO_NON_DATA,
-				 /*tag_action*/MSG_SIMPLE_Q_TAG,
-				 /*command*/ATA_SECURITY_ERASE_PREPARE,
-				 /*features*/0,
-				 /*lba*/0,
-				 /*sector_count*/0,
-				 /*data_ptr*/NULL,
-				 /*dxfer_len*/0,
-				 /*timeout*/timeout,
-				 /*quiet*/0);
+	error = ata_do_cmd(device,
+			   ccb,
+			   retry_count,
+			   /*flags*/CAM_DIR_NONE,
+			   /*protocol*/AP_PROTO_NON_DATA,
+			   /*ata_flags*/0,
+			   /*tag_action*/MSG_SIMPLE_Q_TAG,
+			   /*command*/ATA_SECURITY_ERASE_PREPARE,
+			   /*features*/0,
+			   /*lba*/0,
+			   /*sector_count*/0,
+			   /*data_ptr*/NULL,
+			   /*dxfer_len*/0,
+			   /*timeout*/timeout,
+			   /*force48bit*/0);
 
 	if (error != 0)
 		return error;
@@ -2816,20 +2775,22 @@ atasecurity_erase(struct cam_device *device, union ccb *ccb,
 	if (quiet == 0)
 		atasecurity_notify(ATA_SECURITY_ERASE_UNIT, pwd);
 
-	error = ata_do_28bit_cmd(device,
-				 ccb,
-				 retry_count,
-				 /*flags*/CAM_DIR_OUT,
-				 /*protocol*/AP_PROTO_PIO_OUT,
-				 /*tag_action*/MSG_SIMPLE_Q_TAG,
-				 /*command*/ATA_SECURITY_ERASE_UNIT,
-				 /*features*/0,
-				 /*lba*/0,
-				 /*sector_count*/0,
-				 /*data_ptr*/(u_int8_t *)pwd,
-				 /*dxfer_len*/sizeof(*pwd),
-				 /*timeout*/erase_timeout,
-				 /*quiet*/0);
+	error = ata_do_cmd(device,
+			   ccb,
+			   retry_count,
+			   /*flags*/CAM_DIR_OUT,
+			   /*protocol*/AP_PROTO_PIO_OUT,
+			   /*ata_flags*/AP_FLAG_BYT_BLOK_BLOCKS |
+			    AP_FLAG_TLEN_SECT_CNT,
+			   /*tag_action*/MSG_SIMPLE_Q_TAG,
+			   /*command*/ATA_SECURITY_ERASE_UNIT,
+			   /*features*/0,
+			   /*lba*/0,
+			   /*sector_count*/sizeof(*pwd) / 512,
+			   /*data_ptr*/(u_int8_t *)pwd,
+			   /*dxfer_len*/sizeof(*pwd),
+			   /*timeout*/erase_timeout,
+			   /*force48bit*/0);
 
 	if (error == 0 && quiet == 0)
 		printf("\nErase Complete\n");
@@ -2846,20 +2807,22 @@ atasecurity_set_password(struct cam_device *device, union ccb *ccb,
 	if (quiet == 0)
 		atasecurity_notify(ATA_SECURITY_SET_PASSWORD, pwd);
 
-	return ata_do_28bit_cmd(device,
-				 ccb,
-				 retry_count,
-				 /*flags*/CAM_DIR_OUT,
-				 /*protocol*/AP_PROTO_PIO_OUT,
-				 /*tag_action*/MSG_SIMPLE_Q_TAG,
-				 /*command*/ATA_SECURITY_SET_PASSWORD,
-				 /*features*/0,
-				 /*lba*/0,
-				 /*sector_count*/0,
-				 /*data_ptr*/(u_int8_t *)pwd,
-				 /*dxfer_len*/sizeof(*pwd),
-				 /*timeout*/timeout,
-				 /*quiet*/0);
+	return ata_do_cmd(device,
+			  ccb,
+			  retry_count,
+			  /*flags*/CAM_DIR_OUT,
+			  /*protocol*/AP_PROTO_PIO_OUT,
+			  /*ata_flags*/AP_FLAG_BYT_BLOK_BLOCKS |
+			   AP_FLAG_TLEN_SECT_CNT,
+			  /*tag_action*/MSG_SIMPLE_Q_TAG,
+			  /*command*/ATA_SECURITY_SET_PASSWORD,
+			  /*features*/0,
+			  /*lba*/0,
+			  /*sector_count*/sizeof(*pwd) / 512,
+			  /*data_ptr*/(u_int8_t *)pwd,
+			  /*dxfer_len*/sizeof(*pwd),
+			  /*timeout*/timeout,
+			  /*force48bit*/0);
 }
 
 static void
@@ -9457,7 +9420,7 @@ atapm(struct cam_device *device, int argc, char **argv,
 	    /*data_ptr*/NULL,
 	    /*dxfer_len*/0,
 	    /*timeout*/timeout ? timeout : 30 * 1000,
-	    /*quiet*/1);
+	    /*force48bit*/0);
 
 	cam_freeccb(ccb);
 
@@ -9510,11 +9473,12 @@ ataaxm(struct cam_device *device, int argc, char **argv,
 		}
 	}
 
-	retval = ata_do_28bit_cmd(device,
+	retval = ata_do_cmd(device,
 	    ccb,
 	    /*retries*/retry_count,
 	    /*flags*/CAM_DIR_NONE,
 	    /*protocol*/AP_PROTO_NON_DATA,
+	    /*ata_flags*/0,
 	    /*tag_action*/MSG_SIMPLE_Q_TAG,
 	    /*command*/ATA_SETFEATURES,
 	    /*features*/cmd,
@@ -9523,7 +9487,7 @@ ataaxm(struct cam_device *device, int argc, char **argv,
 	    /*data_ptr*/NULL,
 	    /*dxfer_len*/0,
 	    /*timeout*/timeout ? timeout : 30 * 1000,
-	    /*quiet*/1);
+	    /*force48bit*/0);
 
 	cam_freeccb(ccb);
 	return (retval);
