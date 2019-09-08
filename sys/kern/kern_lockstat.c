@@ -62,6 +62,14 @@ SDT_PROBE_DEFINE2(lockstat, , , sx__spin, "struct sx *", "uint64_t");
 SDT_PROBE_DEFINE1(lockstat, , , sx__upgrade, "struct sx *");
 SDT_PROBE_DEFINE1(lockstat, , , sx__downgrade, "struct sx *");
 
+SDT_PROBE_DEFINE2(lockstat, , , lockmgr__acquire, "struct lock *", "int");
+SDT_PROBE_DEFINE2(lockstat, , , lockmgr__release, "struct lock *", "int");
+SDT_PROBE_DEFINE2(lockstat, , , lockmgr__disown, "struct lock *", "int");
+SDT_PROBE_DEFINE5(lockstat, , , lockmgr__block, "struct lock *", "uint64_t",
+    "int", "int", "int");
+SDT_PROBE_DEFINE1(lockstat, , , lockmgr__upgrade, "struct lock *");
+SDT_PROBE_DEFINE1(lockstat, , , lockmgr__downgrade, "struct lock *");
+
 SDT_PROBE_DEFINE2(lockstat, , , thread__spin, "struct mtx *", "uint64_t");
 
 volatile bool __read_frequently lockstat_enabled;
