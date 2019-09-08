@@ -2156,6 +2156,14 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	DOMAINSET_COPY(mask, &domain.ds_mask);
 	domain.ds_policy = policy;
 
+	/*
+	 * Sanitize the provided mask.
+	 */
+	if (!DOMAINSET_SUBSET(&all_domains, &domain.ds_mask)) {
+		error = EINVAL;
+		goto out;
+	}
+
 	/* Translate preferred policy into a mask and fallback. */
 	if (policy == DOMAINSET_POLICY_PREFER) {
 		/* Only support a single preferred domain. */
@@ -2165,12 +2173,12 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 		}
 		domain.ds_prefer = DOMAINSET_FFS(&domain.ds_mask) - 1;
 		/* This will be constrained by domainset_shadow(). */
-		DOMAINSET_FILL(&domain.ds_mask);
+		DOMAINSET_COPY(&all_domains, &domain.ds_mask);
 	}
 
 	/*
-	 *  When given an impossible policy, fall back to interleaving
-	 *  across all domains
+	 * When given an impossible policy, fall back to interleaving
+	 * across all domains.
 	 */
 	if (domainset_empty_vm(&domain))
 		domainset_copy(&domainset2, &domain);
