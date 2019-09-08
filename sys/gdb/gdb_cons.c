@@ -60,8 +60,11 @@ struct gdbcons {
 static struct gdbcons state = { -1 };
 
 static	int gdbcons_enable = 0;
+SYSCTL_INT(_debug_gdb, OID_AUTO, cons, CTLFLAG_RWTUN, &gdbcons_enable, 0,
+	"copy console messages to GDB");
+/* Legacy sysctl alias */
 SYSCTL_INT(_debug, OID_AUTO, gdbcons, CTLFLAG_RWTUN, &gdbcons_enable,
-	    0, "copy console messages to GDB");
+	0, "copy console messages to GDB");
 
 static void
 gdb_cnprobe(struct consdev *cp)

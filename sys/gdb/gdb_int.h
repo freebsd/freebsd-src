@@ -31,9 +31,13 @@
 #ifndef _GDB_GDB_INT_H_
 #define	_GDB_GDB_INT_H_
 
+#include <sys/sysctl.h>
+
 #ifndef EOF
 #define EOF	(-1)
 #endif
+
+SYSCTL_DECL(_debug_gdb);
 
 extern struct gdb_dbgport *gdb_cur;
 
