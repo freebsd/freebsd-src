@@ -65,6 +65,7 @@ CFLAGS+=	-Ddouble=jagged-little-pill -Dfloat=floaty-mcfloatface
 # Experience has shown that problems arise between ~520k to ~530k.
 CFLAGS.clang+=	-Oz
 CFLAGS.gcc+=	-Os
+CFLAGS+=	-ffunction-sections -fdata-sections
 .endif
 
 # GELI Support, with backward compat hooks (mostly)
