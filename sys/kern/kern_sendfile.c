@@ -119,76 +119,22 @@ sfstat_sysctl(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern_ipc, OID_AUTO, sfstat, CTLTYPE_OPAQUE | CTLFLAG_RW,
     NULL, 0, sfstat_sysctl, "I", "sendfile statistics");
 
-/*
- * Detach mapped page and release resources back to the system.  Called
- * by mbuf(9) code when last reference to a page is freed.
- */
-static void
-sendfile_free_page(vm_page_t pg, bool nocache)
-{
-	bool freed;
-
-	vm_page_lock(pg);
-	/*
-	 * In either case check for the object going away on us.  This can
-	 * happen since we don't hold a reference to it.  If so, we're
-	 * responsible for freeing the page.  In 'noncache' case try to free
-	 * the page, but only if it is cheap to.
-	 */
-	if (vm_page_unwire_noq(pg)) {
-		vm_object_t obj;
-
-		if ((obj = pg->object) == NULL)
-			vm_page_free(pg);
-		else {
-			freed = false;
-			if (nocache && !vm_page_xbusied(pg) &&
-			    VM_OBJECT_TRYWLOCK(obj)) {
-				/* Only free unmapped pages. */
-				if (obj->ref_count == 0 ||
-				    !pmap_page_is_mapped(pg))
-					/*
-					 * The busy test before the object is
-					 * locked cannot be relied upon.
-					 */
-					freed = vm_page_try_to_free(pg);
-				VM_OBJECT_WUNLOCK(obj);
-			}
-			if (!freed) {
-				/*
-				 * If we were asked to not cache the page, place
-				 * it near the head of the inactive queue so
-				 * that it is reclaimed sooner.  Otherwise,
-				 * maintain LRU.
-				 */
-				if (nocache)
-					vm_page_deactivate_noreuse(pg);
-				else if (vm_page_active(pg))
-					vm_page_reference(pg);
-				else
-					vm_page_deactivate(pg);
-			}
-		}
-	}
-	vm_page_unlock(pg);
-}
-
 static void
 sendfile_free_mext(struct mbuf *m)
 {
 	struct sf_buf *sf;
 	vm_page_t pg;
-	bool nocache;
+	int flags;
 
 	KASSERT(m->m_flags & M_EXT && m->m_ext.ext_type == EXT_SFBUF,
 	    ("%s: m %p !M_EXT or !EXT_SFBUF", __func__, m));
 
 	sf = m->m_ext.ext_arg1;
 	pg = sf_buf_page(sf);
-	nocache = m->m_ext.ext_flags & EXT_FLAG_NOCACHE;
+	flags = (m->m_ext.ext_flags & EXT_FLAG_NOCACHE) != 0 ? VPR_TRYFREE : 0;
 
 	sf_buf_free(sf);
-	sendfile_free_page(pg, nocache);
+	vm_page_release(pg, flags);
 
 	if (m->m_ext.ext_flags & EXT_FLAG_SYNC) {
 		struct sendfile_sync *sfs = m->m_ext.ext_arg2;
