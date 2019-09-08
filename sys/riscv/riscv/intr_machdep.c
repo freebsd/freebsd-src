@@ -205,7 +205,7 @@ ipi_send(struct pcpu *pc, int ipi)
 {
 	u_long mask;
 
-	CTR3(KTR_SMP, "%s: cpu=%d, ipi=%x", __func__, pc->pc_cpuid, ipi);
+	CTR3(KTR_SMP, "%s: cpu: %d, ipi: %x", __func__, pc->pc_cpuid, ipi);
 
 	atomic_set_32(&pc->pc_pending_ipis, ipi);
 	mask = (1 << pc->pc_hart);
@@ -235,7 +235,6 @@ ipi_cpu(int cpu, u_int ipi)
 	CPU_ZERO(&cpus);
 	CPU_SET(cpu, &cpus);
 
-	CTR3(KTR_SMP, "%s: cpu: %d, ipi: %x\n", __func__, cpu, ipi);
 	ipi_send(cpuid_to_pcpu[cpu], ipi);
 }
 
