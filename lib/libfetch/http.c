@@ -2093,6 +2093,9 @@ fetchListHTTP(struct url *url __unused, const char *flags __unused)
 	return (NULL);
 }
 
+/*
+ * Arbitrary HTTP verb and content requests
+ */
 FILE *
 fetchReqHTTP(struct url *URL, const char *method, const char *flags,
 	const char *content_type, const char *body)
