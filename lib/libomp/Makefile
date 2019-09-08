@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.compiler.mk>
+
 SHLIB_NAME=	libomp.so
 
 OMPSRC=		${SRCTOP}/contrib/openmp/runtime/src
@@ -55,6 +57,13 @@ CXXFLAGS+=	-fvisibility-inlines-hidden
 CXXFLAGS+=	-fno-exceptions
 CXXFLAGS+=	-fno-rtti
 CXXSTD=		c++11
+
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 90000
+# When targeting i386, clang 9.0.0 produces a new warning about large atomic
+# operations "possibly incurring significant performance penalties", but there
+# is not much we can do about it.
+CWARNFLAGS+=	-Wno-atomic-alignment
+.endif
 
 LDFLAGS+=	-Wl,--warn-shared-textrel
 LDFLAGS+=	-Wl,--gc-sections
