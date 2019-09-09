@@ -58,17 +58,26 @@ enum {
 /*
  * Flag bit powers of two for db_read_token_flags.
  * The low 2 bits are reserved for radix selection.
+ *
+ * WSPACE: Yield explicit tWSPACE tokens when one or more whitespace characters
+ *         is consumed.
+ * HEX:    Allow tNUMBER tokens to start with 'A'-'F' without explicit "0x"
+ *         prefix.
  */
 enum {
 	_DRT_WSPACE = 2,
+	_DRT_HEX,
 };
 #ifndef BIT
 #define	BIT(n)	(1ull << (n))
 #endif
 enum {
 	DRT_WSPACE = BIT(_DRT_WSPACE),
+	DRT_HEX = BIT(_DRT_HEX),
 };
-#define	DRT_VALID_FLAGS_MASK	((int)DRT_RADIX_MASK | DRT_WSPACE)
+#define	DRT_VALID_FLAGS_MASK	((int)DRT_RADIX_MASK | \
+    DRT_WSPACE | \
+    DRT_HEX)
 
 void	 db_flush_lex(void);
 char	*db_get_line(void);
@@ -123,5 +132,7 @@ extern char	db_tok_string[TOK_STRING_SIZE];
 #define	tQUESTION	33
 #define	tBIT_NOT	34
 #define	tWSPACE		35
+#define	tCOLON		36
+#define	tCOLONCOLON	37
 
 #endif /* !_DDB_DB_LEX_H_ */
