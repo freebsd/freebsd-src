@@ -2157,8 +2157,8 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	    ntohl(initack_cp->init.initiate_tag), vrf_id,
 	    ntohs(initack_cp->init.num_outbound_streams),
 	    port,
-	    (struct thread *)NULL
-	    );
+	    (struct thread *)NULL,
+	    SCTP_DONT_INITIALIZE_AUTH_PARAMS);
 	if (stcb == NULL) {
 		struct mbuf *op_err;
 
