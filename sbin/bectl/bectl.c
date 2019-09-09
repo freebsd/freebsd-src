@@ -80,7 +80,7 @@ usage(bool explicit)
 	    "\tbectl jail {-b | -U} [{-o key=value | -u key}]... "
 	    "{jailID | jailName}\n"
 	    "\t      bootenv [utility [argument ...]]\n"
-	    "\tbectl list [-DHas] [{-c property | -C property}]\n"
+	    "\tbectl list [-DHas]\n"
 	    "\tbectl mount beName [mountpoint]\n"
 	    "\tbectl rename origBeName newBeName\n"
 	    "\tbectl {ujail | unjail} {jailID | jailName} bootenv\n"
