@@ -10,8 +10,6 @@ include 	"../mv/discovery/std.db78xxx"
 
 options 	SOC_MV_DISCOVERY
 
-makeoptions	WERROR="-Werror"
-
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols

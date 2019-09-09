@@ -24,8 +24,6 @@ include 	"../altera/socfpga/std.socfpga"
 
 makeoptions	MODULES_OVERRIDE=""
 
-makeoptions	WERROR="-Werror"
-
 options 	SCHED_ULE		# ULE scheduler
 options 	PLATFORM		# Platform based SoC
 options 	SMP			# Enable multiple cores

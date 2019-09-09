@@ -31,7 +31,7 @@ linux_assym.h: linux_genassym.o
 
 linux_locore.o: linux_locore.s linux_assym.h
 	${CC} -x assembler-with-cpp -DLOCORE -shared -mcmodel=small	\
-	-pipe -I. -I${SYSDIR} -Werror -Wall -fno-common -fPIC -nostdinc	\
+	-pipe -I. -I${SYSDIR} ${WERROR} -Wall -fno-common -fPIC -nostdinc	\
 	-Wl,-T${SRCTOP}/sys/${MACHINE}/linux/${VDSO}.lds.s	\
 	-Wl,-soname=${VDSO}.so.1,-warn-common -nostdlib			\
 	    ${.IMPSRC} -o ${.TARGET}
