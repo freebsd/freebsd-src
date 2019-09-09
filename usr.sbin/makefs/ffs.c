@@ -932,8 +932,7 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 	if (isfile) {
 		fbuf = emalloc(ffs_opts->bsize);
 		if ((ffd = open((char *)buf, O_RDONLY, 0444)) == -1) {
-			warn("Can't open `%s' for reading", (char *)buf);
-			goto leave_ffs_write_file;
+			err(EXIT_FAILURE, "Can't open `%s' for reading", (char *)buf);
 		}
 	} else {
 		p = buf;
@@ -987,8 +986,6 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
   
  write_inode_and_leave:
 	ffs_write_inode(&in.i_din, in.i_number, fsopts);
-
- leave_ffs_write_file:
 	if (fbuf)
 		free(fbuf);
 	if (ffd != -1)
