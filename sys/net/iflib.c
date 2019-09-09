@@ -4758,6 +4758,7 @@ iflib_register(if_ctx_t ctx)
 	_iflib_assert(sctx);
 
 	CTX_LOCK_INIT(ctx, device_get_nameunit(ctx->ifc_dev));
+	STATE_LOCK_INIT(ctx, device_get_nameunit(ctx->ifc_dev));
 
 	ifp = ctx->ifc_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
