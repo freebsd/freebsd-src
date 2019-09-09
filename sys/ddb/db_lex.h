@@ -38,12 +38,50 @@
 /*
  * Lexical analyzer.
  */
+
+/*
+ * Options and flags can configure db_read_token() => db_lex() behavior.
+ *
+ * When a radix other than DRT_DEFAULT_RADIX is used, it overrides
+ * auto-detection, as well as the user-specified db_radix, in db_lex() of
+ * 'tNUMBER' tokens.
+ */
+enum {
+	/* Infer or use db_radix using the old logic. */
+	DRT_DEFAULT_RADIX = 0,
+	/* The following set an explicit base for tNUMBER lex. */
+	DRT_OCTAL,
+	DRT_DECIMAL,
+	DRT_HEXADECIMAL,
+};
+#define	DRT_RADIX_MASK	0x3
+/*
+ * Flag bit powers of two for db_read_token_flags.
+ * The low 2 bits are reserved for radix selection.
+ */
+enum {
+	_DRT_WSPACE = 2,
+};
+#ifndef BIT
+#define	BIT(n)	(1ull << (n))
+#endif
+enum {
+	DRT_WSPACE = BIT(_DRT_WSPACE),
+};
+#define	DRT_VALID_FLAGS_MASK	((int)DRT_RADIX_MASK | DRT_WSPACE)
+
 void	 db_flush_lex(void);
 char	*db_get_line(void);
 void	 db_inject_line(const char *command);
 int	 db_read_line(void);
-int	 db_read_token(void);
+int	 db_read_token_flags(int);
 void	 db_unread_token(int t);
+
+static inline int
+db_read_token(void)
+{
+	return (db_read_token_flags(0));
+}
 
 extern db_expr_t	db_tok_number;
 #define	TOK_STRING_SIZE		120
@@ -84,5 +122,6 @@ extern char	db_tok_string[TOK_STRING_SIZE];
 #define	tSTRING		32
 #define	tQUESTION	33
 #define	tBIT_NOT	34
+#define	tWSPACE		35
 
 #endif /* !_DDB_DB_LEX_H_ */
