@@ -30,11 +30,32 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef _MAKEFS_MSDOS_H
+#define _MAKEFS_MSDOS_H
+
+#define NOCRED NULL
+
+#define MSDOSFS_DPRINTF(args) do {	\
+	if (debug & DEBUG_MSDOSFS)	\
+		printf args;		\
+} while (0);
+
+
 struct vnode;
 struct denode;
+struct fsnode;
+struct msdosfsmount;
 
-struct msdosfsmount *msdosfs_mount(struct vnode *, int);
+struct componentname {
+	char *cn_nameptr;
+	size_t cn_namelen;
+};
+
+int msdosfs_fsiflush(struct msdosfsmount *);
+struct msdosfsmount *msdosfs_mount(struct vnode *);
 int msdosfs_root(struct msdosfsmount *, struct vnode *);
 
 struct denode *msdosfs_mkfile(const char *, struct denode *, fsnode *);
 struct denode *msdosfs_mkdire(const char *, struct denode *, fsnode *);
+
+#endif
