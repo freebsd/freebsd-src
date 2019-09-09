@@ -2357,6 +2357,8 @@ sys_fstatat(struct thread *td, struct fstatat_args *uap)
 	return (error);
 }
 
+EBPF_PROBE_DEFINE(stat_syscall_probe);
+
 int
 kern_statat(struct thread *td, int flag, int fd, const char *path,
     enum uio_seg pathseg, struct stat *sbp,
@@ -2367,6 +2369,38 @@ kern_statat(struct thread *td, int flag, int fd, const char *path,
 
 	if ((flag & ~(AT_SYMLINK_NOFOLLOW | AT_BENEATH)) != 0)
 		return (EINVAL);
+
+#ifdef EBPF_HOOKS
+	if (fd == AT_FDCWD && pathseg == UIO_USERSPACE) {
+		if (EBPF_PROBE_ACTIVE(stat_syscall_probe)) {
+			char * pathCopy;
+			size_t pathLen;
+
+			pathCopy = malloc(MAXPATHLEN, M_TEMP, M_WAITOK | M_ZERO);
+
+			error = copyinstr(path, pathCopy, MAXPATHLEN, &pathLen);
+			if (error == 0) {
+				int action = EBPF_ACTION_CONTINUE;
+				struct stat_probe_args args = {
+					.fd = &fd,
+					.path = pathCopy,
+					.action = &action,
+				} ;
+				EBPF_PROBE_FIRE2(stat_syscall_probe, &args, sizeof(args));
+				if (action == EBPF_ACTION_FSTAT) {
+					free(pathCopy, M_TEMP);
+					return (kern_fstat(td, fd, sbp));
+				} else if (action == EBPF_ACTION_FSTATAT) {
+					error = kern_statat(td, flag, fd, args.path,
+					    UIO_SYSSPACE, sbp, hook);
+					free(pathCopy, M_TEMP);
+					return (error);
+				}
+			}
+			free(pathCopy, M_TEMP);
+		}
+	}
+#endif
 
 	NDINIT_ATRIGHTS(&nd, LOOKUP, ((flag & AT_SYMLINK_NOFOLLOW) != 0 ?
 	    NOFOLLOW : FOLLOW) | ((flag & AT_BENEATH) != 0 ? BENEATH : 0) |

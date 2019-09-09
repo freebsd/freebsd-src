@@ -62,16 +62,16 @@ void ebpf_module_deregister(void);
 void ebpf_probe_fire(struct ebpf_probe *, uintptr_t arg0, uintptr_t arg1,
     uintptr_t arg2, uintptr_t arg3, uintptr_t arg4, uintptr_t arg5);
 
-#define _EBPF_PROBE(name) name ## _probe_def
+#define _EBPF_PROBE(name) __CONCAT(name, _probe_def)
 
 #define EBPF_PROBE_DEFINE(probeName) \
 	static struct ebpf_probe _EBPF_PROBE(probeName) = { \
 		.name = __XSTRING(probeName), \
 		.active = 0, \
 	}; \
-	SYSINIT(epf_ ## name ## _register, SI_SUB_DTRACE, SI_ORDER_SECOND, \
+	SYSINIT(__CONCAT(epf_, __CONCAT(probeName, _register)), SI_SUB_DTRACE, SI_ORDER_SECOND, \
 		ebpf_probe_register, &_EBPF_PROBE(probeName)); \
-	SYSUNINIT(epf_ ## name ## _register, SI_SUB_DTRACE, SI_ORDER_SECOND, \
+	SYSUNINIT(__CONCAT(epf_, __CONCAT(probeName, _deregister)), SI_SUB_DTRACE, SI_ORDER_SECOND, \
 		ebpf_probe_deregister, &_EBPF_PROBE(probeName)); \
 	struct hack
 
@@ -112,14 +112,23 @@ void ebpf_probe_fire(struct ebpf_probe *, uintptr_t arg0, uintptr_t arg1,
 	EBPF_PROBE_FIRE6(name, arg0, arg1, arg2, arg3, 0, 0)
 
 #define	EBPF_ACTION_CONTINUE	0
-#define EBPF_ACTION_DUP		1
-#define EBPF_ACTION_OPENAT	2
+#define	EBPF_ACTION_DUP		1
+#define	EBPF_ACTION_OPENAT	2
+#define	EBPF_ACTION_FSTATAT	3
+#define	EBPF_ACTION_FSTAT	4
 
 struct open_probe_args
 {
 	int *fd;
 	char * path;
 	int mode;
+	int *action;
+};
+
+struct stat_probe_args
+{
+	int *fd;
+	char * path;
 	int *action;
 };
 
