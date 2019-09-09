@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/sysproto.h>
 #include <sys/namei.h>
+#include <sys/ebpf_probe.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
@@ -1032,6 +1033,8 @@ sys_openat(struct thread *td, struct openat_args *uap)
 	    uap->mode));
 }
 
+EBPF_PROBE_DEFINE(open_syscall_probe);
+
 int
 kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
     int flags, int mode)
@@ -1062,6 +1065,34 @@ kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
 	} else {
 		flags = FFLAGS(flags);
 	}
+
+#ifdef EBPF_HOOKS
+	if (fd == AT_FDCWD && pathseg == UIO_USERSPACE) {
+		if (EBPF_PROBE_ACTIVE(open_syscall_probe)) {
+			char * pathCopy;
+			size_t pathLen;
+
+			pathCopy = malloc(MAXPATHLEN, M_TEMP, M_WAITOK | M_ZERO);
+
+			error = copyinstr(path, pathCopy, MAXPATHLEN, &pathLen);
+			if (error == 0) {
+				int action = EBPF_ACTION_CONTINUE;
+				struct open_probe_args args = {
+					.fd = &fd,
+					.path = pathCopy,
+					.mode = mode,
+					.action = &action,
+				} ;
+				EBPF_PROBE_FIRE2(open_syscall_probe, &args, sizeof(args));
+				if (action == EBPF_ACTION_DUP) {
+					free(pathCopy, M_TEMP);
+					return (kern_dup(td, FDDUP_NORMAL, 0, fd, 0));
+				}
+			}
+			free(pathCopy, M_TEMP);
+		}
+	}
+#endif
 
 	/*
 	 * Allocate a file structure. The descriptor to reference it
