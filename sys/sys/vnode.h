@@ -58,6 +58,7 @@
 enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD,
 		  VMARKER };
 
+enum vgetstate	{ VGET_HOLDCNT, VGET_USECOUNT };
 /*
  * Each underlying filesystem allocates its own private area and hangs
  * it from v_data.  If non-null, this area is freed in getnewvnode().
@@ -652,7 +653,9 @@ int	vcount(struct vnode *vp);
 #define	vdropl(vp)	_vdrop((vp), 1)
 void	_vdrop(struct vnode *, bool);
 int	vflush(struct mount *mp, int rootrefs, int flags, struct thread *td);
-int	vget(struct vnode *vp, int lockflag, struct thread *td);
+int	vget(struct vnode *vp, int flags, struct thread *td);
+enum vgetstate	vget_prep(struct vnode *vp);
+int	vget_finish(struct vnode *vp, int flags, enum vgetstate vs);
 void	vgone(struct vnode *vp);
 #define	vhold(vp)	_vhold((vp), 0)
 #define	vholdl(vp)	_vhold((vp), 1)

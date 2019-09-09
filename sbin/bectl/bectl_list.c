@@ -38,6 +38,12 @@ __FBSDID("$FreeBSD$");
 
 #include "bectl.h"
 
+struct sort_column {
+	char *name;
+	char *val;
+	nvlist_t *nvl;
+};
+
 struct printc {
 	int	active_colsz_def;
 	int	be_colsz;
@@ -324,6 +330,74 @@ print_headers(nvlist_t *props, struct printc *pc)
 		printf("\n");
 }
 
+/*
+ * Sort the given nvlist of boot environments by property.
+ */
+static int
+prop_list_sort(nvlist_t *props, char *property, bool reverse)
+{
+	nvpair_t *nvp;
+	nvlist_t *nvl;
+	int i, nvp_count;
+	uint64_t lval, rval;
+	struct sort_column sc_prev, sc_next;
+
+	/* a temporary list to work with */
+	nvlist_dup(props, &nvl, 0);
+
+	nvp_count = fnvlist_num_pairs(nvl);
+	for (i = 0; i < nvp_count; i++) {
+
+		nvp = nvlist_next_nvpair(nvl, NULL);
+		nvpair_value_nvlist(nvp, &sc_prev.nvl);
+		nvlist_lookup_string(sc_prev.nvl, "name", &sc_prev.name);
+		nvlist_lookup_string(sc_prev.nvl, property, &sc_prev.val);
+
+		while ((nvp = nvlist_next_nvpair(nvl, nvp)) != NULL) {
+
+			nvpair_value_nvlist(nvp, &sc_next.nvl);
+			nvlist_lookup_string(sc_next.nvl, "name", &sc_next.name);
+			nvlist_lookup_string(sc_next.nvl, property, &sc_next.val);
+
+			/* properties that use numerical comparison */
+			if (strcmp(property, "creation") == 0 ||
+			    strcmp(property, "used") == 0 ||
+			    strcmp(property, "usedds") == 0 ||
+			    strcmp(property, "usedsnap") == 0 ||
+			    strcmp(property, "usedrefreserv") == 0) {
+
+				lval = strtoull(sc_prev.val, NULL, 10);
+				rval = strtoull(sc_next.val, NULL, 10);
+
+				if ((lval < rval && reverse) ||
+				    (lval > rval && !reverse))
+					sc_prev = sc_next;
+			}
+
+			/* properties that use string comparison */
+			else if (strcmp(property, "name") == 0 ||
+				 strcmp(property, "origin") == 0) {
+				if ((strcmp(sc_prev.val, sc_next.val) < 0 && reverse) ||
+				    (strcmp(sc_prev.val, sc_next.val) > 0 && !reverse))
+					sc_prev = sc_next;
+			}
+		}
+
+		/*
+		 * The 'props' nvlist has been created to only have unique names.
+		 * When a name is added, any existing nvlist's with the same name
+		 * will be removed. Eventually, all existing nvlist's are replaced
+		 * in sorted order.
+		 */
+		nvlist_add_nvlist(props, sc_prev.name, sc_prev.nvl);
+		nvlist_remove_all(nvl, sc_prev.name);
+	}
+
+	be_prop_list_free(nvl);
+
+	return 0;
+}
+
 int
 bectl_cmd_list(int argc, char *argv[])
 {
@@ -331,12 +405,15 @@ bectl_cmd_list(int argc, char *argv[])
 	nvpair_t *cur;
 	nvlist_t *dsprops, *props;
 	int opt, printed;
-	boolean_t active_now, active_reboot;
+	char *column;
+	bool reverse;
 
+	column = NULL;
 	props = NULL;
 	printed = 0;
 	bzero(&pc, sizeof(pc));
-	while ((opt = getopt(argc, argv, "aDHs")) != -1) {
+	reverse = false;
+	while ((opt = getopt(argc, argv, "aDHsc:C:")) != -1) {
 		switch (opt) {
 		case 'a':
 			pc.show_all_datasets = true;
@@ -349,6 +426,18 @@ bectl_cmd_list(int argc, char *argv[])
 			break;
 		case 's':
 			pc.show_snaps = true;
+			break;
+		case 'c':
+			if (column != NULL)
+				free(column);
+			column = strdup(optarg);
+			reverse = false;
+			break;
+		case 'C':
+			if (column != NULL)
+				free(column);
+			column = strdup(optarg);
+			reverse = true;
 			break;
 		default:
 			fprintf(stderr, "bectl list: unknown option '-%c'\n",
@@ -374,44 +463,31 @@ bectl_cmd_list(int argc, char *argv[])
 		return (1);
 	}
 
+	/* List boot environments in alphabetical order by default */
+	if (column == NULL)
+		column = strdup("name");
+
+	prop_list_sort(props, column, reverse);
+
 	/* Force -D off if either -a or -s are specified */
 	if (pc.show_all_datasets || pc.show_snaps)
 		pc.show_space = false;
 	if (!pc.script_fmt)
 		print_headers(props, &pc);
-	/* Do a first pass to print active and next active first */
+
+	/* Print boot environments */
 	for (cur = nvlist_next_nvpair(props, NULL); cur != NULL;
 	    cur = nvlist_next_nvpair(props, cur)) {
 		nvpair_value_nvlist(cur, &dsprops);
-		active_now = active_reboot = false;
 
-		nvlist_lookup_boolean_value(dsprops, "active", &active_now);
-		nvlist_lookup_boolean_value(dsprops, "nextboot",
-		    &active_reboot);
-		if (!active_now && !active_reboot)
-			continue;
 		if (printed > 0 && (pc.show_all_datasets || pc.show_snaps))
 			printf("\n");
+
 		print_info(nvpair_name(cur), dsprops, &pc);
 		printed++;
 	}
 
-	/* Now pull everything else */
-	for (cur = nvlist_next_nvpair(props, NULL); cur != NULL;
-	    cur = nvlist_next_nvpair(props, cur)) {
-		nvpair_value_nvlist(cur, &dsprops);
-		active_now = active_reboot = false;
-
-		nvlist_lookup_boolean_value(dsprops, "active", &active_now);
-		nvlist_lookup_boolean_value(dsprops, "nextboot",
-		    &active_reboot);
-		if (active_now || active_reboot)
-			continue;
-		if (printed > 0 && (pc.show_all_datasets || pc.show_snaps))
-			printf("\n");
-		print_info(nvpair_name(cur), dsprops, &pc);
-		printed++;
-	}
+	free(column);
 	be_prop_list_free(props);
 
 	return (0);

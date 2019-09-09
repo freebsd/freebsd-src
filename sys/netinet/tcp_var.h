@@ -887,6 +887,13 @@ struct tcp_function_block *
 find_and_ref_tcp_fb(struct tcp_function_block *fs);
 int tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp, struct tcpcb *tp);
 
+extern counter_u64_t tcp_inp_lro_direct_queue;
+extern counter_u64_t tcp_inp_lro_wokeup_queue;
+extern counter_u64_t tcp_inp_lro_compressed;
+extern counter_u64_t tcp_inp_lro_single_push;
+extern counter_u64_t tcp_inp_lro_locks_taken;
+extern counter_u64_t tcp_inp_lro_sack_wake;
+
 uint32_t tcp_maxmtu(struct in_conninfo *, struct tcp_ifcap *);
 uint32_t tcp_maxmtu6(struct in_conninfo *, struct tcp_ifcap *);
 u_int	 tcp_maxseg(const struct tcpcb *);

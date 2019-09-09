@@ -25,7 +25,6 @@
 # $FreeBSD$
 #
 
-MAX_TRIES=20
 PROG_PID=
 PROG_PATH=$(atf_get_srcdir)/while1
 
@@ -37,16 +36,13 @@ start_program()
 	PROG_COMM=while1
 	PROG_PATH=$(atf_get_srcdir)/$PROG_COMM
 
-	$PROG_PATH $* &
+	mkfifo wait_for_start || atf_fail "mkfifo"
+	$PROG_PATH $* >wait_for_start &
 	PROG_PID=$!
-	try=0
-	while [ $try -lt $MAX_TRIES ] && ! kill -0 $PROG_PID; do
-		sleep 0.5
-		: $(( try += 1 ))
-	done
-	if [ $try -ge $MAX_TRIES ]; then
-		atf_fail "Polled for program start $MAX_TRIES tries and failed"
+	if ! read dummy <wait_for_start; then
+		atf_fail "Program did not start properly"
 	fi
+	rm wait_for_start
 }
 
 atf_test_case binary_info
@@ -78,8 +74,6 @@ command_line_arguments_head()
 }
 command_line_arguments_body()
 {
-	atf_skip "https://bugs.freebsd.org/233587"
-
 	arguments="my arguments"
 
 	start_program $arguments
@@ -104,8 +98,6 @@ environment_head()
 }
 environment_body()
 {
-	atf_skip "https://bugs.freebsd.org/233588"
-
 	var="MY_VARIABLE=foo"
 	eval "export $var"
 

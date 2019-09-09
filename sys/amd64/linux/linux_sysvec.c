@@ -343,6 +343,12 @@ linux_copyout_strings(struct image_params *imgp)
 	 */
 	vectp -= imgp->args->argc + 1 + imgp->args->envc + 1;
 
+	/*
+	 * Starting with 2.24, glibc depends on a 16-byte stack alignment.
+	 * One "long argc" will be prepended later.
+	 */
+	vectp = (char **)((((uintptr_t)vectp + 8) & ~0xF) - 8);
+
 	/* vectp also becomes our initial stack base. */
 	stack_base = (register_t *)vectp;
 

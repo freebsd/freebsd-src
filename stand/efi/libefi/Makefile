@@ -22,6 +22,9 @@ SRCS=	delay.c \
 	libefi.c \
 	wchar.c
 
+.PATH:  ${SYSDIR}/teken
+SRCS+=  teken.c
+
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 SRCS+=	time.c
 .elif ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm"
@@ -45,6 +48,8 @@ CFLAGS+= -fPIC -mno-red-zone
 .endif
 CFLAGS+= -I${EFIINC}
 CFLAGS+= -I${EFIINCMD}
+CFLAGS.efi_console.c+= -I${SRCTOP}/sys/teken
+CFLAGS.teken.c+= -I${SRCTOP}/sys/teken
 .if ${MK_LOADER_ZFS} != "no"
 CFLAGS+=	-I${ZFSSRC}
 CFLAGS+=	-DEFI_ZFS_BOOT
@@ -55,10 +60,5 @@ CFLAGS+= -I${LDRSRC}
 
 # Handle FreeBSD specific %b and %D printf format specifiers
 CFLAGS+= ${FORMAT_EXTENSIONS}
-
-# Do not use TERM_EMU on arm and arm64 as it doesn't behave well with serial console
-.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "aarch64"
-CFLAGS+= -DTERM_EMU
-.endif
 
 .include <bsd.lib.mk>

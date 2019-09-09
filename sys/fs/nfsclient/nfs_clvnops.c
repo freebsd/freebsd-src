@@ -2646,7 +2646,6 @@ nfs_strategy(struct vop_strategy_args *ap)
 	KASSERT(bp->b_vp == vp, ("missing b_getvp"));
 	KASSERT(!(bp->b_flags & B_DONE),
 	    ("nfs_strategy: buffer %p unexpectedly marked B_DONE", bp));
-	BUF_ASSERT_HELD(bp);
 
 	if (vp->v_type == VREG && bp->b_blkno == bp->b_lblkno)
 		bp->b_blkno = bp->b_lblkno * (vp->v_bufobj.bo_bsize /
@@ -3223,8 +3222,6 @@ int
 ncl_writebp(struct buf *bp, int force __unused, struct thread *td)
 {
 	int oldflags, rtval;
-
-	BUF_ASSERT_HELD(bp);
 
 	if (bp->b_flags & B_INVAL) {
 		brelse(bp);

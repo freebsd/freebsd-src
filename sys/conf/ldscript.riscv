@@ -99,7 +99,7 @@ SECTIONS
   /* Ensure __bss_start is associated with the next section in case orphan
      sections are placed directly after .sdata, as has been seen to happen with
      LLD.  */
-  . = .;
+  . = ALIGN(8);
   __bss_start = .;
   .sbss      : { *(.sbss) *(.scommon) }
   .bss       :

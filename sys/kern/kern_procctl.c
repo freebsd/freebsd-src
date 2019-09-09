@@ -520,6 +520,55 @@ aslr_status(struct thread *td, struct proc *p, int *data)
 	return (0);
 }
 
+static int
+stackgap_ctl(struct thread *td, struct proc *p, int state)
+{
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	if ((state & ~(PROC_STACKGAP_ENABLE | PROC_STACKGAP_DISABLE |
+	    PROC_STACKGAP_ENABLE_EXEC | PROC_STACKGAP_DISABLE_EXEC)) != 0)
+		return (EINVAL);
+	switch (state & (PROC_STACKGAP_ENABLE | PROC_STACKGAP_DISABLE)) {
+	case PROC_STACKGAP_ENABLE:
+		if ((p->p_flag2 & P2_STKGAP_DISABLE) != 0)
+			return (EINVAL);
+		break;
+	case PROC_STACKGAP_DISABLE:
+		p->p_flag2 |= P2_STKGAP_DISABLE;
+		break;
+	case 0:
+		break;
+	default:
+		return (EINVAL);
+	}
+	switch (state & (PROC_STACKGAP_ENABLE_EXEC |
+	    PROC_STACKGAP_DISABLE_EXEC)) {
+	case PROC_STACKGAP_ENABLE_EXEC:
+		p->p_flag2 &= ~P2_STKGAP_DISABLE_EXEC;
+		break;
+	case PROC_STACKGAP_DISABLE_EXEC:
+		p->p_flag2 |= P2_STKGAP_DISABLE_EXEC;
+		break;
+	case 0:
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (0);
+}
+
+static int
+stackgap_status(struct thread *td, struct proc *p, int *data)
+{
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	*data = (p->p_flag2 & P2_STKGAP_DISABLE) != 0 ? PROC_STACKGAP_DISABLE :
+	    PROC_STACKGAP_ENABLE;
+	*data |= (p->p_flag2 & P2_STKGAP_DISABLE_EXEC) != 0 ?
+	    PROC_STACKGAP_DISABLE_EXEC : PROC_STACKGAP_ENABLE_EXEC;
+	return (0);
+}
+
 #ifndef _SYS_SYSPROTO_H_
 struct procctl_args {
 	idtype_t idtype;
@@ -548,6 +597,7 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 	case PROC_ASLR_CTL:
 	case PROC_PROTMAX_CTL:
 	case PROC_SPROTECT:
+	case PROC_STACKGAP_CTL:
 	case PROC_TRACE_CTL:
 	case PROC_TRAPCAP_CTL:
 		error = copyin(uap->data, &flags, sizeof(flags));
@@ -578,6 +628,7 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 		break;
 	case PROC_ASLR_STATUS:
 	case PROC_PROTMAX_STATUS:
+	case PROC_STACKGAP_STATUS:
 	case PROC_TRACE_STATUS:
 	case PROC_TRAPCAP_STATUS:
 		data = &flags;
@@ -607,6 +658,7 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 		break;
 	case PROC_ASLR_STATUS:
 	case PROC_PROTMAX_STATUS:
+	case PROC_STACKGAP_STATUS:
 	case PROC_TRACE_STATUS:
 	case PROC_TRAPCAP_STATUS:
 		if (error == 0)
@@ -636,6 +688,10 @@ kern_procctl_single(struct thread *td, struct proc *p, int com, void *data)
 		return (protmax_ctl(td, p, *(int *)data));
 	case PROC_PROTMAX_STATUS:
 		return (protmax_status(td, p, data));
+	case PROC_STACKGAP_CTL:
+		return (stackgap_ctl(td, p, *(int *)data));
+	case PROC_STACKGAP_STATUS:
+		return (stackgap_status(td, p, data));
 	case PROC_REAP_ACQUIRE:
 		return (reap_acquire(td, p));
 	case PROC_REAP_RELEASE:
@@ -678,6 +734,8 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 	case PROC_REAP_STATUS:
 	case PROC_REAP_GETPIDS:
 	case PROC_REAP_KILL:
+	case PROC_STACKGAP_CTL:
+	case PROC_STACKGAP_STATUS:
 	case PROC_TRACE_STATUS:
 	case PROC_TRAPCAP_STATUS:
 	case PROC_PDEATHSIG_CTL:
@@ -726,6 +784,8 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 	case PROC_ASLR_STATUS:
 	case PROC_PROTMAX_CTL:
 	case PROC_PROTMAX_STATUS:
+	case PROC_STACKGAP_CTL:
+	case PROC_STACKGAP_STATUS:
 	case PROC_TRACE_STATUS:
 	case PROC_TRAPCAP_STATUS:
 		tree_locked = false;

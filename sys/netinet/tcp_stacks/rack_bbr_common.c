@@ -159,6 +159,65 @@ again:
 }
 #endif
 
+
+/*
+ * The function ctf_process_inbound_raw() is used by
+ * transport developers to do the steps needed to
+ * support MBUF Queuing i.e. the flags in
+ * inp->inp_flags2:
+ *
+ * - INP_SUPPORTS_MBUFQ
+ * - INP_MBUF_QUEUE_READY
+ * - INP_DONT_SACK_QUEUE
+ * 
+ * These flags help control how LRO will deliver
+ * packets to the transport. You first set in inp_flags2
+ * the INP_SUPPORTS_MBUFQ to tell the LRO code that you
+ * will gladly take a queue of packets instead of a compressed
+ * single packet. You also set in your t_fb pointer the
+ * tfb_do_queued_segments to point to ctf_process_inbound_raw.
+ *
+ * This then gets you lists of inbound ACK's/Data instead
+ * of a condensed compressed ACK/DATA packet. Why would you
+ * want that? This will get you access to all the arrival
+ * times of at least LRO and possibly at the Hardware (if
+ * the interface card supports that) of the actual ACK/DATA.
+ * In some transport designs this is important since knowing
+ * the actual time we got the packet is useful information.
+ *
+ * Now there are some interesting Caveats that the transport
+ * designer needs to take into account when using this feature.
+ * 
+ * 1) It is used with HPTS and pacing, when the pacing timer
+ *    for output calls it will first call the input. 
+ * 2) When you set INP_MBUF_QUEUE_READY this tells LRO
+ *    queue normal packets, I am busy pacing out data and
+ *    will process the queued packets before my tfb_tcp_output
+ *    call from pacing. If a non-normal packet arrives, (e.g. sack)
+ *    you will be awoken immediately.
+ * 3) Finally you can add the INP_DONT_SACK_QUEUE to not even
+ *    be awoken if a SACK has arrived. You would do this when
+ *    you were not only running a pacing for output timer
+ *    but a Rack timer as well i.e. you know you are in recovery
+ *    and are in the process (via the timers) of dealing with
+ *    the loss.
+ *
+ * Now a critical thing you must be aware of here is that the
+ * use of the flags has a far greater scope then just your 
+ * typical LRO. Why? Well thats because in the normal compressed
+ * LRO case at the end of a driver interupt all packets are going
+ * to get presented to the transport no matter if there is one
+ * or 100. With the MBUF_QUEUE model, this is not true. You will
+ * only be awoken to process the queue of packets when:
+ *     a) The flags discussed above allow it.
+ *          <or>
+ *     b) You exceed a ack or data limit (by default the
+ *        ack limit is infinity (64k acks) and the data 
+ *        limit is 64k of new TCP data)
+ *         <or> 
+ *     c) The push bit has been set by the peer
+ */
+
 int
 ctf_process_inbound_raw(struct tcpcb *tp, struct socket *so, struct mbuf *m, int has_pkt)
 {
@@ -355,13 +414,7 @@ skip_vnet:
 		 * have been called (if we can).
 		 */
 		m->m_pkthdr.lro_nsegs = 1;
-		if (m->m_flags & M_TSTMP_LRO) {
-			tv.tv_sec = m->m_pkthdr.rcv_tstmp / 1000000000;
-			tv.tv_usec = (m->m_pkthdr.rcv_tstmp % 1000000000) / 1000;
-		} else {
-			/* Should not be should we kassert instead? */
-			tcp_get_usecs(&tv);
-		}
+		tcp_get_usecs(&tv);
 		/* Now what about next packet? */
 		if (m_save || has_pkt)
 			nxt_pkt = 1;

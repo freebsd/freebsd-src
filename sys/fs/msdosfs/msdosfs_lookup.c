@@ -234,7 +234,6 @@ msdosfs_lookup_(struct vnode *vdp, struct vnode **vpp,
 		}
 		error = bread(pmp->pm_devvp, bn, blsize, NOCRED, &bp);
 		if (error) {
-			brelse(bp);
 			return (error);
 		}
 		for (blkoff = 0; blkoff < blsize;
@@ -681,7 +680,6 @@ createde(struct denode *dep, struct denode *ddep, struct denode **depp,
 				error = bread(pmp->pm_devvp, bn, blsize,
 					      NOCRED, &bp);
 				if (error) {
-					brelse(bp);
 					return error;
 				}
 				ndep = bptoep(pmp, bp, ddep->de_fndoffset);
@@ -747,7 +745,6 @@ dosdirempty(struct denode *dep)
 		}
 		error = bread(pmp->pm_devvp, bn, blsize, NOCRED, &bp);
 		if (error) {
-			brelse(bp);
 			return (0);
 		}
 		for (dentp = (struct direntry *)bp->b_data;
@@ -960,7 +957,6 @@ removede(struct denode *pdep, struct denode *dep)
 			return error;
 		error = bread(pmp->pm_devvp, bn, blsize, NOCRED, &bp);
 		if (error) {
-			brelse(bp);
 			return error;
 		}
 		ep = bptoep(pmp, bp, offset);
@@ -1037,7 +1033,6 @@ uniqdosname(struct denode *dep, struct componentname *cnp, u_char *cp)
 			}
 			error = bread(pmp->pm_devvp, bn, blsize, NOCRED, &bp);
 			if (error) {
-				brelse(bp);
 				return error;
 			}
 			for (dentp = (struct direntry *)bp->b_data;

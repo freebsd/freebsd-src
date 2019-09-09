@@ -374,15 +374,9 @@ vm_page_to_pvoh(vm_page_t m)
 }
 
 static struct pvo_entry *
-alloc_pvo_entry(int bootstrap, int flags)
+alloc_pvo_entry(int bootstrap)
 {
 	struct pvo_entry *pvo;
-
-	KASSERT(bootstrap || (flags & M_WAITOK) || (flags & M_NOWAIT),
-	    ("Either M_WAITOK or M_NOWAIT flag must be specified "
-	     "when bootstrap is 0"));
-	KASSERT(!bootstrap || !(flags & M_WAITOK),
-	    ("M_WAITOK can't be used with bootstrap"));
 
 	if (!moea64_initialized || bootstrap) {
 		if (moea64_bpvo_pool_index >= moea64_bpvo_pool_size) {
@@ -395,7 +389,7 @@ alloc_pvo_entry(int bootstrap, int flags)
 		bzero(pvo, sizeof(*pvo));
 		pvo->pvo_vaddr = PVO_BOOTSTRAP;
 	} else
-		pvo = uma_zalloc(moea64_pvo_zone, flags | M_ZERO);
+		pvo = uma_zalloc(moea64_pvo_zone, M_NOWAIT | M_ZERO);
 
 	return (pvo);
 }
@@ -663,7 +657,7 @@ moea64_setup_direct_map(mmu_t mmup, vm_offset_t kernelstart,
 		     pregions[i].mr_size; pa += moea64_large_page_size) {
 			pte_lo = LPTE_M;
 
-			pvo = alloc_pvo_entry(1 /* bootstrap */, 0);
+			pvo = alloc_pvo_entry(1 /* bootstrap */);
 			pvo->pvo_vaddr |= PVO_WIRED | PVO_LARGE;
 			init_pvo_entry(pvo, kernel_pmap, PHYS_TO_DMAP(pa));
 
@@ -1404,7 +1398,7 @@ moea64_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
 		VM_OBJECT_ASSERT_LOCKED(m->object);
 
-	pvo = alloc_pvo_entry(0, M_NOWAIT);
+	pvo = alloc_pvo_entry(0);
 	if (pvo == NULL)
 		return (KERN_RESOURCE_SHORTAGE);
 	pvo->pvo_pmap = NULL; /* to be filled in later */
@@ -1631,7 +1625,7 @@ moea64_uma_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain,
 
 	va = VM_PAGE_TO_PHYS(m);
 
-	pvo = alloc_pvo_entry(1 /* bootstrap */, 0);
+	pvo = alloc_pvo_entry(1 /* bootstrap */);
 
 	pvo->pvo_pte.prot = VM_PROT_READ | VM_PROT_WRITE;
 	pvo->pvo_pte.pa = VM_PAGE_TO_PHYS(m) | LPTE_M;
@@ -1863,7 +1857,11 @@ moea64_kenter_attr(mmu_t mmu, vm_offset_t va, vm_paddr_t pa, vm_memattr_t ma)
 	int		error;	
 	struct pvo_entry *pvo, *oldpvo;
 
-	pvo = alloc_pvo_entry(0, M_WAITOK);
+	do {
+		pvo = alloc_pvo_entry(0);
+		if (pvo == NULL)
+			vm_wait(NULL);
+	} while (pvo == NULL);
 	pvo->pvo_pte.prot = VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE;
 	pvo->pvo_pte.pa = (pa & ~ADDR_POFF) | moea64_calc_wimg(pa, ma);
 	pvo->pvo_vaddr |= PVO_WIRED;

@@ -753,7 +753,6 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 			      imp->logical_block_size, NOCRED, &bp);
 		if (error) {
 			vput(vp);
-			brelse(bp);
 			printf("fhtovp: bread error %d\n",error);
 			return (error);
 		}

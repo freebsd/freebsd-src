@@ -11,5 +11,5 @@ SRCS+=	nullconsole.c \
 	comconsole.c \
 	spinconsole.c
 
-CFLAGS+=	-fPIC -DTERM_EMU
+CFLAGS+=	-fPIC
 LDFLAGS+=	-Wl,-znocombreloc

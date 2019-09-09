@@ -1767,7 +1767,6 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 		 * still zero, it will be unlinked and returned to the free
 		 * list by vput().
 		 */
-		brelse(bp);
 		vput(vp);
 		*vpp = NULL;
 		return (error);

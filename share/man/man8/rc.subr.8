@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2019
+.Dd September 5, 2019
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -559,9 +559,19 @@ is mounted.
 A list of environment variables to run
 .Va command
 with.
-This will be passed as arguments to the
+Those variables will be passed as arguments to the
 .Xr env 1
-utility.
+utility unless
+.Ar argument Ns Va _cmd
+is defined.
+In that case the contents of
+.Va ${name}_env
+will be exported via the
+.Xr export 1
+builtin of
+.Xr sh 1 ,
+which puts some limitations on the names of variables
+(e.g., a variable name may not start with a digit).
 .It Va ${name}_env_file
 A file to source for environmental variables to run
 .Va command

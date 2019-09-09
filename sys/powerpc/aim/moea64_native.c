@@ -358,6 +358,45 @@ moea64_pte_unset_native(mmu_t mmu, struct pvo_entry *pvo)
 }
 
 static int64_t
+moea64_pte_replace_inval_native(mmu_t mmu, struct pvo_entry *pvo,
+    volatile struct lpte *pt)
+{
+	struct lpte properpt;
+	uint64_t ptelo;
+
+	moea64_pte_from_pvo(pvo, &properpt);
+
+	rw_rlock(&moea64_eviction_lock);
+	if ((be64toh(pt->pte_hi & LPTE_AVPN_MASK)) !=
+	    (properpt.pte_hi & LPTE_AVPN_MASK)) {
+		/* Evicted */
+		STAT_MOEA64(moea64_pte_overflow--);
+		rw_runlock(&moea64_eviction_lock);
+		return (-1);
+	}
+
+	/*
+	 * Replace the pte, briefly locking it to collect RC bits. No
+	 * atomics needed since this is protected against eviction by the lock.
+	 */
+	isync();
+	critical_enter();
+	pt->pte_hi = be64toh((pt->pte_hi & ~LPTE_VALID) | LPTE_LOCKED);
+	PTESYNC();
+	TLBIE(pvo->pvo_vpn);
+	ptelo = be64toh(pt->pte_lo);
+	EIEIO();
+	pt->pte_lo = htobe64(properpt.pte_lo);
+	EIEIO();
+	pt->pte_hi = htobe64(properpt.pte_hi); /* Release lock */
+	PTESYNC();
+	critical_exit();
+	rw_runlock(&moea64_eviction_lock);
+
+	return (ptelo & (LPTE_CHG | LPTE_REF));
+}
+
+static int64_t
 moea64_pte_replace_native(mmu_t mmu, struct pvo_entry *pvo, int flags)
 {
 	volatile struct lpte *pt = moea64_pteg_table + pvo->pvo_pte.slot;
@@ -379,8 +418,7 @@ moea64_pte_replace_native(mmu_t mmu, struct pvo_entry *pvo, int flags)
 		rw_runlock(&moea64_eviction_lock);
 	} else {
 		/* Otherwise, need reinsertion and deletion */
-		ptelo = moea64_pte_unset_native(mmu, pvo);
-		moea64_pte_insert_native(mmu, pvo);
+		ptelo = moea64_pte_replace_inval_native(mmu, pvo, pt);
 	}
 
 	return (ptelo);

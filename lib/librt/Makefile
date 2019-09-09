@@ -2,7 +2,6 @@
 
 .include <src.opts.mk>
 
-PACKAGE=lib${LIB}
 LIB=rt
 SHLIB_MAJOR= 1
 CFLAGS+=-I${SRCTOP}/lib/libc/include -I${.CURDIR}

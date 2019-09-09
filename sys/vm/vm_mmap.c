@@ -1289,7 +1289,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 		}
 		if (writex) {
 			*writecounted = TRUE;
-			vnode_pager_update_writecount(obj, 0, objsize);
+			vm_pager_update_writecount(obj, 0, objsize);
 		}
 	} else {
 		error = EINVAL;
@@ -1345,7 +1345,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 done:
 	if (error != 0 && *writecounted) {
 		*writecounted = FALSE;
-		vnode_pager_update_writecount(obj, objsize, 0);
+		vm_pager_update_writecount(obj, objsize, 0);
 	}
 	vput(vp);
 	return (error);
@@ -1480,7 +1480,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		 * writecount, then undo that now.
 		 */
 		if (writecounted)
-			vnode_pager_release_writecount(object, 0, size);
+			vm_pager_release_writecount(object, 0, size);
 		vm_object_deallocate(object);
 	}
 	return (error);
@@ -1569,7 +1569,7 @@ vm_mmap_object(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	if (flags & MAP_SHARED)
 		docow |= MAP_INHERIT_SHARE;
 	if (writecounted)
-		docow |= MAP_VN_WRITECOUNT;
+		docow |= MAP_WRITECOUNT;
 	if (flags & MAP_STACK) {
 		if (object != NULL)
 			return (EINVAL);

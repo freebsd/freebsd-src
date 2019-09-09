@@ -465,6 +465,7 @@ TEST_F(NotifyWriteback, inval_inode_with_dirty_cache)
 
 	/* Fill the data cache */
 	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd);
 	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
 
 	expect_write(ino, 0, bufsize, CONTENTS);
@@ -526,6 +527,7 @@ TEST_F(NotifyWriteback, inval_inode_attrs_only)
 
 	/* Fill the data cache */
 	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
 	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
 
 	/* Evict the attributes, but not data cache */

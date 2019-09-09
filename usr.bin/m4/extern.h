@@ -1,4 +1,4 @@
-/*	$OpenBSD: extern.h,v 1.54 2014/05/12 19:11:19 espie Exp $	*/
+/*	$OpenBSD: extern.h,v 1.55 2017/06/15 13:48:42 bcallah Exp $	*/
 /*	$NetBSD: extern.h,v 1.3 1996/01/13 23:25:24 pk Exp $	*/
 
 /*-
@@ -60,6 +60,8 @@ extern void doprintfilename(struct input_file *);
 extern void doesyscmd(const char *);
 extern void getdivfile(const char *);
 extern void doformat(const char *[], int);
+
+extern void m4_warnx(const char *, ...);
 
 /* look.c */
 
@@ -178,4 +180,5 @@ extern int  synch_lines;	/* line synchronisation directives */
 
 extern int mimic_gnu;		/* behaves like gnu-m4 */
 extern int prefix_builtins;	/* prefix builtin macros with m4_ */
-
+extern int error_warns;		/* make warnings cause exit_code = 1 */
+extern int fatal_warns;		/* make warnings fatal */

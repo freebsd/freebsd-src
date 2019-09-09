@@ -1790,6 +1790,11 @@ rack_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th, struct tc
 			 */
 			tcp_update_sack_list(tp, th->th_seq,
 			    th->th_seq + todrop);
+			/*
+			 * ACK now, as the next in-sequence segment
+			 * will clear the DSACK block again
+			 */
+			tp->t_flags |= TF_ACKNOW;
 		}
 		*drop_hdrlen += todrop;	/* drop from the top afterwards */
 		th->th_seq += todrop;
@@ -2338,7 +2343,7 @@ rack_start_hpts_timer(struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts, int
 	}
 	hpts_timeout = rack_timer_start(tp, rack, cts);
 	if (tp->t_flags & TF_DELACK) {
-		delayed_ack = tcp_delacktime;
+		delayed_ack = TICKS_2_MSEC(tcp_delacktime);
 		rack->r_ctl.rc_hpts_flags |= PACE_TMR_DELACK;
 	}
 	if (delayed_ack && ((hpts_timeout == 0) ||
@@ -4937,35 +4942,36 @@ dodata:				/* XXX */
 			thflags = tcp_reass(tp, th, &temp, &tlen, m);
 			tp->t_flags |= TF_ACKNOW;
 		}
-		if (((tlen == 0) && (save_tlen > 0) &&
-		    (SEQ_LT(save_start, save_rnxt)))) {
-			/*
-			 * DSACK actually handled in the fastpath
-			 * above.
-			 */
-			tcp_update_sack_list(tp, save_start,
-			    save_start + save_tlen);
-		} else if ((tlen > 0) && SEQ_GT(tp->rcv_nxt, save_rnxt)) {
-			/*
-			 * Cleaning sackblks by using zero length
-			 * update.
-			 */
-			if ((tp->rcv_numsacks >= 1) &&
-			    (tp->sackblks[0].end == save_start)) {
-				/* partial overlap, recorded at todrop above */
-				tcp_update_sack_list(tp, tp->sackblks[0].start,
-				    tp->sackblks[0].end);
-			} else {
+		if ((tp->t_flags & TF_SACK_PERMIT) && (save_tlen > 0)) {
+			if ((tlen == 0) && (SEQ_LT(save_start, save_rnxt))) {
+				/*
+				 * DSACK actually handled in the fastpath
+				 * above.
+				 */
+				tcp_update_sack_list(tp, save_start,
+				    save_start + save_tlen);
+			} else if ((tlen > 0) && SEQ_GT(tp->rcv_nxt, save_rnxt)) {
+				if ((tp->rcv_numsacks >= 1) &&
+				    (tp->sackblks[0].end == save_start)) {
+					/*
+					 * Partial overlap, recorded at todrop
+					 * above.
+					 */
+					tcp_update_sack_list(tp,
+					    tp->sackblks[0].start,
+					    tp->sackblks[0].end);
+				} else {
+					tcp_update_dsack_list(tp, save_start,
+					    save_start + save_tlen);
+				}
+			} else if (tlen >= save_tlen) {
+				/* Update of sackblks. */
 				tcp_update_dsack_list(tp, save_start,
 				    save_start + save_tlen);
+			} else if (tlen > 0) {
+				tcp_update_dsack_list(tp, save_start,
+				    save_start + tlen);
 			}
-		} else if ((tlen > 0) && (tlen >= save_tlen)) {
-			/* Update of sackblks. */
-			tcp_update_dsack_list(tp, save_start,
-			    save_start + save_tlen);
-		} else if (tlen > 0) {
-			tcp_update_dsack_list(tp, save_start,
-			    save_start + tlen);
 		}
 	} else {
 		m_freem(m);

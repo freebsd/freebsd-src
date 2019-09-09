@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/libkern.h>
+#include <sys/lock.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_lex.h>
@@ -45,7 +46,7 @@ __FBSDID("$FreeBSD$");
 static char	db_line[DB_MAXLINE];
 static char *	db_lp, *db_endlp;
 
-static int	db_lex(void);
+static int	db_lex(int);
 static void 	db_flush_line(void);
 static int 	db_read_char(void);
 static void 	db_unread_char(int);
@@ -124,23 +125,24 @@ db_unread_char(c)
 static int	db_look_token = 0;
 
 void
-db_unread_token(t)
-	int	t;
+db_unread_token(int t)
 {
 	db_look_token = t;
 }
 
 int
-db_read_token()
+db_read_token_flags(int flags)
 {
 	int	t;
+
+	MPASS((flags & ~(DRT_VALID_FLAGS_MASK)) == 0);
 
 	if (db_look_token) {
 	    t = db_look_token;
 	    db_look_token = 0;
 	}
 	else
-	    t = db_lex();
+	    t = db_lex(flags);
 	return (t);
 }
 
@@ -158,22 +160,50 @@ db_flush_lex(void)
 }
 
 static int
-db_lex(void)
+db_lex(int flags)
 {
-	int	c;
+	int	c, n, radix_mode;
+	bool	lex_wspace, lex_hex_numbers;
+
+	switch (flags & DRT_RADIX_MASK) {
+	case DRT_DEFAULT_RADIX:
+		radix_mode = -1;
+		break;
+	case DRT_OCTAL:
+		radix_mode = 8;
+		break;
+	case DRT_DECIMAL:
+		radix_mode = 10;
+		break;
+	case DRT_HEXADECIMAL:
+		radix_mode = 16;
+		break;
+	}
+
+	lex_wspace = ((flags & DRT_WSPACE) != 0);
+	lex_hex_numbers = ((flags & DRT_HEX) != 0);
 
 	c = db_read_char();
-	while (c <= ' ' || c > '~') {
+	for (n = 0; c <= ' ' || c > '~'; n++) {
 	    if (c == '\n' || c == -1)
 		return (tEOL);
 	    c = db_read_char();
 	}
+	if (lex_wspace && n != 0) {
+	    db_unread_char(c);
+	    return (tWSPACE);
+	}
 
-	if (c >= '0' && c <= '9') {
+	if ((c >= '0' && c <= '9') ||
+	   (lex_hex_numbers &&
+	   ((c >= 'a' && c <= 'f') ||
+	   (c >= 'A' && c <= 'F')))) {
 	    /* number */
 	    int	r, digit = 0;
 
-	    if (c > '0')
+	    if (radix_mode != -1)
+		r = radix_mode;
+	    else if (c != '0')
 		r = db_radix;
 	    else {
 		c = db_read_char();
@@ -302,6 +332,12 @@ db_lex(void)
 		}
 		db_unread_char(c);
 		return (tEXCL);
+	    case ':':
+		c = db_read_char();
+		if (c == ':')
+			return (tCOLONCOLON);
+		db_unread_char(c);
+		return (tCOLON);
 	    case ';':
 		return (tSEMI);
 	    case '&':

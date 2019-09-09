@@ -862,7 +862,6 @@ msdosfs_fsiflush(struct msdosfsmount *pmp, int waitfor)
 	error = bread(pmp->pm_devvp, pmp->pm_fsinfo, pmp->pm_BytesPerSec,
 	    NOCRED, &bp);
 	if (error != 0) {
-		brelse(bp);
 		goto unlock;
 	}
 	fp = (struct fsinfo *)bp->b_data;

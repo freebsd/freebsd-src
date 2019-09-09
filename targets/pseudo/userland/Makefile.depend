@@ -652,13 +652,6 @@ DIRDEPS+= \
 	usr.sbin/ntp/ntpq \
 	usr.sbin/ntp/ntptime \
 	usr.sbin/ntp/sntp \
-	usr.sbin/pc-sysinstall/backend \
-	usr.sbin/pc-sysinstall/backend-partmanager \
-	usr.sbin/pc-sysinstall/backend-query \
-	usr.sbin/pc-sysinstall/conf \
-	usr.sbin/pc-sysinstall/doc \
-	usr.sbin/pc-sysinstall/examples \
-	usr.sbin/pc-sysinstall/pc-sysinstall \
 	usr.sbin/pciconf \
 	usr.sbin/periodic \
 	usr.sbin/pkg \

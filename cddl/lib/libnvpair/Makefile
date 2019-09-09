@@ -5,6 +5,7 @@
 
 LIB=	nvpair
 
+PACKAGE=	runtime
 INCS=	libnvpair.h
 SRCS=	libnvpair.c \
 	nvpair_alloc_system.c \

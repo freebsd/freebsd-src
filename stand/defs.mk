@@ -65,6 +65,7 @@ CFLAGS+=	-Ddouble=jagged-little-pill -Dfloat=floaty-mcfloatface
 # Experience has shown that problems arise between ~520k to ~530k.
 CFLAGS.clang+=	-Oz
 CFLAGS.gcc+=	-Os
+CFLAGS+=	-ffunction-sections -fdata-sections
 .endif
 
 # GELI Support, with backward compat hooks (mostly)
@@ -179,6 +180,13 @@ LOADER_INTERP?=${LOADER_DEFAULT_INTERP}
 CFLAGS+=-I.
 
 all: ${PROG}
+
+CLEANFILES+= teken_state.h
+teken.c: teken_state.h
+
+teken_state.h: ${SYSDIR}/teken/sequences
+	awk -f ${SYSDIR}/teken/gensequences \
+		${SYSDIR}/teken/sequences > teken_state.h
 
 .if !defined(NO_OBJ)
 _ILINKS=machine

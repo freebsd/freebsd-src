@@ -2,7 +2,6 @@
 
 .include <bsd.own.mk>
 
-PACKAGE=lib${LIB}
 LIB=		rtld_db
 SHLIB_MAJOR= 	2
 MAN=		librtld_db.3
