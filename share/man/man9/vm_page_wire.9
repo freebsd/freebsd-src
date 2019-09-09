@@ -26,12 +26,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 13, 2001
+.Dd September 9, 2019
 .Dt VM_PAGE_WIRE 9
 .Os
 .Sh NAME
 .Nm vm_page_wire ,
-.Nm vm_page_unwire
+.Nm vm_page_unwire ,
+.Nm vm_page_unwire_noq
 .Nd "wire and unwire pages"
 .Sh SYNOPSIS
 .In sys/param.h
@@ -39,29 +40,44 @@
 .In vm/vm_page.h
 .Ft void
 .Fn vm_page_wire "vm_page_t m"
+.Ft bool
+.Fn vm_page_wire_mapped "vm_page_t m"
 .Ft void
-.Fn vm_page_unwire "vm_page_t m" "int activate"
+.Fn vm_page_unwire "vm_page_t m" "int queue"
+.Ft bool
+.Fn vm_page_unwire_noq "vm_page_t m"
 .Sh DESCRIPTION
 The
 .Fn vm_page_wire
-function increments the wire count on a page, and removes it from
-whatever queue it is on.
+and
+.Fn vm_page_wire_mapped
+function wire the page, prevent it from being reclaimed by the page
+daemon or when its containing object is destroyed.
+Both functions require that the page belong to an object.
+The
+.Fn vm_page_wire_mapped
+function is for use by the
+.Xr pmap 9
+layer following a lookup.
+This function may fail if mappings of the page are concurrently
+being destroyed, in which case it will return false.
 .Pp
 The
 .Fn vm_page_unwire
-function releases one of the wirings on the page.
-When
-.Va write_count
-reaches zero the page is placed back onto either the active queue
-(if
-.Fa activate
-is non-zero) or onto the inactive queue (if
-.Fa activate
-is zero).
-If the page is unmanaged
-.Dv ( PG_UNMANAGED
-is set) then the page is left on
-.Dv PQ_NONE .
+and
+.Fn vm_page_unwire_noq
+functions release a wiring of a page.
+The
+.Fn vm_page_unwire
+function takes a queue index and will insert the page into the
+corresponding page queue upon releasing its last wiring.
+If the page does not belong to an object and no other references
+to the page exist,
+.Fn vm_page_unwire
+will free the page.
+.Fn vm_page_unwire_noq
+releases the wiring and returns true if it was the last wiring
+of the page.
 .Sh AUTHORS
 This manual page was written by
 .An Chad David Aq Mt davidc@acns.ab.ca .

@@ -114,9 +114,7 @@ ttm_bo_vm_fault(vm_object_t vm_obj, vm_ooffset_t offset,
 
 	vm_object_pip_add(vm_obj, 1);
 	if (*mres != NULL) {
-		vm_page_lock(*mres);
 		(void)vm_page_remove(*mres);
-		vm_page_unlock(*mres);
 	}
 retry:
 	VM_OBJECT_WUNLOCK(vm_obj);
@@ -261,9 +259,7 @@ reserve:
 	vm_page_xbusy(m);
 	if (*mres != NULL) {
 		KASSERT(*mres != m, ("losing %p %p", *mres, m));
-		vm_page_lock(*mres);
 		vm_page_free(*mres);
-		vm_page_unlock(*mres);
 	}
 	*mres = m;
 

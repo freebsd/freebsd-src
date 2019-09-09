@@ -377,10 +377,7 @@ vchiq_platform_handle_timeout(VCHIQ_STATE_T *state)
 static void
 pagelist_page_free(vm_page_t pp)
 {
-	vm_page_lock(pp);
-	if (vm_page_unwire(pp, PQ_INACTIVE) && pp->object == NULL)
-		vm_page_free(pp);
-	vm_page_unlock(pp);
+	vm_page_unwire(pp, PQ_INACTIVE);
 }
 
 /* There is a potential problem with partial cache lines (pages?)

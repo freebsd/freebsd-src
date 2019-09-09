@@ -207,16 +207,20 @@ vm_swapout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 				goto unlock_return;
 			if (should_yield())
 				goto unlock_return;
-			if (vm_page_busied(p))
+
+			/*
+			 * The page may acquire a wiring after this check.
+			 * The page daemon handles wired pages, so there is
+			 * no harm done if a wiring appears while we are
+			 * attempting to deactivate the page.
+			 */
+			if (vm_page_busied(p) || vm_page_wired(p))
 				continue;
 			VM_CNT_INC(v_pdpages);
-			vm_page_lock(p);
-			if (vm_page_wired(p) ||
-			    !pmap_page_exists_quick(pmap, p)) {
-				vm_page_unlock(p);
+			if (!pmap_page_exists_quick(pmap, p))
 				continue;
-			}
 			act_delta = pmap_ts_referenced(p);
+			vm_page_lock(p);
 			if ((p->aflags & PGA_REFERENCED) != 0) {
 				if (act_delta == 0)
 					act_delta = 1;
@@ -234,7 +238,7 @@ vm_swapout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 					p->act_count -= min(p->act_count,
 					    ACT_DECLINE);
 					if (!remove_mode && p->act_count == 0) {
-						pmap_remove_all(p);
+						(void)vm_page_try_remove_all(p);
 						vm_page_deactivate(p);
 					}
 				} else {
@@ -244,7 +248,7 @@ vm_swapout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 						p->act_count += ACT_ADVANCE;
 				}
 			} else if (vm_page_inactive(p))
-				pmap_remove_all(p);
+				(void)vm_page_try_remove_all(p);
 			vm_page_unlock(p);
 		}
 		if ((backing_object = object->backing_object) == NULL)
@@ -556,9 +560,7 @@ vm_thread_swapout(struct thread *td)
 		if (m == NULL)
 			panic("vm_thread_swapout: kstack already missing?");
 		vm_page_dirty(m);
-		vm_page_lock(m);
 		vm_page_unwire(m, PQ_LAUNDRY);
-		vm_page_unlock(m);
 	}
 	VM_OBJECT_WUNLOCK(ksobj);
 }
