@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2018
+.Dd August 20, 2019
 .Dt MAKEFS 8
 .Os
 .Sh NAME
@@ -198,7 +198,9 @@ and
 Instead of creating the filesystem at the beginning of the file, start
 at offset.
 Valid only for
-.Sy ffs .
+.Sy ffs
+and
+.Sy msdos .
 .It Fl o Ar fs-options
 Set file system specific options.
 .Ar fs-options
@@ -225,6 +227,21 @@ Defaults to 512.
 .It Fl s Ar image-size
 Set the size of the file system image to
 .Ar image-size .
+This is equivalent to setting both the minimum
+.Fl ( M )
+and the maximum
+.Fl ( m )
+sizes to the same value.
+For
+.Sy ffs
+and
+.Sy msdos
+the
+.Ar image-size
+does not include the
+.Ar offset .
+.Ar offset
+is not included in that size.
 .It Fl T Ar timestamp
 Specify a timestamp to be set for all filesystem files and directories
 created so that repeatable builds are possible.
@@ -247,6 +264,8 @@ The following file system types are supported:
 BSD fast file system (default).
 .It Sy cd9660
 ISO 9660 file system.
+.It Sy msdos
+FAT12, FAT16, or FAT32 file system.
 .El
 .It Fl x
 Exclude file system nodes not explicitly listed in the specfile.
@@ -410,6 +429,67 @@ Turns on verbose output.
 .It Sy volumeid
 Volume set identifier of the image.
 .El
+.Ss msdos-specific options
+.Sy msdos
+images have MS-DOS-specific optional parameters that may be
+provided.
+The arguments consist of a keyword, an equal sign
+.Pq Ql = ,
+and a value.
+The following keywords are supported (see
+.Xr newfs_msdos 8
+for more details):
+.Pp
+.Bl -tag -width omit-trailing-period -offset indent -compact
+.It Cm backup_sector
+Location of the backup boot sector.
+.It Cm block_size
+Block size.
+.It Cm bootstrap
+Bootstrap file.
+.It Cm bytes_per_sector
+Bytes per sector.
+.It Cm create_size
+Create file size.
+.It Cm directory_entries
+Directory entries.
+.It Cm drive_heads
+Drive heads.
+.It Cm fat_type
+FAT type (12, 16, or 32).
+.It Cm floppy
+Preset drive parameters for standard format floppy disks
+(160, 180, 320, 360, 640, 720, 1200, 1232, 1440, or 2880).
+.It Cm hidden_sectors
+Hidden sectors.
+.It Cm info_sector
+Location of the info sector.
+.It Cm media_descriptor
+Media descriptor.
+.It Cm num_FAT
+Number of FATs.
+.It Cm OEM_string
+OEM string.
+.It Cm offset
+Offset in device.
+This option will be ignored if
+.Fl O
+is set to a positive number.
+.It Cm reserved_sectors
+Reserved sectors.
+.It Cm sectors_per_cluster
+Sectors per cluster.
+.It Cm sectors_per_fat
+Sectors per FAT.
+.It Cm sectors_per_track
+Sectors per track.
+.It Cm size
+File System size.
+.It Cm volume_id
+Volume ID.
+.It Cm volume_label
+Volume Label.
+.El
 .Sh SEE ALSO
 .Xr mtree 5 ,
 .Xr mtree 8 ,
@@ -419,6 +499,10 @@ The
 .Nm
 utility appeared in
 .Nx 1.6 .
+It was ported to
+.Fx
+and first appeared in
+.Fx 8.0 .
 .Sh AUTHORS
 .An Luke Mewburn
 .Aq Mt lukem@NetBSD.org
@@ -428,4 +512,6 @@ utility appeared in
 .An Ryan Gabrys ,
 .An Alan Perez-Rathke ,
 .An Ram Vedam
-(cd9660 support)
+(cd9660 support),
+.An Christos Zoulas
+(msdos support).

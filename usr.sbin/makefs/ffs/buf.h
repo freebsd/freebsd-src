@@ -54,7 +54,7 @@ struct vnode {
 };
 
 struct buf {
-	void *		b_data;
+	char *		b_data;
 	long		b_bufsize;
 	long		b_bcount;
 	daddr_t		b_blkno;

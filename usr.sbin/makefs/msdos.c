@@ -50,24 +50,28 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <util.h>
 
-#include <ffs/buf.h>
-#include <fs/msdosfs/bpb.h>
-#include <fs/msdosfs/denode.h>
-#include <fs/msdosfs/msdosfsmount.h>
 #include "makefs.h"
 #include "msdos.h"
-#include "mkfs_msdos.h"
+
+#include <mkfs_msdos.h>
+#include <fs/msdosfs/bpb.h>
+
+#include "ffs/buf.h"
+
+#include "msdos/msdosfsmount.h"
+#include "msdos/direntry.h"
+#include "msdos/denode.h"
 
 static int msdos_populate_dir(const char *, struct denode *, fsnode *,
     fsnode *, fsinfo_t *);
 
 struct msdos_options_ex {
 	struct msdos_options options;
-	bool utf8;
 };
 
 void
@@ -85,15 +89,13 @@ msdos_prep_opts(fsinfo_t *fsopts)
 	    (sizeof(_type) == 4 ? OPT_INT32 : OPT_INT64)))),		\
 	.value = &msdos_opt->options._name,				\
 	.minimum = _min,						\
-	.maximum = sizeof(_type) == 1 ? 0xff :				\
-	    (sizeof(_type) == 2 ? 0xffff :				\
-	    (sizeof(_type) == 4 ? 0xffffffff : 0xffffffffffffffffLL)),	\
-	.desc = _desc,						\
+	.maximum = sizeof(_type) == 1 ? UINT8_MAX :			\
+	    (sizeof(_type) == 2 ? UINT16_MAX :				\
+	    (sizeof(_type) == 4 ? UINT32_MAX : INT64_MAX)),		\
+	.desc = _desc,							\
 },
 ALLOPTS
 #undef AOPT
-		{ 'U', "utf8", &msdos_opt->utf8, OPT_BOOL,
-		  0, 1, "Use UTF8 names" },
 		{ .name = NULL }
 	};
 
@@ -113,7 +115,6 @@ msdos_parse_opts(const char *option, fsinfo_t *fsopts)
 {
 	struct msdos_options *msdos_opt = fsopts->fs_specific;
 	option_t *msdos_options = fsopts->fs_options;
-
 	int rv;
 
 	assert(option != NULL);
@@ -148,7 +149,7 @@ msdos_makefs(const char *image, const char *dir, fsnode *root, fsinfo_t *fsopts)
 {
 	struct msdos_options_ex *msdos_opt = fsopts->fs_specific;
 	struct vnode vp, rootvp;
-	struct timeval	start;
+	struct timeval start;
 	struct msdosfsmount *pmp;
 	uint32_t flags;
 
@@ -160,7 +161,8 @@ msdos_makefs(const char *image, const char *dir, fsnode *root, fsinfo_t *fsopts)
 	fsopts->size = fsopts->maxsize;
 	msdos_opt->options.create_size = MAX(msdos_opt->options.create_size,
 	    fsopts->offset + fsopts->size);
-	msdos_opt->options.offset = fsopts->offset;
+	if (fsopts->offset > 0)
+		msdos_opt->options.offset = fsopts->offset;
 	if (msdos_opt->options.bytes_per_sector == 0) {
 		if (fsopts->sectorsize == -1)
 			fsopts->sectorsize = 512;
@@ -173,7 +175,7 @@ msdos_makefs(const char *image, const char *dir, fsnode *root, fsinfo_t *fsopts)
 		    fsopts->sectorsize, msdos_opt->options.bytes_per_sector);
 	}
 
-		/* create image */
+	/* create image */
 	printf("Creating `%s'\n", image);
 	TIMER_START(start);
 	if (mkfs_msdos(image, NULL, &msdos_opt->options) == -1)
@@ -184,10 +186,7 @@ msdos_makefs(const char *image, const char *dir, fsnode *root, fsinfo_t *fsopts)
 	vp.fs = fsopts;
 
 	flags = 0;
-	if (msdos_opt->utf8)
-		flags |= MSDOSFSMNT_UTF8;
-
-	if ((pmp = msdosfs_mount(&vp, flags)) == NULL)
+	if ((pmp = msdosfs_mount(&vp)) == NULL)
 		err(1, "msdosfs_mount");
 
 	if (msdosfs_root(pmp, &rootvp) != 0)
@@ -197,17 +196,19 @@ msdos_makefs(const char *image, const char *dir, fsnode *root, fsinfo_t *fsopts)
 		printf("msdos_makefs: image %s directory %s root %p\n",
 		    image, dir, root);
 
-		/* populate image */
+	/* populate image */
 	printf("Populating `%s'\n", image);
 	TIMER_START(start);
 	if (msdos_populate_dir(dir, VTODE(&rootvp), root, root, fsopts) == -1)
 		errx(1, "Image file `%s' not created.", image);
 	TIMER_RESULTS(start, "msdos_populate_dir");
 
+	if (msdosfs_fsiflush(pmp) != 0)
+		errx(1, "Unable to update FSInfo block.");
 	if (debug & DEBUG_FS_MAKEFS)
 		putchar('\n');
 
-		/* ensure no outstanding buffers remain */
+	/* ensure no outstanding buffers remain */
 	if (debug & DEBUG_FS_MAKEFS)
 		bcleanup();
 
