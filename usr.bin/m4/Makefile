@@ -8,7 +8,7 @@
 
 PROG=	m4
 CFLAGS+=-DEXTENDED -I${.CURDIR} -I${SRCTOP}/lib/libopenbsd
-LIBADD=	y l m openbsd
+LIBADD=	m openbsd
 
 NO_WMISSING_VARIABLE_DECLARATIONS=
 
