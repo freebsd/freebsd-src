@@ -113,7 +113,8 @@ SYSCTL_INT(_kern_timecounter, OID_AUTO, stepwarnings, CTLFLAG_RW,
     &timestepwarnings, 0, "Log time steps");
 
 static int timehands_count = 2;
-SYSCTL_INT(_kern_timecounter, OID_AUTO, timehands_count, CTLFLAG_RDTUN,
+SYSCTL_INT(_kern_timecounter, OID_AUTO, timehands_count,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &timehands_count, 0, "Count of timehands in rotation");
 
 struct bintime bt_timethreshold;
@@ -1958,12 +1959,30 @@ done:
 	return (0);
 }
 
+/* Set up the requested number of timehands. */
+static void
+inittimehands(void *dummy)
+{
+	struct timehands *thp;
+	int i;
+
+	TUNABLE_INT_FETCH("kern.timecounter.timehands_count",
+	    &timehands_count);
+	if (timehands_count < 1)
+		timehands_count = 1;
+	if (timehands_count > nitems(ths))
+		timehands_count = nitems(ths);
+	for (i = 1, thp = &ths[0]; i < timehands_count;  thp = &ths[i++])
+		thp->th_next = &ths[i];
+	thp->th_next = &ths[0];
+}
+SYSINIT(timehands, SI_SUB_TUNABLES, SI_ORDER_ANY, inittimehands, NULL);
+
 static void
 inittimecounter(void *dummy)
 {
-	struct timehands *thp;
 	u_int p;
-	int i, tick_rate;
+	int tick_rate;
 
 	/*
 	 * Set the initial timeout to
@@ -1989,15 +2008,6 @@ inittimecounter(void *dummy)
 #ifdef FFCLOCK
 	ffclock_init();
 #endif
-
-	/* Set up the requested number of timehands. */
-	if (timehands_count < 1)
-		timehands_count = 1;
-	if (timehands_count > nitems(ths))
-		timehands_count = nitems(ths);
-	for (i = 1, thp = &ths[0]; i < timehands_count;  thp = &ths[i++])
-		thp->th_next = &ths[i];
-	thp->th_next = &ths[0];
 
 	/* warm up new timecounter (again) and get rolling. */
 	(void)timecounter->tc_get_timecount(timecounter);
