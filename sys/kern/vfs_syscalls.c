@@ -1087,6 +1087,11 @@ kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
 				if (action == EBPF_ACTION_DUP) {
 					free(pathCopy, M_TEMP);
 					return (kern_dup(td, FDDUP_NORMAL, 0, fd, 0));
+				} else if (action == EBPF_ACTION_OPENAT) {
+					error = kern_openat(td, fd, args.path,
+					    UIO_SYSSPACE, OFLAGS(flags), mode);
+					free(pathCopy, M_TEMP);
+					return (error);
 				}
 			}
 			free(pathCopy, M_TEMP);

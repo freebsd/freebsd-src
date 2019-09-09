@@ -113,6 +113,7 @@ void ebpf_probe_fire(struct ebpf_probe *, uintptr_t arg0, uintptr_t arg1,
 
 #define	EBPF_ACTION_CONTINUE	0
 #define EBPF_ACTION_DUP		1
+#define EBPF_ACTION_OPENAT	2
 
 struct open_probe_args
 {
