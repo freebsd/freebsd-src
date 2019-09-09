@@ -3,6 +3,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	runtime
 PROG=	sed
 SRCS=	compile.c main.c misc.c process.c
 

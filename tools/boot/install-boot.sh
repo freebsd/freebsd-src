@@ -43,7 +43,7 @@ get_uefi_bootname() {
 }
 
 make_esp_file() {
-    local file sizekb loader device mntpt fatbits efibootname
+    local file sizekb loader device stagedir fatbits efibootname
 
     file=$1
     sizekb=$2
@@ -57,17 +57,17 @@ make_esp_file() {
         fatbits=12
     fi
 
-    dd if=/dev/zero of="${file}" bs=1k count="${sizekb}"
-    device=$(mdconfig -a -t vnode -f "${file}")
-    newfs_msdos -F "${fatbits}" -c 1 -L EFISYS "/dev/${device}" > /dev/null 2>&1
-    mntpt=$(mktemp -d /tmp/stand-test.XXXXXX)
-    mount -t msdosfs "/dev/${device}" "${mntpt}"
-    mkdir -p "${mntpt}/EFI/BOOT"
+    stagedir=$(mktemp -d /tmp/stand-test.XXXXXX)
+    mkdir -p "${stagedir}/EFI/BOOT"
     efibootname=$(get_uefi_bootname)
-    cp "${loader}" "${mntpt}/EFI/BOOT/${efibootname}.efi"
-    umount "${mntpt}"
-    rmdir "${mntpt}"
-    mdconfig -d -u "${device}"
+    cp "${loader}" "${stagedir}/EFI/BOOT/${efibootname}.efi"
+    makefs -t msdos \
+	-o fat_type=${fatbits} \
+	-o sectors_per_cluster=1 \
+	-o volume_label=EFISYS \
+	-s ${sizekb}k \
+	"${file}" "${stagedir}"
+    rm -rf "${stagedir}"
 }
 
 make_esp_device() {

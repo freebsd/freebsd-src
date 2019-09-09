@@ -10,7 +10,7 @@ INCSGROUPS?=	INCS
 
 .if defined(NO_ROOT)
 .if !defined(TAGS) || ! ${TAGS:Mpackage=*}
-TAGS+=		package=${PACKAGE:Uruntime}
+TAGS+=		package=${PACKAGE:Uutilities}
 .endif
 TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
 .endif
@@ -60,7 +60,7 @@ stage_includes: stage_as.${header:T}
 
 installincludes: _${group}INS_${header:T}
 _${group}INS_${header:T}: ${header}
-	${INSTALL} -C -o ${${group}OWN_${.ALLSRC:T}} \
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},development} -C -o ${${group}OWN_${.ALLSRC:T}} \
 	    -g ${${group}GRP_${.ALLSRC:T}} -m ${${group}MODE_${.ALLSRC:T}} \
 	    ${.ALLSRC} \
 	    ${DESTDIR}${${group}DIR_${.ALLSRC:T}}/${${group}NAME_${.ALLSRC:T}}

@@ -833,8 +833,8 @@ void MockFS::read_request(mockfs_buf_in &in) {
 	res = read(m_fuse_fd, &in, sizeof(in));
 
 	if (res < 0 && !m_quit) {
-		FAIL() << "read: " << strerror(errno);
 		m_quit = true;
+		FAIL() << "read: " << strerror(errno);
 	}
 	ASSERT_TRUE(res >= static_cast<ssize_t>(sizeof(in.header)) || m_quit);
 	/*

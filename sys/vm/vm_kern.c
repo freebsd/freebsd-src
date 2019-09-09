@@ -759,7 +759,7 @@ kmem_init(vm_offset_t start, vm_offset_t end)
 	vm_map_lock(m);
 	/* N.B.: cannot use kgdb to debug, starting with this assignment ... */
 	kernel_map = m;
-	(void) vm_map_insert(m, NULL, (vm_ooffset_t) 0,
+	(void)vm_map_insert(m, NULL, 0,
 #ifdef __amd64__
 	    KERNBASE,
 #else		     
@@ -767,6 +767,18 @@ kmem_init(vm_offset_t start, vm_offset_t end)
 #endif
 	    start, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
 	/* ... and ending with the completion of the above `insert' */
+
+#ifdef __amd64__
+	/*
+	 * Mark KVA used for the page array as allocated.  Other platforms
+	 * that handle vm_page_array allocation can simply adjust virtual_avail
+	 * instead.
+	 */
+	(void)vm_map_insert(m, NULL, 0, (vm_offset_t)vm_page_array,
+	    (vm_offset_t)vm_page_array + round_2mpage(vm_page_array_size *
+	    sizeof(struct vm_page)),
+	    VM_PROT_RW, VM_PROT_RW, MAP_NOFAULT);
+#endif
 	vm_map_unlock(m);
 
 	/*

@@ -2,7 +2,6 @@
 
 .include <src.opts.mk>
 
-PACKAGE=lib${LIB}
 LIB=	sysdecode
 
 SRCS=	errno.c flags.c ioctl.c signal.c syscallnames.c utrace.c

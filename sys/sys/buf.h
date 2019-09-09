@@ -359,15 +359,11 @@ extern const char *buf_wmesg;		/* Default buffer lock message */
 	_lockmgr_assert(&(bp)->b_lock, KA_XLOCKED, LOCK_FILE, LOCK_LINE)
 #define	BUF_ASSERT_UNLOCKED(bp)						\
 	_lockmgr_assert(&(bp)->b_lock, KA_UNLOCKED, LOCK_FILE, LOCK_LINE)
-#define	BUF_ASSERT_HELD(bp)
-#define	BUF_ASSERT_UNHELD(bp)
 #else
 #define	BUF_ASSERT_LOCKED(bp)
 #define	BUF_ASSERT_SLOCKED(bp)
 #define	BUF_ASSERT_XLOCKED(bp)
 #define	BUF_ASSERT_UNLOCKED(bp)
-#define	BUF_ASSERT_HELD(bp)
-#define	BUF_ASSERT_UNHELD(bp)
 #endif
 
 #ifdef _SYS_PROC_H_	/* Avoid #include <sys/proc.h> pollution */

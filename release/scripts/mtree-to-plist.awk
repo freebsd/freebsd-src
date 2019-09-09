@@ -28,6 +28,9 @@
 			tags=tags""_kernconf
 		}
 	}
+	if ($1 ~ /^\/boot\//) {
+		tags="package=bootloader"
+	}
 	if (length(tags) == 0)
 		next
 	if (tags ~ /package=/) {

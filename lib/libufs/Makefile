@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PACKAGE=lib${LIB}
+PACKAGE=	runtime
 LIB=	ufs
 SHLIBDIR?= /lib
 SHLIB_MAJOR=	7

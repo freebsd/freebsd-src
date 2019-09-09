@@ -48,8 +48,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 
 #include <ddb/ddb.h>
-#include <ddb/db_break.h>
 #include <ddb/db_access.h>
+#include <ddb/db_break.h>
+#include <ddb/db_command.h>
 
 #define	STEP_ONCE	1
 #define	STEP_RETURN	2
@@ -331,8 +332,6 @@ db_clear_single_step(void)
 }
 
 #endif	/* SOFTWARE_SSTEP */
-
-extern int	db_cmd_loop_done;
 
 /* single-step */
 /*ARGSUSED*/

@@ -101,6 +101,7 @@ typedef struct {
 #define	C_NOXFER	0x10000000
 #define	C_NOINFO	0x20000000
 #define	C_PROGRESS	0x40000000
+#define	C_FSYNC		0x80000000
 
 #define	C_PARITY	(C_PAREVEN | C_PARODD | C_PARNONE | C_PARSET)
 

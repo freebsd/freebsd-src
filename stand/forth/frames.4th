@@ -47,32 +47,32 @@ variable fill
  43 constant ascii_plus
 
 \ Single frames
-196 constant sh_el
-179 constant sv_el
-218 constant slt_el
-192 constant slb_el
-191 constant srt_el
-217 constant srb_el
+0x2500 constant sh_el
+0x2502 constant sv_el
+0x250c constant slt_el
+0x2514 constant slb_el
+0x2510 constant srt_el
+0x2518 constant srb_el
 \ Double frames
-205 constant dh_el
-186 constant dv_el
-201 constant dlt_el
-200 constant dlb_el
-187 constant drt_el
-188 constant drb_el
+0x2550 constant dh_el
+0x2551 constant dv_el
+0x2554 constant dlt_el
+0x255a constant dlb_el
+0x2557 constant drt_el
+0x255d constant drb_el
 \ Fillings
 0 constant fill_none
 32 constant fill_blank
-176 constant fill_dark
-177 constant fill_med
-178 constant fill_bright
+0x2591 constant fill_dark
+0x2592 constant fill_med
+0x2593 constant fill_bright
 
 only forth definitions also frame-drawing
 
 : hline	( len x y -- )	\ Draw horizontal single line
 	at-xy		\ move cursor
 	0 do
-		h_el @ emit
+		h_el @ xemit
 	loop
 ;
 
@@ -113,7 +113,7 @@ only forth definitions also frame-drawing
 	2dup 4 pick
 	0 do
 		at-xy
-		v_el @ emit
+		v_el @ xemit
 		1+
 		2dup
 	loop
@@ -129,10 +129,10 @@ only forth definitions also frame-drawing
 	hline		\ Draw top horiz line
 	2dup swap 1+ swap 4 pick + 5 pick 1- -rot
 	hline		\ Draw bottom horiz line
-	2dup at-xy lt_el @ emit	\ Draw left-top corner
-	2dup 4 pick + at-xy lb_el @ emit	\ Draw left bottom corner
-	2dup swap 5 pick + swap at-xy rt_el @ emit	\ Draw right top corner
-	2 pick + swap 3 pick + swap at-xy rb_el @ emit
+	2dup at-xy lt_el @ xemit	\ Draw left-top corner
+	2dup 4 pick + at-xy lb_el @ xemit	\ Draw left bottom corner
+	2dup swap 5 pick + swap at-xy rt_el @ xemit	\ Draw right top corner
+	2 pick + swap 3 pick + swap at-xy rb_el @ xemit
 	2drop
 ;
 

@@ -83,8 +83,9 @@ void check_environment()
 			GTEST_SKIP() << strerror(errno);
 		}
 	}
-	sysctlbyname(usermount_node, &usermount_val, &usermount_size,
-		     NULL, 0);
+	ASSERT_EQ(sysctlbyname(usermount_node, &usermount_val, &usermount_size,
+			       NULL, 0),
+		  0);;
 	if (geteuid() != 0 && !usermount_val)
 		GTEST_SKIP() << "current user is not allowed to mount";
 }

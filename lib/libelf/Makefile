@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-PACKAGE=lib${LIB}
 SHLIBDIR?= /lib
 
 .include <bsd.own.mk>
@@ -10,6 +9,7 @@ SRCDIR=	${ELFTCDIR}/libelf
 
 .PATH:	${SRCDIR}
 
+PACKAGE=	runtime
 LIB=	elf
 
 SRCS=	elf.c							\

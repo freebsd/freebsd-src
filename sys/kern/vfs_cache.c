@@ -1255,6 +1255,7 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	struct rwlock *blp;
 	struct mtx *dvlp;
 	uint32_t hash;
+	enum vgetstate vs;
 	int error, ltype;
 
 	if (__predict_false(!doingcache)) {
@@ -1369,9 +1370,9 @@ success:
 		ltype = VOP_ISLOCKED(dvp);
 		VOP_UNLOCK(dvp, 0);
 	}
-	vhold(*vpp);
+	vs = vget_prep(*vpp);
 	cache_lookup_unlock(blp, dvlp);
-	error = vget(*vpp, cnp->cn_lkflags | LK_VNHELD, cnp->cn_thread);
+	error = vget_finish(*vpp, cnp->cn_lkflags, vs);
 	if (cnp->cn_flags & ISDOTDOT) {
 		vn_lock(dvp, ltype | LK_RETRY);
 		if (dvp->v_iflag & VI_DOOMED) {
@@ -2430,6 +2431,7 @@ vn_dir_dd_ino(struct vnode *vp)
 	struct namecache *ncp;
 	struct vnode *ddvp;
 	struct mtx *vlp;
+	enum vgetstate vs;
 
 	ASSERT_VOP_LOCKED(vp, "vn_dir_dd_ino");
 	vlp = VP2VNODELOCK(vp);
@@ -2438,9 +2440,9 @@ vn_dir_dd_ino(struct vnode *vp)
 		if ((ncp->nc_flag & NCF_ISDOTDOT) != 0)
 			continue;
 		ddvp = ncp->nc_dvp;
-		vhold(ddvp);
+		vs = vget_prep(ddvp);
 		mtx_unlock(vlp);
-		if (vget(ddvp, LK_SHARED | LK_NOWAIT | LK_VNHELD, curthread))
+		if (vget_finish(ddvp, LK_SHARED | LK_NOWAIT, vs))
 			return (NULL);
 		return (ddvp);
 	}

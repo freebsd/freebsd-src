@@ -4,7 +4,7 @@ SHLIBDIR?= /lib
 
 .include <src.opts.mk>
 
-PACKAGE=lib${LIB}
+PACKAGE=	runtime
 LIB=	md
 SHLIB_MAJOR= 6
 SRCS=	md4c.c md5c.c md4hl.c md5hl.c \

@@ -280,7 +280,6 @@ ext2_extattr_block_list(struct inode *ip, int attrnamespace,
 	error = bread(ip->i_devvp, fsbtodb(fs, ip->i_facl),
 	    fs->e2fs_bsize, NOCRED, &bp);
 	if (error) {
-		brelse(bp);
 		return (error);
 	}
 
@@ -421,7 +420,6 @@ ext2_extattr_block_get(struct inode *ip, int attrnamespace,
 	error = bread(ip->i_devvp, fsbtodb(fs, ip->i_facl),
 	    fs->e2fs_bsize, NOCRED, &bp);
 	if (error) {
-		brelse(bp);
 		return (error);
 	}
 
@@ -681,7 +679,6 @@ ext2_extattr_block_delete(struct inode *ip, int attrnamespace, const char *name)
 	error = bread(ip->i_devvp, fsbtodb(fs, ip->i_facl),
 	    fs->e2fs_bsize, NOCRED, &bp);
 	if (error) {
-		brelse(bp);
 		return (error);
 	}
 
@@ -1074,7 +1071,6 @@ ext2_extattr_block_set(struct inode *ip, int attrnamespace,
 		error = bread(ip->i_devvp, fsbtodb(fs, ip->i_facl),
 		    fs->e2fs_bsize, NOCRED, &bp);
 		if (error) {
-			brelse(bp);
 			return (error);
 		}
 
@@ -1221,7 +1217,6 @@ int ext2_extattr_free(struct inode *ip)
 	error = bread(ip->i_devvp, fsbtodb(fs, ip->i_facl),
 	    fs->e2fs_bsize, NOCRED, &bp);
 	if (error) {
-		brelse(bp);
 		return (error);
 	}
 

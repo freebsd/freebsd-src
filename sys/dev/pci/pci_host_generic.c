@@ -380,7 +380,7 @@ generic_pcie_activate_resource(device_t dev, device_t child, int type,
 			device_printf(dev,
 			    "Failed to activate %s resource\n",
 			    type == SYS_RES_IOPORT ? "IOPORT" : "MEMORY");
-			res = 0;
+			res = ENXIO;
 		}
 		break;
 	case SYS_RES_IRQ:

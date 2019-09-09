@@ -309,8 +309,6 @@
             ..
             netgraph
             ..
-            pc-sysinstall
-            ..
             perfmon
             ..
             pf
@@ -1172,20 +1170,6 @@
                 ..
                 man3
                 ..
-            ..
-        ..
-        pc-sysinstall
-            backend
-            ..
-            backend-partmanager
-            ..
-            backend-query
-            ..
-            conf
-                license
-                ..
-            ..
-            doc
             ..
         ..
         security

@@ -175,11 +175,11 @@ copies: .PHONY .META
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 ioctl_*.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/bktr
 	cd ${SRCTOP}/sys/dev/evdev; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 input.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 input.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/evdev; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 input-event-codes.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 input-event-codes.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/evdev; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 uinput.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 uinput.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/evdev
 	cd ${SRCTOP}/sys/dev/hyperv/include; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 hyperv.h \
@@ -191,7 +191,7 @@ copies: .PHONY .META
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 pcireg.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/pci
 	cd ${SRCTOP}/sys/dev/veriexec; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 veriexec_ioctl.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 veriexec_ioctl.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/veriexec
 	cd ${SRCTOP}/sys/fs/cd9660/; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \

@@ -462,6 +462,15 @@ linprocfs_domtab(PFS_FILL_ARGS)
 		else if (strcmp(fstype, "procfs") == 0)
 			continue;
 
+		if (strcmp(fstype, "autofs") == 0) {
+			/*
+			 * FreeBSD uses eg "map -hosts", whereas Linux
+			 * expects just "-hosts".
+			 */
+			if (strncmp(mntfrom, "map ", 4) == 0)
+				mntfrom += 4;
+		}
+
 		if (strcmp(fstype, "linsysfs") == 0) {
 			sbuf_printf(sb, "/sys %s sysfs %s", mntto,
 			    sp->f_flags & MNT_RDONLY ? "ro" : "rw");
@@ -935,6 +944,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	/*
 	 * Credentials
 	 */
+	sbuf_printf(sb, "Tgid:\t%d\n",		p->p_pid);
 	sbuf_printf(sb, "Pid:\t%d\n",		p->p_pid);
 	sbuf_printf(sb, "PPid:\t%d\n",		kp.ki_ppid );
 	sbuf_printf(sb, "TracerPid:\t%d\n",	kp.ki_tracer );

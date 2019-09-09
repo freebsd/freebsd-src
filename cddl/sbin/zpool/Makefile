@@ -4,6 +4,7 @@
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/cmd/stat/common
 .PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/common/zfs
 
+PACKAGE=	runtime
 PROG=	zpool
 MAN=	zpool.8 zpool-features.7
 SRCS=	zpool_main.c zpool_vdev.c zpool_iter.c zpool_util.c zfs_comutil.c

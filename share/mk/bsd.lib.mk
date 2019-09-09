@@ -66,7 +66,7 @@ TAGS+=	lib32
 
 .if defined(NO_ROOT)
 .if !defined(TAGS) || ! ${TAGS:Mpackage=*}
-TAGS+=		package=${PACKAGE:Uruntime}
+TAGS+=		package=${PACKAGE:Uutilities}
 .endif
 TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
 .endif
@@ -448,7 +448,7 @@ _libinstall:
 	    ${_INSTALLFLAGS} ${SHLIB_LINK:R}.ld \
 	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
 .for _SHLIB_LINK_LINK in ${SHLIB_LDSCRIPT_LINKS}
-	${INSTALL_LIBSYMLINK} ${SHLIB_LINK} ${DESTDIR}${_LIBDIR}/${_SHLIB_LINK_LINK}
+	${INSTALL_LIBSYMLINK} ${TAG_ARGS} ${SHLIB_LINK} ${DESTDIR}${_LIBDIR}/${_SHLIB_LINK_LINK}
 .endfor
 .else
 .if ${_SHLIBDIR} == ${_LIBDIR}

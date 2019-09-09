@@ -228,6 +228,7 @@ device		a31_dmac
 # GPIO / PINCTRL
 device		a37x0_gpio	# Marvell Armada 37x0 GPIO controller
 device		aw_gpio		# Allwinner GPIO controller
+device		dwgpio		# Synopsys DesignWare APB GPIO Controller
 device		gpio
 device		gpioled
 device		fdt_pinctrl

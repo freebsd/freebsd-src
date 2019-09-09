@@ -4,7 +4,6 @@
 # we don't want the gptboot.efifat thing created.
 MK_LOADER_ZFS=no
 EFI_DEBUG=yes
-NOFAT=yes
 
 BOOT1?=		gptboot
 .PATH:		${SRCTOP}/stand/efi/boot1 ${SRCTOP}/stand/libsa

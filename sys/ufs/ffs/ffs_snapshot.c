@@ -789,7 +789,6 @@ out1:
 	for (loc = 0; loc < len; loc++) {
 		error = bread(vp, blkno + loc, fs->fs_bsize, KERNCRED, &nbp);
 		if (error) {
-			brelse(nbp);
 			fs->fs_snapinum[snaploc] = 0;
 			free(snapblklist, M_UFSMNT);
 			goto done;

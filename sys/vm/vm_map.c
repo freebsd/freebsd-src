@@ -575,10 +575,10 @@ vm_map_process_deferred(void)
 	td->td_map_def_user = NULL;
 	while (entry != NULL) {
 		next = entry->next;
-		MPASS((entry->eflags & (MAP_ENTRY_VN_WRITECNT |
-		    MAP_ENTRY_VN_EXEC)) != (MAP_ENTRY_VN_WRITECNT |
+		MPASS((entry->eflags & (MAP_ENTRY_WRITECNT |
+		    MAP_ENTRY_VN_EXEC)) != (MAP_ENTRY_WRITECNT |
 		    MAP_ENTRY_VN_EXEC));
-		if ((entry->eflags & MAP_ENTRY_VN_WRITECNT) != 0) {
+		if ((entry->eflags & MAP_ENTRY_WRITECNT) != 0) {
 			/*
 			 * Decrement the object's writemappings and
 			 * possibly the vnode's v_writecount.
@@ -587,7 +587,7 @@ vm_map_process_deferred(void)
 			    ("Submap with writecount"));
 			object = entry->object.vm_object;
 			KASSERT(object != NULL, ("No object for writecount"));
-			vnode_pager_release_writecount(object, entry->start,
+			vm_pager_release_writecount(object, entry->start,
 			    entry->end);
 		}
 		vm_map_entry_set_vnode_text(entry, false);
@@ -1481,8 +1481,8 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		protoeflags |= MAP_ENTRY_GROWS_DOWN;
 	if (cow & MAP_STACK_GROWS_UP)
 		protoeflags |= MAP_ENTRY_GROWS_UP;
-	if (cow & MAP_VN_WRITECOUNT)
-		protoeflags |= MAP_ENTRY_VN_WRITECNT;
+	if (cow & MAP_WRITECOUNT)
+		protoeflags |= MAP_ENTRY_WRITECNT;
 	if (cow & MAP_VN_EXEC)
 		protoeflags |= MAP_ENTRY_VN_EXEC;
 	if ((cow & MAP_CREATE_GUARD) != 0)
@@ -2211,7 +2211,7 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 		vm_map_entry_set_vnode_text(new_entry, true);
 		/*
 		 * The object->un_pager.vnp.writemappings for the
-		 * object of MAP_ENTRY_VN_WRITECNT type entry shall be
+		 * object of MAP_ENTRY_WRITECNT type entry shall be
 		 * kept as is here.  The virtual pages are
 		 * re-distributed among the clipped entries, so the sum is
 		 * left the same.
@@ -2734,6 +2734,18 @@ vm_map_madvise(
 			vm_offset_t useEnd, useStart;
 
 			if (current->eflags & MAP_ENTRY_IS_SUB_MAP)
+				continue;
+
+			/*
+			 * MADV_FREE would otherwise rewind time to
+			 * the creation of the shadow object.  Because
+			 * we hold the VM map read-locked, neither the
+			 * entry's object nor the presence of a
+			 * backing object can change.
+			 */
+			if (behav == MADV_FREE &&
+			    current->object.vm_object != NULL &&
+			    current->object.vm_object->backing_object != NULL)
 				continue;
 
 			pstart = OFF_TO_IDX(current->offset);
@@ -3783,20 +3795,20 @@ vm_map_copy_entry(
 			dst_entry->eflags |= MAP_ENTRY_COW |
 			    MAP_ENTRY_NEEDS_COPY;
 			dst_entry->offset = src_entry->offset;
-			if (src_entry->eflags & MAP_ENTRY_VN_WRITECNT) {
+			if (src_entry->eflags & MAP_ENTRY_WRITECNT) {
 				/*
-				 * MAP_ENTRY_VN_WRITECNT cannot
+				 * MAP_ENTRY_WRITECNT cannot
 				 * indicate write reference from
 				 * src_entry, since the entry is
 				 * marked as needs copy.  Allocate a
 				 * fake entry that is used to
-				 * decrement object->un_pager.vnp.writecount
+				 * decrement object->un_pager writecount
 				 * at the appropriate time.  Attach
 				 * fake_entry to the deferred list.
 				 */
 				fake_entry = vm_map_entry_create(dst_map);
-				fake_entry->eflags = MAP_ENTRY_VN_WRITECNT;
-				src_entry->eflags &= ~MAP_ENTRY_VN_WRITECNT;
+				fake_entry->eflags = MAP_ENTRY_WRITECNT;
+				src_entry->eflags &= ~MAP_ENTRY_WRITECNT;
 				vm_object_reference(src_object);
 				fake_entry->object.vm_object = src_object;
 				fake_entry->start = src_entry->start;
@@ -3971,7 +3983,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			 * not relock it later for the assertion
 			 * correctness.
 			 */
-			if (old_entry->eflags & MAP_ENTRY_VN_WRITECNT &&
+			if (old_entry->eflags & MAP_ENTRY_WRITECNT &&
 			    object->type == OBJT_VNODE) {
 				KASSERT(((struct vnode *)object->handle)->
 				    v_writecount > 0,
@@ -3991,8 +4003,8 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			    MAP_ENTRY_IN_TRANSITION);
 			new_entry->wiring_thread = NULL;
 			new_entry->wired_count = 0;
-			if (new_entry->eflags & MAP_ENTRY_VN_WRITECNT) {
-				vnode_pager_update_writecount(object,
+			if (new_entry->eflags & MAP_ENTRY_WRITECNT) {
+				vm_pager_update_writecount(object,
 				    new_entry->start, new_entry->end);
 			}
 			vm_map_entry_set_vnode_text(new_entry, true);
@@ -4023,7 +4035,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			 * Copied entry is COW over the old object.
 			 */
 			new_entry->eflags &= ~(MAP_ENTRY_USER_WIRED |
-			    MAP_ENTRY_IN_TRANSITION | MAP_ENTRY_VN_WRITECNT);
+			    MAP_ENTRY_IN_TRANSITION | MAP_ENTRY_WRITECNT);
 			new_entry->wiring_thread = NULL;
 			new_entry->wired_count = 0;
 			new_entry->object.vm_object = NULL;
@@ -4047,7 +4059,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			new_entry->end = old_entry->end;
 			new_entry->eflags = old_entry->eflags &
 			    ~(MAP_ENTRY_USER_WIRED | MAP_ENTRY_IN_TRANSITION |
-			    MAP_ENTRY_VN_WRITECNT | MAP_ENTRY_VN_EXEC);
+			    MAP_ENTRY_WRITECNT | MAP_ENTRY_VN_EXEC);
 			new_entry->protection = old_entry->protection;
 			new_entry->max_protection = old_entry->max_protection;
 			new_entry->inheritance = VM_INHERIT_ZERO;
@@ -4132,7 +4144,8 @@ vm_map_stack_locked(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	    addrbos + max_ssize > vm_map_max(map) ||
 	    addrbos + max_ssize <= addrbos)
 		return (KERN_INVALID_ADDRESS);
-	sgp = (vm_size_t)stack_guard_page * PAGE_SIZE;
+	sgp = (curproc->p_flag2 & P2_STKGAP_DISABLE) != 0 ? 0 :
+	    (vm_size_t)stack_guard_page * PAGE_SIZE;
 	if (sgp >= max_ssize)
 		return (KERN_INVALID_ARGUMENT);
 
@@ -4183,6 +4196,8 @@ vm_map_stack_locked(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	KASSERT((orient & MAP_STACK_GROWS_UP) == 0 ||
 	    (new_entry->eflags & MAP_ENTRY_GROWS_UP) != 0,
 	    ("new entry lacks MAP_ENTRY_GROWS_UP"));
+	if (gap_bot == gap_top)
+		return (KERN_SUCCESS);
 	rv = vm_map_insert(map, NULL, 0, gap_bot, gap_top, VM_PROT_NONE,
 	    VM_PROT_NONE, MAP_CREATE_GUARD | (orient == MAP_STACK_GROWS_DOWN ?
 	    MAP_CREATE_STACK_GAP_DN : MAP_CREATE_STACK_GAP_UP));
@@ -4266,7 +4281,8 @@ retry:
 	} else {
 		return (KERN_FAILURE);
 	}
-	guard = gap_entry->next_read;
+	guard = (curproc->p_flag2 & P2_STKGAP_DISABLE) != 0 ? 0 :
+	    gap_entry->next_read;
 	max_grow = gap_entry->end - gap_entry->start;
 	if (guard > max_grow)
 		return (KERN_NO_SPACE);

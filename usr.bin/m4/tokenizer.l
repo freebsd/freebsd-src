@@ -1,6 +1,6 @@
 %option nounput noinput
 %{
-/* $OpenBSD: tokenizer.l,v 1.8 2012/04/12 17:00:11 espie Exp $ */
+/* $OpenBSD: tokenizer.l,v 1.9 2017/06/15 13:48:42 bcallah Exp $ */
 /*
  * Copyright (c) 2004 Marc Espie <espie@cvs.openbsd.org>
  *
@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <limits.h>
 
+extern void m4_warnx(const char *, ...);
 extern int mimic_gnu;
 extern int32_t yylval;
 
@@ -41,6 +42,8 @@ hex	0[xX][0-9a-fA-F]+
 oct	0[0-7]*
 dec	[1-9][0-9]*
 radix	0[rR][0-9]+:[0-9a-zA-Z]+
+
+%option noyywrap
 
 %%
 {ws}			{/* just skip it */}
@@ -72,7 +75,7 @@ number(void)
 	l = strtol(yytext, NULL, 0);
 	if (((l == LONG_MAX || l == LONG_MIN) && errno == ERANGE) ||
 	    l > INT32_MAX || l < INT32_MIN) {
-		fprintf(stderr, "m4: numeric overflow in expr: %s\n", yytext);
+		m4_warnx("numeric overflow in expr: %s", yytext);
 	}
 	return l;
 }
@@ -88,7 +91,7 @@ parse_radix(void)
 	l = 0;
 	base = strtol(yytext+2, &next, 0);
 	if (base > 36 || next == NULL) {
-		fprintf(stderr, "m4: error in number %s\n", yytext);
+		m4_warnx("error in number %s", yytext);
 	} else {
 		next++;
 		while (*next != 0) {
@@ -101,8 +104,7 @@ parse_radix(void)
 				d = *next - 'A' + 10;
 			}
 			if (d >= base) {
-				fprintf(stderr, 
-				    "m4: error in number %s\n", yytext);
+				m4_warnx("error in number %s", yytext);
 				return 0;
 			}
 			l = base * l + d;
