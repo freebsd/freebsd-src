@@ -869,7 +869,7 @@ acpi_child_location_str_method(device_t cbdev, device_t child, char *buf,
                 strlcat(buf, buf2, buflen);
         }
     } else {
-        snprintf(buf, buflen, "unknown");
+        snprintf(buf, buflen, "");
     }
     return (0);
 }
