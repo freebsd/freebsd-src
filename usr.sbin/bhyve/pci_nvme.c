@@ -99,6 +99,10 @@ static int nvme_debug = 0;
 #define	NVME_PRP2_ITEMS		(PAGE_SIZE/sizeof(uint64_t))
 #define	NVME_MAX_BLOCKIOVS	512
 
+/* This is a synthetic status code to indicate there is no status */
+#define NVME_NO_STATUS		0xffff
+#define NVME_COMPLETION_VALID(c)	((c).status != NVME_NO_STATUS)
+
 /* helpers */
 
 /* Convert a zero-based value into a one-based value */
@@ -1092,14 +1096,16 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 			/* XXX dont care, unhandled for now
 			do_intr |= nvme_opc_async_event_req(sc, cmd, &compl);
 			*/
+			compl.status = NVME_NO_STATUS;
 			break;
 		default:
 			WPRINTF(("0x%x command is not implemented\r\n",
 			    cmd->opc));
+			pci_nvme_status_genc(&compl.status, NVME_SC_INVALID_OPCODE);
+			do_intr |= 1;
 		}
 	
-		/* for now skip async event generation */
-		if (cmd->opc != NVME_OPC_ASYNC_EVENT_REQUEST) {
+		if (NVME_COMPLETION_VALID(compl)) {
 			struct nvme_completion *cp;
 			int phase;
 
