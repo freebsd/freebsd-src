@@ -415,11 +415,8 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 		    &sendfile_iodone, sfio);
 		if (rv != VM_PAGER_OK) {
 			for (j = i; j < i + count; j++) {
-				if (pa[j] != bogus_page) {
-					vm_page_lock(pa[j]);
+				if (pa[j] != bogus_page)
 					vm_page_unwire(pa[j], PQ_INACTIVE);
-					vm_page_unlock(pa[j]);
-				}
 			}
 			VM_OBJECT_WUNLOCK(obj);
 			return (EIO);
@@ -932,11 +929,8 @@ retry_space:
 			    m != NULL ? SFB_NOWAIT : SFB_CATCH);
 			if (sf == NULL) {
 				SFSTAT_INC(sf_allocfail);
-				for (int j = i; j < npages; j++) {
-					vm_page_lock(pa[j]);
+				for (int j = i; j < npages; j++)
 					vm_page_unwire(pa[j], PQ_INACTIVE);
-					vm_page_unlock(pa[j]);
-				}
 				if (m == NULL)
 					softerr = ENOBUFS;
 				fixspace(npages, i, off, &space);

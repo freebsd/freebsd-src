@@ -408,10 +408,7 @@ kcov_free(struct kcov_info *info)
 		VM_OBJECT_WLOCK(info->bufobj);
 		m = vm_page_lookup(info->bufobj, 0);
 		for (i = 0; i < info->bufsize / PAGE_SIZE; i++) {
-			vm_page_lock(m);
 			vm_page_unwire_noq(m);
-			vm_page_unlock(m);
-
 			m = vm_page_next(m);
 		}
 		VM_OBJECT_WUNLOCK(info->bufobj);

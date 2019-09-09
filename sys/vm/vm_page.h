@@ -115,24 +115,23 @@
  *	the implementation of read-modify-write operations on the
  *	field is encapsulated in vm_page_clear_dirty_mask().
  *
- *	The page structure contains two counters which prevent page reuse.
- *	Both counters are protected by the page lock (P).  The hold
- *	counter counts transient references obtained via a pmap lookup, and
- *	is also used to prevent page reclamation in situations where it is
- *	undesirable to block other accesses to the page.  The wire counter
- *	is used to implement mlock(2) and is non-zero for pages containing
- *	kernel memory.  Pages that are wired or held will not be reclaimed
- *	or laundered by the page daemon, but are treated differently during
- *	a page queue scan: held pages remain at their position in the queue,
- *	while wired pages are removed from the queue and must later be
- *	re-enqueued appropriately by the unwiring thread.  It is legal to
- *	call vm_page_free() on a held page; doing so causes it to be removed
- *	from its object and page queue, and the page is released to the
- *	allocator once the last hold reference is dropped.  In contrast,
- *	wired pages may not be freed.
- *
- *	In some pmap implementations, the wire count of a page table page is
- *	used to track the number of populated entries.
+ *	The ref_count field tracks references to the page.  References that
+ *	prevent the page from being reclaimable are called wirings and are
+ *	counted in the low bits of ref_count.  The containing object's
+ *	reference, if one exists, is counted using the VPRC_OBJREF bit in the
+ *	ref_count field.  Additionally, the VPRC_BLOCKED bit is used to
+ *	atomically check for wirings and prevent new wirings via
+ *	pmap_extract_and_hold().  When a page belongs to an object, it may be
+ *	wired only when the object is locked, or the page is busy, or by
+ *	pmap_extract_and_hold().  As a result, if the object is locked and the
+ *	page is not busy (or is exclusively busied by the current thread), and
+ *	the page is unmapped, its wire count will not increase.  The ref_count
+ *	field is updated using atomic operations in most cases, except when it
+ *	is known that no other references to the page exist, such as in the page
+ *	allocator.  A page may be present in the page queues, or even actively
+ *	scanned by the page daemon, without an explicitly counted referenced.
+ *	The page daemon must therefore handle the possibility of a concurrent
+ *	free of the page.
  *
  *	The busy lock is an embedded reader-writer lock which protects the
  *	page's contents and identity (i.e., its <object, pindex> tuple) and
@@ -204,11 +203,14 @@ struct vm_page {
 		} memguard;
 	} plinks;
 	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) */
-	vm_object_t object;		/* which object am I in (O,P) */
+	vm_object_t object;		/* which object am I in (O) */
 	vm_pindex_t pindex;		/* offset into object (O,P) */
 	vm_paddr_t phys_addr;		/* physical address of page (C) */
 	struct md_page md;		/* machine dependent stuff */
-	u_int wire_count;		/* wired down maps refs (P) */
+	union {
+		u_int wire_count;
+		u_int ref_count;	/* page references */
+	};
 	volatile u_int busy_lock;	/* busy owners lock */
 	uint16_t flags;			/* page PG_* flags (P) */
 	uint8_t	order;			/* index of the buddy queue (F) */
@@ -224,6 +226,26 @@ struct vm_page {
 	vm_page_bits_t valid;		/* map of valid DEV_BSIZE chunks (O) */
 	vm_page_bits_t dirty;		/* map of dirty DEV_BSIZE chunks (M) */
 };
+
+/*
+ * Special bits used in the ref_count field.
+ *
+ * ref_count is normally used to count wirings that prevent the page from being
+ * reclaimed, but also supports several special types of references that do not
+ * prevent reclamation.  Accesses to the ref_count field must be atomic unless
+ * the page is unallocated.
+ *
+ * VPRC_OBJREF is the reference held by the containing object.  It can set or
+ * cleared only when the corresponding object's write lock is held.
+ *
+ * VPRC_BLOCKED is used to atomically block wirings via pmap lookups while
+ * attempting to tear down all mappings of a given page.  The page lock and
+ * object write lock must both be held in order to set or clear this bit.
+ */
+#define	VPRC_BLOCKED	0x40000000u	/* mappings are being removed */
+#define	VPRC_OBJREF	0x80000000u	/* object reference, cleared with (O) */
+#define	VPRC_WIRE_COUNT(c)	((c) & ~(VPRC_BLOCKED | VPRC_OBJREF))
+#define	VPRC_WIRE_COUNT_MAX	(~(VPRC_BLOCKED | VPRC_OBJREF))
 
 /*
  * Page flags stored in oflags:
@@ -585,13 +607,16 @@ int vm_page_sleep_if_busy(vm_page_t m, const char *msg);
 vm_offset_t vm_page_startup(vm_offset_t vaddr);
 void vm_page_sunbusy(vm_page_t m);
 void vm_page_swapqueue(vm_page_t m, uint8_t oldq, uint8_t newq);
+bool vm_page_try_remove_all(vm_page_t m);
+bool vm_page_try_remove_write(vm_page_t m);
 int vm_page_trysbusy(vm_page_t m);
 void vm_page_unhold_pages(vm_page_t *ma, int count);
 void vm_page_unswappable(vm_page_t m);
-bool vm_page_unwire(vm_page_t m, uint8_t queue);
+void vm_page_unwire(vm_page_t m, uint8_t queue);
 bool vm_page_unwire_noq(vm_page_t m);
 void vm_page_updatefake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr);
-void vm_page_wire (vm_page_t);
+void vm_page_wire(vm_page_t);
+bool vm_page_wire_mapped(vm_page_t m);
 void vm_page_xunbusy_hard(vm_page_t m);
 void vm_page_xunbusy_maybelocked(vm_page_t m);
 void vm_page_set_validclean (vm_page_t, int, int);
@@ -869,15 +894,35 @@ vm_page_in_laundry(vm_page_t m)
 }
 
 /*
+ *	vm_page_drop:
+ *
+ *	Release a reference to a page and return the old reference count.
+ */
+static inline u_int
+vm_page_drop(vm_page_t m, u_int val)
+{
+
+	/*
+	 * Synchronize with vm_page_free_prep(): ensure that all updates to the
+	 * page structure are visible before it is freed.
+	 */
+	atomic_thread_fence_rel();
+	return (atomic_fetchadd_int(&m->ref_count, -val));
+}
+
+/*
  *	vm_page_wired:
  *
- *	Return true if a reference prevents the page from being reclaimable.
+ *	Perform a racy check to determine whether a reference prevents the page
+ *	from being reclaimable.  If the page's object is locked, and the page is
+ *	unmapped and unbusied or exclusively busied by the current thread, no
+ *	new wirings may be created.
  */
 static inline bool
 vm_page_wired(vm_page_t m)
 {
 
-	return (m->wire_count > 0);
+	return (VPRC_WIRE_COUNT(m->ref_count) > 0);
 }
 
 #endif				/* _KERNEL */

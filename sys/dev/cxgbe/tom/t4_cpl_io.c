@@ -1910,7 +1910,6 @@ aiotx_free_pgs(struct mbuf *m)
 {
 	struct mbuf_ext_pgs *ext_pgs;
 	struct kaiocb *job;
-	struct mtx *mtx;
 	vm_page_t pg;
 
 	MBUF_EXT_PGS_ASSERT(m);
@@ -1921,14 +1920,10 @@ aiotx_free_pgs(struct mbuf *m)
 	    m->m_len, jobtotid(job));
 #endif
 
-	mtx = NULL;
 	for (int i = 0; i < ext_pgs->npgs; i++) {
 		pg = PHYS_TO_VM_PAGE(ext_pgs->pa[i]);
-		vm_page_change_lock(pg, &mtx);
 		vm_page_unwire(pg, PQ_ACTIVE);
 	}
-	if (mtx != NULL)
-		mtx_unlock(mtx);
 
 	aiotx_free_job(job);
 }
