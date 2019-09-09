@@ -1,4 +1,4 @@
-/*	$OpenBSD: eval.c,v 1.75 2017/06/15 13:48:42 bcallah Exp $	*/
+/*	$OpenBSD: eval.c,v 1.76 2017/10/23 15:21:19 espie Exp $	*/
 /*	$NetBSD: eval.c,v 1.7 1996/11/10 21:21:29 pk Exp $	*/
 
 /*-
@@ -201,8 +201,7 @@ expand_builtin(const char *argv[], int argc, int td)
 	}
 
 	case IFELTYPE:
-		if (argc > 4)
-			doifelse(argv, argc);
+		doifelse(argv, argc);
 		break;
 
 	case IFDFTYPE:
@@ -695,17 +694,17 @@ dotrace(const char *argv[], int argc, int on)
 static void
 doifelse(const char *argv[], int argc)
 {
-	cycle {
-		if (STREQ(argv[2], argv[3]))
+	while (argc > 4) {
+		if (STREQ(argv[2], argv[3])) {
 			pbstr(argv[4]);
-		else if (argc == 6)
+			break;
+		} else if (argc == 6) {
 			pbstr(argv[5]);
-		else if (argc > 6) {
+			break;
+		} else {
 			argv += 3;
 			argc -= 3;
-			continue;
 		}
-		break;
 	}
 }
 
