@@ -1,4 +1,4 @@
-/*	$OpenBSD: eval.c,v 1.74 2015/02/05 12:59:57 millert Exp $	*/
+/*	$OpenBSD: eval.c,v 1.75 2017/06/15 13:48:42 bcallah Exp $	*/
 /*	$NetBSD: eval.c,v 1.7 1996/11/10 21:21:29 pk Exp $	*/
 
 /*-
@@ -275,6 +275,10 @@ expand_builtin(const char *argv[], int argc, int td)
 					warn("%s at line %lu: include(%s)",
 					    CURRENT_NAME, CURRENT_LINE, argv[2]);
 					exit_code = 1;
+					if (fatal_warns) {
+						killdiv();
+						exit(exit_code);
+					}
 				} else
 					err(1, "%s at line %lu: include(%s)",
 					    CURRENT_NAME, CURRENT_LINE, argv[2]);
