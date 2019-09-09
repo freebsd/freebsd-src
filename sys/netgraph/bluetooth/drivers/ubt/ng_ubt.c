@@ -252,6 +252,7 @@ static struct ng_type	typestruct =
  ****************************************************************************/
 
 /* USB methods */
+static usb_callback_t	ubt_probe_intr_callback;
 static usb_callback_t	ubt_ctrl_write_callback;
 static usb_callback_t	ubt_intr_read_callback;
 static usb_callback_t	ubt_bulk_read_callback;
@@ -421,6 +422,13 @@ static const STRUCT_USB_HOST_ID ubt_ignore_devs[] =
 	/* Atheros AR5BBU12 with sflash firmware */
 	{ USB_VPI(0x0489, 0xe03c, 0), USB_DEV_BCD_LTEQ(1) },
 	{ USB_VPI(0x0489, 0xe036, 0), USB_DEV_BCD_LTEQ(1) },
+
+	/* Intel Wireless 8260 and successors are handled in ng_ubt_intel.c */
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0a2b, 0) },
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0aaa, 0) },
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0025, 0) },
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0026, 0) },
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0029, 0) },
 };
 
 /* List of supported bluetooth devices */
@@ -501,6 +509,79 @@ static const STRUCT_USB_HOST_ID ubt_devs[] =
 	{ USB_VPI(USB_VENDOR_FOXCONN, 0xe042, 0) },
 	{ USB_VPI(USB_VENDOR_DELL, 0x8197, 0) },
 };
+
+/*
+ * Does a synchronous (waits for completion event) execution of HCI command.
+ * Size of both command and response buffers are passed in length field of
+ * corresponding structures in "Parameter Total Length" format i.e.
+ * not including HCI packet headers.
+ *
+ * Must not be used after USB transfers have been configured in attach routine.
+ */
+
+usb_error_t
+ubt_do_hci_request(struct usb_device *udev, struct ubt_hci_cmd *cmd,
+    void *evt, usb_timeout_t timeout)
+{
+	static const struct usb_config ubt_probe_config = {
+		.type = UE_INTERRUPT,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_IN,
+		.flags = { .pipe_bof = 1, .short_xfer_ok = 1 },
+		.bufsize = UBT_INTR_BUFFER_SIZE,
+		.callback = &ubt_probe_intr_callback,
+	};
+	struct usb_device_request req;
+	struct usb_xfer *xfer[1];
+	struct mtx mtx;
+	usb_error_t error = USB_ERR_NORMAL_COMPLETION;
+	uint8_t iface_index = 0;
+
+	/* Initialize a USB control request and then do it */
+	bzero(&req, sizeof(req));
+	req.bmRequestType = UBT_HCI_REQUEST;
+	req.wIndex[0] = iface_index;
+	USETW(req.wLength, UBT_HCI_CMD_SIZE(cmd));
+
+	error = usbd_do_request(udev, NULL, &req, cmd);
+	if (error != USB_ERR_NORMAL_COMPLETION) {
+		printf("ng_ubt: usbd_do_request error=%s\n",
+			usbd_errstr(error));
+		return (error);
+	}
+
+	if (evt == NULL)
+		return (USB_ERR_NORMAL_COMPLETION);
+
+	/* Initialize INTR endpoint xfer and wait for response */
+	mtx_init(&mtx, "ubt pb", NULL, MTX_DEF | MTX_NEW);
+
+	error = usbd_transfer_setup(udev, &iface_index, xfer,
+	    &ubt_probe_config, 1, evt, &mtx);
+	if (error == USB_ERR_NORMAL_COMPLETION) {
+
+		mtx_lock(&mtx);
+		usbd_transfer_start(*xfer);
+
+		if (msleep_sbt(evt, &mtx, 0, "ubt pb", SBT_1MS * timeout,
+				0, C_HARDCLOCK) == EWOULDBLOCK) {
+			printf("ng_ubt: HCI command 0x%04x timed out\n",
+				le16toh(cmd->opcode));
+			error = USB_ERR_TIMEOUT;
+		}
+
+		usbd_transfer_stop(*xfer);
+		mtx_unlock(&mtx);
+
+		usbd_transfer_unsetup(xfer, 1);
+	} else
+		printf("ng_ubt: usbd_transfer_setup error=%s\n",
+			usbd_errstr(error));
+
+	mtx_destroy(&mtx);
+
+	return (error);
+}
 
 /*
  * Probe for a USB Bluetooth device.
@@ -716,6 +797,49 @@ ubt_detach(device_t dev)
 
 	return (0);
 } /* ubt_detach */
+
+/*
+ * Called when incoming interrupt transfer (HCI event) has completed, i.e.
+ * HCI event was received from the device during device probe stage.
+ * USB context.
+ */
+
+static void
+ubt_probe_intr_callback(struct usb_xfer *xfer, usb_error_t error)
+{
+	struct ubt_hci_event	*evt = usbd_xfer_softc(xfer);
+	struct usb_page_cache	*pc;
+	int			actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
+
+	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_TRANSFERRED:
+		if (actlen > UBT_HCI_EVENT_SIZE(evt))
+			actlen = UBT_HCI_EVENT_SIZE(evt);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_out(pc, 0, evt, actlen);
+		/* OneShot mode */
+		wakeup(evt);
+		break;
+
+        case USB_ST_SETUP:
+submit_next:
+		/* Try clear stall first */
+		usbd_xfer_set_stall(xfer);
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+		usbd_transfer_submit(xfer);
+		break;
+
+	default:
+		if (error != USB_ERR_CANCELLED) {
+			printf("ng_ubt: interrupt transfer failed: %s\n",
+				usbd_errstr(error));
+			goto submit_next;
+		}
+		break;
+	}
+} /* ubt_probe_intr_callback */
 
 /* 
  * Called when outgoing control request (HCI command) has completed, i.e.
@@ -1852,7 +1976,7 @@ ubt_modevent(module_t mod, int event, void *data)
 	return (error);
 } /* ubt_modevent */
 
-static devclass_t	ubt_devclass;
+devclass_t	ubt_devclass;
 
 static device_method_t	ubt_methods[] =
 {
@@ -1862,7 +1986,7 @@ static device_method_t	ubt_methods[] =
 	DEVMETHOD_END
 };
 
-static driver_t		ubt_driver =
+driver_t		ubt_driver =
 {
 	.name =	   "ubt",
 	.methods = ubt_methods,
