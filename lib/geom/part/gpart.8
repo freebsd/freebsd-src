@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 17, 2018
+.Dd September 3, 2019
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -1198,7 +1198,13 @@ variables can be used to control the behavior of the
 GEOM class.
 The default value is shown next to each variable.
 .Bl -tag -width indent
-.It Va kern.geom.part.auto_resize: No 1
+.It Va kern.geom.part.allow_nesting : No 0
+By default, some schemes (currently BSD, BSD64 and VTOC8) do not permit
+further nested partitioning.
+This variable overrides this restriction and allows arbitrary nesting (except
+within partitions created at offset 0).
+Some schemes have their own separate checks, for which see below.
+.It Va kern.geom.part.auto_resize : No 1
 This variable controls automatic resize behavior of
 .Nm
 GEOM class.
@@ -1219,6 +1225,9 @@ disk metadata.
 If some inconsistency is detected, the partition table will be
 rejected with a diagnostic message:
 .Sy "GEOM_PART: Integrity check failed (provider, scheme)" .
+.It Va kern.geom.part.gpt.allow_nesting : No 0
+By default the GPT scheme is allowed only at the outermost nesting level.
+This variable allows this restriction to be removed.
 .It Va kern.geom.part.ldm.debug : No 0
 Debug level of the Logical Disk Manager (LDM) module.
 This can be set to a number between 0 and 2 inclusive.
