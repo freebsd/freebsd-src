@@ -43,6 +43,8 @@ oct	0[0-7]*
 dec	[1-9][0-9]*
 radix	0[rR][0-9]+:[0-9a-zA-Z]+
 
+%option noyywrap
+
 %%
 {ws}			{/* just skip it */}
 {hex}|{oct}|{dec}	{ yylval = number(); return(NUMBER); }
