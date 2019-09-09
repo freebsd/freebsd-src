@@ -51,7 +51,7 @@
  */
 
 #ifndef _MSDOSFS_MSDOSFSMOUNT_H_
-#define _MSDOSFS_MSDOSFSMOUNT_H_
+#define	_MSDOSFS_MSDOSFSMOUNT_H_
 
 #include <sys/types.h>
 
