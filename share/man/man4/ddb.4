@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 30, 2018
+.Dd September 9, 2019
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -953,6 +953,20 @@ at address
 .Ar addr .
 Addresses of particular pointers can be gathered with "show allrman"
 command.
+.\"
+.Pp
+.It Ic show Cm route Ar addr
+Show route table result for destination
+.Ar addr .
+At this time, INET and INET6 formatted addresses are supported.
+.\"
+.Pp
+.It Ic show Cm routetable Oo Ar af Oc
+Show full route table or tables.
+If
+.Ar af
+is specified, show only routes for the given numeric address family.
+If no argument is specified, dump the route table for all address families.
 .\"
 .Pp
 .It Ic show Cm rtc
