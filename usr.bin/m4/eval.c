@@ -1,4 +1,4 @@
-/*	$OpenBSD: eval.c,v 1.76 2017/10/23 15:21:19 espie Exp $	*/
+/*	$OpenBSD: eval.c,v 1.77 2017/11/11 12:55:59 espie Exp $	*/
 /*	$NetBSD: eval.c,v 1.7 1996/11/10 21:21:29 pk Exp $	*/
 
 /*-
@@ -126,6 +126,7 @@ void
 expand_builtin(const char *argv[], int argc, int td)
 {
 	int c, n;
+	const char *errstr;
 	int ac;
 	static int sysval = 0;
 
@@ -186,13 +187,15 @@ expand_builtin(const char *argv[], int argc, int td)
 		if (argc > 3) {
 			base = strtonum(argv[3], 2, 36, &errstr);
 			if (errstr) {
-				m4errx(1, "expr: base %s invalid.", argv[3]);
+				m4errx(1, "expr: base is %s: %s.",
+				    errstr, argv[3]);
 			}
 		}
 		if (argc > 4) {
 			maxdigits = strtonum(argv[4], 0, INT_MAX, &errstr);
 			if (errstr) {
-				m4errx(1, "expr: maxdigits %s invalid.", argv[4]);
+				m4errx(1, "expr: maxdigits is %s: %s.",
+				    errstr, argv[4]);
 			}
 		}
 		if (argc > 2)
@@ -231,8 +234,13 @@ expand_builtin(const char *argv[], int argc, int td)
 	 * doincr - increment the value of the
 	 * argument
 	 */
-		if (argc > 2)
-			pbnum(atoi(argv[2]) + 1);
+		if (argc > 2) {
+			n = strtonum(argv[2], INT_MIN, INT_MAX-1, &errstr);
+			if (errstr != NULL)
+				m4errx(1, "incr: argument is %s: %s.",
+				    errstr, argv[2]);
+			pbnum(n + 1);
+		}
 		break;
 
 	case DECRTYPE:
@@ -240,8 +248,13 @@ expand_builtin(const char *argv[], int argc, int td)
 	 * dodecr - decrement the value of the
 	 * argument
 	 */
-		if (argc > 2)
-			pbnum(atoi(argv[2]) - 1);
+		if (argc > 2) {
+			n = strtonum(argv[2], INT_MIN+1, INT_MAX, &errstr);
+			if (errstr)
+				m4errx(1, "decr: argument is %s: %s.",
+				    errstr, argv[2]);
+			pbnum(n - 1);
+		}
 		break;
 
 	case SYSCTYPE:
@@ -342,12 +355,18 @@ expand_builtin(const char *argv[], int argc, int td)
 		break;
 
 	case DIVRTYPE:
-		if (argc > 2 && (n = atoi(argv[2])) != 0)
-			dodiv(n);
-		else {
-			active = stdout;
-			oindex = 0;
+		if (argc > 2) {
+			n = strtonum(argv[2], INT_MIN, INT_MAX, &errstr);
+			if (errstr)
+				m4errx(1, "divert: argument is %s: %s.",
+				    errstr, argv[2]);
+			if (n != 0) {
+				dodiv(n);
+				 break;
+			}
 		}
+		active = stdout;
+		oindex = 0;
 		break;
 
 	case UNDVTYPE:
