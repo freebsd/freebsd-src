@@ -3713,6 +3713,7 @@ kern/kern_context.c		standard
 kern/kern_descrip.c		standard
 kern/kern_dtrace.c		optional kdtrace_hooks
 kern/kern_dump.c		standard
+kern/kern_ebpf.c		optional ebpf_hooks
 kern/kern_environment.c		standard
 kern/kern_et.c			standard
 kern/kern_event.c		standard

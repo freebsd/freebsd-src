@@ -1014,3 +1014,7 @@ AMDSBWD_DEBUG	opt_amdsbwd.h
 # gcov support
 GCOV		opt_global.h
 LINDEBUGFS
+
+# ebpf support
+EBPF_HOOKS	opt_global.h
+
