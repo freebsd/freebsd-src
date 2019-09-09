@@ -1309,6 +1309,8 @@ ok:
 		    __func__, replay->overflow,
 		    ipsec_sa2str(sav, buf, sizeof(buf))));
 	}
+
+	replay->count++;
 	return (0);
 }
 
