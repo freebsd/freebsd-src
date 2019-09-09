@@ -83,19 +83,16 @@ struct timehands {
 	struct timehands	*th_next;
 };
 
-static struct timehands th0;
-static struct timehands th1 = {
-	.th_next = &th0
-};
-static struct timehands th0 = {
+static struct timehands ths[16] = {
+    [0] =  {
 	.th_counter = &dummy_timecounter,
 	.th_scale = (uint64_t)-1 / 1000000,
 	.th_offset = { .sec = 1 },
 	.th_generation = 1,
-	.th_next = &th1
+    },
 };
 
-static struct timehands *volatile timehands = &th0;
+static struct timehands *volatile timehands = &ths[0];
 struct timecounter *timecounter = &dummy_timecounter;
 static struct timecounter *timecounters = &dummy_timecounter;
 
@@ -114,6 +111,10 @@ static SYSCTL_NODE(_kern_timecounter, OID_AUTO, tc, CTLFLAG_RW, 0, "");
 static int timestepwarnings;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, stepwarnings, CTLFLAG_RW,
     &timestepwarnings, 0, "Log time steps");
+
+static int timehands_count = 2;
+SYSCTL_INT(_kern_timecounter, OID_AUTO, timehands_count, CTLFLAG_RDTUN,
+    &timehands_count, 0, "Count of timehands in rotation");
 
 struct bintime bt_timethreshold;
 struct bintime bt_tickthreshold;
@@ -1960,8 +1961,9 @@ done:
 static void
 inittimecounter(void *dummy)
 {
+	struct timehands *thp;
 	u_int p;
-	int tick_rate;
+	int i, tick_rate;
 
 	/*
 	 * Set the initial timeout to
@@ -1987,6 +1989,16 @@ inittimecounter(void *dummy)
 #ifdef FFCLOCK
 	ffclock_init();
 #endif
+
+	/* Set up the requested number of timehands. */
+	if (timehands_count < 1)
+		timehands_count = 1;
+	if (timehands_count > nitems(ths))
+		timehands_count = nitems(ths);
+	for (i = 1, thp = &ths[0]; i < timehands_count;  thp = &ths[i++])
+		thp->th_next = &ths[i];
+	thp->th_next = &ths[0];
+
 	/* warm up new timecounter (again) and get rolling. */
 	(void)timecounter->tc_get_timecount(timecounter);
 	(void)timecounter->tc_get_timecount(timecounter);
