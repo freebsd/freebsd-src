@@ -1975,7 +1975,8 @@ atahpa_proc_resp(struct cam_device *device, union ccb *ccb, u_int64_t *hpasize)
 		if (error & ATA_ERROR_ID_NOT_FOUND) {
 			warnx("Max address has already been set since "
 			      "last power-on or hardware reset");
-		}
+		} else if (hpasize == NULL)
+			warnx("Command failed with ATA error");
 
 		return (1);
 	}
