@@ -163,7 +163,7 @@ static int
 db_lex(int flags)
 {
 	int	c, n, radix_mode;
-	bool	lex_wspace;
+	bool	lex_wspace, lex_hex_numbers;
 
 	switch (flags & DRT_RADIX_MASK) {
 	case DRT_DEFAULT_RADIX:
@@ -181,6 +181,7 @@ db_lex(int flags)
 	}
 
 	lex_wspace = ((flags & DRT_WSPACE) != 0);
+	lex_hex_numbers = ((flags & DRT_HEX) != 0);
 
 	c = db_read_char();
 	for (n = 0; c <= ' ' || c > '~'; n++) {
@@ -193,13 +194,16 @@ db_lex(int flags)
 	    return (tWSPACE);
 	}
 
-	if (c >= '0' && c <= '9') {
+	if ((c >= '0' && c <= '9') ||
+	   (lex_hex_numbers &&
+	   ((c >= 'a' && c <= 'f') ||
+	   (c >= 'A' && c <= 'F')))) {
 	    /* number */
 	    int	r, digit = 0;
 
 	    if (radix_mode != -1)
 		r = radix_mode;
-	    else if (c > '0')
+	    else if (c != '0')
 		r = db_radix;
 	    else {
 		c = db_read_char();
@@ -328,6 +332,12 @@ db_lex(int flags)
 		}
 		db_unread_char(c);
 		return (tEXCL);
+	    case ':':
+		c = db_read_char();
+		if (c == ':')
+			return (tCOLONCOLON);
+		db_unread_char(c);
+		return (tCOLON);
 	    case ';':
 		return (tSEMI);
 	    case '&':
