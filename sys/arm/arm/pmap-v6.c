@@ -1986,23 +1986,20 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 vm_page_t
 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
-	vm_paddr_t pa, lockpa;
+	vm_paddr_t pa;
 	pt1_entry_t pte1;
 	pt2_entry_t pte2, *pte2p;
 	vm_page_t m;
 
-	lockpa = 0;
 	m = NULL;
 	PMAP_LOCK(pmap);
-retry:
 	pte1 = pte1_load(pmap_pte1(pmap, va));
 	if (pte1_is_section(pte1)) {
 		if (!(pte1 & PTE1_RO) || !(prot & VM_PROT_WRITE)) {
 			pa = pte1_pa(pte1) | (va & PTE1_OFFSET);
-			if (vm_page_pa_tryrelock(pmap, pa, &lockpa))
-				goto retry;
 			m = PHYS_TO_VM_PAGE(pa);
-			vm_page_wire(m);
+			if (!vm_page_wire_mapped(m))
+				m = NULL;
 		}
 	} else if (pte1_is_link(pte1)) {
 		pte2p = pmap_pte2(pmap, va);
@@ -2011,13 +2008,11 @@ retry:
 		if (pte2_is_valid(pte2) &&
 		    (!(pte2 & PTE2_RO) || !(prot & VM_PROT_WRITE))) {
 			pa = pte2_pa(pte2);
-			if (vm_page_pa_tryrelock(pmap, pa, &lockpa))
-				goto retry;
 			m = PHYS_TO_VM_PAGE(pa);
-			vm_page_wire(m);
+			if (!vm_page_wire_mapped(m))
+				m = NULL;
 		}
 	}
-	PA_UNLOCK_COND(lockpa);
 	PMAP_UNLOCK(pmap);
 	return (m);
 }

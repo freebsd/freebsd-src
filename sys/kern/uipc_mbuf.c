@@ -1621,10 +1621,6 @@ mb_free_mext_pgs(struct mbuf *m)
 	ext_pgs = m->m_ext.ext_pgs;
 	for (int i = 0; i < ext_pgs->npgs; i++) {
 		pg = PHYS_TO_VM_PAGE(ext_pgs->pa[i]);
-		/*
-		 * Note: page is not locked, as it has no
-		 * object and is not on any queues.
-		 */
 		vm_page_unwire_noq(pg);
 		vm_page_free(pg);
 	}

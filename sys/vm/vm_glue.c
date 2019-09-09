@@ -229,10 +229,8 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 		vm_page_xbusy(m);
 		rv = vm_pager_get_pages(object, &m, 1, NULL, NULL);
 		if (rv != VM_PAGER_OK) {
-			vm_page_lock(m);
 			vm_page_unwire_noq(m);
 			vm_page_free(m);
-			vm_page_unlock(m);
 			m = NULL;
 			goto out;
 		}
@@ -270,9 +268,7 @@ vm_imgact_unmap_page(struct sf_buf *sf)
 	m = sf_buf_page(sf);
 	sf_buf_free(sf);
 	sched_unpin();
-	vm_page_lock(m);
 	vm_page_unwire(m, PQ_ACTIVE);
-	vm_page_unlock(m);
 }
 
 void
@@ -380,10 +376,8 @@ vm_thread_stack_dispose(vm_object_t ksobj, vm_offset_t ks, int pages)
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
 			panic("vm_thread_dispose: kstack already missing?");
-		vm_page_lock(m);
 		vm_page_unwire_noq(m);
 		vm_page_free(m);
-		vm_page_unlock(m);
 	}
 	VM_OBJECT_WUNLOCK(ksobj);
 	vm_object_deallocate(ksobj);

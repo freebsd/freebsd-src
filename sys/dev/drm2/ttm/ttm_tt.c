@@ -294,9 +294,7 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 				rv = vm_pager_get_pages(obj, &from_page, 1,
 				    NULL, NULL);
 				if (rv != VM_PAGER_OK) {
-					vm_page_lock(from_page);
 					vm_page_free(from_page);
-					vm_page_unlock(from_page);
 					ret = -EIO;
 					goto err_ret;
 				}

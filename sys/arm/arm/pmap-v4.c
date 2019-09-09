@@ -3415,14 +3415,14 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	struct l2_dtable *l2;
 	pd_entry_t l1pd;
 	pt_entry_t *ptep, pte;
-	vm_paddr_t pa, paddr;
-	vm_page_t m = NULL;
+	vm_paddr_t pa;
+	vm_page_t m;
 	u_int l1idx;
+
 	l1idx = L1_IDX(va);
-	paddr = 0;
+	m = NULL;
 
  	PMAP_LOCK(pmap);
-retry:
 	l1pd = pmap->pm_l1->l1_kva[l1idx];
 	if (l1pte_section_p(l1pd)) {
 		/*
@@ -3434,11 +3434,10 @@ retry:
 			pa = (l1pd & L1_SUP_FRAME) | (va & L1_SUP_OFFSET);
 		else
 			pa = (l1pd & L1_S_FRAME) | (va & L1_S_OFFSET);
-		if (vm_page_pa_tryrelock(pmap, pa & PG_FRAME, &paddr))
-			goto retry;
 		if (l1pd & L1_S_PROT_W || (prot & VM_PROT_WRITE) == 0) {
 			m = PHYS_TO_VM_PAGE(pa);
-			vm_page_wire(m);
+			if (!vm_page_wire_mapped(m))
+				m = NULL;
 		}
 	} else {
 		/*
@@ -3466,15 +3465,12 @@ retry:
 				pa = (pte & L2_L_FRAME) | (va & L2_L_OFFSET);
 			else
 				pa = (pte & L2_S_FRAME) | (va & L2_S_OFFSET);
-			if (vm_page_pa_tryrelock(pmap, pa & PG_FRAME, &paddr))
-				goto retry;
 			m = PHYS_TO_VM_PAGE(pa);
-			vm_page_wire(m);
+			if (!vm_page_wire_mapped(m))
+				m = NULL;
 		}
 	}
-
  	PMAP_UNLOCK(pmap);
-	PA_UNLOCK_COND(paddr);
 	return (m);
 }
 
