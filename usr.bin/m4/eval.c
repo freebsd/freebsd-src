@@ -1,4 +1,4 @@
-/*	$OpenBSD: eval.c,v 1.77 2017/11/11 12:55:59 espie Exp $	*/
+/*	$OpenBSD: eval.c,v 1.78 2019/06/28 05:35:34 deraadt Exp $	*/
 /*	$NetBSD: eval.c,v 1.7 1996/11/10 21:21:29 pk Exp $	*/
 
 /*-
@@ -846,7 +846,7 @@ dodiv(int n)
 	if (outfile[n] == NULL) {
 		char fname[] = _PATH_DIVNAME;
 
-		if ((fd = mkstemp(fname)) < 0 ||
+		if ((fd = mkstemp(fname)) == -1 ||
 		    unlink(fname) == -1 ||
 		    (outfile[n] = fdopen(fd, "w+")) == NULL)
 			err(1, "%s: cannot divert", fname);
