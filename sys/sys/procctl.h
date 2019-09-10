@@ -51,6 +51,8 @@
 #define	PROC_TRAPCAP_STATUS	10	/* query trap capability status */
 #define	PROC_PDEATHSIG_CTL	11	/* set parent death signal */
 #define	PROC_PDEATHSIG_STATUS	12	/* get parent death signal */
+#define	PROC_STACKGAP_CTL	17	/* en/dis stack gap on MAP_STACK */
+#define	PROC_STACKGAP_STATUS	18	/* query stack gap */
 
 /* Operations for PROC_SPROTECT (passed in integer arg). */
 #define	PPROT_OP(x)	((x) & 0xf)
@@ -113,6 +115,11 @@ struct procctl_reaper_kill {
 
 #define	PROC_TRAPCAP_CTL_ENABLE		1
 #define	PROC_TRAPCAP_CTL_DISABLE	2
+
+#define	PROC_STACKGAP_ENABLE		0x0001
+#define	PROC_STACKGAP_DISABLE		0x0002
+#define	PROC_STACKGAP_ENABLE_EXEC	0x0004
+#define	PROC_STACKGAP_DISABLE_EXEC	0x0008
 
 #ifndef _KERNEL
 __BEGIN_DECLS
