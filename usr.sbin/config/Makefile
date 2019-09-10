@@ -18,7 +18,7 @@ CFLAGS+= -I. -I${SRCDIR}
 
 NO_WMISSING_VARIABLE_DECLARATIONS=
 
-LIBADD=	l nv sbuf
+LIBADD=	nv sbuf
 
 CLEANFILES+=	kernconf.c
 
