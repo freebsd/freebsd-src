@@ -147,8 +147,8 @@ reaper_abandon_children(struct proc *p, bool exiting)
 	p->p_treeflag &= ~P_TREE_REAPER;
 }
 
-static void
-clear_orphan(struct proc *p)
+void
+proc_clear_orphan(struct proc *p)
 {
 	struct proc *p1;
 
@@ -505,7 +505,7 @@ exit1(struct thread *td, int rval, int signo)
 			 * list due to present P_TRACED flag. Clear
 			 * orphan link for q now while q is locked.
 			 */
-			clear_orphan(q);
+			proc_clear_orphan(q);
 			q->p_flag &= ~(P_TRACED | P_STOPPED_TRACE);
 			q->p_flag2 &= ~P2_PTRACE_FSTP;
 			q->p_ptevents = 0;
@@ -539,7 +539,7 @@ exit1(struct thread *td, int rval, int signo)
 			kern_psignal(q, q->p_pdeathsig);
 		CTR2(KTR_PTRACE, "exit: pid %d, clearing orphan %d", p->p_pid,
 		    q->p_pid);
-		clear_orphan(q);
+		proc_clear_orphan(q);
 		PROC_UNLOCK(q);
 	}
 
@@ -889,7 +889,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	reaper_abandon_children(p, true);
 	LIST_REMOVE(p, p_reapsibling);
 	PROC_LOCK(p);
-	clear_orphan(p);
+	proc_clear_orphan(p);
 	PROC_UNLOCK(p);
 	leavepgrp(p);
 	if (p->p_procdesc != NULL)
@@ -1367,7 +1367,7 @@ proc_reparent(struct proc *child, struct proc *parent, bool set_oppid)
 	LIST_REMOVE(child, p_sibling);
 	LIST_INSERT_HEAD(&parent->p_children, child, p_sibling);
 
-	clear_orphan(child);
+	proc_clear_orphan(child);
 	if ((child->p_flag & P_TRACED) != 0) {
 		proc_add_orphan(child, child->p_pptr);
 	}
