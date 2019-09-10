@@ -128,7 +128,7 @@ retry:
 			m = vm_page_lookup(map->mem, i);
 			if (m == NULL)
 				continue;
-			if (vm_page_sleep_if_busy(m, "pcmdum"))
+			if (vm_page_busy_acquire(m, VM_ALLOC_WAITFAIL) == 0)
 				goto retry;
 			cdev_pager_free_page(map->mem, m);
 		}

@@ -412,33 +412,14 @@ page_busy(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 	obj = vp->v_object;
 	zfs_vmobject_assert_wlocked(obj);
 
-	for (;;) {
-		if ((pp = vm_page_lookup(obj, OFF_TO_IDX(start))) != NULL &&
-		    pp->valid) {
-			if (vm_page_xbusied(pp)) {
-				/*
-				 * Reference the page before unlocking and
-				 * sleeping so that the page daemon is less
-				 * likely to reclaim it.
-				 */
-				vm_page_reference(pp);
-				vm_page_sleep_if_xbusy(pp, "zfsmwb");
-				continue;
-			}
-			vm_page_sbusy(pp);
-		} else if (pp != NULL) {
-			ASSERT(!pp->valid);
-			pp = NULL;
-		}
-
-		if (pp != NULL) {
-			ASSERT3U(pp->valid, ==, VM_PAGE_BITS_ALL);
-			vm_object_pip_add(obj, 1);
-			pmap_remove_write(pp);
-			if (nbytes != 0)
-				vm_page_clear_dirty(pp, off, nbytes);
-		}
-		break;
+	vm_page_grab_valid(&pp, obj, OFF_TO_IDX(start), VM_ALLOC_NOCREAT |
+	    VM_ALLOC_SBUSY | VM_ALLOC_NORMAL | VM_ALLOC_IGN_SBUSY);
+	if (pp != NULL) {
+		ASSERT3U(pp->valid, ==, VM_PAGE_BITS_ALL);
+		vm_object_pip_add(obj, 1);
+		pmap_remove_write(pp);
+		if (nbytes != 0)
+			vm_page_clear_dirty(pp, off, nbytes);
 	}
 	return (pp);
 }
@@ -455,32 +436,14 @@ static vm_page_t
 page_wire(vnode_t *vp, int64_t start)
 {
 	vm_object_t obj;
-	vm_page_t pp;
+	vm_page_t m;
 
 	obj = vp->v_object;
 	zfs_vmobject_assert_wlocked(obj);
 
-	for (;;) {
-		if ((pp = vm_page_lookup(obj, OFF_TO_IDX(start))) != NULL &&
-		    pp->valid) {
-			if (vm_page_xbusied(pp)) {
-				/*
-				 * Reference the page before unlocking and
-				 * sleeping so that the page daemon is less
-				 * likely to reclaim it.
-				 */
-				vm_page_reference(pp);
-				vm_page_sleep_if_xbusy(pp, "zfsmwb");
-				continue;
-			}
-
-			ASSERT3U(pp->valid, ==, VM_PAGE_BITS_ALL);
-			vm_page_wire(pp);
-		} else
-			pp = NULL;
-		break;
-	}
-	return (pp);
+	vm_page_grab_valid(&m, obj, OFF_TO_IDX(start), VM_ALLOC_NOCREAT |
+	    VM_ALLOC_WIRED | VM_ALLOC_IGN_SBUSY | VM_ALLOC_NOBUSY);
+	return (m);
 }
 
 static void
