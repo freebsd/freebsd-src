@@ -1,4 +1,4 @@
-/*	$NetBSD: refresh.c,v 1.54 2017/06/30 20:26:52 kre Exp $	*/
+/*	$NetBSD: refresh.c,v 1.56 2019/01/04 03:03:44 uwe Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)refresh.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: refresh.c,v 1.54 2017/06/30 20:26:52 kre Exp $");
+__RCSID("$NetBSD: refresh.c,v 1.56 2019/01/04 03:03:44 uwe Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -1090,7 +1090,10 @@ re_refresh_cursor(EditLine *el)
 static void
 re_fastputc(EditLine *el, wint_t c)
 {
-	int w = wcwidth(c);
+	wchar_t *lastline;
+	int w;
+
+	w = wcwidth(c);
 	while (w > 1 && el->el_cursor.h + w > el->el_terminal.t_size.h)
 	    re_fastputc(el, ' ');
 
@@ -1112,17 +1115,18 @@ re_fastputc(EditLine *el, wint_t c)
 		 */
 		if (el->el_cursor.v + 1 >= el->el_terminal.t_size.v) {
 			int i, lins = el->el_terminal.t_size.v;
-			wchar_t *firstline = el->el_display[0];
 
+			lastline = el->el_display[0];
 			for(i = 1; i < lins; i++)
 				el->el_display[i - 1] = el->el_display[i];
 
-			re__copy_and_pad(firstline, L"", (size_t)0);
-			el->el_display[i - 1] = firstline;
+			el->el_display[i - 1] = lastline;
 		} else {
 			el->el_cursor.v++;
-			el->el_refresh.r_oldcv++;
+			lastline = el->el_display[++el->el_refresh.r_oldcv];
 		}
+		re__copy_and_pad(lastline, L"", (size_t)el->el_terminal.t_size.h);
+
 		if (EL_HAS_AUTO_MARGINS) {
 			if (EL_HAS_MAGIC_MARGINS) {
 				terminal__putc(el, ' ');

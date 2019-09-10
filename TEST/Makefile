@@ -1,7 +1,7 @@
-# $NetBSD: Makefile,v 1.7 2016/03/23 22:27:48 christos Exp $
+# $NetBSD: Makefile,v 1.8 2017/10/15 18:59:00 abhinav Exp $
 
 NOMAN=1
-PROG=wtc1
+PROG=wtc1 test_filecompletion
 CPPFLAGS=-I${.CURDIR}/..
 LDADD+=-ledit -ltermlib
 DPADD+=${LIBEDIT} ${LIBTERMLIB}

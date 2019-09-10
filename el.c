@@ -1,4 +1,4 @@
-/*	$NetBSD: el.c,v 1.95 2017/09/05 18:07:59 christos Exp $	*/
+/*	$NetBSD: el.c,v 1.99 2019/07/23 10:18:52 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)el.c	8.2 (Berkeley) 1/3/94";
 #else
-__RCSID("$NetBSD: el.c,v 1.95 2017/09/05 18:07:59 christos Exp $");
+__RCSID("$NetBSD: el.c,v 1.99 2019/07/23 10:18:52 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -71,12 +71,10 @@ libedit_private EditLine *
 el_init_internal(const char *prog, FILE *fin, FILE *fout, FILE *ferr,
     int fdin, int fdout, int fderr, int flags)
 {
-	EditLine *el = el_malloc(sizeof(*el));
+	EditLine *el = el_calloc(1, sizeof(*el));
 
 	if (el == NULL)
 		return NULL;
-
-	memset(el, 0, sizeof(EditLine));
 
 	el->el_infile = fin;
 	el->el_outfile = fout;
@@ -96,10 +94,6 @@ el_init_internal(const char *prog, FILE *fin, FILE *fout, FILE *ferr,
          * Initialize all the modules. Order is important!!!
          */
 	el->el_flags = flags;
-	if (setlocale(LC_CTYPE, NULL) != NULL){
-		if (strcmp(nl_langinfo(CODESET), "UTF-8") == 0)
-			el->el_flags |= CHARSET_IS_UTF8;
-	}
 
 	if (terminal_init(el) == -1) {
 		el_free(el->el_prog);
@@ -146,7 +140,7 @@ el_end(EditLine *el)
 	keymacro_end(el);
 	map_end(el);
 	if (!(el->el_flags & NO_TTY))
-		tty_end(el);
+		tty_end(el, TCSAFLUSH);
 	ch_end(el);
 	read_end(el->el_read);
 	search_end(el);
@@ -301,7 +295,7 @@ el_wset(EditLine *el, int op, ...)
 		void *ptr = va_arg(ap, void *);
 
 		rv = hist_set(el, func, ptr);
-		if (!(el->el_flags & CHARSET_IS_UTF8))
+		if (MB_CUR_MAX == 1)
 			el->el_flags &= ~NARROW_HISTORY;
 		break;
 	}
@@ -443,15 +437,11 @@ el_wget(EditLine *el, int op, ...)
 	case EL_GETTC:
 	{
 		static char name[] = "gettc";
-		char *argv[20];
-		int i;
-
-		for (i = 1; i < (int)__arraycount(argv); i++)
-			if ((argv[i] = va_arg(ap, char *)) == NULL)
-				break;
-
+		char *argv[3];
 		argv[0] = name;
-		rv = terminal_gettc(el, i, argv);
+		argv[1] = va_arg(ap, char *);
+		argv[2] = va_arg(ap, void *);
+		rv = terminal_gettc(el, 3, argv);
 		break;
 	}
 
@@ -542,7 +532,7 @@ el_source(EditLine *el, const char *fname)
 			if ((ptr = getenv("HOME")) == NULL)
 				return -1;
 			plen += strlen(ptr);
-			if ((path = el_malloc(plen * sizeof(*path))) == NULL)
+			if ((path = el_calloc(plen, sizeof(*path))) == NULL)
 				return -1;
 			(void)snprintf(path, plen, "%s%s", ptr,
 				elpath + (*ptr == '\0'));
