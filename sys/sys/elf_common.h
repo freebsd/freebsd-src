@@ -1199,6 +1199,7 @@ typedef struct {
 #define	R_PPC_SECTOFF_LO	34
 #define	R_PPC_SECTOFF_HI	35
 #define	R_PPC_SECTOFF_HA	36
+#define	R_PPC_IRELATIVE		248
 
 /*
  * 64-bit relocations
