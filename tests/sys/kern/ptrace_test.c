@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/procctl.h>
 #define	_WANT_MIPS_REGNUM
+#include <sys/procdesc.h>
 #include <sys/ptrace.h>
 #include <sys/queue.h>
 #include <sys/runq.h>
@@ -3906,6 +3907,60 @@ ATF_TC_BODY(ptrace__PT_LWPINFO_stale_siginfo, tc)
 	ATF_REQUIRE(errno == ECHILD);
 }
 
+/*
+ * Verify that when the process is traced that it isn't reparent
+ * to the init process when we close all process descriptors.
+ */
+ATF_TC(ptrace__proc_reparent);
+ATF_TC_HEAD(ptrace__proc_reparent, tc)
+{
+
+	atf_tc_set_md_var(tc, "timeout", "2");
+}
+ATF_TC_BODY(ptrace__proc_reparent, tc)
+{
+	pid_t traced, debuger, wpid;
+	int pd, status;
+
+	traced = pdfork(&pd, 0);
+	ATF_REQUIRE(traced >= 0);
+	if (traced == 0) {
+		raise(SIGSTOP);
+		exit(0);
+	}
+	ATF_REQUIRE(pd >= 0);
+
+	debuger = fork();
+	ATF_REQUIRE(debuger >= 0);
+	if (debuger == 0) {
+		/* The traced process is reparented to debuger. */
+		ATF_REQUIRE(ptrace(PT_ATTACH, traced, 0, 0) == 0);
+		wpid = waitpid(traced, &status, 0);
+		ATF_REQUIRE(wpid == traced);
+		ATF_REQUIRE(WIFSTOPPED(status));
+		ATF_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+		ATF_REQUIRE(close(pd) == 0);
+		ATF_REQUIRE(ptrace(PT_DETACH, traced, (caddr_t)1, 0) == 0);
+
+		/* We closed pd so we should not have any child. */
+		wpid = wait(&status);
+		ATF_REQUIRE(wpid == -1);
+		ATF_REQUIRE(errno == ECHILD);
+
+		exit(0);
+	}
+
+	ATF_REQUIRE(close(pd) == 0);
+	wpid = waitpid(debuger, &status, 0);
+	ATF_REQUIRE(wpid == debuger);
+	ATF_REQUIRE(WEXITSTATUS(status) == 0);
+
+	/* Check if we still have any child. */
+	wpid = wait(&status);
+	ATF_REQUIRE(wpid == -1);
+	ATF_REQUIRE(errno == ECHILD);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -3967,6 +4022,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__PT_CONTINUE_different_thread);
 #endif
 	ATF_TP_ADD_TC(tp, ptrace__PT_LWPINFO_stale_siginfo);
+	ATF_TP_ADD_TC(tp, ptrace__proc_reparent);
 
 	return (atf_no_error());
 }
