@@ -42,6 +42,7 @@ enum {
 	MODE_INVALID,
 	MODE_TRACE,
 	MODE_TRAPCAP,
+	MODE_STACKGAP,
 };
 
 static pid_t
@@ -62,7 +63,7 @@ static void __dead2
 usage(void)
 {
 
-	fprintf(stderr, "Usage: proccontrol -m (trace|trapcap) [-q] "
+	fprintf(stderr, "Usage: proccontrol -m (trace|trapcap|stackgap) [-q] "
 	    "[-s (enable|disable)] [-p pid | command]\n");
 	exit(1);
 }
@@ -85,6 +86,8 @@ main(int argc, char *argv[])
 				mode = MODE_TRACE;
 			else if (strcmp(optarg, "trapcap") == 0)
 				mode = MODE_TRAPCAP;
+			else if (strcmp(optarg, "stackgap") == 0)
+				mode = MODE_STACKGAP;
 			else
 				usage();
 			break;
@@ -127,6 +130,9 @@ main(int argc, char *argv[])
 		case MODE_TRAPCAP:
 			error = procctl(P_PID, pid, PROC_TRAPCAP_STATUS, &arg);
 			break;
+		case MODE_STACKGAP:
+			error = procctl(P_PID, pid, PROC_STACKGAP_STATUS, &arg);
+			break;
 		default:
 			usage();
 			break;
@@ -152,6 +158,26 @@ main(int argc, char *argv[])
 				break;
 			}
 			break;
+		case MODE_STACKGAP:
+			switch (arg & (PROC_STACKGAP_ENABLE |
+			    PROC_STACKGAP_DISABLE)) {
+			case PROC_STACKGAP_ENABLE:
+				printf("enabled\n");
+				break;
+			case PROC_STACKGAP_DISABLE:
+				printf("disabled\n");
+				break;
+			}
+			switch (arg & (PROC_STACKGAP_ENABLE_EXEC |
+			    PROC_STACKGAP_DISABLE_EXEC)) {
+			case PROC_STACKGAP_ENABLE_EXEC:
+				printf("enabled after exec\n");
+				break;
+			case PROC_STACKGAP_DISABLE_EXEC:
+				printf("disabled after exec\n");
+				break;
+			}
+			break;
 		}
 	} else {
 		switch (mode) {
@@ -164,6 +190,12 @@ main(int argc, char *argv[])
 			arg = enable ? PROC_TRAPCAP_CTL_ENABLE :
 			    PROC_TRAPCAP_CTL_DISABLE;
 			error = procctl(P_PID, pid, PROC_TRAPCAP_CTL, &arg);
+			break;
+		case MODE_STACKGAP:
+			arg = enable ? PROC_STACKGAP_ENABLE_EXEC :
+			    (PROC_STACKGAP_DISABLE |
+			    PROC_STACKGAP_DISABLE_EXEC);
+			error = procctl(P_PID, pid, PROC_STACKGAP_CTL, &arg);
 			break;
 		default:
 			usage();
