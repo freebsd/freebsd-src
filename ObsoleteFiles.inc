@@ -483,6 +483,9 @@ OLD_DIRS+=usr/lib/clang/6.0.1/lib
 OLD_DIRS+=usr/lib/clang/6.0.1
 # 20181116: Rename test file.
 OLD_FILES+=usr/tests/sys/netinet/reuseport_lb
+# 20181112: Cleanup old libcap_dns.
+OLD_LIBS+=lib/casper/libcap_dns.so.1
+OLD_LIBS+=usr/lib32/libcap_dns.so.1
 # 20181030: malloc_domain(9) KPI change
 OLD_FILES+=usr/share/man/man9/malloc_domain.9.gz
 # 20181025: OpenSSL libraries version bump to avoid conflict with ports
