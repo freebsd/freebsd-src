@@ -2105,7 +2105,7 @@ rt_dumpentry_ddb(struct radix_node *rn, void *arg __unused)
 
 		if (flags != rt->rt_flags)
 			db_printf(",");
-		db_printf(rt_flag_name(idx));
+		db_printf("%s", rt_flag_name(idx));
 
 		flags &= ~(1ul << idx);
 	}
@@ -2374,8 +2374,12 @@ _DB_FUNC(_show, route, db_show_route_cmd, db_show_table, CS_OWN, NULL)
 			u.dest_sin6.sin6_addr.s6_addr16[i] = htons(hextets[i]);
 		dstp = (void *)&u.dest_sin6;
 		dst_addrp = &u.dest_sin6.sin6_addr;
-	} else
+	} else {
 		MPASS(false);
+		/* UNREACHABLE */
+		/* Appease Clang false positive: */
+		dstp = NULL;
+	}
 
 	bp = inet_ntop(af, dst_addrp, buf, sizeof(buf));
 	if (bp != NULL)
