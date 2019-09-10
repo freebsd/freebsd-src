@@ -422,10 +422,7 @@ page_busy(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 				 * likely to reclaim it.
 				 */
 				vm_page_reference(pp);
-				vm_page_lock(pp);
-				zfs_vmobject_wunlock(obj);
-				vm_page_busy_sleep(pp, "zfsmwb", true);
-				zfs_vmobject_wlock(obj);
+				vm_page_sleep_if_xbusy(pp, "zfsmwb");
 				continue;
 			}
 			vm_page_sbusy(pp);
@@ -473,10 +470,7 @@ page_wire(vnode_t *vp, int64_t start)
 				 * likely to reclaim it.
 				 */
 				vm_page_reference(pp);
-				vm_page_lock(pp);
-				zfs_vmobject_wunlock(obj);
-				vm_page_busy_sleep(pp, "zfsmwb", true);
-				zfs_vmobject_wlock(obj);
+				vm_page_sleep_if_xbusy(pp, "zfsmwb");
 				continue;
 			}
 
