@@ -44,6 +44,7 @@ int first_time;
 %}
 
 /* We don't need it, avoid the warning. */
+%option noyywrap
 %option nounput
 %option noinput
 
