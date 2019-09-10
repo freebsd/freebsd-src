@@ -325,6 +325,16 @@ function core.isZFSBoot()
 	return false
 end
 
+function core.isSerialConsole()
+	local c = loader.getenv("console")
+	if c ~= nil then
+		if c:find("comconsole") ~= nil then
+			return true
+		end
+	end
+	return false
+end
+
 function core.isSerialBoot()
 	local s = loader.getenv("boot_serial")
 	if s ~= nil then
