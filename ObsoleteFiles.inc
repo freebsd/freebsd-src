@@ -38,9 +38,6 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20190910: OpenSSL 1.1.1d
-OLD_FILES+=usr/share/openssl/man/man3/d2i_ECDSA_SIG.3.gz
-OLD_FILES+=usr/share/openssl/man/man3/i2d_ECDSA_SIG.3.gz
 # 20190910: mklocale(1) and colldef(1) removed
 OLD_FILES+=usr/bin/mklocale
 OLD_FILES+=usr/share/man/man1/mklocale.1.gz
