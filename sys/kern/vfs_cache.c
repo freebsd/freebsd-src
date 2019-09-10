@@ -380,6 +380,8 @@ STATNODE_COUNTER(numfullpathfail4, "Number of fullpath search errors (ENOMEM)");
 STATNODE_COUNTER(numfullpathfound, "Number of successful fullpath calls");
 static long zap_and_exit_bucket_fail; STATNODE_ULONG(zap_and_exit_bucket_fail,
     "Number of times zap_and_exit failed to lock");
+static long zap_and_exit_bucket_fail2; STATNODE_ULONG(zap_and_exit_bucket_fail2,
+    "Number of times zap_and_exit failed to lock");
 static long cache_lock_vnodes_cel_3_failures;
 STATNODE_ULONG(cache_lock_vnodes_cel_3_failures,
     "Number of times 3-way vnode locking failed");
@@ -394,7 +396,7 @@ static int cache_yield;
 SYSCTL_INT(_vfs_cache, OID_AUTO, yield, CTLFLAG_RD, &cache_yield, 0,
     "Number of times cache called yield");
 
-static void
+static void __noinline
 cache_maybe_yield(void)
 {
 
@@ -453,11 +455,13 @@ cache_assert_bucket_locked(struct namecache *ncp, int mode)
 #define cache_assert_bucket_locked(x, y) do { } while (0)
 #endif
 
-#define cache_sort(x, y)	_cache_sort((void **)(x), (void **)(y))
+#define cache_sort_vnodes(x, y)	_cache_sort_vnodes((void **)(x), (void **)(y))
 static void
-_cache_sort(void **p1, void **p2)
+_cache_sort_vnodes(void **p1, void **p2)
 {
 	void *tmp;
+
+	MPASS(*p1 != NULL || *p2 != NULL);
 
 	if (*p1 > *p2) {
 		tmp = *p2;
@@ -506,8 +510,7 @@ static int
 cache_trylock_vnodes(struct mtx *vlp1, struct mtx *vlp2)
 {
 
-	cache_sort(&vlp1, &vlp2);
-	MPASS(vlp2 != NULL);
+	cache_sort_vnodes(&vlp1, &vlp2);
 
 	if (vlp1 != NULL) {
 		if (!mtx_trylock(vlp1))
@@ -924,7 +927,7 @@ cache_zap_locked_vnode_kl2(struct namecache *ncp, struct vnode *vp,
 			mtx_unlock(*vlpp);
 			*vlpp = NULL;
 		}
-		cache_sort(&vlp1, &vlp2);
+		cache_sort_vnodes(&vlp1, &vlp2);
 		if (vlp1 == pvlp) {
 			mtx_lock(vlp2);
 			to_unlock = vlp2;
@@ -950,7 +953,7 @@ out_relock:
 	return (false);
 }
 
-static int
+static int __noinline
 cache_zap_locked_vnode(struct namecache *ncp, struct vnode *vp)
 {
 	struct mtx *pvlp, *vlp1, *vlp2, *to_unlock;
@@ -969,7 +972,7 @@ cache_zap_locked_vnode(struct namecache *ncp, struct vnode *vp)
 	blp = NCP2BUCKETLOCK(ncp);
 	vlp1 = VP2VNODELOCK(ncp->nc_dvp);
 	vlp2 = VP2VNODELOCK(ncp->nc_vp);
-	cache_sort(&vlp1, &vlp2);
+	cache_sort_vnodes(&vlp1, &vlp2);
 	if (vlp1 == pvlp) {
 		mtx_lock(vlp2);
 		to_unlock = vlp2;
@@ -1047,7 +1050,7 @@ cache_zap_wlocked_bucket_kl(struct namecache *ncp, struct rwlock *blp,
 	vlp = NULL;
 	if (!(ncp->nc_flag & NCF_NEGATIVE))
 		vlp = VP2VNODELOCK(ncp->nc_vp);
-	cache_sort(&dvlp, &vlp);
+	cache_sort_vnodes(&dvlp, &vlp);
 
 	if (*vlpp1 == dvlp && *vlpp2 == vlp) {
 		cache_zap_locked(ncp, false);
@@ -1194,14 +1197,13 @@ retry:
 		goto out_no_entry;
 	}
 
-	counter_u64_add(numposzaps, 1);
-
 	error = cache_zap_wlocked_bucket(ncp, blp);
-	if (error != 0) {
+	if (__predict_false(error != 0)) {
 		zap_and_exit_bucket_fail++;
 		cache_maybe_yield();
 		goto retry;
 	}
+	counter_u64_add(numposzaps, 1);
 	cache_free(ncp);
 	return (0);
 out_no_entry:
@@ -1397,8 +1399,8 @@ zap_and_exit:
 		error = cache_zap_rlocked_bucket(ncp, blp);
 	else
 		error = cache_zap_locked_vnode(ncp, dvp);
-	if (error != 0) {
-		zap_and_exit_bucket_fail++;
+	if (__predict_false(error != 0)) {
+		zap_and_exit_bucket_fail2++;
 		cache_maybe_yield();
 		goto retry;
 	}
@@ -1434,7 +1436,7 @@ cache_lock_vnodes_cel(struct celockstate *cel, struct vnode *vp,
 
 	vlp1 = VP2VNODELOCK(vp);
 	vlp2 = VP2VNODELOCK(dvp);
-	cache_sort(&vlp1, &vlp2);
+	cache_sort_vnodes(&vlp1, &vlp2);
 
 	if (vlp1 != NULL) {
 		mtx_lock(vlp1);
@@ -1504,7 +1506,7 @@ cache_lock_buckets_cel(struct celockstate *cel, struct rwlock *blp1,
 	MPASS(cel->blp[0] == NULL);
 	MPASS(cel->blp[1] == NULL);
 
-	cache_sort(&blp1, &blp2);
+	cache_sort_vnodes(&blp1, &blp2);
 
 	if (blp1 != NULL) {
 		rw_wlock(blp1);
