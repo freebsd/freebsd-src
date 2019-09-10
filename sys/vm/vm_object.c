@@ -1954,14 +1954,10 @@ vm_object_populate(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	for (pindex = start; pindex < end; pindex++) {
-		m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
-		if (m->valid != VM_PAGE_BITS_ALL) {
-			rv = vm_pager_get_pages(object, &m, 1, NULL, NULL);
-			if (rv != VM_PAGER_OK) {
-				vm_page_free(m);
-				break;
-			}
-		}
+		rv = vm_page_grab_valid(&m, object, pindex, VM_ALLOC_NORMAL);
+		if (rv != VM_PAGER_OK)
+			break;
+
 		/*
 		 * Keep "m" busy because a subsequent iteration may unlock
 		 * the object.

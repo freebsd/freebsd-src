@@ -288,20 +288,12 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 	VM_OBJECT_WLOCK(obj);
 	vm_object_pip_add(obj, 1);
 	for (i = 0; i < ttm->num_pages; ++i) {
-		from_page = vm_page_grab(obj, i, VM_ALLOC_NORMAL);
-		if (from_page->valid != VM_PAGE_BITS_ALL) {
-			if (vm_pager_has_page(obj, i, NULL, NULL)) {
-				rv = vm_pager_get_pages(obj, &from_page, 1,
-				    NULL, NULL);
-				if (rv != VM_PAGER_OK) {
-					vm_page_free(from_page);
-					ret = -EIO;
-					goto err_ret;
-				}
-			} else
-				vm_page_zero_invalid(from_page, TRUE);
+		rv = vm_page_grab_valid(&from_page, obj, i,
+		    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY);
+		if (rv != VM_PAGER_OK) {
+			ret = -EIO;
+			goto err_ret;
 		}
-		vm_page_xunbusy(from_page);
 		to_page = ttm->pages[i];
 		if (unlikely(to_page == NULL)) {
 			ret = -ENOMEM;

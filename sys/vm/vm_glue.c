@@ -219,24 +219,11 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 {
 	vm_page_t m;
 	vm_pindex_t pindex;
-	int rv;
 
-	VM_OBJECT_WLOCK(object);
 	pindex = OFF_TO_IDX(offset);
-	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY |
-	    VM_ALLOC_WIRED);
-	if (m->valid != VM_PAGE_BITS_ALL) {
-		vm_page_xbusy(m);
-		rv = vm_pager_get_pages(object, &m, 1, NULL, NULL);
-		if (rv != VM_PAGER_OK) {
-			vm_page_unwire_noq(m);
-			vm_page_free(m);
-			m = NULL;
-			goto out;
-		}
-		vm_page_xunbusy(m);
-	}
-out:
+	VM_OBJECT_WLOCK(object);
+	(void)vm_page_grab_valid(&m, object, pindex,
+	    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_WIRED);
 	VM_OBJECT_WUNLOCK(object);
 	return (m);
 }

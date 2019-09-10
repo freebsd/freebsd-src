@@ -497,6 +497,7 @@ vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 #define	VM_ALLOC_ZERO		0x0040	/* (acfgp) Allocate a prezeroed page */
 #define	VM_ALLOC_NOOBJ		0x0100	/* (acg) No associated object */
 #define	VM_ALLOC_NOBUSY		0x0200	/* (acgp) Do not excl busy the page */
+#define	VM_ALLOC_NOCREAT	0x0400	/* (gp) Don't create a page */
 #define	VM_ALLOC_IGN_SBUSY	0x1000	/* (gp) Ignore shared busy flag */
 #define	VM_ALLOC_NODUMP		0x2000	/* (ag) don't include in dump */
 #define	VM_ALLOC_SBUSY		0x4000	/* (acgp) Shared busy the page */
@@ -539,6 +540,7 @@ malloc2vm_flags(int malloc_flags)
 #define	PS_ALL_VALID	0x2
 #define	PS_NONE_BUSY	0x4
 
+int vm_page_busy_acquire(vm_page_t m, int allocflags);
 void vm_page_busy_downgrade(vm_page_t m);
 void vm_page_busy_sleep(vm_page_t m, const char *msg, bool nonshared);
 void vm_page_free(vm_page_t m);
@@ -565,6 +567,8 @@ void vm_page_change_lock(vm_page_t m, struct mtx **mtx);
 vm_page_t vm_page_grab (vm_object_t, vm_pindex_t, int);
 int vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
     vm_page_t *ma, int count);
+int vm_page_grab_valid(vm_page_t *mp, vm_object_t object, vm_pindex_t pindex,
+    int allocflags);
 void vm_page_deactivate(vm_page_t);
 void vm_page_deactivate_noreuse(vm_page_t);
 void vm_page_dequeue(vm_page_t m);

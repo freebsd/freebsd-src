@@ -231,8 +231,7 @@ reserve:
 	}
 
 	VM_OBJECT_WLOCK(vm_obj);
-	if (vm_page_busied(m)) {
-		vm_page_sleep_if_busy(m, "ttmpbs");
+	if (vm_page_busy_acquire(m, VM_ALLOC_WAITFAIL) == 0) {
 		ttm_mem_io_unlock(man);
 		ttm_bo_unreserve(bo);
 		goto retry;
@@ -240,6 +239,7 @@ reserve:
 	m1 = vm_page_lookup(vm_obj, OFF_TO_IDX(offset));
 	if (m1 == NULL) {
 		if (vm_page_insert(m, vm_obj, OFF_TO_IDX(offset))) {
+			vm_page_xunbusy(m);
 			VM_OBJECT_WUNLOCK(vm_obj);
 			vm_wait(vm_obj);
 			VM_OBJECT_WLOCK(vm_obj);
@@ -253,7 +253,6 @@ reserve:
 		    bo, m, m1, (uintmax_t)offset));
 	}
 	m->valid = VM_PAGE_BITS_ALL;
-	vm_page_xbusy(m);
 	if (*mres != NULL) {
 		KASSERT(*mres != m, ("losing %p %p", *mres, m));
 		vm_page_free(*mres);
@@ -375,7 +374,7 @@ retry:
 		m = vm_page_lookup(vm_obj, i);
 		if (m == NULL)
 			continue;
-		if (vm_page_sleep_if_busy(m, "ttm_unm"))
+		if (vm_page_busy_acquire(m, VM_ALLOC_WAITFAIL) == 0)
 			goto retry;
 		cdev_pager_free_page(vm_obj, m);
 	}
