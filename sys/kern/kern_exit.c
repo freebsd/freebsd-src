@@ -1330,6 +1330,24 @@ loop_locked:
 	goto loop;
 }
 
+void
+proc_add_orphan(struct proc *child, struct proc *parent)
+{
+
+	sx_assert(&proctree_lock, SX_XLOCKED);
+	KASSERT((child->p_flag & P_TRACED) != 0,
+	    ("proc_add_orphan: not traced"));
+
+	if (LIST_EMPTY(&parent->p_orphans)) {
+		child->p_treeflag |= P_TREE_FIRST_ORPHAN;
+		LIST_INSERT_HEAD(&parent->p_orphans, child, p_orphan);
+	} else {
+		LIST_INSERT_AFTER(LIST_FIRST(&parent->p_orphans),
+		    child, p_orphan);
+	}
+	child->p_treeflag |= P_TREE_ORPHANED;
+}
+
 /*
  * Make process 'parent' the new parent of process 'child'.
  * Must be called with an exclusive hold of proctree lock.
@@ -1350,16 +1368,8 @@ proc_reparent(struct proc *child, struct proc *parent, bool set_oppid)
 	LIST_INSERT_HEAD(&parent->p_children, child, p_sibling);
 
 	clear_orphan(child);
-	if (child->p_flag & P_TRACED) {
-		if (LIST_EMPTY(&child->p_pptr->p_orphans)) {
-			child->p_treeflag |= P_TREE_FIRST_ORPHAN;
-			LIST_INSERT_HEAD(&child->p_pptr->p_orphans, child,
-			    p_orphan);
-		} else {
-			LIST_INSERT_AFTER(LIST_FIRST(&child->p_pptr->p_orphans),
-			    child, p_orphan);
-		}
-		child->p_treeflag |= P_TREE_ORPHANED;
+	if ((child->p_flag & P_TRACED) != 0) {
+		proc_add_orphan(child, child->p_pptr);
 	}
 
 	child->p_pptr = parent;
