@@ -290,16 +290,24 @@ cal_parse(FILE *in, FILE *out)
 		if (buf[0] == '\0')
 			continue;
 
-		/* Parse special definitions: LANG, Easter, Paskha etc */
+		/*
+		 * Setting LANG in user's calendar was an old workaround
+		 * for 'calendar -a' being run with C locale to properly
+		 * print user's calendars in their native languages.
+		 * Now that 'calendar -a' does fork with setusercontext(),
+		 * and does not run iconv(), this variable has little use.
+		 */
 		if (strncmp(buf, "LANG=", 5) == 0) {
 			(void)setlocale(LC_ALL, buf + 5);
 			d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 #ifdef WITH_ICONV
-			set_new_encoding();
+			if (!doall)
+				set_new_encoding();
 #endif
 			setnnames();
 			continue;
 		}
+		/* Parse special definitions: Easter, Paskha etc */
 		REPLACE("Easter=", 7, neaster);
 		REPLACE("Paskha=", 7, npaskha);
 		REPLACE("ChineseNewYear=", 15, ncny);
@@ -445,7 +453,6 @@ opencalout(void)
 void
 closecal(FILE *fp)
 {
-	uid_t uid;
 	struct stat sbuf;
 	int nread, pdes[2], status;
 	char buf[1024];
@@ -470,19 +477,6 @@ closecal(FILE *fp)
 			(void)close(pdes[0]);
 		}
 		(void)close(pdes[1]);
-		uid = geteuid();
-		if (setuid(getuid()) < 0) {
-			warnx("setuid failed");
-			_exit(1);
-		}
-		if (setgid(getegid()) < 0) {
-			warnx("setgid failed");
-			_exit(1);
-		}
-		if (setuid(uid) < 0) {
-			warnx("setuid failed");
-			_exit(1);
-		}
 		execl(_PATH_SENDMAIL, "sendmail", "-i", "-t", "-F",
 		    "\"Reminder Service\"", (char *)NULL);
 		warn(_PATH_SENDMAIL);
