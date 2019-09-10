@@ -24,7 +24,7 @@
 
 #include "internal/engine.h"
 
-#ifdef CRYPTO_ALGORITHM_MIN
+#if CRYPTO_ALGORITHM_MIN < CRYPTO_ALGORITHM_MAX
 # define CHECK_BSD_STYLE_MACROS
 #endif
 
