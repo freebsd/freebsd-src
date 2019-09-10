@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <crypto.h>
 
+#include "cryptlib.h"
 #include "arm_arch.h"
 
 __attribute__ ((visibility("hidden")))

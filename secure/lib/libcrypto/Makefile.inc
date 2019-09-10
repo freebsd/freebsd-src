@@ -3,8 +3,8 @@
 .include <bsd.own.mk>
 
 # OpenSSL version used for manual page generation
-OPENSSL_VER=	1.0.2s
-OPENSSL_DATE=	2019-05-28
+OPENSSL_VER=	1.0.2t
+OPENSSL_DATE=	2019-09-10
 
 LCRYPTO_SRC=	${SRCTOP}/crypto/openssl
 LCRYPTO_DOC=	${LCRYPTO_SRC}/doc
