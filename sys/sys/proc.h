@@ -763,6 +763,8 @@ struct proc {
 #define	P2_ASLR_ENABLE	0x00000040	/* Force enable ASLR. */
 #define	P2_ASLR_DISABLE	0x00000080	/* Force disable ASLR. */
 #define	P2_ASLR_IGNSTART 0x00000100	/* Enable ASLR to consume sbrk area. */
+#define	P2_STKGAP_DISABLE 0x00000800	/* Disable stack gap for MAP_STACK */
+#define	P2_STKGAP_DISABLE_EXEC 0x00001000 /* Stack gap disabled after exec */
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
