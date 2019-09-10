@@ -38,9 +38,6 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20190910: OpenSSL 1.1.1d
-OLD_FILES+=usr/share/openssl/man/man3/d2i_ECDSA_SIG.3.gz
-OLD_FILES+=usr/share/openssl/man/man3/i2d_ECDSA_SIG.3.gz
 # 20190811: sys/pwm.h renamed to dev/pwmc.h and pwm(9) removed
 OLD_FILES+=usr/include/sys/pwm.h usr/share/man/man9/pwm.9
 # 20190723: new clang import which bumps version from 8.0.0 to 8.0.1.
