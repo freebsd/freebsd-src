@@ -1,4 +1,4 @@
-/*	$NetBSD: eln.c,v 1.34 2016/05/09 21:37:34 christos Exp $	*/
+/*	$NetBSD: eln.c,v 1.35 2019/04/26 16:56:57 christos Exp $	*/
 
 /*-
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -27,7 +27,7 @@
  */
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: eln.c,v 1.34 2016/05/09 21:37:34 christos Exp $");
+__RCSID("$NetBSD: eln.c,v 1.35 2019/04/26 16:56:57 christos Exp $");
 #endif /* not lint && not SCCSID */
 
 #include <errno.h>
@@ -321,14 +321,12 @@ el_get(EditLine *el, int op, ...)
 		break;
 
 	case EL_GETTC: {
-		char *argv[20];
+		char *argv[3];
 		static char gettc[] = "gettc";
-		int i;
-		for (i = 1; i < (int)__arraycount(argv); ++i)
-			if ((argv[i] = va_arg(ap, char *)) == NULL)
-				break;
 		argv[0] = gettc;
-		ret = terminal_gettc(el, i, argv);
+		argv[1] = va_arg(ap, char *);
+		argv[2] = va_arg(ap, void *);
+		ret = terminal_gettc(el, 3, argv);
 		break;
 	}
 

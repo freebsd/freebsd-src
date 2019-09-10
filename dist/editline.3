@@ -1,4 +1,4 @@
-.\"	$NetBSD: editline.3,v 1.98 2017/09/02 06:48:10 wiz Exp $
+.\"	$NetBSD: editline.3,v 1.99 2018/11/18 17:09:39 christos Exp $
 .\"
 .\" Copyright (c) 1997-2014 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -26,7 +26,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd September 1, 2017
+.Dd November 9, 2018
 .Dt EDITLINE 3
 .Os
 .Sh NAME
@@ -181,8 +181,6 @@ library respects the
 locale set by the application program and never uses
 .Xr setlocale 3
 to change the locale.
-The only locales supported are UTF-8 and the default C or POSIX locale.
-If any other locale is set, behaviour is undefined.
 .Sh LINE EDITING FUNCTIONS
 The line editing functions use a common data structure,
 .Fa EditLine ,

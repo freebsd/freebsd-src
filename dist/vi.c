@@ -1,4 +1,4 @@
-/*	$NetBSD: vi.c,v 1.62 2016/05/09 21:46:56 christos Exp $	*/
+/*	$NetBSD: vi.c,v 1.63 2019/07/23 10:18:52 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)vi.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: vi.c,v 1.62 2016/05/09 21:46:56 christos Exp $");
+__RCSID("$NetBSD: vi.c,v 1.63 2019/07/23 10:18:52 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -1019,10 +1019,10 @@ vi_histedit(EditLine *el, wint_t c __attribute__((__unused__)))
 		return CC_ERROR;
 	len = (size_t)(el->el_line.lastchar - el->el_line.buffer);
 #define TMP_BUFSIZ (EL_BUFSIZ * MB_LEN_MAX)
-	cp = el_malloc(TMP_BUFSIZ * sizeof(*cp));
+	cp = el_calloc(TMP_BUFSIZ, sizeof(*cp));
 	if (cp == NULL)
 		goto error;
-	line = el_malloc(len * sizeof(*line) + 1);
+	line = el_calloc(len + 1, sizeof(*line));
 	if (line == NULL)
 		goto error;
 	wcsncpy(line, el->el_line.buffer, len);

@@ -1,4 +1,4 @@
-/*	$NetBSD: keymacro.c,v 1.23 2016/05/24 15:00:45 christos Exp $	*/
+/*	$NetBSD: keymacro.c,v 1.24 2019/07/23 10:18:52 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)key.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: keymacro.c,v 1.23 2016/05/24 15:00:45 christos Exp $");
+__RCSID("$NetBSD: keymacro.c,v 1.24 2019/07/23 10:18:52 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -105,7 +105,7 @@ libedit_private int
 keymacro_init(EditLine *el)
 {
 
-	el->el_keymacro.buf = el_malloc(KEY_BUFSIZ *
+	el->el_keymacro.buf = el_calloc(KEY_BUFSIZ,
 	    sizeof(*el->el_keymacro.buf));
 	if (el->el_keymacro.buf == NULL)
 		return -1;

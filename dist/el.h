@@ -1,4 +1,4 @@
-/*	$NetBSD: el.h,v 1.43 2017/09/05 18:07:59 christos Exp $	*/
+/*	$NetBSD: el.h,v 1.45 2019/07/23 10:18:52 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -55,7 +55,6 @@
 #define	NO_TTY		0x02
 #define	EDIT_DISABLED	0x04
 #define	UNBUFFERED	0x08
-#define	CHARSET_IS_UTF8 0x10
 #define	NARROW_HISTORY	0x40
 #define	NO_RESET	0x80
 
@@ -90,6 +89,7 @@ typedef struct el_state_t {
  * Until we come up with something better...
  */
 #define	el_malloc(a)	malloc(a)
+#define	el_calloc(a,b)	calloc(a, b)
 #define	el_realloc(a,b)	realloc(a, b)
 #define	el_free(a)	free(a)
 
