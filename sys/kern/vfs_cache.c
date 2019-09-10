@@ -1879,19 +1879,21 @@ nchinit(void *dummy __unused)
 	    UMA_ZONE_ZINIT);
 
 	nchashtbl = hashinit(desiredvnodes * 2, M_VFSCACHE, &nchash);
-	ncbuckethash = cache_roundup_2(mp_ncpus * 64) - 1;
+	ncbuckethash = cache_roundup_2(mp_ncpus * mp_ncpus) - 1;
+	if (ncbuckethash < 7) /* arbitrarily chosen to avoid having one lock */
+		ncbuckethash = 7;
 	if (ncbuckethash > nchash)
 		ncbuckethash = nchash;
 	bucketlocks = malloc(sizeof(*bucketlocks) * numbucketlocks, M_VFSCACHE,
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < numbucketlocks; i++)
 		rw_init_flags(&bucketlocks[i], "ncbuc", RW_DUPOK | RW_RECURSE);
-	ncvnodehash = cache_roundup_2(mp_ncpus * 64) - 1;
+	ncvnodehash = ncbuckethash;
 	vnodelocks = malloc(sizeof(*vnodelocks) * numvnodelocks, M_VFSCACHE,
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < numvnodelocks; i++)
 		mtx_init(&vnodelocks[i], "ncvn", NULL, MTX_DUPOK | MTX_RECURSE);
-	ncpurgeminvnodes = numbucketlocks;
+	ncpurgeminvnodes = numbucketlocks * 2;
 
 	ncneghash = 3;
 	neglists = malloc(sizeof(*neglists) * numneglists, M_VFSCACHE,
