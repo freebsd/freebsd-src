@@ -2226,7 +2226,7 @@ _DB_FUNC(_show, route, db_show_route_cmd, db_show_table, CS_OWN, NULL)
 
 			if (af == AF_INET && db_tok_number > UINT8_MAX) {
 				db_printf("Not a valid v4 octet: %ld\n",
-				    db_tok_number);
+				    (long)db_tok_number);
 				goto exit;
 			}
 			hextets[i] = db_tok_number;
