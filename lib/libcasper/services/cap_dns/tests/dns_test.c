@@ -357,8 +357,8 @@ main(void)
 	capdns = cap_clone(origcapdns);
 	CHECK(capdns != NULL);
 
-	types[0] = "NAME";
-	types[1] = "ADDR";
+	types[0] = "NAME2ADDR";
+	types[1] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 2) == 0);
 	families[0] = AF_INET;
 	families[1] = AF_INET6;
@@ -380,12 +380,12 @@ main(void)
 	capdns = cap_clone(origcapdns);
 	CHECK(capdns != NULL);
 
-	types[0] = "NAME";
+	types[0] = "NAME2ADDR";
 	CHECK(cap_dns_type_limit(capdns, types, 1) == 0);
-	types[1] = "ADDR";
+	types[1] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 2) == -1 &&
 	    errno == ENOTCAPABLE);
-	types[0] = "ADDR";
+	types[0] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 1) == -1 &&
 	    errno == ENOTCAPABLE);
 	families[0] = AF_INET;
@@ -407,12 +407,12 @@ main(void)
 	capdns = cap_clone(origcapdns);
 	CHECK(capdns != NULL);
 
-	types[0] = "ADDR";
+	types[0] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 1) == 0);
-	types[1] = "NAME";
+	types[1] = "NAME2ADDR";
 	CHECK(cap_dns_type_limit(capdns, types, 2) == -1 &&
 	    errno == ENOTCAPABLE);
-	types[0] = "NAME";
+	types[0] = "NAME2ADDR";
 	CHECK(cap_dns_type_limit(capdns, types, 1) == -1 &&
 	    errno == ENOTCAPABLE);
 	families[0] = AF_INET;
@@ -432,8 +432,8 @@ main(void)
 	capdns = cap_clone(origcapdns);
 	CHECK(capdns != NULL);
 
-	types[0] = "NAME";
-	types[1] = "ADDR";
+	types[0] = "NAME2ADDR";
+	types[1] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 2) == 0);
 	families[0] = AF_INET;
 	CHECK(cap_dns_family_limit(capdns, families, 1) == 0);
@@ -459,8 +459,8 @@ main(void)
 	capdns = cap_clone(origcapdns);
 	CHECK(capdns != NULL);
 
-	types[0] = "NAME";
-	types[1] = "ADDR";
+	types[0] = "NAME2ADDR";
+	types[1] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 2) == 0);
 	families[0] = AF_INET6;
 	CHECK(cap_dns_family_limit(capdns, families, 1) == 0);
@@ -488,18 +488,18 @@ main(void)
 	capdns = cap_clone(origcapdns);
 	CHECK(capdns != NULL);
 
-	types[0] = "NAME";
-	types[1] = "ADDR";
+	types[0] = "NAME2ADDR";
+	types[1] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 2) == 0);
 	families[0] = AF_INET;
 	families[1] = AF_INET6;
 	CHECK(cap_dns_family_limit(capdns, families, 2) == 0);
-	types[0] = "NAME";
+	types[0] = "NAME2ADDR";
 	CHECK(cap_dns_type_limit(capdns, types, 1) == 0);
-	types[1] = "ADDR";
+	types[1] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 2) == -1 &&
 	    errno == ENOTCAPABLE);
-	types[0] = "ADDR";
+	types[0] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 1) == -1 &&
 	    errno == ENOTCAPABLE);
 	families[0] = AF_INET;
@@ -525,18 +525,18 @@ main(void)
 	capdns = cap_clone(origcapdns);
 	CHECK(capdns != NULL);
 
-	types[0] = "NAME";
-	types[1] = "ADDR";
+	types[0] = "NAME2ADDR";
+	types[1] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 2) == 0);
 	families[0] = AF_INET;
 	families[1] = AF_INET6;
 	CHECK(cap_dns_family_limit(capdns, families, 2) == 0);
-	types[0] = "NAME";
+	types[0] = "NAME2ADDR";
 	CHECK(cap_dns_type_limit(capdns, types, 1) == 0);
-	types[1] = "ADDR";
+	types[1] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 2) == -1 &&
 	    errno == ENOTCAPABLE);
-	types[0] = "ADDR";
+	types[0] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 1) == -1 &&
 	    errno == ENOTCAPABLE);
 	families[0] = AF_INET6;
@@ -562,18 +562,18 @@ main(void)
 	capdns = cap_clone(origcapdns);
 	CHECK(capdns != NULL);
 
-	types[0] = "NAME";
-	types[1] = "ADDR";
+	types[0] = "NAME2ADDR";
+	types[1] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 2) == 0);
 	families[0] = AF_INET;
 	families[1] = AF_INET6;
 	CHECK(cap_dns_family_limit(capdns, families, 2) == 0);
-	types[0] = "ADDR";
+	types[0] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 1) == 0);
-	types[1] = "NAME";
+	types[1] = "NAME2ADDR";
 	CHECK(cap_dns_type_limit(capdns, types, 2) == -1 &&
 	    errno == ENOTCAPABLE);
-	types[0] = "NAME";
+	types[0] = "NAME2ADDR";
 	CHECK(cap_dns_type_limit(capdns, types, 1) == -1 &&
 	    errno == ENOTCAPABLE);
 	families[0] = AF_INET;
@@ -598,18 +598,18 @@ main(void)
 	capdns = cap_clone(origcapdns);
 	CHECK(capdns != NULL);
 
-	types[0] = "NAME";
-	types[1] = "ADDR";
+	types[0] = "NAME2ADDR";
+	types[1] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 2) == 0);
 	families[0] = AF_INET;
 	families[1] = AF_INET6;
 	CHECK(cap_dns_family_limit(capdns, families, 2) == 0);
-	types[0] = "ADDR";
+	types[0] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 1) == 0);
-	types[1] = "NAME";
+	types[1] = "NAME2ADDR";
 	CHECK(cap_dns_type_limit(capdns, types, 2) == -1 &&
 	    errno == ENOTCAPABLE);
-	types[0] = "NAME";
+	types[0] = "NAME2ADDR";
 	CHECK(cap_dns_type_limit(capdns, types, 1) == -1 &&
 	    errno == ENOTCAPABLE);
 	families[0] = AF_INET6;
@@ -630,13 +630,13 @@ main(void)
 	capdns = cap_clone(origcapdns);
 	CHECK(capdns != NULL);
 
-	types[0] = "NAME";
+	types[0] = "NAME2ADDR";
 	CHECK(cap_dns_type_limit(capdns, types, 1) == 0);
 	families[0] = AF_INET;
 	CHECK(cap_dns_family_limit(capdns, families, 1) == 0);
 
-	types[0] = "NAME";
-	types[1] = "ADDR";
+	types[0] = "NAME2ADDR";
+	types[1] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 2) == -1 &&
 	    errno == ENOTCAPABLE);
 	families[0] = AF_INET;
@@ -644,7 +644,7 @@ main(void)
 	CHECK(cap_dns_family_limit(capdns, families, 2) == -1 &&
 	    errno == ENOTCAPABLE);
 
-	types[0] = "ADDR";
+	types[0] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 1) == -1 &&
 	    errno == ENOTCAPABLE);
 	families[0] = AF_INET6;
@@ -665,13 +665,13 @@ main(void)
 	capdns = cap_clone(origcapdns);
 	CHECK(capdns != NULL);
 
-	types[0] = "ADDR";
+	types[0] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 1) == 0);
 	families[0] = AF_INET6;
 	CHECK(cap_dns_family_limit(capdns, families, 1) == 0);
 
-	types[0] = "NAME";
-	types[1] = "ADDR";
+	types[0] = "NAME2ADDR";
+	types[1] = "ADDR2NAME";
 	CHECK(cap_dns_type_limit(capdns, types, 2) == -1 &&
 	    errno == ENOTCAPABLE);
 	families[0] = AF_INET;
@@ -679,7 +679,7 @@ main(void)
 	CHECK(cap_dns_family_limit(capdns, families, 2) == -1 &&
 	    errno == ENOTCAPABLE);
 
-	types[0] = "NAME";
+	types[0] = "NAME2ADDR";
 	CHECK(cap_dns_type_limit(capdns, types, 1) == -1 &&
 	    errno == ENOTCAPABLE);
 	families[0] = AF_INET;
