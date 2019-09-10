@@ -125,7 +125,6 @@ OLD_DIRS+=usr/share/pc-sysinstall/conf/license
 OLD_DIRS+=usr/share/pc-sysinstall/conf
 OLD_DIRS+=usr/share/pc-sysinstall/doc
 OLD_DIRS+=usr/share/pc-sysinstall
-
 # 20190825: zlib 1.0.4 removed from kernel
 OLD_FILES+=usr/include/sys/zlib.h
 OLD_FILES+=usr/include/sys/zutil.h
