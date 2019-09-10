@@ -378,6 +378,8 @@ STATNODE_COUNTER(numfullpathfail2,
     "Number of fullpath search errors (VOP_VPTOCNP failures)");
 STATNODE_COUNTER(numfullpathfail4, "Number of fullpath search errors (ENOMEM)");
 STATNODE_COUNTER(numfullpathfound, "Number of successful fullpath calls");
+STATNODE_COUNTER(zap_and_exit_bucket_relock_success,
+    "Number of successful removals after relocking");
 static long zap_and_exit_bucket_fail; STATNODE_ULONG(zap_and_exit_bucket_fail,
     "Number of times zap_and_exit failed to lock");
 static long zap_and_exit_bucket_fail2; STATNODE_ULONG(zap_and_exit_bucket_fail2,
@@ -523,6 +525,19 @@ cache_trylock_vnodes(struct mtx *vlp1, struct mtx *vlp2)
 	}
 
 	return (0);
+}
+
+static void
+cache_lock_vnodes(struct mtx *vlp1, struct mtx *vlp2)
+{
+
+	MPASS(vlp1 != NULL || vlp2 != NULL);
+	MPASS(vlp1 <= vlp2);
+
+	if (vlp1 != NULL)
+		mtx_lock(vlp1);
+	if (vlp2 != NULL)
+		mtx_lock(vlp2);
 }
 
 static void
@@ -992,10 +1007,47 @@ out:
 	return (error);
 }
 
+/*
+ * If trylocking failed we can get here. We know enough to take all needed locks
+ * in the right order and re-lookup the entry.
+ */
 static int
-cache_zap_wlocked_bucket(struct namecache *ncp, struct rwlock *blp)
+cache_zap_unlocked_bucket(struct namecache *ncp, struct componentname *cnp,
+    struct vnode *dvp, struct mtx *dvlp, struct mtx *vlp, uint32_t hash,
+    struct rwlock *blp)
+{
+	struct namecache *rncp;
+
+	cache_assert_bucket_locked(ncp, RA_UNLOCKED);
+
+	cache_sort_vnodes(&dvlp, &vlp);
+	cache_lock_vnodes(dvlp, vlp);
+	rw_wlock(blp);
+	LIST_FOREACH(rncp, (NCHHASH(hash)), nc_hash) {
+		if (rncp == ncp && rncp->nc_dvp == dvp &&
+		    rncp->nc_nlen == cnp->cn_namelen &&
+		    !bcmp(rncp->nc_name, cnp->cn_nameptr, rncp->nc_nlen))
+			break;
+	}
+	if (rncp != NULL) {
+		cache_zap_locked(rncp, false);
+		rw_wunlock(blp);
+		cache_unlock_vnodes(dvlp, vlp);
+		counter_u64_add(zap_and_exit_bucket_relock_success, 1);
+		return (0);
+	}
+
+	rw_wunlock(blp);
+	cache_unlock_vnodes(dvlp, vlp);
+	return (EAGAIN);
+}
+
+static int __noinline
+cache_zap_wlocked_bucket(struct namecache *ncp, struct componentname *cnp,
+    uint32_t hash, struct rwlock *blp)
 {
 	struct mtx *dvlp, *vlp;
+	struct vnode *dvp;
 
 	cache_assert_bucket_locked(ncp, RA_WLOCKED);
 
@@ -1010,14 +1062,17 @@ cache_zap_wlocked_bucket(struct namecache *ncp, struct rwlock *blp)
 		return (0);
 	}
 
+	dvp = ncp->nc_dvp;
 	rw_wunlock(blp);
-	return (EAGAIN);
+	return (cache_zap_unlocked_bucket(ncp, cnp, dvp, dvlp, vlp, hash, blp));
 }
 
-static int
-cache_zap_rlocked_bucket(struct namecache *ncp, struct rwlock *blp)
+static int __noinline
+cache_zap_rlocked_bucket(struct namecache *ncp, struct componentname *cnp,
+    uint32_t hash, struct rwlock *blp)
 {
 	struct mtx *dvlp, *vlp;
+	struct vnode *dvp;
 
 	cache_assert_bucket_locked(ncp, RA_RLOCKED);
 
@@ -1034,8 +1089,9 @@ cache_zap_rlocked_bucket(struct namecache *ncp, struct rwlock *blp)
 		return (0);
 	}
 
+	dvp = ncp->nc_dvp;
 	rw_runlock(blp);
-	return (EAGAIN);
+	return (cache_zap_unlocked_bucket(ncp, cnp, dvp, dvlp, vlp, hash, blp));
 }
 
 static int
@@ -1197,7 +1253,7 @@ retry:
 		goto out_no_entry;
 	}
 
-	error = cache_zap_wlocked_bucket(ncp, blp);
+	error = cache_zap_wlocked_bucket(ncp, cnp, hash, blp);
 	if (__predict_false(error != 0)) {
 		zap_and_exit_bucket_fail++;
 		cache_maybe_yield();
@@ -1396,7 +1452,7 @@ success:
 
 zap_and_exit:
 	if (blp != NULL)
-		error = cache_zap_rlocked_bucket(ncp, blp);
+		error = cache_zap_rlocked_bucket(ncp, cnp, hash, blp);
 	else
 		error = cache_zap_locked_vnode(ncp, dvp);
 	if (__predict_false(error != 0)) {
@@ -1922,6 +1978,7 @@ nchinit(void *dummy __unused)
 	numfullpathfail2 = counter_u64_alloc(M_WAITOK);
 	numfullpathfail4 = counter_u64_alloc(M_WAITOK);
 	numfullpathfound = counter_u64_alloc(M_WAITOK);
+	zap_and_exit_bucket_relock_success = counter_u64_alloc(M_WAITOK);
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nchinit, NULL);
 
