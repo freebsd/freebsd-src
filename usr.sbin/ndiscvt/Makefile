@@ -13,8 +13,6 @@ MAN+=	ndisgen.8
 WARNS?=	4
 NO_WCAST_ALIGN=
 
-LIBADD=	l
-
 YFLAGS+=-v
 
 CFLAGS+=-I. -I${.CURDIR} -I${SRCTOP}/sys
