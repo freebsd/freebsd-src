@@ -53,7 +53,7 @@ struct g_command class_commands[] = {
 		{ 's', "size", "0", G_TYPE_NUMBER },
 		{ 'S', "secsize", "0", G_TYPE_NUMBER },
 		{ 'w', "wfailprob", "-1", G_TYPE_NUMBER },
-		{ 'x', "wdelayprob", "1", G_TYPE_NUMBER },
+		{ 'x', "wdelayprob", "-1", G_TYPE_NUMBER },
 		{ 'z', "physpath", G_NOP_PHYSPATH_PASSTHROUGH, G_TYPE_STRING },
 		G_OPT_SENTINEL
 	    },
@@ -68,7 +68,7 @@ struct g_command class_commands[] = {
 		{ 'q', "rdelayprob", "-1", G_TYPE_NUMBER },
 		{ 'r', "rfailprob", "-1", G_TYPE_NUMBER },
 		{ 'w', "wfailprob", "-1", G_TYPE_NUMBER },
-		{ 'x', "wdelayprob", "1", G_TYPE_NUMBER },
+		{ 'x', "wdelayprob", "-1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
 	    "[-v] [-d delaymsec] [-e error] [-q rdelayprob] [-r rfailprob] "
