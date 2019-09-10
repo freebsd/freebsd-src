@@ -574,6 +574,7 @@ vidc_init(int arg)
 {
 	const teken_attr_t *a;
 	int val;
+	char env[8];
 
 	if (vidc_started && arg == 0)
 		return (0);
@@ -605,6 +606,11 @@ vidc_init(int arg)
 	teken_init(&teken, &tf, NULL);
 	teken_set_winsize(&teken, &tp);
 	a = teken_get_defattr(&teken);
+
+	snprintf(env, sizeof (env), "%u", tp.tp_row);
+	setenv("LINES", env, 1);
+	snprintf(env, sizeof (env), "%u", tp.tp_col);
+	setenv("COLUMNS", env, 1);
 
 	for (int row = 0; row < tp.tp_row; row++)
 		for (int col = 0; col < tp.tp_col; col++) {
