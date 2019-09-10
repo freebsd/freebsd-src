@@ -524,7 +524,7 @@ dns_getnameinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 	socklen_t salen;
 	int error, flags;
 
-	if (!dns_allowed_type(limits, "NAME"))
+	if (!dns_allowed_type(limits, "ADDR"))
 		return (NO_RECOVERY);
 
 	error = 0;
@@ -617,7 +617,7 @@ dns_getaddrinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 	unsigned int ii;
 	int error, family, n;
 
-	if (!dns_allowed_type(limits, "ADDR"))
+	if (!dns_allowed_type(limits, "NAME"))
 		return (NO_RECOVERY);
 
 	hostname = dnvlist_get_string(nvlin, "hostname", NULL);
