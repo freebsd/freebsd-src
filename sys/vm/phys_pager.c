@@ -219,10 +219,7 @@ retry:
 				pmap_zero_page(m);
 			m->valid = VM_PAGE_BITS_ALL;
 		} else if (vm_page_xbusied(m)) {
-			vm_page_lock(m);
-			VM_OBJECT_WUNLOCK(object);
-			vm_page_busy_sleep(m, "physb", true);
-			VM_OBJECT_WLOCK(object);
+			vm_page_sleep_if_xbusy(m, "physb");
 			goto retry;
 		} else {
 			vm_page_xbusy(m);

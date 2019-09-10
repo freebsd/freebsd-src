@@ -1160,9 +1160,7 @@ next_page:
 		    ("vm_object_madvise: page %p is not managed", tm));
 		if (vm_page_busied(tm)) {
 			if (object != tobject)
-				VM_OBJECT_WUNLOCK(tobject);
-			vm_page_lock(tm);
-			VM_OBJECT_WUNLOCK(object);
+				VM_OBJECT_WUNLOCK(object);
 			if (advice == MADV_WILLNEED) {
 				/*
 				 * Reference the page before unlocking and
@@ -1345,10 +1343,7 @@ retry:
 		 */
 		if (vm_page_busied(m)) {
 			VM_OBJECT_WUNLOCK(new_object);
-			vm_page_lock(m);
-			VM_OBJECT_WUNLOCK(orig_object);
-			vm_page_busy_sleep(m, "spltwt", false);
-			VM_OBJECT_WLOCK(orig_object);
+			vm_page_sleep_if_busy(m, "spltwt");
 			VM_OBJECT_WLOCK(new_object);
 			goto retry;
 		}
@@ -1415,15 +1410,16 @@ vm_object_collapse_scan_wait(vm_object_t object, vm_page_t p, vm_page_t next,
 	    ("invalid ownership %p %p %p", p, object, backing_object));
 	if ((op & OBSC_COLLAPSE_NOWAIT) != 0)
 		return (next);
-	if (p != NULL)
-		vm_page_lock(p);
-	VM_OBJECT_WUNLOCK(object);
-	VM_OBJECT_WUNLOCK(backing_object);
 	/* The page is only NULL when rename fails. */
-	if (p == NULL)
+	if (p == NULL) {
 		vm_radix_wait();
-	else
+	} else {
+		if (p->object == object)
+			VM_OBJECT_WUNLOCK(backing_object);
+		else
+			VM_OBJECT_WUNLOCK(object);
 		vm_page_busy_sleep(p, "vmocol", false);
+	}
 	VM_OBJECT_WLOCK(object);
 	VM_OBJECT_WLOCK(backing_object);
 	return (TAILQ_FIRST(&backing_object->memq));
@@ -1837,7 +1833,6 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
     int options)
 {
 	vm_page_t p, next;
-	struct mtx *mtx;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT((object->flags & OBJ_UNMANAGED) == 0 ||
@@ -1848,7 +1843,6 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 	vm_object_pip_add(object, 1);
 again:
 	p = vm_page_find_least(object, start);
-	mtx = NULL;
 
 	/*
 	 * Here, the variable "p" is either (1) the page with the least pindex
@@ -1865,17 +1859,8 @@ again:
 		 * however, be invalidated if the option OBJPR_CLEANONLY is
 		 * not specified.
 		 */
-		vm_page_change_lock(p, &mtx);
-		if (vm_page_xbusied(p)) {
-			VM_OBJECT_WUNLOCK(object);
-			vm_page_busy_sleep(p, "vmopax", true);
-			VM_OBJECT_WLOCK(object);
-			goto again;
-		}
 		if (vm_page_busied(p)) {
-			VM_OBJECT_WUNLOCK(object);
-			vm_page_busy_sleep(p, "vmopar", false);
-			VM_OBJECT_WLOCK(object);
+			vm_page_sleep_if_busy(p, "vmopar");
 			goto again;
 		}
 		if (vm_page_wired(p)) {
@@ -1904,8 +1889,6 @@ wired:
 			goto wired;
 		vm_page_free(p);
 	}
-	if (mtx != NULL)
-		mtx_unlock(mtx);
 	vm_object_pip_wakeup(object);
 }
 
@@ -2190,8 +2173,7 @@ again:
 			m = TAILQ_NEXT(m, listq);
 		}
 		if (vm_page_xbusied(tm)) {
-			vm_page_lock(tm);
-			for (tobject = object; locked_depth >= 1;
+			for (tobject = object; locked_depth > 1;
 			    locked_depth--) {
 				t1object = tobject->backing_object;
 				VM_OBJECT_RUNLOCK(tobject);

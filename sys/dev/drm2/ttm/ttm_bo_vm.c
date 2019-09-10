@@ -232,10 +232,7 @@ reserve:
 
 	VM_OBJECT_WLOCK(vm_obj);
 	if (vm_page_busied(m)) {
-		vm_page_lock(m);
-		VM_OBJECT_WUNLOCK(vm_obj);
-		vm_page_busy_sleep(m, "ttmpbs", false);
-		VM_OBJECT_WLOCK(vm_obj);
+		vm_page_sleep_if_busy(m, "ttmpbs");
 		ttm_mem_io_unlock(man);
 		ttm_bo_unreserve(bo);
 		goto retry;

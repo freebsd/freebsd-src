@@ -2931,12 +2931,8 @@ vfs_vmio_invalidate(struct buf *bp)
 		presid = resid > (PAGE_SIZE - poffset) ?
 		    (PAGE_SIZE - poffset) : resid;
 		KASSERT(presid >= 0, ("brelse: extra page"));
-		while (vm_page_xbusied(m)) {
-			vm_page_lock(m);
-			VM_OBJECT_WUNLOCK(obj);
-			vm_page_busy_sleep(m, "mbncsh", true);
-			VM_OBJECT_WLOCK(obj);
-		}
+		while (vm_page_xbusied(m))
+			vm_page_sleep_if_xbusy(m, "mbncsh");
 		if (pmap_page_wired_mappings(m) == 0)
 			vm_page_set_invalid(m, poffset, presid);
 		vm_page_release_locked(m, flags);
@@ -4565,10 +4561,7 @@ vfs_drain_busy_pages(struct buf *bp)
 			for (; last_busied < i; last_busied++)
 				vm_page_sbusy(bp->b_pages[last_busied]);
 			while (vm_page_xbusied(m)) {
-				vm_page_lock(m);
-				VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
-				vm_page_busy_sleep(m, "vbpage", true);
-				VM_OBJECT_WLOCK(bp->b_bufobj->bo_object);
+				vm_page_sleep_if_xbusy(m, "vbpage");
 			}
 		}
 	}
