@@ -437,7 +437,6 @@ exit1(struct thread *td, int rval, int signo)
 	LIST_REMOVE(p, p_hash);
 	sx_xunlock(&allproc_lock);
 
-	sx_xlock(&proctree_lock);
 	PROC_LOCK(p);
 	p->p_flag &= ~(P_TRACED | P_PPWAIT | P_PPTRACE);
 	PROC_UNLOCK(p);
