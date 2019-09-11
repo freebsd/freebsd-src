@@ -719,7 +719,7 @@ main(int argc, char *const *argv)
 	 */
 	caph_cache_catpages();
 	if (caph_enter_casper() < 0)
-		err(1, "cap_enter");
+		err(1, "caph_enter_casper");
 
 	cap_rights_init(&rights, CAP_RECV, CAP_EVENT, CAP_SETSOCKOPT);
 	if (caph_rights_limit(srecv, &rights) < 0)
