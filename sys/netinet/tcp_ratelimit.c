@@ -45,9 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#ifdef KERN_TLS
-#include <sys/sockbuf_tls.h>
-#endif
 #include <sys/sysctl.h>
 #include <sys/eventhandler.h>
 #include <sys/mutex.h>
@@ -1069,7 +1066,7 @@ tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
 			return (NULL);
 		}
 #ifdef KERN_TLS
-		if (tp->t_inpcb->inp_socket->so_snd.sb_tls_flags & SB_TLS_IFNET) {
+		if (tp->t_inpcb->inp_socket->so_snd.sb_flags & SB_TLS_IFNET) {
 			/*
 			 * We currently can't do both TLS and hardware
 			 * pacing
