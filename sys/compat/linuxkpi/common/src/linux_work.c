@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Hans Petter Selasky
+ * Copyright (c) 2017-2019 Hans Petter Selasky
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -323,24 +323,26 @@ linux_cancel_work_sync(struct work_struct *work)
 		[WORK_ST_CANCEL] = WORK_ST_IDLE,	/* cancel and drain */
 	};
 	struct taskqueue *tq;
+	bool retval = false;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 	    "linux_cancel_work_sync() might sleep");
-
+retry:
 	switch (linux_update_state(&work->state, states)) {
 	case WORK_ST_IDLE:
 	case WORK_ST_TIMER:
-		return (0);
+		return (retval);
 	case WORK_ST_EXEC:
 		tq = work->work_queue->taskqueue;
 		if (taskqueue_cancel(tq, &work->work_task, NULL) != 0)
 			taskqueue_drain(tq, &work->work_task);
-		return (0);
+		goto retry;	/* work may have restarted itself */
 	default:
 		tq = work->work_queue->taskqueue;
 		if (taskqueue_cancel(tq, &work->work_task, NULL) != 0)
 			taskqueue_drain(tq, &work->work_task);
-		return (1);
+		retval = true;
+		goto retry;
 	}
 }
 
@@ -421,18 +423,19 @@ linux_cancel_delayed_work_sync(struct delayed_work *dwork)
 		[WORK_ST_CANCEL] = WORK_ST_IDLE,	/* cancel and drain */
 	};
 	struct taskqueue *tq;
+	bool retval = false;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 	    "linux_cancel_delayed_work_sync() might sleep");
-
+retry:
 	switch (linux_update_state(&dwork->work.state, states)) {
 	case WORK_ST_IDLE:
-		return (0);
+		return (retval);
 	case WORK_ST_EXEC:
 		tq = dwork->work.work_queue->taskqueue;
 		if (taskqueue_cancel(tq, &dwork->work.work_task, NULL) != 0)
 			taskqueue_drain(tq, &dwork->work.work_task);
-		return (0);
+		goto retry;	/* work may have restarted itself */
 	case WORK_ST_TIMER:
 	case WORK_ST_CANCEL:
 		if (linux_cancel_timer(dwork, 1)) {
@@ -442,14 +445,16 @@ linux_cancel_delayed_work_sync(struct delayed_work *dwork)
 			 */
 			tq = dwork->work.work_queue->taskqueue;
 			taskqueue_drain(tq, &dwork->work.work_task);
-			return (1);
+			retval = true;
+			goto retry;
 		}
 		/* FALLTHROUGH */
 	default:
 		tq = dwork->work.work_queue->taskqueue;
 		if (taskqueue_cancel(tq, &dwork->work.work_task, NULL) != 0)
 			taskqueue_drain(tq, &dwork->work.work_task);
-		return (1);
+		retval = true;
+		goto retry;
 	}
 }
 
