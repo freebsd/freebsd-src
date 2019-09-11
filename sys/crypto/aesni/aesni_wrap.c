@@ -446,6 +446,7 @@ aesni_cipher_setup_common(struct aesni_session *ses, const uint8_t *key,
 	switch (ses->algo) {
 	case CRYPTO_AES_ICM:
 	case CRYPTO_AES_NIST_GCM_16:
+	case CRYPTO_AES_CCM_16:
 		decsched = 0;
 		/* FALLTHROUGH */
 	case CRYPTO_AES_CBC:
