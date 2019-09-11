@@ -54,7 +54,7 @@
 #include "setlocale.h"
 
 /* Local prototypes */
-char	*format_grouping(const char *);
+char	*format_grouping(char *);
 void	init_locales_list(void);
 void	list_charmaps(void);
 void	list_locales(void);
@@ -119,6 +119,12 @@ enum {
 };
 
 enum {
+	TYPE_NUM,
+	TYPE_STR,
+	TYPE_UNQ
+};
+
+enum {
 	SRC_LINFO,
 	SRC_LCONV,
 	SRC_LTIME
@@ -126,218 +132,218 @@ enum {
 
 static const struct _kwinfo {
 	const char	*name;
-	int		isstr;		/* true - string, false - number */
+	int		type;
 	int		catid;		/* LC_* */
 	int		source;
 	int		value_ref;
 	const char	*comment;
 } kwinfo [] = {
-	{ "charmap",		1, LC_CTYPE,	SRC_LINFO,
+	{ "charmap",		TYPE_STR, LC_CTYPE,	SRC_LINFO,
 	  CODESET, "" },					/* hack */
 
 	/* LC_MONETARY - POSIX */
-	{ "int_curr_symbol",	1, LC_MONETARY,	SRC_LCONV,
+	{ "int_curr_symbol",	TYPE_STR, LC_MONETARY,	SRC_LCONV,
 	  KW_INT_CURR_SYMBOL, "" },
-	{ "currency_symbol",	1, LC_MONETARY,	SRC_LCONV,
+	{ "currency_symbol",	TYPE_STR, LC_MONETARY,	SRC_LCONV,
 	  KW_CURRENCY_SYMBOL, "" },
-	{ "mon_decimal_point",	1, LC_MONETARY,	SRC_LCONV,
+	{ "mon_decimal_point",	TYPE_STR, LC_MONETARY,	SRC_LCONV,
 	  KW_MON_DECIMAL_POINT, "" },
-	{ "mon_thousands_sep",	1, LC_MONETARY,	SRC_LCONV,
+	{ "mon_thousands_sep",	TYPE_STR, LC_MONETARY,	SRC_LCONV,
 	  KW_MON_THOUSANDS_SEP, "" },
-	{ "mon_grouping",	1, LC_MONETARY,	SRC_LCONV,
+	{ "mon_grouping",	TYPE_UNQ, LC_MONETARY,	SRC_LCONV,
 	  KW_MON_GROUPING, "" },
-	{ "positive_sign",	1, LC_MONETARY,	SRC_LCONV,
+	{ "positive_sign",	TYPE_STR, LC_MONETARY,	SRC_LCONV,
 	  KW_POSITIVE_SIGN, "" },
-	{ "negative_sign",	1, LC_MONETARY,	SRC_LCONV,
+	{ "negative_sign",	TYPE_STR, LC_MONETARY,	SRC_LCONV,
 	  KW_NEGATIVE_SIGN, "" },
-	{ "int_frac_digits",	0, LC_MONETARY,	SRC_LCONV,
+	{ "int_frac_digits",	TYPE_NUM, LC_MONETARY,	SRC_LCONV,
 	  KW_INT_FRAC_DIGITS, "" },
-	{ "frac_digits",	0, LC_MONETARY,	SRC_LCONV,
+	{ "frac_digits",	TYPE_NUM, LC_MONETARY,	SRC_LCONV,
 	  KW_FRAC_DIGITS, "" },
-	{ "p_cs_precedes",	0, LC_MONETARY,	SRC_LCONV,
+	{ "p_cs_precedes",	TYPE_NUM, LC_MONETARY,	SRC_LCONV,
 	  KW_P_CS_PRECEDES, "" },
-	{ "p_sep_by_space",	0, LC_MONETARY,	SRC_LCONV,
+	{ "p_sep_by_space",	TYPE_NUM, LC_MONETARY,	SRC_LCONV,
 	  KW_P_SEP_BY_SPACE, "" },
-	{ "n_cs_precedes",	0, LC_MONETARY,	SRC_LCONV,
+	{ "n_cs_precedes",	TYPE_NUM, LC_MONETARY,	SRC_LCONV,
 	  KW_N_CS_PRECEDES, "" },
-	{ "n_sep_by_space",	0, LC_MONETARY,	SRC_LCONV,
+	{ "n_sep_by_space",	TYPE_NUM, LC_MONETARY,	SRC_LCONV,
 	  KW_N_SEP_BY_SPACE, "" },
-	{ "p_sign_posn",	0, LC_MONETARY,	SRC_LCONV,
+	{ "p_sign_posn",	TYPE_NUM, LC_MONETARY,	SRC_LCONV,
 	  KW_P_SIGN_POSN, "" },
-	{ "n_sign_posn",	0, LC_MONETARY,	SRC_LCONV,
+	{ "n_sign_posn",	TYPE_NUM, LC_MONETARY,	SRC_LCONV,
 	  KW_N_SIGN_POSN, "" },
-	{ "int_p_cs_precedes",	0, LC_MONETARY,	SRC_LCONV,
+	{ "int_p_cs_precedes",	TYPE_NUM, LC_MONETARY,	SRC_LCONV,
 	  KW_INT_P_CS_PRECEDES, "" },
-	{ "int_p_sep_by_space",	0, LC_MONETARY,	SRC_LCONV,
+	{ "int_p_sep_by_space",	TYPE_NUM, LC_MONETARY,	SRC_LCONV,
 	  KW_INT_P_SEP_BY_SPACE, "" },
-	{ "int_n_cs_precedes",	0, LC_MONETARY,	SRC_LCONV,
+	{ "int_n_cs_precedes",	TYPE_NUM, LC_MONETARY,	SRC_LCONV,
 	  KW_INT_N_CS_PRECEDES, "" },
-	{ "int_n_sep_by_space",	0, LC_MONETARY,	SRC_LCONV,
+	{ "int_n_sep_by_space",	TYPE_NUM, LC_MONETARY,	SRC_LCONV,
 	  KW_INT_N_SEP_BY_SPACE, "" },
-	{ "int_p_sign_posn",	0, LC_MONETARY,	SRC_LCONV,
+	{ "int_p_sign_posn",	TYPE_NUM, LC_MONETARY,	SRC_LCONV,
 	  KW_INT_P_SIGN_POSN, "" },
-	{ "int_n_sign_posn",	0, LC_MONETARY,	SRC_LCONV,
+	{ "int_n_sign_posn",	TYPE_NUM, LC_MONETARY,	SRC_LCONV,
 	  KW_INT_N_SIGN_POSN, "" },
 
 	/* LC_NUMERIC - POSIX */
-	{ "decimal_point",	1, LC_NUMERIC,	SRC_LINFO,
+	{ "decimal_point",	TYPE_STR, LC_NUMERIC,	SRC_LINFO,
 	  RADIXCHAR, "" },
-	{ "thousands_sep",	1, LC_NUMERIC,	SRC_LINFO,
+	{ "thousands_sep",	TYPE_STR, LC_NUMERIC,	SRC_LINFO,
 	  THOUSEP, "" },
-	{ "grouping",		1, LC_NUMERIC,	SRC_LCONV,
+	{ "grouping",		TYPE_UNQ, LC_NUMERIC,	SRC_LCONV,
 	  KW_GROUPING, "" },
 	/* LC_NUMERIC - local additions */
-	{ "radixchar",		1, LC_NUMERIC,	SRC_LINFO,
+	{ "radixchar",		TYPE_STR, LC_NUMERIC,	SRC_LINFO,
 	  RADIXCHAR, "Same as decimal_point (FreeBSD only)" },	/* compat */
-	{ "thousep",		1, LC_NUMERIC,	SRC_LINFO,
+	{ "thousep",		TYPE_STR, LC_NUMERIC,	SRC_LINFO,
 	  THOUSEP, "Same as thousands_sep (FreeBSD only)" },	/* compat */
 
 	/* LC_TIME - POSIX */
-	{ "abday",		1, LC_TIME,	SRC_LTIME,
+	{ "abday",		TYPE_STR, LC_TIME,	SRC_LTIME,
 	  KW_TIME_ABDAY, "" },
-	{ "day",		1, LC_TIME,	SRC_LTIME,
+	{ "day",		TYPE_STR, LC_TIME,	SRC_LTIME,
 	  KW_TIME_DAY, "" },
-	{ "abmon",		1, LC_TIME,	SRC_LTIME,
+	{ "abmon",		TYPE_STR, LC_TIME,	SRC_LTIME,
 	  KW_TIME_ABMON, "" },
-	{ "mon",		1, LC_TIME,	SRC_LTIME,
+	{ "mon",		TYPE_STR, LC_TIME,	SRC_LTIME,
 	  KW_TIME_MON, "" },
-	{ "d_t_fmt",		1, LC_TIME,	SRC_LINFO,
+	{ "d_t_fmt",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  D_T_FMT, "" },
-	{ "d_fmt",		1, LC_TIME,	SRC_LINFO,
+	{ "d_fmt",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  D_FMT, "" },
-	{ "t_fmt",		1, LC_TIME,	SRC_LINFO,
+	{ "t_fmt",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  T_FMT, "" },
-	{ "am_pm",		1, LC_TIME,	SRC_LTIME,
+	{ "am_pm",		TYPE_STR, LC_TIME,	SRC_LTIME,
 	  KW_TIME_AM_PM, "" },
-	{ "t_fmt_ampm",		1, LC_TIME,	SRC_LINFO,
+	{ "t_fmt_ampm",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  T_FMT_AMPM, "" },
-	{ "era",		1, LC_TIME,	SRC_LINFO,
+	{ "era",		TYPE_UNQ, LC_TIME,	SRC_LINFO,
 	  ERA, "(unavailable)" },
-	{ "era_d_fmt",		1, LC_TIME,	SRC_LINFO,
+	{ "era_d_fmt",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ERA_D_FMT, "(unavailable)" },
-	{ "era_d_t_fmt",	1, LC_TIME,	SRC_LINFO,
+	{ "era_d_t_fmt",	TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ERA_D_T_FMT, "(unavailable)" },
-	{ "era_t_fmt",		1, LC_TIME,	SRC_LINFO,
+	{ "era_t_fmt",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ERA_T_FMT, "(unavailable)" },
-	{ "alt_digits",		1, LC_TIME,	SRC_LINFO,
+	{ "alt_digits",		TYPE_UNQ, LC_TIME,	SRC_LINFO,
 	  ALT_DIGITS, "" },
 	/* LC_TIME - local additions */
-	{ "abday_1",		1, LC_TIME,	SRC_LINFO,
+	{ "abday_1",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ABDAY_1, "(FreeBSD only)" },
-	{ "abday_2",		1, LC_TIME,	SRC_LINFO,
+	{ "abday_2",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ABDAY_2, "(FreeBSD only)" },
-	{ "abday_3",		1, LC_TIME,	SRC_LINFO,
+	{ "abday_3",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ABDAY_3, "(FreeBSD only)" },
-	{ "abday_4",		1, LC_TIME,	SRC_LINFO,
+	{ "abday_4",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ABDAY_4, "(FreeBSD only)" },
-	{ "abday_5",		1, LC_TIME,	SRC_LINFO,
+	{ "abday_5",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ABDAY_5, "(FreeBSD only)" },
-	{ "abday_6",		1, LC_TIME,	SRC_LINFO,
+	{ "abday_6",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ABDAY_6, "(FreeBSD only)" },
-	{ "abday_7",		1, LC_TIME,	SRC_LINFO,
+	{ "abday_7",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ABDAY_7, "(FreeBSD only)" },
-	{ "day_1",		1, LC_TIME,	SRC_LINFO,
+	{ "day_1",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  DAY_1, "(FreeBSD only)" },
-	{ "day_2",		1, LC_TIME,	SRC_LINFO,
+	{ "day_2",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  DAY_2, "(FreeBSD only)" },
-	{ "day_3",		1, LC_TIME,	SRC_LINFO,
+	{ "day_3",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  DAY_3, "(FreeBSD only)" },
-	{ "day_4",		1, LC_TIME,	SRC_LINFO,
+	{ "day_4",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  DAY_4, "(FreeBSD only)" },
-	{ "day_5",		1, LC_TIME,	SRC_LINFO,
+	{ "day_5",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  DAY_5, "(FreeBSD only)" },
-	{ "day_6",		1, LC_TIME,	SRC_LINFO,
+	{ "day_6",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  DAY_6, "(FreeBSD only)" },
-	{ "day_7",		1, LC_TIME,	SRC_LINFO,
+	{ "day_7",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  DAY_7, "(FreeBSD only)" },
-	{ "abmon_1",		1, LC_TIME,	SRC_LINFO,
+	{ "abmon_1",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ABMON_1, "(FreeBSD only)" },
-	{ "abmon_2",		1, LC_TIME,	SRC_LINFO,
+	{ "abmon_2",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ABMON_2, "(FreeBSD only)" },
-	{ "abmon_3",		1, LC_TIME,	SRC_LINFO,
+	{ "abmon_3",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ABMON_3, "(FreeBSD only)" },
-	{ "abmon_4",		1, LC_TIME,	SRC_LINFO,
+	{ "abmon_4",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ABMON_4, "(FreeBSD only)" },
-	{ "abmon_5",		1, LC_TIME,	SRC_LINFO,
+	{ "abmon_5",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ABMON_5, "(FreeBSD only)" },
-	{ "abmon_6",		1, LC_TIME,	SRC_LINFO,
+	{ "abmon_6",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ABMON_6, "(FreeBSD only)" },
-	{ "abmon_7",		1, LC_TIME,	SRC_LINFO,
+	{ "abmon_7",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ABMON_7, "(FreeBSD only)" },
-	{ "abmon_8",		1, LC_TIME,	SRC_LINFO,
+	{ "abmon_8",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ABMON_8, "(FreeBSD only)" },
-	{ "abmon_9",		1, LC_TIME,	SRC_LINFO,
+	{ "abmon_9",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ABMON_9, "(FreeBSD only)" },
-	{ "abmon_10",		1, LC_TIME,	SRC_LINFO,
+	{ "abmon_10",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ABMON_10, "(FreeBSD only)" },
-	{ "abmon_11",		1, LC_TIME,	SRC_LINFO,
+	{ "abmon_11",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ABMON_11, "(FreeBSD only)" },
-	{ "abmon_12",		1, LC_TIME,	SRC_LINFO,
+	{ "abmon_12",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ABMON_12, "(FreeBSD only)" },
-	{ "mon_1",		1, LC_TIME,	SRC_LINFO,
+	{ "mon_1",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  MON_1, "(FreeBSD only)" },
-	{ "mon_2",		1, LC_TIME,	SRC_LINFO,
+	{ "mon_2",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  MON_2, "(FreeBSD only)" },
-	{ "mon_3",		1, LC_TIME,	SRC_LINFO,
+	{ "mon_3",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  MON_3, "(FreeBSD only)" },
-	{ "mon_4",		1, LC_TIME,	SRC_LINFO,
+	{ "mon_4",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  MON_4, "(FreeBSD only)" },
-	{ "mon_5",		1, LC_TIME,	SRC_LINFO,
+	{ "mon_5",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  MON_5, "(FreeBSD only)" },
-	{ "mon_6",		1, LC_TIME,	SRC_LINFO,
+	{ "mon_6",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  MON_6, "(FreeBSD only)" },
-	{ "mon_7",		1, LC_TIME,	SRC_LINFO,
+	{ "mon_7",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  MON_7, "(FreeBSD only)" },
-	{ "mon_8",		1, LC_TIME,	SRC_LINFO,
+	{ "mon_8",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  MON_8, "(FreeBSD only)" },
-	{ "mon_9",		1, LC_TIME,	SRC_LINFO,
+	{ "mon_9",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  MON_9, "(FreeBSD only)" },
-	{ "mon_10",		1, LC_TIME,	SRC_LINFO,
+	{ "mon_10",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  MON_10, "(FreeBSD only)" },
-	{ "mon_11",		1, LC_TIME,	SRC_LINFO,
+	{ "mon_11",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  MON_11, "(FreeBSD only)" },
-	{ "mon_12",		1, LC_TIME,	SRC_LINFO,
+	{ "mon_12",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  MON_12, "(FreeBSD only)" },
-	{ "altmon_1",		1, LC_TIME,	SRC_LINFO,
+	{ "altmon_1",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ALTMON_1, "(FreeBSD only)" },
-	{ "altmon_2",		1, LC_TIME,	SRC_LINFO,
+	{ "altmon_2",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ALTMON_2, "(FreeBSD only)" },
-	{ "altmon_3",		1, LC_TIME,	SRC_LINFO,
+	{ "altmon_3",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ALTMON_3, "(FreeBSD only)" },
-	{ "altmon_4",		1, LC_TIME,	SRC_LINFO,
+	{ "altmon_4",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ALTMON_4, "(FreeBSD only)" },
-	{ "altmon_5",		1, LC_TIME,	SRC_LINFO,
+	{ "altmon_5",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ALTMON_5, "(FreeBSD only)" },
-	{ "altmon_6",		1, LC_TIME,	SRC_LINFO,
+	{ "altmon_6",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ALTMON_6, "(FreeBSD only)" },
-	{ "altmon_7",		1, LC_TIME,	SRC_LINFO,
+	{ "altmon_7",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ALTMON_7, "(FreeBSD only)" },
-	{ "altmon_8",		1, LC_TIME,	SRC_LINFO,
+	{ "altmon_8",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ALTMON_8, "(FreeBSD only)" },
-	{ "altmon_9",		1, LC_TIME,	SRC_LINFO,
+	{ "altmon_9",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ALTMON_9, "(FreeBSD only)" },
-	{ "altmon_10",		1, LC_TIME,	SRC_LINFO,
+	{ "altmon_10",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ALTMON_10, "(FreeBSD only)" },
-	{ "altmon_11",		1, LC_TIME,	SRC_LINFO,
+	{ "altmon_11",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ALTMON_11, "(FreeBSD only)" },
-	{ "altmon_12",		1, LC_TIME,	SRC_LINFO,
+	{ "altmon_12",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  ALTMON_12, "(FreeBSD only)" },
-	{ "am_str",		1, LC_TIME,	SRC_LINFO,
+	{ "am_str",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  AM_STR, "(FreeBSD only)" },
-	{ "pm_str",		1, LC_TIME,	SRC_LINFO,
+	{ "pm_str",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  PM_STR, "(FreeBSD only)" },
-	{ "d_md_order",		1, LC_TIME,	SRC_LINFO,
+	{ "d_md_order",		TYPE_STR, LC_TIME,	SRC_LINFO,
 	  D_MD_ORDER, "(FreeBSD only)" },			/* local */
 
 	/* LC_MESSAGES - POSIX */
-	{ "yesexpr",		1, LC_MESSAGES, SRC_LINFO,
+	{ "yesexpr",		TYPE_STR, LC_MESSAGES, SRC_LINFO,
 	  YESEXPR, "" },
-	{ "noexpr",		1, LC_MESSAGES, SRC_LINFO,
+	{ "noexpr",		TYPE_STR, LC_MESSAGES, SRC_LINFO,
 	  NOEXPR, "" },
 	/* LC_MESSAGES - local additions */
-	{ "yesstr",		1, LC_MESSAGES, SRC_LINFO,
+	{ "yesstr",		TYPE_STR, LC_MESSAGES, SRC_LINFO,
 	  YESSTR, "(POSIX legacy)" },				/* compat */
-	{ "nostr",		1, LC_MESSAGES, SRC_LINFO,
+	{ "nostr",		TYPE_STR, LC_MESSAGES, SRC_LINFO,
 	  NOSTR, "(POSIX legacy)" }				/* compat */
 
 };
@@ -610,12 +616,19 @@ showlocale(void)
 }
 
 char *
-format_grouping(const char *binary)
+format_grouping(char *binary)
 {
 	static char rval[64];
 	const char *cp;
 	size_t roff;
 	int len;
+
+	/*
+	 * XXX This check will need to be modified if/when localeconv() is
+	 * fixed (PR172215).
+	 */
+	if (*binary == CHAR_MAX)
+		return (binary);
 
 	rval[0] = '\0';
 	roff = 0;
@@ -752,7 +765,7 @@ kwval_ltime(int id)
 		e_item = ABMON_12;
 		break;
 	case KW_TIME_AM_PM:
-		if (asprintf(&rval, "%s\";\"%s",
+		if (asprintf(&rval, "%s;%s",
 		    nl_langinfo(AM_STR),
 		    nl_langinfo(PM_STR)) == -1)
 			err(1, "asprintf");
@@ -763,11 +776,9 @@ kwval_ltime(int id)
 	if (kwsbuf == NULL)
 		err(1, "sbuf");
 	for (i = s_item; i <= e_item; i++) {
-		if (i != s_item)
-			(void) sbuf_cat(kwsbuf, "\"");
 		(void) sbuf_cat(kwsbuf, nl_langinfo(i));
 		if (i != e_item)
-			(void) sbuf_cat(kwsbuf, "\";");
+			(void) sbuf_cat(kwsbuf, ";");
 	}
 	(void) sbuf_finish(kwsbuf);
 	rval = strdup(sbuf_data(kwsbuf));
@@ -781,10 +792,11 @@ kwval_ltime(int id)
  * keyword value and properties lookup
  */
 int
-kwval_lookup(const char *kwname, char **kwval, int *cat, int *isstr, int *alloc)
+kwval_lookup(const char *kwname, char **kwval, int *cat, int *type, int *alloc)
 {
 	int	rval;
 	size_t	i;
+	static char nastr[3] = "-1";
 
 	rval = 0;
 	*alloc = 0;
@@ -792,13 +804,22 @@ kwval_lookup(const char *kwname, char **kwval, int *cat, int *isstr, int *alloc)
 		if (strcasecmp(kwname, kwinfo[i].name) == 0) {
 			rval = 1;
 			*cat = kwinfo[i].catid;
-			*isstr = kwinfo[i].isstr;
+			*type = kwinfo[i].type;
 			switch (kwinfo[i].source) {
 			case SRC_LINFO:
 				*kwval = nl_langinfo(kwinfo[i].value_ref);
 				break;
 			case SRC_LCONV:
 				*kwval = kwval_lconv(kwinfo[i].value_ref);
+				/*
+				 * XXX This check will need to be modified
+				 * if/when localeconv() is fixed (PR172215).
+				 */
+				if (**kwval == CHAR_MAX) {
+					if (*type == TYPE_NUM)
+						*type = TYPE_UNQ;
+					*kwval = nastr;
+				}
 				break;
 			case SRC_LTIME:
 				*kwval = kwval_ltime(kwinfo[i].value_ref);
@@ -819,10 +840,10 @@ kwval_lookup(const char *kwname, char **kwval, int *cat, int *isstr, int *alloc)
 void
 showdetails(const char *kw)
 {
-	int	isstr, cat, tmpval, alloc;
+	int	type, cat, tmpval, alloc;
 	char	*kwval;
 
-	if (kwval_lookup(kw, &kwval, &cat, &isstr, &alloc) == 0) {
+	if (kwval_lookup(kw, &kwval, &cat, &type, &alloc) == 0) {
 		/*
 		 * invalid keyword specified.
 		 * XXX: any actions?
@@ -839,20 +860,30 @@ showdetails(const char *kw)
 	}
 
 	if (prt_keywords) {
-		if (isstr) {
-			printf("%s=\"%s\"\n", kw, kwval);
-		} else {
-			tmpval = (char) *kwval;
+		switch (type) {
+		case TYPE_NUM:
+			tmpval = (char)*kwval;
 			printf("%s=%d\n", kw, tmpval);
+			break;
+		case TYPE_STR:
+			printf("%s=\"%s\"\n", kw, kwval);
+			break;
+		case TYPE_UNQ:
+			printf("%s=%s\n", kw, kwval);
+			break;
 		}
 	}
 
 	if (!prt_categories && !prt_keywords) {
-		if (isstr) {
-			printf("%s\n", kwval);
-		} else {
-			tmpval = (char) *kwval;
+		switch (type) {
+		case TYPE_NUM:
+			tmpval = (char)*kwval;
 			printf("%d\n", tmpval);
+			break;
+		case TYPE_STR:
+		case TYPE_UNQ:
+			printf("%s\n", kwval);
+			break;
 		}
 	}
 
@@ -901,7 +932,7 @@ showkeywordslist(char *substring)
 		printf(FMT,
 			kwinfo[i].name,
 			lookup_localecat(kwinfo[i].catid),
-			(kwinfo[i].isstr == 0) ? "number" : "string",
+			(kwinfo[i].type == TYPE_NUM) ? "number" : "string",
 			kwinfo[i].comment);
 	}
 }
