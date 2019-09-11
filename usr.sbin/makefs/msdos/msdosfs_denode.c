@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/vnode.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

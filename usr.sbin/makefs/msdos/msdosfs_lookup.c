@@ -53,6 +53,7 @@
 #include <sys/param.h>
 #include <sys/errno.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
