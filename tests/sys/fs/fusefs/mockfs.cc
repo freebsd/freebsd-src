@@ -155,14 +155,15 @@ void sigint_handler(int __unused sig) {
 	// Don't do anything except interrupt the daemon's read(2) call
 }
 
-void MockFS::debug_request(const mockfs_buf_in &in)
+void MockFS::debug_request(const mockfs_buf_in &in, ssize_t buflen)
 {
 	printf("%-11s ino=%2" PRIu64, opcode2opname(in.header.opcode),
 		in.header.nodeid);
 	if (verbosity > 1) {
-		printf(" uid=%5u gid=%5u pid=%5u unique=%" PRIu64 " len=%u",
+		printf(" uid=%5u gid=%5u pid=%5u unique=%" PRIu64 " len=%u"
+			" buflen=%zd",
 			in.header.uid, in.header.gid, in.header.pid,
-			in.header.unique, in.header.len);
+			in.header.unique, in.header.len, buflen);
 	}
 	switch (in.header.opcode) {
 		const char *name, *value;
@@ -470,7 +471,7 @@ MockFS::~MockFS() {
 		close(m_kq);
 }
 
-void MockFS::audit_request(const mockfs_buf_in &in) {
+void MockFS::audit_request(const mockfs_buf_in &in, ssize_t buflen) {
 	uint32_t inlen = in.header.len;
 	size_t fih = sizeof(in.header);
 	switch (in.header.opcode) {
@@ -478,19 +479,24 @@ void MockFS::audit_request(const mockfs_buf_in &in) {
 	case FUSE_RMDIR:
 	case FUSE_SYMLINK:
 	case FUSE_UNLINK:
-		ASSERT_GT(inlen, fih) << "Missing request filename";
+		EXPECT_GT(inlen, fih) << "Missing request filename";
+		// No redundant information for checking buflen
 		break;
 	case FUSE_FORGET:
-		ASSERT_EQ(inlen, fih + sizeof(in.body.forget));
+		EXPECT_EQ(inlen, fih + sizeof(in.body.forget));
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_GETATTR:
-		ASSERT_EQ(inlen, fih + sizeof(in.body.getattr));
+		EXPECT_EQ(inlen, fih + sizeof(in.body.getattr));
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_SETATTR:
-		ASSERT_EQ(inlen, fih + sizeof(in.body.setattr));
+		EXPECT_EQ(inlen, fih + sizeof(in.body.setattr));
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_READLINK:
-		ASSERT_EQ(inlen, fih) << "Unexpected request body";
+		EXPECT_EQ(inlen, fih) << "Unexpected request body";
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_MKNOD:
 		{
@@ -499,33 +505,39 @@ void MockFS::audit_request(const mockfs_buf_in &in) {
 				s = sizeof(in.body.mknod);
 			else
 				s = FUSE_COMPAT_MKNOD_IN_SIZE;
-			ASSERT_GE(inlen, fih + s) << "Missing request body";
-			ASSERT_GT(inlen, fih + s) << "Missing request filename";
+			EXPECT_GE(inlen, fih + s) << "Missing request body";
+			EXPECT_GT(inlen, fih + s) << "Missing request filename";
+			// No redundant information for checking buflen
 			break;
 		}
 	case FUSE_MKDIR:
-		ASSERT_GE(inlen, fih + sizeof(in.body.mkdir)) <<
+		EXPECT_GE(inlen, fih + sizeof(in.body.mkdir)) <<
 			"Missing request body";
-		ASSERT_GT(inlen, fih + sizeof(in.body.mkdir)) <<
+		EXPECT_GT(inlen, fih + sizeof(in.body.mkdir)) <<
 			"Missing request filename";
+		// No redundant information for checking buflen
 		break;
 	case FUSE_RENAME:
-		ASSERT_GE(inlen, fih + sizeof(in.body.rename)) <<
+		EXPECT_GE(inlen, fih + sizeof(in.body.rename)) <<
 			"Missing request body";
-		ASSERT_GT(inlen, fih + sizeof(in.body.rename)) <<
+		EXPECT_GT(inlen, fih + sizeof(in.body.rename)) <<
 			"Missing request filename";
+		// No redundant information for checking buflen
 		break;
 	case FUSE_LINK:
-		ASSERT_GE(inlen, fih + sizeof(in.body.link)) <<
+		EXPECT_GE(inlen, fih + sizeof(in.body.link)) <<
 			"Missing request body";
-		ASSERT_GT(inlen, fih + sizeof(in.body.link)) <<
+		EXPECT_GT(inlen, fih + sizeof(in.body.link)) <<
 			"Missing request filename";
+		// No redundant information for checking buflen
 		break;
 	case FUSE_OPEN:
-		ASSERT_EQ(inlen, fih + sizeof(in.body.open));
+		EXPECT_EQ(inlen, fih + sizeof(in.body.open));
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_READ:
-		ASSERT_EQ(inlen, fih + sizeof(in.body.read));
+		EXPECT_EQ(inlen, fih + sizeof(in.body.read));
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_WRITE:
 		{
@@ -535,75 +547,94 @@ void MockFS::audit_request(const mockfs_buf_in &in) {
 				s = sizeof(in.body.write);
 			else
 				s = FUSE_COMPAT_WRITE_IN_SIZE;
-			ASSERT_GE(inlen, fih + s) << "Missing request body";
 			// I suppose a 0-byte write should be allowed
+			EXPECT_GE(inlen, fih + s) << "Missing request body";
+			EXPECT_EQ((size_t)buflen, fih + s + in.body.write.size);
 			break;
 		}
 	case FUSE_DESTROY:
 	case FUSE_STATFS:
-		ASSERT_EQ(inlen, fih);
+		EXPECT_EQ(inlen, fih);
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_RELEASE:
-		ASSERT_EQ(inlen, fih + sizeof(in.body.release));
+		EXPECT_EQ(inlen, fih + sizeof(in.body.release));
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_FSYNC:
 	case FUSE_FSYNCDIR:
-		ASSERT_EQ(inlen, fih + sizeof(in.body.fsync));
+		EXPECT_EQ(inlen, fih + sizeof(in.body.fsync));
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_SETXATTR:
-		ASSERT_GE(inlen, fih + sizeof(in.body.setxattr)) <<
+		EXPECT_GE(inlen, fih + sizeof(in.body.setxattr)) <<
 			"Missing request body";
-		ASSERT_GT(inlen, fih + sizeof(in.body.setxattr)) <<
+		EXPECT_GT(inlen, fih + sizeof(in.body.setxattr)) <<
 			"Missing request attribute name";
+		// No redundant information for checking buflen
 		break;
 	case FUSE_GETXATTR:
-		ASSERT_GE(inlen, fih + sizeof(in.body.getxattr)) <<
+		EXPECT_GE(inlen, fih + sizeof(in.body.getxattr)) <<
 			"Missing request body";
-		ASSERT_GT(inlen, fih + sizeof(in.body.getxattr)) <<
+		EXPECT_GT(inlen, fih + sizeof(in.body.getxattr)) <<
 			"Missing request attribute name";
+		// No redundant information for checking buflen
 		break;
 	case FUSE_LISTXATTR:
-		ASSERT_EQ(inlen, fih + sizeof(in.body.listxattr));
+		EXPECT_EQ(inlen, fih + sizeof(in.body.listxattr));
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_REMOVEXATTR:
-		ASSERT_GT(inlen, fih) << "Missing request attribute name";
+		EXPECT_GT(inlen, fih) << "Missing request attribute name";
+		// No redundant information for checking buflen
 		break;
 	case FUSE_FLUSH:
-		ASSERT_EQ(inlen, fih + sizeof(in.body.flush));
+		EXPECT_EQ(inlen, fih + sizeof(in.body.flush));
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_INIT:
-		ASSERT_EQ(inlen, fih + sizeof(in.body.init));
+		EXPECT_EQ(inlen, fih + sizeof(in.body.init));
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_OPENDIR:
-		ASSERT_EQ(inlen, fih + sizeof(in.body.opendir));
+		EXPECT_EQ(inlen, fih + sizeof(in.body.opendir));
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_READDIR:
-		ASSERT_EQ(inlen, fih + sizeof(in.body.readdir));
+		EXPECT_EQ(inlen, fih + sizeof(in.body.readdir));
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_RELEASEDIR:
-		ASSERT_EQ(inlen, fih + sizeof(in.body.releasedir));
+		EXPECT_EQ(inlen, fih + sizeof(in.body.releasedir));
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_GETLK:
-		ASSERT_EQ(inlen, fih + sizeof(in.body.getlk));
+		EXPECT_EQ(inlen, fih + sizeof(in.body.getlk));
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_SETLK:
 	case FUSE_SETLKW:
-		ASSERT_EQ(inlen, fih + sizeof(in.body.setlk));
+		EXPECT_EQ(inlen, fih + sizeof(in.body.setlk));
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_ACCESS:
-		ASSERT_EQ(inlen, fih + sizeof(in.body.access));
+		EXPECT_EQ(inlen, fih + sizeof(in.body.access));
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_CREATE:
-		ASSERT_GE(inlen, fih + sizeof(in.body.create)) <<
+		EXPECT_GE(inlen, fih + sizeof(in.body.create)) <<
 			"Missing request body";
-		ASSERT_GT(inlen, fih + sizeof(in.body.create)) <<
+		EXPECT_GT(inlen, fih + sizeof(in.body.create)) <<
 			"Missing request filename";
+		// No redundant information for checking buflen
 		break;
 	case FUSE_INTERRUPT:
-		ASSERT_EQ(inlen, fih + sizeof(in.body.interrupt));
+		EXPECT_EQ(inlen, fih + sizeof(in.body.interrupt));
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_BMAP:
-		ASSERT_EQ(inlen, fih + sizeof(in.body.bmap));
+		EXPECT_EQ(inlen, fih + sizeof(in.body.bmap));
+		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_NOTIFY_REPLY:
 	case FUSE_BATCH_FORGET:
@@ -618,10 +649,13 @@ void MockFS::audit_request(const mockfs_buf_in &in) {
 }
 
 void MockFS::init(uint32_t flags) {
+	ssize_t buflen;
+
 	std::unique_ptr<mockfs_buf_in> in(new mockfs_buf_in);
 	std::unique_ptr<mockfs_buf_out> out(new mockfs_buf_out);
 
-	read_request(*in);
+	read_request(*in, buflen);
+	audit_request(*in, buflen);
 	ASSERT_EQ(FUSE_INIT, in->header.opcode);
 
 	out->header.unique = in->header.unique;
@@ -659,13 +693,15 @@ void MockFS::loop() {
 	std::unique_ptr<mockfs_buf_in> in(new mockfs_buf_in);
 	ASSERT_TRUE(in != NULL);
 	while (!m_quit) {
+		ssize_t buflen;
+
 		bzero(in.get(), sizeof(*in));
-		read_request(*in);
+		read_request(*in, buflen);
 		if (m_quit)
 			break;
 		if (verbosity > 0)
-			debug_request(*in);
-		audit_request(*in);
+			debug_request(*in, buflen);
+		audit_request(*in, buflen);
 		if (pid_ok((pid_t)in->header.pid)) {
 			process(*in, out);
 		} else {
@@ -766,8 +802,7 @@ void MockFS::process_default(const mockfs_buf_in& in,
 	out.push_back(std::move(out0));
 }
 
-void MockFS::read_request(mockfs_buf_in &in) {
-	ssize_t res;
+void MockFS::read_request(mockfs_buf_in &in, ssize_t &res) {
 	int nready = 0;
 	fd_set readfds;
 	pollfd fds[1];

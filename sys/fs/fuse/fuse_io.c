@@ -555,9 +555,17 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 	fdisp_init(&fdi, 0);
 
 	while (uio->uio_resid > 0) {
+		size_t sizeof_fwi;
+
+		if (fuse_libabi_geq(data, 7, 9)) {
+			sizeof_fwi = sizeof(*fwi);
+		} else {
+			sizeof_fwi = FUSE_COMPAT_WRITE_IN_SIZE;
+		}
+
 		chunksize = MIN(uio->uio_resid, data->max_write);
 
-		fdi.iosize = sizeof(*fwi) + chunksize;
+		fdi.iosize = sizeof_fwi + chunksize;
 		fdisp_make_vp(&fdi, FUSE_WRITE, vp, uio->uio_td, cred);
 
 		fwi = fdi.indata;
@@ -567,11 +575,8 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 		fwi->write_flags = write_flags;
 		if (fuse_libabi_geq(data, 7, 9)) {
 			fwi->flags = fufh_type_2_fflags(fufh->fufh_type);
-			fwi_data = (char *)fdi.indata + sizeof(*fwi);
-		} else {
-			fwi_data = (char *)fdi.indata +
-				FUSE_COMPAT_WRITE_IN_SIZE;
 		}
+		fwi_data = (char *)fdi.indata + sizeof_fwi;
 
 		if ((err = uiomove(fwi_data, chunksize, uio)))
 			break;
@@ -629,7 +634,7 @@ retry:
 				break;
 			} else {
 				/* Resend the unwritten portion of data */
-				fdi.iosize = sizeof(*fwi) + diff;
+				fdi.iosize = sizeof_fwi + diff;
 				/* Refresh fdi without clearing data buffer */
 				fdisp_refresh_vp(&fdi, FUSE_WRITE, vp,
 					uio->uio_td, cred);
