@@ -931,7 +931,8 @@ main(int argc, char *const *argv)
 				continue;
 			}
 #ifdef SO_TIMESTAMP
-			if (cmsg->cmsg_level == SOL_SOCKET &&
+			if (cmsg != NULL &&
+			    cmsg->cmsg_level == SOL_SOCKET &&
 			    cmsg->cmsg_type == SCM_TIMESTAMP &&
 			    cmsg->cmsg_len == CMSG_LEN(sizeof *tv)) {
 				/* Copy to avoid alignment problems: */
