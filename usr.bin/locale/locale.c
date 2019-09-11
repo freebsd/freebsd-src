@@ -745,7 +745,7 @@ kwval_ltime(int id)
 {
 	char *rval;
 	struct sbuf *kwsbuf;
-	nl_item i, s_item, e_item;
+	nl_item i, s_item = 0, e_item = 0;
 
 	switch (id) {
 	case KW_TIME_DAY:
