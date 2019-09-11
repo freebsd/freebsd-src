@@ -823,3 +823,13 @@ _el_fn_complete(EditLine *el, int ch __attribute__((__unused__)))
 	    break_chars, NULL, NULL, (size_t)100,
 	    NULL, NULL, NULL, NULL);
 }
+
+/*
+ * el-compatible wrapper around rl_complete; needed for key binding
+ */
+/* ARGSUSED */
+unsigned char
+_el_fn_sh_complete(EditLine *el, int ch)
+{
+	return _el_fn_complete(el, ch);
+}
