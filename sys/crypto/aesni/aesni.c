@@ -403,29 +403,14 @@ static uint8_t *
 aesni_cipher_alloc(struct cryptodesc *enccrd, struct cryptop *crp,
     bool *allocated)
 {
-	struct mbuf *m;
-	struct uio *uio;
-	struct iovec *iov;
 	uint8_t *addr;
 
-	if (crp->crp_flags & CRYPTO_F_IMBUF) {
-		m = (struct mbuf *)crp->crp_buf;
-		if (m->m_next != NULL)
-			goto alloc;
-		addr = mtod(m, uint8_t *);
-	} else if (crp->crp_flags & CRYPTO_F_IOV) {
-		uio = (struct uio *)crp->crp_buf;
-		if (uio->uio_iovcnt != 1)
-			goto alloc;
-		iov = uio->uio_iov;
-		addr = (uint8_t *)iov->iov_base;
-	} else
-		addr = (uint8_t *)crp->crp_buf;
-	*allocated = false;
-	addr += enccrd->crd_skip;
-	return (addr);
-
-alloc:
+	addr = crypto_contiguous_subsegment(crp->crp_flags,
+	    crp->crp_buf, enccrd->crd_skip, enccrd->crd_len);
+	if (addr != NULL) {
+		*allocated = false;
+		return (addr);
+	}
 	addr = malloc(enccrd->crd_len, M_AESNI, M_NOWAIT);
 	if (addr != NULL) {
 		*allocated = true;
