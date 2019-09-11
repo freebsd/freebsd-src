@@ -130,8 +130,6 @@ DUMMY(kcmp);
 DUMMY(finit_module);
 DUMMY(sched_setattr);
 DUMMY(sched_getattr);
-/* Linux 3.14: */
-DUMMY(renameat2);
 /* Linux 3.15: */
 DUMMY(seccomp);
 DUMMY(memfd_create);
