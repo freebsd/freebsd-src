@@ -450,6 +450,7 @@ extern cap_rights_t cap_mmap_rights;
 extern cap_rights_t cap_no_rights;
 extern cap_rights_t cap_pdgetpid_rights;
 extern cap_rights_t cap_pdkill_rights;
+extern cap_rights_t cap_pdwait_rights;
 extern cap_rights_t cap_pread_rights;
 extern cap_rights_t cap_pwrite_rights;
 extern cap_rights_t cap_read_rights;

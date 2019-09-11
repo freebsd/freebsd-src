@@ -84,6 +84,7 @@ __read_mostly cap_rights_t cap_mkfifoat_rights;
 __read_mostly cap_rights_t cap_mknodat_rights;
 __read_mostly cap_rights_t cap_pdgetpid_rights;
 __read_mostly cap_rights_t cap_pdkill_rights;
+__read_mostly cap_rights_t cap_pdwait_rights;
 __read_mostly cap_rights_t cap_pread_rights;
 __read_mostly cap_rights_t cap_pwrite_rights;
 __read_mostly cap_rights_t cap_read_rights;
@@ -133,6 +134,7 @@ cap_rights_sysinit(void *arg)
 	cap_rights_init_one(&cap_mmap_rights, CAP_MMAP);
 	cap_rights_init_one(&cap_pdgetpid_rights, CAP_PDGETPID);
 	cap_rights_init_one(&cap_pdkill_rights, CAP_PDKILL);
+	cap_rights_init(&cap_pdwait_rights, CAP_PDWAIT);
 	cap_rights_init_one(&cap_pread_rights, CAP_PREAD);
 	cap_rights_init_one(&cap_pwrite_rights, CAP_PWRITE);
 	cap_rights_init_one(&cap_read_rights, CAP_READ);

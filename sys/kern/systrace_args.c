@@ -2876,6 +2876,16 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* pdwait4 */
+	case 521: {
+		struct pdwait4_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->status; /* int * */
+		iarg[2] = p->options; /* int */
+		uarg[3] = (intptr_t) p->rusage; /* struct rusage * */
+		*n_args = 4;
+		break;
+	}
 	/* pselect */
 	case 522: {
 		struct pselect_args *p = params;
@@ -8104,6 +8114,25 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* pdwait4 */
+	case 521:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "userland int *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "userland struct rusage *";
+			break;
+		default:
+			break;
+		};
+		break;
 	/* pselect */
 	case 522:
 		switch(ndx) {
@@ -10671,6 +10700,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* pdgetpid */
 	case 520:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* pdwait4 */
+	case 521:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

@@ -212,6 +212,8 @@ int	kern_openat(struct thread *td, int fd, const char *path,
 	    enum uio_seg pathseg, int flags, int mode);
 int	kern_pathconf(struct thread *td, const char *path,
 	    enum uio_seg pathseg, int name, u_long flags, long *valuep);
+int	kern_pdwait4(struct thread *td, int fd, int *status, int options,
+	    struct rusage *rup);
 int	kern_pipe(struct thread *td, int fildes[2], int flags,
 	    struct filecaps *fcaps1, struct filecaps *fcaps2);
 int	kern_poll(struct thread *td, struct pollfd *fds, u_int nfds,

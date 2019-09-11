@@ -2843,7 +2843,14 @@
 		    _Out_ pid_t *pidp
 		);
 	}
-521	AUE_PDWAIT	UNIMPL	pdwait4
+521	AUE_PDWAIT	STD	{
+		int pdwait4(
+		    int fd,
+		    int *status,
+		    int options,
+		    struct rusage *rusage
+		);
+	}
 522	AUE_SELECT	STD {
 		int pselect(
 		    int nd,

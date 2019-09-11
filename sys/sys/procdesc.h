@@ -124,6 +124,7 @@ __BEGIN_DECLS
 pid_t	 pdfork(int *, int);
 int	 pdkill(int, int);
 int	 pdgetpid(int, pid_t *);
+int	 pdwait4(int, int *, int, struct rusage *);
 __END_DECLS
 
 #endif /* _KERNEL */

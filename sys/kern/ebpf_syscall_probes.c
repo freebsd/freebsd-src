@@ -340,6 +340,7 @@ struct ebpf_probe ebpf_syscall_probe[] = {
 	[SYS_pdfork] = { .name = "pdfork_syscall_probe" },
 	[SYS_pdkill] = { .name = "pdkill_syscall_probe" },
 	[SYS_pdgetpid] = { .name = "pdgetpid_syscall_probe" },
+	[SYS_pdwait4] = { .name = "pdwait4_syscall_probe" },
 	[SYS_pselect] = { .name = "pselect_syscall_probe" },
 	[SYS_getloginclass] = { .name = "getloginclass_syscall_probe" },
 	[SYS_setloginclass] = { .name = "setloginclass_syscall_probe" },

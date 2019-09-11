@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/procdesc.h>
 #include <sys/resourcevar.h>
 #include <sys/stat.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -216,6 +217,40 @@ sys_pdgetpid(struct thread *td, struct pdgetpid_args *uap)
 	if (error == 0)
 		error = copyout(&pid, uap->pidp, sizeof(pid));
 	return (error);
+}
+
+int
+sys_pdwait4(struct thread *td, struct pdwait4_args *uap)
+{
+	struct rusage ru, *rup;
+	int error, status;
+
+	if (uap->rusage != NULL)
+		rup = &ru;
+	else
+		rup = NULL;
+
+	error = kern_pdwait4(td, uap->fd, &status, uap->options, rup);
+
+	if (uap->status != NULL && error == 0 && td->td_retval[0] != 0)
+		error = copyout(&status, uap->status, sizeof(status));
+	if (uap->rusage != NULL && error == 0 && td->td_retval[0] != 0)
+		error = copyout(&ru, uap->rusage, sizeof(struct rusage));
+	return (0);
+}
+
+int
+kern_pdwait4(struct thread *td, int fd, int *status, int options,
+    struct rusage *rup)
+{
+	int error;
+	pid_t pid;
+
+	AUDIT_ARG_FD(fd);
+	error = kern_pdgetpid(td, fd, &cap_pdwait_rights, &pid);
+	if (error != 0)
+		return (error);
+	return (kern_wait(td, pid, status, options, rup));
 }
 
 /*

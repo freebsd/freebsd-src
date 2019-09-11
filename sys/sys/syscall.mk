@@ -365,6 +365,7 @@ MIASM =  \
 	pdfork.o \
 	pdkill.o \
 	pdgetpid.o \
+	pdwait4.o \
 	pselect.o \
 	getloginclass.o \
 	setloginclass.o \

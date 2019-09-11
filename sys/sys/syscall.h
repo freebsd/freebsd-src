@@ -457,6 +457,7 @@
 #define	SYS_pdfork	518
 #define	SYS_pdkill	519
 #define	SYS_pdgetpid	520
+#define	SYS_pdwait4	521
 #define	SYS_pselect	522
 #define	SYS_getloginclass	523
 #define	SYS_setloginclass	524
