@@ -1543,7 +1543,6 @@ skip_alloc:
 	sc->sc_todctx = todctx;
 #endif
 	sc->sc_irs = th->th_seq;
-	sc->sc_iss = arc4random();
 	sc->sc_flags = 0;
 	sc->sc_flowlabel = 0;
 
@@ -1617,6 +1616,8 @@ skip_alloc:
 
 	if (V_tcp_syncookies)
 		sc->sc_iss = syncookie_generate(sch, sc);
+	else
+		sc->sc_iss = arc4random();
 #ifdef INET6
 	if (autoflowlabel) {
 		if (V_tcp_syncookies)
