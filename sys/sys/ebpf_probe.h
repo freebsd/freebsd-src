@@ -31,18 +31,20 @@
 #define _SYS_EBPF_PROBE_H_
 
 #include <ck_queue.h>
+#include <sys/ebpf_defines.h>
 
 #ifdef EBPF_HOOKS
 
 struct ebpf_probe
 {
-	const char * name;
+	char name[EBPF_PROBE_NAME_MAX];
 	int active;
+	size_t arglen;
 	void *module_state;
 	CK_SLIST_ENTRY(ebpf_probe) hash_link;
 };
 
-typedef void ebpf_fire_t(struct ebpf_probe *, uintptr_t arg0, uintptr_t arg1,
+typedef int ebpf_fire_t(struct ebpf_probe *, uintptr_t arg0, uintptr_t arg1,
     uintptr_t arg2, uintptr_t arg3, uintptr_t arg4, uintptr_t arg5);
 
 struct ebpf_module
@@ -59,7 +61,7 @@ void ebpf_probe_drain(struct ebpf_probe *);
 void ebpf_module_register(struct ebpf_module *);
 void ebpf_module_deregister(void);
 
-void ebpf_probe_fire(struct ebpf_probe *, uintptr_t arg0, uintptr_t arg1,
+int ebpf_probe_fire(struct ebpf_probe *, uintptr_t arg0, uintptr_t arg1,
     uintptr_t arg2, uintptr_t arg3, uintptr_t arg4, uintptr_t arg5);
 
 #define _EBPF_PROBE(name) __CONCAT(name, _probe_def)
@@ -67,7 +69,6 @@ void ebpf_probe_fire(struct ebpf_probe *, uintptr_t arg0, uintptr_t arg1,
 #define EBPF_PROBE_DEFINE(probeName) \
 	static struct ebpf_probe _EBPF_PROBE(probeName) = { \
 		.name = __XSTRING(probeName), \
-		.active = 0, \
 	}; \
 	SYSINIT(__CONCAT(epf_, __CONCAT(probeName, _register)), SI_SUB_DTRACE, SI_ORDER_SECOND, \
 		ebpf_probe_register, &_EBPF_PROBE(probeName)); \
@@ -111,11 +112,14 @@ void ebpf_probe_fire(struct ebpf_probe *, uintptr_t arg0, uintptr_t arg1,
 #define EBPF_PROBE_FIRE4(name, arg0, arg1, arg2, arg3) \
 	EBPF_PROBE_FIRE6(name, arg0, arg1, arg2, arg3, 0, 0)
 
-#define	EBPF_ACTION_CONTINUE	0
-#define	EBPF_ACTION_DUP		1
-#define	EBPF_ACTION_OPENAT	2
-#define	EBPF_ACTION_FSTATAT	3
-#define	EBPF_ACTION_FSTAT	4
+extern struct ebpf_probe ebpf_syscall_probe[];
+
+#define EBPF_SYSCALL_FIRE(n, arg, len) \
+	( ((n) < SYS_MAXSYSCALL && ebpf_syscall_probe[n].active) ? \
+	    ebpf_probe_fire(&ebpf_syscall_probe[n], \
+	    (uintptr_t)(arg), sizeof(register_t) * (len), \
+		0, 0, 0, 0) \
+	  : EBPF_ACTION_CONTINUE )
 
 struct open_probe_args
 {

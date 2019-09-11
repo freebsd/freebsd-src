@@ -24,6 +24,7 @@ syscallprefix="SYS_"
 switchname="sysent"
 namesname="syscallnames"
 systrace="systrace_args.c"
+ebpfprobe="ebpf_syscall_probes.c"
 
 # tmp files:
 sysaue="sysent.aue.$$"
@@ -148,6 +149,7 @@ sed -e '
 		infile = \"$1\"
 		abi_func_prefix = \"$abi_func_prefix\"
 		capenabled_string = \"$capenabled\"
+		ebpfprobe = \"$ebpfprobe\"
 		"'
 
 		# Avoid a literal generated file tag here.
@@ -227,6 +229,8 @@ sed -e '
 
 		printf "static void\nsystrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)\n{\n\tconst char *p = NULL;\n" > systraceret
 		printf "\tswitch (sysnum) {\n" > systraceret
+
+		printf "struct ebpf_probe ebpf_syscall_probe[] = {\n" > ebpfprobe
 	}
 	NR == 1 {
 		next
@@ -578,7 +582,10 @@ sed -e '
 			printf("#define\t%s%s\t%d\n", syscallprefix,
 		    	    funcalias, syscall) > syshdr
 			printf(" \\\n\t%s.o", funcalias) > sysmk
+
+			printf("\t[%s%s] = { .name = \"%s_syscall_probe\" },\n", syscallprefix, funcalias, funcalias) > ebpfprobe
 		}
+
 		syscall++
 		next
 	}
@@ -785,6 +792,8 @@ sed -e '
 		printf "\tdefault:\n\t\t*n_args = 0;\n\t\tbreak;\n\t};\n}\n" > systrace
 		printf "\tdefault:\n\t\tbreak;\n\t};\n\tif (p != NULL)\n\t\tstrlcpy(desc, p, descsz);\n}\n" > systracetmp
 		printf "\tdefault:\n\t\tbreak;\n\t};\n\tif (p != NULL)\n\t\tstrlcpy(desc, p, descsz);\n}\n" > systraceret
+
+		printf("};\n") >> ebpfprobe
 	} '
 
 cat $sysinc $sysent >> $syssw

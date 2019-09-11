@@ -34,6 +34,8 @@
 #include <sys/ebpf_probe.h>
 #include <sys/epoch.h>
 #include <sys/hash.h>
+#include <sys/sx.h>
+#include <sys/syscall.h>
 
 #include <machine/atomic.h>
 
@@ -49,7 +51,10 @@ static struct ebpf_module dummy_module = {
 };
 
 static struct ebpf_module * ebpf_module_callbacks = &dummy_module;
-static epoch_t probe_epoch;
+static struct sx ebpf_sx;
+
+struct ebpf_probe syscall_probes[SYS_MAXSYSCALL];
+static void ebpf_register_syscall_probes(void);
 
 static int
 ebpf_is_loaded(void)
@@ -63,13 +68,30 @@ ebpf_init(void *arg)
 {
 	int i;
 
-	probe_epoch = epoch_alloc(0);
+	sx_init(&ebpf_sx, "ebpf_sx");
 
 	for (i = 0; i < PROBE_HASH_SIZE; ++i) {
 		CK_SLIST_INIT(&probe_hashtable[i]);
 	}
+
+	ebpf_register_syscall_probes();
 }
 SYSINIT(ebpf_init, SI_SUB_DTRACE, SI_ORDER_FIRST, ebpf_init, NULL);
+
+#include "kern/ebpf_syscall_probes.c"
+
+static void
+ebpf_register_syscall_probes(void)
+{
+	int i;
+
+	for (i = 0; i < nitems(ebpf_syscall_probe); ++i) {
+		if (ebpf_syscall_probe[i].name == NULL)
+			continue;
+
+		ebpf_probe_register(&ebpf_syscall_probe[i]);
+	}
+}
 
 static uint32_t
 probe_hash(const char *name)
@@ -84,10 +106,12 @@ probe_hash(const char *name)
  * This could only possibly be called during a race with ebpf.ko unload.  Just
  * do nothing if we're called.
  */
-static void
+static int
 dummy_fire(struct ebpf_probe *probe, uintptr_t arg0, uintptr_t arg1,
     uintptr_t arg2, uintptr_t arg3, uintptr_t arg4, uintptr_t arg5)
 {
+
+	return (EBPF_ACTION_CONTINUE);
 }
 
 void
@@ -106,8 +130,9 @@ ebpf_module_deregister()
 {
 	KASSERT (ebpf_is_loaded(), ("ebpf.ko unloaded twice"));
 
+	sx_xlock(&ebpf_sx);
 	atomic_store_rel_ptr((uintptr_t*)&ebpf_module_callbacks, (uintptr_t)&dummy_module);
-	epoch_wait(probe_epoch);
+	sx_xunlock(&ebpf_sx);
 
 	printf("EBPF module deregistered; revert to %p\n", ebpf_module_callbacks);
 }
@@ -121,7 +146,10 @@ ebpf_probe_register(void *arg)
 	probe = arg;
 	hash = probe_hash(probe->name);
 
+	sx_xlock(&ebpf_sx);
+	probe->active = 0;
 	CK_SLIST_INSERT_HEAD(&probe_hashtable[hash], probe, hash_link);
+	sx_xunlock(&ebpf_sx);
 }
 
 void
@@ -144,7 +172,7 @@ ebpf_find_probe(const char *name)
 
 	hash = probe_hash(name);
 
-	epoch_enter(probe_epoch);
+	sx_slock(&ebpf_sx);
 	CK_SLIST_FOREACH_SAFE(probe, &probe_hashtable[hash], hash_link, next) {
 		if (strcmp(name, probe->name) == 0) {
 			goto out;
@@ -152,7 +180,7 @@ ebpf_find_probe(const char *name)
 	}
 
 out:
-	epoch_exit(probe_epoch);
+	sx_sunlock(&ebpf_sx);
 	return probe;
 }
 
@@ -160,15 +188,21 @@ void
 ebpf_probe_drain(struct ebpf_probe *probe)
 {
 
-	epoch_wait(probe_epoch);
+	sx_xlock(&ebpf_sx);
+	probe->active = 0;
+	sx_xunlock(&ebpf_sx);
 }
 
-void
+int
 ebpf_probe_fire(struct ebpf_probe *probe, uintptr_t arg0, uintptr_t arg1,
     uintptr_t arg2, uintptr_t arg3, uintptr_t arg4, uintptr_t arg5)
 {
+	int ret = EBPF_ACTION_CONTINUE;
 
-	epoch_enter(probe_epoch);
-	ebpf_module_callbacks->fire(probe, arg0, arg1, arg2, arg3, arg4, arg5);
-	epoch_exit(probe_epoch);
+	sx_xlock(&ebpf_sx);
+	if (probe->active)
+		ret = ebpf_module_callbacks->fire(probe, arg0, arg1, arg2, arg3, arg4, arg5);
+	sx_xunlock(&ebpf_sx);
+
+	return (ret);
 }

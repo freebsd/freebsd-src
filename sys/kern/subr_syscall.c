@@ -52,6 +52,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/ktrace.h>
 #endif
+#ifdef EBPF_HOOKS
+#include <sys/ebpf_probe.h>
+#endif
 #include <security/audit/audit.h>
 
 static inline void
@@ -60,6 +63,9 @@ syscallenter(struct thread *td)
 	struct proc *p;
 	struct syscall_args *sa;
 	int error, traced;
+#ifdef EBPF_HOOKS
+	int action;
+#endif
 
 	VM_CNT_INC(v_syscall);
 	p = td->td_proc;
@@ -112,6 +118,28 @@ syscallenter(struct thread *td)
 		}
 	}
 
+	error = syscall_thread_enter(td, sa->callp);
+	if (error != 0) {
+		td->td_errno = error;
+		goto retval;
+	}
+
+	if (__predict_false(systrace_enabled || AUDIT_SYSCALL_ENTER(sa->code, td))) {
+#ifdef KDTRACE_HOOKS
+		/* Give the syscall:::entry DTrace probe a chance to fire. */
+		if (__predict_false(sa->callp->sy_entry != 0))
+			(*systrace_probe_func)(sa, SYSTRACE_ENTRY, 0);
+#endif
+	}
+
+#ifdef EBPF_HOOKS
+	action = EBPF_SYSCALL_FIRE(sa->code, sa->args, sa->narg);
+	if (action == EBPF_ACTION_RETURN) {
+		error = td->td_errno;
+		goto skip;
+	}
+#endif
+
 #ifdef CAPABILITY_MODE
 	/*
 	 * In capability mode, we only allow access to system calls
@@ -120,15 +148,9 @@ syscallenter(struct thread *td)
 	if (__predict_false(IN_CAPABILITY_MODE(td) &&
 	    !(sa->callp->sy_flags & SYF_CAPENABLED))) {
 		td->td_errno = error = ECAPMODE;
-		goto retval;
+		goto skip;
 	}
 #endif
-
-	error = syscall_thread_enter(td, sa->callp);
-	if (error != 0) {
-		td->td_errno = error;
-		goto retval;
-	}
 
 	/*
 	 * Fetch fast sigblock value at the time of syscall entry to
@@ -140,29 +162,19 @@ syscallenter(struct thread *td)
 	/* Let system calls set td_errno directly. */
 	td->td_pflags &= ~TDP_NERRNO;
 
-	if (__predict_false(SYSTRACE_ENABLED() ||
-	    AUDIT_SYSCALL_ENTER(sa->code, td))) {
+	error = (sa->callp->sy_call)(td, sa->args);
+	/* Save the latest error return value. */
+	if (__predict_false((td->td_pflags & TDP_NERRNO) == 0))
+		td->td_errno = error;
+	AUDIT_SYSCALL_EXIT(error, td);
+skip:
 #ifdef KDTRACE_HOOKS
-		/* Give the syscall:::entry DTrace probe a chance to fire. */
-		if (__predict_false(sa->callp->sy_entry != 0))
-			(*systrace_probe_func)(sa, SYSTRACE_ENTRY, 0);
-#endif
-		error = (sa->callp->sy_call)(td, sa->args);
-		/* Save the latest error return value. */
-		if (__predict_false((td->td_pflags & TDP_NERRNO) == 0))
-			td->td_errno = error;
-		AUDIT_SYSCALL_EXIT(error, td);
-#ifdef KDTRACE_HOOKS
+	if (__predict_false(systrace_enabled)) {
 		/* Give the syscall:::return DTrace probe a chance to fire. */
 		if (__predict_false(sa->callp->sy_return != 0))
 			(*systrace_probe_func)(sa, SYSTRACE_RETURN,
 			    error ? -1 : td->td_retval[0]);
 #endif
-	} else {
-		error = (sa->callp->sy_call)(td, sa->args);
-		/* Save the latest error return value. */
-		if (__predict_false((td->td_pflags & TDP_NERRNO) == 0))
-			td->td_errno = error;
 	}
 	syscall_thread_exit(td, sa->callp);
 
