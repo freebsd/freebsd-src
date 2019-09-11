@@ -189,7 +189,7 @@ arg_parse(int argc, char * const * argv, const struct cmd *f)
 	lopts = malloc((n + 2) * sizeof(struct option));
 	if (lopts == NULL)
 		err(1, "option memory");
-	p = shortopts = malloc((n + 3) * sizeof(char));
+	p = shortopts = malloc((2 * n + 3) * sizeof(char));
 	if (shortopts == NULL)
 		err(1, "shortopts memory");
 	idx = 0;
