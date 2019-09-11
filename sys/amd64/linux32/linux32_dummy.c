@@ -119,7 +119,7 @@ DUMMY(signalfd4);
 DUMMY(inotify_init1);
 /* Linux 2.6.31: */
 DUMMY(perf_event_open);
-/* Linux 2.6.33: */
+/* Linux 2.6.36: */
 DUMMY(fanotify_init);
 DUMMY(fanotify_mark);
 /* Linux 2.6.39: */
