@@ -1082,6 +1082,8 @@
         ..
         fstyp
         ..
+        jail
+        ..
         makefs
         ..
         mixer
