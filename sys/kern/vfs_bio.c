@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/proc.h>
 #include <sys/racct.h>
+#include <sys/refcount.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/smp.h>
@@ -2842,9 +2843,9 @@ vfs_vmio_iodone(struct buf *bp)
 	bool bogus;
 
 	obj = bp->b_bufobj->bo_object;
-	KASSERT(obj->paging_in_progress >= bp->b_npages,
+	KASSERT(REFCOUNT_COUNT(obj->paging_in_progress) >= bp->b_npages,
 	    ("vfs_vmio_iodone: paging in progress(%d) < b_npages(%d)",
-	    obj->paging_in_progress, bp->b_npages));
+	    REFCOUNT_COUNT(obj->paging_in_progress), bp->b_npages));
 
 	vp = bp->b_vp;
 	KASSERT(vp->v_holdcnt > 0,
