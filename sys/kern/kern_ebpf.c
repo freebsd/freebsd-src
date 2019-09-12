@@ -199,10 +199,10 @@ ebpf_probe_fire(struct ebpf_probe *probe, uintptr_t arg0, uintptr_t arg1,
 {
 	int ret = EBPF_ACTION_CONTINUE;
 
-	sx_xlock(&ebpf_sx);
+	sx_slock(&ebpf_sx);
 	if (probe->active)
 		ret = ebpf_module_callbacks->fire(probe, arg0, arg1, arg2, arg3, arg4, arg5);
-	sx_xunlock(&ebpf_sx);
+	sx_sunlock(&ebpf_sx);
 
 	return (ret);
 }
