@@ -250,6 +250,8 @@ init_static_kenv(char *buf, size_t len)
 	char *eval;
 
 	KASSERT(!dynamic_kenv, ("kenv: dynamic_kenv already initialized"));
+	KASSERT(len == 0 || *buf == '\0',
+	    ("kenv: sized buffer must be initially empty"));
 
 	/*
 	 * We may be called twice, with the second call needed to relocate
