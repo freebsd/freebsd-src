@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
+#include <sys/refcount.h>
 #include <sys/sched.h>
 #include <sys/sdt.h>
 #include <sys/signalvar.h>
@@ -193,7 +194,7 @@ vm_swapout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 			goto unlock_return;
 		VM_OBJECT_ASSERT_LOCKED(object);
 		if ((object->flags & OBJ_UNMANAGED) != 0 ||
-		    object->paging_in_progress != 0)
+		    REFCOUNT_COUNT(object->paging_in_progress) > 0)
 			goto unlock_return;
 
 		remove_mode = 0;
