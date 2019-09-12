@@ -250,7 +250,15 @@ init_static_kenv(char *buf, size_t len)
 	char *eval;
 
 	KASSERT(!dynamic_kenv, ("kenv: dynamic_kenv already initialized"));
-	KASSERT(len == 0 || *buf == '\0',
+	/*
+	 * Suitably sized means it must be able to hold at least one empty
+	 * variable, otherwise things go belly up if a kern_getenv call is
+	 * made without a prior call to kern_setenv as we have a malformed
+	 * environment.
+	 */
+	KASSERT(len == 0 || len >= 2,
+	    ("kenv: static env must be initialized or suitably sized"));
+	KASSERT(len == 0 || (*buf == '\0' && *(buf + 1) == '\0'),
 	    ("kenv: sized buffer must be initially empty"));
 
 	/*
