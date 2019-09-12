@@ -39,7 +39,7 @@
 #define	KASSERT(exp, msg)	/* */
 #endif
 
-#define	REFCOUNT_WAITER			(1 << 31) /* Refcount has waiter. */
+#define	REFCOUNT_WAITER			(1U << 31) /* Refcount has waiter. */
 #define	REFCOUNT_SATURATION_VALUE	(3U << 29)
 
 #define	REFCOUNT_SATURATED(val)		(((val) & (1U << 30)) != 0)
