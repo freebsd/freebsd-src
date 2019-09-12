@@ -195,9 +195,9 @@ vm_object_zdtor(void *mem, int size, void *arg)
 	    ("object %p has reservations",
 	    object));
 #endif
-	KASSERT(object->paging_in_progress == 0,
+	KASSERT(REFCOUNT_COUNT(object->paging_in_progress) == 0,
 	    ("object %p paging_in_progress = %d",
-	    object, object->paging_in_progress));
+	    object, REFCOUNT_COUNT(object->paging_in_progress)));
 	KASSERT(object->resident_page_count == 0,
 	    ("object %p resident_page_count = %d",
 	    object, object->resident_page_count));
@@ -395,7 +395,7 @@ vm_object_pip_wait(vm_object_t object, char *waitid)
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
-	while (object->paging_in_progress) {
+	while (REFCOUNT_COUNT(object->paging_in_progress) > 0) {
 		VM_OBJECT_WUNLOCK(object);
 		refcount_wait(&object->paging_in_progress, waitid, PVM);
 		VM_OBJECT_WLOCK(object);
@@ -408,7 +408,7 @@ vm_object_pip_wait_unlocked(vm_object_t object, char *waitid)
 
 	VM_OBJECT_ASSERT_UNLOCKED(object);
 
-	while (object->paging_in_progress)
+	while (REFCOUNT_COUNT(object->paging_in_progress) > 0)
 		refcount_wait(&object->paging_in_progress, waitid, PVM);
 }
 
@@ -577,7 +577,7 @@ vm_object_deallocate(vm_object_t object)
 
 					robject->ref_count++;
 retry:
-					if (robject->paging_in_progress) {
+					if (REFCOUNT_COUNT(robject->paging_in_progress) > 0) {
 						VM_OBJECT_WUNLOCK(object);
 						vm_object_pip_wait(robject,
 						    "objde1");
@@ -586,7 +586,7 @@ retry:
 							VM_OBJECT_WLOCK(object);
 							goto retry;
 						}
-					} else if (object->paging_in_progress) {
+					} else if (REFCOUNT_COUNT(object->paging_in_progress) > 0) {
 						VM_OBJECT_WUNLOCK(robject);
 						VM_OBJECT_WUNLOCK(object);
 						refcount_wait(
@@ -729,7 +729,7 @@ vm_object_terminate(vm_object_t object)
 	 */
 	vm_object_pip_wait(object, "objtrm");
 
-	KASSERT(!object->paging_in_progress,
+	KASSERT(!REFCOUNT_COUNT(object->paging_in_progress),
 		("vm_object_terminate: pageout in progress"));
 
 	KASSERT(object->ref_count == 0, 
@@ -1660,8 +1660,8 @@ vm_object_collapse(vm_object_t object)
 			break;
 		}
 
-		if (object->paging_in_progress != 0 ||
-		    backing_object->paging_in_progress != 0) {
+		if (REFCOUNT_COUNT(object->paging_in_progress) > 0 ||
+		    REFCOUNT_COUNT(backing_object->paging_in_progress) > 0) {
 			vm_object_qcollapse(object);
 			VM_OBJECT_WUNLOCK(backing_object);
 			break;
