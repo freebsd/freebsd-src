@@ -79,7 +79,7 @@ CFLAGS+= -I${SRCTOP}/contrib/ntp/include \
 	-I${SRCTOP}/contrib/ntp/lib/isc/pthreads/include \
 	-I${SRCTOP}/contrib/ntp/sntp/libopts \
 	-I${SRCTOP}/lib/libc/${MACHINE_ARCH} \
-	-I${SRCTOP}/lib/libedit/edit \
+	-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/edit \
 	-I${.CURDIR:H} \
 	-I${.CURDIR}/
 
