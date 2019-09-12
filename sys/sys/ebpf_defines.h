@@ -33,6 +33,7 @@
 
 #define	EBPF_ACTION_CONTINUE	0
 #define	EBPF_ACTION_RETURN	1
+#define EBPF_ACTION_RESTART	2
 
 #endif
 
