@@ -796,7 +796,7 @@ cpuset_modify_domain(struct cpuset *set, struct domainset *domain)
 		/*
 		 * Verify that we have access to this set of domains.
 		 */
-		if (root && !domainset_valid(dset, domain)) {
+		if (!domainset_valid(dset, domain)) {
 			error = EINVAL;
 			goto out;
 		}
