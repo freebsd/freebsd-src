@@ -199,6 +199,14 @@ set-current   \ stop hiding words
 	a-addr 0  b-addr b-u  strcat
 	;
 
+: xemit ( xchar -- )
+ 	dup 0x80 u< if emit exit then \ special case ASCII
+ 	0 swap 0x3F
+ 	begin 2dup u> while
+ 		2/ >r dup 0x3F and 0x80 or swap 6 rshift r>
+ 	repeat 0x7F xor 2* or
+ 	begin dup 0x80 u< 0= while emit repeat drop
+ 	;
 
 previous   \ lose hidden words from search order
 
