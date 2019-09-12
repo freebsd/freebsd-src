@@ -207,9 +207,6 @@ SUBDIR=	\
 	libiconv \
 	libmchain \
 	lindebugfs \
-	${_linux} \
-	${_linux_common} \
-	${_linux64} \
 	linuxkpi \
 	${_lio} \
 	lpt \
@@ -466,10 +463,22 @@ SUBDIR+=	iscsi_initiator
 SUBDIR+=	fdt
 .endif
 
+# Linuxulator
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
     ${MACHINE_CPUARCH} == "i386"
 SUBDIR+=	linprocfs
 SUBDIR+=	linsysfs
+.endif
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+SUBDIR+=	linux
+.endif
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"
+SUBDIR+=	linux64
+SUBDIR+=	linux_common
+.endif
+
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "i386"
 _ena=		ena
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _ibcore=	ibcore
@@ -590,7 +599,6 @@ _if_ndis=	if_ndis
 _io=		io
 _ix=		ix
 _ixv=		ixv
-_linux=		linux
 .if ${MK_SOURCELESS_UCODE} != "no"
 _lio=		lio
 .endif
@@ -692,8 +700,6 @@ _efirt=		efirt
 _iavf=		iavf
 _ioat=		ioat
 _ixl=		ixl
-_linux64=	linux64
-_linux_common=	linux_common
 _nvdimm=	nvdimm
 _pms=		pms
 _qlxge=		qlxge
