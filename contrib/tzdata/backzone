@@ -507,19 +507,35 @@ Zone	Asia/Muscat	3:54:24 -	LMT	1920
 #Zone	Asia/Panaji	[not enough info to complete]
 
 # Cambodia
-# From Paul Eggert (2014-10-11):
-# See Asia/Ho_Chi_Minh for the source for most of this data.  Also, guess
-# (1) Cambodia reverted to UT +07 on 1945-09-02, when Vietnam did, and
-# (2) they also reverted to +07 on 1953-11-09, the date of independence.
-# These guesses are probably wrong but they're better than guessing no
-# transitions there.
+
+# From an adoptive daughter of the late Cambodian ruler Prince Sihanouk,
+# via Alois Treindl (2019-08-08):
+#
+# King Sihanouk said that, during the Japanese occupation, starting with
+# what historians refer to as "le coup de force du 9 mars 1945", Cambodia,
+# like the entire French Indochina, used Tokyo time zone. After Japan
+# surrendered, 2 September 1945, Cambodia fell under French rule again and
+# adopted Hanoi time zone again.
+#
+# However, on 7 January 1946, Sihanouk and Tioulong managed to obtain a
+# status of "internal autonomy" from the government of Charles de Gaulle.
+# Although many fields remained under the administration of the French
+# (customs, taxes, justice, defence, foreign affairs, etc.), the Cambodian
+# administration was responsible for religious matters and traditional
+# celebrations, which included our calendar and time.  The time zone was GMT
+# + 7 and _no_ DST was applied.
+#
+# After Sihanouk and Tioulong achieved full independence, on 9 November 1953,
+# GMT + 7 was maintained.
+
+# From Paul Eggert (2019-08-26):
+# See Asia/Ho_Chi_Minh for the source for most of rest of this data.
+
 Zone	Asia/Phnom_Penh	6:59:40 -	LMT	1906 Jul  1
 			7:06:30	-	PLMT	1911 May  1
 			7:00	-	+07	1942 Dec 31 23:00
 			8:00	-	+08	1945 Mar 14 23:00
 			9:00	-	+09	1945 Sep  2
-			7:00	-	+07	1947 Apr  1
-			8:00	-	+08	1953 Nov  9
 			7:00	-	+07
 
 # Israel
@@ -646,7 +662,7 @@ Zone	Europe/Tiraspol	1:58:32	-	LMT	1880
 
 # Liechtenstein
 Zone	Europe/Vaduz	0:38:04 -	LMT	1894 Jun
-			1:00	-	CET	1981
+			1:00	Swiss	CE%sT	1981
 			1:00	EU	CE%sT
 
 # Croatia
