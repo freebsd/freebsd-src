@@ -85,11 +85,10 @@ refcount_acquire(volatile u_int *count)
 static __inline void
 refcount_acquiren(volatile u_int *count, u_int n)
 {
-
 	u_int old;
 
 	KASSERT(n < REFCOUNT_SATURATION_VALUE / 2,
-	    ("refcount_acquiren: n %d too large", n));
+	    ("refcount_acquiren: n=%u too large", n));
 	old = atomic_fetchadd_int(count, n);
 	if (__predict_false(REFCOUNT_SATURATED(old)))
 		_refcount_update_saturated(count);
@@ -115,7 +114,8 @@ refcount_releasen(volatile u_int *count, u_int n)
 	u_int old;
 
 	KASSERT(n < REFCOUNT_SATURATION_VALUE / 2,
-	    ("refcount_releasen: n %d too large", n));
+	    ("refcount_releasen: n=%u too large", n));
+
 	atomic_thread_fence_rel();
 	old = atomic_fetchadd_int(count, -n);
 	if (__predict_false(n >= REFCOUNT_COUNT(old) ||
