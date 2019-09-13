@@ -4444,7 +4444,13 @@ OPENSSL_1_1_1b {
 OPENSSL_1_1_1c {
     global:
         EVP_PKEY_get0_engine;
-    local: *;
 } OPENSSL_1_1_1b;
+
+OPENSSL_1_1_1d {
+    global:
+        X509_get0_authority_issuer;
+        X509_get0_authority_serial;
+    local: *;
+} OPENSSL_1_1_1c;
 
 

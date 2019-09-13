@@ -144,13 +144,20 @@ local function drawmenu(menudef)
 	return alias_table
 end
 
+local function defaultframe()
+	if core.isSerialConsole() then
+		return "ascii"
+	end
+	return "double"
+end
+
 local function drawbox()
 	local x = menu_position.x - 3
 	local y = menu_position.y - 1
 	local w = frame_size.w
 	local h = frame_size.h
 
-	local framestyle = loader.getenv("loader_menu_frame") or "double"
+	local framestyle = loader.getenv("loader_menu_frame") or defaultframe()
 	local framespec = drawer.frame_styles[framestyle]
 	-- If we don't have a framespec for the current frame style, just don't
 	-- draw a box.

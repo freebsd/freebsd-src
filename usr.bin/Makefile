@@ -20,7 +20,6 @@ SUBDIR=	alias \
 	cksum \
 	cmp \
 	col \
-	colldef \
 	colrm \
 	column \
 	comm \
@@ -94,7 +93,6 @@ SUBDIR=	alias \
 	mkdep \
 	mkfifo \
 	mkimg \
-	mklocale \
 	mktemp \
 	mkuzip \
 	mt \

@@ -45,6 +45,7 @@ extern int	yylex(void);
 
 %}
 
+%option noyywrap
 %option noinput
 %option nounput
 

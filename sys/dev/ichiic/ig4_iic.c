@@ -590,6 +590,8 @@ ig4iic_attach(ig4iic_softc_t *sc)
 	reg_write(sc, IG4_REG_SS_SCL_LCNT, 125);
 	reg_write(sc, IG4_REG_FS_SCL_HCNT, 100);
 	reg_write(sc, IG4_REG_FS_SCL_LCNT, 125);
+	if (sc->version == IG4_SKYLAKE)
+		reg_write(sc, IG4_REG_SDA_HOLD, 28);
 
 	/*
 	 * Use a threshold of 1 so we get interrupted on each character,

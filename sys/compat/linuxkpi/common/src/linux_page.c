@@ -154,10 +154,8 @@ linux_free_pages(vm_page_t page, unsigned int order)
 		for (x = 0; x != npages; x++) {
 			vm_page_t pgo = page + x;
 
-			vm_page_lock(pgo);
 			if (vm_page_unwire_noq(pgo))
 				vm_page_free(pgo);
-			vm_page_unlock(pgo);
 		}
 	} else {
 		vm_offset_t vaddr;
@@ -288,29 +286,11 @@ linux_shmem_read_mapping_page_gfp(vm_object_t obj, int pindex, gfp_t gfp)
 		panic("GFP_NOWAIT is unimplemented");
 
 	VM_OBJECT_WLOCK(obj);
-	page = vm_page_grab(obj, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY |
-	    VM_ALLOC_WIRED);
-	if (page->valid != VM_PAGE_BITS_ALL) {
-		vm_page_xbusy(page);
-		if (vm_pager_has_page(obj, pindex, NULL, NULL)) {
-			rv = vm_pager_get_pages(obj, &page, 1, NULL, NULL);
-			if (rv != VM_PAGER_OK) {
-				vm_page_lock(page);
-				vm_page_unwire_noq(page);
-				vm_page_free(page);
-				vm_page_unlock(page);
-				VM_OBJECT_WUNLOCK(obj);
-				return (ERR_PTR(-EINVAL));
-			}
-			MPASS(page->valid == VM_PAGE_BITS_ALL);
-		} else {
-			pmap_zero_page(page);
-			page->valid = VM_PAGE_BITS_ALL;
-			page->dirty = 0;
-		}
-		vm_page_xunbusy(page);
-	}
+	rv = vm_page_grab_valid(&page, obj, pindex, VM_ALLOC_NORMAL |
+	    VM_ALLOC_NOBUSY | VM_ALLOC_WIRED);
 	VM_OBJECT_WUNLOCK(obj);
+	if (rv != VM_PAGER_OK)
+		return (ERR_PTR(-EINVAL));
 	return (page);
 }
 

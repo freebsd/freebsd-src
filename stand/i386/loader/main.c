@@ -238,7 +238,6 @@ main(void)
     printf("\n%s", bootprog_info);
 
     extract_currdev();				/* set $currdev and $loaddev */
-    setenv("LINES", "24", 1);			/* optional */
     
     bios_getsmap();
 

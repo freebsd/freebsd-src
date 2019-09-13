@@ -188,26 +188,13 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 	 * lock to page out tobj's pages because tobj is a OBJT_SWAP
 	 * type object.
 	 */
-	m = vm_page_grab(obj, idx, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY |
-	    VM_ALLOC_WIRED);
-	if (m->valid != VM_PAGE_BITS_ALL) {
-		vm_page_xbusy(m);
-		if (vm_pager_has_page(obj, idx, NULL, NULL)) {
-			rv = vm_pager_get_pages(obj, &m, 1, NULL, NULL);
-			if (rv != VM_PAGER_OK) {
-				printf(
-	    "uiomove_object: vm_obj %p idx %jd valid %x pager error %d\n",
-				    obj, idx, m->valid, rv);
-				vm_page_lock(m);
-				vm_page_unwire_noq(m);
-				vm_page_free(m);
-				vm_page_unlock(m);
-				VM_OBJECT_WUNLOCK(obj);
-				return (EIO);
-			}
-		} else
-			vm_page_zero_invalid(m, TRUE);
-		vm_page_xunbusy(m);
+	rv = vm_page_grab_valid(&m, obj, idx,
+	    VM_ALLOC_NORMAL | VM_ALLOC_WIRED | VM_ALLOC_NOBUSY);
+	if (rv != VM_PAGER_OK) {
+		VM_OBJECT_WUNLOCK(obj);
+		printf("uiomove_object: vm_obj %p idx %jd pager error %d\n",
+		    obj, idx, rv);
+		return (EIO);
 	}
 	VM_OBJECT_WUNLOCK(obj);
 	error = uiomove_fromphys(&m, offset, tlen, uio);
@@ -217,9 +204,7 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 		vm_pager_page_unswapped(m);
 		VM_OBJECT_WUNLOCK(obj);
 	}
-	vm_page_lock(m);
 	vm_page_unwire(m, PQ_ACTIVE);
-	vm_page_unlock(m);
 
 	return (error);
 }
@@ -474,7 +459,6 @@ retry:
 					goto retry;
 				rv = vm_pager_get_pages(object, &m, 1, NULL,
 				    NULL);
-				vm_page_lock(m);
 				if (rv == VM_PAGER_OK) {
 					/*
 					 * Since the page was not resident,
@@ -485,11 +469,9 @@ retry:
 					 * as an access.
 					 */
 					vm_page_launder(m);
-					vm_page_unlock(m);
 					vm_page_xunbusy(m);
 				} else {
 					vm_page_free(m);
-					vm_page_unlock(m);
 					VM_OBJECT_WUNLOCK(object);
 					return (EIO);
 				}

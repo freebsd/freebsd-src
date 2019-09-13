@@ -2424,9 +2424,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* linux_renameat2 */
 	case 353: {
 		struct linux_renameat2_args *p = params;
-		iarg[0] = p->oldfd; /* l_int */
+		iarg[0] = p->olddfd; /* l_int */
 		uarg[1] = (intptr_t) p->oldname; /* const char * */
-		iarg[2] = p->newfd; /* l_int */
+		iarg[2] = p->newdfd; /* l_int */
 		uarg[3] = (intptr_t) p->newname; /* const char * */
 		uarg[4] = p->flags; /* unsigned int */
 		*n_args = 5;

@@ -153,22 +153,6 @@ struct camcontrol_opts {
 	const char	*subopt;
 };
 
-struct ata_res_pass16 {
-	u_int16_t reserved[5];
-	u_int8_t flags;
-	u_int8_t error;
-	u_int8_t sector_count_exp;
-	u_int8_t sector_count;
-	u_int8_t lba_low_exp;
-	u_int8_t lba_low;
-	u_int8_t lba_mid_exp;
-	u_int8_t lba_mid;
-	u_int8_t lba_high_exp;
-	u_int8_t lba_high;
-	u_int8_t device;
-	u_int8_t status;
-};
-
 struct ata_set_max_pwd
 {
 	u_int16_t reserved1;
@@ -1616,16 +1600,6 @@ atacapprint(struct ata_params *parm)
 	printf("flush cache                    %s	%s\n",
 		parm->support.command2 & ATA_SUPPORT_FLUSHCACHE ? "yes" : "no",
 		parm->enabled.command2 & ATA_SUPPORT_FLUSHCACHE ? "yes" : "no");
-	printf("overlap                        %s\n",
-		parm->capabilities1 & ATA_SUPPORT_OVERLAP ? "yes" : "no");
-	printf("Tagged Command Queuing (TCQ)   %s	%s",
-		parm->support.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
-		parm->enabled.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no");
-		if (parm->support.command2 & ATA_SUPPORT_QUEUED) {
-			printf("	%d tags\n",
-			    ATA_QUEUE_LEN(parm->queue) + 1);
-		} else
-			printf("\n");
 	printf("Native Command Queuing (NCQ)   ");
 	if (atasata(parm) && (parm->satacapabilities & ATA_SUPPORT_NCQ)) {
 		printf("yes		%d tags\n",
@@ -1733,6 +1707,9 @@ atacapprint(struct ata_params *parm)
 	} else {
 		printf("no\n");
 	}
+	printf("Trusted Computing              %s\n",
+	    ((parm->tcg & 0xc000) == 0x4000) && (parm->tcg & ATA_SUPPORT_TCG) ?
+	    "yes" : "no");
 	printf("encrypts all user data         %s\n",
 		parm->support3 & ATA_ENCRYPTS_ALL_USER_DATA ? "yes" : "no");
 	printf("Sanitize                       ");
@@ -4549,7 +4526,7 @@ modepage(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	 int task_attr, int retry_count, int timeout)
 {
 	char *str_subpage;
-	int c, page = -1, subpage = -1, pc = 0, llbaa = 0;
+	int c, page = -1, subpage = 0, pc = 0, llbaa = 0;
 	int binary = 0, cdb_len = 10, dbd = 0, desc = 0, edit = 0, list = 0;
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
@@ -4575,11 +4552,9 @@ modepage(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			page = strtol(optarg, NULL, 0);
 			if (str_subpage)
 			    subpage = strtol(str_subpage, NULL, 0);
-			else
-			    subpage = 0;
-			if (page < 0)
+			if (page < 0 || page > 0x3f)
 				errx(1, "invalid mode page %d", page);
-			if (subpage < 0)
+			if (subpage < 0 || subpage > 0xff)
 				errx(1, "invalid mode subpage %d", subpage);
 			break;
 		case 'D':
@@ -4598,7 +4573,10 @@ modepage(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		}
 	}
 
-	if (page == -1 && desc == 0 && list == 0)
+	if (desc && page == -1)
+		page = SMS_ALL_PAGES_PAGE;
+
+	if (page == -1 && list == 0)
 		errx(1, "you must specify a mode page!");
 
 	if (dbd && desc)

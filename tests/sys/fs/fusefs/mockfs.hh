@@ -283,8 +283,8 @@ class MockFS {
 	/* Timestamp granularity in nanoseconds */
 	unsigned m_time_gran;
 
-	void audit_request(const mockfs_buf_in &in);
-	void debug_request(const mockfs_buf_in&);
+	void audit_request(const mockfs_buf_in &in, ssize_t buflen);
+	void debug_request(const mockfs_buf_in&, ssize_t buflen);
 	void debug_response(const mockfs_buf_out&);
 
 	/* Initialize a session after mounting */
@@ -300,8 +300,14 @@ class MockFS {
 	/* Entry point for the daemon thread */
 	static void* service(void*);
 
-	/* Read, but do not process, a single request from the kernel */
-	void read_request(mockfs_buf_in& in);
+	/*
+	 * Read, but do not process, a single request from the kernel
+	 *
+	 * @param in	Return storage for the FUSE request
+	 * @param res	Return value of read(2).  If positive, the amount of
+	 *		data read from the fuse device.
+	 */
+	void read_request(mockfs_buf_in& in, ssize_t& res);
 
 	/* Write a single response back to the kernel */
 	void write_response(const mockfs_buf_out &out);

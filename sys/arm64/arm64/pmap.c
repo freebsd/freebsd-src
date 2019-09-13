@@ -1079,14 +1079,11 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
 	pt_entry_t *pte, tpte;
 	vm_offset_t off;
-	vm_paddr_t pa;
 	vm_page_t m;
 	int lvl;
 
-	pa = 0;
 	m = NULL;
 	PMAP_LOCK(pmap);
-retry:
 	pte = pmap_pte(pmap, va, &lvl);
 	if (pte != NULL) {
 		tpte = pmap_load(pte);
@@ -1111,14 +1108,11 @@ retry:
 			default:
 				off = 0;
 			}
-			if (vm_page_pa_tryrelock(pmap,
-			    (tpte & ~ATTR_MASK) | off, &pa))
-				goto retry;
 			m = PHYS_TO_VM_PAGE((tpte & ~ATTR_MASK) | off);
-			vm_page_wire(m);
+			if (!vm_page_wire_mapped(m))
+				m = NULL;
 		}
 	}
-	PA_UNLOCK_COND(pa);
 	PMAP_UNLOCK(pmap);
 	return (m);
 }

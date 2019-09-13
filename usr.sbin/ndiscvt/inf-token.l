@@ -59,6 +59,7 @@ update_lineno(const char *cp)
 
 %}
 
+%option noyywrap
 %option nounput
 %option noinput
 

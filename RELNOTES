@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r352304:
+	ntpd is no longer by default locked in memory. rlimit memlock 32
+	or rlimit memlock 0 can be used to restore this behaviour.
+
 r351522:
 	Add kernel-side support for in-kernel Transport Layer Security
 	(KTLS).  KTLS permits using sendfile(2) over sockets using

@@ -1418,7 +1418,6 @@ retry:
 					goto retry;
 				rv = vm_pager_get_pages(uobj, &m, 1, NULL,
 				    NULL);
-				vm_page_lock(m);
 				if (rv == VM_PAGER_OK) {
 					/*
 					 * Since the page was not resident,
@@ -1428,12 +1427,12 @@ retry:
 					 * current operation is not regarded
 					 * as an access.
 					 */
+					vm_page_lock(m);
 					vm_page_launder(m);
 					vm_page_unlock(m);
 					vm_page_xunbusy(m);
 				} else {
 					vm_page_free(m);
-					vm_page_unlock(m);
 					if (ignerr)
 						m = NULL;
 					else {

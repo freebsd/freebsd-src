@@ -1029,9 +1029,7 @@ md_swap_page_free(vm_page_t m)
 {
 
 	vm_page_xunbusy(m);
-	vm_page_lock(m);
 	vm_page_free(m);
-	vm_page_unlock(m);
 }
 
 static int

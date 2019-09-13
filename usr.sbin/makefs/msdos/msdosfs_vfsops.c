@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

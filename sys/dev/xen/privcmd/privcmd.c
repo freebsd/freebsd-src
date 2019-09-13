@@ -128,7 +128,7 @@ retry:
 			m = vm_page_lookup(map->mem, i);
 			if (m == NULL)
 				continue;
-			if (vm_page_sleep_if_busy(m, "pcmdum"))
+			if (vm_page_busy_acquire(m, VM_ALLOC_WAITFAIL) == 0)
 				goto retry;
 			cdev_pager_free_page(map->mem, m);
 		}
@@ -169,14 +169,12 @@ privcmd_pg_fault(vm_object_t object, vm_ooffset_t offset,
 
 	KASSERT((page->flags & PG_FICTITIOUS) != 0,
 	    ("not fictitious %p", page));
-	KASSERT(page->wire_count == 1, ("wire_count not 1 %p", page));
-	KASSERT(vm_page_busied(page) == 0, ("page %p is busy", page));
+	KASSERT(vm_page_wired(page), ("page %p not wired", page));
+	KASSERT(!vm_page_busied(page), ("page %p is busy", page));
 
 	if (*mres != NULL) {
 		oldm = *mres;
-		vm_page_lock(oldm);
 		vm_page_free(oldm);
-		vm_page_unlock(oldm);
 		*mres = NULL;
 	}
 
