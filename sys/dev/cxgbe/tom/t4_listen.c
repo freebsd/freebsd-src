@@ -1034,7 +1034,7 @@ get_l2te_for_nexthop(struct port_info *pi, struct ifnet *ifp,
 	struct l2t_entry *e;
 	struct sockaddr_in6 sin6;
 	struct sockaddr *dst = (void *)&sin6;
- 
+
 	if (inc->inc_flags & INC_ISIPV6) {
 		struct nhop6_basic nh6;
 
