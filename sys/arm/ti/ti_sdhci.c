@@ -482,15 +482,14 @@ ti_sdhci_hw_init(device_t dev)
 	 * The attach() routine has examined fdt data and set flags in
 	 * slot.host.caps to reflect what voltages we can handle.  Set those
 	 * values in the CAPA register.  The manual says that these values can
-	 * only be set once, "before initialization" whatever that means, and
-	 * that they survive a reset.  So maybe doing this will be a no-op if
-	 * u-boot has already initialized the hardware.
+	 * only be set once, and that they survive a reset so unless u-boot didn't
+	 * set this register this code is a no-op.
 	 */
 	regval = ti_mmchs_read_4(sc, MMCHS_SD_CAPA);
 	if (sc->slot.host.caps & MMC_OCR_LOW_VOLTAGE)
 		regval |= MMCHS_SD_CAPA_VS18;
-	if (sc->slot.host.caps & (MMC_OCR_290_300 | MMC_OCR_300_310))
-		regval |= MMCHS_SD_CAPA_VS30;
+	if (sc->slot.host.caps & (MMC_OCR_320_330 | MMC_OCR_330_340))
+		regval |= MMCHS_SD_CAPA_VS33;
 	ti_mmchs_write_4(sc, MMCHS_SD_CAPA, regval);
 
 	/* Set initial host configuration (1-bit, std speed, pwr off). */
@@ -524,17 +523,20 @@ ti_sdhci_attach(device_t dev)
 	}
 
 	/*
-	 * The hardware can inherently do dual-voltage (1p8v, 3p0v) on the first
+	 * The hardware can inherently do dual-voltage (1p8v, 3p3v) on the first
 	 * device, and only 1p8v on other devices unless an external transceiver
 	 * is used.  The only way we could know about a transceiver is fdt data.
 	 * Note that we have to do this before calling ti_sdhci_hw_init() so
 	 * that it can set the right values in the CAPA register, which can only
 	 * be done once and never reset.
 	 */
-	sc->slot.host.caps |= MMC_OCR_LOW_VOLTAGE;
-	if (sc->mmchs_clk_id == MMC1_CLK || OF_hasprop(node, "ti,dual-volt")) {
-		sc->slot.host.caps |= MMC_OCR_290_300 | MMC_OCR_300_310;
-	}
+	if (OF_hasprop(node, "ti,dual-volt")) {
+		sc->slot.host.caps |= MMC_OCR_LOW_VOLTAGE | MMC_OCR_320_330 | MMC_OCR_330_340;
+	} else if (OF_hasprop(node, "no-1-8-v")) {
+		sc->slot.host.caps |= MMC_OCR_320_330 | MMC_OCR_330_340;
+	} else
+		sc->slot.host.caps |= MMC_OCR_LOW_VOLTAGE;
+
 
 	/*
 	 * Set the offset from the device's memory start to the MMCHS registers.
