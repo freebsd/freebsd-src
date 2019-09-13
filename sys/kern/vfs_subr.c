@@ -2667,12 +2667,13 @@ v_decr_devcount(struct vnode *vp)
  * see doomed vnodes.  If inactive processing was delayed in
  * vput try to do it here.
  *
- * Notes on lockless counter manipulation:
- * _vhold, vputx and other routines make various decisions based
- * on either holdcnt or usecount being 0. As long as either counter
- * is not transitioning 0->1 nor 1->0, the manipulation can be done
- * with atomic operations. Otherwise the interlock is taken covering
- * both the atomic and additional actions.
+ * Both holdcnt and usecount can be manipulated using atomics without holding
+ * any locks except in these cases which require the vnode interlock:
+ * holdcnt: 1->0 and 0->1
+ * usecount: 0->1
+ *
+ * usecount is permitted to transition 1->0 without the interlock because
+ * vnode is kept live by holdcnt.
  */
 static enum vgetstate
 _vget_prep(struct vnode *vp, bool interlock)
@@ -2784,6 +2785,29 @@ vget_finish(struct vnode *vp, int flags, enum vgetstate vs)
 	 * Upgrade our holdcnt to a usecount.
 	 */
 	VI_LOCK(vp);
+	/*
+	 * See the previous section. By the time we get here we may find
+	 * ourselves in the same spot.
+	 */
+	if (vp->v_type != VCHR) {
+		if (refcount_acquire_if_not_zero(&vp->v_usecount)) {
+#ifdef INVARIANTS
+			int old = atomic_fetchadd_int(&vp->v_holdcnt, -1) - 1;
+			VNASSERT(old > 0, vp, ("%s: wrong hold count", __func__));
+#else
+			refcount_release(&vp->v_holdcnt);
+#endif
+			VNODE_REFCOUNT_FENCE_ACQ();
+			VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
+			    ("%s: vnode with usecount and VI_OWEINACT set",
+			    __func__));
+			VI_UNLOCK(vp);
+			return (0);
+		}
+	} else {
+		if (vp->v_usecount > 0)
+			refcount_release(&vp->v_holdcnt);
+	}
 	if ((vp->v_iflag & VI_OWEINACT) == 0) {
 		oweinact = 0;
 	} else {
@@ -2791,8 +2815,6 @@ vget_finish(struct vnode *vp, int flags, enum vgetstate vs)
 		vp->v_iflag &= ~VI_OWEINACT;
 		VNODE_REFCOUNT_FENCE_REL();
 	}
-	if (vp->v_usecount > 0)
-		refcount_release(&vp->v_holdcnt);
 	v_incr_devcount(vp);
 	refcount_acquire(&vp->v_usecount);
 	if (oweinact && VOP_ISLOCKED(vp) == LK_EXCLUSIVE &&
@@ -2832,6 +2854,15 @@ vrefl(struct vnode *vp)
 
 	ASSERT_VI_LOCKED(vp, __func__);
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+	if (vp->v_type != VCHR &&
+	    refcount_acquire_if_not_zero(&vp->v_usecount)) {
+		VNODE_REFCOUNT_FENCE_ACQ();
+		VNASSERT(vp->v_holdcnt > 0, vp,
+		    ("%s: active vnode not held", __func__));
+		VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
+		    ("%s: vnode with usecount and VI_OWEINACT set", __func__));
+		return;
+	}
 	if (vp->v_usecount == 0)
 		vholdl(vp);
 	if ((vp->v_iflag & VI_OWEINACT) != 0) {
@@ -2917,21 +2948,35 @@ vputx(struct vnode *vp, int func)
 	if (func == VPUTX_VPUT)
 		VOP_UNLOCK(vp, 0);
 
-	if (vp->v_type != VCHR &&
-	    refcount_release_if_not_last(&vp->v_usecount))
-		return;
-
-	VI_LOCK(vp);
-
 	/*
 	 * We want to hold the vnode until the inactive finishes to
 	 * prevent vgone() races.  We drop the use count here and the
 	 * hold count below when we're done.
 	 */
-	v_decr_devcount(vp);
-	if (!refcount_release(&vp->v_usecount)) {
-		VI_UNLOCK(vp);
-		return;
+	if (vp->v_type != VCHR) {
+		/*
+		 * If we release the last usecount we take ownership of the hold
+		 * count which provides liveness of the vnode, in which case we
+		 * have to vdrop.
+		 */
+		if (!refcount_release(&vp->v_usecount))
+			return;
+		VI_LOCK(vp);
+		/*
+		 * By the time we got here someone else might have transitioned
+		 * the count back to > 0.
+		 */
+		if (vp->v_usecount > 0) {
+			vdropl(vp);
+			return;
+		}
+	} else {
+		VI_LOCK(vp);
+		v_decr_devcount(vp);
+		if (!refcount_release(&vp->v_usecount)) {
+			VI_UNLOCK(vp);
+			return;
+		}
 	}
 	if (vp->v_iflag & VI_DOINGINACT) {
 		vdropl(vp);
