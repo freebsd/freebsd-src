@@ -1,6 +1,13 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2019 Ruslan Bukin <br@bsdpad.com>
  * Copyright (c) 2015 Andrew Turner
- * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory (Department of Computer Science and
+ * Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
+ * DARPA SSITH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,7 +29,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
 
 #include <machine/asm.h>
@@ -32,17 +38,37 @@ __FBSDID("$FreeBSD$");
 .arch_extension virt	/* For hvc */
 
 /*
- * int psci_hvc_despatch(register_t psci_fnid, register_t...)
+ * int arm_smccc_hvc(register_t, register_t, register_t, register_t,
+ *     register_t, register_t, register_t, register_t,
+ *     struct arm_smccc_res *res)
  */
-ENTRY(psci_hvc_despatch)
+ENTRY(arm_smccc_hvc)
+	mov	r12, sp
+	push	{r4-r7}
+	ldm	r12, {r4-r7}
 	hvc	#0
-	RET
-END(psci_hvc_despatch)
+	pop	{r4-r7}
+	ldr	r12, [sp, #(4 * 4)]
+	cmp     r12, #0
+	beq	1f
+	stm	r12, {r0-r3}
+1:	bx	lr
+END(arm_smccc_hvc)
 
 /*
- * int psci_smc_despatch(register_t psci_fnid, register_t...)
+ * int arm_smccc_smc(register_t, register_t, register_t, register_t,
+ *     register_t, register_t, register_t, register_t,
+ *     struct arm_smccc_res *res)
  */
-ENTRY(psci_smc_despatch)
+ENTRY(arm_smccc_smc)
+	mov	r12, sp
+	push	{r4-r7}
+	ldm	r12, {r4-r7}
 	smc	#0
-	RET
-END(psci_smc_despatch)
+	pop	{r4-r7}
+	ldr	r12, [sp, #(4 * 4)]
+	cmp     r12, #0
+	beq	1f
+	stm	r12, {r0-r3}
+1:	bx	lr
+END(arm_smccc_smc)
