@@ -167,7 +167,8 @@ SYSCTL_PROC(_vm, OID_AUTO, swap_total, CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE
     "Total amount of available swap storage.");
 
 static int overcommit = 0;
-SYSCTL_INT(_vm, VM_OVERCOMMIT, overcommit, CTLFLAG_RW, &overcommit, 0,
+SYSCTL_INT(_vm, VM_OVERCOMMIT, overcommit, CTLFLAG_RW | CTLFLAG_CAPRD,
+    &overcommit, 0,
     "Configure virtual memory overcommit behavior. See tuning(7) "
     "for details.");
 static unsigned long swzone;
