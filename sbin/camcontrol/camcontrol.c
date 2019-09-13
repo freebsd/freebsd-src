@@ -4393,7 +4393,7 @@ modepage(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	 int task_attr, int retry_count, int timeout)
 {
 	char *str_subpage;
-	int c, page = -1, subpage = -1, pc = 0, llbaa = 0;
+	int c, page = -1, subpage = 0, pc = 0, llbaa = 0;
 	int binary = 0, cdb_len = 10, dbd = 0, desc = 0, edit = 0, list = 0;
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
@@ -4419,11 +4419,9 @@ modepage(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			page = strtol(optarg, NULL, 0);
 			if (str_subpage)
 			    subpage = strtol(str_subpage, NULL, 0);
-			else
-			    subpage = 0;
-			if (page < 0)
+			if (page < 0 || page > 0x3f)
 				errx(1, "invalid mode page %d", page);
-			if (subpage < 0)
+			if (subpage < 0 || subpage > 0xff)
 				errx(1, "invalid mode subpage %d", subpage);
 			break;
 		case 'D':
@@ -4442,7 +4440,10 @@ modepage(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		}
 	}
 
-	if (page == -1 && desc == 0 && list == 0)
+	if (desc && page == -1)
+		page = SMS_ALL_PAGES_PAGE;
+
+	if (page == -1 && list == 0)
 		errx(1, "you must specify a mode page!");
 
 	if (dbd && desc)
