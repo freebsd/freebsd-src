@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 31, 2019
+.Dd September 13, 2019
 .Dt GNOP 8
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 .Nm
 .Cm create
 .Op Fl v
+.Op Fl c Ar count_until_fail
 .Op Fl d Ar delaymsec
 .Op Fl e Ar error
 .Op Fl o Ar offset
@@ -50,6 +51,7 @@
 .Nm
 .Cm configure
 .Op Fl v
+.Op Fl c Ar count_until_fail
 .Op Fl d Ar delaymsec
 .Op Fl e Ar error
 .Op Fl q Ar rdelayprob
@@ -118,7 +120,10 @@ See
 .El
 .Pp
 Additional options:
-.Bl -tag -width ".Fl r Ar rfailprob"
+.Bl -tag -width "-c count_until_fail"
+.It Fl c Ar count_until_fail
+Specifies the number of I/O requests to allow before setting the read and write
+failure probabilities to 100%.
 .It Fl d Ar delaymsec
 Specifies the delay of the requests in milliseconds.
 Note that requests will be delayed before they are sent to the backing device.

@@ -62,6 +62,7 @@ struct g_nop_softc {
 	u_int			 sc_delaymsec;
 	u_int			 sc_rdelayprob;
 	u_int			 sc_wdelayprob;
+	u_int			 sc_count_until_fail;
 	uintmax_t		 sc_reads;
 	uintmax_t		 sc_writes;
 	uintmax_t		 sc_deletes;
