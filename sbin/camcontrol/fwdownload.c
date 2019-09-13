@@ -701,11 +701,11 @@ fw_check_device_ready(struct cam_device *dev, camcontrol_devtype devtype,
 			     /*flags*/ CAM_DIR_IN,
 			     /*tag_action*/ MSG_SIMPLE_Q_TAG,
 			     /*protocol*/ AP_PROTO_PIO_IN,
-			     /*ata_flags*/ AP_FLAG_BYT_BLOK_BYTES |
+			     /*ata_flags*/ AP_FLAG_BYT_BLOK_BLOCKS |
 					   AP_FLAG_TLEN_SECT_CNT |
 					   AP_FLAG_TDIR_FROM_DEV,
 			     /*features*/ 0,
-			     /*sector_count*/ (uint8_t) dxfer_len,
+			     /*sector_count*/ dxfer_len / 512,
 			     /*lba*/ 0,
 			     /*command*/ ATA_ATA_IDENTIFY,
 			     /*auxiliary*/ 0,
