@@ -151,22 +151,6 @@ struct camcontrol_opts {
 };
 
 #ifndef MINIMALISTIC
-struct ata_res_pass16 {
-	u_int16_t reserved[5];
-	u_int8_t flags;
-	u_int8_t error;
-	u_int8_t sector_count_exp;
-	u_int8_t sector_count;
-	u_int8_t lba_low_exp;
-	u_int8_t lba_low;
-	u_int8_t lba_mid_exp;
-	u_int8_t lba_mid;
-	u_int8_t lba_high_exp;
-	u_int8_t lba_high;
-	u_int8_t device;
-	u_int8_t status;
-};
-
 struct ata_set_max_pwd
 {
 	u_int16_t reserved1;
