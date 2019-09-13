@@ -402,7 +402,9 @@ retry:
 	}
 	xpt_unlock_buses();
 	sbuf_finish(&local_sb);
-	sbuf_cpy(sb, sbuf_data(&local_sb));
+	if (sbuf_len(sb) != 0)
+		sbuf_cat(sb, ",");
+	sbuf_cat(sb, sbuf_data(&local_sb));
 	sbuf_delete(&local_sb);
 	return (count);
 }
