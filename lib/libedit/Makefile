@@ -4,6 +4,9 @@
 
 PACKAGE=clibs
 
+EDITDIR=	${SRCTOP}/contrib/libedit
+.PATH: ${EDITDIR}
+
 SHLIB_MAJOR=	7
 SHLIBDIR?= /lib
 
@@ -12,75 +15,83 @@ LIB=	edit
 
 LIBADD=	ncursesw
 
-OSRCS=	chared.c common.c el.c eln.c emacs.c fcns.c filecomplete.c help.c \
-	hist.c keymacro.c map.c chartype.c \
-	parse.c prompt.c read.c refresh.c search.c sig.c terminal.c tty.c vi.c
+SRCS=	chared.c chartype.c common.c el.c eln.c emacs.c filecomplete.c \
+	hist.c history.c historyn.c keymacro.c literal.c map.c \
+	parse.c prompt.c read.c readline.c refresh.c search.c sig.c \
+	terminal.c tokenizer.c tokenizern.c tty.c vi.c
 
-MAN=	editline.3 editrc.5
 
-MLINKS=	editline.3 el_deletestr.3 editline.3 el_end.3 editline.3 el_init.3 \
-	editline.3 el_get.3 editline.3 el_getc.3 editline.3 el_gets.3 \
-	editline.3 history.3 editline.3 history_end.3 \
-	editline.3 history_init.3 editline.3 el_insertstr.3 \
-	editline.3 el_line.3 editline.3 el_parse.3 editline.3 el_push.3 \
-	editline.3 el_reset.3 editline.3 el_resize.3 editline.3 el_set.3 \
+MAN=	editline.3 editrc.5 editline.7
+
+MLINKS=	\
+	editline.3 el_deletestr.3 \
+	editline.3 el_end.3 \
+	editline.3 el_get.3 \
+	editline.3 el_getc.3 \
+	editline.3 el_gets.3 \
+	editline.3 el_init.3 \
+	editline.3 el_init_fd.3 \
+	editline.3 el_insertstr.3 \
+	editline.3 el_line.3 \
+	editline.3 el_parse.3 \
+	editline.3 el_push.3 \
+	editline.3 el_reset.3 \
+	editline.3 el_resize.3 \
+	editline.3 el_set.3 \
 	editline.3 el_source.3 \
-	editline.3 tok_init.3 editline.3 tok_end.3 editline.3 tok_reset.3 \
-	editline.3 tok_line.3 editline.3 tok_str.3
-
-# For speed and debugging
-#SRCS=   ${OSRCS} readline.c tokenizer.c history.c
-# For protection
-SRCS=	editline.c readline.c tokenizer.c history.c	
-SRCS+=	common.h emacs.h fcns.h help.h vi.h
-
-# Widechar
-SRCS+=	tokenizern.c historyn.c
-CLEANFILES+=	tokenizern.c historyn.c
+	editline.3 history.3 \
+	editline.3 history_end.3 \
+	editline.3 history_init.3 \
+	editline.3 tok_end.3 \
+	editline.3 tok_init.3 \
+	editline.3 tok_line.3 \
+	editline.3 tok_reset.3 \
+	editline.3 tok_str.3 \
+	editline.3 el_wdeletestr.3 \
+	editline.3 el_wget.3 \
+	editline.3 el_wgetc.3 \
+	editline.3 el_wgets.3 \
+	editline.3 el_winsertstr.3 \
+	editline.3 el_wline.3 \
+	editline.3 el_wparse.3 \
+	editline.3 el_wpush.3 \
+	editline.3 el_wset.3 \
+	editline.3 history_w.3 \
+	editline.3 history_wend.3 \
+	editline.3 history_winit.3 \
+	editline.3 tok_wend.3 \
+	editline.3 tok_winit.3 \
+	editline.3 tok_wline.3 \
+	editline.3 tok_wreset.3 \
+	editline.3 tok_wstr.3
 
 INCS=	histedit.h
 
-CLEANFILES+= common.h editline.c emacs.h fcns.c fcns.h help.c help.h vi.h
-CFLAGS+= -I. -I${.CURDIR} -I${.CURDIR}/edit -DWIDECHAR
-#CFLAGS+= -DDEBUG_TTY -DDEBUG_KEY -DDEBUG_READ -DDEBUG -DDEBUG_REFRESH
-#CFLAGS+= -DDEBUG_PASTE -DDEBUG_EDIT
+SRCS+=	common.h emacs.h fcns.h func.h help.h vi.h
+CLEANFILES+= common.h emacs.h fcns.h func.h help.h vi.h
+
+CFLAGS+= -I. -I${EDITDIR} -I${EDITDIR}/readline
 
 AHDR=	vi.h emacs.h common.h
-ASRC=	${.CURDIR}/vi.c ${.CURDIR}/emacs.c ${.CURDIR}/common.c
+ASRC=	${EDITDIR}/vi.c ${EDITDIR}/emacs.c ${EDITDIR}/common.c
 
-SUBDIR= edit/readline
+SUBDIR= readline
 
 .for hdr in vi emacs common
 ${hdr}.h: ${hdr}.c makelist
-	sh ${.CURDIR}/makelist -h ${.CURDIR}/${hdr}.c > ${.TARGET}
+	sh ${EDITDIR}/makelist -h ${EDITDIR}/${hdr}.c > ${.TARGET}
 .endfor
 
 fcns.h: ${AHDR} makelist
-	sh ${.CURDIR}/makelist -fh ${AHDR} > ${.TARGET}
+	sh ${EDITDIR}/makelist -fh ${AHDR} > ${.TARGET}
 
-fcns.c: ${AHDR} fcns.h makelist
-	sh ${.CURDIR}/makelist -fc ${AHDR} > ${.TARGET}
-
-help.c: ${ASRC} makelist
-	sh ${.CURDIR}/makelist -bc ${ASRC} > ${.TARGET}
+func.h: ${AHDR} makelist
+	sh ${EDITDIR}/makelist -fc ${AHDR} > ${.TARGET}
 
 help.h: ${ASRC} makelist
-	sh ${.CURDIR}/makelist -bh ${ASRC} > ${.TARGET}
+	sh ${EDITDIR}/makelist -bh ${ASRC} > ${.TARGET}
 
-editline.c: ${OSRCS}
-	sh ${.CURDIR}/makelist -e ${.ALLSRC:T} > ${.TARGET}
-
-tokenizern.c: makelist Makefile
-	sh ${.CURDIR}/makelist -n tokenizer.c > ${.TARGET}
-
-historyn.c: makelist Makefile
-	sh ${.CURDIR}/makelist -n history.c > ${.TARGET}
-
-# minimal dependency to make "make depend" optional
-editline.o editline.po editline.pico editline.ln:	\
-	common.h emacs.h fcns.c fcns.h help.c help.h vi.h
-
-tc1.o: ${.CURDIR}/TEST/tc1.c
+tc1.o: ${EDITDIR}/TEST/tc1.c
 
 test: tc1.o libedit.a ${DPADD} ${LIBTERMCAP}
 	${CC} ${CFLAGS} ${.ALLSRC} -o ${.TARGET} libedit.a ${LDADD}
