@@ -196,6 +196,11 @@ struct buf {
  *			may not be used with the stage 1 data write under NFS
  *			but may be used for the commit rpc portion.
  *
+ *	B_INVALONERR	This flag is set on dirty buffers.  It specifies that a
+ *			write error should forcibly invalidate the buffer
+ *			contents.  This flag should be used with caution, as it
+ *			discards data.  It is incompatible with B_ASYNC.
+ *
  *	B_VMIO		Indicates that the buffer is tied into an VM object.
  *			The buffer's data is always PAGE_SIZE aligned even
  *			if b_bufsize and b_bcount are not.  ( b_bufsize is 
@@ -226,7 +231,7 @@ struct buf {
 #define	B_NOCACHE	0x00008000	/* Do not cache block after use. */
 #define	B_MALLOC	0x00010000	/* malloced b_data */
 #define	B_CLUSTEROK	0x00020000	/* Pagein op, so swap() can count it. */
-#define	B_00040000	0x00040000	/* Available flag. */
+#define	B_INVALONERR	0x00040000	/* Invalidate on write error. */
 #define	B_00080000	0x00080000	/* Available flag. */
 #define	B_00100000	0x00100000	/* Available flag. */
 #define	B_00200000	0x00200000	/* Available flag. */
@@ -243,7 +248,7 @@ struct buf {
 
 #define PRINT_BUF_FLAGS "\20\40remfree\37cluster\36vmio\35ram\34managed" \
 	"\33paging\32infreecnt\31nocopy\30b23\27relbuf\26b21\25b20" \
-	"\24b19\23b18\22clusterok\21malloc\20nocache\17b14\16inval" \
+	"\24b19\23invalonerr\22clusterok\21malloc\20nocache\17b14\16inval" \
 	"\15reuse\14noreuse\13eintr\12done\11b8\10delwri" \
 	"\7validsuspwrt\6cache\5deferred\4direct\3async\2needcommit\1age"
 

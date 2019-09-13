@@ -235,9 +235,7 @@ cdev_pager_free_page(vm_object_t object, vm_page_t m)
 	if (object->type == OBJT_MGTDEVICE) {
 		KASSERT((m->oflags & VPO_UNMANAGED) == 0, ("unmanaged %p", m));
 		pmap_remove_all(m);
-		vm_page_lock(m);
 		(void)vm_page_remove(m);
-		vm_page_unlock(m);
 	} else if (object->type == OBJT_DEVICE)
 		dev_pager_free_page(object, m);
 }
@@ -393,9 +391,7 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 		page = vm_page_getfake(paddr, memattr);
 		VM_OBJECT_WLOCK(object);
 		vm_page_replace_checked(page, object, (*mres)->pindex, *mres);
-		vm_page_lock(*mres);
 		vm_page_free(*mres);
-		vm_page_unlock(*mres);
 		*mres = page;
 	}
 	page->valid = VM_PAGE_BITS_ALL;

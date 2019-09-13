@@ -82,9 +82,8 @@ sha256-armv8.S:	sha512-armv8.pl
 SRCS+=	x86_64cpuid.pl
 
 # aes
-SRCS=	aes-x86_64.pl aesni-mb-x86_64.pl aesni-sha1-x86_64.pl \
-	aesni-sha256-x86_64.pl aesni-x86_64.pl bsaes-x86_64.pl \
-	vpaes-x86_64.pl
+SRCS=	aesni-mb-x86_64.pl aesni-sha1-x86_64.pl aesni-sha256-x86_64.pl \
+	aesni-x86_64.pl vpaes-x86_64.pl
 
 # bn
 SRCS+=	rsaz-avx2.pl rsaz-x86_64.pl x86_64-gf2m.pl x86_64-mont.pl \
@@ -229,7 +228,7 @@ aes-armv4.S:	aes-armv4.pl
 SRCS=	x86cpuid.pl
 
 # aes
-SRCS+=	aes-586.pl aesni-x86.pl vpaes-x86.pl
+SRCS+=	aesni-x86.pl vpaes-x86.pl
 
 # blowfish
 SRCS+=	bf-586.pl

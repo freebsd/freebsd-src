@@ -131,7 +131,8 @@ _kvm_probe_elf_kernel(kvm_t *kd, int class, int machine)
 {
 
 	return (kd->nlehdr.e_ident[EI_CLASS] == class &&
-	    kd->nlehdr.e_type == ET_EXEC &&
+	    ((machine == EM_PPC || machine == EM_PPC64) ?
+	     kd->nlehdr.e_type == ET_DYN : kd->nlehdr.e_type == ET_EXEC) &&
 	    kd->nlehdr.e_machine == machine);
 }
 

@@ -65,11 +65,9 @@ tegra_bo_destruct(struct tegra_bo *bo)
 	for (i = 0; i < bo->npages; i++) {
 		m = bo->m[i];
 		cdev_pager_free_page(bo->cdev_pager, m);
-		vm_page_lock(m);
 		m->flags &= ~PG_FICTITIOUS;
 		vm_page_unwire_noq(m);
 		vm_page_free(m);
-		vm_page_unlock(m);
 	}
 	VM_OBJECT_WUNLOCK(bo->cdev_pager);
 

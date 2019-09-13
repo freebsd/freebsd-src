@@ -312,10 +312,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		/*
 		 * Release the page.
 		 */
-		vm_page_lock(m);
-		if (vm_page_unwire(m, PQ_ACTIVE) && m->object == NULL)
-			vm_page_free(m);
-		vm_page_unlock(m);
+		vm_page_unwire(m, PQ_ACTIVE);
 
 	} while (error == 0 && uio->uio_resid > 0);
 

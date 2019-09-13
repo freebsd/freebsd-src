@@ -198,6 +198,11 @@ OLD_FILES+=usr/include/c++/v1/experimental/string_view
 OLD_FILES+=usr/include/c++/v1/experimental/system_error
 OLD_FILES+=usr/include/c++/v1/experimental/tuple
 OLD_FILES+=usr/lib/libc++fs.a
+# 20190910: mklocale(1) and colldef(1) removed
+OLD_FILES+=usr/bin/mklocale
+OLD_FILES+=usr/share/man/man1/mklocale.1.gz
+OLD_FILES+=usr/bin/colldef
+OLD_FILES+=usr/share/man/man1/colldef.1.gz
 # 20190904: Remove boot1.efifat
 OLD_FILES+=boot/boot1.efifat
 # 20190903: pc-sysinstall(8) removed

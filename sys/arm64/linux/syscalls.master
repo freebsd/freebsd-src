@@ -1459,9 +1459,9 @@
 	}
 276	AUE_NULL	STD	{
 		int linux_renameat2(
-		    l_int oldfd,
+		    l_int olddfd,
 		    const char *oldname,
-		    l_int newfd,
+		    l_int newdfd,
 		    const char *newname,
 		    unsigned int flags
 		);

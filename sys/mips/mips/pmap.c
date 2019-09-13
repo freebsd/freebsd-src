@@ -796,26 +796,22 @@ vm_page_t
 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
 	pt_entry_t pte, *ptep;
-	vm_paddr_t pa, pte_pa;
+	vm_paddr_t pa;
 	vm_page_t m;
 
 	m = NULL;
-	pa = 0;
 	PMAP_LOCK(pmap);
-retry:
 	ptep = pmap_pte(pmap, va);
 	if (ptep != NULL) {
 		pte = *ptep;
 		if (pte_test(&pte, PTE_V) && (!pte_test(&pte, PTE_RO) ||
 		    (prot & VM_PROT_WRITE) == 0)) {
-			pte_pa = TLBLO_PTE_TO_PA(pte);
-			if (vm_page_pa_tryrelock(pmap, pte_pa, &pa))
-				goto retry;
-			m = PHYS_TO_VM_PAGE(pte_pa);
-			vm_page_wire(m);
+			pa = TLBLO_PTE_TO_PA(pte);
+			m = PHYS_TO_VM_PAGE(pa);
+			if (!vm_page_wire_mapped(m))
+				m = NULL;
 		}
 	}
-	PA_UNLOCK_COND(pa);
 	PMAP_UNLOCK(pmap);
 	return (m);
 }

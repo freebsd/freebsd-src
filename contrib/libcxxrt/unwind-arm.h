@@ -20,6 +20,9 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */ 
 
+/* For uint32_t and uint64_t */
+#include <stdint.h>
+
 /**
  * ARM-specific unwind definitions.  These are taken from the ARM EHABI
  * specification.

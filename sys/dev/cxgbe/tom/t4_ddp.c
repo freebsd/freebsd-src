@@ -114,9 +114,7 @@ free_pageset(struct tom_data *td, struct pageset *ps)
 
 	for (i = 0; i < ps->npages; i++) {
 		p = ps->pages[i];
-		vm_page_lock(p);
 		vm_page_unwire(p, PQ_INACTIVE);
-		vm_page_unlock(p);
 	}
 	mtx_lock(&ddp_orphan_pagesets_lock);
 	TAILQ_INSERT_TAIL(&ddp_orphan_pagesets, ps, link);

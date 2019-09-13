@@ -2790,12 +2790,9 @@ mmu_booke_extract_and_hold(mmu_t mmu, pmap_t pmap, vm_offset_t va,
 	pte_t *pte;
 	vm_page_t m;
 	uint32_t pte_wbit;
-	vm_paddr_t pa;
-	
+
 	m = NULL;
-	pa = 0;	
 	PMAP_LOCK(pmap);
-retry:
 	pte = pte_find(mmu, pmap, va);
 	if ((pte != NULL) && PTE_ISVALID(pte)) {
 		if (pmap == kernel_pmap)
@@ -2803,15 +2800,12 @@ retry:
 		else
 			pte_wbit = PTE_UW;
 
-		if ((*pte & pte_wbit) || ((prot & VM_PROT_WRITE) == 0)) {
-			if (vm_page_pa_tryrelock(pmap, PTE_PA(pte), &pa))
-				goto retry;
+		if ((*pte & pte_wbit) != 0 || (prot & VM_PROT_WRITE) == 0) {
 			m = PHYS_TO_VM_PAGE(PTE_PA(pte));
-			vm_page_wire(m);
+			if (!vm_page_wire_mapped(m))
+				m = NULL;
 		}
 	}
-
-	PA_UNLOCK_COND(pa);
 	PMAP_UNLOCK(pmap);
 	return (m);
 }

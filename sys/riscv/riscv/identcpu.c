@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus_subr.h>
 #endif
 
 char machine[] = "riscv";
@@ -141,7 +142,7 @@ fill_elf_hwcap(void *dummy __unused)
 	 * ISAs, keep only the extension bits that are common to all harts.
 	 */
 	for (node = OF_child(node); node > 0; node = OF_peer(node)) {
-		if (!fdt_is_compatible_strict(node, "riscv")) {
+		if (!ofw_bus_node_is_compatible(node, "riscv")) {
 			if (bootverbose)
 				printf("fill_elf_hwcap: Can't find cpu\n");
 			return;

@@ -28,7 +28,7 @@
 .\"     @(#)getsockopt.2	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2019
+.Dd September 11, 2019
 .Dt GETSOCKOPT 2
 .Os
 .Sh NAME
@@ -431,7 +431,8 @@ option is enabled on a
 .Dv SOCK_DGRAM
 socket, the
 .Xr recvmsg 2
-call will return a timestamp corresponding to when the datagram was received.
+call may return a timestamp corresponding to when the datagram was received.
+However, it may not, for example due to a resource shortage.
 The
 .Va msg_control
 field in the

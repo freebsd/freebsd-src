@@ -45,7 +45,7 @@ CFLAGS+= -I${CNTRB_GDB}/gdb/config
 CFLAGS+= -I${CNTRB_BU}/include
 CFLAGS+= -I${CNTRB_GDB}/include
 CFLAGS+= -I${CNTRB_BU}/bfd
-CFLAGS+= -I${SRCTOP}/lib/libedit/edit
+CFLAGS+= -I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/edit
 
 GENSRCS+= nm.h tm.h
 
