@@ -60,6 +60,7 @@ void yyerror(const char *);
 int yylex(void);
 %}
 
+%option noyywrap
 %option nounput
 
 /* common section */

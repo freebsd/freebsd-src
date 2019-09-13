@@ -8,6 +8,4 @@ SRCS=	kbdcontrol.c lex.l
 WARNS?=	4
 CFLAGS+= -I${.CURDIR}
 
-LIBADD=	l
-
 .include <bsd.prog.mk>
