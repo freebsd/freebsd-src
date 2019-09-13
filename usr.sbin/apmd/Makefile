@@ -9,8 +9,6 @@ PACKAGE=apm
 
 WARNS?=	3
 
-LIBADD=	l
-
 CFLAGS+= -I${.CURDIR}
 
 test:

@@ -15,7 +15,7 @@ CFLAGS+=	-I${SRCTOP}/sys/dev/iscsi
 #CFLAGS+=	-DICL_KERNEL_PROXY
 MAN=		ctld.8 ctl.conf.5
 
-LIBADD=		bsdxml l md sbuf util ucl m
+LIBADD=		bsdxml md sbuf util ucl m
 
 YFLAGS+=	-v
 CLEANFILES=	y.tab.c y.tab.h y.output
