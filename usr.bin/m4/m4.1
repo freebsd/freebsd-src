@@ -1,5 +1,5 @@
 .\"	$NetBSD: m4.1,v 1.23 2012/04/08 22:00:39 wiz Exp $
-.\"	@(#) $OpenBSD: m4.1,v 1.63 2015/09/14 20:06:58 schwarze Exp $
+.\"	@(#) $OpenBSD: m4.1,v 1.64 2017/06/15 13:48:42 bcallah Exp $
 .\"
 .\" Copyright (c) 1989, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd $Mdocdate: September 14 2015 $
+.Dd $Mdocdate: June 15 2017 $
 .Dt M4 1
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@
 .Nd macro language processor
 .Sh SYNOPSIS
 .Nm
-.Op Fl gPs
+.Op Fl EgPs
 .Oo
 .Sm off
 .Fl D Ar name Op No = Ar value
@@ -130,6 +130,21 @@ turn on all options.
 .Pp
 By default, trace is set to
 .Qq eq .
+.It Fl E
+Set warnings to be fatal.
+When a single
+.Fl E
+flag is specified, if warnings are issued, execution
+continues but
+.Nm
+will exit with a non-zero exit status.
+When multiple
+.Fl E
+flags are specified, execution will halt upon issuing the
+first warning and
+.Nm
+will exit with a non-zero exit status.
+This behaviour matches GNU-m4 1.4.9 and later.
 .It Fl g
 Activate GNU-m4 compatibility mode.
 In this mode, translit handles simple character
@@ -437,7 +452,9 @@ Returns the current file's name.
 .Pp
 But note that the
 .Ic m4exit
-macro can modify the exit status.
+macro can modify the exit status, as can the
+.Fl E
+flag.
 .Sh STANDARDS
 The
 .Nm
@@ -446,7 +463,7 @@ utility is compliant with the
 specification.
 .Pp
 The flags
-.Op Fl dgIPot
+.Op Fl dEgIPot
 and the macros
 .Ic builtin ,
 .Ic esyscmd ,

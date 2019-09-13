@@ -1,4 +1,4 @@
-/* $OpenBSD: gnum4.c,v 1.50 2015/04/29 00:13:26 millert Exp $ */
+/* $OpenBSD: gnum4.c,v 1.52 2017/08/21 21:41:13 deraadt Exp $ */
 
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <paths.h>
 #include <regex.h>
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -259,11 +260,29 @@ exit_regerror(int er, regex_t *re, const char *source)
 	m4errx(1, "regular expression error in %s: %s.", source, errbuf);
 }
 
+/* warnx() plus check to see if we need to change exit code or exit .
+ * -E flag functionality.
+ */
+void
+m4_warnx(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	warnx(fmt, ap);
+	va_end(ap);
+
+	if (fatal_warns)
+		exit(1);
+	if (error_warns)
+		exit_code = 1;
+}
+
 static void
 add_sub(int n, const char *string, regex_t *re, regmatch_t *pm)
 {
 	if (n > (int)re->re_nsub)
-		warnx("No subexpression %d", n);
+		m4_warnx("No subexpression %d", n);
 	/* Subexpressions that did not match are
 	 * not an error.  */
 	else if (pm[n].rm_so != -1 &&
@@ -446,7 +465,7 @@ void
 dopatsubst(const char *argv[], int argc)
 {
 	if (argc <= 3) {
-		warnx("Too few arguments to patsubst");
+		m4_warnx("Too few arguments to patsubst");
 		return;
 	}
 	/* special case: empty regexp */
@@ -498,7 +517,7 @@ doregexp(const char *argv[], int argc)
 	const char *source;
 
 	if (argc <= 3) {
-		warnx("Too few arguments to regexp");
+		m4_warnx("Too few arguments to regexp");
 		return;
 	}
 	/* special gnu case */
@@ -615,7 +634,7 @@ void
 doesyscmd(const char *cmd)
 {
 	int p[2];
-	pid_t pid, cpid;
+	pid_t cpid;
 	char *argv[4];
 	int cc;
 	int status;
@@ -653,8 +672,10 @@ doesyscmd(const char *cmd)
 		} while (cc > 0 || (cc == -1 && errno == EINTR));
 
 		(void) close(p[0]);
-		while ((pid = wait(&status)) != cpid && pid >= 0)
-			continue;
+		while (waitpid(cpid, &status, 0) == -1) {
+			if (errno != EINTR)
+				break;
+		}
 		pbstr(getstring());
 	}
 }
