@@ -49,14 +49,16 @@ __FBSDID("$FreeBSD$");
 
 device_t simple_mfd_add_device(device_t dev, phandle_t node, u_int order,
     const char *name, int unit, struct simplebus_devinfo *di);
-struct simplebus_devinfo *simple_mfd_setup_dinfo(device_t dev, phandle_t node, struct simplebus_devinfo *di);
+struct simplebus_devinfo *simple_mfd_setup_dinfo(device_t dev, phandle_t node,
+    struct simplebus_devinfo *di);
 
 #include "syscon_if.h"
 #include <dev/extres/syscon/syscon.h>
 
 MALLOC_DECLARE(M_SYSCON);
 
-static uint32_t simple_mfd_syscon_read_4(struct syscon *syscon, bus_size_t offset);
+static uint32_t simple_mfd_syscon_read_4(struct syscon *syscon,
+    bus_size_t offset);
 static int simple_mfd_syscon_write_4(struct syscon *syscon, bus_size_t offset,
     uint32_t val);
 static int simple_mfd_syscon_modify_4(struct syscon *syscon, bus_size_t offset,
@@ -123,6 +125,17 @@ simple_mfd_syscon_modify_4(struct syscon *syscon, bus_size_t offset,
 	val |= set_bits;
 	bus_write_4(sc->mem_res, offset, val);
 	SYSCON_UNLOCK(sc);
+	return (0);
+}
+static int
+simple_mfd_syscon_get_handle(device_t dev, struct syscon **syscon)
+{
+	struct simple_mfd_softc *sc;
+
+	sc = device_get_softc(dev);
+	*syscon = sc->syscon;
+	if (*syscon == NULL)
+		return (ENODEV);
 	return (0);
 }
 
@@ -278,6 +291,8 @@ simple_mfd_add_device(device_t dev, phandle_t node, u_int order,
 }
 
 static device_method_t simple_mfd_methods[] = {
+	/* syscon interface */
+	DEVMETHOD(syscon_get_handle,	simple_mfd_syscon_get_handle),
 	/* Device interface */
 	DEVMETHOD(device_probe,		simple_mfd_probe),
 	DEVMETHOD(device_attach,	simple_mfd_attach),
