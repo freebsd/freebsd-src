@@ -1,10 +1,12 @@
 /*-
- * Copyright (c) 2013, 2014 Robin Randhawa
- * Copyright (c) 2015 The FreeBSD Foundation
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * This software was developed by Andrew Turner under
- * sponsorship from the FreeBSD Foundation.
+ * Copyright (c) 2019 Ruslan Bukin <br@bsdpad.com>
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory (Department of Computer Science and
+ * Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
+ * DARPA SSITH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,24 +28,35 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
 
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
 /*
- * uint64_t psci_hvc_despatch(uint64_t psci_fnid, uint64_t, uint64_t, uint64_t)
+ * int arm_smccc_hvc(register_t, register_t, register_t, register_t,
+ *     register_t, register_t, register_t, register_t,
+ *     struct arm_smccc_res *res)
  */
-ENTRY(psci_hvc_despatch)
+ENTRY(arm_smccc_hvc)
 	hvc	#0
-	ret
-END(psci_hvc_despatch)
+	ldr	x4, [sp]
+	cbz	x4, 1f
+	stp	x0, x1, [x4, #16 * 0]
+	stp	x2, x3, [x4, #16 * 1]
+1:	ret
+END(arm_smccc_hvc)
 
 /*
- * uint64_t psci_smc_despatch(uint64_t psci_fnid, uint64_t, uint64_t, uint64_t)
+ * int arm_smccc_smc(register_t, register_t, register_t, register_t,
+ *     register_t, register_t, register_t, register_t,
+ *     struct arm_smccc_res *res)
  */
-ENTRY(psci_smc_despatch)
+ENTRY(arm_smccc_smc)
 	smc	#0
-	ret
-END(psci_smc_despatch)
+	ldr	x4, [sp]
+	cbz	x4, 1f
+	stp	x0, x1, [x4, #16 * 0]
+	stp	x2, x3, [x4, #16 * 1]
+1:	ret
+END(arm_smccc_smc)
