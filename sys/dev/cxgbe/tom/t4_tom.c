@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <net/if.h>
 #include <net/if_var.h>
@@ -64,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/toecore.h>
+#include <netinet/cc/cc.h>
 
 #ifdef TCP_OFFLOAD
 #include "common/common.h"
@@ -104,7 +106,7 @@ static void free_tom_data(struct adapter *, struct tom_data *);
 static void reclaim_wr_resources(void *, int);
 
 struct toepcb *
-alloc_toepcb(struct vi_info *vi, int txqid, int rxqid, int flags)
+alloc_toepcb(struct vi_info *vi, int flags)
 {
 	struct port_info *pi = vi->pi;
 	struct adapter *sc = pi->adapter;
@@ -127,16 +129,6 @@ alloc_toepcb(struct vi_info *vi, int txqid, int rxqid, int flags)
 	txsd_total = tx_credits /
 	    howmany(sizeof(struct fw_ofld_tx_data_wr) + 1, 16);
 
-	KASSERT(txqid >= vi->first_ofld_txq &&
-	    txqid < vi->first_ofld_txq + vi->nofldtxq,
-	    ("%s: txqid %d for vi %p (first %d, n %d)", __func__, txqid, vi,
-		vi->first_ofld_txq, vi->nofldtxq));
-
-	KASSERT(rxqid >= vi->first_ofld_rxq &&
-	    rxqid < vi->first_ofld_rxq + vi->nofldrxq,
-	    ("%s: rxqid %d for vi %p (first %d, n %d)", __func__, rxqid, vi,
-		vi->first_ofld_rxq, vi->nofldrxq));
-
 	len = offsetof(struct toepcb, txsd) +
 	    txsd_total * sizeof(struct ofld_tx_sdesc);
 
@@ -147,12 +139,9 @@ alloc_toepcb(struct vi_info *vi, int txqid, int rxqid, int flags)
 	refcount_init(&toep->refcount, 1);
 	toep->td = sc->tom_softc;
 	toep->vi = vi;
-	toep->tc_idx = -1;
+	toep->tid = -1;
 	toep->tx_total = tx_credits;
 	toep->tx_credits = tx_credits;
-	toep->ofld_txq = &sc->sge.ofld_txq[txqid];
-	toep->ofld_rxq = &sc->sge.ofld_rxq[rxqid];
-	toep->ctrlq = &sc->sge.ctrlq[pi->port_id];
 	mbufq_init(&toep->ulp_pduq, INT_MAX);
 	mbufq_init(&toep->ulp_pdu_reclaimq, INT_MAX);
 	toep->txsd_total = txsd_total;
@@ -162,6 +151,42 @@ alloc_toepcb(struct vi_info *vi, int txqid, int rxqid, int flags)
 	aiotx_init_toep(toep);
 
 	return (toep);
+}
+
+/*
+ * Initialize a toepcb after its params have been filled out.
+ */
+int
+init_toepcb(struct vi_info *vi, struct toepcb *toep)
+{
+	struct conn_params *cp = &toep->params;
+	struct port_info *pi = vi->pi;
+	struct adapter *sc = pi->adapter;
+	struct tx_cl_rl_params *tc;
+
+	if (cp->tc_idx >= 0 && cp->tc_idx < sc->chip_params->nsched_cls) {
+		tc = &pi->sched_params->cl_rl[cp->tc_idx];
+		mtx_lock(&sc->tc_lock);
+		if (tc->flags & CLRL_ERR) {
+			log(LOG_ERR,
+			    "%s: failed to associate traffic class %u with tid %u\n",
+			    device_get_nameunit(vi->dev), cp->tc_idx,
+			    toep->tid);
+			cp->tc_idx = -1;
+		} else {
+			tc->refcount++;
+		}
+		mtx_unlock(&sc->tc_lock);
+	}
+	toep->ofld_txq = &sc->sge.ofld_txq[cp->txq_idx];
+	toep->ofld_rxq = &sc->sge.ofld_rxq[cp->rxq_idx];
+	toep->ctrlq = &sc->sge.ctrlq[pi->port_id];
+
+	tls_init_toep(toep);
+	if (ulp_mode(toep) == ULP_MODE_TCPDDP)
+		ddp_init_toep(toep);
+
+	return (0);
 }
 
 struct toepcb *
@@ -184,7 +209,7 @@ free_toepcb(struct toepcb *toep)
 	KASSERT(!(toep->flags & TPF_CPL_PENDING),
 	    ("%s: CPL pending", __func__));
 
-	if (toep->ulp_mode == ULP_MODE_TCPDDP)
+	if (ulp_mode(toep) == ULP_MODE_TCPDDP)
 		ddp_uninit_toep(toep);
 	tls_uninit_toep(toep);
 	free(toep, M_CXGBE);
@@ -291,7 +316,7 @@ release_offload_resources(struct toepcb *toep)
 	MPASS(mbufq_len(&toep->ulp_pduq) == 0);
 	MPASS(mbufq_len(&toep->ulp_pdu_reclaimq) == 0);
 #ifdef INVARIANTS
-	if (toep->ulp_mode == ULP_MODE_TCPDDP)
+	if (ulp_mode(toep) == ULP_MODE_TCPDDP)
 		ddp_assert_empty(toep);
 #endif
 	MPASS(TAILQ_EMPTY(&toep->aiotx_jobq));
@@ -307,8 +332,8 @@ release_offload_resources(struct toepcb *toep)
 	if (toep->ce)
 		t4_release_lip(sc, toep->ce);
 
-	if (toep->tc_idx != -1)
-		t4_release_cl_rl(sc, toep->vi->pi->port_id, toep->tc_idx);
+	if (toep->params.tc_idx != -1)
+		t4_release_cl_rl(sc, toep->vi->pi->port_id, toep->params.tc_idx);
 
 	mtx_lock(&td->toep_list_lock);
 	TAILQ_REMOVE(&td->toep_list, toep, link);
@@ -378,9 +403,9 @@ t4_ctloutput(struct toedev *tod, struct tcpcb *tp, int dir, int name)
 	case TCP_NODELAY:
 		if (tp->t_state != TCPS_ESTABLISHED)
 			break;
+		toep->params.nagle = tp->t_flags & TF_NODELAY ? 0 : 1;
 		t4_set_tcb_field(sc, toep->ctrlq, toep, W_TCB_T_FLAGS,
-		    V_TF_NAGLE(1), V_TF_NAGLE(tp->t_flags & TF_NODELAY ? 0 : 1),
-		    0, 0);
+		    V_TF_NAGLE(1), V_TF_NAGLE(toep->params.nagle), 0, 0);
 		break;
 	default:
 		break;
@@ -798,7 +823,7 @@ final_cpl_received(struct toepcb *toep)
 	CTR6(KTR_CXGBE, "%s: tid %d, toep %p (0x%x), inp %p (0x%x)",
 	    __func__, toep->tid, toep, toep->flags, inp, inp->inp_flags);
 
-	if (toep->ulp_mode == ULP_MODE_TCPDDP)
+	if (ulp_mode(toep) == ULP_MODE_TCPDDP)
 		release_ddp_resources(toep);
 	toep->inp = NULL;
 	toep->flags &= ~TPF_CPL_PENDING;
@@ -854,7 +879,7 @@ remove_tid(struct adapter *sc, int tid, int ntids)
  * account for any TCP options so the effective MSS (only payload, no headers or
  * options) could be different.
  */
-int
+static int
 find_best_mtu_idx(struct adapter *sc, struct in_conninfo *inc,
     struct offload_settings *s)
 {
@@ -907,39 +932,95 @@ select_rcv_wscale(void)
 	return (wscale);
 }
 
-/*
- * socket so could be a listening socket too.
- */
-uint64_t
-calc_opt0(struct socket *so, struct vi_info *vi, struct l2t_entry *e,
-    int mtu_idx, int rscale, int rx_credits, int ulp_mode,
-    struct offload_settings *s)
+__be64
+calc_options0(struct vi_info *vi, struct conn_params *cp)
 {
-	int keepalive;
-	uint64_t opt0;
+	uint64_t opt0 = 0;
 
-	MPASS(so != NULL);
-	MPASS(vi != NULL);
-	KASSERT(rx_credits <= M_RCV_BUFSIZ,
-	    ("%s: rcv_bufsiz too high", __func__));
+	opt0 |= F_TCAM_BYPASS;
 
-	opt0 = F_TCAM_BYPASS | V_WND_SCALE(rscale) | V_MSS_IDX(mtu_idx) |
-	    V_ULP_MODE(ulp_mode) | V_RCV_BUFSIZ(rx_credits) |
-	    V_L2T_IDX(e->idx) | V_SMAC_SEL(vi->smt_idx) |
-	    V_TX_CHAN(vi->pi->tx_chan);
+	MPASS(cp->wscale >= 0 && cp->wscale <= M_WND_SCALE);
+	opt0 |= V_WND_SCALE(cp->wscale);
 
-	keepalive = tcp_always_keepalive || so_options_get(so) & SO_KEEPALIVE;
-	opt0 |= V_KEEP_ALIVE(keepalive != 0);
+	MPASS(cp->mtu_idx >= 0 && cp->mtu_idx < NMTUS);
+	opt0 |= V_MSS_IDX(cp->mtu_idx);
 
-	if (s->nagle < 0) {
-		struct inpcb *inp = sotoinpcb(so);
-		struct tcpcb *tp = intotcpcb(inp);
+	MPASS(cp->ulp_mode >= 0 && cp->ulp_mode <= M_ULP_MODE);
+	opt0 |= V_ULP_MODE(cp->ulp_mode);
 
-		opt0 |= V_NAGLE((tp->t_flags & TF_NODELAY) == 0);
-	} else
-		opt0 |= V_NAGLE(s->nagle != 0);
+	MPASS(cp->opt0_bufsize >= 0 && cp->opt0_bufsize <= M_RCV_BUFSIZ);
+	opt0 |= V_RCV_BUFSIZ(cp->opt0_bufsize);
 
-	return htobe64(opt0);
+	MPASS(cp->l2t_idx >= 0 && cp->l2t_idx < vi->pi->adapter->vres.l2t.size);
+	opt0 |= V_L2T_IDX(cp->l2t_idx);
+
+	opt0 |= V_SMAC_SEL(vi->smt_idx);
+	opt0 |= V_TX_CHAN(vi->pi->tx_chan);
+
+	MPASS(cp->keepalive == 0 || cp->keepalive == 1);
+	opt0 |= V_KEEP_ALIVE(cp->keepalive);
+
+	MPASS(cp->nagle == 0 || cp->nagle == 1);
+	opt0 |= V_NAGLE(cp->nagle);
+
+	return (htobe64(opt0));
+}
+
+__be32
+calc_options2(struct vi_info *vi, struct conn_params *cp)
+{
+	uint32_t opt2 = 0;
+	struct port_info *pi = vi->pi;
+	struct adapter *sc = pi->adapter;
+
+	/*
+	 * rx flow control, rx coalesce, congestion control, and tx pace are all
+	 * explicitly set by the driver.  On T5+ the ISS is also set by the
+	 * driver to the value picked by the kernel.
+	 */
+	if (is_t4(sc)) {
+		opt2 |= F_RX_FC_VALID | F_RX_COALESCE_VALID;
+		opt2 |= F_CONG_CNTRL_VALID | F_PACE_VALID;
+	} else {
+		opt2 |= F_T5_OPT_2_VALID;	/* all 4 valid */
+		opt2 |= F_T5_ISS;		/* ISS provided in CPL */
+	}
+
+	MPASS(cp->sack == 0 || cp->sack == 1);
+	opt2 |= V_SACK_EN(cp->sack);
+
+	MPASS(cp->tstamp == 0 || cp->tstamp == 1);
+	opt2 |= V_TSTAMPS_EN(cp->tstamp);
+
+	if (cp->wscale > 0)
+		opt2 |= F_WND_SCALE_EN;
+
+	MPASS(cp->ecn == 0 || cp->ecn == 1);
+	opt2 |= V_CCTRL_ECN(cp->ecn);
+
+	/* XXX: F_RX_CHANNEL for multiple rx c-chan support goes here. */
+
+	opt2 |= V_TX_QUEUE(sc->params.tp.tx_modq[pi->tx_chan]);
+	opt2 |= V_PACE(0);
+	opt2 |= F_RSS_QUEUE_VALID;
+	opt2 |= V_RSS_QUEUE(sc->sge.ofld_rxq[cp->rxq_idx].iq.abs_id);
+
+	MPASS(cp->cong_algo >= 0 && cp->cong_algo <= M_CONG_CNTRL);
+	opt2 |= V_CONG_CNTRL(cp->cong_algo);
+
+	MPASS(cp->rx_coalesce == 0 || cp->rx_coalesce == 1);
+	if (cp->rx_coalesce == 1)
+		opt2 |= V_RX_COALESCE(M_RX_COALESCE);
+
+	opt2 |= V_RX_FC_DDP(0) | V_RX_FC_DISABLE(0);
+#ifdef USE_DDP_RX_FLOW_CONTROL
+	if (cp->ulp_mode == ULP_MODE_TCPDDP)
+		opt2 |= F_RX_FC_DDP;
+#endif
+	if (cp->ulp_mode == ULP_MODE_TLS)
+		opt2 |= F_RX_FC_DISABLE;
+
+	return (htobe32(opt2));
 }
 
 uint64_t
@@ -994,31 +1075,209 @@ is_tls_sock(struct socket *so, struct adapter *sc)
 	return (rc);
 }
 
-int
-select_ulp_mode(struct socket *so, struct adapter *sc,
-    struct offload_settings *s)
+/*
+ * Initialize various connection parameters.
+ */
+void
+init_conn_params(struct vi_info *vi , struct offload_settings *s,
+    struct in_conninfo *inc, struct socket *so,
+    const struct tcp_options *tcpopt, int16_t l2t_idx, struct conn_params *cp)
 {
+	struct port_info *pi = vi->pi;
+	struct adapter *sc = pi->adapter;
+	struct tom_tunables *tt = &sc->tt;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp = intotcpcb(inp);
+	u_long wnd;
 
+	MPASS(s->offload != 0);
+
+	/* Congestion control algorithm */
+	if (s->cong_algo >= 0)
+		cp->cong_algo = s->cong_algo & M_CONG_CNTRL;
+	else if (sc->tt.cong_algorithm >= 0)
+		cp->cong_algo = tt->cong_algorithm & M_CONG_CNTRL;
+	else {
+		struct cc_algo *cc = CC_ALGO(tp);
+
+		if (strcasecmp(cc->name, "reno") == 0)
+			cp->cong_algo = CONG_ALG_RENO;
+		else if (strcasecmp(cc->name, "tahoe") == 0)
+			cp->cong_algo = CONG_ALG_TAHOE;
+		if (strcasecmp(cc->name, "newreno") == 0)
+			cp->cong_algo = CONG_ALG_NEWRENO;
+		if (strcasecmp(cc->name, "highspeed") == 0)
+			cp->cong_algo = CONG_ALG_HIGHSPEED;
+		else {
+			/*
+			 * Use newreno in case the algorithm selected by the
+			 * host stack is not supported by the hardware.
+			 */
+			cp->cong_algo = CONG_ALG_NEWRENO;
+		}
+	}
+
+	/* Tx traffic scheduling class. */
+	if (s->sched_class >= 0 &&
+	    s->sched_class < sc->chip_params->nsched_cls) {
+	    cp->tc_idx = s->sched_class;
+	} else
+	    cp->tc_idx = -1;
+
+	/* Nagle's algorithm. */
+	if (s->nagle >= 0)
+		cp->nagle = s->nagle > 0 ? 1 : 0;
+	else
+		cp->nagle = tp->t_flags & TF_NODELAY ? 0 : 1;
+
+	/* TCP Keepalive. */
+	if (tcp_always_keepalive || so_options_get(so) & SO_KEEPALIVE)
+		cp->keepalive = 1;
+	else
+		cp->keepalive = 0;
+
+	/* Optimization that's specific to T5 @ 40G. */
+	if (tt->tx_align >= 0)
+		cp->tx_align =  tt->tx_align > 0 ? 1 : 0;
+	else if (chip_id(sc) == CHELSIO_T5 &&
+	    (port_top_speed(pi) > 10 || sc->params.nports > 2))
+		cp->tx_align = 1;
+	else
+		cp->tx_align = 0;
+
+	/* ULP mode. */
 	if (can_tls_offload(sc) &&
 	    (s->tls > 0 || (s->tls < 0 && is_tls_sock(so, sc))))
-		return (ULP_MODE_TLS);
+		cp->ulp_mode = ULP_MODE_TLS;
 	else if (s->ddp > 0 ||
-	    (s->ddp < 0 && sc->tt.ddp && (so->so_options & SO_NO_DDP) == 0))
-		return (ULP_MODE_TCPDDP);
+	    (s->ddp < 0 && sc->tt.ddp && (so_options_get(so) & SO_NO_DDP) == 0))
+		cp->ulp_mode = ULP_MODE_TCPDDP;
 	else
-		return (ULP_MODE_NONE);
-}
+		cp->ulp_mode = ULP_MODE_NONE;
 
-void
-set_ulp_mode(struct toepcb *toep, int ulp_mode)
-{
+	/* Rx coalescing. */
+	if (s->rx_coalesce >= 0)
+		cp->rx_coalesce = s->rx_coalesce > 0 ? 1 : 0;
+	else if (cp->ulp_mode == ULP_MODE_TLS)
+		cp->rx_coalesce = 0;
+	else if (tt->rx_coalesce >= 0)
+		cp->rx_coalesce = tt->rx_coalesce > 0 ? 1 : 0;
+	else
+		cp->rx_coalesce = 1;	/* default */
 
-	CTR4(KTR_CXGBE, "%s: toep %p (tid %d) ulp_mode %d",
-	    __func__, toep, toep->tid, ulp_mode);
-	toep->ulp_mode = ulp_mode;
-	tls_init_toep(toep);
-	if (toep->ulp_mode == ULP_MODE_TCPDDP)
-		ddp_init_toep(toep);
+	/*
+	 * Index in the PMTU table.  This controls the MSS that we announce in
+	 * our SYN initially, but after ESTABLISHED it controls the MSS that we
+	 * use to send data.
+	 */
+	cp->mtu_idx = find_best_mtu_idx(sc, inc, s);
+
+	/* Tx queue for this connection. */
+	if (s->txq >= 0 && s->txq < vi->nofldtxq)
+		cp->txq_idx = s->txq;
+	else
+		cp->txq_idx = arc4random() % vi->nofldtxq;
+	cp->txq_idx += vi->first_ofld_txq;
+
+	/* Rx queue for this connection. */
+	if (s->rxq >= 0 && s->rxq < vi->nofldrxq)
+		cp->rxq_idx = s->rxq;
+	else
+		cp->rxq_idx = arc4random() % vi->nofldrxq;
+	cp->rxq_idx += vi->first_ofld_rxq;
+
+	if (SOLISTENING(so)) {
+		/* Passive open */
+		MPASS(tcpopt != NULL);
+
+		/* TCP timestamp option */
+		if (tcpopt->tstamp &&
+		    (s->tstamp > 0 || (s->tstamp < 0 && V_tcp_do_rfc1323)))
+			cp->tstamp = 1;
+		else
+			cp->tstamp = 0;
+
+		/* SACK */
+		if (tcpopt->sack &&
+		    (s->sack > 0 || (s->sack < 0 && V_tcp_do_sack)))
+			cp->sack = 1;
+		else
+			cp->sack = 0;
+
+		/* Receive window scaling. */
+		if (tcpopt->wsf > 0 && tcpopt->wsf < 15 && V_tcp_do_rfc1323)
+			cp->wscale = select_rcv_wscale();
+		else
+			cp->wscale = 0;
+
+		/* ECN */
+		if (tcpopt->ecn &&	/* XXX: review. */
+		    (s->ecn > 0 || (s->ecn < 0 && V_tcp_do_ecn)))
+			cp->ecn = 1;
+		else
+			cp->ecn = 0;
+
+		wnd = max(so->sol_sbrcv_hiwat, MIN_RCV_WND);
+		cp->opt0_bufsize = min(wnd >> 10, M_RCV_BUFSIZ);
+
+		if (tt->sndbuf > 0)
+			cp->sndbuf = tt->sndbuf;
+		else if (so->sol_sbsnd_flags & SB_AUTOSIZE &&
+		    V_tcp_do_autosndbuf)
+			cp->sndbuf = 256 * 1024;
+		else
+			cp->sndbuf = so->sol_sbsnd_hiwat;
+	} else {
+		/* Active open */
+
+		/* TCP timestamp option */
+		if (s->tstamp > 0 ||
+		    (s->tstamp < 0 && (tp->t_flags & TF_REQ_TSTMP)))
+			cp->tstamp = 1;
+		else
+			cp->tstamp = 0;
+
+		/* SACK */
+		if (s->sack > 0 ||
+		    (s->sack < 0 && (tp->t_flags & TF_SACK_PERMIT)))
+			cp->sack = 1;
+		else
+			cp->sack = 0;
+
+		/* Receive window scaling */
+		if (tp->t_flags & TF_REQ_SCALE)
+			cp->wscale = select_rcv_wscale();
+		else
+			cp->wscale = 0;
+
+		/* ECN */
+		if (s->ecn > 0 || (s->ecn < 0 && V_tcp_do_ecn == 1))
+			cp->ecn = 1;
+		else
+			cp->ecn = 0;
+
+		SOCKBUF_LOCK(&so->so_rcv);
+		wnd = max(select_rcv_wnd(so), MIN_RCV_WND);
+		SOCKBUF_UNLOCK(&so->so_rcv);
+		cp->opt0_bufsize = min(wnd >> 10, M_RCV_BUFSIZ);
+
+		if (tt->sndbuf > 0)
+			cp->sndbuf = tt->sndbuf;
+		else {
+			SOCKBUF_LOCK(&so->so_snd);
+			if (so->so_snd.sb_flags & SB_AUTOSIZE &&
+			    V_tcp_do_autosndbuf)
+				cp->sndbuf = 256 * 1024;
+			else
+				cp->sndbuf = so->so_snd.sb_hiwat;
+			SOCKBUF_UNLOCK(&so->so_snd);
+		}
+	}
+
+	cp->l2t_idx = l2t_idx;
+
+	/* This will be initialized on ESTABLISHED. */
+	cp->emss = 0;
 }
 
 int
@@ -1527,7 +1786,7 @@ t4_aio_queue_tom(struct socket *so, struct kaiocb *job)
 	struct toepcb *toep = tp->t_toe;
 	int error;
 
-	if (toep->ulp_mode == ULP_MODE_TCPDDP) {
+	if (ulp_mode(toep) == ULP_MODE_TCPDDP) {
 		error = t4_aio_queue_ddp(so, job);
 		if (error != EOPNOTSUPP)
 			return (error);

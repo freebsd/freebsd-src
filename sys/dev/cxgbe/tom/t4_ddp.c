@@ -769,7 +769,7 @@ do_rx_data_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		    __func__, vld, tid, toep);
 	}
 
-	if (toep->ulp_mode == ULP_MODE_ISCSI) {
+	if (ulp_mode(toep) == ULP_MODE_ISCSI) {
 		t4_cpl_handler[CPL_RX_ISCSI_DDP](iq, rss, m);
 		return (0);
 	}

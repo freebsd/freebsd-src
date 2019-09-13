@@ -1415,7 +1415,7 @@ static int rdma_init(struct c4iw_dev *rhp, struct c4iw_qp *qhp)
 	ret = c4iw_wait_for_reply(rdev, &ep->com.wr_wait, ep->hwtid,
 			qhp->wq.sq.qid, ep->com.so, __func__);
 
-	toep->ulp_mode = ULP_MODE_RDMA;
+	toep->params.ulp_mode = ULP_MODE_RDMA;
 	free_ird(rhp, qhp->attr.max_ird);
 
 	return ret;
