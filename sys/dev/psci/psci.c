@@ -128,7 +128,9 @@ static int psci_attach(device_t, psci_initfn_t, int);
 static void psci_shutdown(void *, int);
 
 static int psci_find_callfn(psci_callfn_t *);
-static int psci_def_callfn(register_t, register_t, register_t, register_t);
+static int psci_def_callfn(register_t, register_t, register_t, register_t,
+	register_t, register_t, register_t, register_t,
+	struct arm_smccc_res *res);
 
 psci_callfn_t psci_callfn = psci_def_callfn;
 
@@ -149,7 +151,10 @@ SYSINIT(psci_start, SI_SUB_CPU, SI_ORDER_FIRST, psci_init, NULL);
 
 static int
 psci_def_callfn(register_t a __unused, register_t b __unused,
-    register_t c __unused, register_t d __unused)
+    register_t c __unused, register_t d __unused,
+    register_t e __unused, register_t f __unused,
+    register_t g __unused, register_t h __unused,
+    struct arm_smccc_res *res __unused)
 {
 
 	panic("No PSCI/SMCCC call function set");
@@ -186,9 +191,9 @@ psci_fdt_get_callfn(phandle_t node)
 
 	if ((OF_getprop(node, "method", method, sizeof(method))) > 0) {
 		if (strcmp(method, "hvc") == 0)
-			return (psci_hvc_despatch);
+			return (arm_smccc_hvc);
 		else if (strcmp(method, "smc") == 0)
-			return (psci_smc_despatch);
+			return (arm_smccc_smc);
 		else
 			printf("psci: PSCI conduit \"%s\" invalid\n", method);
 	} else
@@ -282,9 +287,9 @@ psci_acpi_get_callfn(int flags)
 
 	if ((flags & ACPI_FADT_PSCI_COMPLIANT) != 0) {
 		if ((flags & ACPI_FADT_PSCI_USE_HVC) != 0)
-			return (psci_hvc_despatch);
+			return (arm_smccc_hvc);
 		else
-			return (psci_smc_despatch);
+			return (arm_smccc_smc);
 	} else {
 		printf("psci: PSCI conduit not supplied in the device tree\n");
 	}

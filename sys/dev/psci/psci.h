@@ -30,9 +30,12 @@
 #define	_MACHINE_PSCI_H_
 
 #include <sys/types.h>
+#include <dev/psci/smccc.h>
 
 typedef int (*psci_initfn_t)(device_t dev, int default_version);
-typedef int (*psci_callfn_t)(register_t, register_t, register_t, register_t);
+typedef int (*psci_callfn_t)(register_t, register_t, register_t, register_t,
+	register_t, register_t, register_t, register_t,
+	struct arm_smccc_res *res);
 
 extern int psci_present;
 
@@ -47,12 +50,8 @@ static inline int
 psci_call(register_t a, register_t b, register_t c, register_t d)
 {
 
-	return (psci_callfn(a, b, c, d));
+	return (psci_callfn(a, b, c, d, 0, 0, 0, 0, NULL));
 }
-/* One of these handlers will be selected during the boot */
-int	psci_hvc_despatch(register_t, register_t, register_t, register_t);
-int	psci_smc_despatch(register_t, register_t, register_t, register_t);
-
 
 /*
  * PSCI return codes.
