@@ -881,6 +881,7 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	struct device_match_result  *device_match;
 	struct device_match_pattern *device_pattern;
 	ses_path_iter_args_t	    *args;
+	struct cam_path		    *path;
 
 	args = (ses_path_iter_args_t *)arg;
 	match_pattern.type = DEV_MATCH_DEVICE;
@@ -906,23 +907,26 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	cdm.match_buf_len   = sizeof(match_result);
 	cdm.matches         = &match_result;
 
-	xpt_action((union ccb *)&cdm);
-	xpt_free_path(cdm.ccb_h.path);
+	do {
+		xpt_action((union ccb *)&cdm);
 
-	if ((cdm.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP
-	 || (cdm.status != CAM_DEV_MATCH_LAST
-	  && cdm.status != CAM_DEV_MATCH_MORE)
-	 || cdm.num_matches == 0)
-		return;
+		if ((cdm.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP ||
+		    (cdm.status != CAM_DEV_MATCH_LAST &&
+		     cdm.status != CAM_DEV_MATCH_MORE) ||
+		    cdm.num_matches == 0)
+			break;
 
-	device_match = &match_result.result.device_result;
-	if (xpt_create_path(&cdm.ccb_h.path, /*periph*/NULL,
-			     device_match->path_id,
-			     device_match->target_id,
-			     device_match->target_lun) != CAM_REQ_CMP)
-		return;
+		device_match = &match_result.result.device_result;
+		if (xpt_create_path(&path, /*periph*/NULL,
+				    device_match->path_id,
+				    device_match->target_id,
+				    device_match->target_lun) == CAM_REQ_CMP) {
 
-	args->callback(enc, elem, cdm.ccb_h.path, args->callback_arg);
+			args->callback(enc, elem, path, args->callback_arg);
+
+			xpt_free_path(path);
+		}
+	} while (cdm.status == CAM_DEV_MATCH_MORE);
 
 	xpt_free_path(cdm.ccb_h.path);
 }
