@@ -858,12 +858,6 @@ retry:
 	if (cam_send_ccb(device, ccb) < 0) {
 		warn("error sending PERSISTENT RESERVE %s", (in != 0) ?
 		    "IN" : "OUT");
-
-		if (verbosemode != 0) {
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-		}
-
 		error = 1;
 		goto bailout;
 	}
