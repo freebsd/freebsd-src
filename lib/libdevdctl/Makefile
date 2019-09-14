@@ -18,8 +18,4 @@ WARNS?=	3
 PRIVATELIB=	true
 SHLIB_MAJOR=	0
 
-# Silence gcc warnings about deprecated std::auto_ptr, and various function
-# objects from <functional>.
-CWARNFLAGS+=	-Wno-deprecated-declarations
-
 .include <bsd.lib.mk>
