@@ -65,9 +65,6 @@ CFLAGS+=	-DATF_PKGDATADIR='"${SHAREDIR}/atf"'
 CFLAGS+=	-DATF_SHELL='"/bin/sh"'
 CFLAGS+=	-I${ATF}
 
-# Silence warnings about std::auto_ptr usage
-CWARNFLAGS+=	-Wno-deprecated-declarations
-
 LIBADD=		atf_cxx
 
 FILESGROUPS=	SUBR
