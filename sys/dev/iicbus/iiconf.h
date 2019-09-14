@@ -96,12 +96,14 @@
 #define IIC_ENOTSUPP	0x8	/* request not supported */
 #define IIC_ENOADDR	0x9	/* no address assigned to the interface */
 #define IIC_ERESOURCE	0xa	/* resources (memory, whatever) unavailable */
+#define IIC_ERRNO	__INT_MIN /* marker bit: errno is in low-order bits */
 
 /*
  * Note that all iicbus functions return IIC_Exxxxx status values,
  * except iic2errno() (obviously) and iicbus_started() (returns bool).
  */
 extern int iic2errno(int);
+extern int errno2iic(int);
 extern int iicbus_request_bus(device_t, device_t, int);
 extern int iicbus_release_bus(device_t, device_t);
 extern device_t iicbus_alloc_bus(device_t);
