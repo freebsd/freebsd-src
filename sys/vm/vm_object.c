@@ -515,7 +515,6 @@ void
 vm_object_deallocate(vm_object_t object)
 {
 	vm_object_t temp;
-	struct vnode *vp;
 
 	while (object != NULL) {
 		VM_OBJECT_WLOCK(object);
@@ -538,25 +537,6 @@ vm_object_deallocate(vm_object_t object)
 			VM_OBJECT_WUNLOCK(object);
 			return;
 		} else if (object->ref_count == 1) {
-			if (object->type == OBJT_SWAP &&
-			    (object->flags & OBJ_TMPFS) != 0) {
-				vp = object->un_pager.swp.swp_tmpfs;
-				vhold(vp);
-				VM_OBJECT_WUNLOCK(object);
-				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-				VM_OBJECT_WLOCK(object);
-				if (object->type == OBJT_DEAD ||
-				    object->ref_count != 1) {
-					VM_OBJECT_WUNLOCK(object);
-					VOP_UNLOCK(vp, 0);
-					vdrop(vp);
-					return;
-				}
-				if ((object->flags & OBJ_TMPFS) != 0)
-					VOP_UNSET_TEXT(vp);
-				VOP_UNLOCK(vp, 0);
-				vdrop(vp);
-			}
 			if (object->shadow_count == 0 &&
 			    object->handle == NULL &&
 			    (object->type == OBJT_DEFAULT ||
