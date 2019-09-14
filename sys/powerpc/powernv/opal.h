@@ -45,6 +45,8 @@ int opal_call(uint64_t token, ...);
 #define OPAL_RTC_WRITE			4
 #define	OPAL_CEC_POWER_DOWN		5
 #define	OPAL_CEC_REBOOT			6
+#define	OPAL_READ_NVRAM			7
+#define	OPAL_WRITE_NVRAM		8
 #define	OPAL_HANDLE_INTERRUPT		9
 #define	OPAL_POLL_EVENTS		10
 #define	OPAL_PCI_CONFIG_READ_BYTE	13
