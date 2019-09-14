@@ -617,7 +617,7 @@ again:
 			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			goto again;
 		}
-		if (vp->v_type == VNON || vp->v_writecount == 0) {
+		if (vp->v_type == VNON || vp->v_writecount <= 0) {
 			VOP_UNLOCK(vp, 0);
 			vrele(vp);
 			continue;
