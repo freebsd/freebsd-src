@@ -1224,7 +1224,7 @@ terminal__putc(EditLine *el, wint_t c)
 {
 	char buf[MB_LEN_MAX +1];
 	ssize_t i;
-	if (c == (wint_t)MB_FILL_CHAR)
+	if (c == MB_FILL_CHAR)
 		return 0;
 	if (c & EL_LITERAL)
 		return fputs(literal_get(el, c), el->el_outfile);
