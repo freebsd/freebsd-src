@@ -735,7 +735,7 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 		return (ECAPMODE);
 #endif
 
-	tempdata = malloc(sizeof(*tempdata), M_TEMP, M_WAITOK);
+	tempdata = malloc(sizeof(*tempdata), M_TEMP, M_WAITOK | M_ZERO);
 	nd = &tempdata->nd;
 	attr = &tempdata->attr;
 	imgp = &tempdata->image_params;
@@ -745,10 +745,6 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	 */
 	imgp->proc = p;
 	imgp->attr = attr;
-	imgp->firstpage = NULL;
-	imgp->image_header = NULL;
-	imgp->object = NULL;
-	imgp->execlabel = NULL;
 
 	NDINIT(nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF, UIO_SYSSPACE, file,
 	    curthread);
