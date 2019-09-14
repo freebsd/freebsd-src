@@ -1040,6 +1040,42 @@ __elfN(load_interp)(struct image_params *imgp, const Elf_Brandinfo *brand_info,
 	return (error);
 }
 
+static int
+__elfN(imgact_validate_elf)(struct image_params *imgp, const Elf_Ehdr *hdr)
+{
+	const Elf_Phdr *phdr;
+
+	/*
+	 * Do we have a valid ELF header ?
+	 *
+	 * Only allow ET_EXEC & ET_DYN here, reject ET_DYN later
+	 * if particular brand doesn't support it.
+	 */
+	if (__elfN(check_header)(hdr) != 0 ||
+	    (hdr->e_type != ET_EXEC && hdr->e_type != ET_DYN))
+		return (-1);
+
+	/*
+	 * From here on down, we return an errno, not -1, as we've
+	 * detected an ELF file.
+	 */
+
+	if ((hdr->e_phoff > PAGE_SIZE) ||
+	    (u_int)hdr->e_phentsize * hdr->e_phnum > PAGE_SIZE - hdr->e_phoff) {
+		/* Only support headers in first page for now */
+		uprintf("Program headers not in the first page\n");
+		return (ENOEXEC);
+	}
+	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
+	if (!aligned(phdr, Elf_Addr)) {
+		uprintf("Unaligned program headers\n");
+		return (ENOEXEC);
+	}
+
+	return (0);
+}
+
+
 /*
  * Impossible et_dyn_addr initial value indicating that the real base
  * must be calculated later with some randomization applied.
@@ -1067,32 +1103,12 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 	hdr = (const Elf_Ehdr *)imgp->image_header;
 
-	/*
-	 * Do we have a valid ELF header ?
-	 *
-	 * Only allow ET_EXEC & ET_DYN here, reject ET_DYN later
-	 * if particular brand doesn't support it.
-	 */
-	if (__elfN(check_header)(hdr) != 0 ||
-	    (hdr->e_type != ET_EXEC && hdr->e_type != ET_DYN))
-		return (-1);
-
-	/*
-	 * From here on down, we return an errno, not -1, as we've
-	 * detected an ELF file.
-	 */
-
-	if ((hdr->e_phoff > PAGE_SIZE) ||
-	    (u_int)hdr->e_phentsize * hdr->e_phnum > PAGE_SIZE - hdr->e_phoff) {
-		/* Only support headers in first page for now */
-		uprintf("Program headers not in the first page\n");
-		return (ENOEXEC);
+	error = __elfN(imgact_validate_elf)(imgp, hdr);
+	if (error != 0) {
+		return (error);
 	}
-	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff); 
-	if (!aligned(phdr, Elf_Addr)) {
-		uprintf("Unaligned program headers\n");
-		return (ENOEXEC);
-	}
+
+	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
 
 	n = error = 0;
 	baddr = 0;
@@ -2715,11 +2731,71 @@ __elfN(check_note)(struct image_params *imgp, Elf_Brandnote *brandnote,
 
 }
 
+static int
+__CONCAT(exec_, __elfN(get_interp))(struct image_params *imgp, char *buf,
+    size_t buflen, int *type)
+{
+	const Elf_Ehdr *hdr;
+	const Elf_Phdr *phdr;
+	char *interp;
+	int i, error;
+	bool free_interp;
+
+	hdr = (const Elf_Ehdr *)imgp->image_header;
+
+	error = __elfN(imgact_validate_elf)(imgp, hdr);
+	if (error != 0) {
+		return (error);
+	}
+
+	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
+	interp = NULL;
+	free_interp = false;
+
+	for (i = 0; i < hdr->e_phnum; i++) {
+		switch (phdr[i].p_type) {
+		case PT_INTERP:
+			/* Path to interpreter */
+			if (interp != NULL) {
+				uprintf("Multiple PT_INTERP headers\n");
+				error = ENOEXEC;
+				goto ret;
+			}
+			if (phdr->p_filesz > buflen) {
+				uprintf("PT_INTERP path too long\n");
+				error = ENAMETOOLONG;
+				goto ret;
+			}
+			error = __elfN(get_interp)(imgp, &phdr[i], &interp,
+			    &free_interp);
+			if (error != 0)
+				goto ret;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (interp != NULL) {
+		*type = EXEC_INTERP_STANDARD;
+		strlcpy(buf, interp, buflen);
+	} else {
+		*type = EXEC_INTERP_NONE;
+	}
+
+ret:
+	if (free_interp) {
+		free(interp, M_TEMP);
+	}
+	return (error);
+}
+
 /*
  * Tell kern_execve.c about it, with a little help from the linker.
  */
 static struct execsw __elfN(execsw) = {
 	.ex_imgact = __CONCAT(exec_, __elfN(imgact)),
+	.ex_get_interp = __CONCAT(exec_, __elfN(get_interp)),
 	.ex_name = __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))
 };
 EXEC_SET(__CONCAT(elf, __ELF_WORD_SIZE), __elfN(execsw));

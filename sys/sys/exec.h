@@ -64,6 +64,8 @@ struct image_params;
 
 struct execsw {
 	int (*ex_imgact)(struct image_params *);
+	int (*ex_get_interp)(struct image_params *, char *interp, size_t len,
+	    int *type);
 	const char *ex_name;
 };
 
@@ -83,6 +85,13 @@ void exec_unmap_first_page(struct image_params *);
 
 int exec_register(const struct execsw *);
 int exec_unregister(const struct execsw *);
+
+#define	EXEC_INTERP_NONE	1
+#define	EXEC_INTERP_STANDARD	2
+
+struct thread;
+
+int exec_get_interp(struct thread *td, int fd, char *path, size_t path_len, int *type);
 
 extern int coredump_pack_fileinfo;
 extern int coredump_pack_vmmapinfo;

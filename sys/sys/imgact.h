@@ -119,6 +119,8 @@ void	exec_setregs(struct thread *, struct image_params *, uintptr_t);
 int	exec_shell_imgact(struct image_params *);
 int	exec_copyin_args(struct image_args *, const char *, enum uio_seg,
 	char **, char **);
+int	exec_copyin_args_prepend(struct image_args *, const char *, enum uio_seg,
+	char **, char **, char**);
 int	exec_copyin_data_fds(struct thread *, struct image_args *, const void *,
 	size_t, const int *, size_t);
 int	pre_execve(struct thread *td, struct vmspace **oldvmspace);

@@ -352,6 +352,104 @@ kern_execve(struct thread *td, struct image_args *args, struct mac *mac_p)
 	return (do_execve(td, args, mac_p));
 }
 
+
+int
+exec_get_interp(struct thread *td, int fd, char *path, size_t path_len, int *type)
+{
+	struct image_params image_params, *imgp;
+	struct vnode *newtextvp;
+	int i, error;
+
+	imgp = &image_params;
+	bzero(&image_params, sizeof(image_params));
+
+	AUDIT_ARG_FD(fd);
+
+	/*
+	 * Descriptors opened only with O_EXEC or O_RDONLY are allowed.
+	 */
+	error = fgetvp_exec(td, fd, &cap_fexecve_rights, &newtextvp);
+	if (error)
+		goto exec_fail;
+	vn_lock(newtextvp, LK_SHARED | LK_RETRY);
+	AUDIT_ARG_VNODE1(newtextvp);
+	imgp->vp = newtextvp;
+
+#if 0
+	/* Get file attributes */
+	error = VOP_GETATTR(vp, attr, td->td_ucred);
+	if (error)
+		return (error);
+
+	/*
+	 * Zero length files can't be exec'd
+	 */
+	if (attr->va_size == 0)
+		return (ENOEXEC);
+#endif
+
+	/*
+	 * Call filesystem specific open routine (which does nothing in the
+	 * general case).
+	 */
+	error = VOP_OPEN(newtextvp, FREAD, td->td_ucred, td, NULL);
+	if (error != 0) {
+		goto exec_fail;
+	}
+
+	imgp->opened = 1;
+
+	imgp->object = imgp->vp->v_object;
+	if (imgp->object != NULL)
+		vm_object_reference(imgp->object);
+
+	error = exec_map_first_page(imgp);
+	if (error)
+		goto exec_fail_dealloc;
+	/*
+	 *	If the current process has a special image activator it
+	 *	wants to try first, call it.   For example, emulating shell
+	 *	scripts differently.
+	 */
+	error = -1;
+
+	/* XXX not implemented */
+#if 0
+	if ((img_first = imgp->proc->p_sysent->sv_imgact_try) != NULL)
+		error = img_first(imgp);
+#endif
+
+	/*
+	 *	Loop through the list of image activators, calling each one.
+	 *	An activator returns -1 if there is no match, 0 on success,
+	 *	and an error otherwise.
+	 */
+	for (i = 0; error == -1 && execsw[i]; ++i) {
+		if (execsw[i]->ex_get_interp == NULL) {
+			continue;
+		}
+		error = (*execsw[i]->ex_get_interp)(imgp, path, path_len, type);
+	}
+
+	if (error== -1)
+		error = ENOEXEC;
+
+	exec_unmap_first_page(imgp);
+
+exec_fail_dealloc:
+	if (imgp->opened) {
+		VOP_CLOSE(newtextvp, FREAD, td->td_ucred, td);
+		imgp->opened = 0;
+	}
+
+	vput(newtextvp);
+	vm_object_deallocate(imgp->object);
+	imgp->object = NULL;
+
+exec_fail:
+	return (error);
+}
+
 /*
  * In-kernel implementation of execve().  All arguments are assumed to be
  * userspace pointers from the passed thread.
@@ -1132,7 +1230,16 @@ int
 exec_copyin_args(struct image_args *args, const char *fname,
     enum uio_seg segflg, char **argv, char **envv)
 {
+
+	return exec_copyin_args_prepend(args, fname, segflg, argv, envv, NULL);
+}
+
+int
+exec_copyin_args_prepend(struct image_args *args, const char *fname,
+    enum uio_seg segflg, char **argv, char **envv, char **argv_prepend)
+{
 	u_long arg, env;
+	char *str;
 	int error;
 
 	bzero(args, sizeof(*args));
@@ -1153,6 +1260,22 @@ exec_copyin_args(struct image_args *args, const char *fname,
 	error = exec_args_add_fname(args, fname, segflg);
 	if (error != 0)
 		goto err_exit;
+
+	if (argv_prepend != NULL) {
+		for (;;) {
+			str = *argv_prepend;
+			if (str == NULL) {
+				break;
+			}
+
+			error = exec_args_add_arg(args, str, UIO_SYSSPACE);
+			if (error != 0) {
+				goto err_exit;
+			}
+
+			++argv_prepend;
+		}
+	}
 
 	/*
 	 * extract arguments first
