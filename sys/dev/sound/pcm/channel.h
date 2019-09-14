@@ -413,7 +413,7 @@ extern int report_soft_matrix;
 
 #define CHN_LATENCY_MIN		0
 #define CHN_LATENCY_MAX		10
-#define CHN_LATENCY_DEFAULT	5
+#define	CHN_LATENCY_DEFAULT	2	/* 21.3ms total buffering */
 #define CHN_POLICY_MIN		CHN_LATENCY_MIN
 #define CHN_POLICY_MAX		CHN_LATENCY_MAX
 #define CHN_POLICY_DEFAULT	CHN_LATENCY_DEFAULT
