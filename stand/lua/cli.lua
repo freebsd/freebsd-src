@@ -125,6 +125,10 @@ cli['boot-conf'] = function(...)
 	core.autoboot(argstr)
 end
 
+cli['reload-conf'] = function(...)
+	config.reload()
+end
+
 -- Used for splitting cli varargs into cmd_name and the rest of argv
 function cli.arguments(...)
 	local argv = {...}
