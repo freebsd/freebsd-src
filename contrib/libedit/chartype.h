@@ -87,7 +87,7 @@ libedit_private size_t ct_enc_width(wchar_t);
 /* The terminal is thought of in terms of X columns by Y lines. In the cases
  * where a wide character takes up more than one column, the adjacent
  * occupied column entries will contain this faux character. */
-#define MB_FILL_CHAR ((wchar_t)-1)
+#define MB_FILL_CHAR ((wint_t)-1)
 
 /* Visual width of character c, taking into account ^? , \0177 and \U+nnnnn
  * style visual expansions. */
