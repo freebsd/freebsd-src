@@ -195,6 +195,10 @@ g_nop_start(struct bio *bp)
 
 	G_NOP_LOGREQ(bp, "Request received.");
 	mtx_lock(&sc->sc_lock);
+	if (sc->sc_count_until_fail != 0 && --sc->sc_count_until_fail == 0) {
+		sc->sc_rfailprob = 100;
+		sc->sc_wfailprob = 100;
+	}
 	switch (bp->bio_cmd) {
 	case BIO_READ:
 		sc->sc_reads++;
@@ -308,9 +312,10 @@ g_nop_access(struct g_provider *pp, int dr, int dw, int de)
 
 static int
 g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
-    int ioerror, u_int rfailprob, u_int wfailprob, u_int delaymsec, u_int rdelayprob,
-    u_int wdelayprob, off_t offset, off_t size, u_int secsize, off_t stripesize,
-    off_t stripeoffset, const char *physpath)
+    int ioerror, u_int count_until_fail, u_int rfailprob, u_int wfailprob,
+    u_int delaymsec, u_int rdelayprob, u_int wdelayprob, off_t offset,
+    off_t size, u_int secsize, off_t stripesize, off_t stripeoffset,
+    const char *physpath)
 {
 	struct g_nop_softc *sc;
 	struct g_geom *gp;
@@ -386,6 +391,7 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	} else
 		sc->sc_physpath = NULL;
 	sc->sc_error = ioerror;
+	sc->sc_count_until_fail = count_until_fail;
 	sc->sc_rfailprob = rfailprob;
 	sc->sc_wfailprob = wfailprob;
 	sc->sc_delaymsec = delaymsec;
@@ -491,8 +497,9 @@ static void
 g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_provider *pp;
-	intmax_t *error, *rfailprob, *wfailprob, *offset, *secsize, *size,
-	    *stripesize, *stripeoffset, *delaymsec, *rdelayprob, *wdelayprob;
+	intmax_t *error, *rfailprob, *wfailprob, *count_until_fail, *offset,
+	    *secsize, *size, *stripesize, *stripeoffset, *delaymsec,
+	    *rdelayprob, *wdelayprob;
 	const char *name, *physpath;
 	char param[16];
 	int i, *nargs;
@@ -556,6 +563,16 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 	}
 	if (*wdelayprob < -1 || *wdelayprob > 100) {
 		gctl_error(req, "Invalid '%s' argument", "wdelayprob");
+		return;
+	}
+	count_until_fail = gctl_get_paraml(req, "count_until_fail",
+	    sizeof(*count_until_fail));
+	if (count_until_fail == NULL) {
+		gctl_error(req, "No '%s' argument", "count_until_fail");
+		return;
+	}
+	if (*count_until_fail < -1) {
+		gctl_error(req, "Invalid '%s' argument", "count_until_fail");
 		return;
 	}
 	offset = gctl_get_paraml(req, "offset", sizeof(*offset));
@@ -622,6 +639,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 		}
 		if (g_nop_create(req, mp, pp,
 		    *error == -1 ? EIO : (int)*error,
+		    *count_until_fail == -1 ? 0 : (u_int)*count_until_fail,
 		    *rfailprob == -1 ? 0 : (u_int)*rfailprob,
 		    *wfailprob == -1 ? 0 : (u_int)*wfailprob,
 		    *delaymsec == -1 ? 1 : (u_int)*delaymsec,
@@ -640,7 +658,8 @@ g_nop_ctl_configure(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_nop_softc *sc;
 	struct g_provider *pp;
-	intmax_t *delaymsec, *error, *rdelayprob, *rfailprob, *wdelayprob, *wfailprob;
+	intmax_t *delaymsec, *error, *rdelayprob, *rfailprob, *wdelayprob,
+	    *wfailprob, *count_until_fail;
 	const char *name;
 	char param[16];
 	int i, *nargs;
@@ -659,6 +678,12 @@ g_nop_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	error = gctl_get_paraml(req, "error", sizeof(*error));
 	if (error == NULL) {
 		gctl_error(req, "No '%s' argument", "error");
+		return;
+	}
+	count_until_fail = gctl_get_paraml(req, "count_until_fail",
+	    sizeof(*count_until_fail));
+	if (count_until_fail == NULL) {
+		gctl_error(req, "No '%s' argument", "count_until_fail");
 		return;
 	}
 	rfailprob = gctl_get_paraml(req, "rfailprob", sizeof(*rfailprob));
@@ -736,6 +761,8 @@ g_nop_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			sc->sc_wdelayprob = (u_int)*wdelayprob;
 		if (*delaymsec != -1)
 			sc->sc_delaymsec = (u_int)*delaymsec;
+		if (*count_until_fail != -1)
+			sc->sc_count_until_fail = (u_int)*count_until_fail;
 	}
 }
 
@@ -904,6 +931,8 @@ g_nop_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	sbuf_printf(sb, "%s<WriteDelayedProb>%u</WriteDelayedProb>\n", indent,
 	    sc->sc_wdelayprob);
 	sbuf_printf(sb, "%s<Delay>%d</Delay>\n", indent, sc->sc_delaymsec);
+	sbuf_printf(sb, "%s<CountUntilFail>%u</CountUntilFail>\n", indent,
+	    sc->sc_count_until_fail);
 	sbuf_printf(sb, "%s<Error>%d</Error>\n", indent, sc->sc_error);
 	sbuf_printf(sb, "%s<Reads>%ju</Reads>\n", indent, sc->sc_reads);
 	sbuf_printf(sb, "%s<Writes>%ju</Writes>\n", indent, sc->sc_writes);
