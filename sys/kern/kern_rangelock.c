@@ -299,3 +299,35 @@ rangelock_trywlock(struct rangelock *lock, off_t start, off_t end,
 
 	return (rangelock_enqueue(lock, start, end, RL_LOCK_WRITE, ilk, true));
 }
+
+#ifdef INVARIANT_SUPPORT
+void
+_rangelock_cookie_assert(void *cookie, int what, const char *file, int line)
+{
+	struct rl_q_entry *entry;
+	int flags;
+
+	MPASS(cookie != NULL);
+	entry = cookie;
+	flags = entry->rl_q_flags;
+	switch (what) {
+	case RCA_LOCKED:
+		if ((flags & RL_LOCK_GRANTED) == 0)
+			panic("rangelock not held @ %s:%d\n", file, line);
+		break;
+	case RCA_RLOCKED:
+		if ((flags & (RL_LOCK_GRANTED | RL_LOCK_READ)) !=
+		    (RL_LOCK_GRANTED | RL_LOCK_READ))
+			panic("rangelock not rlocked @ %s:%d\n", file, line);
+		break;
+	case RCA_WLOCKED:
+		if ((flags & (RL_LOCK_GRANTED | RL_LOCK_WRITE)) !=
+		    (RL_LOCK_GRANTED | RL_LOCK_WRITE))
+			panic("rangelock not wlocked @ %s:%d\n", file, line);
+		break;
+	default:
+		panic("Unknown rangelock assertion: %d @ %s:%d", what, file,
+		    line);
+	}
+}
+#endif	/* INVARIANT_SUPPORT */
