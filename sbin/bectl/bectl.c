@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include "bectl.h"
 
 static int bectl_cmd_activate(int argc, char *argv[]);
+static int bectl_cmd_check(int argc, char *argv[]);
 static int bectl_cmd_create(int argc, char *argv[]);
 static int bectl_cmd_destroy(int argc, char *argv[]);
 static int bectl_cmd_export(int argc, char *argv[]);
@@ -72,6 +73,7 @@ usage(bool explicit)
 	    "\tbectl add (path)*\n"
 #endif
 	    "\tbectl activate [-t] beName\n"
+	    "\tbectl check\n"
 	    "\tbectl create [-r] [-e {nonActiveBe | beName@snapshot}] beName\n"
 	    "\tbectl create [-r] beName@snapshot\n"
 	    "\tbectl destroy [-F] {beName | beName@snapshot}\n"
@@ -97,40 +99,40 @@ usage(bool explicit)
 struct command_map_entry {
 	const char *command;
 	int (*fn)(int argc, char *argv[]);
+	/* True if libbe_print_on_error should be disabled */
+	bool silent;
 };
 
 static struct command_map_entry command_map[] =
 {
-	{ "activate", bectl_cmd_activate },
-	{ "create",   bectl_cmd_create   },
-	{ "destroy",  bectl_cmd_destroy  },
-	{ "export",   bectl_cmd_export   },
-	{ "import",   bectl_cmd_import   },
+	{ "activate", bectl_cmd_activate,false   },
+	{ "create",   bectl_cmd_create,  false   },
+	{ "destroy",  bectl_cmd_destroy, false   },
+	{ "export",   bectl_cmd_export,  false   },
+	{ "import",   bectl_cmd_import,  false   },
 #if SOON
-	{ "add",      bectl_cmd_add      },
+	{ "add",      bectl_cmd_add,     false   },
 #endif
-	{ "jail",     bectl_cmd_jail     },
-	{ "list",     bectl_cmd_list     },
-	{ "mount",    bectl_cmd_mount    },
-	{ "rename",   bectl_cmd_rename   },
-	{ "unjail",   bectl_cmd_unjail   },
-	{ "unmount",  bectl_cmd_unmount  },
+	{ "jail",     bectl_cmd_jail,    false   },
+	{ "list",     bectl_cmd_list,    false   },
+	{ "mount",    bectl_cmd_mount,   false   },
+	{ "rename",   bectl_cmd_rename,  false   },
+	{ "unjail",   bectl_cmd_unjail,  false   },
+	{ "unmount",  bectl_cmd_unmount, false   },
+	{ "check",    bectl_cmd_check,   true    },
 };
 
-static int
-get_cmd_index(const char *cmd, int *idx)
+static struct command_map_entry *
+get_cmd_info(const char *cmd)
 {
-	int map_size;
+	size_t i;
 
-	map_size = nitems(command_map);
-	for (int i = 0; i < map_size; ++i) {
-		if (strcmp(cmd, command_map[i].command) == 0) {
-			*idx = i;
-			return (0);
-		}
+	for (i = 0; i < nitems(command_map); ++i) {
+		if (strcmp(cmd, command_map[i].command) == 0)
+			return (&command_map[i]);
 	}
 
-	return (1);
+	return (NULL);
 }
 
 
@@ -509,14 +511,28 @@ bectl_cmd_unmount(int argc, char *argv[])
 	return (err);
 }
 
+static int
+bectl_cmd_check(int argc, char *argv[] __unused)
+{
+
+	/* The command is left as argv[0] */
+	if (argc != 1) {
+		fprintf(stderr, "bectl check: wrong number of arguments\n");
+		return (usage(false));
+	}
+
+	return (0);
+}
 
 int
 main(int argc, char *argv[])
 {
+	struct command_map_entry *cmd;
 	const char *command;
 	char *root;
-	int command_index, rc;
+	int rc;
 
+	cmd = NULL;
 	root = NULL;
 	if (argc < 2)
 		return (usage(false));
@@ -544,18 +560,17 @@ main(int argc, char *argv[])
 	if ((strcmp(command, "-?") == 0) || (strcmp(command, "-h") == 0))
 		return (usage(true));
 
-	if (get_cmd_index(command, &command_index)) {
+	if ((cmd = get_cmd_info(command)) == NULL) {
 		fprintf(stderr, "unknown command: %s\n", command);
 		return (usage(false));
 	}
 
-
 	if ((be = libbe_init(root)) == NULL)
 		return (-1);
 
-	libbe_print_on_error(be, true);
+	libbe_print_on_error(be, !cmd->silent);
 
-	rc = command_map[command_index].fn(argc, argv);
+	rc = cmd->fn(argc, argv);
 
 	libbe_close(be);
 	return (rc);
