@@ -412,6 +412,7 @@ bectl_cmd_list(int argc, char *argv[])
 	props = NULL;
 	printed = 0;
 	bzero(&pc, sizeof(pc));
+	reverse = false;
 	while ((opt = getopt(argc, argv, "aDHsc:C:")) != -1) {
 		switch (opt) {
 		case 'a':
@@ -463,10 +464,8 @@ bectl_cmd_list(int argc, char *argv[])
 	}
 
 	/* List boot environments in alphabetical order by default */
-	if (column == NULL) {
+	if (column == NULL)
 		column = strdup("name");
-		reverse = false;
-	}
 
 	prop_list_sort(props, column, reverse);
 
