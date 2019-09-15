@@ -71,6 +71,9 @@ ti_sysc_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, "TI SYSC Interconnect");
+	if (!bootverbose)
+		device_quiet(dev);
+
 	return (BUS_PROBE_DEFAULT);
 }
 
