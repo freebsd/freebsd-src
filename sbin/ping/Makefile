@@ -5,6 +5,7 @@
 
 PACKAGE=runtime
 PROG=	ping
+SRCS=	ping.c utils.c
 MAN=	ping.8
 BINOWN=	root
 BINMODE=4555
