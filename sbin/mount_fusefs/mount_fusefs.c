@@ -5,6 +5,11 @@
  * Copyright (c) 2005 Csaba Henk 
  * All rights reserved.
  *
+ * Copyright (c) 2019 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by BFF Storage Systems under
+ * sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -60,7 +65,6 @@ void	__usage_short(void);
 void	usage(void);
 void	helpmsg(void);
 void	showversion(void);
-int	init_backgrounded(void);
 
 static struct mntopt mopts[] = {
 	#define ALTF_PRIVATE 0x01
@@ -73,8 +77,6 @@ static struct mntopt mopts[] = {
 	{ "max_read=",           0, ALTF_MAXREAD, 1 },
 	#define ALTF_SUBTYPE 0x40
 	{ "subtype=",            0, ALTF_SUBTYPE, 1 },
-	#define ALTF_SYNC_UNMOUNT 0x80
-	{ "sync_unmount",        0, ALTF_SYNC_UNMOUNT, 1 },
 	/*
 	 * MOPT_AUTOMOUNTED, included by MOPT_STDOPTS, does not fit into
 	 * the 'flags' argument to nmount(2).  We have to abuse altflags
@@ -82,6 +84,8 @@ static struct mntopt mopts[] = {
 	 */
 	#define ALTF_AUTOMOUNTED 0x100
 	{ "automounted",	0, ALTF_AUTOMOUNTED, 1 },
+	#define ALTF_INTR 0x200
+	{ "intr",		0, ALTF_INTR, 1 },
 	/* Linux specific options, we silently ignore them */
 	{ "fsname=",             0, 0x00, 1 },
 	{ "fd=",                 0, 0x00, 1 },
@@ -91,6 +95,8 @@ static struct mntopt mopts[] = {
 	{ "large_read",          0, 0x00, 1 },
 	/* "nonempty", just the first two chars are stripped off during parsing */
 	{ "nempty",              0, 0x00, 1 },
+	{ "async",               0, MNT_ASYNC, 0},
+	{ "noasync",             1, MNT_ASYNC, 0},
 	MOPT_STDOPTS,
 	MOPT_END
 };
@@ -107,7 +113,7 @@ static struct mntval mvals[] = {
 	{ 0, NULL, 0 }
 };
 
-#define DEFAULT_MOUNT_FLAGS ALTF_PRIVATE | ALTF_SYNC_UNMOUNT
+#define DEFAULT_MOUNT_FLAGS ALTF_PRIVATE
 
 int
 main(int argc, char *argv[])
@@ -206,6 +212,8 @@ main(int argc, char *argv[])
 							q++;
 						mv->mv_len = q - p + 1;
 						mv->mv_value = malloc(mv->mv_len);
+						if (mv->mv_value == NULL)
+							err(1, "malloc");
 						memcpy(mv->mv_value, p, mv->mv_len - 1);
 						((char *)mv->mv_value)[mv->mv_len - 1] = '\0';
 						break;
@@ -409,12 +417,6 @@ main(int argc, char *argv[])
 		}
 	}
 
-	if (fd >= 0 && ! init_backgrounded() && close(fd) < 0) {
-		if (pid)
-			kill(pid, SIGKILL);
-		err(1, "failed to close fuse device");
-	}
-
 	/* Prepare the options vector for nmount(). build_iovec() is declared
 	 * in mntopts.h. */
 	sprintf(fdstr, "%d", fd);
@@ -471,6 +473,7 @@ helpmsg(void)
 	        "    -o allow_other         allow access to other users\n"
 	        /* "    -o nonempty            allow mounts over non-empty file/dir\n" */
 	        "    -o default_permissions enable permission checking by kernel\n"
+		"    -o intr                interruptible mount\n"
 		/*
 	        "    -o fsname=NAME         set filesystem name\n"
 	        "    -o large_read          issue large read requests (2.4 only)\n"
@@ -481,7 +484,6 @@ helpmsg(void)
 	        "    -o neglect_shares      don't report EBUSY when unmount attempted\n"
 	        "                           in presence of secondary mounts\n" 
 	        "    -o push_symlinks_in    prefix absolute symlinks with mountpoint\n"
-	        "    -o sync_unmount        do unmount synchronously\n"
 	        );
 	exit(EX_USAGE);
 }
@@ -491,18 +493,4 @@ showversion(void)
 {
 	puts("mount_fusefs [fuse4bsd] version: " FUSE4BSD_VERSION);
 	exit(EX_USAGE);
-}
-
-int
-init_backgrounded(void)
-{
-	int ibg;
-	size_t len;
-
-	len = sizeof(ibg);
-
-	if (sysctlbyname("vfs.fusefs.init_backgrounded", &ibg, &len, NULL, 0))
-		return (0);
-
-	return (ibg);
 }

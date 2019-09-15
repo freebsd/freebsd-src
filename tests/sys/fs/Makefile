@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.compiler.mk>
+
 PACKAGE=		tests
 
 TESTSDIR=		${TESTSBASE}/sys/fs
@@ -7,6 +9,9 @@ TESTSDIR=		${TESTSBASE}/sys/fs
 TESTSRC=		${SRCTOP}/contrib/netbsd-tests/fs
 
 #TESTS_SUBDIRS+=	nullfs	# XXX: needs rump
+.if ${COMPILER_FEATURES:Mc++14}
+TESTS_SUBDIRS+=		fusefs
+.endif
 TESTS_SUBDIRS+=		tmpfs
 
 ${PACKAGE}FILES+=	h_funcs.subr

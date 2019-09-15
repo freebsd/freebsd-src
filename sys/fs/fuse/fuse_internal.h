@@ -32,6 +32,11 @@
  * 
  * Copyright (C) 2005 Csaba Henk.
  * All rights reserved.
+ *
+ * Copyright (c) 2019 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by BFF Storage Systems, LLC under
+ * sponsorship from the FreeBSD Foundation.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -61,12 +66,17 @@
 #define _FUSE_INTERNAL_H_
 
 #include <sys/types.h>
+#include <sys/counter.h>
+#include <sys/limits.h>
 #include <sys/uio.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
 
 #include "fuse_ipc.h"
 #include "fuse_node.h"
+
+extern counter_u64_t fuse_lookup_cache_hits;
+extern counter_u64_t fuse_lookup_cache_misses;
 
 static inline bool
 vfs_isrdonly(struct mount *mp)
@@ -78,12 +88,6 @@ static inline struct mount *
 vnode_mount(struct vnode *vp)
 {
 	return (vp->v_mount);
-}
-
-static inline bool
-vnode_mountedhere(struct vnode *vp)
-{
-	return (vp->v_mountedhere != NULL);
 }
 
 static inline enum vtype
@@ -134,12 +138,6 @@ uio_setoffset(struct uio *uio, off_t offset)
 	uio->uio_offset = offset;
 }
 
-static inline void
-uio_setresid(struct uio *uio, ssize_t resid)
-{
-	uio->uio_resid = resid;
-}
-
 /* miscellaneous */
 
 static inline bool
@@ -156,25 +154,57 @@ fuse_iosize(struct vnode *vp)
 	return (vp->v_mount->mnt_stat.f_iosize);
 }
 
+/*
+ * Make a cacheable timeout in bintime format value based on a fuse_attr_out
+ * response
+ */
+static inline void
+fuse_validity_2_bintime(uint64_t attr_valid, uint32_t attr_valid_nsec,
+	struct bintime *timeout)
+{
+	struct timespec now, duration, timeout_ts;
+
+	getnanouptime(&now);
+	/* "+ 2" is the bound of attr_valid_nsec + now.tv_nsec */
+	/* Why oh why isn't there a TIME_MAX defined? */
+	if (attr_valid >= INT_MAX || attr_valid + now.tv_sec + 2 >= INT_MAX) {
+		timeout->sec = INT_MAX;
+	} else {
+		duration.tv_sec = attr_valid;
+		duration.tv_nsec = attr_valid_nsec;
+		timespecadd(&duration, &now, &timeout_ts);
+		timespec2bintime(&timeout_ts, timeout);
+	}
+}
+
+/*
+ * Make a cacheable timeout value in timespec format based on the fuse_entry_out
+ * response
+ */
+static inline void
+fuse_validity_2_timespec(const struct fuse_entry_out *feo,
+	struct timespec *timeout)
+{
+	struct timespec duration, now;
+
+	getnanouptime(&now);
+	/* "+ 2" is the bound of entry_valid_nsec + now.tv_nsec */
+	if (feo->entry_valid >= INT_MAX ||
+	    feo->entry_valid + now.tv_sec + 2 >= INT_MAX) {
+		timeout->tv_sec = INT_MAX;
+	} else {
+		duration.tv_sec = feo->entry_valid;
+		duration.tv_nsec = feo->entry_valid_nsec;
+		timespecadd(&duration, &now, timeout);
+	}
+}
+
+
+/* VFS ops */
+int
+fuse_internal_get_cached_vnode(struct mount*, ino_t, int, struct vnode**);
+
 /* access */
-
-#define FVP_ACCESS_NOOP		0x01
-
-#define FACCESS_VA_VALID	0x01
-#define FACCESS_DO_ACCESS	0x02
-#define FACCESS_STICKY		0x04
-#define FACCESS_CHOWN		0x08
-#define FACCESS_NOCHECKSPY	0x10
-#define FACCESS_SETGID		0x12
-
-#define FACCESS_XQUERIES	(FACCESS_STICKY | FACCESS_CHOWN | FACCESS_SETGID)
-
-struct fuse_access_param {
-	uid_t		xuid;
-	gid_t		xgid;
-	uint32_t	facc_flags;
-};
-
 static inline int
 fuse_match_cred(struct ucred *basecred, struct ucred *usercred)
 {
@@ -189,8 +219,8 @@ fuse_match_cred(struct ucred *basecred, struct ucred *usercred)
 	return (EPERM);
 }
 
-int fuse_internal_access(struct vnode *vp, mode_t mode,
-    struct fuse_access_param *facp, struct thread *td, struct ucred *cred);
+int fuse_internal_access(struct vnode *vp, accmode_t mode,
+    struct thread *td, struct ucred *cred);
 
 /* attributes */
 void fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
@@ -198,20 +228,34 @@ void fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
 
 /* fsync */
 
-int fuse_internal_fsync(struct vnode *vp, struct thread *td,
-    struct ucred *cred, struct fuse_filehandle *fufh);
+int fuse_internal_fsync(struct vnode *vp, struct thread *td, int waitfor,
+	bool datasync);
 int fuse_internal_fsync_callback(struct fuse_ticket *tick, struct uio *uio);
 
-/* readdir */
+/* getattr */
+int fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
+	struct ucred *cred, struct thread *td);
+int fuse_internal_getattr(struct vnode *vp, struct vattr *vap,
+	struct ucred *cred, struct thread *td);
 
+/* asynchronous invalidation */
+int fuse_internal_invalidate_entry(struct mount *mp, struct uio *uio);
+int fuse_internal_invalidate_inode(struct mount *mp, struct uio *uio);
+
+/* mknod */
+int fuse_internal_mknod(struct vnode *dvp, struct vnode **vpp,
+	struct componentname *cnp, struct vattr *vap);
+
+/* readdir */
 struct pseudo_dirent {
 	uint32_t d_namlen;
 };
-
-int fuse_internal_readdir(struct vnode *vp, struct uio *uio,
-    struct fuse_filehandle *fufh, struct fuse_iov *cookediov);
-int fuse_internal_readdir_processdata(struct uio *uio, size_t reqsize,
-    void *buf, size_t bufsize, void *param);
+int fuse_internal_readdir(struct vnode *vp, struct uio *uio, off_t startoff,
+    struct fuse_filehandle *fufh, struct fuse_iov *cookediov, int *ncookies,
+    u_long *cookies);
+int fuse_internal_readdir_processdata(struct uio *uio, off_t startoff,
+    int *fnd_start, size_t reqsize, void *buf, size_t bufsize,
+    struct fuse_iov *cookediov, int *ncookies, u_long **cookiesp);
 
 /* remove */
 
@@ -226,6 +270,10 @@ int fuse_internal_rename(struct vnode *fdvp, struct componentname *fcnp,
 /* revoke */
 
 void fuse_internal_vnode_disappear(struct vnode *vp);
+
+/* setattr */
+int fuse_internal_setattr(struct vnode *vp, struct vattr *va,
+	struct thread *td, struct ucred *cred);
 
 /* strategy */
 
@@ -270,5 +318,9 @@ void fuse_internal_forget_send(struct mount *mp, struct thread *td,
 
 int fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio);
 void fuse_internal_send_init(struct fuse_data *data, struct thread *td);
+
+/* module load/unload */
+void fuse_internal_init(void);
+void fuse_internal_destroy(void);
 
 #endif /* _FUSE_INTERNAL_H_ */

@@ -717,6 +717,8 @@
         file
         ..
         fs
+            fusefs
+            ..
             tmpfs
             ..
         ..
