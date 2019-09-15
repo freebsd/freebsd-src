@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 4, 2019
+.Dd September 11, 2019
 .Dt BECTL 8
 .Os
 .Sh NAME
@@ -29,6 +29,8 @@
 .Cm activate
 .Op Fl t
 .Ar beName
+.Nm
+.Cm check
 .Nm
 .Cm create
 .Op Fl r
@@ -103,6 +105,15 @@ as the default boot filesystem.
 If the
 .Op Fl t
 flag is given, this takes effect only for the next boot.
+.It Xo
+.Cm check
+.Xc
+Performs a silent sanity check on the current system.
+If boot environments are supported and used,
+.Nm
+will exit with a status code of 0.
+Any other status code is not currently defined and may, in the future, grow
+special meaning for different degrees of sanity check failures.
 .It Xo
 .Cm create
 .Op Fl r
