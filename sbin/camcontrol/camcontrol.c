@@ -1619,16 +1619,6 @@ atacapprint(struct ata_params *parm)
 	printf("flush cache                    %s	%s\n",
 		parm->support.command2 & ATA_SUPPORT_FLUSHCACHE ? "yes" : "no",
 		parm->enabled.command2 & ATA_SUPPORT_FLUSHCACHE ? "yes" : "no");
-	printf("overlap                        %s\n",
-		parm->capabilities1 & ATA_SUPPORT_OVERLAP ? "yes" : "no");
-	printf("Tagged Command Queuing (TCQ)   %s	%s",
-		parm->support.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
-		parm->enabled.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no");
-		if (parm->support.command2 & ATA_SUPPORT_QUEUED) {
-			printf("	%d tags\n",
-			    ATA_QUEUE_LEN(parm->queue) + 1);
-		} else
-			printf("\n");
 	printf("Native Command Queuing (NCQ)   ");
 	if (atasata(parm) && (parm->satacapabilities & ATA_SUPPORT_NCQ)) {
 		printf("yes		%d tags\n",
