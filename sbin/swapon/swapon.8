@@ -90,7 +90,17 @@ The
 .Fl E
 option causes each of following devices to receive a
 .Dv BIO_DELETE
-command to mark all blocks as unused.
+command.
+This command marks the device's blocks as unused, except those that
+might store a disk label.
+This marking can erase a crash dump.
+To delay
+.Nm swapon
+for a device until after
+.Nm savecore
+has copied the crash dump to another location, use the 
+.Dq late
+option.
 .Pp
 The
 .Nm swapoff

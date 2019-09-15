@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/disk.h>
+#include <sys/disklabel.h>
 #include <sys/mdioctl.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
@@ -761,8 +762,8 @@ swapon_trim(const char *name)
 	} else
 		errx(1, "%s has an invalid file type", name);
 	/* Trim the device. */
-	ioarg[0] = 0;
-	ioarg[1] = sz;
+	ioarg[0] = BBSIZE;
+	ioarg[1] = sz - BBSIZE;
 	if (ioctl(fd, DIOCGDELETE, ioarg) != 0)
 		warn("ioctl(DIOCGDELETE)");
 
