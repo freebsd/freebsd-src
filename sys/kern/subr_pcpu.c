@@ -131,15 +131,19 @@ SYSINIT(dpcpu, SI_SUB_KLD, SI_ORDER_FIRST, dpcpu_startup, NULL);
 
 /*
  * UMA_PCPU_ZONE zones, that are available for all kernel
- * consumers. Right now 64 bit zone is used for counter(9).
+ * consumers. Right now 64 bit zone is used for counter(9)
+ * and int zone is used for mount point counters.
  */
 
+uma_zone_t pcpu_zone_int;
 uma_zone_t pcpu_zone_64;
 
 static void
 pcpu_zones_startup(void)
 {
 
+	pcpu_zone_int = uma_zcreate("int pcpu", sizeof(int),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_PCPU);
 	pcpu_zone_64 = uma_zcreate("64 pcpu", sizeof(uint64_t),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_PCPU);
 }

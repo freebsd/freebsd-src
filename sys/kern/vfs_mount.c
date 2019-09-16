@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/conf.h>
+#include <sys/smp.h>
 #include <sys/eventhandler.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
@@ -123,6 +124,10 @@ mount_init(void *mem, int size, int flags)
 	mtx_init(&mp->mnt_mtx, "struct mount mtx", NULL, MTX_DEF);
 	mtx_init(&mp->mnt_listmtx, "struct mount vlist mtx", NULL, MTX_DEF);
 	lockinit(&mp->mnt_explock, PVFS, "explock", 0, 0);
+	mp->mnt_thread_in_ops_pcpu = uma_zalloc_pcpu(pcpu_zone_int,
+	    M_WAITOK | M_ZERO);
+	mp->mnt_ref = 0;
+	mp->mnt_vfs_ops = 1;
 	return (0);
 }
 
@@ -132,6 +137,7 @@ mount_fini(void *mem, int size)
 	struct mount *mp;
 
 	mp = (struct mount *)mem;
+	uma_zfree_pcpu(pcpu_zone_int, mp->mnt_thread_in_ops_pcpu);
 	lockdestroy(&mp->mnt_explock);
 	mtx_destroy(&mp->mnt_listmtx);
 	mtx_destroy(&mp->mnt_mtx);
@@ -445,6 +451,12 @@ vfs_ref(struct mount *mp)
 {
 
 	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
+	if (vfs_op_thread_enter(mp)) {
+		MNT_REF_UNLOCKED(mp);
+		vfs_op_thread_exit(mp);
+		return;
+	}
+
 	MNT_ILOCK(mp);
 	MNT_REF(mp);
 	MNT_IUNLOCK(mp);
@@ -455,6 +467,12 @@ vfs_rel(struct mount *mp)
 {
 
 	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
+	if (vfs_op_thread_enter(mp)) {
+		MNT_REL_UNLOCKED(mp);
+		vfs_op_thread_exit(mp);
+		return;
+	}
+
 	MNT_ILOCK(mp);
 	MNT_REL(mp);
 	MNT_IUNLOCK(mp);
@@ -478,7 +496,12 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp, const char *fspath,
 	mp->mnt_activevnodelistsize = 0;
 	TAILQ_INIT(&mp->mnt_tmpfreevnodelist);
 	mp->mnt_tmpfreevnodelistsize = 0;
-	mp->mnt_ref = 0;
+	if (mp->mnt_ref != 0 || mp->mnt_lockref != 0 ||
+	    mp->mnt_writeopcount != 0)
+		panic("%s: non-zero counters on new mp %p\n", __func__, mp);
+	if (mp->mnt_vfs_ops != 1)
+		panic("%s: vfs_ops should be 1 but %d found\n", __func__,
+		    mp->mnt_vfs_ops);
 	(void) vfs_busy(mp, MBF_NOWAIT);
 	atomic_add_acq_int(&vfsp->vfc_refcount, 1);
 	mp->mnt_op = vfsp->vfc_vfsops;
@@ -506,6 +529,9 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp, const char *fspath,
 void
 vfs_mount_destroy(struct mount *mp)
 {
+
+	if (mp->mnt_vfs_ops == 0)
+		panic("%s: entered with zero vfs_ops\n", __func__);
 
 	MNT_ILOCK(mp);
 	mp->mnt_kern_flag |= MNTK_REFEXPIRE;
@@ -540,6 +566,11 @@ vfs_mount_destroy(struct mount *mp)
 	if (mp->mnt_lockref != 0)
 		panic("vfs_mount_destroy: nonzero lock refcount");
 	MNT_IUNLOCK(mp);
+
+	if (mp->mnt_vfs_ops != 1)
+		panic("%s: vfs_ops should be 1 but %d found\n", __func__,
+		    mp->mnt_vfs_ops);
+
 	if (mp->mnt_vnodecovered != NULL)
 		vrele(mp->mnt_vnodecovered);
 #ifdef MAC
@@ -951,6 +982,7 @@ vfs_domount_first(
 	vrele(newdp);
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
 		vfs_allocate_syncvnode(mp);
+	vfs_op_exit(mp);
 	vfs_unbusy(mp);
 	return (0);
 }
@@ -1018,6 +1050,8 @@ vfs_domount_update(
 	vp->v_iflag |= VI_MOUNT;
 	VI_UNLOCK(vp);
 	VOP_UNLOCK(vp, 0);
+
+	vfs_op_enter(mp);
 
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0) {
@@ -1100,6 +1134,7 @@ vfs_domount_update(
 	else
 		vfs_deallocate_syncvnode(mp);
 end:
+	vfs_op_exit(mp);
 	vfs_unbusy(mp);
 	VI_LOCK(vp);
 	vp->v_iflag &= ~VI_MOUNT;
@@ -1328,12 +1363,76 @@ dounmount_cleanup(struct mount *mp, struct vnode *coveredvp, int mntkflags)
 		mp->mnt_kern_flag &= ~MNTK_MWAIT;
 		wakeup(mp);
 	}
+	vfs_op_exit_locked(mp);
 	MNT_IUNLOCK(mp);
 	if (coveredvp != NULL) {
 		VOP_UNLOCK(coveredvp, 0);
 		vdrop(coveredvp);
 	}
 	vn_finished_write(mp);
+}
+
+/*
+ * There are various reference counters associated with the mount point.
+ * Normally it is permitted to modify them without taking the mnt ilock,
+ * but this behavior can be temporarily disabled if stable value is needed
+ * or callers are expected to block (e.g. to not allow new users during
+ * forced unmount).
+ */
+void
+vfs_op_enter(struct mount *mp)
+{
+
+	MNT_ILOCK(mp);
+	mp->mnt_vfs_ops++;
+	if (mp->mnt_vfs_ops > 1) {
+		MNT_IUNLOCK(mp);
+		return;
+	}
+	/*
+	 * Paired with a fence in vfs_op_thread_enter(). See the comment
+	 * above it for details.
+	 */
+	atomic_thread_fence_seq_cst();
+	vfs_op_barrier_wait(mp);
+	MNT_IUNLOCK(mp);
+}
+
+void
+vfs_op_exit_locked(struct mount *mp)
+{
+
+	mtx_assert(MNT_MTX(mp), MA_OWNED);
+
+	if (mp->mnt_vfs_ops <= 0)
+		panic("%s: invalid vfs_ops count %d for mp %p\n",
+		    __func__, mp->mnt_vfs_ops, mp);
+	mp->mnt_vfs_ops--;
+}
+
+void
+vfs_op_exit(struct mount *mp)
+{
+
+	MNT_ILOCK(mp);
+	vfs_op_exit_locked(mp);
+	MNT_IUNLOCK(mp);
+}
+
+/*
+ * It is assumed the caller already posted at least an acquire barrier.
+ */
+void
+vfs_op_barrier_wait(struct mount *mp)
+{
+	int *in_op;
+	int cpu;
+
+	CPU_FOREACH(cpu) {
+		in_op = zpcpu_get_cpu(mp->mnt_thread_in_ops_pcpu, cpu);
+		while (atomic_load_int(in_op))
+			cpu_spinwait();
+	}
 }
 
 /*
@@ -1378,6 +1477,8 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 		vfs_rel(mp);
 		return (error);
 	}
+
+	vfs_op_enter(mp);
 
 	vn_start_write(NULL, &mp, V_WAIT | V_MNTREF);
 	MNT_ILOCK(mp);
@@ -1469,6 +1570,7 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 			mp->mnt_kern_flag &= ~MNTK_MWAIT;
 			wakeup(mp);
 		}
+		vfs_op_exit_locked(mp);
 		MNT_IUNLOCK(mp);
 		if (coveredvp)
 			VOP_UNLOCK(coveredvp, 0);

@@ -650,6 +650,7 @@ int uma_zone_exhausted_nolock(uma_zone_t zone);
 /*
  * Common UMA_ZONE_PCPU zones.
  */
+extern uma_zone_t pcpu_zone_int;
 extern uma_zone_t pcpu_zone_64;
 
 /*
