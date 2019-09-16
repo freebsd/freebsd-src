@@ -526,7 +526,7 @@ gotit:
 		tv.tv_usec = 0;
 		ysd->dom_socket = RPC_ANYSOCK;
 		ysd->dom_client = clntudp_bufcreate(&ysd->dom_server_addr,
-			YPPROG, YPVERS, tv, &ysd->dom_socket, 1280, 2304);
+		    YPPROG, YPVERS, tv, &ysd->dom_socket, 65507, 65507);
 		if (ysd->dom_client == NULL) {
 			clnt_pcreateerror("clntudp_create");
 			ysd->dom_vers = -1;
