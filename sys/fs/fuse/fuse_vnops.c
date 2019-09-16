@@ -1525,11 +1525,10 @@ fuse_vnop_reclaim(struct vop_reclaim_args *ap)
 		fuse_filehandle_close(vp, fufh, td, NULL);
 	}
 
-	if ((!fuse_isdeadfs(vp)) && (fvdat->nlookup)) {
+	if (!fuse_isdeadfs(vp) && fvdat->nlookup > 0) {
 		fuse_internal_forget_send(vnode_mount(vp), td, NULL, VTOI(vp),
 		    fvdat->nlookup);
 	}
-	fuse_vnode_setparent(vp, NULL);
 	cache_purge(vp);
 	vfs_hash_remove(vp);
 	fuse_vnode_destroy(vp);
