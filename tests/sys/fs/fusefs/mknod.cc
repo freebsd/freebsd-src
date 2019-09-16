@@ -55,8 +55,11 @@ const static mode_t c_umask = 022;
 
 public:
 
-virtual void SetUp() {
+Mknod() {
 	m_oldmask = umask(c_umask);
+}
+
+virtual void SetUp() {
 	if (geteuid() != 0) {
 		GTEST_SKIP() << "Only root may use most mknod(2) variations";
 	}
