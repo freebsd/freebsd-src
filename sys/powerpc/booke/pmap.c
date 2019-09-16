@@ -2694,7 +2694,7 @@ mmu_booke_remove_write(mmu_t mmu, vm_page_t m)
 	 * if PGA_WRITEABLE is clear, no page table entries need updating.
 	 */
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if (!vm_page_xbusied(m) && (vm_page_aflags(m) & PGA_WRITEABLE) == 0)
+	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	rw_wlock(&pvh_global_lock);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_link) {
@@ -3040,7 +3040,7 @@ mmu_booke_is_modified(mmu_t mmu, vm_page_t m)
 	 * is clear, no PTEs can be modified.
 	 */
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if (!vm_page_xbusied(m) && (vm_page_aflags(m) & PGA_WRITEABLE) == 0)
+	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
 		return (rv);
 	rw_wlock(&pvh_global_lock);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_link) {
@@ -3119,7 +3119,7 @@ mmu_booke_clear_modify(mmu_t mmu, vm_page_t m)
 	 * If the object containing the page is locked and the page is not
 	 * exclusive busied, then PG_AWRITEABLE cannot be concurrently set.
 	 */
-	if ((vm_page_aflags(m) & PGA_WRITEABLE) == 0)
+	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	rw_wlock(&pvh_global_lock);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_link) {

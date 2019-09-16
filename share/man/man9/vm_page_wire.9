@@ -51,7 +51,7 @@ The
 .Fn vm_page_wire
 and
 .Fn vm_page_wire_mapped
-functions wire the page, which prevents it from being reclaimed by the page
+function wire the page, prevent it from being reclaimed by the page
 daemon or when its containing object is destroyed.
 Both functions require that the page belong to an object.
 The

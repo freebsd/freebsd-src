@@ -1718,10 +1718,12 @@ dmu_read_pages(objset_t *os, uint64_t object, vm_page_t *ma, int count,
 		bcopy((char *)db->db_data + bufoff, va, PAGESIZE);
 		zfs_unmap_page(sf);
 		m->valid = VM_PAGE_BITS_ALL;
+		vm_page_lock(m);
 		if ((m->busy_lock & VPB_BIT_WAITERS) != 0)
 			vm_page_activate(m);
 		else
 			vm_page_deactivate(m);
+		vm_page_unlock(m);
 	}
 	*rbehind = i;
 
@@ -1836,10 +1838,12 @@ dmu_read_pages(objset_t *os, uint64_t object, vm_page_t *ma, int count,
 		}
 		zfs_unmap_page(sf);
 		m->valid = VM_PAGE_BITS_ALL;
+		vm_page_lock(m);
 		if ((m->busy_lock & VPB_BIT_WAITERS) != 0)
 			vm_page_activate(m);
 		else
 			vm_page_deactivate(m);
+		vm_page_unlock(m);
 	}
 	*rahead = i;
 	zfs_vmobject_wunlock(vmobj);
