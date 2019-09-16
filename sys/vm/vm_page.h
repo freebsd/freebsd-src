@@ -902,13 +902,17 @@ vm_page_in_laundry(vm_page_t m)
 static inline u_int
 vm_page_drop(vm_page_t m, u_int val)
 {
+	u_int old;
 
 	/*
 	 * Synchronize with vm_page_free_prep(): ensure that all updates to the
 	 * page structure are visible before it is freed.
 	 */
 	atomic_thread_fence_rel();
-	return (atomic_fetchadd_int(&m->ref_count, -val));
+	old = atomic_fetchadd_int(&m->ref_count, -val);
+	KASSERT(old != VPRC_BLOCKED,
+	    ("vm_page_drop: page %p has an invalid refcount value", m));
+	return (old);
 }
 
 /*
