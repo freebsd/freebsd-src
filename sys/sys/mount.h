@@ -228,6 +228,9 @@ struct mount {
 	TAILQ_HEAD(, mount) mnt_uppers;		/* (m) upper mounts over us*/
 	int		mnt_vfs_ops;		/* (i) pending vfs ops */
 	int		*mnt_thread_in_ops_pcpu;
+	int		*mnt_ref_pcpu;
+	int		*mnt_lockref_pcpu;
+	int		*mnt_writeopcount_pcpu;
 };
 
 /*
@@ -268,25 +271,16 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 #define	MNT_IUNLOCK(mp)	mtx_unlock(&(mp)->mnt_mtx)
 #define	MNT_MTX(mp)	(&(mp)->mnt_mtx)
 
-#define	MNT_REF_UNLOCKED(mp)	do {					\
-	atomic_add_int(&(mp)->mnt_ref, 1);				\
-} while (0)
-#define	MNT_REL_UNLOCKED(mp)	do {					\
-	int _c;								\
-	_c = atomic_fetchadd_int(&(mp)->mnt_ref, -1) - 1;		\
-	KASSERT(_c >= 0, ("negative mnt_ref %d", _c));			\
-} while (0)
-
 #define	MNT_REF(mp)	do {						\
 	mtx_assert(MNT_MTX(mp), MA_OWNED);				\
-	atomic_add_int(&(mp)->mnt_ref, 1);				\
+	mp->mnt_ref++;							\
 } while (0)
 #define	MNT_REL(mp)	do {						\
-	int _c;								\
 	mtx_assert(MNT_MTX(mp), MA_OWNED);				\
-	_c = atomic_fetchadd_int(&(mp)->mnt_ref, -1) - 1;		\
-	KASSERT(_c >= 0, ("negative mnt_ref %d", _c));			\
-	if (_c == 0)							\
+	(mp)->mnt_ref--;						\
+	if ((mp)->mnt_vfs_ops && (mp)->mnt_ref < 0)		\
+		vfs_dump_mount_counters(mp);				\
+	if ((mp)->mnt_ref == 0 && (mp)->mnt_vfs_ops)		\
 		wakeup((mp));						\
 } while (0)
 
@@ -959,6 +953,17 @@ void	vfs_op_enter(struct mount *);
 void	vfs_op_exit_locked(struct mount *);
 void	vfs_op_exit(struct mount *);
 
+#ifdef DIAGNOSTIC
+void	vfs_assert_mount_counters(struct mount *);
+void	vfs_dump_mount_counters(struct mount *);
+#else
+#define vfs_assert_mount_counters(mp) do { } while (0)
+#define vfs_dump_mount_counters(mp) do { } while (0)
+#endif
+
+enum mount_counter { MNT_COUNT_REF, MNT_COUNT_LOCKREF, MNT_COUNT_WRITEOPCOUNT };
+int	vfs_mount_fetch_counter(struct mount *, enum mount_counter);
+
 /*
  * We mark ourselves as entering the section and post a sequentially consistent
  * fence, meaning the store is completed before we get into the section and
@@ -976,24 +981,39 @@ void	vfs_op_exit(struct mount *);
  * before making any changes or only make changes safe while the section is
  * executed.
  */
+#define vfs_op_thread_entered(mp) ({				\
+	MPASS(curthread->td_critnest > 0);			\
+	*(int *)zpcpu_get(mp->mnt_thread_in_ops_pcpu) == 1;	\
+})
 
 #define vfs_op_thread_enter(mp) ({				\
-	struct mount *_mp = (mp);				\
 	bool _retval = true;					\
 	critical_enter();					\
-	*(int *)zpcpu_get(_mp->mnt_thread_in_ops_pcpu) = 1;	\
+	MPASS(!vfs_op_thread_entered(mp));			\
+	*(int *)zpcpu_get(mp->mnt_thread_in_ops_pcpu) = 1;	\
 	atomic_thread_fence_seq_cst();				\
-	if (__predict_false(_mp->mnt_vfs_ops > 0)) {		\
-		vfs_op_thread_exit(_mp);			\
+	if (__predict_false(mp->mnt_vfs_ops > 0)) {		\
+		vfs_op_thread_exit(mp);				\
 		_retval = false;				\
 	}							\
 	_retval;						\
 })
 
 #define vfs_op_thread_exit(mp) do {				\
+	MPASS(vfs_op_thread_entered(mp));			\
 	atomic_thread_fence_rel();				\
 	*(int *)zpcpu_get(mp->mnt_thread_in_ops_pcpu) = 0;	\
 	critical_exit();					\
+} while (0)
+
+#define vfs_mp_count_add_pcpu(mp, count, val) do {		\
+	MPASS(vfs_op_thread_entered(mp));			\
+	(*(int *)zpcpu_get(mp->mnt_##count##_pcpu)) += val;	\
+} while (0)
+
+#define vfs_mp_count_sub_pcpu(mp, count, val) do {		\
+	MPASS(vfs_op_thread_entered(mp));			\
+	(*(int *)zpcpu_get(mp->mnt_##count##_pcpu)) -= val;	\
 } while (0)
 
 #else /* !_KERNEL */

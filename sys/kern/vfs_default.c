@@ -607,7 +607,7 @@ vop_stdgetwritemount(ap)
 	}
 	if (vfs_op_thread_enter(mp)) {
 		if (mp == vp->v_mount)
-			MNT_REF_UNLOCKED(mp);
+			vfs_mp_count_add_pcpu(mp, ref, 1);
 		else
 			mp = NULL;
 		vfs_op_thread_exit(mp);
