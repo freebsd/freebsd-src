@@ -434,7 +434,10 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
     arc.dev = dev;
     arc.ignore_producer_flag = false;
 
-    /* UARTs on ThunderX2 set ResourceProducer on memory resources. */
+    /*
+     * UARTs on ThunderX2 set ResourceProducer on memory resources, with
+     * 7.2 firmware.
+     */
     if (acpi_MatchHid(handle, "ARMH0011"))
 	    arc.ignore_producer_flag = true;
 
