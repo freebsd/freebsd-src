@@ -243,6 +243,18 @@ zpcpu_get_cpu(void *base, int cpu)
 }
 
 /*
+ * This operation is NOT atomic and does not post any barriers.
+ * If you use this the assumption is that the target CPU will not
+ * be modifying this variable.
+ * If you need atomicity use xchg.
+ * */
+#define zpcpu_replace_cpu(base, val, cpu) ({				\
+	__typeof(val) _old = *(__typeof(val) *)zpcpu_get_cpu(base, cpu);\
+	*(__typeof(val) *)zpcpu_get_cpu(base, cpu) = val;		\
+	_old;								\
+})
+
+/*
  * Machine dependent callouts.  cpu_pcpu_init() is responsible for
  * initializing machine dependent fields of struct pcpu, and
  * db_show_mdpcpu() is responsible for handling machine dependent

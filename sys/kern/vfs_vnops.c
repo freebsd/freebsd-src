@@ -1628,7 +1628,7 @@ vn_start_write_refed(struct mount *mp, int flags, bool mplocked)
 	if (__predict_true(!mplocked) && (flags & V_XSLEEP) == 0 &&
 	    vfs_op_thread_enter(mp)) {
 		MPASS((mp->mnt_kern_flag & MNTK_SUSPEND) == 0);
-		atomic_add_int(&mp->mnt_writeopcount, 1);
+		vfs_mp_count_add_pcpu(mp, writeopcount, 1);
 		vfs_op_thread_exit(mp);
 		return (0);
 	}
@@ -1660,7 +1660,7 @@ vn_start_write_refed(struct mount *mp, int flags, bool mplocked)
 	}
 	if (flags & V_XSLEEP)
 		goto unlock;
-	atomic_add_int(&mp->mnt_writeopcount, 1);
+	mp->mnt_writeopcount++;
 unlock:
 	if (error != 0 || (flags & V_XSLEEP) != 0)
 		MNT_REL(mp);
@@ -1797,19 +1797,23 @@ vn_finished_write(struct mount *mp)
 		return;
 
 	if (vfs_op_thread_enter(mp)) {
-		c = atomic_fetchadd_int(&mp->mnt_writeopcount, -1) - 1;
-		if (c < 0)
-			panic("vn_finished_write: invalid writeopcount %d", c);
-		MNT_REL_UNLOCKED(mp);
+		vfs_mp_count_sub_pcpu(mp, writeopcount, 1);
+		vfs_mp_count_sub_pcpu(mp, ref, 1);
 		vfs_op_thread_exit(mp);
 		return;
 	}
 
 	MNT_ILOCK(mp);
+	vfs_assert_mount_counters(mp);
 	MNT_REL(mp);
-	c = atomic_fetchadd_int(&mp->mnt_writeopcount, -1) - 1;
+	c = --mp->mnt_writeopcount;
+	if (mp->mnt_vfs_ops == 0) {
+		MPASS((mp->mnt_kern_flag & MNTK_SUSPEND) == 0);
+		MNT_IUNLOCK(mp);
+		return;
+	}
 	if (c < 0)
-		panic("vn_finished_write: invalid writeopcount %d", c);
+		vfs_dump_mount_counters(mp);
 	if ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0 && c == 0)
 		wakeup(&mp->mnt_writeopcount);
 	MNT_IUNLOCK(mp);
@@ -1852,6 +1856,7 @@ vfs_write_suspend(struct mount *mp, int flags)
 	vfs_op_enter(mp);
 
 	MNT_ILOCK(mp);
+	vfs_assert_mount_counters(mp);
 	if (mp->mnt_susp_owner == curthread) {
 		vfs_op_exit_locked(mp);
 		MNT_IUNLOCK(mp);
@@ -1909,7 +1914,7 @@ vfs_write_resume(struct mount *mp, int flags)
 		curthread->td_pflags &= ~TDP_IGNSUSP;
 		if ((flags & VR_START_WRITE) != 0) {
 			MNT_REF(mp);
-			atomic_add_int(&mp->mnt_writeopcount, 1);
+			mp->mnt_writeopcount++;
 		}
 		MNT_IUNLOCK(mp);
 		if ((flags & VR_NO_SUSPCLR) == 0)
