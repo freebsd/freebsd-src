@@ -235,7 +235,7 @@ tcp_update_dsack_list(struct tcpcb *tp, tcp_seq rcv_start, tcp_seq rcv_end)
 		saved_blks[n].start = mid_blk.start;
 		saved_blks[n++].end = mid_blk.end;
 	}
-	for (j = 0; (j < tp->rcv_numsacks) && (j < MAX_SACK_BLKS-1); j++) {
+	for (j = 0; (j < tp->rcv_numsacks) && (n < MAX_SACK_BLKS); j++) {
 		if (((SEQ_LT(tp->sackblks[j].end, mid_blk.start) ||
 		      SEQ_GT(tp->sackblks[j].start, mid_blk.end)) &&
 		    (SEQ_GT(tp->sackblks[j].start, tp->rcv_nxt))))
