@@ -4032,6 +4032,7 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	    mp->mnt_secondary_accwrites);
 	db_printf("    mnt_gjprovider = %s\n",
 	    mp->mnt_gjprovider != NULL ? mp->mnt_gjprovider : "NULL");
+	db_printf("    mnt_vfs_ops = %d\n", mp->mnt_vfs_ops);
 
 	db_printf("\n\nList of active vnodes\n");
 	TAILQ_FOREACH(vp, &mp->mnt_activevnodelist, v_actfreelist) {

@@ -226,6 +226,8 @@ struct mount {
 	struct lock	mnt_explock;		/* vfs_export walkers lock */
 	TAILQ_ENTRY(mount) mnt_upper_link;	/* (m) we in the all uppers */
 	TAILQ_HEAD(, mount) mnt_uppers;		/* (m) upper mounts over us*/
+	int		mnt_vfs_ops;		/* (i) pending vfs ops */
+	int		*mnt_thread_in_ops_pcpu;
 };
 
 /*
@@ -265,15 +267,26 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 #define	MNT_ITRYLOCK(mp) mtx_trylock(&(mp)->mnt_mtx)
 #define	MNT_IUNLOCK(mp)	mtx_unlock(&(mp)->mnt_mtx)
 #define	MNT_MTX(mp)	(&(mp)->mnt_mtx)
+
+#define	MNT_REF_UNLOCKED(mp)	do {					\
+	atomic_add_int(&(mp)->mnt_ref, 1);				\
+} while (0)
+#define	MNT_REL_UNLOCKED(mp)	do {					\
+	int _c;								\
+	_c = atomic_fetchadd_int(&(mp)->mnt_ref, -1) - 1;		\
+	KASSERT(_c >= 0, ("negative mnt_ref %d", _c));			\
+} while (0)
+
 #define	MNT_REF(mp)	do {						\
 	mtx_assert(MNT_MTX(mp), MA_OWNED);				\
-	(mp)->mnt_ref++;						\
+	atomic_add_int(&(mp)->mnt_ref, 1);				\
 } while (0)
 #define	MNT_REL(mp)	do {						\
+	int _c;								\
 	mtx_assert(MNT_MTX(mp), MA_OWNED);				\
-	KASSERT((mp)->mnt_ref > 0, ("negative mnt_ref"));		\
-	(mp)->mnt_ref--;						\
-	if ((mp)->mnt_ref == 0)						\
+	_c = atomic_fetchadd_int(&(mp)->mnt_ref, -1) - 1;		\
+	KASSERT(_c >= 0, ("negative mnt_ref %d", _c));			\
+	if (_c == 0)							\
 		wakeup((mp));						\
 } while (0)
 
@@ -940,6 +953,48 @@ vfs_sysctl_t		vfs_stdsysctl;
 
 void	syncer_suspend(void);
 void	syncer_resume(void);
+
+void	vfs_op_barrier_wait(struct mount *);
+void	vfs_op_enter(struct mount *);
+void	vfs_op_exit_locked(struct mount *);
+void	vfs_op_exit(struct mount *);
+
+/*
+ * We mark ourselves as entering the section and post a sequentially consistent
+ * fence, meaning the store is completed before we get into the section and
+ * mnt_vfs_ops is only read afterwards.
+ *
+ * Any thread transitioning the ops counter 0->1 does things in the opposite
+ * order - first bumps the count, posts a sequentially consistent fence and
+ * observes all CPUs not executing within the section.
+ *
+ * This provides an invariant that by the time the last CPU is observed not
+ * executing, everyone else entering will see the counter > 0 and exit.
+ *
+ * Note there is no barrier between vfs_ops and the rest of the code in the
+ * section. It is not necessary as the writer has to wait for everyone to drain
+ * before making any changes or only make changes safe while the section is
+ * executed.
+ */
+
+#define vfs_op_thread_enter(mp) ({				\
+	struct mount *_mp = (mp);				\
+	bool _retval = true;					\
+	critical_enter();					\
+	*(int *)zpcpu_get(_mp->mnt_thread_in_ops_pcpu) = 1;	\
+	atomic_thread_fence_seq_cst();				\
+	if (__predict_false(_mp->mnt_vfs_ops > 0)) {		\
+		vfs_op_thread_exit(_mp);			\
+		_retval = false;				\
+	}							\
+	_retval;						\
+})
+
+#define vfs_op_thread_exit(mp) do {				\
+	atomic_thread_fence_rel();				\
+	*(int *)zpcpu_get(mp->mnt_thread_in_ops_pcpu) = 0;	\
+	critical_exit();					\
+} while (0)
 
 #else /* !_KERNEL */
 
