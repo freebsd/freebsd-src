@@ -633,7 +633,7 @@ sctlr_set:
 sctlr_clear:
 	/* Bits to clear */
 	.quad (SCTLR_EE | SCTLR_EOE | SCTLR_IESB | SCTLR_WXN | SCTLR_UMA | \
-	    SCTLR_ITD | SCTLR_THEE | SCTLR_A)
+	    SCTLR_ITD | SCTLR_A)
 
 	.globl abort
 abort:
