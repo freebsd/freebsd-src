@@ -28,10 +28,6 @@ CRTS_CFLAGS=	-DCRTSTUFFS_O -DSHARED ${PICFLAG}
 CFLAGS+=	-DTARGET_ARM_EABI
 .endif
 
-.if ${MACHINE_CPUARCH} == "powerpc"
-TGTOBJS=	crtsavres.o
-SRCS+=		crtsavres.asm
-.endif
 .if ${MACHINE_CPUARCH} == "sparc64"
 TGTOBJS=	crtfastmath.o
 SRCS+=		crtfastmath.c
