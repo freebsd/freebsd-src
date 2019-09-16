@@ -18,7 +18,6 @@ desc = <<EOD
 EOD
 scripts: {
 	post-install = <<EOD
-	cap_mkdb %CAP_MKDB_ENDIAN% ${PKG_ROOTDIR}/etc/login.conf
 	pwd_mkdb -i -p -d  ${PKG_ROOTDIR}/etc ${PKG_ROOTDIR}/etc/master.passwd
 	services_mkdb %CAP_MKDB_ENDIAN% -q -o ${PKG_ROOTDIR}/var/db/services.db ${PKG_ROOTDIR}/etc/services
 	chmod 1777 ${PKG_ROOTDIR}/tmp
