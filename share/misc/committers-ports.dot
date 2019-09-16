@@ -96,6 +96,7 @@ decke [label="Bernhard Froehlich\ndecke@FreeBSD.org\n2010/03/21"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2006/05/01"]
 demon [label="Dmitry Sivachenko\ndemon@FreeBSD.org\n2000/11/13"]
 dhn [label="Dennis Herrmann\ndhn@FreeBSD.org\n2009/03/03"]
+dmgk [label="Dmitri Goutnik\dmgk@FreeBSD.org\n2019/09/15"]
 dryice [label="Dryice Dong Liu\ndryice@FreeBSD.org\n2006/12/25"]
 dteske [label="Devin Teske\ndteske@FreeBSD.org\n2018/03/01"]
 dumbbell [label="Jean-Sebastien Pedron\ndumbbell@FreeBSD.org\n2017/01/10"]
@@ -304,6 +305,7 @@ amdmi3 -> arrowd
 
 antoine -> dumbbell
 
+araujo -> dmgk
 araujo -> egypcio
 araujo -> jhixson
 araujo -> lippe
@@ -736,6 +738,7 @@ timur -> kbowling
 tmclaugh -> itetcu
 tmclaugh -> xride
 
+tz -> dmgk
 tz -> joneum
 tz -> fernape
 tz -> mfechner
