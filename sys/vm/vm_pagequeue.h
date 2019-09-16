@@ -202,6 +202,8 @@ static inline void
 vm_pagequeue_remove(struct vm_pagequeue *pq, vm_page_t m)
 {
 
+	vm_pagequeue_assert_locked(pq);
+
 	TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
 	vm_pagequeue_cnt_dec(pq);
 }
@@ -247,6 +249,22 @@ vm_pagequeue_domain(vm_page_t m)
 {
 
 	return (VM_DOMAIN(vm_phys_domain(m)));
+}
+
+static inline struct vm_pagequeue *
+_vm_page_pagequeue(vm_page_t m, uint8_t queue)
+{
+
+	if (queue == PQ_NONE)
+		return (NULL);
+	return (&vm_pagequeue_domain(m)->vmd_pagequeues[queue]);
+}
+
+static inline struct vm_pagequeue *
+vm_page_pagequeue(vm_page_t m)
+{
+
+	return (_vm_page_pagequeue(m, atomic_load_8(&m->astate.queue)));
 }
 
 /*

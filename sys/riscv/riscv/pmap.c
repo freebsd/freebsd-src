@@ -2825,7 +2825,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			    ("pmap_enter: no PV entry for %#lx", va));
 			if ((new_l3 & PTE_SW_MANAGED) == 0)
 				free_pv_entry(pmap, pv);
-			if ((om->aflags & PGA_WRITEABLE) != 0 &&
+			if ((vm_page_aflags(om) & PGA_WRITEABLE) == 0 &&
 			    TAILQ_EMPTY(&om->md.pv_list))
 				vm_page_aflag_clear(om, PGA_WRITEABLE);
 		}
@@ -3556,7 +3556,7 @@ pmap_remove_pages_pv(pmap_t pmap, vm_page_t m, pv_entry_t pv,
 		if (TAILQ_EMPTY(&pvh->pv_list)) {
 			for (mt = m; mt < &m[Ln_ENTRIES]; mt++)
 				if (TAILQ_EMPTY(&mt->md.pv_list) &&
-				    (mt->aflags & PGA_WRITEABLE) != 0)
+				    (vm_page_aflags(mt) & PGA_WRITEABLE) != 0)
 					vm_page_aflag_clear(mt, PGA_WRITEABLE);
 		}
 		mpte = pmap_remove_pt_page(pmap, pv->pv_va);
@@ -3574,7 +3574,7 @@ pmap_remove_pages_pv(pmap_t pmap, vm_page_t m, pv_entry_t pv,
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 		m->md.pv_gen++;
 		if (TAILQ_EMPTY(&m->md.pv_list) &&
-		    (m->aflags & PGA_WRITEABLE) != 0) {
+		    (vm_page_aflags(m) & PGA_WRITEABLE) != 0) {
 			pvh = pa_to_pvh(m->phys_addr);
 			if (TAILQ_EMPTY(&pvh->pv_list))
 				vm_page_aflag_clear(m, PGA_WRITEABLE);
@@ -3789,7 +3789,7 @@ pmap_is_modified(vm_page_t m)
 	 * is clear, no PTEs can have PG_M set.
 	 */
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
+	if (!vm_page_xbusied(m) && (vm_page_aflags(m) & PGA_WRITEABLE) == 0)
 		return (FALSE);
 	return (pmap_page_test_mappings(m, FALSE, TRUE));
 }
@@ -3855,7 +3855,7 @@ pmap_remove_write(vm_page_t m)
 	 * if PGA_WRITEABLE is clear, no page table entries need updating.
 	 */
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
+	if (!vm_page_xbusied(m) && (vm_page_aflags(m) & PGA_WRITEABLE) == 0)
 		return;
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy :
@@ -4115,7 +4115,7 @@ pmap_clear_modify(vm_page_t m)
 	 * If the object containing the page is locked and the page is not
 	 * exclusive busied, then PGA_WRITEABLE cannot be concurrently set.
 	 */
-	if ((m->aflags & PGA_WRITEABLE) == 0)
+	if ((vm_page_aflags(m) & PGA_WRITEABLE) == 0)
 		return;
 	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy :
 	    pa_to_pvh(VM_PAGE_TO_PHYS(m));

@@ -4104,7 +4104,7 @@ pmap_clear_modify(vm_page_t m)
 	 * If the object containing the page is locked and the page is not
 	 * exclusive busied, then PGA_WRITEABLE cannot be concurrently set.
 	 */
-	if ((m->aflags & PGA_WRITEABLE) == 0)
+	if ((vm_page_aflags(m) & PGA_WRITEABLE) == 0)
 		return;
 	if (m->md.pvh_attrs & PVF_MOD)
 		pmap_clearbit(m, PVF_MOD);
@@ -4143,7 +4143,7 @@ pmap_remove_write(vm_page_t m)
 	 * if PGA_WRITEABLE is clear, no page table entries need updating.
 	 */
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if (vm_page_xbusied(m) || (m->aflags & PGA_WRITEABLE) != 0)
+	if (vm_page_xbusied(m) || (vm_page_aflags(m) & PGA_WRITEABLE) != 0)
 		pmap_clearbit(m, PVF_WRITE);
 }
 
