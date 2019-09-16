@@ -65,7 +65,12 @@
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/sbuf.h
-.Ft typedef\ int ( sbuf_drain_func ) ( void\ *arg, const\ char\ *data, int\ len ) ;
+.Ft typedef int
+.Fo (sbuf_drain_func)
+.Fa "void *arg"
+.Fa "const char *data"
+.Fa "int len"
+.Fc
 .Pp
 .Ft struct sbuf *
 .Fo sbuf_new
