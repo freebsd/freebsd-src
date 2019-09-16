@@ -60,7 +60,9 @@ struct class {
 };
 
 struct dev_pm_ops {
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 50000
 	int (*prepare)(struct device *dev);
+#endif
 	int (*suspend)(struct device *dev);
 	int (*suspend_late)(struct device *dev);
 	int (*resume)(struct device *dev);
