@@ -1000,6 +1000,8 @@
         ..
         limits
         ..
+        locale
+        ..
         m4
         ..
         mkimg
