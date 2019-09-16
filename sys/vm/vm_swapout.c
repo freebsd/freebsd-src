@@ -108,8 +108,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_pageout.h>
-#include <vm/vm_pager.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_pagequeue.h>
+#include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
@@ -170,6 +171,56 @@ static void swapout_procs(int action);
 static void vm_req_vmdaemon(int req);
 static void vm_thread_swapout(struct thread *td);
 
+static void
+vm_swapout_object_deactivate_page(vm_page_t m, int remove_mode)
+{
+	vm_page_astate_t old, new;
+	int act_delta, refs;
+
+	refs = pmap_ts_referenced(m);
+
+	for (old = vm_page_astate_load(m);;) {
+		if ((old.flags & PGA_DEQUEUE) != 0)
+			break;
+
+		act_delta = refs;
+		if ((old.flags & PGA_REFERENCED) != 0) {
+			new.flags &= ~PGA_REFERENCED;
+			act_delta++;
+		}
+
+		if (old.queue != PQ_ACTIVE && act_delta != 0) {
+			if (new.act_count == ACT_MAX)
+				break;
+			new.act_count += act_delta;
+			new.flags |= PGA_REQUEUE;
+			new.queue = PQ_ACTIVE;
+			if (vm_page_pqstate_commit(m, &old, new))
+				break;
+		} else if (old.queue == PQ_ACTIVE) {
+			if (act_delta == 0) {
+				new.act_count -= min(new.act_count,
+				    ACT_DECLINE);
+				if (!remove_mode && new.act_count == 0) {
+					(void)vm_page_try_remove_all(m);
+
+					new.flags |= PGA_REQUEUE;
+					new.queue = PQ_INACTIVE;
+				}
+				if (vm_page_pqstate_commit(m, &old, new))
+					break;
+			} else {
+				if (new.act_count < ACT_MAX - ACT_ADVANCE)
+					new.act_count += ACT_ADVANCE;
+				if (vm_page_astate_fcmpset(m, &old, new))
+					break;
+			}
+		} else {
+			(void)vm_page_try_remove_all(m);
+		}
+	}
+}
+
 /*
  *	vm_swapout_object_deactivate_pages
  *
@@ -184,7 +235,7 @@ vm_swapout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 {
 	vm_object_t backing_object, object;
 	vm_page_t p;
-	int act_delta, remove_mode;
+	int remove_mode;
 
 	VM_OBJECT_ASSERT_LOCKED(first_object);
 	if ((first_object->flags & OBJ_FICTITIOUS) != 0)
@@ -220,37 +271,8 @@ vm_swapout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 			VM_CNT_INC(v_pdpages);
 			if (!pmap_page_exists_quick(pmap, p))
 				continue;
-			act_delta = pmap_ts_referenced(p);
-			vm_page_lock(p);
-			if ((p->aflags & PGA_REFERENCED) != 0) {
-				if (act_delta == 0)
-					act_delta = 1;
-				vm_page_aflag_clear(p, PGA_REFERENCED);
-			}
-			if (!vm_page_active(p) && act_delta != 0) {
-				vm_page_activate(p);
-				p->act_count += act_delta;
-			} else if (vm_page_active(p)) {
-				/*
-				 * The page daemon does not requeue pages
-				 * after modifying their activation count.
-				 */
-				if (act_delta == 0) {
-					p->act_count -= min(p->act_count,
-					    ACT_DECLINE);
-					if (!remove_mode && p->act_count == 0) {
-						(void)vm_page_try_remove_all(p);
-						vm_page_deactivate(p);
-					}
-				} else {
-					vm_page_activate(p);
-					if (p->act_count < ACT_MAX -
-					    ACT_ADVANCE)
-						p->act_count += ACT_ADVANCE;
-				}
-			} else if (vm_page_inactive(p))
-				(void)vm_page_try_remove_all(p);
-			vm_page_unlock(p);
+
+			vm_swapout_object_deactivate_page(p, remove_mode);
 		}
 		if ((backing_object = object->backing_object) == NULL)
 			goto unlock_return;
