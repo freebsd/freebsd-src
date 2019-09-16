@@ -428,6 +428,8 @@
             files
             ..
         ..
+        ping
+        ..
     ..
     secure
         lib
