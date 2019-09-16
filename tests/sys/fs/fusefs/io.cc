@@ -108,11 +108,11 @@ int m_backing_fd, m_control_fd, m_test_fd;
 off_t m_filesize;
 bool m_direct_io;
 
-Io(): m_backing_fd(-1), m_control_fd(-1), m_test_fd(-1), m_direct_io(false) {};
+Io(): m_backing_fd(-1), m_control_fd(-1), m_test_fd(-1), m_filesize(0),
+	m_direct_io(false) {};
 
 void SetUp()
 {
-	m_filesize = 0;
 	m_backing_fd = open("backing_file", O_RDWR | O_CREAT | O_TRUNC, 0644);
 	if (m_backing_fd < 0)
 		FAIL() << strerror(errno);
