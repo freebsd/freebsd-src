@@ -190,8 +190,6 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 	/* If the root directory of the 'tmp' file system is not yet
 	 * allocated, this must be the request to do it. */
 	MPASS(IMPLIES(tmp->tm_root == NULL, parent == NULL && type == VDIR));
-	KASSERT(tmp->tm_root == NULL || mp->mnt_writeopcount > 0,
-	    ("creating node not under vn_start_write"));
 
 	MPASS(IFF(type == VLNK, target != NULL));
 	MPASS(IFF(type == VBLK || type == VCHR, rdev != VNOVAL));
