@@ -280,6 +280,14 @@
             test-programs
             ..
         ..
+        csu
+            dynamic
+            ..
+            dynamiclib
+            ..
+            static
+            ..
+        ..
         googletest
             gmock
             ..
