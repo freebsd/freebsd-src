@@ -511,10 +511,10 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 				 * zero np->n_attrstamp to indicate that
 				 * the attributes are stale.
 				 */
-				vap->va_size = np->n_size;
+				nsize = vap->va_size = np->n_size;
+				setnsize = 1;
 				np->n_attrstamp = 0;
 				KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
-				vnode_pager_setsize(vp, np->n_size);
 			} else if (np->n_flag & NMODIFIED) {
 				/*
 				 * We've modified the file: Use the larger
@@ -526,7 +526,8 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 					np->n_size = vap->va_size;
 					np->n_flag |= NSIZECHANGED;
 				}
-				vnode_pager_setsize(vp, np->n_size);
+				nsize = np->n_size;
+				setnsize = 1;
 			} else if (vap->va_size < np->n_size) {
 				/*
 				 * When shrinking the size, the call to
@@ -538,9 +539,9 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 				np->n_flag |= NSIZECHANGED;
 				setnsize = 1;
 			} else {
-				np->n_size = vap->va_size;
+				nsize = np->n_size = vap->va_size;
 				np->n_flag |= NSIZECHANGED;
-				vnode_pager_setsize(vp, np->n_size);
+				setnsize = 1;
 			}
 		} else {
 			np->n_size = vap->va_size;
