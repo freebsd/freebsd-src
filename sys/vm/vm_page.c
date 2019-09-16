@@ -2597,16 +2597,23 @@ retry:
 					}
 
 					/*
+					 * Unmap the page and check for new
+					 * wirings that may have been acquired
+					 * through a pmap lookup.
+					 */
+					if (object->ref_count != 0 &&
+					    !vm_page_try_remove_all(m)) {
+						vm_page_free(m_new);
+						error = EBUSY;
+						goto unlock;
+					}
+
+					/*
 					 * Replace "m" with the new page.  For
 					 * vm_page_replace(), "m" must be busy
 					 * and dequeued.  Finally, change "m"
 					 * as if vm_page_free() was called.
 					 */
-					if (object->ref_count != 0 &&
-					    !vm_page_try_remove_all(m)) {
-						error = EBUSY;
-						goto unlock;
-					}
 					m_new->aflags = m->aflags &
 					    ~PGA_QUEUE_STATE_MASK;
 					KASSERT(m_new->oflags == VPO_UNMANAGED,
