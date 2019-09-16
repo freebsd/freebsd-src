@@ -641,6 +641,18 @@ vfs_busy(struct mount *mp, int flags)
 	MPASS((flags & ~MBF_MASK) == 0);
 	CTR3(KTR_VFS, "%s: mp %p with flags %d", __func__, mp, flags);
 
+	if (vfs_op_thread_enter(mp)) {
+		MPASS((mp->mnt_kern_flag & MNTK_DRAINING) == 0);
+		MPASS((mp->mnt_kern_flag & MNTK_UNMOUNT) == 0);
+		MPASS((mp->mnt_kern_flag & MNTK_REFEXPIRE) == 0);
+		MNT_REF_UNLOCKED(mp);
+		atomic_add_int(&mp->mnt_lockref, 1);
+		vfs_op_thread_exit(mp);
+		if (flags & MBF_MNTLSTLOCK)
+			mtx_unlock(&mountlist_mtx);
+		return (0);
+	}
+
 	MNT_ILOCK(mp);
 	MNT_REF(mp);
 	/*
@@ -673,7 +685,7 @@ vfs_busy(struct mount *mp, int flags)
 	}
 	if (flags & MBF_MNTLSTLOCK)
 		mtx_unlock(&mountlist_mtx);
-	mp->mnt_lockref++;
+	atomic_add_int(&mp->mnt_lockref, 1);
 	MNT_IUNLOCK(mp);
 	return (0);
 }
@@ -684,13 +696,24 @@ vfs_busy(struct mount *mp, int flags)
 void
 vfs_unbusy(struct mount *mp)
 {
+	int c;
 
 	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
+
+	if (vfs_op_thread_enter(mp)) {
+		MPASS((mp->mnt_kern_flag & MNTK_DRAINING) == 0);
+		c = atomic_fetchadd_int(&mp->mnt_lockref, -1) - 1;
+		KASSERT(c >= 0, ("%s: negative mnt_lockref %d\n", __func__, c));
+		MNT_REL_UNLOCKED(mp);
+		vfs_op_thread_exit(mp);
+		return;
+	}
+
 	MNT_ILOCK(mp);
 	MNT_REL(mp);
-	KASSERT(mp->mnt_lockref > 0, ("negative mnt_lockref"));
-	mp->mnt_lockref--;
-	if (mp->mnt_lockref == 0 && (mp->mnt_kern_flag & MNTK_DRAINING) != 0) {
+	c = atomic_fetchadd_int(&mp->mnt_lockref, -1) - 1;
+	KASSERT(c >= 0, ("%s: negative mnt_lockref %d\n", __func__, c));
+	if (c == 0 && (mp->mnt_kern_flag & MNTK_DRAINING) != 0) {
 		MPASS(mp->mnt_kern_flag & MNTK_UNMOUNT);
 		CTR1(KTR_VFS, "%s: waking up waiters", __func__);
 		mp->mnt_kern_flag &= ~MNTK_DRAINING;
