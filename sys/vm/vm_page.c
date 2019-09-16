@@ -3315,13 +3315,18 @@ vm_page_dequeue_deferred_free(vm_page_t m)
 
 	KASSERT(m->ref_count == 0, ("page %p has references", m));
 
-	if ((m->aflags & PGA_DEQUEUE) != 0)
-		return;
-	atomic_thread_fence_acq();
-	if ((queue = m->queue) == PQ_NONE)
-		return;
-	vm_page_aflag_set(m, PGA_DEQUEUE);
-	vm_page_pqbatch_submit(m, queue);
+	for (;;) {
+		if ((m->aflags & PGA_DEQUEUE) != 0)
+			return;
+		atomic_thread_fence_acq();
+		if ((queue = atomic_load_8(&m->queue)) == PQ_NONE)
+			return;
+		if (vm_page_pqstate_cmpset(m, queue, queue, PGA_DEQUEUE,
+		    PGA_DEQUEUE)) {
+			vm_page_pqbatch_submit(m, queue);
+			break;
+		}
+	}
 }
 
 /*
