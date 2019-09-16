@@ -218,7 +218,7 @@ vm_pageout_init_scan(struct scan_state *ss, struct vm_pagequeue *pq,
 {
 
 	vm_pagequeue_assert_locked(pq);
-	KASSERT((vm_page_aflags(marker) & PGA_ENQUEUED) == 0,
+	KASSERT((marker->aflags & PGA_ENQUEUED) == 0,
 	    ("marker %p already enqueued", marker));
 
 	if (after == NULL)
@@ -242,7 +242,7 @@ vm_pageout_end_scan(struct scan_state *ss)
 
 	pq = ss->pq;
 	vm_pagequeue_assert_locked(pq);
-	KASSERT((vm_page_aflags(ss->marker) & PGA_ENQUEUED) != 0,
+	KASSERT((ss->marker->aflags & PGA_ENQUEUED) != 0,
 	    ("marker %p not enqueued", ss->marker));
 
 	TAILQ_REMOVE(&pq->pq_pl, ss->marker, plinks.q);
@@ -271,7 +271,7 @@ vm_pageout_collect_batch(struct scan_state *ss, const bool dequeue)
 	marker = ss->marker;
 	pq = ss->pq;
 
-	KASSERT((marker->astate.flags & PGA_ENQUEUED) != 0,
+	KASSERT((marker->aflags & PGA_ENQUEUED) != 0,
 	    ("marker %p not enqueued", ss->marker));
 
 	vm_pagequeue_lock(pq);
@@ -280,7 +280,7 @@ vm_pageout_collect_batch(struct scan_state *ss, const bool dequeue)
 	    m = n, ss->scanned++) {
 		n = TAILQ_NEXT(m, plinks.q);
 		if ((m->flags & PG_MARKER) == 0) {
-			KASSERT((m->astate.flags & PGA_ENQUEUED) != 0,
+			KASSERT((m->aflags & PGA_ENQUEUED) != 0,
 			    ("page %p not enqueued", m));
 			KASSERT((m->flags & PG_FICTITIOUS) == 0,
 			    ("Fictitious page %p cannot be in page queue", m));
@@ -370,10 +370,13 @@ more:
 			ib = 0;
 			break;
 		}
+		vm_page_lock(p);
 		if (!vm_page_in_laundry(p) || !vm_page_try_remove_write(p)) {
+			vm_page_unlock(p);
 			ib = 0;
 			break;
 		}
+		vm_page_unlock(p);
 		mc[--page_base] = pb = p;
 		++pageout_count;
 		++ib;
@@ -393,8 +396,12 @@ more:
 		vm_page_test_dirty(p);
 		if (p->dirty == 0)
 			break;
-		if (!vm_page_in_laundry(p) || !vm_page_try_remove_write(p))
+		vm_page_lock(p);
+		if (!vm_page_in_laundry(p) || !vm_page_try_remove_write(p)) {
+			vm_page_unlock(p);
 			break;
+		}
+		vm_page_unlock(p);
 		mc[page_base + pageout_count] = ps = p;
 		++pageout_count;
 		++is;
@@ -451,7 +458,7 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 		KASSERT(mc[i]->valid == VM_PAGE_BITS_ALL,
 		    ("vm_pageout_flush: partially invalid page %p index %d/%d",
 			mc[i], i, count));
-		KASSERT((vm_page_aflags(mc[i]) & PGA_WRITEABLE) == 0,
+		KASSERT((mc[i]->aflags & PGA_WRITEABLE) == 0,
 		    ("vm_pageout_flush: writeable page %p", mc[i]));
 		vm_page_sbusy(mc[i]);
 	}
@@ -570,6 +577,7 @@ vm_pageout_clean(vm_page_t m, int *numpagedout)
 	vm_pindex_t pindex;
 	int error, lockmode;
 
+	vm_page_assert_locked(m);
 	object = m->object;
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	error = 0;
@@ -589,6 +597,7 @@ vm_pageout_clean(vm_page_t m, int *numpagedout)
 	 * of time.
 	 */
 	if (object->type == OBJT_VNODE) {
+		vm_page_unlock(m);
 		vp = object->handle;
 		if (vp->v_type == VREG &&
 		    vn_start_write(vp, &mp, V_NOWAIT) != 0) {
@@ -618,6 +627,7 @@ vm_pageout_clean(vm_page_t m, int *numpagedout)
 			error = ENOENT;
 			goto unlock_all;
 		}
+		vm_page_lock(m);
 
 		/*
 		 * While the object and page were unlocked, the page
@@ -653,6 +663,7 @@ vm_pageout_clean(vm_page_t m, int *numpagedout)
 		error = EBUSY;
 		goto unlock_all;
 	}
+	vm_page_unlock(m);
 
 	/*
 	 * If a page is dirty, then it is either being washed
@@ -688,13 +699,14 @@ vm_pageout_launder(struct vm_domain *vmd, int launder, bool in_shortfall)
 {
 	struct scan_state ss;
 	struct vm_pagequeue *pq;
+	struct mtx *mtx;
 	vm_object_t object;
 	vm_page_t m, marker;
-	vm_page_astate_t old, new;
-	int act_delta, error, numpagedout, queue, refs, starting_target;
+	int act_delta, error, numpagedout, queue, starting_target;
 	int vnodes_skipped;
 	bool pageout_ok;
 
+	mtx = NULL;
 	object = NULL;
 	starting_target = launder;
 	vnodes_skipped = 0;
@@ -722,45 +734,77 @@ scan:
 		if (__predict_false((m->flags & PG_MARKER) != 0))
 			continue;
 
+		vm_page_change_lock(m, &mtx);
+
+recheck:
 		/*
-		 * Perform some quick and racy checks of the page's queue state.
-		 * Bail if things are not as we expect.
+		 * The page may have been disassociated from the queue
+		 * or even freed while locks were dropped.  We thus must be
+		 * careful whenever modifying page state.  Once the object lock
+		 * has been acquired, we have a stable reference to the page.
 		 */
-		old = vm_page_astate_load(m);
-		if (old.queue != PQ_LAUNDRY || (old.flags & PGA_ENQUEUED) == 0)
+		if (vm_page_queue(m) != queue)
 			continue;
-		if ((old.flags & PGA_QUEUE_OP_MASK) != 0) {
+
+		/*
+		 * A requeue was requested, so this page gets a second
+		 * chance.
+		 */
+		if ((m->aflags & PGA_REQUEUE) != 0) {
 			vm_page_pqbatch_submit(m, queue);
+			continue;
+		}
+
+		/*
+		 * Wired pages may not be freed.  Complete their removal
+		 * from the queue now to avoid needless revisits during
+		 * future scans.  This check is racy and must be reverified once
+		 * we hold the object lock and have verified that the page
+		 * is not busy.
+		 */
+		if (vm_page_wired(m)) {
+			vm_page_dequeue_deferred(m);
 			continue;
 		}
 
 		if (object != m->object) {
 			if (object != NULL)
 				VM_OBJECT_WUNLOCK(object);
+
+			/*
+			 * A page's object pointer may be set to NULL before
+			 * the object lock is acquired.
+			 */
 			object = (vm_object_t)atomic_load_ptr(&m->object);
-			if (object == NULL)
-				continue;
-			VM_OBJECT_WLOCK(object);
-			if (m->object != object) {
-				VM_OBJECT_WUNLOCK(object);
-				object = NULL;
-				continue;
+			if (object != NULL && !VM_OBJECT_TRYWLOCK(object)) {
+				mtx_unlock(mtx);
+				/* Depends on type-stability. */
+				VM_OBJECT_WLOCK(object);
+				mtx_lock(mtx);
+				goto recheck;
 			}
 		}
+		if (__predict_false(m->object == NULL))
+			/*
+			 * The page has been removed from its object.
+			 */
+			continue;
+		KASSERT(m->object == object, ("page %p does not belong to %p",
+		    m, object));
 
 		if (vm_page_busied(m))
 			continue;
 
 		/*
-		 * Check for wirings now that we hold the object lock and have
-		 * verified that the page is unbusied.  If the page is mapped,
-		 * it may still be wired by pmap lookups.  The call to
+		 * Re-check for wirings now that we hold the object lock and
+		 * have verified that the page is unbusied.  If the page is
+		 * mapped, it may still be wired by pmap lookups.  The call to
 		 * vm_page_try_remove_all() below atomically checks for such
 		 * wirings and removes mappings.  If the page is unmapped, the
 		 * wire count is guaranteed not to increase.
 		 */
 		if (__predict_false(vm_page_wired(m))) {
-			vm_page_pqbatch_submit(m, queue);
+			vm_page_dequeue_deferred(m);
 			continue;
 		}
 
@@ -780,64 +824,46 @@ scan:
 		 * that a reference from a concurrently destroyed mapping is
 		 * observed here and now.
 		 */
-		refs = object->ref_count != 0 ? pmap_ts_referenced(m) : 0;
+		if (object->ref_count != 0)
+			act_delta = pmap_ts_referenced(m);
+		else {
+			KASSERT(!pmap_page_is_mapped(m),
+			    ("page %p is mapped", m));
+			act_delta = 0;
+		}
+		if ((m->aflags & PGA_REFERENCED) != 0) {
+			vm_page_aflag_clear(m, PGA_REFERENCED);
+			act_delta++;
+		}
+		if (act_delta != 0) {
+			if (object->ref_count != 0) {
+				VM_CNT_INC(v_reactivated);
+				vm_page_activate(m);
 
-		for (old = vm_page_astate_load(m);;) {
-			if (old.queue != queue ||
-			    (old.flags & PGA_ENQUEUED) == 0)
-				goto next_page;
+				/*
+				 * Increase the activation count if the page
+				 * was referenced while in the laundry queue.
+				 * This makes it less likely that the page will
+				 * be returned prematurely to the inactive
+				 * queue.
+ 				 */
+				m->act_count += act_delta + ACT_ADVANCE;
 
-			if ((old.flags & PGA_QUEUE_OP_MASK) != 0) {
-				vm_page_pqbatch_submit(m, queue);
-				goto next_page;
+				/*
+				 * If this was a background laundering, count
+				 * activated pages towards our target.  The
+				 * purpose of background laundering is to ensure
+				 * that pages are eventually cycled through the
+				 * laundry queue, and an activation is a valid
+				 * way out.
+				 */
+				if (!in_shortfall)
+					launder--;
+				continue;
+			} else if ((object->flags & OBJ_DEAD) == 0) {
+				vm_page_requeue(m);
+				continue;
 			}
-
-			new = old;
-			act_delta = refs;
-			if ((old.flags & PGA_REFERENCED) != 0) {
-				new.flags &= ~PGA_REFERENCED;
-				act_delta++;
-			}
-			if (act_delta != 0) {
-				if (object->ref_count != 0) {
-					/*
-					 * Increase the activation count if the
-					 * page was referenced while in the
-					 * laundry queue.  This makes it less
-					 * likely that the page will be returned
-					 * prematurely to the inactive queue.
-					 */
-					new.act_count += ACT_ADVANCE +
-					    act_delta;
-					if (new.act_count > ACT_MAX)
-						new.act_count = ACT_MAX;
-
-					new.flags |= PGA_REQUEUE;
-					new.queue = PQ_ACTIVE;
-					if (!vm_page_pqstate_commit(m, &old,
-					    new))
-						continue;
-
-					VM_CNT_INC(v_reactivated);
-
-					/*
-					 * If this was a background laundering,
-					 * count activated pages towards our
-					 * target.  The purpose of background
-					 * laundering is to ensure that pages
-					 * are eventually cycled through the
-					 * laundry queue, and an activation is a
-					 * valid way out.
-					 */
-					if (!in_shortfall)
-						launder--;
-					goto next_page;
-				} else if ((object->flags & OBJ_DEAD) == 0) {
-					vm_page_launder(m);
-					goto next_page;
-				}
-			}
-			break;
 		}
 
 		/*
@@ -850,7 +876,7 @@ scan:
 		if (object->ref_count != 0) {
 			vm_page_test_dirty(m);
 			if (m->dirty == 0 && !vm_page_try_remove_all(m)) {
-				vm_page_pqbatch_submit(m, queue);
+				vm_page_dequeue_deferred(m);
 				continue;
 			}
 		}
@@ -874,7 +900,7 @@ free_page:
 			else
 				pageout_ok = true;
 			if (!pageout_ok) {
-				vm_page_launder(m);
+				vm_page_requeue(m);
 				continue;
 			}
 
@@ -899,9 +925,13 @@ free_page:
 				pageout_lock_miss++;
 				vnodes_skipped++;
 			}
+			mtx = NULL;
 			object = NULL;
 		}
-next_page:;
+	}
+	if (mtx != NULL) {
+		mtx_unlock(mtx);
+		mtx = NULL;
 	}
 	if (object != NULL) {
 		VM_OBJECT_WUNLOCK(object);
@@ -1139,13 +1169,12 @@ static void
 vm_pageout_scan_active(struct vm_domain *vmd, int page_shortage)
 {
 	struct scan_state ss;
+	struct mtx *mtx;
 	vm_object_t object;
 	vm_page_t m, marker;
-	vm_page_astate_t old, new;
 	struct vm_pagequeue *pq;
 	long min_scan;
-	int act_delta, max_scan, ps_delta, refs, scan_tick;
-	uint8_t nqueue;
+	int act_delta, max_scan, scan_tick;
 
 	marker = &vmd->vmd_markers[PQ_ACTIVE];
 	pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
@@ -1179,6 +1208,7 @@ vm_pageout_scan_active(struct vm_domain *vmd, int page_shortage)
 	 * and scanning resumes.
 	 */
 	max_scan = page_shortage > 0 ? pq->pq_cnt : min_scan;
+	mtx = NULL;
 act_scan:
 	vm_pageout_init_scan(&ss, pq, marker, &vmd->vmd_clock[0], max_scan);
 	while ((m = vm_pageout_next(&ss, false)) != NULL) {
@@ -1197,6 +1227,29 @@ act_scan:
 		if (__predict_false((m->flags & PG_MARKER) != 0))
 			continue;
 
+		vm_page_change_lock(m, &mtx);
+
+		/*
+		 * The page may have been disassociated from the queue
+		 * or even freed while locks were dropped.  We thus must be
+		 * careful whenever modifying page state.  Once the object lock
+		 * has been acquired, we have a stable reference to the page.
+		 */
+		if (vm_page_queue(m) != PQ_ACTIVE)
+			continue;
+
+		/*
+		 * Wired pages are dequeued lazily.
+		 */
+		if (vm_page_wired(m)) {
+			vm_page_dequeue_deferred(m);
+			continue;
+		}
+
+		/*
+		 * A page's object pointer may be set to NULL before
+		 * the object lock is acquired.
+		 */
 		object = (vm_object_t)atomic_load_ptr(&m->object);
 		if (__predict_false(object == NULL))
 			/*
@@ -1211,103 +1264,79 @@ act_scan:
 		 * that a reference from a concurrently destroyed mapping is
 		 * observed here and now.
 		 *
-		 * Perform an unsynchronized object ref count check.  While the
-		 * page lock ensures that the page is not reallocated to another
-		 * object, in particular, one with unmanaged mappings that
-		 * cannot support pmap_ts_referenced(), two races are,
+		 * Perform an unsynchronized object ref count check.  While
+		 * the page lock ensures that the page is not reallocated to
+		 * another object, in particular, one with unmanaged mappings
+		 * that cannot support pmap_ts_referenced(), two races are,
 		 * nonetheless, possible:
-		 *
 		 * 1) The count was transitioning to zero, but we saw a non-
-		 *    zero value.  pmap_ts_referenced() will return zero because
-		 *    the page is not mapped.
-		 * 2) The count was transitioning to one, but we saw zero.  This
-		 *    race delays the detection of a new reference.  At worst,
-		 *    we will deactivate and reactivate the page.
+		 *    zero value.  pmap_ts_referenced() will return zero
+		 *    because the page is not mapped.
+		 * 2) The count was transitioning to one, but we saw zero.
+		 *    This race delays the detection of a new reference.  At
+		 *    worst, we will deactivate and reactivate the page.
 		 */
-		refs = object->ref_count != 0 ? pmap_ts_referenced(m) : 0;
+		if (object->ref_count != 0)
+			act_delta = pmap_ts_referenced(m);
+		else
+			act_delta = 0;
+		if ((m->aflags & PGA_REFERENCED) != 0) {
+			vm_page_aflag_clear(m, PGA_REFERENCED);
+			act_delta++;
+		}
 
-		for (old = vm_page_astate_load(m);;) {
-			if (old.queue != PQ_ACTIVE ||
-			    (old.flags & PGA_ENQUEUED) == 0)
-				/*
-				 * Something has moved the page out of the
-				 * active queue.  Don't touch it.
-				 */
-				break;
-			if ((old.flags & PGA_DEQUEUE) != 0) {
-				vm_page_pqbatch_submit(m, PQ_ACTIVE);
-				break;
-			}
+		/*
+		 * Advance or decay the act_count based on recent usage.
+		 */
+		if (act_delta != 0) {
+			m->act_count += ACT_ADVANCE + act_delta;
+			if (m->act_count > ACT_MAX)
+				m->act_count = ACT_MAX;
+		} else
+			m->act_count -= min(m->act_count, ACT_DECLINE);
 
-			new = old;
-			act_delta = refs;
-			if ((old.flags & PGA_REFERENCED) != 0) {
-				new.flags &= ~PGA_REFERENCED;
-				act_delta++;
-			}
-
+		if (m->act_count == 0) {
 			/*
-			 * Advance or decay the act_count based on recent usage.
+			 * When not short for inactive pages, let dirty pages go
+			 * through the inactive queue before moving to the
+			 * laundry queues.  This gives them some extra time to
+			 * be reactivated, potentially avoiding an expensive
+			 * pageout.  However, during a page shortage, the
+			 * inactive queue is necessarily small, and so dirty
+			 * pages would only spend a trivial amount of time in
+			 * the inactive queue.  Therefore, we might as well
+			 * place them directly in the laundry queue to reduce
+			 * queuing overhead.
 			 */
-			if (act_delta != 0) {
-				new.act_count += ACT_ADVANCE + act_delta;
-				if (new.act_count > ACT_MAX)
-					new.act_count = ACT_MAX;
-			} else {
-				new.act_count -= min(new.act_count, ACT_DECLINE);
-			}
-
-			if (new.act_count > 0) {
-				/*
-				 * Adjust the activation count and keep the page
-				 * in the active queue.  The count might be left
-				 * unchanged if it is saturated.
-				 */
-				if (new.act_count == old.act_count ||
-				    vm_page_astate_fcmpset(m, &old, new))
-					break;
+			if (page_shortage <= 0) {
+				vm_page_swapqueue(m, PQ_ACTIVE, PQ_INACTIVE);
 			} else {
 				/*
-				 * When not short for inactive pages, let dirty
-				 * pages go through the inactive queue before
-				 * moving to the laundry queues.  This gives
-				 * them some extra time to be reactivated,
-				 * potentially avoiding an expensive pageout.
-				 * However, during a page shortage, the inactive
-				 * queue is necessarily small, and so dirty
-				 * pages would only spend a trivial amount of
-				 * time in the inactive queue.  Therefore, we
-				 * might as well place them directly in the
-				 * laundry queue to reduce queuing overhead.
-				 *
 				 * Calling vm_page_test_dirty() here would
 				 * require acquisition of the object's write
 				 * lock.  However, during a page shortage,
-				 * directing dirty pages into the laundry queue
-				 * is only an optimization and not a
+				 * directing dirty pages into the laundry
+				 * queue is only an optimization and not a
 				 * requirement.  Therefore, we simply rely on
-				 * the opportunistic updates to the page's dirty
-				 * field by the pmap.
+				 * the opportunistic updates to the page's
+				 * dirty field by the pmap.
 				 */
-				if (page_shortage <= 0) {
-					nqueue = PQ_INACTIVE;
-					ps_delta = 0;
-				} else if (m->dirty == 0) {
-					nqueue = PQ_INACTIVE;
-					ps_delta = act_scan_laundry_weight;
+				if (m->dirty == 0) {
+					vm_page_swapqueue(m, PQ_ACTIVE,
+					    PQ_INACTIVE);
+					page_shortage -=
+					    act_scan_laundry_weight;
 				} else {
-					nqueue = PQ_LAUNDRY;
-					ps_delta = 1;
-				}
-
-				new.flags |= PGA_REQUEUE;
-				new.queue = nqueue;
-				if (vm_page_pqstate_commit(m, &old, new)) {
-					page_shortage -= ps_delta;
-					break;
+					vm_page_swapqueue(m, PQ_ACTIVE,
+					    PQ_LAUNDRY);
+					page_shortage--;
 				}
 			}
 		}
+	}
+	if (mtx != NULL) {
+		mtx_unlock(mtx);
+		mtx = NULL;
 	}
 	vm_pagequeue_lock(pq);
 	TAILQ_REMOVE(&pq->pq_pl, &vmd->vmd_clock[0], plinks.q);
@@ -1320,30 +1349,20 @@ static int
 vm_pageout_reinsert_inactive_page(struct scan_state *ss, vm_page_t m)
 {
 	struct vm_domain *vmd;
-	vm_page_astate_t old, new;
 
-	for (old = vm_page_astate_load(m);;) {
-		if (old.queue != PQ_INACTIVE ||
-		    (old.flags & (PGA_DEQUEUE | PGA_ENQUEUED)) != 0)
-			break;
-
-		new = old;
-		new.flags |= PGA_ENQUEUED;
-		new.flags &= ~(PGA_REQUEUE | PGA_REQUEUE_HEAD);
-		if (!vm_page_astate_fcmpset(m, &old, new))
-			continue;
-
-		if ((old.flags & PGA_REQUEUE_HEAD) != 0) {
-			vmd = vm_pagequeue_domain(m);
-			TAILQ_INSERT_BEFORE(&vmd->vmd_inacthead, m, plinks.q);
-		} else if ((old.flags & PGA_REQUEUE) != 0) {
-			TAILQ_INSERT_TAIL(&ss->pq->pq_pl, m, plinks.q);
-		} else {
-			TAILQ_INSERT_BEFORE(ss->marker, m, plinks.q);
-		}
-		return (1);
-	}
-	return (0);
+	if (m->queue != PQ_INACTIVE || (m->aflags & PGA_ENQUEUED) != 0)
+		return (0);
+	vm_page_aflag_set(m, PGA_ENQUEUED);
+	if ((m->aflags & PGA_REQUEUE_HEAD) != 0) {
+		vmd = vm_pagequeue_domain(m);
+		TAILQ_INSERT_BEFORE(&vmd->vmd_inacthead, m, plinks.q);
+		vm_page_aflag_clear(m, PGA_REQUEUE | PGA_REQUEUE_HEAD);
+	} else if ((m->aflags & PGA_REQUEUE) != 0) {
+		TAILQ_INSERT_TAIL(&ss->pq->pq_pl, m, plinks.q);
+		vm_page_aflag_clear(m, PGA_REQUEUE | PGA_REQUEUE_HEAD);
+	} else
+		TAILQ_INSERT_BEFORE(ss->marker, m, plinks.q);
+	return (1);
 }
 
 /*
@@ -1386,11 +1405,11 @@ vm_pageout_scan_inactive(struct vm_domain *vmd, int shortage,
 {
 	struct scan_state ss;
 	struct vm_batchqueue rq;
+	struct mtx *mtx;
 	vm_page_t m, marker;
-	vm_page_astate_t old, new;
 	struct vm_pagequeue *pq;
 	vm_object_t object;
-	int act_delta, addl_page_shortage, deficit, page_shortage, refs;
+	int act_delta, addl_page_shortage, deficit, page_shortage;
 	int starting_page_shortage;
 
 	/*
@@ -1410,6 +1429,7 @@ vm_pageout_scan_inactive(struct vm_domain *vmd, int shortage,
 	deficit = atomic_readandclear_int(&vmd->vmd_pageout_deficit);
 	starting_page_shortage = page_shortage = shortage + deficit;
 
+	mtx = NULL;
 	object = NULL;
 	vm_batchqueue_init(&rq);
 
@@ -1427,31 +1447,65 @@ vm_pageout_scan_inactive(struct vm_domain *vmd, int shortage,
 		KASSERT((m->flags & PG_MARKER) == 0,
 		    ("marker page %p was dequeued", m));
 
+		vm_page_change_lock(m, &mtx);
+
+recheck:
 		/*
-		 * Perform some quick and racy checks of the page's queue state.
-		 * Bail if things are not as we expect.
+		 * The page may have been disassociated from the queue
+		 * or even freed while locks were dropped.  We thus must be
+		 * careful whenever modifying page state.  Once the object lock
+		 * has been acquired, we have a stable reference to the page.
 		 */
-		old = vm_page_astate_load(m);
-		if (old.queue != PQ_INACTIVE || (old.flags & PGA_ENQUEUED) != 0)
+		if (vm_page_queue(m) != PQ_INACTIVE) {
+			addl_page_shortage++;
 			continue;
-		if ((old.flags & PGA_QUEUE_OP_MASK) != 0) {
-			vm_page_pqbatch_submit(m, PQ_INACTIVE);
+		}
+
+		/*
+		 * The page was re-enqueued after the page queue lock was
+		 * dropped, or a requeue was requested.  This page gets a second
+		 * chance.
+		 */
+		if ((m->aflags & (PGA_ENQUEUED | PGA_REQUEUE |
+		    PGA_REQUEUE_HEAD)) != 0)
+			goto reinsert;
+
+		/*
+		 * Wired pages may not be freed.  Complete their removal
+		 * from the queue now to avoid needless revisits during
+		 * future scans.  This check is racy and must be reverified once
+		 * we hold the object lock and have verified that the page
+		 * is not busy.
+		 */
+		if (vm_page_wired(m)) {
+			vm_page_dequeue_deferred(m);
 			continue;
 		}
 
 		if (object != m->object) {
 			if (object != NULL)
 				VM_OBJECT_WUNLOCK(object);
+
+			/*
+			 * A page's object pointer may be set to NULL before
+			 * the object lock is acquired.
+			 */
 			object = (vm_object_t)atomic_load_ptr(&m->object);
-			if (object == NULL)
-				continue;
-			VM_OBJECT_WLOCK(object);
-			if (m->object != object) {
-				VM_OBJECT_WUNLOCK(object);
-				object = NULL;
-				goto reinsert;
+			if (object != NULL && !VM_OBJECT_TRYWLOCK(object)) {
+				mtx_unlock(mtx);
+				/* Depends on type-stability. */
+				VM_OBJECT_WLOCK(object);
+				mtx_lock(mtx);
+				goto recheck;
 			}
 		}
+		if (__predict_false(m->object == NULL))
+			/*
+			 * The page has been removed from its object.
+			 */
+			continue;
+		KASSERT(m->object == object, ("page %p does not belong to %p",
+		    m, object));
 
 		if (vm_page_busied(m)) {
 			/*
@@ -1467,15 +1521,15 @@ vm_pageout_scan_inactive(struct vm_domain *vmd, int shortage,
 		}
 
 		/*
-		 * Check for wirings now that we hold the object lock and have
-		 * verified that the page is unbusied.  If the page is mapped,
-		 * it may still be wired by pmap lookups.  The call to
+		 * Re-check for wirings now that we hold the object lock and
+		 * have verified that the page is unbusied.  If the page is
+		 * mapped, it may still be wired by pmap lookups.  The call to
 		 * vm_page_try_remove_all() below atomically checks for such
 		 * wirings and removes mappings.  If the page is unmapped, the
 		 * wire count is guaranteed not to increase.
 		 */
 		if (__predict_false(vm_page_wired(m))) {
-			vm_page_pqbatch_submit(m, PQ_INACTIVE);
+			vm_page_dequeue_deferred(m);
 			continue;
 		}
 
@@ -1495,52 +1549,35 @@ vm_pageout_scan_inactive(struct vm_domain *vmd, int shortage,
 		 * that a reference from a concurrently destroyed mapping is
 		 * observed here and now.
 		 */
-		refs = object->ref_count != 0 ? pmap_ts_referenced(m) : 0;
+		if (object->ref_count != 0)
+			act_delta = pmap_ts_referenced(m);
+		else {
+			KASSERT(!pmap_page_is_mapped(m),
+			    ("page %p is mapped", m));
+			act_delta = 0;
+		}
+		if ((m->aflags & PGA_REFERENCED) != 0) {
+			vm_page_aflag_clear(m, PGA_REFERENCED);
+			act_delta++;
+		}
+		if (act_delta != 0) {
+			if (object->ref_count != 0) {
+				VM_CNT_INC(v_reactivated);
+				vm_page_activate(m);
 
-		for (old = vm_page_astate_load(m);;) {
-			if (old.queue != PQ_INACTIVE ||
-			    (old.flags & PGA_ENQUEUED) != 0)
-				goto next_page;
-
-			if ((old.flags & PGA_QUEUE_OP_MASK) != 0) {
-				vm_page_pqbatch_submit(m, PQ_INACTIVE);
-				goto next_page;
+				/*
+				 * Increase the activation count if the page
+				 * was referenced while in the inactive queue.
+				 * This makes it less likely that the page will
+				 * be returned prematurely to the inactive
+				 * queue.
+ 				 */
+				m->act_count += act_delta + ACT_ADVANCE;
+				continue;
+			} else if ((object->flags & OBJ_DEAD) == 0) {
+				vm_page_aflag_set(m, PGA_REQUEUE);
+				goto reinsert;
 			}
-
-			new = old;
-			act_delta = refs;
-			if ((old.flags & PGA_REFERENCED) != 0) {
-				new.flags &= ~PGA_REFERENCED;
-				act_delta++;
-			}
-			if (act_delta != 0) {
-				if (object->ref_count != 0) {
-					/*
-					 * Increase the activation count if the
-					 * page was referenced while in the
-					 * inactive queue.  This makes it less
-					 * likely that the page will be returned
-					 * prematurely to the inactive queue.
-					 */
-					new.act_count += ACT_ADVANCE +
-					    act_delta;
-					if (new.act_count > ACT_MAX)
-						new.act_count = ACT_MAX;
-
-					new.flags |= PGA_REQUEUE;
-					new.queue = PQ_ACTIVE;
-					if (!vm_page_pqstate_commit(m, &old,
-					    new))
-						continue;
-
-					VM_CNT_INC(v_reactivated);
-					goto next_page;
-				} else if ((object->flags & OBJ_DEAD) == 0) {
-					vm_page_aflag_set(m, PGA_REQUEUE);
-					goto reinsert;
-				}
-			}
-			break;
 		}
 
 		/*
@@ -1553,7 +1590,7 @@ vm_pageout_scan_inactive(struct vm_domain *vmd, int shortage,
 		if (object->ref_count != 0) {
 			vm_page_test_dirty(m);
 			if (m->dirty == 0 && !vm_page_try_remove_all(m)) {
-				vm_page_pqbatch_submit(m, PQ_INACTIVE);
+				vm_page_dequeue_deferred(m);
 				continue;
 			}
 		}
@@ -1567,30 +1604,25 @@ vm_pageout_scan_inactive(struct vm_domain *vmd, int shortage,
 		 */
 		if (m->dirty == 0) {
 free_page:
-			/* XXX comment */
-			old = vm_page_astate_load(m);
-			if (old.queue != PQ_INACTIVE ||
-			    (old.flags & PGA_QUEUE_STATE_MASK) != 0) {
-				vm_page_pqbatch_submit(m, PQ_INACTIVE);
-				goto next_page;
-			}
-
 			/*
 			 * Because we dequeued the page and have already
 			 * checked for concurrent dequeue and enqueue
 			 * requests, we can safely disassociate the page
 			 * from the inactive queue.
 			 */
-			m->astate.queue = PQ_NONE;
+			KASSERT((m->aflags & PGA_QUEUE_STATE_MASK) == 0,
+			    ("page %p has queue state", m));
+			m->queue = PQ_NONE;
 			vm_page_free(m);
 			page_shortage--;
 		} else if ((object->flags & OBJ_DEAD) == 0)
 			vm_page_launder(m);
-next_page:
 		continue;
 reinsert:
 		vm_pageout_reinsert_inactive(&ss, &rq, m);
 	}
+	if (mtx != NULL)
+		mtx_unlock(mtx);
 	if (object != NULL)
 		VM_OBJECT_WUNLOCK(object);
 	vm_pageout_reinsert_inactive(&ss, &rq, NULL);

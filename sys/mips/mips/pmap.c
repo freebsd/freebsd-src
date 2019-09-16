@@ -2164,7 +2164,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			pv = pmap_pvh_remove(&om->md, pmap, va);
 			if (!pte_test(&newpte, PTE_MANAGED))
 				free_pv_entry(pmap, pv);
-			if (vm_page_aflags(m) & PGA_WRITEABLE) != 0 &&
+			if ((om->aflags & PGA_WRITEABLE) != 0 &&
 			    TAILQ_EMPTY(&om->md.pv_list))
 				vm_page_aflag_clear(om, PGA_WRITEABLE);
 		}
@@ -2934,7 +2934,7 @@ pmap_remove_write(vm_page_t m)
 	 * if PGA_WRITEABLE is clear, no page table entries need updating.
 	 */
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if (!vm_page_xbusied(m) && (vm_page_aflags(m) & PGA_WRITEABLE) == 0)
+	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	rw_wlock(&pvh_global_lock);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
@@ -2999,7 +2999,7 @@ pmap_is_modified(vm_page_t m)
 	 * is clear, no PTEs can have PTE_D set.
 	 */
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if (!vm_page_xbusied(m) && (vm_page_aflags(m) & PGA_WRITEABLE) == 0)
+	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
 		return (FALSE);
 	rw_wlock(&pvh_global_lock);
 	rv = pmap_testbit(m, PTE_D);
@@ -3143,7 +3143,7 @@ pmap_clear_modify(vm_page_t m)
 	 * If the object containing the page is locked and the page is not
 	 * write busied, then PGA_WRITEABLE cannot be concurrently set.
 	 */
-	if ((vm_page_aflags(m) & PGA_WRITEABLE) == 0)
+	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	rw_wlock(&pvh_global_lock);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
@@ -3270,7 +3270,7 @@ retry:
 		 * determine if the address is MINCORE_REFERENCED.
 		 */
 		m = PHYS_TO_VM_PAGE(pa);
-		if ((vm_page_aflags(m) & PGA_REFERENCED) != 0)
+		if ((m->aflags & PGA_REFERENCED) != 0)
 			val |= MINCORE_REFERENCED | MINCORE_REFERENCED_OTHER;
 	}
 	if ((val & (MINCORE_MODIFIED_OTHER | MINCORE_REFERENCED_OTHER)) !=
