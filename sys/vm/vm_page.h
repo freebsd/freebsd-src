@@ -783,8 +783,6 @@ vm_page_pqstate_cmpset(vm_page_t m, uint32_t oldq, uint32_t newq,
 {
 	uint32_t *addr, nval, oval, qsmask;
 
-	vm_page_assert_locked(m);
-
 	fflags <<= VM_PAGE_AFLAG_SHIFT;
 	nflags <<= VM_PAGE_AFLAG_SHIFT;
 	newq <<= VM_PAGE_QUEUE_SHIFT;
