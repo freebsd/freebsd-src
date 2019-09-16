@@ -2954,17 +2954,26 @@ journal_suspend(ump)
 {
 	struct jblocks *jblocks;
 	struct mount *mp;
+	bool set;
 
 	mp = UFSTOVFS(ump);
+	if ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0)
+		return;
+
 	jblocks = ump->softdep_jblocks;
+	vfs_op_enter(mp);
+	set = false;
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_SUSPEND) == 0) {
 		stat_journal_min++;
 		mp->mnt_kern_flag |= MNTK_SUSPEND;
 		mp->mnt_susp_owner = ump->softdep_flushtd;
+		set = true;
 	}
 	jblocks->jb_suspended = 1;
 	MNT_IUNLOCK(mp);
+	if (!set)
+		vfs_op_exit(mp);
 }
 
 static int
