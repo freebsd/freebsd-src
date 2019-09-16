@@ -426,8 +426,8 @@ static int pmap_flags = PMAP_PDE_SUPERPAGE;	/* flags for x86 pmaps */
 
 static vmem_t *large_vmem;
 static u_int lm_ents;
-#define	PMAP_LARGEMAP_MAX_ADDRESS()			\
-    (LARGEMAP_MIN_ADDRESS + NBPML4 * (u_long)lm_ents)
+#define	PMAP_ADDRESS_IN_LARGEMAP(va)	((va) >= LARGEMAP_MIN_ADDRESS && \
+	(va) < LARGEMAP_MIN_ADDRESS + NBPML4 * (u_long)lm_ents)
 
 int pmap_pcid_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
@@ -3063,8 +3063,7 @@ pmap_kextract(vm_offset_t va)
 
 	if (va >= DMAP_MIN_ADDRESS && va < DMAP_MAX_ADDRESS) {
 		pa = DMAP_TO_PHYS(va);
-	} else if (LARGEMAP_MIN_ADDRESS <= va &&
-	    va < PMAP_LARGEMAP_MAX_ADDRESS()) {
+	} else if (PMAP_ADDRESS_IN_LARGEMAP(va)) {
 		pa = pmap_large_map_kextract(va);
 	} else {
 		pde = *vtopde(va);
@@ -8957,7 +8956,7 @@ pmap_large_map_kextract(vm_offset_t va)
 	pd_entry_t *pde, pd;
 	pt_entry_t *pte, pt;
 
-	KASSERT(LARGEMAP_MIN_ADDRESS <= va && va < PMAP_LARGEMAP_MAX_ADDRESS(),
+	KASSERT(PMAP_ADDRESS_IN_LARGEMAP(va),
 	    ("not largemap range %#lx", (u_long)va));
 	pdpe = pmap_large_map_pdpe(va);
 	pdp = *pdpe;
@@ -9099,8 +9098,8 @@ pmap_large_unmap(void *svaa, vm_size_t len)
 		return;
 
 	SLIST_INIT(&spgf);
-	KASSERT(LARGEMAP_MIN_ADDRESS <= sva &&
-	    sva + len <= PMAP_LARGEMAP_MAX_ADDRESS(),
+	KASSERT(PMAP_ADDRESS_IN_LARGEMAP(sva) &&
+	    PMAP_ADDRESS_IN_LARGEMAP(sva + len - 1),
 	    ("not largemap range %#lx %#lx", (u_long)svaa, (u_long)svaa + len));
 	PMAP_LOCK(kernel_pmap);
 	for (va = sva; va < sva + len; va += inc) {
