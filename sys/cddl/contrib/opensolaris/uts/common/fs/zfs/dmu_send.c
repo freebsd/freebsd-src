@@ -1308,19 +1308,23 @@ recv_begin_check_existing_impl(dmu_recv_begin_arg_t *drba, dsl_dataset_t *ds,
 	int error;
 	dsl_pool_t *dp = ds->ds_dir->dd_pool;
 
-	/* temporary clone name must not exist */
+	/* Temporary clone name must not exist. */
 	error = zap_lookup(dp->dp_meta_objset,
 	    dsl_dir_phys(ds->ds_dir)->dd_child_dir_zapobj, recv_clone_name,
 	    8, 1, &val);
 	if (error != ENOENT)
-		return (error == 0 ? EBUSY : error);
+		return (error == 0 ? SET_ERROR(EBUSY) : error);
 
-	/* new snapshot name must not exist */
+	/* Resume state must not be set. */
+	if (dsl_dataset_has_resume_receive_state(ds))
+		return (SET_ERROR(EBUSY));
+
+	/* New snapshot name must not exist. */
 	error = zap_lookup(dp->dp_meta_objset,
 	    dsl_dataset_phys(ds)->ds_snapnames_zapobj,
 	    drba->drba_cookie->drc_tosnap, 8, 1, &val);
 	if (error != ENOENT)
-		return (error == 0 ? EEXIST : error);
+		return (error == 0 ? SET_ERROR(EEXIST) : error);
 
 	/*
 	 * Check snapshot limit before receiving. We'll recheck again at the
