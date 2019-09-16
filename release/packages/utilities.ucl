@@ -1,0 +1,23 @@
+#
+# $FreeBSD$
+#
+
+name = "FreeBSD-%PKGNAME%"
+origin = "base"
+version = "%VERSION%"
+comment = "%COMMENT% %VCS_REVISION%"
+categories = [ base ]
+maintainer = "re@FreeBSD.org"
+www = "https://www.FreeBSD.org"
+prefix = "/"
+vital = true
+licenselogic = "single"
+licenses = [ BSD2CLAUSE ]
+desc = <<EOD
+%DESC%
+EOD
+scripts: {
+	post-install = <<EOD
+	cap_mkdb %CAP_MKDB_ENDIAN% ${PKG_ROOTDIR}/etc/login.conf
+EOD
+}
