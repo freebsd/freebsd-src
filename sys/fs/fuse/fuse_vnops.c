@@ -226,11 +226,6 @@ struct vop_vector fuse_vnops = {
 
 int	fuse_pbuf_freecnt = -1;
 
-#define fuse_vm_page_lock(m)		vm_page_lock((m));
-#define fuse_vm_page_unlock(m)		vm_page_unlock((m));
-#define fuse_vm_page_lock_queues()	((void)0)
-#define fuse_vm_page_unlock_queues()	((void)0)
-
 /* Check permission for extattr operations, much like extattr_check_cred */
 static int
 fuse_extattr_check_cred(struct vnode *vp, int ns, struct ucred *cred,
