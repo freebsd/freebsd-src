@@ -156,7 +156,9 @@ Realloc(void *ptr, size_t size, const char *file, int line)
 
     if ((res = Malloc(size, file, line)) != NULL) {
 	if (ptr) {
-	    old = *(size_t *)((char *)ptr - MALLOCALIGN) - MALLOCALIGN;
+	    Guard *g = (Guard *)((char *)ptr - MALLOCALIGN);
+
+	    old = g->ga_Bytes - MALLOCALIGN;
 	    if (old < size)
 		bcopy(ptr, res, old);
 	    else
