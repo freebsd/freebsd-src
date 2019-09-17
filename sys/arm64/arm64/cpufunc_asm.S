@@ -73,7 +73,6 @@ __FBSDID("$FreeBSD$");
 .if \ic != 0
 	isb
 .endif
-	ret
 .endm
 
 ENTRY(arm64_nullop)
@@ -93,6 +92,7 @@ ENTRY(arm64_setttb)
 END(arm64_setttb)
 
 ENTRY(arm64_tlb_flushID)
+	dsb	ishst
 #ifdef SMP
 	tlbi	vmalle1is
 #else
@@ -108,6 +108,7 @@ END(arm64_tlb_flushID)
  */
 ENTRY(arm64_dcache_wb_range)
 	cache_handle_range	dcop = cvac
+	ret
 END(arm64_dcache_wb_range)
 
 /*
@@ -115,6 +116,7 @@ END(arm64_dcache_wb_range)
  */
 ENTRY(arm64_dcache_wbinv_range)
 	cache_handle_range	dcop = civac
+	ret
 END(arm64_dcache_wbinv_range)
 
 /*
@@ -125,6 +127,7 @@ END(arm64_dcache_wbinv_range)
  */
 ENTRY(arm64_dcache_inv_range)
 	cache_handle_range	dcop = ivac
+	ret
 END(arm64_dcache_inv_range)
 
 /*
@@ -132,6 +135,7 @@ END(arm64_dcache_inv_range)
  */
 ENTRY(arm64_idcache_wbinv_range)
 	cache_handle_range	dcop = civac, ic = 1, icop = ivau
+	ret
 END(arm64_idcache_wbinv_range)
 
 /*
@@ -146,4 +150,6 @@ ENTRY(arm64_icache_sync_range)
 	cache_handle_range	dcop = cvau
 	ic	ialluis
 	dsb	ish
+	isb
+	ret
 END(arm64_icache_sync_range)
