@@ -2597,16 +2597,23 @@ retry:
 					}
 
 					/*
+					 * Unmap the page and check for new
+					 * wirings that may have been acquired
+					 * through a pmap lookup.
+					 */
+					if (object->ref_count != 0 &&
+					    !vm_page_try_remove_all(m)) {
+						vm_page_free(m_new);
+						error = EBUSY;
+						goto unlock;
+					}
+
+					/*
 					 * Replace "m" with the new page.  For
 					 * vm_page_replace(), "m" must be busy
 					 * and dequeued.  Finally, change "m"
 					 * as if vm_page_free() was called.
 					 */
-					if (object->ref_count != 0 &&
-					    !vm_page_try_remove_all(m)) {
-						error = EBUSY;
-						goto unlock;
-					}
 					m_new->aflags = m->aflags &
 					    ~PGA_QUEUE_STATE_MASK;
 					KASSERT(m_new->oflags == VPO_UNMANAGED,
@@ -3308,13 +3315,18 @@ vm_page_dequeue_deferred_free(vm_page_t m)
 
 	KASSERT(m->ref_count == 0, ("page %p has references", m));
 
-	if ((m->aflags & PGA_DEQUEUE) != 0)
-		return;
-	atomic_thread_fence_acq();
-	if ((queue = m->queue) == PQ_NONE)
-		return;
-	vm_page_aflag_set(m, PGA_DEQUEUE);
-	vm_page_pqbatch_submit(m, queue);
+	for (;;) {
+		if ((m->aflags & PGA_DEQUEUE) != 0)
+			return;
+		atomic_thread_fence_acq();
+		if ((queue = atomic_load_8(&m->queue)) == PQ_NONE)
+			return;
+		if (vm_page_pqstate_cmpset(m, queue, queue, PGA_DEQUEUE,
+		    PGA_DEQUEUE)) {
+			vm_page_pqbatch_submit(m, queue);
+			break;
+		}
+	}
 }
 
 /*

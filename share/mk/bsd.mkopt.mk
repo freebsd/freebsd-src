@@ -11,12 +11,16 @@
 # For each option FOO in __DEFAULT_NO_OPTIONS, MK_FOO is set to "no",
 # unless WITH_FOO is defined, in which case it is set to "yes".
 #
+# For each entry FOO/BAR in __DEFAULT_DEPENDENT_OPTIONS,
+# MK_FOO is set to "no" if WITHOUT_FOO is defined,
+# "yes" if WITH_FOO is defined, otherwise the value of MK_BAR.
+#
 # If both WITH_FOO and WITHOUT_FOO are defined, WITHOUT_FOO wins and
 # MK_FOO is set to "no" regardless of which list it was in.
 #
-# Both __DEFAULT_YES_OPTIONS and __DEFAULT_NO_OPTIONS are undef'd
-# after all this processing, allowing this file to be included
-# multiple times with different lists.
+# All of __DEFAULT_YES_OPTIONS, __DEFAULT_NO_OPTIONS and
+# __DEFAULT_DEPENDENT_OPTIONS are undef'd after all this processing,
+# allowing this file to be included multiple times with different lists.
 #
 # Other parts of the build system will set BROKEN_OPTIONS to a list
 # of options that are broken on this platform. This will not be unset

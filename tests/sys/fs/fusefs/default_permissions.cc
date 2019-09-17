@@ -749,7 +749,7 @@ TEST_F(Open, eacces)
 	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, UINT64_MAX);
 
-	EXPECT_NE(0, open(FULLPATH, O_RDWR));
+	EXPECT_EQ(-1, open(FULLPATH, O_RDWR));
 	EXPECT_EQ(EACCES, errno);
 }
 

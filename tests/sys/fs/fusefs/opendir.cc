@@ -103,7 +103,7 @@ TEST_F(Opendir, eperm)
 	expect_lookup(RELPATH, ino);
 	expect_opendir(ino, O_RDONLY, ReturnErrno(EPERM));
 
-	EXPECT_NE(0, open(FULLPATH, O_DIRECTORY));
+	EXPECT_EQ(-1, open(FULLPATH, O_DIRECTORY));
 	EXPECT_EQ(EPERM, errno);
 }
 

@@ -273,6 +273,7 @@ vfs_mountroot_devfs(struct thread *td, struct mount **mpp)
 
 		*mpp = mp;
 		rootdevmp = mp;
+		vfs_op_exit(mp);
 	}
 
 	set_rootvnode();

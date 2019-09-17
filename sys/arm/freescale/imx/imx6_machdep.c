@@ -148,12 +148,43 @@ fix_fdt_interrupt_data(void)
 	OF_setprop(socnode, "interrupt-parent", &gicxref, sizeof(gicxref));
 }
 
+static void
+fix_fdt_iomuxc_data(void)
+{
+	phandle_t node;
+
+	/*
+	 * The linux dts defines two nodes with the same mmio address range,
+	 * iomuxc-gpr and the regular iomuxc.  The -grp node is a simple_mfd and
+	 * a syscon, but it only has access to a small subset of the iomuxc
+	 * registers, so it can't serve as the accessor for the iomuxc driver's
+	 * register IO.  But right now, the simple_mfd driver attaches first,
+	 * preventing the real iomuxc driver from allocating its mmio register
+	 * range because it partially overlaps with the -gpr range.
+	 *
+	 * For now, by far the easiest thing to do to keep imx6 working is to
+	 * just disable the iomuxc-gpr node because we don't have a driver for
+	 * it anyway, we just need to prevent attachment of simple_mfd.
+	 *
+	 * If we ever write a -gpr driver, this code should probably switch to
+	 * modifying the reg property so that the range covers all the iomuxc
+	 * regs, then the -gpr driver can be a regular syscon driver that iomuxc
+	 * uses for register access.
+	 */
+	node = OF_finddevice("/soc/aips-bus@2000000/iomuxc-gpr@20e0000");
+	if (node != -1)
+		OF_setprop(node, "status", "disabled", sizeof("disabled"));
+}
+
 static int
 imx6_attach(platform_t plat)
 {
 
 	/* Fix soc interrupt-parent property. */
 	fix_fdt_interrupt_data();
+
+	/* Fix iomuxc-gpr and iomuxc nodes both using the same mmio range. */
+	fix_fdt_iomuxc_data();
 
 	/* Inform the MPCore timer driver that its clock is variable. */
 	arm_tmr_change_frequency(ARM_TMR_FREQUENCY_VARIES);
