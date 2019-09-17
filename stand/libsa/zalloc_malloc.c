@@ -50,8 +50,26 @@ void mallocstats(void);
 #undef free
 #endif
 
+static void *Malloc_align(size_t, size_t);
+
 void *
-Malloc(size_t bytes, const char *file, int line)
+Malloc(size_t bytes, const char *file __unused, int line __unused)
+{
+	return (Malloc_align(bytes, 1));
+}
+
+void *
+Memalign(size_t alignment, size_t bytes, const char *file __unused,
+    int line __unused)
+{
+	if (alignment == 0)
+		alignment = 1;
+
+	return (Malloc_align(bytes, alignment));
+}
+
+static void *
+Malloc_align(size_t bytes, size_t alignment)
 {
 	Guard *res;
 
@@ -64,7 +82,7 @@ Malloc(size_t bytes, const char *file, int line)
 	bytes += MALLOCALIGN;
 #endif
 
-	while ((res = znalloc(&MallocPool, bytes)) == NULL) {
+	while ((res = znalloc(&MallocPool, bytes, alignment)) == NULL) {
 		int incr = (bytes + BLKEXTENDMASK) & ~BLKEXTENDMASK;
 		char *base;
 

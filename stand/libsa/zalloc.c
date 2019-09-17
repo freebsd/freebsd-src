@@ -30,6 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+
 /*
  * LIB/MEMORY/ZALLOC.C	- self contained low-overhead memory pool/allocation
  *			  subsystem
@@ -86,7 +88,7 @@ typedef char assert_align[(sizeof(struct MemNode) <= MALLOCALIGN) ? 1 : -1];
  */
 
 void *
-znalloc(MemPool *mp, uintptr_t bytes)
+znalloc(MemPool *mp, uintptr_t bytes, size_t align)
 {
 	MemNode **pmn;
 	MemNode *mn;
@@ -111,14 +113,40 @@ znalloc(MemPool *mp, uintptr_t bytes)
 
 	for (pmn = &mp->mp_First; (mn = *pmn) != NULL; pmn = &mn->mr_Next) {
 		char *ptr = (char *)mn;
+		uintptr_t dptr;
+		char *aligned;
+		size_t extra;
 
-		if (bytes > mn->mr_Bytes)
+		dptr = (uintptr_t)(ptr + MALLOCALIGN);  /* pointer to data */
+		aligned = (char *)(roundup2(dptr, align) - MALLOCALIGN);
+		extra = aligned - ptr;
+
+		if (bytes + extra > mn->mr_Bytes)
 			continue;
+
+		/*
+		 * Cut extra from head and create new memory node from reminder.
+		 */
+
+		if (extra != 0) {
+			MemNode *new;
+
+			new = (MemNode *)aligned;
+			new->mr_Next = mn->mr_Next;
+			new->mr_Bytes = mn->mr_Bytes - extra;
+
+			/* And update current memory node */
+			mn->mr_Bytes = extra;
+			mn->mr_Next = new;
+			/* In next iteration, we will get our aligned address */
+			continue;
+		}
 
 		/*
 		 *  Cut a chunk of memory out of the beginning of this
 		 *  block and fixup the link appropriately.
 		 */
+
 		if (mn->mr_Bytes == bytes) {
 			*pmn = mn->mr_Next;
 		} else {
