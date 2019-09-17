@@ -138,6 +138,8 @@ pd_entry_t *kernel_segmap;
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 
+static int need_local_mappings;
+
 static int nkpt;
 unsigned pmap_max_asid;		/* max ASID supported by the system */
 
@@ -187,104 +189,96 @@ static void pmap_invalidate_range_action(void *arg);
 static void pmap_update_page_action(void *arg);
 
 #ifndef __mips_n64
+
+static vm_offset_t crashdumpva;
+
 /*
- * This structure is for high memory (memory above 512Meg in 32 bit) support.
+ * These functions are for high memory (memory above 512Meg in 32 bit) support.
  * The highmem area does not have a KSEG0 mapping, and we need a mechanism to
  * do temporary per-CPU mappings for pmap_zero_page, pmap_copy_page etc.
  *
  * At bootup, we reserve 2 virtual pages per CPU for mapping highmem pages. To
  * access a highmem physical address on a CPU, we map the physical address to
- * the reserved virtual address for the CPU in the kernel pagetable.  This is
- * done with interrupts disabled(although a spinlock and sched_pin would be
- * sufficient).
+ * the reserved virtual address for the CPU in the kernel pagetable.
  */
-struct local_sysmaps {
-	vm_offset_t	base;
-	uint32_t	saved_intr;
-	uint16_t	valid1, valid2;
-};
-static struct local_sysmaps sysmap_lmem[MAXCPU];
+
+static void
+pmap_init_reserved_pages(void)
+{
+	struct pcpu *pc;
+	vm_offset_t pages;
+ 	int i;
+ 
+	if (need_local_mappings == 0)
+		return;
+
+	CPU_FOREACH(i) {
+		pc = pcpu_find(i);
+		/*
+		 * Skip if the mapping has already been initialized,
+		 * i.e. this is the BSP.
+		 */
+		if (pc->pc_cmap1_addr != 0)
+			continue;
+		pages =  kva_alloc(PAGE_SIZE * 3);
+		if (pages == 0)
+			panic("%s: unable to allocate KVA", __func__);
+		pc->pc_cmap1_ptep = pmap_pte(kernel_pmap, pages);
+		pc->pc_cmap2_ptep = pmap_pte(kernel_pmap, pages + PAGE_SIZE);
+		pc->pc_qmap_ptep =
+		    pmap_pte(kernel_pmap, pages + (PAGE_SIZE * 2));
+		pc->pc_cmap1_addr = pages;
+		pc->pc_cmap2_addr = pages + PAGE_SIZE;
+		pc->pc_qmap_addr = pages + (PAGE_SIZE * 2);
+ 	}
+}
+SYSINIT(rpages_init, SI_SUB_CPU, SI_ORDER_ANY, pmap_init_reserved_pages, NULL);
 
 static __inline void
 pmap_alloc_lmem_map(void)
 {
-	int i;
-
-	for (i = 0; i < MAXCPU; i++) {
-		sysmap_lmem[i].base = virtual_avail;
-		virtual_avail += PAGE_SIZE * 2;
-		sysmap_lmem[i].valid1 = sysmap_lmem[i].valid2 = 0;
-	}
+	PCPU_SET(cmap1_addr, virtual_avail);
+	PCPU_SET(cmap2_addr, virtual_avail + PAGE_SIZE);
+	PCPU_SET(cmap1_ptep, pmap_pte(kernel_pmap, virtual_avail));
+	PCPU_SET(cmap2_ptep, pmap_pte(kernel_pmap, virtual_avail + PAGE_SIZE));
+	PCPU_SET(qmap_addr, virtual_avail + (2 * PAGE_SIZE));
+	PCPU_SET(qmap_ptep, pmap_pte(kernel_pmap, virtual_avail + (2 * PAGE_SIZE)));
+	crashdumpva = virtual_avail + (3 * PAGE_SIZE);
+	virtual_avail += PAGE_SIZE * 4;
 }
 
 static __inline vm_offset_t
 pmap_lmem_map1(vm_paddr_t phys)
 {
-	struct local_sysmaps *sysm;
-	pt_entry_t *pte, npte;
-	vm_offset_t va;
-	uint32_t intr;
-	int cpu;
-
-	intr = intr_disable();
-	cpu = PCPU_GET(cpuid);
-	sysm = &sysmap_lmem[cpu];
-	sysm->saved_intr = intr;
-	va = sysm->base;
-	npte = TLBLO_PA_TO_PFN(phys) | PTE_C_CACHE | PTE_D | PTE_V | PTE_G;
-	pte = pmap_pte(kernel_pmap, va);
-	*pte = npte;
-	sysm->valid1 = 1;
-	return (va);
+	critical_enter();
+	*PCPU_GET(cmap1_ptep) =
+	    TLBLO_PA_TO_PFN(phys) | PTE_C_CACHE | PTE_D | PTE_V | PTE_G;
+	return (PCPU_GET(cmap1_addr));
 }
 
 static __inline vm_offset_t
 pmap_lmem_map2(vm_paddr_t phys1, vm_paddr_t phys2)
 {
-	struct local_sysmaps *sysm;
-	pt_entry_t *pte, npte;
-	vm_offset_t va1, va2;
-	uint32_t intr;
-	int cpu;
-
-	intr = intr_disable();
-	cpu = PCPU_GET(cpuid);
-	sysm = &sysmap_lmem[cpu];
-	sysm->saved_intr = intr;
-	va1 = sysm->base;
-	va2 = sysm->base + PAGE_SIZE;
-	npte = TLBLO_PA_TO_PFN(phys1) | PTE_C_CACHE | PTE_D | PTE_V | PTE_G;
-	pte = pmap_pte(kernel_pmap, va1);
-	*pte = npte;
-	npte = TLBLO_PA_TO_PFN(phys2) | PTE_C_CACHE | PTE_D | PTE_V | PTE_G;
-	pte = pmap_pte(kernel_pmap, va2);
-	*pte = npte;
-	sysm->valid1 = 1;
-	sysm->valid2 = 1;
-	return (va1);
+	critical_enter();
+	*PCPU_GET(cmap1_ptep) =
+	    TLBLO_PA_TO_PFN(phys1) | PTE_C_CACHE | PTE_D | PTE_V | PTE_G;
+	*PCPU_GET(cmap2_ptep) =
+	    TLBLO_PA_TO_PFN(phys2) | PTE_C_CACHE | PTE_D | PTE_V | PTE_G;
+	return (PCPU_GET(cmap1_addr));
 }
 
 static __inline void
 pmap_lmem_unmap(void)
 {
-	struct local_sysmaps *sysm;
-	pt_entry_t *pte;
-	int cpu;
-
-	cpu = PCPU_GET(cpuid);
-	sysm = &sysmap_lmem[cpu];
-	pte = pmap_pte(kernel_pmap, sysm->base);
-	*pte = PTE_G;
-	tlb_invalidate_address(kernel_pmap, sysm->base);
-	sysm->valid1 = 0;
-	if (sysm->valid2) {
-		pte = pmap_pte(kernel_pmap, sysm->base + PAGE_SIZE);
-		*pte = PTE_G;
-		tlb_invalidate_address(kernel_pmap, sysm->base + PAGE_SIZE);
-		sysm->valid2 = 0;
-	}
-	intr_restore(sysm->saved_intr);
+	 *PCPU_GET(cmap1_ptep) = PTE_G;
+	tlb_invalidate_address(kernel_pmap, PCPU_GET(cmap1_addr));
+	if (*PCPU_GET(cmap2_ptep) != PTE_G) {
+		*PCPU_GET(cmap2_ptep) = PTE_G;
+		tlb_invalidate_address(kernel_pmap, PCPU_GET(cmap2_addr));
+ 	}
+	critical_exit();
 }
+
 #else  /* __mips_n64 */
 
 static __inline void
@@ -495,7 +489,6 @@ void
 pmap_bootstrap(void)
 {
 	int i;
-	int need_local_mappings = 0;
 
 	/* Sort. */
 again:
@@ -588,9 +581,9 @@ again:
 		printf("pcpu is available at virtual address %p.\n", pcpup);
 #endif
 
+	pmap_create_kernel_pagetable();
 	if (need_local_mappings)
 		pmap_alloc_lmem_map();
-	pmap_create_kernel_pagetable();
 	pmap_max_asid = VMNUM_PIDS;
 	mips_wr_entryhi(0);
 	mips_wr_pagemask(0);
@@ -2381,28 +2374,16 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
 		va = MIPS_PHYS_TO_DIRECT(pa);
 	} else {
 #ifndef __mips_n64    /* XXX : to be converted to new style */
-		int cpu;
-		register_t intr;
-		struct local_sysmaps *sysm;
 		pt_entry_t *pte, npte;
 
-		/* If this is used other than for dumps, we may need to leave
-		 * interrupts disasbled on return. If crash dumps don't work when
-		 * we get to this point, we might want to consider this (leaving things
-		 * disabled as a starting point ;-)
-	 	 */
-		intr = intr_disable();
-		cpu = PCPU_GET(cpuid);
-		sysm = &sysmap_lmem[cpu];
+		pte = pmap_pte(kernel_pmap, crashdumpva); 
+
 		/* Since this is for the debugger, no locks or any other fun */
 		npte = TLBLO_PA_TO_PFN(pa) | PTE_C_CACHE | PTE_D | PTE_V |
 		    PTE_G;
-		pte = pmap_pte(kernel_pmap, sysm->base);
 		*pte = npte;
-		sysm->valid1 = 1;
-		pmap_update_page(kernel_pmap, sysm->base, npte);
-		va = sysm->base;
-		intr_restore(intr);
+		pmap_update_page(kernel_pmap, crashdumpva, npte);
+		va = crashdumpva;
 #endif
 	}
 	return ((void *)va);
@@ -2411,29 +2392,17 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
 void
 pmap_kenter_temporary_free(vm_paddr_t pa)
 {
-#ifndef __mips_n64    /* XXX : to be converted to new style */
-	int cpu;
-	register_t intr;
-	struct local_sysmaps *sysm;
-#endif
-
+ #ifndef __mips_n64    /* XXX : to be converted to new style */
+	pt_entry_t *pte;
+ #endif
 	if (MIPS_DIRECT_MAPPABLE(pa)) {
 		/* nothing to do for this case */
 		return;
 	}
 #ifndef __mips_n64    /* XXX : to be converted to new style */
-	cpu = PCPU_GET(cpuid);
-	sysm = &sysmap_lmem[cpu];
-	if (sysm->valid1) {
-		pt_entry_t *pte;
-
-		intr = intr_disable();
-		pte = pmap_pte(kernel_pmap, sysm->base);
-		*pte = PTE_G;
-		pmap_invalidate_page(kernel_pmap, sysm->base);
-		intr_restore(intr);
-		sysm->valid1 = 0;
-	}
+	pte = pmap_pte(kernel_pmap, crashdumpva);
+	*pte = PTE_G;
+	pmap_invalidate_page(kernel_pmap, crashdumpva);
 #endif
 }
 
@@ -2687,8 +2656,8 @@ pmap_quick_enter_page(vm_page_t m)
 #if defined(__mips_n64)
 	return MIPS_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(m));
 #else
+	vm_offset_t qaddr;
 	vm_paddr_t pa;
-	struct local_sysmaps *sysm;
 	pt_entry_t *pte, npte;
 
 	pa = VM_PAGE_TO_PHYS(m);
@@ -2700,17 +2669,16 @@ pmap_quick_enter_page(vm_page_t m)
 			return (MIPS_PHYS_TO_DIRECT(pa));
 	}
 	critical_enter();
-	sysm = &sysmap_lmem[PCPU_GET(cpuid)];
+	qaddr = PCPU_GET(qmap_addr);
+	pte = PCPU_GET(qmap_ptep);
 
-	KASSERT(sysm->valid1 == 0, ("pmap_quick_enter_page: PTE busy"));
+	KASSERT(*pte == PTE_G, ("pmap_quick_enter_page: PTE busy"));
 
-	pte = pmap_pte(kernel_pmap, sysm->base);
 	npte = TLBLO_PA_TO_PFN(pa) | PTE_D | PTE_V | PTE_G;
 	PMAP_PTE_SET_CACHE_BITS(npte, pa, m);
 	*pte = npte;
-	sysm->valid1 = 1;
 
-	return (sysm->base);
+	return (qaddr);
 #endif
 }
 
@@ -2720,23 +2688,20 @@ pmap_quick_remove_page(vm_offset_t addr)
 	mips_dcache_wbinv_range(addr, PAGE_SIZE);
 
 #if !defined(__mips_n64)
-	struct local_sysmaps *sysm;
 	pt_entry_t *pte;
 
 	if (addr >= MIPS_KSEG0_START && addr < MIPS_KSEG0_END)
 		return;
 
-	sysm = &sysmap_lmem[PCPU_GET(cpuid)];
+	pte = PCPU_GET(qmap_ptep);
 
-	KASSERT(sysm->valid1 != 0,
+	KASSERT(*pte != PTE_G,
 	    ("pmap_quick_remove_page: PTE not in use"));
-	KASSERT(sysm->base == addr,
+	KASSERT(PCPU_GET(qmap_addr) == addr,
 	    ("pmap_quick_remove_page: invalid address"));
 
-	pte = pmap_pte(kernel_pmap, addr);
 	*pte = PTE_G;
 	tlb_invalidate_address(kernel_pmap, addr);
-	sysm->valid1 = 0;
 	critical_exit();
 #endif
 }
