@@ -641,7 +641,20 @@ vfs_busy(struct mount *mp, int flags)
 	MPASS((flags & ~MBF_MASK) == 0);
 	CTR3(KTR_VFS, "%s: mp %p with flags %d", __func__, mp, flags);
 
+	if (vfs_op_thread_enter(mp)) {
+		MPASS((mp->mnt_kern_flag & MNTK_DRAINING) == 0);
+		MPASS((mp->mnt_kern_flag & MNTK_UNMOUNT) == 0);
+		MPASS((mp->mnt_kern_flag & MNTK_REFEXPIRE) == 0);
+		vfs_mp_count_add_pcpu(mp, ref, 1);
+		vfs_mp_count_add_pcpu(mp, lockref, 1);
+		vfs_op_thread_exit(mp);
+		if (flags & MBF_MNTLSTLOCK)
+			mtx_unlock(&mountlist_mtx);
+		return (0);
+	}
+
 	MNT_ILOCK(mp);
+	vfs_assert_mount_counters(mp);
 	MNT_REF(mp);
 	/*
 	 * If mount point is currently being unmounted, sleep until the
@@ -684,13 +697,30 @@ vfs_busy(struct mount *mp, int flags)
 void
 vfs_unbusy(struct mount *mp)
 {
+	int c;
 
 	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
+
+	if (vfs_op_thread_enter(mp)) {
+		MPASS((mp->mnt_kern_flag & MNTK_DRAINING) == 0);
+		vfs_mp_count_sub_pcpu(mp, lockref, 1);
+		vfs_mp_count_sub_pcpu(mp, ref, 1);
+		vfs_op_thread_exit(mp);
+		return;
+	}
+
 	MNT_ILOCK(mp);
+	vfs_assert_mount_counters(mp);
 	MNT_REL(mp);
-	KASSERT(mp->mnt_lockref > 0, ("negative mnt_lockref"));
-	mp->mnt_lockref--;
-	if (mp->mnt_lockref == 0 && (mp->mnt_kern_flag & MNTK_DRAINING) != 0) {
+	c = --mp->mnt_lockref;
+	if (mp->mnt_vfs_ops == 0) {
+		MPASS((mp->mnt_kern_flag & MNTK_DRAINING) == 0);
+		MNT_IUNLOCK(mp);
+		return;
+	}
+	if (c < 0)
+		vfs_dump_mount_counters(mp);
+	if (c == 0 && (mp->mnt_kern_flag & MNTK_DRAINING) != 0) {
 		MPASS(mp->mnt_kern_flag & MNTK_UNMOUNT);
 		CTR1(KTR_VFS, "%s: waking up waiters", __func__);
 		mp->mnt_kern_flag &= ~MNTK_DRAINING;
@@ -4017,21 +4047,25 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	if (jailed(mp->mnt_cred))
 		db_printf(", jail=%d", mp->mnt_cred->cr_prison->pr_id);
 	db_printf(" }\n");
-	db_printf("    mnt_ref = %d\n", mp->mnt_ref);
+	db_printf("    mnt_ref = %d (with %d in the struct)\n",
+	    vfs_mount_fetch_counter(mp, MNT_COUNT_REF), mp->mnt_ref);
 	db_printf("    mnt_gen = %d\n", mp->mnt_gen);
 	db_printf("    mnt_nvnodelistsize = %d\n", mp->mnt_nvnodelistsize);
 	db_printf("    mnt_activevnodelistsize = %d\n",
 	    mp->mnt_activevnodelistsize);
-	db_printf("    mnt_writeopcount = %d\n", mp->mnt_writeopcount);
+	db_printf("    mnt_writeopcount = %d (with %d in the struct)\n",
+	    vfs_mount_fetch_counter(mp, MNT_COUNT_WRITEOPCOUNT), mp->mnt_writeopcount);
 	db_printf("    mnt_maxsymlinklen = %d\n", mp->mnt_maxsymlinklen);
 	db_printf("    mnt_iosize_max = %d\n", mp->mnt_iosize_max);
 	db_printf("    mnt_hashseed = %u\n", mp->mnt_hashseed);
-	db_printf("    mnt_lockref = %d\n", mp->mnt_lockref);
+	db_printf("    mnt_lockref = %d (with %d in the struct)\n",
+	    vfs_mount_fetch_counter(mp, MNT_COUNT_LOCKREF), mp->mnt_lockref);
 	db_printf("    mnt_secondary_writes = %d\n", mp->mnt_secondary_writes);
 	db_printf("    mnt_secondary_accwrites = %d\n",
 	    mp->mnt_secondary_accwrites);
 	db_printf("    mnt_gjprovider = %s\n",
 	    mp->mnt_gjprovider != NULL ? mp->mnt_gjprovider : "NULL");
+	db_printf("    mnt_vfs_ops = %d\n", mp->mnt_vfs_ops);
 
 	db_printf("\n\nList of active vnodes\n");
 	TAILQ_FOREACH(vp, &mp->mnt_activevnodelist, v_actfreelist) {

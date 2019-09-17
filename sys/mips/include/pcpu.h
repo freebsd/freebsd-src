@@ -51,7 +51,13 @@
 #else
 #define	PCPU_MD_MIPS32_FIELDS						\
 	PCPU_MD_COMMON_FIELDS						\
-	char		__pad[125]
+	pt_entry_t	*pc_cmap1_ptep;		/* PTE for copy window 1 KVA */ \
+	pt_entry_t	*pc_cmap2_ptep;		/* PTE for copy window 2 KVA */ \
+	vm_offset_t	pc_cmap1_addr;		/* KVA page for copy window 1 */ \
+	vm_offset_t	pc_cmap2_addr;		/* KVA page for copy window 2 */ \
+	vm_offset_t	pc_qmap_addr;		/* KVA page for temporary mappings */ \
+	pt_entry_t	*pc_qmap_ptep;		/* PTE for temporary mapping KVA */ \
+	char		__pad[101]
 #endif
 
 #ifdef	__mips_n64

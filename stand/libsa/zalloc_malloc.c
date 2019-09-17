@@ -55,6 +55,9 @@ Malloc(size_t bytes, const char *file, int line)
 {
     Guard *res;
 
+    if (bytes == 0)
+	return (NULL);
+
 #ifdef USEENDGUARD
     bytes += MALLOCALIGN + 1;
 #else

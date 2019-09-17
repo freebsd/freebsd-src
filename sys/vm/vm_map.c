@@ -1250,7 +1250,6 @@ vm_map_entry_link(vm_map_t map, vm_map_entry_t entry)
 }
 
 enum unlink_merge_type {
-	UNLINK_MERGE_PREV,
 	UNLINK_MERGE_NONE,
 	UNLINK_MERGE_NEXT
 };
@@ -1266,17 +1265,9 @@ vm_map_entry_unlink(vm_map_t map, vm_map_entry_t entry,
 	KASSERT(root != NULL,
 	    ("vm_map_entry_unlink: unlink object not mapped"));
 
+	vm_map_splay_findnext(root, &rlist);
 	switch (op) {
-	case UNLINK_MERGE_PREV:
-		vm_map_splay_findprev(root, &llist);
-		llist->end = root->end;
-		y = root->right;
-		root = llist;
-		llist = root->right;
-		root->right = y;
-		break;
 	case UNLINK_MERGE_NEXT:
-		vm_map_splay_findnext(root, &rlist);
 		rlist->start = root->start;
 		rlist->offset = root->offset;
 		y = root->left;
@@ -1286,7 +1277,6 @@ vm_map_entry_unlink(vm_map_t map, vm_map_entry_t entry,
 		break;
 	case UNLINK_MERGE_NONE:
 		vm_map_splay_findprev(root, &llist);
-		vm_map_splay_findnext(root, &rlist);
 		if (llist != &map->header) {
 			root = llist;
 			llist = root->right;

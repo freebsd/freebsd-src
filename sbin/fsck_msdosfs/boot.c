@@ -259,12 +259,18 @@ readboot(int dosfs, struct bootblock *boot)
 		return FSFATAL;
 	}
 
-	boot->ClusterOffset = (boot->bpbRootDirEnts * 32 +
+	boot->FirstCluster = (boot->bpbRootDirEnts * 32 +
 	    boot->bpbBytesPerSec - 1) / boot->bpbBytesPerSec +
-	    boot->bpbResSectors + boot->bpbFATs * boot->FATsecs -
-	    CLUST_FIRST * boot->bpbSecPerClust;
-	boot->NumClusters = (boot->NumSectors - boot->ClusterOffset) /
-	    boot->bpbSecPerClust;
+	    boot->bpbResSectors + boot->bpbFATs * boot->FATsecs;
+
+	if (boot->FirstCluster + boot->bpbSecPerClust > boot->NumSectors) {
+		pfatal("Cluster offset too large (%u clusters)\n",
+		    boot->FirstCluster);
+		return FSFATAL;
+	}
+
+	boot->NumClusters = (boot->NumSectors - boot->FirstCluster) / boot->bpbSecPerClust +
+	    CLUST_FIRST;
 
 	if (boot->flags & FAT32)
 		boot->ClustMask = CLUST32_MASK;

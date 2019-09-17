@@ -363,6 +363,7 @@ variable fd
 ;
 
 : line_buffer_resize  ( len -- len )
+  dup 0= if exit then
   >r
   line_buffer .len @ if
     line_buffer .addr @
@@ -376,6 +377,7 @@ variable fd
 ;
     
 : append_to_line_buffer  ( addr len -- )
+  dup 0= if 2drop exit then
   line_buffer strget
   2swap strcat
   line_buffer .len !

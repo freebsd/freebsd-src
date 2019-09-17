@@ -2954,17 +2954,26 @@ journal_suspend(ump)
 {
 	struct jblocks *jblocks;
 	struct mount *mp;
+	bool set;
 
 	mp = UFSTOVFS(ump);
+	if ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0)
+		return;
+
 	jblocks = ump->softdep_jblocks;
+	vfs_op_enter(mp);
+	set = false;
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_SUSPEND) == 0) {
 		stat_journal_min++;
 		mp->mnt_kern_flag |= MNTK_SUSPEND;
 		mp->mnt_susp_owner = ump->softdep_flushtd;
+		set = true;
 	}
 	jblocks->jb_suspended = 1;
 	MNT_IUNLOCK(mp);
+	if (!set)
+		vfs_op_exit(mp);
 }
 
 static int
@@ -13394,10 +13403,11 @@ softdep_request_cleanup(fs, vp, cred, resource)
 	 * (fs_minfree).
 	 */
 	if (resource == FLUSH_INODES_WAIT) {
-		needed = vp->v_mount->mnt_writeopcount + 2;
+		needed = vfs_mount_fetch_counter(vp->v_mount,
+		    MNT_COUNT_WRITEOPCOUNT) + 2;
 	} else if (resource == FLUSH_BLOCKS_WAIT) {
-		needed = (vp->v_mount->mnt_writeopcount + 2) *
-		    fs->fs_contigsumsize;
+		needed = (vfs_mount_fetch_counter(vp->v_mount,
+		    MNT_COUNT_WRITEOPCOUNT) + 2) * fs->fs_contigsumsize;
 		if (priv_check_cred(cred, PRIV_VFS_BLOCKRESERVE))
 			needed += fragstoblks(fs,
 			    roundup((fs->fs_dsize * fs->fs_minfree / 100) -

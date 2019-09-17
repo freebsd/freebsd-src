@@ -242,6 +242,7 @@ mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype, char *fspath,
 	if (VFS_ROOT(mp, LK_EXCLUSIVE, &mvp))
 		panic("mount: lost mount");
 	VOP_UNLOCK(vp, 0);
+	vfs_op_exit(mp);
 	vfs_unbusy(mp);
 	*vpp = mvp;
 	return (0);

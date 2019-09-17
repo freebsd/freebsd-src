@@ -31,7 +31,7 @@
 # BEFORE: sysctl
 # KEYWORD: firstboot
 
-# This allows us to distribute a image
+# This allows us to distribute an image
 # and have it work on essentially any size drive.
 #
 # TODO: Figure out where this should really be ordered.
