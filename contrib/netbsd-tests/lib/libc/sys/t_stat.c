@@ -332,6 +332,9 @@ ATF_TC_BODY(stat_socket, tc)
 	uint32_t iaddr;
 	int fd, flags;
 
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
+		atf_tc_skip("https://bugs.freebsd.org/240621");
+
 	(void)memset(&st, 0, sizeof(struct stat));
 	(void)memset(&addr, 0, sizeof(struct sockaddr_in));
 
