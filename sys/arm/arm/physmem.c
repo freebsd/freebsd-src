@@ -287,6 +287,8 @@ insert_region(struct region *regions, size_t rcnt, vm_paddr_t addr,
 
 	ep = regions + rcnt;
 	for (i = 0, rp = regions; i < rcnt; ++i, ++rp) {
+		if (rp->addr == addr && rp->size == size) /* Pure dup. */
+			return (rcnt);
 		if (flags == rp->flags) {
 			if (addr + size == rp->addr) {
 				rp->addr = addr;
