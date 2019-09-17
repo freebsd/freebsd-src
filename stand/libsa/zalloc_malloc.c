@@ -73,9 +73,6 @@ Malloc_align(size_t bytes, size_t alignment)
 {
 	Guard *res;
 
-	if (bytes == 0)
-		return (NULL);
-
 #ifdef USEENDGUARD
 	bytes += MALLOCALIGN + 1;
 #else
