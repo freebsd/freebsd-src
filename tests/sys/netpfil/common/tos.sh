@@ -40,6 +40,10 @@ tos_head()
 tos_body()
 {
 	firewall=$1
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "i386" ] && [ "${firewall}" = "pf" ]; then
+		atf_skip "https://bugs.freebsd.org/240086"
+	fi
 	firewall_init $firewall
 
 	epair_send=$(vnet_mkepair)
