@@ -775,6 +775,7 @@ be_export(libbe_handle_t *lbh, const char *bootenv, int fd)
 	char snap_name[BE_MAXPATHLEN];
 	char buf[BE_MAXPATHLEN];
 	zfs_handle_t *zfs;
+	sendflags_t flags = { 0 };
 	int err;
 
 	if ((err = be_snapshot(lbh, bootenv, NULL, true, snap_name)) != 0)
@@ -786,7 +787,7 @@ be_export(libbe_handle_t *lbh, const char *bootenv, int fd)
 	if ((zfs = zfs_open(lbh->lzh, buf, ZFS_TYPE_DATASET)) == NULL)
 		return (set_error(lbh, BE_ERR_ZFSOPEN));
 
-	err = zfs_send_one(zfs, NULL, fd, 0);
+	err = zfs_send_one(zfs, NULL, fd, flags);
 	zfs_close(zfs);
 
 	return (err);
