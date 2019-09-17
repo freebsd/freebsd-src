@@ -613,11 +613,13 @@ vop_stdgetwritemount(ap)
 		vfs_op_thread_exit(mp);
 	} else {
 		MNT_ILOCK(mp);
-		if (mp == vp->v_mount)
+		if (mp == vp->v_mount) {
 			MNT_REF(mp);
-		else
+			MNT_IUNLOCK(mp);
+		} else {
+			MNT_IUNLOCK(mp);
 			mp = NULL;
-		MNT_IUNLOCK(mp);
+		}
 	}
 	*(ap->a_mpp) = mp;
 	return (0);
