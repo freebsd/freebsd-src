@@ -40,10 +40,10 @@ DECLARE_CLASS(gic_v3_driver);
 
 struct gic_v3_irqsrc;
 
-struct redist_lpis {
-	vm_offset_t		conf_base;
-	vm_offset_t		pend_base[MAXCPU];
-	uint64_t		flags;
+struct redist_pcpu {
+	struct resource		res;		/* mem resource for redist */
+	vm_offset_t		pend_base;
+	bool			lpi_enabled;	/* redist LPI configured? */
 };
 
 struct gic_redists {
@@ -55,10 +55,8 @@ struct gic_redists {
 	struct resource **	regions;
 	/* Number of Re-Distributor regions */
 	u_int			nregions;
-	/* Per-CPU Re-Distributor handler */
-	struct resource *	pcpu[MAXCPU];
-	/* LPIs data */
-	struct redist_lpis	lpis;
+	/* Per-CPU Re-Distributor data */
+	struct redist_pcpu	*pcpu[MAXCPU];
 };
 
 struct gic_v3_softc {
@@ -97,9 +95,11 @@ MALLOC_DECLARE(M_GIC_V3);
 /* ivars */
 #define	GICV3_IVAR_NIRQS	1000
 #define	GICV3_IVAR_REDIST_VADDR	1001
+#define	GICV3_IVAR_REDIST	1002
 
 __BUS_ACCESSOR(gicv3, nirqs, GICV3, NIRQS, u_int);
 __BUS_ACCESSOR(gicv3, redist_vaddr, GICV3, REDIST_VADDR, void *);
+__BUS_ACCESSOR(gicv3, redist, GICV3, REDIST, void *);
 
 /* Device methods */
 int gic_v3_attach(device_t dev);
@@ -131,7 +131,7 @@ void gic_r_write_8(device_t, bus_size_t, uint64_t var);
 	u_int cpu = PCPU_GET(cpuid);		\
 						\
 	bus_read_##len(				\
-	    sc->gic_redists.pcpu[cpu],		\
+	    &sc->gic_redists.pcpu[cpu]->res,	\
 	    reg);				\
 })
 
@@ -140,7 +140,7 @@ void gic_r_write_8(device_t, bus_size_t, uint64_t var);
 	u_int cpu = PCPU_GET(cpuid);		\
 						\
 	bus_write_##len(			\
-	    sc->gic_redists.pcpu[cpu],		\
+	    &sc->gic_redists.pcpu[cpu]->res,	\
 	    reg, val);				\
 })
 

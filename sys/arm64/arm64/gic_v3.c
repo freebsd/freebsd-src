@@ -183,36 +183,44 @@ uint32_t
 gic_r_read_4(device_t dev, bus_size_t offset)
 {
 	struct gic_v3_softc *sc;
+	struct resource *rdist;
 
 	sc = device_get_softc(dev);
-	return (bus_read_4(sc->gic_redists.pcpu[PCPU_GET(cpuid)], offset));
+	rdist = &sc->gic_redists.pcpu[PCPU_GET(cpuid)]->res;
+	return (bus_read_4(rdist, offset));
 }
 
 uint64_t
 gic_r_read_8(device_t dev, bus_size_t offset)
 {
 	struct gic_v3_softc *sc;
+	struct resource *rdist;
 
 	sc = device_get_softc(dev);
-	return (bus_read_8(sc->gic_redists.pcpu[PCPU_GET(cpuid)], offset));
+	rdist = &sc->gic_redists.pcpu[PCPU_GET(cpuid)]->res;
+	return (bus_read_8(rdist, offset));
 }
 
 void
 gic_r_write_4(device_t dev, bus_size_t offset, uint32_t val)
 {
 	struct gic_v3_softc *sc;
+	struct resource *rdist;
 
 	sc = device_get_softc(dev);
-	bus_write_4(sc->gic_redists.pcpu[PCPU_GET(cpuid)], offset, val);
+	rdist = &sc->gic_redists.pcpu[PCPU_GET(cpuid)]->res;
+	bus_write_4(rdist, offset, val);
 }
 
 void
 gic_r_write_8(device_t dev, bus_size_t offset, uint64_t val)
 {
 	struct gic_v3_softc *sc;
+	struct resource *rdist;
 
 	sc = device_get_softc(dev);
-	bus_write_8(sc->gic_redists.pcpu[PCPU_GET(cpuid)], offset, val);
+	rdist = &sc->gic_redists.pcpu[PCPU_GET(cpuid)]->res;
+	bus_write_8(rdist, offset, val);
 }
 
 /*
@@ -384,7 +392,10 @@ gic_v3_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 		return (0);
 	case GICV3_IVAR_REDIST_VADDR:
 		*result = (uintptr_t)rman_get_virtual(
-		    sc->gic_redists.pcpu[PCPU_GET(cpuid)]);
+		    &sc->gic_redists.pcpu[PCPU_GET(cpuid)]->res);
+		return (0);
+	case GICV3_IVAR_REDIST:
+		*result = (uintptr_t)sc->gic_redists.pcpu[PCPU_GET(cpuid)];
 		return (0);
 	case GIC_IVAR_HW_REV:
 		KASSERT(
@@ -979,7 +990,7 @@ gic_v3_wait_for_rwp(struct gic_v3_softc *sc, enum gic_v3_xdist xdist)
 		res = sc->gic_dist;
 		break;
 	case REDIST:
-		res = sc->gic_redists.pcpu[cpuid];
+		res = &sc->gic_redists.pcpu[cpuid]->res;
 		break;
 	default:
 		KASSERT(0, ("%s: Attempt to wait for unknown RWP", __func__));
@@ -1173,7 +1184,8 @@ gic_v3_redist_find(struct gic_v3_softc *sc)
 				KASSERT(sc->gic_redists.pcpu[cpuid] != NULL,
 				    ("Invalid pointer to per-CPU redistributor"));
 				/* Copy res contents to its final destination */
-				*sc->gic_redists.pcpu[cpuid] = r_res;
+				sc->gic_redists.pcpu[cpuid]->res = r_res;
+				sc->gic_redists.pcpu[cpuid]->lpi_enabled = false;
 				if (bootverbose) {
 					device_printf(sc->dev,
 					    "CPU%u Re-Distributor has been found\n",
