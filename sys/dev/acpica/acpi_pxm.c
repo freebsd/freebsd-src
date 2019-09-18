@@ -59,6 +59,7 @@ static struct cpu_info {
 	int enabled:1;
 	int has_memory:1;
 	int domain;
+	int id;
 } *cpus;
 
 static int max_cpus;
@@ -182,14 +183,33 @@ overlaps_phys_avail(vm_paddr_t start, vm_paddr_t end)
 }
 
 /*
- * Find CPU by processor ID (APIC ID on x86).
+ * On x86 we can use the cpuid to index the cpus array, but on arm64
+ * we have an ACPI Processor UID with a larger range.
+ *
+ * Use this variable to indicate if the cpus can be stored by index.
+ */
+#ifdef __aarch64__
+static const int cpus_use_indexing = 0;
+#else
+static const int cpus_use_indexing = 1;
+#endif
+
+/*
+ * Find CPU by processor ID (APIC ID on x86, Processor UID on arm64)
  */
 static struct cpu_info *
 cpu_find(int cpuid)
 {
+	int i;
 
-	if (cpuid <= last_cpu && cpus[cpuid].enabled)
-		return (&cpus[cpuid]);
+	if (cpus_use_indexing) {
+		if (cpuid <= last_cpu && cpus[cpuid].enabled)
+			return (&cpus[cpuid]);
+	} else {
+		for (i = 0; i <= last_cpu; i++)
+			if (cpus[i].id == cpuid)
+				return (&cpus[i]);
+	}
 	return (NULL);
 }
 
@@ -202,10 +222,14 @@ cpu_get_info(struct pcpu *pc)
 	struct cpu_info *cpup;
 	int id;
 
+#ifdef __aarch64__
+	id = pc->pc_acpi_id;
+#else
 	id = pc->pc_apic_id;
+#endif
 	cpup = cpu_find(id);
 	if (cpup == NULL)
-		panic("SRAT: CPU with APIC ID %u is not known", id);
+		panic("SRAT: CPU with ID %u is not known", id);
 	return (cpup);
 }
 
@@ -217,11 +241,18 @@ cpu_add(int cpuid, int domain)
 {
 	struct cpu_info *cpup;
 
-	if (cpuid >= max_cpus)
-		return (NULL);
-	last_cpu = imax(last_cpu, cpuid);
-	cpup = &cpus[cpuid];
+	if (cpus_use_indexing) {
+		if (cpuid >= max_cpus)
+			return (NULL);
+		last_cpu = imax(last_cpu, cpuid);
+		cpup = &cpus[cpuid];
+	} else {
+		if (last_cpu >= max_cpus - 1)
+			return (NULL);
+		cpup = &cpus[++last_cpu];
+	}
 	cpup->domain = domain;
+	cpup->id = cpuid;
 	cpup->enabled = 1;
 	return (cpup);
 }
@@ -232,6 +263,7 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 	ACPI_SRAT_CPU_AFFINITY *cpu;
 	ACPI_SRAT_X2APIC_CPU_AFFINITY *x2apic;
 	ACPI_SRAT_MEM_AFFINITY *mem;
+	ACPI_SRAT_GICC_AFFINITY *gicc;
 	static struct cpu_info *cpup;
 	int domain, i, slot;
 
@@ -276,6 +308,22 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		if (cpup == NULL)
 			printf("SRAT: Ignoring local APIC ID %u (too high)\n",
 			    x2apic->ApicId);
+		break;
+	case ACPI_SRAT_TYPE_GICC_AFFINITY:
+		gicc = (ACPI_SRAT_GICC_AFFINITY *)entry;
+		if (bootverbose)
+			printf("SRAT: Found CPU UID %u domain %d: %s\n",
+			    gicc->AcpiProcessorUid, gicc->ProximityDomain,
+			    (gicc->Flags & ACPI_SRAT_GICC_ENABLED) ?
+			    "enabled" : "disabled");
+		if (!(gicc->Flags & ACPI_SRAT_GICC_ENABLED))
+			break;
+		KASSERT(cpu_find(gicc->AcpiProcessorUid) == NULL,
+		    ("Duplicate CPU UID %u", gicc->AcpiProcessorUid));
+		cpup = cpu_add(gicc->AcpiProcessorUid, gicc->ProximityDomain);
+		if (cpup == NULL)
+			printf("SRAT: Ignoring CPU UID %u (too high)\n",
+			    gicc->AcpiProcessorUid);
 		break;
 	case ACPI_SRAT_TYPE_MEMORY_AFFINITY:
 		mem = (ACPI_SRAT_MEM_AFFINITY *)entry;

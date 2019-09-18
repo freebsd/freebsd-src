@@ -233,3 +233,16 @@ acpi_map_addr(struct acpi_generic_address *addr, bus_space_tag_t *tag,
 
 	return (bus_space_map(*tag, phys, size, 0, handle));
 }
+
+#if MAXMEMDOM > 1
+static void
+parse_pxm_tables(void *dummy)
+{
+
+	acpi_pxm_init(MAXCPU, (vm_paddr_t)1 << 40);
+	acpi_pxm_parse_tables();
+	acpi_pxm_set_mem_locality();
+}
+SYSINIT(parse_pxm_tables, SI_SUB_VM - 1, SI_ORDER_FIRST, parse_pxm_tables,
+    NULL);
+#endif
