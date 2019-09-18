@@ -272,7 +272,7 @@ static const struct {
 } its_quirks[] = {
 	{
 		/* Cavium ThunderX Pass 1.x */
-		.desc = "Cavoum ThunderX errata: 22375, 24313",
+		.desc = "Cavium ThunderX errata: 22375, 24313",
 		.iidr = GITS_IIDR_RAW(GITS_IIDR_IMPL_CAVIUM,
 		    GITS_IIDR_PROD_THUNDER, GITS_IIDR_VAR_THUNDER_1, 0),
 		.iidr_mask = ~GITS_IIDR_REVISION_MASK,
