@@ -194,8 +194,8 @@ struct tasklet_struct {
 	unsigned long data;
 };
 
-#define	DECLARE_TASKLET(name, func, data)	\
-struct tasklet_struct name = { { NULL, NULL }, func, data }
+#define	DECLARE_TASKLET(_name, _func, _data)	\
+struct tasklet_struct _name = { .func = (_func), .data = (_data) }
 
 #define	tasklet_hi_schedule(t)	tasklet_schedule(t)
 
