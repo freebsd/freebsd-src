@@ -91,7 +91,9 @@ dev/nvram2env/nvram2env_mips.c		optional	nvram2env
 dev/nvram2env/nvram2env.c		optional	nvram2env
 
 # hwpmc support
-dev/hwpmc/hwpmc_mips.c			optional	hwpmc
+dev/hwpmc/hwpmc_beri.c			optional	hwpmc_beri
+dev/hwpmc/hwpmc_mips.c			optional	hwpmc_mips24k | \
+	hwpmc_mips74k
 dev/hwpmc/hwpmc_mips24k.c		optional	hwpmc_mips24k
 dev/hwpmc/hwpmc_mips74k.c		optional	hwpmc_mips74k
 
