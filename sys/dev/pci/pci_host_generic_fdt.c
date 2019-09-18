@@ -152,6 +152,9 @@ pci_host_generic_attach(device_t dev)
 		device_printf(dev, "Bus is%s cache-coherent\n",
 		    sc->base.coherent ? "" : " not");
 
+	/* TODO parse FDT bus ranges */
+	sc->base.bus_start = 0;
+	sc->base.bus_end = 0xFF;
 	error = pci_host_generic_core_attach(dev);
 	if (error != 0)
 		return (error);
@@ -423,6 +426,7 @@ generic_pcie_fdt_activate_resource(device_t dev, device_t child, int type,
 		}
 		break;
 	case SYS_RES_MEMORY:
+	case SYS_RES_IRQ:
 		res = BUS_ACTIVATE_RESOURCE(device_get_parent(dev), child,
 		    type, rid, r);
 		break;
@@ -445,6 +449,7 @@ generic_pcie_fdt_deactivate_resource(device_t dev, device_t child, int type,
 	switch(type) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
+	case SYS_RES_IRQ:
 		res = BUS_DEACTIVATE_RESOURCE(device_get_parent(dev), child,
 		    type, rid, r);
 		break;
