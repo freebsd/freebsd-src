@@ -19,7 +19,11 @@ INSTALLFLAGS=	-b
 WARNS?=		1
 # Address at which ubldr will be loaded.
 # This varies for different boards and SOCs.
+.if ${MACHINE_ARCH:Mmips64*}
 UBLDR_LOADADDR?=	0xffffffff80800000
+.else
+UBLDR_LOADADDR?=	0x80800000
+.endif
 
 # Architecture-specific loader code
 SRCS=		start.S conf.c vers.c
