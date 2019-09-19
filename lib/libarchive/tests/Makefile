@@ -305,6 +305,9 @@ BROKEN_TESTS+=			test_read_disk_directory_traversals
 # (Times out?) [and] crashes
 BROKEN_TESTS+=			test_fuzz_rar
 
+# https://bugs.freebsd.org/240683
+BROKEN_TESTS+=			test_write_filter_zstd
+
 # Build the test program.
 SRCS.libarchive_test=		\
 	${TESTS_SRCS}		\
@@ -517,12 +520,12 @@ ${PACKAGE}FILES+=	test_read_format_rar5_blake2.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_compressed.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_different_window_size.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_distance_overflow.rar.uu
-${PACKAGE}FILES+=	test_read_format_rar5_extra_field_version.rar.uu	
+${PACKAGE}FILES+=	test_read_format_rar5_extra_field_version.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_fileattr.rar.uu
-${PACKAGE}FILES+=	test_read_format_rar5_hardlink.rar.uu	
-${PACKAGE}FILES+=	test_read_format_rar5_invalid_dict_reference.rar.uu	
-${PACKAGE}FILES+=	test_read_format_rar5_leftshift1.rar.uu	
-${PACKAGE}FILES+=	test_read_format_rar5_leftshift2.rar.uu	
+${PACKAGE}FILES+=	test_read_format_rar5_hardlink.rar.uu
+${PACKAGE}FILES+=	test_read_format_rar5_invalid_dict_reference.rar.uu
+${PACKAGE}FILES+=	test_read_format_rar5_leftshift1.rar.uu
+${PACKAGE}FILES+=	test_read_format_rar5_leftshift2.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_multiarchive.part01.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_multiarchive.part02.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_multiarchive.part03.rar.uu
@@ -538,13 +541,13 @@ ${PACKAGE}FILES+=	test_read_format_rar5_multiarchive_solid.part04.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_multiple_files.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_multiple_files_solid.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_nonempty_dir_stream.rar.uu
-${PACKAGE}FILES+=	test_read_format_rar5_owner.rar.uu	
-${PACKAGE}FILES+=	test_read_format_rar5_readtables_overflow.rar.uu	
+${PACKAGE}FILES+=	test_read_format_rar5_owner.rar.uu
+${PACKAGE}FILES+=	test_read_format_rar5_readtables_overflow.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_solid.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_stored.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_stored_manyfiles.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_symlink.rar.uu
-${PACKAGE}FILES+=	test_read_format_rar5_truncated_huff.rar.uu	
+${PACKAGE}FILES+=	test_read_format_rar5_truncated_huff.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_win32.rar.uu
 ${PACKAGE}FILES+=	test_read_format_raw.bufr.uu
 ${PACKAGE}FILES+=	test_read_format_raw.data.Z.uu

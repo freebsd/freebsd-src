@@ -27,6 +27,29 @@
 
 only forth definitions
 
+\ provide u> if needed
+s" u>" sfind [if] drop [else]
+	drop
+: u>
+	2dup u< if 2drop 0 exit then
+	swap u< if -1 exit then
+	0
+;
+[then]
+
+\ provide xemit if needed
+s" xemit" sfind [if] drop [else]
+	drop
+: xemit
+	dup 0x80 u< if emit exit then
+	0 swap 0x3F
+	begin 2dup u> while
+		2/ >r dup 0x3F and 0x80 or swap 6 rshift r>
+	repeat 0x7F xor 2* or
+	begin dup 0x80 u< 0= while emit repeat drop
+;
+[then]
+
 s" arch-i386" environment? [if] [if]
 	s" loader_version" environment?  [if]
 		11 < [if]

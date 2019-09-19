@@ -114,6 +114,7 @@ extern char pmc_cpuid[PMC_CPUID_LEN];
 	__PMC_CPU(MIPS_24K,     0x200,  "MIPS 24K")		\
 	__PMC_CPU(MIPS_OCTEON,  0x201,  "Cavium Octeon")	\
 	__PMC_CPU(MIPS_74K,     0x202,  "MIPS 74K")		\
+	__PMC_CPU(MIPS_BERI,	0x203,  "BERI")			\
 	__PMC_CPU(PPC_7450,     0x300,  "PowerPC MPC7450")	\
 	__PMC_CPU(PPC_E500,     0x340,  "PowerPC e500 Core")	\
 	__PMC_CPU(PPC_970,      0x380,  "IBM PowerPC 970")	\
@@ -160,7 +161,8 @@ enum pmc_cputype {
 	__PMC_CLASS(ARMV7,	0x10,	"ARMv7")			\
 	__PMC_CLASS(ARMV8,	0x11,	"ARMv8")			\
 	__PMC_CLASS(MIPS74K,	0x12,	"MIPS 74K")			\
-	__PMC_CLASS(E500,	0x13,	"Freescale e500 class")
+	__PMC_CLASS(E500,	0x13,	"Freescale e500 class")		\
+	__PMC_CLASS(BERI,	0x14,	"MIPS BERI")
 
 enum pmc_class {
 #undef  __PMC_CLASS

@@ -102,7 +102,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 # libraries, those libraries should be listed as build order dependencies here.
 
 SUBDIR_DEPEND_geom=	libufs
-SUBDIR_DEPEND_libarchive= libz libbz2 libexpat liblzma libmd
+SUBDIR_DEPEND_libarchive= libz libbz2 libexpat liblzma libmd libzstd
 SUBDIR_DEPEND_libauditdm= libbsm
 SUBDIR_DEPEND_libbsnmp= ${_libnetgraph}
 SUBDIR_DEPEND_libc++:= libcxxrt
