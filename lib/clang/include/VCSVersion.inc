@@ -1,14 +1,14 @@
 // $FreeBSD$
 
-#define LLVM_REVISION "371301"
-#define LLVM_REPOSITORY "https://llvm.org/svn/llvm-project/llvm/branches/release_90"
+#define LLVM_REVISION "372316"
+#define LLVM_REPOSITORY "https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_900/final"
 
-#define CLANG_REVISION "371301"
-#define CLANG_REPOSITORY "https://llvm.org/svn/llvm-project/cfe/branches/release_90"
+#define CLANG_REVISION "372316"
+#define CLANG_REPOSITORY "https://llvm.org/svn/llvm-project/cfe/tags/RELEASE_900/final"
 
 // <Upstream revision at import>-<Local identifier in __FreeBSD_version style>
-#define LLD_REVISION "371301-1300004"
+#define LLD_REVISION "372316-1300004"
 #define LLD_REPOSITORY "FreeBSD"
 
-#define LLDB_REVISION "371301"
-#define LLDB_REPOSITORY "https://llvm.org/svn/llvm-project/lldb/branches/release_90"
+#define LLDB_REVISION "372316"
+#define LLDB_REPOSITORY "https://llvm.org/svn/llvm-project/lldb/tags/RELEASE_900/final"
