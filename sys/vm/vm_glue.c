@@ -320,7 +320,7 @@ vm_thread_stack_create(struct domainset *ds, vm_object_t *ksobjp, int pages)
 	ks = kva_alloc((pages + KSTACK_GUARD_PAGES) * PAGE_SIZE);
 #endif
 	if (ks == 0) {
-		printf("vm_thread_new: kstack allocation failed\n");
+		printf("%s: kstack allocation failed\n", __func__);
 		vm_object_deallocate(ksobj);
 		return (0);
 	}
@@ -362,7 +362,7 @@ vm_thread_stack_dispose(vm_object_t ksobj, vm_offset_t ks, int pages)
 	for (i = 0; i < pages; i++) {
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
-			panic("vm_thread_dispose: kstack already missing?");
+			panic("%s: kstack already missing?", __func__);
 		vm_page_unwire_noq(m);
 		vm_page_free(m);
 	}
