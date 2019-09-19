@@ -335,7 +335,7 @@ static void
 vt_switch_timer(void *arg)
 {
 
-	vt_late_window_switch((struct vt_window *)arg);
+	(void)vt_late_window_switch((struct vt_window *)arg);
 }
 
 static int
@@ -457,13 +457,22 @@ vt_window_postswitch(struct vt_window *vw)
 static int
 vt_late_window_switch(struct vt_window *vw)
 {
+	struct vt_window *curvw;
 	int ret;
 
 	callout_stop(&vw->vw_proc_dead_timer);
 
 	ret = vt_window_switch(vw);
-	if (ret)
+	if (ret != 0) {
+		/*
+		 * If the switch hasn't happened, then return the VT
+		 * to the current owner, if any.
+		 */
+		curvw = vw->vw_device->vd_curwindow;
+		if (curvw->vw_smode.mode == VT_PROCESS)
+			(void)vt_window_postswitch(curvw);
 		return (ret);
+	}
 
 	/* Notify owner process about terminal availability. */
 	if (vw->vw_smode.mode == VT_PROCESS) {
@@ -508,6 +517,19 @@ vt_proc_window_switch(struct vt_window *vw)
 		DPRINTF(30, "%s: Cannot switch: vw == curvw.", __func__);
 		return (0);	/* success */
 	}
+
+	/*
+	 * Early check for an attempt to switch to a non-functional VT.
+	 * The same check is done in vt_window_switch(), but it's better
+	 * to fail as early as possible to avoid needless pre-switch
+	 * actions.
+	 */
+	VT_LOCK(vd);
+	if ((vw->vw_flags & (VWF_OPENED|VWF_CONSOLE)) == 0) {
+		VT_UNLOCK(vd);
+		return (EINVAL);
+	}
+	VT_UNLOCK(vd);
 
 	/* Ask current process permission to switch away. */
 	if (curvw->vw_smode.mode == VT_PROCESS) {
@@ -1792,7 +1814,7 @@ finish_vt_rel(struct vt_window *vw, int release, int *s)
 		vw->vw_flags &= ~VWF_SWWAIT_REL;
 		if (release) {
 			callout_drain(&vw->vw_proc_dead_timer);
-			vt_late_window_switch(vw->vw_switch_to);
+			(void)vt_late_window_switch(vw->vw_switch_to);
 		}
 		return (0);
 	}
