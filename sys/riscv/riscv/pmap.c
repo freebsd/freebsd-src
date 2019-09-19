@@ -4104,7 +4104,7 @@ pmap_clear_modify(vm_page_t m)
 	pmap_t pmap;
 	pv_entry_t next_pv, pv;
 	pd_entry_t *l2, oldl2;
-	pt_entry_t *l3, oldl3;
+	pt_entry_t *l3;
 	vm_offset_t va;
 	int md_gen, pvh_gen;
 
@@ -4142,28 +4142,19 @@ restart:
 		va = pv->pv_va;
 		l2 = pmap_l2(pmap, va);
 		oldl2 = pmap_load(l2);
-		if ((oldl2 & PTE_W) != 0) {
-			if (pmap_demote_l2_locked(pmap, l2, va, &lock)) {
-				if ((oldl2 & PTE_SW_WIRED) == 0) {
-					/*
-					 * Write protect the mapping to a
-					 * single page so that a subsequent
-					 * write access may repromote.
-					 */
-					va += VM_PAGE_TO_PHYS(m) -
-					    PTE_TO_PHYS(oldl2);
-					l3 = pmap_l2_to_l3(l2, va);
-					oldl3 = pmap_load(l3);
-					if ((oldl3 & PTE_V) != 0) {
-						while (!atomic_fcmpset_long(l3,
-						    &oldl3, oldl3 & ~(PTE_D |
-						    PTE_W)))
-							cpu_spinwait();
-						vm_page_dirty(m);
-						pmap_invalidate_page(pmap, va);
-					}
-				}
-			}
+		/* If oldl2 has PTE_W set, then it also has PTE_D set. */
+		if ((oldl2 & PTE_W) != 0 &&
+		    pmap_demote_l2_locked(pmap, l2, va, &lock) &&
+		    (oldl2 & PTE_SW_WIRED) == 0) {
+			/*
+			 * Write protect the mapping to a single page so that
+			 * a subsequent write access may repromote.
+			 */
+			va += VM_PAGE_TO_PHYS(m) - PTE_TO_PHYS(oldl2);
+			l3 = pmap_l2_to_l3(l2, va);
+			pmap_clear_bits(l3, PTE_D | PTE_W);
+			vm_page_dirty(m);
+			pmap_invalidate_page(pmap, va);
 		}
 		PMAP_UNLOCK(pmap);
 	}
