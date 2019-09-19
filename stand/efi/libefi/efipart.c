@@ -64,6 +64,9 @@ static int efipart_printhd(int);
 #define	PNP0700	0x700
 #define	PNP0701	0x701
 
+/* Bounce buffer max size */
+#define	BIO_BUFFER_SIZE	0x4000
+
 struct devsw efipart_fddev = {
 	.dv_name = "fd",
 	.dv_type = DEVT_FD,
@@ -263,6 +266,12 @@ efipart_inithandles(void)
 		if (blkio->Media->BlockSize < 512 ||
 		    blkio->Media->BlockSize > (1 << 16) ||
 		    !powerof2(blkio->Media->BlockSize)) {
+			continue;
+		}
+
+		/* Allowed values are 0, 1 and power of 2. */
+		if (blkio->Media->IoAlign > 1 &&
+		    !powerof2(blkio->Media->IoAlign)) {
 			continue;
 		}
 
@@ -979,8 +988,10 @@ efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t size,
 	EFI_BLOCK_IO *blkio;
 	uint64_t off, disk_blocks, d_offset = 0;
 	char *blkbuf;
-	size_t blkoff, blksz;
-	int error;
+	size_t blkoff, blksz, bio_size;
+	unsigned ioalign;
+	bool need_buf;
+	int rc;
 	uint64_t diskend, readstart;
 
 	if (dev == NULL || blk < 0)
@@ -1028,40 +1039,118 @@ efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t size,
 		size = size * blkio->Media->BlockSize;
 	}
 
-	if (rsize != NULL)
-		*rsize = size;
-
+	need_buf = true;
+	/* Do we need bounce buffer? */
 	if ((size % blkio->Media->BlockSize == 0) &&
 	    (off % blkio->Media->BlockSize == 0))
-		return (efipart_readwrite(blkio, rw,
-		    off / blkio->Media->BlockSize,
-		    size / blkio->Media->BlockSize, buf));
+		need_buf = false;
 
-	/*
-	 * The buffer size is not a multiple of the media block size.
-	 */
-	blkbuf = malloc(blkio->Media->BlockSize);
+	/* Do we have IO alignment requirement? */
+	ioalign = blkio->Media->IoAlign;
+	if (ioalign == 0)
+		ioalign++;
+
+	if (ioalign > 1 && (uintptr_t)buf != roundup2((uintptr_t)buf, ioalign))
+		need_buf = true;
+
+	if (need_buf) {
+		for (bio_size = BIO_BUFFER_SIZE; bio_size > 0;
+		    bio_size -= blkio->Media->BlockSize) {
+			blkbuf = memalign(ioalign, bio_size);
+			if (blkbuf != NULL)
+				break;
+		}
+	} else {
+		blkbuf = buf;
+		bio_size = size;
+	}
+
 	if (blkbuf == NULL)
 		return (ENOMEM);
 
-	error = 0;
+	if (rsize != NULL)
+		*rsize = size;
+
+	rc = 0;
 	blk = off / blkio->Media->BlockSize;
 	blkoff = off % blkio->Media->BlockSize;
-	blksz = blkio->Media->BlockSize - blkoff;
+
 	while (size > 0) {
-		error = efipart_readwrite(blkio, rw, blk, 1, blkbuf);
-		if (error)
+		size_t x = min(size, bio_size);
+
+		if (x < blkio->Media->BlockSize)
+			x = 1;
+		else
+			x /= blkio->Media->BlockSize;
+
+		switch (rw & F_MASK) {
+		case F_READ:
+			blksz = blkio->Media->BlockSize * x - blkoff;
+			if (size < blksz)
+				blksz = size;
+
+			rc = efipart_readwrite(blkio, rw, blk, x, blkbuf);
+			if (rc != 0)
+				goto error;
+
+			if (need_buf)
+				bcopy(blkbuf + blkoff, buf, blksz);
 			break;
-		if (size < blksz)
-			blksz = size;
-		bcopy(blkbuf + blkoff, buf, blksz);
+		case F_WRITE:
+			rc = 0;
+			if (blkoff != 0) {
+				/*
+				 * We got offset to sector, read 1 sector to
+				 * blkbuf.
+				 */
+				x = 1;
+				blksz = blkio->Media->BlockSize - blkoff;
+				blksz = min(blksz, size);
+				rc = efipart_readwrite(blkio, F_READ, blk, x,
+				    blkbuf);
+			} else if (size < blkio->Media->BlockSize) {
+				/*
+				 * The remaining block is not full
+				 * sector. Read 1 sector to blkbuf.
+				 */
+				x = 1;
+				blksz = size;
+				rc = efipart_readwrite(blkio, F_READ, blk, x,
+				    blkbuf);
+			} else {
+				/* We can write full sector(s). */
+				blksz = blkio->Media->BlockSize * x;
+			}
+
+			if (rc != 0)
+				goto error;
+			/*
+			 * Put your Data In, Put your Data out,
+			 * Put your Data In, and shake it all about
+			 */
+			if (need_buf)
+				bcopy(buf, blkbuf + blkoff, blksz);
+			rc = efipart_readwrite(blkio, F_WRITE, blk, x, blkbuf);
+			if (rc != 0)
+				goto error;
+			break;
+		default:
+			/* DO NOTHING */
+			rc = EROFS;
+			goto error;
+		}
+
+		blkoff = 0;
 		buf += blksz;
 		size -= blksz;
-		blk++;
-		blkoff = 0;
-		blksz = blkio->Media->BlockSize;
+		blk += x;
 	}
 
-	free(blkbuf);
-	return (error);
+error:
+	if (rsize != NULL)
+		*rsize -= size;
+
+	if (need_buf)
+		free(blkbuf);
+	return (rc);
 }

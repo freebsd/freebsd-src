@@ -80,6 +80,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -110,18 +111,20 @@ static void
 media_status(int s)
 {
 	struct ifmediareq ifmr;
+	struct ifdownreason ifdr;
 	int *media_list, i;
-	int xmedia = 1;
+	bool no_carrier, xmedia;
 
 	(void) memset(&ifmr, 0, sizeof(ifmr));
 	(void) strlcpy(ifmr.ifm_name, name, sizeof(ifmr.ifm_name));
+	xmedia = true;
 
 	/*
 	 * Check if interface supports extended media types.
 	 */
 	if (ioctl(s, SIOCGIFXMEDIA, (caddr_t)&ifmr) < 0)
-		xmedia = 0;
-	if (xmedia == 0 && ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0) {
+		xmedia = false;
+	if (!xmedia && ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0) {
 		/*
 		 * Interface doesn't support SIOC{G,S}IFMEDIA.
 		 */
@@ -158,6 +161,7 @@ media_status(int s)
 	putchar('\n');
 
 	if (ifmr.ifm_status & IFM_AVALID) {
+		no_carrier = false;
 		printf("\tstatus: ");
 		switch (IFM_TYPE(ifmr.ifm_active)) {
 		case IFM_ETHER:
@@ -165,7 +169,7 @@ media_status(int s)
 			if (ifmr.ifm_status & IFM_ACTIVE)
 				printf("active");
 			else
-				printf("no carrier");
+				no_carrier = true;
 			break;
 
 		case IFM_IEEE80211:
@@ -176,8 +180,26 @@ media_status(int s)
 				else
 					printf("running");
 			} else
-				printf("no carrier");
+				no_carrier = true;
 			break;
+		}
+		if (no_carrier) {
+			printf("no carrier");
+			memset(&ifdr, 0, sizeof(ifdr));
+			strlcpy(ifdr.ifdr_name, name, sizeof(ifdr.ifdr_name));
+			if (ioctl(s, SIOCGIFDOWNREASON, (caddr_t)&ifdr) == 0) {
+				switch (ifdr.ifdr_reason) {
+				case IFDR_REASON_MSG:
+					printf(" (%s)", ifdr.ifdr_msg);
+					break;
+				case IFDR_REASON_VENDOR:
+					printf(" (vendor code %d)",
+					    ifdr.ifdr_vendor);
+					break;
+				default:
+					break;
+				}
+			}
 		}
 		putchar('\n');
 	}

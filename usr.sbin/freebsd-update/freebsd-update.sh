@@ -64,7 +64,7 @@ Commands:
   upgrade      -- Fetch upgrades to FreeBSD version specified via -r option
   install      -- Install downloaded updates or upgrades
   rollback     -- Uninstall most recently installed updates
-  IDS          -- Compare the system against an index of "known good" files.
+  IDS          -- Compare the system against an index of "known good" files
 EOF
 	exit 0
 }

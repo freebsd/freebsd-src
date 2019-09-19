@@ -606,18 +606,22 @@ vop_stdgetwritemount(ap)
 		return (0);
 	}
 	if (vfs_op_thread_enter(mp)) {
-		if (mp == vp->v_mount)
+		if (mp == vp->v_mount) {
 			vfs_mp_count_add_pcpu(mp, ref, 1);
-		else
+			vfs_op_thread_exit(mp);
+		} else {
+			vfs_op_thread_exit(mp);
 			mp = NULL;
-		vfs_op_thread_exit(mp);
+		}
 	} else {
 		MNT_ILOCK(mp);
-		if (mp == vp->v_mount)
+		if (mp == vp->v_mount) {
 			MNT_REF(mp);
-		else
+			MNT_IUNLOCK(mp);
+		} else {
+			MNT_IUNLOCK(mp);
 			mp = NULL;
-		MNT_IUNLOCK(mp);
+		}
 	}
 	*(ap->a_mpp) = mp;
 	return (0);

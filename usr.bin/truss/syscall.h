@@ -131,6 +131,7 @@ enum Argtype {
 	Sockprotocol,
 	Socktype,
 	Sysarch,
+	Sysctl,
 	Umtxop,
 	Waitoptions,
 	Whence,

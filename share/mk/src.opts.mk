@@ -108,7 +108,6 @@ __DEFAULT_YES_OPTIONS = \
     GDB \
     GNU_DIFF \
     GNU_GREP \
-    GOOGLETEST \
     GPIO \
     HAST \
     HTML \
@@ -258,6 +257,15 @@ __T=${MACHINE_ARCH}
 __TT=${TARGET}
 .else
 __TT=${MACHINE}
+.endif
+
+# Default GOOGLETEST to off for MIPS while LLVM PR 43263 is active.  Part
+# of the fusefs tests trigger excessively long compile times.  It does
+# eventually succeed, but this shouldn't be forced on those building by default.
+.if ${__TT} == "mips"
+__DEFAULT_NO_OPTIONS+=	GOOGLETEST
+.else
+__DEFAULT_YES_OPTIONS+=	GOOGLETEST
 .endif
 
 # All supported backends for LLVM_TARGET_XXX
