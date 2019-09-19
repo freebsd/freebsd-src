@@ -305,6 +305,9 @@ BROKEN_TESTS+=			test_read_disk_directory_traversals
 # (Times out?) [and] crashes
 BROKEN_TESTS+=			test_fuzz_rar
 
+# https://bugs.freebsd.org/240683
+BROKEN_TESTS+=			test_write_filter_zstd
+
 # Build the test program.
 SRCS.libarchive_test=		\
 	${TESTS_SRCS}		\
