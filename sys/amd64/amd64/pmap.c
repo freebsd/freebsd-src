@@ -6355,18 +6355,18 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
  *
  *	This routine is only advisory and need not do anything.
  */
-
 void
 pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
     vm_offset_t src_addr)
 {
 	struct rwlock *lock;
 	struct spglist free;
-	vm_offset_t addr;
-	vm_offset_t end_addr = src_addr + len;
-	vm_offset_t va_next;
+	pml4_entry_t *pml4e;
+	pdp_entry_t *pdpe;
+	pd_entry_t *pde, srcptepaddr;
+	pt_entry_t *dst_pte, PG_A, PG_M, PG_V, ptetemp, *src_pte;
+	vm_offset_t addr, end_addr, va_next;
 	vm_page_t dst_pdpg, dstmpte, srcmpte;
-	pt_entry_t PG_A, PG_M, PG_V;
 
 	if (dst_addr != src_addr)
 		return;
@@ -6385,6 +6385,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	if (pmap_emulate_ad_bits(dst_pmap))
 		return;
 
+	end_addr = src_addr + len;
 	lock = NULL;
 	if (dst_pmap < src_pmap) {
 		PMAP_LOCK(dst_pmap);
@@ -6399,11 +6400,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	PG_V = pmap_valid_bit(dst_pmap);
 
 	for (addr = src_addr; addr < end_addr; addr = va_next) {
-		pt_entry_t *src_pte, *dst_pte;
-		pml4_entry_t *pml4e;
-		pdp_entry_t *pdpe;
-		pd_entry_t srcptepaddr, *pde;
-
 		KASSERT(addr < UPT_MIN_ADDRESS,
 		    ("pmap_copy: invalid to pmap_copy page tables"));
 
@@ -6445,7 +6441,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			    pmap_pv_insert_pde(dst_pmap, addr, srcptepaddr,
 			    PMAP_ENTER_NORECLAIM, &lock))) {
 				*pde = srcptepaddr & ~PG_W;
-				pmap_resident_count_inc(dst_pmap, NBPDR / PAGE_SIZE);
+				pmap_resident_count_inc(dst_pmap, NBPDR /
+				    PAGE_SIZE);
 				atomic_add_long(&pmap_pde_mappings, 1);
 			} else
 				dst_pdpg->wire_count--;
@@ -6463,58 +6460,54 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		src_pte = (pt_entry_t *)PHYS_TO_DMAP(srcptepaddr);
 		src_pte = &src_pte[pmap_pte_index(addr)];
 		dstmpte = NULL;
-		while (addr < va_next) {
-			pt_entry_t ptetemp;
+		for (; addr < va_next; addr += PAGE_SIZE, src_pte++) {
 			ptetemp = *src_pte;
+
 			/*
-			 * we only virtual copy managed pages
+			 * We only virtual copy managed pages.
 			 */
-			if ((ptetemp & PG_MANAGED) != 0) {
-				if (dstmpte != NULL &&
-				    dstmpte->pindex == pmap_pde_pindex(addr))
-					dstmpte->wire_count++;
-				else if ((dstmpte = pmap_allocpte(dst_pmap,
-				    addr, NULL)) == NULL)
-					goto out;
-				dst_pte = (pt_entry_t *)
-				    PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dstmpte));
-				dst_pte = &dst_pte[pmap_pte_index(addr)];
-				if (*dst_pte == 0 &&
-				    pmap_try_insert_pv_entry(dst_pmap, addr,
-				    PHYS_TO_VM_PAGE(ptetemp & PG_FRAME),
-				    &lock)) {
+			if ((ptetemp & PG_MANAGED) == 0)
+				continue;
+
+			if (dstmpte != NULL) {
+				KASSERT(dstmpte->pindex ==
+				    pmap_pde_pindex(addr),
+				    ("dstmpte pindex/addr mismatch"));
+				dstmpte->wire_count++;
+			} else if ((dstmpte = pmap_allocpte(dst_pmap, addr,
+			    NULL)) == NULL)
+				goto out;
+			dst_pte = (pt_entry_t *)
+			    PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dstmpte));
+			dst_pte = &dst_pte[pmap_pte_index(addr)];
+			if (*dst_pte == 0 &&
+			    pmap_try_insert_pv_entry(dst_pmap, addr,
+			    PHYS_TO_VM_PAGE(ptetemp & PG_FRAME), &lock)) {
+				/*
+				 * Clear the wired, modified, and accessed
+				 * (referenced) bits during the copy.
+				 */
+				*dst_pte = ptetemp & ~(PG_W | PG_M | PG_A);
+				pmap_resident_count_inc(dst_pmap, 1);
+			} else {
+				SLIST_INIT(&free);
+				if (pmap_unwire_ptp(dst_pmap, addr, dstmpte,
+				    &free)) {
 					/*
-					 * Clear the wired, modified, and
-					 * accessed (referenced) bits
-					 * during the copy.
+					 * Although "addr" is not mapped,
+					 * paging-structure caches could
+					 * nonetheless have entries that refer
+					 * to the freed page table pages.
+					 * Invalidate those entries.
 					 */
-					*dst_pte = ptetemp & ~(PG_W | PG_M |
-					    PG_A);
-					pmap_resident_count_inc(dst_pmap, 1);
-				} else {
-					SLIST_INIT(&free);
-					if (pmap_unwire_ptp(dst_pmap, addr,
-					    dstmpte, &free)) {
-						/*
-						 * Although "addr" is not
-						 * mapped, paging-structure
-						 * caches could nonetheless
-						 * have entries that refer to
-						 * the freed page table pages.
-						 * Invalidate those entries.
-						 */
-						pmap_invalidate_page(dst_pmap,
-						    addr);
-						vm_page_free_pages_toq(&free,
-						    true);
-					}
-					goto out;
+					pmap_invalidate_page(dst_pmap, addr);
+					vm_page_free_pages_toq(&free, true);
 				}
-				if (dstmpte->wire_count >= srcmpte->wire_count)
-					break;
+				goto out;
 			}
-			addr += PAGE_SIZE;
-			src_pte++;
+			/* Have we copied all of the valid mappings? */ 
+			if (dstmpte->wire_count >= srcmpte->wire_count)
+				break;
 		}
 	}
 out:
