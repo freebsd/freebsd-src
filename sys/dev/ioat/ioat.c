@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/domainset.h>
 #include <sys/fail.h>
 #include <sys/ioccom.h>
 #include <sys/kernel.h>
@@ -44,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/sbuf.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/time.h>
@@ -266,6 +268,11 @@ ioat_attach(device_t device)
 
 	ioat = DEVICE2SOFTC(device);
 	ioat->device = device;
+	if (bus_get_domain(device, &ioat->domain) != 0)
+		ioat->domain = 0;
+	ioat->cpu = CPU_FFS(&cpuset_domain[ioat->domain]) - 1;
+	if (ioat->cpu < 0)
+		ioat->cpu = CPU_FIRST();
 
 	error = ioat_map_pci_bar(ioat);
 	if (error != 0)
@@ -600,8 +607,8 @@ ioat3_attach(device_t device)
 		    __func__, error);
 		return (error);
 	}
-	ioat->ring = malloc(num_descriptors * sizeof(*ring), M_IOAT,
-	    M_ZERO | M_WAITOK);
+	ioat->ring = malloc_domainset(num_descriptors * sizeof(*ring), M_IOAT,
+	    DOMAINSET_PREF(ioat->domain), M_ZERO | M_WAITOK);
 
 	ring = ioat->ring;
 	for (i = 0; i < num_descriptors; i++) {
@@ -1107,8 +1114,8 @@ ioat_release(bus_dmaengine_t dmaengine)
 		    (uint16_t)ioat->head);
 
 		if (!callout_pending(&ioat->poll_timer)) {
-			callout_reset(&ioat->poll_timer, 1,
-			    ioat_poll_timer_callback, ioat);
+			callout_reset_on(&ioat->poll_timer, 1,
+			    ioat_poll_timer_callback, ioat, ioat->cpu);
 		}
 	}
 	mtx_unlock(&ioat->submit_lock);
@@ -1644,7 +1651,7 @@ ioat_free_ring(struct ioat_softc *ioat, uint32_t size,
     struct ioat_descriptor *ring)
 {
 
-	free(ring, M_IOAT);
+	free_domain(ring, M_IOAT);
 }
 
 static struct ioat_descriptor *
