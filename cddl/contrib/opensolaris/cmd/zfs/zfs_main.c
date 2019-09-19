@@ -290,7 +290,7 @@ get_usage(zfs_help_t idx)
 	case HELP_SEND:
 		return (gettext("\tsend [-DnPpRvLec] [-[iI] snapshot] "
 		    "<snapshot>\n"
-		    "\tsend [-Le] [-i snapshot|bookmark] "
+		    "\tsend [-LPcenv] [-i snapshot|bookmark] "
 		    "<filesystem|volume|snapshot>\n"
 		    "\tsend [-nvPe] -t <receive_resume_token>\n"));
 	case HELP_SET:
