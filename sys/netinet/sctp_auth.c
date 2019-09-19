@@ -523,7 +523,7 @@ sctp_insert_sharedkey(struct sctp_keyhead *shared_keys,
 		} else if (new_skey->keyid == skey->keyid) {
 			/* replace the existing key */
 			/* verify this key *can* be replaced */
-			if ((skey->deactivated) && (skey->refcount > 1)) {
+			if ((skey->deactivated) || (skey->refcount > 1)) {
 				SCTPDBG(SCTP_DEBUG_AUTH1,
 				    "can't replace shared key id %u\n",
 				    new_skey->keyid);
