@@ -83,7 +83,7 @@ CFLAGS+= -I${SRCTOP}/contrib/ntp/include \
 	-I${.CURDIR:H} \
 	-I${.CURDIR}/
 
-CFLAGS+= -DHAVE_BSD_NICE -DHAVE_STDINT_H
+CFLAGS+= -DHAVE_BSD_NICE -DHAVE_STDINT_H -DHAVE_CLOSEFROM
 
 CLEANFILES+= .version version.c
 
