@@ -198,6 +198,7 @@ OLD_FILES+=usr/include/c++/v1/experimental/string_view
 OLD_FILES+=usr/include/c++/v1/experimental/system_error
 OLD_FILES+=usr/include/c++/v1/experimental/tuple
 OLD_FILES+=usr/lib/libc++fs.a
+OLD_FILES+=usr/lib32/libc++fs.a
 # 20190910: mklocale(1) and colldef(1) removed
 OLD_FILES+=usr/bin/mklocale
 OLD_FILES+=usr/share/man/man1/mklocale.1.gz
