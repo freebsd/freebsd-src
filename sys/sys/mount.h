@@ -226,7 +226,7 @@ struct mount {
 	struct lock	mnt_explock;		/* vfs_export walkers lock */
 	TAILQ_ENTRY(mount) mnt_upper_link;	/* (m) we in the all uppers */
 	TAILQ_HEAD(, mount) mnt_uppers;		/* (m) upper mounts over us*/
-	int		mnt_vfs_ops;		/* (i) pending vfs ops */
+	int __aligned(CACHE_LINE_SIZE)	mnt_vfs_ops;/* (i) pending vfs ops */
 	int		*mnt_thread_in_ops_pcpu;
 	int		*mnt_ref_pcpu;
 	int		*mnt_lockref_pcpu;

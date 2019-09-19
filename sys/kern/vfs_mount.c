@@ -157,7 +157,7 @@ vfs_mount_init(void *dummy __unused)
 {
 
 	mount_zone = uma_zcreate("Mountpoints", sizeof(struct mount), NULL,
-	    NULL, mount_init, mount_fini, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, mount_init, mount_fini, UMA_ALIGN_CACHE, UMA_ZONE_NOFREE);
 }
 SYSINIT(vfs_mount, SI_SUB_VFS, SI_ORDER_ANY, vfs_mount_init, NULL);
 
