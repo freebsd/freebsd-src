@@ -49,9 +49,7 @@ color.DIM     = 2
 function color.isEnabled()
 	local c = loader.getenv("loader_color")
 	if c ~= nil then
-		if c:lower() == "no" or c == "0" then
-			return false
-		end
+		return c:lower() ~= "no" and c ~= "0"
 	end
 	return not core.isSerialBoot()
 end
