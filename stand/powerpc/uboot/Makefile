@@ -13,6 +13,7 @@ LOADER_BZIP2_SUPPORT?=	no
 
 BINDIR= 	/boot/uboot
 PROG=		ubldr
+STRIP=
 NEWVERSWHAT=	"U-Boot loader" ${MACHINE_ARCH}
 INSTALLFLAGS=	-b
 
