@@ -2,8 +2,15 @@
 
 .if ${MACHINE} != "amd64" && ${MACHINE} != "i386"
 PKGCONFBRANCH?=	quarterly
-.endif
+.else
+_BRANCH!=	${MAKE} -C ${SRCTOP}/release -V BRANCH
+BRANCH?=	${_BRANCH}
+. if ${BRANCH:MBETA*} || ${BRANCH:MRC*} || ${BRANCH:MRELEASE*}
+PKGCONFBRANCH?=	quarterly
+. else
 PKGCONFBRANCH?=	latest
+. endif
+.endif
 CONFS=		FreeBSD.conf.${PKGCONFBRANCH}
 CONFSNAME=	FreeBSD.conf
 CONFSDIR=	/etc/pkg
