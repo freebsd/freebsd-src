@@ -44,7 +44,7 @@ static void dep_add(struct cfjail *from, struct cfjail *to, unsigned flags);
 static int cmp_jailptr(const void *a, const void *b);
 static int cmp_jailptr_name(const void *a, const void *b);
 static struct cfjail *find_jail(const char *name);
-static int running_jid(const char *name, int flags);
+static struct cfjail *running_jail(const char *name, int flags);
 
 static struct cfjail **jails_byname;
 static size_t njails;
@@ -72,7 +72,7 @@ dep_setup(int docf)
 		if ((j = TAILQ_FIRST(&cfjails)) &&
 		    (p = j->intparams[IP_DEPEND])) {
 			TAILQ_FOREACH(s, &p->val, tq) {
-				if (running_jid(s->s, 0) < 0) {
+				if (running_jail(s->s, 0) == NULL) {
 					warnx("depends on nonexistent jail "
 					    "\"%s\"", s->s);
 					j->flags |= JF_FAILED;
@@ -369,11 +369,7 @@ start_state(const char *target, int docf, unsigned state, int running)
 		j = find_jail(target);
 		if (j == NULL && state == JF_STOP) {
 			/* Allow -[rR] to specify a currently running jail. */
-			if ((jid = running_jid(target, JAIL_DYING)) > 0) {
-				j = add_jail();
-				j->name = estrdup(target);
-				j->jid = jid;
-			}
+			j = running_jail(target, JAIL_DYING);
 		}
 		if (j == NULL) {
 			warnx("\"%s\" not found", target);
@@ -446,6 +442,9 @@ static struct cfjail *
 find_jail(const char *name)
 {
 	struct cfjail **jp;
+	
+	if (jails_byname == NULL)
+		return NULL;
 
 	jp = bsearch(name, jails_byname, njails, sizeof(struct cfjail *),
 	    cmp_jailptr_name);
@@ -453,26 +452,43 @@ find_jail(const char *name)
 }
 
 /*
- * Return the named jail's jid if it is running, and -1 if it isn't.
+ * Return jail if it is running, and NULL if it isn't.
  */
-static int
-running_jid(const char *name, int flags)
+static struct cfjail *
+running_jail(const char *name, int flags)
 {
-	struct iovec jiov[2];
+	struct iovec jiov[4];
+	struct cfjail *jail;
 	char *ep;
-	int jid;
-
+	char jailname[MAXHOSTNAMELEN];
+	int jid, ret, len;
+	
 	if ((jid = strtol(name, &ep, 10)) && !*ep) {
-		jiov[0].iov_base = __DECONST(char *, "jid");
-		jiov[0].iov_len = sizeof("jid");
-		jiov[1].iov_base = &jid;
-		jiov[1].iov_len = sizeof(jid);
+		memset(jailname,0,sizeof(jailname));
+		len = sizeof(jailname);
 	} else {
-		jiov[0].iov_base = __DECONST(char *, "name");
-		jiov[0].iov_len = sizeof("name");
-		jiov[1].iov_len = strlen(name) + 1;
-		jiov[1].iov_base = alloca(jiov[1].iov_len);
-		strcpy(jiov[1].iov_base, name);
+		strncpy(jailname, name,sizeof(jailname));
+		len = strlen(name) + 1; 
+		jid = 0;
 	}
-	return jail_get(jiov, 2, flags);
+	
+	jiov[0].iov_base = __DECONST(char *, "jid");
+	jiov[0].iov_len = sizeof("jid");
+	jiov[1].iov_base = &jid;
+	jiov[1].iov_len = sizeof(jid);
+	jiov[2].iov_base = __DECONST(char *, "name");
+	jiov[2].iov_len = sizeof("name");
+	jiov[3].iov_base = &jailname;
+	jiov[3].iov_len = len;
+
+	if ((ret = jail_get(jiov, 4, flags)) < 0)
+		return (NULL);
+
+	if ((jail = find_jail(jailname)) == NULL) {
+		jail = add_jail();
+		jail->name = estrdup(jailname);
+		jail->jid = ret;
+	}
+
+	return (jail);
 }
