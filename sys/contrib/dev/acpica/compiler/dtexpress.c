@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -372,7 +372,7 @@ DtDoOperator (
  *
  * RETURN:      Table offset associated with the label
  *
- * DESCRIPTION: Lookup a lable and return its value.
+ * DESCRIPTION: Lookup a label and return its value.
  *
  *****************************************************************************/
 

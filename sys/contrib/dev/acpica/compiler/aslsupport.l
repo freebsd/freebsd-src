@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -220,7 +220,7 @@ AslDoLineDirective (
 
     while ((c = input()) != '\n' && c != EOF)
     {
-        *AslGbl_LineBufPtr = c;
+        *AslGbl_LineBufPtr = (char) c;
         AslGbl_LineBufPtr++;
     }
     *AslGbl_LineBufPtr = 0;
@@ -498,7 +498,7 @@ AslInsertLineBuffer (
 
         if (AcpiGbl_CaptureComments)
         {
-            CvProcessCommentState (SourceChar);
+            CvProcessCommentState ((char) SourceChar);
         }
     }
 }
@@ -532,14 +532,18 @@ count (
     {
     case 2:
 
-        AslGbl_TotalKeywords++;
-        AslGbl_TotalNamedObjects++;
+        ++AslGbl_TotalKeywords;
+        ++AslGbl_TotalNamedObjects;
+        ++AslGbl_FilesList->TotalKeywords;
+        ++AslGbl_FilesList->TotalNamedObjects;
         break;
 
     case 3:
 
-        AslGbl_TotalKeywords++;
-        AslGbl_TotalExecutableOpcodes++;
+        ++AslGbl_TotalKeywords;
+        ++AslGbl_TotalExecutableOpcodes;
+        ++AslGbl_FilesList->TotalKeywords;
+        ++AslGbl_FilesList->TotalExecutableOpcodes;
         break;
 
     default:
@@ -597,7 +601,7 @@ loop:
         AslInsertLineBuffer (c);
         if (AcpiGbl_CaptureComments && CurrentState.CaptureComments)
         {
-            *StringBuffer = c;
+            *StringBuffer = (char) c;
             ++StringBuffer;
         }
         c1 = c;
@@ -610,7 +614,7 @@ loop:
 
     /*
      * Check for nested comment -- can help catch cases where a previous
-     * comment was accidently left unterminated
+     * comment was accidentally left unterminated
      */
     if ((c1 == '/') && (c == '*'))
     {
@@ -625,7 +629,7 @@ loop:
     AslInsertLineBuffer (c);
     if (AcpiGbl_CaptureComments && CurrentState.CaptureComments)
     {
-        *StringBuffer = c;
+        *StringBuffer = (char) c;
         ++StringBuffer;
     }
 
@@ -716,7 +720,7 @@ AslDoCommentType2 (
         AslInsertLineBuffer (c);
         if (AcpiGbl_CaptureComments && CurrentState.CaptureComments)
         {
-            *StringBuffer = c;
+            *StringBuffer = (char) c;
             ++StringBuffer;
         }
     }
@@ -874,7 +878,7 @@ DoCharacter:
                 if (ACPI_IS_OCTAL_DIGIT (StringChar))
                 {
                     State = ASL_OCTAL_CONSTANT;
-                    ConvertBuffer[0] = StringChar;
+                    ConvertBuffer[0] = (char) StringChar;
                     i = 1;
                     continue;
                 }
@@ -930,7 +934,7 @@ DoCharacter:
 
             /* Append another digit of the constant */
 
-            ConvertBuffer[i] = StringChar;
+            ConvertBuffer[i] = (char) StringChar;
             i++;
             continue;
 
@@ -974,7 +978,7 @@ DoCharacter:
 
             /* Append another digit of the constant */
 
-            ConvertBuffer[i] = StringChar;
+            ConvertBuffer[i] = (char) StringChar;
             i++;
             continue;
 
@@ -985,7 +989,7 @@ DoCharacter:
 
         /* Save the finished character */
 
-        *StringBuffer = StringChar;
+        *StringBuffer = (char) StringChar;
         StringBuffer++;
         if (StringBuffer >= EndBuffer)
         {

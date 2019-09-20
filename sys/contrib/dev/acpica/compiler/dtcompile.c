@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -240,8 +240,7 @@ DtDoCompile (
         DtError (ASL_ERROR, ASL_MSG_SYNTAX, NULL,
             "Input file does not appear to be an ASL or data table source file");
 
-        Status = AE_ERROR;
-        goto CleanupAndExit;
+        return (AE_ERROR);
     }
 
     Event = UtBeginEvent ("Compile parse tree");
@@ -259,7 +258,7 @@ DtDoCompile (
         DtError (ASL_ERROR, ASL_MSG_SYNTAX, NULL,
             "Could not compile input file");
 
-        goto CleanupAndExit;
+        return (Status);
     }
 
     /* Create/open the binary output file */
@@ -268,7 +267,7 @@ DtDoCompile (
     Status = FlOpenAmlOutputFile (AslGbl_OutputFilenamePrefix);
     if (ACPI_FAILURE (Status))
     {
-        goto CleanupAndExit;
+        return (Status);
     }
 
     /* Write the binary, then the optional hex file */
@@ -277,10 +276,6 @@ DtDoCompile (
     HxDoHexOutput ();
     DtWriteTableToListing ();
 
-CleanupAndExit:
-
-    AcpiUtDeleteCaches ();
-    CmCleanupAndExit ();
     return (Status);
 }
 
@@ -418,7 +413,7 @@ DtCompileDataTable (
      * Currently, these are the FACS and RSDP. Also check for an OEMx table,
      * these tables have user-defined contents.
      */
-    if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_FACS))
+    if (ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_FACS))
     {
         Status = DtCompileFacs (FieldList);
         if (ACPI_FAILURE (Status))
@@ -434,7 +429,7 @@ DtCompileDataTable (
         Status = DtCompileRsdp (FieldList);
         return (Status);
     }
-    else if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_S3PT))
+    else if (ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_S3PT))
     {
         Status = DtCompileS3pt (FieldList);
         if (ACPI_FAILURE (Status))

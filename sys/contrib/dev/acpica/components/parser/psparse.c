@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -680,12 +680,12 @@ AcpiPsParseAml (
             if (Status == AE_ABORT_METHOD)
             {
                 AcpiNsPrintNodePathname (
-                    WalkState->MethodNode, "Method aborted:");
+                    WalkState->MethodNode, "Aborting method");
                 AcpiOsPrintf ("\n");
             }
             else
             {
-                ACPI_ERROR_METHOD ("Method parse/execution failed",
+                ACPI_ERROR_METHOD ("Aborting method",
                     WalkState->MethodNode, NULL, Status);
             }
             AcpiExEnterInterpreter ();

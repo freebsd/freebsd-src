@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -359,10 +359,10 @@ AcpiDsInitializeObjects (
 
     /* DSDT is always the first AML table */
 
-    if (ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_DSDT))
+    if (ACPI_COMPARE_NAMESEG (Table->Signature, ACPI_SIG_DSDT))
     {
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT,
-            "\nInitializing Namespace objects:\n"));
+            "\nACPI table initialization:\n"));
     }
 
     /* Summary of objects initialized */

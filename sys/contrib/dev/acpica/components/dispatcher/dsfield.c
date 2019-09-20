@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -685,6 +685,12 @@ AcpiDsCreateField (
     Info.RegionNode = RegionNode;
 
     Status = AcpiDsGetFieldNames (&Info, WalkState, Arg->Common.Next);
+    if (Info.RegionNode->Object->Region.SpaceId == ACPI_ADR_SPACE_PLATFORM_COMM &&
+        !(RegionNode->Object->Field.InternalPccBuffer
+        = ACPI_ALLOCATE_ZEROED(Info.RegionNode->Object->Region.Length)))
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
     return_ACPI_STATUS (Status);
 }
 

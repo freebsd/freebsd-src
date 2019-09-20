@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -316,6 +316,7 @@ AcpiEvMaskGpe (
  * FUNCTION:    AcpiEvAddGpeReference
  *
  * PARAMETERS:  GpeEventInfo            - Add a reference to this GPE
+ *              ClearOnEnable           - Clear GPE status before enabling it
  *
  * RETURN:      Status
  *
@@ -326,7 +327,8 @@ AcpiEvMaskGpe (
 
 ACPI_STATUS
 AcpiEvAddGpeReference (
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo)
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo,
+    BOOLEAN                 ClearOnEnable)
 {
     ACPI_STATUS             Status = AE_OK;
 
@@ -343,6 +345,11 @@ AcpiEvAddGpeReference (
     if (GpeEventInfo->RuntimeCount == 1)
     {
         /* Enable on first reference */
+
+        if (ClearOnEnable)
+        {
+            (void) AcpiHwClearGpe (GpeEventInfo);
+        }
 
         Status = AcpiEvUpdateGpeEnableMask (GpeEventInfo);
         if (ACPI_SUCCESS (Status))
@@ -1012,7 +1019,7 @@ AcpiEvGpeDispatch (
             GpeDevice, GpeNumber,
             GpeEventInfo->Dispatch.Handler->Context);
 
-        /* If requested, clear (if level-triggered) and reenable the GPE */
+        /* If requested, clear (if level-triggered) and re-enable the GPE */
 
         if (ReturnValue & ACPI_REENABLE_GPE)
         {

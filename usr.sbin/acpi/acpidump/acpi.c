@@ -1463,7 +1463,7 @@ static void
 acpi_print_sdt(ACPI_TABLE_HEADER *sdp)
 {
 	printf("  ");
-	acpi_print_string(sdp->Signature, ACPI_NAME_SIZE);
+	acpi_print_string(sdp->Signature, ACPI_NAMESEG_SIZE);
 	printf(": Length=%d, Revision=%d, Checksum=%d,\n",
 	       sdp->Length, sdp->Revision, sdp->Checksum);
 	printf("\tOEMID=");
@@ -1472,7 +1472,7 @@ acpi_print_sdt(ACPI_TABLE_HEADER *sdp)
 	acpi_print_string(sdp->OemTableId, ACPI_OEM_TABLE_ID_SIZE);
 	printf(", OEM Revision=0x%x,\n", sdp->OemRevision);
 	printf("\tCreator ID=");
-	acpi_print_string(sdp->AslCompilerId, ACPI_NAME_SIZE);
+	acpi_print_string(sdp->AslCompilerId, ACPI_NAMESEG_SIZE);
 	printf(", Creator Revision=0x%x\n", sdp->AslCompilerRevision);
 }
 

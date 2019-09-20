@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -214,10 +214,10 @@ AcpiUtIsAmlTable (
 
     /* These are the only tables that contain executable AML */
 
-    if (ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_DSDT) ||
-        ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_PSDT) ||
-        ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_SSDT) ||
-        ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_OSDT) ||
+    if (ACPI_COMPARE_NAMESEG (Table->Signature, ACPI_SIG_DSDT) ||
+        ACPI_COMPARE_NAMESEG (Table->Signature, ACPI_SIG_PSDT) ||
+        ACPI_COMPARE_NAMESEG (Table->Signature, ACPI_SIG_SSDT) ||
+        ACPI_COMPARE_NAMESEG (Table->Signature, ACPI_SIG_OSDT) ||
         ACPI_IS_OEM_SIG (Table->Signature))
     {
         return (TRUE);

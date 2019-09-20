@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -263,7 +263,7 @@ AcpiInitializeTables (
     /*
      * Get the root table (RSDT or XSDT) and extract all entries to the local
      * Root Table Array. This array contains the information of the RSDT/XSDT
-     * in a common, more useable format.
+     * in a common, more usable format.
      */
     Status = AcpiTbParseRootTable (RsdpAddress);
     return_ACPI_STATUS (Status);
@@ -334,7 +334,7 @@ AcpiReallocateRootTable (
     {
         /*
          * Now it's safe to do full table validation. We can do deferred
-         * table initilization here once the flag is set.
+         * table initialization here once the flag is set.
          */
         AcpiGbl_EnableTableValidation = TRUE;
         for (i = 0; i < AcpiGbl_RootTableList.CurrentTableCount; ++i)
@@ -401,7 +401,7 @@ AcpiGetTableHeader (
 
     for (i = 0, j = 0; i < AcpiGbl_RootTableList.CurrentTableCount; i++)
     {
-        if (!ACPI_COMPARE_NAME (
+        if (!ACPI_COMPARE_NAMESEG (
                 &(AcpiGbl_RootTableList.Tables[i].Signature), Signature))
         {
             continue;
@@ -504,7 +504,7 @@ AcpiGetTable (
     {
         TableDesc = &AcpiGbl_RootTableList.Tables[i];
 
-        if (!ACPI_COMPARE_NAME (&TableDesc->Signature, Signature))
+        if (!ACPI_COMPARE_NAMESEG (&TableDesc->Signature, Signature))
         {
             continue;
         }

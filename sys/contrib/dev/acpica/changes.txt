@@ -1,4 +1,356 @@
 ----------------------------------------
+03 July 2019. Summary of changes for version 20190703:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Remove legacy module-level support code. There were still some remnants 
+of the legacy module-level code executions. Since we no longer support 
+this option, this is essentially dead code and has been removed from the 
+ACPICA source.
+
+iASL: ensure that _WAK, _PTS, _TTS, and _Sx are declared only at the root 
+scope. If these named objects are declared outside the root scope, they 
+will not be invoked by any host Operating System.
+
+Clear status of GPEs on first direct enable. ACPI GPEs (other than the EC 
+one) can be enabled in two situations. First, the GPEs with existing _Lxx 
+and _Exx methods are enabled implicitly by ACPICA during system 
+initialization.  Second, the GPEs without these methods (like GPEs listed 
+by _PRW objects for wakeup devices) need to be enabled directly by the 
+code that is going to use them (e.g. ACPI power management or device 
+drivers).
+
+In the former case, if the status of a given GPE is set to start with, 
+its handler method (either _Lxx or _Exx) needs to be invoked to take care 
+of the events (possibly) signaled before the GPE was enabled. In the 
+latter case, however, the first caller of AcpiEnableGpe() for a given GPE 
+should not be expected to care about any events that might be signaled 
+through it earlier.  In that case, it is better to clear the status of 
+the GPE before enabling it, to prevent stale events from triggering 
+unwanted actions (like spurious system resume, for example).
+
+For this reason, modify AcpiEvAddGpeReference() to take an additional 
+boolean argument indicating whether or not the GPE status needs to be 
+cleared when its reference counter changes from zero to one and make 
+AcpiEnableGpe() pass TRUE to it through that new argument.
+
+
+2) iASL Compiler/Disassembler and ACPICA tools:
+
+The tool generation process has been migrated to MSVC 2017, and all 
+project files have been upgraded. The new project files appear in the 
+directory \acpica\generate\msvc2017. This change effectively deprecates 
+the older project files in \acpica\generate\msvc9.
+
+iASL: ensure that _WAK, _PTS, _TTS, and _Sx are declared only at the root 
+scope. If these named objects are declared outside the root scope, they 
+will not be invoked by any host Operating System
+
+----------------------------------------
+09 May 2019. Summary of changes for version 20190509:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Revert commit  6c43e1a ("ACPICA: Clear status of GPEs before enabling 
+them") that causes problems with Thunderbolt controllers to occur if a 
+dock device is connected at init time (the xhci_hcd and thunderbolt 
+modules crash which prevents peripherals connected through them from 
+working). Commit 6c43e1a effectively causes commit ecc1165b8b74 ("ACPICA: 
+Dispatch active GPEs at init time") to get undone, so the problem 
+addressed by commit ecc1165b8b74 appears again as a result of it.
+
+
+2) iASL Compiler/Disassembler and ACPICA tools:
+
+Reverted iASL: Additional forward reference detection. This change 
+reverts forward reference detection for field declarations. The feature 
+unintentionally emitted AML bytecode with incorrect package lengths for 
+some ASL code related to Fields and OperationRegions. This malformed AML 
+can cause systems to crash
+during boot. The malformed AML bytecode is emitted in iASL version 
+20190329 and 20190405.
+
+iASL: improve forward reference detection. This change improves forward 
+reference detection for named objects inside of scopes. If a parse object 
+has the OP_NOT_FOUND_DURING_LOAD set, it means that Op is a reference to 
+a named object that is declared later in the AML bytecode. This is 
+allowed if the reference is inside of a method and the declaration is 
+outside of a method like so:
+
+DefinitionBlock(...)
+{
+    Method (TEST)
+    {
+        Return (NUM0)
+    }
+    Name (NUM0,0)
+}
+
+However, if the declaration and reference are both in the same method or 
+outside any methods, this is a forward reference and should be marked as 
+an error because it would result in runtime errors.
+
+DefinitionBlock(...)
+{
+    Name (BUFF, Buffer (NUM0) {}) // Forward reference
+    Name (NUM0, 0x0)
+
+    Method (TEST)
+    {
+        Local0 = NUM1
+        Name (NUM1, 0x1) // Forward reference
+        return (Local0)
+    }
+}
+
+iASL: Implemented additional buffer overflow analysis for BufferField 
+declarations. Check if a buffer index argument to a create buffer field 
+operation is beyond the end of the target buffer.
+
+This affects these AML operators:
+ 
+   AML_CREATE_FIELD_OP
+   AML_CREATE_BIT_FIELD_OP
+   AML_CREATE_BYTE_FIELD_OP
+   AML_CREATE_WORD_FIELD_OP
+   AML_CREATE_DWORD_FIELD_OP
+   AML_CREATE_QWORD_FIELD_OP
+
+ There are three conditions that must be satisfied in order to allow this 
+validation at compile time:
+ 
+   1) The length of the target buffer must be an integer constant
+   2) The index specified in the create* must be an integer constant
+   3) For CreateField, the bit length argument must be non-zero.
+
+Example:
+    Name (BUF1, Buffer() {1,2})
+    CreateField (BUF1, 7, 9, CF03)  // 3: ERR
+
+dsdt.asl     14:     CreateField (BUF1, 7, 9, CF03)  // 3: ERR
+Error    6165 -                           ^ Buffer index beyond end of 
+target buffer
+
+
+----------------------------------------
+05 April 2019. Summary of changes for version 20190405:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Event Manager: History: Commit 18996f2db918 ("ACPICA: Events: Stop 
+unconditionally clearing ACPI IRQs during suspend/resume") was added 
+earlier to stop clearing of event status bits unconditionally on suspend 
+and resume paths. Though this change fixed an issue on suspend path, it 
+introduced regressions on several resume paths. In the case of S0ix, 
+events are enabled as part of device suspend path. If status bits for the 
+events are set when they are enabled, it could result in premature wake 
+from S0ix. If status is cleared for any event that is being enabled so 
+that any stale events are cleared out. In case of S0ix, events are 
+enabled as part of device suspend path. If status bits for the events are 
+set when they are enabled, it could result in premature wake from S0ix.
+
+This change ensures that status is cleared for any event that is being 
+enabled so that any stale events are cleared out.
+
+
+2) iASL Compiler/Disassembler and ACPICA tools:
+
+iASL: Implemented an enhanced multiple file compilation that combines 
+named objects from all input files to a single namespace. With this 
+feature, any unresolved external declarations as well as duplicate named 
+object declarations can be detected during compilation rather than 
+generating errors much later at runtime. The following commands are 
+examples that utilize this feature:
+    iasl dsdt.asl ssdt.asl
+    iasl dsdt.asl ssdt1.asl ssdt2.asl
+    iasl dsdt.asl ssdt*.asl
+
+----------------------------------------
+29 March 2019. Summary of changes for version 20190329:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Namespace support: Remove the address nodes from global list after method 
+termination. The global address list contains pointers to namespace nodes 
+that represent Operation Regions. This change properly removes Operation 
+Region namespace nodes that are declared dynamically during method 
+execution.
+
+Linux: Use a different debug default than ACPICA. There was a divergence 
+between Linux and the ACPICA codebases. In order to resolve this 
+divergence, Linux now declares its own debug default in aclinux.h
+
+Renamed some internal macros to improve code understanding and 
+maintenance. The macros below all operate on single 4-character ACPI 
+NameSegs, not generic strings (old -> new):
+    ACPI_NAME_SIZE    -> ACPI_NAMESEG_SIZE
+    ACPI_COMPARE_NAME -> ACPI_COMPARE_NAMESEG
+    ACPI_MOVE_NAME    -> ACPI_COPY_NAMESEG
+
+Fix for missing comma in array declaration for the AcpiGbl_GenericNotify 
+table.
+
+Test suite: Update makefiles, add PCC operation region support
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Implemented additional illegal forward reference detection. Now 
+detect and emit an error upon detection of a forward reference from a 
+Field to an Operation Region. This will fail at runtime if allowed to 
+pass the compiler.
+
+AcpiExec: Add an address list check for dynamic Operation Regions. This 
+feature performs a sanity test for each node the global address list. 
+This is done in order to ensure that all dynamic operation regions are 
+properly removed from the global address list and no dangling pointers 
+are left behind.
+
+Disassembler: Improved generation of resource pathnames. This change 
+improves the code that generates resource descriptor and resource tag 
+pathnames. The original code used a bunch of str* C library functions 
+that caused warnings on some compilers.
+
+iASL: Removed some uses of strncpy and replaced with memmove. The strncpy 
+function can overwrite buffers if the calling code is not very careful. 
+In the case of generating a module/table header, use of memmove is a 
+better implementation.
+
+
+3) Status of new features that have not been completed at this time:
+
+iASL: Implementing an enhanced multiple file compilation into a single 
+namespace feature (Status): This feature will be released soon, and 
+allows multiple ASL files to be compiled into the same single namespace. 
+By doing so, any unresolved external declarations as well as duplicate 
+named object declarations can be detected during compilation (rather than 
+later during runtime). The following commands are examples that utilize 
+this feature:
+    iasl dsdt.asl ssdt.asl
+    iasl dsdt.asl ssdt1.asl ssdt2.asl
+    iasl dsdt.asl ssdt*.asl
+
+ASL tutorial status: Feedback is being gathered internally and the 
+current plan is to publish this tutorial on the ACPICA website after a 
+final review by a tech writer.
+
+----------------------------------------
+15 February 2019. Summary of changes for version 20190215:
+
+
+0) Support for ACPI specification version 6.3:
+
+Add PCC operation region support for the AML interpreter. This adds PCC 
+operation region support in the AML interpreter and a default handler for 
+acpiexec. The change also renames the PCC region address space keyword to 
+PlatformCommChannel.
+
+Support for new predefined methods _NBS, _NCH, _NIC, _NIH, and _NIG. 
+These methods provide OSPM with health information and device boot 
+status.
+
+PDTT: Add TriggerOrder to the PCC Identifier structure. The field value 
+defines if the trigger needs to be invoked by OSPM before or at the end 
+of kernel crash dump processing/handling operation.
+
+SRAT: Add Generic Affinity Structure subtable. This subtable in the SRAT 
+is used for describing devices such as heterogeneous processors, 
+accelerators, GPUs, and IO devices with integrated compute or DMA 
+engines.
+
+MADT: Add support for statistical profiling in GICC. Statistical 
+profiling extension (SPE) is an architecture-specific feature for ARM.
+
+MADT: Add online capable flag. If this bit is set, system hardware 
+supports enabling this processor during OS runtime.
+
+New Error Disconnect Recover Notification value. There are a number of 
+scenarios where system Firmware in collaboration with hardware may 
+disconnect one or more devices from the rest of the system for purposes 
+of error containment. Firmware can use this new notification value to 
+alert OSPM of such a removal.
+
+PPTT: New additional fields in Processor Structure Flags. These flags 
+provide more information about processor topology.
+
+NFIT/Disassembler: Change a field name from "Address Range" to "Region 
+Type".
+
+HMAT updates: make several existing fields to be reserved as well as 
+rename subtable 0 to "memory proximity domain attributes".
+
+GTDT: Add support for new GTDT Revision 3. This revision adds information 
+for the EL2 timer.
+
+iASL: Update the HMAT example template for new fields.
+
+iASL: Add support for the new revision of the GTDT (Rev 3).
+
+
+1) ACPICA kernel-resident subsystem:
+
+AML Parser: fix the main AML parse loop to correctly skip erroneous 
+extended opcodes. AML opcodes come in two lengths: 1-byte opcodes and 2-
+byte extended opcodes. If an error occurs during an AML table load, the 
+AML parser will continue loading the table by skipping the offending 
+opcode. This implements a "load table at any cost" philosophy.
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Add checks for illegal object references, such as a reference 
+outside of method to an object within a method. Such an object is only 
+temporary.
+
+iASL: Emit error for creation of a zero-length operation region. Such a 
+region is rather pointless. If encountered, a runtime error is also 
+implemented in the interpeter.
+
+Debugger: Fix a possible fault with the "test objects" command.
+
+iASL: Makefile: support parent directory filenames containing embedded 
+spaces.
+
+iASL: Update the TPM2 template to revision 4.
+
+iASL: Add the ability to report specific warnings or remarks as errors.
+
+Disassembler: Disassemble OEMx tables as actual AML byte code. 
+Previously, these tables were treated as "unknown table".
+
+iASL: Add definition and disassembly for TPM2 revision 3.
+
+iASL: Add support for TPM2 rev 3 compilation.
+
+
+----------------------------------------
+08 January 2019. Summary of changes for version 20190108:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Updated all copyrights to 2019. This affects all source code modules.
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+ASL test suite (ASLTS): Updated all copyrights to 2019.
+
+Tools: Updated all signon copyrights to 2019.
+
+AcpiExec: Added a new option to dump extra information concerning any 
+memory leaks detected by the internal object/cache tracking mechanism. -
+va
+
+iASL: Updated the table template for the TPM2 table to the newest version 
+of the table (Revision 4)
+
+
+----------------------------------------
 13 December 2018. Summary of changes for version 20181213:
 
 
@@ -1193,7 +1545,7 @@ internal cache) is detected and ignored via object poisoning.
 
 Debugger: Fixed an AML interpreter mutex issue during the single stepping 
 of control methods. If certain debugger commands are executed during 
-stepping, a mutex aquire/release error could occur. Lv Zheng.
+stepping, a mutex acquire/release error could occur. Lv Zheng.
 
 Fixed some issues generating ACPICA with the Intel C compiler by 
 restoring the original behavior and compiler-specific include file in 
@@ -6735,7 +7087,7 @@ keyword is not standard across compilers, and this type allows inline to
 be 
 configured on a per-compiler basis. Lin Ming.
 
-Made the system global AcpiGbl_SystemAwakeAndRunning publically 
+Made the system global AcpiGbl_SystemAwakeAndRunning publicly
 available. 
 Added an extern for this boolean in acpixf.h. Some hosts utilize this 
 value 
@@ -11402,9 +11754,9 @@ Helgaas.
 Removed the length limit (200) on string objects as per the upcoming ACPI 
 3.0A specification. This affects the following areas of the interpreter: 
 1) 
-any implicit conversion of a Buffer to a String, 2) a String object 
+any implicit conversion of a Buffer to a String, 2) a String object
 result 
-of the ASL Concatentate operator, 3) the String object result of the ASL 
+of the ASL Concatenate operator, 3) the String object result of the ASL
 ToString operator.
 
 Fixed a problem in the Windows OS interface layer (OSL) where a 
@@ -13560,7 +13912,7 @@ next access width boundary (a common coding error.)
 Renamed OSD_HANDLER to ACPI_OSD_HANDLER, and OSD_EXECUTION_CALLBACK to 
 ACPI_OSD_EXEC_CALLBACK for consistency with other ACPI symbols.  Also, 
 these 
-symbols are lowercased by the latest version of the AcpiSrc tool.
+symbols are lowercase by the latest version of the AcpiSrc tool.
 
 The prototypes for the PCI interfaces in acpiosxf.h have been updated to 
 rename "Register" to simply "Reg" to prevent certain compilers from 
@@ -14932,8 +15284,8 @@ with the Linux coding style.
 Removed the non-Linux SourceSafe module revision number from each
 module header.
 
-Completed major overhaul of symbols to be lowercased for linux.
-Doubled the number of symbols that are lowercased.
+Completed major overhaul of symbols to be lowercase for linux.
+Doubled the number of symbols that are lowercase.
 
 Fixed a problem where identifiers within procedure headers and
 within quotes were not fully lower cased (they were left with a
@@ -16429,7 +16781,7 @@ Summary of changes for this label: 02_14_02
 Implemented support in AcpiLoadTable to allow loading of FACS and
 FADT tables.
 
-Suport for the now-obsolete interim 0.71 64-bit ACPI tables has
+Support for the now-obsolete interim 0.71 64-bit ACPI tables has
 been removed.  All 64-bit platforms should be migrated to the ACPI
 2.0 tables.  The actbl71.h header has been removed from the source
 tree.
@@ -16779,7 +17131,7 @@ Updated all files to apply cleanly against 2.4.16.
 
 Added basic PCI Interrupt Routing Table (PRT) support for IA32
 (acpi_pci.c), and unified the PRT code for IA32 and IA64.  This
-version supports both static and dyanmic PRT entries, but dynamic
+version supports both static and dynamic PRT entries, but dynamic
 entries are treated as if they were static (not yet
 reconfigurable).  Architecture- specific code to use this data is
 absent on IA32 but should be available shortly.
@@ -16868,7 +17220,7 @@ power-down, and thermal passive cooling issues (coming soon).
 
 Added additional typechecking for Fields within restricted access
 Operation Regions.  All fields within EC and CMOS regions must be
-declared with ByteAcc. All fields withing SMBus regions must be
+declared with ByteAcc. All fields within SMBus regions must be
 declared with the BufferAcc access type.
 
 Fixed a problem where the listing file output of control methods
@@ -17041,7 +17393,7 @@ objects to not be deleted during subsystem termination.
 
 Fixed a problem with the external AcpiEvaluateObject interface
 where the subsystem would fault if the named object to be
-evaluated refered to a constant such as Zero, Ones, etc.
+evaluated referred to a constant such as Zero, Ones, etc.
 
 Fixed a problem with IndexFields and BankFields where the
 subsystem would fault if the index, data, or bank registers were
@@ -17108,7 +17460,7 @@ sleeps.)
 The AcpiEnterSleepState and AcpiLeaveSleepState interfaces now
 support wake-enabled GPEs.  This means that upon entering the
 sleep state, all GPEs that are not wake-enabled are disabled.
-When leaving the sleep state, these GPEs are reenabled.
+When leaving the sleep state, these GPEs are re-enabled.
 
 A local double-precision divide/modulo module has been added to
 enhance portability to OS kernels where a 64-bit math library is

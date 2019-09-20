@@ -49,7 +49,7 @@ enum val_t {
 };
 
 struct acpi_q_rule {
-    char	sig[ACPI_NAME_SIZE];	/* Table signature to match */
+    char	sig[ACPI_NAMESEG_SIZE];	/* Table signature to match */
     enum val_t	val;
     union {
 	char	*id;
@@ -158,11 +158,11 @@ acpi_table_quirks(int *quirks)
     for (entry = acpi_quirks_table; entry->match; entry++) {
 	done = TRUE;
 	for (match = entry->match; match->sig[0] != '\0'; match++) {
-	    if (!strncmp(match->sig, "FADT", ACPI_NAME_SIZE))
+	    if (!strncmp(match->sig, "FADT", ACPI_NAMESEG_SIZE))
 		hdr = &fadt;
-	    else if (!strncmp(match->sig, ACPI_SIG_DSDT, ACPI_NAME_SIZE))
+	    else if (!strncmp(match->sig, ACPI_SIG_DSDT, ACPI_NAMESEG_SIZE))
 		hdr = &dsdt;
-	    else if (!strncmp(match->sig, ACPI_SIG_XSDT, ACPI_NAME_SIZE))
+	    else if (!strncmp(match->sig, ACPI_SIG_XSDT, ACPI_NAMESEG_SIZE))
 		hdr = &xsdt;
 	    else
 		panic("invalid quirk header\n");

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -447,7 +447,7 @@ AcpiEvMatchGpeMethod (
     ACPI_STATUS             Status;
     UINT32                  GpeNumber;
     UINT8                   TempGpeNumber;
-    char                    Name[ACPI_NAME_SIZE + 1];
+    char                    Name[ACPI_NAMESEG_SIZE + 1];
     UINT8                   Type;
 
 
@@ -468,7 +468,7 @@ AcpiEvMatchGpeMethod (
      * 1) Extract the method name and null terminate it
      */
     ACPI_MOVE_32_TO_32 (Name, &MethodNode->Name.Integer);
-    Name[ACPI_NAME_SIZE] = 0;
+    Name[ACPI_NAMESEG_SIZE] = 0;
 
     /* 2) Name must begin with an underscore */
 

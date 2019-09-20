@@ -11,7 +11,7 @@ NoEcho('
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -866,7 +866,7 @@ UartSerialBusTerm
         OptionalBitsPerByte         /* 05: BitsPerByte */
         OptionalStopBits            /* 06: StopBits */
         ',' ByteConstExpr           /* 08: LinesInUse */
-        OptionalEndian              /* 09: Endianess */
+        OptionalEndian              /* 09: Endianness */
         OptionalParityType          /* 10: Parity */
         OptionalFlowControl         /* 11: FlowControl */
         ',' WordConstExpr           /* 13: Rx BufferSize */
@@ -891,7 +891,7 @@ UartSerialBusTermV2
         OptionalBitsPerByte         /* 05: BitsPerByte */
         OptionalStopBits            /* 06: StopBits */
         ',' ByteConstExpr           /* 08: LinesInUse */
-        OptionalEndian              /* 09: Endianess */
+        OptionalEndian              /* 09: Endianness */
         OptionalParityType          /* 10: Parity */
         OptionalFlowControl         /* 11: FlowControl */
         ',' WordConstExpr           /* 13: Rx BufferSize */

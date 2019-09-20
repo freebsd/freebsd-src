@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -825,10 +825,10 @@ AcpiWalkResources (
     /* Parameter validation */
 
     if (!DeviceHandle || !UserFunction || !Name ||
-        (!ACPI_COMPARE_NAME (Name, METHOD_NAME__CRS) &&
-         !ACPI_COMPARE_NAME (Name, METHOD_NAME__PRS) &&
-         !ACPI_COMPARE_NAME (Name, METHOD_NAME__AEI) &&
-         !ACPI_COMPARE_NAME (Name, METHOD_NAME__DMA)))
+        (!ACPI_COMPARE_NAMESEG (Name, METHOD_NAME__CRS) &&
+         !ACPI_COMPARE_NAMESEG (Name, METHOD_NAME__PRS) &&
+         !ACPI_COMPARE_NAMESEG (Name, METHOD_NAME__AEI) &&
+         !ACPI_COMPARE_NAMESEG (Name, METHOD_NAME__DMA)))
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }

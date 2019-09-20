@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -285,7 +285,7 @@ typedef enum
     ASL_MSG_NO_RETVAL,
     ASL_MSG_NO_WHILE,
     ASL_MSG_NON_ASCII,
-    ASL_MSG_NON_ZERO,
+    ASL_MSG_BUFFER_FIELD_LENGTH,
     ASL_MSG_NOT_EXIST,
     ASL_MSG_NOT_FOUND,
     ASL_MSG_NOT_METHOD,
@@ -355,8 +355,8 @@ typedef enum
     ASL_MSG_NULL_RESOURCE_TEMPLATE,
     ASL_MSG_FOUND_HERE,
     ASL_MSG_ILLEGAL_RECURSION,
-    ASL_MSG_EXTERN_COLLISION,
-    ASL_MSG_EXTERN_FOUND_HERE,
+    ASL_MSG_DUPLICATE_INPUT_FILE,
+    ASL_MSG_WARNING_AS_ERROR,
     ASL_MSG_OEM_TABLE_ID,
     ASL_MSG_OEM_ID,
     ASL_MSG_UNLOAD,
@@ -364,6 +364,11 @@ typedef enum
     ASL_MSG_LONG_SLEEP,
     ASL_MSG_PREFIX_NOT_EXIST,
     ASL_MSG_NAMEPATH_NOT_EXIST,
+    ASL_MSG_REGION_LENGTH,
+    ASL_MSG_TEMPORARY_OBJECT,
+    ASL_MSG_UNDEFINED_EXTERNAL,
+    ASL_MSG_BUFFER_FIELD_OVERFLOW,
+    ASL_MSG_INVALID_SPECIAL_NAME,
 
     /* These messages are used by the Data Table compiler only */
 

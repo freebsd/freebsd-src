@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -806,6 +806,15 @@ AcpiUtDumpAllocations (
                     AcpiOsPrintf ("%p Length 0x%04X %9.9s-%4.4u [%s] ",
                         Descriptor, Element->Size, Element->Module,
                         Element->Line, AcpiUtGetDescriptorName (Descriptor));
+
+                    /* Optional object hex dump */
+
+                    if (AcpiGbl_VerboseLeakDump)
+                    {
+                        AcpiOsPrintf ("\n");
+                        AcpiUtDumpBuffer ((UINT8 *) Descriptor, Element->Size,
+                            DB_BYTE_DISPLAY, 0);
+                    }
 
                     /* Validate the descriptor type using Type field and length */
 

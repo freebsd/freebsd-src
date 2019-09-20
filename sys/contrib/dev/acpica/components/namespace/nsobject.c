@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -350,6 +350,11 @@ AcpiNsDetachObject (
         {
             ACPI_FREE (ObjDesc->Method.AmlStart);
         }
+    }
+
+    if (ObjDesc->Common.Type == ACPI_TYPE_REGION)
+    {
+        AcpiUtRemoveAddressRange(ObjDesc->Region.SpaceId, Node);
     }
 
     /* Clear the Node entry in all cases */

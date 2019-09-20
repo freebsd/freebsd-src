@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -331,12 +331,12 @@ AcpiDbExecuteMethod (
         }
 
         ACPI_EXCEPTION ((AE_INFO, Status,
-            "while executing %s from debugger", Info->Pathname));
+            "while executing %s from AML Debugger", Info->Pathname));
 
         if (Status == AE_BUFFER_OVERFLOW)
         {
             ACPI_ERROR ((AE_INFO,
-                "Possible overflow of internal debugger "
+                "Possible buffer overflow within AML Debugger "
                 "buffer (size 0x%X needed 0x%X)",
                 ACPI_DEBUG_BUFFER_SIZE, (UINT32) ReturnObj->Length));
         }
@@ -658,7 +658,7 @@ AcpiDbExecute (
 
             /* Dump a _PLD buffer if present */
 
-            if (ACPI_COMPARE_NAME ((ACPI_CAST_PTR (ACPI_NAMESPACE_NODE,
+            if (ACPI_COMPARE_NAMESEG ((ACPI_CAST_PTR (ACPI_NAMESPACE_NODE,
                 AcpiGbl_DbMethodInfo.Method)->Name.Ascii),
                 METHOD_NAME__PLD))
             {

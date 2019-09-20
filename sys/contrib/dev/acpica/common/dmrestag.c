@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -747,6 +747,7 @@ AcpiGetTagPathname (
     UINT8                   ResourceTableIndex;
     ACPI_SIZE               RequiredSize;
     char                    *Pathname;
+    char                    *PathnameEnd;
     AML_RESOURCE            *Aml;
     ACPI_PARSE_OBJECT       *Op;
     char                    *InternalPath;
@@ -809,19 +810,26 @@ AcpiGetTagPathname (
         RequiredSize, FALSE);
 
     /*
-     * Create the full path to the resource and tag by: remove the buffer name,
-     * append the resource descriptor name, append a dot, append the tag name.
+     * Create the full path to the resource and tag by:
+     *  1) Remove the buffer nameseg from the end of the pathname
+     *  2) Append the resource descriptor nameseg
+     *  3) Append a dot
+     *  4) Append the field tag nameseg
      *
-     * TBD: Always using the full path is a bit brute force, the path can be
+     * Always using the full path is a bit brute force, the path can be
      * often be optimized with carats (if the original buffer namepath is a
      * single nameseg). This doesn't really matter, because these paths do not
      * end up in the final compiled AML, it's just an appearance issue for the
      * disassembled code.
      */
-    Pathname[strlen (Pathname) - ACPI_NAME_SIZE] = 0;
-    strncat (Pathname, ResourceNode->Name.Ascii, ACPI_NAME_SIZE);
-    strcat (Pathname, ".");
-    strncat (Pathname, Tag, ACPI_NAME_SIZE);
+    PathnameEnd = Pathname + (RequiredSize - ACPI_NAMESEG_SIZE - 1);
+    ACPI_COPY_NAMESEG (PathnameEnd, ResourceNode->Name.Ascii);
+
+    PathnameEnd += ACPI_NAMESEG_SIZE;
+    *PathnameEnd = '.';
+
+    PathnameEnd++;
+    ACPI_COPY_NAMESEG (PathnameEnd, Tag);
 
     /* Internalize the namepath to AML format */
 
@@ -863,7 +871,7 @@ static void
 AcpiDmUpdateResourceName (
     ACPI_NAMESPACE_NODE     *ResourceNode)
 {
-    char                    Name[ACPI_NAME_SIZE];
+    char                    Name[ACPI_NAMESEG_SIZE];
 
 
     /* Ignore if a unique name has already been assigned */
@@ -906,7 +914,7 @@ AcpiDmUpdateResourceName (
  *
  * PARAMETERS:  BitIndex            - Index into the resource descriptor
  *              Resource            - Pointer to the raw resource data
- *              ResourceIndex       - Index correspoinding to the resource type
+ *              ResourceIndex       - Index corresponding to the resource type
  *
  * RETURN:      Pointer to the resource tag (ACPI_NAME). NULL if no match.
  *

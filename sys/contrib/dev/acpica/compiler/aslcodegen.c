@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -174,11 +174,11 @@ CgWriteTableHeader (
     ACPI_PARSE_OBJECT       *Op);
 
 static void
-CgCloseTable (
-    void);
+CgWriteNode (
+    ACPI_PARSE_OBJECT       *Op);
 
 static void
-CgWriteNode (
+CgUpdateHeader (
     ACPI_PARSE_OBJECT       *Op);
 
 
@@ -202,15 +202,12 @@ CgGenerateAmlOutput (
 
     /* Generate the AML output file */
 
-    FlSeekFile (ASL_FILE_SOURCE_OUTPUT, 0);
-    AslGbl_SourceLine = 0;
-    AslGbl_NextError = AslGbl_ErrorLog;
-
-    TrWalkParseTree (AslGbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
+    TrWalkParseTree (AslGbl_CurrentDB,
+        ASL_WALK_VISIT_DOWNWARD | ASL_WALK_VISIT_DB_SEPARATELY,
         CgAmlWriteWalk, NULL, NULL);
 
     DbgPrint (ASL_TREE_OUTPUT, ASL_PARSE_TREE_HEADER2);
-    CgCloseTable ();
+    CgUpdateHeader (AslGbl_CurrentDB);
 }
 
 
@@ -523,6 +520,8 @@ CgWriteAmlOpcode (
  *
  * DESCRIPTION: Write a table header corresponding to the DEFINITIONBLOCK
  *
+ * NOTE: Input strings should be validated before this function is invoked.
+ *
  ******************************************************************************/
 
 static void
@@ -533,6 +532,8 @@ CgWriteTableHeader (
     UINT32                  CommentLength;
     ACPI_COMMENT_NODE       *Current;
 
+
+    memset (&AslGbl_TableHeader, 0, sizeof (ACPI_TABLE_HEADER));
 
     /* AML filename */
 
@@ -552,11 +553,11 @@ CgWriteTableHeader (
      */
     if (AcpiGbl_CaptureComments)
     {
-        strncpy(AcpiGbl_TableSig, Child->Asl.Value.String, ACPI_NAME_SIZE);
+        ACPI_COPY_NAMESEG (AcpiGbl_TableSig, Child->Asl.Value.String);
         Child->Asl.Value.String = ACPI_SIG_XXXX;
     }
 
-    strncpy (AslGbl_TableHeader.Signature, Child->Asl.Value.String, ACPI_NAME_SIZE);
+    ACPI_COPY_NAMESEG (AslGbl_TableHeader.Signature, Child->Asl.Value.String);
 
     /* Revision */
 
@@ -573,12 +574,14 @@ CgWriteTableHeader (
     /* OEMID */
 
     Child = Child->Asl.Next;
-    strncpy (AslGbl_TableHeader.OemId, Child->Asl.Value.String, ACPI_OEM_ID_SIZE);
+    memcpy (AslGbl_TableHeader.OemId, Child->Asl.Value.String,
+        strlen (Child->Asl.Value.String));
 
     /* OEM TableID */
 
     Child = Child->Asl.Next;
-    strncpy (AslGbl_TableHeader.OemTableId, Child->Asl.Value.String, ACPI_OEM_TABLE_ID_SIZE);
+    memcpy (AslGbl_TableHeader.OemTableId, Child->Asl.Value.String,
+        strlen (Child->Asl.Value.String));
 
     /* OEM Revision */
 
@@ -587,7 +590,7 @@ CgWriteTableHeader (
 
     /* Compiler ID */
 
-    ACPI_MOVE_NAME (AslGbl_TableHeader.AslCompilerId, ASL_CREATOR_ID);
+    ACPI_COPY_NAMESEG (AslGbl_TableHeader.AslCompilerId, ASL_CREATOR_ID);
 
     /* Compiler version */
 
@@ -687,7 +690,8 @@ CgUpdateHeader (
     {
         if (FlReadFile (ASL_FILE_AML_OUTPUT, &FileByte, 1) != AE_OK)
         {
-            printf ("EOF while reading checksum bytes\n");
+            AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL, NULL,
+                "Table length is greater than size of the input file");
             return;
         }
 
@@ -702,38 +706,13 @@ CgUpdateHeader (
         ACPI_OFFSET (ACPI_TABLE_HEADER, Checksum));
 
     FlWriteFile (ASL_FILE_AML_OUTPUT, &Checksum, 1);
-}
 
-
-/*******************************************************************************
- *
- * FUNCTION:    CgCloseTable
- *
- * PARAMETERS:  None.
- *
- * RETURN:      None.
- *
- * DESCRIPTION: Complete the ACPI table by calculating the checksum and
- *              re-writing each table header. This allows support for
- *              multiple definition blocks in a single source file.
- *
- ******************************************************************************/
-
-static void
-CgCloseTable (
-    void)
-{
-    ACPI_PARSE_OBJECT   *Op;
-
-
-    /* Process all definition blocks */
-
-    Op = AslGbl_ParseTreeRoot->Asl.Child;
-    while (Op)
-    {
-        CgUpdateHeader (Op);
-        Op = Op->Asl.Next;
-    }
+    /*
+     * Seek to the end of the file. This is done to support multiple file
+     * compilation. Doing this simplifies other parts of the codebase because
+     * it eliminates the need to seek for a different starting place.
+     */
+    FlSeekFile (ASL_FILE_AML_OUTPUT, Op->Asl.FinalAmlOffset + Length);
 }
 
 

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -453,6 +453,7 @@ typedef struct acpi_object_region_field
     union acpi_operand_object       *RegionObj;         /* Containing OpRegion object */
     UINT8                           *ResourceBuffer;    /* ResourceTemplate for serial regions/fields */
     UINT16                          PinNumberIndex;     /* Index relative to previous Connection/Template */
+    UINT8                           *InternalPccBuffer; /* Internal buffer for fields associated with PCC */
 
 } ACPI_OBJECT_REGION_FIELD;
 
