@@ -1070,6 +1070,8 @@
         ..
         fstyp
         ..
+        jail
+        ..
         makefs
         ..
         newsyslog
