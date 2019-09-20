@@ -27,12 +27,14 @@
 marker task-color.4th
 
 \ This function returns FALSE if the `loader_color' environment variable is set
-\ to NO, no, or 0. Otherwise, TRUE is returned (unless booting serial).
+\ to NO, no, or 0. It returns TRUE if `loader_color' is set to any other value.
+\ If `loader_color' is unset, TRUE is returned (unless booting serial).
 \ 
-: loader_color? ( -- N )
+: loader_color? ( -- t )
 
 	s" loader_color" getenv dup -1 <> if
-
+		\ `loader_color' is set.
+		\ Check if it is explicitly disabled.
 		2dup s" NO" compare-insensitive 0= if
 			2drop
 			FALSE exit
@@ -42,8 +44,12 @@ marker task-color.4th
 			FALSE exit
 		then
 		drop
+		\ It is enabled.
+		TRUE
+	else
+		\ `loader_color' is unset.
+		\ Default to using color unless serial boot is active.
+		drop
+		boot_serial? 0=
 	then
-	drop
-
-	boot_serial? if FALSE else TRUE then
 ;
