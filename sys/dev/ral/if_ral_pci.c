@@ -100,6 +100,7 @@ static const struct ral_pci_ident ral_pci_ids[] = {
 	{ 0x1814, 0x5390, "Ralink Technology RT5390" },
 	{ 0x1814, 0x5392, "Ralink Technology RT5392" },
 	{ 0x1814, 0x539a, "Ralink Technology RT5390" },
+	{ 0x1814, 0x539b, "Ralink Technology RT5390" },
 	{ 0x1814, 0x539f, "Ralink Technology RT5390" },
 	{ 0x1a3b, 0x1059, "AWT RT2890" },
 	{ 0, 0, NULL }
