@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <jail.h>
+#include <locale.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -264,6 +265,11 @@ main(int argc, const char *argv[])
 #else
     setbuffer(stdout, stdoutbuf, Buffersize);
 #endif
+
+    if (setlocale(LC_ALL, "") == NULL) {
+        fprintf(stderr, "invalid locale.\n");
+	exit(1);
+    }
 
     mypid = getpid();
 

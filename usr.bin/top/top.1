@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd October 2, 2018
+.Dd September 20, 2019
 .Dt TOP 1
 .Os
 .Sh NAME
@@ -192,6 +192,10 @@ or
 \*(lqall\*(rq.
 Boolean flags are toggles.
 A second specification of any of these options will negate the first.
+.Pp
+The display of command names changes according to the locale.
+If command names displayed in the locale settings are recognized as 
+non-display characters, they are displayed in three digit octal sequence.
 .Sh "INTERACTIVE MODE"
 When
 .Nm
