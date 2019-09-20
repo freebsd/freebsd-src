@@ -349,7 +349,7 @@ ktls_init(void *dummy __unused)
 		STAILQ_INIT(&ktls_wq[i].head);
 		mtx_init(&ktls_wq[i].mtx, "ktls work queue", NULL, MTX_DEF);
 		error = kproc_kthread_add(ktls_work_thread, &ktls_wq[i],
-		    &ktls_proc, &td, 0, 0, "KTLS", "ktls_thr_%d", i);
+		    &ktls_proc, &td, 0, 0, "KTLS", "thr_%d", i);
 		if (error)
 			panic("Can't add KTLS thread %d error %d", i, error);
 
