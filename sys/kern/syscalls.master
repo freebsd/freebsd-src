@@ -1210,7 +1210,7 @@
 		    u_int namelen,
 		    _Out_writes_bytes_opt_(*oldlenp) void *old,
 		    _Inout_opt_ size_t *oldlenp,
-		    _In_reads_bytes_opt_(newlen) const void *new,
+		    _In_reads_bytes_opt_(newlen) const void *newp,
 		    size_t newlen
 		);
 	} __sysctl sysctl_args int
@@ -2729,7 +2729,7 @@
 		    int oldfd,
 		    _In_z_ const char *old,
 		    int newfd,
-		    _In_z_ const char *new
+		    _In_z_ const char *newpath
 		);
 	}
 502	AUE_SYMLINKAT	STD {

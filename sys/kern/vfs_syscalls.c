@@ -3495,7 +3495,7 @@ int
 sys_renameat(struct thread *td, struct renameat_args *uap)
 {
 
-	return (kern_renameat(td, uap->oldfd, uap->old, uap->newfd, uap->new,
+	return (kern_renameat(td, uap->oldfd, uap->old, uap->newfd, uap->newpath,
 	    UIO_USERSPACE));
 }
 

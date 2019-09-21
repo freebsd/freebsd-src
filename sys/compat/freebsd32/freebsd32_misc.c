@@ -2247,7 +2247,7 @@ freebsd32___sysctl(struct thread *td, struct freebsd32___sysctl_args *uap)
 		return (EFAULT);
 	error = userland_sysctl(td, name, uap->namelen,
 		uap->old, &oldlen, 1,
-		uap->new, uap->newlen, &j, SCTL_MASK32);
+		uap->newp, uap->newlen, &j, SCTL_MASK32);
 	if (error)
 		return (error);
 	if (uap->oldlenp)

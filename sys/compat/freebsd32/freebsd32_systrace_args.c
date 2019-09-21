@@ -942,7 +942,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = p->namelen; /* u_int */
 		uarg[2] = (intptr_t) p->old; /* void * */
 		uarg[3] = (intptr_t) p->oldlenp; /* uint32_t * */
-		uarg[4] = (intptr_t) p->new; /* const void * */
+		uarg[4] = (intptr_t) p->newp; /* const void * */
 		uarg[5] = p->newlen; /* uint32_t */
 		*n_args = 6;
 		break;
@@ -2668,7 +2668,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->oldfd; /* int */
 		uarg[1] = (intptr_t) p->old; /* const char * */
 		iarg[2] = p->newfd; /* int */
-		uarg[3] = (intptr_t) p->new; /* const char * */
+		uarg[3] = (intptr_t) p->newpath; /* const char * */
 		*n_args = 4;
 		break;
 	}

@@ -2191,7 +2191,7 @@ sys___sysctl(struct thread *td, struct sysctl_args *uap)
 
 	error = userland_sysctl(td, name, uap->namelen,
 		uap->old, uap->oldlenp, 0,
-		uap->new, uap->newlen, &j, 0);
+		uap->newp, uap->newlen, &j, 0);
 	if (error && error != ENOMEM)
 		return (error);
 	if (uap->oldlenp) {
