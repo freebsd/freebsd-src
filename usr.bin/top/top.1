@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd September 20, 2019
+.Dd September 21, 2019
 .Dt TOP 1
 .Os
 .Sh NAME
@@ -66,6 +66,9 @@ It it useful when you want to watch applications, that
 puts their status information there.
 If the real name differs from argv[0],
 it will be displayed in parenthesis.
+Non-printable characters in the command line are
+encoded in C-style backslash sequences or
+a three digit octal sequences.
 .It Fl b
 Use \*(lqbatch\*(rq mode.
 In this mode, all input from the terminal is
@@ -192,10 +195,6 @@ or
 \*(lqall\*(rq.
 Boolean flags are toggles.
 A second specification of any of these options will negate the first.
-.Pp
-The display of command names changes according to the locale.
-If command names displayed in the locale settings are recognized as 
-non-display characters, they are displayed in three digit octal sequence.
 .Sh "INTERACTIVE MODE"
 When
 .Nm
@@ -426,6 +425,12 @@ bytes paged out to swap devices (last interval)
 .It Ev TOP
 Default set of arguments to
 .Nm .
+.It Ev LC_CTYPE
+The locale to use when displaying the
+.Va argv
+vector when
+.Fl a
+flag is specified.
 .El
 .Sh SEE ALSO
 .Xr kill 1 ,
