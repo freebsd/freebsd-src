@@ -52,9 +52,10 @@ __FBSDID("$FreeBSD$");
 
 #include "statd.h"
 
+static const char *from_addr(struct sockaddr *);
+
 static const char *
-from_addr(saddr)
-	struct sockaddr *saddr;
+from_addr(struct sockaddr *saddr)
 {
 	static char inet_buf[INET6_ADDRSTRLEN];
 

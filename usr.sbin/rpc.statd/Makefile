@@ -7,6 +7,9 @@ SRCS=	file.c sm_inter_svc.c sm_inter.h statd.c procs.c
 CFLAGS+= -I${.OBJDIR}
 LIBADD=	rpcsvc
 
+# XXX: mismatch between (xdrproc_t) and xdr_void().
+WARNS?=	2
+
 CLEANFILES= sm_inter_svc.c sm_inter.h
 
 RPCSRC= ${SYSROOT:U${DESTDIR}}/usr/include/rpcsvc/sm_inter.x
