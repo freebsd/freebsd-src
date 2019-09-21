@@ -601,6 +601,9 @@ xhci_init(struct xhci_softc *sc, device_t self, uint8_t dma32)
 	device_printf(self, "%d bytes context size, %d-bit DMA\n",
 	    sc->sc_ctx_is_64_byte ? 64 : 32, (int)sc->sc_bus.dma_bits);
 
+	/* enable 64Kbyte control endpoint quirk */
+	sc->sc_bus.control_ep_quirk = 1;
+
 	temp = XREAD4(sc, capa, XHCI_HCSPARAMS1);
 
 	/* get number of device slots */
@@ -2003,7 +2006,7 @@ restart:
 
 	/* clear TD SIZE to zero, hence this is the last TRB */
 	/* remove chain bit because this is the last data TRB in the chain */
-	td->td_trb[td->ntrb - 1].dwTrb2 &= ~htole32(XHCI_TRB_2_TDSZ_SET(15));
+	td->td_trb[td->ntrb - 1].dwTrb2 &= ~htole32(XHCI_TRB_2_TDSZ_SET(31));
 	td->td_trb[td->ntrb - 1].dwTrb3 &= ~htole32(XHCI_TRB_3_CHAIN_BIT);
 	/* remove CHAIN-BIT from last LINK TRB */
 	td->td_trb[td->ntrb].dwTrb3 &= ~htole32(XHCI_TRB_3_CHAIN_BIT);

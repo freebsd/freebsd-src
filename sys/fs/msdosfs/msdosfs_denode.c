@@ -79,7 +79,7 @@ de_vncmpf(struct vnode *vp, void *arg)
 
 	a = arg;
 	de = VTODE(vp);
-	return (de->de_inode != *a);
+	return (de->de_inode != *a) || (de->de_refcnt <= 0);
 }
 
 /*
@@ -124,8 +124,9 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 	 * address of "." entry. For root dir (if not FAT32) use cluster
 	 * MSDOSFSROOT, offset MSDOSFSROOT_OFS
 	 *
-	 * NOTE: The check for de_refcnt > 0 below insures the denode being
-	 * examined does not represent an unlinked but still open file.
+	 * NOTE: de_vncmpf will explicitly skip any denodes that do not have
+	 * a de_refcnt > 0.  This insures that that we do not attempt to use
+	 * a denode that represents an unlinked but still open file.
 	 * These files are not to be accessible even when the directory
 	 * entry that represented the file happens to be reused while the
 	 * deleted file is still open.
