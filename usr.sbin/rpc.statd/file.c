@@ -201,8 +201,8 @@ void init_file(const char *filename)
   /* defective, re-create from scratch.					*/
   if (!new_file)
   {
-    if ((status_file_len < HEADER_LEN) || (status_file_len
-      < (HEADER_LEN + sizeof(HostInfo) * status_info->noOfHosts)) )
+    if ((status_file_len < (off_t)HEADER_LEN) || (status_file_len
+      < (off_t)(HEADER_LEN + sizeof(HostInfo) * status_info->noOfHosts)) )
     {
       warnx("status file is corrupt");
       new_file = TRUE;
