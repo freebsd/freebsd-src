@@ -28,7 +28,7 @@
 .\"	@(#)jot.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd April 7, 2015
+.Dd September 21, 2019
 .Dt JOT 1
 .Os
 .Sh NAME
@@ -108,14 +108,16 @@ Any three of these arguments determines the fourth.
 If four are specified and the given and computed values of
 .Ar reps
 conflict, the lower value is used.
-If fewer than three are specified, defaults are assigned
-left to right, except for
+If one or two are specified, defaults are assigned
+starting with
 .Ar s ,
-which assumes a default of 1 or -1 if both
+which assumes a default of 1 (or -1 if
 .Ar begin
 and
 .Ar end
-are given.
+specify a descending range).
+Then the default values are assigned to the leftmost omitted arguments until
+three arguments are set.
 .Pp
 Defaults for the four arguments are, respectively,
 100, 1, 100, and 1, except that when random data are requested,
