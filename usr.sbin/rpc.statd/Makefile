@@ -20,7 +20,8 @@ sm_inter_svc.c: ${RPCSRC}
 sm_inter.h: ${RPCSRC}
 	${RPCGEN} -h -o ${.TARGET} ${.ALLSRC}
 
-test: test.c
-	cc -o test test.c -lrpcsvc
+test: test.o
+	${CC} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC} ${LIBADD:S/^/-l/}
+CLEANFILES+=	test test.o
 
 .include <bsd.prog.mk>
