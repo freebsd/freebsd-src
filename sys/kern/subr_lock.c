@@ -287,7 +287,7 @@ lock_prof_init(void *arg)
 {
 	int cpu;
 
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
+	CPU_FOREACH(cpu) {
 		lp_cpu[cpu] = malloc(sizeof(*lp_cpu[cpu]), M_DEVBUF,
 		    M_WAITOK | M_ZERO);
 		lock_prof_init_type(&lp_cpu[cpu]->lpc_types[0]);
@@ -330,14 +330,14 @@ lock_prof_reset(void)
 	 * before we zero the structures.  Some items may still be linked
 	 * into per-thread lists as well.
 	 */
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
+	CPU_FOREACH(cpu) {
 		lpc = lp_cpu[cpu];
 		for (i = 0; i < LPROF_CACHE_SIZE; i++) {
 			LIST_REMOVE(&lpc->lpc_types[0].lpt_objs[i], lpo_link);
 			LIST_REMOVE(&lpc->lpc_types[1].lpt_objs[i], lpo_link);
 		}
 	}
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
+	CPU_FOREACH(cpu) {
 		lpc = lp_cpu[cpu];
 		bzero(lpc, sizeof(*lpc));
 		lock_prof_init_type(&lpc->lpc_types[0]);
@@ -378,9 +378,7 @@ lock_prof_sum(struct lock_prof *match, struct lock_prof *dst, int hash,
 	dst->class = match->class;
 	dst->name = match->name;
 
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
-		if (lp_cpu[cpu] == NULL)
-			continue;
+	CPU_FOREACH(cpu) {
 		type = &lp_cpu[cpu]->lpc_types[spin];
 		SLIST_FOREACH(l, &type->lpt_hash[hash], link) {
 			if (l->ticks == t)
@@ -399,7 +397,6 @@ lock_prof_sum(struct lock_prof *match, struct lock_prof *dst, int hash,
 			dst->cnt_contest_locking += l->cnt_contest_locking;
 		}
 	}
-	
 }
 
 static void
@@ -438,9 +435,7 @@ dump_lock_prof_stats(SYSCTL_HANDLER_ARGS)
 	lock_prof_enable = 0;
 	quiesce_all_cpus("profstat", 0);
 	t = ticks;
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
-		if (lp_cpu[cpu] == NULL)
-			continue;
+	CPU_FOREACH(cpu) {
 		lock_prof_type_stats(&lp_cpu[cpu]->lpc_types[0], sb, 0, t);
 		lock_prof_type_stats(&lp_cpu[cpu]->lpc_types[1], sb, 1, t);
 	}
