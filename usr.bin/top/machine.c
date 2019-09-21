@@ -1003,7 +1003,7 @@ format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags
 				len = (argbuflen - (dst - argbuf) - 1) / 4;
 				strvisx(dst, src,
 				    MIN(strlen(src), len),
-				    VIS_NL | VIS_CSTYLE);
+				    VIS_NL | VIS_CSTYLE | VIS_OCTAL | VIS_SAFE);
 				while (*dst != '\0')
 					dst++;
 				if ((argbuflen - (dst - argbuf) - 1) / 4 > 0)
@@ -1102,7 +1102,7 @@ format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags
 		sbuf_printf(procbuf, "%6s ", format_time(cputime));
 		sbuf_printf(procbuf, "%6.2f%% ", ps.wcpu ? 100.0 * weighted_cpu(PCTCPU(pp), pp) : 100.0 * PCTCPU(pp));
 	}
-	sbuf_printf(procbuf, "%s", printable(cmdbuf));
+	sbuf_printf(procbuf, "%s", cmdbuf);
 	free(cmdbuf);
 	return (sbuf_data(procbuf));
 }

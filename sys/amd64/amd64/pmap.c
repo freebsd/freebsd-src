@@ -10030,13 +10030,13 @@ sysctl_kmaps_dump(struct sbuf *sb, struct pmap_kernel_map_range *range,
 		mode = "WC";
 		break;
 	default:
-		printf("%s: unknown PAT mode %#x for range %#016lx-%#016lx\n",
+		printf("%s: unknown PAT mode %#x for range 0x%016lx-0x%016lx\n",
 		    __func__, i, range->sva, eva);
 		mode = "??";
 		break;
 	}
 
-	sbuf_printf(sb, "%#016lx-%#016lx r%c%c%c%c %s %d %d %d\n",
+	sbuf_printf(sb, "0x%016lx-0x%016lx r%c%c%c%c %s %d %d %d\n",
 	    range->sva, eva,
 	    (range->attrs & X86_PG_RW) != 0 ? 'w' : '-',
 	    (range->attrs & pg_nx) != 0 ? '-' : 'x',
@@ -10271,25 +10271,25 @@ DB_SHOW_COMMAND(pte, pmap_print_pte)
 
 	PG_V = pmap_valid_bit(pmap);
 	pml4 = pmap_pml4e(pmap, va);
-	db_printf("VA %#016lx pml4e %#016lx", va, *pml4);
+	db_printf("VA 0x%016lx pml4e 0x%016lx", va, *pml4);
 	if ((*pml4 & PG_V) == 0) {
 		db_printf("\n");
 		return;
 	}
 	pdp = pmap_pml4e_to_pdpe(pml4, va);
-	db_printf(" pdpe %#016lx", *pdp);
+	db_printf(" pdpe 0x%016lx", *pdp);
 	if ((*pdp & PG_V) == 0 || (*pdp & PG_PS) != 0) {
 		db_printf("\n");
 		return;
 	}
 	pde = pmap_pdpe_to_pde(pdp, va);
-	db_printf(" pde %#016lx", *pde);
+	db_printf(" pde 0x%016lx", *pde);
 	if ((*pde & PG_V) == 0 || (*pde & PG_PS) != 0) {
 		db_printf("\n");
 		return;
 	}
 	pte = pmap_pde_to_pte(pde, va);
-	db_printf(" pte %#016lx\n", *pte);
+	db_printf(" pte 0x%016lx\n", *pte);
 }
 
 DB_SHOW_COMMAND(phys2dmap, pmap_phys2dmap)

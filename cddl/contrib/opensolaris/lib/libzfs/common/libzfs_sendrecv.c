@@ -1289,13 +1289,11 @@ dump_snapshot(zfs_handle_t *zhp, void *arg)
 	fromorigin = sdd->prevsnap[0] == '\0' &&
 	    (sdd->fromorigin || sdd->replicate);
 
-	if (sdd->progress && sdd->dryrun) {
+	if (sdd->verbose || sdd->progress) {
 		(void) estimate_ioctl(zhp, sdd->prevsnap_obj,
 		    fromorigin, flags, &size);
 		sdd->size += size;
-	}
 
-	if (sdd->verbose) {
 		send_print_verbose(fout, zhp->zfs_name,
 		    sdd->prevsnap[0] ? sdd->prevsnap : NULL,
 		    size, sdd->parsable);
@@ -1663,7 +1661,7 @@ zfs_send_resume(libzfs_handle_t *hdl, sendflags_t *flags, int outfd,
 		fromname = name;
 	}
 
-	if (flags->progress) {
+	if (flags->progress || flags->verbose) {
 		error = lzc_send_space(zhp->zfs_name, fromname,
 		    lzc_flags, &size);
 		if (error == 0)
@@ -1933,7 +1931,7 @@ zfs_send(zfs_handle_t *zhp, const char *fromsnap, const char *tosnap,
 		sdd.cleanup_fd = -1;
 		sdd.snapholds = NULL;
 	}
-	if (flags->progress || sdd.snapholds != NULL) {
+	if (flags->progress || flags->verbose || sdd.snapholds != NULL) {
 		/*
 		 * Do a verbose no-op dry run to get all the verbose output
 		 * or to gather snapshot hold's before generating any data,
