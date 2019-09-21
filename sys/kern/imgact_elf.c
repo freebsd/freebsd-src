@@ -135,6 +135,11 @@ SYSCTL_INT(_kern_elf32, OID_AUTO, read_exec, CTLFLAG_RW, &i386_read_exec, 0,
     "enable execution from readable segments");
 #endif
 
+static u_long __elfN(pie_base) = ET_DYN_LOAD_ADDR;
+SYSCTL_ULONG(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO, pie_base,
+    CTLFLAG_RWTUN, &__elfN(pie_base), 0,
+    "PIE load base without randomization");
+
 SYSCTL_NODE(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO, aslr, CTLFLAG_RW, 0,
     "");
 #define	ASLR_NODE_OID	__CONCAT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), _aslr)
@@ -1146,13 +1151,13 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		if (baddr == 0) {
 			if ((sv->sv_flags & SV_ASLR) == 0 ||
 			    (fctl0 & NT_FREEBSD_FCTL_ASLR_DISABLE) != 0)
-				et_dyn_addr = ET_DYN_LOAD_ADDR;
+				et_dyn_addr = __elfN(pie_base);
 			else if ((__elfN(pie_aslr_enabled) &&
 			    (imgp->proc->p_flag2 & P2_ASLR_DISABLE) == 0) ||
 			    (imgp->proc->p_flag2 & P2_ASLR_ENABLE) != 0)
 				et_dyn_addr = ET_DYN_ADDR_RAND;
 			else
-				et_dyn_addr = ET_DYN_LOAD_ADDR;
+				et_dyn_addr = __elfN(pie_base);
 		}
 	}
 
