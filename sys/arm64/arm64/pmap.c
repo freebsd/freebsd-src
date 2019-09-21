@@ -5810,23 +5810,33 @@ pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 	case ISS_DATA_DFSC_TF_L1:
 	case ISS_DATA_DFSC_TF_L2:
 	case ISS_DATA_DFSC_TF_L3:
-		PMAP_LOCK(pmap);
-		/* Ask the MMU to check the address */
-		intr = intr_disable();
-		if (pmap == kernel_pmap)
-			par = arm64_address_translate_s1e1r(far);
-		else
-			par = arm64_address_translate_s1e0r(far);
-		intr_restore(intr);
-		PMAP_UNLOCK(pmap);
-
 		/*
-		 * If the translation was successful the address was invalid
-		 * due to a break-before-make sequence. We can unlock and
-		 * return success to the trap handler.
+		 * Retry the translation.  A break-before-make sequence can
+		 * produce a transient fault.
 		 */
-		if (PAR_SUCCESS(par))
-			rv = KERN_SUCCESS;
+		if (pmap == kernel_pmap) {
+			/*
+			 * The translation fault may have occurred within a
+			 * critical section.  Therefore, we must check the
+			 * address without acquiring the kernel pmap's lock.
+			 */
+			if (pmap_kextract(far) != 0)
+				rv = KERN_SUCCESS;
+		} else {
+			PMAP_LOCK(pmap);
+			/* Ask the MMU to check the address. */
+			intr = intr_disable();
+			par = arm64_address_translate_s1e0r(far);
+			intr_restore(intr);
+			PMAP_UNLOCK(pmap);
+
+			/*
+			 * If the translation was successful, then we can
+			 * return success to the trap handler.
+			 */
+			if (PAR_SUCCESS(par))
+				rv = KERN_SUCCESS;
+		}
 		break;
 	}
 
