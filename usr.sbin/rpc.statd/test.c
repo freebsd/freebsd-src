@@ -1,13 +1,13 @@
-
 #ifndef lint
 static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <rpc/rpc.h>
 #include <rpcsvc/sm_inter.h>
-
 
 /* Default timeout can be changed using clnt_control() */
 static struct timeval TIMEOUT = { 25, 0 };
@@ -20,7 +20,8 @@ sm_stat_1(argp, clnt)
 	static struct sm_stat_res res;
 
 	bzero((char *)&res, sizeof(res));
-	if (clnt_call(clnt, SM_STAT, xdr_sm_name, argp, xdr_sm_stat_res, &res, TIMEOUT) != RPC_SUCCESS) {
+	if (clnt_call(clnt, SM_STAT, (xdrproc_t)xdr_sm_name, argp,
+	    (xdrproc_t)xdr_sm_stat_res, &res, TIMEOUT) != RPC_SUCCESS) {
 		return (NULL);
 	}
 	return (&res);
@@ -35,7 +36,8 @@ sm_mon_1(argp, clnt)
 	static struct sm_stat_res res;
 
 	bzero((char *)&res, sizeof(res));
-	if (clnt_call(clnt, SM_MON, xdr_mon, argp, xdr_sm_stat_res, &res, TIMEOUT) != RPC_SUCCESS) {
+	if (clnt_call(clnt, SM_MON, (xdrproc_t)xdr_mon, argp,
+	    (xdrproc_t)xdr_sm_stat_res, &res, TIMEOUT) != RPC_SUCCESS) {
 		return (NULL);
 	}
 	return (&res);
@@ -50,7 +52,8 @@ sm_unmon_1(argp, clnt)
 	static struct sm_stat res;
 
 	bzero((char *)&res, sizeof(res));
-	if (clnt_call(clnt, SM_UNMON, xdr_mon_id, argp, xdr_sm_stat, &res, TIMEOUT) != RPC_SUCCESS) {
+	if (clnt_call(clnt, SM_UNMON, (xdrproc_t)xdr_mon_id, argp,
+	    (xdrproc_t)xdr_sm_stat, &res, TIMEOUT) != RPC_SUCCESS) {
 		return (NULL);
 	}
 	return (&res);
@@ -65,7 +68,8 @@ sm_unmon_all_1(argp, clnt)
 	static struct sm_stat res;
 
 	bzero((char *)&res, sizeof(res));
-	if (clnt_call(clnt, SM_UNMON_ALL, xdr_my_id, argp, xdr_sm_stat, &res, TIMEOUT) != RPC_SUCCESS) {
+	if (clnt_call(clnt, SM_UNMON_ALL, (xdrproc_t)xdr_my_id, argp,
+	    (xdrproc_t)xdr_sm_stat, &res, TIMEOUT) != RPC_SUCCESS) {
 		return (NULL);
 	}
 	return (&res);
@@ -80,7 +84,8 @@ sm_simu_crash_1(argp, clnt)
 	static char res;
 
 	bzero((char *)&res, sizeof(res));
-	if (clnt_call(clnt, SM_SIMU_CRASH, xdr_void, argp, xdr_void, &res, TIMEOUT) != RPC_SUCCESS) {
+	if (clnt_call(clnt, SM_SIMU_CRASH, (xdrproc_t)xdr_void, argp,
+	    (xdrproc_t)xdr_void, &res, TIMEOUT) != RPC_SUCCESS) {
 		return (NULL);
 	}
 	return ((void *)&res);
@@ -119,25 +124,20 @@ int main(int argc, char **argv)
   {
     /* Hostname given		*/
     struct sm_stat_res *res;
-    if (res = sm_mon_1(&mon, cli))
-    {
+
+    res = sm_mon_1(&mon, cli);
+    if (res)
       printf("Success!\n");
-    }
     else
-    {
       printf("Fail\n");  
-    }
   }
   else
   {
-    if (out = sm_simu_crash_1(&dummy, cli))
-    {
+    out = sm_simu_crash_1(&dummy, cli);
+    if (out)
       printf("Success!\n");
-    }
     else
-    {
       printf("Fail\n");  
-    }
   }
 
   return 0;
