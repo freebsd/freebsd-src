@@ -3108,13 +3108,12 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 							 * update RTO too ?
 							 */
 							if (tp1->do_rtt) {
-								if (*rto_ok) {
-									tp1->whoTo->RTO =
-									    sctp_calculate_rto(stcb,
-									    &stcb->asoc,
-									    tp1->whoTo,
-									    &tp1->sent_rcv_time,
-									    SCTP_RTT_FROM_DATA);
+								if (*rto_ok &&
+								    sctp_calculate_rto(stcb,
+								    &stcb->asoc,
+								    tp1->whoTo,
+								    &tp1->sent_rcv_time,
+								    SCTP_RTT_FROM_DATA)) {
 									*rto_ok = 0;
 								}
 								if (tp1->whoTo->rto_needed == 0) {
@@ -4086,16 +4085,12 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 
 						/* update RTO too? */
 						if (tp1->do_rtt) {
-							if (rto_ok) {
-								tp1->whoTo->RTO =
-								/*
-								 * sa_ignore
-								 * NO_NULL_CHK
-								 */
-								    sctp_calculate_rto(stcb,
-								    asoc, tp1->whoTo,
-								    &tp1->sent_rcv_time,
-								    SCTP_RTT_FROM_DATA);
+							if (rto_ok &&
+							    sctp_calculate_rto(stcb,
+							    &stcb->asoc,
+							    tp1->whoTo,
+							    &tp1->sent_rcv_time,
+							    SCTP_RTT_FROM_DATA)) {
 								rto_ok = 0;
 							}
 							if (tp1->whoTo->rto_needed == 0) {
@@ -4704,12 +4699,12 @@ hopeless_peer:
 
 						/* update RTO too? */
 						if (tp1->do_rtt) {
-							if (rto_ok) {
-								tp1->whoTo->RTO =
-								    sctp_calculate_rto(stcb,
-								    asoc, tp1->whoTo,
-								    &tp1->sent_rcv_time,
-								    SCTP_RTT_FROM_DATA);
+							if (rto_ok &&
+							    sctp_calculate_rto(stcb,
+							    &stcb->asoc,
+							    tp1->whoTo,
+							    &tp1->sent_rcv_time,
+							    SCTP_RTT_FROM_DATA)) {
 								rto_ok = 0;
 							}
 							if (tp1->whoTo->rto_needed == 0) {
