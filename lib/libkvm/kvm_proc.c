@@ -67,6 +67,7 @@ __SCCSID("@(#)kvm_proc.c	8.3 (Berkeley) 9/23/93");
 #include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <nlist.h>
 #include <kvm.h>
@@ -130,13 +131,16 @@ kvm_proclist(kvm_t *kd, int what, int arg, struct proc *p,
 	struct proc pproc;
 	struct sysentvec sysent;
 	char svname[KI_EMULNAMELEN];
+	struct thread *td = NULL;
+	bool first_thread;
 
 	kp = &kinfo_proc;
 	kp->ki_structsize = sizeof(kinfo_proc);
 	/*
-	 * Loop on the processes. this is completely broken because we need to be
-	 * able to loop on the threads and merge the ones that are the same process some how.
+	 * Loop on the processes, then threads within the process if requested.
 	 */
+	if (what == KERN_PROC_ALL)
+		what |= KERN_PROC_INC_THREAD;
 	for (; cnt < maxcnt && p != NULL; p = LIST_NEXT(&proc, p_list)) {
 		memset(kp, 0, sizeof *kp);
 		if (KREAD(kd, (u_long)p, &proc)) {
@@ -145,15 +149,6 @@ kvm_proclist(kvm_t *kd, int what, int arg, struct proc *p,
 		}
 		if (proc.p_state == PRS_NEW)
 			continue;
-		if (proc.p_state != PRS_ZOMBIE) {
-			if (KREAD(kd, (u_long)TAILQ_FIRST(&proc.p_threads),
-			    &mtd)) {
-				_kvm_err(kd, kd->program,
-				    "can't read thread at %p",
-				    TAILQ_FIRST(&proc.p_threads));
-				return (-1);
-			}
-		}
 		if (KREAD(kd, (u_long)proc.p_ucred, &ucred) == 0) {
 			kp->ki_ruid = ucred.cr_ruid;
 			kp->ki_svuid = ucred.cr_svuid;
@@ -222,6 +217,7 @@ kvm_proclist(kvm_t *kd, int what, int arg, struct proc *p,
 		kp->ki_addr = 0;	/* XXX uarea */
 		/* kp->ki_kstack = proc.p_thread.td_kstack; XXXKSE */
 		kp->ki_args = proc.p_args;
+		kp->ki_numthreads = proc.p_numthreads;
 		kp->ki_tracep = proc.p_tracevp;
 		kp->ki_textvp = proc.p_textvp;
 		kp->ki_fd = proc.p_fd;
@@ -285,9 +281,6 @@ kvm_proclist(kvm_t *kd, int what, int arg, struct proc *p,
 		kp->ki_sid = sess.s_sid;
 		(void)memcpy(kp->ki_login, sess.s_login,
 						sizeof(kp->ki_login));
-		kp->ki_kiflag = sess.s_ttyvp ? KI_CTTY : 0;
-		if (sess.s_leader == p)
-			kp->ki_kiflag |= KI_SLEADER;
 		if ((proc.p_flag & P_CONTROLT) && sess.s_ttyp != NULL) {
 			if (KREAD(kd, (u_long)sess.s_ttyp, &tty)) {
 				_kvm_err(kd, kd->program,
@@ -330,9 +323,6 @@ kvm_proclist(kvm_t *kd, int what, int arg, struct proc *p,
 nopgrp:
 			kp->ki_tdev = NODEV;
 		}
-		if ((proc.p_state != PRS_ZOMBIE) && mtd.td_wmesg)
-			(void)kvm_read(kd, (u_long)mtd.td_wmesg,
-			    kp->ki_wmesg, WMESGLEN);
 
 		(void)kvm_read(kd, (u_long)proc.p_vmspace,
 		    (char *)&vmspace, sizeof(vmspace));
@@ -374,85 +364,127 @@ nopgrp:
 		    sizeof(svname));
 		if (svname[0] != 0)
 			strlcpy(kp->ki_emul, svname, KI_EMULNAMELEN);
-		if ((proc.p_state != PRS_ZOMBIE) &&
-		    (mtd.td_blocked != 0)) {
-			kp->ki_kiflag |= KI_LOCKBLOCK;
-			if (mtd.td_lockname)
-				(void)kvm_read(kd,
-				    (u_long)mtd.td_lockname,
-				    kp->ki_lockname, LOCKNAMELEN);
-			kp->ki_lockname[LOCKNAMELEN] = 0;
-		}
 		kp->ki_runtime = cputick2usec(proc.p_rux.rux_runtime);
 		kp->ki_pid = proc.p_pid;
-		kp->ki_siglist = proc.p_siglist;
-		SIGSETOR(kp->ki_siglist, mtd.td_siglist);
-		kp->ki_sigmask = mtd.td_sigmask;
 		kp->ki_xstat = KW_EXITCODE(proc.p_xexit, proc.p_xsig);
 		kp->ki_acflag = proc.p_acflag;
 		kp->ki_lock = proc.p_lock;
-		if (proc.p_state != PRS_ZOMBIE) {
-			kp->ki_swtime = (ticks - proc.p_swtick) / hz;
-			kp->ki_flag = proc.p_flag;
-			kp->ki_sflag = 0;
-			kp->ki_nice = proc.p_nice;
-			kp->ki_traceflag = proc.p_traceflag;
-			if (proc.p_state == PRS_NORMAL) {
-				if (TD_ON_RUNQ(&mtd) ||
-				    TD_CAN_RUN(&mtd) ||
-				    TD_IS_RUNNING(&mtd)) {
-					kp->ki_stat = SRUN;
-				} else if (mtd.td_state ==
-				    TDS_INHIBITED) {
-					if (P_SHOULDSTOP(&proc)) {
-						kp->ki_stat = SSTOP;
-					} else if (
-					    TD_IS_SLEEPING(&mtd)) {
-						kp->ki_stat = SSLEEP;
-					} else if (TD_ON_LOCK(&mtd)) {
-						kp->ki_stat = SLOCK;
-					} else {
-						kp->ki_stat = SWAIT;
-					}
-				}
-			} else {
-				kp->ki_stat = SIDL;
-			}
-			/* Stuff from the thread */
-			kp->ki_pri.pri_level = mtd.td_priority;
-			kp->ki_pri.pri_native = mtd.td_base_pri;
-			kp->ki_lastcpu = mtd.td_lastcpu;
-			kp->ki_wchan = mtd.td_wchan;
-			kp->ki_oncpu = mtd.td_oncpu;
-			if (mtd.td_name[0] != '\0')
-				strlcpy(kp->ki_tdname, mtd.td_name, sizeof(kp->ki_tdname));
-			kp->ki_pctcpu = 0;
-			kp->ki_rqindex = 0;
-
-			/*
-			 * Note: legacy fields; wraps at NO_CPU_OLD or the
-			 * old max CPU value as appropriate
-			 */
-			if (mtd.td_lastcpu == NOCPU)
-				kp->ki_lastcpu_old = NOCPU_OLD;
-			else if (mtd.td_lastcpu > MAXCPU_OLD)
-				kp->ki_lastcpu_old = MAXCPU_OLD;
-			else
-				kp->ki_lastcpu_old = mtd.td_lastcpu;
-
-			if (mtd.td_oncpu == NOCPU)
-				kp->ki_oncpu_old = NOCPU_OLD;
-			else if (mtd.td_oncpu > MAXCPU_OLD)
-				kp->ki_oncpu_old = MAXCPU_OLD;
-			else
-				kp->ki_oncpu_old = mtd.td_oncpu;
-		} else {
-			kp->ki_stat = SZOMB;
-		}
 		kp->ki_tdev_freebsd11 = kp->ki_tdev; /* truncate */
-		bcopy(&kinfo_proc, bp, sizeof(kinfo_proc));
-		++bp;
-		++cnt;
+
+		/* Per-thread items; iterate as appropriate. */
+		td = TAILQ_FIRST(&proc.p_threads);
+		for (first_thread = true; cnt < maxcnt && td != NULL &&
+		    (first_thread || (what & KERN_PROC_INC_THREAD));
+		    first_thread = false) {
+			if (proc.p_state != PRS_ZOMBIE) {
+				if (KREAD(kd, (u_long)td, &mtd)) {
+					_kvm_err(kd, kd->program,
+					    "can't read thread at %p", td);
+					return (-1);
+				}
+				if (what & KERN_PROC_INC_THREAD)
+					td = TAILQ_NEXT(&mtd, td_plist);
+			} else
+				td = NULL;
+			if ((proc.p_state != PRS_ZOMBIE) && mtd.td_wmesg)
+				(void)kvm_read(kd, (u_long)mtd.td_wmesg,
+				    kp->ki_wmesg, WMESGLEN);
+			else
+				memset(kp->ki_wmesg, 0, WMESGLEN);
+			if (proc.p_pgrp == NULL) {
+				kp->ki_kiflag = 0;
+			} else {
+				kp->ki_kiflag = sess.s_ttyvp ? KI_CTTY : 0;
+				if (sess.s_leader == p)
+					kp->ki_kiflag |= KI_SLEADER;
+			}
+			if ((proc.p_state != PRS_ZOMBIE) &&
+			    (mtd.td_blocked != 0)) {
+				kp->ki_kiflag |= KI_LOCKBLOCK;
+				if (mtd.td_lockname)
+					(void)kvm_read(kd,
+					    (u_long)mtd.td_lockname,
+					    kp->ki_lockname, LOCKNAMELEN);
+				else
+					memset(kp->ki_lockname, 0,
+					    LOCKNAMELEN);
+				kp->ki_lockname[LOCKNAMELEN] = 0;
+			} else
+				kp->ki_kiflag &= ~KI_LOCKBLOCK;
+			kp->ki_siglist = proc.p_siglist;
+			if (proc.p_state != PRS_ZOMBIE) {
+				SIGSETOR(kp->ki_siglist, mtd.td_siglist);
+				kp->ki_sigmask = mtd.td_sigmask;
+				kp->ki_swtime = (ticks - proc.p_swtick) / hz;
+				kp->ki_flag = proc.p_flag;
+				kp->ki_sflag = 0;
+				kp->ki_nice = proc.p_nice;
+				kp->ki_traceflag = proc.p_traceflag;
+				if (proc.p_state == PRS_NORMAL) {
+					if (TD_ON_RUNQ(&mtd) ||
+					    TD_CAN_RUN(&mtd) ||
+					    TD_IS_RUNNING(&mtd)) {
+						kp->ki_stat = SRUN;
+					} else if (mtd.td_state ==
+					    TDS_INHIBITED) {
+						if (P_SHOULDSTOP(&proc)) {
+							kp->ki_stat = SSTOP;
+						} else if (
+						    TD_IS_SLEEPING(&mtd)) {
+							kp->ki_stat = SSLEEP;
+						} else if (TD_ON_LOCK(&mtd)) {
+							kp->ki_stat = SLOCK;
+						} else {
+							kp->ki_stat = SWAIT;
+						}
+					}
+				} else {
+					kp->ki_stat = SIDL;
+				}
+				/* Stuff from the thread */
+				kp->ki_pri.pri_level = mtd.td_priority;
+				kp->ki_pri.pri_native = mtd.td_base_pri;
+				kp->ki_lastcpu = mtd.td_lastcpu;
+				kp->ki_wchan = mtd.td_wchan;
+				kp->ki_oncpu = mtd.td_oncpu;
+				if (mtd.td_name[0] != '\0')
+					strlcpy(kp->ki_tdname, mtd.td_name,
+					    sizeof(kp->ki_tdname));
+				else
+					memset(kp->ki_tdname, 0,
+					    sizeof(kp->ki_tdname));
+				kp->ki_pctcpu = 0;
+				kp->ki_rqindex = 0;
+
+				/*
+				 * Note: legacy fields; wraps at NO_CPU_OLD
+				 * or the old max CPU value as appropriate
+				 */
+				if (mtd.td_lastcpu == NOCPU)
+					kp->ki_lastcpu_old = NOCPU_OLD;
+				else if (mtd.td_lastcpu > MAXCPU_OLD)
+					kp->ki_lastcpu_old = MAXCPU_OLD;
+				else
+					kp->ki_lastcpu_old = mtd.td_lastcpu;
+
+				if (mtd.td_oncpu == NOCPU)
+					kp->ki_oncpu_old = NOCPU_OLD;
+				else if (mtd.td_oncpu > MAXCPU_OLD)
+					kp->ki_oncpu_old = MAXCPU_OLD;
+				else
+					kp->ki_oncpu_old = mtd.td_oncpu;
+				kp->ki_tid = mtd.td_tid;
+			} else {
+				memset(&kp->ki_sigmask, 0,
+				    sizeof(kp->ki_sigmask));
+				kp->ki_stat = SZOMB;
+				kp->ki_tid = 0;
+			}
+
+			bcopy(&kinfo_proc, bp, sizeof(kinfo_proc));
+			++bp;
+			++cnt;
+		}
 	}
 	return (cnt);
 }
@@ -466,7 +498,7 @@ kvm_deadprocs(kvm_t *kd, int what, int arg, u_long a_allproc,
     u_long a_zombproc, int maxcnt)
 {
 	struct kinfo_proc *bp = kd->procbase;
-	int acnt, zcnt;
+	int acnt, zcnt = 0;
 	struct proc *p;
 
 	if (KREAD(kd, a_allproc, &p)) {
@@ -477,13 +509,15 @@ kvm_deadprocs(kvm_t *kd, int what, int arg, u_long a_allproc,
 	if (acnt < 0)
 		return (acnt);
 
-	if (KREAD(kd, a_zombproc, &p)) {
-		_kvm_err(kd, kd->program, "cannot read zombproc");
-		return (-1);
+	if (a_zombproc != 0) {
+		if (KREAD(kd, a_zombproc, &p)) {
+			_kvm_err(kd, kd->program, "cannot read zombproc");
+			return (-1);
+		}
+		zcnt = kvm_proclist(kd, what, arg, p, bp + acnt, maxcnt - acnt);
+		if (zcnt < 0)
+			zcnt = 0;
 	}
-	zcnt = kvm_proclist(kd, what, arg, p, bp + acnt, maxcnt - acnt);
-	if (zcnt < 0)
-		zcnt = 0;
 
 	return (acnt + zcnt);
 }
@@ -568,15 +602,18 @@ kvm_getprocs(kvm_t *kd, int op, int arg, int *cnt)
 liveout:
 		nprocs = size == 0 ? 0 : size / kd->procbase->ki_structsize;
 	} else {
-		struct nlist nl[7], *p;
+		struct nlist nl[6], *p;
+		struct nlist nlz[2];
 
 		nl[0].n_name = "_nprocs";
 		nl[1].n_name = "_allproc";
-		nl[2].n_name = "_zombproc";
-		nl[3].n_name = "_ticks";
-		nl[4].n_name = "_hz";
-		nl[5].n_name = "_cpu_tick_frequency";
-		nl[6].n_name = 0;
+		nl[2].n_name = "_ticks";
+		nl[3].n_name = "_hz";
+		nl[4].n_name = "_cpu_tick_frequency";
+		nl[5].n_name = 0;
+
+		nlz[0].n_name = "_zombproc";
+		nlz[1].n_name = 0;
 
 		if (!kd->arch->ka_native(kd)) {
 			_kvm_err(kd, kd->program,
@@ -591,19 +628,27 @@ liveout:
 				 "%s: no such symbol", p->n_name);
 			return (0);
 		}
+		(void) kvm_nlist(kd, nlz);	/* attempt to get zombproc */
 		if (KREAD(kd, nl[0].n_value, &nprocs)) {
 			_kvm_err(kd, kd->program, "can't read nprocs");
 			return (0);
 		}
-		if (KREAD(kd, nl[3].n_value, &ticks)) {
+		/*
+		 * If returning all threads, we don't know how many that
+		 * might be.  Presume that there are, on average, no more
+		 * than 10 threads per process.
+		 */
+		if (op == KERN_PROC_ALL || (op & KERN_PROC_INC_THREAD))
+			nprocs *= 10;		/* XXX */
+		if (KREAD(kd, nl[2].n_value, &ticks)) {
 			_kvm_err(kd, kd->program, "can't read ticks");
 			return (0);
 		}
-		if (KREAD(kd, nl[4].n_value, &hz)) {
+		if (KREAD(kd, nl[3].n_value, &hz)) {
 			_kvm_err(kd, kd->program, "can't read hz");
 			return (0);
 		}
-		if (KREAD(kd, nl[5].n_value, &cpu_tick_frequency)) {
+		if (KREAD(kd, nl[4].n_value, &cpu_tick_frequency)) {
 			_kvm_err(kd, kd->program,
 			    "can't read cpu_tick_frequency");
 			return (0);
@@ -614,7 +659,7 @@ liveout:
 			return (0);
 
 		nprocs = kvm_deadprocs(kd, op, arg, nl[1].n_value,
-				      nl[2].n_value, nprocs);
+				      nlz[0].n_value, nprocs);
 		if (nprocs <= 0) {
 			_kvm_freeprocs(kd);
 			nprocs = 0;
