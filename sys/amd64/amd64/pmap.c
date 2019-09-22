@@ -10023,6 +10023,9 @@ sysctl_kmaps_dump(struct sbuf *sb, struct pmap_kernel_map_range *range,
 	case PAT_UNCACHEABLE:
 		mode = "UC";
 		break;
+	case PAT_UNCACHED:
+		mode = "U-";
+		break;
 	case PAT_WRITE_PROTECTED:
 		mode = "WP";
 		break;
@@ -10031,7 +10034,7 @@ sysctl_kmaps_dump(struct sbuf *sb, struct pmap_kernel_map_range *range,
 		break;
 	default:
 		printf("%s: unknown PAT mode %#x for range 0x%016lx-0x%016lx\n",
-		    __func__, i, range->sva, eva);
+		    __func__, pat_idx, range->sva, eva);
 		mode = "??";
 		break;
 	}
