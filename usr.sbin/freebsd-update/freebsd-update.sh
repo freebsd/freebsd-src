@@ -221,6 +221,14 @@ config_KeepModifiedMetadata () {
 # Add to the list of components which should be kept updated.
 config_Components () {
 	for C in $@; do
+		COMPONENTS="${COMPONENTS} ${C}"
+	done
+}
+
+# Remove src component from list if it isn't installed
+finalize_components_config () {
+	COMPONENTS=""
+	for C in $@; do
 		if [ "$C" = "src" ]; then
 			if [ -e "${BASEDIR}/usr/src/COPYRIGHT" ]; then
 				COMPONENTS="${COMPONENTS} ${C}"
@@ -3284,6 +3292,7 @@ get_params () {
 	parse_cmdline $@
 	parse_conffile
 	default_params
+	finalize_components_config ${COMPONENTS}
 }
 
 # Fetch command.  Make sure that we're being called
