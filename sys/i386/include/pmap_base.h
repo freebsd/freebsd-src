@@ -118,6 +118,7 @@ struct pmap_methods {
 	void (*pm_flush_page)(vm_page_t);
 	void (*pm_kenter)(vm_offset_t, vm_paddr_t);
 	void (*pm_kremove)(vm_offset_t);
+	int (*pm_sysctl_kmaps)(SYSCTL_HANDLER_ARGS);
 };
 
 void	pmap_cold(void);

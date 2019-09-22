@@ -121,6 +121,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
+#include <sys/sbuf.h>
 #include <sys/sf_buf.h>
 #include <sys/sx.h>
 #include <sys/vmmeter.h>
@@ -1128,6 +1129,38 @@ __CONCAT(PMTYPE, cache_bits)(pmap_t pmap, int mode, boolean_t is_pde)
 	if (pat_idx & 0x1)
 		cache_bits |= PG_NC_PWT;
 	return (cache_bits);
+}
+
+static int
+pmap_pat_index(pmap_t pmap, pt_entry_t pte, bool is_pde)
+{
+	int pat_flag, pat_idx;
+
+	if ((cpu_feature & CPUID_PAT) == 0)
+		return (0);
+
+	pat_idx = 0;
+	/* The PAT bit is different for PTE's and PDE's. */
+	pat_flag = is_pde ? PG_PDE_PAT : PG_PTE_PAT;
+
+	if ((pte & pat_flag) != 0)
+		pat_idx |= 0x4;
+	if ((pte & PG_NC_PCD) != 0)
+		pat_idx |= 0x2;
+	if ((pte & PG_NC_PWT) != 0)
+		pat_idx |= 0x1;
+
+	/* See pmap_init_pat(). */
+	if (pat_works) {
+		if (pat_idx == 4)
+			pat_idx = 0;
+		if (pat_idx == 7)
+			pat_idx = 3;
+	} else {
+		/* XXXKIB */
+	}
+
+	return (pat_idx);
 }
 
 static bool
@@ -6083,7 +6116,213 @@ __CONCAT(PMTYPE, bios16_leave)(void *arg)
 	free(h->pte, M_TEMP);		/* ... and free it */
 }
 
-#define	PMM(a)	\
+struct pmap_kernel_map_range {
+	vm_offset_t sva;
+	pt_entry_t attrs;
+	int ptes;
+	int pdes;
+	int pdpes;
+};
+
+static void
+sysctl_kmaps_dump(struct sbuf *sb, struct pmap_kernel_map_range *range,
+    vm_offset_t eva)
+{
+	const char *mode;
+	int i, pat_idx;
+
+	if (eva <= range->sva)
+		return;
+
+	pat_idx = pmap_pat_index(kernel_pmap, range->attrs, true);
+	for (i = 0; i < PAT_INDEX_SIZE; i++)
+		if (pat_index[i] == pat_idx)
+			break;
+
+	switch (i) {
+	case PAT_WRITE_BACK:
+		mode = "WB";
+		break;
+	case PAT_WRITE_THROUGH:
+		mode = "WT";
+		break;
+	case PAT_UNCACHEABLE:
+		mode = "UC";
+		break;
+	case PAT_UNCACHED:
+		mode = "U-";
+		break;
+	case PAT_WRITE_PROTECTED:
+		mode = "WP";
+		break;
+	case PAT_WRITE_COMBINING:
+		mode = "WC";
+		break;
+	default:
+		printf("%s: unknown PAT mode %#x for range 0x%08x-0x%08x\n",
+		    __func__, pat_idx, range->sva, eva);
+		mode = "??";
+		break;
+	}
+
+	sbuf_printf(sb, "0x%08x-0x%08x r%c%c%c%c %s %d %d %d\n",
+	    range->sva, eva,
+	    (range->attrs & PG_RW) != 0 ? 'w' : '-',
+#ifdef PMAP_PAE_COMP
+	    (range->attrs & pg_nx) != 0 ? '-' : 'x',
+#else
+	    '-',
+#endif
+	    (range->attrs & PG_U) != 0 ? 'u' : 's',
+	    (range->attrs & PG_G) != 0 ? 'g' : '-',
+	    mode, range->pdpes, range->pdes, range->ptes);
+
+	/* Reset to sentinel value. */
+	range->sva = 0xffffffff;
+}
+
+/*
+ * Determine whether the attributes specified by a page table entry match those
+ * being tracked by the current range.  This is not quite as simple as a direct
+ * flag comparison since some PAT modes have multiple representations.
+ */
+static bool
+sysctl_kmaps_match(struct pmap_kernel_map_range *range, pt_entry_t attrs)
+{
+	pt_entry_t diff, mask;
+
+	mask = PG_G | PG_RW | PG_U | PG_PDE_CACHE;
+#ifdef PMAP_PAE_COMP
+	mask |= pg_nx;
+#endif
+	diff = (range->attrs ^ attrs) & mask;
+	if (diff == 0)
+		return (true);
+	if ((diff & ~PG_PDE_PAT) == 0 &&
+	    pmap_pat_index(kernel_pmap, range->attrs, true) ==
+	    pmap_pat_index(kernel_pmap, attrs, true))
+		return (true);
+	return (false);
+}
+
+static void
+sysctl_kmaps_reinit(struct pmap_kernel_map_range *range, vm_offset_t va,
+    pt_entry_t attrs)
+{
+
+	memset(range, 0, sizeof(*range));
+	range->sva = va;
+	range->attrs = attrs;
+}
+
+/*
+ * Given a leaf PTE, derive the mapping's attributes.  If they do not match
+ * those of the current run, dump the address range and its attributes, and
+ * begin a new run.
+ */
+static void
+sysctl_kmaps_check(struct sbuf *sb, struct pmap_kernel_map_range *range,
+    vm_offset_t va, pd_entry_t pde, pt_entry_t pte)
+{
+	pt_entry_t attrs, mask;
+
+	attrs = pde & (PG_RW | PG_U);
+#ifdef PMAP_PAE_COMP
+	attrs |= pde & pg_nx;
+#endif
+
+	if ((pde & PG_PS) != 0) {
+		attrs |= pde & (PG_G | PG_PDE_CACHE);
+	} else if (pte != 0) {
+		mask = pte & (PG_RW | PG_U);
+#ifdef PMAP_PAE_COMP
+		mask |= pg_nx;
+#endif
+		attrs &= mask;
+		attrs |= pte & (PG_G | PG_PTE_CACHE);
+
+		/* Canonicalize by always using the PDE PAT bit. */
+		if ((attrs & PG_PTE_PAT) != 0)
+			attrs ^= PG_PDE_PAT | PG_PTE_PAT;
+	}
+
+	if (range->sva > va || !sysctl_kmaps_match(range, attrs)) {
+		sysctl_kmaps_dump(sb, range, va);
+		sysctl_kmaps_reinit(range, va, attrs);
+	}
+}
+
+static int
+__CONCAT(PMTYPE, sysctl_kmaps)(SYSCTL_HANDLER_ARGS)
+{
+	struct pmap_kernel_map_range range;
+	struct sbuf sbuf, *sb;
+	pd_entry_t pde;
+	pt_entry_t *pt, pte;
+	vm_offset_t sva;
+	vm_paddr_t pa;
+	int error;
+	u_int i, k;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	sb = &sbuf;
+	sbuf_new_for_sysctl(sb, NULL, PAGE_SIZE, req);
+
+	/* Sentinel value. */
+	range.sva = 0xffffffff;
+
+	/*
+	 * Iterate over the kernel page tables without holding the
+	 * kernel pmap lock.  Kernel page table pages are never freed,
+	 * so at worst we will observe inconsistencies in the output.
+	 */
+	for (sva = 0, i = 0; i < NPTEPG * NPGPTD * NPDEPG ;) {
+		if (i == 0)
+			sbuf_printf(sb, "\nLow PDE:\n");
+		else if (i == LOWPTDI * NPTEPG)
+			sbuf_printf(sb, "Low PDE dup:\n");
+		else if (i == PTDPTDI * NPTEPG)
+			sbuf_printf(sb, "Recursive map:\n");
+		else if (i == KERNPTDI * NPTEPG)
+			sbuf_printf(sb, "Kernel base:\n");
+		else if (i == TRPTDI * NPTEPG)
+			sbuf_printf(sb, "Trampoline:\n");
+		pde = IdlePTD[sva >> PDRSHIFT];
+		if ((pde & PG_V) == 0) {
+			sva = rounddown2(sva, NBPDR);
+			sysctl_kmaps_dump(sb, &range, sva);
+			sva += NBPDR;
+			i += NPTEPG;
+			continue;
+		}
+		pa = pde & PG_FRAME;
+		if ((pde & PG_PS) != 0) {
+			sysctl_kmaps_check(sb, &range, sva, pde, 0);
+			range.pdes++;
+			sva += NBPDR;
+			i += NPTEPG;
+			continue;
+		}
+		for (pt = vtopte(sva), k = 0; k < NPTEPG; i++, k++, pt++,
+		    sva += PAGE_SIZE) {
+			pte = *pt;
+			if ((pte & PG_V) == 0) {
+				sysctl_kmaps_dump(sb, &range, sva);
+				continue;
+			}
+			sysctl_kmaps_check(sb, &range, sva, pde, pte);
+			range.ptes++;
+		}
+	}
+
+	error = sbuf_finish(sb);
+	sbuf_delete(sb);
+	return (error);
+}
+
+#define	PMM(a)					\
 	.pm_##a = __CONCAT(PMTYPE, a),
 
 struct pmap_methods __CONCAT(PMTYPE, methods) = {
@@ -6162,4 +6401,5 @@ struct pmap_methods __CONCAT(PMTYPE, methods) = {
 	PMM(flush_page)
 	PMM(kenter)
 	PMM(kremove)
+	PMM(sysctl_kmaps)
 };
