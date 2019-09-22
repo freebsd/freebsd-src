@@ -1380,7 +1380,7 @@ retry:
 	}
 
 	/* We failed to find an entry */
-	if (ncp == NULL) {
+	if (__predict_false(ncp == NULL)) {
 		rw_runlock(blp);
 		SDT_PROBE3(vfs, namecache, lookup, miss, dvp, cnp->cn_nameptr,
 		    NULL);
@@ -1388,35 +1388,17 @@ retry:
 		return (0);
 	}
 
+	if (ncp->nc_flag & NCF_NEGATIVE)
+		goto negative_success;
+
 	/* We found a "positive" match, return the vnode */
-	if (!(ncp->nc_flag & NCF_NEGATIVE)) {
-		counter_u64_add(numposhits, 1);
-		*vpp = ncp->nc_vp;
-		CTR4(KTR_VFS, "cache_lookup(%p, %s) found %p via ncp %p",
-		    dvp, cnp->cn_nameptr, *vpp, ncp);
-		SDT_PROBE3(vfs, namecache, lookup, hit, dvp, ncp->nc_name,
-		    *vpp);
-		cache_out_ts(ncp, tsp, ticksp);
-		goto success;
-	}
-
-negative_success:
-	/* We found a negative match, and want to create it, so purge */
-	if (cnp->cn_nameiop == CREATE) {
-		counter_u64_add(numnegzaps, 1);
-		goto zap_and_exit;
-	}
-
-	counter_u64_add(numneghits, 1);
-	cache_negative_hit(ncp);
-	if (ncp->nc_flag & NCF_WHITE)
-		cnp->cn_flags |= ISWHITEOUT;
-	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp,
-	    ncp->nc_name);
+	counter_u64_add(numposhits, 1);
+	*vpp = ncp->nc_vp;
+	CTR4(KTR_VFS, "cache_lookup(%p, %s) found %p via ncp %p",
+	    dvp, cnp->cn_nameptr, *vpp, ncp);
+	SDT_PROBE3(vfs, namecache, lookup, hit, dvp, ncp->nc_name,
+	    *vpp);
 	cache_out_ts(ncp, tsp, ticksp);
-	cache_lookup_unlock(blp, dvlp);
-	return (ENOENT);
-
 success:
 	/*
 	 * On success we return a locked and ref'd vnode as per the lookup
@@ -1449,6 +1431,23 @@ success:
 		ASSERT_VOP_ELOCKED(*vpp, "cache_lookup");
 	}
 	return (-1);
+
+negative_success:
+	/* We found a negative match, and want to create it, so purge */
+	if (cnp->cn_nameiop == CREATE) {
+		counter_u64_add(numnegzaps, 1);
+		goto zap_and_exit;
+	}
+
+	counter_u64_add(numneghits, 1);
+	cache_negative_hit(ncp);
+	if (ncp->nc_flag & NCF_WHITE)
+		cnp->cn_flags |= ISWHITEOUT;
+	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp,
+	    ncp->nc_name);
+	cache_out_ts(ncp, tsp, ticksp);
+	cache_lookup_unlock(blp, dvlp);
+	return (ENOENT);
 
 zap_and_exit:
 	if (blp != NULL)
