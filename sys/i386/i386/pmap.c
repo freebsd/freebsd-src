@@ -227,6 +227,8 @@ static int nkpt = NKPT;
 #ifdef PMAP_PAE_COMP
 pt_entry_t pg_nx;
 static uma_zone_t pdptzone;
+#else
+#define	pg_nx	0
 #endif
 
 _Static_assert(VM_MAXUSER_ADDRESS == VADDR(TRPTDI, 0), "VM_MAXUSER_ADDRESS");
@@ -1871,11 +1873,7 @@ __CONCAT(PMTYPE, qenter)(vm_offset_t sva, vm_page_t *ma, int count)
 		    m->md.pat_mode, 0);
 		if ((*pte & (PG_FRAME | PG_PTE_CACHE)) != pa) {
 			oldpte |= *pte;
-#ifdef PMAP_PAE_COMP
 			pte_store(pte, pa | pg_nx | PG_RW | PG_V);
-#else
-			pte_store(pte, pa | PG_RW | PG_V);
-#endif
 		}
 		pte++;
 	}
@@ -6168,11 +6166,7 @@ sysctl_kmaps_dump(struct sbuf *sb, struct pmap_kernel_map_range *range,
 	sbuf_printf(sb, "0x%08x-0x%08x r%c%c%c%c %s %d %d %d\n",
 	    range->sva, eva,
 	    (range->attrs & PG_RW) != 0 ? 'w' : '-',
-#ifdef PMAP_PAE_COMP
 	    (range->attrs & pg_nx) != 0 ? '-' : 'x',
-#else
-	    '-',
-#endif
 	    (range->attrs & PG_U) != 0 ? 'u' : 's',
 	    (range->attrs & PG_G) != 0 ? 'g' : '-',
 	    mode, range->pdpes, range->pdes, range->ptes);
@@ -6191,10 +6185,7 @@ sysctl_kmaps_match(struct pmap_kernel_map_range *range, pt_entry_t attrs)
 {
 	pt_entry_t diff, mask;
 
-	mask = PG_G | PG_RW | PG_U | PG_PDE_CACHE;
-#ifdef PMAP_PAE_COMP
-	mask |= pg_nx;
-#endif
+	mask = pg_nx | PG_G | PG_RW | PG_U | PG_PDE_CACHE;
 	diff = (range->attrs ^ attrs) & mask;
 	if (diff == 0)
 		return (true);
@@ -6224,21 +6215,15 @@ static void
 sysctl_kmaps_check(struct sbuf *sb, struct pmap_kernel_map_range *range,
     vm_offset_t va, pd_entry_t pde, pt_entry_t pte)
 {
-	pt_entry_t attrs, mask;
+	pt_entry_t attrs;
 
-	attrs = pde & (PG_RW | PG_U);
-#ifdef PMAP_PAE_COMP
-	attrs |= pde & pg_nx;
-#endif
+	attrs = pde & (PG_RW | PG_U | pg_nx);
 
 	if ((pde & PG_PS) != 0) {
 		attrs |= pde & (PG_G | PG_PDE_CACHE);
 	} else if (pte != 0) {
-		mask = pte & (PG_RW | PG_U);
-#ifdef PMAP_PAE_COMP
-		mask |= pg_nx;
-#endif
-		attrs &= mask;
+		attrs |= pte & pg_nx;
+		attrs &= pg_nx | (pte & (PG_RW | PG_U));
 		attrs |= pte & (PG_G | PG_PTE_CACHE);
 
 		/* Canonicalize by always using the PDE PAT bit. */
