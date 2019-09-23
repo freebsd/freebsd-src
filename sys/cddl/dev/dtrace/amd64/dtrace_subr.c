@@ -48,8 +48,12 @@
 #include <vm/pmap.h>
 
 extern void dtrace_getnanotime(struct timespec *tsp);
+extern int (*dtrace_invop_jump_addr)(struct trapframe *);
 
-int dtrace_invop(uintptr_t, struct trapframe *, uintptr_t);
+int	dtrace_invop(uintptr_t, struct trapframe *, uintptr_t);
+int	dtrace_invop_start(struct trapframe *frame);
+void	dtrace_invop_init(void);
+void	dtrace_invop_uninit(void);
 
 typedef struct dtrace_invop_hdlr {
 	int (*dtih_func)(uintptr_t, struct trapframe *, uintptr_t);
@@ -107,6 +111,20 @@ dtrace_invop_remove(int (*func)(uintptr_t, struct trapframe *, uintptr_t))
 	}
 
 	kmem_free(hdlr, 0);
+}
+
+void
+dtrace_invop_init(void)
+{
+
+	dtrace_invop_jump_addr = dtrace_invop_start;
+}
+
+void
+dtrace_invop_uninit(void)
+{
+
+	dtrace_invop_jump_addr = NULL;
 }
 
 /*ARGSUSED*/
