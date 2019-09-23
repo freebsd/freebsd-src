@@ -135,22 +135,6 @@ invop_nop:
 	END(dtrace_invop_start)
 
 /*
-void dtrace_invop_init(void)
-*/
-	ENTRY(dtrace_invop_init)
-	movl	$dtrace_invop_start, dtrace_invop_jump_addr
-	ret
-	END(dtrace_invop_init)
-
-/*
-void dtrace_invop_uninit(void)
-*/
-	ENTRY(dtrace_invop_uninit)
-	movl	$0, dtrace_invop_jump_addr
-	ret
-	END(dtrace_invop_uninit)
-
-/*
 greg_t dtrace_getfp(void)
 */
 
