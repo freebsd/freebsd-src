@@ -119,6 +119,8 @@ static struct opt {
 	{ MNT_AUTOMOUNTED,	"automounted" },
 	{ MNT_VERIFIED,		"verified" },
 	{ MNT_UNTRUSTED,	"untrusted" },
+	{ MNT_NOCOVER,		"nocover" },
+	{ MNT_EMPTYDIR,		"emptydir" },
 	{ 0, NULL }
 };
 
@@ -975,6 +977,8 @@ flags2opts(int flags)
 	if (flags & MNT_ACLS)		res = catopt(res, "acls");
 	if (flags & MNT_NFS4ACLS)	res = catopt(res, "nfsv4acls");
 	if (flags & MNT_UNTRUSTED)	res = catopt(res, "untrusted");
+	if (flags & MNT_NOCOVER)	res = catopt(res, "nocover");
+	if (flags & MNT_EMPTYDIR)	res = catopt(res, "emptydir");
 
 	return (res);
 }

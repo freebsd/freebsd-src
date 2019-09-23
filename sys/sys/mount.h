@@ -373,9 +373,11 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 #define	MNT_SNAPSHOT	0x0000000001000000ULL /* snapshot the filesystem */
 #define	MNT_NONBUSY	0x0000000004000000ULL /* check vnode use counts. */
 #define	MNT_BYFSID	0x0000000008000000ULL /* specify filesystem by ID. */
+#define	MNT_NOCOVER	0x0000001000000000ULL /* Do not cover a mount point */
+#define	MNT_EMPTYDIR	0x0000002000000000ULL /* Only mount on empty dir */
 #define MNT_CMDFLAGS   (MNT_UPDATE	| MNT_DELEXPORT	| MNT_RELOAD	| \
 			MNT_FORCE	| MNT_SNAPSHOT	| MNT_NONBUSY	| \
-			MNT_BYFSID)
+			MNT_BYFSID	| MNT_NOCOVER	| MNT_EMPTYDIR)
 /*
  * Internal filesystem control flags stored in mnt_kern_flag.
  *
