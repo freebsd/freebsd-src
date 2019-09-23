@@ -378,6 +378,8 @@ STATNODE_COUNTER(numfullpathfail2,
     "Number of fullpath search errors (VOP_VPTOCNP failures)");
 STATNODE_COUNTER(numfullpathfail4, "Number of fullpath search errors (ENOMEM)");
 STATNODE_COUNTER(numfullpathfound, "Number of successful fullpath calls");
+static long numneg_evicted; STATNODE_ULONG(numneg_evicted,
+    "Number of negative entries evicted when adding a new entry");
 STATNODE_COUNTER(zap_and_exit_bucket_relock_success,
     "Number of successful removals after relocking");
 static long zap_and_exit_bucket_fail; STATNODE_ULONG(zap_and_exit_bucket_fail,
@@ -844,6 +846,7 @@ cache_negative_zap_one(void)
 	    ncp->nc_name, ncp->nc_neghits);
 
 	cache_zap_locked(ncp, true);
+	numneg_evicted++;
 out_unlock_all:
 	mtx_unlock(&neglist->nl_lock);
 	rw_wunlock(blp);
