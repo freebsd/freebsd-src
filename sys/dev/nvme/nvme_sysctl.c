@@ -306,9 +306,9 @@ nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr)
 	ctrlr_tree = device_get_sysctl_tree(ctrlr->dev);
 	ctrlr_list = SYSCTL_CHILDREN(ctrlr_tree);
 
-	SYSCTL_ADD_UINT(ctrlr_ctx, ctrlr_list, OID_AUTO, "num_cpus_per_ioq",
-	    CTLFLAG_RD, &ctrlr->num_cpus_per_ioq, 0,
-	    "Number of CPUs assigned per I/O queue pair");
+	SYSCTL_ADD_UINT(ctrlr_ctx, ctrlr_list, OID_AUTO, "num_io_queues",
+	    CTLFLAG_RD, &ctrlr->num_io_queues, 0,
+	    "Number of I/O queue pairs");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
 	    "int_coal_time", CTLTYPE_UINT | CTLFLAG_RW, ctrlr, 0,
