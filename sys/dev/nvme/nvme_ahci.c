@@ -96,7 +96,6 @@ nvme_ahci_attach(device_t dev)
 
 	ctrlr->msix_enabled = 0;
 	ctrlr->num_io_queues = 1;
-	ctrlr->num_cpus_per_ioq = mp_ncpus;
 	if (bus_setup_intr(dev, ctrlr->res,
 	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, nvme_ctrlr_intx_handler,
 	    ctrlr, &ctrlr->tag) != 0) {

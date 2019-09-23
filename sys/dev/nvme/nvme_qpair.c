@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/domainset.h>
 #include <sys/proc.h>
 
 #include <dev/pci/pcivar.h>
@@ -637,8 +638,8 @@ nvme_qpair_msix_handler(void *arg)
 }
 
 int
-nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
-    uint16_t vector, uint32_t num_entries, uint32_t num_trackers,
+nvme_qpair_construct(struct nvme_qpair *qpair,
+    uint32_t num_entries, uint32_t num_trackers,
     struct nvme_controller *ctrlr)
 {
 	struct nvme_tracker	*tr;
@@ -647,8 +648,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 	uint8_t			*queuemem, *prpmem, *prp_list;
 	int			i, err;
 
-	qpair->id = id;
-	qpair->vector = vector;
+	qpair->vector = ctrlr->msix_enabled ? qpair->id : 0;
 	qpair->num_entries = num_entries;
 	qpair->num_trackers = num_trackers;
 	qpair->ctrlr = ctrlr;
@@ -659,19 +659,19 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 		 * MSI-X vector resource IDs start at 1, so we add one to
 		 *  the queue's vector to get the corresponding rid to use.
 		 */
-		qpair->rid = vector + 1;
+		qpair->rid = qpair->vector + 1;
 
 		qpair->res = bus_alloc_resource_any(ctrlr->dev, SYS_RES_IRQ,
 		    &qpair->rid, RF_ACTIVE);
 		bus_setup_intr(ctrlr->dev, qpair->res,
 		    INTR_TYPE_MISC | INTR_MPSAFE, NULL,
 		    nvme_qpair_msix_handler, qpair, &qpair->tag);
-		if (id == 0) {
+		if (qpair->id == 0) {
 			bus_describe_intr(ctrlr->dev, qpair->res, qpair->tag,
 			    "admin");
 		} else {
 			bus_describe_intr(ctrlr->dev, qpair->res, qpair->tag,
-			    "io%d", id - 1);
+			    "io%d", qpair->id - 1);
 		}
 	}
 
@@ -707,6 +707,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 		nvme_printf(ctrlr, "tag create failed %d\n", err);
 		goto out;
 	}
+	bus_dma_tag_set_domain(qpair->dma_tag, qpair->domain);
 
 	if (bus_dmamem_alloc(qpair->dma_tag, (void **)&queuemem,
 	    BUS_DMA_NOWAIT, &qpair->queuemem_map)) {
@@ -737,9 +738,9 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 	 * it to various small values.
 	 */
 	qpair->sq_tdbl_off = nvme_mmio_offsetof(doorbell[0]) +
-	    (id << (ctrlr->dstrd + 1));
+	    (qpair->id << (ctrlr->dstrd + 1));
 	qpair->cq_hdbl_off = nvme_mmio_offsetof(doorbell[0]) +
-	    (id << (ctrlr->dstrd + 1)) + (1 << ctrlr->dstrd);
+	    (qpair->id << (ctrlr->dstrd + 1)) + (1 << ctrlr->dstrd);
 
 	TAILQ_INIT(&qpair->free_tr);
 	TAILQ_INIT(&qpair->outstanding_tr);
@@ -765,7 +766,8 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 			    (uint8_t *)roundup2((uintptr_t)prp_list, PAGE_SIZE);
 		}
 
-		tr = malloc(sizeof(*tr), M_NVME, M_ZERO | M_WAITOK);
+		tr = malloc_domainset(sizeof(*tr), M_NVME,
+		    DOMAINSET_PREF(qpair->domain), M_ZERO | M_WAITOK);
 		bus_dmamap_create(qpair->dma_tag_payload, 0,
 		    &tr->payload_dma_map);
 		callout_init(&tr->timer, 1);
@@ -783,8 +785,9 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 		goto out;
 	}
 
-	qpair->act_tr = malloc(sizeof(struct nvme_tracker *) *
-	    qpair->num_entries, M_NVME, M_ZERO | M_WAITOK);
+	qpair->act_tr = malloc_domainset(sizeof(struct nvme_tracker *) *
+	    qpair->num_entries, M_NVME, DOMAINSET_PREF(qpair->domain),
+	    M_ZERO | M_WAITOK);
 	return (0);
 
 out:
@@ -814,14 +817,14 @@ nvme_qpair_destroy(struct nvme_qpair *qpair)
 	}
 
 	if (qpair->act_tr)
-		free(qpair->act_tr, M_NVME);
+		free_domain(qpair->act_tr, M_NVME);
 
 	while (!TAILQ_EMPTY(&qpair->free_tr)) {
 		tr = TAILQ_FIRST(&qpair->free_tr);
 		TAILQ_REMOVE(&qpair->free_tr, tr, tailq);
 		bus_dmamap_destroy(qpair->dma_tag_payload,
 		    tr->payload_dma_map);
-		free(tr, M_NVME);
+		free_domain(tr, M_NVME);
 	}
 
 	if (qpair->dma_tag)
@@ -938,8 +941,8 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 	ctrlr = qpair->ctrlr;
 
 	if (req->timeout)
-		callout_reset_curcpu(&tr->timer, ctrlr->timeout_period * hz,
-		    nvme_timeout, tr);
+		callout_reset_on(&tr->timer, ctrlr->timeout_period * hz,
+		    nvme_timeout, tr, qpair->cpu);
 
 	/* Copy the command from the tracker to the submission queue. */
 	memcpy(&qpair->cmd[qpair->sq_tail], &req->cmd, sizeof(req->cmd));
