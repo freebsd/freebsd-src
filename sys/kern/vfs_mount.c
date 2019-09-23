@@ -668,19 +668,21 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 	 * when we want to update the root filesystem.
 	 */
 	TAILQ_FOREACH_SAFE(opt, optlist, link, tmp_opt) {
+		int do_freeopt = 0;
+
 		if (strcmp(opt->name, "update") == 0) {
 			fsflags |= MNT_UPDATE;
-			vfs_freeopt(optlist, opt);
+			do_freeopt = 1;
 		}
 		else if (strcmp(opt->name, "async") == 0)
 			fsflags |= MNT_ASYNC;
 		else if (strcmp(opt->name, "force") == 0) {
 			fsflags |= MNT_FORCE;
-			vfs_freeopt(optlist, opt);
+			do_freeopt = 1;
 		}
 		else if (strcmp(opt->name, "reload") == 0) {
 			fsflags |= MNT_RELOAD;
-			vfs_freeopt(optlist, opt);
+			do_freeopt = 1;
 		}
 		else if (strcmp(opt->name, "multilabel") == 0)
 			fsflags |= MNT_MULTILABEL;
@@ -741,7 +743,7 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 			autoro = false;
 		}
 		else if (strcmp(opt->name, "autoro") == 0) {
-			vfs_freeopt(optlist, opt);
+			do_freeopt = 1;
 			autoro = true;
 		}
 		else if (strcmp(opt->name, "suiddir") == 0)
@@ -752,8 +754,22 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 			fsflags |= MNT_UNION;
 		else if (strcmp(opt->name, "automounted") == 0) {
 			fsflags |= MNT_AUTOMOUNTED;
-			vfs_freeopt(optlist, opt);
+			do_freeopt = 1;
+		} else if (strcmp(opt->name, "nocover") == 0) {
+			fsflags |= MNT_NOCOVER;
+			do_freeopt = 1;
+		} else if (strcmp(opt->name, "cover") == 0) {
+			fsflags &= ~MNT_NOCOVER;
+			do_freeopt = 1;
+		} else if (strcmp(opt->name, "emptydir") == 0) {
+			fsflags |= MNT_EMPTYDIR;
+			do_freeopt = 1;
+		} else if (strcmp(opt->name, "noemptydir") == 0) {
+			fsflags &= ~MNT_EMPTYDIR;
+			do_freeopt = 1;
 		}
+		if (do_freeopt)
+			vfs_freeopt(optlist, opt);
 	}
 
 	/*
@@ -888,6 +904,14 @@ vfs_domount_first(
 
 	ASSERT_VOP_ELOCKED(vp, __func__);
 	KASSERT((fsflags & MNT_UPDATE) == 0, ("MNT_UPDATE shouldn't be here"));
+
+	if ((fsflags & MNT_EMPTYDIR) != 0) {
+		error = vfs_emptydir(vp);
+		if (error != 0) {
+			vput(vp);
+			return (error);
+		}
+	}
 
 	/*
 	 * If the jail of the calling thread lacks permission for this type of
@@ -1229,6 +1253,11 @@ vfs_domount(
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 	if ((fsflags & MNT_UPDATE) == 0) {
+		if ((vp->v_vflag & VV_ROOT) != 0 &&
+		    (fsflags & MNT_NOCOVER) != 0) {
+			vput(vp);
+			return (EBUSY);
+		}
 		pathbuf = malloc(MNAMELEN, M_TEMP, M_WAITOK);
 		strcpy(pathbuf, fspath);
 		error = vn_path_to_global_path(td, vp, pathbuf, MNAMELEN);
