@@ -226,7 +226,7 @@ SYSCTL_UINT(_vfs, OID_AUTO, ncneghitsrequeue, CTLFLAG_RW, &ncneghitsrequeue, 0,
 
 struct nchstats	nchstats;		/* cache effectiveness statistics */
 
-static struct mtx       ncneg_shrink_lock;
+static struct mtx __exclusive_cache_line	ncneg_shrink_lock;
 static int	shrink_list_turn;
 
 struct neglist {
@@ -236,6 +236,7 @@ struct neglist {
 
 static struct neglist __read_mostly	*neglists;
 static struct neglist ncneg_hot;
+static u_long numhotneg;
 
 #define	numneglists (ncneghash + 1)
 static u_int __read_mostly	ncneghash;
@@ -389,6 +390,7 @@ static long zap_and_exit_bucket_fail2; STATNODE_ULONG(zap_and_exit_bucket_fail2,
 static long cache_lock_vnodes_cel_3_failures;
 STATNODE_ULONG(cache_lock_vnodes_cel_3_failures,
     "Number of times 3-way vnode locking failed");
+STATNODE_ULONG(numhotneg, "Number of hot negative entries");
 
 static void cache_zap_locked(struct namecache *ncp, bool neg_locked);
 static int vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
@@ -705,6 +707,7 @@ cache_negative_hit(struct namecache *ncp)
 	neglist = NCP2NEGLIST(ncp);
 	mtx_lock(&neglist->nl_lock);
 	if (!(ncp->nc_flag & NCF_HOTNEGATIVE)) {
+		numhotneg++;
 		TAILQ_REMOVE(&neglist->nl_list, ncp, nc_dst);
 		TAILQ_INSERT_TAIL(&ncneg_hot.nl_list, ncp, nc_dst);
 		ncp->nc_flag |= NCF_HOTNEGATIVE;
@@ -758,6 +761,7 @@ cache_negative_remove(struct namecache *ncp, bool neg_locked)
 	if (ncp->nc_flag & NCF_HOTNEGATIVE) {
 		mtx_assert(&ncneg_hot.nl_lock, MA_OWNED);
 		TAILQ_REMOVE(&ncneg_hot.nl_list, ncp, nc_dst);
+		numhotneg--;
 	} else {
 		mtx_assert(&neglist->nl_lock, MA_OWNED);
 		TAILQ_REMOVE(&neglist->nl_list, ncp, nc_dst);
@@ -803,7 +807,8 @@ cache_negative_zap_one(void)
 	struct mtx *dvlp;
 	struct rwlock *blp;
 
-	if (!mtx_trylock(&ncneg_shrink_lock))
+	if (mtx_owner(&ncneg_shrink_lock) != NULL ||
+	    !mtx_trylock(&ncneg_shrink_lock))
 		return;
 
 	mtx_lock(&ncneg_hot.nl_lock);
@@ -814,8 +819,10 @@ cache_negative_zap_one(void)
 		TAILQ_REMOVE(&ncneg_hot.nl_list, ncp, nc_dst);
 		TAILQ_INSERT_TAIL(&neglist->nl_list, ncp, nc_dst);
 		ncp->nc_flag &= ~NCF_HOTNEGATIVE;
+		numhotneg--;
 		mtx_unlock(&neglist->nl_lock);
 	}
+	mtx_unlock(&ncneg_hot.nl_lock);
 
 	cache_negative_shrink_select(shrink_list_turn, &ncp, &neglist);
 	shrink_list_turn++;
@@ -823,16 +830,13 @@ cache_negative_zap_one(void)
 		shrink_list_turn = 0;
 	if (ncp == NULL && shrink_list_turn == 0)
 		cache_negative_shrink_select(shrink_list_turn, &ncp, &neglist);
-	if (ncp == NULL) {
-		mtx_unlock(&ncneg_hot.nl_lock);
+	if (ncp == NULL)
 		goto out;
-	}
 
 	MPASS(ncp->nc_flag & NCF_NEGATIVE);
 	dvlp = VP2VNODELOCK(ncp->nc_dvp);
 	blp = NCP2BUCKETLOCK(ncp);
 	mtx_unlock(&neglist->nl_lock);
-	mtx_unlock(&ncneg_hot.nl_lock);
 	mtx_lock(dvlp);
 	rw_wlock(blp);
 	mtx_lock(&neglist->nl_lock);
@@ -1750,9 +1754,14 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 				if (vp != NULL) {
 					TAILQ_INSERT_HEAD(&vp->v_cache_dst,
 					    ncp, nc_dst);
+					if (ncp->nc_flag & NCF_HOTNEGATIVE)
+						numhotneg--;
 					ncp->nc_flag &= ~(NCF_NEGATIVE|NCF_HOTNEGATIVE);
 				} else {
-					ncp->nc_flag &= ~(NCF_HOTNEGATIVE);
+					if (ncp->nc_flag & NCF_HOTNEGATIVE) {
+						numhotneg--;
+						ncp->nc_flag &= ~(NCF_HOTNEGATIVE);
+					}
 					ncp->nc_flag |= NCF_NEGATIVE;
 					cache_negative_insert(ncp, true);
 				}
