@@ -150,22 +150,6 @@ bp_ret:
 	END(dtrace_invop_start)
 
 /*
-void dtrace_invop_init(void)
-*/
-	ENTRY(dtrace_invop_init)
-	movq	$dtrace_invop_start, dtrace_invop_jump_addr(%rip)
-	ret
-	END(dtrace_invop_init)
-
-/*
-void dtrace_invop_uninit(void)
-*/
-	ENTRY(dtrace_invop_uninit)
-	movq	$0, dtrace_invop_jump_addr(%rip)
-	ret
-	END(dtrace_invop_uninit)
-
-/*
 greg_t dtrace_getfp(void)
 */
 	ENTRY(dtrace_getfp)
