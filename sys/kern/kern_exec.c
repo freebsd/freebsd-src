@@ -87,6 +87,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/pmckern.h>
 #endif
 
+#ifdef EBPF_HOOKS
+#include <sys/ebpf_probe.h>
+#endif
+
 #include <machine/reg.h>
 
 #include <security/audit/audit.h>
@@ -614,8 +618,19 @@ interpret:
 #endif
 
 	/* Don't inherit PROC_PDEATHSIG_CTL value if setuid/setgid. */
-	if (credential_changing)
+	if (credential_changing) {
 		imgp->proc->p_pdeathsig = 0;
+
+		/*
+		 * Don't inherit EBPF probes when changing credentials in exec.
+		 * This previous a malicious user from installing EBPF probes
+		 * and executing a suid program to steal information accessed by
+		 * the suid program.
+		 */
+#ifdef EBPF_HOOKS
+		ebpf_free_proc_probes(p);
+#endif
+	}
 
 	if (credential_changing &&
 #ifdef CAPABILITY_MODE

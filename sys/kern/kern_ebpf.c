@@ -34,10 +34,25 @@
 #include <sys/ebpf_probe.h>
 #include <sys/epoch.h>
 #include <sys/hash.h>
+#include <sys/malloc.h>
 #include <sys/sx.h>
 #include <sys/syscall.h>
 
 #include <machine/atomic.h>
+
+struct ebpf_proc_probe
+{
+	int probe_id;
+	struct ebpf_probe *probe;
+	void *module_state;
+	RB_ENTRY(ebpf_proc_probe) link;
+};
+
+static int ebpf_proc_probe_cmp(struct ebpf_proc_probe *, struct ebpf_proc_probe *);
+
+RB_GENERATE_STATIC(ebpf_proc_probe_tree, ebpf_proc_probe, link, ebpf_proc_probe_cmp);
+
+static MALLOC_DEFINE(M_EBPF_HOOKS, "ebpf_hooks", "ebpf hooks implementation");
 
 #define	PROBE_HASH_SIZE_SHIFT 16
 #define	PROBE_HASH_SIZE (1 << PROBE_HASH_SIZE_SHIFT)
@@ -52,9 +67,12 @@ static struct ebpf_module dummy_module = {
 
 static struct ebpf_module * ebpf_module_callbacks = &dummy_module;
 static struct sx ebpf_sx;
+SX_SYSINIT_FLAGS(ebpf_sx, &ebpf_sx, "ebpx_sx", SX_DUPOK);
 
 struct ebpf_probe syscall_probes[SYS_MAXSYSCALL];
 static void ebpf_register_syscall_probes(void);
+
+static int next_id = 1;
 
 static int
 ebpf_is_loaded(void)
@@ -67,8 +85,6 @@ static void
 ebpf_init(void *arg)
 {
 	int i;
-
-	sx_init(&ebpf_sx, "ebpf_sx");
 
 	for (i = 0; i < PROBE_HASH_SIZE; ++i) {
 		CK_SLIST_INIT(&probe_hashtable[i]);
@@ -107,7 +123,7 @@ probe_hash(const char *name)
  * do nothing if we're called.
  */
 static int
-dummy_fire(struct ebpf_probe *probe, uintptr_t arg0, uintptr_t arg1,
+dummy_fire(struct ebpf_probe *probe, void *a, uintptr_t arg0, uintptr_t arg1,
     uintptr_t arg2, uintptr_t arg3, uintptr_t arg4, uintptr_t arg5)
 {
 
@@ -147,6 +163,9 @@ ebpf_probe_register(void *arg)
 	hash = probe_hash(probe->name);
 
 	sx_xlock(&ebpf_sx);
+	probe->id = next_id;
+	next_id++;
+
 	probe->active = 0;
 	CK_SLIST_INSERT_HEAD(&probe_hashtable[hash], probe, hash_link);
 	sx_xunlock(&ebpf_sx);
@@ -165,44 +184,106 @@ ebpf_probe_deregister(void *arg)
 }
 
 struct ebpf_probe *
-ebpf_find_probe(const char *name)
+ebpf_activate_probe(const char *name, void *state)
 {
-	struct ebpf_probe *probe, *next;
+	struct ebpf_probe *probe;
+	struct ebpf_proc_probe *pp;
+	struct proc *proc;
 	uint32_t hash;
 
 	hash = probe_hash(name);
 
 	sx_slock(&ebpf_sx);
-	CK_SLIST_FOREACH_SAFE(probe, &probe_hashtable[hash], hash_link, next) {
+	CK_SLIST_FOREACH(probe, &probe_hashtable[hash], hash_link) {
 		if (strcmp(name, probe->name) == 0) {
-			goto out;
+			pp = malloc(sizeof(*pp), M_EBPF_HOOKS, M_WAITOK);
+			pp->probe_id = probe->id;
+			pp->probe = probe;
+			pp->module_state = state;
+
+			proc = curthread->td_proc;
+
+			sx_xlock(&proc->p_ebpf_lock);
+			RB_INSERT(ebpf_proc_probe_tree, &proc->p_ebpf_probes, pp);
+			sx_xunlock(&proc->p_ebpf_lock);
+
+			atomic_add_int(&probe->active, 1);
+			break;
 		}
 	}
 
-out:
 	sx_sunlock(&ebpf_sx);
 	return probe;
-}
-
-void
-ebpf_probe_drain(struct ebpf_probe *probe)
-{
-
-	sx_xlock(&ebpf_sx);
-	probe->active = 0;
-	sx_xunlock(&ebpf_sx);
 }
 
 int
 ebpf_probe_fire(struct ebpf_probe *probe, uintptr_t arg0, uintptr_t arg1,
     uintptr_t arg2, uintptr_t arg3, uintptr_t arg4, uintptr_t arg5)
 {
+	struct proc *proc;
+	struct ebpf_proc_probe lookup, *pp;
 	int ret = EBPF_ACTION_CONTINUE;
 
-	sx_slock(&ebpf_sx);
-	if (probe->active)
-		ret = ebpf_module_callbacks->fire(probe, arg0, arg1, arg2, arg3, arg4, arg5);
-	sx_sunlock(&ebpf_sx);
+	proc = curthread->td_proc;
+
+	sx_slock(&proc->p_ebpf_lock);
+
+	lookup.probe_id = probe->id;
+	pp = RB_FIND(ebpf_proc_probe_tree, &proc->p_ebpf_probes, &lookup);
+	if (pp != NULL) {
+		ret = ebpf_module_callbacks->fire(probe, pp->module_state,
+		    arg0, arg1, arg2, arg3, arg4, arg5);
+	}
+
+	sx_sunlock(&proc->p_ebpf_lock);
 
 	return (ret);
+}
+
+static int
+ebpf_proc_probe_cmp(struct ebpf_proc_probe *a, struct ebpf_proc_probe *b)
+{
+
+	return (a->probe_id - b->probe_id);
+}
+
+void
+ebpf_clone_proc_probes(struct proc *parent, struct proc *newproc)
+{
+	struct ebpf_proc_probe *pp, *new_pp;
+
+	sx_slock(&ebpf_sx);
+	sx_slock(&parent->p_ebpf_lock);
+	RB_FOREACH(pp, ebpf_proc_probe_tree, &parent->p_ebpf_probes) {
+		new_pp = malloc(sizeof(*new_pp), M_EBPF_HOOKS, M_WAITOK);
+
+		atomic_add_int(&pp->probe->active, 1);
+		new_pp->probe_id = pp->probe_id;
+		new_pp->probe = pp->probe;
+		new_pp->module_state =
+		    ebpf_module_callbacks->clone_probe(pp->probe, pp->module_state);
+
+		RB_INSERT(ebpf_proc_probe_tree, &newproc->p_ebpf_probes, new_pp);
+	}
+	sx_sunlock(&parent->p_ebpf_lock);
+	sx_sunlock(&ebpf_sx);
+}
+
+void
+ebpf_free_proc_probes(struct proc *proc)
+{
+	struct ebpf_proc_probe *pp, *next;
+
+	sx_xlock(&ebpf_sx);
+	sx_xlock(&proc->p_ebpf_lock);
+	RB_FOREACH_SAFE(pp, ebpf_proc_probe_tree, &proc->p_ebpf_probes, next) {
+		atomic_add_int(&pp->probe->active, -1);
+		ebpf_module_callbacks->release_probe(pp->probe, pp->module_state);
+
+		RB_REMOVE(ebpf_proc_probe_tree, &proc->p_ebpf_probes, pp);
+		free(pp, M_EBPF_HOOKS);
+	}
+	sx_xunlock(&proc->p_ebpf_lock);
+	sx_xunlock(&ebpf_sx);
+
 }

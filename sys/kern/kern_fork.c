@@ -89,6 +89,10 @@ __FBSDID("$FreeBSD$");
 dtrace_fork_func_t	dtrace_fasttrap_fork;
 #endif
 
+#ifdef EBPF_HOOKS
+#include <sys/ebpf_probe.h>
+#endif
+
 SDT_PROVIDER_DECLARE(proc);
 SDT_PROBE_DEFINE3(proc, , , create, "struct proc *", "struct proc *", "int");
 
@@ -659,6 +663,10 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	 * to adjust anything.
 	 */
 	EVENTHANDLER_DIRECT_INVOKE(process_fork, p1, p2, fr->fr_flags);
+
+#ifdef EBPF_HOOKS
+	ebpf_clone_proc_probes(p1, p2);
+#endif
 
 	/*
 	 * Set the child start time and mark the process as being complete.

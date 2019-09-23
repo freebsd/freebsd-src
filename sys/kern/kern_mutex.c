@@ -1221,6 +1221,7 @@ mutex_init(void)
 	mtx_init(&proc0.p_statmtx, "pstatl", NULL, MTX_SPIN);
 	mtx_init(&proc0.p_itimmtx, "pitiml", NULL, MTX_SPIN);
 	mtx_init(&proc0.p_profmtx, "pprofl", NULL, MTX_SPIN);
+	sx_init(&proc0.p_ebpf_lock, "process ebpf sx");
 	mtx_init(&devmtx, "cdev", NULL, MTX_DEF);
 	mtx_lock(&Giant);
 }

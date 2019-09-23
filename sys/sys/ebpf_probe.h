@@ -37,29 +37,36 @@
 
 struct ebpf_probe
 {
-	char name[EBPF_PROBE_NAME_MAX];
+	int id;
 	int active;
+	char name[EBPF_PROBE_NAME_MAX];
 	size_t arglen;
-	void *module_state;
 	CK_SLIST_ENTRY(ebpf_probe) hash_link;
 };
 
-typedef int ebpf_fire_t(struct ebpf_probe *, uintptr_t arg0, uintptr_t arg1,
-    uintptr_t arg2, uintptr_t arg3, uintptr_t arg4, uintptr_t arg5);
+typedef int ebpf_fire_t(struct ebpf_probe *, void *, uintptr_t , uintptr_t,
+    uintptr_t, uintptr_t, uintptr_t, uintptr_t);
+
+typedef void *ebpf_probe_clone_t(struct ebpf_probe *, void *);
+typedef void ebpf_probe_release_t(struct ebpf_probe *, void *);
 
 struct ebpf_module
 {
 	ebpf_fire_t * fire;
+	ebpf_probe_clone_t *clone_probe;
+	ebpf_probe_release_t *release_probe;
 };
 
 void ebpf_probe_register(void *);
 void ebpf_probe_deregister(void *);
 
-struct ebpf_probe * ebpf_find_probe(const char *);
-void ebpf_probe_drain(struct ebpf_probe *);
+struct ebpf_probe * ebpf_activate_probe(const char *, void *);
 
 void ebpf_module_register(struct ebpf_module *);
 void ebpf_module_deregister(void);
+
+void ebpf_clone_proc_probes(struct proc *parent, struct proc *newproc);
+void ebpf_free_proc_probes(struct proc *p);
 
 int ebpf_probe_fire(struct ebpf_probe *, uintptr_t arg0, uintptr_t arg1,
     uintptr_t arg2, uintptr_t arg3, uintptr_t arg4, uintptr_t arg5);

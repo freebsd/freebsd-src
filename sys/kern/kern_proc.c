@@ -192,6 +192,8 @@ procinit(void)
 	    proc_ctor, proc_dtor, proc_init, proc_fini,
 	    UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uihashinit();
+
+	RB_INIT(&proc0.p_ebpf_probes);
 }
 
 /*
@@ -242,6 +244,9 @@ proc_dtor(void *mem, int size, void *arg)
 	EVENTHANDLER_DIRECT_INVOKE(process_dtor, p);
 	if (p->p_ksi != NULL)
 		KASSERT(! KSI_ONQ(p->p_ksi), ("SIGCHLD queue"));
+
+	KASSERT(RB_EMPTY(&p->p_ebpf_probes),
+	    ("Process exited without cleaning up EBPF probes"));
 }
 
 /*
@@ -258,6 +263,8 @@ proc_init(void *mem, int size, int flags)
 	mtx_init(&p->p_statmtx, "pstatl", NULL, MTX_SPIN | MTX_NEW);
 	mtx_init(&p->p_itimmtx, "pitiml", NULL, MTX_SPIN | MTX_NEW);
 	mtx_init(&p->p_profmtx, "pprofl", NULL, MTX_SPIN | MTX_NEW);
+	sx_init(&p->p_ebpf_lock, "process ebpf sx");
+	RB_INIT(&p->p_ebpf_probes);
 	cv_init(&p->p_pwait, "ppwait");
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
 	EVENTHANDLER_DIRECT_INVOKE(process_init, p);

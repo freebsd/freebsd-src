@@ -66,6 +66,7 @@
 #else
 #include <sys/pcpu.h>
 #include <sys/systm.h>
+#include <sys/tree.h>
 #endif
 #include <sys/ucontext.h>
 #include <sys/ucred.h>
@@ -146,6 +147,7 @@ struct pargs {
  *      c - locked by proc mtx
  *      d - locked by allproc_lock lock
  *      e - locked by proctree_lock lock
+ *      E - proc EBPF lock
  *      f - session mtx
  *      g - process group mtx
  *      h - callout_lock mtx
@@ -581,6 +583,9 @@ do {									\
 #define	TD_SBDRY_ERRNO(td) \
     (((td)->td_flags & TDF_SEINTR) != 0 ? EINTR : ERESTART)
 
+struct ebpf_proc_probe;
+RB_HEAD(ebpf_proc_probe_tree, ebpf_proc_probe);
+
 /*
  * Process structure.
  */
@@ -705,6 +710,9 @@ struct proc {
 	 */
 	LIST_ENTRY(proc) p_orphan;	/* (e) List of orphan processes. */
 	LIST_HEAD(, proc) p_orphans;	/* (e) Pointer to list of orphans. */
+
+	struct sx	p_ebpf_lock;	/* proc EBPF lock */
+	struct ebpf_proc_probe_tree	p_ebpf_probes; /* (E) enabled probes */
 };
 
 #define	p_session	p_pgrp->pg_session

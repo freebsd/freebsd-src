@@ -77,6 +77,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #endif
 
+#ifdef EBPF_HOOKS
+#include <sys/ebpf_probe.h>
+#endif
+
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
@@ -331,6 +335,10 @@ exit1(struct thread *td, int rval, int signo)
 	 * XXX what if one of these generates an error?
 	 */
 	EVENTHANDLER_DIRECT_INVOKE(process_exit, p);
+
+#ifdef EBPF_HOOKS
+	ebpf_free_proc_probes(p);
+#endif
 
 	/*
 	 * If parent is waiting for us to exit or exec,
