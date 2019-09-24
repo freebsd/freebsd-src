@@ -514,7 +514,7 @@ sysctl_rack_clear(SYSCTL_HANDLER_ARGS)
 
 
 static void
-rack_init_sysctls()
+rack_init_sysctls(void)
 {
 	struct sysctl_oid *rack_counters;
 	struct sysctl_oid *rack_attack;
@@ -1512,7 +1512,7 @@ rack_log_sad(struct tcp_rack *rack, int event)
 #endif
 
 static void
-rack_counter_destroy()
+rack_counter_destroy(void)
 {
 	counter_u64_free(rack_badfr);
 	counter_u64_free(rack_badfr_bytes);
