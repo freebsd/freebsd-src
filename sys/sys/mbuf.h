@@ -439,18 +439,18 @@ void	mb_ext_pgs_check(struct mbuf_ext_pgs *ext_pgs);
  */
 #define M_COPYFLAGS \
     (M_PKTHDR|M_EOR|M_RDONLY|M_BCAST|M_MCAST|M_PROMISC|M_VLANTAG|M_TSTMP| \
-     M_TSTMP_HPREC|M_PROTOFLAGS)
+     M_TSTMP_HPREC|M_TSTMP_LRO|M_PROTOFLAGS)
 
 /*
  * Mbuf flag description for use with printf(9) %b identifier.
  */
 #define	M_FLAG_BITS \
     "\20\1M_EXT\2M_PKTHDR\3M_EOR\4M_RDONLY\5M_BCAST\6M_MCAST" \
-    "\7M_PROMISC\10M_VLANTAG\11M_NOMAP\12M_NOFREE\13M_TSTMP\14M_TSTMP_HPREC"
+    "\7M_PROMISC\10M_VLANTAG\11M_NOMAP\12M_NOFREE\13M_TSTMP\14M_TSTMP_HPREC\15M_TSTMP_LRO"
 #define	M_FLAG_PROTOBITS \
-    "\15M_PROTO1\16M_PROTO2\17M_PROTO3\20M_PROTO4\21M_PROTO5" \
-    "\22M_PROTO6\23M_PROTO7\24M_PROTO8\25M_PROTO9\26M_PROTO10" \
-    "\27M_PROTO11"
+    "\16M_PROTO1\17M_PROTO2\20M_PROTO3\21M_PROTO4" \
+    "\22M_PROTO5\23M_PROTO6\24M_PROTO7\25M_PROTO8\26M_PROTO9" \
+    "\27M_PROTO10\28M_PROTO11"
 #define	M_FLAG_PRINTF (M_FLAG_BITS M_FLAG_PROTOBITS)
 
 /*
@@ -1496,7 +1496,7 @@ mbuf_tstmp2timespec(struct mbuf *m, struct timespec *ts)
 {
 
 	KASSERT((m->m_flags & M_PKTHDR) != 0, ("mbuf %p no M_PKTHDR", m));
-	KASSERT((m->m_flags & M_TSTMP) != 0, ("mbuf %p no M_TSTMP", m));
+	KASSERT((m->m_flags & (M_TSTMP|M_TSTMP_LRO)) != 0, ("mbuf %p no M_TSTMP or M_TSTMP_LRO", m));
 	ts->tv_sec = m->m_pkthdr.rcv_tstmp / 1000000000;
 	ts->tv_nsec = m->m_pkthdr.rcv_tstmp % 1000000000;
 }

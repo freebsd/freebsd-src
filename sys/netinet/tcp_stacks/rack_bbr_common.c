@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipsec.h"
 #include "opt_tcpdebug.h"
 #include "opt_ratelimit.h"
-/*#include "opt_kern_tls.h"*/
+#include "opt_kern_tls.h"
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
@@ -50,20 +50,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
+#include <sys/qmath.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #ifdef KERN_TLS
-#include <sys/sockbuf_tls.h>
+#include <sys/ktls.h>
 #endif
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/tree.h>
+#ifdef NETFLIX_STATS
+#include <sys/stats.h> /* Must come after qmath.h and tree.h */
+#endif
 #include <sys/refcount.h>
 #include <sys/queue.h>
 #include <sys/smp.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/tim_filter.h>
 #include <sys/time.h>
 #include <vm/uma.h>
 #include <sys/kern_prefetch.h>
@@ -85,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
+#define	TCPOUTFLAGS
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
@@ -133,14 +139,14 @@ __FBSDID("$FreeBSD$");
 uint32_t
 ctf_get_opt_tls_size(struct socket *so, uint32_t rwnd)
 {
-	struct sbtls_info *tls;
+	struct ktls_session *tls;
 	uint32_t len;
 
 again:
 	tls = so->so_snd.sb_tls_info;
-	len = tls->sb_params.sb_maxlen;         /* max tls payload */
-	len += tls->sb_params.sb_tls_hlen;      /* tls header len  */
-	len += tls->sb_params.sb_tls_tlen;      /* tls trailer len */
+	len = tls->params.max_frame_len;         /* max tls payload */
+	len += tls->params.tls_hlen;      /* tls header len  */
+	len += tls->params.tls_tlen;      /* tls trailer len */
 	if ((len * 4) > rwnd) {
 		/*
 		 * Stroke this will suck counter and what
@@ -148,10 +154,10 @@ again:
 		 * TCP perspective I am not sure
 		 * what should be done...
 		 */
-		if (tls->sb_params.sb_maxlen > 4096) {
-			tls->sb_params.sb_maxlen -= 4096;
-			if (tls->sb_params.sb_maxlen < 4096)
-				tls->sb_params.sb_maxlen = 4096;
+		if (tls->params.max_frame_len > 4096) {
+			tls->params.max_frame_len -= 4096;
+			if (tls->params.max_frame_len < 4096)
+				tls->params.max_frame_len = 4096;
 			goto again;
 		}
 	}
@@ -414,7 +420,13 @@ skip_vnet:
 		 * have been called (if we can).
 		 */
 		m->m_pkthdr.lro_nsegs = 1;
-		tcp_get_usecs(&tv);
+		if (m->m_flags & M_TSTMP_LRO) {
+			tv.tv_sec = m->m_pkthdr.rcv_tstmp /1000000000;
+			tv.tv_usec = (m->m_pkthdr.rcv_tstmp % 1000000000)/1000;
+		} else {
+			/* Should not be should we kassert instead? */
+			tcp_get_usecs(&tv);
+		}
 		/* Now what about next packet? */
 		if (m_save || has_pkt)
 			nxt_pkt = 1;
@@ -425,7 +437,7 @@ skip_vnet:
 		if (retval) {
 			/* We lost the lock and tcb probably */
 			m = m_save;
-			while (m) {
+			while(m) {
 				m_save = m->m_nextpkt;
 				m->m_nextpkt = NULL;
 				m_freem(m);
@@ -434,7 +446,7 @@ skip_vnet:
 			if (no_vn == 0)
 				CURVNET_RESTORE();
 			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
-			return (retval);
+			return(retval);
 		}
 skipped_pkt:
 		m = m_save;
@@ -442,7 +454,7 @@ skipped_pkt:
 	if (no_vn == 0)
 		CURVNET_RESTORE();
 	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
-	return (retval);
+	return(retval);
 }
 
 int
@@ -457,7 +469,7 @@ ctf_do_queued_segments(struct socket *so, struct tcpcb *tp, int have_pkt)
 		tp->t_tail_pkt = NULL;
 		if (ctf_process_inbound_raw(tp, so, m, have_pkt)) {
 			/* We lost the tcpcb (maybe a RST came in)? */
-			return (1);
+			return(1);
 		}
 	}
 	return (0);
@@ -466,14 +478,14 @@ ctf_do_queued_segments(struct socket *so, struct tcpcb *tp, int have_pkt)
 uint32_t
 ctf_outstanding(struct tcpcb *tp)
 {
-	return (tp->snd_max - tp->snd_una);
+	return(tp->snd_max - tp->snd_una);
 }
 
 uint32_t 
 ctf_flight_size(struct tcpcb *tp, uint32_t rc_sacked)
 {
 	if (rc_sacked <= ctf_outstanding(tp))
-		return (ctf_outstanding(tp) - rc_sacked);
+		return(ctf_outstanding(tp) - rc_sacked);
 	else {
 		/* TSNH */
 #ifdef INVARIANTS
@@ -908,5 +920,5 @@ ctf_decay_count(uint32_t count, uint32_t decay)
 	 * count decay value.
 	 */
 	decayed_count = count - (uint32_t)perc_count;
-	return (decayed_count);
+	return(decayed_count);
 }

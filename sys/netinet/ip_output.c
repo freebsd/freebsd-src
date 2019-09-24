@@ -212,7 +212,7 @@ ip_output_pfil(struct mbuf **mp, struct ifnet *ifp, int flags,
 
 static int
 ip_output_send(struct inpcb *inp, struct ifnet *ifp, struct mbuf *m,
-    const struct sockaddr_in *gw, struct route *ro)
+    const struct sockaddr_in *gw, struct route *ro, bool stamp_tag)
 {
 #ifdef KERN_TLS
 	struct ktls_session *tls = NULL;
@@ -256,7 +256,7 @@ ip_output_send(struct inpcb *inp, struct ifnet *ifp, struct mbuf *m,
 			mst = inp->inp_snd_tag;
 	}
 #endif
-	if (mst != NULL) {
+	if (stamp_tag && mst != NULL) {
 		KASSERT(m->m_pkthdr.rcvif == NULL,
 		    ("trying to add a send tag to a forwarded packet"));
 		if (mst->ifp != ifp) {
@@ -791,7 +791,8 @@ sendit:
 		 */
 		m_clrprotoflags(m);
 		IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
-		error = ip_output_send(inp, ifp, m, gw, ro);
+		error = ip_output_send(inp, ifp, m, gw, ro,
+		    (flags & IP_NO_SND_TAG_RL) ? false : true);
 		goto done;
 	}
 
@@ -827,7 +828,7 @@ sendit:
 
 			IP_PROBE(send, NULL, NULL, mtod(m, struct ip *), ifp,
 			    mtod(m, struct ip *), NULL);
-			error = ip_output_send(inp, ifp, m, gw, ro);
+			error = ip_output_send(inp, ifp, m, gw, ro, true);
 		} else
 			m_freem(m);
 	}
