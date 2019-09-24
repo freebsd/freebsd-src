@@ -166,6 +166,7 @@ void	kmod_ipstat_dec(int statnum);
 #define IP_ROUTETOIF		SO_DONTROUTE	/* 0x10 bypass routing tables */
 #define IP_ALLOWBROADCAST	SO_BROADCAST	/* 0x20 can send broadcast packets */
 #define	IP_NODEFAULTFLOWID	0x40		/* Don't set the flowid from inp */
+#define IP_NO_SND_TAG_RL	0x80		/* Don't send down the ratelimit tag */
 
 #ifdef __NO_STRICT_ALIGNMENT
 #define IP_HDR_ALIGNED_P(ip)	1

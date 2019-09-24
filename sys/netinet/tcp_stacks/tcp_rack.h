@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Netflix, Inc.
+ * Copyright (c) 2016-9 Netflix, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,39 +28,39 @@
 #ifndef _NETINET_TCP_RACK_H_
 #define _NETINET_TCP_RACK_H_
 
-#define RACK_ACKED	  0x0001/* The remote endpoint acked this */
-#define RACK_TO_MIXED	  0x0002/* A timeout occured that mixed the send order */
-#define RACK_DEFERRED	  0x0004/* We can't use this for RTT calc */
-#define RACK_OVERMAX	  0x0008/* We have more retran's then we can fit */
-#define RACK_SACK_PASSED  0x0010/* A sack was done above this block */
-#define RACK_WAS_SACKPASS 0x0020/* We retransmitted due to SACK pass */
-#define RACK_HAS_FIN	  0x0040/* segment is sent with fin */
-#define RACK_TLP	  0x0080/* segment sent as tail-loss-probe */
-
+#define RACK_ACKED	    0x0001/* The remote endpoint acked this */
+#define RACK_TO_MIXED	    0x0002/* A timeout occured that mixed the send order - not used */
+#define RACK_DEFERRED	    0x0004/* We can't use this for RTT calc - not used */
+#define RACK_OVERMAX	    0x0008/* We have more retran's then we can fit */
+#define RACK_SACK_PASSED    0x0010/* A sack was done above this block */
+#define RACK_WAS_SACKPASS   0x0020/* We retransmitted due to SACK pass */
+#define RACK_HAS_FIN	    0x0040/* segment is sent with fin */
+#define RACK_TLP	    0x0080/* segment sent as tail-loss-probe */
+#define RACK_RWND_COLLAPSED 0x0100/* The peer collapsed the rwnd on the segment */
 #define RACK_NUM_OF_RETRANS 3
 
 #define RACK_INITIAL_RTO 1000 /* 1 second in milli seconds */
 
 struct rack_sendmap {
-	TAILQ_ENTRY(rack_sendmap) r_next;	/* seq number arrayed next */
-	TAILQ_ENTRY(rack_sendmap) r_tnext;	/* Time of transmit based next */
-	uint32_t r_tim_lastsent[RACK_NUM_OF_RETRANS];
 	uint32_t r_start;	/* Sequence number of the segment */
 	uint32_t r_end;		/* End seq, this is 1 beyond actually */
+	TAILQ_ENTRY(rack_sendmap) r_tnext;	/* Time of transmit based next */
+	RB_ENTRY(rack_sendmap) r_next;		/* RB Tree next */
 	uint32_t r_rtr_bytes;	/* How many bytes have been retransmitted */
 	uint16_t r_rtr_cnt;	/* Retran count, index this -1 to get time
 				 * sent */
-	uint8_t r_flags;	/* Flags as defined above */
-	uint8_t r_sndcnt;	/* Retran count, not limited by
-				 * RACK_NUM_OF_RETRANS */
+	uint16_t r_flags;	/* Flags as defined above */
+	uint32_t r_tim_lastsent[RACK_NUM_OF_RETRANS];
+	uint8_t r_dupack;	/* Dup ack count */
 	uint8_t r_in_tmap;	/* Flag to see if its in the r_tnext array */
 	uint8_t r_limit_type;	/* is this entry counted against a limit? */
-	uint8_t r_resv[2];
+	uint8_t r_resv[49];
 };
-#define RACK_LIMIT_TYPE_SPLIT	1
 
+RB_HEAD(rack_rb_tree_head, rack_sendmap);
 TAILQ_HEAD(rack_head, rack_sendmap);
 
+#define RACK_LIMIT_TYPE_SPLIT	1
 
 /*
  * We use the rate sample structure to
@@ -136,6 +136,8 @@ struct rack_opts_stats {
 	uint64_t rack_no_timer_in_hpts;
 	uint64_t tcp_rack_min_pace_seg;
 	uint64_t tcp_rack_min_pace;
+	uint64_t tcp_rack_cheat;
+	uint64_t tcp_rack_no_sack;
 };
 
 #define TLP_USE_ID	1	/* Internet draft behavior */
@@ -188,15 +190,19 @@ extern counter_u64_t rack_opts_arry[RACK_OPTS_SIZE];
  * b) Locked by the hpts-mutex
  *
  */
+#define RACK_GP_HIST 4	/* How much goodput history do we maintain? */
 
 struct rack_control {
 	/* Second cache line 0x40 from tcp_rack */
-	struct rack_head rc_map;/* List of all segments Lock(a) */
+	struct rack_rb_tree_head rc_mtree; /* Tree of all segments Lock(a) */
 	struct rack_head rc_tmap;	/* List in transmit order Lock(a) */
 	struct rack_sendmap *rc_tlpsend;	/* Remembered place for
 						 * tlp_sending Lock(a) */
 	struct rack_sendmap *rc_resend;	/* something we have been asked to
 					 * resend */
+	struct timeval rc_last_time_decay;	/* SAD time decay happened here */
+	uint32_t input_pkt;
+	uint32_t saved_input_pkt;
 	uint32_t rc_hpts_flags;
 	uint32_t rc_timer_exp;	/* If a timer ticks of expiry */
 	uint32_t rc_rack_min_rtt;	/* lowest RTT seen Lock(a) */
@@ -244,22 +250,32 @@ struct rack_control {
 					 * have allocated */
 	uint32_t rc_rcvtime;	/* When we last received data */
 	uint32_t rc_num_split_allocs;	/* num split map entries allocated */
+
 	uint32_t rc_last_output_to; 
 	uint32_t rc_went_idle_time;
 
 	struct rack_sendmap *rc_sacklast;	/* sack remembered place
 						 * Lock(a) */
 
-	struct rack_sendmap *rc_next;	/* remembered place where we next
-					 * retransmit at Lock(a) */
 	struct rack_sendmap *rc_rsm_at_retran;	/* Debug variable kept for
 						 * cache line alignment
 						 * Lock(a) */
+	struct timeval rc_last_ack;
 	/* Cache line split 0x100 */
 	struct sack_filter rack_sf;
 	/* Cache line split 0x140 */
 	/* Flags for various things */
+	uint32_t rc_pace_max_segs;
+	uint32_t rc_pace_min_segs;	
+	uint32_t rc_high_rwnd;
+	uint32_t ack_count;
+	uint32_t sack_count;
+	uint32_t sack_noextra_move;
+	uint32_t sack_moved_extra;
 	struct rack_rtt_sample rack_rs;
+	uint32_t rc_tlp_rxt_last_time;
+	uint32_t rc_saved_cwnd;
+	uint32_t rc_gp_history[RACK_GP_HIST];
 	uint32_t rc_tlp_threshold;	/* Socket option value Lock(a) */
 	uint16_t rc_early_recovery_segs;	/* Socket option value Lock(a) */
 	uint16_t rc_reorder_shift;	/* Socket option value Lock(a) */
@@ -270,9 +286,11 @@ struct rack_control {
 	uint8_t rc_early_recovery;	/* Socket option value Lock(a) */
 	uint8_t rc_prr_sendalot;/* Socket option value Lock(a) */
 	uint8_t rc_min_to;	/* Socket option value Lock(a) */
-	uint8_t rc_prr_inc_var;	/* Socket option value Lock(a) */
 	uint8_t rc_tlp_rtx_out;	/* This is TLPRtxOut in the draft */
 	uint8_t rc_rate_sample_method;
+	uint8_t rc_gp_hist_idx: 7,
+		rc_gp_hist_filled: 1;
+
 };
 
 #ifdef _KERNEL
@@ -305,16 +323,22 @@ struct tcp_rack {
 		rc_last_pto_set : 1, /* XXX not used */
 		rc_tlp_in_progress : 1,
 		rc_always_pace : 1,	/* Socket option value Lock(a) */
-		rc_timer_up : 1;	/* The rack timer is up flag  Lock(a) */
-	uint8_t r_idle_reduce_largest : 1,
-		r_enforce_min_pace : 2,
-		r_min_pace_seg_thresh : 5;
+		tlp_timer_up : 1;	/* The tlp timer is up flag Lock(a) */
+	uint8_t r_enforce_min_pace : 2,
+		rc_has_collapsed : 1,
+		r_rep_attack : 1,
+		r_rep_reverse : 1,
+		r_xxx_min_pace_seg_thresh : 3;
 	uint8_t rack_tlp_threshold_use;
 	uint8_t rc_allow_data_af_clo: 1,
 		delayed_ack : 1,
+		set_pacing_done_a_iw : 1,
+		use_rack_cheat : 1, 
 		alloc_limit_reported : 1,
-		rc_avail : 5;
-	uint8_t r_resv[2];	/* Fill to cache line boundary */
+		sack_attack_disable : 1,
+		do_detection : 1,
+		rc_avail : 1;
+	uint16_t rack_per_of_gp;
 	/* Cache line 2 0x40 */
 	struct rack_control r_ctl;
 }        __aligned(CACHE_LINE_SIZE);
