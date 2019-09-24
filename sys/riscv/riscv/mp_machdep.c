@@ -258,8 +258,10 @@ init_secondary(uint64_t hart)
 	/* Enable software interrupts */
 	riscv_unmask_ipi();
 
+#ifndef EARLY_AP_STARTUP
 	/* Start per-CPU event timers. */
 	cpu_initclocks_ap();
+#endif
 
 	/* Enable external (PLIC) interrupts */
 	csr_set(sie, SIE_SEIE);
