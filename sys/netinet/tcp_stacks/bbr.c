@@ -1174,7 +1174,7 @@ sysctl_bbr_clear_lost(SYSCTL_HANDLER_ARGS)
 }
 
 static void
-bbr_init_sysctls()
+bbr_init_sysctls(void)
 {
 	struct sysctl_oid *bbr_probertt;
 	struct sysctl_oid *bbr_hptsi;
@@ -1875,7 +1875,7 @@ bbr_progress_timeout_check(struct tcp_bbr *bbr)
 }
 
 static void
-bbr_counter_destroy()
+bbr_counter_destroy(void)
 {
 	COUNTER_ARRAY_FREE(bbr_stat_arry, BBR_STAT_SIZE);
 	COUNTER_ARRAY_FREE(bbr_opts_arry, BBR_OPTS_SIZE);
