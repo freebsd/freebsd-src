@@ -102,7 +102,7 @@ ncl_uninit(struct vfsconf *vfsp)
 	 * Tell all nfsiod processes to exit. Clear ncl_iodmax, and wakeup
 	 * any sleeping nfsiods so they check ncl_iodmax and exit.
 	 */
-	mtx_lock(&ncl_iod_mutex);
+	NFSLOCKIOD();
 	ncl_iodmax = 0;
 	for (i = 0; i < ncl_numasync; i++)
 		if (ncl_iodwant[i] == NFSIOD_AVAILABLE)
@@ -110,7 +110,7 @@ ncl_uninit(struct vfsconf *vfsp)
 	/* The last nfsiod to exit will wake us up when ncl_numasync hits 0 */
 	while (ncl_numasync)
 		msleep(&ncl_numasync, &ncl_iod_mutex, PWAIT, "ioddie", 0);
-	mtx_unlock(&ncl_iod_mutex);
+	NFSUNLOCKIOD();
 	ncl_nhuninit();
 	return (0);
 #else
