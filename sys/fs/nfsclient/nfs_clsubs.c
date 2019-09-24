@@ -121,20 +121,20 @@ ncl_uninit(struct vfsconf *vfsp)
 void 
 ncl_dircookie_lock(struct nfsnode *np)
 {
-	mtx_lock(&np->n_mtx);
+	NFSLOCKNODE(np);
 	while (np->n_flag & NDIRCOOKIELK)
 		(void) msleep(&np->n_flag, &np->n_mtx, PZERO, "nfsdirlk", 0);
 	np->n_flag |= NDIRCOOKIELK;
-	mtx_unlock(&np->n_mtx);
+	NFSUNLOCKNODE(np);
 }
 
 void 
 ncl_dircookie_unlock(struct nfsnode *np)
 {
-	mtx_lock(&np->n_mtx);
+	NFSLOCKNODE(np);
 	np->n_flag &= ~NDIRCOOKIELK;
 	wakeup(&np->n_flag);
-	mtx_unlock(&np->n_mtx);
+	NFSUNLOCKNODE(np);
 }
 
 bool
@@ -190,7 +190,7 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 	vap = &np->n_vattr.na_vattr;
 	nmp = VFSTONFS(vp->v_mount);
 	mustflush = nfscl_mustflush(vp);	/* must be before mtx_lock() */
-	mtx_lock(&np->n_mtx);
+	NFSLOCKNODE(np);
 	/* XXX n_mtime doesn't seem to be updated on a miss-and-reload */
 	timeo = (time_second - np->n_mtime.tv_sec) / 10;
 
@@ -225,7 +225,7 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 	if ((time_second - np->n_attrstamp) >= timeo &&
 	    (mustflush != 0 || np->n_attrstamp == 0)) {
 		nfsstatsv1.attrcache_misses++;
-		mtx_unlock(&np->n_mtx);
+		NFSUNLOCKNODE(np);
 		KDTRACE_NFS_ATTRCACHE_GET_MISS(vp);
 		return( ENOENT);
 	}
@@ -252,7 +252,7 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 		if (np->n_flag & NUPD)
 			vaper->va_mtime = np->n_mtim;
 	}
-	mtx_unlock(&np->n_mtx);
+	NFSUNLOCKNODE(np);
 	KDTRACE_NFS_ATTRCACHE_GET_HIT(vp, vap);
 	return (0);
 }
