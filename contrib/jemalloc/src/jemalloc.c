@@ -1853,15 +1853,6 @@ je_realloc(void *ptr, size_t size)
 	UNUSED size_t old_rzsize JEMALLOC_CC_SILENCE_INIT(0);
 
 	if (unlikely(size == 0)) {
-		if (ptr != NULL) {
-			tsd_t *tsd;
-
-			/* realloc(ptr, 0) is equivalent to free(ptr). */
-			UTRACE(ptr, 0, 0);
-			tsd = tsd_fetch();
-			ifree(tsd, ptr, tcache_get(tsd, false), true);
-			return (NULL);
-		}
 		size = 1;
 	}
 
