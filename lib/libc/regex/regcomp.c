@@ -196,12 +196,6 @@ static char nuls[10];		/* place to point scanner in event of error */
 #define	THERETHERE()	(p->slen - 2)
 #define	DROP(n)	(p->slen -= (n))
 
-#ifndef NDEBUG
-static int never = 0;		/* for use in asserts; shuts lint up */
-#else
-#define	never	0		/* some <assert.h>s have bugs too */
-#endif
-
 /* Macro used by computejump()/computematchjump() */
 #define MIN(a,b)	((a)<(b)?(a):(b))
 
