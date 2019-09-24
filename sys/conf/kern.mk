@@ -131,8 +131,18 @@ CFLAGS += -ffixed-x18
 INLINE_LIMIT?=	8000
 .endif
 
+#
+# For RISC-V we specify the soft-float ABI (lp64) to avoid the use of floating
+# point registers within the kernel. We also specify the "medium" code model,
+# which generates code suitable for a 2GiB addressing range located at any
+# offset, allowing modules to be located anywhere in the 64-bit address space.
+# Note that clang and GCC refer to this code model as "medium" and "medany"
+# respectively.
+#
 .if ${MACHINE_CPUARCH} == "riscv"
-CFLAGS.gcc+=	-mcmodel=medany -march=rv64imafdc -mabi=lp64
+CFLAGS+=	-march=rv64imafdc -mabi=lp64
+CFLAGS.clang+=	-mcmodel=medium
+CFLAGS.gcc+=	-mcmodel=medany
 INLINE_LIMIT?=	8000
 .endif
 
