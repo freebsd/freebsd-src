@@ -581,6 +581,16 @@ struct ifrsshash {
 
 #define	IFNET_PCP_NONE	0xff	/* PCP disabled */
 
+#define	IFDR_MSG_SIZE		64
+#define	IFDR_REASON_MSG		1
+#define	IFDR_REASON_VENDOR	2
+struct ifdownreason {
+	char		ifdr_name[IFNAMSIZ];
+	uint32_t	ifdr_reason;
+	uint32_t	ifdr_vendor;
+	char		ifdr_msg[IFDR_MSG_SIZE];
+};
+
 #endif /* __BSD_VISIBLE */
 
 #ifdef _KERNEL

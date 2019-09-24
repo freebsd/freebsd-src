@@ -143,4 +143,6 @@
 #define	SIOCGLANPCP	_IOWR('i', 152, struct ifreq)	/* Get (V)LAN PCP */
 #define	SIOCSLANPCP	 _IOW('i', 153, struct ifreq)	/* Set (V)LAN PCP */
 
+#define	SIOCGIFDOWNREASON	_IOWR('i', 154, struct ifdownreason)
+
 #endif /* !_SYS_SOCKIO_H_ */
