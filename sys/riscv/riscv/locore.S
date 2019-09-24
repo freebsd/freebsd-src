@@ -69,12 +69,18 @@ _start:
 	la	t0, hart_lottery
 	li	t1, 1
 	amoadd.w t0, t1, 0(t0)
-	bnez	t0, mpentry
+
+	/*
+	 * We must jump to mpentry in the non-BSP case because the offset is
+	 * too large to fit in a 12-bit branch immediate.
+	 */
+	beqz	t0, 1f
+	j	mpentry
 
 	/*
 	 * Page tables
 	 */
-
+1:
 	/* Add L1 entry for kernel */
 	la	s1, pagetable_l1
 	la	s2, pagetable_l2	/* Link to next level PN */
