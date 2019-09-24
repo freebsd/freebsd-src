@@ -14784,10 +14784,12 @@ bbr_set_sockopt(struct socket *so, struct sockopt *sopt,
 			bbr->bbr_attempt_hdwr_pace = 0;
 		} else {
 			bbr->bbr_hdw_pace_ena = 0;
+#ifdef RATELIMIT
 			if (bbr->bbr_hdrw_pacing) {
 				bbr->bbr_hdrw_pacing = 0;
 				in_pcbdetach_txrtlmt(bbr->rc_inp);
 			}
+#endif
 		}
 		break;
 
