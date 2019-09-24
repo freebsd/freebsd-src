@@ -3808,7 +3808,7 @@ kern/subr_epoch.c		standard
 kern/subr_eventhandler.c	standard
 kern/subr_fattime.c		standard
 kern/subr_firmware.c		optional firmware
-kern/subr_filter.c              standard
+kern/subr_filter.c		standard
 kern/subr_gtaskqueue.c		standard
 kern/subr_hash.c		standard
 kern/subr_hints.c		standard
@@ -4279,8 +4279,8 @@ netinet/tcp_log_buf.c		optional tcp_blackbox inet | tcp_blackbox inet6
 netinet/tcp_lro.c		optional inet | inet6
 netinet/tcp_output.c		optional inet | inet6
 netinet/tcp_offload.c		optional tcp_offload inet | tcp_offload inet6
-netinet/tcp_hpts.c              optional tcphpts inet | tcphpts inet6
-netinet/tcp_ratelimit.c         optional ratelimit inet | ratelimit inet6
+netinet/tcp_hpts.c		optional tcphpts inet | tcphpts inet6
+netinet/tcp_ratelimit.c		optional ratelimit inet | ratelimit inet6
 netinet/tcp_pcap.c		optional inet tcppcap | inet6 tcppcap \
 	compile-with "${NORMAL_C} ${NO_WNONNULL}"
 netinet/tcp_reass.c		optional inet | inet6
