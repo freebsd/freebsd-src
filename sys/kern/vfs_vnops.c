@@ -261,6 +261,10 @@ restart:
 				error = EEXIST;
 				goto bad;
 			}
+			if (vp->v_type == VDIR) {
+				error = EISDIR;
+				goto bad;
+			}
 			fmode &= ~O_CREAT;
 		}
 	} else {
