@@ -826,14 +826,20 @@ struct fchdir_args {
 int
 sys_fchdir(struct thread *td, struct fchdir_args *uap)
 {
+
+	return (kern_fchdir(td, uap->fd));
+}
+
+int
+kern_fchdir(struct thread *td, int fd)
+{
 	struct vnode *vp, *tdp;
 	struct mount *mp;
 	struct file *fp;
 	int error;
 
-	AUDIT_ARG_FD(uap->fd);
-	error = getvnode(td, uap->fd, &cap_fchdir_rights,
-	    &fp);
+	AUDIT_ARG_FD(fd);
+	error = getvnode(td, fd, &cap_fchdir_rights, &fp);
 	if (error != 0)
 		return (error);
 	vp = fp->f_vnode;
