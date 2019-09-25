@@ -73,11 +73,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/lock.h>
+#include <sys/counter.h>
 #include <sys/domainset.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/linker.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/msgbuf.h>
@@ -129,6 +130,28 @@ domainset_t __exclusive_cache_line vm_severe_domains;
 static int vm_min_waiters;
 static int vm_severe_waiters;
 static int vm_pageproc_waiters;
+
+static SYSCTL_NODE(_vm_stats, OID_AUTO, page, CTLFLAG_RD, 0,
+    "VM page statistics");
+
+static counter_u64_t queue_ops = EARLY_COUNTER;
+SYSCTL_COUNTER_U64(_vm_stats_page, OID_AUTO, queue_ops,
+    CTLFLAG_RD, &queue_ops,
+    "Number of batched queue operations");
+
+static counter_u64_t queue_nops = EARLY_COUNTER;
+SYSCTL_COUNTER_U64(_vm_stats_page, OID_AUTO, queue_nops,
+    CTLFLAG_RD, &queue_nops,
+    "Number of batched queue operations with no effects");
+
+static void
+counter_startup(void)
+{
+
+	queue_ops = counter_u64_alloc(M_WAITOK);
+	queue_nops = counter_u64_alloc(M_WAITOK);
+}
+SYSINIT(page_counters, SI_SUB_CPU, SI_ORDER_ANY, counter_startup, NULL);
 
 /*
  * bogus page -- for I/O to/from partially complete buffers,
@@ -3117,6 +3140,7 @@ vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m)
 		if (__predict_true((qflags & PGA_ENQUEUED) != 0))
 			vm_pagequeue_remove(pq, m);
 		vm_page_dequeue_complete(m);
+		counter_u64_add(queue_ops, 1);
 	} else if ((qflags & (PGA_REQUEUE | PGA_REQUEUE_HEAD)) != 0) {
 		if ((qflags & PGA_ENQUEUED) != 0)
 			TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
@@ -3141,6 +3165,9 @@ vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m)
 
 		vm_page_aflag_clear(m, qflags & (PGA_REQUEUE |
 		    PGA_REQUEUE_HEAD));
+		counter_u64_add(queue_ops, 1);
+	} else {
+		counter_u64_add(queue_nops, 1);
 	}
 }
 
