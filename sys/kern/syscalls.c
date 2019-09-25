@@ -577,4 +577,5 @@ const char *syscallnames[] = {
 	"funlinkat",			/* 568 = funlinkat */
 	"copy_file_range",			/* 569 = copy_file_range */
 	"__sysctlbyname",			/* 570 = __sysctlbyname */
+	"shm_open2",			/* 571 = shm_open2 */
 };

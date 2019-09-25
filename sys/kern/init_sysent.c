@@ -620,4 +620,5 @@ struct sysent sysent[] = {
 	{ AS(funlinkat_args), (sy_call_t *)sys_funlinkat, AUE_UNLINKAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 568 = funlinkat */
 	{ AS(copy_file_range_args), (sy_call_t *)sys_copy_file_range, AUE_NULL, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 569 = copy_file_range */
 	{ AS(__sysctlbyname_args), (sy_call_t *)sys___sysctlbyname, AUE_SYSCTL, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 570 = __sysctlbyname */
+	{ AS(shm_open2_args), (sy_call_t *)sys_shm_open2, AUE_SHMOPEN, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 571 = shm_open2 */
 };
