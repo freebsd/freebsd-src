@@ -28,11 +28,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 20, 2017
+.Dd September 24, 2019
 .Dt SHM_OPEN 2
 .Os
 .Sh NAME
-.Nm shm_open , shm_unlink
+.Nm memfd_create , shm_open , shm_unlink
 .Nd "shared memory object operations"
 .Sh LIBRARY
 .Lb libc
@@ -40,6 +40,8 @@
 .In sys/types.h
 .In sys/mman.h
 .In fcntl.h
+.Ft int
+.Fn memfd_create "const char *name" "unsigned int flags"
 .Ft int
 .Fn shm_open "const char *path" "int flags" "mode_t mode"
 .Ft int
@@ -139,14 +141,64 @@ The
 .Fn shm_unlink
 system call removes a shared memory object named
 .Fa path .
+.Pp
+The
+.Fn memfd_create
+function creates an anonymous shared memory object, identical to that created
+by
+.Fn shm_open
+when
+.Dv SHM_ANON
+is specified.
+Newly created objects start off with a size of zero.
+The size of the new object must be adjusted via
+.Xr ftruncate 2 .
+.Pp
+The
+.Fa name
+argument must not be
+.Dv NULL ,
+but it may be an empty string.
+The length of the
+.Fa name
+argument may not exceed
+.Dv NAME_MAX
+minus six characters for the prefix
+.Dq memfd: ,
+which will be prepended.
+The
+.Fa name
+argument is intended solely for debugging purposes and will never be used by the
+kernel to identify a memfd.
+Names are therefore not required to be unique.
+.Pp
+The following
+.Fa flags
+may be specified to
+.Fn memfd_create :
+.Bl -tag -width MFD_ALLOW_SEALING
+.It Dv MFD_CLOEXEC
+Set
+.Dv FD_CLOEXEC
+on the resulting file descriptor.
+.It Dv MFD_ALLOW_SEALING
+Allow adding seals to the resulting file descriptor using the
+.Dv F_ADD_SEALS
+.Xr fcntl 2
+command.
+.It Dv MFD_HUGETLB
+This flag is currently unsupported.
+.El
 .Sh RETURN VALUES
 If successful,
+.Fn memfd_create
+and
 .Fn shm_open
-returns a non-negative integer,
+both return a non-negative integer,
 and
 .Fn shm_unlink
 returns zero.
-Both functions return -1 on failure, and set
+All three functions return -1 on failure, and set
 .Va errno
 to indicate the error.
 .Sh COMPATIBILITY
@@ -220,6 +272,33 @@ This example fails without the call to
                 errx(EX_IOERR, "%s: pwrite length mismatch", __func__);
 .Ed
 .Sh ERRORS
+.Fn memfd_create
+fails with these error codes for these conditions:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa name
+argument was NULL.
+.It Bq Er EINVAL
+The
+.Fa name
+argument was too long.
+.Pp
+An invalid or unsupported flag was included in
+.Fa flags .
+.It Bq Er EMFILE
+The process has already reached its limit for open file descriptors.
+.It Bq Er ENFILE
+The system file table is full.
+.It Bq Er ENOSYS
+In
+.Fa memfd_create ,
+.Dv MFD_HUGETLB
+was specified in
+.Fa flags ,
+and this system does not support forced hugetlb mappings.
+.El
+.Pp
 .Fn shm_open
 fails with these error codes for these conditions:
 .Bl -tag -width Er
@@ -290,12 +369,22 @@ requires write permission to the shared memory object.
 .Xr sendfile 2
 .Sh STANDARDS
 The
+.Fn memfd_create
+function is expected to be compatible with the Linux system call of the same
+name.
+.Pp
+The
 .Fn shm_open
 and
 .Fn shm_unlink
 functions are believed to conform to
 .St -p1003.1b-93 .
 .Sh HISTORY
+The
+.Fn memfd_create
+function appeared in
+.Fx 13.0 .
+.Pp
 The
 .Fn shm_open
 and
