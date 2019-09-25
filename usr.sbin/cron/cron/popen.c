@@ -55,9 +55,10 @@ static PID_T *pids;
 static int fds;
 
 FILE *
-cron_popen(program, type, e)
+cron_popen(program, type, e, pidptr)
 	char *program, *type;
 	entry *e;
+	PID_T *pidptr;
 {
 	register char *cp;
 	FILE *iop;
@@ -218,6 +219,9 @@ pfree:
 		free((char *)argv[argc]);
 	}
 #endif
+
+	*pidptr = pid;
+
 	return(iop);
 }
 
