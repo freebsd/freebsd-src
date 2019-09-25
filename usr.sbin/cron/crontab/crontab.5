@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 19, 2019
+.Dd September 24, 2019
 .Dt CRONTAB 5
 .Os
 .Sh NAME
@@ -199,6 +199,8 @@ lists of names are not allowed.
 .Pp
 The ``sixth'' field (the rest of the line) specifies the command to be
 run.
+One or more command options may precede the command to modify processing
+behavior.
 The entire command portion of the line, up to a newline or %
 character, will be executed by
 .Pa /bin/sh
@@ -210,6 +212,22 @@ Percent-signs (%) in the command, unless escaped with backslash
 (\\), will be changed into newline characters, and all data
 after the first % will be sent to the command as standard
 input.
+.Pp
+The following command options can be supplied:
+.Bl -tag -width Ds
+.It Fl n
+No mail is sent after a successful run.
+The execution output will only be mailed if the command exits with a non-zero
+exit code.
+The
+.Fl n
+option is an attempt to cure potentially copious volumes of mail coming from
+.Xr cron 8 .
+.It Fl q
+Execution will not be logged.
+.El
+.sp
+Duplicate options are not allowed.
 .Pp
 Note: The day of a command's execution can be specified by two
 fields \(em day of month, and day of week.
@@ -271,6 +289,10 @@ MAILTO=paul
 5 4 * * sun     echo "run at 5 after 4 every sunday"
 # run at 5 minutes intervals, no matter how long it takes
 @300		svnlite up /usr/src
+# run every minute, suppress logging
+* * * * *       -q date
+# run every minute, only send mail if ping fails
+* * * * *       -n ping -c 1 freebsd.org
 .Ed
 .Sh SEE ALSO
 .Xr crontab 1 ,
@@ -314,6 +336,14 @@ All of the
 .Sq @
 directives that can appear in place of the first five fields
 are extensions.
+.Pp
+Command processing can be modified using command options.
+The
+.Sq -q
+option suppresses logging.
+The
+.Sq -n
+option does not mail on successful run.
 .Sh AUTHORS
 .An Paul Vixie Aq Mt paul@vix.com
 .Sh BUGS
