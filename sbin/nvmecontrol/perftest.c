@@ -143,9 +143,9 @@ perftest(const struct cmd *f, int argc, char *argv[])
 	if (arg_parse(argc, argv, f))
 		return;
 	
-	if (opt.flags == NULL || opt.op == NULL)
+	if (opt.op == NULL)
 		arg_help(argc, argv, f);
-	if (strcmp(opt.flags, "refthread") == 0)
+	if (opt.flags != NULL && strcmp(opt.flags, "refthread") == 0)
 		io_test.flags |= NVME_TEST_FLAG_REFTHREAD;
 	if (opt.intr != NULL) {
 		if (strcmp(opt.intr, "bio") == 0 ||
@@ -163,6 +163,7 @@ perftest(const struct cmd *f, int argc, char *argv[])
 		fprintf(stderr, "Bad number of threads %d\n", opt.threads);
 		arg_help(argc, argv, f);
 	}
+	io_test.num_threads = opt.threads;
 	if (strcasecmp(opt.op, "read") == 0)
 		io_test.opc = NVME_OPC_READ;
 	else if (strcasecmp(opt.op, "write") == 0)
@@ -176,6 +177,11 @@ perftest(const struct cmd *f, int argc, char *argv[])
 		arg_help(argc, argv, f);
 	}
 	io_test.time = opt.time;
+	if (opt.size < 0) {
+		fprintf(stderr, "Invalid size.\n");
+		arg_help(argc, argv, f);
+	}
+	io_test.size = opt.size;
 	open_dev(opt.dev, &fd, 1, 1);
 	if (ioctl(fd, ioctl_cmd, &io_test) < 0)
 		err(1, "ioctl NVME_IO_TEST failed");
