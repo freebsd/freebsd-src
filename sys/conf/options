@@ -712,6 +712,8 @@ WITNESS_SKIPSPIN	opt_witness.h
 WITNESS_COUNT		opt_witness.h
 OPENSOLARIS_WITNESS	opt_global.h
 
+EPOCH_TRACE		opt_epoch.h
+
 # options for ACPI support
 ACPI_DEBUG		opt_acpi.h
 ACPI_MAX_TASKS		opt_acpi.h
