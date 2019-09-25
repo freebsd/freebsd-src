@@ -374,7 +374,7 @@ color_name_to_teken(const char *name, int *val)
 		*val = TC_CYAN;
 		return (true);
 	}
-		if (strcasecmp(name, "white") == 0) {
+	if (strcasecmp(name, "white") == 0) {
 		*val = TC_WHITE;
 		return (true);
 	}
