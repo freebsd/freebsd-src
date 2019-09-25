@@ -3344,6 +3344,17 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 6;
 		break;
 	}
+	/* shm_open2 */
+	case 571: {
+		struct shm_open2_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		iarg[1] = p->flags; /* int */
+		iarg[2] = p->mode; /* mode_t */
+		iarg[3] = p->shmflags; /* int */
+		uarg[4] = (intptr_t) p->name; /* const char * */
+		*n_args = 5;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -9008,6 +9019,28 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* shm_open2 */
+	case 571:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "mode_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "userland const char *";
+			break;
+		default:
+			break;
+		};
+		break;
 	default:
 		break;
 	};
@@ -10889,6 +10922,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32___sysctlbyname */
 	case 570:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* shm_open2 */
+	case 571:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
