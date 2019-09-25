@@ -569,6 +569,96 @@ vidc_probe(struct console *cp)
     cp->c_flags |= C_PRESENTOUT;
 }
 
+static bool
+color_name_to_teken(const char *name, int *val)
+{
+	if (strcasecmp(name, "black") == 0) {
+		*val = TC_BLACK;
+		return (true);
+	}
+	if (strcasecmp(name, "red") == 0) {
+		*val = TC_RED;
+		return (true);
+	}
+	if (strcasecmp(name, "green") == 0) {
+		*val = TC_GREEN;
+		return (true);
+	}
+	if (strcasecmp(name, "brown") == 0) {
+		*val = TC_BROWN;
+		return (true);
+	}
+	if (strcasecmp(name, "blue") == 0) {
+		*val = TC_BLUE;
+		return (true);
+	}
+	if (strcasecmp(name, "magenta") == 0) {
+		*val = TC_MAGENTA;
+		return (true);
+	}
+	if (strcasecmp(name, "cyan") == 0) {
+		*val = TC_CYAN;
+		return (true);
+	}
+		if (strcasecmp(name, "white") == 0) {
+		*val = TC_WHITE;
+		return (true);
+	}
+	return (false);
+}
+
+static int
+vidc_set_colors(struct env_var *ev, int flags, const void *value)
+{
+	int val = 0;
+	char buf[2];
+	const void *evalue;
+	const teken_attr_t *ap;
+	teken_attr_t a;
+
+	if (value == NULL)
+		return (CMD_OK);
+
+	if (color_name_to_teken(value, &val)) {
+		snprintf(buf, sizeof (buf), "%d", val);
+		evalue = buf;
+	} else {
+		char *end;
+
+		errno = 0;
+		val = (int)strtol(value, &end, 0);
+		if (errno != 0 || *end != '\0') {
+			printf("Allowed values are either ansi color name or "
+			    "number from range [0-7].\n");
+			return (CMD_OK);
+		}
+		evalue = value;
+	}
+
+	ap = teken_get_defattr(&teken);
+	a = *ap;
+	if (strcmp(ev->ev_name, "teken.fg_color") == 0) {
+		/* is it already set? */
+		if (ap->ta_fgcolor == val)
+			return (CMD_OK);
+		a.ta_fgcolor = val;
+	}
+	if (strcmp(ev->ev_name, "teken.bg_color") == 0) {
+		/* is it already set? */
+		if (ap->ta_bgcolor == val)
+			return (CMD_OK);
+		a.ta_bgcolor = val;
+	}
+
+	/* Improve visibility */
+	if (a.ta_bgcolor == TC_WHITE)
+		a.ta_bgcolor |= TC_LIGHT;
+
+	env_setenv(ev->ev_name, flags | EV_NOHOOK, evalue, NULL, NULL);
+	teken_set_defattr(&teken, &a);
+	return (CMD_OK);
+}
+
 static int
 vidc_init(int arg)
 {
@@ -603,14 +693,21 @@ vidc_init(int arg)
 	if (buffer == NULL)
 		return (1);
 
-	teken_init(&teken, &tf, NULL);
-	teken_set_winsize(&teken, &tp);
-	a = teken_get_defattr(&teken);
-
 	snprintf(env, sizeof (env), "%u", tp.tp_row);
 	setenv("LINES", env, 1);
 	snprintf(env, sizeof (env), "%u", tp.tp_col);
 	setenv("COLUMNS", env, 1);
+
+	teken_init(&teken, &tf, NULL);
+	teken_set_winsize(&teken, &tp);
+	a = teken_get_defattr(&teken);
+
+	snprintf(env, sizeof(env), "%d", a->ta_fgcolor);
+	env_setenv("teken.fg_color", EV_VOLATILE, env, vidc_set_colors,
+	    env_nounset);
+	snprintf(env, sizeof(env), "%d", a->ta_bgcolor);
+	env_setenv("teken.bg_color", EV_VOLATILE, env, vidc_set_colors,
+	    env_nounset);
 
 	for (int row = 0; row < tp.tp_row; row++)
 		for (int col = 0; col < tp.tp_col; col++) {
