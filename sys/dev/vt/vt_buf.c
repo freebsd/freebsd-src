@@ -420,6 +420,8 @@ void
 vtbuf_init_early(struct vt_buf *vb)
 {
 	term_rect_t rect;
+	const teken_attr_t *a;
+	term_char_t c;
 
 	vb->vb_flags |= VBF_CURSOR;
 	vb->vb_roffset = 0;
@@ -433,7 +435,11 @@ vtbuf_init_early(struct vt_buf *vb)
 	rect.tr_begin.tp_row = rect.tr_begin.tp_col = 0;
 	rect.tr_end.tp_col = vb->vb_scr_size.tp_col;
 	rect.tr_end.tp_row = vb->vb_history_size;
-	vtbuf_do_fill(vb, &rect, VTBUF_SPACE_CHAR(TERMINAL_NORM_ATTR));
+
+	a = teken_get_curattr(&vb->vb_terminal->tm_emulator);
+	c = TCOLOR_FG((term_char_t)a->ta_fgcolor) | 
+	    TCOLOR_BG((term_char_t)a->ta_bgcolor);
+	vtbuf_do_fill(vb, &rect, VTBUF_SPACE_CHAR(c));
 	vtbuf_make_undirty(vb);
 	if ((vb->vb_flags & VBF_MTX_INIT) == 0) {
 		mtx_init(&vb->vb_lock, "vtbuf", NULL, MTX_SPIN);
@@ -478,6 +484,11 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 	unsigned int w, h, c, r, old_history_size;
 	size_t bufsize, rowssize;
 	int history_full;
+	const teken_attr_t *a;
+	term_char_t ch;
+
+	a = teken_get_curattr(&vb->vb_terminal->tm_emulator);
+	ch = TCOLOR_FG(a->ta_fgcolor) | TCOLOR_BG(a->ta_bgcolor);
 
 	history_size = MAX(history_size, p->tp_row);
 
@@ -544,7 +555,7 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 			 * background color.
 			 */
 			for (c = MIN(p->tp_col, w); c < p->tp_col; c++) {
-				row[c] = VTBUF_SPACE_CHAR(TERMINAL_NORM_ATTR);
+				row[c] = VTBUF_SPACE_CHAR(ch);
 			}
 		}
 
@@ -552,7 +563,7 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 		for (r = old_history_size; r < history_size; r++) {
 			row = rows[r];
 			for (c = MIN(p->tp_col, w); c < p->tp_col; c++) {
-				row[c] = VTBUF_SPACE_CHAR(TERMINAL_NORM_ATTR);
+				row[c] = VTBUF_SPACE_CHAR(ch);
 			}
 		}
 
@@ -601,7 +612,7 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 			 * background color.
 			 */
 			for (c = MIN(p->tp_col, w); c < p->tp_col; c++) {
-				row[c] = VTBUF_SPACE_CHAR(TERMINAL_NORM_ATTR);
+				row[c] = VTBUF_SPACE_CHAR(ch);
 			}
 		}
 
