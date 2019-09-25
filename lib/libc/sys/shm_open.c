@@ -46,10 +46,6 @@ __FBSDID("$FreeBSD$");
 __weak_reference(shm_open, _shm_open);
 __weak_reference(shm_open, __sys_shm_open);
 
-#ifndef SYS_freebsd12_shm_open
-#define	SYS_freebsd12_shm_open	SYS_shm_open
-#endif
-
 #define	SHM_OPEN2_OSREL		1300048
 
 #define	MEMFD_NAME_PREFIX	"memfd:"
