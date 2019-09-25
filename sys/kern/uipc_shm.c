@@ -701,13 +701,14 @@ shm_remove(char *path, Fnv32_t fnv, struct ucred *ucred)
 
 int
 kern_shm_open(struct thread *td, const char *userpath, int flags, mode_t mode,
-    struct filecaps *fcaps)
+    struct filecaps *fcaps, int initial_seals)
 {
 	struct filedesc *fdp;
 	struct shmfd *shmfd;
 	struct file *fp;
 	char *path;
 	const char *pr_path;
+	void *rl_cookie;
 	size_t pr_pathlen;
 	Fnv32_t fnv;
 	mode_t cmode;
@@ -728,6 +729,17 @@ kern_shm_open(struct thread *td, const char *userpath, int flags, mode_t mode,
 		return (EINVAL);
 
 	if ((flags & ~(O_ACCMODE | O_CREAT | O_EXCL | O_TRUNC | O_CLOEXEC)) != 0)
+		return (EINVAL);
+
+	/*
+	 * Currently only F_SEAL_SEAL may be set when creating or opening shmfd.
+	 * If the decision is made later to allow additional seals, care must be
+	 * taken below to ensure that the seals are properly set if the shmfd
+	 * already existed -- this currently assumes that only F_SEAL_SEAL can
+	 * be set and doesn't take further precautions to ensure the validity of
+	 * the seals being added with respect to current mappings.
+	 */
+	if ((initial_seals & ~F_SEAL_SEAL) != 0)
 		return (EINVAL);
 
 	fdp = td->td_proc->p_fd;
@@ -753,6 +765,7 @@ kern_shm_open(struct thread *td, const char *userpath, int flags, mode_t mode,
 			return (EINVAL);
 		}
 		shmfd = shm_alloc(td->td_ucred, cmode);
+		shmfd->shm_seals = initial_seals;
 	} else {
 		path = malloc(MAXPATHLEN, M_SHMFD, M_WAITOK);
 		pr_path = td->td_ucred->cr_prison->pr_path;
@@ -789,6 +802,7 @@ kern_shm_open(struct thread *td, const char *userpath, int flags, mode_t mode,
 				if (error == 0) {
 #endif
 					shmfd = shm_alloc(td->td_ucred, cmode);
+					shmfd->shm_seals = initial_seals;
 					shm_insert(path, fnv, shmfd);
 #ifdef MAC
 				}
@@ -798,12 +812,39 @@ kern_shm_open(struct thread *td, const char *userpath, int flags, mode_t mode,
 				error = ENOENT;
 			}
 		} else {
+			rl_cookie = rangelock_wlock(&shmfd->shm_rl, 0, OFF_MAX,
+			    &shmfd->shm_mtx);
+
+			/*
+			 * kern_shm_open() likely shouldn't ever error out on
+			 * trying to set a seal that already exists, unlike
+			 * F_ADD_SEALS.  This would break terribly as
+			 * shm_open(2) actually sets F_SEAL_SEAL to maintain
+			 * historical behavior where the underlying file could
+			 * not be sealed.
+			 */
+			initial_seals &= ~shmfd->shm_seals;
+
 			/*
 			 * Object already exists, obtain a new
 			 * reference if requested and permitted.
 			 */
 			free(path, M_SHMFD);
-			if ((flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
+
+			/*
+			 * initial_seals can't set additional seals if we've
+			 * already been set F_SEAL_SEAL.  If F_SEAL_SEAL is set,
+			 * then we've already removed that one from
+			 * initial_seals.  This is currently redundant as we
+			 * only allow setting F_SEAL_SEAL at creation time, but
+			 * it's cheap to check and decreases the effort required
+			 * to allow additional seals.
+			 */
+			if ((shmfd->shm_seals & F_SEAL_SEAL) != 0 &&
+			    initial_seals != 0)
+				error = EPERM;
+			else if ((flags & (O_CREAT | O_EXCL)) ==
+			    (O_CREAT | O_EXCL))
 				error = EEXIST;
 			else {
 #ifdef MAC
@@ -823,15 +864,27 @@ kern_shm_open(struct thread *td, const char *userpath, int flags, mode_t mode,
 			if (error == 0 &&
 			    (flags & (O_ACCMODE | O_TRUNC)) ==
 			    (O_RDWR | O_TRUNC)) {
+				VM_OBJECT_WLOCK(shmfd->shm_object);
 #ifdef MAC
 				error = mac_posixshm_check_truncate(
 					td->td_ucred, fp->f_cred, shmfd);
 				if (error == 0)
 #endif
-					shm_dotruncate(shmfd, 0);
+					error = shm_dotruncate_locked(shmfd, 0,
+					    rl_cookie);
+				VM_OBJECT_WUNLOCK(shmfd->shm_object);
 			}
-			if (error == 0)
+			if (error == 0) {
+				/*
+				 * Currently we only allow F_SEAL_SEAL to be
+				 * set initially.  As noted above, this would
+				 * need to be reworked should that change.
+				 */
+				shmfd->shm_seals |= initial_seals;
 				shm_hold(shmfd);
+			}
+			rangelock_unlock(&shmfd->shm_rl, rl_cookie,
+			    &shmfd->shm_mtx);
 		}
 		sx_xunlock(&shm_dict_lock);
 
@@ -856,7 +909,7 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 {
 
 	return (kern_shm_open(td, uap->path, uap->flags | O_CLOEXEC, uap->mode,
-	    NULL));
+	    NULL, F_SEAL_SEAL));
 }
 
 int
