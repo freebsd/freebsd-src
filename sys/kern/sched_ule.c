@@ -1345,7 +1345,7 @@ sched_pickcpu(struct thread *td, int flags)
 		if (cpu >= 0)
 			SCHED_STAT_INC(pickcpu_lowest);
 	}
-	KASSERT(cpu < 0, ("sched_pickcpu: Failed to find a cpu."));
+	KASSERT(cpu >= 0, ("sched_pickcpu: Failed to find a cpu."));
 	KASSERT(!CPU_ABSENT(cpu), ("sched_pickcpu: Picked absent CPU %d.", cpu));
 	/*
 	 * Compare the lowest loaded cpu to current cpu.
