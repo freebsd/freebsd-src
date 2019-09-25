@@ -2643,6 +2643,12 @@ int	freebsd11_mknodat(struct thread *, struct freebsd11_mknodat_args *);
 
 #endif /* COMPAT_FREEBSD11 */
 
+
+#ifdef COMPAT_FREEBSD12
+
+
+#endif /* COMPAT_FREEBSD12 */
+
 #define	SYS_AUE_syscall	AUE_NULL
 #define	SYS_AUE_exit	AUE_EXIT
 #define	SYS_AUE_fork	AUE_FORK
