@@ -3195,6 +3195,15 @@
 		    _In_reads_bytes_opt_(newlen) void *new,
 		    size_t newlen);
 	}
+571	AUE_SHMOPEN	STD {
+		int shm_open2(
+		    _In_z_ const char *path,
+		    int flags,
+		    mode_t mode,
+		    int shmflags,
+		    _In_z_ const char *name
+		);
+	}
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

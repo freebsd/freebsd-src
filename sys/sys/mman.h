@@ -176,6 +176,12 @@
  * Anonymous object constant for shm_open().
  */
 #define	SHM_ANON		((char *)1)
+
+/*
+ * shmflags for shm_open2()
+ */
+#define	SHM_ALLOW_SEALING		0x00000001
+
 #endif /* __BSD_VISIBLE */
 
 /*
