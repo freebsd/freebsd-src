@@ -30,7 +30,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/counter.h>
 #include <sys/epoch.h>
@@ -47,6 +46,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/turnstile.h>
+#ifdef EPOCH_TRACE
+#include <machine/stdarg.h>
+#include <sys/stack.h>
+#include <sys/tree.h>
+#endif
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
@@ -80,6 +84,7 @@ struct epoch {
 	struct sx e_drain_sx;
 	struct mtx e_drain_mtx;
 	volatile int e_drain_count;
+	const char *e_name;
 };
 
 /* arbitrary --- needs benchmarking */
@@ -134,6 +139,103 @@ __read_mostly epoch_t global_epoch_preempt;
 static void epoch_call_task(void *context __unused);
 static 	uma_zone_t pcpu_zone_record;
 
+#ifdef EPOCH_TRACE
+struct stackentry {
+	RB_ENTRY(stackentry) se_node;
+	struct stack se_stack;
+};
+
+static int
+stackentry_compare(struct stackentry *a, struct stackentry *b)
+{
+
+	if (a->se_stack.depth > b->se_stack.depth)
+		return (1);
+	if (a->se_stack.depth < b->se_stack.depth)
+		return (-1);
+	for (int i = 0; i < a->se_stack.depth; i++) {
+		if (a->se_stack.pcs[i] > b->se_stack.pcs[i])
+			return (1);
+		if (a->se_stack.pcs[i] < b->se_stack.pcs[i])
+			return (-1);
+	}
+
+	return (0);
+}
+
+RB_HEAD(stacktree, stackentry) epoch_stacks = RB_INITIALIZER(&epoch_stacks);
+RB_GENERATE_STATIC(stacktree, stackentry, se_node, stackentry_compare);
+
+static struct mtx epoch_stacks_lock;
+MTX_SYSINIT(epochstacks, &epoch_stacks_lock, "epoch_stacks", MTX_DEF);
+
+static void epoch_trace_report(const char *fmt, ...) __printflike(1, 2);
+static inline void
+epoch_trace_report(const char *fmt, ...)
+{
+	va_list ap;
+	struct stackentry se, *new;
+
+	stack_zero(&se.se_stack);	/* XXX: is it really needed? */
+	stack_save(&se.se_stack);
+
+	/* Tree is never reduced - go lockless. */
+	if (RB_FIND(stacktree, &epoch_stacks, &se) != NULL)
+		return;
+
+	new = malloc(sizeof(*new), M_STACK, M_NOWAIT);
+	if (new != NULL) {
+		bcopy(&se.se_stack, &new->se_stack, sizeof(struct stack));
+
+		mtx_lock(&epoch_stacks_lock);
+		new = RB_INSERT(stacktree, &epoch_stacks, new);
+		mtx_unlock(&epoch_stacks_lock);
+		if (new != NULL)
+			free(new, M_STACK);
+	}
+
+	va_start(ap, fmt);
+	(void)vprintf(fmt, ap);
+	va_end(ap);
+	stack_print_ddb(&se.se_stack);
+}
+
+static inline void
+epoch_trace_enter(struct thread *td, epoch_t epoch, epoch_tracker_t et,
+    const char *file, int line)
+{
+	epoch_tracker_t iet;
+
+	SLIST_FOREACH(iet, &td->td_epochs, et_tlink)
+		if (iet->et_epoch == epoch)
+			epoch_trace_report("Recursively entering epoch %s "
+			    "previously entered at %s:%d\n",
+			    epoch->e_name, iet->et_file, iet->et_line);
+	et->et_epoch = epoch;
+	et->et_file = file;
+	et->et_line = line;
+	SLIST_INSERT_HEAD(&td->td_epochs, et, et_tlink);
+}
+
+static inline void
+epoch_trace_exit(struct thread *td, epoch_t epoch, epoch_tracker_t et,
+    const char *file, int line)
+{
+
+	if (SLIST_FIRST(&td->td_epochs) != et) {
+		epoch_trace_report("Exiting epoch %s in a not nested order. "
+		    "Most recently entered %s at %s:%d\n",
+		    epoch->e_name,
+		    SLIST_FIRST(&td->td_epochs)->et_epoch->e_name,
+		    SLIST_FIRST(&td->td_epochs)->et_file,
+		    SLIST_FIRST(&td->td_epochs)->et_line);
+		/* This will panic if et is not anywhere on td_epochs. */
+		SLIST_REMOVE(&td->td_epochs, et, epoch_tracker, et_tlink);
+	} else
+		SLIST_REMOVE_HEAD(&td->td_epochs, et_tlink);
+}
+#endif /* EPOCH_TRACE */
+
 static void
 epoch_init(void *arg __unused)
 {
@@ -156,9 +258,10 @@ epoch_init(void *arg __unused)
 		    DPCPU_ID_PTR(cpu, epoch_cb_task), NULL, cpu, NULL, NULL,
 		    "epoch call task");
 	}
+	SLIST_INIT(&thread0.td_epochs);
 	inited = 1;
-	global_epoch = epoch_alloc(0);
-	global_epoch_preempt = epoch_alloc(EPOCH_PREEMPT);
+	global_epoch = epoch_alloc("Global", 0);
+	global_epoch_preempt = epoch_alloc("Global preemptible", EPOCH_PREEMPT);
 }
 SYSINIT(epoch, SI_SUB_TASKQ + 1, SI_ORDER_FIRST, epoch_init, NULL);
 
@@ -198,7 +301,7 @@ epoch_adjust_prio(struct thread *td, u_char prio)
 }
 
 epoch_t
-epoch_alloc(int flags)
+epoch_alloc(const char *name, int flags)
 {
 	epoch_t epoch;
 
@@ -210,6 +313,7 @@ epoch_alloc(int flags)
 	MPASS(epoch_count < MAX_EPOCHS - 2);
 	epoch->e_flags = flags;
 	epoch->e_idx = epoch_count;
+	epoch->e_name = name;
 	sx_init(&epoch->e_drain_sx, "epoch-drain-sx");
 	mtx_init(&epoch->e_drain_mtx, "epoch-drain-mtx", NULL, MTX_DEF);
 	allepochs[epoch_count++] = epoch;
@@ -243,7 +347,7 @@ epoch_currecord(epoch_t epoch)
 	} while (0)
 
 void
-epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et)
+_epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE)
 {
 	struct epoch_record *er;
 	struct thread *td;
@@ -251,16 +355,14 @@ epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et)
 	MPASS(cold || epoch != NULL);
 	INIT_CHECK(epoch);
 	MPASS(epoch->e_flags & EPOCH_PREEMPT);
-#ifdef EPOCH_TRACKER_DEBUG
-	et->et_magic_pre = EPOCH_MAGIC0;
-	et->et_magic_post = EPOCH_MAGIC1;
-#endif
 	td = curthread;
+#ifdef EPOCH_TRACE
+	epoch_trace_enter(td, epoch, et, file, line);
+#endif
 	et->et_td = td;
 	td->td_epochnest++;
 	critical_enter();
 	sched_pin();
-
 	td->td_pre_epoch_prio = td->td_priority;
 	er = epoch_currecord(epoch);
 	TAILQ_INSERT_TAIL(&er->er_tdlist, et, et_link);
@@ -277,7 +379,6 @@ epoch_enter(epoch_t epoch)
 	MPASS(cold || epoch != NULL);
 	INIT_CHECK(epoch);
 	td = curthread;
-
 	td->td_epochnest++;
 	critical_enter();
 	er = epoch_currecord(epoch);
@@ -285,7 +386,7 @@ epoch_enter(epoch_t epoch)
 }
 
 void
-epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et)
+_epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE)
 {
 	struct epoch_record *er;
 	struct thread *td;
@@ -300,12 +401,6 @@ epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et)
 	MPASS(epoch->e_flags & EPOCH_PREEMPT);
 	MPASS(et != NULL);
 	MPASS(et->et_td == td);
-#ifdef EPOCH_TRACKER_DEBUG
-	MPASS(et->et_magic_pre == EPOCH_MAGIC0);
-	MPASS(et->et_magic_post == EPOCH_MAGIC1);
-	et->et_magic_pre = 0;
-	et->et_magic_post = 0;
-#endif
 #ifdef INVARIANTS
 	et->et_td = (void*)0xDEADBEEF;
 #endif
@@ -315,6 +410,9 @@ epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et)
 	if (__predict_false(td->td_pre_epoch_prio != td->td_priority))
 		epoch_adjust_prio(td, td->td_pre_epoch_prio);
 	critical_exit();
+#ifdef EPOCH_TRACE
+	epoch_trace_exit(td, epoch, et, file, line);
+#endif
 }
 
 void
