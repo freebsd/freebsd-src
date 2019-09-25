@@ -1381,11 +1381,6 @@ struct thr_kill2_args {
 	char id_l_[PADL_(long)]; long id; char id_r_[PADR_(long)];
 	char sig_l_[PADL_(int)]; int sig; char sig_r_[PADR_(int)];
 };
-struct shm_open_args {
-	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
-	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
-	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
-};
 struct shm_unlink_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 };
@@ -2123,7 +2118,6 @@ int	sys_lseek(struct thread *, struct lseek_args *);
 int	sys_truncate(struct thread *, struct truncate_args *);
 int	sys_ftruncate(struct thread *, struct ftruncate_args *);
 int	sys_thr_kill2(struct thread *, struct thr_kill2_args *);
-int	sys_shm_open(struct thread *, struct shm_open_args *);
 int	sys_shm_unlink(struct thread *, struct shm_unlink_args *);
 int	sys_cpuset(struct thread *, struct cpuset_args *);
 int	sys_cpuset_setid(struct thread *, struct cpuset_setid_args *);
@@ -2654,6 +2648,12 @@ int	freebsd11_mknodat(struct thread *, struct freebsd11_mknodat_args *);
 
 #ifdef COMPAT_FREEBSD12
 
+struct freebsd12_shm_open_args {
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
+};
+int	freebsd12_shm_open(struct thread *, struct freebsd12_shm_open_args *);
 
 #endif /* COMPAT_FREEBSD12 */
 
@@ -3037,7 +3037,7 @@ int	freebsd11_mknodat(struct thread *, struct freebsd11_mknodat_args *);
 #define	SYS_AUE_truncate	AUE_TRUNCATE
 #define	SYS_AUE_ftruncate	AUE_FTRUNCATE
 #define	SYS_AUE_thr_kill2	AUE_THR_KILL2
-#define	SYS_AUE_shm_open	AUE_SHMOPEN
+#define	SYS_AUE_freebsd12_shm_open	AUE_SHMOPEN
 #define	SYS_AUE_shm_unlink	AUE_SHMUNLINK
 #define	SYS_AUE_cpuset	AUE_NULL
 #define	SYS_AUE_cpuset_setid	AUE_NULL
