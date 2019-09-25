@@ -5249,7 +5249,7 @@ zfs_freebsd_setattr(ap)
 		FLAG_CHANGE(UF_HIDDEN, ZFS_HIDDEN, XAT_HIDDEN,
 		    xvap.xva_xoptattrs.xoa_hidden);
 		FLAG_CHANGE(UF_REPARSE, ZFS_REPARSE, XAT_REPARSE,
-		    xvap.xva_xoptattrs.xoa_hidden);
+		    xvap.xva_xoptattrs.xoa_reparse);
 		FLAG_CHANGE(UF_OFFLINE, ZFS_OFFLINE, XAT_OFFLINE,
 		    xvap.xva_xoptattrs.xoa_offline);
 		FLAG_CHANGE(UF_SPARSE, ZFS_SPARSE, XAT_SPARSE,
