@@ -192,6 +192,7 @@ void vt_suspend(struct vt_device *vd);
 
 struct vt_buf {
 	struct mtx		 vb_lock;	/* Buffer lock. */
+	struct terminal		*vb_terminal;
 	term_pos_t		 vb_scr_size;	/* (b) Screen dimensions. */
 	int			 vb_flags;	/* (b) Flags. */
 #define	VBF_CURSOR	0x1	/* Cursor visible. */

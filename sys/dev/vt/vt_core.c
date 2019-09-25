@@ -1241,7 +1241,7 @@ vt_mark_mouse_position_as_dirty(struct vt_device *vd, int locked)
 
 static void
 vt_set_border(struct vt_device *vd, const term_rect_t *area,
-    const term_color_t c)
+    term_color_t c)
 {
 	vd_drawrect_t *drawrect = vd->vd_driver->vd_drawrect;
 
@@ -1334,9 +1334,12 @@ vt_flush(struct vt_device *vd)
 
 	/* Force a full redraw when the screen contents might be invalid. */
 	if (vd->vd_flags & (VDF_INVALID | VDF_SUSPENDED)) {
+		const teken_attr_t *a;
+
 		vd->vd_flags &= ~VDF_INVALID;
 
-		vt_set_border(vd, &vw->vw_draw_area, TC_BLACK);
+		a = teken_get_curattr(&vw->vw_terminal->tm_emulator);
+		vt_set_border(vd, &vw->vw_draw_area, a->ta_bgcolor);
 		vt_termrect(vd, vf, &tarea);
 		if (vd->vd_driver->vd_invalidate_text)
 			vd->vd_driver->vd_invalidate_text(vd, &tarea);
@@ -1440,8 +1443,7 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 	struct vt_window *vw = tm->tm_softc;
 	struct vt_device *vd = vw->vw_device;
 	struct winsize wsz;
-	term_attr_t attr;
-	term_char_t c;
+	const term_attr_t *a;
 
 	if (!vty_enabled(VTY_VT))
 		return;
@@ -1494,14 +1496,12 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 	if (vd->vd_width != 0 && vd->vd_height != 0)
 		vt_termsize(vd, vw->vw_font, &vw->vw_buf.vb_scr_size);
 
+	/* We need to access terminal attributes from vtbuf */
+	vw->vw_buf.vb_terminal = tm;
 	vtbuf_init_early(&vw->vw_buf);
 	vt_winsize(vd, vw->vw_font, &wsz);
-	c = (boothowto & RB_MUTE) == 0 ? TERMINAL_KERN_ATTR :
-	    TERMINAL_NORM_ATTR;
-	attr.ta_format = TCHAR_FORMAT(c);
-	attr.ta_fgcolor = TCHAR_FGCOLOR(c);
-	attr.ta_bgcolor = TCHAR_BGCOLOR(c);
-	terminal_set_winsize_blank(tm, &wsz, 1, &attr);
+	a = teken_get_curattr(&tm->tm_emulator);
+	terminal_set_winsize_blank(tm, &wsz, 1, a);
 
 	if (vtdbest != NULL) {
 #ifdef DEV_SPLASH
@@ -2691,9 +2691,10 @@ vt_allocate_window(struct vt_device *vd, unsigned int window)
 
 	vt_termsize(vd, vw->vw_font, &size);
 	vt_winsize(vd, vw->vw_font, &wsz);
+	tm = vw->vw_terminal = terminal_alloc(&vt_termclass, vw);
+	vw->vw_buf.vb_terminal = tm;	/* must be set before vtbuf_init() */
 	vtbuf_init(&vw->vw_buf, &size);
 
-	tm = vw->vw_terminal = terminal_alloc(&vt_termclass, vw);
 	terminal_set_winsize(tm, &wsz);
 	vd->vd_windows[window] = vw;
 	callout_init(&vw->vw_proc_dead_timer, 0);
