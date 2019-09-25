@@ -1270,20 +1270,28 @@ sched_pickcpu(struct thread *td, int flags)
 	 */
 	if (td->td_priority <= PRI_MAX_ITHD && THREAD_CAN_SCHED(td, self) &&
 	    curthread->td_intr_nesting_level) {
+		tdq = TDQ_SELF();
+		if (tdq->tdq_lowpri >= PRI_MIN_IDLE) {
+			SCHED_STAT_INC(pickcpu_idle_affinity);
+			return (self);
+		}
 		ts->ts_cpu = self;
 		intr = 1;
-	} else
+		cg = tdq->tdq_cg;
+		goto llc;
+	} else {
 		intr = 0;
+		tdq = TDQ_CPU(ts->ts_cpu);
+		cg = tdq->tdq_cg;
+	}
 	/*
 	 * If the thread can run on the last cpu and the affinity has not
 	 * expired and it is idle, run it there.
 	 */
-	tdq = TDQ_CPU(ts->ts_cpu);
-	cg = tdq->tdq_cg;
 	if (THREAD_CAN_SCHED(td, ts->ts_cpu) &&
 	    tdq->tdq_lowpri >= PRI_MIN_IDLE &&
 	    SCHED_AFFINITY(ts, CG_SHARE_L2)) {
-		if (!intr && cg->cg_flags & CG_FLAG_THREAD) {
+		if (cg->cg_flags & CG_FLAG_THREAD) {
 			CPUSET_FOREACH(cpu, cg->cg_mask) {
 				if (TDQ_CPU(cpu)->tdq_lowpri < PRI_MIN_IDLE)
 					break;
@@ -1295,6 +1303,7 @@ sched_pickcpu(struct thread *td, int flags)
 			return (ts->ts_cpu);
 		}
 	}
+llc:
 	/*
 	 * Search for the last level cache CPU group in the tree.
 	 * Skip SMT, identical groups and caches with expired affinity.
