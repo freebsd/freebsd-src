@@ -1246,7 +1246,8 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				ip++;
 				narg--;
 				break;
-			case SYS_shm_open:
+#ifdef SYS_freebsd12_shm_open
+			case SYS_freebsd12_shm_open:
 				print_number(ip, narg, c);
 				putchar(',');
 				print_mask_arg(sysdecode_open_flags, ip[0]);
@@ -1255,6 +1256,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				ip += 2;
 				narg -= 2;
 				break;
+#endif
 			case SYS_minherit:
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);

@@ -904,13 +904,15 @@ kern_shm_open(struct thread *td, const char *userpath, int flags, mode_t mode,
 }
 
 /* System calls. */
+#ifdef COMPAT_FREEBSD12
 int
-sys_shm_open(struct thread *td, struct shm_open_args *uap)
+freebsd12_shm_open(struct thread *td, struct freebsd12_shm_open_args *uap)
 {
 
 	return (kern_shm_open(td, uap->path, uap->flags | O_CLOEXEC, uap->mode,
 	    NULL, F_SEAL_SEAL));
 }
+#endif
 
 int
 sys_shm_unlink(struct thread *td, struct shm_unlink_args *uap)

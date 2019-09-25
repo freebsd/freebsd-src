@@ -327,7 +327,7 @@ MIASM =  \
 	truncate.o \
 	ftruncate.o \
 	thr_kill2.o \
-	shm_open.o \
+	freebsd12_shm_open.o \
 	shm_unlink.o \
 	cpuset.o \
 	cpuset_setid.o \

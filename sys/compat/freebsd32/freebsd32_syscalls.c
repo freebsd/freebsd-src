@@ -500,7 +500,7 @@ const char *freebsd32_syscallnames[] = {
 	"freebsd32_ftruncate",			/* 480 = freebsd32_ftruncate */
 #endif
 	"thr_kill2",			/* 481 = thr_kill2 */
-	"shm_open",			/* 482 = shm_open */
+	"compat12.shm_open",		/* 482 = freebsd12 shm_open */
 	"shm_unlink",			/* 483 = shm_unlink */
 	"cpuset",			/* 484 = cpuset */
 #ifdef PAD64_REQUIRED
