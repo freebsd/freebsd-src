@@ -177,10 +177,6 @@ perftest(const struct cmd *f, int argc, char *argv[])
 		arg_help(argc, argv, f);
 	}
 	io_test.time = opt.time;
-	if (opt.size < 0) {
-		fprintf(stderr, "Invalid size.\n");
-		arg_help(argc, argv, f);
-	}
 	io_test.size = opt.size;
 	open_dev(opt.dev, &fd, 1, 1);
 	if (ioctl(fd, ioctl_cmd, &io_test) < 0)
