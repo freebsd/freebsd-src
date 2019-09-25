@@ -2579,7 +2579,7 @@
 		    int sig
 		);
 	}
-482	AUE_SHMOPEN	STD {
+482	AUE_SHMOPEN	COMPAT12 {
 		int shm_open(
 		    _In_z_ const char *path,
 		    int flags,
