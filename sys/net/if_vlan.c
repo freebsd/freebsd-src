@@ -247,7 +247,6 @@ static struct sx _VLAN_SX_ID;
 #define	VLAN_XLOCK_ASSERT()		sx_assert(&_VLAN_SX_ID, SA_XLOCKED)
 #define	VLAN_SXLOCK_ASSERT()		sx_assert(&_VLAN_SX_ID, SA_LOCKED)
 
-
 /*
  * We also have a per-trunk mutex that should be acquired when changing
  * its state.
