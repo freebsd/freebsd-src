@@ -119,6 +119,8 @@ static void	shm_init(void *arg);
 static void	shm_insert(char *path, Fnv32_t fnv, struct shmfd *shmfd);
 static struct shmfd *shm_lookup(char *path, Fnv32_t fnv);
 static int	shm_remove(char *path, Fnv32_t fnv, struct ucred *ucred);
+static int	shm_dotruncate_locked(struct shmfd *shmfd, off_t length,
+    void *rl_cookie);
 
 static fo_rdwr_t	shm_read;
 static fo_rdwr_t	shm_write;
@@ -131,6 +133,8 @@ static fo_chown_t	shm_chown;
 static fo_seek_t	shm_seek;
 static fo_fill_kinfo_t	shm_fill_kinfo;
 static fo_mmap_t	shm_mmap;
+static fo_get_seals_t	shm_get_seals;
+static fo_add_seals_t	shm_add_seals;
 
 /* File descriptor operations. */
 struct fileops shm_ops = {
@@ -148,6 +152,8 @@ struct fileops shm_ops = {
 	.fo_seek = shm_seek,
 	.fo_fill_kinfo = shm_fill_kinfo,
 	.fo_mmap = shm_mmap,
+	.fo_get_seals = shm_get_seals,
+	.fo_add_seals = shm_add_seals,
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
@@ -316,8 +322,10 @@ shm_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		rl_cookie = rangelock_wlock(&shmfd->shm_rl, uio->uio_offset,
 		    uio->uio_offset + uio->uio_resid, &shmfd->shm_mtx);
 	}
-
-	error = uiomove_object(shmfd->shm_object, shmfd->shm_size, uio);
+	if ((shmfd->shm_seals & F_SEAL_WRITE) != 0)
+		error = EPERM;
+	else
+		error = uiomove_object(shmfd->shm_object, shmfd->shm_size, uio);
 	rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
 	foffset_unlock_uio(fp, uio, flags);
 	return (error);
@@ -412,8 +420,8 @@ shm_close(struct file *fp, struct thread *td)
 	return (0);
 }
 
-int
-shm_dotruncate(struct shmfd *shmfd, off_t length)
+static int
+shm_dotruncate_locked(struct shmfd *shmfd, off_t length, void *rl_cookie)
 {
 	vm_object_t object;
 	vm_page_t m;
@@ -423,23 +431,23 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 
 	KASSERT(length >= 0, ("shm_dotruncate: length < 0"));
 	object = shmfd->shm_object;
-	VM_OBJECT_WLOCK(object);
-	if (length == shmfd->shm_size) {
-		VM_OBJECT_WUNLOCK(object);
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	rangelock_cookie_assert(rl_cookie, RA_WLOCKED);
+	if (length == shmfd->shm_size)
 		return (0);
-	}
 	nobjsize = OFF_TO_IDX(length + PAGE_MASK);
 
 	/* Are we shrinking?  If so, trim the end. */
 	if (length < shmfd->shm_size) {
+		if ((shmfd->shm_seals & F_SEAL_SHRINK) != 0)
+			return (EPERM);
+
 		/*
 		 * Disallow any requests to shrink the size if this
 		 * object is mapped into the kernel.
 		 */
-		if (shmfd->shm_kmappings > 0) {
-			VM_OBJECT_WUNLOCK(object);
+		if (shmfd->shm_kmappings > 0)
 			return (EBUSY);
-		}
 
 		/*
 		 * Zero the truncated part of the last page.
@@ -499,12 +507,13 @@ retry:
 		swap_release_by_cred(delta, object->cred);
 		object->charge -= delta;
 	} else {
+		if ((shmfd->shm_seals & F_SEAL_GROW) != 0)
+			return (EPERM);
+
 		/* Try to reserve additional swap space. */
 		delta = IDX_TO_OFF(nobjsize - object->size);
-		if (!swap_reserve_by_cred(delta, object->cred)) {
-			VM_OBJECT_WUNLOCK(object);
+		if (!swap_reserve_by_cred(delta, object->cred))
 			return (ENOMEM);
-		}
 		object->charge += delta;
 	}
 	shmfd->shm_size = length;
@@ -513,8 +522,22 @@ retry:
 	shmfd->shm_mtime = shmfd->shm_ctime;
 	mtx_unlock(&shm_timestamp_lock);
 	object->size = nobjsize;
-	VM_OBJECT_WUNLOCK(object);
 	return (0);
+}
+
+int
+shm_dotruncate(struct shmfd *shmfd, off_t length)
+{
+	void *rl_cookie;
+	int error;
+
+	rl_cookie = rangelock_wlock(&shmfd->shm_rl, 0, OFF_MAX,
+	    &shmfd->shm_mtx);
+	VM_OBJECT_WLOCK(shmfd->shm_object);
+	error = shm_dotruncate_locked(shmfd, length, rl_cookie);
+	VM_OBJECT_WUNLOCK(shmfd->shm_object);
+	rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
+	return (error);
 }
 
 /*
@@ -878,10 +901,13 @@ shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
 	vm_prot_t maxprot;
 	int error;
 	bool writecnt;
+	void *rl_cookie;
 
 	shmfd = fp->f_data;
 	maxprot = VM_PROT_NONE;
 
+	rl_cookie = rangelock_rlock(&shmfd->shm_rl, 0, objsize,
+	    &shmfd->shm_mtx);
 	/* FREAD should always be set. */
 	if ((fp->f_flag & FREAD) != 0)
 		maxprot |= VM_PROT_EXECUTE | VM_PROT_READ;
@@ -890,9 +916,16 @@ shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
 
 	writecnt = (flags & MAP_SHARED) != 0 && (prot & VM_PROT_WRITE) != 0;
 
+	if (writecnt && (shmfd->shm_seals & F_SEAL_WRITE) != 0) {
+		error = EPERM;
+		goto out;
+	}
+
 	/* Don't permit shared writable mappings on read-only descriptors. */
-	if (writecnt && (maxprot & VM_PROT_WRITE) == 0)
-		return (EACCES);
+	if (writecnt && (maxprot & VM_PROT_WRITE) == 0) {
+		error = EACCES;
+		goto out;
+	}
 	maxprot &= cap_maxprot;
 
 	/* See comment in vn_mmap(). */
@@ -900,13 +933,15 @@ shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
 #ifdef _LP64
 	    objsize > OFF_MAX ||
 #endif
-	    foff < 0 || foff > OFF_MAX - objsize)
-		return (EINVAL);
+	    foff < 0 || foff > OFF_MAX - objsize) {
+		error = EINVAL;
+		goto out;
+	}
 
 #ifdef MAC
 	error = mac_posixshm_check_mmap(td->td_ucred, shmfd, prot, flags);
 	if (error != 0)
-		return (error);
+		goto out;
 #endif
 	
 	mtx_lock(&shm_timestamp_lock);
@@ -924,6 +959,8 @@ shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
 			    objsize);
 		vm_object_deallocate(shmfd->shm_object);
 	}
+out:
+	rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
 	return (error);
 }
 
@@ -1129,6 +1166,57 @@ shm_fill_kinfo(struct file *fp, struct kinfo_file *kif,
 	res = shm_fill_kinfo_locked(fp->f_data, kif, false);
 	sx_sunlock(&shm_dict_lock);
 	return (res);
+}
+
+static int
+shm_add_seals(struct file *fp, int seals)
+{
+	struct shmfd *shmfd;
+	void *rl_cookie;
+	vm_ooffset_t writemappings;
+	int error, nseals;
+
+	error = 0;
+	shmfd = fp->f_data;
+	rl_cookie = rangelock_wlock(&shmfd->shm_rl, 0, OFF_MAX,
+	    &shmfd->shm_mtx);
+
+	/* Even already-set seals should result in EPERM. */
+	if ((shmfd->shm_seals & F_SEAL_SEAL) != 0) {
+		error = EPERM;
+		goto out;
+	}
+	nseals = seals & ~shmfd->shm_seals;
+	if ((nseals & F_SEAL_WRITE) != 0) {
+		/*
+		 * The rangelock above prevents writable mappings from being
+		 * added after we've started applying seals.  The RLOCK here
+		 * is to avoid torn reads on ILP32 arches as unmapping/reducing
+		 * writemappings will be done without a rangelock.
+		 */
+		VM_OBJECT_RLOCK(shmfd->shm_object);
+		writemappings = shmfd->shm_object->un_pager.swp.writemappings;
+		VM_OBJECT_RUNLOCK(shmfd->shm_object);
+		/* kmappings are also writable */
+		if (writemappings > 0) {
+			error = EBUSY;
+			goto out;
+		}
+	}
+	shmfd->shm_seals |= nseals;
+out:
+	rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
+	return (error);
+}
+
+static int
+shm_get_seals(struct file *fp, int *seals)
+{
+	struct shmfd *shmfd;
+
+	shmfd = fp->f_data;
+	*seals = shmfd->shm_seals;
+	return (0);
 }
 
 static int
