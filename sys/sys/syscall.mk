@@ -411,4 +411,5 @@ MIASM =  \
 	fhreadlink.o \
 	funlinkat.o \
 	copy_file_range.o \
-	__sysctlbyname.o
+	__sysctlbyname.o \
+	shm_open2.o

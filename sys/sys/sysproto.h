@@ -1812,6 +1812,13 @@ struct __sysctlbyname_args {
 	char new_l_[PADL_(void *)]; void * new; char new_r_[PADR_(void *)];
 	char newlen_l_[PADL_(size_t)]; size_t newlen; char newlen_r_[PADR_(size_t)];
 };
+struct shm_open2_args {
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
+	char shmflags_l_[PADL_(int)]; int shmflags; char shmflags_r_[PADR_(int)];
+	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
+};
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_sys_exit(struct thread *, struct sys_exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
@@ -2199,6 +2206,7 @@ int	sys_fhreadlink(struct thread *, struct fhreadlink_args *);
 int	sys_funlinkat(struct thread *, struct funlinkat_args *);
 int	sys_copy_file_range(struct thread *, struct copy_file_range_args *);
 int	sys___sysctlbyname(struct thread *, struct __sysctlbyname_args *);
+int	sys_shm_open2(struct thread *, struct shm_open2_args *);
 
 #ifdef COMPAT_43
 
@@ -3114,6 +3122,7 @@ int	freebsd11_mknodat(struct thread *, struct freebsd11_mknodat_args *);
 #define	SYS_AUE_funlinkat	AUE_UNLINKAT
 #define	SYS_AUE_copy_file_range	AUE_NULL
 #define	SYS_AUE___sysctlbyname	AUE_SYSCTL
+#define	SYS_AUE_shm_open2	AUE_SHMOPEN
 
 #undef PAD_
 #undef PADL_
