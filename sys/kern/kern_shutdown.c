@@ -564,6 +564,9 @@ shutdown_halt(void *junk, int howto)
 		printf("\n");
 		printf("The operating system has halted.\n");
 		printf("Please press any key to reboot.\n\n");
+
+		wdog_kern_pat(WD_TO_NEVER);
+
 		switch (cngetc()) {
 		case -1:		/* No console, just die */
 			cpu_halt();
