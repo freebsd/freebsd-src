@@ -199,28 +199,29 @@ define ps
     set $nproc = nprocs
     set $aproc = allproc.lh_first
     set $proc = allproc.lh_first
-    printf "  pid    proc   uid  ppid  pgrp   flag stat comm         wchan\n"
+    set $tid = 1
+    printf "pid/ID ppid/tid uid  pgrp     flag st comm/name  proc/thread\n"
     while (--$nproc >= 0)
         set $pptr = $proc.p_pptr
         if ($pptr == 0)
            set $pptr = $proc
         end
         if ($proc.p_state)
+            printf " %5d  %6d %4d %5d %8x %2d %-10s %p\n", \
+                   $proc.p_pid, $pptr->p_pid, \
+                   $proc.p_ucred->cr_ruid, \
+                   $proc.p_pgrp->pg_id, $proc.p_flag, $proc.p_state, \
+                   &$proc.p_comm[0], $aproc
             set $thread = $proc->p_threads.tqh_first
             while ($thread)
-                printf "%5d %08x %4d %5d %5d  %06x  %d  %-10s   ", \
-                       $proc.p_pid, $aproc, \
-                       $proc.p_ucred->cr_ruid, $pptr->p_pid, \
-                       $proc.p_pgrp->pg_id, $proc.p_flag, $proc.p_state, \
-                       &$proc.p_comm[0]
-                if ($thread.td_wchan)
-                    if ($thread.td_wmesg)
-                        printf "%s ", $thread.td_wmesg
-                    end
-                    printf "%x", $thread.td_wchan
+                printf "(%5d) %6d                        %-10s %p", \
+                   $tid, $thread->td_tid, $thread->td_name, $thread
+                if ($thread.td_wmesg)
+                    printf " %s", $thread.td_wmesg
                 end
-                printf "\n"     
+                printf "\n"
                 set $thread = $thread->td_plist.tqe_next
+                set $tid = $tid + 1
             end
         end
         set $aproc = $proc.p_list.le_next
