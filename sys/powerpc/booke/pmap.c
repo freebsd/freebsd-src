@@ -663,8 +663,8 @@ pdir_unhold(mmu_t mmu, pmap_t pmap, u_int pp2d_idx)
 	/*
 	 * Free pdir page if there are no dir entries in this pdir.
 	 */
-	m->wire_count--;
-	if (m->wire_count == 0) {
+	m->ref_count--;
+	if (m->ref_count == 0) {
 		pdir_free(mmu, pmap, pp2d_idx, m);
 		return (1);
 	}
@@ -686,7 +686,7 @@ pdir_hold(mmu_t mmu, pmap_t pmap, pte_t ** pdir)
 	KASSERT((pdir != NULL), ("pdir_hold: null pdir"));
 
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pdir));
-	m->wire_count++;
+	m->ref_count++;
 }
 
 /* Allocate page table. */
@@ -765,11 +765,11 @@ ptbl_unhold(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 
 	/*
 	 * Free ptbl pages if there are no pte entries in this ptbl.
-	 * wire_count has the same value for all ptbl pages, so check the
+	 * ref_count has the same value for all ptbl pages, so check the
 	 * last page.
 	 */
-	m->wire_count--;
-	if (m->wire_count == 0) {
+	m->ref_count--;
+	if (m->ref_count == 0) {
 		ptbl_free(mmu, pmap, pdir, pdir_idx, m);
 		pdir_unhold(mmu, pmap, pp2d_idx);
 		return (1);
@@ -795,7 +795,7 @@ ptbl_hold(mmu_t mmu, pmap_t pmap, pte_t ** pdir, unsigned int pdir_idx)
 	KASSERT((ptbl != NULL), ("ptbl_hold: null ptbl"));
 
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t) ptbl));
-	m->wire_count++;
+	m->ref_count++;
 }
 #else
 
@@ -1010,15 +1010,15 @@ ptbl_unhold(mmu_t mmu, pmap_t pmap, unsigned int pdir_idx)
 		pa = pte_vatopa(mmu, kernel_pmap,
 		    (vm_offset_t)ptbl + (i * PAGE_SIZE));
 		m = PHYS_TO_VM_PAGE(pa);
-		m->wire_count--;
+		m->ref_count--;
 	}
 
 	/*
 	 * Free ptbl pages if there are no pte etries in this ptbl.
-	 * wire_count has the same value for all ptbl pages, so check the last
+	 * ref_count has the same value for all ptbl pages, so check the last
 	 * page.
 	 */
-	if (m->wire_count == 0) {
+	if (m->ref_count == 0) {
 		ptbl_free(mmu, pmap, pdir_idx);
 
 		//debugf("ptbl_unhold: e (freed ptbl)\n");
@@ -1056,7 +1056,7 @@ ptbl_hold(mmu_t mmu, pmap_t pmap, unsigned int pdir_idx)
 		pa = pte_vatopa(mmu, kernel_pmap,
 		    (vm_offset_t)ptbl + (i * PAGE_SIZE));
 		m = PHYS_TO_VM_PAGE(pa);
-		m->wire_count++;
+		m->ref_count++;
 	}
 }
 #endif

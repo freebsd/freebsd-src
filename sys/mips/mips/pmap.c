@@ -983,8 +983,8 @@ pmap_qremove(vm_offset_t va, int count)
  ***************************************************/
 
 /*
- * Decrements a page table page's wire count, which is used to record the
- * number of valid page table entries within the page.  If the wire count
+ * Decrements a page table page's reference count, which is used to record the
+ * number of valid page table entries within the page.  If the reference count
  * drops to zero, then the page table page is unmapped.  Returns TRUE if the
  * page table page was unmapped and FALSE otherwise.
  */
@@ -992,8 +992,8 @@ static PMAP_INLINE boolean_t
 pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
 
-	--m->wire_count;
-	if (m->wire_count == 0) {
+	--m->ref_count;
+	if (m->ref_count == 0) {
 		_pmap_unwire_ptp(pmap, va, m);
 		return (TRUE);
 	} else
@@ -1043,7 +1043,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m)
 
 /*
  * After removing a page table entry, this routine is used to
- * conditionally free the page, and manage the hold/wire counts.
+ * conditionally free the page, and manage the reference count.
  */
 static int
 pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t pde)
@@ -1194,7 +1194,7 @@ _pmap_allocpte(pmap_t pmap, unsigned ptepindex, u_int flags)
 			}
 		} else {
 			pg = PHYS_TO_VM_PAGE(MIPS_DIRECT_TO_PHYS(*pdep));
-			pg->wire_count++;
+			pg->ref_count++;
 		}
 		/* Next level entry */
 		pde = (pd_entry_t *)*pdep;
@@ -1230,7 +1230,7 @@ retry:
 	 */
 	if (pde != NULL && *pde != NULL) {
 		m = PHYS_TO_VM_PAGE(MIPS_DIRECT_TO_PHYS(*pde));
-		m->wire_count++;
+		m->ref_count++;
 	} else {
 		/*
 		 * Here if the pte page isn't mapped, or if it has been
@@ -2124,7 +2124,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		 * Remove extra pte reference
 		 */
 		if (mpte)
-			mpte->wire_count--;
+			mpte->ref_count--;
 
 		if (pte_test(&origpte, PTE_MANAGED)) {
 			m->md.pv_flags |= PV_TABLE_REF;
@@ -2165,8 +2165,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pmap_invalidate_page(pmap, va);
 		origpte = 0;
 		if (mpte != NULL) {
-			mpte->wire_count--;
-			KASSERT(mpte->wire_count > 0,
+			mpte->ref_count--;
+			KASSERT(mpte->ref_count > 0,
 			    ("pmap_enter: missing reference to page table page,"
 			    " va: %p", (void *)va));
 		}
@@ -2276,7 +2276,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		 */
 		ptepindex = pmap_pde_pindex(va);
 		if (mpte && (mpte->pindex == ptepindex)) {
-			mpte->wire_count++;
+			mpte->ref_count++;
 		} else {
 			/*
 			 * Get the page directory entry
@@ -2290,7 +2290,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 			if (pde && *pde != 0) {
 				mpte = PHYS_TO_VM_PAGE(
 				    MIPS_DIRECT_TO_PHYS(*pde));
-				mpte->wire_count++;
+				mpte->ref_count++;
 			} else {
 				mpte = _pmap_allocpte(pmap, ptepindex,
 				    PMAP_ENTER_NOSLEEP);
@@ -2305,7 +2305,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	pte = pmap_pte(pmap, va);
 	if (pte_test(pte, PTE_V)) {
 		if (mpte != NULL) {
-			mpte->wire_count--;
+			mpte->ref_count--;
 			mpte = NULL;
 		}
 		return (mpte);

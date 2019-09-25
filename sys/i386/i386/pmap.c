@@ -992,7 +992,7 @@ __CONCAT(PMTYPE, init)(void)
 		    ("pmap_init: page table page is out of range"));
 		mpte->pindex = i + KPTDI;
 		mpte->phys_addr = KPTphys + ptoa(i);
-		mpte->wire_count = 1;
+		mpte->ref_count = 1;
 
 		/*
 		 * Collect the page table pages that were replaced by a 2/4MB
@@ -1952,8 +1952,8 @@ pmap_remove_pt_page(pmap_t pmap, vm_offset_t va)
 }
 
 /*
- * Decrements a page table page's wire count, which is used to record the
- * number of valid page table entries within the page.  If the wire count
+ * Decrements a page table page's reference count, which is used to record the
+ * number of valid page table entries within the page.  If the reference count
  * drops to zero, then the page table page is unmapped.  Returns TRUE if the
  * page table page was unmapped and FALSE otherwise.
  */
@@ -1961,8 +1961,8 @@ static inline boolean_t
 pmap_unwire_ptp(pmap_t pmap, vm_page_t m, struct spglist *free)
 {
 
-	--m->wire_count;
-	if (m->wire_count == 0) {
+	--m->ref_count;
+	if (m->ref_count == 0) {
 		_pmap_unwire_ptp(pmap, m, free);
 		return (TRUE);
 	} else
@@ -1992,7 +1992,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_page_t m, struct spglist *free)
 
 /*
  * After removing a page table entry, this routine is used to
- * conditionally free the page, and manage the hold/wire counts.
+ * conditionally free the page, and manage the reference count.
  */
 static int
 pmap_unuse_pt(pmap_t pmap, vm_offset_t va, struct spglist *free)
@@ -2171,7 +2171,7 @@ retry:
 	 */
 	if (ptepa) {
 		m = PHYS_TO_VM_PAGE(ptepa & PG_FRAME);
-		m->wire_count++;
+		m->ref_count++;
 	} else {
 		/*
 		 * Here if the pte page isn't mapped, or if it has
@@ -2438,7 +2438,7 @@ out:
 		m_pc = SLIST_FIRST(&free);
 		SLIST_REMOVE_HEAD(&free, plinks.s.ss);
 		/* Recycle a freed page table page. */
-		m_pc->wire_count = 1;
+		m_pc->ref_count = 1;
 	}
 	vm_page_free_pages_toq(&free, true);
 	return (m_pc);
@@ -2797,7 +2797,7 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 			return (FALSE);
 		}
 		if (pmap != kernel_pmap) {
-			mpte->wire_count = NPTEPG;
+			mpte->ref_count = NPTEPG;
 			pmap->pm_stats.resident_count++;
 		}
 	}
@@ -2993,9 +2993,9 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 			KASSERT(mpte->valid == VM_PAGE_BITS_ALL,
 			    ("pmap_remove_pde: pte page not promoted"));
 			pmap->pm_stats.resident_count--;
-			KASSERT(mpte->wire_count == NPTEPG,
-			    ("pmap_remove_pde: pte page wire count error"));
-			mpte->wire_count = 0;
+			KASSERT(mpte->ref_count == NPTEPG,
+			    ("pmap_remove_pde: pte page ref count error"));
+			mpte->ref_count = 0;
 			pmap_add_delayed_free_list(mpte, free, FALSE);
 		}
 	}
@@ -3731,8 +3731,8 @@ __CONCAT(PMTYPE, enter)(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		 * Remove the extra PT page reference.
 		 */
 		if (mpte != NULL) {
-			mpte->wire_count--;
-			KASSERT(mpte->wire_count > 0,
+			mpte->ref_count--;
+			KASSERT(mpte->ref_count > 0,
 			    ("pmap_enter: missing reference to page table page,"
 			     " va: 0x%x", va));
 		}
@@ -3853,7 +3853,7 @@ unchanged:
 	 * If both the page table page and the reservation are fully
 	 * populated, then attempt promotion.
 	 */
-	if ((mpte == NULL || mpte->wire_count == NPTEPG) &&
+	if ((mpte == NULL || mpte->ref_count == NPTEPG) &&
 	    pg_ps_enabled && (m->flags & PG_FICTITIOUS) == 0 &&
 	    vm_reserv_level_iffullpop(m) == 0)
 		pmap_promote_pde(pmap, pde, va);
@@ -4076,7 +4076,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		 */
 		ptepindex = va >> PDRSHIFT;
 		if (mpte && (mpte->pindex == ptepindex)) {
-			mpte->wire_count++;
+			mpte->ref_count++;
 		} else {
 			/*
 			 * Get the page directory entry
@@ -4091,7 +4091,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 				if (ptepa & PG_PS)
 					return (NULL);
 				mpte = PHYS_TO_VM_PAGE(ptepa & PG_FRAME);
-				mpte->wire_count++;
+				mpte->ref_count++;
 			} else {
 				mpte = _pmap_allocpte(pmap, ptepindex,
 				    PMAP_ENTER_NOSLEEP);
@@ -4107,7 +4107,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	pte = pmap_pte_quick(pmap, va);
 	if (*pte) {
 		if (mpte != NULL) {
-			mpte->wire_count--;
+			mpte->ref_count--;
 			mpte = NULL;
 		}
 		sched_unpin();
@@ -4402,7 +4402,7 @@ __CONCAT(PMTYPE, copy)(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 		}
 
 		srcmpte = PHYS_TO_VM_PAGE(srcptepaddr & PG_FRAME);
-		KASSERT(srcmpte->wire_count > 0,
+		KASSERT(srcmpte->ref_count > 0,
 		    ("pmap_copy: source page table page is unused"));
 
 		if (pdnxt > end_addr)
@@ -4442,7 +4442,7 @@ __CONCAT(PMTYPE, copy)(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 					}
 					goto out;
 				}
-				if (dstmpte->wire_count >= srcmpte->wire_count)
+				if (dstmpte->ref_count >= srcmpte->ref_count)
 					break;
 			}
 			addr += PAGE_SIZE;
@@ -4829,9 +4829,9 @@ __CONCAT(PMTYPE, remove_pages)(pmap_t pmap)
 						KASSERT(mpte->valid == VM_PAGE_BITS_ALL,
 						    ("pmap_remove_pages: pte page not promoted"));
 						pmap->pm_stats.resident_count--;
-						KASSERT(mpte->wire_count == NPTEPG,
-						    ("pmap_remove_pages: pte page wire count error"));
-						mpte->wire_count = 0;
+						KASSERT(mpte->ref_count == NPTEPG,
+						    ("pmap_remove_pages: pte page ref count error"));
+						mpte->ref_count = 0;
 						pmap_add_delayed_free_list(mpte, &free, FALSE);
 					}
 				} else {

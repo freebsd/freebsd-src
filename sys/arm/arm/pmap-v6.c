@@ -2365,7 +2365,7 @@ pmap_release(pmap_t pmap)
  *  untouched, so the table (strictly speaking a page which holds it)
  *  is never freed if promoted.
  *
- *  If a page m->wire_count == 1 then no valid mappings exist in any L2 page
+ *  If a page m->ref_count == 1 then no valid mappings exist in any L2 page
  *  table in the page and the page itself is only mapped in PT2TAB.
  */
 
@@ -2376,7 +2376,7 @@ pt2_wirecount_init(vm_page_t m)
 
 	/*
 	 * Note: A page m is allocated with VM_ALLOC_WIRED flag and
-	 *       m->wire_count should be already set correctly.
+	 *       m->ref_count should be already set correctly.
 	 *       So, there is no need to set it again herein.
 	 */
 	for (i = 0; i < NPT2_IN_PG; i++)
@@ -2396,10 +2396,10 @@ pt2_wirecount_inc(vm_page_t m, uint32_t pte1_idx)
 	 */
 	KASSERT(m->md.pt2_wirecount[pte1_idx & PT2PG_MASK] < (NPTE2_IN_PT2 + 1),
 	    ("%s: PT2 is overflowing ...", __func__));
-	KASSERT(m->wire_count <= (NPTE2_IN_PG + 1),
+	KASSERT(m->ref_count <= (NPTE2_IN_PG + 1),
 	    ("%s: PT2PG is overflowing ...", __func__));
 
-	m->wire_count++;
+	m->ref_count++;
 	m->md.pt2_wirecount[pte1_idx & PT2PG_MASK]++;
 }
 
@@ -2409,10 +2409,10 @@ pt2_wirecount_dec(vm_page_t m, uint32_t pte1_idx)
 
 	KASSERT(m->md.pt2_wirecount[pte1_idx & PT2PG_MASK] != 0,
 	    ("%s: PT2 is underflowing ...", __func__));
-	KASSERT(m->wire_count > 1,
+	KASSERT(m->ref_count > 1,
 	    ("%s: PT2PG is underflowing ...", __func__));
 
-	m->wire_count--;
+	m->ref_count--;
 	m->md.pt2_wirecount[pte1_idx & PT2PG_MASK]--;
 }
 
@@ -2422,16 +2422,16 @@ pt2_wirecount_set(vm_page_t m, uint32_t pte1_idx, uint16_t count)
 
 	KASSERT(count <= NPTE2_IN_PT2,
 	    ("%s: invalid count %u", __func__, count));
-	KASSERT(m->wire_count >  m->md.pt2_wirecount[pte1_idx & PT2PG_MASK],
-	    ("%s: PT2PG corrupting (%u, %u) ...", __func__, m->wire_count,
+	KASSERT(m->ref_count >  m->md.pt2_wirecount[pte1_idx & PT2PG_MASK],
+	    ("%s: PT2PG corrupting (%u, %u) ...", __func__, m->ref_count,
 	    m->md.pt2_wirecount[pte1_idx & PT2PG_MASK]));
 
-	m->wire_count -= m->md.pt2_wirecount[pte1_idx & PT2PG_MASK];
-	m->wire_count += count;
+	m->ref_count -= m->md.pt2_wirecount[pte1_idx & PT2PG_MASK];
+	m->ref_count += count;
 	m->md.pt2_wirecount[pte1_idx & PT2PG_MASK] = count;
 
-	KASSERT(m->wire_count <= (NPTE2_IN_PG + 1),
-	    ("%s: PT2PG is overflowed (%u) ...", __func__, m->wire_count));
+	KASSERT(m->ref_count <= (NPTE2_IN_PG + 1),
+	    ("%s: PT2PG is overflowed (%u) ...", __func__, m->ref_count));
 }
 
 static __inline uint32_t
@@ -2460,7 +2460,7 @@ static __inline boolean_t
 pt2pg_is_empty(vm_page_t m)
 {
 
-	return (m->wire_count == 1);
+	return (m->ref_count == 1);
 }
 
 /*
@@ -2634,7 +2634,7 @@ pmap_unwire_pt2pg(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	(void)pt2tab_load_clear(pte2p);
 	pmap_tlb_flush(pmap, pt2map_pt2pg(va));
 
-	m->wire_count = 0;
+	m->ref_count = 0;
 	pmap->pm_stats.resident_count--;
 
 	/*
@@ -2683,8 +2683,8 @@ pmap_unwire_pt2_all(pmap_t pmap, vm_offset_t va, vm_page_t m,
 
 	KASSERT(m->pindex == (pte1_idx & ~PT2PG_MASK),
 		("%s: PT2 page's pindex is wrong", __func__));
-	KASSERT(m->wire_count > pt2_wirecount_get(m, pte1_idx),
-	    ("%s: bad pt2 wire count %u > %u", __func__, m->wire_count,
+	KASSERT(m->ref_count > pt2_wirecount_get(m, pte1_idx),
+	    ("%s: bad pt2 wire count %u > %u", __func__, m->ref_count,
 	    pt2_wirecount_get(m, pte1_idx)));
 
 	/*
@@ -2949,7 +2949,7 @@ out:
 		m_pc = SLIST_FIRST(&free);
 		SLIST_REMOVE_HEAD(&free, plinks.s.ss);
 		/* Recycle a freed page table page. */
-		m_pc->wire_count = 1;
+		m_pc->ref_count = 1;
 		vm_wire_add(1);
 	}
 	vm_page_free_pages_toq(&free, false);
@@ -6707,7 +6707,7 @@ pmap_pid_dump(int pid)
 					m = PHYS_TO_VM_PAGE(pa);
 					printf("va: 0x%x, pa: 0x%x, w: %d, "
 					    "f: 0x%x", va, pa,
-					    m->wire_count, m->flags);
+					    m->ref_count, m->flags);
 					npte2++;
 					index++;
 					if (index >= 2) {
@@ -6818,7 +6818,7 @@ dump_link(pmap_t pmap, uint32_t pte1_idx, boolean_t invalid_ok)
 		    pte2_class(pte2), !!(pte2 & PTE2_S), !(pte2 & PTE2_NG), m);
 		if (m != NULL) {
 			printf(" v:%d w:%d f:0x%04X\n", m->valid,
-			    m->wire_count, m->flags);
+			    m->ref_count, m->flags);
 		} else {
 			printf("\n");
 		}
@@ -6892,7 +6892,7 @@ DB_SHOW_COMMAND(pmap, pmap_pmap_print)
 					dump_link_ok = FALSE;
 			}
 			else if (m != NULL)
-				printf(" w:%d w2:%u", m->wire_count,
+				printf(" w:%d w2:%u", m->ref_count,
 				    pt2_wirecount_get(m, pte1_index(va)));
 			if (pte2 == 0)
 				printf(" !!! pt2tab entry is ZERO");
@@ -6928,7 +6928,7 @@ dump_pt2tab(pmap_t pmap)
 		    pte2_class(pte2), !!(pte2 & PTE2_S), m);
 		if (m != NULL)
 			printf(" , w: %d, f: 0x%04X pidx: %lld",
-			    m->wire_count, m->flags, m->pindex);
+			    m->ref_count, m->flags, m->pindex);
 		printf("\n");
 	}
 }
