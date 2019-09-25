@@ -1954,7 +1954,7 @@ agp_intel_gtt_insert_pages(device_t dev, u_int first_entry, u_int num_entries,
 	sc = device_get_softc(dev);
 	for (i = 0; i < num_entries; i++) {
 		MPASS(pages[i]->valid == VM_PAGE_BITS_ALL);
-		MPASS(pages[i]->wire_count > 0);
+		MPASS(pages[i]->ref_count > 0);
 		sc->match->driver->install_gtt_pte(dev, first_entry + i,
 		    VM_PAGE_TO_PHYS(pages[i]), flags);
 	}
