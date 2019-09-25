@@ -1154,5 +1154,8 @@
 570	AUE_SYSCTL	STD	{ int freebsd32___sysctlbyname(const char *name, \
 				    size_t namelen, void *old, uint32_t *oldlenp, \
 				    void *new, size_t newlen); }
+571	AUE_SHMOPEN	NOPROTO	{ int shm_open2( \
+				    const char *path, int flags, mode_t mode, \
+				    int shmflags, const char *name); }
 
 ; vim: syntax=off

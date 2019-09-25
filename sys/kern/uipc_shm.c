@@ -1316,3 +1316,36 @@ SYSCTL_PROC(_kern_ipc, OID_AUTO, posix_shm_list,
     CTLFLAG_RD | CTLFLAG_MPSAFE | CTLTYPE_OPAQUE,
     NULL, 0, sysctl_posix_shm_list, "",
     "POSIX SHM list");
+
+int
+kern_shm_open2(struct thread *td, const char *path, int flags, mode_t mode,
+    int shmflags, const char *name __unused)
+{
+	int initial_seals;
+
+	if ((shmflags & ~SHM_ALLOW_SEALING) != 0)
+		return (EINVAL);
+
+	initial_seals = F_SEAL_SEAL;
+	if ((shmflags & SHM_ALLOW_SEALING) != 0)
+		initial_seals &= ~F_SEAL_SEAL;
+	return (kern_shm_open(td, path, flags, 0, NULL, initial_seals));
+}
+
+/*
+ * This version of the shm_open() interface leaves CLOEXEC behavior up to the
+ * caller, and libc will enforce it for the traditional shm_open() call.  This
+ * allows other consumers, like memfd_create(), to opt-in for CLOEXEC.  This
+ * interface also includes a 'name' argument that is currently unused, but could
+ * potentially be exported later via some interface for debugging purposes.
+ * From the kernel's perspective, it is optional.  Individual consumers like
+ * memfd_create() may require it in order to be compatible with other systems
+ * implementing the same function.
+ */
+int
+sys_shm_open2(struct thread *td, struct shm_open2_args *uap)
+{
+
+	return (kern_shm_open2(td, uap->path, uap->flags, uap->mode,
+	    uap->shmflags, uap->name));
+}
