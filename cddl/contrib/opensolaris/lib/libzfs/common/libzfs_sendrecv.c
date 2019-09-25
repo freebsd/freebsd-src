@@ -2056,6 +2056,15 @@ zfs_send_one(zfs_handle_t *zhp, const char *from, int fd, sendflags_t flags)
 		if (err == 0) {
 			send_print_verbose(fout, zhp->zfs_name, from, size,
 			    flags.parsable);
+			if (flags.parsable) {
+				(void) fprintf(fout, "size\t%llu\n",
+				    (longlong_t)size);
+			} else {
+				char buf[16];
+				zfs_nicenum(size, buf, sizeof (buf));
+				(void) fprintf(fout, dgettext(TEXT_DOMAIN,
+				    "total estimated size is %s\n"), buf);
+			}
 		} else {
 			(void) fprintf(stderr, "Cannot estimate send size: "
 			    "%s\n", strerror(errno));
