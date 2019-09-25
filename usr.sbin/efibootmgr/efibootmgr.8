@@ -24,20 +24,42 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 28, 2018
+.Dd September 24, 2019
 .Dt EFIBOOTMGR 8
 .Os
 .Sh NAME
-.Nm efibootmgr 
+.Nm efibootmgr
 .Nd manipulate the EFI Boot Manager
 .Sh SYNOPSIS
-.Op Fl aAnNB
-.Op Fl b Ar bootnum
-.Op Fl t Ar timeout
-.Op Fl T
-.Op Fl o Ar bootorder
+.Nm
 .Op Fl v
-.Op Fl c l Ar loader [ Fl k Ar kernel ] [ Fl L Ar label ] [ Fl -dry-run ]
+.Nm
+.Fl a
+.Fl b Ar bootnum
+.Nm
+.Fl A
+.Fl b Ar bootnum
+.Nm
+.Fl B
+.Fl b Ar bootnum
+.Nm
+.Fl c
+.Fl l Ar loader
+.Op Fl aD
+.Op Fl b Ar bootnum
+.Op Fl k Ar kernel
+.Op Fl L Ar label
+.Nm
+.Fl n
+.Fl b Ar bootnum
+.Nm
+.Fl N
+.Nm
+.Fl o Ar bootorder
+.Nm
+.Fl t Ar timeout
+.Nm
+.Fl T
 .Sh "DESCRIPTION"
 .Nm
 manipulates how UEFI Boot Managers boot the system.
@@ -50,13 +72,13 @@ The UEFI standard defines how hosts may control what is used to
 bootstrap the system.
 Each method is encapsulated within a persistent UEFI variable, stored
 by the UEFI BIOS of the form
-.Va BootXXXX .
+.Cm Boot Ns Em XXXX .
 These variables are numbered, describe where to load the bootstrap
 program from, and whether or not the method is active.
 The boot order of these methods is controlled by another variable
-.Va BootOrder .
-The currently booting method is communicated using 
-.Va BootCurrent .
+.Cm BootOrder .
+The currently booting method is communicated using
+.Cm BootCurrent .
 A global timeout can also be set.
 .Pp
 .Nm
@@ -64,91 +86,133 @@ requires that the kernel efirt module be loaded to get and set these
 non-volatile variables.
 .Pp
 The following options are available:
-.Bl -tag -width 28m
-.It Fl c Fl -create
-Create a new Boot Variable
-.It Fl l -loader Ar loader
-The path to and name of the loader.
-.It Fl k -kernel Ar kernel
-The path to and name of the kernel.
+.Bl -tag -width Ds
+.It Fl a -activate
+Activate the given
+.Ar bootnum
+boot entry, or the new entry when used with
+.Fl c .
+.It Fl A -deactivate
+Deactivate the given
+.Ar bootnum
+boot entry.
 .It Fl b -bootnum Ar bootnum
-When creating or modifying an entry, use bootnum as the index.
+When creating or modifying an entry, use
+.Ar bootnum
+as the index.
 When creating a new entry, fail if it already exists.
-.It Fl L -label Ar label
-An optional description for the entry.
+.It Fl B -delete
+Delete the given
+.Ar bootnum
+boot entry.
+.It Fl c -create
+Create a new
+.Cm Boot
+variable.
 .It Fl D -dry-run
 Process but do not change any variables.
-.It Fl B -delete
-Delete the given bootnum boot entry.
-.It Fl a -activate
-Activate the given bootnum boot entry, or the new entry when used with -c.
-.It Fl A -deactivate
-Deactivate the given bootnum boot entry.
+.It Fl k -kernel Ar kernel
+The path to and name of the kernel.
+.It Fl l -loader Ar loader
+The path to and name of the loader.
+.It Fl L -label Ar label
+An optional description for the entry.
 .It Fl n -bootnext
-Set bootnum boot entry as the BootNext variable.
-.It Fl N -delete-bootnext 
-Delete the BootNext optional variable.
+Set
+.Ar bootnum
+boot entry as the
+.Cm BootNext
+variable.
+.It Fl N -delete-bootnext
+Delete the
+.Cm BootNext
+optional variable.
 .It Fl o -bootorder Ar bootorder
-Set BootOrder variable to the given comma delimited set of bootnums.
-The numbers are in hex to match BootXXXX, but may omit leading zeros.
+Set
+.Cm BootOrder
+variable to the given comma delimited set of
+.Ar bootnum Ns s .
+The numbers are in hex to match
+.Cm Boot Ns Em XXXX ,
+but may omit leading zeros.
 .It Fl t -set-timeout Ar timeout
 Set the bootmenu timeout value.
 .It Fl T -del-timeout
-Delete the BootTimeout variable.
+Delete the
+.Cm BootTimeout
+variable.
 .It Fl v -verbose
 Display the device path of boot entries in the output.
 .El
-.Pp
 .Sh Examples
-.Pp
-To display the current Boot related variables in the system:
+To display the current
+.Cm Boot
+related variables in the system:
 .Pp
 .Dl efibootmgr [-v]
 .Pp
-This will display the optional BootNext bootnum, BootCurrent,
-or currently booted bootnum, followed by the optional Timeout value, any
-BootOrder that may be set, followed finally by all currently defined Boot
-variables, active or not. The verbose flag will augment this output with
-the disk partition uuids, size/offset and device-path of the
-variable.
+This will display the optional
+.Cm BootNext
+bootnum,
+.Cm BootCurrent ,
+or currently booted bootnum, followed by the optional
+.Cm Timeout
+value, any
+.Cm BootOrder
+that may be set, followed finally by all currently defined
+.Cm Boot
+variables, active or not.
+The verbose flag will augment this output with the disk partition uuids,
+size/offset and device-path of the variable.
 .Pp
 The
 .Nm
-program can be used to create new EFI boot variables. To create a new
-boot var pointing to an installation with its EFI partition mounted
-under /mnt, the given loader and a label "FreeBSD-11":
+program can be used to create new EFI boot variables.
+To create a new boot var pointing to an installation with its EFI partition
+mounted under
+.Pa /mnt ,
+the given loader and a label
+.Qq FreeBSD-11 :
 .Pp
 .Dl efibootmgr -c -l /mnt/EFI/freebsd/loader.efi -L FreeBSD-11
 .Pp
 This will result in the next available bootnum being assigned to a
-new UEFI boot variable, and given the label "FreeBSD-11" such as:
+new UEFI boot variable, and given the label
+.Qq FreeBSD-11
+such as:
 .Pp
 .Dl Boot0009 FreeBSD-11
 .Pp
-Note newly created boot entries are created inactive. The active state is denoted
-by an '*' following the BootXXXX name in the output.  They are also inserted
-into the first position of current BootOrder variable if it exists. They
-must first be set to active before being considered available to attempt booting from, else they
-are ignored.
+Note newly created boot entries are created inactive.
+The active state is denoted by an '*' following the
+.Cm Boot Ns Em XXXX
+name in the output.
+They are also inserted into the first position of current
+.Cm BootOrder
+variable if it exists.
+They must first be set to active before being considered available to attempt
+booting from, else they are ignored.
 .Pp
 .Dl efibootmgr -B -b 0009
 .Pp
-Will delete the given boot entry Boot0009
+Will delete the given boot entry Boot0009.
 .Pp
 To set a given newly created boot entry active use:
 .Pp
 .Dl efibootmgr -a -b 0009
 .Pp
-To set a given boot entry to be used as the BootNext variable, irrespective
-of its active state, use:
+To set a given boot entry to be used as the
+.Cm BootNext
+variable, irrespective of its active state, use:
 .Pp
 .Dl efibootmgr -n -b 0009
 .Pp
-To set the BootOrder for the next reboot  use:
+To set the
+.Cm BootOrder
+for the next reboot use:
 .Pp
 .Dl efibootmgr -o 0009,0003,...
-.Pp
 .Sh SEE ALSO
 .Xr efivar 8 ,
-.Xr uefi 8 ,
-.Xr gpart 8
+.Xr gpart 8 ,
+.Xr uefi 8
