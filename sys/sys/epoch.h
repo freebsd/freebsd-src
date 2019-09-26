@@ -41,8 +41,6 @@ typedef struct epoch_context *epoch_context_t;
 #include <sys/pcpu.h>
 #include <ck_epoch.h>
 
-#include "opt_epoch.h"
-
 struct epoch;
 typedef struct epoch *epoch_t;
 
