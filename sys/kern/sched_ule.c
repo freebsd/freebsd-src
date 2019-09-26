@@ -643,10 +643,6 @@ struct cpu_search {
 #define	CPU_SEARCH_HIGHEST	0x2
 #define	CPU_SEARCH_BOTH		(CPU_SEARCH_LOWEST|CPU_SEARCH_HIGHEST)
 
-#define	CPUSET_FOREACH(cpu, mask)				\
-	for ((cpu) = 0; (cpu) <= mp_maxid; (cpu)++)		\
-		if (CPU_ISSET(cpu, &mask))
-
 static __always_inline int cpu_search(const struct cpu_group *cg,
     struct cpu_search *low, struct cpu_search *high, const int match);
 int __noinline cpu_search_lowest(const struct cpu_group *cg,
@@ -1292,13 +1288,17 @@ sched_pickcpu(struct thread *td, int flags)
 	    tdq->tdq_lowpri >= PRI_MIN_IDLE &&
 	    SCHED_AFFINITY(ts, CG_SHARE_L2)) {
 		if (cg->cg_flags & CG_FLAG_THREAD) {
-			CPUSET_FOREACH(cpu, cg->cg_mask) {
-				if (TDQ_CPU(cpu)->tdq_lowpri < PRI_MIN_IDLE)
+			/* Check all SMT threads for being idle. */
+			for (cpu = CPU_FFS(&cg->cg_mask) - 1; ; cpu++) {
+				if (CPU_ISSET(cpu, &cg->cg_mask) &&
+				    TDQ_CPU(cpu)->tdq_lowpri < PRI_MIN_IDLE)
 					break;
+				if (cpu >= mp_maxid) {
+					SCHED_STAT_INC(pickcpu_idle_affinity);
+					return (ts->ts_cpu);
+				}
 			}
-		} else
-			cpu = INT_MAX;
-		if (cpu > mp_maxid) {
+		} else {
 			SCHED_STAT_INC(pickcpu_idle_affinity);
 			return (ts->ts_cpu);
 		}
