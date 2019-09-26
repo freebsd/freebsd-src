@@ -2061,8 +2061,6 @@ syncookie_generate(struct syncache_head *sch, struct syncache *sc)
 	uint8_t *secbits;
 	union syncookie cookie;
 
-	SCH_LOCK_ASSERT(sch);
-
 	cookie.cookie = 0;
 
 	/* Map our computed MSS into the 3-bit index. */
@@ -2090,10 +2088,10 @@ syncookie_generate(struct syncache_head *sch, struct syncache *sc)
 		cookie.flags.sack_ok = 1;
 
 	/* Which of the two secrets to use. */
-	secbit = sch->sch_sc->secret.oddeven & 0x1;
+	secbit = V_tcp_syncache.secret.oddeven & 0x1;
 	cookie.flags.odd_even = secbit;
 
-	secbits = sch->sch_sc->secret.key[secbit];
+	secbits = V_tcp_syncache.secret.key[secbit];
 	hash = syncookie_mac(&sc->sc_inc, sc->sc_irs, cookie.cookie, secbits,
 	    (uintptr_t)sch);
 
@@ -2121,8 +2119,6 @@ syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
 	int wnd, wscale = 0;
 	union syncookie cookie;
 
-	SCH_LOCK_ASSERT(sch);
-
 	/*
 	 * Pull information out of SYN-ACK/ACK and revert sequence number
 	 * advances.
@@ -2137,7 +2133,7 @@ syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
 	cookie.cookie = (ack & 0xff) ^ (ack >> 24);
 
 	/* Which of the two secrets to use. */
-	secbits = sch->sch_sc->secret.key[cookie.flags.odd_even];
+	secbits = V_tcp_syncache.secret.key[cookie.flags.odd_even];
 
 	hash = syncookie_mac(inc, seq, cookie.cookie, secbits, (uintptr_t)sch);
 
