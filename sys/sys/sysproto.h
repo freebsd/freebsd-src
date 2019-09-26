@@ -1814,6 +1814,11 @@ struct shm_open2_args {
 	char shmflags_l_[PADL_(int)]; int shmflags; char shmflags_r_[PADR_(int)];
 	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
 };
+struct shm_rename_args {
+	char path_from_l_[PADL_(const char *)]; const char * path_from; char path_from_r_[PADR_(const char *)];
+	char path_to_l_[PADL_(const char *)]; const char * path_to; char path_to_r_[PADR_(const char *)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+};
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_sys_exit(struct thread *, struct sys_exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
@@ -2201,6 +2206,7 @@ int	sys_funlinkat(struct thread *, struct funlinkat_args *);
 int	sys_copy_file_range(struct thread *, struct copy_file_range_args *);
 int	sys___sysctlbyname(struct thread *, struct __sysctlbyname_args *);
 int	sys_shm_open2(struct thread *, struct shm_open2_args *);
+int	sys_shm_rename(struct thread *, struct shm_rename_args *);
 
 #ifdef COMPAT_43
 
@@ -3123,6 +3129,7 @@ int	freebsd12_shm_open(struct thread *, struct freebsd12_shm_open_args *);
 #define	SYS_AUE_copy_file_range	AUE_NULL
 #define	SYS_AUE___sysctlbyname	AUE_SYSCTL
 #define	SYS_AUE_shm_open2	AUE_SHMOPEN
+#define	SYS_AUE_shm_rename	AUE_NULL
 
 #undef PAD_
 #undef PADL_
