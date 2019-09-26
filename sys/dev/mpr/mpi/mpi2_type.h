@@ -1,7 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 LSI Corp.
- * Copyright (c) 2013-2016 Avago Technologies
- * All rights reserved.
+ *  Copyright 2000-2020 Broadcom Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,15 +25,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
+ * Broadcom Inc. (LSI) MPT-Fusion Host Adapter FreeBSD
  *
  * $FreeBSD$
  */
 
 /*
- *  Copyright (c) 2000-2015 LSI Corporation.
- *  Copyright (c) 2013-2016 Avago Technologies
- *  All rights reserved.
+ *  Copyright 2000-2020 Broadcom Inc. All rights reserved.
  *
  *
  *           Name:  mpi2_type.h
