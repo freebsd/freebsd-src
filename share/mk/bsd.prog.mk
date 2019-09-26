@@ -34,6 +34,10 @@ PROG=	${PROG_CXX}
 MK_DEBUG_FILES=	no
 .endif
 
+# ELF hardening knobs
+.if ${MK_BIND_NOW} != "no"
+LDFLAGS+= -Wl,-znow
+.endif
 .if ${MK_PIE} != "no" && (!defined(NO_SHARED) || ${NO_SHARED:tl} == "no")
 CFLAGS+= -fPIE
 CXXFLAGS+= -fPIE
