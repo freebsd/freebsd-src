@@ -175,6 +175,7 @@ terminal_init(struct terminal *tm)
 
 	teken_init(&tm->tm_emulator, &terminal_drawmethods, tm);
 
+	fg = bg = -1;
 	TUNABLE_INT_FETCH("teken.fg_color", &fg);
 	TUNABLE_INT_FETCH("teken.bg_color", &bg);
 
