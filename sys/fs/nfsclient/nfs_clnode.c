@@ -212,7 +212,7 @@ ncl_releasesillyrename(struct vnode *vp, struct thread *td)
 
 	ASSERT_VOP_ELOCKED(vp, "releasesillyrename");
 	np = VTONFS(vp);
-	mtx_assert(&np->n_mtx, MA_OWNED);
+	NFSASSERTNODE(np);
 	if (vp->v_type != VDIR) {
 		sp = np->n_sillyrename;
 		np->n_sillyrename = NULL;
