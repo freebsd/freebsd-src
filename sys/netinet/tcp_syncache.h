@@ -111,6 +111,9 @@ struct syncookie_secret {
 	u_int lifetime;
 };
 
+#define	TCP_SYNCACHE_PAUSE_TIME		SYNCOOKIE_LIFETIME
+#define	TCP_SYNCACHE_MAX_BACKOFF	6	/* 16 minutes */
+
 struct tcp_syncache {
 	struct	syncache_head *hashbase;
 	uma_zone_t zone;
@@ -122,6 +125,11 @@ struct tcp_syncache {
 	uint32_t hash_secret;
 	struct vnet *vnet;
 	struct syncookie_secret secret;
+	struct mtx pause_mtx;
+	struct callout pause_co;
+	time_t	pause_until;
+	uint8_t pause_backoff;
+	volatile bool paused;
 };
 
 /* Internal use for the syncookie functions. */
