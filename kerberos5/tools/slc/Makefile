@@ -6,6 +6,7 @@ LIBADD=	vers
 LDADD=  ${LIBROKEN_A}
 DPADD=  ${LIBROKEN_A}
 MAN=
+MK_PIE:=	no
 
 SRCS=	roken.h \
 	slc-gram.y \

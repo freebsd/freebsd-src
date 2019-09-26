@@ -5,6 +5,7 @@
 LOADER_ADDRESS?=0x200000
 LDFLAGS+=	-nostdlib
 LDFLAGS.lld+=	-Wl,--no-rosegment
+MK_PIE:=	no
 
 # BTX components
 BTXDIR=		${BOOTOBJ}/i386/btx
