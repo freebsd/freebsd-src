@@ -118,7 +118,7 @@ After all entries have been written, use the
 .Fn archive_write_free
 function to release all resources.
 .\"
-.Sh EXAMPLE
+.Sh EXAMPLES
 The following sketch illustrates basic usage of the library.
 In this example,
 the callback functions are simply wrappers around the standard
@@ -192,7 +192,7 @@ write_archive(const char *outname, const char **filename)
   if (archive_write_set_format_filter_by_ext(a, outname) != ARCHIVE_OK)  {
     archive_write_add_filter_gzip(a);
     archive_write_set_format_ustar(a);
-  }  
+  }
   archive_write_open(a, mydata, myopen, mywrite, myclose);
   while (*filename) {
     stat(*filename, &st);
@@ -225,8 +225,8 @@ int main(int argc, const char **argv)
 .Ed
 .Sh SEE ALSO
 .Xr tar 1 ,
-.Xr libarchive 3 ,
 .Xr archive_write_set_options 3 ,
+.Xr libarchive 3 ,
 .Xr cpio 5 ,
 .Xr mtree 5 ,
 .Xr tar 5

@@ -28,7 +28,7 @@
 .\"     @(#)mount.2	8.3 (Berkeley) 5/24/95
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2017
+.Dd August 28, 2019
 .Dt MOUNT 2
 .Os
 .Sh NAME
@@ -157,6 +157,10 @@ mount even if some files are open for writing.
 Disable read clustering.
 .It Dv MNT_NOCLUSTERW
 Disable write clustering.
+.It Dv MNT_NOCOVER
+Do not mount over the root of another mount point.
+.It Dv MNT_EMPTYDIR
+Require an empty directory for the mount point directory.
 .El
 .Pp
 The flag
@@ -260,6 +264,11 @@ is not a directory.
 .It Bq Er EBUSY
 Another process currently holds a reference to
 .Fa dir .
+.It Bq Er EBUSY
+The
+.Dv MNT_NOCOVER
+option was given, and the requested mount point
+is already the root of another mount point.
 .It Bq Er EFAULT
 The
 .Fa dir
@@ -280,6 +289,11 @@ The
 .Fa fspec
 argument
 is not a block device.
+.It Bq Er ENOTEMPTY
+The
+.Dv MNT_EMPTYDIR
+option was specified, and the requested mount point
+is not an empty directory.
 .It Bq Er ENXIO
 The major device number of
 .Fa fspec

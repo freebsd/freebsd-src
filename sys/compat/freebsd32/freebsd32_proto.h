@@ -1266,6 +1266,30 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 
 #endif /* COMPAT_FREEBSD11 */
 
+
+#ifdef COMPAT_FREEBSD12
+
+#if !defined(PAD64_REQUIRED) && !defined(__amd64__)
+#define PAD64_REQUIRED
+#endif
+#ifdef PAD64_REQUIRED
+#else
+#endif
+#ifdef PAD64_REQUIRED
+#else
+#endif
+#ifdef PAD64_REQUIRED
+#else
+#endif
+#ifdef PAD64_REQUIRED
+#else
+#endif
+#ifdef PAD64_REQUIRED
+#else
+#endif
+
+#endif /* COMPAT_FREEBSD12 */
+
 #define	FREEBSD32_SYS_AUE_freebsd32_wait4	AUE_WAIT4
 #define	FREEBSD32_SYS_AUE_freebsd4_freebsd32_getfsstat	AUE_GETFSSTAT
 #define	FREEBSD32_SYS_AUE_ofreebsd32_lseek	AUE_LSEEK

@@ -28,7 +28,7 @@
 .\"     @(#)fcntl.2	8.2 (Berkeley) 1/12/94
 .\" $FreeBSD$
 .\"
-.Dd Nov 15, 2018
+.Dd September 4, 2019
 .Dt FCNTL 2
 .Os
 .Sh NAME
@@ -180,6 +180,11 @@ is non-zero.
 A zero value in
 .Fa arg
 turns off read ahead.
+.It Dv F_ADD_SEALS
+Add seals to the file as described below, if the underlying filesystem supports
+seals.
+.It Dv F_GET_SEALS
+Get seals associated with the file, if the underlying filesystem supports seals.
 .El
 .Pp
 The flags for the
@@ -216,6 +221,37 @@ signal to be sent to the process group
 when I/O is possible, e.g.,
 upon availability of data to be read.
 .El
+.Pp
+The seals that may be applied with
+.Dv F_ADD_SEALS
+are as follows:
+.Bl -tag -width F_SEAL_SHRINK
+.It Dv F_SEAL_SEAL
+Prevent any further seals from being applied to the file.
+.It Dv F_SEAL_SHRINK
+Prevent the file from being shrunk with
+.Xr ftruncate 2 .
+.It Dv F_SEAL_GROW
+Prevent the file from being enlarged with
+.Xr ftruncate 2 .
+.It Dv F_SEAL_WRITE
+Prevent any further
+.Xr write 2
+calls to the file.
+Any writes in progress will finish before
+.Fn fcntl
+returns.
+If any writeable mappings exist, F_ADD_SEALS will fail and return
+.Dv EBUSY .
+.El
+.Pp
+Seals are on a per-inode basis and require support by the underlying filesystem.
+If the underlying filesystem does not support seals,
+.Dv F_ADD_SEALS
+and
+.Dv F_GET_SEALS
+will fail and return
+.Dv EINVAL .
 .Pp
 Several commands are available for doing advisory file locking;
 they all operate on the following structure:
@@ -528,6 +564,14 @@ is an exclusive lock
 and
 .Fa fd
 is not a valid file descriptor open for writing.
+.It Bq Er EBUSY
+The argument
+.Fa cmd
+is
+.Dv F_ADD_SEALS ,
+attempting to set
+.Dv F_SEAL_WRITE ,
+and writeable mappings of the file exist.
 .It Bq Er EDEADLK
 The argument
 .Fa cmd
@@ -562,6 +606,14 @@ or
 and the data to which
 .Fa arg
 points is not valid.
+.Pp
+The argument
+.Fa cmd
+is
+.Dv F_ADD_SEALS
+or
+.Dv F_GET_SEALS ,
+and the underlying filesystem does not support sealing.
 .Pp
 The argument
 .Fa cmd
@@ -624,6 +676,15 @@ is
 and
 the process ID or process group given as an argument is in a
 different session than the caller.
+.Pp
+The
+.Fa cmd
+argument
+is
+.Dv F_ADD_SEALS
+and the
+.Dv F_SEAL_SEAL
+seal has already been set.
 .It Bq Er ESRCH
 The
 .Fa cmd

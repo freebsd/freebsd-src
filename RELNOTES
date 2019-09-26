@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r352668:
+	cron(8) now supports the -n (suppress mail on succesful run) and -q
+	(suppress logging of command execution) options in the crontab format.
+	See the crontab(5) manpage for details.
+
 r352304:
 	ntpd is no longer by default locked in memory. rlimit memlock 32
 	or rlimit memlock 0 can be used to restore this behaviour.

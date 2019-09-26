@@ -404,7 +404,7 @@
 #define	FREEBSD32_SYS_freebsd32_truncate	479
 #define	FREEBSD32_SYS_freebsd32_ftruncate	480
 #define	FREEBSD32_SYS_thr_kill2	481
-#define	FREEBSD32_SYS_shm_open	482
+#define	FREEBSD32_SYS_freebsd12_shm_open	482
 #define	FREEBSD32_SYS_shm_unlink	483
 #define	FREEBSD32_SYS_cpuset	484
 #define	FREEBSD32_SYS_freebsd32_cpuset_setid	485
@@ -497,4 +497,6 @@
 #define	FREEBSD32_SYS_funlinkat	568
 #define	FREEBSD32_SYS_copy_file_range	569
 #define	FREEBSD32_SYS_freebsd32___sysctlbyname	570
-#define	FREEBSD32_SYS_MAXSYSCALL	571
+#define	FREEBSD32_SYS_shm_open2	571
+#define	FREEBSD32_SYS_shm_rename	572
+#define	FREEBSD32_SYS_MAXSYSCALL	573

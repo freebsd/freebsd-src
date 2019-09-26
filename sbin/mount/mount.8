@@ -28,7 +28,7 @@
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
 .\" $FreeBSD$
 .\"
-.Dd March 22, 2017
+.Dd August 28, 2019
 .Dt MOUNT 8
 .Os
 .Sh NAME
@@ -162,6 +162,8 @@ When used with the
 .Fl u
 flag, this is the same as specifying the options currently in effect for
 the mounted file system.
+.It Cm emptydir
+Require that the mount point directory be empty.
 .It Cm force
 The same as
 .Fl f ;
@@ -237,6 +239,9 @@ flag.
 Disable read clustering.
 .It Cm noclusterw
 Disable write clustering.
+.It Cm nocover
+Do not mount if the requested mount point is already
+the root of a mount point.
 .It Cm noexec
 Do not allow execution of any binaries on the mounted file system.
 This option is useful for a server that has file systems containing

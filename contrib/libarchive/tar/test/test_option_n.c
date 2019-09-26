@@ -120,7 +120,7 @@ DEFINE_TEST(test_option_n)
 			      "d2/file4\n",
 			      "test5.out");
 
-	/* Test 6: -t without -n and non-existant directory selected */
+	/* Test 6: -t without -n and non-existent directory selected */
 	assertEqualInt(0,
 	    systemf("%s -tf partial-archive.tar d2 >test6.out 2>test6.err",
 	    testprog));
@@ -128,7 +128,7 @@ DEFINE_TEST(test_option_n)
 	assertTextFileContents("d2/file4\n",
 			      "test6.out");
 
-	/* Test 7: -t with -n and non-existant directory selected */
+	/* Test 7: -t with -n and non-existent directory selected */
 	status = systemf("%s -tnf partial-archive.tar d2 "
 	">test7.out 2>test7.err", testprog);
 	assert(status);

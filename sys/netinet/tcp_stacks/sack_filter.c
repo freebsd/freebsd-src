@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Netflix, Inc.
+ * Copyright (c) 2017-9 Netflix, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -140,6 +140,7 @@ static int32_t
 is_sack_on_board(struct sack_filter *sf, struct sackblk *b)
 {
 	int32_t i, cnt;
+
 	for (i = sf->sf_cur, cnt=0; cnt < SACK_FILTER_BLOCKS; cnt++) {
 		if (sack_blk_used(sf, i)) {
 			if (SEQ_LT(b->start, sf->sf_ack)) {
@@ -150,8 +151,9 @@ is_sack_on_board(struct sack_filter *sf, struct sackblk *b)
 				/* End back behind too */
 				b->end = sf->sf_ack;
 			}
-			if (b->start == b->end)
+			if (b->start == b->end) {
 				return(1);
+			}
 			/* Jonathans Rule 1 */
 			if (SEQ_LEQ(sf->sf_blks[i].start, b->start) &&
 			    SEQ_GEQ(sf->sf_blks[i].end, b->end)) {
@@ -312,21 +314,22 @@ sack_filter_new(struct sack_filter *sf, struct sackblk *in, int numblks, tcp_seq
 	if (num == 0)
 		return(num);
 
-	/* Now what we are left is either 
+	/* Now what we are left with is either 
 	 * completely merged on to the board
-	 * from the above steps, or are new
+	 * from the above steps, or is new
 	 * and need to be added to the board
 	 * with the last one updated to current.
 	 *
-	 * First copy it out we want to return that
+	 * First copy it out, we want to return that
 	 * to our caller for processing.
 	 */
 	memcpy(in, blkboard, (num * sizeof(struct sackblk)));	
 	numblks = num;
 	/* Now go through and add to our board as needed */
 	for(i=(num-1); i>=0; i--) {
-		if (is_sack_on_board(sf, &blkboard[i]))
+		if (is_sack_on_board(sf, &blkboard[i])) {
 			continue;
+		}
 		/* Add this guy its not listed */
 		sf->sf_cur++;
 		sf->sf_cur %= SACK_FILTER_BLOCKS;
@@ -463,65 +466,6 @@ sack_board_collapse(struct sack_filter *sf)
 }
 
 #ifndef _KERNEL
-static
-#endif
-int
-sack_filter_blks(struct sack_filter *sf, struct sackblk *in, int numblks, tcp_seq th_ack)
-{
-	int32_t i, ret;
-	
-	if (numblks > TCP_MAX_SACK) {
-		panic("sf:%p sb:%p Impossible number of sack blocks %d > 4\n",
-		      sf, in, 
-		      numblks);
-		return(numblks);
-	}
-	if ((sf->sf_used == 0) && numblks) {
-		/* 
-		 * We are brand new add the blocks in 
-		 * reverse order. Note we can see more
-		 * than one in new, since ack's could be lost.
-		 */
-		sf->sf_ack = th_ack;
-		for(i=(numblks-1), sf->sf_cur=0; i >= 0; i--) {
-			memcpy(&sf->sf_blks[sf->sf_cur], &in[i], sizeof(struct sackblk));
-			sf->sf_bits = sack_blk_set(sf, sf->sf_cur);
-			sf->sf_cur++;
-			sf->sf_cur %= SACK_FILTER_BLOCKS;
-			sf->sf_used++;
-#ifndef _KERNEL
-			if (sf->sf_used > highest_used)
-				highest_used = sf->sf_used;
-#endif
-		}
-		if (sf->sf_cur)
-			sf->sf_cur--;
-		return(numblks);
-	}
-	if (SEQ_GT(th_ack, sf->sf_ack)) {
-		sack_filter_prune(sf, th_ack);
-	}
-	if (numblks) {
-		if (SEQ_GEQ(th_ack, sf->sf_ack)) {
-			ret = sack_filter_new(sf, in, numblks, th_ack);
-		} else {
-			ret = sack_filter_old(sf, in, numblks);
-		}
-	} else
-		ret = 0;
-#ifndef _KERNEL
-	if ((sf->sf_used > 1) && (no_collapse == 0))
-		sack_board_collapse(sf);
-
-#else	
-	if (sf->sf_used > 1) 
-		sack_board_collapse(sf);
-
-#endif
-	return (ret);
-}
-
-#ifndef _KERNEL
 uint64_t saved=0;
 uint64_t tot_sack_blks=0;
 
@@ -541,6 +485,133 @@ sack_filter_dump(FILE *out, struct sack_filter *sf)
 		}
 	}
 }
+#endif
+
+#ifndef _KERNEL
+static
+#endif
+int
+sack_filter_blks(struct sack_filter *sf, struct sackblk *in, int numblks,
+		 tcp_seq th_ack)
+{
+	int32_t i, ret;
+	
+	if (numblks > TCP_MAX_SACK) {
+#ifdef _KERNEL
+		panic("sf:%p sb:%p Impossible number of sack blocks %d > 4\n",
+		      sf, in, 
+		      numblks);
+#endif
+		return(numblks);
+	}
+#ifndef _KERNEL
+	if ((sf->sf_used > 1) && (no_collapse == 0))
+		sack_board_collapse(sf);
+
+#else	
+	if (sf->sf_used > 1) 
+		sack_board_collapse(sf);
+#endif
+	if ((sf->sf_used == 0) && numblks) {
+		/* 
+		 * We are brand new add the blocks in 
+		 * reverse order. Note we can see more
+		 * than one in new, since ack's could be lost.
+		 */
+		int cnt_added = 0;
+
+		sf->sf_ack = th_ack;
+		for(i=(numblks-1), sf->sf_cur=0; i >= 0; i--) {
+			memcpy(&sf->sf_blks[sf->sf_cur], &in[i], sizeof(struct sackblk));
+			sf->sf_bits = sack_blk_set(sf, sf->sf_cur);
+			sf->sf_cur++;
+			sf->sf_cur %= SACK_FILTER_BLOCKS;
+			sf->sf_used++;
+			cnt_added++;
+#ifndef _KERNEL
+			if (sf->sf_used > highest_used)
+				highest_used = sf->sf_used;
+#endif
+		}
+		if (sf->sf_cur)
+			sf->sf_cur--;
+
+		return (cnt_added);
+	}
+	if (SEQ_GT(th_ack, sf->sf_ack)) {
+		sack_filter_prune(sf, th_ack);
+	}
+	if (numblks) {
+		if (SEQ_GEQ(th_ack, sf->sf_ack)) {
+			ret = sack_filter_new(sf, in, numblks, th_ack);
+		} else {
+			ret = sack_filter_old(sf, in, numblks);
+		}
+	} else
+		ret = 0;
+	return (ret);
+}
+
+void
+sack_filter_reject(struct sack_filter *sf, struct sackblk *in)
+{
+	/* 
+	 * Given a specified block (that had made
+	 * it past the sack filter). Reject that
+	 * block triming it off any sack-filter block
+	 * that has it. Usually because the block was
+	 * too small and did not cover a whole send.
+	 *
+	 * This function will only "undo" sack-blocks 
+	 * that are fresh and touch the edges of 
+	 * blocks in our filter.
+	 */
+	int i;
+
+	for(i=0; i<SACK_FILTER_BLOCKS; i++) {
+		if (sack_blk_used(sf, i) == 0)
+			continue;
+		/* 
+		 * Now given the sack-filter block does it touch
+		 * with one of the ends 
+		 */
+		if (sf->sf_blks[i].end == in->end) {
+			/* The end moves back to start */
+			if (SEQ_GT(in->start, sf->sf_blks[i].start))
+				/* in-blk       |----| */
+				/* sf-blk  |---------| */
+				sf->sf_blks[i].end = in->start;
+			else {
+				/* It consumes this block */
+				/* in-blk  |---------| */
+				/* sf-blk     |------| */
+				/* <or> */
+				/* sf-blk  |---------| */
+				sf->sf_bits = sack_blk_clr(sf, i);
+				sf->sf_used--;
+			}
+			continue;
+		}
+		if (sf->sf_blks[i].start == in->start) {
+			if (SEQ_LT(in->end, sf->sf_blks[i].end)) {
+				/* in-blk  |----|      */
+				/* sf-blk  |---------| */
+				sf->sf_blks[i].start = in->end;
+			} else {
+				/* It consumes this block */
+				/* in-blk  |----------|  */
+				/* sf-blk  |-------|     */
+				/* <or> */
+				/* sf-blk  |----------|  */
+				sf->sf_bits = sack_blk_clr(sf, i);
+				sf->sf_used--;
+			}
+			continue;
+		}
+	}
+}
+
+#ifndef _KERNEL
 
 int
 main(int argc, char **argv)
@@ -548,12 +619,12 @@ main(int argc, char **argv)
 	char buffer[512];
 	struct sackblk blks[TCP_MAX_SACK];
 	FILE *err;
-	tcp_seq th_ack, snd_una;
+	tcp_seq th_ack, snd_una, snd_max = 0;
 	struct sack_filter sf;
 	int32_t numblks,i;
 	int snd_una_set=0;
 	double a, b, c;
-	int invalid_sack_print = 0;	
+	int invalid_sack_print = 0;
 	uint32_t chg_remembered=0;
 	uint32_t sack_chg=0;
 	char line_buf[10][256];
@@ -604,7 +675,11 @@ main(int argc, char **argv)
 		line_buf_at++;
 		if (strncmp(buffer, "QUIT", 4) == 0) {
 			break;
-		} else if (strncmp(buffer, "DONE", 4) == 0) {
+		} else if (strncmp(buffer, "DUMP", 4) == 0) {
+			sack_filter_dump(out, &sf);
+		} else if (strncmp(buffer, "MAX:", 4) == 0) {
+			snd_max = strtoul(&buffer[4], NULL, 0);
+		} else if (strncmp(buffer, "COMMIT", 6) == 0) {
 			int nn, ii;
 			if (numblks) {
 				uint32_t szof, tot_chg;
@@ -660,6 +735,7 @@ main(int argc, char **argv)
 			char *end=NULL;
 			uint32_t start;
 			uint32_t endv;
+
 			start = strtoul(&buffer[5], &end, 0);
 			if (end) {
 				endv = strtoul(&end[1], NULL, 0);
@@ -667,6 +743,8 @@ main(int argc, char **argv)
 				fprintf(out, "--Sack invalid skip 0 start:%u : ??\n", start);
 				continue;
 			}
+			if (SEQ_GT(endv, snd_max))
+				snd_max = endv;
 			if (SEQ_LT(endv, start)) {
 				fprintf(out, "--Sack invalid skip 1 endv:%u < start:%u\n", endv, start);
 				continue;
@@ -678,6 +756,28 @@ main(int argc, char **argv)
 			blks[numblks].start = start;
 			blks[numblks].end = endv;
 			numblks++;
+		} else if (strncmp(buffer, "REJ:n:n", 4) == 0) {
+			struct sackblk in;
+			char *end=NULL;
+
+			in.start = strtoul(&buffer[4], &end, 0);
+			if (end) {
+				in.end = strtoul(&end[1], NULL, 0);
+				sack_filter_reject(&sf, &in);
+			} else
+				fprintf(out, "Invalid input END:A:B\n");
+		} else if (strncmp(buffer, "HELP", 4) == 0) {
+			fprintf(out, "You can input:\n");
+			fprintf(out, "SACK:S:E -- to define a sack block\n");
+			fprintf(out, "RXT -- to clear the filter without changing the remembered\n");
+			fprintf(out, "EXIT -- To clear the sack filter and start all fresh\n");
+			fprintf(out, "ACK:N -- To advance the cum-ack to N\n");
+			fprintf(out, "MAX:N -- To set send-max to N\n");
+			fprintf(out, "COMMIT -- To apply the sack you built to the filter and dump the filter\n");
+			fprintf(out, "DUMP -- To display the current contents of the sack filter\n");
+			fprintf(out, "QUIT -- To exit this program\n");
+		} else {
+			fprintf(out, "Command %s unknown\n", buffer);
 		}
 		memset(buffer, 0, sizeof(buffer));
 	}

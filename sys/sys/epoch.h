@@ -41,6 +41,8 @@ typedef struct epoch_context *epoch_context_t;
 #include <sys/pcpu.h>
 #include <ck_epoch.h>
 
+#include "opt_epoch.h"
+
 struct epoch;
 typedef struct epoch *epoch_t;
 
@@ -51,21 +53,19 @@ extern epoch_t global_epoch;
 extern epoch_t global_epoch_preempt;
 
 struct epoch_tracker {
-#ifdef	EPOCH_TRACKER_DEBUG
-#define	EPOCH_MAGIC0 0xFADECAFEF00DD00D
-#define	EPOCH_MAGIC1 0xBADDBABEDEEDFEED
-	uint64_t et_magic_pre;
-#endif
 	TAILQ_ENTRY(epoch_tracker) et_link;
 	struct thread *et_td;
 	ck_epoch_section_t et_section;
-#ifdef	EPOCH_TRACKER_DEBUG
-	uint64_t et_magic_post;
+#ifdef EPOCH_TRACE
+	struct epoch *et_epoch;
+	SLIST_ENTRY(epoch_tracker) et_tlink;
+	const char *et_file;
+	int et_line;
 #endif
 }  __aligned(sizeof(void *));
 typedef struct epoch_tracker *epoch_tracker_t;
 
-epoch_t	epoch_alloc(int flags);
+epoch_t	epoch_alloc(const char *name, int flags);
 void	epoch_free(epoch_t epoch);
 void	epoch_wait(epoch_t epoch);
 void	epoch_wait_preempt(epoch_t epoch);
@@ -75,11 +75,22 @@ int	in_epoch(epoch_t epoch);
 int in_epoch_verbose(epoch_t epoch, int dump_onfail);
 DPCPU_DECLARE(int, epoch_cb_count);
 DPCPU_DECLARE(struct grouptask, epoch_cb_task);
-#define EPOCH_MAGIC0 0xFADECAFEF00DD00D
-#define EPOCH_MAGIC1 0xBADDBABEDEEDFEED
 
-void epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et);
-void epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et);
+#ifdef EPOCH_TRACE
+#define	EPOCH_FILE_LINE	, const char *file, int line
+#else
+#define	EPOCH_FILE_LINE
+#endif
+
+void _epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE);
+void _epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE);
+#ifdef EPOCH_TRACE
+#define	epoch_enter_preempt(epoch, et)	_epoch_enter_preempt(epoch, et, __FILE__, __LINE__)
+#define	epoch_exit_preempt(epoch, et)	_epoch_exit_preempt(epoch, et, __FILE__, __LINE__)
+#else
+#define epoch_enter_preempt(epoch, et)	_epoch_enter_preempt(epoch, et)
+#define	epoch_exit_preempt(epoch, et)	_epoch_exit_preempt(epoch, et)
+#endif
 void epoch_enter(epoch_t epoch);
 void epoch_exit(epoch_t epoch);
 

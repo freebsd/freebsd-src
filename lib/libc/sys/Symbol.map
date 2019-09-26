@@ -409,6 +409,8 @@ FBSD_1.6 {
 	fhreadlink;
 	getfhat;
 	funlinkat;
+	memfd_create;
+	shm_rename;
 };
 
 FBSDprivate_1.0 {

@@ -28,11 +28,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 20, 2017
+.Dd September 26, 2019
 .Dt SHM_OPEN 2
 .Os
 .Sh NAME
-.Nm shm_open , shm_unlink
+.Nm memfd_create , shm_open , shm_rename, shm_unlink
 .Nd "shared memory object operations"
 .Sh LIBRARY
 .Lb libc
@@ -41,7 +41,11 @@
 .In sys/mman.h
 .In fcntl.h
 .Ft int
+.Fn memfd_create "const char *name" "unsigned int flags"
+.Ft int
 .Fn shm_open "const char *path" "int flags" "mode_t mode"
+.Ft int
+.Fn shm_rename "const char *path_from" "const char *path_to" "int flags"
 .Ft int
 .Fn shm_unlink "const char *path"
 .Sh DESCRIPTION
@@ -110,8 +114,9 @@ see
 and
 .Xr fcntl 2 .
 .Pp
-As a FreeBSD extension,
-the constant
+As a
+.Fx
+extension, the constant
 .Dv SHM_ANON
 may be used for the
 .Fa path
@@ -120,7 +125,9 @@ argument to
 In this case, an anonymous, unnamed shared memory object is created.
 Since the object has no name,
 it cannot be removed via a subsequent call to
-.Fn shm_unlink .
+.Fn shm_unlink ,
+or moved with a call to
+.Fn shm_rename .
 Instead,
 the shared memory object will be garbage collected when the last reference to
 the shared memory object is removed.
@@ -136,23 +143,103 @@ will fail with
 All other flags are ignored.
 .Pp
 The
+.Fn shm_rename
+system call atomically removes a shared memory object named
+.Fa path_from
+and relinks it at
+.Fa path_to .
+If another object is already linked at
+.Fa path_to ,
+that object will be unlinked, unless one of the following flags are provided:
+.Bl -tag -offset indent -width Er
+.It Er SHM_RENAME_EXCHANGE
+Atomically exchange the shms at
+.Fa path_from
+and
+.Fa path_to .
+.It Er SHM_RENAME_NOREPLACE
+Return an error if an shm exists at
+.Fa path_to ,
+rather than unlinking it.
+.El
+.Fn shm_rename
+is also a
+.Fx
+extension.
+.Pp
+The
 .Fn shm_unlink
 system call removes a shared memory object named
 .Fa path .
+.Pp
+The
+.Fn memfd_create
+function creates an anonymous shared memory object, identical to that created
+by
+.Fn shm_open
+when
+.Dv SHM_ANON
+is specified.
+Newly created objects start off with a size of zero.
+The size of the new object must be adjusted via
+.Xr ftruncate 2 .
+.Pp
+The
+.Fa name
+argument must not be
+.Dv NULL ,
+but it may be an empty string.
+The length of the
+.Fa name
+argument may not exceed
+.Dv NAME_MAX
+minus six characters for the prefix
+.Dq memfd: ,
+which will be prepended.
+The
+.Fa name
+argument is intended solely for debugging purposes and will never be used by the
+kernel to identify a memfd.
+Names are therefore not required to be unique.
+.Pp
+The following
+.Fa flags
+may be specified to
+.Fn memfd_create :
+.Bl -tag -width MFD_ALLOW_SEALING
+.It Dv MFD_CLOEXEC
+Set
+.Dv FD_CLOEXEC
+on the resulting file descriptor.
+.It Dv MFD_ALLOW_SEALING
+Allow adding seals to the resulting file descriptor using the
+.Dv F_ADD_SEALS
+.Xr fcntl 2
+command.
+.It Dv MFD_HUGETLB
+This flag is currently unsupported.
+.El
 .Sh RETURN VALUES
 If successful,
+.Fn memfd_create
+and
 .Fn shm_open
-returns a non-negative integer,
+both return a non-negative integer,
+and
+.Fn shm_rename
 and
 .Fn shm_unlink
-returns zero.
-Both functions return -1 on failure, and set
+return zero.
+All functions return -1 on failure, and set
 .Va errno
 to indicate the error.
 .Sh COMPATIBILITY
 The
-.Fa path
-argument does not necessarily represent a pathname (although it does in
+.Fa path ,
+.Fa path_from ,
+and
+.Fa path_to
+arguments do not necessarily represent a pathname (although they do in
 most other implementations).
 Two processes opening the same
 .Fa path
@@ -220,6 +307,33 @@ This example fails without the call to
                 errx(EX_IOERR, "%s: pwrite length mismatch", __func__);
 .Ed
 .Sh ERRORS
+.Fn memfd_create
+fails with these error codes for these conditions:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa name
+argument was NULL.
+.It Bq Er EINVAL
+The
+.Fa name
+argument was too long.
+.Pp
+An invalid or unsupported flag was included in
+.Fa flags .
+.It Bq Er EMFILE
+The process has already reached its limit for open file descriptors.
+.It Bq Er ENFILE
+The system file table is full.
+.It Bq Er ENOSYS
+In
+.Fa memfd_create ,
+.Dv MFD_HUGETLB
+was specified in
+.Fa flags ,
+and this system does not support forced hugetlb mappings.
+.El
+.Pp
 .Fn shm_open
 fails with these error codes for these conditions:
 .Bl -tag -width Er
@@ -246,7 +360,7 @@ The
 .Fa path
 argument points outside the process' allocated address space.
 .It Bq Er ENAMETOOLONG
-The entire pathname exceeded 1023 characters.
+The entire pathname exceeds 1023 characters.
 .It Bq Er EINVAL
 The
 .Fa path
@@ -265,6 +379,31 @@ are specified and the named shared memory object does exist.
 The required permissions (for reading or reading and writing) are denied.
 .El
 .Pp
+The following errors are defined for
+.Fn shm_rename :
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The
+.Fa path_from
+or
+.Fa path_to
+argument points outside the process' allocated address space.
+.It Bq Er ENAMETOOLONG
+The entire pathname exceeds 1023 characters.
+.It Bq Er ENOENT
+The shared memory object at
+.Fa path_from
+does not exist.
+.It Bq Er EACCES
+The required permissions are denied.
+.It Bq Er EEXIST
+An shm exists at
+.Fa path_to ,
+and the
+.Dv SHM_RENAME_NOREPLACE
+flag was provided.
+.El
+.Pp
 .Fn shm_unlink
 fails with these error codes for these conditions:
 .Bl -tag -width Er
@@ -273,7 +412,7 @@ The
 .Fa path
 argument points outside the process' allocated address space.
 .It Bq Er ENAMETOOLONG
-The entire pathname exceeded 1023 characters.
+The entire pathname exceeds 1023 characters.
 .It Bq Er ENOENT
 The named shared memory object does not exist.
 .It Bq Er EACCES
@@ -290,12 +429,22 @@ requires write permission to the shared memory object.
 .Xr sendfile 2
 .Sh STANDARDS
 The
+.Fn memfd_create
+function is expected to be compatible with the Linux system call of the same
+name.
+.Pp
+The
 .Fn shm_open
 and
 .Fn shm_unlink
 functions are believed to conform to
 .St -p1003.1b-93 .
 .Sh HISTORY
+The
+.Fn memfd_create
+function appeared in
+.Fx 13.0 .
+.Pp
 The
 .Fn shm_open
 and
@@ -305,9 +454,19 @@ functions first appeared in
 The functions were reimplemented as system calls using shared memory objects
 directly rather than files in
 .Fx 8.0 .
+.Pp
+.Fn shm_rename
+first appeared in
+.Fx 13.0
+as a
+.Fx
+extension.
 .Sh AUTHORS
 .An Garrett A. Wollman Aq Mt wollman@FreeBSD.org
 (C library support and this manual page)
 .Pp
 .An Matthew Dillon Aq Mt dillon@FreeBSD.org
 .Pq Dv MAP_NOSYNC
+.Pp
+.An Matthew Bryan Aq Mt matthew.bryan@isilon.com
+.Pq Dv shm_rename implementation

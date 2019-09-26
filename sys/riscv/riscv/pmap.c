@@ -1127,8 +1127,8 @@ pmap_remove_pt_page(pmap_t pmap, vm_offset_t va)
 }
 	
 /*
- * Decrements a page table page's wire count, which is used to record the
- * number of valid page table entries within the page.  If the wire count
+ * Decrements a page table page's reference count, which is used to record the
+ * number of valid page table entries within the page.  If the reference count
  * drops to zero, then the page table page is unmapped.  Returns TRUE if the
  * page table page was unmapped and FALSE otherwise.
  */
@@ -1136,8 +1136,8 @@ static inline boolean_t
 pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 {
 
-	--m->wire_count;
-	if (m->wire_count == 0) {
+	--m->ref_count;
+	if (m->ref_count == 0) {
 		_pmap_unwire_ptp(pmap, va, m, free);
 		return (TRUE);
 	} else {
@@ -1184,7 +1184,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 
 /*
  * After removing a page table entry, this routine is used to
- * conditionally free the page, and manage the hold/wire counts.
+ * conditionally free the page, and manage the reference count.
  */
 static int
 pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde,
@@ -1327,7 +1327,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		} else {
 			phys = PTE_TO_PHYS(pmap_load(l1));
 			pdpg = PHYS_TO_VM_PAGE(phys);
-			pdpg->wire_count++;
+			pdpg->ref_count++;
 		}
 
 		phys = PTE_TO_PHYS(pmap_load(l1));
@@ -1357,7 +1357,7 @@ retry:
 	if (l1 != NULL && (pmap_load(l1) & PTE_RWX) == 0) {
 		/* Add a reference to the L2 page. */
 		l2pg = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l1)));
-		l2pg->wire_count++;
+		l2pg->ref_count++;
 	} else {
 		/* Allocate a L2 page. */
 		l2pindex = pmap_l2_pindex(va) >> Ln_ENTRIES_SHIFT;
@@ -1393,7 +1393,7 @@ retry:
 	if (l2 != NULL && pmap_load(l2) != 0) {
 		phys = PTE_TO_PHYS(pmap_load(l2));
 		m = PHYS_TO_VM_PAGE(phys);
-		m->wire_count++;
+		m->ref_count++;
 	} else {
 		/*
 		 * Here if the pte page isn't mapped, or if it has been
@@ -2068,9 +2068,9 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 			KASSERT(ml3->valid == VM_PAGE_BITS_ALL,
 			    ("pmap_remove_l2: l3 page not promoted"));
 			pmap_resident_count_dec(pmap, 1);
-			KASSERT(ml3->wire_count == Ln_ENTRIES,
-			    ("pmap_remove_l2: l3 page wire count error"));
-			ml3->wire_count = 1;
+			KASSERT(ml3->ref_count == Ln_ENTRIES,
+			    ("pmap_remove_l2: l3 page ref count error"));
+			ml3->ref_count = 1;
 			vm_page_unwire_noq(ml3);
 			pmap_add_delayed_free_list(ml3, free, FALSE);
 		}
@@ -2487,7 +2487,7 @@ pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 			return (false);
 		}
 		if (va < VM_MAXUSER_ADDRESS) {
-			mpte->wire_count = Ln_ENTRIES;
+			mpte->ref_count = Ln_ENTRIES;
 			pmap_resident_count_inc(pmap, 1);
 		}
 	}
@@ -2695,7 +2695,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		l3 = pmap_l2_to_l3(l2, va);
 		if (va < VM_MAXUSER_ADDRESS) {
 			mpte = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l2)));
-			mpte->wire_count++;
+			mpte->ref_count++;
 		}
 	} else if (va < VM_MAXUSER_ADDRESS) {
 		nosleep = (flags & PMAP_ENTER_NOSLEEP) != 0;
@@ -2775,8 +2775,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		 * Remove the extra PT page reference.
 		 */
 		if (mpte != NULL) {
-			mpte->wire_count--;
-			KASSERT(mpte->wire_count > 0,
+			mpte->ref_count--;
+			KASSERT(mpte->ref_count > 0,
 			    ("pmap_enter: missing reference to page table page,"
 			     " va: 0x%lx", va));
 		}
@@ -2878,7 +2878,7 @@ validate:
 	}
 
 #if VM_NRESERVLEVEL > 0
-	if (mpte != NULL && mpte->wire_count == Ln_ENTRIES &&
+	if (mpte != NULL && mpte->ref_count == Ln_ENTRIES &&
 	    pmap_ps_enabled(pmap) &&
 	    (m->flags & PG_FICTITIOUS) == 0 &&
 	    vm_reserv_level_iffullpop(m) == 0)
@@ -2955,10 +2955,10 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 	l2 = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(l2pg));
 	l2 = &l2[pmap_l2_index(va)];
 	if ((oldl2 = pmap_load(l2)) != 0) {
-		KASSERT(l2pg->wire_count > 1,
-		    ("pmap_enter_l2: l2pg's wire count is too low"));
+		KASSERT(l2pg->ref_count > 1,
+		    ("pmap_enter_l2: l2pg's ref count is too low"));
 		if ((flags & PMAP_ENTER_NOREPLACE) != 0) {
-			l2pg->wire_count--;
+			l2pg->ref_count--;
 			CTR2(KTR_PMAP,
 			    "pmap_enter_l2: failure for va %#lx in pmap %p",
 			    va, pmap);
@@ -3133,7 +3133,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		 */
 		l2pindex = pmap_l2_pindex(va);
 		if (mpte && (mpte->pindex == l2pindex)) {
-			mpte->wire_count++;
+			mpte->ref_count++;
 		} else {
 			/*
 			 * Get the l2 entry
@@ -3149,7 +3149,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 			if (l2 != NULL && pmap_load(l2) != 0) {
 				phys = PTE_TO_PHYS(pmap_load(l2));
 				mpte = PHYS_TO_VM_PAGE(phys);
-				mpte->wire_count++;
+				mpte->ref_count++;
 			} else {
 				/*
 				 * Pass NULL instead of the PV list lock
@@ -3170,7 +3170,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		panic("pmap_enter_quick_locked: No l3");
 	if (pmap_load(l3) != 0) {
 		if (mpte != NULL) {
-			mpte->wire_count--;
+			mpte->ref_count--;
 			mpte = NULL;
 		}
 		return (mpte);
@@ -3564,9 +3564,9 @@ pmap_remove_pages_pv(pmap_t pmap, vm_page_t m, pv_entry_t pv,
 			KASSERT(mpte->valid == VM_PAGE_BITS_ALL,
 			    ("pmap_remove_pages: pte page not promoted"));
 			pmap_resident_count_dec(pmap, 1);
-			KASSERT(mpte->wire_count == Ln_ENTRIES,
-			    ("pmap_remove_pages: pte page wire count error"));
-			mpte->wire_count = 0;
+			KASSERT(mpte->ref_count == Ln_ENTRIES,
+			    ("pmap_remove_pages: pte page ref count error"));
+			mpte->ref_count = 0;
 			pmap_add_delayed_free_list(mpte, free, FALSE);
 		}
 	} else {

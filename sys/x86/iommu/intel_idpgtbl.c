@@ -392,7 +392,7 @@ retry:
 			 * pte write and clean while the lock is
 			 * dropped.
 			 */
-			m->wire_count++;
+			m->ref_count++;
 
 			sfp = NULL;
 			ptep = domain_pgtbl_map_pte(domain, base, lvl - 1,
@@ -400,7 +400,7 @@ retry:
 			if (ptep == NULL) {
 				KASSERT(m->pindex != 0,
 				    ("loosing root page %p", domain));
-				m->wire_count--;
+				m->ref_count--;
 				dmar_pgfree(domain->pgtbl_obj, m->pindex,
 				    flags);
 				return (NULL);
@@ -408,8 +408,8 @@ retry:
 			dmar_pte_store(&ptep->pte, DMAR_PTE_R | DMAR_PTE_W |
 			    VM_PAGE_TO_PHYS(m));
 			dmar_flush_pte_to_ram(domain->dmar, ptep);
-			sf_buf_page(sfp)->wire_count += 1;
-			m->wire_count--;
+			sf_buf_page(sfp)->ref_count += 1;
+			m->ref_count--;
 			dmar_unmap_pgtbl(sfp);
 			/* Only executed once. */
 			goto retry;
@@ -489,7 +489,7 @@ domain_map_buf_locked(struct dmar_domain *domain, dmar_gaddr_t base,
 		dmar_pte_store(&pte->pte, VM_PAGE_TO_PHYS(ma[pi]) | pflags |
 		    (superpage ? DMAR_PTE_SP : 0));
 		dmar_flush_pte_to_ram(domain->dmar, pte);
-		sf_buf_page(sf)->wire_count += 1;
+		sf_buf_page(sf)->ref_count += 1;
 	}
 	if (sf != NULL)
 		dmar_unmap_pgtbl(sf);
@@ -587,8 +587,8 @@ domain_unmap_clear_pte(struct dmar_domain *domain, dmar_gaddr_t base, int lvl,
 		dmar_unmap_pgtbl(*sf);
 		*sf = NULL;
 	}
-	m->wire_count--;
-	if (m->wire_count != 0)
+	m->ref_count--;
+	if (m->ref_count != 0)
 		return;
 	KASSERT(lvl != 0,
 	    ("lost reference (lvl) on root pg domain %p base %jx lvl %d",
@@ -701,7 +701,7 @@ domain_alloc_pgtbl(struct dmar_domain *domain)
 	m = dmar_pgalloc(domain->pgtbl_obj, 0, DMAR_PGF_WAITOK |
 	    DMAR_PGF_ZERO | DMAR_PGF_OBJL);
 	/* No implicit free of the top level page table page. */
-	m->wire_count = 1;
+	m->ref_count = 1;
 	DMAR_DOMAIN_PGUNLOCK(domain);
 	DMAR_LOCK(domain->dmar);
 	domain->flags |= DMAR_DOMAIN_PGTBL_INITED;
@@ -731,10 +731,10 @@ domain_free_pgtbl(struct dmar_domain *domain)
 		return;
 	}
 
-	/* Obliterate wire_counts */
+	/* Obliterate ref_counts */
 	VM_OBJECT_ASSERT_WLOCKED(obj);
 	for (m = vm_page_lookup(obj, 0); m != NULL; m = vm_page_next(m))
-		m->wire_count = 0;
+		m->ref_count = 0;
 	VM_OBJECT_WUNLOCK(obj);
 	vm_object_deallocate(obj);
 }

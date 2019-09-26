@@ -11,6 +11,7 @@ compat6=COMPAT_FREEBSD6
 compat7=COMPAT_FREEBSD7
 compat10=COMPAT_FREEBSD10
 compat11=COMPAT_FREEBSD11
+compat12=COMPAT_FREEBSD12
 
 # output files:
 sysnames="syscalls.c"
@@ -39,6 +40,8 @@ syscompat10="sysent.compat10.$$"
 syscompat10dcl="sysent.compat10dcl.$$"
 syscompat11="sysent.compat11.$$"
 syscompat11dcl="sysent.compat11dcl.$$"
+syscompat12="sysent.compat12.$$"
+syscompat12dcl="sysent.compat12dcl.$$"
 sysent="sysent.switch.$$"
 sysinc="sysinc.switch.$$"
 sysarg="sysarg.switch.$$"
@@ -47,9 +50,9 @@ systracetmp="systrace.$$"
 systraceret="systraceret.$$"
 capabilities_conf="capabilities.conf"
 
-trap "rm $sysaue $sysdcl $syscompat $syscompatdcl $syscompat4 $syscompat4dcl $syscompat6 $syscompat6dcl $syscompat7 $syscompat7dcl $syscompat10 $syscompat10dcl $syscompat11 $syscompat11dcl $sysent $sysinc $sysarg $sysprotoend $systracetmp $systraceret" 0
+trap "rm $sysaue $sysdcl $syscompat $syscompatdcl $syscompat4 $syscompat4dcl $syscompat6 $syscompat6dcl $syscompat7 $syscompat7dcl $syscompat10 $syscompat10dcl $syscompat11 $syscompat11dcl $syscompat12 $syscompat12dcl $sysent $sysinc $sysarg $sysprotoend $systracetmp $systraceret" 0
 
-touch $sysaue $sysdcl $syscompat $syscompatdcl $syscompat4 $syscompat4dcl $syscompat6 $syscompat6dcl $syscompat7 $syscompat7dcl $syscompat10 $syscompat10dcl $syscompat11 $syscompat11dcl $sysent $sysinc $sysarg $sysprotoend $systracetmp $systraceret
+touch $sysaue $sysdcl $syscompat $syscompatdcl $syscompat4 $syscompat4dcl $syscompat6 $syscompat6dcl $syscompat7 $syscompat7dcl $syscompat10 $syscompat10dcl $syscompat11 $syscompat11dcl $syscompat12 $syscompat12dcl $sysent $sysinc $sysarg $sysprotoend $systracetmp $systraceret
 
 case $# in
     0)	echo "usage: $0 input-file <config-file>" 1>&2
@@ -118,6 +121,8 @@ sed -e '
 		syscompat10dcl = \"$syscompat10dcl\"
 		syscompat11 = \"$syscompat11\"
 		syscompat11dcl = \"$syscompat11dcl\"
+		syscompat12 = \"$syscompat12\"
+		syscompat12dcl = \"$syscompat12dcl\"
 		sysent = \"$sysent\"
 		syssw = \"$syssw\"
 		sysinc = \"$sysinc\"
@@ -134,6 +139,7 @@ sed -e '
 		compat7 = \"$compat7\"
 		compat10 = \"$compat10\"
 		compat11 = \"$compat11\"
+		compat12 = \"$compat12\"
 		syscallprefix = \"$syscallprefix\"
 		switchname = \"$switchname\"
 		namesname = \"$namesname\"
@@ -188,6 +194,7 @@ sed -e '
 		printf "\n#ifdef %s\n\n", compat7 > syscompat7
 		printf "\n#ifdef %s\n\n", compat10 > syscompat10
 		printf "\n#ifdef %s\n\n", compat11 > syscompat11
+		printf "\n#ifdef %s\n\n", compat12 > syscompat12
 
 		printf "/*\n * System call names.\n *\n" > sysnames
 		printf " * DO NOT EDIT-- this file is automatically " generated ".\n" > sysnames
@@ -239,6 +246,7 @@ sed -e '
 		print > syscompat7
 		print > syscompat10
 		print > syscompat11
+		print > syscompat12
 		print > sysnames
 		print > systrace
 		print > systracetmp
@@ -256,6 +264,7 @@ sed -e '
 		print > syscompat7
 		print > syscompat10
 		print > syscompat11
+		print > syscompat12
 		print > sysnames
 		print > systrace
 		print > systracetmp
@@ -273,6 +282,7 @@ sed -e '
 		print > syscompat7
 		print > syscompat10
 		print > syscompat11
+		print > syscompat12
 		print > sysnames
 		print > systrace
 		print > systracetmp
@@ -409,6 +419,8 @@ sed -e '
 				argalias = "freebsd10_" argalias
 			if (flag("COMPAT11"))
 				argalias = "freebsd11_" argalias
+			if (flag("COMPAT12"))
+				argalias = "freebsd12_" argalias
 		}
 		f++
 
@@ -569,7 +581,8 @@ sed -e '
 		next
 	}
 	type("COMPAT") || type("COMPAT4") || type("COMPAT6") || \
-	    type("COMPAT7") || type("COMPAT10") || type("COMPAT11") {
+	    type("COMPAT7") || type("COMPAT10") || type("COMPAT11") || \
+	    type("COMPAT12") {
 		if (flag("COMPAT")) {
 			ncompat++
 			out = syscompat
@@ -612,6 +625,13 @@ sed -e '
 			wrap = "compat11"
 			prefix = "freebsd11_"
 			descr = "freebsd11"
+		} else if (flag("COMPAT12")) {
+			ncompat12++
+			out = syscompat12
+			outdcl = syscompat12dcl
+			wrap = "compat12"
+			prefix = "freebsd12_"
+			descr = "freebsd12"
 		}
 		parseline()
 		if (argc != 0 && !flag("NOARGS") && !flag("NOPROTO") && \
@@ -734,6 +754,13 @@ sed -e '
 			printf "#define compat11(n, name) 0, (sy_call_t *)nosys\n" > sysinc
 			printf "#endif\n" > sysinc
 		}
+		if (ncompat12 != 0) {
+			printf "\n#ifdef %s\n", compat12 > sysinc
+			printf "#define compat12(n, name) n, (sy_call_t *)__CONCAT(freebsd12_,name)\n" > sysinc
+			printf "#else\n" > sysinc
+			printf "#define compat12(n, name) 0, (sy_call_t *)nosys\n" > sysinc
+			printf "#endif\n" > sysinc
+		}
 
 		printf("\n#endif /* %s */\n\n", compat) > syscompatdcl
 		printf("\n#endif /* %s */\n\n", compat4) > syscompat4dcl
@@ -741,6 +768,7 @@ sed -e '
 		printf("\n#endif /* %s */\n\n", compat7) > syscompat7dcl
 		printf("\n#endif /* %s */\n\n", compat10) > syscompat10dcl
 		printf("\n#endif /* %s */\n\n", compat11) > syscompat11dcl
+		printf("\n#endif /* %s */\n\n", compat12) > syscompat12dcl
 
 		printf("\n#undef PAD_\n") > sysprotoend
 		printf("#undef PADL_\n") > sysprotoend
@@ -765,6 +793,7 @@ cat $sysarg $sysdcl \
 	$syscompat7 $syscompat7dcl \
 	$syscompat10 $syscompat10dcl \
 	$syscompat11 $syscompat11dcl \
+	$syscompat12 $syscompat12dcl \
 	$sysaue $sysprotoend > $sysproto
 cat $systracetmp >> $systrace
 cat $systraceret >> $systrace
