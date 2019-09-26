@@ -61,7 +61,7 @@ test_format_filter_by_ext(const char *output_file,
 	     strcmp(archive_error_string(a),
 		   "xz compression not supported on this platform") == 0)) {
                 const char *filter_name = archive_filter_name(a, 0);
-		skipping("%s filter not suported on this platform", filter_name);
+		skipping("%s filter not supported on this platform", filter_name);
 		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 		free(buff);
 		return;
