@@ -144,6 +144,8 @@ static struct syncache
 		*syncookie_lookup(struct in_conninfo *, struct syncache_head *,
 		    struct syncache *, struct tcphdr *, struct tcpopt *,
 		    struct socket *);
+static void	syncache_pause(struct in_conninfo *);
+static void	syncache_unpause(void *);
 static void	 syncookie_reseed(void *);
 #ifdef INVARIANTS
 static int	 syncookie_cmp(struct in_conninfo *inc, struct syncache_head *sch,
@@ -300,6 +302,14 @@ syncache_init(void)
 	arc4rand(V_tcp_syncache.secret.key[1], SYNCOOKIE_SECRET_SIZE, 0);
 	callout_reset(&V_tcp_syncache.secret.reseed, SYNCOOKIE_LIFETIME * hz,
 	    syncookie_reseed, &V_tcp_syncache);
+
+	/* Initialize the pause machinery. */
+	mtx_init(&V_tcp_syncache.pause_mtx, "tcp_sc_pause", NULL, MTX_DEF);
+	callout_init_mtx(&V_tcp_syncache.pause_co, &V_tcp_syncache.pause_mtx,
+	    0);
+	V_tcp_syncache.pause_until = time_uptime - TCP_SYNCACHE_PAUSE_TIME;
+	V_tcp_syncache.pause_backoff = 0;
+	V_tcp_syncache.paused = false;
 }
 
 #ifdef VIMAGE
@@ -315,6 +325,14 @@ syncache_destroy(void)
 	 * possibly schedule it another time.
 	 */
 	callout_drain(&V_tcp_syncache.secret.reseed);
+
+	/* Stop the SYN cache pause callout. */
+	mtx_lock(&V_tcp_syncache.pause_mtx);
+	if (callout_stop(&V_tcp_syncache.pause_co) == 0) {
+		mtx_unlock(&V_tcp_syncache.pause_mtx);
+		callout_drain(&V_tcp_syncache.pause_co);
+	} else
+		mtx_unlock(&V_tcp_syncache.pause_mtx);
 
 	/* Cleanup hash buckets: stop timers, free entries, destroy locks. */
 	for (i = 0; i < V_tcp_syncache.hashsize; i++) {
@@ -339,6 +357,7 @@ syncache_destroy(void)
 	/* Free the allocated global resources. */
 	uma_zdestroy(V_tcp_syncache.zone);
 	free(V_tcp_syncache.hashbase, M_SYNCACHE);
+	mtx_destroy(&V_tcp_syncache.pause_mtx);
 }
 #endif
 
@@ -360,10 +379,10 @@ syncache_insert(struct syncache *sc, struct syncache_head *sch)
 	if (sch->sch_length >= V_tcp_syncache.bucket_limit) {
 		KASSERT(!TAILQ_EMPTY(&sch->sch_bucket),
 			("sch->sch_length incorrect"));
+		syncache_pause(&sc->sc_inc);
 		sc2 = TAILQ_LAST(&sch->sch_bucket, sch_head);
 		sch->sch_last_overflow = time_uptime;
 		syncache_drop(sc2, sch);
-		TCPSTAT_INC(tcps_sc_bucketoverflow);
 	}
 
 	/* Put it into the bucket. */
@@ -450,6 +469,7 @@ syncache_timer(void *xsch)
 	struct syncache *sc, *nsc;
 	int tick = ticks;
 	char *s;
+	bool paused;
 
 	CURVNET_SET(sch->sch_sc->vnet);
 
@@ -462,7 +482,19 @@ syncache_timer(void *xsch)
 	 */
 	sch->sch_nextc = tick + INT_MAX;
 
+	/*
+	 * If we have paused processing, unconditionally remove
+	 * all syncache entries.
+	 */
+	mtx_lock(&V_tcp_syncache.pause_mtx);
+	paused = V_tcp_syncache.paused;
+	mtx_unlock(&V_tcp_syncache.pause_mtx);
+
 	TAILQ_FOREACH_SAFE(sc, &sch->sch_bucket, sc_hash, nsc) {
+		if (paused) {
+			syncache_drop(sc, sch);
+			continue;
+		}
 		/*
 		 * We do not check if the listen socket still exists
 		 * and accept the case where the listen socket may be
@@ -505,14 +537,24 @@ syncache_timer(void *xsch)
 }
 
 /*
- * Find an entry in the syncache.
- * Returns always with locked syncache_head plus a matching entry or NULL.
+ * Returns true if the system is only using cookies at the moment.
+ * This could be due to a sysadmin decision to only use cookies, or it
+ * could be due to the system detecting an attack.
  */
-static struct syncache *
-syncache_lookup(struct in_conninfo *inc, struct syncache_head **schp)
+static inline bool
+syncache_cookiesonly(void)
 {
-	struct syncache *sc;
-	struct syncache_head *sch;
+
+	return (V_tcp_syncookies && (V_tcp_syncache.paused ||
+	    V_tcp_syncookiesonly));
+}
+
+/*
+ * Find the hash bucket for the given connection.
+ */
+static struct syncache_head *
+syncache_hashbucket(struct in_conninfo *inc)
+{
 	uint32_t hash;
 
 	/*
@@ -525,8 +567,20 @@ syncache_lookup(struct in_conninfo *inc, struct syncache_head **schp)
 	hash = jenkins_hash32((uint32_t *)&inc->inc_ie, 5,
 	    V_tcp_syncache.hash_secret) & V_tcp_syncache.hashmask;
 
-	sch = &V_tcp_syncache.hashbase[hash];
-	*schp = sch;
+	return (&V_tcp_syncache.hashbase[hash]);
+}
+
+/*
+ * Find an entry in the syncache.
+ * Returns always with locked syncache_head plus a matching entry or NULL.
+ */
+static struct syncache *
+syncache_lookup(struct in_conninfo *inc, struct syncache_head **schp)
+{
+	struct syncache *sc;
+	struct syncache_head *sch;
+
+	*schp = sch = syncache_hashbucket(inc);
 	SCH_LOCK(sch);
 
 	/* Circle through bucket row to find matching entry. */
@@ -551,6 +605,8 @@ syncache_chkrst(struct in_conninfo *inc, struct tcphdr *th, struct mbuf *m)
 	struct syncache_head *sch;
 	char *s = NULL;
 
+	if (syncache_cookiesonly())
+		return;
 	sc = syncache_lookup(inc, &sch);	/* returns locked sch */
 	SCH_LOCK_ASSERT(sch);
 
@@ -654,6 +710,8 @@ syncache_badack(struct in_conninfo *inc)
 	struct syncache *sc;
 	struct syncache_head *sch;
 
+	if (syncache_cookiesonly())
+		return;
 	sc = syncache_lookup(inc, &sch);	/* returns locked sch */
 	SCH_LOCK_ASSERT(sch);
 	if (sc != NULL) {
@@ -669,6 +727,8 @@ syncache_unreach(struct in_conninfo *inc, tcp_seq th_seq)
 	struct syncache *sc;
 	struct syncache_head *sch;
 
+	if (syncache_cookiesonly())
+		return;
 	sc = syncache_lookup(inc, &sch);	/* returns locked sch */
 	SCH_LOCK_ASSERT(sch);
 	if (sc == NULL)
@@ -1029,6 +1089,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	struct syncache_head *sch;
 	struct syncache scs;
 	char *s;
+	bool locked;
 
 	/*
 	 * Global TCP locks are held because we manipulate the PCB lists
@@ -1038,8 +1099,15 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	KASSERT((th->th_flags & (TH_RST|TH_ACK|TH_SYN)) == TH_ACK,
 	    ("%s: can handle only ACK", __func__));
 
-	sc = syncache_lookup(inc, &sch);	/* returns locked sch */
-	SCH_LOCK_ASSERT(sch);
+	if (syncache_cookiesonly()) {
+		sc = NULL;
+		sch = syncache_hashbucket(inc);
+		locked = false;
+	} else {
+		sc = syncache_lookup(inc, &sch);	/* returns locked sch */
+		locked = true;
+		SCH_LOCK_ASSERT(sch);
+	}
 
 #ifdef INVARIANTS
 	/*
@@ -1063,7 +1131,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 *  C. check that the syncookie is valid.  If it is, then
 		 *     cobble up a fake syncache entry, and return.
 		 */
-		if (!V_tcp_syncookies) {
+		if (locked && !V_tcp_syncookies) {
 			SCH_UNLOCK(sch);
 			if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
 				log(LOG_DEBUG, "%s; %s: Spurious ACK, "
@@ -1071,7 +1139,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 				    s, __func__);
 			goto failed;
 		}
-		if (!V_tcp_syncookiesonly &&
+		if (locked && !V_tcp_syncookiesonly &&
 		    sch->sch_last_overflow < time_uptime - SYNCOOKIE_LIFETIME) {
 			SCH_UNLOCK(sch);
 			if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
@@ -1082,7 +1150,8 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		}
 		bzero(&scs, sizeof(scs));
 		sc = syncookie_lookup(inc, sch, &scs, th, to, *lsop);
-		SCH_UNLOCK(sch);
+		if (locked)
+			SCH_UNLOCK(sch);
 		if (sc == NULL) {
 			if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
 				log(LOG_DEBUG, "%s; %s: Segment failed "
@@ -1331,6 +1400,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	unsigned int *tfo_pending = NULL;
 	int tfo_cookie_valid = 0;
 	int tfo_response_cookie_valid = 0;
+	bool locked;
 
 	INP_WLOCK_ASSERT(inp);			/* listen socket */
 	KASSERT((th->th_flags & (TH_RST|TH_ACK|TH_SYN)) == TH_SYN,
@@ -1436,8 +1506,15 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 * how to handle such a case; either ignore it as spoofed, or
 	 * drop the current entry and create a new one?
 	 */
-	sc = syncache_lookup(inc, &sch);	/* returns locked entry */
-	SCH_LOCK_ASSERT(sch);
+	if (syncache_cookiesonly()) {
+		sc = NULL;
+		sch = syncache_hashbucket(inc);
+		locked = false;
+	} else {
+		sc = syncache_lookup(inc, &sch);	/* returns locked sch */
+		locked = true;
+		SCH_LOCK_ASSERT(sch);
+	}
 	if (sc != NULL) {
 		if (tfo_cookie_valid)
 			INP_WUNLOCK(inp);
@@ -1490,7 +1567,15 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		goto skip_alloc;
 	}
 
-	sc = uma_zalloc(V_tcp_syncache.zone, M_NOWAIT | M_ZERO);
+	/*
+	 * Skip allocating a syncache entry if we are just going to discard
+	 * it later.
+	 */
+	if (!locked) {
+		bzero(&scs, sizeof(scs));
+		sc = &scs;
+	} else
+		sc = uma_zalloc(V_tcp_syncache.zone, M_NOWAIT | M_ZERO);
 	if (sc == NULL) {
 		/*
 		 * The zone allocator couldn't provide more entries.
@@ -1501,6 +1586,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		if ((sc = TAILQ_LAST(&sch->sch_bucket, sch_head)) != NULL) {
 			sch->sch_last_overflow = time_uptime;
 			syncache_drop(sc, sch);
+			syncache_pause(inc);
 		}
 		sc = uma_zalloc(V_tcp_syncache.zone, M_NOWAIT | M_ZERO);
 		if (sc == NULL) {
@@ -1508,6 +1594,9 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 				bzero(&scs, sizeof(scs));
 				sc = &scs;
 			} else {
+				KASSERT(locked,
+				    ("%s: bucket unexpectedly unlocked",
+				    __func__));
 				SCH_UNLOCK(sch);
 				if (ipopts)
 					(void) m_free(ipopts);
@@ -1626,7 +1715,8 @@ skip_alloc:
 		sc->sc_flowlabel = htonl(sc->sc_flowlabel) & IPV6_FLOWLABEL_MASK;
 	}
 #endif
-	SCH_UNLOCK(sch);
+	if (locked)
+		SCH_UNLOCK(sch);
 
 	if (tfo_cookie_valid) {
 		syncache_tfo_expand(sc, lsop, m, tfo_response_cookie);
@@ -2260,6 +2350,104 @@ syncookie_reseed(void *arg)
 
 	/* Reschedule ourself. */
 	callout_schedule(&sc->secret.reseed, SYNCOOKIE_LIFETIME * hz);
+}
+
+/*
+ * We have overflowed a bucket. Let's pause dealing with the syncache.
+ * This function will increment the bucketoverflow statistics appropriately
+ * (once per pause when pausing is enabled; otherwise, once per overflow).
+ */
+static void
+syncache_pause(struct in_conninfo *inc)
+{
+	time_t delta;
+	const char *s;
+
+	/* XXX:
+	 * 2. Add sysctl read here so we don't get the benefit of this
+	 * change without the new sysctl.
+	 */
+
+	/*
+	 * Try an unlocked read. If we already know that another thread
+	 * has activated the feature, there is no need to proceed.
+	 */
+	if (V_tcp_syncache.paused)
+		return;
+
+	/* Are cookied enabled? If not, we can't pause. */
+	if (!V_tcp_syncookies) {
+		TCPSTAT_INC(tcps_sc_bucketoverflow);
+		return;
+	}
+
+	/*
+	 * We may be the first thread to find an overflow. Get the lock
+	 * and evaluate if we need to take action.
+	 */
+	mtx_lock(&V_tcp_syncache.pause_mtx);
+	if (V_tcp_syncache.paused) {
+		mtx_unlock(&V_tcp_syncache.pause_mtx);
+		return;
+	}
+
+	/* Activate protection. */
+	V_tcp_syncache.paused = true;
+	TCPSTAT_INC(tcps_sc_bucketoverflow);
+
+	/*
+	 * Determine the last backoff time. If we are seeing a re-newed
+	 * attack within that same time after last reactivating the syncache,
+	 * consider it an extension of the same attack.
+	 */
+	delta = TCP_SYNCACHE_PAUSE_TIME << V_tcp_syncache.pause_backoff;
+	if (V_tcp_syncache.pause_until + delta - time_uptime > 0) {
+		if (V_tcp_syncache.pause_backoff < TCP_SYNCACHE_MAX_BACKOFF) {
+			delta <<= 1;
+			V_tcp_syncache.pause_backoff++;
+		}
+	} else {
+		delta = TCP_SYNCACHE_PAUSE_TIME;
+		V_tcp_syncache.pause_backoff = 0;
+	}
+
+	/* Log a warning, including IP addresses, if able. */
+	if (inc != NULL)
+		s = tcp_log_addrs(inc, NULL, NULL, NULL);
+	else
+		s = (const char *)NULL;
+	log(LOG_WARNING, "TCP syncache overflow detected; using syncookies for "
+	    "the next %lld seconds%s%s%s\n", (long long)delta,
+	    (s != NULL) ? " (last SYN: " : "", (s != NULL) ? s : "",
+	    (s != NULL) ? ")" : "");
+	free(__DECONST(void *, s), M_TCPLOG);
+
+	/* Use the calculated delta to set a new pause time. */
+	V_tcp_syncache.pause_until = time_uptime + delta;
+	callout_reset(&V_tcp_syncache.pause_co, delta * hz, syncache_unpause,
+	    &V_tcp_syncache);
+	mtx_unlock(&V_tcp_syncache.pause_mtx);
+}
+
+/* Evaluate whether we need to unpause. */
+static void
+syncache_unpause(void *arg)
+{
+	struct tcp_syncache *sc;
+	time_t delta;
+
+	sc = arg;
+	mtx_assert(&sc->pause_mtx, MA_OWNED | MA_NOTRECURSED);
+	callout_deactivate(&sc->pause_co);
+
+	/*
+	 * Check to make sure we are not running early. If the pause
+	 * time has expired, then deactivate the protection.
+	 */
+	if ((delta = sc->pause_until - time_uptime) > 0)
+		callout_schedule(&sc->pause_co, delta * hz);
+	else
+		sc->paused = false;
 }
 
 /*
