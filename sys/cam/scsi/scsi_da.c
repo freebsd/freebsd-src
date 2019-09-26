@@ -60,6 +60,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_ccb.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
+#ifdef _KERNEL
+#include <cam/cam_xpt_internal.h>
+#endif /* _KERNEL */
 #include <cam/cam_sim.h>
 #include <cam/cam_iosched.h>
 
@@ -3373,15 +3376,7 @@ out:
 			break;
 		}
 
-		ata_params = (struct ata_params*)
-			malloc(sizeof(*ata_params), M_SCSIDA,M_NOWAIT|M_ZERO);
-
-		if (ata_params == NULL) {
-			xpt_print(periph->path, "Couldn't malloc ata_params "
-			    "data\n");
-			/* da_free_periph??? */
-			break;
-		}
+		ata_params = &periph->path->device->ident_data;
 
 		scsi_ata_identify(&start_ccb->csio,
 				  /*retries*/da_retry_count,
@@ -4961,7 +4956,6 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 		}
 
-		free(ata_params, M_SCSIDA);
 		if ((softc->zone_mode == DA_ZONE_HOST_AWARE)
 		 || (softc->zone_mode == DA_ZONE_HOST_MANAGED)) {
 			/*
