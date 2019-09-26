@@ -1028,8 +1028,8 @@ main(int argc, char *argv[])
 		err(1, "caph_enter_casper");
 
 	cap_rights_init(&rights_stdin);
-	if (cap_rights_limit(STDIN_FILENO, &rights_stdin) < 0)
-		err(1, "cap_rights_limit stdin");
+	if (caph_rights_limit(STDIN_FILENO, &rights_stdin) < 0)
+		err(1, "caph_rights_limit stdin");
 	if (caph_limit_stdout() < 0)
 		err(1, "caph_limit_stdout");
 	if (caph_limit_stderr() < 0)
@@ -1037,10 +1037,10 @@ main(int argc, char *argv[])
 
 	cap_rights_init(&rights_srecv, CAP_RECV, CAP_EVENT, CAP_SETSOCKOPT);
 	if (caph_rights_limit(srecv, &rights_srecv) < 0)
-		err(1, "cap_rights_limit srecv");
+		err(1, "caph_rights_limit srecv");
 	cap_rights_init(&rights_ssend, CAP_SEND, CAP_SETSOCKOPT);
 	if (caph_rights_limit(ssend, &rights_ssend) < 0)
-		err(1, "cap_rights_limit ssend");
+		err(1, "caph_rights_limit ssend");
 
 #if defined(SO_SNDBUF) && defined(SO_RCVBUF)
 	if (sockbufsize) {
@@ -1092,10 +1092,10 @@ main(int argc, char *argv[])
 
 	cap_rights_clear(&rights_srecv, CAP_SETSOCKOPT);
 	if (caph_rights_limit(srecv, &rights_srecv) < 0)
-		err(1, "cap_rights_limit srecv setsockopt");
+		err(1, "caph_rights_limit srecv setsockopt");
 	cap_rights_clear(&rights_ssend, CAP_SETSOCKOPT);
 	if (caph_rights_limit(ssend, &rights_ssend) < 0)
-		err(1, "cap_rights_limit ssend setsockopt");
+		err(1, "caph_rights_limit ssend setsockopt");
 
 	printf("PING6(%lu=40+8+%lu bytes) ", (unsigned long)(40 + pingerlen()),
 	    (unsigned long)(pingerlen() - 8));
