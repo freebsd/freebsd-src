@@ -373,6 +373,10 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		break;
 
 	case R_RISCV_PCREL_HI20:
+		error = lookup(lf, symidx, 1, &addr);
+		if (error != 0)
+			return (-1);
+
 		val = addr - (Elf_Addr)where;
 		insn32p = (uint32_t *)where;
 		before32 = *insn32p;
@@ -385,6 +389,10 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		break;
 
 	case R_RISCV_PCREL_LO12_I:
+		error = lookup(lf, symidx, 1, &addr);
+		if (error != 0)
+			return (-1);
+
 		val = addr - (Elf_Addr)where;
 		insn32p = (uint32_t *)where;
 		before32 = *insn32p;
@@ -396,6 +404,10 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		break;
 
 	case R_RISCV_PCREL_LO12_S:
+		error = lookup(lf, symidx, 1, &addr);
+		if (error != 0)
+			return (-1);
+
 		val = addr - (Elf_Addr)where;
 		insn32p = (uint32_t *)where;
 		before32 = *insn32p;
@@ -412,6 +424,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		if (error != 0)
 			return (-1);
 
+		val = addr;
 		insn32p = (uint32_t *)where;
 		before32 = *insn32p;
 		imm20 = calc_hi20_imm(val);
