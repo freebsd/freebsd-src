@@ -59,16 +59,16 @@ or empty, this function will do nothing and
 will be returned.
 Otherwise,
 .Cm ARCHIVE_OK
-will be returned. 
+will be returned.
 .It Fn archive_read_set_passphrase_callback
-Register callback function that will be invoked to get a passphrase 
-for decrption after trying all passphrases registered by the
+Register a callback function that will be invoked to get a passphrase 
+for decryption after trying all the passphrases registered by the
 .Fn archive_read_add_passphrase
 function failed.
 .El
 .\" .Sh ERRORS
 .Sh SEE ALSO
 .Xr tar 1 ,
-.Xr libarchive 3 ,
 .Xr archive_read 3 ,
-.Xr archive_read_set_options 3
+.Xr archive_read_set_options 3 ,
+.Xr libarchive 3

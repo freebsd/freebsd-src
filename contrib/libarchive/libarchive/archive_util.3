@@ -92,10 +92,10 @@ Clears any error information left over from a previous call.
 Not generally used in client code.
 .It Fn archive_compression
 Synonym for
-.Fn archive_filter_code(a, 0) .
+.Fn archive_filter_code a 0 .
 .It Fn archive_compression_name
 Synonym for
-.Fn archive_filter_name(a, 0) .
+.Fn archive_filter_name a 0 .
 .It Fn archive_copy_error
 Copies error information from one archive to another.
 .It Fn archive_errno
@@ -142,13 +142,13 @@ filter 0 is the gunzip filter,
 filter 1 is the uudecode filter,
 and filter 2 is the pseudo-filter that wraps the archive read functions.
 In this case, requesting
-.Fn archive_position(a, -1)
+.Fn archive_position a -1
 would be a synonym for
-.Fn archive_position(a, 2)
+.Fn archive_position a 2
 which would return the number of bytes currently read from the archive, while
-.Fn archive_position(a, 1)
+.Fn archive_position a 1
 would return the number of bytes after uudecoding, and
-.Fn archive_position(a, 0)
+.Fn archive_position a 0
 would return the number of bytes after decompression.
 .It Fn archive_filter_name
 Returns a textual name identifying the indicated filter.
@@ -170,9 +170,9 @@ A textual description of the format of the current entry.
 .It Fn archive_position
 Returns the number of bytes read from or written to the indicated filter.
 In particular,
-.Fn archive_position(a, 0)
+.Fn archive_position a 0
 returns the number of bytes read or written by the format handler, while
-.Fn archive_position(a, -1)
+.Fn archive_position a -1
 returns the number of bytes read or written to the archive.
 See
 .Fn archive_filter_count

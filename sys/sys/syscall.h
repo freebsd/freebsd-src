@@ -418,7 +418,7 @@
 #define	SYS_truncate	479
 #define	SYS_ftruncate	480
 #define	SYS_thr_kill2	481
-#define	SYS_shm_open	482
+#define	SYS_freebsd12_shm_open	482
 #define	SYS_shm_unlink	483
 #define	SYS_cpuset	484
 #define	SYS_cpuset_setid	485
@@ -506,4 +506,6 @@
 #define	SYS_funlinkat	568
 #define	SYS_copy_file_range	569
 #define	SYS___sysctlbyname	570
-#define	SYS_MAXSYSCALL	571
+#define	SYS_shm_open2	571
+#define	SYS_shm_rename	572
+#define	SYS_MAXSYSCALL	573

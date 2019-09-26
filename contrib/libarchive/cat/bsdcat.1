@@ -34,16 +34,15 @@
 .Nm
 .Op options
 .Op files
-.Pp
 .Sh DESCRIPTION
 .Nm
 expands files to standard output.
 .Sh OPTIONS
 .Nm
 typically takes a filename as an argument or reads standard input when used in a
-pipe. In both cases decompressed data it written to standard output.
+pipe.
+In both cases decompressed data it written to standard output.
 .Sh EXAMPLES
-.Pp
 To decompress a file:
 .Pp
 .Dl bsdcat example.txt.gz > example.txt
@@ -55,8 +54,8 @@ To decompress standard input in a pipe:
 Both examples achieve the same results - a decompressed file by redirecting
 output.
 .Sh SEE ALSO
-.Xr uncompress 1 ,
-.Xr zcat 1 ,
 .Xr bzcat 1 ,
+.Xr uncompress 1 ,
 .Xr xzcat 1 ,
-.Xr libarchive-formats 5 ,
+.Xr zcat 1 ,
+.Xr libarchive-formats 5

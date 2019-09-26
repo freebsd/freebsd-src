@@ -1068,7 +1068,7 @@ print(struct match *m,
 		fprintf(d, " %s", pchar(ch));
 	for (i = 0; i < g->nstates; i++)
 		if (ISSET(st, i)) {
-			fprintf(d, "%s%d", (first) ? "\t" : ", ", i);
+			fprintf(d, "%s%lu", (first) ? "\t" : ", ", i);
 			first = 0;
 		}
 	fprintf(d, "\n");

@@ -33,6 +33,10 @@
 
 #include <sys/_stack.h>
 
+#ifdef _SYS_MALLOC_H_
+MALLOC_DECLARE(M_STACK);
+#endif
+
 struct sbuf;
 
 /* MI Routines. */

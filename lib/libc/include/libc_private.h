@@ -391,6 +391,7 @@ __pid_t		__sys_wait6(enum idtype, __id_t, int *, int,
 		    struct __wrusage *, struct __siginfo *);
 __ssize_t	__sys_write(int, const void *, __size_t);
 __ssize_t	__sys_writev(int, const struct iovec *, int);
+int		__sys_shm_open2(const char *, int, __mode_t, int, const char *);
 
 int		__libc_sigaction(int, const struct sigaction *,
 		    struct sigaction *) __hidden;

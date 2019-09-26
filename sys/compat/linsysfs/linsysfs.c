@@ -520,6 +520,7 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi,
 		    device_get_unit(dev) >= 0) {
 			dinfo = device_get_ivars(parent);
 			if (dinfo != NULL && dinfo->cfg.baseclass == PCIC_DISPLAY) {
+				pfs_create_dir(dir, "drm", NULL, NULL, NULL, 0);
 				sprintf(devname, "226:%d",
 				    device_get_unit(dev));
 				sub_dir = pfs_create_dir(chardev,

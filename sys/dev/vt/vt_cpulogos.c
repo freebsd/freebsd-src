@@ -121,6 +121,8 @@ vtterm_draw_cpu_logos(struct vt_device *vd)
 {
 	unsigned int ncpu, i;
 	vt_axis_t left;
+	struct terminal *tm = vd->vd_curwindow->vw_terminal;
+	const teken_attr_t *a;
 
 	if (vt_splash_ncpu)
 		ncpu = vt_splash_ncpu;
@@ -130,15 +132,16 @@ vtterm_draw_cpu_logos(struct vt_device *vd)
 			ncpu = 1;
 	}
 
+	a = teken_get_curattr(&tm->tm_emulator);
 	if (vd->vd_driver->vd_drawrect)
 		vd->vd_driver->vd_drawrect(vd, 0, 0, vd->vd_width,
-		    vt_logo_sprite_height, 1, TC_BLACK);
+		    vt_logo_sprite_height, 1, a->ta_bgcolor);
 	/*
 	 * Blank is okay because we only ever draw beasties on full screen
 	 * refreshes.
 	 */
 	else if (vd->vd_driver->vd_blank)
-		vd->vd_driver->vd_blank(vd, TC_BLACK);
+		vd->vd_driver->vd_blank(vd, a->ta_bgcolor);
 
 	ncpu = MIN(ncpu, vd->vd_width / vt_logo_sprite_width);
 	for (i = 0, left = 0; i < ncpu; left += vt_logo_sprite_width, i++)

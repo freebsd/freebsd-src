@@ -101,6 +101,9 @@
  *	annotated below with two of these locks, then holding either lock is
  *	sufficient for read access, but both locks are required for write
  *	access.  An annotation of (C) indicates that the field is immutable.
+ *	An annotation of (A) indicates that modifications to the field must
+ *	be atomic.  Accesses to such fields may require additional
+ *	synchronization depending on the context.
  *
  *	In contrast, the synchronization of accesses to the page's
  *	dirty field is machine dependent (M).  In the
@@ -207,10 +210,7 @@ struct vm_page {
 	vm_pindex_t pindex;		/* offset into object (O,P) */
 	vm_paddr_t phys_addr;		/* physical address of page (C) */
 	struct md_page md;		/* machine dependent stuff */
-	union {
-		u_int wire_count;
-		u_int ref_count;	/* page references */
-	};
+	u_int ref_count;		/* page references (A) */
 	volatile u_int busy_lock;	/* busy owners lock */
 	uint16_t flags;			/* page PG_* flags (P) */
 	uint8_t	order;			/* index of the buddy queue (F) */

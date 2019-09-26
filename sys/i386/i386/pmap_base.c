@@ -258,6 +258,17 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_spare, CTLFLAG_RD,
 struct pmap kernel_pmap_store;
 static struct pmap_methods *pmap_methods_ptr;
 
+static int
+sysctl_kmaps(SYSCTL_HANDLER_ARGS)
+{
+	return (pmap_methods_ptr->pm_sysctl_kmaps(oidp, arg1, arg2, req));
+}
+SYSCTL_OID(_vm_pmap, OID_AUTO, kernel_maps,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, 0, sysctl_kmaps, "A",
+    "Dump kernel address layout");
+
+
 /*
  * Initialize a vm_page's machine-dependent fields.
  */

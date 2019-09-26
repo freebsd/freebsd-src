@@ -717,7 +717,6 @@ fwip_stream_input(struct fw_xferq *xferq)
 	uint16_t src;
 	uint32_t *p;
 
-
 	fwip = (struct fwip_softc *)xferq->sc;
 	ifp = fwip->fw_softc.fwip_ifp;
 

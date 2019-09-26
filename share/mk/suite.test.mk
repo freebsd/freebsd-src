@@ -120,7 +120,7 @@ beforecheck:
 #       etc.
 aftercheck:
 	@cd ${.CURDIR} && ${MAKE} clean
-	@chflags -R 0 "${DESTDIR}"
+	@test ! -e ${DESTDIR} || chflags -R 0 "${DESTDIR}"
 	@rm -Rf "${DESTDIR}"
 
 .endif

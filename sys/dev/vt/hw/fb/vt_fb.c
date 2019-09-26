@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/fbio.h>
+#include <sys/kernel.h>
 #include <dev/vt/vt.h>
 #include <dev/vt/hw/fb/vt_fb.h>
 #include <dev/vt/colors/vt_termcolors.h>
@@ -453,7 +454,8 @@ vt_fb_init(struct vt_device *vd)
 {
 	struct fb_info *info;
 	u_int margin;
-	int err;
+	int bg, err;
+	term_color_t c;
 
 	info = vd->vd_softc;
 	vd->vd_height = MIN(VT_FB_MAX_HEIGHT, info->fb_height);
@@ -477,8 +479,14 @@ vt_fb_init(struct vt_device *vd)
 		info->fb_cmsize = 16;
 	}
 
+	c = TC_BLACK;
+	if (TUNABLE_INT_FETCH("teken.bg_color", &bg) != 0) {
+		if (bg == TC_WHITE)
+			bg |= TC_LIGHT;
+		c = bg;
+	}
 	/* Clear the screen. */
-	vd->vd_driver->vd_blank(vd, TC_BLACK);
+	vd->vd_driver->vd_blank(vd, c);
 
 	/* Wakeup screen. KMS need this. */
 	vt_fb_postswitch(vd);

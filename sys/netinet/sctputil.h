@@ -133,7 +133,7 @@ uint32_t sctp_get_next_mtu(uint32_t);
 void
      sctp_timeout_handler(void *);
 
-uint32_t
+int
 sctp_calculate_rto(struct sctp_tcb *, struct sctp_association *,
     struct sctp_nets *, struct timeval *, int);
 

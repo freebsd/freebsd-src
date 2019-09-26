@@ -87,8 +87,8 @@ CK_LIST_HEAD(head_tcp_rate_set, tcp_rate_set);
 #define RS_PACING_LT		0x0008	/* Less than requested rate */
 #define RS_PACING_SUB_OK	0x0010	/* If a rate can't be found get the
 					 * next best rate (highest or lowest). */
-#ifdef RATELIMIT
 #ifdef _KERNEL
+#ifdef RATELIMIT
 #define DETAILED_RATELIMIT_SYSCTL 1	/*
 					 * Undefine this if you don't want
 					 * detailed rates to appear in

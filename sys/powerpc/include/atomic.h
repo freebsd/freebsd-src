@@ -568,7 +568,7 @@ atomic_cmpset_int(volatile u_int* p, u_int cmpval, u_int newval)
 	__asm __volatile (
 		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
 		"cmplw %3, %0\n\t"		/* compare */
-		"bne 2f\n\t"			/* exit if not equal */
+		"bne- 2f\n\t"			/* exit if not equal */
 		"stwcx. %4, 0, %2\n\t"      	/* attempt to store */
 		"bne- 1b\n\t"			/* spin if failed */
 		"li %0, 1\n\t"			/* success - retval = 1 */
@@ -592,12 +592,12 @@ atomic_cmpset_long(volatile u_long* p, u_long cmpval, u_long newval)
 	    #ifdef __powerpc64__
 		"1:\tldarx %0, 0, %2\n\t"	/* load old value */
 		"cmpld %3, %0\n\t"		/* compare */
-		"bne 2f\n\t"			/* exit if not equal */
+		"bne- 2f\n\t"			/* exit if not equal */
 		"stdcx. %4, 0, %2\n\t"		/* attempt to store */
 	    #else
 		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
 		"cmplw %3, %0\n\t"		/* compare */
-		"bne 2f\n\t"			/* exit if not equal */
+		"bne- 2f\n\t"			/* exit if not equal */
 		"stwcx. %4, 0, %2\n\t"		/* attempt to store */
 	    #endif
 		"bne- 1b\n\t"			/* spin if failed */
@@ -684,7 +684,7 @@ atomic_fcmpset_int(volatile u_int *p, u_int *cmpval, u_int newval)
 	__asm __volatile (
 		"lwarx %0, 0, %3\n\t"	/* load old value */
 		"cmplw %4, %0\n\t"		/* compare */
-		"bne 1f\n\t"			/* exit if not equal */
+		"bne- 1f\n\t"			/* exit if not equal */
 		"stwcx. %5, 0, %3\n\t"      	/* attempt to store */
 		"bne- 1f\n\t"			/* exit if failed */
 		"li %0, 1\n\t"			/* success - retval = 1 */
@@ -709,12 +709,12 @@ atomic_fcmpset_long(volatile u_long *p, u_long *cmpval, u_long newval)
 	    #ifdef __powerpc64__
 		"ldarx %0, 0, %3\n\t"	/* load old value */
 		"cmpld %4, %0\n\t"		/* compare */
-		"bne 1f\n\t"			/* exit if not equal */
+		"bne- 1f\n\t"			/* exit if not equal */
 		"stdcx. %5, 0, %3\n\t"		/* attempt to store */
 	    #else
 		"lwarx %0, 0, %3\n\t"	/* load old value */
 		"cmplw %4, %0\n\t"		/* compare */
-		"bne 1f\n\t"			/* exit if not equal */
+		"bne- 1f\n\t"			/* exit if not equal */
 		"stwcx. %5, 0, %3\n\t"		/* attempt to store */
 	    #endif
 		"bne- 1f\n\t"			/* exit if failed */

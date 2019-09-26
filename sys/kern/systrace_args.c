@@ -2575,15 +2575,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* shm_open */
-	case 482: {
-		struct shm_open_args *p = params;
-		uarg[0] = (intptr_t) p->path; /* const char * */
-		iarg[1] = p->flags; /* int */
-		iarg[2] = p->mode; /* mode_t */
-		*n_args = 3;
-		break;
-	}
 	/* shm_unlink */
 	case 483: {
 		struct shm_unlink_args *p = params;
@@ -3334,6 +3325,26 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[4] = (intptr_t) p->new; /* void * */
 		uarg[5] = p->newlen; /* size_t */
 		*n_args = 6;
+		break;
+	}
+	/* shm_open2 */
+	case 571: {
+		struct shm_open2_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		iarg[1] = p->flags; /* int */
+		iarg[2] = p->mode; /* mode_t */
+		iarg[3] = p->shmflags; /* int */
+		uarg[4] = (intptr_t) p->name; /* const char * */
+		*n_args = 5;
+		break;
+	}
+	/* shm_rename */
+	case 572: {
+		struct shm_rename_args *p = params;
+		uarg[0] = (intptr_t) p->path_from; /* const char * */
+		uarg[1] = (intptr_t) p->path_to; /* const char * */
+		iarg[2] = p->flags; /* int */
+		*n_args = 3;
 		break;
 	}
 	default:
@@ -7544,22 +7555,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* shm_open */
-	case 482:
-		switch(ndx) {
-		case 0:
-			p = "userland const char *";
-			break;
-		case 1:
-			p = "int";
-			break;
-		case 2:
-			p = "mode_t";
-			break;
-		default:
-			break;
-		};
-		break;
 	/* shm_unlink */
 	case 483:
 		switch(ndx) {
@@ -8908,6 +8903,44 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 5:
 			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* shm_open2 */
+	case 571:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "mode_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "userland const char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* shm_rename */
+	case 572:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "int";
 			break;
 		default:
 			break;
@@ -10412,11 +10445,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* shm_open */
-	case 482:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
 	/* shm_unlink */
 	case 483:
 		if (ndx == 0 || ndx == 1)
@@ -10821,6 +10849,16 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* __sysctlbyname */
 	case 570:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* shm_open2 */
+	case 571:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* shm_rename */
+	case 572:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

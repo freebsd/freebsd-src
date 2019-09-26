@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 
 FEATURE(stack, "Support for capturing kernel stack");
 
-static MALLOC_DEFINE(M_STACK, "stack", "Stack Traces");
+MALLOC_DEFINE(M_STACK, "stack", "Stack Traces");
 
 static int stack_symbol(vm_offset_t pc, char *namebuf, u_int buflen,
 	    long *offset, int flags);

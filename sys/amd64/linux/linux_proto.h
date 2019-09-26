@@ -1556,6 +1556,13 @@ int	linux_io_uring_register(struct thread *, struct linux_io_uring_register_args
 
 #endif /* COMPAT_FREEBSD11 */
 
+
+#ifdef COMPAT_FREEBSD12
+
+#define	nosys	linux_nosys
+
+#endif /* COMPAT_FREEBSD12 */
+
 #define	LINUX_SYS_AUE_linux_open	AUE_OPEN_RWTC
 #define	LINUX_SYS_AUE_linux_newstat	AUE_STAT
 #define	LINUX_SYS_AUE_linux_newfstat	AUE_FSTAT

@@ -226,7 +226,7 @@ SYSCTL_UINT(_vfs, OID_AUTO, ncneghitsrequeue, CTLFLAG_RW, &ncneghitsrequeue, 0,
 
 struct nchstats	nchstats;		/* cache effectiveness statistics */
 
-static struct mtx       ncneg_shrink_lock;
+static struct mtx __exclusive_cache_line	ncneg_shrink_lock;
 static int	shrink_list_turn;
 
 struct neglist {
@@ -236,6 +236,7 @@ struct neglist {
 
 static struct neglist __read_mostly	*neglists;
 static struct neglist ncneg_hot;
+static u_long numhotneg;
 
 #define	numneglists (ncneghash + 1)
 static u_int __read_mostly	ncneghash;
@@ -378,6 +379,8 @@ STATNODE_COUNTER(numfullpathfail2,
     "Number of fullpath search errors (VOP_VPTOCNP failures)");
 STATNODE_COUNTER(numfullpathfail4, "Number of fullpath search errors (ENOMEM)");
 STATNODE_COUNTER(numfullpathfound, "Number of successful fullpath calls");
+static long numneg_evicted; STATNODE_ULONG(numneg_evicted,
+    "Number of negative entries evicted when adding a new entry");
 STATNODE_COUNTER(zap_and_exit_bucket_relock_success,
     "Number of successful removals after relocking");
 static long zap_and_exit_bucket_fail; STATNODE_ULONG(zap_and_exit_bucket_fail,
@@ -387,6 +390,7 @@ static long zap_and_exit_bucket_fail2; STATNODE_ULONG(zap_and_exit_bucket_fail2,
 static long cache_lock_vnodes_cel_3_failures;
 STATNODE_ULONG(cache_lock_vnodes_cel_3_failures,
     "Number of times 3-way vnode locking failed");
+STATNODE_ULONG(numhotneg, "Number of hot negative entries");
 
 static void cache_zap_locked(struct namecache *ncp, bool neg_locked);
 static int vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
@@ -703,6 +707,7 @@ cache_negative_hit(struct namecache *ncp)
 	neglist = NCP2NEGLIST(ncp);
 	mtx_lock(&neglist->nl_lock);
 	if (!(ncp->nc_flag & NCF_HOTNEGATIVE)) {
+		numhotneg++;
 		TAILQ_REMOVE(&neglist->nl_list, ncp, nc_dst);
 		TAILQ_INSERT_TAIL(&ncneg_hot.nl_list, ncp, nc_dst);
 		ncp->nc_flag |= NCF_HOTNEGATIVE;
@@ -756,6 +761,7 @@ cache_negative_remove(struct namecache *ncp, bool neg_locked)
 	if (ncp->nc_flag & NCF_HOTNEGATIVE) {
 		mtx_assert(&ncneg_hot.nl_lock, MA_OWNED);
 		TAILQ_REMOVE(&ncneg_hot.nl_list, ncp, nc_dst);
+		numhotneg--;
 	} else {
 		mtx_assert(&neglist->nl_lock, MA_OWNED);
 		TAILQ_REMOVE(&neglist->nl_list, ncp, nc_dst);
@@ -801,7 +807,8 @@ cache_negative_zap_one(void)
 	struct mtx *dvlp;
 	struct rwlock *blp;
 
-	if (!mtx_trylock(&ncneg_shrink_lock))
+	if (mtx_owner(&ncneg_shrink_lock) != NULL ||
+	    !mtx_trylock(&ncneg_shrink_lock))
 		return;
 
 	mtx_lock(&ncneg_hot.nl_lock);
@@ -812,8 +819,10 @@ cache_negative_zap_one(void)
 		TAILQ_REMOVE(&ncneg_hot.nl_list, ncp, nc_dst);
 		TAILQ_INSERT_TAIL(&neglist->nl_list, ncp, nc_dst);
 		ncp->nc_flag &= ~NCF_HOTNEGATIVE;
+		numhotneg--;
 		mtx_unlock(&neglist->nl_lock);
 	}
+	mtx_unlock(&ncneg_hot.nl_lock);
 
 	cache_negative_shrink_select(shrink_list_turn, &ncp, &neglist);
 	shrink_list_turn++;
@@ -821,16 +830,13 @@ cache_negative_zap_one(void)
 		shrink_list_turn = 0;
 	if (ncp == NULL && shrink_list_turn == 0)
 		cache_negative_shrink_select(shrink_list_turn, &ncp, &neglist);
-	if (ncp == NULL) {
-		mtx_unlock(&ncneg_hot.nl_lock);
+	if (ncp == NULL)
 		goto out;
-	}
 
 	MPASS(ncp->nc_flag & NCF_NEGATIVE);
 	dvlp = VP2VNODELOCK(ncp->nc_dvp);
 	blp = NCP2BUCKETLOCK(ncp);
 	mtx_unlock(&neglist->nl_lock);
-	mtx_unlock(&ncneg_hot.nl_lock);
 	mtx_lock(dvlp);
 	rw_wlock(blp);
 	mtx_lock(&neglist->nl_lock);
@@ -844,6 +850,7 @@ cache_negative_zap_one(void)
 	    ncp->nc_name, ncp->nc_neghits);
 
 	cache_zap_locked(ncp, true);
+	numneg_evicted++;
 out_unlock_all:
 	mtx_unlock(&neglist->nl_lock);
 	rw_wunlock(blp);
@@ -1380,7 +1387,7 @@ retry:
 	}
 
 	/* We failed to find an entry */
-	if (ncp == NULL) {
+	if (__predict_false(ncp == NULL)) {
 		rw_runlock(blp);
 		SDT_PROBE3(vfs, namecache, lookup, miss, dvp, cnp->cn_nameptr,
 		    NULL);
@@ -1388,35 +1395,17 @@ retry:
 		return (0);
 	}
 
+	if (ncp->nc_flag & NCF_NEGATIVE)
+		goto negative_success;
+
 	/* We found a "positive" match, return the vnode */
-	if (!(ncp->nc_flag & NCF_NEGATIVE)) {
-		counter_u64_add(numposhits, 1);
-		*vpp = ncp->nc_vp;
-		CTR4(KTR_VFS, "cache_lookup(%p, %s) found %p via ncp %p",
-		    dvp, cnp->cn_nameptr, *vpp, ncp);
-		SDT_PROBE3(vfs, namecache, lookup, hit, dvp, ncp->nc_name,
-		    *vpp);
-		cache_out_ts(ncp, tsp, ticksp);
-		goto success;
-	}
-
-negative_success:
-	/* We found a negative match, and want to create it, so purge */
-	if (cnp->cn_nameiop == CREATE) {
-		counter_u64_add(numnegzaps, 1);
-		goto zap_and_exit;
-	}
-
-	counter_u64_add(numneghits, 1);
-	cache_negative_hit(ncp);
-	if (ncp->nc_flag & NCF_WHITE)
-		cnp->cn_flags |= ISWHITEOUT;
-	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp,
-	    ncp->nc_name);
+	counter_u64_add(numposhits, 1);
+	*vpp = ncp->nc_vp;
+	CTR4(KTR_VFS, "cache_lookup(%p, %s) found %p via ncp %p",
+	    dvp, cnp->cn_nameptr, *vpp, ncp);
+	SDT_PROBE3(vfs, namecache, lookup, hit, dvp, ncp->nc_name,
+	    *vpp);
 	cache_out_ts(ncp, tsp, ticksp);
-	cache_lookup_unlock(blp, dvlp);
-	return (ENOENT);
-
 success:
 	/*
 	 * On success we return a locked and ref'd vnode as per the lookup
@@ -1449,6 +1438,23 @@ success:
 		ASSERT_VOP_ELOCKED(*vpp, "cache_lookup");
 	}
 	return (-1);
+
+negative_success:
+	/* We found a negative match, and want to create it, so purge */
+	if (cnp->cn_nameiop == CREATE) {
+		counter_u64_add(numnegzaps, 1);
+		goto zap_and_exit;
+	}
+
+	counter_u64_add(numneghits, 1);
+	cache_negative_hit(ncp);
+	if (ncp->nc_flag & NCF_WHITE)
+		cnp->cn_flags |= ISWHITEOUT;
+	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp,
+	    ncp->nc_name);
+	cache_out_ts(ncp, tsp, ticksp);
+	cache_lookup_unlock(blp, dvlp);
+	return (ENOENT);
 
 zap_and_exit:
 	if (blp != NULL)
@@ -1691,7 +1697,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	uint32_t hash;
 	int flag;
 	int len;
-	bool neg_locked;
+	bool neg_locked, held_dvp;
 	u_long lnumcache;
 
 	CTR3(KTR_VFS, "cache_enter(%p, %p, %s)", dvp, vp, cnp->cn_nameptr);
@@ -1748,9 +1754,14 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 				if (vp != NULL) {
 					TAILQ_INSERT_HEAD(&vp->v_cache_dst,
 					    ncp, nc_dst);
+					if (ncp->nc_flag & NCF_HOTNEGATIVE)
+						numhotneg--;
 					ncp->nc_flag &= ~(NCF_NEGATIVE|NCF_HOTNEGATIVE);
 				} else {
-					ncp->nc_flag &= ~(NCF_HOTNEGATIVE);
+					if (ncp->nc_flag & NCF_HOTNEGATIVE) {
+						numhotneg--;
+						ncp->nc_flag &= ~(NCF_HOTNEGATIVE);
+					}
 					ncp->nc_flag |= NCF_NEGATIVE;
 					cache_negative_insert(ncp, true);
 				}
@@ -1768,6 +1779,13 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 			SDT_PROBE3(vfs, namecache, enter, done, dvp, "..", vp);
 			flag = NCF_ISDOTDOT;
 		}
+	}
+
+	held_dvp = false;
+	if (LIST_EMPTY(&dvp->v_cache_src) && flag != NCF_ISDOTDOT) {
+		vhold(dvp);
+		atomic_add_long(&numcachehv, 1);
+		held_dvp = true;
 	}
 
 	/*
@@ -1859,8 +1877,21 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 
 	if (flag != NCF_ISDOTDOT) {
 		if (LIST_EMPTY(&dvp->v_cache_src)) {
-			vhold(dvp);
-			atomic_add_rel_long(&numcachehv, 1);
+			if (!held_dvp) {
+				vhold(dvp);
+				atomic_add_long(&numcachehv, 1);
+			}
+		} else {
+			if (held_dvp) {
+				/*
+				 * This will not take the interlock as someone
+				 * else already holds the vnode on account of
+				 * the namecache and we hold locks preventing
+				 * this from changing.
+				 */
+				vdrop(dvp);
+				atomic_subtract_long(&numcachehv, 1);
+			}
 		}
 		LIST_INSERT_HEAD(&dvp->v_cache_src, ncp, nc_src);
 	}
@@ -1895,6 +1926,10 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 out_unlock_free:
 	cache_enter_unlock(&cel);
 	cache_free(ncp);
+	if (held_dvp) {
+		vdrop(dvp);
+		atomic_subtract_long(&numcachehv, 1);
+	}
 	return;
 }
 
