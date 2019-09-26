@@ -309,11 +309,27 @@ range:	addrmask			{ $$ = calloc(1, sizeof(*$$));
 					  $$->ipn_info = 0;
 					  $$->ipn_addr = $1[0];
 					  $$->ipn_mask = $1[1];
+#ifdef USE_INET6
+					  if (use_inet6)
+						$$->ipn_addr.adf_family =
+							AF_INET6;
+					  else
+#endif
+						$$->ipn_addr.adf_family =
+							AF_INET;
 					}
 	| '!' addrmask			{ $$ = calloc(1, sizeof(*$$));
 					  $$->ipn_info = 1;
 					  $$->ipn_addr = $2[0];
 					  $$->ipn_mask = $2[1];
+#ifdef USE_INET6
+					  if (use_inet6)
+						$$->ipn_addr.adf_family =
+							AF_INET6;
+					  else
+#endif
+						$$->ipn_addr.adf_family =
+							AF_INET;
 					}
 	| YY_STR			{ $$ = add_poolhosts($1);
 					  free($1);
