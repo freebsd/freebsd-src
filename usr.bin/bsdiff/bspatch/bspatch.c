@@ -61,6 +61,23 @@ exit_cleanup(void)
 			warn("unlinkat");
 }
 
+static inline off_t
+add_off_t(off_t a, off_t b)
+{
+	off_t result;
+
+#if __GNUC__ >= 5 || \
+    (defined(__has_builtin) && __has_builtin(__builtin_add_overflow))
+	if (__builtin_add_overflow(a, b, &result))
+		errx(1, "Corrupt patch");
+#else
+	if ((b > 0 && a > OFF_MAX - b) || (b < 0 && a < OFF_MIN - b))
+		errx(1, "Corrupt patch");
+	result = a + b;
+#endif
+	return result;
+}
+
 static off_t offtin(u_char *buf)
 {
 	off_t y;
@@ -199,12 +216,12 @@ int main(int argc, char *argv[])
 		err(1, "fseeko(%s, %jd)", argv[3], (intmax_t)offset);
 	if ((cpfbz2 = BZ2_bzReadOpen(&cbz2err, cpf, 0, 0, NULL, 0)) == NULL)
 		errx(1, "BZ2_bzReadOpen, bz2err = %d", cbz2err);
-	offset += bzctrllen;
+	offset = add_off_t(offset, bzctrllen);
 	if (fseeko(dpf, offset, SEEK_SET))
 		err(1, "fseeko(%s, %jd)", argv[3], (intmax_t)offset);
 	if ((dpfbz2 = BZ2_bzReadOpen(&dbz2err, dpf, 0, 0, NULL, 0)) == NULL)
 		errx(1, "BZ2_bzReadOpen, bz2err = %d", dbz2err);
-	offset += bzdatalen;
+	offset = add_off_t(offset, bzdatalen);
 	if (fseeko(epf, offset, SEEK_SET))
 		err(1, "fseeko(%s, %jd)", argv[3], (intmax_t)offset);
 	if ((epfbz2 = BZ2_bzReadOpen(&ebz2err, epf, 0, 0, NULL, 0)) == NULL)
@@ -238,7 +255,7 @@ int main(int argc, char *argv[])
 			errx(1, "Corrupt patch");
 
 		/* Sanity-check */
-		if (newpos + ctrl[0] > newsize)
+		if (add_off_t(newpos, ctrl[0]) > newsize)
 			errx(1, "Corrupt patch");
 
 		/* Read diff string */
@@ -249,15 +266,15 @@ int main(int argc, char *argv[])
 
 		/* Add old data to diff string */
 		for (i = 0; i < ctrl[0]; i++)
-			if ((oldpos + i >= 0) && (oldpos + i < oldsize))
+			if (add_off_t(oldpos, i) < oldsize)
 				new[newpos + i] += old[oldpos + i];
 
 		/* Adjust pointers */
-		newpos += ctrl[0];
-		oldpos += ctrl[0];
+		newpos = add_off_t(newpos, ctrl[0]);
+		oldpos = add_off_t(oldpos, ctrl[0]);
 
 		/* Sanity-check */
-		if (newpos + ctrl[1] > newsize)
+		if (add_off_t(newpos, ctrl[1]) > newsize)
 			errx(1, "Corrupt patch");
 
 		/* Read extra string */
@@ -267,8 +284,8 @@ int main(int argc, char *argv[])
 			errx(1, "Corrupt patch");
 
 		/* Adjust pointers */
-		newpos+=ctrl[1];
-		oldpos+=ctrl[2];
+		newpos = add_off_t(newpos, ctrl[1]);
+		oldpos = add_off_t(oldpos, ctrl[2]);
 	}
 
 	/* Clean up the bzip2 reads */
