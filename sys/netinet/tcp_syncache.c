@@ -130,8 +130,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, functions_inherit_listen_socket_stack,
 static void	 syncache_drop(struct syncache *, struct syncache_head *);
 static void	 syncache_free(struct syncache *);
 static void	 syncache_insert(struct syncache *, struct syncache_head *);
-static int	 syncache_respond(struct syncache *, struct syncache_head *,
-		    const struct mbuf *, int);
+static int	 syncache_respond(struct syncache *, const struct mbuf *, int);
 static struct	 socket *syncache_socket(struct syncache *, struct socket *,
 		    struct mbuf *m);
 static void	 syncache_timeout(struct syncache *sc, struct syncache_head *sch,
@@ -495,7 +494,7 @@ syncache_timer(void *xsch)
 			free(s, M_TCPLOG);
 		}
 
-		syncache_respond(sc, sch, NULL, TH_SYN|TH_ACK);
+		syncache_respond(sc, NULL, TH_SYN|TH_ACK);
 		TCPSTAT_INC(tcps_sc_retransmitted);
 		syncache_timeout(sc, sch, 0);
 	}
@@ -632,7 +631,7 @@ syncache_chkrst(struct in_conninfo *inc, struct tcphdr *th, struct mbuf *m)
 				    "sending challenge ACK\n",
 				    s, __func__,
 				    th->th_seq, sc->sc_irs + 1, sc->sc_wnd);
-			syncache_respond(sc, sch, m, TH_ACK);
+			syncache_respond(sc, m, TH_ACK);
 		}
 	} else {
 		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
@@ -1475,7 +1474,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			    s, __func__);
 			free(s, M_TCPLOG);
 		}
-		if (syncache_respond(sc, sch, m, TH_SYN|TH_ACK) == 0) {
+		if (syncache_respond(sc, m, TH_SYN|TH_ACK) == 0) {
 			sc->sc_rxmits = 0;
 			syncache_timeout(sc, sch, 1);
 			TCPSTAT_INC(tcps_sndacks);
@@ -1640,7 +1639,7 @@ skip_alloc:
 	/*
 	 * Do a standard 3-way handshake.
 	 */
-	if (syncache_respond(sc, sch, m, TH_SYN|TH_ACK) == 0) {
+	if (syncache_respond(sc, m, TH_SYN|TH_ACK) == 0) {
 		if (V_tcp_syncookies && V_tcp_syncookiesonly && sc != &scs)
 			syncache_free(sc);
 		else if (sc != &scs)
@@ -1685,8 +1684,7 @@ tfo_expanded:
  * i.e. m0 != NULL, or upon 3WHS ACK timeout, i.e. m0 == NULL.
  */
 static int
-syncache_respond(struct syncache *sc, struct syncache_head *sch,
-    const struct mbuf *m0, int flags)
+syncache_respond(struct syncache *sc, const struct mbuf *m0, int flags)
 {
 	struct ip *ip = NULL;
 	struct mbuf *m;
