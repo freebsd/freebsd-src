@@ -99,9 +99,10 @@ following values:
 .Bl -tag -compact -width "indent"
 .It Cm ARCHIVE_READDISK_HONOR_NODUMP
 Skip files and directories with the nodump file attribute (file flag) set.
-By default, the nodump file atrribute is ignored.
+By default, the nodump file attribute is ignored.
 .It Cm ARCHIVE_READDISK_MAC_COPYFILE
-Mac OS X specific. Read metadata (ACLs and extended attributes) with
+Mac OS X specific.
+Read metadata (ACLs and extended attributes) with
 .Xr copyfile 3 .
 By default, metadata is read using
 .Xr copyfile 3 .
@@ -120,7 +121,7 @@ or
 for more information on file attributes.
 .It Cm ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS
 Do not traverse mount points.
-By defaut, moint points are traversed.
+By default, mount points are traversed.
 .It Cm ARCHIVE_READDISK_NO_XATTR
 Do not read extended file attributes (xattrs).
 By default, extended file attributes are read from disk.
@@ -216,7 +217,7 @@ of some other operation.
 (For example, directory traversal libraries often provide this information.)
 .Pp
 Where necessary, user and group ids are converted to user and group names
-using the currently registered lookup functions above.
+using the currently-registered lookup functions above.
 This affects the file ownership fields and ACL values in the
 .Tn struct archive_entry
 object.
@@ -226,7 +227,7 @@ More information about the
 object and the overall design of the library can be found in the
 .Xr libarchive 3
 overview.
-.Sh EXAMPLE
+.Sh EXAMPLES
 The following illustrates basic usage of the library by
 showing how to use it to copy an item on disk into an archive.
 .Bd -literal -offset indent
@@ -291,11 +292,11 @@ and
 functions.
 .\"
 .Sh SEE ALSO
+.Xr tar 1 ,
 .Xr archive_read 3 ,
 .Xr archive_util 3 ,
 .Xr archive_write 3 ,
 .Xr archive_write_disk 3 ,
-.Xr tar 1 ,
 .Xr libarchive 3
 .Sh HISTORY
 The

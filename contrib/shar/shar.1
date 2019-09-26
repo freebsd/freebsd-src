@@ -61,7 +61,8 @@ or
 The following options are available:
 .Bl -tag -width indent
 .It Fl b
-Use an alternative binary format.  Content of files will be uuencoded.
+Use an alternative binary format.
+Content of files will be uuencoded.
 This option should be used to archive binary files correctly.
 In this mode also file permissions will be stored to the archive.
 uudecode(1) is needed to extract archives created with this option.
@@ -72,8 +73,8 @@ Redirect output to
 If
 .Ar file
 given on command line is a directory the entire subtree will be archived.
-Symbolic links given on command line are followed.  Other symbolic links will
-be archived as such.
+Symbolic links given on command line are followed.
+Other symbolic links will be archived as such.
 .El
 .Sh EXAMPLES
 To create a shell archive of the program
@@ -111,7 +112,9 @@ The
 command makes no provisions for hard links.
 .Pp
 Files containing magic characters or files without a newline ('\\n') as the
-last character are not handled correctly with the default format.  Use the -b
+last character are not handled correctly with the default format.
+Use the
+.Fl b
 option for binary files.
 .Pp
 It is easy to insert trojan horses into

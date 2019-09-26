@@ -458,7 +458,7 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 
 	if (from_cp == CP_C_LOCALE) {
 		/*
-		 * "C" locale special process.
+		 * "C" locale special processing.
 		 */
 		wchar_t *ws;
 		const unsigned char *mp;
@@ -680,7 +680,7 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 
 	if (to_cp == CP_C_LOCALE) {
 		/*
-		 * "C" locale special process.
+		 * "C" locale special processing.
 		 */
 		const wchar_t *wp = ws;
 		char *p;
@@ -889,7 +889,7 @@ add_converter(struct archive_string_conv *sc, int (*converter)
      struct archive_string_conv *))
 {
 	if (sc == NULL || sc->nconverter >= 2)
-		__archive_errx(1, "Programing error");
+		__archive_errx(1, "Programming error");
 	sc->converter[sc->nconverter++] = converter;
 }
 
