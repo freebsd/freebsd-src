@@ -6,6 +6,7 @@
 
 .include <src.opts.mk>
 PACKAGE=	clibs
+MK_PIE=		no # Always position independent using local rules
 MK_SSP=		no
 
 CONFS=		libmap.conf
