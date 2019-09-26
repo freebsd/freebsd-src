@@ -73,6 +73,7 @@ __DEFAULT_NO_OPTIONS = \
     CCACHE_BUILD \
     CTF \
     INSTALL_AS_USER \
+    PIE \
     RETPOLINE \
     STALE_STAGED
 

@@ -10,10 +10,10 @@ CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${.CURDIR}/${GNURELTOP}/libbinutils
 CFLAGS+= -I${SRCDIR}/binutils
 CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"
-DPADD=	${GNURELTOP}/libbinutils/libbinutils.a
-DPADD+=	${GNURELTOP}/libopcodes/libopcodes.a
-DPADD+=	${GNURELTOP}/libbfd/libbfd.a
-DPADD+=	${GNURELTOP}/libiberty/libiberty.a
+DPADD=	${GNURELTOP}/libbinutils/libbinutils${PIE_SUFFIX}.a
+DPADD+=	${GNURELTOP}/libopcodes/libopcodes${PIE_SUFFIX}.a
+DPADD+=	${GNURELTOP}/libbfd/libbfd${PIE_SUFFIX}.a
+DPADD+=	${GNURELTOP}/libiberty/libiberty${PIE_SUFFIX}.a
 LDADD=	${DPADD}
 
 .include <bsd.prog.mk>
