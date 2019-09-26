@@ -1157,5 +1157,7 @@
 571	AUE_SHMOPEN	NOPROTO	{ int shm_open2( \
 				    const char *path, int flags, mode_t mode, \
 				    int shmflags, const char *name); }
+572	AUE_NULL	NOPROTO { int shm_rename(const char *path_from, \
+				    const char *path_to, int flags); }
 
 ; vim: syntax=off
