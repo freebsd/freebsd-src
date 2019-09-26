@@ -1947,7 +1947,7 @@ pmap_init(void)
 	if (lm_ents > LMEPML4I - LMSPML4I + 1)
 		lm_ents = LMEPML4I - LMSPML4I + 1;
 	if (bootverbose)
-		printf("pmap: large map %u PML4 slots (%lu Gb)\n",
+		printf("pmap: large map %u PML4 slots (%lu GB)\n",
 		    lm_ents, (u_long)lm_ents * (NBPML4 / 1024 / 1024 / 1024));
 	if (lm_ents != 0) {
 		large_vmem = vmem_create("large", LARGEMAP_MIN_ADDRESS,
