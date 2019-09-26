@@ -480,8 +480,7 @@ vt_fb_init(struct vt_device *vd)
 	}
 
 	c = TC_BLACK;
-	TUNABLE_INT_FETCH("teken.bg_color", &bg);
-	if (bg != -1) {
+	if (TUNABLE_INT_FETCH("teken.bg_color", &bg) != 0) {
 		if (bg == TC_WHITE)
 			bg |= TC_LIGHT;
 		c = bg;
