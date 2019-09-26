@@ -471,6 +471,8 @@ static struct syscall decoded_syscalls[] = {
 		    { Ptr | IN, 3 }, { Socklent, 4 } } },
 	{ .name = "shm_open", .ret_type = 1, .nargs = 3,
 	  .args = { { ShmName | IN, 0 }, { Open, 1 }, { Octal, 2 } } },
+	{ .name = "shm_rename", .ret_type = 1, .nargs = 3,
+	  .args = { { Name | IN, 0 }, { Name | IN, 1 }, { Hex, 2 } } },
 	{ .name = "shm_unlink", .ret_type = 1, .nargs = 1,
 	  .args = { { Name | IN, 0 } } },
 	{ .name = "shutdown", .ret_type = 1, .nargs = 2,
