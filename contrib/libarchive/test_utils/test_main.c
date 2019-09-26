@@ -298,7 +298,7 @@ my_CreateSymbolicLinkA(const char *linkname, const char *target,
 	ret = (*f)(src, tgt, tmpflags);
 	/*
 	 * Prior to Windows 10 the SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
-	 * is not undestood
+	 * is not understood
 	 */
 	if (!ret)
 		ret = (*f)(src, tgt, flags);

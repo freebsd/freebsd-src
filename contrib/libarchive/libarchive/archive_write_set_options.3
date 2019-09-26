@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2012
+.Dd July 27, 2019
 .Dt ARCHIVE_WRITE_OPTIONS 3
 .Os
 .Sh NAME
@@ -70,7 +70,7 @@ specific write modules.
 .Fn archive_write_set_filter_option ,
 .Fn archive_write_set_format_option
 .Xc
-Specifies an option that will be passed to currently-registered
+Specifies an option that will be passed to the currently-registered
 filters (including decompression filters) or format readers.
 .Pp
 If
@@ -138,7 +138,7 @@ If either function returns
 .Cm ARCHIVE_FATAL
 will be returned
 immediately.
-Otherwise, greater of the two values will be returned.
+Otherwise, the greater of the two values will be returned.
 .\"
 .It Fn archive_write_set_options
 .Ar options
@@ -203,22 +203,28 @@ These options are used to set standard ISO9660 metadata.
 .Bl -tag -compact -width indent
 .It Cm abstract-file Ns = Ns Ar filename
 The file with the specified name will be identified in the ISO9660 metadata
-as holding the abstract for this volume.  Default: none.
+as holding the abstract for this volume.
+Default: none.
 .It Cm application-id Ns = Ns Ar filename
 The file with the specified name will be identified in the ISO9660 metadata
-as holding the application identifier for this volume.  Default: none.
+as holding the application identifier for this volume.
+Default: none.
 .It Cm biblio-file Ns = Ns Ar filename
 The file with the specified name will be identified in the ISO9660 metadata
-as holding the bibliography for this volume.  Default: none.
+as holding the bibliography for this volume.
+Default: none.
 .It Cm copyright-file Ns = Ns Ar filename
 The file with the specified name will be identified in the ISO9660 metadata
-as holding the copyright for this volume.  Default: none.
+as holding the copyright for this volume.
+Default: none.
 .It Cm publisher Ns = Ns Ar filename
 The file with the specified name will be identified in the ISO9660 metadata
-as holding the publisher information for this volume.  Default: none.
+as holding the publisher information for this volume.
+Default: none.
 .It Cm volume-id Ns = Ns Ar string
 The specified string will be used as the Volume Identifier in the ISO9660 metadata.
-It is limited to 32 bytes. Default: none.
+It is limited to 32 bytes.
+Default: none.
 .El
 .It Format iso9660 - boot support
 These options are used to make an ISO9660 image that can be directly
@@ -266,7 +272,7 @@ If the boot image is exactly 1.2MB, 1.44MB, or 2.88MB, then
 the default is
 .Cm fd ,
 otherwise the default is
-.Cm no-emulation.
+.Cm no-emulation .
 .El
 .It Format iso9660 - filename and size extensions
 Various extensions to the base ISO9660 format.
@@ -290,7 +296,7 @@ This does not impact names stored in the Rockridge or Joliet extension area.
 Default: disabled.
 .It Cm allow-period
 If enabled, allows filenames to contain trailing period characters, in violation of the ISO9660 specification.
-If disabled,trailing periods will be converted to underscore characters.
+If disabled, trailing periods will be converted to underscore characters.
 This does not impact names stored in the Rockridge or Joliet extension area.
 Default: disabled.
 .It Cm allow-pvd-lowercase
@@ -398,6 +404,27 @@ Specifies a filename that should not be compressed when using
 This option can be provided multiple times to suppress compression
 on many files.
 .El
+.It Format 7zip
+.Bl -tag -compact -width indent
+.It Cm compression
+The value is one of
+.Dq store ,
+.Dq deflate ,
+.Dq bzip2 ,
+.Dq lzma1 ,
+.Dq lzma2
+or
+.Dq ppmd
+to indicate how the following entries should be compressed.
+Note that this setting is ignored for directories, symbolic links,
+and other special entries.
+.It Cm compression-level
+The value is interpreted as a decimal integer specifying the
+compression level.
+Values between 0 and 9 are supported.
+The interpretation of the compression level depends on the chosen
+compression method.
+.El
 .It Format zip
 .Bl -tag -compact -width indent
 .It Cm compression
@@ -408,6 +435,15 @@ or
 to indicate how the following entries should be compressed.
 Note that this setting is ignored for directories, symbolic links,
 and other special entries.
+.It Cm compression-level
+The value is interpreted as a decimal integer specifying the
+compression level.
+Values between 0 and 9 are supported.
+A compression level of 0 switches the compression method to
+.Dq store ,
+other values will enable
+.Dq deflate
+compression with the given level.
 .It Cm experimental
 This boolean option enables or disables experimental Zip features
 that may not be compatible with other Zip implementations.
@@ -465,9 +501,9 @@ functions.
 .\"
 .Sh SEE ALSO
 .Xr tar 1 ,
-.Xr libarchive 3 ,
 .Xr archive_read_set_options 3 ,
-.Xr archive_write 3
+.Xr archive_write 3 ,
+.Xr libarchive 3
 .Sh HISTORY
 The
 .Nm libarchive
