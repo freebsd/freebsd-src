@@ -1,7 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 LSI Corp.
- * Copyright (c) 2013-2016 Avago Technologies
- * All rights reserved.
+ *  Copyright 2000-2020 Broadcom Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,15 +25,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
+ * Broadcom Inc. (LSI) MPT-Fusion Host Adapter FreeBSD
  *
  * $FreeBSD$
  */
 
 /*
- *  Copyright (c) 2000-2015 LSI Corporation.
- *  Copyright (c) 2013-2016 Avago Technologies
- *  All rights reserved.
+ *  Copyright 2000-2020 Broadcom Inc. All rights reserved.
  *
  *
  *           Name:  mpi2.h
@@ -44,7 +40,7 @@
  *                  scatter/gather formats.
  *  Creation Date:  June 21, 2006
  *
- *  mpi2.h Version:  02.00.48
+ *  mpi2.h Version:  02.00.52
  *
  *  NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *        prefix are for use only on MPI v2.5 products, and must not be used
@@ -153,6 +149,11 @@
  *  09-02-16  02.00.46  Bumped MPI2_HEADER_VERSION_UNIT.
  *  11-23-16  02.00.47  Bumped MPI2_HEADER_VERSION_UNIT.
  *  02-03-17  02.00.48  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  06-13-17  02.00.49  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  09-29-17  02.00.50  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  07-22-18  02.00.51  Added SECURE_BOOT define.
+ *                      Bumped MPI2_HEADER_VERSION_UNIT
+ *  08-15-18  02.00.52  Bumped MPI2_HEADER_VERSION_UNIT.
  *  --------------------------------------------------------------------------
  */
 
@@ -196,7 +197,7 @@
 
 
 /* Unit and Dev versioning for this MPI header set */
-#define MPI2_HEADER_VERSION_UNIT            (0x30)
+#define MPI2_HEADER_VERSION_UNIT            (0x34)
 #define MPI2_HEADER_VERSION_DEV             (0x00)
 #define MPI2_HEADER_VERSION_UNIT_MASK       (0xFF00)
 #define MPI2_HEADER_VERSION_UNIT_SHIFT      (8)
@@ -297,6 +298,8 @@ typedef volatile struct _MPI2_SYSTEM_INTERFACE_REGS
  * Defines for the HostDiagnostic register
  */
 #define MPI2_HOST_DIAGNOSTIC_OFFSET             (0x00000008)
+
+#define MPI26_DIAG_SECURE_BOOT                  (0x80000000)
 
 #define MPI2_DIAG_SBR_RELOAD                    (0x00002000)
 

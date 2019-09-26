@@ -239,17 +239,19 @@ struct mps_command {
 #define	MPS_CM_FLAGS_ERROR_MASK		MPS_CM_FLAGS_CHAIN_FAILED
 #define	MPS_CM_FLAGS_USE_CCB		(1 << 10)
 #define	MPS_CM_FLAGS_SATA_ID_TIMEOUT	(1 << 11)
+#define MPS_CM_FLAGS_ON_RECOVERY	(1 << 12)
+#define MPS_CM_FLAGS_TIMEDOUT		(1 << 13)
 	u_int				cm_state;
 #define MPS_CM_STATE_FREE		0
 #define MPS_CM_STATE_BUSY		1
-#define MPS_CM_STATE_TIMEDOUT		2
-#define MPS_CM_STATE_INQUEUE		3
+#define MPS_CM_STATE_INQUEUE		2
 	bus_dmamap_t			cm_dmamap;
 	struct scsi_sense_data		*cm_sense;
 	TAILQ_HEAD(, mps_chain)		cm_chain_list;
 	uint32_t			cm_req_busaddr;
 	uint32_t			cm_sense_busaddr;
 	struct callout			cm_callout;
+	mps_command_callback_t		*cm_timeout_handler;
 };
 
 struct mps_column_map {
@@ -541,7 +543,8 @@ mps_free_command(struct mps_softc *sc, struct mps_command *cm)
 {
 	struct mps_chain *chain, *chain_temp;
 
-	KASSERT(cm->cm_state == MPS_CM_STATE_BUSY, ("state not busy\n"));
+	KASSERT(cm->cm_state == MPS_CM_STATE_BUSY,
+	    ("state not busy: %d\n", cm->cm_state));
 
 	if (cm->cm_reply != NULL)
 		mps_free_reply(sc, cm->cm_reply_data);
@@ -577,10 +580,11 @@ mps_alloc_command(struct mps_softc *sc)
 		return (NULL);
 
 	KASSERT(cm->cm_state == MPS_CM_STATE_FREE,
-	    ("mps: Allocating busy command\n"));
+	    ("mps: Allocating busy command: %d\n", cm->cm_state));
 
 	TAILQ_REMOVE(&sc->req_list, cm, cm_link);
 	cm->cm_state = MPS_CM_STATE_BUSY;
+	cm->cm_timeout_handler = NULL;
 	return (cm);
 }
 
@@ -589,7 +593,8 @@ mps_free_high_priority_command(struct mps_softc *sc, struct mps_command *cm)
 {
 	struct mps_chain *chain, *chain_temp;
 
-	KASSERT(cm->cm_state == MPS_CM_STATE_BUSY, ("state not busy\n"));
+	KASSERT(cm->cm_state == MPS_CM_STATE_BUSY,
+	    ("state not busy: %d\n", cm->cm_state));
 
 	if (cm->cm_reply != NULL)
 		mps_free_reply(sc, cm->cm_reply_data);
@@ -618,10 +623,13 @@ mps_alloc_high_priority_command(struct mps_softc *sc)
 		return (NULL);
 
 	KASSERT(cm->cm_state == MPS_CM_STATE_FREE,
-	    ("mps: Allocating busy command\n"));
+	    ("mps: Allocating high priority busy command: %d\n", cm->cm_state));
 
 	TAILQ_REMOVE(&sc->high_priority_req_list, cm, cm_link);
 	cm->cm_state = MPS_CM_STATE_BUSY;
+	cm->cm_timeout_handler = NULL;
+	cm->cm_desc.HighPriority.RequestFlags =
+	    MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
 	return (cm);
 }
 

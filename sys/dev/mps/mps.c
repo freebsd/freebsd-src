@@ -2361,12 +2361,13 @@ void
 mps_intr_locked(void *data)
 {
 	MPI2_REPLY_DESCRIPTORS_UNION *desc;
-	struct mps_softc *sc;
-	struct mps_command *cm = NULL;
-	uint8_t flags;
-	u_int pq;
 	MPI2_DIAG_RELEASE_REPLY *rel_rep;
 	mps_fw_diagnostic_buffer_t *pBuffer;
+	struct mps_softc *sc;
+	struct mps_command *cm = NULL;
+	uint64_t tdesc;
+	uint8_t flags;
+	u_int pq;
 
 	sc = (struct mps_softc *)data;
 
@@ -2378,6 +2379,17 @@ mps_intr_locked(void *data)
 	for ( ;; ) {
 		cm = NULL;
 		desc = &sc->post_queue[sc->replypostindex];
+
+		/*
+		 * Copy and clear out the descriptor so that any reentry will
+		 * immediately know that this descriptor has already been
+		 * looked at.  There is unfortunate casting magic because the
+		 * MPI API doesn't have a cardinal 64bit type.
+		 */
+		tdesc = 0xffffffffffffffff;
+		tdesc = atomic_swap_64((uint64_t *)desc, tdesc);
+		desc = (MPI2_REPLY_DESCRIPTORS_UNION *)&tdesc;
+
 		flags = desc->Default.ReplyFlags &
 		    MPI2_RPY_DESCRIPT_FLAGS_TYPE_MASK;
 		if ((flags == MPI2_RPY_DESCRIPT_FLAGS_UNUSED)
@@ -2467,14 +2479,24 @@ mps_intr_locked(void *data)
 					    (MPI2_EVENT_NOTIFICATION_REPLY *)
 					    reply);
 			} else {
+				/*
+				 * Ignore commands not in INQUEUE state
+				 * since they've already been completed
+				 * via another path.
+				 */
 				cm = &sc->commands[
 				    le16toh(desc->AddressReply.SMID)];
-				KASSERT(cm->cm_state == MPS_CM_STATE_INQUEUE,
-				    ("command not inqueue\n"));
-				cm->cm_state = MPS_CM_STATE_BUSY;
-				cm->cm_reply = reply;
-				cm->cm_reply_data = le32toh(
-				    desc->AddressReply.ReplyFrameAddress);
+				if (cm->cm_state == MPS_CM_STATE_INQUEUE) {
+					cm->cm_state = MPS_CM_STATE_BUSY;
+					cm->cm_reply = reply;
+					cm->cm_reply_data = le32toh(
+					    desc->AddressReply.ReplyFrameAddress);
+				} else {
+					mps_dprint(sc, MPS_RECOVERY,
+					    "Bad state for ADDRESS_REPLY status,"
+					    " ignoring state %d cm %p\n",
+					    cm->cm_state, cm);
+				}
 			}
 			break;
 		}
@@ -2496,9 +2518,6 @@ mps_intr_locked(void *data)
 				mps_display_reply_info(sc,cm->cm_reply);
 			mps_complete_command(sc, cm);
 		}
-
-		desc->Words.Low = 0xffffffff;
-		desc->Words.High = 0xffffffff;
 	}
 
 	if (pq != sc->replypostindex) {
@@ -3094,12 +3113,15 @@ mps_wait_command(struct mps_softc *sc, struct mps_command **cmp, int timeout,
 	}
 
 	if (error == EWOULDBLOCK) {
-		mps_dprint(sc, MPS_FAULT, "Calling Reinit from %s, timeout=%d,"
-		    " elapsed=%jd\n", __func__, timeout,
-		    (intmax_t)cur_time.tv_sec);
-		rc = mps_reinit(sc);
-		mps_dprint(sc, MPS_FAULT, "Reinit %s\n", (rc == 0) ? "success" :
-		    "failed");
+		if (cm->cm_timeout_handler == NULL) {
+			mps_dprint(sc, MPS_FAULT, "Calling Reinit from %s, timeout=%d,"
+			    " elapsed=%jd\n", __func__, timeout,
+			    (intmax_t)cur_time.tv_sec);
+			rc = mps_reinit(sc);
+			mps_dprint(sc, MPS_FAULT, "Reinit %s\n", (rc == 0) ? "success" :
+			    "failed");
+		} else
+			cm->cm_timeout_handler(sc, cm);
 		if (sc->mps_flags & MPS_FLAGS_REALLOCATED) {
 			/*
 			 * Tell the caller that we freed the command in a
