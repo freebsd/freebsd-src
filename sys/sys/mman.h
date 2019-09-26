@@ -134,6 +134,14 @@
 #define MAP_FAILED	((void *)-1)
 
 /*
+ * Flags provided to shm_rename
+ */
+/* Don't overwrite dest, if it exists */
+#define SHM_RENAME_NOREPLACE	(1 << 0)
+/* Atomically swap src and dest */
+#define SHM_RENAME_EXCHANGE	(1 << 1)
+
+/*
  * msync() flags
  */
 #define	MS_SYNC		0x0000	/* msync synchronously */
@@ -313,6 +321,7 @@ int	posix_madvise(void *, size_t, int);
 int	mlockall(int);
 int	munlockall(void);
 int	shm_open(const char *, int, mode_t);
+int	shm_rename(const char *, const char *, int);
 int	shm_unlink(const char *);
 #endif
 #if __BSD_VISIBLE

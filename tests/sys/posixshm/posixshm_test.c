@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscall.h>
 #include <sys/wait.h>
 
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -46,18 +47,34 @@ __FBSDID("$FreeBSD$");
 
 #define	TEST_PATH_LEN	256
 static char test_path[TEST_PATH_LEN];
+static char test_path2[TEST_PATH_LEN];
+static unsigned int test_path_idx = 0;
+
+static void
+gen_a_test_path(char *path)
+{
+	snprintf(path, TEST_PATH_LEN, "%s/tmp.XXXXXX%d",
+	    getenv("TMPDIR") == NULL ? "/tmp" : getenv("TMPDIR"),
+	    test_path_idx);
+
+	test_path_idx++;
+
+	ATF_REQUIRE_MSG(mkstemp(path) != -1,
+	    "mkstemp failed; errno=%d", errno);
+	ATF_REQUIRE_MSG(unlink(path) == 0,
+	    "unlink failed; errno=%d", errno);
+}
 
 static void
 gen_test_path(void)
 {
+	gen_a_test_path(test_path);
+}
 
-	snprintf(test_path, sizeof(test_path), "%s/tmp.XXXXXX",
-	    getenv("TMPDIR") == NULL ? "/tmp" : getenv("TMPDIR"));
-	test_path[sizeof(test_path) - 1] = '\0';
-	ATF_REQUIRE_MSG(mkstemp(test_path) != -1,
-	    "mkstemp failed; errno=%d", errno);
-	ATF_REQUIRE_MSG(unlink(test_path) == 0,
-	    "unlink failed; errno=%d", errno);
+static void
+gen_test_path2(void)
+{
+	gen_a_test_path(test_path2);
 }
 
 /*
@@ -89,20 +106,18 @@ shm_unlink_should_fail(const char *path, int error)
 }
 
 /*
- * Open the test object and write '1' to the first byte.  Returns valid fd
+ * Open the test object and write a value to the first byte.  Returns valid fd
  * on success and -1 on failure.
  */
 static int
-scribble_object(void)
+scribble_object(const char *path, char value)
 {
 	char *page;
 	int fd, pagesize;
 
-	gen_test_path();
-
 	ATF_REQUIRE(0 < (pagesize = getpagesize()));
 
-	fd = shm_open(test_path, O_CREAT|O_EXCL|O_RDWR, 0777);
+	fd = shm_open(path, O_CREAT|O_EXCL|O_RDWR, 0777);
 	if (fd < 0 && errno == EEXIST) {
 		if (shm_unlink(test_path) < 0)
 			atf_tc_fail("shm_unlink");
@@ -117,11 +132,43 @@ scribble_object(void)
 	if (page == MAP_FAILED)
 		atf_tc_fail("mmap failed; errno=%d", errno);
 
-	page[0] = '1';
+	page[0] = value;
 	ATF_REQUIRE_MSG(munmap(page, pagesize) == 0, "munmap failed; errno=%d",
 	    errno);
 
 	return (fd);
+}
+
+/*
+ * Fail the test case if the 'path' does not refer to an shm whose first byte
+ * is equal to expected_value
+ */
+static void
+verify_object(const char *path, char expected_value)
+{
+	int fd;
+	int pagesize;
+	char *page;
+
+	ATF_REQUIRE(0 < (pagesize = getpagesize()));
+
+	fd = shm_open(path, O_RDONLY, 0777);
+	if (fd < 0)
+		atf_tc_fail("shm_open failed in verify_object; errno=%d, path=%s",
+		    errno, path);
+
+	page = mmap(0, pagesize, PROT_READ, MAP_SHARED, fd, 0);
+	if (page == MAP_FAILED)
+		atf_tc_fail("mmap(1)");
+	if (page[0] != expected_value)
+		atf_tc_fail("Renamed object has incorrect value; has"
+		    "%d (0x%x, '%c'), expected %d (0x%x, '%c')\n",
+		    page[0], page[0], isprint(page[0]) ? page[0] : ' ',
+		    expected_value, expected_value,
+		    isprint(expected_value) ? expected_value : ' ');
+	ATF_REQUIRE_MSG(munmap(page, pagesize) == 0, "munmap failed; errno=%d",
+	    errno);
+	close(fd);
 }
 
 ATF_TC_WITHOUT_HEAD(remap_object);
@@ -132,7 +179,8 @@ ATF_TC_BODY(remap_object, tc)
 
 	ATF_REQUIRE(0 < (pagesize = getpagesize()));
 
-	fd = scribble_object();
+	gen_test_path();
+	fd = scribble_object(test_path, '1');
 
 	page = mmap(0, pagesize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (page == MAP_FAILED)
@@ -149,6 +197,209 @@ ATF_TC_BODY(remap_object, tc)
 	    "shm_unlink failed; errno=%d", errno);
 }
 
+ATF_TC_WITHOUT_HEAD(rename_from_anon);
+ATF_TC_BODY(rename_from_anon, tc)
+{
+	int rc;
+
+	gen_test_path();
+	rc = shm_rename(SHM_ANON, test_path, 0);
+	if (rc != -1)
+		atf_tc_fail("shm_rename from SHM_ANON succeeded unexpectedly");
+}
+
+ATF_TC_WITHOUT_HEAD(rename_bad_path_pointer);
+ATF_TC_BODY(rename_bad_path_pointer, tc)
+{
+	const char *bad_path;
+	int rc;
+
+	bad_path = (const char *)0x1;
+
+	gen_test_path();
+	rc = shm_rename(test_path, bad_path, 0);
+	if (rc != -1)
+		atf_tc_fail("shm_rename of nonexisting shm succeeded unexpectedly");
+
+	rc = shm_rename(bad_path, test_path, 0);
+	if (rc != -1)
+		atf_tc_fail("shm_rename of nonexisting shm succeeded unexpectedly");
+}
+
+ATF_TC_WITHOUT_HEAD(rename_from_nonexisting);
+ATF_TC_BODY(rename_from_nonexisting, tc)
+{
+	int rc;
+
+	gen_test_path();
+	rc = shm_rename(test_path, test_path2, 0);
+	if (rc != -1)
+		atf_tc_fail("shm_rename of nonexisting shm succeeded unexpectedly");
+
+	if (errno != ENOENT)
+		atf_tc_fail("Expected ENOENT to rename of nonexistent shm");
+}
+
+ATF_TC_WITHOUT_HEAD(rename_to_anon);
+ATF_TC_BODY(rename_to_anon, tc)
+{
+	int rc;
+
+	gen_test_path();
+	rc = shm_rename(test_path, SHM_ANON, 0);
+	if (rc != -1)
+		atf_tc_fail("shm_rename to SHM_ANON succeeded unexpectedly");
+}
+
+ATF_TC_WITHOUT_HEAD(rename_to_replace);
+ATF_TC_BODY(rename_to_replace, tc)
+{
+	char expected_value;
+	int fd;
+	int fd2;
+
+	// Some contents we can verify later
+	expected_value = 'g';
+
+	gen_test_path();
+	fd = scribble_object(test_path, expected_value);
+	close(fd);
+
+	// Give the other some different value so we can detect success
+	gen_test_path2();
+	fd2 = scribble_object(test_path2, 'h');
+	close(fd2);
+
+	ATF_REQUIRE_MSG(shm_rename(test_path, test_path2, 0) == 0,
+	    "shm_rename failed; errno=%d", errno);
+
+	// Read back renamed; verify contents
+	verify_object(test_path2, expected_value);
+}
+
+ATF_TC_WITHOUT_HEAD(rename_to_noreplace);
+ATF_TC_BODY(rename_to_noreplace, tc)
+{
+	char expected_value_from;
+	char expected_value_to;
+	int fd_from;
+	int fd_to;
+	int rc;
+
+	// Some contents we can verify later
+	expected_value_from = 'g';
+	gen_test_path();
+	fd_from = scribble_object(test_path, expected_value_from);
+	close(fd_from);
+
+	// Give the other some different value so we can detect success
+	expected_value_to = 'h';
+	gen_test_path2();
+	fd_to = scribble_object(test_path2, expected_value_to);
+	close(fd_to);
+
+	rc = shm_rename(test_path, test_path2, SHM_RENAME_NOREPLACE);
+	ATF_REQUIRE_MSG((rc == -1) && (errno == EEXIST),
+	    "shm_rename didn't fail as expected; errno: %d; return: %d", errno,
+	    rc);
+
+	// Read back renamed; verify contents
+	verify_object(test_path2, expected_value_to);
+}
+
+ATF_TC_WITHOUT_HEAD(rename_to_exchange);
+ATF_TC_BODY(rename_to_exchange, tc)
+{
+	char expected_value_from;
+	char expected_value_to;
+	int fd_from;
+	int fd_to;
+
+	// Some contents we can verify later
+	expected_value_from = 'g';
+	gen_test_path();
+	fd_from = scribble_object(test_path, expected_value_from);
+	close(fd_from);
+
+	// Give the other some different value so we can detect success
+	expected_value_to = 'h';
+	gen_test_path2();
+	fd_to = scribble_object(test_path2, expected_value_to);
+	close(fd_to);
+
+	ATF_REQUIRE_MSG(shm_rename(test_path, test_path2,
+	    SHM_RENAME_EXCHANGE) == 0,
+	    "shm_rename failed; errno=%d", errno);
+
+	// Read back renamed; verify contents
+	verify_object(test_path, expected_value_to);
+	verify_object(test_path2, expected_value_from);
+}
+
+ATF_TC_WITHOUT_HEAD(rename_to_exchange_nonexisting);
+ATF_TC_BODY(rename_to_exchange_nonexisting, tc)
+{
+	char expected_value_from;
+	int fd_from;
+
+	// Some contents we can verify later
+	expected_value_from = 'g';
+	gen_test_path();
+	fd_from = scribble_object(test_path, expected_value_from);
+	close(fd_from);
+
+	gen_test_path2();
+
+	ATF_REQUIRE_MSG(shm_rename(test_path, test_path2,
+	    SHM_RENAME_EXCHANGE) == 0,
+	    "shm_rename failed; errno=%d", errno);
+
+	// Read back renamed; verify contents
+	verify_object(test_path2, expected_value_from);
+}
+
+ATF_TC_WITHOUT_HEAD(rename_to_self);
+ATF_TC_BODY(rename_to_self, tc)
+{
+	int fd;
+	char expected_value;
+
+	expected_value = 't';
+
+	gen_test_path();
+	fd = scribble_object(test_path, expected_value);
+	close(fd);
+
+	ATF_REQUIRE_MSG(shm_rename(test_path, test_path, 0) == 0,
+	    "shm_rename failed; errno=%d", errno);
+
+	verify_object(test_path, expected_value);
+}
+	
+ATF_TC_WITHOUT_HEAD(rename_bad_flag);
+ATF_TC_BODY(rename_bad_flag, tc)
+{
+	int fd;
+	int rc;
+
+	/* Make sure we don't fail out due to ENOENT */
+	gen_test_path();
+	gen_test_path2();
+	fd = scribble_object(test_path, 'd');
+	close(fd);
+	fd = scribble_object(test_path2, 'd');
+	close(fd);
+
+	/*
+	 * Note: if we end up with enough flags that we use all the bits,
+	 * then remove this test completely.
+	 */
+	rc = shm_rename(test_path, test_path2, INT_MIN);
+	ATF_REQUIRE_MSG((rc == -1) && (errno == EINVAL),
+	    "shm_rename should have failed with EINVAL; got: return=%d, "
+	    "errno=%d", rc, errno);
+}
+
 ATF_TC_WITHOUT_HEAD(reopen_object);
 ATF_TC_BODY(reopen_object, tc)
 {
@@ -157,7 +408,8 @@ ATF_TC_BODY(reopen_object, tc)
 
 	ATF_REQUIRE(0 < (pagesize = getpagesize()));
 
-	fd = scribble_object();
+	gen_test_path();
+	fd = scribble_object(test_path, '1');
 	close(fd);
 
 	fd = shm_open(test_path, O_RDONLY, 0777);
@@ -634,6 +886,16 @@ ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, remap_object);
+	ATF_TP_ADD_TC(tp, rename_from_anon);
+	ATF_TP_ADD_TC(tp, rename_bad_path_pointer);
+	ATF_TP_ADD_TC(tp, rename_from_nonexisting);
+	ATF_TP_ADD_TC(tp, rename_to_anon);
+	ATF_TP_ADD_TC(tp, rename_to_replace);
+	ATF_TP_ADD_TC(tp, rename_to_noreplace);
+	ATF_TP_ADD_TC(tp, rename_to_exchange);
+	ATF_TP_ADD_TC(tp, rename_to_exchange_nonexisting);
+	ATF_TP_ADD_TC(tp, rename_to_self);
+	ATF_TP_ADD_TC(tp, rename_bad_flag);
 	ATF_TP_ADD_TC(tp, reopen_object);
 	ATF_TP_ADD_TC(tp, readonly_mmap_write);
 	ATF_TP_ADD_TC(tp, open_after_link);
