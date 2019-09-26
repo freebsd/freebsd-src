@@ -16,8 +16,8 @@ FreeBSD_task:
   prepare_script:
   - ./build/ci/cirrus_ci/ci.sh prepare
   configure_script:
-  - ./build/ci/build.sh -a autogen
-  - ./build/ci/build.sh -a configure
+  - env CFLAGS=-I/usr/local/include LDFLAGS=-L/usr/local/lib ./build/ci/build.sh -a autogen
+  - env CFLAGS=-I/usr/local/include LDFLAGS=-L/usr/local/lib ./build/ci/build.sh -a configure
   build_script:
   - ./build/ci/build.sh -a build
   test_script:
