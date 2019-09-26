@@ -169,7 +169,7 @@ nfs_nfsiodnew_sync(void)
 {
 	int error, i;
 
-	mtx_assert(&ncl_iod_mutex, MA_OWNED);
+	NFSASSERTIOD();
 	for (i = 0; i < ncl_iodmax; i++) {
 		if (nfs_asyncdaemon[i] == 0) {
 			nfs_asyncdaemon[i] = 1;
@@ -206,7 +206,7 @@ void
 ncl_nfsiodnew(void)
 {
 
-	mtx_assert(&ncl_iod_mutex, MA_OWNED);
+	NFSASSERTIOD();
 	taskqueue_enqueue(taskqueue_thread, &ncl_nfsiodnew_task);
 }
 
