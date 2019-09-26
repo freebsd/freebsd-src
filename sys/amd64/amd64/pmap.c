@@ -1965,6 +1965,11 @@ pmap_init(void)
 	}
 }
 
+SYSCTL_UINT(_vm_pmap, OID_AUTO, large_map_pml4_entries,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &lm_ents, 0,
+    "Maximum number of PML4 entries for use by large map (tunable).  "
+    "Each entry corresponds to 512GB of address space.");
+
 static SYSCTL_NODE(_vm_pmap, OID_AUTO, pde, CTLFLAG_RD, 0,
     "2MB page mapping counters");
 
