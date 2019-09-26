@@ -52,7 +52,7 @@
  */
 #if defined(__BORLANDC__) && __BORLANDC__ >= 0x560
 # include <stdint.h>
-#elif !defined(__WATCOMC__) && !defined(_MSC_VER) && !defined(__INTERIX) && !defined(__BORLANDC__) && !defined(_SCO_DS) && !defined(__osf__)
+#elif !defined(__WATCOMC__) && !defined(_MSC_VER) && !defined(__INTERIX) && !defined(__BORLANDC__) && !defined(_SCO_DS) && !defined(__osf__) && !defined(__CLANG_INTTYPES_H)
 # include <inttypes.h>
 #endif
 

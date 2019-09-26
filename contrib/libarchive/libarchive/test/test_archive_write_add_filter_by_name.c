@@ -48,7 +48,7 @@ test_filter_by_name(const char *filter_name, int filter_code,
 	r = archive_write_add_filter_by_name(a, filter_name);
 	if (r == ARCHIVE_WARN) {
 		if (!can_filter_prog()) {
-			skipping("%s filter not suported on this platform",
+			skipping("%s filter not supported on this platform",
 			    filter_name);
 			assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 			free(buff);
@@ -59,7 +59,7 @@ test_filter_by_name(const char *filter_name, int filter_code,
 		   "lzma compression not supported on this platform") == 0 ||
 	     strcmp(archive_error_string(a),
 		   "xz compression not supported on this platform") == 0)) {
-		skipping("%s filter not suported on this platform", filter_name);
+		skipping("%s filter not supported on this platform", filter_name);
 		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 		free(buff);
 		return;
