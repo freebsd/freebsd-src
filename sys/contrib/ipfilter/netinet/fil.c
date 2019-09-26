@@ -6730,8 +6730,11 @@ ipf_checkl4sum(fin)
 		/*NOTREACHED*/
 	}
 
-	if (csump != NULL)
+	if (csump != NULL) {
 		hdrsum = *csump;
+		if (fin->fin_p == IPPROTO_UDP && hdrsum == 0xffff)
+			hdrsum = 0x0000;
+	}
 
 	if (dosum) {
 		sum = fr_cksum(fin, fin->fin_ip, fin->fin_p, fin->fin_dp);
