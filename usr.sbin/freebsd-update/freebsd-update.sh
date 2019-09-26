@@ -62,9 +62,11 @@ Commands:
   cron         -- Sleep rand(3600) seconds, fetch updates, and send an
                   email if updates were found
   upgrade      -- Fetch upgrades to FreeBSD version specified via -r option
+  updatesready -- Check if there are fetched updates ready to install
   install      -- Install downloaded updates or upgrades
   rollback     -- Uninstall most recently installed updates
-  IDS          -- Compare the system against an index of "known good" files.
+  IDS          -- Compare the system against an index of "known good" files
+  showconfig   -- Show configuration
 EOF
 	exit 0
 }
@@ -503,7 +505,8 @@ parse_cmdline () {
 			;;
 
 		# Commands
-		cron | fetch | upgrade | install | rollback | IDS)
+		cron | fetch | upgrade | updatesready | install | rollback |\
+		IDS | showconfig)
 			COMMANDS="${COMMANDS} $1"
 			;;
 
@@ -827,7 +830,7 @@ install_check_params () {
 		echo "No updates are available to install."
 		if [ $ISFETCHED -eq 0 ]; then
 			echo "Run '$0 fetch' first."
-			exit 1
+			exit 2
 		fi
 		exit 0
 	fi
@@ -3333,6 +3336,21 @@ cmd_upgrade () {
 	upgrade_run || exit 1
 }
 
+# Check if there are fetched updates ready to install
+cmd_updatesready () {
+	# Construct a unique name from ${BASEDIR}
+	BDHASH=`echo ${BASEDIR} | sha256 -q`
+
+	# Check that we have updates ready to install
+	if ! [ -L ${BDHASH}-install ]; then
+		echo "No updates are available to install."
+		exit 2
+	fi
+
+	echo "There are updates available to install."
+	echo "Run '$0 install' to proceed."
+}
+
 # Install downloaded updates.
 cmd_install () {
 	install_check_params
@@ -3349,6 +3367,13 @@ cmd_rollback () {
 cmd_IDS () {
 	IDS_check_params
 	IDS_run || exit 1
+}
+
+# Output configuration.
+cmd_showconfig () {
+	for X in ${CONFIGOPTIONS}; do
+		echo $X=$(eval echo \$${X})
+	done
 }
 
 #### Entry point

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2017
+.Dd September 24, 2019
 .Dt FREEBSD-UPDATE 8
 .Os
 .Sh NAME
@@ -95,7 +95,7 @@ Trust an RSA key with SHA256 of
 .Ar KEY .
 (default: read value from configuration file.)
 .It Fl r Ar newrelease
-Specify the new release (e.g. 11.2-RELEASE) to which
+Specify the new release (e.g., 11.2-RELEASE) to which
 .Nm
 should upgrade (upgrade command only).
 .It Fl s Ar server
@@ -155,13 +155,24 @@ Note that this command may require up to 500 MB of space in
 depending on which components of the
 .Fx
 base system are installed.
+.It Cm updatesready
+Check if there are fetched updates ready to install.
+Returns exit code 2 if there are no updates to install.
 .It Cm install
 Install the most recently fetched updates or upgrade.
+Returns exit code 2 if there are no updates to install
+and the
+.Cm fetch
+command wasn't passed as an earlier argument in the same
+invocation.
 .It Cm rollback
 Uninstall the most recently installed updates.
 .It Cm IDS
 Compare the system against a "known good" index of the
 installed release.
+.It Cm showconfig
+Show configuration options after parsing conffile and command
+line options.
 .El
 .Sh TIPS
 .Bl -bullet
