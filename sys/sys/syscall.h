@@ -507,4 +507,5 @@
 #define	SYS_copy_file_range	569
 #define	SYS___sysctlbyname	570
 #define	SYS_shm_open2	571
-#define	SYS_MAXSYSCALL	572
+#define	SYS_shm_rename	572
+#define	SYS_MAXSYSCALL	573
