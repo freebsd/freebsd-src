@@ -380,8 +380,6 @@ STATNODE_COUNTER(numfullpathfail2,
     "Number of fullpath search errors (VOP_VPTOCNP failures)");
 STATNODE_COUNTER(numfullpathfail4, "Number of fullpath search errors (ENOMEM)");
 STATNODE_COUNTER(numfullpathfound, "Number of successful fullpath calls");
-static long numneg_evicted; STATNODE_ULONG(numneg_evicted,
-    "Number of negative entries evicted when adding a new entry");
 STATNODE_COUNTER(zap_and_exit_bucket_relock_success,
     "Number of successful removals after relocking");
 static long zap_and_exit_bucket_fail; STATNODE_ULONG(zap_and_exit_bucket_fail,
@@ -392,6 +390,10 @@ static long cache_lock_vnodes_cel_3_failures;
 STATNODE_ULONG(cache_lock_vnodes_cel_3_failures,
     "Number of times 3-way vnode locking failed");
 STATNODE_ULONG(numhotneg, "Number of hot negative entries");
+STATNODE_COUNTER(numneg_evicted,
+    "Number of negative entries evicted when adding a new entry");
+STATNODE_COUNTER(shrinking_skipped,
+    "Number of times shrinking was already in progress");
 
 static void cache_zap_locked(struct namecache *ncp, bool neg_locked);
 static int vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
@@ -809,8 +811,10 @@ cache_negative_zap_one(void)
 	struct rwlock *blp;
 
 	if (mtx_owner(&ncneg_shrink_lock) != NULL ||
-	    !mtx_trylock(&ncneg_shrink_lock))
+	    !mtx_trylock(&ncneg_shrink_lock)) {
+		counter_u64_add(shrinking_skipped, 1);
 		return;
+	}
 
 	mtx_lock(&ncneg_hot.nl_lock);
 	ncp = TAILQ_FIRST(&ncneg_hot.nl_list);
@@ -831,8 +835,9 @@ cache_negative_zap_one(void)
 		shrink_list_turn = 0;
 	if (ncp == NULL && shrink_list_turn == 0)
 		cache_negative_shrink_select(shrink_list_turn, &ncp, &neglist);
+	mtx_unlock(&ncneg_shrink_lock);
 	if (ncp == NULL)
-		goto out;
+		return;
 
 	MPASS(ncp->nc_flag & NCF_NEGATIVE);
 	dvlp = VP2VNODELOCK(ncp->nc_dvp);
@@ -845,19 +850,15 @@ cache_negative_zap_one(void)
 	if (ncp != ncp2 || dvlp != VP2VNODELOCK(ncp2->nc_dvp) ||
 	    blp != NCP2BUCKETLOCK(ncp2) || !(ncp2->nc_flag & NCF_NEGATIVE)) {
 		ncp = NULL;
-		goto out_unlock_all;
+	} else {
+		SDT_PROBE3(vfs, namecache, shrink_negative, done, ncp->nc_dvp,
+		    ncp->nc_name, ncp->nc_neghits);
+		cache_zap_locked(ncp, true);
+		counter_u64_add(numneg_evicted, 1);
 	}
-	SDT_PROBE3(vfs, namecache, shrink_negative, done, ncp->nc_dvp,
-	    ncp->nc_name, ncp->nc_neghits);
-
-	cache_zap_locked(ncp, true);
-	numneg_evicted++;
-out_unlock_all:
 	mtx_unlock(&neglist->nl_lock);
 	rw_wunlock(blp);
 	mtx_unlock(dvlp);
-out:
-	mtx_unlock(&ncneg_shrink_lock);
 	cache_free(ncp);
 }
 
@@ -2016,6 +2017,8 @@ nchinit(void *dummy __unused)
 	numfullpathfail4 = counter_u64_alloc(M_WAITOK);
 	numfullpathfound = counter_u64_alloc(M_WAITOK);
 	zap_and_exit_bucket_relock_success = counter_u64_alloc(M_WAITOK);
+	numneg_evicted = counter_u64_alloc(M_WAITOK);
+	shrinking_skipped = counter_u64_alloc(M_WAITOK);
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nchinit, NULL);
 
