@@ -30,6 +30,7 @@
 
 #include <sys/param.h>
 #include <sys/elf_common.h>
+#include <sys/endian.h>
 #include <sys/stat.h>
 
 #include <err.h>
@@ -70,6 +71,12 @@ static struct option long_opts[] = {
 	{ NULL,		0,		NULL,	0 }
 };
 
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define SUPPORTED_ENDIAN ELFDATA2LSB
+#else
+#define SUPPORTED_ENDIAN ELFDATA2MSB
+#endif
+		
 int
 main(int argc, char **argv)
 {
@@ -140,6 +147,15 @@ main(int argc, char **argv)
 
 		if (gelf_getehdr(elf, &ehdr) == NULL) {
 			warnx("gelf_getehdr: %s", elf_errmsg(-1));
+			retval = 1;
+			goto fail;
+		}
+		/*
+		 * XXX need to support cross-endian operation, but for now
+		 * exit on error rather than misbehaving.
+		 */
+		if (ehdr.e_ident[EI_DATA] != SUPPORTED_ENDIAN) {
+			warnx("file endianness must match host");
 			retval = 1;
 			goto fail;
 		}
