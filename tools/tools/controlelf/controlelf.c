@@ -14,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -47,11 +47,11 @@
 
 __FBSDID("$FreeBSD$");
 
-static bool convert_to_feature_val(char*, u_int32_t*);
-static bool edit_file_features(Elf *, int, int, char*);
+static bool convert_to_feature_val(char *, u_int32_t *);
+static bool edit_file_features(Elf *, int, int, char *);
 static bool get_file_features(Elf *, int, int, u_int32_t *, u_int64_t *);
 static void print_features(void);
-static bool print_file_features(Elf *, int, int, char*);
+static bool print_file_features(Elf *, int, int, char *);
 static void usage(void);
 
 struct ControlFeatures {
@@ -61,12 +61,12 @@ struct ControlFeatures {
 };
 
 static struct ControlFeatures featurelist[] = {
-	{ "aslr",	NT_FREEBSD_FCTL_ASLR_DISABLE,			"Disable ASLR" }
+	{ "aslr",	NT_FREEBSD_FCTL_ASLR_DISABLE,	"Disable ASLR" },
 };
 
 static struct option controlelf_longopts[] = {
-	{ "help",	no_argument,	NULL,   'h' },
-	{ NULL,		0,		NULL,	0   }
+	{ "help",	no_argument,	NULL,	'h' },
+	{ NULL,		0,		NULL,	0 }
 };
 
 int
@@ -117,8 +117,8 @@ main(int argc, char **argv)
 	while (argc) {
 		elf = NULL;
 
-		if ((fd = open(argv[0], editfeatures ? O_RDWR :
-		    O_RDONLY, 0)) < 0) {
+		if ((fd = open(argv[0],
+		    editfeatures ? O_RDWR : O_RDONLY, 0)) < 0) {
 			warn("error opening file %s", argv[0]);
 			retval = 1;
 			goto fail;
@@ -134,8 +134,7 @@ main(int argc, char **argv)
 			if (kind == ELF_K_AR)
 				warnx("file '%s' is an archive", argv[0]);
 			else
-				warnx("file '%s' is not an ELF file",
-				    argv[0]);
+				warnx("file '%s' is not an ELF file", argv[0]);
 			retval = 1;
 			goto fail;
 		}
@@ -147,11 +146,13 @@ main(int argc, char **argv)
 		}
 
 		if (!editfeatures) {
-			if (!print_file_features(elf, ehdr.e_phnum, fd, argv[0])) {
+			if (!print_file_features(elf, ehdr.e_phnum, fd,
+			    argv[0])) {
 				retval = 1;
 				goto fail;
 			}
-		} else if (!edit_file_features(elf, ehdr.e_phnum, fd, features)) {
+		} else if (!edit_file_features(elf, ehdr.e_phnum, fd,
+		    features)) {
 			retval = 1;
 			goto fail;
 		}
@@ -169,7 +170,8 @@ fail:
 	return (retval);
 }
 
-#define	USAGE_MESSAGE	"\
+#define USAGE_MESSAGE \
+	"\
 Usage: %s [options] file...\n\
   Set or display the control features for an ELF object.\n\n\
   Supported options are:\n\
@@ -186,7 +188,7 @@ usage(void)
 }
 
 static bool
-convert_to_feature_val(char* feature_str, u_int32_t* feature_val)
+convert_to_feature_val(char *feature_str, u_int32_t *feature_val)
 {
 	char *feature_input, *feature;
 	int i, len;
@@ -262,7 +264,8 @@ print_features(void)
 }
 
 static bool
-print_file_features(Elf *elf, int phcount, int fd, char *filename) {
+print_file_features(Elf *elf, int phcount, int fd, char *filename)
+{
 	u_int32_t features;
 	unsigned long i;
 
@@ -284,7 +287,8 @@ print_file_features(Elf *elf, int phcount, int fd, char *filename) {
 }
 
 static bool
-get_file_features(Elf *elf, int phcount, int fd, u_int32_t *features, u_int64_t *off)
+get_file_features(Elf *elf, int phcount, int fd, u_int32_t *features,
+    u_int64_t *off)
 {
 	GElf_Phdr phdr;
 	Elf_Note note;
