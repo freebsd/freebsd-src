@@ -241,16 +241,6 @@ nano_global_make_env ( ) (
 	[ -z "${NANO_CPUTYPE}" ] || echo TARGET_CPUTYPE="${NANO_CPUTYPE}"
 )
 
-# rm doesn't know -x prior to FreeBSD 10, so cope with a variety of build
-# hosts for now. This will go away when support in the base goes away.
-rm ( ) {
-    echo "NANO RM $*"
-	case $(uname -r) in
-	7*|8*|9*) command rm $* ;;
-	*) command rm -x $* ;;
-	esac
-}
-
 #
 # Create empty files in the target tree, and record the fact.  All paths
 # are relative to NANO_WORLDDIR.
@@ -274,7 +264,7 @@ tgt_dir2symlink ( ) (
 	symlink=$2
 
 	cd "${NANO_WORLDDIR}"
-	rm -rf "$dir"
+	rm -xrf "$dir"
 	ln -s "$symlink" "$dir"
 	if [ -n "$NANO_METALOG" ]; then
 		echo "./${dir} type=link mode=0777 link=${symlink}" >> ${NANO_METALOG}
@@ -294,9 +284,9 @@ CR0 ( ) {
 clean_build ( ) (
 	pprint 2 "Clean and create object directory (${MAKEOBJDIRPREFIX})"
 
-	if ! rm -rf ${MAKEOBJDIRPREFIX}/ > /dev/null 2>&1 ; then
+	if ! rm -xrf ${MAKEOBJDIRPREFIX}/ > /dev/null 2>&1 ; then
 		chflags -R noschg ${MAKEOBJDIRPREFIX}/
-		rm -r ${MAKEOBJDIRPREFIX}/
+		rm -xr ${MAKEOBJDIRPREFIX}/
 	fi
 )
 
@@ -348,17 +338,17 @@ build_kernel ( ) (
 clean_world ( ) (
 	if [ "${NANO_OBJ}" != "${MAKEOBJDIRPREFIX}" ]; then
 		pprint 2 "Clean and create object directory (${NANO_OBJ})"
-		if ! rm -rf ${NANO_OBJ}/ > /dev/null 2>&1 ; then
+		if ! rm -xrf ${NANO_OBJ}/ > /dev/null 2>&1 ; then
 			chflags -R noschg ${NANO_OBJ}
-			rm -r ${NANO_OBJ}/
+			rm -xr ${NANO_OBJ}/
 		fi
 		mkdir -p "${NANO_OBJ}" "${NANO_WORLDDIR}"
 		printenv > ${NANO_LOG}/_.env
 	else
 		pprint 2 "Clean and create world directory (${NANO_WORLDDIR})"
-		if ! rm -rf "${NANO_WORLDDIR}/" > /dev/null 2>&1 ; then
+		if ! rm -xrf "${NANO_WORLDDIR}/" > /dev/null 2>&1 ; then
 			chflags -R noschg "${NANO_WORLDDIR}"
-			rm -rf "${NANO_WORLDDIR}/"
+			rm -xrf "${NANO_WORLDDIR}/"
 		fi
 		mkdir -p "${NANO_WORLDDIR}"
 	fi
@@ -531,7 +521,7 @@ setup_nanobsd ( ) (
 		cd usr/local/etc
 		find . -print | cpio -dumpl ../../../etc/local
 		cd ..
-		rm -rf etc
+		rm -xrf etc
 		)
 	fi
 
@@ -780,7 +770,7 @@ cust_pkgng ( ) (
 	mount -t nullfs -o noatime -o ro ${NANO_PACKAGE_DIR} ${NANO_WORLDDIR}/_.p
 	mount -t devfs devfs ${NANO_WORLDDIR}/dev
 
-	trap "umount ${NANO_WORLDDIR}/dev; umount ${NANO_WORLDDIR}/_.p ; rm -rf ${NANO_WORLDDIR}/_.p" 1 2 15 EXIT
+	trap "umount ${NANO_WORLDDIR}/dev; umount ${NANO_WORLDDIR}/_.p ; rm -xrf ${NANO_WORLDDIR}/_.p" 1 2 15 EXIT
 
 	# Install pkg-* package
 	CR "${PKGCMD} add /_.p/${_NANO_PKG_PACKAGE}"
@@ -807,7 +797,7 @@ cust_pkgng ( ) (
 	trap - 1 2 15 EXIT
 	umount ${NANO_WORLDDIR}/dev
 	umount ${NANO_WORLDDIR}/_.p
-	rm -rf ${NANO_WORLDDIR}/_.p
+	rm -xrf ${NANO_WORLDDIR}/_.p
 )
 
 #######################################################################
