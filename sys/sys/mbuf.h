@@ -312,7 +312,7 @@ struct socket;
  * - 21 (AES-CBC with explicit IV)
  * - 13 (AES-GCM with 8 byte explicit IV)
  */
-#define	MBUF_PEXT_HDR_LEN	24
+#define	MBUF_PEXT_HDR_LEN	23
 
 /*
  * TLS records for TLS 1.0-1.2 can have the following maximum trailer
@@ -333,6 +333,8 @@ struct socket;
 #define	MBUF_PEXT_MAX_BYTES						\
     (MBUF_PEXT_MAX_PGS * PAGE_SIZE + MBUF_PEXT_HDR_LEN + MBUF_PEXT_TRAIL_LEN)
 
+#define MBUF_PEXT_FLAG_ANON	1	/* Data can be encrypted in place. */
+
 /*
  * This struct is 256 bytes in size and is arranged so that the most
  * common case (accessing the first 4 pages of a 16KB TLS record) will
@@ -347,6 +349,7 @@ struct mbuf_ext_pgs {
 	uint16_t	last_pg_len;		/* Length of last page */
 	vm_paddr_t	pa[MBUF_PEXT_MAX_PGS];	/* phys addrs of pages */
 	char		hdr[MBUF_PEXT_HDR_LEN];	/* TLS header */
+	uint8_t		flags;			/* Flags */
 	struct ktls_session *tls;		/* TLS session */
 #if defined(__i386__) || \
     (defined(__powerpc__) && !defined(__powerpc64__) && defined(BOOKE))
