@@ -79,10 +79,9 @@ namespace __sanitizer {
 #elif defined(__powerpc64__)
   const unsigned struct_kernel_stat_sz = 144;
   const unsigned struct_kernel_stat64_sz = 104;
-#elif defined(__riscv)
-  /* RISCVTODO: check that these values are correct */
+#elif defined(__riscv) && __riscv_xlen == 64
   const unsigned struct_kernel_stat_sz = 128;
-  const unsigned struct_kernel_stat64_sz = 128;
+  const unsigned struct_kernel_stat64_sz = 104;
 #elif defined(__mips__)
   const unsigned struct_kernel_stat_sz =
                  SANITIZER_ANDROID ? FIRST_32_SECOND_64(104, 128) :
