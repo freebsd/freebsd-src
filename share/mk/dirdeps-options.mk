@@ -1,5 +1,5 @@
 # $FreeBSD$
-# $Id: dirdeps-options.mk,v 1.8 2018/05/29 22:31:21 sjg Exp $
+# $Id: dirdeps-options.mk,v 1.9 2018/09/20 00:07:19 sjg Exp $
 #
 #	@(#) Copyright (c) 2018, Simon J. Gerraty
 #
@@ -54,7 +54,8 @@ DIRDEPS += ${DIRDEPS.$o.${MK_$o:U}:U}
 DIRDEPS := ${DIRDEPS:O:u}
 # avoid cross contamination
 .for o in ${DIRDEPS_OPTIONS:tu}
-.undef DIRDEPS.$o.yes DIRDEPS.$o.no
+.undef DIRDEPS.$o.yes
+.undef DIRDEPS.$o.no
 .endfor
 .else
 # whether options are enabled or not,
