@@ -26,12 +26,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 21, 2019
+.Dd September 27, 2019
 .Dt CONTROLELF 1
 .Os
 .Sh NAME
 .Nm controlelf
-.Nd change an ELF binary's control features
+.Nd change an ELF binary's feature control note
 .Sh SYNOPSIS
 .Nm
 .Op Fl h | Fl -help
@@ -41,33 +41,33 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility modifies an ELF binary to change it's control features.
+utility modifies feature flags in the feature control note in an ELF binary.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
 .It Fl h | Fl -help
 Print a usage message and exit.
 .It Fl l
-Writes the list of all known ELF types to standard output.
+List known ELF feature flags.
 .It Fl e Ar featurelist
 Edit features from the given comma separated list
 .Ar featurelist .
 .Ar featurelist
-starts with one of the three modes:
+starts with one of the three operations:
 .Dq Li +
 to turn on the features,
 .Dq Li -
 to turn off the features,
 .Dq Li =
 to only turn on the given features.
-Followed by a comma separated features.
+A comma separated list of feature names follows the operation.
 .El
 .Pp
 If
-.Fl e ,
-option wasn't specified,
+.Fl e
+is not specified
 .Nm
-will display the current control features for the files named by the arguments
+displays the status of each feature in the ELF note in each
 .Ar .
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command
@@ -83,10 +83,12 @@ controlelf file
 controlelf -e +aslr file
 .Ed
 .Sh HISTORY
-The
 .Nm
-manual page first appeared in
+first appeared in
 .Fx 13.0 .
 .Sh AUTHORS
-This manual page was written by
-.An Bora Ozarslan Mt borako.ozarslan@gmail.com .
+.Nm
+was written by
+.An Bora Ozarslan Mt borako.ozarslan@gmail.com
+under sponsorship from the
+.Fx Foundation.
