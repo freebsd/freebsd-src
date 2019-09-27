@@ -389,14 +389,14 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 	if (en->tls_vmajor != TLS_MAJOR_VER_ONE)
 		return (EINVAL);
 	if (en->tls_vminor < TLS_MINOR_VER_ZERO ||
-	    en->tls_vminor > TLS_MINOR_VER_TWO)
+	    en->tls_vminor > TLS_MINOR_VER_THREE)
 		return (EINVAL);
 
 	if (en->auth_key_len < 0 || en->auth_key_len > TLS_MAX_PARAM_SIZE)
 		return (EINVAL);
 	if (en->cipher_key_len < 0 || en->cipher_key_len > TLS_MAX_PARAM_SIZE)
 		return (EINVAL);
-	if (en->iv_len < 0 || en->iv_len > TLS_MAX_PARAM_SIZE)
+	if (en->iv_len < 0 || en->iv_len > sizeof(tls->params.iv))
 		return (EINVAL);
 
 	/* All supported algorithms require a cipher key. */
@@ -425,7 +425,10 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 		}
 		if (en->auth_key_len != 0)
 			return (EINVAL);
-		if (en->iv_len != TLS_AEAD_GCM_LEN)
+		if ((en->tls_vminor == TLS_MINOR_VER_TWO &&
+			en->iv_len != TLS_AEAD_GCM_LEN) ||
+		    (en->tls_vminor == TLS_MINOR_VER_THREE &&
+			en->iv_len != TLS_1_3_GCM_IV_LEN))
 			return (EINVAL);
 		break;
 	case CRYPTO_AES_CBC:
@@ -477,8 +480,22 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 	tls->params.tls_hlen = sizeof(struct tls_record_layer);
 	switch (en->cipher_algorithm) {
 	case CRYPTO_AES_NIST_GCM_16:
-		tls->params.tls_hlen += 8;
+		/*
+		 * TLS 1.2 uses a 4 byte implicit IV with an explicit 8 byte
+		 * nonce.  TLS 1.3 uses a 12 byte implicit IV.
+		 */
+		if (en->tls_vminor < TLS_MINOR_VER_THREE)
+			tls->params.tls_hlen += sizeof(uint64_t);
 		tls->params.tls_tlen = AES_GMAC_HASH_LEN;
+
+		/*
+		 * TLS 1.3 includes optional padding which we
+		 * do not support, and also puts the "real" record
+		 * type at the end of the encrypted data.
+		 */
+		if (en->tls_vminor == TLS_MINOR_VER_THREE)
+			tls->params.tls_tlen += sizeof(uint8_t);
+
 		tls->params.tls_bs = 1;
 		break;
 	case CRYPTO_AES_CBC:
@@ -539,7 +556,6 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 	 * of the IV are generated in ktls_frame() and ktls_seq().
 	 */
 	if (en->iv_len != 0) {
-		MPASS(en->iv_len <= sizeof(tls->params.iv));
 		tls->params.iv_len = en->iv_len;
 		error = copyin(en->iv, tls->params.iv, en->iv_len);
 		if (error)
@@ -1188,8 +1204,21 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 		/* Populate the TLS header. */
 		tlshdr = (void *)pgs->hdr;
 		tlshdr->tls_vmajor = tls->params.tls_vmajor;
-		tlshdr->tls_vminor = tls->params.tls_vminor;
-		tlshdr->tls_type = record_type;
+
+		/*
+		 * TLS 1.3 masquarades as TLS 1.2 with a record type
+		 * of TLS_RLTYPE_APP.
+		 */
+		if (tls->params.tls_vminor == TLS_MINOR_VER_THREE &&
+		    tls->params.tls_vmajor == TLS_MAJOR_VER_ONE) {
+			tlshdr->tls_vminor = TLS_MINOR_VER_TWO;
+			tlshdr->tls_type = TLS_RLTYPE_APP;
+			/* save the real record type for later */
+			pgs->record_type = record_type;
+		} else {
+			tlshdr->tls_vminor = tls->params.tls_vminor;
+			tlshdr->tls_type = record_type;
+		}
 		tlshdr->tls_length = htons(m->m_len - sizeof(*tlshdr));
 
 		/*
@@ -1365,7 +1394,8 @@ retry_page:
 
 		error = (*tls->sw_encrypt)(tls,
 		    (const struct tls_record_layer *)pgs->hdr,
-		    pgs->trail, src_iov, dst_iov, i, pgs->seqno);
+		    pgs->trail, src_iov, dst_iov, i, pgs->seqno,
+		    pgs->record_type);
 		if (error) {
 			counter_u64_add(ktls_offload_failed_crypto, 1);
 			break;
