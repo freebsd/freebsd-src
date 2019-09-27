@@ -62,6 +62,7 @@ struct ControlFeatures {
 
 static struct ControlFeatures featurelist[] = {
 	{ "aslr",	NT_FREEBSD_FCTL_ASLR_DISABLE,	"Disable ASLR" },
+	{ "protmax",	NT_FREEBSD_FCTL_PROTMAX_DISABLE,"Disable implicit PROT_MAX" },
 };
 
 static struct option controlelf_longopts[] = {
