@@ -445,8 +445,8 @@ run_early_customize ( ) {
 		pprint 2 "early customize \"$c\""
 		pprint 3 "log: ${NANO_LOG}/_.early_cust.$c"
 		pprint 4 "`type $c`"
-		{ t=$(set -o | awk '$1 == "xtrace" && $2 == "off" { print "set +x"}');
-		  set -x ;
+		{ t=$(set -o | awk '$1 == "xtrace" && $2 == "off" { print "set +o xtrace"}');
+		  set -o xtrace ;
 		  $c ;
 		  eval $t
 		} >${NANO_LOG}/_.early_cust.$c 2>&1
@@ -466,7 +466,7 @@ run_customize ( ) (
 		pprint 2 "customize \"$c\""
 		pprint 3 "log: ${NANO_LOG}/_.cust.$c"
 		pprint 4 "`type $c`"
-		( set -x ; $c ) > ${NANO_LOG}/_.cust.$c 2>&1
+		( set -o xtrace ; $c ) > ${NANO_LOG}/_.cust.$c 2>&1
 	done
 )
 
@@ -481,7 +481,7 @@ run_late_customize ( ) (
 		pprint 2 "late customize \"$c\""
 		pprint 3 "log: ${NANO_LOG}/_.late_cust.$c"
 		pprint 4 "`type $c`"
-		( set -x ; $c ) > ${NANO_LOG}/_.late_cust.$c 2>&1
+		( set -o xtrace ; $c ) > ${NANO_LOG}/_.late_cust.$c 2>&1
 	done
 )
 
