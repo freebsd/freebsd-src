@@ -2169,10 +2169,11 @@ again:
 			m = TAILQ_NEXT(m, listq);
 		}
 		if (vm_page_xbusied(tm)) {
-			for (tobject = object; locked_depth > 1;
+			for (tobject = object; locked_depth >= 1;
 			    locked_depth--) {
 				t1object = tobject->backing_object;
-				VM_OBJECT_RUNLOCK(tobject);
+				if (tm->object != tobject)
+					VM_OBJECT_RUNLOCK(tobject);
 				tobject = t1object;
 			}
 			vm_page_busy_sleep(tm, "unwbo", true);
