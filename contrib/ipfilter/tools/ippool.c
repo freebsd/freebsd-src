@@ -257,7 +257,7 @@ poolcommand(remove, argc, argv)
 	char *argv[];
 {
 	int type, role, c, err;
-	char *poolname;
+	char *poolname, *typearg = NULL;
 	iphtable_t iph;
 	ip_pool_t pool;
 
@@ -269,7 +269,7 @@ poolcommand(remove, argc, argv)
 	bzero((char *)&iph, sizeof(iph));
 	bzero((char *)&pool, sizeof(pool));
 
-	while ((c = getopt(argc, argv, "dm:no:S:v")) != -1)
+	while ((c = getopt(argc, argv, "dm:no:S:vt:")) != -1)
 		switch (c)
 		{
 		case 'd' :
@@ -295,6 +295,10 @@ poolcommand(remove, argc, argv)
 			else
 				usage(argv[0]);
 			break;
+		case 't' :
+			type = gettype(optarg, &iph.iph_type);
+			typearg = optarg;
+			break;
 		case 'v' :
 			opts |= OPT_VERBOSE;
 			break;
@@ -314,17 +318,22 @@ poolcommand(remove, argc, argv)
 		return -1;
 	}
 
-	type = gettype(argv[optind], &iph.iph_type);
-	if (type == IPLT_NONE) {
-		fprintf(stderr, "unknown type '%s'\n", argv[optind]);
+	if (type == IPLT_NONE && remove == 0) {
+		if (typearg == NULL) {
+			fprintf(stderr, "type must be specified\n");
+			usage(argv[0]);
+		} else {
+			fprintf(stderr, "unknown type '%s'\n", typearg);
+		}
 		return -1;
 	}
 
-	if (type == IPLT_HASH) {
+	if (type == IPLT_HASH || (type == IPLT_NONE && remove == 1)) {
 		strncpy(iph.iph_name, poolname, sizeof(iph.iph_name));
 		iph.iph_name[sizeof(iph.iph_name) - 1] = '\0';
 		iph.iph_unit = role;
-	} else if (type == IPLT_POOL) {
+	}
+	if (type == IPLT_POOL || (type == IPLT_NONE && remove == 1)) {
 		strncpy(pool.ipo_name, poolname, sizeof(pool.ipo_name));
 		pool.ipo_name[sizeof(pool.ipo_name) - 1] = '\0';
 		pool.ipo_unit = role;
@@ -348,6 +357,16 @@ poolcommand(remove, argc, argv)
 			break;
 		case IPLT_POOL :
 			err = remove_pool(&pool, ioctl);
+			break;
+		case IPLT_NONE :
+			err = 1;
+			{
+				int err_h, err_p;
+				err_h = remove_hash(&iph, ioctl);
+				err_p = remove_pool(&pool, ioctl);
+				if (err_h == 0 || err_p == 0)
+					err = 0;
+			}
 			break;
 		}
 	}
