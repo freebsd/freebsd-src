@@ -80,7 +80,7 @@ _Static_assert(sizeof(struct nvdimm_label) == 256, "Incorrect layout");
 
 typedef uint32_t nfit_handle_t;
 
-enum nvdimm_root_ivar {
+enum nvdimm_acpi_ivar {
 	NVDIMM_ROOT_IVAR_ACPI_HANDLE,
 	NVDIMM_ROOT_IVAR_DEVICE_HANDLE,
 	NVDIMM_ROOT_IVAR_MAX,
@@ -88,10 +88,6 @@ enum nvdimm_root_ivar {
 __BUS_ACCESSOR(nvdimm_root, acpi_handle, NVDIMM_ROOT, ACPI_HANDLE, ACPI_HANDLE)
 __BUS_ACCESSOR(nvdimm_root, device_handle, NVDIMM_ROOT, DEVICE_HANDLE,
     nfit_handle_t)
-
-struct nvdimm_root_dev {
-	SLIST_HEAD(, SPA_mapping) spas;
-};
 
 struct nvdimm_dev {
 	device_t	nv_dev;
