@@ -92,10 +92,10 @@ SDT_PROBE_DEFINE1(vfs, namecache, purge_negative, done, "struct vnode *");
 SDT_PROBE_DEFINE1(vfs, namecache, purgevfs, done, "struct mount *");
 SDT_PROBE_DEFINE3(vfs, namecache, zap, done, "struct vnode *", "char *",
     "struct vnode *");
-SDT_PROBE_DEFINE3(vfs, namecache, zap_negative, done, "struct vnode *",
-    "char *", "int");
-SDT_PROBE_DEFINE3(vfs, namecache, shrink_negative, done, "struct vnode *",
-    "char *", "int");
+SDT_PROBE_DEFINE2(vfs, namecache, zap_negative, done, "struct vnode *",
+    "char *");
+SDT_PROBE_DEFINE2(vfs, namecache, shrink_negative, done, "struct vnode *",
+    "char *");
 
 /*
  * This structure describes the elements in the cache of recent
@@ -109,7 +109,6 @@ struct	namecache {
 	struct	vnode *nc_dvp;		/* vnode of parent of name */
 	union {
 		struct	vnode *nu_vp;	/* vnode the name refers to */
-		u_int	nu_neghits;	/* negative entry hits */
 	} n_un;
 	u_char	nc_flag;		/* flag bits */
 	u_char	nc_nlen;		/* length of name */
@@ -132,7 +131,6 @@ struct	namecache_ts {
 };
 
 #define	nc_vp		n_un.nu_vp
-#define	nc_neghits	n_un.nu_neghits
 
 /*
  * Flags in namecache.nc_flag
@@ -220,9 +218,6 @@ SYSCTL_UINT(_vfs, OID_AUTO, ncsizefactor, CTLFLAG_RW, &ncsizefactor, 0,
 static u_int __read_mostly	ncpurgeminvnodes;
 SYSCTL_UINT(_vfs, OID_AUTO, ncpurgeminvnodes, CTLFLAG_RW, &ncpurgeminvnodes, 0,
     "Number of vnodes below which purgevfs ignores the request");
-static u_int __read_mostly	ncneghitsrequeue = 8;
-SYSCTL_UINT(_vfs, OID_AUTO, ncneghitsrequeue, CTLFLAG_RW, &ncneghitsrequeue, 0,
-    "Number of hits to requeue a negative entry in the LRU list");
 static u_int __read_mostly	ncsize; /* the size as computed on creation or resizing */
 
 struct nchstats	nchstats;		/* cache effectiveness statistics */
@@ -676,8 +671,6 @@ SYSCTL_PROC(_debug_hashstat, OID_AUTO, nchash, CTLTYPE_INT|CTLFLAG_RD|
  *
  * A variation of LRU scheme is used. New entries are hashed into one of
  * numneglists cold lists. Entries get promoted to the hot list on first hit.
- * Partial LRU for the hot list is maintained by requeueing them every
- * ncneghitsrequeue hits.
  *
  * The shrinker will demote hot list head and evict from the cold list in a
  * round-robin manner.
@@ -686,28 +679,12 @@ static void
 cache_negative_hit(struct namecache *ncp)
 {
 	struct neglist *neglist;
-	u_int hits;
 
 	MPASS(ncp->nc_flag & NCF_NEGATIVE);
-	hits = atomic_fetchadd_int(&ncp->nc_neghits, 1);
-	if (ncp->nc_flag & NCF_HOTNEGATIVE) {
-		if ((hits % ncneghitsrequeue) != 0)
-			return;
-		mtx_lock(&ncneg_hot.nl_lock);
-		if (ncp->nc_flag & NCF_HOTNEGATIVE) {
-			TAILQ_REMOVE(&ncneg_hot.nl_list, ncp, nc_dst);
-			TAILQ_INSERT_TAIL(&ncneg_hot.nl_list, ncp, nc_dst);
-			mtx_unlock(&ncneg_hot.nl_lock);
-			return;
-		}
-		/*
-		 * The shrinker cleared the flag and removed the entry from
-		 * the hot list. Put it back.
-		 */
-	} else {
-		mtx_lock(&ncneg_hot.nl_lock);
-	}
+	if (ncp->nc_flag & NCF_HOTNEGATIVE)
+		return;
 	neglist = NCP2NEGLIST(ncp);
+	mtx_lock(&ncneg_hot.nl_lock);
 	mtx_lock(&neglist->nl_lock);
 	if (!(ncp->nc_flag & NCF_HOTNEGATIVE)) {
 		numhotneg++;
@@ -851,8 +828,9 @@ cache_negative_zap_one(void)
 	    blp != NCP2BUCKETLOCK(ncp2) || !(ncp2->nc_flag & NCF_NEGATIVE)) {
 		ncp = NULL;
 	} else {
-		SDT_PROBE3(vfs, namecache, shrink_negative, done, ncp->nc_dvp,
-		    ncp->nc_name, ncp->nc_neghits);
+		SDT_PROBE2(vfs, namecache, shrink_negative, done, ncp->nc_dvp,
+		    ncp->nc_name);
+
 		cache_zap_locked(ncp, true);
 		counter_u64_add(numneg_evicted, 1);
 	}
@@ -887,8 +865,8 @@ cache_zap_locked(struct namecache *ncp, bool neg_locked)
 		if (ncp == ncp->nc_vp->v_cache_dd)
 			ncp->nc_vp->v_cache_dd = NULL;
 	} else {
-		SDT_PROBE3(vfs, namecache, zap_negative, done, ncp->nc_dvp,
-		    ncp->nc_name, ncp->nc_neghits);
+		SDT_PROBE2(vfs, namecache, zap_negative, done, ncp->nc_dvp,
+		    ncp->nc_name);
 		cache_negative_remove(ncp, neg_locked);
 	}
 	if (ncp->nc_flag & NCF_ISDOTDOT) {
