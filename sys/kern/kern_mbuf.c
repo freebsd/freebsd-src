@@ -1171,6 +1171,7 @@ mb_alloc_ext_pgs(int how, bool pkthdr, m_ext_free_t ext_free)
 	ext_pgs->nrdy = 0;
 	ext_pgs->first_pg_off = 0;
 	ext_pgs->last_pg_len = 0;
+	ext_pgs->flags = 0;
 	ext_pgs->hdr_len = 0;
 	ext_pgs->trail_len = 0;
 	ext_pgs->tls = NULL;
