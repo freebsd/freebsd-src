@@ -232,10 +232,9 @@ MODULE_DEPEND(if_qlnxev, ether, 1, 1, 1);
 
 MALLOC_DEFINE(M_QLNXBUF, "qlnxbuf", "Buffers for qlnx driver");
 
-
-static char qlnx_dev_str[128];
-static char qlnx_ver_str[VER_SIZE];
-static char qlnx_name_str[NAME_SIZE];
+char qlnx_dev_str[128];
+char qlnx_ver_str[VER_SIZE];
+char qlnx_name_str[NAME_SIZE];
 
 /*
  * Some PCI Configuration Space Related Defines
