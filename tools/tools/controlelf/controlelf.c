@@ -132,9 +132,9 @@ main(int argc, char **argv)
 
 		if ((kind = elf_kind(elf)) != ELF_K_ELF) {
 			if (kind == ELF_K_AR)
-				warnx("file '%s' is an archive.", argv[0]);
+				warnx("file '%s' is an archive", argv[0]);
 			else
-				warnx("file '%s' is not an ELF file.",
+				warnx("file '%s' is not an ELF file",
 				    argv[0]);
 			retval = 1;
 			goto fail;
@@ -201,7 +201,7 @@ convert_to_feature_val(char* feature_str, u_int32_t* feature_val)
 	else if (feature_str[0] == '=')
 		set = true;
 	else if (feature_str[0] != '-') {
-		warnx("'%c' is not an operator. Use instead '+', '-', '='.",
+		warnx("'%c' not an operator - use '+', '-', '='",
 		    feature_str[0]);
 		return (false);
 	}
@@ -216,7 +216,7 @@ convert_to_feature_val(char* feature_str, u_int32_t* feature_val)
 			}
 		}
 		if (i == len) {
-			warnx("%s is not a valid feature.", feature);
+			warnx("%s is not a valid feature", feature);
 			return (false);
 		}
 	}
@@ -238,7 +238,7 @@ edit_file_features(Elf *elf, int phcount, int fd, char *val)
 	u_int64_t off;
 
 	if (!get_file_features(elf, phcount, fd, &features, &off)) {
-		warnx("No control features note on the file.\n");
+		warnx("NT_FREEBSD_FEATURE_CTL note not found");
 		return (false);
 	}
 
@@ -327,7 +327,7 @@ get_file_features(Elf *elf, int phcount, int fd, u_int32_t *features, u_int64_t 
 			namesz = roundup2(note.n_namesz, 4);
 			name = malloc(namesz);
 			if (name == NULL) {
-				warn("malloc() failed.\n");
+				warn("malloc() failed.");
 				return (false);
 			}
 			descsz = roundup2(note.n_descsz, 4);
@@ -339,7 +339,7 @@ get_file_features(Elf *elf, int phcount, int fd, u_int32_t *features, u_int64_t 
 			    note.n_type != NT_FREEBSD_FEATURE_CTL) {
 				/* Not the right note. Skip the description */
 				if (lseek(fd, descsz, SEEK_CUR) < 0) {
-					warn("lseek() failed.\n");
+					warn("lseek() failed.");
 					free(name);
 					return (false);
 				}
@@ -360,7 +360,7 @@ get_file_features(Elf *elf, int phcount, int fd, u_int32_t *features, u_int64_t 
 			 * 	descriptor. This should respect descsz.
 			 */
 			if (note.n_descsz > sizeof(u_int32_t))
-				warnx("Feature note is bigger than expected.");
+				warnx("Feature note is bigger than expected");
 			read(fd, features, sizeof(u_int32_t));
 			if (off != NULL)
 				*off = phdr.p_offset + read_total;
@@ -369,6 +369,6 @@ get_file_features(Elf *elf, int phcount, int fd, u_int32_t *features, u_int64_t 
 		}
 	}
 
-	warnx("Couldn't find a note header with control feature note.");
+	warnx("NT_FREEBSD_FEATURE_CTL note not found");
 	return (false);
 }
