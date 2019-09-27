@@ -56,7 +56,7 @@ static void usage(void);
 
 struct ControlFeatures {
 	const char *alias;
-	unsigned long featureVal;
+	unsigned long value;
 	const char *desc;
 };
 
@@ -189,30 +189,19 @@ usage(void)
 static bool
 convert_to_feature_val(char *feature_str, u_int32_t *feature_val)
 {
-	char *feature_input, *feature;
+	char *feature;
 	int i, len;
 	u_int32_t input;
-	bool add, set;
+	char operation;
 
-	add = set = false;
 	input = 0;
-
-	if (feature_str[0] == '+')
-		add = true;
-	else if (feature_str[0] == '=')
-		set = true;
-	else if (feature_str[0] != '-') {
-		warnx("'%c' not an operator - use '+', '-', '='",
-		    feature_str[0]);
-		return (false);
-	}
-
-	feature_input = feature_str + 1;
+	operation = *feature_str;
+	feature_str++;
 	len = nitems(featurelist);
-	while ((feature = strsep(&feature_input, ",")) != NULL) {
+	while ((feature = strsep(&feature_str, ",")) != NULL) {
 		for (i = 0; i < len; ++i) {
 			if (strcmp(featurelist[i].alias, feature) == 0) {
-				input |= featurelist[i].featureVal;
+				input |= featurelist[i].value;
 				break;
 			}
 		}
@@ -222,12 +211,16 @@ convert_to_feature_val(char *feature_str, u_int32_t *feature_val)
 		}
 	}
 
-	if (add) {
+	if (operation == '+') {
 		*feature_val |= input;
-	} else if (set) {
+	} else if (operation == '=') {
 		*feature_val = input;
+	} else if (operation == '-') {
+		*feature_val &= ~input;
 	} else {
-		*feature_val -= (*feature_val) & input;
+		warnx("'%c' not an operator - use '+', '-', '='",
+		    feature_str[0]);
+		return (false);
 	}
 	return (true);
 }
@@ -246,8 +239,12 @@ edit_file_features(Elf *elf, int phcount, int fd, char *val)
 	if (!convert_to_feature_val(val, &features))
 		return (false);
 
-	lseek(fd, off, SEEK_SET);
-	write(fd, &features, sizeof(u_int32_t));
+	if (lseek(fd, off, SEEK_SET) == -1 ||
+	    write(fd, &features, sizeof(features)) <
+	    (ssize_t)sizeof(features)) {
+		warnx("error writing feature value");
+		return (false);
+	}
 	return (true);
 }
 
@@ -277,7 +274,7 @@ print_file_features(Elf *elf, int phcount, int fd, char *filename)
 		printf("%s\t\t'%s' is ", featurelist[i].alias,
 		    featurelist[i].desc);
 
-		if ((featurelist[i].featureVal & features) == 0)
+		if ((featurelist[i].value & features) == 0)
 			printf("un");
 
 		printf("set.\n");
