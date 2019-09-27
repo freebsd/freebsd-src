@@ -214,7 +214,7 @@ SYSCTL_ULONG(_debug, OID_AUTO, numcache, CTLFLAG_RD, &numcache, 0,
 static u_long __exclusive_cache_line	numcachehv;/* number of cache entries with vnodes held */
 SYSCTL_ULONG(_debug, OID_AUTO, numcachehv, CTLFLAG_RD, &numcachehv, 0,
     "Number of namecache entries with vnodes held");
-u_int __read_mostly	ncsizefactor = 2;
+u_int ncsizefactor = 2;
 SYSCTL_UINT(_vfs, OID_AUTO, ncsizefactor, CTLFLAG_RW, &ncsizefactor, 0,
     "Size factor for namecache");
 static u_int __read_mostly	ncpurgeminvnodes;
@@ -223,6 +223,7 @@ SYSCTL_UINT(_vfs, OID_AUTO, ncpurgeminvnodes, CTLFLAG_RW, &ncpurgeminvnodes, 0,
 static u_int __read_mostly	ncneghitsrequeue = 8;
 SYSCTL_UINT(_vfs, OID_AUTO, ncneghitsrequeue, CTLFLAG_RW, &ncneghitsrequeue, 0,
     "Number of hits to requeue a negative entry in the LRU list");
+static u_int __read_mostly	ncsize; /* the size as computed on creation or resizing */
 
 struct nchstats	nchstats;		/* cache effectiveness statistics */
 
@@ -1713,7 +1714,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	 * Avoid blowout in namecache entries.
 	 */
 	lnumcache = atomic_fetchadd_long(&numcache, 1) + 1;
-	if (__predict_false(lnumcache >= desiredvnodes * ncsizefactor)) {
+	if (__predict_false(lnumcache >= ncsize)) {
 		atomic_add_long(&numcache, -1);
 		return;
 	}
@@ -1969,6 +1970,7 @@ nchinit(void *dummy __unused)
 	    NULL, NULL, NULL, NULL, UMA_ALIGNOF(struct namecache_ts),
 	    UMA_ZONE_ZINIT);
 
+	ncsize = desiredvnodes * ncsizefactor;
 	nchashtbl = hashinit(desiredvnodes * 2, M_VFSCACHE, &nchash);
 	ncbuckethash = cache_roundup_2(mp_ncpus * mp_ncpus) - 1;
 	if (ncbuckethash < 7) /* arbitrarily chosen to avoid having one lock */
@@ -2024,8 +2026,10 @@ cache_changesize(int newmaxvnodes)
 	u_long new_nchash, old_nchash;
 	struct namecache *ncp;
 	uint32_t hash;
+	int newncsize;
 	int i;
 
+	newncsize = newmaxvnodes * ncsizefactor;
 	newmaxvnodes = cache_roundup_2(newmaxvnodes * 2);
 	if (newmaxvnodes < numbucketlocks)
 		newmaxvnodes = numbucketlocks;
@@ -2055,6 +2059,7 @@ cache_changesize(int newmaxvnodes)
 			LIST_INSERT_HEAD(NCHHASH(hash), ncp, nc_hash);
 		}
 	}
+	ncsize = newncsize;
 	cache_unlock_all_buckets();
 	cache_unlock_all_vnodes();
 	free(old_nchashtbl, M_VFSCACHE);
