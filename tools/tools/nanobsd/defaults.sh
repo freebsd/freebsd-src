@@ -445,7 +445,11 @@ run_early_customize ( ) {
 		pprint 2 "early customize \"$c\""
 		pprint 3 "log: ${NANO_LOG}/_.early_cust.$c"
 		pprint 4 "`type $c`"
-		{ set -x ; $c ; set +x ; } >${NANO_LOG}/_.early_cust.$c 2>&1
+		{ t=$(set -o | awk '$1 == "xtrace" && $2 == "off" { print "set +x"}');
+		  set -x ;
+		  $c ;
+		  eval $t
+		} >${NANO_LOG}/_.early_cust.$c 2>&1
 	done
 }
 
