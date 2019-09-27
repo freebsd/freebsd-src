@@ -65,7 +65,7 @@ static struct ControlFeatures featurelist[] = {
 	{ "protmax",	NT_FREEBSD_FCTL_PROTMAX_DISABLE,"Disable implicit PROT_MAX" },
 };
 
-static struct option controlelf_longopts[] = {
+static struct option long_opts[] = {
 	{ "help",	no_argument,	NULL,	'h' },
 	{ NULL,		0,		NULL,	0 }
 };
@@ -76,38 +76,36 @@ main(int argc, char **argv)
 	GElf_Ehdr ehdr;
 	Elf *elf;
 	Elf_Kind kind;
-	int ch, fd, listed, editfeatures, retval;
+	int ch, fd, editfeatures, retval;
 	char *features;
+	bool lflag;
 
-	listed = 0;
+	lflag = 0;
 	editfeatures = 0;
 	retval = 0;
 
 	if (elf_version(EV_CURRENT) == EV_NONE)
 		errx(EXIT_FAILURE, "elf_version error");
 
-	while ((ch = getopt_long(argc, argv, "hle:", controlelf_longopts,
-	    NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv, "hle:", long_opts, NULL)) != -1) {
 		switch (ch) {
 		case 'l':
 			print_features();
-			listed = 1;
+			lflag = true;
 			break;
 		case 'e':
 			features = optarg;
 			editfeatures = 1;
 			break;
 		case 'h':
-			usage();
-			break;
 		default:
 			usage();
 		}
 	}
 	argc -= optind;
 	argv += optind;
-	if (!argc) {
-		if (listed)
+	if (argc == 0) {
+		if (lflag)
 			exit(0);
 		else {
 			warnx("no file(s) specified");
