@@ -359,6 +359,7 @@ struct mbuf_ext_pgs {
 	union {
 		char	trail[MBUF_PEXT_TRAIL_LEN]; /* TLS trailer */
 		struct {
+			uint8_t record_type;	/* Must be first */
 			struct socket *so;
 			struct mbuf *mbuf;
 			uint64_t seqno;
