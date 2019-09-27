@@ -886,12 +886,22 @@ restart:
 
 			    case CMD_delay:	/* new seconds delay */
 				new_message(MT_standout, "Seconds to delay: ");
-				if ((i = readline(tempbuf1, 8, true)) > 0)
+				if ((i = readline(tempbuf1, 8, false)) > 0)
 				{
-				    delay.tv_sec = i;
-				    delay.tv_usec = 0;
+				    double delay_d = strtod(tempbuf1, &nptr);
+				    if (nptr == tempbuf1 || delay_d <= 0)
+				    {
+					new_message(MT_standout, " Invalid delay");
+					putchar('\r');
+					no_command = true;
+				    }
+				    else
+				    {
+					delay.tv_sec = delay_d;
+					delay.tv_usec = (delay_d - delay.tv_sec) * 1e6;
+					clear_message();
+				    }
 				}
-				clear_message();
 				break;
 
 			    case CMD_displays:	/* change display count */
