@@ -437,6 +437,8 @@ struct ioat_softc {
 })
 
 	device_t		device;
+	int			domain;
+	int			cpu;
 	int			version;
 	unsigned		chan_idx;
 
