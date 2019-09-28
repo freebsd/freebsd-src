@@ -1673,6 +1673,9 @@ rk3399_cru_attach(device_t dev)
 	sc->clks = rk3399_clks;
 	sc->nclks = nitems(rk3399_clks);
 
+	sc->reset_offset = 0x400;
+	sc->reset_num = 335;
+
 	return (rk_cru_attach(dev));
 }
 
