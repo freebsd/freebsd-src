@@ -33,43 +33,43 @@ MAN=		arb.3 \
 		timeradd.3 \
 		tree.3
 
-MLINKS+=	arb.3 ARB8_ENTRY.3 \
-		arb.3 ARB16_ENTRY.3 \
-		arb.3 ARB32_ENTRY.3 \
+MLINKS=		arb.3 ARB8_ENTRY.3 \
 		arb.3 ARB8_HEAD.3 \
+		arb.3 ARB16_ENTRY.3 \
 		arb.3 ARB16_HEAD.3 \
+		arb.3 ARB32_ENTRY.3 \
 		arb.3 ARB32_HEAD.3 \
 		arb.3 ARB_ALLOCSIZE.3 \
-		arb.3 ARB_INITIALIZER.3 \
-		arb.3 ARB_ROOT.3 \
-		arb.3 ARB_EMPTY.3 \
-		arb.3 ARB_FULL.3 \
 		arb.3 ARB_CURNODES.3 \
-		arb.3 ARB_MAXNODES.3 \
-		arb.3 ARB_NEXT.3 \
-		arb.3 ARB_PREV.3 \
-		arb.3 ARB_MIN.3 \
-		arb.3 ARB_MAX.3 \
+		arb.3 ARB_EMPTY.3 \
 		arb.3 ARB_FIND.3 \
-		arb.3 ARB_NFIND.3 \
-		arb.3 ARB_LEFT.3 \
-		arb.3 ARB_LEFTIDX.3 \
-		arb.3 ARB_RIGHT.3 \
-		arb.3 ARB_RIGHTIDX.3 \
-		arb.3 ARB_PARENT.3 \
-		arb.3 ARB_PARENTIDX.3 \
-		arb.3 ARB_GETFREE.3 \
-		arb.3 ARB_FREEIDX.3 \
 		arb.3 ARB_FOREACH.3 \
 		arb.3 ARB_FOREACH_FROM.3 \
-		arb.3 ARB_FOREACH_SAFE.3 \
 		arb.3 ARB_FOREACH_REVERSE.3 \
 		arb.3 ARB_FOREACH_REVERSE_FROM.3 \
 		arb.3 ARB_FOREACH_REVERSE_SAFE.3 \
+		arb.3 ARB_FOREACH_SAFE.3 \
+		arb.3 ARB_FREEIDX.3 \
+		arb.3 ARB_FULL.3 \
+		arb.3 ARB_GETFREE.3 \
 		arb.3 ARB_INIT.3 \
+		arb.3 ARB_INITIALIZER.3 \
 		arb.3 ARB_INSERT.3 \
-		arb.3 ARB_REMOVE.3
-MLINKS=		ATOMIC_VAR_INIT.3 atomic_compare_exchange_strong.3 \
+		arb.3 ARB_LEFT.3 \
+		arb.3 ARB_LEFTIDX.3 \
+		arb.3 ARB_MAX.3 \
+		arb.3 ARB_MAXNODES.3 \
+		arb.3 ARB_MIN.3 \
+		arb.3 ARB_NEXT.3 \
+		arb.3 ARB_NFIND.3 \
+		arb.3 ARB_PARENT.3 \
+		arb.3 ARB_PARENTIDX.3 \
+		arb.3 ARB_PREV.3 \
+		arb.3 ARB_REMOVE.3 \
+		arb.3 ARB_RIGHT.3 \
+		arb.3 ARB_RIGHTIDX.3 \
+		arb.3 ARB_ROOT.3
+MLINKS+=	ATOMIC_VAR_INIT.3 atomic_compare_exchange_strong.3 \
 		ATOMIC_VAR_INIT.3 atomic_compare_exchange_strong_explicit.3 \
 		ATOMIC_VAR_INIT.3 atomic_compare_exchange_weak.3 \
 		ATOMIC_VAR_INIT.3 atomic_compare_exchange_weak_explicit.3 \
