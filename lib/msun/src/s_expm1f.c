@@ -94,7 +94,7 @@ expm1f(float x)
 	e  = hxs*((r1-t)/((float)6.0 - x*t));
 	if(k==0) return x - (x*e-hxs);		/* c is 0 */
 	else {
-	    SET_FLOAT_WORD(twopk,0x3f800000+(k<<23));	/* 2^k */
+	    SET_FLOAT_WORD(twopk,((u_int32_t)(0x7f+k))<<23);	/* 2^k */
 	    e  = (x*(e-c)-c);
 	    e -= hxs;
 	    if(k== -1) return (float)0.5*(x-e)-(float)0.5;
