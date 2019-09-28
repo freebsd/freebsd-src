@@ -126,7 +126,7 @@ __FBSDID("$FreeBSD$");
 #include <netipsec/ipsec_support.h>
 
 #include <machine/in_cksum.h>
-#include <sys/md5.h>
+#include <crypto/siphash/siphash.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -242,7 +242,7 @@ VNET_DEFINE(uma_zone_t, sack_hole_zone);
 VNET_DEFINE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST+1]);
 #endif
 
-#define TS_OFFSET_SECRET_LENGTH 32
+#define TS_OFFSET_SECRET_LENGTH SIPHASH_KEY_LENGTH
 VNET_DEFINE_STATIC(u_char, ts_offset_secret[TS_OFFSET_SECRET_LENGTH]);
 #define	V_ts_offset_secret	VNET(ts_offset_secret)
 
@@ -2621,30 +2621,32 @@ out:
 static uint32_t
 tcp_keyed_hash(struct in_conninfo *inc, u_char *key, u_int len)
 {
-	MD5_CTX ctx;
-	uint32_t hash[4];
+	SIPHASH_CTX ctx;
+	uint32_t hash[2];
 
-	MD5Init(&ctx);
-	MD5Update(&ctx, &inc->inc_fport, sizeof(uint16_t));
-	MD5Update(&ctx, &inc->inc_lport, sizeof(uint16_t));
+	KASSERT(len >= SIPHASH_KEY_LENGTH,
+	    ("%s: keylen %u too short ", __func__, len));
+	SipHash24_Init(&ctx);
+	SipHash_SetKey(&ctx, (uint8_t *)key);
+	SipHash_Update(&ctx, &inc->inc_fport, sizeof(uint16_t));
+	SipHash_Update(&ctx, &inc->inc_lport, sizeof(uint16_t));
 	switch (inc->inc_flags & INC_ISIPV6) {
 #ifdef INET
 	case 0:
-		MD5Update(&ctx, &inc->inc_faddr, sizeof(struct in_addr));
-		MD5Update(&ctx, &inc->inc_laddr, sizeof(struct in_addr));
+		SipHash_Update(&ctx, &inc->inc_faddr, sizeof(struct in_addr));
+		SipHash_Update(&ctx, &inc->inc_laddr, sizeof(struct in_addr));
 		break;
 #endif
 #ifdef INET6
 	case INC_ISIPV6:
-		MD5Update(&ctx, &inc->inc6_faddr, sizeof(struct in6_addr));
-		MD5Update(&ctx, &inc->inc6_laddr, sizeof(struct in6_addr));
+		SipHash_Update(&ctx, &inc->inc6_faddr, sizeof(struct in6_addr));
+		SipHash_Update(&ctx, &inc->inc6_laddr, sizeof(struct in6_addr));
 		break;
 #endif
 	}
-	MD5Update(&ctx, key, len);
-	MD5Final((unsigned char *)hash, &ctx);
+	SipHash_Final((uint8_t *)hash, &ctx);
 
-	return (hash[0]);
+	return (hash[0] ^ hash[1]);
 }
 
 uint32_t
@@ -2711,7 +2713,7 @@ tcp_new_ts_offset(struct in_conninfo *inc)
 #define ISN_BYTES_PER_SECOND 1048576
 #define ISN_STATIC_INCREMENT 4096
 #define ISN_RANDOM_INCREMENT (4096 - 1)
-#define ISN_SECRET_LENGTH    32
+#define ISN_SECRET_LENGTH    SIPHASH_KEY_LENGTH
 
 VNET_DEFINE_STATIC(u_char, isn_secret[ISN_SECRET_LENGTH]);
 VNET_DEFINE_STATIC(int, isn_last);
@@ -2740,7 +2742,7 @@ tcp_new_isn(struct in_conninfo *inc)
 		V_isn_last_reseed = ticks;
 	}
 
-	/* Compute the md5 hash and return the ISN. */
+	/* Compute the hash and return the ISN. */
 	new_isn = (tcp_seq)tcp_keyed_hash(inc, V_isn_secret,
 	    sizeof(V_isn_secret));
 	V_isn_offset += ISN_STATIC_INCREMENT +
