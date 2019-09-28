@@ -3007,7 +3007,6 @@ pmap_update_entry(pmap_t pmap, pd_entry_t *pte, pd_entry_t newpte,
 	 * as they may make use of an address we are about to invalidate.
 	 */
 	intr = intr_disable();
-	critical_enter();
 
 	/*
 	 * Clear the old mapping's valid bit, but leave the rest of the entry
@@ -3021,7 +3020,6 @@ pmap_update_entry(pmap_t pmap, pd_entry_t *pte, pd_entry_t newpte,
 	pmap_store(pte, newpte);
 	dsb(ishst);
 
-	critical_exit();
 	intr_restore(intr);
 }
 
