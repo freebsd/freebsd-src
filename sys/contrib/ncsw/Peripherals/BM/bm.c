@@ -258,7 +258,7 @@ t_Error BmSetPoolThresholds(t_Handle h_Bm, uint8_t bpid, const uint32_t *thresho
 
         memset(&msg, 0, sizeof(t_BmIpcMsg));
         ipcPoolThresh.bpid  = bpid;
-        memcpy(ipcPoolThresh.thresholds, thresholds, sizeof(uintptr_t) * MAX_DEPLETION_THRESHOLDS);
+        memcpy(ipcPoolThresh.thresholds, thresholds, sizeof(uint32_t) * MAX_DEPLETION_THRESHOLDS);
         msg.msgId           = BM_SET_POOL_THRESH;
         memcpy(msg.msgBody, &ipcPoolThresh, sizeof(t_BmIpcPoolThreshParams));
         if ((errCode = XX_IpcSendMessage(p_Bm->h_Session,
