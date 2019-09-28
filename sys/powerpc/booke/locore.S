@@ -298,16 +298,18 @@ done_mapping:
 	ld	%r1,0(%r2)
 	add	%r2,%r1,%r2
 	mtspr	SPR_SPRG8, %r2
+	nop
 
 	/* Get load offset */
 	ld	%r31,-0x8000(%r2) /* First TOC entry is TOC base */
 	subf    %r31,%r31,%r2	/* Subtract from real TOC base to get base */
 
 	/* Set up the stack pointer */
-	addis	%r1,%r2,TOC_REF(tmpstack)@ha
-	ld	%r1,TOC_REF(tmpstack)@l(%r1)
-	addi	%r1,%r1,TMPSTACKSZ-96
-	add	%r1,%r1,%r31
+	bl	1f
+	.llong	tmpstack + TMPSTACKSZ - 96 - .
+1:	mflr	%r3
+	ld	%r1,0(%r3)
+	add	%r1,%r1,%r3
 	bl	1f
 	.llong _DYNAMIC-.
 1:	mflr	%r3
