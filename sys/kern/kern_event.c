@@ -956,7 +956,7 @@ int
 sys_kqueue(struct thread *td, struct kqueue_args *uap)
 {
 
-	return (kern_kqueue(td, 0, NULL));
+	return (kern_kqueue(td, 0, NULL, 0));
 }
 
 static void
@@ -970,7 +970,7 @@ kqueue_init(struct kqueue *kq)
 }
 
 int
-kern_kqueue(struct thread *td, int flags, struct filecaps *fcaps)
+kern_kqueue(struct thread *td, int flags, struct filecaps *fcaps, int uflags)
 {
 	struct filedesc *fdp;
 	struct kqueue *kq;
@@ -994,6 +994,8 @@ kern_kqueue(struct thread *td, int flags, struct filecaps *fcaps)
 	kqueue_init(kq);
 	kq->kq_fdp = fdp;
 	kq->kq_cred = crhold(cred);
+	kq->kq_uflags = uflags;
+	kq->kq_nknotes = 0;
 
 	FILEDESC_XLOCK(fdp);
 	TAILQ_INSERT_HEAD(&fdp->fd_kqlist, kq, kq_list);
@@ -1830,6 +1832,11 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 	marker->kn_status = KN_MARKER;
 	KQ_LOCK(kq);
 
+	if (kq->kq_uflags & KQ_ERR_EMPTY && kq->kq_nknotes == 0) {
+		error = ECHILD;
+		goto done;
+	}
+
 retry:
 	kevp = keva;
 	if (kq->kq_count == 0) {
@@ -2150,6 +2157,9 @@ kqueue_destroy(struct kqueue *kq)
 	seldrain(&kq->kq_sel);
 	knlist_destroy(&kq->kq_sel.si_note);
 	mtx_destroy(&kq->kq_lock);
+
+	KASSERT(kq->kq_nknotes == 0,
+	    ("kqueue still has %d knotes", kq->kq_nknotes));
 
 	if (kq->kq_knhash != NULL)
 		free(kq->kq_knhash, M_KQUEUE);
@@ -2617,6 +2627,7 @@ knote_attach(struct knote *kn, struct kqueue *kq)
 		list = &kq->kq_knhash[KN_HASH(kn->kn_id, kq->kq_knhashmask)];
 	}
 	SLIST_INSERT_HEAD(list, kn, kn_link);
+	kq->kq_nknotes++;
 	return (0);
 }
 
@@ -2652,6 +2663,7 @@ knote_drop_detached(struct knote *kn, struct thread *td)
 
 	if (!SLIST_EMPTY(list))
 		SLIST_REMOVE(list, kn, knote, kn_link);
+	kq->kq_nknotes--;
 	if (kn->kn_status & KN_QUEUED)
 		knote_dequeue(kn);
 	KQ_UNLOCK_FLUX(kq);

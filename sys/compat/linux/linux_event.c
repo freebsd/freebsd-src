@@ -256,7 +256,7 @@ epoll_create_common(struct thread *td, int flags)
 {
 	int error;
 
-	error = kern_kqueue(td, flags, NULL);
+	error = kern_kqueue(td, flags, NULL, 0);
 	if (error != 0)
 		return (error);
 

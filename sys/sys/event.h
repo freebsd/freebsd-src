@@ -34,6 +34,8 @@
 #include <sys/_types.h>
 #include <sys/queue.h>
 
+#define	KQ_ERR_EMPTY		0x0001	/* Error on kevent on empty kqueue */
+
 #define EVFILT_READ		(-1)
 #define EVFILT_WRITE		(-2)
 #define EVFILT_AIO		(-3)	/* attached to aio requests */

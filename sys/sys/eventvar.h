@@ -63,6 +63,8 @@ struct kqueue {
 	struct		klist *kq_knhash;	/* hash table for knotes */
 	struct		task kq_task;
 	struct		ucred *kq_cred;
+	int		kq_uflags;
+	u_int		kq_nknotes;
 };
 
 #endif /* !_SYS_EVENTVAR_H_ */
