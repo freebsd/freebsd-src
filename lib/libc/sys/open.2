@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2019
+.Dd September 28, 2019
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -61,7 +61,7 @@ In this case
 and
 .Fn openat
 require an additional argument
-.Fa "int mode" ,
+.Fa "mode_t mode" ,
 and the file is created with mode
 .Fa mode
 as described in
@@ -615,3 +615,8 @@ permits searches.
 The present implementation of the
 .Fa openat
 checks the current permissions of directory instead.
+.Pp
+The
+.Fa mode
+argument is variadic and may result in different calling conventions
+than might otherwise be expected.
