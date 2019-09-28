@@ -37,11 +37,6 @@
 #include <arm64/rockchip/clk/rk_clk_mux.h>
 #include <arm64/rockchip/clk/rk_clk_pll.h>
 
-struct rk_cru_reset {
-	uint32_t	offset;
-	uint32_t	shift;
-};
-
 struct rk_cru_gate {
 	const char	*name;
 	const char	*parent_name;
@@ -84,8 +79,8 @@ struct rk_cru_softc {
 	struct clkdom		*clkdom;
 	struct mtx		mtx;
 	int			type;
-	struct rk_cru_reset	*resets;
-	int			nresets;
+	uint32_t		reset_offset;
+	uint32_t		reset_num;
 	struct rk_cru_gate	*gates;
 	int			ngates;
 	struct rk_clk		*clks;
