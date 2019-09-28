@@ -10261,10 +10261,10 @@ rack_set_sockopt(struct socket *so, struct sockopt *sopt,
 		break;
 	case TCP_RACK_TLP_INC_VAR:
 		/* Does TLP include rtt variance in t-o */
-		return (EINVAL);
+		error = EINVAL;
 		break;
 	case TCP_RACK_IDLE_REDUCE_HIGH:
-		return (EINVAL);
+		error = EINVAL;
 		break;
 	case TCP_DELACK:
 		if (optval == 0)
@@ -10329,6 +10329,7 @@ rack_get_sockopt(struct socket *so, struct sockopt *sopt,
 	 * add a option that is not a int, then this will have quite an
 	 * impact to this routine.
 	 */
+	error = 0;
 	switch (sopt->sopt_name) {
 	case TCP_RACK_DO_DETECTION:
 		optval = rack->do_detection;
@@ -10398,10 +10399,10 @@ rack_get_sockopt(struct socket *so, struct sockopt *sopt,
 		break;
 	case TCP_RACK_TLP_INC_VAR:
 		/* Does TLP include rtt variance in t-o */
-		return (EINVAL);
+		error = EINVAL;
 		break;
 	case TCP_RACK_IDLE_REDUCE_HIGH:
-		return (EINVAL);
+		error = EINVAL;
 		break;
 	case TCP_RACK_MIN_PACE:
 		optval = rack->r_enforce_min_pace;
@@ -10423,7 +10424,9 @@ rack_get_sockopt(struct socket *so, struct sockopt *sopt,
 		break;
 	}
 	INP_WUNLOCK(inp);
-	error = sooptcopyout(sopt, &optval, sizeof optval);
+	if (error == 0) {
+		error = sooptcopyout(sopt, &optval, sizeof optval);
+	}
 	return (error);
 }
 
