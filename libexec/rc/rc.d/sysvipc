@@ -1,0 +1,26 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: sysvipc
+# REQUIRE: archdep
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="sysvipc"
+desc="Load SysV IPC modules"
+rcvar="sysvipc_enable"
+start_cmd="${name}_start"
+stop_cmd=":"
+
+sysvipc_start()
+{
+	load_kld sysvmsg
+	load_kld sysvsem
+	load_kld sysvshm
+}
+
+load_rc_config $name
+run_rc_command "$1"

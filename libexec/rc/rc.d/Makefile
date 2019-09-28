@@ -107,6 +107,7 @@ CONFS=	DAEMON \
 	swaplate \
 	sysctl \
 	syslogd \
+	sysvipc \
 	tmp \
 	ugidfw \
 	${_utx} \
