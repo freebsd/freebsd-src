@@ -846,6 +846,9 @@ rk3399_pmucru_attach(device_t dev)
 	sc->clks = rk3399_pmu_clks;
 	sc->nclks = nitems(rk3399_pmu_clks);
 
+	sc->reset_offset = 0x110;
+	sc->reset_num = 30;
+
 	return (rk_cru_attach(dev));
 }
 
