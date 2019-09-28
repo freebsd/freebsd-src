@@ -2,6 +2,23 @@
 DTC ?= dtc
 CPP ?= cpp
 
+# Disable noisy checks by default
+ifeq ($(findstring 1,$(DTC_VERBOSE)),)
+DTC_FLAGS += -Wno-unit_address_vs_reg \
+        -Wno-unit_address_format \
+        -Wno-avoid_unnecessary_addr_size \
+        -Wno-alias_paths \
+        -Wno-graph_child_address \
+        -Wno-simple_bus_reg \
+        -Wno-unique_unit_address \
+        -Wno-pci_device_reg
+endif
+
+ifneq ($(findstring 2,$(DTC_VERBOSE)),)
+DTC_FLAGS += -Wnode_name_chars_strict \
+        -Wproperty_name_chars_strict
+endif
+
 MAKEFLAGS += -rR --no-print-directory
 
 ALL_ARCHES := $(patsubst src/%,%,$(wildcard src/*))
