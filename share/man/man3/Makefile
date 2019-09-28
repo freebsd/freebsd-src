@@ -324,6 +324,7 @@ MLINKS+=	tree.3 RB_EMPTY.3 \
 		tree.3 RB_PROTOTYPE_REMOVE.3 \
 		tree.3 RB_PROTOTYPE_REMOVE_COLOR.3 \
 		tree.3 RB_PROTOTYPE_STATIC.3 \
+		tree.3 RB_REINSERT.3 \
 		tree.3 RB_REMOVE.3 \
 		tree.3 RB_RIGHT.3 \
 		tree.3 RB_ROOT.3 \
