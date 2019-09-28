@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 8, 2019
+.Dd September 28, 2019
 .Dt ARB 3
 .Os
 .Sh NAME
@@ -45,6 +45,7 @@
 .Nm ARB_PROTOTYPE_NEXT ,
 .Nm ARB_PROTOTYPE_PREV ,
 .Nm ARB_PROTOTYPE_MINMAX ,
+.Nm ARB_PROTOTYPE_REINSERT ,
 .Nm ARB_GENERATE ,
 .Nm ARB_GENERATE_STATIC ,
 .Nm ARB_GENERATE_INSERT ,
@@ -56,6 +57,7 @@
 .Nm ARB_GENERATE_NEXT ,
 .Nm ARB_GENERATE_PREV ,
 .Nm ARB_GENERATE_MINMAX ,
+.Nm ARB_GENERATE_REINSERT ,
 .Nm ARB8_ENTRY ,
 .Nm ARB16_ENTRY ,
 .Nm ARB32_ENTRY ,
@@ -91,7 +93,8 @@
 .Nm ARB_FOREACH_REVERSE_SAFE ,
 .Nm ARB_INIT ,
 .Nm ARB_INSERT ,
-.Nm ARB_REMOVE
+.Nm ARB_REMOVE ,
+.Nm ARB_REINSERT
 .Nd "array-based red-black trees"
 .Sh SYNOPSIS
 .In sys/arb.h
@@ -106,6 +109,7 @@
 .Fn ARB_PROTOTYPE_NEXT NAME TYPE ATTR
 .Fn ARB_PROTOTYPE_PREV NAME TYPE ATTR
 .Fn ARB_PROTOTYPE_MINMAX NAME TYPE ATTR
+.Fn ARB_PROTOTYPE_REINSERT NAME TYPE ATTR
 .Fn ARB_GENERATE NAME TYPE FIELD CMP
 .Fn ARB_GENERATE_STATIC NAME TYPE FIELD CMP
 .Fn ARB_GENERATE_INSERT NAME TYPE FIELD CMP ATTR
@@ -117,6 +121,7 @@
 .Fn ARB_GENERATE_NEXT NAME TYPE FIELD ATTR
 .Fn ARB_GENERATE_PREV NAME TYPE FIELD ATTR
 .Fn ARB_GENERATE_MINMAX NAME TYPE FIELD ATTR
+.Fn ARB_GENERATE_REINSERT NAME TYPE FIELD CMP ATTR
 .Fn ARB<8|16|32>_ENTRY
 .Fn ARB<8|16|32>_HEAD HEADNAME TYPE
 .Ft "size_t"
@@ -172,6 +177,8 @@
 .Fn ARB_INSERT NAME "ARB_HEAD *head" "struct TYPE *elm"
 .Ft "struct TYPE *"
 .Fn ARB_REMOVE NAME "ARB_HEAD *head" "struct TYPE *elm"
+.Ft "struct TYPE *"
+.Fn ARB_REINSERT NAME "ARB_HEAD *head" "struct TYPE *elm"
 .Sh DESCRIPTION
 These macros define data structures for and array-based red-black trees.
 They use a single, continuous chunk of memory, and are useful
@@ -297,8 +304,9 @@ Individual prototypes can be declared with
 .Fn ARB_PROTOTYPE_NFIND ,
 .Fn ARB_PROTOTYPE_NEXT ,
 .Fn ARB_PROTOTYPE_PREV ,
+.Fn ARB_PROTOTYPE_MINMAX ,
 and
-.Fn ARB_PROTOTYPE_MINMAX
+.Fn ARB_PROTOTYPE_REINSERT
 in case not all functions are required.
 The individual prototype macros expect
 .Fa NAME ,
@@ -331,8 +339,9 @@ As an alternative individual function bodies are generated with the
 .Fn ARB_GENERATE_NFIND ,
 .Fn ARB_GENERATE_NEXT ,
 .Fn ARB_GENERATE_PREV ,
+.Fn ARB_GENERATE_MINMAX ,
 and
-.Fn ARB_GENERATE_MINMAX
+.Fn ARB_GENERATE_REINSERT
 macros.
 .Pp
 Finally,
@@ -464,6 +473,18 @@ Accordingly,
 returns the pointer to the removed element otherwise they return
 .Dv NULL
 to indicate an error.
+.Pp
+The
+.Fn RB_REINSERT
+macro updates the position of the element
+.Fa elm
+in the tree.
+This must be called if a member of a
+.Nm tree
+is modified in a way that affects comparison, such as by modifying
+a node's key.
+This is a lower overhead alternative to removing the element
+and reinserting it again.
 .Sh SEE ALSO
 .Xr queue 3 ,
 .Xr tree 3

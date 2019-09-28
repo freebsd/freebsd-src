@@ -65,6 +65,7 @@ MLINKS=		arb.3 ARB8_ENTRY.3 \
 		arb.3 ARB_PARENT.3 \
 		arb.3 ARB_PARENTIDX.3 \
 		arb.3 ARB_PREV.3 \
+		arb.3 ARB_REINSERT.3 \
 		arb.3 ARB_REMOVE.3 \
 		arb.3 ARB_RIGHT.3 \
 		arb.3 ARB_RIGHTIDX.3 \
