@@ -393,7 +393,8 @@ struct {								\
 	RB_PROTOTYPE_NFIND(name, type, attr);				\
 	RB_PROTOTYPE_NEXT(name, type, attr);				\
 	RB_PROTOTYPE_PREV(name, type, attr);				\
-	RB_PROTOTYPE_MINMAX(name, type, attr);
+	RB_PROTOTYPE_MINMAX(name, type, attr);				\
+	RB_PROTOTYPE_REINSERT(name, type, attr);
 #define RB_PROTOTYPE_INSERT_COLOR(name, type, attr)			\
 	attr void name##_RB_INSERT_COLOR(struct name *, struct type *)
 #define RB_PROTOTYPE_REMOVE_COLOR(name, type, attr)			\
@@ -412,6 +413,8 @@ struct {								\
 	attr struct type *name##_RB_PREV(struct type *)
 #define RB_PROTOTYPE_MINMAX(name, type, attr)				\
 	attr struct type *name##_RB_MINMAX(struct name *, int)
+#define RB_PROTOTYPE_REINSERT(name, type, attr)			\
+	attr struct type *name##_RB_REINSERT(struct name *, struct type *)
 
 /* Main rb operation.
  * Moves node close to the key of elm to top
@@ -429,7 +432,9 @@ struct {								\
 	RB_GENERATE_NFIND(name, type, field, cmp, attr)			\
 	RB_GENERATE_NEXT(name, type, field, attr)			\
 	RB_GENERATE_PREV(name, type, field, attr)			\
-	RB_GENERATE_MINMAX(name, type, field, attr)
+	RB_GENERATE_MINMAX(name, type, field, attr)			\
+	RB_GENERATE_REINSERT(name, type, field, cmp, attr)
+
 
 #define RB_GENERATE_INSERT_COLOR(name, type, field, attr)		\
 attr void								\
@@ -758,6 +763,22 @@ name##_RB_MINMAX(struct name *head, int val)				\
 	return (parent);						\
 }
 
+#define	RB_GENERATE_REINSERT(name, type, field, cmp, attr)		\
+attr struct type *							\
+name##_RB_REINSERT(struct name *head, struct type *elm)			\
+{									\
+	struct type *cmpelm;						\
+	if (((cmpelm = RB_PREV(name, head, elm)) != NULL &&		\
+	    cmp(cmpelm, elm) >= 0) ||					\
+	    ((cmpelm = RB_NEXT(name, head, elm)) != NULL &&		\
+	    cmp(elm, cmpelm) >= 0)) {					\
+		/* XXXLAS: Remove/insert is heavy handed. */		\
+		RB_REMOVE(name, head, elm);				\
+		return (RB_INSERT(name, head, elm));			\
+	}								\
+	return (NULL);							\
+}									\
+
 #define RB_NEGINF	-1
 #define RB_INF	1
 
@@ -769,6 +790,7 @@ name##_RB_MINMAX(struct name *head, int val)				\
 #define RB_PREV(name, x, y)	name##_RB_PREV(y)
 #define RB_MIN(name, x)		name##_RB_MINMAX(x, RB_NEGINF)
 #define RB_MAX(name, x)		name##_RB_MINMAX(x, RB_INF)
+#define RB_REINSERT(name, x, y)	name##_RB_REINSERT(x, y)
 
 #define RB_FOREACH(x, name, head)					\
 	for ((x) = RB_MIN(name, head);					\
