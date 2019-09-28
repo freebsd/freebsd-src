@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 
 /* GATES */
 
+#define	SCLK_USB2PHY0_REF	123
+#define	SCLK_USB2PHY1_REF	124
 #define	ACLK_EMMC_CORE		241
 #define	ACLK_EMMC_NOC		242
 #define	ACLK_EMMC_GRF		243
@@ -64,6 +66,10 @@ __FBSDID("$FreeBSD$");
 #define	PCLK_I2C5		344
 #define	PCLK_I2C6		345
 #define	PCLK_I2C7		346
+#define	HCLK_HOST0		456
+#define	HCLK_HOST0_ARB		457
+#define	HCLK_HOST1		458
+#define	HCLK_HOST1_ARB		459
 #define	HCLK_SDMMC		462
 
 static struct rk_cru_gate rk3399_gates[] = {
@@ -86,6 +92,8 @@ static struct rk_cru_gate rk3399_gates[] = {
 	/* CRU_CLKGATE_CON6 */
 	CRU_GATE(0, "gpll_aclk_emmc_src", "gpll", 0x318, 12)
 	CRU_GATE(0, "cpll_aclk_emmc_src", "cpll", 0x318, 13)
+	CRU_GATE(SCLK_USB2PHY0_REF, "clk_usb2phy0_ref", "xin24m", 0x318, 5)
+	CRU_GATE(SCLK_USB2PHY1_REF, "clk_usb2phy1_ref", "xin24m", 0x318, 6)
 
 	/* CRU_CLKGATE_CON7 */
 	CRU_GATE(0, "gpll_aclk_perilp0_src", "gpll", 0x31C, 0)
@@ -94,6 +102,12 @@ static struct rk_cru_gate rk3399_gates[] = {
 	/* CRU_CLKGATE_CON8 */
 	CRU_GATE(0, "hclk_perilp1_cpll_src", "cpll", 0x320, 1)
 	CRU_GATE(0, "hclk_perilp1_gpll_src", "gpll", 0x320, 0)
+
+	/* CRU_CLKGATE_CON20 */
+	CRU_GATE(HCLK_HOST0, "hclk_host0", "hclk_perihp", 0x350, 5)
+	CRU_GATE(HCLK_HOST0_ARB, "hclk_host0_arb", "hclk_perihp", 0x350, 6)
+	CRU_GATE(HCLK_HOST1, "hclk_host1", "hclk_perihp", 0x350, 7)
+	CRU_GATE(HCLK_HOST1_ARB, "hclk_host1_arb", "hclk_perihp", 0x350, 8)
 
 	/* CRU_CLKGATE_CON22 */
 	CRU_GATE(PCLK_I2C7, "pclk_rki2c7", "pclk_perilp1", 0x358, 5)
