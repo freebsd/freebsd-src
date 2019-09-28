@@ -46,6 +46,8 @@ int	 netbe_set_cap(net_backend_t *be, uint64_t cap,
 ssize_t	netbe_send(net_backend_t *be, struct iovec *iov, int iovcnt);
 ssize_t	netbe_recv(net_backend_t *be, struct iovec *iov, int iovcnt);
 ssize_t	netbe_rx_discard(net_backend_t *be);
+void	netbe_rx_disable(net_backend_t *be);
+void	netbe_rx_enable(net_backend_t *be);
 
 
 /*
