@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/callout.h>
+#include <sys/domainset.h>
 #include <sys/file.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
@@ -320,8 +321,9 @@ callout_cpu_init(struct callout_cpu *cc, int cpu)
 	mtx_init(&cc->cc_lock, "callout", NULL, MTX_SPIN | MTX_RECURSE);
 	SLIST_INIT(&cc->cc_callfree);
 	cc->cc_inited = 1;
-	cc->cc_callwheel = malloc(sizeof(struct callout_list) * callwheelsize,
-	    M_CALLOUT, M_WAITOK);
+	cc->cc_callwheel = malloc_domainset(sizeof(struct callout_list) *
+	    callwheelsize, M_CALLOUT,
+	    DOMAINSET_PREF(pcpu_find(cpu)->pc_domain), M_WAITOK);
 	for (i = 0; i < callwheelsize; i++)
 		LIST_INIT(&cc->cc_callwheel[i]);
 	TAILQ_INIT(&cc->cc_expireq);
