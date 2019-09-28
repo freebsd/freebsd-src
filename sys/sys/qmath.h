@@ -58,11 +58,16 @@ typedef uint64_t	u64q_t;
 typedef	s64q_t		smaxq_t;
 typedef	u64q_t		umaxq_t;
 
+#if defined(__GNUC__)
+/* Ancient GCC hack to de-const, remove when GCC4 is removed. */
+#define	Q_BT(q)		__typeof(1 * q)
+#else
 /* The underlying base type of 'q'. */
 #define	Q_BT(q)		__typeof(q)
+#endif
 
 /* Type-cast variable 'v' to the same underlying type as 'q'. */
-#define	Q_TC(q, v)	((Q_BT(q))(v))
+#define	Q_TC(q, v)	((__typeof(q))(v))
 
 /* Number of total bits associated with the data type underlying 'q'. */
 #define	Q_NTBITS(q)	((uint32_t)(sizeof(q) << 3))
