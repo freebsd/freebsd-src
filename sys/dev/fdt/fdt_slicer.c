@@ -159,12 +159,12 @@ fdt_slicer_cleanup(void)
 }
 
 /*
- * Must be initialized after GEOM classes (SI_SUB_DRIVERS/SI_ORDER_FIRST),
+ * Must be initialized after GEOM classes (SI_SUB_DRIVERS/SI_ORDER_SECOND),
  * i. e. after g_init() is called, due to the use of the GEOM topology_lock
  * in flash_register_slicer().  However, must be before SI_SUB_CONFIGURE.
  */
-SYSINIT(fdt_slicer, SI_SUB_DRIVERS, SI_ORDER_SECOND, fdt_slicer_init, NULL);
-SYSUNINIT(fdt_slicer, SI_SUB_DRIVERS, SI_ORDER_SECOND, fdt_slicer_cleanup, NULL);
+SYSINIT(fdt_slicer, SI_SUB_DRIVERS, SI_ORDER_THIRD, fdt_slicer_init, NULL);
+SYSUNINIT(fdt_slicer, SI_SUB_DRIVERS, SI_ORDER_THIRD, fdt_slicer_cleanup, NULL);
 
 static int
 mod_handler(module_t mod, int type, void *data)
@@ -181,6 +181,6 @@ static moduledata_t fdt_slicer_mod = {
 	"fdt_slicer", mod_handler, NULL
 };
 
-DECLARE_MODULE(fdt_slicer, fdt_slicer_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
+DECLARE_MODULE(fdt_slicer, fdt_slicer_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 MODULE_DEPEND(fdt_slicer, g_flashmap, 0, 0, 0);
 MODULE_VERSION(fdt_slicer, 1);
