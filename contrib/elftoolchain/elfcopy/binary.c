@@ -58,6 +58,7 @@ create_binary(int ifd, int ofd)
 		errx(EXIT_FAILURE, "elf_begin() failed: %s",
 		    elf_errmsg(-1));
 
+	baseaddr = 0;
 	baseoff = 0;
 	if (lseek(ofd, baseoff, SEEK_SET) < 0)
 		err(EXIT_FAILURE, "lseek failed");
