@@ -16,6 +16,12 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20190913:
+	ntpd no longer by default locks its pages in memory, allowing them
+	to be paged out by the kernel. Use rlimit memlock to restore
+	historic BSD behaviour. For example, add "rlimit memlock 32"
+	to ntp.conf to lock up to 32 MB of ntpd address space in memory.
+
 20190914:
 	The vfs.fusefs.sync_unmount and vfs.fusefs.init_backgrounded sysctls
 	and the "-o sync_unmount" and "-o init_backgrounded" mount options have
