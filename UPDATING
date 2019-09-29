@@ -16,6 +16,12 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20190913:
+	ntpd no longer by default locks its pages in memory, allowing them
+	to be paged out by the kernel. Use rlimit memlock to restore
+	historic BSD behaviour. For example, add "rlimit memlock 32"
+	to ntp.conf to lock up to 32 MB of ntpd address space in memory.
+
 20190723:
 	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
 	been upgraded to 8.0.1.  Please see the 20141231 entry below for
