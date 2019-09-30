@@ -622,8 +622,8 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 			qpair->phase = !qpair->phase;			/* 3 */
 		}
 
-		nvme_mmio_write_4(qpair->ctrlr, doorbell[qpair->id].cq_hdbl,
-		    qpair->cq_head);
+		bus_space_write_4(qpair->ctrlr->bus_tag, qpair->ctrlr->bus_handle,
+		    qpair->cq_hdbl_off, qpair->cq_head);
 	}
 	return (done != 0);
 }
@@ -731,8 +731,15 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 	qpair->cpl_bus_addr = queuemem_phys + cmdsz;
 	prpmem_phys = queuemem_phys + cmdsz + cplsz;
 
-	qpair->sq_tdbl_off = nvme_mmio_offsetof(doorbell[id].sq_tdbl);
-	qpair->cq_hdbl_off = nvme_mmio_offsetof(doorbell[id].cq_hdbl);
+	/*
+	 * Calcuate the stride of the doorbell register. Many emulators set this
+	 * value to correspond to a cache line. However, some hardware has set
+	 * it to various small values.
+	 */
+	qpair->sq_tdbl_off = nvme_mmio_offsetof(doorbell[0]) +
+	    (id << (ctrlr->dstrd + 1));
+	qpair->cq_hdbl_off = nvme_mmio_offsetof(doorbell[0]) +
+	    (id << (ctrlr->dstrd + 1)) + (1 << ctrlr->dstrd);
 
 	TAILQ_INIT(&qpair->free_tr);
 	TAILQ_INIT(&qpair->outstanding_tr);
@@ -950,9 +957,8 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 	wmb();
 #endif
 
-	nvme_mmio_write_4(qpair->ctrlr, doorbell[qpair->id].sq_tdbl,
-	    qpair->sq_tail);
-
+	bus_space_write_4(qpair->ctrlr->bus_tag, qpair->ctrlr->bus_handle,
+	    qpair->sq_tdbl_off, qpair->sq_tail);
 	qpair->num_cmds++;
 }
 
