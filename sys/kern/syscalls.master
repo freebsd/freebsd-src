@@ -3193,7 +3193,8 @@
 		    _Out_writes_bytes_opt_(*oldlenp) void *old,
 		    _Inout_opt_ size_t *oldlenp,
 		    _In_reads_bytes_opt_(newlen) void *new,
-		    size_t newlen);
+		    size_t newlen
+		);
 	}
 571	AUE_SHMOPEN	STD {
 		int shm_open2(
