@@ -657,8 +657,18 @@ sysdecode_mlockall_flags(FILE *fp, int flags, int *rem)
 bool
 sysdecode_mmap_prot(FILE *fp, int prot, int *rem)
 {
+	int protm;
+	bool printed;
 
-	return (print_mask_int(fp, mmapprot, prot, rem));
+	printed = false;
+	protm = PROT_MAX_EXTRACT(prot);
+	if (protm != 0) {
+		fputs("PROT_MAX(", fp);
+		printed = print_mask_int(fp, mmapprot, protm, rem);
+		fputs(")|", fp);
+		prot = protm;
+	}
+	return (print_mask_int(fp, mmapprot, prot, rem) || printed);
 }
 
 bool
