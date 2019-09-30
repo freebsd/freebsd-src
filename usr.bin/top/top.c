@@ -232,7 +232,7 @@ main(int argc, const char *argv[])
     static char tempbuf2[50];
 	sigset_t old_sigmask, new_sigmask;
     int topn = Infinity;
-    double delay = 2;
+    struct timeval delay = { 2, 0 };
     int displays = 0;		/* indicates unspecified */
     int sel_ret = 0;
     time_t curr_time;
@@ -371,20 +371,26 @@ main(int argc, const char *argv[])
 		break;
 	      }
 
-		  case 's':
-			delay = strtod(optarg, &nptr);
-			if (nptr == optarg) {
-				warnx("warning: invalid delay");
-				delay = 2;
-				warnings++;
-			}
-			if (delay < 0) {
-				warnx("warning: seconds delay should be positive -- using default");
-				delay = 2;
-				warnings++;
-			}
-
-		break;
+	      case 's':
+	      {
+		  double delay_d = strtod(optarg, &nptr);
+		  if (nptr == optarg)
+		  {
+		      warnx("warning: invalid delay");
+		      warnings++;
+		  }
+		  else if (delay_d <= 0)
+		  {
+		      warnx("warning: seconds delay should be positive -- using default");
+		      warnings++;
+		  }
+		  else
+		  {
+		      delay.tv_sec = delay_d;
+		      delay.tv_usec = (delay_d - delay.tv_sec) * 1e6;
+		  }
+		  break;
+	      }
 
 	      case 'q':		/* be quick about it */
 			errno = 0;
@@ -698,7 +704,8 @@ restart:
 	    no_command = true;
 	    if (!interactive)
 	    {
-		usleep(delay * 1e6);
+		timeout = delay;
+		select(0, NULL, NULL, NULL, &timeout);
 		if (leaveflag) {
 		    end_screen();
 		    exit(0);
@@ -712,8 +719,7 @@ restart:
 		/* set up arguments for select with timeout */
 		FD_ZERO(&readfds);
 		FD_SET(0, &readfds);		/* for standard input */
-		timeout.tv_sec  = delay;
-		timeout.tv_usec = 0;
+		timeout = delay;
 
 		if (leaveflag) {
 		    end_screen();
@@ -874,14 +880,22 @@ restart:
 
 			    case CMD_delay:	/* new seconds delay */
 				new_message(MT_standout, "Seconds to delay: ");
-				if ((i = readline(tempbuf1, 8, true)) > -1)
+				if ((i = readline(tempbuf1, 8, false)) > 0)
 				{
-				    if ((delay = i) == 0)
+				    double delay_d = strtod(tempbuf1, &nptr);
+				    if (nptr == tempbuf1 || delay_d <= 0)
 				    {
-					delay = 1;
+					new_message(MT_standout, " Invalid delay");
+					putchar('\r');
+					no_command = true;
+				    }
+				    else
+				    {
+					delay.tv_sec = delay_d;
+					delay.tv_usec = (delay_d - delay.tv_sec) * 1e6;
+					clear_message();
 				    }
 				}
-				clear_message();
 				break;
 
 			    case CMD_displays:	/* change display count */
