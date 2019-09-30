@@ -124,7 +124,8 @@ main(int argc __unused, char *argv[])
 	 * descriptor explicitly so that the summary handler (called
 	 * from an atexit() hook) includes this work.
 	 */
-	close(out.fd);
+	if (close(out.fd) == -1 && errno != EINTR)
+		err(1, "close");
 	exit(0);
 }
 
