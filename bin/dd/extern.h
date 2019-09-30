@@ -58,7 +58,7 @@ extern STAT st;
 extern void (*cfunc)(void);
 extern uintmax_t cpy_cnt;
 extern size_t cbsz;
-extern u_int ddflags;
+extern uint64_t ddflags;
 extern size_t speed;
 extern uintmax_t files_cnt;
 extern const u_char *ctab;

@@ -77,7 +77,7 @@ static off_t	get_off_t(const char *);
 static const struct arg {
 	const char *name;
 	void (*f)(char *);
-	u_int set, noset;
+	uint64_t set, noset;
 } args[] = {
 	{ "bs",		f_bs,		C_BS,	 C_BS|C_IBS|C_OBS|C_OSYNC },
 	{ "cbs",	f_cbs,		C_CBS,	 C_CBS },
@@ -314,12 +314,13 @@ f_status(char *arg)
  
 static const struct conv {
 	const char *name;
-	u_int set, noset;
+	uint64_t set, noset;
 	const u_char *ctab;
 } clist[] = {
 	{ "ascii",	C_ASCII,	C_EBCDIC,	e2a_POSIX },
 	{ "block",	C_BLOCK,	C_UNBLOCK,	NULL },
 	{ "ebcdic",	C_EBCDIC,	C_ASCII,	a2e_POSIX },
+	{ "fdatasync",	C_FDATASYNC,	0,		NULL },
 	{ "fsync",	C_FSYNC,	0,		NULL },
 	{ "ibm",	C_EBCDIC,	C_ASCII,	a2ibm_POSIX },
 	{ "lcase",	C_LCASE,	C_UCASE,	NULL },
