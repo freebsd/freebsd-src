@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 static int	c_arg(const void *, const void *);
 static int	c_conv(const void *, const void *);
+static int	c_iflag(const void *, const void *);
 static int	c_oflag(const void *, const void *);
 static void	f_bs(char *);
 static void	f_cbs(char *);
@@ -66,6 +67,7 @@ static void	f_files(char *);
 static void	f_fillchar(char *);
 static void	f_ibs(char *);
 static void	f_if(char *);
+static void	f_iflag(char *);
 static void	f_obs(char *);
 static void	f_of(char *);
 static void	f_oflag(char *);
@@ -89,6 +91,7 @@ static const struct arg {
 	{ "fillchar",	f_fillchar,	C_FILL,	 C_FILL },
 	{ "ibs",	f_ibs,		C_IBS,	 C_BS|C_IBS },
 	{ "if",		f_if,		C_IF,	 C_IF },
+	{ "iflag",	f_iflag,	0,	 0 },
 	{ "iseek",	f_skip,		C_SKIP,	 C_SKIP },
 	{ "obs",	f_obs,		C_OBS,	 C_BS|C_OBS },
 	{ "of",		f_of,		C_OF,	 C_OF },
@@ -259,6 +262,38 @@ f_if(char *arg)
 	in.name = arg;
 }
 
+static const struct iflag {
+	const char *name;
+	uint64_t set, noset;
+} ilist[] = {
+	{ "fullblock",	C_IFULLBLOCK,	C_SYNC },
+};
+
+static void
+f_iflag(char *arg)
+{
+	struct iflag *ip, tmp;
+
+	while (arg != NULL) {
+		tmp.name = strsep(&arg, ",");
+		ip = bsearch(&tmp, ilist, nitems(ilist), sizeof(struct iflag),
+		    c_iflag);
+		if (ip == NULL)
+			errx(1, "unknown iflag %s", tmp.name);
+		if (ddflags & ip->noset)
+			errx(1, "%s: illegal conversion combination", tmp.name);
+		ddflags |= ip->set;
+	}
+}
+
+static int
+c_iflag(const void *a, const void *b)
+{
+
+	return (strcmp(((const struct iflag *)a)->name,
+	    ((const struct iflag *)b)->name));
+}
+
 static void
 f_obs(char *arg)
 {
@@ -339,7 +374,7 @@ static const struct conv {
 	{ "parset",	C_PARSET,	C_PARODD|C_PAREVEN|C_PARNONE, NULL},
 	{ "sparse",	C_SPARSE,	0,		NULL },
 	{ "swab",	C_SWAB,		0,		NULL },
-	{ "sync",	C_SYNC,		0,		NULL },
+	{ "sync",	C_SYNC,		C_IFULLBLOCK,	NULL },
 	{ "ucase",	C_UCASE,	C_LCASE,	NULL },
 	{ "unblock",	C_UNBLOCK,	C_BLOCK,	NULL },
 };

@@ -408,13 +408,15 @@ dd_in(void)
 				memset(in.dbp, 0, in.dbsz);
 		}
 
-		n = read(in.fd, in.dbp, in.dbsz);
-		if (n == 0) {
-			in.dbrcnt = 0;
-			return;
-		}
+		in.dbrcnt = 0;
+fill:
+		n = read(in.fd, in.dbp + in.dbrcnt, in.dbsz - in.dbrcnt);
 
-		/* Read error. */
+		/* EOF */
+		if (n == 0 && in.dbrcnt == 0)
+			return;
+
+		/* Read error */
 		if (n == -1) {
 			/*
 			 * If noerror not specified, die.  POSIX requires that
@@ -438,25 +440,25 @@ dd_in(void)
 			/* If sync not specified, omit block and continue. */
 			if (!(ddflags & C_SYNC))
 				continue;
-
-			/* Read errors count as full blocks. */
-			in.dbcnt += in.dbrcnt = in.dbsz;
-			++st.in_full;
-
-		/* Handle full input blocks. */
-		} else if ((size_t)n == (size_t)in.dbsz) {
-			in.dbcnt += in.dbrcnt = n;
-			++st.in_full;
-
-		/* Handle partial input blocks. */
-		} else {
-			/* If sync, use the entire block. */
-			if (ddflags & C_SYNC)
-				in.dbcnt += in.dbrcnt = in.dbsz;
-			else
-				in.dbcnt += in.dbrcnt = n;
-			++st.in_part;
 		}
+
+		/* If conv=sync, use the entire block. */
+		if (ddflags & C_SYNC)
+			n = in.dbsz;
+
+		/* Count the bytes read for this block. */
+		in.dbrcnt += n;
+
+		/* Count the number of full and partial blocks. */
+		if (in.dbrcnt == in.dbsz)
+			++st.in_full;
+		else if (ddflags & C_IFULLBLOCK && n != 0)
+			goto fill; /* these don't count */
+		else
+			++st.in_part;
+
+		/* Count the total bytes read for this file. */
+		in.dbcnt += in.dbrcnt;
 
 		/*
 		 * POSIX states that if bs is set and no other conversions
@@ -478,6 +480,7 @@ dd_in(void)
 			swapbytes(in.dbp, (size_t)n);
 		}
 
+		/* Advance to the next block. */
 		in.dbp += in.dbrcnt;
 		(*cfunc)();
 		if (need_summary)
