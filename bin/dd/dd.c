@@ -83,7 +83,7 @@ STAT	st;			/* statistics */
 void	(*cfunc)(void);		/* conversion function */
 uintmax_t cpy_cnt;		/* # of blocks to copy */
 static off_t	pending = 0;	/* pending seek if sparse */
-u_int	ddflags = 0;		/* conversion options */
+uint64_t	ddflags = 0;	/* conversion options */
 size_t	cbsz;			/* conversion block size */
 uintmax_t files_cnt = 1;	/* # of files to copy */
 const	u_char *ctab;		/* conversion table */
@@ -164,7 +164,7 @@ setup(void)
 		errx(1, "files is not supported for non-tape devices");
 
 	cap_rights_set(&rights, CAP_FTRUNCATE, CAP_IOCTL, CAP_WRITE);
-	if (ddflags & C_FSYNC)
+	if (ddflags & (C_FDATASYNC | C_FSYNC))
 		cap_rights_set(&rights, CAP_FSYNC);
 	if (out.name == NULL) {
 		/* No way to check for read access here. */
@@ -511,6 +511,9 @@ dd_close(void)
 	if (ddflags & C_FSYNC) {
 		if (fsync(out.fd) == -1)
 			err(1, "fsyncing %s", out.name);
+	} else if (ddflags & C_FDATASYNC) {
+		if (fdatasync(out.fd) == -1)
+			err(1, "fdatasyncing %s", out.name);
 	}
 }
 
