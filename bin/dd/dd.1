@@ -102,6 +102,22 @@ bytes instead of the default 512.
 Read input from
 .Ar file
 instead of the standard input.
+.It Cm iflag Ns = Ns Ar value Ns Op , Ns Ar value ...
+Where
+.Cm value
+is one of the symbols from the following list.
+.Bl -tag -width "fullblock"
+.It Cm fullblock
+Reading from the input file may not obtain a full block.
+When a read returns short, continue reading to fill the block.
+Without this flag,
+.Cm count
+limits the number of times
+.Xr read 2
+is called on the input rather than the number of blocks copied in full.
+May not be combined with
+.Cm conv=sync .
+.El
 .It Cm iseek Ns = Ns Ar n
 Seek on the input file
 .Ar n
