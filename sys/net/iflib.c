@@ -4260,6 +4260,9 @@ iflib_vlan_register(void *arg, if_t ifp, uint16_t vtag)
 	if ((vtag == 0) || (vtag > 4095))
 		return;
 
+	if (iflib_in_detach(ctx))
+		return;
+
 	CTX_LOCK(ctx);
 	IFDI_VLAN_REGISTER(ctx, vtag);
 	/* Re-init to load the changes */
@@ -5024,12 +5027,6 @@ iflib_device_deregister(if_ctx_t ctx)
 	CTX_LOCK(ctx);
 	iflib_stop(ctx);
 	CTX_UNLOCK(ctx);
-
-	/* Unregister VLAN events */
-	if (ctx->ifc_vlan_attach_event != NULL)
-		EVENTHANDLER_DEREGISTER(vlan_config, ctx->ifc_vlan_attach_event);
-	if (ctx->ifc_vlan_detach_event != NULL)
-		EVENTHANDLER_DEREGISTER(vlan_unconfig, ctx->ifc_vlan_detach_event);
 
 	iflib_netmap_detach(ifp);
 	ether_ifdetach(ifp);
