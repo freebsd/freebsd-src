@@ -190,8 +190,8 @@
 .Ar snapshot
 .Nm
 .Cm send
-.Op Fl Lce
-.Op Fl i Ar snapshot Ns | Ns bookmark
+.Op Fl LPcenv
+.Op Fl i Ar snapshot Ns | Ns Ar bookmark
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Nm
 .Cm send
@@ -2764,7 +2764,7 @@ on future versions of
 .It Xo
 .Nm
 .Cm send
-.Op Fl Lce
+.Op Fl LPcenv
 .Op Fl i Ar snapshot Ns | Ns Ar bookmark
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Xc
@@ -2778,7 +2778,7 @@ stream generated from a filesystem or volume is received, the default snapshot
 name will be
 .Pq --head-- .
 .Bl -tag -width indent
-.It Fl i Ar snapshot Ns | Ns bookmark
+.It Fl i Ar snapshot Ns | Ns Ar bookmark
 Generate an incremental send stream.
 The incremental source must be an earlier
 snapshot in the destination's history.
@@ -2790,6 +2790,23 @@ specified as the last component of the name
 If the incremental target is a clone, the incremental source can
 be the origin snapshot, or an earlier snapshot in the origin's filesystem,
 or the origin's origin, etc.
+.It Fl n, -dryrun
+Do a dry-run
+.Pq Qq No-op
+send.
+Do not generate any actual send data.
+This is useful in conjunction with the
+.Fl v
+or
+.Fl P
+flags to determine what data will be sent.
+In this case, the verbose output will be written to standard output
+.Po contrast with a non-dry-run, where the stream is written to standard output
+and the verbose output goes to standard error
+.Pc .
+.It Fl v, -verbose
+Print verbose information about the stream package generated.
+This information includes a per-second report of how much data has been sent.
 .It Fl L, -large-block
 Generate a stream which may contain blocks larger than 128KB.
 This flag
@@ -2806,6 +2823,8 @@ See
 for details on ZFS feature flags and the
 .Sy large_blocks
 feature.
+.It Fl P, -parsable
+Print machine-parsable verbose information about the stream package generated.
 .It Fl c, -compressed
 Generate a more compact stream by using compressed WRITE records for blocks
 which are compressed on disk and in memory (see the
