@@ -201,13 +201,6 @@
 #define	NDMPML4E	8
 
 /*
- * NPAPML4E is the maximum number of PML4 entries that will be
- * used to implement the page array.  This should be roughly 3% of
- * NPDPML4E owing to 3% overhead for struct vm_page.
- */
-#define	NPAPML4E	1
-
-/*
  * These values control the layout of virtual memory.  The starting address
  * of the direct map, which is controlled by DMPML4I, must be a multiple of
  * its size.  (See the PHYS_TO_DMAP() and DMAP_TO_PHYS() macros.)
@@ -226,8 +219,7 @@
 #define	PML4PML4I	(NPML4EPG/2)	/* Index of recursive pml4 mapping */
 
 #define	KPML4BASE	(NPML4EPG-NKPML4E) /* KVM at highest addresses */
-#define	PAPML4I		(KPML4BASE-1-NPAPML4E) /* Below KVM */
-#define	DMPML4I		rounddown(PAPML4I-NDMPML4E, NDMPML4E) /* Below pages */
+#define	DMPML4I		rounddown(KPML4BASE-NDMPML4E, NDMPML4E) /* Below KVM */
 
 #define	KPML4I		(NPML4EPG-1)
 #define	KPDPI		(NPDPEPG-2)	/* kernbase at -2GB */
