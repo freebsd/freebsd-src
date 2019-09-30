@@ -123,6 +123,19 @@ If an initial portion of the output file is seeked past (see the
 .Cm oseek
 operand),
 the output file is truncated at that point.
+.It Cm oflag Ns = Ns Ar value Ns Op , Ns Ar value ...
+Where
+.Cm value
+is one of the symbols from the following list.
+.Bl -tag -width "fsync"
+.It Cm fsync
+Set the O_FSYNC flag on the output file to make writes synchronous.
+.It Cm sync
+Set the O_SYNC flag on the output file to make writes synchronous.
+This is synonymous with the
+.Cm fsync
+value.
+.El
 .It Cm oseek Ns = Ns Ar n
 Seek on the output file
 .Ar n
