@@ -1544,13 +1544,13 @@ create_pagetables(vm_paddr_t *firstaddr)
 	}
 	for (j = 0; i < ndmpdp; i++, j++) {
 		pdp_p[i] = DMPDphys + ptoa(j);
-		pdp_p[i] |= X86_PG_RW | X86_PG_V;
+		pdp_p[i] |= X86_PG_RW | X86_PG_V | pg_nx;
 	}
 
 	/*
 	 * Instead of using a 1G page for the memory containing the kernel,
-	 * use 2M pages with appropriate permissions. (If using 1G pages,
-	 * this will partially overwrite the PDPEs above.)
+	 * use 2M pages with read-only and no-execute permissions.  (If using 1G
+	 * pages, this will partially overwrite the PDPEs above.)
 	 */
 	if (ndm1g) {
 		pd_p = (pd_entry_t *)DMPDkernphys;
@@ -1560,7 +1560,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 			    bootaddr_rwx(i << PDRSHIFT);
 		for (i = 0; i < nkdmpde; i++)
 			pdp_p[i] = (DMPDkernphys + ptoa(i)) | X86_PG_RW |
-			    X86_PG_V;
+			    X86_PG_V | pg_nx;
 	}
 
 	/* And recursively map PML4 to itself in order to get PTmap */
@@ -1571,7 +1571,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 	/* Connect the Direct Map slot(s) up to the PML4. */
 	for (i = 0; i < ndmpdpphys; i++) {
 		p4_p[DMPML4I + i] = DMPDPphys + ptoa(i);
-		p4_p[DMPML4I + i] |= X86_PG_RW | X86_PG_V;
+		p4_p[DMPML4I + i] |= X86_PG_RW | X86_PG_V | pg_nx;
 	}
 
 	/* Connect the KVA slots up to the PML4 */
