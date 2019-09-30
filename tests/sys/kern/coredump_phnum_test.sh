@@ -40,20 +40,30 @@ coredump_phnum_head()
 coredump_phnum_body()
 {
 	# Set up core dumping
-	cat > coredump_phnum_restore_state.sh <<-EOF
-	#!/bin/sh
-	ulimit -c '$(ulimit -c)'
-	sysctl kern.coredump=$(sysctl -n kern.coredump)
-	sysctl kern.corefile='$(sysctl -n kern.corefile)'
-	sysctl kern.compress_user_cores='$(sysctl -n kern.compress_user_cores)'
-EOF
+	atf_check -o save:coredump_phnum_restore_state sysctl -e \
+	    kern.coredump kern.corefile
 
 	ulimit -c unlimited
-	sysctl kern.coredump=1
-	sysctl kern.compress_user_cores=0
-	sysctl kern.corefile="$(pwd)/coredump_phnum_helper.core"
+	atf_check -o ignore sysctl kern.coredump=1
+	atf_check -o ignore sysctl kern.corefile=coredump_phnum_helper.core
+	atf_check -o save:cuc sysctl -n kern.compress_user_cores
+	read cuc < cuc
 
 	atf_check -s signal:sigabrt "$(atf_get_srcdir)/coredump_phnum_helper"
+
+	case "$cuc" in
+	0)
+		;;
+	1)
+		atf_check gunzip coredump_phnum_helper.core.gz
+		;;
+	2)
+		atf_check zstd -qd coredump_phnum_helper.core.zst
+		;;
+	*)
+		atf_skip "unsupported kern.compress_user_cores=$cuc"
+		;;
+	esac
 
 	# Check that core looks good
 	if [ ! -f coredump_phnum_helper.core ]; then
@@ -76,10 +86,11 @@ EOF
 coredump_phnum_cleanup()
 {
 	rm -f coredump_phnum_helper.core
-	if [ -f coredump_phnum_restore_state.sh ]; then
-		. ./coredump_phnum_restore_state.sh
+	if [ -f coredump_phnum_restore_state ]; then
+		sysctl -f coredump_phnum_restore_state
+		rm -f coredump_phnum_restore_state
 	fi
-	rm -f coredump_phnum_restore_state.sh
+	rm -f cuc
 }
 
 atf_init_test_cases()
