@@ -143,6 +143,7 @@ static void
 setup(void)
 {
 	u_int cnt;
+	int oflags;
 	cap_rights_t rights;
 	unsigned long cmds[] = { FIODTYPE, MTIOCTOP };
 
@@ -171,17 +172,28 @@ setup(void)
 		/* No way to check for read access here. */
 		out.fd = STDOUT_FILENO;
 		out.name = "stdout";
+		if (ddflags & C_OFSYNC) {
+			oflags = fcntl(out.fd, F_GETFL);
+			if (oflags == -1)
+				err(1, "unable to get fd flags for stdout");
+			oflags |= O_FSYNC;
+			if (fcntl(out.fd, F_SETFL, oflags) == -1)
+				err(1, "unable to set fd flags for stdout");
+		}
 	} else {
-#define	OFLAGS \
-    (O_CREAT | (ddflags & (C_SEEK | C_NOTRUNC) ? 0 : O_TRUNC))
-		out.fd = open(out.name, O_RDWR | OFLAGS, DEFFILEMODE);
+		oflags = O_CREAT;
+		if (!(ddflags & (C_SEEK | C_NOTRUNC)))
+			oflags |= O_TRUNC;
+		if (ddflags & C_OFSYNC)
+			oflags |= O_FSYNC;
+		out.fd = open(out.name, O_RDWR | oflags, DEFFILEMODE);
 		/*
 		 * May not have read access, so try again with write only.
 		 * Without read we may have a problem if output also does
 		 * not support seeks.
 		 */
 		if (out.fd == -1) {
-			out.fd = open(out.name, O_WRONLY | OFLAGS, DEFFILEMODE);
+			out.fd = open(out.name, O_WRONLY | oflags, DEFFILEMODE);
 			out.flags |= NOREAD;
 			cap_rights_clear(&rights, CAP_READ);
 		}
