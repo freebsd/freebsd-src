@@ -6059,6 +6059,7 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	gtask_fn_t *fn;
 	void *q;
 	int err, tqrid;
+	bool rx_only;
 
 	q = &ctx->ifc_rxqs[0];
 	info = &rxq[0].ifr_filter_info;
@@ -6066,17 +6067,19 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	tqg = qgroup_if_io_tqg;
 	tqrid = *rid;
 	fn = _task_fn_rx;
+	rx_only = (ctx->ifc_sctx->isc_flags & IFLIB_SINGLE_IRQ_RX_ONLY) != 0;
 
 	ctx->ifc_flags |= IFC_LEGACY;
 	info->ifi_filter = filter;
 	info->ifi_filter_arg = filter_arg;
 	info->ifi_task = gtask;
-	info->ifi_ctx = q;
+	info->ifi_ctx = rx_only ? ctx : q;
 
 	dev = ctx->ifc_dev;
 	/* We allocate a single interrupt resource */
-	if ((err = _iflib_irq_alloc(ctx, irq, tqrid, iflib_fast_intr_rxtx,
-	    NULL, info, name)) != 0)
+	err = _iflib_irq_alloc(ctx, irq, tqrid, rx_only ? iflib_fast_intr_ctx :
+	    iflib_fast_intr_rxtx, NULL, info, name);
+	if (err != 0)
 		return (err);
 	GROUPTASK_INIT(gtask, 0, fn, q);
 	res = irq->ii_res;
