@@ -1011,12 +1011,13 @@ ixgbe_if_attach_pre(if_ctx_t ctx)
 	    CSUM_IP6_TCP | CSUM_IP6_UDP | CSUM_IP6_TSO;
 	if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
 		scctx->isc_tx_nsegments = IXGBE_82598_SCATTER;
-		scctx->isc_msix_bar = PCIR_BAR(MSIX_82598_BAR);
 	} else {
 		scctx->isc_tx_csum_flags |= CSUM_SCTP |CSUM_IP6_SCTP;
 		scctx->isc_tx_nsegments = IXGBE_82599_SCATTER;
-		scctx->isc_msix_bar = PCIR_BAR(MSIX_82599_BAR);
 	}
+
+	scctx->isc_msix_bar = pci_msix_table_bar(dev);
+
 	scctx->isc_tx_tso_segments_max = scctx->isc_tx_nsegments;
 	scctx->isc_tx_tso_size_max = IXGBE_TSO_SIZE;
 	scctx->isc_tx_tso_segsize_max = PAGE_SIZE;

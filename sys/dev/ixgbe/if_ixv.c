@@ -495,7 +495,7 @@ ixv_if_attach_pre(if_ctx_t ctx)
 	scctx->isc_tx_csum_flags = CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_TSO |
 	    CSUM_IP6_TCP | CSUM_IP6_UDP | CSUM_IP6_TSO;
 	scctx->isc_tx_nsegments = IXGBE_82599_SCATTER;
-	scctx->isc_msix_bar = PCIR_BAR(MSIX_82598_BAR);
+	scctx->isc_msix_bar = pci_msix_table_bar(dev);
 	scctx->isc_tx_tso_segments_max = scctx->isc_tx_nsegments;
 	scctx->isc_tx_tso_size_max = IXGBE_TSO_SIZE;
 	scctx->isc_tx_tso_segsize_max = PAGE_SIZE;

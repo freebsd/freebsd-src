@@ -189,8 +189,6 @@
 #define MAX_NUM_MULTICAST_ADDRESSES     128
 #define IXGBE_82598_SCATTER             100
 #define IXGBE_82599_SCATTER             32
-#define MSIX_82598_BAR                  3
-#define MSIX_82599_BAR                  4
 #define IXGBE_TSO_SIZE                  262140
 #define IXGBE_RX_HDR                    128
 #define IXGBE_VFTA_SIZE                 128
