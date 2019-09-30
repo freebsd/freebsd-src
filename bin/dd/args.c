@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)args.c	8.3 (Berkeley) 4/2/94";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 static int	c_arg(const void *, const void *);
 static int	c_conv(const void *, const void *);
+static int	c_oflag(const void *, const void *);
 static void	f_bs(char *);
 static void	f_cbs(char *);
 static void	f_conv(char *);
@@ -67,6 +68,7 @@ static void	f_ibs(char *);
 static void	f_if(char *);
 static void	f_obs(char *);
 static void	f_of(char *);
+static void	f_oflag(char *);
 static void	f_seek(char *);
 static void	f_skip(char *);
 static void	f_speed(char *);
@@ -90,6 +92,7 @@ static const struct arg {
 	{ "iseek",	f_skip,		C_SKIP,	 C_SKIP },
 	{ "obs",	f_obs,		C_OBS,	 C_BS|C_OBS },
 	{ "of",		f_of,		C_OF,	 C_OF },
+	{ "oflag",	f_oflag,	0,	 0 },
 	{ "oseek",	f_seek,		C_SEEK,	 C_SEEK },
 	{ "seek",	f_seek,		C_SEEK,	 C_SEEK },
 	{ "skip",	f_skip,		C_SKIP,	 C_SKIP },
@@ -348,8 +351,8 @@ f_conv(char *arg)
 
 	while (arg != NULL) {
 		tmp.name = strsep(&arg, ",");
-		cp = bsearch(&tmp, clist, sizeof(clist) / sizeof(struct conv),
-		    sizeof(struct conv), c_conv);
+		cp = bsearch(&tmp, clist, nitems(clist), sizeof(struct conv),
+		    c_conv);
 		if (cp == NULL)
 			errx(1, "unknown conversion %s", tmp.name);
 		if (ddflags & cp->noset)
@@ -366,6 +369,37 @@ c_conv(const void *a, const void *b)
 
 	return (strcmp(((const struct conv *)a)->name,
 	    ((const struct conv *)b)->name));
+}
+
+static const struct oflag {
+	const char *name;
+	uint64_t set;
+} olist[] = {
+	{ "fsync",	C_OFSYNC },
+	{ "sync",	C_OFSYNC },
+};
+
+static void
+f_oflag(char *arg)
+{
+	struct oflag *op, tmp;
+
+	while (arg != NULL) {
+		tmp.name = strsep(&arg, ",");
+		op = bsearch(&tmp, olist, nitems(olist), sizeof(struct oflag),
+		    c_oflag);
+		if (op == NULL)
+			errx(1, "unknown open flag %s", tmp.name);
+		ddflags |= op->set;
+	}
+}
+
+static int
+c_oflag(const void *a, const void *b)
+{
+
+	return (strcmp(((const struct oflag *)a)->name,
+	    ((const struct oflag *)b)->name));
 }
 
 static intmax_t
