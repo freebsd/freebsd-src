@@ -154,6 +154,15 @@ FixupLEAPass::postRAConvertToLEA(MachineFunction::iterator &MFI,
     MFI->insert(MBBI, NewMI); // Insert the new inst
     return NewMI;
   }
+  }
+
+  if (!MI.isConvertibleTo3Addr())
+    return nullptr;
+
+  switch (MI.getOpcode()) {
+  default:
+    // Only convert instructions that we've verified are safe.
+    return nullptr;
   case X86::ADD64ri32:
   case X86::ADD64ri8:
   case X86::ADD64ri32_DB:
@@ -162,24 +171,24 @@ FixupLEAPass::postRAConvertToLEA(MachineFunction::iterator &MFI,
   case X86::ADD32ri8:
   case X86::ADD32ri_DB:
   case X86::ADD32ri8_DB:
-  case X86::ADD16ri:
-  case X86::ADD16ri8:
-  case X86::ADD16ri_DB:
-  case X86::ADD16ri8_DB:
     if (!MI.getOperand(2).isImm()) {
       // convertToThreeAddress will call getImm()
       // which requires isImm() to be true
       return nullptr;
     }
     break;
-  case X86::ADD16rr:
-  case X86::ADD16rr_DB:
-    if (MI.getOperand(1).getReg() != MI.getOperand(2).getReg()) {
-      // if src1 != src2, then convertToThreeAddress will
-      // need to create a Virtual register, which we cannot do
-      // after register allocation.
-      return nullptr;
-    }
+  case X86::SHL64ri:
+  case X86::SHL32ri:
+  case X86::INC64r:
+  case X86::INC32r:
+  case X86::DEC64r:
+  case X86::DEC32r:
+  case X86::ADD64rr:
+  case X86::ADD64rr_DB:
+  case X86::ADD32rr:
+  case X86::ADD32rr_DB:
+    // These instructions are all fine to convert.
+    break;
   }
   return TII->convertToThreeAddress(MFI, MI, nullptr);
 }
