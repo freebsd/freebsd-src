@@ -706,6 +706,14 @@ cluster_write(struct vnode *vp, struct buf *bp, u_quad_t filesize, int seqcount,
 				struct cluster_save *buflist;
 
 				buflist = cluster_collectbufs(vp, bp, gbflags);
+				if (buflist == NULL) {
+					/*
+					 * Cluster build failed so just write
+					 * it now.
+					 */
+					bawrite(bp);
+					return;
+				}
 				endbp = &buflist->bs_children
 				    [buflist->bs_nchildren - 1];
 				if (VOP_REALLOCBLKS(vp, buflist)) {
@@ -1045,7 +1053,7 @@ cluster_collectbufs(struct vnode *vp, struct buf *last_bp, int gbflags)
 	struct cluster_save *buflist;
 	struct buf *bp;
 	daddr_t lbn;
-	int i, len;
+	int i, j, len, error;
 
 	len = vp->v_lastw - vp->v_cstart + 1;
 	buflist = malloc(sizeof(struct buf *) * (len + 1) + sizeof(*buflist),
@@ -1053,8 +1061,18 @@ cluster_collectbufs(struct vnode *vp, struct buf *last_bp, int gbflags)
 	buflist->bs_nchildren = 0;
 	buflist->bs_children = (struct buf **) (buflist + 1);
 	for (lbn = vp->v_cstart, i = 0; i < len; lbn++, i++) {
-		(void)bread_gb(vp, lbn, last_bp->b_bcount, NOCRED,
+		error = bread_gb(vp, lbn, last_bp->b_bcount, NOCRED,
 		    gbflags, &bp);
+		if (error != 0) {
+			/*
+			 * If read fails, release collected buffers
+			 * and return failure.
+			 */
+			for (j = 0; j < i; j++)
+				brelse(buflist->bs_children[j]);
+			free(buflist, M_SEGMENT);
+			return (NULL);
+		}
 		buflist->bs_children[i] = bp;
 		if (bp->b_blkno == bp->b_lblkno)
 			VOP_BMAP(vp, bp->b_lblkno, NULL, &bp->b_blkno,
