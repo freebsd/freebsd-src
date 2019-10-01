@@ -221,12 +221,6 @@ xctrl_suspend()
 	KASSERT((PCPU_GET(cpuid) == 0), ("Not running on CPU#0"));
 
 	/*
-	 * Clear our XenStore node so the toolstack knows we are
-	 * responding to the suspend request.
-	 */
-	xs_write(XST_NIL, "control", "shutdown", "");
-
-	/*
 	 * Be sure to hold Giant across DEVICE_SUSPEND/RESUME since non-MPSAFE
 	 * drivers need this.
 	 */
@@ -368,6 +362,11 @@ xctrl_on_watch_event(struct xs_watch *watch, const char **vec, unsigned int len)
 			&result_len, (void **)&result);
 	if (error != 0)
 		return;
+
+	/* Acknowledge the request by writing back an empty string. */
+	error = xs_write(XST_NIL, "control", "shutdown", "");
+	if (error != 0)
+		printf("unable to ack shutdown request, proceeding anyway\n");
 
 	reason = xctrl_shutdown_reasons;
 	last_reason = reason + nitems(xctrl_shutdown_reasons);
