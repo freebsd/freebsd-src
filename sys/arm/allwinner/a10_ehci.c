@@ -93,11 +93,16 @@ struct hwrst_list {
 	hwreset_t		rst;
 };
 
+struct phy_list {
+	TAILQ_ENTRY(phy_list)	next;
+	phy_t			phy;
+};
+
 struct aw_ehci_softc {
 	ehci_softc_t	sc;
 	TAILQ_HEAD(, clk_list)		clk_list;
 	TAILQ_HEAD(, hwrst_list)	rst_list;
-	phy_t				phy;
+	TAILQ_HEAD(, phy_list)		phy_list;
 };
 
 struct aw_ehci_conf {
@@ -144,18 +149,17 @@ a10_ehci_attach(device_t self)
 	struct aw_ehci_softc *aw_sc = device_get_softc(self);
 	ehci_softc_t *sc = &aw_sc->sc;
 	const struct aw_ehci_conf *conf;
-	phandle_t node;
 	bus_space_handle_t bsh;
 	int err, rid, off;
 	struct clk_list *clkp;
 	clk_t clk;
 	struct hwrst_list *rstp;
 	hwreset_t rst;
+	struct phy_list *phyp;
+	phy_t phy;
 	uint32_t reg_value = 0;
 
 	conf = USB_CONF(self);
-
-	node = ofw_bus_get_node(self);
 
 	/* initialise some bus fields */
 	sc->sc_bus.parent = self;
@@ -244,17 +248,21 @@ a10_ehci_attach(device_t self)
 	}
 
 	/* Enable USB PHY */
-	if (phy_get_by_ofw_idx(self, node, 0, &aw_sc->phy) == 0) {
-		err = phy_usb_set_mode(aw_sc->phy, PHY_USB_MODE_HOST);
+	TAILQ_INIT(&aw_sc->phy_list);
+	for (off = 0; phy_get_by_ofw_idx(self, 0, off, &phy) == 0; off++) {
+		err = phy_usb_set_mode(phy, PHY_USB_MODE_HOST);
 		if (err != 0) {
 			device_printf(self, "Could not set phy to host mode\n");
 			goto error;
 		}
-		err = phy_enable(aw_sc->phy);
+		err = phy_enable(phy);
 		if (err != 0) {
 			device_printf(self, "Could not enable phy\n");
 			goto error;
 		}
+		phyp = malloc(sizeof(*phyp), M_DEVBUF, M_WAITOK | M_ZERO);
+		phyp->phy = phy;
+		TAILQ_INSERT_TAIL(&aw_sc->phy_list, phyp, next);
 	}
 
 	/* Configure port */
@@ -289,6 +297,7 @@ a10_ehci_detach(device_t self)
 	uint32_t reg_value = 0;
 	struct clk_list *clk, *clk_tmp;
 	struct hwrst_list *rst, *rst_tmp;
+	struct phy_list *phy, *phy_tmp;
 
 	conf = USB_CONF(self);
 
@@ -348,6 +357,16 @@ a10_ehci_detach(device_t self)
 		hwreset_release(rst->rst);
 		TAILQ_REMOVE(&aw_sc->rst_list, rst, next);
 		free(rst, M_DEVBUF);
+	}
+
+	/* Disable phys */
+	TAILQ_FOREACH_SAFE(phy, &aw_sc->phy_list, next, phy_tmp) {
+		err = phy_disable(phy->phy);
+		if (err != 0)
+			device_printf(self, "Could not disable phy\n");
+		phy_release(phy->phy);
+		TAILQ_REMOVE(&aw_sc->phy_list, phy, next);
+		free(phy, M_DEVBUF);
 	}
 
 	return (0);
