@@ -1,7 +1,6 @@
 # $FreeBSD$
 #
-PROG=	httpd
-SRCS=	simple_httpd.c
+PROG=	simple_httpd
 MAN=
 WARNS?=6
 
