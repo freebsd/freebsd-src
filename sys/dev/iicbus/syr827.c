@@ -90,42 +90,13 @@ struct syr827_softc {
 static int
 syr827_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
 {
-	struct syr827_softc *sc;
-	struct iic_msg msg[2];
-
-	sc = device_get_softc(dev);
-
-	msg[0].slave = sc->addr;
-	msg[0].flags = IIC_M_WR;
-	msg[0].len = 1;
-	msg[0].buf = &reg;
-
-	msg[1].slave = sc->addr;
-	msg[1].flags = IIC_M_RD;
-	msg[1].len = size;
-	msg[1].buf = data;
-
-	return (iicbus_transfer(dev, msg, 2));
+	return (iicdev_readfrom(dev, reg, data, size, IIC_INTRWAIT));
 }
 
 static int
 syr827_write(device_t dev, uint8_t reg, uint8_t val)
 {
-	struct syr827_softc *sc;
-	struct iic_msg msg;
-	uint8_t buffer[2];
-
-	sc = device_get_softc(dev);
-
-	buffer[0] = reg;
-	buffer[1] = val;
-
-	msg.slave = sc->addr;
-	msg.flags = IIC_M_WR;
-	msg.len = 2;
-	msg.buf = buffer;
-
-	return (iicbus_transfer(dev, &msg, 1));
+	return (iicdev_writeto(dev, reg, &val, 1, IIC_INTRWAIT));
 }
 
 static int
