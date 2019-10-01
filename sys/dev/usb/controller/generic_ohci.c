@@ -107,12 +107,15 @@ generic_ohci_attach(device_t dev)
 	int off;
 	struct clk_list *clkp;
 	clk_t clk;
+	phandle_t node;
 #endif
 
 	sc->ohci_sc.sc_bus.parent = dev;
 	sc->ohci_sc.sc_bus.devices = sc->ohci_sc.sc_devices;
 	sc->ohci_sc.sc_bus.devices_max = OHCI_MAX_DEVICES;
 	sc->ohci_sc.sc_bus.dma_bits = 32;
+
+	node = ofw_bus_get_node(dev);
 
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->ohci_sc.sc_bus,
@@ -183,7 +186,7 @@ generic_ohci_attach(device_t dev)
 	}
 
 	/* Enable phy */
-	if (phy_get_by_ofw_name(dev, 0, "usb", &sc->phy) == 0) {
+	if (phy_get_by_ofw_idx(dev, node, 0, &sc->phy) == 0) {
 		err = phy_enable(sc->phy);
 		if (err != 0) {
 			device_printf(dev, "Could not enable phy\n");
