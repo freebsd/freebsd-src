@@ -3752,8 +3752,8 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	    ATTR_AP(ATTR_AP_RO) | L3_PAGE;
 	if ((prot & VM_PROT_EXECUTE) == 0 || m->md.pv_memattr == DEVICE_MEMORY)
 		l3_val |= ATTR_XN;
-	else if (va < VM_MAXUSER_ADDRESS)
-		l3_val |= ATTR_PXN;
+	if (va < VM_MAXUSER_ADDRESS)
+		l3_val |= ATTR_AP(ATTR_AP_USER) | ATTR_PXN;
 
 	/*
 	 * Now validate mapping with RO protection
