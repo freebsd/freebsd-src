@@ -144,6 +144,7 @@ a10_ehci_attach(device_t self)
 	struct aw_ehci_softc *aw_sc = device_get_softc(self);
 	ehci_softc_t *sc = &aw_sc->sc;
 	const struct aw_ehci_conf *conf;
+	phandle_t node;
 	bus_space_handle_t bsh;
 	int err, rid, off;
 	struct clk_list *clkp;
@@ -153,6 +154,8 @@ a10_ehci_attach(device_t self)
 	uint32_t reg_value = 0;
 
 	conf = USB_CONF(self);
+
+	node = ofw_bus_get_node(self);
 
 	/* initialise some bus fields */
 	sc->sc_bus.parent = self;
@@ -241,7 +244,7 @@ a10_ehci_attach(device_t self)
 	}
 
 	/* Enable USB PHY */
-	if (phy_get_by_ofw_name(self, 0, "usb", &aw_sc->phy) == 0) {
+	if (phy_get_by_ofw_idx(self, node, 0, &aw_sc->phy) == 0) {
 		err = phy_usb_set_mode(aw_sc->phy, PHY_USB_MODE_HOST);
 		if (err != 0) {
 			device_printf(self, "Could not set phy to host mode\n");
