@@ -397,18 +397,25 @@ atomic_fcmpset_32(__volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
 {
 	int ret;
 
+	/*
+	 * The following sequence (similar to that in atomic_fcmpset_64) will
+	 * attempt to update the value of *p with newval if the comparison
+	 * succeeds.  Note that they'll exit regardless of whether the store
+	 * actually succeeded, leaving *cmpval untouched.  This is in line with
+	 * the documentation of atomic_fcmpset_<type>() in atomic(9) for ll/sc
+	 * architectures.
+	 */
 	__asm __volatile (
-		"1:\n\t"
 		"ll	%0, %1\n\t"		/* load old value */
-		"bne	%0, %4, 2f\n\t"		/* compare */
+		"bne	%0, %4, 1f\n\t"		/* compare */
 		"move	%0, %3\n\t"		/* value to store */
 		"sc	%0, %1\n\t"		/* attempt to store */
-		"beqz	%0, 1b\n\t"		/* if it failed, spin */
-		"j	3f\n\t"
-		"2:\n\t"
+		"j	2f\n\t"			/* exit regardless of success */
+		"nop\n\t"			/* avoid delay slot accident */
+		"1:\n\t"
 		"sw	%0, %2\n\t"		/* save old value */
 		"li	%0, 0\n\t"
-		"3:\n"
+		"2:\n"
 		: "=&r" (ret), "+m" (*p), "=m" (*cmpval)
 		: "r" (newval), "r" (*cmpval)
 		: "memory");
@@ -508,17 +515,16 @@ atomic_fcmpset_64(__volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
         int ret;
 
         __asm __volatile (
-                "1:\n\t"
 		"lld	%0, %1\n\t"		/* load old value */
-                "bne	%0, %4, 2f\n\t"		/* compare */
+                "bne	%0, %4, 1f\n\t"		/* compare */
                 "move	%0, %3\n\t"		/* value to store */
                 "scd	%0, %1\n\t"		/* attempt to store */
-                "beqz	%0, 1b\n\t"		/* if it failed, spin */
-                "j	3f\n\t"
-                "2:\n\t"
+		"j	2f\n\t"			/* exit regardless of success */
+		"nop\n\t"			/* avoid delay slot accident */
+                "1:\n\t"
                 "sd	%0, %2\n\t"		/* save old value */
                 "li	%0, 0\n\t"
-                "3:\n"
+                "2:\n"
                 : "=&r" (ret), "+m" (*p), "=m" (*cmpval)
                 : "r" (newval), "r" (*cmpval)
                 : "memory");
