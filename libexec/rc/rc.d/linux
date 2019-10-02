@@ -3,14 +3,14 @@
 # $FreeBSD$
 #
 
-# PROVIDE: abi
+# PROVIDE: linux
 # REQUIRE: archdep
 # KEYWORD: nojail
 
 . /etc/rc.subr
 
-name="abi"
-desc="Enable foreign ABIs"
+name="linux"
+desc="Enable Linux ABI"
 start_cmd="${name}_start"
 stop_cmd=":"
 
@@ -18,7 +18,6 @@ linux_start()
 {
 	local _tmpdir
 
-	echo -n ' linux'
 	load_kld -e 'linux(aout|elf)' linux
 	case `sysctl -n hw.machine_arch` in
 	amd64)
@@ -33,21 +32,6 @@ linux_start()
 		fi
 		rm -rf ${_tmpdir}
 	fi
-}
-
-abi_start()
-{
-	local _echostop
-
-	_echostop=
-	if checkyesno linux_enable; then
-		echo -n 'Additional ABI support:'
-		_echostop=yes
-	fi
-
-	checkyesno linux_enable && linux_start
-
-	[ -n "${_echostop}" ] && echo '.'
 }
 
 load_rc_config $name
