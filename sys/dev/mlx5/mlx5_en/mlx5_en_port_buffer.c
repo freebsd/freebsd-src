@@ -263,6 +263,7 @@ int mlx5e_port_manual_buffer_config(struct mlx5e_priv *priv,
 		if (err)
 			return err;
 
+		priv->sw_is_port_buf_owner = true;
 		err = update_buffer_lossy(mtu, pfc->pfc_en, buffer, xoff,
 					  &port_buffer, &update_buffer);
 		if (err)
@@ -316,13 +317,16 @@ int mlx5e_port_manual_buffer_config(struct mlx5e_priv *priv,
 
 	/* Apply the settings */
 	if (update_buffer) {
+		priv->sw_is_port_buf_owner = true;
 		err = port_set_buffer(priv, &port_buffer);
 		if (err)
 			return err;
 	}
 
-	if (update_prio2buffer)
+	if (update_prio2buffer) {
+		priv->sw_is_port_buf_owner = true;
 		err = mlx5e_port_set_priority2buffer(priv->mdev, prio2buffer);
+	}
 
 	return err;
 }
