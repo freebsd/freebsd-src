@@ -32,8 +32,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <dev/mlx5/driver.h>
 #include <dev/mlx5/device.h>
+#include <dev/mlx5/port.h>
 #include <dev/mlx5/mlx5_core/mlx5_core.h>
 #include <dev/mlx5/mlx5io.h>
+#include <dev/mlx5/diagnostics.h>
 
 static MALLOC_DEFINE(M_MLX5_DUMP, "MLX5DUMP", "MLX5 Firmware dump");
 
@@ -306,6 +308,54 @@ mlx5_fw_reset(struct mlx5_core_dev *mdev)
 }
 
 static int
+mlx5_eeprom_copyout(struct mlx5_core_dev *dev, struct mlx5_eeprom_get *eeprom_info)
+{
+	struct mlx5_eeprom eeprom;
+	int error;
+
+	eeprom.i2c_addr = MLX5_I2C_ADDR_LOW;
+	eeprom.device_addr = 0;
+	eeprom.page_num = MLX5_EEPROM_LOW_PAGE;
+	eeprom.page_valid = 0;
+
+	/* Read three first bytes to get important info */
+	error = mlx5_get_eeprom_info(dev, &eeprom);
+	if (error != 0) {
+		mlx5_core_err(dev,
+		    "Failed reading EEPROM initial information\n");
+		return (error);
+	}
+	eeprom_info->eeprom_info_page_valid = eeprom.page_valid;
+	eeprom_info->eeprom_info_out_len = eeprom.len;
+
+	if (eeprom_info->eeprom_info_buf == NULL)
+		return (0);
+	/*
+	 * Allocate needed length buffer and additional space for
+	 * page 0x03
+	 */
+	eeprom.data = malloc(eeprom.len + MLX5_EEPROM_PAGE_LENGTH,
+	    M_MLX5_EEPROM, M_WAITOK | M_ZERO);
+
+	/* Read the whole eeprom information */
+	error = mlx5_get_eeprom(dev, &eeprom);
+	if (error != 0) {
+		mlx5_core_err(dev, "Failed reading EEPROM error = %d\n",
+		    error);
+		error = 0;
+		/*
+		 * Continue printing partial information in case of
+		 * an error
+		 */
+	}
+	error = copyout(eeprom.data, eeprom_info->eeprom_info_buf,
+	    eeprom.len);
+	free(eeprom.data, M_MLX5_EEPROM);
+
+	return (error);
+}
+
+static int
 mlx5_ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
     struct thread *td)
 {
@@ -314,6 +364,7 @@ mlx5_ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	struct mlx5_tool_addr *devaddr;
 	struct mlx5_fw_update *fu;
 	struct firmware fake_fw;
+	struct mlx5_eeprom_get *eeprom_info;
 	int error;
 
 	error = 0;
@@ -391,6 +442,18 @@ mlx5_ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		if (error != 0)
 			break;
 		error = mlx5_fw_reset(mdev);
+		break;
+	case MLX5_EEPROM_GET:
+		if ((fflag & FREAD) == 0) {
+			error = EBADF;
+			break;
+		}
+		eeprom_info = (struct mlx5_eeprom_get *)data;
+		devaddr = &eeprom_info->devaddr;
+		error = mlx5_dbsf_to_core(devaddr, &mdev);
+		if (error != 0)
+			break;
+		error = mlx5_eeprom_copyout(mdev, eeprom_info);
 		break;
 	default:
 		error = ENOTTY;
