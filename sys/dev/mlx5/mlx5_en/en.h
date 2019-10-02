@@ -868,7 +868,6 @@ struct mlx5e_channel {
 	/* control */
 	struct mlx5e_priv *priv;
 	int	ix;
-	int	cpu;
 } __aligned(MLX5E_CACHELINE_SIZE);
 
 enum mlx5e_traffic_types {
