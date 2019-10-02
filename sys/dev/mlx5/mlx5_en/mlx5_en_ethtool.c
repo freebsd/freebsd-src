@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2019 Mellanox Technologies. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1031,30 +1031,49 @@ mlx5e_ethtool_debug_channel_info(SYSCTL_HANDLER_ARGS)
 	struct mlx5e_sq *sq;
 	struct mlx5e_rq *rq;
 	int error, i, tc;
+	bool opened;
 
 	priv = arg1;
 	error = sysctl_wire_old_buffer(req, 0);
 	if (error != 0)
 		return (error);
-	if (sbuf_new_for_sysctl(&sb, NULL, 128, req) == NULL)
+	if (sbuf_new_for_sysctl(&sb, NULL, 1024, req) == NULL)
 		return (ENOMEM);
 	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 
 	PRIV_LOCK(priv);
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state) == 0)
-		goto out;
-	for (i = 0; i < priv->params.num_channels; i++) {
-		c = &priv->channel[i];
-		rq = &c->rq;
-		sbuf_printf(&sb, "channel %d rq %d cq %d\n",
-		    c->ix, rq->rqn, rq->cq.mcq.cqn);
-		for (tc = 0; tc < c->num_tc; tc++) {
-			sq = &c->sq[tc];
-			sbuf_printf(&sb, "channel %d tc %d sq %d cq %d\n",
-			    c->ix, tc, sq->sqn, sq->cq.mcq.cqn);
+	opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
+
+	sbuf_printf(&sb, "pages irq %d\n",
+	    priv->mdev->priv.msix_arr[MLX5_EQ_VEC_PAGES].vector);
+	sbuf_printf(&sb, "command irq %d\n",
+	    priv->mdev->priv.msix_arr[MLX5_EQ_VEC_CMD].vector);
+	sbuf_printf(&sb, "async irq %d\n",
+	    priv->mdev->priv.msix_arr[MLX5_EQ_VEC_ASYNC].vector);
+
+	for (i = 0; i != priv->params.num_channels; i++) {
+		int eqn_not_used = -1;
+		int irqn = MLX5_EQ_VEC_COMP_BASE;
+
+		if (mlx5_vector2eqn(priv->mdev, i, &eqn_not_used, &irqn) != 0)
+			continue;
+
+		c = opened ? &priv->channel[i] : NULL;
+		rq = opened ? &c->rq : NULL;
+		sbuf_printf(&sb, "channel %d rq %d cq %d irq %d\n", i,
+		    opened ? rq->rqn : -1,
+		    opened ? rq->cq.mcq.cqn : -1,
+		    priv->mdev->priv.msix_arr[irqn].vector);
+
+		for (tc = 0; tc != priv->num_tc; tc++) {
+			sq = opened ? &c->sq[tc] : NULL;
+			sbuf_printf(&sb, "channel %d tc %d sq %d cq %d irq %d\n",
+			    i, tc,
+			    opened ? sq->sqn : -1,
+			    opened ? sq->cq.mcq.cqn : -1,
+			    priv->mdev->priv.msix_arr[irqn].vector);
 		}
 	}
-out:
 	PRIV_UNLOCK(priv);
 	error = sbuf_finish(&sb);
 	sbuf_delete(&sb);
