@@ -1244,13 +1244,31 @@ struct mlx5_core_event_handler {
 		      void *data);
 };
 
+#define	MLX5_STATS_DESC(a, b, c, d, e, ...) d, e,
+
+#define	MLX5_PORT_MODULE_ERROR_STATS(m)				\
+m(+1, u64, power_budget_exceeded, "power_budget", "Module Power Budget Exceeded") \
+m(+1, u64, long_range, "long_range", "Module Long Range for non MLNX cable/module") \
+m(+1, u64, bus_stuck, "bus_stuck", "Module Bus stuck(I2C or data shorted)") \
+m(+1, u64, no_eeprom, "no_eeprom", "No EEPROM/retry timeout") \
+m(+1, u64, enforce_part_number, "enforce_part_number", "Module Enforce part number list") \
+m(+1, u64, unknown_id, "unknown_id", "Module Unknown identifier") \
+m(+1, u64, high_temp, "high_temp", "Module High Temperature") \
+m(+1, u64, cable_shorted, "cable_shorted", "Module Cable is shorted")
+
+static const char *mlx5_pme_err_desc[] = {
+	MLX5_PORT_MODULE_ERROR_STATS(MLX5_STATS_DESC)
+};
+
 static int init_one(struct pci_dev *pdev,
 		    const struct pci_device_id *id)
 {
 	struct mlx5_core_dev *dev;
 	struct mlx5_priv *priv;
 	device_t bsddev = pdev->dev.bsddev;
-	int err;
+	int i,err;
+	struct sysctl_oid *pme_sysctl_node;
+	struct sysctl_oid *pme_err_sysctl_node;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	priv = &dev->priv;
@@ -1281,6 +1299,41 @@ static int init_one(struct pci_dev *pdev,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(bsddev)),
 	    OID_AUTO, "power_value", CTLFLAG_RD, &dev->pwr_value, 0,
 	    "Current power value in Watts");
+
+	pme_sysctl_node = SYSCTL_ADD_NODE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(bsddev)),
+	    OID_AUTO, "pme_stats", CTLFLAG_RD, NULL,
+	    "Port module event statistics");
+	if (pme_sysctl_node == NULL) {
+		err = -ENOMEM;
+		goto clean_sysctl_ctx;
+	}
+	pme_err_sysctl_node = SYSCTL_ADD_NODE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(pme_sysctl_node),
+	    OID_AUTO, "errors", CTLFLAG_RD, NULL,
+	    "Port module event error statistics");
+	if (pme_err_sysctl_node == NULL) {
+		err = -ENOMEM;
+		goto clean_sysctl_ctx;
+	}
+	SYSCTL_ADD_U64(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(pme_sysctl_node), OID_AUTO,
+	    "module_plug", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->priv.pme_stats.status_counters[MLX5_MODULE_STATUS_PLUGGED_ENABLED],
+	    0, "Number of time module plugged");
+	SYSCTL_ADD_U64(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(pme_sysctl_node), OID_AUTO,
+	    "module_unplug", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->priv.pme_stats.status_counters[MLX5_MODULE_STATUS_UNPLUGGED],
+	    0, "Number of time module unplugged");
+	for (i = 0 ; i < MLX5_MODULE_EVENT_ERROR_NUM; i++) {
+		SYSCTL_ADD_U64(&dev->sysctl_ctx,
+		    SYSCTL_CHILDREN(pme_err_sysctl_node), OID_AUTO,
+		    mlx5_pme_err_desc[2 * i], CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    &dev->priv.pme_stats.error_counters[i],
+		    0, mlx5_pme_err_desc[2 * i + 1]);
+	}
+
 
 	INIT_LIST_HEAD(&priv->ctx_list);
 	spin_lock_init(&priv->ctx_lock);
@@ -1320,8 +1373,9 @@ clean_health:
 close_pci:
 	mlx5_pci_close(dev, priv);
 clean_dev:
-	sysctl_ctx_free(&dev->sysctl_ctx);
 	mtx_destroy(&dev->dump_lock);
+clean_sysctl_ctx:
+	sysctl_ctx_free(&dev->sysctl_ctx);
 	kfree(dev);
 	return err;
 }

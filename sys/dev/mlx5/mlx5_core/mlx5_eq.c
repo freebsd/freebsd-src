@@ -639,9 +639,9 @@ static const char *mlx5_port_module_event_error_type_to_string(u8 error_type)
 {
 	switch (error_type) {
 	case MLX5_MODULE_EVENT_ERROR_POWER_BUDGET_EXCEEDED:
-		return "Power Budget Exceeded";
+		return "Power budget exceeded";
 	case MLX5_MODULE_EVENT_ERROR_LONG_RANGE_FOR_NON_MLNX_CABLE_MODULE:
-		return "Long Range for non MLNX cable/module";
+		return "Long Range for non MLNX cable";
 	case MLX5_MODULE_EVENT_ERROR_BUS_STUCK:
 		return "Bus stuck(I2C or data shorted)";
 	case MLX5_MODULE_EVENT_ERROR_NO_EEPROM_RETRY_TIMEOUT:
@@ -649,18 +649,11 @@ static const char *mlx5_port_module_event_error_type_to_string(u8 error_type)
 	case MLX5_MODULE_EVENT_ERROR_ENFORCE_PART_NUMBER_LIST:
 		return "Enforce part number list";
 	case MLX5_MODULE_EVENT_ERROR_UNSUPPORTED_CABLE:
-		return "Unsupported Cable";
+		return "Unknown identifier";
 	case MLX5_MODULE_EVENT_ERROR_HIGH_TEMPERATURE:
 		return "High Temperature";
 	case MLX5_MODULE_EVENT_ERROR_CABLE_IS_SHORTED:
-		return "Cable is shorted";
-	case MLX5_MODULE_EVENT_ERROR_PCIE_SYSTEM_POWER_SLOT_EXCEEDED:
-		return "One or more network ports have been powered "
-			"down due to insufficient/unadvertised power on "
-			"the PCIe slot. Please refer to the card's user "
-			"manual for power specifications or contact "
-			"Mellanox support.";
-
+		return "Bad or shorted cable/module";
 	default:
 		return "Unknown error type";
 	}
@@ -686,29 +679,36 @@ static void mlx5_port_module_event(struct mlx5_core_dev *dev,
 
 	module_num = (unsigned int)module_event_eqe->module;
 	module_status = (unsigned int)module_event_eqe->module_status &
-			PORT_MODULE_EVENT_MODULE_STATUS_MASK;
+	    PORT_MODULE_EVENT_MODULE_STATUS_MASK;
 	error_type = (unsigned int)module_event_eqe->error_type &
-		     PORT_MODULE_EVENT_ERROR_TYPE_MASK;
+	    PORT_MODULE_EVENT_ERROR_TYPE_MASK;
 
+	if (module_status < MLX5_MODULE_STATUS_NUM)
+		dev->priv.pme_stats.status_counters[module_status]++;
 	switch (module_status) {
 	case MLX5_MODULE_STATUS_PLUGGED_ENABLED:
-		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: plugged and enabled\n", module_num);
+		device_printf((&pdev->dev)->bsddev,
+		    "INFO: Module %u, status: plugged and enabled\n",
+		    module_num);
 		break;
 
 	case MLX5_MODULE_STATUS_UNPLUGGED:
-		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: unplugged\n", module_num);
+		device_printf((&pdev->dev)->bsddev,
+		    "INFO: Module %u, status: unplugged\n", module_num);
 		break;
 
 	case MLX5_MODULE_STATUS_ERROR:
-		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: error, %s\n", module_num, mlx5_port_module_event_error_type_to_string(error_type));
-		break;
-
-	case MLX5_MODULE_STATUS_PLUGGED_DISABLED:
-		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: plugged but disabled\n", module_num);
+		device_printf((&pdev->dev)->bsddev,
+		    "ERROR: Module %u, status: error, %s\n",
+		    module_num,
+		    mlx5_port_module_event_error_type_to_string(error_type));
+		if (error_type < MLX5_MODULE_EVENT_ERROR_NUM)
+			dev->priv.pme_stats.error_counters[error_type]++;
 		break;
 
 	default:
-		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, unknown status\n", module_num);
+		device_printf((&pdev->dev)->bsddev,
+		    "INFO: Module %u, unknown status\n", module_num);
 	}
 	/* store module status */
 	if (module_num < MLX5_MAX_PORTS)
