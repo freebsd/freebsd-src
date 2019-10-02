@@ -1133,13 +1133,13 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	err = mlx5_fpga_device_start(dev);
 	if (err) {
 		dev_err(&pdev->dev, "fpga device start failed %d\n", err);
-		goto err_fpga_start;
+		goto err_fs;
 	}
 
 	err = mlx5_register_device(dev);
 	if (err) {
 		dev_err(&pdev->dev, "mlx5_register_device failed %d\n", err);
-		goto err_fs;
+		goto err_fpga;
 	}
 
 	set_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
@@ -1148,7 +1148,9 @@ out:
 	mutex_unlock(&dev->intf_state_mutex);
 	return 0;
 
-err_fpga_start:
+err_fpga:
+	mlx5_fpga_device_stop(dev);
+
 err_fs:
 	mlx5_cleanup_fs(dev);
 
