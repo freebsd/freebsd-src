@@ -38,6 +38,7 @@
 #include <dev/mlx5/cq.h>
 #include <dev/mlx5/qp.h>
 #include <dev/mlx5/srq.h>
+#include <dev/mlx5/mpfs.h>
 #include <linux/delay.h>
 #include <dev/mlx5/mlx5_ifc.h>
 #include <dev/mlx5/mlx5_fpga/core.h>
@@ -1130,10 +1131,16 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_free_comp_eqs;
 	}
 
+	err = mlx5_mpfs_init(dev);
+	if (err) {
+		mlx5_core_err(dev, "mpfs init failed %d\n", err);
+		goto err_fs;
+	}
+
 	err = mlx5_fpga_device_start(dev);
 	if (err) {
 		dev_err(&pdev->dev, "fpga device start failed %d\n", err);
-		goto err_fs;
+		goto err_mpfs;
 	}
 
 	err = mlx5_register_device(dev);
@@ -1150,6 +1157,9 @@ out:
 
 err_fpga:
 	mlx5_fpga_device_stop(dev);
+
+err_mpfs:
+	mlx5_mpfs_destroy(dev);
 
 err_fs:
 	mlx5_cleanup_fs(dev);
@@ -1216,6 +1226,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	mlx5_unregister_device(dev);
 
 	mlx5_fpga_device_stop(dev);
+	mlx5_mpfs_destroy(dev);
 	mlx5_cleanup_fs(dev);
 	unmap_bf_area(dev);
 	mlx5_wait_for_reclaim_vfs_pages(dev);

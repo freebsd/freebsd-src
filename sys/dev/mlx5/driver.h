@@ -717,6 +717,12 @@ struct mlx5_core_dev {
 		struct mlx5_rsvd_gids	reserved_gids;
 		atomic_t		roce_en;
 	} roce;
+
+	struct {
+		spinlock_t	spinlock;
+#define	MLX5_MPFS_TABLE_MAX 32
+		long		bitmap[BITS_TO_LONGS(MLX5_MPFS_TABLE_MAX)];
+	} mpfs;
 #ifdef CONFIG_MLX5_FPGA
 	struct mlx5_fpga_device	*fpga;
 #endif
