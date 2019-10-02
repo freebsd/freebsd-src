@@ -25,18 +25,18 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 7, 2019
+.Dd October 2, 2019
 .Dt mlx5io 4
 .Os
 .Sh NAME
 .Nm mlx5io
-.Nd IOCTL interface to manage Connect-X 4/5 Mellanox network adapters
+.Nd IOCTL interface to manage Connect-X 4/5/6 Mellanox network adapters
 .Sh SYNOPSIS
 .In dev/mlx5/mlx5io.h
 .Sh DESCRIPTION
 The
 .Nm
-interface is provided for management of the Connect-X 4 and 5 network adapters
+interface is provided for management of the Connect-X4, 5 and 6 network adapters
 in the aspects not covered by the generic network configuration,
 mostly related to the PCIe attachment and internal card working.
 Interface consists of the commands, which are passed by means of
@@ -147,6 +147,29 @@ Requests PCIe link-level reset on the device.
 The address of the device is specified by the
 .Vt struct mlx5_tool_addr
 structure, which should be passed as an argument.
+.It Dv MLX5_EEPROM_GET
+Fetch EEPROM information.
+The argument to the command should point to the input/output
+.Vt struct mlx5_eeprom_get
+structure where, the
+.Dv devaddr
+field specifies the address of the device.
+.Bd -literal
+struct mlx5_eeprom_get {
+        struct mlx5_tool_addr devaddr;
+        size_t eeprom_info_page_valid;
+        uint32_t *eeprom_info_buf;
+        size_t eeprom_info_out_len;
+};
+.Ed
+.Pp
+On successfull return, the
+.Dv eeprom_info_out_len
+field reports the length of the EEPROM information.
+.Dv eeprom_info_buf
+field contains the actual EEPROM information.
+.Dv eeprom_info_page_valid
+field reports the third page validity.
 .El
 .Sh FILES
 The
