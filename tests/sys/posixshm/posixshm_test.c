@@ -881,6 +881,40 @@ ATF_TC_BODY(cloexec, tc)
 	close(fd);
 }
 
+ATF_TC_WITHOUT_HEAD(mode);
+ATF_TC_BODY(mode, tc)
+{
+	struct stat st;
+	int fd;
+	mode_t restore_mask;
+
+	gen_test_path();
+
+	/* Remove inhibitions from umask */
+	restore_mask = umask(0);
+	fd = shm_open(test_path, O_CREAT | O_RDWR, 0600);
+	ATF_REQUIRE_MSG(fd >= 0, "shm_open failed; errno=%d", errno);
+	ATF_REQUIRE(fstat(fd, &st) == 0);
+	ATF_REQUIRE((st.st_mode & ACCESSPERMS) == 0600);
+	close(fd);
+	ATF_REQUIRE(shm_unlink(test_path) == 0);
+
+	fd = shm_open(test_path, O_CREAT | O_RDWR, 0660);
+	ATF_REQUIRE_MSG(fd >= 0, "shm_open failed; errno=%d", errno);
+	ATF_REQUIRE(fstat(fd, &st) == 0);
+	ATF_REQUIRE((st.st_mode & ACCESSPERMS) == 0660);
+	close(fd);
+	ATF_REQUIRE(shm_unlink(test_path) == 0);
+
+	fd = shm_open(test_path, O_CREAT | O_RDWR, 0666);
+	ATF_REQUIRE_MSG(fd >= 0, "shm_open failed; errno=%d", errno);
+	ATF_REQUIRE(fstat(fd, &st) == 0);
+	ATF_REQUIRE((st.st_mode & ACCESSPERMS) == 0666);
+	close(fd);
+	ATF_REQUIRE(shm_unlink(test_path) == 0);
+
+	umask(restore_mask);
+}
 
 ATF_TP_ADD_TCS(tp)
 {
@@ -914,6 +948,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, unlink_path_too_long);
 	ATF_TP_ADD_TC(tp, object_resize);
 	ATF_TP_ADD_TC(tp, cloexec);
+	ATF_TP_ADD_TC(tp, mode);
 
 	return (atf_no_error());
 }
