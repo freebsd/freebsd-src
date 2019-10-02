@@ -27,7 +27,6 @@
 
 #include "en.h"
 #include "port_buffer.h"
-#include <net/sff8472.h>
 
 void
 mlx5e_create_stats(struct sysctl_ctx_list *ctx,
