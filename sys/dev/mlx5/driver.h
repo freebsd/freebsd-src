@@ -569,6 +569,11 @@ struct mlx5_rl_table {
 };
 #endif
 
+struct mlx5_pme_stats {
+	u64			status_counters[MLX5_MODULE_STATUS_NUM];
+	u64			error_counters[MLX5_MODULE_EVENT_ERROR_NUM];
+};
+
 struct mlx5_priv {
 	char			name[MLX5_MAX_NAME_LEN];
 	struct mlx5_eq_table	eq_table;
@@ -624,6 +629,7 @@ struct mlx5_priv {
 #ifdef RATELIMIT
 	struct mlx5_rl_table	rl_table;
 #endif
+	struct mlx5_pme_stats pme_stats;
 };
 
 enum mlx5_device_state {

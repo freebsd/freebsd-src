@@ -537,7 +537,7 @@ enum {
 	MLX5_MODULE_STATUS_PLUGGED_ENABLED      = 0x1,
 	MLX5_MODULE_STATUS_UNPLUGGED            = 0x2,
 	MLX5_MODULE_STATUS_ERROR                = 0x3,
-	MLX5_MODULE_STATUS_PLUGGED_DISABLED     = 0x4,
+	MLX5_MODULE_STATUS_NUM			,
 };
 
 enum {
@@ -549,7 +549,7 @@ enum {
 	MLX5_MODULE_EVENT_ERROR_UNSUPPORTED_CABLE                     = 0x5,
 	MLX5_MODULE_EVENT_ERROR_HIGH_TEMPERATURE                      = 0x6,
 	MLX5_MODULE_EVENT_ERROR_CABLE_IS_SHORTED                      = 0x7,
-	MLX5_MODULE_EVENT_ERROR_PCIE_SYSTEM_POWER_SLOT_EXCEEDED       = 0xc,
+	MLX5_MODULE_EVENT_ERROR_NUM		                      ,
 };
 
 struct mlx5_eqe_port_module_event {
