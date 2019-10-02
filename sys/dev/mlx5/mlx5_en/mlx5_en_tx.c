@@ -97,9 +97,7 @@ mlx5e_select_queue_by_send_tag(struct ifnet *ifp, struct mbuf *mb)
 	case IF_SND_TAG_TYPE_UNLIMITED:
 		sq = &container_of(ptag,
 		    struct mlx5e_channel, tag)->sq[0];
-		KASSERT(({
-		    struct mlx5e_priv *priv = ifp->if_softc;
-		    priv->channel_refs > 0; }),
+		KASSERT((ptag->m_snd_tag.refcount > 0),
 		    ("mlx5e_select_queue: Channel refs are zero for unlimited tag"));
 		break;
 	default:

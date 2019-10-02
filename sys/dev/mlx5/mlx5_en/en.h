@@ -873,6 +873,7 @@ struct mlx5e_channel {
 	struct mlx5e_snd_tag tag;
 	struct mlx5e_sq sq[MLX5E_MAX_TX_NUM_TC];
 	struct mlx5e_priv *priv;
+	struct completion completion;
 	int	ix;
 } __aligned(MLX5E_CACHELINE_SIZE);
 
@@ -998,7 +999,6 @@ struct mlx5e_priv {
 	u32	pdn;
 	u32	tdn;
 	struct mlx5_core_mr mr;
-	volatile unsigned int channel_refs;
 
 	u32	tisn[MLX5E_MAX_TX_NUM_TC];
 	u32	rqtn;
@@ -1142,24 +1142,6 @@ mlx5e_cq_arm(struct mlx5e_cq *cq, spinlock_t *dblock)
 
 	mcq = &cq->mcq;
 	mlx5_cq_arm(mcq, MLX5_CQ_DB_REQ_NOT, mcq->uar->map, dblock, cq->wq.cc);
-}
-
-static inline void
-mlx5e_ref_channel(struct mlx5e_priv *priv)
-{
-
-	KASSERT(priv->channel_refs < INT_MAX,
-	    ("Channel refs will overflow"));
-	atomic_fetchadd_int(&priv->channel_refs, 1);
-}
-
-static inline void
-mlx5e_unref_channel(struct mlx5e_priv *priv)
-{
-
-	KASSERT(priv->channel_refs > 0,
-	    ("Channel refs is not greater than zero"));
-	atomic_fetchadd_int(&priv->channel_refs, -1);
 }
 
 #define	mlx5e_dbg(_IGN, _priv, ...) mlx5_core_dbg((_priv)->mdev, __VA_ARGS__)
