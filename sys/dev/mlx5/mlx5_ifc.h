@@ -9749,6 +9749,18 @@ struct mlx5_ifc_vendor_specific_cap_bits {
 	u8         data[0x20];
 };
 
+struct mlx5_ifc_vsc_space_bits {
+	u8 status[0x3];
+	u8 reserved0[0xd];
+	u8 space[0x10];
+};
+
+struct mlx5_ifc_vsc_addr_bits {
+	u8 flag[0x1];
+	u8 reserved0[0x1];
+	u8 address[0x1e];
+};
+
 enum {
 	MLX5_INITIAL_SEG_NIC_INTERFACE_FULL_DRIVER  = 0x0,
 	MLX5_INITIAL_SEG_NIC_INTERFACE_DISABLED     = 0x1,
