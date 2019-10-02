@@ -72,7 +72,8 @@ mlx5_fwdump_prep(struct mlx5_core_dev *mdev)
 	if (error != 0) {
 		/* Inability to create a firmware dump is not fatal. */
 		mlx5_core_warn(mdev,
-		    "mlx5_fwdump_prep failed %d\n", error);
+		    "Failed to find vendor-specific capability, error %d\n",
+		    error);
 		return;
 	}
 	error = mlx5_vsc_lock(mdev);
@@ -86,7 +87,7 @@ mlx5_fwdump_prep(struct mlx5_core_dev *mdev)
 	dev = mdev->pdev->dev.bsddev;
 	vsc_addr = mdev->vsc_addr;
 	if (vsc_addr == 0) {
-		mlx5_core_warn(mdev, "Cannot read vsc, no address\n");
+		mlx5_core_warn(mdev, "Cannot read VSC, no address\n");
 		goto unlock_vsc;
 	}
 
@@ -97,7 +98,8 @@ mlx5_fwdump_prep(struct mlx5_core_dev *mdev)
 		error = mlx5_vsc_wait_on_flag(mdev, 1);
 		if (error != 0) {
 			mlx5_core_warn(mdev,
-		    "Failed waiting for read complete flag, error %d\n", error);
+		    "Failed waiting for read complete flag, error %d addr %#x\n",
+			    error, addr);
 			goto unlock_vsc;
 		}
 		pci_read_config(dev, vsc_addr + MLX5_VSC_DATA_OFFSET, 4);
@@ -120,7 +122,8 @@ mlx5_fwdump_prep(struct mlx5_core_dev *mdev)
 		error = mlx5_vsc_wait_on_flag(mdev, 1);
 		if (error != 0) {
 			mlx5_core_warn(mdev,
-		    "Failed waiting for read complete flag, error %d\n", error);
+		    "Failed waiting for read complete flag, error %d addr %#x\n",
+			    error, addr);
 			free(mdev->dump_rege, M_MLX5_DUMP);
 			mdev->dump_rege = NULL;
 			goto unlock_vsc;
