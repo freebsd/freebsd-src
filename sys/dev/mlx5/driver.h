@@ -84,10 +84,6 @@ enum {
 };
 
 enum {
-	MLX5_MAX_IRQ_NAME	= 32
-};
-
-enum {
 	MLX5_ATOMIC_MODE_OFF		= 16,
 	MLX5_ATOMIC_MODE_NONE		= 0 << MLX5_ATOMIC_MODE_OFF,
 	MLX5_ATOMIC_MODE_IB_COMP	= 1 << MLX5_ATOMIC_MODE_OFF,
@@ -556,10 +552,6 @@ struct mlx5_mr_table {
 	struct radix_tree_root	tree;
 };
 
-struct mlx5_irq_info {
-	char name[MLX5_MAX_IRQ_NAME];
-};
-
 #ifdef RATELIMIT
 struct mlx5_rl_entry {
 	u32			rate;
@@ -581,7 +573,6 @@ struct mlx5_priv {
 	char			name[MLX5_MAX_NAME_LEN];
 	struct mlx5_eq_table	eq_table;
 	struct msix_entry	*msix_arr;
-	struct mlx5_irq_info	*irq_info;
 	struct mlx5_uuar_info	uuari;
 	MLX5_DECLARE_DOORBELL_LOCK(cq_uar_lock);
 	int			disable_irqs;
@@ -1029,7 +1020,7 @@ struct mlx5_core_srq *mlx5_core_get_srq(struct mlx5_core_dev *dev, u32 srqn);
 void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vector, enum mlx5_cmd_mode mode);
 void mlx5_cq_event(struct mlx5_core_dev *dev, u32 cqn, int event_type);
 int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
-		       int nent, u64 mask, const char *name, struct mlx5_uar *uar);
+		       int nent, u64 mask, struct mlx5_uar *uar);
 int mlx5_destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
 int mlx5_start_eqs(struct mlx5_core_dev *dev);
 int mlx5_stop_eqs(struct mlx5_core_dev *dev);

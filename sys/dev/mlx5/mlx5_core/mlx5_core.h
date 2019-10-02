@@ -102,8 +102,6 @@ int mlx5_firmware_flash(struct mlx5_core_dev *dev, const struct firmware *fw);
 void mlx5e_init(void);
 void mlx5e_cleanup(void);
 
-int mlx5_rename_eq(struct mlx5_core_dev *dev, int eq_ix, char *name);
-
 int mlx5_ctl_init(void);
 void mlx5_ctl_fini(void);
 void mlx5_fwdump_prep(struct mlx5_core_dev *mdev);
