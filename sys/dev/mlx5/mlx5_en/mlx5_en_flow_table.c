@@ -29,6 +29,7 @@
 
 #include <linux/list.h>
 #include <dev/mlx5/fs.h>
+#include <dev/mlx5/mpfs.h>
 
 #define MLX5_SET_CFG(p, f, v) MLX5_SET(create_flow_group_in, p, f, v)
 
@@ -54,6 +55,7 @@ enum {
 struct mlx5e_eth_addr_hash_node {
 	LIST_ENTRY(mlx5e_eth_addr_hash_node) hlist;
 	u8	action;
+	u32	mpfs_index;
 	struct mlx5e_eth_addr_info ai;
 };
 
@@ -63,29 +65,23 @@ mlx5e_hash_eth_addr(const u8 * addr)
 	return (addr[5]);
 }
 
-static void
+static bool
 mlx5e_add_eth_addr_to_hash(struct mlx5e_eth_addr_hash_head *hash,
-    const u8 * addr)
+    struct mlx5e_eth_addr_hash_node *hn_new)
 {
 	struct mlx5e_eth_addr_hash_node *hn;
-	int ix = mlx5e_hash_eth_addr(addr);
+	u32 ix = mlx5e_hash_eth_addr(hn_new->ai.addr);
 
 	LIST_FOREACH(hn, &hash[ix], hlist) {
-		if (bcmp(hn->ai.addr, addr, ETHER_ADDR_LEN) == 0) {
+		if (bcmp(hn->ai.addr, hn_new->ai.addr, ETHER_ADDR_LEN) == 0) {
 			if (hn->action == MLX5E_ACTION_DEL)
 				hn->action = MLX5E_ACTION_NONE;
-			return;
+			free(hn_new, M_MLX5EN);
+			return (false);
 		}
 	}
-
-	hn = malloc(sizeof(*hn), M_MLX5EN, M_NOWAIT | M_ZERO);
-	if (hn == NULL)
-		return;
-
-	ether_addr_copy(hn->ai.addr, addr);
-	hn->action = MLX5E_ACTION_ADD;
-
-	LIST_INSERT_HEAD(&hash[ix], hn, hlist);
+	LIST_INSERT_HEAD(&hash[ix], hn_new, hlist);
+	return (true);
 }
 
 static void
@@ -757,6 +753,8 @@ mlx5e_execute_action(struct mlx5e_priv *priv,
 
 	case MLX5E_ACTION_DEL:
 		mlx5e_del_eth_addr_from_flow_table(priv, &hn->ai);
+		if (hn->mpfs_index != -1U)
+			mlx5_mpfs_del_mac(priv->mdev, hn->mpfs_index);
 		mlx5e_del_eth_addr_from_hash(hn);
 		break;
 
@@ -765,25 +763,57 @@ mlx5e_execute_action(struct mlx5e_priv *priv,
 	}
 }
 
+static struct mlx5e_eth_addr_hash_node *
+mlx5e_move_hn(struct mlx5e_eth_addr_hash_head *fh, struct mlx5e_eth_addr_hash_head *uh)
+{
+	struct mlx5e_eth_addr_hash_node *hn;
+
+	hn = LIST_FIRST(fh);
+	if (hn != NULL) {
+		LIST_REMOVE(hn, hlist);
+		LIST_INSERT_HEAD(uh, hn, hlist);
+	}
+	return (hn);
+}
+
+static struct mlx5e_eth_addr_hash_node *
+mlx5e_remove_hn(struct mlx5e_eth_addr_hash_head *fh)
+{
+	struct mlx5e_eth_addr_hash_node *hn;
+
+	hn = LIST_FIRST(fh);
+	if (hn != NULL)
+		LIST_REMOVE(hn, hlist);
+	return (hn);
+}
+
 static void
 mlx5e_sync_ifp_addr(struct mlx5e_priv *priv)
 {
+	struct mlx5e_eth_addr_hash_head head_free;
+	struct mlx5e_eth_addr_hash_head head_uc;
+	struct mlx5e_eth_addr_hash_head head_mc;
+	struct mlx5e_eth_addr_hash_node *hn;
 	struct ifnet *ifp = priv->ifp;
 	struct ifaddr *ifa;
 	struct ifmultiaddr *ifma;
+	bool success = false;
+	size_t x;
+	size_t num;
 
 	PRIV_ASSERT_LOCKED(priv);
 
-	/* XXX adding this entry might not be needed */
-	mlx5e_add_eth_addr_to_hash(priv->eth_addr.if_uc,
-	    LLADDR((struct sockaddr_dl *)(ifp->if_addr->ifa_addr)));
+	LIST_INIT(&head_free);
+	LIST_INIT(&head_uc);
+	LIST_INIT(&head_mc);
+retry:
+	num = 1;
 
 	if_addr_rlock(ifp);
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_LINK)
 			continue;
-		mlx5e_add_eth_addr_to_hash(priv->eth_addr.if_uc,
-		    LLADDR((struct sockaddr_dl *)ifa->ifa_addr));
+		num++;
 	}
 	if_addr_runlock(ifp);
 
@@ -791,10 +821,81 @@ mlx5e_sync_ifp_addr(struct mlx5e_priv *priv)
 	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		mlx5e_add_eth_addr_to_hash(priv->eth_addr.if_mc,
+		num++;
+	}
+	if_maddr_runlock(ifp);
+
+	/* allocate place holders */
+	for (x = 0; x != num; x++) {
+		hn = malloc(sizeof(*hn), M_MLX5EN, M_WAITOK | M_ZERO);
+		hn->action = MLX5E_ACTION_ADD;
+		hn->mpfs_index = -1U;
+		LIST_INSERT_HEAD(&head_free, hn, hlist);
+	}
+
+	hn = mlx5e_move_hn(&head_free, &head_uc);
+	if (hn == NULL)
+		goto cleanup;
+
+	ether_addr_copy(hn->ai.addr,
+	    LLADDR((struct sockaddr_dl *)(ifp->if_addr->ifa_addr)));
+
+	if_addr_rlock(ifp);
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family != AF_LINK)
+			continue;
+		hn = mlx5e_move_hn(&head_free, &head_uc);
+		if (hn == NULL)
+			break;
+		ether_addr_copy(hn->ai.addr,
+		    LLADDR((struct sockaddr_dl *)ifa->ifa_addr));
+	}
+	if_addr_runlock(ifp);
+	if (ifa != NULL)
+		goto cleanup;
+
+	if_maddr_rlock(ifp);
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		if (ifma->ifma_addr->sa_family != AF_LINK)
+			continue;
+		hn = mlx5e_move_hn(&head_free, &head_mc);
+		if (hn == NULL)
+			break;
+		ether_addr_copy(hn->ai.addr,
 		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 	}
 	if_maddr_runlock(ifp);
+	if (ifma != NULL)
+		goto cleanup;
+
+	/* insert L2 unicast addresses into hash list */
+
+	while ((hn = mlx5e_remove_hn(&head_uc)) != NULL) {
+		if (mlx5e_add_eth_addr_to_hash(priv->eth_addr.if_uc, hn) == 0)
+			continue;
+		if (hn->mpfs_index == -1U)
+			mlx5_mpfs_add_mac(priv->mdev, &hn->mpfs_index, hn->ai.addr);
+	}
+
+	/* insert L2 multicast addresses into hash list */
+
+	while ((hn = mlx5e_remove_hn(&head_mc)) != NULL) {
+		if (mlx5e_add_eth_addr_to_hash(priv->eth_addr.if_mc, hn) == 0)
+			continue;
+	}
+
+	success = true;
+
+cleanup:
+	while ((hn = mlx5e_remove_hn(&head_uc)) != NULL)
+		free(hn, M_MLX5EN);
+	while ((hn = mlx5e_remove_hn(&head_mc)) != NULL)
+		free(hn, M_MLX5EN);
+	while ((hn = mlx5e_remove_hn(&head_free)) != NULL)
+		free(hn, M_MLX5EN);
+
+	if (success == false)
+		goto retry;
 }
 
 static void mlx5e_fill_addr_array(struct mlx5e_priv *priv, int list_type,
@@ -1493,6 +1594,8 @@ err_destroy_vlan_flow_table:
 void
 mlx5e_close_flow_table(struct mlx5e_priv *priv)
 {
+
+	mlx5e_handle_ifp_addr(priv);
 	mlx5e_destroy_inner_rss_flow_table(priv);
 	mlx5e_destroy_main_flow_table(priv);
 	mlx5e_destroy_vlan_flow_table(priv);
