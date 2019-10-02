@@ -436,7 +436,7 @@ mlx5e_add_eth_addr_rule(struct mlx5e_priv *priv,
 	match_value	= mlx5_vzalloc(MLX5_ST_SZ_BYTES(fte_match_param));
 	match_criteria	= mlx5_vzalloc(MLX5_ST_SZ_BYTES(fte_match_param));
 	if (!match_value || !match_criteria) {
-		if_printf(priv->ifp, "%s: alloc failed\n", __func__);
+		mlx5_en_err(priv->ifp, "alloc failed\n");
 		err = -ENOMEM;
 		goto add_eth_addr_rule_out;
 	}
@@ -467,7 +467,7 @@ static int mlx5e_vport_context_update_vlans(struct mlx5e_priv *priv)
 	max_list_size = 1 << MLX5_CAP_GEN(priv->mdev, log_max_vlan_list);
 
 	if (list_size > max_list_size) {
-		if_printf(ifp,
+		mlx5_en_err(ifp,
 			    "ifnet vlans list size (%d) > (%d) max vport list size, some vlans will be dropped\n",
 			    list_size, max_list_size);
 		list_size = max_list_size;
@@ -486,7 +486,7 @@ static int mlx5e_vport_context_update_vlans(struct mlx5e_priv *priv)
 
 	err = mlx5_modify_nic_vport_vlans(priv->mdev, vlans, list_size);
 	if (err)
-		if_printf(ifp, "Failed to modify vport vlans list err(%d)\n",
+		mlx5_en_err(ifp, "Failed to modify vport vlans list err(%d)\n",
 			   err);
 
 	kfree(vlans);
@@ -549,7 +549,7 @@ mlx5e_add_vlan_rule_sub(struct mlx5e_priv *priv,
 	if (IS_ERR(*rule_p)) {
 		err = PTR_ERR(*rule_p);
 		*rule_p = NULL;
-		if_printf(priv->ifp, "%s: add rule failed\n", __func__);
+		mlx5_en_err(priv->ifp, "add rule failed\n");
 	}
 
 	return (err);
@@ -566,7 +566,7 @@ mlx5e_add_vlan_rule(struct mlx5e_priv *priv,
 	match_value	= mlx5_vzalloc(MLX5_ST_SZ_BYTES(fte_match_param));
 	match_criteria	= mlx5_vzalloc(MLX5_ST_SZ_BYTES(fte_match_param));
 	if (!match_value || !match_criteria) {
-		if_printf(priv->ifp, "%s: alloc failed\n", __func__);
+		mlx5_en_err(priv->ifp, "alloc failed\n");
 		err = -ENOMEM;
 		goto add_vlan_rule_out;
 	}
@@ -948,7 +948,7 @@ static void mlx5e_vport_context_update_addr_list(struct mlx5e_priv *priv,
 		size++;
 
 	if (size > max_size) {
-		if_printf(priv->ifp,
+		mlx5_en_err(priv->ifp,
 			    "ifp %s list size (%d) > (%d) max vport list size, some addresses will be dropped\n",
 			    is_uc ? "UC" : "MC", size, max_size);
 		size = max_size;
@@ -966,7 +966,7 @@ static void mlx5e_vport_context_update_addr_list(struct mlx5e_priv *priv,
 	err = mlx5_modify_nic_vport_mac_list(priv->mdev, list_type, addr_array, size);
 out:
 	if (err)
-		if_printf(priv->ifp,
+		mlx5_en_err(priv->ifp,
 			   "Failed to modify vport %s list err(%d)\n",
 			   is_uc ? "UC" : "MC", err);
 	kfree(addr_array);
