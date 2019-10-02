@@ -285,8 +285,6 @@ static int mlx5_enable_msix(struct mlx5_core_dev *dev)
 
 	priv->msix_arr = kzalloc(nvec * sizeof(*priv->msix_arr), GFP_KERNEL);
 
-	priv->irq_info = kzalloc(nvec * sizeof(*priv->irq_info), GFP_KERNEL);
-
 	for (i = 0; i < nvec; i++)
 		priv->msix_arr[i].entry = i;
 
@@ -296,9 +294,7 @@ static int mlx5_enable_msix(struct mlx5_core_dev *dev)
 		return nvec;
 
 	table->num_comp_vectors = nvec - MLX5_EQ_VEC_COMP_BASE;
-
 	return 0;
-
 }
 
 static void mlx5_disable_msix(struct mlx5_core_dev *dev)
@@ -306,7 +302,6 @@ static void mlx5_disable_msix(struct mlx5_core_dev *dev)
 	struct mlx5_priv *priv = &dev->priv;
 
 	pci_disable_msix(dev->pdev);
-	kfree(priv->irq_info);
 	kfree(priv->msix_arr);
 }
 
@@ -604,30 +599,6 @@ int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn, int *irqn)
 }
 EXPORT_SYMBOL(mlx5_vector2eqn);
 
-int mlx5_rename_eq(struct mlx5_core_dev *dev, int eq_ix, char *name)
-{
-	struct mlx5_priv *priv = &dev->priv;
-	struct mlx5_eq_table *table = &priv->eq_table;
-	struct mlx5_eq *eq;
-	int err = -ENOENT;
-
-	spin_lock(&table->lock);
-	list_for_each_entry(eq, &table->comp_eqs_list, list) {
-		if (eq->index == eq_ix) {
-			int irq_ix = eq_ix + MLX5_EQ_VEC_COMP_BASE;
-
-			snprintf(priv->irq_info[irq_ix].name, MLX5_MAX_IRQ_NAME,
-				 "%s-%d", name, eq_ix);
-
-			err = 0;
-			break;
-		}
-	}
-	spin_unlock(&table->lock);
-
-	return err;
-}
-
 static void free_comp_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = &dev->priv.eq_table;
@@ -649,7 +620,6 @@ static void free_comp_eqs(struct mlx5_core_dev *dev)
 static int alloc_comp_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = &dev->priv.eq_table;
-	char name[MLX5_MAX_IRQ_NAME];
 	struct mlx5_eq *eq;
 	int ncomp_vec;
 	int nent;
@@ -662,10 +632,9 @@ static int alloc_comp_eqs(struct mlx5_core_dev *dev)
 	for (i = 0; i < ncomp_vec; i++) {
 		eq = kzalloc(sizeof(*eq), GFP_KERNEL);
 
-		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_comp%d", i);
 		err = mlx5_create_map_eq(dev, eq,
 					 i + MLX5_EQ_VEC_COMP_BASE, nent, 0,
-					 name, &dev->priv.uuari.uars[0]);
+					 &dev->priv.uuari.uars[0]);
 		if (err) {
 			kfree(eq);
 			goto clean;
