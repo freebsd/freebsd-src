@@ -2119,6 +2119,8 @@ mlx5e_chan_static_init(struct mlx5e_priv *priv, struct mlx5e_channel *c, int ix)
 	c->tag.type = IF_SND_TAG_TYPE_UNLIMITED;
 	m_snd_tag_init(&c->tag.m_snd_tag, c->priv->ifp);
 
+	init_completion(&c->completion);
+
 	mtx_init(&c->rq.mtx, "mlx5rx", MTX_NETWORK_LOCK, MTX_DEF);
 
 	callout_init_mtx(&c->rq.watchdog, &c->rq.mtx, 0);
@@ -2136,12 +2138,26 @@ mlx5e_chan_static_init(struct mlx5e_priv *priv, struct mlx5e_channel *c, int ix)
 }
 
 static void
+mlx5e_chan_wait_for_completion(struct mlx5e_channel *c)
+{
+
+	m_snd_tag_rele(&c->tag.m_snd_tag);
+	wait_for_completion(&c->completion);
+}
+
+static void
+mlx5e_priv_wait_for_completion(struct mlx5e_priv *priv, const uint32_t channels)
+{
+	uint32_t x;
+
+	for (x = 0; x != channels; x++)
+		mlx5e_chan_wait_for_completion(&priv->channel[x]);
+}
+
+static void
 mlx5e_chan_static_destroy(struct mlx5e_channel *c)
 {
 	int tc;
-
-	/* drop our reference */
-	m_snd_tag_rele(&c->tag.m_snd_tag);
 
 	callout_drain(&c->rq.watchdog);
 
@@ -4010,9 +4026,7 @@ mlx5e_ul_snd_tag_alloc(struct ifnet *ifp,
 		/* check if send queue is not running */
 		if (unlikely(pch->sq[0].running == 0))
 			return (ENXIO);
-		mlx5e_ref_channel(priv);
-		MPASS(pch->tag.m_snd_tag.refcount == 0);
-		m_snd_tag_init(&pch->tag.m_snd_tag, ifp);
+		m_snd_tag_ref(&pch->tag.m_snd_tag);
 		*ppmt = &pch->tag.m_snd_tag;
 		return (0);
 	}
@@ -4035,7 +4049,7 @@ mlx5e_ul_snd_tag_free(struct m_snd_tag *pmt)
 	struct mlx5e_channel *pch =
 	    container_of(pmt, struct mlx5e_channel, tag.m_snd_tag);
 
-	mlx5e_unref_channel(pch->priv);
+	complete(&pch->completion);
 }
 
 static int
@@ -4461,6 +4475,9 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 		pause("W", hz);
 	}
 #endif
+	/* wait for all unlimited send tags to complete */
+	mlx5e_priv_wait_for_completion(priv, mdev->priv.eq_table.num_comp_vectors);
+
 	/* stop watchdog timer */
 	callout_drain(&priv->watchdog);
 
@@ -4475,13 +4492,6 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	PRIV_LOCK(priv);
 	mlx5e_close_locked(ifp);
 	PRIV_UNLOCK(priv);
-
-	/* wait for all unlimited send tags to go away */
-	while (priv->channel_refs != 0) {
-		mlx5_en_err(priv->ifp,
-		    "Waiting for all unlimited connections to terminate\n");
-		pause("W", hz);
-	}
 
 	/* deregister pfil */
 	if (priv->pfil != NULL) {
