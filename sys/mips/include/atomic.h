@@ -81,6 +81,11 @@ void atomic_clear_16(__volatile uint16_t *, uint16_t);
 void atomic_add_16(__volatile uint16_t *, uint16_t);
 void atomic_subtract_16(__volatile uint16_t *, uint16_t);
 
+static __inline int atomic_cmpset_8(__volatile uint8_t *, uint8_t, uint8_t);
+static __inline int atomic_fcmpset_8(__volatile uint8_t *, uint8_t *, uint8_t);
+static __inline int atomic_cmpset_16(__volatile uint16_t *, uint16_t, uint16_t);
+static __inline int atomic_fcmpset_16(__volatile uint16_t *, uint16_t *, uint16_t);
+
 static __inline void
 atomic_set_32(__volatile uint32_t *p, uint32_t v)
 {
@@ -376,23 +381,6 @@ atomic_cmpset_32(__volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
  * zero if the compare failed, nonzero otherwise.
  */
 static __inline int
-atomic_cmpset_acq_32(__volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
-{
-	int retval;
-
-	retval = atomic_cmpset_32(p, cmpval, newval);
-	mips_sync();
-	return (retval);
-}
-
-static __inline int
-atomic_cmpset_rel_32(__volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
-{
-	mips_sync();
-	return (atomic_cmpset_32(p, cmpval, newval));
-}
-
-static __inline int
 atomic_fcmpset_32(__volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
 {
 	int ret;
@@ -422,22 +410,57 @@ atomic_fcmpset_32(__volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
 	return ret;
 }
 
-static __inline int
-atomic_fcmpset_acq_32(__volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
-{
-	int retval;
-
-	retval = atomic_fcmpset_32(p, cmpval, newval);
-	mips_sync();
-	return (retval);
+#define	ATOMIC_CMPSET_ACQ_REL(WIDTH)					\
+static __inline  int							\
+atomic_cmpset_acq_##WIDTH(__volatile uint##WIDTH##_t *p,		\
+    uint##WIDTH##_t cmpval, uint##WIDTH##_t newval)			\
+{									\
+	int retval;							\
+									\
+	retval = atomic_cmpset_##WIDTH(p, cmpval, newval);		\
+	mips_sync();							\
+	return (retval);						\
+}									\
+									\
+static __inline  int							\
+atomic_cmpset_rel_##WIDTH(__volatile uint##WIDTH##_t *p,		\
+    uint##WIDTH##_t cmpval, uint##WIDTH##_t newval)			\
+{									\
+	mips_sync();							\
+	return (atomic_cmpset_##WIDTH(p, cmpval, newval));		\
 }
 
-static __inline int
-atomic_fcmpset_rel_32(__volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
-{
-	mips_sync();
-	return (atomic_fcmpset_32(p, cmpval, newval));
+#define	ATOMIC_FCMPSET_ACQ_REL(WIDTH)					\
+static __inline  int							\
+atomic_fcmpset_acq_##WIDTH(__volatile uint##WIDTH##_t *p,		\
+    uint##WIDTH##_t *cmpval, uint##WIDTH##_t newval)			\
+{									\
+	int retval;							\
+									\
+	retval = atomic_fcmpset_##WIDTH(p, cmpval, newval);		\
+	mips_sync();							\
+	return (retval);						\
+}									\
+									\
+static __inline  int							\
+atomic_fcmpset_rel_##WIDTH(__volatile uint##WIDTH##_t *p,		\
+    uint##WIDTH##_t *cmpval, uint##WIDTH##_t newval)			\
+{									\
+	mips_sync();							\
+	return (atomic_fcmpset_##WIDTH(p, cmpval, newval));		\
 }
+
+/*
+ * Atomically compare the value stored at *p with cmpval and if the
+ * two values are equal, update the value of *p with newval. Returns
+ * zero if the compare failed, nonzero otherwise.
+ */
+ATOMIC_CMPSET_ACQ_REL(8);
+ATOMIC_CMPSET_ACQ_REL(16);
+ATOMIC_CMPSET_ACQ_REL(32);
+ATOMIC_FCMPSET_ACQ_REL(8);
+ATOMIC_FCMPSET_ACQ_REL(16);
+ATOMIC_FCMPSET_ACQ_REL(32);
 
 /*
  * Atomically add the value of v to the integer pointed to by p and return
@@ -487,28 +510,6 @@ atomic_cmpset_64(__volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 	return ret;
 }
 
-/*
- * Atomically compare the value stored at *p with cmpval and if the
- * two values are equal, update the value of *p with newval. Returns
- * zero if the compare failed, nonzero otherwise.
- */
-static __inline int
-atomic_cmpset_acq_64(__volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
-{
-	int retval;
-
-	retval = atomic_cmpset_64(p, cmpval, newval);
-	mips_sync();
-	return (retval);
-}
-
-static __inline int
-atomic_cmpset_rel_64(__volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
-{
-	mips_sync();
-	return (atomic_cmpset_64(p, cmpval, newval));
-}
-
 static __inline int
 atomic_fcmpset_64(__volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
 {
@@ -532,22 +533,13 @@ atomic_fcmpset_64(__volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
 	return ret;
 }
 
-static __inline int
-atomic_fcmpset_acq_64(__volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
-{
-	int retval;
-
-	retval = atomic_fcmpset_64(p, cmpval, newval);
-	mips_sync();
-	return (retval);
-}
-
-static __inline int
-atomic_fcmpset_rel_64(__volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
-{
-	mips_sync();
-	return (atomic_fcmpset_64(p, cmpval, newval));
-}
+/*
+ * Atomically compare the value stored at *p with cmpval and if the
+ * two values are equal, update the value of *p with newval. Returns
+ * zero if the compare failed, nonzero otherwise.
+ */
+ATOMIC_CMPSET_ACQ_REL(64);
+ATOMIC_FCMPSET_ACQ_REL(64);
 
 /*
  * Atomically add the value of v to the integer pointed to by p and return
@@ -611,6 +603,12 @@ atomic_thread_fence_seq_cst(void)
 #define	atomic_subtract_char	atomic_subtract_8
 #define	atomic_subtract_acq_char	atomic_subtract_acq_8
 #define	atomic_subtract_rel_char	atomic_subtract_rel_8
+#define	atomic_cmpset_char	atomic_cmpset_8
+#define	atomic_cmpset_acq_char	atomic_cmpset_acq_8
+#define	atomic_cmpset_rel_char	atomic_cmpset_rel_8
+#define	atomic_fcmpset_char	atomic_fcmpset_8
+#define	atomic_fcmpset_acq_char	atomic_fcmpset_acq_8
+#define	atomic_fcmpset_rel_char	atomic_fcmpset_rel_8
 
 /* Operations on shorts. */
 #define	atomic_set_short	atomic_set_16
@@ -625,6 +623,12 @@ atomic_thread_fence_seq_cst(void)
 #define	atomic_subtract_short	atomic_subtract_16
 #define	atomic_subtract_acq_short	atomic_subtract_acq_16
 #define	atomic_subtract_rel_short	atomic_subtract_rel_16
+#define	atomic_cmpset_short	atomic_cmpset_16
+#define	atomic_cmpset_acq_short	atomic_cmpset_acq_16
+#define	atomic_cmpset_rel_short	atomic_cmpset_rel_16
+#define	atomic_fcmpset_short	atomic_fcmpset_16
+#define	atomic_fcmpset_acq_short	atomic_fcmpset_acq_16
+#define	atomic_fcmpset_rel_short	atomic_fcmpset_rel_16
 
 /* Operations on ints. */
 #define	atomic_set_int		atomic_set_32
@@ -827,5 +831,7 @@ atomic_swap_long(volatile unsigned long *ptr, const unsigned long value)
 }
 #endif
 #define	atomic_swap_ptr(ptr, value) atomic_swap_long((unsigned long *)(ptr), value)
+
+#include <sys/_atomic_subword.h>
 
 #endif /* ! _MACHINE_ATOMIC_H_ */
