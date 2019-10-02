@@ -300,7 +300,7 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 
 		/* Execute cr-dump and SW reset */
 		if (lock != -EBUSY) {
-			mlx5_fwdump(dev);
+			(void)mlx5_fwdump(dev);
 			reset_fw_if_needed(dev);
 			delay_ms = MLX5_FW_RESET_WAIT_MS;
 		}
