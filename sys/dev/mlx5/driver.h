@@ -1096,6 +1096,7 @@ int mlx5_vsc_find_cap(struct mlx5_core_dev *mdev);
 int mlx5_vsc_lock(struct mlx5_core_dev *mdev);
 void mlx5_vsc_unlock(struct mlx5_core_dev *mdev);
 int mlx5_vsc_set_space(struct mlx5_core_dev *mdev, u16 space);
+int mlx5_vsc_wait_on_flag(struct mlx5_core_dev *mdev, u32 expected);
 int mlx5_vsc_write(struct mlx5_core_dev *mdev, u32 addr, const u32 *data);
 int mlx5_vsc_read(struct mlx5_core_dev *mdev, u32 addr, u32 *data);
 int mlx5_vsc_lock_addr_space(struct mlx5_core_dev *mdev, u32 addr);
