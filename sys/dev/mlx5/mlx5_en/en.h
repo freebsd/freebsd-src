@@ -988,6 +988,11 @@ struct mlx5e_clbr_point {
 	u_int clbr_gen;
 };
 
+struct mlx5e_dcbx {
+	u32	cable_len;
+	u32	xoff;
+};
+
 struct mlx5e_priv {
 	struct mlx5_core_dev *mdev;     /* must be first */
 
@@ -1055,6 +1060,8 @@ struct mlx5e_priv {
 	int	clbr_curr;
 	struct mlx5e_clbr_point clbr_points[2];
 	u_int	clbr_gen;
+
+	struct mlx5e_dcbx dcbx;
 
 	struct pfil_head *pfil;
 	struct mlx5e_channel channel[];
