@@ -194,6 +194,12 @@
             uk_UA.KOI8-U
             ..
         ..
+        certs
+            blacklisted
+            ..
+            trusted
+            ..
+        ..
         dict
         ..
         doc
