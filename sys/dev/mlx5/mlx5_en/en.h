@@ -1046,6 +1046,7 @@ struct mlx5e_priv {
 	u_int	clbr_gen;
 
 	struct mlx5e_dcbx dcbx;
+	bool	sw_is_port_buf_owner;
 
 	struct pfil_head *pfil;
 	struct mlx5e_channel channel[];
