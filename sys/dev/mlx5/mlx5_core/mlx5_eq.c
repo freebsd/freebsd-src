@@ -698,16 +698,17 @@ static void mlx5_port_module_event(struct mlx5_core_dev *dev,
 
 	case MLX5_MODULE_STATUS_ERROR:
 		mlx5_core_err(dev,
-		    "Module %u, status: error, %s\n",
+		    "Module %u, status: error, %s (%d)\n",
 		    module_num,
-		    mlx5_port_module_event_error_type_to_string(error_type));
+		    mlx5_port_module_event_error_type_to_string(error_type),
+		    error_type);
 		if (error_type < MLX5_MODULE_EVENT_ERROR_NUM)
 			dev->priv.pme_stats.error_counters[error_type]++;
 		break;
 
 	default:
 		mlx5_core_info(dev,
-		    "Module %u, unknown status\n", module_num);
+		    "Module %u, unknown status %d\n", module_num, module_status);
 	}
 	/* store module status */
 	if (module_num < MLX5_MAX_PORTS)
