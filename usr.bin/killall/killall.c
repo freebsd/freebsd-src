@@ -98,7 +98,7 @@ main(int ac, char **av)
 	struct stat	sb;
 	struct passwd	*pw;
 	regex_t		rgx;
-	regmatch_t	pmatch[1];
+	regmatch_t	pmatch;
 	int		i, j, ch;
 	char		buf[256];
 	char		first;
@@ -361,9 +361,9 @@ main(int ac, char **av)
 				}
 			}
 			if (mflag) {
-				pmatch[0].rm_so = 0;
-				pmatch[0].rm_eo = strlen(thiscmd);
-				if (regexec(&rgx, thiscmd, 0, pmatch,
+				pmatch.rm_so = 0;
+				pmatch.rm_eo = strlen(thiscmd);
+				if (regexec(&rgx, thiscmd, 0, &pmatch,
 				    REG_STARTEND) != 0)
 					matched = 0;
 				regfree(&rgx);
@@ -387,9 +387,9 @@ main(int ac, char **av)
 				}
 			}
 			if (mflag) {
-				pmatch[0].rm_so = 0;
-				pmatch[0].rm_eo = strlen(thiscmd);
-				if (regexec(&rgx, thiscmd, 0, pmatch,
+				pmatch.rm_so = 0;
+				pmatch.rm_eo = strlen(thiscmd);
+				if (regexec(&rgx, thiscmd, 0, &pmatch,
 				    REG_STARTEND) == 0)
 					matched = 1;
 				regfree(&rgx);

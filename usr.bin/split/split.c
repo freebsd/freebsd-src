@@ -281,11 +281,11 @@ split2(void)
 
 		/* Check if we need to start a new file */
 		if (pflag) {
-			regmatch_t pmatch[1];
+			regmatch_t pmatch;
 
-			pmatch[0].rm_so = 0;
-			pmatch[0].rm_eo = len - 1;
-			if (regexec(&rgx, bfr, 0, pmatch, REG_STARTEND) == 0)
+			pmatch.rm_so = 0;
+			pmatch.rm_eo = len - 1;
+			if (regexec(&rgx, bfr, 0, &pmatch, REG_STARTEND) == 0)
 				newfile();
 		} else if (lcnt++ == numlines) {
 			newfile();
