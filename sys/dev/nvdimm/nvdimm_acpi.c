@@ -141,7 +141,7 @@ nvdimm_root_create_spas(struct nvdimm_root_dev *dev, ACPI_TABLE_NFIT *nfitbl)
 		error = nvdimm_spa_init(spa_mapping, *spa, spa_type);
 		if (error != 0) {
 			nvdimm_spa_fini(spa_mapping);
-			free(spa, M_NVDIMM_ACPI);
+			free(spa_mapping, M_NVDIMM_ACPI);
 			break;
 		}
 		nvdimm_create_namespaces(spa_mapping, nfitbl);
