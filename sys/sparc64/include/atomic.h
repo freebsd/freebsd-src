@@ -48,6 +48,11 @@
 #define	__ASI_ATOMIC	ASI_P
 #endif
 
+static __inline int atomic_cmpset_8(__volatile uint8_t *, uint8_t, uint8_t);
+static __inline int atomic_fcmpset_8(__volatile uint8_t *, uint8_t *, uint8_t);
+static __inline int atomic_cmpset_16(__volatile uint16_t *, uint16_t, uint16_t);
+static __inline int atomic_fcmpset_16(__volatile uint16_t *, uint16_t *, uint16_t);
+
 /*
  * Various simple arithmetic on memory which is atomic in the presence
  * of interrupts and multiple processors.  See atomic(9) for details.
@@ -356,6 +361,68 @@ ATOMIC_GEN(64, uint64_t *, uint64_t, uint64_t, 64);
 
 ATOMIC_GEN(ptr, uintptr_t *, uintptr_t, uintptr_t, 64);
 
+#define	ATOMIC_CMPSET_ACQ_REL(WIDTH)					\
+static __inline  int							\
+atomic_cmpset_acq_##WIDTH(__volatile uint##WIDTH##_t *p,		\
+    uint##WIDTH##_t cmpval, uint##WIDTH##_t newval)			\
+{									\
+	int retval;							\
+									\
+	retval = atomic_cmpset_##WIDTH(p, cmpval, newval);		\
+	mb();								\
+	return (retval);						\
+}									\
+									\
+static __inline  int							\
+atomic_cmpset_rel_##WIDTH(__volatile uint##WIDTH##_t *p,		\
+    uint##WIDTH##_t cmpval, uint##WIDTH##_t newval)			\
+{									\
+	mb();								\
+	return (atomic_cmpset_##WIDTH(p, cmpval, newval));		\
+}
+
+#define	ATOMIC_FCMPSET_ACQ_REL(WIDTH)					\
+static __inline  int							\
+atomic_fcmpset_acq_##WIDTH(__volatile uint##WIDTH##_t *p,		\
+    uint##WIDTH##_t *cmpval, uint##WIDTH##_t newval)			\
+{									\
+	int retval;							\
+									\
+	retval = atomic_fcmpset_##WIDTH(p, cmpval, newval);		\
+	mb();								\
+	return (retval);						\
+}									\
+									\
+static __inline  int							\
+atomic_fcmpset_rel_##WIDTH(__volatile uint##WIDTH##_t *p,		\
+    uint##WIDTH##_t *cmpval, uint##WIDTH##_t newval)			\
+{									\
+	mb();								\
+	return (atomic_fcmpset_##WIDTH(p, cmpval, newval));		\
+}
+
+/*
+ * Atomically compare the value stored at *p with cmpval and if the
+ * two values are equal, update the value of *p with newval. Returns
+ * zero if the compare failed, nonzero otherwise.
+ */
+ATOMIC_CMPSET_ACQ_REL(8);
+ATOMIC_CMPSET_ACQ_REL(16);
+ATOMIC_FCMPSET_ACQ_REL(8);
+ATOMIC_FCMPSET_ACQ_REL(16);
+
+#define	atomic_cmpset_char		atomic_cmpset_8
+#define	atomic_cmpset_acq_char		atomic_cmpset_acq_8
+#define	atomic_cmpset_rel_char		atomic_cmpset_rel_8
+#define	atomic_fcmpset_acq_char		atomic_fcmpset_acq_8
+#define	atomic_fcmpset_rel_char		atomic_fcmpset_rel_8
+
+#define	atomic_cmpset_short		atomic_cmpset_16
+#define	atomic_cmpset_acq_short		atomic_cmpset_acq_16
+#define	atomic_cmpset_rel_short		atomic_cmpset_rel_16
+#define	atomic_fcmpset_acq_short	atomic_fcmpset_acq_16
+#define	atomic_fcmpset_rel_short	atomic_fcmpset_rel_16
+
 #define	atomic_fetchadd_int	atomic_add_int
 #define	atomic_fetchadd_32	atomic_add_32
 #define	atomic_fetchadd_long	atomic_add_long
@@ -373,5 +440,7 @@ ATOMIC_GEN(ptr, uintptr_t *, uintptr_t, uintptr_t, 64);
 #undef atomic_st
 #undef atomic_st_acq
 #undef atomic_st_rel
+
+#include <sys/_atomic_subword.h>
 
 #endif /* !_MACHINE_ATOMIC_H_ */
