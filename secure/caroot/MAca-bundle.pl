@@ -39,6 +39,7 @@ use MIME::Base64;
 use Getopt::Long;
 
 my $VERSION = '$FreeBSD$';
+my $generated = '@' . 'generated';
 my $inputfh = *STDIN;
 my $debug = 0;
 my $infile;
@@ -78,6 +79,8 @@ sub print_header($$)
 ##  Extracted from nss
 ##  with $VERSION
 ##
+##  $generated
+##
 EOFH
     } else {
 	print $dstfile <<EOH;
@@ -90,6 +93,8 @@ EOFH
 ##
 ##  Extracted from nss
 ##  with $VERSION
+##
+##  $generated
 ##
 EOH
     }
