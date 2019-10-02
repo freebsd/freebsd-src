@@ -684,7 +684,7 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 			} else {
 				priv->params.hw_lro_en = false;
 
-				if_printf(priv->ifp, "To enable HW LRO "
+				mlx5_en_warn(priv->ifp, "To enable HW LRO "
 				    "please also enable LRO via ifconfig(8).\n");
 			}
 		} else {
@@ -824,8 +824,8 @@ mlx5e_get_eeprom_info(struct mlx5e_priv *priv, struct mlx5e_eeprom *eeprom)
 
 	ret = mlx5_query_module_num(dev, &eeprom->module_num);
 	if (ret) {
-		if_printf(priv->ifp, "%s:%d: Failed query module error=%d\n",
-		    __func__, __LINE__, ret);
+		mlx5_en_err(priv->ifp, "Failed query module error=%d\n",
+		    ret);
 		return (ret);
 	}
 
@@ -834,8 +834,8 @@ mlx5e_get_eeprom_info(struct mlx5e_priv *priv, struct mlx5e_eeprom *eeprom)
 	    eeprom->device_addr, MLX5E_EEPROM_INFO_BYTES, eeprom->module_num, &data,
 	    &size_read);
 	if (ret) {
-		if_printf(priv->ifp, "%s:%d: Failed query eeprom module error=0x%x\n",
-		    __func__, __LINE__, ret);
+		mlx5_en_err(priv->ifp,
+		    "Failed query eeprom module error=0x%x\n", ret);
 		return (ret);
 	}
 
@@ -862,8 +862,9 @@ mlx5e_get_eeprom_info(struct mlx5e_priv *priv, struct mlx5e_eeprom *eeprom)
 		eeprom->len = MLX5E_ETH_MODULE_SFF_8472_LEN;
 		break;
 	default:
-		if_printf(priv->ifp, "%s:%d: Not recognized cable type = 0x%x(%s)\n",
-		    __func__, __LINE__, data & MLX5_EEPROM_IDENTIFIER_BYTE_MASK,
+		mlx5_en_err(priv->ifp,
+		    "Not recognized cable type = 0x%x(%s)\n",
+		    data & MLX5_EEPROM_IDENTIFIER_BYTE_MASK,
 		    sff_8024_id[data & MLX5_EEPROM_IDENTIFIER_BYTE_MASK]);
 		return (EINVAL);
 	}
@@ -887,8 +888,8 @@ mlx5e_get_eeprom(struct mlx5e_priv *priv, struct mlx5e_eeprom *ee)
 		    ee->len - ee->device_addr, ee->module_num,
 		    ee->data + (ee->device_addr / 4), &size_read);
 		if (ret) {
-			if_printf(priv->ifp, "%s:%d: Failed reading eeprom, "
-			    "error = 0x%02x\n", __func__, __LINE__, ret);
+			mlx5_en_err(priv->ifp,
+			    "Failed reading eeprom, error = 0x%02x\n",ret);
 			return (ret);
 		}
 		ee->device_addr += size_read;
@@ -906,8 +907,9 @@ mlx5e_get_eeprom(struct mlx5e_priv *priv, struct mlx5e_eeprom *ee)
 			    ((ee->device_addr - MLX5E_EEPROM_HIGH_PAGE_OFFSET) / 4),
 			    &size_read);
 			if (ret) {
-				if_printf(priv->ifp, "%s:%d: Failed reading eeprom, "
-				    "error = 0x%02x\n", __func__, __LINE__, ret);
+				mlx5_en_err(priv->ifp,
+				    "Failed reading eeprom, error = 0x%02x\n",
+				    ret);
 				return (ret);
 			}
 			ee->device_addr += size_read;
@@ -983,8 +985,8 @@ mlx5e_read_eeprom(SYSCTL_HANDLER_ARGS)
 		/* Read three first bytes to get important info */
 		error = mlx5e_get_eeprom_info(priv, &eeprom);
 		if (error) {
-			if_printf(priv->ifp, "%s:%d: Failed reading eeprom's "
-			    "initial information\n", __func__, __LINE__);
+			mlx5_en_err(priv->ifp,
+			    "Failed reading eeprom's initial information\n");
 			error = 0;
 			goto done;
 		}
@@ -998,8 +1000,7 @@ mlx5e_read_eeprom(SYSCTL_HANDLER_ARGS)
 		/* Read the whole eeprom information */
 		error = mlx5e_get_eeprom(priv, &eeprom);
 		if (error) {
-			if_printf(priv->ifp, "%s:%d: Failed reading eeprom\n",
-			    __func__, __LINE__);
+			mlx5_en_err(priv->ifp, "Failed reading eeprom\n");
 			error = 0;
 			/*
 			 * Continue printing partial information in case of
