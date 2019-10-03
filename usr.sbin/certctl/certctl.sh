@@ -74,11 +74,21 @@ create_trusted_link()
 
 create_blacklisted()
 {
-	local hash
+	local hash srcfile filename
 
-	hash=$( do_hash "$1" ) || return
-	[ $VERBOSE -gt 0 ] && echo "Adding $hash.0 to blacklist"
-	[ $NOOP -eq 0 ] && ln -fs $(realpath "$1") "$BLACKLISTDESTDIR/$hash.0"
+	# If it exists as a file, we'll try that; otherwise, we'll scan
+	if [ -e "$1" ]; then
+		hash=$( do_hash "$1" ) || return
+		srcfile=$(realpath "$1")
+		filename="$hash.0"
+	elif [ -e "${CERTDESTDIR}/$1" ];  then
+		srcfile=$(realpath "${CERTDESTDIR}/$1")
+		filename="$1"
+	else
+		return
+	fi
+	[ $VERBOSE -gt 0 ] && echo "Adding $filename to blacklist"
+	[ $NOOP -eq 0 ] && ln -fs "$srcfile" "$BLACKLISTDESTDIR/$filename"
 }
 
 do_scan()
