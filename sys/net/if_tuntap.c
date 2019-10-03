@@ -131,13 +131,15 @@ struct tuntap_softc {
 	struct mtx		 tun_mtx;	/* softc field mutex */
 	struct cv		 tun_cv;	/* for ref'd dev destroy */
 	struct ether_addr	 tun_ether;	/* remote address */
+	int			 tun_busy;	/* busy count */
 };
 #define	TUN2IFP(sc)	((sc)->tun_ifp)
 
 #define	TUNDEBUG	if (tundebug) if_printf
 
-#define	TUN_LOCK(tp)	mtx_lock(&(tp)->tun_mtx)
-#define	TUN_UNLOCK(tp)	mtx_unlock(&(tp)->tun_mtx)
+#define	TUN_LOCK(tp)		mtx_lock(&(tp)->tun_mtx)
+#define	TUN_UNLOCK(tp)		mtx_unlock(&(tp)->tun_mtx)
+#define	TUN_LOCK_ASSERT(tp)	mtx_assert(&(tp)->tun_mtx, MA_OWNED);
 
 #define	TUN_VMIO_FLAG_MASK	0x0fff
 
@@ -181,6 +183,11 @@ SYSCTL_INT(_net_link_tap, OID_AUTO, up_on_open, CTLFLAG_RW, &tapuponopen, 0,
 SYSCTL_INT(_net_link_tap, OID_AUTO, devfs_cloning, CTLFLAG_RWTUN, &tapdclone, 0,
     "Enable legacy devfs interface creation");
 SYSCTL_INT(_net_link_tap, OID_AUTO, debug, CTLFLAG_RW, &tundebug, 0, "");
+
+static int	tun_busy_locked(struct tuntap_softc *tp);
+static void	tun_unbusy_locked(struct tuntap_softc *tp);
+static int	tun_busy(struct tuntap_softc *tp);
+static void	tun_unbusy(struct tuntap_softc *tp);
 
 static int	tuntap_name2info(const char *name, int *unit, int *flags);
 static void	tunclone(void *arg, struct ucred *cred, char *name,
@@ -302,6 +309,65 @@ VNET_DEFINE_STATIC(SLIST_HEAD(, tuntap_driver_cloner), tuntap_driver_cloners) =
     SLIST_HEAD_INITIALIZER(tuntap_driver_cloners);
 
 #define	V_tuntap_driver_cloners	VNET(tuntap_driver_cloners)
+
+/*
+ * Mechanism for marking a tunnel device as busy so that we can safely do some
+ * orthogonal operations (such as operations on devices) without racing against
+ * tun_destroy.  tun_destroy will wait on the condvar if we're at all busy or
+ * open, to be woken up when the condition is alleviated.
+ */
+static int
+tun_busy_locked(struct tuntap_softc *tp)
+{
+
+	TUN_LOCK_ASSERT(tp);
+	if ((tp->tun_flags & TUN_DYING) != 0) {
+		/*
+		 * Perhaps unintuitive, but the device is busy going away.
+		 * Other interpretations of EBUSY from tun_busy make little
+		 * sense, since making a busy device even more busy doesn't
+		 * sound like a problem.
+		 */
+		return (EBUSY);
+	}
+
+	++tp->tun_busy;
+	return (0);
+}
+
+static void
+tun_unbusy_locked(struct tuntap_softc *tp)
+{
+
+	TUN_LOCK_ASSERT(tp);
+	KASSERT(tp->tun_busy != 0, ("tun_unbusy: called for non-busy tunnel"));
+
+	--tp->tun_busy;
+	/* Wake up anything that may be waiting on our busy tunnel. */
+	if (tp->tun_busy == 0)
+		cv_broadcast(&tp->tun_cv);
+}
+
+static int
+tun_busy(struct tuntap_softc *tp)
+{
+	int ret;
+
+	TUN_LOCK(tp);
+	ret = tun_busy_locked(tp);
+	TUN_UNLOCK(tp);
+	return (ret);
+}
+
+
+static void
+tun_unbusy(struct tuntap_softc *tp)
+{
+
+	TUN_LOCK(tp);
+	tun_unbusy_locked(tp);
+	TUN_UNLOCK(tp);
+}
 
 /*
  * Sets unit and/or flags given the device name.  Must be called with correct
@@ -531,7 +597,7 @@ tun_destroy(struct tuntap_softc *tp)
 
 	TUN_LOCK(tp);
 	tp->tun_flags |= TUN_DYING;
-	if ((tp->tun_flags & TUN_OPEN) != 0)
+	if (tp->tun_busy != 0)
 		cv_wait_unlock(&tp->tun_cv, &tp->tun_mtx);
 	else
 		TUN_UNLOCK(tp);
@@ -885,6 +951,8 @@ tunopen(struct cdev *dev, int flag, int mode, struct thread *td)
 		return (EBUSY);
 	}
 
+	error = tun_busy_locked(tp);
+	KASSERT(error == 0, ("Must be able to busy an unopen tunnel"));
 	ifp = TUN2IFP(tp);
 
 	if ((tp->tun_flags & TUN_L2) != 0) {
@@ -988,7 +1056,7 @@ out:
 	tp->tun_flags &= ~TUN_OPEN;
 	tp->tun_pid = 0;
 
-	cv_broadcast(&tp->tun_cv);
+	tun_unbusy_locked(tp);
 	TUN_UNLOCK(tp);
 	return (0);
 }
