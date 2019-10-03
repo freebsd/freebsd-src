@@ -56,13 +56,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	a non-default value, please tell asomers@FreeBSD.org why.
 
 20190713:
-	Default permissions on the /var/account/acct file (and copies of it 
-	rotated by periodic daily scripts) are changed from 0644 to 0640 
-	because the file contains sensitive information that should not be 
-	world-readable.  If the /var/account directory must be created by 
-	rc.d/accounting, the mode used is now 0750.  Admins who use the 
-	accounting feature are encouraged to change the mode of an existing 
-	/var/account directory to 0750 or 0700.  
+	Default permissions on the /var/account/acct file (and copies of it
+	rotated by periodic daily scripts) are changed from 0644 to 0640
+	because the file contains sensitive information that should not be
+	world-readable.  If the /var/account directory must be created by
+	rc.d/accounting, the mode used is now 0750.  Admins who use the
+	accounting feature are encouraged to change the mode of an existing
+	/var/account directory to 0750 or 0700.
 
 20190620:
 	Entropy collection and the /dev/random device are no longer optional
@@ -586,7 +586,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	executables, but is not yet installed as /usr/bin/ld by default.
 
 	To revert to ld.bfd as the bootstrap linker, in /etc/src.conf set
-        WITHOUT_LLD_BOOTSTRAP=yes
+	WITHOUT_LLD_BOOTSTRAP=yes
 
 20180110:
 	On i386, pmtimer has been removed. Its functionality has been folded
