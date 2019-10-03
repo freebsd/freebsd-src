@@ -31,7 +31,7 @@
 .\"     @(#)init.8	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd August 15, 2018
+.Dd August 6, 2019
 .Dt INIT 8
 .Os
 .Sh NAME
@@ -269,6 +269,15 @@ The timeout can be configured via the
 .Xr sysctl 8
 variable
 .Va kern.init_shutdown_timeout .
+.Pp
+.Nm init
+passes
+.Dq Li single
+as the argument to the shutdown script if return to single-user mode
+is requested.
+Otherwise,
+.Dq Li reboot
+argument is used.
 .Pp
 The role of
 .Nm

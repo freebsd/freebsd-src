@@ -43,6 +43,8 @@ HOME=/
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin
 export HOME PATH
 
+rc_shutdown=${1:-"unspecified"}
+
 . /etc/rc.subr
 
 load_rc_config
