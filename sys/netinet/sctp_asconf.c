@@ -105,42 +105,47 @@ sctp_asconf_error_response(uint32_t id, uint16_t cause, uint8_t *error_tlv,
 	struct mbuf *m_reply = NULL;
 	struct sctp_asconf_paramhdr *aph;
 	struct sctp_error_cause *error;
+	size_t buf_len;
+	uint16_t i, param_length, cause_length, padding_length;
 	uint8_t *tlv;
 
-	m_reply = sctp_get_mbuf_for_msg((sizeof(struct sctp_asconf_paramhdr) +
-	    tlv_length +
-	    sizeof(struct sctp_error_cause)),
-	    0, M_NOWAIT, 1, MT_DATA);
+	if (error_tlv == NULL) {
+		tlv_length = 0;
+	}
+	cause_length = sizeof(struct sctp_error_cause) + tlv_length;
+	param_length = sizeof(struct sctp_asconf_paramhdr) + cause_length;
+	padding_length = tlv_length % 4;
+	if (padding_length != 0) {
+		padding_length = 4 - padding_length;
+	}
+	buf_len = param_length + padding_length;
+	if (buf_len > MLEN) {
+		SCTPDBG(SCTP_DEBUG_ASCONF1,
+		    "asconf_error_response: tlv_length (%xh) too big\n",
+		    tlv_length);
+		return (NULL);
+	}
+	m_reply = sctp_get_mbuf_for_msg(buf_len, 0, M_NOWAIT, 1, MT_DATA);
 	if (m_reply == NULL) {
 		SCTPDBG(SCTP_DEBUG_ASCONF1,
 		    "asconf_error_response: couldn't get mbuf!\n");
 		return (NULL);
 	}
 	aph = mtod(m_reply, struct sctp_asconf_paramhdr *);
-	error = (struct sctp_error_cause *)(aph + 1);
-
-	aph->correlation_id = id;
 	aph->ph.param_type = htons(SCTP_ERROR_CAUSE_IND);
+	aph->ph.param_length = htons(param_length);
+	aph->correlation_id = id;
+	error = (struct sctp_error_cause *)(aph + 1);
 	error->code = htons(cause);
-	error->length = tlv_length + sizeof(struct sctp_error_cause);
-	aph->ph.param_length = error->length +
-	    sizeof(struct sctp_asconf_paramhdr);
-
-	if (aph->ph.param_length > MLEN) {
-		SCTPDBG(SCTP_DEBUG_ASCONF1,
-		    "asconf_error_response: tlv_length (%xh) too big\n",
-		    tlv_length);
-		sctp_m_freem(m_reply);	/* discard */
-		return (NULL);
-	}
+	error->length = htons(cause_length);
 	if (error_tlv != NULL) {
 		tlv = (uint8_t *)(error + 1);
 		memcpy(tlv, error_tlv, tlv_length);
+		for (i = 0; i < padding_length; i++) {
+			tlv[tlv_length + i] = 0;
+		}
 	}
-	SCTP_BUF_LEN(m_reply) = aph->ph.param_length;
-	error->length = htons(error->length);
-	aph->ph.param_length = htons(aph->ph.param_length);
-
+	SCTP_BUF_LEN(m_reply) = buf_len;
 	return (m_reply);
 }
 
@@ -780,8 +785,6 @@ sctp_handle_asconf(struct mbuf *m, unsigned int offset,
 		if (m_result != NULL) {
 			SCTP_BUF_NEXT(m_tail) = m_result;
 			m_tail = m_result;
-			/* update lengths, make sure it's aligned too */
-			SCTP_BUF_LEN(m_result) = SCTP_SIZE32(SCTP_BUF_LEN(m_result));
 			ack_cp->ch.chunk_length += SCTP_BUF_LEN(m_result);
 			/* set flag to force success reports */
 			error = 1;
