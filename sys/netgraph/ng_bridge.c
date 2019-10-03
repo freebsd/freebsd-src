@@ -372,13 +372,14 @@ ng_bridge_newhook(node_p node, hook_p hook, const char *name)
  * Receive a control message
  */
 static int
-ng_bridge_reset_link(hook_p hook, int ret)
+ng_bridge_reset_link(hook_p hook, void *arg __unused)
 {
 	link_p priv = NG_HOOK_PRIVATE(hook);
 
 	priv->loopCount = 0;
 	bzero(&priv->stats, sizeof(priv->stats));
-	return (ret);
+
+	return (1);
 }
 
 
@@ -429,7 +430,8 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			ng_bridge_remove_hosts(priv, NULL);
 
 			/* Reset all loop detection counters and stats */
-			NG_NODE_FOREACH_HOOK(node, ng_bridge_reset_link, 1, rethook);
+			NG_NODE_FOREACH_HOOK(node, ng_bridge_reset_link, NULL,
+			    rethook);
 			break;
 		    }
 		case NGM_BRIDGE_GET_STATS:
@@ -530,8 +532,9 @@ struct ng_bridge_send_ctx {
 };
 
 static int
-ng_bridge_send_ctx(hook_p dst, struct ng_bridge_send_ctx * ctx)
+ng_bridge_send_ctx(hook_p dst, void *arg)
 {
+	struct ng_bridge_send_ctx *ctx = arg;
 	link_p destLink = NG_HOOK_PRIVATE(dst);
 	struct mbuf *m2 = NULL;
 	int error = 0;
@@ -959,11 +962,12 @@ ng_bridge_remove_hosts(priv_p priv, link_p link)
  * the hashtable whom we haven't heard from in a long while.
  */
 static int
-ng_bridge_unmute(hook_p hook, int *counter)
+ng_bridge_unmute(hook_p hook, void *arg)
 {
 	link_p link = NG_HOOK_PRIVATE(hook);
 	node_p node = NG_HOOK_NODE(hook);
 	priv_p priv = NG_NODE_PRIVATE(node);
+	int *counter = arg;
 
 	if (link->loopCount != 0) {
 		link->loopCount--;
