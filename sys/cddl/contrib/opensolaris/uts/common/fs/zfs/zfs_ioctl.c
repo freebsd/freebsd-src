@@ -224,7 +224,8 @@ typedef int zfs_secpolicy_func_t(zfs_cmd_t *, nvlist_t *, cred_t *);
 typedef enum {
 	NO_NAME,
 	POOL_NAME,
-	DATASET_NAME
+	DATASET_NAME,
+	ENTITY_NAME
 } zfs_ioc_namecheck_t;
 
 typedef enum {
@@ -922,7 +923,20 @@ static int
 zfs_secpolicy_rename(zfs_cmd_t *zc, nvlist_t *innvl, cred_t *cr)
 {
 	char *at = NULL;
+	char *pound;
 	int error;
+
+	if ((pound = strchr(zc->zc_name, '#')) != NULL) {
+		*pound = '\0';
+		error = zfs_secpolicy_write_perms(zc->zc_name,
+		    ZFS_DELEG_PERM_RENAME, cr);
+		if (error == 0) {
+			error = zfs_secpolicy_write_perms(zc->zc_name,
+			    ZFS_DELEG_PERM_BOOKMARK, cr);
+		}
+		*pound = '#';
+		return (error);
+	}
 
 	if ((zc->zc_cookie & 1) != 0) {
 		/*
@@ -4020,8 +4034,8 @@ recursive_unmount(const char *fsname, void *arg)
 
 /*
  * inputs:
- * zc_name	old name of dataset
- * zc_value	new name of dataset
+ * zc_name	old name of dataset or bookmark
+ * zc_value	new name of dataset or bookmark
  * zc_cookie	recursive flag (only valid for snapshots)
  *
  * outputs:	none
@@ -4032,7 +4046,7 @@ zfs_ioc_rename(zfs_cmd_t *zc)
 	objset_t *os;
 	dmu_objset_type_t ost;
 	boolean_t recursive = zc->zc_cookie & 1;
-	char *at;
+	char *pos, *pos2;
 	boolean_t allow_mounted = B_TRUE;
 	int err;
 
@@ -4040,9 +4054,34 @@ zfs_ioc_rename(zfs_cmd_t *zc)
 	allow_mounted = (zc->zc_cookie & 2) != 0;
 #endif
 
-	/* "zfs rename" from and to ...%recv datasets should both fail */
 	zc->zc_name[sizeof (zc->zc_name) - 1] = '\0';
 	zc->zc_value[sizeof (zc->zc_value) - 1] = '\0';
+
+	pos = strchr(zc->zc_name, '#');
+	if (pos != NULL) {
+		/* Bookmarks must be in same fs. */
+		pos2 = strchr(zc->zc_value, '#');
+		if (pos2 == NULL)
+			return (SET_ERROR(EINVAL));
+
+		/* Recursive flag is not supported yet. */
+		if (recursive)
+			return (SET_ERROR(ENOTSUP));
+
+		*pos = '\0';
+		*pos2 = '\0';
+		if (strcmp(zc->zc_name, zc->zc_value) == 0) {
+			err = dsl_bookmark_rename(zc->zc_name,
+			    pos + 1, pos2 + 1);
+		} else {
+			err = SET_ERROR(EXDEV);
+		}
+		*pos = '#';
+		*pos2 = '#';
+		return (err);
+	}
+
+	/* "zfs rename" from and to ...%recv datasets should both fail */
 	if (dataset_namecheck(zc->zc_name, NULL, NULL) != 0 ||
 	    dataset_namecheck(zc->zc_value, NULL, NULL) != 0 ||
 	    strchr(zc->zc_name, '%') || strchr(zc->zc_value, '%'))
@@ -4054,28 +4093,30 @@ zfs_ioc_rename(zfs_cmd_t *zc)
 	ost = dmu_objset_type(os);
 	dmu_objset_rele(os, FTAG);
 
-	at = strchr(zc->zc_name, '@');
-	if (at != NULL) {
-		/* snaps must be in same fs */
-		int error;
-
-		if (strncmp(zc->zc_name, zc->zc_value, at - zc->zc_name + 1))
-			return (SET_ERROR(EXDEV));
-		*at = '\0';
-		if (ost == DMU_OST_ZFS && !allow_mounted) {
-			error = dmu_objset_find(zc->zc_name,
-			    recursive_unmount, at + 1,
-			    recursive ? DS_FIND_CHILDREN : 0);
-			if (error != 0) {
-				*at = '@';
-				return (error);
+	pos = strchr(zc->zc_name, '@');
+	if (pos != NULL) {
+		/* Snapshots must be in same fs. */
+		pos2 = strchr(zc->zc_value, '@');
+		if (pos2 == NULL)
+			return (SET_ERROR(EINVAL));
+		*pos = '\0';
+		*pos2 = '\0';
+		if (strcmp(zc->zc_name, zc->zc_value) != 0) {
+			err = SET_ERROR(EXDEV);
+		} else {
+			if (ost == DMU_OST_ZFS && !allow_mounted) {
+				err = dmu_objset_find(zc->zc_name,
+				    recursive_unmount, pos + 1,
+				    recursive ? DS_FIND_CHILDREN : 0);
+			}
+			if (err == 0) {
+				err = dsl_dataset_rename_snapshot(zc->zc_name,
+				    pos + 1, pos2 + 1, recursive);
 			}
 		}
-		error = dsl_dataset_rename_snapshot(zc->zc_name,
-		    at + 1, strchr(zc->zc_value, '@') + 1, recursive);
-		*at = '@';
-
-		return (error);
+		*pos = '@';
+		*pos2 = '@';
+		return (err);
 	} else {
 #ifdef illumos
 		if (ost == DMU_OST_ZVOL)
@@ -6352,8 +6393,6 @@ zfs_ioctl_init(void)
 	    zfs_secpolicy_none);
 	zfs_ioctl_register_dataset_modify(ZFS_IOC_DESTROY, zfs_ioc_destroy,
 	    zfs_secpolicy_destroy);
-	zfs_ioctl_register_dataset_modify(ZFS_IOC_RENAME, zfs_ioc_rename,
-	    zfs_secpolicy_rename);
 	zfs_ioctl_register_dataset_modify(ZFS_IOC_RECV, zfs_ioc_recv,
 	    zfs_secpolicy_recv);
 	zfs_ioctl_register_dataset_modify(ZFS_IOC_PROMOTE, zfs_ioc_promote,
@@ -6362,6 +6401,14 @@ zfs_ioctl_init(void)
 	    zfs_ioc_inherit_prop, zfs_secpolicy_inherit_prop);
 	zfs_ioctl_register_dataset_modify(ZFS_IOC_SET_FSACL, zfs_ioc_set_fsacl,
 	    zfs_secpolicy_set_fsacl);
+
+	/*
+	 * Not using zfs_ioctl_register_dataset_modify as DATASET_NAME check
+	 * won't allow a bookmark name.
+	 */
+	zfs_ioctl_register_legacy(ZFS_IOC_RENAME, zfs_ioc_rename,
+	    zfs_secpolicy_rename, ENTITY_NAME, B_TRUE,
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY);
 
 	zfs_ioctl_register_dataset_nolog(ZFS_IOC_SHARE, zfs_ioc_share,
 	    zfs_secpolicy_share, POOL_CHECK_NONE);
@@ -6392,7 +6439,8 @@ pool_status_check(const char *name, zfs_ioc_namecheck_t type,
 	spa_t *spa;
 	int error;
 
-	ASSERT(type == POOL_NAME || type == DATASET_NAME);
+	ASSERT(type == POOL_NAME || type == DATASET_NAME ||
+	    type == ENTITY_NAME);
 
 	if (check & POOL_CHECK_NONE)
 		return (0);
@@ -6723,6 +6771,15 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 		else
 			error = pool_status_check(zc->zc_name,
 			    vec->zvec_namecheck, vec->zvec_pool_check);
+		break;
+
+	case ENTITY_NAME:
+		if (entity_namecheck(zc->zc_name, NULL, NULL) != 0) {
+			error = SET_ERROR(EINVAL);
+		} else {
+			error = pool_status_check(zc->zc_name,
+			    vec->zvec_namecheck, vec->zvec_pool_check);
+		}
 		break;
 
 	case NO_NAME:
