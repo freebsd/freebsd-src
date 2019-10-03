@@ -931,6 +931,20 @@ send:
 			if (tp->t_flags & TF_NEEDFIN)
 				sendalot = 1;
 		} else {
+			if (optlen + ipoptlen >= tp->t_maxseg) {
+				/*
+				 * Since we don't have enough space to put
+				 * the IP header chain and the TCP header in
+				 * one packet as required by RFC 7112, don't
+				 * send it. Also ensure that at least one
+				 * byte of the payload can be put into the
+				 * TCP segment.
+				 */
+				SOCKBUF_UNLOCK(&so->so_snd);
+				error = EMSGSIZE;
+				sack_rxmit = 0;
+				goto out;
+			}
 			len = tp->t_maxseg - optlen - ipoptlen;
 			sendalot = 1;
 			if (dont_sendalot)
