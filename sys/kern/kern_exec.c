@@ -996,7 +996,10 @@ exec_map_first_page(struct image_params *imgp)
 		vm_page_xbusy(ma[0]);
 		if (!vm_pager_has_page(object, 0, NULL, &after)) {
 			vm_page_lock(ma[0]);
-			vm_page_free(ma[0]);
+			if (!vm_page_wired(ma[0]))
+				vm_page_free(ma[0]);
+			else
+				vm_page_xunbusy_maybelocked(ma[0]);
 			vm_page_unlock(ma[0]);
 			VM_OBJECT_WUNLOCK(object);
 			return (EIO);
@@ -1023,7 +1026,10 @@ exec_map_first_page(struct image_params *imgp)
 		if (rv != VM_PAGER_OK) {
 			for (i = 0; i < initial_pagein; i++) {
 				vm_page_lock(ma[i]);
-				vm_page_free(ma[i]);
+				if (!vm_page_wired(ma[i]))
+					vm_page_free(ma[i]);
+				else
+					vm_page_xunbusy_maybelocked(ma[i]);
 				vm_page_unlock(ma[i]);
 			}
 			VM_OBJECT_WUNLOCK(object);
