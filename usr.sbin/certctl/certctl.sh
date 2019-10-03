@@ -69,7 +69,7 @@ create_trusted_link()
 		return 1
 	fi
 	[ $VERBOSE -gt 0 ] && echo "Adding $hash.0 to trust store"
-	[ $NOOP -eq 0 ] && ln -fs "$1" "$CERTDESTDIR/$hash.0"
+	[ $NOOP -eq 0 ] && ln -fs $(realpath "$1") "$CERTDESTDIR/$hash.0"
 }
 
 create_blacklisted()
@@ -78,7 +78,7 @@ create_blacklisted()
 
 	hash=$( do_hash "$1" ) || return
 	[ $VERBOSE -gt 0 ] && echo "Adding $hash.0 to blacklist"
-	[ $NOOP -eq 0 ] && ln -fs "$1" "$BLACKLISTDESTDIR/$hash.0"
+	[ $NOOP -eq 0 ] && ln -fs $(realpath "$1") "$BLACKLISTDESTDIR/$hash.0"
 }
 
 do_scan()
