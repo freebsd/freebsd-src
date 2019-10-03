@@ -11,6 +11,7 @@
 
 name="linux"
 desc="Enable Linux ABI"
+rcvar="linux_enable"
 start_cmd="${name}_start"
 stop_cmd=":"
 
