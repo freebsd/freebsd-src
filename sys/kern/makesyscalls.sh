@@ -61,7 +61,9 @@ if [ -n "$2" ]; then
 	. "$2"
 fi
 
-if [ -r $capabilities_conf ]; then
+if [ -n "$capenabled" ]; then
+	# do nothing
+elif [ -r $capabilities_conf ]; then
 	capenabled=`egrep -v '^#|^$' $capabilities_conf`
 	capenabled=`echo $capenabled | sed 's/ /,/g'`
 else
