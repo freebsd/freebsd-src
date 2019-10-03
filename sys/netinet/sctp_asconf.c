@@ -236,6 +236,7 @@ sctp_process_asconf_add_ip(struct sockaddr *src, struct sctp_asconf_paramhdr *ap
 		    "process_asconf_add_ip: using source addr ");
 		SCTPDBG_ADDR(SCTP_DEBUG_ASCONF1, src);
 	}
+	net = NULL;
 	/* add the address */
 	if (bad_address) {
 		m_reply = sctp_asconf_error_response(aph->correlation_id,
@@ -250,17 +251,19 @@ sctp_process_asconf_add_ip(struct sockaddr *src, struct sctp_asconf_paramhdr *ap
 		    SCTP_CAUSE_RESOURCE_SHORTAGE, (uint8_t *)aph,
 		    aparam_length);
 	} else {
-		/* notify upper layer */
-		sctp_ulp_notify(SCTP_NOTIFY_ASCONF_ADD_IP, stcb, 0, sa, SCTP_SO_NOT_LOCKED);
 		if (response_required) {
 			m_reply =
 			    sctp_asconf_success_response(aph->correlation_id);
 		}
-		sctp_timer_start(SCTP_TIMER_TYPE_PATHMTURAISE, stcb->sctp_ep, stcb, net);
-		sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep,
-		    stcb, net);
-		if (send_hb) {
-			sctp_send_hb(stcb, net, SCTP_SO_NOT_LOCKED);
+		if (net != NULL) {
+			/* notify upper layer */
+			sctp_ulp_notify(SCTP_NOTIFY_ASCONF_ADD_IP, stcb, 0, sa, SCTP_SO_NOT_LOCKED);
+			sctp_timer_start(SCTP_TIMER_TYPE_PATHMTURAISE, stcb->sctp_ep, stcb, net);
+			sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep,
+			    stcb, net);
+			if (send_hb) {
+				sctp_send_hb(stcb, net, SCTP_SO_NOT_LOCKED);
+			}
 		}
 	}
 	return (m_reply);
@@ -703,6 +706,7 @@ sctp_handle_asconf(struct mbuf *m, unsigned int offset,
 		if (param_length <= sizeof(struct sctp_paramhdr)) {
 			SCTPDBG(SCTP_DEBUG_ASCONF1, "handle_asconf: param length (%u) too short\n", param_length);
 			sctp_m_freem(m_ack);
+			return;
 		}
 		/* get the entire parameter */
 		aph = (struct sctp_asconf_paramhdr *)sctp_m_getptr(m, offset, param_length, aparam_buf);
