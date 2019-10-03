@@ -245,7 +245,9 @@ dev/uart/uart_dev_mu.c		optional	uart uart_mu
 dev/uart/uart_dev_pl011.c	optional	uart pl011
 dev/usb/controller/dwc_otg_hisi.c optional	dwcotg fdt soc_hisi_hi6220
 dev/usb/controller/ehci_mv.c	optional	ehci_mv fdt
-dev/usb/controller/generic_ehci.c optional	ehci acpi
+dev/usb/controller/generic_ehci.c optional	ehci
+dev/usb/controller/generic_ehci_acpi.c optional	ehci acpi
+dev/usb/controller/generic_ehci_fdt.c optional	ehci fdt
 dev/usb/controller/generic_ohci.c optional	ohci fdt
 dev/usb/controller/generic_usb_if.m optional	ohci fdt
 dev/usb/controller/usb_nop_xceiv.c	optional fdt ext_resources
