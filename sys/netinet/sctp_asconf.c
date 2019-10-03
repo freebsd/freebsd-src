@@ -699,8 +699,8 @@ sctp_handle_asconf(struct mbuf *m, unsigned int offset,
 		sctp_m_freem(m_ack);
 		return;
 	}
-	/* param_length is already validated in process_control... */
-	offset += ntohs(p_addr->ph.param_length);	/* skip lookup addr */
+	/* skip lookup addr */
+	offset += SCTP_SIZE32(ntohs(p_addr->ph.param_length));
 	/* get pointer to first asconf param in ASCONF */
 	aph = (struct sctp_asconf_paramhdr *)sctp_m_getptr(m, offset, sizeof(struct sctp_asconf_paramhdr), (uint8_t *)&aparam_buf);
 	if (aph == NULL) {
