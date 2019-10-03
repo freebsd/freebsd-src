@@ -361,6 +361,11 @@ typedef enum {
  * Interface needs admin task to ignore interface up/down status
  */
 #define IFLIB_ADMIN_ALWAYS_RUN	0x10000
+/*
+ * When using a single hardware interrupt for the interface, only process RX
+ * interrupts instead of doing combined RX/TX processing.
+ */
+#define	IFLIB_SINGLE_IRQ_RX_ONLY	0x40000
 
 
 /*
