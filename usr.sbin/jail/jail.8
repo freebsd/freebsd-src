@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2019
+.Dd August 6, 2019
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -681,7 +681,7 @@ A value of
 .Dq inherit
 will keep the same environment, and
 .Dq new
-will give the jail it's own environment (still originally inherited when
+will give the jail its own environment (still originally inherited when
 the jail is created).
 .It Va linux.osname , linux.osrelease , linux.oss_version
 The Linux OS name, OS release, and OSS version associated with this jail.
@@ -754,7 +754,7 @@ and after any
 .Va exec.prestop
 commands have completed.
 A typical command to run is
-.Dq sh /etc/rc.shutdown .
+.Dq sh /etc/rc.shutdown jail .
 .It Va exec.poststop
 Command(s) to run in the system environment after a jail is removed.
 .It Va exec.clean
@@ -1103,7 +1103,7 @@ testjail {
 	ip4.addr = 192.0.2.100;
 	interface = em0;
 	exec.start = "/bin/sh /etc/rc";
-	exec.stop = "/bin/sh /etc/rc.shutdown";
+	exec.stop = "/bin/sh /etc/rc.shutdown jail";
 }
 .Ed
 .Pp
