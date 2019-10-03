@@ -106,6 +106,7 @@ struct tuntap_driver;
  */
 struct tuntap_softc {
 	TAILQ_ENTRY(tuntap_softc)	 tun_list;
+	struct cdev			*tun_alias;
 	struct cdev			*tun_dev;
 	u_short				 tun_flags;	/* misc flags */
 #define	TUN_OPEN	0x0001
@@ -149,7 +150,8 @@ struct tuntap_softc {
  * which are static after setup.
  */
 static struct mtx tunmtx;
-static eventhandler_tag tag;
+static eventhandler_tag arrival_tag;
+static eventhandler_tag clone_tag;
 static const char tunname[] = "tun";
 static const char tapname[] = "tap";
 static const char vmnetname[] = "vmnet";
@@ -193,6 +195,7 @@ static int	tuntap_name2info(const char *name, int *unit, int *flags);
 static void	tunclone(void *arg, struct ucred *cred, char *name,
 		    int namelen, struct cdev **dev);
 static void	tuncreate(struct cdev *dev, struct tuntap_driver *);
+static void	tunrename(void *arg, struct ifnet *ifp);
 static int	tunifioctl(struct ifnet *, u_long, caddr_t);
 static void	tuninit(struct ifnet *);
 static void	tunifinit(void *xtp);
@@ -604,6 +607,7 @@ tun_destroy(struct tuntap_softc *tp)
 
 	CURVNET_SET(TUN2IFP(tp)->if_vnet);
 
+	/* destroy_dev will take care of any alias. */
 	destroy_dev(tp->tun_dev);
 	seldrain(&tp->tun_rsel);
 	knlist_clear(&tp->tun_rsel.si_note, 0);
@@ -682,7 +686,8 @@ tun_uninit(const void *unused __unused)
 	struct tuntap_softc *tp;
 	int i;
 
-	EVENTHANDLER_DEREGISTER(dev_clone, tag);
+	EVENTHANDLER_DEREGISTER(ifnet_arrival_event, arrival_tag);
+	EVENTHANDLER_DEREGISTER(dev_clone, clone_tag);
 	drain_dev_clone_events();
 
 	mtx_lock(&tunmtx);
@@ -702,6 +707,24 @@ tun_uninit(const void *unused __unused)
 }
 SYSUNINIT(tun_uninit, SI_SUB_PROTO_IF, SI_ORDER_ANY, tun_uninit, NULL);
 
+static struct tuntap_driver *
+tuntap_driver_from_ifnet(const struct ifnet *ifp)
+{
+	struct tuntap_driver *drv;
+	int i;
+
+	if (ifp == NULL)
+		return (NULL);
+
+	for (i = 0; i < nitems(tuntap_drivers); ++i) {
+		drv = &tuntap_drivers[i];
+		if (strcmp(ifp->if_dname, drv->cdevsw.d_name) == 0)
+			return (drv);
+	}
+
+	return (NULL);
+}
+
 static int
 tuntapmodevent(module_t mod, int type, void *data)
 {
@@ -716,8 +739,12 @@ tuntapmodevent(module_t mod, int type, void *data)
 			clone_setup(&drv->clones);
 			drv->unrhdr = new_unrhdr(0, IF_MAXUNIT, &tunmtx);
 		}
-		tag = EVENTHANDLER_REGISTER(dev_clone, tunclone, 0, 1000);
-		if (tag == NULL)
+		arrival_tag = EVENTHANDLER_REGISTER(ifnet_arrival_event,
+		   tunrename, 0, 1000);
+		if (arrival_tag == NULL)
+			return (ENOMEM);
+		clone_tag = EVENTHANDLER_REGISTER(dev_clone, tunclone, 0, 1000);
+		if (clone_tag == NULL)
 			return (ENOMEM);
 		break;
 	case MOD_UNLOAD:
@@ -900,6 +927,57 @@ tuncreate(struct cdev *dev, struct tuntap_driver *drv)
 
 	TUNDEBUG(ifp, "interface %s is created, minor = %#x\n",
 	    ifp->if_xname, dev2unit(dev));
+}
+
+static void
+tunrename(void *arg __unused, struct ifnet *ifp)
+{
+	struct tuntap_softc *tp;
+	int error;
+
+	if ((ifp->if_flags & IFF_RENAMING) == 0)
+		return;
+
+	if (tuntap_driver_from_ifnet(ifp) == NULL)
+		return;
+
+	/*
+	 * We need to grab the ioctl sx long enough to make sure the softc is
+	 * still there.  If it is, we can safely try to busy the tun device.
+	 * The busy may fail if the device is currently dying, in which case
+	 * we do nothing.  If it doesn't fail, the busy count stops the device
+	 * from dying until we've created the alias (that will then be
+	 * subsequently destroyed).
+	 */
+	sx_xlock(&tun_ioctl_sx);
+	tp = ifp->if_softc;
+	if (tp == NULL) {
+		sx_xunlock(&tun_ioctl_sx);
+		return;
+	}
+	error = tun_busy(tp);
+	sx_xunlock(&tun_ioctl_sx);
+	if (error != 0)
+		return;
+	if (tp->tun_alias != NULL) {
+		destroy_dev(tp->tun_alias);
+		tp->tun_alias = NULL;
+	}
+
+	if (strcmp(ifp->if_xname, tp->tun_dev->si_name) == 0)
+		goto out;
+
+	/*
+	 * Failure's ok, aliases are created on a best effort basis.  If a
+	 * tun user/consumer decides to rename the interface to conflict with
+	 * another device (non-ifnet) on the system, we will assume they know
+	 * what they are doing.  make_dev_alias_p won't touch tun_alias on
+	 * failure, so we use it but ignore the return value.
+	 */
+	make_dev_alias_p(MAKEDEV_CHECKNAME, &tp->tun_alias, tp->tun_dev, "%s",
+	    ifp->if_xname);
+out:
+	tun_unbusy(tp);
 }
 
 static int
