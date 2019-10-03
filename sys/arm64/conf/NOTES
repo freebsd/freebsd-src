@@ -107,7 +107,6 @@ device		uart_snps
 device		pl011
 
 # USB support
-device		aw_ehci			# Allwinner EHCI USB interface (USB 2.0)
 device		aw_usbphy		# Allwinner USB PHY
 device		dwcotg			# DWC OTG controller
 device		ehci_mv			# Marvell EHCI USB interface
