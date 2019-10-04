@@ -130,6 +130,19 @@ static struct nvdimm_SPA_uuid_list_elm {
 };
 
 enum SPA_mapping_type
+nvdimm_spa_type_from_name(const char *name)
+{
+	int j;
+
+	for (j = 0; j < nitems(nvdimm_SPA_uuid_list); j++) {
+		if (strcmp(name, nvdimm_SPA_uuid_list[j].u_name) != 0)
+			continue;
+		return (j);
+	}
+	return (SPA_TYPE_UNKNOWN);
+}
+
+enum SPA_mapping_type
 nvdimm_spa_type_from_uuid(struct uuid *uuid)
 {
 	int j;

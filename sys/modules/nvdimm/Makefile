@@ -5,6 +5,7 @@
 KMOD=	nvdimm
 SRCS=	nvdimm.c \
 	nvdimm_acpi.c \
+	nvdimm_e820.c \
 	nvdimm_nfit.c \
 	nvdimm_ns.c \
 	nvdimm_spa.c
