@@ -3545,6 +3545,27 @@ restart:
 	return (count);
 }
 
+/*
+ * Returns true if the given page is mapped individually or as part of
+ * a 2mpage.  Otherwise, returns false.
+ */
+bool
+pmap_page_is_mapped(vm_page_t m)
+{
+	struct rwlock *lock;
+	bool rv;
+
+	if ((m->oflags & VPO_UNMANAGED) != 0)
+		return (false);
+	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
+	rw_rlock(lock);
+	rv = !TAILQ_EMPTY(&m->md.pv_list) ||
+	    ((m->flags & PG_FICTITIOUS) == 0 &&
+	    !TAILQ_EMPTY(&pa_to_pvh(VM_PAGE_TO_PHYS(m))->pv_list));
+	rw_runlock(lock);
+	return (rv);
+}
+
 static void
 pmap_remove_pages_pv(pmap_t pmap, vm_page_t m, pv_entry_t pv,
     struct spglist *free, bool superpage)
