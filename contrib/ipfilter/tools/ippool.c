@@ -145,7 +145,7 @@ poolnodecommand(remove, argc, argv)
 	bzero((char *)&pnode, sizeof(pnode));
 	bzero((char *)&hnode, sizeof(hnode));
 
-	while ((c = getopt(argc, argv, "di:m:no:Rt:T:v")) != -1)
+	while ((c = getopt(argc, argv, "di:m:no:t:T:v")) != -1)
 		switch (c)
 		{
 		case 'd' :
@@ -171,9 +171,6 @@ poolnodecommand(remove, argc, argv)
 			role = getrole(optarg);
 			if (role == IPL_LOGNONE)
 				return -1;
-			break;
-		case 'R' :
-			opts |= OPT_NORESOLVE;
 			break;
 		case 't' :
 			if (ipset == 1) {
@@ -268,7 +265,7 @@ poolcommand(remove, argc, argv)
 	bzero((char *)&iph, sizeof(iph));
 	bzero((char *)&pool, sizeof(pool));
 
-	while ((c = getopt(argc, argv, "dm:no:RS:v")) != -1)
+	while ((c = getopt(argc, argv, "dm:no:S:v")) != -1)
 		switch (c)
 		{
 		case 'd' :
@@ -287,9 +284,6 @@ poolcommand(remove, argc, argv)
 				fprintf(stderr, "unknown role '%s'\n", optarg);
 				return -1;
 			}
-			break;
-		case 'R' :
-			opts |= OPT_NORESOLVE;
 			break;
 		case 'S' :
 			if (remove == 0)
@@ -364,7 +358,7 @@ loadpoolfile(argc, argv, infile)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "dnRuv")) != -1)
+	while ((c = getopt(argc, argv, "dnuv")) != -1)
 		switch (c)
 		{
 		case 'd' :
@@ -373,9 +367,6 @@ loadpoolfile(argc, argv, infile)
 			break;
 		case 'n' :
 			opts |= OPT_DONOTHING|OPT_DONTOPEN;
-			break;
-		case 'R' :
-			opts |= OPT_NORESOLVE;
 			break;
 		case 'u' :
 			opts |= OPT_REMOVE;
