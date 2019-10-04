@@ -577,7 +577,7 @@ poolflush(argc, argv)
 			break;		/* keep compiler happy */
 		}
 
-	if (argc - 1 - optind > 0)
+	if (argc - optind > 0)
 		usage(argv[0]);
 
 	if (opts & OPT_DEBUG)
