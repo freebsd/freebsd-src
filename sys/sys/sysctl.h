@@ -699,7 +699,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 /* Oid for a 64-bit unsigned counter(9).  The pointer must be non NULL. */
 #define	SYSCTL_COUNTER_U64(parent, nbr, name, access, ptr, descr)	\
 	SYSCTL_OID(parent, nbr, name,					\
-	    CTLTYPE_U64 | CTLFLAG_MPSAFE | (access),			\
+	    CTLTYPE_U64 | CTLFLAG_MPSAFE | CTLFLAG_STATS | (access),	\
 	    (ptr), 0, sysctl_handle_counter_u64, "QU", descr);		\
 	CTASSERT((((access) & CTLTYPE) == 0 ||				\
 	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_U64) &&	\
@@ -712,7 +712,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	CTASSERT(((access) & CTLTYPE) == 0 ||				\
 	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_U64);		\
 	sysctl_add_oid(ctx, parent, nbr, name,				\
-	    CTLTYPE_U64 | CTLFLAG_MPSAFE | (access),			\
+	    CTLTYPE_U64 | CTLFLAG_MPSAFE | CTLFLAG_STATS | (access),	\
 	    __ptr, 0, sysctl_handle_counter_u64, "QU", __DESCR(descr),	\
 	    NULL);							\
 })
@@ -720,7 +720,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 /* Oid for an array of counter(9)s.  The pointer and length must be non zero. */
 #define	SYSCTL_COUNTER_U64_ARRAY(parent, nbr, name, access, ptr, len, descr) \
 	SYSCTL_OID(parent, nbr, name,					\
-	    CTLTYPE_OPAQUE | CTLFLAG_MPSAFE | (access),			\
+	    CTLTYPE_OPAQUE | CTLFLAG_MPSAFE | CTLFLAG_STATS | (access),	\
 	    (ptr), (len), sysctl_handle_counter_u64_array, "S", descr);	\
 	CTASSERT((((access) & CTLTYPE) == 0 ||				\
 	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_OPAQUE) &&	\
@@ -734,7 +734,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	CTASSERT(((access) & CTLTYPE) == 0 ||				\
 	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_OPAQUE);	\
 	sysctl_add_oid(ctx, parent, nbr, name,				\
-	    CTLTYPE_OPAQUE | CTLFLAG_MPSAFE | (access),			\
+	    CTLTYPE_OPAQUE | CTLFLAG_MPSAFE | CTLFLAG_STATS | (access),	\
 	    __ptr, len, sysctl_handle_counter_u64_array, "S",		\
 	    __DESCR(descr), NULL);					\
 })
