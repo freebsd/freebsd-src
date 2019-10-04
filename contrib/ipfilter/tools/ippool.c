@@ -374,7 +374,13 @@ loadpoolfile(argc, argv, infile)
 		case 'v' :
 			opts |= OPT_VERBOSE;
 			break;
+		default :
+			usage(argv[0]);
+			break;		/* keep compiler happy */
 		}
+
+	if (argc - 1 - optind > 0)
+		usage(argv[0]);
 
 	if (opts & OPT_DEBUG)
 		fprintf(stderr, "loadpoolfile: opts = %#x\n", opts);
