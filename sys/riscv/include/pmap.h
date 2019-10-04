@@ -149,6 +149,7 @@ void	pmap_kenter_device(vm_offset_t, vm_size_t, vm_paddr_t);
 vm_paddr_t pmap_kextract(vm_offset_t va);
 void	pmap_kremove(vm_offset_t);
 void	pmap_kremove_device(vm_offset_t, vm_size_t);
+bool	pmap_page_is_mapped(vm_page_t m);
 bool	pmap_ps_enabled(pmap_t);
 
 void	*pmap_mapdev(vm_offset_t, vm_size_t);
@@ -161,8 +162,6 @@ void	pmap_unmap_io_transient(vm_page_t *, vm_offset_t *, int, boolean_t);
 
 bool	pmap_get_tables(pmap_t, vm_offset_t, pd_entry_t **, pd_entry_t **,
     pt_entry_t **);
-
-#define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 
 int pmap_fault_fixup(pmap_t, vm_offset_t, vm_prot_t);
 
