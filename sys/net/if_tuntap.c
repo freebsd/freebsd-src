@@ -63,6 +63,7 @@
 #include <sys/filio.h>
 #include <sys/sockio.h>
 #include <sys/sx.h>
+#include <sys/syslog.h>
 #include <sys/ttycom.h>
 #include <sys/poll.h>
 #include <sys/selinfo.h>
@@ -1061,23 +1062,29 @@ tunopen(struct cdev *dev, int flag, int mode, struct thread *td)
 static	int
 tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 {
+	struct proc *p;
 	struct tuntap_softc *tp;
 	struct ifnet *ifp;
 	bool l2tun;
 
+	p = td->td_proc;
 	tp = dev->si_drv1;
 	ifp = TUN2IFP(tp);
 
 	TUN_LOCK(tp);
+
 	/*
-	 * Simply close the device if this isn't the controlling process.  This
-	 * may happen if, for instance, the tunnel has been handed off to
-	 * another process.  The original controller should be able to close it
-	 * without putting us into an inconsistent state.
+	 * Realistically, we can't be obstinate here.  This only means that the
+	 * tuntap device was closed out of order, and the last closer wasn't the
+	 * controller.  These are still good to know about, though, as software
+	 * should avoid multiple processes with a tuntap device open and
+	 * ill-defined transfer of control (e.g., handoff, TUNSIFPID, close in
+	 * parent).
 	 */
-	if (td->td_proc->p_pid != tp->tun_pid) {
-		TUN_UNLOCK(tp);
-		return (0);
+	if (p->p_pid != tp->tun_pid) {
+		log(LOG_INFO,
+		    "pid %d (%s), %s: tun/tap protocol violation, non-controlling process closed last.\n",
+		    p->p_pid, p->p_comm, dev->si_name);
 	}
 
 	/*
