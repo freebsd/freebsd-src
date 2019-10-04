@@ -262,7 +262,7 @@ poolcommand(remove, argc, argv)
 	bzero((char *)&iph, sizeof(iph));
 	bzero((char *)&pool, sizeof(pool));
 
-	while ((c = getopt(argc, argv, "dm:no:RSv")) != -1)
+	while ((c = getopt(argc, argv, "dm:no:RS:v")) != -1)
 		switch (c)
 		{
 		case 'd' :
