@@ -93,7 +93,7 @@ main(argc, argv)
 
 	assigndefined(getenv("IPPOOL_PREDEFINED"));
 
-	switch (getopt(argc, argv, "aAf:FlrRsv"))
+	switch (getopt(argc, argv, "aAf:FlrRs"))
 	{
 	case 'a' :
 		err = poolnodecommand(0, argc, argv);
