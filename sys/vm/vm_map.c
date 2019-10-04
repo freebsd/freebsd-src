@@ -3168,8 +3168,9 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 				 * Simulate a fault to get the page and enter
 				 * it into the physical map.
 				 */
-				if ((rv = vm_fault(map, faddr, VM_PROT_NONE,
-				    VM_FAULT_WIRE)) != KERN_SUCCESS)
+				if ((rv = vm_fault(map, faddr,
+				    VM_PROT_NONE, VM_FAULT_WIRE, NULL)) !=
+				    KERN_SUCCESS)
 					break;
 			} while ((faddr += PAGE_SIZE) < saved_end);
 			vm_map_lock(map);

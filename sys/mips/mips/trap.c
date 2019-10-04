@@ -670,8 +670,9 @@ trap(struct trapframe *trapframe)
 			int rv;
 
 	kernel_fault:
-			va = trunc_page((vm_offset_t)trapframe->badvaddr);
-			rv = vm_fault(kernel_map, va, ftype, VM_FAULT_NORMAL);
+			va = (vm_offset_t)trapframe->badvaddr;
+			rv = vm_fault_trap(kernel_map, va, ftype,
+			    VM_FAULT_NORMAL, NULL, NULL);
 			if (rv == KERN_SUCCESS)
 				return (trapframe->pc);
 			if (td->td_pcb->pcb_onfault != NULL) {
@@ -706,7 +707,7 @@ dofault:
 
 			vm = p->p_vmspace;
 			map = &vm->vm_map;
-			va = trunc_page((vm_offset_t)trapframe->badvaddr);
+			va = (vm_offset_t)trapframe->badvaddr;
 			if (KERNLAND(trapframe->badvaddr)) {
 				/*
 				 * Don't allow user-mode faults in kernel
@@ -715,7 +716,8 @@ dofault:
 				goto nogo;
 			}
 
-			rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
+			rv = vm_fault_trap(map, va, ftype, VM_FAULT_NORMAL,
+			    &i, &ucode);
 			/*
 			 * XXXDTRACE: add dtrace_doubletrap_func here?
 			 */
@@ -740,11 +742,6 @@ dofault:
 				}
 				goto err;
 			}
-			i = SIGSEGV;
-			if (rv == KERN_PROTECTION_FAILURE)
-				ucode = SEGV_ACCERR;
-			else
-				ucode = SEGV_MAPERR;
 			addr = trapframe->pc;
 
 			msg = "BAD_PAGE_FAULT";

@@ -157,7 +157,6 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 	struct proc *p;
 	struct pcb *pcb;
 	vm_prot_t ftype;
-	vm_offset_t va;
 	int error, sig, ucode;
 #ifdef KDB
 	bool handled;
@@ -213,7 +212,6 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 		panic("data abort in critical section or under mutex");
 	}
 
-	va = trunc_page(far);
 	if (exec)
 		ftype = VM_PROT_EXECUTE;
 	else
@@ -221,14 +219,9 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 		    VM_PROT_READ | VM_PROT_WRITE;
 
 	/* Fault in the page. */
-	error = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
+	error = vm_fault_trap(map, far, ftype, VM_FAULT_NORMAL, &sig, &ucode);
 	if (error != KERN_SUCCESS) {
 		if (lower) {
-			sig = SIGSEGV;
-			if (error == KERN_PROTECTION_FAILURE)
-				ucode = SEGV_ACCERR;
-			else
-				ucode = SEGV_MAPERR;
 			call_trapsignal(td, sig, ucode, (void *)far);
 		} else {
 			if (td->td_intr_nesting_level == 0 &&
