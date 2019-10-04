@@ -73,7 +73,7 @@ usage(prog)
 	fprintf(stderr, "\t-A [-dnv] [-m <name>] [-o <role>] [-S <seed>] [-t <type>]\n");
 	fprintf(stderr, "\t-f <file> [-dnuv]\n");
 	fprintf(stderr, "\t-F [-dv] [-o <role>] [-t <type>]\n");
-	fprintf(stderr, "\t-l [-dv] [-m <name>] [-t <type>] [-O <fields>]\n");
+	fprintf(stderr, "\t-l [-dv] [-m <name>] [-t <type>]\n");
 	fprintf(stderr, "\t-r [-dnv] [-m <name>] [-o <role>] [-t type] -i <ipaddr>[/netmask]\n");
 	fprintf(stderr, "\t-R [-dnv] [-m <name>] [-o <role>] [-t <type>]\n");
 	fprintf(stderr, "\t-s [-dtv] [-M <core>] [-N <namelist>]\n");
@@ -681,9 +681,16 @@ poollist(argc, argv)
 				return -1;
 			}
 			break;
+#if 0
 		case 'O' :
+			/* XXX This option does not work. This function as  */
+			/* XXX used by state and nat can be used to format  */
+			/* XXX output especially useful for scripting. It   */
+			/* XXX is left here with the intention of making    */
+			/* XXX it work for the same purpose at some point.  */
 			pool_fields = parsefields(poolfields, optarg);
 			break;
+#endif
 		case 't' :
 			type = gettype(optarg, NULL);
 			if (type == IPLT_NONE) {
