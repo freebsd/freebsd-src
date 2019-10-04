@@ -163,6 +163,7 @@ void acpi_nfit_get_control_region(ACPI_TABLE_NFIT *nfitbl,
     uint16_t control_region_index, ACPI_NFIT_CONTROL_REGION **out);
 void acpi_nfit_get_flush_addrs(ACPI_TABLE_NFIT *nfitbl, nfit_handle_t dimm,
     uint64_t ***listp, int *countp);
+enum SPA_mapping_type nvdimm_spa_type_from_name(const char *);
 enum SPA_mapping_type nvdimm_spa_type_from_uuid(struct uuid *);
 struct nvdimm_dev *nvdimm_find_by_handle(nfit_handle_t nv_handle);
 int nvdimm_spa_init(struct SPA_mapping *spa, ACPI_NFIT_SYSTEM_ADDRESS *nfitaddr,
