@@ -62,16 +62,7 @@ verify_runnable "global"
 
 function cleanup
 {
-	# cleanup zfs pool and dataset
-	if datasetexists $vol_name; then
-		$SWAP -l | $GREP /dev/zvol/$vol_name > /dev/null 2>&1
-		if [[ $? -eq 0 ]]; then
-			$SWAP -d /dev/zvol/${vol_name}
-		fi
-	fi
-
-	destroy_pool $TESTPOOL1
-	destroy_pool $TESTPOOL
+	$SWAPOFF /dev/zvol/${vol_name}
 }
 
 if [[ -n $DISK ]]; then
@@ -80,7 +71,7 @@ else
         disk=$DISK0
 fi
 
-typeset pool_dev=${disk}p1
+typeset pool_dev=${disk}
 typeset vol_name=$TESTPOOL/$TESTVOL
 
 log_assert "'zpool create' should fail with zfs vol device in swap."
@@ -91,13 +82,9 @@ log_onexit cleanup
 #
 create_pool $TESTPOOL $pool_dev
 log_must $ZFS create -V 100m $vol_name
-log_must $SWAP -a /dev/zvol/$vol_name
-for opt in "-n" "" "-f"; do
+log_must $SWAPON /dev/zvol/$vol_name
+for opt in "" "-f"; do
 	log_mustnot $ZPOOL create $opt $TESTPOOL1 /dev/zvol/${vol_name}
 done
-
-# cleanup
-log_must $SWAP -d /dev/zvol/${vol_name}
-log_must $ZFS destroy $vol_name
 
 log_pass "'zpool create' passed as expected with inapplicable scenario."

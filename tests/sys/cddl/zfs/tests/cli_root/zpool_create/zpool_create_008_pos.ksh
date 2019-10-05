@@ -57,70 +57,7 @@
 
 verify_runnable "global"
 
-function cleanup
-{
-	if [[ $exported_pool == true ]]; then
-		if [[ $force_pool == true ]]; then
-			log_must $ZPOOL create -f $TESTPOOL ${disk}p1
-		else
-			log_must $ZPOOL import $TESTPOOL
-		fi
-	fi
-
-	if poolexists $TESTPOOL ; then
-                destroy_pool $TESTPOOL
-	fi
-
-	if poolexists $TESTPOOL1 ; then
-                destroy_pool $TESTPOOL1
-	fi
-
-	#
-	# recover it back to EFI label
-	#
-	wipe_partition_table $disk
-}
-
-#
-# create overlap slice 0 and 1 on $disk
-#
-function create_overlap_slice
-{
-        typeset format_file=$TMPDIR/format_overlap.${TESTCASE_ID}
-        typeset disk=$1
-
-        $ECHO "partition" >$format_file
-        $ECHO "0" >> $format_file
-        $ECHO "" >> $format_file
-        $ECHO "" >> $format_file
-        $ECHO "0" >> $format_file
-        $ECHO "200m" >> $format_file
-        $ECHO "1" >> $format_file
-        $ECHO "" >> $format_file
-        $ECHO "" >> $format_file
-        $ECHO "0" >> $format_file
-        $ECHO "400m" >> $format_file
-        $ECHO "label" >> $format_file
-        $ECHO "" >> $format_file
-        $ECHO "q" >> $format_file
-        $ECHO "q" >> $format_file
-
-        $FORMAT -e -s -d $disk -f $format_file
-	typeset -i ret=$?
-        $RM -fr $format_file
-
-	if (( ret != 0 )); then
-                log_fail "unable to create overlap slice."
-        fi
-
-        return 0
-}
-
 log_assert "'zpool create' have to use '-f' scenarios"
-log_onexit cleanup
-
-typeset exported_pool=false
-typeset force_pool=false
 
 if [[ -n $DISK ]]; then
         disk=$DISK
@@ -128,31 +65,16 @@ else
         disk=$DISK0
 fi
 
-# overlapped slices as vdev need -f to create pool
-
 # Make the disk is EFI labeled first via pool creation
 create_pool $TESTPOOL $disk
 destroy_pool $TESTPOOL
 
-# Make the disk is VTOC labeled since only VTOC label supports overlap
-log_must labelvtoc $disk
-log_must create_overlap_slice $disk
-
-log_mustnot $ZPOOL create $TESTPOOL ${disk}p1
-log_must $ZPOOL create -f $TESTPOOL ${disk}p1
-destroy_pool $TESTPOOL
-
 # exported device to be as spare vdev need -f to create pool
-
-log_must $ZPOOL create -f $TESTPOOL $disk
-destroy_pool $TESTPOOL
 log_must partition_disk $SIZE $disk 6
 create_pool $TESTPOOL ${disk}p1 ${disk}p2
 log_must $ZPOOL export $TESTPOOL
-exported_pool=true
 log_mustnot $ZPOOL create $TESTPOOL1 ${disk}p3 spare ${disk}p2 
 create_pool $TESTPOOL1 ${disk}p3 spare ${disk}p2
-force_pool=true
 destroy_pool $TESTPOOL1
 
 log_pass "'zpool create' have to use '-f' scenarios"
