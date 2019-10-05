@@ -115,7 +115,7 @@ hotspare_add_004_neg_body()
 	. $(atf_get_srcdir)/hotspare.kshlib
 	. $(atf_get_srcdir)/hotspare.cfg
 
-	verify_disk_count "$DISKS" 1
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/hotspare_add_004_neg.ksh || atf_fail "Testcase failed"
 }
