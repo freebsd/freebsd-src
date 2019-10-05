@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20191003: Remove useless ZFS tests
+OLD_FILES+=usr/tests/sys/cddl/zfs/tests/cli_root/zpool_create/zpool_create_013_neg.ksh
+OLD_FILES+=usr/tests/sys/cddl/zfs/tests/cli_root/zpool_create/zpool_create_014_neg.ksh
+OLD_FILES+=usr/tests/sys/cddl/zfs/tests/cli_root/zpool_create/zpool_create_016_pos.ksh
 # 20190910: mklocale(1) and colldef(1) removed
 OLD_FILES+=usr/bin/mklocale
 OLD_FILES+=usr/share/man/man1/mklocale.1.gz

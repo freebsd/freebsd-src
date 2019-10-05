@@ -13,8 +13,6 @@ TEST_METADATA+=		is_exclusive=true
 ${PACKAGE}FILES+=	zpool_create_003_pos.ksh
 ${PACKAGE}FILES+=	zpool_create_020_pos.ksh
 ${PACKAGE}FILES+=	zpool_create_017_neg.ksh
-${PACKAGE}FILES+=	zpool_create_013_neg.ksh
-${PACKAGE}FILES+=	zpool_create_016_pos.ksh
 ${PACKAGE}FILES+=	zpool_create_012_neg.ksh
 ${PACKAGE}FILES+=	zpool_create_006_pos.ksh
 ${PACKAGE}FILES+=	zpool_create_002_pos.ksh
@@ -22,7 +20,6 @@ ${PACKAGE}FILES+=	zpool_create_021_pos.ksh
 ${PACKAGE}FILES+=	zpool_create_007_neg.ksh
 ${PACKAGE}FILES+=	setup.ksh
 ${PACKAGE}FILES+=	cleanup.ksh
-${PACKAGE}FILES+=	zpool_create_014_neg.ksh
 ${PACKAGE}FILES+=	zpool_create_010_neg.ksh
 ${PACKAGE}FILES+=	zpool_create_019_pos.ksh
 ${PACKAGE}FILES+=	zpool_create_008_pos.ksh
