@@ -9059,8 +9059,7 @@ sctp_send_cookie_echo(struct mbuf *m,
 				pad = 4 - pad;
 			}
 			if (pad > 0) {
-				cookie = sctp_pad_lastmbuf(cookie, pad, NULL);
-				if (cookie == NULL) {
+				if (sctp_pad_lastmbuf(cookie, pad, NULL) == NULL) {
 					return (-8);
 				}
 			}
