@@ -62,10 +62,11 @@ __FBSDID("$FreeBSD$");
 
 #define	MEVENT_MAX	64
 
-#define	MEV_ADD		1
-#define	MEV_ENABLE	2
-#define	MEV_DISABLE	3
-#define	MEV_DEL_PENDING	4
+#define	MEV_ADD			1
+#define	MEV_ENABLE		2
+#define	MEV_DISABLE		3
+#define	MEV_DEL_PENDING		4
+#define	MEV_ADD_DISABLED	5
 
 extern char *vmname;
 
@@ -161,6 +162,9 @@ mevent_kq_flags(struct mevent *mevp)
 	case MEV_ADD:
 		ret = EV_ADD;		/* implicitly enabled */
 		break;
+	case MEV_ADD_DISABLED:
+		ret = EV_ADD | EV_DISABLE;
+		break;
 	case MEV_ENABLE:
 		ret = EV_ENABLE;
 		break;
@@ -249,9 +253,10 @@ mevent_handle(struct kevent *kev, int numev)
 	}
 }
 
-struct mevent *
-mevent_add(int tfd, enum ev_type type,
-	   void (*func)(int, enum ev_type, void *), void *param)
+static struct mevent *
+mevent_add_state(int tfd, enum ev_type type,
+	   void (*func)(int, enum ev_type, void *), void *param,
+	   int state)
 {
 	struct mevent *lp, *mevp;
 
@@ -299,13 +304,21 @@ mevent_add(int tfd, enum ev_type type,
 
 	LIST_INSERT_HEAD(&change_head, mevp, me_list);
 	mevp->me_cq = 1;
-	mevp->me_state = MEV_ADD;
+	mevp->me_state = state;
 	mevent_notify();
 
 exit:
 	mevent_qunlock();
 
 	return (mevp);
+}
+
+struct mevent *
+mevent_add(int tfd, enum ev_type type,
+	   void (*func)(int, enum ev_type, void *), void *param)
+{
+
+	return mevent_add_state(tfd, type, func, param, MEV_ADD);
 }
 
 static int
