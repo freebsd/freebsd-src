@@ -41,7 +41,7 @@
 # 'zpool create' will fail in the following cases:
 # existent pool; device is part of an active pool; nested virtual devices;
 # differently sized devices without -f option; device being currently
-# mounted; devices in /etc/vfstab; specified as the dedicated dump device.
+# mounted; devices in /etc/fstab; specified as the dedicated dump device.
 #
 # STRATEGY:
 # 1. Create case scenarios
@@ -67,8 +67,8 @@ function cleanup
                 destroy_pool $pool
         done
 
-	if [[ -n $saved_dump_dev ]]; then
-		log_must $DUMPADM -u -d $saved_dump_dev
+	if [[ -n $specified_dump_dev ]]; then
+		$DUMPON -r $specified_dump_dev
 	fi
 }
 
@@ -87,11 +87,11 @@ mirror2="${disk}p4 ${disk}p5"
 raidz1=$mirror1
 raidz2=$mirror2
 diff_size_dev="${disk}p6 ${disk}p7"
-vfstab_dev=$(find_vfstab_dev)
-specified_dump_dev=${disk}p1
-saved_dump_dev=$(save_dump_dev)
+fstab_dev=$(find_fstab_dev)
+specified_dump_dev=${disk}
 
 lba=$(get_partition_end $disk 6)
+$GPART delete -i 7 $disk
 set_partition 7 "$lba" $SIZE1 $disk
 create_pool "$TESTPOOL" "$pooldev1"
 
@@ -112,7 +112,7 @@ set -A arg "$TESTPOOL $pooldev2" \
         "$TESTPOOL1 raidz $diff_size_dev" \
         "$TESTPOOL1 raidz1 $diff_size_dev" \
 	"$TESTPOOL1 mirror $mirror1 spare $mirror2 spare $diff_size_dev" \
-        "$TESTPOOL1 $vfstab_dev" \
+        "$TESTPOOL1 $fstab_dev" \
         "$TESTPOOL1 ${disk}s10" \
 	"$TESTPOOL1 spare $pooldev2"
 
@@ -130,7 +130,7 @@ log_must $ZPOOL destroy -f $TESTPOOL
 log_must $ZPOOL create -f $TESTPOOL3 $disk
 log_must $ZPOOL destroy -f $TESTPOOL3
 
-log_must $DUMPADM -d /dev/$specified_dump_dev
+log_must dumpon $specified_dump_dev
 log_mustnot $ZPOOL create -f $TESTPOOL1 "$specified_dump_dev"
 
 # Also check to see that in-use checking prevents us from creating
