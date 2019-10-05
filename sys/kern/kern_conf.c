@@ -576,20 +576,41 @@ newdev(struct make_dev_args *args, struct cdev *si)
 
 	mtx_assert(&devmtx, MA_OWNED);
 	csw = args->mda_devsw;
+	si2 = NULL;
 	if (csw->d_flags & D_NEEDMINOR) {
 		/* We may want to return an existing device */
 		LIST_FOREACH(si2, &csw->d_devs, si_list) {
 			if (dev2unit(si2) == args->mda_unit) {
 				dev_free_devlocked(si);
-				return (si2);
+				si = si2;
+				break;
 			}
 		}
+
+		/*
+		 * If we're returning an existing device, we should make sure
+		 * it isn't already initialized.  This would have been caught
+		 * in consumers anyways, but it's good to catch such a case
+		 * early.  We still need to complete initialization of the
+		 * device, and we'll use whatever make_dev_args were passed in
+		 * to do so.
+		 */
+		KASSERT(si2 == NULL || (si2->si_flags & SI_NAMED) == 0,
+		    ("make_dev() by driver %s on pre-existing device (min=%x, name=%s)",
+		    args->mda_devsw->d_name, dev2unit(si2), devtoname(si2)));
 	}
 	si->si_drv0 = args->mda_unit;
-	si->si_devsw = csw;
 	si->si_drv1 = args->mda_si_drv1;
 	si->si_drv2 = args->mda_si_drv2;
-	LIST_INSERT_HEAD(&csw->d_devs, si, si_list);
+	/* Only push to csw->d_devs if it's not a cloned device. */
+	if (si2 == NULL) {
+		si->si_devsw = csw;
+		LIST_INSERT_HEAD(&csw->d_devs, si, si_list);
+	} else {
+		KASSERT(si->si_devsw == csw,
+		    ("%s: inconsistent devsw between clone_create() and make_dev()",
+		    __func__));
+	}
 	return (si);
 }
 
