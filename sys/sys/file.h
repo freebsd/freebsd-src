@@ -208,7 +208,6 @@ struct file {
 
 #define	FOFFSET_LOCKED       0x1
 #define	FOFFSET_LOCK_WAITING 0x2
-#define	FDEVFS_VNODE	     0x4
 
 #endif /* _KERNEL || _WANT_FILE */
 

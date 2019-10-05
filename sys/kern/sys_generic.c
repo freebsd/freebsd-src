@@ -561,9 +561,6 @@ dofilewrite(struct thread *td, int fd, struct file *fp, struct uio *auio,
 		ktruio = cloneuio(auio);
 #endif
 	cnt = auio->uio_resid;
-	if (fp->f_type == DTYPE_VNODE &&
-	    (fp->f_vnread_flags & FDEVFS_VNODE) == 0)
-		bwillwrite();
 	if ((error = fo_write(fp, auio, td->td_ucred, flags, td))) {
 		if (auio->uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
