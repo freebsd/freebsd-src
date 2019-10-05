@@ -166,12 +166,6 @@ dev_rel(struct cdev *dev)
 	dev->si_refcount--;
 	KASSERT(dev->si_refcount >= 0,
 	    ("dev_rel(%s) gave negative count", devtoname(dev)));
-#if 0
-	if (dev->si_usecount == 0 &&
-	    (dev->si_flags & SI_CHEAPCLONE) && (dev->si_flags & SI_NAMED))
-		;
-	else 
-#endif
 	if (dev->si_devsw == NULL && dev->si_refcount == 0) {
 		LIST_REMOVE(dev, si_list);
 		flag = 1;
@@ -820,17 +814,6 @@ make_dev_sv(struct make_dev_args *args1, struct cdev **dres,
 		dev_refl(dev);
 	if ((args.mda_flags & MAKEDEV_ETERNAL) != 0)
 		dev->si_flags |= SI_ETERNAL;
-	if (dev->si_flags & SI_CHEAPCLONE &&
-	    dev->si_flags & SI_NAMED) {
-		/*
-		 * This is allowed as it removes races and generally
-		 * simplifies cloning devices.
-		 * XXX: still ??
-		 */
-		dev_unlock_and_free();
-		*dres = dev;
-		return (0);
-	}
 	KASSERT(!(dev->si_flags & SI_NAMED),
 	    ("make_dev() by driver %s on pre-existing device (min=%x, name=%s)",
 	    args.mda_devsw->d_name, dev2unit(dev), devtoname(dev)));
@@ -1565,7 +1548,6 @@ DB_SHOW_COMMAND(cdev, db_show_cdev)
 	SI_FLAG(SI_ETERNAL);
 	SI_FLAG(SI_ALIAS);
 	SI_FLAG(SI_NAMED);
-	SI_FLAG(SI_CHEAPCLONE);
 	SI_FLAG(SI_CHILD);
 	SI_FLAG(SI_DUMPDEV);
 	SI_FLAG(SI_CLONELIST);
