@@ -69,10 +69,6 @@ before /usr/ucb or else:
 before running configure. (You might have to do a "make distclean"
 if you already ran configure once).
 
-Also note that "make depend" won't work; while all of the known
-universe uses -M, the SPARCompiler uses -xM to generate makefile
-dependencies.
-
 If you are trying to do packet capture with a FORE ATM card, you may or
 may not be able to. They usually only release their driver in object
 code so unless their driver supports packet capture, there's not much
@@ -258,27 +254,26 @@ ChmodBPF/*	- macOS startup item to set ownership and permissions
 CMakeLists.txt	- CMake file
 CONTRIBUTING	- guidelines for contributing
 CREDITS		- people that have helped libpcap along
-INSTALL.txt	- this file
+INSTALL.md	- this file
 LICENSE		- the license under which tcpdump is distributed
 Makefile.in	- compilation rules (input to the configure script)
-README		- description of distribution
-README.aix	- notes on using libpcap on AIX
-README.dag	- notes on using libpcap to capture on Endace DAG devices
-README.hpux	- notes on using libpcap on HP-UX
-README.linux	- notes on using libpcap on Linux
-README.macos	- notes on using libpcap on macOS
-README.septel   - notes on using libpcap to capture on Intel/Septel devices
-README.sita	- notes on using libpcap to capture on SITA devices
-README.tru64	- notes on using libpcap on Digital/Tru64 UNIX
-README.Win32	- notes on using libpcap on Win32 systems (with WinPcap)
+README.md	- description of distribution
+doc/README.aix	- notes on using libpcap on AIX
+doc/README.dag	- notes on using libpcap to capture on Endace DAG devices
+doc/README.hpux	- notes on using libpcap on HP-UX
+doc/README.linux.md - notes on using libpcap on Linux
+doc/README.macos	- notes on using libpcap on macOS
+doc/README.septel   - notes on using libpcap to capture on Intel/Septel devices
+doc/README.sita	- notes on using libpcap to capture on SITA devices
+doc/README.tru64	- notes on using libpcap on Digital/Tru64 UNIX
+doc/README.Win32	- notes on using libpcap on Win32 systems (with Npcap)
 VERSION		- version of this release
 acconfig.h	- support for post-2.13 autoconf
 aclocal.m4	- autoconf macros
 arcnet.h	- ARCNET definitions
 atmuni31.h	- ATM Q.2931 definitions
-bpf/net		- copy of bpf_filter.c
 bpf_dump.c	- BPF program printing routines
-bpf_filter.c	- symlink to bpf/net/bpf_filter.c
+bpf_filter.c	- BPF filtering routines
 bpf_image.c	- BPF disassembly routine
 config.guess	- autoconf support
 config.h.in	- autoconf input

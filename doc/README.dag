@@ -5,7 +5,7 @@ Endace (http://www.endace.com, see below for further contact details).
 
 1) Install and build the DAG software distribution by following the
 instructions supplied with that package. Current Endace customers can download
-the DAG software distibution from https://www.endace.com
+the DAG software distribution from https://www.endace.com
 
 2) Configure libcap. To allow the 'configure' script to locate the DAG
 software distribution use the '--with-dag' option:
@@ -88,7 +88,7 @@ as separate interfaces, e.g. dag0:0, dag0:2, dag0:4 etc. dag0:0 is the same
 as dag0. These are visible via pcap_findalldevs().
 
 libpcap now does NOT set the card's hardware snaplen (slen). This must now be
-set using the appropriate DAG coniguration program, e.g. dagthree, dagfour,
+set using the appropriate DAG configuration program, e.g. dagthree, dagfour,
 dagsix, dagconfig. This is because the snaplen is currently shared between
 all of the streams. In future this may change if per-stream slen is
 implemented.
