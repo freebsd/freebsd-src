@@ -1,0 +1,5 @@
+IP truncated-ip - 39 bytes missing! (tos 0x7f,CE, ttl 254, id 40208, offset 0, flags [none], proto VRRP (112), length 68, options (unknown 69 [bad length 83]), bad cksum 9b15 (->b774)!)
+    250.219.91.20 > 209.150.251.64: vrrp 250.219.91.20 > 209.150.251.64: VRRPv2, Advertisement, (ttl 254)[|vrrp]
+[|fr]
+IP (tos 0x7f,CE, ttl 254, id 40208, offset 0, flags [none], proto ICMP (1), length 30, options (unknown 201 [bad length 255]), bad cksum 101 (->6470)!)
+    1.241.1.250 > 219.91.15.170: ICMP type-#255, length 2[|icmp]

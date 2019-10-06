@@ -29,6 +29,8 @@
 #include "l2vpn.h"
 #include "af.h"
 
+static const char tstr[] = " [|LDP]";
+
 /*
  * ldp common header
  *
@@ -210,7 +212,7 @@ static const struct tok ldp_fec_martini_ifparm_vccv_cv_values[] = {
     { 0, NULL}
 };
 
-static int ldp_pdu_print(netdissect_options *, register const u_char *);
+static u_int ldp_pdu_print(netdissect_options *, register const u_char *);
 
 /*
  * ldp tlv header
@@ -435,19 +437,24 @@ ldp_tlv_print(netdissect_options *ndo,
 
                 switch(vc_info_tlv_type) {
                 case LDP_FEC_MARTINI_IFPARM_MTU:
+                    ND_TCHECK_16BITS(tptr + 2);
                     ND_PRINT((ndo, ": %u", EXTRACT_16BITS(tptr+2)));
                     break;
 
                 case LDP_FEC_MARTINI_IFPARM_DESC:
                     ND_PRINT((ndo, ": "));
-                    for (idx = 2; idx < vc_info_tlv_len; idx++)
+                    for (idx = 2; idx < vc_info_tlv_len; idx++) {
+                        ND_TCHECK_8BITS(tptr + idx);
                         safeputchar(ndo, *(tptr + idx));
+                    }
                     break;
 
                 case LDP_FEC_MARTINI_IFPARM_VCCV:
+                    ND_TCHECK_8BITS(tptr + 2);
                     ND_PRINT((ndo, "\n\t\t  Control Channels (0x%02x) = [%s]",
                            *(tptr+2),
                            bittok2str(ldp_fec_martini_ifparm_vccv_cc_values, "none", *(tptr+2))));
+                    ND_TCHECK_8BITS(tptr + 3);
                     ND_PRINT((ndo, "\n\t\t  CV Types (0x%02x) = [%s]",
                            *(tptr+3),
                            bittok2str(ldp_fec_martini_ifparm_vccv_cv_values, "none", *(tptr+3))));
@@ -486,7 +493,7 @@ ldp_tlv_print(netdissect_options *ndo,
 	break;
 
     case LDP_TLV_FT_SESSION:
-	TLV_TCHECK(8);
+	TLV_TCHECK(12);
 	ft_flags = EXTRACT_16BITS(tptr);
 	ND_PRINT((ndo, "\n\t      Flags: [%sReconnect, %sSave State, %sAll-Label Protection, %s Checkpoint, %sRe-Learn State]",
 	       ft_flags&0x8000 ? "" : "No ",
@@ -494,6 +501,7 @@ ldp_tlv_print(netdissect_options *ndo,
 	       ft_flags&0x4 ? "" : "No ",
 	       ft_flags&0x2 ? "Sequence Numbered Label" : "All Labels",
 	       ft_flags&0x1 ? "" : "Don't "));
+	/* 16 bits (FT Flags) + 16 bits (Reserved) */
 	tptr+=4;
 	ui = EXTRACT_32BITS(tptr);
 	if (ui)
@@ -534,7 +542,7 @@ ldp_tlv_print(netdissect_options *ndo,
     return(tlv_len+4); /* Type & Length fields not included */
 
 trunc:
-    ND_PRINT((ndo, "\n\t\t packet exceeded snapshot"));
+    ND_PRINT((ndo, "%s", tstr));
     return 0;
 
 badtlv:
@@ -546,17 +554,23 @@ void
 ldp_print(netdissect_options *ndo,
           register const u_char *pptr, register u_int len)
 {
-    int processed;
+    u_int processed;
     while (len > (sizeof(struct ldp_common_header) + sizeof(struct ldp_msg_header))) {
         processed = ldp_pdu_print(ndo, pptr);
         if (processed == 0)
             return;
+        if (len < processed) {
+            ND_PRINT((ndo, " [remaining length %u < %u]", len, processed));
+            ND_PRINT((ndo, "%s", istr));
+            break;
+
+        }
         len -= processed;
         pptr += processed;
     }
 }
 
-static int
+static u_int
 ldp_pdu_print(netdissect_options *ndo,
               register const u_char *pptr)
 {
@@ -686,7 +700,7 @@ ldp_pdu_print(netdissect_options *ndo,
     }
     return pdu_len+4;
 trunc:
-    ND_PRINT((ndo, "\n\t\t packet exceeded snapshot"));
+    ND_PRINT((ndo, "%s", tstr));
     return 0;
 }
 

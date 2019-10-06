@@ -38,5 +38,4 @@
 	    0x01d0:  0200 0200 0002 0002 0000 0200 0200 0002
 	    0x01e0:  0002 0000 0200 0200 0002 0002 0000 0200
 	    0x01f0:  0200 0002 0002 0000 0200 0200 0002 0002
-	  Unknown Object (0), Class-Type: Unknown (0) Flags: [non-negotiable], length: 512
-		 packet exceeded snapshot
+	  Unknown Object (0), Class-Type: Unknown (0) Flags: [non-negotiable], length: 512 [|LMP]

@@ -1,0 +1,66 @@
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^O^O^O^O^DM-2M-!M-1M-1M-1M-1M-1M-1M-1M-1M-,.M-0^Vn [|kerberos]
+IP 10.0.0.1 > 0.234.154.214: ip-proto-17
+IP 10.0.0.1.88 > 0.234.154.179.24191:  v4 be KDC_REQUEST: ^O^O^O^O^O^DM-2 .*^C@>M-z}M-uM-tM-+M-_M-{S^PM-=OM-^Y [|kerberos]
+58:5e:0a:02:f4:0a > 02:8e:00:50:6a:e1, ethertype Unknown (0xb104), length 3892667167: 
+	0x0000:  020f 0f0f 0f0f 0f0f 0f0f 04b2 a1b1 b1b1  ................
+	0x0010:  b1b1 b1b1 b158 5e0a 02f4 0ab1 0402 0f0f  .....X^.........
+	0x0020:  ff80 0f0f 0f0f 0f00 80a1 00b2 b2b2 b20d  ................
+	0x0030:  0d3a 3400 0001 00                        .:4....
+IP 6.3.218.255.6379 > 0.1.31.99.639: Flags [S.UW], seq 2751463404:2751463426, ack 1006637056, win 45746, urg 25778, length 22: RESP [|RESP]
+IP 6.3.208.255.6379 > 0.1.31.99.639: Flags [S.UW], seq 2751463404:2751463426, ack 1006640128, win 45746, urg 25778, length 22: RESP "M-2M-2M-2M-2M-2M-7dM-2M-2M-2M-2M-2" [|RESP]
+IP 208.21.10.1.654 > 31.99.100.232.80:  aodv rrep 34  prefix 4 hops 11
+	dst 237.34.38.84 dseq 32203525 src 232.11.2.0 67108864 ms
+	ext 0 0
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^O^O^O^O^DM-WM-WM-WM-WM-WM-WM-W.@ 680min  [|kerberos]
+IP 10.0.253.1.88 > 0.234.154.214.24073:  v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24073:  v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+IP 10.0.242.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O'^O^O@@.@^Qjp^J@ 1070min .X^^J^B [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^U.@^O^D^O^O^O^O^O^O^O^O^O^O^O^O [|kerberos]
+IP 10.0.222.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^DM-2 .M-g^C@>M-y}M-uM-tM-+M-` 680min  [|kerberos]
+01:01:ed:83:e3:ff > 02:8e:00:50:6d:e1, ethertype Unknown (0x0700), length 3892672031: 
+	0x0000:  4508 8834 d940 4000 4011 4a70 0a00 0001  E..4.@@.@.Jp....
+	0x0010:  00ea 9ad6 0058 5e0a 02f4 0ab1 0402 0f0f  .....X^.........
+	0x0020:  0f0f 0f0f 0f0f 0f04 b2a1 b1b1 b1b1 b1b1  ................
+	0x0030:  b1b1 b100 b016 6e                        ......n
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^U.@ ^D^R^O^O^O^O^O^O^O^O^O^O^O [|kerberos]
+IP 10.0.255.127.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^DM-2 .M-g^C@>M-z}M-uM-tM-^\M-`^VM-^?^?M-=OM-^Y [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O.^B^O^O^O^O^DM-2M-!M-1M-1M-1M-1M-1M-1M-1M-1M-1M-^@M-0^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?M-^@^D^O^O^O^O^O^P.M-^?M-^?^O^O^O@^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-#M-^?M-^?d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+IP 0.0.1.0 > 234.154.214.0: ip-proto-106
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?M-^@^D^O^O^O^O^O^P.M-^?M-^?^O^O^O@^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-^@M-^?M-^?M-^?^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^O^O^O^O^DM-WM-WM-WM-WM-WM-WM-W.@ 680min  [|kerberos]
+IP 10.0.253.1.8280 > 0.234.154.214.24073: UDP, bad length 60652 > 32792
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O'^O^O@@.@^Qjp^J@ 1070min .X^^J^B [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 le APPL_REQUEST_MUTUAL: (unknown)
+01:00:01:00:00:00 > 02:8e:00:50:6a:e1, ethertype Unknown (0x08e8), length 3892667167: 
+	0x0000:  4408 8034 d92b 4000 4011 3b70 0a00 0001  D..4.+@.@.;p....
+	0x0010:  00ea 9ad6 0058 5e0a 02f4 0ab1 0402 ffff  .....X^.........
+	0x0020:  ff7f 80ff 80d6 00c3 0880 34d9 4040 0040  ..........4.@@.@
+	0x0030:  114a 700a 0016 88                        .Jp....
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: .M-oM-^?M-^?@M-^?M-^@M-V M-WM-WM-WM-WM-WM-WM-WM-W 0min ^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.210.24073:  v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-WM-^?M-!^B^O^O^P@M-^?M-^?^O^O^O [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-#M-^?M-^?d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074: 
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-^@M-^?M-^?M-^?^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074: 
+IP 10.0.253.1.88 > 0.234.154.214.24073:  v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O'^O^O@@.@^Qjp^J@ 1070min .X^^J^B [|kerberos]
+IP 64.0.0.1.88 > 0.234.154.214.24074:  v4 le APPL_REQUEST_MUTUAL: (unknown)
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: M-^?M-^?M-^?^?M-^@M-^?M-^@M-V.M-C^HM-^@4M-Y@@@@^QJp^J [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: .M-oM-^?M-^?@M-^?M-^@M-V 75min ^O^O^O^O^O^O^O^O.^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?M-^@^D^O^O^O^O^O^P.M-^?M-^?^O^O^O@^VM-^H [|kerberos]
+IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-^@M-^?M-^?M-^?^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+IP 208.21.42.58.6697 > 110.228.104.254.30952: babel 2 (2056) (invalid)

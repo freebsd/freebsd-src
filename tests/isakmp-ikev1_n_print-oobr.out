@@ -1,0 +1,8 @@
+IP (tos 0x12,ECT(0), ttl 17, id 47119, offset 0, flags [+, DF, rsvd], proto UDP (17), length 296, bad cksum 1ff (->327b)!)
+    80.236.128.20.500 > 12.251.0.45.49152: isakmp 2.12 msgid 10101010: child_sa  ikev2_auth[V]:
+    (n: doi=0 proto=128 type=#24577) [|#126] (len mismatch: isakmp 4278190080/ip 268)
+IP (tos 0x12,ECT(0), ttl 17, id 21263, offset 72, flags [+, DF, rsvd], proto unknown (40), length 296, bad cksum fbff (->9847)!)
+    80.0.128.20 > 12.251.0.45: ip-proto-40
+IP (tos 0x15,ECT(1), ttl 17, id 21263, offset 0, flags [+, DF, rsvd], proto UDP (17), length 296, bad cksum 1ff (->9864)!)
+    80.0.128.20.500 > 12.251.0.45.49152: isakmp 2.12 msgid 1010100b: child_sa  ikev2_auth[V]:
+    (n: doi=ipsec proto=#16 type=REPLAY-STATUS spi=04 status=( [|n]) (len mismatch: isakmp 620756992/ip 268)

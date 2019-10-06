@@ -32,7 +32,7 @@ if test "$ac_cv___attribute__" = "yes"; then
 	fi
 fi
 
-AC_CHECK_HEADERS(fcntl.h rpc/rpc.h rpc/rpcent.h netdnet/dnetdb.h)
+AC_CHECK_HEADERS(fcntl.h rpc/rpc.h rpc/rpcent.h)
 AC_CHECK_HEADERS(net/pfvar.h, , , [#include <sys/types.h>
 #include <sys/socket.h>
 #include <net/if.h>])
@@ -169,12 +169,11 @@ fi
 
 AC_MSG_CHECKING([whether to enable the possibly-buggy SMB printer])
 AC_ARG_ENABLE(smb,
-[  --enable-smb            enable possibly-buggy SMB printer [default=yes]
+[  --enable-smb            enable possibly-buggy SMB printer [default=no]
   --disable-smb           disable possibly-buggy SMB printer],,
-   enableval=yes)
+   enableval=no)
 case "$enableval" in
 yes)	AC_MSG_RESULT(yes)
-	AC_WARN([The SMB printer may have exploitable buffer overflows!!!])
 	AC_DEFINE(ENABLE_SMB, 1,
 	    [define if you want to build the possibly-buggy SMB printer])
 	LOCALSRC="print-smb.c smbutil.c $LOCALSRC"
@@ -386,16 +385,6 @@ if test "$ipv6" = "yes" -a "$ipv6lib" != "none"; then
 	fi
 fi
 
-AC_CACHE_CHECK([for dnet_htoa declaration in netdnet/dnetdb.h],
-[td_cv_decl_netdnet_dnetdb_h_dnet_htoa],
-[AC_EGREP_HEADER(dnet_htoa, netdnet/dnetdb.h,
-	td_cv_decl_netdnet_dnetdb_h_dnet_htoa=yes,
-	td_cv_decl_netdnet_dnetdb_h_dnet_htoa=no)])
-if test "$td_cv_decl_netdnet_dnetdb_h_dnet_htoa" = yes; then
-	AC_DEFINE(HAVE_NETDNET_DNETDB_H_DNET_HTOA, 1,
-	    [define if you have a dnet_htoa declaration in <netdnet/dnetdb.h>])
-fi
-
 AC_REPLACE_FUNCS(vfprintf strlcat strlcpy strdup strsep getopt_long)
 AC_CHECK_FUNCS(fork vfork strftime)
 AC_CHECK_FUNCS(setlinebuf alarm)
@@ -408,9 +397,6 @@ if test $needsnprintf = yes; then
 fi
 
 AC_LBL_TYPE_SIGNAL
-
-AC_SEARCH_LIBS(dnet_htoa, dnet,
-    AC_DEFINE(HAVE_DNET_HTOA, 1, [define if you have the dnet_htoa function]))
 
 AC_CHECK_LIB(rpc, main)		dnl It's unclear why we might need -lrpc
 

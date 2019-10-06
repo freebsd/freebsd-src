@@ -325,6 +325,7 @@ aoev1_reserve_print(netdissect_options *ndo,
 		goto invalid;
 	/* addresses */
 	for (i = 0; i < nmacs; i++) {
+		ND_TCHECK2(*cp, ETHER_ADDR_LEN);
 		ND_PRINT((ndo, "\n\tEthernet Address %u: %s", i, etheraddr_string(ndo, cp)));
 		cp += ETHER_ADDR_LEN;
 	}
@@ -350,6 +351,7 @@ aoev1_print(netdissect_options *ndo,
 	if (len < AOEV1_COMMON_HDR_LEN)
 		goto invalid;
 	/* Flags */
+	ND_TCHECK2(*cp, 1);
 	flags = *cp & 0x0F;
 	ND_PRINT((ndo, ", Flags: [%s]", bittok2str(aoev1_flag_str, "none", flags)));
 	cp += 1;

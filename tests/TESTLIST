@@ -26,8 +26,8 @@ bgp_infloop-v		bgp-infinite-loop.pcap		bgp_infloop-v.out	-v
 bgp-aigp	bgp-aigp.pcap	bgp-aigp.out	-v
 bgp-large-community bgp-large-community.pcap bgp-large-community.out -v
 
-# EAP tests
-eapon1		eapon1.pcap		eapon1.out
+# EAP tests. eapon1.pcap has NBT packets mixed in, eapon2.pcap removes them.
+eapon2		eapon2.pcap		eapon2.out
 
 # ESP tests
 esp0		02-sunrise-sunset-esp.pcap	esp0.out
@@ -198,6 +198,7 @@ of10_s4810-vvvv	of10_s4810.pcap		of10_s4810-vvvv.out	-vvvv
 of10_pf5240-vv	of10_pf5240.pcap	of10_pf5240-vv.out	-vv
 of10_7050q-v	of10_7050q.pcap		of10_7050q-v.out	-v
 of10_7050sx_bsn-vv	of10_7050sx_bsn.pcap		of10_7050sx_bsn-vv.out	-vv
+of10_7050sx_bsn-oobr	of10_7050sx_bsn-oobr.pcap	of10_7050sx_bsn-oobr.out	-v
 
 # GeoNetworking and CALM FAST tests
 geonet-calm-fast	geonet_and_calm_fast.pcap	geonet_and_calm_fast.out	-vv
@@ -358,9 +359,9 @@ lisp_ipv6_eid		lisp_ipv6.pcap		lisp_ipv6.out		-v
 pcap-invalid-version-1 pcap-invalid-version-1.pcap pcap-invalid-version-1.out
 pcap-invalid-version-2 pcap-invalid-version-2.pcap pcap-invalid-version-2.out
 
-# pcap-ng invalid version (first: version = 0.1 ; second: version = 1.1)
-pcap-ng-invalid-vers-1 pcap-ng-invalid-vers-1.pcap pcap-ng-invalid-vers-1.out
-pcap-ng-invalid-vers-2 pcap-ng-invalid-vers-2.pcap pcap-ng-invalid-vers-2.out
+# pcapng invalid version (first: version = 0.1 ; second: version = 1.1)
+pcapng-invalid-vers-1 pcapng-invalid-vers-1.pcapng pcapng-invalid-vers-1.out
+pcapng-invalid-vers-2 pcapng-invalid-vers-2.pcapng pcapng-invalid-vers-2.out
 
 # NSH over VxLAN-GPE
 nsh-over-vxlan-gpe     nsh-over-vxlan-gpe.pcap nsh-over-vxlan-gpe.out
@@ -468,8 +469,6 @@ hoobr_nfs_xid_map_enter hoobr_nfs_xid_map_enter.pcap    hoobr_nfs_xid_map_enter.
 # bad packets from Wilfried Kirsch
 slip-bad-direction	slip-bad-direction.pcap		slip-bad-direction.out	-ve
 
-# bad packets from Otto Airamo and Antti Levomäki
-nbns-valgrind		nbns-valgrind.pcap		nbns-valgrind.out	-vvv -e
 arp-oobr		arp-oobr.pcap			arp-oobr.out	-vvv -e
 icmp-cksum-oobr-1	icmp-cksum-oobr-1.pcap		icmp-cksum-oobr-1.out	-vvv -e
 icmp-cksum-oobr-2	icmp-cksum-oobr-2.pcap		icmp-cksum-oobr-2.out	-vvv -e
@@ -551,13 +550,18 @@ radius_attr_asan	radius_attr_asan.pcap		radius_attr_asan.out	-v
 ospf6_decode_v3_asan	ospf6_decode_v3_asan.pcap	ospf6_decode_v3_asan.out -v
 ip_ts_opts_asan		ip_ts_opts_asan.pcap		ip_ts_opts_asan.out	-v
 isakmpv1-attr-oobr	isakmpv1-attr-oobr.pcap		isakmpv1-attr-oobr.out	-v
-# The case below depends on the bug in print-hncp.c, which at the time of
-# discovery had codepoints for DHCPv6-Data and DHCPv4-Data swapped around.
-# After the bugfix the output will be different because of the different
-# code path and will not test the vulnerability unless modified respectively.
+isakmp-ikev1_n_print-oobr isakmp-ikev1_n_print-oobr.pcap isakmp-ikev1_n_print-oobr.out -v -c3
+ldp-ldp_tlv_print-oobr ldp-ldp_tlv_print-oobr.pcap ldp-ldp_tlv_print-oobr.out -v -c1
+icmp-icmp_print-oobr-1 icmp-icmp_print-oobr-1.pcap icmp-icmp_print-oobr-1.out -v -c3
+icmp-icmp_print-oobr-2 icmp-icmp_print-oobr-2.pcap icmp-icmp_print-oobr-2.out -v -c3
+rsvp-rsvp_obj_print-oobr rsvp-rsvp_obj_print-oobr.pcap rsvp-rsvp_obj_print-oobr.out -v -c3
+vrrp-vrrp_print-oobr vrrp-vrrp_print-oobr.pcap vrrp-vrrp_print-oobr.out -v -c3
+vrrp-vrrp_print-oobr-2 vrrp-vrrp_print-oobr-2.pcap vrrp-vrrp_print-oobr-2.out -v
+bgp-bgp_capabilities_print-oobr-1 bgp-bgp_capabilities_print-oobr-1.pcap bgp-bgp_capabilities_print-oobr-1.out -v -c1
+bgp-bgp_capabilities_print-oobr-2 bgp-bgp_capabilities_print-oobr-2.pcap bgp-bgp_capabilities_print-oobr-2.out -v -c1
+lmp-lmp_print_data_link_subobjs-oobr lmp-lmp_print_data_link_subobjs-oobr.pcap lmp-lmp_print_data_link_subobjs-oobr.out -v -c2
 # The .pcap file is truncated after the 1st packet.
 hncp_dhcpv6data-oobr	hncp_dhcpv6data-oobr.pcap	hncp_dhcpv6data-oobr.out -v -c1
-# Same comments apply to the case below.
 hncp_dhcpv4data-oobr	hncp_dhcpv4data-oobr.pcap	hncp_dhcpv4data-oobr.out -v -c1
 vqp-oobr		vqp-oobr.pcap			vqp-oobr.out		-v -c1
 bgp_pmsi_tunnel-oobr	bgp_pmsi_tunnel-oobr.pcap	bgp_pmsi_tunnel-oobr.out -v -c1
@@ -576,6 +580,10 @@ olsr-oobr-1		olsr-oobr-1.pcap		olsr-oobr-1.out	-v
 olsr-oobr-2		olsr-oobr-2.pcap		olsr-oobr-2.out	-v
 ikev1_id_ipv6_addr_subnet-oobr	ikev1_id_ipv6_addr_subnet-oobr.pcap	ikev1_id_ipv6_addr_subnet-oobr.out	-v
 isakmp-various-oobr	isakmp-various-oobr.pcap	isakmp-various-oobr.out	-v
+aoe-oobr-1		aoe-oobr-1.pcap			aoe-oobr-1.out	-v -c1
+frf16_magic_ie-oobr	frf16_magic_ie-oobr.pcap	frf16_magic_ie-oobr.out	-v -c1
+rx_serviceid_oobr	rx_serviceid_oobr.pcap		rx_serviceid_oobr.out -c3
+bgp_mp_reach_nlri-oobr	bgp_mp_reach_nlri-oobr.pcap	bgp_mp_reach_nlri-oobr.out -v -c1
 
 # bad packets from Katie Holly
 mlppp-oobr		mlppp-oobr.pcap			mlppp-oobr.out
@@ -586,6 +594,16 @@ icmp6_nodeinfo_oobr	icmp6_nodeinfo_oobr.pcap	icmp6_nodeinfo_oobr.out
 
 # bad packets from Henri Salo
 rx_ubik-oobr		rx_ubik-oobr.pcap		rx_ubik-oobr.out -c1
+babel_update_oobr	babel_update_oobr.pcap	babel_update_oobr.out	-c 52
+
+# bad packets from Junjie Wang
+ospf6_print_lshdr-oobr	ospf6_print_lshdr-oobr.pcapng	ospf6_print_lshdr-oobr.out	-vv -c15
+rpl-dao-oobr		rpl-dao-oobr.pcapng		rpl-dao-oobr.out		-vv -c1
+hncp_prefix-oobr	hncp_prefix-oobr.pcapng		hncp_prefix-oobr.out		-vvv
+
+# bad packets from Ryan Ackroyd
+ieee802.11_meshhdr-oobr	ieee802.11_meshhdr-oobr.pcap	ieee802.11_meshhdr-oobr.out	-H -c1
+dccp_options-oobr	dccp_options-oobr.pcap		dccp_options-oobr.out		-vv -c8
 
 # RTP tests
 # fuzzed pcap
@@ -603,3 +621,23 @@ nfs-seg-fault-1  nfs-seg-fault-1.pcap  nfs-seg-fault-1.out
 dns-zlip-1		dns-zlip-1.pcap		dns-zlip-1.out
 dns-zlip-2		dns-zlip-2.pcap		dns-zlip-2.out
 dns-zlip-3		dns-zlip-3.pcap		dns-zlip-3.out
+
+# CVE-2019-15120
+kh-addrfail-001         kh-addrfail-001.pcap    kh-addrfail-001.out
+kh-addrfail-002         kh-addrfail-002.pcap    kh-addrfail-002.out
+kh-addrfail-003         kh-addrfail-003.pcap    kh-addrfail-003.out
+kh-addrfail-004         kh-addrfail-004.pcap    kh-addrfail-004.out
+kh-addrfail-005         kh-addrfail-005.pcap    kh-addrfail-005.out
+kh-addrfail-006         kh-addrfail-006.pcap    kh-addrfail-006.out
+kh-addrfail-007         kh-addrfail-007.pcap    kh-addrfail-007.out
+kh-addrfail-008         kh-addrfail-008.pcap    kh-addrfail-008.out
+kh-addrfail-009         kh-addrfail-009.pcap    kh-addrfail-009.out
+kh-addrfail-010         kh-addrfail-010.pcap    kh-addrfail-010.out
+kh-addrfail-011         kh-addrfail-011.pcap    kh-addrfail-011.out
+kh-tcpdump-001          kh-tcpdump-001.pcap     kh-tcpdump-001.out
+kh-tcpdump-002          kh-tcpdump-002.pcap     kh-tcpdump-002.out
+
+# CVE-2018-10105 bad packets from Luis Rocha
+cve-2018-10105-segv-sflowprint           cve-2018-10105-segv-sflowprint.pcapng    cve-2018-10105-segv-sflowprint.out -v
+
+
