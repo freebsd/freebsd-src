@@ -136,7 +136,8 @@ static struct vfsops nfs_vfsops = {
 	.vfs_init =		ncl_init,
 	.vfs_mount =		nfs_mount,
 	.vfs_cmount =		nfs_cmount,
-	.vfs_root =		nfs_root,
+	.vfs_root =		vfs_cache_root,
+	.vfs_cachedroot =	nfs_root,
 	.vfs_statfs =		nfs_statfs,
 	.vfs_sync =		nfs_sync,
 	.vfs_uninit =		ncl_uninit,
@@ -1626,6 +1627,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		 * Lose the lock but keep the ref.
 		 */
 		NFSVOPUNLOCK(*vpp, 0);
+		vfs_cache_root_set(mp, *vpp);
 		return (0);
 	}
 	error = EIO;
