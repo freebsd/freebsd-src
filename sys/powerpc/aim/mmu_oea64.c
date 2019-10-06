@@ -119,8 +119,8 @@ uintptr_t moea64_get_unique_vsid(void);
  *
  */
 
-#define PV_LOCK_PER_DOM	PA_LOCK_COUNT*3
-#define PV_LOCK_COUNT	PV_LOCK_PER_DOM*MAXMEMDOM
+#define PV_LOCK_PER_DOM	(PA_LOCK_COUNT * 3)
+#define PV_LOCK_COUNT	(PV_LOCK_PER_DOM * MAXMEMDOM)
 static struct mtx_padalign pv_lock[PV_LOCK_COUNT];
  
 /*
