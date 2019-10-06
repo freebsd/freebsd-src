@@ -445,7 +445,7 @@ ATF_TC_BODY(object_resize, tc)
 		/*
 		 * The previous ftruncate(2) shrunk the backing object
 		 * so that this address is no longer valid, so reading
-		 * from it should trigger a SIGSEGV.
+		 * from it should trigger a SIGBUS.
 		 */
 		c = page[pagesize];
 		fprintf(stderr, "child: page 1: '%c'\n", c);
@@ -455,7 +455,7 @@ ATF_TC_BODY(object_resize, tc)
 	if (wait(&status) < 0)
 		atf_tc_fail("wait failed; errno=%d", errno);
 
-	if (!WIFSIGNALED(status) || WTERMSIG(status) != SIGSEGV)
+	if (!WIFSIGNALED(status) || WTERMSIG(status) != SIGBUS)
 		atf_tc_fail("child terminated with status %x", status);
 
 	/* Grow the object back to 2 pages. */
