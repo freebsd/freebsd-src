@@ -194,18 +194,13 @@ struct pkthdr {
 };
 #define	ether_vtag	PH_per.sixteen[0]
 #define	PH_vt		PH_per
-#define	vt_nrecs	sixteen[0]
-#define	tso_segsz	PH_per.sixteen[1]
-#define	lro_nsegs	tso_segsz
-#define	csum_phsum	PH_per.sixteen[2]
-#define	csum_data	PH_per.thirtytwo[1]
-#define lro_len		PH_per.sixteen[0] /* inbound during LRO */
-#define lro_csum	PH_per.sixteen[1] /* inbound during LRO */
-#define pace_thoff	PH_loc.sixteen[0]
-#define pace_tlen	PH_loc.sixteen[1]
-#define pace_drphdrlen	PH_loc.sixteen[2]
-#define pace_tos	PH_loc.eight[6]
-#define pace_lock	PH_loc.eight[7]
+#define	vt_nrecs	sixteen[0]	  /* mld and v6-ND */
+#define	tso_segsz	PH_per.sixteen[1] /* inbound after LRO */
+#define	lro_nsegs	tso_segsz	  /* inbound after LRO */
+#define	csum_data	PH_per.thirtytwo[1] /* inbound from hardware up */
+#define lro_len		PH_loc.sixteen[0] /* inbound during LRO (no reassembly) */
+#define lro_csum	PH_loc.sixteen[1] /* inbound during LRO (no reassembly) */
+/* Note PH_loc is used during IP reassembly (all 8 bytes as a ptr) */
 
 /*
  * Description of external storage mapped into mbuf; valid only if M_EXT is
