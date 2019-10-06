@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 31, 2018
+.Dd September 13, 2019
 .Dt CLI.LUA 8
 .Os
 .Sh NAME
@@ -82,14 +82,27 @@ As of present, the
 module by default provides commands for
 .Ic autoboot ,
 .Ic boot ,
+.Ic boot-conf ,
 and
-.Ic boot-conf.
-In all three cases, the
+.Ic reload-conf .
+.Pp
+For
+.Ic autoboot ,
+.Ic boot ,
+and
+.Ic boot-conf ,
+the
 .Xr core.lua 8
 module will load all ELF modules as-needed before executing the equivalent
 built-in loader commands.
 All non-kernel arguments to these commands are passed in the same order to the
 loader command.
+.Pp
+The
+.Ic reload-conf
+command will reload the configuration from disk.
+This is useful if you have manually changed currdev and would like to easily
+reload the configuration from the new device.
 .Ss Exported Functions
 The following functions are exported from
 .Nm :
