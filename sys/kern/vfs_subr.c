@@ -5700,6 +5700,121 @@ vfs_unixify_accmode(accmode_t *accmode)
 }
 
 /*
+ * Clear out a doomed vnode (if any) and replace it with a new one as long
+ * as the fs is not being unmounted. Return the root vnode to the caller.
+ */
+static int __noinline
+vfs_cache_root_fallback(struct mount *mp, int flags, struct vnode **vpp)
+{
+	struct vnode *vp;
+	int error;
+
+restart:
+	if (mp->mnt_rootvnode != NULL) {
+		MNT_ILOCK(mp);
+		vp = mp->mnt_rootvnode;
+		if (vp != NULL) {
+			if ((vp->v_iflag & VI_DOOMED) == 0) {
+				vrefact(vp);
+				MNT_IUNLOCK(mp);
+				error = vn_lock(vp, flags);
+				if (error == 0) {
+					*vpp = vp;
+					return (0);
+				}
+				vrele(vp);
+				goto restart;
+			}
+			/*
+			 * Clear the old one.
+			 */
+			mp->mnt_rootvnode = NULL;
+		}
+		MNT_IUNLOCK(mp);
+		if (vp != NULL) {
+			/*
+			 * Paired with a fence in vfs_op_thread_exit().
+			 */
+			atomic_thread_fence_acq();
+			vfs_op_barrier_wait(mp);
+			vrele(vp);
+		}
+	}
+	error = VFS_CACHEDROOT(mp, flags, vpp);
+	if (error != 0)
+		return (error);
+	if (mp->mnt_vfs_ops == 0) {
+		MNT_ILOCK(mp);
+		if (mp->mnt_vfs_ops != 0) {
+			MNT_IUNLOCK(mp);
+			return (0);
+		}
+		if (mp->mnt_rootvnode == NULL) {
+			vrefact(*vpp);
+			mp->mnt_rootvnode = *vpp;
+		} else {
+			if (mp->mnt_rootvnode != *vpp) {
+				if ((mp->mnt_rootvnode->v_iflag & VI_DOOMED) == 0) {
+					panic("%s: mismatch between vnode returned "
+					    " by VFS_CACHEDROOT and the one cached "
+					    " (%p != %p)",
+					    __func__, *vpp, mp->mnt_rootvnode);
+				}
+			}
+		}
+		MNT_IUNLOCK(mp);
+	}
+	return (0);
+}
+
+int
+vfs_cache_root(struct mount *mp, int flags, struct vnode **vpp)
+{
+	struct vnode *vp;
+	int error;
+
+	if (!vfs_op_thread_enter(mp))
+		return (vfs_cache_root_fallback(mp, flags, vpp));
+	vp = (struct vnode *)atomic_load_ptr(&mp->mnt_rootvnode);
+	if (vp == NULL || (vp->v_iflag & VI_DOOMED)) {
+		vfs_op_thread_exit(mp);
+		return (vfs_cache_root_fallback(mp, flags, vpp));
+	}
+	vrefact(vp);
+	vfs_op_thread_exit(mp);
+	error = vn_lock(vp, flags);
+	if (error != 0) {
+		vrele(vp);
+		return (vfs_cache_root_fallback(mp, flags, vpp));
+	}
+	*vpp = vp;
+	return (0);
+}
+
+struct vnode *
+vfs_cache_root_clear(struct mount *mp)
+{
+	struct vnode *vp;
+
+	/*
+	 * ops > 0 guarantees there is nobody who can see this vnode
+	 */
+	MPASS(mp->mnt_vfs_ops > 0);
+	vp = mp->mnt_rootvnode;
+	mp->mnt_rootvnode = NULL;
+	return (vp);
+}
+
+void
+vfs_cache_root_set(struct mount *mp, struct vnode *vp)
+{
+
+	MPASS(mp->mnt_vfs_ops > 0);
+	vrefact(vp);
+	mp->mnt_rootvnode = vp;
+}
+
+/*
  * These are helper functions for filesystems to traverse all
  * their vnodes.  See MNT_VNODE_FOREACH_ALL() in sys/mount.h.
  *

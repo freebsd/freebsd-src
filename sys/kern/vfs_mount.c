@@ -134,6 +134,7 @@ mount_init(void *mem, int size, int flags)
 	    M_WAITOK | M_ZERO);
 	mp->mnt_ref = 0;
 	mp->mnt_vfs_ops = 1;
+	mp->mnt_rootvnode = NULL;
 	return (0);
 }
 
@@ -581,6 +582,10 @@ vfs_mount_destroy(struct mount *mp)
 	if (mp->mnt_vfs_ops != 1)
 		panic("%s: vfs_ops should be 1 but %d found\n", __func__,
 		    mp->mnt_vfs_ops);
+
+	if (mp->mnt_rootvnode != NULL)
+		panic("%s: mount point still has a root vnode %p\n", __func__,
+		    mp->mnt_rootvnode);
 
 	if (mp->mnt_vnodecovered != NULL)
 		vrele(mp->mnt_vnodecovered);
@@ -1034,6 +1039,7 @@ vfs_domount_update(
 	)
 {
 	struct export_args export;
+	struct vnode *rootvp;
 	void *bufp;
 	struct mount *mp;
 	int error, export_error, len;
@@ -1099,7 +1105,10 @@ vfs_domount_update(
 	    MNT_SNAPSHOT | MNT_ROOTFS | MNT_UPDATEMASK | MNT_RDONLY);
 	if ((mp->mnt_flag & MNT_ASYNC) == 0)
 		mp->mnt_kern_flag &= ~MNTK_ASYNC;
+	rootvp = vfs_cache_root_clear(mp);
 	MNT_IUNLOCK(mp);
+	if (rootvp != NULL)
+		vrele(rootvp);
 	mp->mnt_optnew = *optlist;
 	vfs_mergeopts(mp->mnt_optnew, mp->mnt_opt);
 
@@ -1582,7 +1591,7 @@ vfs_mount_fetch_counter(struct mount *mp, enum mount_counter which)
 int
 dounmount(struct mount *mp, int flags, struct thread *td)
 {
-	struct vnode *coveredvp;
+	struct vnode *coveredvp, *rootvp;
 	int error;
 	uint64_t async_flag;
 	int mnt_gen_r;
@@ -1630,12 +1639,15 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 		return (EBUSY);
 	}
 	mp->mnt_kern_flag |= MNTK_UNMOUNT;
+	rootvp = vfs_cache_root_clear(mp);
 	if (flags & MNT_NONBUSY) {
 		MNT_IUNLOCK(mp);
 		error = vfs_check_usecounts(mp);
 		MNT_ILOCK(mp);
 		if (error != 0) {
 			dounmount_cleanup(mp, coveredvp, MNTK_UNMOUNT);
+			if (rootvp != NULL)
+				vrele(rootvp);
 			return (error);
 		}
 	}
@@ -1663,6 +1675,9 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	KASSERT(error == 0,
 	    ("%s: invalid return value for msleep in the drain path @ %s:%d",
 	    __func__, __FILE__, __LINE__));
+
+	if (rootvp != NULL)
+		vrele(rootvp);
 
 	if (mp->mnt_flag & MNT_EXPUBLIC)
 		vfs_setpublicfs(NULL, NULL, NULL);
