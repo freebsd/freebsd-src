@@ -25,5 +25,5 @@ Please note that if you know exactly how to solve the problem and the solution
 would not be too intrusive, it would be best to contribute some development time
 and open a pull request instead.
 
-Still not sure how to do? Feel free to [subscribe](http://www.tcpdump.org/#mailing-lists)
+Still not sure how to do? Feel free to [subscribe](https://www.tcpdump.org/#mailing-lists)
 to the mailing list tcpdump-workers@lists.tcpdump.org and ask!
