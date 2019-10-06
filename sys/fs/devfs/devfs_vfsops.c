@@ -156,6 +156,7 @@ devfs_mount(struct mount *mp)
 	}
 
 	VOP_UNLOCK(rvp, 0);
+	vfs_cache_root_set(mp, rvp);
 
 	vfs_mountedfrom(mp, "devfs");
 
@@ -237,7 +238,8 @@ devfs_statfs(struct mount *mp, struct statfs *sbp)
 
 static struct vfsops devfs_vfsops = {
 	.vfs_mount =		devfs_mount,
-	.vfs_root =		devfs_root,
+	.vfs_root =		vfs_cache_root,
+	.vfs_cachedroot =	devfs_root,
 	.vfs_statfs =		devfs_statfs,
 	.vfs_unmount =		devfs_unmount,
 };
