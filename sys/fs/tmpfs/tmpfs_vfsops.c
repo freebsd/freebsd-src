@@ -710,7 +710,8 @@ tmpfs_susp_clean(struct mount *mp __unused)
 struct vfsops tmpfs_vfsops = {
 	.vfs_mount =			tmpfs_mount,
 	.vfs_unmount =			tmpfs_unmount,
-	.vfs_root =			tmpfs_root,
+	.vfs_root =			vfs_cache_root,
+	.vfs_cachedroot =		tmpfs_root,
 	.vfs_statfs =			tmpfs_statfs,
 	.vfs_fhtovp =			tmpfs_fhtovp,
 	.vfs_sync =			tmpfs_sync,
