@@ -316,13 +316,25 @@ pmap_pku_mask_bit(pmap_t pmap)
 #define PV_STAT(x)	do { } while (0)
 #endif
 
-#define	pa_index(pa)	((pa) >> PDRSHIFT)
+#undef pa_index
+#define	pa_index(pa)	({					\
+	KASSERT((pa) <= vm_phys_segs[vm_phys_nsegs - 1].end,	\
+	    ("address %lx beyond the last segment", (pa)));	\
+	(pa) >> PDRSHIFT;					\
+})
+#if VM_NRESERVLEVEL > 0
+#define	pa_to_pmdp(pa)	(&pv_table[pa_index(pa)])
+#define	pa_to_pvh(pa)	(&(pa_to_pmdp(pa)->pv_page))
+#define	PHYS_TO_PV_LIST_LOCK(pa)	\
+			(&(pa_to_pmdp(pa)->pv_lock))
+#else
 #define	pa_to_pvh(pa)	(&pv_table[pa_index(pa)])
 
 #define	NPV_LIST_LOCKS	MAXCPU
 
 #define	PHYS_TO_PV_LIST_LOCK(pa)	\
 			(&pv_list_locks[pa_index(pa) % NPV_LIST_LOCKS])
+#endif
 
 #define	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa)	do {	\
 	struct rwlock **_lockp = (lockp);		\
@@ -400,14 +412,22 @@ static int pmap_initialized;
 
 /*
  * Data for the pv entry allocation mechanism.
- * Updates to pv_invl_gen are protected by the pv_list_locks[]
- * elements, but reads are not.
+ * Updates to pv_invl_gen are protected by the pv list lock but reads are not.
  */
 static TAILQ_HEAD(pch, pv_chunk) pv_chunks = TAILQ_HEAD_INITIALIZER(pv_chunks);
 static struct mtx __exclusive_cache_line pv_chunks_mutex;
+#if VM_NRESERVLEVEL > 0
+struct pmap_large_md_page {
+	struct rwlock   pv_lock;
+	struct md_page  pv_page;
+	u_long pv_invl_gen;
+};
+static struct pmap_large_md_page *pv_table;
+#else
 static struct rwlock __exclusive_cache_line pv_list_locks[NPV_LIST_LOCKS];
 static u_long pv_invl_gen[NPV_LIST_LOCKS];
 static struct md_page *pv_table;
+#endif
 static struct md_page pv_dummy;
 
 /*
@@ -918,12 +938,21 @@ SYSCTL_LONG(_vm_pmap, OID_AUTO, invl_wait_slow, CTLFLAG_RD, &invl_wait_slow, 0,
     "Number of slow invalidation waits for lockless DI");
 #endif
 
+#if VM_NRESERVLEVEL > 0
+static u_long *
+pmap_delayed_invl_genp(vm_page_t m)
+{
+
+	return (&pa_to_pmdp(VM_PAGE_TO_PHYS(m))->pv_invl_gen);
+}
+#else
 static u_long *
 pmap_delayed_invl_genp(vm_page_t m)
 {
 
 	return (&pv_invl_gen[pa_index(VM_PAGE_TO_PHYS(m)) % NPV_LIST_LOCKS]);
 }
+#endif
 
 static void
 pmap_delayed_invl_callout_func(void *arg __unused)
@@ -1803,6 +1832,112 @@ pmap_page_init(vm_page_t m)
 	m->md.pat_mode = PAT_WRITE_BACK;
 }
 
+#if VM_NRESERVLEVEL > 0
+static void
+pmap_init_pv_table(void)
+{
+	struct pmap_large_md_page *pvd;
+	vm_size_t s;
+	long start, end, highest, pv_npg;
+	int domain, i, j, pages;
+
+	/*
+	 * We strongly depend on the size being a power of two, so the assert
+	 * is overzealous. However, should the struct be resized to a
+	 * different power of two, the code below needs to be revisited.
+	 */
+	CTASSERT((sizeof(*pvd) == 64));
+
+	/*
+	 * Calculate the size of the array.
+	 */
+	pv_npg = howmany(vm_phys_segs[vm_phys_nsegs - 1].end, NBPDR);
+	s = (vm_size_t)pv_npg * sizeof(struct pmap_large_md_page);
+	s = round_page(s);
+	pv_table = (struct pmap_large_md_page *)kva_alloc(s);
+	if (pv_table == NULL)
+		panic("%s: kva_alloc failed\n", __func__);
+
+	/*
+	 * Iterate physical segments to allocate space for respective pages.
+	 */
+	highest = -1;
+	s = 0;
+	for (i = 0; i < vm_phys_nsegs; i++) {
+		start = vm_phys_segs[i].start / NBPDR;
+		end = vm_phys_segs[i].end / NBPDR;
+		domain = vm_phys_segs[i].domain;
+
+		if (highest >= end)
+			continue;
+
+		if (start < highest) {
+			start = highest + 1;
+			pvd = &pv_table[start];
+		} else {
+			/*
+			 * The lowest address may land somewhere in the middle
+			 * of our page. Simplify the code by pretending it is
+			 * at the beginning.
+			 */
+			pvd = pa_to_pmdp(vm_phys_segs[i].start);
+			pvd = (struct pmap_large_md_page *)trunc_page(pvd);
+			start = pvd - pv_table;
+		}
+
+		pages = end - start + 1;
+		s = round_page(pages * sizeof(*pvd));
+		highest = start + (s / sizeof(*pvd)) - 1;
+
+		for (j = 0; j < s; j += PAGE_SIZE) {
+			vm_page_t m = vm_page_alloc_domain(NULL, 0,
+			    domain, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ);
+			if (m == NULL)
+				panic("vm_page_alloc_domain failed for %lx\n", (vm_offset_t)pvd + j);
+			pmap_qenter((vm_offset_t)pvd + j, &m, 1);
+		}
+
+		for (j = 0; j < s / sizeof(*pvd); j++) {
+			rw_init_flags(&pvd->pv_lock, "pmap pv list", RW_NEW);
+			TAILQ_INIT(&pvd->pv_page.pv_list);
+			pvd->pv_page.pv_gen = 0;
+			pvd->pv_page.pat_mode = 0;
+			pvd->pv_invl_gen = 0;
+			pvd++;
+		}
+	}
+	TAILQ_INIT(&pv_dummy.pv_list);
+}
+#else
+static void
+pmap_init_pv_table(void)
+{
+	vm_size_t s;
+	long i, pv_npg;
+
+	/*
+	 * Initialize the pool of pv list locks.
+	 */
+	for (i = 0; i < NPV_LIST_LOCKS; i++)
+		rw_init(&pv_list_locks[i], "pmap pv list");
+
+	/*
+	 * Calculate the size of the pv head table for superpages.
+	 */
+	pv_npg = howmany(vm_phys_segs[vm_phys_nsegs - 1].end, NBPDR);
+
+	/*
+	 * Allocate memory for the pv head table for superpages.
+	 */
+	s = (vm_size_t)pv_npg * sizeof(struct md_page);
+	s = round_page(s);
+	pv_table = (struct md_page *)kmem_malloc(s, M_WAITOK | M_ZERO);
+	for (i = 0; i < pv_npg; i++)
+		TAILQ_INIT(&pv_table[i].pv_list);
+	TAILQ_INIT(&pv_dummy.pv_list);
+}
+#endif
+
 /*
  *	Initialize the pmap module.
  *	Called by vm_init, to initialize any structures that the pmap
@@ -1813,8 +1948,7 @@ pmap_init(void)
 {
 	struct pmap_preinit_mapping *ppim;
 	vm_page_t m, mpte;
-	vm_size_t s;
-	int error, i, pv_npg, ret, skz63;
+	int error, i, ret, skz63;
 
 	/* L1TF, reserve page @0 unconditionally */
 	vm_page_blacklist_add(0, bootverbose);
@@ -1902,26 +2036,7 @@ pmap_init(void)
 	 */
 	mtx_init(&pv_chunks_mutex, "pmap pv chunk list", NULL, MTX_DEF);
 
-	/*
-	 * Initialize the pool of pv list locks.
-	 */
-	for (i = 0; i < NPV_LIST_LOCKS; i++)
-		rw_init(&pv_list_locks[i], "pmap pv list");
-
-	/*
-	 * Calculate the size of the pv head table for superpages.
-	 */
-	pv_npg = howmany(vm_phys_segs[vm_phys_nsegs - 1].end, NBPDR);
-
-	/*
-	 * Allocate memory for the pv head table for superpages.
-	 */
-	s = (vm_size_t)(pv_npg * sizeof(struct md_page));
-	s = round_page(s);
-	pv_table = (struct md_page *)kmem_malloc(s, M_WAITOK | M_ZERO);
-	for (i = 0; i < pv_npg; i++)
-		TAILQ_INIT(&pv_table[i].pv_list);
-	TAILQ_INIT(&pv_dummy.pv_list);
+	pmap_init_pv_table();
 
 	pmap_initialized = 1;
 	for (i = 0; i < PMAP_PREINIT_MAPPING_COUNT; i++) {
