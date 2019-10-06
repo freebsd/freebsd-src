@@ -389,8 +389,7 @@ ospf6_print_lshdr(netdissect_options *ndo,
 {
 	if ((const u_char *)(lshp + 1) > dataend)
 		goto trunc;
-	ND_TCHECK(lshp->ls_type);
-	ND_TCHECK(lshp->ls_seq);
+	ND_TCHECK(lshp->ls_length);	/* last field of struct lsa6_hdr */
 
 	ND_PRINT((ndo, "\n\t  Advertising Router %s, seq 0x%08x, age %us, length %u",
                ipaddr_string(ndo, &lshp->ls_router),

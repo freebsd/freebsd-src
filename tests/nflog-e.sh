@@ -1,20 +1,26 @@
 #!/bin/sh
 
 exitcode=0
+srcdir=${1-..}
+: echo $0 using ${srcdir}
+
+testdir=${srcdir}/tests
+passedfile=tests/.passed
+failedfile=tests/.failed
+passed=`cat ${passedfile}`
+failed=`cat ${failedfile}`
 
 # NFLOG support depends on both DLT_NFLOG and working <pcap/nflog.h>
 
-if grep '^#define HAVE_PCAP_NFLOG_H 1$' ../config.h >/dev/null
+if grep '^#define HAVE_PCAP_NFLOG_H 1$' config.h >/dev/null
 then
-	passed=`cat .passed`
-	failed=`cat .failed`
-	if ./TESTonce nflog-e nflog.pcap nflog-e.out '-e'
+	if ${testdir}/TESTonce nflog-e ${testdir}/nflog.pcap ${testdir}/nflog-e.out '-e'
 	then
 		passed=`expr $passed + 1`
-		echo $passed >.passed
+		echo $passed >${passedfile}
 	else
 		failed=`expr $failed + 1`
-		echo $failed >.failed
+		echo $failed >${failedfile}
 		exitcode=1
 	fi
 else

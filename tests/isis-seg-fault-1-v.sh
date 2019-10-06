@@ -7,20 +7,27 @@
 exitcode=0
 test_name=isis-seg-fault-1-v
 
-if [ ! -f ../Makefile ]
+srcdir=${1-..}
+: echo $0 using ${srcdir}
+
+testdir=${srcdir}/tests
+passedfile=tests/.passed
+failedfile=tests/.failed
+passed=`cat ${passedfile}`
+failed=`cat ${failedfile}`
+
+if [ ! -f Makefile ]
 then
 	printf '    %-35s: TEST SKIPPED (no Makefile)\n' $test_name
-elif grep '^CC = .*gcc' ../Makefile >/dev/null
+elif grep '^CC = .*gcc' Makefile >/dev/null
 then
-	passed=`cat .passed`
-	failed=`cat .failed`
-	if ./TESTonce $test_name isis-seg-fault-1.pcap isis-seg-fault-1-v.out '-v'
+	if ${testdir}/TESTonce $test_name ${testdir}/isis-seg-fault-1.pcap ${testdir}/isis-seg-fault-1-v.out '-v'
 	then
 		passed=`expr $passed + 1`
-		echo $passed >.passed
+		echo $passed >${passedfile}
 	else
 		failed=`expr $failed + 1`
-		echo $failed >.failed
+		echo $failed >${failedfile}
 		exitcode=1
 	fi
 else

@@ -1,4 +1,4 @@
-/* config.h.in.  Generated from configure.in by autoheader.  */
+/* config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* define if you want to build the possibly-buggy SMB printer */
 #undef ENABLE_SMB
@@ -27,9 +27,6 @@
 /* Define to 1 if you have the declaration of `ether_ntohost', and to 0 if you
    don't. */
 #undef HAVE_DECL_ETHER_NTOHOST
-
-/* define if you have the dnet_htoa function */
-#undef HAVE_DNET_HTOA
 
 /* Define to 1 if you have the `ether_ntohost' function. */
 #undef HAVE_ETHER_NTOHOST
@@ -66,12 +63,6 @@
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
-
-/* Define to 1 if you have the <netdnet/dnetdb.h> header file. */
-#undef HAVE_NETDNET_DNETDB_H
-
-/* define if you have a dnet_htoa declaration in <netdnet/dnetdb.h> */
-#undef HAVE_NETDNET_DNETDB_H_DNET_HTOA
 
 /* Define to 1 if you have the <netinet/ether.h> header file. */
 #undef HAVE_NETINET_ETHER_H

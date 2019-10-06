@@ -203,7 +203,7 @@ wb_id(netdissect_options *ndo,
 	len -= sizeof(*io) * nid;
 	io = (const struct id_off *)(id + 1);
 	cp = (const char *)(io + nid);
-	if (ND_TTEST2(cp, len)) {
+	if (ND_TTEST2(*cp, len)) {
 		ND_PRINT((ndo, "\""));
 		fn_print(ndo, (const u_char *)cp, (const u_char *)cp + len);
 		ND_PRINT((ndo, "\""));

@@ -1,0 +1,6 @@
+IP (tos 0x7f,CE, ttl 254, id 40208, offset 0, flags [none], proto VRRP (112), length 34, options (unknown 69 [bad length 83]), bad cksum 8e15 (->bc96)!)
+    250.219.91.20 > 209.150.251.64: vrrp 250.219.91.20 > 209.150.251.64: VRRPv2, Advertisement, (ttl 254), vrid 2, prio 0, authtype simple, intvl 255s, length 6[|vrrp]
+IP (tos 0x7f,CE, ttl 254, id 40208, offset 0, flags [none], proto VRRP (112), length 40, options (unknown 69 [bad length 83]), bad cksum 8e15 (->b790)!)
+    250.219.91.20 > 209.150.251.64: vrrp 250.219.91.20 > 209.150.251.64: VRRPv2, Advertisement, (ttl 254), vrid 2, prio 0, authtype simple, intvl 255s, length 12, addrs:[|vrrp]
+IP (tos 0x7f,CE, ttl 254, id 40208, offset 0, flags [none], proto VRRP (112), length 40, options (unknown 69 [bad length 83]), bad cksum 8e15 (->bc90)!)
+    250.219.91.20 > 209.150.251.64: vrrp 250.219.91.20 > 209.150.251.64: VRRPv2, Advertisement, (ttl 254), vrid 2, prio 0, authtype simple, intvl 255s, length 12, addrs:[|vrrp]

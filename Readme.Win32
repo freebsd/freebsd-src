@@ -7,7 +7,7 @@ Software Development Kit (SDK), that contains some necessary includes
 for IPv6 support. You can download it from http://www.microsoft.com/sdk
 - the WinPcap source code, that includes libpcap for win32. Download it
 from http://winpcap.polito.it or download libpcap sources from
-http://www.tcpdump.org and follow the instructions in the README.Win32
+https://www.tcpdump.org and follow the instructions in the README.Win32
 file.
 
 First, extract tcpdump and WinPcap in the same folder, and build WinPcap.

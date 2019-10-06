@@ -19,4 +19,5 @@ IP (tos 0x0, ttl 64, id 63178, offset 0, flags [DF], proto TCP (6), length 52, b
 IP (tos 0x0, ttl 64, id 36752, offset 0, flags [DF], proto TCP (6), length 399, bad cksum a46b (->a474)!)
     204.0.55.10.323 > 204.9.54.80.55936: Flags [P.], cksum 0xc9b6 (incorrect -> 0x8900), seq 3589495407:3589495754, ack 370428050, win 1040, options [nop,nop,TS val 2364757411 ecr 3084508609], length 347
 	RPKI-RTRv177 (unknown)
-EXIT CODE 00000100
+
+EXIT CODE 00000100: dump:0 code: 1

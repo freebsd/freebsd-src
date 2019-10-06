@@ -1,0 +1,16 @@
+IP (tos 0x0, ttl 64, id 60713, offset 0, flags [DF], proto TCP (6), length 562)
+    109.74.202.168.6653 > 88.150.169.52.4756: Flags [P.], seq 3422281781:3422282291, ack 774258090, win 252, options [nop,nop,TS val 590230876 ecr 50526785], length 510: OpenFlow
+	version 1.0, type VENDOR, length 24, xid 0x0000001a, vendor 0x005c16c7 (Big Switch Networks)
+	 subtype SET_IP_MASK, index 1, mask 255.0.14.0
+	version 1.0, type VENDOR, length 24, xid 0x0000001b, vendor 0x005c16c7 (Big Switch Networks)
+	 subtype SET_IP_MASK, index 2, mask 255.0.28.0
+	version 1.0, type VENDOR, length 24, xid 0x0000001c, vendor 0x005c16c7 (Big Switch Networks)
+	 subtype SET_IP_MASK, index 3, mask 255.0.56.0
+	version 1.0, type VENDOR, length 24, xid 0x0000001d, vendor 0x005c16c7 (Big Switch Networks)
+	 subtype SET_IP_MASK, index 4, mask 255.0.112.0
+	version 1.0, type VENDOR, length 24, xid 0x0000001e, vendor 0x005c16c7 (Big Switch Networks)
+	 subtype SET_IP_MASK, index 5, mask 255.0.224.0
+	version 1.0, type VENDOR, length 24, xid 0x0000001f, vendor 0x005c16c7 (Big Switch Networks)
+	 subtype GET_IP_MASK_REQUEST, index 3
+	version 1.0, type VENDOR, length 30, xid 0x00000020, vendor 0x005c16c7 (Big Switch Networks)
+	 subtype SHELL_COMMAND, service 0, data 'show cloc' [|openflow]

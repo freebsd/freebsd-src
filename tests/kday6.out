@@ -347,4 +347,5 @@ FRF.16 Frag, seq 693, Flags [Begin], UI e8! IS-IS, length 301989913
 	    unknown TLV #58, length: 58
 		0x0000:  3a3a 3a3a 3a3a 3a3a 3a3a 3a3a 3a3a 3a3a
 		0x0010:  3a3a 3a [|isis]
-EXIT CODE 00000100
+
+EXIT CODE 00000100: dump:0 code: 1

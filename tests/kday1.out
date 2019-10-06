@@ -1,2 +1,3 @@
 IP6, wrong link-layer encapsulation 
-EXIT CODE 00000100
+
+EXIT CODE 00000100: dump:0 code: 1

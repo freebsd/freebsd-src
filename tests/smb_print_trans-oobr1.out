@@ -1,0 +1,39 @@
+IPX a8f87967.00:00:00:00:00:01.0455 > 00000000.ff:ff:ff:ff:ff:ff.0455: ipx-netbios 50
+IPX a8f87967.00:00:00:00:00:01.0455 > 00000000.ff:ff:ff:ff:ff:ff.0455: ipx-netbios 50
+IPX a8f87967.00:00:00:ff:ff:ff.7f55 > 00000000.ff:ff:ff:ff:ff:ff.0455: ipx-netbios 50
+IPX a855000b.41:44:4d:49:4e:54.4553 > 00000000.ff:ff:ff:ff:ff:ff.0455: ipx-netbios 162
+>>> IPX transport Data: (24 bytes)
+[000] 54 20 20 20 20 20 20 00  01 02 5F 5F 4D 53 26 52  T      \0x00 \0x01\0x02__MS&R
+[010] 4F 57 53 45 5F 5F 02 01                           OWSE__\0x02\0x01 
+
+SMB PACKET: SMBtrans (REQUEST)
+SMB Command   =  0x25
+Error class   =  0x0
+Error code    =  0 (0x0)
+Flags1        =  0x0
+Flags2        =  0x0
+Tree ID       =  0 (0x0)
+Proc ID       =  0 (0x0)
+UID           =  0 (0x0)
+MID           =  0 (0x0)
+Word Count    =  17 (0x11)
+TotParamCnt=0 (0x0) 
+TotDataCnt=42 (0x2a) 
+MaxParmCnt=0 (0x0) 
+MaxDataCnt=0 (0x0)
+MaxSCnt=0 (0x0) 
+TransFlags=0x0 
+Res1=0x3E8 
+Res2=0x0 
+Res3=0x0
+ParamCnt=0 (0x0) 
+ParamOff=0 (0x0) 
+DataCnt=42 (0x2a) 
+DataOff=86 (0x56) 
+SUCnt=3 (0x3)
+Data: (6 bytes)
+[000] 01 00 01 00 02 00                                 \0x01\0x00\0x01\0x00\0x02\0x00 
+smb_bcc=59
+[|SMB]
+
+

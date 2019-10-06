@@ -1,0 +1,1 @@
+IP6 (hlim 64, next-header ICMPv6 (58) payload length: 56) fe80::216:3eff:fe11:3424 > fe80::216:3eff:fe11:3424: ICMP6, RPL, (CLR)Destination Advertisement Object [dagid:<elided>,seq:0,instance:42,00] opt:subopt:13 len:2  opt:subopt:128 len:15  opt:subopt:13 len:15  [|rpl]

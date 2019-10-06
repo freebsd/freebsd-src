@@ -1,0 +1,7 @@
+TIPC v5.0 226.0.0 > 64.14.1536, headerlength 56 bytes, MessageSize 51914 bytes, Link Changeover Protocol internal, messageType Unknown (0xcacacaca)[|TIPC]
+[|ether]
+IP (tos 0x0, ttl 14, id 44815, offset 0, flags [+, DF, rsvd], proto RSVP (46), length 40, bad cksum 3280 (->c411)!)
+    250.219.91.71 > 20.100.238.255: 
+	RSVPv1 Hello Message (20), Flags: [none], length: 16384, ttl: 0, checksum: 0x000e
+	  Class Type (old) Object (125) Flags: [reject if unknown], Class-Type: 1 (1), length: 4
+		 [|rsvp]
