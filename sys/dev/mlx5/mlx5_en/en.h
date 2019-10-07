@@ -255,7 +255,7 @@ struct mlx5e_vport_stats {
   m(+1, u64, out_broadcast_pkts, "out_broadcast_pkts", "Out broadcast packets")
 
 #define	MLX5E_PPORT_ETHERNET_EXTENDED_STATS_DEBUG(m)				\
-  m(+1, u64, port_transmit_wait_high, "port_transmit_wait_high", "Port transmit wait high") \
+  m(+1, u64, port_transmit_wait, "port_transmit_wait", "Port transmit wait") \
   m(+1, u64, ecn_marked, "ecn_marked", "ECN marked")			\
   m(+1, u64, no_buffer_discard_mc, "no_buffer_discard_mc", "No buffer discard mc") \
   m(+1, u64, rx_ebp, "rx_ebp", "RX EBP")					\
@@ -339,14 +339,14 @@ struct mlx5e_vport_stats {
 /* Per priority statistics for PFC */
 #define	MLX5E_PPORT_PER_PRIO_STATS_SUB(m,n,p)			\
   m(n, p, +1, u64, rx_octets, "rx_octets", "Received octets")		\
-  m(n, p, +1, u64, reserved_0, "reserved_0", "Reserved")		\
-  m(n, p, +1, u64, reserved_1, "reserved_1", "Reserved")		\
-  m(n, p, +1, u64, reserved_2, "reserved_2", "Reserved")		\
+  m(n, p, +1, u64, rx_uc_frames, "rx_uc_frames", "Received unicast frames") \
+  m(n, p, +1, u64, rx_mc_frames, "rx_mc_frames", "Received multicast frames") \
+  m(n, p, +1, u64, rx_bc_frames, "rx_bc_frames", "Received broadcast frames") \
   m(n, p, +1, u64, rx_frames, "rx_frames", "Received frames")		\
   m(n, p, +1, u64, tx_octets, "tx_octets", "Transmitted octets")	\
-  m(n, p, +1, u64, reserved_3, "reserved_3", "Reserved")		\
-  m(n, p, +1, u64, reserved_4, "reserved_4", "Reserved")		\
-  m(n, p, +1, u64, reserved_5, "reserved_5", "Reserved")		\
+  m(n, p, +1, u64, tx_uc_frames, "tx_uc_frames", "Transmitted unicast frames") \
+  m(n, p, +1, u64, tx_mc_frames, "tx_mc_frames", "Transmitted multicast frames") \
+  m(n, p, +1, u64, tx_bc_frames, "tx_bc_frames", "Transmitted broadcast frames") \
   m(n, p, +1, u64, tx_frames, "tx_frames", "Transmitted frames")	\
   m(n, p, +1, u64, rx_pause, "rx_pause", "Received pause frames")	\
   m(n, p, +1, u64, rx_pause_duration, "rx_pause_duration",		\
