@@ -770,6 +770,12 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			break;
 		}
 		vp = fp->f_vnode;
+		if (vp->v_type != VREG) {
+			fdrop(fp, td);
+			error = ENOTTY;
+			break;
+		}
+
 		/*
 		 * Exclusive lock synchronizes against f_seqcount reads and
 		 * writes in sequential_heuristic().
