@@ -29,8 +29,6 @@
 #include <dev/mlx5/device.h>
 #include <dev/mlx5/mlx5_core/mlx5_core.h>
 
-#define	MLX5_SEMAPHORE_SPACE_DOMAIN 0xA
-
 int mlx5_vsc_lock(struct mlx5_core_dev *mdev)
 {
 	device_t dev = mdev->pdev->dev.bsddev;
@@ -188,7 +186,7 @@ int mlx5_vsc_lock_addr_space(struct mlx5_core_dev *mdev, u32 addr)
 	int ret;
 	u32 id;
 
-	ret = mlx5_vsc_set_space(mdev, MLX5_SEMAPHORE_SPACE_DOMAIN);
+	ret = mlx5_vsc_set_space(mdev, MLX5_VSC_DOMAIN_SEMAPHORES);
 	if (ret)
 		return ret;
 
@@ -215,7 +213,7 @@ int mlx5_vsc_unlock_addr_space(struct mlx5_core_dev *mdev, u32 addr)
 	u32 data = 0;
 	int ret;
 
-	ret = mlx5_vsc_set_space(mdev, MLX5_SEMAPHORE_SPACE_DOMAIN);
+	ret = mlx5_vsc_set_space(mdev, MLX5_VSC_DOMAIN_SEMAPHORES);
 	if (ret)
 		return ret;
 
