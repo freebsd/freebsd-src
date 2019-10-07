@@ -676,18 +676,32 @@ static inline int fw_initializing(struct mlx5_core_dev *dev)
 	return ioread32be(&dev->iseg->initializing) >> 31;
 }
 
-static int wait_fw_init(struct mlx5_core_dev *dev, u32 max_wait_mili)
+static int wait_fw_init(struct mlx5_core_dev *dev, u32 max_wait_mili,
+			u32 warn_time_mili)
 {
-	u64 end = jiffies + msecs_to_jiffies(max_wait_mili);
+	int warn = jiffies + msecs_to_jiffies(warn_time_mili);
+	int end = jiffies + msecs_to_jiffies(max_wait_mili);
 	int err = 0;
 
-	while (fw_initializing(dev)) {
+	MPASS(max_wait_mili > warn_time_mili);
+
+	while (fw_initializing(dev) == 1) {
 		if (time_after(jiffies, end)) {
 			err = -EBUSY;
 			break;
 		}
+		if (warn_time_mili && time_after(jiffies, warn)) {
+			mlx5_core_warn(dev,
+			    "Waiting for FW initialization, timeout abort in %u s\n",
+			    (unsigned int)(jiffies_to_msecs(end - warn) / 1000));
+			warn = jiffies + msecs_to_jiffies(warn_time_mili);
+		}
 		msleep(FW_INIT_WAIT_MS);
 	}
+
+	if (err != 0)
+		mlx5_core_dbg(dev, "Full initializing bit dword = 0x%x\n",
+		    ioread32be(&dev->iseg->initializing));
 
 	return err;
 }
@@ -994,15 +1008,29 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	 */
 	dev->state = MLX5_DEVICE_STATE_UP;
 
-	err = mlx5_cmd_init(dev);
+	/* wait for firmware to accept initialization segments configurations
+	*/
+	err = wait_fw_init(dev, FW_PRE_INIT_TIMEOUT_MILI,
+	    FW_INIT_WARN_MESSAGE_INTERVAL);
 	if (err) {
-		mlx5_core_err(dev, "Failed initializing command interface, aborting\n");
+		dev_err(&dev->pdev->dev,
+		    "Firmware over %d MS in pre-initializing state, aborting\n",
+		    FW_PRE_INIT_TIMEOUT_MILI);
 		goto out_err;
 	}
 
-	err = wait_fw_init(dev, FW_INIT_TIMEOUT_MILI);
+	err = mlx5_cmd_init(dev);
 	if (err) {
-		mlx5_core_err(dev, "Firmware over %d MS in initializing state, aborting\n", FW_INIT_TIMEOUT_MILI);
+		mlx5_core_err(dev,
+		    "Failed initializing command interface, aborting\n");
+		goto out_err;
+	}
+
+	err = wait_fw_init(dev, FW_INIT_TIMEOUT_MILI, 0);
+	if (err) {
+		mlx5_core_err(dev,
+		    "Firmware over %d MS in initializing state, aborting\n",
+		    FW_INIT_TIMEOUT_MILI);
 		goto err_cmd_cleanup;
 	}
 
