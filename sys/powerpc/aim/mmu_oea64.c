@@ -1453,8 +1453,8 @@ moea64_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 			moea64_pvo_enter(mmu, pvo, pvo_head, NULL);
 		}
 	}
-	PV_PAGE_UNLOCK(m);
 	PMAP_UNLOCK(pmap);
+	PV_PAGE_UNLOCK(m);
 
 	/* Free any dead pages */
 	if (error == EEXIST) {
