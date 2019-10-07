@@ -219,7 +219,7 @@ mlx5_temp_warning_event(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe)
 {
 
 	mlx5_core_warn(dev,
-	    "High temperature on sensors with bit set %#jx %#jx",
+	    "High temperature on sensors with bit set %#jx %#jx\n",
 	    (uintmax_t)be64_to_cpu(eqe->data.temp_warning.sensor_warning_msb),
 	    (uintmax_t)be64_to_cpu(eqe->data.temp_warning.sensor_warning_lsb));
 }
@@ -415,7 +415,7 @@ static void init_eq_buf(struct mlx5_eq *eq)
 }
 
 int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
-		       int nent, u64 mask, const char *name, struct mlx5_uar *uar)
+		       int nent, u64 mask, struct mlx5_uar *uar)
 {
 	u32 out[MLX5_ST_SZ_DW(create_eq_out)] = {0};
 	struct mlx5_priv *priv = &dev->priv;
@@ -463,10 +463,8 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 	eq->irqn = vecidx;
 	eq->dev = dev;
 	eq->doorbell = uar->map + MLX5_EQ_DOORBEL_OFFSET;
-	snprintf(priv->irq_info[vecidx].name, MLX5_MAX_IRQ_NAME, "%s@pci:%s",
-		 name, pci_name(dev->pdev));
 	err = request_irq(priv->msix_arr[vecidx].vector, mlx5_msix_handler, 0,
-			  priv->irq_info[vecidx].name, eq);
+			  "mlx5_core", eq);
 	if (err)
 		goto err_eq;
 #ifdef RSS
@@ -568,7 +566,7 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 
 	err = mlx5_create_map_eq(dev, &table->cmd_eq, MLX5_EQ_VEC_CMD,
 				 MLX5_NUM_CMD_EQE, 1ull << MLX5_EVENT_TYPE_CMD,
-				 "mlx5_cmd_eq", &dev->priv.uuari.uars[0]);
+				 &dev->priv.uuari.uars[0]);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create cmd EQ %d\n", err);
 		return err;
@@ -578,7 +576,7 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 
 	err = mlx5_create_map_eq(dev, &table->async_eq, MLX5_EQ_VEC_ASYNC,
 				 MLX5_NUM_ASYNC_EQE, async_event_mask,
-				 "mlx5_async_eq", &dev->priv.uuari.uars[0]);
+				 &dev->priv.uuari.uars[0]);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create async EQ %d\n", err);
 		goto err1;
@@ -587,7 +585,7 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 	err = mlx5_create_map_eq(dev, &table->pages_eq,
 				 MLX5_EQ_VEC_PAGES,
 				 /* TODO: sriov max_vf + */ 1,
-				 1 << MLX5_EVENT_TYPE_PAGE_REQUEST, "mlx5_pages_eq",
+				 1 << MLX5_EVENT_TYPE_PAGE_REQUEST,
 				 &dev->priv.uuari.uars[0]);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create pages EQ %d\n", err);
@@ -641,9 +639,9 @@ static const char *mlx5_port_module_event_error_type_to_string(u8 error_type)
 {
 	switch (error_type) {
 	case MLX5_MODULE_EVENT_ERROR_POWER_BUDGET_EXCEEDED:
-		return "Power Budget Exceeded";
+		return "Power budget exceeded";
 	case MLX5_MODULE_EVENT_ERROR_LONG_RANGE_FOR_NON_MLNX_CABLE_MODULE:
-		return "Long Range for non MLNX cable/module";
+		return "Long Range for non MLNX cable";
 	case MLX5_MODULE_EVENT_ERROR_BUS_STUCK:
 		return "Bus stuck(I2C or data shorted)";
 	case MLX5_MODULE_EVENT_ERROR_NO_EEPROM_RETRY_TIMEOUT:
@@ -651,18 +649,11 @@ static const char *mlx5_port_module_event_error_type_to_string(u8 error_type)
 	case MLX5_MODULE_EVENT_ERROR_ENFORCE_PART_NUMBER_LIST:
 		return "Enforce part number list";
 	case MLX5_MODULE_EVENT_ERROR_UNSUPPORTED_CABLE:
-		return "Unsupported Cable";
+		return "Unknown identifier";
 	case MLX5_MODULE_EVENT_ERROR_HIGH_TEMPERATURE:
 		return "High Temperature";
 	case MLX5_MODULE_EVENT_ERROR_CABLE_IS_SHORTED:
-		return "Cable is shorted";
-	case MLX5_MODULE_EVENT_ERROR_PCIE_SYSTEM_POWER_SLOT_EXCEEDED:
-		return "One or more network ports have been powered "
-			"down due to insufficient/unadvertised power on "
-			"the PCIe slot. Please refer to the card's user "
-			"manual for power specifications or contact "
-			"Mellanox support.";
-
+		return "Bad or shorted cable/module";
 	default:
 		return "Unknown error type";
 	}
@@ -682,35 +673,42 @@ static void mlx5_port_module_event(struct mlx5_core_dev *dev,
 	unsigned int module_status;
 	unsigned int error_type;
 	struct mlx5_eqe_port_module_event *module_event_eqe;
-	struct pci_dev *pdev = dev->pdev;
 
 	module_event_eqe = &eqe->data.port_module_event;
 
 	module_num = (unsigned int)module_event_eqe->module;
 	module_status = (unsigned int)module_event_eqe->module_status &
-			PORT_MODULE_EVENT_MODULE_STATUS_MASK;
+	    PORT_MODULE_EVENT_MODULE_STATUS_MASK;
 	error_type = (unsigned int)module_event_eqe->error_type &
-		     PORT_MODULE_EVENT_ERROR_TYPE_MASK;
+	    PORT_MODULE_EVENT_ERROR_TYPE_MASK;
 
+	if (module_status < MLX5_MODULE_STATUS_NUM)
+		dev->priv.pme_stats.status_counters[module_status]++;
 	switch (module_status) {
 	case MLX5_MODULE_STATUS_PLUGGED_ENABLED:
-		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: plugged and enabled\n", module_num);
+		mlx5_core_info(dev,
+		    "Module %u, status: plugged and enabled\n",
+		    module_num);
 		break;
 
 	case MLX5_MODULE_STATUS_UNPLUGGED:
-		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: unplugged\n", module_num);
+		mlx5_core_info(dev,
+		    "Module %u, status: unplugged\n", module_num);
 		break;
 
 	case MLX5_MODULE_STATUS_ERROR:
-		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: error, %s\n", module_num, mlx5_port_module_event_error_type_to_string(error_type));
-		break;
-
-	case MLX5_MODULE_STATUS_PLUGGED_DISABLED:
-		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: plugged but disabled\n", module_num);
+		mlx5_core_err(dev,
+		    "Module %u, status: error, %s (%d)\n",
+		    module_num,
+		    mlx5_port_module_event_error_type_to_string(error_type),
+		    error_type);
+		if (error_type < MLX5_MODULE_EVENT_ERROR_NUM)
+			dev->priv.pme_stats.error_counters[error_type]++;
 		break;
 
 	default:
-		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, unknown status\n", module_num);
+		mlx5_core_info(dev,
+		    "Module %u, unknown status %d\n", module_num, module_status);
 	}
 	/* store module status */
 	if (module_num < MLX5_MAX_PORTS)

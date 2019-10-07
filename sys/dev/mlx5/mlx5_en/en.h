@@ -75,6 +75,9 @@
 
 #define	MLX5E_MAX_PRIORITY 8
 
+#define	MLX5E_MAX_FEC_10X_25X 4
+#define	MLX5E_MAX_FEC_50X 4
+
 /* IEEE 802.1Qaz standard supported values */
 #define	IEEE_8021QAZ_MAX_TCS	8
 
@@ -135,12 +138,31 @@
 #define	MLX5E_100MB (100000)
 #define	MLX5E_1GB   (1000000)
 
+#define	MLX5E_ZERO(ptr, field)	      \
+	memset(&(ptr)->field, 0, \
+	    sizeof(*(ptr)) - __offsetof(__typeof(*(ptr)), field))
+
 MALLOC_DECLARE(M_MLX5EN);
 
 struct mlx5_core_dev;
 struct mlx5e_cq;
 
 typedef void (mlx5e_cq_comp_t)(struct mlx5_core_cq *);
+
+#define	mlx5_en_err(_dev, format, ...)				\
+	if_printf(_dev, "ERR: ""%s:%d:(pid %d): " format, \
+	    __func__, __LINE__, curthread->td_proc->p_pid,	\
+	    ##__VA_ARGS__)
+
+#define	mlx5_en_warn(_dev, format, ...)				\
+	if_printf(_dev, "WARN: ""%s:%d:(pid %d): " format, \
+	    __func__, __LINE__, curthread->td_proc->p_pid,	\
+	    ##__VA_ARGS__)
+
+#define	mlx5_en_info(_dev, format, ...)				\
+	if_printf(_dev, "INFO: ""%s:%d:(pid %d): " format, \
+	    __func__, __LINE__, curthread->td_proc->p_pid,	\
+	    ##__VA_ARGS__)
 
 #define	MLX5E_STATS_COUNT(a, ...) a
 #define	MLX5E_STATS_VAR(a, b, c, ...) b c;
@@ -255,7 +277,7 @@ struct mlx5e_vport_stats {
   m(+1, u64, out_broadcast_pkts, "out_broadcast_pkts", "Out broadcast packets")
 
 #define	MLX5E_PPORT_ETHERNET_EXTENDED_STATS_DEBUG(m)				\
-  m(+1, u64, port_transmit_wait_high, "port_transmit_wait_high", "Port transmit wait high") \
+  m(+1, u64, port_transmit_wait, "port_transmit_wait", "Port transmit wait") \
   m(+1, u64, ecn_marked, "ecn_marked", "ECN marked")			\
   m(+1, u64, no_buffer_discard_mc, "no_buffer_discard_mc", "No buffer discard mc") \
   m(+1, u64, rx_ebp, "rx_ebp", "RX EBP")					\
@@ -339,14 +361,14 @@ struct mlx5e_vport_stats {
 /* Per priority statistics for PFC */
 #define	MLX5E_PPORT_PER_PRIO_STATS_SUB(m,n,p)			\
   m(n, p, +1, u64, rx_octets, "rx_octets", "Received octets")		\
-  m(n, p, +1, u64, reserved_0, "reserved_0", "Reserved")		\
-  m(n, p, +1, u64, reserved_1, "reserved_1", "Reserved")		\
-  m(n, p, +1, u64, reserved_2, "reserved_2", "Reserved")		\
+  m(n, p, +1, u64, rx_uc_frames, "rx_uc_frames", "Received unicast frames") \
+  m(n, p, +1, u64, rx_mc_frames, "rx_mc_frames", "Received multicast frames") \
+  m(n, p, +1, u64, rx_bc_frames, "rx_bc_frames", "Received broadcast frames") \
   m(n, p, +1, u64, rx_frames, "rx_frames", "Received frames")		\
   m(n, p, +1, u64, tx_octets, "tx_octets", "Transmitted octets")	\
-  m(n, p, +1, u64, reserved_3, "reserved_3", "Reserved")		\
-  m(n, p, +1, u64, reserved_4, "reserved_4", "Reserved")		\
-  m(n, p, +1, u64, reserved_5, "reserved_5", "Reserved")		\
+  m(n, p, +1, u64, tx_uc_frames, "tx_uc_frames", "Transmitted unicast frames") \
+  m(n, p, +1, u64, tx_mc_frames, "tx_mc_frames", "Transmitted multicast frames") \
+  m(n, p, +1, u64, tx_bc_frames, "tx_bc_frames", "Transmitted broadcast frames") \
   m(n, p, +1, u64, tx_frames, "tx_frames", "Transmitted frames")	\
   m(n, p, +1, u64, rx_pause, "rx_pause", "Received pause frames")	\
   m(n, p, +1, u64, rx_pause_duration, "rx_pause_duration",		\
@@ -696,35 +718,12 @@ struct mlx5e_params_ethtool {
 	u8	prio_tc[MLX5E_MAX_PRIORITY];
 	u8	dscp2prio[MLX5_MAX_SUPPORTED_DSCP];
 	u8	trust_state;
+	u8	fec_mask_10x_25x[MLX5E_MAX_FEC_10X_25X];
+	u16	fec_mask_50x[MLX5E_MAX_FEC_50X];
+	u8	fec_avail_10x_25x[MLX5E_MAX_FEC_10X_25X];
+	u16	fec_avail_50x[MLX5E_MAX_FEC_50X];
+	u32	fec_mode_active;
 };
-
-/* EEPROM Standards for plug in modules */
-#ifndef MLX5E_ETH_MODULE_SFF_8472
-#define	MLX5E_ETH_MODULE_SFF_8472	0x1
-#define	MLX5E_ETH_MODULE_SFF_8472_LEN	128
-#endif
-
-#ifndef MLX5E_ETH_MODULE_SFF_8636
-#define	MLX5E_ETH_MODULE_SFF_8636	0x2
-#define	MLX5E_ETH_MODULE_SFF_8636_LEN	256
-#endif
-
-#ifndef MLX5E_ETH_MODULE_SFF_8436
-#define	MLX5E_ETH_MODULE_SFF_8436	0x3
-#define	MLX5E_ETH_MODULE_SFF_8436_LEN	256
-#endif
-
-/* EEPROM I2C Addresses */
-#define	MLX5E_I2C_ADDR_LOW		0x50
-#define	MLX5E_I2C_ADDR_HIGH		0x51
-
-#define	MLX5E_EEPROM_LOW_PAGE		0x0
-#define	MLX5E_EEPROM_HIGH_PAGE		0x3
-
-#define	MLX5E_EEPROM_HIGH_PAGE_OFFSET	128
-#define	MLX5E_EEPROM_PAGE_LENGTH	256
-
-#define	MLX5E_EEPROM_INFO_BYTES		0x3
 
 struct mlx5e_cq {
 	/* data path - accessed per cqe */
@@ -745,15 +744,18 @@ struct mlx5e_rq_mbuf {
 };
 
 struct mlx5e_rq {
-	/* data path */
-	struct mlx5_wq_ll wq;
+	/* persistant fields */
 	struct mtx mtx;
+	struct mlx5e_rq_stats stats;
+
+	/* data path */
+#define	mlx5e_rq_zero_start wq
+	struct mlx5_wq_ll wq;
 	bus_dma_tag_t dma_tag;
 	u32	wqe_sz;
 	u32	nsegs;
 	struct mlx5e_rq_mbuf *mbuf;
 	struct ifnet *ifp;
-	struct mlx5e_rq_stats stats;
 	struct mlx5e_cq cq;
 	struct lro_ctrl lro;
 	volatile int enabled;
@@ -787,10 +789,14 @@ struct mlx5e_snd_tag {
 };
 
 struct mlx5e_sq {
-	/* data path */
+	/* persistant fields */
 	struct	mtx lock;
-	bus_dma_tag_t dma_tag;
 	struct	mtx comp_lock;
+	struct	mlx5e_sq_stats stats;
+
+	/* data path */
+#define	mlx5e_sq_zero_start dma_tag
+	bus_dma_tag_t dma_tag;
 
 	/* dirtied @completion */
 	u16	cc;
@@ -810,7 +816,6 @@ struct mlx5e_sq {
 		u32	d32[2];
 		u64	d64;
 	} doorbell;
-	struct	mlx5e_sq_stats stats;
 
 	struct	mlx5e_cq cq;
 
@@ -863,17 +868,11 @@ mlx5e_sq_queue_level(struct mlx5e_sq *sq)
 }
 
 struct mlx5e_channel {
-	/* data path */
 	struct mlx5e_rq rq;
 	struct mlx5e_snd_tag tag;
 	struct mlx5e_sq sq[MLX5E_MAX_TX_NUM_TC];
-	u32	mkey_be;
-	u8	num_tc;
-
-	/* control */
 	struct mlx5e_priv *priv;
 	int	ix;
-	int	cpu;
 } __aligned(MLX5E_CACHELINE_SIZE);
 
 enum mlx5e_traffic_types {
@@ -972,6 +971,11 @@ struct mlx5e_clbr_point {
 	u_int clbr_gen;
 };
 
+struct mlx5e_dcbx {
+	u32	cable_len;
+	u32	xoff;
+};
+
 struct mlx5e_priv {
 	struct mlx5_core_dev *mdev;     /* must be first */
 
@@ -987,6 +991,7 @@ struct mlx5e_priv {
 #define	PRIV_LOCK(priv) sx_xlock(&(priv)->state_lock)
 #define	PRIV_UNLOCK(priv) sx_xunlock(&(priv)->state_lock)
 #define	PRIV_LOCKED(priv) sx_xlocked(&(priv)->state_lock)
+#define	PRIV_ASSERT_LOCKED(priv) sx_assert(&(priv)->state_lock, SA_XLOCKED)
 	struct sx state_lock;		/* Protects Interface state */
 	struct mlx5_uar cq_uar;
 	u32	pdn;
@@ -1038,6 +1043,9 @@ struct mlx5e_priv {
 	int	clbr_curr;
 	struct mlx5e_clbr_point clbr_points[2];
 	u_int	clbr_gen;
+
+	struct mlx5e_dcbx dcbx;
+	bool	sw_is_port_buf_owner;
 
 	struct mlx5e_channel channel[];
 };
@@ -1153,6 +1161,8 @@ mlx5e_unref_channel(struct mlx5e_priv *priv)
 	atomic_fetchadd_int(&priv->channel_refs, -1);
 }
 
+#define	mlx5e_dbg(_IGN, _priv, ...) mlx5_core_dbg((_priv)->mdev, __VA_ARGS__)
+
 extern const struct ethtool_ops mlx5e_ethtool_ops;
 void	mlx5e_create_ethtool(struct mlx5e_priv *);
 void	mlx5e_create_stats(struct sysctl_ctx_list *,
@@ -1175,5 +1185,7 @@ void	mlx5e_modify_rx_dma(struct mlx5e_priv *priv, uint8_t value);
 void	mlx5e_resume_sq(struct mlx5e_sq *sq);
 void	mlx5e_update_sq_inline(struct mlx5e_sq *sq);
 void	mlx5e_refresh_sq_inline(struct mlx5e_priv *priv);
+int	mlx5e_update_buf_lossy(struct mlx5e_priv *priv);
+int	mlx5e_fec_update(struct mlx5e_priv *priv);
 
 #endif					/* _MLX5_EN_H_ */
