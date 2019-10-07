@@ -776,4 +776,7 @@ name##_ARB_REINSERT(struct name *head, struct type *elm)		\
 #define	ARB_ARRFOREACH_REVERSE(x, field, head) \
 	ARB_ARRFOREACH_REVWCOND(x, field, head, 1)
 
+#define	ARB_RESET_TREE(head, name, maxn)				\
+	*(head) = ARB_INITIALIZER(name, maxn)
+
 #endif	/* _SYS_ARB_H_ */
