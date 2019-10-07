@@ -418,6 +418,7 @@ RATELIMIT		opt_ratelimit.h
 RATELIMIT_DEBUG		opt_ratelimit.h
 INET			opt_inet.h
 INET6			opt_inet6.h
+STATS			opt_global.h
 IPDIVERT
 IPFILTER		opt_ipfilter.h
 IPFILTER_DEFAULT_BLOCK	opt_ipfilter.h
