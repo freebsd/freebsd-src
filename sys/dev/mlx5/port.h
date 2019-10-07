@@ -179,6 +179,15 @@ enum mlx5_qpts_trust_state {
 	MLX5_QPTS_TRUST_DSCP = 2,
 	MLX5_QPTS_TRUST_BOTH = 3,
 };
+struct mlx5e_port_eth_proto {
+	u32 cap;
+	u32 admin;
+	u32 oper;
+};
+
+#ifndef SPEED_40000
+#define SPEED_40000 40000
+#endif
 
 #define	MLX5E_PROT_MASK(link_mode) (1 << (link_mode))
 
@@ -251,5 +260,15 @@ int mlx5_set_dscp2prio(struct mlx5_core_dev *mdev, const u8 *dscp2prio);
 int mlx5_query_dscp2prio(struct mlx5_core_dev *mdev, u8 *dscp2prio);
 
 int mlx5_query_pddr_range_info(struct mlx5_core_dev *mdev, u8 local_port, u8 *is_er_type);
+
+u32 mlx5e_port_ptys2speed(struct mlx5_core_dev *mdev, u32 eth_proto_oper);
+int mlx5e_port_linkspeed(struct mlx5_core_dev *mdev, u32 *speed);
+int mlx5_port_query_eth_proto(struct mlx5_core_dev *dev, u8 port, bool ext,
+			      struct mlx5e_port_eth_proto *eproto);
+
+int mlx5e_port_query_pbmc(struct mlx5_core_dev *mdev, void *out);
+int mlx5e_port_set_pbmc(struct mlx5_core_dev *mdev, void *in);
+int mlx5e_port_query_priority2buffer(struct mlx5_core_dev *mdev, u8 *buffer);
+int mlx5e_port_set_priority2buffer(struct mlx5_core_dev *mdev, u8 *buffer);
 
 #endif /* __MLX5_PORT_H__ */

@@ -951,6 +951,11 @@ struct mlx5e_flow_tables {
 	struct mlx5e_flow_table inner_rss;
 };
 
+struct mlx5e_dcbx {
+	u32	cable_len;
+	u32	xoff;
+};
+
 struct mlx5e_priv {
 	struct mlx5_core_dev *mdev;     /* must be first */
 
@@ -1008,6 +1013,8 @@ struct mlx5e_priv {
 	int	media_active_last;
 
 	struct callout watchdog;
+
+	struct mlx5e_dcbx dcbx;
 
 	struct mlx5e_channel channel[];
 };

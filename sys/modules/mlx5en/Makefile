@@ -10,6 +10,7 @@ mlx5_en_tx.c \
 mlx5_en_flow_table.c \
 mlx5_en_rx.c \
 mlx5_en_txrx.c \
+mlx5_en_port_buffer.c \
 device_if.h bus_if.h vnode_if.h pci_if.h \
         opt_inet.h opt_inet6.h opt_rss.h
 
