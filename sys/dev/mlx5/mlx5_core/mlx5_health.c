@@ -490,17 +490,23 @@ static const char *hsynd_str(u8 synd)
 	}
 }
 
-static void print_health_info(struct mlx5_core_dev *dev)
+static u8
+print_health_info(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
 	struct mlx5_health_buffer __iomem *h = health->health;
+	u8 synd = ioread8(&h->synd);
 	char fw_str[18];
 	u32 fw;
 	int i;
 
-	/* If the syndrom is 0, the device is OK and no need to print buffer */
-	if (!ioread8(&h->synd))
-		return;
+	/*
+	 * If synd is 0x0 - this indicates that FW is unable to
+	 * respond to initialization segment reads and health buffer
+	 * should not be read.
+	 */
+	if (synd == 0)
+		return (0);
 
 	for (i = 0; i < ARRAY_SIZE(h->assert_var); i++)
 		printf("mlx5_core: INFO: ""assert_var[%d] 0x%08x\n", i, ioread32be(h->assert_var + i));
@@ -511,10 +517,12 @@ static void print_health_info(struct mlx5_core_dev *dev)
 	printf("mlx5_core: INFO: ""fw_ver %s\n", fw_str);
 	printf("mlx5_core: INFO: ""hw_id 0x%08x\n", ioread32be(&h->hw_id));
 	printf("mlx5_core: INFO: ""irisc_index %d\n", ioread8(&h->irisc_index));
-	printf("mlx5_core: INFO: ""synd 0x%x: %s\n", ioread8(&h->synd), hsynd_str(ioread8(&h->synd)));
+	printf("mlx5_core: INFO: ""synd 0x%x: %s\n", synd, hsynd_str(synd));
 	printf("mlx5_core: INFO: ""ext_synd 0x%04x\n", ioread16be(&h->ext_synd));
 	fw = ioread32be(&h->fw_ver);
 	printf("mlx5_core: INFO: ""raw fw_ver 0x%08x\n", fw);
+
+	return synd;
 }
 
 static void health_watchdog(struct work_struct *work)
@@ -596,7 +604,8 @@ static void poll_health(unsigned long data)
 	health->prev = count;
 	if (health->miss_counter == MAX_MISSES) {
 		mlx5_core_err(dev, "device's health compromised - reached miss count\n");
-		print_health_info(dev);
+		if (print_health_info(dev) == 0)
+			mlx5_core_err(dev, "FW is unable to respond to initialization segment reads\n");
 	}
 
 	fatal_error = check_fatal_sensors(dev);
