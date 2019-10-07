@@ -110,7 +110,7 @@ void mlx5e_cleanup(void);
 int mlx5_ctl_init(void);
 void mlx5_ctl_fini(void);
 void mlx5_fwdump_prep(struct mlx5_core_dev *mdev);
-void mlx5_fwdump(struct mlx5_core_dev *mdev);
+int mlx5_fwdump(struct mlx5_core_dev *mdev);
 void mlx5_fwdump_clean(struct mlx5_core_dev *mdev);
 
 struct mlx5_crspace_regmap {
