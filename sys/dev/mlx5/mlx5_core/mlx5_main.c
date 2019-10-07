@@ -275,7 +275,10 @@ static int mlx5_enable_msix(struct mlx5_core_dev *dev)
 	else
 		nvec += MLX5_CAP_GEN(dev, num_ports) * num_online_cpus();
 
-	nvec = min_t(int, nvec, num_eqs);
+	if (nvec > num_eqs)
+		nvec = num_eqs;
+	if (nvec > 256)
+		nvec = 256;	/* limit of firmware API */
 	if (nvec <= MLX5_EQ_VEC_COMP_BASE)
 		return -ENOMEM;
 
