@@ -999,6 +999,7 @@ struct mlx5e_priv {
 	struct callout watchdog;
 
 	struct mlx5e_dcbx dcbx;
+	bool	sw_is_port_buf_owner;
 
 	struct mlx5e_channel channel[];
 };
