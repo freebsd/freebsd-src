@@ -772,17 +772,13 @@ ipoib_send_one(struct ipoib_dev_priv *priv, struct mbuf *mb)
 	return 0;
 }
 
-
-static void
-_ipoib_start(struct ifnet *dev, struct ipoib_dev_priv *priv)
+void
+ipoib_start_locked(struct ifnet *dev, struct ipoib_dev_priv *priv)
 {
 	struct mbuf *mb;
 
-	if ((dev->if_drv_flags & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING)
-		return;
+	assert_spin_locked(&priv->lock);
 
-	spin_lock(&priv->lock);
 	while (!IFQ_DRV_IS_EMPTY(&dev->if_snd) &&
 	    (dev->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
 		IFQ_DRV_DEQUEUE(&dev->if_snd, mb);
@@ -791,6 +787,18 @@ _ipoib_start(struct ifnet *dev, struct ipoib_dev_priv *priv)
 		IPOIB_MTAP(dev, mb);
 		ipoib_send_one(priv, mb);
 	}
+}
+
+static void
+_ipoib_start(struct ifnet *dev, struct ipoib_dev_priv *priv)
+{
+
+	if ((dev->if_drv_flags & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
+		return;
+
+	spin_lock(&priv->lock);
+	ipoib_start_locked(dev, priv);
 	spin_unlock(&priv->lock);
 }
 
