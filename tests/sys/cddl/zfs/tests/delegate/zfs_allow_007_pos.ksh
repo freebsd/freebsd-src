@@ -65,7 +65,6 @@
 verify_runnable "both"
 
 log_assert "Verify permission set can be masked on descendent dataset."
-log_onexit restore_root_datasets
 
 typeset perms1="snapshot,reservation,compression"
 eval set -A dataset $DATASETS
