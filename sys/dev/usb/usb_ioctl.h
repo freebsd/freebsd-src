@@ -224,7 +224,7 @@ struct usb_fs_uninit {
 } USB_IOCTL_STRUCT_ALIGN(1);
 
 struct usb_fs_open {
-#define	USB_FS_MAX_BUFSIZE (1 << 18)
+#define	USB_FS_MAX_BUFSIZE (1 << 25)	/* 32 MBytes */
 	uint32_t max_bufsize;
 #define	USB_FS_MAX_FRAMES		(1U << 12)
 #define	USB_FS_MAX_FRAMES_PRE_SCALE	(1U << 31)	/* for ISOCHRONOUS transfers */
