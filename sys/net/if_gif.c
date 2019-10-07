@@ -415,6 +415,8 @@ gif_input(struct mbuf *m, struct ifnet *ifp, int proto, uint8_t ecn)
 	struct ifnet *oldifp;
 	int isr, n, af;
 
+	NET_EPOCH_ASSERT();
+
 	if (ifp == NULL) {
 		/* just in case */
 		m_freem(m);

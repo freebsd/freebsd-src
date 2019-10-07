@@ -1591,6 +1591,7 @@ bad:
 void
 ipoib_demux(struct ifnet *ifp, struct mbuf *m, u_short proto)
 {
+	struct epoch_tracker et;
 	int isr;
 
 #ifdef MAC
@@ -1632,7 +1633,9 @@ ipoib_demux(struct ifnet *ifp, struct mbuf *m, u_short proto)
 	default:
 		goto discard;
 	}
+	NET_EPOCH_ENTER(et);
 	netisr_dispatch(isr, m);
+	NET_EPOCH_EXIT(et);
 	return;
 
 discard:

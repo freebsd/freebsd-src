@@ -1662,6 +1662,7 @@ tunwrite_l2(struct tuntap_softc *tp, struct mbuf *m)
 static int
 tunwrite_l3(struct tuntap_softc *tp, struct mbuf *m)
 {
+	struct epoch_tracker et;
 	struct ifnet *ifp;
 	int family, isr;
 
@@ -1702,7 +1703,9 @@ tunwrite_l3(struct tuntap_softc *tp, struct mbuf *m)
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	CURVNET_SET(ifp->if_vnet);
 	M_SETFIB(m, ifp->if_fib);
+	NET_EPOCH_ENTER(et);
 	netisr_dispatch(isr, m);
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 	return (0);
 }

@@ -52,6 +52,8 @@
 
 #include <net/netisr.h>
 #include <net/vnet.h>
+#include <net/if.h>	/* XXXGL: net_epoch should move out there */
+#include <net/if_var.h>	/* XXXGL: net_epoch should move out there */
 
 #include <netipsec/ipsec.h>
 #include <netipsec/xform.h>
@@ -121,6 +123,8 @@ static int
 ipcomp_nonexp_input(struct mbuf *m, int off, int proto, void *arg __unused)
 {
 	int isr;
+
+	NET_EPOCH_ASSERT();
 
 	switch (proto) {
 #ifdef INET
