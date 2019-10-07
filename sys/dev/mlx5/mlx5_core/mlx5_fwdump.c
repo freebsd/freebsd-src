@@ -148,7 +148,7 @@ unlock_vsc:
 	mlx5_vsc_unlock(mdev);
 }
 
-void
+int
 mlx5_fwdump(struct mlx5_core_dev *mdev)
 {
 	const struct mlx5_crspace_regmap *r;
@@ -157,12 +157,15 @@ mlx5_fwdump(struct mlx5_core_dev *mdev)
 
 	mlx5_core_info(mdev, "Issuing FW dump\n");
 	mtx_lock(&mdev->dump_lock);
-	if (mdev->dump_data == NULL)
+	if (mdev->dump_data == NULL) {
+		error = EIO;
 		goto failed;
+	}
 	if (mdev->dump_valid) {
 		/* only one dump */
 		mlx5_core_warn(mdev,
 		    "Only one FW dump can be captured aborting FW dump\n");
+		error = EEXIST;
 		goto failed;
 	}
 
@@ -187,6 +190,7 @@ unlock_vsc:
 	mlx5_vsc_unlock(mdev);
 failed:
 	mtx_unlock(&mdev->dump_lock);
+	return (error);
 }
 
 void
@@ -400,7 +404,7 @@ mlx5_ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		error = mlx5_dbsf_to_core(devaddr, &mdev);
 		if (error != 0)
 			break;
-		mlx5_fwdump(mdev);
+		error = mlx5_fwdump(mdev);
 		break;
 	case MLX5_FW_UPDATE:
 		if ((fflag & FWRITE) == 0) {
