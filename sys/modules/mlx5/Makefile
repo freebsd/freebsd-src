@@ -19,6 +19,7 @@ mlx5_health.c \
 mlx5_mad.c \
 mlx5_main.c \
 mlx5_mcg.c \
+mlx5_mpfs.c \
 mlx5_mr.c \
 mlx5_pagealloc.c \
 mlx5_pd.c \
