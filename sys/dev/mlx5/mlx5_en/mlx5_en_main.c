@@ -1913,12 +1913,14 @@ mlx5e_create_cq(struct mlx5e_priv *priv,
 	param->wq.buf_numa_node = 0;
 	param->wq.db_numa_node = 0;
 
+	err = mlx5_vector2eqn(mdev, eq_ix, &eqn_not_used, &irqn);
+	if (err)
+		return (err);
+
 	err = mlx5_cqwq_create(mdev, &param->wq, param->cqc, &cq->wq,
 	    &cq->wq_ctrl);
 	if (err)
 		return (err);
-
-	mlx5_vector2eqn(mdev, eq_ix, &eqn_not_used, &irqn);
 
 	mcq->cqe_sz = 64;
 	mcq->set_ci_db = cq->wq_ctrl.db.db;
