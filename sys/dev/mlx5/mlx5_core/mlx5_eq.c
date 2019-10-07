@@ -673,7 +673,6 @@ static void mlx5_port_module_event(struct mlx5_core_dev *dev,
 	unsigned int module_status;
 	unsigned int error_type;
 	struct mlx5_eqe_port_module_event *module_event_eqe;
-	struct pci_dev *pdev = dev->pdev;
 
 	module_event_eqe = &eqe->data.port_module_event;
 
@@ -687,19 +686,19 @@ static void mlx5_port_module_event(struct mlx5_core_dev *dev,
 		dev->priv.pme_stats.status_counters[module_status]++;
 	switch (module_status) {
 	case MLX5_MODULE_STATUS_PLUGGED_ENABLED:
-		device_printf((&pdev->dev)->bsddev,
-		    "INFO: Module %u, status: plugged and enabled\n",
+		mlx5_core_info(dev,
+		    "Module %u, status: plugged and enabled\n",
 		    module_num);
 		break;
 
 	case MLX5_MODULE_STATUS_UNPLUGGED:
-		device_printf((&pdev->dev)->bsddev,
-		    "INFO: Module %u, status: unplugged\n", module_num);
+		mlx5_core_info(dev,
+		    "Module %u, status: unplugged\n", module_num);
 		break;
 
 	case MLX5_MODULE_STATUS_ERROR:
-		device_printf((&pdev->dev)->bsddev,
-		    "ERROR: Module %u, status: error, %s\n",
+		mlx5_core_err(dev,
+		    "Module %u, status: error, %s\n",
 		    module_num,
 		    mlx5_port_module_event_error_type_to_string(error_type));
 		if (error_type < MLX5_MODULE_EVENT_ERROR_NUM)
@@ -707,8 +706,8 @@ static void mlx5_port_module_event(struct mlx5_core_dev *dev,
 		break;
 
 	default:
-		device_printf((&pdev->dev)->bsddev,
-		    "INFO: Module %u, unknown status\n", module_num);
+		mlx5_core_info(dev,
+		    "Module %u, unknown status\n", module_num);
 	}
 	/* store module status */
 	if (module_num < MLX5_MAX_PORTS)

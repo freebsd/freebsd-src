@@ -618,7 +618,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(mlx5_core_access_ptys);
 
-static int mtu_to_ib_mtu(int mtu)
+static int mtu_to_ib_mtu(struct mlx5_core_dev *dev, int mtu)
 {
 	switch (mtu) {
 	case 256: return 1;
@@ -627,7 +627,7 @@ static int mtu_to_ib_mtu(int mtu)
 	case 2048: return 4;
 	case 4096: return 5;
 	default:
-		printf("mlx5_core: WARN: ""invalid mtu\n");
+		mlx5_core_warn(dev, "invalid mtu\n");
 		return -1;
 	}
 }
@@ -661,11 +661,11 @@ int mlx5_core_access_pmtu(struct mlx5_core_dev *dev,
 
 	if (!write) {
 		pmtu->local_port = MLX5_GET(pmtu_reg, out, local_port);
-		pmtu->max_mtu = mtu_to_ib_mtu(MLX5_GET(pmtu_reg, out,
+		pmtu->max_mtu = mtu_to_ib_mtu(dev, MLX5_GET(pmtu_reg, out,
 						       max_mtu));
-		pmtu->admin_mtu = mtu_to_ib_mtu(MLX5_GET(pmtu_reg, out,
+		pmtu->admin_mtu = mtu_to_ib_mtu(dev, MLX5_GET(pmtu_reg, out,
 							 admin_mtu));
-		pmtu->oper_mtu = mtu_to_ib_mtu(MLX5_GET(pmtu_reg, out,
+		pmtu->oper_mtu = mtu_to_ib_mtu(dev, MLX5_GET(pmtu_reg, out,
 							oper_mtu));
 	}
 

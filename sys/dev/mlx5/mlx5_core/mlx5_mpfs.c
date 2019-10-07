@@ -33,6 +33,8 @@
 #include <dev/mlx5/mpfs.h>
 #include <dev/mlx5/driver.h>
 
+#include "mlx5_core.h"
+
 #define	MPFS_LOCK(dev) spin_lock(&(dev)->mpfs.spinlock)
 #define	MPFS_UNLOCK(dev) spin_unlock(&(dev)->mpfs.spinlock)
 
@@ -119,7 +121,7 @@ mlx5_mpfs_destroy(struct mlx5_core_dev *dev)
 
 	num = bitmap_weight(dev->mpfs.bitmap, MLX5_MPFS_TABLE_MAX);
 	if (num != 0)
-		dev_err(&dev->pdev->dev, "Leaking %u MPFS MAC table entries\n", num);
+		mlx5_core_err(dev, "Leaking %u MPFS MAC table entries\n", num);
 
 	spin_lock_destroy(&dev->mpfs.spinlock);
 }

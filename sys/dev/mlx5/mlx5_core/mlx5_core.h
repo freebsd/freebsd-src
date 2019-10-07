@@ -53,13 +53,18 @@ do {									\
 		mlx5_core_dbg(dev, format, ##__VA_ARGS__);		\
 } while (0)
 
-#define mlx5_core_err(_dev, format, ...)					\
-	device_printf((&(_dev)->pdev->dev)->bsddev, "ERR: ""%s:%d:(pid %d): " format, \
+#define	mlx5_core_err(_dev, format, ...)					\
+	device_printf((_dev)->pdev->dev.bsddev, "ERR: ""%s:%d:(pid %d): " format, \
 		__func__, __LINE__, curthread->td_proc->p_pid, \
 		##__VA_ARGS__)
 
-#define mlx5_core_warn(_dev, format, ...)				\
-	device_printf((&(_dev)->pdev->dev)->bsddev, "WARN: ""%s:%d:(pid %d): " format, \
+#define	mlx5_core_warn(_dev, format, ...)				\
+	device_printf((_dev)->pdev->dev.bsddev, "WARN: ""%s:%d:(pid %d): " format, \
+		__func__, __LINE__, curthread->td_proc->p_pid, \
+		##__VA_ARGS__)
+
+#define	mlx5_core_info(_dev, format, ...)					\
+	device_printf((_dev)->pdev->dev.bsddev, "INFO: ""%s:%d:(pid %d): " format, \
 		__func__, __LINE__, curthread->td_proc->p_pid, \
 		##__VA_ARGS__)
 
