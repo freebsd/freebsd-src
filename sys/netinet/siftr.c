@@ -918,7 +918,7 @@ siftr_chkpkt(struct mbuf **m, struct ifnet *ifp, int flags,
 	 * Only pkts selected by the tcp port filter
 	 * can be inserted into the pkt_queue
 	 */
-	if ((siftr_port_filter != 0) && 
+	if ((siftr_port_filter != 0) &&
 	    (siftr_port_filter != ntohs(inp->inp_lport)) &&
 	    (siftr_port_filter != ntohs(inp->inp_fport))) {
 		goto inp_unlock;
