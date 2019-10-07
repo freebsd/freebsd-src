@@ -698,7 +698,7 @@ struct mlx5_core_dev {
 	struct mlx5_flow_root_namespace *sniffer_rx_root_ns;
 	struct mlx5_flow_root_namespace *sniffer_tx_root_ns;
 	u32 num_q_counter_allocated[MLX5_INTERFACE_NUMBER];
-	const struct mlx5_crspace_regmap *dump_rege;
+	struct mlx5_crspace_regmap *dump_rege;
 	uint32_t *dump_data;
 	unsigned dump_size;
 	bool dump_valid;
