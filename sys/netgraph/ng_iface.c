@@ -690,6 +690,7 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	const iffam_p iffam = get_iffam_from_hook(priv, hook);
 	struct ifnet *const ifp = priv->ifp;
+	struct epoch_tracker et;
 	struct mbuf *m;
 	int isr;
 
@@ -731,7 +732,9 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 	}
 	random_harvest_queue(m, sizeof(*m), RANDOM_NET_NG);
 	M_SETFIB(m, ifp->if_fib);
+	NET_EPOCH_ENTER(et);
 	netisr_dispatch(isr, m);
+	NET_EPOCH_EXIT(et);
 	return (0);
 }
 

@@ -384,6 +384,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	struct mbuf *m = m0;
 	struct mbuf *mprev = NULL;
 	int hlen, tlen, len;
+	struct epoch_tracker et;
 	struct route_in6 ip6route;
 	struct rtentry *rt = NULL;
 	struct sockaddr_in6 *dst, src_sa, dst_sa;
@@ -586,6 +587,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		ro = &opt->ip6po_route;
 	dst = (struct sockaddr_in6 *)&ro->ro_dst;
 	fibnum = (inp != NULL) ? inp->inp_inc.inc_fibnum : M_GETFIB(m);
+	NET_EPOCH_ENTER(et);
 again:
 	/*
 	 * if specified, try to fill in the traffic class field.
@@ -1186,6 +1188,7 @@ sendorfree:
 		IP6STAT_INC(ip6s_fragmented);
 
 done:
+	NET_EPOCH_EXIT(et);
 	if (ro == &ip6route)
 		RO_RTFREE(ro);
 	return (error);

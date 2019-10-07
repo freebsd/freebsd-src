@@ -198,6 +198,7 @@ sctp_init_ifns_for_vrf(int vrfid)
 	 * make sure we lock any IFA that exists as we float through the
 	 * list of IFA's
 	 */
+	struct epoch_tracker et;
 	struct ifnet *ifn;
 	struct ifaddr *ifa;
 	struct sctp_ifa *sctp_ifa;
@@ -207,14 +208,12 @@ sctp_init_ifns_for_vrf(int vrfid)
 #endif
 
 	IFNET_RLOCK();
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_link) {
-		struct epoch_tracker et;
-
 		if (sctp_is_desired_interface_type(ifn) == 0) {
 			/* non desired type */
 			continue;
 		}
-		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifa, &ifn->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr == NULL) {
 				continue;
@@ -267,8 +266,8 @@ sctp_init_ifns_for_vrf(int vrfid)
 				sctp_ifa->localifa_flags &= ~SCTP_ADDR_DEFER_USE;
 			}
 		}
-		NET_EPOCH_EXIT(et);
 	}
+	NET_EPOCH_EXIT(et);
 	IFNET_RUNLOCK();
 }
 

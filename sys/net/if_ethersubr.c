@@ -800,6 +800,7 @@ VNET_SYSUNINIT(vnet_ether_uninit, SI_SUB_PROTO_IF, SI_ORDER_ANY,
 static void
 ether_input(struct ifnet *ifp, struct mbuf *m)
 {
+	struct epoch_tracker et;
 	struct mbuf *mn;
 
 	/*
@@ -807,22 +808,24 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	 * m_nextpkt. We split them up into separate packets here and pass
 	 * them up. This allows the drivers to amortize the receive lock.
 	 */
+	CURVNET_SET_QUIET(ifp->if_vnet);
+	NET_EPOCH_ENTER(et);
 	while (m) {
 		mn = m->m_nextpkt;
 		m->m_nextpkt = NULL;
 
 		/*
-		 * We will rely on rcvif being set properly in the deferred context,
-		 * so assert it is correct here.
+		 * We will rely on rcvif being set properly in the deferred
+		 * context, so assert it is correct here.
 		 */
 		MPASS((m->m_pkthdr.csum_flags & CSUM_SND_TAG) == 0);
 		KASSERT(m->m_pkthdr.rcvif == ifp, ("%s: ifnet mismatch m %p "
 		    "rcvif %p ifp %p", __func__, m, m->m_pkthdr.rcvif, ifp));
-		CURVNET_SET_QUIET(ifp->if_vnet);
 		netisr_dispatch(NETISR_ETHER, m);
-		CURVNET_RESTORE();
 		m = mn;
 	}
+	NET_EPOCH_EXIT(et);
+	CURVNET_RESTORE();
 }
 
 /*
@@ -835,6 +838,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 	int i, isr;
 	u_short ether_type;
 
+	NET_EPOCH_ASSERT();
 	KASSERT(ifp != NULL, ("%s: NULL interface pointer", __func__));
 
 	/* Do not grab PROMISC frames in case we are re-entered. */

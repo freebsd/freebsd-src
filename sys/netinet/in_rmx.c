@@ -80,12 +80,17 @@ in_addroute(void *v_arg, void *n_arg, struct radix_head *head,
 	 * dubious since it's so easy to inspect the address).
 	 */
 	if (rt->rt_flags & RTF_HOST) {
-		if (in_broadcast(sin->sin_addr, rt->rt_ifp)) {
+		struct epoch_tracker et;
+		bool bcast;
+
+		NET_EPOCH_ENTER(et);
+		bcast = in_broadcast(sin->sin_addr, rt->rt_ifp);
+		NET_EPOCH_EXIT(et);
+		if (bcast)
 			rt->rt_flags |= RTF_BROADCAST;
-		} else if (satosin(rt->rt_ifa->ifa_addr)->sin_addr.s_addr ==
-		    sin->sin_addr.s_addr) {
+		else if (satosin(rt->rt_ifa->ifa_addr)->sin_addr.s_addr ==
+		    sin->sin_addr.s_addr)
 			rt->rt_flags |= RTF_LOCAL;
-		}
 	}
 	if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 		rt->rt_flags |= RTF_MULTICAST;

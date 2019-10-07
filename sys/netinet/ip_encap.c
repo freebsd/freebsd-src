@@ -125,11 +125,9 @@ MTX_SYSINIT(srcaddrmtx, &srcaddrmtx, "srcaddrmtx", MTX_DEF);
 #define	ENCAP_WLOCK()		mtx_lock(&encapmtx)
 #define	ENCAP_WUNLOCK()		mtx_unlock(&encapmtx)
 #define	ENCAP_RLOCK_TRACKER	struct epoch_tracker encap_et
-#define	ENCAP_RLOCK()		\
-    epoch_enter_preempt(net_epoch_preempt, &encap_et)
-#define	ENCAP_RUNLOCK()		\
-    epoch_exit_preempt(net_epoch_preempt, &encap_et)
-#define	ENCAP_WAIT()		epoch_wait_preempt(net_epoch_preempt)
+#define	ENCAP_RLOCK()		NET_EPOCH_ENTER(encap_et)
+#define	ENCAP_RUNLOCK()		NET_EPOCH_EXIT(encap_et)
+#define	ENCAP_WAIT()		NET_EPOCH_WAIT()
 
 #define	SRCADDR_WLOCK()		mtx_lock(&srcaddrmtx)
 #define	SRCADDR_WUNLOCK()	mtx_unlock(&srcaddrmtx)
