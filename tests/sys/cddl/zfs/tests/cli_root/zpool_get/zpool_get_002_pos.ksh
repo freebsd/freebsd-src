@@ -96,10 +96,10 @@ done
 # increment the counter to include the header line
 i=$(( $i + 1 ))
 
-COUNT=$($WC $TMPDIR/values.${TESTCASE_ID} | $AWK '{print $1}')
+COUNT=$($WC $TMPDIR/values.${TESTCASE_ID})
 if [ $i -ne $COUNT ]
 then
-	log_fail "Length of output $COUNT was not equal to number of props + 1."
+	log_fail "Length of output $COUNT was not equal to number of props + 1 ($i)."
 fi
 
 
