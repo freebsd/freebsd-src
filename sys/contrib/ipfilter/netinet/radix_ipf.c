@@ -1323,7 +1323,7 @@ dumptree(rnh)
 void
 test_addr(rnh, pref, addr, limit)
 	ipf_rdx_head_t *rnh;
-	int pref;
+	int pref, limit;
 	addrfamily_t *addr;
 {
 	static int extras[14] = { 0, -1, 1, 3, 5, 8, 9,
