@@ -84,15 +84,15 @@ zil_prt_rec_create(zilog_t *zilog, int txtype, void *arg)
 	}
 
 	(void) printf("%s%s", tab_prefix, ctime(&crtime));
-	(void) printf("%sdoid %llu, foid %llu, slots %llu, mode %llo\n", tab_prefix,
-	    (u_longlong_t)lr->lr_doid, 
-	    (u_longlong_t)LR_FOID_GET_OBJ(lr->lr_foid),
-	    (u_longlong_t)LR_FOID_GET_SLOTS(lr->lr_foid),
-	    (longlong_t)lr->lr_mode);
-	(void) printf("%suid %llu, gid %llu, gen %llu, rdev 0x%llx\n",
-	    tab_prefix,
-	    (u_longlong_t)lr->lr_uid, (u_longlong_t)lr->lr_gid,
-	    (u_longlong_t)lr->lr_gen, (u_longlong_t)lr->lr_rdev);
+	(void) printf("%sdoid %" PRIu64 ", foid %" PRIu64 ", slots %" PRIu64
+	    ", mode %" PRIo64 "\n",
+	    tab_prefix, lr->lr_doid,
+	    (uint64_t)LR_FOID_GET_OBJ(lr->lr_foid),
+	    (uint64_t)LR_FOID_GET_SLOTS(lr->lr_foid),
+	    lr->lr_mode);
+	(void) printf("%suid %" PRIu64 ", gid %" PRIu64 ", gen %" PRIu64
+	    ", rdev %#" PRIx64 "\n",
+	    tab_prefix, lr->lr_uid, lr->lr_gid, lr->lr_gen, lr->lr_rdev);
 }
 
 /* ARGSUSED */

@@ -416,13 +416,15 @@ main(int argc, char *argv[])
 				drro->drr_toguid = BSWAP_64(drro->drr_toguid);
 			}
 			if (verbose) {
-				(void) printf("OBJECT object = %llu type = %u "
-				    "bonustype = %u blksz = %u bonuslen = %u\n",
-				    (u_longlong_t)drro->drr_object,
+				(void) printf("OBJECT object = %" PRIu64
+				    " type = %u bonustype = %u blksz = %u"
+				    " bonuslen = %u dn_slots = %u\n",
+				    drro->drr_object,
 				    drro->drr_type,
 				    drro->drr_bonustype,
 				    drro->drr_blksz,
-				    drro->drr_bonuslen);
+				    drro->drr_bonuslen,
+				    drro->drr_dn_slots);
 			}
 			if (drro->drr_bonuslen > 0) {
 				(void) ssread(buf,
