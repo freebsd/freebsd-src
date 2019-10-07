@@ -137,6 +137,10 @@
 #define	MLX5E_100MB (100000)
 #define	MLX5E_1GB   (1000000)
 
+#define	MLX5E_ZERO(ptr, field)	      \
+	memset(&(ptr)->field, 0, \
+	    sizeof(*(ptr)) - __offsetof(__typeof(*(ptr)), field))
+
 MALLOC_DECLARE(M_MLX5EN);
 
 struct mlx5_core_dev;
@@ -739,15 +743,18 @@ struct mlx5e_rq_mbuf {
 };
 
 struct mlx5e_rq {
-	/* data path */
-	struct mlx5_wq_ll wq;
+	/* persistant fields */
 	struct mtx mtx;
+	struct mlx5e_rq_stats stats;
+
+	/* data path */
+#define	mlx5e_rq_zero_start wq
+	struct mlx5_wq_ll wq;
 	bus_dma_tag_t dma_tag;
 	u32	wqe_sz;
 	u32	nsegs;
 	struct mlx5e_rq_mbuf *mbuf;
 	struct ifnet *ifp;
-	struct mlx5e_rq_stats stats;
 	struct mlx5e_cq cq;
 	struct lro_ctrl lro;
 	volatile int enabled;
@@ -776,10 +783,14 @@ enum {
 };
 
 struct mlx5e_sq {
-	/* data path */
+	/* persistant fields */
 	struct	mtx lock;
-	bus_dma_tag_t dma_tag;
 	struct	mtx comp_lock;
+	struct	mlx5e_sq_stats stats;
+
+	/* data path */
+#define	mlx5e_sq_zero_start dma_tag
+	bus_dma_tag_t dma_tag;
 
 	/* dirtied @completion */
 	u16	cc;
@@ -799,7 +810,6 @@ struct mlx5e_sq {
 		u32	d32[2];
 		u64	d64;
 	} doorbell;
-	struct	mlx5e_sq_stats stats;
 
 	struct	mlx5e_cq cq;
 
@@ -836,13 +846,9 @@ mlx5e_sq_has_room_for(struct mlx5e_sq *sq, u16 n)
 }
 
 struct mlx5e_channel {
-	/* data path */
 	struct mlx5e_rq rq;
 	struct mlx5e_sq sq[MLX5E_MAX_TX_NUM_TC];
 	struct ifnet *ifp;
-	u8	num_tc;
-
-	/* control */
 	struct mlx5e_priv *priv;
 	int	ix;
 } __aligned(MLX5E_CACHELINE_SIZE);
