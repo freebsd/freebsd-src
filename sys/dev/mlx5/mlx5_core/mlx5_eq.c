@@ -415,7 +415,7 @@ static void init_eq_buf(struct mlx5_eq *eq)
 }
 
 int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
-		       int nent, u64 mask, const char *name, struct mlx5_uar *uar)
+		       int nent, u64 mask, struct mlx5_uar *uar)
 {
 	u32 out[MLX5_ST_SZ_DW(create_eq_out)] = {0};
 	struct mlx5_priv *priv = &dev->priv;
@@ -463,10 +463,8 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 	eq->irqn = vecidx;
 	eq->dev = dev;
 	eq->doorbell = uar->map + MLX5_EQ_DOORBEL_OFFSET;
-	snprintf(priv->irq_info[vecidx].name, MLX5_MAX_IRQ_NAME, "%s@pci:%s",
-		 name, pci_name(dev->pdev));
 	err = request_irq(priv->msix_arr[vecidx].vector, mlx5_msix_handler, 0,
-			  priv->irq_info[vecidx].name, eq);
+			  "mlx5_core", eq);
 	if (err)
 		goto err_eq;
 #ifdef RSS
@@ -568,7 +566,7 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 
 	err = mlx5_create_map_eq(dev, &table->cmd_eq, MLX5_EQ_VEC_CMD,
 				 MLX5_NUM_CMD_EQE, 1ull << MLX5_EVENT_TYPE_CMD,
-				 "mlx5_cmd_eq", &dev->priv.uuari.uars[0]);
+				 &dev->priv.uuari.uars[0]);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create cmd EQ %d\n", err);
 		return err;
@@ -578,7 +576,7 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 
 	err = mlx5_create_map_eq(dev, &table->async_eq, MLX5_EQ_VEC_ASYNC,
 				 MLX5_NUM_ASYNC_EQE, async_event_mask,
-				 "mlx5_async_eq", &dev->priv.uuari.uars[0]);
+				 &dev->priv.uuari.uars[0]);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create async EQ %d\n", err);
 		goto err1;
@@ -587,7 +585,7 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 	err = mlx5_create_map_eq(dev, &table->pages_eq,
 				 MLX5_EQ_VEC_PAGES,
 				 /* TODO: sriov max_vf + */ 1,
-				 1 << MLX5_EVENT_TYPE_PAGE_REQUEST, "mlx5_pages_eq",
+				 1 << MLX5_EVENT_TYPE_PAGE_REQUEST,
 				 &dev->priv.uuari.uars[0]);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create pages EQ %d\n", err);
