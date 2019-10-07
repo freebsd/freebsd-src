@@ -26,7 +26,10 @@
  */
 
 #include <dev/mlx5/driver.h>
+#include <dev/mlx5/port.h>
 #include <dev/mlx5/diagnostics.h>
+#include <dev/mlx5/mlx5_core/mlx5_core.h>
+#include <net/sff8472.h>
 
 const struct mlx5_core_diagnostics_entry
 	mlx5_core_pci_diagnostics_table[
@@ -284,3 +287,156 @@ int mlx5_core_supports_diagnostics(struct mlx5_core_dev *dev, u16 counter_id)
 	}
 	return 0;			/* not supported counter */
 }
+
+/*
+ * Read the first three bytes of the eeprom in order to get the needed info
+ * for the whole reading.
+ * Byte 0 - Identifier byte
+ * Byte 1 - Revision byte
+ * Byte 2 - Status byte
+ */
+int
+mlx5_get_eeprom_info(struct mlx5_core_dev *dev, struct mlx5_eeprom *eeprom)
+{
+	u32 data = 0;
+	int size_read = 0;
+	int ret;
+
+	ret = mlx5_query_module_num(dev, &eeprom->module_num);
+	if (ret) {
+		mlx5_core_err(dev, "Failed query module error=%d\n", ret);
+		return (-ret);
+	}
+
+	/* Read the first three bytes to get Identifier, Revision and Status */
+	ret = mlx5_query_eeprom(dev, eeprom->i2c_addr, eeprom->page_num,
+	    eeprom->device_addr, MLX5_EEPROM_INFO_BYTES, eeprom->module_num, &data,
+	    &size_read);
+	if (ret) {
+		mlx5_core_err(dev,
+		    "Failed query EEPROM module error=0x%x\n", ret);
+		return (-ret);
+	}
+
+	switch (data & MLX5_EEPROM_IDENTIFIER_BYTE_MASK) {
+	case SFF_8024_ID_QSFP:
+		eeprom->type = MLX5_ETH_MODULE_SFF_8436;
+		eeprom->len = MLX5_ETH_MODULE_SFF_8436_LEN;
+		break;
+	case SFF_8024_ID_QSFPPLUS:
+	case SFF_8024_ID_QSFP28:
+		if ((data & MLX5_EEPROM_IDENTIFIER_BYTE_MASK) == SFF_8024_ID_QSFP28 ||
+		    ((data & MLX5_EEPROM_REVISION_ID_BYTE_MASK) >> 8) >= 0x3) {
+			eeprom->type = MLX5_ETH_MODULE_SFF_8636;
+			eeprom->len = MLX5_ETH_MODULE_SFF_8636_LEN;
+		} else {
+			eeprom->type = MLX5_ETH_MODULE_SFF_8436;
+			eeprom->len = MLX5_ETH_MODULE_SFF_8436_LEN;
+		}
+		if ((data & MLX5_EEPROM_PAGE_3_VALID_BIT_MASK) == 0)
+			eeprom->page_valid = 1;
+		break;
+	case SFF_8024_ID_SFP:
+		eeprom->type = MLX5_ETH_MODULE_SFF_8472;
+		eeprom->len = MLX5_ETH_MODULE_SFF_8472_LEN;
+		break;
+	default:
+		mlx5_core_err(dev, "Not recognized cable type = 0x%x(%s)\n",
+		    data & MLX5_EEPROM_IDENTIFIER_BYTE_MASK,
+		    sff_8024_id[data & MLX5_EEPROM_IDENTIFIER_BYTE_MASK]);
+		return (EINVAL);
+	}
+	return (0);
+}
+
+/* Read both low and high pages of the eeprom */
+int
+mlx5_get_eeprom(struct mlx5_core_dev *dev, struct mlx5_eeprom *ee)
+{
+	int size_read = 0;
+	int ret;
+
+	if (ee->len == 0)
+		return (EINVAL);
+
+	/* Read low page of the eeprom */
+	while (ee->device_addr < ee->len) {
+		ret = mlx5_query_eeprom(dev, ee->i2c_addr, ee->page_num, ee->device_addr,
+		    ee->len - ee->device_addr, ee->module_num,
+		    ee->data + (ee->device_addr / 4), &size_read);
+		if (ret) {
+			mlx5_core_err(dev,
+			    "Failed reading EEPROM, error = 0x%02x\n", ret);
+			return (-ret);
+		}
+		ee->device_addr += size_read;
+	}
+
+	/* Read high page of the eeprom */
+	if (ee->page_valid == 1) {
+		ee->device_addr = MLX5_EEPROM_HIGH_PAGE_OFFSET;
+		ee->page_num = MLX5_EEPROM_HIGH_PAGE;
+		size_read = 0;
+		while (ee->device_addr < MLX5_EEPROM_PAGE_LENGTH) {
+			ret = mlx5_query_eeprom(dev, ee->i2c_addr, ee->page_num,
+			    ee->device_addr, MLX5_EEPROM_PAGE_LENGTH - ee->device_addr,
+			    ee->module_num, ee->data + (ee->len / 4) +
+			    ((ee->device_addr - MLX5_EEPROM_HIGH_PAGE_OFFSET) / 4),
+			    &size_read);
+			if (ret) {
+				mlx5_core_err(dev,
+				    "Failed reading EEPROM, error = 0x%02x\n",
+				    ret);
+				return (-ret);
+			}
+			ee->device_addr += size_read;
+		}
+	}
+	return (0);
+}
+
+/*
+ * Read cable EEPROM module information by first inspecting the first
+ * three bytes to get the initial information for a whole reading.
+ * Information will be printed to dmesg.
+ */
+int
+mlx5_read_eeprom(struct mlx5_core_dev *dev, struct mlx5_eeprom *eeprom)
+{
+	int error;
+
+	eeprom->i2c_addr = MLX5_I2C_ADDR_LOW;
+	eeprom->device_addr = 0;
+	eeprom->page_num = MLX5_EEPROM_LOW_PAGE;
+	eeprom->page_valid = 0;
+
+	/* Read three first bytes to get important info */
+	error = mlx5_get_eeprom_info(dev, eeprom);
+	if (error) {
+		mlx5_core_err(dev,
+		    "Failed reading EEPROM initial information\n");
+		return (error);
+	}
+	/*
+	 * Allocate needed length buffer and additional space for
+	 * page 0x03
+	 */
+	eeprom->data = malloc(eeprom->len + MLX5_EEPROM_PAGE_LENGTH,
+	    M_MLX5_EEPROM, M_WAITOK | M_ZERO);
+
+	/* Read the whole eeprom information */
+	error = mlx5_get_eeprom(dev, eeprom);
+	if (error) {
+		mlx5_core_err(dev, "Failed reading EEPROM\n");
+		error = 0;
+		/*
+		 * Continue printing partial information in case of
+		 * an error
+		 */
+	}
+	free(eeprom->data, M_MLX5_EEPROM);
+
+	return (error);
+}
+
+
