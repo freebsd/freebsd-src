@@ -36,9 +36,9 @@
 
 #define DRIVER_NAME "mlx5_core"
 #ifndef DRIVER_VERSION
-#define DRIVER_VERSION "3.5.1"
+#define DRIVER_VERSION "3.5.2"
 #endif
-#define DRIVER_RELDATE "April 2019"
+#define DRIVER_RELDATE "September 2019"
 
 extern int mlx5_core_debug_mask;
 
@@ -53,13 +53,18 @@ do {									\
 		mlx5_core_dbg(dev, format, ##__VA_ARGS__);		\
 } while (0)
 
-#define mlx5_core_err(_dev, format, ...)					\
-	device_printf((&(_dev)->pdev->dev)->bsddev, "ERR: ""%s:%d:(pid %d): " format, \
+#define	mlx5_core_err(_dev, format, ...)					\
+	device_printf((_dev)->pdev->dev.bsddev, "ERR: ""%s:%d:(pid %d): " format, \
 		__func__, __LINE__, curthread->td_proc->p_pid, \
 		##__VA_ARGS__)
 
-#define mlx5_core_warn(_dev, format, ...)				\
-	device_printf((&(_dev)->pdev->dev)->bsddev, "WARN: ""%s:%d:(pid %d): " format, \
+#define	mlx5_core_warn(_dev, format, ...)				\
+	device_printf((_dev)->pdev->dev.bsddev, "WARN: ""%s:%d:(pid %d): " format, \
+		__func__, __LINE__, curthread->td_proc->p_pid, \
+		##__VA_ARGS__)
+
+#define	mlx5_core_info(_dev, format, ...)					\
+	device_printf((_dev)->pdev->dev.bsddev, "INFO: ""%s:%d:(pid %d): " format, \
 		__func__, __LINE__, curthread->td_proc->p_pid, \
 		##__VA_ARGS__)
 
@@ -102,12 +107,10 @@ int mlx5_firmware_flash(struct mlx5_core_dev *dev, const struct firmware *fw);
 void mlx5e_init(void);
 void mlx5e_cleanup(void);
 
-int mlx5_rename_eq(struct mlx5_core_dev *dev, int eq_ix, char *name);
-
 int mlx5_ctl_init(void);
 void mlx5_ctl_fini(void);
 void mlx5_fwdump_prep(struct mlx5_core_dev *mdev);
-void mlx5_fwdump(struct mlx5_core_dev *mdev);
+int mlx5_fwdump(struct mlx5_core_dev *mdev);
 void mlx5_fwdump_clean(struct mlx5_core_dev *mdev);
 
 struct mlx5_crspace_regmap {

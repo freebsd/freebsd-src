@@ -29,20 +29,6 @@
 #include <dev/mlx5/device.h>
 #include <dev/mlx5/mlx5_core/mlx5_core.h>
 
-#define	MLX5_SEMAPHORE_SPACE_DOMAIN 0xA
-
-struct mlx5_ifc_vsc_space_bits {
-	u8 status[0x3];
-	u8 reserved0[0xd];
-	u8 space[0x10];
-};
-
-struct mlx5_ifc_vsc_addr_bits {
-	u8 flag[0x1];
-	u8 reserved0[0x1];
-	u8 address[0x1e];
-};
-
 int mlx5_vsc_lock(struct mlx5_core_dev *mdev)
 {
 	device_t dev = mdev->pdev->dev.bsddev;
@@ -66,7 +52,7 @@ int mlx5_vsc_lock(struct mlx5_core_dev *mdev)
 			 * The PRM suggests random 0 - 10ms to prevent multiple
 			 * waiters on the same interval in order to avoid starvation
 			 */
-			DELAY((random() % 11) * 1000);
+			DELAY((random() % 9000) + 1000);
 			continue;
 		}
 
@@ -96,7 +82,8 @@ void mlx5_vsc_unlock(struct mlx5_core_dev *mdev)
 	pci_write_config(dev, vsc_addr + MLX5_VSC_SEMA_OFFSET, 0, 4);
 }
 
-static int mlx5_vsc_wait_on_flag(struct mlx5_core_dev *mdev, u32 expected)
+int
+mlx5_vsc_wait_on_flag(struct mlx5_core_dev *mdev, u32 expected)
 {
 	device_t dev = mdev->pdev->dev.bsddev;
 	int vsc_addr = mdev->vsc_addr;
@@ -112,7 +99,7 @@ static int mlx5_vsc_wait_on_flag(struct mlx5_core_dev *mdev, u32 expected)
 			break;
 
 		retries++;
-		DELAY(10);
+		DELAY((random() % 90) + 10);
 	}
 
 	return 0;
@@ -199,7 +186,7 @@ int mlx5_vsc_lock_addr_space(struct mlx5_core_dev *mdev, u32 addr)
 	int ret;
 	u32 id;
 
-	ret = mlx5_vsc_set_space(mdev, MLX5_SEMAPHORE_SPACE_DOMAIN);
+	ret = mlx5_vsc_set_space(mdev, MLX5_VSC_DOMAIN_SEMAPHORES);
 	if (ret)
 		return ret;
 
@@ -226,7 +213,7 @@ int mlx5_vsc_unlock_addr_space(struct mlx5_core_dev *mdev, u32 addr)
 	u32 data = 0;
 	int ret;
 
-	ret = mlx5_vsc_set_space(mdev, MLX5_SEMAPHORE_SPACE_DOMAIN);
+	ret = mlx5_vsc_set_space(mdev, MLX5_VSC_DOMAIN_SEMAPHORES);
 	if (ret)
 		return ret;
 

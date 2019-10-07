@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2019, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,29 +25,13 @@
  * $FreeBSD$
  */
 
-#include "en.h"
+#ifndef _MLX5_MPFS_H_
+#define _MLX5_MPFS_H_
 
-struct mlx5_cqe64 *
-mlx5e_get_cqe(struct mlx5e_cq *cq)
-{
-	struct mlx5_cqe64 *cqe;
+struct mlx5_core_dev;
+int mlx5_mpfs_add_mac(struct mlx5_core_dev *dev, u32 *p_index, const u8 *mac);
+int mlx5_mpfs_del_mac(struct mlx5_core_dev *dev, u32 index);
+int mlx5_mpfs_init(struct mlx5_core_dev *dev);
+void mlx5_mpfs_destroy(struct mlx5_core_dev *dev);
 
-	cqe = mlx5_cqwq_get_wqe(&cq->wq, mlx5_cqwq_get_ci(&cq->wq));
-
-	if ((cqe->op_own ^ mlx5_cqwq_get_wrap_cnt(&cq->wq)) & MLX5_CQE_OWNER_MASK)
-		return (NULL);
-
-	/* ensure cqe content is read after cqe ownership bit */
-	atomic_thread_fence_acq();
-
-	return (cqe);
-}
-
-void
-mlx5e_cq_error_event(struct mlx5_core_cq *mcq, int event)
-{
-	struct mlx5e_cq *cq = container_of(mcq, struct mlx5e_cq, mcq);
-
-	mlx5_en_err(cq->priv->ifp, "cqn=0x%.6x event=0x%.2x\n",
-	    mcq->cqn, event);
-}
+#endif		/* _MLX5_MPFS_H_ */

@@ -78,9 +78,11 @@ static int lock_sem_sw_reset(struct mlx5_core_dev *dev)
 	ret = -mlx5_vsc_lock_addr_space(dev, MLX5_SEMAPHORE_SW_RESET);
 	if (ret) {
 		if (ret == -EBUSY)
-			mlx5_core_dbg(dev, "SW reset FW semaphore already locked, another function will handle the reset\n");
+			mlx5_core_dbg(dev,
+			    "SW reset FW semaphore already locked, another function will handle the reset\n");
 		else
-			mlx5_core_warn(dev, "SW reset semaphore lock return %d\n", ret);
+			mlx5_core_warn(dev,
+			    "SW reset semaphore lock return %d\n", ret);
 	}
 
 	/* Unlock GW access */
@@ -216,11 +218,12 @@ static void reset_fw_if_needed(struct mlx5_core_dev *dev)
 	if (fatal_error == MLX5_SENSOR_PCI_COMM_ERR ||
 	    fatal_error == MLX5_SENSOR_NIC_DISABLED ||
 	    fatal_error == MLX5_SENSOR_NIC_SW_RESET) {
-		mlx5_core_warn(dev, "Not issuing FW reset. Either it's already done or won't help.\n");
+		mlx5_core_warn(dev,
+		    "Not issuing FW reset. Either it's already done or won't help.\n");
 		return;
 	}
 
-	mlx5_core_warn(dev, "Issuing FW Reset\n");
+	mlx5_core_info(dev, "Issuing FW Reset\n");
 	/* Write the NIC interface field to initiate the reset, the command
 	 * interface address also resides here, don't overwrite it.
 	 */
@@ -251,8 +254,8 @@ mlx5_health_allow_reset(struct mlx5_core_dev *dev)
 	 */
 	health->last_reset_req = ticks ? : -1;
 	if (!ret)
-		mlx5_core_warn(dev, "Firmware reset elided due to "
-		    "auto-reset frequency threshold.\n");
+		mlx5_core_warn(dev,
+		    "Firmware reset elided due to auto-reset frequency threshold.\n");
 	return (ret);
 }
 
@@ -297,7 +300,7 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 
 		/* Execute cr-dump and SW reset */
 		if (lock != -EBUSY) {
-			mlx5_fwdump(dev);
+			(void)mlx5_fwdump(dev);
 			reset_fw_if_needed(dev);
 			delay_ms = MLX5_FW_RESET_WAIT_MS;
 		}
@@ -313,7 +316,7 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 	} while (!time_after(jiffies, end));
 
 	if (!sensor_nic_disabled(dev)) {
-		dev_err(&dev->pdev->dev, "NIC IFC still %d after %ums.\n",
+		mlx5_core_err(dev, "NIC IFC still %d after %ums.\n",
 			mlx5_get_nic_state(dev), delay_ms);
 	}
 
@@ -321,7 +324,7 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 	if (!lock)
 		unlock_sem_sw_reset(dev);
 
-	mlx5_core_err(dev, "system error event triggered\n");
+	mlx5_core_info(dev, "System error event triggered\n");
 
 err_state_done:
 	mlx5_core_event(dev, MLX5_DEV_EVENT_SYS_ERROR, 1);
@@ -342,9 +345,11 @@ static void mlx5_handle_bad_state(struct mlx5_core_dev *dev)
 		 *    MLX5_NIC_IFC_DISABLED.
 		 */
 		if (dev->priv.health.fatal_error != MLX5_SENSOR_PCI_COMM_ERR)
-			mlx5_core_warn(dev, "NIC SW reset is already progress\n");
+			mlx5_core_warn(dev,
+			    "NIC SW reset is already progress\n");
 		else
-			mlx5_core_warn(dev, "Communication with FW over the PCI link is down\n");
+			mlx5_core_warn(dev,
+			    "Communication with FW over the PCI link is down\n");
 	} else {
 		mlx5_core_warn(dev, "NIC mode %d\n", nic_mode);
 	}
@@ -372,7 +377,8 @@ static void health_recover(struct work_struct *work)
 	mtx_lock(&Giant);	/* XXX newbus needs this */
 
 	if (sensor_pci_no_comm(dev)) {
-		dev_err(&dev->pdev->dev, "health recovery flow aborted, PCI reads still not working\n");
+		mlx5_core_err(dev,
+		    "health recovery flow aborted, PCI reads still not working\n");
 		recover = false;
 	}
 
@@ -384,13 +390,14 @@ static void health_recover(struct work_struct *work)
 	}
 
 	if (nic_mode != MLX5_NIC_IFC_DISABLED) {
-		dev_err(&dev->pdev->dev, "health recovery flow aborted, unexpected NIC IFC mode %d.\n",
-			nic_mode);
+		mlx5_core_err(dev,
+		    "health recovery flow aborted, unexpected NIC IFC mode %d.\n",
+		    nic_mode);
 		recover = false;
 	}
 
 	if (recover) {
-		dev_err(&dev->pdev->dev, "starting health recovery flow\n");
+		mlx5_core_info(dev, "Starting health recovery flow\n");
 		mlx5_recover_device(dev);
 	}
 
@@ -425,12 +432,13 @@ static void health_care(struct work_struct *work)
 
 	spin_lock_irqsave(&health->wq_lock, flags);
 	if (!test_bit(MLX5_DROP_NEW_RECOVERY_WORK, &health->flags)) {
-		mlx5_core_warn(dev, "Scheduling recovery work with %lums delay\n",
-			       recover_delay);
+		mlx5_core_warn(dev,
+		    "Scheduling recovery work with %lums delay\n",
+		    recover_delay);
 		schedule_delayed_work(&health->recover_work, recover_delay);
 	} else {
-		dev_err(&dev->pdev->dev,
-			"new health works are not permitted at this stage\n");
+		mlx5_core_err(dev,
+		    "new health works are not permitted at this stage\n");
 	}
 	spin_unlock_irqrestore(&health->wq_lock, flags);
 }
@@ -455,7 +463,7 @@ void mlx5_trigger_health_work(struct mlx5_core_dev *dev)
 	if (!test_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags))
 		queue_work(health->wq, &health->work);
 	else
-		dev_err(&dev->pdev->dev,
+		mlx5_core_err(dev,
 			"new health works are not permitted at this stage\n");
 	spin_unlock_irqrestore(&health->wq_lock, flags);
 }
@@ -490,31 +498,44 @@ static const char *hsynd_str(u8 synd)
 	}
 }
 
-static void print_health_info(struct mlx5_core_dev *dev)
+static u8
+print_health_info(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
 	struct mlx5_health_buffer __iomem *h = health->health;
+	u8 synd = ioread8(&h->synd);
 	char fw_str[18];
 	u32 fw;
 	int i;
 
-	/* If the syndrom is 0, the device is OK and no need to print buffer */
-	if (!ioread8(&h->synd))
-		return;
+	/*
+	 * If synd is 0x0 - this indicates that FW is unable to
+	 * respond to initialization segment reads and health buffer
+	 * should not be read.
+	 */
+	if (synd == 0)
+		return (0);
 
 	for (i = 0; i < ARRAY_SIZE(h->assert_var); i++)
-		printf("mlx5_core: INFO: ""assert_var[%d] 0x%08x\n", i, ioread32be(h->assert_var + i));
+		mlx5_core_info(dev, "assert_var[%d] 0x%08x\n", i,
+		    ioread32be(h->assert_var + i));
 
-	printf("mlx5_core: INFO: ""assert_exit_ptr 0x%08x\n", ioread32be(&h->assert_exit_ptr));
-	printf("mlx5_core: INFO: ""assert_callra 0x%08x\n", ioread32be(&h->assert_callra));
-	snprintf(fw_str, sizeof(fw_str), "%d.%d.%d", fw_rev_maj(dev), fw_rev_min(dev), fw_rev_sub(dev));
-	printf("mlx5_core: INFO: ""fw_ver %s\n", fw_str);
-	printf("mlx5_core: INFO: ""hw_id 0x%08x\n", ioread32be(&h->hw_id));
-	printf("mlx5_core: INFO: ""irisc_index %d\n", ioread8(&h->irisc_index));
-	printf("mlx5_core: INFO: ""synd 0x%x: %s\n", ioread8(&h->synd), hsynd_str(ioread8(&h->synd)));
-	printf("mlx5_core: INFO: ""ext_synd 0x%04x\n", ioread16be(&h->ext_synd));
+	mlx5_core_info(dev, "assert_exit_ptr 0x%08x\n",
+	    ioread32be(&h->assert_exit_ptr));
+	mlx5_core_info(dev, "assert_callra 0x%08x\n",
+	    ioread32be(&h->assert_callra));
+	snprintf(fw_str, sizeof(fw_str), "%d.%d.%d",
+	    fw_rev_maj(dev), fw_rev_min(dev), fw_rev_sub(dev));
+	mlx5_core_info(dev, "fw_ver %s\n", fw_str);
+	mlx5_core_info(dev, "hw_id 0x%08x\n", ioread32be(&h->hw_id));
+	mlx5_core_info(dev, "irisc_index %d\n", ioread8(&h->irisc_index));
+	mlx5_core_info(dev, "synd 0x%x: %s\n",
+	    ioread8(&h->synd), hsynd_str(ioread8(&h->synd)));
+	mlx5_core_info(dev, "ext_synd 0x%04x\n", ioread16be(&h->ext_synd));
 	fw = ioread32be(&h->fw_ver);
-	printf("mlx5_core: INFO: ""raw fw_ver 0x%08x\n", fw);
+	mlx5_core_info(dev, "raw fw_ver 0x%08x\n", fw);
+
+	return synd;
 }
 
 static void health_watchdog(struct work_struct *work)
@@ -532,31 +553,38 @@ static void health_watchdog(struct work_struct *work)
 
 	err = mlx5_pci_read_power_status(dev, &power, &status);
 	if (err < 0) {
-		mlx5_core_warn(dev, "Failed reading power status: %d\n", err);
+		mlx5_core_warn(dev, "Failed reading power status: %d\n",
+		    err);
 		return;
 	}
 
 	dev->pwr_value = power;
 
 	if (dev->pwr_status != status) {
-		device_t bsddev = dev->pdev->dev.bsddev;
 
 		switch (status) {
 		case 0:
 			dev->pwr_status = status;
-			device_printf(bsddev, "PCI power is not published by the PCIe slot.\n");
+			mlx5_core_info(dev,
+			    "PCI power is not published by the PCIe slot.\n");
 			break;
 		case 1:
 			dev->pwr_status = status;
-			device_printf(bsddev, "PCIe slot advertised sufficient power (%uW).\n", power);
+			mlx5_core_info(dev,
+			    "PCIe slot advertised sufficient power (%uW).\n",
+			    power);
 			break;
 		case 2:
 			dev->pwr_status = status;
-			device_printf(bsddev, "WARN: Detected insufficient power on the PCIe slot (%uW).\n", power);
+			mlx5_core_warn(dev,
+			    "Detected insufficient power on the PCIe slot (%uW).\n",
+			    power);
 			break;
 		default:
 			dev->pwr_status = 0;
-			device_printf(bsddev, "WARN: Unknown power state detected(%d).\n", status);
+			mlx5_core_warn(dev,
+			    "Unknown power state detected(%d).\n",
+			    status);
 			break;
 		}
 	}
@@ -572,8 +600,8 @@ mlx5_trigger_health_watchdog(struct mlx5_core_dev *dev)
 	if (!test_bit(MLX5_DROP_NEW_WATCHDOG_WORK, &health->flags))
 		queue_work(health->wq_watchdog, &health->work_watchdog);
 	else
-		dev_err(&dev->pdev->dev,
-			"scheduling watchdog is not permitted at this stage\n");
+		mlx5_core_err(dev,
+		    "scheduling watchdog is not permitted at this stage\n");
 	spin_unlock_irqrestore(&health->wq_lock, flags);
 }
 
@@ -596,13 +624,15 @@ static void poll_health(unsigned long data)
 	health->prev = count;
 	if (health->miss_counter == MAX_MISSES) {
 		mlx5_core_err(dev, "device's health compromised - reached miss count\n");
-		print_health_info(dev);
+		if (print_health_info(dev) == 0)
+			mlx5_core_err(dev, "FW is unable to respond to initialization segment reads\n");
 	}
 
 	fatal_error = check_fatal_sensors(dev);
 
 	if (fatal_error && !health->fatal_error) {
-		mlx5_core_err(dev, "Fatal error %u detected\n", fatal_error);
+		mlx5_core_err(dev,
+		    "Fatal error %u detected\n", fatal_error);
 		dev->priv.health.fatal_error = fatal_error;
 		print_health_info(dev);
 		mlx5_trigger_health_work(dev);
