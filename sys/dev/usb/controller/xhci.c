@@ -601,6 +601,9 @@ xhci_init(struct xhci_softc *sc, device_t self, uint8_t dma32)
 	device_printf(self, "%d bytes context size, %d-bit DMA\n",
 	    sc->sc_ctx_is_64_byte ? 64 : 32, (int)sc->sc_bus.dma_bits);
 
+	/* enable 64Kbyte control endpoint quirk */
+	sc->sc_bus.control_ep_quirk = 1;
+
 	temp = XREAD4(sc, capa, XHCI_HCSPARAMS1);
 
 	/* get number of device slots */
