@@ -3387,8 +3387,7 @@ out:
 		}
 		/* Check if module is present before doing an access */
 		module_status = mlx5_query_module_status(priv->mdev, module_num);
-		if (module_status != MLX5_MODULE_STATUS_PLUGGED_ENABLED &&
-		    module_status != MLX5_MODULE_STATUS_PLUGGED_DISABLED) {
+		if (module_status != MLX5_MODULE_STATUS_PLUGGED_ENABLED) {
 			error = EINVAL;
 			goto err_i2c;
 		}
