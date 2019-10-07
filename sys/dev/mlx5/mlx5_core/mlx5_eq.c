@@ -219,7 +219,7 @@ mlx5_temp_warning_event(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe)
 {
 
 	mlx5_core_warn(dev,
-	    "High temperature on sensors with bit set %#jx %#jx",
+	    "High temperature on sensors with bit set %#jx %#jx\n",
 	    (uintmax_t)be64_to_cpu(eqe->data.temp_warning.sensor_warning_msb),
 	    (uintmax_t)be64_to_cpu(eqe->data.temp_warning.sensor_warning_lsb));
 }
