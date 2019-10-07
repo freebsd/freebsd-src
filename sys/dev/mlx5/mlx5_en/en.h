@@ -75,6 +75,9 @@
 
 #define	MLX5E_MAX_PRIORITY 8
 
+#define	MLX5E_MAX_FEC_10X_25X 4
+#define	MLX5E_MAX_FEC_50X 4
+
 /* IEEE 802.1Qaz standard supported values */
 #define	IEEE_8021QAZ_MAX_TCS	8
 
@@ -711,6 +714,11 @@ struct mlx5e_params_ethtool {
 	u8	prio_tc[MLX5E_MAX_PRIORITY];
 	u8	dscp2prio[MLX5_MAX_SUPPORTED_DSCP];
 	u8	trust_state;
+	u8	fec_mask_10x_25x[MLX5E_MAX_FEC_10X_25X];
+	u16	fec_mask_50x[MLX5E_MAX_FEC_50X];
+	u8	fec_avail_10x_25x[MLX5E_MAX_FEC_10X_25X];
+	u16	fec_avail_50x[MLX5E_MAX_FEC_50X];
+	u32	fec_mode_active;
 };
 
 struct mlx5e_cq {
@@ -1173,5 +1181,6 @@ void	mlx5e_resume_sq(struct mlx5e_sq *sq);
 void	mlx5e_update_sq_inline(struct mlx5e_sq *sq);
 void	mlx5e_refresh_sq_inline(struct mlx5e_priv *priv);
 int	mlx5e_update_buf_lossy(struct mlx5e_priv *priv);
+int	mlx5e_fec_update(struct mlx5e_priv *priv);
 
 #endif					/* _MLX5_EN_H_ */

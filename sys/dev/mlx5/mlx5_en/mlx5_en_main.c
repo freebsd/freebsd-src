@@ -859,6 +859,7 @@ mlx5e_update_stats_locked(struct mlx5e_priv *priv)
 	u64 rx_packets = 0;
 	u64 rx_bytes = 0;
 	u32 rx_out_of_buffer = 0;
+	int error;
 	int i;
 	int j;
 
@@ -1015,12 +1016,19 @@ free_out:
 	/* Update diagnostics, if any */
 	if (priv->params_ethtool.diag_pci_enable ||
 	    priv->params_ethtool.diag_general_enable) {
-		int error = mlx5_core_get_diagnostics_full(mdev,
+		error = mlx5_core_get_diagnostics_full(mdev,
 		    priv->params_ethtool.diag_pci_enable ? &priv->params_pci : NULL,
 		    priv->params_ethtool.diag_general_enable ? &priv->params_general : NULL);
 		if (error != 0)
 			mlx5_en_err(priv->ifp,
 			    "Failed reading diagnostics: %d\n", error);
+	}
+
+	/* Update FEC, if any */
+	error = mlx5e_fec_update(priv);
+	if (error != 0 && error != EOPNOTSUPP) {
+		mlx5_en_err(priv->ifp,
+		    "Updating FEC failed: %d\n", error);
 	}
 }
 
