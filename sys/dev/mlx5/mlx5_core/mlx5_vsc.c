@@ -96,7 +96,8 @@ void mlx5_vsc_unlock(struct mlx5_core_dev *mdev)
 	pci_write_config(dev, vsc_addr + MLX5_VSC_SEMA_OFFSET, 0, 4);
 }
 
-static int mlx5_vsc_wait_on_flag(struct mlx5_core_dev *mdev, u32 expected)
+int
+mlx5_vsc_wait_on_flag(struct mlx5_core_dev *mdev, u32 expected)
 {
 	device_t dev = mdev->pdev->dev.bsddev;
 	int vsc_addr = mdev->vsc_addr;
