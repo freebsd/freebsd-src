@@ -1272,7 +1272,7 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 
 		/* set value for constant fields */
 		for (j = 0; j < rq->nsegs; j++)
-			wqe->data[j].lkey = c->mkey_be;
+			wqe->data[j].lkey = cpu_to_be32(priv->mr.key);
 	}
 
 	INIT_WORK(&rq->dim.work, mlx5e_dim_work);
@@ -1628,7 +1628,7 @@ mlx5e_create_sq(struct mlx5e_channel *c,
 	if (err)
 		goto err_sq_wq_destroy;
 
-	sq->mkey_be = c->mkey_be;
+	sq->mkey_be = cpu_to_be32(priv->mr.key);
 	sq->ifp = priv->ifp;
 	sq->priv = priv;
 	sq->tc = tc;
@@ -2158,7 +2158,6 @@ mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	/* setup send tag */
 	c->tag.m_snd_tag.ifp = priv->ifp;
 	c->tag.type = IF_SND_TAG_TYPE_UNLIMITED;
-	c->mkey_be = cpu_to_be32(priv->mr.key);
 	c->num_tc = priv->num_tc;
 
 	/* init mutexes */
