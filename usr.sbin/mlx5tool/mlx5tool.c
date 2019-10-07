@@ -206,7 +206,8 @@ mlx5tool_fw_reset(int ctldev, const struct mlx5_tool_addr *addr)
 static void
 mlx5tool_eeprom_print(struct mlx5_eeprom_get *eeprom_info)
 {
-	unsigned int byte_to_write, index_in_row, line_length, row;
+	int index_in_row, line_length, row;
+	size_t byte_to_write;
 
 	byte_to_write = 0;
 	line_length = 16;
@@ -214,7 +215,7 @@ mlx5tool_eeprom_print(struct mlx5_eeprom_get *eeprom_info)
 	printf("\nOffset\t\tValues\n");
 	printf("------\t\t------");
 	while (byte_to_write < eeprom_info->eeprom_info_out_len) {
-		printf("\n0x%04X\t\t", byte_to_write);
+		printf("\n0x%04zX\t\t", byte_to_write);
 		for (index_in_row = 0; index_in_row < line_length;
 		    index_in_row++) {
 			printf("%02X ",
