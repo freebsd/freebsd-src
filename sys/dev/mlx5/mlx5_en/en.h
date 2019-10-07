@@ -1105,6 +1105,8 @@ mlx5e_cq_arm(struct mlx5e_cq *cq, spinlock_t *dblock)
 	mlx5_cq_arm(mcq, MLX5_CQ_DB_REQ_NOT, mcq->uar->map, dblock, cq->wq.cc);
 }
 
+#define	mlx5e_dbg(_IGN, _priv, ...) mlx5_core_dbg((_priv)->mdev, __VA_ARGS__)
+
 extern const struct ethtool_ops mlx5e_ethtool_ops;
 void	mlx5e_create_ethtool(struct mlx5e_priv *);
 void	mlx5e_create_stats(struct sysctl_ctx_list *,
