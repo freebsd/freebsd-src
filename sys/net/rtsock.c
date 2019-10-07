@@ -560,6 +560,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 	struct rib_head *rnh;
 	struct rt_addrinfo info;
 	struct sockaddr_storage ss;
+	struct epoch_tracker et;
 #ifdef INET6
 	struct sockaddr_in6 *sin6;
 	int i, rti_need_deembed = 0;
@@ -579,6 +580,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 		return (ENOBUFS);
 	if ((m->m_flags & M_PKTHDR) == 0)
 		panic("route_output");
+	NET_EPOCH_ENTER(et);
 	len = m->m_pkthdr.len;
 	if (len < sizeof(*rtm) ||
 	    len != mtod(m, struct rt_msghdr *)->rtm_msglen)
@@ -803,11 +805,11 @@ route_output(struct mbuf *m, struct socket *so, ...)
 				NET_EPOCH_ENTER(et);
 				ifa = ifa_ifwithnet(info.rti_info[RTAX_DST], 1,
 						RT_ALL_FIBS);
+				NET_EPOCH_EXIT(et);
 				if (ifa != NULL)
 					rt_maskedcopy(ifa->ifa_addr,
 						      &laddr,
 						      ifa->ifa_netmask);
-				NET_EPOCH_EXIT(et);
 			} else
 				rt_maskedcopy(rt->rt_ifa->ifa_addr,
 					      &laddr,
@@ -898,6 +900,7 @@ report:
 	}
 
 flush:
+	NET_EPOCH_EXIT(et);
 	if (rt != NULL)
 		RTFREE(rt);
 	/*
@@ -1761,11 +1764,9 @@ sysctl_iflist(int af, struct walkarg *w)
 	struct rt_addrinfo info;
 	int len, error = 0;
 	struct sockaddr_storage ss;
-	struct epoch_tracker et;
 
 	bzero((caddr_t)&info, sizeof(info));
 	bzero(&ifd, sizeof(ifd));
-	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
@@ -1815,7 +1816,6 @@ sysctl_iflist(int af, struct walkarg *w)
 		info.rti_info[RTAX_BRD] = NULL;
 	}
 done:
-	NET_EPOCH_EXIT(et);
 	return (error);
 }
 
@@ -1823,16 +1823,16 @@ static int
 sysctl_ifmalist(int af, struct walkarg *w)
 {
 	struct rt_addrinfo info;
-	struct epoch_tracker et;
 	struct ifaddr *ifa;
 	struct ifmultiaddr *ifma;
 	struct ifnet *ifp;
 	int error, len;
 
+	NET_EPOCH_ASSERT();
+
 	error = 0;
 	bzero((caddr_t)&info, sizeof(info));
 
-	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
@@ -1867,7 +1867,6 @@ sysctl_ifmalist(int af, struct walkarg *w)
 		if (error != 0)
 			break;
 	}
-	NET_EPOCH_EXIT(et);
 	return (error);
 }
 
@@ -1875,6 +1874,7 @@ static int
 sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 {
 	RIB_RLOCK_TRACKER;
+	struct epoch_tracker et;
 	int	*name = (int *)arg1;
 	u_int	namelen = arg2;
 	struct rib_head *rnh = NULL; /* silence compiler. */
@@ -1918,8 +1918,8 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	w.w_tmemsize = 65536;
 	w.w_tmem = malloc(w.w_tmemsize, M_TEMP, M_WAITOK);
 
+	NET_EPOCH_ENTER(et);
 	switch (w.w_op) {
-
 	case NET_RT_DUMP:
 	case NET_RT_FLAGS:
 		if (af == 0) {			/* dump all tables */
@@ -1946,13 +1946,9 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		for (error = 0; error == 0 && i <= lim; i++) {
 			rnh = rt_tables_get_rnh(fib, i);
 			if (rnh != NULL) {
-				struct epoch_tracker et;
-
 				RIB_RLOCK(rnh); 
-				NET_EPOCH_ENTER(et);
 			    	error = rnh->rnh_walktree(&rnh->head,
 				    sysctl_dumpentry, &w);
-				NET_EPOCH_EXIT(et);
 				RIB_RUNLOCK(rnh);
 			} else if (af != 0)
 				error = EAFNOSUPPORT;
@@ -1968,6 +1964,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		error = sysctl_ifmalist(af, &w);
 		break;
 	}
+	NET_EPOCH_EXIT(et);
 
 	free(w.w_tmem, M_TEMP);
 	return (error);

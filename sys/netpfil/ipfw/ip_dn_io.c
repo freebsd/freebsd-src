@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>	/* IFNAMSIZ, struct ifaddr, ifq head, lock.h mutex.h */
+#include <net/if_var.h>	/* NET_EPOCH_... */
 #include <net/netisr.h>
 #include <net/vnet.h>
 
@@ -740,6 +741,8 @@ static void
 dummynet_send(struct mbuf *m)
 {
 	struct mbuf *n;
+
+	NET_EPOCH_ASSERT();
 
 	for (; m != NULL; m = n) {
 		struct ifnet *ifp = NULL;	/* gcc 3.4.6 complains */

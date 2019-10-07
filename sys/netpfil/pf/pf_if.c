@@ -76,8 +76,8 @@ eventhandler_tag	 pfi_change_group_cookie;
 eventhandler_tag	 pfi_detach_group_cookie;
 eventhandler_tag	 pfi_ifaddr_event_cookie;
 
-static void	 pfi_attach_ifnet(struct ifnet *);
-static void	 pfi_attach_ifgroup(struct ifg_group *);
+static void	 pfi_attach_ifnet(struct ifnet *, struct pfi_kif *);
+static void	 pfi_attach_ifgroup(struct ifg_group *, struct pfi_kif *);
 
 static void	 pfi_kif_update(struct pfi_kif *);
 static void	 pfi_dynaddr_update(struct pfi_dynaddr *dyn);
@@ -114,25 +114,49 @@ MTX_SYSINIT(pfi_unlnkdkifs_mtx, &pfi_unlnkdkifs_mtx, "pf unlinked interfaces",
 void
 pfi_initialize_vnet(void)
 {
+	struct pfi_list kifs = LIST_HEAD_INITIALIZER();
+	struct epoch_tracker et;
+	struct pfi_kif *kif;
 	struct ifg_group *ifg;
 	struct ifnet *ifp;
-	struct pfi_kif *kif;
+	int nkifs;
 
 	V_pfi_buffer_max = 64;
 	V_pfi_buffer = malloc(V_pfi_buffer_max * sizeof(*V_pfi_buffer),
 	    PFI_MTYPE, M_WAITOK);
 
-	kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
-	PF_RULES_WLOCK();
-	V_pfi_all = pfi_kif_attach(kif, IFG_ALL);
-	PF_RULES_WUNLOCK();
-
+	nkifs = 1;	/* one for V_pfi_all */
 	IFNET_RLOCK();
 	CK_STAILQ_FOREACH(ifg, &V_ifg_head, ifg_next)
-		pfi_attach_ifgroup(ifg);
+		nkifs++;
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link)
-		pfi_attach_ifnet(ifp);
+		nkifs++;
+
+	for (int n = 0; n < nkifs; n++) {
+		kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+		LIST_INSERT_HEAD(&kifs, kif, pfik_list);
+	}
+
+	NET_EPOCH_ENTER(et);
+	PF_RULES_WLOCK();
+	kif = LIST_FIRST(&kifs);
+	LIST_REMOVE(kif, pfik_list);
+	V_pfi_all = pfi_kif_attach(kif, IFG_ALL);
+	CK_STAILQ_FOREACH(ifg, &V_ifg_head, ifg_next) {
+		kif = LIST_FIRST(&kifs);
+		LIST_REMOVE(kif, pfik_list);
+		pfi_attach_ifgroup(ifg, kif);
+	}
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		kif = LIST_FIRST(&kifs);
+		LIST_REMOVE(kif, pfik_list);
+		pfi_attach_ifnet(ifp, kif);
+	}
+	PF_RULES_WUNLOCK();
+	NET_EPOCH_EXIT(et);
 	IFNET_RUNLOCK();
+
+	MPASS(LIST_EMPTY(&kifs));
 }
 
 void
@@ -296,59 +320,44 @@ pfi_kif_match(struct pfi_kif *rule_kif, struct pfi_kif *packet_kif)
 {
 	struct ifg_list	*p;
 
+	NET_EPOCH_ASSERT();
+
 	if (rule_kif == NULL || rule_kif == packet_kif)
 		return (1);
 
 	if (rule_kif->pfik_group != NULL) {
-		struct epoch_tracker et;
-
-		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(p, &packet_kif->pfik_ifp->if_groups, ifgl_next)
-			if (p->ifgl_group == rule_kif->pfik_group) {
-				NET_EPOCH_EXIT(et);
+			if (p->ifgl_group == rule_kif->pfik_group)
 				return (1);
-			}
-		NET_EPOCH_EXIT(et);
 	}
-
 
 	return (0);
 }
 
 static void
-pfi_attach_ifnet(struct ifnet *ifp)
+pfi_attach_ifnet(struct ifnet *ifp, struct pfi_kif *kif)
 {
-	struct pfi_kif *kif;
 
-	kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+	PF_RULES_WASSERT();
 
-	PF_RULES_WLOCK();
 	V_pfi_update++;
 	kif = pfi_kif_attach(kif, ifp->if_xname);
-
 	if_ref(ifp);
-
 	kif->pfik_ifp = ifp;
 	ifp->if_pf_kif = kif;
-
 	pfi_kif_update(kif);
-	PF_RULES_WUNLOCK();
 }
 
 static void
-pfi_attach_ifgroup(struct ifg_group *ifg)
+pfi_attach_ifgroup(struct ifg_group *ifg, struct pfi_kif *kif)
 {
-	struct pfi_kif *kif;
 
-	kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+	PF_RULES_WASSERT();
 
-	PF_RULES_WLOCK();
 	V_pfi_update++;
 	kif = pfi_kif_attach(kif, ifg->ifg_group);
-
 	kif->pfik_group = ifg;
 	ifg->ifg_pf_kif = kif;
-	PF_RULES_WUNLOCK();
 }
 
 int
@@ -389,6 +398,7 @@ pfi_match_addr(struct pfi_dynaddr *dyn, struct pf_addr *a, sa_family_t af)
 int
 pfi_dynaddr_setup(struct pf_addr_wrap *aw, sa_family_t af)
 {
+	struct epoch_tracker	 et;
 	struct pfi_dynaddr	*dyn;
 	char			 tblname[PF_TABLE_NAME_SIZE];
 	struct pf_ruleset	*ruleset = NULL;
@@ -445,7 +455,9 @@ pfi_dynaddr_setup(struct pf_addr_wrap *aw, sa_family_t af)
 
 	TAILQ_INSERT_TAIL(&dyn->pfid_kif->pfik_dynaddrs, dyn, entry);
 	aw->p.dyn = dyn;
+	NET_EPOCH_ENTER(et);
 	pfi_kif_update(dyn->pfid_kif);
+	NET_EPOCH_EXIT(et);
 
 	return (0);
 
@@ -467,6 +479,7 @@ pfi_kif_update(struct pfi_kif *kif)
 	struct ifg_list		*ifgl;
 	struct pfi_dynaddr	*p;
 
+	NET_EPOCH_ASSERT();
 	PF_RULES_WASSERT();
 
 	/* update all dynaddr */
@@ -475,13 +488,9 @@ pfi_kif_update(struct pfi_kif *kif)
 
 	/* again for all groups kif is member of */
 	if (kif->pfik_ifp != NULL) {
-		struct epoch_tracker et;
-
-		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifgl, &kif->pfik_ifp->if_groups, ifgl_next)
 			pfi_kif_update((struct pfi_kif *)
 			    ifgl->ifgl_group->ifg_pf_kif);
-		NET_EPOCH_EXIT(et);
 	}
 }
 
@@ -512,17 +521,15 @@ pfi_table_update(struct pfr_ktable *kt, struct pfi_kif *kif, int net, int flags)
 	int			 e, size2 = 0;
 	struct ifg_member	*ifgm;
 
+	NET_EPOCH_ASSERT();
+
 	V_pfi_buffer_cnt = 0;
 
 	if (kif->pfik_ifp != NULL)
 		pfi_instance_add(kif->pfik_ifp, net, flags);
 	else if (kif->pfik_group != NULL) {
-		struct epoch_tracker et;
-
-		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifgm, &kif->pfik_group->ifg_members, ifgm_next)
 			pfi_instance_add(ifgm->ifgm_ifp, net, flags);
-		NET_EPOCH_EXIT(et);
 	}
 
 	if ((e = pfr_set_addrs(&kt->pfrkt_t, V_pfi_buffer, V_pfi_buffer_cnt, &size2,
@@ -534,12 +541,12 @@ pfi_table_update(struct pfr_ktable *kt, struct pfi_kif *kif, int net, int flags)
 static void
 pfi_instance_add(struct ifnet *ifp, int net, int flags)
 {
-	struct epoch_tracker et;
 	struct ifaddr	*ia;
 	int		 got4 = 0, got6 = 0;
 	int		 net2, af;
 
-	NET_EPOCH_ENTER(et);
+	NET_EPOCH_ASSERT();
+
 	CK_STAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
 		if (ia->ifa_addr == NULL)
 			continue;
@@ -597,7 +604,6 @@ pfi_instance_add(struct ifnet *ifp, int net, int flags)
 		else
 			pfi_address_add(ia->ifa_addr, af, net2);
 	}
-	NET_EPOCH_EXIT(et);
 }
 
 static void
@@ -732,9 +738,11 @@ pfi_update_status(const char *name, struct pf_status *pfs)
 void
 pfi_get_ifaces(const char *name, struct pfi_kif *buf, int *size)
 {
+	struct epoch_tracker et;
 	struct pfi_kif	*p, *nextp;
 	int		 n = 0;
 
+	NET_EPOCH_ENTER(et);
 	for (p = RB_MIN(pfi_ifhead, &V_pfi_ifs); p; p = nextp) {
 		nextp = RB_NEXT(pfi_ifhead, &V_pfi_ifs, p);
 		if (pfi_skip_if(name, p))
@@ -747,6 +755,7 @@ pfi_get_ifaces(const char *name, struct pfi_kif *buf, int *size)
 		nextp = RB_NEXT(pfi_ifhead, &V_pfi_ifs, p);
 	}
 	*size = n;
+	NET_EPOCH_EXIT(et);
 }
 
 static int
@@ -754,6 +763,8 @@ pfi_skip_if(const char *filter, struct pfi_kif *p)
 {
 	struct ifg_list *i;
 	int	n;
+
+	NET_EPOCH_ASSERT();
 
 	if (filter == NULL || !*filter)
 		return (0);
@@ -764,45 +775,43 @@ pfi_skip_if(const char *filter, struct pfi_kif *p)
 		return (1);	/* sanity check */
 	if (filter[n-1] >= '0' && filter[n-1] <= '9')
 		return (1);	/* group names may not end in a digit */
-	if (p->pfik_ifp != NULL) {
-		struct epoch_tracker et;
-
-		NET_EPOCH_ENTER(et);
-		CK_STAILQ_FOREACH(i, &p->pfik_ifp->if_groups, ifgl_next) {
-			if (!strncmp(i->ifgl_group->ifg_group, filter,
-			      IFNAMSIZ)) {
-				NET_EPOCH_EXIT(et);
-				return (0); /* iface is in group "filter" */
-			}
-		}
-		NET_EPOCH_EXIT(et);
-	}
+	if (p->pfik_ifp == NULL)
+		return (1);
+	CK_STAILQ_FOREACH(i, &p->pfik_ifp->if_groups, ifgl_next)
+		if (!strncmp(i->ifgl_group->ifg_group, filter, IFNAMSIZ))
+			return (0); /* iface is in group "filter" */
 	return (1);
 }
 
 int
 pfi_set_flags(const char *name, int flags)
 {
+	struct epoch_tracker et;
 	struct pfi_kif	*p;
 
+	NET_EPOCH_ENTER(et);
 	RB_FOREACH(p, pfi_ifhead, &V_pfi_ifs) {
 		if (pfi_skip_if(name, p))
 			continue;
 		p->pfik_flags |= flags;
 	}
+	NET_EPOCH_EXIT(et);
 	return (0);
 }
 
 int
 pfi_clear_flags(const char *name, int flags)
 {
+	struct epoch_tracker et;
 	struct pfi_kif	*p;
 
+	NET_EPOCH_ENTER(et);
 	RB_FOREACH(p, pfi_ifhead, &V_pfi_ifs) {
 		if (pfi_skip_if(name, p))
 			continue;
 		p->pfik_flags &= ~flags;
 	}
+	NET_EPOCH_EXIT(et);
 	return (0);
 }
 
@@ -829,22 +838,28 @@ pfi_unmask(void *addr)
 static void
 pfi_attach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 {
+	struct epoch_tracker et;
+	struct pfi_kif *kif;
 
 	if (V_pf_vnet_active == 0) {
 		/* Avoid teardown race in the least expensive way. */
 		return;
 	}
-	pfi_attach_ifnet(ifp);
-#ifdef ALTQ
+	kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+	NET_EPOCH_ENTER(et);
 	PF_RULES_WLOCK();
+	pfi_attach_ifnet(ifp, kif);
+#ifdef ALTQ
 	pf_altq_ifnet_event(ifp, 0);
-	PF_RULES_WUNLOCK();
 #endif
+	PF_RULES_WUNLOCK();
+	NET_EPOCH_EXIT(et);
 }
 
 static void
 pfi_detach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 {
+	struct epoch_tracker et;
 	struct pfi_kif *kif = (struct pfi_kif *)ifp->if_pf_kif;
 
 	if (pfsync_detach_ifnet_ptr)
@@ -858,6 +873,7 @@ pfi_detach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 		return;
 	}
 
+	NET_EPOCH_ENTER(et);
 	PF_RULES_WLOCK();
 	V_pfi_update++;
 	pfi_kif_update(kif);
@@ -871,22 +887,31 @@ pfi_detach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 	pf_altq_ifnet_event(ifp, 1);
 #endif
 	PF_RULES_WUNLOCK();
+	NET_EPOCH_EXIT(et);
 }
 
 static void
 pfi_attach_group_event(void *arg __unused, struct ifg_group *ifg)
 {
+	struct epoch_tracker et;
+	struct pfi_kif *kif;
 
 	if (V_pf_vnet_active == 0) {
 		/* Avoid teardown race in the least expensive way. */
 		return;
 	}
-	pfi_attach_ifgroup(ifg);
+	kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+	NET_EPOCH_ENTER(et);
+	PF_RULES_WLOCK();
+	pfi_attach_ifgroup(ifg, kif);
+	PF_RULES_WUNLOCK();
+	NET_EPOCH_EXIT(et);
 }
 
 static void
 pfi_change_group_event(void *arg __unused, char *gname)
 {
+	struct epoch_tracker et;
 	struct pfi_kif *kif;
 
 	if (V_pf_vnet_active == 0) {
@@ -895,11 +920,13 @@ pfi_change_group_event(void *arg __unused, char *gname)
 	}
 
 	kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+	NET_EPOCH_ENTER(et);
 	PF_RULES_WLOCK();
 	V_pfi_update++;
 	kif = pfi_kif_attach(kif, gname);
 	pfi_kif_update(kif);
 	PF_RULES_WUNLOCK();
+	NET_EPOCH_EXIT(et);
 }
 
 static void
@@ -937,8 +964,12 @@ pfi_ifaddr_event(void *arg __unused, struct ifnet *ifp)
 	}
 	PF_RULES_WLOCK();
 	if (ifp->if_pf_kif) {
+		struct epoch_tracker et;
+
 		V_pfi_update++;
+		NET_EPOCH_ENTER(et);
 		pfi_kif_update(ifp->if_pf_kif);
+		NET_EPOCH_EXIT(et);
 	}
 	PF_RULES_WUNLOCK();
 }

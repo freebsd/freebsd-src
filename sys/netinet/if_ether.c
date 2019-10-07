@@ -258,12 +258,16 @@ arptimer(void *arg)
 
 		if (r_skip_req == 0 && lle->la_preempt > 0) {
 			/* Entry was used, issue refresh request */
+			struct epoch_tracker et;
 			struct in_addr dst;
+
 			dst = lle->r_l3addr.addr4;
 			lle->la_preempt--;
 			callout_schedule(&lle->lle_timer, hz * V_arpt_rexmit);
 			LLE_WUNLOCK(lle);
+			NET_EPOCH_ENTER(et);
 			arprequest(ifp, NULL, &dst, NULL);
+			NET_EPOCH_EXIT(et);
 			CURVNET_RESTORE();
 			return;
 		}
@@ -362,15 +366,15 @@ arprequest_internal(struct ifnet *ifp, const struct in_addr *sip,
 	struct route ro;
 	int error;
 
+	NET_EPOCH_ASSERT();
+
 	if (sip == NULL) {
 		/*
 		 * The caller did not supply a source address, try to find
 		 * a compatible one among those assigned to this interface.
 		 */
-		struct epoch_tracker et;
 		struct ifaddr *ifa;
 
-		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
@@ -388,7 +392,6 @@ arprequest_internal(struct ifnet *ifp, const struct in_addr *sip,
 			    IA_MASKSIN(ifa)->sin_addr.s_addr))
 				break;  /* found it. */
 		}
-		NET_EPOCH_EXIT(et);
 		if (sip == NULL) {
 			printf("%s: cannot find matching address\n", __func__);
 			return (EADDRNOTAVAIL);
@@ -475,18 +478,15 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int flags, struct mbuf *m,
 	char *lladdr;
 	int ll_len;
 
+	NET_EPOCH_ASSERT();
+
 	if (pflags != NULL)
 		*pflags = 0;
 	if (plle != NULL)
 		*plle = NULL;
 
-	if ((flags & LLE_CREATE) == 0) {
-		struct epoch_tracker et;
-
-		NET_EPOCH_ENTER(et);
+	if ((flags & LLE_CREATE) == 0)
 		la = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
-		NET_EPOCH_EXIT(et);
-	}
 	if (la == NULL && (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
 		la = lltable_alloc_entry(LLTABLE(ifp), 0, dst);
 		if (la == NULL) {
@@ -623,8 +623,9 @@ arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	const struct sockaddr *dst, u_char *desten, uint32_t *pflags,
 	struct llentry **plle)
 {
-	struct epoch_tracker et;
 	struct llentry *la = NULL;
+
+	NET_EPOCH_ASSERT();
 
 	if (pflags != NULL)
 		*pflags = 0;
@@ -645,7 +646,6 @@ arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 		}
 	}
 
-	NET_EPOCH_ENTER(et);
 	la = lla_lookup(LLTABLE(ifp), plle ? LLE_EXCLUSIVE : LLE_UNLOCKED, dst);
 	if (la != NULL && (la->r_flags & RLLE_VALID) != 0) {
 		/* Entry found, let's copy lle info */
@@ -659,12 +659,10 @@ arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 			*plle = la;
 			LLE_WUNLOCK(la);
 		}
-		NET_EPOCH_EXIT(et);
 		return (0);
 	}
 	if (plle && la)
 		LLE_WUNLOCK(la);
-	NET_EPOCH_EXIT(et);
 
 	return (arpresolve_full(ifp, is_gw, la == NULL ? LLE_CREATE : 0, m, dst,
 	    desten, pflags, plle));
@@ -809,7 +807,8 @@ in_arpinput(struct mbuf *m)
 	int lladdr_off;
 	int error;
 	char addrbuf[INET_ADDRSTRLEN];
-	struct epoch_tracker et;
+
+	NET_EPOCH_ASSERT();
 
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
@@ -902,17 +901,14 @@ in_arpinput(struct mbuf *m)
 	 * No match, use the first inet address on the receive interface
 	 * as a dummy address for the rest of the function.
 	 */
-	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET &&
 		    (ifa->ifa_carp == NULL ||
 		    (*carp_iamatch_p)(ifa, &enaddr))) {
 			ia = ifatoia(ifa);
 			ifa_ref(ifa);
-			NET_EPOCH_EXIT(et);
 			goto match;
 		}
-	NET_EPOCH_EXIT(et);
 
 	/*
 	 * If bridging, fall back to using any inet address.
@@ -969,9 +965,7 @@ match:
 	sin.sin_family = AF_INET;
 	sin.sin_addr = isaddr;
 	dst = (struct sockaddr *)&sin;
-	NET_EPOCH_ENTER(et);
 	la = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
-	NET_EPOCH_EXIT(et);
 	if (la != NULL)
 		arp_check_update_lle(ah, isaddr, ifp, bridged, la);
 	else if (itaddr.s_addr == myaddr.s_addr) {
@@ -1049,9 +1043,7 @@ reply:
 		struct llentry *lle = NULL;
 
 		sin.sin_addr = itaddr;
-		NET_EPOCH_ENTER(et);
 		lle = lla_lookup(LLTABLE(ifp), 0, (struct sockaddr *)&sin);
-		NET_EPOCH_EXIT(et);
 
 		if ((lle != NULL) && (lle->la_flags & LLE_PUB)) {
 			(void)memcpy(ar_tha(ah), ar_sha(ah), ah->ar_hln);
@@ -1430,6 +1422,7 @@ garp_timer_start(struct ifaddr *ifa)
 void
 arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 {
+	struct epoch_tracker et;
 	const struct sockaddr_in *dst_in;
 	const struct sockaddr *dst;
 
@@ -1441,7 +1434,9 @@ arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 
 	if (ntohl(dst_in->sin_addr.s_addr) == INADDR_ANY)
 		return;
+	NET_EPOCH_ENTER(et);
 	arp_announce_ifaddr(ifp, dst_in->sin_addr, IF_LLADDR(ifp));
+	NET_EPOCH_EXIT(et);
 	if (garp_rexmit_count > 0) {
 		garp_timer_start(ifa);
 	}

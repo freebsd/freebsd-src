@@ -451,6 +451,8 @@ me_input(struct mbuf *m, int off, int proto, void *arg)
 	struct ip *ip;
 	int hlen;
 
+	NET_EPOCH_ASSERT();
+
 	ifp = ME2IFP(sc);
 	/* checks for short packets */
 	hlen = sizeof(struct mobhdr);

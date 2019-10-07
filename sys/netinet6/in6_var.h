@@ -785,6 +785,8 @@ in6m_ifmultiaddr_get_inm(struct ifmultiaddr *ifma)
  * Look up an in6_multi record for an IPv6 multicast address
  * on the interface ifp.
  * If no record found, return NULL.
+ *
+ * SMPng: The IN6_MULTI_LOCK and must be held and must be in network epoch.
  */
 static __inline struct in6_multi *
 in6m_lookup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr)
@@ -805,18 +807,17 @@ in6m_lookup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr)
 /*
  * Wrapper for in6m_lookup_locked().
  *
- * SMPng: Assumes that neithr the IN6_MULTI_LOCK() or IF_ADDR_LOCK() are held.
+ * SMPng: Assumes network epoch entered and that IN6_MULTI_LOCK() isn't held.
  */
 static __inline struct in6_multi *
 in6m_lookup(struct ifnet *ifp, const struct in6_addr *mcaddr)
 {
-	struct epoch_tracker et;
 	struct in6_multi *inm;
 
+	NET_EPOCH_ASSERT();
+
 	IN6_MULTI_LIST_LOCK();
-	NET_EPOCH_ENTER(et);
 	inm = in6m_lookup_locked(ifp, mcaddr);
-	NET_EPOCH_EXIT(et);
 	IN6_MULTI_LIST_UNLOCK();
 
 	return (inm);

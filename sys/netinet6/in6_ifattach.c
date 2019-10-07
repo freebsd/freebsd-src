@@ -240,7 +240,6 @@ generate_tmp_ifid(u_int8_t *seed0, const u_int8_t *seed1, u_int8_t *ret)
 int
 in6_get_hw_ifid(struct ifnet *ifp, struct in6_addr *in6)
 {
-	struct epoch_tracker et;
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
 	u_int8_t *addr;
@@ -249,7 +248,8 @@ in6_get_hw_ifid(struct ifnet *ifp, struct in6_addr *in6)
 	static u_int8_t allone[8] =
 		{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-	NET_EPOCH_ENTER(et);
+	NET_EPOCH_ASSERT();
+
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_LINK)
 			continue;
@@ -261,12 +261,10 @@ in6_get_hw_ifid(struct ifnet *ifp, struct in6_addr *in6)
 
 		goto found;
 	}
-	NET_EPOCH_EXIT(et);
 
 	return -1;
 
 found:
-	IF_ADDR_LOCK_ASSERT(ifp);
 	addr = LLADDR(sdl);
 	addrlen = sdl->sdl_alen;
 
@@ -283,24 +281,18 @@ found:
 			addrlen = 8;
 
 		/* look at IEEE802/EUI64 only */
-		if (addrlen != 8 && addrlen != 6) {
-			NET_EPOCH_EXIT(et);
+		if (addrlen != 8 && addrlen != 6)
 			return -1;
-		}
 
 		/*
 		 * check for invalid MAC address - on bsdi, we see it a lot
 		 * since wildboar configures all-zero MAC on pccard before
 		 * card insertion.
 		 */
-		if (bcmp(addr, allzero, addrlen) == 0) {
-			NET_EPOCH_EXIT(et);
+		if (bcmp(addr, allzero, addrlen) == 0)
 			return -1;
-		}
-		if (bcmp(addr, allone, addrlen) == 0) {
-			NET_EPOCH_EXIT(et);
+		if (bcmp(addr, allone, addrlen) == 0)
 			return -1;
-		}
 
 		/* make EUI64 address */
 		if (addrlen == 8)
@@ -325,27 +317,21 @@ found:
 		 * identifier source (can be renumbered).
 		 * we don't do this.
 		 */
-		NET_EPOCH_EXIT(et);
 		return -1;
 
 	case IFT_INFINIBAND:
-		if (addrlen != 20) {
-			NET_EPOCH_EXIT(et);
+		if (addrlen != 20)
 			return -1;
-		}
 		bcopy(addr + 12, &in6->s6_addr[8], 8);
 		break;
 
 	default:
-		NET_EPOCH_EXIT(et);
 		return -1;
 	}
 
 	/* sanity check: g bit must not indicate "group" */
-	if (EUI64_GROUP(in6)) {
-		NET_EPOCH_EXIT(et);
+	if (EUI64_GROUP(in6))
 		return -1;
-	}
 
 	/* convert EUI64 into IPv6 interface identifier */
 	EUI64_TO_IFID(in6);
@@ -355,12 +341,9 @@ found:
 	 * subnet router anycast
 	 */
 	if ((in6->s6_addr[8] & ~(EUI64_GBIT | EUI64_UBIT)) == 0x00 &&
-	    bcmp(&in6->s6_addr[9], allzero, 7) == 0) {
-		NET_EPOCH_EXIT(et);
+	    bcmp(&in6->s6_addr[9], allzero, 7) == 0)
 		return -1;
-	}
 
-	NET_EPOCH_EXIT(et);
 	return 0;
 }
 
@@ -375,8 +358,9 @@ static int
 get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
     struct in6_addr *in6)
 {
-	struct epoch_tracker et;
 	struct ifnet *ifp;
+
+	NET_EPOCH_ASSERT();
 
 	/* first, try to get it from the interface itself */
 	if (in6_get_hw_ifid(ifp0, in6) == 0) {
@@ -393,7 +377,6 @@ get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
 	}
 
 	/* next, try to get it from some other hardware interface */
-	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifp == ifp0)
 			continue;
@@ -408,11 +391,9 @@ get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
 			nd6log((LOG_DEBUG,
 			    "%s: borrow interface identifier from %s\n",
 			    if_name(ifp0), if_name(ifp)));
-			NET_EPOCH_EXIT(et);
 			goto success;
 		}
 	}
-	NET_EPOCH_EXIT(et);
 
 	/* last resort: get from random number source */
 	if (get_rand_ifid(ifp, in6) == 0) {
@@ -685,6 +666,8 @@ void
 in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 {
 	struct in6_ifaddr *ia;
+
+	NET_EPOCH_ASSERT();
 
 	if (ifp->if_afdata[AF_INET6] == NULL)
 		return;

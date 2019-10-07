@@ -1664,6 +1664,7 @@ tr_setup:
 static void
 uhso_if_rxflush(void *arg)
 {
+	struct epoch_tracker et;
 	struct uhso_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
 	uint8_t *cp;
@@ -1677,6 +1678,7 @@ uhso_if_rxflush(void *arg)
 
 	m = NULL;
 	mwait = sc->sc_mwait;
+	NET_EPOCH_ENTER(et);
 	for (;;) {
 		if (m == NULL) {
 			if ((m = mbufq_dequeue(&sc->sc_rxq)) == NULL)
@@ -1787,6 +1789,7 @@ uhso_if_rxflush(void *arg)
 		m = m0 != NULL ? m0 : NULL;
 		mtx_lock(&sc->sc_mtx);
 	}
+	NET_EPOCH_EXIT(et);
 	sc->sc_mwait = mwait;
 }
 
