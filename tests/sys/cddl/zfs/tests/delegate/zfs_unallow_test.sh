@@ -30,7 +30,7 @@ atf_test_case zfs_unallow_001_pos cleanup
 zfs_unallow_001_pos_head()
 {
 	atf_set "descr" "Verify '-l' only removed the local permissions."
-	atf_set "require.progs"  zfs svcs
+	atf_set "require.progs" zfs sudo
 }
 zfs_unallow_001_pos_body()
 {
@@ -56,7 +56,7 @@ atf_test_case zfs_unallow_002_pos cleanup
 zfs_unallow_002_pos_head()
 {
 	atf_set "descr" "Verify '-d' only removed the descendent permissions."
-	atf_set "require.progs"  zfs svcs
+	atf_set "require.progs" zfs sudo
 }
 zfs_unallow_002_pos_body()
 {
@@ -82,7 +82,7 @@ atf_test_case zfs_unallow_003_pos cleanup
 zfs_unallow_003_pos_head()
 {
 	atf_set "descr" "Verify options '-r' and '-l'+'-d' will unallow permission tothis dataset and the descendent datasets."
-	atf_set "require.progs"  zfs svcs
+	atf_set "require.progs" zfs sudo
 }
 zfs_unallow_003_pos_body()
 {
@@ -108,7 +108,7 @@ atf_test_case zfs_unallow_004_pos cleanup
 zfs_unallow_004_pos_head()
 {
 	atf_set "descr" "Verify '-s' will remove permissions from the named set."
-	atf_set "require.progs"  zfs svcs
+	atf_set "require.progs" zfs sudo
 }
 zfs_unallow_004_pos_body()
 {
@@ -134,7 +134,7 @@ atf_test_case zfs_unallow_005_pos cleanup
 zfs_unallow_005_pos_head()
 {
 	atf_set "descr" "Verify option '-c' will remove the created permission set."
-	atf_set "require.progs"  zfs svcs runwattr
+	atf_set "require.progs" zfs sudo
 }
 zfs_unallow_005_pos_body()
 {
@@ -160,7 +160,7 @@ atf_test_case zfs_unallow_006_pos cleanup
 zfs_unallow_006_pos_head()
 {
 	atf_set "descr" "Verify option '-u', '-g' and '-e' only removed the specified typepermissions set."
-	atf_set "require.progs"  zfs svcs
+	atf_set "require.progs" zfs sudo
 }
 zfs_unallow_006_pos_body()
 {
@@ -186,7 +186,7 @@ atf_test_case zfs_unallow_007_neg cleanup
 zfs_unallow_007_neg_head()
 {
 	atf_set "descr" "zfs unallow won't remove those permissions which inherited fromits parent dataset."
-	atf_set "require.progs"  zfs svcs
+	atf_set "require.progs" zfs sudo
 }
 zfs_unallow_007_neg_body()
 {
@@ -212,7 +212,7 @@ atf_test_case zfs_unallow_008_neg cleanup
 zfs_unallow_008_neg_head()
 {
 	atf_set "descr" "zfs unallow can handle invalid arguments."
-	atf_set "require.progs"  zfs svcs runwattr
+	atf_set "require.progs" zfs sudo
 }
 zfs_unallow_008_neg_body()
 {

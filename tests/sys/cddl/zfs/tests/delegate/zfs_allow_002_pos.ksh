@@ -65,8 +65,6 @@ function cleanup
 	if $ID $STAFF_GROUP > /dev/null 2>&1; then
 		log_must del_user $STAFF_GROUP 
 	fi
-
-	restore_root_datasets
 }
 
 log_assert "<user|group> is interpreted as user if possible, then as group."
