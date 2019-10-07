@@ -39,6 +39,7 @@ zfsd_fault_001_pos_body()
 	. $(atf_get_srcdir)/zfsd.cfg
 
 	verify_disk_count "$DISKS" 2
+	verify_zfsd_running
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_fault_001_pos.ksh
 	if [[ $? != 0 ]]; then
@@ -68,6 +69,7 @@ zfsd_degrade_001_pos_body()
 	. $(atf_get_srcdir)/zfsd.cfg
 
 	verify_disk_count "$DISKS" 2
+	verify_zfsd_running
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_degrade_001_pos.ksh
 	if [[ $? != 0 ]]; then
@@ -97,6 +99,7 @@ zfsd_degrade_002_pos_body()
 	. $(atf_get_srcdir)/zfsd.cfg
 
 	verify_disk_count "$DISKS" 5
+	verify_zfsd_running
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_degrade_002_pos.ksh
 	if [[ $? != 0 ]]; then
@@ -126,6 +129,7 @@ zfsd_hotspare_001_pos_body()
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
 
+	verify_zfsd_running
 	ksh93 $(atf_get_srcdir)/hotspare_setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_hotspare_001_pos.ksh
 	if [[ $? != 0 ]]; then
@@ -155,6 +159,7 @@ zfsd_hotspare_002_pos_body()
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
 
+	verify_zfsd_running
 	ksh93 $(atf_get_srcdir)/hotspare_setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_hotspare_002_pos.ksh
 	if [[ $? != 0 ]]; then
@@ -186,6 +191,7 @@ zfsd_hotspare_003_pos_body()
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
 
 	verify_disk_count "$DISKS" 5
+	verify_zfsd_running
 	ksh93 $(atf_get_srcdir)/hotspare_setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_hotspare_003_pos.ksh
 	if [[ $? != 0 ]]; then
@@ -216,6 +222,7 @@ zfsd_hotspare_004_pos_body()
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
 
 	verify_disk_count "$DISKS" 5
+	verify_zfsd_running
 	ksh93 $(atf_get_srcdir)/hotspare_setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_hotspare_004_pos.ksh
 	if [[ $? != 0 ]]; then
@@ -245,6 +252,7 @@ zfsd_hotspare_005_pos_body()
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
 
+	verify_zfsd_running
 	ksh93 $(atf_get_srcdir)/hotspare_setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_hotspare_005_pos.ksh
 	if [[ $? != 0 ]]; then
@@ -274,6 +282,7 @@ zfsd_hotspare_006_pos_body()
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
 
+	verify_zfsd_running
 	ksh93 $(atf_get_srcdir)/hotspare_setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_hotspare_006_pos.ksh
 	if [[ $? != 0 ]]; then
@@ -304,6 +313,7 @@ zfsd_hotspare_007_pos_body()
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
 
 	verify_disk_count "$DISKS" 5
+	verify_zfsd_running
 	ksh93 $(atf_get_srcdir)/hotspare_setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_hotspare_007_pos.ksh
 	if [[ $? != 0 ]]; then
@@ -394,6 +404,7 @@ zfsd_autoreplace_002_pos_body()
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
 
 	verify_disk_count "$DISKS" 5
+	verify_zfsd_running
 	ksh93 $(atf_get_srcdir)/hotspare_setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_autoreplace_002_pos.ksh
 	if [[ $? != 0 ]]; then
@@ -424,6 +435,7 @@ zfsd_autoreplace_003_pos_body()
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
 
 	verify_disk_count "$DISKS" 5
+	verify_zfsd_running
 	ksh93 $(atf_get_srcdir)/hotspare_setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_autoreplace_003_pos.ksh
 	if [[ $? != 0 ]]; then
@@ -452,6 +464,7 @@ zfsd_replace_001_pos_body()
 	. $(atf_get_srcdir)/zfsd.cfg
 
 	verify_disk_count "$DISKS" 3
+	verify_zfsd_running
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_replace_001_pos.ksh
 	if [[ $? != 0 ]]; then
@@ -481,6 +494,7 @@ zfsd_replace_002_pos_body()
 	. $(atf_get_srcdir)/zfsd.cfg
 
 	verify_disk_count "$DISKS" 3
+	verify_zfsd_running
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_replace_002_pos.ksh
 	if [[ $? != 0 ]]; then
@@ -508,6 +522,7 @@ zfsd_replace_003_pos_body()
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
 
+	verify_zfsd_running
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_replace_003_pos.ksh
 	if [[ $? != 0 ]]; then
@@ -537,6 +552,7 @@ zfsd_import_001_pos_body()
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
 
 	verify_disk_count "$DISKS" 5
+	verify_zfsd_running
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_import_001_pos.ksh || atf_fail "Testcase failed"
 	if [[ $? != 0 ]]; then
@@ -588,4 +604,10 @@ save_artifacts()
 		cp -a /var/log/zfsd.log* $TC_ARTIFACTS_DIR
 		bzip2 $TC_ARTIFACTS_DIR/zfsd.log
 	fi
+}
+
+verify_zfsd_running()
+{
+	service zfsd onestatus || \
+		atf_skip "zfsd(8) must be enabled and running for this test"
 }
