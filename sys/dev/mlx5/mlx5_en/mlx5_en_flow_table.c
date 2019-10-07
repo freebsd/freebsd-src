@@ -772,6 +772,8 @@ mlx5e_sync_ifp_addr(struct mlx5e_priv *priv)
 	struct ifaddr *ifa;
 	struct ifmultiaddr *ifma;
 
+	PRIV_ASSERT_LOCKED(priv);
+
 	/* XXX adding this entry might not be needed */
 	mlx5e_add_eth_addr_to_hash(priv->eth_addr.if_uc,
 	    LLADDR((struct sockaddr_dl *)(ifp->if_addr->ifa_addr)));
