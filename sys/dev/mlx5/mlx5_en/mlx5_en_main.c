@@ -428,8 +428,8 @@ mlx5e_update_carrier(struct mlx5e_priv *priv)
 	if (error) {
 		priv->media_active_last = IFM_ETHER;
 		priv->ifp->if_baudrate = 1;
-		if_printf(priv->ifp, "%s: query port ptys failed: "
-		    "0x%x\n", __func__, error);
+		mlx5_en_err(priv->ifp, "query port ptys failed: 0x%x\n",
+		    error);
 		return;
 	}
 
@@ -447,8 +447,8 @@ mlx5e_update_carrier(struct mlx5e_priv *priv)
 	}
 
 	if (media_entry.subtype == 0) {
-		if_printf(priv->ifp, "%s: Could not find operational "
-		    "media subtype\n", __func__);
+		mlx5_en_err(priv->ifp,
+		    "Could not find operational media subtype\n");
 		return;
 	}
 
@@ -456,8 +456,8 @@ mlx5e_update_carrier(struct mlx5e_priv *priv)
 	case IFM_10G_ER:
 		error = mlx5_query_pddr_range_info(mdev, 1, &is_er_type);
 		if (error != 0) {
-			if_printf(priv->ifp, "%s: query port pddr failed: %d\n",
-				  __func__, error);
+			mlx5_en_err(priv->ifp,
+			    "query port pddr failed: %d\n", error);
 		}
 		if (error != 0 || is_er_type == 0)
 			media_entry.subtype = IFM_10G_LR;
@@ -465,8 +465,8 @@ mlx5e_update_carrier(struct mlx5e_priv *priv)
 	case IFM_40G_LR4:
 		error = mlx5_query_pddr_range_info(mdev, 1, &is_er_type);
 		if (error != 0) {
-			if_printf(priv->ifp, "%s: query port pddr failed: %d\n",
-				  __func__, error);
+			mlx5_en_err(priv->ifp,
+			    "query port pddr failed: %d\n", error);
 		}
 		if (error == 0 && is_er_type != 0)
 			media_entry.subtype = IFM_40G_ER4;
@@ -545,9 +545,8 @@ mlx5e_set_port_pfc(struct mlx5e_priv *priv)
 		error = -ENXIO;
 	} else if (priv->params.rx_pauseframe_control ||
 	    priv->params.tx_pauseframe_control) {
-		if_printf(priv->ifp,
-		    "Global pauseframes must be disabled before "
-		    "enabling PFC.\n");
+		mlx5_en_err(priv->ifp,
+		    "Global pauseframes must be disabled before enabling PFC.\n");
 		error = -EINVAL;
 	} else {
 		error = mlx5e_set_port_pause_and_pfc(priv);
@@ -580,7 +579,7 @@ mlx5e_media_change(struct ifnet *dev)
 	error = mlx5_query_port_ptys(mdev, out, sizeof(out),
 	    MLX5_PTYS_EN, 1);
 	if (error != 0) {
-		if_printf(dev, "Query port media capability failed\n");
+		mlx5_en_err(dev, "Query port media capability failed\n");
 		goto done;
 	}
 
@@ -595,14 +594,14 @@ mlx5e_media_change(struct ifnet *dev)
 	if (IFM_SUBTYPE(priv->media.ifm_media) == IFM_AUTO) {
 		link_mode = eth_proto_cap;
 		if (link_mode == 0) {
-			if_printf(dev, "Port media capability is zero\n");
+			mlx5_en_err(dev, "Port media capability is zero\n");
 			error = EINVAL;
 			goto done;
 		}
 	} else {
 		link_mode = link_mode & eth_proto_cap;
 		if (link_mode == 0) {
-			if_printf(dev, "Not supported link mode requested\n");
+			mlx5_en_err(dev, "Not supported link mode requested\n");
 			error = EINVAL;
 			goto done;
 		}
@@ -611,7 +610,7 @@ mlx5e_media_change(struct ifnet *dev)
 		/* check if PFC is enabled */
 		if (priv->params.rx_priority_flow_control ||
 		    priv->params.tx_priority_flow_control) {
-			if_printf(dev, "PFC must be disabled before enabling global pauseframes.\n");
+			mlx5_en_err(dev, "PFC must be disabled before enabling global pauseframes.\n");
 			error = EINVAL;
 			goto done;
 		}
@@ -1020,7 +1019,8 @@ free_out:
 		    priv->params_ethtool.diag_pci_enable ? &priv->params_pci : NULL,
 		    priv->params_ethtool.diag_general_enable ? &priv->params_general : NULL);
 		if (error != 0)
-			if_printf(priv->ifp, "Failed reading diagnostics: %d\n", error);
+			mlx5_en_err(priv->ifp,
+			    "Failed reading diagnostics: %d\n", error);
 	}
 }
 
@@ -1172,8 +1172,8 @@ mlx5e_calibration_callout(void *arg)
 	if (((next->clbr_hw_curr - curr->clbr_hw_curr) >> MLX5E_TSTMP_PREC) ==
 	    0) {
 		if (priv->clbr_done != 0) {
-			if_printf(priv->ifp, "HW failed tstmp frozen %#jx %#jx,"
-			    "disabling\n",
+			mlx5_en_err(priv->ifp,
+			    "HW failed tstmp frozen %#jx %#jx, disabling\n",
 			     next->clbr_hw_curr, curr->clbr_hw_prev);
 			priv->clbr_done = 0;
 		}
@@ -1871,7 +1871,7 @@ mlx5e_drain_sq(struct mlx5e_sq *sq)
 	/* error out remaining requests */
 	error = mlx5e_modify_sq(sq, MLX5_SQC_STATE_RDY, MLX5_SQC_STATE_ERR);
 	if (error != 0) {
-		if_printf(sq->ifp,
+		mlx5_en_err(sq->ifp,
 		    "mlx5e_modify_sq() from RDY to ERR failed: %d\n", error);
 	}
 
@@ -2936,16 +2936,17 @@ mlx5e_set_dev_port_mtu(struct ifnet *ifp, int sw_mtu)
 
 	err = mlx5_set_port_mtu(mdev, hw_mtu);
 	if (err) {
-		if_printf(ifp, "%s: mlx5_set_port_mtu failed setting %d, err=%d\n",
-		    __func__, sw_mtu, err);
+		mlx5_en_err(ifp, "mlx5_set_port_mtu failed setting %d, err=%d\n",
+		    sw_mtu, err);
 		return (err);
 	}
 
 	/* Update vport context MTU */
 	err = mlx5_set_vport_mtu(mdev, hw_mtu);
 	if (err) {
-		if_printf(ifp, "%s: Failed updating vport context with MTU size, err=%d\n",
-		    __func__, err);
+		mlx5_en_err(ifp,
+		    "Failed updating vport context with MTU size, err=%d\n",
+		    err);
 	}
 
 	ifp->if_mtu = sw_mtu;
@@ -2956,17 +2957,19 @@ mlx5e_set_dev_port_mtu(struct ifnet *ifp, int sw_mtu)
 		err = mlx5_query_port_oper_mtu(mdev, &hw_mtu);
 	}
 	if (err) {
-		if_printf(ifp, "Query port MTU, after setting new "
-		    "MTU value, failed\n");
+		mlx5_en_err(ifp,
+		    "Query port MTU, after setting new MTU value, failed\n");
 		return (err);
 	} else if (MLX5E_HW2SW_MTU(hw_mtu) < sw_mtu) {
 		err = -E2BIG,
-		if_printf(ifp, "Port MTU %d is smaller than "
-                    "ifp mtu %d\n", hw_mtu, sw_mtu);
+		mlx5_en_err(ifp,
+		    "Port MTU %d is smaller than ifp mtu %d\n",
+		    hw_mtu, sw_mtu);
 	} else if (MLX5E_HW2SW_MTU(hw_mtu) > sw_mtu) {
 		err = -EINVAL;
-                if_printf(ifp, "Port MTU %d is bigger than "
-                    "ifp mtu %d\n", hw_mtu, sw_mtu);
+                mlx5_en_err(ifp,
+		    "Port MTU %d is bigger than ifp mtu %d\n",
+		    hw_mtu, sw_mtu);
 	}
 	priv->params_ethtool.hw_mtu = hw_mtu;
 
@@ -2986,23 +2989,21 @@ mlx5e_open_locked(struct ifnet *ifp)
 
 #ifdef RSS
 	if (rss_getnumbuckets() > priv->params.num_channels) {
-		if_printf(ifp, "NOTE: There are more RSS buckets(%u) than "
-		    "channels(%u) available\n", rss_getnumbuckets(),
-		    priv->params.num_channels);
+		mlx5_en_info(ifp,
+		    "NOTE: There are more RSS buckets(%u) than channels(%u) available\n",
+		    rss_getnumbuckets(), priv->params.num_channels);
 	}
 #endif
 	err = mlx5e_open_tises(priv);
 	if (err) {
-		if_printf(ifp, "%s: mlx5e_open_tises failed, %d\n",
-		    __func__, err);
+		mlx5_en_err(ifp, "mlx5e_open_tises failed, %d\n", err);
 		return (err);
 	}
 	err = mlx5_vport_alloc_q_counter(priv->mdev,
 	    MLX5_INTERFACE_PROTOCOL_ETH, &set_id);
 	if (err) {
-		if_printf(priv->ifp,
-		    "%s: mlx5_vport_alloc_q_counter failed: %d\n",
-		    __func__, err);
+		mlx5_en_err(priv->ifp,
+		    "mlx5_vport_alloc_q_counter failed: %d\n", err);
 		goto err_close_tises;
 	}
 	/* store counter set ID */
@@ -3010,32 +3011,30 @@ mlx5e_open_locked(struct ifnet *ifp)
 
 	err = mlx5e_open_channels(priv);
 	if (err) {
-		if_printf(ifp, "%s: mlx5e_open_channels failed, %d\n",
-		    __func__, err);
+		mlx5_en_err(ifp,
+		    "mlx5e_open_channels failed, %d\n", err);
 		goto err_dalloc_q_counter;
 	}
 	err = mlx5e_open_rqt(priv);
 	if (err) {
-		if_printf(ifp, "%s: mlx5e_open_rqt failed, %d\n",
-		    __func__, err);
+		mlx5_en_err(ifp, "mlx5e_open_rqt failed, %d\n", err);
 		goto err_close_channels;
 	}
 	err = mlx5e_open_tirs(priv);
 	if (err) {
-		if_printf(ifp, "%s: mlx5e_open_tir failed, %d\n",
-		    __func__, err);
+		mlx5_en_err(ifp, "mlx5e_open_tir failed, %d\n", err);
 		goto err_close_rqls;
 	}
 	err = mlx5e_open_flow_table(priv);
 	if (err) {
-		if_printf(ifp, "%s: mlx5e_open_flow_table failed, %d\n",
-		    __func__, err);
+		mlx5_en_err(ifp,
+		    "mlx5e_open_flow_table failed, %d\n", err);
 		goto err_close_tirs;
 	}
 	err = mlx5e_add_all_vlan_rules(priv);
 	if (err) {
-		if_printf(ifp, "%s: mlx5e_add_all_vlan_rules failed, %d\n",
-		    __func__, err);
+		mlx5_en_err(ifp,
+		    "mlx5e_add_all_vlan_rules failed, %d\n", err);
 		goto err_close_flow_table;
 	}
 	set_bit(MLX5E_STATE_OPENED, &priv->state);
@@ -3074,9 +3073,8 @@ mlx5e_open(void *arg)
 
 	PRIV_LOCK(priv);
 	if (mlx5_set_port_status(priv->mdev, MLX5_PORT_UP))
-		if_printf(priv->ifp,
-		    "%s: Setting port status to up failed\n",
-		    __func__);
+		mlx5_en_err(priv->ifp,
+		    "Setting port status to up failed\n");
 
 	mlx5e_open_locked(priv->ifp);
 	priv->ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -3213,7 +3211,8 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				mlx5e_open_locked(ifp);
 		} else {
 			error = EINVAL;
-			if_printf(ifp, "Invalid MTU value. Min val: %d, Max val: %d\n",
+			mlx5_en_err(ifp,
+			    "Invalid MTU value. Min val: %d, Max val: %d\n",
 			    MLX5E_MTU_MIN, MIN(MLX5E_MTU_MAX, max_mtu));
 		}
 		PRIV_UNLOCK(priv);
@@ -3267,7 +3266,7 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			    !(IFCAP_TXCSUM & ifp->if_capenable)) {
 				ifp->if_capenable &= ~IFCAP_TSO4;
 				ifp->if_hwassist &= ~CSUM_IP_TSO;
-				if_printf(ifp,
+				mlx5_en_err(ifp,
 				    "tso4 disabled due to -txcsum.\n");
 			}
 		}
@@ -3279,7 +3278,7 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			    !(IFCAP_TXCSUM_IPV6 & ifp->if_capenable)) {
 				ifp->if_capenable &= ~IFCAP_TSO6;
 				ifp->if_hwassist &= ~CSUM_IP6_TSO;
-				if_printf(ifp,
+				mlx5_en_err(ifp,
 				    "tso6 disabled due to -txcsum6.\n");
 			}
 		}
@@ -3290,7 +3289,7 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (mask & IFCAP_TSO4) {
 			if (!(IFCAP_TSO4 & ifp->if_capenable) &&
 			    !(IFCAP_TXCSUM & ifp->if_capenable)) {
-				if_printf(ifp, "enable txcsum first.\n");
+				mlx5_en_err(ifp, "enable txcsum first.\n");
 				error = EAGAIN;
 				goto out;
 			}
@@ -3300,7 +3299,7 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (mask & IFCAP_TSO6) {
 			if (!(IFCAP_TSO6 & ifp->if_capenable) &&
 			    !(IFCAP_TXCSUM_IPV6 & ifp->if_capenable)) {
-				if_printf(ifp, "enable txcsum6 first.\n");
+				mlx5_en_err(ifp, "enable txcsum6 first.\n");
 				error = EAGAIN;
 				goto out;
 			}
@@ -3380,8 +3379,8 @@ out:
 		/* Get module_num which is required for the query_eeprom */
 		error = mlx5_query_module_num(priv->mdev, &module_num);
 		if (error) {
-			if_printf(ifp, "Query module num failed, eeprom "
-			    "reading is not supported\n");
+			mlx5_en_err(ifp,
+			    "Query module num failed, eeprom reading is not supported\n");
 			error = EINVAL;
 			goto err_i2c;
 		}
@@ -3400,8 +3399,9 @@ out:
 		else if (i2c.dev_addr == 0xA2)
 			read_addr = MLX5E_I2C_ADDR_HIGH;
 		else {
-			if_printf(ifp, "Query eeprom failed, "
-			    "Invalid Address: %X\n", i2c.dev_addr);
+			mlx5_en_err(ifp,
+			    "Query eeprom failed, Invalid Address: %X\n",
+			    i2c.dev_addr);
 			error = EINVAL;
 			goto err_i2c;
 		}
@@ -3410,8 +3410,8 @@ out:
 		    (uint32_t)i2c.offset, (uint32_t)i2c.len, module_num,
 		    (uint32_t *)i2c.data, &size_read);
 		if (error) {
-			if_printf(ifp, "Query eeprom failed, eeprom "
-			    "reading is not supported\n");
+			mlx5_en_err(ifp,
+			    "Query eeprom failed, eeprom reading is not supported\n");
 			error = EINVAL;
 			goto err_i2c;
 		}
@@ -3424,8 +3424,8 @@ out:
 			    (uint32_t *)(i2c.data + size_read), &size_read);
 		}
 		if (error) {
-			if_printf(ifp, "Query eeprom failed, eeprom "
-			    "reading is not supported\n");
+			mlx5_en_err(ifp,
+			    "Query eeprom failed, eeprom reading is not supported\n");
 			error = EINVAL;
 			goto err_i2c;
 		}
@@ -3561,7 +3561,7 @@ mlx5e_create_mkey(struct mlx5e_priv *priv, u32 pdn,
 
 	in = mlx5_vzalloc(inlen);
 	if (in == NULL) {
-		if_printf(ifp, "%s: failed to allocate inbox\n", __func__);
+		mlx5_en_err(ifp, "failed to allocate inbox\n");
 		return (-ENOMEM);
 	}
 
@@ -3576,8 +3576,8 @@ mlx5e_create_mkey(struct mlx5e_priv *priv, u32 pdn,
 
 	err = mlx5_core_create_mkey(mdev, mkey, in, inlen);
 	if (err)
-		if_printf(ifp, "%s: mlx5_core_create_mkey failed, %d\n",
-		    __func__, err);
+		mlx5_en_err(ifp, "mlx5_core_create_mkey failed, %d\n",
+		    err);
 
 	kvfree(in);
 	return (err);
@@ -3658,7 +3658,7 @@ mlx5e_resume_sq(struct mlx5e_sq *sq)
 	err = mlx5e_modify_sq(sq, MLX5_SQC_STATE_ERR,
 	    MLX5_SQC_STATE_RST);
 	if (err != 0) {
-		if_printf(sq->ifp,
+		mlx5_en_err(sq->ifp,
 		    "mlx5e_modify_sq() from ERR to RST failed: %d\n", err);
 	}
 
@@ -3671,7 +3671,7 @@ mlx5e_resume_sq(struct mlx5e_sq *sq)
 	err = mlx5e_modify_sq(sq, MLX5_SQC_STATE_RST,
 	    MLX5_SQC_STATE_RDY);
 	if (err != 0) {
-		if_printf(sq->ifp,
+		mlx5_en_err(sq->ifp,
 		    "mlx5e_modify_sq() from RST to RDY failed: %d\n", err);
 	}
 
@@ -3703,7 +3703,7 @@ mlx5e_disable_rx_dma(struct mlx5e_channel *ch)
 
 	err = mlx5e_modify_rq(rq, MLX5_RQC_STATE_RDY, MLX5_RQC_STATE_ERR);
 	if (err != 0) {
-		if_printf(rq->ifp,
+		mlx5_en_err(rq->ifp,
 		    "mlx5e_modify_rq() from RDY to RST failed: %d\n", err);
 	}
 
@@ -3718,7 +3718,7 @@ mlx5e_disable_rx_dma(struct mlx5e_channel *ch)
 	 */
 	err = mlx5e_modify_rq(rq, MLX5_RQC_STATE_ERR, MLX5_RQC_STATE_RST);
 	if (err != 0) {
-		if_printf(rq->ifp,
+		mlx5_en_err(rq->ifp,
 		    "mlx5e_modify_rq() from ERR to RST failed: %d\n", err);
 	}
 }
@@ -3733,7 +3733,7 @@ mlx5e_enable_rx_dma(struct mlx5e_channel *ch)
 	mlx5_wq_ll_update_db_record(&rq->wq);
 	err = mlx5e_modify_rq(rq, MLX5_RQC_STATE_RST, MLX5_RQC_STATE_RDY);
 	if (err != 0) {
-		if_printf(rq->ifp,
+		mlx5_en_err(rq->ifp,
 		    "mlx5e_modify_rq() from RST to RDY failed: %d\n", err);
         }
 
@@ -3941,7 +3941,7 @@ mlx5e_setup_pauseframes(struct mlx5e_priv *priv)
 	/* update firmware */
 	error = mlx5e_set_port_pause_and_pfc(priv);
 	if (error == -EINVAL) {
-		if_printf(priv->ifp,
+		mlx5_en_err(priv->ifp,
 		    "Global pauseframes must be disabled before enabling PFC.\n");
 		priv->params.rx_priority_flow_control = 0;
 		priv->params.tx_priority_flow_control = 0;
@@ -4201,26 +4201,23 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 
 	err = mlx5_alloc_map_uar(mdev, &priv->cq_uar);
 	if (err) {
-		if_printf(ifp, "%s: mlx5_alloc_map_uar failed, %d\n",
-		    __func__, err);
+		mlx5_en_err(ifp, "mlx5_alloc_map_uar failed, %d\n", err);
 		goto err_free_wq;
 	}
 	err = mlx5_core_alloc_pd(mdev, &priv->pdn);
 	if (err) {
-		if_printf(ifp, "%s: mlx5_core_alloc_pd failed, %d\n",
-		    __func__, err);
+		mlx5_en_err(ifp, "mlx5_core_alloc_pd failed, %d\n", err);
 		goto err_unmap_free_uar;
 	}
 	err = mlx5_alloc_transport_domain(mdev, &priv->tdn);
 	if (err) {
-		if_printf(ifp, "%s: mlx5_alloc_transport_domain failed, %d\n",
-		    __func__, err);
+		mlx5_en_err(ifp,
+		    "mlx5_alloc_transport_domain failed, %d\n", err);
 		goto err_dealloc_pd;
 	}
 	err = mlx5e_create_mkey(priv, priv->pdn, &priv->mr);
 	if (err) {
-		if_printf(ifp, "%s: mlx5e_create_mkey failed, %d\n",
-		    __func__, err);
+		mlx5_en_err(ifp, "mlx5e_create_mkey failed, %d\n", err);
 		goto err_dealloc_transport_domain;
 	}
 	mlx5_query_nic_vport_mac_address(priv->mdev, 0, dev_addr);
@@ -4229,13 +4226,12 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	if (MLX5_CAP_GEN(priv->mdev, vport_group_manager) == 0 &&
 	    is_zero_ether_addr(dev_addr)) {
 		random_ether_addr(dev_addr);
-		if_printf(ifp, "Assigned random MAC address\n");
+		mlx5_en_err(ifp, "Assigned random MAC address\n");
 	}
 #ifdef RATELIMIT
 	err = mlx5e_rl_init(priv);
 	if (err) {
-		if_printf(ifp, "%s: mlx5e_rl_init failed, %d\n",
-		    __func__, err);
+		mlx5_en_err(ifp, "mlx5e_rl_init failed, %d\n", err);
 		goto err_create_mkey;
 	}
 #endif
@@ -4263,8 +4259,7 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 			    connector_type);
 	} else {
 		eth_proto_cap = 0;
-		if_printf(ifp, "%s: Query port media capability failed,"
-		    " %d\n", __func__, err);
+		mlx5_en_err(ifp, "Query port media capability failed, %d\n", err);
 	}
 
 	ifmedia_init(&priv->media, IFM_IMASK | IFM_ETH_FMASK,
@@ -4381,8 +4376,8 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	 * detaching:
 	 */
 	while (READ_ONCE(priv->rl.stats.tx_active_connections) != 0) {
-		if_printf(priv->ifp, "Waiting for all ratelimit connections "
-		    "to terminate\n");
+		mlx5_en_err(priv->ifp,
+		    "Waiting for all ratelimit connections to terminate\n");
 		pause("W", hz);
 	}
 #endif
@@ -4403,8 +4398,8 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 
 	/* wait for all unlimited send tags to go away */
 	while (priv->channel_refs != 0) {
-		if_printf(priv->ifp, "Waiting for all unlimited connections "
-		    "to terminate\n");
+		mlx5_en_err(priv->ifp,
+		    "Waiting for all unlimited connections to terminate\n");
 		pause("W", hz);
 	}
 

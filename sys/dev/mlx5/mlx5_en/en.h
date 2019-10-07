@@ -142,6 +142,21 @@ struct mlx5e_cq;
 
 typedef void (mlx5e_cq_comp_t)(struct mlx5_core_cq *);
 
+#define	mlx5_en_err(_dev, format, ...)				\
+	if_printf(_dev, "ERR: ""%s:%d:(pid %d): " format, \
+	    __func__, __LINE__, curthread->td_proc->p_pid,	\
+	    ##__VA_ARGS__)
+
+#define	mlx5_en_warn(_dev, format, ...)				\
+	if_printf(_dev, "WARN: ""%s:%d:(pid %d): " format, \
+	    __func__, __LINE__, curthread->td_proc->p_pid,	\
+	    ##__VA_ARGS__)
+
+#define	mlx5_en_info(_dev, format, ...)				\
+	if_printf(_dev, "INFO: ""%s:%d:(pid %d): " format, \
+	    __func__, __LINE__, curthread->td_proc->p_pid,	\
+	    ##__VA_ARGS__)
+
 #define	MLX5E_STATS_COUNT(a, ...) a
 #define	MLX5E_STATS_VAR(a, b, c, ...) b c;
 #define	MLX5E_STATS_DESC(a, b, c, d, e, ...) d, e,
