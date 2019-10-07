@@ -618,8 +618,10 @@ void ipoib_cm_send(struct ipoib_dev_priv *priv, struct mbuf *mb, struct ipoib_cm
 	struct ipoib_cm_tx_buf *tx_req;
 	struct ifnet *dev = priv->dev;
 
-	if (unlikely(priv->tx_outstanding > MAX_SEND_CQE))
-		while (ipoib_poll_tx(priv)); /* nothing */
+	if (unlikely(priv->tx_outstanding > MAX_SEND_CQE)) {
+		while (ipoib_poll_tx(priv, false))
+			;	/* nothing */
+	}
 
 	m_adj(mb, sizeof(struct ipoib_pseudoheader));
 	if (unlikely(mb->m_pkthdr.len > tx->mtu)) {
