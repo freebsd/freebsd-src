@@ -139,8 +139,8 @@ static u32 calculate_xoff(struct mlx5e_priv *priv, unsigned int mtu)
 	return xoff;
 }
 
-static int update_xoff_threshold(struct mlx5e_port_buffer *port_buffer,
-				 u32 xoff)
+static int update_xoff_threshold(struct mlx5e_priv *priv,
+    struct mlx5e_port_buffer *port_buffer, u32 xoff)
 {
 	int i;
 
@@ -152,8 +152,14 @@ static int update_xoff_threshold(struct mlx5e_port_buffer *port_buffer,
 		}
 
 		if (port_buffer->buffer[i].size <
-		    (xoff + MLX5E_MAX_PORT_MTU + (1 << MLX5E_BUFFER_CELL_SHIFT)))
+		    (xoff + MLX5E_MAX_PORT_MTU + (1 << MLX5E_BUFFER_CELL_SHIFT))) {
+			mlx5_en_info(priv->ifp,
+	"non-lossy buffer %d size %d less than xoff threshold %d\n",
+			    i, port_buffer->buffer[i].size,
+			    xoff + MLX5E_MAX_PORT_MTU +
+			    (1 << MLX5E_BUFFER_CELL_SHIFT));
 			return -ENOMEM;
+		}
 
 		port_buffer->buffer[i].xoff = port_buffer->buffer[i].size - xoff;
 		port_buffer->buffer[i].xon  = 
@@ -182,7 +188,7 @@ static int update_xoff_threshold(struct mlx5e_port_buffer *port_buffer,
  *     Return 0 if no error.
  *     Set change to true if buffer configuration is modified.
  */
-static int update_buffer_lossy(unsigned int mtu,
+static int update_buffer_lossy(struct mlx5e_priv *priv, unsigned int mtu,
 			       u8 pfc_en, u8 *buffer, u32 xoff,
 			       struct mlx5e_port_buffer *port_buffer,
 			       bool *change)
@@ -219,7 +225,7 @@ static int update_buffer_lossy(unsigned int mtu,
 	}
 
 	if (changed) {
-		err = update_xoff_threshold(port_buffer, xoff);
+		err = update_xoff_threshold(priv, port_buffer, xoff);
 		if (err)
 			return err;
 
@@ -253,7 +259,7 @@ int mlx5e_port_manual_buffer_config(struct mlx5e_priv *priv,
 
 	if (change & MLX5E_PORT_BUFFER_CABLE_LEN) {
 		update_buffer = true;
-		err = update_xoff_threshold(&port_buffer, xoff);
+		err = update_xoff_threshold(priv, &port_buffer, xoff);
 		if (err)
 			return err;
 	}
@@ -264,7 +270,7 @@ int mlx5e_port_manual_buffer_config(struct mlx5e_priv *priv,
 			return err;
 
 		priv->sw_is_port_buf_owner = true;
-		err = update_buffer_lossy(mtu, pfc->pfc_en, buffer, xoff,
+		err = update_buffer_lossy(priv, mtu, pfc->pfc_en, buffer, xoff,
 					  &port_buffer, &update_buffer);
 		if (err)
 			return err;
@@ -276,7 +282,7 @@ int mlx5e_port_manual_buffer_config(struct mlx5e_priv *priv,
 		if (err)
 			return err;
 
-		err = update_buffer_lossy(mtu, curr_pfc_en, prio2buffer, xoff,
+		err = update_buffer_lossy(priv, mtu, curr_pfc_en, prio2buffer, xoff,
 					  &port_buffer, &update_buffer);
 		if (err)
 			return err;
@@ -301,7 +307,7 @@ int mlx5e_port_manual_buffer_config(struct mlx5e_priv *priv,
 			return -EINVAL;
 
 		update_buffer = true;
-		err = update_xoff_threshold(&port_buffer, xoff);
+		err = update_xoff_threshold(priv, &port_buffer, xoff);
 		if (err)
 			return err;
 	}
@@ -309,7 +315,7 @@ int mlx5e_port_manual_buffer_config(struct mlx5e_priv *priv,
 	/* Need to update buffer configuration if xoff value is changed */
 	if (!update_buffer && xoff != priv->dcbx.xoff) {
 		update_buffer = true;
-		err = update_xoff_threshold(&port_buffer, xoff);
+		err = update_xoff_threshold(priv, &port_buffer, xoff);
 		if (err)
 			return err;
 	}
