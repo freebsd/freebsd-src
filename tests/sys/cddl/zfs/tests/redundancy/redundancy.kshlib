@@ -98,7 +98,7 @@ function setup_test_env
 
 	typeset file=$TESTDIR/file
 	log_must $FILE_WRITE -o create -f $file -b $BLOCKSZ -c $NUM_WRITES
-	log_must force_sync_path $TESTDIR
+	force_sync_path $BASEDIR
 	record_data $TESTPOOL $PRE_RECORD_FILE
 }
 
@@ -142,7 +142,7 @@ function sync_pool #pool
 {
 	typeset pool=$1
 
-	log_must force_sync_path $pool
+	force_sync_path $BASEDIR
 
 	# If the OS has detected corruption on the pool, it will have
 	# automatically initiated a scrub.  In that case, our "zpool scrub"
