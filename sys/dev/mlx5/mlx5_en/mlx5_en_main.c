@@ -3395,9 +3395,9 @@ out:
 		 * The internal conversion is as follows:
 		 */
 		if (i2c.dev_addr == 0xA0)
-			read_addr = MLX5E_I2C_ADDR_LOW;
+			read_addr = MLX5_I2C_ADDR_LOW;
 		else if (i2c.dev_addr == 0xA2)
-			read_addr = MLX5E_I2C_ADDR_HIGH;
+			read_addr = MLX5_I2C_ADDR_HIGH;
 		else {
 			mlx5_en_err(ifp,
 			    "Query eeprom failed, Invalid Address: %X\n",
@@ -3406,7 +3406,7 @@ out:
 			goto err_i2c;
 		}
 		error = mlx5_query_eeprom(priv->mdev,
-		    read_addr, MLX5E_EEPROM_LOW_PAGE,
+		    read_addr, MLX5_EEPROM_LOW_PAGE,
 		    (uint32_t)i2c.offset, (uint32_t)i2c.len, module_num,
 		    (uint32_t *)i2c.data, &size_read);
 		if (error) {
@@ -3418,7 +3418,7 @@ out:
 
 		if (i2c.len > MLX5_EEPROM_MAX_BYTES) {
 			error = mlx5_query_eeprom(priv->mdev,
-			    read_addr, MLX5E_EEPROM_LOW_PAGE,
+			    read_addr, MLX5_EEPROM_LOW_PAGE,
 			    (uint32_t)(i2c.offset + size_read),
 			    (uint32_t)(i2c.len - size_read), module_num,
 			    (uint32_t *)(i2c.data + size_read), &size_read);

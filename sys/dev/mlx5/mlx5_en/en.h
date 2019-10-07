@@ -713,34 +713,6 @@ struct mlx5e_params_ethtool {
 	u8	trust_state;
 };
 
-/* EEPROM Standards for plug in modules */
-#ifndef MLX5E_ETH_MODULE_SFF_8472
-#define	MLX5E_ETH_MODULE_SFF_8472	0x1
-#define	MLX5E_ETH_MODULE_SFF_8472_LEN	128
-#endif
-
-#ifndef MLX5E_ETH_MODULE_SFF_8636
-#define	MLX5E_ETH_MODULE_SFF_8636	0x2
-#define	MLX5E_ETH_MODULE_SFF_8636_LEN	256
-#endif
-
-#ifndef MLX5E_ETH_MODULE_SFF_8436
-#define	MLX5E_ETH_MODULE_SFF_8436	0x3
-#define	MLX5E_ETH_MODULE_SFF_8436_LEN	256
-#endif
-
-/* EEPROM I2C Addresses */
-#define	MLX5E_I2C_ADDR_LOW		0x50
-#define	MLX5E_I2C_ADDR_HIGH		0x51
-
-#define	MLX5E_EEPROM_LOW_PAGE		0x0
-#define	MLX5E_EEPROM_HIGH_PAGE		0x3
-
-#define	MLX5E_EEPROM_HIGH_PAGE_OFFSET	128
-#define	MLX5E_EEPROM_PAGE_LENGTH	256
-
-#define	MLX5E_EEPROM_INFO_BYTES		0x3
-
 struct mlx5e_cq {
 	/* data path - accessed per cqe */
 	struct mlx5_cqwq wq;
