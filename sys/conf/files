@@ -4853,6 +4853,8 @@ dev/mlx5/mlx5_en/mlx5_en_rl.c			optional mlx5en pci inet inet6	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_en/mlx5_en_txrx.c			optional mlx5en pci inet inet6	\
 	compile-with "${OFED_C}"
+dev/mlx5/mlx5_en/mlx5_en_port_buffer.c		optional mlx5en pci inet inet6	\
+	compile-with "${OFED_C}"
 
 # crypto support
 opencrypto/cast.c		optional crypto | ipsec | ipsec_support
