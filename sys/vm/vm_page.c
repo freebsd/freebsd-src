@@ -3216,12 +3216,10 @@ vm_page_pqbatch_submit(vm_page_t m, uint8_t queue)
 		critical_exit();
 		return;
 	}
-	if (!vm_pagequeue_trylock(pq)) {
-		critical_exit();
-		vm_pagequeue_lock(pq);
-		critical_enter();
-		bq = DPCPU_PTR(pqbatch[domain][queue]);
-	}
+	critical_exit();
+	vm_pagequeue_lock(pq);
+	critical_enter();
+	bq = DPCPU_PTR(pqbatch[domain][queue]);
 	vm_pqbatch_process(pq, bq, queue);
 
 	/*
