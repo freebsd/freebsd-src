@@ -203,7 +203,7 @@ ppc64_cas(void)
 	}
 
 	/* Skip CAS when running on PowerNV */
-	if (!ppc64_hv())
+	if (ppc64_hv())
 		return (0);
 
 	ihandle = OF_open("/");
