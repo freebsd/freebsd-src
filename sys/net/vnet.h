@@ -72,7 +72,7 @@ struct vnet {
 	u_int			 vnet_magic_n;
 	u_int			 vnet_ifcnt;
 	u_int			 vnet_sockcnt;
-	u_int			 vnet_state;	/* SI_SUB_* */
+	u_int			 vnet_shutdown; /* Shutdown in progress. */
 	void			*vnet_data_mem;
 	uintptr_t		 vnet_data_base;
 };

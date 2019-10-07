@@ -235,7 +235,6 @@ vnet_alloc(void)
 	SDT_PROBE1(vnet, functions, vnet_alloc, entry, __LINE__);
 	vnet = malloc(sizeof(struct vnet), M_VNET, M_WAITOK | M_ZERO);
 	vnet->vnet_magic_n = VNET_MAGIC_N;
-	vnet->vnet_state = 0;
 	SDT_PROBE2(vnet, functions, vnet_alloc, alloc, __LINE__, vnet);
 
 	/*
@@ -279,6 +278,9 @@ vnet_destroy(struct vnet *vnet)
 	VNET_LIST_WLOCK();
 	LIST_REMOVE(vnet, vnet_le);
 	VNET_LIST_WUNLOCK();
+
+	/* Signal that VNET is being shutdown. */
+	vnet->vnet_shutdown = 1;
 
 	CURVNET_SET_QUIET(vnet);
 	vnet_sysuninit();
@@ -573,10 +575,8 @@ vnet_sysinit(void)
 	struct vnet_sysinit *vs;
 
 	VNET_SYSINIT_RLOCK();
-	TAILQ_FOREACH(vs, &vnet_constructors, link) {
-		curvnet->vnet_state = vs->subsystem;
+	TAILQ_FOREACH(vs, &vnet_constructors, link)
 		vs->func(vs->arg);
-	}
 	VNET_SYSINIT_RUNLOCK();
 }
 
@@ -592,10 +592,8 @@ vnet_sysuninit(void)
 
 	VNET_SYSINIT_RLOCK();
 	TAILQ_FOREACH_REVERSE(vs, &vnet_destructors, vnet_sysuninit_head,
-	    link) {
-		curvnet->vnet_state = vs->subsystem;
+	    link)
 		vs->func(vs->arg);
-	}
 	VNET_SYSINIT_RUNLOCK();
 }
 
@@ -709,7 +707,7 @@ db_vnet_print(struct vnet *vnet)
 	db_printf(" vnet_data_mem  = %p\n", vnet->vnet_data_mem);
 	db_printf(" vnet_data_base = %#jx\n",
 	    (uintmax_t)vnet->vnet_data_base);
-	db_printf(" vnet_state     = %#08x\n", vnet->vnet_state);
+	db_printf(" vnet_shutdown  = %#08x\n", vnet->vnet_shutdown);
 	db_printf("\n");
 }
 
