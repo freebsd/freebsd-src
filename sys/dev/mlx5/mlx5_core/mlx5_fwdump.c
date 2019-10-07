@@ -69,7 +69,7 @@ mlx5_fwdump_prep(struct mlx5_core_dev *mdev)
 	error = mlx5_vsc_find_cap(mdev);
 	if (error != 0) {
 		/* Inability to create a firmware dump is not fatal. */
-		device_printf((&mdev->pdev->dev)->bsddev, "WARN: "
+		mlx5_core_warn(mdev,
 		    "mlx5_fwdump_prep failed %d\n", error);
 		return;
 	}
@@ -153,13 +153,13 @@ mlx5_fwdump(struct mlx5_core_dev *mdev)
 	uint32_t i, ri;
 	int error;
 
-	dev_info(&mdev->pdev->dev, "Issuing FW dump\n");
+	mlx5_core_info(mdev, "Issuing FW dump\n");
 	mtx_lock(&mdev->dump_lock);
 	if (mdev->dump_data == NULL)
 		goto failed;
 	if (mdev->dump_valid) {
 		/* only one dump */
-		dev_warn(&mdev->pdev->dev,
+		mlx5_core_warn(mdev,
 		    "Only one FW dump can be captured aborting FW dump\n");
 		goto failed;
 	}
