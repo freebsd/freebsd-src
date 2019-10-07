@@ -52,7 +52,7 @@ int mlx5_vsc_lock(struct mlx5_core_dev *mdev)
 			 * The PRM suggests random 0 - 10ms to prevent multiple
 			 * waiters on the same interval in order to avoid starvation
 			 */
-			DELAY((random() % 11) * 1000);
+			DELAY((random() % 9000) + 1000);
 			continue;
 		}
 
@@ -99,7 +99,7 @@ mlx5_vsc_wait_on_flag(struct mlx5_core_dev *mdev, u32 expected)
 			break;
 
 		retries++;
-		DELAY(10);
+		DELAY((random() % 90) + 10);
 	}
 
 	return 0;
