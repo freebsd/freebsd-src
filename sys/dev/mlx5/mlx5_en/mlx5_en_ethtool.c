@@ -26,6 +26,7 @@
  */
 
 #include "en.h"
+#include "port_buffer.h"
 #include <net/sff8472.h>
 
 void
@@ -427,6 +428,99 @@ mlx5e_dscp_prio_handler(SYSCTL_HANDLER_ARGS)
 done:
 	PRIV_UNLOCK(priv);
 	return (err);
+}
+
+int
+mlx5e_update_buf_lossy(struct mlx5e_priv *priv)
+{
+	struct ieee_pfc pfc;
+
+	PRIV_ASSERT_LOCKED(priv);
+	bzero(&pfc, sizeof(pfc));
+	pfc.pfc_en = priv->params.rx_priority_flow_control;
+	return (-mlx5e_port_manual_buffer_config(priv, MLX5E_PORT_BUFFER_PFC,
+	    priv->params_ethtool.hw_mtu, &pfc, NULL, NULL));
+}
+
+static int
+mlx5e_buf_size_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv;
+	u32 buf_size[MLX5E_MAX_BUFFER];
+	struct mlx5e_port_buffer port_buffer;
+	int error, i;
+
+	priv = arg1;
+	PRIV_LOCK(priv);
+	error = -mlx5e_port_query_buffer(priv, &port_buffer);
+	if (error != 0)
+		goto done;
+	for (i = 0; i < nitems(buf_size); i++)
+		buf_size[i] = port_buffer.buffer[i].size;
+	error = SYSCTL_OUT(req, buf_size, sizeof(buf_size));
+	if (error != 0 || req->newptr == NULL)
+		goto done;
+	error = SYSCTL_IN(req, buf_size, sizeof(buf_size));
+	if (error != 0)
+		goto done;
+	error = -mlx5e_port_manual_buffer_config(priv, MLX5E_PORT_BUFFER_SIZE,
+	    priv->params_ethtool.hw_mtu, NULL, buf_size, NULL);
+done:
+	PRIV_UNLOCK(priv);
+	return (error);
+}
+
+static int
+mlx5e_buf_prio_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv;
+	struct mlx5_core_dev *mdev;
+	u8 buffer[MLX5E_MAX_BUFFER];
+	int error;
+
+	priv = arg1;
+	mdev = priv->mdev;
+	PRIV_LOCK(priv);
+	error = -mlx5e_port_query_priority2buffer(mdev, buffer);
+	if (error != 0)
+		goto done;
+	error = SYSCTL_OUT(req, buffer, MLX5E_MAX_BUFFER);
+	if (error != 0 || req->newptr == NULL)
+		goto done;
+	error = SYSCTL_IN(req, buffer, MLX5E_MAX_BUFFER);
+	if (error != 0)
+		goto done;
+	error = -mlx5e_port_manual_buffer_config(priv,
+	    MLX5E_PORT_BUFFER_PRIO2BUFFER,
+	    priv->params_ethtool.hw_mtu, NULL, NULL, buffer);
+	if (error == 0)
+		error = mlx5e_update_buf_lossy(priv);
+done:
+	PRIV_UNLOCK(priv);
+	return (error);
+}
+
+static int
+mlx5e_cable_length_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv;
+	u_int cable_len;
+	int error;
+
+	priv = arg1;
+	PRIV_LOCK(priv);
+	cable_len = priv->dcbx.cable_len;
+	error = sysctl_handle_int(oidp, &cable_len, 0, req);
+	if (error == 0 && req->newptr != NULL &&
+	    cable_len != priv->dcbx.cable_len) {
+		error = -mlx5e_port_manual_buffer_config(priv,
+		    MLX5E_PORT_BUFFER_CABLE_LEN, priv->params_ethtool.hw_mtu,
+		    NULL, NULL, NULL);
+		if (error == 0)
+			priv->dcbx.cable_len = cable_len;
+	}
+	PRIV_UNLOCK(priv);
+	return (error);
 }
 
 #define	MLX5_PARAM_OFFSET(n)				\
@@ -1163,6 +1257,7 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 {
 	struct sysctl_oid *node, *qos_node;
 	const char *pnameunit;
+	struct mlx5e_port_buffer port_buffer;
 	unsigned x;
 	int i;
 
@@ -1312,5 +1407,23 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 		    A B : A);
 #undef B
 #undef A
+	}
+
+	if (mlx5e_port_query_buffer(priv, &port_buffer) == 0) {
+		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(qos_node),
+		    OID_AUTO, "buffers_size",
+		    CTLTYPE_U32 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+		    priv, 0, mlx5e_buf_size_handler, "IU",
+		    "Set buffers sizes");
+		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(qos_node),
+		    OID_AUTO, "buffers_prio",
+		    CTLTYPE_U8 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+		    priv, 0, mlx5e_buf_prio_handler, "CU",
+		    "Set prio to buffers mapping");
+		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(qos_node),
+		    OID_AUTO, "cable_length",
+		    CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+		    priv, 0, mlx5e_cable_length_handler, "IU",
+		    "Set cable length in meters for xoff threshold calculation");
 	}
 }

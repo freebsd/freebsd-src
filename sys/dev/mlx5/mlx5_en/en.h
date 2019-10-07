@@ -1200,5 +1200,6 @@ void	mlx5e_modify_rx_dma(struct mlx5e_priv *priv, uint8_t value);
 void	mlx5e_resume_sq(struct mlx5e_sq *sq);
 void	mlx5e_update_sq_inline(struct mlx5e_sq *sq);
 void	mlx5e_refresh_sq_inline(struct mlx5e_priv *priv);
+int	mlx5e_update_buf_lossy(struct mlx5e_priv *priv);
 
 #endif					/* _MLX5_EN_H_ */

@@ -3866,8 +3866,11 @@ mlx5e_sysctl_rx_priority_flow_control(SYSCTL_HANDLER_ARGS)
 	}
 
 	/* check if update is required */
-	if (rx_pfc != priv->params.rx_priority_flow_control)
+	if (rx_pfc != priv->params.rx_priority_flow_control) {
 		err = -mlx5e_set_port_pfc(priv);
+		if (err == 0)
+			err = mlx5e_update_buf_lossy(priv);
+	}
 done:
 	if (err != 0)
 		priv->params.rx_priority_flow_control= rx_pfc;
