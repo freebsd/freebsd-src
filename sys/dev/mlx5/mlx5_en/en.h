@@ -1169,6 +1169,8 @@ mlx5e_unref_channel(struct mlx5e_priv *priv)
 	atomic_fetchadd_int(&priv->channel_refs, -1);
 }
 
+#define	mlx5e_dbg(_IGN, _priv, ...) mlx5_core_dbg((_priv)->mdev, __VA_ARGS__)
+
 extern const struct ethtool_ops mlx5e_ethtool_ops;
 void	mlx5e_create_ethtool(struct mlx5e_priv *);
 void	mlx5e_create_stats(struct sysctl_ctx_list *,
