@@ -71,6 +71,29 @@ atomic_dec_64(volatile uint64_t *target)
 	*target -= 1;
 	mtx_unlock(&atomic_mtx);
 }
+
+uint64_t
+atomic_swap_64(volatile uint64_t *a, uint64_t value)
+{
+	uint64_t ret;
+
+	mtx_lock(&atomic_mtx);
+	ret = *a;
+	*a = value;
+	mtx_unlock(&atomic_mtx);
+	return (ret);
+}
+
+uint64_t
+atomic_load_64(volatile uint64_t *a)
+{
+	uint64_t ret;
+
+	mtx_lock(&atomic_mtx);
+	ret = *a;
+	mtx_unlock(&atomic_mtx);
+	return (ret);
+}
 #endif
 
 uint64_t
