@@ -63,9 +63,9 @@
  * representation, and the on-disk representation). The on-disk format
  * consists of 3 parts:
  *
- * 	- a single, per-dataset, ZIL header; which points to a chain of
- * 	- zero or more ZIL blocks; each of which contains
- * 	- zero or more ZIL records
+ *	- a single, per-dataset, ZIL header; which points to a chain of
+ *	- zero or more ZIL blocks; each of which contains
+ *	- zero or more ZIL records
  *
  * A ZIL record holds the information necessary to replay a single
  * system call transaction. A ZIL block can hold many ZIL records, and
@@ -3097,8 +3097,10 @@ zil_close(zilog_t *zilog)
 	if (txg)
 		txg_wait_synced(zilog->zl_dmu_pool, txg);
 
+	if (zilog_is_dirty(zilog))
+		zfs_dbgmsg("zil (%p) is dirty, txg %llu", zilog, txg);
 	if (txg < spa_freeze_txg(zilog->zl_spa))
-		ASSERT(!zilog_is_dirty(zilog));
+		VERIFY(!zilog_is_dirty(zilog));
 
 	zilog->zl_get_data = NULL;
 
