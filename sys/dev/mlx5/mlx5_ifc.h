@@ -1557,26 +1557,19 @@ struct mlx5_ifc_field_select_802_1qau_rp_bits {
 };
 
 struct mlx5_ifc_pptb_reg_bits {
-	u8         reserved_0[0x2];
+	u8         reserved_at_0[0x2];
 	u8         mm[0x2];
-	u8         reserved_1[0x4];
+	u8         reserved_at_4[0x4];
 	u8         local_port[0x8];
-	u8         reserved_2[0x6];
+	u8         reserved_at_10[0x6];
 	u8         cm[0x1];
 	u8         um[0x1];
 	u8         pm[0x8];
 
-	u8         prio7buff[0x4];
-	u8         prio6buff[0x4];
-	u8         prio5buff[0x4];
-	u8         prio4buff[0x4];
-	u8         prio3buff[0x4];
-	u8         prio2buff[0x4];
-	u8         prio1buff[0x4];
-	u8         prio0buff[0x4];
+	u8         prio_x_buff[0x20];
 
 	u8         pm_msb[0x8];
-	u8         reserved_3[0x10];
+	u8         reserved_at_48[0x10];
 	u8         ctrl_buff[0x4];
 	u8         untagged_buff[0x4];
 };
@@ -8690,21 +8683,20 @@ struct mlx5_ifc_pcap_reg_bits {
 };
 
 struct mlx5_ifc_pbmc_reg_bits {
-	u8         reserved_0[0x8];
+	u8         reserved_at_0[0x8];
 	u8         local_port[0x8];
-	u8         reserved_1[0x10];
+	u8         reserved_at_10[0x10];
 
 	u8         xoff_timer_value[0x10];
 	u8         xoff_refresh[0x10];
 
-	u8         reserved_2[0x10];
+	u8         reserved_at_40[0x9];
+	u8         fullness_threshold[0x7];
 	u8         port_buffer_size[0x10];
 
 	struct mlx5_ifc_bufferx_reg_bits buffer[10];
 
-	u8         reserved_3[0x40];
-
-	u8         port_shared_buffer[0x40];
+	u8         reserved_at_2e0[0x40];
 };
 
 struct mlx5_ifc_paos_reg_bits {
