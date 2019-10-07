@@ -44,6 +44,8 @@
     !defined(ARM_HAVE_ATOMIC64) && !defined(I386_HAVE_ATOMIC64)
 extern void atomic_add_64(volatile uint64_t *target, int64_t delta);
 extern void atomic_dec_64(volatile uint64_t *target);
+extern uint64_t atomic_swap_64(volatile uint64_t *a, uint64_t value);
+extern uint64_t atomic_load_64(volatile uint64_t *a);
 #endif
 #ifndef __sparc64__
 extern uint32_t atomic_cas_32(volatile uint32_t *target, uint32_t cmp,
