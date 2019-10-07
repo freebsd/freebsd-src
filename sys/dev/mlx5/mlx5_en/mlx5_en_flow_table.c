@@ -810,7 +810,7 @@ retry:
 	num = 1;
 
 	if_addr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_LINK)
 			continue;
 		num++;
@@ -818,7 +818,7 @@ retry:
 	if_addr_runlock(ifp);
 
 	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		num++;
