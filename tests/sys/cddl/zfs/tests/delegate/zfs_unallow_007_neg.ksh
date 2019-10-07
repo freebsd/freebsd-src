@@ -62,7 +62,7 @@ log_assert "zfs unallow won't remove those permissions which inherited from " \
 	"its parent dataset."
 log_onexit restore_root_datasets
 
-perm1="atime,devices"; perm2="compression,checksum"
+perm1="atime"; perm2="compression,checksum"
 log_must $ZFS create $SUBFS
 log_must $ZFS allow $STAFF1 $perm1 $ROOT_TESTFS
 log_must $ZFS allow $STAFF1 $perm2 $SUBFS

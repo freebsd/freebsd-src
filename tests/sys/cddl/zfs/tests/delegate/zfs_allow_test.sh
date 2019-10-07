@@ -30,7 +30,7 @@ atf_test_case zfs_allow_001_pos cleanup
 zfs_allow_001_pos_head()
 {
 	atf_set "descr" "everyone' is interpreted as a keyword even if a useror group named 'everyone' exists."
-	atf_set "require.progs"  zfs svcs
+	atf_set "require.progs" zfs sudo
 }
 zfs_allow_001_pos_body()
 {
@@ -56,7 +56,7 @@ atf_test_case zfs_allow_002_pos cleanup
 zfs_allow_002_pos_head()
 {
 	atf_set "descr" "<user|group> is interpreted as user if possible, then as group."
-	atf_set "require.progs"  zfs svcs
+	atf_set "require.progs" zfs sudo
 }
 zfs_allow_002_pos_body()
 {
@@ -82,7 +82,7 @@ atf_test_case zfs_allow_003_pos cleanup
 zfs_allow_003_pos_head()
 {
 	atf_set "descr" "Verify option '-l' only allow permission to the dataset itself."
-	atf_set "require.progs"  zfs svcs
+	atf_set "require.progs" zfs sudo
 }
 zfs_allow_003_pos_body()
 {
@@ -108,7 +108,7 @@ atf_test_case zfs_allow_004_pos cleanup
 zfs_allow_004_pos_head()
 {
 	atf_set "descr" "Verify option '-d' allow permission to the descendent datasets."
-	atf_set "require.progs"  zfs svcs
+	atf_set "require.progs" zfs sudo
 }
 zfs_allow_004_pos_body()
 {
@@ -134,7 +134,7 @@ atf_test_case zfs_allow_005_pos cleanup
 zfs_allow_005_pos_head()
 {
 	atf_set "descr" "Verify option '-c' will be granted locally to the creator."
-	atf_set "require.progs"  zfs svcs runwattr
+	atf_set "require.progs" zfs sudo
 }
 zfs_allow_005_pos_body()
 {
@@ -160,7 +160,7 @@ atf_test_case zfs_allow_006_pos cleanup
 zfs_allow_006_pos_head()
 {
 	atf_set "descr" "Changing permissions in a set will change what is allowedwherever the set is used."
-	atf_set "require.progs"  zfs svcs
+	atf_set "require.progs" zfs sudo
 }
 zfs_allow_006_pos_body()
 {
@@ -186,7 +186,7 @@ atf_test_case zfs_allow_007_pos cleanup
 zfs_allow_007_pos_head()
 {
 	atf_set "descr" "Verify permission set can be masked on descendent dataset."
-	atf_set "require.progs"  zfs svcs
+	atf_set "require.progs" zfs sudo
 }
 zfs_allow_007_pos_body()
 {
@@ -212,7 +212,7 @@ atf_test_case zfs_allow_008_pos cleanup
 zfs_allow_008_pos_head()
 {
 	atf_set "descr" "Verify non-root user can allow permissions."
-	atf_set "require.progs"  zfs svcs runwattr
+	atf_set "require.progs" zfs sudo
 }
 zfs_allow_008_pos_body()
 {
@@ -238,7 +238,7 @@ atf_test_case zfs_allow_009_neg cleanup
 zfs_allow_009_neg_head()
 {
 	atf_set "descr" "Verify invalid arguments are handled correctly."
-	atf_set "require.progs"  zfs svcs
+	atf_set "require.progs" zfs sudo
 }
 zfs_allow_009_neg_body()
 {
@@ -263,8 +263,8 @@ zfs_allow_009_neg_cleanup()
 atf_test_case zfs_allow_010_pos cleanup
 zfs_allow_010_pos_head()
 {
-	atf_set "descr" "Verify privileged user has correct permissions once which wasdelegated to him in datasets"
-	atf_set "require.progs"  zfs svcs
+	atf_set "descr" "Verify privileged user has correct permissions once which was delegated to him in datasets"
+	atf_set "require.progs" zfs sudo
 }
 zfs_allow_010_pos_body()
 {
@@ -289,8 +289,8 @@ zfs_allow_010_pos_cleanup()
 atf_test_case zfs_allow_011_neg cleanup
 zfs_allow_011_neg_head()
 {
-	atf_set "descr" "Verify zpool subcmds and system readonly properties can't bedelegated."
-	atf_set "require.progs"  zfs svcs
+	atf_set "descr" "Verify zpool subcmds and system readonly properties can't be delegated."
+	atf_set "require.progs" zfs sudo
 }
 zfs_allow_011_neg_body()
 {
@@ -315,8 +315,8 @@ zfs_allow_011_neg_cleanup()
 atf_test_case zfs_allow_012_neg cleanup
 zfs_allow_012_neg_head()
 {
-	atf_set "descr" "Verify privileged user can not use permissions properly whendelegation property is set off"
-	atf_set "require.progs"  zfs zpool svcs
+	atf_set "descr" "Verify privileged user can not use permissions properly when delegation property is set off"
+	atf_set "require.progs" zfs sudo
 }
 zfs_allow_012_neg_body()
 {
