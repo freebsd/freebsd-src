@@ -840,7 +840,6 @@ struct mlx5e_channel {
 	struct mlx5e_rq rq;
 	struct mlx5e_sq sq[MLX5E_MAX_TX_NUM_TC];
 	struct ifnet *ifp;
-	u32	mkey_be;
 	u8	num_tc;
 
 	/* control */
