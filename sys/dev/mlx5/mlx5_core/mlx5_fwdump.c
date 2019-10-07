@@ -35,10 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mlx5/mlx5_core/mlx5_core.h>
 #include <dev/mlx5/mlx5io.h>
 
-extern const struct mlx5_crspace_regmap mlx5_crspace_regmap_mt4117[];
-extern const struct mlx5_crspace_regmap mlx5_crspace_regmap_mt4115[];
-extern const struct mlx5_crspace_regmap mlx5_crspace_regmap_connectx5[];
-
 static MALLOC_DEFINE(M_MLX5_DUMP, "MLX5DUMP", "MLX5 Firmware dump");
 
 static unsigned
