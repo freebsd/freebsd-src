@@ -31,18 +31,6 @@
 
 #define	MLX5_SEMAPHORE_SPACE_DOMAIN 0xA
 
-struct mlx5_ifc_vsc_space_bits {
-	u8 status[0x3];
-	u8 reserved0[0xd];
-	u8 space[0x10];
-};
-
-struct mlx5_ifc_vsc_addr_bits {
-	u8 flag[0x1];
-	u8 reserved0[0x1];
-	u8 address[0x1e];
-};
-
 int mlx5_vsc_lock(struct mlx5_core_dev *mdev)
 {
 	device_t dev = mdev->pdev->dev.bsddev;
