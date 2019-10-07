@@ -345,6 +345,285 @@ done:
 	return (err);
 }
 
+int
+mlx5e_fec_update(struct mlx5e_priv *priv)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u32 in[MLX5_ST_SZ_DW(pplm_reg)] = {};
+	const int sz = MLX5_ST_SZ_BYTES(pplm_reg);
+	int err;
+
+	if (!MLX5_CAP_GEN(mdev, pcam_reg))
+		return (EOPNOTSUPP);
+
+	if (!MLX5_CAP_PCAM_REG(mdev, pplm))
+		return (EOPNOTSUPP);
+
+	MLX5_SET(pplm_reg, in, local_port, 1);
+
+	err = -mlx5_core_access_reg(mdev, in, sz, in, sz, MLX5_REG_PPLM, 0, 0);
+	if (err)
+		return (err);
+
+	/* get 10x..25x mask */
+	priv->params_ethtool.fec_mask_10x_25x[0] =
+	    MLX5_GET(pplm_reg, in, fec_override_admin_10g_40g);
+	priv->params_ethtool.fec_mask_10x_25x[1] =
+	    MLX5_GET(pplm_reg, in, fec_override_admin_25g) &
+	    MLX5_GET(pplm_reg, in, fec_override_admin_50g);
+	priv->params_ethtool.fec_mask_10x_25x[2] =
+	    MLX5_GET(pplm_reg, in, fec_override_admin_56g);
+	priv->params_ethtool.fec_mask_10x_25x[3] =
+	    MLX5_GET(pplm_reg, in, fec_override_admin_100g);
+
+	/* get 10x..25x available bits */
+	priv->params_ethtool.fec_avail_10x_25x[0] =
+	    MLX5_GET(pplm_reg, in, fec_override_cap_10g_40g);
+	priv->params_ethtool.fec_avail_10x_25x[1] =
+	    MLX5_GET(pplm_reg, in, fec_override_cap_25g) &
+	    MLX5_GET(pplm_reg, in, fec_override_cap_50g);
+	priv->params_ethtool.fec_avail_10x_25x[2] =
+	    MLX5_GET(pplm_reg, in, fec_override_cap_56g);
+	priv->params_ethtool.fec_avail_10x_25x[3] =
+	    MLX5_GET(pplm_reg, in, fec_override_cap_100g);
+
+	/* get 50x mask */
+	priv->params_ethtool.fec_mask_50x[0] =
+	    MLX5_GET(pplm_reg, in, fec_override_admin_50g_1x);
+	priv->params_ethtool.fec_mask_50x[1] =
+	    MLX5_GET(pplm_reg, in, fec_override_admin_100g_2x);
+	priv->params_ethtool.fec_mask_50x[2] =
+	    MLX5_GET(pplm_reg, in, fec_override_admin_200g_4x);
+	priv->params_ethtool.fec_mask_50x[3] =
+	    MLX5_GET(pplm_reg, in, fec_override_admin_400g_8x);
+
+	/* get 50x available bits */
+	priv->params_ethtool.fec_avail_50x[0] =
+	    MLX5_GET(pplm_reg, in, fec_override_cap_50g_1x);
+	priv->params_ethtool.fec_avail_50x[1] =
+	    MLX5_GET(pplm_reg, in, fec_override_cap_100g_2x);
+	priv->params_ethtool.fec_avail_50x[2] =
+	    MLX5_GET(pplm_reg, in, fec_override_cap_200g_4x);
+	priv->params_ethtool.fec_avail_50x[3] =
+	    MLX5_GET(pplm_reg, in, fec_override_cap_400g_8x);
+
+	/* get current FEC mask */
+	priv->params_ethtool.fec_mode_active =
+	    MLX5_GET(pplm_reg, in, fec_mode_active);
+
+	return (0);
+}
+
+static int
+mlx5e_fec_mask_10x_25x_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv = arg1;
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u32 out[MLX5_ST_SZ_DW(pplm_reg)] = {};
+	u32 in[MLX5_ST_SZ_DW(pplm_reg)] = {};
+	const int sz = MLX5_ST_SZ_BYTES(pplm_reg);
+	u8 fec_mask_10x_25x[MLX5E_MAX_FEC_10X_25X];
+	u8 fec_cap_changed = 0;
+	u8 x;
+	int err;
+
+	PRIV_LOCK(priv);
+	err = SYSCTL_OUT(req, priv->params_ethtool.fec_mask_10x_25x,
+	    sizeof(priv->params_ethtool.fec_mask_10x_25x));
+	if (err || !req->newptr)
+		goto done;
+
+	err = SYSCTL_IN(req, fec_mask_10x_25x,
+	    sizeof(fec_mask_10x_25x));
+	if (err)
+		goto done;
+
+	if (!MLX5_CAP_GEN(mdev, pcam_reg)) {
+		err = EOPNOTSUPP;
+		goto done;
+	}
+
+	if (!MLX5_CAP_PCAM_REG(mdev, pplm)) {
+		err = EOPNOTSUPP;
+		goto done;
+	}
+
+	MLX5_SET(pplm_reg, in, local_port, 1);
+
+	err = -mlx5_core_access_reg(mdev, in, sz, in, sz, MLX5_REG_PPLM, 0, 0);
+	if (err)
+		goto done;
+
+	/* range check input value */
+	for (x = 0; x != MLX5E_MAX_FEC_10X_25X; x++) {
+		/* check only one bit is set, if any */
+		if (fec_mask_10x_25x[x] & (fec_mask_10x_25x[x] - 1)) {
+			err = ERANGE;
+			goto done;
+		}
+		/* check a supported bit is set, if any */
+		if (fec_mask_10x_25x[x] &
+		    ~priv->params_ethtool.fec_avail_10x_25x[x]) {
+			err = ERANGE;
+			goto done;
+		}
+		fec_cap_changed |= (fec_mask_10x_25x[x] ^
+		    priv->params_ethtool.fec_mask_10x_25x[x]);
+	}
+
+	/* check for no changes */
+	if (fec_cap_changed == 0)
+		goto done;
+
+	memset(in, 0, sizeof(in));
+
+	MLX5_SET(pplm_reg, in, local_port, 1);
+
+	/* set new values */
+	MLX5_SET(pplm_reg, in, fec_override_admin_10g_40g, fec_mask_10x_25x[0]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_25g, fec_mask_10x_25x[1]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_50g, fec_mask_10x_25x[1]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_56g, fec_mask_10x_25x[2]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_100g, fec_mask_10x_25x[3]);
+
+	/* preserve other values */
+	MLX5_SET(pplm_reg, in, fec_override_admin_50g_1x, priv->params_ethtool.fec_mask_50x[0]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_100g_2x, priv->params_ethtool.fec_mask_50x[1]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_200g_4x, priv->params_ethtool.fec_mask_50x[2]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_400g_8x, priv->params_ethtool.fec_mask_50x[3]);
+
+	/* send new value to the firmware */
+	err = -mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPLM, 0, 1);
+	if (err)
+		goto done;
+
+	memcpy(priv->params_ethtool.fec_mask_10x_25x, fec_mask_10x_25x,
+	    sizeof(priv->params_ethtool.fec_mask_10x_25x));
+
+	mlx5_toggle_port_link(priv->mdev);
+done:
+	PRIV_UNLOCK(priv);
+	return (err);
+}
+
+static int
+mlx5e_fec_avail_10x_25x_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv = arg1;
+	int err;
+
+	PRIV_LOCK(priv);
+	err = SYSCTL_OUT(req, priv->params_ethtool.fec_avail_10x_25x,
+	    sizeof(priv->params_ethtool.fec_avail_10x_25x));
+	PRIV_UNLOCK(priv);
+	return (err);
+}
+
+static int
+mlx5e_fec_mask_50x_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv = arg1;
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u32 out[MLX5_ST_SZ_DW(pplm_reg)] = {};
+	u32 in[MLX5_ST_SZ_DW(pplm_reg)] = {};
+	const int sz = MLX5_ST_SZ_BYTES(pplm_reg);
+	u16 fec_mask_50x[MLX5E_MAX_FEC_50X];
+	u16 fec_cap_changed = 0;
+	u8 x;
+	int err;
+
+	PRIV_LOCK(priv);
+	err = SYSCTL_OUT(req, priv->params_ethtool.fec_mask_50x,
+	    sizeof(priv->params_ethtool.fec_mask_50x));
+	if (err || !req->newptr)
+		goto done;
+
+	err = SYSCTL_IN(req, fec_mask_50x,
+	    sizeof(fec_mask_50x));
+	if (err)
+		goto done;
+
+	if (!MLX5_CAP_GEN(mdev, pcam_reg)) {
+		err = EOPNOTSUPP;
+		goto done;
+	}
+
+	if (!MLX5_CAP_PCAM_REG(mdev, pplm)) {
+		err = EOPNOTSUPP;
+		goto done;
+	}
+
+	MLX5_SET(pplm_reg, in, local_port, 1);
+
+	err = -mlx5_core_access_reg(mdev, in, sz, in, sz, MLX5_REG_PPLM, 0, 0);
+	if (err)
+		goto done;
+
+	/* range check input value */
+	for (x = 0; x != MLX5E_MAX_FEC_50X; x++) {
+		/* check only one bit is set, if any */
+		if (fec_mask_50x[x] & (fec_mask_50x[x] - 1)) {
+			err = ERANGE;
+			goto done;
+		}
+		/* check a supported bit is set, if any */
+		if (fec_mask_50x[x] &
+		    ~priv->params_ethtool.fec_avail_50x[x]) {
+			err = ERANGE;
+			goto done;
+		}
+		fec_cap_changed |= (fec_mask_50x[x] ^
+		    priv->params_ethtool.fec_mask_50x[x]);
+	}
+
+	/* check for no changes */
+	if (fec_cap_changed == 0)
+		goto done;
+
+	memset(in, 0, sizeof(in));
+
+	MLX5_SET(pplm_reg, in, local_port, 1);
+
+	/* set new values */
+	MLX5_SET(pplm_reg, in, fec_override_admin_50g_1x, fec_mask_50x[0]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_100g_2x, fec_mask_50x[1]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_200g_4x, fec_mask_50x[2]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_400g_8x, fec_mask_50x[3]);
+
+	/* preserve other values */
+	MLX5_SET(pplm_reg, in, fec_override_admin_10g_40g, priv->params_ethtool.fec_mask_10x_25x[0]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_25g, priv->params_ethtool.fec_mask_10x_25x[1]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_50g, priv->params_ethtool.fec_mask_10x_25x[1]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_56g, priv->params_ethtool.fec_mask_10x_25x[2]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_100g, priv->params_ethtool.fec_mask_10x_25x[3]);
+
+	/* send new value to the firmware */
+	err = -mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPLM, 0, 1);
+	if (err)
+		goto done;
+
+	memcpy(priv->params_ethtool.fec_mask_50x, fec_mask_50x,
+	    sizeof(priv->params_ethtool.fec_mask_50x));
+
+	mlx5_toggle_port_link(priv->mdev);
+done:
+	PRIV_UNLOCK(priv);
+	return (err);
+}
+
+static int
+mlx5e_fec_avail_50x_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv = arg1;
+	int err;
+
+	PRIV_LOCK(priv);
+	err = SYSCTL_OUT(req, priv->params_ethtool.fec_avail_50x,
+	    sizeof(priv->params_ethtool.fec_avail_50x));
+	PRIV_UNLOCK(priv);
+	return (err);
+}
+
 static int
 mlx5e_trust_state_handler(SYSCTL_HANDLER_ARGS)
 {
@@ -1046,7 +1325,9 @@ mlx5e_create_diagnostics(struct mlx5e_priv *priv)
 void
 mlx5e_create_ethtool(struct mlx5e_priv *priv)
 {
-	struct sysctl_oid *node, *qos_node;
+	struct sysctl_oid *fec_node;
+	struct sysctl_oid *qos_node;
+	struct sysctl_oid *node;
 	const char *pnameunit;
 	struct mlx5e_port_buffer port_buffer;
 	unsigned x;
@@ -1125,6 +1406,54 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 				mlx5e_ethtool_handler(NULL, priv, x, NULL);
 #endif
 		}
+	}
+
+	/* create fec node */
+	fec_node = SYSCTL_ADD_NODE(&priv->sysctl_ctx,
+	    SYSCTL_CHILDREN(node), OID_AUTO,
+	    "fec", CTLFLAG_RW, NULL, "Forward Error Correction");
+	if (fec_node == NULL)
+		return;
+
+	if (mlx5e_fec_update(priv) == 0) {
+		SYSCTL_ADD_U32(&priv->sysctl_ctx, SYSCTL_CHILDREN(fec_node), OID_AUTO,
+		    "mode_active", CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    &priv->params_ethtool.fec_mode_active, 0,
+		    "Current FEC mode bit, if any.");
+
+		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(fec_node), OID_AUTO,
+		    "mask_10x_25x", CTLTYPE_U8 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+		    priv, 0, &mlx5e_fec_mask_10x_25x_handler, "CU",
+		    "Set FEC masks for 10G_40G, 25G_50G, 56G, 100G respectivly. "
+		    "0:Auto "
+		    "1:NOFEC "
+		    "2:FIRECODE "
+		    "4:RS");
+
+		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(fec_node), OID_AUTO,
+		    "avail_10x_25x", CTLTYPE_U8 | CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    priv, 0, &mlx5e_fec_avail_10x_25x_handler, "CU",
+		    "Get available FEC bits for 10G_40G, 25G_50G, 56G, 100G respectivly. "
+		    "0:Auto "
+		    "1:NOFEC "
+		    "2:FIRECODE "
+		    "4:RS");
+
+		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(fec_node), OID_AUTO,
+		    "mask_50x", CTLTYPE_U16 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+		    priv, 0, &mlx5e_fec_mask_50x_handler, "SU",
+		    "Set FEC masks for 50G 1x, 100G 2x, 200G 4x, 400G 8x respectivly. "
+		    "0:Auto "
+		    "128:RS "
+		    "512:LL RS");
+
+		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(fec_node), OID_AUTO,
+		    "avail_50x", CTLTYPE_U16 | CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    priv, 0, &mlx5e_fec_avail_50x_handler, "SU",
+		    "Get available FEC bits for 50G 1x, 100G 2x, 200G 4x, 400G 8x respectivly. "
+		    "0:Auto "
+		    "128:RS "
+		    "512:LL RS");
 	}
 
 	SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(node), OID_AUTO,
