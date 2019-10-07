@@ -176,7 +176,6 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	efi_l0_page = efi_1t1_page();
 	VM_OBJECT_WUNLOCK(obj_1t1_pt);
 	efi_l0 = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(efi_l0_page));
-	bzero(efi_l0, L0_ENTRIES * sizeof(*efi_l0));
 
 	for (i = 0, p = map; i < ndesc; i++, p = efi_next_descriptor(p,
 	    descsz)) {
