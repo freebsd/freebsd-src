@@ -3689,13 +3689,14 @@ if_delmulti_ifma_flags(struct ifmultiaddr *ifma, int flags)
 	if (ifp == NULL) {
 		printf("%s: ifma_ifp seems to be detached\n", __func__);
 	} else {
+		struct epoch_tracker et;
 		struct ifnet *oifp;
 
-		NET_EPOCH_ASSERT();
-
+		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(oifp, &V_ifnet, if_link)
 			if (ifp == oifp)
 				break;
+		NET_EPOCH_EXIT(et);
 		if (ifp != oifp)
 			ifp = NULL;
 	}
