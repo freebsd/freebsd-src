@@ -171,6 +171,7 @@ do { \
 	/* struct in_ifaddr *ia; */					\
 	/* struct rm_priotracker *t; */					\
 do {									\
+	NET_EPOCH_ASSERT();						\
 	IN_IFADDR_RLOCK((t));						\
 	for ((ia) = CK_STAILQ_FIRST(&V_in_ifaddrhead);			\
 	    (ia) != NULL && (ia)->ia_ifp != (ifp);			\

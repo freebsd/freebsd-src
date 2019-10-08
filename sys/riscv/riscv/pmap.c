@@ -2085,6 +2085,7 @@ static int
 pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va, 
     pd_entry_t l2e, struct spglist *free, struct rwlock **lockp)
 {
+	struct md_page *pvh;
 	pt_entry_t old_l3;
 	vm_paddr_t phys;
 	vm_page_t m;
@@ -2104,6 +2105,12 @@ pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
 			vm_page_aflag_set(m, PGA_REFERENCED);
 		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
 		pmap_pvh_free(&m->md, pmap, va);
+		if (TAILQ_EMPTY(&m->md.pv_list) &&
+		    (m->flags & PG_FICTITIOUS) == 0) {
+			pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+			if (TAILQ_EMPTY(&pvh->pv_list))
+				vm_page_aflag_clear(m, PGA_WRITEABLE);
+		}
 	}
 
 	return (pmap_unuse_pt(pmap, va, l2e, free));
@@ -2826,7 +2833,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			if ((new_l3 & PTE_SW_MANAGED) == 0)
 				free_pv_entry(pmap, pv);
 			if ((om->aflags & PGA_WRITEABLE) != 0 &&
-			    TAILQ_EMPTY(&om->md.pv_list))
+			    TAILQ_EMPTY(&om->md.pv_list) &&
+			    ((om->flags & PG_FICTITIOUS) != 0 ||
+			    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
 				vm_page_aflag_clear(om, PGA_WRITEABLE);
 		}
 		pmap_invalidate_page(pmap, va);
@@ -3539,6 +3548,27 @@ restart:
 	rw_runlock(lock);
 	rw_runlock(&pvh_global_lock);
 	return (count);
+}
+
+/*
+ * Returns true if the given page is mapped individually or as part of
+ * a 2mpage.  Otherwise, returns false.
+ */
+bool
+pmap_page_is_mapped(vm_page_t m)
+{
+	struct rwlock *lock;
+	bool rv;
+
+	if ((m->oflags & VPO_UNMANAGED) != 0)
+		return (false);
+	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
+	rw_rlock(lock);
+	rv = !TAILQ_EMPTY(&m->md.pv_list) ||
+	    ((m->flags & PG_FICTITIOUS) == 0 &&
+	    !TAILQ_EMPTY(&pa_to_pvh(VM_PAGE_TO_PHYS(m))->pv_list));
+	rw_runlock(lock);
+	return (rv);
 }
 
 static void

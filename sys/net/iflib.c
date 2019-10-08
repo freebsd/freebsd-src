@@ -4076,7 +4076,7 @@ iflib_if_qflush(if_t ifp)
 #define IFCAP_FLAGS (IFCAP_HWCSUM_IPV6 | IFCAP_HWCSUM | IFCAP_LRO | \
 		     IFCAP_TSO | IFCAP_VLAN_HWTAGGING | IFCAP_HWSTATS | \
 		     IFCAP_VLAN_MTU | IFCAP_VLAN_HWFILTER | \
-		     IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM)
+		     IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM | IFCAP_NOMAP)
 
 static int
 iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
@@ -4201,7 +4201,7 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 
 		oldmask = if_getcapenable(ifp);
 		mask = ifr->ifr_reqcap ^ oldmask;
-		mask &= ctx->ifc_softc_ctx.isc_capabilities;
+		mask &= ctx->ifc_softc_ctx.isc_capabilities | IFCAP_NOMAP;
 		setmask = 0;
 #ifdef TCP_OFFLOAD
 		setmask |= mask & (IFCAP_TOE4|IFCAP_TOE6);
@@ -4596,8 +4596,10 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 		MPASS(scctx->isc_tx_csum_flags);
 #endif
 
-	if_setcapabilities(ifp, scctx->isc_capabilities | IFCAP_HWSTATS);
-	if_setcapenable(ifp, scctx->isc_capenable | IFCAP_HWSTATS);
+	if_setcapabilities(ifp,
+	    scctx->isc_capabilities | IFCAP_HWSTATS | IFCAP_NOMAP);
+	if_setcapenable(ifp,
+	    scctx->isc_capenable | IFCAP_HWSTATS | IFCAP_NOMAP);
 
 	if (scctx->isc_ntxqsets == 0 || (scctx->isc_ntxqsets_max && scctx->isc_ntxqsets_max < scctx->isc_ntxqsets))
 		scctx->isc_ntxqsets = scctx->isc_ntxqsets_max;
@@ -6057,6 +6059,7 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	gtask_fn_t *fn;
 	void *q;
 	int err, tqrid;
+	bool rx_only;
 
 	q = &ctx->ifc_rxqs[0];
 	info = &rxq[0].ifr_filter_info;
@@ -6064,17 +6067,19 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	tqg = qgroup_if_io_tqg;
 	tqrid = *rid;
 	fn = _task_fn_rx;
+	rx_only = (ctx->ifc_sctx->isc_flags & IFLIB_SINGLE_IRQ_RX_ONLY) != 0;
 
 	ctx->ifc_flags |= IFC_LEGACY;
 	info->ifi_filter = filter;
 	info->ifi_filter_arg = filter_arg;
 	info->ifi_task = gtask;
-	info->ifi_ctx = q;
+	info->ifi_ctx = rx_only ? ctx : q;
 
 	dev = ctx->ifc_dev;
 	/* We allocate a single interrupt resource */
-	if ((err = _iflib_irq_alloc(ctx, irq, tqrid, iflib_fast_intr_rxtx,
-	    NULL, info, name)) != 0)
+	err = _iflib_irq_alloc(ctx, irq, tqrid, rx_only ? iflib_fast_intr_ctx :
+	    iflib_fast_intr_rxtx, NULL, info, name);
+	if (err != 0)
 		return (err);
 	GROUPTASK_INIT(gtask, 0, fn, q);
 	res = irq->ii_res;

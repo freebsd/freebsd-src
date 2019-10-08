@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #define	CLK_PLL_PERIPH1_2X		14
 #define	CLK_PLL_VIDEO1		15
 #define	CLK_PLL_GPU			16
+#define	CLK_PLL_MIPI		17
 #define	CLK_PLL_HSIC		18
 #define	CLK_PLL_DE			19
 #define	CLK_PLL_DDR1		20
@@ -397,7 +398,15 @@ FRAC_CLK(pll_gpu_clk,
     24, 25,					/* mode sel, freq sel */
     192000000, 600000000);			/* min freq, max freq */
 
-/* PLL MIPI is missing */
+static const char *pll_mipi_parents[] = {"pll_video0"};
+MIPI_CLK(pll_mipi_clk,
+  CLK_PLL_MIPI,
+  "pll_mipi", pll_mipi_parents,
+  0x40,
+  4, 2, AW_CLK_FACTOR_MIN_VALUE, 2,
+  0, 3,
+  8, 4,
+  31, 28);
 
 static const char *pll_hsic_parents[] = {"osc24M"};
 FRAC_CLK(pll_hsic_clk,
@@ -642,8 +651,13 @@ M_CLK(de_clk,
     31,						/* gate */
     AW_CLK_HAS_MUX | AW_CLK_HAS_GATE);		/* flags */
 
-/* TCON0/1 Needs mux table */
-static const char *tcon1_parents[] = {"pll_video0", "pll_video0", "pll_video1"};
+static const char *tcon0_parents[] = {"pll_mipi", NULL, "pll_video0-2x"};
+MUX_CLK(tcon0_clk,
+    CLK_TCON0,			/* id */
+    "tcon0", tcon0_parents,	/* name, parents */
+    0x118, 24, 2);		/* offset, shift, width */
+
+static const char *tcon1_parents[] = {"pll_video0", NULL, "pll_video1"};
 M_CLK(tcon1_clk,
     CLK_TCON1, "tcon1", tcon1_parents,	/* id, name, parents */
     0x11C,				/* offset */
@@ -726,7 +740,7 @@ static struct aw_ccung_clk a64_ccu_clks[] = {
 	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_periph1_2x_clk},
 	{ .type = AW_CLK_FRAC, .clk.frac = &pll_video1_clk},
 	{ .type = AW_CLK_FRAC, .clk.frac = &pll_gpu_clk},
-	/* PLL_MIPI */
+	{ .type = AW_CLK_MIPI, .clk.mipi = &pll_mipi_clk},
 	{ .type = AW_CLK_FRAC, .clk.frac = &pll_hsic_clk},
 	{ .type = AW_CLK_FRAC, .clk.frac = &pll_de_clk},
 	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_ddr1_clk},
@@ -757,6 +771,7 @@ static struct aw_ccung_clk a64_ccu_clks[] = {
 	{ .type = AW_CLK_MUX, .clk.mux = &i2s0mux_clk},
 	{ .type = AW_CLK_MUX, .clk.mux = &i2s1mux_clk},
 	{ .type = AW_CLK_MUX, .clk.mux = &i2s2mux_clk},
+	{ .type = AW_CLK_MUX, .clk.mux = &tcon0_clk},
 	{ .type = AW_CLK_DIV, .clk.div = &axi_clk},
 	{ .type = AW_CLK_DIV, .clk.div = &apb1_clk},
 	{ .type = AW_CLK_DIV, .clk.div = &apb_clk},
@@ -774,6 +789,10 @@ static struct aw_clk_init a64_init_clks[] = {
 	{"ahb1", "pll_periph0", 0, false},
 	{"ahb2", "pll_periph0", 0, false},
 	{"dram", "pll_ddr0", 0, false},
+	{"pll_de", NULL, 432000000, true},
+	{"de", "pll_de", 0, true},
+	{"tcon0", "pll_video0-2x", 0, false},
+	{"tcon1", "pll_video1", 0, false},
 };
 
 static int

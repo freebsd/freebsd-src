@@ -109,7 +109,8 @@ ip_dooptions(struct mbuf *m, int pass)
 	uint32_t ntime;
 	struct nhop4_extended nh_ext;
 	struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
-	struct epoch_tracker et;
+
+	NET_EPOCH_ASSERT();
 
 	/* Ignore or reject packets with IP options. */
 	if (V_ip_doopts == 0)
@@ -117,10 +118,9 @@ ip_dooptions(struct mbuf *m, int pass)
 	else if (V_ip_doopts == 2) {
 		type = ICMP_UNREACH;
 		code = ICMP_UNREACH_FILTER_PROHIB;
-		goto bad_unlocked;
+		goto bad;
 	}
 
-	NET_EPOCH_ENTER(et);
 	dst = ip->ip_dst;
 	cp = (u_char *)(ip + 1);
 	cnt = (ip->ip_hl << 2) - sizeof (struct ip);
@@ -226,7 +226,6 @@ dropit:
 #endif
 					IPSTAT_INC(ips_cantforward);
 					m_freem(m);
-					NET_EPOCH_EXIT(et);
 					return (1);
 				}
 			}
@@ -381,15 +380,12 @@ dropit:
 			cp[IPOPT_OFFSET] += sizeof(uint32_t);
 		}
 	}
-	NET_EPOCH_EXIT(et);
 	if (forward && V_ipforwarding) {
 		ip_forward(m, 1);
 		return (1);
 	}
 	return (0);
 bad:
-	NET_EPOCH_EXIT(et);
-bad_unlocked:
 	icmp_error(m, type, code, 0, 0);
 	IPSTAT_INC(ips_badoptions);
 	return (1);

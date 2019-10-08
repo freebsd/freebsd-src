@@ -43,6 +43,7 @@ struct tls_record_layer {
 #define	TLS_MAX_MSG_SIZE_V10_2	16384
 #define	TLS_MAX_PARAM_SIZE	1024	/* Max key/mac/iv in sockopt */
 #define	TLS_AEAD_GCM_LEN	4
+#define	TLS_1_3_GCM_IV_LEN	12
 #define	TLS_CBC_IMPLICIT_IV_LEN	16
 
 /* Type values for the record layer */
@@ -85,6 +86,7 @@ struct tls_mac_data {
 #define	TLS_MINOR_VER_ZERO	1	/* 3, 1 */
 #define	TLS_MINOR_VER_ONE	2	/* 3, 2 */
 #define	TLS_MINOR_VER_TWO	3	/* 3, 3 */
+#define	TLS_MINOR_VER_THREE	4	/* 3, 4 */
 
 /* For TCP_TXTLS_ENABLE */
 struct tls_enable {
@@ -121,7 +123,7 @@ struct tls_session_params {
 
 #ifdef _KERNEL
 
-#define	KTLS_API_VERSION 5
+#define	KTLS_API_VERSION 6
 
 struct iovec;
 struct ktls_session;
@@ -144,7 +146,7 @@ struct ktls_session {
 	int	(*sw_encrypt)(struct ktls_session *tls,
 	    const struct tls_record_layer *hdr, uint8_t *trailer,
 	    struct iovec *src, struct iovec *dst, int iovcnt,
-	    uint64_t seqno);
+	    uint64_t seqno, uint8_t record_type);
 	union {
 		void *cipher;
 		struct m_snd_tag *snd_tag;

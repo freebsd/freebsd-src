@@ -595,6 +595,12 @@ post_install_file()
 				NEWALIAS_WARN=yes
 			fi
 			;;
+		/usr/share/certs/trusted/* | /usr/share/certs/blacklisted/*)
+			log "certctl rehash"
+			if [ -z "$dryrun" ]; then
+				env DESTDIR=${DESTDIR} certctl rehash >&3 2>&1
+			fi
+			;;
 		/etc/login.conf)
 			log "cap_mkdb ${DESTDIR}$1"
 			if [ -z "$dryrun" ]; then

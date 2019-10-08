@@ -25,7 +25,6 @@ cloudabi64_vdso_blob.o		optional	compat_cloudabi64	\
 #
 
 # Allwinner common files
-arm/allwinner/a10_ehci.c	optional	ehci aw_ehci fdt
 arm/allwinner/a10_timer.c	optional	a10_timer fdt
 arm/allwinner/a10_codec.c	optional	sound a10_codec
 arm/allwinner/a31_dmac.c	optional	a31_dmac
@@ -51,6 +50,7 @@ arm/allwinner/if_awg.c		optional	awg ext_resources syscon aw_sid nvmem fdt
 arm/allwinner/clkng/aw_ccung.c		optional	aw_ccu fdt
 arm/allwinner/clkng/aw_clk_frac.c	optional	aw_ccu fdt
 arm/allwinner/clkng/aw_clk_m.c		optional	aw_ccu fdt
+arm/allwinner/clkng/aw_clk_mipi.c	optional	aw_ccu fdt
 arm/allwinner/clkng/aw_clk_nkmp.c	optional	aw_ccu fdt
 arm/allwinner/clkng/aw_clk_nm.c		optional	aw_ccu fdt
 arm/allwinner/clkng/aw_clk_prediv_mux.c	optional	aw_ccu fdt
@@ -244,7 +244,9 @@ dev/uart/uart_dev_mu.c		optional	uart uart_mu
 dev/uart/uart_dev_pl011.c	optional	uart pl011
 dev/usb/controller/dwc_otg_hisi.c optional	dwcotg fdt soc_hisi_hi6220
 dev/usb/controller/ehci_mv.c	optional	ehci_mv fdt
-dev/usb/controller/generic_ehci.c optional	ehci acpi
+dev/usb/controller/generic_ehci.c optional	ehci
+dev/usb/controller/generic_ehci_acpi.c optional	ehci acpi
+dev/usb/controller/generic_ehci_fdt.c optional	ehci fdt
 dev/usb/controller/generic_ohci.c optional	ohci fdt
 dev/usb/controller/generic_usb_if.m optional	ohci fdt
 dev/usb/controller/usb_nop_xceiv.c	optional fdt ext_resources
@@ -281,6 +283,7 @@ arm64/rockchip/rk805.c			optional fdt rk805 soc_rockchip_rk3328 | fdt rk805 soc_
 arm64/rockchip/rk_grf.c			optional fdt soc_rockchip_rk3328 | fdt soc_rockchip_rk3399
 arm64/rockchip/rk_pinctrl.c		optional fdt rk_pinctrl soc_rockchip_rk3328 | fdt rk_pinctrl soc_rockchip_rk3399
 arm64/rockchip/rk_gpio.c		optional fdt rk_gpio soc_rockchip_rk3328 | fdt rk_gpio soc_rockchip_rk3399
+arm64/rockchip/rk_usb2phy.c		optional fdt rk_usb2phy soc_rockchip_rk3328 | soc_rockchip_rk3399
 arm64/rockchip/if_dwc_rk.c		optional fdt dwc_rk soc_rockchip_rk3328 | fdt dwc_rk soc_rockchip_rk3399
 dev/dwc/if_dwc.c			optional fdt dwc_rk soc_rockchip_rk3328 | fdt dwc_rk soc_rockchip_rk3399
 dev/dwc/if_dwc_if.m			optional fdt dwc_rk soc_rockchip_rk3328 | fdt dwc_rk soc_rockchip_rk3399

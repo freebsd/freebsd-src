@@ -86,7 +86,7 @@ ktls_ocf_callback(struct cryptop *crp)
 static int
 ktls_ocf_encrypt(struct ktls_session *tls, const struct tls_record_layer *hdr,
     uint8_t *trailer, struct iovec *iniov, struct iovec *outiov, int iovcnt,
-    uint64_t seqno)
+    uint64_t seqno, uint8_t record_type __unused)
 {
 	struct uio uio;
 	struct tls_aead_data ad;

@@ -63,6 +63,7 @@
 		tx-disable-gpio = <&cp1_gpio1 29 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cp0_sfp_present_pins &cp1_sfp_tx_disable_pins>;
+		maximum-power-milliwatt = <2000>;
 	};
 
 	leds {
@@ -226,6 +227,11 @@
 		marvell,function = "gpio";
 	};
 
+	cp0_wlan_disable_pins: wlan-disable-pins {
+		marvell,pins = "mpp51";
+		marvell,function = "gpio";
+	};
+
 	cp0_sdhci_pins: sdhci-pins {
 		marvell,pins = "mpp55", "mpp56", "mpp57", "mpp58", "mpp59",
 			       "mpp60", "mpp61";
@@ -235,7 +241,7 @@
 
 &cp0_pcie0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&cp0_pci0_reset_pins>;
+	pinctrl-0 = <&cp0_pci0_reset_pins &cp0_wlan_disable_pins>;
 	reset-gpios = <&cp0_gpio2 0 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
@@ -250,6 +256,12 @@
 	lte_reset {
 		gpio-hog;
 		gpios = <2 GPIO_ACTIVE_LOW>;
+		output-low;
+	};
+
+	wlan_disable {
+		gpio-hog;
+		gpios = <19 GPIO_ACTIVE_LOW>;
 		output-low;
 	};
 

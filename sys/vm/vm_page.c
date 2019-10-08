@@ -3216,12 +3216,10 @@ vm_page_pqbatch_submit(vm_page_t m, uint8_t queue)
 		critical_exit();
 		return;
 	}
-	if (!vm_pagequeue_trylock(pq)) {
-		critical_exit();
-		vm_pagequeue_lock(pq);
-		critical_enter();
-		bq = DPCPU_PTR(pqbatch[domain][queue]);
-	}
+	critical_exit();
+	vm_pagequeue_lock(pq);
+	critical_enter();
+	bq = DPCPU_PTR(pqbatch[domain][queue]);
 	vm_pqbatch_process(pq, bq, queue);
 
 	/*
@@ -3462,27 +3460,58 @@ void
 vm_page_swapqueue(vm_page_t m, uint8_t oldq, uint8_t newq)
 {
 	struct vm_pagequeue *pq;
+	vm_page_t next;
+	bool queued;
 
 	KASSERT(oldq < PQ_COUNT && newq < PQ_COUNT && oldq != newq,
 	    ("vm_page_swapqueue: invalid queues (%d, %d)", oldq, newq));
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("vm_page_swapqueue: page %p is unmanaged", m));
 	vm_page_assert_locked(m);
+
+	pq = &vm_pagequeue_domain(m)->vmd_pagequeues[oldq];
+	vm_pagequeue_lock(pq);
+
+	/*
+	 * The physical queue state might change at any point before the page
+	 * queue lock is acquired, so we must verify that we hold the correct
+	 * lock before proceeding.
+	 */
+	if (__predict_false(m->queue != oldq)) {
+		vm_pagequeue_unlock(pq);
+		return;
+	}
+
+	/*
+	 * Once the queue index of the page changes, there is nothing
+	 * synchronizing with further updates to the physical queue state.
+	 * Therefore we must remove the page from the queue now in anticipation
+	 * of a successful commit, and be prepared to roll back.
+	 */
+	if (__predict_true((m->aflags & PGA_ENQUEUED) != 0)) {
+		next = TAILQ_NEXT(m, plinks.q);
+		TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
+		vm_page_aflag_clear(m, PGA_ENQUEUED);
+		queued = true;
+	} else {
+		queued = false;
+	}
 
 	/*
 	 * Atomically update the queue field and set PGA_REQUEUE while
 	 * ensuring that PGA_DEQUEUE has not been set.
 	 */
-	pq = &vm_pagequeue_domain(m)->vmd_pagequeues[oldq];
-	vm_pagequeue_lock(pq);
-	if (!vm_page_pqstate_cmpset(m, oldq, newq, PGA_DEQUEUE, PGA_REQUEUE)) {
+	if (__predict_false(!vm_page_pqstate_cmpset(m, oldq, newq, PGA_DEQUEUE,
+	    PGA_REQUEUE))) {
+		if (queued) {
+			vm_page_aflag_set(m, PGA_ENQUEUED);
+			if (next != NULL)
+				TAILQ_INSERT_BEFORE(next, m, plinks.q);
+			else
+				TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
+		}
 		vm_pagequeue_unlock(pq);
 		return;
 	}
-	if ((m->aflags & PGA_ENQUEUED) != 0) {
-		vm_pagequeue_remove(pq, m);
-		vm_page_aflag_clear(m, PGA_ENQUEUED);
-	}
+	vm_pagequeue_cnt_dec(pq);
 	vm_pagequeue_unlock(pq);
 	vm_page_pqbatch_submit(m, newq);
 }
@@ -3517,12 +3546,15 @@ vm_page_free_prep(vm_page_t m)
 			    m, i, (uintmax_t)*p));
 	}
 #endif
-	if ((m->oflags & VPO_UNMANAGED) == 0)
+	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		KASSERT(!pmap_page_is_mapped(m),
 		    ("vm_page_free_prep: freeing mapped page %p", m));
-	else
+		KASSERT((m->aflags & (PGA_EXECUTABLE | PGA_WRITEABLE)) == 0,
+		    ("vm_page_free_prep: mapping flags set in page %p", m));
+	} else {
 		KASSERT(m->queue == PQ_NONE,
 		    ("vm_page_free_prep: unmanaged page %p is queued", m));
+	}
 	VM_CNT_INC(v_tfree);
 
 	if (vm_page_sbusied(m))

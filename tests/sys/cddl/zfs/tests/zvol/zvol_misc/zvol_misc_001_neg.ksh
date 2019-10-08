@@ -44,7 +44,7 @@
 #
 # STRATEGY:
 # 1. Create a ZFS volume
-# 2. Use dumpadm add the volume as dump device
+# 2. Use dumpon add the volume as dump device
 # 3. Verify the return code as expected.
 #
 # TESTABILITY: explicit
@@ -71,15 +71,10 @@ function cleanup
 log_assert "Verify that ZFS volume cannot act as dump device until dumpswap supported."
 log_onexit cleanup
 
-test_requires DUMPADM
-
 voldev=/dev/zvol/$TESTPOOL/$TESTVOL
 savedumpdev=$(get_dumpdevice)
 
-if ! is_dumpswap_supported $TESTPOOL ; then
-	log_mustnot $DUMPADM -d $voldev
-else
-	safe_dumpadm $voldev
-fi
+# FreeBSD doesn't support using zvols as dump devices for any pool version
+log_mustnot $DUMPON $voldev
 
 log_pass "ZFS volume cannot act as dump device until dumpswap supported as expected."

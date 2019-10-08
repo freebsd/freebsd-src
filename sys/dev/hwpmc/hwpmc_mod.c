@@ -1884,7 +1884,7 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 	map = &vm->vm_map;
 	vm_map_lock_read(map);
 
-	for (entry = map->header.next; entry != &map->header; entry = entry->next) {
+	VM_MAP_ENTRY_FOREACH(entry, map) {
 
 		if (entry == NULL) {
 			PMCDBG2(LOG,OPS,2, "hwpmc: vm_map entry unexpectedly "
@@ -1988,7 +1988,7 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		 * new lookup for this entry.  If there is no entry
 		 * for this address range, vm_map_lookup_entry() will
 		 * return the previous one, so we always want to go to
-		 * entry->next on the next loop iteration.
+		 * the next entry on the next loop iteration.
 		 * 
 		 * There is an edge condition here that can occur if
 		 * there is no entry at or before this address.  In

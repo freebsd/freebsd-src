@@ -536,7 +536,7 @@ void ipoib_drain_cq(struct ipoib_dev_priv *priv);
 
 int ipoib_dma_map_tx(struct ib_device *ca, struct ipoib_tx_buf *tx_req, int max);
 void ipoib_dma_unmap_tx(struct ib_device *ca, struct ipoib_tx_buf *tx_req);
-int ipoib_poll_tx(struct ipoib_dev_priv *priv);
+int ipoib_poll_tx(struct ipoib_dev_priv *priv, bool do_start);
 
 void ipoib_dma_unmap_rx(struct ipoib_dev_priv *priv, struct ipoib_rx_buf *rx_req);
 void ipoib_dma_mb(struct ipoib_dev_priv *priv, struct mbuf *mb, unsigned int length);
@@ -763,5 +763,7 @@ extern int ipoib_debug_level;
 #endif /* CONFIG_INFINIBAND_IPOIB_DEBUG_DATA */
 
 #define IPOIB_QPN(ha) (be32_to_cpup((__be32 *) ha) & 0xffffff)
+
+void ipoib_start_locked(struct ifnet *, struct ipoib_dev_priv *);
 
 #endif /* _IPOIB_H */

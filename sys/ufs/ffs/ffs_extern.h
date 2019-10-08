@@ -80,7 +80,7 @@ void	ffs_fragacct(struct fs *, int, int32_t [], int);
 int	ffs_freefile(struct ufsmount *, struct fs *, struct vnode *, ino_t,
 	    int, struct workhead *);
 void	ffs_fserr(struct fs *, ino_t, char *);
-int	ffs_getcg(struct fs *, struct vnode *, u_int, struct buf **,
+int	ffs_getcg(struct fs *, struct vnode *, u_int, int, struct buf **,
 	    struct cg **);
 int	ffs_isblock(struct fs *, u_char *, ufs1_daddr_t);
 int	ffs_isfreeblock(struct fs *, u_char *, ufs1_daddr_t);

@@ -63,9 +63,9 @@
  * representation, and the on-disk representation). The on-disk format
  * consists of 3 parts:
  *
- * 	- a single, per-dataset, ZIL header; which points to a chain of
- * 	- zero or more ZIL blocks; each of which contains
- * 	- zero or more ZIL records
+ *	- a single, per-dataset, ZIL header; which points to a chain of
+ *	- zero or more ZIL blocks; each of which contains
+ *	- zero or more ZIL records
  *
  * A ZIL record holds the information necessary to replay a single
  * system call transaction. A ZIL block can hold many ZIL records, and
@@ -1351,11 +1351,17 @@ zil_lwb_write_open(zilog_t *zilog, lwb_t *lwb)
  * aligned to 4KB) actually gets written. However, we can't always just
  * allocate SPA_OLD_MAXBLOCKSIZE as the slog space could be exhausted.
  */
-uint64_t zil_block_buckets[] = {
-    4096,		/* non TX_WRITE */
-    8192+4096,		/* data base */
-    32*1024 + 4096, 	/* NFS writes */
-    UINT64_MAX
+struct {
+	uint64_t	limit;
+	uint64_t	blksz;
+} zil_block_buckets[] = {
+    { 4096,		4096 },			/* non TX_WRITE */
+    { 8192 + 4096,	8192 + 4096 },		/* database */
+    { 32768 + 4096,	32768 + 4096 },		/* NFS writes */
+    { 65536 + 4096,	65536 + 4096 },		/* 64KB writes */
+    { 131072,		131072 },		/* < 128KB writes */
+    { 131072 + 4096,	65536 + 4096 },		/* 128KB writes */
+    { UINT64_MAX,	SPA_OLD_MAXBLOCKSIZE},	/* > 128KB writes */
 };
 
 /*
@@ -1432,11 +1438,9 @@ zil_lwb_write_issue(zilog_t *zilog, lwb_t *lwb)
 	 * pool log space.
 	 */
 	zil_blksz = zilog->zl_cur_used + sizeof (zil_chain_t);
-	for (i = 0; zil_blksz > zil_block_buckets[i]; i++)
+	for (i = 0; zil_blksz > zil_block_buckets[i].limit; i++)
 		continue;
-	zil_blksz = zil_block_buckets[i];
-	if (zil_blksz == UINT64_MAX)
-		zil_blksz = SPA_OLD_MAXBLOCKSIZE;
+	zil_blksz = zil_block_buckets[i].blksz;
 	zilog->zl_prev_blks[zilog->zl_prev_rotor] = zil_blksz;
 	for (i = 0; i < ZIL_PREV_BLKS; i++)
 		zil_blksz = MAX(zil_blksz, zilog->zl_prev_blks[i]);
@@ -3093,8 +3097,10 @@ zil_close(zilog_t *zilog)
 	if (txg)
 		txg_wait_synced(zilog->zl_dmu_pool, txg);
 
+	if (zilog_is_dirty(zilog))
+		zfs_dbgmsg("zil (%p) is dirty, txg %llu", zilog, txg);
 	if (txg < spa_freeze_txg(zilog->zl_spa))
-		ASSERT(!zilog_is_dirty(zilog));
+		VERIFY(!zilog_is_dirty(zilog));
 
 	zilog->zl_get_data = NULL;
 

@@ -73,6 +73,8 @@ struct aw_clk_init {
 #define	AW_CLK_FACTOR_HAS_COND		0x0004
 #define	AW_CLK_FACTOR_FIXED		0x0008
 #define	AW_CLK_FACTOR_ZERO_IS_ONE	0x0010
+#define	AW_CLK_FACTOR_MIN_VALUE		0x0020
+#define	AW_CLK_FACTOR_MAX_VALUE		0x0040
 
 struct aw_clk_factor {
 	uint32_t	shift;		/* Shift bits for the factor */
@@ -84,6 +86,9 @@ struct aw_clk_factor {
 	uint32_t	cond_mask;
 	uint32_t	cond_width;
 	uint32_t	cond_value;
+
+	uint32_t	min_value;
+	uint32_t	max_value;
 
 	uint32_t	flags;		/* Flags */
 };
@@ -147,6 +152,8 @@ aw_clk_factor_get_min(struct aw_clk_factor *factor)
 		min = factor->value;
 	else if (factor->flags & AW_CLK_FACTOR_ZERO_BASED)
 		min = 0;
+	else if (factor->flags & AW_CLK_FACTOR_MIN_VALUE)
+		min = factor->min_value;
 	else
 		min = 1;
 
@@ -166,7 +173,9 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 	else if (factor->flags & AW_CLK_FACTOR_POWER_OF_TWO) {
 		for (val = 0; raw != 1; val++)
 			raw >>= 1;
-	} else
+	} else if (factor->flags & AW_CLK_FACTOR_MAX_VALUE)
+		val = factor->max_value;
+	else
 		val = raw - 1;
 
 	return (val);
@@ -456,6 +465,32 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.prediv.cond_mask = _prediv_cond_mask,		\
 		.prediv.cond_value = _prediv_cond_value,	\
 	}
+
+#define MIPI_CLK(_clkname, _id, _name, _pnames,			\
+	_offset,						\
+	_kshift, _kwidth, _kflags, _kmin,			\
+	_mshift, _mwidth,				\
+	_nshift, _nwidth,				\
+	_gate_shift, _lock_shift)				\
+	static struct aw_clk_mipi_def _clkname = {		\
+		.clkdef = {					\
+			.id = _id,				\
+			.name = _name,				\
+			.parent_names = _pnames,		\
+			.parent_cnt = nitems(_pnames)		\
+		},						\
+		.offset = _offset,				\
+		.k.shift = _kshift,				\
+		.k.width = _kwidth,				\
+		.k.flags = _kflags,				\
+		.k.min_value = _kmin,				\
+		.m.shift = _mshift,				\
+		.m.width = _mwidth,				\
+		.n.shift = _nshift,				\
+		.n.width = _nwidth,				\
+		.gate_shift = _gate_shift,			\
+		.lock_shift = _lock_shift,			\
+		}
 
 #define MUX_CLK(_clkname, _id, _name, _pnames,		\
   _offset,  _shift,  _width)				\

@@ -48,6 +48,10 @@
 	};
 };
 
+&adsp_pas {
+	status = "okay";
+};
+
 &apps_rsc {
 	pm8998-rpmh-regulators {
 		compatible = "qcom,pm8998-rpmh-regulators";
@@ -344,6 +348,10 @@
 	};
 };
 
+&cdsp_pas {
+	status = "okay";
+};
+
 &gcc {
 	protected-clocks = <GCC_QSPI_CORE_CLK>,
 			   <GCC_QSPI_CORE_CLK_SRC>,
@@ -396,8 +404,8 @@
 };
 
 &usb_1_dwc3 {
-	/* Until we have Type C hooked up we'll force this as host. */
-	dr_mode = "host";
+	/* Until we have Type C hooked up we'll force this as peripheral. */
+	dr_mode = "peripheral";
 };
 
 &usb_1_hsphy {

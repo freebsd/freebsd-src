@@ -200,6 +200,86 @@ mlx5tool_fw_reset(int ctldev, const struct mlx5_tool_addr *addr)
 	return (0);
 }
 
+#define	MLX5_EEPROM_HIGH_PAGE_OFFSET		128
+#define	MLX5_EEPROM_PAGE_LENGTH			256
+
+static void
+mlx5tool_eeprom_print(struct mlx5_eeprom_get *eeprom_info)
+{
+	int index_in_row, line_length, row;
+	size_t byte_to_write;
+
+	byte_to_write = 0;
+	line_length = 16;
+
+	printf("\nOffset\t\tValues\n");
+	printf("------\t\t------");
+	while (byte_to_write < eeprom_info->eeprom_info_out_len) {
+		printf("\n0x%04zX\t\t", byte_to_write);
+		for (index_in_row = 0; index_in_row < line_length;
+		    index_in_row++) {
+			printf("%02X ",
+			    ((uint8_t *)eeprom_info->eeprom_info_buf)[
+			    byte_to_write]);
+			byte_to_write++;
+		}
+	}
+
+	if (eeprom_info->eeprom_info_page_valid) {
+		row = MLX5_EEPROM_HIGH_PAGE_OFFSET;
+		printf("\n\nUpper Page 0x03\n");
+		printf("\nOffset\t\tValues\n");
+		printf("------\t\t------");
+		for (row = MLX5_EEPROM_HIGH_PAGE_OFFSET;
+		    row < MLX5_EEPROM_PAGE_LENGTH;) {
+			printf("\n0x%04X\t\t", row);
+			for (index_in_row = 0;
+			     index_in_row < line_length;
+			     index_in_row++) {
+				printf("%02X ",
+				    ((uint8_t *)eeprom_info->
+				    eeprom_info_buf)[byte_to_write]);
+				byte_to_write++;
+				row++;
+			}
+		}
+	}
+	printf("\n");
+}
+
+static int
+mlx5tool_get_eeprom_info(int ctldev, const struct mlx5_tool_addr *addr)
+{
+	struct mlx5_eeprom_get eeprom_info;
+	int error;
+
+	memset(&eeprom_info, 0, sizeof(eeprom_info));
+	eeprom_info.devaddr = *addr;
+
+	error = ioctl(ctldev, MLX5_EEPROM_GET, &eeprom_info);
+	if (error != 0) {
+		warn("MLX5_EEPROM_GET");
+		return (error);
+	}
+	eeprom_info.eeprom_info_buf =
+	    malloc(eeprom_info.eeprom_info_out_len + MLX5_EEPROM_PAGE_LENGTH);
+	if (eeprom_info.eeprom_info_buf == NULL) {
+		warn("alloc eeprom_info.eeprom_info_buf ");
+		return (ENOMEM);
+	}
+	error = ioctl(ctldev, MLX5_EEPROM_GET, &eeprom_info);
+	if (error != 0) {
+		warn("MLX5_EEPROM_GET");
+		free(eeprom_info.eeprom_info_buf);
+		return (error);
+	}
+
+	mlx5tool_eeprom_print(&eeprom_info);
+
+	free(eeprom_info.eeprom_info_buf);
+	return (0);
+}
+
 static void
 usage(void)
 {
@@ -209,6 +289,7 @@ usage(void)
 	    " -e | -f fw.mfa2 | -z]\n");
 	fprintf(stderr, "\t-w - write firmware dump to the specified file\n");
 	fprintf(stderr, "\t-r - reset dump\n");
+	fprintf(stderr, "\t-E - get eeprom info\n");
 	fprintf(stderr, "\t-e - force dump\n");
 	fprintf(stderr, "\t-f fw.img - flash firmware from fw.img\n");
 	fprintf(stderr, "\t-z - initiate firmware reset\n");
@@ -221,6 +302,7 @@ enum mlx5_action {
 	ACTION_DUMP_FORCE,
 	ACTION_FW_UPDATE,
 	ACTION_FW_RESET,
+	ACTION_GET_EEPROM_INFO,
 	ACTION_NONE,
 };
 
@@ -238,7 +320,7 @@ main(int argc, char *argv[])
 	addrstr = NULL;
 	dumpname = NULL;
 	img_fw_path = NULL;
-	while ((c = getopt(argc, argv, "d:ef:ho:rwz")) != -1) {
+	while ((c = getopt(argc, argv, "d:Eef:ho:rwz")) != -1) {
 		switch (c) {
 		case 'd':
 			addrstr = optarg;
@@ -247,6 +329,11 @@ main(int argc, char *argv[])
 			if (act != ACTION_NONE)
 				usage();
 			act = ACTION_DUMP_GET;
+			break;
+		case 'E':
+			if (act != ACTION_NONE)
+				usage();
+			act = ACTION_GET_EEPROM_INFO;
 			break;
 		case 'e':
 			if (act != ACTION_NONE)
@@ -302,6 +389,9 @@ main(int argc, char *argv[])
 		break;
 	case ACTION_FW_RESET:
 		res = mlx5tool_fw_reset(ctldev, &addr);
+		break;
+	case ACTION_GET_EEPROM_INFO:
+		res = mlx5tool_get_eeprom_info(ctldev, &addr);
 		break;
 	default:
 		res = 0;

@@ -87,7 +87,7 @@ This address is guaranteed to be unique
 across all
 .Nm
 interfaces on the local machine.
-Thus you can theoretically have two bridges on the different machines with
+Thus you can theoretically have two bridges on different machines with
 the same link addresses.
 The address can be changed by assigning the desired link address using
 .Xr ifconfig 8 .
@@ -96,17 +96,17 @@ If
 .Xr sysctl 8
 node
 .Va net.link.bridge.inherit_mac
-has non-zero value, newly created bridge will inherit MAC address
-from its first member instead of choosing random link-level address.
-This will provide more predictable bridge MAC without any
+has non-zero value, a newly created bridge will inherit its MAC address
+from its first member instead of choosing a random link-level address.
+This provides a more predictable bridge MAC without any
 additional configuration, but currently this feature is known
 to break some L2 protocols, for example PPPoE that is provided
 by
 .Xr ng_pppoe 4
 and
 .Xr ppp 8 .
-Now this feature is considered as experimental and is turned off
-by-default.
+Currently this feature is considered experimental and is turned off
+by default.
 .Pp
 A bridge can be used to provide several services, such as a simple
 802.11-to-Ethernet bridge for wireless hosts, and traffic isolation.
@@ -127,13 +127,13 @@ in
 .Xr rc.conf 5 .
 .Pp
 The MTU of the first member interface to be added is used as the bridge MTU.
-All additional members are required to have exactly the same value.
+All additional members are required to have exactly the same MTU value.
 .Pp
 The TOE, TSO, TXCSUM and TXCSUM6 capabilities on all interfaces added to the
 bridge are disabled if any of the interfaces doesn't support/enable them.
 The LRO capability is always disabled.
-All the capabilities are restored when the interface is removed from bridge.
-Changing capabilities in run time may cause NIC reinit and the link flap.
+All the capabilities are restored when the interface is removed from the bridge.
+Changing capabilities at run-time may cause NIC reinit and a link flap.
 .Pp
 The bridge supports
 .Dq monitor mode ,
@@ -167,7 +167,7 @@ ifconfig_bridge0_ipv6="inet6 auto_linklocal"
 However, the
 .Li AF_INET6
 address family has a concept of scope zone.
-Bridging multiple interfaces change the zone configuration because
+Bridging multiple interfaces changes the zone configuration because
 multiple links are merged to each other and form a new single link
 while the member interfaces still work individually.
 This means each member interface still has a separate link-local scope
@@ -180,10 +180,10 @@ This situation is clearly against the description
 in Section 5,
 RFC 4007.
 Although it works in most cases,
-it can cause some conterintuitive or undesirable behavior in some
-edge cases when both of the
+it can cause some counterintuitive or undesirable behavior in some
+edge cases when both, the
 .Nm
-interface and one of the member interface have an IPv6 address
+interface and one of the member interfaces, have an IPv6 address
 and applications use both of them.
 .Pp
 To prevent this situation,
@@ -209,9 +209,9 @@ Note that
 .Li ACCEPT_RTADV
 and
 .Li AUTO_LINKLOCAL
-interface flag are not enabled by default on
+interface flags are not enabled by default on
 .Nm
-interface even when
+interfaces even when
 .Va net.inet6.ip6.accept_rtadv
 and/or
 .Va net.inet6.ip6.auto_linklocal
@@ -238,9 +238,9 @@ command in
 .Pp
 The bridge can log STP port changes to
 .Xr syslog 3
-by enabling the
+by setting the
 .Va net.link.bridge.log_stp
-variable using
+node using
 .Xr sysctl 8 .
 .Sh PACKET FILTERING
 Packet filtering can be used with any firewall package that hooks in via the
@@ -348,7 +348,7 @@ actual implementation of
 .Nm .
 It is not recommended to rely on the order chosen by the current
 .Nm
-implementation: it can be changed in the future.
+implementation since it may change in the future.
 .Pp
 The previous paragraph is best illustrated with the following
 pictures.
@@ -377,17 +377,17 @@ we will call them
 etc.
 .El
 .Pp
-Then if the MAC address
+If the MAC address
 .Nm nn:nn:nn:nn:nn:nn
-is equal to the
+is equal to
 .Nm xx:xx:xx:xx:xx:xx
-then the filter will see the packet on the interface
+the filter will see the packet on interface
 .Nm ifX
 no matter if there are any other bridge members carrying the same
 MAC address.
 But if the MAC address
 .Nm nn:nn:nn:nn:nn:nn
-is equal to the
+is equal to
 .Nm yy:yy:yy:yy:yy:yy
 then the interface that will be seen by the filter is one of the
 .Nm vlanYn .
@@ -399,8 +399,8 @@ implementation details.
 This problem arises for any bridge members that are sharing the same
 MAC address, not only to the
 .Xr vlan 4
-ones: they we taken just as the example of such situation.
-So if one wants the filter the locally destined packets based on
+ones: they were taken just as an example of such a situation.
+So if one wants to filter the locally destined packets based on
 their interface name, one should be aware of this implication.
 The described situation will appear at least on the filtering bridges
 that are doing IP-forwarding; in some of such cases it is better
@@ -484,7 +484,7 @@ ifconfig bridge0 addm fxp0 addm gif0 up
 Note that
 .Fx
 6.1, 6.2, 6.3, 7.0, 7.1, and 7.2 have a bug in the EtherIP protocol.
-For more details and workaround, see
+For more details and workaround, see the
 .Xr gif 4
 manual page.
 .Sh SEE ALSO

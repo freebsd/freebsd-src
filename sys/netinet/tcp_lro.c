@@ -875,7 +875,14 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 
 	/* Now lets lookup the inp first */
 	CURVNET_SET(lc->ifp->if_vnet);
-	if (tcplro_stacks_wanting_mbufq == 0)
+	/*
+	 * XXXRRS Currently the common input handler for
+	 * mbuf queuing cannot handle VLAN Tagged. This needs
+	 * to be fixed and the or condition removed (i.e. the 
+	 * common code should do the right lookup for the vlan
+	 * tag and anything else that the vlan_input() does).
+	 */
+	if ((tcplro_stacks_wanting_mbufq == 0) || (le->m_head->m_flags & M_VLANTAG))
 		goto skip_lookup;
 	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 	switch (le->eh_type) {

@@ -311,6 +311,8 @@ aw_ccung_attach(device_t dev)
 		case AW_CLK_FRAC:
 			aw_clk_frac_register(sc->clkdom, sc->clks[i].clk.frac);
 			break;
+		case AW_CLK_MIPI:
+			aw_clk_mipi_register(sc->clkdom, sc->clks[i].clk.mipi);
 		}
 	}
 

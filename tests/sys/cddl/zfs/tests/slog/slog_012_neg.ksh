@@ -74,7 +74,9 @@ function test_slog_mirror_corruption # <pooltype> <sparetype>
 	log_must $DD if=/dev/urandom of=$mntpnt/testfile.${TESTCASE_ID} count=100
 
 	ldev=$(random_get $LDEV)
-	log_must create_vdevs $ldev
+	eval `$STAT -s $ldev`
+	log_must $TRUNCATE -s0 $ldev
+	log_must $TRUNCATE -s $st_size $ldev
 	log_must $ZPOOL scrub $TESTPOOL
 
 	log_must display_status $TESTPOOL

@@ -113,6 +113,7 @@ struct xswdev {
 #define	KERN_RESOURCE_SHORTAGE	6
 #define	KERN_NOT_RECEIVER	7
 #define	KERN_NO_ACCESS		8
+#define	KERN_OUT_OF_BOUNDS	9
 
 #ifndef PA_LOCK_COUNT
 #ifdef SMP

@@ -13343,12 +13343,14 @@ send:
 			}
 		} else {
 			/* Not doing TSO */
-			if (optlen + ipoptlen > tp->t_maxseg) {
+			if (optlen + ipoptlen >= tp->t_maxseg) {
 				/*
 				 * Since we don't have enough space to put
 				 * the IP header chain and the TCP header in
 				 * one packet as required by RFC 7112, don't
-				 * send it.
+				 * send it. Also ensure that at least one
+				 * byte of the payload can be put into the
+				 * TCP segment.
 				 */
 				SOCKBUF_UNLOCK(&so->so_snd);
 				error = EMSGSIZE;

@@ -9200,12 +9200,14 @@ send:
 				sendalot = 1;
 
 		} else {
-			if (optlen + ipoptlen > tp->t_maxseg) {
+			if (optlen + ipoptlen >= tp->t_maxseg) {
 				/*
 				 * Since we don't have enough space to put
 				 * the IP header chain and the TCP header in
 				 * one packet as required by RFC 7112, don't
-				 * send it.
+				 * send it. Also ensure that at least one
+				 * byte of the payload can be put into the
+				 * TCP segment.
 				 */
 				SOCKBUF_UNLOCK(&so->so_snd);
 				error = EMSGSIZE;
@@ -10261,10 +10263,10 @@ rack_set_sockopt(struct socket *so, struct sockopt *sopt,
 		break;
 	case TCP_RACK_TLP_INC_VAR:
 		/* Does TLP include rtt variance in t-o */
-		return (EINVAL);
+		error = EINVAL;
 		break;
 	case TCP_RACK_IDLE_REDUCE_HIGH:
-		return (EINVAL);
+		error = EINVAL;
 		break;
 	case TCP_DELACK:
 		if (optval == 0)
@@ -10329,6 +10331,7 @@ rack_get_sockopt(struct socket *so, struct sockopt *sopt,
 	 * add a option that is not a int, then this will have quite an
 	 * impact to this routine.
 	 */
+	error = 0;
 	switch (sopt->sopt_name) {
 	case TCP_RACK_DO_DETECTION:
 		optval = rack->do_detection;
@@ -10398,10 +10401,10 @@ rack_get_sockopt(struct socket *so, struct sockopt *sopt,
 		break;
 	case TCP_RACK_TLP_INC_VAR:
 		/* Does TLP include rtt variance in t-o */
-		return (EINVAL);
+		error = EINVAL;
 		break;
 	case TCP_RACK_IDLE_REDUCE_HIGH:
-		return (EINVAL);
+		error = EINVAL;
 		break;
 	case TCP_RACK_MIN_PACE:
 		optval = rack->r_enforce_min_pace;
@@ -10423,7 +10426,9 @@ rack_get_sockopt(struct socket *so, struct sockopt *sopt,
 		break;
 	}
 	INP_WUNLOCK(inp);
-	error = sooptcopyout(sopt, &optval, sizeof optval);
+	if (error == 0) {
+		error = sooptcopyout(sopt, &optval, sizeof optval);
+	}
 	return (error);
 }
 

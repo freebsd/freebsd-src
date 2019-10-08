@@ -1312,8 +1312,10 @@ ipf_inject(fin, m)
 	fr_info_t *fin;
 	mb_t *m;
 {
+	struct epoch_tracker et;
 	int error = 0;
 
+	NET_EPOCH_ENTER(et);
 	if (fin->fin_out == 0) {
 		netisr_dispatch(NETISR_IP, m);
 	} else {
@@ -1321,6 +1323,7 @@ ipf_inject(fin, m)
 		fin->fin_ip->ip_off = ntohs(fin->fin_ip->ip_off);
 		error = ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL);
 	}
+	NET_EPOCH_EXIT(et);
 
 	return error;
 }

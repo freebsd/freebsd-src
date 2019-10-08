@@ -679,7 +679,7 @@ crypto/blowfish/bf_ecb.c	optional ipsec | ipsec_support
 crypto/blowfish/bf_skey.c	optional crypto | ipsec | ipsec_support
 crypto/camellia/camellia.c	optional crypto | ipsec | ipsec_support
 crypto/camellia/camellia-api.c	optional crypto | ipsec | ipsec_support
-crypto/chacha20/chacha.c	optional crypto | ipsec | ipsec_support
+crypto/chacha20/chacha.c	standard
 crypto/chacha20/chacha-sw.c	optional crypto | ipsec | ipsec_support
 crypto/des/des_ecb.c		optional crypto | ipsec | ipsec_support | netsmb
 crypto/des/des_setkey.c		optional crypto | ipsec | ipsec_support | netsmb
@@ -1777,7 +1777,6 @@ dev/iicbus/ds1307.c		optional ds1307
 dev/iicbus/ds13rtc.c		optional ds13rtc | ds133x | ds1374
 dev/iicbus/ds1672.c		optional ds1672
 dev/iicbus/ds3231.c		optional ds3231
-dev/iicbus/rtc8583.c		optional rtc8583
 dev/iicbus/syr827.c		optional syr827 ext_resources fdt
 dev/iicbus/icee.c		optional icee
 dev/iicbus/if_ic.c		optional ic
@@ -3173,11 +3172,9 @@ dev/uart/uart_dev_mvebu.c	optional uart uart_mvebu
 dev/uart/uart_dev_ns8250.c	optional uart uart_ns8250 | uart uart_snps
 dev/uart/uart_dev_pl011.c	optional uart pl011
 dev/uart/uart_dev_quicc.c	optional uart quicc
-dev/uart/uart_dev_sab82532.c	optional uart uart_sab82532
-dev/uart/uart_dev_sab82532.c	optional uart scc
+dev/uart/uart_dev_sab82532.c	optional uart uart_sab82532 | uart scc
 dev/uart/uart_dev_snps.c	optional uart uart_snps fdt
-dev/uart/uart_dev_z8530.c	optional uart uart_z8530
-dev/uart/uart_dev_z8530.c	optional uart scc
+dev/uart/uart_dev_z8530.c	optional uart uart_z8530 | uart scc
 dev/uart/uart_if.m		optional uart
 dev/uart/uart_subr.c		optional uart
 dev/uart/uart_tty.c		optional uart
@@ -3835,6 +3832,7 @@ kern/subr_sglist.c		standard
 kern/subr_sleepqueue.c		standard
 kern/subr_smp.c			standard
 kern/subr_stack.c		optional ddb | stack | ktr
+kern/subr_stats.c		optional stats
 kern/subr_taskqueue.c		standard
 kern/subr_terminal.c		optional vt
 kern/subr_trap.c		standard
@@ -3951,7 +3949,6 @@ kgssapi/gsstest.c		optional kgssapi_debug
 # the file should be moved to conf/files.<arch> from here.
 #
 libkern/arc4random.c		standard
-crypto/chacha20/chacha.c	standard
 libkern/asprintf.c		standard
 libkern/bcd.c			standard
 libkern/bsearch.c		standard
@@ -4721,8 +4718,6 @@ dev/mlx5/mlx5_core/mlx5_fw.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_fwdump.c		optional mlx5 pci	\
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_fwdump_regmaps.c	optional mlx5 pci	\
-	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_health.c		optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_mad.c			optional mlx5 pci	\
@@ -4730,6 +4725,8 @@ dev/mlx5/mlx5_core/mlx5_mad.c			optional mlx5 pci	\
 dev/mlx5/mlx5_core/mlx5_main.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_mcg.c			optional mlx5 pci	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_mpfs.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_mr.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
@@ -4773,6 +4770,8 @@ dev/mlx5/mlx5_en/mlx5_en_rx.c			optional mlx5en pci inet inet6	\
 dev/mlx5/mlx5_en/mlx5_en_rl.c			optional mlx5en pci inet inet6	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_en/mlx5_en_txrx.c			optional mlx5en pci inet inet6	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_en/mlx5_en_port_buffer.c		optional mlx5en pci inet inet6	\
 	compile-with "${OFED_C}"
 
 # crypto support

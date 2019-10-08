@@ -29,6 +29,7 @@
 #include <sys/stat.h>
 #include <ar.h>
 #include <assert.h>
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <dwarf.h>
 #include <err.h>
@@ -45,6 +46,9 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
+
+#include <libcasper.h>
+#include <casper/cap_fileargs.h>
 
 #include "_elftc.h"
 
@@ -165,6 +169,8 @@ struct nm_prog_options {
 
 	fn_sym_print		value_print_fn;
 	fn_sym_print		size_print_fn;
+
+	fileargs_t		*fileargs;
 };
 
 #define	CHECK_SYM_PRINT_DATA(p)	(p->headp == NULL || p->sh_num == 0 ||	      \
@@ -177,9 +183,10 @@ static int		cmp_name(const void *, const void *);
 static int		cmp_none(const void *, const void *);
 static int		cmp_size(const void *, const void *);
 static int		cmp_value(const void *, const void *);
+static void		enter_cap_mode(int, char **);
 static void		filter_dest(void);
 static int		filter_insert(fn_filter);
-static void		get_opt(int, char **);
+static void		get_opt(int *, char ***);
 static int		get_sym(Elf *, struct sym_head *, int, size_t, size_t,
 			    const char *, const char **, int);
 static const char *	get_sym_name(Elf *, const GElf_Sym *, size_t,
@@ -393,6 +400,36 @@ cmp_value(const void *lp, const void *rp)
 }
 
 static void
+enter_cap_mode(int argc, char **argv)
+{
+	cap_rights_t rights;
+	fileargs_t *fa;
+	char *defaultfn;
+
+	cap_rights_init(&rights, CAP_FSTAT, CAP_MMAP_R);
+
+	if (argc == 0) {
+		defaultfn = strdup(nm_info.def_filename);
+		if (defaultfn == NULL)
+			err(EXIT_FAILURE, "strdup");
+		argc = 1;
+		argv = &defaultfn;
+	}
+
+	fa = fileargs_init(argc, argv, O_RDONLY, 0, &rights, FA_OPEN);
+	if (fa == NULL)
+		err(EXIT_FAILURE, "failed to initialize fileargs");
+
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0)
+		err(EXIT_FAILURE, "failed to limit stdio rights");
+	if (caph_enter_casper() < 0)
+		err(EXIT_FAILURE, "failed to enter capability mode");
+
+	nm_opts.fileargs = fa;
+}
+
+static void
 filter_dest(void)
 {
 	struct filter_entry *e;
@@ -441,18 +478,18 @@ parse_demangle_option(const char *opt)
 }
 
 static void
-get_opt(int argc, char **argv)
+get_opt(int *argc, char ***argv)
 {
 	int ch;
 	bool is_posix, oflag;
 
-	if (argc <= 0 || argv == NULL)
+	if (*argc <= 0 || *argv == NULL)
 		return;
 
 	oflag = is_posix = false;
 	nm_opts.t = RADIX_HEX;
-	while ((ch = getopt_long(argc, argv, "ABCDF:PSVaefghlnoprst:uvx",
-		    nm_longopts, NULL)) != -1) {
+	while ((ch = getopt_long(*argc, *argv, "ABCDF:PSVaefghlnoprst:uvx",
+	    nm_longopts, NULL)) != -1) {
 		switch (ch) {
 		case 'A':
 			nm_opts.print_name = PRINT_NAME_FULL;
@@ -573,6 +610,8 @@ get_opt(int argc, char **argv)
 			usage(1);
 		}
 	}
+	*argc -= optind;
+	*argv += optind;
 
 	/*
 	 * In POSIX mode, the '-o' option controls the output radix.
@@ -764,6 +803,7 @@ global_init(void)
 	nm_opts.elem_print_fn = &sym_elem_print_all;
 	nm_opts.value_print_fn = &sym_value_dec_print;
 	nm_opts.size_print_fn = &sym_size_dec_print;
+	nm_opts.fileargs = NULL;
 	SLIST_INIT(&nm_out_filter);
 }
 
@@ -1467,7 +1507,7 @@ read_object(const char *filename)
 
 	assert(filename != NULL && "filename is null");
 
-	if ((fd = open(filename, O_RDONLY)) == -1) {
+	if ((fd = fileargs_open(nm_opts.fileargs, filename)) == -1) {
 		warn("'%s'", filename);
 		return (1);
 	}
@@ -2115,8 +2155,9 @@ main(int argc, char **argv)
 	int rtn;
 
 	global_init();
-	get_opt(argc, argv);
-	rtn = read_files(argc - optind, argv + optind);
+	get_opt(&argc, &argv);
+	enter_cap_mode(argc, argv);
+	rtn = read_files(argc, argv);
 	global_dest();
 
 	exit(rtn);

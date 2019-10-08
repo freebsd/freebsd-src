@@ -1074,16 +1074,13 @@ dwc_reset(device_t dev)
 	if (OF_hasprop(node, "snps,reset-active-low"))
 		pin_value = GPIO_PIN_HIGH;
 
-	if (flags & GPIO_ACTIVE_LOW)
-		pin_value = !pin_value;
-
 	GPIO_PIN_SETFLAGS(gpio, pin, GPIO_PIN_OUTPUT);
 	GPIO_PIN_SET(gpio, pin, pin_value);
-	DELAY(delay_prop[0]);
+	DELAY(delay_prop[0] * 5);
 	GPIO_PIN_SET(gpio, pin, !pin_value);
-	DELAY(delay_prop[1]);
+	DELAY(delay_prop[1] * 5);
 	GPIO_PIN_SET(gpio, pin, pin_value);
-	DELAY(delay_prop[2]);
+	DELAY(delay_prop[2] * 5);
 
 	return (0);
 }

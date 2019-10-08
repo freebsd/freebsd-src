@@ -125,8 +125,13 @@ ngipi_rcvdata(hook_p hook, item_p item)
 	NG_FREE_ITEM(item);
 	if (curthread->td_ng_outbound)
 		netisr_queue(NETISR_IP, m);
-	else
+	else {
+		struct epoch_tracker et;
+
+		NET_EPOCH_ENTER(et);
 		netisr_dispatch(NETISR_IP, m);
+		NET_EPOCH_EXIT(et);
+	}
 	return 0;
 }
 

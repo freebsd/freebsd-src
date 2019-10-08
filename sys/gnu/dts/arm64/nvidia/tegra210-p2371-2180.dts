@@ -79,6 +79,19 @@
 		};
 	};
 
+	i2c@7000c500 {
+		/* carrier board ID EEPROM */
+		eeprom@57 {
+			compatible = "atmel,24c02";
+			reg = <0x57>;
+
+			address-bits = <8>;
+			page-size = <8>;
+			size = <256>;
+			read-only;
+		};
+	};
+
 	clock@70110000 {
 		status = "okay";
 
@@ -98,5 +111,17 @@
 		pinctrl-names = "dvfs_pwm_enable", "dvfs_pwm_disable";
 		pinctrl-0 = <&dvfs_pwm_active_state>;
 		pinctrl-1 = <&dvfs_pwm_inactive_state>;
+	};
+
+	aconnect@702c0000 {
+		status = "okay";
+
+		dma@702e2000 {
+			status = "okay";
+		};
+
+		agic@702f9000 {
+			status = "okay";
+		};
 	};
 };

@@ -129,7 +129,6 @@ ATF_TC_BODY(page_fault_signal__bus_objerr_1, tc)
 	int fd;
 	int sz;
 
-	atf_tc_expect_fail("bug 211924");
 	sz = getpagesize();
 	fd = shm_open(SHM_ANON, O_RDWR | O_CREAT, 0600);
 	ATF_REQUIRE(fd != -1);
@@ -153,7 +152,6 @@ ATF_TC_BODY(page_fault_signal__bus_objerr_2, tc)
 	int r;
 	int sz;
 
-	atf_tc_expect_fail("bug 211924");
 	sz = getpagesize();
 	fd = shm_open(SHM_ANON, O_RDWR | O_CREAT, 0600);
 	ATF_REQUIRE(fd != -1);

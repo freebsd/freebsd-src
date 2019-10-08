@@ -1,0 +1,39 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: linux
+# REQUIRE: archdep
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="linux"
+desc="Enable Linux ABI"
+rcvar="linux_enable"
+start_cmd="${name}_start"
+stop_cmd=":"
+
+linux_start()
+{
+	local _tmpdir
+
+	load_kld -e 'linux(aout|elf)' linux
+	case `sysctl -n hw.machine_arch` in
+	amd64)
+		load_kld -e 'linux64elf' linux64
+		;;
+	esac
+	if [ -x /compat/linux/sbin/ldconfigDisabled ]; then
+		_tmpdir=`mktemp -d -t linux-ldconfig`
+		/compat/linux/sbin/ldconfig -C ${_tmpdir}/ld.so.cache
+		if ! cmp -s ${_tmpdir}/ld.so.cache /compat/linux/etc/ld.so.cache; then
+			cat ${_tmpdir}/ld.so.cache > /compat/linux/etc/ld.so.cache
+		fi
+		rm -rf ${_tmpdir}
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

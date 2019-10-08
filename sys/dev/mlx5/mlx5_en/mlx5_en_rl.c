@@ -518,7 +518,7 @@ mlx5e_rl_worker(void *arg)
 
 		MLX5E_RL_WORKER_LOCK(rlw);
 		if (error != 0) {
-			if_printf(priv->ifp,
+			mlx5_en_err(priv->ifp,
 			    "mlx5e_rl_open_channel failed: %d\n", error);
 			break;
 		}
@@ -551,7 +551,7 @@ mlx5e_rl_worker(void *arg)
 					MLX5E_RL_RUNLOCK(&priv->rl);
 
 					if (error != 0) {
-						if_printf(priv->ifp,
+						mlx5_en_err(priv->ifp,
 						    "mlx5e_rl_open_channel failed: %d\n", error);
 					} else {
 						atomic_add_64(&rlw->priv->rl.stats.tx_open_queues, 1ULL);
@@ -565,7 +565,7 @@ mlx5e_rl_worker(void *arg)
 				error = mlx5e_rlw_channel_set_rate_locked(rlw, channel,
 				    channel->new_rate * 8ULL);
 				if (error != 0) {
-					if_printf(priv->ifp,
+					mlx5_en_err(priv->ifp,
 					    "mlx5e_rlw_channel_set_rate_locked failed: %d\n",
 					    error);
 				}
@@ -574,7 +574,7 @@ mlx5e_rl_worker(void *arg)
 			case MLX5E_RL_ST_DESTROY:
 				error = mlx5e_rlw_channel_set_rate_locked(rlw, channel, 0);
 				if (error != 0) {
-					if_printf(priv->ifp,
+					mlx5_en_err(priv->ifp,
 					    "mlx5e_rlw_channel_set_rate_locked failed: %d\n",
 					    error);
 				}
@@ -855,7 +855,7 @@ mlx5e_rl_init(struct mlx5e_priv *priv)
 	PRIV_UNLOCK(priv);
 
 	if (error != 0) {
-		if_printf(priv->ifp,
+		mlx5_en_err(priv->ifp,
 		    "mlx5e_rl_open_workers failed: %d\n", error);
 	}
 
@@ -893,7 +893,7 @@ mlx5e_rl_open_workers(struct mlx5e_priv *priv)
 		error = kproc_kthread_add(mlx5e_rl_worker, rlw, &rl_proc, &rl_thread,
 		    RFHIGHPID, 0, "mlx5-ratelimit", "mlx5-rl-worker-thread-%d", (int)j);
 		if (error != 0) {
-			if_printf(rl->priv->ifp,
+			mlx5_en_err(rl->priv->ifp,
 			    "kproc_kthread_add failed: %d\n", error);
 			rlw->worker_done = 1;
 		}
@@ -1089,7 +1089,8 @@ mlx5e_find_available_tx_ring_index(struct mlx5e_rl_worker *rlw,
 
 	*pchannel = channel;
 #ifdef RATELIMIT_DEBUG
-	if_printf(rlw->priv->ifp, "Channel pointer for rate limit connection is %p\n", channel);
+	mlx5_en_info(rlw->priv->ifp,
+	    "Channel pointer for rate limit connection is %p\n", channel);
 #endif
 	return (retval);
 }

@@ -645,22 +645,21 @@ void
 uether_rxflush(struct usb_ether *ue)
 {
 	struct ifnet *ifp = ue->ue_ifp;
-	struct mbuf *m;
+	struct epoch_tracker et;
+	struct mbuf *m, *n;
 
 	UE_LOCK_ASSERT(ue, MA_OWNED);
 
-	for (;;) {
-		m = mbufq_dequeue(&ue->ue_rxq);
-		if (m == NULL)
-			break;
-
-		/*
-		 * The USB xfer has been resubmitted so its safe to unlock now.
-		 */
-		UE_UNLOCK(ue);
+	n = mbufq_flush(&ue->ue_rxq);
+	UE_UNLOCK(ue);
+	NET_EPOCH_ENTER(et);
+	while ((m = n) != NULL) {
+		n = STAILQ_NEXT(m, m_stailqpkt);
+		m->m_nextpkt = NULL;
 		ifp->if_input(ifp, m);
-		UE_LOCK(ue);
 	}
+	NET_EPOCH_EXIT(et);
+	UE_LOCK(ue);
 }
 
 /*

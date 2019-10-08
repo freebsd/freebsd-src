@@ -67,7 +67,7 @@
 # 
 # 	# Standard recipe
 # 	exec.start += "/bin/sh /etc/rc";
-# 	exec.stop = "/bin/sh /etc/rc.shutdown";
+# 	exec.stop = "/bin/sh /etc/rc.shutdown jail";
 # 	exec.consolelog = "/var/log/jail_xxx_console.log";
 # 	mount.devfs;
 #

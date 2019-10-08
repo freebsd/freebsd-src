@@ -1,0 +1,94 @@
+.\" Copyright 2019 The FreeBSD Foundation.
+.\"
+.\" This software was developed by Bora Ozarslan under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 27, 2019
+.Dt CONTROLELF 1
+.Os
+.Sh NAME
+.Nm controlelf
+.Nd change an ELF binary's feature control note
+.Sh SYNOPSIS
+.Nm
+.Op Fl h | Fl -help
+.Op Fl l
+.Op Fl e Ar featurelist
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility modifies feature flags in the feature control note in an ELF binary.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl h | Fl -help
+Print a usage message and exit.
+.It Fl l
+List known ELF feature flags.
+.It Fl e Ar featurelist
+Edit features from the given comma separated list
+.Ar featurelist .
+.Ar featurelist
+starts with one of the three operations:
+.Dq Li +
+to turn on the features,
+.Dq Li -
+to turn off the features,
+.Dq Li =
+to only turn on the given features.
+A comma separated list of feature names follows the operation.
+.El
+.Pp
+If
+.Fl e
+is not specified
+.Nm
+displays the status of each feature in the ELF note in each
+.Ar .
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command
+fails if a file does not exist, is too short,
+or fails to find or edit features note.
+.Sh EXAMPLES
+The following is an example of a typical usage
+of the
+.Nm
+command:
+.Bd -literal -offset indent
+controlelf file
+controlelf -e +aslr file
+.Ed
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+.Nm
+was written by
+.An Bora Ozarslan Mt borako.ozarslan@gmail.com
+under sponsorship from the
+.Fx Foundation.

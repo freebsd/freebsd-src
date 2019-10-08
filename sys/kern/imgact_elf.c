@@ -1738,8 +1738,7 @@ each_dumpable_segment(struct thread *td, segment_callback func, void *closure)
 	boolean_t ignore_entry;
 
 	vm_map_lock_read(map);
-	for (entry = map->header.next; entry != &map->header;
-	    entry = entry->next) {
+	VM_MAP_ENTRY_FOREACH(entry, map) {
 		/*
 		 * Don't dump inaccessible mappings, deal with legacy
 		 * coredump mode.

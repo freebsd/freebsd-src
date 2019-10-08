@@ -1689,7 +1689,7 @@ ffs_fragextend(ip, cg, bprev, osize, nsize)
 		return (0);
 	}
 	UFS_UNLOCK(ump);
-	if ((error = ffs_getcg(fs, ump->um_devvp, cg, &bp, &cgp)) != 0)
+	if ((error = ffs_getcg(fs, ump->um_devvp, cg, 0, &bp, &cgp)) != 0)
 		goto fail;
 	bno = dtogd(fs, bprev);
 	blksfree = cg_blksfree(cgp);
@@ -1760,7 +1760,7 @@ ffs_alloccg(ip, cg, bpref, size, rsize)
 	if (fs->fs_cs(fs, cg).cs_nbfree == 0 && size == fs->fs_bsize)
 		return (0);
 	UFS_UNLOCK(ump);
-	if ((error = ffs_getcg(fs, ump->um_devvp, cg, &bp, &cgp)) != 0 ||
+	if ((error = ffs_getcg(fs, ump->um_devvp, cg, 0, &bp, &cgp)) != 0 ||
 	   (cgp->cg_cs.cs_nbfree == 0 && size == fs->fs_bsize))
 		goto fail;
 	if (size == fs->fs_bsize) {
@@ -1940,7 +1940,7 @@ ffs_clusteralloc(ip, cg, bpref, len)
 	if (fs->fs_maxcluster[cg] < len)
 		return (0);
 	UFS_UNLOCK(ump);
-	if ((error = ffs_getcg(fs, ump->um_devvp, cg, &bp, &cgp)) != 0) {
+	if ((error = ffs_getcg(fs, ump->um_devvp, cg, 0, &bp, &cgp)) != 0) {
 		UFS_LOCK(ump);
 		return (0);
 	}
@@ -2082,7 +2082,7 @@ check_nifree:
 	if (fs->fs_cs(fs, cg).cs_nifree == 0)
 		return (0);
 	UFS_UNLOCK(ump);
-	if ((error = ffs_getcg(fs, ump->um_devvp, cg, &bp, &cgp)) != 0) {
+	if ((error = ffs_getcg(fs, ump->um_devvp, cg, 0, &bp, &cgp)) != 0) {
 		UFS_LOCK(ump);
 		return (0);
 	}
@@ -2179,7 +2179,7 @@ gotit:
 		 * to it, then leave it unchanged as the other thread
 		 * has already set it correctly.
 		 */
-		error = ffs_getcg(fs, ump->um_devvp, cg, &bp, &cgp);
+		error = ffs_getcg(fs, ump->um_devvp, cg, 0, &bp, &cgp);
 		UFS_LOCK(ump);
 		ACTIVECLEAR(fs, cg);
 		UFS_UNLOCK(ump);
@@ -2261,7 +2261,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 		ffs_fserr(fs, inum, "bad block");
 		return;
 	}
-	if ((error = ffs_getcg(fs, devvp, cg, &bp, &cgp)) != 0)
+	if ((error = ffs_getcg(fs, devvp, cg, 0, &bp, &cgp)) != 0)
 		return;
 	cgbno = dtogd(fs, bno);
 	blksfree = cg_blksfree(cgp);
@@ -2728,7 +2728,7 @@ ffs_checkblk(ip, bno, size)
 	}
 	if ((u_int)bno >= fs->fs_size)
 		panic("ffs_checkblk: bad block %jd", (intmax_t)bno);
-	error = ffs_getcg(fs, ITODEVVP(ip), dtog(fs, bno), &bp, &cgp);
+	error = ffs_getcg(fs, ITODEVVP(ip), dtog(fs, bno), 0, &bp, &cgp);
 	if (error)
 		panic("ffs_checkblk: cylinder group read failed");
 	blksfree = cg_blksfree(cgp);
@@ -2802,7 +2802,7 @@ ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
 	if (ino >= fs->fs_ipg * fs->fs_ncg)
 		panic("ffs_freefile: range: dev = %s, ino = %ju, fs = %s",
 		    devtoname(dev), (uintmax_t)ino, fs->fs_fsmnt);
-	if ((error = ffs_getcg(fs, devvp, cg, &bp, &cgp)) != 0)
+	if ((error = ffs_getcg(fs, devvp, cg, 0, &bp, &cgp)) != 0)
 		return (error);
 	inosused = cg_inosused(cgp);
 	ino %= fs->fs_ipg;
@@ -2855,7 +2855,7 @@ ffs_checkfreefile(fs, devvp, ino)
 		return (1);
 	if (ino >= fs->fs_ipg * fs->fs_ncg)
 		return (1);
-	if ((error = ffs_getcg(fs, devvp, cg, &bp, &cgp)) != 0)
+	if ((error = ffs_getcg(fs, devvp, cg, 0, &bp, &cgp)) != 0)
 		return (1);
 	inosused = cg_inosused(cgp);
 	ino %= fs->fs_ipg;
@@ -2944,21 +2944,21 @@ ffs_getmntstat(struct vnode *devvp)
  * Fetch and verify a cylinder group.
  */
 int
-ffs_getcg(fs, devvp, cg, bpp, cgpp)
+ffs_getcg(fs, devvp, cg, flags, bpp, cgpp)
 	struct fs *fs;
 	struct vnode *devvp;
 	u_int cg;
+	int flags;
 	struct buf **bpp;
 	struct cg **cgpp;
 {
 	struct buf *bp;
 	struct cg *cgp;
 	const struct statfs *sfs;
-	int flags, error;
+	int error;
 
 	*bpp = NULL;
 	*cgpp = NULL;
-	flags = 0;
 	if ((fs->fs_metackhash & CK_CYLGRP) != 0)
 		flags |= GB_CKHASH;
 	error = breadn_flags(devvp, devvp->v_type == VREG ?

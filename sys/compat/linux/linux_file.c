@@ -704,7 +704,7 @@ linux_renameat2(struct thread *td, struct linux_renameat2_args *args)
 	int error, olddfd, newdfd;
 
 	if (args->flags != 0) {
-		linux_msg(td, "renameat2 unsupported flags 0x%x\n",
+		linux_msg(td, "renameat2 unsupported flags 0x%x",
 		    args->flags);
 		return (EINVAL);
 	}

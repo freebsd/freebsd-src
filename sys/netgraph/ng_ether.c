@@ -711,6 +711,7 @@ ng_ether_rcv_lower(hook_p hook, item_p item)
 static int
 ng_ether_rcv_upper(hook_p hook, item_p item)
 {
+	struct epoch_tracker et;
 	struct mbuf *m;
 	const node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
@@ -738,7 +739,9 @@ ng_ether_rcv_upper(hook_p hook, item_p item)
 	}
 
 	/* Route packet back in */
+	NET_EPOCH_ENTER(et);
 	ether_demux(ifp, m);
+	NET_EPOCH_EXIT(et);
 	return (0);
 }
 

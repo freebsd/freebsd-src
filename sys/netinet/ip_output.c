@@ -1078,7 +1078,8 @@ in_delayed_cksum(struct mbuf *m)
 int
 ip_ctloutput(struct socket *so, struct sockopt *sopt)
 {
-	struct	inpcb *inp = sotoinpcb(so);
+	struct inpcb *inp = sotoinpcb(so);
+	struct epoch_tracker et;
 	int	error, optval;
 #ifdef	RSS
 	uint32_t rss_bucket;
@@ -1517,7 +1518,9 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_MULTICAST_TTL:
 		case IP_MULTICAST_LOOP:
 		case IP_MSFILTER:
+			NET_EPOCH_ENTER(et);
 			error = inp_getmoptions(inp, sopt);
+			NET_EPOCH_EXIT(et);
 			break;
 
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)

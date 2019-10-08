@@ -63,6 +63,7 @@
 #include <sys/filio.h>
 #include <sys/sockio.h>
 #include <sys/sx.h>
+#include <sys/syslog.h>
 #include <sys/ttycom.h>
 #include <sys/poll.h>
 #include <sys/selinfo.h>
@@ -106,6 +107,7 @@ struct tuntap_driver;
  */
 struct tuntap_softc {
 	TAILQ_ENTRY(tuntap_softc)	 tun_list;
+	struct cdev			*tun_alias;
 	struct cdev			*tun_dev;
 	u_short				 tun_flags;	/* misc flags */
 #define	TUN_OPEN	0x0001
@@ -131,13 +133,15 @@ struct tuntap_softc {
 	struct mtx		 tun_mtx;	/* softc field mutex */
 	struct cv		 tun_cv;	/* for ref'd dev destroy */
 	struct ether_addr	 tun_ether;	/* remote address */
+	int			 tun_busy;	/* busy count */
 };
 #define	TUN2IFP(sc)	((sc)->tun_ifp)
 
 #define	TUNDEBUG	if (tundebug) if_printf
 
-#define	TUN_LOCK(tp)	mtx_lock(&(tp)->tun_mtx)
-#define	TUN_UNLOCK(tp)	mtx_unlock(&(tp)->tun_mtx)
+#define	TUN_LOCK(tp)		mtx_lock(&(tp)->tun_mtx)
+#define	TUN_UNLOCK(tp)		mtx_unlock(&(tp)->tun_mtx)
+#define	TUN_LOCK_ASSERT(tp)	mtx_assert(&(tp)->tun_mtx, MA_OWNED);
 
 #define	TUN_VMIO_FLAG_MASK	0x0fff
 
@@ -147,7 +151,8 @@ struct tuntap_softc {
  * which are static after setup.
  */
 static struct mtx tunmtx;
-static eventhandler_tag tag;
+static eventhandler_tag arrival_tag;
+static eventhandler_tag clone_tag;
 static const char tunname[] = "tun";
 static const char tapname[] = "tap";
 static const char vmnetname[] = "vmnet";
@@ -182,10 +187,16 @@ SYSCTL_INT(_net_link_tap, OID_AUTO, devfs_cloning, CTLFLAG_RWTUN, &tapdclone, 0,
     "Enable legacy devfs interface creation");
 SYSCTL_INT(_net_link_tap, OID_AUTO, debug, CTLFLAG_RW, &tundebug, 0, "");
 
+static int	tun_busy_locked(struct tuntap_softc *tp);
+static void	tun_unbusy_locked(struct tuntap_softc *tp);
+static int	tun_busy(struct tuntap_softc *tp);
+static void	tun_unbusy(struct tuntap_softc *tp);
+
 static int	tuntap_name2info(const char *name, int *unit, int *flags);
 static void	tunclone(void *arg, struct ucred *cred, char *name,
 		    int namelen, struct cdev **dev);
 static void	tuncreate(struct cdev *dev, struct tuntap_driver *);
+static void	tunrename(void *arg, struct ifnet *ifp);
 static int	tunifioctl(struct ifnet *, u_long, caddr_t);
 static void	tuninit(struct ifnet *);
 static void	tunifinit(void *xtp);
@@ -302,6 +313,65 @@ VNET_DEFINE_STATIC(SLIST_HEAD(, tuntap_driver_cloner), tuntap_driver_cloners) =
     SLIST_HEAD_INITIALIZER(tuntap_driver_cloners);
 
 #define	V_tuntap_driver_cloners	VNET(tuntap_driver_cloners)
+
+/*
+ * Mechanism for marking a tunnel device as busy so that we can safely do some
+ * orthogonal operations (such as operations on devices) without racing against
+ * tun_destroy.  tun_destroy will wait on the condvar if we're at all busy or
+ * open, to be woken up when the condition is alleviated.
+ */
+static int
+tun_busy_locked(struct tuntap_softc *tp)
+{
+
+	TUN_LOCK_ASSERT(tp);
+	if ((tp->tun_flags & TUN_DYING) != 0) {
+		/*
+		 * Perhaps unintuitive, but the device is busy going away.
+		 * Other interpretations of EBUSY from tun_busy make little
+		 * sense, since making a busy device even more busy doesn't
+		 * sound like a problem.
+		 */
+		return (EBUSY);
+	}
+
+	++tp->tun_busy;
+	return (0);
+}
+
+static void
+tun_unbusy_locked(struct tuntap_softc *tp)
+{
+
+	TUN_LOCK_ASSERT(tp);
+	KASSERT(tp->tun_busy != 0, ("tun_unbusy: called for non-busy tunnel"));
+
+	--tp->tun_busy;
+	/* Wake up anything that may be waiting on our busy tunnel. */
+	if (tp->tun_busy == 0)
+		cv_broadcast(&tp->tun_cv);
+}
+
+static int
+tun_busy(struct tuntap_softc *tp)
+{
+	int ret;
+
+	TUN_LOCK(tp);
+	ret = tun_busy_locked(tp);
+	TUN_UNLOCK(tp);
+	return (ret);
+}
+
+
+static void
+tun_unbusy(struct tuntap_softc *tp)
+{
+
+	TUN_LOCK(tp);
+	tun_unbusy_locked(tp);
+	TUN_UNLOCK(tp);
+}
 
 /*
  * Sets unit and/or flags given the device name.  Must be called with correct
@@ -531,13 +601,14 @@ tun_destroy(struct tuntap_softc *tp)
 
 	TUN_LOCK(tp);
 	tp->tun_flags |= TUN_DYING;
-	if ((tp->tun_flags & TUN_OPEN) != 0)
+	if (tp->tun_busy != 0)
 		cv_wait_unlock(&tp->tun_cv, &tp->tun_mtx);
 	else
 		TUN_UNLOCK(tp);
 
 	CURVNET_SET(TUN2IFP(tp)->if_vnet);
 
+	/* destroy_dev will take care of any alias. */
 	destroy_dev(tp->tun_dev);
 	seldrain(&tp->tun_rsel);
 	knlist_clear(&tp->tun_rsel.si_note, 0);
@@ -616,7 +687,8 @@ tun_uninit(const void *unused __unused)
 	struct tuntap_softc *tp;
 	int i;
 
-	EVENTHANDLER_DEREGISTER(dev_clone, tag);
+	EVENTHANDLER_DEREGISTER(ifnet_arrival_event, arrival_tag);
+	EVENTHANDLER_DEREGISTER(dev_clone, clone_tag);
 	drain_dev_clone_events();
 
 	mtx_lock(&tunmtx);
@@ -636,6 +708,24 @@ tun_uninit(const void *unused __unused)
 }
 SYSUNINIT(tun_uninit, SI_SUB_PROTO_IF, SI_ORDER_ANY, tun_uninit, NULL);
 
+static struct tuntap_driver *
+tuntap_driver_from_ifnet(const struct ifnet *ifp)
+{
+	struct tuntap_driver *drv;
+	int i;
+
+	if (ifp == NULL)
+		return (NULL);
+
+	for (i = 0; i < nitems(tuntap_drivers); ++i) {
+		drv = &tuntap_drivers[i];
+		if (strcmp(ifp->if_dname, drv->cdevsw.d_name) == 0)
+			return (drv);
+	}
+
+	return (NULL);
+}
+
 static int
 tuntapmodevent(module_t mod, int type, void *data)
 {
@@ -650,8 +740,12 @@ tuntapmodevent(module_t mod, int type, void *data)
 			clone_setup(&drv->clones);
 			drv->unrhdr = new_unrhdr(0, IF_MAXUNIT, &tunmtx);
 		}
-		tag = EVENTHANDLER_REGISTER(dev_clone, tunclone, 0, 1000);
-		if (tag == NULL)
+		arrival_tag = EVENTHANDLER_REGISTER(ifnet_arrival_event,
+		   tunrename, 0, 1000);
+		if (arrival_tag == NULL)
+			return (ENOMEM);
+		clone_tag = EVENTHANDLER_REGISTER(dev_clone, tunclone, 0, 1000);
+		if (clone_tag == NULL)
 			return (ENOMEM);
 		break;
 	case MOD_UNLOAD:
@@ -836,6 +930,57 @@ tuncreate(struct cdev *dev, struct tuntap_driver *drv)
 	    ifp->if_xname, dev2unit(dev));
 }
 
+static void
+tunrename(void *arg __unused, struct ifnet *ifp)
+{
+	struct tuntap_softc *tp;
+	int error;
+
+	if ((ifp->if_flags & IFF_RENAMING) == 0)
+		return;
+
+	if (tuntap_driver_from_ifnet(ifp) == NULL)
+		return;
+
+	/*
+	 * We need to grab the ioctl sx long enough to make sure the softc is
+	 * still there.  If it is, we can safely try to busy the tun device.
+	 * The busy may fail if the device is currently dying, in which case
+	 * we do nothing.  If it doesn't fail, the busy count stops the device
+	 * from dying until we've created the alias (that will then be
+	 * subsequently destroyed).
+	 */
+	sx_xlock(&tun_ioctl_sx);
+	tp = ifp->if_softc;
+	if (tp == NULL) {
+		sx_xunlock(&tun_ioctl_sx);
+		return;
+	}
+	error = tun_busy(tp);
+	sx_xunlock(&tun_ioctl_sx);
+	if (error != 0)
+		return;
+	if (tp->tun_alias != NULL) {
+		destroy_dev(tp->tun_alias);
+		tp->tun_alias = NULL;
+	}
+
+	if (strcmp(ifp->if_xname, tp->tun_dev->si_name) == 0)
+		goto out;
+
+	/*
+	 * Failure's ok, aliases are created on a best effort basis.  If a
+	 * tun user/consumer decides to rename the interface to conflict with
+	 * another device (non-ifnet) on the system, we will assume they know
+	 * what they are doing.  make_dev_alias_p won't touch tun_alias on
+	 * failure, so we use it but ignore the return value.
+	 */
+	make_dev_alias_p(MAKEDEV_CHECKNAME, &tp->tun_alias, tp->tun_dev, "%s",
+	    ifp->if_xname);
+out:
+	tun_unbusy(tp);
+}
+
 static int
 tunopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
@@ -885,6 +1030,8 @@ tunopen(struct cdev *dev, int flag, int mode, struct thread *td)
 		return (EBUSY);
 	}
 
+	error = tun_busy_locked(tp);
+	KASSERT(error == 0, ("Must be able to busy an unopen tunnel"));
 	ifp = TUN2IFP(tp);
 
 	if ((tp->tun_flags & TUN_L2) != 0) {
@@ -915,23 +1062,29 @@ tunopen(struct cdev *dev, int flag, int mode, struct thread *td)
 static	int
 tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 {
+	struct proc *p;
 	struct tuntap_softc *tp;
 	struct ifnet *ifp;
 	bool l2tun;
 
+	p = td->td_proc;
 	tp = dev->si_drv1;
 	ifp = TUN2IFP(tp);
 
 	TUN_LOCK(tp);
+
 	/*
-	 * Simply close the device if this isn't the controlling process.  This
-	 * may happen if, for instance, the tunnel has been handed off to
-	 * another process.  The original controller should be able to close it
-	 * without putting us into an inconsistent state.
+	 * Realistically, we can't be obstinate here.  This only means that the
+	 * tuntap device was closed out of order, and the last closer wasn't the
+	 * controller.  These are still good to know about, though, as software
+	 * should avoid multiple processes with a tuntap device open and
+	 * ill-defined transfer of control (e.g., handoff, TUNSIFPID, close in
+	 * parent).
 	 */
-	if (td->td_proc->p_pid != tp->tun_pid) {
-		TUN_UNLOCK(tp);
-		return (0);
+	if (p->p_pid != tp->tun_pid) {
+		log(LOG_INFO,
+		    "pid %d (%s), %s: tun/tap protocol violation, non-controlling process closed last.\n",
+		    p->p_pid, p->p_comm, dev->si_name);
 	}
 
 	/*
@@ -988,7 +1141,7 @@ out:
 	tp->tun_flags &= ~TUN_OPEN;
 	tp->tun_pid = 0;
 
-	cv_broadcast(&tp->tun_cv);
+	tun_unbusy_locked(tp);
 	TUN_UNLOCK(tp);
 	return (0);
 }
@@ -1509,6 +1662,7 @@ tunwrite_l2(struct tuntap_softc *tp, struct mbuf *m)
 static int
 tunwrite_l3(struct tuntap_softc *tp, struct mbuf *m)
 {
+	struct epoch_tracker et;
 	struct ifnet *ifp;
 	int family, isr;
 
@@ -1549,7 +1703,9 @@ tunwrite_l3(struct tuntap_softc *tp, struct mbuf *m)
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	CURVNET_SET(ifp->if_vnet);
 	M_SETFIB(m, ifp->if_fib);
+	NET_EPOCH_ENTER(et);
 	netisr_dispatch(isr, m);
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 	return (0);
 }

@@ -286,7 +286,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		/*
 		 * Fault and hold the page on behalf of the process.
 		 */
-		error = vm_fault_hold(map, pageno, reqprot, fault_flags, &m);
+		error = vm_fault(map, pageno, reqprot, fault_flags, &m);
 		if (error != KERN_SUCCESS) {
 			if (error == KERN_RESOURCE_SHORTAGE)
 				error = ENOMEM;
@@ -382,21 +382,18 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 	vm_map_lock_read(map);
 
 	do {
-		entry = map->header.next;
-		index = 0;
-		while (index < pve->pve_entry && entry != &map->header) {
-			entry = entry->next;
-			index++;
-		}
-		if (index != pve->pve_entry) {
-			error = EINVAL;
-			break;
-		}
 		KASSERT((map->header.eflags & MAP_ENTRY_IS_SUB_MAP) == 0,
 		    ("Submap in map header"));
-		while ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0) {
-			entry = entry->next;
+		index = 0;
+		VM_MAP_ENTRY_FOREACH(entry, map) {
+			if (index >= pve->pve_entry &&
+			    (entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0)
+				break;
 			index++;
+		}
+		if (index < pve->pve_entry) {
+			error = EINVAL;
+			break;
 		}
 		if (entry == &map->header) {
 			error = ENOENT;

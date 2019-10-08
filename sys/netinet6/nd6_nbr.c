@@ -614,7 +614,6 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *saddr6,
 void
 nd6_na_input(struct mbuf *m, int off, int icmp6len)
 {
-	struct epoch_tracker et;
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	struct nd_neighbor_advert *nd_na;
@@ -636,6 +635,8 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	size_t linkhdrsize;
 	int lladdr_off;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
+
+	NET_EPOCH_ASSERT();
 
 	/* RFC 6980: Nodes MUST silently ignore fragments */
 	if(m->m_flags & M_FRAGMENTED)
@@ -742,9 +743,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	 * If no neighbor cache entry is found, NA SHOULD silently be
 	 * discarded.
 	 */
-	NET_EPOCH_ENTER(et);
 	ln = nd6_lookup(&taddr6, LLE_EXCLUSIVE, ifp);
-	NET_EPOCH_EXIT(et);
 	if (ln == NULL) {
 		goto freeit;
 	}
@@ -1193,8 +1192,13 @@ static void
 nd6_dad_starttimer(struct dadq *dp, int ticks, int send_ns)
 {
 
-	if (send_ns != 0)
+	if (send_ns != 0) {
+		struct epoch_tracker et;
+
+		NET_EPOCH_ENTER(et);
 		nd6_dad_ns_output(dp);
+		NET_EPOCH_EXIT(et);
+	}
 	callout_reset(&dp->dad_timer_ch, ticks,
 	    (void (*)(void *))nd6_dad_timer, (void *)dp);
 }

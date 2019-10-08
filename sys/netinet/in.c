@@ -139,21 +139,18 @@ in_localip(struct in_addr in)
 int
 in_ifhasaddr(struct ifnet *ifp, struct in_addr in)
 {
-	struct epoch_tracker et;
 	struct ifaddr *ifa;
 	struct in_ifaddr *ia;
 
-	NET_EPOCH_ENTER(et);
+	NET_EPOCH_ASSERT();
+
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET)
 			continue;
 		ia = (struct in_ifaddr *)ifa;
-		if (ia->ia_addr.sin_addr.s_addr == in.s_addr) {
-			NET_EPOCH_EXIT(et);
+		if (ia->ia_addr.sin_addr.s_addr == in.s_addr)
 			return (1);
-		}
 	}
-	NET_EPOCH_EXIT(et);
 
 	return (0);
 }
@@ -965,9 +962,10 @@ in_ifaddr_broadcast(struct in_addr in, struct in_ifaddr *ia)
 int
 in_broadcast(struct in_addr in, struct ifnet *ifp)
 {
-	struct epoch_tracker et;
 	struct ifaddr *ifa;
 	int found;
+
+	NET_EPOCH_ASSERT();
 
 	if (in.s_addr == INADDR_BROADCAST ||
 	    in.s_addr == INADDR_ANY)
@@ -979,14 +977,12 @@ in_broadcast(struct in_addr in, struct ifnet *ifp)
 	 * Look through the list of addresses for a match
 	 * with a broadcast address.
 	 */
-	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET &&
 		    in_ifaddr_broadcast(in, (struct in_ifaddr *)ifa)) {
 			found = 1;
 			break;
 		}
-	NET_EPOCH_EXIT(et);
 	return (found);
 }
 

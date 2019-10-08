@@ -94,12 +94,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_param.h>
 
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/machdep.h>
 #include <machine/pcb.h>
-#include <machine/vmparam.h>
 
 #ifdef KDB
 #include <sys/kdb.h>
@@ -181,7 +181,7 @@ abort_handler(struct trapframe *tf, int type)
 	vm_prot_t ftype;
 	void *onfault;
 	vm_offset_t va;
-	int error = 0;
+	int error = 0, signo, ucode;
 	struct ksig ksig;
 	struct proc *p;
 
@@ -230,6 +230,8 @@ abort_handler(struct trapframe *tf, int type)
 	if (__predict_false(data_aborts[fsr & FAULT_TYPE_MASK].func != NULL)) {
 		if ((data_aborts[fsr & FAULT_TYPE_MASK].func)(tf, fsr, far,
 		    td, &ksig)) {
+			signo = ksig.signb;
+			ucode = ksig.code;
 			goto do_trapsignal;
 		}
 		goto out;
@@ -262,8 +264,8 @@ abort_handler(struct trapframe *tf, int type)
 			 * Give the user an illegal instruction signal.
 			 */
 			/* Deliver a SIGILL to the process */
-			ksig.signb = SIGILL;
-			ksig.code = 0;
+			signo = SIGILL;
+			ucode = 0;
 			goto do_trapsignal;
 		}
 
@@ -299,8 +301,8 @@ abort_handler(struct trapframe *tf, int type)
 			 * but uses USR mode permissions for its accesses.
 			 */
 			user = 1;
-			ksig.signb = SIGSEGV;
-			ksig.code = 0;
+			signo = SIGSEGV;
+			ucode = 0;
 			goto do_trapsignal;
 		}
 	} else {
@@ -350,9 +352,9 @@ abort_handler(struct trapframe *tf, int type)
 
 	onfault = pcb->pcb_onfault;
 	pcb->pcb_onfault = NULL;
-	error = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
+	error = vm_fault_trap(map, va, ftype, VM_FAULT_NORMAL, &signo, &ucode);
 	pcb->pcb_onfault = onfault;
-	if (__predict_true(error == 0))
+	if (__predict_true(error == KERN_SUCCESS))
 		goto out;
 fatal_pagefault:
 	if (user == 0) {
@@ -368,18 +370,8 @@ fatal_pagefault:
 	}
 
 
-	if (error == ENOMEM) {
-		printf("VM: pid %d (%s), uid %d killed: "
-		    "out of swap\n", td->td_proc->p_pid, td->td_name,
-		    (td->td_proc->p_ucred) ?
-		     td->td_proc->p_ucred->cr_uid : -1);
-		ksig.signb = SIGKILL;
-	} else {
-		ksig.signb = SIGSEGV;
-	}
-	ksig.code = 0;
 do_trapsignal:
-	call_trapsignal(td, ksig.signb, ksig.code);
+	call_trapsignal(td, signo, ucode);
 out:
 	/* If returning to user mode, make sure to invoke userret() */
 	if (user)
@@ -613,9 +605,8 @@ prefetch_abort_handler(struct trapframe *tf)
 	struct proc * p;
 	struct vm_map *map;
 	vm_offset_t fault_pc, va;
-	int error = 0;
+	int error = 0, signo, ucode;
 	struct ksig ksig;
-
 
 #if 0
 	/* Update vmmeter statistics */
@@ -652,8 +643,8 @@ prefetch_abort_handler(struct trapframe *tf)
 	/* Ok validate the address, can only execute in USER space */
 	if (__predict_false(fault_pc >= VM_MAXUSER_ADDRESS ||
 	    (fault_pc < VM_MIN_ADDRESS && vector_page == ARM_VECTORS_LOW))) {
-		ksig.signb = SIGSEGV;
-		ksig.code = 0;
+		signo = SIGSEGV;
+		ucode = 0;
 		goto do_trapsignal;
 	}
 
@@ -669,24 +660,13 @@ prefetch_abort_handler(struct trapframe *tf)
 	if (pmap_fault_fixup(map->pmap, va, VM_PROT_READ, 1))
 		goto out;
 
-	error = vm_fault(map, va, VM_PROT_READ | VM_PROT_EXECUTE,
-	    VM_FAULT_NORMAL);
-	if (__predict_true(error == 0))
+	error = vm_fault_trap(map, va, VM_PROT_READ | VM_PROT_EXECUTE,
+	    VM_FAULT_NORMAL, &signo, &ucode);
+	if (__predict_true(error == KERN_SUCCESS))
 		goto out;
 
-	if (error == ENOMEM) {
-		printf("VM: pid %d (%s), uid %d killed: "
-		    "out of swap\n", td->td_proc->p_pid, td->td_name,
-		    (td->td_proc->p_ucred) ?
-		     td->td_proc->p_ucred->cr_uid : -1);
-		ksig.signb = SIGKILL;
-	} else {
-		ksig.signb = SIGSEGV;
-	}
-	ksig.code = 0;
-
 do_trapsignal:
-	call_trapsignal(td, ksig.signb, ksig.code);
+	call_trapsignal(td, signo, ucode);
 
 out:
 	userret(td, tf);

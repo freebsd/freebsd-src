@@ -660,6 +660,9 @@ sa_build_layouts(sa_handle_t *hdl, sa_bulk_attr_t *attr_desc, int attr_count,
 	dmu_object_dnsize_from_db(hdl->sa_bonus, &dnodesize);
 	bonuslen = DN_BONUS_SIZE(dnodesize);
 	
+	dmu_object_dnsize_from_db(hdl->sa_bonus, &dnodesize);
+	bonuslen = DN_BONUS_SIZE(dnodesize);
+
 	/* first determine bonus header size and sum of all attributes */
 	hdrsize = sa_find_sizes(sa, attr_desc, attr_count, hdl->sa_bonus,
 	    SA_BONUS, bonuslen, &i, &used, &spilling);

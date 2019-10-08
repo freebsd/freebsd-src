@@ -2189,3 +2189,17 @@ krping_walk_cb_list(void (*f)(struct krping_stats *, void *), void *arg)
 	    (*f)(cb->pd ? &cb->stats : NULL, arg);
 	mutex_unlock(&krping_mutex);
 }
+
+void
+krping_cancel_all(void)
+{
+	struct krping_cb *cb;
+
+	mutex_lock(&krping_mutex);
+	list_for_each_entry(cb, &krping_cbs, list) {
+		cb->state = ERROR;
+		wake_up_interruptible(&cb->sem);
+	}
+	mutex_unlock(&krping_mutex);
+}
+

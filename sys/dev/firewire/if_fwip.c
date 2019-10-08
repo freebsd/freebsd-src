@@ -708,6 +708,7 @@ fwip_start_send (void *arg, int count)
 static void
 fwip_stream_input(struct fw_xferq *xferq)
 {
+	struct epoch_tracker et;
 	struct mbuf *m, *m0;
 	struct m_tag *mtag;
 	struct ifnet *ifp;
@@ -720,6 +721,7 @@ fwip_stream_input(struct fw_xferq *xferq)
 	fwip = (struct fwip_softc *)xferq->sc;
 	ifp = fwip->fw_softc.fwip_ifp;
 
+	NET_EPOCH_ENTER(et);
 	while ((sxfer = STAILQ_FIRST(&xferq->stvalid)) != NULL) {
 		STAILQ_REMOVE_HEAD(&xferq->stvalid, link);
 		fp = mtod(sxfer->mbuf, struct fw_pkt *);
@@ -808,6 +810,7 @@ fwip_stream_input(struct fw_xferq *xferq)
 		firewire_input(ifp, m, src);
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	}
+	NET_EPOCH_EXIT(et);
 	if (STAILQ_FIRST(&xferq->stfree) != NULL)
 		fwip->fd.fc->irx_enable(fwip->fd.fc, fwip->dma_ch);
 }

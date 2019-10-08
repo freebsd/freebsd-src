@@ -193,8 +193,8 @@
 /*
  * Flags for memfd_create().
  */
-#define	MFD_ALLOW_SEALING		0x00000001
-#define	MFD_CLOEXEC			0x00000002
+#define	MFD_CLOEXEC			0x00000001
+#define	MFD_ALLOW_SEALING		0x00000002
 
 /* UNSUPPORTED */
 #define	MFD_HUGETLB			0x00000004

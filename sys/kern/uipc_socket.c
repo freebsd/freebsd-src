@@ -146,6 +146,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 
 #include <net/vnet.h>
+#include <net/if.h>	/* XXXGL: net_epoch should move out there */
+#include <net/if_var.h>	/* XXXGL: net_epoch should move out there */
 
 #include <security/mac/mac_framework.h>
 
