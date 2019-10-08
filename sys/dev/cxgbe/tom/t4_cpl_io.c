@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_kern_tls.h"
 #include "opt_ratelimit.h"
 
 #ifdef TCP_OFFLOAD
@@ -728,9 +729,20 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		for (m = sndptr; m != NULL; m = m->m_next) {
 			int n;
 
-			if (m->m_flags & M_NOMAP)
+			if (m->m_flags & M_NOMAP) {
+#ifdef KERN_TLS
+				if (m->m_ext.ext_pgs->tls != NULL) {
+					toep->flags |= TPF_KTLS;
+					if (plen == 0) {
+						SOCKBUF_UNLOCK(sb);
+						t4_push_ktls(sc, toep, 0);
+						return;
+					}
+					break;
+				}
+#endif
 				n = sglist_count_mb_ext_pgs(m);
-			else
+			} else
 				n = sglist_count(mtod(m, void *), m->m_len);
 
 			nsegs += n;
@@ -1086,6 +1098,22 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 		t4_close_conn(sc, toep);
 }
 
+static inline void
+t4_push_data(struct adapter *sc, struct toepcb *toep, int drop)
+{
+
+	if (ulp_mode(toep) == ULP_MODE_ISCSI)
+		t4_push_pdus(sc, toep, drop);
+	else if (tls_tx_key(toep) && toep->tls.mode == TLS_MODE_TLSOM)
+		t4_push_tls_records(sc, toep, drop);
+#ifdef KERN_TLS
+	else if (toep->flags & TPF_KTLS)
+		t4_push_ktls(sc, toep, drop);
+#endif
+	else
+		t4_push_frames(sc, toep, drop);
+}
+
 int
 t4_tod_output(struct toedev *tod, struct tcpcb *tp)
 {
@@ -1100,12 +1128,7 @@ t4_tod_output(struct toedev *tod, struct tcpcb *tp)
 	    ("%s: inp %p dropped.", __func__, inp));
 	KASSERT(toep != NULL, ("%s: toep is NULL", __func__));
 
-	if (ulp_mode(toep) == ULP_MODE_ISCSI)
-		t4_push_pdus(sc, toep, 0);
-	else if (tls_tx_key(toep))
-		t4_push_tls_records(sc, toep, 0);
-	else
-		t4_push_frames(sc, toep, 0);
+	t4_push_data(sc, toep, 0);
 
 	return (0);
 }
@@ -1125,14 +1148,8 @@ t4_send_fin(struct toedev *tod, struct tcpcb *tp)
 	KASSERT(toep != NULL, ("%s: toep is NULL", __func__));
 
 	toep->flags |= TPF_SEND_FIN;
-	if (tp->t_state >= TCPS_ESTABLISHED) {
-		if (ulp_mode(toep) == ULP_MODE_ISCSI)
-			t4_push_pdus(sc, toep, 0);
-		else if (tls_tx_key(toep))
-			t4_push_tls_records(sc, toep, 0);
-		else
-			t4_push_frames(sc, toep, 0);
-	}
+	if (tp->t_state >= TCPS_ESTABLISHED)
+		t4_push_data(sc, toep, 0);
 
 	return (0);
 }
@@ -1742,12 +1759,7 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 #endif
 		toep->flags &= ~TPF_TX_SUSPENDED;
 		CURVNET_SET(toep->vnet);
-		if (ulp_mode(toep) == ULP_MODE_ISCSI)
-			t4_push_pdus(sc, toep, plen);
-		else if (tls_tx_key(toep))
-			t4_push_tls_records(sc, toep, plen);
-		else
-			t4_push_frames(sc, toep, plen);
+		t4_push_data(sc, toep, plen);
 		CURVNET_RESTORE();
 	} else if (plen > 0) {
 		struct sockbuf *sb = &so->so_snd;
@@ -1775,7 +1787,8 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 			    tid, plen);
 #endif
 			sbdrop_locked(sb, plen);
-			if (tls_tx_key(toep)) {
+			if (tls_tx_key(toep) &&
+			    toep->tls.mode == TLS_MODE_TLSOM) {
 				struct tls_ofld_info *tls_ofld = &toep->tls;
 
 				MPASS(tls_ofld->sb_off >= plen);
