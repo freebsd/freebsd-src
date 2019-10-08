@@ -28,12 +28,16 @@
  */
 
 #include "opt_inet.h"
+#include "opt_kern_tls.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/ktr.h>
+#ifdef KERN_TLS
+#include <sys/ktls.h>
+#endif
 #include <sys/sglist.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -42,6 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/tcp_var.h>
 #include <netinet/toecore.h>
+#ifdef KERN_TLS
+#include <opencrypto/cryptodev.h>
+#include <opencrypto/xform.h>
+#endif
 
 #ifdef TCP_OFFLOAD
 #include "common/common.h"
@@ -784,11 +792,19 @@ t4_ctloutput_tls(struct socket *so, struct sockopt *sopt)
 	case SOPT_SET:
 		switch (sopt->sopt_name) {
 		case TCP_TLSOM_SET_TLS_CONTEXT:
-			error = program_key_context(tp, toep, &uk_ctx);
+			if (toep->tls.mode == TLS_MODE_KTLS)
+				error = EINVAL;
+			else {
+				error = program_key_context(tp, toep, &uk_ctx);
+				if (error == 0)
+					toep->tls.mode = TLS_MODE_TLSOM;
+			}
 			INP_WUNLOCK(inp);
 			break;
 		case TCP_TLSOM_CLR_TLS_TOM:
-			if (ulp_mode(toep) == ULP_MODE_TLS) {
+			if (toep->tls.mode == TLS_MODE_KTLS)
+				error = EINVAL;
+			else if (ulp_mode(toep) == ULP_MODE_TLS) {
 				CTR2(KTR_CXGBE, "%s: tid %d CLR_TLS_TOM",
 				    __func__, toep->tid);
 				tls_clr_ofld_mode(toep);
@@ -797,7 +813,9 @@ t4_ctloutput_tls(struct socket *so, struct sockopt *sopt)
 			INP_WUNLOCK(inp);
 			break;
 		case TCP_TLSOM_CLR_QUIES:
-			if (ulp_mode(toep) == ULP_MODE_TLS) {
+			if (toep->tls.mode == TLS_MODE_KTLS)
+				error = EINVAL;
+			else if (ulp_mode(toep) == ULP_MODE_TLS) {
 				CTR2(KTR_CXGBE, "%s: tid %d CLR_QUIES",
 				    __func__, toep->tid);
 				tls_clr_quiesce(toep);
@@ -819,7 +837,8 @@ t4_ctloutput_tls(struct socket *so, struct sockopt *sopt)
 			 * TLS RX requires a TLS ULP mode.
 			 */
 			optval = TLS_TOM_NONE;
-			if (can_tls_offload(td_adapter(toep->td))) {
+			if (can_tls_offload(td_adapter(toep->td)) &&
+			    toep->tls.mode != TLS_MODE_KTLS) {
 				switch (ulp_mode(toep)) {
 				case ULP_MODE_NONE:
 				case ULP_MODE_TCPDDP:
@@ -845,11 +864,264 @@ t4_ctloutput_tls(struct socket *so, struct sockopt *sopt)
 	return (error);
 }
 
+#ifdef KERN_TLS
+/* XXX: Should share this with ccr(4) eventually. */
+static void
+init_ktls_gmac_hash(const char *key, int klen, char *ghash)
+{
+	static char zeroes[GMAC_BLOCK_LEN];
+	uint32_t keysched[4 * (RIJNDAEL_MAXNR + 1)];
+	int rounds;
+
+	rounds = rijndaelKeySetupEnc(keysched, key, klen);
+	rijndaelEncrypt(keysched, rounds, zeroes, ghash);
+}
+
+/* XXX: Should share this with ccr(4) eventually. */
+static void
+ktls_copy_partial_hash(void *dst, int cri_alg, union authctx *auth_ctx)
+{
+	uint32_t *u32;
+	uint64_t *u64;
+	u_int i;
+
+	u32 = (uint32_t *)dst;
+	u64 = (uint64_t *)dst;
+	switch (cri_alg) {
+	case CRYPTO_SHA1_HMAC:
+		for (i = 0; i < SHA1_HASH_LEN / 4; i++)
+			u32[i] = htobe32(auth_ctx->sha1ctx.h.b32[i]);
+		break;
+	case CRYPTO_SHA2_256_HMAC:
+		for (i = 0; i < SHA2_256_HASH_LEN / 4; i++)
+			u32[i] = htobe32(auth_ctx->sha256ctx.state[i]);
+		break;
+	case CRYPTO_SHA2_384_HMAC:
+		for (i = 0; i < SHA2_512_HASH_LEN / 8; i++)
+			u64[i] = htobe64(auth_ctx->sha384ctx.state[i]);
+		break;
+	}
+}
+
+static void
+init_ktls_hmac_digest(struct auth_hash *axf, u_int partial_digest_len,
+    char *key, int klen, char *dst)
+{
+	union authctx auth_ctx;
+	char ipad[SHA2_512_BLOCK_LEN], opad[SHA2_512_BLOCK_LEN];
+	u_int i;
+
+	/*
+	 * If the key is larger than the block size, use the digest of
+	 * the key as the key instead.
+	 */
+	klen /= 8;
+	if (klen > axf->blocksize) {
+		axf->Init(&auth_ctx);
+		axf->Update(&auth_ctx, key, klen);
+		axf->Final(ipad, &auth_ctx);
+		klen = axf->hashsize;
+	} else
+		memcpy(ipad, key, klen);
+
+	memset(ipad + klen, 0, axf->blocksize - klen);
+	memcpy(opad, ipad, axf->blocksize);
+
+	for (i = 0; i < axf->blocksize; i++) {
+		ipad[i] ^= HMAC_IPAD_VAL;
+		opad[i] ^= HMAC_OPAD_VAL;
+	}
+
+	/*
+	 * Hash the raw ipad and opad and store the partial results in
+	 * the key context.
+	 */
+	axf->Init(&auth_ctx);
+	axf->Update(&auth_ctx, ipad, axf->blocksize);
+	ktls_copy_partial_hash(dst, axf->type, &auth_ctx);
+
+	dst += roundup2(partial_digest_len, 16);
+	axf->Init(&auth_ctx);
+	axf->Update(&auth_ctx, opad, axf->blocksize);
+	ktls_copy_partial_hash(dst, axf->type, &auth_ctx);
+}
+
+static void
+init_ktls_key_context(struct ktls_session *tls, struct tls_key_context *k_ctx)
+{
+	struct auth_hash *axf;
+	u_int mac_key_size;
+	char *hash;
+
+	k_ctx->l_p_key = V_KEY_GET_LOC(KEY_WRITE_TX);
+	if (tls->params.tls_vminor == TLS_MINOR_VER_ONE)
+		k_ctx->proto_ver = SCMD_PROTO_VERSION_TLS_1_1;
+	else
+		k_ctx->proto_ver = SCMD_PROTO_VERSION_TLS_1_2;
+	k_ctx->cipher_secret_size = tls->params.cipher_key_len;
+	k_ctx->tx_key_info_size = sizeof(struct tx_keyctx_hdr) +
+	    k_ctx->cipher_secret_size;
+	memcpy(k_ctx->tx.key, tls->params.cipher_key,
+	    tls->params.cipher_key_len);
+	hash = k_ctx->tx.key + tls->params.cipher_key_len;
+	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16) {
+		k_ctx->state.auth_mode = SCMD_AUTH_MODE_GHASH;
+		k_ctx->state.enc_mode = SCMD_CIPH_MODE_AES_GCM;
+		k_ctx->iv_size = 4;
+		k_ctx->mac_first = 0;
+		k_ctx->hmac_ctrl = SCMD_HMAC_CTRL_NOP;
+		k_ctx->tx_key_info_size += GMAC_BLOCK_LEN;
+		memcpy(k_ctx->tx.salt, tls->params.iv, SALT_SIZE);
+		init_ktls_gmac_hash(tls->params.cipher_key,
+		    tls->params.cipher_key_len * 8, hash);
+	} else {
+		switch (tls->params.auth_algorithm) {
+		case CRYPTO_SHA1_HMAC:
+			axf = &auth_hash_hmac_sha1;
+			mac_key_size = SHA1_HASH_LEN;
+			k_ctx->state.auth_mode = SCMD_AUTH_MODE_SHA1;
+			break;
+		case CRYPTO_SHA2_256_HMAC:
+			axf = &auth_hash_hmac_sha2_256;
+			mac_key_size = SHA2_256_HASH_LEN;
+			k_ctx->state.auth_mode = SCMD_AUTH_MODE_SHA256;
+			break;
+		case CRYPTO_SHA2_384_HMAC:
+			axf = &auth_hash_hmac_sha2_384;
+			mac_key_size = SHA2_512_HASH_LEN;
+			k_ctx->state.auth_mode = SCMD_AUTH_MODE_SHA512_384;
+			break;
+		default:
+			panic("bad auth mode");
+		}
+		k_ctx->state.enc_mode = SCMD_CIPH_MODE_AES_CBC;
+		k_ctx->iv_size = 8; /* for CBC, iv is 16B, unit of 2B */
+		k_ctx->mac_first = 1;
+		k_ctx->hmac_ctrl = SCMD_HMAC_CTRL_NO_TRUNC;
+		k_ctx->tx_key_info_size += roundup2(mac_key_size, 16) * 2;
+		k_ctx->mac_secret_size = mac_key_size;
+		init_ktls_hmac_digest(axf, mac_key_size, tls->params.auth_key,
+		    tls->params.auth_key_len * 8, hash);
+	}
+
+	k_ctx->frag_size = tls->params.max_frame_len;
+	k_ctx->iv_ctrl = 1;
+}
+
+int
+tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls)
+{
+	struct tls_key_context *k_ctx;
+	int error;
+
+	if (toep->tls.mode == TLS_MODE_TLSOM)
+		return (EINVAL);
+	if (!can_tls_offload(td_adapter(toep->td)))
+		return (EINVAL);
+	switch (ulp_mode(toep)) {
+	case ULP_MODE_NONE:
+	case ULP_MODE_TCPDDP:
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	switch (tls->params.cipher_algorithm) {
+	case CRYPTO_AES_CBC:
+		/* XXX: Explicitly ignore any provided IV. */
+		switch (tls->params.cipher_key_len) {
+		case 128 / 8:
+		case 192 / 8:
+		case 256 / 8:
+			break;
+		default:
+			return (EINVAL);
+		}
+		switch (tls->params.auth_algorithm) {
+		case CRYPTO_SHA1_HMAC:
+		case CRYPTO_SHA2_256_HMAC:
+		case CRYPTO_SHA2_384_HMAC:
+			break;
+		default:
+			return (EPROTONOSUPPORT);
+		}
+		break;
+	case CRYPTO_AES_NIST_GCM_16:
+		if (tls->params.iv_len != SALT_SIZE)
+			return (EINVAL);
+		switch (tls->params.cipher_key_len) {
+		case 128 / 8:
+		case 192 / 8:
+		case 256 / 8:
+			break;
+		default:
+			return (EINVAL);
+		}
+		break;
+	default:
+		return (EPROTONOSUPPORT);
+	}
+
+	/* Only TLS 1.1 and TLS 1.2 are currently supported. */
+	if (tls->params.tls_vmajor != TLS_MAJOR_VER_ONE ||
+	    tls->params.tls_vminor < TLS_MINOR_VER_ONE ||
+	    tls->params.tls_vminor > TLS_MINOR_VER_TWO)
+		return (EPROTONOSUPPORT);
+
+	/*
+	 * XXX: This assumes no key renegotation.  If KTLS ever supports
+	 * that we will want to allocate TLS sessions dynamically rather
+	 * than as a static member of toep.
+	 */
+	k_ctx = &toep->tls.k_ctx;
+	init_ktls_key_context(tls, k_ctx);
+
+	toep->tls.scmd0.seqno_numivs =
+		(V_SCMD_SEQ_NO_CTRL(3) |
+		 V_SCMD_PROTO_VERSION(k_ctx->proto_ver) |
+		 V_SCMD_ENC_DEC_CTRL(SCMD_ENCDECCTRL_ENCRYPT) |
+		 V_SCMD_CIPH_AUTH_SEQ_CTRL((k_ctx->mac_first == 0)) |
+		 V_SCMD_CIPH_MODE(k_ctx->state.enc_mode) |
+		 V_SCMD_AUTH_MODE(k_ctx->state.auth_mode) |
+		 V_SCMD_HMAC_CTRL(k_ctx->hmac_ctrl) |
+		 V_SCMD_IV_SIZE(k_ctx->iv_size));
+
+	toep->tls.scmd0.ivgen_hdrlen =
+		(V_SCMD_IV_GEN_CTRL(k_ctx->iv_ctrl) |
+		 V_SCMD_KEY_CTX_INLINE(0) |
+		 V_SCMD_TLS_FRAG_ENABLE(1));
+
+	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16)
+		toep->tls.iv_len = 8;
+	else
+		toep->tls.iv_len = AES_BLOCK_LEN;
+
+	toep->tls.mac_length = k_ctx->mac_secret_size;
+
+	toep->tls.tx_key_addr = -1;
+
+	error = tls_program_key_id(toep, k_ctx);
+	if (error)
+		return (error);
+
+	toep->tls.fcplenmax = get_tp_plen_max(&toep->tls);
+	toep->tls.expn_per_ulp = tls->params.tls_hlen + tls->params.tls_tlen;
+	toep->tls.pdus_per_ulp = 1;
+	toep->tls.adjusted_plen = toep->tls.expn_per_ulp +
+	    toep->tls.k_ctx.frag_size;
+
+	toep->tls.mode = TLS_MODE_KTLS;
+
+	return (0);
+}
+#endif
+
 void
 tls_init_toep(struct toepcb *toep)
 {
 	struct tls_ofld_info *tls_ofld = &toep->tls;
 
+	tls_ofld->mode = TLS_MODE_OFF;
 	tls_ofld->key_location = TLS_SFO_WR_CONTEXTLOC_DDR;
 	tls_ofld->rx_key_addr = -1;
 	tls_ofld->tx_key_addr = -1;
@@ -961,8 +1233,8 @@ write_tlstx_wr(struct fw_tlstx_data_wr *txwr, struct toepcb *toep,
 	    V_FW_TLSTX_DATA_WR_ADJUSTEDPLEN(tls_ofld->adjusted_plen));
 	txwr->expinplenmax_pkd = htobe16(
 	    V_FW_TLSTX_DATA_WR_EXPINPLENMAX(tls_ofld->expn_per_ulp));
-	txwr->pdusinplenmax_pkd = htobe16(
-	    V_FW_TLSTX_DATA_WR_PDUSINPLENMAX(tls_ofld->pdus_per_ulp));
+	txwr->pdusinplenmax_pkd = 
+	    V_FW_TLSTX_DATA_WR_PDUSINPLENMAX(tls_ofld->pdus_per_ulp);
 }
 
 static void
@@ -1374,6 +1646,310 @@ t4_push_tls_records(struct adapter *sc, struct toepcb *toep, int drop)
 		t4_l2t_send(sc, wr, toep->l2te);
 	}
 }
+
+#ifdef KERN_TLS
+static int
+count_ext_pgs_segs(struct mbuf_ext_pgs *ext_pgs)
+{
+	vm_paddr_t nextpa;
+	u_int i, nsegs;
+
+	MPASS(ext_pgs->npgs > 0);
+	nsegs = 1;
+	nextpa = ext_pgs->pa[0] + PAGE_SIZE;
+	for (i = 1; i < ext_pgs->npgs; i++) {
+		if (nextpa != ext_pgs->pa[i])
+			nsegs++;
+		nextpa = ext_pgs->pa[i] + PAGE_SIZE;
+	}
+	return (nsegs);
+}
+
+static void
+write_ktlstx_sgl(void *dst, struct mbuf_ext_pgs *ext_pgs, int nsegs)
+{
+	struct ulptx_sgl *usgl = dst;
+	vm_paddr_t pa;
+	uint32_t len;
+	int i, j;
+
+	KASSERT(nsegs > 0, ("%s: nsegs 0", __func__));
+
+	usgl->cmd_nsge = htobe32(V_ULPTX_CMD(ULP_TX_SC_DSGL) |
+	    V_ULPTX_NSGE(nsegs));
+
+	/* Figure out the first S/G length. */
+	pa = ext_pgs->pa[0] + ext_pgs->first_pg_off;
+	usgl->addr0 = htobe64(pa);
+	len = mbuf_ext_pg_len(ext_pgs, 0, ext_pgs->first_pg_off);
+	pa += len;
+	for (i = 1; i < ext_pgs->npgs; i++) {
+		if (ext_pgs->pa[i] != pa)
+			break;
+		len += mbuf_ext_pg_len(ext_pgs, i, 0);
+		pa += mbuf_ext_pg_len(ext_pgs, i, 0);
+	}
+	usgl->len0 = htobe32(len);
+#ifdef INVARIANTS
+	nsegs--;
+#endif
+
+	j = -1;
+	for (; i < ext_pgs->npgs; i++) {
+		if (j == -1 || ext_pgs->pa[i] != pa) {
+			if (j >= 0)
+				usgl->sge[j / 2].len[j & 1] = htobe32(len);
+			j++;
+#ifdef INVARIANTS
+			nsegs--;
+#endif
+			pa = ext_pgs->pa[i];
+			usgl->sge[j / 2].addr[j & 1] = htobe64(pa);
+			len = mbuf_ext_pg_len(ext_pgs, i, 0);
+			pa += len;
+		} else {
+			len += mbuf_ext_pg_len(ext_pgs, i, 0);
+			pa += mbuf_ext_pg_len(ext_pgs, i, 0);
+		}
+	}
+	if (j >= 0) {
+		usgl->sge[j / 2].len[j & 1] = htobe32(len);
+
+		if ((j & 1) == 0)
+			usgl->sge[j / 2].len[1] = htobe32(0);
+	}
+	KASSERT(nsegs == 0, ("%s: nsegs %d, ext_pgs %p", __func__, nsegs,
+	    ext_pgs));
+}
+
+/*
+ * Similar to t4_push_frames() but handles sockets that contain TLS
+ * record mbufs.  Unlike TLSOM, each mbuf is a complete TLS record and
+ * corresponds to a single work request.
+ */
+void
+t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
+{
+	struct tls_hdr *thdr;
+	struct fw_tlstx_data_wr *txwr;
+	struct cpl_tx_tls_sfo *cpl;
+	struct wrqe *wr;
+	struct mbuf *m;
+	u_int nsegs, credits, wr_len;
+	u_int expn_size;
+	struct inpcb *inp = toep->inp;
+	struct tcpcb *tp = intotcpcb(inp);
+	struct socket *so = inp->inp_socket;
+	struct sockbuf *sb = &so->so_snd;
+	int tls_size, tx_credits, shove, sowwakeup;
+	struct ofld_tx_sdesc *txsd;
+	char *buf;
+
+	INP_WLOCK_ASSERT(inp);
+	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
+	    ("%s: flowc_wr not sent for tid %u.", __func__, toep->tid));
+
+	KASSERT(ulp_mode(toep) == ULP_MODE_NONE ||
+	    ulp_mode(toep) == ULP_MODE_TCPDDP,
+	    ("%s: ulp_mode %u for toep %p", __func__, ulp_mode(toep), toep));
+	KASSERT(tls_tx_key(toep),
+	    ("%s: TX key not set for toep %p", __func__, toep));
+
+#ifdef VERBOSE_TRACES
+	CTR4(KTR_CXGBE, "%s: tid %d toep flags %#x tp flags %#x drop %d",
+	    __func__, toep->tid, toep->flags, tp->t_flags);
+#endif
+	if (__predict_false(toep->flags & TPF_ABORT_SHUTDOWN))
+		return;
+
+#ifdef RATELIMIT
+	if (__predict_false(inp->inp_flags2 & INP_RATE_LIMIT_CHANGED) &&
+	    (update_tx_rate_limit(sc, toep, so->so_max_pacing_rate) == 0)) {
+		inp->inp_flags2 &= ~INP_RATE_LIMIT_CHANGED;
+	}
+#endif
+
+	/*
+	 * This function doesn't resume by itself.  Someone else must clear the
+	 * flag and call this function.
+	 */
+	if (__predict_false(toep->flags & TPF_TX_SUSPENDED)) {
+		KASSERT(drop == 0,
+		    ("%s: drop (%d) != 0 but tx is suspended", __func__, drop));
+		return;
+	}
+
+	txsd = &toep->txsd[toep->txsd_pidx];
+	for (;;) {
+		tx_credits = min(toep->tx_credits, MAX_OFLD_TX_CREDITS);
+
+		SOCKBUF_LOCK(sb);
+		sowwakeup = drop;
+		if (drop) {
+			sbdrop_locked(sb, drop);
+			drop = 0;
+		}
+
+		m = sb->sb_sndptr != NULL ? sb->sb_sndptr->m_next : sb->sb_mb;
+
+		/*
+		 * Send a FIN if requested, but only if there's no
+		 * more data to send.
+		 */
+		if (m == NULL && toep->flags & TPF_SEND_FIN) {
+			if (sowwakeup)
+				sowwakeup_locked(so);
+			else
+				SOCKBUF_UNLOCK(sb);
+			SOCKBUF_UNLOCK_ASSERT(sb);
+			t4_close_conn(sc, toep);
+			return;
+		}
+
+		/*
+		 * If there is no ready data to send, wait until more
+		 * data arrives.
+		 */
+		if (m == NULL || (m->m_flags & M_NOTAVAIL) != 0) {
+			if (sowwakeup)
+				sowwakeup_locked(so);
+			else
+				SOCKBUF_UNLOCK(sb);
+			SOCKBUF_UNLOCK_ASSERT(sb);
+#ifdef VERBOSE_TRACES
+			CTR2(KTR_CXGBE, "%s: tid %d no ready data to send",
+			    __func__, toep->tid);
+#endif
+			return;
+		}
+
+		KASSERT(m->m_flags & M_NOMAP, ("%s: mbuf %p is not NOMAP",
+		    __func__, m));
+		KASSERT(m->m_ext.ext_pgs->tls != NULL,
+		    ("%s: mbuf %p doesn't have TLS session", __func__, m));
+
+		/* Calculate WR length. */
+		wr_len = sizeof(struct fw_tlstx_data_wr) +
+		    sizeof(struct cpl_tx_tls_sfo) + key_size(toep);
+
+		/* Explicit IVs for AES-CBC and AES-GCM are <= 16. */
+		MPASS(toep->tls.iv_len <= AES_BLOCK_LEN);
+		wr_len += AES_BLOCK_LEN;
+
+		/* Account for SGL in work request length. */
+		nsegs = count_ext_pgs_segs(m->m_ext.ext_pgs);
+		wr_len += sizeof(struct ulptx_sgl) +
+		    ((3 * (nsegs - 1)) / 2 + ((nsegs - 1) & 1)) * 8;
+
+		/* Not enough credits for this work request. */
+		if (howmany(wr_len, 16) > tx_credits) {
+			if (sowwakeup)
+				sowwakeup_locked(so);
+			else
+				SOCKBUF_UNLOCK(sb);
+			SOCKBUF_UNLOCK_ASSERT(sb);
+#ifdef VERBOSE_TRACES
+			CTR5(KTR_CXGBE,
+	    "%s: tid %d mbuf %p requires %d credits, but only %d available",
+			    __func__, toep->tid, m, howmany(wr_len, 16),
+			    tx_credits);
+#endif
+			toep->flags |= TPF_TX_SUSPENDED;
+			return;
+		}
+	
+		/* Shove if there is no additional data pending. */
+		shove = ((m->m_next == NULL ||
+		    (m->m_next->m_flags & M_NOTAVAIL) != 0)) &&
+		    (tp->t_flags & TF_MORETOCOME) == 0;
+
+		if (sb->sb_flags & SB_AUTOSIZE &&
+		    V_tcp_do_autosndbuf &&
+		    sb->sb_hiwat < V_tcp_autosndbuf_max &&
+		    sbused(sb) >= sb->sb_hiwat * 7 / 8) {
+			int newsize = min(sb->sb_hiwat + V_tcp_autosndbuf_inc,
+			    V_tcp_autosndbuf_max);
+
+			if (!sbreserve_locked(sb, newsize, so, NULL))
+				sb->sb_flags &= ~SB_AUTOSIZE;
+			else
+				sowwakeup = 1;	/* room available */
+		}
+		if (sowwakeup)
+			sowwakeup_locked(so);
+		else
+			SOCKBUF_UNLOCK(sb);
+		SOCKBUF_UNLOCK_ASSERT(sb);
+
+		if (__predict_false(toep->flags & TPF_FIN_SENT))
+			panic("%s: excess tx.", __func__);
+
+		wr = alloc_wrqe(roundup2(wr_len, 16), toep->ofld_txq);
+		if (wr == NULL) {
+			/* XXX: how will we recover from this? */
+			toep->flags |= TPF_TX_SUSPENDED;
+			return;
+		}
+
+		thdr = (struct tls_hdr *)m->m_ext.ext_pgs->hdr;
+#ifdef VERBOSE_TRACES
+		CTR5(KTR_CXGBE, "%s: tid %d TLS record %ju type %d len %#x",
+		    __func__, toep->tid, m->m_ext.ext_pgs->seqno, thdr->type,
+		    m->m_len);
+#endif
+		txwr = wrtod(wr);
+		cpl = (struct cpl_tx_tls_sfo *)(txwr + 1);
+		memset(txwr, 0, roundup2(wr_len, 16));
+		credits = howmany(wr_len, 16);
+		expn_size = m->m_ext.ext_pgs->hdr_len +
+		    m->m_ext.ext_pgs->trail_len;
+		tls_size = m->m_len - expn_size;
+		write_tlstx_wr(txwr, toep, 0,
+		    tls_size, expn_size, 1, credits, shove, 1);
+		toep->tls.tx_seq_no = m->m_ext.ext_pgs->seqno;
+		write_tlstx_cpl(cpl, toep, thdr, tls_size, 1);
+		tls_copy_tx_key(toep, cpl + 1);
+
+		/* Copy IV. */
+		buf = (char *)(cpl + 1) + key_size(toep);
+		memcpy(buf, thdr + 1, toep->tls.iv_len);
+		buf += AES_BLOCK_LEN;
+
+		write_ktlstx_sgl(buf, m->m_ext.ext_pgs, nsegs);
+
+		KASSERT(toep->tx_credits >= credits,
+			("%s: not enough credits", __func__));
+
+		toep->tx_credits -= credits;
+
+		tp->snd_nxt += m->m_len;
+		tp->snd_max += m->m_len;
+
+		SOCKBUF_LOCK(sb);
+		sb->sb_sndptr = m;
+		SOCKBUF_UNLOCK(sb);
+
+		toep->flags |= TPF_TX_DATA_SENT;
+		if (toep->tx_credits < MIN_OFLD_TLSTX_CREDITS(toep))
+			toep->flags |= TPF_TX_SUSPENDED;
+
+		KASSERT(toep->txsd_avail > 0, ("%s: no txsd", __func__));
+		txsd->plen = m->m_len;
+		txsd->tx_credits = credits;
+		txsd++;
+		if (__predict_false(++toep->txsd_pidx == toep->txsd_total)) {
+			toep->txsd_pidx = 0;
+			txsd = &toep->txsd[0];
+		}
+		toep->txsd_avail--;
+
+		atomic_add_long(&toep->vi->pi->tx_tls_records, 1);
+		atomic_add_long(&toep->vi->pi->tx_tls_octets, m->m_len);
+
+		t4_l2t_send(sc, wr, toep->l2te);
+	}
+}
+#endif
 
 /*
  * For TLS data we place received mbufs received via CPL_TLS_DATA into
