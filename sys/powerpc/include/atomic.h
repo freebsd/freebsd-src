@@ -560,6 +560,56 @@ atomic_store_rel_long(volatile u_long *addr, u_long val)
  * two values are equal, update the value of *p with newval. Returns
  * zero if the compare failed, nonzero otherwise.
  */
+#ifdef ISA_206_ATOMICS
+static __inline int
+atomic_cmpset_char(volatile u_char *p, u_char cmpval, u_char newval)
+{
+	int	ret;
+
+	__asm __volatile (
+		"1:\tlbarx %0, 0, %2\n\t"	/* load old value */
+		"cmplw %3, %0\n\t"		/* compare */
+		"bne- 2f\n\t"			/* exit if not equal */
+		"stbcx. %4, 0, %2\n\t"      	/* attempt to store */
+		"bne- 1b\n\t"			/* spin if failed */
+		"li %0, 1\n\t"			/* success - retval = 1 */
+		"b 3f\n\t"			/* we've succeeded */
+		"2:\n\t"
+		"stbcx. %0, 0, %2\n\t"       	/* clear reservation (74xx) */
+		"li %0, 0\n\t"			/* failure - retval = 0 */
+		"3:\n\t"
+		: "=&r" (ret), "=m" (*p)
+		: "r" (p), "r" (cmpval), "r" (newval), "m" (*p)
+		: "cr0", "memory");
+
+	return (ret);
+}
+
+static __inline int
+atomic_cmpset_short(volatile u_short *p, u_short cmpval, u_short newval)
+{
+	int	ret;
+
+	__asm __volatile (
+		"1:\tlharx %0, 0, %2\n\t"	/* load old value */
+		"cmplw %3, %0\n\t"		/* compare */
+		"bne- 2f\n\t"			/* exit if not equal */
+		"sthcx. %4, 0, %2\n\t"      	/* attempt to store */
+		"bne- 1b\n\t"			/* spin if failed */
+		"li %0, 1\n\t"			/* success - retval = 1 */
+		"b 3f\n\t"			/* we've succeeded */
+		"2:\n\t"
+		"sthcx. %0, 0, %2\n\t"       	/* clear reservation (74xx) */
+		"li %0, 0\n\t"			/* failure - retval = 0 */
+		"3:\n\t"
+		: "=&r" (ret), "=m" (*p)
+		: "r" (p), "r" (cmpval), "r" (newval), "m" (*p)
+		: "cr0", "memory");
+
+	return (ret);
+}
+#endif
+
 static __inline int
 atomic_cmpset_int(volatile u_int* p, u_int cmpval, u_int newval)
 {
@@ -618,39 +668,36 @@ atomic_cmpset_long(volatile u_long* p, u_long cmpval, u_long newval)
 	return (ret);
 }
 
-static __inline int
-atomic_cmpset_acq_int(volatile u_int *p, u_int cmpval, u_int newval)
-{
-	int retval;
+#define	ATOMIC_CMPSET_ACQ_REL(type) \
+    static __inline int \
+    atomic_cmpset_acq_##type(volatile u_##type *p, \
+	    u_##type cmpval, u_##type newval)\
+    {\
+	u_##type retval; \
+	retval = atomic_cmpset_##type(p, cmpval, newval);\
+	__ATOMIC_ACQ();\
+	return (retval);\
+    }\
+    static __inline int \
+    atomic_cmpset_rel_##type(volatile u_##type *p, \
+	    u_##type cmpval, u_##type newval)\
+    {\
+	__ATOMIC_ACQ();\
+	return (atomic_cmpset_##type(p, cmpval, newval));\
+    }\
+    struct hack
 
-	retval = atomic_cmpset_int(p, cmpval, newval);
-	__ATOMIC_ACQ();
-	return (retval);
-}
+ATOMIC_CMPSET_ACQ_REL(int);
+ATOMIC_CMPSET_ACQ_REL(long);
 
-static __inline int
-atomic_cmpset_rel_int(volatile u_int *p, u_int cmpval, u_int newval)
-{
-	__ATOMIC_REL();
-	return (atomic_cmpset_int(p, cmpval, newval));
-}
 
-static __inline int
-atomic_cmpset_acq_long(volatile u_long *p, u_long cmpval, u_long newval)
-{
-	u_long retval;
+#define	atomic_cmpset_8		atomic_cmpset_char
+#define	atomic_cmpset_acq_8	atomic_cmpset_acq_char
+#define	atomic_cmpset_rel_8	atomic_cmpset_rel_char
 
-	retval = atomic_cmpset_long(p, cmpval, newval);
-	__ATOMIC_ACQ();
-	return (retval);
-}
-
-static __inline int
-atomic_cmpset_rel_long(volatile u_long *p, u_long cmpval, u_long newval)
-{
-	__ATOMIC_REL();
-	return (atomic_cmpset_long(p, cmpval, newval));
-}
+#define	atomic_cmpset_16	atomic_cmpset_short
+#define	atomic_cmpset_acq_16	atomic_cmpset_acq_short
+#define	atomic_cmpset_rel_16	atomic_cmpset_rel_short
 
 #define	atomic_cmpset_32	atomic_cmpset_int
 #define	atomic_cmpset_acq_32	atomic_cmpset_acq_int
@@ -676,13 +723,65 @@ atomic_cmpset_rel_long(volatile u_long *p, u_long cmpval, u_long newval)
  * zero if the compare failed and sets *cmpval to the read value from *p,
  * nonzero otherwise.
  */
+#ifdef ISA_206_ATOMICS
+static __inline int
+atomic_fcmpset_char(volatile u_char *p, u_char *cmpval, u_char newval)
+{
+	int	ret;
+
+	__asm __volatile (
+		"lbarx %0, 0, %3\n\t"		/* load old value */
+		"cmplw %4, %0\n\t"		/* compare */
+		"bne- 1f\n\t"			/* exit if not equal */
+		"stbcx. %5, 0, %3\n\t"      	/* attempt to store */
+		"bne- 1f\n\t"			/* exit if failed */
+		"li %0, 1\n\t"			/* success - retval = 1 */
+		"b 2f\n\t"			/* we've succeeded */
+		"1:\n\t"
+		"stbcx. %0, 0, %3\n\t"       	/* clear reservation (74xx) */
+		"stwx %0, 0, %7\n\t"
+		"li %0, 0\n\t"			/* failure - retval = 0 */
+		"2:\n\t"
+		: "=&r" (ret), "=m" (*p), "=m" (*cmpval)
+		: "r" (p), "r" (*cmpval), "r" (newval), "m" (*p), "r"(cmpval)
+		: "cr0", "memory");
+
+	return (ret);
+}
+
+static __inline int
+atomic_fcmpset_short(volatile u_short *p, u_short *cmpval, u_short newval)
+{
+	int	ret;
+
+	__asm __volatile (
+		"lharx %0, 0, %3\n\t"		/* load old value */
+		"cmplw %4, %0\n\t"		/* compare */
+		"bne- 1f\n\t"			/* exit if not equal */
+		"sthcx. %5, 0, %3\n\t"      	/* attempt to store */
+		"bne- 1f\n\t"			/* exit if failed */
+		"li %0, 1\n\t"			/* success - retval = 1 */
+		"b 2f\n\t"			/* we've succeeded */
+		"1:\n\t"
+		"sthcx. %0, 0, %3\n\t"       	/* clear reservation (74xx) */
+		"stwx %0, 0, %7\n\t"
+		"li %0, 0\n\t"			/* failure - retval = 0 */
+		"2:\n\t"
+		: "=&r" (ret), "=m" (*p), "=m" (*cmpval)
+		: "r" (p), "r" (*cmpval), "r" (newval), "m" (*p), "r"(cmpval)
+		: "cr0", "memory");
+
+	return (ret);
+}
+#endif	/* ISA_206_ATOMICS */
+
 static __inline int
 atomic_fcmpset_int(volatile u_int *p, u_int *cmpval, u_int newval)
 {
 	int	ret;
 
 	__asm __volatile (
-		"lwarx %0, 0, %3\n\t"	/* load old value */
+		"lwarx %0, 0, %3\n\t"		/* load old value */
 		"cmplw %4, %0\n\t"		/* compare */
 		"bne- 1f\n\t"			/* exit if not equal */
 		"stwcx. %5, 0, %3\n\t"      	/* attempt to store */
@@ -707,12 +806,12 @@ atomic_fcmpset_long(volatile u_long *p, u_long *cmpval, u_long newval)
 
 	__asm __volatile (
 	    #ifdef __powerpc64__
-		"ldarx %0, 0, %3\n\t"	/* load old value */
+		"ldarx %0, 0, %3\n\t"		/* load old value */
 		"cmpld %4, %0\n\t"		/* compare */
 		"bne- 1f\n\t"			/* exit if not equal */
 		"stdcx. %5, 0, %3\n\t"		/* attempt to store */
 	    #else
-		"lwarx %0, 0, %3\n\t"	/* load old value */
+		"lwarx %0, 0, %3\n\t"		/* load old value */
 		"cmplw %4, %0\n\t"		/* compare */
 		"bne- 1f\n\t"			/* exit if not equal */
 		"stwcx. %5, 0, %3\n\t"		/* attempt to store */
@@ -737,39 +836,35 @@ atomic_fcmpset_long(volatile u_long *p, u_long *cmpval, u_long newval)
 	return (ret);
 }
 
-static __inline int
-atomic_fcmpset_acq_int(volatile u_int *p, u_int *cmpval, u_int newval)
-{
-	int retval;
+#define	ATOMIC_FCMPSET_ACQ_REL(type) \
+    static __inline int \
+    atomic_fcmpset_acq_##type(volatile u_##type *p, \
+	    u_##type *cmpval, u_##type newval)\
+    {\
+	u_##type retval; \
+	retval = atomic_fcmpset_##type(p, cmpval, newval);\
+	__ATOMIC_ACQ();\
+	return (retval);\
+    }\
+    static __inline int \
+    atomic_fcmpset_rel_##type(volatile u_##type *p, \
+	    u_##type *cmpval, u_##type newval)\
+    {\
+	__ATOMIC_REL();\
+	return (atomic_fcmpset_##type(p, cmpval, newval));\
+    }\
+    struct hack
 
-	retval = atomic_fcmpset_int(p, cmpval, newval);
-	__ATOMIC_ACQ();
-	return (retval);
-}
+ATOMIC_FCMPSET_ACQ_REL(int);
+ATOMIC_FCMPSET_ACQ_REL(long);
 
-static __inline int
-atomic_fcmpset_rel_int(volatile u_int *p, u_int *cmpval, u_int newval)
-{
-	__ATOMIC_REL();
-	return (atomic_fcmpset_int(p, cmpval, newval));
-}
+#define	atomic_fcmpset_8	atomic_fcmpset_char
+#define	atomic_fcmpset_acq_8	atomic_fcmpset_acq_char
+#define	atomic_fcmpset_rel_8	atomic_fcmpset_rel_char
 
-static __inline int
-atomic_fcmpset_acq_long(volatile u_long *p, u_long *cmpval, u_long newval)
-{
-	u_long retval;
-
-	retval = atomic_fcmpset_long(p, cmpval, newval);
-	__ATOMIC_ACQ();
-	return (retval);
-}
-
-static __inline int
-atomic_fcmpset_rel_long(volatile u_long *p, u_long *cmpval, u_long newval)
-{
-	__ATOMIC_REL();
-	return (atomic_fcmpset_long(p, cmpval, newval));
-}
+#define	atomic_fcmpset_16	atomic_fcmpset_short
+#define	atomic_fcmpset_acq_16	atomic_fcmpset_acq_short
+#define	atomic_fcmpset_rel_16	atomic_fcmpset_rel_short
 
 #define	atomic_fcmpset_32	atomic_fcmpset_int
 #define	atomic_fcmpset_acq_32	atomic_fcmpset_acq_int
@@ -857,9 +952,6 @@ atomic_swap_64(volatile u_long *p, u_long v)
 #define	atomic_swap_ptr(p,v)	atomic_swap_32((volatile u_int *)(p), v)
 #endif
 
-#undef __ATOMIC_REL
-#undef __ATOMIC_ACQ
-
 static __inline void
 atomic_thread_fence_acq(void)
 {
@@ -887,5 +979,19 @@ atomic_thread_fence_seq_cst(void)
 
 	__asm __volatile("sync" : : : "memory");
 }
+
+#ifndef ISA_206_ATOMICS
+#include <sys/_atomic_subword.h>
+#endif
+
+/* These need sys/_atomic_subword.h on non-ISA-2.06-atomic platforms. */
+ATOMIC_CMPSET_ACQ_REL(char);
+ATOMIC_CMPSET_ACQ_REL(short);
+
+ATOMIC_FCMPSET_ACQ_REL(char);
+ATOMIC_FCMPSET_ACQ_REL(short);
+
+#undef __ATOMIC_REL
+#undef __ATOMIC_ACQ
 
 #endif /* ! _MACHINE_ATOMIC_H_ */
