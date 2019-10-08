@@ -153,7 +153,7 @@ compare_group(struct group *grp1, struct group *grp2, void *mdata)
 		if (strcmp(*c1, *c2) != 0)
 			goto errfin;
 
-	if (*c1 != '\0' || *c2 != '\0')
+	if (*c1 != NULL || *c2 != NULL)
 		goto errfin;
 
 	return 0;
@@ -182,7 +182,7 @@ sdump_group(struct group *grp, char *buffer, size_t buflen)
 	buflen -= written;
 
 	if (grp->gr_mem != NULL) {
-		if (*(grp->gr_mem) != '\0') {
+		if (*(grp->gr_mem) != NULL) {
 			for (cp = grp->gr_mem; *cp; ++cp) {
 				written = snprintf(buffer, buflen, "%s%s",
 				    cp == grp->gr_mem ? "" : ",", *cp);
