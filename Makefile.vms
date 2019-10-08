@@ -1,5 +1,3 @@
-# $tcsh: Makefile.vms,v 1.40 2014/07/07 20:34:58 christos Exp $
-#	Makefile.vms	4.3	6/11/83
 #
 # C Shell with process control; VM/UNIX VAX Makefile
 # Bill Joy UC Berkeley; Jim Kulp IIASA, Austria
@@ -295,11 +293,11 @@ TCOBJS=	tc.alloc.${SUF} tc.bind.${SUF} tc.const.${SUF} tc.defs.${SUF} \
 	tc.vers.${SUF} tc.who.${SUF} 
 
 PVSRCS= Makefile.std Makefile.vms Makefile.in Makefile.win32
-AVSRCS= Fixes MAKEDIFFS MAKESHAR NewThings README FAQ \
+AVSRCS= BUILDING Fixes MAKEDIFFS MAKESHAR NewThings README.md FAQ \
 	WishList config_f.h eight-bit.me glob.3 patchlevel.h \
 	pathnames.h tcsh.man Ported src.desc Imakefile imake.config \
-	README.imake complete.tcsh vmsreadme.txt termcap.vms snames.h \
-	host.defs gethost.c tcsh.man2html configure.ac aclocal.m4
+	complete.tcsh vmsreadme.txt termcap.vms snames.h host.defs \
+	gethost.c tcsh.man2html configure.ac aclocal.m4
 
 VHSRCS=${PVSRCS} ${AVSRCS}
 

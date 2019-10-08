@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/ed.inputl.c,v 3.73 2012/10/19 15:23:32 christos Exp $ */
 /*
  * ed.inputl.c: Input line handling.
  */
@@ -31,9 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: ed.inputl.c,v 3.73 2012/10/19 15:23:32 christos Exp $")
-
 #include "ed.h"
 #include "ed.defns.h"		/* for the function names */
 #include "tw.h"			/* for twenex stuff */
@@ -668,6 +664,17 @@ RunCommand(Char *str)
     Refresh();
 }
 
+int
+GetCmdChar(Char ch)
+{
+#ifndef WINNT_NATIVE // We use more than 256 for various extended keys 
+    wint_t c = ch & CHAR;
+#else
+    wint_t c = ch;
+#endif
+    return c < NT_NUM_KEYS ? CurrentKeyMap[c] : F_INSERT;
+}
+
 static int
 GetNextCommand(KEYCMD *cmdnum, Char *ch)
 {
@@ -696,17 +703,8 @@ GetNextCommand(KEYCMD *cmdnum, Char *ch)
 	    MetaNext = 0;
 	    *ch |= META;
 	}
-	/* XXX: This needs to be fixed so that we don't just truncate
-	 * the character, we unquote it.
-	 */
-	if (*ch < NT_NUM_KEYS)
-	    cmd = CurrentKeyMap[*ch];
-	else
-#ifdef WINNT_NATIVE
-	    cmd = CurrentKeyMap[(unsigned char) *ch];
-#else
-	    cmd = F_INSERT;
-#endif
+
+	cmd = GetCmdChar(*ch);
 	if (cmd == F_XKEY) {
 	    XmapVal val;
 	    CStr cstr;
@@ -800,13 +798,18 @@ GetNextChar(Char *cp)
 		return -1;
 	    }
 	}
-	cbp++;
-	if (normal_mbtowc(cp, cbuf, cbp) == -1) {
-	    reset_mbtowc();
-	    if (cbp < MB_CUR_MAX)
-		continue; /* Maybe a partial character */
-	    /* And drop the following bytes, if any */
-	    *cp = (unsigned char)*cbuf | INVALID_BYTE;
+	if (cbp == 0 /* && *cbuf < NT_NUM_KEYS */
+	    && CurrentKeyMap[(unsigned char)*cbuf] == F_XKEY) {
+	    *cp = (unsigned char)*cbuf;
+	} else {
+	    cbp++;
+	    if (normal_mbtowc(cp, cbuf, cbp) == -1) {
+		reset_mbtowc();
+		if (cbp < MB_CUR_MAX)
+		    continue; /* Maybe a partial character */
+		/* And drop the following bytes, if any */
+		*cp = (unsigned char)*cbuf | INVALID_BYTE;
+	    }
 	}
 	break;
     }

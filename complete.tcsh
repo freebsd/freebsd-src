@@ -1,5 +1,4 @@
 #
-# $tcsh: complete.tcsh,v 1.56 2015/07/03 16:52:47 christos Exp $
 # example file using the new completion code
 #
 # Debian GNU/Linux

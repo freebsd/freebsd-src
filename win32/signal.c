@@ -1,4 +1,3 @@
-/*$Header: /p/tcsh/cvsroot/tcsh/win32/signal.c,v 1.13 2014/08/13 23:39:34 amold Exp $*/
 /*-
  * Copyright (c) 1980, 1991 The Regents of the University of California.
  * All rights reserved.

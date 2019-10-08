@@ -13,7 +13,7 @@
 
 m4_ifndef([AC_CONFIG_MACRO_DIRS], [m4_defun([_AM_CONFIG_MACRO_DIRS], [])m4_defun([AC_CONFIG_MACRO_DIRS], [_AM_CONFIG_MACRO_DIRS($@)])])
 # iconv.m4 serial 19 (gettext-0.18.2)
-dnl Copyright (C) 2000-2002, 2007-2014 Free Software Foundation, Inc.
+dnl Copyright (C) 2000-2002, 2007-2014, 2016 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
 dnl with or without modifications, as long as this notice is preserved.
@@ -285,7 +285,7 @@ size_t iconv();
 ])
 
 # lib-ld.m4 serial 6
-dnl Copyright (C) 1996-2003, 2009-2014 Free Software Foundation, Inc.
+dnl Copyright (C) 1996-2003, 2009-2016 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
 dnl with or without modifications, as long as this notice is preserved.
@@ -405,7 +405,7 @@ AC_LIB_PROG_LD_GNU
 ])
 
 # lib-link.m4 serial 26 (gettext-0.18.2)
-dnl Copyright (C) 2001-2014 Free Software Foundation, Inc.
+dnl Copyright (C) 2001-2016 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
 dnl with or without modifications, as long as this notice is preserved.
@@ -1183,7 +1183,7 @@ AC_DEFUN([AC_LIB_LINKFLAGS_FROM_LIBS],
 ])
 
 # lib-prefix.m4 serial 7 (gettext-0.18)
-dnl Copyright (C) 2001-2005, 2008-2014 Free Software Foundation, Inc.
+dnl Copyright (C) 2001-2005, 2008-2016 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
 dnl with or without modifications, as long as this notice is preserved.

@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.char.c,v 3.21 2010/02/09 20:32:34 christos Exp $ */
 /*
  * sh.char.c: Character classification tables
  */
@@ -31,9 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: sh.char.c,v 3.21 2010/02/09 20:32:34 christos Exp $")
-
 #include "sh.char.h"
 
 /* on default same as original map */

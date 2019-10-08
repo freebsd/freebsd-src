@@ -1,4 +1,3 @@
-/*$Header: /p/tcsh/cvsroot/tcsh/win32/forkdata.h,v 1.4 2004/05/19 18:22:27 christos Exp $*/
 /*-
  * Copyright (c) 1980, 1991 The Regents of the University of California.
  * All rights reserved.

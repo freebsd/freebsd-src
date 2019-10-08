@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/ed.init.c,v 3.60 2006/08/24 20:56:31 christos Exp $ */
 /*
  * ed.init.c: Editor initializations
  */
@@ -31,9 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: ed.init.c,v 3.60 2006/08/24 20:56:31 christos Exp $")
-
 #include "ed.h"
 #include "tc.h"
 #include "ed.defns.h"

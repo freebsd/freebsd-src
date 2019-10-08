@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/pathnames.h,v 3.22 2011/02/05 20:34:55 christos Exp $ */
 /*
  * pathnames.h: Location of things to find
  */

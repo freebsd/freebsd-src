@@ -6,11 +6,9 @@ dnl
 dnl You'll also need a version of config.guess from a gnu package
 dnl
 dnl Written by Kaveh Ghazi (ghazi@caip.rutgers.edu) 5/11/96.
-dnl
-dnl $tcsh: configure.ac,v 3.10 2016/11/24 15:04:52 christos Exp $
 
 AC_PREREQ([2.59])dnl Minimum Autoconf version required.
-AC_INIT([tcsh], [6.20.00], [http://bugs.gw.com/])
+AC_INIT([tcsh], [6.21.00], [https://bugs.astron.com/])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([tc.vers.c])
 AC_CONFIG_HEADERS([config.h])
@@ -317,7 +315,7 @@ esac
 dnl Checks for libraries
 AC_SEARCH_LIBS(crypt, crypt)
 AC_SEARCH_LIBS(getspnam, sec)
-AC_SEARCH_LIBS([tgetent], [termlib termcap curses ncurses], [], [
+AC_SEARCH_LIBS([tgetent], [termlib tinfo termcap curses ncurses], [], [
    AC_MSG_ERROR([unable to find the tgetent() function])
 ])
 AC_SEARCH_LIBS(gethostbyname, nsl)

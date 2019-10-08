@@ -1,4 +1,3 @@
-/*$Header: /p/tcsh/cvsroot/tcsh/win32/nt.screen.c,v 1.14 2006/03/14 01:22:57 mitr Exp $*/
 /*
  * ed.screen.c: Editor/termcap-curses interface
  */

@@ -78,6 +78,10 @@
  */
 #undef YPBUGS
 
+#ifndef _GNU_SOURCE
+# define _GNU_SOURCE
+#endif
+
 /****************** local defines *********************/
 #ifndef _PATH_TCSHELL
 #define _PATH_TCSHELL "/bin/tcsh"

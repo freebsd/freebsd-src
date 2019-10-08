@@ -1,4 +1,3 @@
-/*$Header: /p/tcsh/cvsroot/tcsh/win32/console.c,v 1.9 2006/08/27 01:13:28 amold Exp $*/
 /*-
  * Copyright (c) 1980, 1991 The Regents of the University of California.
  * All rights reserved.

@@ -1,4 +1,3 @@
-/*$Header: /p/tcsh/cvsroot/tcsh/win32/nt.const.c,v 1.4 2003/02/08 20:03:29 christos Exp $*/
 /*
  * nt.const.c: NT-specific String constants for tcsh.
  */

@@ -1,4 +1,3 @@
-/*$Header: /p/tcsh/cvsroot/tcsh/win32/fork.c,v 1.13 2014/08/17 02:56:37 amold Exp $*/
 /*-
  * Copyright (c) 1980, 1991 The Regents of the University of California.
  * All rights reserved.
@@ -167,7 +166,7 @@ int fork_init(void) {
 #ifdef  _M_IX86
 		_old_exr = __fork_context[6];
 		__fork_context[6] =(int)GETEXCEPTIONREGIST();//tmp;
-#endif  _M_ALPHA
+#endif  
 		//
 		// Whee !
 		longjmp(__fork_context,1);
@@ -213,7 +212,9 @@ int fork(void) {
 		__hforkparent = CreateEvent(&sa,TRUE,FALSE,NULL);
 
 	rc = setjmp(__fork_context);
-
+ #if _M_AMD64
+    ((_JUMP_BUFFER *)&__fork_context)->Frame = 0; //https://stackoverflow.com/questions/26605063/an-invalid-or-unaligned-stack-was-encountered-during-an-unwind-operation
+#endif
 	if (rc) { // child
 #ifdef  _M_IX86
 		//

@@ -102,8 +102,6 @@
 
 #define SIZEOF_WCHAR_T           2
 
-#define RCSID(id) static char *rcsid = (id);
-
 // fake defines
 #define HAVE_SETPGID             1
 /****************** local defines *********************/

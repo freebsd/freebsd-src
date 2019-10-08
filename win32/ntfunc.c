@@ -1,4 +1,3 @@
-/*$Header: /p/tcsh/cvsroot/tcsh/win32/ntfunc.c,v 1.22 2016/08/12 14:54:41 amold Exp $*/
 /*-
  * Copyright (c) 1980, 1991 The Regents of the University of California.
  * All rights reserved.
@@ -67,8 +66,6 @@ struct	biltins nt_bfunc[] = {
 #ifdef NTDBG
 	{ "debugbreak",	dodebugbreak,	0,	0	},
 #endif /* NTDBG */
-	{ "ps",	dops,	0,	1	},
-	{ "shutdown",	doshutdown,	0,	2	},
 	{ "start",		dostart,	1,	INF	},
 	{ "title",		dotitle,	1,	INF	},
 };

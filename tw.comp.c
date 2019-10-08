@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tw.comp.c,v 1.45 2015/09/30 13:28:02 christos Exp $ */
 /*
  * tw.comp.c: File completion builtin
  */
@@ -31,9 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: tw.comp.c,v 1.45 2015/09/30 13:28:02 christos Exp $")
-
 #include "tw.h"
 #include "ed.h"
 #include "tc.h"
