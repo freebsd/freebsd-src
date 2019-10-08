@@ -1864,26 +1864,14 @@ pmap_init_pv_table(void)
 	highest = -1;
 	s = 0;
 	for (i = 0; i < vm_phys_nsegs; i++) {
-		start = vm_phys_segs[i].start / NBPDR;
 		end = vm_phys_segs[i].end / NBPDR;
 		domain = vm_phys_segs[i].domain;
 
 		if (highest >= end)
 			continue;
 
-		if (start < highest) {
-			start = highest + 1;
-			pvd = &pv_table[start];
-		} else {
-			/*
-			 * The lowest address may land somewhere in the middle
-			 * of our page. Simplify the code by pretending it is
-			 * at the beginning.
-			 */
-			pvd = pa_to_pmdp(vm_phys_segs[i].start);
-			pvd = (struct pmap_large_md_page *)trunc_page(pvd);
-			start = pvd - pv_table;
-		}
+		start = highest + 1;
+		pvd = &pv_table[start];
 
 		pages = end - start + 1;
 		s = round_page(pages * sizeof(*pvd));
