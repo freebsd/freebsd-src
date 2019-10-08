@@ -49,22 +49,24 @@ create_binary(int ifd, int ofd)
 	Elf *e;
 	Elf_Scn *scn;
 	Elf_Data *d;
+	Elf64_Addr baseaddr;
 	GElf_Shdr sh;
-	off_t base, off;
+	off_t baseoff, off;
 	int elferr;
 
 	if ((e = elf_begin(ifd, ELF_C_READ, NULL)) == NULL)
 		errx(EXIT_FAILURE, "elf_begin() failed: %s",
 		    elf_errmsg(-1));
 
-	base = 0;
-	if (lseek(ofd, base, SEEK_SET) < 0)
+	baseaddr = 0;
+	baseoff = 0;
+	if (lseek(ofd, baseoff, SEEK_SET) < 0)
 		err(EXIT_FAILURE, "lseek failed");
 
 	/*
 	 * Find base offset in the first iteration.
 	 */
-	base = -1;
+	baseoff = -1;
 	scn = NULL;
 	while ((scn = elf_nextscn(e, scn)) != NULL) {
 		if (gelf_getshdr(scn, &sh) == NULL) {
@@ -76,14 +78,16 @@ create_binary(int ifd, int ofd)
 		    sh.sh_type == SHT_NOBITS ||
 		    sh.sh_size == 0)
 			continue;
-		if (base == -1 || (off_t) sh.sh_offset < base)
-			base = sh.sh_offset;
+		if (baseoff == -1 || (off_t) sh.sh_offset < baseoff) {
+			baseoff = sh.sh_offset;
+			baseaddr = sh.sh_addr;
+		}
 	}
 	elferr = elf_errno();
 	if (elferr != 0)
 		warnx("elf_nextscn failed: %s", elf_errmsg(elferr));
 
-	if (base == -1)
+	if (baseoff == -1)
 		return;
 
 	/*
@@ -110,8 +114,8 @@ create_binary(int ifd, int ofd)
 		if (d->d_buf == NULL || d->d_size == 0)
 			continue;
 
-		/* lseek to section offset relative to `base'. */
-		off = sh.sh_offset - base;
+		/* lseek to section offset relative to `baseaddr'. */
+		off = sh.sh_addr - baseaddr;
 		if (lseek(ofd, off, SEEK_SET) < 0)
 			err(EXIT_FAILURE, "lseek failed");
 

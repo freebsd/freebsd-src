@@ -593,12 +593,12 @@ rtredirect_fib(struct sockaddr *dst,
 	int error = 0;
 	short *stat = NULL;
 	struct rt_addrinfo info;
-	struct epoch_tracker et;
 	struct ifaddr *ifa;
 	struct rib_head *rnh;
 
+	NET_EPOCH_ASSERT();
+
 	ifa = NULL;
-	NET_EPOCH_ENTER(et);
 	rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
 	if (rnh == NULL) {
 		error = EAFNOSUPPORT;
@@ -693,7 +693,6 @@ done:
 	if (rt)
 		RTFREE_LOCKED(rt);
  out:
-	NET_EPOCH_EXIT(et);
 	if (error)
 		V_rtstat.rts_badredirect++;
 	else if (stat != NULL)

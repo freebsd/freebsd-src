@@ -189,10 +189,10 @@ static u_int vpid_alloc_failed;
 SYSCTL_UINT(_hw_vmm_vmx, OID_AUTO, vpid_alloc_failed, CTLFLAG_RD,
 	    &vpid_alloc_failed, 0, NULL);
 
-static int guest_l1d_flush;
+int guest_l1d_flush;
 SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, l1d_flush, CTLFLAG_RD,
     &guest_l1d_flush, 0, NULL);
-static int guest_l1d_flush_sw;
+int guest_l1d_flush_sw;
 SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, l1d_flush_sw, CTLFLAG_RD,
     &guest_l1d_flush_sw, 0, NULL);
 

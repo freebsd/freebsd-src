@@ -287,7 +287,7 @@ static struct if_shared_ctx vmxnet3_sctx_init = {
 	.isc_vendor_info = vmxnet3_vendor_info_array,
 	.isc_driver_version = "2",
 	.isc_driver = &vmxnet3_iflib_driver,
-	.isc_flags = IFLIB_HAS_RXCQ | IFLIB_HAS_TXCQ,
+	.isc_flags = IFLIB_HAS_RXCQ | IFLIB_HAS_TXCQ | IFLIB_SINGLE_IRQ_RX_ONLY,
 
 	/*
 	 * Number of receive queues per receive queue set, with associated

@@ -773,6 +773,7 @@ tr_setup:
 static void
 usie_if_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
+	struct epoch_tracker et;
 	struct usie_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct mbuf *m0;
@@ -852,6 +853,7 @@ tr_setup:
 	err = pkt = 0;
 
 	/* HW can aggregate multiple frames in a single USB xfer */
+	NET_EPOCH_ENTER(et);
 	for (;;) {
 		rxd = mtod(m, struct usie_desc *);
 
@@ -918,6 +920,7 @@ tr_setup:
 		m->m_data += diff;
 		m->m_pkthdr.len = (m->m_len -= diff);
 	}
+	NET_EPOCH_EXIT(et);
 
 	mtx_lock(&sc->sc_mtx);
 

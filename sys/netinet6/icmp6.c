@@ -1660,12 +1660,13 @@ static int
 ni6_addrs(struct icmp6_nodeinfo *ni6, struct mbuf *m, struct ifnet **ifpp,
     struct in6_addr *subj)
 {
-	struct epoch_tracker et;
 	struct ifnet *ifp;
 	struct in6_ifaddr *ifa6;
 	struct ifaddr *ifa;
 	int addrs = 0, addrsofif, iffound = 0;
 	int niflags = ni6->ni_flags;
+
+	NET_EPOCH_ASSERT();
 
 	if ((niflags & NI_NODEADDR_FLAG_ALL) == 0) {
 		switch (ni6->ni_code) {
@@ -1682,7 +1683,6 @@ ni6_addrs(struct icmp6_nodeinfo *ni6, struct mbuf *m, struct ifnet **ifpp,
 		}
 	}
 
-	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		addrsofif = 0;
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -1737,13 +1737,11 @@ ni6_addrs(struct icmp6_nodeinfo *ni6, struct mbuf *m, struct ifnet **ifpp,
 		}
 		if (iffound) {
 			*ifpp = ifp;
-			NET_EPOCH_EXIT(et);
 			return (addrsofif);
 		}
 
 		addrs += addrsofif;
 	}
-	NET_EPOCH_EXIT(et);
 
 	return (addrs);
 }
@@ -1752,7 +1750,6 @@ static int
 ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
     struct ifnet *ifp0, int resid)
 {
-	struct epoch_tracker et;
 	struct ifnet *ifp;
 	struct in6_ifaddr *ifa6;
 	struct ifaddr *ifa;
@@ -1762,10 +1759,11 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
 	int niflags = ni6->ni_flags;
 	u_int32_t ltime;
 
+	NET_EPOCH_ASSERT();
+
 	if (ifp0 == NULL && !(niflags & NI_NODEADDR_FLAG_ALL))
 		return (0);	/* needless to copy */
 
-	NET_EPOCH_ENTER(et);
 	ifp = ifp0 ? ifp0 : CK_STAILQ_FIRST(&V_ifnet);
   again:
 
@@ -1829,7 +1827,6 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
 				 * Set the truncate flag and return.
 				 */
 				nni6->ni_flags |= NI_NODEADDR_FLAG_TRUNCATE;
-				NET_EPOCH_EXIT(et);
 				return (copied);
 			}
 
@@ -1880,8 +1877,6 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
 
 		goto again;
 	}
-
-	NET_EPOCH_EXIT(et);
 
 	return (copied);
 }
@@ -2563,14 +2558,11 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 
 	{
 		/* target lladdr option */
-		struct epoch_tracker et;
 		int len;
 		struct nd_opt_hdr *nd_opt;
 		char *lladdr;
 
-		NET_EPOCH_ENTER(et);
 		ln = nd6_lookup(router_ll6, 0, ifp);
-		NET_EPOCH_EXIT(et);
 		if (ln == NULL)
 			goto nolladdropt;
 

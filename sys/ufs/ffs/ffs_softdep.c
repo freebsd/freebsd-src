@@ -1311,54 +1311,55 @@ SYSCTL_INT(_debug_softdep, OID_AUTO, tickdelay, CTLFLAG_RW,
     &tickdelay, 0, "");
 SYSCTL_INT(_debug_softdep, OID_AUTO, flush_threads, CTLFLAG_RD,
     &stat_flush_threads, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, worklist_push, CTLFLAG_RW,
-    &stat_worklist_push, 0,"");
-SYSCTL_INT(_debug_softdep, OID_AUTO, blk_limit_push, CTLFLAG_RW,
-    &stat_blk_limit_push, 0,"");
-SYSCTL_INT(_debug_softdep, OID_AUTO, ino_limit_push, CTLFLAG_RW,
-    &stat_ino_limit_push, 0,"");
-SYSCTL_INT(_debug_softdep, OID_AUTO, blk_limit_hit, CTLFLAG_RW,
-    &stat_blk_limit_hit, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, ino_limit_hit, CTLFLAG_RW,
-    &stat_ino_limit_hit, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, sync_limit_hit, CTLFLAG_RW,
-    &stat_sync_limit_hit, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, indir_blk_ptrs, CTLFLAG_RW,
-    &stat_indir_blk_ptrs, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, inode_bitmap, CTLFLAG_RW,
-    &stat_inode_bitmap, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, direct_blk_ptrs, CTLFLAG_RW,
-    &stat_direct_blk_ptrs, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, dir_entry, CTLFLAG_RW,
-    &stat_dir_entry, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, jaddref_rollback, CTLFLAG_RW,
-    &stat_jaddref, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, jnewblk_rollback, CTLFLAG_RW,
-    &stat_jnewblk, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, journal_low, CTLFLAG_RW,
-    &stat_journal_low, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, journal_min, CTLFLAG_RW,
-    &stat_journal_min, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, journal_wait, CTLFLAG_RW,
-    &stat_journal_wait, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, jwait_filepage, CTLFLAG_RW,
-    &stat_jwait_filepage, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, jwait_freeblks, CTLFLAG_RW,
-    &stat_jwait_freeblks, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, jwait_inode, CTLFLAG_RW,
-    &stat_jwait_inode, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, jwait_newblk, CTLFLAG_RW,
-    &stat_jwait_newblk, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_blkrequests, CTLFLAG_RW,
-    &stat_cleanup_blkrequests, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_inorequests, CTLFLAG_RW,
-    &stat_cleanup_inorequests, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_high_delay, CTLFLAG_RW,
-    &stat_cleanup_high_delay, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_retries, CTLFLAG_RW,
-    &stat_cleanup_retries, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_failures, CTLFLAG_RW,
-    &stat_cleanup_failures, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, worklist_push,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_worklist_push, 0,"");
+SYSCTL_INT(_debug_softdep, OID_AUTO, blk_limit_push,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_blk_limit_push, 0,"");
+SYSCTL_INT(_debug_softdep, OID_AUTO, ino_limit_push,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_ino_limit_push, 0,"");
+SYSCTL_INT(_debug_softdep, OID_AUTO, blk_limit_hit,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_blk_limit_hit, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, ino_limit_hit,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_ino_limit_hit, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, sync_limit_hit,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_sync_limit_hit, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, indir_blk_ptrs,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_indir_blk_ptrs, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, inode_bitmap,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_inode_bitmap, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, direct_blk_ptrs,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_direct_blk_ptrs, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, dir_entry,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_dir_entry, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, jaddref_rollback,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_jaddref, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, jnewblk_rollback,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_jnewblk, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, journal_low,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_journal_low, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, journal_min,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_journal_min, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, journal_wait,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_journal_wait, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, jwait_filepage,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_jwait_filepage, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, jwait_freeblks,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_jwait_freeblks, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, jwait_inode,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_jwait_inode, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, jwait_newblk,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_jwait_newblk, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_blkrequests,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_cleanup_blkrequests, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_inorequests,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_cleanup_inorequests, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_high_delay,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_cleanup_high_delay, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_retries,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_cleanup_retries, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_failures,
+    CTLFLAG_RW | CTLFLAG_STATS, &stat_cleanup_failures, 0, "");
+
 SYSCTL_INT(_debug_softdep, OID_AUTO, flushcache, CTLFLAG_RW,
     &softdep_flushcache, 0, "");
 SYSCTL_INT(_debug_softdep, OID_AUTO, emptyjblocks, CTLFLAG_RD,

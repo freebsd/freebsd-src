@@ -88,9 +88,6 @@ memfd_create(const char *name, unsigned int flags)
 	if ((flags & ~(MFD_CLOEXEC | MFD_ALLOW_SEALING | MFD_HUGETLB |
 	    MFD_HUGE_MASK)) != 0)
 		return (EINVAL);
-	/* HUGETLB set with no size specified. */
-	if ((flags & MFD_HUGETLB) != 0 && (flags & MFD_HUGE_MASK) == 0)
-		return (EINVAL);
 	/* Size specified but no HUGETLB. */
 	if ((flags & MFD_HUGE_MASK) != 0 && (flags & MFD_HUGETLB) == 0)
 		return (EINVAL);

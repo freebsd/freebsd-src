@@ -25,6 +25,8 @@
  */
 
 #include <sys/param.h>
+
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
 #include <getopt.h>
@@ -164,6 +166,11 @@ main(int argc, char **argv)
 
 	argv += optind;
 	argc -= optind;
+
+	if (caph_limit_stdio() < 0)
+		err(EXIT_FAILURE, "failed to limit stdio rights");
+	if (caph_enter() < 0)
+		err(EXIT_FAILURE, "failed to enter capability mode");
 
 	if (*argv != NULL) {
 		for (n = 0; n < argc; n++) {

@@ -27,49 +27,52 @@ MAN=		arb.3 \
 		queue.3 \
 		sigevent.3 \
 		siginfo.3 \
+		stats.3 \
 		stdarg.3 \
 		sysexits.3 \
 		tgmath.3 \
 		timeradd.3 \
 		tree.3
 
-MLINKS+=	arb.3 ARB8_ENTRY.3 \
-		arb.3 ARB16_ENTRY.3 \
-		arb.3 ARB32_ENTRY.3 \
+MLINKS=		arb.3 ARB8_ENTRY.3 \
 		arb.3 ARB8_HEAD.3 \
+		arb.3 ARB16_ENTRY.3 \
 		arb.3 ARB16_HEAD.3 \
+		arb.3 ARB32_ENTRY.3 \
 		arb.3 ARB32_HEAD.3 \
 		arb.3 ARB_ALLOCSIZE.3 \
-		arb.3 ARB_INITIALIZER.3 \
-		arb.3 ARB_ROOT.3 \
-		arb.3 ARB_EMPTY.3 \
-		arb.3 ARB_FULL.3 \
 		arb.3 ARB_CURNODES.3 \
-		arb.3 ARB_MAXNODES.3 \
-		arb.3 ARB_NEXT.3 \
-		arb.3 ARB_PREV.3 \
-		arb.3 ARB_MIN.3 \
-		arb.3 ARB_MAX.3 \
+		arb.3 ARB_EMPTY.3 \
 		arb.3 ARB_FIND.3 \
-		arb.3 ARB_NFIND.3 \
-		arb.3 ARB_LEFT.3 \
-		arb.3 ARB_LEFTIDX.3 \
-		arb.3 ARB_RIGHT.3 \
-		arb.3 ARB_RIGHTIDX.3 \
-		arb.3 ARB_PARENT.3 \
-		arb.3 ARB_PARENTIDX.3 \
-		arb.3 ARB_GETFREE.3 \
-		arb.3 ARB_FREEIDX.3 \
 		arb.3 ARB_FOREACH.3 \
 		arb.3 ARB_FOREACH_FROM.3 \
-		arb.3 ARB_FOREACH_SAFE.3 \
 		arb.3 ARB_FOREACH_REVERSE.3 \
 		arb.3 ARB_FOREACH_REVERSE_FROM.3 \
 		arb.3 ARB_FOREACH_REVERSE_SAFE.3 \
+		arb.3 ARB_FOREACH_SAFE.3 \
+		arb.3 ARB_FREEIDX.3 \
+		arb.3 ARB_FULL.3 \
+		arb.3 ARB_GETFREE.3 \
 		arb.3 ARB_INIT.3 \
+		arb.3 ARB_INITIALIZER.3 \
 		arb.3 ARB_INSERT.3 \
-		arb.3 ARB_REMOVE.3
-MLINKS=		ATOMIC_VAR_INIT.3 atomic_compare_exchange_strong.3 \
+		arb.3 ARB_LEFT.3 \
+		arb.3 ARB_LEFTIDX.3 \
+		arb.3 ARB_MAX.3 \
+		arb.3 ARB_MAXNODES.3 \
+		arb.3 ARB_MIN.3 \
+		arb.3 ARB_NEXT.3 \
+		arb.3 ARB_NFIND.3 \
+		arb.3 ARB_PARENT.3 \
+		arb.3 ARB_PARENTIDX.3 \
+		arb.3 ARB_PREV.3 \
+		arb.3 ARB_REINSERT.3 \
+		arb.3 ARB_REMOVE.3 \
+		arb.3 ARB_RESET_TREE.3 \
+		arb.3 ARB_RIGHT.3 \
+		arb.3 ARB_RIGHTIDX.3 \
+		arb.3 ARB_ROOT.3
+MLINKS+=	ATOMIC_VAR_INIT.3 atomic_compare_exchange_strong.3 \
 		ATOMIC_VAR_INIT.3 atomic_compare_exchange_strong_explicit.3 \
 		ATOMIC_VAR_INIT.3 atomic_compare_exchange_weak.3 \
 		ATOMIC_VAR_INIT.3 atomic_compare_exchange_weak_explicit.3 \
@@ -268,6 +271,27 @@ MLINKS+=	queue.3 LIST_CLASS_ENTRY.3 \
 		queue.3 TAILQ_PREV.3 \
 		queue.3 TAILQ_REMOVE.3 \
 		queue.3 TAILQ_SWAP.3
+MLINKS+=	stats.3 stats_tpl_alloc.3 \
+		stats.3 stats_tpl_fetch_allocid.3 \
+		stats.3 stats_tpl_fetch.3 \
+		stats.3 stats_tpl_id2name.3 \
+		stats.3 stats_tpl_sample_rates.3 \
+		stats.3 stats_tpl_sample_rollthedice.3 \
+		stats.3 STATS_VSS_SUM.3 \
+		stats.3 STATS_VSS_MAX.3 \
+		stats.3 STATS_VSS_MIN.3 \
+		stats.3 STATS_VSS_CRHIST32_LIN.3 \
+		stats.3 STATS_VSS_CRHIST64_LIN.3 \
+		stats.3 stats_tpl_add_voistats.3 \
+		stats.3 stats_blob_alloc.3 \
+		stats.3 stats_blob_init.3 \
+		stats.3 stats_blob_clone.3 \
+		stats.3 stats_blob_destroy.3 \
+		stats.3 stats_voistat_fetch_dptr.3 \
+		stats.3 stats_blob_snapshot.3 \
+		stats.3 stats_blob_tostr.3 \
+		stats.3 stats_voistatdata_tostr.3 \
+		stats.3 stats_blob_visit.3
 MLINKS+=	stdarg.3 va_arg.3 \
 		stdarg.3 va_copy.3 \
 		stdarg.3 va_end.3 \
@@ -324,6 +348,7 @@ MLINKS+=	tree.3 RB_EMPTY.3 \
 		tree.3 RB_PROTOTYPE_REMOVE.3 \
 		tree.3 RB_PROTOTYPE_REMOVE_COLOR.3 \
 		tree.3 RB_PROTOTYPE_STATIC.3 \
+		tree.3 RB_REINSERT.3 \
 		tree.3 RB_REMOVE.3 \
 		tree.3 RB_RIGHT.3 \
 		tree.3 RB_ROOT.3 \

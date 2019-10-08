@@ -62,7 +62,6 @@
 verify_runnable "global"
 
 log_assert "Verify raidz pool can withstand one device is failing."
-log_onexit cleanup
 
 for cnt in 3 2; do
 	setup_test_env $TESTPOOL raidz $cnt

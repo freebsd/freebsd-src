@@ -231,6 +231,7 @@ struct mount {
 	int		*mnt_ref_pcpu;
 	int		*mnt_lockref_pcpu;
 	int		*mnt_writeopcount_pcpu;
+	struct vnode	*mnt_rootvnode;
 };
 
 /*
@@ -702,6 +703,7 @@ struct vfsops {
 	vfs_cmount_t		*vfs_cmount;
 	vfs_unmount_t		*vfs_unmount;
 	vfs_root_t		*vfs_root;
+	vfs_root_t		*vfs_cachedroot;
 	vfs_quotactl_t		*vfs_quotactl;
 	vfs_statfs_t		*vfs_statfs;
 	vfs_sync_t		*vfs_sync;
@@ -739,6 +741,12 @@ vfs_statfs_t	__vfs_statfs;
 	int _rc;							\
 									\
 	_rc = (*(MP)->mnt_op->vfs_root)(MP, FLAGS, VPP);		\
+	_rc; })
+
+#define	VFS_CACHEDROOT(MP, FLAGS, VPP) ({				\
+	int _rc;							\
+									\
+	_rc = (*(MP)->mnt_op->vfs_cachedroot)(MP, FLAGS, VPP);		\
 	_rc; })
 
 #define	VFS_QUOTACTL(MP, C, U, A) ({					\
@@ -949,6 +957,9 @@ vfs_sysctl_t		vfs_stdsysctl;
 
 void	syncer_suspend(void);
 void	syncer_resume(void);
+
+struct vnode *vfs_cache_root_clear(struct mount *);
+void	vfs_cache_root_set(struct mount *, struct vnode *);
 
 void	vfs_op_barrier_wait(struct mount *);
 void	vfs_op_enter(struct mount *);

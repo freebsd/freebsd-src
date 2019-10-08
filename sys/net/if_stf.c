@@ -613,6 +613,8 @@ in_stf_input(struct mbuf *m, int off, int proto, void *arg)
 	u_int8_t otos, itos;
 	struct ifnet *ifp;
 
+	NET_EPOCH_ASSERT();
+
 	if (proto != IPPROTO_IPV6) {
 		m_freem(m);
 		return (IPPROTO_DONE);

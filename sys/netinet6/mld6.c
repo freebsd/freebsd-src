@@ -636,7 +636,6 @@ static int
 mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
     /*const*/ struct mld_hdr *mld)
 {
-	struct epoch_tracker	 et;
 	struct ifmultiaddr	*ifma;
 	struct mld_ifsoftc	*mli;
 	struct in6_multi	*inm;
@@ -645,6 +644,8 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 #ifdef KTR
 	char			 ip6tbuf[INET6_ADDRSTRLEN];
 #endif
+
+	NET_EPOCH_ASSERT();
 
 	is_general_query = 0;
 
@@ -704,7 +705,6 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	if (timer == 0)
 		timer = 1;
 
-	NET_EPOCH_ENTER(et);
 	if (is_general_query) {
 		/*
 		 * For each reporting group joined on this
@@ -735,7 +735,6 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 		in6_clearscope(&mld->mld_addr);
 	}
 
-	NET_EPOCH_EXIT(et);
 	MLD_UNLOCK();
 	IN6_MULTI_LIST_UNLOCK();
 
@@ -823,6 +822,8 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 #ifdef KTR
 	char			 ip6tbuf[INET6_ADDRSTRLEN];
 #endif
+
+	NET_EPOCH_ASSERT();
 
 	if (!mld_v2enable) {
 		CTR3(KTR_MLD, "ignore v2 query src %s on ifp %p(%s)",
@@ -937,8 +938,6 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 			V_interface_timers_running6 = 1;
 		}
 	} else {
-		struct epoch_tracker et;
-
 		/*
 		 * MLDv2 Group-specific or Group-and-source-specific Query.
 		 *
@@ -947,18 +946,14 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 		 * Queries for groups we are not a member of on this
 		 * link are simply ignored.
 		 */
-		NET_EPOCH_ENTER(et);
 		inm = in6m_lookup_locked(ifp, &mld->mld_addr);
-		if (inm == NULL) {
-			NET_EPOCH_EXIT(et);
+		if (inm == NULL)
 			goto out_locked;
-		}
 		if (nsrc > 0) {
 			if (!ratecheck(&inm->in6m_lastgsrtv,
 			    &V_mld_gsrdelay)) {
 				CTR1(KTR_MLD, "%s: GS query throttled.",
 				    __func__);
-				NET_EPOCH_EXIT(et);
 				goto out_locked;
 			}
 		}
@@ -976,7 +971,6 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 
 		/* XXX Clear embedded scope ID as userland won't expect it. */
 		in6_clearscope(&mld->mld_addr);
-		NET_EPOCH_EXIT(et);
 	}
 
 out_locked:
@@ -1110,12 +1104,13 @@ mld_v1_input_report(struct ifnet *ifp, const struct ip6_hdr *ip6,
     /*const*/ struct mld_hdr *mld)
 {
 	struct in6_addr		 src, dst;
-	struct epoch_tracker	 et;
 	struct in6_ifaddr	*ia;
 	struct in6_multi	*inm;
 #ifdef KTR
 	char			 ip6tbuf[INET6_ADDRSTRLEN];
 #endif
+
+	NET_EPOCH_ASSERT();
 
 	if (!mld_v1enable) {
 		CTR3(KTR_MLD, "ignore v1 report %s on ifp %p(%s)",
@@ -1186,7 +1181,6 @@ mld_v1_input_report(struct ifnet *ifp, const struct ip6_hdr *ip6,
 
 	IN6_MULTI_LIST_LOCK();
 	MLD_LOCK();
-	NET_EPOCH_ENTER(et);
 
 	/*
 	 * MLDv1 report suppression.
@@ -1234,7 +1228,6 @@ mld_v1_input_report(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	}
 
 out_locked:
-	NET_EPOCH_EXIT(et);
 	MLD_UNLOCK();
 	IN6_MULTI_LIST_UNLOCK();
 
@@ -1412,8 +1405,8 @@ mld_fasttimo_vnet(struct in6_multi_head *inmh)
 			mbufq_init(&scq, MLD_MAX_STATE_CHANGE_PACKETS);
 		}
 
-		IF_ADDR_WLOCK(ifp);
 		NET_EPOCH_ENTER(et);
+		IF_ADDR_WLOCK(ifp);
 		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			inm = in6m_ifmultiaddr_get_inm(ifma);
 			if (inm == NULL)
@@ -2995,12 +2988,12 @@ mld_v2_merge_state_changes(struct in6_multi *inm, struct mbufq *scq)
 static void
 mld_v2_dispatch_general_query(struct mld_ifsoftc *mli)
 {
-	struct epoch_tracker	 et;
 	struct ifmultiaddr	*ifma;
 	struct ifnet		*ifp;
 	struct in6_multi	*inm;
 	int			 retval;
 
+	NET_EPOCH_ASSERT();
 	IN6_MULTI_LIST_LOCK_ASSERT();
 	MLD_LOCK_ASSERT();
 
@@ -3018,7 +3011,6 @@ mld_v2_dispatch_general_query(struct mld_ifsoftc *mli)
 
 	ifp = mli->mli_ifp;
 
-	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		inm = in6m_ifmultiaddr_get_inm(ifma);
 		if (inm == NULL)
@@ -3047,7 +3039,6 @@ mld_v2_dispatch_general_query(struct mld_ifsoftc *mli)
 			break;
 		}
 	}
-	NET_EPOCH_EXIT(et);
 
 send:
 	mld_dispatch_queue(&mli->mli_gq, MLD_MAX_RESPONSE_BURST);

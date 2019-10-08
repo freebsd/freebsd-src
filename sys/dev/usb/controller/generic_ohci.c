@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/phy/phy.h>
+#include <dev/extres/phy/phy_usb.h>
 #endif
 
 #include "generic_usb_if.h"
@@ -69,15 +70,23 @@ struct clk_list {
 	TAILQ_ENTRY(clk_list)	next;
 	clk_t			clk;
 };
+struct phy_list {
+	TAILQ_ENTRY(phy_list)	next;
+	phy_t			phy;
+};
+struct hwrst_list {
+	TAILQ_ENTRY(hwrst_list)	next;
+	hwreset_t		rst;
+};
 #endif
 
 struct generic_ohci_softc {
 	ohci_softc_t	ohci_sc;
 
 #ifdef EXT_RESOURCES
-	hwreset_t	rst;
-	phy_t		phy;
-	TAILQ_HEAD(, clk_list)	clk_list;
+	TAILQ_HEAD(, clk_list)		clk_list;
+	TAILQ_HEAD(, phy_list)		phy_list;
+	TAILQ_HEAD(, hwrst_list)	rst_list;
 #endif
 };
 
@@ -106,7 +115,11 @@ generic_ohci_attach(device_t dev)
 #ifdef EXT_RESOURCES
 	int off;
 	struct clk_list *clkp;
+	struct phy_list *phyp;
+	struct hwrst_list *rstp;
 	clk_t clk;
+	phy_t phy;
+	hwreset_t rst;
 #endif
 
 	sc->ohci_sc.sc_bus.parent = dev;
@@ -173,22 +186,34 @@ generic_ohci_attach(device_t dev)
 	}
 
 	/* De-assert reset */
-	if (hwreset_get_by_ofw_idx(dev, 0, 0, &sc->rst) == 0) {
-		err = hwreset_deassert(sc->rst);
+	TAILQ_INIT(&sc->rst_list);
+	for (off = 0; hwreset_get_by_ofw_idx(dev, 0, off, &rst) == 0; off++) {
+		err = hwreset_deassert(rst);
 		if (err != 0) {
-			device_printf(dev, "Could not de-assert reset %d\n",
-			    off);
+			device_printf(dev, "Could not de-assert reset\n");
 			goto error;
 		}
+		rstp = malloc(sizeof(*rstp), M_DEVBUF, M_WAITOK | M_ZERO);
+		rstp->rst = rst;
+		TAILQ_INSERT_TAIL(&sc->rst_list, rstp, next);
 	}
 
 	/* Enable phy */
-	if (phy_get_by_ofw_name(dev, 0, "usb", &sc->phy) == 0) {
-		err = phy_enable(sc->phy);
+	TAILQ_INIT(&sc->phy_list);
+	for (off = 0; phy_get_by_ofw_idx(dev, 0, off, &phy) == 0; off++) {
+		err = phy_usb_set_mode(phy, PHY_USB_MODE_HOST);
+		if (err != 0) {
+			device_printf(dev, "Could not set phy to host mode\n");
+			goto error;
+		}
+		err = phy_enable(phy);
 		if (err != 0) {
 			device_printf(dev, "Could not enable phy\n");
 			goto error;
 		}
+		phyp = malloc(sizeof(*phyp), M_DEVBUF, M_WAITOK | M_ZERO);
+		phyp->phy = phy;
+		TAILQ_INSERT_TAIL(&sc->phy_list, phyp, next);
 	}
 #endif
 
@@ -216,6 +241,8 @@ generic_ohci_detach(device_t dev)
 	int err;
 #ifdef EXT_RESOURCES
 	struct clk_list *clk, *clk_tmp;
+	struct phy_list *phy, *phy_tmp;
+	struct hwrst_list *rst, *rst_tmp;
 #endif
 
 	/* during module unload there are lots of children leftover */
@@ -257,11 +284,21 @@ generic_ohci_detach(device_t dev)
 
 #ifdef EXT_RESOURCES
 	/* Disable phy */
-	if (sc->phy) {
-		err = phy_disable(sc->phy);
+	TAILQ_FOREACH_SAFE(phy, &sc->phy_list, next, phy_tmp) {
+		err = phy_disable(phy->phy);
 		if (err != 0)
 			device_printf(dev, "Could not disable phy\n");
-		phy_release(sc->phy);
+		phy_release(phy->phy);
+		TAILQ_REMOVE(&sc->phy_list, phy, next);
+		free(phy, M_DEVBUF);
+	}
+
+	/* Assert reset */
+	TAILQ_FOREACH_SAFE(rst, &sc->rst_list, next, rst_tmp) {
+		hwreset_assert(rst->rst);
+		hwreset_release(rst->rst);
+		TAILQ_REMOVE(&sc->rst_list, rst, next);
+		free(rst, M_DEVBUF);
 	}
 
 	/* Disable clock */
@@ -276,14 +313,6 @@ generic_ohci_detach(device_t dev)
 			    clk_get_name(clk->clk));
 		TAILQ_REMOVE(&sc->clk_list, clk, next);
 		free(clk, M_DEVBUF);
-	}
-
-	/* De-assert reset */
-	if (sc->rst) {
-		err = hwreset_assert(sc->rst);
-		if (err != 0)
-			device_printf(dev, "Could not assert reset\n");
-		hwreset_release(sc->rst);
 	}
 #endif
 

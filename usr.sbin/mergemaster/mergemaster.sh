@@ -883,6 +883,9 @@ mm_install () {
     /etc/mail/aliases)
       NEED_NEWALIASES=yes
       ;;
+    /usr/share/certs/trusted/* | /usr/share/certs/blacklisted/*)
+      NEED_CERTCTL=yes
+      ;;
     /etc/login.conf)
       NEED_CAP_MKDB=yes
       ;;
@@ -1351,6 +1354,23 @@ case "${NEED_PWD_MKDB}" in
     echo "    '/usr/sbin/pwd_mkdb -p /etc/master.passwd'"
     echo "     to rebuild your password files"
     run_it_now '/usr/sbin/pwd_mkdb -p /etc/master.passwd'
+  fi
+  ;;
+esac
+
+case "${NEED_CERTCTL}" in
+'') ;;
+*)
+  echo ''
+  echo "*** You installed files in /etc/ssl/certs, so make sure that you run"
+  if [ -n "${DESTDIR}" ]; then
+    echo "    'env DESTDIR=${DESTDIR} /usr/sbin/certctl rehash'"
+    echo "     to rebuild your certificate authority database"
+    run_it_now "env DESTDIR=${DESTDIR} /usr/sbin/certctl rehash"
+  else
+    echo "    '/usr/sbin/certctl rehash'"
+    echo "     to rebuild your certificate authority database"
+    run_it_now "/usr/sbin/certctl rehash"
   fi
   ;;
 esac

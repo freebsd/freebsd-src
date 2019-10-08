@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2019 Mellanox Technologies. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,7 +26,7 @@
  */
 
 #include "en.h"
-#include <net/sff8472.h>
+#include "port_buffer.h"
 
 void
 mlx5e_create_stats(struct sysctl_ctx_list *ctx,
@@ -345,6 +345,285 @@ done:
 	return (err);
 }
 
+int
+mlx5e_fec_update(struct mlx5e_priv *priv)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u32 in[MLX5_ST_SZ_DW(pplm_reg)] = {};
+	const int sz = MLX5_ST_SZ_BYTES(pplm_reg);
+	int err;
+
+	if (!MLX5_CAP_GEN(mdev, pcam_reg))
+		return (EOPNOTSUPP);
+
+	if (!MLX5_CAP_PCAM_REG(mdev, pplm))
+		return (EOPNOTSUPP);
+
+	MLX5_SET(pplm_reg, in, local_port, 1);
+
+	err = -mlx5_core_access_reg(mdev, in, sz, in, sz, MLX5_REG_PPLM, 0, 0);
+	if (err)
+		return (err);
+
+	/* get 10x..25x mask */
+	priv->params_ethtool.fec_mask_10x_25x[0] =
+	    MLX5_GET(pplm_reg, in, fec_override_admin_10g_40g);
+	priv->params_ethtool.fec_mask_10x_25x[1] =
+	    MLX5_GET(pplm_reg, in, fec_override_admin_25g) &
+	    MLX5_GET(pplm_reg, in, fec_override_admin_50g);
+	priv->params_ethtool.fec_mask_10x_25x[2] =
+	    MLX5_GET(pplm_reg, in, fec_override_admin_56g);
+	priv->params_ethtool.fec_mask_10x_25x[3] =
+	    MLX5_GET(pplm_reg, in, fec_override_admin_100g);
+
+	/* get 10x..25x available bits */
+	priv->params_ethtool.fec_avail_10x_25x[0] =
+	    MLX5_GET(pplm_reg, in, fec_override_cap_10g_40g);
+	priv->params_ethtool.fec_avail_10x_25x[1] =
+	    MLX5_GET(pplm_reg, in, fec_override_cap_25g) &
+	    MLX5_GET(pplm_reg, in, fec_override_cap_50g);
+	priv->params_ethtool.fec_avail_10x_25x[2] =
+	    MLX5_GET(pplm_reg, in, fec_override_cap_56g);
+	priv->params_ethtool.fec_avail_10x_25x[3] =
+	    MLX5_GET(pplm_reg, in, fec_override_cap_100g);
+
+	/* get 50x mask */
+	priv->params_ethtool.fec_mask_50x[0] =
+	    MLX5_GET(pplm_reg, in, fec_override_admin_50g_1x);
+	priv->params_ethtool.fec_mask_50x[1] =
+	    MLX5_GET(pplm_reg, in, fec_override_admin_100g_2x);
+	priv->params_ethtool.fec_mask_50x[2] =
+	    MLX5_GET(pplm_reg, in, fec_override_admin_200g_4x);
+	priv->params_ethtool.fec_mask_50x[3] =
+	    MLX5_GET(pplm_reg, in, fec_override_admin_400g_8x);
+
+	/* get 50x available bits */
+	priv->params_ethtool.fec_avail_50x[0] =
+	    MLX5_GET(pplm_reg, in, fec_override_cap_50g_1x);
+	priv->params_ethtool.fec_avail_50x[1] =
+	    MLX5_GET(pplm_reg, in, fec_override_cap_100g_2x);
+	priv->params_ethtool.fec_avail_50x[2] =
+	    MLX5_GET(pplm_reg, in, fec_override_cap_200g_4x);
+	priv->params_ethtool.fec_avail_50x[3] =
+	    MLX5_GET(pplm_reg, in, fec_override_cap_400g_8x);
+
+	/* get current FEC mask */
+	priv->params_ethtool.fec_mode_active =
+	    MLX5_GET(pplm_reg, in, fec_mode_active);
+
+	return (0);
+}
+
+static int
+mlx5e_fec_mask_10x_25x_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv = arg1;
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u32 out[MLX5_ST_SZ_DW(pplm_reg)] = {};
+	u32 in[MLX5_ST_SZ_DW(pplm_reg)] = {};
+	const int sz = MLX5_ST_SZ_BYTES(pplm_reg);
+	u8 fec_mask_10x_25x[MLX5E_MAX_FEC_10X_25X];
+	u8 fec_cap_changed = 0;
+	u8 x;
+	int err;
+
+	PRIV_LOCK(priv);
+	err = SYSCTL_OUT(req, priv->params_ethtool.fec_mask_10x_25x,
+	    sizeof(priv->params_ethtool.fec_mask_10x_25x));
+	if (err || !req->newptr)
+		goto done;
+
+	err = SYSCTL_IN(req, fec_mask_10x_25x,
+	    sizeof(fec_mask_10x_25x));
+	if (err)
+		goto done;
+
+	if (!MLX5_CAP_GEN(mdev, pcam_reg)) {
+		err = EOPNOTSUPP;
+		goto done;
+	}
+
+	if (!MLX5_CAP_PCAM_REG(mdev, pplm)) {
+		err = EOPNOTSUPP;
+		goto done;
+	}
+
+	MLX5_SET(pplm_reg, in, local_port, 1);
+
+	err = -mlx5_core_access_reg(mdev, in, sz, in, sz, MLX5_REG_PPLM, 0, 0);
+	if (err)
+		goto done;
+
+	/* range check input value */
+	for (x = 0; x != MLX5E_MAX_FEC_10X_25X; x++) {
+		/* check only one bit is set, if any */
+		if (fec_mask_10x_25x[x] & (fec_mask_10x_25x[x] - 1)) {
+			err = ERANGE;
+			goto done;
+		}
+		/* check a supported bit is set, if any */
+		if (fec_mask_10x_25x[x] &
+		    ~priv->params_ethtool.fec_avail_10x_25x[x]) {
+			err = ERANGE;
+			goto done;
+		}
+		fec_cap_changed |= (fec_mask_10x_25x[x] ^
+		    priv->params_ethtool.fec_mask_10x_25x[x]);
+	}
+
+	/* check for no changes */
+	if (fec_cap_changed == 0)
+		goto done;
+
+	memset(in, 0, sizeof(in));
+
+	MLX5_SET(pplm_reg, in, local_port, 1);
+
+	/* set new values */
+	MLX5_SET(pplm_reg, in, fec_override_admin_10g_40g, fec_mask_10x_25x[0]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_25g, fec_mask_10x_25x[1]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_50g, fec_mask_10x_25x[1]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_56g, fec_mask_10x_25x[2]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_100g, fec_mask_10x_25x[3]);
+
+	/* preserve other values */
+	MLX5_SET(pplm_reg, in, fec_override_admin_50g_1x, priv->params_ethtool.fec_mask_50x[0]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_100g_2x, priv->params_ethtool.fec_mask_50x[1]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_200g_4x, priv->params_ethtool.fec_mask_50x[2]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_400g_8x, priv->params_ethtool.fec_mask_50x[3]);
+
+	/* send new value to the firmware */
+	err = -mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPLM, 0, 1);
+	if (err)
+		goto done;
+
+	memcpy(priv->params_ethtool.fec_mask_10x_25x, fec_mask_10x_25x,
+	    sizeof(priv->params_ethtool.fec_mask_10x_25x));
+
+	mlx5_toggle_port_link(priv->mdev);
+done:
+	PRIV_UNLOCK(priv);
+	return (err);
+}
+
+static int
+mlx5e_fec_avail_10x_25x_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv = arg1;
+	int err;
+
+	PRIV_LOCK(priv);
+	err = SYSCTL_OUT(req, priv->params_ethtool.fec_avail_10x_25x,
+	    sizeof(priv->params_ethtool.fec_avail_10x_25x));
+	PRIV_UNLOCK(priv);
+	return (err);
+}
+
+static int
+mlx5e_fec_mask_50x_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv = arg1;
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u32 out[MLX5_ST_SZ_DW(pplm_reg)] = {};
+	u32 in[MLX5_ST_SZ_DW(pplm_reg)] = {};
+	const int sz = MLX5_ST_SZ_BYTES(pplm_reg);
+	u16 fec_mask_50x[MLX5E_MAX_FEC_50X];
+	u16 fec_cap_changed = 0;
+	u8 x;
+	int err;
+
+	PRIV_LOCK(priv);
+	err = SYSCTL_OUT(req, priv->params_ethtool.fec_mask_50x,
+	    sizeof(priv->params_ethtool.fec_mask_50x));
+	if (err || !req->newptr)
+		goto done;
+
+	err = SYSCTL_IN(req, fec_mask_50x,
+	    sizeof(fec_mask_50x));
+	if (err)
+		goto done;
+
+	if (!MLX5_CAP_GEN(mdev, pcam_reg)) {
+		err = EOPNOTSUPP;
+		goto done;
+	}
+
+	if (!MLX5_CAP_PCAM_REG(mdev, pplm)) {
+		err = EOPNOTSUPP;
+		goto done;
+	}
+
+	MLX5_SET(pplm_reg, in, local_port, 1);
+
+	err = -mlx5_core_access_reg(mdev, in, sz, in, sz, MLX5_REG_PPLM, 0, 0);
+	if (err)
+		goto done;
+
+	/* range check input value */
+	for (x = 0; x != MLX5E_MAX_FEC_50X; x++) {
+		/* check only one bit is set, if any */
+		if (fec_mask_50x[x] & (fec_mask_50x[x] - 1)) {
+			err = ERANGE;
+			goto done;
+		}
+		/* check a supported bit is set, if any */
+		if (fec_mask_50x[x] &
+		    ~priv->params_ethtool.fec_avail_50x[x]) {
+			err = ERANGE;
+			goto done;
+		}
+		fec_cap_changed |= (fec_mask_50x[x] ^
+		    priv->params_ethtool.fec_mask_50x[x]);
+	}
+
+	/* check for no changes */
+	if (fec_cap_changed == 0)
+		goto done;
+
+	memset(in, 0, sizeof(in));
+
+	MLX5_SET(pplm_reg, in, local_port, 1);
+
+	/* set new values */
+	MLX5_SET(pplm_reg, in, fec_override_admin_50g_1x, fec_mask_50x[0]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_100g_2x, fec_mask_50x[1]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_200g_4x, fec_mask_50x[2]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_400g_8x, fec_mask_50x[3]);
+
+	/* preserve other values */
+	MLX5_SET(pplm_reg, in, fec_override_admin_10g_40g, priv->params_ethtool.fec_mask_10x_25x[0]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_25g, priv->params_ethtool.fec_mask_10x_25x[1]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_50g, priv->params_ethtool.fec_mask_10x_25x[1]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_56g, priv->params_ethtool.fec_mask_10x_25x[2]);
+	MLX5_SET(pplm_reg, in, fec_override_admin_100g, priv->params_ethtool.fec_mask_10x_25x[3]);
+
+	/* send new value to the firmware */
+	err = -mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPLM, 0, 1);
+	if (err)
+		goto done;
+
+	memcpy(priv->params_ethtool.fec_mask_50x, fec_mask_50x,
+	    sizeof(priv->params_ethtool.fec_mask_50x));
+
+	mlx5_toggle_port_link(priv->mdev);
+done:
+	PRIV_UNLOCK(priv);
+	return (err);
+}
+
+static int
+mlx5e_fec_avail_50x_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv = arg1;
+	int err;
+
+	PRIV_LOCK(priv);
+	err = SYSCTL_OUT(req, priv->params_ethtool.fec_avail_50x,
+	    sizeof(priv->params_ethtool.fec_avail_50x));
+	PRIV_UNLOCK(priv);
+	return (err);
+}
+
 static int
 mlx5e_trust_state_handler(SYSCTL_HANDLER_ARGS)
 {
@@ -427,6 +706,99 @@ mlx5e_dscp_prio_handler(SYSCTL_HANDLER_ARGS)
 done:
 	PRIV_UNLOCK(priv);
 	return (err);
+}
+
+int
+mlx5e_update_buf_lossy(struct mlx5e_priv *priv)
+{
+	struct ieee_pfc pfc;
+
+	PRIV_ASSERT_LOCKED(priv);
+	bzero(&pfc, sizeof(pfc));
+	pfc.pfc_en = priv->params.rx_priority_flow_control;
+	return (-mlx5e_port_manual_buffer_config(priv, MLX5E_PORT_BUFFER_PFC,
+	    priv->params_ethtool.hw_mtu, &pfc, NULL, NULL));
+}
+
+static int
+mlx5e_buf_size_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv;
+	u32 buf_size[MLX5E_MAX_BUFFER];
+	struct mlx5e_port_buffer port_buffer;
+	int error, i;
+
+	priv = arg1;
+	PRIV_LOCK(priv);
+	error = -mlx5e_port_query_buffer(priv, &port_buffer);
+	if (error != 0)
+		goto done;
+	for (i = 0; i < nitems(buf_size); i++)
+		buf_size[i] = port_buffer.buffer[i].size;
+	error = SYSCTL_OUT(req, buf_size, sizeof(buf_size));
+	if (error != 0 || req->newptr == NULL)
+		goto done;
+	error = SYSCTL_IN(req, buf_size, sizeof(buf_size));
+	if (error != 0)
+		goto done;
+	error = -mlx5e_port_manual_buffer_config(priv, MLX5E_PORT_BUFFER_SIZE,
+	    priv->params_ethtool.hw_mtu, NULL, buf_size, NULL);
+done:
+	PRIV_UNLOCK(priv);
+	return (error);
+}
+
+static int
+mlx5e_buf_prio_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv;
+	struct mlx5_core_dev *mdev;
+	u8 buffer[MLX5E_MAX_BUFFER];
+	int error;
+
+	priv = arg1;
+	mdev = priv->mdev;
+	PRIV_LOCK(priv);
+	error = -mlx5e_port_query_priority2buffer(mdev, buffer);
+	if (error != 0)
+		goto done;
+	error = SYSCTL_OUT(req, buffer, MLX5E_MAX_BUFFER);
+	if (error != 0 || req->newptr == NULL)
+		goto done;
+	error = SYSCTL_IN(req, buffer, MLX5E_MAX_BUFFER);
+	if (error != 0)
+		goto done;
+	error = -mlx5e_port_manual_buffer_config(priv,
+	    MLX5E_PORT_BUFFER_PRIO2BUFFER,
+	    priv->params_ethtool.hw_mtu, NULL, NULL, buffer);
+	if (error == 0)
+		error = mlx5e_update_buf_lossy(priv);
+done:
+	PRIV_UNLOCK(priv);
+	return (error);
+}
+
+static int
+mlx5e_cable_length_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv;
+	u_int cable_len;
+	int error;
+
+	priv = arg1;
+	PRIV_LOCK(priv);
+	cable_len = priv->dcbx.cable_len;
+	error = sysctl_handle_int(oidp, &cable_len, 0, req);
+	if (error == 0 && req->newptr != NULL &&
+	    cable_len != priv->dcbx.cable_len) {
+		error = -mlx5e_port_manual_buffer_config(priv,
+		    MLX5E_PORT_BUFFER_CABLE_LEN, priv->params_ethtool.hw_mtu,
+		    NULL, NULL, NULL);
+		if (error == 0)
+			priv->dcbx.cable_len = cable_len;
+	}
+	PRIV_UNLOCK(priv);
+	return (error);
 }
 
 #define	MLX5_PARAM_OFFSET(n)				\
@@ -684,7 +1056,7 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 			} else {
 				priv->params.hw_lro_en = false;
 
-				if_printf(priv->ifp, "To enable HW LRO "
+				mlx5_en_warn(priv->ifp, "To enable HW LRO "
 				    "please also enable LRO via ifconfig(8).\n");
 			}
 		} else {
@@ -807,213 +1179,6 @@ done:
 	return (error);
 }
 
-/*
- * Read the first three bytes of the eeprom in order to get the needed info
- * for the whole reading.
- * Byte 0 - Identifier byte
- * Byte 1 - Revision byte
- * Byte 2 - Status byte
- */
-static int
-mlx5e_get_eeprom_info(struct mlx5e_priv *priv, struct mlx5e_eeprom *eeprom)
-{
-	struct mlx5_core_dev *dev = priv->mdev;
-	u32 data = 0;
-	int size_read = 0;
-	int ret;
-
-	ret = mlx5_query_module_num(dev, &eeprom->module_num);
-	if (ret) {
-		if_printf(priv->ifp, "%s:%d: Failed query module error=%d\n",
-		    __func__, __LINE__, ret);
-		return (ret);
-	}
-
-	/* Read the first three bytes to get Identifier, Revision and Status */
-	ret = mlx5_query_eeprom(dev, eeprom->i2c_addr, eeprom->page_num,
-	    eeprom->device_addr, MLX5E_EEPROM_INFO_BYTES, eeprom->module_num, &data,
-	    &size_read);
-	if (ret) {
-		if_printf(priv->ifp, "%s:%d: Failed query eeprom module error=0x%x\n",
-		    __func__, __LINE__, ret);
-		return (ret);
-	}
-
-	switch (data & MLX5_EEPROM_IDENTIFIER_BYTE_MASK) {
-	case SFF_8024_ID_QSFP:
-		eeprom->type = MLX5E_ETH_MODULE_SFF_8436;
-		eeprom->len = MLX5E_ETH_MODULE_SFF_8436_LEN;
-		break;
-	case SFF_8024_ID_QSFPPLUS:
-	case SFF_8024_ID_QSFP28:
-		if ((data & MLX5_EEPROM_IDENTIFIER_BYTE_MASK) == SFF_8024_ID_QSFP28 ||
-		    ((data & MLX5_EEPROM_REVISION_ID_BYTE_MASK) >> 8) >= 0x3) {
-			eeprom->type = MLX5E_ETH_MODULE_SFF_8636;
-			eeprom->len = MLX5E_ETH_MODULE_SFF_8636_LEN;
-		} else {
-			eeprom->type = MLX5E_ETH_MODULE_SFF_8436;
-			eeprom->len = MLX5E_ETH_MODULE_SFF_8436_LEN;
-		}
-		if ((data & MLX5_EEPROM_PAGE_3_VALID_BIT_MASK) == 0)
-			eeprom->page_valid = 1;
-		break;
-	case SFF_8024_ID_SFP:
-		eeprom->type = MLX5E_ETH_MODULE_SFF_8472;
-		eeprom->len = MLX5E_ETH_MODULE_SFF_8472_LEN;
-		break;
-	default:
-		if_printf(priv->ifp, "%s:%d: Not recognized cable type = 0x%x(%s)\n",
-		    __func__, __LINE__, data & MLX5_EEPROM_IDENTIFIER_BYTE_MASK,
-		    sff_8024_id[data & MLX5_EEPROM_IDENTIFIER_BYTE_MASK]);
-		return (EINVAL);
-	}
-	return (0);
-}
-
-/* Read both low and high pages of the eeprom */
-static int
-mlx5e_get_eeprom(struct mlx5e_priv *priv, struct mlx5e_eeprom *ee)
-{
-	struct mlx5_core_dev *dev = priv->mdev;
-	int size_read = 0;
-	int ret;
-
-	if (ee->len == 0)
-		return (EINVAL);
-
-	/* Read low page of the eeprom */
-	while (ee->device_addr < ee->len) {
-		ret = mlx5_query_eeprom(dev, ee->i2c_addr, ee->page_num, ee->device_addr,
-		    ee->len - ee->device_addr, ee->module_num,
-		    ee->data + (ee->device_addr / 4), &size_read);
-		if (ret) {
-			if_printf(priv->ifp, "%s:%d: Failed reading eeprom, "
-			    "error = 0x%02x\n", __func__, __LINE__, ret);
-			return (ret);
-		}
-		ee->device_addr += size_read;
-	}
-
-	/* Read high page of the eeprom */
-	if (ee->page_valid) {
-		ee->device_addr = MLX5E_EEPROM_HIGH_PAGE_OFFSET;
-		ee->page_num = MLX5E_EEPROM_HIGH_PAGE;
-		size_read = 0;
-		while (ee->device_addr < MLX5E_EEPROM_PAGE_LENGTH) {
-			ret = mlx5_query_eeprom(dev, ee->i2c_addr, ee->page_num,
-			    ee->device_addr, MLX5E_EEPROM_PAGE_LENGTH - ee->device_addr,
-			    ee->module_num, ee->data + (ee->len / 4) +
-			    ((ee->device_addr - MLX5E_EEPROM_HIGH_PAGE_OFFSET) / 4),
-			    &size_read);
-			if (ret) {
-				if_printf(priv->ifp, "%s:%d: Failed reading eeprom, "
-				    "error = 0x%02x\n", __func__, __LINE__, ret);
-				return (ret);
-			}
-			ee->device_addr += size_read;
-		}
-	}
-	return (0);
-}
-
-static void
-mlx5e_print_eeprom(struct mlx5e_eeprom *eeprom)
-{
-	int row;
-	int index_in_row;
-	int byte_to_write = 0;
-	int line_length = 16;
-
-	printf("\nOffset\t\tValues\n");
-	printf("------\t\t------");
-	while (byte_to_write < eeprom->len) {
-		printf("\n0x%04X\t\t", byte_to_write);
-		for (index_in_row = 0; index_in_row < line_length; index_in_row++) {
-			printf("%02X ", ((u8 *)eeprom->data)[byte_to_write]);
-			byte_to_write++;
-		}
-	}
-
-	if (eeprom->page_valid) {
-		row = MLX5E_EEPROM_HIGH_PAGE_OFFSET;
-		printf("\n\nUpper Page 0x03\n");
-		printf("\nOffset\t\tValues\n");
-		printf("------\t\t------");
-		while (row < MLX5E_EEPROM_PAGE_LENGTH) {
-			printf("\n0x%04X\t\t", row);
-			for (index_in_row = 0; index_in_row < line_length; index_in_row++) {
-				printf("%02X ", ((u8 *)eeprom->data)[byte_to_write]);
-				byte_to_write++;
-				row++;
-			}
-		}
-	}
-}
-
-/*
- * Read cable EEPROM module information by first inspecting the first
- * three bytes to get the initial information for a whole reading.
- * Information will be printed to dmesg.
- */
-static int
-mlx5e_read_eeprom(SYSCTL_HANDLER_ARGS)
-{
-	struct mlx5e_priv *priv = arg1;
-	struct mlx5e_eeprom eeprom;
-	int error;
-	int result = 0;
-
-	PRIV_LOCK(priv);
-	error = sysctl_handle_int(oidp, &result, 0, req);
-	if (error || !req->newptr)
-		goto done;
-
-	/* Check if device is gone */
-	if (priv->gone) {
-		error = ENXIO;
-		goto done;
-	}
-
-	if (result == 1) {
-		eeprom.i2c_addr = MLX5E_I2C_ADDR_LOW;
-		eeprom.device_addr = 0;
-		eeprom.page_num = MLX5E_EEPROM_LOW_PAGE;
-		eeprom.page_valid = 0;
-
-		/* Read three first bytes to get important info */
-		error = mlx5e_get_eeprom_info(priv, &eeprom);
-		if (error) {
-			if_printf(priv->ifp, "%s:%d: Failed reading eeprom's "
-			    "initial information\n", __func__, __LINE__);
-			error = 0;
-			goto done;
-		}
-		/*
-		 * Allocate needed length buffer and additional space for
-		 * page 0x03
-		 */
-		eeprom.data = malloc(eeprom.len + MLX5E_EEPROM_PAGE_LENGTH,
-		    M_MLX5EN, M_WAITOK | M_ZERO);
-
-		/* Read the whole eeprom information */
-		error = mlx5e_get_eeprom(priv, &eeprom);
-		if (error) {
-			if_printf(priv->ifp, "%s:%d: Failed reading eeprom\n",
-			    __func__, __LINE__);
-			error = 0;
-			/*
-			 * Continue printing partial information in case of
-			 * an error
-			 */
-		}
-		mlx5e_print_eeprom(&eeprom);
-		free(eeprom.data, M_MLX5EN);
-	}
-done:
-	PRIV_UNLOCK(priv);
-	return (error);
-}
-
 static const char *mlx5e_params_desc[] = {
 	MLX5E_PARAMS(MLX5E_STATS_DESC)
 };
@@ -1031,30 +1196,49 @@ mlx5e_ethtool_debug_channel_info(SYSCTL_HANDLER_ARGS)
 	struct mlx5e_sq *sq;
 	struct mlx5e_rq *rq;
 	int error, i, tc;
+	bool opened;
 
 	priv = arg1;
 	error = sysctl_wire_old_buffer(req, 0);
 	if (error != 0)
 		return (error);
-	if (sbuf_new_for_sysctl(&sb, NULL, 128, req) == NULL)
+	if (sbuf_new_for_sysctl(&sb, NULL, 1024, req) == NULL)
 		return (ENOMEM);
 	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 
 	PRIV_LOCK(priv);
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state) == 0)
-		goto out;
-	for (i = 0; i < priv->params.num_channels; i++) {
-		c = &priv->channel[i];
-		rq = &c->rq;
-		sbuf_printf(&sb, "channel %d rq %d cq %d\n",
-		    c->ix, rq->rqn, rq->cq.mcq.cqn);
-		for (tc = 0; tc < c->num_tc; tc++) {
-			sq = &c->sq[tc];
-			sbuf_printf(&sb, "channel %d tc %d sq %d cq %d\n",
-			    c->ix, tc, sq->sqn, sq->cq.mcq.cqn);
+	opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
+
+	sbuf_printf(&sb, "pages irq %d\n",
+	    priv->mdev->priv.msix_arr[MLX5_EQ_VEC_PAGES].vector);
+	sbuf_printf(&sb, "command irq %d\n",
+	    priv->mdev->priv.msix_arr[MLX5_EQ_VEC_CMD].vector);
+	sbuf_printf(&sb, "async irq %d\n",
+	    priv->mdev->priv.msix_arr[MLX5_EQ_VEC_ASYNC].vector);
+
+	for (i = 0; i != priv->params.num_channels; i++) {
+		int eqn_not_used = -1;
+		int irqn = MLX5_EQ_VEC_COMP_BASE;
+
+		if (mlx5_vector2eqn(priv->mdev, i, &eqn_not_used, &irqn) != 0)
+			continue;
+
+		c = opened ? &priv->channel[i] : NULL;
+		rq = opened ? &c->rq : NULL;
+		sbuf_printf(&sb, "channel %d rq %d cq %d irq %d\n", i,
+		    opened ? rq->rqn : -1,
+		    opened ? rq->cq.mcq.cqn : -1,
+		    priv->mdev->priv.msix_arr[irqn].vector);
+
+		for (tc = 0; tc != priv->num_tc; tc++) {
+			sq = opened ? &c->sq[tc] : NULL;
+			sbuf_printf(&sb, "channel %d tc %d sq %d cq %d irq %d\n",
+			    i, tc,
+			    opened ? sq->sqn : -1,
+			    opened ? sq->cq.mcq.cqn : -1,
+			    priv->mdev->priv.msix_arr[irqn].vector);
 		}
 	}
-out:
 	PRIV_UNLOCK(priv);
 	error = sbuf_finish(&sb);
 	sbuf_delete(&sb);
@@ -1141,8 +1325,11 @@ mlx5e_create_diagnostics(struct mlx5e_priv *priv)
 void
 mlx5e_create_ethtool(struct mlx5e_priv *priv)
 {
-	struct sysctl_oid *node, *qos_node;
+	struct sysctl_oid *fec_node;
+	struct sysctl_oid *qos_node;
+	struct sysctl_oid *node;
 	const char *pnameunit;
+	struct mlx5e_port_buffer port_buffer;
 	unsigned x;
 	int i;
 
@@ -1221,6 +1408,54 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 		}
 	}
 
+	/* create fec node */
+	fec_node = SYSCTL_ADD_NODE(&priv->sysctl_ctx,
+	    SYSCTL_CHILDREN(node), OID_AUTO,
+	    "fec", CTLFLAG_RW, NULL, "Forward Error Correction");
+	if (fec_node == NULL)
+		return;
+
+	if (mlx5e_fec_update(priv) == 0) {
+		SYSCTL_ADD_U32(&priv->sysctl_ctx, SYSCTL_CHILDREN(fec_node), OID_AUTO,
+		    "mode_active", CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    &priv->params_ethtool.fec_mode_active, 0,
+		    "Current FEC mode bit, if any.");
+
+		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(fec_node), OID_AUTO,
+		    "mask_10x_25x", CTLTYPE_U8 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+		    priv, 0, &mlx5e_fec_mask_10x_25x_handler, "CU",
+		    "Set FEC masks for 10G_40G, 25G_50G, 56G, 100G respectivly. "
+		    "0:Auto "
+		    "1:NOFEC "
+		    "2:FIRECODE "
+		    "4:RS");
+
+		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(fec_node), OID_AUTO,
+		    "avail_10x_25x", CTLTYPE_U8 | CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    priv, 0, &mlx5e_fec_avail_10x_25x_handler, "CU",
+		    "Get available FEC bits for 10G_40G, 25G_50G, 56G, 100G respectivly. "
+		    "0:Auto "
+		    "1:NOFEC "
+		    "2:FIRECODE "
+		    "4:RS");
+
+		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(fec_node), OID_AUTO,
+		    "mask_50x", CTLTYPE_U16 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+		    priv, 0, &mlx5e_fec_mask_50x_handler, "SU",
+		    "Set FEC masks for 50G 1x, 100G 2x, 200G 4x, 400G 8x respectivly. "
+		    "0:Auto "
+		    "128:RS "
+		    "512:LL RS");
+
+		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(fec_node), OID_AUTO,
+		    "avail_50x", CTLTYPE_U16 | CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    priv, 0, &mlx5e_fec_avail_50x_handler, "SU",
+		    "Get available FEC bits for 50G 1x, 100G 2x, 200G 4x, 400G 8x respectivly. "
+		    "0:Auto "
+		    "128:RS "
+		    "512:LL RS");
+	}
+
 	SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(node), OID_AUTO,
 	    "debug_stats", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, priv,
 	    0, &mlx5e_ethtool_debug_stats, "I", "Extended debug statistics");
@@ -1231,11 +1466,6 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 	    OID_AUTO, "device_name", CTLFLAG_RD,
 	    __DECONST(void *, pnameunit), 0,
 	    "PCI device name");
-
-	/* EEPROM support */
-	SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(node), OID_AUTO, "eeprom_info",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, priv, 0,
-	    mlx5e_read_eeprom, "I", "EEPROM information");
 
 	/* Diagnostics support */
 	mlx5e_create_diagnostics(priv);
@@ -1292,5 +1522,23 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 		    A B : A);
 #undef B
 #undef A
+	}
+
+	if (mlx5e_port_query_buffer(priv, &port_buffer) == 0) {
+		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(qos_node),
+		    OID_AUTO, "buffers_size",
+		    CTLTYPE_U32 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+		    priv, 0, mlx5e_buf_size_handler, "IU",
+		    "Set buffers sizes");
+		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(qos_node),
+		    OID_AUTO, "buffers_prio",
+		    CTLTYPE_U8 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+		    priv, 0, mlx5e_buf_prio_handler, "CU",
+		    "Set prio to buffers mapping");
+		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(qos_node),
+		    OID_AUTO, "cable_length",
+		    CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+		    priv, 0, mlx5e_cable_length_handler, "IU",
+		    "Set cable length in meters for xoff threshold calculation");
 	}
 }

@@ -948,7 +948,7 @@
 ; Syscalls 151-180 inclusive are reserved for vendor-specific
 ; system calls.  (This includes various calls added for compatibity
 ; with other Unix variants.)
-; Some of these calls are now supported by BSD...
+; Some of these calls are now supported by BSD.
 151	AUE_NULL	UNIMPL	sem_lock (BSD/OS 2.x)
 152	AUE_NULL	UNIMPL	sem_wakeup (BSD/OS 2.x)
 153	AUE_NULL	UNIMPL	asyncdaemon (BSD/OS 2.x)
@@ -3193,7 +3193,8 @@
 		    _Out_writes_bytes_opt_(*oldlenp) void *old,
 		    _Inout_opt_ size_t *oldlenp,
 		    _In_reads_bytes_opt_(newlen) void *new,
-		    size_t newlen);
+		    size_t newlen
+		);
 	}
 571	AUE_SHMOPEN	STD {
 		int shm_open2(

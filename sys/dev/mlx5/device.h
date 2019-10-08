@@ -32,8 +32,10 @@
 #include <rdma/ib_verbs.h>
 #include <dev/mlx5/mlx5_ifc.h>
 
-#define FW_INIT_TIMEOUT_MILI 2000
-#define FW_INIT_WAIT_MS 2
+#define	FW_INIT_TIMEOUT_MILI		2000
+#define	FW_INIT_WAIT_MS			2
+#define	FW_PRE_INIT_TIMEOUT_MILI	120000
+#define	FW_INIT_WARN_MESSAGE_INTERVAL	20000
 
 #if defined(__LITTLE_ENDIAN)
 #define MLX5_SET_HOST_ENDIANNESS	0
@@ -537,7 +539,7 @@ enum {
 	MLX5_MODULE_STATUS_PLUGGED_ENABLED      = 0x1,
 	MLX5_MODULE_STATUS_UNPLUGGED            = 0x2,
 	MLX5_MODULE_STATUS_ERROR                = 0x3,
-	MLX5_MODULE_STATUS_PLUGGED_DISABLED     = 0x4,
+	MLX5_MODULE_STATUS_NUM			,
 };
 
 enum {
@@ -549,7 +551,7 @@ enum {
 	MLX5_MODULE_EVENT_ERROR_UNSUPPORTED_CABLE                     = 0x5,
 	MLX5_MODULE_EVENT_ERROR_HIGH_TEMPERATURE                      = 0x6,
 	MLX5_MODULE_EVENT_ERROR_CABLE_IS_SHORTED                      = 0x7,
-	MLX5_MODULE_EVENT_ERROR_PCIE_SYSTEM_POWER_SLOT_EXCEEDED       = 0xc,
+	MLX5_MODULE_EVENT_ERROR_NUM		                      ,
 };
 
 struct mlx5_eqe_port_module_event {
@@ -1052,6 +1054,9 @@ enum mlx5_mcam_feature_groups {
 
 #define MLX5_CAP_PCAM_FEATURE(mdev, fld) \
 	MLX5_GET(pcam_reg, (mdev)->caps.pcam, feature_cap_mask.enhanced_features.fld)
+
+#define	MLX5_CAP_PCAM_REG(mdev, reg) \
+	MLX5_GET(pcam_reg, (mdev)->caps.pcam, port_access_reg_cap_mask.regs_5000_to_507f.reg)
 
 #define MLX5_CAP_MCAM_FEATURE(mdev, fld) \
 	MLX5_GET(mcam_reg, (mdev)->caps.mcam, mng_feature_cap_mask.enhanced_features.fld)

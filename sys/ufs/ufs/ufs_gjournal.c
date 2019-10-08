@@ -85,7 +85,7 @@ ufs_gjournal_modref(struct vnode *vp, int count)
 	if ((u_int)ino >= fs->fs_ipg * fs->fs_ncg)
 		panic("ufs_gjournal_modref: range: dev = %s, ino = %lu, fs = %s",
 		    devtoname(dev), (u_long)ino, fs->fs_fsmnt);
-	if ((error = ffs_getcg(fs, devvp, cg, &bp, &cgp)) != 0)
+	if ((error = ffs_getcg(fs, devvp, cg, 0, &bp, &cgp)) != 0)
 		return (error);
 	cgp->cg_unrefs += count;
 	UFS_LOCK(ump);

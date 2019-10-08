@@ -491,6 +491,7 @@ put(int argc, char *argv[])
 
 		if (fstat(fd, &sb) < 0) {
 			warn("%s", cp);
+			close(fd);
 			return;
 		}
 		asprintf(&options[OPT_TSIZE].o_request, "%ju", sb.st_size);
@@ -746,7 +747,7 @@ command(bool interactive, EditLine *el, History *hist, HistEvent *hep)
 				exit(0);
 			len = MIN(MAXLINE, num);
 			memcpy(line, bp, len);
-			line[len] = '\0';
+			line[len - 1] = '\0';
 			history(hist, hep, H_ENTER, bp);
 		} else {
 			line[0] = 0;

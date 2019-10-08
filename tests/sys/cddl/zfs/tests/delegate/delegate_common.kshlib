@@ -159,11 +159,9 @@ function user_run
 {
 	typeset user=$1
 	typeset group=$($GROUPS $user)
-
 	shift
 
-	eval \$RUNWATTR -u \$user -g \$group \"$@\" > /dev/null 2>&1
-	return $?
+	sudo -u $user -g $group $@
 }
 
 function common_perm
@@ -251,7 +249,7 @@ function check_fs_perm
 			ret=$?
 			;;
 		promote) 
-			verify_fs_promote $user $perm $fs
+			verify_promote $user $perm $fs
 			ret=$?
 			;;
 		canmount)
@@ -336,7 +334,7 @@ function check_vol_perm
 			ret=$?
 			;;
 		promote) 
-			verify_vol_promote $user $perm $vol
+			verify_promote $user $perm $vol
 			ret=$?
 			;;
 		volsize) 
@@ -358,6 +356,8 @@ function check_vol_perm
 
 function setup_unallow_testenv
 {
+	typeset dtst
+
 	log_must restore_root_datasets
 
 	log_must $ZFS create $SUBFS
@@ -403,8 +403,9 @@ function verify_send
 	typeset bak_user=$TMPDIR/bak.$user.$stamp
 	typeset bak_root=$TMPDIR/bak.root.$stamp
 
-	user_run $user eval "$ZFS send $snap > $bak_user"
+	user_run $user $ZFS send $snap > $bak_user
 	log_must eval "$ZFS send $snap > $bak_root"
+	log_must $ZFS destroy $snap
 
 	if [[ $(checksum $bak_user) == $(checksum $bak_root) ]]; then
 		ret=0
@@ -422,6 +423,7 @@ function verify_fs_receive
 	typeset perm=$2
 	typeset fs=$3
 
+	typeset dtst
 	typeset oldval
 	typeset stamp=${perm}.${user}.$($DATE +'%F-%R:%S')
 	typeset newfs=$fs/newfs.$stamp
@@ -444,27 +446,27 @@ function verify_fs_receive
 		log_must eval "$ZFS send $dtstsnap > $bak_root"
 		log_must $ZFS destroy -rf $dtst
 
-		user_run $user eval "$ZFS receive $dtst < $bak_root"
+		user_run $user $ZFS receive $dtst < $bak_root
 		if datasetexists $dtstsnap ; then
 			return 1
 		fi
 
 		log_must $ZFS allow $user create $fs
-		user_run $user eval "$ZFS receive $dtst < $bak_root"
+		user_run $user $ZFS receive $dtst < $bak_root
 		log_must $ZFS unallow $user create $fs
 		if datasetexists $dtstsnap ; then
 			return 1
 		fi
 
 		log_must $ZFS allow $user mount $fs
-		user_run $user eval "$ZFS receive $dtst < $bak_root"
+		user_run $user $ZFS receive $dtst < $bak_root
 		log_must $ZFS unallow $user mount $fs
 		if datasetexists $dtstsnap ; then
 			return 1
 		fi
 
 		log_must $ZFS allow $user mount,create $fs
-		user_run $user eval "$ZFS receive $dtst < $bak_root"
+		user_run $user $ZFS receive $dtst < $bak_root
 		log_must $ZFS unallow $user mount,create $fs
 		if ! datasetexists $dtstsnap ; then
 			return 1
@@ -500,6 +502,7 @@ function verify_userprop
 	if [[ $stamp != $(get_prop "$user:ts" $dtst) ]]; then
 		return 1
 	fi
+	log_must $ZFS inherit "$user:ts" $dtst
 
 	return 0
 }
@@ -581,7 +584,6 @@ function verify_fs_create
 	typeset stamp=${perm}.${user}.$($DATE +'%F-%R:%S')
 	typeset newfs=$fs/nfs.$stamp
 	typeset newvol=$fs/nvol.$stamp
-	typeset check_refrev=false
 
 	user_run $user $ZFS create $newfs
 	if datasetexists $newfs ; then
@@ -593,9 +595,6 @@ function verify_fs_create
 	log_must $ZFS unallow $user mount $fs
 	if ! datasetexists $newfs ; then
 		return 1
-	fi
-	if support_refrev $newfs; then
-		check_refrev=true
 	fi
 	log_must $ZFS destroy $newfs
 
@@ -635,26 +634,20 @@ function verify_fs_create
 			return 1
 		fi
 
-		if [[ $check_refrev == true ]]; then
-			log_must $ZFS allow $user refreservation $fs
-			user_run $user $ZFS create -V 150m $newvol
-			log_must $ZFS unallow $user refreservation $fs
-			if datasetexists $newvol ; then
-				return 1
-			fi
+		log_must $ZFS allow $user refreservation $fs
+		user_run $user $ZFS create -V 150m $newvol
+		log_must $ZFS unallow $user refreservation $fs
+		if datasetexists $newvol ; then
+			return 1
 		fi
 
 		log_must $ZFS allow $user mount $fs
 		log_must $ZFS allow $user reservation $fs
-		if [[ $check_refrev == true ]]; then
-			log_must $ZFS allow $user refreservation $fs
-		fi
+		log_must $ZFS allow $user refreservation $fs
 		user_run $user $ZFS create -V 150m $newvol
 		log_must $ZFS unallow $user mount $fs
 		log_must $ZFS unallow $user reservation $fs
-		if [[ $check_refrev == true ]]; then
-			log_must $ZFS unallow $user refreservation $fs
-		fi
+		log_must $ZFS unallow $user refreservation $fs
 		if ! datasetexists $newvol ; then
 			return 1
 		fi
@@ -708,13 +701,6 @@ function verify_fs_snapshot
 		log_must $ZFS umount $fs
 	fi
 	user_run $user $ZFS snapshot $snap
-	if datasetexists $snap ; then
-		return 1
-	fi
-
-	log_must $ZFS allow $user mount $fs
-	user_run $user $ZFS snapshot $snap
-	log_must $ZFS unallow $user mount $fs
 	if ! datasetexists $snap ; then
 		return 1
 	fi
@@ -724,31 +710,20 @@ function verify_fs_snapshot
 		log_must $ZFS mount $fs
 	fi
 	user_run $user $ZFS snapshot $snap
-	if datasetexists $snap ; then
-		return 1
-	fi
-
-	log_must $ZFS allow $user mount $fs
-	user_run $user $ZFS snapshot $snap
-	log_must $ZFS unallow $user mount $fs
 	if ! datasetexists $snap ; then
 		return 1
 	fi
 	log_must $ZFS destroy $snap
 
-	typeset snapdir=${mntpt}/$(get_snapdir_name)/snap.$stamp
-	user_run $user $MKDIR $snapdir
-	if datasetexists $snap ; then
-		return 1
-	fi
-
-	log_must $ZFS allow $user mount $fs
-	user_run $user $MKDIR $snapdir
-	log_must $ZFS unallow $user mount $fs
-	if ! datasetexists $snap ; then
-		return 1
-	fi
-	log_must $ZFS destroy $snap
+	# TODO
+	# FreeBSD does not yet support creating snapshots with mkdir.
+	# See tests/sys/cddl/zfs/tests/snapshot/snapshot_015_pos.ksh
+	# typeset snapdir=${mntpt}/$(get_snapdir_name)/snap.$stamp
+	# user_run $user $MKDIR $snapdir
+	# if ! datasetexists $snap ; then
+		# return 1
+	# fi
+	# log_must $ZFS destroy $snap
 
 	return 0
 }
@@ -773,23 +748,14 @@ function verify_fs_rollback
 	log_must $TOUCH $mntpt/testfile.$stamp
 
 	user_run $user $ZFS rollback -R $snap
-	$SLEEP 10
-	if is_global_zone ; then
-		if [[ $oldval == $(datasetcksum $fs) ]]; then
-			return 1
-		fi
-	else
-		# datasetcksum can not be used in local zone
-		if [[ ! -e $mntpt/testfile.$stamp ]]; then
-			return 1
-		fi
+	if [[ -e $mntpt/testfile.$stamp ]]; then
+		return 1
 	fi
 
 	# rollback on mounted fs has to be with mount permission
 	log_must $ZFS allow $user mount $fs
 	user_run $user $ZFS rollback -R $snap
 	log_must $ZFS unallow $user mount $fs
-	$SLEEP 10
 	if is_global_zone ; then
 		if [[ $oldval != $(datasetcksum $fs) ]]; then
 			return 1
@@ -1083,7 +1049,7 @@ function verify_fs_mountpoint
 	return 0
 }
 
-function verify_fs_promote
+function verify_promote
 {
 	typeset user=$1
 	typeset perm=$2
@@ -1102,13 +1068,14 @@ function verify_fs_promote
 	typeset clone_orig=$(get_prop origin $clone)
 
 	user_run $user $ZFS promote $fs
-	# promote should fail if original fs does not have
-	# promote permission
+	# promote should fail if original fs does not have mount and promote
+	# permissions
 	if [[ $fs_orig != $(get_prop origin $fs) || \
 		$clone_orig != $(get_prop origin $clone) ]]; then
 		return 1
 	fi
 	
+	# promote should fail if original fs does not have mount permission
 	log_must $ZFS allow $user promote $clone
 	user_run $user $ZFS promote $fs
 	log_must $ZFS unallow $user promote $clone
@@ -1117,6 +1084,7 @@ function verify_fs_promote
 		return 1
 	fi
 	
+	# promote should fail if original fs does not have promote permission
 	log_must $ZFS allow $user mount $fs
 	user_run $user $ZFS promote $fs
 	log_must $ZFS unallow $user mount $fs
@@ -1503,16 +1471,10 @@ function verify_vol_snapshot
 	typeset snap=$vol@snap.$stamp
 
 	user_run $user $ZFS snapshot $snap
-	if datasetexists $snap ; then
-		return 1
-	fi
-
-	log_must $ZFS allow $user mount $vol
-	user_run $user $ZFS snapshot $snap
-	log_must $ZFS unallow $user mount $vol
 	if ! datasetexists $snap ; then
 		return 1
 	fi
+	log_must $ZFS destroy $snap
 
 	return 0
 }
@@ -1535,16 +1497,6 @@ function verify_vol_rollback
 		bs=512 count=1
 
 	user_run $user $ZFS rollback -R $snap
-	$SLEEP 10
-	if [[ $oldval == $(datasetcksum $vol) ]]; then
-		return 1
-	fi
-
-	# rollback on volume has to be with mount permission
-	log_must $ZFS allow $user mount $vol
-	user_run $user $ZFS rollback -R $snap
-	$SLEEP 10
-	log_must $ZFS unallow $user mount $vol
 	if [[ $oldval != $(datasetcksum $vol) ]]; then
 		return 1
 	fi
@@ -1645,130 +1597,6 @@ function verify_vol_rename
 	return 0
 }
 
-function verify_vol_promote
-{
-	typeset user=$1
-	typeset perm=$2
-	typeset vol=$3
-
-	typeset stamp=${perm}.${user}.$($DATE +'%F-%R:%S')
-        typeset basevol=${vol%/*}
-	typeset snap=$vol@snap.$stamp
-	typeset clone=$basevol/cvol.$stamp
-
-	log_must $ZFS snapshot $snap
-	log_must $ZFS clone $snap $clone
-	log_must $ZFS promote $clone		
-
-	typeset vol_orig=$(get_prop origin $vol)
-	typeset clone_orig=$(get_prop origin $clone)
-
-	# promote should fail if $vol and $clone
-	# miss either mount or promote permission
-	# case 1
-	user_run $user $ZFS promote $vol
-	if [[ $vol_orig != $(get_prop origin $vol) || \
-		$clone_orig != $(get_prop origin $clone) ]]; 
-	then
-		return 1
-	fi
-	
-	# promote should fail if $vol and $clone
-	# miss either mount or promote permission
-	# case 2
-	log_must $ZFS allow $user promote $clone
-	user_run $user $ZFS promote $vol
-	log_must $ZFS unallow $user promote $clone
-	if [[ $vol_orig != $(get_prop origin $vol) || \
-		$clone_orig != $(get_prop origin $clone) ]]; 
-	then
-		return 1
-	fi
-	
-	# promote should fail if $vol and $clone
-	# miss either mount or promote permission
-	# case 3
-	log_must $ZFS allow $user mount $vol
-	user_run $user $ZFS promote $vol
-	log_must $ZFS unallow $user mount $vol
-	if [[ $vol_orig != $(get_prop origin $vol) || \
-		$clone_orig != $(get_prop origin $clone) ]]; 
-	then
-		return 1
-	fi
-	
-	# promote should fail if $vol and $clone
-	# miss either mount or promote permission
-	# case 4
-	log_must $ZFS allow $user mount $clone
-	user_run $user $ZFS promote $vol
-	log_must $ZFS unallow $user mount $clone
-	if [[ $vol_orig != $(get_prop origin $vol) || \
-		$clone_orig != $(get_prop origin $clone) ]]; 
-	then
-		return 1
-	fi
-	
-	# promote should fail if $vol and $clone
-	# miss either mount or promote permission
-	# case 5
-	log_must $ZFS allow $user promote $clone
-	log_must $ZFS allow $user mount $vol
-	user_run $user $ZFS promote $vol
-	log_must $ZFS unallow $user promote $clone
-	log_must $ZFS unallow $user mount $vol
-	if [[ $vol_orig != $(get_prop origin $vol) || \
-		$clone_orig != $(get_prop origin $clone) ]]; 
-	then
-		return 1
-	fi
-
-	# promote should fail if $vol and $clone
-	# miss either mount or promote permission
-	# case 6
-	log_must $ZFS allow $user promote $clone
-	log_must $ZFS allow $user mount $clone
-	user_run $user $ZFS promote $vol
-	log_must $ZFS unallow $user promote $clone
-	log_must $ZFS unallow $user mount $vol
-	if [[ $vol_orig != $(get_prop origin $vol) || \
-		$clone_orig != $(get_prop origin $clone) ]]; 
-	then
-		return 1
-	fi
-
-	# promote should fail if $vol and $clone
-	# miss either mount or promote permission
-	# case 7
-	log_must $ZFS allow $user mount $vol
-	log_must $ZFS allow $user mount $clone
-	user_run $user $ZFS promote $vol
-	log_must $ZFS unallow $user mount $vol
-	log_must $ZFS unallow $user mount $clone
-	if [[ $vol_orig != $(get_prop origin $vol) || \
-		$clone_orig != $(get_prop origin $clone) ]]; 
-	then
-		return 1
-	fi
-
-	# promote only succeeds when $vol and $clone
-	# have both mount and promote permission
-	# case 8
-	log_must $ZFS allow $user promote $clone
-	log_must $ZFS allow $user mount $vol
-	log_must $ZFS allow $user mount $clone
-	user_run $user $ZFS promote $vol
-	log_must $ZFS unallow $user promote $clone
-	log_must $ZFS unallow $user mount $vol
-	log_must $ZFS unallow $user mount $clone
-	if [[ $snap != $(get_prop origin $clone) || \
-		$clone_orig != $(get_prop origin $vol) ]]; then
-		return 1
-	fi
-
-	return 0
-}
-
 function verify_vol_volsize
 {
 	typeset user=$1
@@ -1779,17 +1607,9 @@ function verify_vol_volsize
 	oldval=$(get_prop volsize $vol)
 	(( newval = oldval * 2 ))
 
-	typeset check_refrev=false
-	if support_refrev $vol; then
-		check_refrev=true
-	fi
 	typeset reserv_size
 	
-	if [[ $check_refrev == true ]]; then
-		reserv_size=$(get_prop refreservation $vol)
-	else
-		reserv_size=$(get_prop reservation $vol)
-	fi
+	reserv_size=$(get_prop refreservation $vol)
 
 	if [[ "0" == $reserv_size ]]; then
 		# sparse volume
@@ -1803,20 +1623,16 @@ function verify_vol_volsize
 		# normal volume, reservation permission
 		# is required
 		user_run $user $ZFS set volsize=$newval $vol
-		if [[ $newval == $(get_prop volsize $vol) ]];
+		zfs get -p volsize $vol
+		if [[ $newval != $(get_prop volsize $vol) ]];
 		then
 			return 1
 		fi
 
-		log_must $ZFS allow $user reservation $vol
-		if [[ $check_refrev == true ]]; then
-			log_must $ZFS allow $user refreservation $vol
-		fi
+		log_must $ZFS allow $user refreservation $vol
 		user_run $user $ZFS set volsize=$newval $vol
 		log_must $ZFS unallow $user reservation $vol
-		if [[ $check_refrev == true ]]; then
-			log_must $ZFS unallow $user refreservation $vol
-		fi
+		log_must $ZFS unallow $user refreservation $vol
 		if [[ $oldval == $(get_prop volsize $vol) ]];
 		then
 			return 1
@@ -1887,16 +1703,4 @@ function verify_allow
 
 	return 0
 
-}
-
-function support_refrev
-{
-	typeset dataset=$1
-	
-	$ZFS get refreservation $dataset > /dev/null 2>&1
-	if (( $? != 0 )); then
-		return 1
-	fi
-
-	return 0
 }

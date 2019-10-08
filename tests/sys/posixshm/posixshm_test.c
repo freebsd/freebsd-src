@@ -697,7 +697,7 @@ ATF_TC_BODY(object_resize, tc)
 		/*
 		 * The previous ftruncate(2) shrunk the backing object
 		 * so that this address is no longer valid, so reading
-		 * from it should trigger a SIGSEGV.
+		 * from it should trigger a SIGBUS.
 		 */
 		c = page[pagesize];
 		fprintf(stderr, "child: page 1: '%c'\n", c);
@@ -707,7 +707,7 @@ ATF_TC_BODY(object_resize, tc)
 	if (wait(&status) < 0)
 		atf_tc_fail("wait failed; errno=%d", errno);
 
-	if (!WIFSIGNALED(status) || WTERMSIG(status) != SIGSEGV)
+	if (!WIFSIGNALED(status) || WTERMSIG(status) != SIGBUS)
 		atf_tc_fail("child terminated with status %x", status);
 
 	/* Grow the object back to 2 pages. */
@@ -881,6 +881,40 @@ ATF_TC_BODY(cloexec, tc)
 	close(fd);
 }
 
+ATF_TC_WITHOUT_HEAD(mode);
+ATF_TC_BODY(mode, tc)
+{
+	struct stat st;
+	int fd;
+	mode_t restore_mask;
+
+	gen_test_path();
+
+	/* Remove inhibitions from umask */
+	restore_mask = umask(0);
+	fd = shm_open(test_path, O_CREAT | O_RDWR, 0600);
+	ATF_REQUIRE_MSG(fd >= 0, "shm_open failed; errno=%d", errno);
+	ATF_REQUIRE(fstat(fd, &st) == 0);
+	ATF_REQUIRE((st.st_mode & ACCESSPERMS) == 0600);
+	close(fd);
+	ATF_REQUIRE(shm_unlink(test_path) == 0);
+
+	fd = shm_open(test_path, O_CREAT | O_RDWR, 0660);
+	ATF_REQUIRE_MSG(fd >= 0, "shm_open failed; errno=%d", errno);
+	ATF_REQUIRE(fstat(fd, &st) == 0);
+	ATF_REQUIRE((st.st_mode & ACCESSPERMS) == 0660);
+	close(fd);
+	ATF_REQUIRE(shm_unlink(test_path) == 0);
+
+	fd = shm_open(test_path, O_CREAT | O_RDWR, 0666);
+	ATF_REQUIRE_MSG(fd >= 0, "shm_open failed; errno=%d", errno);
+	ATF_REQUIRE(fstat(fd, &st) == 0);
+	ATF_REQUIRE((st.st_mode & ACCESSPERMS) == 0666);
+	close(fd);
+	ATF_REQUIRE(shm_unlink(test_path) == 0);
+
+	umask(restore_mask);
+}
 
 ATF_TP_ADD_TCS(tp)
 {
@@ -914,6 +948,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, unlink_path_too_long);
 	ATF_TP_ADD_TC(tp, object_resize);
 	ATF_TP_ADD_TC(tp, cloexec);
+	ATF_TP_ADD_TC(tp, mode);
 
 	return (atf_no_error());
 }

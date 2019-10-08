@@ -97,6 +97,7 @@ extern "C" {
 #endif
 #include <sys/callo.h>
 #include <sys/disp.h>
+#include <machine/_inttypes.h>
 #include <machine/stdarg.h>
 
 #include <vm/vm.h>

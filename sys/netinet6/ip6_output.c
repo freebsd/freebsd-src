@@ -384,6 +384,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	struct mbuf *m = m0;
 	struct mbuf *mprev = NULL;
 	int hlen, tlen, len;
+	struct epoch_tracker et;
 	struct route_in6 ip6route;
 	struct rtentry *rt = NULL;
 	struct sockaddr_in6 *dst, src_sa, dst_sa;
@@ -586,6 +587,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		ro = &opt->ip6po_route;
 	dst = (struct sockaddr_in6 *)&ro->ro_dst;
 	fibnum = (inp != NULL) ? inp->inp_inc.inc_fibnum : M_GETFIB(m);
+	NET_EPOCH_ENTER(et);
 again:
 	/*
 	 * if specified, try to fill in the traffic class field.
@@ -1186,6 +1188,7 @@ sendorfree:
 		IP6STAT_INC(ip6s_fragmented);
 
 done:
+	NET_EPOCH_EXIT(et);
 	if (ro == &ip6route)
 		RO_RTFREE(ro);
 	return (error);
@@ -1803,21 +1806,24 @@ do {									\
 #endif
 
 				case IPV6_V6ONLY:
-					/*
-					 * make setsockopt(IPV6_V6ONLY)
-					 * available only prior to bind(2).
-					 * see ipng mailing list, Jun 22 2001.
-					 */
+					INP_WLOCK(inp);
 					if (inp->inp_lport ||
 					    !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
+						/*
+						 * The socket is already bound.
+						 */
+						INP_WUNLOCK(inp);
 						error = EINVAL;
 						break;
 					}
-					OPTSET(IN6P_IPV6_V6ONLY);
-					if (optval)
+					if (optval) {
+						inp->inp_flags |= IN6P_IPV6_V6ONLY;
 						inp->inp_vflag &= ~INP_IPV4;
-					else
+					} else {
+						inp->inp_flags &= ~IN6P_IPV6_V6ONLY;
 						inp->inp_vflag |= INP_IPV4;
+					}
+					INP_WUNLOCK(inp);
 					break;
 				case IPV6_RECVTCLASS:
 					/* cannot mix with RFC2292 XXX */

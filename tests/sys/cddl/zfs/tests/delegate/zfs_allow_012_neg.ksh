@@ -56,24 +56,16 @@
 #
 ################################################################################
 
-verify_runnable "global"
-
-function cleanup
-{
-	log_must $ZPOOL set delegation=on $TESTPOOL
-	log_must restore_root_datasets
-}
-
 log_assert "Verify privileged user can not use permissions properly when " \
 	"delegation property is set off"
-log_onexit cleanup
-
 
 set -A perms	create snapshot mount send allow quota reservation \
 	    	recordsize mountpoint checksum compression canmount atime \
 		devices exec volsize setuid readonly snapdir userprop \
 		aclmode aclinherit rollback clone rename promote \
-		zoned shareiscsi xattr receive destroy sharenfs share
+		xattr receive destroy
+# TODO: add sharenfs and share after the Solarisisms have been removed from
+# those tests
 
 log_must $ZPOOL set delegation=off $TESTPOOL
 

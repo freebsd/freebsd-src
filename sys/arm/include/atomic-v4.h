@@ -113,6 +113,43 @@ atomic_clear_64(volatile uint64_t *address, uint64_t clearmask)
 }
 
 static __inline int
+atomic_fcmpset_8(volatile uint8_t *p, volatile uint8_t *cmpval, volatile uint8_t newval)
+{
+	int ret;
+
+	__with_interrupts_disabled(
+	 {
+	 	ret = *p;
+	    	if (*p == *cmpval) {
+			*p = newval;
+			ret = 1;
+		} else {
+			*cmpval = *p;
+			ret = 0;
+		}
+	});
+	return (ret);
+}
+static __inline int
+atomic_fcmpset_16(volatile uint16_t *p, volatile uint16_t *cmpval, volatile uint16_t newval)
+{
+	int ret;
+
+	__with_interrupts_disabled(
+	 {
+	 	ret = *p;
+	    	if (*p == *cmpval) {
+			*p = newval;
+			ret = 1;
+		} else {
+			*cmpval = *p;
+			ret = 0;
+		}
+	});
+	return (ret);
+}
+
+static __inline int
 atomic_fcmpset_32(volatile u_int32_t *p, volatile u_int32_t *cmpval, volatile u_int32_t newval)
 {
 	int ret;
@@ -143,6 +180,40 @@ atomic_fcmpset_64(volatile u_int64_t *p, volatile u_int64_t *cmpval, volatile u_
 			ret = 1;
 		} else {
 			*cmpval = *p;
+			ret = 0;
+		}
+	});
+	return (ret);
+}
+
+static __inline int
+atomic_cmpset_8(volatile uint8_t *p, volatile uint8_t cmpval, volatile uint8_t newval)
+{
+	int ret;
+
+	__with_interrupts_disabled(
+	 {
+	    	if (*p == cmpval) {
+			*p = newval;
+			ret = 1;
+		} else {
+			ret = 0;
+		}
+	});
+	return (ret);
+}
+
+static __inline int
+atomic_cmpset_16(volatile uint16_t *p, volatile uint16_t cmpval, volatile uint16_t newval)
+{
+	int ret;
+
+	__with_interrupts_disabled(
+	 {
+	    	if (*p == cmpval) {
+			*p = newval;
+			ret = 1;
+		} else {
 			ret = 0;
 		}
 	});
@@ -450,6 +521,10 @@ atomic_swap_32(volatile u_int32_t *p, u_int32_t v)
 #define atomic_fcmpset_rel_32	atomic_fcmpset_32
 #define atomic_fcmpset_acq_32	atomic_fcmpset_32
 #ifdef _KERNEL
+#define atomic_fcmpset_rel_8	atomic_fcmpset_8
+#define atomic_fcmpset_acq_8	atomic_fcmpset_8
+#define atomic_fcmpset_rel_16	atomic_fcmpset_16
+#define atomic_fcmpset_acq_16	atomic_fcmpset_16
 #define atomic_fcmpset_rel_64	atomic_fcmpset_64
 #define atomic_fcmpset_acq_64	atomic_fcmpset_64
 #endif
@@ -458,6 +533,10 @@ atomic_swap_32(volatile u_int32_t *p, u_int32_t v)
 #define atomic_cmpset_rel_32	atomic_cmpset_32
 #define atomic_cmpset_acq_32	atomic_cmpset_32
 #ifdef _KERNEL
+#define atomic_cmpset_rel_8	atomic_cmpset_8
+#define atomic_cmpset_acq_8	atomic_cmpset_8
+#define atomic_cmpset_rel_16	atomic_cmpset_16
+#define atomic_cmpset_acq_16	atomic_cmpset_16
 #define atomic_cmpset_rel_64	atomic_cmpset_64
 #define atomic_cmpset_acq_64	atomic_cmpset_64
 #endif

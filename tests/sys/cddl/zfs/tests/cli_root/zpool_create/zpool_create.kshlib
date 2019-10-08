@@ -96,36 +96,22 @@ function clean_blockfile
 #
 # Find the storage device in /etc/vfstab
 #
-function find_vfstab_dev
+function find_fstab_dev
 {
-	typeset vfstab="/etc/vfstab"
-	typeset tmpfile="$TMPDIR/vfstab.tmp"
-	typeset vfstabdev
-	typeset vfstabdevs=""
+	typeset fstab="/etc/fstab"
+	typeset tmpfile="$TMPDIR/fstab.tmp"
+	typeset fstabdev
+	typeset fstabdevs=""
 	typeset line
 
-	$CAT $vfstab | $GREP "^/dev" >$tmpfile
+	$CAT $fstab | $GREP "^/dev" >$tmpfile
 	while read -r line
 	do
-		vfstabdev=`$ECHO "$line" | $AWK '{print $1}'`
-		vfstabdev=${vfstabdev%%:}
-		vfstabdevs="$vfstabdev $vfstabdevs"
+		fstabdev=`$ECHO "$line" | $AWK '{print $1}'`
+		fstabdev=${fstabdev%%:}
+		fstabdevs="$fstabdev $fstabdevs"
 	done <$tmpfile
 
 	$RM -f $tmpfile
-	$ECHO $vfstabdevs	
+	$ECHO $fstabdevs	
 } 
-
-#
-# Save the systme current dump device configuration
-#
-function save_dump_dev
-{
-
-	typeset dumpdev
-	typeset fnd="Dump device"
-	
-	dumpdev=`$DUMPADM | $GREP "$fnd" | $CUT -f2 -d : | \
-		$AWK '{print $1}'`
-	$ECHO $dumpdev
-}

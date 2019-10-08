@@ -1260,7 +1260,10 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
 
 	/* ND_OPT_PI_FLAG_ONLINK processing */
 	if (new->ndpr_raf_onlink) {
+		struct epoch_tracker et;
+
 		ND6_ONLINK_LOCK();
+		NET_EPOCH_ENTER(et);
 		if ((error = nd6_prefix_onlink(new)) != 0) {
 			nd6log((LOG_ERR, "nd6_prelist_add: failed to make "
 			    "the prefix %s/%d on-link on %s (errno=%d)\n",
@@ -1268,6 +1271,7 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
 			    pr->ndpr_plen, if_name(pr->ndpr_ifp), error));
 			/* proceed anyway. XXX: is it correct? */
 		}
+		NET_EPOCH_EXIT(et);
 		ND6_ONLINK_UNLOCK();
 	}
 
@@ -1351,7 +1355,8 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 	int auth;
 	struct in6_addrlifetime lt6_tmp;
 	char ip6buf[INET6_ADDRSTRLEN];
-	struct epoch_tracker et;
+
+	NET_EPOCH_ASSERT();
 
 	auth = 0;
 	if (m) {
@@ -1465,7 +1470,6 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 	 * consider autoconfigured addresses while RFC2462 simply said
 	 * "address".
 	 */
-	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		struct in6_ifaddr *ifa6;
 		u_int32_t remaininglifetime;
@@ -1588,7 +1592,6 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 		ifa6->ia6_lifetime = lt6_tmp;
 		ifa6->ia6_updatetime = time_uptime;
 	}
-	NET_EPOCH_EXIT(et);
 	if (ia6_match == NULL && new->ndpr_vltime) {
 		int ifidlen;
 
@@ -1684,10 +1687,9 @@ find_pfxlist_reachable_router(struct nd_prefix *pr)
 
 	ND6_LOCK_ASSERT();
 
+	NET_EPOCH_ENTER(et);
 	LIST_FOREACH(pfxrtr, &pr->ndpr_advrtrs, pfr_entry) {
-		NET_EPOCH_ENTER(et);
 		ln = nd6_lookup(&pfxrtr->router->rtaddr, 0, pfxrtr->router->ifp);
-		NET_EPOCH_EXIT(et);
 		if (ln == NULL)
 			continue;
 		canreach = ND6_IS_LLINFO_PROBREACH(ln);
@@ -1695,6 +1697,7 @@ find_pfxlist_reachable_router(struct nd_prefix *pr)
 		if (canreach)
 			break;
 	}
+	NET_EPOCH_EXIT(et);
 	return (pfxrtr);
 }
 

@@ -166,12 +166,6 @@ dev_rel(struct cdev *dev)
 	dev->si_refcount--;
 	KASSERT(dev->si_refcount >= 0,
 	    ("dev_rel(%s) gave negative count", devtoname(dev)));
-#if 0
-	if (dev->si_usecount == 0 &&
-	    (dev->si_flags & SI_CHEAPCLONE) && (dev->si_flags & SI_NAMED))
-		;
-	else 
-#endif
 	if (dev->si_devsw == NULL && dev->si_refcount == 0) {
 		LIST_REMOVE(dev, si_list);
 		flag = 1;
@@ -576,20 +570,41 @@ newdev(struct make_dev_args *args, struct cdev *si)
 
 	mtx_assert(&devmtx, MA_OWNED);
 	csw = args->mda_devsw;
+	si2 = NULL;
 	if (csw->d_flags & D_NEEDMINOR) {
 		/* We may want to return an existing device */
 		LIST_FOREACH(si2, &csw->d_devs, si_list) {
 			if (dev2unit(si2) == args->mda_unit) {
 				dev_free_devlocked(si);
-				return (si2);
+				si = si2;
+				break;
 			}
 		}
+
+		/*
+		 * If we're returning an existing device, we should make sure
+		 * it isn't already initialized.  This would have been caught
+		 * in consumers anyways, but it's good to catch such a case
+		 * early.  We still need to complete initialization of the
+		 * device, and we'll use whatever make_dev_args were passed in
+		 * to do so.
+		 */
+		KASSERT(si2 == NULL || (si2->si_flags & SI_NAMED) == 0,
+		    ("make_dev() by driver %s on pre-existing device (min=%x, name=%s)",
+		    args->mda_devsw->d_name, dev2unit(si2), devtoname(si2)));
 	}
 	si->si_drv0 = args->mda_unit;
-	si->si_devsw = csw;
 	si->si_drv1 = args->mda_si_drv1;
 	si->si_drv2 = args->mda_si_drv2;
-	LIST_INSERT_HEAD(&csw->d_devs, si, si_list);
+	/* Only push to csw->d_devs if it's not a cloned device. */
+	if (si2 == NULL) {
+		si->si_devsw = csw;
+		LIST_INSERT_HEAD(&csw->d_devs, si, si_list);
+	} else {
+		KASSERT(si->si_devsw == csw,
+		    ("%s: inconsistent devsw between clone_create() and make_dev()",
+		    __func__));
+	}
 	return (si);
 }
 
@@ -799,17 +814,6 @@ make_dev_sv(struct make_dev_args *args1, struct cdev **dres,
 		dev_refl(dev);
 	if ((args.mda_flags & MAKEDEV_ETERNAL) != 0)
 		dev->si_flags |= SI_ETERNAL;
-	if (dev->si_flags & SI_CHEAPCLONE &&
-	    dev->si_flags & SI_NAMED) {
-		/*
-		 * This is allowed as it removes races and generally
-		 * simplifies cloning devices.
-		 * XXX: still ??
-		 */
-		dev_unlock_and_free();
-		*dres = dev;
-		return (0);
-	}
 	KASSERT(!(dev->si_flags & SI_NAMED),
 	    ("make_dev() by driver %s on pre-existing device (min=%x, name=%s)",
 	    args.mda_devsw->d_name, dev2unit(dev), devtoname(dev)));
@@ -1544,7 +1548,6 @@ DB_SHOW_COMMAND(cdev, db_show_cdev)
 	SI_FLAG(SI_ETERNAL);
 	SI_FLAG(SI_ALIAS);
 	SI_FLAG(SI_NAMED);
-	SI_FLAG(SI_CHEAPCLONE);
 	SI_FLAG(SI_CHILD);
 	SI_FLAG(SI_DUMPDEV);
 	SI_FLAG(SI_CLONELIST);

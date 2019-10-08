@@ -109,7 +109,8 @@ static struct vfsops ufs_vfsops = {
 	.vfs_mount =		ffs_mount,
 	.vfs_cmount =		ffs_cmount,
 	.vfs_quotactl =		ufs_quotactl,
-	.vfs_root =		ufs_root,
+	.vfs_root =		vfs_cache_root,
+	.vfs_cachedroot =	ufs_root,
 	.vfs_statfs =		ffs_statfs,
 	.vfs_sync =		ffs_sync,
 	.vfs_uninit =		ffs_uninit,
@@ -1880,7 +1881,7 @@ ffs_fhtovp(mp, fhp, flags, vpp)
 	if (fs->fs_magic != FS_UFS2_MAGIC)
 		return (ufs_fhtovp(mp, ufhp, flags, vpp));
 	cg = ino_to_cg(fs, ino);
-	if ((error = ffs_getcg(fs, ump->um_devvp, cg, &bp, &cgp)) != 0)
+	if ((error = ffs_getcg(fs, ump->um_devvp, cg, 0, &bp, &cgp)) != 0)
 		return (error);
 	if (ino >= cg * fs->fs_ipg + cgp->cg_initediblk) {
 		brelse(bp);

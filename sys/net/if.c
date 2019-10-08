@@ -351,17 +351,14 @@ ifnet_byindex(u_short idx)
 struct ifnet *
 ifnet_byindex_ref(u_short idx)
 {
-	struct epoch_tracker et;
 	struct ifnet *ifp;
 
-	NET_EPOCH_ENTER(et);
+	NET_EPOCH_ASSERT();
+
 	ifp = ifnet_byindex_locked(idx);
-	if (ifp == NULL || (ifp->if_flags & IFF_DYING)) {
-		NET_EPOCH_EXIT(et);
+	if (ifp == NULL || (ifp->if_flags & IFF_DYING))
 		return (NULL);
-	}
 	if_ref(ifp);
-	NET_EPOCH_EXIT(et);
 	return (ifp);
 }
 
@@ -425,15 +422,14 @@ ifnet_setbyindex(u_short idx, struct ifnet *ifp)
 struct ifaddr *
 ifaddr_byindex(u_short idx)
 {
-	struct epoch_tracker et;
 	struct ifnet *ifp;
 	struct ifaddr *ifa = NULL;
 
-	NET_EPOCH_ENTER(et);
+	NET_EPOCH_ASSERT();
+
 	ifp = ifnet_byindex_locked(idx);
 	if (ifp != NULL && (ifa = ifp->if_addr) != NULL)
 		ifa_ref(ifa);
-	NET_EPOCH_EXIT(et);
 	return (ifa);
 }
 
@@ -1088,10 +1084,9 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
  	struct ifnet *iter;
  	int found = 0;
 #ifdef VIMAGE
-	int shutdown;
+	bool shutdown;
 
-	shutdown = (ifp->if_vnet->vnet_state > SI_SUB_VNET &&
-		 ifp->if_vnet->vnet_state < SI_SUB_VNET_DONE) ? 1 : 0;
+	shutdown = ifp->if_vnet->vnet_shutdown;
 #endif
 	IFNET_WLOCK();
 	CK_STAILQ_FOREACH(iter, &V_ifnet, if_link)
@@ -1341,7 +1336,6 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 {
 	struct prison *pr;
 	struct ifnet *difp;
-	int shutdown;
 
 	/* Try to find the prison within our visibility. */
 	sx_slock(&allprison_lock);
@@ -1369,9 +1363,7 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 	}
 
 	/* Make sure the VNET is stable. */
-	shutdown = (ifp->if_vnet->vnet_state > SI_SUB_VNET &&
-		 ifp->if_vnet->vnet_state < SI_SUB_VNET_DONE) ? 1 : 0;
-	if (shutdown) {
+	if (ifp->if_vnet->vnet_shutdown) {
 		CURVNET_RESTORE();
 		prison_free(pr);
 		return (EBUSY);
@@ -1394,7 +1386,6 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 	struct prison *pr;
 	struct vnet *vnet_dst;
 	struct ifnet *ifp;
- 	int shutdown;
 
 	/* Try to find the prison within our visibility. */
 	sx_slock(&allprison_lock);
@@ -1423,9 +1414,7 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 	}
 
 	/* Make sure the VNET is stable. */
-	shutdown = (ifp->if_vnet->vnet_state > SI_SUB_VNET &&
-		 ifp->if_vnet->vnet_state < SI_SUB_VNET_DONE) ? 1 : 0;
-	if (shutdown) {
+	if (ifp->if_vnet->vnet_shutdown) {
 		CURVNET_RESTORE();
 		prison_free(pr);
 		return (EBUSY);
@@ -1647,39 +1636,32 @@ ifgr_groups_get(void *ifgrp)
 static int
 if_getgroup(struct ifgroupreq *ifgr, struct ifnet *ifp)
 {
-	struct epoch_tracker	 et;
 	int			 len, error;
 	struct ifg_list		*ifgl;
 	struct ifg_req		 ifgrq, *ifgp;
 
+	NET_EPOCH_ASSERT();
+
 	if (ifgr->ifgr_len == 0) {
-		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifgl, &ifp->if_groups, ifgl_next)
 			ifgr->ifgr_len += sizeof(struct ifg_req);
-		NET_EPOCH_EXIT(et);
 		return (0);
 	}
 
 	len = ifgr->ifgr_len;
 	ifgp = ifgr_groups_get(ifgr);
 	/* XXX: wire */
-	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifgl, &ifp->if_groups, ifgl_next) {
-		if (len < sizeof(ifgrq)) {
-			NET_EPOCH_EXIT(et);
+		if (len < sizeof(ifgrq))
 			return (EINVAL);
-		}
 		bzero(&ifgrq, sizeof ifgrq);
 		strlcpy(ifgrq.ifgrq_group, ifgl->ifgl_group->ifg_group,
 		    sizeof(ifgrq.ifgrq_group));
-		if ((error = copyout(&ifgrq, ifgp, sizeof(struct ifg_req)))) {
-		    	NET_EPOCH_EXIT(et);
+		if ((error = copyout(&ifgrq, ifgp, sizeof(struct ifg_req))))
 			return (error);
-		}
 		len -= sizeof(ifgrq);
 		ifgp++;
 	}
-	NET_EPOCH_EXIT(et);
 
 	return (0);
 }
@@ -1979,7 +1961,8 @@ ifa_ifwithaddr(const struct sockaddr *addr)
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
-	MPASS(in_epoch(net_epoch_preempt));
+	NET_EPOCH_ASSERT();
+
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
@@ -2331,17 +2314,22 @@ if_link_state_change(struct ifnet *ifp, int link_state)
 
 	ifp->if_link_state = link_state;
 
+	/* XXXGL: reference ifp? */
 	taskqueue_enqueue(taskqueue_swi, &ifp->if_linktask);
 }
 
 static void
 do_link_state_change(void *arg, int pending)
 {
-	struct ifnet *ifp = (struct ifnet *)arg;
-	int link_state = ifp->if_link_state;
-	CURVNET_SET(ifp->if_vnet);
+	struct epoch_tracker et;
+	struct ifnet *ifp;
+	int link_state;
 
-	/* Notify that the link state has changed. */
+	NET_EPOCH_ENTER(et);
+	ifp = arg;
+	link_state = ifp->if_link_state;
+
+	CURVNET_SET(ifp->if_vnet);
 	rt_ifmsg(ifp);
 	if (ifp->if_vlantrunk != NULL)
 		(*vlan_link_state_p)(ifp);
@@ -2367,6 +2355,7 @@ do_link_state_change(void *arg, int pending)
 		    (link_state == LINK_STATE_UP) ? "UP" : "DOWN" );
 	EVENTHANDLER_INVOKE(ifnet_link_event, ifp, link_state);
 	CURVNET_RESTORE();
+	NET_EPOCH_EXIT(et);
 }
 
 /*
@@ -2919,9 +2908,14 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case CASE_IOC_IFGROUPREQ(SIOCGIFGROUP):
-		if ((error = if_getgroup((struct ifgroupreq *)data, ifp)))
-			return (error);
+	{
+		struct epoch_tracker et;
+
+		NET_EPOCH_ENTER(et);
+		error = if_getgroup((struct ifgroupreq *)data, ifp);
+		NET_EPOCH_EXIT(et);
 		break;
+	}
 
 	case CASE_IOC_IFGROUPREQ(SIOCDIFGROUP):
 		error = priv_check(td, PRIV_NET_DELIFGROUP);
@@ -2990,33 +2984,26 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 #ifdef COMPAT_FREEBSD32
 	caddr_t saved_data = NULL;
 	struct ifmediareq ifmr;
-	struct ifmediareq *ifmrp;
+	struct ifmediareq *ifmrp = NULL;
 #endif
 	struct ifnet *ifp;
 	struct ifreq *ifr;
 	int error;
 	int oif_flags;
-#ifdef VIMAGE
-	int shutdown;
-#endif
 
 	CURVNET_SET(so->so_vnet);
 #ifdef VIMAGE
 	/* Make sure the VNET is stable. */
-	shutdown = (so->so_vnet->vnet_state > SI_SUB_VNET &&
-		 so->so_vnet->vnet_state < SI_SUB_VNET_DONE) ? 1 : 0;
-	if (shutdown) {
+	if (so->so_vnet->vnet_shutdown) {
 		CURVNET_RESTORE();
 		return (EBUSY);
 	}
 #endif
 
-
 	switch (cmd) {
 	case SIOCGIFCONF:
 		error = ifconf(cmd, data);
-		CURVNET_RESTORE();
-		return (error);
+		goto out_noref;
 
 #ifdef COMPAT_FREEBSD32
 	case SIOCGIFCONF32:
@@ -3029,16 +3016,14 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 			ifc.ifc_buf = PTRIN(ifc32->ifc_buf);
 
 			error = ifconf(SIOCGIFCONF, (void *)&ifc);
-			CURVNET_RESTORE();
 			if (error == 0)
 				ifc32->ifc_len = ifc.ifc_len;
-			return (error);
+			goto out_noref;
 		}
 #endif
 	}
 
 #ifdef COMPAT_FREEBSD32
-	ifmrp = NULL;
 	switch (cmd) {
 	case SIOCGIFMEDIA32:
 	case SIOCGIFXMEDIA32:
@@ -3630,16 +3615,15 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 	struct ifmultiaddr *ifma;
 	int lastref;
 #ifdef INVARIANTS
-	struct epoch_tracker et;
 	struct ifnet *oifp;
 
-	NET_EPOCH_ENTER(et);
+	NET_EPOCH_ASSERT();
+
 	CK_STAILQ_FOREACH(oifp, &V_ifnet, if_link)
 		if (ifp == oifp)
 			break;
 	if (ifp != oifp)
 		ifp = NULL;
-	NET_EPOCH_EXIT(et);
 
 	KASSERT(ifp != NULL, ("%s: ifnet went away", __func__));
 #endif
@@ -3712,9 +3696,9 @@ if_delmulti_ifma_flags(struct ifmultiaddr *ifma, int flags)
 		CK_STAILQ_FOREACH(oifp, &V_ifnet, if_link)
 			if (ifp == oifp)
 				break;
+		NET_EPOCH_EXIT(et);
 		if (ifp != oifp)
 			ifp = NULL;
-		NET_EPOCH_EXIT(et);
 	}
 #endif
 	/*
@@ -3838,26 +3822,18 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	struct sockaddr_dl *sdl;
 	struct ifaddr *ifa;
 	struct ifreq ifr;
-	struct epoch_tracker et;
-	int rc;
 
-	rc = 0;
-	NET_EPOCH_ENTER(et);
 	ifa = ifp->if_addr;
-	if (ifa == NULL) {
-		rc = EINVAL;
-		goto out;
-	}
+	if (ifa == NULL)
+		return (EINVAL);
 
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-	if (sdl == NULL) {
-		rc = EINVAL;
-		goto out;
-	}
-	if (len != sdl->sdl_alen) {	/* don't allow length to change */
-		rc = EINVAL;
-		goto out;
-	}
+	if (sdl == NULL)
+		return (EINVAL);
+
+	if (len != sdl->sdl_alen)	/* don't allow length to change */
+		return (EINVAL);
+
 	switch (ifp->if_type) {
 	case IFT_ETHER:
 	case IFT_XETHER:
@@ -3867,8 +3843,7 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 		bcopy(lladdr, LLADDR(sdl), len);
 		break;
 	default:
-		rc = ENODEV;
-		goto out;
+		return (ENODEV);
 	}
 
 	/*
@@ -3876,7 +3851,6 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	 * to re-init it in order to reprogram its
 	 * address filter.
 	 */
-	NET_EPOCH_EXIT(et);
 	if ((ifp->if_flags & IFF_UP) != 0) {
 		if (ifp->if_ioctl) {
 			ifp->if_flags &= ~IFF_UP;
@@ -3890,10 +3864,8 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 		}
 	}
 	EVENTHANDLER_INVOKE(iflladdr_event, ifp);
+
 	return (0);
- out:
-	NET_EPOCH_EXIT(et);
-	return (rc);
 }
 
 /*

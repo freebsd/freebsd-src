@@ -92,6 +92,12 @@ CXXFLAGS+= ${DEBUG_FILES_CFLAGS}
 CTFFLAGS+= -g
 .endif
 
+# clang currently defaults to dynamic TLS for mips64 object files without -fPIC
+.if ${MACHINE_ARCH:Mmips64*} && ${COMPILER_TYPE} == "clang"
+STATIC_CFLAGS+= -ftls-model=initial-exec
+STATIC_CXXFLAGS+= -ftls-model=initial-exec
+.endif
+
 .include <bsd.libnames.mk>
 
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
@@ -281,6 +287,10 @@ CLEANFILES+=	${SOBJS}
 .if defined(SHLIB_NAME)
 _LIBS+=		${SHLIB_NAME}
 
+.if ${CFLAGS:M-fexceptions} || defined(SHLIB_CXX) || defined(LIB_CXX)
+ALLOW_MIPS_SHARED_TEXTREL=
+.endif
+
 SOLINKOPTS+=	-shared -Wl,-x
 .if defined(LD_FATAL_WARNINGS) && ${LD_FATAL_WARNINGS} == "no"
 SOLINKOPTS+=	-Wl,--no-fatal-warnings
@@ -288,6 +298,15 @@ SOLINKOPTS+=	-Wl,--no-fatal-warnings
 SOLINKOPTS+=	-Wl,--fatal-warnings
 .endif
 SOLINKOPTS+=	-Wl,--warn-shared-textrel
+
+.if defined(ALLOW_MIPS_SHARED_TEXTREL) && ${MACHINE_CPUARCH:Mmips}
+# Check if we should be defining ALLOW_SHARED_TEXTREL... basically, C++
+# or -fexceptions in CFLAGS on MIPS.  This works around clang/lld attempting
+# to generate text relocations in read-only .eh_frame.  A future version of
+# clang/lld should instead transform them into relative references at link
+# time, and then we can stop doing this.
+SOLINKOPTS+=	-Wl,-z,notext
+.endif
 
 .if target(beforelinking)
 beforelinking: ${SOBJS}

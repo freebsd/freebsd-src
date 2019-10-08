@@ -37,7 +37,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2014
+.Dd September 28, 2019
 .Dt MQ_OPEN 2
 .Os
 .Sh NAME
@@ -317,6 +317,13 @@ This implementation places strict requirements on the value of
 it must begin with a slash
 .Pq Ql /
 and contain no other slash characters.
+.Pp
+The
+.Fa mode
+and
+.Fa attr
+arguments are variadic and may result in different calling conventions
+than might otherwise be expected.
 .Sh COPYRIGHT
 Portions of this text are reprinted and reproduced in electronic form
 from IEEE Std 1003.1, 2004 Edition, Standard for Information Technology --

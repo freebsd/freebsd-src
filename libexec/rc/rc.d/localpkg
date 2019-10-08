@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: localpkg
-# REQUIRE: abi
+# REQUIRE: sysvipc linux
 # BEFORE:  securelevel
 # KEYWORD: shutdown
 

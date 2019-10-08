@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 8, 2019
+.Dd September 28, 2019
 .Dt TREE 3
 .Os
 .Sh NAME
@@ -62,6 +62,7 @@
 .Nm RB_PROTOTYPE_NEXT ,
 .Nm RB_PROTOTYPE_PREV ,
 .Nm RB_PROTOTYPE_MINMAX ,
+.Nm RB_PROTOTYPE_REINSERT ,
 .Nm RB_GENERATE ,
 .Nm RB_GENERATE_STATIC ,
 .Nm RB_GENERATE_INSERT ,
@@ -73,6 +74,7 @@
 .Nm RB_GENERATE_NEXT ,
 .Nm RB_GENERATE_PREV ,
 .Nm RB_GENERATE_MINMAX ,
+.Nm RB_GENERATE_REINSERT ,
 .Nm RB_ENTRY ,
 .Nm RB_HEAD ,
 .Nm RB_INITIALIZER ,
@@ -95,7 +97,8 @@
 .Nm RB_FOREACH_REVERSE_SAFE ,
 .Nm RB_INIT ,
 .Nm RB_INSERT ,
-.Nm RB_REMOVE
+.Nm RB_REMOVE ,
+.Nm RB_REINSERT
 .Nd "implementations of splay and red-black trees"
 .Sh SYNOPSIS
 .In sys/tree.h
@@ -138,6 +141,7 @@
 .Fn RB_PROTOTYPE_NEXT NAME TYPE ATTR
 .Fn RB_PROTOTYPE_PREV NAME TYPE ATTR
 .Fn RB_PROTOTYPE_MINMAX NAME TYPE ATTR
+.Fn RB_PROTOTYPE_REINSERT NAME TYPE ATTR
 .Fn RB_GENERATE NAME TYPE FIELD CMP
 .Fn RB_GENERATE_STATIC NAME TYPE FIELD CMP
 .Fn RB_GENERATE_INSERT NAME TYPE FIELD CMP ATTR
@@ -149,6 +153,7 @@
 .Fn RB_GENERATE_NEXT NAME TYPE FIELD ATTR
 .Fn RB_GENERATE_PREV NAME TYPE FIELD ATTR
 .Fn RB_GENERATE_MINMAX NAME TYPE FIELD ATTR
+.Fn RB_GENERATE_REINSERT NAME TYPE FIELD CMP ATTR
 .Fn RB_ENTRY TYPE
 .Fn RB_HEAD HEADNAME TYPE
 .Fn RB_INITIALIZER "RB_HEAD *head"
@@ -186,6 +191,8 @@
 .Fn RB_INSERT NAME "RB_HEAD *head" "struct TYPE *elm"
 .Ft "struct TYPE *"
 .Fn RB_REMOVE NAME "RB_HEAD *head" "struct TYPE *elm"
+.Ft "struct TYPE *"
+.Fn RB_REINSERT NAME "RB_HEAD *head" "struct TYPE *elm"
 .Sh DESCRIPTION
 These macros define data structures for different types of trees:
 splay trees and red-black trees.
@@ -422,8 +429,9 @@ Individual prototypes can be declared with
 .Fn RB_PROTOTYPE_NFIND ,
 .Fn RB_PROTOTYPE_NEXT ,
 .Fn RB_PROTOTYPE_PREV ,
+.Fn RB_PROTOTYPE_MINMAX ,
 and
-.Fn RB_PROTOTYPE_MINMAX
+.Fn RB_PROTOTYPE_REINSERT
 in case not all functions are required.
 The individual prototype macros expect
 .Fa NAME ,
@@ -456,8 +464,9 @@ As an alternative individual function bodies are generated with the
 .Fn RB_GENERATE_NFIND ,
 .Fn RB_GENERATE_NEXT ,
 .Fn RB_GENERATE_PREV ,
+.Fn RB_GENERATE_MINMAX ,
 and
-.Fn RB_GENERATE_MINMAX
+.Fn RB_GENERATE_REINSERT
 macros.
 .Pp
 Finally,
@@ -559,6 +568,18 @@ and will be overwritten to provide safe traversal.
 The
 .Fn RB_EMPTY
 macro should be used to check whether a red-black tree is empty.
+.Pp
+The
+.Fn RB_REINSERT
+macro updates the position of the element
+.Fa elm
+in the tree.
+This must be called if a member of a
+.Nm tree
+is modified in a way that affects comparison, such as by modifying
+a node's key.
+This is a lower overhead alternative to removing the element
+and reinserting it again.
 .Sh EXAMPLES
 The following example demonstrates how to declare a red-black tree
 holding integers.

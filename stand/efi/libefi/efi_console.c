@@ -136,7 +136,7 @@ efi_text_cursor(void *s __unused, const teken_pos_t *p)
 }
 
 static void
-efi_text_printchar(const teken_pos_t *p)
+efi_text_printchar(const teken_pos_t *p, bool autoscroll)
 {
 	UINTN a, attr;
 	struct text_pixel *px;
@@ -164,7 +164,8 @@ efi_text_printchar(const teken_pos_t *p)
 	conout->SetCursorPosition(conout, p->tp_col, p->tp_row);
 
 	/* to prvent autoscroll, skip print of lower right char */
-	if (p->tp_row == tp.tp_row - 1 &&
+	if (!autoscroll &&
+	    p->tp_row == tp.tp_row - 1 &&
 	    p->tp_col == tp.tp_col - 1)
 		return;
 
@@ -183,7 +184,7 @@ efi_text_putchar(void *s __unused, const teken_pos_t *p, teken_char_t c,
 	idx = p->tp_col + p->tp_row * tp.tp_col;
 	buffer[idx].c = c;
 	buffer[idx].a = *a;
-	efi_text_printchar(p);
+	efi_text_printchar(p, false);
 }
 
 static void
@@ -226,6 +227,7 @@ efi_text_copy(void *ptr __unused, const teken_rect_t *r, const teken_pos_t *p)
 	int srow, drow;
 	int nrow, ncol, x, y; /* Has to be signed - >= 0 comparison */
 	teken_pos_t d, s;
+	bool scroll = false;
 
 	/*
 	 * Copying is a little tricky. We must make sure we do it in
@@ -234,6 +236,13 @@ efi_text_copy(void *ptr __unused, const teken_rect_t *r, const teken_pos_t *p)
 
 	nrow = r->tr_end.tp_row - r->tr_begin.tp_row;
 	ncol = r->tr_end.tp_col - r->tr_begin.tp_col;
+
+	/*
+	 * Check if we do copy whole screen.
+	 */
+	if (p->tp_row == 0 && p->tp_col == 0 &&
+	    nrow == tp.tp_row - 2 && ncol == tp.tp_col - 2)
+		scroll = true;
 
 	conout->EnableCursor(conout, FALSE);
 	if (p->tp_row < r->tr_begin.tp_row) {
@@ -252,7 +261,17 @@ efi_text_copy(void *ptr __unused, const teken_rect_t *r, const teken_pos_t *p)
 				    &buffer[s.tp_col + srow])) {
 					buffer[d.tp_col + drow] =
 					    buffer[s.tp_col + srow];
-					efi_text_printchar(&d);
+					if (!scroll)
+						efi_text_printchar(&d, false);
+				} else if (scroll) {
+					/*
+					 * Draw last char and trigger
+					 * scroll.
+					 */
+					if (y == nrow - 1 &&
+					    x == ncol - 1) {
+						efi_text_printchar(&d, true);
+					}
 				}
 			}
 		}
@@ -274,7 +293,7 @@ efi_text_copy(void *ptr __unused, const teken_rect_t *r, const teken_pos_t *p)
 					    &buffer[s.tp_col + srow])) {
 						buffer[d.tp_col + drow] =
 						    buffer[s.tp_col + srow];
-						efi_text_printchar(&d);
+						efi_text_printchar(&d, false);
 					}
 				}
 			}
@@ -294,7 +313,7 @@ efi_text_copy(void *ptr __unused, const teken_rect_t *r, const teken_pos_t *p)
 					    &buffer[s.tp_col + srow])) {
 						buffer[d.tp_col + drow] =
 						    buffer[s.tp_col + srow];
-						efi_text_printchar(&d);
+						efi_text_printchar(&d, false);
 					}
 				}
 			}

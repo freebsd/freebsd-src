@@ -366,6 +366,11 @@ typedef enum {
  * Driver will pass the media
  */
 #define IFLIB_DRIVER_MEDIA	0x20000
+/*
+ * When using a single hardware interrupt for the interface, only process RX
+ * interrupts instead of doing combined RX/TX processing.
+ */
+#define	IFLIB_SINGLE_IRQ_RX_ONLY	0x40000
 
 /*
  * field accessors

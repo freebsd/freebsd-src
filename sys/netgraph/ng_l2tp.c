@@ -1462,6 +1462,7 @@ ng_l2tp_seq_rack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	/* Sanity check */
 	L2TP_SEQ_CHECK(seq);
 
+	mtx_lock(&seq->mtx);
 	priv->stats.xmitRetransmits++;
 
 	/* Have we reached the retransmit limit? If so, notify owner. */
@@ -1482,7 +1483,9 @@ ng_l2tp_seq_rack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	seq->acks = 0;
 
 	/* Retransmit oldest unack'd packet */
-	if ((m = L2TP_COPY_MBUF(seq->xwin[0], M_NOWAIT)) == NULL)
+	m = L2TP_COPY_MBUF(seq->xwin[0], M_NOWAIT);
+	mtx_unlock(&seq->mtx);
+	if (m == NULL)
 		priv->stats.memoryFailures++;
 	else
 		ng_l2tp_xmit_ctrl(priv, m, seq->ns++);

@@ -5,6 +5,8 @@ LIB=	pmc
 SRCS=	libpmc.c pmclog.c libpmc_pmu_util.c libpmc_json.cc
 INCS=	pmc.h pmclog.h pmcformat.h
 
+ALLOW_MIPS_SHARED_TEXTREL=
+
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 
 .if ${MACHINE_ARCH} == "aarch64"

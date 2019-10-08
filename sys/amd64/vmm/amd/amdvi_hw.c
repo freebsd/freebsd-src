@@ -96,7 +96,7 @@ SYSCTL_INT(_hw_vmm_amdvi, OID_AUTO, host_ptp, CTLFLAG_RDTUN,
 TUNABLE_INT("hw.vmm.amdvi.host_ptp", &amdvi_host_ptp);
 
 /* Page table level used <= supported by h/w[v1=7]. */
-static int amdvi_ptp_level = 4;
+int amdvi_ptp_level = 4;
 SYSCTL_INT(_hw_vmm_amdvi, OID_AUTO, ptp_level, CTLFLAG_RDTUN,
     &amdvi_ptp_level, 0, NULL);
 TUNABLE_INT("hw.vmm.amdvi.ptp_level", &amdvi_ptp_level);

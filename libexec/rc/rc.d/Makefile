@@ -11,7 +11,6 @@ CONFS=	DAEMON \
 	LOGIN \
 	NETWORKING \
 	SERVERS \
-	abi \
 	addswap \
 	adjkerntz \
 	archdep \
@@ -51,6 +50,7 @@ CONFS=	DAEMON \
 	kldxref \
 	${_kpasswdd} \
 	ldconfig \
+	linux \
 	local \
 	localpkg \
 	lockd \
@@ -107,6 +107,7 @@ CONFS=	DAEMON \
 	swaplate \
 	sysctl \
 	syslogd \
+	sysvipc \
 	tmp \
 	ugidfw \
 	${_utx} \
