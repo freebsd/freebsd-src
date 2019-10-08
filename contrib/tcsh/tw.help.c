@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tw.help.c,v 3.27 2006/08/24 20:56:31 christos Exp $ */
 /* tw.help.c: actually look up and print documentation on a file.
  *	      Look down the path for an appropriate file, then print it.
  *	      Note that the printing is NOT PAGED.  This is because the
@@ -34,9 +33,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: tw.help.c,v 3.27 2006/08/24 20:56:31 christos Exp $")
-
 #include "tw.h"
 #include "tc.h"
 

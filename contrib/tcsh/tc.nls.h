@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.nls.h,v 3.17 2015/06/06 21:19:08 christos Exp $ */
 /*
  * tc.nls.h: NLS support
  *

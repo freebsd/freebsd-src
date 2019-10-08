@@ -1,4 +1,3 @@
-$ $tcsh: set26,v 1.3 2011/02/04 18:19:43 christos Exp $
 $ tc.who.c
 $set 26 
 1 No se puede completar stat %s.  Por favor, ejecute "unset watch".\n

@@ -1,4 +1,3 @@
-$ $tcsh: set20,v 1.5 2015/08/13 08:54:04 christos Exp $
 $ tc.bind.c
 $set 20 
 1 Invalid key name `%S'\n

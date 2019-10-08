@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.exec.c,v 3.81 2016/09/12 16:33:54 christos Exp $ */
 /*
  * sh.exec.c: Search, find, and execute a command!
  */
@@ -31,9 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: sh.exec.c,v 3.81 2016/09/12 16:33:54 christos Exp $")
-
 #include "tc.h"
 #include "tw.h"
 #ifdef WINNT_NATIVE

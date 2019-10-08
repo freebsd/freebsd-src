@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.nls.c,v 3.27 2016/07/17 15:02:44 christos Exp $ */
 /*
  * tc.nls.c: NLS handling
  */
@@ -31,9 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: tc.nls.c,v 3.27 2016/07/17 15:02:44 christos Exp $")
-
 
 #ifdef WIDE_STRINGS
 # ifdef HAVE_WCWIDTH

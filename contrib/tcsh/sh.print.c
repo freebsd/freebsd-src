@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.print.c,v 3.37 2015/05/10 13:29:28 christos Exp $ */
 /*
  * sh.print.c: Primitive Output routines.
  */
@@ -31,9 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: sh.print.c,v 3.37 2015/05/10 13:29:28 christos Exp $")
-
 #include "ed.h"
 
 extern int Tty_eight_bit;

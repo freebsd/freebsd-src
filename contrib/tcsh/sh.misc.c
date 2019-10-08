@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.misc.c,v 3.50 2015/06/06 21:19:08 christos Exp $ */
 /*
  * sh.misc.c: Miscelaneous functions
  */
@@ -31,8 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: sh.misc.c,v 3.50 2015/06/06 21:19:08 christos Exp $")
 
 static	int	renum	(int, int);
 static  Char  **blkend	(Char **);
@@ -257,6 +254,9 @@ void
 closem(void)
 {
     int f, num_files;
+#ifdef S_ISSOCK
+    struct stat st;
+#endif /*S_ISSOCK*/
 
 #ifdef NLS_BUGS
 #ifdef NLS_CATALOGS
@@ -274,6 +274,16 @@ closem(void)
 #ifdef MALLOC_TRACE
 	    && f != 25
 #endif /* MALLOC_TRACE */
+#ifdef S_ISSOCK
+	    /* NSS modules (e.g. Linux nss_ldap) might keep sockets open.
+	     * If we close such a socket, both the NSS module and tcsh think
+	     * they "own" the descriptor.
+	     *
+	     * Not closing sockets does not make the cleanup use of closem()
+	     * less reliable because tcsh never creates sockets.
+	     */
+	    && fstat(f, &st) == 0 && !S_ISSOCK(st.st_mode)	
+#endif
 	    )
 	  {
 	    xclose(f);
@@ -654,7 +664,7 @@ xopen(const char *path, int oflag, ...)
 ssize_t
 xread(int fildes, void *buf, size_t nbyte)
 {
-    ssize_t res;
+    ssize_t res = -1;
 
     /* This is where we will be blocked most of the time, so handle signals
        that didn't interrupt any system call. */
@@ -682,7 +692,7 @@ xtcsetattr(int fildes, int optional_actions, const struct termios *termios_p)
 ssize_t
 xwrite(int fildes, const void *buf, size_t nbyte)
 {
-    ssize_t res;
+    ssize_t res = -1;
 
     /* This is where we will be blocked most of the time, so handle signals
        that didn't interrupt any system call. */

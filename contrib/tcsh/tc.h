@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.h,v 3.8 2006/01/12 19:55:38 christos Exp $ */
 /*
  * tc.h: Tcsh includes
  */
