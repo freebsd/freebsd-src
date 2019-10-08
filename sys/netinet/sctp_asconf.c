@@ -334,11 +334,11 @@ sctp_process_asconf_delete_ip(struct sockaddr *src,
 #endif
 
 	aparam_length = ntohs(aph->ph.param_length);
-	ph = (struct sctp_paramhdr *)(aph + 1);
-	param_type = ntohs(ph->param_type);
 	if (aparam_length < sizeof(struct sctp_asconf_paramhdr) + sizeof(struct sctp_paramhdr)) {
 		return (NULL);
 	}
+	ph = (struct sctp_paramhdr *)(aph + 1);
+	param_type = ntohs(ph->param_type);
 #if defined(INET) || defined(INET6)
 	param_length = ntohs(ph->param_length);
 	if (param_length + sizeof(struct sctp_asconf_paramhdr) != aparam_length) {
