@@ -279,9 +279,6 @@ vnet_destroy(struct vnet *vnet)
 	LIST_REMOVE(vnet, vnet_le);
 	VNET_LIST_WUNLOCK();
 
-	/* Signal that VNET is being shutdown. */
-	vnet->vnet_shutdown = 1;
-
 	CURVNET_SET_QUIET(vnet);
 	vnet_sysuninit();
 	CURVNET_RESTORE();
@@ -353,15 +350,15 @@ vnet_data_startup(void *dummy __unused)
 }
 SYSINIT(vnet_data, SI_SUB_KLD, SI_ORDER_FIRST, vnet_data_startup, NULL);
 
-/* Dummy VNET_SYSINIT to make sure we always reach the final end state. */
 static void
-vnet_sysinit_done(void *unused __unused)
+vnet_sysuninit_shutdown(void *unused __unused)
 {
 
-	return;
+	/* Signal that VNET is being shutdown. */
+	curvnet->vnet_shutdown = 1;
 }
-VNET_SYSINIT(vnet_sysinit_done, SI_SUB_VNET_DONE, SI_ORDER_ANY,
-    vnet_sysinit_done, NULL);
+VNET_SYSUNINIT(vnet_sysuninit_shutdown, SI_SUB_VNET_DONE, SI_ORDER_FIRST,
+    vnet_sysuninit_shutdown, NULL);
 
 /*
  * When a module is loaded and requires storage for a virtualized global
