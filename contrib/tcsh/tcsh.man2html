@@ -1,5 +1,4 @@
 : # -*- perl -*-
-# $tcsh: tcsh.man2html,v 1.15 2011/02/05 16:15:56 christos Exp $
 
 # tcsh.man2html, Dave Schweisguth <dcs@proton.chem.yale.edu>
 #
@@ -372,7 +371,7 @@ and the <A HREF="ftp://ftp.astron.com/pub/tcsh/">
 complete source code</A> for <I>tcsh</I>.
 <HR>
 <I>tcsh</I> is maintained by
-Christos Zoulas <A HREF="mailto:christos\@gw.com">&lt;christos\@gw.com&gt;</A>
+Christos Zoulas <A HREF="mailto:christos\@astron.com">&lt;christos\@astron.com&gt;</A>
 and the <A HREF="$listsfile"><I>tcsh</I> maintainers' mailing list</A>.
 Dave Schweisguth <A HREF="mailto:dcs\@proton.chem.yale.edu">&lt;dcs\@proton.chem.yale.edu&gt;</A>
 wrote the manpage and the HTML conversion script.
@@ -794,20 +793,20 @@ __END__
 There are three <I>tcsh</I> mailing lists:
 <DL>
 <DT>
-<I>tcsh@mx.gw.com</I>
+<I>tcsh@mailman.astron.com</I>
 <DD>
 The <I>tcsh</I> maintainers and testers' mailing list.
 <DT>
-<I>tcsh-bugs@mx.gw.com</I>
+<I>tcsh-bugs@astron.com</I>
 <DD>
 Open bug and user comment discussion.
 </DL>
 You can subscribe to either of these lists by visiting
-<I><A HREF="http://mx.gw.com/">http://mx.gw.com/</A></I>
+<I><A HREF="https://mailman.astron.com/">https://mailman.astron.com/</A></I>
 <P>
 To file a bug report or a feature suggestion (preferably
 with code), please visit
-<I><A HREF="http://bugs.gw.com/">http://bugs.gw.com/</A></I>
+<I><A HREF="https://bugs.astron.com/">https://bugs.astron.com/</A></I>
 <P>
 <A HREF="TOPFILEHERE">Up</A>
 </BODY>

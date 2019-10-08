@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.who.c,v 3.59 2012/11/15 02:55:08 christos Exp $ */
 /*
  * tc.who.c: Watch logins and logouts...
  */
@@ -31,9 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: tc.who.c,v 3.59 2012/11/15 02:55:08 christos Exp $")
-
 #include "tc.h"
 
 #ifndef HAVENOUTMP
@@ -214,8 +210,7 @@ watch_login(int force)
 #if defined(HAVE_STRUCT_UTMP_UT_HOST) && defined(_SEQUENT_)
     char   *host, *ut_find_host();
 #endif
-#ifdef WINNT_NATIVE
-    static int ncbs_posted = 0;
+#ifdef WINNT_NATIVE    
     USE(utmp);
     USE(utmpfd);
     USE(sta);
@@ -240,28 +235,12 @@ watch_login(int force)
 	interval = 0;
 	
     (void) time(&t);
-#ifdef WINNT_NATIVE
-	/*
-	 * Since NCB_ASTATs take time, start em async at least 90 secs
-	 * before we are due -amol 6/5/97
-	 */
-	if (!ncbs_posted) {
-	    time_t tdiff = t - watch_period;
-	    if (!watch_period || ((tdiff  > 0) && (tdiff > (interval - 90)))) {
-		start_ncbs(vp);
- 		ncbs_posted = 1;
-	    }
-	}
-#endif /* WINNT_NATIVE */
     if (t - watch_period < interval) {
 	cleanup_until(&pintr_disabled);
 	return;			/* not long enough yet... */
     }
     watch_period = t;
-#ifdef WINNT_NATIVE
-    ncbs_posted = 0;
-#else /* !WINNT_NATIVE */
-
+#ifndef WINNT_NATIVE
     /*
      * From: Michael Schroeder <mlschroe@immd4.informatik.uni-erlangen.de>
      * Don't open utmp all the time, stat it first...
@@ -663,57 +642,4 @@ utmphost(void)
 }
 # endif /* UTHOSTLEN */
 
-#ifdef WINNT_NATIVE
-void
-add_to_who_list(char *name, char *mach_nm)
-{
-
-    struct who *wp, *wpnew;
-    int comp = -1;
-
-    wp = whohead.who_next;
-    while (wp->who_next && (comp = strncmp(wp->who_tty,mach_nm,UTLINLEN)) < 0)
-	wp = wp->who_next;/* find that tty! */
-
-    if (wp->who_next && comp == 0) {	/* found the tty... */
-
-	if (*name == '\0') {
-	    wp->who_time = 0;
-	    wp->who_status = OFFLINE;
-	}
-	else if (strncmp(name, wp->who_name, UTNAMLEN) == 0) {
-	    /* someone is logged in */ 
-	    wp->who_time = 0;
-	    wp->who_status = 0;	/* same guy */
-	}
-	else {
-	    (void) strncpy(wp->who_new, name, UTNAMLEN);
-	    wp->who_time = 0;
-	    if (wp->who_name[0] == '\0')
-		wp->who_status = ONLINE;
-	    else
-		wp->who_status = CHANGED;
-	}
-    }
-    else {
-	wpnew = xcalloc(1, sizeof *wpnew);
-	(void) strncpy(wpnew->who_tty, mach_nm, UTLINLEN);
-	wpnew->who_time = 0;
-	if (*name == '\0')
-	    wpnew->who_status = OFFLINE;
-	else {
-	    (void) strncpy(wpnew->who_new, name, UTNAMLEN);
-	    wpnew->who_status = ONLINE;
-	}
-#ifdef WHODEBUG
-	debugwholist(wpnew, wp);
-#endif /* WHODEBUG */
-
-	wpnew->who_next = wp;	/* link in a new 'who' */
-	wpnew->who_prev = wp->who_prev;
-	wpnew->who_prev->who_next = wpnew;
-	wp->who_prev = wpnew;	/* linked in now */
-    }
-}
-#endif /* WINNT_NATIVE */
 #endif /* HAVENOUTMP */

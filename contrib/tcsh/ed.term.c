@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/ed.term.c,v 1.38 2011/02/25 23:58:34 christos Exp $ */
 /*
  * ed.term.c: Low level terminal interface
  */
@@ -32,8 +31,6 @@
  */
 #include "sh.h"
 #ifndef WINNT_NATIVE
-
-RCSID("$tcsh: ed.term.c,v 1.38 2011/02/25 23:58:34 christos Exp $")
 #include <assert.h>
 #include "ed.h"
 

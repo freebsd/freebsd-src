@@ -1,4 +1,3 @@
-$ $tcsh: set9,v 1.5 2015/09/01 14:08:28 kim Exp $
 $ ed.xmap.c
 $set 9
 1 AddXkey: Tyhjää laajennettua näppäintä ei sallita.\n

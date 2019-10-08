@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.proc.h,v 3.16 2016/05/24 17:41:12 christos Exp $ */
 /*
  * sh.proc.h: Process data structures and variables
  */

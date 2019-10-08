@@ -1,4 +1,3 @@
-$ $tcsh: set7,v 1.4 2011/02/04 18:19:36 christos Exp $
 $ ed.screen.c
 $set 7
 1 \n\tTcsh a déterminé que votre terminal a les\n

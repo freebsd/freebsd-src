@@ -13,8 +13,8 @@ OUT="$1"
 shift
 CHARSET="$1"
 shift
-cat "${CHARSET}" $(sortit "$@") > "$TMP"
+cat "${CHARSET}" `sortit "$@"` > "$TMP"
 
-echo "$(basename "$OUT" .cat)"
+echo "`basename "$OUT" .cat`"
 "${GENCAT}" "$OUT" "$TMP"
 exit 0

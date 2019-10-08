@@ -1,5 +1,4 @@
 newcode :
-/* $Header: /p/tcsh/cvsroot/tcsh/host.defs,v 1.61 2015/05/26 18:56:19 christos Exp $ */
 /*
  * host.defs: Hosttype/Machtype etc.
  */
@@ -32,8 +31,6 @@ newcode :
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: host.defs,v 1.61 2015/05/26 18:56:19 christos Exp $")
 
 endcode :
 

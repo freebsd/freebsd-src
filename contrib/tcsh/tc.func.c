@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.func.c,v 3.158 2016/05/13 15:08:12 christos Exp $ */
 /*
  * tc.func.c: New tcsh builtins.
  */
@@ -31,9 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: tc.func.c,v 3.158 2016/05/13 15:08:12 christos Exp $")
-
 #include "ed.h"
 #include "ed.defns.h"		/* for the function names */
 #include "tw.h"
@@ -57,7 +53,7 @@ extern time_t t_period;
 extern int just_signaled;
 static int precmd_active = 0;
 static int jobcmd_active = 0; /* GrP */
-static int postcmd_active = 0;
+int postcmd_active = 0;
 static int periodic_active = 0;
 static int cwdcmd_active = 0;	/* PWP: for cwd_cmd */
 static int beepcmd_active = 0;
@@ -904,12 +900,12 @@ beep_cmd(void)
     if (beepcmd_active) {	/* an error must have been caught */
 	aliasrun(2, STRunalias, STRbeepcmd);
 	xprintf("%s", CGETS(22, 5, "Faulty alias 'beepcmd' removed.\n"));
+	goto leave;
     }
-    else {
-	beepcmd_active = 1;
-	if (!whyles && adrof1(STRbeepcmd, &aliases))
-	    aliasrun(1, STRbeepcmd, NULL);
-    }
+    beepcmd_active = 1;
+    if (!whyles && adrof1(STRbeepcmd, &aliases))
+	aliasrun(1, STRbeepcmd, NULL);
+leave:
     beepcmd_active = 0;
     cleanup_until(&pintr_disabled);
 }
@@ -926,6 +922,8 @@ period_cmd(void)
     Char *vp;
     time_t  t, interval;
 
+    if (whyles)
+	return;
     pintr_disabled++;
     cleanup_push(&pintr_disabled, disabled_cleanup);
     if (periodic_active) {	/* an error must have been caught */
@@ -964,6 +962,8 @@ leave:
 void
 job_cmd(Char *args)
 {
+    if (whyles)
+	return;
     pintr_disabled++;
     cleanup_push(&pintr_disabled, disabled_cleanup);
     if (jobcmd_active) {	/* an error must have been caught */
@@ -1157,11 +1157,14 @@ rmstar(struct wordent *cp)
     opintr_disabled = pintr_disabled;
     pintr_disabled = 0;
     while (we != cp) {
+	Char *cmd = we->word;
+	if (cmd[0] == STRQNULL[0])
+	    cmd++;
 #ifdef RMDEBUG
 	if (*tag)
-	    xprintf(CGETS(22, 7, "parsing command line\n"));
+	    xprintf(CGETS(22, 7, "parsing command line [%S]\n"), cmd);
 #endif /* RMDEBUG */
-	if (!Strcmp(we->word, STRrm)) {
+	if (!StrQcmp(cmd, STRrm)) {
 	    args = we->next;
 	    ask = (*args->word != '-');
 	    while (*args->word == '-' && !silent) {	/* check options */
@@ -1220,7 +1223,7 @@ rmstar(struct wordent *cp)
     if (*tag) {
 	xprintf(CGETS(22, 10, "command line now is:\n"));
 	for (we = cp->next; we != cp; we = we->next)
-	    xprintf("%S ", we->word);
+	    xprintf("[%S] ", we->word);
     }
 #endif /* RMDEBUG */
     pintr_disabled = opintr_disabled;
