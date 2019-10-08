@@ -41,6 +41,7 @@ struct tcpopt;
 struct tcphdr;
 struct in_conninfo;
 struct tcp_info;
+struct ktls_session;
 
 struct toedev {
 	TAILQ_ENTRY(toedev) link;	/* glue for toedev_list */
@@ -108,6 +109,10 @@ struct toedev {
 	/* Update software state */
 	void (*tod_tcp_info)(struct toedev *, struct tcpcb *,
 	    struct tcp_info *);
+
+	/* Create a TLS session */
+	int (*tod_alloc_tls_session)(struct toedev *, struct tcpcb *,
+	    struct ktls_session *);
 };
 
 typedef	void (*tcp_offload_listen_start_fn)(void *, struct tcpcb *);
