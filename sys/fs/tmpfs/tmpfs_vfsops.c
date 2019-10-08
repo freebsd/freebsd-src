@@ -262,8 +262,7 @@ again:
 		vm_map_lock(map);
 		if (map->busy)
 			vm_map_wait_busy(map);
-		for (entry = map->header.next; entry != &map->header;
-		    entry = entry->next) {
+		VM_MAP_ENTRY_FOREACH(entry, map) {
 			if ((entry->eflags & (MAP_ENTRY_GUARD |
 			    MAP_ENTRY_IS_SUB_MAP | MAP_ENTRY_COW)) != 0 ||
 			    (entry->max_protection & VM_PROT_WRITE) == 0)

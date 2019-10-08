@@ -1174,8 +1174,7 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		l_map_str = l32_map_str;
 	map = &vm->vm_map;
 	vm_map_lock_read(map);
-	for (entry = map->header.next; entry != &map->header;
-	    entry = entry->next) {
+	VM_MAP_ENTRY_FOREACH(entry, map) {
 		name = "";
 		freename = NULL;
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
