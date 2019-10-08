@@ -3822,26 +3822,18 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	struct sockaddr_dl *sdl;
 	struct ifaddr *ifa;
 	struct ifreq ifr;
-	int rc;
 
-	NET_EPOCH_ASSERT();
-
-	rc = 0;
 	ifa = ifp->if_addr;
-	if (ifa == NULL) {
-		rc = EINVAL;
-		goto out;
-	}
+	if (ifa == NULL)
+		return (EINVAL);
 
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-	if (sdl == NULL) {
-		rc = EINVAL;
-		goto out;
-	}
-	if (len != sdl->sdl_alen) {	/* don't allow length to change */
-		rc = EINVAL;
-		goto out;
-	}
+	if (sdl == NULL)
+		return (EINVAL);
+
+	if (len != sdl->sdl_alen)	/* don't allow length to change */
+		return (EINVAL);
+
 	switch (ifp->if_type) {
 	case IFT_ETHER:
 	case IFT_XETHER:
@@ -3851,8 +3843,7 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 		bcopy(lladdr, LLADDR(sdl), len);
 		break;
 	default:
-		rc = ENODEV;
-		goto out;
+		return (ENODEV);
 	}
 
 	/*
@@ -3873,9 +3864,8 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 		}
 	}
 	EVENTHANDLER_INVOKE(iflladdr_event, ifp);
+
 	return (0);
-out:
-	return (rc);
 }
 
 /*
