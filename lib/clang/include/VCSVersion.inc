@@ -7,7 +7,7 @@
 #define CLANG_REPOSITORY "https://llvm.org/svn/llvm-project/cfe/tags/RELEASE_900/final"
 
 // <Upstream revision at import>-<Local identifier in __FreeBSD_version style>
-#define LLD_REVISION "372316-1300004"
+#define LLD_REVISION "372316-1300005"
 #define LLD_REPOSITORY "FreeBSD"
 
 #define LLDB_REVISION "372316"

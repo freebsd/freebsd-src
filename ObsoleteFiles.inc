@@ -38,7 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 2019mmdd: new clang import which bumps version from 8.0.1 to 9.0.0.
+# 20191008: new clang import which bumps version from 8.0.1 to 9.0.0.
 OLD_FILES+=usr/lib/clang/8.0.1/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/8.0.1/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/8.0.1/include/sanitizer/common_interface_defs.h
@@ -188,7 +188,7 @@ OLD_FILES+=usr/lib/clang/8.0.1/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/8.0.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/8.0.1/lib
 OLD_DIRS+=usr/lib/clang/8.0.1
-# 2019mmdd: libc++ 9.0.0 removed some experimental files
+# 20191008: libc++ 9.0.0 removed some experimental files
 OLD_FILES+=usr/include/c++/v1/experimental/any
 OLD_FILES+=usr/include/c++/v1/experimental/chrono
 OLD_FILES+=usr/include/c++/v1/experimental/numeric
