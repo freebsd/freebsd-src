@@ -2376,29 +2376,22 @@ _vm_object_in_map(vm_map_t map, vm_object_t object, vm_map_entry_t entry)
 	vm_map_t tmpm;
 	vm_map_entry_t tmpe;
 	vm_object_t obj;
-	int entcount;
 
 	if (map == 0)
 		return 0;
 
 	if (entry == 0) {
-		tmpe = map->header.next;
-		entcount = map->nentries;
-		while (entcount-- && (tmpe != &map->header)) {
+		VM_MAP_ENTRY_FOREACH(tmpe, map) {
 			if (_vm_object_in_map(map, object, tmpe)) {
 				return 1;
 			}
-			tmpe = tmpe->next;
 		}
 	} else if (entry->eflags & MAP_ENTRY_IS_SUB_MAP) {
 		tmpm = entry->object.sub_map;
-		tmpe = tmpm->header.next;
-		entcount = tmpm->nentries;
-		while (entcount-- && tmpe != &tmpm->header) {
+		VM_MAP_ENTRY_FOREACH(tmpe, tmpm) {
 			if (_vm_object_in_map(tmpm, object, tmpe)) {
 				return 1;
 			}
-			tmpe = tmpe->next;
 		}
 	} else if ((obj = entry->object.vm_object) != NULL) {
 		for (; obj; obj = obj->backing_object)

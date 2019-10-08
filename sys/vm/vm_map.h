@@ -416,6 +416,10 @@ int vm_map_lookup_locked(vm_map_t *, vm_offset_t, vm_prot_t, vm_map_entry_t *, v
     vm_pindex_t *, vm_prot_t *, boolean_t *);
 void vm_map_lookup_done (vm_map_t, vm_map_entry_t);
 boolean_t vm_map_lookup_entry (vm_map_t, vm_offset_t, vm_map_entry_t *);
+#define VM_MAP_ENTRY_FOREACH(it, map)			\
+	for ((it) = (map)->header.next;		\
+	    (it) != &(map)->header;		\
+	    (it) = (it)->next)
 int vm_map_protect (vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t);
 int vm_map_remove (vm_map_t, vm_offset_t, vm_offset_t);
 void vm_map_try_merge_entries(vm_map_t map, vm_map_entry_t prev,
