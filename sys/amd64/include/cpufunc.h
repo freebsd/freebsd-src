@@ -231,7 +231,7 @@ inl(u_int port)
 static __inline void
 insb(u_int port, void *addr, size_t count)
 {
-	__asm __volatile("cld; rep; insb"
+	__asm __volatile("rep; insb"
 			 : "+D" (addr), "+c" (count)
 			 : "d" (port)
 			 : "memory");
@@ -240,7 +240,7 @@ insb(u_int port, void *addr, size_t count)
 static __inline void
 insw(u_int port, void *addr, size_t count)
 {
-	__asm __volatile("cld; rep; insw"
+	__asm __volatile("rep; insw"
 			 : "+D" (addr), "+c" (count)
 			 : "d" (port)
 			 : "memory");
@@ -249,7 +249,7 @@ insw(u_int port, void *addr, size_t count)
 static __inline void
 insl(u_int port, void *addr, size_t count)
 {
-	__asm __volatile("cld; rep; insl"
+	__asm __volatile("rep; insl"
 			 : "+D" (addr), "+c" (count)
 			 : "d" (port)
 			 : "memory");
@@ -285,7 +285,7 @@ outl(u_int port, u_int data)
 static __inline void
 outsb(u_int port, const void *addr, size_t count)
 {
-	__asm __volatile("cld; rep; outsb"
+	__asm __volatile("rep; outsb"
 			 : "+S" (addr), "+c" (count)
 			 : "d" (port));
 }
@@ -293,7 +293,7 @@ outsb(u_int port, const void *addr, size_t count)
 static __inline void
 outsw(u_int port, const void *addr, size_t count)
 {
-	__asm __volatile("cld; rep; outsw"
+	__asm __volatile("rep; outsw"
 			 : "+S" (addr), "+c" (count)
 			 : "d" (port));
 }
@@ -301,7 +301,7 @@ outsw(u_int port, const void *addr, size_t count)
 static __inline void
 outsl(u_int port, const void *addr, size_t count)
 {
-	__asm __volatile("cld; rep; outsl"
+	__asm __volatile("rep; outsl"
 			 : "+S" (addr), "+c" (count)
 			 : "d" (port));
 }
