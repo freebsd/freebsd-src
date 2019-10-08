@@ -30,11 +30,15 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 
 /* PVR */
-#define PVR_VER_P8E		0x004b0000
-#define PVR_VER_P8NVL		0x004c0000
-#define PVR_VER_P8		0x004d0000
-#define PVR_VER_P9		0x004e0000
-#define PVR_VER_MASK		0xffff0000
+#define PVR_CPU_P8E		0x004b0000
+#define PVR_CPU_P8NVL		0x004c0000
+#define PVR_CPU_P8		0x004d0000
+#define PVR_CPU_P9		0x004e0000
+#define PVR_CPU_MASK		0xffff0000
+
+#define PVR_ISA_207		0x0f000004
+#define PVR_ISA_300		0x0f000005
+#define PVR_ISA_MASK		0xffffffff
 
 /* loader version of kernel's CPU_MAXSIZE */
 #define MAX_CPUS		((uint32_t)256u)
@@ -106,7 +110,7 @@ struct opt_vec5 {
 } __packed;
 
 static struct ibm_arch_vec {
-	struct pvr		pvr_list[5];
+	struct pvr		pvr_list[7];
 	uint8_t			num_opts;
 	struct opt_vec_ignore	vec1;
 	struct opt_vec_ignore	vec2;
@@ -115,10 +119,12 @@ static struct ibm_arch_vec {
 	struct opt_vec5		vec5;
 } __packed ibm_arch_vec = {
 	/* pvr_list */ {
-		{ PVR_VER_MASK, PVR_VER_P8 },		/* POWER8 */
-		{ PVR_VER_MASK, PVR_VER_P8E },		/* POWER8E */
-		{ PVR_VER_MASK, PVR_VER_P8NVL },	/* POWER8NVL */
-		{ PVR_VER_MASK, PVR_VER_P9 },		/* POWER9 */
+		{ PVR_CPU_MASK, PVR_CPU_P8 },		/* POWER8 */
+		{ PVR_CPU_MASK, PVR_CPU_P8E },		/* POWER8E */
+		{ PVR_CPU_MASK, PVR_CPU_P8NVL },	/* POWER8NVL */
+		{ PVR_CPU_MASK, PVR_CPU_P9 },		/* POWER9 */
+		{ PVR_ISA_MASK, PVR_ISA_207 },		/* All ISA 2.07 */
+		{ PVR_ISA_MASK, PVR_ISA_300 },		/* All ISA 3.00 */
 		{ 0, 0xffffffffu }			/* terminator */
 	},
 	4,	/* num_opts (4 actually means 5 option vectors) */
@@ -192,11 +198,11 @@ ppc64_cas(void)
 	cell_t err;
 
 	/* Perform CAS only for POWER8 and later cores */
-	switch (mfpvr() & PVR_VER_MASK) {
-		case PVR_VER_P8:
-		case PVR_VER_P8E:
-		case PVR_VER_P8NVL:
-		case PVR_VER_P9:
+	switch (mfpvr() & PVR_CPU_MASK) {
+		case PVR_CPU_P8:
+		case PVR_CPU_P8E:
+		case PVR_CPU_P8NVL:
+		case PVR_CPU_P9:
 			break;
 		default:
 			return (0);
