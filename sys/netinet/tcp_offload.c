@@ -178,6 +178,17 @@ tcp_offload_tcp_info(struct tcpcb *tp, struct tcp_info *ti)
 	tod->tod_tcp_info(tod, tp, ti);
 }
 
+int
+tcp_offload_alloc_tls_session(struct tcpcb *tp, struct ktls_session *tls)
+{
+	struct toedev *tod = tp->tod;
+
+	KASSERT(tod != NULL, ("%s: tp->tod is NULL, tp %p", __func__, tp));
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+	return (tod->tod_alloc_tls_session(tod, tp, tls));
+}
+
 void
 tcp_offload_detach(struct tcpcb *tp)
 {

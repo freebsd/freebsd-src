@@ -63,6 +63,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #endif
 #include <netinet/tcp_var.h>
+#ifdef TCP_OFFLOAD
+#include <netinet/tcp_offload.h>
+#endif
 #include <opencrypto/xform.h>
 #include <vm/uma_dbg.h>
 #include <vm/vm.h>
@@ -161,6 +164,10 @@ SYSCTL_NODE(_kern_ipc_tls, OID_AUTO, sw, CTLFLAG_RD, 0,
     "Software TLS session stats");
 SYSCTL_NODE(_kern_ipc_tls, OID_AUTO, ifnet, CTLFLAG_RD, 0,
     "Hardware (ifnet) TLS session stats");
+#ifdef TCP_OFFLOAD
+SYSCTL_NODE(_kern_ipc_tls, OID_AUTO, toe, CTLFLAG_RD, 0,
+    "TOE TLS session stats");
+#endif
 
 static counter_u64_t ktls_sw_cbc;
 SYSCTL_COUNTER_U64(_kern_ipc_tls_sw, OID_AUTO, cbc, CTLFLAG_RD, &ktls_sw_cbc,
@@ -198,6 +205,18 @@ static int ktls_ifnet_permitted;
 SYSCTL_UINT(_kern_ipc_tls_ifnet, OID_AUTO, permitted, CTLFLAG_RWTUN,
     &ktls_ifnet_permitted, 1,
     "Whether to permit hardware (ifnet) TLS sessions");
+
+#ifdef TCP_OFFLOAD
+static counter_u64_t ktls_toe_cbc;
+SYSCTL_COUNTER_U64(_kern_ipc_tls_toe, OID_AUTO, cbc, CTLFLAG_RD,
+    &ktls_toe_cbc,
+    "Active number of TOE TLS sessions using AES-CBC");
+
+static counter_u64_t ktls_toe_gcm;
+SYSCTL_COUNTER_U64(_kern_ipc_tls_toe, OID_AUTO, gcm, CTLFLAG_RD,
+    &ktls_toe_gcm,
+    "Active number of TOE TLS sessions using AES-GCM");
+#endif
 
 static MALLOC_DEFINE(M_KTLS, "ktls", "Kernel TLS");
 
@@ -325,6 +344,10 @@ ktls_init(void *dummy __unused)
 	ktls_ifnet_reset = counter_u64_alloc(M_WAITOK);
 	ktls_ifnet_reset_dropped = counter_u64_alloc(M_WAITOK);
 	ktls_ifnet_reset_failed = counter_u64_alloc(M_WAITOK);
+#ifdef TCP_OFFLOAD
+	ktls_toe_cbc = counter_u64_alloc(M_WAITOK);
+	ktls_toe_gcm = counter_u64_alloc(M_WAITOK);
+#endif
 
 	rm_init(&ktls_backends_lock, "ktls backends");
 	LIST_INIT(&ktls_backends);
@@ -607,7 +630,8 @@ ktls_cleanup(struct ktls_session *tls)
 {
 
 	counter_u64_add(ktls_offload_active, -1);
-	if (tls->free != NULL) {
+	switch (tls->mode) {
+	case TCP_TLS_MODE_SW:
 		MPASS(tls->be != NULL);
 		switch (tls->params.cipher_algorithm) {
 		case CRYPTO_AES_CBC:
@@ -618,7 +642,8 @@ ktls_cleanup(struct ktls_session *tls)
 			break;
 		}
 		tls->free(tls);
-	} else if (tls->snd_tag != NULL) {
+		break;
+	case TCP_TLS_MODE_IFNET:
 		switch (tls->params.cipher_algorithm) {
 		case CRYPTO_AES_CBC:
 			counter_u64_add(ktls_ifnet_cbc, -1);
@@ -628,6 +653,19 @@ ktls_cleanup(struct ktls_session *tls)
 			break;
 		}
 		m_snd_tag_rele(tls->snd_tag);
+		break;
+#ifdef TCP_OFFLOAD
+	case TCP_TLS_MODE_TOE:
+		switch (tls->params.cipher_algorithm) {
+		case CRYPTO_AES_CBC:
+			counter_u64_add(ktls_toe_cbc, -1);
+			break;
+		case CRYPTO_AES_NIST_GCM_16:
+			counter_u64_add(ktls_toe_gcm, -1);
+			break;
+		}
+		break;
+#endif
 	}
 	if (tls->params.auth_key != NULL) {
 		explicit_bzero(tls->params.auth_key, tls->params.auth_key_len);
@@ -646,6 +684,52 @@ ktls_cleanup(struct ktls_session *tls)
 }
 
 #if defined(INET) || defined(INET6)
+
+#ifdef TCP_OFFLOAD
+static int
+ktls_try_toe(struct socket *so, struct ktls_session *tls)
+{
+	struct inpcb *inp;
+	struct tcpcb *tp;
+	int error;
+
+	inp = so->so_pcb;
+	INP_WLOCK(inp);
+	if (inp->inp_flags2 & INP_FREED) {
+		INP_WUNLOCK(inp);
+		return (ECONNRESET);
+	}
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+		INP_WUNLOCK(inp);
+		return (ECONNRESET);
+	}
+	if (inp->inp_socket == NULL) {
+		INP_WUNLOCK(inp);
+		return (ECONNRESET);
+	}
+	tp = intotcpcb(inp);
+	if (tp->tod == NULL) {
+		INP_WUNLOCK(inp);
+		return (EOPNOTSUPP);
+	}
+
+	error = tcp_offload_alloc_tls_session(tp, tls);
+	INP_WUNLOCK(inp);
+	if (error == 0) {
+		tls->mode = TCP_TLS_MODE_TOE;
+		switch (tls->params.cipher_algorithm) {
+		case CRYPTO_AES_CBC:
+			counter_u64_add(ktls_toe_cbc, 1);
+			break;
+		case CRYPTO_AES_NIST_GCM_16:
+			counter_u64_add(ktls_toe_gcm, 1);
+			break;
+		}
+	}
+	return (error);
+}
+#endif
+
 /*
  * Common code used when first enabling ifnet TLS on a connection or
  * when allocating a new ifnet TLS session due to a routing change.
@@ -744,6 +828,7 @@ ktls_try_ifnet(struct socket *so, struct ktls_session *tls, bool force)
 
 	error = ktls_alloc_snd_tag(so->so_pcb, tls, force, &mst);
 	if (error == 0) {
+		tls->mode = TCP_TLS_MODE_IFNET;
 		tls->snd_tag = mst;
 		switch (tls->params.cipher_algorithm) {
 		case CRYPTO_AES_CBC:
@@ -787,6 +872,7 @@ ktls_try_sw(struct socket *so, struct ktls_session *tls)
 		rm_runlock(&ktls_backends_lock, &prio);
 	if (be == NULL)
 		return (EOPNOTSUPP);
+	tls->mode = TCP_TLS_MODE_SW;
 	switch (tls->params.cipher_algorithm) {
 	case CRYPTO_AES_CBC:
 		counter_u64_add(ktls_sw_cbc, 1);
@@ -834,8 +920,12 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 	if (error)
 		return (error);
 
-	/* Prefer ifnet TLS over software TLS. */
-	error = ktls_try_ifnet(so, tls, false);
+	/* Prefer TOE -> ifnet TLS -> software TLS. */
+#ifdef TCP_OFFLOAD
+	error = ktls_try_toe(so, tls);
+	if (error)
+#endif
+		error = ktls_try_ifnet(so, tls, false);
 	if (error)
 		error = ktls_try_sw(so, tls);
 
@@ -852,7 +942,7 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 
 	SOCKBUF_LOCK(&so->so_snd);
 	so->so_snd.sb_tls_info = tls;
-	if (tls->sw_encrypt == NULL)
+	if (tls->mode != TCP_TLS_MODE_SW)
 		so->so_snd.sb_flags |= SB_TLS_IFNET;
 	SOCKBUF_UNLOCK(&so->so_snd);
 	sbunlock(&so->so_snd);
@@ -875,10 +965,8 @@ ktls_get_tx_mode(struct socket *so)
 	tls = so->so_snd.sb_tls_info;
 	if (tls == NULL)
 		mode = TCP_TLS_MODE_NONE;
-	else if (tls->sw_encrypt != NULL)
-		mode = TCP_TLS_MODE_SW;
 	else
-		mode = TCP_TLS_MODE_IFNET;
+		mode = tls->mode;
 	SOCKBUF_UNLOCK(&so->so_snd);
 	return (mode);
 }
@@ -893,7 +981,13 @@ ktls_set_tx_mode(struct socket *so, int mode)
 	struct inpcb *inp;
 	int error;
 
-	MPASS(mode == TCP_TLS_MODE_SW || mode == TCP_TLS_MODE_IFNET);
+	switch (mode) {
+	case TCP_TLS_MODE_SW:
+	case TCP_TLS_MODE_IFNET:
+		break;
+	default:
+		return (EINVAL);
+	}
 
 	inp = so->so_pcb;
 	INP_WLOCK_ASSERT(inp);
@@ -904,8 +998,7 @@ ktls_set_tx_mode(struct socket *so, int mode)
 		return (0);
 	}
 
-	if ((tls->sw_encrypt != NULL && mode == TCP_TLS_MODE_SW) ||
-	    (tls->sw_encrypt == NULL && mode == TCP_TLS_MODE_IFNET)) {
+	if (tls->mode == mode) {
 		SOCKBUF_UNLOCK(&so->so_snd);
 		return (0);
 	}
@@ -952,7 +1045,7 @@ ktls_set_tx_mode(struct socket *so, int mode)
 
 	SOCKBUF_LOCK(&so->so_snd);
 	so->so_snd.sb_tls_info = tls_new;
-	if (tls_new->sw_encrypt == NULL)
+	if (tls_new->mode != TCP_TLS_MODE_SW)
 		so->so_snd.sb_flags |= SB_TLS_IFNET;
 	SOCKBUF_UNLOCK(&so->so_snd);
 	sbunlock(&so->so_snd);
@@ -1238,7 +1331,7 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 		 * When using ifnet TLS, unencrypted TLS records are
 		 * sent down the stack to the NIC.
 		 */
-		if (tls->sw_encrypt != NULL) {
+		if (tls->mode == TCP_TLS_MODE_SW) {
 			m->m_flags |= M_NOTREADY;
 			pgs->nrdy = pgs->npgs;
 			*enq_cnt += pgs->npgs;
@@ -1278,7 +1371,7 @@ ktls_enqueue(struct mbuf *m, struct socket *so, int page_count)
 
 	pgs = m->m_ext.ext_pgs;
 
-	KASSERT(pgs->tls->sw_encrypt != NULL, ("ifnet TLS mbuf"));
+	KASSERT(pgs->tls->mode == TCP_TLS_MODE_SW, ("!SW TLS mbuf"));
 
 	pgs->enc_cnt = page_count;
 	pgs->mbuf = m;
