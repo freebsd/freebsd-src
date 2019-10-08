@@ -357,6 +357,7 @@ struct tcp_function_set {
 #define	TCP_TLS_MODE_NONE	0
 #define	TCP_TLS_MODE_SW		1
 #define	TCP_TLS_MODE_IFNET	2
+#define	TCP_TLS_MODE_TOE	3
 
 /*
  * TCP Control message types
