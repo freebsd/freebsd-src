@@ -2195,12 +2195,14 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 	 * Begin state merge transaction at IGMP layer.
 	 */
 	if (is_new) {
+		struct epoch_tracker et;
+
 		in_pcbref(inp);
 		INP_WUNLOCK(inp);
-
+		NET_EPOCH_ENTER(et);
 		error = in_joingroup_locked(ifp, &gsa->sin.sin_addr, imf,
 		    &imf->imf_inm);
-
+		NET_EPOCH_EXIT(et);
 		INP_WLOCK(inp);
 		if (in_pcbrele_wlocked(inp)) {
 			error = ENXIO;
