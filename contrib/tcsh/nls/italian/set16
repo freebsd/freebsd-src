@@ -1,4 +1,3 @@
-$ $tcsh: set16,v 1.2 2006/03/02 18:46:47 christos Exp $
 $ sh.lex.c
 $set 16 
 1 Reinizializzato il gruppo di processi di terminale da %d a %d\n

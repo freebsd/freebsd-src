@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.disc.c,v 3.18 2011/01/09 16:25:29 christos Exp $ */
 /*
  * tc.disc.c: Functions to set/clear line disciplines
  *
@@ -32,9 +31,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: tc.disc.c,v 3.18 2011/01/09 16:25:29 christos Exp $")
-
 #ifdef OREO
 #include <compat.h>
 #endif	/* OREO */

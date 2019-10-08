@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.exp.c,v 3.63 2015/12/09 17:17:43 christos Exp $ */
 /*
  * sh.exp.c: Expression evaluations
  */
@@ -31,9 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: sh.exp.c,v 3.63 2015/12/09 17:17:43 christos Exp $")
-
 #include "tw.h"
 
 /*

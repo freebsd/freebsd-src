@@ -1,5 +1,3 @@
-# $tcsh: Makefile.in,v 3.59 2015/08/24 20:09:04 kim Exp $
-#	Makefile.in	4.3	6/11/83
 #
 # C Shell with process control; VM/UNIX VAX Makefile
 # Bill Joy UC Berkeley; Jim Kulp IIASA, Austria
@@ -407,11 +405,11 @@ TCOBJS=	tc.alloc.${SUF} tc.bind.${SUF} tc.const.${SUF} tc.defs.${SUF} \
 	tc.vers.${SUF} tc.who.${SUF} 
 
 PVSRCS= Makefile.std Makefile.vms Makefile.in Makefile.win32
-AVSRCS= Fixes MAKEDIFFS MAKESHAR NewThings README FAQ \
+AVSRCS= BUILDING Fixes MAKEDIFFS MAKESHAR NewThings README.md FAQ \
 	WishList config_f.h eight-bit.me glob.3 patchlevel.h \
 	pathnames.h tcsh.man Ported src.desc Imakefile imake.config \
-	README.imake complete.tcsh vmsreadme.txt termcap.vms snames.h \
-	host.defs gethost.c tcsh.man2html configure.ac configure config.h.in \
+	complete.tcsh vmsreadme.txt termcap.vms snames.h host.defs \
+	gethost.c tcsh.man2html configure.ac configure config.h.in \
 	tests/testsuite.at aclocal.m4
 TESTFILES= tests/aliases.at tests/arguments.at tests/commands.at \
 	tests/expr.at tests/lexical.at tests/mb-eucjp.at \
@@ -449,7 +447,7 @@ pure:$(P) ${OBJS}
 
 gethost:  gethost.c sh.err.h tc.const.h sh.h
 	rm -f gethost
-	${CC_FOR_GETHOST} -o gethost ${CPPFLAGS} $(srcdir)/gethost.c
+	${CC_FOR_GETHOST} -o gethost ${CPPFLAGS} ${CFLAGS} ${LDFLAGS} $(srcdir)/gethost.c
 
 tc.defs.c:	gethost host.defs
 	@rm -f $@.tmp

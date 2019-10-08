@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.c,v 3.189 2016/09/12 16:33:54 christos Exp $ */
 /*
  * sh.c: Main shell routines
  */
@@ -38,8 +37,6 @@ char    copyright[] =
 "@(#) Copyright (c) 1991 The Regents of the University of California.\n\
  All rights reserved.\n";
 #endif /* not lint */
-
-RCSID("$tcsh: sh.c,v 3.189 2016/09/12 16:33:54 christos Exp $")
 
 #include "tc.h"
 #include "ed.h"
@@ -248,7 +245,7 @@ main(int argc, char **argv)
     char *tcp, *ttyn;
     int f, reenter;
     char **tempv;
-    const char *targinp = NULL;
+    static const char *targinp = NULL;
     int osetintr;
     struct sigaction oparintr;
 

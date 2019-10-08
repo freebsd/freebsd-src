@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.dir.c,v 3.85 2016/04/08 16:10:52 christos Exp $ */
 /*
  * sh.dir.c: Directory manipulation functions
  */
@@ -32,8 +31,6 @@
  */
 #include "sh.h"
 #include "ed.h"
-
-RCSID("$tcsh: sh.dir.c,v 3.85 2016/04/08 16:10:52 christos Exp $")
 
 /*
  * C Shell - directory management
