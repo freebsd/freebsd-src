@@ -78,11 +78,11 @@ function verify_assertion
 typeset PHYSPATH="some_physical_path"
 typeset REMOVAL_DISK=$DISK0
 typeset REMOVAL_NOP=${DISK0}.nop
-typeset NEW_DISK=$DISK4
-typeset NEW_NOP=${DISK4}.nop
-typeset SPARE_DISK=${DISK5}
-typeset SPARE_NOP=${DISK5}.nop
-typeset OTHER_DISKS="${DISK1} ${DISK2} ${DISK3}"
+typeset NEW_DISK=$DISK3
+typeset NEW_NOP=${DISK3}.nop
+typeset SPARE_DISK=${DISK4}
+typeset SPARE_NOP=${DISK4}.nop
+typeset OTHER_DISKS="${DISK1} ${DISK2}"
 typeset OTHER_NOPS=${OTHER_DISKS//~(E)([[:space:]]+|$)/.nop\1}
 set -A MY_KEYWORDS "mirror" "raidz1" "raidz2"
 ensure_zfsd_running
