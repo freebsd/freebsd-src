@@ -105,7 +105,7 @@ STAGE_AS_${file}= ${${group}NAME_${file}}
 # we need to expand ${group}DIR_${file} and replace
 # all '/' and '*' with '_' to make a safe target name.
 STAGE_AS_SETS+=	${${_${group}DIR_${file}}:C,[/*],_,g}
-STAGE_DIR.${${_${group}DIR_${file}}:C,[/*],_,g}= ${STAGE_OBJTOP}${${group}DIR_${file}}
+STAGE_DIR.${${_${group}DIR_${file}}:C,[/*],_,g}= ${STAGE_OBJTOP}${${_${group}DIR_${file}}}
 stage_as.${${_${group}DIR_${file}}:C,[/*],_,g}: ${file}
 
 installfiles-${group}: _${group}INS1_${file}
