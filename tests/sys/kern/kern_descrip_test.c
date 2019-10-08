@@ -28,16 +28,22 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/limits.h>
+#include <sys/resource.h>
+#include <sys/stat.h>
+#include <sys/sysctl.h>
+#include <sys/time.h>
+#include <sys/wait.h>
+
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <strings.h>
-#include <sys/limits.h>
-#include <sys/stat.h>
-#include <sys/sysctl.h>
 #include <unistd.h>
+
 #include <atf-c.h>
 
 static volatile sig_atomic_t done;
@@ -92,8 +98,13 @@ openfiles2(size_t n)
 	int r;
 
 	errno = 0;
-	for (i = 0; i < n; i++)
-		ATF_REQUIRE((r = open(AFILE, O_RDONLY)) != -1);
+	for (i = 0; i < n; i++) {
+		r = open(AFILE, O_RDONLY);
+		if (r < 0) {
+			fprintf(stderr, "open: %s\n", strerror(errno));
+			_exit(1);
+		}
+	}
 	kill(getppid(), SIGUSR1);
 
 	for (;;) {
@@ -118,10 +129,14 @@ openfiles(size_t n)
 	for (i = 0; i < PARALLEL; i++)
 		if (fork() == 0)
 			openfiles2(n / PARALLEL);
-	while (done != PARALLEL)
+	while (done != PARALLEL) {
 		usleep(1000);
+		ATF_REQUIRE_EQ_MSG(0, waitpid(-1, NULL, WNOHANG),
+			"a child exited unexpectedly");
+	}
 	unlink(RENDEZVOUS);
-	usleep(40000);
+	for (i = 0; i < PARALLEL; i++)
+		ATF_CHECK_MSG(wait(NULL) > 0, "wait: %s", strerror(errno));
 }
 
 ATF_TC_WITH_CLEANUP(kern_maxfiles__increase);
@@ -138,6 +153,7 @@ ATF_TC_BODY(kern_maxfiles__increase, tc)
 	size_t oldlen;
 	int maxfiles, oldmaxfiles, current;
 	char buf[80];
+	struct rlimit rl;
 
 	oldlen = sizeof(maxfiles);
 	if (sysctlbyname("kern.maxfiles", &maxfiles, &oldlen, NULL, 0) == -1)
@@ -160,8 +176,11 @@ ATF_TC_BODY(kern_maxfiles__increase, tc)
 		atf_tc_fail("getsysctlbyname(%s): %s", "kern.maxfiles",
 		    strerror(errno));
 
-	openfiles(oldmaxfiles - current + 1);
-	(void)unlink(VALUE);
+	rl.rlim_cur = rl.rlim_max = maxfiles;
+	ATF_REQUIRE_EQ_MSG(0, setrlimit(RLIMIT_NOFILE, &rl),
+		"setrlimit(RLIMIT_NOFILE, %d): %s", maxfiles, strerror(errno));
+
+	openfiles(oldmaxfiles - current + EXPANDBY / 2);
 }
 
 ATF_TC_CLEANUP(kern_maxfiles__increase, tc)
@@ -178,6 +197,8 @@ ATF_TC_CLEANUP(kern_maxfiles__increase, tc)
 			    &oldmaxfiles, oldlen);
 		}
 	}
+	(void)unlink(VALUE);
+	(void)unlink(AFILE);
 }
 
 ATF_TP_ADD_TCS(tp)
