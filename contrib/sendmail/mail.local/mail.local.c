@@ -393,7 +393,7 @@ main(argc, argv)
 	}
 
 	/* Non-LMTP from here on out */
-	if (*argv == '\0')
+	if (*argv == NULL)
 		usage();
 
 	/*
