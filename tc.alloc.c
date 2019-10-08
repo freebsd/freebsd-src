@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.alloc.c,v 3.56 2016/03/08 12:47:43 christos Exp $ */
 /*
  * tc.alloc.c (Caltech) 2/21/82
  * Chris Kingsley, kingsley@cit-20.
@@ -45,8 +44,6 @@
 #if defined(HAVE_SBRK) && !defined(__APPLE__)
 #define USE_SBRK
 #endif
-
-RCSID("$tcsh: tc.alloc.c,v 3.56 2016/03/08 12:47:43 christos Exp $")
 
 #define RCHECK
 #define DEBUG
@@ -234,7 +231,7 @@ malloc(size_t nbytes)
     /*
      * Record allocated size of block and bound space with magic numbers.
      */
-    p->ov_size = (p->ov_index <= 13) ? nbytes - 1 : 0;
+    p->ov_size = (p->ov_index <= 13) ? (U_short)nbytes - 1 : 0;
     p->ov_rmagic = RMAGIC;
     *((U_int *) (((caddr_t) p) + nbytes - RSLOP)) = RMAGIC;
 #endif
@@ -426,7 +423,7 @@ realloc(ptr_t cp, size_t nbytes)
 	nbytes = MEMALIGN(MEMALIGN(sizeof(union overhead))+nbytes+RSLOP);
 	*((U_int *) (((caddr_t) op) + nbytes - RSLOP)) = RMAGIC;
 	op->ov_rmagic = RMAGIC;
-	op->ov_size = (op->ov_index <= 13) ? nbytes - 1 : 0;
+	op->ov_size = (op->ov_index <= 13) ? (U_short)nbytes - 1 : 0;
 #endif
 	return ((memalign_t) cp);
     }

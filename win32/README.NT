@@ -234,27 +234,6 @@ NT-specific Builtins
 * start: like cmd.exe's start
 * title: change the shell title
 * cls: Clear the entire console buffer instead of just the visible window.
-* ps: list processes running currently. With -w, list window titles as well.
-
-* shutdown:  (works on Windows NT only)
-
-	shutdown -[r|l|f] now
-
-(Even though no time argument is supported, "now" must be specified, EXCEPT
-with -l .This is to prevent you from accidentally shutting the machine down.)
-    -r reboots, -l logs you off and -f forces apps to terminate.
-
-The default action is to shut the machine down.
-
-     
-* sourcerc: tcsh can be compiled with a stringtable resource that can be
-	sourced using this command. This feature is designed as a way to avoid
-	having to copy the .tcshrc to every computer you run tcsh on. The default
-	resource is a simple version of my .tcshrc. More complicated settings can
-	then be copied when needed.
-
-* printrc: print the compiled-in resource that will be sourced by sourcerc.
-
 
 Notes:
 -----
@@ -350,31 +329,6 @@ To bind ctrl or alt combinations, use the following as examples.
 
 For Shift combinations:
 	bindkey -b N-S-1 backward-word
-
-Clipboard support
------------------
-Since version 3.58, you can cut and paste to and from the clipboard
-directly from the shell. To do this, use bindings like the following:
-
-	bindkey -b M-x e_copy_to_clipboard
-	bindkey -b M-y e_paste_from_clipboard
-
-Then, to paste text from the clipboard into the current input line, you
-can type:
-	M-y
-And to copy the current shell's kill buffer to the clipboard,
-	M-x
-
-(The kill buffer contains the last deletion from an editing command. Sort 
-of like an 'undo' buffer).
-
-You can also use the clipboard to redirect I/O, with /dev/clipboard as
-the destination/source file.
-
-
-NOTE: From version 6.00 onwards, the e_paste operation does NOT copy the
-clipboard contents to the shell kill buffer. 
-
 
 
 e_dosify_next

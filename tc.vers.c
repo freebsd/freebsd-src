@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.vers.c,v 3.54 2006/03/02 18:46:45 christos Exp $ */
 /*
  * tc.vers.c: Version dependent stuff
  */
@@ -32,9 +31,6 @@
  */
 #include "sh.h"
 #include "tw.h"
-
-RCSID("$tcsh: tc.vers.c,v 3.54 2006/03/02 18:46:45 christos Exp $")
-
 #include "patchlevel.h"
 
 

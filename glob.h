@@ -1,4 +1,4 @@
-/*	$NetBSD: glob.h,v 1.13 2001/03/16 21:02:42 christos Exp $	*/
+/*	NetBSD: glob.h,v 1.13 2001/03/16 21:02:42 christos Exp	*/
 
 /*
  * Copyright (c) 1989, 1993

@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.decls.h,v 3.68 2016/08/01 16:21:09 christos Exp $ */
 /*
  * sh.decls.h	 External declarations from sh*.c
  */

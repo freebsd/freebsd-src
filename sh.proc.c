@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.proc.c,v 3.134 2016/09/23 19:17:28 christos Exp $ */
 /*
  * sh.proc.c: Job manipulations
  */
@@ -31,9 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: sh.proc.c,v 3.134 2016/09/23 19:17:28 christos Exp $")
-
 #include "ed.h"
 #include "tc.h"
 #include "tc.wait.h"

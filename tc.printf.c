@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.printf.c,v 3.38 2015/06/06 21:19:08 christos Exp $ */
 /*
  * tc.printf.c: A public-domain, minimal printf/sprintf routine that prints
  *	       through the putchar() routine.  Feel free to use for
@@ -33,8 +32,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: tc.printf.c,v 3.38 2015/06/06 21:19:08 christos Exp $")
 
 #ifdef lint
 #undef va_arg

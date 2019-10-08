@@ -1,4 +1,3 @@
-/*$Header: /p/tcsh/cvsroot/tcsh/win32/io.c,v 1.9 2006/04/13 00:59:02 amold Exp $*/
 /*-
  * Copyright (c) 1980, 1991 The Regents of the University of California.
  * All rights reserved.
@@ -59,9 +58,9 @@ int consoleread(HANDLE , unsigned char * ,size_t ) ;
 INPUT_RECORD girec[2048];
 
 unsigned short __nt_want_vcode=0,__nt_vcode=0;
-HANDLE __h_con_alarm=0;
-HANDLE __h_con_int=0;
-HANDLE __h_con_hup=0;
+HANDLE __h_con_alarm;
+HANDLE __h_con_int;
+HANDLE __h_con_hup;
 
 extern int NoNLSRebind;
 

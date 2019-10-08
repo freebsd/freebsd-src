@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/ed.term.h,v 1.19 2015/03/25 19:53:16 christos Exp $ */
 /*
  * ed.term.h: Local terminal header
  */

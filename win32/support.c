@@ -1,4 +1,3 @@
-/*$Header: /p/tcsh/cvsroot/tcsh/win32/support.c,v 1.16 2014/08/17 02:56:37 amold Exp $*/
 /*-
  * Copyright (c) 1980, 1991 The Regents of the University of California.
  * All rights reserved.
@@ -92,15 +91,12 @@ void nt_init(void) {
 	init_hb_subst();
 	setlocale(LC_ALL,"");
 	init_shell_dll();
-	init_plister();
 	fork_init();
-	init_clipboard();
 	return;
 }
 void nt_cleanup(void){
 	nt_term_cleanup();
 	nt_cleanup_signals();
-	cleanup_netbios();
 }
 void caseify_pwd(char *curwd) {
 	char *sp, *dp, p,*s;
@@ -454,19 +450,6 @@ re_cp:
 			(void)GetExitCodeProcess(pi.hProcess,&exitcode);
 			CloseHandle(pi.hProcess);
 			CloseHandle(pi.hThread);
-			/*
-			 * If output was redirected to /dev/clipboard,
-			 * we need to close the pipe handles
-			 */
-			if (is_dev_clipboard_active) {
-				CloseHandle((HANDLE)_get_osfhandle(0));
-				CloseHandle((HANDLE)_get_osfhandle(1));
-				CloseHandle((HANDLE)_get_osfhandle(2));
-				CloseHandle(si.hStdInput);
-				CloseHandle(si.hStdOutput);
-				CloseHandle(si.hStdError);
-				WaitForSingleObject(ghdevclipthread,60*1000);
-			}
 			ExitProcess(exitcode);
 		}
 	}
@@ -544,6 +527,7 @@ void init_wow64(void) {
 		FreeLibrary(hlib);
 		return;
 	}
+#pragma warning(suppress:28278)
 	if (!pfnIsWow64(GetCurrentProcess(),&bIsWow64Process) )
 		bIsWow64Process = FALSE;
 
@@ -836,7 +820,7 @@ char *concat_args_and_quote(char **args, char **poriginalPtr,char **cstr,
 		if (arglen + cmdlen +4 > *cmdsize) { // +4 is if we have to quote
 
 
-			tempptr = heap_realloc(*poriginalPtr,*cmdsize<<1);
+			tempptr = heap_realloc(*poriginalPtr,(long long)(*cmdsize)<<1LL);
 
 			if(!tempptr)
 				return NULL;
@@ -862,7 +846,7 @@ char *concat_args_and_quote(char **args, char **poriginalPtr,char **cstr,
 
 			while(rc == ERROR_BUFFER_OVERFLOW) {
 				char *tmp = tempquotedbuf;
-				tempquotedbuf = heap_realloc(tempquotedbuf,tqlen <<1);
+				tempquotedbuf = heap_realloc(tempquotedbuf,(long long)tqlen <<1);
 				if(!tempquotedbuf) {
 					heap_free(tmp);
 					return NULL;

@@ -1,5 +1,3 @@
-# $Id: Makefile.win32,v 1.17 2014/08/17 02:56:37 amold Exp $
-#	Makefile.std	4.3	6/11/83
 #
 # C Shell with process control; VM/UNIX VAX Makefile
 # Bill Joy UC Berkeley; Jim Kulp IIASA, Austria
@@ -23,11 +21,11 @@ CF=-c -nologo
 
 INCLUDES=-I. -I.. -Iwin32 
 
-DEBUG_CRTLIBS= libcmtd.lib oldnames.lib  libcpmtd.lib
-CRTLIBS= libcmt.lib oldnames.lib libcpmt.lib
+DEBUG_CRTLIBS= libcmtd.lib oldnames.lib  libcpmtd.lib libvcruntimed.lib libucrtd.lib legacy_stdio_definitions.lib legacy_stdio_wide_specifiers.lib
+CRTLIBS= libcmt.lib oldnames.lib libcpmt.lib libvcruntime.lib libucrt.lib legacy_stdio_definitions.lib legacy_stdio_wide_specifiers.lib
 
 EXTRAFLAGS = -DWINNT_NATIVE -DNO_CRYPT -DHAVE_DIRENT_H $(EFL) \
-              -wd28159 -wd28218 -wd28199 -wd6387
+              -wd28159 -wd28218 -wd28199 -wd6387 -wd6385
 
 WINDOWS_WARNING_LEVEL=-W4 -WX
 REST_WARNING_LEVEL=-WX -W3
@@ -39,7 +37,7 @@ ANALYZE_FLAGS = -analyze
  
 REST_WARNING_LEVEL= -W3
 ANALYZE_FLAGS= 
-IGNORE_64= -wd4244 -wd4267 
+IGNORE_64= -wd4244 -wd4267  -wd4311
 
 !if "$(WIN64)" == ""
 !Message
@@ -88,7 +86,7 @@ NTCFLAGS = $(NTCFLAGS) -Zp8
 !endif
 
 CFLAGS= -MT $(NTCFLAGS) $(INCLUDES) 
-LDFLAGS= -nodefaultlib $(NTLDFLAGS) -stack:1048576,524288 -dynamicbase:no
+LDFLAGS= -nodefaultlib $(NTLDFLAGS) -stack:1048576,524288 -dynamicbase:no -ignore:4099
 
 
 CC=	cl 	
@@ -136,11 +134,11 @@ NTSRCS = win32\io.c win32\stdio.c win32\dirent.c win32\signal.c\
 		win32\support.c \
 		win32\nt.char.c win32\bogus.c win32\console.c win32\fork.c \
 		win32\ntfunc.c win32\ntb1.c win32\ntb2.c win32\globals.c \
-		win32\nt.who.c win32\ps.c win32\clip.c win32\nt.const.c \
+		win32\ps.c win32\nt.const.c win32\clip.c\
 		win32\nt.bind.c  win32\nt.screen.c
 NTOBJS = io.$(SUF) stdio.$(SUF) dirent.$(SUF) signal.$(SUF) support.$(SUF) \
 	    nt.char.$(SUF) bogus.$(SUF) console.$(SUF) fork.$(SUF) ntfunc.$(SUF) \
-        globals.$(SUF) nt.who.$(SUF) ps.$(SUF) \
+        globals.$(SUF)  ps.$(SUF) \
 		clip.$(SUF) nt.const.$(SUF) nt.bind.$(SUF) nt.screen.$(SUF)
 
 VHSRCS=$(PVSRCS) $(AVSRCS)
@@ -228,6 +226,7 @@ clean:
 
 cleanall: clean
 	-del $(BUILD)
+	-del *nativecodeanalysi*.xml
 
 
 config.h: config_f.h
@@ -267,6 +266,28 @@ ed.chared.$(SUF): ed.chared.c
 	$(CC) $(CF) $(CFLAGS) $(DFLAGS) $(EXTRAFLAGS)  $(IGNORE_64) ed.chared.c
 ed.inputl.$(SUF): ed.inputl.c
 	$(CC) $(CF) $(CFLAGS) $(DFLAGS) $(EXTRAFLAGS)  $(IGNORE_64) ed.inputl.c
+sh.dol.$(SUF): sh.dol.c
+	$(CC) $(CF) $(CFLAGS) $(DFLAGS) $(EXTRAFLAGS)  $(IGNORE_64) sh.dol.c
+sh.func.$(SUF): sh.func.c
+	$(CC) $(CF) $(CFLAGS) $(DFLAGS) $(EXTRAFLAGS)  $(IGNORE_64) sh.func.c
+sh.glob.$(SUF): sh.glob.c
+	$(CC) $(CF) $(CFLAGS) $(DFLAGS) $(EXTRAFLAGS)  $(IGNORE_64) sh.glob.c
+tw.parse.$(SUF): tw.parse.c
+	$(CC) $(CF) $(CFLAGS) $(DFLAGS) $(EXTRAFLAGS)  $(IGNORE_64) tw.parse.c
+tw.comp.$(SUF): tw.comp.c
+	$(CC) $(CF) $(CFLAGS) $(DFLAGS) $(EXTRAFLAGS)  $(IGNORE_64) tw.comp.c
+tw.color.$(SUF): tw.color.c
+	$(CC) $(CF) $(CFLAGS) $(DFLAGS) $(EXTRAFLAGS)  $(IGNORE_64) tw.color.c
+ed.refresh.$(SUF): ed.refresh.c
+	$(CC) $(CF) $(CFLAGS) $(DFLAGS) $(EXTRAFLAGS)  $(IGNORE_64) ed.refresh.c
+tc.alloc.$(SUF): tc.alloc.c
+	$(CC) $(CF) $(CFLAGS) $(DFLAGS) $(EXTRAFLAGS)  $(IGNORE_64) tc.alloc.c
+tc.bind.$(SUF): tc.bind.c
+	$(CC) $(CF) $(CFLAGS) $(DFLAGS) $(EXTRAFLAGS)  $(IGNORE_64) tc.bind.c
+tc.printf.$(SUF): tc.printf.c
+	$(CC) $(CF) $(CFLAGS) $(DFLAGS) $(EXTRAFLAGS)  $(IGNORE_64) tc.printf.c
+tc.prompt.$(SUF): tc.prompt.c
+	$(CC) $(CF) $(CFLAGS) $(DFLAGS) $(EXTRAFLAGS)  $(IGNORE_64) tc.prompt.c
 
 # turn optimizations off just for these files otherwise fork doesn't work
 sh.sem.$(SUF): sh.sem.c
