@@ -48,8 +48,8 @@ create_pool $TESTPOOL mirror ${DISK0} ${DISK1}
 # is complete.  We don't want that to happen during this test, so write some
 # data just to slow down resilvering.
 $TIMEOUT 60s $DD if=/dev/zero of=/$TESTPOOL/zerofile bs=128k
-log_must $ZPOOL replace $TESTPOOL ${DISK0} ${DISK2}
 log_must $ZPOOL add $TESTPOOL spare ${DISK3}
+log_must $ZPOOL replace $TESTPOOL ${DISK0} ${DISK2}
 log_must $ZPOOL replace $TESTPOOL ${DISK0} ${DISK3}
 log_must $ZPOOL add $TESTPOOL spare ${DISK4}
 
