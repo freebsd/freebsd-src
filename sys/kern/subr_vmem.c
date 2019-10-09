@@ -466,6 +466,7 @@ static void
 bt_remseg(vmem_t *vm, bt_t *bt)
 {
 
+	MPASS(bt->bt_type != BT_TYPE_CURSOR);
 	TAILQ_REMOVE(&vm->vm_seglist, bt, bt_seglist);
 	bt_free(vm, bt);
 }
@@ -843,6 +844,7 @@ vmem_destroy1(vmem_t *vm)
 	VMEM_LOCK(vm);
 	MPASS(vm->vm_nbusytag == 0);
 
+	TAILQ_REMOVE(&vm->vm_seglist, &vm->vm_cursor, bt_seglist);
 	while ((bt = TAILQ_FIRST(&vm->vm_seglist)) != NULL)
 		bt_remseg(vm, bt);
 
