@@ -11,7 +11,6 @@ INCS+=		asan_interface.h
 INCS+=		common_interface_defs.h
 INCS+=		coverage_interface.h
 INCS+=		dfsan_interface.h
-INCS+=		esan_interface.h
 INCS+=		hwasan_interface.h
 INCS+=		linux_syscall_hooks.h
 INCS+=		lsan_interface.h

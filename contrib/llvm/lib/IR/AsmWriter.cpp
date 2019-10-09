@@ -1,9 +1,8 @@
 //===- AsmWriter.cpp - Printing LLVM as an assembly file ------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -621,7 +620,10 @@ void TypePrinting::print(Type *Ty, raw_ostream &OS) {
   }
   case Type::VectorTyID: {
     VectorType *PTy = cast<VectorType>(Ty);
-    OS << "<" << PTy->getNumElements() << " x ";
+    OS << "<";
+    if (PTy->isScalable())
+      OS << "vscale x ";
+    OS << PTy->getNumElements() << " x ";
     print(PTy->getElementType(), OS);
     OS << '>';
     return;
@@ -1037,6 +1039,9 @@ void SlotTracker::processIndex() {
   for (auto TidIter = TheIndex->typeIds().begin();
        TidIter != TheIndex->typeIds().end(); TidIter++)
     CreateTypeIdSlot(TidIter->second.first);
+
+  for (auto &TId : TheIndex->typeIdCompatibleVtableMap())
+    CreateGUIDSlot(GlobalValue::getGUID(TId.first));
 
   ST_DEBUG("end processIndex!\n");
 }
@@ -2002,6 +2007,19 @@ static void writeDINamespace(raw_ostream &Out, const DINamespace *N,
   Out << ")";
 }
 
+static void writeDICommonBlock(raw_ostream &Out, const DICommonBlock *N,
+                               TypePrinting *TypePrinter, SlotTracker *Machine,
+                               const Module *Context) {
+  Out << "!DICommonBlock(";
+  MDFieldPrinter Printer(Out, TypePrinter, Machine, Context);
+  Printer.printMetadata("scope", N->getRawScope(), false);
+  Printer.printMetadata("declaration", N->getRawDecl(), false);
+  Printer.printString("name", N->getName());
+  Printer.printMetadata("file", N->getRawFile());
+  Printer.printInt("line", N->getLineNo());
+  Out << ")";
+}
+
 static void writeDIMacro(raw_ostream &Out, const DIMacro *N,
                          TypePrinting *TypePrinter, SlotTracker *Machine,
                          const Module *Context) {
@@ -2124,8 +2142,13 @@ static void writeDIExpression(raw_ostream &Out, const DIExpression *N,
       assert(!OpStr.empty() && "Expected valid opcode");
 
       Out << FS << OpStr;
-      for (unsigned A = 0, AE = I->getNumArgs(); A != AE; ++A)
-        Out << FS << I->getArg(A);
+      if (I->getOp() == dwarf::DW_OP_LLVM_convert) {
+        Out << FS << I->getArg(0);
+        Out << FS << dwarf::AttributeEncodingString(I->getArg(1));
+      } else {
+        for (unsigned A = 0, AE = I->getNumArgs(); A != AE; ++A)
+          Out << FS << I->getArg(A);
+      }
     }
   } else {
     for (const auto &I : N->getElements())
@@ -2393,6 +2416,7 @@ public:
   void printGlobalVarSummary(const GlobalVarSummary *GS);
   void printFunctionSummary(const FunctionSummary *FS);
   void printTypeIdSummary(const TypeIdSummary &TIS);
+  void printTypeIdCompatibleVtableSummary(const TypeIdCompatibleVtableInfo &TI);
   void printTypeTestResolution(const TypeTestResolution &TTRes);
   void printArgs(const std::vector<uint64_t> &Args);
   void printWPDRes(const WholeProgramDevirtResolution &WPDRes);
@@ -2695,6 +2719,15 @@ void AssemblyWriter::printModuleSummaryIndex() {
     printTypeIdSummary(TidIter->second.second);
     Out << ") ; guid = " << TidIter->first << "\n";
   }
+
+  // Print the TypeIdCompatibleVtableMap entries.
+  for (auto &TId : TheIndex->typeIdCompatibleVtableMap()) {
+    auto GUID = GlobalValue::getGUID(TId.first);
+    Out << "^" << Machine.getGUIDSlot(GUID)
+        << " = typeidCompatibleVTable: (name: \"" << TId.first << "\"";
+    printTypeIdCompatibleVtableSummary(TId.second);
+    Out << ") ; guid = " << GUID << "\n";
+  }
 }
 
 static const char *
@@ -2777,6 +2810,19 @@ void AssemblyWriter::printTypeIdSummary(const TypeIdSummary &TIS) {
   Out << ")";
 }
 
+void AssemblyWriter::printTypeIdCompatibleVtableSummary(
+    const TypeIdCompatibleVtableInfo &TI) {
+  Out << ", summary: (";
+  FieldSeparator FS;
+  for (auto &P : TI) {
+    Out << FS;
+    Out << "(offset: " << P.AddressPointOffset << ", ";
+    Out << "^" << Machine.getGUIDSlot(P.VTableVI.getGUID());
+    Out << ")";
+  }
+  Out << ")";
+}
+
 void AssemblyWriter::printArgs(const std::vector<uint64_t> &Args) {
   Out << "args: (";
   FieldSeparator FS;
@@ -2845,7 +2891,21 @@ void AssemblyWriter::printAliasSummary(const AliasSummary *AS) {
 }
 
 void AssemblyWriter::printGlobalVarSummary(const GlobalVarSummary *GS) {
-  Out << ", varFlags: (readonly: " << GS->VarFlags.ReadOnly << ")";
+  Out << ", varFlags: (readonly: " << GS->VarFlags.MaybeReadOnly << ", "
+      << "writeonly: " << GS->VarFlags.MaybeWriteOnly << ")";
+
+  auto VTableFuncs = GS->vTableFuncs();
+  if (!VTableFuncs.empty()) {
+    Out << ", vTableFuncs: (";
+    FieldSeparator FS;
+    for (auto &P : VTableFuncs) {
+      Out << FS;
+      Out << "(virtFunc: ^" << Machine.getGUIDSlot(P.FuncVI.getGUID())
+          << ", offset: " << P.VTableOffset;
+      Out << ")";
+    }
+    Out << ")";
+  }
 }
 
 static std::string getLinkageName(GlobalValue::LinkageTypes LT) {
@@ -3024,6 +3084,7 @@ void AssemblyWriter::printSummary(const GlobalValueSummary &Summary) {
   Out << ", notEligibleToImport: " << GVFlags.NotEligibleToImport;
   Out << ", live: " << GVFlags.Live;
   Out << ", dsoLocal: " << GVFlags.DSOLocal;
+  Out << ", canAutoHide: " << GVFlags.CanAutoHide;
   Out << ")";
 
   if (Summary.getSummaryKind() == GlobalValueSummary::AliasKind)
@@ -3041,6 +3102,8 @@ void AssemblyWriter::printSummary(const GlobalValueSummary &Summary) {
       Out << FS;
       if (Ref.isReadOnly())
         Out << "readonly ";
+      else if (Ref.isWriteOnly())
+        Out << "writeonly ";
       Out << "^" << Machine.getGUIDSlot(Ref.getGUID());
     }
     Out << ")";
@@ -3229,6 +3292,12 @@ void AssemblyWriter::printGlobal(const GlobalVariable *GV) {
     printEscapedString(GV->getSection(), Out);
     Out << '"';
   }
+  if (GV->hasPartition()) {
+    Out << ", partition \"";
+    printEscapedString(GV->getPartition(), Out);
+    Out << '"';
+  }
+
   maybePrintComdat(Out, *GV);
   if (GV->getAlignment())
     Out << ", align " << GV->getAlignment();
@@ -3278,6 +3347,12 @@ void AssemblyWriter::printIndirectSymbol(const GlobalIndirectSymbol *GIS) {
     Out << " <<NULL ALIASEE>>";
   } else {
     writeOperand(IS, !isa<ConstantExpr>(IS));
+  }
+
+  if (GIS->hasPartition()) {
+    Out << ", partition \"";
+    printEscapedString(GIS->getPartition(), Out);
+    Out << '"';
   }
 
   printInfoComment(*GIS);
@@ -3420,6 +3495,11 @@ void AssemblyWriter::printFunction(const Function *F) {
     printEscapedString(F->getSection(), Out);
     Out << '"';
   }
+  if (F->hasPartition()) {
+    Out << " partition \"";
+    printEscapedString(F->getPartition(), Out);
+    Out << '"';
+  }
   maybePrintComdat(Out, *F);
   if (F->getAlignment())
     Out << " align " << F->getAlignment();
@@ -3478,23 +3558,24 @@ void AssemblyWriter::printArgument(const Argument *Arg, AttributeSet Attrs) {
 
 /// printBasicBlock - This member is called for each basic block in a method.
 void AssemblyWriter::printBasicBlock(const BasicBlock *BB) {
+  bool IsEntryBlock = BB == &BB->getParent()->getEntryBlock();
   if (BB->hasName()) {              // Print out the label if it exists...
     Out << "\n";
     PrintLLVMName(Out, BB->getName(), LabelPrefix);
     Out << ':';
-  } else if (!BB->use_empty()) {      // Don't print block # of no uses...
-    Out << "\n; <label>:";
+  } else if (!IsEntryBlock) {
+    Out << "\n";
     int Slot = Machine.getLocalSlot(BB);
     if (Slot != -1)
       Out << Slot << ":";
     else
-      Out << "<badref>";
+      Out << "<badref>:";
   }
 
   if (!BB->getParent()) {
     Out.PadToColumn(50);
     Out << "; Error: Block without parent!";
-  } else if (BB != &BB->getParent()->getEntryBlock()) {  // Not the entry block?
+  } else if (!IsEntryBlock) {
     // Output predecessors for the block.
     Out.PadToColumn(50);
     Out << ";";
@@ -3837,6 +3918,51 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
     writeOperand(II->getNormalDest(), true);
     Out << " unwind ";
     writeOperand(II->getUnwindDest(), true);
+  } else if (const CallBrInst *CBI = dyn_cast<CallBrInst>(&I)) {
+    Operand = CBI->getCalledValue();
+    FunctionType *FTy = CBI->getFunctionType();
+    Type *RetTy = FTy->getReturnType();
+    const AttributeList &PAL = CBI->getAttributes();
+
+    // Print the calling convention being used.
+    if (CBI->getCallingConv() != CallingConv::C) {
+      Out << " ";
+      PrintCallingConv(CBI->getCallingConv(), Out);
+    }
+
+    if (PAL.hasAttributes(AttributeList::ReturnIndex))
+      Out << ' ' << PAL.getAsString(AttributeList::ReturnIndex);
+
+    // If possible, print out the short form of the callbr instruction. We can
+    // only do this if the first argument is a pointer to a nonvararg function,
+    // and if the return type is not a pointer to a function.
+    //
+    Out << ' ';
+    TypePrinter.print(FTy->isVarArg() ? FTy : RetTy, Out);
+    Out << ' ';
+    writeOperand(Operand, false);
+    Out << '(';
+    for (unsigned op = 0, Eop = CBI->getNumArgOperands(); op < Eop; ++op) {
+      if (op)
+        Out << ", ";
+      writeParamOperand(CBI->getArgOperand(op), PAL.getParamAttributes(op));
+    }
+
+    Out << ')';
+    if (PAL.hasAttributes(AttributeList::FunctionIndex))
+      Out << " #" << Machine.getAttributeGroupSlot(PAL.getFnAttributes());
+
+    writeOperandBundles(CBI);
+
+    Out << "\n          to ";
+    writeOperand(CBI->getDefaultDest(), true);
+    Out << " [";
+    for (unsigned i = 0, e = CBI->getNumIndirectDests(); i != e; ++i) {
+      if (i != 0)
+        Out << ", ";
+      writeOperand(CBI->getIndirectDest(i), true);
+    }
+    Out << ']';
   } else if (const AllocaInst *AI = dyn_cast<AllocaInst>(&I)) {
     Out << ' ';
     if (AI->isUsedWithInAlloca())

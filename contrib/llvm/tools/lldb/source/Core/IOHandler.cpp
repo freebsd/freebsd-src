@@ -1,9 +1,8 @@
 //===-- IOHandler.cpp -------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -77,16 +76,19 @@ IOHandler::IOHandler(Debugger &debugger, IOHandler::Type type)
                 StreamFileSP(), // Adopt STDIN from top input reader
                 StreamFileSP(), // Adopt STDOUT from top input reader
                 StreamFileSP(), // Adopt STDERR from top input reader
-                0)              // Flags
-{}
+                0,              // Flags
+                nullptr         // Shadow file recorder
+      ) {}
 
 IOHandler::IOHandler(Debugger &debugger, IOHandler::Type type,
                      const lldb::StreamFileSP &input_sp,
                      const lldb::StreamFileSP &output_sp,
-                     const lldb::StreamFileSP &error_sp, uint32_t flags)
+                     const lldb::StreamFileSP &error_sp, uint32_t flags,
+                     repro::DataRecorder *data_recorder)
     : m_debugger(debugger), m_input_sp(input_sp), m_output_sp(output_sp),
-      m_error_sp(error_sp), m_popped(false), m_flags(flags), m_type(type),
-      m_user_data(nullptr), m_done(false), m_active(false) {
+      m_error_sp(error_sp), m_data_recorder(data_recorder), m_popped(false),
+      m_flags(flags), m_type(type), m_user_data(nullptr), m_done(false),
+      m_active(false) {
   // If any files are not specified, then adopt them from the top input reader.
   if (!m_input_sp || !m_output_sp || !m_error_sp)
     debugger.AdoptTopIOHandlerFilesIfInvalid(m_input_sp, m_output_sp,
@@ -154,7 +156,7 @@ IOHandlerConfirm::IOHandlerConfirm(Debugger &debugger, llvm::StringRef prompt,
           llvm::StringRef(), // No continuation prompt
           false,             // Multi-line
           false, // Don't colorize the prompt (i.e. the confirm message.)
-          0, *this),
+          0, *this, nullptr),
       m_default_response(default_response), m_user_response(default_response) {
   StreamString prompt_stream;
   prompt_stream.PutCString(prompt);
@@ -231,7 +233,7 @@ int IOHandlerDelegate::IOHandlerComplete(
         matches, descriptions);
   case Completion::Expression: {
     CompletionResult result;
-    CompletionRequest request(current_line, current_line - cursor,
+    CompletionRequest request(current_line, cursor - current_line,
                               skip_first_n_matches, max_matches, result);
     CommandCompletions::InvokeCommonCompletionCallbacks(
         io_handler.GetDebugger().GetCommandInterpreter(),
@@ -265,7 +267,7 @@ IOHandlerEditline::IOHandlerEditline(
     const char *editline_name, // Used for saving history files
     llvm::StringRef prompt, llvm::StringRef continuation_prompt,
     bool multi_line, bool color_prompts, uint32_t line_number_start,
-    IOHandlerDelegate &delegate)
+    IOHandlerDelegate &delegate, repro::DataRecorder *data_recorder)
     : IOHandlerEditline(debugger, type,
                         StreamFileSP(), // Inherit input from top input reader
                         StreamFileSP(), // Inherit output from top input reader
@@ -273,7 +275,7 @@ IOHandlerEditline::IOHandlerEditline(
                         0,              // Flags
                         editline_name,  // Used for saving history files
                         prompt, continuation_prompt, multi_line, color_prompts,
-                        line_number_start, delegate) {}
+                        line_number_start, delegate, data_recorder) {}
 
 IOHandlerEditline::IOHandlerEditline(
     Debugger &debugger, IOHandler::Type type,
@@ -282,10 +284,11 @@ IOHandlerEditline::IOHandlerEditline(
     const char *editline_name, // Used for saving history files
     llvm::StringRef prompt, llvm::StringRef continuation_prompt,
     bool multi_line, bool color_prompts, uint32_t line_number_start,
-    IOHandlerDelegate &delegate)
-    : IOHandler(debugger, type, input_sp, output_sp, error_sp, flags),
+    IOHandlerDelegate &delegate, repro::DataRecorder *data_recorder)
+    : IOHandler(debugger, type, input_sp, output_sp, error_sp, flags,
+                data_recorder),
 #ifndef LLDB_DISABLE_LIBEDIT
-      m_editline_ap(),
+      m_editline_up(),
 #endif
       m_delegate(delegate), m_prompt(), m_continuation_prompt(),
       m_current_lines_ptr(nullptr), m_base_line_number(line_number_start),
@@ -300,17 +303,17 @@ IOHandlerEditline::IOHandlerEditline(
   use_editline = m_input_sp->GetFile().GetIsRealTerminal();
 
   if (use_editline) {
-    m_editline_ap.reset(new Editline(editline_name, GetInputFILE(),
+    m_editline_up.reset(new Editline(editline_name, GetInputFILE(),
                                      GetOutputFILE(), GetErrorFILE(),
                                      m_color_prompts));
-    m_editline_ap->SetIsInputCompleteCallback(IsInputCompleteCallback, this);
-    m_editline_ap->SetAutoCompleteCallback(AutoCompleteCallback, this);
+    m_editline_up->SetIsInputCompleteCallback(IsInputCompleteCallback, this);
+    m_editline_up->SetAutoCompleteCallback(AutoCompleteCallback, this);
     // See if the delegate supports fixing indentation
     const char *indent_chars = delegate.IOHandlerGetFixIndentationCharacters();
     if (indent_chars) {
       // The delegate does support indentation, hook it up so when any
       // indentation character is typed, the delegate gets a chance to fix it
-      m_editline_ap->SetFixIndentationCallback(FixIndentationCallback, this,
+      m_editline_up->SetFixIndentationCallback(FixIndentationCallback, this,
                                                indent_chars);
     }
   }
@@ -322,13 +325,13 @@ IOHandlerEditline::IOHandlerEditline(
 
 IOHandlerEditline::~IOHandlerEditline() {
 #ifndef LLDB_DISABLE_LIBEDIT
-  m_editline_ap.reset();
+  m_editline_up.reset();
 #endif
 }
 
 void IOHandlerEditline::Activate() {
   IOHandler::Activate();
-  m_delegate.IOHandlerActivated(*this);
+  m_delegate.IOHandlerActivated(*this, GetIsInteractive());
 }
 
 void IOHandlerEditline::Deactivate() {
@@ -338,8 +341,11 @@ void IOHandlerEditline::Deactivate() {
 
 bool IOHandlerEditline::GetLine(std::string &line, bool &interrupted) {
 #ifndef LLDB_DISABLE_LIBEDIT
-  if (m_editline_ap) {
-    return m_editline_ap->GetLine(line, interrupted);
+  if (m_editline_up) {
+    bool b = m_editline_up->GetLine(line, interrupted);
+    if (m_data_recorder)
+      m_data_recorder->Record(line, true);
+    return b;
   } else {
 #endif
     line.clear();
@@ -368,7 +374,18 @@ bool IOHandlerEditline::GetLine(std::string &line, bool &interrupted) {
       bool got_line = false;
       m_editing = true;
       while (!done) {
+#ifdef _WIN32
+        // ReadFile on Windows is supposed to set ERROR_OPERATION_ABORTED
+        // according to the docs on MSDN. However, this has evidently been a
+        // known bug since Windows 8. Therefore, we can't detect if a signal
+        // interrupted in the fgets. So pressing ctrl-c causes the repl to end
+        // and the process to exit. A temporary workaround is just to attempt to
+        // fgets twice until this bug is fixed.
+        if (fgets(buffer, sizeof(buffer), in) == nullptr &&
+            fgets(buffer, sizeof(buffer), in) == nullptr) {
+#else
         if (fgets(buffer, sizeof(buffer), in) == nullptr) {
+#endif
           const int saved_errno = errno;
           if (feof(in))
             done = true;
@@ -395,6 +412,8 @@ bool IOHandlerEditline::GetLine(std::string &line, bool &interrupted) {
         }
       }
       m_editing = false;
+      if (m_data_recorder && got_line)
+        m_data_recorder->Record(line, true);
       // We might have gotten a newline on a line by itself make sure to return
       // true in this case.
       return got_line;
@@ -441,8 +460,8 @@ int IOHandlerEditline::AutoCompleteCallback(
 
 const char *IOHandlerEditline::GetPrompt() {
 #ifndef LLDB_DISABLE_LIBEDIT
-  if (m_editline_ap) {
-    return m_editline_ap->GetPrompt();
+  if (m_editline_up) {
+    return m_editline_up->GetPrompt();
   } else {
 #endif
     if (m_prompt.empty())
@@ -457,8 +476,8 @@ bool IOHandlerEditline::SetPrompt(llvm::StringRef prompt) {
   m_prompt = prompt;
 
 #ifndef LLDB_DISABLE_LIBEDIT
-  if (m_editline_ap)
-    m_editline_ap->SetPrompt(m_prompt.empty() ? nullptr : m_prompt.c_str());
+  if (m_editline_up)
+    m_editline_up->SetPrompt(m_prompt.empty() ? nullptr : m_prompt.c_str());
 #endif
   return true;
 }
@@ -472,8 +491,8 @@ void IOHandlerEditline::SetContinuationPrompt(llvm::StringRef prompt) {
   m_continuation_prompt = prompt;
 
 #ifndef LLDB_DISABLE_LIBEDIT
-  if (m_editline_ap)
-    m_editline_ap->SetContinuationPrompt(m_continuation_prompt.empty()
+  if (m_editline_up)
+    m_editline_up->SetContinuationPrompt(m_continuation_prompt.empty()
                                              ? nullptr
                                              : m_continuation_prompt.c_str());
 #endif
@@ -485,8 +504,8 @@ void IOHandlerEditline::SetBaseLineNumber(uint32_t line) {
 
 uint32_t IOHandlerEditline::GetCurrentLineIndex() const {
 #ifndef LLDB_DISABLE_LIBEDIT
-  if (m_editline_ap)
-    return m_editline_ap->GetCurrentLine();
+  if (m_editline_up)
+    return m_editline_up->GetCurrentLine();
 #endif
   return m_curr_line_idx;
 }
@@ -496,8 +515,8 @@ bool IOHandlerEditline::GetLines(StringList &lines, bool &interrupted) {
 
   bool success = false;
 #ifndef LLDB_DISABLE_LIBEDIT
-  if (m_editline_ap) {
-    return m_editline_ap->GetLines(m_base_line_number, lines, interrupted);
+  if (m_editline_up) {
+    return m_editline_up->GetLines(m_base_line_number, lines, interrupted);
   } else {
 #endif
     bool done = false;
@@ -565,8 +584,8 @@ void IOHandlerEditline::Run() {
 
 void IOHandlerEditline::Cancel() {
 #ifndef LLDB_DISABLE_LIBEDIT
-  if (m_editline_ap)
-    m_editline_ap->Cancel();
+  if (m_editline_up)
+    m_editline_up->Cancel();
 #endif
 }
 
@@ -576,23 +595,23 @@ bool IOHandlerEditline::Interrupt() {
     return true;
 
 #ifndef LLDB_DISABLE_LIBEDIT
-  if (m_editline_ap)
-    return m_editline_ap->Interrupt();
+  if (m_editline_up)
+    return m_editline_up->Interrupt();
 #endif
   return false;
 }
 
 void IOHandlerEditline::GotEOF() {
 #ifndef LLDB_DISABLE_LIBEDIT
-  if (m_editline_ap)
-    m_editline_ap->Interrupt();
+  if (m_editline_up)
+    m_editline_up->Interrupt();
 #endif
 }
 
 void IOHandlerEditline::PrintAsync(Stream *stream, const char *s, size_t len) {
 #ifndef LLDB_DISABLE_LIBEDIT
-  if (m_editline_ap)
-    m_editline_ap->PrintAsync(stream, s, len);
+  if (m_editline_up)
+    m_editline_up->PrintAsync(stream, s, len);
   else
 #endif
   {
@@ -994,20 +1013,15 @@ public:
 
   WindowSP CreateSubWindow(const char *name, const Rect &bounds,
                            bool make_active) {
-    WindowSP subwindow_sp;
-    if (m_window) {
-      subwindow_sp.reset(new Window(
-          name, ::subwin(m_window, bounds.size.height, bounds.size.width,
-                         bounds.origin.y, bounds.origin.x),
-          true));
-      subwindow_sp->m_is_subwin = true;
-    } else {
-      subwindow_sp.reset(
-          new Window(name, ::newwin(bounds.size.height, bounds.size.width,
-                                    bounds.origin.y, bounds.origin.x),
-                     true));
-      subwindow_sp->m_is_subwin = false;
-    }
+    auto get_window = [this, &bounds]() {
+      return m_window
+                 ? ::subwin(m_window, bounds.size.height, bounds.size.width,
+                            bounds.origin.y, bounds.origin.x)
+                 : ::newwin(bounds.size.height, bounds.size.width,
+                            bounds.origin.y, bounds.origin.x);
+    };
+    WindowSP subwindow_sp = std::make_shared<Window>(name, get_window(), true);
+    subwindow_sp->m_is_subwin = subwindow_sp.operator bool();
     subwindow_sp->m_parent = this;
     if (make_active) {
       m_prev_active_window_idx = m_curr_active_window_idx;
@@ -1075,9 +1089,7 @@ public:
 
   operator WINDOW *() { return m_window; }
 
-  //----------------------------------------------------------------------
   // Window drawing utilities
-  //----------------------------------------------------------------------
   void DrawTitleBox(const char *title, const char *bottom_message = nullptr) {
     attr_t attr = 0;
     if (IsActive())
@@ -1128,10 +1140,10 @@ public:
       const char *text = m_delegate_sp->WindowDelegateGetHelpText();
       KeyHelp *key_help = m_delegate_sp->WindowDelegateGetKeyHelp();
       if ((text && text[0]) || key_help) {
-        std::unique_ptr<HelpDialogDelegate> help_delegate_ap(
+        std::unique_ptr<HelpDialogDelegate> help_delegate_up(
             new HelpDialogDelegate(text, key_help));
-        const size_t num_lines = help_delegate_ap->GetNumLines();
-        const size_t max_length = help_delegate_ap->GetMaxLineLength();
+        const size_t num_lines = help_delegate_up->GetNumLines();
+        const size_t max_length = help_delegate_up->GetMaxLineLength();
         Rect bounds = GetBounds();
         bounds.Inset(1, 1);
         if (max_length + 4 < static_cast<size_t>(bounds.size.width)) {
@@ -1162,7 +1174,7 @@ public:
         else
           help_window_sp = CreateSubWindow("Help", bounds, true);
         help_window_sp->SetDelegate(
-            WindowDelegateSP(help_delegate_ap.release()));
+            WindowDelegateSP(help_delegate_up.release()));
         return true;
       }
     }
@@ -1882,7 +1894,7 @@ public:
 
   WindowSP &GetMainWindow() {
     if (!m_window_sp)
-      m_window_sp.reset(new Window("main", stdscr, false));
+      m_window_sp = std::make_shared<Window>("main", stdscr, false);
     return m_window_sp;
   }
 
@@ -2509,7 +2521,7 @@ public:
             return; // Children are already up to date
           if (!m_frame_delegate_sp) {
             // Always expand the thread item the first time we show it
-            m_frame_delegate_sp.reset(new FrameTreeDelegate());
+            m_frame_delegate_sp = std::make_shared<FrameTreeDelegate>();
           }
 
           m_stop_id = process_sp->GetStopID();
@@ -2601,7 +2613,8 @@ public:
         if (!m_thread_delegate_sp) {
           // Always expand the thread item the first time we show it
           // item.Expand();
-          m_thread_delegate_sp.reset(new ThreadTreeDelegate(m_debugger));
+          m_thread_delegate_sp =
+              std::make_shared<ThreadTreeDelegate>(m_debugger);
         }
 
         TreeItem t(&item, *m_thread_delegate_sp, false);
@@ -3934,12 +3947,10 @@ public:
                 m_debugger.GetSourceManager().GetFile(m_sc.line_entry.file);
             if (m_file_sp) {
               const size_t num_lines = m_file_sp->GetNumLines();
-              int m_line_width = 1;
+              m_line_width = 1;
               for (size_t n = num_lines; n >= 10; n = n / 10)
                 ++m_line_width;
 
-              snprintf(m_line_format, sizeof(m_line_format), " %%%iu ",
-                       m_line_width);
               if (num_lines < num_visible_lines ||
                   m_selected_line < num_visible_lines)
                 m_first_visible_line = 0;
@@ -4056,7 +4067,7 @@ public:
           if (bp_attr)
             window.AttributeOn(bp_attr);
 
-          window.Printf(m_line_format, curr_line + 1);
+          window.Printf(" %*u ", m_line_width, curr_line + 1);
 
           if (bp_attr)
             window.AttributeOff(bp_attr);
@@ -4482,7 +4493,6 @@ protected:
   AddressRange m_disassembly_range;
   StreamString m_title;
   lldb::user_id_t m_tid;
-  char m_line_format[8];
   int m_line_width;
   uint32_t m_selected_line; // The selected line
   uint32_t m_pc_line;       // The line with the PC

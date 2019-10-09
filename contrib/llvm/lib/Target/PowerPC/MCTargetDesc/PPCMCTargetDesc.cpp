@@ -1,9 +1,8 @@
 //===-- PPCMCTargetDesc.cpp - PowerPC Target Descriptions -----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,9 +11,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/PPCMCTargetDesc.h"
-#include "InstPrinter/PPCInstPrinter.h"
+#include "MCTargetDesc/PPCInstPrinter.h"
 #include "MCTargetDesc/PPCMCAsmInfo.h"
 #include "PPCTargetStreamer.h"
+#include "TargetInfo/PowerPCTargetInfo.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
@@ -48,9 +48,9 @@ using namespace llvm;
 #define GET_REGINFO_MC_DESC
 #include "PPCGenRegisterInfo.inc"
 
-// Pin the vtable to this file.
 PPCTargetStreamer::PPCTargetStreamer(MCStreamer &S) : MCTargetStreamer(S) {}
 
+// Pin the vtable to this file.
 PPCTargetStreamer::~PPCTargetStreamer() = default;
 
 static MCInstrInfo *createPPCMCInstrInfo() {
@@ -83,6 +83,8 @@ static MCAsmInfo *createPPCMCAsmInfo(const MCRegisterInfo &MRI,
   MCAsmInfo *MAI;
   if (TheTriple.isOSDarwin())
     MAI = new PPCMCAsmInfoDarwin(isPPC64, TheTriple);
+  else if (TheTriple.isOSBinFormatXCOFF())
+    MAI = new PPCXCOFFMCAsmInfo(isPPC64, TheTriple);
   else
     MAI = new PPCELFMCAsmInfo(isPPC64, TheTriple);
 
@@ -235,6 +237,27 @@ public:
   }
 };
 
+class PPCTargetXCOFFStreamer : public PPCTargetStreamer {
+public:
+  PPCTargetXCOFFStreamer(MCStreamer &S) : PPCTargetStreamer(S) {}
+
+  void emitTCEntry(const MCSymbol &S) override {
+    report_fatal_error("TOC entries not supported yet.");
+  }
+
+  void emitMachine(StringRef CPU) override {
+    llvm_unreachable("Machine pseudo-ops are invalid for XCOFF.");
+  }
+
+  void emitAbiVersion(int AbiVersion) override {
+    llvm_unreachable("ABI-version pseudo-ops are invalid for XCOFF.");
+  }
+
+  void emitLocalEntry(MCSymbolELF *S, const MCExpr *LocalOffset) override {
+    llvm_unreachable("Local-entry pseudo-ops are invalid for XCOFF.");
+  }
+};
+
 } // end anonymous namespace
 
 static MCTargetStreamer *createAsmTargetStreamer(MCStreamer &S,
@@ -249,6 +272,8 @@ createObjectTargetStreamer(MCStreamer &S, const MCSubtargetInfo &STI) {
   const Triple &TT = STI.getTargetTriple();
   if (TT.isOSBinFormatELF())
     return new PPCTargetELFStreamer(S);
+  if (TT.isOSBinFormatXCOFF())
+    return new PPCTargetXCOFFStreamer(S);
   return new PPCTargetMachOStreamer(S);
 }
 

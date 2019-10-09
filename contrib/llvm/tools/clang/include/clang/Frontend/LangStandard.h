@@ -1,9 +1,8 @@
 //===--- LangStandard.h -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -23,16 +22,17 @@ enum LangFeatures {
   C99 = (1 << 1),
   C11 = (1 << 2),
   C17 = (1 << 3),
-  CPlusPlus = (1 << 4),
-  CPlusPlus11 = (1 << 5),
-  CPlusPlus14 = (1 << 6),
-  CPlusPlus17 = (1 << 7),
-  CPlusPlus2a = (1 << 8),
-  Digraphs = (1 << 9),
-  GNUMode = (1 << 10),
-  HexFloat = (1 << 11),
-  ImplicitInt = (1 << 12),
-  OpenCL = (1 << 13)
+  C2x = (1 << 4),
+  CPlusPlus = (1 << 5),
+  CPlusPlus11 = (1 << 6),
+  CPlusPlus14 = (1 << 7),
+  CPlusPlus17 = (1 << 8),
+  CPlusPlus2a = (1 << 9),
+  Digraphs = (1 << 10),
+  GNUMode = (1 << 11),
+  HexFloat = (1 << 12),
+  ImplicitInt = (1 << 13),
+  OpenCL = (1 << 14)
 };
 
 }
@@ -73,6 +73,9 @@ public:
 
   /// isC17 - Language is a superset of C17.
   bool isC17() const { return Flags & frontend::C17; }
+
+  /// isC2x - Language is a superset of C2x.
+  bool isC2x() const { return Flags & frontend::C2x; }
 
   /// isCPlusPlus - Language is a C++ variant.
   bool isCPlusPlus() const { return Flags & frontend::CPlusPlus; }

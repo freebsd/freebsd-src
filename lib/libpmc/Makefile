@@ -34,6 +34,9 @@ WARNS?=	3
 CFLAGS+= -I${.CURDIR}
 CWARNFLAGS.gcc+= -Wno-shadow -Wno-cast-align
 
+# Silence warnings about usage of deprecated std::auto_ptr
+CXXWARNFLAGS+=	-Wno-deprecated-declarations
+
 MAN=	pmc.3
 MAN+=	pmc_allocate.3
 MAN+=	pmc_attach.3

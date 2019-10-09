@@ -1,9 +1,8 @@
 //===-- InstructionPrecedenceTracking.cpp -----------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 // Implements a class that is able to define some instructions as "special"
@@ -20,6 +19,7 @@
 
 #include "llvm/Analysis/InstructionPrecedenceTracking.h"
 #include "llvm/Analysis/ValueTracking.h"
+#include "llvm/IR/PatternMatch.h"
 
 using namespace llvm;
 
@@ -153,5 +153,8 @@ bool ImplicitControlFlowTracking::isSpecialInstruction(
 
 bool MemoryWriteTracking::isSpecialInstruction(
     const Instruction *Insn) const {
+  using namespace PatternMatch;
+  if (match(Insn, m_Intrinsic<Intrinsic::experimental_widenable_condition>()))
+    return false;
   return Insn->mayWriteToMemory();
 }

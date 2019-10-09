@@ -1,9 +1,8 @@
 //===-- ABI.h ---------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -35,7 +34,7 @@ public:
     size_t size; /* size in bytes of this argument */
 
     lldb::addr_t value;                 /* literal value */
-    std::unique_ptr<uint8_t[]> data_ap; /* host data pointer */
+    std::unique_ptr<uint8_t[]> data_up; /* host data pointer */
   };
 
   ~ABI() override;
@@ -87,14 +86,12 @@ protected:
   virtual lldb::ValueObjectSP
   GetReturnValueObjectImpl(Thread &thread, llvm::Type &ir_type) const;
 
-  //------------------------------------------------------------------
   /// Request to get a Process shared pointer.
   ///
   /// This ABI object may not have been created with a Process object,
   /// or the Process object may no longer be alive.  Be sure to handle
   /// the case where the shared pointer returned does not have an
   /// object inside it.
-  //------------------------------------------------------------------
   lldb::ProcessSP GetProcessSP() const { return m_process_wp.lock(); }
 
 public:
@@ -129,7 +126,7 @@ public:
 
   virtual const RegisterInfo *GetRegisterInfoArray(uint32_t &count) = 0;
 
-  bool GetRegisterInfoByName(const ConstString &name, RegisterInfo &info);
+  bool GetRegisterInfoByName(ConstString name, RegisterInfo &info);
 
   bool GetRegisterInfoByKind(lldb::RegisterKind reg_kind, uint32_t reg_num,
                              RegisterInfo &info);
@@ -139,9 +136,7 @@ public:
   static lldb::ABISP FindPlugin(lldb::ProcessSP process_sp, const ArchSpec &arch);
 
 protected:
-  //------------------------------------------------------------------
   // Classes that inherit from ABI can see and modify these
-  //------------------------------------------------------------------
   ABI(lldb::ProcessSP process_sp) {
     if (process_sp.get())
         m_process_wp = process_sp;

@@ -1,9 +1,8 @@
 //===- ChainedIncludesSource.cpp - Chained PCHs in Memory -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -83,9 +82,9 @@ createASTReader(CompilerInstance &CI, StringRef pchFile,
                 ASTDeserializationListener *deserialListener = nullptr) {
   Preprocessor &PP = CI.getPreprocessor();
   std::unique_ptr<ASTReader> Reader;
-  Reader.reset(new ASTReader(PP, &CI.getASTContext(),
+  Reader.reset(new ASTReader(PP, CI.getModuleCache(), &CI.getASTContext(),
                              CI.getPCHContainerReader(),
-                             /*Extensions=*/{ },
+                             /*Extensions=*/{},
                              /*isysroot=*/"", /*DisableValidation=*/true));
   for (unsigned ti = 0; ti < bufNames.size(); ++ti) {
     StringRef sr(bufNames[ti]);
@@ -160,8 +159,8 @@ IntrusiveRefCntPtr<ExternalSemaSource> clang::createChainedIncludesSource(
     auto Buffer = std::make_shared<PCHBuffer>();
     ArrayRef<std::shared_ptr<ModuleFileExtension>> Extensions;
     auto consumer = llvm::make_unique<PCHGenerator>(
-        Clang->getPreprocessor(), "-", /*isysroot=*/"", Buffer,
-        Extensions, /*AllowASTWithErrors=*/true);
+        Clang->getPreprocessor(), Clang->getModuleCache(), "-", /*isysroot=*/"",
+        Buffer, Extensions, /*AllowASTWithErrors=*/true);
     Clang->getASTContext().setASTMutationListener(
                                             consumer->GetASTMutationListener());
     Clang->setASTConsumer(std::move(consumer));

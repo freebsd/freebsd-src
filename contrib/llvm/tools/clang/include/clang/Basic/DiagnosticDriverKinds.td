@@ -1,18 +1,19 @@
 //==--- DiagnosticDriverKinds.td - libdriver diagnostics ------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 let Component = "Driver" in {
 
 def err_drv_no_such_file : Error<"no such file or directory: '%0'">;
+def err_drv_no_such_file_with_suggestion : Error<
+  "no such file or directory: '%0'; did you mean '%1'?">;
 def err_drv_unsupported_opt : Error<"unsupported option '%0'">;
-def err_drv_unsupported_opt_with_suggestion
-  : Error<"unsupported option '%0', did you mean '%1'?">;
+def err_drv_unsupported_opt_with_suggestion : Error<
+  "unsupported option '%0'; did you mean '%1'?">;
 def err_drv_unsupported_opt_for_target : Error<
   "unsupported option '%0' for target '%1'">;
 def err_drv_unsupported_option_argument : Error<
@@ -28,6 +29,25 @@ def err_drv_invalid_riscv_arch_name : Error<
   "invalid arch name '%0', %1">;
 def err_drv_invalid_riscv_ext_arch_name : Error<
   "invalid arch name '%0', %1 '%2'">;
+def warn_drv_avr_mcu_not_specified : Warning<
+  "no target microcontroller specified on command line, cannot "
+  "link standard libraries, please pass -mmcu=<mcu name>">,
+  InGroup<AVRRtlibLinkingQuirks>;
+def warn_drv_avr_gcc_not_found: Warning<
+  "no avr-gcc installation can be found on the system, "
+  "cannot link standard libraries">,
+  InGroup<AVRRtlibLinkingQuirks>;
+def warn_drv_avr_libc_not_found: Warning<
+  "no avr-libc installation can be found on the system, "
+  "cannot link standard libraries">,
+  InGroup<AVRRtlibLinkingQuirks>;
+def warn_drv_avr_family_linking_stdlibs_not_implemented: Warning<
+  "support for linking stdlibs for microcontroller '%0' is not implemented">,
+  InGroup<AVRRtlibLinkingQuirks>;
+def warn_drv_avr_stdlib_not_linked: Warning<
+  "standard library not linked and so no interrupt vector table or "
+  "compiler runtime routines will be linked">,
+  InGroup<AVRRtlibLinkingQuirks>;
 def err_drv_cuda_bad_gpu_arch : Error<"Unsupported CUDA gpu architecture: %0">;
 def err_drv_no_cuda_installation : Error<
   "cannot find CUDA installation.  Provide its path via --cuda-path, or pass "
@@ -52,6 +72,10 @@ def err_drv_invalid_rtlib_name : Error<
   "invalid runtime library name in argument '%0'">;
 def err_drv_unsupported_rtlib_for_platform : Error<
   "unsupported runtime library '%0' for platform '%1'">;
+def err_drv_invalid_unwindlib_name : Error<
+  "invalid unwind library name in argument '%0'">;
+def err_drv_incompatible_unwindlib : Error<
+  "--rtlib=libgcc requires --unwindlib=libgcc">;
 def err_drv_invalid_stdlib_name : Error<
   "invalid library name in argument '%0'">;
 def err_drv_invalid_output_with_multiple_archs : Error<
@@ -97,6 +121,8 @@ def err_drv_clang_unsupported : Error<
   "the clang compiler does not support '%0'">;
 def err_drv_clang_unsupported_opt_cxx_darwin_i386 : Error<
   "the clang compiler does not support '%0' for C++ on Darwin/i386">;
+def err_drv_clang_unsupported_opt_pg_darwin: Error<
+  "the clang compiler does not support -pg option on %select{Darwin|versions of OS X 10.9 and later}0">;
 def err_drv_clang_unsupported_opt_faltivec : Error<
   "the clang compiler does not support '%0', %1">;
 def err_drv_command_failed : Error<
@@ -131,6 +157,8 @@ def err_drv_cannot_read_config_file : Error<
   "cannot read configuration file '%0'">;
 def err_drv_nested_config_file: Error<
   "option '--config' is not allowed inside configuration file">;
+def err_drv_arg_requires_bitcode_input: Error<
+  "option '%0' requires input to be LLVM bitcode">;
 
 def err_target_unsupported_arch
   : Error<"the target architecture '%0' is not supported by the target '%1'">;
@@ -142,13 +170,13 @@ def err_arch_unsupported_isa
 def err_drv_I_dash_not_supported : Error<
   "'%0' not supported, please use -iquote instead">;
 def err_drv_unknown_argument : Error<"unknown argument: '%0'">;
-def err_drv_unknown_argument_with_suggestion
-  : Error<"unknown argument '%0', did you mean '%1'?">;
+def err_drv_unknown_argument_with_suggestion : Error<
+  "unknown argument '%0'; did you mean '%1'?">;
 def warn_drv_unknown_argument_clang_cl : Warning<
   "unknown argument ignored in clang-cl: '%0'">,
   InGroup<UnknownArgument>;
 def warn_drv_unknown_argument_clang_cl_with_suggestion : Warning<
-  "unknown argument ignored in clang-cl '%0' (did you mean '%1'?)">,
+  "unknown argument ignored in clang-cl '%0'; did you mean '%1'?">,
   InGroup<UnknownArgument>;
 
 def warn_drv_ycyu_different_arg_clang_cl : Warning<
@@ -201,7 +229,9 @@ def err_drv_gnustep_objc_runtime_incompatible_binary : Error<
 def err_drv_emit_llvm_link : Error<
    "-emit-llvm cannot be used when linking">;
 def err_drv_optimization_remark_pattern : Error<
-  "%0 in '%1'">;
+  "in pattern '%1': %0">;
+def err_drv_optimization_remark_format : Error<
+  "unknown remark serializer format: '%0'">;
 def err_drv_no_neon_modifier : Error<"[no]neon is not accepted as modifier, please use [no]simd instead">;
 def err_drv_invalid_omp_target : Error<"OpenMP target is invalid: '%0'">;
 def err_drv_omp_host_ir_file_not_found : Error<
@@ -302,6 +332,10 @@ def err_analyzer_config_multiple_values : Error<
 def err_analyzer_config_invalid_input : Error<
   "invalid input for analyzer-config option '%0', that expects %1 value">;
 def err_analyzer_config_unknown : Error<"unknown analyzer-config '%0'">;
+def err_analyzer_checker_option_unknown : Error<
+  "checker '%0' has no option called '%1'">;
+def err_analyzer_checker_option_invalid_input : Error<
+  "invalid input for checker option '%0', that expects %1">;
 
 def err_drv_invalid_hvx_length : Error<
   "-mhvx-length is not supported without a -mhvx/-mhvx= flag">;
@@ -425,4 +459,10 @@ def warn_drv_msp430_hwmult_no_device : Warning<"no MCU device specified, but "
   "specify a MSP430 device, or -mhwmult to set hardware multiply type "
   "explicitly.">, InGroup<InvalidCommandLineArgument>;
 
+def warn_drv_libstdcxx_not_found : Warning<
+  "include path for libstdc++ headers not found; pass '-stdlib=libc++' on the "
+  "command line to use the libc++ standard library instead">,
+  InGroup<DiagGroup<"stdlibcxx-not-found">>;
+
+def err_drv_cannot_mix_options : Error<"cannot specify '%1' along with '%0'">;
 }

@@ -1,9 +1,8 @@
 //===-- ScriptInterpreter.h -------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -35,7 +34,7 @@ private:
 
 class ScriptInterpreter : public PluginInterface {
 public:
-  typedef enum {
+  enum ScriptReturnType {
     eScriptReturnTypeCharPtr,
     eScriptReturnTypeBool,
     eScriptReturnTypeShortInt,
@@ -51,10 +50,9 @@ public:
     eScriptReturnTypeChar,
     eScriptReturnTypeCharStrOrNone,
     eScriptReturnTypeOpaqueObject
-  } ScriptReturnType;
+  };
 
-  ScriptInterpreter(CommandInterpreter &interpreter,
-                    lldb::ScriptLanguage script_lang);
+  ScriptInterpreter(Debugger &debugger, lldb::ScriptLanguage script_lang);
 
   ~ScriptInterpreter() override;
 
@@ -248,7 +246,7 @@ public:
                                    lldb::BreakpointSP &bkpt_sp) {
     return StructuredData::GenericSP();
   }
-  
+
   virtual bool
   ScriptedBreakpointResolverSearchCallback(StructuredData::GenericSP implementor_sp,
                                            SymbolContext *sym_ctx)
@@ -461,8 +459,6 @@ public:
 
   int GetMasterFileDescriptor();
 
-  CommandInterpreter &GetCommandInterpreter();
-
   static std::string LanguageToString(lldb::ScriptLanguage language);
 
   static lldb::ScriptLanguage StringToLanguage(const llvm::StringRef &string);
@@ -472,7 +468,7 @@ public:
   lldb::ScriptLanguage GetLanguage() { return m_script_lang; }
 
 protected:
-  CommandInterpreter &m_interpreter;
+  Debugger &m_debugger;
   lldb::ScriptLanguage m_script_lang;
 };
 

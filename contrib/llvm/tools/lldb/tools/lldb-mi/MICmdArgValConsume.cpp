@@ -1,9 +1,8 @@
 //===-- MICmdArgValConsume.cpp ----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,7 +11,6 @@
 #include "MICmdArgContext.h"
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValConsume constructor.
 // Type:    Method.
 // Args:    None.
@@ -22,7 +20,6 @@
 CMICmdArgValConsume::CMICmdArgValConsume() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValConsume constructor.
 // Type:    Method.
 // Args:    vrArgName       - (R) Argument's name to search by.
@@ -36,7 +33,6 @@ CMICmdArgValConsume::CMICmdArgValConsume(const CMIUtilString &vrArgName,
     : CMICmdArgValBaseTemplate(vrArgName, vbMandatory, true) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValConsume destructor.
 // Type:    Overidden.
 // Args:    None.
@@ -46,7 +42,6 @@ CMICmdArgValConsume::CMICmdArgValConsume(const CMIUtilString &vrArgName,
 CMICmdArgValConsume::~CMICmdArgValConsume() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Parse the command's argument options string and try to extract the
 // value *this
 //          argument is looking for.
@@ -82,7 +77,6 @@ bool CMICmdArgValConsume::Validate(CMICmdArgContext &vwArgContext) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Nothing to examine as we just want to consume the argument or option
 // (ignore
 //          it).

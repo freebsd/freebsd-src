@@ -1,9 +1,8 @@
 //===-- GCNHazardRecognizers.h - GCN Hazard Recognizers ---------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,6 +16,7 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/ScheduleHazardRecognizer.h"
+#include "llvm/CodeGen/TargetSchedule.h"
 #include <list>
 
 namespace llvm {
@@ -31,6 +31,13 @@ class SIRegisterInfo;
 class GCNSubtarget;
 
 class GCNHazardRecognizer final : public ScheduleHazardRecognizer {
+public:
+  typedef function_ref<bool(MachineInstr *)> IsHazardFn;
+
+private:
+  // Distinguish if we are called from scheduler or hazard recognizer
+  bool IsHazardRecognizerMode;
+
   // This variable stores the instruction that has been emitted this cycle. It
   // will be added to EmittedInstrs, when AdvanceCycle() or RecedeCycle() is
   // called.
@@ -40,6 +47,7 @@ class GCNHazardRecognizer final : public ScheduleHazardRecognizer {
   const GCNSubtarget &ST;
   const SIInstrInfo &TII;
   const SIRegisterInfo &TRI;
+  TargetSchedModel TSchedModel;
 
   /// RegUnits of uses in the current soft memory clause.
   BitVector ClauseUses;
@@ -54,11 +62,13 @@ class GCNHazardRecognizer final : public ScheduleHazardRecognizer {
 
   void addClauseInst(const MachineInstr &MI);
 
-  int getWaitStatesSince(function_ref<bool(MachineInstr *)> IsHazard);
-  int getWaitStatesSinceDef(unsigned Reg,
-                            function_ref<bool(MachineInstr *)> IsHazardDef =
-                                [](MachineInstr *) { return true; });
-  int getWaitStatesSinceSetReg(function_ref<bool(MachineInstr *)> IsHazard);
+  // Advance over a MachineInstr bundle. Look for hazards in the bundled
+  // instructions.
+  void processBundle();
+
+  int getWaitStatesSince(IsHazardFn IsHazard, int Limit);
+  int getWaitStatesSinceDef(unsigned Reg, IsHazardFn IsHazardDef, int Limit);
+  int getWaitStatesSinceSetReg(IsHazardFn IsHazard, int Limit);
 
   int checkSoftClauseHazards(MachineInstr *SMEM);
   int checkSMRDHazards(MachineInstr *SMRD);
@@ -75,6 +85,18 @@ class GCNHazardRecognizer final : public ScheduleHazardRecognizer {
   int checkInlineAsmHazards(MachineInstr *IA);
   int checkAnyInstHazards(MachineInstr *MI);
   int checkReadM0Hazards(MachineInstr *SMovRel);
+  int checkNSAtoVMEMHazard(MachineInstr *MI);
+  int checkFPAtomicToDenormModeHazard(MachineInstr *MI);
+  void fixHazards(MachineInstr *MI);
+  bool fixVcmpxPermlaneHazards(MachineInstr *MI);
+  bool fixVMEMtoScalarWriteHazards(MachineInstr *MI);
+  bool fixSMEMtoVectorWriteHazards(MachineInstr *MI);
+  bool fixVcmpxExecWARHazard(MachineInstr *MI);
+  bool fixLdsBranchVmemWARHazard(MachineInstr *MI);
+
+  int checkMAIHazards(MachineInstr *MI);
+  int checkMAILdStHazards(MachineInstr *MI);
+
 public:
   GCNHazardRecognizer(const MachineFunction &MF);
   // We can only issue one instruction per cycle.
@@ -85,6 +107,7 @@ public:
   void EmitNoop() override;
   unsigned PreEmitNoops(SUnit *SU) override;
   unsigned PreEmitNoops(MachineInstr *) override;
+  unsigned PreEmitNoopsCommon(MachineInstr *);
   void AdvanceCycle() override;
   void RecedeCycle() override;
 };

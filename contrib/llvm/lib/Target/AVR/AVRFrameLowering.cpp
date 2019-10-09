@@ -1,9 +1,8 @@
 //===-- AVRFrameLowering.cpp - AVR Frame Information ----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -362,13 +361,12 @@ MachineBasicBlock::iterator AVRFrameLowering::eliminateCallFramePseudoInstr(
     MachineFunction &MF, MachineBasicBlock &MBB,
     MachineBasicBlock::iterator MI) const {
   const AVRSubtarget &STI = MF.getSubtarget<AVRSubtarget>();
-  const TargetFrameLowering &TFI = *STI.getFrameLowering();
   const AVRInstrInfo &TII = *STI.getInstrInfo();
 
   // There is nothing to insert when the call frame memory is allocated during
   // function entry. Delete the call frame pseudo and replace all pseudo stores
   // with real store instructions.
-  if (TFI.hasReservedCallFrame(MF)) {
+  if (hasReservedCallFrame(MF)) {
     fixStackStores(MBB, MI, TII, false);
     return MBB.erase(MI);
   }
@@ -382,7 +380,7 @@ MachineBasicBlock::iterator AVRFrameLowering::eliminateCallFramePseudoInstr(
   // For adjcallstackdown we convert it into an 'adiw reg, <amt>' handling
   // the read and write of SP in I/O space.
   if (Amount != 0) {
-    assert(TFI.getStackAlignment() == 1 && "Unsupported stack alignment");
+    assert(getStackAlignment() == 1 && "Unsupported stack alignment");
 
     if (Opcode == TII.getCallFrameSetupOpcode()) {
       fixStackStores(MBB, MI, TII, true);

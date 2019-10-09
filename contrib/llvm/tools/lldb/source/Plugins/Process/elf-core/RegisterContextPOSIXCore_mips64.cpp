@@ -1,9 +1,8 @@
 //===-- RegisterContextPOSIXCore_mips64.cpp ---------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,21 +11,23 @@
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/RegisterValue.h"
 
+#include <memory>
+
 using namespace lldb_private;
 
 RegisterContextCorePOSIX_mips64::RegisterContextCorePOSIX_mips64(
     Thread &thread, RegisterInfoInterface *register_info,
     const DataExtractor &gpregset, llvm::ArrayRef<CoreNote> notes)
     : RegisterContextPOSIX_mips64(thread, 0, register_info) {
-  m_gpr_buffer.reset(
-      new DataBufferHeap(gpregset.GetDataStart(), gpregset.GetByteSize()));
+  m_gpr_buffer = std::make_shared<DataBufferHeap>(gpregset.GetDataStart(),
+                                                  gpregset.GetByteSize());
   m_gpr.SetData(m_gpr_buffer);
   m_gpr.SetByteOrder(gpregset.GetByteOrder());
 
   DataExtractor fpregset = getRegset(
       notes, register_info->GetTargetArchitecture().GetTriple(), FPR_Desc);
-  m_fpr_buffer.reset(
-      new DataBufferHeap(fpregset.GetDataStart(), fpregset.GetByteSize()));
+  m_fpr_buffer = std::make_shared<DataBufferHeap>(fpregset.GetDataStart(),
+                                                  fpregset.GetByteSize());
   m_fpr.SetData(m_fpr_buffer);
   m_fpr.SetByteOrder(fpregset.GetByteOrder());
 }
@@ -51,7 +52,7 @@ bool RegisterContextCorePOSIX_mips64::ReadRegister(const RegisterInfo *reg_info,
                                                    RegisterValue &value) {
   
   lldb::offset_t offset = reg_info->byte_offset;
-  lldb_private::ArchSpec arch = m_register_info_ap->GetTargetArchitecture();
+  lldb_private::ArchSpec arch = m_register_info_up->GetTargetArchitecture();
   uint64_t v;
   if (IsGPR(reg_info->kinds[lldb::eRegisterKindLLDB])) {
     if (reg_info->byte_size == 4 && !(arch.GetMachine() == llvm::Triple::mips64el))

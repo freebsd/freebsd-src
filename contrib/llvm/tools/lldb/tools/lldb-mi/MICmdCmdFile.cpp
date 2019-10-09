@@ -1,9 +1,8 @@
 //===-- MICmdCmdFile.cpp ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -24,7 +23,6 @@
 #include "MIUtilFileStd.h"
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdCmdFileExecAndSymbols constructor.
 // Type:    Method.
 // Args:    None.
@@ -42,7 +40,6 @@ CMICmdCmdFileExecAndSymbols::CMICmdCmdFileExecAndSymbols()
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdCmdFileExecAndSymbols destructor.
 // Type:    Overrideable.
 // Args:    None.
@@ -52,7 +49,6 @@ CMICmdCmdFileExecAndSymbols::CMICmdCmdFileExecAndSymbols()
 CMICmdCmdFileExecAndSymbols::~CMICmdCmdFileExecAndSymbols() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The parses the command line
 // options
 //          arguments to extract values for each of those arguments.
@@ -74,7 +70,6 @@ bool CMICmdCmdFileExecAndSymbols::ParseArgs() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The command does work in this
 // function.
 //          The command is likely to communicate with the LLDB SBDebugger in
@@ -160,7 +155,6 @@ bool CMICmdCmdFileExecAndSymbols::Execute() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The command prepares a MI Record
 // Result
 //          for the work carried out in the Execute().
@@ -179,7 +173,6 @@ bool CMICmdCmdFileExecAndSymbols::Acknowledge() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Required by the CMICmdFactory when registering *this command. The
 // factory
 //          calls this function to create an instance of *this command.
@@ -193,7 +186,6 @@ CMICmdBase *CMICmdCmdFileExecAndSymbols::CreateSelf() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: If the MI Driver is not operating via a client i.e. Eclipse but say
 // operating
 //          on a executable passed in as a argument to the drive then what

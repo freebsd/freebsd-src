@@ -1,9 +1,8 @@
 //===-------------- PPCMIPeephole.cpp - MI Peephole Cleanups -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===---------------------------------------------------------------------===//
 //
@@ -22,9 +21,12 @@
 #include "PPC.h"
 #include "PPCInstrBuilder.h"
 #include "PPCInstrInfo.h"
+#include "PPCMachineFunctionInfo.h"
 #include "PPCTargetMachine.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
 #include "llvm/CodeGen/MachineDominators.h"
+#include "llvm/CodeGen/MachinePostDominators.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
@@ -38,6 +40,7 @@ using namespace llvm;
 STATISTIC(RemoveTOCSave, "Number of TOC saves removed");
 STATISTIC(MultiTOCSaves,
           "Number of functions with multiple TOC saves that must be kept");
+STATISTIC(NumTOCSavesInPrologue, "Number of TOC saves placed in the prologue");
 STATISTIC(NumEliminatedSExt, "Number of eliminated sign-extensions");
 STATISTIC(NumEliminatedZExt, "Number of eliminated zero-extensions");
 STATISTIC(NumOptADDLIs, "Number of optimized ADD instruction fed by LI");
@@ -48,6 +51,10 @@ STATISTIC(NumFunctionsEnteredInMIPeephole,
 STATISTIC(NumFixedPointIterations,
           "Number of fixed-point iterations converting reg-reg instructions "
           "to reg-imm ones");
+STATISTIC(NumRotatesCollapsed,
+          "Number of pairs of rotate left, clear left/right collapsed");
+STATISTIC(NumEXTSWAndSLDICombined,
+          "Number of pairs of EXTSW and SLDI combined as EXTSWSLI");
 
 static cl::opt<bool>
 FixedPointRegToImm("ppc-reg-to-imm-fixed-point", cl::Hidden, cl::init(true),
@@ -83,6 +90,9 @@ struct PPCMIPeephole : public MachineFunctionPass {
 
 private:
   MachineDominatorTree *MDT;
+  MachinePostDominatorTree *MPDT;
+  MachineBlockFrequencyInfo *MBFI;
+  uint64_t EntryFreq;
 
   // Initialize class variables.
   void initialize(MachineFunction &MFParm);
@@ -93,6 +103,8 @@ private:
   // Perform peepholes.
   bool eliminateRedundantCompare(void);
   bool eliminateRedundantTOCSaves(std::map<MachineInstr *, bool> &TOCSaves);
+  bool combineSEXTAndSHL(MachineInstr &MI, MachineInstr *&ToErase);
+  bool emitRLDICWhenLoweringJumpTables(MachineInstr &MI);
   void UpdateTOCSaves(std::map<MachineInstr *, bool> &TOCSaves,
                       MachineInstr *MI);
 
@@ -100,7 +112,11 @@ public:
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<MachineDominatorTree>();
+    AU.addRequired<MachinePostDominatorTree>();
+    AU.addRequired<MachineBlockFrequencyInfo>();
     AU.addPreserved<MachineDominatorTree>();
+    AU.addPreserved<MachinePostDominatorTree>();
+    AU.addPreserved<MachineBlockFrequencyInfo>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 
@@ -118,6 +134,9 @@ void PPCMIPeephole::initialize(MachineFunction &MFParm) {
   MF = &MFParm;
   MRI = &MF->getRegInfo();
   MDT = &getAnalysis<MachineDominatorTree>();
+  MPDT = &getAnalysis<MachinePostDominatorTree>();
+  MBFI = &getAnalysis<MachineBlockFrequencyInfo>();
+  EntryFreq = MBFI->getEntryFreq();
   TII = MF->getSubtarget<PPCSubtarget>().getInstrInfo();
   LLVM_DEBUG(dbgs() << "*** PowerPC MI peephole pass ***\n\n");
   LLVM_DEBUG(MF->dump());
@@ -198,6 +217,30 @@ getKnownLeadingZeroCount(MachineInstr *MI, const PPCInstrInfo *TII) {
 void PPCMIPeephole::UpdateTOCSaves(
   std::map<MachineInstr *, bool> &TOCSaves, MachineInstr *MI) {
   assert(TII->isTOCSaveMI(*MI) && "Expecting a TOC save instruction here");
+  assert(MF->getSubtarget<PPCSubtarget>().isELFv2ABI() &&
+         "TOC-save removal only supported on ELFv2");
+  PPCFunctionInfo *FI = MF->getInfo<PPCFunctionInfo>();
+
+  MachineBasicBlock *Entry = &MF->front();
+  uint64_t CurrBlockFreq = MBFI->getBlockFreq(MI->getParent()).getFrequency();
+
+  // If the block in which the TOC save resides is in a block that
+  // post-dominates Entry, or a block that is hotter than entry (keep in mind
+  // that early MachineLICM has already run so the TOC save won't be hoisted)
+  // we can just do the save in the prologue.
+  if (CurrBlockFreq > EntryFreq || MPDT->dominates(MI->getParent(), Entry))
+    FI->setMustSaveTOC(true);
+
+  // If we are saving the TOC in the prologue, all the TOC saves can be removed
+  // from the code.
+  if (FI->mustSaveTOC()) {
+    for (auto &TOCSave : TOCSaves)
+      TOCSave.second = false;
+    // Add new instruction to map.
+    TOCSaves[MI] = false;
+    return;
+  }
+
   bool Keep = true;
   for (auto It = TOCSaves.begin(); It != TOCSaves.end(); It++ ) {
     MachineInstr *CurrInst = It->first;
@@ -758,6 +801,11 @@ bool PPCMIPeephole::simplifyCode(void) {
         NumOptADDLIs++;
         break;
       }
+      case PPC::RLDICR: {
+        Simplified |= emitRLDICWhenLoweringJumpTables(MI) ||
+                      combineSEXTAndSHL(MI, ToErase);
+        break;
+      }
       }
     }
 
@@ -771,6 +819,10 @@ bool PPCMIPeephole::simplifyCode(void) {
 
   // Eliminate all the TOC save instructions which are redundant.
   Simplified |= eliminateRedundantTOCSaves(TOCSaves);
+  PPCFunctionInfo *FI = MF->getInfo<PPCFunctionInfo>();
+  if (FI->mustSaveTOC())
+    NumTOCSavesInPrologue++;
+
   // We try to eliminate redundant compare instruction.
   Simplified |= eliminateRedundantCompare();
 
@@ -1275,10 +1327,136 @@ bool PPCMIPeephole::eliminateRedundantCompare(void) {
   return Simplified;
 }
 
+// We miss the opportunity to emit an RLDIC when lowering jump tables
+// since ISEL sees only a single basic block. When selecting, the clear
+// and shift left will be in different blocks.
+bool PPCMIPeephole::emitRLDICWhenLoweringJumpTables(MachineInstr &MI) {
+  if (MI.getOpcode() != PPC::RLDICR)
+    return false;
+
+  unsigned SrcReg = MI.getOperand(1).getReg();
+  if (!TargetRegisterInfo::isVirtualRegister(SrcReg))
+    return false;
+
+  MachineInstr *SrcMI = MRI->getVRegDef(SrcReg);
+  if (SrcMI->getOpcode() != PPC::RLDICL)
+    return false;
+
+  MachineOperand MOpSHSrc = SrcMI->getOperand(2);
+  MachineOperand MOpMBSrc = SrcMI->getOperand(3);
+  MachineOperand MOpSHMI = MI.getOperand(2);
+  MachineOperand MOpMEMI = MI.getOperand(3);
+  if (!(MOpSHSrc.isImm() && MOpMBSrc.isImm() && MOpSHMI.isImm() &&
+        MOpMEMI.isImm()))
+    return false;
+
+  uint64_t SHSrc = MOpSHSrc.getImm();
+  uint64_t MBSrc = MOpMBSrc.getImm();
+  uint64_t SHMI = MOpSHMI.getImm();
+  uint64_t MEMI = MOpMEMI.getImm();
+  uint64_t NewSH = SHSrc + SHMI;
+  uint64_t NewMB = MBSrc - SHMI;
+  if (NewMB > 63 || NewSH > 63)
+    return false;
+
+  // The bits cleared with RLDICL are [0, MBSrc).
+  // The bits cleared with RLDICR are (MEMI, 63].
+  // After the sequence, the bits cleared are:
+  // [0, MBSrc-SHMI) and (MEMI, 63).
+  //
+  // The bits cleared with RLDIC are [0, NewMB) and (63-NewSH, 63].
+  if ((63 - NewSH) != MEMI)
+    return false;
+
+  LLVM_DEBUG(dbgs() << "Converting pair: ");
+  LLVM_DEBUG(SrcMI->dump());
+  LLVM_DEBUG(MI.dump());
+
+  MI.setDesc(TII->get(PPC::RLDIC));
+  MI.getOperand(1).setReg(SrcMI->getOperand(1).getReg());
+  MI.getOperand(2).setImm(NewSH);
+  MI.getOperand(3).setImm(NewMB);
+
+  LLVM_DEBUG(dbgs() << "To: ");
+  LLVM_DEBUG(MI.dump());
+  NumRotatesCollapsed++;
+  return true;
+}
+
+// For case in LLVM IR
+// entry:
+//   %iconv = sext i32 %index to i64
+//   br i1 undef label %true, label %false
+// true:
+//   %ptr = getelementptr inbounds i32, i32* null, i64 %iconv
+// ...
+// PPCISelLowering::combineSHL fails to combine, because sext and shl are in
+// different BBs when conducting instruction selection. We can do a peephole
+// optimization to combine these two instructions into extswsli after
+// instruction selection.
+bool PPCMIPeephole::combineSEXTAndSHL(MachineInstr &MI,
+                                      MachineInstr *&ToErase) {
+  if (MI.getOpcode() != PPC::RLDICR)
+    return false;
+
+  if (!MF->getSubtarget<PPCSubtarget>().isISA3_0())
+    return false;
+
+  assert(MI.getNumOperands() == 4 && "RLDICR should have 4 operands");
+
+  MachineOperand MOpSHMI = MI.getOperand(2);
+  MachineOperand MOpMEMI = MI.getOperand(3);
+  if (!(MOpSHMI.isImm() && MOpMEMI.isImm()))
+    return false;
+
+  uint64_t SHMI = MOpSHMI.getImm();
+  uint64_t MEMI = MOpMEMI.getImm();
+  if (SHMI + MEMI != 63)
+    return false;
+
+  unsigned SrcReg = MI.getOperand(1).getReg();
+  if (!TargetRegisterInfo::isVirtualRegister(SrcReg))
+    return false;
+
+  MachineInstr *SrcMI = MRI->getVRegDef(SrcReg);
+  if (SrcMI->getOpcode() != PPC::EXTSW &&
+      SrcMI->getOpcode() != PPC::EXTSW_32_64)
+    return false;
+
+  // If the register defined by extsw has more than one use, combination is not
+  // needed.
+  if (!MRI->hasOneNonDBGUse(SrcReg))
+    return false;
+
+  LLVM_DEBUG(dbgs() << "Combining pair: ");
+  LLVM_DEBUG(SrcMI->dump());
+  LLVM_DEBUG(MI.dump());
+
+  MachineInstr *NewInstr =
+      BuildMI(*MI.getParent(), &MI, MI.getDebugLoc(),
+              SrcMI->getOpcode() == PPC::EXTSW ? TII->get(PPC::EXTSWSLI)
+                                               : TII->get(PPC::EXTSWSLI_32_64),
+              MI.getOperand(0).getReg())
+          .add(SrcMI->getOperand(1))
+          .add(MOpSHMI);
+  (void)NewInstr;
+
+  LLVM_DEBUG(dbgs() << "TO: ");
+  LLVM_DEBUG(NewInstr->dump());
+  ++NumEXTSWAndSLDICombined;
+  ToErase = &MI;
+  // SrcMI, which is extsw, is of no use now, erase it.
+  SrcMI->eraseFromParent();
+  return true;
+}
+
 } // end default namespace
 
 INITIALIZE_PASS_BEGIN(PPCMIPeephole, DEBUG_TYPE,
                       "PowerPC MI Peephole Optimization", false, false)
+INITIALIZE_PASS_DEPENDENCY(MachineBlockFrequencyInfo)
+INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
+INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTree)
 INITIALIZE_PASS_END(PPCMIPeephole, DEBUG_TYPE,
                     "PowerPC MI Peephole Optimization", false, false)
 

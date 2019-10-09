@@ -1,9 +1,8 @@
 //===-- IOHandler.h ---------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,6 +13,7 @@
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/Flags.h"
 #include "lldb/Utility/Predicate.h"
+#include "lldb/Utility/Reproducer.h"
 #include "lldb/Utility/Stream.h"
 #include "lldb/Utility/StringList.h"
 #include "lldb/lldb-defines.h"
@@ -59,7 +59,8 @@ public:
   IOHandler(Debugger &debugger, IOHandler::Type type,
             const lldb::StreamFileSP &input_sp,
             const lldb::StreamFileSP &output_sp,
-            const lldb::StreamFileSP &error_sp, uint32_t flags);
+            const lldb::StreamFileSP &error_sp, uint32_t flags,
+            repro::DataRecorder *data_recorder);
 
   virtual ~IOHandler();
 
@@ -137,23 +138,19 @@ public:
 
   const Flags &GetFlags() const { return m_flags; }
 
-  //------------------------------------------------------------------
   /// Check if the input is being supplied interactively by a user
   ///
   /// This will return true if the input stream is a terminal (tty or
   /// pty) and can cause IO handlers to do different things (like
   /// for a confirmation when deleting all breakpoints).
-  //------------------------------------------------------------------
   bool GetIsInteractive();
 
-  //------------------------------------------------------------------
   /// Check if the input is coming from a real terminal.
   ///
   /// A real terminal has a valid size with a certain number of rows
   /// and columns. If this function returns true, then terminal escape
   /// sequences are expected to work (cursor movement escape sequences,
   /// clearing lines, etc).
-  //------------------------------------------------------------------
   bool GetIsRealTerminal();
 
   void SetPopped(bool b);
@@ -170,6 +167,7 @@ protected:
   lldb::StreamFileSP m_input_sp;
   lldb::StreamFileSP m_output_sp;
   lldb::StreamFileSP m_error_sp;
+  repro::DataRecorder *m_data_recorder;
   Predicate<bool> m_popped;
   Flags m_flags;
   Type m_type;
@@ -181,14 +179,12 @@ private:
   DISALLOW_COPY_AND_ASSIGN(IOHandler);
 };
 
-//------------------------------------------------------------------
 /// A delegate class for use with IOHandler subclasses.
 ///
 /// The IOHandler delegate is designed to be mixed into classes so
 /// they can use an IOHandler subclass to fetch input and notify the
 /// object that inherits from this delegate class when a token is
 /// received.
-//------------------------------------------------------------------
 class IOHandlerDelegate {
 public:
   enum class Completion { None, LLDBCommand, Expression };
@@ -198,7 +194,7 @@ public:
 
   virtual ~IOHandlerDelegate() = default;
 
-  virtual void IOHandlerActivated(IOHandler &io_handler) {}
+  virtual void IOHandlerActivated(IOHandler &io_handler, bool interactive) {}
 
   virtual void IOHandlerDeactivated(IOHandler &io_handler) {}
 
@@ -209,37 +205,34 @@ public:
 
   virtual const char *IOHandlerGetFixIndentationCharacters() { return nullptr; }
 
-  //------------------------------------------------------------------
   /// Called when a new line is created or one of an identified set of
   /// indentation characters is typed.
   ///
   /// This function determines how much indentation should be added
   /// or removed to match the recommended amount for the final line.
   ///
-  /// @param[in] io_handler
+  /// \param[in] io_handler
   ///     The IOHandler that responsible for input.
   ///
-  /// @param[in] lines
+  /// \param[in] lines
   ///     The current input up to the line to be corrected.  Lines
   ///     following the line containing the cursor are not included.
   ///
-  /// @param[in] cursor_position
+  /// \param[in] cursor_position
   ///     The number of characters preceding the cursor on the final
   ///     line at the time.
   ///
-  /// @return
+  /// \return
   ///     Returns an integer describing the number of spaces needed
   ///     to correct the indentation level.  Positive values indicate
   ///     that spaces should be added, while negative values represent
   ///     spaces that should be removed.
-  //------------------------------------------------------------------
   virtual int IOHandlerFixIndentation(IOHandler &io_handler,
                                       const StringList &lines,
                                       int cursor_position) {
     return 0;
   }
 
-  //------------------------------------------------------------------
   /// Called when a line or lines have been retrieved.
   ///
   /// This function can handle the current line and possibly call
@@ -247,29 +240,26 @@ public:
   /// "quit" is entered as a command, of when an empty line is
   /// received. It is up to the delegate to determine when a line
   /// should cause a IOHandler to exit.
-  //------------------------------------------------------------------
   virtual void IOHandlerInputComplete(IOHandler &io_handler,
                                       std::string &data) = 0;
 
   virtual void IOHandlerInputInterrupted(IOHandler &io_handler,
                                          std::string &data) {}
 
-  //------------------------------------------------------------------
   /// Called to determine whether typing enter after the last line in
   /// \a lines should end input.  This function will not be called on
   /// IOHandler objects that are getting single lines.
-  /// @param[in] io_handler
+  /// \param[in] io_handler
   ///     The IOHandler that responsible for updating the lines.
   ///
-  /// @param[in] lines
+  /// \param[in] lines
   ///     The current multi-line content.  May be altered to provide
   ///     alternative input when complete.
   ///
-  /// @return
+  /// \return
   ///     Return an boolean to indicate whether input is complete,
   ///     true indicates that no additional input is necessary, while
   ///     false indicates that more input is required.
-  //------------------------------------------------------------------
   virtual bool IOHandlerIsInputComplete(IOHandler &io_handler,
                                         StringList &lines) {
     // Impose no requirements for input to be considered complete.  subclasses
@@ -285,24 +275,20 @@ public:
 
   virtual const char *IOHandlerGetHelpPrologue() { return nullptr; }
 
-  //------------------------------------------------------------------
   // Intercept the IOHandler::Interrupt() calls and do something.
   //
   // Return true if the interrupt was handled, false if the IOHandler should
   // continue to try handle the interrupt itself.
-  //------------------------------------------------------------------
   virtual bool IOHandlerInterrupt(IOHandler &io_handler) { return false; }
 
 protected:
   Completion m_completion; // Support for common builtin completions
 };
 
-//----------------------------------------------------------------------
 // IOHandlerDelegateMultiline
 //
 // A IOHandlerDelegate that handles terminating multi-line input when
 // the last line is equal to "end_line" which is specified in the constructor.
-//----------------------------------------------------------------------
 class IOHandlerDelegateMultiline : public IOHandlerDelegate {
 public:
   IOHandlerDelegateMultiline(const char *end_line,
@@ -344,7 +330,8 @@ public:
                     uint32_t line_number_start, // If non-zero show line numbers
                                                 // starting at
                                                 // 'line_number_start'
-                    IOHandlerDelegate &delegate);
+                    IOHandlerDelegate &delegate,
+                    repro::DataRecorder *data_recorder);
 
   IOHandlerEditline(Debugger &debugger, IOHandler::Type type,
                     const lldb::StreamFileSP &input_sp,
@@ -356,7 +343,8 @@ public:
                     uint32_t line_number_start, // If non-zero show line numbers
                                                 // starting at
                                                 // 'line_number_start'
-                    IOHandlerDelegate &delegate);
+                    IOHandlerDelegate &delegate,
+                    repro::DataRecorder *data_recorder);
 
   IOHandlerEditline(Debugger &, IOHandler::Type, const char *, const char *,
                     const char *, bool, bool, uint32_t,
@@ -436,7 +424,7 @@ private:
 
 protected:
 #ifndef LLDB_DISABLE_LIBEDIT
-  std::unique_ptr<Editline> m_editline_ap;
+  std::unique_ptr<Editline> m_editline_up;
 #endif
   IOHandlerDelegate &m_delegate;
   std::string m_prompt;

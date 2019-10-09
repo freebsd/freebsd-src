@@ -3,10 +3,9 @@
 #
 #//===----------------------------------------------------------------------===//
 #//
-#//                     The LLVM Compiler Infrastructure
-#//
-#// This file is dual licensed under the MIT and the University of Illinois Open
-#// Source Licenses. See LICENSE.txt for details.
+#// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+#// See https://llvm.org/LICENSE.txt for license information.
+#// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #//
 #//===----------------------------------------------------------------------===//
 #
@@ -426,7 +425,7 @@ AffHWSubsetManyTiles         "KMP_HW_SUBSET ignored: too many L2 Caches requeste
 AffHWSubsetManyProcs         "KMP_HW_SUBSET ignored: too many Procs requested."
 HierSchedInvalid             "Hierarchy ignored: unsupported level: %1$s."
 AffFormatDefault             "OMP: pid %1$s tid %2$s thread %3$s bound to OS proc set {%4$s}"
-
+APIDeprecated                "%1$s routine deprecated, please use %2$s instead."
 
 # --------------------------------------------------------------------------------------------------
 -*- HINTS -*-
@@ -490,4 +489,3 @@ SystemLimitOnThreads         "System-related limit on the number of threads."
 # --------------------------------------------------------------------------------------------------
 # end of file #
 # --------------------------------------------------------------------------------------------------
-

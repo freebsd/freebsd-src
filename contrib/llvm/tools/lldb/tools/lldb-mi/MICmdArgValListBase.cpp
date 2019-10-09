@@ -1,9 +1,8 @@
 //===-- MICmdArgValListBase.cpp ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,7 +18,6 @@
 #include "MICmdArgValThreadGrp.h"
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValListBase constructor.
 // Type:    Method.
 // Args:    None.
@@ -30,7 +28,6 @@ CMICmdArgValListBase::CMICmdArgValListBase()
     : m_eArgType(eArgValType_invalid) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValListBase constructor.
 // Type:    Method.
 // Args:    vrArgName       - (R) Argument's name to search by.
@@ -48,7 +45,6 @@ CMICmdArgValListBase::CMICmdArgValListBase(const CMIUtilString &vrArgName,
       m_eArgType(eArgValType_invalid) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValListBase constructor.
 // Type:    Method.
 // Args:    vrArgName       - (R) Argument's name to search by.
@@ -69,7 +65,6 @@ CMICmdArgValListBase::CMICmdArgValListBase(const CMIUtilString &vrArgName,
       m_eArgType(veType) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValListBase destructor.
 // Type:    Overridden.
 // Args:    None.
@@ -82,7 +77,6 @@ CMICmdArgValListBase::~CMICmdArgValListBase() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Tear down resources used by *this object.
 // Type:    Method.
 // Args:    None.
@@ -103,7 +97,6 @@ void CMICmdArgValListBase::Destroy() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Create an CMICmdArgValBase derived object matching the type
 // specified
 //          and put the option or argument's value inside it.
@@ -164,7 +157,6 @@ CMICmdArgValListBase::CreationObj(const CMIUtilString &vrTxt,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Validate the option or argument is the correct type.
 // Type:    Method.
 // Args:    vrTxt   - (R) Text version the option or argument.

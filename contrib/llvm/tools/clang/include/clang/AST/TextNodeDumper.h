@@ -1,9 +1,8 @@
 //===--- TextNodeDumper.h - Printing of AST nodes -------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,6 +18,7 @@
 #include "clang/AST/AttrVisitor.h"
 #include "clang/AST/CommentCommandTraits.h"
 #include "clang/AST/CommentVisitor.h"
+#include "clang/AST/DeclVisitor.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/AST/TemplateArgumentVisitor.h"
@@ -129,7 +129,8 @@ class TextNodeDumper
       public ConstAttrVisitor<TextNodeDumper>,
       public ConstTemplateArgumentVisitor<TextNodeDumper>,
       public ConstStmtVisitor<TextNodeDumper>,
-      public TypeVisitor<TextNodeDumper> {
+      public TypeVisitor<TextNodeDumper>,
+      public ConstDeclVisitor<TextNodeDumper> {
   raw_ostream &OS;
   const bool ShowColors;
 
@@ -144,6 +145,8 @@ class TextNodeDumper
   PrintingPolicy PrintPolicy;
 
   const comments::CommandTraits *Traits;
+
+  const ASTContext *Context;
 
   const char *getCommandName(unsigned CommandID);
 
@@ -172,6 +175,8 @@ public:
   void Visit(const OMPClause *C);
 
   void Visit(const BlockDecl::Capture &C);
+
+  void Visit(const GenericSelectionExpr::ConstAssociation &A);
 
   void dumpPointer(const void *Ptr);
   void dumpLocation(SourceLocation Loc);
@@ -225,6 +230,7 @@ public:
   void VisitLabelStmt(const LabelStmt *Node);
   void VisitGotoStmt(const GotoStmt *Node);
   void VisitCaseStmt(const CaseStmt *Node);
+  void VisitConstantExpr(const ConstantExpr *Node);
   void VisitCallExpr(const CallExpr *Node);
   void VisitCastExpr(const CastExpr *Node);
   void VisitImplicitCastExpr(const ImplicitCastExpr *Node);
@@ -236,6 +242,7 @@ public:
   void VisitFloatingLiteral(const FloatingLiteral *Node);
   void VisitStringLiteral(const StringLiteral *Str);
   void VisitInitListExpr(const InitListExpr *ILE);
+  void VisitGenericSelectionExpr(const GenericSelectionExpr *E);
   void VisitUnaryOperator(const UnaryOperator *Node);
   void VisitUnaryExprOrTypeTraitExpr(const UnaryExprOrTypeTraitExpr *Node);
   void VisitMemberExpr(const MemberExpr *Node);
@@ -289,8 +296,58 @@ public:
   void VisitObjCInterfaceType(const ObjCInterfaceType *T);
   void VisitPackExpansionType(const PackExpansionType *T);
 
-private:
-  void dumpCXXTemporary(const CXXTemporary *Temporary);
+  void VisitLabelDecl(const LabelDecl *D);
+  void VisitTypedefDecl(const TypedefDecl *D);
+  void VisitEnumDecl(const EnumDecl *D);
+  void VisitRecordDecl(const RecordDecl *D);
+  void VisitEnumConstantDecl(const EnumConstantDecl *D);
+  void VisitIndirectFieldDecl(const IndirectFieldDecl *D);
+  void VisitFunctionDecl(const FunctionDecl *D);
+  void VisitFieldDecl(const FieldDecl *D);
+  void VisitVarDecl(const VarDecl *D);
+  void VisitBindingDecl(const BindingDecl *D);
+  void VisitCapturedDecl(const CapturedDecl *D);
+  void VisitImportDecl(const ImportDecl *D);
+  void VisitPragmaCommentDecl(const PragmaCommentDecl *D);
+  void VisitPragmaDetectMismatchDecl(const PragmaDetectMismatchDecl *D);
+  void VisitOMPExecutableDirective(const OMPExecutableDirective *D);
+  void VisitOMPDeclareReductionDecl(const OMPDeclareReductionDecl *D);
+  void VisitOMPRequiresDecl(const OMPRequiresDecl *D);
+  void VisitOMPCapturedExprDecl(const OMPCapturedExprDecl *D);
+  void VisitNamespaceDecl(const NamespaceDecl *D);
+  void VisitUsingDirectiveDecl(const UsingDirectiveDecl *D);
+  void VisitNamespaceAliasDecl(const NamespaceAliasDecl *D);
+  void VisitTypeAliasDecl(const TypeAliasDecl *D);
+  void VisitTypeAliasTemplateDecl(const TypeAliasTemplateDecl *D);
+  void VisitCXXRecordDecl(const CXXRecordDecl *D);
+  void VisitFunctionTemplateDecl(const FunctionTemplateDecl *D);
+  void VisitClassTemplateDecl(const ClassTemplateDecl *D);
+  void VisitBuiltinTemplateDecl(const BuiltinTemplateDecl *D);
+  void VisitVarTemplateDecl(const VarTemplateDecl *D);
+  void VisitTemplateTypeParmDecl(const TemplateTypeParmDecl *D);
+  void VisitNonTypeTemplateParmDecl(const NonTypeTemplateParmDecl *D);
+  void VisitTemplateTemplateParmDecl(const TemplateTemplateParmDecl *D);
+  void VisitUsingDecl(const UsingDecl *D);
+  void VisitUnresolvedUsingTypenameDecl(const UnresolvedUsingTypenameDecl *D);
+  void VisitUnresolvedUsingValueDecl(const UnresolvedUsingValueDecl *D);
+  void VisitUsingShadowDecl(const UsingShadowDecl *D);
+  void VisitConstructorUsingShadowDecl(const ConstructorUsingShadowDecl *D);
+  void VisitLinkageSpecDecl(const LinkageSpecDecl *D);
+  void VisitAccessSpecDecl(const AccessSpecDecl *D);
+  void VisitFriendDecl(const FriendDecl *D);
+  void VisitObjCIvarDecl(const ObjCIvarDecl *D);
+  void VisitObjCMethodDecl(const ObjCMethodDecl *D);
+  void VisitObjCTypeParamDecl(const ObjCTypeParamDecl *D);
+  void VisitObjCCategoryDecl(const ObjCCategoryDecl *D);
+  void VisitObjCCategoryImplDecl(const ObjCCategoryImplDecl *D);
+  void VisitObjCProtocolDecl(const ObjCProtocolDecl *D);
+  void VisitObjCInterfaceDecl(const ObjCInterfaceDecl *D);
+  void VisitObjCImplementationDecl(const ObjCImplementationDecl *D);
+  void VisitObjCCompatibleAliasDecl(const ObjCCompatibleAliasDecl *D);
+  void VisitObjCPropertyDecl(const ObjCPropertyDecl *D);
+  void VisitObjCPropertyImplDecl(const ObjCPropertyImplDecl *D);
+  void VisitBlockDecl(const BlockDecl *D);
+  void VisitConceptDecl(const ConceptDecl *D);
 };
 
 } // namespace clang

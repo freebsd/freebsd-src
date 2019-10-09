@@ -1,9 +1,8 @@
 //===-- XML.h ---------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -85,20 +84,14 @@ public:
 
   XMLNode GetElementForPath(const NamePath &path);
 
-  //----------------------------------------------------------------------
   // Iterate through all sibling nodes of any type
-  //----------------------------------------------------------------------
   void ForEachSiblingNode(NodeCallback const &callback) const;
 
-  //----------------------------------------------------------------------
   // Iterate through only the sibling nodes that are elements
-  //----------------------------------------------------------------------
   void ForEachSiblingElement(NodeCallback const &callback) const;
 
-  //----------------------------------------------------------------------
   // Iterate through only the sibling nodes that are elements and whose name
   // matches \a name.
-  //----------------------------------------------------------------------
   void ForEachSiblingElementWithName(const char *name,
                                      NodeCallback const &callback) const;
 
@@ -132,10 +125,8 @@ public:
   bool ParseMemory(const char *xml, size_t xml_length,
                    const char *url = "untitled.xml");
 
-  //----------------------------------------------------------------------
   // If \a name is nullptr, just get the root element node, else only return a
   // value XMLNode if the name of the root element matches \a name.
-  //----------------------------------------------------------------------
   XMLNode GetRootElement(const char *required_name = nullptr);
 
   llvm::StringRef GetErrors() const;

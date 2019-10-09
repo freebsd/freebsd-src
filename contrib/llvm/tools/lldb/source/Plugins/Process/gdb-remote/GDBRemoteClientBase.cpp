@@ -1,9 +1,8 @@
 //===-- GDBRemoteClientBase.cpp ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,7 +10,6 @@
 
 #include "llvm/ADT/StringExtras.h"
 
-#include "lldb/Target/Process.h"
 #include "lldb/Target/UnixSignals.h"
 #include "lldb/Utility/LLDBAssert.h"
 
@@ -287,7 +285,7 @@ bool GDBRemoteClientBase::ShouldStop(const UnixSignals &signals,
 
 void GDBRemoteClientBase::OnRunPacketSent(bool first) {
   if (first)
-    BroadcastEvent(eBroadcastBitRunPacketSent, NULL);
+    BroadcastEvent(eBroadcastBitRunPacketSent, nullptr);
 }
 
 ///////////////////////////////////////
@@ -367,7 +365,7 @@ void GDBRemoteClientBase::Lock::SyncWithContinueThread(bool interrupt) {
       // packet. Let's interrupt it.
       const char ctrl_c = '\x03';
       ConnectionStatus status = eConnectionStatusSuccess;
-      size_t bytes_written = m_comm.Write(&ctrl_c, 1, status, NULL);
+      size_t bytes_written = m_comm.Write(&ctrl_c, 1, status, nullptr);
       if (bytes_written == 0) {
         --m_comm.m_async_count;
         if (log)

@@ -1,9 +1,8 @@
 //===-- ARMTargetParser - Parser for ARM target features --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -40,12 +39,13 @@ enum ArchExtKind : unsigned {
   AEK_DSP =         1 << 10,
   AEK_FP16 =        1 << 11,
   AEK_RAS =         1 << 12,
-  AEK_SVE =         1 << 13,
-  AEK_DOTPROD =     1 << 14,
-  AEK_SHA2    =     1 << 15,
-  AEK_AES     =     1 << 16,
-  AEK_FP16FML =     1 << 17,
-  AEK_SB      =     1 << 18,
+  AEK_DOTPROD =     1 << 13,
+  AEK_SHA2    =     1 << 14,
+  AEK_AES     =     1 << 15,
+  AEK_FP16FML =     1 << 16,
+  AEK_SB      =     1 << 17,
+  AEK_FP_DP   =     1 << 18,
+  AEK_LOB     =     1 << 19,
   // Unsupported extensions.
   AEK_OS = 0x8000000,
   AEK_IWMMXT = 0x10000000,
@@ -127,7 +127,8 @@ enum class FPUVersion {
   VFPV3,
   VFPV3_FP16,
   VFPV4,
-  VFPV5
+  VFPV5,
+  VFPV5_FULLFP16,
 };
 
 // An FPU name restricts the FPU in one of three ways:
@@ -234,6 +235,8 @@ StringRef getCPUAttr(ArchKind AK);
 StringRef getSubArch(ArchKind AK);
 StringRef getArchExtName(unsigned ArchExtKind);
 StringRef getArchExtFeature(StringRef ArchExt);
+bool appendArchExtFeatures(StringRef CPU, ARM::ArchKind AK, StringRef ArchExt,
+                           std::vector<StringRef> &Features);
 StringRef getHWDivName(unsigned HWDivKind);
 
 // Information by Name

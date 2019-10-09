@@ -1,9 +1,8 @@
 //===- ObjectTransformLayer.h - Run all objects through functor -*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -49,7 +48,16 @@ template <typename BaseLayerT, typename TransformFtor>
 class LegacyObjectTransformLayer {
 public:
   /// Construct an ObjectTransformLayer with the given BaseLayer
-  LegacyObjectTransformLayer(BaseLayerT &BaseLayer,
+  LLVM_ATTRIBUTE_DEPRECATED(
+      LegacyObjectTransformLayer(BaseLayerT &BaseLayer,
+                                 TransformFtor Transform = TransformFtor()),
+      "ORCv1 layers (layers with the 'Legacy' prefix) are deprecated. Please "
+      "use "
+      "the ORCv2 ObjectTransformLayer instead");
+
+  /// Legacy layer constructor with deprecation acknowledgement.
+  LegacyObjectTransformLayer(ORCv1DeprecationAcknowledgement,
+                             BaseLayerT &BaseLayer,
                              TransformFtor Transform = TransformFtor())
       : BaseLayer(BaseLayer), Transform(std::move(Transform)) {}
 
@@ -107,6 +115,11 @@ private:
   BaseLayerT &BaseLayer;
   TransformFtor Transform;
 };
+
+template <typename BaseLayerT, typename TransformFtor>
+LegacyObjectTransformLayer<BaseLayerT, TransformFtor>::
+    LegacyObjectTransformLayer(BaseLayerT &BaseLayer, TransformFtor Transform)
+    : BaseLayer(BaseLayer), Transform(std::move(Transform)) {}
 
 } // end namespace orc
 } // end namespace llvm

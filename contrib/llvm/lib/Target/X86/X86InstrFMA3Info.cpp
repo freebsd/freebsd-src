@@ -1,9 +1,8 @@
 //===-- X86InstrFMA3Info.cpp - X86 FMA3 Instruction Information -----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -57,7 +56,7 @@ using namespace llvm;
 
 #define FMA3GROUP_SCALAR(Name, Attrs) \
   FMA3GROUP_SCALAR_WIDTHS(Name, SD, Attrs) \
-  FMA3GROUP_SCALAR_WIDTHS(Name, SS, Attrs) \
+  FMA3GROUP_SCALAR_WIDTHS(Name, SS, Attrs)
 
 #define FMA3GROUP_FULL(Name, Attrs) \
   FMA3GROUP_PACKED(Name, Attrs) \
@@ -159,11 +158,9 @@ const X86InstrFMA3Group *llvm::getFMA3Group(unsigned Opcode, uint64_t TSFlags) {
   // FMA 231 instructions have an opcode of 0xB6-0xBF
   unsigned FormIndex = ((BaseOpcode - 0x90) >> 4) & 0x3;
 
-  auto I = std::lower_bound(Table.begin(), Table.end(), Opcode,
-                            [FormIndex](const X86InstrFMA3Group &Group,
-                                        unsigned Opcode) {
-                              return Group.Opcodes[FormIndex] < Opcode;
-                            });
+  auto I = partition_point(Table, [=](const X86InstrFMA3Group &Group) {
+    return Group.Opcodes[FormIndex] < Opcode;
+  });
   assert(I != Table.end() && I->Opcodes[FormIndex] == Opcode &&
          "Couldn't find FMA3 opcode!");
   return I;

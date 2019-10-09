@@ -1,9 +1,8 @@
 //===-- EmulateInstructionARM64.h -------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -74,25 +73,25 @@ public:
   bool
   CreateFunctionEntryUnwind(lldb_private::UnwindPlan &unwind_plan) override;
 
-  typedef enum { AddrMode_OFF, AddrMode_PRE, AddrMode_POST } AddrMode;
+  enum AddrMode { AddrMode_OFF, AddrMode_PRE, AddrMode_POST };
 
-  typedef enum {
+  enum BranchType {
     BranchType_CALL,
     BranchType_ERET,
     BranchType_DRET,
     BranchType_RET,
     BranchType_JMP
-  } BranchType;
+  };
 
-  typedef enum { CountOp_CLZ, CountOp_CLS, CountOp_CNT } CountOp;
+  enum CountOp { CountOp_CLZ, CountOp_CLS, CountOp_CNT };
 
-  typedef enum { RevOp_RBIT, RevOp_REV16, RevOp_REV32, RevOp_REV64 } RevOp;
+  enum RevOp { RevOp_RBIT, RevOp_REV16, RevOp_REV32, RevOp_REV64 };
 
-  typedef enum { BitwiseOp_NOT, BitwiseOp_RBIT } BitwiseOp;
+  enum BitwiseOp { BitwiseOp_NOT, BitwiseOp_RBIT };
 
-  typedef enum { EL0 = 0, EL1 = 1, EL2 = 2, EL3 = 3 } ExceptionLevel;
+  enum ExceptionLevel { EL0 = 0, EL1 = 1, EL2 = 2, EL3 = 3 };
 
-  typedef enum {
+  enum ExtendType {
     ExtendType_SXTB,
     ExtendType_SXTH,
     ExtendType_SXTW,
@@ -101,44 +100,36 @@ public:
     ExtendType_UXTH,
     ExtendType_UXTW,
     ExtendType_UXTX
-  } ExtendType;
+  };
 
-  typedef enum { ExtractType_LEFT, ExtractType_RIGHT } ExtractType;
+  enum ExtractType { ExtractType_LEFT, ExtractType_RIGHT };
 
-  typedef enum { LogicalOp_AND, LogicalOp_EOR, LogicalOp_ORR } LogicalOp;
+  enum LogicalOp { LogicalOp_AND, LogicalOp_EOR, LogicalOp_ORR };
 
-  typedef enum { MemOp_LOAD, MemOp_STORE, MemOp_PREFETCH, MemOp_NOP } MemOp;
+  enum MemOp { MemOp_LOAD, MemOp_STORE, MemOp_PREFETCH, MemOp_NOP };
 
-  typedef enum { MoveWideOp_N, MoveWideOp_Z, MoveWideOp_K } MoveWideOp;
+  enum MoveWideOp { MoveWideOp_N, MoveWideOp_Z, MoveWideOp_K };
 
-  typedef enum {
-    ShiftType_LSL,
-    ShiftType_LSR,
-    ShiftType_ASR,
-    ShiftType_ROR
-  } ShiftType;
+  enum ShiftType { ShiftType_LSL, ShiftType_LSR, ShiftType_ASR, ShiftType_ROR };
 
-  typedef enum { SP0 = 0, SPx = 1 } StackPointerSelection;
+  enum StackPointerSelection { SP0 = 0, SPx = 1 };
 
-  typedef enum {
-    Unpredictable_WBOVERLAP,
-    Unpredictable_LDPOVERLAP
-  } Unpredictable;
+  enum Unpredictable { Unpredictable_WBOVERLAP, Unpredictable_LDPOVERLAP };
 
-  typedef enum {
+  enum ConstraintType {
     Constraint_NONE,
     Constraint_UNKNOWN,
     Constraint_SUPPRESSWB,
     Constraint_NOP
-  } ConstraintType;
+  };
 
-  typedef enum {
+  enum AccType {
     AccType_NORMAL,
     AccType_UNPRIV,
     AccType_STREAM,
     AccType_ALIGNED,
     AccType_ORDERED
-  } AccType;
+  };
 
   typedef struct {
     uint32_t N : 1, V : 1, C : 1,

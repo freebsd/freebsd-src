@@ -1,9 +1,8 @@
 //===-- JITLoaderGDB.cpp ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -30,17 +29,13 @@
 
 #include "JITLoaderGDB.h"
 
+#include <memory>
+
 using namespace lldb;
 using namespace lldb_private;
 
-//------------------------------------------------------------------
 // Debug Interface Structures
-//------------------------------------------------------------------
-typedef enum {
-  JIT_NOACTION = 0,
-  JIT_REGISTER_FN,
-  JIT_UNREGISTER_FN
-} jit_actions_t;
+enum jit_actions_t { JIT_NOACTION = 0, JIT_REGISTER_FN, JIT_UNREGISTER_FN };
 
 template <typename ptr_t> struct jit_code_entry {
   ptr_t next_entry;   // pointer
@@ -58,11 +53,27 @@ template <typename ptr_t> struct jit_descriptor {
 
 namespace {
 
-static constexpr PropertyDefinition g_properties[] = {
-    {"enable-jit-breakpoint", OptionValue::eTypeBoolean, true, true, nullptr,
-     {}, "Enable breakpoint on __jit_debug_register_code."}};
+enum EnableJITLoaderGDB {
+  eEnableJITLoaderGDBDefault,
+  eEnableJITLoaderGDBOn,
+  eEnableJITLoaderGDBOff,
+};
 
-enum { ePropertyEnableJITBreakpoint };
+static constexpr OptionEnumValueElement g_enable_jit_loader_gdb_enumerators[] = {
+    {eEnableJITLoaderGDBDefault, "default", "Enable JIT compilation interface "
+     "for all platforms except macOS"},
+    {eEnableJITLoaderGDBOn, "on", "Enable JIT compilation interface"},
+    {eEnableJITLoaderGDBOff, "off", "Disable JIT compilation interface"}
+ };
+
+static constexpr PropertyDefinition g_properties[] = {
+    {"enable", OptionValue::eTypeEnum, true,
+     eEnableJITLoaderGDBDefault, nullptr,
+     OptionEnumValues(g_enable_jit_loader_gdb_enumerators),
+     "Enable GDB's JIT compilation interface (default: enabled on "
+     "all platforms except macOS)"}};
+
+enum { ePropertyEnable, ePropertyEnableJITBreakpoint };
 
 class PluginProperties : public Properties {
 public:
@@ -71,14 +82,14 @@ public:
   }
 
   PluginProperties() {
-    m_collection_sp.reset(new OptionValueProperties(GetSettingName()));
+    m_collection_sp = std::make_shared<OptionValueProperties>(GetSettingName());
     m_collection_sp->Initialize(g_properties);
   }
 
-  bool GetEnableJITBreakpoint() const {
-    return m_collection_sp->GetPropertyAtIndexAsBoolean(
-        nullptr, ePropertyEnableJITBreakpoint,
-        g_properties[ePropertyEnableJITBreakpoint].default_uint_value != 0);
+  EnableJITLoaderGDB GetEnable() const {
+    return (EnableJITLoaderGDB)m_collection_sp->GetPropertyAtIndexAsEnumeration(
+        nullptr, ePropertyEnable,
+        g_properties[ePropertyEnable].default_uint_value);
   }
 };
 
@@ -160,13 +171,8 @@ void JITLoaderGDB::ModulesDidLoad(ModuleList &module_list) {
     SetJITBreakpoint(module_list);
 }
 
-//------------------------------------------------------------------
 // Setup the JIT Breakpoint
-//------------------------------------------------------------------
 void JITLoaderGDB::SetJITBreakpoint(lldb_private::ModuleList &module_list) {
-  if (!GetGlobalPluginProperties()->GetEnableJITBreakpoint())
-    return;
-
   if (DidSetJITBreakpoint())
     return;
 
@@ -317,6 +323,10 @@ bool JITLoaderGDB::ReadJITDescriptorImpl(bool all_entries) {
           FileSpec(jit_name), symbolfile_addr, symbolfile_size);
 
       if (module_sp && module_sp->GetObjectFile()) {
+        // Object formats (like ELF) have no representation for a JIT type.
+        // We will get it wrong, if we deduce it from the header.
+        module_sp->GetObjectFile()->SetType(ObjectFile::eTypeJIT);
+
         // load the symbol table right away
         module_sp->GetObjectFile()->GetSymtab();
 
@@ -391,9 +401,7 @@ bool JITLoaderGDB::ReadJITDescriptorImpl(bool all_entries) {
   return false; // Continue Running.
 }
 
-//------------------------------------------------------------------
 // PluginInterface protocol
-//------------------------------------------------------------------
 lldb_private::ConstString JITLoaderGDB::GetPluginNameStatic() {
   static ConstString g_name("gdb");
   return g_name;
@@ -401,9 +409,21 @@ lldb_private::ConstString JITLoaderGDB::GetPluginNameStatic() {
 
 JITLoaderSP JITLoaderGDB::CreateInstance(Process *process, bool force) {
   JITLoaderSP jit_loader_sp;
-  ArchSpec arch(process->GetTarget().GetArchitecture());
-  if (arch.GetTriple().getVendor() != llvm::Triple::Apple)
-    jit_loader_sp.reset(new JITLoaderGDB(process));
+  bool enable;
+  switch (GetGlobalPluginProperties()->GetEnable()) {
+    case EnableJITLoaderGDB::eEnableJITLoaderGDBOn:
+      enable = true;
+      break;
+    case EnableJITLoaderGDB::eEnableJITLoaderGDBOff:
+      enable = false;
+      break;
+    case EnableJITLoaderGDB::eEnableJITLoaderGDBDefault:
+      ArchSpec arch(process->GetTarget().GetArchitecture());
+      enable = arch.GetTriple().getVendor() != llvm::Triple::Apple;
+      break;
+  }
+  if (enable)
+    jit_loader_sp = std::make_shared<JITLoaderGDB>(process);
   return jit_loader_sp;
 }
 
@@ -433,7 +453,7 @@ bool JITLoaderGDB::DidSetJITBreakpoint() const {
 }
 
 addr_t JITLoaderGDB::GetSymbolAddress(ModuleList &module_list,
-                                      const ConstString &name,
+                                      ConstString name,
                                       SymbolType symbol_type) const {
   SymbolContextList target_symbols;
   Target &target = m_process->GetTarget();

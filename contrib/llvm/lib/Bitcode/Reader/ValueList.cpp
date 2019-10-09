@@ -1,9 +1,8 @@
 //===- ValueList.cpp - Internal BitcodeReader implementation --------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -66,14 +65,17 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(ConstantPlaceHolder, Value)
 
 } // end namespace llvm
 
-void BitcodeReaderValueList::assignValue(Value *V, unsigned Idx) {
+void BitcodeReaderValueList::assignValue(Value *V, unsigned Idx, Type *FullTy) {
   if (Idx == size()) {
-    push_back(V);
+    push_back(V, FullTy);
     return;
   }
 
   if (Idx >= size())
     resize(Idx + 1);
+
+  assert(FullTypes[Idx] == nullptr || FullTypes[Idx] == FullTy);
+  FullTypes[Idx] = FullTy;
 
   WeakTrackingVH &OldV = ValuePtrs[Idx];
   if (!OldV) {
@@ -95,6 +97,10 @@ void BitcodeReaderValueList::assignValue(Value *V, unsigned Idx) {
 }
 
 Constant *BitcodeReaderValueList::getConstantFwdRef(unsigned Idx, Type *Ty) {
+  // Bail out for a clearly invalid value.
+  if (Idx >= RefsUpperBound)
+    return nullptr;
+
   if (Idx >= size())
     resize(Idx + 1);
 
@@ -110,9 +116,10 @@ Constant *BitcodeReaderValueList::getConstantFwdRef(unsigned Idx, Type *Ty) {
   return C;
 }
 
-Value *BitcodeReaderValueList::getValueFwdRef(unsigned Idx, Type *Ty) {
-  // Bail out for a clearly invalid value. This would make us call resize(0)
-  if (Idx == std::numeric_limits<unsigned>::max())
+Value *BitcodeReaderValueList::getValueFwdRef(unsigned Idx, Type *Ty,
+                                              Type **FullTy) {
+  // Bail out for a clearly invalid value.
+  if (Idx >= RefsUpperBound)
     return nullptr;
 
   if (Idx >= size())
@@ -122,6 +129,8 @@ Value *BitcodeReaderValueList::getValueFwdRef(unsigned Idx, Type *Ty) {
     // If the types don't match, it's invalid.
     if (Ty && Ty != V->getType())
       return nullptr;
+    if (FullTy)
+      *FullTy = FullTypes[Idx];
     return V;
   }
 
@@ -181,8 +190,8 @@ void BitcodeReaderValueList::resolveConstantForwardRefs() {
           NewOp = RealVal;
         } else {
           // Otherwise, look up the placeholder in ResolveConstants.
-          ResolveConstantsTy::iterator It = std::lower_bound(
-              ResolveConstants.begin(), ResolveConstants.end(),
+          ResolveConstantsTy::iterator It = llvm::lower_bound(
+              ResolveConstants,
               std::pair<Constant *, unsigned>(cast<Constant>(*I), 0));
           assert(It != ResolveConstants.end() && It->first == *I);
           NewOp = operator[](It->second);

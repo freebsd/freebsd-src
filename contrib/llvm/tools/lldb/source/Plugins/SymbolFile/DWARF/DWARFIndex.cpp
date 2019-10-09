@@ -1,17 +1,15 @@
 //===-- DWARFIndex.cpp -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "Plugins/SymbolFile/DWARF/DWARFIndex.h"
-#include "Plugins/SymbolFile/DWARF/DWARFDIE.h"
-#include "Plugins/SymbolFile/DWARF/DWARFDebugInfo.h"
-
 #include "Plugins/Language/ObjC/ObjCLanguage.h"
+#include "Plugins/SymbolFile/DWARF/DWARFDIE.h"
+#include "Plugins/SymbolFile/DWARF/SymbolFileDWARF.h"
 
 using namespace lldb_private;
 using namespace lldb;
@@ -19,13 +17,13 @@ using namespace lldb;
 DWARFIndex::~DWARFIndex() = default;
 
 void DWARFIndex::ProcessFunctionDIE(llvm::StringRef name, DIERef ref,
-                                    DWARFDebugInfo &info,
+                                    SymbolFileDWARF &dwarf,
                                     const CompilerDeclContext &parent_decl_ctx,
                                     uint32_t name_type_mask,
                                     std::vector<DWARFDIE> &dies) {
-  DWARFDIE die = info.GetDIE(ref);
+  DWARFDIE die = dwarf.GetDIE(ref);
   if (!die) {
-    ReportInvalidDIEOffset(ref.die_offset, name);
+    ReportInvalidDIERef(ref, name);
     return;
   }
 

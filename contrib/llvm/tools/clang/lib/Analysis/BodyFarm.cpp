@@ -1,9 +1,8 @@
 //== BodyFarm.cpp  - Factory for conjuring up fake bodies ----------*- C++ -*-//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -221,7 +220,7 @@ MemberExpr *ASTMaker::makeMemberExpression(Expr *base, ValueDecl *MemberDecl,
       SourceLocation(), MemberDecl, FoundDecl,
       DeclarationNameInfo(MemberDecl->getDeclName(), SourceLocation()),
       /* TemplateArgumentListInfo=*/ nullptr, MemberDecl->getType(), ValueKind,
-      OK_Ordinary);
+      OK_Ordinary, NOUR_None);
 }
 
 ValueDecl *ASTMaker::findMemberField(const RecordDecl *RD, StringRef Name) {
@@ -294,7 +293,7 @@ static CallExpr *create_call_once_lambda_call(ASTContext &C, ASTMaker M,
 
   return CXXOperatorCallExpr::Create(
       /*AstContext=*/C, OO_Call, callOperatorDeclRef,
-      /*args=*/CallArgs,
+      /*Args=*/CallArgs,
       /*QualType=*/C.VoidTy,
       /*ExprValueType=*/VK_RValue,
       /*SourceLocation=*/SourceLocation(), FPOptions());
@@ -466,10 +465,10 @@ static Stmt *create_call_once(ASTContext &C, const FunctionDecl *D) {
   auto *Out =
       IfStmt::Create(C, SourceLocation(),
                      /* IsConstexpr=*/false,
-                     /* init=*/nullptr,
-                     /* var=*/nullptr,
-                     /* cond=*/FlagCheck,
-                     /* then=*/M.makeCompound({CallbackCall, FlagAssignment}));
+                     /* Init=*/nullptr,
+                     /* Var=*/nullptr,
+                     /* Cond=*/FlagCheck,
+                     /* Then=*/M.makeCompound({CallbackCall, FlagAssignment}));
 
   return Out;
 }
@@ -512,7 +511,7 @@ static Stmt *create_dispatch_once(ASTContext &C, const FunctionDecl *D) {
   CallExpr *CE = CallExpr::Create(
       /*ASTContext=*/C,
       /*StmtClass=*/M.makeLvalueToRvalue(/*Expr=*/Block),
-      /*args=*/None,
+      /*Args=*/None,
       /*QualType=*/C.VoidTy,
       /*ExprValueType=*/VK_RValue,
       /*SourceLocation=*/SourceLocation());
@@ -550,10 +549,10 @@ static Stmt *create_dispatch_once(ASTContext &C, const FunctionDecl *D) {
   // (5) Create the 'if' statement.
   auto *If = IfStmt::Create(C, SourceLocation(),
                             /* IsConstexpr=*/false,
-                            /* init=*/nullptr,
-                            /* var=*/nullptr,
-                            /* cond=*/GuardCondition,
-                            /* then=*/CS);
+                            /* Init=*/nullptr,
+                            /* Var=*/nullptr,
+                            /* Cond=*/GuardCondition,
+                            /* Then=*/CS);
   return If;
 }
 
@@ -658,16 +657,14 @@ static Stmt *create_OSAtomicCompareAndSwap(ASTContext &C, const FunctionDecl *D)
   /// Construct the If.
   auto *If = IfStmt::Create(C, SourceLocation(),
                             /* IsConstexpr=*/false,
-                            /* init=*/nullptr,
-                            /* var=*/nullptr, Comparison, Body,
+                            /* Init=*/nullptr,
+                            /* Var=*/nullptr, Comparison, Body,
                             SourceLocation(), Else);
 
   return If;
 }
 
 Stmt *BodyFarm::getBody(const FunctionDecl *D) {
-  D = D->getCanonicalDecl();
-
   Optional<Stmt *> &Val = Bodies[D];
   if (Val.hasValue())
     return Val.getValue();
@@ -806,6 +803,11 @@ Stmt *BodyFarm::getBody(const ObjCMethodDecl *D) {
     return nullptr;
 
   D = D->getCanonicalDecl();
+
+  // We should not try to synthesize explicitly redefined accessors.
+  // We do not know for sure how they behave.
+  if (!D->isImplicit())
+    return nullptr;
 
   Optional<Stmt *> &Val = Bodies[D];
   if (Val.hasValue())

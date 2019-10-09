@@ -1,9 +1,8 @@
 //===- CheckerManager.h - Static Analyzer Checker Manager -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -137,12 +136,18 @@ public:
   AnalyzerOptions &getAnalyzerOptions() { return AOptions; }
   ASTContext &getASTContext() { return Context; }
 
+  /// Emits an error through a DiagnosticsEngine about an invalid user supplied
+  /// checker option value.
+  void reportInvalidCheckerOptionValue(const CheckerBase *C,
+                                       StringRef OptionName,
+                                       StringRef ExpectedValueDesc);
+
   using CheckerRef = CheckerBase *;
   using CheckerTag = const void *;
   using CheckerDtor = CheckerFn<void ()>;
 
 //===----------------------------------------------------------------------===//
-// registerChecker
+// Checker registration.
 //===----------------------------------------------------------------------===//
 
   /// Used to register checkers.
@@ -154,8 +159,7 @@ public:
   CHECKER *registerChecker(AT &&... Args) {
     CheckerTag tag = getTag<CHECKER>();
     CheckerRef &ref = CheckerTags[tag];
-    if (ref)
-      return static_cast<CHECKER *>(ref); // already registered.
+    assert(!ref && "Checker already registered, use getChecker!");
 
     CHECKER *checker = new CHECKER(std::forward<AT>(Args)...);
     checker->Name = CurrentCheckName;
@@ -165,8 +169,17 @@ public:
     return checker;
   }
 
+  template <typename CHECKER>
+  CHECKER *getChecker() {
+    CheckerTag tag = getTag<CHECKER>();
+    assert(CheckerTags.count(tag) != 0 &&
+           "Requested checker is not registered! Maybe you should add it as a "
+           "dependency in Checkers.td?");
+    return static_cast<CHECKER *>(CheckerTags[tag]);
+  }
+
 //===----------------------------------------------------------------------===//
-// Functions for running checkers for AST traversing..
+// Functions for running checkers for AST traversing.
 //===----------------------------------------------------------------------===//
 
   /// Run checkers handling Decls.
@@ -393,16 +406,20 @@ public:
   ///
   /// Unlike most other callbacks, any checker can simply implement the virtual
   /// method CheckerBase::printState if it has custom data to print.
-  /// \param Out The output stream
+  ///
+  /// \param Out   The output stream
   /// \param State The state being printed
-  /// \param NL The preferred representation of a newline.
-  /// \param Sep The preferred separator between different kinds of data.
-  void runCheckersForPrintState(raw_ostream &Out, ProgramStateRef State,
-                                const char *NL, const char *Sep);
+  /// \param NL    The preferred representation of a newline.
+  /// \param Space The preferred space between the left side and the message.
+  /// \param IsDot Whether the message will be printed in 'dot' format.
+  void runCheckersForPrintStateJson(raw_ostream &Out, ProgramStateRef State,
+                                    const char *NL = "\n",
+                                    unsigned int Space = 0,
+                                    bool IsDot = false) const;
 
-//===----------------------------------------------------------------------===//
-// Internal registration functions for AST traversing.
-//===----------------------------------------------------------------------===//
+  //===----------------------------------------------------------------------===//
+  // Internal registration functions for AST traversing.
+  //===----------------------------------------------------------------------===//
 
   // Functions used by the registration mechanism, checkers should not touch
   // these directly.
@@ -473,7 +490,7 @@ public:
       CheckerFn<ProgramStateRef (ProgramStateRef, const SVal &cond,
                                  bool assumption)>;
 
-  using EvalCallFunc = CheckerFn<bool (const CallExpr *, CheckerContext &)>;
+  using EvalCallFunc = CheckerFn<bool (const CallEvent &, CheckerContext &)>;
 
   using CheckEndOfTranslationUnit =
       CheckerFn<void (const TranslationUnitDecl *, AnalysisManager &,

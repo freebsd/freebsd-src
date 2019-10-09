@@ -1,9 +1,8 @@
 //===-- SymbolFile.cpp ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -32,7 +31,7 @@ std::recursive_mutex &SymbolFile::GetModuleMutex() const {
 }
 
 SymbolFile *SymbolFile::FindPlugin(ObjectFile *obj_file) {
-  std::unique_ptr<SymbolFile> best_symfile_ap;
+  std::unique_ptr<SymbolFile> best_symfile_up;
   if (obj_file != nullptr) {
 
     // We need to test the abilities of this section list. So create what it
@@ -58,13 +57,13 @@ SymbolFile *SymbolFile::FindPlugin(ObjectFile *obj_file) {
          (create_callback = PluginManager::GetSymbolFileCreateCallbackAtIndex(
               idx)) != nullptr;
          ++idx) {
-      std::unique_ptr<SymbolFile> curr_symfile_ap(create_callback(obj_file));
+      std::unique_ptr<SymbolFile> curr_symfile_up(create_callback(obj_file));
 
-      if (curr_symfile_ap.get()) {
-        const uint32_t sym_file_abilities = curr_symfile_ap->GetAbilities();
+      if (curr_symfile_up) {
+        const uint32_t sym_file_abilities = curr_symfile_up->GetAbilities();
         if (sym_file_abilities > best_symfile_abilities) {
           best_symfile_abilities = sym_file_abilities;
-          best_symfile_ap.reset(curr_symfile_ap.release());
+          best_symfile_up.reset(curr_symfile_up.release());
           // If any symbol file parser has all of the abilities, then we should
           // just stop looking.
           if ((kAllAbilities & sym_file_abilities) == kAllAbilities)
@@ -72,13 +71,13 @@ SymbolFile *SymbolFile::FindPlugin(ObjectFile *obj_file) {
         }
       }
     }
-    if (best_symfile_ap.get()) {
+    if (best_symfile_up) {
       // Let the winning symbol file parser initialize itself more completely
       // now that it has been chosen
-      best_symfile_ap->InitializeObject();
+      best_symfile_up->InitializeObject();
     }
   }
-  return best_symfile_ap.release();
+  return best_symfile_up.release();
 }
 
 TypeList *SymbolFile::GetTypeList() {
@@ -103,7 +102,7 @@ uint32_t SymbolFile::ResolveSymbolContext(const FileSpec &file_spec,
 }
 
 uint32_t
-SymbolFile::FindGlobalVariables(const ConstString &name,
+SymbolFile::FindGlobalVariables(ConstString name,
                                 const CompilerDeclContext *parent_decl_ctx,
                                 uint32_t max_matches, VariableList &variables) {
   return 0;
@@ -115,7 +114,7 @@ uint32_t SymbolFile::FindGlobalVariables(const RegularExpression &regex,
   return 0;
 }
 
-uint32_t SymbolFile::FindFunctions(const ConstString &name,
+uint32_t SymbolFile::FindFunctions(ConstString name,
                                    const CompilerDeclContext *parent_decl_ctx,
                                    lldb::FunctionNameType name_type_mask,
                                    bool include_inlines, bool append,
@@ -140,7 +139,7 @@ void SymbolFile::GetMangledNamesForFunction(
 }
 
 uint32_t SymbolFile::FindTypes(
-    const ConstString &name, const CompilerDeclContext *parent_decl_ctx,
+    ConstString name, const CompilerDeclContext *parent_decl_ctx,
     bool append, uint32_t max_matches,
     llvm::DenseSet<lldb_private::SymbolFile *> &searched_symbol_files,
     TypeMap &types) {
@@ -169,3 +168,5 @@ void SymbolFile::AssertModuleLock() {
          "Module is not locked");
 #endif
 }
+
+SymbolFile::RegisterInfoResolver::~RegisterInfoResolver() = default;

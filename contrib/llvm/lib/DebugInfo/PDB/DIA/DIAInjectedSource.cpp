@@ -1,9 +1,8 @@
 //===- DIAInjectedSource.cpp - DIA impl for IPDBInjectedSource --*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -42,11 +41,11 @@ std::string DIAInjectedSource::getVirtualFileName() const {
                           &IDiaInjectedSource::get_virtualFilename);
 }
 
-PDB_SourceCompression DIAInjectedSource::getCompression() const {
+uint32_t DIAInjectedSource::getCompression() const {
   DWORD Compression = 0;
   if (S_OK != SourceFile->get_sourceCompression(&Compression))
     return PDB_SourceCompression::None;
-  return static_cast<PDB_SourceCompression>(Compression);
+  return static_cast<uint32_t>(Compression);
 }
 
 std::string DIAInjectedSource::getCode() const {

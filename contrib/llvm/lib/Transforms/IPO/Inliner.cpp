@@ -1,9 +1,8 @@
 //===- Inliner.cpp - Code common to all inliners --------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -672,7 +671,7 @@ inlineCallsImpl(CallGraphSCC &SCC, CallGraph &CG,
         LLVM_DEBUG(dbgs() << "    -> Deleting dead call: " << *Instr << "\n");
         // Update the call graph by deleting the edge from Callee to Caller.
         setInlineRemark(CS, "trivially dead");
-        CG[Caller]->removeCallEdgeFor(CS);
+        CG[Caller]->removeCallEdgeFor(*cast<CallBase>(CS.getInstruction()));
         Instr->eraseFromParent();
         ++NumCallsDeleted;
       } else {
@@ -974,7 +973,7 @@ PreservedAnalyses InlinerPass::run(LazyCallGraph::SCC &InitialC,
     LazyCallGraph::Node &N = *CG.lookup(F);
     if (CG.lookupSCC(N) != C)
       continue;
-    if (F.hasFnAttribute(Attribute::OptimizeNone)) {
+    if (F.hasOptNone()) {
       setInlineRemark(Calls[i].first, "optnone attribute");
       continue;
     }
@@ -1006,8 +1005,12 @@ PreservedAnalyses InlinerPass::run(LazyCallGraph::SCC &InitialC,
     auto GetInlineCost = [&](CallSite CS) {
       Function &Callee = *CS.getCalledFunction();
       auto &CalleeTTI = FAM.getResult<TargetIRAnalysis>(Callee);
-      return getInlineCost(CS, Params, CalleeTTI, GetAssumptionCache, {GetBFI},
-                           PSI, &ORE);
+      bool RemarksEnabled =
+          Callee.getContext().getDiagHandlerPtr()->isMissedOptRemarkEnabled(
+              DEBUG_TYPE);
+      return getInlineCost(cast<CallBase>(*CS.getInstruction()), Params,
+                           CalleeTTI, GetAssumptionCache, {GetBFI}, PSI,
+                           RemarksEnabled ? &ORE : nullptr);
     };
 
     // Now process as many calls as we have within this caller in the sequnece.

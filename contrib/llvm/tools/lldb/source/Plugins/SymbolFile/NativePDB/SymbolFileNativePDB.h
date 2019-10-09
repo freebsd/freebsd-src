@@ -1,9 +1,8 @@
 //===-- SymbolFileNativePDB.h -----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -45,9 +44,7 @@ class SymbolFileNativePDB : public SymbolFile {
   friend class UdtRecordCompleter;
 
 public:
-  //------------------------------------------------------------------
   // Static Functions
-  //------------------------------------------------------------------
   static void Initialize();
 
   static void Terminate();
@@ -60,9 +57,7 @@ public:
 
   static SymbolFile *CreateInstance(ObjectFile *obj_file);
 
-  //------------------------------------------------------------------
   // Constructors and Destructors
-  //------------------------------------------------------------------
   SymbolFileNativePDB(ObjectFile *ofile);
 
   ~SymbolFileNativePDB() override;
@@ -71,9 +66,7 @@ public:
 
   void InitializeObject() override;
 
-  //------------------------------------------------------------------
   // Compile Unit function calls
-  //------------------------------------------------------------------
 
   uint32_t GetNumCompileUnits() override;
 
@@ -95,13 +88,13 @@ public:
                          FileSpecList &support_files) override;
   size_t ParseTypes(lldb_private::CompileUnit &comp_unit) override;
 
-  bool
-  ParseImportedModules(const SymbolContext &sc,
-                       std::vector<ConstString> &imported_modules) override;
+  bool ParseImportedModules(
+      const SymbolContext &sc,
+      std::vector<lldb_private::SourceModule> &imported_modules) override;
 
   size_t ParseBlocksRecursive(Function &func) override;
 
-  uint32_t FindGlobalVariables(const ConstString &name,
+  uint32_t FindGlobalVariables(ConstString name,
                                const CompilerDeclContext *parent_decl_ctx,
                                uint32_t max_matches,
                                VariableList &variables) override;
@@ -130,7 +123,7 @@ public:
   size_t GetTypes(SymbolContextScope *sc_scope, lldb::TypeClass type_mask,
                   TypeList &type_list) override;
 
-  uint32_t FindFunctions(const ConstString &name,
+  uint32_t FindFunctions(ConstString name,
                          const CompilerDeclContext *parent_decl_ctx,
                          lldb::FunctionNameType name_type_mask,
                          bool include_inlines, bool append,
@@ -139,7 +132,7 @@ public:
   uint32_t FindFunctions(const RegularExpression &regex, bool include_inlines,
                          bool append, SymbolContextList &sc_list) override;
 
-  uint32_t FindTypes(const ConstString &name,
+  uint32_t FindTypes(ConstString name,
                      const CompilerDeclContext *parent_decl_ctx, bool append,
                      uint32_t max_matches,
                      llvm::DenseSet<SymbolFile *> &searched_symbol_files,
@@ -151,7 +144,7 @@ public:
   TypeSystem *GetTypeSystemForLanguage(lldb::LanguageType language) override;
 
   CompilerDeclContext
-  FindNamespace(const ConstString &name,
+  FindNamespace(ConstString name,
                 const CompilerDeclContext *parent_decl_ctx) override;
 
   ConstString GetPluginName() override;
@@ -187,6 +180,9 @@ private:
   lldb::TypeSP CreateArrayType(PdbTypeSymId type_id,
                                const llvm::codeview::ArrayRecord &ar,
                                CompilerType ct);
+  lldb::TypeSP CreateFunctionType(PdbTypeSymId type_id,
+                                  const llvm::codeview::MemberFunctionRecord &pr,
+                                  CompilerType ct);
   lldb::TypeSP CreateProcedureType(PdbTypeSymId type_id,
                                    const llvm::codeview::ProcedureRecord &pr,
                                    CompilerType ct);

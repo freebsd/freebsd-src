@@ -1,9 +1,8 @@
 //===-- ObjectFileELF.h --------------------------------------- -*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -34,14 +33,14 @@ struct ELFNote {
   /// Parse an ELFNote entry from the given DataExtractor starting at position
   /// \p offset.
   ///
-  /// @param[in] data
+  /// \param[in] data
   ///    The DataExtractor to read from.
   ///
-  /// @param[in,out] offset
+  /// \param[in,out] offset
   ///    Pointer to an offset in the data.  On return the offset will be
   ///    advanced by the number of bytes read.
   ///
-  /// @return
+  /// \return
   ///    True if the ELFRel entry was successfully read and false otherwise.
   bool Parse(const lldb_private::DataExtractor &data, lldb::offset_t *offset);
 
@@ -50,8 +49,7 @@ struct ELFNote {
   }
 };
 
-//------------------------------------------------------------------------------
-/// @class ObjectFileELF
+/// \class ObjectFileELF
 /// Generic ELF object file reader.
 ///
 /// This class provides a generic ELF (32/64 bit) reader plugin implementing
@@ -60,9 +58,7 @@ class ObjectFileELF : public lldb_private::ObjectFile {
 public:
   ~ObjectFileELF() override;
 
-  //------------------------------------------------------------------
   // Static Functions
-  //------------------------------------------------------------------
   static void Initialize();
 
   static void Terminate();
@@ -90,16 +86,12 @@ public:
   static bool MagicBytesMatch(lldb::DataBufferSP &data_sp, lldb::addr_t offset,
                               lldb::addr_t length);
 
-  //------------------------------------------------------------------
   // PluginInterface protocol
-  //------------------------------------------------------------------
   lldb_private::ConstString GetPluginName() override;
 
   uint32_t GetPluginVersion() override;
 
-  //------------------------------------------------------------------
   // ObjectFile Protocol.
-  //------------------------------------------------------------------
   bool ParseHeader() override;
 
   bool SetLoadAddress(lldb_private::Target &target, lldb::addr_t value,
@@ -123,7 +115,7 @@ public:
 
   lldb_private::ArchSpec GetArchitecture() override;
 
-  bool GetUUID(lldb_private::UUID *uuid) override;
+  lldb_private::UUID GetUUID() override;
 
   lldb_private::FileSpecList GetDebugSymbolFilePaths() override;
 
@@ -211,7 +203,7 @@ private:
 
   /// List of file specifications corresponding to the modules (shared
   /// libraries) on which this object file depends.
-  mutable std::unique_ptr<lldb_private::FileSpecList> m_filespec_ap;
+  mutable std::unique_ptr<lldb_private::FileSpecList> m_filespec_up;
 
   /// Cached value of the entry point for this module.
   lldb_private::Address m_entry_point_address;
@@ -265,7 +257,7 @@ private:
                                      lldb_private::ArchSpec &arch_spec);
 
   /// Scans the dynamic section and locates all dependent modules (shared
-  /// libraries) populating m_filespec_ap.  This method will compute the
+  /// libraries) populating m_filespec_up.  This method will compute the
   /// dependent module list only once.  Returns the number of dependent
   /// modules parsed.
   size_t ParseDependentModules();
@@ -275,7 +267,7 @@ private:
   /// number of dynamic symbols parsed.
   size_t ParseDynamicSymbols();
 
-  /// Populates m_symtab_ap will all non-dynamic linker symbols.  This method
+  /// Populates m_symtab_up will all non-dynamic linker symbols.  This method
   /// will parse the symbols only once.  Returns the number of symbols parsed.
   unsigned ParseSymbolTable(lldb_private::Symtab *symbol_table,
                             lldb::user_id_t start_id,
@@ -331,7 +323,7 @@ private:
   /// Returns the section header with the given id or NULL.
   const ELFSectionHeaderInfo *GetSectionHeaderByIndex(lldb::user_id_t id);
 
-  /// @name  ELF header dump routines
+  /// \name  ELF header dump routines
   //@{
   static void DumpELFHeader(lldb_private::Stream *s,
                             const elf::ELFHeader &header);
@@ -343,7 +335,7 @@ private:
                                    elf::elf_half e_type);
   //@}
 
-  /// @name ELF program header dump routines
+  /// \name ELF program header dump routines
   //@{
   void DumpELFProgramHeaders(lldb_private::Stream *s);
 
@@ -357,7 +349,7 @@ private:
                                            elf::elf_word p_flags);
   //@}
 
-  /// @name ELF section header dump routines
+  /// \name ELF section header dump routines
   //@{
   void DumpELFSectionHeaders(lldb_private::Stream *s);
 

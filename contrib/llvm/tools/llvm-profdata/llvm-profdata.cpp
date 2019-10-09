@@ -1,9 +1,8 @@
 //===- llvm-profdata.cpp - LLVM profile data tool -------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -27,8 +26,8 @@
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Support/WithColor.h"
 #include "llvm/Support/ThreadPool.h"
+#include "llvm/Support/WithColor.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 
@@ -201,6 +200,32 @@ static bool isFatalError(instrprof_error IPE) {
   }
 }
 
+/// Computer the overlap b/w profile BaseFilename and TestFileName,
+/// and store the program level result to Overlap.
+static void overlapInput(const std::string &BaseFilename,
+                         const std::string &TestFilename, WriterContext *WC,
+                         OverlapStats &Overlap,
+                         const OverlapFuncFilters &FuncFilter,
+                         raw_fd_ostream &OS, bool IsCS) {
+  auto ReaderOrErr = InstrProfReader::create(TestFilename);
+  if (Error E = ReaderOrErr.takeError()) {
+    // Skip the empty profiles by returning sliently.
+    instrprof_error IPE = InstrProfError::take(std::move(E));
+    if (IPE != instrprof_error::empty_raw_profile)
+      WC->Err = make_error<InstrProfError>(IPE);
+    return;
+  }
+
+  auto Reader = std::move(ReaderOrErr.get());
+  for (auto &I : *Reader) {
+    OverlapStats FuncOverlap(OverlapStats::FunctionLevel);
+    FuncOverlap.setFuncInfo(I.Name, I.Hash);
+
+    WC->Writer.overlapRecord(std::move(I), Overlap, FuncOverlap, FuncFilter);
+    FuncOverlap.dump(OS);
+  }
+}
+
 /// Load an input into a writer context.
 static void loadInput(const WeightedFile &Input, SymbolRemapper *Remapper,
                       WriterContext *WC) {
@@ -226,7 +251,8 @@ static void loadInput(const WeightedFile &Input, SymbolRemapper *Remapper,
 
   auto Reader = std::move(ReaderOrErr.get());
   bool IsIRProfile = Reader->isIRLevelProfile();
-  if (WC->Writer.setIsIRLevelProfile(IsIRProfile)) {
+  bool HasCSIRProfile = Reader->hasCSIRLevelProfile();
+  if (WC->Writer.setIsIRLevelProfile(IsIRProfile, HasCSIRProfile)) {
     WC->Err = make_error<StringError>(
         "Merge IR generated profile with Clang generated profile.",
         std::error_code());
@@ -291,11 +317,6 @@ static void mergeInstrProfile(const WeightedFileVector &Inputs,
       OutputFormat != PF_Text)
     exitWithError("Unknown format is specified.");
 
-  std::error_code EC;
-  raw_fd_ostream Output(OutputFilename.data(), EC, sys::fs::F_None);
-  if (EC)
-    exitWithErrorCode(EC, OutputFilename);
-
   std::mutex ErrorLock;
   SmallSet<instrprof_error, 4> WriterErrorCodes;
 
@@ -358,6 +379,11 @@ static void mergeInstrProfile(const WeightedFileVector &Inputs,
            WC->ErrWhence);
   }
 
+  std::error_code EC;
+  raw_fd_ostream Output(OutputFilename.data(), EC, sys::fs::F_None);
+  if (EC)
+    exitWithErrorCode(EC, OutputFilename);
+
   InstrProfWriter &Writer = Contexts[0]->Writer;
   if (OutputFormat == PF_Text) {
     if (Error E = Writer.writeText(Output))
@@ -407,12 +433,6 @@ static void mergeSampleProfile(const WeightedFileVector &Inputs,
                                StringRef OutputFilename,
                                ProfileFormat OutputFormat) {
   using namespace sampleprof;
-  auto WriterOrErr =
-      SampleProfileWriter::create(OutputFilename, FormatMap[OutputFormat]);
-  if (std::error_code EC = WriterOrErr.getError())
-    exitWithErrorCode(EC, OutputFilename);
-
-  auto Writer = std::move(WriterOrErr.get());
   StringMap<FunctionSamples> ProfileMap;
   SmallVector<std::unique_ptr<sampleprof::SampleProfileReader>, 5> Readers;
   LLVMContext Context;
@@ -447,6 +467,12 @@ static void mergeSampleProfile(const WeightedFileVector &Inputs,
       }
     }
   }
+  auto WriterOrErr =
+      SampleProfileWriter::create(OutputFilename, FormatMap[OutputFormat]);
+  if (std::error_code EC = WriterOrErr.getError())
+    exitWithErrorCode(EC, OutputFilename);
+
+  auto Writer = std::move(WriterOrErr.get());
   Writer->write(ProfileMap);
 }
 
@@ -608,6 +634,65 @@ static int merge_main(int argc, const char *argv[]) {
   return 0;
 }
 
+/// Computer the overlap b/w profile BaseFilename and profile TestFilename.
+static void overlapInstrProfile(const std::string &BaseFilename,
+                                const std::string &TestFilename,
+                                const OverlapFuncFilters &FuncFilter,
+                                raw_fd_ostream &OS, bool IsCS) {
+  std::mutex ErrorLock;
+  SmallSet<instrprof_error, 4> WriterErrorCodes;
+  WriterContext Context(false, ErrorLock, WriterErrorCodes);
+  WeightedFile WeightedInput{BaseFilename, 1};
+  OverlapStats Overlap;
+  Error E = Overlap.accumuateCounts(BaseFilename, TestFilename, IsCS);
+  if (E)
+    exitWithError(std::move(E), "Error in getting profile count sums");
+  if (Overlap.Base.CountSum < 1.0f) {
+    OS << "Sum of edge counts for profile " << BaseFilename << " is 0.\n";
+    exit(0);
+  }
+  if (Overlap.Test.CountSum < 1.0f) {
+    OS << "Sum of edge counts for profile " << TestFilename << " is 0.\n";
+    exit(0);
+  }
+  loadInput(WeightedInput, nullptr, &Context);
+  overlapInput(BaseFilename, TestFilename, &Context, Overlap, FuncFilter, OS,
+               IsCS);
+  Overlap.dump(OS);
+}
+
+static int overlap_main(int argc, const char *argv[]) {
+  cl::opt<std::string> BaseFilename(cl::Positional, cl::Required,
+                                    cl::desc("<base profile file>"));
+  cl::opt<std::string> TestFilename(cl::Positional, cl::Required,
+                                    cl::desc("<test profile file>"));
+  cl::opt<std::string> Output("output", cl::value_desc("output"), cl::init("-"),
+                              cl::desc("Output file"));
+  cl::alias OutputA("o", cl::desc("Alias for --output"), cl::aliasopt(Output));
+  cl::opt<bool> IsCS("cs", cl::init(false),
+                     cl::desc("For context sensitive counts"));
+  cl::opt<unsigned long long> ValueCutoff(
+      "value-cutoff", cl::init(-1),
+      cl::desc(
+          "Function level overlap information for every function in test "
+          "profile with max count value greater then the parameter value"));
+  cl::opt<std::string> FuncNameFilter(
+      "function",
+      cl::desc("Function level overlap information for matching functions"));
+  cl::ParseCommandLineOptions(argc, argv, "LLVM profile data overlap tool\n");
+
+  std::error_code EC;
+  raw_fd_ostream OS(Output.data(), EC, sys::fs::F_Text);
+  if (EC)
+    exitWithErrorCode(EC, Output);
+
+  overlapInstrProfile(BaseFilename, TestFilename,
+                      OverlapFuncFilters{ValueCutoff, FuncNameFilter}, OS,
+                      IsCS);
+
+  return 0;
+}
+
 typedef struct ValueSitesStats {
   ValueSitesStats()
       : TotalNumValueSites(0), TotalNumValueSitesWithValueProfile(0),
@@ -643,7 +728,7 @@ static void traverseAllValueSites(const InstrProfRecord &Func, uint32_t VK,
     for (uint32_t V = 0; V < NV; V++) {
       OS << "\t[ " << format("%2u", I) << ", ";
       if (Symtab == nullptr)
-        OS << format("%4u", VD[V].Value);
+        OS << format("%4" PRIu64, VD[V].Value);
       else
         OS << Symtab->getFuncName(VD[V].Value);
       OS << ", " << format("%10" PRId64, VD[V].Count) << " ] ("
@@ -670,9 +755,10 @@ static int showInstrProfile(const std::string &Filename, bool ShowCounts,
                             uint32_t TopN, bool ShowIndirectCallTargets,
                             bool ShowMemOPSizes, bool ShowDetailedSummary,
                             std::vector<uint32_t> DetailedSummaryCutoffs,
-                            bool ShowAllFunctions, uint64_t ValueCutoff,
-                            bool OnlyListBelow, const std::string &ShowFunction,
-                            bool TextFormat, raw_fd_ostream &OS) {
+                            bool ShowAllFunctions, bool ShowCS,
+                            uint64_t ValueCutoff, bool OnlyListBelow,
+                            const std::string &ShowFunction, bool TextFormat,
+                            raw_fd_ostream &OS) {
   auto ReaderOrErr = InstrProfReader::create(Filename);
   std::vector<uint32_t> Cutoffs = std::move(DetailedSummaryCutoffs);
   if (ShowDetailedSummary && Cutoffs.empty()) {
@@ -709,6 +795,11 @@ static int showInstrProfile(const std::string &Filename, bool ShowCounts,
     OS << ":ir\n";
 
   for (const auto &Func : *Reader) {
+    if (Reader->isIRLevelProfile()) {
+      bool FuncIsCS = NamedInstrProfRecord::hasCSFlagInHash(Func.Hash);
+      if (FuncIsCS != ShowCS)
+        continue;
+    }
     bool Show =
         ShowAllFunctions || (!ShowFunction.empty() &&
                              Func.Name.find(ShowFunction) != Func.Name.npos);
@@ -900,6 +991,8 @@ static int show_main(int argc, const char *argv[]) {
       cl::value_desc("800000,901000,999999"));
   cl::opt<bool> ShowAllFunctions("all-functions", cl::init(false),
                                  cl::desc("Details for every function"));
+  cl::opt<bool> ShowCS("showcs", cl::init(false),
+                       cl::desc("Show context sensitive counts"));
   cl::opt<std::string> ShowFunction("function",
                                     cl::desc("Details for matching functions"));
 
@@ -927,6 +1020,12 @@ static int show_main(int argc, const char *argv[]) {
   if (OutputFilename.empty())
     OutputFilename = "-";
 
+  if (!Filename.compare(OutputFilename)) {
+    errs() << sys::path::filename(argv[0])
+           << ": Input file name cannot be the same as the output file name!\n";
+    return 1;
+  }
+
   std::error_code EC;
   raw_fd_ostream OS(OutputFilename.data(), EC, sys::fs::F_Text);
   if (EC)
@@ -935,14 +1034,12 @@ static int show_main(int argc, const char *argv[]) {
   if (ShowAllFunctions && !ShowFunction.empty())
     WithColor::warning() << "-function argument ignored: showing all functions\n";
 
-  std::vector<uint32_t> Cutoffs(DetailedSummaryCutoffs.begin(),
-                                DetailedSummaryCutoffs.end());
   if (ProfileKind == instr)
     return showInstrProfile(Filename, ShowCounts, TopNFunctions,
                             ShowIndirectCallTargets, ShowMemOPSizes,
                             ShowDetailedSummary, DetailedSummaryCutoffs,
-                            ShowAllFunctions, ValueCutoff, OnlyListBelow,
-                            ShowFunction, TextFormat, OS);
+                            ShowAllFunctions, ShowCS, ValueCutoff,
+                            OnlyListBelow, ShowFunction, TextFormat, OS);
   else
     return showSampleProfile(Filename, ShowCounts, ShowAllFunctions,
                              ShowFunction, OS);
@@ -959,6 +1056,8 @@ int main(int argc, const char *argv[]) {
       func = merge_main;
     else if (strcmp(argv[1], "show") == 0)
       func = show_main;
+    else if (strcmp(argv[1], "overlap") == 0)
+      func = overlap_main;
 
     if (func) {
       std::string Invocation(ProgName.str() + " " + argv[1]);
@@ -973,7 +1072,7 @@ int main(int argc, const char *argv[]) {
              << "USAGE: " << ProgName << " <command> [args...]\n"
              << "USAGE: " << ProgName << " <command> -help\n\n"
              << "See each individual command --help for more details.\n"
-             << "Available commands: merge, show\n";
+             << "Available commands: merge, show, overlap\n";
       return 0;
     }
   }
@@ -983,6 +1082,6 @@ int main(int argc, const char *argv[]) {
   else
     errs() << ProgName << ": Unknown command!\n";
 
-  errs() << "USAGE: " << ProgName << " <merge|show> [args...]\n";
+  errs() << "USAGE: " << ProgName << " <merge|show|overlap> [args...]\n";
   return 1;
 }
