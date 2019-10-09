@@ -620,6 +620,77 @@ ATF_TC_BODY(copyout_rights_error, tc)
 	closesocketpair(fd);
 }
 
+/*
+ * Verify that we can handle empty rights messages.  Try sending two SCM_RIGHTS
+ * messages with a single call, one empty and one containing a single FD.
+ */
+ATF_TC_WITHOUT_HEAD(empty_rights_message);
+ATF_TC_BODY(empty_rights_message, tc)
+{
+	struct iovec iov;
+	struct msghdr msghdr;
+	char *cm, message[CMSG_SPACE(0) + CMSG_SPACE(sizeof(int))];
+	ssize_t len;
+	int error, fd[2], putfd;
+
+	domainsocketpair(fd);
+	devnull(&putfd);
+
+	/*
+	 * First, try sending an empty message followed by a non-empty message.
+	 */
+	cm = message;
+	putfds(cm, -1, 0);
+	cm += CMSG_SPACE(0);
+	putfds(cm, putfd, 1);
+
+	memset(&msghdr, 0, sizeof(msghdr));
+	iov.iov_base = NULL;
+	iov.iov_len = 0;
+	msghdr.msg_control = message;
+	msghdr.msg_controllen = sizeof(message);
+	msghdr.msg_iov = &iov;
+	msghdr.msg_iovlen = 1;
+
+	len = sendmsg(fd[0], &msghdr, 0);
+	ATF_REQUIRE_MSG(len == 0, "sendmsg failed: %s", strerror(errno));
+
+	/* Only the non-empty message should be received. */
+	len = recvmsg(fd[1], &msghdr, 0);
+	ATF_REQUIRE_MSG(len == 0, "recvmsg failed: %s", strerror(errno));
+	ATF_REQUIRE(msghdr.msg_controllen = CMSG_SPACE(sizeof(int)));
+	error = close(*(int *)CMSG_DATA(msghdr.msg_control));
+	ATF_REQUIRE_MSG(error == 0, "close failed: %s", strerror(errno));
+
+	/*
+	 * Now try sending with the non-empty message before the empty message.
+	 */
+	cm = message;
+	putfds(cm, putfd, 1);
+	cm += CMSG_SPACE(sizeof(int));
+	putfds(cm, -1, 0);
+
+	memset(&msghdr, 0, sizeof(msghdr));
+	iov.iov_base = NULL;
+	iov.iov_len = 0;
+	msghdr.msg_control = message;
+	msghdr.msg_controllen = CMSG_SPACE(sizeof(int));
+	msghdr.msg_iov = &iov;
+	msghdr.msg_iovlen = 1;
+
+	len = sendmsg(fd[0], &msghdr, 0);
+	ATF_REQUIRE_MSG(len == 0, "sendmsg failed: %s", strerror(errno));
+
+	/* Only the non-empty message should be received. */
+	len = recvmsg(fd[1], &msghdr, 0);
+	ATF_REQUIRE_MSG(len == 0, "recvmsg failed: %s", strerror(errno));
+	ATF_REQUIRE(msghdr.msg_controllen = CMSG_SPACE(sizeof(int)));
+	error = close(*(int *)CMSG_DATA(msghdr.msg_control));
+	ATF_REQUIRE_MSG(error == 0, "close failed: %s", strerror(errno));
+
+	(void)close(putfd);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -633,6 +704,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, rights_creds_payload);
 	ATF_TP_ADD_TC(tp, truncated_rights);
 	ATF_TP_ADD_TC(tp, copyout_rights_error);
+	ATF_TP_ADD_TC(tp, empty_rights_message);
 
 	return (atf_no_error());
 }

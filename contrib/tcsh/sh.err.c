@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.err.c,v 3.57 2015/05/26 17:32:45 christos Exp $ */
 /*
  * sh.err.c: Error printing routines. 
  */
@@ -33,8 +32,6 @@
 #define _h_sh_err		/* Don't redefine the errors	 */
 #include "sh.h"
 #include <assert.h>
-
-RCSID("$tcsh: sh.err.c,v 3.57 2015/05/26 17:32:45 christos Exp $")
 
 /*
  * C Shell

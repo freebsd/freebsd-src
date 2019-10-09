@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/ed.decls.h,v 3.46 2015/08/19 14:29:55 christos Exp $ */
 /*
  * ed.decls.h: Editor external definitions
  */
@@ -250,6 +249,7 @@ extern  CCRETVAL	e_newline_down_hist	(Char);
  * ed.inputl.c
  */
 extern	int	Inputl			(void);
+extern	int	GetCmdChar		(Char);
 extern	int	GetNextChar		(Char *);
 extern	void    UngetNextChar		(Char);
 extern	void	PushMacro		(Char *);

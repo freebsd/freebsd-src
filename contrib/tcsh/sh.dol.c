@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.dol.c,v 3.87 2014/08/13 23:39:34 amold Exp $ */
 /*
  * sh.dol.c: Variable substitutions
  */
@@ -31,8 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: sh.dol.c,v 3.87 2014/08/13 23:39:34 amold Exp $")
 
 /*
  * C shell

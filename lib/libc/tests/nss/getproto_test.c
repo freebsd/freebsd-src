@@ -148,7 +148,7 @@ compare_protoent(struct protoent *pe1, struct protoent *pe2, void *mdata)
 		if (strcmp(*c1, *c2) != 0)
 			goto errfin;
 
-	if ((*c1 != '\0') || (*c2 != '\0'))
+	if ((*c1 != NULL) || (*c2 != NULL))
 		goto errfin;
 
 	return 0;
@@ -177,7 +177,7 @@ sdump_protoent(struct protoent *pe, char *buffer, size_t buflen)
 	buflen -= written;
 
 	if (pe->p_aliases != NULL) {
-		if (*(pe->p_aliases) != '\0') {
+		if (*(pe->p_aliases) != NULL) {
 			for (cp = pe->p_aliases; *cp; ++cp) {
 				written = snprintf(buffer, buflen, " %s", *cp);
 				buffer += written;

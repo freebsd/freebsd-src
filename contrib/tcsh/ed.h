@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/ed.h,v 3.50 2007/07/05 14:13:06 christos Exp $ */
 /*
  * ed.h: Editor declarations and globals
  */
