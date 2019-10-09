@@ -27,6 +27,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20191009:
+	mips, powerpc, and sparc64 are no longer built as part of
+	universe / tinderbox unless MAKE_OBSOLETE_GCC is defined. If
+	not defined, mips, powerpc, and sparc64 builds will look for
+	the xtoolchain binaries and if installed use them for universe
+	builds. As llvm 9.0 becomes vetted for these architectures, they
+	will be removed from the list.
+
+20191009:
 	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
 	been upgraded to 9.0.0.  Please see the 20141231 entry below for
 	information about prerequisites and upgrading, if you are not already
