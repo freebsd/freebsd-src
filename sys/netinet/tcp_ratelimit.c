@@ -237,34 +237,37 @@ static void
 rs_destroy(epoch_context_t ctx)
 {
 	struct tcp_rate_set *rs;
+	bool do_free_rs;
 
 	rs = __containerof(ctx, struct tcp_rate_set, rs_epoch_ctx);
+
 	mtx_lock(&rs_mtx);
 	rs->rs_flags &= ~RS_FUNERAL_SCHD;
-	if (rs->rs_flows_using == 0) {
-		/*
-		 * In theory its possible (but unlikely)
-		 * that while the delete was occuring
-		 * and we were applying the DEAD flag
-		 * someone slipped in and found the
-		 * interface in a lookup. While we
-		 * decided rs_flows_using were 0 and
-		 * scheduling the epoch_call, the other
-		 * thread incremented rs_flow_using. This
-		 * is because users have a pointer and
-		 * we only use the rs_flows_using in an
-		 * atomic fashion, i.e. the other entities
-		 * are not protected. To assure this did
-		 * not occur, we check rs_flows_using here
-		 * before deleteing.
-		 */
+	/*
+	 * In theory its possible (but unlikely)
+	 * that while the delete was occuring
+	 * and we were applying the DEAD flag
+	 * someone slipped in and found the
+	 * interface in a lookup. While we
+	 * decided rs_flows_using were 0 and
+	 * scheduling the epoch_call, the other
+	 * thread incremented rs_flow_using. This
+	 * is because users have a pointer and
+	 * we only use the rs_flows_using in an
+	 * atomic fashion, i.e. the other entities
+	 * are not protected. To assure this did
+	 * not occur, we check rs_flows_using here
+	 * before deleting.
+	 */
+	do_free_rs = (rs->rs_flows_using == 0);
+	rs_number_dead--;
+	mtx_unlock(&rs_mtx);
+
+	if (do_free_rs) {
 		sysctl_ctx_free(&rs->sysctl_ctx);
 		free(rs->rs_rlt, M_TCPPACE);
 		free(rs, M_TCPPACE);
-		rs_number_dead--;
 	}
-	mtx_unlock(&rs_mtx);
-
 }
 
 #ifdef INET
