@@ -94,6 +94,7 @@ addr_to_string(struct sockaddr_storage *ss, char *buffer, int buflen)
 	struct sockaddr_in6 *sin6;
 	struct sockaddr_in *sin;
 	struct sockaddr_un *sun;
+#define IS_INADDR_ANY(x)	((x).s_addr == INADDR_ANY)
 
 	switch (ss->ss_family) {
 	case AF_LOCAL:
