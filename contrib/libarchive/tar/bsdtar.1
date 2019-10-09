@@ -167,12 +167,14 @@ if it is unknown suffix or no suffix, creates a new archive with
 restricted pax format and bzip2 compression.
 .It Fl Fl acls
 (c, r, u, x modes only)
-Archive or extract POSIX.1e or NFSv4 ACLs. This is the reverse of
+Archive or extract POSIX.1e or NFSv4 ACLs.
+This is the reverse of
 .Fl Fl no-acls
 and the default behavior in c, r, and u modes (except on Mac OS X) or if
 .Nm
-is run in x mode as root. On Mac OS X this option translates extended ACLs
-to NFSv4 ACLs. To store extended ACLs the
+is run in x mode as root.
+On Mac OS X this option translates extended ACLs to NFSv4 ACLs.
+To store extended ACLs the
 .Fl Fl mac-metadata
 option is preferred.
 .It Fl B , Fl Fl read-full-blocks
@@ -390,10 +392,12 @@ Do not extract modification time.
 By default, the modification time is set to the time stored in the archive.
 .It Fl Fl mac-metadata
 (c, r, u and x mode only)
-Mac OS X specific. Archive or extract extended ACLs and extended file
+Mac OS X specific.
+Archive or extract extended ACLs and extended file
 attributes using
 .Xr copyfile 3
-in AppleDouble format. This is the reverse of
+in AppleDouble format.
+This is the reverse of
 .Fl Fl no-mac-metadata .
 and the default behavior in c, r, and u modes or if
 .Nm
@@ -439,24 +443,28 @@ option to
 .Xr find 1 .
 .It Fl Fl no-acls
 (c, r, u, x modes only)
-Do not archive or extract POSIX.1e or NFSv4 ACLs. This is the reverse of
+Do not archive or extract POSIX.1e or NFSv4 ACLs.
+This is the reverse of
 .Fl Fl acls
 and the default behavior if
 .Nm
 is run as non-root in x mode (on Mac OS X as any user in c, r, u and x modes).
 .It Fl Fl no-fflags
 (c, r, u, x modes only)
-Do not archive or extract file attributes or file flags. This is the reverse of
+Do not archive or extract file attributes or file flags.
+This is the reverse of
 .Fl Fl fflags
 and the default behavior if
 .Nm
 is run as non-root in x mode.
 .It Fl Fl no-mac-metadata
 (x mode only)
-Mac OS X specific. Do not archive or extract ACLs and extended file attributes
+Mac OS X specific.
+Do not archive or extract ACLs and extended file attributes
 using
 .Xr copyfile 3
-in AppleDouble format. This is the reverse of
+in AppleDouble format.
+This is the reverse of
 .Fl Fl mac-metadata .
 and the default behavior if
 .Nm
@@ -480,7 +488,8 @@ and the default behavior if
 is run as non-root.
 .It Fl Fl no-xattrs
 (c, r, u, x modes only)
-Do not archive or extract extended file attributes. This is the reverse of
+Do not archive or extract extended file attributes.
+This is the reverse of
 .Fl Fl xattrs
 and the default behavior if
 .Nm
@@ -577,7 +586,8 @@ to disable.
 .It Cm gzip:compression-level
 A decimal integer from 1 to 9 specifying the gzip compression level.
 .It Cm gzip:timestamp
-Store timestamp. This is enabled by default, use
+Store timestamp.
+This is enabled by default, use
 .Cm !timestamp
 or
 .Cm gzip:!timestamp
@@ -593,7 +603,8 @@ A decimal integer from 1 to 9 specifying the lrzip compression level.
 .It Cm lz4:compression-level
 A decimal integer from 1 to 9 specifying the lzop compression level.
 .It Cm lz4:stream-checksum
-Enable stream checksum. This is by default, use
+Enable stream checksum.
+This is by default, use
 .Cm lz4:!stream-checksum
 to disable.
 .It Cm lz4:block-checksum
@@ -646,9 +657,10 @@ Supported values are zipcrypt (traditional zip encryption),
 aes128 (WinZip AES-128 encryption) and aes256 (WinZip AES-256 encryption).
 .It Cm read_concatenated_archives
 Ignore zeroed blocks in the archive, which occurs when multiple tar archives
-have been concatenated together.  Without this option, only the contents of
-the first concatenated archive would be read.  This option is comparable to
-the
+have been concatenated together.
+Without this option, only the contents of
+the first concatenated archive would be read.
+This option is comparable to the
 .Fl i , Fl Fl ignore-zeros
 option of GNU tar.
 .El
@@ -670,11 +682,13 @@ This option suppresses these behaviors.
 Preserve file permissions.
 Attempt to restore the full permissions, including file modes, file attributes
 or file flags, extended file attributes and ACLs, if available, for each item
-extracted from the archive. This is the reverse of
+extracted from the archive.
+This is the reverse of
 .Fl Fl no-same-permissions
 and the default if
 .Nm
-is being run as root. It can be partially overridden by also specifying
+is being run as root.
+It can be partially overridden by also specifying
 .Fl Fl no-acls ,
 .Fl Fl no-fflags ,
 .Fl Fl no-mac-metadata
@@ -845,7 +859,8 @@ See
 for more information about the handling of exclusions.
 .It Fl Fl xattrs
 (c, r, u, x modes only)
-Archive or extract extended file attributes. This is the reverse of
+Archive or extract extended file attributes.
+This is the reverse of
 .Fl Fl no-xattrs
 and the default behavior in c, r, and u modes or if
 .Nm
@@ -937,9 +952,9 @@ To examine the contents of an ISO 9660 cdrom image:
 To move file hierarchies, invoke
 .Nm
 as
-.Dl Nm Fl cf Pa - Fl C Pa srcdir\ . | Nm Fl xpf Pa - Fl C Pa destdir
+.Dl Nm Fl cf Pa - Fl C Pa srcdir \&. | Nm Fl xpf Pa - Fl C Pa destdir
 or more traditionally
-.Dl cd srcdir \&; Nm Fl cf Pa -\ . | ( cd destdir \&; Nm Fl xpf Pa - )
+.Dl cd srcdir \&; Nm Fl cf Pa - \&. | ( cd destdir \&; Nm Fl xpf Pa - )
 .Pp
 In create mode, the list of files and directories to be archived
 can also include directory change instructions of the form
@@ -967,7 +982,6 @@ An input file in
 .Xr mtree 5
 format can be used to create an output archive with arbitrary ownership,
 permissions, or names that differ from existing data on disk:
-.Pp
 .Bd -literal -offset indent
 $ cat input.mtree
 #mtree

@@ -102,7 +102,7 @@ For example,
 .Fn archive_read_support_format_tar
 enables support for a variety of standard tar formats, old-style tar,
 ustar, pax interchange format, and many common variants.
-.It Fn archive_read_support_format_all 
+.It Fn archive_read_support_format_all
 Enables support for all available formats except the
 .Dq raw
 format (see below).
@@ -125,7 +125,7 @@ it is not possible to accurately determine a format for
 an empty file based purely on contents.
 So empty files are treated by libarchive as a distinct
 format.
-.It Fn archive_read_support_format_raw 
+.It Fn archive_read_support_format_raw
 The
 .Dq raw
 format handler allows libarchive to be used to read arbitrary data.
@@ -153,11 +153,11 @@ functions.
 .\"
 .Sh SEE ALSO
 .Xr tar 1 ,
-.Xr libarchive 3 ,
 .Xr archive_read_data 3 ,
 .Xr archive_read_filter 3 ,
 .Xr archive_read_set_options 3 ,
 .Xr archive_util 3 ,
+.Xr libarchive 3 ,
 .Xr tar 5
 .Sh BUGS
 Many traditional archiver programs treat

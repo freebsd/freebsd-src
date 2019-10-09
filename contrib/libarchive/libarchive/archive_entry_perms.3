@@ -126,7 +126,7 @@ The corresponding functions
 and
 .Fn archive_entry_set_perm
 store the given user id, group id and permission in the entry.
-The permission is also set as side effect of calling
+The permission is also set as a side effect of calling
 .Fn archive_entry_set_mode .
 .Pp
 .Fn archive_entry_strmode
@@ -143,12 +143,12 @@ The accessor functions are named
 .Fn XXX_w .
 .It UTF-8
 Unicode strings encoded as UTF-8.
-This are convience functions to update both the multibyte and wide
+These are convenience functions to update both the multibyte and wide
 character strings at the same time.
 .El
 .Pp
 .Fn archive_entry_set_XXX
-is an alias for 
+is an alias for
 .Fn archive_entry_copy_XXX .
 .Ss File Flags
 File flags are transparently converted between a bitmap
@@ -182,7 +182,7 @@ The
 .Fn archive_entry_copy_fflags_text
 and
 .Fn archive_entry_copy_fflags_text_w
-functions parse the provided text and sets the internal bitmap values.
+functions parse the provided text and set the internal bitmap values.
 This is a platform-specific operation; names that are not meaningful
 on the current platform will be ignored.
 The function returns a pointer to the start of the first name that was not
@@ -197,8 +197,8 @@ which stops parsing at the first unrecognized name.)
 .Xr archive_entry 3 ,
 .Xr archive_entry_acl 3 ,
 .Xr archive_read_disk 3 ,
-.Xr archive_write_disk 3
-.Xr libarchive 3 ,
+.Xr archive_write_disk 3 ,
+.Xr libarchive 3
 .Sh BUGS
 The platform types
 .Vt uid_t

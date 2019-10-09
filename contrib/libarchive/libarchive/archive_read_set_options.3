@@ -212,7 +212,8 @@ Use
 to disable.
 .It Cm read_concatenated_archives
 Ignore zeroed blocks in the archive, which occurs when multiple tar archives
-have been concatenated together.  Without this option, only the contents of
+have been concatenated together.
+Without this option, only the contents of
 the first concatenated archive would be read.
 .El
 .El
@@ -226,6 +227,6 @@ functions.
 .\"
 .Sh SEE ALSO
 .Xr tar 1 ,
-.Xr libarchive 3 ,
+.Xr archive_read 3 ,
 .Xr archive_write_set_options 3 ,
-.Xr archive_read 3
+.Xr libarchive 3
