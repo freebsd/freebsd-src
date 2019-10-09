@@ -405,6 +405,8 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	struct m_tag *fwd_tag = NULL;
 	uint32_t id;
 
+	NET_EPOCH_ENTER(et);
+
 	if (inp != NULL) {
 		INP_LOCK_ASSERT(inp);
 		M_SETFIB(m, inp->inp_inc.inc_fibnum);
@@ -587,7 +589,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		ro = &opt->ip6po_route;
 	dst = (struct sockaddr_in6 *)&ro->ro_dst;
 	fibnum = (inp != NULL) ? inp->inp_inc.inc_fibnum : M_GETFIB(m);
-	NET_EPOCH_ENTER(et);
 again:
 	/*
 	 * if specified, try to fill in the traffic class field.
