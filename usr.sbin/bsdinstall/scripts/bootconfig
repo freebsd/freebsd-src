@@ -27,6 +27,9 @@
 #
 # $FreeBSD$
 
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
 die() {
 	echo $*
 	exit 1
@@ -47,7 +50,8 @@ if [ "$(uname -m)" = "amd64" ] || [ "$(uname -m)" = "i386" ]; then
 fi
 
 if [ "$(uname -m)" = "arm64" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
-	UFSBOOT_ESPS=$(cat /tmp/bsdinstall-esps)
+	UFSBOOT_ESPS=$(cat /tmp/bsdinstall-esps 2>/dev/null)
+	ZFSBOOT_DISKS=$(cat /tmp/bsdinstall-zfsboot 2>/dev/null)
 	num_esps=0
 
 	if [ -n "$ZFSBOOT_DISKS" ]; then
@@ -119,20 +123,20 @@ if [ "$(uname -m)" = "arm64" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
 	fi
 
 	for esp in $ESPS; do
-		echo "Formatting /dev/${esp} as FAT32"
+		f_dprintf "Formatting /dev/${esp} as FAT32"
 		newfs_msdos -F 32 -c 1 -L EFISYS "/dev/$esp" > /dev/null 2>&1
 		if [ $? -ne 0 ]; then
 			die "Failed to format ESP $esp as FAT32"
 		fi
 
 		mntpt=$(mktemp -d /tmp/stand-test.XXXXXX)
-		echo "Mounting ESP /dev/${esp}"
+		f_dprintf "Mounting ESP /dev/${esp}"
 		mount -t msdosfs "/dev/${esp}" "${mntpt}"
 		if [ $? -ne 0 ]; then
 			die "Failed to mount ESP ${dev} on ${mntpt}"
 		fi
 
-		echo "Installing loader.efi onto ESP"
+		f_dprintf "Installing loader.efi onto ESP"
 		mkdir -p "$mntpt/EFI/freebsd"
 		cp "$BSDINSTALL_CHROOT/boot/loader.efi" "${mntpt}/EFI/freebsd/loader.efi"
 
@@ -142,14 +146,14 @@ if [ "$(uname -m)" = "arm64" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
 			bootlabel="FreeBSD"
 		fi
 
-		echo "Creating UEFI boot entry"
+		f_dprintf "Creating UEFI boot entry"
 		efibootmgr --create --activate --label "$bootlabel" --loader "${mntpt}/EFI/freebsd/loader.efi" > /dev/null
 
-		echo "Unmounting ESP"
+		f_dprintf "Unmounting ESP"
 		umount "${mntpt}"
 		rmdir "${mntpt}"
 
-		echo "Finished configuring /dev/${esp} as ESP"
+		f_dprintf "Finished configuring /dev/${esp} as ESP"
 	done
 fi
 

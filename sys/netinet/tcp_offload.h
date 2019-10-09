@@ -46,6 +46,7 @@ int  tcp_offload_output(struct tcpcb *);
 void tcp_offload_rcvd(struct tcpcb *);
 void tcp_offload_ctloutput(struct tcpcb *, int, int);
 void tcp_offload_tcp_info(struct tcpcb *, struct tcp_info *);
+int  tcp_offload_alloc_tls_session(struct tcpcb *, struct ktls_session *);
 void tcp_offload_detach(struct tcpcb *);
 
 #endif

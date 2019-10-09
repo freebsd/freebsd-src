@@ -153,7 +153,7 @@ compare_servent(struct servent *serv1, struct servent *serv2, void *mdata)
 		if (strcmp(*c1, *c2) != 0)
 			goto errfin;
 
-	if ((*c1 != '\0') || (*c2 != '\0'))
+	if ((*c1 != NULL) || (*c2 != NULL))
 		goto errfin;
 
 	return 0;
@@ -182,7 +182,7 @@ sdump_servent(struct servent *serv, char *buffer, size_t buflen)
 	buflen -= written;
 
 	if (serv->s_aliases != NULL) {
-		if (*(serv->s_aliases) != '\0') {
+		if (*(serv->s_aliases) != NULL) {
 			for (cp = serv->s_aliases; *cp; ++cp) {
 				written = snprintf(buffer, buflen, " %s", *cp);
 				buffer += written;

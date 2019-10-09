@@ -191,6 +191,14 @@ toedev_tcp_info(struct toedev *tod __unused, struct tcpcb *tp __unused,
 	return;
 }
 
+static int
+toedev_alloc_tls_session(struct toedev *tod __unused, struct tcpcb *tp __unused,
+    struct ktls_session *tls __unused)
+{
+
+	return (EINVAL);
+}
+
 /*
  * Inform one or more TOE devices about a listening socket.
  */
@@ -281,6 +289,7 @@ init_toedev(struct toedev *tod)
 	tod->tod_offload_socket = toedev_offload_socket;
 	tod->tod_ctloutput = toedev_ctloutput;
 	tod->tod_tcp_info = toedev_tcp_info;
+	tod->tod_alloc_tls_session = toedev_alloc_tls_session;
 }
 
 /*

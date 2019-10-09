@@ -1206,7 +1206,6 @@ dump_snapshot(zfs_handle_t *zhp, void *arg)
 	boolean_t isfromsnap, istosnap, fromorigin;
 	boolean_t exclude = B_FALSE;
 	FILE *fout = sdd->std_out ? stdout : stderr;
-	uint64_t size = 0;
 
 	err = 0;
 	thissnap = strchr(zhp->zfs_name, '@') + 1;
@@ -1282,6 +1281,7 @@ dump_snapshot(zfs_handle_t *zhp, void *arg)
 	    (sdd->fromorigin || sdd->replicate);
 
 	if (sdd->verbose || sdd->progress) {
+		uint64_t size = 0;
 		char fromds[ZFS_MAX_DATASET_NAME_LEN];
 
 		if (sdd->prevsnap[0] != '\0') {

@@ -1936,8 +1936,6 @@ unlock_and_done:
 			error = sooptcopyin(sopt, &ui, sizeof(ui), sizeof(ui));
 			if (error)
 				return (error);
-			if (ui != TCP_TLS_MODE_SW && ui != TCP_TLS_MODE_IFNET)
-				return (EINVAL);
 
 			INP_WLOCK_RECHECK(inp);
 			error = ktls_set_tx_mode(so, ui);

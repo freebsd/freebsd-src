@@ -72,6 +72,7 @@ enum {
 	TPF_SYNQE	   = (1 << 8),	/* synq_entry, not really a toepcb */
 	TPF_SYNQE_EXPANDED = (1 << 9),	/* toepcb ready, tid context updated */
 	TPF_FORCE_CREDITS  = (1 << 10), /* always send credits */
+	TPF_KTLS           = (1 << 11), /* send TLS records from KTLS */
 };
 
 enum {
@@ -440,6 +441,7 @@ const struct offload_settings *lookup_offload_policy(struct adapter *, int,
 bool can_tls_offload(struct adapter *);
 int t4_ctloutput_tls(struct socket *, struct sockopt *);
 void t4_push_tls_records(struct adapter *, struct toepcb *, int);
+void t4_push_ktls(struct adapter *, struct toepcb *, int);
 void t4_tls_mod_load(void);
 void t4_tls_mod_unload(void);
 void tls_establish(struct toepcb *);
@@ -448,5 +450,6 @@ int tls_rx_key(struct toepcb *);
 void tls_stop_handshake_timer(struct toepcb *);
 int tls_tx_key(struct toepcb *);
 void tls_uninit_toep(struct toepcb *);
+int tls_alloc_ktls(struct toepcb *, struct ktls_session *);
 
 #endif

@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tw.spell.c,v 3.21 2006/03/02 18:46:45 christos Exp $ */
 /*
  * tw.spell.c: Spell check words
  */
@@ -31,9 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: tw.spell.c,v 3.21 2006/03/02 18:46:45 christos Exp $")
-
 #include "tw.h"
 
 /* spell_me : return corrrectly spelled filename.  From K&P spname */
