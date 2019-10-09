@@ -352,10 +352,10 @@ sysctl_try_reclaim_vnode(SYSCTL_HANDLER_ARGS)
 
 	if (req->newptr == NULL)
 		return (EINVAL);
-	if (req->newlen > PATH_MAX)
+	if (req->newlen >= PATH_MAX)
 		return (E2BIG);
 
-	buf = malloc(PATH_MAX + 1, M_TEMP, M_WAITOK);
+	buf = malloc(PATH_MAX, M_TEMP, M_WAITOK);
 	error = SYSCTL_IN(req, buf, req->newlen);
 	if (error != 0)
 		goto out;
