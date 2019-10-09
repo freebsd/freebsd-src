@@ -1,9 +1,8 @@
 //===- ArgList.cpp - Argument List Management -----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -94,21 +93,6 @@ std::vector<std::string> ArgList::getAllArgValues(OptSpecifier Id) const {
   SmallVector<const char *, 16> Values;
   AddAllArgValues(Values, Id);
   return std::vector<std::string>(Values.begin(), Values.end());
-}
-
-void ArgList::AddLastArg(ArgStringList &Output, OptSpecifier Id) const {
-  if (Arg *A = getLastArg(Id)) {
-    A->claim();
-    A->render(*this, Output);
-  }
-}
-
-void ArgList::AddLastArg(ArgStringList &Output, OptSpecifier Id0,
-                         OptSpecifier Id1) const {
-  if (Arg *A = getLastArg(Id0, Id1)) {
-    A->claim();
-    A->render(*this, Output);
-  }
 }
 
 void ArgList::AddAllArgsExcept(ArgStringList &Output,

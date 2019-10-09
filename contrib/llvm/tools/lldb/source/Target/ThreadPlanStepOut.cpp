@@ -1,9 +1,8 @@
 //===-- ThreadPlanStepOut.cpp -----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -24,14 +23,14 @@
 #include "lldb/Target/ThreadPlanStepThrough.h"
 #include "lldb/Utility/Log.h"
 
+#include <memory>
+
 using namespace lldb;
 using namespace lldb_private;
 
 uint32_t ThreadPlanStepOut::s_default_flag_values = 0;
 
-//----------------------------------------------------------------------
 // ThreadPlanStepOut: Step out of the current frame
-//----------------------------------------------------------------------
 ThreadPlanStepOut::ThreadPlanStepOut(
     Thread &thread, SymbolContext *context, bool first_insn, bool stop_others,
     Vote stop_vote, Vote run_vote, uint32_t frame_idx,
@@ -85,9 +84,9 @@ ThreadPlanStepOut::ThreadPlanStepOut(
     if (frame_idx > 0) {
       // First queue a plan that gets us to this inlined frame, and when we get
       // there we'll queue a second plan that walks us out of this frame.
-      m_step_out_to_inline_plan_sp.reset(new ThreadPlanStepOut(
+      m_step_out_to_inline_plan_sp = std::make_shared<ThreadPlanStepOut>(
           m_thread, nullptr, false, stop_others, eVoteNoOpinion, eVoteNoOpinion,
-          frame_idx - 1, eLazyBoolNo, continue_to_next_branch));
+          frame_idx - 1, eLazyBoolNo, continue_to_next_branch);
       static_cast<ThreadPlanStepOut *>(m_step_out_to_inline_plan_sp.get())
           ->SetShouldStopHereCallbacks(nullptr, nullptr);
       m_step_out_to_inline_plan_sp->SetPrivate(true);
@@ -111,8 +110,9 @@ ThreadPlanStepOut::ThreadPlanStepOut(
       return_address_decr_pc.CalculateSymbolContext(
           &return_address_sc, lldb::eSymbolContextLineEntry);
       if (return_address_sc.line_entry.IsValid()) {
-        range =
-            return_address_sc.line_entry.GetSameLineContiguousAddressRange();
+        const bool include_inlined_functions = false;
+        range = return_address_sc.line_entry.GetSameLineContiguousAddressRange(
+            include_inlined_functions);
         if (range.GetByteSize() > 0) {
           return_address =
               m_thread.GetProcess()->AdvanceAddressToNextBranchInstruction(
@@ -450,8 +450,9 @@ bool ThreadPlanStepOut::QueueInlinedStepPlan(bool queue_now) {
             m_stop_others ? lldb::eOnlyThisThread : lldb::eAllThreads;
         const LazyBool avoid_no_debug = eLazyBoolNo;
 
-        m_step_through_inline_plan_sp.reset(new ThreadPlanStepOverRange(
-            m_thread, inline_range, inlined_sc, run_mode, avoid_no_debug));
+        m_step_through_inline_plan_sp =
+            std::make_shared<ThreadPlanStepOverRange>(
+                m_thread, inline_range, inlined_sc, run_mode, avoid_no_debug);
         ThreadPlanStepOverRange *step_through_inline_plan_ptr =
             static_cast<ThreadPlanStepOverRange *>(
                 m_step_through_inline_plan_sp.get());

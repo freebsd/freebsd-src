@@ -1,0 +1,11 @@
+# $FreeBSD$
+.arcconfig
+.clang-format
+CMakeLists.txt
+cmake
+cmake/
+docs
+docs/
+src/CMakeLists.txt
+test
+test/

@@ -1,9 +1,8 @@
 //===-- RenderScriptx86ABIFixups.cpp ----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -193,8 +192,9 @@ bool fixupX86StructRetCalls(llvm::Module &module) {
     llvm::LoadInst *new_func_addr_load =
         new llvm::LoadInst(new_func_ptr, "load_func_pointer", call_inst);
     // and create a callinstruction from it
-    llvm::CallInst *new_call_inst = llvm::CallInst::Create(
-        new_func_addr_load, new_call_args, "new_func_call", call_inst);
+    llvm::CallInst *new_call_inst =
+        llvm::CallInst::Create(new_func_type, new_func_addr_load, new_call_args,
+                               "new_func_call", call_inst);
     new_call_inst->setCallingConv(call_inst->getCallingConv());
     new_call_inst->setTailCall(call_inst->isTailCall());
     llvm::LoadInst *lldb_save_result_address =

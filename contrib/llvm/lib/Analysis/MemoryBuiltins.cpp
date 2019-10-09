@@ -1,9 +1,8 @@
 //===- MemoryBuiltins.cpp - Identify calls to memory builtins -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -264,6 +263,19 @@ bool llvm::isAllocLikeFn(const Value *V, const TargetLibraryInfo *TLI,
   return getAllocationData(V, AllocLike, TLI, LookThroughBitCast).hasValue();
 }
 
+/// Tests if a value is a call or invoke to a library function that
+/// reallocates memory (e.g., realloc).
+bool llvm::isReallocLikeFn(const Value *V, const TargetLibraryInfo *TLI,
+                     bool LookThroughBitCast) {
+  return getAllocationData(V, ReallocLike, TLI, LookThroughBitCast).hasValue();
+}
+
+/// Tests if a functions is a call or invoke to a library function that
+/// reallocates memory (e.g., realloc).
+bool llvm::isReallocLikeFn(const Function *F, const TargetLibraryInfo *TLI) {
+  return getAllocationDataForFunction(F, ReallocLike, TLI).hasValue();
+}
+
 /// extractMallocCall - Returns the corresponding CallInst if the instruction
 /// is a malloc call.  Since CallInst::CreateMalloc() only creates calls, we
 /// ignore InvokeInst here.
@@ -359,19 +371,8 @@ const CallInst *llvm::extractCallocCall(const Value *I,
   return isCallocLikeFn(I, TLI) ? cast<CallInst>(I) : nullptr;
 }
 
-/// isFreeCall - Returns non-null if the value is a call to the builtin free()
-const CallInst *llvm::isFreeCall(const Value *I, const TargetLibraryInfo *TLI) {
-  bool IsNoBuiltinCall;
-  const Function *Callee =
-      getCalledFunction(I, /*LookThroughBitCast=*/false, IsNoBuiltinCall);
-  if (Callee == nullptr || IsNoBuiltinCall)
-    return nullptr;
-
-  StringRef FnName = Callee->getName();
-  LibFunc TLIFn;
-  if (!TLI || !TLI->getLibFunc(FnName, TLIFn) || !TLI->has(TLIFn))
-    return nullptr;
-
+/// isLibFreeFunction - Returns true if the function is a builtin free()
+bool llvm::isLibFreeFunction(const Function *F, const LibFunc TLIFn) {
   unsigned ExpectedNumParams;
   if (TLIFn == LibFunc_free ||
       TLIFn == LibFunc_ZdlPv || // operator delete(void*)
@@ -402,21 +403,38 @@ const CallInst *llvm::isFreeCall(const Value *I, const TargetLibraryInfo *TLI) {
            TLIFn == LibFunc_ZdlPvSt11align_val_tRKSt9nothrow_t) // delete[](void*, align_val_t, nothrow)
     ExpectedNumParams = 3;
   else
-    return nullptr;
+    return false;
 
   // Check free prototype.
   // FIXME: workaround for PR5130, this will be obsolete when a nobuiltin
   // attribute will exist.
-  FunctionType *FTy = Callee->getFunctionType();
+  FunctionType *FTy = F->getFunctionType();
   if (!FTy->getReturnType()->isVoidTy())
-    return nullptr;
+    return false;
   if (FTy->getNumParams() != ExpectedNumParams)
-    return nullptr;
-  if (FTy->getParamType(0) != Type::getInt8PtrTy(Callee->getContext()))
+    return false;
+  if (FTy->getParamType(0) != Type::getInt8PtrTy(F->getContext()))
+    return false;
+
+  return true;
+}
+
+/// isFreeCall - Returns non-null if the value is a call to the builtin free()
+const CallInst *llvm::isFreeCall(const Value *I, const TargetLibraryInfo *TLI) {
+  bool IsNoBuiltinCall;
+  const Function *Callee =
+      getCalledFunction(I, /*LookThroughBitCast=*/false, IsNoBuiltinCall);
+  if (Callee == nullptr || IsNoBuiltinCall)
     return nullptr;
 
-  return dyn_cast<CallInst>(I);
+  StringRef FnName = Callee->getName();
+  LibFunc TLIFn;
+  if (!TLI || !TLI->getLibFunc(FnName, TLIFn) || !TLI->has(TLIFn))
+    return nullptr;
+
+  return isLibFreeFunction(Callee, TLIFn) ? dyn_cast<CallInst>(I) : nullptr;
 }
+
 
 //===----------------------------------------------------------------------===//
 //  Utility functions to compute size of objects.
@@ -442,10 +460,10 @@ bool llvm::getObjectSize(const Value *Ptr, uint64_t &Size, const DataLayout &DL,
   return true;
 }
 
-ConstantInt *llvm::lowerObjectSizeCall(IntrinsicInst *ObjectSize,
-                                       const DataLayout &DL,
-                                       const TargetLibraryInfo *TLI,
-                                       bool MustSucceed) {
+Value *llvm::lowerObjectSizeCall(IntrinsicInst *ObjectSize,
+                                 const DataLayout &DL,
+                                 const TargetLibraryInfo *TLI,
+                                 bool MustSucceed) {
   assert(ObjectSize->getIntrinsicID() == Intrinsic::objectsize &&
          "ObjectSize must be a call to llvm.objectsize!");
 
@@ -462,13 +480,35 @@ ConstantInt *llvm::lowerObjectSizeCall(IntrinsicInst *ObjectSize,
   EvalOptions.NullIsUnknownSize =
       cast<ConstantInt>(ObjectSize->getArgOperand(2))->isOne();
 
-  // FIXME: Does it make sense to just return a failure value if the size won't
-  // fit in the output and `!MustSucceed`?
-  uint64_t Size;
   auto *ResultType = cast<IntegerType>(ObjectSize->getType());
-  if (getObjectSize(ObjectSize->getArgOperand(0), Size, DL, TLI, EvalOptions) &&
-      isUIntN(ResultType->getBitWidth(), Size))
-    return ConstantInt::get(ResultType, Size);
+  bool StaticOnly = cast<ConstantInt>(ObjectSize->getArgOperand(3))->isZero();
+  if (StaticOnly) {
+    // FIXME: Does it make sense to just return a failure value if the size won't
+    // fit in the output and `!MustSucceed`?
+    uint64_t Size;
+    if (getObjectSize(ObjectSize->getArgOperand(0), Size, DL, TLI, EvalOptions) &&
+        isUIntN(ResultType->getBitWidth(), Size))
+      return ConstantInt::get(ResultType, Size);
+  } else {
+    LLVMContext &Ctx = ObjectSize->getFunction()->getContext();
+    ObjectSizeOffsetEvaluator Eval(DL, TLI, Ctx, EvalOptions);
+    SizeOffsetEvalType SizeOffsetPair =
+        Eval.compute(ObjectSize->getArgOperand(0));
+
+    if (SizeOffsetPair != ObjectSizeOffsetEvaluator::unknown()) {
+      IRBuilder<TargetFolder> Builder(Ctx, TargetFolder(DL));
+      Builder.SetInsertPoint(ObjectSize);
+
+      // If we've outside the end of the object, then we can always access
+      // exactly 0 bytes.
+      Value *ResultSize =
+          Builder.CreateSub(SizeOffsetPair.first, SizeOffsetPair.second);
+      Value *UseZero =
+          Builder.CreateICmpULT(SizeOffsetPair.first, SizeOffsetPair.second);
+      return Builder.CreateSelect(UseZero, ConstantInt::get(ResultType, 0),
+                                  ResultSize);
+    }
+  }
 
   if (!MustSucceed)
     return nullptr;
@@ -684,7 +724,7 @@ SizeOffsetType ObjectSizeOffsetVisitor::visitGlobalVariable(GlobalVariable &GV){
   if (!GV.hasDefinitiveInitializer())
     return unknown();
 
-  APInt Size(IntTyBits, DL.getTypeAllocSize(GV.getType()->getElementType()));
+  APInt Size(IntTyBits, DL.getTypeAllocSize(GV.getValueType()));
   return std::make_pair(align(Size, GV.getAlignment()), Zero);
 }
 
@@ -743,9 +783,12 @@ SizeOffsetType ObjectSizeOffsetVisitor::visitInstruction(Instruction &I) {
 
 ObjectSizeOffsetEvaluator::ObjectSizeOffsetEvaluator(
     const DataLayout &DL, const TargetLibraryInfo *TLI, LLVMContext &Context,
-    bool RoundToAlign)
-    : DL(DL), TLI(TLI), Context(Context), Builder(Context, TargetFolder(DL)),
-      RoundToAlign(RoundToAlign) {
+    ObjectSizeOpts EvalOpts)
+    : DL(DL), TLI(TLI), Context(Context),
+      Builder(Context, TargetFolder(DL),
+              IRBuilderCallbackInserter(
+                  [&](Instruction *I) { InsertedInstructions.insert(I); })),
+      EvalOpts(EvalOpts) {
   // IntTy and Zero must be set for each compute() since the address space may
   // be different for later objects.
 }
@@ -767,17 +810,21 @@ SizeOffsetEvalType ObjectSizeOffsetEvaluator::compute(Value *V) {
       if (CacheIt != CacheMap.end() && anyKnown(CacheIt->second))
         CacheMap.erase(CacheIt);
     }
+
+    // Erase any instructions we inserted as part of the traversal.
+    for (Instruction *I : InsertedInstructions) {
+      I->replaceAllUsesWith(UndefValue::get(I->getType()));
+      I->eraseFromParent();
+    }
   }
 
   SeenVals.clear();
+  InsertedInstructions.clear();
   return Result;
 }
 
 SizeOffsetEvalType ObjectSizeOffsetEvaluator::compute_(Value *V) {
-  ObjectSizeOpts ObjSizeOptions;
-  ObjSizeOptions.RoundToAlign = RoundToAlign;
-
-  ObjectSizeOffsetVisitor Visitor(DL, TLI, Context, ObjSizeOptions);
+  ObjectSizeOffsetVisitor Visitor(DL, TLI, Context, EvalOpts);
   SizeOffsetType Const = Visitor.compute(V);
   if (Visitor.bothKnown(Const))
     return std::make_pair(ConstantInt::get(Context, Const.first),
@@ -916,24 +963,28 @@ SizeOffsetEvalType ObjectSizeOffsetEvaluator::visitPHINode(PHINode &PHI) {
     if (!bothKnown(EdgeData)) {
       OffsetPHI->replaceAllUsesWith(UndefValue::get(IntTy));
       OffsetPHI->eraseFromParent();
+      InsertedInstructions.erase(OffsetPHI);
       SizePHI->replaceAllUsesWith(UndefValue::get(IntTy));
       SizePHI->eraseFromParent();
+      InsertedInstructions.erase(SizePHI);
       return unknown();
     }
     SizePHI->addIncoming(EdgeData.first, PHI.getIncomingBlock(i));
     OffsetPHI->addIncoming(EdgeData.second, PHI.getIncomingBlock(i));
   }
 
-  Value *Size = SizePHI, *Offset = OffsetPHI, *Tmp;
-  if ((Tmp = SizePHI->hasConstantValue())) {
+  Value *Size = SizePHI, *Offset = OffsetPHI;
+  if (Value *Tmp = SizePHI->hasConstantValue()) {
     Size = Tmp;
     SizePHI->replaceAllUsesWith(Size);
     SizePHI->eraseFromParent();
+    InsertedInstructions.erase(SizePHI);
   }
-  if ((Tmp = OffsetPHI->hasConstantValue())) {
+  if (Value *Tmp = OffsetPHI->hasConstantValue()) {
     Offset = Tmp;
     OffsetPHI->replaceAllUsesWith(Offset);
     OffsetPHI->eraseFromParent();
+    InsertedInstructions.erase(OffsetPHI);
   }
   return std::make_pair(Size, Offset);
 }

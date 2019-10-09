@@ -6,6 +6,10 @@ SUBDIR+=	clang
 SUBDIR+=	clang-tblgen
 SUBDIR+=	llvm-tblgen
 
+.if ${MK_LLDB} != "no"
+SUBDIR+=	lldb-tblgen
+.endif
+
 .if !defined(TOOLS_PREFIX)
 SUBDIR+=	llvm-ar
 SUBDIR+=	llvm-nm

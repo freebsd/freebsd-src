@@ -1,26 +1,24 @@
 //===-- Variable.h -----------------------------------------------*- C++-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef liblldb_Variable_h_
 #define liblldb_Variable_h_
 
-#include <memory>
-#include <vector>
-
 #include "lldb/Core/Mangled.h"
-#include "lldb/Core/RangeMap.h"
 #include "lldb/Expression/DWARFExpression.h"
 #include "lldb/Symbol/Declaration.h"
 #include "lldb/Utility/CompletionRequest.h"
+#include "lldb/Utility/RangeMap.h"
 #include "lldb/Utility/UserID.h"
 #include "lldb/lldb-enumerations.h"
 #include "lldb/lldb-private.h"
+#include <memory>
+#include <vector>
 
 namespace lldb_private {
 
@@ -28,9 +26,7 @@ class Variable : public UserID, public std::enable_shared_from_this<Variable> {
 public:
   typedef RangeVector<lldb::addr_t, lldb::addr_t> RangeList;
 
-  //------------------------------------------------------------------
   // Constructors and Destructors
-  //------------------------------------------------------------------
   Variable(lldb::user_id_t uid, const char *name,
            const char
                *mangled, // The mangled or fully qualified name of the variable.
@@ -59,7 +55,7 @@ public:
   // namespace)::i", this function will allow a generic match function that can
   // be called by commands and expression parsers to make sure we match
   // anything we come across.
-  bool NameMatches(const ConstString &name) const;
+  bool NameMatches(ConstString name) const;
 
   bool NameMatches(const RegularExpression &regex) const;
 
@@ -132,8 +128,8 @@ protected:
       m_static_member : 1; // Non-zero if variable is static member of a class
                            // or struct.
 private:
-  Variable(const Variable &rhs);
-  Variable &operator=(const Variable &rhs);
+  Variable(const Variable &rhs) = delete;
+  Variable &operator=(const Variable &rhs) = delete;
 };
 
 } // namespace lldb_private

@@ -1,9 +1,8 @@
 //===-- ObjectContainerBSDArchive.cpp ---------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -42,18 +41,18 @@ using namespace lldb;
 using namespace lldb_private;
 
 ObjectContainerBSDArchive::Object::Object()
-    : ar_name(), ar_date(0), ar_uid(0), ar_gid(0), ar_mode(0), ar_size(0),
-      ar_file_offset(0), ar_file_size(0) {}
+    : ar_name(), modification_time(0), uid(0), gid(0), mode(0), size(0),
+      file_offset(0), file_size(0) {}
 
 void ObjectContainerBSDArchive::Object::Clear() {
   ar_name.Clear();
-  ar_date = 0;
-  ar_uid = 0;
-  ar_gid = 0;
-  ar_mode = 0;
-  ar_size = 0;
-  ar_file_offset = 0;
-  ar_file_size = 0;
+  modification_time = 0;
+  uid = 0;
+  gid = 0;
+  mode = 0;
+  size = 0;
+  file_offset = 0;
+  file_size = 0;
 }
 
 lldb::offset_t
@@ -103,32 +102,32 @@ ObjectContainerBSDArchive::Object::Extract(const DataExtractor &data,
   }
 
   str.assign((const char *)data.GetData(&offset, 12), 12);
-  ar_date = strtoul(str.c_str(), &err, 10);
+  modification_time = strtoul(str.c_str(), &err, 10);
 
   str.assign((const char *)data.GetData(&offset, 6), 6);
-  ar_uid = strtoul(str.c_str(), &err, 10);
+  uid = strtoul(str.c_str(), &err, 10);
 
   str.assign((const char *)data.GetData(&offset, 6), 6);
-  ar_gid = strtoul(str.c_str(), &err, 10);
+  gid = strtoul(str.c_str(), &err, 10);
 
   str.assign((const char *)data.GetData(&offset, 8), 8);
-  ar_mode = strtoul(str.c_str(), &err, 8);
+  mode = strtoul(str.c_str(), &err, 8);
 
   str.assign((const char *)data.GetData(&offset, 10), 10);
-  ar_size = strtoul(str.c_str(), &err, 10);
+  size = strtoul(str.c_str(), &err, 10);
 
   str.assign((const char *)data.GetData(&offset, 2), 2);
   if (str == ARFMAG) {
     if (ar_name_len > 0) {
       const void *ar_name_ptr = data.GetData(&offset, ar_name_len);
       // Make sure there was enough data for the string value and bail if not
-      if (ar_name_ptr == NULL)
+      if (ar_name_ptr == nullptr)
         return LLDB_INVALID_OFFSET;
       str.assign((const char *)ar_name_ptr, ar_name_len);
       ar_name.SetCString(str.c_str());
     }
-    ar_file_offset = offset;
-    ar_file_size = ar_size - ar_name_len;
+    file_offset = offset;
+    file_size = size - ar_name_len;
     return offset;
   }
   return LLDB_INVALID_OFFSET;
@@ -138,8 +137,8 @@ ObjectContainerBSDArchive::Archive::Archive(const lldb_private::ArchSpec &arch,
                                             const llvm::sys::TimePoint<> &time,
                                             lldb::offset_t file_offset,
                                             lldb_private::DataExtractor &data)
-    : m_arch(arch), m_time(time), m_file_offset(file_offset), m_objects(),
-      m_data(data) {}
+    : m_arch(arch), m_modification_time(time), m_file_offset(file_offset),
+      m_objects(), m_data(data) {}
 
 ObjectContainerBSDArchive::Archive::~Archive() {}
 
@@ -158,7 +157,7 @@ size_t ObjectContainerBSDArchive::Archive::ParseObjects() {
       m_objects.push_back(obj);
       // Insert all of the C strings out of order for now...
       m_object_name_to_index_map.Append(obj.ar_name, obj_idx);
-      offset += obj.ar_file_size;
+      offset += obj.file_size;
       obj.Clear();
     } while (data.ValidOffset(offset));
 
@@ -170,28 +169,28 @@ size_t ObjectContainerBSDArchive::Archive::ParseObjects() {
 
 ObjectContainerBSDArchive::Object *
 ObjectContainerBSDArchive::Archive::FindObject(
-    const ConstString &object_name,
-    const llvm::sys::TimePoint<> &object_mod_time) {
+    ConstString object_name, const llvm::sys::TimePoint<> &object_mod_time) {
   const ObjectNameToIndexMap::Entry *match =
       m_object_name_to_index_map.FindFirstValueForName(object_name);
-  if (match) {
-    if (object_mod_time != llvm::sys::TimePoint<>()) {
-      const uint64_t object_date = llvm::sys::toTimeT(object_mod_time);
-      if (m_objects[match->value].ar_date == object_date)
-        return &m_objects[match->value];
-      const ObjectNameToIndexMap::Entry *next_match =
-          m_object_name_to_index_map.FindNextValueForName(match);
-      while (next_match) {
-        if (m_objects[next_match->value].ar_date == object_date)
-          return &m_objects[next_match->value];
-        next_match =
-            m_object_name_to_index_map.FindNextValueForName(next_match);
-      }
-    } else {
-      return &m_objects[match->value];
-    }
+  if (!match)
+    return nullptr;
+  if (object_mod_time == llvm::sys::TimePoint<>())
+    return &m_objects[match->value];
+
+  const uint64_t object_modification_date = llvm::sys::toTimeT(object_mod_time);
+  if (m_objects[match->value].modification_time == object_modification_date)
+    return &m_objects[match->value];
+
+  const ObjectNameToIndexMap::Entry *next_match =
+      m_object_name_to_index_map.FindNextValueForName(match);
+  while (next_match) {
+    if (m_objects[next_match->value].modification_time ==
+        object_modification_date)
+      return &m_objects[next_match->value];
+    next_match = m_object_name_to_index_map.FindNextValueForName(next_match);
   }
-  return NULL;
+
+  return nullptr;
 }
 
 ObjectContainerBSDArchive::Archive::shared_ptr
@@ -321,18 +320,18 @@ ObjectContainer *ObjectContainerBSDArchive::CreateInstance(
       Archive::shared_ptr archive_sp(Archive::FindCachedArchive(
           *file, module_sp->GetArchitecture(), module_sp->GetModificationTime(),
           file_offset));
-      std::unique_ptr<ObjectContainerBSDArchive> container_ap(
+      std::unique_ptr<ObjectContainerBSDArchive> container_up(
           new ObjectContainerBSDArchive(module_sp, archive_data_sp,
                                         archive_data_offset, file, file_offset,
                                         length));
 
-      if (container_ap.get()) {
+      if (container_up) {
         if (archive_sp) {
           // We already have this archive in our cache, use it
-          container_ap->SetArchive(archive_sp);
-          return container_ap.release();
-        } else if (container_ap->ParseHeader())
-          return container_ap.release();
+          container_up->SetArchive(archive_sp);
+          return container_up.release();
+        } else if (container_up->ParseHeader())
+          return container_up.release();
       }
     }
   } else {
@@ -341,18 +340,18 @@ ObjectContainer *ObjectContainerBSDArchive::CreateInstance(
         *file, module_sp->GetArchitecture(), module_sp->GetModificationTime(),
         file_offset));
     if (archive_sp) {
-      std::unique_ptr<ObjectContainerBSDArchive> container_ap(
+      std::unique_ptr<ObjectContainerBSDArchive> container_up(
           new ObjectContainerBSDArchive(module_sp, data_sp, data_offset, file,
                                         file_offset, length));
 
-      if (container_ap.get()) {
+      if (container_up) {
         // We already have this archive in our cache, use it
-        container_ap->SetArchive(archive_sp);
-        return container_ap.release();
+        container_up->SetArchive(archive_sp);
+        return container_up.release();
       }
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 bool ObjectContainerBSDArchive::MagicBytesMatch(const DataExtractor &data) {
@@ -379,7 +378,7 @@ void ObjectContainerBSDArchive::SetArchive(Archive::shared_ptr &archive_sp) {
 ObjectContainerBSDArchive::~ObjectContainerBSDArchive() {}
 
 bool ObjectContainerBSDArchive::ParseHeader() {
-  if (m_archive_sp.get() == NULL) {
+  if (m_archive_sp.get() == nullptr) {
     if (m_data.GetByteSize() > 0) {
       ModuleSP module_sp(GetModule());
       if (module_sp) {
@@ -392,7 +391,7 @@ bool ObjectContainerBSDArchive::ParseHeader() {
       m_data.Clear();
     }
   }
-  return m_archive_sp.get() != NULL;
+  return m_archive_sp.get() != nullptr;
 }
 
 void ObjectContainerBSDArchive::Dump(Stream *s) const {
@@ -426,20 +425,17 @@ ObjectFileSP ObjectContainerBSDArchive::GetObjectFile(const FileSpec *file) {
       Object *object = m_archive_sp->FindObject(
           module_sp->GetObjectName(), module_sp->GetObjectModificationTime());
       if (object) {
-        lldb::offset_t data_offset = object->ar_file_offset;
+        lldb::offset_t data_offset = object->file_offset;
         return ObjectFile::FindPlugin(
-            module_sp, file, m_offset + object->ar_file_offset,
-            object->ar_file_size, m_archive_sp->GetData().GetSharedDataBuffer(),
-            data_offset);
+            module_sp, file, m_offset + object->file_offset, object->file_size,
+            m_archive_sp->GetData().GetSharedDataBuffer(), data_offset);
       }
     }
   }
   return ObjectFileSP();
 }
 
-//------------------------------------------------------------------
 // PluginInterface protocol
-//------------------------------------------------------------------
 lldb_private::ConstString ObjectContainerBSDArchive::GetPluginName() {
   return GetPluginNameStatic();
 }
@@ -481,16 +477,15 @@ size_t ObjectContainerBSDArchive::GetModuleSpecifications(
       const Object *object = archive_sp->GetObjectAtIndex(idx);
       if (object) {
         const lldb::offset_t object_file_offset =
-            file_offset + object->ar_file_offset;
-        if (object->ar_file_offset < file_size &&
-            file_size > object_file_offset) {
+            file_offset + object->file_offset;
+        if (object->file_offset < file_size && file_size > object_file_offset) {
           if (ObjectFile::GetModuleSpecifications(
                   file, object_file_offset, file_size - object_file_offset,
                   specs)) {
             ModuleSpec &spec =
                 specs.GetModuleSpecRefAtIndex(specs.GetSize() - 1);
             llvm::sys::TimePoint<> object_mod_time(
-                std::chrono::seconds(object->ar_date));
+                std::chrono::seconds(object->modification_time));
             spec.GetObjectName() = object->ar_name;
             spec.SetObjectOffset(object_file_offset);
             spec.SetObjectSize(file_size - object_file_offset);

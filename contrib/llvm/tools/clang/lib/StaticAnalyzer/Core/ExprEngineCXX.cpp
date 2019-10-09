@@ -1,9 +1,8 @@
 //===- ExprEngineCXX.cpp - ExprEngine support for C++ -----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -196,6 +195,12 @@ std::pair<ProgramStateRef, SVal> ExprEngine::prepareForObjectConstruction(
           // call in the parent stack frame. This is equivalent to not being
           // able to find construction context at all.
           break;
+        }
+        if (isa<BlockInvocationContext>(CallerLCtx)) {
+          // Unwrap block invocation contexts. They're mostly part of
+          // the current stack frame.
+          CallerLCtx = CallerLCtx->getParent();
+          assert(!isa<BlockInvocationContext>(CallerLCtx));
         }
         return prepareForObjectConstruction(
             cast<Expr>(SFC->getCallSite()), State, CallerLCtx,
@@ -423,25 +428,20 @@ void ExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *CE,
         prepareForObjectConstruction(CE, State, LCtx, CC, CallOpts);
     break;
   }
-  case CXXConstructExpr::CK_VirtualBase:
+  case CXXConstructExpr::CK_VirtualBase: {
     // Make sure we are not calling virtual base class initializers twice.
     // Only the most-derived object should initialize virtual base classes.
-    if (const Stmt *Outer = LCtx->getStackFrame()->getCallSite()) {
-      const CXXConstructExpr *OuterCtor = dyn_cast<CXXConstructExpr>(Outer);
-      if (OuterCtor) {
-        switch (OuterCtor->getConstructionKind()) {
-        case CXXConstructExpr::CK_NonVirtualBase:
-        case CXXConstructExpr::CK_VirtualBase:
-          // Bail out!
-          destNodes.Add(Pred);
-          return;
-        case CXXConstructExpr::CK_Complete:
-        case CXXConstructExpr::CK_Delegating:
-          break;
-        }
-      }
-    }
+    const auto *OuterCtor = dyn_cast_or_null<CXXConstructExpr>(
+        LCtx->getStackFrame()->getCallSite());
+    assert(
+        (!OuterCtor ||
+         OuterCtor->getConstructionKind() == CXXConstructExpr::CK_Complete ||
+         OuterCtor->getConstructionKind() == CXXConstructExpr::CK_Delegating) &&
+        ("This virtual base should have already been initialized by "
+         "the most derived class!"));
+    (void)OuterCtor;
     LLVM_FALLTHROUGH;
+  }
   case CXXConstructExpr::CK_NonVirtualBase:
     // In C++17, classes with non-virtual bases may be aggregates, so they would
     // be initialized as aggregates without a constructor call, so we may have
@@ -604,12 +604,26 @@ void ExprEngine::VisitCXXDestructor(QualType ObjectType,
                                     ExplodedNode *Pred,
                                     ExplodedNodeSet &Dst,
                                     const EvalCallOptions &CallOpts) {
+  assert(S && "A destructor without a trigger!");
   const LocationContext *LCtx = Pred->getLocationContext();
   ProgramStateRef State = Pred->getState();
 
   const CXXRecordDecl *RecordDecl = ObjectType->getAsCXXRecordDecl();
   assert(RecordDecl && "Only CXXRecordDecls should have destructors");
   const CXXDestructorDecl *DtorDecl = RecordDecl->getDestructor();
+
+  // FIXME: There should always be a Decl, otherwise the destructor call
+  // shouldn't have been added to the CFG in the first place.
+  if (!DtorDecl) {
+    // Skip the invalid destructor. We cannot simply return because
+    // it would interrupt the analysis instead.
+    static SimpleProgramPointTag T("ExprEngine", "SkipInvalidDestructor");
+    // FIXME: PostImplicitCall with a null decl may crash elsewhere anyway.
+    PostImplicitCall PP(/*Decl=*/nullptr, S->getEndLoc(), LCtx, &T);
+    NodeBuilder Bldr(Pred, Dst, *currBldrCtx);
+    Bldr.generateNode(PP, Pred->getState(), Pred);
+    return;
+  }
 
   CallEventManager &CEMgr = getStateManager().getCallEventManager();
   CallEventRef<CXXDestructorCall> Call =
@@ -629,7 +643,6 @@ void ExprEngine::VisitCXXDestructor(QualType ObjectType,
        I != E; ++I)
     defaultEvalCall(Bldr, *I, *Call, CallOpts);
 
-  ExplodedNodeSet DstPostCall;
   getCheckerManager().runCheckersForPostCall(Dst, DstInvalidated,
                                              *Call, *this);
 }

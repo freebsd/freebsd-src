@@ -1,9 +1,8 @@
 //===--- Mips.cpp - Tools Implementations -----------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -247,7 +246,6 @@ void mips::getMIPSTargetFeatures(const Driver &D, const llvm::Triple &Triple,
   if (IsN64 && NonPIC && (!ABICallsArg || UseAbiCalls)) {
     D.Diag(diag::warn_drv_unsupported_pic_with_mabicalls)
         << LastPICArg->getAsString(Args) << (!ABICallsArg ? 0 : 1);
-    NonPIC = false;
   }
 
   if (ABICallsArg && !UseAbiCalls && IsPIC) {

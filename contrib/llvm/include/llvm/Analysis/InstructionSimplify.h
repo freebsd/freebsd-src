@@ -1,9 +1,8 @@
 //===-- InstructionSimplify.h - Fold instrs into simpler forms --*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -32,6 +31,7 @@
 #ifndef LLVM_ANALYSIS_INSTRUCTIONSIMPLIFY_H
 #define LLVM_ANALYSIS_INSTRUCTIONSIMPLIFY_H
 
+#include "llvm/ADT/SetVector.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Operator.h"
 #include "llvm/IR/User.h"
@@ -41,8 +41,8 @@ class Function;
 template <typename T, typename... TArgs> class AnalysisManager;
 template <class T> class ArrayRef;
 class AssumptionCache;
+class CallBase;
 class DominatorTree;
-class ImmutableCallSite;
 class DataLayout;
 class FastMathFlags;
 struct LoopStandardAnalysisResults;
@@ -117,6 +117,10 @@ struct SimplifyQuery {
 // NOTE: the explicit multiple argument versions of these functions are
 // deprecated.
 // Please use the SimplifyQuery versions in new code.
+
+/// Given operand for an FNeg, fold the result or return null.
+Value *SimplifyFNegInst(Value *Op, FastMathFlags FMF,
+                        const SimplifyQuery &Q);
 
 /// Given operands for an Add, fold the result or return null.
 Value *SimplifyAddInst(Value *LHS, Value *RHS, bool isNSW, bool isNUW,
@@ -228,6 +232,15 @@ Value *SimplifyShuffleVectorInst(Value *Op0, Value *Op1, Constant *Mask,
 Value *SimplifyCmpInst(unsigned Predicate, Value *LHS, Value *RHS,
                        const SimplifyQuery &Q);
 
+/// Given operand for a UnaryOperator, fold the result or return null.
+Value *SimplifyUnOp(unsigned Opcode, Value *Op, const SimplifyQuery &Q);
+
+/// Given operand for an FP UnaryOperator, fold the result or return null.
+/// In contrast to SimplifyUnOp, try to use FastMathFlag when folding the
+/// result. In case we don't need FastMathFlags, simply fall to SimplifyUnOp.
+Value *SimplifyFPUnOp(unsigned Opcode, Value *Op, FastMathFlags FMF,
+                      const SimplifyQuery &Q);
+
 /// Given operands for a BinaryOperator, fold the result or return null.
 Value *SimplifyBinOp(unsigned Opcode, Value *LHS, Value *RHS,
                      const SimplifyQuery &Q);
@@ -239,16 +252,7 @@ Value *SimplifyFPBinOp(unsigned Opcode, Value *LHS, Value *RHS,
                        FastMathFlags FMF, const SimplifyQuery &Q);
 
 /// Given a callsite, fold the result or return null.
-Value *SimplifyCall(ImmutableCallSite CS, const SimplifyQuery &Q);
-
-/// Given a function and iterators over arguments, fold the result or return
-/// null.
-Value *SimplifyCall(ImmutableCallSite CS, Value *V, User::op_iterator ArgBegin,
-                    User::op_iterator ArgEnd, const SimplifyQuery &Q);
-
-/// Given a function and set of arguments, fold the result or return null.
-Value *SimplifyCall(ImmutableCallSite CS, Value *V, ArrayRef<Value *> Args,
-                    const SimplifyQuery &Q);
+Value *SimplifyCall(CallBase *Call, const SimplifyQuery &Q);
 
 /// See if we can compute a simplified version of this instruction. If not,
 /// return null.
@@ -260,12 +264,14 @@ Value *SimplifyInstruction(Instruction *I, const SimplifyQuery &Q,
 /// This first performs a normal RAUW of I with SimpleV. It then recursively
 /// attempts to simplify those users updated by the operation. The 'I'
 /// instruction must not be equal to the simplified value 'SimpleV'.
+/// If UnsimplifiedUsers is provided, instructions that could not be simplified
+/// are added to it.
 ///
 /// The function returns true if any simplifications were performed.
-bool replaceAndRecursivelySimplify(Instruction *I, Value *SimpleV,
-                                   const TargetLibraryInfo *TLI = nullptr,
-                                   const DominatorTree *DT = nullptr,
-                                   AssumptionCache *AC = nullptr);
+bool replaceAndRecursivelySimplify(
+    Instruction *I, Value *SimpleV, const TargetLibraryInfo *TLI = nullptr,
+    const DominatorTree *DT = nullptr, AssumptionCache *AC = nullptr,
+    SmallSetVector<Instruction *, 8> *UnsimplifiedUsers = nullptr);
 
 /// Recursively attempt to simplify an instruction.
 ///

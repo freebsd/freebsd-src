@@ -1,9 +1,8 @@
 //==- llvm/CodeGen/SelectionDAGTargetInfo.h - SelectionDAG Info --*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -146,6 +145,14 @@ public:
                            SDValue Src, SDValue MaxLength,
                            MachinePointerInfo SrcPtrInfo) const {
     return std::make_pair(SDValue(), SDValue());
+  }
+
+  virtual SDValue EmitTargetCodeForSetTag(SelectionDAG &DAG, const SDLoc &dl,
+                                          SDValue Chain, SDValue Addr,
+                                          SDValue Size,
+                                          MachinePointerInfo DstPtrInfo,
+                                          bool ZeroData) const {
+    return SDValue();
   }
 
   // Return true when the decision to generate FMA's (or FMS, FMLA etc) rather

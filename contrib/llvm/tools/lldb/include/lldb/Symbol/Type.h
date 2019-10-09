@@ -1,9 +1,8 @@
 //===-- Type.h --------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -23,12 +22,10 @@
 #include <set>
 
 namespace lldb_private {
-//----------------------------------------------------------------------
 // CompilerContext allows an array of these items to be passed to perform
 // detailed lookups in SymbolVendor and SymbolFile functions.
-//----------------------------------------------------------------------
 struct CompilerContext {
-  CompilerContext(CompilerContextKind t, const ConstString &n)
+  CompilerContext(CompilerContextKind t, ConstString n)
       : type(t), name(n) {}
 
   bool operator==(const CompilerContext &rhs) const {
@@ -62,25 +59,25 @@ protected:
 
 class Type : public std::enable_shared_from_this<Type>, public UserID {
 public:
-  typedef enum EncodingDataTypeTag {
+  enum EncodingDataType {
     eEncodingInvalid,
     eEncodingIsUID,      ///< This type is the type whose UID is m_encoding_uid
     eEncodingIsConstUID, ///< This type is the type whose UID is m_encoding_uid
-                         ///with the const qualifier added
+                         /// with the const qualifier added
     eEncodingIsRestrictUID, ///< This type is the type whose UID is
-                            ///m_encoding_uid with the restrict qualifier added
+                            /// m_encoding_uid with the restrict qualifier added
     eEncodingIsVolatileUID, ///< This type is the type whose UID is
-                            ///m_encoding_uid with the volatile qualifier added
+                            /// m_encoding_uid with the volatile qualifier added
     eEncodingIsTypedefUID,  ///< This type is pointer to a type whose UID is
-                            ///m_encoding_uid
+                            /// m_encoding_uid
     eEncodingIsPointerUID,  ///< This type is pointer to a type whose UID is
-                            ///m_encoding_uid
+                            /// m_encoding_uid
     eEncodingIsLValueReferenceUID, ///< This type is L value reference to a type
-                                   ///whose UID is m_encoding_uid
+                                   /// whose UID is m_encoding_uid
     eEncodingIsRValueReferenceUID, ///< This type is R value reference to a type
-                                   ///whose UID is m_encoding_uid
+                                   /// whose UID is m_encoding_uid
     eEncodingIsSyntheticUID
-  } EncodingDataType;
+  };
 
   // We must force the underlying type of the enum to be unsigned here.  Not
   // all compilers behave the same with regards to the default underlying type
@@ -95,8 +92,8 @@ public:
     eResolveStateFull = 3
   } ResolveState;
 
-  Type(lldb::user_id_t uid, SymbolFile *symbol_file, const ConstString &name,
-       uint64_t byte_size, SymbolContextScope *context,
+  Type(lldb::user_id_t uid, SymbolFile *symbol_file, ConstString name,
+       llvm::Optional<uint64_t> byte_size, SymbolContextScope *context,
        lldb::user_id_t encoding_uid, EncodingDataType encoding_uid_type,
        const Declaration &decl, const CompilerType &compiler_qual_type,
        ResolveState compiler_type_resolve_state);
@@ -104,10 +101,6 @@ public:
   // This makes an invalid type.  Used for functions that return a Type when
   // they get an error.
   Type();
-
-  Type(const Type &rhs);
-
-  const Type &operator=(const Type &rhs);
 
   void Dump(Stream *s, bool show_context);
 
@@ -126,9 +119,9 @@ public:
 
   TypeList *GetTypeList();
 
-  const ConstString &GetName();
+  ConstString GetName();
 
-  uint64_t GetByteSize();
+  llvm::Optional<uint64_t> GetByteSize();
 
   uint32_t GetNumChildren(bool omit_empty_base_classes);
 
@@ -140,7 +133,7 @@ public:
 
   lldb::TypeSP GetTypedefType();
 
-  const ConstString &GetName() const { return m_name; }
+  ConstString GetName() const { return m_name; }
 
   ConstString GetQualifiedName();
 
@@ -218,7 +211,8 @@ protected:
   Type *m_encoding_type;
   lldb::user_id_t m_encoding_uid;
   EncodingDataType m_encoding_uid_type;
-  uint64_t m_byte_size;
+  uint64_t m_byte_size : 63;
+  uint64_t m_byte_size_has_value : 1;
   Declaration m_decl;
   CompilerType m_compiler_type;
 
@@ -237,141 +231,14 @@ protected:
   bool ResolveClangType(ResolveState compiler_type_resolve_state);
 };
 
-// these classes are used to back the SBType* objects
-
-class TypePair {
-public:
-  TypePair() : compiler_type(), type_sp() {}
-
-  TypePair(CompilerType type) : compiler_type(type), type_sp() {}
-
-  TypePair(lldb::TypeSP type) : compiler_type(), type_sp(type) {
-    compiler_type = type_sp->GetForwardCompilerType();
-  }
-
-  bool IsValid() const {
-    return compiler_type.IsValid() || (type_sp.get() != nullptr);
-  }
-
-  explicit operator bool() const { return IsValid(); }
-
-  bool operator==(const TypePair &rhs) const {
-    return compiler_type == rhs.compiler_type &&
-           type_sp.get() == rhs.type_sp.get();
-  }
-
-  bool operator!=(const TypePair &rhs) const {
-    return compiler_type != rhs.compiler_type ||
-           type_sp.get() != rhs.type_sp.get();
-  }
-
-  void Clear() {
-    compiler_type.Clear();
-    type_sp.reset();
-  }
-
-  ConstString GetName() const {
-    if (type_sp)
-      return type_sp->GetName();
-    if (compiler_type)
-      return compiler_type.GetTypeName();
-    return ConstString();
-  }
-
-  ConstString GetDisplayTypeName() const {
-    if (type_sp)
-      return type_sp->GetForwardCompilerType().GetDisplayTypeName();
-    if (compiler_type)
-      return compiler_type.GetDisplayTypeName();
-    return ConstString();
-  }
-
-  void SetType(CompilerType type) {
-    type_sp.reset();
-    compiler_type = type;
-  }
-
-  void SetType(lldb::TypeSP type) {
-    type_sp = type;
-    if (type_sp)
-      compiler_type = type_sp->GetForwardCompilerType();
-    else
-      compiler_type.Clear();
-  }
-
-  lldb::TypeSP GetTypeSP() const { return type_sp; }
-
-  CompilerType GetCompilerType() const { return compiler_type; }
-
-  CompilerType GetPointerType() const {
-    if (type_sp)
-      return type_sp->GetForwardCompilerType().GetPointerType();
-    return compiler_type.GetPointerType();
-  }
-
-  CompilerType GetPointeeType() const {
-    if (type_sp)
-      return type_sp->GetForwardCompilerType().GetPointeeType();
-    return compiler_type.GetPointeeType();
-  }
-
-  CompilerType GetReferenceType() const {
-    if (type_sp)
-      return type_sp->GetForwardCompilerType().GetLValueReferenceType();
-    else
-      return compiler_type.GetLValueReferenceType();
-  }
-
-  CompilerType GetTypedefedType() const {
-    if (type_sp)
-      return type_sp->GetForwardCompilerType().GetTypedefedType();
-    else
-      return compiler_type.GetTypedefedType();
-  }
-
-  CompilerType GetDereferencedType() const {
-    if (type_sp)
-      return type_sp->GetForwardCompilerType().GetNonReferenceType();
-    else
-      return compiler_type.GetNonReferenceType();
-  }
-
-  CompilerType GetUnqualifiedType() const {
-    if (type_sp)
-      return type_sp->GetForwardCompilerType().GetFullyUnqualifiedType();
-    else
-      return compiler_type.GetFullyUnqualifiedType();
-  }
-
-  CompilerType GetCanonicalType() const {
-    if (type_sp)
-      return type_sp->GetForwardCompilerType().GetCanonicalType();
-    return compiler_type.GetCanonicalType();
-  }
-
-  TypeSystem *GetTypeSystem() const { return compiler_type.GetTypeSystem(); }
-
-  lldb::ModuleSP GetModule() const {
-    if (type_sp)
-      return type_sp->GetModule();
-    return lldb::ModuleSP();
-  }
-
-protected:
-  CompilerType compiler_type;
-  lldb::TypeSP type_sp;
-};
-
 // the two classes here are used by the public API as a backend to the SBType
 // and SBTypeList classes
 
 class TypeImpl {
 public:
-  TypeImpl();
+  TypeImpl() = default;
 
   ~TypeImpl() {}
-
-  TypeImpl(const TypeImpl &rhs);
 
   TypeImpl(const lldb::TypeSP &type_sp);
 
@@ -381,8 +248,6 @@ public:
 
   TypeImpl(const CompilerType &compiler_type, const CompilerType &dynamic);
 
-  TypeImpl(const TypePair &pair, const CompilerType &dynamic);
-
   void SetType(const lldb::TypeSP &type_sp);
 
   void SetType(const CompilerType &compiler_type);
@@ -390,10 +255,6 @@ public:
   void SetType(const lldb::TypeSP &type_sp, const CompilerType &dynamic);
 
   void SetType(const CompilerType &compiler_type, const CompilerType &dynamic);
-
-  void SetType(const TypePair &pair, const CompilerType &dynamic);
-
-  TypeImpl &operator=(const TypeImpl &rhs);
 
   bool operator==(const TypeImpl &rhs) const;
 
@@ -434,7 +295,7 @@ private:
   bool CheckModule(lldb::ModuleSP &module_sp) const;
 
   lldb::ModuleWP m_module_wp;
-  TypePair m_static_type;
+  CompilerType m_static_type;
   CompilerType m_dynamic_type;
 };
 
@@ -478,7 +339,7 @@ public:
   {}
 
   TypeMemberImpl(const lldb::TypeImplSP &type_impl_sp, uint64_t bit_offset,
-                 const ConstString &name, uint32_t bitfield_bit_size = 0,
+                 ConstString name, uint32_t bitfield_bit_size = 0,
                  bool is_bitfield = false)
       : m_type_impl_sp(type_impl_sp), m_bit_offset(bit_offset), m_name(name),
         m_bitfield_bit_size(bitfield_bit_size), m_is_bitfield(is_bitfield) {}
@@ -492,7 +353,7 @@ public:
 
   const lldb::TypeImplSP &GetTypeImpl() { return m_type_impl_sp; }
 
-  const ConstString &GetName() const { return m_name; }
+  ConstString GetName() const { return m_name; }
 
   uint64_t GetBitOffset() const { return m_bit_offset; }
 
@@ -526,14 +387,11 @@ protected:
 
 class TypeAndOrName {
 public:
-  TypeAndOrName();
+  TypeAndOrName() = default;
   TypeAndOrName(lldb::TypeSP &type_sp);
   TypeAndOrName(const CompilerType &compiler_type);
   TypeAndOrName(const char *type_str);
-  TypeAndOrName(const TypeAndOrName &rhs);
   TypeAndOrName(ConstString &type_const_string);
-
-  TypeAndOrName &operator=(const TypeAndOrName &rhs);
 
   bool operator==(const TypeAndOrName &other) const;
 
@@ -541,11 +399,9 @@ public:
 
   ConstString GetName() const;
 
-  lldb::TypeSP GetTypeSP() const { return m_type_pair.GetTypeSP(); }
+  CompilerType GetCompilerType() const { return m_compiler_type; }
 
-  CompilerType GetCompilerType() const { return m_type_pair.GetCompilerType(); }
-
-  void SetName(const ConstString &type_name);
+  void SetName(ConstString type_name);
 
   void SetName(const char *type_name_cstr);
 
@@ -557,18 +413,16 @@ public:
 
   bool HasName() const;
 
-  bool HasTypeSP() const;
-
   bool HasCompilerType() const;
 
-  bool HasType() const { return HasTypeSP() || HasCompilerType(); }
+  bool HasType() const { return HasCompilerType(); }
 
   void Clear();
 
   explicit operator bool() { return !IsEmpty(); }
 
 private:
-  TypePair m_type_pair;
+  CompilerType m_compiler_type;
   ConstString m_type_name;
 };
 
@@ -617,17 +471,15 @@ public:
       : m_integer_type_sp(), m_name("<invalid>"), m_value(), m_valid(false) {}
 
   TypeEnumMemberImpl(const lldb::TypeImplSP &integer_type_sp,
-                     const ConstString &name, const llvm::APSInt &value);
+                     ConstString name, const llvm::APSInt &value);
 
-  TypeEnumMemberImpl(const TypeEnumMemberImpl &rhs)
-      : m_integer_type_sp(rhs.m_integer_type_sp), m_name(rhs.m_name),
-        m_value(rhs.m_value), m_valid(rhs.m_valid) {}
+  TypeEnumMemberImpl(const TypeEnumMemberImpl &rhs) = default;
 
   TypeEnumMemberImpl &operator=(const TypeEnumMemberImpl &rhs);
 
   bool IsValid() { return m_valid; }
 
-  const ConstString &GetName() const { return m_name; }
+  ConstString GetName() const { return m_name; }
 
   const lldb::TypeImplSP &GetIntegerType() const { return m_integer_type_sp; }
 

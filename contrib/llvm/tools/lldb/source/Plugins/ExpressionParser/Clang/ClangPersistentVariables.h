@@ -1,9 +1,8 @@
 //===-- ClangPersistentVariables.h ------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,24 +18,20 @@
 
 namespace lldb_private {
 
-//----------------------------------------------------------------------
-/// @class ClangPersistentVariables ClangPersistentVariables.h
+/// \class ClangPersistentVariables ClangPersistentVariables.h
 /// "lldb/Expression/ClangPersistentVariables.h" Manages persistent values
 /// that need to be preserved between expression invocations.
 ///
 /// A list of variables that can be accessed and updated by any expression.  See
 /// ClangPersistentVariable for more discussion.  Also provides an increasing,
 /// 0-based counter for naming result variables.
-//----------------------------------------------------------------------
 class ClangPersistentVariables : public PersistentExpressionState {
 public:
   ClangPersistentVariables();
 
   ~ClangPersistentVariables() override = default;
 
-  //------------------------------------------------------------------
   // llvm casting support
-  //------------------------------------------------------------------
   static bool classof(const PersistentExpressionState *pv) {
     return pv->getKind() == PersistentExpressionState::eKindClang;
   }
@@ -45,7 +40,7 @@ public:
   CreatePersistentVariable(const lldb::ValueObjectSP &valobj_sp) override;
 
   lldb::ExpressionVariableSP CreatePersistentVariable(
-      ExecutionContextScope *exe_scope, const ConstString &name,
+      ExecutionContextScope *exe_scope, ConstString name,
       const CompilerType &compiler_type, lldb::ByteOrder byte_order,
       uint32_t addr_byte_size) override;
 
@@ -55,9 +50,12 @@ public:
     return "$";
   }
 
-  void RegisterPersistentDecl(const ConstString &name, clang::NamedDecl *decl);
+  llvm::Optional<CompilerType>
+  GetCompilerTypeFromPersistentDecl(ConstString type_name) override;
 
-  clang::NamedDecl *GetPersistentDecl(const ConstString &name);
+  void RegisterPersistentDecl(ConstString name, clang::NamedDecl *decl);
+
+  clang::NamedDecl *GetPersistentDecl(ConstString name);
 
   void AddHandLoadedClangModule(ClangModulesDeclVendor::ModuleID module) {
     m_hand_loaded_clang_modules.push_back(module);

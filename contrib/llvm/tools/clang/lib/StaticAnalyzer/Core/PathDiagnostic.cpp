@@ -1,9 +1,8 @@
 //===- PathDiagnostic.cpp - Path-Specific Diagnostic Handling -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -91,6 +90,8 @@ PathDiagnosticMacroPiece::~PathDiagnosticMacroPiece() = default;
 
 PathDiagnosticNotePiece::~PathDiagnosticNotePiece() = default;
 
+PathDiagnosticPopUpPiece::~PathDiagnosticPopUpPiece() = default;
+
 void PathPieces::flattenTo(PathPieces &Primary, PathPieces &Current,
                            bool ShouldFlattenMacros) const {
   for (auto &Piece : *this) {
@@ -120,6 +121,7 @@ void PathPieces::flattenTo(PathPieces &Primary, PathPieces &Current,
     case PathDiagnosticPiece::Event:
     case PathDiagnosticPiece::ControlFlow:
     case PathDiagnosticPiece::Note:
+    case PathDiagnosticPiece::PopUp:
       Current.push_back(Piece);
       break;
     }
@@ -370,15 +372,16 @@ static Optional<bool> comparePiece(const PathDiagnosticPiece &X,
     case PathDiagnosticPiece::ControlFlow:
       return compareControlFlow(cast<PathDiagnosticControlFlowPiece>(X),
                                 cast<PathDiagnosticControlFlowPiece>(Y));
-    case PathDiagnosticPiece::Event:
-    case PathDiagnosticPiece::Note:
-      return None;
     case PathDiagnosticPiece::Macro:
       return compareMacro(cast<PathDiagnosticMacroPiece>(X),
                           cast<PathDiagnosticMacroPiece>(Y));
     case PathDiagnosticPiece::Call:
       return compareCall(cast<PathDiagnosticCallPiece>(X),
                          cast<PathDiagnosticCallPiece>(Y));
+    case PathDiagnosticPiece::Event:
+    case PathDiagnosticPiece::Note:
+    case PathDiagnosticPiece::PopUp:
+      return None;
   }
   llvm_unreachable("all cases handled");
 }
@@ -572,6 +575,8 @@ static SourceLocation getValidSourceLocation(const Stmt* S,
     } while (!L.isValid());
   }
 
+  // FIXME: Ironically, this assert actually fails in some cases.
+  //assert(L.isValid());
   return L;
 }
 
@@ -672,7 +677,15 @@ PathDiagnosticLocation::createConditionalColonLoc(
 PathDiagnosticLocation
 PathDiagnosticLocation::createMemberLoc(const MemberExpr *ME,
                                         const SourceManager &SM) {
-  return PathDiagnosticLocation(ME->getMemberLoc(), SM, SingleLocK);
+
+  assert(ME->getMemberLoc().isValid() || ME->getBeginLoc().isValid());
+
+  // In some cases, getMemberLoc isn't valid -- in this case we'll return with
+  // some other related valid SourceLocation.
+  if (ME->getMemberLoc().isValid())
+    return PathDiagnosticLocation(ME->getMemberLoc(), SM, SingleLocK);
+
+  return PathDiagnosticLocation(ME->getBeginLoc(), SM, SingleLocK);
 }
 
 PathDiagnosticLocation
@@ -715,7 +728,24 @@ PathDiagnosticLocation::create(const ProgramPoint& P,
   const Stmt* S = nullptr;
   if (Optional<BlockEdge> BE = P.getAs<BlockEdge>()) {
     const CFGBlock *BSrc = BE->getSrc();
-    S = BSrc->getTerminatorCondition();
+    if (BSrc->getTerminator().isVirtualBaseBranch()) {
+      // TODO: VirtualBaseBranches should also appear for destructors.
+      // In this case we should put the diagnostic at the end of decl.
+      return PathDiagnosticLocation::createBegin(
+          P.getLocationContext()->getDecl(), SMng);
+
+    } else {
+      S = BSrc->getTerminatorCondition();
+      if (!S) {
+        // If the BlockEdge has no terminator condition statement but its
+        // source is the entry of the CFG (e.g. a checker crated the branch at
+        // the beginning of a function), use the function's declaration instead.
+        assert(BSrc == &BSrc->getParent()->getEntry() && "CFGBlock has no "
+               "TerminatorCondition and is not the enrty block of the CFG");
+        return PathDiagnosticLocation::createBegin(
+            P.getLocationContext()->getDecl(), SMng);
+      }
+    }
   } else if (Optional<StmtPoint> SP = P.getAs<StmtPoint>()) {
     S = SP->getStmt();
     if (P.getAs<PostStmtPurgeDeadSymbols>())
@@ -735,6 +765,12 @@ PathDiagnosticLocation::create(const ProgramPoint& P,
     return getLocationForCaller(CEE->getCalleeContext(),
                                 CEE->getLocationContext(),
                                 SMng);
+  } else if (auto CEB = P.getAs<CallExitBegin>()) {
+    if (const ReturnStmt *RS = CEB->getReturnStmt())
+      return PathDiagnosticLocation::createBegin(RS, SMng,
+                                                 CEB->getLocationContext());
+    return PathDiagnosticLocation(
+        CEB->getLocationContext()->getDecl()->getSourceRange().getEnd(), SMng);
   } else if (Optional<BlockEntrance> BE = P.getAs<BlockEntrance>()) {
     CFGElement BlockFront = BE->getBlock()->front();
     if (auto StmtElt = BlockFront.getAs<CFGStmt>()) {
@@ -744,6 +780,9 @@ PathDiagnosticLocation::create(const ProgramPoint& P,
           NewAllocElt->getAllocatorExpr()->getBeginLoc(), SMng);
     }
     llvm_unreachable("Unexpected CFG element at front of block");
+  } else if (Optional<FunctionExitPoint> FE = P.getAs<FunctionExitPoint>()) {
+    return PathDiagnosticLocation(FE->getStmt(), SMng,
+                                  FE->getLocationContext());
   } else {
     llvm_unreachable("Unexpected ProgramPoint");
   }
@@ -779,7 +818,7 @@ const Stmt *PathDiagnosticLocation::getStmt(const ExplodedNode *N) {
   if (auto SP = P.getAs<StmtPoint>())
     return SP->getStmt();
   if (auto BE = P.getAs<BlockEdge>())
-    return BE->getSrc()->getTerminator();
+    return BE->getSrc()->getTerminatorStmt();
   if (auto CE = P.getAs<CallEnter>())
     return CE->getCallExpr();
   if (auto CEE = P.getAs<CallExitEnd>())
@@ -1255,6 +1294,10 @@ void PathDiagnosticNotePiece::Profile(llvm::FoldingSetNodeID &ID) const {
   PathDiagnosticSpotPiece::Profile(ID);
 }
 
+void PathDiagnosticPopUpPiece::Profile(llvm::FoldingSetNodeID &ID) const {
+  PathDiagnosticSpotPiece::Profile(ID);
+}
+
 void PathDiagnostic::Profile(llvm::FoldingSetNodeID &ID) const {
   ID.Add(getLocation());
   ID.AddString(BugType);
@@ -1375,6 +1418,13 @@ LLVM_DUMP_METHOD void PathDiagnosticMacroPiece::dump() const {
 
 LLVM_DUMP_METHOD void PathDiagnosticNotePiece::dump() const {
   llvm::errs() << "NOTE\n--------------\n";
+  llvm::errs() << getString() << "\n";
+  llvm::errs() << " ---- at ----\n";
+  getLocation().dump();
+}
+
+LLVM_DUMP_METHOD void PathDiagnosticPopUpPiece::dump() const {
+  llvm::errs() << "POP-UP\n--------------\n";
   llvm::errs() << getString() << "\n";
   llvm::errs() << " ---- at ----\n";
   getLocation().dump();

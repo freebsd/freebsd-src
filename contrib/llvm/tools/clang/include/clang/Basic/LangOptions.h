@@ -1,9 +1,8 @@
 //===- LangOptions.h - C Language Family Language Options -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -110,7 +109,8 @@ public:
     MSVC2013 = 1800,
     MSVC2015 = 1900,
     MSVC2017 = 1910,
-    MSVC2017_5 = 1912
+    MSVC2017_5 = 1912,
+    MSVC2017_7 = 1914,
   };
 
   /// Clang versions with different platform ABI conformance.
@@ -216,7 +216,7 @@ public:
   /// If none is specified, abort (GCC-compatible behaviour).
   std::string OverflowHandler;
 
-  /// The module currently being compiled as speficied by -fmodule-name.
+  /// The module currently being compiled as specified by -fmodule-name.
   std::string ModuleName;
 
   /// The name of the current module, of which the main source file
@@ -266,7 +266,7 @@ public:
 
   /// Do we need to track the owning module for a local declaration?
   bool trackLocalOwningModule() const {
-    return isCompilingModule() || ModulesLocalVisibility || ModulesTS;
+    return isCompilingModule() || ModulesLocalVisibility;
   }
 
   bool isSignedOverflowDefined() const {

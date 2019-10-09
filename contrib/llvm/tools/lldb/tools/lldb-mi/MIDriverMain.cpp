@@ -1,9 +1,8 @@
 //===-- MIDriverMain.cpp ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -52,7 +51,6 @@
 
 // CODETAG_IOR_SIGNALS
 //++
-//------------------------------------------------------------------------------------
 // Details: The SIGINT signal is sent to a process by its controlling terminal
 // when a
 //          user wishes to interrupt the process. This is typically initiated by
@@ -86,7 +84,6 @@ void sigint_handler(int vSigno) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Init the MI driver system. Initialize the whole driver system which
 // includes
 //          both the original LLDB driver and the MI driver.
@@ -112,7 +109,6 @@ bool DriverSystemInit() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Shutdown the debugger system. Release / terminate resources external
 // to
 //          specifically the MI driver.
@@ -132,7 +128,6 @@ bool DriverSystemShutdown(const bool vbAppExitOk) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: MI's application start point of execution. The application runs in
 // two modes.
 //          An LLDB native driver mode where it acts no different from the LLDB

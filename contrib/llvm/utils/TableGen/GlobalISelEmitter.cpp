@@ -1,9 +1,8 @@
 //===- GlobalISelEmitter.cpp - Generate an instruction selector -----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -233,6 +232,23 @@ static std::string explainPredicates(const TreePatternNode *N) {
     if (Record *VT = P.getScalarMemoryVT())
       Explanation += (" ScalarVT(MemVT)=" + VT->getName()).str();
 
+    if (ListInit *AddrSpaces = P.getAddressSpaces()) {
+      raw_string_ostream OS(Explanation);
+      OS << " AddressSpaces=[";
+
+      StringRef AddrSpaceSeparator;
+      for (Init *Val : AddrSpaces->getValues()) {
+        IntInit *IntVal = dyn_cast<IntInit>(Val);
+        if (!IntVal)
+          continue;
+
+        OS << AddrSpaceSeparator << IntVal->getValue();
+        AddrSpaceSeparator = ", ";
+      }
+
+      OS << ']';
+    }
+
     if (P.isAtomicOrderingMonotonic())
       Explanation += " monotonic";
     if (P.isAtomicOrderingAcquire())
@@ -298,7 +314,7 @@ static Error isTrivialOperatorNode(const TreePatternNode *N) {
         Predicate.isSignExtLoad() || Predicate.isZeroExtLoad())
       continue;
 
-    if (Predicate.isNonTruncStore())
+    if (Predicate.isNonTruncStore() || Predicate.isTruncStore())
       continue;
 
     if (Predicate.isLoad() && Predicate.getMemoryVT())
@@ -306,6 +322,12 @@ static Error isTrivialOperatorNode(const TreePatternNode *N) {
 
     if (Predicate.isLoad() || Predicate.isStore()) {
       if (Predicate.isUnindexed())
+        continue;
+    }
+
+    if (Predicate.isLoad() || Predicate.isStore() || Predicate.isAtomic()) {
+      const ListInit *AddrSpaces = Predicate.getAddressSpaces();
+      if (AddrSpaces && !AddrSpaces->empty())
         continue;
     }
 
@@ -882,12 +904,19 @@ public:
 
   void defineOperand(StringRef SymbolicName, OperandMatcher &OM);
 
-  void defineComplexSubOperand(StringRef SymbolicName, Record *ComplexPattern,
-                               unsigned RendererID, unsigned SubOperandID) {
-    assert(ComplexSubOperands.count(SymbolicName) == 0 && "Already defined");
+  Error defineComplexSubOperand(StringRef SymbolicName, Record *ComplexPattern,
+                                unsigned RendererID, unsigned SubOperandID) {
+    if (ComplexSubOperands.count(SymbolicName))
+      return failedImport(
+          "Complex suboperand referenced more than once (Operand: " +
+          SymbolicName + ")");
+
     ComplexSubOperands[SymbolicName] =
         std::make_tuple(ComplexPattern, RendererID, SubOperandID);
+
+    return Error::success();
   }
+
   Optional<DefinedComplexPatternSubOperand>
   getComplexSubOperand(StringRef SymbolicName) const {
     const auto &I = ComplexSubOperands.find(SymbolicName);
@@ -1022,6 +1051,7 @@ public:
     IPM_AtomicOrderingMMO,
     IPM_MemoryLLTSize,
     IPM_MemoryVsLLTSize,
+    IPM_MemoryAddressSpace,
     IPM_GenericPredicate,
     OPM_SameOperand,
     OPM_ComplexPattern,
@@ -1507,6 +1537,9 @@ Error OperandMatcher::addTypeCheckPredicate(const TypeSetByHwMode &VTy,
 
   if (OperandIsAPointer)
     addPredicate<PointerToAnyOperandMatcher>(OpTyOrNone->get().getSizeInBits());
+  else if (VTy.isPointer())
+    addPredicate<LLTOperandMatcher>(LLT::pointer(VTy.getPtrAddrSpace(),
+                                                 OpTyOrNone->get().getSizeInBits()));
   else
     addPredicate<LLTOperandMatcher>(*OpTyOrNone);
   return Error::success();
@@ -1777,6 +1810,42 @@ public:
           << MatchTable::Comment("MMO") << MatchTable::IntValue(MMOIdx)
           << MatchTable::Comment("Size") << MatchTable::IntValue(Size)
           << MatchTable::LineBreak;
+  }
+};
+
+class MemoryAddressSpacePredicateMatcher : public InstructionPredicateMatcher {
+protected:
+  unsigned MMOIdx;
+  SmallVector<unsigned, 4> AddrSpaces;
+
+public:
+  MemoryAddressSpacePredicateMatcher(unsigned InsnVarID, unsigned MMOIdx,
+                                     ArrayRef<unsigned> AddrSpaces)
+      : InstructionPredicateMatcher(IPM_MemoryAddressSpace, InsnVarID),
+        MMOIdx(MMOIdx), AddrSpaces(AddrSpaces.begin(), AddrSpaces.end()) {}
+
+  static bool classof(const PredicateMatcher *P) {
+    return P->getKind() == IPM_MemoryAddressSpace;
+  }
+  bool isIdentical(const PredicateMatcher &B) const override {
+    if (!InstructionPredicateMatcher::isIdentical(B))
+      return false;
+    auto *Other = cast<MemoryAddressSpacePredicateMatcher>(&B);
+    return MMOIdx == Other->MMOIdx && AddrSpaces == Other->AddrSpaces;
+  }
+
+  void emitPredicateOpcodes(MatchTable &Table,
+                            RuleMatcher &Rule) const override {
+    Table << MatchTable::Opcode("GIM_CheckMemoryAddressSpace")
+          << MatchTable::Comment("MI") << MatchTable::IntValue(InsnVarID)
+          << MatchTable::Comment("MMO") << MatchTable::IntValue(MMOIdx)
+        // Encode number of address spaces to expect.
+          << MatchTable::Comment("NumAddrSpace")
+          << MatchTable::IntValue(AddrSpaces.size());
+    for (unsigned AS : AddrSpaces)
+      Table << MatchTable::Comment("AddrSpace") << MatchTable::IntValue(AS);
+
+    Table << MatchTable::LineBreak;
   }
 };
 
@@ -3028,7 +3097,8 @@ private:
   importExplicitUseRenderer(action_iterator InsertPt, RuleMatcher &Rule,
                             BuildMIAction &DstMIBuilder,
                             TreePatternNode *DstChild);
-  Error importDefaultOperandRenderers(BuildMIAction &DstMIBuilder,
+  Error importDefaultOperandRenderers(action_iterator InsertPt, RuleMatcher &M,
+                                      BuildMIAction &DstMIBuilder,
                                       DagInit *DefaultOps) const;
   Error
   importImplicitDefRenderers(BuildMIAction &DstMIBuilder,
@@ -3200,7 +3270,26 @@ Expected<InstructionMatcher &> GlobalISelEmitter::createAndImportSelDAGMatcher(
       continue;
     }
 
-    // G_LOAD is used for both non-extending and any-extending loads. 
+    // An address space check is needed in all contexts if there is one.
+    if (Predicate.isLoad() || Predicate.isStore() || Predicate.isAtomic()) {
+      if (const ListInit *AddrSpaces = Predicate.getAddressSpaces()) {
+        SmallVector<unsigned, 4> ParsedAddrSpaces;
+
+        for (Init *Val : AddrSpaces->getValues()) {
+          IntInit *IntVal = dyn_cast<IntInit>(Val);
+          if (!IntVal)
+            return failedImport("Address space is not an integer");
+          ParsedAddrSpaces.push_back(IntVal->getValue());
+        }
+
+        if (!ParsedAddrSpaces.empty()) {
+          InsnMatcher.addPredicate<MemoryAddressSpacePredicateMatcher>(
+            0, ParsedAddrSpaces);
+        }
+      }
+    }
+
+    // G_LOAD is used for both non-extending and any-extending loads.
     if (Predicate.isLoad() && Predicate.isNonExtLoad()) {
       InsnMatcher.addPredicate<MemoryVsLLTSizePredicateMatcher>(
           0, MemoryVsLLTSizePredicateMatcher::EqualTo, 0);
@@ -3209,6 +3298,13 @@ Expected<InstructionMatcher &> GlobalISelEmitter::createAndImportSelDAGMatcher(
     if (Predicate.isLoad() && Predicate.isAnyExtLoad()) {
       InsnMatcher.addPredicate<MemoryVsLLTSizePredicateMatcher>(
           0, MemoryVsLLTSizePredicateMatcher::LessThan, 0);
+      continue;
+    }
+
+    if (Predicate.isStore() && Predicate.isTruncStore()) {
+      // FIXME: If MemoryVT is set, we end up with 2 checks for the MMO size.
+      InsnMatcher.addPredicate<MemoryVsLLTSizePredicateMatcher>(
+        0, MemoryVsLLTSizePredicateMatcher::LessThan, 0);
       continue;
     }
 
@@ -3422,9 +3518,12 @@ Error GlobalISelEmitter::importChildMatcher(RuleMatcher &Rule,
 
       for (unsigned i = 0, e = SrcChild->getNumChildren(); i != e; ++i) {
         auto *SubOperand = SrcChild->getChild(i);
-        if (!SubOperand->getName().empty())
-          Rule.defineComplexSubOperand(SubOperand->getName(),
-                                       SrcChild->getOperator(), RendererID, i);
+        if (!SubOperand->getName().empty()) {
+          if (auto Error = Rule.defineComplexSubOperand(SubOperand->getName(),
+                                                        SrcChild->getOperator(),
+                                                        RendererID, i))
+            return Error;
+        }
       }
 
       return Error::success();
@@ -3765,7 +3864,8 @@ Expected<action_iterator> GlobalISelEmitter::importExplicitUseRenderers(
     // end up with too many rendered operands.
     if (DstIOperand.Rec->isSubClassOf("OperandWithDefaultOps")) {
       DagInit *DefaultOps = DstIOperand.Rec->getValueAsDag("DefaultOps");
-      if (auto Error = importDefaultOperandRenderers(DstMIBuilder, DefaultOps))
+      if (auto Error = importDefaultOperandRenderers(
+            InsertPt, M, DstMIBuilder, DefaultOps))
         return std::move(Error);
       ++NumDefaultOps;
       continue;
@@ -3790,19 +3890,39 @@ Expected<action_iterator> GlobalISelEmitter::importExplicitUseRenderers(
 }
 
 Error GlobalISelEmitter::importDefaultOperandRenderers(
-    BuildMIAction &DstMIBuilder, DagInit *DefaultOps) const {
+    action_iterator InsertPt, RuleMatcher &M, BuildMIAction &DstMIBuilder,
+    DagInit *DefaultOps) const {
   for (const auto *DefaultOp : DefaultOps->getArgs()) {
+    Optional<LLTCodeGen> OpTyOrNone = None;
+
     // Look through ValueType operators.
     if (const DagInit *DefaultDagOp = dyn_cast<DagInit>(DefaultOp)) {
       if (const DefInit *DefaultDagOperator =
               dyn_cast<DefInit>(DefaultDagOp->getOperator())) {
-        if (DefaultDagOperator->getDef()->isSubClassOf("ValueType"))
+        if (DefaultDagOperator->getDef()->isSubClassOf("ValueType")) {
+          OpTyOrNone = MVTToLLT(getValueType(
+                                  DefaultDagOperator->getDef()));
           DefaultOp = DefaultDagOp->getArg(0);
+        }
       }
     }
 
     if (const DefInit *DefaultDefOp = dyn_cast<DefInit>(DefaultOp)) {
-      DstMIBuilder.addRenderer<AddRegisterRenderer>(DefaultDefOp->getDef());
+      auto Def = DefaultDefOp->getDef();
+      if (Def->getName() == "undef_tied_input") {
+        unsigned TempRegID = M.allocateTempRegID();
+        M.insertAction<MakeTempRegisterAction>(
+          InsertPt, OpTyOrNone.getValue(), TempRegID);
+        InsertPt = M.insertAction<BuildMIAction>(
+          InsertPt, M.allocateOutputInsnID(),
+          &Target.getInstruction(RK.getDef("IMPLICIT_DEF")));
+        BuildMIAction &IDMIBuilder = *static_cast<BuildMIAction *>(
+          InsertPt->get());
+        IDMIBuilder.addRenderer<TempRegRenderer>(TempRegID);
+        DstMIBuilder.addRenderer<TempRegRenderer>(TempRegID);
+      } else {
+        DstMIBuilder.addRenderer<AddRegisterRenderer>(Def);
+      }
       continue;
     }
 
@@ -4489,8 +4609,7 @@ void GlobalISelEmitter::run(raw_ostream &OS) {
        << ", // " << Record->getName() << "\n";
   OS << "};\n\n";
 
-  std::stable_sort(Rules.begin(), Rules.end(), [&](const RuleMatcher &A,
-                                                   const RuleMatcher &B) {
+  llvm::stable_sort(Rules, [&](const RuleMatcher &A, const RuleMatcher &B) {
     int ScoreA = RuleMatcherScores[A.getRuleID()];
     int ScoreB = RuleMatcherScores[B.getRuleID()];
     if (ScoreA > ScoreB)

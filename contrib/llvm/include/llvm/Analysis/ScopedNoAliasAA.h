@@ -1,9 +1,8 @@
 //===- ScopedNoAliasAA.h - Scoped No-Alias Alias Analysis -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -40,9 +39,12 @@ public:
     return false;
   }
 
-  AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB);
-  ModRefInfo getModRefInfo(const CallBase *Call, const MemoryLocation &Loc);
-  ModRefInfo getModRefInfo(const CallBase *Call1, const CallBase *Call2);
+  AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB,
+                    AAQueryInfo &AAQI);
+  ModRefInfo getModRefInfo(const CallBase *Call, const MemoryLocation &Loc,
+                           AAQueryInfo &AAQI);
+  ModRefInfo getModRefInfo(const CallBase *Call1, const CallBase *Call2,
+                           AAQueryInfo &AAQI);
 
 private:
   bool mayAliasInScopes(const MDNode *Scopes, const MDNode *NoAlias) const;

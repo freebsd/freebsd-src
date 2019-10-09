@@ -1,9 +1,8 @@
 //===--- DirectoryLookup.h - Info for searching for headers -----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -171,6 +170,9 @@ public:
   /// set to true if the file is located in a framework that has been
   /// user-specified to be treated as a system framework.
   ///
+  /// \param [out] IsFrameworkFound For a framework directory set to true if
+  /// specified '.framework' directory is found.
+  ///
   /// \param [out] MappedName if this is a headermap which maps the filename to
   /// a framework include ("Foo.h" -> "Foo/Foo.h"), set the new name to this
   /// vector and point Filename to it.
@@ -181,6 +183,7 @@ public:
                               Module *RequestingModule,
                               ModuleMap::KnownHeader *SuggestedModule,
                               bool &InUserSpecifiedSystemFramework,
+                              bool &IsFrameworkFound,
                               bool &HasBeenMapped,
                               SmallVectorImpl<char> &MappedName) const;
 
@@ -191,7 +194,8 @@ private:
       SmallVectorImpl<char> *RelativePath,
       Module *RequestingModule,
       ModuleMap::KnownHeader *SuggestedModule,
-      bool &InUserSpecifiedSystemFramework) const;
+      bool &InUserSpecifiedSystemFramework,
+      bool &IsFrameworkFound) const;
 
 };
 

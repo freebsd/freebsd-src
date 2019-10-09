@@ -1,9 +1,8 @@
 //===-- FormatManager.cpp ----------------------------------------*- C++-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -147,7 +146,7 @@ char FormatManager::GetFormatAsFormatChar(lldb::Format format) {
 const char *FormatManager::GetFormatAsCString(Format format) {
   if (format >= eFormatDefault && format < kNumFormats)
     return g_format_infos[format].format_name;
-  return NULL;
+  return nullptr;
 }
 
 void FormatManager::EnableAllCategories() {
@@ -298,7 +297,7 @@ FormatManager::GetFormatForType(lldb::TypeNameSpecifierImplSP type_sp) {
     lldb::TypeFormatImplSP format_current_sp =
         category_sp->GetFormatForType(type_sp);
     if (format_current_sp &&
-        (format_chosen_sp.get() == NULL ||
+        (format_chosen_sp.get() == nullptr ||
          (prio_category > category_sp->GetEnabledPosition()))) {
       prio_category = category_sp->GetEnabledPosition();
       format_chosen_sp = format_current_sp;
@@ -322,7 +321,7 @@ FormatManager::GetSummaryForType(lldb::TypeNameSpecifierImplSP type_sp) {
     lldb::TypeSummaryImplSP summary_current_sp =
         category_sp->GetSummaryForType(type_sp);
     if (summary_current_sp &&
-        (summary_chosen_sp.get() == NULL ||
+        (summary_chosen_sp.get() == nullptr ||
          (prio_category > category_sp->GetEnabledPosition()))) {
       prio_category = category_sp->GetEnabledPosition();
       summary_chosen_sp = summary_current_sp;
@@ -346,7 +345,7 @@ FormatManager::GetFilterForType(lldb::TypeNameSpecifierImplSP type_sp) {
     lldb::TypeFilterImplSP filter_current_sp(
         (TypeFilterImpl *)category_sp->GetFilterForType(type_sp).get());
     if (filter_current_sp &&
-        (filter_chosen_sp.get() == NULL ||
+        (filter_chosen_sp.get() == nullptr ||
          (prio_category > category_sp->GetEnabledPosition()))) {
       prio_category = category_sp->GetEnabledPosition();
       filter_chosen_sp = filter_current_sp;
@@ -355,7 +354,6 @@ FormatManager::GetFilterForType(lldb::TypeNameSpecifierImplSP type_sp) {
   return filter_chosen_sp;
 }
 
-#ifndef LLDB_DISABLE_PYTHON
 lldb::ScriptedSyntheticChildrenSP
 FormatManager::GetSyntheticForType(lldb::TypeNameSpecifierImplSP type_sp) {
   if (!type_sp)
@@ -372,7 +370,7 @@ FormatManager::GetSyntheticForType(lldb::TypeNameSpecifierImplSP type_sp) {
         (ScriptedSyntheticChildren *)category_sp->GetSyntheticForType(type_sp)
             .get());
     if (synth_current_sp &&
-        (synth_chosen_sp.get() == NULL ||
+        (synth_chosen_sp.get() == nullptr ||
          (prio_category > category_sp->GetEnabledPosition()))) {
       prio_category = category_sp->GetEnabledPosition();
       synth_chosen_sp = synth_current_sp;
@@ -380,21 +378,6 @@ FormatManager::GetSyntheticForType(lldb::TypeNameSpecifierImplSP type_sp) {
   }
   return synth_chosen_sp;
 }
-#endif
-
-#ifndef LLDB_DISABLE_PYTHON
-lldb::SyntheticChildrenSP FormatManager::GetSyntheticChildrenForType(
-    lldb::TypeNameSpecifierImplSP type_sp) {
-  if (!type_sp)
-    return lldb::SyntheticChildrenSP();
-  lldb::TypeFilterImplSP filter_sp = GetFilterForType(type_sp);
-  lldb::ScriptedSyntheticChildrenSP synth_sp = GetSyntheticForType(type_sp);
-  if (filter_sp->GetRevision() > synth_sp->GetRevision())
-    return lldb::SyntheticChildrenSP(filter_sp.get());
-  else
-    return lldb::SyntheticChildrenSP(synth_sp.get());
-}
-#endif
 
 lldb::TypeValidatorImplSP
 FormatManager::GetValidatorForType(lldb::TypeNameSpecifierImplSP type_sp) {
@@ -411,7 +394,7 @@ FormatManager::GetValidatorForType(lldb::TypeNameSpecifierImplSP type_sp) {
     lldb::TypeValidatorImplSP validator_current_sp(
         category_sp->GetValidatorForType(type_sp).get());
     if (validator_current_sp &&
-        (validator_chosen_sp.get() == NULL ||
+        (validator_chosen_sp.get() == nullptr ||
          (prio_category > category_sp->GetEnabledPosition()))) {
       prio_category = category_sp->GetEnabledPosition();
       validator_chosen_sp = validator_current_sp;
@@ -432,7 +415,7 @@ void FormatManager::ForEachCategory(TypeCategoryMap::ForEachCallback callback) {
 }
 
 lldb::TypeCategoryImplSP
-FormatManager::GetCategory(const ConstString &category_name, bool can_create) {
+FormatManager::GetCategory(ConstString category_name, bool can_create) {
   if (!category_name)
     return GetCategory(m_default_category_name);
   lldb::TypeCategoryImplSP category;
@@ -574,7 +557,7 @@ bool FormatManager::ShouldPrintAsOneLiner(ValueObject &valobj) {
   return true;
 }
 
-ConstString FormatManager::GetValidTypeName(const ConstString &type) {
+ConstString FormatManager::GetValidTypeName(ConstString type) {
   return ::GetValidTypeName_Impl(type);
 }
 
@@ -781,7 +764,6 @@ FormatManager::GetSummaryFormat(ValueObject &valobj,
   return retval;
 }
 
-#ifndef LLDB_DISABLE_PYTHON
 lldb::SyntheticChildrenSP
 FormatManager::GetHardcodedSyntheticChildren(FormattersMatchData &match_data) {
   SyntheticChildrenSP retval_sp;
@@ -860,7 +842,6 @@ FormatManager::GetSyntheticChildren(ValueObject &valobj,
             m_format_cache.GetCacheHits(), m_format_cache.GetCacheMisses());
   return retval;
 }
-#endif
 
 lldb::TypeValidatorImplSP
 FormatManager::GetValidator(ValueObject &valobj,
@@ -1009,14 +990,12 @@ void FormatManager::LoadSystemFormatters() {
   sys_category_sp->GetTypeSummariesContainer()->Add(ConstString("OSType"),
                                                     ostype_summary);
 
-#ifndef LLDB_DISABLE_PYTHON
   TypeFormatImpl::Flags fourchar_flags;
   fourchar_flags.SetCascades(true).SetSkipPointers(true).SetSkipReferences(
       true);
 
   AddFormat(sys_category_sp, lldb::eFormatOSType, ConstString("FourCharCode"),
             fourchar_flags);
-#endif
 }
 
 void FormatManager::LoadVectorFormatters() {

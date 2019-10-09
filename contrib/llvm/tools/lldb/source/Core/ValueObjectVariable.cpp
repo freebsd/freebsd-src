@@ -1,9 +1,8 @@
 //===-- ValueObjectVariable.cpp ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -58,7 +57,7 @@ ValueObjectVariable::ValueObjectVariable(ExecutionContextScope *exe_scope,
                                          const lldb::VariableSP &var_sp)
     : ValueObject(exe_scope), m_variable_sp(var_sp) {
   // Do not attempt to construct one of these objects with no variable!
-  assert(m_variable_sp.get() != NULL);
+  assert(m_variable_sp.get() != nullptr);
   m_name = var_sp->GetName();
 }
 
@@ -136,7 +135,7 @@ bool ValueObjectVariable::UpdateValue() {
     else
       m_error.SetErrorString("empty constant data");
     // constant bytes can't be edited - sorry
-    m_resolved_value.SetContext(Value::eContextTypeInvalid, NULL);
+    m_resolved_value.SetContext(Value::eContextTypeInvalid, nullptr);
   } else {
     lldb::addr_t loclist_base_load_addr = LLDB_INVALID_ADDRESS;
     ExecutionContext exe_ctx(GetExecutionContextRef());
@@ -262,7 +261,7 @@ bool ValueObjectVariable::UpdateValue() {
       SetValueIsValid(m_error.Success());
     } else {
       // could not find location, won't allow editing
-      m_resolved_value.SetContext(Value::eContextTypeInvalid, NULL);
+      m_resolved_value.SetContext(Value::eContextTypeInvalid, nullptr);
     }
   }
   return m_error.Success();
@@ -299,7 +298,7 @@ lldb::ModuleSP ValueObjectVariable::GetModule() {
 SymbolContextScope *ValueObjectVariable::GetSymbolContextScope() {
   if (m_variable_sp)
     return m_variable_sp->GetSymbolContextScope();
-  return NULL;
+  return nullptr;
 }
 
 bool ValueObjectVariable::GetDeclaration(Declaration &decl) {

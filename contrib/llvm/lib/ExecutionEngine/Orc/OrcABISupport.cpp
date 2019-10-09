@@ -1,9 +1,8 @@
 //===------------- OrcABISupport.cpp - ABI specific support code ----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -148,7 +147,7 @@ Error OrcAArch64::emitIndirectStubsBlock(IndirectStubsInfo &StubsInfo,
   const unsigned StubSize = IndirectStubsInfo::StubSize;
 
   // Emit at least MinStubs, rounded up to fill the pages allocated.
-  unsigned PageSize = sys::Process::getPageSize();
+  static const unsigned PageSize = sys::Process::getPageSizeEstimate();
   unsigned NumPages = ((MinStubs * StubSize) + (PageSize - 1)) / PageSize;
   unsigned NumStubs = (NumPages * PageSize) / StubSize;
 
@@ -230,7 +229,7 @@ Error OrcX86_64_Base::emitIndirectStubsBlock(IndirectStubsInfo &StubsInfo,
   const unsigned StubSize = IndirectStubsInfo::StubSize;
 
   // Emit at least MinStubs, rounded up to fill the pages allocated.
-  unsigned PageSize = sys::Process::getPageSize();
+  static const unsigned PageSize = sys::Process::getPageSizeEstimate();
   unsigned NumPages = ((MinStubs * StubSize) + (PageSize - 1)) / PageSize;
   unsigned NumStubs = (NumPages * PageSize) / StubSize;
 
@@ -498,7 +497,7 @@ Error OrcI386::emitIndirectStubsBlock(IndirectStubsInfo &StubsInfo,
   const unsigned StubSize = IndirectStubsInfo::StubSize;
 
   // Emit at least MinStubs, rounded up to fill the pages allocated.
-  unsigned PageSize = sys::Process::getPageSize();
+  static const unsigned PageSize = sys::Process::getPageSizeEstimate();
   unsigned NumPages = ((MinStubs * StubSize) + (PageSize - 1)) / PageSize;
   unsigned NumStubs = (NumPages * PageSize) / StubSize;
 
@@ -684,7 +683,7 @@ Error OrcMips32_Base::emitIndirectStubsBlock(IndirectStubsInfo &StubsInfo,
   const unsigned StubSize = IndirectStubsInfo::StubSize;
 
   // Emit at least MinStubs, rounded up to fill the pages allocated.
-  unsigned PageSize = sys::Process::getPageSize();
+  static const unsigned PageSize = sys::Process::getPageSizeEstimate();
   unsigned NumPages = ((MinStubs * StubSize) + (PageSize - 1)) / PageSize;
   unsigned NumStubs = (NumPages * PageSize) / StubSize;
 
@@ -930,7 +929,7 @@ Error OrcMips64::emitIndirectStubsBlock(IndirectStubsInfo &StubsInfo,
   const unsigned StubSize = IndirectStubsInfo::StubSize;
 
   // Emit at least MinStubs, rounded up to fill the pages allocated.
-  unsigned PageSize = sys::Process::getPageSize();
+  static const unsigned PageSize = sys::Process::getPageSizeEstimate();
   unsigned NumPages = ((MinStubs * StubSize) + (PageSize - 1)) / PageSize;
   unsigned NumStubs = (NumPages * PageSize) / StubSize;
 

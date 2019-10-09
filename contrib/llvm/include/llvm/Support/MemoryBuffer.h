@@ -1,9 +1,8 @@
 //===--- MemoryBuffer.h - Memory Buffer Interface ---------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -91,7 +90,7 @@ public:
   /// MemoryBuffer. The slice is specified by an \p Offset and \p MapSize.
   /// Since this is in the middle of a file, the buffer is not null terminated.
   static ErrorOr<std::unique_ptr<MemoryBuffer>>
-  getOpenFileSlice(int FD, const Twine &Filename, uint64_t MapSize,
+  getOpenFileSlice(sys::fs::file_t FD, const Twine &Filename, uint64_t MapSize,
                    int64_t Offset, bool IsVolatile = false);
 
   /// Given an already-open file descriptor, read the file and return a
@@ -101,7 +100,7 @@ public:
   /// can change outside the user's control, e.g. when libclang tries to parse
   /// while the user is editing/updating the file or if the file is on an NFS.
   static ErrorOr<std::unique_ptr<MemoryBuffer>>
-  getOpenFile(int FD, const Twine &Filename, uint64_t FileSize,
+  getOpenFile(sys::fs::file_t FD, const Twine &Filename, uint64_t FileSize,
               bool RequiresNullTerminator = true, bool IsVolatile = false);
 
   /// Open the specified memory range as a MemoryBuffer. Note that InputData
@@ -265,7 +264,7 @@ class MemoryBufferRef {
 
 public:
   MemoryBufferRef() = default;
-  MemoryBufferRef(MemoryBuffer& Buffer)
+  MemoryBufferRef(const MemoryBuffer& Buffer)
       : Buffer(Buffer.getBuffer()), Identifier(Buffer.getBufferIdentifier()) {}
   MemoryBufferRef(StringRef Buffer, StringRef Identifier)
       : Buffer(Buffer), Identifier(Identifier) {}

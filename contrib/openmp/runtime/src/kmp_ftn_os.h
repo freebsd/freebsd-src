@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -71,13 +70,9 @@
 #define FTN_GET_ANCESTOR_THREAD_NUM omp_get_ancestor_thread_num
 #define FTN_GET_TEAM_SIZE omp_get_team_size
 #define FTN_IN_FINAL omp_in_final
-//  #define FTN_SET_PROC_BIND                    omp_set_proc_bind
 #define FTN_GET_PROC_BIND omp_get_proc_bind
-//  #define FTN_CURR_PROC_BIND                   omp_curr_proc_bind
-#if OMP_40_ENABLED
 #define FTN_GET_NUM_TEAMS omp_get_num_teams
 #define FTN_GET_TEAM_NUM omp_get_team_num
-#endif
 #define FTN_INIT_LOCK omp_init_lock
 #if KMP_USE_DYNAMIC_LOCK
 #define FTN_INIT_LOCK_WITH_HINT omp_init_lock_with_hint
@@ -99,19 +94,14 @@
 #define FTN_GET_WTIME omp_get_wtime
 #define FTN_GET_WTICK omp_get_wtick
 
-#if OMP_40_ENABLED
 #define FTN_GET_NUM_DEVICES omp_get_num_devices
 #define FTN_GET_DEFAULT_DEVICE omp_get_default_device
 #define FTN_SET_DEFAULT_DEVICE omp_set_default_device
 #define FTN_IS_INITIAL_DEVICE omp_is_initial_device
-#endif
 
-#if OMP_40_ENABLED
 #define FTN_GET_CANCELLATION omp_get_cancellation
 #define FTN_GET_CANCELLATION_STATUS kmp_get_cancellation_status
-#endif
 
-#if OMP_45_ENABLED
 #define FTN_GET_MAX_TASK_PRIORITY omp_get_max_task_priority
 #define FTN_GET_NUM_PLACES omp_get_num_places
 #define FTN_GET_PLACE_NUM_PROCS omp_get_place_num_procs
@@ -129,20 +119,21 @@
 #define FTN_TARGET_ASSOCIATE_PTR omp_target_associate_ptr
 #define FTN_TARGET_DISASSOCIATE_PTR omp_target_disassociate_ptr
 #endif
-#endif
 
-#if OMP_50_ENABLED
 #define FTN_CONTROL_TOOL omp_control_tool
+#define FTN_INIT_ALLOCATOR omp_init_allocator
+#define FTN_DESTROY_ALLOCATOR omp_destroy_allocator
 #define FTN_SET_DEFAULT_ALLOCATOR omp_set_default_allocator
 #define FTN_GET_DEFAULT_ALLOCATOR omp_get_default_allocator
-#define FTN_ALLOC omp_alloc
-#define FTN_FREE omp_free
 #define FTN_GET_DEVICE_NUM omp_get_device_num
 #define FTN_SET_AFFINITY_FORMAT omp_set_affinity_format
 #define FTN_GET_AFFINITY_FORMAT omp_get_affinity_format
 #define FTN_DISPLAY_AFFINITY omp_display_affinity
 #define FTN_CAPTURE_AFFINITY omp_capture_affinity
-#endif
+#define FTN_PAUSE_RESOURCE omp_pause_resource
+#define FTN_PAUSE_RESOURCE_ALL omp_pause_resource_all
+#define FTN_GET_SUPPORTED_ACTIVE_LEVELS omp_get_supported_active_levels
+#define FTN_FULFILL_EVENT omp_fulfill_event
 
 #endif /* KMP_FTN_PLAIN */
 
@@ -200,13 +191,9 @@
 #define FTN_GET_ANCESTOR_THREAD_NUM omp_get_ancestor_thread_num_
 #define FTN_GET_TEAM_SIZE omp_get_team_size_
 #define FTN_IN_FINAL omp_in_final_
-//  #define FTN_SET_PROC_BIND                    omp_set_proc_bind_
 #define FTN_GET_PROC_BIND omp_get_proc_bind_
-//  #define FTN_CURR_PROC_BIND                   omp_curr_proc_bind_
-#if OMP_40_ENABLED
 #define FTN_GET_NUM_TEAMS omp_get_num_teams_
 #define FTN_GET_TEAM_NUM omp_get_team_num_
-#endif
 #define FTN_INIT_LOCK omp_init_lock_
 #if KMP_USE_DYNAMIC_LOCK
 #define FTN_INIT_LOCK_WITH_HINT omp_init_lock_with_hint_
@@ -228,19 +215,14 @@
 #define FTN_GET_WTIME omp_get_wtime_
 #define FTN_GET_WTICK omp_get_wtick_
 
-#if OMP_40_ENABLED
 #define FTN_GET_NUM_DEVICES omp_get_num_devices_
 #define FTN_GET_DEFAULT_DEVICE omp_get_default_device_
 #define FTN_SET_DEFAULT_DEVICE omp_set_default_device_
 #define FTN_IS_INITIAL_DEVICE omp_is_initial_device_
-#endif
 
-#if OMP_40_ENABLED
 #define FTN_GET_CANCELLATION omp_get_cancellation_
 #define FTN_GET_CANCELLATION_STATUS kmp_get_cancellation_status_
-#endif
 
-#if OMP_45_ENABLED
 #define FTN_GET_MAX_TASK_PRIORITY omp_get_max_task_priority_
 #define FTN_GET_NUM_PLACES omp_get_num_places_
 #define FTN_GET_PLACE_NUM_PROCS omp_get_place_num_procs_
@@ -258,10 +240,10 @@
 #define FTN_TARGET_ASSOCIATE_PTR omp_target_associate_ptr_
 #define FTN_TARGET_DISASSOCIATE_PTR omp_target_disassociate_ptr_
 #endif
-#endif
 
-#if OMP_50_ENABLED
 #define FTN_CONTROL_TOOL omp_control_tool_
+#define FTN_INIT_ALLOCATOR omp_init_allocator_
+#define FTN_DESTROY_ALLOCATOR omp_destroy_allocator_
 #define FTN_SET_DEFAULT_ALLOCATOR omp_set_default_allocator_
 #define FTN_GET_DEFAULT_ALLOCATOR omp_get_default_allocator_
 #define FTN_ALLOC omp_alloc_
@@ -271,7 +253,10 @@
 #define FTN_GET_AFFINITY_FORMAT omp_get_affinity_format_
 #define FTN_DISPLAY_AFFINITY omp_display_affinity_
 #define FTN_CAPTURE_AFFINITY omp_capture_affinity_
-#endif
+#define FTN_PAUSE_RESOURCE omp_pause_resource_
+#define FTN_PAUSE_RESOURCE_ALL omp_pause_resource_all_
+#define FTN_GET_SUPPORTED_ACTIVE_LEVELS omp_get_supported_active_levels_
+#define FTN_FULFILL_EVENT omp_fulfill_event_
 
 #endif /* KMP_FTN_APPEND */
 
@@ -329,13 +314,9 @@
 #define FTN_GET_ANCESTOR_THREAD_NUM OMP_GET_ANCESTOR_THREAD_NUM
 #define FTN_GET_TEAM_SIZE OMP_GET_TEAM_SIZE
 #define FTN_IN_FINAL OMP_IN_FINAL
-//  #define FTN_SET_PROC_BIND                    OMP_SET_PROC_BIND
 #define FTN_GET_PROC_BIND OMP_GET_PROC_BIND
-//  #define FTN_CURR_PROC_BIND                   OMP_CURR_PROC_BIND
-#if OMP_40_ENABLED
 #define FTN_GET_NUM_TEAMS OMP_GET_NUM_TEAMS
 #define FTN_GET_TEAM_NUM OMP_GET_TEAM_NUM
-#endif
 #define FTN_INIT_LOCK OMP_INIT_LOCK
 #if KMP_USE_DYNAMIC_LOCK
 #define FTN_INIT_LOCK_WITH_HINT OMP_INIT_LOCK_WITH_HINT
@@ -357,19 +338,14 @@
 #define FTN_GET_WTIME OMP_GET_WTIME
 #define FTN_GET_WTICK OMP_GET_WTICK
 
-#if OMP_40_ENABLED
 #define FTN_GET_NUM_DEVICES OMP_GET_NUM_DEVICES
 #define FTN_GET_DEFAULT_DEVICE OMP_GET_DEFAULT_DEVICE
 #define FTN_SET_DEFAULT_DEVICE OMP_SET_DEFAULT_DEVICE
 #define FTN_IS_INITIAL_DEVICE OMP_IS_INITIAL_DEVICE
-#endif
 
-#if OMP_40_ENABLED
 #define FTN_GET_CANCELLATION OMP_GET_CANCELLATION
 #define FTN_GET_CANCELLATION_STATUS KMP_GET_CANCELLATION_STATUS
-#endif
 
-#if OMP_45_ENABLED
 #define FTN_GET_MAX_TASK_PRIORITY OMP_GET_MAX_TASK_PRIORITY
 #define FTN_GET_NUM_PLACES OMP_GET_NUM_PLACES
 #define FTN_GET_PLACE_NUM_PROCS OMP_GET_PLACE_NUM_PROCS
@@ -387,20 +363,21 @@
 #define FTN_TARGET_ASSOCIATE_PTR OMP_TARGET_ASSOCIATE_PTR
 #define FTN_TARGET_DISASSOCIATE_PTR OMP_TARGET_DISASSOCIATE_PTR
 #endif
-#endif
 
-#if OMP_50_ENABLED
 #define FTN_CONTROL_TOOL OMP_CONTROL_TOOL
+#define FTN_INIT_ALLOCATOR OMP_INIT_ALLOCATOR
+#define FTN_DESTROY_ALLOCATOR OMP_DESTROY_ALLOCATOR
 #define FTN_SET_DEFAULT_ALLOCATOR OMP_SET_DEFAULT_ALLOCATOR
 #define FTN_GET_DEFAULT_ALLOCATOR OMP_GET_DEFAULT_ALLOCATOR
-#define FTN_ALLOC OMP_ALLOC
-#define FTN_FREE OMP_FREE
 #define FTN_GET_DEVICE_NUM OMP_GET_DEVICE_NUM
 #define FTN_SET_AFFINITY_FORMAT OMP_SET_AFFINITY_FORMAT
 #define FTN_GET_AFFINITY_FORMAT OMP_GET_AFFINITY_FORMAT
 #define FTN_DISPLAY_AFFINITY OMP_DISPLAY_AFFINITY
 #define FTN_CAPTURE_AFFINITY OMP_CAPTURE_AFFINITY
-#endif
+#define FTN_PAUSE_RESOURCE OMP_PAUSE_RESOURCE
+#define FTN_PAUSE_RESOURCE_ALL OMP_PAUSE_RESOURCE_ALL
+#define FTN_GET_SUPPORTED_ACTIVE_LEVELS OMP_GET_SUPPORTED_ACTIVE_LEVELS
+#define FTN_FULFILL_EVENT OMP_FULFILL_EVENT
 
 #endif /* KMP_FTN_UPPER */
 
@@ -458,13 +435,9 @@
 #define FTN_GET_ANCESTOR_THREAD_NUM OMP_GET_ANCESTOR_THREAD_NUM_
 #define FTN_GET_TEAM_SIZE OMP_GET_TEAM_SIZE_
 #define FTN_IN_FINAL OMP_IN_FINAL_
-//  #define FTN_SET_PROC_BIND                    OMP_SET_PROC_BIND_
 #define FTN_GET_PROC_BIND OMP_GET_PROC_BIND_
-//  #define FTN_CURR_PROC_BIND                   OMP_CURR_PROC_BIND_
-#if OMP_40_ENABLED
 #define FTN_GET_NUM_TEAMS OMP_GET_NUM_TEAMS_
 #define FTN_GET_TEAM_NUM OMP_GET_TEAM_NUM_
-#endif
 #define FTN_INIT_LOCK OMP_INIT_LOCK_
 #if KMP_USE_DYNAMIC_LOCK
 #define FTN_INIT_LOCK_WITH_HINT OMP_INIT_LOCK_WITH_HINT_
@@ -486,19 +459,14 @@
 #define FTN_GET_WTIME OMP_GET_WTIME_
 #define FTN_GET_WTICK OMP_GET_WTICK_
 
-#if OMP_40_ENABLED
 #define FTN_GET_NUM_DEVICES OMP_GET_NUM_DEVICES_
 #define FTN_GET_DEFAULT_DEVICE OMP_GET_DEFAULT_DEVICE_
 #define FTN_SET_DEFAULT_DEVICE OMP_SET_DEFAULT_DEVICE_
 #define FTN_IS_INITIAL_DEVICE OMP_IS_INITIAL_DEVICE_
-#endif
 
-#if OMP_40_ENABLED
 #define FTN_GET_CANCELLATION OMP_GET_CANCELLATION_
 #define FTN_GET_CANCELLATION_STATUS KMP_GET_CANCELLATION_STATUS_
-#endif
 
-#if OMP_45_ENABLED
 #define FTN_GET_MAX_TASK_PRIORITY OMP_GET_MAX_TASK_PRIORITY_
 #define FTN_GET_NUM_PLACES OMP_GET_NUM_PLACES_
 #define FTN_GET_PLACE_NUM_PROCS OMP_GET_PLACE_NUM_PROCS_
@@ -516,10 +484,10 @@
 #define FTN_TARGET_ASSOCIATE_PTR OMP_TARGET_ASSOCIATE_PTR_
 #define FTN_TARGET_DISASSOCIATE_PTR OMP_TARGET_DISASSOCIATE_PTR_
 #endif
-#endif
 
-#if OMP_50_ENABLED
 #define FTN_CONTROL_TOOL OMP_CONTROL_TOOL_
+#define FTN_INIT_ALLOCATOR OMP_INIT_ALLOCATOR_
+#define FTN_DESTROY_ALLOCATOR OMP_DESTROY_ALLOCATOR_
 #define FTN_SET_DEFAULT_ALLOCATOR OMP_SET_DEFAULT_ALLOCATOR_
 #define FTN_GET_DEFAULT_ALLOCATOR OMP_GET_DEFAULT_ALLOCATOR_
 #define FTN_ALLOC OMP_ALLOC_
@@ -529,7 +497,10 @@
 #define FTN_GET_AFFINITY_FORMAT OMP_GET_AFFINITY_FORMAT_
 #define FTN_DISPLAY_AFFINITY OMP_DISPLAY_AFFINITY_
 #define FTN_CAPTURE_AFFINITY OMP_CAPTURE_AFFINITY_
-#endif
+#define FTN_PAUSE_RESOURCE OMP_PAUSE_RESOURCE_
+#define FTN_PAUSE_RESOURCE_ALL OMP_PAUSE_RESOURCE_ALL_
+#define FTN_GET_SUPPORTED_ACTIVE_LEVELS OMP_GET_SUPPORTED_ACTIVE_LEVELS_
+#define FTN_FULFILL_EVENT OMP_FULFILL_EVENT_
 
 #endif /* KMP_FTN_UAPPEND */
 
@@ -619,8 +590,6 @@
 #define KMP_API_NAME_GOMP_TASKYIELD GOMP_taskyield
 
 // All GOMP_4.0 symbols
-// TODO: As of 2013-10-14, none of the GOMP_4.0 functions are implemented in
-// libomp
 #define KMP_API_NAME_GOMP_BARRIER_CANCEL GOMP_barrier_cancel
 #define KMP_API_NAME_GOMP_CANCEL GOMP_cancel
 #define KMP_API_NAME_GOMP_CANCELLATION_POINT GOMP_cancellation_point

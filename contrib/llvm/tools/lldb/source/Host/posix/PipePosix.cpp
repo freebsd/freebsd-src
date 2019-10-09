@@ -1,9 +1,8 @@
 //===-- PipePosix.cpp -------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,6 +10,7 @@
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Utility/SelectHelper.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Support/Errno.h"
 #include "llvm/Support/FileSystem.h"
 
 #if defined(__GNUC__) && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 8))
@@ -158,7 +158,7 @@ Status PipePosix::OpenAsReader(llvm::StringRef name,
     flags |= O_CLOEXEC;
 
   Status error;
-  int fd = ::open(name.data(), flags);
+  int fd = llvm::sys::RetryAfterSignal(-1, ::open, name.data(), flags);
   if (fd != -1)
     m_fds[READ] = fd;
   else
@@ -193,7 +193,7 @@ PipePosix::OpenAsWriterWithTimeout(llvm::StringRef name,
     if (fd == -1) {
       const auto errno_copy = errno;
       // We may get ENXIO if a reader side of the pipe hasn't opened yet.
-      if (errno_copy != ENXIO)
+      if (errno_copy != ENXIO && errno_copy != EINTR)
         return Status(errno_copy, eErrorTypePOSIX);
 
       std::this_thread::sleep_for(
@@ -276,6 +276,8 @@ Status PipePosix::ReadWithTimeout(void *buf, size_t size,
         bytes_read += result;
         if (bytes_read == size || result == 0)
           break;
+      } else if (errno == EINTR) {
+        continue;
       } else {
         error.SetErrorToErrno();
         break;
@@ -306,6 +308,8 @@ Status PipePosix::Write(const void *buf, size_t size, size_t &bytes_written) {
         bytes_written += result;
         if (bytes_written == size)
           break;
+      } else if (errno == EINTR) {
+        continue;
       } else {
         error.SetErrorToErrno();
       }

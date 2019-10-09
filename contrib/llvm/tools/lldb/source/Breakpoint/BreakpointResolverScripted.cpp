@@ -1,9 +1,8 @@
 //===-- BreakpointResolverScripted.cpp ---------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -25,9 +24,7 @@
 using namespace lldb;
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
 // BreakpointResolverScripted:
-//----------------------------------------------------------------------
 BreakpointResolverScripted::BreakpointResolverScripted(
     Breakpoint *bkpt, 
     const llvm::StringRef class_name,
@@ -49,7 +46,6 @@ void BreakpointResolverScripted::CreateImplementationIfNeeded() {
   if (m_breakpoint) {
     TargetSP target_sp = m_breakpoint->GetTargetSP();
     ScriptInterpreter *script_interp = target_sp->GetDebugger()
-                                                .GetCommandInterpreter()
                                                 .GetScriptInterpreter();
     if (!script_interp)
       return;
@@ -108,7 +104,6 @@ BreakpointResolverScripted::CreateFromStructuredData(
   }
   ScriptInterpreter *script_interp = bkpt->GetTarget()
                                          .GetDebugger()
-                                         .GetCommandInterpreter()
                                          .GetScriptInterpreter();
   return new BreakpointResolverScripted(bkpt, class_name, depth, args_data_impl,
                                       *script_interp);
@@ -125,15 +120,14 @@ BreakpointResolverScripted::SerializeToStructuredData() {
 }
 
 ScriptInterpreter *BreakpointResolverScripted::GetScriptInterpreter() {
-    return m_breakpoint->GetTarget().GetDebugger().GetCommandInterpreter()
-        .GetScriptInterpreter();
+  return m_breakpoint->GetTarget().GetDebugger().GetScriptInterpreter();
 }
 
 Searcher::CallbackReturn
 BreakpointResolverScripted::SearchCallback(SearchFilter &filter,
                                           SymbolContext &context, Address *addr,
                                           bool containing) {
-  assert(m_breakpoint != NULL);
+  assert(m_breakpoint != nullptr);
   bool should_continue = true;
   if (!m_implementation_sp)
     return Searcher::eCallbackReturnStop;
@@ -150,7 +144,7 @@ BreakpointResolverScripted::SearchCallback(SearchFilter &filter,
 
 lldb::SearchDepth
 BreakpointResolverScripted::GetDepth() {
-  assert(m_breakpoint != NULL);
+  assert(m_breakpoint != nullptr);
   lldb::SearchDepth depth = lldb::eSearchDepthModule;
   if (m_implementation_sp) {
     ScriptInterpreter *interp = GetScriptInterpreter();

@@ -1,9 +1,8 @@
 //===-- AVRISelLowering.cpp - AVR DAG Lowering Implementation -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -90,9 +89,9 @@ AVRTargetLowering::AVRTargetLowering(const AVRTargetMachine &TM,
   setOperationAction(ISD::SRL_PARTS, MVT::i16, Expand);
 
   setOperationAction(ISD::ROTL, MVT::i8, Custom);
-  setOperationAction(ISD::ROTL, MVT::i16, Custom);
+  setOperationAction(ISD::ROTL, MVT::i16, Expand);
   setOperationAction(ISD::ROTR, MVT::i8, Custom);
-  setOperationAction(ISD::ROTR, MVT::i16, Custom);
+  setOperationAction(ISD::ROTR, MVT::i16, Expand);
 
   setOperationAction(ISD::BR_CC, MVT::i8, Custom);
   setOperationAction(ISD::BR_CC, MVT::i16, Custom);
@@ -238,7 +237,7 @@ AVRTargetLowering::AVRTargetLowering(const AVRTargetMachine &TM,
   setLibcallName(RTLIB::COS_F32, "cos");
 
   setMinFunctionAlignment(1);
-  setMinimumJumpTableEntries(INT_MAX);
+  setMinimumJumpTableEntries(UINT_MAX);
 }
 
 const char *AVRTargetLowering::getTargetNodeName(unsigned Opcode) const {
@@ -944,7 +943,7 @@ static void analyzeStandardArguments(TargetLowering::CallLoweringInfo *CLI,
                                         AVR::R19R18, AVR::R17R16, AVR::R15R14,
                                         AVR::R13R12, AVR::R11R10, AVR::R9R8};
   if (IsVarArg) {
-    // Variadic functions do not need all the analisys below.
+    // Variadic functions do not need all the analysis below.
     if (IsCall) {
       CCInfo.AnalyzeCallOperands(*Outs, ArgCC_AVR_Vararg);
     } else {
@@ -1279,7 +1278,6 @@ SDValue AVRTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   }
 
   // Add a register mask operand representing the call-preserved registers.
-  const AVRTargetMachine &TM = (const AVRTargetMachine &)getTargetMachine();
   const TargetRegisterInfo *TRI = Subtarget.getRegisterInfo();
   const uint32_t *Mask =
       TRI->getCallPreservedMask(DAG.getMachineFunction(), CallConv);
@@ -1442,7 +1440,6 @@ MachineBasicBlock *AVRTargetLowering::insertShift(MachineInstr &MI,
   bool HasRepeatedOperand = false;
   MachineFunction *F = BB->getParent();
   MachineRegisterInfo &RI = F->getRegInfo();
-  const AVRTargetMachine &TM = (const AVRTargetMachine &)getTargetMachine();
   const TargetInstrInfo &TII = *Subtarget.getInstrInfo();
   DebugLoc dl = MI.getDebugLoc();
 
@@ -1583,7 +1580,6 @@ static bool isCopyMulResult(MachineBasicBlock::iterator const &I) {
 // it, but it works for now.
 MachineBasicBlock *AVRTargetLowering::insertMul(MachineInstr &MI,
                                                 MachineBasicBlock *BB) const {
-  const AVRTargetMachine &TM = (const AVRTargetMachine &)getTargetMachine();
   const TargetInstrInfo &TII = *Subtarget.getInstrInfo();
   MachineBasicBlock::iterator I(MI);
   ++I; // in any case insert *after* the mul instruction
@@ -1638,6 +1634,15 @@ AVRTargetLowering::EmitInstrWithCustomInserter(MachineInstr &MI,
 
   MachineFunction *MF = MBB->getParent();
   const BasicBlock *LLVM_BB = MBB->getBasicBlock();
+  MachineBasicBlock *FallThrough = MBB->getFallThrough();
+
+  // If the current basic block falls through to another basic block,
+  // we must insert an unconditional branch to the fallthrough destination
+  // if we are to insert basic blocks at the prior fallthrough point.
+  if (FallThrough != nullptr) {
+    BuildMI(MBB, dl, TII.get(AVR::RJMPk)).addMBB(FallThrough);
+  }
+
   MachineBasicBlock *trueMBB = MF->CreateMachineBasicBlock(LLVM_BB);
   MachineBasicBlock *falseMBB = MF->CreateMachineBasicBlock(LLVM_BB);
 
@@ -1684,6 +1689,8 @@ AVRTargetLowering::getConstraintType(StringRef Constraint) const {
   if (Constraint.size() == 1) {
     // See http://www.nongnu.org/avr-libc/user-manual/inline_asm.html
     switch (Constraint[0]) {
+    default:
+      break;
     case 'a': // Simple upper registers
     case 'b': // Base pointer registers pairs
     case 'd': // Upper register
@@ -1710,9 +1717,7 @@ AVRTargetLowering::getConstraintType(StringRef Constraint) const {
     case 'O': // Integer constant (Range: 8, 16, 24)
     case 'P': // Integer constant (Range: 1)
     case 'R': // Integer constant (Range: -6 to 5)x
-      return C_Other;
-    default:
-      break;
+      return C_Immediate;
     }
   }
 

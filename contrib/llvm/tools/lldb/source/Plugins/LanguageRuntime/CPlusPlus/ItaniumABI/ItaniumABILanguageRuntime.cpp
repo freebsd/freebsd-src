@@ -1,10 +1,9 @@
 //===-- ItaniumABILanguageRuntime.cpp --------------------------------------*-
 //C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -44,10 +43,12 @@ using namespace lldb_private;
 
 static const char *vtable_demangled_prefix = "vtable for ";
 
+char ItaniumABILanguageRuntime::ID = 0;
+
 bool ItaniumABILanguageRuntime::CouldHaveDynamicValue(ValueObject &in_value) {
   const bool check_cxx = true;
   const bool check_objc = false;
-  return in_value.GetCompilerType().IsPossibleDynamicType(NULL, check_cxx,
+  return in_value.GetCompilerType().IsPossibleDynamicType(nullptr, check_cxx,
                                                           check_objc);
 }
 
@@ -70,7 +71,7 @@ TypeAndOrName ItaniumABILanguageRuntime::GetTypeInfoFromVTableAddress(
         target.GetImages().ResolveSymbolContextForAddress(
             vtable_addr, eSymbolContextSymbol, sc);
         Symbol *symbol = sc.symbol;
-        if (symbol != NULL) {
+        if (symbol != nullptr) {
           const char *name =
               symbol->GetMangled()
                   .GetDemangledName(lldb::eLanguageTypeC_plus_plus)
@@ -236,16 +237,15 @@ bool ItaniumABILanguageRuntime::GetDynamicTypeAndAddress(
   if (!class_type_or_name)
     return false;
 
-  TypeSP type_sp = class_type_or_name.GetTypeSP();
+  CompilerType type = class_type_or_name.GetCompilerType();
   // There can only be one type with a given name, so we've just found
   // duplicate definitions, and this one will do as well as any other. We
   // don't consider something to have a dynamic type if it is the same as
   // the static type.  So compare against the value we were handed.
-  if (!type_sp)
+  if (!type)
     return true;
 
-  if (ClangASTContext::AreTypesSame(in_value.GetCompilerType(),
-                                    type_sp->GetForwardCompilerType())) {
+  if (ClangASTContext::AreTypesSame(in_value.GetCompilerType(), type)) {
     // The dynamic type we found was the same type, so we don't have a
     // dynamic type here...
     return false;
@@ -307,17 +307,7 @@ TypeAndOrName ItaniumABILanguageRuntime::FixUpDynamicType(
   return ret;
 }
 
-bool ItaniumABILanguageRuntime::IsVTableName(const char *name) {
-  if (name == NULL)
-    return false;
-
-  // Can we maybe ask Clang about this?
-  return strstr(name, "_vptr$") == name;
-}
-
-//------------------------------------------------------------------
 // Static Functions
-//------------------------------------------------------------------
 LanguageRuntime *
 ItaniumABILanguageRuntime::CreateInstance(Process *process,
                                           lldb::LanguageType language) {
@@ -330,7 +320,7 @@ ItaniumABILanguageRuntime::CreateInstance(Process *process,
       language == eLanguageTypeC_plus_plus_14)
     return new ItaniumABILanguageRuntime(process);
   else
-    return NULL;
+    return nullptr;
 }
 
 class CommandObjectMultiwordItaniumABI_Demangle : public CommandObjectParsed {
@@ -429,9 +419,7 @@ lldb_private::ConstString ItaniumABILanguageRuntime::GetPluginNameStatic() {
   return g_name;
 }
 
-//------------------------------------------------------------------
 // PluginInterface protocol
-//------------------------------------------------------------------
 lldb_private::ConstString ItaniumABILanguageRuntime::GetPluginName() {
   return GetPluginNameStatic();
 }
@@ -479,16 +467,14 @@ BreakpointResolverSP ItaniumABILanguageRuntime::CreateExceptionResolver(
 lldb::SearchFilterSP ItaniumABILanguageRuntime::CreateExceptionSearchFilter() {
   Target &target = m_process->GetTarget();
 
+  FileSpecList filter_modules;
   if (target.GetArchitecture().GetTriple().getVendor() == llvm::Triple::Apple) {
     // Limit the number of modules that are searched for these breakpoints for
     // Apple binaries.
-    FileSpecList filter_modules;
     filter_modules.Append(FileSpec("libc++abi.dylib"));
     filter_modules.Append(FileSpec("libSystem.B.dylib"));
-    return target.GetSearchFilterForModuleList(&filter_modules);
-  } else {
-    return LanguageRuntime::CreateExceptionSearchFilter();
   }
+  return target.GetSearchFilterForModuleList(&filter_modules);
 }
 
 lldb::BreakpointSP ItaniumABILanguageRuntime::CreateExceptionBreakpoint(
@@ -496,7 +482,7 @@ lldb::BreakpointSP ItaniumABILanguageRuntime::CreateExceptionBreakpoint(
   Target &target = m_process->GetTarget();
   FileSpecList filter_modules;
   BreakpointResolverSP exception_resolver_sp =
-      CreateExceptionResolver(NULL, catch_bp, throw_bp, for_expressions);
+      CreateExceptionResolver(nullptr, catch_bp, throw_bp, for_expressions);
   SearchFilterSP filter_sp(CreateExceptionSearchFilter());
   const bool hardware = false;
   const bool resolve_indirect_functions = false;
@@ -569,7 +555,7 @@ ValueObjectSP ItaniumABILanguageRuntime::GetExceptionObjectForThread(
   options.SetUnwindOnError(true);
   options.SetIgnoreBreakpoints(true);
   options.SetStopOthers(true);
-  options.SetTimeout(std::chrono::milliseconds(500));
+  options.SetTimeout(m_process->GetUtilityExpressionTimeout());
   options.SetTryAllThreads(false);
   thread_sp->CalculateExecutionContext(exe_ctx);
 
@@ -599,6 +585,10 @@ ValueObjectSP ItaniumABILanguageRuntime::GetExceptionObjectForThread(
   addr_t result_ptr = results.GetScalar().ULongLong(LLDB_INVALID_ADDRESS);
   addr_t exception_addr =
       m_process->ReadPointerFromMemory(result_ptr - ptr_size, error);
+
+  if (!error.Success()) {
+    return ValueObjectSP();
+  }
 
   lldb_private::formatters::InferiorSizedWord exception_isw(exception_addr,
                                                             *m_process);

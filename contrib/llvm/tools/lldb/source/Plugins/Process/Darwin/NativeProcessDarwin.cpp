@@ -1,9 +1,8 @@
 //===-- NativeProcessDarwin.cpp ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -38,9 +37,7 @@ using namespace lldb_private;
 using namespace lldb_private::process_darwin;
 using namespace lldb_private::darwin_process_launcher;
 
-// -----------------------------------------------------------------------------
 // Hidden Impl
-// -----------------------------------------------------------------------------
 
 namespace {
 struct hack_task_dyld_info {
@@ -49,9 +46,7 @@ struct hack_task_dyld_info {
 };
 }
 
-// -----------------------------------------------------------------------------
 // Public Static Methods
-// -----------------------------------------------------------------------------
 
 Status NativeProcessProtocol::Launch(
     ProcessLaunchInfo &launch_info,
@@ -154,9 +149,7 @@ Status NativeProcessProtocol::Attach(
   return error;
 }
 
-// -----------------------------------------------------------------------------
 // ctor/dtor
-// -----------------------------------------------------------------------------
 
 NativeProcessDarwin::NativeProcessDarwin(lldb::pid_t pid, int pty_master_fd)
     : NativeProcessProtocol(pid), m_task(TASK_NULL), m_did_exec(false),
@@ -171,22 +164,12 @@ NativeProcessDarwin::NativeProcessDarwin(lldb::pid_t pid, int pty_master_fd)
 
 NativeProcessDarwin::~NativeProcessDarwin() {}
 
-// -----------------------------------------------------------------------------
 // Instance methods
-// -----------------------------------------------------------------------------
 
 Status NativeProcessDarwin::FinalizeLaunch(LaunchFlavor launch_flavor,
                                            MainLoop &main_loop) {
   Status error;
   Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
-
-#if 0
-    m_path = path;
-    size_t i;
-    char const *arg;
-    for (i=0; (arg = argv[i]) != NULL; i++)
-        m_args.push_back(arg);
-#endif
 
   error = StartExceptionThread();
   if (!error.Success()) {
@@ -1548,9 +1531,7 @@ Status NativeProcessDarwin::GetFileLoadAddress(const llvm::StringRef &file_name,
   return error;
 }
 
-// -----------------------------------------------------------------
 // NativeProcessProtocol protected interface
-// -----------------------------------------------------------------
 Status NativeProcessDarwin::GetSoftwareBreakpointTrapOpcode(
     size_t trap_opcode_size_hint, size_t &actual_opcode_size,
     const uint8_t *&trap_opcode_bytes) {

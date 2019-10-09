@@ -1,9 +1,8 @@
 //===--- InitHeaderSearch.cpp - Initialize header search paths ------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -211,6 +210,10 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
                                             const HeaderSearchOptions &HSOpts) {
   llvm::Triple::OSType os = triple.getOS();
 
+  if (triple.isOSDarwin()) {
+    llvm_unreachable("Include management is handled in the driver.");
+  }
+
   if (HSOpts.UseStandardSystemIncludes) {
     switch (os) {
     case llvm::Triple::CloudABI:
@@ -366,49 +369,7 @@ void InitHeaderSearch::AddDefaultCPlusPlusIncludePaths(
   // FIXME: temporary hack: hard-coded paths.
 
   if (triple.isOSDarwin()) {
-    bool IsBaseFound = true;
-    switch (triple.getArch()) {
-    default: break;
-
-    case llvm::Triple::ppc:
-    case llvm::Triple::ppc64:
-      IsBaseFound = AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.2.1",
-                                                "powerpc-apple-darwin10", "",
-                                                "ppc64", triple);
-      IsBaseFound |= AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.0.0",
-                                                 "powerpc-apple-darwin10", "",
-                                                 "ppc64", triple);
-      break;
-
-    case llvm::Triple::x86:
-    case llvm::Triple::x86_64:
-      IsBaseFound = AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.2.1",
-                                                "i686-apple-darwin10", "",
-                                                "x86_64", triple);
-      IsBaseFound |= AddGnuCPlusPlusIncludePaths(
-          "/usr/include/c++/4.0.0", "i686-apple-darwin8", "", "", triple);
-      break;
-
-    case llvm::Triple::arm:
-    case llvm::Triple::thumb:
-      IsBaseFound = AddGnuCPlusPlusIncludePaths(
-          "/usr/include/c++/4.2.1", "arm-apple-darwin10", "v7", "", triple);
-      IsBaseFound |= AddGnuCPlusPlusIncludePaths(
-          "/usr/include/c++/4.2.1", "arm-apple-darwin10", "v6", "", triple);
-      break;
-
-    case llvm::Triple::aarch64:
-      IsBaseFound = AddGnuCPlusPlusIncludePaths(
-          "/usr/include/c++/4.2.1", "arm64-apple-darwin10", "", "", triple);
-      break;
-    }
-    // Warn when compiling pure C++ / Objective-C++ only.
-    if (!IsBaseFound &&
-        !(LangOpts.CUDA || LangOpts.OpenCL || LangOpts.RenderScript)) {
-      Headers.getDiags().Report(SourceLocation(),
-                                diag::warn_stdlibcxx_not_found);
-    }
-    return;
+    llvm_unreachable("Include management is handled in the driver.");
   }
 
   switch (os) {
@@ -453,9 +414,11 @@ void InitHeaderSearch::AddDefaultIncludePaths(const LangOptions &Lang,
   default:
     break; // Everything else continues to use this routine's logic.
 
+  case llvm::Triple::Emscripten:
   case llvm::Triple::Linux:
   case llvm::Triple::Hurd:
   case llvm::Triple::Solaris:
+  case llvm::Triple::WASI:
     return;
 
   case llvm::Triple::Win32:
@@ -463,6 +426,22 @@ void InitHeaderSearch::AddDefaultIncludePaths(const LangOptions &Lang,
         triple.isOSBinFormatMachO())
       return;
     break;
+
+  case llvm::Triple::UnknownOS:
+    if (triple.getArch() == llvm::Triple::wasm32 ||
+        triple.getArch() == llvm::Triple::wasm64)
+      return;
+    break;
+  }
+
+  // All header search logic is handled in the Driver for Darwin.
+  if (triple.isOSDarwin()) {
+    if (HSOpts.UseStandardSystemIncludes) {
+      // Add the default framework include paths on Darwin.
+      AddPath("/System/Library/Frameworks", System, true);
+      AddPath("/Library/Frameworks", System, true);
+    }
+    return;
   }
 
   if (Lang.CPlusPlus && !Lang.AsmPreprocessor &&
@@ -475,14 +454,6 @@ void InitHeaderSearch::AddDefaultIncludePaths(const LangOptions &Lang,
   }
 
   AddDefaultCIncludePaths(triple, HSOpts);
-
-  // Add the default framework include paths on Darwin.
-  if (HSOpts.UseStandardSystemIncludes) {
-    if (triple.isOSDarwin()) {
-      AddPath("/System/Library/Frameworks", System, true);
-      AddPath("/Library/Frameworks", System, true);
-    }
-  }
 }
 
 /// RemoveDuplicates - If there are duplicate directory entries in the specified

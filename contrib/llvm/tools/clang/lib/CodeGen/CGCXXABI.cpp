@@ -1,9 +1,8 @@
 //===----- CGCXXABI.cpp - Interface to C++ ABIs ---------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -27,12 +26,6 @@ void CGCXXABI::ErrorUnsupportedABI(CodeGenFunction &CGF, StringRef S) {
   Diags.Report(CGF.getContext().getFullLoc(CGF.CurCodeDecl->getLocation()),
                DiagID)
     << S;
-}
-
-bool CGCXXABI::canCopyArgument(const CXXRecordDecl *RD) const {
-  // We can only copy the argument if there exists at least one trivial,
-  // non-deleted copy or move constructor.
-  return RD->canPassInRegisters();
 }
 
 llvm::Constant *CGCXXABI::GetBogusMemberPointer(QualType T) {
@@ -298,7 +291,7 @@ llvm::GlobalValue::LinkageTypes CGCXXABI::getCXXDestructorLinkage(
     GVALinkage Linkage, const CXXDestructorDecl *Dtor, CXXDtorType DT) const {
   // Delegate back to CGM by default.
   return CGM.getLLVMLinkageForDeclarator(Dtor, Linkage,
-                                         /*isConstantVariable=*/false);
+                                         /*IsConstantVariable=*/false);
 }
 
 bool CGCXXABI::NeedsVTTParameter(GlobalDecl GD) {

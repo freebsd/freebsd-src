@@ -1,9 +1,8 @@
 //=-- ExprEngineCallAndReturn.cpp - Support for call/return -----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -328,30 +327,30 @@ void ExprEngine::processCallExit(ExplodedNode *CEBNode) {
       ExplodedNodeSet DstPostPostCallCallback;
       getCheckerManager().runCheckersForPostCall(DstPostPostCallCallback,
                                                  CEENode, *UpdatedCall, *this,
-                                                 /*WasInlined=*/true);
+                                                 /*wasInlined=*/true);
       for (auto I : DstPostPostCallCallback) {
         getCheckerManager().runCheckersForNewAllocator(
             CNE,
             *getObjectUnderConstruction(I->getState(), CNE,
                                         calleeCtx->getParent()),
             DstPostCall, I, *this,
-            /*WasInlined=*/true);
+            /*wasInlined=*/true);
       }
     } else {
       getCheckerManager().runCheckersForPostCall(DstPostCall, CEENode,
                                                  *UpdatedCall, *this,
-                                                 /*WasInlined=*/true);
+                                                 /*wasInlined=*/true);
     }
     ExplodedNodeSet Dst;
     if (const ObjCMethodCall *Msg = dyn_cast<ObjCMethodCall>(Call)) {
       getCheckerManager().runCheckersForPostObjCMessage(Dst, DstPostCall, *Msg,
                                                         *this,
-                                                        /*WasInlined=*/true);
+                                                        /*wasInlined=*/true);
     } else if (CE &&
                !(isa<CXXNewExpr>(CE) && // Called when visiting CXXNewExpr.
                  AMgr.getAnalyzerOptions().MayInlineCXXAllocator)) {
       getCheckerManager().runCheckersForPostStmt(Dst, DstPostCall, CE,
-                                                 *this, /*WasInlined=*/true);
+                                                 *this, /*wasInlined=*/true);
     } else {
       Dst.insert(DstPostCall);
     }
@@ -363,6 +362,26 @@ void ExprEngine::processCallExit(ExplodedNode *CEBNode) {
                                     calleeCtx->getIndex()+1);
     }
   }
+}
+
+bool ExprEngine::isSmall(AnalysisDeclContext *ADC) const {
+  // When there are no branches in the function, it means that there's no
+  // exponential complexity introduced by inlining such function.
+  // Such functions also don't trigger various fundamental problems
+  // with our inlining mechanism, such as the problem of
+  // inlined defensive checks. Hence isLinear().
+  const CFG *Cfg = ADC->getCFG();
+  return Cfg->isLinear() || Cfg->size() <= AMgr.options.AlwaysInlineSize;
+}
+
+bool ExprEngine::isLarge(AnalysisDeclContext *ADC) const {
+  const CFG *Cfg = ADC->getCFG();
+  return Cfg->size() >= AMgr.options.MinCFGSizeTreatFunctionsAsLarge;
+}
+
+bool ExprEngine::isHuge(AnalysisDeclContext *ADC) const {
+  const CFG *Cfg = ADC->getCFG();
+  return Cfg->getNumBlockIDs() > AMgr.options.MaxInlinableSize;
 }
 
 void ExprEngine::examineStackFrames(const Decl *D, const LocationContext *LCtx,
@@ -385,8 +404,7 @@ void ExprEngine::examineStackFrames(const Decl *D, const LocationContext *LCtx,
 
       // Do not count the small functions when determining the stack depth.
       AnalysisDeclContext *CalleeADC = AMgr.getAnalysisDeclContext(DI);
-      const CFG *CalleeCFG = CalleeADC->getCFG();
-      if (CalleeCFG->getNumBlockIDs() > AMgr.options.AlwaysInlineSize)
+      if (!isSmall(CalleeADC))
         ++StackDepth;
     }
     LCtx = LCtx->getParent();
@@ -616,12 +634,19 @@ ProgramStateRef ExprEngine::bindReturnValue(const CallEvent &Call,
     std::tie(State, Target) =
         prepareForObjectConstruction(Call.getOriginExpr(), State, LCtx,
                                      RTC->getConstructionContext(), CallOpts);
-    assert(Target.getAsRegion());
-    // Invalidate the region so that it didn't look uninitialized. Don't notify
-    // the checkers.
-    State = State->invalidateRegions(Target.getAsRegion(), E, Count, LCtx,
-                                     /* CausedByPointerEscape=*/false, nullptr,
-                                     &Call, nullptr);
+    const MemRegion *TargetR = Target.getAsRegion();
+    assert(TargetR);
+    // Invalidate the region so that it didn't look uninitialized. If this is
+    // a field or element constructor, we do not want to invalidate
+    // the whole structure. Pointer escape is meaningless because
+    // the structure is a product of conservative evaluation
+    // and therefore contains nothing interesting at this point.
+    RegionAndSymbolInvalidationTraits ITraits;
+    ITraits.setTrait(TargetR,
+        RegionAndSymbolInvalidationTraits::TK_DoNotInvalidateSuperRegion);
+    State = State->invalidateRegions(TargetR, E, Count, LCtx,
+                                     /* CausesPointerEscape=*/false, nullptr,
+                                     &Call, &ITraits);
 
     R = State->getSVal(Target.castAs<Loc>(), E->getType());
   } else {
@@ -833,8 +858,7 @@ static bool isCXXSharedPtrDtor(const FunctionDecl *FD) {
 /// This checks static properties of the function, such as its signature and
 /// CFG, to determine whether the analyzer should ever consider inlining it,
 /// in any context.
-static bool mayInlineDecl(AnalysisManager &AMgr,
-                          AnalysisDeclContext *CalleeADC) {
+bool ExprEngine::mayInlineDecl(AnalysisDeclContext *CalleeADC) const {
   AnalyzerOptions &Opts = AMgr.getAnalyzerOptions();
   // FIXME: Do not inline variadic calls.
   if (CallEvent::isVariadic(CalleeADC->getDecl()))
@@ -879,7 +903,7 @@ static bool mayInlineDecl(AnalysisManager &AMgr,
     return false;
 
   // Do not inline large functions.
-  if (CalleeCFG->getNumBlockIDs() > Opts.MaxInlinableSize)
+  if (isHuge(CalleeADC))
     return false;
 
   // It is possible that the live variables analysis cannot be
@@ -919,7 +943,7 @@ bool ExprEngine::shouldInlineCall(const CallEvent &Call, const Decl *D,
   } else {
     // We haven't actually checked the static properties of this function yet.
     // Do that now, and record our decision in the function summaries.
-    if (mayInlineDecl(getAnalysisManager(), CalleeADC)) {
+    if (mayInlineDecl(CalleeADC)) {
       Engine.FunctionSummaries->markMayInline(D);
     } else {
       Engine.FunctionSummaries->markShouldNotInline(D);
@@ -940,29 +964,23 @@ bool ExprEngine::shouldInlineCall(const CallEvent &Call, const Decl *D,
     return false;
   }
 
-  const CFG *CalleeCFG = CalleeADC->getCFG();
-
   // Do not inline if recursive or we've reached max stack frame count.
   bool IsRecursive = false;
   unsigned StackDepth = 0;
   examineStackFrames(D, Pred->getLocationContext(), IsRecursive, StackDepth);
   if ((StackDepth >= Opts.InlineMaxStackDepth) &&
-      ((CalleeCFG->getNumBlockIDs() > Opts.AlwaysInlineSize)
-       || IsRecursive))
+      (!isSmall(CalleeADC) || IsRecursive))
     return false;
 
   // Do not inline large functions too many times.
   if ((Engine.FunctionSummaries->getNumTimesInlined(D) >
        Opts.MaxTimesInlineLarge) &&
-       CalleeCFG->getNumBlockIDs() >=
-       Opts.MinCFGSizeTreatFunctionsAsLarge) {
+      isLarge(CalleeADC)) {
     NumReachedInlineCountMax++;
     return false;
   }
 
-  if (HowToInline == Inline_Minimal &&
-      (CalleeCFG->getNumBlockIDs() > Opts.AlwaysInlineSize
-      || IsRecursive))
+  if (HowToInline == Inline_Minimal && (!isSmall(CalleeADC) || IsRecursive))
     return false;
 
   return true;

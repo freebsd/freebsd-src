@@ -1,9 +1,8 @@
 //===- Profile.cpp - XRay Profile Abstraction -----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -261,10 +260,9 @@ Profile mergeProfilesByStack(const Profile &L, const Profile &R) {
 }
 
 Expected<Profile> loadProfile(StringRef Filename) {
-  int Fd;
-  if (auto EC = sys::fs::openFileForRead(Filename, Fd))
-    return make_error<StringError>(
-        Twine("Cannot read profile from '") + Filename + "'", EC);
+  Expected<sys::fs::file_t> FdOrErr = sys::fs::openNativeFileForRead(Filename);
+  if (!FdOrErr)
+    return FdOrErr.takeError();
 
   uint64_t FileSize;
   if (auto EC = sys::fs::file_size(Filename, FileSize))
@@ -273,7 +271,9 @@ Expected<Profile> loadProfile(StringRef Filename) {
 
   std::error_code EC;
   sys::fs::mapped_file_region MappedFile(
-      Fd, sys::fs::mapped_file_region::mapmode::readonly, FileSize, 0, EC);
+      *FdOrErr, sys::fs::mapped_file_region::mapmode::readonly, FileSize, 0,
+      EC);
+  sys::fs::closeFile(*FdOrErr);
   if (EC)
     return make_error<StringError>(
         Twine("Cannot mmap profile '") + Filename + "'", EC);

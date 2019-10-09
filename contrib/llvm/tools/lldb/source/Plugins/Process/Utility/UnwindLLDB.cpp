@@ -1,9 +1,8 @@
 //===-- UnwindLLDB.cpp -------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -51,7 +50,7 @@ uint32_t UnwindLLDB::DoGetFrameCount() {
       return 0;
 
     ProcessSP process_sp(m_thread.GetProcess());
-    ABI *abi = process_sp ? process_sp->GetABI().get() : NULL;
+    ABI *abi = process_sp ? process_sp->GetABI().get() : nullptr;
 
     while (AddOneMoreFrame(abi)) {
 #if DEBUG_FRAME_SPEED
@@ -74,13 +73,13 @@ bool UnwindLLDB::AddFirstFrame() {
     return true;
 
   ProcessSP process_sp(m_thread.GetProcess());
-  ABI *abi = process_sp ? process_sp->GetABI().get() : NULL;
+  ABI *abi = process_sp ? process_sp->GetABI().get() : nullptr;
 
   // First, set up the 0th (initial) frame
   CursorSP first_cursor_sp(new Cursor());
   RegisterContextLLDBSP reg_ctx_sp(new RegisterContextLLDB(
       m_thread, RegisterContextLLDBSP(), first_cursor_sp->sctx, 0, *this));
-  if (reg_ctx_sp.get() == NULL)
+  if (reg_ctx_sp.get() == nullptr)
     goto unwind_done;
 
   if (!reg_ctx_sp->IsValid())
@@ -148,7 +147,7 @@ UnwindLLDB::CursorSP UnwindLLDB::GetOneMoreFrame(ABI *abi) {
     return nullptr;
   }
 
-  if (reg_ctx_sp.get() == NULL) {
+  if (reg_ctx_sp.get() == nullptr) {
     // If the RegisterContextLLDB has a fallback UnwindPlan, it will switch to
     // that and return true.  Subsequent calls to TryFallbackUnwindPlan() will
     // return false.
@@ -403,7 +402,7 @@ bool UnwindLLDB::DoGetFrameInfoAtIndex(uint32_t idx, addr_t &cfa, addr_t &pc) {
   }
 
   ProcessSP process_sp(m_thread.GetProcess());
-  ABI *abi = process_sp ? process_sp->GetABI().get() : NULL;
+  ABI *abi = process_sp ? process_sp->GetABI().get() : nullptr;
 
   while (idx >= m_frames.size() && AddOneMoreFrame(abi))
     ;
@@ -431,7 +430,7 @@ UnwindLLDB::DoCreateRegisterContextForFrame(StackFrame *frame) {
   }
 
   ProcessSP process_sp(m_thread.GetProcess());
-  ABI *abi = process_sp ? process_sp->GetABI().get() : NULL;
+  ABI *abi = process_sp ? process_sp->GetABI().get() : nullptr;
 
   while (idx >= m_frames.size()) {
     if (!AddOneMoreFrame(abi))

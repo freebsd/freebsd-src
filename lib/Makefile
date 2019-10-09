@@ -167,7 +167,6 @@ _libclang_rt=	libclang_rt
 _libcxxrt=	libcxxrt
 _libcplusplus=	libc++
 _libcplusplus+=	libc++experimental
-_libcplusplus+=	libc++fs
 .endif
 
 SUBDIR.${MK_EFI}+=	libefivar
@@ -196,7 +195,9 @@ _libproc=	libproc
 _librtld_db=	librtld_db
 .endif
 
+.if ${MACHINE_ARCH} != "powerpc"
 SUBDIR.${MK_OPENMP}+=	libomp
+.endif
 SUBDIR.${MK_OPENSSL}+=	libmp
 SUBDIR.${MK_PMC}+=	libpmc libpmcstat
 SUBDIR.${MK_RADIUS_SUPPORT}+=	libradius

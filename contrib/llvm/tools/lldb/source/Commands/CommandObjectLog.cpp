@@ -1,9 +1,8 @@
 //===-- CommandObjectLog.cpp ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -49,9 +48,7 @@ static constexpr OptionDefinition g_log_options[] = {
 
 class CommandObjectLogEnable : public CommandObjectParsed {
 public:
-  //------------------------------------------------------------------
   // Constructors and Destructors
-  //------------------------------------------------------------------
   CommandObjectLogEnable(CommandInterpreter &interpreter)
       : CommandObjectParsed(interpreter, "log enable",
                             "Enable logging for a single log channel.",
@@ -171,9 +168,9 @@ protected:
 
     std::string error;
     llvm::raw_string_ostream error_stream(error);
-    bool success = m_interpreter.GetDebugger().EnableLog(
-        channel, args.GetArgumentArrayRef(), log_file, m_options.log_options,
-        error_stream);
+    bool success =
+        GetDebugger().EnableLog(channel, args.GetArgumentArrayRef(), log_file,
+                                m_options.log_options, error_stream);
     result.GetErrorStream() << error_stream.str();
 
     if (success)
@@ -188,9 +185,7 @@ protected:
 
 class CommandObjectLogDisable : public CommandObjectParsed {
 public:
-  //------------------------------------------------------------------
   // Constructors and Destructors
-  //------------------------------------------------------------------
   CommandObjectLogDisable(CommandInterpreter &interpreter)
       : CommandObjectParsed(interpreter, "log disable",
                             "Disable one or more log channel categories.",
@@ -248,9 +243,7 @@ protected:
 
 class CommandObjectLogList : public CommandObjectParsed {
 public:
-  //------------------------------------------------------------------
   // Constructors and Destructors
-  //------------------------------------------------------------------
   CommandObjectLogList(CommandInterpreter &interpreter)
       : CommandObjectParsed(interpreter, "log list",
                             "List the log categories for one or more log "
@@ -295,9 +288,7 @@ protected:
 
 class CommandObjectLogTimer : public CommandObjectParsed {
 public:
-  //------------------------------------------------------------------
   // Constructors and Destructors
-  //------------------------------------------------------------------
   CommandObjectLogTimer(CommandInterpreter &interpreter)
       : CommandObjectParsed(interpreter, "log timers",
                             "Enable, disable, dump, and reset LLDB internal "
