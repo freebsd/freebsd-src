@@ -132,7 +132,6 @@
 /bin/pkill
 /bin/ps
 #/usr/sbin/psrinfo
-/bin/pwd
 /usr/sbin/quotaon
 /bin/rcp
 /sbin/reboot
