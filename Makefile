@@ -4,8 +4,11 @@
 # The user-driven targets are:
 #
 # universe            - *Really* build *everything* (buildworld and
-#                       all kernels on all architectures).  Define the
-#                       MAKE_JUST_KERNELS variable to only build kernels.
+#                       all kernels on all architectures).  Define
+#                       MAKE_JUST_KERNELS to only build kernels,
+#                       MAKE_JUST_WORLDS to only build userland, and/or
+#                       MAKE_OBSOLETE_GCC to build architectures unsupported
+#                       by clang.
 # tinderbox           - Same as universe, but presents a list of failed build
 #                       targets and exits with an error if there were any.
 # buildworld          - Rebuild *everything*, including glue to help do
@@ -81,7 +84,7 @@
 #  5.  `reboot'        (in single user mode: boot -s from the loader prompt).
 #  6.  `mergemaster -p'
 #  7.  `make installworld'
-#  8.  `mergemaster'		(you may wish to use -i, along with -U or -F).
+#  8.  `mergemaster'            (you may wish to use -i, along with -U or -F).
 #  9.  `make delete-old'
 # 10.  `reboot'
 # 11.  `make delete-old-libs' (in case no 3rd party program uses them anymore)
@@ -481,7 +484,16 @@ worlds: .PHONY
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox) || \
     make(targets) || make(universe-toolchain)
-TARGETS?=amd64 arm arm64 i386 mips powerpc riscv sparc64
+#
+# By default, build only the known-good clang-supporting platforms.
+# If MAKE_OBSOLETE_GCC is defined, built all the old GCC architectures.
+# In all cases, if the user specifies TARGETS on the command line,
+# honor that most of all.
+#
+_DEFAULT_TARGETS=amd64 arm arm64 i386 riscv
+_OBSOLETE_GCC_TARGETS=mips powerpc sparc64
+_DEFAULT_TARGETS+=${_OBSOLETE_GCC_TARGETS}
+TARGETS?=${_DEFAULT_TARGETS}
 _UNIVERSE_TARGETS=	${TARGETS}
 TARGET_ARCHES_arm?=	arm armv6 armv7
 TARGET_ARCHES_arm64?=	aarch64
@@ -494,11 +506,23 @@ TARGET_ARCHES_${target}?= ${target}
 .endfor
 
 MAKE_PARAMS_riscv?=	CROSS_TOOLCHAIN=riscv64-gcc
+.if !defined(MAKE_OBSOLETE_GCC)
+OBSOLETE_GCC_TARGETS=${_OBSOLETE_GCC_TARGETS}
+MAKE_PARAMS_mips?=	CROSS_TOOLCHAIN=mips-gcc
+MAKE_PARAMS_powerpc?=	CROSS_TOOLCHAIN=powerpc-gcc
+MAKE_PARAMS_sparc64?=	CROSS_TOOLCHAIN=sparc64-gcc
+.endif
 
-# XXX Remove architectures only supported by external toolchain from universe
-# if required toolchain packages are missing.
+TOOLCHAINS_mips=	mips
+TOOLCHAINS_powerpc=	powerpc64
 TOOLCHAINS_riscv=	riscv64
-.for target in riscv
+TOOLCHAINS_sparc64=	sparc64
+
+# Remove architectures only supported by external toolchain from universe
+# if required toolchain packages are missing.
+# When MAKE_OBSOLETE_GCC is not defined, this effecitvely forces this for
+# the in-tree gcc 4.2.1 targets as well.
+.for target in riscv ${OBSOLETE_GCC_TARGETS}
 .if ${_UNIVERSE_TARGETS:M${target}}
 .for toolchain in ${TOOLCHAINS_${target}}
 .if !exists(/usr/local/share/toolchains/${toolchain}-gcc.mk)
