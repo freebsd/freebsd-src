@@ -7,8 +7,8 @@
 #                       all kernels on all architectures).  Define
 #                       MAKE_JUST_KERNELS to only build kernels,
 #                       MAKE_JUST_WORLDS to only build userland, and/or
-#                       MAKE_OBSOLETE_GCC to build architectures unsupported
-#                       by clang.
+#                       MAKE_OBSOLETE_GCC to also build architectures
+#                       unsupported by clang using in-tree gcc.
 # tinderbox           - Same as universe, but presents a list of failed build
 #                       targets and exits with an error if there were any.
 # buildworld          - Rebuild *everything*, including glue to help do
@@ -490,10 +490,8 @@ worlds: .PHONY
 # In all cases, if the user specifies TARGETS on the command line,
 # honor that most of all.
 #
-_DEFAULT_TARGETS=amd64 arm arm64 i386 riscv
 _OBSOLETE_GCC_TARGETS=mips powerpc sparc64
-_DEFAULT_TARGETS+=${_OBSOLETE_GCC_TARGETS}
-TARGETS?=${_DEFAULT_TARGETS}
+TARGETS?=amd64 arm arm64 i386 riscv ${_OBSOLETE_GCC_TARGETS}
 _UNIVERSE_TARGETS=	${TARGETS}
 TARGET_ARCHES_arm?=	arm armv6 armv7
 TARGET_ARCHES_arm64?=	aarch64
@@ -518,10 +516,10 @@ TOOLCHAINS_powerpc=	powerpc64
 TOOLCHAINS_riscv=	riscv64
 TOOLCHAINS_sparc64=	sparc64
 
-# Remove architectures only supported by external toolchain from universe
-# if required toolchain packages are missing.
-# When MAKE_OBSOLETE_GCC is not defined, this effecitvely forces this for
-# the in-tree gcc 4.2.1 targets as well.
+# Remove architectures only supported by external toolchain from
+# universe if required toolchain packages are missing. riscv requires
+# an out-of-tree toolchain. When MAKE_OBSOLETE_GCC is not defined,
+# the same logic appleis to the obsolete gcc targets.
 .for target in riscv ${OBSOLETE_GCC_TARGETS}
 .if ${_UNIVERSE_TARGETS:M${target}}
 .for toolchain in ${TOOLCHAINS_${target}}
