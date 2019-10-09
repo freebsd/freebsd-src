@@ -551,12 +551,6 @@ once all filesystems that have ever contained a dnode larger than 512B are
 destroyed.
 Large dnodes allow more data to be stored in the bonus buffer, thus potentially
 improving performance by avoiding the use of spill blocks.
-.Pp
-Please note that booting from datasets that have dnodes larger than 512B is
-.Em NOT
-supported by the
-.Fx
-boot loader.
 .It Sy sha512
 .Bl -column "READ\-ONLY COMPATIBLE" "org.illumos:sha512"
 .It GUID Ta org.illumos:sha512
