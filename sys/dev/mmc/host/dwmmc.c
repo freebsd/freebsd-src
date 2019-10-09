@@ -611,6 +611,7 @@ dwmmc_attach(device_t dev)
 	}
 
 	if (!sc->use_pio) {
+		dma_stop(sc);
 		if (dma_setup(sc))
 			return (ENXIO);
 
