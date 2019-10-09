@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 20, 2018
+.Dd October 9, 2019
 .Dt ALTQ 4
 .Os
 .Sh NAME
@@ -190,6 +190,23 @@ and
 .Xr ng_iface 4
 pseudo drivers also do support
 .Nm .
+.Pp
+The
+.Xr vlan 4
+driver does not directly support
+.Nm ,
+but as packets (mbufs) are passed to the underlying interface, a queue
+can be defined for the underlying interface, and any packets directed
+to the queue will be processed at the interface level.
+An example:
+.Pp
+.Bd -literal -offset indent
+altq on igb0 cbq queue { def aq }
+queue def bandwidth 90% cbq (default borrow)
+queue aq bandwidth 10Mb cbq
+
+pass in on igb0.10 proto udp all queue aq keep state
+.Ed
 .Sh SEE ALSO
 .Xr pf 4 ,
 .Xr pf.conf 5 ,
