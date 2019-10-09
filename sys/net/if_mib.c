@@ -80,6 +80,7 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 	u_int namelen = arg2;
 	struct ifnet *ifp;
 	struct ifmibdata ifmd;
+	struct epoch_tracker et;
 	size_t dlen;
 	char *dbuf;
 
@@ -87,7 +88,9 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 		return EINVAL;
 	if (name[0] <= 0)
 		return (ENOENT);
+	NET_EPOCH_ENTER(et);
 	ifp = ifnet_byindex_ref(name[0]);
+	NET_EPOCH_EXIT(et);
 	if (ifp == NULL)
 		return (ENOENT);
 
