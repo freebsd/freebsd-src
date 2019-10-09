@@ -183,9 +183,9 @@ while (( number <= $GROUP_NUM )); do
 			continue
 		fi
 	fi
-	set_partition $number "" $PART_SIZE ${ZFS_DISK2}
+	set_partition $number "" $PART_SIZE ${DISK1}
 
-	setup_single_disk "${ZFS_DISK2}p${number}" \
+	setup_single_disk "${DISK1}p${number}" \
 		"${TESTPOOL}-$number" \
 		"$TESTFS" \
 		"$TESTDIR.$number"
