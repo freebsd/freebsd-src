@@ -1997,23 +1997,23 @@ ioat_setup_sysctl(device_t device)
 	    "IOAT channel statistics");
 	statpar = SYSCTL_CHILDREN(tmp);
 
-	SYSCTL_ADD_UQUAD(ctx, statpar, OID_AUTO, "interrupts", CTLFLAG_RW,
-	    &ioat->stats.interrupts,
+	SYSCTL_ADD_UQUAD(ctx, statpar, OID_AUTO, "interrupts",
+	    CTLFLAG_RW | CTLFLAG_STATS, &ioat->stats.interrupts,
 	    "Number of interrupts processed on this channel");
-	SYSCTL_ADD_UQUAD(ctx, statpar, OID_AUTO, "descriptors", CTLFLAG_RW,
-	    &ioat->stats.descriptors_processed,
+	SYSCTL_ADD_UQUAD(ctx, statpar, OID_AUTO, "descriptors",
+	    CTLFLAG_RW | CTLFLAG_STATS, &ioat->stats.descriptors_processed,
 	    "Number of descriptors processed on this channel");
-	SYSCTL_ADD_UQUAD(ctx, statpar, OID_AUTO, "submitted", CTLFLAG_RW,
-	    &ioat->stats.descriptors_submitted,
+	SYSCTL_ADD_UQUAD(ctx, statpar, OID_AUTO, "submitted",
+	    CTLFLAG_RW | CTLFLAG_STATS, &ioat->stats.descriptors_submitted,
 	    "Number of descriptors submitted to this channel");
-	SYSCTL_ADD_UQUAD(ctx, statpar, OID_AUTO, "errored", CTLFLAG_RW,
-	    &ioat->stats.descriptors_error,
+	SYSCTL_ADD_UQUAD(ctx, statpar, OID_AUTO, "errored",
+	    CTLFLAG_RW | CTLFLAG_STATS, &ioat->stats.descriptors_error,
 	    "Number of descriptors failed by channel errors");
-	SYSCTL_ADD_U32(ctx, statpar, OID_AUTO, "halts", CTLFLAG_RW,
-	    &ioat->stats.channel_halts, 0,
+	SYSCTL_ADD_U32(ctx, statpar, OID_AUTO, "halts",
+	    CTLFLAG_RW | CTLFLAG_STATS, &ioat->stats.channel_halts, 0,
 	    "Number of times the channel has halted");
-	SYSCTL_ADD_U32(ctx, statpar, OID_AUTO, "last_halt_chanerr", CTLFLAG_RW,
-	    &ioat->stats.last_halt_chanerr, 0,
+	SYSCTL_ADD_U32(ctx, statpar, OID_AUTO, "last_halt_chanerr",
+	    CTLFLAG_RW | CTLFLAG_STATS, &ioat->stats.last_halt_chanerr, 0,
 	    "The raw CHANERR when the channel was last halted");
 
 	SYSCTL_ADD_PROC(ctx, statpar, OID_AUTO, "desc_per_interrupt",
