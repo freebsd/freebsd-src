@@ -4799,6 +4799,9 @@ out:
  *
  * outputs:
  * zc_objset_type	estimated size, if zc_guid is set
+ *
+ * NOTE: This is no longer the preferred interface, any new functionality
+ *	  should be added to zfs_ioc_send_new() instead.
  */
 static int
 zfs_ioc_send(zfs_cmd_t *zc)
