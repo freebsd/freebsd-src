@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <net/vnet.h>
+#include <net/if.h>		/* XXXGL: net_epoch should move out there */
+#include <net/if_var.h>		/* XXXGL: net_epoch should move out there */
 
 /*
  * System initialization
@@ -499,25 +501,31 @@ pfctlinput2(int cmd, struct sockaddr *sa, void *ctlparam)
 static void
 pfslowtimo(void *arg)
 {
+	struct epoch_tracker et;
 	struct domain *dp;
 	struct protosw *pr;
 
+	NET_EPOCH_ENTER(et);
 	for (dp = domains; dp; dp = dp->dom_next)
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
 			if (pr->pr_slowtimo)
 				(*pr->pr_slowtimo)();
+	NET_EPOCH_EXIT(et);
 	callout_reset(&pfslow_callout, hz/2, pfslowtimo, NULL);
 }
 
 static void
 pffasttimo(void *arg)
 {
+	struct epoch_tracker et;
 	struct domain *dp;
 	struct protosw *pr;
 
+	NET_EPOCH_ENTER(et);
 	for (dp = domains; dp; dp = dp->dom_next)
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
 			if (pr->pr_fasttimo)
 				(*pr->pr_fasttimo)();
+	NET_EPOCH_EXIT(et);
 	callout_reset(&pffast_callout, hz/5, pffasttimo, NULL);
 }
