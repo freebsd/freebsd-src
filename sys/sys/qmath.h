@@ -58,7 +58,7 @@ typedef uint64_t	u64q_t;
 typedef	s64q_t		smaxq_t;
 typedef	u64q_t		umaxq_t;
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(__clang__)
 /* Ancient GCC hack to de-const, remove when GCC4 is removed. */
 #define	Q_BT(q)		__typeof(1 * q)
 #else
