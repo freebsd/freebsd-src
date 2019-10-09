@@ -388,12 +388,14 @@ inm_lookup_locked(struct ifnet *ifp, const struct in_addr ina)
 struct in_multi *
 inm_lookup(struct ifnet *ifp, const struct in_addr ina)
 {
+	struct epoch_tracker et;
 	struct in_multi *inm;
 
 	IN_MULTI_LIST_LOCK_ASSERT();
-	NET_EPOCH_ASSERT();
+	NET_EPOCH_ENTER(et);
 
 	inm = inm_lookup_locked(ifp, ina);
+	NET_EPOCH_EXIT(et);
 
 	return (inm);
 }
@@ -1198,13 +1200,10 @@ int
 in_joingroup(struct ifnet *ifp, const struct in_addr *gina,
     /*const*/ struct in_mfilter *imf, struct in_multi **pinm)
 {
-	struct epoch_tracker et;
 	int error;
 
 	IN_MULTI_LOCK();
-	NET_EPOCH_ENTER(et);
 	error = in_joingroup_locked(ifp, gina, imf, pinm);
-	NET_EPOCH_EXIT(et);
 	IN_MULTI_UNLOCK();
 
 	return (error);
@@ -1227,7 +1226,6 @@ in_joingroup_locked(struct ifnet *ifp, const struct in_addr *gina,
 	struct in_multi		*inm;
 	int			 error;
 
-	NET_EPOCH_ASSERT();
 	IN_MULTI_LOCK_ASSERT();
 	IN_MULTI_LIST_UNLOCK_ASSERT();
 
@@ -1285,14 +1283,11 @@ in_joingroup_locked(struct ifnet *ifp, const struct in_addr *gina,
 int
 in_leavegroup(struct in_multi *inm, /*const*/ struct in_mfilter *imf)
 {
-	struct epoch_tracker et;
 	int error;
 
-	NET_EPOCH_ENTER(et);
 	IN_MULTI_LOCK();
 	error = in_leavegroup_locked(inm, imf);
 	IN_MULTI_UNLOCK();
-	NET_EPOCH_EXIT(et);
 
 	return (error);
 }
@@ -1316,7 +1311,6 @@ in_leavegroup_locked(struct in_multi *inm, /*const*/ struct in_mfilter *imf)
 	struct in_mfilter	 timf;
 	int			 error;
 
-	NET_EPOCH_ASSERT();
 	IN_MULTI_LOCK_ASSERT();
 	IN_MULTI_LIST_UNLOCK_ASSERT();
 
@@ -1818,11 +1812,15 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 			if (!in_nullhost(imo->imo_multicast_addr)) {
 				mreqn.imr_address = imo->imo_multicast_addr;
 			} else if (ifp != NULL) {
+				struct epoch_tracker et;
+
 				mreqn.imr_ifindex = ifp->if_index;
+				NET_EPOCH_ENTER(et);
 				IFP_TO_IA(ifp, ia, &in_ifa_tracker);
 				if (ia != NULL)
 					mreqn.imr_address =
 					    IA_SIN(ia)->sin_addr;
+				NET_EPOCH_EXIT(et);
 			}
 		}
 		INP_WUNLOCK(inp);
