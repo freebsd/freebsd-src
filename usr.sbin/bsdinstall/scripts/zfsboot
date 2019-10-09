@@ -1656,6 +1656,9 @@ while :; do
 		zfs_create_boot "$ZFSBOOT_POOL_NAME" \
 		                "$vdev_type" $ZFSBOOT_DISKS || continue
 
+		# To be reused by bootconfig
+		echo "$ZFSBOOT_DISKS" > /tmp/bsdinstall-zfsboot
+
 		break # to success
 		;;
 	?" $msg_pool_type_disks")
