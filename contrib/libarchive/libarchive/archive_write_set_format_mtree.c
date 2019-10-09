@@ -186,7 +186,7 @@ struct mtree_writer {
 #endif
 	/* Keyword options */
 	int keys;
-#define	F_CKSUM		0x00000001		/* check sum */
+#define	F_CKSUM		0x00000001		/* checksum */
 #define	F_DEV		0x00000002		/* device type */
 #define	F_DONE		0x00000004		/* directory done */
 #define	F_FLAGS		0x00000008		/* file flags */
@@ -371,7 +371,7 @@ mtree_quote(struct archive_string *s, const char *str)
 }
 
 /*
- * Indent a line as mtree utility to be readable for people.
+ * Indent a line as the mtree utility does so it is readable for people.
  */
 static void
 mtree_indent(struct mtree_writer *mtree)
@@ -446,8 +446,8 @@ mtree_indent(struct mtree_writer *mtree)
 
 /*
  * Write /set keyword.
- * Set most used value of uid,gid,mode and fflags, which are
- * collected by attr_counter_set_collect() function.
+ * Set the most used value of uid, gid, mode and fflags, which are
+ * collected by the attr_counter_set_collect() function.
  */
 static void
 write_global(struct mtree_writer *mtree)
@@ -649,7 +649,7 @@ attr_counter_inc(struct attr_counter **top, struct attr_counter *ac,
 }
 
 /*
- * Tabulate uid,gid,mode and fflags of a entry in order to be used for /set.
+ * Tabulate uid, gid, mode and fflags of a entry in order to be used for /set.
  */
 static int
 attr_counter_set_collect(struct mtree_writer *mtree, struct mtree_entry *me)
@@ -912,7 +912,7 @@ archive_write_mtree_header(struct archive_write *a,
 
 	/* If the current file is a regular file, we have to
 	 * compute the sum of its content.
-	 * Initialize a bunch of sum check context. */
+	 * Initialize a bunch of checksum context. */
 	if (mtree_entry->reg_info)
 		sum_init(mtree);
 
@@ -1265,7 +1265,7 @@ archive_write_mtree_free(struct archive_write *a)
 	if (mtree == NULL)
 		return (ARCHIVE_OK);
 
-	/* Make sure we dot not leave any entries. */
+	/* Make sure we do not leave any entries. */
 	mtree_entry_register_free(mtree);
 	archive_string_free(&mtree->cur_dirstr);
 	archive_string_free(&mtree->ebuf);
@@ -2024,7 +2024,7 @@ mtree_entry_tree_add(struct archive_write *a, struct mtree_entry **filep)
 
 	if (file->parentdir.length == 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Internal programing error "
+		    "Internal programming error "
 		    "in generating canonical name for %s",
 		    file->pathname.s);
 		return (ARCHIVE_FAILED);

@@ -28,12 +28,12 @@ __FBSDID("$FreeBSD$");
 DEFINE_TEST(test_option_xattrs)
 {
 #if !ARCHIVE_XATTR_SUPPORT
-        skipping("Extended atributes are not supported on this platform");
+        skipping("Extended attributes are not supported on this platform");
 #else	/* ARCHIVE_XATTR_SUPPORT */
 
 	const char *testattr = "user.libarchive.test";
 	const char *testval = "testval";
-	const void *readval;
+	void *readval;
 	size_t size;
 	int r;
 
@@ -62,6 +62,7 @@ DEFINE_TEST(test_option_xattrs)
 	readval = getXattr("xattrs_xattrs/f", testattr, &size);
 	if(assertEqualInt(size, strlen(testval) + 1) != 0)
 		assertEqualMem(readval, testval, size);
+	free(readval);
 
 	/* Extract xattrs without xattrs */
 	assertMakeDir("xattrs_noxattrs", 0755);

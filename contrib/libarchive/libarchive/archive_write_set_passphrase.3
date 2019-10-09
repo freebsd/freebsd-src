@@ -49,7 +49,7 @@ Streaming Archive Library (libarchive, -larchive)
 .Sh DESCRIPTION
 .Bl -tag -width indent
 .It Fn archive_write_set_passphrase
-Set a passphrase for writing an encryption archive.
+Set a passphrase for writing an encrypted archive.
 If
 .Ar passphrase
 is
@@ -59,16 +59,16 @@ or empty, this function will do nothing and
 will be returned.
 Otherwise,
 .Cm ARCHIVE_OK
-will be returned. 
+will be returned.
 .It Fn archive_write_set_passphrase_callback
-Register callback function that will be invoked to get a passphrase
-for encrption if the passphrase was not set by the
+Register a callback function that will be invoked to get a passphrase
+for encryption if the passphrase was not set by the
 .Fn archive_write_set_passphrase
 function.
 .El
 .\" .Sh ERRORS
 .Sh SEE ALSO
 .Xr tar 1 ,
-.Xr libarchive 3 ,
 .Xr archive_write 3 ,
-.Xr archive_write_set_options 3
+.Xr archive_write_set_options 3 ,
+.Xr libarchive 3

@@ -155,7 +155,7 @@ to close the archive, then call
 .Fn archive_read_free
 to release all resources, including all memory allocated by the library.
 .\"
-.Sh EXAMPLE
+.Sh EXAMPLES
 The following illustrates basic usage of the library.
 In this example,
 the callback functions are simply wrappers around the standard
@@ -217,16 +217,16 @@ myclose(struct archive *a, void *client_data)
 .\" .Sh ERRORS
 .Sh SEE ALSO
 .Xr tar 1 ,
-.Xr libarchive 3 ,
-.Xr archive_read_new 3 ,
 .Xr archive_read_data 3 ,
 .Xr archive_read_extract 3 ,
 .Xr archive_read_filter 3 ,
 .Xr archive_read_format 3 ,
 .Xr archive_read_header 3 ,
+.Xr archive_read_new 3 ,
 .Xr archive_read_open 3 ,
 .Xr archive_read_set_options 3 ,
 .Xr archive_util 3 ,
+.Xr libarchive 3 ,
 .Xr tar 5
 .Sh HISTORY
 The

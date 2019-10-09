@@ -298,7 +298,7 @@ my_CreateSymbolicLinkA(const char *linkname, const char *target,
 	ret = (*f)(src, tgt, tmpflags);
 	/*
 	 * Prior to Windows 10 the SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
-	 * is not undestood
+	 * is not understood
 	 */
 	if (!ret)
 		ret = (*f)(src, tgt, flags);
@@ -2708,8 +2708,8 @@ canNodump(void)
 	return (0);
 }
 
-/* Get extended attribute from a path */
-const void *
+/* Get extended attribute value from a path */
+void *
 getXattr(const char *path, const char *name, size_t *sizep)
 { 
 	void *value = NULL;
