@@ -466,8 +466,8 @@ tcp_lro_log(struct tcpcb *tp, struct lro_ctrl *lc,
 		log.u_bbr.lt_epoch = le->ack_seq;
 		log.u_bbr.pacing_gain = th_win;
 		log.u_bbr.cwnd_gain = le->window;
-		log.u_bbr.cur_del_rate = (uint64_t)m;
-		log.u_bbr.bw_inuse = (uint64_t)le->m_head;
+		log.u_bbr.cur_del_rate = (uintptr_t)m;
+		log.u_bbr.bw_inuse = (uintptr_t)le->m_head;
 		log.u_bbr.pkts_out = le->mbuf_cnt;	/* Total mbufs added */
 		log.u_bbr.applimited = le->ulp_csum;
 		log.u_bbr.lost = le->mbuf_appended;
