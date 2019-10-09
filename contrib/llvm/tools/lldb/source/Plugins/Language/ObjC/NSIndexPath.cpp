@@ -1,9 +1,8 @@
 //===-- NSIndexPath.cpp -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,10 +13,10 @@
 #include "lldb/DataFormatters/FormattersHelpers.h"
 #include "lldb/DataFormatters/TypeSynthetic.h"
 #include "lldb/Symbol/ClangASTContext.h"
-#include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 
+#include "Plugins/LanguageRuntime/ObjC/ObjCLanguageRuntime.h"
 using namespace lldb;
 using namespace lldb_private;
 using namespace lldb_private::formatters;
@@ -69,9 +68,7 @@ public:
     if (!process_sp)
       return false;
 
-    ObjCLanguageRuntime *runtime =
-        (ObjCLanguageRuntime *)process_sp->GetLanguageRuntime(
-            lldb::eLanguageTypeObjC);
+    ObjCLanguageRuntime *runtime = ObjCLanguageRuntime::Get(*process_sp);
 
     if (!runtime)
       return false;
@@ -128,7 +125,7 @@ public:
 
   bool MightHaveChildren() override { return m_impl.m_mode != Mode::Invalid; }
 
-  size_t GetIndexOfChildWithName(const ConstString &name) override {
+  size_t GetIndexOfChildWithName(ConstString name) override {
     const char *item_name = name.GetCString();
     uint32_t idx = ExtractIndexFromString(item_name);
     if (idx < UINT32_MAX && idx >= CalculateNumChildren())

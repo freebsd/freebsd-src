@@ -1,9 +1,8 @@
 //===-- AppleObjCTypeEncodingParser.cpp -------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -24,8 +23,8 @@ using namespace lldb_utility;
 AppleObjCTypeEncodingParser::AppleObjCTypeEncodingParser(
     ObjCLanguageRuntime &runtime)
     : ObjCLanguageRuntime::EncodingToType(), m_runtime(runtime) {
-  if (!m_scratch_ast_ctx_ap)
-    m_scratch_ast_ctx_ap.reset(new ClangASTContext(runtime.GetProcess()
+  if (!m_scratch_ast_ctx_up)
+    m_scratch_ast_ctx_up.reset(new ClangASTContext(runtime.GetProcess()
                                                        ->GetTarget()
                                                        .GetArchitecture()
                                                        .GetTriple()
@@ -246,25 +245,19 @@ clang::QualType AppleObjCTypeEncodingParser::BuildObjCObjectPointerType(
     if (!decl_vendor)
       return clang::QualType();
 
-    const bool append = false;
-    const uint32_t max_matches = 1;
-    std::vector<clang::NamedDecl *> decls;
-
-    uint32_t num_types =
-        decl_vendor->FindDecls(ConstString(name), append, max_matches, decls);
+    auto types = decl_vendor->FindTypes(ConstString(name), /*max_matches*/ 1);
 
 // The user can forward-declare something that has no definition.  The runtime
 // doesn't prohibit this at all. This is a rare and very weird case.  We keep
 // this assert in debug builds so we catch other weird cases.
 #ifdef LLDB_CONFIGURATION_DEBUG
-    assert(num_types);
+    assert(!types.empty());
 #else
-    if (!num_types)
+    if (types.empty())
       return ast_ctx.getObjCIdType();
 #endif
 
-    return ClangUtil::GetQualType(
-        ClangASTContext::GetTypeForDecl(decls[0]).GetPointerType());
+    return ClangUtil::GetQualType(types.front().GetPointerType());
   } else {
     // We're going to resolve this dynamically anyway, so just smile and wave.
     return ast_ctx.getObjCIdType();

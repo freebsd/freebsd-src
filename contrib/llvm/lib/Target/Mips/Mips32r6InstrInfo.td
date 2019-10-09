@@ -1,9 +1,8 @@
 //=- Mips32r6InstrInfo.td - Mips32r6 Instruction Information -*- tablegen -*-=//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -150,7 +149,6 @@ class SELEQZ_ENC : SPECIAL_3R_FM<0b00000, 0b110101>;
 class SELNEZ_ENC : SPECIAL_3R_FM<0b00000, 0b110111>;
 
 class LWPC_ENC   : PCREL19_FM<OPCODE2_LWPC>;
-class LWUPC_ENC  : PCREL19_FM<OPCODE2_LWUPC>;
 
 class MAX_S_ENC : COP1_3R_FM<0b011101, FIELD_FMT_S>;
 class MAX_D_ENC : COP1_3R_FM<0b011101, FIELD_FMT_D>;
@@ -326,7 +324,6 @@ class PCREL_DESC_BASE<string instr_asm, RegisterOperand GPROpnd,
 class ADDIUPC_DESC : PCREL_DESC_BASE<"addiupc", GPR32Opnd, simm19_lsl2,
                                      II_ADDIUPC>;
 class LWPC_DESC: PCREL_DESC_BASE<"lwpc", GPR32Opnd, simm19_lsl2, II_LWPC>;
-class LWUPC_DESC: PCREL_DESC_BASE<"lwupc", GPR32Opnd, simm19_lsl2, II_LWUPC>;
 
 class ALIGN_DESC_BASE<string instr_asm, RegisterOperand GPROpnd,
                       Operand ImmOpnd, InstrItinClass itin>
@@ -927,7 +924,6 @@ let AdditionalPredicates = [NotInMicroMips] in {
 }
 def LWPC : R6MMR6Rel, LWPC_ENC, LWPC_DESC, ISA_MIPS32R6;
 let AdditionalPredicates = [NotInMicroMips] in {
-  def LWUPC : R6MMR6Rel, LWUPC_ENC, LWUPC_DESC, ISA_MIPS32R6;
   def MADDF_S : MADDF_S_ENC, MADDF_S_DESC, ISA_MIPS32R6, HARDFLOAT;
   def MADDF_D : MADDF_D_ENC, MADDF_D_DESC, ISA_MIPS32R6, HARDFLOAT;
   def MAXA_D : MAXA_D_ENC, MAXA_D_DESC, ISA_MIPS32R6, HARDFLOAT;

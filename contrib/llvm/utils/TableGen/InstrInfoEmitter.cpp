@@ -1,9 +1,8 @@
 //===- InstrInfoEmitter.cpp - Generate a Instruction Set Desc. --*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -77,7 +76,9 @@ private:
                   std::map<std::vector<Record*>, unsigned> &EL,
                   const OperandInfoMapTy &OpInfo,
                   raw_ostream &OS);
-  void emitOperandTypesEnum(raw_ostream &OS, const CodeGenTarget &Target);
+  void emitOperandTypeMappings(
+      raw_ostream &OS, const CodeGenTarget &Target,
+      ArrayRef<const CodeGenInstruction *> NumberedInstructions);
   void initOperandMapData(
             ArrayRef<const CodeGenInstruction *> NumberedInstructions,
             StringRef Namespace,
@@ -212,7 +213,7 @@ void InstrInfoEmitter::EmitOperandInfo(raw_ostream &OS,
 }
 
 /// Initialize data structures for generating operand name mappings.
-/// 
+///
 /// \param Operands [out] A map used to generate the OpName enum with operand
 ///        names as its keys and operand enum values as its values.
 /// \param OperandMap [out] A map for representing the operand name mappings for
@@ -325,8 +326,9 @@ void InstrInfoEmitter::emitOperandNameMappings(raw_ostream &OS,
 /// Generate an enum for all the operand types for this target, under the
 /// llvm::TargetNamespace::OpTypes namespace.
 /// Operand types are all definitions derived of the Operand Target.td class.
-void InstrInfoEmitter::emitOperandTypesEnum(raw_ostream &OS,
-                                            const CodeGenTarget &Target) {
+void InstrInfoEmitter::emitOperandTypeMappings(
+    raw_ostream &OS, const CodeGenTarget &Target,
+    ArrayRef<const CodeGenInstruction *> NumberedInstructions) {
 
   StringRef Namespace = Target.getInstNamespace();
   std::vector<Record *> Operands = Records.getAllDerivedDefinitions("Operand");
@@ -350,6 +352,69 @@ void InstrInfoEmitter::emitOperandTypesEnum(raw_ostream &OS,
   OS << "} // end namespace " << Namespace << "\n";
   OS << "} // end namespace llvm\n";
   OS << "#endif // GET_INSTRINFO_OPERAND_TYPES_ENUM\n\n";
+
+  OS << "#ifdef GET_INSTRINFO_OPERAND_TYPE\n";
+  OS << "#undef GET_INSTRINFO_OPERAND_TYPE\n";
+  OS << "namespace llvm {\n";
+  OS << "namespace " << Namespace << " {\n";
+  OS << "LLVM_READONLY\n";
+  OS << "int getOperandType(uint16_t Opcode, uint16_t OpIdx) {\n";
+  if (!NumberedInstructions.empty()) {
+    std::vector<int> OperandOffsets;
+    std::vector<Record *> OperandRecords;
+    int CurrentOffset = 0;
+    for (const CodeGenInstruction *Inst : NumberedInstructions) {
+      OperandOffsets.push_back(CurrentOffset);
+      for (const auto &Op : Inst->Operands) {
+        const DagInit *MIOI = Op.MIOperandInfo;
+        if (!MIOI || MIOI->getNumArgs() == 0) {
+          // Single, anonymous, operand.
+          OperandRecords.push_back(Op.Rec);
+          ++CurrentOffset;
+        } else {
+          for (Init *Arg : make_range(MIOI->arg_begin(), MIOI->arg_end())) {
+            OperandRecords.push_back(cast<DefInit>(Arg)->getDef());
+            ++CurrentOffset;
+          }
+        }
+      }
+    }
+
+    // Emit the table of offsets for the opcode lookup.
+    OS << "  const int Offsets[] = {\n";
+    for (int I = 0, E = OperandOffsets.size(); I != E; ++I)
+      OS << "    " << OperandOffsets[I] << ",\n";
+    OS << "  };\n";
+
+    // Add an entry for the end so that we don't need to special case it below.
+    OperandOffsets.push_back(OperandRecords.size());
+    // Emit the actual operand types in a flat table.
+    OS << "  const int OpcodeOperandTypes[] = {\n    ";
+    for (int I = 0, E = OperandRecords.size(), CurOffset = 1; I != E; ++I) {
+      // We print each Opcode's operands in its own row.
+      if (I == OperandOffsets[CurOffset]) {
+        OS << "\n    ";
+        // If there are empty rows, mark them with an empty comment.
+        while (OperandOffsets[++CurOffset] == I)
+          OS << "/**/\n    ";
+      }
+      Record *OpR = OperandRecords[I];
+      if (OpR->isSubClassOf("Operand") && !OpR->isAnonymous())
+        OS << "OpTypes::" << OpR->getName();
+      else
+        OS << -1;
+      OS << ", ";
+    }
+    OS << "\n  };\n";
+
+    OS << "  return OpcodeOperandTypes[Offsets[Opcode] + OpIdx];\n";
+  } else {
+    OS << "  llvm_unreachable(\"No instructions defined\");\n";
+  }
+  OS << "}\n";
+  OS << "} // end namespace " << Namespace << "\n";
+  OS << "} // end namespace llvm\n";
+  OS << "#endif //GET_INSTRINFO_OPERAND_TYPE\n\n";
 }
 
 void InstrInfoEmitter::emitMCIIHelperMethods(raw_ostream &OS,
@@ -561,7 +626,7 @@ void InstrInfoEmitter::run(raw_ostream &OS) {
 
   emitOperandNameMappings(OS, Target, NumberedInstructions);
 
-  emitOperandTypesEnum(OS, Target);
+  emitOperandTypeMappings(OS, Target, NumberedInstructions);
 
   emitMCIIHelperMethods(OS, TargetName);
 }
@@ -604,6 +669,7 @@ void InstrInfoEmitter::emitRecord(const CodeGenInstruction &Inst, unsigned Num,
   if (Inst.canFoldAsLoad)      OS << "|(1ULL<<MCID::FoldableAsLoad)";
   if (Inst.mayLoad)            OS << "|(1ULL<<MCID::MayLoad)";
   if (Inst.mayStore)           OS << "|(1ULL<<MCID::MayStore)";
+  if (Inst.mayRaiseFPException) OS << "|(1ULL<<MCID::MayRaiseFPException)";
   if (Inst.isPredicable)       OS << "|(1ULL<<MCID::Predicable)";
   if (Inst.isConvertibleToThreeAddress) OS << "|(1ULL<<MCID::ConvertibleTo3Addr)";
   if (Inst.isCommutable)       OS << "|(1ULL<<MCID::Commutable)";
@@ -629,13 +695,14 @@ void InstrInfoEmitter::emitRecord(const CodeGenInstruction &Inst, unsigned Num,
   // Emit all of the target-specific flags...
   BitsInit *TSF = Inst.TheDef->getValueAsBitsInit("TSFlags");
   if (!TSF)
-    PrintFatalError("no TSFlags?");
+    PrintFatalError(Inst.TheDef->getLoc(), "no TSFlags?");
   uint64_t Value = 0;
   for (unsigned i = 0, e = TSF->getNumBits(); i != e; ++i) {
     if (const auto *Bit = dyn_cast<BitInit>(TSF->getBit(i)))
       Value |= uint64_t(Bit->getValue()) << i;
     else
-      PrintFatalError("Invalid TSFlags bit in " + Inst.TheDef->getName());
+      PrintFatalError(Inst.TheDef->getLoc(),
+                      "Invalid TSFlags bit in " + Inst.TheDef->getName());
   }
   OS << ", 0x";
   OS.write_hex(Value);

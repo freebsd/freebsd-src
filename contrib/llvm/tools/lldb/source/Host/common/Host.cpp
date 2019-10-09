@@ -1,9 +1,8 @@
 //===-- Host.cpp ------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -47,17 +46,16 @@
 
 #include <csignal>
 
+#include "lldb/Host/FileAction.h"
 #include "lldb/Host/FileSystem.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Host/HostProcess.h"
 #include "lldb/Host/MonitoringProcessLauncher.h"
+#include "lldb/Host/ProcessLaunchInfo.h"
 #include "lldb/Host/ProcessLauncher.h"
 #include "lldb/Host/ThreadLauncher.h"
 #include "lldb/Host/posix/ConnectionFileDescriptorPosix.h"
-#include "lldb/Target/FileAction.h"
-#include "lldb/Target/ProcessLaunchInfo.h"
-#include "lldb/Target/UnixSignals.h"
 #include "lldb/Utility/DataBufferLLVM.h"
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/Log.h"
@@ -101,7 +99,7 @@ struct MonitorInfo {
 
 static thread_result_t MonitorChildProcessThreadFunction(void *arg);
 
-HostThread Host::StartMonitoringChildProcess(
+llvm::Expected<HostThread> Host::StartMonitoringChildProcess(
     const Host::MonitorChildProcessCallback &callback, lldb::pid_t pid,
     bool monitor_signals) {
   MonitorInfo *info_ptr = new MonitorInfo();
@@ -114,14 +112,12 @@ HostThread Host::StartMonitoringChildProcess(
   ::snprintf(thread_name, sizeof(thread_name),
              "<lldb.host.wait4(pid=%" PRIu64 ")>", pid);
   return ThreadLauncher::LaunchThread(
-      thread_name, MonitorChildProcessThreadFunction, info_ptr, NULL);
+      thread_name, MonitorChildProcessThreadFunction, info_ptr, 0);
 }
 
 #ifndef __linux__
-//------------------------------------------------------------------
 // Scoped class that will disable thread canceling when it is constructed, and
 // exception safely restore the previous value it when it goes out of scope.
-//------------------------------------------------------------------
 class ScopedPThreadCancelDisabler {
 public:
   ScopedPThreadCancelDisabler() {
@@ -223,7 +219,7 @@ static thread_result_t MonitorChildProcessThreadFunction(void *arg) {
       bool exited = false;
       int signal = 0;
       int exit_status = 0;
-      const char *status_cstr = NULL;
+      const char *status_cstr = nullptr;
       if (WIFSTOPPED(status)) {
         signal = WSTOPSIG(status);
         status_cstr = "STOPPED";
@@ -286,7 +282,7 @@ static thread_result_t MonitorChildProcessThreadFunction(void *arg) {
   if (log)
     log->Printf("%s (arg = %p) thread exiting...", __FUNCTION__, arg);
 
-  return NULL;
+  return nullptr;
 }
 
 #endif // #if !defined (__APPLE__) && !defined (_WIN32)
@@ -397,7 +393,7 @@ const char *Host::GetSignalAsCString(int signo) {
   default:
     break;
   }
-  return NULL;
+  return nullptr;
 }
 
 #endif
@@ -466,16 +462,19 @@ Status Host::RunShellCommand(const char *command, const FileSpec &working_dir,
                              int *status_ptr, int *signo_ptr,
                              std::string *command_output_ptr,
                              const Timeout<std::micro> &timeout,
-                             bool run_in_default_shell) {
+                             bool run_in_default_shell,
+                             bool hide_stderr) {
   return RunShellCommand(Args(command), working_dir, status_ptr, signo_ptr,
-                         command_output_ptr, timeout, run_in_default_shell);
+                         command_output_ptr, timeout, run_in_default_shell,
+                         hide_stderr);
 }
 
 Status Host::RunShellCommand(const Args &args, const FileSpec &working_dir,
                              int *status_ptr, int *signo_ptr,
                              std::string *command_output_ptr,
                              const Timeout<std::micro> &timeout,
-                             bool run_in_default_shell) {
+                             bool run_in_default_shell,
+                             bool hide_stderr) {
   Status error;
   ProcessLaunchInfo launch_info;
   launch_info.SetArchitecture(HostInfo::GetArchitecture());
@@ -513,16 +512,18 @@ Status Host::RunShellCommand(const Args &args, const FileSpec &working_dir,
   }
 
   FileSpec output_file_spec(output_file_path.c_str());
-
+  // Set up file descriptors.
   launch_info.AppendSuppressFileAction(STDIN_FILENO, true, false);
-  if (output_file_spec) {
+  if (output_file_spec)
     launch_info.AppendOpenFileAction(STDOUT_FILENO, output_file_spec, false,
                                      true);
-    launch_info.AppendDuplicateFileAction(STDOUT_FILENO, STDERR_FILENO);
-  } else {
+  else
     launch_info.AppendSuppressFileAction(STDOUT_FILENO, false, true);
+
+  if (output_file_spec && !hide_stderr)
+    launch_info.AppendDuplicateFileAction(STDOUT_FILENO, STDERR_FILENO);
+  else
     launch_info.AppendSuppressFileAction(STDERR_FILENO, false, true);
-  }
 
   std::shared_ptr<ShellInfo> shell_info_sp(new ShellInfo());
   const bool monitor_signals = false;
@@ -613,12 +614,6 @@ bool Host::OpenFileInExternalEditor(const FileSpec &file_spec,
 }
 
 #endif
-
-const UnixSignalsSP &Host::GetUnixSignals() {
-  static const auto s_unix_signals_sp =
-      UnixSignals::Create(HostInfo::GetArchitecture());
-  return s_unix_signals_sp;
-}
 
 std::unique_ptr<Connection> Host::CreateDefaultConnection(llvm::StringRef url) {
 #if defined(_WIN32)

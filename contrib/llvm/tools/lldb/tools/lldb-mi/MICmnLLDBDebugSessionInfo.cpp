@@ -1,9 +1,8 @@
 //===-- MICmnLLDBDebugSessionInfo.cpp ---------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -30,7 +29,6 @@
 #include "Platform.h"
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnLLDBDebugSessionInfo constructor.
 // Type:    Method.
 // Args:    None.
@@ -47,7 +45,6 @@ CMICmnLLDBDebugSessionInfo::CMICmnLLDBDebugSessionInfo()
       m_constStrPrintAggregateFieldNames("Print AggregateFieldNames") {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnLLDBDebugSessionInfo destructor.
 // Type:    Overridable.
 // Args:    None.
@@ -57,7 +54,6 @@ CMICmnLLDBDebugSessionInfo::CMICmnLLDBDebugSessionInfo()
 CMICmnLLDBDebugSessionInfo::~CMICmnLLDBDebugSessionInfo() { Shutdown(); }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Initialize resources for *this object.
 // Type:    Method.
 // Args:    None.
@@ -80,7 +76,6 @@ bool CMICmnLLDBDebugSessionInfo::Initialize() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Release resources for *this object.
 // Type:    Method.
 // Args:    None.
@@ -107,7 +102,6 @@ bool CMICmnLLDBDebugSessionInfo::Shutdown() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Command instances can create and share data between other instances
 // of commands.
 //          Data can also be assigned by a command and retrieved by LLDB event
@@ -129,7 +123,6 @@ void CMICmnLLDBDebugSessionInfo::SharedDataDestroy() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Record information about a LLDB break point so that is can be
 // recalled in other
 //          commands or LLDB event handling functions.
@@ -149,7 +142,6 @@ bool CMICmnLLDBDebugSessionInfo::RecordBrkPtInfo(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve information about a LLDB break point previous recorded
 // either by
 //          commands or LLDB event handling functions.
@@ -173,7 +165,6 @@ bool CMICmnLLDBDebugSessionInfo::RecordBrkPtInfoGet(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Delete information about a specific LLDB break point object. This
 // function
 //          should be called when a LLDB break point is deleted.
@@ -195,7 +186,6 @@ bool CMICmnLLDBDebugSessionInfo::RecordBrkPtInfoDelete(const MIuint vnBrkPtId) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the specified thread's frame information.
 // Type:    Method.
 // Args:    vCmdData        - (R) A command's information.
@@ -242,7 +232,6 @@ bool CMICmnLLDBDebugSessionInfo::GetThreadFrames(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Return the resolved file's path for the given file.
 // Type:    Method.
 // Args:    vCmdData        - (R) A command's information.
@@ -273,7 +262,6 @@ bool CMICmnLLDBDebugSessionInfo::ResolvePath(const SMICmdData &vCmdData,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Return the resolved file's path for the given file.
 // Type:    Method.
 // Args:    vstrUnknown     - (R)   String assigned to path when resolved path
@@ -321,7 +309,6 @@ bool CMICmnLLDBDebugSessionInfo::ResolvePath(const CMIUtilString &vstrUnknown,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Determine the given file path exists or not.
 // Type:    Method.
 // Args:    vPath               - (R) File name path.
@@ -343,7 +330,6 @@ bool CMICmnLLDBDebugSessionInfo::AccessPath(const CMIUtilString &vPath,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Form MI partial response by appending more MI value type objects to
 // the
 //          tuple type object past in.
@@ -376,11 +362,9 @@ bool CMICmnLLDBDebugSessionInfo::MIResponseFormThreadInfo(
 
   // Add "target-id"
   const char *pThreadName = rThread.GetName();
-  const MIuint len =
-      (pThreadName != nullptr) ? CMIUtilString(pThreadName).length() : 0;
-  const bool bHaveName = ((pThreadName != nullptr) && (len > 0) && (len < 32) &&
-                          CMIUtilString::IsAllValidAlphaAndNumeric(
-                              pThreadName)); // 32 is arbitrary number
+  const MIuint len = CMIUtilString(pThreadName).length();
+  const bool bHaveName = (len > 0) && (len < 32) && // 32 is arbitrary number
+                         CMIUtilString::IsAllValidAlphaAndNumeric(pThreadName);
   const char *pThrdFmt = bHaveName ? "%s" : "Thread %d";
   CMIUtilString strThread;
   if (bHaveName)
@@ -411,7 +395,6 @@ bool CMICmnLLDBDebugSessionInfo::MIResponseFormThreadInfo(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Form MI partial response by appending more MI value type objects to
 // the
 //          tuple type object past in.
@@ -514,7 +497,6 @@ bool CMICmnLLDBDebugSessionInfo::MIResponseForVariableInfoInternal(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Extract the value's name and value or recurse into child value
 // object.
 // Type:    Method.
@@ -538,7 +520,6 @@ bool CMICmnLLDBDebugSessionInfo::GetVariableInfo(const lldb::SBValue &vrValue,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Form MI partial response by appending more MI value type objects to
 // the
 //          tuple type object past in.
@@ -609,7 +590,6 @@ bool CMICmnLLDBDebugSessionInfo::MIResponseFormFrameInfo(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the frame information from LLDB frame object.
 // Type:    Method.
 // Args:    vrFrame         - (R) LLDB thread object.
@@ -651,7 +631,6 @@ bool CMICmnLLDBDebugSessionInfo::GetFrameInfo(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Form MI partial response by appending more MI value type objects to
 // the
 //          tuple type object past in.
@@ -686,7 +665,6 @@ void CMICmnLLDBDebugSessionInfo::MIResponseFormBrkPtFrameInfo(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Form MI partial response by appending more MI value type objects to
 // the
 //          tuple type object past in.
@@ -776,7 +754,6 @@ bool CMICmnLLDBDebugSessionInfo::MIResponseFormBrkPtInfo(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve breakpoint information and write into the given breakpoint
 // information
 //          object. Note not all possible information is retrieved and so the
@@ -839,7 +816,6 @@ bool CMICmnLLDBDebugSessionInfo::GetBrkPtInfo(const lldb::SBBreakpoint &vBrkPt,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Get current debugger.
 // Type:    Method.
 // Args:    None.
@@ -851,7 +827,6 @@ lldb::SBDebugger &CMICmnLLDBDebugSessionInfo::GetDebugger() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Get current listener.
 // Type:    Method.
 // Args:    None.
@@ -863,7 +838,6 @@ lldb::SBListener &CMICmnLLDBDebugSessionInfo::GetListener() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Get current target.
 // Type:    Method.
 // Args:    None.
@@ -878,7 +852,6 @@ lldb::SBTarget CMICmnLLDBDebugSessionInfo::GetTarget() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Get current process.
 // Type:    Method.
 // Args:    None.

@@ -1,9 +1,8 @@
 //===- MCSymbolWasm.h -  ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 #ifndef LLVM_MC_MCSYMBOLWASM_H
@@ -19,6 +18,7 @@ class MCSymbolWasm : public MCSymbol {
   bool IsWeak = false;
   bool IsHidden = false;
   bool IsComdat = false;
+  mutable bool IsUsedInGOT = false;
   Optional<std::string> ImportModule;
   Optional<std::string> ImportName;
   wasm::WasmSignature *Signature = nullptr;
@@ -47,6 +47,13 @@ public:
   wasm::WasmSymbolType getType() const { return Type; }
   void setType(wasm::WasmSymbolType type) { Type = type; }
 
+  bool isExported() const {
+    return getFlags() & wasm::WASM_SYMBOL_EXPORTED;
+  }
+  void setExported() const {
+    modifyFlags(wasm::WASM_SYMBOL_EXPORTED, wasm::WASM_SYMBOL_EXPORTED);
+  }
+
   bool isWeak() const { return IsWeak; }
   void setWeak(bool isWeak) { IsWeak = isWeak; }
 
@@ -71,6 +78,9 @@ public:
       return getName();
   }
   void setImportName(StringRef Name) { ImportName = Name; }
+
+  void setUsedInGOT() const { IsUsedInGOT = true; }
+  bool isUsedInGOT() const { return IsUsedInGOT; }
 
   const wasm::WasmSignature *getSignature() const { return Signature; }
   void setSignature(wasm::WasmSignature *Sig) { Signature = Sig; }

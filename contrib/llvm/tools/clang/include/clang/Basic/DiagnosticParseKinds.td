@@ -1,9 +1,8 @@
 //==--- DiagnosticParseKinds.td - libparse diagnostics --------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -28,11 +27,15 @@ def err_msasm_unable_to_create_target : Error<
   "MS-style inline assembly is not available: %0">;
 def err_gnu_inline_asm_disabled : Error<
   "GNU-style inline assembly is disabled">;
-def err_asm_goto_not_supported_yet : Error<
-  "'asm goto' constructs are not supported yet">;
+def err_asm_goto_cannot_have_output : Error<
+  "'asm goto' cannot have output constraints">;
 }
 
 let CategoryName = "Parse Issue" in {
+
+def warn_cxx2a_compat_explicit_bool : Warning<
+  "this expression will be parsed as explicit(bool) in C++2a">,
+  InGroup<CXX2aCompat>, DefaultIgnore;
 
 def ext_empty_translation_unit : Extension<
   "ISO C requires a translation unit to contain at least one declaration">,
@@ -106,6 +109,8 @@ def warn_cxx98_compat_alignof : Warning<
   InGroup<CXX98Compat>, DefaultIgnore;
 def ext_alignof_expr : ExtWarn<
   "%0 applied to an expression is a GNU extension">, InGroup<GNUAlignofExpression>;
+def err_lambda_after_delete : Error<
+  "'[]' after delete interpreted as 'delete[]'; add parentheses to treat this as a lambda-expression">;
 
 def warn_microsoft_dependent_exists : Warning<
   "dependent %select{__if_not_exists|__if_exists}0 declarations are ignored">,
@@ -355,7 +360,7 @@ def err_typename_invalid_storageclass : Error<
 def err_typename_invalid_functionspec : Error<
   "type name does not allow function specifier to be specified">;
 def err_typename_invalid_constexpr : Error<
-  "type name does not allow constexpr specifier to be specified">;
+  "type name does not allow %select{constexpr|consteval}0 specifier to be specified">;
 def err_typename_identifiers_only : Error<
   "typename is allowed for identifiers only">;
 
@@ -434,7 +439,7 @@ def err_objc_expected_property_attr : Error<"unknown property attribute %0">;
 def err_objc_properties_require_objc2 : Error<
   "properties are an Objective-C 2 feature">;
 def err_objc_unexpected_attr : Error<
-  "prefix attribute must be followed by an interface or protocol">;
+  "prefix attribute must be followed by an interface, protocol, or implementation">;
 def err_objc_postfix_attribute : Error <
   "postfix attributes are not allowed on Objective-C directives">;
 def err_objc_postfix_attribute_hint : Error <
@@ -679,11 +684,13 @@ def warn_cxx14_compat_template_template_param_typename : Warning<
 def err_template_spec_syntax_non_template : Error<
   "identifier followed by '<' indicates a class template specialization but "
   "%0 %select{does not refer to a template|refers to a function template|"
-  "<unused>|refers to a variable template|<unused>}1">;
+  "<unused>|refers to a variable template|<unused>|refers to a concept}1">;
 def err_id_after_template_in_nested_name_spec : Error<
   "expected template name after 'template' keyword in nested name specifier">;
 def err_unexpected_template_in_unqualified_id : Error<
   "'template' keyword not permitted here">;
+def err_unexpected_template_after_using : Error<
+  "'template' keyword not permitted after 'using' keyword">;
 def err_two_right_angle_brackets_need_space : Error<
   "a space is required between consecutive right angle brackets (use '> >')">;
 def err_right_angle_bracket_equal_needs_space : Error<
@@ -743,7 +750,8 @@ def err_typename_refers_to_non_type_template : Error<
 def err_expected_type_name_after_typename : Error<
   "expected an identifier or template-id after '::'">;
 def err_explicit_spec_non_template : Error<
-  "explicit %select{specialization|instantiation}0 of non-template %1 %2">;
+  "explicit %select{specialization|instantiation}0 of "
+  "%select{non-|undeclared }3template %1 %2">;
 
 def err_default_template_template_parameter_not_template : Error<
   "default template argument for a template template parameter must be a class "
@@ -867,9 +875,14 @@ def warn_cxx98_compat_lambda : Warning<
   InGroup<CXX98Compat>, DefaultIgnore;
 def err_lambda_missing_parens : Error<
   "lambda requires '()' before %select{'mutable'|return type|"
-  "attribute specifier|'constexpr'}0">;
+  "attribute specifier|'constexpr'|'consteval'}0">;
 def err_lambda_decl_specifier_repeated : Error<
-  "%select{'mutable'|'constexpr'}0 cannot appear multiple times in a lambda declarator">;
+  "%select{'mutable'|'constexpr'|'consteval'}0 cannot appear multiple times in a lambda declarator">;
+def err_lambda_capture_misplaced_ellipsis : Error<
+  "ellipsis in pack %select{|init-}0capture must appear %select{after|before}0 "
+  "the name of the capture">;
+def err_lambda_capture_multiple_ellipses : Error<
+  "multiple ellipses in pack capture">;
 // C++17 lambda expressions
 def err_expected_star_this_capture : Error<
   "expected 'this' following '*' in lambda capture list">;
@@ -880,6 +893,16 @@ def warn_cxx14_compat_constexpr_on_lambda : Warning<
   InGroup<CXXPre17Compat>, DefaultIgnore;
 def ext_constexpr_on_lambda_cxx17 : ExtWarn<
   "'constexpr' on lambda expressions is a C++17 extension">, InGroup<CXX17>;
+
+// C++2a template lambdas
+def ext_lambda_template_parameter_list: ExtWarn<
+  "explicit template parameter list for lambdas is a C++2a extension">,
+  InGroup<CXX2a>;
+def warn_cxx17_compat_lambda_template_parameter_list: Warning<
+  "explicit template parameter list for lambdas is incompatible with "
+  "C++ standards before C++2a">, InGroup<CXXPre2aCompat>, DefaultIgnore;
+def err_lambda_template_parameter_list_empty : Error<
+  "lambda template parameter list cannot be empty">;
 
 // Availability attribute
 def err_expected_version : Error<
@@ -1131,11 +1154,9 @@ def err_opencl_taking_function_address_parser : Error<
 def err_opencl_logical_exclusive_or : Error<
   "^^ is a reserved operator in OpenCL">;
 
-// OpenCL C++.
+// C++ for OpenCL.
 def err_openclcxx_virtual_function : Error<
-  "virtual functions are not supported in OpenCL C++">;
-def err_openclcxx_reserved : Error<
-  "'%0' is a reserved keyword in OpenCL C++">;
+  "virtual functions are not supported in C++ for OpenCL">;
 
 // OpenMP support.
 def warn_pragma_omp_ignored : Warning<
@@ -1164,7 +1185,7 @@ def err_omp_decl_in_declare_simd : Error<
 def err_omp_unknown_map_type : Error<
   "incorrect map type, expected one of 'to', 'from', 'tofrom', 'alloc', 'release', or 'delete'">;
 def err_omp_unknown_map_type_modifier : Error<
-  "incorrect map type modifier, expected 'always' or 'close'">;
+  "incorrect map type modifier, expected 'always', 'close', or 'mapper'">;
 def err_omp_map_type_missing : Error<
   "missing map type">;
 def err_omp_map_type_modifier_missing : Error<
@@ -1177,6 +1198,10 @@ def err_omp_declare_target_unexpected_clause: Error<
   "unexpected '%0' clause, only 'to' or 'link' clauses expected">;
 def err_omp_expected_clause: Error<
   "expected at least one clause on '#pragma omp %0' directive">;
+def err_omp_mapper_illegal_identifier : Error<
+  "illegal OpenMP user-defined mapper identifier">;
+def err_omp_mapper_expected_declarator : Error<
+  "expected declarator on 'omp declare mapper' directive">;
 
 // Pragma loop support.
 def err_pragma_loop_missing_argument : Error<
@@ -1222,15 +1247,22 @@ def err_unexpected_module_decl : Error<
   "module declaration can only appear at the top level">;
 def err_module_expected_ident : Error<
   "expected a module name after '%select{module|import}0'">;
-def err_module_implementation_partition : Error<
-  "module partition must be declared 'export'">;
 def err_attribute_not_module_attr : Error<
   "%0 attribute cannot be applied to a module">;
 def err_attribute_not_import_attr : Error<
   "%0 attribute cannot be applied to a module import">;
 def err_module_expected_semi : Error<
   "expected ';' after module name">;
+def err_global_module_introducer_not_at_start : Error<
+  "'module;' introducing a global module fragment can appear only "
+  "at the start of the translation unit">;
+def err_module_fragment_exported : Error<
+  "%select{global|private}0 module fragment cannot be exported">;
+def err_private_module_fragment_expected_semi : Error<
+  "expected ';' after private module fragment declaration">;
 def err_missing_before_module_end : Error<"expected %0 at end of module">;
+def err_unsupported_module_partition : Error<
+  "sorry, module partitions are not yet supported">;
 
 def err_export_empty : Error<"export declaration cannot be empty">;
 }
@@ -1253,6 +1285,14 @@ def note_meant_to_use_typename : Note<
 let CategoryName = "Coroutines Issue" in {
 def err_for_co_await_not_range_for : Error<
   "'co_await' modifier can only be applied to range-based for loop">;
+}
+
+let CategoryName = "Concepts Issue" in {
+def err_concept_definition_not_identifier : Error<
+  "name defined in concept definition must be an identifier">;
+def ext_concept_legacy_bool_keyword : ExtWarn<
+  "ISO C++2a does not permit the 'bool' keyword after 'concept'">,
+  InGroup<DiagGroup<"concepts-ts-compat">>;
 }
 
 } // end of Parser diagnostics

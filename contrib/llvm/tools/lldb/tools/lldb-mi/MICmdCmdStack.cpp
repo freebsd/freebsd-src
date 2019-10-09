@@ -1,9 +1,8 @@
 //===-- MICmdCmdStack.cpp ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -35,7 +34,6 @@
 #include <algorithm>
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdCmdStackInfoDepth constructor.
 // Type:    Method.
 // Args:    None.
@@ -52,7 +50,6 @@ CMICmdCmdStackInfoDepth::CMICmdCmdStackInfoDepth()
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdCmdStackInfoDepth destructor.
 // Type:    Overrideable.
 // Args:    None.
@@ -62,7 +59,6 @@ CMICmdCmdStackInfoDepth::CMICmdCmdStackInfoDepth()
 CMICmdCmdStackInfoDepth::~CMICmdCmdStackInfoDepth() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The parses the command line
 // options
 //          arguments to extract values for each of those arguments.
@@ -78,7 +74,6 @@ bool CMICmdCmdStackInfoDepth::ParseArgs() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The command does work in this
 // function.
 //          The command is likely to communicate with the LLDB SBDebugger in
@@ -115,7 +110,6 @@ bool CMICmdCmdStackInfoDepth::Execute() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The command prepares a MI Record
 // Result
 //          for the work carried out in the Execute().
@@ -138,7 +132,6 @@ bool CMICmdCmdStackInfoDepth::Acknowledge() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Required by the CMICmdFactory when registering *this command. The
 // factory
 //          calls this function to create an instance of *this command.
@@ -151,12 +144,8 @@ CMICmdBase *CMICmdCmdStackInfoDepth::CreateSelf() {
   return new CMICmdCmdStackInfoDepth();
 }
 
-//---------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdCmdStackInfoFrame constructor.
 // Type:    Method.
 // Args:    None.
@@ -172,7 +161,6 @@ CMICmdCmdStackInfoFrame::CMICmdCmdStackInfoFrame() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdCmdStackInfoFrame destructor.
 // Type:    Overrideable.
 // Args:    None.
@@ -182,7 +170,6 @@ CMICmdCmdStackInfoFrame::CMICmdCmdStackInfoFrame() {
 CMICmdCmdStackInfoFrame::~CMICmdCmdStackInfoFrame() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The parses the command line
 // options
 //          arguments to extract values for each of those arguments.
@@ -195,7 +182,6 @@ CMICmdCmdStackInfoFrame::~CMICmdCmdStackInfoFrame() {}
 bool CMICmdCmdStackInfoFrame::ParseArgs() { return ParseValidateCmdOptions(); }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The command does work in this
 // function.
 //          The command is likely to communicate with the LLDB SBDebugger in
@@ -228,7 +214,6 @@ bool CMICmdCmdStackInfoFrame::Execute() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The command prepares a MI Record
 // Result
 //          for the work carried out in the Execute().
@@ -249,7 +234,6 @@ bool CMICmdCmdStackInfoFrame::Acknowledge() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Required by the CMICmdFactory when registering *this command. The
 // factory
 //          calls this function to create an instance of *this command.
@@ -262,12 +246,8 @@ CMICmdBase *CMICmdCmdStackInfoFrame::CreateSelf() {
   return new CMICmdCmdStackInfoFrame();
 }
 
-//---------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdCmdStackListFrames constructor.
 // Type:    Method.
 // Args:    None.
@@ -285,7 +265,6 @@ CMICmdCmdStackListFrames::CMICmdCmdStackListFrames()
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdCmdStackListFrames destructor.
 // Type:    Overrideable.
 // Args:    None.
@@ -297,7 +276,6 @@ CMICmdCmdStackListFrames::~CMICmdCmdStackListFrames() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The parses the command line
 // options
 //          arguments to extract values for each of those arguments.
@@ -314,7 +292,6 @@ bool CMICmdCmdStackListFrames::ParseArgs() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The command does work in this
 // function.
 //          The command is likely to communicate with the LLDB SBDebugger in
@@ -383,7 +360,6 @@ bool CMICmdCmdStackListFrames::Execute() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The command prepares a MI Record
 // Result
 //          for the work carried out in the Execute().
@@ -439,7 +415,6 @@ bool CMICmdCmdStackListFrames::Acknowledge() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Required by the CMICmdFactory when registering *this command. The
 // factory
 //          calls this function to create an instance of *this command.
@@ -452,12 +427,8 @@ CMICmdBase *CMICmdCmdStackListFrames::CreateSelf() {
   return new CMICmdCmdStackListFrames();
 }
 
-//---------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdCmdStackListArguments constructor.
 // Type:    Method.
 // Args:    None.
@@ -476,7 +447,6 @@ CMICmdCmdStackListArguments::CMICmdCmdStackListArguments()
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdCmdStackListArguments destructor.
 // Type:    Overrideable.
 // Args:    None.
@@ -486,7 +456,6 @@ CMICmdCmdStackListArguments::CMICmdCmdStackListArguments()
 CMICmdCmdStackListArguments::~CMICmdCmdStackListArguments() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The parses the command line
 // options
 //          arguments to extract values for each of those arguments.
@@ -505,7 +474,6 @@ bool CMICmdCmdStackListArguments::ParseArgs() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The command does work in this
 // function.
 //          The command is likely to communicate with the LLDB SBDebugger in
@@ -599,7 +567,6 @@ bool CMICmdCmdStackListArguments::Execute() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The command prepares a MI Record
 // Result
 //          for the work carried out in the Execute().
@@ -633,7 +600,6 @@ bool CMICmdCmdStackListArguments::Acknowledge() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Required by the CMICmdFactory when registering *this command. The
 // factory
 //          calls this function to create an instance of *this command.
@@ -646,12 +612,8 @@ CMICmdBase *CMICmdCmdStackListArguments::CreateSelf() {
   return new CMICmdCmdStackListArguments();
 }
 
-//---------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdCmdStackListLocals constructor.
 // Type:    Method.
 // Args:    None.
@@ -669,7 +631,6 @@ CMICmdCmdStackListLocals::CMICmdCmdStackListLocals()
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdCmdStackListLocals destructor.
 // Type:    Overrideable.
 // Args:    None.
@@ -679,7 +640,6 @@ CMICmdCmdStackListLocals::CMICmdCmdStackListLocals()
 CMICmdCmdStackListLocals::~CMICmdCmdStackListLocals() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The parses the command line
 // options
 //          arguments to extract values for each of those arguments.
@@ -696,7 +656,6 @@ bool CMICmdCmdStackListLocals::ParseArgs() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The command does work in this
 // function.
 //          The command is likely to communicate with the LLDB SBDebugger in
@@ -771,7 +730,6 @@ bool CMICmdCmdStackListLocals::Execute() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The command prepares a MI Record
 // Result
 //          for the work carried out in the Execute().
@@ -804,7 +762,6 @@ bool CMICmdCmdStackListLocals::Acknowledge() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Required by the CMICmdFactory when registering *this command. The
 // factory
 //          calls this function to create an instance of *this command.
@@ -817,12 +774,8 @@ CMICmdBase *CMICmdCmdStackListLocals::CreateSelf() {
   return new CMICmdCmdStackListLocals();
 }
 
-//---------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdCmdStackListVariables constructor.
 // Type:    Method.
 // Args:    None.
@@ -840,7 +793,6 @@ CMICmdCmdStackListVariables::CMICmdCmdStackListVariables()
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdCmdStackListVariables destructor.
 // Type:    Overrideable.
 // Args:    None.
@@ -850,7 +802,6 @@ CMICmdCmdStackListVariables::CMICmdCmdStackListVariables()
 CMICmdCmdStackListVariables::~CMICmdCmdStackListVariables() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The parses the command line
 // options
 //          arguments to extract values for each of those arguments.
@@ -867,7 +818,6 @@ bool CMICmdCmdStackListVariables::ParseArgs() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The command does work in this
 // function.
 //          The command is likely to communicate with the LLDB SBDebugger in
@@ -943,7 +893,6 @@ bool CMICmdCmdStackListVariables::Execute() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The command prepares a MI Record
 // Result
 //          for the work carried out in the Execute().
@@ -976,7 +925,6 @@ bool CMICmdCmdStackListVariables::Acknowledge() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Required by the CMICmdFactory when registering *this command. The
 // factory
 //          calls this function to create an instance of *this command.
@@ -989,12 +937,8 @@ CMICmdBase *CMICmdCmdStackListVariables::CreateSelf() {
   return new CMICmdCmdStackListVariables();
 }
 
-//---------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdCmdStackSelectFrame constructor.
 // Type:    Method.
 // Args:    None.
@@ -1011,7 +955,6 @@ CMICmdCmdStackSelectFrame::CMICmdCmdStackSelectFrame()
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdCmdStackSelectFrame destructor.
 // Type:    Overrideable.
 // Args:    None.
@@ -1021,7 +964,6 @@ CMICmdCmdStackSelectFrame::CMICmdCmdStackSelectFrame()
 CMICmdCmdStackSelectFrame::~CMICmdCmdStackSelectFrame() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The parses the command line
 // options
 //          arguments to extract values for each of those arguments.
@@ -1037,7 +979,6 @@ bool CMICmdCmdStackSelectFrame::ParseArgs() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The command does work in this
 // function.
 //          The command is likely to communicate with the LLDB SBDebugger in
@@ -1067,7 +1008,6 @@ bool CMICmdCmdStackSelectFrame::Execute() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The command prepares a MI Record
 // Result
 //          for the work carried out in the Execute().
@@ -1100,7 +1040,6 @@ bool CMICmdCmdStackSelectFrame::Acknowledge() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Required by the CMICmdFactory when registering *this command. The
 // factory
 //          calls this function to create an instance of *this command.

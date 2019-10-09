@@ -1,9 +1,8 @@
 //===-- lldb-platform.cpp ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -40,9 +39,7 @@ using namespace lldb_private::lldb_server;
 using namespace lldb_private::process_gdb_remote;
 using namespace llvm;
 
-//----------------------------------------------------------------------
 // option descriptors for getopt_long_only()
-//----------------------------------------------------------------------
 
 static int g_debug = 0;
 static int g_verbose = 0;
@@ -51,16 +48,16 @@ static int g_server = 0;
 static struct option g_long_options[] = {
     {"debug", no_argument, &g_debug, 1},
     {"verbose", no_argument, &g_verbose, 1},
-    {"log-file", required_argument, NULL, 'l'},
-    {"log-channels", required_argument, NULL, 'c'},
-    {"listen", required_argument, NULL, 'L'},
-    {"port-offset", required_argument, NULL, 'p'},
-    {"gdbserver-port", required_argument, NULL, 'P'},
-    {"min-gdbserver-port", required_argument, NULL, 'm'},
-    {"max-gdbserver-port", required_argument, NULL, 'M'},
-    {"socket-file", required_argument, NULL, 'f'},
+    {"log-file", required_argument, nullptr, 'l'},
+    {"log-channels", required_argument, nullptr, 'c'},
+    {"listen", required_argument, nullptr, 'L'},
+    {"port-offset", required_argument, nullptr, 'p'},
+    {"gdbserver-port", required_argument, nullptr, 'P'},
+    {"min-gdbserver-port", required_argument, nullptr, 'm'},
+    {"max-gdbserver-port", required_argument, nullptr, 'M'},
+    {"socket-file", required_argument, nullptr, 'f'},
     {"server", no_argument, &g_server, 1},
-    {NULL, 0, NULL, 0}};
+    {nullptr, 0, nullptr, 0}};
 
 #if defined(__APPLE__)
 #define LOW_PORT (IPPORT_RESERVED)
@@ -70,9 +67,7 @@ static struct option g_long_options[] = {
 #define HIGH_PORT (49151u)
 #endif
 
-//----------------------------------------------------------------------
 // Watch for signals
-//----------------------------------------------------------------------
 static void signal_handler(int signo) {
   switch (signo) {
   case SIGHUP:
@@ -130,9 +125,7 @@ static Status save_socket_id_to_file(const std::string &socket_id,
   return Status();
 }
 
-//----------------------------------------------------------------------
 // main
-//----------------------------------------------------------------------
 int main_platform(int argc, char *argv[]) {
   const char *progname = argv[0];
   const char *subcommand = argv[1];
@@ -242,11 +235,11 @@ int main_platform(int argc, char *argv[]) {
     return -1;
 
   // Make a port map for a port range that was specified.
-  if (min_gdbserver_port < max_gdbserver_port) {
+  if (min_gdbserver_port && min_gdbserver_port < max_gdbserver_port) {
     for (uint16_t port = min_gdbserver_port; port < max_gdbserver_port; ++port)
       gdbserver_portmap[port] = LLDB_INVALID_PROCESS_ID;
-  } else if (min_gdbserver_port != max_gdbserver_port) {
-    fprintf(stderr, "error: --min-gdbserver-port (%u) is greater than "
+  } else if (min_gdbserver_port || max_gdbserver_port) {
+    fprintf(stderr, "error: --min-gdbserver-port (%u) is not lower than "
                     "--max-gdbserver-port (%u)\n",
             min_gdbserver_port, max_gdbserver_port);
     option_error = 3;

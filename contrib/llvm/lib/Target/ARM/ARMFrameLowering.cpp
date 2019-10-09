@@ -1,9 +1,8 @@
 //===- ARMFrameLowering.cpp - ARM Frame Information -----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -30,6 +29,7 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
@@ -344,6 +344,10 @@ static void emitAligningInstructions(MachineFunction &MF, ARMFunctionInfo *AFI,
 /// as assignCalleeSavedSpillSlots() hasn't run at this point. Instead we use
 /// this to produce a conservative estimate that we check in an assert() later.
 static int getMaxFPOffset(const Function &F, const ARMFunctionInfo &AFI) {
+  // For Thumb1, push.w isn't available, so the first push will always push
+  // r7 and lr onto the stack first.
+  if (AFI.isThumb1OnlyFunction())
+    return -AFI.getArgRegsSaveSize() - (2 * 4);
   // This is a conservative estimation: Assume the frame pointer being r7 and
   // pc("r15") up to r8 getting spilled before (= 8 registers).
   return -AFI.getArgRegsSaveSize() - (8 * 4);
@@ -954,8 +958,12 @@ ARMFrameLowering::ResolveFrameIndexReference(const MachineFunction &MF,
     }
   }
   // Use the base pointer if we have one.
-  if (RegInfo->hasBasePointer(MF))
+  // FIXME: Maybe prefer sp on Thumb1 if it's legal and the offset is cheaper?
+  // That can happen if we forced a base pointer for a large call frame.
+  if (RegInfo->hasBasePointer(MF)) {
     FrameReg = RegInfo->getBaseRegister();
+    Offset -= SPAdj;
+  }
   return Offset;
 }
 
@@ -1476,13 +1484,17 @@ bool ARMFrameLowering::restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
 }
 
 // FIXME: Make generic?
-static unsigned GetFunctionSizeInBytes(const MachineFunction &MF,
-                                       const ARMBaseInstrInfo &TII) {
+static unsigned EstimateFunctionSizeInBytes(const MachineFunction &MF,
+                                            const ARMBaseInstrInfo &TII) {
   unsigned FnSize = 0;
   for (auto &MBB : MF) {
     for (auto &MI : MBB)
       FnSize += TII.getInstSizeInBytes(MI);
   }
+  if (MF.getJumpTableInfo())
+    for (auto &Table: MF.getJumpTableInfo()->getJumpTables())
+      FnSize += Table.MBBs.size() * 4;
+  FnSize += MF.getConstantPool()->getConstants().size() * 4;
   return FnSize;
 }
 
@@ -1726,7 +1738,7 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
 
   bool ForceLRSpill = false;
   if (!LRSpilled && AFI->isThumb1OnlyFunction()) {
-    unsigned FnSize = GetFunctionSizeInBytes(MF, TII);
+    unsigned FnSize = EstimateFunctionSizeInBytes(MF, TII);
     // Force LR to be spilled if the Thumb function size is > 2048. This enables
     // use of BL to implement far jump. If it turns out that it's not needed
     // then the branch fix up path will undo it.
@@ -1771,13 +1783,59 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
   }
   EstimatedStackSize += 16; // For possible paddings.
 
-  unsigned EstimatedRSStackSizeLimit = estimateRSStackSizeLimit(MF, this);
+  unsigned EstimatedRSStackSizeLimit, EstimatedRSFixedSizeLimit;
+  if (AFI->isThumb1OnlyFunction()) {
+    // For Thumb1, don't bother to iterate over the function. The only
+    // instruction that requires an emergency spill slot is a store to a
+    // frame index.
+    //
+    // tSTRspi, which is used for sp-relative accesses, has an 8-bit unsigned
+    // immediate. tSTRi, which is used for bp- and fp-relative accesses, has
+    // a 5-bit unsigned immediate.
+    //
+    // We could try to check if the function actually contains a tSTRspi
+    // that might need the spill slot, but it's not really important.
+    // Functions with VLAs or extremely large call frames are rare, and
+    // if a function is allocating more than 1KB of stack, an extra 4-byte
+    // slot probably isn't relevant.
+    if (RegInfo->hasBasePointer(MF))
+      EstimatedRSStackSizeLimit = (1U << 5) * 4;
+    else
+      EstimatedRSStackSizeLimit = (1U << 8) * 4;
+    EstimatedRSFixedSizeLimit = (1U << 5) * 4;
+  } else {
+    EstimatedRSStackSizeLimit = estimateRSStackSizeLimit(MF, this);
+    EstimatedRSFixedSizeLimit = EstimatedRSStackSizeLimit;
+  }
+  // Final estimate of whether sp or bp-relative accesses might require
+  // scavenging.
+  bool HasLargeStack = EstimatedStackSize > EstimatedRSStackSizeLimit;
+
+  // If the stack pointer moves and we don't have a base pointer, the
+  // estimate logic doesn't work. The actual offsets might be larger when
+  // we're constructing a call frame, or we might need to use negative
+  // offsets from fp.
+  bool HasMovingSP = MFI.hasVarSizedObjects() ||
+    (MFI.adjustsStack() && !canSimplifyCallFramePseudos(MF));
+  bool HasBPOrFixedSP = RegInfo->hasBasePointer(MF) || !HasMovingSP;
+
+  // If we have a frame pointer, we assume arguments will be accessed
+  // relative to the frame pointer. Check whether fp-relative accesses to
+  // arguments require scavenging.
+  //
+  // We could do slightly better on Thumb1; in some cases, an sp-relative
+  // offset would be legal even though an fp-relative offset is not.
   int MaxFPOffset = getMaxFPOffset(MF.getFunction(), *AFI);
-  bool BigFrameOffsets = EstimatedStackSize >= EstimatedRSStackSizeLimit ||
-    MFI.hasVarSizedObjects() ||
-    (MFI.adjustsStack() && !canSimplifyCallFramePseudos(MF)) ||
-    // For large argument stacks fp relative addressed may overflow.
-    (HasFP && (MaxFixedOffset - MaxFPOffset) >= (int)EstimatedRSStackSizeLimit);
+  bool HasLargeArgumentList =
+      HasFP && (MaxFixedOffset - MaxFPOffset) > (int)EstimatedRSFixedSizeLimit;
+
+  bool BigFrameOffsets = HasLargeStack || !HasBPOrFixedSP ||
+                         HasLargeArgumentList;
+  LLVM_DEBUG(dbgs() << "EstimatedLimit: " << EstimatedRSStackSizeLimit
+                    << "; EstimatedStack" << EstimatedStackSize
+                    << "; EstimatedFPStack" << MaxFixedOffset - MaxFPOffset
+                    << "; BigFrameOffsets: " << BigFrameOffsets
+                    << "\n");
   if (BigFrameOffsets ||
       !CanEliminateFrame || RegInfo->cannotEliminateFrame(MF)) {
     AFI->setHasStackFrame(true);
@@ -1802,8 +1860,17 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
         CS1Spilled = true;
     }
 
-    // This is true when we inserted a spill for an unused register that can now
-    // be used for register scavenging.
+    // This is true when we inserted a spill for a callee-save GPR which is
+    // not otherwise used by the function. This guaranteees it is possible
+    // to scavenge a register to hold the address of a stack slot. On Thumb1,
+    // the register must be a valid operand to tSTRi, i.e. r4-r7. For other
+    // subtargets, this is any GPR, i.e. r4-r11 or lr.
+    //
+    // If we don't insert a spill, we instead allocate an emergency spill
+    // slot, which can be used by scavenging to spill an arbitrary register.
+    //
+    // We currently don't try to figure out whether any specific instruction
+    // requires scavening an additional register.
     bool ExtraCSSpill = false;
 
     if (AFI->isThumb1OnlyFunction()) {
@@ -1912,7 +1979,7 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
         NumGPRSpills++;
         CS1Spilled = true;
         assert(!MRI.isReserved(Reg) && "Should not be reserved");
-        if (!MRI.isPhysRegUsed(Reg))
+        if (Reg != ARM::LR && !MRI.isPhysRegUsed(Reg))
           ExtraCSSpill = true;
         UnspilledCS1GPRs.erase(llvm::find(UnspilledCS1GPRs, Reg));
         if (Reg == ARM::LR)
@@ -1937,7 +2004,8 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
         UnspilledCS1GPRs.erase(LRPos);
 
       ForceLRSpill = false;
-      if (!MRI.isReserved(ARM::LR) && !MRI.isPhysRegUsed(ARM::LR))
+      if (!MRI.isReserved(ARM::LR) && !MRI.isPhysRegUsed(ARM::LR) &&
+          !AFI->isThumb1OnlyFunction())
         ExtraCSSpill = true;
     }
 
@@ -1959,7 +2027,8 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
             SavedRegs.set(Reg);
             LLVM_DEBUG(dbgs() << "Spilling " << printReg(Reg, TRI)
                               << " to make up alignment\n");
-            if (!MRI.isReserved(Reg) && !MRI.isPhysRegUsed(Reg))
+            if (!MRI.isReserved(Reg) && !MRI.isPhysRegUsed(Reg) &&
+                !(Reg == ARM::LR && AFI->isThumb1OnlyFunction()))
               ExtraCSSpill = true;
             break;
           }
@@ -1988,8 +2057,7 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
         unsigned Reg = UnspilledCS1GPRs.back();
         UnspilledCS1GPRs.pop_back();
         if (!MRI.isReserved(Reg) &&
-            (!AFI->isThumb1OnlyFunction() || isARMLowRegister(Reg) ||
-             Reg == ARM::LR)) {
+            (!AFI->isThumb1OnlyFunction() || isARMLowRegister(Reg))) {
           Extras.push_back(Reg);
           NumExtras--;
         }
@@ -2012,10 +2080,10 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
             ExtraCSSpill = true;
         }
       }
-      if (!ExtraCSSpill && !AFI->isThumb1OnlyFunction()) {
-        // note: Thumb1 functions spill to R12, not the stack.  Reserve a slot
-        // closest to SP or frame pointer.
+      if (!ExtraCSSpill) {
+        // Reserve a slot closest to SP or frame pointer.
         assert(RS && "Register scavenging not provided");
+        LLVM_DEBUG(dbgs() << "Reserving emergency spill slot\n");
         const TargetRegisterClass &RC = ARM::GPRRegClass;
         unsigned Size = TRI->getSpillSize(RC);
         unsigned Align = TRI->getSpillAlignment(RC);
@@ -2028,6 +2096,7 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
     SavedRegs.set(ARM::LR);
     AFI->setLRIsSpilledForFarJump(true);
   }
+  AFI->setLRIsSpilled(SavedRegs.test(ARM::LR));
 }
 
 MachineBasicBlock::iterator ARMFrameLowering::eliminateCallFramePseudoInstr(

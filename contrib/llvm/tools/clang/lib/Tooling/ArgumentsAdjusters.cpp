@@ -1,9 +1,8 @@
 //===- ArgumentsAdjusters.cpp - Command line arguments adjuster -----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -24,14 +23,18 @@ namespace tooling {
 ArgumentsAdjuster getClangSyntaxOnlyAdjuster() {
   return [](const CommandLineArguments &Args, StringRef /*unused*/) {
     CommandLineArguments AdjustedArgs;
+    bool HasSyntaxOnly = false;
     for (size_t i = 0, e = Args.size(); i < e; ++i) {
       StringRef Arg = Args[i];
       // FIXME: Remove options that generate output.
       if (!Arg.startswith("-fcolor-diagnostics") &&
           !Arg.startswith("-fdiagnostics-color"))
         AdjustedArgs.push_back(Args[i]);
+      if (Arg == "-fsyntax-only")
+        HasSyntaxOnly = true;
     }
-    AdjustedArgs.push_back("-fsyntax-only");
+    if (!HasSyntaxOnly)
+      AdjustedArgs.push_back("-fsyntax-only");
     return AdjustedArgs;
   };
 }

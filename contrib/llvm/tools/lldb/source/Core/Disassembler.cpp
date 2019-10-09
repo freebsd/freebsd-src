@@ -1,9 +1,8 @@
 //===-- Disassembler.cpp ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -162,7 +161,7 @@ size_t Disassembler::Disassemble(Debugger &debugger, const ArchSpec &arch,
 bool Disassembler::Disassemble(Debugger &debugger, const ArchSpec &arch,
                                const char *plugin_name, const char *flavor,
                                const ExecutionContext &exe_ctx,
-                               const ConstString &name, Module *module,
+                               ConstString name, Module *module,
                                uint32_t num_instructions,
                                bool mixed_source_and_assembly,
                                uint32_t num_mixed_context_lines,
@@ -742,11 +741,11 @@ void Instruction::Dump(lldb_private::Stream *s, uint32_t max_opcode_byte_size,
 }
 
 bool Instruction::DumpEmulation(const ArchSpec &arch) {
-  std::unique_ptr<EmulateInstruction> insn_emulator_ap(
+  std::unique_ptr<EmulateInstruction> insn_emulator_up(
       EmulateInstruction::FindPlugin(arch, eInstructionTypeAny, nullptr));
-  if (insn_emulator_ap) {
-    insn_emulator_ap->SetInstruction(GetOpcode(), GetAddress(), nullptr);
-    return insn_emulator_ap->EvaluateInstruction(0);
+  if (insn_emulator_up) {
+    insn_emulator_up->SetInstruction(GetOpcode(), GetAddress(), nullptr);
+    return insn_emulator_up->EvaluateInstruction(0);
   }
 
   return false;
@@ -993,11 +992,11 @@ bool Instruction::TestEmulation(Stream *out_stream, const char *file_name) {
   arch.SetTriple(llvm::Triple(value_sp->GetStringValue()));
 
   bool success = false;
-  std::unique_ptr<EmulateInstruction> insn_emulator_ap(
+  std::unique_ptr<EmulateInstruction> insn_emulator_up(
       EmulateInstruction::FindPlugin(arch, eInstructionTypeAny, nullptr));
-  if (insn_emulator_ap)
+  if (insn_emulator_up)
     success =
-        insn_emulator_ap->TestEmulation(out_stream, arch, data_dictionary);
+        insn_emulator_up->TestEmulation(out_stream, arch, data_dictionary);
 
   if (success)
     out_stream->Printf("Emulation test succeeded.");
@@ -1013,14 +1012,14 @@ bool Instruction::Emulate(
     EmulateInstruction::WriteMemoryCallback write_mem_callback,
     EmulateInstruction::ReadRegisterCallback read_reg_callback,
     EmulateInstruction::WriteRegisterCallback write_reg_callback) {
-  std::unique_ptr<EmulateInstruction> insn_emulator_ap(
+  std::unique_ptr<EmulateInstruction> insn_emulator_up(
       EmulateInstruction::FindPlugin(arch, eInstructionTypeAny, nullptr));
-  if (insn_emulator_ap) {
-    insn_emulator_ap->SetBaton(baton);
-    insn_emulator_ap->SetCallbacks(read_mem_callback, write_mem_callback,
+  if (insn_emulator_up) {
+    insn_emulator_up->SetBaton(baton);
+    insn_emulator_up->SetCallbacks(read_mem_callback, write_mem_callback,
                                    read_reg_callback, write_reg_callback);
-    insn_emulator_ap->SetInstruction(GetOpcode(), GetAddress(), nullptr);
-    return insn_emulator_ap->EvaluateInstruction(evaluate_options);
+    insn_emulator_up->SetInstruction(GetOpcode(), GetAddress(), nullptr);
+    return insn_emulator_up->EvaluateInstruction(evaluate_options);
   }
 
   return false;
@@ -1088,13 +1087,16 @@ void InstructionList::Append(lldb::InstructionSP &inst_sp) {
 
 uint32_t
 InstructionList::GetIndexOfNextBranchInstruction(uint32_t start,
-                                                 Target &target) const {
+                                                 Target &target,
+                                                 bool ignore_calls) const {
   size_t num_instructions = m_instructions.size();
 
   uint32_t next_branch = UINT32_MAX;
   size_t i;
   for (i = start; i < num_instructions; i++) {
     if (m_instructions[i]->DoesBranch()) {
+      if (ignore_calls && m_instructions[i]->IsCall())
+        continue;
       next_branch = i;
       break;
     }
@@ -1238,9 +1240,7 @@ size_t Disassembler::ParseInstructions(const ExecutionContext *exe_ctx,
   return m_instruction_list.GetSize();
 }
 
-//----------------------------------------------------------------------
 // Disassembler copy constructor
-//----------------------------------------------------------------------
 Disassembler::Disassembler(const ArchSpec &arch, const char *flavor)
     : m_arch(arch), m_instruction_list(), m_base_addr(LLDB_INVALID_ADDRESS),
       m_flavor() {
@@ -1272,9 +1272,7 @@ const InstructionList &Disassembler::GetInstructionList() const {
   return m_instruction_list;
 }
 
-//----------------------------------------------------------------------
 // Class PseudoInstruction
-//----------------------------------------------------------------------
 
 PseudoInstruction::PseudoInstruction()
     : Instruction(Address(), AddressClass::eUnknown), m_description() {}

@@ -1,9 +1,8 @@
 //===-- MICmnLLDBDebuggerHandleEvents.cpp -----------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -44,7 +43,6 @@
 #include <algorithm>
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnLLDBDebuggerHandleEvents constructor.
 // Type:    Method.
 // Args:    None.
@@ -54,7 +52,6 @@
 CMICmnLLDBDebuggerHandleEvents::CMICmnLLDBDebuggerHandleEvents() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnLLDBDebuggerHandleEvents destructor.
 // Type:    Overridable.
 // Args:    None.
@@ -66,7 +63,6 @@ CMICmnLLDBDebuggerHandleEvents::~CMICmnLLDBDebuggerHandleEvents() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Initialize resources for *this broadcaster object.
 // Type:    Method.
 // Args:    None.
@@ -91,7 +87,6 @@ bool CMICmnLLDBDebuggerHandleEvents::Initialize() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Release resources for *this broadcaster object.
 // Type:    Method.
 // Args:    None.
@@ -112,7 +107,6 @@ bool CMICmnLLDBDebuggerHandleEvents::Shutdown() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Interpret the event object to ascertain the action to take or
 // information to
 //          to form and put in a MI Out-of-band record object which is given to
@@ -151,7 +145,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleEvent(const lldb::SBEvent &vEvent,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Handle a LLDB SBProcess event.
 // Type:    Method.
 // Args:    vEvent          - (R) An LLDB broadcast event.
@@ -202,7 +195,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleEventSBProcess(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Handle a LLDB SBBreakpoint event.
 // Type:    Method.
 // Args:    vEvent  - (R) An LLDB broadcast event.
@@ -275,7 +267,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleEventSBBreakPoint(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Handle a LLDB SBBreakpoint event.
 // Type:    Method.
 // Args:    vEvent  - (R) An LLDB broadcast event.
@@ -300,7 +291,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleEventSBBreakpointLocationsAdded(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Handle a LLDB SBBreakpoint event.
 // Type:    Method.
 // Args:    vEvent  - (R) An LLDB broadcast event.
@@ -369,7 +359,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleEventSBBreakpointCmn(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Handle a LLDB SBBreakpoint added event.
 //          Add more breakpoint information or overwrite existing information.
 //          Normally a break point session info objects exists by now when an MI
@@ -494,7 +483,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleEventSBBreakpointAdded(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Handle a LLDB SBThread event.
 // Type:    Method.
 // Args:    vEvent  - (R) An LLDB broadcast event.
@@ -543,7 +531,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleEventSBThread(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Handle a LLDB SBThread event.
 // Type:    Method.
 // Args:    vEvent  - (R) An LLDB broadcast event.
@@ -577,7 +564,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleEventSBThreadSuspended(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Handle a LLDB SBThread event.
 // Type:    Method.
 // Args:    vEvent  - (R) An LLDB broadcast event.
@@ -597,7 +583,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleEventSBThreadBitStackChanged(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Handle a LLDB SBTarget event.
 // Type:    Method.
 // Args:    vEvent  - (R) An LLDB broadcast event.
@@ -646,7 +631,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleEventSBTarget(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Print to stdout
 // "=library-loaded,id=\"%s\",target-name=\"%s\",host-name=\"%s\",symbols-loaded="%d"[,symbols-path=\"%s\"],loaded_addr=\"0x%016"
 // PRIx64"\""
@@ -676,7 +660,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleTargetEventBroadcastBitModulesLoaded(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Print to stdout
 // "=library-unloaded,id=\"%s\",target-name=\"%s\",host-name=\"%s\",symbols-loaded="%d"[,symbols-path=\"%s\"],loaded_addr=\"0x%016"
 // PRIx64"\""
@@ -706,7 +689,6 @@ bool CMICmnLLDBDebuggerHandleEvents::
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Build module information for =library-loaded/=library-unloaded:
 // "id=\"%s\",target-name=\"%s\",host-name=\"%s\",symbols-loaded="%d"[,symbols-path=\"%s\"],loaded_addr=\"0x%016"
 // PRIx64"\""
@@ -784,7 +766,6 @@ bool CMICmnLLDBDebuggerHandleEvents::MiHelpGetModuleInfo(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Handle a LLDB SBCommandInterpreter event.
 // Type:    Method.
 // Args:    vEvent  - (R) An LLDB command interpreter event.
@@ -843,7 +824,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleEventSBCommandInterpreter(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Handle SBProcess event eBroadcastBitStateChanged.
 // Type:    Method.
 // Args:    vEvent          - (R) An LLDB event object.
@@ -939,7 +919,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleProcessEventBroadcastBitStateChanged(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Asynchronous event handler for LLDB Process state suspended.
 // Type:    Method.
 // Args:    vEvent  - (R) An LLDB event object.
@@ -972,7 +951,7 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleProcessEventStateSuspended(
   } else {
     const MIuint nTargetIndex = rDebugger.GetIndexOfTarget(target);
     if (nTargetIndex != UINT_MAX)
-      streamOut.Printf("Target %d: (", nTargetIndex);
+      streamOut.Printf("Target %" PRIu64 ": (", (uint64_t)nTargetIndex);
     else
       streamOut.Printf("Target <unknown index>: (");
     target.GetDescription(streamOut, lldb::eDescriptionLevelBrief);
@@ -984,7 +963,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleProcessEventStateSuspended(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Print to stdout MI formatted text to indicate process stopped.
 // Type:    Method.
 // Args:    vwrbShouldBrk   - (W) True = Yes break, false = do not.
@@ -1053,7 +1031,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleProcessEventStateStopped(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Asynchronous event handler for LLDB Process stop signal.
 // Type:    Method.
 // Args:    vrEvent           - (R) An LLDB broadcast event.
@@ -1204,7 +1181,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleProcessEventStopSignal(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Asynchronous event handler for LLDB Process stop exception.
 // Type:    Method.
 // Args:    None.
@@ -1245,7 +1221,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleProcessEventStopException() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Form partial MI response in a MI value tuple object.
 // Type:    Method.
 // Args:    vwrMiValueTuple   - (W) MI value tuple object.
@@ -1296,7 +1271,6 @@ bool CMICmnLLDBDebuggerHandleEvents::MiHelpGetCurrentThreadFrame(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Asynchronous event handler for LLDB Process stop reason breakpoint.
 // Type:    Method.
 // Args:    None.
@@ -1326,7 +1300,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleProcessEventStopReasonBreakpoint() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Form the MI Out-of-band response for stopped reason on hitting a
 // break point.
 // Type:    Method.
@@ -1426,7 +1399,6 @@ bool CMICmnLLDBDebuggerHandleEvents::MiStoppedAtBreakPoint(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Asynchronous event handler for LLDB Process stop reason trace.
 // Type:    Method.
 // Args:    None.
@@ -1492,7 +1464,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleProcessEventStopReasonTrace() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Asynchronous function update selected thread.
 // Type:    Method.
 // Args:    None.
@@ -1565,7 +1536,6 @@ bool CMICmnLLDBDebuggerHandleEvents::UpdateSelectedThread() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Print to stdout "*running,thread-id=\"all\"", "(gdb)".
 // Type:    Method.
 // Args:    None.
@@ -1585,7 +1555,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleProcessEventStateRunning() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Print to stdout "=thread-exited,id=\"%ld\",group-id=\"i1\"",
 //                          "=thread-group-exited,id=\"i1\",exit-code=\"0\""),
 //                          "*stopped,reason=\"exited-normally\"",
@@ -1629,7 +1598,6 @@ bool CMICmnLLDBDebuggerHandleEvents::HandleProcessEventStateExited() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Drain all stdout so we don't see any output come after we print our
 // prompts.
 //          The process has stuff waiting for stdout; get it and write it out to
@@ -1685,7 +1653,6 @@ bool CMICmnLLDBDebuggerHandleEvents::GetProcessStdout() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Drain all stderr so we don't see any output come after we print our
 // prompts.
 //          The process has stuff waiting for stderr; get it and write it out to
@@ -1740,7 +1707,6 @@ bool CMICmnLLDBDebuggerHandleEvents::GetProcessStderr() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Asynchronous event function check for state changes.
 // Type:    Method.
 // Args:    None.
@@ -1836,7 +1802,6 @@ bool CMICmnLLDBDebuggerHandleEvents::ChkForStateChanges() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Take a fully formed MI result record and send to the stdout stream.
 //          Also output to the MI Log file.
 // Type:    Method.
@@ -1851,7 +1816,6 @@ bool CMICmnLLDBDebuggerHandleEvents::MiResultRecordToStdout(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Take a fully formed MI Out-of-band record and send to the stdout
 // stream.
 //          Also output to the MI Log file.
@@ -1867,7 +1831,6 @@ bool CMICmnLLDBDebuggerHandleEvents::MiOutOfBandRecordToStdout(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Take a text data and send to the stdout stream. Also output to the
 // MI Log
 //          file.
@@ -1882,7 +1845,6 @@ bool CMICmnLLDBDebuggerHandleEvents::TextToStdout(const CMIUtilString &vrTxt) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Take a text data and send to the stderr stream. Also output to the
 // MI Log
 //          file.
@@ -1897,7 +1859,6 @@ bool CMICmnLLDBDebuggerHandleEvents::TextToStderr(const CMIUtilString &vrTxt) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Initialize the member variables with the signal values in this
 // process
 //          file.

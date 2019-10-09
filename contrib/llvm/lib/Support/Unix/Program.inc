@@ -1,9 +1,8 @@
 //===- llvm/Support/Unix/Program.cpp -----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -246,12 +245,16 @@ static bool Execute(ProcessInfo &PI, StringRef Program,
       Envp = const_cast<const char **>(*_NSGetEnviron());
 #endif
 
-    // Explicitly initialized to prevent what appears to be a valgrind false
-    // positive.
-    pid_t PID = 0;
-    int Err = posix_spawn(&PID, Program.str().c_str(), FileActions,
-                          /*attrp*/ nullptr, const_cast<char **>(Argv),
-                          const_cast<char **>(Envp));
+    constexpr int maxRetries = 8;
+    int retries = 0;
+    pid_t PID;
+    int Err;
+    do {
+      PID = 0; // Make Valgrind happy.
+      Err = posix_spawn(&PID, Program.str().c_str(), FileActions,
+                        /*attrp*/ nullptr, const_cast<char **>(Argv),
+                        const_cast<char **>(Envp));
+    } while (Err == EINTR && ++retries < maxRetries);
 
     if (FileActions)
       posix_spawn_file_actions_destroy(FileActions);

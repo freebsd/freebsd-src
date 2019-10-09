@@ -46,7 +46,6 @@ SRCS+=		sanitizer_common/sanitizer_termination.cc
 SRCS+=		sanitizer_common/sanitizer_thread_registry.cc
 SRCS+=		sanitizer_common/sanitizer_tls_get_addr.cc
 SRCS+=		sanitizer_common/sanitizer_type_traits.cc
-SRCS+=		sanitizer_common/sanitizer_type_traits.cc
 SRCS+=		sanitizer_common/sanitizer_unwind_linux_libcdep.cc
 SRCS+=		ubsan/ubsan_diag.cc
 SRCS+=		ubsan/ubsan_diag_standalone.cc

@@ -1,14 +1,10 @@
 //===-- CommandObjectFrame.cpp ----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-
-#include <string>
-
 #include "CommandObjectFrame.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Module.h"
@@ -46,18 +42,17 @@
 #include "lldb/Utility/StreamString.h"
 #include "lldb/Utility/Timer.h"
 
+#include <memory>
+#include <string>
+
 using namespace lldb;
 using namespace lldb_private;
 
 #pragma mark CommandObjectFrameDiagnose
 
-//-------------------------------------------------------------------------
 // CommandObjectFrameInfo
-//-------------------------------------------------------------------------
 
-//-------------------------------------------------------------------------
 // CommandObjectFrameDiagnose
-//-------------------------------------------------------------------------
 
 static constexpr OptionDefinition g_frame_diag_options[] = {
     // clang-format off
@@ -217,9 +212,7 @@ protected:
 
 #pragma mark CommandObjectFrameInfo
 
-//-------------------------------------------------------------------------
 // CommandObjectFrameInfo
-//-------------------------------------------------------------------------
 
 class CommandObjectFrameInfo : public CommandObjectParsed {
 public:
@@ -243,9 +236,7 @@ protected:
 
 #pragma mark CommandObjectFrameSelect
 
-//-------------------------------------------------------------------------
 // CommandObjectFrameSelect
-//-------------------------------------------------------------------------
 
 static OptionDefinition g_frame_select_options[] = {
     // clang-format off
@@ -413,9 +404,7 @@ protected:
 };
 
 #pragma mark CommandObjectFrameVariable
-//----------------------------------------------------------------------
 // List images with associated information
-//----------------------------------------------------------------------
 class CommandObjectFrameVariable : public CommandObjectParsed {
 public:
   CommandObjectFrameVariable(CommandInterpreter &interpreter)
@@ -527,9 +516,9 @@ protected:
           ConstString(m_option_variable.summary.GetCurrentValue()),
           summary_format_sp);
     else if (!m_option_variable.summary_string.IsCurrentValueEmpty())
-      summary_format_sp.reset(new StringSummaryFormat(
+      summary_format_sp = std::make_shared<StringSummaryFormat>(
           TypeSummaryImpl::Flags(),
-          m_option_variable.summary_string.GetCurrentValue()));
+          m_option_variable.summary_string.GetCurrentValue());
 
     DumpValueObjectOptions options(m_varobj_options.GetAsDumpOptions(
         eLanguageRuntimeDescriptionDisplayVerbosityFull, eFormatDefault,
@@ -901,7 +890,7 @@ bool CommandObjectFrameRecognizerAdd::DoExecute(Args &command,
     return false;
   }
 
-  ScriptInterpreter *interpreter = m_interpreter.GetScriptInterpreter();
+  ScriptInterpreter *interpreter = GetDebugger().GetScriptInterpreter();
 
   if (interpreter &&
       !interpreter->CheckObjectExists(m_options.m_class_name.c_str())) {
@@ -1119,9 +1108,7 @@ class CommandObjectFrameRecognizer : public CommandObjectMultiword {
 
 #pragma mark CommandObjectMultiwordFrame
 
-//-------------------------------------------------------------------------
 // CommandObjectMultiwordFrame
-//-------------------------------------------------------------------------
 
 CommandObjectMultiwordFrame::CommandObjectMultiwordFrame(
     CommandInterpreter &interpreter)

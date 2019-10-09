@@ -1,9 +1,8 @@
 //===--- SyncScope.h - Atomic synchronization scopes ------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -96,7 +95,7 @@ class AtomicScopeOpenCLModel : public AtomicScopeModel {
 public:
   /// The enum values match the pre-defined macros
   /// __OPENCL_MEMORY_SCOPE_*, which are used to define memory_scope_*
-  /// enums in opencl-c.h.
+  /// enums in opencl-c-base.h.
   enum ID {
     WorkGroup = 1,
     Device = 2,

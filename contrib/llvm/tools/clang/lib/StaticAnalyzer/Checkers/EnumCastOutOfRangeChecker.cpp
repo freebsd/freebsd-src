@@ -1,9 +1,8 @@
 //===- EnumCastOutOfRangeChecker.cpp ---------------------------*- C++ -*--===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -92,6 +91,22 @@ void EnumCastOutOfRangeChecker::reportWarning(CheckerContext &C) const {
 
 void EnumCastOutOfRangeChecker::checkPreStmt(const CastExpr *CE,
                                              CheckerContext &C) const {
+
+  // Only perform enum range check on casts where such checks are valid.  For
+  // all other cast kinds (where enum range checks are unnecessary or invalid),
+  // just return immediately.  TODO: The set of casts whitelisted for enum
+  // range checking may be incomplete.  Better to add a missing cast kind to
+  // enable a missing check than to generate false negatives and have to remove
+  // those later.
+  switch (CE->getCastKind()) {
+  case CK_IntegralCast:
+    break;
+
+  default:
+    return;
+    break;
+  }
+
   // Get the value of the expression to cast.
   const llvm::Optional<DefinedOrUnknownSVal> ValueToCast =
       C.getSVal(CE->getSubExpr()).getAs<DefinedOrUnknownSVal>();
@@ -125,4 +140,8 @@ void EnumCastOutOfRangeChecker::checkPreStmt(const CastExpr *CE,
 
 void ento::registerEnumCastOutOfRangeChecker(CheckerManager &mgr) {
   mgr.registerChecker<EnumCastOutOfRangeChecker>();
+}
+
+bool ento::shouldRegisterEnumCastOutOfRangeChecker(const LangOptions &LO) {
+  return true;
 }

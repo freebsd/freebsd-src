@@ -1,9 +1,8 @@
 //===--- SystemZ.cpp - Implement SystemZ target feature support -----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -92,7 +91,8 @@ static constexpr ISANameRevision ISARevisions[] = {
   {{"arch9"}, 9}, {{"z196"}, 9},
   {{"arch10"}, 10}, {{"zEC12"}, 10},
   {{"arch11"}, 11}, {{"z13"}, 11},
-  {{"arch12"}, 12}, {{"z14"}, 12}
+  {{"arch12"}, 12}, {{"z14"}, 12},
+  {{"arch13"}, 13},
 };
 
 int SystemZTargetInfo::getISARevision(StringRef Name) const {
@@ -119,6 +119,7 @@ bool SystemZTargetInfo::hasFeature(StringRef Feature) const {
       .Case("arch10", ISARevision >= 10)
       .Case("arch11", ISARevision >= 11)
       .Case("arch12", ISARevision >= 12)
+      .Case("arch13", ISARevision >= 13)
       .Case("htm", HasTransactionalExecution)
       .Case("vx", HasVector)
       .Default(false);
@@ -143,7 +144,7 @@ void SystemZTargetInfo::getTargetDefines(const LangOptions &Opts,
   if (HasVector)
     Builder.defineMacro("__VX__");
   if (Opts.ZVector)
-    Builder.defineMacro("__VEC__", "10302");
+    Builder.defineMacro("__VEC__", "10303");
 }
 
 ArrayRef<Builtin::Info> SystemZTargetInfo::getTargetBuiltins() const {

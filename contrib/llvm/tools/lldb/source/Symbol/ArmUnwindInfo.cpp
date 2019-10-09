@@ -1,9 +1,8 @@
 //===-- ArmUnwindInfo.cpp ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -305,7 +304,7 @@ bool ArmUnwindInfo::GetUnwindPlan(Target &target, const Address &addr,
       // 11001yyy
       // Spare (yyy != 000, 001)
       return false;
-    } else if ((byte1 & 0xf8) == 0xc0) {
+    } else if ((byte1 & 0xf8) == 0xd0) {
       // 11010nnn
       // Pop VFP double-precision registers D[8]-D[8+nnn] saved (as if) by
       // FSTMFDD (see remark d)

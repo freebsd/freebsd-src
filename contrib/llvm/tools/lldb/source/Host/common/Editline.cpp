@@ -1,9 +1,8 @@
 //===-- Editline.cpp --------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -164,7 +163,7 @@ private:
   // Use static GetHistory() function to get a EditlineHistorySP to one of
   // these objects
   EditlineHistory(const std::string &prefix, uint32_t size, bool unique_entries)
-      : m_history(NULL), m_event(), m_prefix(prefix), m_path() {
+      : m_history(nullptr), m_event(), m_prefix(prefix), m_path() {
     m_history = history_winit();
     history_w(m_history, &m_event, H_SETSIZE, size);
     if (unique_entries)
@@ -172,23 +171,28 @@ private:
   }
 
   const char *GetHistoryFilePath() {
+    // Compute the history path lazily.
     if (m_path.empty() && m_history && !m_prefix.empty()) {
-      FileSpec parent_path("~/.lldb");
-      FileSystem::Instance().Resolve(parent_path);
-      char history_path[PATH_MAX];
-      if (!llvm::sys::fs::create_directory(parent_path.GetPath())) {
-        snprintf(history_path, sizeof(history_path), "~/.lldb/%s-history",
-                 m_prefix.c_str());
-      } else {
-        snprintf(history_path, sizeof(history_path), "~/%s-widehistory",
-                 m_prefix.c_str());
+      llvm::SmallString<128> lldb_history_file;
+      llvm::sys::path::home_directory(lldb_history_file);
+      llvm::sys::path::append(lldb_history_file, ".lldb");
+
+      // LLDB stores its history in ~/.lldb/. If for some reason this directory
+      // isn't writable or cannot be created, history won't be available.
+      if (!llvm::sys::fs::create_directory(lldb_history_file)) {
+#if LLDB_EDITLINE_USE_WCHAR
+        std::string filename = m_prefix + "-widehistory";
+#else
+        std::string filename = m_prefix + "-history";
+#endif
+        llvm::sys::path::append(lldb_history_file, filename);
+        m_path = lldb_history_file.str();
       }
-      auto file_spec = FileSpec(history_path);
-      FileSystem::Instance().Resolve(file_spec);
-      m_path = file_spec.GetPath();
     }
+
     if (m_path.empty())
-      return NULL;
+      return nullptr;
+
     return m_path.c_str();
   }
 
@@ -198,7 +202,7 @@ public:
 
     if (m_history) {
       history_wend(m_history);
-      m_history = NULL;
+      m_history = nullptr;
     }
   }
 
@@ -220,7 +224,7 @@ public:
     return history_sp;
   }
 
-  bool IsValid() const { return m_history != NULL; }
+  bool IsValid() const { return m_history != nullptr; }
 
   HistoryW *GetHistoryPtr() { return m_history; }
 
@@ -261,9 +265,7 @@ protected:
 }
 }
 
-//------------------------------------------------------------------
 // Editline private methods
-//------------------------------------------------------------------
 
 void Editline::SetBaseLineNumber(int line_number) {
   std::stringstream line_number_stream;
@@ -512,11 +514,13 @@ int Editline::GetCharacter(EditLineGetCharType *c) {
     // Read returns, immediately lock the mutex again and check if we were
     // interrupted.
     m_output_mutex.unlock();
-    int read_count = m_input_connection.Read(&ch, 1, llvm::None, status, NULL);
+    int read_count =
+        m_input_connection.Read(&ch, 1, llvm::None, status, nullptr);
     m_output_mutex.lock();
     if (m_editor_status == EditorStatus::Interrupted) {
       while (read_count > 0 && status == lldb::eConnectionStatusSuccess)
-        read_count = m_input_connection.Read(&ch, 1, llvm::None, status, NULL);
+        read_count =
+            m_input_connection.Read(&ch, 1, llvm::None, status, nullptr);
       lldbassert(status == lldb::eConnectionStatusInterrupted);
       return 0;
     }
@@ -857,10 +861,8 @@ unsigned char Editline::BufferEndCommand(int ch) {
   return CC_NEWLINE;
 }
 
-//------------------------------------------------------------------------------
 /// Prints completions and their descriptions to the given file. Only the
 /// completions in the interval [start, end) are printed.
-//------------------------------------------------------------------------------
 static void PrintCompletion(FILE *output_file, size_t start, size_t end,
                             StringList &completions, StringList &descriptions) {
   // This is an 'int' because of printf.
@@ -875,10 +877,11 @@ static void PrintCompletion(FILE *output_file, size_t start, size_t end,
     const char *completion_str = completions.GetStringAtIndex(i);
     const char *description_str = descriptions.GetStringAtIndex(i);
 
-    fprintf(output_file, "\n\t%-*s", max_len, completion_str);
+    if (completion_str)
+      fprintf(output_file, "\n\t%-*s", max_len, completion_str);
 
     // Print the description if we got one.
-    if (strlen(description_str))
+    if (description_str && strlen(description_str))
       fprintf(output_file, " -- %s", description_str);
   }
 }
@@ -977,7 +980,9 @@ void Editline::ConfigureEditor(bool multiline) {
   TerminalSizeChanged();
 
   if (m_history_sp && m_history_sp->IsValid()) {
-    m_history_sp->Load();
+    if (!m_history_sp->Load()) {
+        fputs("Could not load history file\n.", m_output_file);
+    }
     el_wset(m_editline, EL_HIST, history, m_history_sp->GetHistoryPtr());
   }
   el_set(m_editline, EL_CLIENTDATA, this);
@@ -1078,7 +1083,7 @@ void Editline::ConfigureEditor(bool multiline) {
 
   // Allow user-specific customization prior to registering bindings we
   // absolutely require
-  el_source(m_editline, NULL);
+  el_source(m_editline, nullptr);
 
   // Register an internal binding that external developers shouldn't use
   el_wset(m_editline, EL_ADDFN, EditLineConstString("lldb-revert-line"),
@@ -1145,9 +1150,7 @@ void Editline::ConfigureEditor(bool multiline) {
   }
 }
 
-//------------------------------------------------------------------
 // Editline public methods
-//------------------------------------------------------------------
 
 Editline *Editline::InstanceFor(EditLine *editline) {
   Editline *editor;
@@ -1222,9 +1225,13 @@ void Editline::TerminalSizeChanged() {
   if (m_editline != nullptr) {
     el_resize(m_editline);
     int columns;
-    // Despite the man page claiming non-zero indicates success, it's actually
-    // zero
-    if (el_get(m_editline, EL_GETTC, "co", &columns) == 0) {
+    // This function is documenting as taking (const char *, void *) for the
+    // vararg part, but in reality in was consuming arguments until the first
+    // null pointer. This was fixed in libedit in April 2019
+    // <http://mail-index.netbsd.org/source-changes/2019/04/26/msg105454.html>,
+    // but we're keeping the workaround until a version with that fix is more
+    // widely available.
+    if (el_get(m_editline, EL_GETTC, "co", &columns, nullptr) == 0) {
       m_terminal_width = columns;
       if (m_current_line_rows != -1) {
         const LineInfoW *info = el_wline(m_editline);

@@ -1,9 +1,8 @@
 //====-- UserSettingsController.cpp ------------------------------*- C++-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -95,7 +94,7 @@ Properties::Apropos(llvm::StringRef keyword,
 
 lldb::OptionValuePropertiesSP
 Properties::GetSubProperty(const ExecutionContext *exe_ctx,
-                           const ConstString &name) {
+                           ConstString name) {
   OptionValuePropertiesSP properties_sp(GetValueProperties());
   if (properties_sp)
     return properties_sp->GetSubProperty(exe_ctx, name);

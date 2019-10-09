@@ -1,9 +1,8 @@
 //==--- DiagnosticSerializationKinds.td - serialization diagnostics -------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -72,6 +71,10 @@ def note_module_file_imported_by : Note<
   "imported by %select{|module '%2' in }1'%0'">;
 def err_module_file_not_module : Error<
   "AST file '%0' was not built as a module">, DefaultFatal;
+
+def remark_module_import : Remark<
+  "importing module '%0'%select{| into '%3'}2 from '%1'">,
+  InGroup<ModuleImport>;
 
 def err_imported_module_not_found : Error<
     "module '%0' in AST file '%1' (imported by AST file '%2') "

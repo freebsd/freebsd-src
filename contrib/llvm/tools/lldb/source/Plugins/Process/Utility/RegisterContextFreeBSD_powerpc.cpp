@@ -1,9 +1,8 @@
 //===-- RegisterContextFreeBSD_powerpc.cpp ----------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===---------------------------------------------------------------------===//
 
@@ -169,10 +168,8 @@ typedef struct _VMX {
   uint32_t vscr;
 } VMX;
 
-//---------------------------------------------------------------------------
 // Include RegisterInfos_powerpc to declare our g_register_infos_powerpc
 // structure.
-//---------------------------------------------------------------------------
 #define DECLARE_REGISTER_INFOS_POWERPC_STRUCT
 #include "RegisterInfos_powerpc.h"
 #undef DECLARE_REGISTER_INFOS_POWERPC_STRUCT
@@ -191,7 +188,7 @@ size_t RegisterContextFreeBSD_powerpc::GetGPRSize() const {
 const RegisterInfo *RegisterContextFreeBSD_powerpc::GetRegisterInfo() const {
   // assert (m_target_arch.GetCore() == ArchSpec::eCore_powerpc);
   llvm_unreachable("Abstract class!");
-  return NULL;
+  return nullptr;
 }
 
 uint32_t RegisterContextFreeBSD_powerpc::GetRegisterCount() const { return 0; }

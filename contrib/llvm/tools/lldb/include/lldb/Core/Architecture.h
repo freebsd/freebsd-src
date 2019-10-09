@@ -1,9 +1,8 @@
 //===-- Architecture.h ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,9 +16,8 @@ namespace lldb_private {
 class Architecture : public PluginInterface {
 public:
   Architecture() = default;
-  virtual ~Architecture() = default;
+  ~Architecture() override = default;
 
-  //------------------------------------------------------------------
   /// This is currently intended to handle cases where a
   /// program stops at an instruction that won't get executed and it
   /// allows the stop reason, like "breakpoint hit", to be replaced
@@ -30,10 +28,8 @@ public:
   /// executed and therefore it wouldn't be correct to show the program
   /// stopped at the current PC. The code is generic and applies to all
   /// ARM CPUs.
-  //------------------------------------------------------------------
   virtual void OverrideStopInfo(Thread &thread) const = 0;
 
-  //------------------------------------------------------------------
   /// This method is used to get the number of bytes that should be
   /// skipped, from function start address, to reach the first
   /// instruction after the prologue. If overrode, it must return
@@ -49,12 +45,10 @@ public:
   /// be compared with current address, in order to find out the
   /// number of bytes that should be skipped, in case we are stopped
   /// at either function entry point.
-  //------------------------------------------------------------------
   virtual size_t GetBytesToSkip(Symbol &func, const Address &curr_addr) const {
     return 0;
   }
 
-  //------------------------------------------------------------------
   /// Adjust function breakpoint address, if needed. In some cases,
   /// the function start address is not the right place to set the
   /// breakpoint, specially in functions with multiple entry points.
@@ -63,12 +57,10 @@ public:
   /// both a global and a local entry point. In this case, the
   /// breakpoint is adjusted to the first function address reached
   /// by both entry points.
-  //------------------------------------------------------------------
   virtual void AdjustBreakpointAddress(const Symbol &func,
                                        Address &addr) const {}
 
 
-  //------------------------------------------------------------------
   /// Get \a load_addr as a callable code load address for this target
   ///
   /// Take \a load_addr and potentially add any address bits that are
@@ -78,13 +70,11 @@ public:
   /// adjustment will always happen. If it is set to an address class
   /// that doesn't have code in it, LLDB_INVALID_ADDRESS will be
   /// returned.
-  //------------------------------------------------------------------
   virtual lldb::addr_t GetCallableLoadAddress(
       lldb::addr_t addr, AddressClass addr_class = AddressClass::eInvalid) const {
     return addr;
   }
 
-  //------------------------------------------------------------------
   /// Get \a load_addr as an opcode for this target.
   ///
   /// Take \a load_addr and potentially strip any address bits that are
@@ -95,7 +85,6 @@ public:
   /// adjustment will always happen. If it is set to an address class
   /// that doesn't have code in it, LLDB_INVALID_ADDRESS will be
   /// returned.
-  //------------------------------------------------------------------
 
   virtual lldb::addr_t GetOpcodeLoadAddress(
       lldb::addr_t addr, AddressClass addr_class = AddressClass::eInvalid) const {

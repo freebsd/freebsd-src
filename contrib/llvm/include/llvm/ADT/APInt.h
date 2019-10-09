@@ -1,9 +1,8 @@
 //===-- llvm/ADT/APInt.h - For Arbitrary Precision Integer -----*- C++ -*--===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -2213,6 +2212,15 @@ Optional<APInt> SolveQuadraticEquationWrap(APInt A, APInt B, APInt C,
 // See friend declaration above. This additional declaration is required in
 // order to compile LLVM with IBM xlC compiler.
 hash_code hash_value(const APInt &Arg);
-} // End of llvm namespace
+
+/// StoreIntToMemory - Fills the StoreBytes bytes of memory starting from Dst
+/// with the integer held in IntVal.
+void StoreIntToMemory(const APInt &IntVal, uint8_t *Dst, unsigned StoreBytes);
+
+/// LoadIntFromMemory - Loads the integer stored in the LoadBytes bytes starting
+/// from Src into IntVal, which is assumed to be wide enough and to hold zero.
+void LoadIntFromMemory(APInt &IntVal, uint8_t *Src, unsigned LoadBytes);
+
+} // namespace llvm
 
 #endif

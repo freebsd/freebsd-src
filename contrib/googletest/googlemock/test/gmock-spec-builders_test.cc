@@ -107,7 +107,8 @@ using testing::internal::CaptureStdout;
 using testing::internal::GetCapturedStdout;
 #endif
 
-class Incomplete;
+class Incomplete {
+};
 
 class MockIncomplete {
  public:

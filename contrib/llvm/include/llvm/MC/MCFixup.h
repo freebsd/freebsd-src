@@ -1,9 +1,8 @@
 //===-- llvm/MC/MCFixup.h - Instruction Relocation and Patching -*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,7 +20,8 @@ class MCExpr;
 
 /// Extensible enumeration to represent the type of a fixup.
 enum MCFixupKind {
-  FK_Data_1 = 0, ///< A one-byte fixup.
+  FK_NONE = 0,   ///< A no-op fixup.
+  FK_Data_1,     ///< A one-byte fixup.
   FK_Data_2,     ///< A two-byte fixup.
   FK_Data_4,     ///< A four-byte fixup.
   FK_Data_8,     ///< A eight-byte fixup.

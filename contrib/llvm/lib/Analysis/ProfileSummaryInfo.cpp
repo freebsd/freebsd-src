@@ -1,9 +1,8 @@
 //===- ProfileSummaryInfo.cpp - Global profile summary information --------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -61,10 +60,9 @@ static cl::opt<int> ProfileSummaryColdCount(
 // Find the summary entry for a desired percentile of counts.
 static const ProfileSummaryEntry &getEntryForPercentile(SummaryEntryVector &DS,
                                                         uint64_t Percentile) {
-  auto Compare = [](const ProfileSummaryEntry &Entry, uint64_t Percentile) {
+  auto It = partition_point(DS, [=](const ProfileSummaryEntry &Entry) {
     return Entry.Cutoff < Percentile;
-  };
-  auto It = std::lower_bound(DS.begin(), DS.end(), Percentile, Compare);
+  });
   // The required percentile has to be <= one of the percentiles in the
   // detailed summary.
   if (It == DS.end())
@@ -80,7 +78,14 @@ static const ProfileSummaryEntry &getEntryForPercentile(SummaryEntryVector &DS,
 bool ProfileSummaryInfo::computeSummary() {
   if (Summary)
     return true;
-  auto *SummaryMD = M.getProfileSummary();
+  // First try to get context sensitive ProfileSummary.
+  auto *SummaryMD = M.getProfileSummary(/* IsCS */ true);
+  if (SummaryMD) {
+    Summary.reset(ProfileSummary::getFromMD(SummaryMD));
+    return true;
+  }
+  // This will actually return PSK_Instr or PSK_Sample summary.
+  SummaryMD = M.getProfileSummary(/* IsCS */ false);
   if (!SummaryMD)
     return false;
   Summary.reset(ProfileSummary::getFromMD(SummaryMD));
@@ -89,7 +94,8 @@ bool ProfileSummaryInfo::computeSummary() {
 
 Optional<uint64_t>
 ProfileSummaryInfo::getProfileCount(const Instruction *Inst,
-                                    BlockFrequencyInfo *BFI) {
+                                    BlockFrequencyInfo *BFI,
+                                    bool AllowSynthetic) {
   if (!Inst)
     return None;
   assert((isa<CallInst>(Inst) || isa<InvokeInst>(Inst)) &&
@@ -105,7 +111,7 @@ ProfileSummaryInfo::getProfileCount(const Instruction *Inst,
     return None;
   }
   if (BFI)
-    return BFI->getBlockProfileCount(Inst->getParent());
+    return BFI->getBlockProfileCount(Inst->getParent(), AllowSynthetic);
   return None;
 }
 

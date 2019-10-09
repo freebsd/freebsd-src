@@ -1,9 +1,8 @@
 //===-- Debug.h -------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,9 +15,7 @@
 
 namespace lldb_private {
 
-//------------------------------------------------------------------
 // Tells a thread what it needs to do when the process is resumed.
-//------------------------------------------------------------------
 struct ResumeAction {
   lldb::tid_t tid;       // The thread ID that this action applies to,
                          // LLDB_INVALID_THREAD_ID for the default thread
@@ -29,12 +26,10 @@ struct ResumeAction {
               // value is > 0
 };
 
-//------------------------------------------------------------------
 // A class that contains instructions for all threads for
 // NativeProcessProtocol::Resume(). Each thread can either run, stay suspended,
 // or step when the process is resumed. We optionally have the ability to also
 // send a signal to the thread when the action is run or step.
-//------------------------------------------------------------------
 class ResumeActionList {
 public:
   ResumeActionList() : m_actions(), m_signal_handled() {}

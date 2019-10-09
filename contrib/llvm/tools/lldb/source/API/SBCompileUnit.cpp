@@ -1,13 +1,13 @@
 //===-- SBCompileUnit.cpp ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/API/SBCompileUnit.h"
+#include "SBReproducerPrivate.h"
 #include "lldb/API/SBLineEntry.h"
 #include "lldb/API/SBStream.h"
 #include "lldb/Core/Module.h"
@@ -16,44 +16,58 @@
 #include "lldb/Symbol/LineTable.h"
 #include "lldb/Symbol/SymbolVendor.h"
 #include "lldb/Symbol/Type.h"
-#include "lldb/Utility/Log.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
-SBCompileUnit::SBCompileUnit() : m_opaque_ptr(NULL) {}
+SBCompileUnit::SBCompileUnit() : m_opaque_ptr(nullptr) {
+  LLDB_RECORD_CONSTRUCTOR_NO_ARGS(SBCompileUnit);
+}
 
 SBCompileUnit::SBCompileUnit(lldb_private::CompileUnit *lldb_object_ptr)
     : m_opaque_ptr(lldb_object_ptr) {}
 
 SBCompileUnit::SBCompileUnit(const SBCompileUnit &rhs)
-    : m_opaque_ptr(rhs.m_opaque_ptr) {}
-
-const SBCompileUnit &SBCompileUnit::operator=(const SBCompileUnit &rhs) {
-  m_opaque_ptr = rhs.m_opaque_ptr;
-  return *this;
+    : m_opaque_ptr(rhs.m_opaque_ptr) {
+  LLDB_RECORD_CONSTRUCTOR(SBCompileUnit, (const lldb::SBCompileUnit &), rhs);
 }
 
-SBCompileUnit::~SBCompileUnit() { m_opaque_ptr = NULL; }
+const SBCompileUnit &SBCompileUnit::operator=(const SBCompileUnit &rhs) {
+  LLDB_RECORD_METHOD(const lldb::SBCompileUnit &,
+                     SBCompileUnit, operator=,(const lldb::SBCompileUnit &),
+                     rhs);
+
+  m_opaque_ptr = rhs.m_opaque_ptr;
+  return LLDB_RECORD_RESULT(*this);
+}
+
+SBCompileUnit::~SBCompileUnit() { m_opaque_ptr = nullptr; }
 
 SBFileSpec SBCompileUnit::GetFileSpec() const {
+  LLDB_RECORD_METHOD_CONST_NO_ARGS(lldb::SBFileSpec, SBCompileUnit,
+                                   GetFileSpec);
+
   SBFileSpec file_spec;
   if (m_opaque_ptr)
     file_spec.SetFileSpec(*m_opaque_ptr);
-  return file_spec;
+  return LLDB_RECORD_RESULT(file_spec);
 }
 
 uint32_t SBCompileUnit::GetNumLineEntries() const {
+  LLDB_RECORD_METHOD_CONST_NO_ARGS(uint32_t, SBCompileUnit, GetNumLineEntries);
+
   if (m_opaque_ptr) {
     LineTable *line_table = m_opaque_ptr->GetLineTable();
-    if (line_table)
+    if (line_table) {
       return line_table->GetSize();
+    }
   }
   return 0;
 }
 
 SBLineEntry SBCompileUnit::GetLineEntryAtIndex(uint32_t idx) const {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_RECORD_METHOD_CONST(lldb::SBLineEntry, SBCompileUnit,
+                           GetLineEntryAtIndex, (uint32_t), idx);
 
   SBLineEntry sb_line_entry;
   if (m_opaque_ptr) {
@@ -65,20 +79,15 @@ SBLineEntry SBCompileUnit::GetLineEntryAtIndex(uint32_t idx) const {
     }
   }
 
-  if (log) {
-    SBStream sstr;
-    sb_line_entry.GetDescription(sstr);
-    log->Printf("SBCompileUnit(%p)::GetLineEntryAtIndex (idx=%u) => "
-                "SBLineEntry(%p): '%s'",
-                static_cast<void *>(m_opaque_ptr), idx,
-                static_cast<void *>(sb_line_entry.get()), sstr.GetData());
-  }
-
-  return sb_line_entry;
+  return LLDB_RECORD_RESULT(sb_line_entry);
 }
 
 uint32_t SBCompileUnit::FindLineEntryIndex(uint32_t start_idx, uint32_t line,
                                            SBFileSpec *inline_file_spec) const {
+  LLDB_RECORD_METHOD_CONST(uint32_t, SBCompileUnit, FindLineEntryIndex,
+                           (uint32_t, uint32_t, lldb::SBFileSpec *), start_idx,
+                           line, inline_file_spec);
+
   const bool exact = true;
   return FindLineEntryIndex(start_idx, line, inline_file_spec, exact);
 }
@@ -86,7 +95,9 @@ uint32_t SBCompileUnit::FindLineEntryIndex(uint32_t start_idx, uint32_t line,
 uint32_t SBCompileUnit::FindLineEntryIndex(uint32_t start_idx, uint32_t line,
                                            SBFileSpec *inline_file_spec,
                                            bool exact) const {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_RECORD_METHOD_CONST(uint32_t, SBCompileUnit, FindLineEntryIndex,
+                           (uint32_t, uint32_t, lldb::SBFileSpec *, bool),
+                           start_idx, line, inline_file_spec, exact);
 
   uint32_t index = UINT32_MAX;
   if (m_opaque_ptr) {
@@ -97,107 +108,103 @@ uint32_t SBCompileUnit::FindLineEntryIndex(uint32_t start_idx, uint32_t line,
       file_spec = *m_opaque_ptr;
 
     index = m_opaque_ptr->FindLineEntry(
-        start_idx, line, inline_file_spec ? inline_file_spec->get() : NULL,
-        exact, NULL);
-  }
-
-  if (log) {
-    SBStream sstr;
-    if (index == UINT32_MAX) {
-      log->Printf("SBCompileUnit(%p)::FindLineEntryIndex (start_idx=%u, "
-                  "line=%u, SBFileSpec(%p)) => NOT FOUND",
-                  static_cast<void *>(m_opaque_ptr), start_idx, line,
-                  inline_file_spec
-                      ? static_cast<const void *>(inline_file_spec->get())
-                      : NULL);
-    } else {
-      log->Printf("SBCompileUnit(%p)::FindLineEntryIndex (start_idx=%u, "
-                  "line=%u, SBFileSpec(%p)) => %u",
-                  static_cast<void *>(m_opaque_ptr), start_idx, line,
-                  inline_file_spec
-                      ? static_cast<const void *>(inline_file_spec->get())
-                      : NULL,
-                  index);
-    }
+        start_idx, line, inline_file_spec ? inline_file_spec->get() : nullptr,
+        exact, nullptr);
   }
 
   return index;
 }
 
 uint32_t SBCompileUnit::GetNumSupportFiles() const {
-  if (m_opaque_ptr) {
-    FileSpecList &support_files = m_opaque_ptr->GetSupportFiles();
-    return support_files.GetSize();
-  }
+  LLDB_RECORD_METHOD_CONST_NO_ARGS(uint32_t, SBCompileUnit, GetNumSupportFiles);
+
+  if (m_opaque_ptr)
+    return m_opaque_ptr->GetSupportFiles().GetSize();
+
   return 0;
 }
 
 lldb::SBTypeList SBCompileUnit::GetTypes(uint32_t type_mask) {
+  LLDB_RECORD_METHOD(lldb::SBTypeList, SBCompileUnit, GetTypes, (uint32_t),
+                     type_mask);
+
   SBTypeList sb_type_list;
 
   if (!m_opaque_ptr)
-    return sb_type_list;
+    return LLDB_RECORD_RESULT(sb_type_list);
 
   ModuleSP module_sp(m_opaque_ptr->GetModule());
   if (!module_sp)
-    return sb_type_list;
+    return LLDB_RECORD_RESULT(sb_type_list);
 
   SymbolVendor *vendor = module_sp->GetSymbolVendor();
   if (!vendor)
-    return sb_type_list;
+    return LLDB_RECORD_RESULT(sb_type_list);
 
   TypeClass type_class = static_cast<TypeClass>(type_mask);
   TypeList type_list;
   vendor->GetTypes(m_opaque_ptr, type_class, type_list);
-  sb_type_list.m_opaque_ap->Append(type_list);
-  return sb_type_list;
+  sb_type_list.m_opaque_up->Append(type_list);
+  return LLDB_RECORD_RESULT(sb_type_list);
 }
 
 SBFileSpec SBCompileUnit::GetSupportFileAtIndex(uint32_t idx) const {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_RECORD_METHOD_CONST(lldb::SBFileSpec, SBCompileUnit,
+                           GetSupportFileAtIndex, (uint32_t), idx);
 
   SBFileSpec sb_file_spec;
   if (m_opaque_ptr) {
-    FileSpecList &support_files = m_opaque_ptr->GetSupportFiles();
-    FileSpec file_spec = support_files.GetFileSpecAtIndex(idx);
-    sb_file_spec.SetFileSpec(file_spec);
+    FileSpec spec = m_opaque_ptr->GetSupportFiles().GetFileSpecAtIndex(idx);
+    sb_file_spec.SetFileSpec(spec);
   }
 
-  if (log) {
-    SBStream sstr;
-    sb_file_spec.GetDescription(sstr);
-    log->Printf("SBCompileUnit(%p)::GetGetFileSpecAtIndex (idx=%u) => "
-                "SBFileSpec(%p): '%s'",
-                static_cast<void *>(m_opaque_ptr), idx,
-                static_cast<const void *>(sb_file_spec.get()), sstr.GetData());
-  }
 
-  return sb_file_spec;
+  return LLDB_RECORD_RESULT(sb_file_spec);
 }
 
 uint32_t SBCompileUnit::FindSupportFileIndex(uint32_t start_idx,
                                              const SBFileSpec &sb_file,
                                              bool full) {
+  LLDB_RECORD_METHOD(uint32_t, SBCompileUnit, FindSupportFileIndex,
+                     (uint32_t, const lldb::SBFileSpec &, bool), start_idx,
+                     sb_file, full);
+
   if (m_opaque_ptr) {
-    FileSpecList &support_files = m_opaque_ptr->GetSupportFiles();
+    const FileSpecList &support_files = m_opaque_ptr->GetSupportFiles();
     return support_files.FindFileIndex(start_idx, sb_file.ref(), full);
   }
   return 0;
 }
 
 lldb::LanguageType SBCompileUnit::GetLanguage() {
+  LLDB_RECORD_METHOD_NO_ARGS(lldb::LanguageType, SBCompileUnit, GetLanguage);
+
   if (m_opaque_ptr)
     return m_opaque_ptr->GetLanguage();
   return lldb::eLanguageTypeUnknown;
 }
 
-bool SBCompileUnit::IsValid() const { return m_opaque_ptr != NULL; }
+bool SBCompileUnit::IsValid() const {
+  LLDB_RECORD_METHOD_CONST_NO_ARGS(bool, SBCompileUnit, IsValid);
+  return this->operator bool();
+}
+SBCompileUnit::operator bool() const {
+  LLDB_RECORD_METHOD_CONST_NO_ARGS(bool, SBCompileUnit, operator bool);
+
+  return m_opaque_ptr != nullptr;
+}
 
 bool SBCompileUnit::operator==(const SBCompileUnit &rhs) const {
+  LLDB_RECORD_METHOD_CONST(
+      bool, SBCompileUnit, operator==,(const lldb::SBCompileUnit &), rhs);
+
   return m_opaque_ptr == rhs.m_opaque_ptr;
 }
 
 bool SBCompileUnit::operator!=(const SBCompileUnit &rhs) const {
+  LLDB_RECORD_METHOD_CONST(
+      bool, SBCompileUnit, operator!=,(const lldb::SBCompileUnit &), rhs);
+
   return m_opaque_ptr != rhs.m_opaque_ptr;
 }
 
@@ -216,6 +223,9 @@ void SBCompileUnit::reset(lldb_private::CompileUnit *lldb_object_ptr) {
 }
 
 bool SBCompileUnit::GetDescription(SBStream &description) {
+  LLDB_RECORD_METHOD(bool, SBCompileUnit, GetDescription, (lldb::SBStream &),
+                     description);
+
   Stream &strm = description.ref();
 
   if (m_opaque_ptr) {
@@ -224,4 +234,43 @@ bool SBCompileUnit::GetDescription(SBStream &description) {
     strm.PutCString("No value");
 
   return true;
+}
+
+namespace lldb_private {
+namespace repro {
+
+template <>
+void RegisterMethods<SBCompileUnit>(Registry &R) {
+  LLDB_REGISTER_CONSTRUCTOR(SBCompileUnit, ());
+  LLDB_REGISTER_CONSTRUCTOR(SBCompileUnit, (const lldb::SBCompileUnit &));
+  LLDB_REGISTER_METHOD(
+      const lldb::SBCompileUnit &,
+      SBCompileUnit, operator=,(const lldb::SBCompileUnit &));
+  LLDB_REGISTER_METHOD_CONST(lldb::SBFileSpec, SBCompileUnit, GetFileSpec,
+                             ());
+  LLDB_REGISTER_METHOD_CONST(uint32_t, SBCompileUnit, GetNumLineEntries, ());
+  LLDB_REGISTER_METHOD_CONST(lldb::SBLineEntry, SBCompileUnit,
+                             GetLineEntryAtIndex, (uint32_t));
+  LLDB_REGISTER_METHOD_CONST(uint32_t, SBCompileUnit, FindLineEntryIndex,
+                             (uint32_t, uint32_t, lldb::SBFileSpec *));
+  LLDB_REGISTER_METHOD_CONST(uint32_t, SBCompileUnit, FindLineEntryIndex,
+                             (uint32_t, uint32_t, lldb::SBFileSpec *, bool));
+  LLDB_REGISTER_METHOD_CONST(uint32_t, SBCompileUnit, GetNumSupportFiles, ());
+  LLDB_REGISTER_METHOD(lldb::SBTypeList, SBCompileUnit, GetTypes, (uint32_t));
+  LLDB_REGISTER_METHOD_CONST(lldb::SBFileSpec, SBCompileUnit,
+                             GetSupportFileAtIndex, (uint32_t));
+  LLDB_REGISTER_METHOD(uint32_t, SBCompileUnit, FindSupportFileIndex,
+                       (uint32_t, const lldb::SBFileSpec &, bool));
+  LLDB_REGISTER_METHOD(lldb::LanguageType, SBCompileUnit, GetLanguage, ());
+  LLDB_REGISTER_METHOD_CONST(bool, SBCompileUnit, IsValid, ());
+  LLDB_REGISTER_METHOD_CONST(bool, SBCompileUnit, operator bool, ());
+  LLDB_REGISTER_METHOD_CONST(
+      bool, SBCompileUnit, operator==,(const lldb::SBCompileUnit &));
+  LLDB_REGISTER_METHOD_CONST(
+      bool, SBCompileUnit, operator!=,(const lldb::SBCompileUnit &));
+  LLDB_REGISTER_METHOD(bool, SBCompileUnit, GetDescription,
+                       (lldb::SBStream &));
+}
+
+}
 }

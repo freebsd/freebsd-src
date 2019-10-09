@@ -1,9 +1,8 @@
 //===- MipsMSAInstrInfo.td - MSA ASE instructions -*- tablegen ------------*-=//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -1240,6 +1239,7 @@ class MSA_COPY_PSEUDO_BASE<SDPatternOperator OpNode, ValueType VecTy,
       MSAPseudo<(outs RCD:$wd), (ins RCWS:$ws, ImmOp:$n),
                 [(set RCD:$wd, (OpNode (VecTy RCWS:$ws), Imm:$n))]> {
   bit usesCustomInserter = 1;
+  bit hasNoSchedulingInfo = 1;
 }
 
 class MSA_I5_DESC_BASE<string instr_asm, SDPatternOperator OpNode,
@@ -1447,6 +1447,7 @@ class MSA_INSERT_VIDX_PSEUDO_BASE<SDPatternOperator OpNode, ValueType Ty,
                 [(set ROWD:$wd, (OpNode (Ty ROWD:$wd_in), ROFS:$fs,
                                         ROIdx:$n))]> {
   bit usesCustomInserter = 1;
+  bit hasNoSchedulingInfo = 1;
   string Constraints = "$wd = $wd_in";
 }
 
@@ -2044,7 +2045,7 @@ class FEXDO_W_DESC : MSA_3RF_DESC_BASE<"fexdo.w", int_mips_fexdo_w,
 // 1.0 when we only need to match ISD::FEXP2.
 class FEXP2_W_DESC : MSA_3RF_DESC_BASE<"fexp2.w", mul_fexp2, MSA128WOpnd>;
 class FEXP2_D_DESC : MSA_3RF_DESC_BASE<"fexp2.d", mul_fexp2, MSA128DOpnd>;
-let usesCustomInserter = 1 in {
+let usesCustomInserter = 1, hasNoSchedulingInfo = 1 in {
   class FEXP2_W_1_PSEUDO_DESC :
       MSAPseudo<(outs MSA128W:$wd), (ins MSA128W:$ws),
                 [(set MSA128W:$wd, (fexp2 MSA128W:$ws))]>;
@@ -3738,6 +3739,7 @@ class MSA_CBRANCH_PSEUDO_DESC_BASE<SDPatternOperator OpNode, ValueType TyNode,
              (ins RCWS:$ws),
              [(set GPR32:$dst, (OpNode (TyNode RCWS:$ws)))]> {
   bit usesCustomInserter = 1;
+  bit hasNoSchedulingInfo = 1;
 }
 
 def SNZ_B_PSEUDO : MSA_CBRANCH_PSEUDO_DESC_BASE<MipsVAllNonZero, v16i8,
@@ -3765,52 +3767,38 @@ def SZ_V_PSEUDO : MSA_CBRANCH_PSEUDO_DESC_BASE<MipsVAnyZero, v16i8,
 // Pseudoes used to implement transparent fp16 support.
 
 let ASEPredicate = [HasMSA] in {
- def ST_F16 : MipsPseudo<(outs), (ins MSA128F16:$ws, mem_simm10:$addr),
-                          [(store (f16 MSA128F16:$ws), (addrimm10:$addr))]> {
-   let usesCustomInserter = 1;
- }
+  let usesCustomInserter = 1 in {
+    def ST_F16 :
+        MipsPseudo<(outs), (ins MSA128F16:$ws, mem_simm10:$addr),
+                   [(store (f16 MSA128F16:$ws), (addrimm10:$addr))]>;
+    def LD_F16 :
+        MipsPseudo<(outs MSA128F16:$ws), (ins mem_simm10:$addr),
+                   [(set MSA128F16:$ws, (f16 (load addrimm10:$addr)))]>;
+  }
 
- def LD_F16 : MipsPseudo<(outs MSA128F16:$ws), (ins mem_simm10:$addr),
-                         [(set MSA128F16:$ws, (f16 (load addrimm10:$addr)))]> {
-   let usesCustomInserter = 1;
- }
+  let usesCustomInserter = 1, hasNoSchedulingInfo = 1 in {
+    def MSA_FP_EXTEND_W_PSEUDO :
+        MipsPseudo<(outs FGR32Opnd:$fd), (ins MSA128F16:$ws),
+                   [(set FGR32Opnd:$fd, (f32 (fpextend MSA128F16:$ws)))]>;
+    def MSA_FP_ROUND_W_PSEUDO :
+        MipsPseudo<(outs MSA128F16:$wd), (ins FGR32Opnd:$fs),
+                   [(set MSA128F16:$wd, (f16 (fpround FGR32Opnd:$fs)))]>;
+    def MSA_FP_EXTEND_D_PSEUDO :
+        MipsPseudo<(outs FGR64Opnd:$fd), (ins MSA128F16:$ws),
+                   [(set FGR64Opnd:$fd, (f64 (fpextend MSA128F16:$ws)))]>;
+    def MSA_FP_ROUND_D_PSEUDO :
+        MipsPseudo<(outs MSA128F16:$wd), (ins FGR64Opnd:$fs),
+                   [(set MSA128F16:$wd, (f16 (fpround FGR64Opnd:$fs)))]>;
+  }
 
- def MSA_FP_EXTEND_W_PSEUDO : MipsPseudo<(outs FGR32Opnd:$fd),
-                                         (ins MSA128F16:$ws),
-                              [(set FGR32Opnd:$fd,
-                                    (f32 (fpextend MSA128F16:$ws)))]> {
-  let usesCustomInserter = 1;
- }
+  def : MipsPat<(MipsTruncIntFP MSA128F16:$ws),
+                (TRUNC_W_D64 (MSA_FP_EXTEND_D_PSEUDO MSA128F16:$ws))>,
+        ISA_MIPS1, ASE_MSA;
 
- def MSA_FP_ROUND_W_PSEUDO : MipsPseudo<(outs MSA128F16:$wd),
-                                        (ins FGR32Opnd:$fs),
-                              [(set MSA128F16:$wd,
-                                    (f16 (fpround FGR32Opnd:$fs)))]> {
-  let usesCustomInserter = 1;
- }
-
- def MSA_FP_EXTEND_D_PSEUDO : MipsPseudo<(outs FGR64Opnd:$fd),
-                                         (ins MSA128F16:$ws),
-                              [(set FGR64Opnd:$fd,
-                                    (f64 (fpextend MSA128F16:$ws)))]> {
-  let usesCustomInserter = 1;
- }
-
- def MSA_FP_ROUND_D_PSEUDO : MipsPseudo<(outs MSA128F16:$wd),
-                                        (ins FGR64Opnd:$fs),
-                              [(set MSA128F16:$wd,
-                                    (f16 (fpround FGR64Opnd:$fs)))]> {
-  let usesCustomInserter = 1;
- }
-
- def : MipsPat<(MipsTruncIntFP MSA128F16:$ws),
-               (TRUNC_W_D64 (MSA_FP_EXTEND_D_PSEUDO MSA128F16:$ws))>, ISA_MIPS1,
-               ASE_MSA;
-
- def : MipsPat<(MipsFPCmp MSA128F16:$ws, MSA128F16:$wt, imm:$cond),
-               (FCMP_S32 (MSA_FP_EXTEND_W_PSEUDO MSA128F16:$ws),
-                         (MSA_FP_EXTEND_W_PSEUDO MSA128F16:$wt), imm:$cond)>,
-       ISA_MIPS1_NOT_32R6_64R6, ASE_MSA;
+  def : MipsPat<(MipsFPCmp MSA128F16:$ws, MSA128F16:$wt, imm:$cond),
+                (FCMP_S32 (MSA_FP_EXTEND_W_PSEUDO MSA128F16:$ws),
+                          (MSA_FP_EXTEND_W_PSEUDO MSA128F16:$wt), imm:$cond)>,
+        ISA_MIPS1_NOT_32R6_64R6, ASE_MSA;
 }
 
 def vsplati64_imm_eq_63 : PatLeaf<(bitconvert (v4i32 (build_vector))), [{

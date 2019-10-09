@@ -1,9 +1,8 @@
 //===-- LoopSink.cpp - Loop Sink Pass -------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -291,10 +290,9 @@ static bool sinkLoopInvariantInstructions(Loop &L, AAResults &AA, LoopInfo &LI,
       ColdLoopBBs.push_back(B);
       LoopBlockNumber[B] = ++i;
     }
-  std::stable_sort(ColdLoopBBs.begin(), ColdLoopBBs.end(),
-                   [&](BasicBlock *A, BasicBlock *B) {
-                     return BFI.getBlockFreq(A) < BFI.getBlockFreq(B);
-                   });
+  llvm::stable_sort(ColdLoopBBs, [&](BasicBlock *A, BasicBlock *B) {
+    return BFI.getBlockFreq(A) < BFI.getBlockFreq(B);
+  });
 
   // Traverse preheader's instructions in reverse order becaue if A depends
   // on B (A appears after B), A needs to be sinked first before B can be

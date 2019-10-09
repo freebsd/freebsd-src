@@ -1,17 +1,16 @@
 //===-- SBUnixSignals.cpp -------------------------------------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
+#include "SBReproducerPrivate.h"
 #include "lldb/Target/Platform.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/UnixSignals.h"
-#include "lldb/Utility/Log.h"
 #include "lldb/lldb-defines.h"
 
 #include "lldb/API/SBUnixSignals.h"
@@ -19,10 +18,14 @@
 using namespace lldb;
 using namespace lldb_private;
 
-SBUnixSignals::SBUnixSignals() {}
+SBUnixSignals::SBUnixSignals() {
+  LLDB_RECORD_CONSTRUCTOR_NO_ARGS(SBUnixSignals);
+}
 
 SBUnixSignals::SBUnixSignals(const SBUnixSignals &rhs)
-    : m_opaque_wp(rhs.m_opaque_wp) {}
+    : m_opaque_wp(rhs.m_opaque_wp) {
+  LLDB_RECORD_CONSTRUCTOR(SBUnixSignals, (const lldb::SBUnixSignals &), rhs);
+}
 
 SBUnixSignals::SBUnixSignals(ProcessSP &process_sp)
     : m_opaque_wp(process_sp ? process_sp->GetUnixSignals() : nullptr) {}
@@ -31,9 +34,13 @@ SBUnixSignals::SBUnixSignals(PlatformSP &platform_sp)
     : m_opaque_wp(platform_sp ? platform_sp->GetUnixSignals() : nullptr) {}
 
 const SBUnixSignals &SBUnixSignals::operator=(const SBUnixSignals &rhs) {
+  LLDB_RECORD_METHOD(const lldb::SBUnixSignals &,
+                     SBUnixSignals, operator=,(const lldb::SBUnixSignals &),
+                     rhs);
+
   if (this != &rhs)
     m_opaque_wp = rhs.m_opaque_wp;
-  return *this;
+  return LLDB_RECORD_RESULT(*this);
 }
 
 SBUnixSignals::~SBUnixSignals() {}
@@ -44,11 +51,26 @@ void SBUnixSignals::SetSP(const UnixSignalsSP &signals_sp) {
   m_opaque_wp = signals_sp;
 }
 
-void SBUnixSignals::Clear() { m_opaque_wp.reset(); }
+void SBUnixSignals::Clear() {
+  LLDB_RECORD_METHOD_NO_ARGS(void, SBUnixSignals, Clear);
 
-bool SBUnixSignals::IsValid() const { return static_cast<bool>(GetSP()); }
+  m_opaque_wp.reset();
+}
+
+bool SBUnixSignals::IsValid() const {
+  LLDB_RECORD_METHOD_CONST_NO_ARGS(bool, SBUnixSignals, IsValid);
+  return this->operator bool();
+}
+SBUnixSignals::operator bool() const {
+  LLDB_RECORD_METHOD_CONST_NO_ARGS(bool, SBUnixSignals, operator bool);
+
+  return static_cast<bool>(GetSP());
+}
 
 const char *SBUnixSignals::GetSignalAsCString(int32_t signo) const {
+  LLDB_RECORD_METHOD_CONST(const char *, SBUnixSignals, GetSignalAsCString,
+                           (int32_t), signo);
+
   if (auto signals_sp = GetSP())
     return signals_sp->GetSignalAsCString(signo);
 
@@ -56,6 +78,9 @@ const char *SBUnixSignals::GetSignalAsCString(int32_t signo) const {
 }
 
 int32_t SBUnixSignals::GetSignalNumberFromName(const char *name) const {
+  LLDB_RECORD_METHOD_CONST(int32_t, SBUnixSignals, GetSignalNumberFromName,
+                           (const char *), name);
+
   if (auto signals_sp = GetSP())
     return signals_sp->GetSignalNumberFromName(name);
 
@@ -63,6 +88,9 @@ int32_t SBUnixSignals::GetSignalNumberFromName(const char *name) const {
 }
 
 bool SBUnixSignals::GetShouldSuppress(int32_t signo) const {
+  LLDB_RECORD_METHOD_CONST(bool, SBUnixSignals, GetShouldSuppress, (int32_t),
+                           signo);
+
   if (auto signals_sp = GetSP())
     return signals_sp->GetShouldSuppress(signo);
 
@@ -70,13 +98,10 @@ bool SBUnixSignals::GetShouldSuppress(int32_t signo) const {
 }
 
 bool SBUnixSignals::SetShouldSuppress(int32_t signo, bool value) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  auto signals_sp = GetSP();
+  LLDB_RECORD_METHOD(bool, SBUnixSignals, SetShouldSuppress, (int32_t, bool),
+                     signo, value);
 
-  if (log) {
-    log->Printf("SBUnixSignals(%p)::SetShouldSuppress (signo=%d, value=%d)",
-                static_cast<void *>(signals_sp.get()), signo, value);
-  }
+  auto signals_sp = GetSP();
 
   if (signals_sp)
     return signals_sp->SetShouldSuppress(signo, value);
@@ -85,6 +110,9 @@ bool SBUnixSignals::SetShouldSuppress(int32_t signo, bool value) {
 }
 
 bool SBUnixSignals::GetShouldStop(int32_t signo) const {
+  LLDB_RECORD_METHOD_CONST(bool, SBUnixSignals, GetShouldStop, (int32_t),
+                           signo);
+
   if (auto signals_sp = GetSP())
     return signals_sp->GetShouldStop(signo);
 
@@ -92,13 +120,10 @@ bool SBUnixSignals::GetShouldStop(int32_t signo) const {
 }
 
 bool SBUnixSignals::SetShouldStop(int32_t signo, bool value) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  auto signals_sp = GetSP();
+  LLDB_RECORD_METHOD(bool, SBUnixSignals, SetShouldStop, (int32_t, bool), signo,
+                     value);
 
-  if (log) {
-    log->Printf("SBUnixSignals(%p)::SetShouldStop (signo=%d, value=%d)",
-                static_cast<void *>(signals_sp.get()), signo, value);
-  }
+  auto signals_sp = GetSP();
 
   if (signals_sp)
     return signals_sp->SetShouldStop(signo, value);
@@ -107,6 +132,9 @@ bool SBUnixSignals::SetShouldStop(int32_t signo, bool value) {
 }
 
 bool SBUnixSignals::GetShouldNotify(int32_t signo) const {
+  LLDB_RECORD_METHOD_CONST(bool, SBUnixSignals, GetShouldNotify, (int32_t),
+                           signo);
+
   if (auto signals_sp = GetSP())
     return signals_sp->GetShouldNotify(signo);
 
@@ -114,13 +142,10 @@ bool SBUnixSignals::GetShouldNotify(int32_t signo) const {
 }
 
 bool SBUnixSignals::SetShouldNotify(int32_t signo, bool value) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  auto signals_sp = GetSP();
+  LLDB_RECORD_METHOD(bool, SBUnixSignals, SetShouldNotify, (int32_t, bool),
+                     signo, value);
 
-  if (log) {
-    log->Printf("SBUnixSignals(%p)::SetShouldNotify (signo=%d, value=%d)",
-                static_cast<void *>(signals_sp.get()), signo, value);
-  }
+  auto signals_sp = GetSP();
 
   if (signals_sp)
     return signals_sp->SetShouldNotify(signo, value);
@@ -129,6 +154,8 @@ bool SBUnixSignals::SetShouldNotify(int32_t signo, bool value) {
 }
 
 int32_t SBUnixSignals::GetNumSignals() const {
+  LLDB_RECORD_METHOD_CONST_NO_ARGS(int32_t, SBUnixSignals, GetNumSignals);
+
   if (auto signals_sp = GetSP())
     return signals_sp->GetNumSignals();
 
@@ -136,8 +163,44 @@ int32_t SBUnixSignals::GetNumSignals() const {
 }
 
 int32_t SBUnixSignals::GetSignalAtIndex(int32_t index) const {
+  LLDB_RECORD_METHOD_CONST(int32_t, SBUnixSignals, GetSignalAtIndex, (int32_t),
+                           index);
+
   if (auto signals_sp = GetSP())
     return signals_sp->GetSignalAtIndex(index);
 
   return LLDB_INVALID_SIGNAL_NUMBER;
+}
+
+namespace lldb_private {
+namespace repro {
+
+template <>
+void RegisterMethods<SBUnixSignals>(Registry &R) {
+  LLDB_REGISTER_CONSTRUCTOR(SBUnixSignals, ());
+  LLDB_REGISTER_CONSTRUCTOR(SBUnixSignals, (const lldb::SBUnixSignals &));
+  LLDB_REGISTER_METHOD(
+      const lldb::SBUnixSignals &,
+      SBUnixSignals, operator=,(const lldb::SBUnixSignals &));
+  LLDB_REGISTER_METHOD(void, SBUnixSignals, Clear, ());
+  LLDB_REGISTER_METHOD_CONST(bool, SBUnixSignals, IsValid, ());
+  LLDB_REGISTER_METHOD_CONST(bool, SBUnixSignals, operator bool, ());
+  LLDB_REGISTER_METHOD_CONST(const char *, SBUnixSignals, GetSignalAsCString,
+                             (int32_t));
+  LLDB_REGISTER_METHOD_CONST(int32_t, SBUnixSignals, GetSignalNumberFromName,
+                             (const char *));
+  LLDB_REGISTER_METHOD_CONST(bool, SBUnixSignals, GetShouldSuppress,
+                             (int32_t));
+  LLDB_REGISTER_METHOD(bool, SBUnixSignals, SetShouldSuppress,
+                       (int32_t, bool));
+  LLDB_REGISTER_METHOD_CONST(bool, SBUnixSignals, GetShouldStop, (int32_t));
+  LLDB_REGISTER_METHOD(bool, SBUnixSignals, SetShouldStop, (int32_t, bool));
+  LLDB_REGISTER_METHOD_CONST(bool, SBUnixSignals, GetShouldNotify, (int32_t));
+  LLDB_REGISTER_METHOD(bool, SBUnixSignals, SetShouldNotify, (int32_t, bool));
+  LLDB_REGISTER_METHOD_CONST(int32_t, SBUnixSignals, GetNumSignals, ());
+  LLDB_REGISTER_METHOD_CONST(int32_t, SBUnixSignals, GetSignalAtIndex,
+                             (int32_t));
+}
+
+}
 }

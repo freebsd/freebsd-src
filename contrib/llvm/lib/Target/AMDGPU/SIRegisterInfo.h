@@ -1,9 +1,8 @@
 //===-- SIRegisterInfo.h - SI Register Info Interface ----------*- C++ -*--===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -30,10 +29,13 @@ class SIRegisterInfo final : public AMDGPURegisterInfo {
 private:
   unsigned SGPRSetID;
   unsigned VGPRSetID;
+  unsigned AGPRSetID;
   BitVector SGPRPressureSets;
   BitVector VGPRPressureSets;
+  BitVector AGPRPressureSets;
   bool SpillSGPRToVGPR;
   bool SpillSGPRToSMEM;
+  bool isWave32;
 
   void classifyPressureSet(unsigned PSetID, unsigned Reg,
                            BitVector &PressureSets) const;
@@ -57,8 +59,6 @@ public:
   unsigned reservedPrivateSegmentWaveByteOffsetReg(
     const MachineFunction &MF) const;
 
-  unsigned reservedStackPtrOffsetReg(const MachineFunction &MF) const;
-
   BitVector getReservedRegs(const MachineFunction &MF) const override;
 
   const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
@@ -72,8 +72,9 @@ public:
     return 100;
   }
 
-  unsigned getFrameRegister(const MachineFunction &MF) const override;
+  Register getFrameRegister(const MachineFunction &MF) const override;
 
+  bool canRealignStack(const MachineFunction &MF) const override;
   bool requiresRegisterScavenging(const MachineFunction &Fn) const override;
 
   bool requiresFrameIndexScavenging(const MachineFunction &MF) const override;
@@ -130,7 +131,7 @@ public:
 
   /// \returns true if this class contains only SGPR registers
   bool isSGPRClass(const TargetRegisterClass *RC) const {
-    return !hasVGPRs(RC);
+    return !hasVGPRs(RC) && !hasAGPRs(RC);
   }
 
   /// \returns true if this class ID contains only SGPR registers
@@ -150,8 +151,20 @@ public:
   /// \returns true if this class contains VGPR registers.
   bool hasVGPRs(const TargetRegisterClass *RC) const;
 
+  /// \returns true if this class contains AGPR registers.
+  bool hasAGPRs(const TargetRegisterClass *RC) const;
+
+  /// \returns true if this class contains any vector registers.
+  bool hasVectorRegisters(const TargetRegisterClass *RC) const {
+    return hasVGPRs(RC) || hasAGPRs(RC);
+  }
+
   /// \returns A VGPR reg class with the same width as \p SRC
   const TargetRegisterClass *getEquivalentVGPRClass(
+                                          const TargetRegisterClass *SRC) const;
+
+  /// \returns An AGPR reg class with the same width as \p SRC
+  const TargetRegisterClass *getEquivalentAGPRClass(
                                           const TargetRegisterClass *SRC) const;
 
   /// \returns A SGPR reg class with the same width as \p SRC
@@ -191,16 +204,32 @@ public:
 
   unsigned getSGPRPressureSet() const { return SGPRSetID; };
   unsigned getVGPRPressureSet() const { return VGPRSetID; };
+  unsigned getAGPRPressureSet() const { return AGPRSetID; };
 
   const TargetRegisterClass *getRegClassForReg(const MachineRegisterInfo &MRI,
                                                unsigned Reg) const;
   bool isVGPR(const MachineRegisterInfo &MRI, unsigned Reg) const;
+  bool isAGPR(const MachineRegisterInfo &MRI, unsigned Reg) const;
+  bool isVectorRegister(const MachineRegisterInfo &MRI, unsigned Reg) const {
+    return isVGPR(MRI, Reg) || isAGPR(MRI, Reg);
+  }
+
+  virtual bool
+  isDivergentRegClass(const TargetRegisterClass *RC) const override {
+    return !isSGPRClass(RC);
+  }
 
   bool isSGPRPressureSet(unsigned SetID) const {
-    return SGPRPressureSets.test(SetID) && !VGPRPressureSets.test(SetID);
+    return SGPRPressureSets.test(SetID) && !VGPRPressureSets.test(SetID) &&
+           !AGPRPressureSets.test(SetID);
   }
   bool isVGPRPressureSet(unsigned SetID) const {
-    return VGPRPressureSets.test(SetID) && !SGPRPressureSets.test(SetID);
+    return VGPRPressureSets.test(SetID) && !SGPRPressureSets.test(SetID) &&
+           !AGPRPressureSets.test(SetID);
+  }
+  bool isAGPRPressureSet(unsigned SetID) const {
+    return AGPRPressureSets.test(SetID) && !SGPRPressureSets.test(SetID) &&
+           !VGPRPressureSets.test(SetID);
   }
 
   ArrayRef<int16_t> getRegSplitParts(const TargetRegisterClass *RC,
@@ -225,14 +254,43 @@ public:
   unsigned getReturnAddressReg(const MachineFunction &MF) const;
 
   const TargetRegisterClass *
+  getRegClassForSizeOnBank(unsigned Size,
+                           const RegisterBank &Bank,
+                           const MachineRegisterInfo &MRI) const;
+
+  const TargetRegisterClass *
+  getRegClassForTypeOnBank(LLT Ty,
+                           const RegisterBank &Bank,
+                           const MachineRegisterInfo &MRI) const {
+    return getRegClassForSizeOnBank(Ty.getSizeInBits(), Bank, MRI);
+  }
+
+  const TargetRegisterClass *
   getConstrainedRegClassForOperand(const MachineOperand &MO,
                                  const MachineRegisterInfo &MRI) const override;
+
+  const TargetRegisterClass *getBoolRC() const {
+    return isWave32 ? &AMDGPU::SReg_32_XM0RegClass
+                    : &AMDGPU::SReg_64RegClass;
+  }
+
+  const TargetRegisterClass *getWaveMaskRegClass() const {
+    return isWave32 ? &AMDGPU::SReg_32_XM0_XEXECRegClass
+                    : &AMDGPU::SReg_64_XEXECRegClass;
+  }
+
+  unsigned getVCC() const;
+
+  const TargetRegisterClass *getRegClass(unsigned RCID) const;
 
   // Find reaching register definition
   MachineInstr *findReachingDef(unsigned Reg, unsigned SubReg,
                                 MachineInstr &Use,
                                 MachineRegisterInfo &MRI,
                                 LiveIntervals *LIS) const;
+
+  const uint32_t *getAllVGPRRegMask() const;
+  const uint32_t *getAllAllocatableSRegMask() const;
 
 private:
   void buildSpillLoadStore(MachineBasicBlock::iterator MI,

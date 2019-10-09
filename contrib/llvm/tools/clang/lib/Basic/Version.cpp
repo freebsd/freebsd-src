@@ -1,9 +1,8 @@
 //===- Version.cpp - Clang Version Number -----------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -18,8 +17,8 @@
 #include <cstdlib>
 #include <cstring>
 
-#ifdef HAVE_SVN_VERSION_INC
-#  include "SVNVersion.inc"
+#ifdef HAVE_VCS_VERSION_INC
+#include "VCSVersion.inc"
 #endif
 
 namespace clang {
@@ -28,15 +27,15 @@ std::string getClangRepositoryPath() {
 #if defined(CLANG_REPOSITORY_STRING)
   return CLANG_REPOSITORY_STRING;
 #else
-#ifdef SVN_REPOSITORY
-  StringRef URL(SVN_REPOSITORY);
+#ifdef CLANG_REPOSITORY
+  StringRef URL(CLANG_REPOSITORY);
 #else
   StringRef URL("");
 #endif
 
-  // If the SVN_REPOSITORY is empty, try to use the SVN keyword. This helps us
+  // If the CLANG_REPOSITORY is empty, try to use the SVN keyword. This helps us
   // pick up a tag in an SVN export, for example.
-  StringRef SVNRepository("$URL: https://llvm.org/svn/llvm-project/cfe/tags/RELEASE_801/final/lib/Basic/Version.cpp $");
+  StringRef SVNRepository("$URL: https://llvm.org/svn/llvm-project/cfe/tags/RELEASE_900/final/lib/Basic/Version.cpp $");
   if (URL.empty()) {
     URL = SVNRepository.slice(SVNRepository.find(':'),
                               SVNRepository.find("/lib/Basic"));
@@ -72,8 +71,8 @@ std::string getLLVMRepositoryPath() {
 }
 
 std::string getClangRevision() {
-#ifdef SVN_REVISION
-  return SVN_REVISION;
+#ifdef CLANG_REVISION
+  return CLANG_REVISION;
 #else
   return "";
 #endif

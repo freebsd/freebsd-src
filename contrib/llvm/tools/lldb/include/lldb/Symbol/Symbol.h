@@ -1,9 +1,8 @@
 //===-- Symbol.h ------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -43,41 +42,33 @@ public:
 
   void Clear();
 
-  bool Compare(const ConstString &name, lldb::SymbolType type) const;
+  bool Compare(ConstString name, lldb::SymbolType type) const;
 
   void Dump(Stream *s, Target *target, uint32_t index) const;
 
   bool ValueIsAddress() const;
 
-  //------------------------------------------------------------------
   // The GetAddressRef() accessor functions should only be called if you
   // previously call ValueIsAddress() otherwise you might get an reference to
   // an Address object that contains an constant integer value in
   // m_addr_range.m_base_addr.m_offset which could be incorrectly used to
   // represent an absolute address since it has no section.
-  //------------------------------------------------------------------
   Address &GetAddressRef() { return m_addr_range.GetBaseAddress(); }
 
   const Address &GetAddressRef() const { return m_addr_range.GetBaseAddress(); }
 
-  //------------------------------------------------------------------
   // Makes sure the symbol's value is an address and returns the file address.
   // Returns LLDB_INVALID_ADDRESS if the symbol's value isn't an address.
-  //------------------------------------------------------------------
   lldb::addr_t GetFileAddress() const;
 
-  //------------------------------------------------------------------
   // Makes sure the symbol's value is an address and gets the load address
   // using \a target if it is. Returns LLDB_INVALID_ADDRESS if the symbol's
   // value isn't an address or if the section isn't loaded in \a target.
-  //------------------------------------------------------------------
   lldb::addr_t GetLoadAddress(Target *target) const;
 
-  //------------------------------------------------------------------
   // Access the address value. Do NOT hand out the AddressRange as an object as
   // the byte size of the address range may not be filled in and it should be
   // accessed via GetByteSize().
-  //------------------------------------------------------------------
   Address GetAddress() const {
     // Make sure the our value is an address before we hand a copy out. We use
     // the Address inside m_addr_range to contain the value for symbols that
@@ -134,7 +125,7 @@ public:
 
   FileSpec GetReExportedSymbolSharedLibrary() const;
 
-  void SetReExportedSymbolName(const ConstString &name);
+  void SetReExportedSymbolName(ConstString name);
 
   bool SetReExportedSymbolSharedLibrary(const FileSpec &fspec);
 
@@ -174,6 +165,10 @@ public:
   bool IsTrampoline() const;
 
   bool IsIndirect() const;
+  
+  bool IsWeak() const { return m_is_weak; }
+  
+  void SetIsWeak (bool b) { m_is_weak = b; }
 
   bool GetByteSizeIsValid() const { return m_size_is_valid; }
 
@@ -204,22 +199,18 @@ public:
   void SetContainsLinkerAnnotations(bool b) {
     m_contains_linker_annotations = b;
   }
-  //------------------------------------------------------------------
-  /// @copydoc SymbolContextScope::CalculateSymbolContext(SymbolContext*)
+  /// \copydoc SymbolContextScope::CalculateSymbolContext(SymbolContext*)
   ///
-  /// @see SymbolContextScope
-  //------------------------------------------------------------------
+  /// \see SymbolContextScope
   void CalculateSymbolContext(SymbolContext *sc) override;
 
   lldb::ModuleSP CalculateSymbolContextModule() override;
 
   Symbol *CalculateSymbolContextSymbol() override;
 
-  //------------------------------------------------------------------
-  /// @copydoc SymbolContextScope::DumpSymbolContext(Stream*)
+  /// \copydoc SymbolContextScope::DumpSymbolContext(Stream*)
   ///
-  /// @see SymbolContextScope
-  //------------------------------------------------------------------
+  /// \see SymbolContextScope
   void DumpSymbolContext(Stream *s) override;
 
   lldb::DisassemblerSP GetInstructions(const ExecutionContext &exe_ctx,
@@ -263,7 +254,8 @@ protected:
       m_contains_linker_annotations : 1, // The symbol name contains linker
                                          // annotations, which are optional when
                                          // doing name lookups
-      m_type : 7;
+      m_is_weak : 1,
+      m_type : 6;            // Values from the lldb::SymbolType enum.
   Mangled m_mangled;         // uniqued symbol name/mangled name pair
   AddressRange m_addr_range; // Contains the value, or the section offset
                              // address when the value is an address in a

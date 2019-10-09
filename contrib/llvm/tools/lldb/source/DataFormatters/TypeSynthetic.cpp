@@ -1,10 +1,9 @@
 //===-- TypeSynthetic.cpp ----------------------------------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -52,7 +51,7 @@ bool TypeFilterImpl::SetExpressionPathAtIndex(size_t i,
 }
 
 size_t
-TypeFilterImpl::FrontEnd::GetIndexOfChildWithName(const ConstString &name) {
+TypeFilterImpl::FrontEnd::GetIndexOfChildWithName(ConstString name) {
   const char *name_cstr = name.GetCString();
   if (name_cstr) {
     for (size_t i = 0; i < filter->GetCount(); i++) {
@@ -126,12 +125,10 @@ lldb::ValueObjectSP SyntheticChildrenFrontEnd::CreateValueObjectFromData(
   return valobj_sp;
 }
 
-#ifndef LLDB_DISABLE_PYTHON
-
 ScriptedSyntheticChildren::FrontEnd::FrontEnd(std::string pclass,
                                               ValueObject &backend)
     : SyntheticChildrenFrontEnd(backend), m_python_class(pclass),
-      m_wrapper_sp(), m_interpreter(NULL) {
+      m_wrapper_sp(), m_interpreter(nullptr) {
   if (backend == LLDB_INVALID_UID)
     return;
 
@@ -140,10 +137,9 @@ ScriptedSyntheticChildren::FrontEnd::FrontEnd(std::string pclass,
   if (!target_sp)
     return;
 
-  m_interpreter =
-      target_sp->GetDebugger().GetCommandInterpreter().GetScriptInterpreter();
+  m_interpreter = target_sp->GetDebugger().GetScriptInterpreter();
 
-  if (m_interpreter != NULL)
+  if (m_interpreter != nullptr)
     m_wrapper_sp = m_interpreter->CreateSyntheticScriptedProvider(
         m_python_class.c_str(), backend.GetSP());
 }
@@ -163,48 +159,48 @@ bool ScriptedSyntheticChildren::FrontEnd::IsValid() {
 }
 
 size_t ScriptedSyntheticChildren::FrontEnd::CalculateNumChildren() {
-  if (!m_wrapper_sp || m_interpreter == NULL)
+  if (!m_wrapper_sp || m_interpreter == nullptr)
     return 0;
   return m_interpreter->CalculateNumChildren(m_wrapper_sp, UINT32_MAX);
 }
 
 size_t ScriptedSyntheticChildren::FrontEnd::CalculateNumChildren(uint32_t max) {
-  if (!m_wrapper_sp || m_interpreter == NULL)
+  if (!m_wrapper_sp || m_interpreter == nullptr)
     return 0;
   return m_interpreter->CalculateNumChildren(m_wrapper_sp, max);
 }
 
 bool ScriptedSyntheticChildren::FrontEnd::Update() {
-  if (!m_wrapper_sp || m_interpreter == NULL)
+  if (!m_wrapper_sp || m_interpreter == nullptr)
     return false;
 
   return m_interpreter->UpdateSynthProviderInstance(m_wrapper_sp);
 }
 
 bool ScriptedSyntheticChildren::FrontEnd::MightHaveChildren() {
-  if (!m_wrapper_sp || m_interpreter == NULL)
+  if (!m_wrapper_sp || m_interpreter == nullptr)
     return false;
 
   return m_interpreter->MightHaveChildrenSynthProviderInstance(m_wrapper_sp);
 }
 
 size_t ScriptedSyntheticChildren::FrontEnd::GetIndexOfChildWithName(
-    const ConstString &name) {
-  if (!m_wrapper_sp || m_interpreter == NULL)
+    ConstString name) {
+  if (!m_wrapper_sp || m_interpreter == nullptr)
     return UINT32_MAX;
   return m_interpreter->GetIndexOfChildWithName(m_wrapper_sp,
                                                 name.GetCString());
 }
 
 lldb::ValueObjectSP ScriptedSyntheticChildren::FrontEnd::GetSyntheticValue() {
-  if (!m_wrapper_sp || m_interpreter == NULL)
+  if (!m_wrapper_sp || m_interpreter == nullptr)
     return nullptr;
 
   return m_interpreter->GetSyntheticValue(m_wrapper_sp);
 }
 
 ConstString ScriptedSyntheticChildren::FrontEnd::GetSyntheticTypeName() {
-  if (!m_wrapper_sp || m_interpreter == NULL)
+  if (!m_wrapper_sp || m_interpreter == nullptr)
     return ConstString();
 
   return m_interpreter->GetSyntheticTypeName(m_wrapper_sp);
@@ -219,5 +215,3 @@ std::string ScriptedSyntheticChildren::GetDescription() {
 
   return sstr.GetString();
 }
-
-#endif // #ifndef LLDB_DISABLE_PYTHON

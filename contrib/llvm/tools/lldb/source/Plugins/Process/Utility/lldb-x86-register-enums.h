@@ -1,9 +1,8 @@
 //===-- lldb-x86-register-enums.h -------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,9 +12,7 @@
 namespace lldb_private {
 // LLDB register codes (e.g. RegisterKind == eRegisterKindLLDB)
 
-//---------------------------------------------------------------------------
 // Internal codes for all i386 registers.
-//---------------------------------------------------------------------------
 enum {
   k_first_gpr_i386,
   lldb_eax_i386 = k_first_gpr_i386,
@@ -136,9 +133,7 @@ enum {
                               k_num_mpx_registers_i386,
 };
 
-//---------------------------------------------------------------------------
 // Internal codes for all x86_64 registers.
-//---------------------------------------------------------------------------
 enum {
   k_first_gpr_x86_64,
   lldb_rax_x86_64 = k_first_gpr_x86_64,

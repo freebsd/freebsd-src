@@ -1,9 +1,8 @@
 //===-- OptionValue.h -------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,12 +19,10 @@
 
 namespace lldb_private {
 
-//---------------------------------------------------------------------
 // OptionValue
-//---------------------------------------------------------------------
 class OptionValue {
 public:
-  typedef enum {
+  enum Type {
     eTypeInvalid = 0,
     eTypeArch,
     eTypeArgs,
@@ -46,7 +43,7 @@ public:
     eTypeUInt64,
     eTypeUUID,
     eTypeFormatEntity
-  } Type;
+  };
 
   enum {
     eDumpOptionName = (1u << 0),
@@ -70,9 +67,7 @@ public:
 
   virtual ~OptionValue() = default;
 
-  //-----------------------------------------------------------------
   // Subclasses should override these functions
-  //-----------------------------------------------------------------
   virtual Type GetType() const = 0;
 
   // If this value is always hidden, the avoid showing any info on this value,
@@ -101,9 +96,7 @@ public:
   virtual size_t AutoComplete(CommandInterpreter &interpreter,
                               CompletionRequest &request);
 
-  //-----------------------------------------------------------------
   // Subclasses can override these functions
-  //-----------------------------------------------------------------
   virtual lldb::OptionValueSP GetSubValue(const ExecutionContext *exe_ctx,
                                           llvm::StringRef name,
                                           bool will_modify,
@@ -122,10 +115,8 @@ public:
 
   virtual bool DumpQualifiedName(Stream &strm) const;
 
-  //-----------------------------------------------------------------
   // Subclasses should NOT override these functions as they use the above
   // functions to implement functionality
-  //-----------------------------------------------------------------
   uint32_t GetTypeAsMask() { return 1u << GetType(); }
 
   static uint32_t ConvertTypeToMask(OptionValue::Type type) {

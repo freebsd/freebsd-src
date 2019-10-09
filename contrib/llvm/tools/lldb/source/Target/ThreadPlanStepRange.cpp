@@ -1,9 +1,8 @@
 //===-- ThreadPlanStepRange.cpp ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -26,10 +25,8 @@
 using namespace lldb;
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
 // ThreadPlanStepRange: Step through a stack range, either stepping over or
 // into based on the value of \a type.
-//----------------------------------------------------------------------
 
 ThreadPlanStepRange::ThreadPlanStepRange(ThreadPlanKind kind, const char *name,
                                          Thread &thread,
@@ -129,8 +126,10 @@ bool ThreadPlanStepRange::InRange() {
           new_context.line_entry.original_file) {
         if (m_addr_context.line_entry.line == new_context.line_entry.line) {
           m_addr_context = new_context;
-          AddRange(
-              m_addr_context.line_entry.GetSameLineContiguousAddressRange());
+          const bool include_inlined_functions =
+              GetKind() == eKindStepOverRange;
+          AddRange(m_addr_context.line_entry.GetSameLineContiguousAddressRange(
+              include_inlined_functions));
           ret_value = true;
           if (log) {
             StreamString s;
@@ -145,8 +144,10 @@ bool ThreadPlanStepRange::InRange() {
         } else if (new_context.line_entry.line == 0) {
           new_context.line_entry.line = m_addr_context.line_entry.line;
           m_addr_context = new_context;
-          AddRange(
-              m_addr_context.line_entry.GetSameLineContiguousAddressRange());
+          const bool include_inlined_functions =
+              GetKind() == eKindStepOverRange;
+          AddRange(m_addr_context.line_entry.GetSameLineContiguousAddressRange(
+              include_inlined_functions));
           ret_value = true;
           if (log) {
             StreamString s;
@@ -314,9 +315,10 @@ bool ThreadPlanStepRange::SetNextBranchBreakpoint() {
     return false;
   else {
     Target &target = GetThread().GetProcess()->GetTarget();
-    uint32_t branch_index;
-    branch_index =
-        instructions->GetIndexOfNextBranchInstruction(pc_index, target);
+    const bool ignore_calls = GetKind() == eKindStepOverRange;
+    uint32_t branch_index =
+        instructions->GetIndexOfNextBranchInstruction(pc_index, target,
+                                                      ignore_calls);
 
     Address run_to_address;
 

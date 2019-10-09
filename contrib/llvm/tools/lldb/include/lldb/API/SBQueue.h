@@ -1,9 +1,8 @@
 //===-- SBQueue.h -----------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -28,6 +27,8 @@ public:
   const SBQueue &operator=(const lldb::SBQueue &rhs);
 
   ~SBQueue();
+
+  explicit operator bool() const;
 
   bool IsValid() const;
 
@@ -58,10 +59,6 @@ protected:
   friend class SBThread;
 
   void SetQueue(const lldb::QueueSP &queue_sp);
-
-  void FetchThreads();
-
-  void FetchItems();
 
 private:
   std::shared_ptr<lldb_private::QueueImpl> m_opaque_sp;
