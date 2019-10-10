@@ -107,6 +107,7 @@ typedef enum _ocsd_err_t {
     OCSD_ERR_DATA_DECODE_FATAL,    /**< A decoder in the data path has returned a fatal error. */
     /* frame deformatter errors */
     OCSD_ERR_DFMTR_NOTCONTTRACE,    /**< Trace input to deformatter none-continuous */
+    OCSD_ERR_DFMTR_BAD_FHSYNC,      /**< Bad frame or half frame sync in trace deformatter */
     /* packet processor errors - protocol issues etc */
     OCSD_ERR_BAD_PACKET_SEQ,        /**< Bad packet sequence */
     OCSD_ERR_INVALID_PCKT_HDR,      /**< Invalid packet header */
@@ -126,6 +127,7 @@ typedef enum _ocsd_err_t {
     OCSD_ERR_MEM_ACC_FILE_NOT_FOUND,    /**< Memory access file could not be opened */
     OCSD_ERR_MEM_ACC_FILE_DIFF_RANGE,   /**< Attempt to re-use the same memory access file for a different address range */
     OCSD_ERR_MEM_ACC_RANGE_INVALID,     /**< Address range in accessor set to invalid values */
+    OCSD_ERR_MEM_ACC_BAD_LEN,           /**< Memory accessor returned a bad read length value (larger than requested */
     /* test errors - errors generated only by the test code, not the library */
     OCSD_ERR_TEST_SNAPSHOT_PARSE,       /**< test snapshot file parse error */
     OCSD_ERR_TEST_SNAPSHOT_PARSE_INFO,  /**< test snapshot file parse information */
@@ -137,7 +139,7 @@ typedef enum _ocsd_err_t {
     OCSD_ERR_DCDREG_TYPE_UNKNOWN,       /**< attempted to find a decoder with a type that is not known in the library */
     OCSD_ERR_DCDREG_TOOMANY,            /**< attempted to register too many custom decoders */
     /* decoder config */
-    OCSD_ERR_DCD_INTERFACE_UNUSED,      /**< Attempt to connect or use and inteface not supported by this decoder. */
+    OCSD_ERR_DCD_INTERFACE_UNUSED,      /**< Attempt to connect or use and interface not supported by this decoder. */
     /* end marker*/
     OCSD_ERR_LAST
 } ocsd_err_t;
@@ -272,10 +274,15 @@ typedef enum _ocsd_dcd_tree_src_t {
 /** Core Architecture Version */
 typedef enum _ocsd_arch_version {
     ARCH_UNKNOWN,   /**< unknown architecture */
+    ARCH_CUSTOM,    /**< None ARM, custom architecture */
     ARCH_V7,        /**< V7 architecture */
     ARCH_V8,        /**< V8 architecture */
-    ARCH_CUSTOM,    /**< None ARM, custom architecture */
+    ARCH_V8r3,      /**< V8.3 architecture */
 } ocsd_arch_version_t;
+
+// macros for arch version comparisons.
+#define OCSD_IS_V8_ARCH(arch) ((arch >= ARCH_V8) && (arch <= ARCH_V8r3))
+#define OCSD_MIN_V8_ARCH(arch) (arch >= ARCH_V8)
 
 /** Core Profile  */
 typedef enum _ocsd_core_profile {
@@ -351,7 +358,8 @@ typedef enum _ocsd_instr_type {
     OCSD_INSTR_BR,             /**< Immediate Branch instruction */
     OCSD_INSTR_BR_INDIRECT,    /**< Indirect Branch instruction */
     OCSD_INSTR_ISB,            /**< Barrier : ISB instruction */
-    OCSD_INSTR_DSB_DMB         /**< Barrier : DSB or DMB instruction */
+    OCSD_INSTR_DSB_DMB,        /**< Barrier : DSB or DMB instruction */
+    OCSD_INSTR_WFI_WFE,        /**< WFI or WFE traced as direct branch */
 } ocsd_instr_type;
 
 /** instruction sub types - addiitonal information passed to the output packets
@@ -362,6 +370,7 @@ typedef enum _ocsd_instr_subtype {
     OCSD_S_INSTR_BR_LINK,      /**< branch with link */
     OCSD_S_INSTR_V8_RET,       /**< v8 ret instruction - subtype of BR_INDIRECT  */
     OCSD_S_INSTR_V8_ERET,      /**< v8 eret instruction - subtype of BR_INDIRECT */
+    OCSD_S_INSTR_V7_IMPLIED_RET,  /**< v7 instruction which could imply return e.g. MOV PC, LR; POP { ,pc} */
 } ocsd_instr_subtype;
 
 /** Instruction decode request structure. 
@@ -377,6 +386,7 @@ typedef struct _ocsd_instr_info {
     ocsd_vaddr_t instr_addr;       /**< Input: Instruction address. */
     uint32_t opcode;                /**< Input: Opcode at address. 16 bit opcodes will use MS 16bits of parameter. */
     uint8_t dsb_dmb_waypoints;      /**< Input: DMB and DSB are waypoints */
+    uint8_t wfi_wfe_branch;         /**< Input: WFI, WFE classed as direct branches */
 
     /* instruction decode info */
     ocsd_instr_type type;          /**< Decoder: Current instruction type. */
@@ -446,7 +456,31 @@ typedef enum _ocsd_mem_space_acc_t {
  *
  * @return uint32_t  : Number of bytes actually read, or 0 for access error.
  */
-typedef uint32_t  (* Fn_MemAcc_CB)(const void *p_context, const ocsd_vaddr_t address, const ocsd_mem_space_acc_t mem_space, const uint32_t reqBytes, uint8_t *byteBuffer);
+typedef uint32_t (* Fn_MemAcc_CB)(const void *p_context, const ocsd_vaddr_t address, const ocsd_mem_space_acc_t mem_space, const uint32_t reqBytes, uint8_t *byteBuffer);
+
+/**
+* Callback function definition for callback function memory accessor type.
+*
+* When using callback memory accessor, the decoder will call this function to obtain the
+* memory at the address for the current opcodes. The memory space will represent the current
+* exception level and security context of the traced code.
+*
+* Return the number of bytes read, which can be less than the amount requested if this would take the
+* access address outside the range of addresses defined when this callback was registered with the decoder.
+*
+* Return 0 bytes if start address out of covered range, or memory space is not one of those defined as supported
+* when the callback was registered.
+*
+* @param p_context : opaque context pointer set by callback client.
+* @param address : start address of memory to be accessed
+* @param mem_space : memory space of accessed memory (current EL & security state)
+* @param trcID : Trace ID for source of trace - allow CB to client to associate mem req with source cpu.
+* @param reqBytes : number of bytes required
+* @param *byteBuffer : buffer for data.
+*
+* @return uint32_t  : Number of bytes actually read, or 0 for access error.
+*/
+typedef uint32_t (* Fn_MemAccID_CB)(const void *p_context, const ocsd_vaddr_t address, const ocsd_mem_space_acc_t mem_space, const uint8_t trcID, const uint32_t reqBytes, uint8_t *byteBuffer);
 
 
 /** memory region type for adding multi-region binary files to memory access interface */

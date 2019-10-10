@@ -37,7 +37,7 @@
 
 #include <string>
 #include <vector>
-#include <fstream>
+//#include <fstream>
 
 #include "interfaces/trc_error_log_i.h"
 #include "ocsd_error.h"
@@ -49,7 +49,7 @@ public:
     ocsdDefaultErrorLogger();
     virtual ~ocsdDefaultErrorLogger();
 
-    bool initErrorLogger(const ocsd_err_severity_t verbosity, bool bCreateOutputLogger = false);
+    bool initErrorLogger(const ocsd_err_severity_t verbosity, bool bCreateOutputLogger = false); //!< Initialise the error logger with a severity filter, optionally create an output logger on stderr.
     
     virtual ocsdMsgLogger *getOutputLogger() { return m_output_logger; };
     virtual void setOutputLogger(ocsdMsgLogger *pLogger);

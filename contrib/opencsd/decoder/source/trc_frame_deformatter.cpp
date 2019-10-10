@@ -393,9 +393,21 @@ bool TraceFmtDcdImpl::checkForSync()
 
 uint32_t TraceFmtDcdImpl::findfirstFSync()
 {
-    uint32_t unsynced = m_in_block_size;  // consider entire block as unsynced at present.
-    //**TBD - handle fsync patterns in TPIU captured code
-    return unsynced;
+    uint32_t processed = 0;
+    const uint32_t FSYNC_PATTERN = 0x7FFFFFFF;    // LE host pattern for FSYNC	 
+    const uint8_t *dataPtr = m_in_block_base;
+
+    while (processed < (m_in_block_size - 3))
+    {
+        if (*((uint32_t *)(dataPtr)) == FSYNC_PATTERN)
+        {
+            m_frame_synced = true;
+            break;
+        }
+        processed++;
+        dataPtr++;
+    }
+    return processed;
 }
 
 void TraceFmtDcdImpl::outputUnsyncedBytes(uint32_t /*num_bytes*/)
@@ -453,7 +465,7 @@ bool TraceFmtDcdImpl::extractFrame()
 	bool cont_process = true;   // continue processing after extraction.
     uint32_t f_sync_bytes = 0; // skipped f sync bytes
     uint32_t h_sync_bytes = 0; // skipped h sync bytes
-    uint32_t ex_bytes = 0;  // extracted bytes
+    uint32_t ex_bytes = 0;  // extracted this pass (may be filling out part frame)
 
     // memory aligned sources are always multiples of frames, aligned to start.
     if( m_cfgFlags & OCSD_DFRMTR_FRAME_MEM_ALIGN)
@@ -512,8 +524,6 @@ bool TraceFmtDcdImpl::extractFrame()
                 f_sync_bytes += 4;
                 dataPtr += 4;
                 cont_process = (bool)(dataPtr < eodPtr);
-
-                // TBD:  output raw FSYNC data on raw frame channel.
             }
         }
 
@@ -526,6 +536,7 @@ bool TraceFmtDcdImpl::extractFrame()
                 if(*((uint32_t *)(dataPtr)) == FSYNC_PATTERN) 
                 {
                     // throw an illegal FSYNC error
+                    throw ocsdError(OCSD_ERR_SEV_ERROR, OCSD_ERR_DFMTR_BAD_FHSYNC, m_trc_curr_idx, "Bad FSYNC in frame.");
                 }
             }
 
@@ -546,12 +557,11 @@ bool TraceFmtDcdImpl::extractFrame()
                     m_ex_frm_n_bytes-=2;
                     ex_bytes -= 2;
                     h_sync_bytes+=2;
-
-                    // TBD:  output raw HSYNC data on raw frame channel.
                 }
                 else
                 {
                     // throw illegal HSYNC error.
+                    throw ocsdError(OCSD_ERR_SEV_ERROR, OCSD_ERR_DFMTR_BAD_FHSYNC, m_trc_curr_idx, "Bad HSYNC in frame.");
                 }
             }
 
@@ -565,22 +575,25 @@ bool TraceFmtDcdImpl::extractFrame()
             cont_process = true;
     }
 
+    // total bytes processed this pass 
+    uint32_t total_processed = ex_bytes + f_sync_bytes + h_sync_bytes;
+
     // output raw data on raw frame channel - packed raw. 
-    if ((m_ex_frm_n_bytes == OCSD_DFRMTR_FRAME_SIZE) && m_b_output_packed_raw)
+    if (((m_ex_frm_n_bytes == OCSD_DFRMTR_FRAME_SIZE) || !cont_process) && m_b_output_packed_raw)
     {
         outputRawMonBytes(  OCSD_OP_DATA, 
                             m_trc_curr_idx, 
                             OCSD_FRM_PACKED,
-                            ex_bytes + f_sync_bytes + h_sync_bytes,
+                            total_processed,
                             m_in_block_base+m_in_block_processed,
                             0);
     }
 
     // update the processed count for the buffer
-    m_in_block_processed += m_ex_frm_n_bytes + f_sync_bytes + h_sync_bytes;
+    m_in_block_processed += total_processed;
 
     // update index past the processed data   
-    m_trc_curr_idx += m_ex_frm_n_bytes + f_sync_bytes + h_sync_bytes;
+    m_trc_curr_idx += total_processed;
 
     return cont_process;
 }
@@ -817,7 +830,7 @@ ocsd_err_t TraceFormatterFrameDecoder::Configure(uint32_t cfg_flags)
             m_pDecoder = new (std::nothrow) TraceFmtDcdImpl();
         if(!m_pDecoder) return OCSD_ERR_MEM;
     }
-    m_pDecoder->m_cfgFlags = cfg_flags;
+    m_pDecoder->DecodeConfigure(cfg_flags);
     return OCSD_OK;
 }
 

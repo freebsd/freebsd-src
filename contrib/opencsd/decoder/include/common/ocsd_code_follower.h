@@ -95,6 +95,7 @@ public:
     const bool isLink() const;                          //!< is a link (branch with link etc)
     const bool ISAChanged() const;                      //!< next ISA different from input ISA.
     const ocsd_isa nextISA() const;                     //!< ISA for next instruction
+    const uint8_t getInstrSize() const;                 //!< Get the last instruction size.
 
     // information on error conditions
     const bool isNacc() const;                  //!< true if Memory Not Accessible (nacc) error occurred 
@@ -190,6 +191,11 @@ inline const ocsd_instr_type OcsdCodeFollower::getInstrType() const
 inline const ocsd_instr_subtype OcsdCodeFollower::getInstrSubType() const
 {
     return m_instr_info.sub_type;
+}
+
+inline const uint8_t  OcsdCodeFollower::getInstrSize() const
+{
+    return m_instr_info.instr_size;
 }
 
 inline const bool OcsdCodeFollower::isCondInstr() const

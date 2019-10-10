@@ -19,13 +19,15 @@ TrcMemAccCB::TrcMemAccCB(const ocsd_vaddr_t s_address,
 }
 
 /** Memory access override - allow decoder to read bytes from the buffer. */
-const uint32_t TrcMemAccCB::readBytes(const ocsd_vaddr_t address, const ocsd_mem_space_acc_t memSpace, const uint32_t reqBytes, uint8_t *byteBuffer)
+const uint32_t TrcMemAccCB::readBytes(const ocsd_vaddr_t address, const ocsd_mem_space_acc_t memSpace, const uint8_t trcID, const uint32_t reqBytes, uint8_t *byteBuffer)
 {
     // if we have a callback object, use it to call back.
     if(m_p_CBclass)
         return m_p_CBclass->readBytes(address,memSpace,reqBytes,byteBuffer);
     if(m_p_CBfn)
         return m_p_CBfn(m_p_cbfn_context, address,memSpace,reqBytes,byteBuffer);
+    if (m_p_CBIDfn)
+        return m_p_CBIDfn(m_p_cbfn_context, address, memSpace, trcID, reqBytes, byteBuffer);
     return 0;
 }
 

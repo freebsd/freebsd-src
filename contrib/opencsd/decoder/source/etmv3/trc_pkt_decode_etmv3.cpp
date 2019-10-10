@@ -598,7 +598,8 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV3::processPHdr()
                         pElem->setAddrRange(m_IAddr,m_code_follower.getRangeEn());
                         pElem->setLastInstrInfo(atoms.getCurrAtomVal() == ATOM_E, 
                                     m_code_follower.getInstrType(),
-                                    m_code_follower.getInstrSubType());
+                                    m_code_follower.getInstrSubType(),m_code_follower.getInstrSize());
+                        pElem->setLastInstrCond(m_code_follower.isCondInstr());
                         pElem->setISA(isa);
                         if(m_code_follower.hasNextAddr())
                             m_IAddr = m_code_follower.getNextAddr();

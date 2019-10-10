@@ -63,12 +63,15 @@ void trcPrintableElem::getValStr(std::string &valStr, const int valTotalBitSize,
 
         int validChars = valValidBits / 4;
         if((valValidBits % 4) > 0) validChars++; 
-        int QM = numHexChars - validChars;
-        while(QM)
-        {
-            QM--;
-            valStr += "?";
-        }
+		if (validChars < numHexChars)
+		{
+			int QM = numHexChars - validChars;
+			while (QM)
+			{
+				QM--;
+				valStr += "?";
+			}
+		}
         if(valValidBits > 32)
         {
             sprintf(szFormatBuffer,"%%0%dllX",validChars);  // create the format

@@ -35,7 +35,7 @@
 
 #include "common/ocsd_error_logger.h"
 
-#include <iostream>
+//#include <iostream>
 #include <sstream>
 
 ocsdDefaultErrorLogger::ocsdDefaultErrorLogger() :

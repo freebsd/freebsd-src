@@ -61,6 +61,7 @@ static const char *s_errorCodeDescs[][2] = {
     {"OCSD_ERR_DATA_DECODE_FATAL", "A decoder in the data path has returned a fatal error."},
     /* frame deformatter errors */
     {"OCSD_ERR_DFMTR_NOTCONTTRACE", "Trace input to deformatter none-continuous"},
+    {"OCSD_ERR_DFMTR_BAD_FHSYNC", "Bad frame or half frame sync in trace deformatter"},
     /* packet processor errors - protocol issues etc */
     {"OCSD_ERR_BAD_PACKET_SEQ","Bad packet sequence"},
     {"OCSD_ERR_INVALID_PCKT_HDR","Invalid packet header"},
@@ -79,6 +80,7 @@ static const char *s_errorCodeDescs[][2] = {
     {"OCSD_ERR_MEM_ACC_OVERLAP","Attempted to set an overlapping range in memory access map."},
     {"OCSD_ERR_MEM_ACC_FILE_NOT_FOUND","Memory access file could not be opened."},
     {"OCSD_ERR_MEM_ACC_FILE_DIFF_RANGE","Attempt to re-use the same memory access file for a different address range."},
+    {"OCSD_ERR_MEM_ACC_BAD_LEN","Memory accessor returned a bad read length value (larger than requested."},
     {"OCSD_ERR_MEM_ACC_RANGE_INVALID","Address range in accessor set to invalid values."},
     /* test errors - errors generated only by the test code, not the library */
     {"OCSD_ERR_TEST_SNAPSHOT_PARSE", "Test snapshot file parse error"},
@@ -90,7 +92,7 @@ static const char *s_errorCodeDescs[][2] = {
     {"OCSD_ERR_DCDREG_NAME_UNKNOWN","Attempted to find a decoder with a name that is not known in the library."},
     {"OCSD_ERR_DCDREG_TYPE_UNKNOWN","Attempted to find a decoder with a type that is not known in the library."},
     /* decoder config */
-    {"OCSD_ERR_DCD_INTERFACE_UNUSED","Attempt to connect or use and inteface not supported by this decoder."},
+    {"OCSD_ERR_DCD_INTERFACE_UNUSED","Attempt to connect or use and interface not supported by this decoder."},
     /* end marker*/
     {"OCSD_ERR_LAST", "No error - error code end marker"}
 };

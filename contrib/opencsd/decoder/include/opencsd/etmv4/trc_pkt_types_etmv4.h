@@ -1,8 +1,8 @@
 /*
  * \file       trc_pkt_types_etmv4.h
- * \brief      OpenCSD : 
+ * \brief      OpenCSD : ETMv4 packet info
  * 
- * \copyright  Copyright (c) 2015, ARM Limited. All Rights Reserved.
+ * \copyright  Copyright (c) 2015,2019 ARM Limited. All Rights Reserved.
  */
 
 
@@ -56,80 +56,95 @@ typedef enum _ocsd_etmv4_i_pkt_type
 		ETM4_PKT_I_BAD_SEQUENCE = 0x300,        /*!< invalid sequence for packet type. */
         ETM4_PKT_I_BAD_TRACEMODE,               /*!< invalid packet type for this trace mode. */
 		ETM4_PKT_I_RESERVED,                    /*!< packet type reserved. */
+        ETM4_PKT_I_RESERVED_CFG,                /*!< packet type reserved for current configuration */
 
 /* I stream packet types. */
     /* extension header. */
-        ETM4_PKT_I_EXTENSION = 0x00,            /*!< b00000000  */
+        ETM4_PKT_I_EXTENSION =          0x00,   /*!< b00000000  */
 
-    /* address amd context */
-        ETM4_PKT_I_ADDR_CTXT_L_32IS0 = 0x82,    /*!< b10000010  */
+   /* sync */    
+        ETM4_PKT_I_TRACE_INFO =         0x01,   /*!< b00000001 */
+        // timestamp
+        ETM4_PKT_I_TIMESTAMP =          0x02,   /*!< b0000001x */
+        ETM4_PKT_I_TRACE_ON =           0x04,   /*!< b00000100 */
+        ETM4_PKT_I_FUNC_RET =           0x05,   /*!< b00000101 (V8M only) */
+    // Exceptions
+        ETM4_PKT_I_EXCEPT =             0x06,   /*!< b00000110 */
+        ETM4_PKT_I_EXCEPT_RTN =         0x07,   /*!< b00000111 */
+
+        /* unused encodings             0x08-0xB     b00001000 to b00001011 */
+
+    /* cycle count packets */
+        ETM4_PKT_I_CCNT_F2 =            0x0C,   /*!< b0000110x */
+        ETM4_PKT_I_CCNT_F1 =            0x0E,   /*!< b0000111x */
+        ETM4_PKT_I_CCNT_F3 =            0x10,   /*!< b0001xxxx */
+
+    // data synchronisation markers
+        ETM4_PKT_I_NUM_DS_MKR =         0x20,   /*!< b00100xxx */
+        ETM4_PKT_I_UNNUM_DS_MKR =       0x28,   /*!< b00101000 to b00101100 0x2C */
+
+    // speculation 
+        ETM4_PKT_I_COMMIT =             0x2D,   /*!< b00101101 */
+        ETM4_PKT_I_CANCEL_F1 =          0x2E,   /*!< b0010111x */
+        ETM4_PKT_I_MISPREDICT =         0x30,   /*!< b001100xx */
+        ETM4_PKT_I_CANCEL_F2 =          0x34,   /*!< b001101xx */
+        ETM4_PKT_I_CANCEL_F3 =          0x38,   /*!< b00111xxx */
+
+    /* conditional instruction tracing */
+        ETM4_PKT_I_COND_I_F2 =          0x40,   /*!< b01000000 - b01000010 */
+        ETM4_PKT_I_COND_FLUSH =         0x43,   /*!< b01000011 */
+        ETM4_PKT_I_COND_RES_F4 =        0x44,   /*!< b0100010x, b01000110 */
+        /* unused encoding              0x47         b01000111 */
+        ETM4_PKT_I_COND_RES_F2 =        0x48,   /*!< b0100100x, b01001010, b0100110x, b01001110 */
+        /* unused encodings             0x4B,0x4F    b01001011, b01001111 */
+        ETM4_PKT_I_COND_RES_F3 =        0x50,   /*!< b0101xxxx */
+        /* unused encodings             0x60-0x67    b01100xxx */     
+        ETM4_PKT_I_COND_RES_F1 =        0x68,   /*!< b011010xx, b0110111x  0x68-0x6B, 0x6e-0x6F */
+        ETM4_PKT_I_COND_I_F1 =          0x6C,   /*!< b01101100 */
+        ETM4_PKT_I_COND_I_F3 =          0x6D,   /*!< b01101101 */
+
+        // event trace
+        ETM4_PKT_I_IGNORE =             0x70,   /*!< b01110000 */
+        ETM4_PKT_I_EVENT =              0x71,   /*!< b01110001 to 0x01111111 0x7F */
+
+    /* address and context */
+        ETM4_PKT_I_CTXT =               0x80,   /*!< b1000000x  */
+        ETM4_PKT_I_ADDR_CTXT_L_32IS0 =  0x82,   /*!< b10000010  */
         ETM4_PKT_I_ADDR_CTXT_L_32IS1,           /*!< b10000011  */
-        /* unused encoding                           b10000100  */
-        ETM4_PKT_I_ADDR_CTXT_L_64IS0 = 0x85,    /*!< b10000101  */
+        /* unused encoding              0x84         b10000100  */
+        ETM4_PKT_I_ADDR_CTXT_L_64IS0 =  0x85,   /*!< b10000101  */
         ETM4_PKT_I_ADDR_CTXT_L_64IS1,           /*!< b10000110  */
-        /* unused encoding                           b10000111  */
-        ETM4_PKT_I_CTXT = 0x80,                 /*!< b1000000x  */
-        ETM4_PKT_I_ADDR_MATCH = 0x90,           /*!< b10010000 to b10010010 */
-        ETM4_PKT_I_ADDR_L_32IS0 = 0x9A,         /*!< b10011010  */
-        ETM4_PKT_I_ADDR_L_32IS1,                /*!< b10011011  */
-        /* unused encoding                           b10011100  */
-        ETM4_PKT_I_ADDR_L_64IS0 = 0x9D,         /*!< b10011101  */
-        ETM4_PKT_I_ADDR_L_64IS1,                /*!< b10011110  */
-        /* unused encoding                           b10011111  */
-        ETM4_PKT_I_ADDR_S_IS0 = 0x95,           /*!< b10010101  */
+        /* unused encoding              0x87         b10000111  */
+        /* unused encodings             0x88-0x8F    b10001xxx  */
+        ETM4_PKT_I_ADDR_MATCH =         0x90,   /*!< b10010000 to b10010010 0x92 */
+        /* unused encodings             0x93-0x94    b10010011 to b10010010 */
+        ETM4_PKT_I_ADDR_S_IS0 =         0x95,   /*!< b10010101  */
         ETM4_PKT_I_ADDR_S_IS1,                  /*!< b10010110  */
-        /* unused encoding                           b10010111  
-           unused encoding                           b10011000
-           unused encoding                           b10011001 */
+        /* unused encodings             0x97         b10010111 to b10011001 0x99 */
+        ETM4_PKT_I_ADDR_L_32IS0 =       0x9A,   /*!< b10011010  */
+        ETM4_PKT_I_ADDR_L_32IS1,                /*!< b10011011  */
+        /* unused encoding              0x9C         b10011100  */
+        ETM4_PKT_I_ADDR_L_64IS0 =       0x9D,   /*!< b10011101  */
+        ETM4_PKT_I_ADDR_L_64IS1,                /*!< b10011110  */
+        /* unused encoding              0x9F         b10011111  */
 
     /* Q packets */
         ETM4_PKT_I_Q = 0xA0,                    /*!< b1010xxxx  */
 
+        /* unused encodings             0xB0-0xBF    b1011xxxx  */
+
     /* Atom packets */
-        ETM4_PKT_I_ATOM_F1 = 0xF6,              /*!< b1111011x */
-        ETM4_PKT_I_ATOM_F2 = 0xD8,              /*!< b110110xx */
-        ETM4_PKT_I_ATOM_F3 = 0xF8,              //!< b11111xxx
-        ETM4_PKT_I_ATOM_F4 = 0xDC,              //!< b110111xx
-        ETM4_PKT_I_ATOM_F5 = 0xD5,              //!< b11010101 - b11010111, b11110101
-        ETM4_PKT_I_ATOM_F6 = 0xC0,              //!< b11000000 - b11010100, b11100000 - b11110100
+        ETM4_PKT_I_ATOM_F6 =            0xC0,   /*!< b11000000 - b11010100 0xC0 - 0xD4, b11100000 - b11110100 0xE0 - 0xF4 */
+        ETM4_PKT_I_ATOM_F5 =            0xD5,   /*!< b11010101 - b11010111 0xD5 - 0xD7, b11110101 0xF5 */
+        ETM4_PKT_I_ATOM_F2 =            0xD8,   /*!< b110110xx to 0xDB */
+        ETM4_PKT_I_ATOM_F4 =            0xDC,   /*!< b110111xx to 0xDF */
+        ETM4_PKT_I_ATOM_F1 =            0xF6,   /*!< b1111011x to 0xF7 */
+        ETM4_PKT_I_ATOM_F3 =            0xF8,   /*!< b11111xxx to 0xFF */
 
-    /* conditional instruction tracing */
-        ETM4_PKT_I_COND_FLUSH = 0x43,           //!< b01000011
-        ETM4_PKT_I_COND_I_F1 = 0x6C,            //!< b01101100
-        ETM4_PKT_I_COND_I_F2 = 0x40,            //!< b01000000 - b01000010
-        ETM4_PKT_I_COND_I_F3 = 0x6D,            //!< b01101101
-        ETM4_PKT_I_COND_RES_F1 = 0x68,          //!< b0110111x, b011010xx
-        ETM4_PKT_I_COND_RES_F2 = 0x48,          //!< b0100100x, b01001010, b0100110x, b01001110 
-        ETM4_PKT_I_COND_RES_F3 = 0x50,          //!< b0101xxxx
-        ETM4_PKT_I_COND_RES_F4 = 0x44,          //!< b0100010x, b01000110
-
-    /* cycle count packets */
-        ETM4_PKT_I_CCNT_F1 = 0x0E,             //!< b0000111x
-        ETM4_PKT_I_CCNT_F2 = 0x0C,             //!< b0000110x
-        ETM4_PKT_I_CCNT_F3 = 0x10,             //!< b0001xxxx
-    // data synchronisation markers
-        ETM4_PKT_I_NUM_DS_MKR = 0x20,          //!< b00100xxx
-        ETM4_PKT_I_UNNUM_DS_MKR = 0x28,        //!< b00101000 - b00101100
-    // event trace
-        ETM4_PKT_I_EVENT = 0x70,               //!< b0111xxxx
-    // Exceptions
-        ETM4_PKT_I_EXCEPT = 0x06,              //!< b00000110
-        ETM4_PKT_I_EXCEPT_RTN = 0x07,          //!< b00000111
-    // timestamp
-        ETM4_PKT_I_TIMESTAMP = 0x02,           //!< b0000001x
-    // speculation 
-        ETM4_PKT_I_CANCEL_F1 = 0x2E,           //!< b0010111x
-        ETM4_PKT_I_CANCEL_F2 = 0x34,           //!< b001101xx
-        ETM4_PKT_I_CANCEL_F3 = 0x38,           //!< b00111xxx
-        ETM4_PKT_I_COMMIT = 0x2D,              //!< b00101101
-        ETM4_PKT_I_MISPREDICT = 0x30,          //!< b001100xx
-    // Sync
-        ETM4_PKT_I_TRACE_INFO = 0x01,          //!< b00000001
-        ETM4_PKT_I_TRACE_ON = 0x04,            //!< b00000100    
     // extension packets - follow 0x00 header
         ETM4_PKT_I_ASYNC = 0x100,              //!< b00000000
         ETM4_PKT_I_DISCARD = 0x103,            //!< b00000011
-        ETM4_PKT_I_OVERFLOW = 0x105            //!< b00000101
+        ETM4_PKT_I_OVERFLOW = 0x105,           //!< b00000101
 
 } ocsd_etmv4_i_pkt_type;
 
@@ -139,7 +154,7 @@ typedef union _etmv4_trace_info_t {
         uint32_t cc_enabled:1;      //!< 1 if cycle count enabled
         uint32_t cond_enabled:3;    //!< conditional trace enabeld type
         uint32_t p0_load:1;         //!< 1 if tracing with P0 load elements (for data trace)
-        uint32_t p0_store:1;        //1< 1 if tracing with P0 store elements (for data trace)
+        uint32_t p0_store:1;        //!< 1 if tracing with P0 store elements (for data trace)
     } bits;         //!< bitfields for trace info value.
 } etmv4_trace_info_t;
 
@@ -259,6 +274,7 @@ typedef struct _ocsd_etmv4_i_pkt
 
     // original header type when packet type changed to error on decode error.
     ocsd_etmv4_i_pkt_type err_type;
+    uint8_t err_hdr_val;
 
 } ocsd_etmv4_i_pkt;
 
@@ -341,6 +357,7 @@ typedef struct _ocsd_etmv4_cfg
     ocsd_arch_version_t    arch_ver;   /**< Architecture version */
     ocsd_core_profile_t    core_prof;  /**< Core Profile */
 } ocsd_etmv4_cfg;
+
 
 /** @}*/
 /** @}*/

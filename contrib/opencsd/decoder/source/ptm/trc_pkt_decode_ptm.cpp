@@ -179,6 +179,7 @@ ocsd_err_t TrcPktDecodePtm::onProtocolConfig()
     m_instr_info.pe_type.profile = m_config->coreProfile();
     m_instr_info.pe_type.arch = m_config->archVersion();
     m_instr_info.dsb_dmb_waypoints = m_config->dmsbWayPt() ? 1 : 0;
+    m_instr_info.wfi_wfe_branch = 0;
     return err;
 }
 
@@ -576,10 +577,11 @@ ocsd_datapath_resp_t TrcPktDecodePtm::processAtomRange(const ocsd_atm_val A, con
         }
         
         m_output_elem.setType(OCSD_GEN_TRC_ELEM_INSTR_RANGE);
-        m_output_elem.setLastInstrInfo((A == ATOM_E),m_instr_info.type, m_instr_info.sub_type);
+        m_output_elem.setLastInstrInfo((A == ATOM_E),m_instr_info.type, m_instr_info.sub_type,m_instr_info.instr_size);
         m_output_elem.setISA(m_curr_pe_state.isa);
         if(m_curr_packet_in->hasCC())
             m_output_elem.setCycleCount(m_curr_packet_in->getCCVal());
+        m_output_elem.setLastInstrCond(m_instr_info.is_conditional);
         resp = outputTraceElementIdx(m_index_curr_pkt,m_output_elem);
 
         m_curr_pe_state.instr_addr = m_instr_info.instr_addr;
@@ -594,8 +596,9 @@ ocsd_datapath_resp_t TrcPktDecodePtm::processAtomRange(const ocsd_atm_val A, con
         {
             // some trace before we were out of memory access range
             m_output_elem.setType(OCSD_GEN_TRC_ELEM_INSTR_RANGE);
-            m_output_elem.setLastInstrInfo(true,m_instr_info.type, m_instr_info.sub_type);
+            m_output_elem.setLastInstrInfo(true,m_instr_info.type, m_instr_info.sub_type,m_instr_info.instr_size);
             m_output_elem.setISA(m_curr_pe_state.isa);
+            m_output_elem.setLastInstrCond(m_instr_info.is_conditional);
             resp = outputTraceElementIdx(m_index_curr_pkt,m_output_elem);
         }
     }
@@ -612,6 +615,7 @@ ocsd_err_t TrcPktDecodePtm::traceInstrToWP(bool &bWPFound, const waypoint_trace_
     ocsd_mem_space_acc_t mem_space = (m_pe_context.security_level == ocsd_sec_secure) ? OCSD_MEM_SPACE_S : OCSD_MEM_SPACE_N;
 
     m_output_elem.st_addr = m_output_elem.en_addr = m_instr_info.instr_addr;
+    m_output_elem.num_instr_range = 0;
 
     bWPFound = false;
 
@@ -634,6 +638,7 @@ ocsd_err_t TrcPktDecodePtm::traceInstrToWP(bool &bWPFound, const waypoint_trace_
 
             // update the range decoded address in the output packet.
             m_output_elem.en_addr = m_instr_info.instr_addr;
+            m_output_elem.num_instr_range++;
 
             m_output_elem.last_i_type = m_instr_info.type;
             // either walking to match the next instruction address or a real waypoint
