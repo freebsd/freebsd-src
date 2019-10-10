@@ -34,19 +34,4 @@
 
 verify_runnable "global"
 
-if [[ -n $DISK ]]; then
-	#
-        # Use 'zpool create' to clean up the infomation in 
-        # in the given disk to avoid slice overlapping.
-        #
-	cleanup_devices $DISK
-
-        partition_disk $SIZE $DISK 7
-else 
-	for disk in `$ECHO $DISKSARRAY`; do
-		cleanup_devices $disk
-        	partition_disk $SIZE $disk 7
-	done
-fi	
-
 log_pass

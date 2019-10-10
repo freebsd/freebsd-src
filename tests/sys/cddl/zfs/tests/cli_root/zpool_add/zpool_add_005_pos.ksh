@@ -61,6 +61,8 @@
 
 verify_runnable "global"
 
+set_disks
+
 function cleanup
 {
 	poolexists "$TESTPOOL" && \
@@ -68,11 +70,7 @@ function cleanup
 	poolexists "$TESTPOOL1" && \
 		destroy_pool "$TESTPOOL1"
 
-	if [[ -n $saved_dump_dev ]]; then
-		log_must eval "$DUMPADM -u -d $saved_dump_dev > /dev/null"
-	fi
-
-	partition_cleanup
+	$DUMPON -r $dump_dev
 }
 
 log_assert "'zpool add' should fail with inapplicable scenarios."
@@ -81,22 +79,20 @@ log_onexit cleanup
 
 mnttab_dev=$(find_mnttab_dev)
 vfstab_dev=$(find_vfstab_dev)
-saved_dump_dev=$(save_dump_dev)
-dump_dev=${disk}p3
+dump_dev=${DISK2}
 
-create_pool "$TESTPOOL" "${disk}p1"
+create_pool "$TESTPOOL" "${DISK0}"
 log_must poolexists "$TESTPOOL"
 
-create_pool "$TESTPOOL1" "${disk}p2"
+create_pool "$TESTPOOL1" "${DISK1}"
 log_must poolexists "$TESTPOOL1"
-log_mustnot $ZPOOL add -f "$TESTPOOL" ${disk}p2
+log_mustnot $ZPOOL add -f "$TESTPOOL" ${DISK1}
 
 log_mustnot $ZPOOL add -f "$TESTPOOL" $mnttab_dev
 
 log_mustnot $ZPOOL add -f "$TESTPOOL" $vfstab_dev
 
-log_must $ECHO "y" | $NEWFS /dev/$dump_dev > /dev/null 2>&1
-log_must $DUMPADM -u -d /dev/$dump_dev > /dev/null
+log_must $DUMPON $dump_dev
 log_mustnot $ZPOOL add -f "$TESTPOOL" $dump_dev
 
 log_pass "'zpool add' should fail with inapplicable scenarios."

@@ -57,23 +57,12 @@
 
 verify_runnable "global"
 
-function cleanup
-{
-
-        poolexists "$TESTPOOL" && \
-                destroy_pool "$TESTPOOL"
-
-	partition_cleanup
-}
-
 log_assert "'zpool add' should return an error with nonexistent pools and vdevs"
 
-log_onexit cleanup
-
-set -A args "" "-f nonexistent_pool ${disk}p2" \
+set -A args "" "-f nonexistent_pool ${DISK1}" \
 	"-f $TESTPOOL nonexistent_vdev"
 
-create_pool "$TESTPOOL" "${disk}p1"
+create_pool "$TESTPOOL" "${DISK0}"
 log_must poolexists "$TESTPOOL"
 
 typeset -i i=0

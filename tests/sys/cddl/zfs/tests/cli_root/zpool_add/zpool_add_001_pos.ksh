@@ -58,44 +58,23 @@
 
 verify_runnable "global"
 
-function cleanup
-{
-	poolexists $TESTPOOL && \
-		destroy_pool $TESTPOOL
-
-	partition_cleanup
-}
-
 log_assert "'zpool add <pool> <vdev> ...' can add devices to the pool." 
-
-log_onexit cleanup
 
 set -A keywords "" "mirror" "raidz" "raidz1" "spare"
 
-typeset diskname=${disk#/dev/}
+set_disks
+
 typeset diskname0=${DISK0#/dev/}
 typeset diskname1=${DISK1#/dev/}
+typeset diskname2=${DISK2#/dev/}
+typeset diskname3=${DISK3#/dev/}
+typeset diskname4=${DISK4#/dev/}
 
-case $DISK_ARRAY_NUM in
-0|1)
-        pooldevs="${diskname}p1 \
-                  /dev/${diskname}p1 \
-                  \"${diskname}p1 ${diskname}p2\""
-        mirrordevs="\"/dev/${diskname}p1 ${diskname}p2\""
-        raidzdevs="\"/dev/${diskname}p1 ${diskname}p2\""
-
-        ;;
-2|*)
-        pooldevs="${diskname0}p1\
-                 \"/dev/${diskname0}p1 ${diskname1}p1\" \
-                 \"${diskname0}p1 ${diskname0}p2 ${diskname1}p2\"\
-                 \"${diskname0}p1 ${diskname1}p1 ${diskname0}p2\
-                   ${diskname1}p2\""
-        mirrordevs="\"/dev/${diskname0}p1 ${diskname1}p1\""
-        raidzdevs="\"/dev/${diskname0}p1 ${diskname1}p1\""
-
-        ;;
-esac
+pooldevs="${diskname0}\
+	 \"/dev/${diskname0} ${diskname1}\" \
+	 \"${diskname0} ${diskname1} ${diskname2}\""
+mirrordevs="\"/dev/${diskname0} ${diskname1}\""
+raidzdevs="\"/dev/${diskname0} ${diskname1}\""
 
 typeset -i i=0
 typeset vdev
@@ -107,7 +86,7 @@ while (( $i < ${#keywords[*]} )); do
         case ${keywords[i]} in
         ""|spare)     
 		for vdev in "${poolarray[@]}"; do
-			create_pool "$TESTPOOL" "${diskname}p6"
+			create_pool "$TESTPOOL" "${diskname3}"
 			log_must poolexists "$TESTPOOL"
                 	log_must $ZPOOL add -f "$TESTPOOL" ${keywords[i]} \
 				$vdev
@@ -119,7 +98,7 @@ while (( $i < ${#keywords[*]} )); do
         mirror) 
 		for vdev in "${mirrorarray[@]}"; do
 			create_pool "$TESTPOOL" "${keywords[i]}" \
-				"${diskname}p4" "${diskname}p5"
+				"${diskname3}" "${diskname4}"
 			log_must poolexists "$TESTPOOL"
                 	log_must $ZPOOL add "$TESTPOOL" ${keywords[i]} \
 				$vdev
@@ -131,7 +110,7 @@ while (( $i < ${#keywords[*]} )); do
         raidz|raidz1)  
 		for vdev in "${raidzarray[@]}"; do
 			create_pool "$TESTPOOL" "${keywords[i]}" \
-				"${diskname}p4" "${diskname}p5"
+				"${diskname3}" "${diskname4}"
 			log_must poolexists "$TESTPOOL"
                 	log_must $ZPOOL add "$TESTPOOL" ${keywords[i]} \
 				$vdev
