@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018, Intel Corporation
+ * Copyright (c) 2013-2019, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -37,37 +37,40 @@
 #include <string.h>
 
 
-static char *dupstr(const char *str)
-{
-	char *dup;
-	size_t len;
-
-	if (!str)
-		return NULL;
-
-	len = strlen(str);
-	dup = malloc(len + 1);
-	if (!dup)
-		return NULL;
-
-	return strcpy(dup, str);
-}
-
-struct pt_section *pt_mk_section(const char *filename, uint64_t offset,
-				 uint64_t size)
+int pt_mk_section(struct pt_section **psection, const char *filename,
+		  uint64_t offset, uint64_t size)
 {
 	struct pt_section *section;
 	uint64_t fsize;
+	size_t flen;
 	void *status;
+	char *fname;
 	int errcode;
 
-	errcode = pt_section_mk_status(&status, &fsize, filename);
+	if (!psection)
+		return -pte_internal;
+
+	flen = strnlen(filename, FILENAME_MAX);
+	if (FILENAME_MAX <= flen)
+		return -pte_invalid;
+
+	flen += 1;
+
+	fname = malloc(flen);
+	if (!fname)
+		return -pte_nomem;
+
+	memcpy(fname, filename, flen);
+
+	errcode = pt_section_mk_status(&status, &fsize, fname);
 	if (errcode < 0)
-		return NULL;
+		goto out_fname;
 
 	/* Fail if the requested @offset lies beyond the end of @file. */
-	if (fsize <= offset)
+	if (fsize <= offset) {
+		errcode = -pte_invalid;
 		goto out_status;
+	}
 
 	/* Truncate @size so the entire range lies within @file. */
 	fsize -= offset;
@@ -75,12 +78,14 @@ struct pt_section *pt_mk_section(const char *filename, uint64_t offset,
 		size = fsize;
 
 	section = malloc(sizeof(*section));
-	if (!section)
+	if (!section) {
+		errcode = -pte_nomem;
 		goto out_status;
+	}
 
 	memset(section, 0, sizeof(*section));
 
-	section->filename = dupstr(filename);
+	section->filename = fname;
 	section->status = status;
 	section->offset = offset;
 	section->size = size;
@@ -90,26 +95,32 @@ struct pt_section *pt_mk_section(const char *filename, uint64_t offset,
 
 	errcode = mtx_init(&section->lock, mtx_plain);
 	if (errcode != thrd_success) {
-		free(section->filename);
 		free(section);
+
+		errcode = -pte_bad_lock;
 		goto out_status;
 	}
 
 	errcode = mtx_init(&section->alock, mtx_plain);
 	if (errcode != thrd_success) {
 		mtx_destroy(&section->lock);
-		free(section->filename);
 		free(section);
+
+		errcode = -pte_bad_lock;
 		goto out_status;
 	}
 
 #endif /* defined(FEATURE_THREADS) */
 
-	return section;
+	*psection = section;
+	return 0;
 
 out_status:
 	free(status);
-	return NULL;
+
+out_fname:
+	free(fname);
+	return errcode;
 }
 
 int pt_section_lock(struct pt_section *section)

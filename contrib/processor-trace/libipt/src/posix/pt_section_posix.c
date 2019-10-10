@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018, Intel Corporation
+ * Copyright (c) 2013-2019, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -53,7 +53,7 @@ int pt_section_mk_status(void **pstatus, uint64_t *psize, const char *filename)
 
 	errcode = stat(filename, &buffer);
 	if (errcode < 0)
-		return errcode;
+		return -pte_bad_file;
 
 	if (buffer.st_size < 0)
 		return -pte_bad_image;
@@ -65,7 +65,7 @@ int pt_section_mk_status(void **pstatus, uint64_t *psize, const char *filename)
 	status->stat = buffer;
 
 	*pstatus = status;
-	*psize = buffer.st_size;
+	*psize = (uint64_t) buffer.st_size;
 
 	return 0;
 }
@@ -81,7 +81,7 @@ static int check_file_status(struct pt_section *section, int fd)
 
 	errcode = fstat(fd, &stat);
 	if (errcode)
-		return -pte_bad_image;
+		return -pte_bad_file;
 
 	status = section->status;
 	if (!status)
@@ -101,6 +101,7 @@ int pt_sec_posix_map(struct pt_section *section, int fd)
 	struct pt_sec_posix_mapping *mapping;
 	uint64_t offset, size, adjustment;
 	uint8_t *base;
+	long page_size;
 	int errcode;
 
 	if (!section)
@@ -109,7 +110,11 @@ int pt_sec_posix_map(struct pt_section *section, int fd)
 	offset = section->offset;
 	size = section->size;
 
-	adjustment = offset % sysconf(_SC_PAGESIZE);
+	page_size = sysconf(_SC_PAGESIZE);
+	if (page_size < 0)
+		return -pte_bad_config;
+
+	adjustment = offset % (uint64_t) page_size;
 
 	offset -= adjustment;
 	size += adjustment;
@@ -213,7 +218,7 @@ int pt_section_map(struct pt_section *section)
 	if (!filename)
 		goto out_unlock;
 
-	errcode = -pte_bad_image;
+	errcode = -pte_bad_file;
 	fd = open(filename, O_RDONLY);
 	if (fd == -1)
 		goto out_unlock;
@@ -234,8 +239,10 @@ int pt_section_map(struct pt_section *section)
 	 * if we fail to convert the file descriptor.
 	 */
 	file = fdopen(fd, "rb");
-	if (!file)
+	if (!file) {
+		errcode = -pte_bad_file;
 		goto out_fd;
+	}
 
 	/* We need to keep the file open on success.  It will be closed when
 	 * the section is unmapped.

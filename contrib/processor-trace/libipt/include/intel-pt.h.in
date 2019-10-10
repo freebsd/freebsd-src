@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018, Intel Corporation
+ * Copyright (c) 2013-2019, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -80,6 +80,7 @@ struct pt_block_decoder;
 /** The header version. */
 #define LIBIPT_VERSION_MAJOR ${PT_VERSION_MAJOR}
 #define LIBIPT_VERSION_MINOR ${PT_VERSION_MINOR}
+#define LIBIPT_VERSION_PATCH ${PT_VERSION_PATCH}
 
 #define LIBIPT_VERSION ((LIBIPT_VERSION_MAJOR << 8) + LIBIPT_VERSION_MINOR)
 
@@ -92,8 +93,8 @@ struct pt_version {
 	/** Minor version number. */
 	uint8_t minor;
 
-	/** Reserved bits. */
-	uint16_t reserved;
+	/** Patch level. */
+	uint16_t patch;
 
 	/** Build number. */
 	uint32_t build;
@@ -330,6 +331,16 @@ struct pt_errata {
 	 */
 	uint32_t apl11:1;
 
+	/** SKL168: Intel(R) PT CYC Packets Can be Dropped When Immediately
+	 *          Preceding PSB
+	 *
+	 * Due to a rare microarchitectural condition, generation of an Intel
+	 * PT (Processor Trace) PSB (Packet Stream Boundary) packet can cause a
+	 * single CYC (Cycle Count) packet, possibly along with an associated
+	 * MTC (Mini Time Counter) packet, to be dropped.
+	 */
+	uint32_t skl168:1;
+
 	/* Reserve a few bytes for the future. */
 	uint32_t reserved[15];
 };
@@ -348,13 +359,25 @@ struct pt_conf_flags {
 
 			/** End a block after a jump instruction. */
 			uint32_t end_on_jump:1;
+
+			/** Preserve timing calibration on overflow. */
+			uint32_t keep_tcal_on_ovf:1;
 		} block;
 
 		/** Flags for the instruction flow decoder. */
 		struct {
 			/** Enable tick events for timing updates. */
 			uint32_t enable_tick_events:1;
+
+			/** Preserve timing calibration on overflow. */
+			uint32_t keep_tcal_on_ovf:1;
 		} insn;
+
+		/** Flags for the query decoder. */
+		struct {
+			/** Preserve timing calibration on overflow. */
+			uint32_t keep_tcal_on_ovf:1;
+		} query;
 
 		/* Reserve a few bytes for future extensions. */
 		uint32_t reserved[4];

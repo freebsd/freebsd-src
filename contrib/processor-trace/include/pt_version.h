@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019, Intel Corporation
+ * Copyright (c) 2018-2019, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,10 +26,46 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef PT_VERSION_H
+#define PT_VERSION_H
+
 #include "intel-pt.h"
 
+#include <stdio.h>
+#include <inttypes.h>
 
-struct pt_version pt_library_version(void)
+
+static inline int pt_fprint_version(FILE *file, struct pt_version version)
+{
+	if (version.build) {
+		if (version.ext && version.ext[0])
+			return fprintf(file, "%" PRIu8 ".%" PRIu8 ".%" PRIu16
+				       "-%" PRIu32 "-%s", version.major,
+				       version.minor, version.patch,
+				       version.build, version.ext);
+		else
+			return fprintf(file, "%" PRIu8 ".%" PRIu8 ".%" PRIu16
+				       "-%" PRIu32 "", version.major,
+				       version.minor, version.patch,
+				       version.build);
+	} else {
+		if (version.ext && version.ext[0])
+			return fprintf(file, "%" PRIu8 ".%" PRIu8 ".%" PRIu16
+				       "-%s", version.major, version.minor,
+				       version.patch, version.ext);
+		else
+			return fprintf(file, "%" PRIu8 ".%" PRIu8 ".%" PRIu16,
+				       version.major, version.minor,
+				       version.patch);
+	}
+}
+
+static inline int pt_print_version(struct pt_version version)
+{
+	return pt_fprint_version(stdout, version);
+}
+
+static inline void pt_print_tool_version(const char *name)
 {
 	struct pt_version v = {
 		/* .major = */ PT_VERSION_MAJOR,
@@ -39,5 +75,14 @@ struct pt_version pt_library_version(void)
 		/* .ext = */ PT_VERSION_EXT
 	};
 
-	return v;
+	if (!name)
+		name = "<unknown>";
+
+	printf("%s-", name);
+	pt_print_version(v);
+	printf(" / libipt-");
+	pt_print_version(pt_library_version());
+	printf("\n");
 }
+
+#endif /* PT_VERSION_H */

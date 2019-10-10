@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018, Intel Corporation
+ * Copyright (c) 2013-2019, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -208,15 +208,16 @@ uint64_t pt_section_size(const struct pt_section *section)
 	return section->size;
 }
 
-struct pt_section *pt_mk_section(const char *file, uint64_t offset,
-				 uint64_t size)
+int pt_mk_section(struct pt_section **psection, const char *filename,
+		  uint64_t offset, uint64_t size)
 {
-	(void) file;
+	(void) psection;
+	(void) filename;
 	(void) offset;
 	(void) size;
 
 	/* This function is not used by our tests. */
-	return NULL;
+	return -pte_not_supported;
 }
 
 int pt_section_get(struct pt_section *section)
