@@ -131,9 +131,3 @@
 	popl	%esi
 	ret
 	SET_SIZE(atomic_load_64)
-
-	ENTRY(membar_producer)
-	lock
-	xorl	$0, (%esp)
-	ret
-	SET_SIZE(membar_producer)
