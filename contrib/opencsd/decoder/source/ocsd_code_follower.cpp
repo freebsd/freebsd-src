@@ -41,6 +41,7 @@ OcsdCodeFollower::OcsdCodeFollower()
     m_instr_info.pe_type.profile = profile_Unknown;
     m_instr_info.isa = ocsd_isa_unknown;
     m_instr_info.dsb_dmb_waypoints = 0;
+    m_instr_info.wfi_wfe_branch = 0;
     m_instr_info.instr_addr = 0;
     m_instr_info.opcode = 0;
     m_pMemAccess = 0;

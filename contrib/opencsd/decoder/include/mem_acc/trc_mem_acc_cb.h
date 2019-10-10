@@ -49,32 +49,47 @@ public:
     virtual ~TrcMemAccCB() {};
     
     /** Memory access override - allow decoder to read bytes from the buffer. */
-    virtual const uint32_t readBytes(const ocsd_vaddr_t address, const ocsd_mem_space_acc_t memSpace, const uint32_t reqBytes, uint8_t *byteBuffer);
+    virtual const uint32_t readBytes(const ocsd_vaddr_t address, const ocsd_mem_space_acc_t memSpace, const uint8_t trcID, const uint32_t reqBytes, uint8_t *byteBuffer);
     
     void setCBIfClass(TrcMemAccCBIF *p_if);
     void setCBIfFn(Fn_MemAcc_CB p_fn, const void *p_context);
+    void setCBIDIfFn(Fn_MemAccID_CB p_fn, const void *p_context);
 
 private:
+    void clearCBptrs();
     TrcMemAccCBIF *m_p_CBclass;     //<! callback class.
     Fn_MemAcc_CB m_p_CBfn;          //<! callback function.
+    Fn_MemAccID_CB m_p_CBIDfn;       //<! callback with ID function.
     const void *m_p_cbfn_context;   //<! context pointer for callback function.
 };
 
+inline void TrcMemAccCB::clearCBptrs()
+{
+    m_p_CBclass = 0;
+    m_p_CBfn = 0;
+    m_p_CBIDfn = 0;
+    m_p_cbfn_context = 0;
+}
+
 inline void TrcMemAccCB::setCBIfClass(TrcMemAccCBIF *p_if) 
 { 
+    clearCBptrs();   // only one callback type per accessor.
     m_p_CBclass = p_if; 
-    m_p_CBfn = 0;       // only one callback type per accessor.
-    m_p_cbfn_context = 0;
 }
 
 inline void TrcMemAccCB::setCBIfFn(Fn_MemAcc_CB p_fn, const void *p_context) 
 { 
+    clearCBptrs();   // only one callback type per accessor.
     m_p_CBfn = p_fn;
     m_p_cbfn_context = p_context;
-    m_p_CBclass = 0;  // only one callback type per accessor.
 }
 
-
+inline void TrcMemAccCB::setCBIDIfFn(Fn_MemAccID_CB p_fn, const void *p_context)
+{
+    clearCBptrs();   // only one callback type per accessor.
+    m_p_CBIDfn = p_fn;
+    m_p_cbfn_context = p_context;
+}
 
 #endif // ARM_TRC_MEM_ACC_CB_H_INCLUDED
 

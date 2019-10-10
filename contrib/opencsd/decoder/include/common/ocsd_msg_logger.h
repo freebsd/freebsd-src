@@ -53,23 +53,26 @@ public:
     ocsdMsgLogger();
     ~ocsdMsgLogger();
 
+    /** Typedef enum providing flags to define the output methods for the message logger.
+    */
     typedef enum {
-        OUT_NONE = 0,
-        OUT_FILE = 1,
-        OUT_STDERR = 2,
-        OUT_STDOUT = 4,
-		OUT_STR_CB = 8	/* output to external string callback interface */
+        OUT_NONE = 0,   /*!< No output from logger*/
+        OUT_FILE = 1,   /*!< Output to file */
+        OUT_STDERR = 2, /*!< Output to stderr */
+        OUT_STDOUT = 4, /*!< Output to stdout */
+		OUT_STR_CB = 8	/*!< output to external string callback interface */
     } output_dest;
 
-    void setLogOpts(int logOpts);
-	const int getLogOpts() const { return m_outFlags; };
+    void setLogOpts(int logOpts); //!< set the output logging flags.
+	const int getLogOpts() const  //! get the current output logging flags value. 
+    { return m_outFlags; };
 	
-	void setLogFileName(const char *fileName);
-	void setStrOutFn(ocsdMsgLogStrOutI *p_IstrOut);
+	void setLogFileName(const char *fileName);  //!< Set the output log filename, and enable logging to file.
+	void setStrOutFn(ocsdMsgLogStrOutI *p_IstrOut); //!< Set the output log string callback and enable logging to callback.
 
-    void LogMsg(const std::string &msg);
+    void LogMsg(const std::string &msg); //!< Log a message to the current set output channels.
 
-    const bool isLogging() const;
+    const bool isLogging() const; //!< true if logging active
 
 private:
     int m_outFlags;
