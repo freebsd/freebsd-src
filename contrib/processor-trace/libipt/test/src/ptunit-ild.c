@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018, Intel Corporation
+ * Copyright (c) 2013-2019, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -689,8 +689,6 @@ static struct ptunit_result ptwrite_m64(void)
 int main(int argc, char **argv)
 {
 	struct ptunit_suite suite;
-
-	pt_ild_init();
 
 	suite = ptunit_mk_suite(argc, argv);
 

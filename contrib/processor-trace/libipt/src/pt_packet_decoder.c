@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018, Intel Corporation
+ * Copyright (c) 2014-2019, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -35,6 +35,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stddef.h>
 
 
 int pt_pkt_decoder_init(struct pt_packet_decoder *decoder,
@@ -87,19 +88,33 @@ void pt_pkt_free_decoder(struct pt_packet_decoder *decoder)
 
 int pt_pkt_sync_forward(struct pt_packet_decoder *decoder)
 {
-	const uint8_t *pos, *sync;
+	const uint8_t *pos, *sync, *begin;
+	ptrdiff_t space;
 	int errcode;
 
 	if (!decoder)
 		return -pte_invalid;
 
+	begin = decoder->config.begin;
 	sync = decoder->sync;
 	pos = decoder->pos;
 	if (!pos)
-		pos = decoder->config.begin;
+		pos = begin;
 
 	if (pos == sync)
 		pos += ptps_psb;
+
+	if (pos < begin)
+		return -pte_internal;
+
+	/* Start a bit earlier so we find PSB that have been partially consumed
+	 * by a preceding packet.
+	 */
+	space = pos - begin;
+	if (ptps_psb <= space)
+		space = ptps_psb - 1;
+
+	pos -= space;
 
 	errcode = pt_sync_forward(&sync, pos, &decoder->config);
 	if (errcode < 0)
@@ -166,7 +181,7 @@ int pt_pkt_get_offset(const struct pt_packet_decoder *decoder, uint64_t *offset)
 	if (!pos)
 		return -pte_nosync;
 
-	*offset = pos - begin;
+	*offset = (uint64_t) (int64_t) (pos - begin);
 	return 0;
 }
 
@@ -184,7 +199,7 @@ int pt_pkt_get_sync_offset(const struct pt_packet_decoder *decoder,
 	if (!sync)
 		return -pte_nosync;
 
-	*offset = sync - begin;
+	*offset = (uint64_t) (int64_t) (sync - begin);
 	return 0;
 }
 

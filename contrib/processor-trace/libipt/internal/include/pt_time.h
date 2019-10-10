@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018, Intel Corporation
+ * Copyright (c) 2014-2019, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -166,6 +166,9 @@ struct pt_time_cal {
 
 	/* A flag saying whether we have seen a MTC packet. */
 	uint32_t have_mtc:1;
+
+	/* A flag saying whether we need to check for erratum SKL168. */
+	uint32_t check_skl168:1;
 };
 
 enum {
@@ -227,6 +230,10 @@ extern int pt_tcal_update_mtc(struct pt_time_cal *,
 			      const struct pt_config *);
 extern int pt_tcal_update_cyc(struct pt_time_cal *,
 			      const struct pt_packet_cyc *,
+			      const struct pt_config *);
+extern int pt_tcal_update_psb(struct pt_time_cal *,
+			      const struct pt_config *);
+extern int pt_tcal_update_ovf(struct pt_time_cal *,
 			      const struct pt_config *);
 
 #endif /* PT_TIME_H */

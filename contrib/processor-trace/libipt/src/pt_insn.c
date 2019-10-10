@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018, Intel Corporation
+ * Copyright (c) 2016-2019, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -187,7 +187,8 @@ int pt_insn_next_ip(uint64_t *pip, const struct pt_insn *insn,
 	case ptic_call:
 	case ptic_jump:
 		if (iext->variant.branch.is_direct) {
-			ip += iext->variant.branch.displacement;
+			ip += (uint64_t) (int64_t)
+				iext->variant.branch.displacement;
 			break;
 		}
 

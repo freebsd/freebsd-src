@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018, Intel Corporation
+ * Copyright (c) 2014-2019, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -560,19 +560,33 @@ static int pt_qry_apply_cyc(struct pt_time *time, struct pt_time_cal *tcal,
 
 int pt_qry_sync_forward(struct pt_query_decoder *decoder, uint64_t *ip)
 {
-	const uint8_t *pos, *sync;
+	const uint8_t *pos, *sync, *begin;
+	ptrdiff_t space;
 	int errcode;
 
 	if (!decoder)
 		return -pte_invalid;
 
+	begin = decoder->config.begin;
 	sync = decoder->sync;
 	pos = decoder->pos;
 	if (!pos)
-		pos = decoder->config.begin;
+		pos = begin;
 
 	if (pos == sync)
 		pos += ptps_psb;
+
+	if (pos < begin)
+		return -pte_internal;
+
+	/* Start a bit earlier so we find PSB that have been partially consumed
+	 * by a preceding packet.
+	 */
+	space = pos - begin;
+	if (ptps_psb <= space)
+		space = ptps_psb - 1;
+
+	pos -= space;
 
 	errcode = pt_sync_forward(&sync, pos, &decoder->config);
 	if (errcode < 0)
@@ -653,7 +667,7 @@ int pt_qry_get_offset(const struct pt_query_decoder *decoder, uint64_t *offset)
 	if (!pos)
 		return -pte_nosync;
 
-	*offset = pos - begin;
+	*offset = (uint64_t) (int64_t) (pos - begin);
 	return 0;
 }
 
@@ -671,7 +685,7 @@ int pt_qry_get_sync_offset(const struct pt_query_decoder *decoder,
 	if (!sync)
 		return -pte_nosync;
 
-	*offset = sync - begin;
+	*offset = (uint64_t) (int64_t) (sync - begin);
 	return 0;
 }
 
@@ -1042,6 +1056,10 @@ int pt_qry_decode_psb(struct pt_query_decoder *decoder)
 	size = pt_pkt_read_psb(pos, &decoder->config);
 	if (size < 0)
 		return size;
+
+	errcode = pt_tcal_update_psb(&decoder->tcal, &decoder->config);
+	if (errcode < 0)
+		return errcode;
 
 	decoder->pos += size;
 
@@ -2835,6 +2853,7 @@ static int pt_qry_find_ovf_fup(const struct pt_query_decoder *decoder)
 
 int pt_qry_decode_ovf(struct pt_query_decoder *decoder)
 {
+	struct pt_time_cal tcal;
 	struct pt_time time;
 	int status, offset;
 
@@ -2851,8 +2870,18 @@ int pt_qry_decode_ovf(struct pt_query_decoder *decoder)
 
 	/* Reset the decoder state but preserve timing. */
 	time = decoder->time;
+	tcal = decoder->tcal;
+
 	pt_qry_reset(decoder);
+
 	decoder->time = time;
+	if (decoder->config.flags.variant.query.keep_tcal_on_ovf) {
+		status = pt_tcal_update_ovf(&tcal, &decoder->config);
+		if (status < 0)
+			return status;
+
+		decoder->tcal = tcal;
+	}
 
 	/* We must consume the OVF before we search for the binding packet. */
 	decoder->pos += ptps_ovf;

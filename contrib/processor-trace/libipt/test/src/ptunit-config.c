@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2018, Intel Corporation
+ * Copyright (c) 2015-2019, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -464,6 +464,67 @@ static struct ptunit_result addr_filter_ip_in_stop_in(void)
 	return ptu_passed();
 }
 
+static struct ptunit_result cpu_errata_null(void)
+{
+	struct pt_errata errata;
+	struct pt_cpu cpu;
+	int errcode;
+
+	errcode = pt_cpu_errata(&errata, NULL);
+	ptu_int_eq(errcode, -pte_invalid);
+
+	errcode = pt_cpu_errata(NULL, &cpu);
+	ptu_int_eq(errcode, -pte_invalid);
+
+	return ptu_passed();
+}
+
+static struct ptunit_result cpu_errata_unknown(void)
+{
+	struct pt_errata errata;
+	struct pt_cpu cpu;
+	int errcode;
+
+	memset(&cpu, 0, sizeof(cpu));
+
+	errcode = pt_cpu_errata(&errata, &cpu);
+	ptu_int_eq(errcode, -pte_bad_cpu);
+
+	return ptu_passed();
+}
+
+static struct ptunit_result cpu_errata_bad_vendor(void)
+{
+	struct pt_errata errata;
+	struct pt_cpu cpu;
+	int errcode;
+
+	memset(&cpu, 0, sizeof(cpu));
+	cpu.vendor = (enum pt_cpu_vendor) 0xffff;
+
+	errcode = pt_cpu_errata(&errata, &cpu);
+	ptu_int_eq(errcode, -pte_bad_cpu);
+
+	return ptu_passed();
+}
+
+static struct ptunit_result cpu_errata_bad_cpuid(void)
+{
+	struct pt_errata errata;
+	struct pt_cpu cpu;
+	int errcode;
+
+	memset(&cpu, 0, sizeof(cpu));
+	cpu.vendor = pcv_intel;
+	cpu.family = 6;
+	cpu.model = 63;
+
+	errcode = pt_cpu_errata(&errata, &cpu);
+	ptu_int_eq(errcode, -pte_bad_cpu);
+
+	return ptu_passed();
+}
+
 int main(int argc, char **argv)
 {
 	struct ptunit_suite suite;
@@ -491,6 +552,11 @@ int main(int argc, char **argv)
 	ptu_run(suite, addr_filter_stop_out);
 	ptu_run(suite, addr_filter_ip_out_stop_in);
 	ptu_run(suite, addr_filter_ip_in_stop_in);
+
+	ptu_run(suite, cpu_errata_null);
+	ptu_run(suite, cpu_errata_unknown);
+	ptu_run(suite, cpu_errata_bad_vendor);
+	ptu_run(suite, cpu_errata_bad_cpuid);
 
 	return ptunit_report(&suite);
 }

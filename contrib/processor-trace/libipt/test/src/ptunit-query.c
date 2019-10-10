@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018, Intel Corporation
+ * Copyright (c) 2013-2019, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -60,16 +60,16 @@ struct ptu_decoder_fixture {
 };
 
 /* An invalid address. */
-static const uint64_t pt_dfix_bad_ip = (1ull << 62) - 1;
+static const uint64_t pt_dfix_bad_ip = (1ull << 62) - 1ull;
 
 /* A sign-extended address. */
 static const uint64_t pt_dfix_sext_ip = 0xffffff00ff00ff00ull;
 
 /* The highest possible address. */
-static const uint64_t pt_dfix_max_ip = (1ull << 47) - 1;
+static const uint64_t pt_dfix_max_ip = (1ull << 47) - 1ull;
 
 /* The highest possible cr3 value. */
-static const uint64_t pt_dfix_max_cr3 = ((1ull << 47) - 1) & ~0x1f;
+static const uint64_t pt_dfix_max_cr3 = ((1ull << 47) - 1ull) & ~0x1full;
 
 /* Synchronize the decoder at the beginning of the trace stream, avoiding the
  * initial PSB header.

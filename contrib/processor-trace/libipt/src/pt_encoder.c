@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018, Intel Corporation
+ * Copyright (c) 2014-2019, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -117,7 +117,7 @@ int pt_enc_get_offset(const struct pt_encoder *encoder, uint64_t *offset)
 	if (!begin)
 		return -pte_internal;
 
-	*offset = raw - begin;
+	*offset = (uint64_t) (int64_t) (raw - begin);
 	return 0;
 }
 
@@ -230,7 +230,8 @@ static int pt_encode_ip(struct pt_encoder *encoder, enum pt_opcode op,
 	if (size < 0)
 		return size;
 
-	errcode = pt_reserve(encoder, /* opc size = */ 1 + size);
+	errcode = pt_reserve(encoder,
+			     /* opc size = */ 1u + (unsigned int) size);
 	if (errcode < 0)
 		return errcode;
 
@@ -661,7 +662,8 @@ int pt_enc_next(struct pt_encoder *encoder, const struct pt_packet *packet)
 		if (size < 0)
 			return size;
 
-		errcode = pt_reserve(encoder, pt_opcs_ptw + size);
+		errcode = pt_reserve(encoder,
+				     (unsigned int) (pt_opcs_ptw + size));
 		if (errcode < 0)
 			return errcode;
 
