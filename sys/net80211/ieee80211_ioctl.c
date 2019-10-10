@@ -3583,6 +3583,8 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		IEEE80211_UNLOCK(ic);
 		/* Wait for parent ioctl handler if it was queued */
 		if (wait) {
+			struct epoch_tracker et;
+
 			ieee80211_waitfor_parent(ic);
 
 			/*
@@ -3592,13 +3594,13 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			 * NB: device may be detached during initialization;
 			 * use if_ioctl for existence check.
 			 */
-			if_addr_rlock(ifp);
+			NET_EPOCH_ENTER(et);
 			if (ifp->if_ioctl == ieee80211_ioctl &&
 			    (ifp->if_flags & IFF_UP) == 0 &&
 			    !IEEE80211_ADDR_EQ(vap->iv_myaddr, IF_LLADDR(ifp)))
 				IEEE80211_ADDR_COPY(vap->iv_myaddr,
 				    IF_LLADDR(ifp));
-			if_addr_runlock(ifp);
+			NET_EPOCH_EXIT(et);
 		}
 		break;
 	case SIOCADDMULTI:
