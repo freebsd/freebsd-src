@@ -114,6 +114,7 @@ enum SPA_mapping_type {
 
 struct nvdimm_spa_dev {
 	int			spa_domain;
+	vm_memattr_t		spa_memattr;
 	uint64_t		spa_phys_base;
 	uint64_t		spa_len;
 	uint64_t		spa_efi_mem_flags;
