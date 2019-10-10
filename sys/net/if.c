@@ -4269,6 +4269,23 @@ if_getmtu_family(if_t ifp, int family)
  * 'struct ifmultiaddr'.
  */
 u_int
+if_lladdr_count(if_t ifp)
+{
+	struct epoch_tracker et;
+	struct ifaddr *ifa;
+	u_int count;
+
+	count = 0;
+	NET_EPOCH_ENTER(et);
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+		if (ifa->ifa_addr->sa_family == AF_LINK)
+			count++;
+	NET_EPOCH_EXIT(et);
+
+	return (count);
+}
+
+u_int
 if_foreach_lladdr(if_t ifp, iflladdr_cb_t cb, void *cb_arg)
 {
 	struct epoch_tracker et;
@@ -4285,6 +4302,23 @@ if_foreach_lladdr(if_t ifp, iflladdr_cb_t cb, void *cb_arg)
 		count += (*cb)(cb_arg, (struct sockaddr_dl *)ifa->ifa_addr,
 		    count);
 	}
+	NET_EPOCH_EXIT(et);
+
+	return (count);
+}
+
+u_int
+if_llmaddr_count(if_t ifp)
+{
+	struct epoch_tracker et;
+	struct ifmultiaddr *ifma;
+	int count;
+
+	count = 0;
+	NET_EPOCH_ENTER(et);
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
+		if (ifma->ifma_addr->sa_family == AF_LINK)
+			count++;
 	NET_EPOCH_EXIT(et);
 
 	return (count);

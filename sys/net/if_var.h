@@ -772,6 +772,8 @@ struct sockaddr_dl;
 typedef u_int iflladdr_cb_t(void *, struct sockaddr_dl *, u_int);
 u_int if_foreach_lladdr(if_t, iflladdr_cb_t, void *);
 u_int if_foreach_llmaddr(if_t, iflladdr_cb_t, void *);
+u_int if_lladdr_count(if_t);
+u_int if_llmaddr_count(if_t);
 int if_multiaddr_count(if_t ifp, int max);
 
 /* Obsoleted multicast management functions. */
