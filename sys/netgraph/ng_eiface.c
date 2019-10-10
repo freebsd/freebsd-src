@@ -506,18 +506,19 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 		case NGM_EIFACE_GET_IFADDRS:
 		    {
+			struct epoch_tracker et;
 			struct ifaddr *ifa;
 			caddr_t ptr;
 			int buflen;
 
 			/* Determine size of response and allocate it */
 			buflen = 0;
-			if_addr_rlock(ifp);
+			NET_EPOCH_ENTER(et);
 			CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 				buflen += SA_SIZE(ifa->ifa_addr);
 			NG_MKRESPONSE(resp, msg, buflen, M_NOWAIT);
 			if (resp == NULL) {
-				if_addr_runlock(ifp);
+				NET_EPOCH_EXIT(et);
 				error = ENOMEM;
 				break;
 			}
@@ -536,7 +537,7 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				ptr += len;
 				buflen -= len;
 			}
-			if_addr_runlock(ifp);
+			NET_EPOCH_EXIT(et);
 			break;
 		    }
 
