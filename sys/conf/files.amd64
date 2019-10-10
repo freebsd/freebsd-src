@@ -226,6 +226,8 @@ dev/ntb/ntb_hw/ntb_hw_amd.c	optional	ntb_hw_amd | ntb_hw
 dev/ntb/ntb_hw/ntb_hw_intel.c	optional	ntb_hw_intel | ntb_hw
 dev/ntb/ntb_hw/ntb_hw_plx.c	optional	ntb_hw_plx | ntb_hw
 dev/ntb/test/ntb_tool.c		optional	ntb_tool
+dev/vmd/vmd.c			optional	vmd
+dev/vmd/vmd_bus.c		optional	vmd_bus
 dev/nvram/nvram.c		optional	nvram isa
 dev/random/ivy.c		optional	rdrand_rng !random_loadable
 dev/random/nehemiah.c		optional	padlock_rng !random_loadable
