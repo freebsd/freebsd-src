@@ -465,6 +465,10 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 	if (!cookie_found) {
 		uint16_t len;
 
+		/* Only report the missing cookie parameter */
+		if (op_err != NULL) {
+			sctp_m_freem(op_err);
+		}
 		len = (uint16_t)(sizeof(struct sctp_error_missing_param) + sizeof(uint16_t));
 		/* We abort with an error of missing mandatory param */
 		op_err = sctp_get_mbuf_for_msg(len, 0, M_NOWAIT, 1, MT_DATA);
