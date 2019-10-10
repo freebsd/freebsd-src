@@ -1,0 +1,455 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug-dll|Win32">
+      <Configuration>Debug-dll</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug-dll|x64">
+      <Configuration>Debug-dll</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-dll|Win32">
+      <Configuration>Release-dll</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-dll|x64">
+      <Configuration>Release-dll</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{7F500891-CC76-405F-933F-F682BC39F923}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>ref_trace_decode_lib</RootNamespace>
+    <ProjectName>opencsd_lib</ProjectName>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-dll|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-dll|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-dll|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-dll|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\opencsd.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug-dll|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\opencsd.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\opencsd.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug-dll|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\opencsd.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\opencsd.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-dll|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\opencsd.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\opencsd.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-dll|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\opencsd.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>..\..\..\lib\win$(PlatformArchitecture)\dbg\</OutDir>
+    <TargetName>lib$(LIB_BASE_NAME)</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-dll|x64'">
+    <OutDir>..\..\..\lib\win$(PlatformArchitecture)\dbg\</OutDir>
+    <TargetName>lib$(LIB_BASE_NAME)</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>..\..\..\lib\win$(PlatformArchitecture)\rel\</OutDir>
+    <TargetName>lib$(LIB_BASE_NAME)</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-dll|x64'">
+    <OutDir>..\..\..\lib\win$(PlatformArchitecture)\rel\</OutDir>
+    <TargetName>lib$(LIB_BASE_NAME)</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>..\..\..\lib\win$(PlatformArchitecture)\rel\</OutDir>
+    <TargetName>lib$(LIB_BASE_NAME)</TargetName>
+    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-dll|Win32'">
+    <OutDir>..\..\..\lib\win$(PlatformArchitecture)\rel\</OutDir>
+    <TargetName>lib$(LIB_BASE_NAME)</TargetName>
+    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>..\..\..\lib\win$(PlatformArchitecture)\dbg\</OutDir>
+    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+    <TargetName>lib$(LIB_BASE_NAME)</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-dll|Win32'">
+    <OutDir>..\..\..\lib\win$(PlatformArchitecture)\dbg\</OutDir>
+    <TargetName>lib$(LIB_BASE_NAME)</TargetName>
+    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ProgramDataBaseFileName>$(OutDir)$(TargetName)_vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-dll|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ProgramDataBaseFileName>$(OutDir)$(TargetName)_vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions);</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ProgramDataBaseFileName>$(OutDir)$(TargetName)_vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-dll|x64'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions);</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ProgramDataBaseFileName>$(OutDir)$(TargetName)_vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ProgramDataBaseFileName>$(OutDir)$(TargetName)_vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-dll|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ProgramDataBaseFileName>$(OutDir)$(TargetName)_vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ProgramDataBaseFileName>$(OutDir)$(TargetName)_vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-dll|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ProgramDataBaseFileName>$(OutDir)$(TargetName)_vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <None Include="..\..\..\..\HOWTO.md" />
+    <None Include="..\..\..\..\LICENSE" />
+    <None Include="..\..\..\..\README.md" />
+    <None Include="..\..\..\..\TODO" />
+    <None Include="..\..\..\docs\build_libs.md" />
+    <None Include="..\..\..\docs\external_custom.md" />
+    <None Include="..\..\..\docs\test_progs.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\include\common\comp_attach_notifier_i.h" />
+    <ClInclude Include="..\..\..\include\common\comp_attach_pt_t.h" />
+    <ClInclude Include="..\..\..\include\common\ocsd_code_follower.h" />
+    <ClInclude Include="..\..\..\include\common\ocsd_dcd_mngr.h" />
+    <ClInclude Include="..\..\..\include\common\ocsd_dcd_mngr_i.h" />
+    <ClInclude Include="..\..\..\include\common\ocsd_dcd_tree.h" />
+    <ClInclude Include="..\..\..\include\common\ocsd_dcd_tree_elem.h" />
+    <ClInclude Include="..\..\..\include\common\ocsd_error.h" />
+    <ClInclude Include="..\..\..\include\common\ocsd_error_logger.h" />
+    <ClInclude Include="..\..\..\include\common\ocsd_gen_elem_list.h" />
+    <ClInclude Include="..\..\..\include\common\ocsd_lib_dcd_register.h" />
+    <ClInclude Include="..\..\..\include\common\ocsd_msg_logger.h" />
+    <ClInclude Include="..\..\..\include\common\ocsd_pe_context.h" />
+    <ClInclude Include="..\..\..\include\common\ocsd_version.h" />
+    <ClInclude Include="..\..\..\include\common\trc_component.h" />
+    <ClInclude Include="..\..\..\include\common\trc_core_arch_map.h" />
+    <ClInclude Include="..\..\..\include\common\trc_cs_config.h" />
+    <ClInclude Include="..\..\..\include\common\trc_frame_deformatter.h" />
+    <ClInclude Include="..\..\..\include\common\trc_gen_elem.h" />
+    <ClInclude Include="..\..\..\include\common\trc_pkt_decode_base.h" />
+    <ClInclude Include="..\..\..\include\common\trc_pkt_elem_base.h" />
+    <ClInclude Include="..\..\..\include\common\trc_pkt_proc_base.h" />
+    <ClInclude Include="..\..\..\include\common\trc_printable_elem.h" />
+    <ClInclude Include="..\..\..\include\common\trc_ret_stack.h" />
+    <ClInclude Include="..\..\..\include\mem_acc\trc_mem_acc_cache.h" />
+    <ClInclude Include="..\..\..\include\opencsd\etmv3\etmv3_decoder.h" />
+    <ClInclude Include="..\..\..\include\opencsd\etmv3\trc_cmp_cfg_etmv3.h" />
+    <ClInclude Include="..\..\..\include\opencsd\etmv3\trc_dcd_mngr_etmv3.h" />
+    <ClInclude Include="..\..\..\include\opencsd\etmv3\trc_pkt_decode_etmv3.h" />
+    <ClInclude Include="..\..\..\include\opencsd\etmv3\trc_pkt_elem_etmv3.h" />
+    <ClInclude Include="..\..\..\include\opencsd\etmv3\trc_pkt_proc_etmv3.h" />
+    <ClInclude Include="..\..\..\include\opencsd\etmv3\trc_pkt_types_etmv3.h" />
+    <ClInclude Include="..\..\..\include\opencsd\etmv4\etmv4_decoder.h" />
+    <ClInclude Include="..\..\..\include\opencsd\etmv4\trc_cmp_cfg_etmv4.h" />
+    <ClInclude Include="..\..\..\include\opencsd\etmv4\trc_dcd_mngr_etmv4i.h" />
+    <ClInclude Include="..\..\..\include\opencsd\etmv4\trc_etmv4_stack_elem.h" />
+    <ClInclude Include="..\..\..\include\opencsd\etmv4\trc_pkt_decode_etmv4i.h" />
+    <ClInclude Include="..\..\..\include\opencsd\etmv4\trc_pkt_elem_etmv4d.h" />
+    <ClInclude Include="..\..\..\include\opencsd\etmv4\trc_pkt_elem_etmv4i.h" />
+    <ClInclude Include="..\..\..\include\opencsd\etmv4\trc_pkt_proc_etmv4.h" />
+    <ClInclude Include="..\..\..\include\opencsd\etmv4\trc_pkt_types_etmv4.h" />
+    <ClInclude Include="..\..\..\include\interfaces\trc_abs_typed_base_i.h" />
+    <ClInclude Include="..\..\..\include\interfaces\trc_data_rawframe_in_i.h" />
+    <ClInclude Include="..\..\..\include\interfaces\trc_data_raw_in_i.h" />
+    <ClInclude Include="..\..\..\include\interfaces\trc_error_log_i.h" />
+    <ClInclude Include="..\..\..\include\interfaces\trc_gen_elem_in_i.h" />
+    <ClInclude Include="..\..\..\include\interfaces\trc_indexer_pkt_i.h" />
+    <ClInclude Include="..\..\..\include\interfaces\trc_indexer_src_i.h" />
+    <ClInclude Include="..\..\..\include\interfaces\trc_instr_decode_i.h" />
+    <ClInclude Include="..\..\..\include\interfaces\trc_pkt_in_i.h" />
+    <ClInclude Include="..\..\..\include\interfaces\trc_pkt_raw_in_i.h" />
+    <ClInclude Include="..\..\..\include\interfaces\trc_tgt_mem_access_i.h" />
+    <ClInclude Include="..\..\..\include\i_dec\trc_idec_arminst.h" />
+    <ClInclude Include="..\..\..\include\i_dec\trc_i_decode.h" />
+    <ClInclude Include="..\..\..\include\mem_acc\trc_mem_acc.h" />
+    <ClInclude Include="..\..\..\include\mem_acc\trc_mem_acc_base.h" />
+    <ClInclude Include="..\..\..\include\mem_acc\trc_mem_acc_bufptr.h" />
+    <ClInclude Include="..\..\..\include\mem_acc\trc_mem_acc_cb.h" />
+    <ClInclude Include="..\..\..\include\mem_acc\trc_mem_acc_cb_if.h" />
+    <ClInclude Include="..\..\..\include\mem_acc\trc_mem_acc_file.h" />
+    <ClInclude Include="..\..\..\include\mem_acc\trc_mem_acc_mapper.h" />
+    <ClInclude Include="..\..\..\include\opencsd\ocsd_if_types.h" />
+    <ClInclude Include="..\..\..\include\opencsd.h" />
+    <ClInclude Include="..\..\..\include\opencsd\ocsd_if_version.h" />
+    <ClInclude Include="..\..\..\include\pkt_printers\gen_elem_printer.h" />
+    <ClInclude Include="..\..\..\include\pkt_printers\item_printer.h" />
+    <ClInclude Include="..\..\..\include\pkt_printers\pkt_printer_t.h" />
+    <ClInclude Include="..\..\..\include\pkt_printers\raw_frame_printer.h" />
+    <ClInclude Include="..\..\..\include\pkt_printers\trc_pkt_printers.h" />
+    <ClInclude Include="..\..\..\include\pkt_printers\trc_print_fact.h" />
+    <ClInclude Include="..\..\..\include\opencsd\ptm\ptm_decoder.h" />
+    <ClInclude Include="..\..\..\include\opencsd\ptm\trc_cmp_cfg_ptm.h" />
+    <ClInclude Include="..\..\..\include\opencsd\ptm\trc_dcd_mngr_ptm.h" />
+    <ClInclude Include="..\..\..\include\opencsd\ptm\trc_pkt_decode_ptm.h" />
+    <ClInclude Include="..\..\..\include\opencsd\ptm\trc_pkt_elem_ptm.h" />
+    <ClInclude Include="..\..\..\include\opencsd\ptm\trc_pkt_proc_ptm.h" />
+    <ClInclude Include="..\..\..\include\opencsd\ptm\trc_pkt_types_ptm.h" />
+    <ClInclude Include="..\..\..\include\opencsd\stm\stm_decoder.h" />
+    <ClInclude Include="..\..\..\include\opencsd\stm\trc_cmp_cfg_stm.h" />
+    <ClInclude Include="..\..\..\include\opencsd\stm\trc_dcd_mngr_stm.h" />
+    <ClInclude Include="..\..\..\include\opencsd\stm\trc_pkt_decode_stm.h" />
+    <ClInclude Include="..\..\..\include\opencsd\stm\trc_pkt_elem_stm.h" />
+    <ClInclude Include="..\..\..\include\opencsd\stm\trc_pkt_proc_stm.h" />
+    <ClInclude Include="..\..\..\include\opencsd\stm\trc_pkt_types_stm.h" />
+    <ClInclude Include="..\..\..\include\opencsd\trc_gen_elem_types.h" />
+    <ClInclude Include="..\..\..\include\opencsd\trc_pkt_types.h" />
+    <ClInclude Include="..\..\..\source\etmv3\trc_pkt_proc_etmv3_impl.h" />
+    <ClInclude Include="..\..\..\source\etmv4\trc_pkt_proc_etmv4d_impl.h" />
+    <ClInclude Include="..\..\..\source\etmv4\trc_pkt_proc_etmv4i_impl.h" />
+    <ClInclude Include="..\..\..\source\trc_frame_deformatter_impl.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\source\etmv3\trc_cmp_cfg_etmv3.cpp" />
+    <ClCompile Include="..\..\..\source\etmv3\trc_pkt_decode_etmv3.cpp" />
+    <ClCompile Include="..\..\..\source\etmv3\trc_pkt_elem_etmv3.cpp" />
+    <ClCompile Include="..\..\..\source\etmv3\trc_pkt_proc_etmv3.cpp" />
+    <ClCompile Include="..\..\..\source\etmv3\trc_pkt_proc_etmv3_impl.cpp" />
+    <ClCompile Include="..\..\..\source\etmv4\trc_cmp_cfg_etmv4.cpp" />
+    <ClCompile Include="..\..\..\source\etmv4\trc_etmv4_stack_elem.cpp" />
+    <ClCompile Include="..\..\..\source\etmv4\trc_pkt_decode_etmv4i.cpp" />
+    <ClCompile Include="..\..\..\source\etmv4\trc_pkt_elem_etmv4d.cpp" />
+    <ClCompile Include="..\..\..\source\etmv4\trc_pkt_elem_etmv4i.cpp" />
+    <ClCompile Include="..\..\..\source\etmv4\trc_pkt_proc_etmv4.cpp" />
+    <ClCompile Include="..\..\..\source\etmv4\trc_pkt_proc_etmv4i_impl.cpp" />
+    <ClCompile Include="..\..\..\source\i_dec\trc_idec_arminst.cpp" />
+    <ClCompile Include="..\..\..\source\i_dec\trc_i_decode.cpp" />
+    <ClCompile Include="..\..\..\source\mem_acc\trc_mem_acc_base.cpp" />
+    <ClCompile Include="..\..\..\source\mem_acc\trc_mem_acc_bufptr.cpp" />
+    <ClCompile Include="..\..\..\source\mem_acc\trc_mem_acc_cache.cpp" />
+    <ClCompile Include="..\..\..\source\mem_acc\trc_mem_acc_cb.cpp" />
+    <ClCompile Include="..\..\..\source\mem_acc\trc_mem_acc_file.cpp" />
+    <ClCompile Include="..\..\..\source\mem_acc\trc_mem_acc_mapper.cpp" />
+    <ClCompile Include="..\..\..\source\ocsd_code_follower.cpp" />
+    <ClCompile Include="..\..\..\source\ocsd_dcd_tree.cpp" />
+    <ClCompile Include="..\..\..\source\ocsd_error.cpp" />
+    <ClCompile Include="..\..\..\source\ocsd_error_logger.cpp" />
+    <ClCompile Include="..\..\..\source\ocsd_gen_elem_list.cpp" />
+    <ClCompile Include="..\..\..\source\ocsd_lib_dcd_register.cpp" />
+    <ClCompile Include="..\..\..\source\ocsd_msg_logger.cpp" />
+    <ClCompile Include="..\..\..\source\ocsd_version.cpp" />
+    <ClCompile Include="..\..\..\source\pkt_printers\raw_frame_printer.cpp" />
+    <ClCompile Include="..\..\..\source\pkt_printers\trc_print_fact.cpp" />
+    <ClCompile Include="..\..\..\source\ptm\trc_cmp_cfg_ptm.cpp" />
+    <ClCompile Include="..\..\..\source\ptm\trc_pkt_decode_ptm.cpp" />
+    <ClCompile Include="..\..\..\source\ptm\trc_pkt_elem_ptm.cpp" />
+    <ClCompile Include="..\..\..\source\ptm\trc_pkt_proc_ptm.cpp" />
+    <ClCompile Include="..\..\..\source\stm\trc_pkt_decode_stm.cpp" />
+    <ClCompile Include="..\..\..\source\stm\trc_pkt_elem_stm.cpp" />
+    <ClCompile Include="..\..\..\source\stm\trc_pkt_proc_stm.cpp" />
+    <ClCompile Include="..\..\..\source\trc_component.cpp" />
+    <ClCompile Include="..\..\..\source\trc_core_arch_map.cpp" />
+    <ClCompile Include="..\..\..\source\trc_frame_deformatter.cpp" />
+    <ClCompile Include="..\..\..\source\trc_gen_elem.cpp" />
+    <ClCompile Include="..\..\..\source\trc_printable_elem.cpp" />
+    <ClCompile Include="..\..\..\source\trc_ret_stack.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
