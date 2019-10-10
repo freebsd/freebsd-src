@@ -40,6 +40,8 @@ ocsd_err_t TrcIDecode::DecodeInstruction(ocsd_instr_info *instr_info)
 {
     ocsd_err_t err = OCSD_OK;
     clear_instr_subtype();
+    SetArchVersion(instr_info);
+
     switch(instr_info->isa)
     {
     case ocsd_isa_arm:
@@ -64,6 +66,22 @@ ocsd_err_t TrcIDecode::DecodeInstruction(ocsd_instr_info *instr_info)
     instr_info->sub_type = get_instr_subtype();
     return err;
 }
+
+void TrcIDecode::SetArchVersion(ocsd_instr_info *instr_info)
+{
+    uint16_t arch = 0x0700;
+
+    switch (instr_info->pe_type.arch)
+    {
+    case ARCH_V8: arch = 0x0800; break;
+    case ARCH_V8r3: arch = 0x0803; break;
+    case ARCH_V7:
+    default:
+        break;
+    }
+    set_arch_version(arch);
+}
+
 
 ocsd_err_t TrcIDecode::DecodeA32(ocsd_instr_info *instr_info)
 {
@@ -107,7 +125,13 @@ ocsd_err_t TrcIDecode::DecodeA32(ocsd_instr_info *instr_info)
             break;
         }
     }
-
+    else if (instr_info->wfi_wfe_branch)
+    {
+        if (inst_ARM_wfiwfe(instr_info->opcode))
+        {
+            instr_info->type = OCSD_INSTR_WFI_WFE;
+        }
+    }
     instr_info->is_conditional = inst_ARM_is_conditional(instr_info->opcode);
 
     return OCSD_OK;
@@ -123,17 +147,17 @@ ocsd_err_t TrcIDecode::DecodeA64(ocsd_instr_info *instr_info)
     instr_info->next_isa = instr_info->isa; // assume same ISA 
     instr_info->is_link = 0;
     
-    if(inst_A64_is_indirect_branch(instr_info->opcode))
+    if(inst_A64_is_indirect_branch_link(instr_info->opcode, &instr_info->is_link))
     {
         instr_info->type = OCSD_INSTR_BR_INDIRECT;
-        instr_info->is_link = inst_A64_is_branch_and_link(instr_info->opcode);
+//        instr_info->is_link = inst_A64_is_branch_and_link(instr_info->opcode);
     }
-    else if(inst_A64_is_direct_branch(instr_info->opcode))
+    else if(inst_A64_is_direct_branch_link(instr_info->opcode, &instr_info->is_link))
     {
         inst_A64_branch_destination(instr_info->instr_addr,instr_info->opcode,&branchAddr);
         instr_info->type = OCSD_INSTR_BR;
         instr_info->branch_addr = (ocsd_vaddr_t)branchAddr;
-        instr_info->is_link = inst_A64_is_branch_and_link(instr_info->opcode);
+//        instr_info->is_link = inst_A64_is_branch_and_link(instr_info->opcode);
     }
     else if((barrier = inst_A64_barrier(instr_info->opcode)) != ARM_BARRIER_NONE)
     {
@@ -148,6 +172,13 @@ ocsd_err_t TrcIDecode::DecodeA64(ocsd_instr_info *instr_info)
             if(instr_info->dsb_dmb_waypoints)
                 instr_info->type = OCSD_INSTR_DSB_DMB;             
             break;
+        }
+    }
+    else if (instr_info->wfi_wfe_branch)
+    {
+        if (inst_A64_wfiwfe(instr_info->opcode))
+        {
+            instr_info->type = OCSD_INSTR_WFI_WFE;
         }
     }
 
@@ -172,20 +203,20 @@ ocsd_err_t TrcIDecode::DecodeT32(ocsd_instr_info *instr_info)
     instr_info->type =  OCSD_INSTR_OTHER;  // default type
     instr_info->next_isa = instr_info->isa; // assume same ISA 
     instr_info->is_link = 0;
+    instr_info->is_conditional = 0;
 
-    if(inst_Thumb_is_indirect_branch(instr_info->opcode))
-    {
-        instr_info->type = OCSD_INSTR_BR_INDIRECT;
-        instr_info->is_link = inst_Thumb_is_branch_and_link(instr_info->opcode);
-    }
-    else if(inst_Thumb_is_direct_branch(instr_info->opcode))
+
+    if(inst_Thumb_is_direct_branch_link(instr_info->opcode,&instr_info->is_link, &instr_info->is_conditional))
     {
         inst_Thumb_branch_destination((uint32_t)instr_info->instr_addr,instr_info->opcode,&branchAddr);
         instr_info->type = OCSD_INSTR_BR;
         instr_info->branch_addr = (ocsd_vaddr_t)(branchAddr & ~0x1);
         if((branchAddr & 0x1) == 0)
             instr_info->next_isa = ocsd_isa_arm;
-        instr_info->is_link = inst_Thumb_is_branch_and_link(instr_info->opcode);
+    }
+    else if (inst_Thumb_is_indirect_branch_link(instr_info->opcode, &instr_info->is_link))
+    {
+        instr_info->type = OCSD_INSTR_BR_INDIRECT;
     }
     else if((barrier = inst_Thumb_barrier(instr_info->opcode)) != ARM_BARRIER_NONE)
     {
@@ -202,7 +233,13 @@ ocsd_err_t TrcIDecode::DecodeT32(ocsd_instr_info *instr_info)
             break;
         }
     }
-
+    else if (instr_info->wfi_wfe_branch)
+    {
+        if (inst_Thumb_wfiwfe(instr_info->opcode))
+        {
+            instr_info->type = OCSD_INSTR_WFI_WFE;
+        }
+    }
     instr_info->is_conditional = inst_Thumb_is_conditional(instr_info->opcode);
     instr_info->thumb_it_conditions = inst_Thumb_is_IT(instr_info->opcode);
 

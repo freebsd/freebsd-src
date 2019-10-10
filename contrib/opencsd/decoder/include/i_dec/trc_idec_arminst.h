@@ -73,7 +73,9 @@ Performance event 0x0D counts these.
 */
 int inst_ARM_is_direct_branch(uint32_t inst);
 int inst_Thumb_is_direct_branch(uint32_t inst);
+int inst_Thumb_is_direct_branch_link(uint32_t inst, uint8_t *is_link, uint8_t *is_cond);
 int inst_A64_is_direct_branch(uint32_t inst);
+int inst_A64_is_direct_branch_link(uint32_t inst, uint8_t *is_link);
 
 /*
 Get branch destination for a direct branch.
@@ -83,7 +85,9 @@ int inst_Thumb_branch_destination(uint32_t addr, uint32_t inst, uint32_t *pnpc);
 int inst_A64_branch_destination(uint64_t addr, uint32_t inst, uint64_t *pnpc);
 
 int inst_ARM_is_indirect_branch(uint32_t inst);
+int inst_Thumb_is_indirect_branch_link(uint32_t inst, uint8_t *is_link);
 int inst_Thumb_is_indirect_branch(uint32_t inst);
+int inst_A64_is_indirect_branch_link(uint32_t inst, uint8_t *is_link);
 int inst_A64_is_indirect_branch(uint32_t inst);
 
 int inst_ARM_is_branch_and_link(uint32_t inst);
@@ -109,6 +113,10 @@ arm_barrier_t inst_ARM_barrier(uint32_t inst);
 arm_barrier_t inst_Thumb_barrier(uint32_t inst);
 arm_barrier_t inst_A64_barrier(uint32_t inst);
 
+int inst_ARM_wfiwfe(uint32_t inst);
+int inst_Thumb_wfiwfe(uint32_t inst);
+int inst_A64_wfiwfe(uint32_t inst);
+
 /*
 Test whether an instruction is definitely undefined, e.g. because
 allocated to a "permanently UNDEFINED" space (UDF mnemonic).
@@ -124,6 +132,9 @@ int inst_A64_is_UDF(uint32_t inst);
 /* access sub-type information */
 ocsd_instr_subtype get_instr_subtype();
 void clear_instr_subtype();
+
+/* set arch version info. */
+void set_arch_version(uint16_t version);
 
 #endif // ARM_TRC_IDEC_ARMINST_H_INCLUDED
 

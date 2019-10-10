@@ -58,7 +58,7 @@ typedef enum _ocsd_gen_trc_elem_t
     OCSD_GEN_TRC_ELEM_EXCEPTION_RET,   /*!< expection return */
     OCSD_GEN_TRC_ELEM_TIMESTAMP,       /*!< Timestamp - preceding elements happeded before this time. */
     OCSD_GEN_TRC_ELEM_CYCLE_COUNT,     /*!< Cycle count - cycles since last cycle count value - associated with a preceding instruction range. */
-    OCSD_GEN_TRC_ELEM_EVENT,           /*!< Event - trigger, (TBC - perhaps have a set of event types - cut down additional processing?)  */   
+    OCSD_GEN_TRC_ELEM_EVENT,           /*!< Event - trigger or numbered event  */   
     OCSD_GEN_TRC_ELEM_SWTRACE,         /*!< Software trace packet - may contain data payload. */
     OCSD_GEN_TRC_ELEM_CUSTOM,          /*!< Fully custom packet type - used by none-ARM architecture decoders */
 } ocsd_gen_trc_elem_t;
@@ -90,12 +90,15 @@ typedef struct _ocsd_generic_trace_elem {
     union {
         struct {
             uint32_t last_instr_exec:1;     /**< 1 if last instruction in range was executed; */
+            uint32_t last_instr_sz:3;       /**< size of last instruction in bytes (2/4) */
             uint32_t has_cc:1;              /**< 1 if this packet has a valid cycle count included (e.g. cycle count included as part of instruction range packet, always 1 for pure cycle count packet.*/
             uint32_t cpu_freq_change:1;     /**< 1 if this packet indicates a change in CPU frequency */
             uint32_t excep_ret_addr:1;      /**< 1 if en_addr is the preferred exception return address on exception packet type */
             uint32_t excep_data_marker:1;   /**< 1 if the exception entry packet is a data push marker only, with no address information (used typically in v7M trace for marking data pushed onto stack) */
             uint32_t extended_data:1;       /**< 1 if the packet extended data pointer is valid. Allows packet extensions for custom decoders, or additional data payloads for data trace.  */
             uint32_t has_ts:1;              /**< 1 if the packet has an associated timestamp - e.g. SW/STM trace TS+Payload as a single packet */
+            uint32_t last_instr_cond:1;     /**< 1 if the last instruction was conditional */
+            uint32_t excep_ret_addr_br_tgt:1;   /**< 1 if exception return address (en_addr) is also the target of a taken branch addr from the previous range. */
         };
         uint32_t flag_bits;
     };
@@ -105,7 +108,8 @@ typedef struct _ocsd_generic_trace_elem {
         uint32_t exception_number;          /**< exception number for exception type packets */
         trace_event_t  trace_event;         /**< Trace event - trigger etc      */
         trace_on_reason_t trace_on_reason;  /**< reason for the trace on packet */
-        ocsd_swt_info_t sw_trace_info;       /**< software trace packet info    */
+        ocsd_swt_info_t sw_trace_info;      /**< software trace packet info    */
+		uint32_t num_instr_range;	        /**< number of instructions covered by range packet (for T32 this cannot be calculated from en-st/i_size) */
     };
 
     const void *ptr_extended_data;        /**< pointer to extended data buffer (data trace, sw trace payload) / custom structure */

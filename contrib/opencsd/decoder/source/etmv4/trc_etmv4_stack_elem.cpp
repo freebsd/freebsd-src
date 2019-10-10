@@ -36,11 +36,17 @@
 #include "opencsd/etmv4/trc_etmv4_stack_elem.h"
 
 /* implementation of P0 element stack in ETM v4 trace*/
-TrcStackElemParam *EtmV4P0Stack::createParamElemNoParam(const p0_elem_t p0_type, const bool isP0, const ocsd_etmv4_i_pkt_type root_pkt, const ocsd_trc_index_t root_index)
+TrcStackElem *EtmV4P0Stack::createParamElemNoParam(const p0_elem_t p0_type, const bool isP0, const ocsd_etmv4_i_pkt_type root_pkt, const ocsd_trc_index_t root_index, bool back /*= false*/)
 {
-    std::vector<uint32_t> params;
-    params.clear();
-    return createParamElem(p0_type, isP0, root_pkt, root_index, params);
+    TrcStackElem *pElem = new (std::nothrow) TrcStackElem(p0_type, isP0, root_pkt, root_index);
+    if (pElem)
+    {
+        if (back)
+            push_back(pElem);
+        else
+            push_front(pElem);
+    }
+    return pElem;
 }
 
 TrcStackElemParam *EtmV4P0Stack::createParamElem(const p0_elem_t p0_type, const bool isP0, const ocsd_etmv4_i_pkt_type root_pkt, const ocsd_trc_index_t root_index, const std::vector<uint32_t> &params)

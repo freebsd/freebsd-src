@@ -39,6 +39,31 @@
 #include "opencsd/etmv4/trc_cmp_cfg_etmv4.h"
 #include "opencsd/etmv4/trc_pkt_elem_etmv4i.h"
 
+class TraceRawBuffer
+{
+public:
+    TraceRawBuffer();
+    ~TraceRawBuffer() {};
+
+    // init the buffer
+    void init(const uint32_t size, const uint8_t *rawtrace, std::vector<uint8_t> *out_packet);
+    void copyByteToPkt();   // move a byte to the packet buffer     
+    uint8_t peekNextByte(); // value of next byte in buffer.
+
+    bool empty() { return m_bufProcessed == m_bufSize; };
+    // bytes processed.
+    uint32_t processed() { return m_bufProcessed; }; 
+    // buffer size;
+    uint32_t size() { return m_bufSize; } 
+
+private:
+    uint32_t m_bufSize;
+    uint32_t m_bufProcessed;
+    const uint8_t *m_pBuffer;
+    std::vector<uint8_t> *pkt;
+
+};
+
 class EtmV4IPktProcImpl
 {
 public:
@@ -81,11 +106,12 @@ protected:
     EtmV4Config m_config;
 
     /** packet data **/
-    std::vector<uint8_t> m_currPacketData;  // raw data
+    TraceRawBuffer m_trcIn;    // trace data in buffer
+    std::vector<uint8_t> m_currPacketData;  // raw data packet
     int m_currPktIdx;   // index into raw packet when expanding
     EtmV4ITrcPacket m_curr_packet;  // expanded packet
     ocsd_trc_index_t m_packet_index;   // index of the start of the current packet
-    uint32_t m_blockBytesProcessed;     // number of bytes processed in the current data block
+//    uint32_t m_blockBytesProcessed;     // number of bytes processed in the current data block
     ocsd_trc_index_t m_blockIndex;     // index at the start of the current data block being processed
 
     // searching for sync
@@ -110,9 +136,9 @@ private:
     #define TINFO_KEY_SECT  0x02 
     #define TINFO_SPEC_SECT 0x04
     #define TINFO_CYCT_SECT 0x08
-    #define TINFO_CTRL      0x10
-    #define TINFO_ALL_SECT  0x0F
-    #define TINFO_ALL       0x1F
+    #define TINFO_CTRL      0x20
+    #define TINFO_ALL_SECT  0x1F
+    #define TINFO_ALL       0x3F
 
 
     // address and context packets 
@@ -152,24 +178,25 @@ private:
     ocsd_datapath_resp_t outputPacket();
     ocsd_datapath_resp_t outputUnsyncedRawPacket(); 
 
-    void iNotSync();      // not synced yet
-    void iPktNoPayload(); // process a single byte packet
-    void iPktReserved();  // deal with reserved header value
-    void iPktExtension();
-    void iPktASync();
-    void iPktTraceInfo();
-    void iPktTimestamp();
-    void iPktException();
-    void iPktCycleCntF123();
-    void iPktSpeclRes();
-    void iPktCondInstr();
-    void iPktCondResult();
-    void iPktContext();
-    void iPktAddrCtxt();
-    void iPktShortAddr();
-    void iPktLongAddr();
-    void iPktQ();
-    void iAtom();
+    void iNotSync(const uint8_t lastByte);      // not synced yet
+    void iPktNoPayload(const uint8_t lastByte); // process a single byte packet
+    void iPktReserved(const uint8_t lastByte);  // deal with reserved header value
+    void iPktExtension(const uint8_t lastByte);
+    void iPktASync(const uint8_t lastByte);
+    void iPktTraceInfo(const uint8_t lastByte);
+    void iPktTimestamp(const uint8_t lastByte);
+    void iPktException(const uint8_t lastByte);
+    void iPktCycleCntF123(const uint8_t lastByte);
+    void iPktSpeclRes(const uint8_t lastByte);
+    void iPktCondInstr(const uint8_t lastByte);
+    void iPktCondResult(const uint8_t lastByte);
+    void iPktContext(const uint8_t lastByte);
+    void iPktAddrCtxt(const uint8_t lastByte);
+    void iPktShortAddr(const uint8_t lastByte);
+    void iPktLongAddr(const uint8_t lastByte);
+    void iPktQ(const uint8_t lastByte);
+    void iAtom(const uint8_t lastByte);
+    void iPktInvalidCfg(const uint8_t lastByte);  // packet invalid in current config.
 
     unsigned extractContField(const std::vector<uint8_t> &buffer, const unsigned st_idx, uint32_t &value, const unsigned byte_limit = 5);
     unsigned extractContField64(const std::vector<uint8_t> &buffer, const unsigned st_idx, uint64_t &value, const unsigned byte_limit = 9);
@@ -180,7 +207,7 @@ private:
     int extractShortAddr(const std::vector<uint8_t> &buffer, const int st_idx, const uint8_t IS, uint32_t &value, int &bits);
 
     // packet processing is table driven.    
-    typedef void (EtmV4IPktProcImpl::*PPKTFN)(void);
+    typedef void (EtmV4IPktProcImpl::*PPKTFN)(uint8_t);
     PPKTFN m_pIPktFn;
 
     struct _pkt_i_table_t {

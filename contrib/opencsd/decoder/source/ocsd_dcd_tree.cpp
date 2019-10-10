@@ -105,6 +105,7 @@ DecodeTree::DecodeTree() :
 
 DecodeTree::~DecodeTree()
 {
+    destroyMemAccMapper();
     for(uint8_t i = 0; i < 0x80; i++)
     {
         destroyDecodeElement(i);
@@ -314,7 +315,36 @@ ocsd_err_t DecodeTree::addBinFileRegionMemAcc(const ocsd_file_mem_region_t *regi
     return err;
 }
 
-ocsd_err_t DecodeTree::addCallbackMemAcc(const ocsd_vaddr_t st_address, const ocsd_vaddr_t en_address, const ocsd_mem_space_acc_t mem_space, Fn_MemAcc_CB p_cb_func, const void *p_context)
+ocsd_err_t DecodeTree::updateBinFileRegionMemAcc(const ocsd_file_mem_region_t *region_array, const int num_regions, const ocsd_mem_space_acc_t mem_space, const std::string &filepath)
+{
+    if (!hasMemAccMapper())
+        return OCSD_ERR_NOT_INIT;
+
+    if ((region_array == 0) || (num_regions == 0) || (filepath.length() == 0))
+        return OCSD_ERR_INVALID_PARAM_VAL;
+
+    TrcMemAccessorFile *pAcc = TrcMemAccessorFile::getExistingFileAccessor(filepath);
+    if (!pAcc) 
+        return OCSD_ERR_INVALID_PARAM_VAL;
+
+    int curr_region_idx = 0;
+    while (curr_region_idx < num_regions)
+    {
+        // check "new" range
+        if (!pAcc->addrStartOfRange(region_array[curr_region_idx].start_address))
+        {
+            // ensure adds cleanly
+            if (!pAcc->AddOffsetRange(region_array[curr_region_idx].start_address,
+                region_array[curr_region_idx].region_size,
+                region_array[curr_region_idx].file_offset))
+                return OCSD_ERR_INVALID_PARAM_VAL;  // otherwise bail out
+        }
+        curr_region_idx++;
+    }
+    return OCSD_OK;
+}
+ocsd_err_t DecodeTree::initCallbackMemAcc(const ocsd_vaddr_t st_address, const ocsd_vaddr_t en_address, 
+    const ocsd_mem_space_acc_t mem_space, void *p_cb_func, bool IDfn, const void *p_context)
 {
     if(!hasMemAccMapper())
         return OCSD_ERR_NOT_INIT;
@@ -329,7 +359,11 @@ ocsd_err_t DecodeTree::addCallbackMemAcc(const ocsd_vaddr_t st_address, const oc
         TrcMemAccCB *pCBAcc = dynamic_cast<TrcMemAccCB *>(p_accessor);
         if(pCBAcc)
         {
-            pCBAcc->setCBIfFn(p_cb_func, p_context);
+            if (IDfn)
+                pCBAcc->setCBIDIfFn((Fn_MemAccID_CB)p_cb_func, p_context);
+            else
+                pCBAcc->setCBIfFn((Fn_MemAcc_CB)p_cb_func, p_context);
+
             err = m_default_mapper->AddAccessor(p_accessor,0);
         }
         else
@@ -339,6 +373,16 @@ ocsd_err_t DecodeTree::addCallbackMemAcc(const ocsd_vaddr_t st_address, const oc
             TrcMemAccFactory::DestroyAccessor(p_accessor);
     }
     return err;
+}
+
+ocsd_err_t DecodeTree::addCallbackMemAcc(const ocsd_vaddr_t st_address, const ocsd_vaddr_t en_address, const ocsd_mem_space_acc_t mem_space, Fn_MemAcc_CB p_cb_func, const void *p_context)
+{
+    return initCallbackMemAcc(st_address, en_address, mem_space, (void *)p_cb_func, false, p_context);
+}
+
+ocsd_err_t DecodeTree::addCallbackIDMemAcc(const ocsd_vaddr_t st_address, const ocsd_vaddr_t en_address, const ocsd_mem_space_acc_t mem_space, Fn_MemAccID_CB p_cb_func, const void *p_context)
+{
+    return initCallbackMemAcc(st_address, en_address, mem_space, (void *)p_cb_func, true, p_context);
 }
 
 ocsd_err_t DecodeTree::removeMemAccByAddress(const ocsd_vaddr_t address, const ocsd_mem_space_acc_t mem_space)

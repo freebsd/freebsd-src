@@ -123,12 +123,13 @@ public:
      *
      * @param s_address : Start address of the read.
      * @param memSpace  : memory space for this access. 
+     * @param trcID     : Trace ID of trace source.
      * @param reqBytes : Number of bytes required.
      * @param *byteBuffer : Buffer to copy the bytes into.
      *
      * @return uint32_t : Number of bytes read, 0 if s_address out of range, or mem space not accessible.
      */
-    virtual const uint32_t readBytes(const ocsd_vaddr_t s_address, const ocsd_mem_space_acc_t memSpace, const uint32_t reqBytes, uint8_t *byteBuffer) = 0;
+    virtual const uint32_t readBytes(const ocsd_vaddr_t s_address, const ocsd_mem_space_acc_t memSpace, const uint8_t trcID, const uint32_t reqBytes, uint8_t *byteBuffer) = 0;
 
     /*!
      * Validate the address range - ensure addresses aligned, different, st < en etc.

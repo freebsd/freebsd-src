@@ -1,8 +1,8 @@
 /*
- * \file       trc_i_decode.h
- * \brief      OpenCSD : 
+ * \file       ocsd_if_version.h
+ * \brief      OpenCSD : Library API versioning
  * 
- * \copyright  Copyright (c) 2015, ARM Limited. All Rights Reserved.
+ * \copyright  Copyright (c) 2016, ARM Limited. All Rights Reserved.
  */
 
 /* 
@@ -31,27 +31,35 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */ 
-#ifndef ARM_TRC_I_DECODE_H_INCLUDED
-#define ARM_TRC_I_DECODE_H_INCLUDED
 
-#include "interfaces/trc_instr_decode_i.h"
-#include "opencsd/ocsd_if_types.h"
+#ifndef ARM_OCSD_IF_VERSION_H_INCLUDED
+#define ARM_OCSD_IF_VERSION_H_INCLUDED
 
-class TrcIDecode : public IInstrDecode  
-{
-public:
-    TrcIDecode() {};
-    virtual ~TrcIDecode() {};
+#include <stdint.h>
 
-    virtual ocsd_err_t DecodeInstruction(ocsd_instr_info *instr_info);
+/** @addtogroup ocsd_interfaces
+@{*/
 
-private:
-    ocsd_err_t DecodeA32(ocsd_instr_info *instr_info);
-    ocsd_err_t DecodeA64(ocsd_instr_info *instr_info);
-    ocsd_err_t DecodeT32(ocsd_instr_info *instr_info);
-    void SetArchVersion(ocsd_instr_info *instr_info);
-};
+/** @name Library Versioning
+@{*/
+#define OCSD_VER_MAJOR 0x0 /**< Library Major Version */
+#define OCSD_VER_MINOR 0xC /**< Library Minor Version */
+#define OCSD_VER_PATCH 0x0 /**< Library Patch Version */
 
-#endif // ARM_TRC_I_DECODE_H_INCLUDED
+/** Library version number - MMMMnnpp format.
+    MMMM = major version, 
+    nn = minor version, 
+    pp = patch version
+*/
+#define OCSD_VER_NUM ((OCSD_VER_MAJOR << 16) | (OCSD_VER_MINOR << 8) | OCSD_VER_PATCH) 
 
-/* End of File trc_i_decode.h */
+#define OCSD_VER_STRING "0.12.0"    /**< Library Version string */
+#define OCSD_LIB_NAME "OpenCSD Library"  /**< Library name string */
+#define OCSD_LIB_SHORT_NAME "OCSD"    /**< Library Short name string */
+/** @}*/
+
+/** @}*/
+
+#endif // ARM_OCSD_IF_VERSION_H_INCLUDED
+
+/* End of File ocsd_if_version.h */

@@ -34,12 +34,46 @@
 
 #include "trc_pkt_proc_etmv4i_impl.h"
 
+/* Trace raw input buffer class */
+TraceRawBuffer::TraceRawBuffer()
+{
+    m_bufSize = 0;
+    m_bufProcessed = 0;
+    m_pBuffer = 0;
+    pkt = 0;
+}
+
+// init the buffer
+void TraceRawBuffer::init(const uint32_t size, const uint8_t *rawtrace, std::vector<uint8_t> *out_packet)
+{
+    m_bufSize = size;
+    m_bufProcessed = 0;
+    m_pBuffer = rawtrace;
+    pkt = out_packet;
+}
+
+void TraceRawBuffer::copyByteToPkt()
+{
+    if (!empty()) {
+        pkt->push_back(m_pBuffer[m_bufProcessed]);
+        m_bufProcessed++;
+    }
+}
+uint8_t TraceRawBuffer::peekNextByte()
+{
+    uint8_t val = 0;
+    if (!empty())
+        val = m_pBuffer[m_bufProcessed];
+    return val;
+}
+
+/* trace etmv4 packet processing class */
 EtmV4IPktProcImpl::EtmV4IPktProcImpl() :
     m_isInit(false),
     m_interface(0),
     m_first_trace_info(false)
 {
-    BuildIPacketTable();
+    
 }
 
 EtmV4IPktProcImpl::~EtmV4IPktProcImpl()
@@ -62,6 +96,7 @@ ocsd_err_t EtmV4IPktProcImpl::Configure(const EtmV4Config *p_config)
     if(p_config != 0)
     {
         m_config = *p_config;
+        BuildIPacketTable();    // packet table based on config
     }
     else
     {
@@ -78,64 +113,81 @@ ocsd_datapath_resp_t EtmV4IPktProcImpl::processData(  const ocsd_trc_index_t ind
                                     uint32_t *numBytesProcessed)
 {
     ocsd_datapath_resp_t resp = OCSD_RESP_CONT;
-    m_blockBytesProcessed = 0;
+    m_trcIn.init(dataBlockSize, pDataBlock, &m_currPacketData);
     m_blockIndex = index;
-    uint8_t currByte;
-    while(  ( (m_blockBytesProcessed < dataBlockSize) || 
-              ((m_blockBytesProcessed == dataBlockSize) && (m_process_state == SEND_PKT)) ) && 
-            OCSD_DATA_RESP_IS_CONT(resp))
+    bool done = false;
+    uint8_t nextByte;
+
+    do
     {
-        currByte = pDataBlock[m_blockBytesProcessed];
         try 
         {
-            switch(m_process_state)
+           /* while (((m_blockBytesProcessed < dataBlockSize) ||
+                ((m_blockBytesProcessed == dataBlockSize) && (m_process_state == SEND_PKT))) &&
+                OCSD_DATA_RESP_IS_CONT(resp))*/
+            while ( (!m_trcIn.empty() || (m_process_state == SEND_PKT)) &&
+                    OCSD_DATA_RESP_IS_CONT(resp)
+                )
             {
-            case PROC_HDR:
-                m_packet_index = m_blockIndex +  m_blockBytesProcessed;
-                if(m_is_sync)
+                switch (m_process_state)
                 {
-                    m_pIPktFn = m_i_table[currByte].pptkFn;
-                    m_curr_packet.type = m_i_table[currByte].pkt_type;
-                }
-                else
-                {
-                    // unsynced - process data until we see a sync point
-                    m_pIPktFn = &EtmV4IPktProcImpl::iNotSync;
-                    m_curr_packet.type = ETM4_PKT_I_NOTSYNC;
-                }
-                m_process_state = PROC_DATA;
+                case PROC_HDR:
+                    m_packet_index = m_blockIndex + m_trcIn.processed();
+                    if (m_is_sync)
+                    {
+                        nextByte = m_trcIn.peekNextByte();
+                        m_pIPktFn = m_i_table[nextByte].pptkFn;
+                        m_curr_packet.type = m_i_table[nextByte].pkt_type;
+                    }
+                    else
+                    {
+                        // unsynced - process data until we see a sync point
+                        m_pIPktFn = &EtmV4IPktProcImpl::iNotSync;
+                        m_curr_packet.type = ETM4_PKT_I_NOTSYNC;
+                    }
+                    m_process_state = PROC_DATA;
 
-            case PROC_DATA:
-                m_currPacketData.push_back(pDataBlock[m_blockBytesProcessed]);
-                m_blockBytesProcessed++;
-                (this->*m_pIPktFn)();                
-                break;
+                case PROC_DATA:
+                    // loop till full packet or no more data...
+                    while (!m_trcIn.empty() && (m_process_state == PROC_DATA))
+                    {
+                        nextByte = m_trcIn.peekNextByte();
+                        m_trcIn.copyByteToPkt();  // move next byte into the packet
+    //                    m_currPacketData.push_back(pDataBlock[m_blockBytesProcessed]);
+    //                    m_blockBytesProcessed++;
+                        (this->*m_pIPktFn)(nextByte);
+                    }
+                    break;
 
-            case SEND_PKT:
-                resp =  outputPacket();
-                InitPacketState();
-                m_process_state = PROC_HDR;
-                break;
+                case SEND_PKT:
+                    resp = outputPacket();
+                    InitPacketState();
+                    m_process_state = PROC_HDR;
+                    break;
 
-            case SEND_UNSYNCED:
-                resp = outputUnsyncedRawPacket();
-                if(m_update_on_unsync_packet_index != 0)
-                {
-                    m_packet_index = m_update_on_unsync_packet_index;
-                    m_update_on_unsync_packet_index = 0;
+                case SEND_UNSYNCED:
+                    resp = outputUnsyncedRawPacket();
+                    if (m_update_on_unsync_packet_index != 0)
+                    {
+                        m_packet_index = m_update_on_unsync_packet_index;
+                        m_update_on_unsync_packet_index = 0;
+                    }
+                    m_process_state = PROC_DATA;        // after dumping unsynced data, still in data mode.
+                    break;
                 }
-                m_process_state = PROC_DATA;        // after dumping unsynced data, still in data mode.
-                break;
             }
+            done = true;
         }
         catch(ocsdError &err)
         {
+            done = true;
             m_interface->LogError(err);
             if( (err.getErrorCode() == OCSD_ERR_BAD_PACKET_SEQ) ||
                 (err.getErrorCode() == OCSD_ERR_INVALID_PCKT_HDR))
             {
                 // send invalid packets up the pipe to let the next stage decide what to do.
                 m_process_state = SEND_PKT; 
+                done = false;
             }
             else
             {
@@ -145,14 +197,15 @@ ocsd_datapath_resp_t EtmV4IPktProcImpl::processData(  const ocsd_trc_index_t ind
         }
         catch(...)
         {
+            done = true;
             /// vv bad at this point.
             resp = OCSD_RESP_FATAL_SYS_ERR;
             const ocsdError &fatal = ocsdError(OCSD_ERR_SEV_ERROR,OCSD_ERR_FAIL,m_packet_index,m_config.getTraceID(),"Unknown System Error decoding trace.");
             m_interface->LogError(fatal);
         }
-    }
+    } while (!done);
 
-    *numBytesProcessed = m_blockBytesProcessed;
+    *numBytesProcessed = m_trcIn.processed();
     return resp;
 }
 
@@ -230,38 +283,35 @@ ocsd_datapath_resp_t EtmV4IPktProcImpl::outputUnsyncedRawPacket()
     return resp;
 }
 
-void EtmV4IPktProcImpl::iNotSync()
+void EtmV4IPktProcImpl::iNotSync(const uint8_t lastByte)
 {
-    uint8_t lastByte = m_currPacketData.back(); // peek at the byte being processed...
-
     // is it an extension byte? 
-    if(lastByte == 0x00) // TBD : add check for forced sync in here?
+    if (lastByte == 0x00) // TBD : add check for forced sync in here?
     {
-        if(m_currPacketData.size() > 1)
+        if (m_currPacketData.size() > 1)
         {
             m_dump_unsynced_bytes = m_currPacketData.size() - 1;
             m_process_state = SEND_UNSYNCED;
             // outputting some data then update packet index after so output indexes accurate
-            m_update_on_unsync_packet_index = m_blockIndex + m_blockBytesProcessed - 1;
+            m_update_on_unsync_packet_index = m_blockIndex + m_trcIn.processed() - 1;
         }
         else
-            m_packet_index = m_blockIndex + m_blockBytesProcessed - 1;  // set it up now otherwise.
+            m_packet_index = m_blockIndex + m_trcIn.processed() - 1;  // set it up now otherwise.
 
-        m_pIPktFn = m_i_table[lastByte].pptkFn; 
+        m_pIPktFn = m_i_table[lastByte].pptkFn;
     }
-    else if(m_currPacketData.size() >= 8)
+    else if (m_currPacketData.size() >= 8)
     {
         m_dump_unsynced_bytes = m_currPacketData.size();
         m_process_state = SEND_UNSYNCED;
         // outputting some data then update packet index after so output indexes accurate
-        m_update_on_unsync_packet_index = m_blockIndex + m_blockBytesProcessed;
+        m_update_on_unsync_packet_index = m_blockIndex + m_trcIn.processed();
     }
 }
 
-void EtmV4IPktProcImpl::iPktNoPayload()
+void EtmV4IPktProcImpl::iPktNoPayload(const uint8_t lastByte)
 {
     // some expansion may be required...
-    uint8_t lastByte = m_currPacketData.back();
     switch(m_curr_packet.type)
     {
     case ETM4_PKT_I_ADDR_MATCH:
@@ -281,20 +331,27 @@ void EtmV4IPktProcImpl::iPktNoPayload()
     case ETM4_PKT_I_COND_FLUSH:
     case ETM4_PKT_I_EXCEPT_RTN:
     case ETM4_PKT_I_TRACE_ON:
+    case ETM4_PKT_I_FUNC_RET:
+    case ETM4_PKT_I_IGNORE:
     default: break;
     }
     m_process_state = SEND_PKT; // now just send it....
 }
 
-void EtmV4IPktProcImpl::iPktReserved()
+void EtmV4IPktProcImpl::iPktReserved(const uint8_t lastByte)
 {
-    m_curr_packet.updateErrType(ETM4_PKT_I_RESERVED);   // swap type for err type
+    m_curr_packet.updateErrType(ETM4_PKT_I_RESERVED, lastByte);   // swap type for err type
     throw ocsdError(OCSD_ERR_SEV_ERROR, OCSD_ERR_INVALID_PCKT_HDR,m_packet_index,m_config.getTraceID());
 }
 
-void EtmV4IPktProcImpl::iPktExtension()
+void EtmV4IPktProcImpl::iPktInvalidCfg(const uint8_t lastByte)
 {
-    uint8_t lastByte = m_currPacketData.back();
+    m_curr_packet.updateErrType(ETM4_PKT_I_RESERVED_CFG, lastByte);   // swap type for err type
+    throw ocsdError(OCSD_ERR_SEV_ERROR, OCSD_ERR_INVALID_PCKT_HDR, m_packet_index, m_config.getTraceID());
+}
+
+void EtmV4IPktProcImpl::iPktExtension(const uint8_t lastByte)
+{
     if(m_currPacketData.size() == 2)
     {
         // not sync and not next by 0x00 - not sync sequence
@@ -331,9 +388,8 @@ void EtmV4IPktProcImpl::iPktExtension()
     }
 }
 
-void EtmV4IPktProcImpl::iPktASync()
+void EtmV4IPktProcImpl::iPktASync(const uint8_t lastByte)
 {
-    uint8_t lastByte = m_currPacketData.back();
     if(lastByte != 0x00)
     {
         // not sync and not next by 0x00 - not sync sequence if < 12
@@ -372,9 +428,8 @@ void EtmV4IPktProcImpl::iPktASync()
     }
 }
 
-void EtmV4IPktProcImpl::iPktTraceInfo()
+void EtmV4IPktProcImpl::iPktTraceInfo(const uint8_t lastByte)
 {
-    uint8_t lastByte = m_currPacketData.back();
     if(m_currPacketData.size() == 1)    // header
     {
         //clear flags
@@ -445,11 +500,8 @@ void EtmV4IPktProcImpl::iPktTraceInfo()
 
 }
 
-void EtmV4IPktProcImpl::iPktTimestamp()
+void EtmV4IPktProcImpl::iPktTimestamp(const uint8_t lastByte)
 {
-    // save the latest byte
-    uint8_t lastByte = m_currPacketData.back();
-
     // process the header byte
     if(m_currPacketData.size() == 1)
     {
@@ -498,9 +550,9 @@ void EtmV4IPktProcImpl::iPktTimestamp()
     }
 }
 
-void EtmV4IPktProcImpl::iPktException()
+void EtmV4IPktProcImpl::iPktException(const uint8_t lastByte)
 {
-    uint8_t lastByte = m_currPacketData.back();
+    uint16_t excep_type = 0;
 
     switch(m_currPacketData.size())
     {
@@ -512,7 +564,7 @@ void EtmV4IPktProcImpl::iPktException()
 
     if(m_currPacketData.size() ==  (unsigned)m_excep_size)
     {
-        uint16_t excep_type =  (m_currPacketData[1] >> 1) & 0x1F;
+        excep_type =  (m_currPacketData[1] >> 1) & 0x1F;
         uint8_t addr_interp = (m_currPacketData[1] & 0x40) >> 5 | (m_currPacketData[1] & 0x1);
         uint8_t m_fault_pending = 0;        
         uint8_t m_type = (m_config.coreProfile() == profile_CortexM) ? 1 : 0;
@@ -530,11 +582,10 @@ void EtmV4IPktProcImpl::iPktException()
     }
 }
 
-void EtmV4IPktProcImpl::iPktCycleCntF123()
+void EtmV4IPktProcImpl::iPktCycleCntF123(const uint8_t lastByte)
 {
     ocsd_etmv4_i_pkt_type format = m_curr_packet.type;
 
-    uint8_t lastByte = m_currPacketData.back();
     if( m_currPacketData.size() == 1)
     {
         m_count_done = m_commit_done = false; 
@@ -606,9 +657,8 @@ void EtmV4IPktProcImpl::iPktCycleCntF123()
     }
 }
 
-void EtmV4IPktProcImpl::iPktSpeclRes()
-{
-    uint8_t lastByte = m_currPacketData.back();
+void EtmV4IPktProcImpl::iPktSpeclRes(const uint8_t lastByte)
+{    
     if(m_currPacketData.size() == 1)
     {
         switch(m_curr_packet.getType())
@@ -650,9 +700,8 @@ void EtmV4IPktProcImpl::iPktSpeclRes()
     }
 }
 
-void EtmV4IPktProcImpl::iPktCondInstr()   
+void EtmV4IPktProcImpl::iPktCondInstr(const uint8_t lastByte)
 {
-    uint8_t lastByte = m_currPacketData.back();
     bool bF1Done = false;
 
     if(m_currPacketData.size() == 1)    
@@ -691,10 +740,8 @@ void EtmV4IPktProcImpl::iPktCondInstr()
     }
 }
 
-void EtmV4IPktProcImpl::iPktCondResult()
+void EtmV4IPktProcImpl::iPktCondResult(const uint8_t lastByte)
 {
-    //static ocsd_etmv4_i_pkt_type format = ETM4_PKT_I_COND_RES_F1; // conditional result formats F1-F4
-    uint8_t lastByte = m_currPacketData.back();
     if(m_currPacketData.size() == 1)    
     {
         m_F1P1_done = false;  // F1 payload 1 done
@@ -763,10 +810,10 @@ void EtmV4IPktProcImpl::iPktCondResult()
     }
 }
 
-void EtmV4IPktProcImpl::iPktContext()
+void EtmV4IPktProcImpl::iPktContext(const uint8_t lastByte)
 {
     bool bSendPacket = false;
-    uint8_t lastByte = m_currPacketData.back();
+    
     if(m_currPacketData.size() == 1) 
     {
         if((lastByte & 0x1) == 0)
@@ -840,10 +887,8 @@ void EtmV4IPktProcImpl::extractAndSetContextInfo(const std::vector<uint8_t> &buf
     }
 }
 
-void EtmV4IPktProcImpl::iPktAddrCtxt()
+void EtmV4IPktProcImpl::iPktAddrCtxt(const uint8_t lastByte)
 {
-    uint8_t lastByte = m_currPacketData.back();
-
     if( m_currPacketData.size() == 1)    
     {        
         m_addrIS = 0;
@@ -910,13 +955,14 @@ void EtmV4IPktProcImpl::iPktAddrCtxt()
     }
 }
 
-void EtmV4IPktProcImpl::iPktShortAddr()
+void EtmV4IPktProcImpl::iPktShortAddr(const uint8_t lastByte)
 {
-    uint8_t lastByte = m_currPacketData.back();
-    if(m_currPacketData.size() == 1)    
+    if (m_currPacketData.size() == 1)
     {
         m_addr_done = false;
-        m_addrIS = (lastByte == ETM4_PKT_I_ADDR_S_IS0) ? 0 : 1;
+        m_addrIS = 0;
+        if (lastByte == ETM4_PKT_I_ADDR_S_IS1)
+            m_addrIS = 1;
     }
     else if(!m_addr_done)
     {
@@ -954,7 +1000,7 @@ int EtmV4IPktProcImpl::extractShortAddr(const std::vector<uint8_t> &buffer, cons
     return idx;
 }
 
-void EtmV4IPktProcImpl::iPktLongAddr()    
+void EtmV4IPktProcImpl::iPktLongAddr(const uint8_t lastByte)
 {
     if(m_currPacketData.size() == 1)    
     {
@@ -998,10 +1044,8 @@ void EtmV4IPktProcImpl::iPktLongAddr()
     }
 }
 
-void EtmV4IPktProcImpl::iPktQ()
+void EtmV4IPktProcImpl::iPktQ(const uint8_t lastByte)
 {
-    uint8_t lastByte = m_currPacketData.back();
-
     if(m_currPacketData.size() == 1)
     {
         m_Q_type = lastByte & 0xF;
@@ -1112,7 +1156,7 @@ void EtmV4IPktProcImpl::iPktQ()
 
 }
 
-void EtmV4IPktProcImpl::iAtom()
+void EtmV4IPktProcImpl::iAtom(const uint8_t lastByte)
 {
     // patterns lsbit = oldest atom, ms bit = newest.
     static const uint32_t f4_patterns[] = {
@@ -1122,7 +1166,6 @@ void EtmV4IPktProcImpl::iAtom()
         0x5  // NENE
     };
 
-    uint8_t lastByte = m_currPacketData.back();
     uint8_t pattIdx = 0, pattCount = 0;
     uint32_t pattern;
 
@@ -1212,13 +1255,23 @@ void EtmV4IPktProcImpl::BuildIPacketTable()
     m_i_table[0x04].pkt_type = ETM4_PKT_I_TRACE_ON;
     m_i_table[0x04].pptkFn   = &EtmV4IPktProcImpl::iPktNoPayload;
 
+
+    // b0000 0101 - Funct ret V8M
+    m_i_table[0x05].pkt_type = ETM4_PKT_I_FUNC_RET;
+    if ((m_config.coreProfile() == profile_CortexM) &&
+        (OCSD_IS_V8_ARCH(m_config.archVersion())) &&
+        (m_config.FullVersion() >= 0x42))
+    {        
+        m_i_table[0x05].pptkFn = &EtmV4IPktProcImpl::iPktNoPayload;
+    }
+
     // b0000 0110 - exception 
     m_i_table[0x06].pkt_type = ETM4_PKT_I_EXCEPT;
     m_i_table[0x06].pptkFn   = &EtmV4IPktProcImpl::iPktException;
 
     // b0000 0111 - exception return 
     m_i_table[0x07].pkt_type = ETM4_PKT_I_EXCEPT_RTN;
-    m_i_table[0x07].pptkFn   = &EtmV4IPktProcImpl::iPktNoPayload;
+    m_i_table[0x07].pptkFn = &EtmV4IPktProcImpl::iPktNoPayload;
 
     // b0000 110x - cycle count f2
     // b0000 111x - cycle count f1
@@ -1238,21 +1291,26 @@ void EtmV4IPktProcImpl::BuildIPacketTable()
     // b0010 0xxx - NDSM
     for(int i = 0; i < 8; i++)
     {
-        m_i_table[0x20+i].pkt_type = ETM4_PKT_I_NUM_DS_MKR;
-        m_i_table[0x20+i].pptkFn   = &EtmV4IPktProcImpl::iPktNoPayload;
+        m_i_table[0x20 + i].pkt_type = ETM4_PKT_I_NUM_DS_MKR;
+        if (m_config.enabledDataTrace())
+            m_i_table[0x20+i].pptkFn = &EtmV4IPktProcImpl::iPktNoPayload;
+        else
+            m_i_table[0x20+i].pptkFn = &EtmV4IPktProcImpl::iPktInvalidCfg;
     }
 
     // b0010 10xx, b0010 1100 - UDSM
     for(int i = 0; i < 5; i++)
     {
         m_i_table[0x28+i].pkt_type = ETM4_PKT_I_UNNUM_DS_MKR;
-        m_i_table[0x28+i].pptkFn   = &EtmV4IPktProcImpl::iPktNoPayload;
+        if (m_config.enabledDataTrace())
+            m_i_table[0x28+i].pptkFn = &EtmV4IPktProcImpl::iPktNoPayload;
+        else
+            m_i_table[0x28+i].pptkFn = &EtmV4IPktProcImpl::iPktInvalidCfg;
     }
 
     // b0010 1101 - commit
     m_i_table[0x2D].pkt_type = ETM4_PKT_I_COMMIT;
     m_i_table[0x2D].pptkFn   = &EtmV4IPktProcImpl::iPktSpeclRes;
-
 
     // b0010 111x - cancel f1
     for(int i = 0; i < 2; i++)
@@ -1284,68 +1342,107 @@ void EtmV4IPktProcImpl::BuildIPacketTable()
         m_i_table[0x38+i].pptkFn   =  &EtmV4IPktProcImpl::iPktSpeclRes;
     }
 
+    bool bCondValid = m_config.hasCondTrace() && m_config.enabledCondITrace();
+
     // b0100 000x, b0100 0010 - cond I f2
-    for(int i = 0; i < 3; i++)
+    for (int i = 0; i < 3; i++)
     {
-        m_i_table[0x40+i].pkt_type = ETM4_PKT_I_COND_I_F2;
-        m_i_table[0x40+i].pptkFn   = &EtmV4IPktProcImpl::iPktCondInstr;
+        m_i_table[0x40 + i].pkt_type = ETM4_PKT_I_COND_I_F2;
+        if (bCondValid)
+            m_i_table[0x40 + i].pptkFn = &EtmV4IPktProcImpl::iPktCondInstr;
+        else
+            m_i_table[0x40 + i].pptkFn = &EtmV4IPktProcImpl::iPktInvalidCfg;
     }
 
     // b0100 0011 - cond flush
     m_i_table[0x43].pkt_type = ETM4_PKT_I_COND_FLUSH;
-    m_i_table[0x43].pptkFn   = &EtmV4IPktProcImpl::iPktNoPayload;
+    if (bCondValid)
+        m_i_table[0x43].pptkFn = &EtmV4IPktProcImpl::iPktNoPayload;
+    else
+        m_i_table[0x43].pptkFn = &EtmV4IPktProcImpl::iPktInvalidCfg;
 
     // b0100 010x, b0100 0110 - cond res f4
-    for(int i = 0; i < 3; i++)
+    for (int i = 0; i < 3; i++)
     {
-        m_i_table[0x44+i].pkt_type = ETM4_PKT_I_COND_RES_F4;
-        m_i_table[0x44+i].pptkFn   = &EtmV4IPktProcImpl::iPktCondResult;
+        m_i_table[0x44 + i].pkt_type = ETM4_PKT_I_COND_RES_F4;
+        if (bCondValid)
+            m_i_table[0x44 + i].pptkFn = &EtmV4IPktProcImpl::iPktCondResult;
+        else
+            m_i_table[0x44 + i].pptkFn = &EtmV4IPktProcImpl::iPktInvalidCfg;
     }
 
     // b0100 100x, b0100 0110 - cond res f2
     // b0100 110x, b0100 1110 - cond res f2
-    for(int i = 0; i < 3; i++)
+    for (int i = 0; i < 3; i++)
     {
-        m_i_table[0x48+i].pkt_type = ETM4_PKT_I_COND_RES_F2;
-        m_i_table[0x48+i].pptkFn   = &EtmV4IPktProcImpl::iPktCondResult;
+        m_i_table[0x48 + i].pkt_type = ETM4_PKT_I_COND_RES_F2;
+        if (bCondValid)
+            m_i_table[0x48 + i].pptkFn = &EtmV4IPktProcImpl::iPktCondResult;
+        else
+            m_i_table[0x48 + i].pptkFn = &EtmV4IPktProcImpl::iPktInvalidCfg;
     }
-    for(int i = 0; i < 3; i++)
+    for (int i = 0; i < 3; i++)
     {
-        m_i_table[0x4C+i].pkt_type = ETM4_PKT_I_COND_RES_F2;
-        m_i_table[0x4C+i].pptkFn   = &EtmV4IPktProcImpl::iPktCondResult;
+        m_i_table[0x4C + i].pkt_type = ETM4_PKT_I_COND_RES_F2;
+        if (bCondValid)
+            m_i_table[0x4C + i].pptkFn = &EtmV4IPktProcImpl::iPktCondResult;
+        else
+            m_i_table[0x4C + i].pptkFn = &EtmV4IPktProcImpl::iPktInvalidCfg;
     }
 
     // b0101xxxx - cond res f3
-    for(int i = 0; i < 16; i++)
+    for (int i = 0; i < 16; i++)
     {
-        m_i_table[0x50+i].pkt_type = ETM4_PKT_I_COND_RES_F3;
-        m_i_table[0x50+i].pptkFn   = &EtmV4IPktProcImpl::iPktCondResult;
+        m_i_table[0x50 + i].pkt_type = ETM4_PKT_I_COND_RES_F3;
+        if (bCondValid)
+            m_i_table[0x50 + i].pptkFn = &EtmV4IPktProcImpl::iPktCondResult;
+        else
+            m_i_table[0x50 + i].pptkFn = &EtmV4IPktProcImpl::iPktInvalidCfg;
     }
 
     // b011010xx - cond res f1
-    for(int i = 0; i < 4; i++)
+    for (int i = 0; i < 4; i++)
     {
-        m_i_table[0x68+i].pkt_type = ETM4_PKT_I_COND_RES_F1;
-        m_i_table[0x68+i].pptkFn   = &EtmV4IPktProcImpl::iPktCondResult;
+        m_i_table[0x68 + i].pkt_type = ETM4_PKT_I_COND_RES_F1;
+        if (bCondValid)
+            m_i_table[0x68 + i].pptkFn = &EtmV4IPktProcImpl::iPktCondResult;
+        else
+            m_i_table[0x68 + i].pptkFn = &EtmV4IPktProcImpl::iPktInvalidCfg;
     }
 
     // b0110 1100 - cond instr f1
     m_i_table[0x6C].pkt_type = ETM4_PKT_I_COND_I_F1;
-    m_i_table[0x6C].pptkFn   = &EtmV4IPktProcImpl::iPktCondInstr;
+    if (bCondValid)
+        m_i_table[0x6C].pptkFn = &EtmV4IPktProcImpl::iPktCondInstr;
+    else
+        m_i_table[0x6C].pptkFn = &EtmV4IPktProcImpl::iPktInvalidCfg;
 
     // b0110 1101 - cond instr f3
     m_i_table[0x6D].pkt_type = ETM4_PKT_I_COND_I_F3;
-    m_i_table[0x6D].pptkFn   = &EtmV4IPktProcImpl::iPktCondInstr;
+    if (bCondValid)
+        m_i_table[0x6D].pptkFn = &EtmV4IPktProcImpl::iPktCondInstr;
+    else
+        m_i_table[0x6D].pptkFn = &EtmV4IPktProcImpl::iPktInvalidCfg;
 
     // b0110111x - cond res f1
-    for(int i = 0; i < 2; i++)
+    for (int i = 0; i < 2; i++)
     {
         // G++ cannot understand [0x6E+i] so change these round
-        m_i_table[i+0x6E].pkt_type = ETM4_PKT_I_COND_RES_F1;
-        m_i_table[i+0x6E].pptkFn   = &EtmV4IPktProcImpl::iPktCondResult;
+        m_i_table[i + 0x6E].pkt_type = ETM4_PKT_I_COND_RES_F1;
+        if (bCondValid)
+            m_i_table[i + 0x6E].pptkFn = &EtmV4IPktProcImpl::iPktCondResult;
+        else
+            m_i_table[i + 0x6E].pptkFn = &EtmV4IPktProcImpl::iPktInvalidCfg;
     }
 
-    // b01110001 - b01111111 - cond res f1
+    // ETM 4.3 introduces ignore packets
+    if (m_config.FullVersion() >= 0x43)
+    {
+        m_i_table[0x70].pkt_type = ETM4_PKT_I_IGNORE;
+        m_i_table[0x70].pptkFn = &EtmV4IPktProcImpl::iPktNoPayload;
+    }
+
+    // b01110001 - b01111111 - event trace
     for(int i = 0; i < 15; i++)
     {
         m_i_table[0x71+i].pkt_type = ETM4_PKT_I_EVENT;
@@ -1399,12 +1496,27 @@ void EtmV4IPktProcImpl::BuildIPacketTable()
         m_i_table[0x9D+i].pkt_type =  (i == 0) ? ETM4_PKT_I_ADDR_L_64IS0 : ETM4_PKT_I_ADDR_L_64IS1;
         m_i_table[0x9D+i].pptkFn   = &EtmV4IPktProcImpl::iPktLongAddr;
     }
-
+    
     // b1010xxxx - Q packet
-    for(int i = 0; i < 16; i++)
+    for (int i = 0; i < 16; i++)
     {
-        m_i_table[0xA0+i].pkt_type = ETM4_PKT_I_Q;
-        m_i_table[0xA0+i].pptkFn   = &EtmV4IPktProcImpl::iPktQ;
+        m_i_table[0xA0 + i].pkt_type = ETM4_PKT_I_Q;
+        // certain Q type codes are reserved.
+        switch (i) {
+        case 0x3:
+        case 0x4:
+        case 0x7:
+        case 0x8:
+        case 0x9:
+        case 0xD:
+        case 0xE:
+            // don't update pkt fn - leave at default reserved.
+            break;
+        default:
+            // if this config supports Q elem - otherwise reserved again.
+            if (m_config.hasQElem())
+                m_i_table[0xA0 + i].pptkFn = &EtmV4IPktProcImpl::iPktQ;
+        }
     }
 
     // Atom Packets - all no payload but have specific pattern generation fn

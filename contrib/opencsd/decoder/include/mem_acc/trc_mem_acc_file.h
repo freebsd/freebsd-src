@@ -56,7 +56,7 @@ public:
     bool operator<(const FileRegionMemAccessor& rhs) { return this->m_startAddress < rhs.m_startAddress; };
 
     // not going to use these objects to read bytes - defer to the file class for that.
-    virtual const uint32_t readBytes(const ocsd_vaddr_t s_address, const ocsd_mem_space_acc_t memSpace, const uint32_t reqBytes, uint8_t *byteBuffer) { return 0; };
+    virtual const uint32_t readBytes(const ocsd_vaddr_t s_address, const ocsd_mem_space_acc_t memSpace, const uint8_t trcID, const uint32_t reqBytes, uint8_t *byteBuffer) { return 0; };
 
     const ocsd_vaddr_t regionStartAddress() const { return m_startAddress; };
 
@@ -77,7 +77,7 @@ class TrcMemAccessorFile : public TrcMemAccessorBase
 {
 public:
     /** read bytes override - reads from file */
-    virtual const uint32_t readBytes(const ocsd_vaddr_t address, const ocsd_mem_space_acc_t memSpace, const uint32_t reqBytes, uint8_t *byteBuffer);
+    virtual const uint32_t readBytes(const ocsd_vaddr_t address, const ocsd_mem_space_acc_t memSpace, const uint8_t trcID, const uint32_t reqBytes, uint8_t *byteBuffer);
 
 protected:
     TrcMemAccessorFile();   /**< protected default constructor */

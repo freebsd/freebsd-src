@@ -128,7 +128,7 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV4I::onFlush()
     ocsd_datapath_resp_t resp = OCSD_RESP_CONT;
 
     // continue exception processing (can't go through processPacket as elements no longer on stack)
-    if(m_excep_proc != EXCEP_POP)
+    if(m_excep_info.proc != EXCEP_POP)
         resp = processException();
     // continue ongoing output operations on comitted elements.
     else if(m_curr_state == COMMIT_ELEM)
@@ -151,6 +151,7 @@ ocsd_err_t TrcPktDecodeEtmV4I::onProtocolConfig()
 
     // set up static trace instruction decode elements
     m_instr_info.dsb_dmb_waypoints = 0;
+    m_instr_info.wfi_wfe_branch = m_config->wfiwfeBranch() ? 1 : 0;
     m_instr_info.pe_type.arch = m_config->archVersion();
     m_instr_info.pe_type.profile = m_config->coreProfile();
 
@@ -233,7 +234,7 @@ void TrcPktDecodeEtmV4I::resetDecoder()
     m_prev_overflow = false;
     m_P0_stack.delete_all();
     m_output_elem.init();
-    m_excep_proc = EXCEP_POP;
+    m_excep_info.proc = EXCEP_POP;
     m_flush_EOT = false;
 }
 
@@ -250,6 +251,7 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV4I::decodePacket(bool &Complete)
     switch(m_curr_packet_in->getType())
     {
     case ETM4_PKT_I_ASYNC: // nothing to do with this packet.
+    case ETM4_PKT_I_IGNORE: // or this one.
         break;
 
     case ETM4_PKT_I_TRACE_INFO:
@@ -350,6 +352,21 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV4I::decodePacket(bool &Complete)
             bool bV7MProfile = (m_config->archVersion() == ARCH_V7) && (m_config->coreProfile() == profile_CortexM);
             if (m_P0_stack.createParamElemNoParam(P0_EXCEP_RET, bV7MProfile, m_curr_packet_in->getType(), m_index_curr_pkt) == 0)
                 bAllocErr = true;
+            else if (bV7MProfile)
+                m_curr_spec_depth++;
+        }
+        break;
+
+    case ETM4_PKT_I_FUNC_RET:
+        {
+            // P0 element iff V8M profile, otherwise ignore
+            if (OCSD_IS_V8_ARCH(m_config->archVersion()) && (m_config->coreProfile() == profile_CortexM))
+            {
+                if (m_P0_stack.createParamElemNoParam(P0_FUNC_RET, true, m_curr_packet_in->getType(), m_index_curr_pkt) == 0)
+                    bAllocErr = true;
+                else
+                    m_curr_spec_depth++;
+            }
         }
         break;
 
@@ -371,7 +388,7 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV4I::decodePacket(bool &Complete)
         {
             std::vector<uint32_t> params = { 0 };
             params[0] = m_curr_packet_in->getCC();
-            if (m_P0_stack.createParamElem(P0_EVENT, false, m_curr_packet_in->getType(), m_index_curr_pkt, params) == 0)
+            if (m_P0_stack.createParamElem(P0_CC, false, m_curr_packet_in->getType(), m_index_curr_pkt, params) == 0)
                 bAllocErr = true;
 
         }
@@ -387,7 +404,7 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV4I::decodePacket(bool &Complete)
             params[1] = (uint32_t)((ts >> 32) & 0xFFFFFFFF);
             if (bTSwithCC)
                 params[2] = m_curr_packet_in->getCC();
-            if (m_P0_stack.createParamElem(P0_EVENT, false, m_curr_packet_in->getType(), m_index_curr_pkt, params) == 0)
+            if (m_P0_stack.createParamElem(bTSwithCC ? P0_TS_CC : P0_TS, false, m_curr_packet_in->getType(), m_index_curr_pkt, params) == 0)
                 bAllocErr = true;
 
         }
@@ -490,6 +507,7 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV4I::commitElements(bool &Complete)
     bool bPause = false;    // pause commit operation 
     bool bPopElem = true;       // do we remove the element from the stack (multi atom elements may need to stay!)
     int num_commit_req = m_P0_commit;
+    ocsd_trc_index_t err_idx = 0;
 
     Complete = true; // assume we exit due to completion of commit operation
 
@@ -500,8 +518,9 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV4I::commitElements(bool &Complete)
         if(m_P0_stack.size() > 0)
         {
             pElem = m_P0_stack.back();  // get oldest element
-            
-            switch(pElem->getP0Type())
+            err_idx = pElem->getRootIndex(); // save index in case of error.
+
+            switch (pElem->getP0Type())
             {
             // indicates a trace restart - beginning of trace or discontinuiuty
             case P0_TRC_ON:
@@ -612,7 +631,7 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV4I::commitElements(bool &Complete)
                 if ((resp = returnStackPop()) != OCSD_RESP_CONT)
                     break;
 
-                m_excep_proc = EXCEP_POP;   // set state in case we need to stop part way through
+                m_excep_info.proc = EXCEP_POP;   // set state in case we need to stop part way through
                 resp = processException();  // output trace + exception elements.
                 m_P0_commit--;
                 break;
@@ -621,6 +640,13 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV4I::commitElements(bool &Complete)
                 m_output_elem.setType(OCSD_GEN_TRC_ELEM_EXCEPTION_RET);
                 resp = outputTraceElementIdx(pElem->getRootIndex(),m_output_elem);
                 if(pElem->isP0()) // are we on a core that counts ERET as P0?
+                    m_P0_commit--;
+                break;
+
+            case P0_FUNC_RET:
+                // func ret is V8M - data trace only - hint that data has been popped off the stack.
+                // at this point nothing to do till the decoder starts handling data trace.
+                if (pElem->isP0()) 
                     m_P0_commit--;
                 break;
             }
@@ -637,10 +663,6 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV4I::commitElements(bool &Complete)
         else
         {
             // too few elements for commit operation - decode error.
-            ocsd_trc_index_t err_idx = 0;
-            if(pElem)
-                err_idx = pElem->getRootIndex();
-              
             resp = OCSD_RESP_FATAL_INVALID_DATA;
             LogError(ocsdError(OCSD_ERR_SEV_ERROR,OCSD_ERR_COMMIT_PKT_OVERRUN,err_idx,m_CSID,"Not enough elements to commit"));
             bPause = true;
@@ -757,7 +779,7 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV4I::flushEOT()
 ocsd_datapath_resp_t TrcPktDecodeEtmV4I::outputCC(TrcStackElemParam *pParamElem)
 {
     m_output_elem.setType(OCSD_GEN_TRC_ELEM_CYCLE_COUNT);
-    m_output_elem.cycle_count = pParamElem->getParam(0);
+    m_output_elem.setCycleCount(pParamElem->getParam(0));
     return outputTraceElementIdx(pParamElem->getRootIndex(),m_output_elem);
 }
 
@@ -776,6 +798,17 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV4I::outputEvent(TrcStackElemParam *pParamEl
     m_output_elem.trace_event.ev_type = EVENT_NUMBERED;
     m_output_elem.trace_event.ev_number = pParamElem->getParam(0);
     return outputTraceElementIdx(pParamElem->getRootIndex(),m_output_elem);
+}
+
+ocsd_datapath_resp_t TrcPktDecodeEtmV4I::outputTraceRange(const bool executed, ocsd_trc_index_t index)
+{
+    m_output_elem.setType(OCSD_GEN_TRC_ELEM_INSTR_RANGE);
+    m_output_elem.setLastInstrInfo(executed, m_instr_info.type, m_instr_info.sub_type, m_instr_info.instr_size);
+    m_output_elem.setISA(m_instr_info.isa);
+    m_output_elem.setLastInstrCond(m_instr_info.is_conditional);
+    if (executed)
+        m_instr_info.isa = m_instr_info.next_isa;
+    return outputTraceElementIdx(index, m_output_elem);
 }
 
 ocsd_datapath_resp_t TrcPktDecodeEtmV4I::processAtom(const ocsd_atm_val atom, bool &bCont)
@@ -834,10 +867,7 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV4I::processAtom(const ocsd_atm_val atom, bo
             }
             break;
         }
-        m_output_elem.setType(OCSD_GEN_TRC_ELEM_INSTR_RANGE);
-        m_output_elem.setLastInstrInfo((atom == ATOM_E),m_instr_info.type, m_instr_info.sub_type);
-        m_output_elem.setISA(m_instr_info.isa);
-        resp = outputTraceElementIdx(pElem->getRootIndex(),m_output_elem);
+        resp = outputTraceRange((atom == ATOM_E), pElem->getRootIndex());
 
     }
     else
@@ -848,10 +878,7 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV4I::processAtom(const ocsd_atm_val atom, bo
         if(m_output_elem.st_addr != m_output_elem.en_addr)
         {
             // some trace before we were out of memory access range
-            m_output_elem.setType(OCSD_GEN_TRC_ELEM_INSTR_RANGE);
-            m_output_elem.setLastInstrInfo(true,m_instr_info.type, m_instr_info.sub_type);
-            m_output_elem.setISA(m_instr_info.isa);
-            resp = outputTraceElementIdx(pElem->getRootIndex(),m_output_elem);
+            resp = outputTraceRange(true, pElem->getRootIndex());
         }
 
         if(m_mem_nacc_pending && OCSD_DATA_RESP_IS_CONT(resp))
@@ -873,11 +900,13 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV4I::processAtom(const ocsd_atm_val atom, bo
 ocsd_datapath_resp_t  TrcPktDecodeEtmV4I::processException()
 {
     ocsd_datapath_resp_t resp = OCSD_RESP_CONT; 
-    bool excep_implied_P0 = false;          //!< exception implies P0
+    TrcStackElemExcept *pExceptElem;
 
-    if(m_excep_proc == EXCEP_POP)
+    m_excep_info.addr_b_tgt = false;
+    
+    if(m_excep_info.proc == EXCEP_POP)
     {
-        TrcStackElemExcept *pExceptElem = dynamic_cast<TrcStackElemExcept *>(m_P0_stack.back());  // get the exception element
+        pExceptElem = dynamic_cast<TrcStackElemExcept *>(m_P0_stack.back());  // get the exception element
         TrcStackElemAddr *pAddressElem = 0;
         TrcStackElemCtxt *pCtxtElem = 0;
         TrcStackElem *pElem = 0;
@@ -902,32 +931,52 @@ ocsd_datapath_resp_t  TrcPktDecodeEtmV4I::processException()
             // extract address
             pAddressElem = static_cast<TrcStackElemAddr *>(pElem);
 
-            m_excep_addr = pAddressElem->getAddr();                
+            // fill in exception info for use later
+            m_excep_info.addr = pAddressElem->getAddr();                
+            m_excep_info.number = pExceptElem->getExcepNum();
+            m_excep_info.index = pExceptElem->getRootIndex();
+            m_excep_info.addr_b_tgt = pExceptElem->getPrevSame();
 
-            // if we have context, get that.
-            if(pCtxtElem)
-                 updateContext(pCtxtElem);
-
-            // record the exception number
-            m_output_elem.exception_number = pExceptElem->getExcepNum();
-
-            // see if there is an implied P0 element on the exception.
-            excep_implied_P0 = pExceptElem->getPrevSame();
-
-            // save the trace index.
-            m_excep_index = pExceptElem->getRootIndex();
+            // see if there is an address + optional context element implied 
+            // prior to the exception.
+            if (m_excep_info.addr_b_tgt)
+            {
+                // this was a branch target address - update current setting
+                bool b64bit = m_instr_info.isa == ocsd_isa_aarch64;
+                if (pCtxtElem) {
+                    b64bit = pCtxtElem->getContext().SF;
+                }
+                m_instr_info.instr_addr = m_excep_info.addr.val;
+                m_instr_info.isa = (m_excep_info.addr.isa == 0) ? 
+                    (b64bit ? ocsd_isa_aarch64 : ocsd_isa_arm) : ocsd_isa_thumb2;
+                m_need_addr = false;
+            }
 
             // figure out next move
-            if(m_excep_addr.val == m_instr_info.instr_addr)
-                m_excep_proc = EXCEP_EXCEP;
+            if (pCtxtElem) {
+                m_excep_info.proc = EXCEP_CTXT;
+                updateContext(pCtxtElem);
+            }
+            else if(m_excep_info.addr.val == m_instr_info.instr_addr)
+                m_excep_info.proc = EXCEP_EXCEP;
             else
-                m_excep_proc = EXCEP_RANGE;
+                m_excep_info.proc = EXCEP_RANGE;
         }
         m_P0_stack.delete_popped();
     }
 
+    // output a context element
+    if (m_excep_info.proc == EXCEP_CTXT)
+    {
+        m_output_elem.setType(OCSD_GEN_TRC_ELEM_PE_CONTEXT);
+        resp = outputTraceElementIdx(m_excep_info.index, m_output_elem);
+        m_excep_info.proc = EXCEP_EXCEP;
+        if (!OCSD_DATA_RESP_IS_CONT(resp))
+            return resp;
+    }
+
     // output a range element
-    if(m_excep_proc == EXCEP_RANGE) 
+    if(m_excep_info.proc == EXCEP_RANGE) 
     {
         bool bWPFound = false;
         ocsd_err_t err;
@@ -935,8 +984,8 @@ ocsd_datapath_resp_t  TrcPktDecodeEtmV4I::processException()
         // last instr_info address is the start address
         m_output_elem.st_addr = m_instr_info.instr_addr;
 
-        // look for either a WP or match to return address.
-        err = traceInstrToWP(bWPFound,!excep_implied_P0,m_excep_addr.val);
+        // look for match to return address.
+        err = traceInstrToWP(bWPFound,true,m_excep_info.addr.val);
 
         if(err != OCSD_OK)
         {
@@ -944,37 +993,21 @@ ocsd_datapath_resp_t  TrcPktDecodeEtmV4I::processException()
             {
                 m_need_addr = true;
                 m_need_ctxt = true;
-                LogError(ocsdError(OCSD_ERR_SEV_WARN,err,m_excep_index,m_CSID,"Warning: unsupported instruction set processing exception packet."));  
+                LogError(ocsdError(OCSD_ERR_SEV_WARN,err,m_excep_info.index,m_CSID,"Warning: unsupported instruction set processing exception packet."));  
             }
             else
             {
                 resp = OCSD_RESP_FATAL_INVALID_DATA;
-                LogError(ocsdError(OCSD_ERR_SEV_ERROR,err,m_excep_index,m_CSID,"Error processing exception packet."));  
-                m_excep_proc = EXCEP_POP;  // nothing more to do, reset to start of exception handling
+                LogError(ocsdError(OCSD_ERR_SEV_ERROR,err,m_excep_info.index,m_CSID,"Error processing exception packet."));  
+                m_excep_info.proc = EXCEP_POP;  // nothing more to do, reset to start of exception handling
             }
         }
 
         if(bWPFound)
         {
-            // action according to waypoint type and atom value
-            if(excep_implied_P0)
-            {
-                switch(m_instr_info.type)
-                {
-                case OCSD_INSTR_BR:
-                m_instr_info.instr_addr = m_instr_info.branch_addr;
-                break;
-
-                case OCSD_INSTR_BR_INDIRECT:
-                m_instr_info.instr_addr = m_excep_addr.val;
-                break;
-                }
-            }
-            m_output_elem.setType(OCSD_GEN_TRC_ELEM_INSTR_RANGE);
-            m_output_elem.setLastInstrInfo(true,m_instr_info.type, m_instr_info.sub_type);
-            m_output_elem.setISA(m_instr_info.isa);
-            resp = outputTraceElementIdx(m_excep_index, m_output_elem);
-            m_excep_proc = EXCEP_EXCEP;
+            // waypoint address found - output range
+            resp = outputTraceRange(true, m_excep_info.index);
+            m_excep_info.proc = EXCEP_EXCEP;
         }
         else
         {
@@ -984,34 +1017,33 @@ ocsd_datapath_resp_t  TrcPktDecodeEtmV4I::processException()
             if(m_output_elem.st_addr != m_output_elem.en_addr)
             {
                 // some trace before we were out of memory access range
-                m_output_elem.setType(OCSD_GEN_TRC_ELEM_INSTR_RANGE);
-                m_output_elem.setLastInstrInfo(true,m_instr_info.type, m_instr_info.sub_type);
-                m_output_elem.setISA(m_instr_info.isa);
-                resp = outputTraceElementIdx(m_excep_index,m_output_elem);
+                resp = outputTraceRange(true, m_excep_info.index);
             }
 
-            m_excep_proc = m_mem_nacc_pending ? EXCEP_NACC : EXCEP_EXCEP;
+            m_excep_info.proc = m_mem_nacc_pending ? EXCEP_NACC : EXCEP_EXCEP;
         }
     }  
     
-    if((m_excep_proc == EXCEP_NACC) && OCSD_DATA_RESP_IS_CONT(resp))
+    if((m_excep_info.proc == EXCEP_NACC) && OCSD_DATA_RESP_IS_CONT(resp))
     {
         m_output_elem.setType(OCSD_GEN_TRC_ELEM_ADDR_NACC);
         m_output_elem.st_addr = m_nacc_addr;
-        resp = outputTraceElementIdx(m_excep_index,m_output_elem);
-        m_excep_proc = EXCEP_EXCEP;
+        resp = outputTraceElementIdx(m_excep_info.index,m_output_elem);
+        m_excep_info.proc = EXCEP_EXCEP;
         m_mem_nacc_pending = false;
     }
     
-    if((m_excep_proc == EXCEP_EXCEP) && OCSD_DATA_RESP_IS_CONT(resp))
+    if((m_excep_info.proc == EXCEP_EXCEP) && OCSD_DATA_RESP_IS_CONT(resp))
     {
         // output element.
         m_output_elem.setType(OCSD_GEN_TRC_ELEM_EXCEPTION);
         // add end address as preferred return address to end addr in element
-        m_output_elem.en_addr = m_excep_addr.val;
+        m_output_elem.en_addr = m_excep_info.addr.val;
         m_output_elem.excep_ret_addr = 1;
-        resp = outputTraceElementIdx(m_excep_index,m_output_elem);  
-        m_excep_proc = EXCEP_POP;
+        m_output_elem.excep_ret_addr_br_tgt = m_excep_info.addr_b_tgt;
+        m_output_elem.exception_number = m_excep_info.number;
+        resp = outputTraceElementIdx(m_excep_info.index,m_output_elem);  
+        m_excep_info.proc = EXCEP_POP;
     }   
     return resp;
 }
@@ -1036,6 +1068,7 @@ ocsd_err_t TrcPktDecodeEtmV4I::traceInstrToWP(bool &bWPFound, const bool traceTo
     ocsd_mem_space_acc_t mem_space = m_is_secure ? OCSD_MEM_SPACE_S : OCSD_MEM_SPACE_N;
 
     m_output_elem.st_addr = m_output_elem.en_addr = m_instr_info.instr_addr;
+    m_output_elem.num_instr_range = 0;
 
     bWPFound = false;
 
@@ -1057,6 +1090,7 @@ ocsd_err_t TrcPktDecodeEtmV4I::traceInstrToWP(bool &bWPFound, const bool traceTo
 
             // update the range decoded address in the output packet.
             m_output_elem.en_addr = m_instr_info.instr_addr;
+            m_output_elem.num_instr_range++;
 
             // either walking to match the next instruction address or a real watchpoint
             if(traceToAddrNext)
@@ -1068,7 +1102,7 @@ ocsd_err_t TrcPktDecodeEtmV4I::traceInstrToWP(bool &bWPFound, const bool traceTo
         {
             // not enough memory accessible.
             m_mem_nacc_pending = true;
-            m_nacc_addr = m_instr_info.instr_addr;
+            m_nacc_addr = m_instr_info.instr_addr;           
         }
     }
     return err;

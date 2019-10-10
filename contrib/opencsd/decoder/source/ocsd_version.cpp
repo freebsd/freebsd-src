@@ -32,7 +32,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */ 
 
-#include "ocsd_if_version.h"
+#include "opencsd/ocsd_if_version.h"
 #include "common/ocsd_version.h"
 
 const uint32_t ocsdVersion::vers_num()
