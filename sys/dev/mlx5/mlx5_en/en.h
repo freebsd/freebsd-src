@@ -746,6 +746,7 @@ struct mlx5e_rq {
 	/* persistant fields */
 	struct mtx mtx;
 	struct mlx5e_rq_stats stats;
+	struct callout watchdog;
 
 	/* data path */
 #define	mlx5e_rq_zero_start wq
@@ -767,7 +768,6 @@ struct mlx5e_rq {
 	struct mlx5_wq_ctrl wq_ctrl;
 	u32	rqn;
 	struct mlx5e_channel *channel;
-	struct callout watchdog;
 } __aligned(MLX5E_CACHELINE_SIZE);
 
 struct mlx5e_sq_mbuf {
@@ -787,6 +787,7 @@ struct mlx5e_sq {
 	struct	mtx lock;
 	struct	mtx comp_lock;
 	struct	mlx5e_sq_stats stats;
+  	struct	callout cev_callout;
 
 	/* data path */
 #define	mlx5e_sq_zero_start dma_tag
@@ -805,7 +806,6 @@ struct mlx5e_sq {
 #define	MLX5E_CEV_STATE_SEND_NOPS 1	/* send NOPs */
 #define	MLX5E_CEV_STATE_HOLD_NOPS 2	/* don't send NOPs yet */
 	u16	running;		/* set if SQ is running */
-	struct callout cev_callout;
 	union {
 		u32	d32[2];
 		u64	d64;
