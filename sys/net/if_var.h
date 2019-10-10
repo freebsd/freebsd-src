@@ -765,11 +765,20 @@ void if_bpfmtap(if_t ifp, struct mbuf *m);
 void if_etherbpfmtap(if_t ifp, struct mbuf *m);
 void if_vlancap(if_t ifp);
 
-int if_setupmultiaddr(if_t ifp, void *mta, int *cnt, int max);
-int if_multiaddr_array(if_t ifp, void *mta, int *cnt, int max);
+/*
+ * Traversing through interface address lists.
+ */
+struct sockaddr_dl;
+typedef u_int iflladdr_cb_t(void *, struct sockaddr_dl *, u_int);
+u_int if_foreach_lladdr(if_t, iflladdr_cb_t, void *);
+u_int if_foreach_llmaddr(if_t, iflladdr_cb_t, void *);
 int if_multiaddr_count(if_t ifp, int max);
 
+/* Obsoleted multicast management functions. */
+int if_setupmultiaddr(if_t ifp, void *mta, int *cnt, int max);
+int if_multiaddr_array(if_t ifp, void *mta, int *cnt, int max);
 int if_multi_apply(struct ifnet *ifp, int (*filter)(void *, struct ifmultiaddr *, int), void *arg);
+
 int if_getamcount(if_t ifp);
 struct ifaddr * if_getifaddr(if_t ifp);
 
