@@ -1149,8 +1149,9 @@ static int
 tmpfs_dir_getdotdotdent(struct tmpfs_mount *tm, struct tmpfs_node *node,
     struct uio *uio)
 {
-	int error;
+	struct tmpfs_node *parent;
 	struct dirent dent;
+	int error;
 
 	TMPFS_VALIDATE_DIR(node);
 	MPASS(uio->uio_offset == TMPFS_DIRCOOKIE_DOTDOT);
@@ -1159,12 +1160,13 @@ tmpfs_dir_getdotdotdent(struct tmpfs_mount *tm, struct tmpfs_node *node,
 	 * Return ENOENT if the current node is already removed.
 	 */
 	TMPFS_ASSERT_LOCKED(node);
-	if (node->tn_dir.tn_parent == NULL)
+	parent = node->tn_dir.tn_parent;
+	if (parent == NULL)
 		return (ENOENT);
 
-	TMPFS_NODE_LOCK(node->tn_dir.tn_parent);
-	dent.d_fileno = node->tn_dir.tn_parent->tn_id;
-	TMPFS_NODE_UNLOCK(node->tn_dir.tn_parent);
+	TMPFS_NODE_LOCK(parent);
+	dent.d_fileno = parent->tn_id;
+	TMPFS_NODE_UNLOCK(parent);
 
 	dent.d_type = DT_DIR;
 	dent.d_namlen = 2;
