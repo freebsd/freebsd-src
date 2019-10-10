@@ -374,7 +374,8 @@ stf_getsrcifa6(struct ifnet *ifp, struct in6_addr *addr, struct in6_addr *mask)
 	struct sockaddr_in6 *sin6;
 	struct in_addr in;
 
-	if_addr_rlock(ifp);
+	NET_EPOCH_ASSERT();
+
 	CK_STAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
 		if (ia->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -395,10 +396,8 @@ stf_getsrcifa6(struct ifnet *ifp, struct in6_addr *addr, struct in6_addr *mask)
 
 		*addr = sin6->sin6_addr;
 		*mask = ia6->ia_prefixmask.sin6_addr;
-		if_addr_runlock(ifp);
 		return (0);
 	}
-	if_addr_runlock(ifp);
 
 	return (ENOENT);
 }
