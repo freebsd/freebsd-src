@@ -56,8 +56,8 @@ class ocsdMsgLogger;
 class ITraceErrorLog
 {
 public:
-    ITraceErrorLog() {};    /**< default constructor */
-    virtual ~ITraceErrorLog() {};   /**< default destructor */
+    ITraceErrorLog() {};   
+    virtual ~ITraceErrorLog() {};  
 
     /*!
      * Register a named component error source. Allows the logger to associate errors with components.
@@ -111,7 +111,7 @@ public:
      * Get the last error associated with the given Trace source channel ID.
      * returns a pointer to the error or 0 if no errors associated with the ID.
      *
-     * @param chan_id : ID.
+     * @param chan_id : Trace Source Channel ID (CoreSight Trace ID).
      *
      * @return ocsdError *: last error pointer for ID or 0.
      */

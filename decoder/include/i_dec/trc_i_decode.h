@@ -49,6 +49,7 @@ private:
     ocsd_err_t DecodeA32(ocsd_instr_info *instr_info);
     ocsd_err_t DecodeA64(ocsd_instr_info *instr_info);
     ocsd_err_t DecodeT32(ocsd_instr_info *instr_info);
+    void SetArchVersion(ocsd_instr_info *instr_info);
 };
 
 #endif // ARM_TRC_I_DECODE_H_INCLUDED

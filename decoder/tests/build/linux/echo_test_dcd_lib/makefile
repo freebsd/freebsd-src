@@ -31,12 +31,7 @@
 #
 
 CC := $(MASTER_CC)
-LINKER := $(MASTER_LINKER)	
 LIB := $(MASTER_LIB)
-
-CC_FLAGS := $(MASTER_CC_FLAGS) -fpic -Wno-switch
-LIB_FLAGS := $(MASTER_LIB_FLAGS)
-LINKER_FLAGS := $(MASTER_LINKER_FLAGS) -shared
 
 LIB_NAME = lib_echo_test_dcd
 
@@ -53,20 +48,14 @@ CC_INCLUDES	=	\
 OBJECTS		=	$(BUILD_DIR)/ext_dcd_echo_test.o \
 				$(BUILD_DIR)/ext_dcd_echo_test_fact.o
 
-all:  build_dir  $(OBJECTS) $(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a
+all:  build_dir $(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a
 
-$(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a:
+$(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a: $(OBJECTS)
 	mkdir -p $(LIB_TEST_TARGET_DIR)
-	$(LIB) $(LIB_FLAGS) $(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a $(OBJECTS)
+	$(LIB) $(ARFLAGS) $(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a $(OBJECTS)
 
 build_dir:
 	mkdir -p $(BUILD_DIR)
-
-.PHONY: copy_libs
-
-copy_libs:
-	cp $(LIB_TARGET_DIR)/*.so $(BIN_TEST_TARGET_DIR)/.
-
 
 #### build rules
 ## object dependencies
@@ -76,13 +65,14 @@ DEPS := $(OBJECTS:%.o=%.d)
 
 ## object compile
 $(BUILD_DIR)/%.o : %.c
-			$(CC) $(CC_FLAGS) $(CC_INCLUDES) -MMD $< -o $@ 
+			$(CC) $(CFLAGS) $(CC_INCLUDES) -MMD $< -o $@ 
 
 #### clean
 .PHONY: clean
 clean:
-	rm -f $(OBJECTS)
-	rm -f $(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a
-	rm -f $(DEPS)
+	-rm $(OBJECTS)
+	-rm $(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a
+	-rm $(DEPS)
+	-rmdir $(BUILD_DIR) $(LIB_TEST_TARGET_DIR)
 
 # end of file makefile

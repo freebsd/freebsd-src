@@ -108,6 +108,7 @@ public:
     /* idr 1 */
     const uint8_t MajVersion() const;
     const uint8_t MinVersion() const;
+    const uint8_t FullVersion() const;
     
     /* idr 2 */
     const uint32_t iaSizeMax() const;
@@ -117,6 +118,7 @@ public:
     const uint32_t dvSize() const;
     const uint32_t ccSize() const;
     const bool vmidOpt() const;
+    const bool wfiwfeBranch() const;
 
     /* id regs 8-13*/
     const uint32_t MaxSpecDepth() const;
@@ -180,7 +182,11 @@ private:
     bool m_condTraceCalc;
     CondITrace_t m_CondTrace;
 
+protected:
     ocsd_etmv4_cfg m_cfg;
+    uint8_t m_MajVer;
+    uint8_t m_MinVer;
+
 };
 
 /* idr 0 */
@@ -265,14 +271,18 @@ inline const bool EtmV4Config::commitOpt1() const
     /* idr 1 */
 inline const uint8_t EtmV4Config::MajVersion() const
 {
-    return (uint8_t)((m_cfg.reg_idr1 >> 8) & 0xF);
+    return m_MajVer;
 }
 
 inline const uint8_t EtmV4Config::MinVersion() const
 {
-    return (uint8_t)((m_cfg.reg_idr1 >> 4) & 0xF);
+    return m_MinVer;
 }
 
+inline const uint8_t EtmV4Config::FullVersion() const
+{
+    return (m_MajVer << 4) | m_MinVer;
+}
 
 /* idr 2 */
 inline const uint32_t EtmV4Config::iaSizeMax() const
@@ -319,6 +329,12 @@ inline const bool EtmV4Config::vmidOpt() const
 {
     return (bool)((m_cfg.reg_idr2 & 0x20000000) == 0x20000000) && (MinVersion() > 0);
 }
+
+inline const bool EtmV4Config::wfiwfeBranch() const
+{
+    return (bool)((m_cfg.reg_idr2 & 0x80000000) && (FullVersion() >= 0x43));
+}
+
 
 /* id regs 8-13*/
 

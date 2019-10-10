@@ -70,6 +70,9 @@ static bool decode = false;
 static bool no_undecoded_packets = false;
 static bool pkt_mon = false;
 static int test_waits = 0;
+static bool dstream_format = false;
+static bool tpiu_format = false;
+static bool has_hsync = false;
 
 int main(int argc, char* argv[])
 {
@@ -180,8 +183,11 @@ void print_help()
     oss << "-ss_dir <dir>       Set the directory path to a trace snapshot\n";
     oss << "-ss_verbose         Verbose output when reading the snapshot\n";
     oss << "\nDecode:\n\n";
-    oss << "-id <n>             Set an ID to list (may be used mutiple times) - default if no id set is for all IDs to be printed\n";
+    oss << "-id <n>             Set an ID to list (may be used multiple times) - default if no id set is for all IDs to be printed\n";
     oss << "-src_name <name>    List packets from a given snapshot source name (defaults to first source found)\n";
+    oss << "-dstream_format     Input is DSTREAM framed.";
+    oss << "-tpiu               Input from TPIU - sync by FSYNC.";
+    oss << "-tpiu_hsync         Input from TPIU - sync by FSYNC and HSYNC.";
     oss << "-decode             Full decode of the packets from the trace snapshot (default is to list undecoded packets only\n";
     oss << "-decode_only        Does not list the undecoded packets, just the trace decode.\n";
     oss << "-o_raw_packed       Output raw packed trace frames\n";
@@ -401,6 +407,19 @@ bool process_cmd_line_opts(int argc, char* argv[])
                     optIdx++;
                 }
             }
+            else if (strcmp(argv[optIdx], "-dstream_format") == 0)
+            {
+                dstream_format = true;
+            }
+            else if (strcmp(argv[optIdx], "-tpiu") == 0)
+            {
+                tpiu_format = true;
+            }
+            else if (strcmp(argv[optIdx], "-tpiu_hsync") == 0)
+            {
+                has_hsync = true;
+                tpiu_format = true;
+            }
             else
             {
                 std::ostringstream errstr;
@@ -488,9 +507,19 @@ void ConfigureFrameDeMux(DecodeTree *dcd_tree, RawFramePrinter **framePrinter)
     if(pDeformatter != 0)
     {
         // configuration - memory alinged buffer
-        uint32_t configFlags = OCSD_DFRMTR_FRAME_MEM_ALIGN;
+        uint32_t configFlags = pDeformatter->getConfigFlags();
 
-        pDeformatter->Configure(configFlags);
+        // check for TPIU FSYNC & HSYNC
+        if (tpiu_format) configFlags |= OCSD_DFRMTR_HAS_FSYNCS;
+        if (has_hsync) configFlags |= OCSD_DFRMTR_HAS_HSYNCS;
+        // if FSYNC (& HSYNC) - cannot be mem frame aligned.
+        if (tpiu_format) configFlags &= ~OCSD_DFRMTR_FRAME_MEM_ALIGN;
+
+        if (!configFlags)
+        {
+            configFlags = OCSD_DFRMTR_FRAME_MEM_ALIGN;
+            pDeformatter->Configure(configFlags);
+        }
         if (outRawPacked || outRawUnpacked)
         {
             if (outRawPacked) configFlags |= OCSD_DFRMTR_PACKED_RAW_OUT;
@@ -554,7 +583,12 @@ void ListTracePackets(ocsdDefaultErrorLogger &err_logger, SnapShotReader &reader
                 // process the file, a buffer load at a time
                 while(!in.eof() && !OCSD_DATA_RESP_IS_FATAL(dataPathResp))
                 {
-                    in.read((char *)&trace_buffer[0],bufferSize);   // load a block of data into the buffer
+                    if (dstream_format)
+                    { 
+                        in.read((char *)&trace_buffer[0], 512 - 8);
+                    }
+                    else
+                        in.read((char *)&trace_buffer[0],bufferSize);   // load a block of data into the buffer
 
                     std::streamsize nBuffRead = in.gcount();    // get count of data loaded.
                     std::streamsize nBuffProcessed = 0;         // amount processed in this buffer.
@@ -595,6 +629,22 @@ void ListTracePackets(ocsdDefaultErrorLogger &err_logger, SnapShotReader &reader
 
                             // dataPathResp not continue or fatal so must be wait...
                             dataPathResp = dcd_tree->TraceDataIn(OCSD_OP_FLUSH,0,0,0,0);
+                        }
+                    }
+
+                    /* dump dstream footers */
+                    if (dstream_format) {
+                        in.read((char *)&trace_buffer[0], 8);
+                        if (outRawPacked)
+                        {
+                            std::ostringstream oss;
+                            oss << "DSTREAM footer [";
+                            for (int i = 0; i < 8; i++)
+                            {
+                                oss << "0x" << std::hex << (int)trace_buffer[i] << " ";
+                            }
+                            oss << "]\n";
+                            logger.LogMsg(oss.str());
                         }
                     }
                 }

@@ -32,15 +32,14 @@
 #
 ########################################################################
 
-CPP := $(MASTER_CPP)
+CXX := $(MASTER_CXX)
 LINKER := $(MASTER_LINKER)
 LIB := $(MASTER_LIB)
 
 # avoid build warnings in donated test code
 WSUPPRESS= -Wno-deprecated-declarations -Wno-unused-variable -Wno-reorder
 
-CPP_FLAGS := $(MASTER_CPP_FLAGS) -fpic -Wno-switch $(WSUPPRESS)
-LIB_FLAGS := $(MASTER_LIB_FLAGS)
+CXXFLAGS += $(WSUPPRESS)
 
 LIB_NAME = libsnapshot_parser
 
@@ -53,7 +52,7 @@ PARSER_INCLUDE=$(PARSER_ROOT)/include
 VPATH=	$(PARSER_SOURCE)
 
 
-CPP_INCLUDES= \
+CXX_INCLUDES= \
 				-I$(PARSER_INCLUDE) \
 				-I$(OCSD_INCLUDE)
 
@@ -64,11 +63,11 @@ OBJECTS=$(BUILD_DIR)/device_info.o \
 		$(BUILD_DIR)/snapshot_reader.o \
 		$(BUILD_DIR)/ss_to_dcdtree.o
 
-all: build_dir $(OBJECTS) $(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a
+all: build_dir $(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a
 
-$(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a:
+$(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a: $(OBJECTS)
 	mkdir -p $(LIB_TEST_TARGET_DIR)
-	$(LIB) $(LIB_FLAGS) $(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a $(OBJECTS)
+	$(LIB) $(ARFLAGS) $(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a $(OBJECTS)
 
 build_dir:
 	mkdir -p $(BUILD_DIR)
@@ -82,11 +81,12 @@ DEPS := $(OBJECTS:%.o=%.d)
 
 ## object compile
 $(BUILD_DIR)/%.o : %.cpp
-	$(CPP) $(CPP_FLAGS) $(CPP_INCLUDES) -MMD $< -o $@
+	$(CXX) $(CXXFLAGS) $(CXX_INCLUDES) -MMD $< -o $@
 
 ### clean
 .PHONY: clean
 clean:
-	rm -f $(OBJECTS)
-	rm -f $(DEPS)
-	rm -f $(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a
+	-rm $(OBJECTS)
+	-rm $(DEPS)
+	-rm $(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a
+	-rmdir $(BUILD_DIR) $(LIB_TEST_TARGET_DIR)

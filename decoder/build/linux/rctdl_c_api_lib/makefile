@@ -30,13 +30,9 @@
 # OpenCSD - makefile for C API wrapper library
 #
 
-CPP := $(MASTER_CPP)
+CXX := $(MASTER_CXX)
 LINKER := $(MASTER_LINKER)
 LIB := $(MASTER_LIB)
-
-CPP_FLAGS := $(MASTER_CPP_FLAGS) -fpic -Wno-switch
-LIB_FLAGS := $(MASTER_LIB_FLAGS)
-LINKER_FLAGS := $(MASTER_LINKER_FLAGS) -shared
 
 LIB_NAME = lib$(LIB_CAPI_NAME)
 SO_LIB_DEPS= -L$(LIB_TARGET_DIR) -l$(LIB_BASE_NAME)
@@ -45,7 +41,7 @@ BUILD_DIR=./$(PLAT_DIR)
 
 VPATH=	$(OCSD_SOURCE)/c_api
 
-CPP_INCLUDES= \
+CXX_INCLUDES= \
 				-I$(OCSD_INCLUDE) \
 				-I$(OCSD_SOURCE)/c_api
 
@@ -55,13 +51,31 @@ OBJECTS=$(BUILD_DIR)/ocsd_c_api.o \
 INST_INC_SRC=$(OCSD_INCLUDE)/$(LIB_UAPI_INC_DIR)
 INST_INC_DST=$(INSTALL_INCLUDE_DIR)/$(LIB_UAPI_INC_DIR)
 
-all: build_dir $(OBJECTS)
-	mkdir -p $(LIB_TARGET_DIR)
-	$(LIB) $(LIB_FLAGS) $(LIB_TARGET_DIR)/$(LIB_NAME).a $(OBJECTS)
-	$(LINKER) $(LINKER_FLAGS) -o $(LIB_TARGET_DIR)/$(LIB_NAME).so -Wl,-soname,$(LIB_NAME).so $(OBJECTS) $(SO_LIB_DEPS)
+all: links
 
-build_dir:
+links: $(LIB_TARGET_DIR)/$(LIB_NAME).so.$(SO_MAJOR_VER) $(LIB_TARGET_DIR)/$(LIB_NAME).so
+.PHONY: links
+
+LIBS:= $(LIB_TARGET_DIR)/$(LIB_NAME).a $(LIB_TARGET_DIR)/$(LIB_NAME).so.$(SO_VER)
+
+$(LIB_TARGET_DIR):
+	mkdir -p  $(LIB_TARGET_DIR)
+
+$(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
+
+$(LIB_TARGET_DIR)/$(LIB_NAME).a: $(OBJECTS) | $(BUILD_DIR) $(LIB_TARGET_DIR)
+	$(LIB) $(ARFLAGS) $(LIB_TARGET_DIR)/$(LIB_NAME).a $(OBJECTS)
+
+$(LIB_TARGET_DIR)/$(LIB_NAME).so.$(SO_VER): $(OBJECTS) | $(BUILD_DIR) $(LIB_TARGET_DIR)
+	$(LINKER) $(LDFLAGS) -shared -o $(LIB_TARGET_DIR)/$(LIB_NAME).so.$(SO_VER) -Wl,-soname,$(LIB_NAME).so.$(SO_MAJOR_VER) $(OBJECTS) $(SO_LIB_DEPS)
+
+$(LIB_TARGET_DIR)/$(LIB_NAME).so.$(SO_MAJOR_VER): $(LIBS) | $(LIB_TARGET_DIR)
+	( cd $(LIB_TARGET_DIR); ln -sf $(LIB_NAME).so.$(SO_VER) $(LIB_NAME).so.$(SO_MAJOR_VER) )
+
+$(LIB_TARGET_DIR)/$(LIB_NAME).so: $(LIB_TARGET_DIR)/$(LIB_NAME).so.$(SO_MAJOR_VER) | $(LIB_TARGET_DIR)
+	( cd $(LIB_TARGET_DIR); ln -sf $(LIB_NAME).so.$(SO_MAJOR_VER) $(LIB_NAME).so )
+
 
 ##### build rules
 
@@ -71,8 +85,8 @@ DEPS := $(OBJECTS:%.o=%.d)
 -include $(DEPS)
 
 ## object compile
-$(BUILD_DIR)/%.o : %.cpp
-	$(CPP) $(CPP_FLAGS) $(CPP_INCLUDES) -MMD $< -o $@
+$(BUILD_DIR)/%.o : %.cpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(CXX_INCLUDES) -MMD $< -o $@
 
 
 #### clean
@@ -81,13 +95,15 @@ clean:
 	rm -f $(OBJECTS)
 	rm -f $(DEPS)
 	rm -f $(LIB_TARGET_DIR)/$(LIB_NAME).a
-	rm -f $(LIB_TARGET_DIR)/$(LIB_NAME).so
+	rm -f $(LIB_TARGET_DIR)/$(LIB_NAME).so*
+	-rmdir $(BUILD_DIR)
 
 #### install the necessary include files for the c-api library on linux 
 install_inc:
 	$(INSTALL) -d --mode=0755 $(INST_INC_DST)/
 	$(INSTALL) --mode=0644 $(INST_INC_SRC)/trc_gen_elem_types.h $(INST_INC_DST)/
 	$(INSTALL) --mode=0644 $(INST_INC_SRC)/ocsd_if_types.h $(INST_INC_DST)/
+	$(INSTALL) --mode=0644 $(INST_INC_SRC)/ocsd_if_version.h $(INST_INC_DST)/
 	$(INSTALL) --mode=0644 $(INST_INC_SRC)/trc_pkt_types.h $(INST_INC_DST)/
 	$(INSTALL) -d --mode=0755 $(INST_INC_DST)/ptm
 	$(INSTALL) --mode=0644 $(INST_INC_SRC)/ptm/trc_pkt_types_ptm.h $(INST_INC_DST)/ptm/

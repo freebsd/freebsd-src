@@ -93,6 +93,8 @@ private:
 
     ocsd_datapath_resp_t returnStackPop();  // pop return stack and update instruction address.
 
+    ocsd_datapath_resp_t outputTraceRange(const bool executed, ocsd_trc_index_t index);
+
 //** intra packet state (see ETMv4 spec 6.2.1);
 
     // timestamping
@@ -152,12 +154,17 @@ private:
         EXCEP_POP, // start of processing read exception packets off the stack and analyze
         EXCEP_RANGE, // output a range element
         EXCEP_NACC,  // output a nacc element
+        EXCEP_CTXT,  // output a ctxt element
         EXCEP_EXCEP, // output an ecxeption element.
     } excep_proc_state_t;
 
-    excep_proc_state_t m_excep_proc;  //!< state of exception processing
-    etmv4_addr_val_t m_excep_addr;    //!< excepiton return address.
-    ocsd_trc_index_t m_excep_index;  //!< trace index for exception element
+    struct {
+        excep_proc_state_t proc;    //!< state of exception processing
+        etmv4_addr_val_t addr;      //!< excetion return address.
+        uint32_t number;            //!< exception number.
+        ocsd_trc_index_t index;     //!< trace index for exception element
+        bool addr_b_tgt;            //!< return address is also branch tgt address.
+    } m_excep_info; //!< exception info when processing exception packets
 
     ocsd_instr_info m_instr_info;  //!< instruction info for code follower - in address is the next to be decoded.
 

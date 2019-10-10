@@ -337,6 +337,7 @@
     <ClInclude Include="..\..\..\include\common\trc_pkt_proc_base.h" />
     <ClInclude Include="..\..\..\include\common\trc_printable_elem.h" />
     <ClInclude Include="..\..\..\include\common\trc_ret_stack.h" />
+    <ClInclude Include="..\..\..\include\mem_acc\trc_mem_acc_cache.h" />
     <ClInclude Include="..\..\..\include\opencsd\etmv3\etmv3_decoder.h" />
     <ClInclude Include="..\..\..\include\opencsd\etmv3\trc_cmp_cfg_etmv3.h" />
     <ClInclude Include="..\..\..\include\opencsd\etmv3\trc_dcd_mngr_etmv3.h" />
@@ -374,8 +375,8 @@
     <ClInclude Include="..\..\..\include\mem_acc\trc_mem_acc_file.h" />
     <ClInclude Include="..\..\..\include\mem_acc\trc_mem_acc_mapper.h" />
     <ClInclude Include="..\..\..\include\opencsd\ocsd_if_types.h" />
-    <ClInclude Include="..\..\..\include\ocsd_if_version.h" />
     <ClInclude Include="..\..\..\include\opencsd.h" />
+    <ClInclude Include="..\..\..\include\opencsd\ocsd_if_version.h" />
     <ClInclude Include="..\..\..\include\pkt_printers\gen_elem_printer.h" />
     <ClInclude Include="..\..\..\include\pkt_printers\item_printer.h" />
     <ClInclude Include="..\..\..\include\pkt_printers\pkt_printer_t.h" />
@@ -420,6 +421,7 @@
     <ClCompile Include="..\..\..\source\i_dec\trc_i_decode.cpp" />
     <ClCompile Include="..\..\..\source\mem_acc\trc_mem_acc_base.cpp" />
     <ClCompile Include="..\..\..\source\mem_acc\trc_mem_acc_bufptr.cpp" />
+    <ClCompile Include="..\..\..\source\mem_acc\trc_mem_acc_cache.cpp" />
     <ClCompile Include="..\..\..\source\mem_acc\trc_mem_acc_cb.cpp" />
     <ClCompile Include="..\..\..\source\mem_acc\trc_mem_acc_file.cpp" />
     <ClCompile Include="..\..\..\source\mem_acc\trc_mem_acc_mapper.cpp" />

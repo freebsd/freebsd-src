@@ -30,13 +30,9 @@
 # OpenCSD - makefile for main trace decode library
 #
 
-CPP := $(MASTER_CPP)
+CXX := $(MASTER_CXX)
 LINKER := $(MASTER_LINKER)
 LIB := $(MASTER_LIB)
-
-CPP_FLAGS := $(MASTER_CPP_FLAGS) -fpic -Wno-switch
-LIB_FLAGS := $(MASTER_LIB_FLAGS)
-LINKER_FLAGS := $(MASTER_LINKER_FLAGS) -shared
 
 LIB_NAME= lib$(LIB_BASE_NAME)
 
@@ -52,7 +48,7 @@ VPATH=	$(OCSD_SOURCE) \
 		$(OCSD_SOURCE)/pkt_printers
 
 
-CPP_INCLUDES= \
+CXX_INCLUDES= \
 				-I$(OCSD_INCLUDE) \
 				-I$(OCSD_SOURCE)
 
@@ -82,7 +78,8 @@ MEMACCOBJ=	$(BUILD_DIR)/trc_mem_acc_mapper.o \
 			$(BUILD_DIR)/trc_mem_acc_bufptr.o \
 			$(BUILD_DIR)/trc_mem_acc_file.o \
 			$(BUILD_DIR)/trc_mem_acc_base.o \
-			$(BUILD_DIR)/trc_mem_acc_cb.o
+			$(BUILD_DIR)/trc_mem_acc_cb.o \
+			$(BUILD_DIR)/trc_mem_acc_cache.o
 
 STMOBJ=		$(BUILD_DIR)/trc_pkt_elem_stm.o \
 			$(BUILD_DIR)/trc_pkt_proc_stm.o \
@@ -114,13 +111,31 @@ OBJECTS=$(BUILD_DIR)/ocsd_code_follower.o \
 		$(PTMOBJ) \
 		$(PKTPRNTOBJ)
 
-all: build_dir $(OBJECTS)
-	mkdir -p $(LIB_TARGET_DIR)
-	$(LIB) $(LIB_FLAGS) $(LIB_TARGET_DIR)/$(LIB_NAME).a $(OBJECTS)
-	$(LINKER) $(LINKER_FLAGS) -o $(LIB_TARGET_DIR)/$(LIB_NAME).so -Wl,-soname,$(LIB_NAME).so $(OBJECTS)
+all: links
 
-build_dir:
+links: $(LIB_TARGET_DIR)/$(LIB_NAME).so.$(SO_MAJOR_VER) $(LIB_TARGET_DIR)/$(LIB_NAME).so
+.PHONY: links
+
+LIBS:= $(LIB_TARGET_DIR)/$(LIB_NAME).a $(LIB_TARGET_DIR)/$(LIB_NAME).so.$(SO_VER)
+
+$(LIB_TARGET_DIR):
+	mkdir -p $(LIB_TARGET_DIR)
+
+$(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
+
+$(LIB_TARGET_DIR)/$(LIB_NAME).a: $(OBJECTS) | $(BUILD_DIR) $(LIB_TARGET_DIR)
+	$(LIB) $(ARFLAGS) $(LIB_TARGET_DIR)/$(LIB_NAME).a $(OBJECTS)
+
+$(LIB_TARGET_DIR)/$(LIB_NAME).so.$(SO_VER): $(OBJECTS) | $(BUILD_DIR) $(LIB_TARGET_DIR)
+	$(LINKER) $(LDFLAGS) -shared -o $(LIB_TARGET_DIR)/$(LIB_NAME).so.$(SO_VER) -Wl,-soname,$(LIB_NAME).so.$(SO_MAJOR_VER) $(OBJECTS)
+
+$(LIB_TARGET_DIR)/$(LIB_NAME).so.$(SO_MAJOR_VER): $(LIBS) | $(LIB_TARGET_DIR)
+	( cd $(LIB_TARGET_DIR);  ln -sf $(LIB_NAME).so.$(SO_VER) $(LIB_NAME).so.$(SO_MAJOR_VER) )
+
+$(LIB_TARGET_DIR)/$(LIB_NAME).so: $(LIB_TARGET_DIR)/$(LIB_NAME).so.$(SO_MAJOR_VER) | $(LIB_TARGET_DIR)
+	( cd $(LIB_TARGET_DIR);  ln -sf $(LIB_NAME).so.$(SO_MAJOR_VER) $(LIB_NAME).so )
+
 
 ##### build rules
 
@@ -130,8 +145,8 @@ DEPS := $(OBJECTS:%.o=%.d)
 -include $(DEPS)
 
 ## object compile
-$(BUILD_DIR)/%.o : %.cpp
-	$(CPP) $(CPP_FLAGS) $(CPP_INCLUDES) -MMD  $< -o $@
+$(BUILD_DIR)/%.o : %.cpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(CXX_INCLUDES) -MMD  $< -o $@
 
 
 #### clean
@@ -140,4 +155,5 @@ clean:
 	rm -f $(OBJECTS)
 	rm -f $(DEPS)
 	rm -f $(LIB_TARGET_DIR)/$(LIB_NAME).a
-	rm -f $(LIB_TARGET_DIR)/$(LIB_NAME).so
+	rm -f $(LIB_TARGET_DIR)/$(LIB_NAME).so*
+	-rmdir $(BUILD_DIR)

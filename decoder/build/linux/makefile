@@ -33,9 +33,9 @@
 # DEBUG=1 	    create a debug build
 #
 
-# Set project root - relative to build directory
+# Set project root - relative to build makefile
 ifeq ($(OCSD_ROOT),)
-OCSD_ROOT := $(shell pwd | sed 's,/build/linux.*,,')
+OCSD_ROOT := $(shell echo $(dir $(abspath $(lastword $(MAKEFILE_LIST)))) | sed 's,/build/linux.*,,')
 export OCSD_ROOT
 endif
 
@@ -45,14 +45,6 @@ export LIB_BASE_NAME
 LIB_CAPI_NAME=$(LIB_BASE_NAME)_c_api
 export LIB_CAPI_NAME
 
-# determine base architecture, heavily borrowed from the Linux kernel v4.4's
-# tools/perf/config/Makefile.arch
-# For example, to compile for arm64 on a X86 PC, you can issue the command:
-# "export ARCH=arm64"
-ifndef ARCH
-ARCH := $(shell uname -m 2>/dev/null || echo not)
-endif
-
 # source root directories
 export OCSD_LIB_ROOT=$(OCSD_ROOT)/lib
 
@@ -60,70 +52,60 @@ export OCSD_INCLUDE=$(OCSD_ROOT)/include
 export OCSD_SOURCE=$(OCSD_ROOT)/source
 
 export OCSD_TESTS=$(OCSD_ROOT)/tests
-
 export LIB_UAPI_INC_DIR=opencsd
 
 # tools
 export MASTER_CC=$(CROSS_COMPILE)gcc
-export MASTER_CPP=$(CROSS_COMPILE)g++
+export MASTER_CXX=$(CROSS_COMPILE)g++
 export MASTER_LINKER=$(CROSS_COMPILE)g++
 export MASTER_LIB=$(CROSS_COMPILE)ar
 export INSTALL=install
 
+
 # installation directory
-INSTALL_LIB_DIR=/usr/lib/
-export INSTALL_INCLUDE_DIR=/usr/include/
+PREFIX ?=/usr
+LIB_PATH ?= lib
+INSTALL_LIB_DIR=$(PREFIX)/$(LIB_PATH)
+INSTALL_BIN_DIR=$(PREFIX)/bin
+export INSTALL_INCLUDE_DIR=$(PREFIX)/include/
 
 # compile flags
-MASTER_CC_FLAGS := -c -Wall -DLINUX
-MASTER_CPP_FLAGS := -c -Wall -DLINUX -std=c++11
-MASTER_LINKER_FLAGS := -Wl,-z,defs
-MASTER_LIB_FLAGS := rcs
+CFLAGS += $(CPPFLAGS) -c -Wall -DLINUX -Wno-switch -fPIC
+CXXFLAGS += $(CPPFLAGS) -c -Wall -DLINUX -Wno-switch -fPIC -std=c++11
+LDFLAGS += -Wl,-z,defs
+ARFLAGS ?= rcs
 
 # debug variant
 ifdef DEBUG
-MASTER_CC_FLAGS += -g -O0 -DDEBUG
-MASTER_CPP_FLAGS += -g -O0 -DDEBUG
+CFLAGS += -g -O0 -DDEBUG
+CXXFLAGS += -g -O0 -DDEBUG
 BUILD_VARIANT=dbg
 else
-MASTER_CC_FLAGS += -g -O2 -DNDEBUG
-MASTER_CPP_FLAGS += -g -O2 -DNDEBUG
+CFLAGS += -g -O2 -DNDEBUG
+CXXFLAGS += -g -O2 -DNDEBUG
 BUILD_VARIANT=rel
 endif
 
-
-# platform bit size variant
-ifeq ($(ARCH),x86)
-   MFLAG:="-m32"
-   BIT_VARIANT=32
-else ifeq ($(ARCH),x86_64)
-   MFLAG:="-m64"
-   BIT_VARIANT=64
-else ifeq ($(ARCH),arm)
-   BIT_VARIANT=-arm
-else ifeq ($(ARCH),arm64)
-   BIT_VARIANT=-arm64
-else ifeq ($(ARCH),aarch64)
-   BIT_VARIANT=-arm64
-else ifeq ($(ARCH),aarch32)
-   BIT_VARIANT=-arm
-endif
-
-MASTER_CC_FLAGS += $(MFLAG)
-MASTER_CPP_FLAGS += $(MFLAG)
-MASTER_LINKER_FLAGS += $(MFLAG)
-
 # export build flags
-export MASTER_CC_FLAGS
-export MASTER_CPP_FLAGS
-export MASTER_LINKER_FLAGS
-export MASTER_LIB_FLAGS
+export CFLAGS
+export CXXFLAGS
+export LDFLAGS
+export ARFLAGS
 
-# target directories
-export PLAT_DIR=linux$(BIT_VARIANT)/$(BUILD_VARIANT)
+# target directories - fixed for default packaging build
+PLAT_DIR ?= builddir
+export PLAT_DIR
 export LIB_TARGET_DIR=$(OCSD_LIB_ROOT)/$(PLAT_DIR)
 export LIB_TEST_TARGET_DIR=$(OCSD_TESTS)/lib/$(PLAT_DIR)
 export BIN_TEST_TARGET_DIR=$(OCSD_TESTS)/bin/$(PLAT_DIR)
+
+# Fish version out of header file (converting from hex)
+getver:=printf "%d" $$(awk '/\#define VARNAME/ { print $$3 }' $(OCSD_ROOT)/include/opencsd/ocsd_if_version.h)
+export SO_MAJOR_VER := $(shell $(subst VARNAME,OCSD_VER_MAJOR,$(getver)))
+SO_MINOR_VER := $(shell $(subst VARNAME,OCSD_VER_MINOR,$(getver)))
+SO_PATCH_VER := $(shell $(subst VARNAME,OCSD_VER_PATCH,$(getver)))
+export SO_VER := $(SO_MAJOR_VER).$(SO_MINOR_VER).$(SO_PATCH_VER)
+
 
 ###########################################################
 # build targets
@@ -132,10 +114,19 @@ all: libs tests
 
 libs: $(LIB_BASE_NAME)_lib  $(LIB_CAPI_NAME)_lib
 
-install: libs
-	$(INSTALL) --mode=644 $(LIB_TARGET_DIR)/lib$(LIB_BASE_NAME).so $(INSTALL_LIB_DIR)/
-	$(INSTALL) --mode=644 $(LIB_TARGET_DIR)/lib$(LIB_CAPI_NAME).so $(INSTALL_LIB_DIR)/
+install: libs tests
+	mkdir -p $(INSTALL_LIB_DIR) $(INSTALL_INCLUDE_DIR) $(INSTALL_BIN_DIR)
+	cp -d $(LIB_TARGET_DIR)/lib$(LIB_BASE_NAME).so $(INSTALL_LIB_DIR)/
+	cp -d $(LIB_TARGET_DIR)/lib$(LIB_BASE_NAME).so.$(SO_MAJOR_VER) $(INSTALL_LIB_DIR)/
+	$(INSTALL) --mode=644 $(LIB_TARGET_DIR)/lib$(LIB_BASE_NAME).so.$(SO_VER) $(INSTALL_LIB_DIR)/
+	cp -d $(LIB_TARGET_DIR)/lib$(LIB_CAPI_NAME).so $(INSTALL_LIB_DIR)/
+	cp -d $(LIB_TARGET_DIR)/lib$(LIB_CAPI_NAME).so.$(SO_MAJOR_VER) $(INSTALL_LIB_DIR)/
+	$(INSTALL) --mode=644 $(LIB_TARGET_DIR)/lib$(LIB_CAPI_NAME).so.$(SO_VER) $(INSTALL_LIB_DIR)/
+	$(INSTALL) --mode=644 $(LIB_TARGET_DIR)/lib$(LIB_BASE_NAME).a $(INSTALL_LIB_DIR)/
+	$(INSTALL) --mode=644 $(LIB_TARGET_DIR)/lib$(LIB_CAPI_NAME).a $(INSTALL_LIB_DIR)/
 	cd $(OCSD_ROOT)/build/linux/rctdl_c_api_lib && make install_inc
+	$(INSTALL) --mode=755 $(BIN_TEST_TARGET_DIR)/trc_pkt_lister $(INSTALL_BIN_DIR)/ 
+
 
 ################################
 # build  OpenCSD trace decode library
@@ -148,7 +139,7 @@ $(LIB_TARGET_DIR)/lib$(LIB_BASE_NAME).a: $(LIB_BASE_NAME)_all
 # single command builds both .a and .so targets in sub-makefile
 $(LIB_BASE_NAME)_all:
 	mkdir -p $(LIB_TARGET_DIR)
-	cd $(OCSD_ROOT)/build/linux/ref_trace_decode_lib && make
+	cd $(OCSD_ROOT)/build/linux/ref_trace_decode_lib && $(MAKE)
 
 ################################
 # build OpenCSD trace decode C API library 
@@ -161,36 +152,49 @@ $(LIB_TARGET_DIR)/lib$(LIB_CAPI_NAME).a:  $(LIB_CAPI_NAME)_all
 # single command builds both .a and .so targets in sub-makefile
 $(LIB_CAPI_NAME)_all:  $(LIB_BASE_NAME)_lib
 	mkdir -p $(LIB_TARGET_DIR)
-	cd $(OCSD_ROOT)/build/linux/rctdl_c_api_lib && make
+	cd $(OCSD_ROOT)/build/linux/rctdl_c_api_lib && $(MAKE)
 
 #################################
 # build tests
 
 .PHONY: tests
 tests: libs
-	cd $(OCSD_ROOT)/tests/build/linux/echo_test_dcd_lib && make
-	cd $(OCSD_ROOT)/tests/build/linux/snapshot_parser_lib && make
-	cd $(OCSD_ROOT)/tests/build/linux/trc_pkt_lister && make
-	cd $(OCSD_ROOT)/tests/build/linux/c_api_pkt_print_test && make
+	cd $(OCSD_ROOT)/tests/build/linux/echo_test_dcd_lib && $(MAKE)
+	cd $(OCSD_ROOT)/tests/build/linux/snapshot_parser_lib && $(MAKE)
+	cd $(OCSD_ROOT)/tests/build/linux/trc_pkt_lister && $(MAKE)
+	cd $(OCSD_ROOT)/tests/build/linux/c_api_pkt_print_test && $(MAKE)
+	cd $(OCSD_ROOT)/tests/build/linux/mem_buffer_eg && $(MAKE)
+
+#
+# build docs
+.PHONY: docs
+docs:
+	(cd $(OCSD_ROOT)/docs; doxygen doxygen_config.dox)
+
 
 #############################################################
 # clean targets
 #
-clean: clean_libs clean_tests
+clean: clean_libs clean_tests clean_docs
 
-.PHONY: clean_libs clean_tests
+.PHONY: clean_libs clean_tests clean_docs clean_install
 
 clean_libs:
-	cd $(OCSD_ROOT)/build/linux/ref_trace_decode_lib && make clean
-	cd $(OCSD_ROOT)/build/linux/rctdl_c_api_lib && make clean
+	cd $(OCSD_ROOT)/build/linux/ref_trace_decode_lib && $(MAKE) clean
+	cd $(OCSD_ROOT)/build/linux/rctdl_c_api_lib && $(MAKE) clean
 
 clean_tests:
-	cd $(OCSD_ROOT)/tests/build/linux/echo_test_dcd_lib && make clean
-	cd $(OCSD_ROOT)/tests/build/linux/snapshot_parser_lib && make clean
-	cd $(OCSD_ROOT)/tests/build/linux/trc_pkt_lister && make clean
-	cd $(OCSD_ROOT)/tests/build/linux/c_api_pkt_print_test && make clean
+	cd $(OCSD_ROOT)/tests/build/linux/echo_test_dcd_lib && $(MAKE) clean
+	cd $(OCSD_ROOT)/tests/build/linux/snapshot_parser_lib && $(MAKE) clean
+	cd $(OCSD_ROOT)/tests/build/linux/trc_pkt_lister && $(MAKE) clean
+	cd $(OCSD_ROOT)/tests/build/linux/c_api_pkt_print_test && $(MAKE) clean
+	cd $(OCSD_ROOT)/tests/build/linux/mem_buffer_eg && $(MAKE) clean
+	-rmdir $(OCSD_TESTS)/lib
+
+clean_docs:
+	-rm -r $(OCSD_ROOT)/docs/html
 
 clean_install:
-	rm -f $(INSTALL_LIB_DIR)/lib$(LIB_BASE_NAME).so
-	rm -f $(INSTALL_LIB_DIR)/lib$(LIB_CAPI_NAME).so
-	rm -rf $(INSTALL_INCLUDE_DIR)/$(LIB_UAPI_INC_DIR)
+	-rm    $(INSTALL_LIB_DIR)/lib$(LIB_BASE_NAME).*
+	-rm    $(INSTALL_LIB_DIR)/lib$(LIB_CAPI_NAME).*
+	-rm -r $(INSTALL_INCLUDE_DIR)/$(LIB_UAPI_INC_DIR)

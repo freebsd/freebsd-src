@@ -64,7 +64,7 @@ public:
     virtual ~TrcMemAccBufPtr() {};  /**< default destructor */
 
     /** Memory access override - allow decoder to read bytes from the buffer. */
-    virtual const uint32_t readBytes(const ocsd_vaddr_t address, const ocsd_mem_space_acc_t memSpace, const uint32_t reqBytes, uint8_t *byteBuffer);
+    virtual const uint32_t readBytes(const ocsd_vaddr_t address, const ocsd_mem_space_acc_t memSpace, const uint8_t trcID, const uint32_t reqBytes, uint8_t *byteBuffer);
 
 private:
     const uint8_t *m_p_buffer;  /**< pointer to the memory buffer  */

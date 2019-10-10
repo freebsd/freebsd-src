@@ -63,12 +63,17 @@
 
 /* path to test snapshots, relative to tests/bin/<plat>/<dbg|rel> build output dir */
 #ifdef _WIN32
-const char *default_path_to_snapshot = "..\\..\\..\\snapshots\\juno_r1_1\\";
-const char *tc2_snapshot = "..\\..\\..\\snapshots\\TC2\\";
+const char *default_base_snapshot_path="..\\..\\..\\snapshots";
+const char *juno_snapshot = "\\juno_r1_1\\";
+const char *tc2_snapshot = "\\TC2\\";
 #else
-const char *default_path_to_snapshot = "../../../snapshots/juno_r1_1/";
-const char *tc2_snapshot = "../../../snapshots/TC2/";
+const char *default_base_snapshot_path = "../../snapshots";
+const char *juno_snapshot = "/juno_r1_1/";
+const char *tc2_snapshot = "/TC2/";
 #endif
+static const char *selected_snapshot;
+static const char *usr_snapshot_path = 0;
+#define MAX_TRACE_FILE_PATH_LEN 512
 
 /* trace data and memory file dump names and values - taken from snapshot metadata */
 const char *trace_data_filename = "cstrace.bin";
@@ -80,6 +85,7 @@ const ocsd_vaddr_t mem_dump_address_tc2=0xC0008000;
 /* test variables - set by command line to feature test API */
 static int using_mem_acc_cb = 0;    /* test the memory access callback function */
 static int use_region_file = 0;     /* test multi region memory files */
+static int using_mem_acc_cb_id = 0; /* test the mem acc callback with trace ID parameter */
 
 /* buffer to handle a packet string */
 #define PACKET_STR_LEN 1024
@@ -114,6 +120,7 @@ static int test_lib_printers = 0;
 static int process_cmd_line(int argc, char *argv[])
 {
     int idx = 1;
+    int len = 0;
 
     while(idx < argc)
     {
@@ -137,13 +144,13 @@ static int process_cmd_line(int argc, char *argv[])
         else if(strcmp(argv[idx],"-etmv3") == 0)
         {
             test_protocol =  OCSD_PROTOCOL_ETMV3;
-            default_path_to_snapshot = tc2_snapshot;
+            selected_snapshot = tc2_snapshot;
             mem_dump_address = mem_dump_address_tc2;
         }
         else if(strcmp(argv[idx],"-ptm") == 0)
         {
             test_protocol =  OCSD_PROTOCOL_PTM;
-            default_path_to_snapshot = tc2_snapshot;
+            selected_snapshot = tc2_snapshot;
             mem_dump_address = mem_dump_address_tc2;
         }
         else if(strcmp(argv[idx],"-stm") == 0)
@@ -155,6 +162,12 @@ static int process_cmd_line(int argc, char *argv[])
         {
             using_mem_acc_cb = 1;
             use_region_file = 0;
+        }
+        else if (strcmp(argv[idx], "-test_cb_id") == 0)
+        { 
+            using_mem_acc_cb = 1;
+            use_region_file = 0;
+            using_mem_acc_cb_id = 1;
         }
         else if(strcmp(argv[idx],"-test_region_file") == 0)
         {
@@ -181,6 +194,26 @@ static int process_cmd_line(int argc, char *argv[])
         {
             test_lib_printers = 1;
         }
+        else if(strcmp(argv[idx],"-ss_path") == 0)
+        {
+            idx++;
+            if((idx >= argc) || (strlen(argv[idx]) == 0))
+            {
+                printf("-ss_path: Missing path parameter or zero length\n");
+                return -1;
+            }
+            else
+            {
+                len = strlen(argv[idx]);
+                if(len >  (MAX_TRACE_FILE_PATH_LEN - 32))
+                {
+                    printf("-ss_path: path too long\n");
+                    return -1;
+                }
+                usr_snapshot_path = argv[idx];
+            }
+            
+        }
         else if(strcmp(argv[idx],"-help") == 0)
         {
             return -1;
@@ -199,7 +232,8 @@ static void print_cmd_line_help()
     printf("-decode | -decode_only : full decode + trace packets / full decode packets only (default trace packets only)\n");
     printf("-raw / -raw_packed: print raw unpacked / packed data;\n");
     printf("-test_printstr | -test_libprint : ttest lib printstr callback | test lib based packet printers\n");
-    printf("-test_region_file | -test_cb : mem accessor - test multi region file API | test callback API (default single memory file)\n\n");
+    printf("-test_region_file | -test_cb | -test_cb_id : mem accessor - test multi region file API | test callback API [with trcid] (default single memory file)\n\n");
+    printf("-ss_path <path> : path from cwd to /snapshots/ directory. Test prog will append required test subdir\n");
 }
 
 /************************************************************************/
@@ -211,11 +245,13 @@ static ocsd_mem_space_acc_t dump_file_mem_space = OCSD_MEM_SPACE_ANY;   /* memor
 static long mem_file_size = 0;                /* size of the memory file */
 static ocsd_vaddr_t mem_file_en_address = 0;  /* end address last inclusive address in file. */
 
+/* log the memacc output */
+/* #define LOG_MEMACC_CB */
 
 /* decode memory access using a CallBack function 
 * tests CB API and add / remove mem acc API.
 */
-static uint32_t  mem_acc_cb(const void *p_context, const ocsd_vaddr_t address, const ocsd_mem_space_acc_t mem_space, const uint32_t reqBytes, uint8_t *byteBuffer)
+static uint32_t do_mem_acc_cb(const void *p_context, const ocsd_vaddr_t address, const ocsd_mem_space_acc_t mem_space, const uint8_t trc_id, const uint32_t reqBytes, uint8_t *byteBuffer)
 {
     uint32_t read_bytes = 0;
     size_t file_read_bytes;
@@ -248,8 +284,23 @@ static uint32_t  mem_acc_cb(const void *p_context, const ocsd_vaddr_t address, c
         if(file_read_bytes < read_bytes)
             read_bytes = file_read_bytes;
     }
+#ifdef LOG_MEMACC_CB
+    sprintf(packet_str, "mem_acc_cb(addr 0x%08llX, size %d, trcID 0x%02X)\n", address, reqBytes, trc_id);
+    ocsd_def_errlog_msgout(packet_str);
+#endif
     return read_bytes;
 }
+
+static uint32_t mem_acc_cb(const void *p_context, const ocsd_vaddr_t address, const ocsd_mem_space_acc_t mem_space, const uint32_t reqBytes, uint8_t *byteBuffer)
+{
+    return do_mem_acc_cb(p_context, address, mem_space, 0xff, reqBytes, byteBuffer);
+}
+
+static uint32_t mem_acc_id_cb(const void *p_context, const ocsd_vaddr_t address, const ocsd_mem_space_acc_t mem_space, const uint8_t trc_id, const uint32_t reqBytes, uint8_t *byteBuffer)
+{
+    return do_mem_acc_cb(p_context, address, mem_space, trc_id, reqBytes, byteBuffer);
+}
+
 
 /* Create the memory accessor using the callback function and attach to decode tree */
 static ocsd_err_t create_mem_acc_cb(dcd_tree_handle_t dcd_tree_h, const char *mem_file_path)
@@ -262,8 +313,12 @@ static ocsd_err_t create_mem_acc_cb(dcd_tree_handle_t dcd_tree_h, const char *me
         mem_file_size = ftell(dump_file);
         mem_file_en_address = mem_dump_address + mem_file_size - 1;
 
-        err = ocsd_dt_add_callback_mem_acc(dcd_tree_h,
-            mem_dump_address,mem_file_en_address,dump_file_mem_space,&mem_acc_cb,0);
+        if (using_mem_acc_cb_id)
+            err = ocsd_dt_add_callback_trcid_mem_acc(dcd_tree_h, mem_dump_address, 
+                mem_file_en_address, dump_file_mem_space, &mem_acc_id_cb, 0);
+        else
+            err = ocsd_dt_add_callback_mem_acc(dcd_tree_h, mem_dump_address, 
+                mem_file_en_address, dump_file_mem_space, &mem_acc_cb, 0);
         if(err != OCSD_OK)
         {
             fclose(dump_file);
@@ -290,15 +345,19 @@ static void destroy_mem_acc_cb(dcd_tree_handle_t dcd_tree_h)
 static ocsd_err_t create_test_memory_acc(dcd_tree_handle_t handle)
 {
     ocsd_err_t ret = OCSD_OK;
-    char mem_file_path[512];
+    char mem_file_path[MAX_TRACE_FILE_PATH_LEN];
     uint32_t i0adjust = 0x100;
     int i = 0;
-
+    
     /* region list to test multi region memory file API */
     ocsd_file_mem_region_t region_list[4];
 
     /* path to the file containing the memory image traced - raw binary data in the snapshot  */
-    strcpy(mem_file_path,default_path_to_snapshot);
+    if(usr_snapshot_path != 0)
+        strcpy(mem_file_path,usr_snapshot_path);
+    else
+        strcpy(mem_file_path,default_base_snapshot_path);
+    strcat(mem_file_path,selected_snapshot);
     strcat(mem_file_path,memory_dump_filename);
 
     /* 
@@ -899,9 +958,12 @@ int process_trace_data(FILE *pf)
 int main(int argc, char *argv[])
 {
     FILE *trace_data;
-    char trace_file_path[512];
+    char trace_file_path[MAX_TRACE_FILE_PATH_LEN];
     int ret = 0, i, len;
     char message[512];
+
+    /* default to juno */
+    selected_snapshot = juno_snapshot;
 
     /* command line params */
     if(process_cmd_line(argc,argv) != 0)
@@ -911,8 +973,13 @@ int main(int argc, char *argv[])
     }
     
     /* trace data file path */
-    strcpy(trace_file_path,default_path_to_snapshot);
+    if(usr_snapshot_path != 0)
+        strcpy(trace_file_path,usr_snapshot_path);
+    else
+        strcpy(trace_file_path,default_base_snapshot_path);
+    strcat(trace_file_path,selected_snapshot);
     strcat(trace_file_path,trace_data_filename);
+    printf("opening %s trace data file\n",trace_file_path);
     trace_data = fopen(trace_file_path,"rb");
 
     if(trace_data != NULL)

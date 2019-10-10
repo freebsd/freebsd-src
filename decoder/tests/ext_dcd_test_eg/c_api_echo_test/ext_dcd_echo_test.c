@@ -330,7 +330,7 @@ void print_test_cov_results(echo_decoder_t *decoder)
         if (coverage[TEST_COV_MSGLOG_CB] == TEST_RES_OK)    /* check we can use the msg logger for outputting the results */
             lib_cb_LogMsg(p_fns, OCSD_ERR_SEV_ERROR, coverage_message);
         else
-            printf(coverage_message);
+	  printf("%s", coverage_message);
     }
 }
 

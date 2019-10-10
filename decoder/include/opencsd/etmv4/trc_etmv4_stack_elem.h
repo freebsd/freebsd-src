@@ -56,7 +56,8 @@ typedef enum _p0_elem_t
     P0_TS,
     P0_CC,
     P0_TS_CC,
-    P0_OVERFLOW
+    P0_OVERFLOW,
+    P0_FUNC_RET,
 } p0_elem_t;
 
 
@@ -250,6 +251,7 @@ public:
     ~EtmV4P0Stack();
 
     void push_front(TrcStackElem *pElem);
+    void push_back(TrcStackElem *pElem);        // insert element when processing
     void pop_back();
     TrcStackElem *back();
     size_t size();
@@ -260,7 +262,7 @@ public:
 
     // creation functions - create and push if successful.
     TrcStackElemParam *createParamElem(const p0_elem_t p0_type, const bool isP0, const ocsd_etmv4_i_pkt_type root_pkt, const ocsd_trc_index_t root_index, const std::vector<uint32_t> &params);
-    TrcStackElemParam *createParamElemNoParam(const p0_elem_t p0_type, const bool isP0, const ocsd_etmv4_i_pkt_type root_pkt, const ocsd_trc_index_t root_index);
+    TrcStackElem *createParamElemNoParam(const p0_elem_t p0_type, const bool isP0, const ocsd_etmv4_i_pkt_type root_pkt, const ocsd_trc_index_t root_index, bool back = false);
     TrcStackElemAtom *createAtomElem (const ocsd_etmv4_i_pkt_type root_pkt, const ocsd_trc_index_t root_index, const ocsd_pkt_atom &atom);
     TrcStackElemExcept *createExceptElem(const ocsd_etmv4_i_pkt_type root_pkt, const ocsd_trc_index_t root_index, const bool bSame, const uint16_t excepNum);
     TrcStackElemCtxt *createContextElem(const ocsd_etmv4_i_pkt_type root_pkt, const ocsd_trc_index_t root_index, const etmv4_context_t &context);
@@ -282,6 +284,12 @@ inline EtmV4P0Stack::~EtmV4P0Stack()
 inline void EtmV4P0Stack::push_front(TrcStackElem *pElem)
 {
     m_P0_stack.push_front(pElem);
+}
+
+// put an element on the back of the stack
+inline void EtmV4P0Stack::push_back(TrcStackElem *pElem)
+{
+    m_P0_stack.push_back(pElem);
 }
 
 // pop last element pointer off the stack and stash it for later deletion

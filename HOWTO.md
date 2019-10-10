@@ -21,10 +21,10 @@ supplemented with modifications to the CoreSight framework and drivers to be
 usable by the Perf core.  The remaining out of tree patches are being
 upstreamed incrementally.
 
-From there compiling the perf tools with `make -C tools/perf` will yield a
-`perf` executable that will support CoreSight trace collection.  Note that if
-traces are to be decompressed *off* target, there is no need to download and
-compile the openCSD library (on the target).
+From there compiling the perf tools with `make -C tools/perf CORESIGHT=1` will
+yield a `perf` executable that will support CoreSight trace collection.  Note
+that if traces are to be decompressed *off* target, there is no need to download
+and compile the openCSD library (on the target).
 
 Before launching a trace run a sink that will collect trace data needs to be
 identified.  All CoreSight blocks identified by the framework are registed in
@@ -306,7 +306,7 @@ and needs to be installed on a system prior to compilation.  Information about
 the status of the openCSD library on a system is given at compile time by the
 perf tools build script:
 
-    linaro@t430:~/linaro/linux-kernel$ make VF=1 -C tools/perf
+    linaro@t430:~/linaro/linux-kernel$ make CORESIGHT=1 VF=1 -C tools/perf
     Auto-detecting system features:
     ...                         dwarf: [ on  ]
     ...            dwarf_getlocations: [ on  ]
@@ -376,8 +376,8 @@ build script where to get the header file and libraries, namely CSINCLUDES and
 CSLIBS:
 
     linaro@t430:~/linaro/linux-kernel$ export CSINCLUDES=~/linaro/coresight/my-opencsd/decoder/include/
-    linaro@t430:~/linaro/linux-kernel$ export CSLIBS=~/linaro/coresight/my-opencsd/decoder/lib/linux64-rel/
-    linaro@t430:~/linaro/linux-kernel$ make VF=1 -C tools/perf
+    linaro@t430:~/linaro/linux-kernel$ export CSLIBS=~/linaro/coresight/my-opencsd/decoder/lib/builddir/
+    linaro@t430:~/linaro/linux-kernel$ make CORESIGHT=1 VF=1 -C tools/perf
 
 This will have the effect of compiling and linking against the provided library.
 Since the system's openCSD library is in the loader's search patch the
@@ -611,37 +611,12 @@ will add the --dump option to the end of the command line and run
 Generating coverage files for Feedback Directed Optimization: AutoFDO
 ---------------------------------------------------------------------
 
-Below is an example of using ARM ETM for autoFDO. The updates to the perf
-support for this is experimental and available on the 'autoFDO' branch of
-the [perf-opencsd github repository][1].
-
-It also requires autofdo (https://github.com/google/autofdo) and gcc version 5.  The bubble
-sort example is from the AutoFDO tutorial (https://gcc.gnu.org/wiki/AutoFDO/Tutorial).
-
-        $ gcc-5 -O3 sort.c -o sort_optimized
-        $ taskset -c 2 ./sort_optimized
-        Bubble sorting array of 30000 elements
-        5910 ms
-
-        $ perf record -e cs_etm/@20070000.etr/u --per-thread taskset -c 2 ./sort
-        Bubble sorting array of 30000 elements
-        12543 ms
-        [ perf record: Woken up 35 times to write data ]
-        [ perf record: Captured and wrote 69.640 MB perf.data ]
-
-        $ perf inject -i perf.data -o inj.data --itrace=il64 --strip
-        $ create_gcov --binary=./sort --profile=inj.data --gcov=sort.gcov -gcov_version=1
-        $ gcc-5 -O3 -fauto-profile=sort.gcov sort.c -o sort_autofdo
-        $ taskset -c 2 ./sort_autofdo
-        Bubble sorting array of 30000 elements
-        5806 ms
+See autofdo.md (@ref AutoFDO) for details and scripts.
 
 
 The Linaro CoreSight Team
 -------------------------
 - Mike Leach
-- Tor Jeremiassen
-- Chunyan Zang
 - Mathieu Poirier
 
 

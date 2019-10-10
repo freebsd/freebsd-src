@@ -320,9 +320,6 @@
     <ClInclude Include="..\..\..\include\opencsd\stm\trc_pkt_decode_stm.h">
       <Filter>Header Files\stm</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\include\ocsd_if_version.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\include\pkt_printers\gen_elem_printer.h">
       <Filter>Header Files\pkt_printers</Filter>
     </ClInclude>
@@ -354,6 +351,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\include\opencsd\trc_pkt_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\mem_acc\trc_mem_acc_cache.h">
+      <Filter>Header Files\mem_acc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\opencsd\ocsd_if_version.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -483,6 +486,9 @@
     </ClCompile>
     <ClCompile Include="..\..\..\source\etmv4\trc_etmv4_stack_elem.cpp">
       <Filter>Source Files\etmv4</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\source\mem_acc\trc_mem_acc_cache.cpp">
+      <Filter>Source Files\mem_acc</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

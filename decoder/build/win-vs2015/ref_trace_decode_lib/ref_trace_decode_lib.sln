@@ -28,6 +28,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ext_dcd_echo_test", "..\..\
 		{533F929A-A73B-46B6-9D5F-FFCD62F734E3} = {533F929A-A73B-46B6-9D5F-FFCD62F734E3}
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mem-buffer-eg", "..\..\..\tests\build\win-vs2015\mem-buffer-eg\mem-buffer-eg.vcxproj", "{BC090130-2C53-4CF6-8AD4-37BF72B8D01A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{7F500891-CC76-405F-933F-F682BC39F923} = {7F500891-CC76-405F-933F-F682BC39F923}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -128,6 +133,22 @@ Global
 		{46219A32-8178-41C1-B3B1-B5A6E547515F}.Release-dll|Win32.Build.0 = Release|Win32
 		{46219A32-8178-41C1-B3B1-B5A6E547515F}.Release-dll|x64.ActiveCfg = Release|x64
 		{46219A32-8178-41C1-B3B1-B5A6E547515F}.Release-dll|x64.Build.0 = Release|x64
+		{BC090130-2C53-4CF6-8AD4-37BF72B8D01A}.Debug|Win32.ActiveCfg = Debug|Win32
+		{BC090130-2C53-4CF6-8AD4-37BF72B8D01A}.Debug|Win32.Build.0 = Debug|Win32
+		{BC090130-2C53-4CF6-8AD4-37BF72B8D01A}.Debug|x64.ActiveCfg = Debug|x64
+		{BC090130-2C53-4CF6-8AD4-37BF72B8D01A}.Debug|x64.Build.0 = Debug|x64
+		{BC090130-2C53-4CF6-8AD4-37BF72B8D01A}.Debug-dll|Win32.ActiveCfg = Debug|Win32
+		{BC090130-2C53-4CF6-8AD4-37BF72B8D01A}.Debug-dll|Win32.Build.0 = Debug|Win32
+		{BC090130-2C53-4CF6-8AD4-37BF72B8D01A}.Debug-dll|x64.ActiveCfg = Debug|x64
+		{BC090130-2C53-4CF6-8AD4-37BF72B8D01A}.Debug-dll|x64.Build.0 = Debug|x64
+		{BC090130-2C53-4CF6-8AD4-37BF72B8D01A}.Release|Win32.ActiveCfg = Release|Win32
+		{BC090130-2C53-4CF6-8AD4-37BF72B8D01A}.Release|Win32.Build.0 = Release|Win32
+		{BC090130-2C53-4CF6-8AD4-37BF72B8D01A}.Release|x64.ActiveCfg = Release|x64
+		{BC090130-2C53-4CF6-8AD4-37BF72B8D01A}.Release|x64.Build.0 = Release|x64
+		{BC090130-2C53-4CF6-8AD4-37BF72B8D01A}.Release-dll|Win32.ActiveCfg = Release|Win32
+		{BC090130-2C53-4CF6-8AD4-37BF72B8D01A}.Release-dll|Win32.Build.0 = Release|Win32
+		{BC090130-2C53-4CF6-8AD4-37BF72B8D01A}.Release-dll|x64.ActiveCfg = Release|x64
+		{BC090130-2C53-4CF6-8AD4-37BF72B8D01A}.Release-dll|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

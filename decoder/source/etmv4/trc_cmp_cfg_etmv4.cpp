@@ -75,6 +75,8 @@ void EtmV4Config::PrivateInit()
     m_VMIDSize = 0;
     m_condTraceCalc = false;
     m_CondTrace = COND_TR_DIS;
+    m_MajVer = (uint8_t)((m_cfg.reg_idr1 >> 8) & 0xF);
+    m_MinVer = (uint8_t)((m_cfg.reg_idr1 >> 4) & 0xF);
 }
 
 void EtmV4Config::CalcQSupp()

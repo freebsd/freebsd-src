@@ -84,7 +84,7 @@
 /** @name Library Version API
 
 @{*/
-/** Get Library version. Return a 32 bit version in form MMMMnnpp - MMMM = major verison, nn = minor version, pp = patch version */ 
+/** Get Library version. Return a 32 bit version in form MMMMnnpp - MMMM = major version, nn = minor version, pp = patch version */
 OCSD_C_API uint32_t ocsd_get_version(void);
 
 /** Get library version string */
@@ -285,6 +285,23 @@ OCSD_C_API ocsd_err_t ocsd_dt_add_buffer_mem_acc(const dcd_tree_handle_t handle,
  * @return OCSD_C_API ocsd_err_t  : Library error code -  RCDTL_OK if successful.
  */
 OCSD_C_API ocsd_err_t ocsd_dt_add_callback_mem_acc(const dcd_tree_handle_t handle, const ocsd_vaddr_t st_address, const ocsd_vaddr_t en_address, const ocsd_mem_space_acc_t mem_space, Fn_MemAcc_CB p_cb_func, const void *p_context); 
+
+
+/*!
+ * Add a memory access callback function. The decoder will call the function for opcode addresses in the 
+ * address range supplied for the memory spaces covered.
+ *
+ * @param handle : Handle to decode tree.
+ * @param st_address :  Start address of memory area covered by the callback.
+ * @param en_address :  End address of the memory area covered by the callback. (inclusive)
+ * @param mem_space : Memory space(s) covered by the callback.
+ * @param p_cb_func : Callback function - Signature for CB with Trace ID passed to client.
+ * @param p_context : opaque context pointer value used in callback function.
+ *
+ * @return OCSD_C_API ocsd_err_t  : Library error code -  RCDTL_OK if successful.
+ */
+OCSD_C_API ocsd_err_t ocsd_dt_add_callback_trcid_mem_acc(const dcd_tree_handle_t handle, const ocsd_vaddr_t st_address, const ocsd_vaddr_t en_address, const ocsd_mem_space_acc_t mem_space, Fn_MemAccID_CB p_cb_func, const void *p_context);
+
 
 /*!
  * Remove a memory accessor by address and memory space.

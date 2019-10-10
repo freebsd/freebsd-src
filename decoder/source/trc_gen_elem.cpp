@@ -49,7 +49,7 @@ static const char *s_elem_descs[][2] =
     {"OCSD_GEN_TRC_ELEM_ADDR_NACC","Tracing in inaccessible memory area."},
     {"OCSD_GEN_TRC_ELEM_ADDR_UNKNOWN","Tracing unknown address area."},
     {"OCSD_GEN_TRC_ELEM_EXCEPTION","Exception"},
-    {"OCSD_GEN_TRC_ELEM_EXCEPTION_RET","Expection return"},
+    {"OCSD_GEN_TRC_ELEM_EXCEPTION_RET","Exception return"},
     {"OCSD_GEN_TRC_ELEM_TIMESTAMP","Timestamp - preceding elements happeded before this time."},
     {"OCSD_GEN_TRC_ELEM_CYCLE_COUNT","Cycle count - cycles since last cycle count value - associated with a preceding instruction range."},
     {"OCSD_GEN_TRC_ELEM_EVENT","Event - numbered event or trigger"},
@@ -71,7 +71,8 @@ static const char *instr_sub_type[] = {
     "--- ",
     "b+link ",
     "A64:ret ",
-    "A64:eret "
+    "A64:eret ",
+    "V7:impl ret",
 };
 
 #define ST_SIZE (sizeof(instr_sub_type) / sizeof(const char *))
@@ -105,12 +106,16 @@ void OcsdTraceElement::toString(std::string &str) const
         {
         case OCSD_GEN_TRC_ELEM_INSTR_RANGE:
             oss << "exec range=0x" << std::hex << st_addr << ":[0x" << en_addr << "] ";
+            oss << "num_i(" << std::dec << num_instr_range << ") ";
+            oss << "last_sz(" << last_instr_sz << ") ";
             oss << "(ISA=" << s_isa_str[(int)isa] << ") ";
             oss << ((last_instr_exec == 1) ? "E " : "N ");
             if((int)last_i_type < T_SIZE)
                 oss << instr_type[last_i_type];
             if((last_i_subtype != OCSD_S_INSTR_NONE) && ((int)last_i_subtype < ST_SIZE))
                 oss << instr_sub_type[last_i_subtype];
+            if (last_instr_cond)
+                oss << " <cond>";
             break;
 
         case OCSD_GEN_TRC_ELEM_ADDR_NACC:
@@ -118,9 +123,14 @@ void OcsdTraceElement::toString(std::string &str) const
             break;
 
         case OCSD_GEN_TRC_ELEM_EXCEPTION:
-            if(excep_ret_addr == 1)
+            if (excep_ret_addr == 1)
             {
-                oss << "pref ret addr:0x" << std::hex << en_addr << "; ";
+                oss << "pref ret addr:0x" << std::hex << en_addr; 
+                if (excep_ret_addr_br_tgt)
+                {
+                    oss << " [addr also prev br tgt]";
+                }
+                oss << "; ";
             }
             oss << "excep num (0x" << std::setfill('0') << std::setw(2) << std::hex << exception_number << ") ";
             break;
@@ -148,6 +158,13 @@ void OcsdTraceElement::toString(std::string &str) const
 
         case OCSD_GEN_TRC_ELEM_SWTRACE:
             printSWInfoPkt(oss);
+            break;
+
+        case OCSD_GEN_TRC_ELEM_EVENT:
+            if(trace_event.ev_type == EVENT_TRIGGER)
+                oss << " Trigger; ";
+            else if(trace_event.ev_type == EVENT_NUMBERED)
+                oss << " Numbered:" << std::dec << trace_event.ev_number << "; ";
             break;
 
         default: break;

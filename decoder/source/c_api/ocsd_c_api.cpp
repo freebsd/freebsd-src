@@ -74,7 +74,7 @@ static std::map<dcd_tree_handle_t, lib_dt_data_list *> s_data_map;
 /* C API functions                                                             */
 /*******************************************************************************/
 
-/** Get Library version. Return a 32 bit version in form MMMMnnpp - MMMM = major verison, nn = minor version, pp = patch version */ 
+/** Get Library version. Return a 32 bit version in form MMMMnnpp - MMMM = major version, nn = minor version, pp = patch version */
 OCSD_C_API uint32_t ocsd_get_version(void) 
 { 
     return ocsdVersion::vers_num();
@@ -403,6 +403,17 @@ OCSD_C_API ocsd_err_t ocsd_dt_add_callback_mem_acc(const dcd_tree_handle_t handl
         err = pDT->addCallbackMemAcc(st_address,en_address,mem_space,p_cb_func,p_context);
     return err;
 }
+
+OCSD_C_API ocsd_err_t ocsd_dt_add_callback_trcid_mem_acc(const dcd_tree_handle_t handle, const ocsd_vaddr_t st_address, const ocsd_vaddr_t en_address, const ocsd_mem_space_acc_t mem_space, Fn_MemAccID_CB p_cb_func, const void *p_context)
+{
+    ocsd_err_t err = OCSD_OK;
+    DecodeTree *pDT;
+    err = ocsd_check_and_add_mem_acc_mapper(handle, &pDT);
+    if (err == OCSD_OK)
+        err = pDT->addCallbackIDMemAcc(st_address, en_address, mem_space, p_cb_func, p_context);
+    return err;
+}
+
 
 OCSD_C_API ocsd_err_t ocsd_dt_remove_mem_acc(const dcd_tree_handle_t handle, const ocsd_vaddr_t st_address, const ocsd_mem_space_acc_t mem_space)
 {

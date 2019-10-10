@@ -33,9 +33,7 @@
 #
 
 CC := $(MASTER_CC)
-CC_FLAGS := $(MASTER_CC_FLAGS) -Wno-switch
 LINKER := $(MASTER_LINKER)	
-LINKER_FLAGS := $(MASTER_LINKER_FLAGS) 
 
 PROG = c_api_pkt_print_test
 
@@ -53,22 +51,21 @@ OBJECTS		=	$(BUILD_DIR)/c_api_pkt_print_test.o
 LIBS		=	-L$(LIB_TARGET_DIR) -l$(LIB_BASE_NAME) -l$(LIB_CAPI_NAME) \
 				-L$(LIB_TEST_TARGET_DIR) -l_echo_test_dcd
 
-all:  build_dir test_app copy_libs
+all:  build_dir copy_libs
 
-test_app: 	$(OBJECTS) $(BIN_TEST_TARGET_DIR)/$(PROG)
+test_app: 	$(BIN_TEST_TARGET_DIR)/$(PROG)
 
 
- $(BIN_TEST_TARGET_DIR)/$(PROG):
+ $(BIN_TEST_TARGET_DIR)/$(PROG): $(OBJECTS)
 			mkdir -p  $(BIN_TEST_TARGET_DIR)
-			$(LINKER) $(LINKER_FLAGS) $(OBJECTS) -Wl,--start-group $(LIBS) -Wl,--end-group -o $(BIN_TEST_TARGET_DIR)/$(PROG)
+			$(LINKER) $(LDFLAGS) $(OBJECTS) -Wl,--start-group $(LIBS) -Wl,--end-group -o $(BIN_TEST_TARGET_DIR)/$(PROG)
 			cp $(LIB_TARGET_DIR)/*.so .
 
 build_dir:
 	mkdir -p $(BUILD_DIR)
 
 .PHONY: copy_libs
-
-copy_libs:
+copy_libs: $(BIN_TEST_TARGET_DIR)/$(PROG)
 	cp $(LIB_TARGET_DIR)/*.so $(BIN_TEST_TARGET_DIR)/.
 
 
@@ -81,12 +78,14 @@ DEPS := $(OBJECTS:%.o=%.d)
 
 ## object compile
 $(BUILD_DIR)/%.o : %.c
-			$(CC) $(CC_FLAGS) $(CC_INCLUDES) -MMD $< -o $@ 
+			$(CC) $(CFLAGS) $(CC_INCLUDES) -MMD $< -o $@ 
 
 #### clean
 .PHONY: clean
 clean :
-	rm -f  $(BIN_TEST_TARGET_DIR)/$(PROG) $(OBJECTS)
-	rm -f  $(DEPS)
+	-rm $(BIN_TEST_TARGET_DIR)/$(PROG) $(OBJECTS)
+	-rm $(DEPS)
+	-rm ./*.so
+	-rmdir $(BUILD_DIR)
 
 # end of file makefile

@@ -37,6 +37,7 @@
 
 /* select the library types that are C compatible - the interface data types */
 #include "opencsd/ocsd_if_types.h"
+#include "opencsd/ocsd_if_version.h"
 #include "opencsd/trc_gen_elem_types.h"
 #include "opencsd/trc_pkt_types.h"
 
