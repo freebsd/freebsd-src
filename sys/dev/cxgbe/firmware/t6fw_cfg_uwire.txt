@@ -1,6 +1,6 @@
 # Chelsio T6 Factory Default configuration file.
 #
-# Copyright (C) 2014-2017 Chelsio Communications.  All rights reserved.
+# Copyright (C) 2014-2015 Chelsio Communications.  All rights reserved.
 #
 #   DO NOT MODIFY THIS FILE UNDER ANY CIRCUMSTANCES.  MODIFICATION OF THIS FILE
 #   WILL RESULT IN A NON-FUNCTIONAL ADAPTER AND MAY RESULT IN PHYSICAL DAMAGE
@@ -95,6 +95,13 @@
 	sge_timer_value = 5, 10, 20, 50, 100, 200 # SGE_TIMER_VALUE* in usecs
 	reg[0x10c4] = 0x20000000/0x20000000 # GK_CONTROL, enable 5th thread
 
+	# Set the SGE Doorbell Queue Timer "tick" to 5us and initialize
+	# the Timer Table to a default set of values (which are multiples
+	# of the Timer Tick).
+	#
+	sge_dbq_timertick = 5
+	sge_dbq_timer = 1, 2, 3, 5, 7, 9, 12, 16
+
 	# enable TP_OUT_CONFIG.IPIDSPLITMODE
 	reg[0x7d04] = 0x00010000/0x00010000
 
@@ -150,6 +157,9 @@
 	# TP_PARA_REG0
 	reg[0x7d60] = 0x06000000/0x07000000 # set InitCWND to 6
 
+	# ULPRX iSCSI Page Sizes
+	reg[0x19168] = 0x04020100 # 64K, 16K, 8K and 4K
+
 	# LE_DB_CONFIG
 	reg[0x19c04] = 0x00000000/0x00440000 # LE Server SRAM disabled
 					     # LE IPv4 compression disabled 
@@ -177,10 +187,10 @@
 						# iscsi force cmd mode.
 						# Enable iscsi cmp mode.
 	# MC configuration
-	#mc_mode_brc[0] = 1		# mc0 - 1: enable BRC, 0: enable RBC
+	#mc_mode_brc[0] = 1		# mc0 - 1: enable BRC, 0: enable RBC, 2: enable BRBC
 
 	# HMA configuration
-	hma_size = 64			# Size (in MBs) of host memory expected
+	hma_size = 92 			# Size (in MBs) of host memory expected
 	hma_regions = stag,pbl,rq	# What all regions to place in host memory
 
 # Some "definitions" to make the rest of this a bit more readable.  We support
@@ -394,7 +404,7 @@
 	wx_caps = all		# write/execute permissions for all commands
 	r_caps = all		# read permissions for all commands
 	nvi = 28		# NVI_UNIFIED
-	niqflint = 202		# NFLIQ_UNIFIED + NLFIQ_WD + NFLIQ_CRYPTO (32)
+	niqflint = 218		# NFLIQ_UNIFIED + NLFIQ_WD + NFLIQ_CRYPTO (32)
 	nethctrl = 116		# NETHCTRL_UNIFIED + NETHCTRL_WD + ncrypto_lookaside
 	neq = 256		# NEQ_UNIFIED + NEQ_WD
 	nqpcq = 12288
@@ -409,7 +419,7 @@
 	nserver = 496		# number of server region entries
 	nhash = 12288		# number of hash region entries
 	nhpfilter = 64		# number of high priority filter region entries
-	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, tlskeys, crypto_lookaside
+	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, tlskeys, crypto_lookaside, ipsec_inline, nic_hashfilter
 	tp_l2t = 3072
 	tp_ddp = 2
 	tp_ddp_iscsi = 2
@@ -570,8 +580,8 @@
 	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [fini]
-	version = 0x1425001c
-	checksum = 0x8136d0f8
+	version = 0x1425001d
+	checksum = 0xdbff9437
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104
