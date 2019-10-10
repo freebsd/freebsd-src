@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018, Intel Corporation
+ * Copyright (c) 2013-2019, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,66 +33,27 @@
 #include "pti-modrm.h"
 #include "pti-disp-defs.h"
 #include "pti-disp.h"
+#include "pti-disp_default.h"
+#include "pti-sib.h"
 
 #include <string.h>
 
-/* SET UP 3 TABLES */
 
-static uint8_t has_disp_regular[4][4][8];
+static const uint8_t eamode_table[2][4] = {
+	/* Default: */ {
+		/* ptem_unknown = */	ptem_unknown,
+		/* ptem_16bit = */	ptem_16bit,
+		/* ptem_32bit = */	ptem_32bit,
+		/* ptem_64bit = */	ptem_64bit
+	},
 
-static void init_has_disp_regular_table(void)
-{
-	uint8_t mod, rm;
-
-	memset(has_disp_regular, 0, sizeof(has_disp_regular));
-
-	/*fill eamode16 */
-	has_disp_regular[ptem_16bit][0][6] = 2;
-	for (rm = 0; rm < 8; rm++)
-		for (mod = 1; mod <= 2; mod++)
-			has_disp_regular[ptem_16bit][mod][rm] = mod;
-
-	/*fill eamode32/64 */
-	has_disp_regular[ptem_32bit][0][5] = 4;
-	has_disp_regular[ptem_64bit][0][5] = 4;
-	for (rm = 0; rm < 8; rm++) {
-		has_disp_regular[ptem_32bit][1][rm] = 1;
-		has_disp_regular[ptem_32bit][2][rm] = 4;
-
-		has_disp_regular[ptem_64bit][1][rm] = 1;
-		has_disp_regular[ptem_64bit][2][rm] = 4;
+	/* With Address-size prefix (0x67): */ {
+		/* ptem_unknown = */	ptem_unknown,
+		/* ptem_16bit = */	ptem_32bit,
+		/* ptem_32bit = */	ptem_16bit,
+		/* ptem_64bit = */	ptem_32bit
 	}
-}
-
-static uint8_t eamode_table[2][4];
-
-static void init_eamode_table(void)
-{
-	eamode_table[0][ptem_unknown] = ptem_unknown;
-	eamode_table[0][ptem_16bit] = ptem_16bit;
-	eamode_table[0][ptem_32bit] = ptem_32bit;
-	eamode_table[0][ptem_64bit] = ptem_64bit;
-
-	eamode_table[1][ptem_unknown] = ptem_unknown;
-	eamode_table[1][ptem_16bit] = ptem_32bit;
-	eamode_table[1][ptem_32bit] = ptem_16bit;
-	eamode_table[1][ptem_64bit] = ptem_32bit;
-}
-
-static uint8_t has_sib_table[4][4][8];
-
-static void init_has_sib_table(void)
-{
-	uint8_t mod;
-
-	memset(has_sib_table, 0, sizeof(has_sib_table));
-
-	/*for eamode32/64 there is sib byte for mod!=3 and rm==4 */
-	for (mod = 0; mod <= 2; mod++) {
-		has_sib_table[ptem_32bit][mod][4] = 1;
-		has_sib_table[ptem_64bit][mod][4] = 1;
-	}
-}
+};
 
 /* SOME ACCESSORS */
 
@@ -479,12 +440,12 @@ static int modrm_dec(struct pt_ild *ild, uint8_t length)
 		uint8_t eamode = eamode_table[ild->u.s.asz][ild->mode];
 		uint8_t mod = (uint8_t) pti_get_modrm_mod(ild);
 		uint8_t rm = (uint8_t) pti_get_modrm_rm(ild);
-		uint8_t has_sib;
+		uint8_t sib;
 
-		ild->disp_bytes = has_disp_regular[eamode][mod][rm];
+		ild->disp_bytes = disp_default[eamode][mod][rm];
 
-		has_sib = has_sib_table[eamode][mod][rm];
-		if (has_sib)
+		sib = has_sib[eamode][mod][rm];
+		if (sib)
 			return sib_dec(ild, length + 1);
 	}
 
@@ -557,7 +518,292 @@ static int opcode_dec(struct pt_ild *ild, uint8_t length)
 }
 
 typedef int (*prefix_decoder)(struct pt_ild *ild, uint8_t length, uint8_t rex);
-static prefix_decoder prefix_table[256];
+
+static int prefix_osz(struct pt_ild *ild, uint8_t length, uint8_t rex);
+static int prefix_asz(struct pt_ild *ild, uint8_t length, uint8_t rex);
+static int prefix_lock(struct pt_ild *ild, uint8_t length, uint8_t rex);
+static int prefix_f2(struct pt_ild *ild, uint8_t length, uint8_t rex);
+static int prefix_f3(struct pt_ild *ild, uint8_t length, uint8_t rex);
+static int prefix_rex(struct pt_ild *ild, uint8_t length, uint8_t rex);
+static int prefix_vex_c4(struct pt_ild *ild, uint8_t length, uint8_t rex);
+static int prefix_vex_c5(struct pt_ild *ild, uint8_t length, uint8_t rex);
+static int prefix_evex(struct pt_ild *ild, uint8_t length, uint8_t rex);
+static int prefix_ignore(struct pt_ild *ild, uint8_t length, uint8_t rex);
+static int prefix_done(struct pt_ild *ild, uint8_t length, uint8_t rex);
+
+static const prefix_decoder prefix_table[256] = {
+	/* 00 = */ prefix_done,
+	/* 01 = */ prefix_done,
+	/* 02 = */ prefix_done,
+	/* 03 = */ prefix_done,
+	/* 04 = */ prefix_done,
+	/* 05 = */ prefix_done,
+	/* 06 = */ prefix_done,
+	/* 07 = */ prefix_done,
+	/* 08 = */ prefix_done,
+	/* 09 = */ prefix_done,
+	/* 0a = */ prefix_done,
+	/* 0b = */ prefix_done,
+	/* 0c = */ prefix_done,
+	/* 0d = */ prefix_done,
+	/* 0e = */ prefix_done,
+	/* 0f = */ prefix_done,
+
+	/* 10 = */ prefix_done,
+	/* 11 = */ prefix_done,
+	/* 12 = */ prefix_done,
+	/* 13 = */ prefix_done,
+	/* 14 = */ prefix_done,
+	/* 15 = */ prefix_done,
+	/* 16 = */ prefix_done,
+	/* 17 = */ prefix_done,
+	/* 18 = */ prefix_done,
+	/* 19 = */ prefix_done,
+	/* 1a = */ prefix_done,
+	/* 1b = */ prefix_done,
+	/* 1c = */ prefix_done,
+	/* 1d = */ prefix_done,
+	/* 1e = */ prefix_done,
+	/* 1f = */ prefix_done,
+
+	/* 20 = */ prefix_done,
+	/* 21 = */ prefix_done,
+	/* 22 = */ prefix_done,
+	/* 23 = */ prefix_done,
+	/* 24 = */ prefix_done,
+	/* 25 = */ prefix_done,
+	/* 26 = */ prefix_ignore,
+	/* 27 = */ prefix_done,
+	/* 28 = */ prefix_done,
+	/* 29 = */ prefix_done,
+	/* 2a = */ prefix_done,
+	/* 2b = */ prefix_done,
+	/* 2c = */ prefix_done,
+	/* 2d = */ prefix_done,
+	/* 2e = */ prefix_ignore,
+	/* 2f = */ prefix_done,
+
+	/* 30 = */ prefix_done,
+	/* 31 = */ prefix_done,
+	/* 32 = */ prefix_done,
+	/* 33 = */ prefix_done,
+	/* 34 = */ prefix_done,
+	/* 35 = */ prefix_done,
+	/* 36 = */ prefix_ignore,
+	/* 37 = */ prefix_done,
+	/* 38 = */ prefix_done,
+	/* 39 = */ prefix_done,
+	/* 3a = */ prefix_done,
+	/* 3b = */ prefix_done,
+	/* 3c = */ prefix_done,
+	/* 3d = */ prefix_done,
+	/* 3e = */ prefix_ignore,
+	/* 3f = */ prefix_done,
+
+	/* 40 = */ prefix_rex,
+	/* 41 = */ prefix_rex,
+	/* 42 = */ prefix_rex,
+	/* 43 = */ prefix_rex,
+	/* 44 = */ prefix_rex,
+	/* 45 = */ prefix_rex,
+	/* 46 = */ prefix_rex,
+	/* 47 = */ prefix_rex,
+	/* 48 = */ prefix_rex,
+	/* 49 = */ prefix_rex,
+	/* 4a = */ prefix_rex,
+	/* 4b = */ prefix_rex,
+	/* 4c = */ prefix_rex,
+	/* 4d = */ prefix_rex,
+	/* 4e = */ prefix_rex,
+	/* 4f = */ prefix_rex,
+
+	/* 50 = */ prefix_done,
+	/* 51 = */ prefix_done,
+	/* 52 = */ prefix_done,
+	/* 53 = */ prefix_done,
+	/* 54 = */ prefix_done,
+	/* 55 = */ prefix_done,
+	/* 56 = */ prefix_done,
+	/* 57 = */ prefix_done,
+	/* 58 = */ prefix_done,
+	/* 59 = */ prefix_done,
+	/* 5a = */ prefix_done,
+	/* 5b = */ prefix_done,
+	/* 5c = */ prefix_done,
+	/* 5d = */ prefix_done,
+	/* 5e = */ prefix_done,
+	/* 5f = */ prefix_done,
+
+	/* 60 = */ prefix_done,
+	/* 61 = */ prefix_done,
+	/* 62 = */ prefix_evex,
+	/* 63 = */ prefix_done,
+	/* 64 = */ prefix_ignore,
+	/* 65 = */ prefix_ignore,
+	/* 66 = */ prefix_osz,
+	/* 67 = */ prefix_asz,
+	/* 68 = */ prefix_done,
+	/* 69 = */ prefix_done,
+	/* 6a = */ prefix_done,
+	/* 6b = */ prefix_done,
+	/* 6c = */ prefix_done,
+	/* 6d = */ prefix_done,
+	/* 6e = */ prefix_done,
+	/* 6f = */ prefix_done,
+
+	/* 70 = */ prefix_done,
+	/* 71 = */ prefix_done,
+	/* 72 = */ prefix_done,
+	/* 73 = */ prefix_done,
+	/* 74 = */ prefix_done,
+	/* 75 = */ prefix_done,
+	/* 76 = */ prefix_done,
+	/* 77 = */ prefix_done,
+	/* 78 = */ prefix_done,
+	/* 79 = */ prefix_done,
+	/* 7a = */ prefix_done,
+	/* 7b = */ prefix_done,
+	/* 7c = */ prefix_done,
+	/* 7d = */ prefix_done,
+	/* 7e = */ prefix_done,
+	/* 7f = */ prefix_done,
+
+	/* 80 = */ prefix_done,
+	/* 81 = */ prefix_done,
+	/* 82 = */ prefix_done,
+	/* 83 = */ prefix_done,
+	/* 84 = */ prefix_done,
+	/* 85 = */ prefix_done,
+	/* 86 = */ prefix_done,
+	/* 87 = */ prefix_done,
+	/* 88 = */ prefix_done,
+	/* 89 = */ prefix_done,
+	/* 8a = */ prefix_done,
+	/* 8b = */ prefix_done,
+	/* 8c = */ prefix_done,
+	/* 8d = */ prefix_done,
+	/* 8e = */ prefix_done,
+	/* 8f = */ prefix_done,
+
+	/* 90 = */ prefix_done,
+	/* 91 = */ prefix_done,
+	/* 92 = */ prefix_done,
+	/* 93 = */ prefix_done,
+	/* 94 = */ prefix_done,
+	/* 95 = */ prefix_done,
+	/* 96 = */ prefix_done,
+	/* 97 = */ prefix_done,
+	/* 98 = */ prefix_done,
+	/* 99 = */ prefix_done,
+	/* 9a = */ prefix_done,
+	/* 9b = */ prefix_done,
+	/* 9c = */ prefix_done,
+	/* 9d = */ prefix_done,
+	/* 9e = */ prefix_done,
+	/* 9f = */ prefix_done,
+
+	/* a0 = */ prefix_done,
+	/* a1 = */ prefix_done,
+	/* a2 = */ prefix_done,
+	/* a3 = */ prefix_done,
+	/* a4 = */ prefix_done,
+	/* a5 = */ prefix_done,
+	/* a6 = */ prefix_done,
+	/* a7 = */ prefix_done,
+	/* a8 = */ prefix_done,
+	/* a9 = */ prefix_done,
+	/* aa = */ prefix_done,
+	/* ab = */ prefix_done,
+	/* ac = */ prefix_done,
+	/* ad = */ prefix_done,
+	/* ae = */ prefix_done,
+	/* af = */ prefix_done,
+
+	/* b0 = */ prefix_done,
+	/* b1 = */ prefix_done,
+	/* b2 = */ prefix_done,
+	/* b3 = */ prefix_done,
+	/* b4 = */ prefix_done,
+	/* b5 = */ prefix_done,
+	/* b6 = */ prefix_done,
+	/* b7 = */ prefix_done,
+	/* b8 = */ prefix_done,
+	/* b9 = */ prefix_done,
+	/* ba = */ prefix_done,
+	/* bb = */ prefix_done,
+	/* bc = */ prefix_done,
+	/* bd = */ prefix_done,
+	/* be = */ prefix_done,
+	/* bf = */ prefix_done,
+
+	/* c0 = */ prefix_done,
+	/* c1 = */ prefix_done,
+	/* c2 = */ prefix_done,
+	/* c3 = */ prefix_done,
+	/* c4 = */ prefix_vex_c4,
+	/* c5 = */ prefix_vex_c5,
+	/* c6 = */ prefix_done,
+	/* c7 = */ prefix_done,
+	/* c8 = */ prefix_done,
+	/* c9 = */ prefix_done,
+	/* ca = */ prefix_done,
+	/* cb = */ prefix_done,
+	/* cc = */ prefix_done,
+	/* cd = */ prefix_done,
+	/* ce = */ prefix_done,
+	/* cf = */ prefix_done,
+
+	/* d0 = */ prefix_done,
+	/* d1 = */ prefix_done,
+	/* d2 = */ prefix_done,
+	/* d3 = */ prefix_done,
+	/* d4 = */ prefix_done,
+	/* d5 = */ prefix_done,
+	/* d6 = */ prefix_done,
+	/* d7 = */ prefix_done,
+	/* d8 = */ prefix_done,
+	/* d9 = */ prefix_done,
+	/* da = */ prefix_done,
+	/* db = */ prefix_done,
+	/* dc = */ prefix_done,
+	/* dd = */ prefix_done,
+	/* de = */ prefix_done,
+	/* df = */ prefix_done,
+
+	/* e0 = */ prefix_done,
+	/* e1 = */ prefix_done,
+	/* e2 = */ prefix_done,
+	/* e3 = */ prefix_done,
+	/* e4 = */ prefix_done,
+	/* e5 = */ prefix_done,
+	/* e6 = */ prefix_done,
+	/* e7 = */ prefix_done,
+	/* e8 = */ prefix_done,
+	/* e9 = */ prefix_done,
+	/* ea = */ prefix_done,
+	/* eb = */ prefix_done,
+	/* ec = */ prefix_done,
+	/* ed = */ prefix_done,
+	/* ee = */ prefix_done,
+	/* ef = */ prefix_done,
+
+	/* f0 = */ prefix_lock,
+	/* f1 = */ prefix_done,
+	/* f2 = */ prefix_f2,
+	/* f3 = */ prefix_f3,
+	/* f4 = */ prefix_done,
+	/* f5 = */ prefix_done,
+	/* f6 = */ prefix_done,
+	/* f7 = */ prefix_done,
+	/* f8 = */ prefix_done,
+	/* f9 = */ prefix_done,
+	/* fa = */ prefix_done,
+	/* fb = */ prefix_done,
+	/* fc = */ prefix_done,
+	/* fd = */ prefix_done,
+	/* fe = */ prefix_done,
+	/* ff = */ prefix_done
+};
 
 static inline int prefix_decode(struct pt_ild *ild, uint8_t length, uint8_t rex)
 {
@@ -822,36 +1068,6 @@ static int prefix_evex(struct pt_ild *ild, uint8_t length, uint8_t rex)
 	return prefix_vex_done(ild, length);
 }
 
-static void init_prefix_table(void)
-{
-	unsigned int byte;
-
-	for (byte = 0; byte <= 0xff; ++byte)
-		prefix_table[byte] = prefix_done;
-
-	prefix_table[0x66] = prefix_osz;
-	prefix_table[0x67] = prefix_asz;
-
-	/* Segment prefixes. */
-	prefix_table[0x2e] = prefix_ignore;
-	prefix_table[0x3e] = prefix_ignore;
-	prefix_table[0x26] = prefix_ignore;
-	prefix_table[0x36] = prefix_ignore;
-	prefix_table[0x64] = prefix_ignore;
-	prefix_table[0x65] = prefix_ignore;
-
-	prefix_table[0xf0] = prefix_lock;
-	prefix_table[0xf2] = prefix_f2;
-	prefix_table[0xf3] = prefix_f3;
-
-	for (byte = 0x40; byte <= 0x4f; ++byte)
-		prefix_table[byte] = prefix_rex;
-
-	prefix_table[0xc4] = prefix_vex_c4;
-	prefix_table[0xc5] = prefix_vex_c5;
-	prefix_table[0x62] = prefix_evex;
-}
-
 static int decode(struct pt_ild *ild)
 {
 	return prefix_decode(ild, 0, 0);
@@ -883,16 +1099,6 @@ static int set_branch_target(struct pt_insn_ext *iext, const struct pt_ild *ild)
 		return -pte_bad_insn;
 
 	return 0;
-}
-
-/*  MAIN ENTRY POINTS */
-
-void pt_ild_init(void)
-{	/* initialization */
-	init_has_disp_regular_table();
-	init_has_sib_table();
-	init_eamode_table();
-	init_prefix_table();
 }
 
 static int pt_instruction_length_decode(struct pt_ild *ild)

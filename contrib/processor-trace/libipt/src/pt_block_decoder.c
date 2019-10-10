@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018, Intel Corporation
+ * Copyright (c) 2016-2019, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -102,6 +102,8 @@ static int pt_blk_init_qry_flags(struct pt_conf_flags *qflags,
 		return -pte_internal;
 
 	memset(qflags, 0, sizeof(*qflags));
+	qflags->variant.query.keep_tcal_on_ovf =
+		flags->variant.block.keep_tcal_on_ovf;
 
 	return 0;
 }
@@ -568,7 +570,8 @@ static int pt_blk_next_ip(uint64_t *pip, struct pt_block_decoder *decoder,
 
 		ip = insn->ip + insn->size;
 		if (taken)
-			ip += iext->variant.branch.displacement;
+			ip += (uint64_t) (int64_t)
+				iext->variant.branch.displacement;
 
 		*pip = ip;
 		return status;
@@ -1778,8 +1781,8 @@ pt_blk_proceed_no_event_fill_cache(struct pt_block_decoder *decoder,
 	struct pt_bcache_entry bce;
 	struct pt_insn_ext iext;
 	struct pt_insn insn;
-	uint64_t nip, dip;
-	int64_t disp, ioff, noff;
+	uint64_t nip, dip, ioff, noff;
+	int64_t disp;
 	int status;
 
 	if (!decoder || !steps)
@@ -2002,7 +2005,7 @@ pt_blk_proceed_no_event_fill_cache(struct pt_block_decoder *decoder,
 		return -pte_internal;
 
 	/* The decision point IP and the displacement from @insn.ip. */
-	dip = nip + bce.displacement;
+	dip = nip + (uint64_t) (int64_t) bce.displacement;
 	disp = (int64_t) (dip - insn.ip);
 
 	/* We may have switched sections if the section was split.  See
@@ -2166,7 +2169,7 @@ static int pt_blk_proceed_no_event_cached(struct pt_block_decoder *decoder,
 	 *
 	 * Switch to the slow path until we reach the end of this section.
 	 */
-	nip = decoder->ip + bce.displacement;
+	nip = decoder->ip + (uint64_t) (int64_t) bce.displacement;
 	if (!pt_blk_is_in_section(msec, nip))
 		return pt_blk_proceed_no_event_uncached(decoder, block);
 
@@ -2262,7 +2265,8 @@ static int pt_blk_proceed_no_event_cached(struct pt_block_decoder *decoder,
 				if (status < 0)
 					return status;
 
-				ip += iext.variant.branch.displacement;
+				ip += (uint64_t) (int64_t)
+					iext.variant.branch.displacement;
 			}
 
 			decoder->ip = ip + bce.isize;

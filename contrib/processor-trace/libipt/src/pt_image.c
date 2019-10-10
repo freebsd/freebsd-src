@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018, Intel Corporation
+ * Copyright (c) 2013-2019, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,12 +43,16 @@ static char *dupstr(const char *str)
 	if (!str)
 		return NULL;
 
-	len = strlen(str);
+	/* Silently truncate the name if it gets too big. */
+	len = strnlen(str, 4096ul);
+
 	dup = malloc(len + 1);
 	if (!dup)
 		return NULL;
 
-	return strcpy(dup, str);
+	dup[len] = 0;
+
+	return memcpy(dup, str, len);
 }
 
 static struct pt_section_list *pt_mk_section_list(struct pt_section *section,
@@ -315,9 +319,10 @@ int pt_image_add_file(struct pt_image *image, const char *filename,
 	if (errcode < 0)
 		return errcode;
 
-	section = pt_mk_section(filename, offset, size);
-	if (!section)
-		return -pte_invalid;
+	section = NULL;
+	errcode = pt_mk_section(&section, filename, offset, size);
+	if (errcode < 0)
+		return errcode;
 
 	errcode = pt_image_add(image, section, &asid, vaddr, 0);
 	if (errcode < 0) {

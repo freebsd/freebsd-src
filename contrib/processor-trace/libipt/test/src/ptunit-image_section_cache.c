@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018, Intel Corporation
+ * Copyright (c) 2016-2019, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -69,8 +69,8 @@ struct pt_section {
 #endif /* defined(FEATURE_THREADS) */
 };
 
-extern struct pt_section *pt_mk_section(const char *filename, uint64_t offset,
-					uint64_t size);
+extern int pt_mk_section(struct pt_section **psection, const char *filename,
+			 uint64_t offset, uint64_t size);
 
 extern int pt_section_get(struct pt_section *section);
 extern int pt_section_put(struct pt_section *section);
@@ -93,45 +93,47 @@ extern int pt_section_read(const struct pt_section *section, uint8_t *buffer,
 			   uint16_t size, uint64_t offset);
 
 
-struct pt_section *pt_mk_section(const char *filename, uint64_t offset,
-				 uint64_t size)
+int pt_mk_section(struct pt_section **psection, const char *filename,
+		  uint64_t offset, uint64_t size)
 {
 	struct pt_section *section;
+	uint8_t idx;
 
 	section = malloc(sizeof(*section));
-	if (section) {
-		uint8_t idx;
+	if (!section)
+		return -pte_nomem;
 
-		memset(section, 0, sizeof(*section));
-		section->filename = filename;
-		section->offset = offset;
-		section->size = size;
-		section->ucount = 1;
+	memset(section, 0, sizeof(*section));
+	section->filename = filename;
+	section->offset = offset;
+	section->size = size;
+	section->ucount = 1;
 
-		for (idx = 0; idx < sizeof(section->content); ++idx)
-			section->content[idx] = idx;
+	for (idx = 0; idx < sizeof(section->content); ++idx)
+		section->content[idx] = idx;
 
 #if defined(FEATURE_THREADS)
-		{
-			int errcode;
+	{
+		int errcode;
 
-			errcode = mtx_init(&section->lock, mtx_plain);
-			if (errcode != thrd_success) {
-				free(section);
-				section = NULL;
-			}
-
-			errcode = mtx_init(&section->alock, mtx_plain);
-			if (errcode != thrd_success) {
-				mtx_destroy(&section->lock);
-				free(section);
-				section = NULL;
-			}
+		errcode = mtx_init(&section->lock, mtx_plain);
+		if (errcode != thrd_success) {
+			free(section);
+			return -pte_bad_lock;
 		}
-#endif /* defined(FEATURE_THREADS) */
-	}
 
-	return section;
+		errcode = mtx_init(&section->alock, mtx_plain);
+		if (errcode != thrd_success) {
+			mtx_destroy(&section->lock);
+			free(section);
+			return -pte_bad_lock;
+		}
+	}
+#endif /* defined(FEATURE_THREADS) */
+
+	*psection = section;
+
+	return 0;
 }
 
 static int pt_section_lock(struct pt_section *section)
@@ -552,10 +554,12 @@ static struct ptunit_result dfix_init(struct iscache_fixture *cfix)
 
 	for (idx = 0; idx < num_sections; ++idx) {
 		struct pt_section *section;
+		int errcode;
 
-		section = pt_mk_section("some-filename",
+		errcode = pt_mk_section(&section, "some-filename",
 					idx % 3 == 0 ? 0x1000 : 0x2000,
 					idx % 2 == 0 ? 0x1000 : 0x2000);
+		ptu_int_eq(errcode, 0);
 		ptu_ptr(section);
 
 		cfix->section[idx] = section;

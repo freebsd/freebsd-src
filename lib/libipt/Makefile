@@ -17,7 +17,6 @@ LIB=	ipt
 SHLIB_MAJOR=0
 
 SRCS=	\
-	init.c				\
 	pt_asid.c			\
 	pt_block_cache.c		\
 	pt_block_decoder.c		\
@@ -34,6 +33,7 @@ SRCS=	\
 	pt_insn_decoder.c		\
 	pt_insn.c			\
 	pt_last_ip.c			\
+	pt_msec_cache.c			\
 	pt_packet_decoder.c		\
 	pt_packet.c			\
 	pt_query_decoder.c		\
@@ -57,7 +57,8 @@ CFLAGS+=	\
 	-DPT_VERSION_BUILD=0	\
 	-DPT_VERSION_EXT=\"\"	\
 	-DPT_VERSION_MAJOR=1	\
-	-DPT_VERSION_MINOR=6
+	-DPT_VERSION_MINOR=6	\
+	-DPT_VERSION_PATCH=0
 
 INCS=	\
 	intel-pt.h	\

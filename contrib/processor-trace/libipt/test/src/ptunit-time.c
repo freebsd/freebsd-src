@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018, Intel Corporation
+ * Copyright (c) 2014-2019, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -207,6 +207,22 @@ static struct ptunit_result tcal_cbr_null(struct time_fixture *tfix)
 	return ptu_passed();
 }
 
+static struct ptunit_result tcal_cbr_zero(struct time_fixture *tfix)
+{
+	struct pt_packet_cbr packet;
+	struct pt_config config;
+	int errcode;
+
+	config = tfix->config;
+	config.nom_freq = 1;
+	packet.ratio = 0;
+
+	errcode = pt_tcal_update_cbr(&tfix->tcal, &packet, &config);
+	ptu_int_eq(errcode, -pte_bad_packet);
+
+	return ptu_passed();
+}
+
 static struct ptunit_result tcal_mtc_null(struct time_fixture *tfix)
 {
 	struct pt_packet_mtc packet;
@@ -275,6 +291,19 @@ static struct ptunit_result cbr(struct time_fixture *tfix)
 	ptu_int_eq(errcode, 0);
 
 	ptu_uint_eq(cbr, 0x38);
+
+	return ptu_passed();
+}
+
+static struct ptunit_result cbr_zero(struct time_fixture *tfix)
+{
+	struct pt_packet_cbr packet;
+	int errcode;
+
+	packet.ratio = 0;
+
+	errcode = pt_time_update_cbr(&tfix->time, &packet, &tfix->config);
+	ptu_int_eq(errcode, -pte_bad_packet);
 
 	return ptu_passed();
 }
@@ -353,11 +382,13 @@ int main(int argc, char **argv)
 	ptu_run_f(suite, query_cbr_none, tfix);
 
 	ptu_run_f(suite, tcal_cbr_null, tfix);
+	ptu_run_f(suite, tcal_cbr_zero, tfix);
 	ptu_run_f(suite, tcal_mtc_null, tfix);
 	ptu_run_f(suite, tcal_cyc_null, tfix);
 
 	ptu_run_f(suite, tsc, tfix);
 	ptu_run_f(suite, cbr, tfix);
+	ptu_run_f(suite, cbr_zero, tfix);
 	ptu_run_f(suite, tma, tfix);
 	ptu_run_f(suite, mtc, tfix);
 	ptu_run_f(suite, cyc, tfix);

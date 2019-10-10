@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018, Intel Corporation
+ * Copyright (c) 2013-2019, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -161,11 +161,12 @@ int pt_sync_set(const uint8_t **sync, const uint8_t *pos,
 int pt_sync_forward(const uint8_t **sync, const uint8_t *pos,
 		    const struct pt_config *config)
 {
-	const uint8_t *begin, *end;
+	const uint8_t *begin, *end, *start;
 
 	if (!sync || !pos || !config)
 		return -pte_internal;
 
+	start = pos;
 	begin = config->begin;
 	end = config->end;
 
@@ -192,6 +193,12 @@ int pt_sync_forward(const uint8_t **sync, const uint8_t *pos,
 		/* We found a 64bit word's worth of psb payload pattern. */
 		current = pt_find_psb(pos, config);
 		if (!current)
+			continue;
+
+		/* If @start points inside a PSB, we may find that one.  Ignore
+		 * it unless @start points to its beginning.
+		 */
+		if (current < start)
 			continue;
 
 		*sync = current;
