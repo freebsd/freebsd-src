@@ -156,24 +156,24 @@ nvdimm_spa_type_from_uuid(struct uuid *uuid)
 }
 
 static vm_memattr_t
-nvdimm_spa_memattr(struct nvdimm_spa_dev *dev)
+nvdimm_spa_memattr(uint64_t efi_mem_flags)
 {
 	vm_memattr_t mode;
 
-	if ((dev->spa_efi_mem_flags & EFI_MD_ATTR_WB) != 0)
+	if ((efi_mem_flags & EFI_MD_ATTR_WB) != 0)
 		mode = VM_MEMATTR_WRITE_BACK;
-	else if ((dev->spa_efi_mem_flags & EFI_MD_ATTR_WT) != 0)
+	else if ((efi_mem_flags & EFI_MD_ATTR_WT) != 0)
 		mode = VM_MEMATTR_WRITE_THROUGH;
-	else if ((dev->spa_efi_mem_flags & EFI_MD_ATTR_WC) != 0)
+	else if ((efi_mem_flags & EFI_MD_ATTR_WC) != 0)
 		mode = VM_MEMATTR_WRITE_COMBINING;
-	else if ((dev->spa_efi_mem_flags & EFI_MD_ATTR_WP) != 0)
+	else if ((efi_mem_flags & EFI_MD_ATTR_WP) != 0)
 		mode = VM_MEMATTR_WRITE_PROTECTED;
-	else if ((dev->spa_efi_mem_flags & EFI_MD_ATTR_UC) != 0)
+	else if ((efi_mem_flags & EFI_MD_ATTR_UC) != 0)
 		mode = VM_MEMATTR_UNCACHEABLE;
 	else {
 		if (bootverbose)
 			printf("SPA mapping attr %#lx unsupported\n",
-			    dev->spa_efi_mem_flags);
+			    efi_mem_flags);
 		mode = VM_MEMATTR_UNCACHEABLE;
 	}
 	return (mode);
@@ -189,7 +189,7 @@ nvdimm_spa_uio(struct nvdimm_spa_dev *dev, struct uio *uio)
 
 	error = 0;
 	if (dev->spa_kva == NULL) {
-		mattr = nvdimm_spa_memattr(dev);
+		mattr = dev->spa_memattr;
 		bzero(&m, sizeof(m));
 		vm_page_initfake(&m, 0, mattr);
 		ma = &m;
@@ -288,7 +288,7 @@ nvdimm_spa_g_all_unmapped(struct nvdimm_spa_dev *dev, struct bio *bp, int rw)
 	vm_memattr_t mattr;
 	int i;
 
-	mattr = nvdimm_spa_memattr(dev);
+	mattr = dev->spa_memattr;
 	for (i = 0; i < nitems(ma); i++) {
 		bzero(&maa[i], sizeof(maa[i]));
 		vm_page_initfake(&maa[i], dev->spa_phys_base +
@@ -345,8 +345,7 @@ nvdimm_spa_g_thread(void *arg)
 				pmap_flush_cache_phys_range(
 				    (vm_paddr_t)sc->dev->spa_phys_base,
 				    (vm_paddr_t)sc->dev->spa_phys_base +
-				    sc->dev->spa_len,
-				    nvdimm_spa_memattr(sc->dev));
+				    sc->dev->spa_len, sc->dev->spa_memattr);
 			}
 			/*
 			 * XXX flush IMC
@@ -458,6 +457,7 @@ nvdimm_spa_init(struct SPA_mapping *spa, ACPI_NFIT_SYSTEM_ADDRESS *nfitaddr,
 		    nvdimm_SPA_uuid_list[spa_type].u_name,
 		    spa->dev.spa_efi_mem_flags);
 	}
+	spa->dev.spa_memattr = nvdimm_spa_memattr(nfitaddr->MemoryMapping);
 	if (!nvdimm_SPA_uuid_list[spa_type].u_usr_acc)
 		return (0);
 
@@ -476,7 +476,7 @@ nvdimm_spa_dev_init(struct nvdimm_spa_dev *dev, const char *name)
 	int error, error1;
 
 	error1 = pmap_large_map(dev->spa_phys_base, dev->spa_len,
-	    &dev->spa_kva, nvdimm_spa_memattr(dev));
+	    &dev->spa_kva, dev->spa_memattr);
 	if (error1 != 0) {
 		printf("NVDIMM %s cannot map into KVA, error %d\n", name,
 		    error1);
