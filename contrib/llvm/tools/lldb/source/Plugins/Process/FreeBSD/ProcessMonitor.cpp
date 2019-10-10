@@ -708,7 +708,7 @@ ProcessMonitor::ProcessMonitor(
     const lldb_private::ProcessLaunchInfo & /* launch_info */,
     lldb_private::Status &error)
     : m_process(static_cast<ProcessFreeBSD *>(process)),
-      m_operation_thread(), m_monitor_thread(), m_pid(LLDB_INVALID_PROCESS_ID), m_terminal_fd(-1), m_operation(0) {
+      m_operation_thread(nullptr), m_monitor_thread(nullptr), m_pid(LLDB_INVALID_PROCESS_ID), m_terminal_fd(-1), m_operation(0) {
   using namespace std::placeholders;
 
   std::unique_ptr<LaunchArgs> args(
@@ -735,21 +735,20 @@ ProcessMonitor::ProcessMonitor(
   }
 
   // Finally, start monitoring the child process for change in state.
-  auto monitor_thread = Host::StartMonitoringChildProcess(
+  m_monitor_thread = Host::StartMonitoringChildProcess(
       std::bind(&ProcessMonitor::MonitorCallback, this, _1, _2, _3, _4),
       GetPID(), true);
-  if (!monitor_thread || !monitor_thread->IsJoinable()) {
+  if (!m_monitor_thread->IsJoinable()) {
     error.SetErrorToGenericError();
     error.SetErrorString("Process launch failed.");
     return;
   }
-  m_monitor_thread = *monitor_thread;
 }
 
 ProcessMonitor::ProcessMonitor(ProcessFreeBSD *process, lldb::pid_t pid,
                                lldb_private::Status &error)
     : m_process(static_cast<ProcessFreeBSD *>(process)),
-      m_operation_thread(), m_monitor_thread(), m_pid(pid), m_terminal_fd(-1), m_operation(0) {
+      m_operation_thread(nullptr), m_monitor_thread(nullptr), m_pid(pid), m_terminal_fd(-1), m_operation(0) {
   using namespace std::placeholders;
 
   sem_init(&m_operation_pending, 0, 0);
@@ -774,15 +773,14 @@ ProcessMonitor::ProcessMonitor(ProcessFreeBSD *process, lldb::pid_t pid,
   }
 
   // Finally, start monitoring the child process for change in state.
-  auto monitor_thread = Host::StartMonitoringChildProcess(
+  m_monitor_thread = Host::StartMonitoringChildProcess(
       std::bind(&ProcessMonitor::MonitorCallback, this, _1, _2, _3, _4),
       GetPID(), true);
-  if (!monitor_thread || !monitor_thread->IsJoinable()) {
+  if (!m_monitor_thread->IsJoinable()) {
     error.SetErrorToGenericError();
     error.SetErrorString("Process attach failed.");
     return;
   }
-  m_monitor_thread = *monitor_thread;
 }
 
 ProcessMonitor::~ProcessMonitor() { StopMonitor(); }
@@ -791,15 +789,13 @@ ProcessMonitor::~ProcessMonitor() { StopMonitor(); }
 void ProcessMonitor::StartLaunchOpThread(LaunchArgs *args, Status &error) {
   static const char *g_thread_name = "freebsd.op";
 
-  if (m_operation_thread.IsJoinable())
+  if (m_operation_thread->IsJoinable())
     return;
 
-  auto operation_thread =
+  m_operation_thread =
       ThreadLauncher::LaunchThread(g_thread_name, LaunchOpThread, args);
-  if (operation_thread)
-    m_operation_thread = *operation_thread;
-  else
-    error = operation_thread.takeError();
+  if (!m_operation_thread)
+     error = m_operation_thread.takeError();
 }
 
 void *ProcessMonitor::LaunchOpThread(void *arg) {
@@ -961,15 +957,14 @@ void ProcessMonitor::StartAttachOpThread(AttachArgs *args,
                                          lldb_private::Status &error) {
   static const char *g_thread_name = "freebsd.op";
 
-  if (m_operation_thread.IsJoinable())
+  if (m_operation_thread->IsJoinable())
     return;
 
-  auto operation_thread =
+  m_operation_thread =
       ThreadLauncher::LaunchThread(g_thread_name, AttachOpThread, args);
-  if (operation_thread)
-    m_operation_thread = *operation_thread;
-  else
-    error = operation_thread.takeError();
+
+  if (!m_operation_thread)
+	error = m_operation_thread.takeError();
 }
 
 void *ProcessMonitor::AttachOpThread(void *arg) {
@@ -1389,10 +1384,10 @@ bool ProcessMonitor::DupDescriptor(const FileSpec &file_spec, int fd,
 }
 
 void ProcessMonitor::StopMonitoringChildProcess() {
-  if (m_monitor_thread.IsJoinable()) {
-    m_monitor_thread.Cancel();
-    m_monitor_thread.Join(nullptr);
-    m_monitor_thread.Reset();
+  if (m_monitor_thread->IsJoinable()) {
+    m_monitor_thread->Cancel();
+    m_monitor_thread->Join(nullptr);
+    m_monitor_thread->Reset();
   }
 }
 
@@ -1427,10 +1422,10 @@ void ProcessMonitor::StopMonitor() {
 bool ProcessMonitor::WaitForInitialTIDStop(lldb::tid_t tid) { return true; }
 
 void ProcessMonitor::StopOpThread() {
-  if (!m_operation_thread.IsJoinable())
+  if (!m_operation_thread->IsJoinable())
     return;
 
-  m_operation_thread.Cancel();
-  m_operation_thread.Join(nullptr);
-  m_operation_thread.Reset();
+  m_operation_thread->Cancel();
+  m_operation_thread->Join(nullptr);
+  m_operation_thread->Reset();
 }
