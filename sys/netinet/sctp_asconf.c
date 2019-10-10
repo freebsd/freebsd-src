@@ -283,7 +283,7 @@ sctp_process_asconf_add_ip(struct sockaddr *src, struct sctp_asconf_paramhdr *ap
 static int
 sctp_asconf_del_remote_addrs_except(struct sctp_tcb *stcb, struct sockaddr *src)
 {
-	struct sctp_nets *src_net, *net;
+	struct sctp_nets *src_net, *net, *nnet;
 
 	/* make sure the source address exists as a destination net */
 	src_net = sctp_findnet(stcb, src);
@@ -293,10 +293,9 @@ sctp_asconf_del_remote_addrs_except(struct sctp_tcb *stcb, struct sockaddr *src)
 	}
 
 	/* delete all destination addresses except the source */
-	TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
+	TAILQ_FOREACH_SAFE(net, &stcb->asoc.nets, sctp_next, nnet) {
 		if (net != src_net) {
 			/* delete this address */
-			sctp_remove_net(stcb, net);
 			SCTPDBG(SCTP_DEBUG_ASCONF1,
 			    "asconf_del_remote_addrs_except: deleting ");
 			SCTPDBG_ADDR(SCTP_DEBUG_ASCONF1,
@@ -304,6 +303,7 @@ sctp_asconf_del_remote_addrs_except(struct sctp_tcb *stcb, struct sockaddr *src)
 			/* notify upper layer */
 			sctp_ulp_notify(SCTP_NOTIFY_ASCONF_DELETE_IP, stcb, 0,
 			    (struct sockaddr *)&net->ro._l_addr, SCTP_SO_NOT_LOCKED);
+			sctp_remove_net(stcb, net);
 		}
 	}
 	return (0);
