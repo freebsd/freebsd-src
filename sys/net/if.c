@@ -4263,6 +4263,55 @@ if_getmtu_family(if_t ifp, int family)
 	return (((struct ifnet *)ifp)->if_mtu);
 }
 
+/*
+ * Methods for drivers to access interface unicast and multicast
+ * link level addresses.  Driver shall not know 'struct ifaddr' neither
+ * 'struct ifmultiaddr'.
+ */
+u_int
+if_foreach_lladdr(if_t ifp, iflladdr_cb_t cb, void *cb_arg)
+{
+	struct epoch_tracker et;
+	struct ifaddr *ifa;
+	u_int count;
+
+	MPASS(cb);
+
+	count = 0;
+	NET_EPOCH_ENTER(et);
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family != AF_LINK)
+			continue;
+		count += (*cb)(cb_arg, (struct sockaddr_dl *)ifa->ifa_addr,
+		    count);
+	}
+	NET_EPOCH_EXIT(et);
+
+	return (count);
+}
+
+u_int
+if_foreach_llmaddr(if_t ifp, iflladdr_cb_t cb, void *cb_arg)
+{
+	struct epoch_tracker et;
+	struct ifmultiaddr *ifma;
+	u_int count;
+
+	MPASS(cb);
+
+	count = 0;
+	NET_EPOCH_ENTER(et);
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		if (ifma->ifma_addr->sa_family != AF_LINK)
+			continue;
+		count += (*cb)(cb_arg, (struct sockaddr_dl *)ifma->ifma_addr,
+		    count);
+	}
+	NET_EPOCH_EXIT(et);
+
+	return (count);
+}
+
 int
 if_setsoftc(if_t ifp, void *softc)
 {
