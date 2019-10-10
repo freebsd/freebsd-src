@@ -32,6 +32,8 @@
 . $STF_SUITE/include/libtest.kshlib
 . $STF_SUITE/tests/cli_root/zpool_add/zpool_add.kshlib
 
+poolexists $TESTPOOL && \
+	destroy_pool $TESTPOOL
 cleanup_devices $DISKS
 
 log_pass
