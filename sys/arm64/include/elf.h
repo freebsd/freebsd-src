@@ -64,7 +64,11 @@ typedef struct {	/* Auxiliary vector entry on initial stack */
 
 __ElfType(Auxinfo);
 
+#ifdef _MACHINE_ELF_WANT_32BIT
+#define	ELF_ARCH	EM_ARM
+#else
 #define	ELF_ARCH	EM_AARCH64
+#endif
 
 #define	ELF_MACHINE_OK(x) ((x) == (ELF_ARCH))
 

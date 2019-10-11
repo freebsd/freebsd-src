@@ -32,7 +32,15 @@ elf_convert_gregset(elfcore_gregset_t *rd, struct reg *rs)
 	rd->r_eflags = rs->r_rflags;
 	rd->r_esp = rs->r_rsp;
 	rd->r_ss = rs->r_ss;
-#else
+#elif defined(__aarch64__)
+	int i;
+
+	for (i = 0; i < 13; i++)
+		rd->r[i] = rs->x[i];
+	rd->r_sp = rs->x[13];
+	rd->r_lr = rs->x[14];
+	rd->r_pc = rs->elr;
+	rd->r_cpsr = rs->spsr;
 #error Unsupported architecture
 #endif
 }
@@ -43,6 +51,8 @@ elf_convert_fpregset(elfcore_fpregset_t *rd, struct fpreg *rs)
 #ifdef __amd64__
 	/* XXX this is wrong... */
 	memcpy(rd, rs, sizeof(*rd));
+#elif defined(__aarch64__)
+	/* ARM64TODO */
 #else
 #error Unsupported architecture
 #endif
