@@ -2986,15 +2986,22 @@ struct fchown_args {
 int
 sys_fchown(struct thread *td, struct fchown_args *uap)
 {
+
+	return (kern_fchown(td, uap->fd, uap->uid, uap->gid));
+}
+
+int
+kern_fchown(struct thread *td, int fd, uid_t uid, gid_t gid)
+{
 	struct file *fp;
 	int error;
 
-	AUDIT_ARG_FD(uap->fd);
-	AUDIT_ARG_OWNER(uap->uid, uap->gid);
-	error = fget(td, uap->fd, &cap_fchown_rights, &fp);
+	AUDIT_ARG_FD(fd);
+	AUDIT_ARG_OWNER(uid, gid);
+	error = fget(td, fd, &cap_fchown_rights, &fp);
 	if (error != 0)
 		return (error);
-	error = fo_chown(fp, uap->uid, uap->gid, td->td_ucred, td);
+	error = fo_chown(fp, uid, gid, td->td_ucred, td);
 	fdrop(fp, td);
 	return (error);
 }

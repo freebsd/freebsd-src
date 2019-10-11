@@ -133,6 +133,7 @@ int	kern_fchdir(struct thread *td, int fd);
 int	kern_fchmod(struct thread *td, int fd, mode_t mode);
 int	kern_fchmodat(struct thread *td, int fd, const char *path,
 	    enum uio_seg pathseg, mode_t mode, int flag);
+int	kern_fchown(struct thread *td, int fd, uid_t uid, gid_t gid);
 int	kern_fchownat(struct thread *td, int fd, const char *path,
 	    enum uio_seg pathseg, int uid, int gid, int flag);
 int	kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg);
