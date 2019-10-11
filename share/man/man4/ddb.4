@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 9, 2019
+.Dd October 10, 2019
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -806,11 +806,15 @@ is included in the kernel.
 .It Ic show Cm locktree
 .\"
 .Pp
-.It Ic show Cm malloc
+.It Ic show Cm malloc Ns Op Li / Ns Cm i
 Prints
 .Xr malloc 9
 memory allocator statistics.
-The output format is as follows:
+If the
+.Cm i
+modifier is specified, format output as machine-parseable comma-separated
+values ("CSV").
+The output columns are as follows:
 .Pp
 .Bl -tag -compact -offset indent -width "Requests"
 .It Ic Type
@@ -1076,11 +1080,15 @@ Currently, those are:
 .Xr rmlock 9 .
 .\"
 .Pp
-.It Ic show Cm uma
+.It Ic show Cm uma Ns Op Li / Ns Cm i
 Show UMA allocator statistics.
-Output consists five columns:
+If the
+.Cm i
+modifier is specified, format output as machine-parseable comma-separated
+values ("CSV").
+The output contains the following columns:
 .Pp
-.Bl -tag -compact -offset indent -width "Requests"
+.Bl -tag -compact -offset indent -width "Total Mem"
 .It Cm "Zone"
 Name of the UMA zone.
 The same string that was passed to
@@ -1094,9 +1102,18 @@ Number of slabs being currently used.
 Number of free slabs within the UMA zone.
 .It Cm "Requests"
 Number of allocations requests to the given zone.
+.It Cm "Total Mem"
+Total memory in use (either allocated or free) by a zone, in bytes.
+.It Cm "XFree"
+Number of free slabs within the UMA zone that were freed on a different NUMA
+domain than allocated.
+(The count in the
+.Cm "Free"
+column is inclusive of
+.Cm "XFree" . )
 .El
 .Pp
-The very same information might be gathered in the userspace
+The same information might be gathered in the userspace
 with the help of
 .Dq Nm vmstat Fl z .
 .\"

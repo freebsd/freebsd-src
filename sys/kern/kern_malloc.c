@@ -1205,35 +1205,90 @@ restart:
 }
 
 #ifdef DDB
-DB_SHOW_COMMAND(malloc, db_show_malloc)
+static int64_t
+get_malloc_stats(const struct malloc_type_internal *mtip, uint64_t *allocs,
+    uint64_t *inuse)
 {
-	struct malloc_type_internal *mtip;
-	struct malloc_type_stats *mtsp;
-	struct malloc_type *mtp;
-	uint64_t allocs, frees;
-	uint64_t alloced, freed;
+	const struct malloc_type_stats *mtsp;
+	uint64_t frees, alloced, freed;
 	int i;
 
-	db_printf("%18s %12s  %12s %12s\n", "Type", "InUse", "MemUse",
-	    "Requests");
-	for (mtp = kmemstatistics; mtp != NULL; mtp = mtp->ks_next) {
-		mtip = (struct malloc_type_internal *)mtp->ks_handle;
-		allocs = 0;
-		frees = 0;
-		alloced = 0;
-		freed = 0;
-		for (i = 0; i <= mp_maxid; i++) {
-			mtsp = zpcpu_get_cpu(mtip->mti_stats, i);
-			allocs += mtsp->mts_numallocs;
-			frees += mtsp->mts_numfrees;
-			alloced += mtsp->mts_memalloced;
-			freed += mtsp->mts_memfreed;
+	*allocs = 0;
+	frees = 0;
+	alloced = 0;
+	freed = 0;
+	for (i = 0; i <= mp_maxid; i++) {
+		mtsp = zpcpu_get_cpu(mtip->mti_stats, i);
+
+		*allocs += mtsp->mts_numallocs;
+		frees += mtsp->mts_numfrees;
+		alloced += mtsp->mts_memalloced;
+		freed += mtsp->mts_memfreed;
+	}
+	*inuse = *allocs - frees;
+	return (alloced - freed);
+}
+
+DB_SHOW_COMMAND(malloc, db_show_malloc)
+{
+	const char *fmt_hdr, *fmt_entry;
+	struct malloc_type *mtp;
+	uint64_t allocs, inuse;
+	int64_t size;
+	/* variables for sorting */
+	struct malloc_type *last_mtype, *cur_mtype;
+	int64_t cur_size, last_size;
+	int ties;
+
+	if (modif[0] == 'i') {
+		fmt_hdr = "%s,%s,%s,%s\n";
+		fmt_entry = "\"%s\",%ju,%jdK,%ju\n";
+	} else {
+		fmt_hdr = "%18s %12s  %12s %12s\n";
+		fmt_entry = "%18s %12ju %12jdK %12ju\n";
+	}
+
+	db_printf(fmt_hdr, "Type", "InUse", "MemUse", "Requests");
+
+	/* Select sort, largest size first. */
+	last_mtype = NULL;
+	last_size = INT64_MAX;
+	for (;;) {
+		cur_mtype = NULL;
+		cur_size = -1;
+		ties = 0;
+
+		for (mtp = kmemstatistics; mtp != NULL; mtp = mtp->ks_next) {
+			/*
+			 * In the case of size ties, print out mtypes
+			 * in the order they are encountered.  That is,
+			 * when we encounter the most recently output
+			 * mtype, we have already printed all preceding
+			 * ties, and we must print all following ties.
+			 */
+			if (mtp == last_mtype) {
+				ties = 1;
+				continue;
+			}
+			size = get_malloc_stats(mtp->ks_handle, &allocs,
+			    &inuse);
+			if (size > cur_size && size < last_size + ties) {
+				cur_size = size;
+				cur_mtype = mtp;
+			}
 		}
-		db_printf("%18s %12ju %12juK %12ju\n",
-		    mtp->ks_shortdesc, allocs - frees,
-		    (alloced - freed + 1023) / 1024, allocs);
+		if (cur_mtype == NULL)
+			break;
+
+		size = get_malloc_stats(cur_mtype->ks_handle, &allocs, &inuse);
+		db_printf(fmt_entry, cur_mtype->ks_shortdesc, inuse,
+		    howmany(size, 1024), allocs);
+
 		if (db_pager_quit)
 			break;
+
+		last_mtype = cur_mtype;
+		last_size = cur_size;
 	}
 }
 
