@@ -2847,16 +2847,23 @@ struct fchmod_args {
 int
 sys_fchmod(struct thread *td, struct fchmod_args *uap)
 {
+
+	return (kern_fchmod(td, uap->fd, uap->mode));
+}
+
+int
+kern_fchmod(struct thread *td, int fd, mode_t mode)
+{
 	struct file *fp;
 	int error;
 
-	AUDIT_ARG_FD(uap->fd);
-	AUDIT_ARG_MODE(uap->mode);
+	AUDIT_ARG_FD(fd);
+	AUDIT_ARG_MODE(mode);
 
-	error = fget(td, uap->fd, &cap_fchmod_rights, &fp);
+	error = fget(td, fd, &cap_fchmod_rights, &fp);
 	if (error != 0)
 		return (error);
-	error = fo_chmod(fp, uap->mode, td->td_ucred, td);
+	error = fo_chmod(fp, mode, td->td_ucred, td);
 	fdrop(fp, td);
 	return (error);
 }
