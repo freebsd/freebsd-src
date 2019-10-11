@@ -4343,7 +4343,7 @@ uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 #ifdef DDB
 static int64_t
 get_uma_stats(uma_keg_t kz, uma_zone_t z, uint64_t *allocs, uint64_t *used,
-    uint64_t *sleeps, uint64_t *xdomain, long *cachefree)
+    uint64_t *sleeps, long *cachefree, uint64_t *xdomain)
 {
 	uint64_t frees;
 	int i;
