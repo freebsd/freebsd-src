@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/cpu.h>
+#include <sys/devmap.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/kdb.h>
@@ -897,6 +898,9 @@ initriscv(struct riscv_bootparams *rvbp)
 	/* Bootstrap enough of pmap to enter the kernel proper */
 	kernlen = (lastaddr - KERNBASE);
 	pmap_bootstrap(rvbp->kern_l1pt, mem_regions[0].mr_start, kernlen);
+
+	/* Establish static device mappings */
+	devmap_bootstrap(0, NULL);
 
 	cninit();
 
