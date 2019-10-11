@@ -105,6 +105,7 @@ CFLAGS+=	\
 
 INCS=	\
 	ocsd_if_types.h			\
+	ocsd_if_version.h		\
 	trc_gen_elem_types.h		\
 	trc_pkt_types.h
 
