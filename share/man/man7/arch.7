@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 9, 2019
+.Dd October 11, 2019
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -161,15 +161,18 @@ Examples are:
 .It Dv amd64       Ta Dv i386
 .It Dv powerpc64   Ta Dv powerpc
 .It Dv mips64*     Ta Dv mips*
+.It Dv aarch64     Ta Dv armv6/armv7
 .El
 .Dv aarch64
-currently does not support execution of
+will support execution of
 .Dv armv6
 or
 .Dv armv7
-binaries, even if the CPU implements
+binaries if the CPU implements
 .Dv AArch32
-execution state.
+execution state, however
+.Dv armv5
+binaries aren't supported.
 .Pp
 On all supported architectures:
 .Bl -column -offset -indent "long long" "Size"
