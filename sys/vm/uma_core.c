@@ -4341,39 +4341,100 @@ uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 #endif /* INVARIANTS */
 
 #ifdef DDB
-DB_SHOW_COMMAND(uma, db_show_uma)
+static int64_t
+get_uma_stats(uma_keg_t kz, uma_zone_t z, uint64_t *allocs, uint64_t *used,
+    uint64_t *sleeps, uint64_t *xdomain, long *cachefree)
 {
-	uma_keg_t kz;
-	uma_zone_t z;
-	uint64_t allocs, frees, sleeps, xdomain;
-	long cachefree;
+	uint64_t frees;
 	int i;
 
-	db_printf("%18s %8s %8s %8s %12s %8s %8s %8s\n", "Zone", "Size", "Used",
-	    "Free", "Requests", "Sleeps", "Bucket", "XFree");
-	LIST_FOREACH(kz, &uma_kegs, uk_link) {
-		LIST_FOREACH(z, &kz->uk_zones, uz_link) {
-			if (kz->uk_flags & UMA_ZFLAG_INTERNAL) {
-				allocs = counter_u64_fetch(z->uz_allocs);
-				frees = counter_u64_fetch(z->uz_frees);
-				sleeps = z->uz_sleeps;
-				cachefree = 0;
-			} else
-				uma_zone_sumstat(z, &cachefree, &allocs,
-				    &frees, &sleeps, &xdomain);
-			if (!((z->uz_flags & UMA_ZONE_SECONDARY) &&
-			    (LIST_FIRST(&kz->uk_zones) != z)))
-				cachefree += kz->uk_free;
-			for (i = 0; i < vm_ndomains; i++)
-				cachefree += z->uz_domain[i].uzd_nitems;
+	if (kz->uk_flags & UMA_ZFLAG_INTERNAL) {
+		*allocs = counter_u64_fetch(z->uz_allocs);
+		frees = counter_u64_fetch(z->uz_frees);
+		*sleeps = z->uz_sleeps;
+		*cachefree = 0;
+		*xdomain = 0;
+	} else
+		uma_zone_sumstat(z, cachefree, allocs, &frees, sleeps,
+		    xdomain);
+	if (!((z->uz_flags & UMA_ZONE_SECONDARY) &&
+	    (LIST_FIRST(&kz->uk_zones) != z)))
+		*cachefree += kz->uk_free;
+	for (i = 0; i < vm_ndomains; i++)
+		*cachefree += z->uz_domain[i].uzd_nitems;
+	*used = *allocs - frees;
+	return (((int64_t)*used + *cachefree) * kz->uk_size);
+}
 
-			db_printf("%18s %8ju %8jd %8ld %12ju %8ju %8u %8ju\n",
-			    z->uz_name, (uintmax_t)kz->uk_size,
-			    (intmax_t)(allocs - frees), cachefree,
-			    (uintmax_t)allocs, sleeps, z->uz_count, xdomain);
-			if (db_pager_quit)
-				return;
+DB_SHOW_COMMAND(uma, db_show_uma)
+{
+	const char *fmt_hdr, *fmt_entry;
+	uma_keg_t kz;
+	uma_zone_t z;
+	uint64_t allocs, used, sleeps, xdomain;
+	long cachefree;
+	/* variables for sorting */
+	uma_keg_t cur_keg;
+	uma_zone_t cur_zone, last_zone;
+	int64_t cur_size, last_size, size;
+	int ties;
+
+	/* /i option produces machine-parseable CSV output */
+	if (modif[0] == 'i') {
+		fmt_hdr = "%s,%s,%s,%s,%s,%s,%s,%s,%s\n";
+		fmt_entry = "\"%s\",%ju,%jd,%ld,%ju,%ju,%u,%jd,%ju\n";
+	} else {
+		fmt_hdr = "%18s %6s %7s %7s %11s %7s %7s %10s %8s\n";
+		fmt_entry = "%18s %6ju %7jd %7ld %11ju %7ju %7u %10jd %8ju\n";
+	}
+
+	db_printf(fmt_hdr, "Zone", "Size", "Used", "Free", "Requests",
+	    "Sleeps", "Bucket", "Total Mem", "XFree");
+
+	/* Sort the zones with largest size first. */
+	last_zone = NULL;
+	last_size = INT64_MAX;
+	for (;;) {
+		cur_zone = NULL;
+		cur_size = -1;
+		ties = 0;
+		LIST_FOREACH(kz, &uma_kegs, uk_link) {
+			LIST_FOREACH(z, &kz->uk_zones, uz_link) {
+				/*
+				 * In the case of size ties, print out zones
+				 * in the order they are encountered.  That is,
+				 * when we encounter the most recently output
+				 * zone, we have already printed all preceding
+				 * ties, and we must print all following ties.
+				 */
+				if (z == last_zone) {
+					ties = 1;
+					continue;
+				}
+				size = get_uma_stats(kz, z, &allocs, &used,
+				    &sleeps, &cachefree, &xdomain);
+				if (size > cur_size && size < last_size + ties)
+				{
+					cur_size = size;
+					cur_zone = z;
+					cur_keg = kz;
+				}
+			}
 		}
+		if (cur_zone == NULL)
+			break;
+
+		size = get_uma_stats(cur_keg, cur_zone, &allocs, &used,
+		    &sleeps, &cachefree, &xdomain);
+		db_printf(fmt_entry, cur_zone->uz_name,
+		    (uintmax_t)cur_keg->uk_size, (intmax_t)used, cachefree,
+		    (uintmax_t)allocs, (uintmax_t)sleeps,
+		    (unsigned)cur_zone->uz_count, (intmax_t)size, xdomain);
+
+		if (db_pager_quit)
+			return;
+		last_zone = cur_zone;
+		last_size = cur_size;
 	}
 }
 
