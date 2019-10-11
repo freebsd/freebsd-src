@@ -53,17 +53,28 @@ coredump_phnum_body()
 
 	case "$cuc" in
 	0)
+		unzip_status=0
 		;;
 	1)
-		atf_check gunzip coredump_phnum_helper.core.gz
+		gunzip coredump_phnum_helper.core.gz 2>unzip_stderr
+		unzip_status=$?
 		;;
 	2)
-		atf_check zstd -qd coredump_phnum_helper.core.zst
+		zstd -qd coredump_phnum_helper.core.zst 2>unzip_stderr
+		unzip_status=$?
 		;;
 	*)
 		atf_skip "unsupported kern.compress_user_cores=$cuc"
 		;;
 	esac
+
+	if [ $unzip_status -ne 0 ]; then
+		if grep -q 'No space left on device' unzip_stderr; then
+			atf_skip "file system full: $(df $PWD | tail -n 1)"
+		fi
+		atf_fail "unzip failed; status ${unzip_status}; " \
+			"stderr: $(cat unzip_stderr)"
+	fi
 
 	# Check that core looks good
 	if [ ! -f coredump_phnum_helper.core ]; then
