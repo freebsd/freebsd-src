@@ -36,6 +36,11 @@
 #define	I386_HAVE_ATOMIC64
 #endif
 
+#if defined(__i386__) || defined(__amd64__) || defined(__arm__)
+/* No spurious failures from fcmpset. */
+#define	STRONG_FCMPSET
+#endif
+
 #if !defined(__LP64__) && !defined(__mips_n32) && \
     !defined(ARM_HAVE_ATOMIC64) && !defined(I386_HAVE_ATOMIC64)
 extern void atomic_add_64(volatile uint64_t *target, int64_t delta);
@@ -89,7 +94,16 @@ atomic_dec_32_nv(volatile uint32_t *target)
 static inline uint32_t
 atomic_cas_32(volatile uint32_t *target, uint32_t cmp, uint32_t newval)
 {
+#ifdef STRONG_FCMPSET
 	(void)atomic_fcmpset_32(target, &cmp, newval);
+#else
+	uint32_t expected = cmp;
+
+	do {
+		if (atomic_fcmpset_32(target, &cmp, newval))
+			break;
+	} while (cmp == expected);
+#endif
 	return (cmp);
 }
 #endif
@@ -112,7 +126,16 @@ atomic_add_64_nv(volatile uint64_t *target, int64_t delta)
 static inline uint64_t
 atomic_cas_64(volatile uint64_t *target, uint64_t cmp, uint64_t newval)
 {
+#ifdef STRONG_FCMPSET
 	(void)atomic_fcmpset_64(target, &cmp, newval);
+#else
+	uint64_t expected = cmp;
+
+	do {
+		if (atomic_fcmpset_64(target, &cmp, newval))
+			break;
+	} while (cmp == expected);
+#endif
 	return (cmp);
 }
 #endif
