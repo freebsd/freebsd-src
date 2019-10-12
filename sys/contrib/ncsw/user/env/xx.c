@@ -288,16 +288,10 @@ XX_IsPortalIntr(uintptr_t irq)
 {
 	int cpu, type;
 	/* Check interrupt numbers of all available portals */
-	for (cpu = 0, type = 0; XX_PInfo.portal_intr[type][cpu] != 0; cpu++) {
-		if (irq == XX_PInfo.portal_intr[type][cpu]) {
-			/* Found it! */
-			return (1);
-		}
-		if (XX_PInfo.portal_intr[type][cpu + 1] == 0) {
-			type++;
-			cpu = 0;
-		}
-	}
+	for (type = 0; type < 2; type++)
+		for (cpu = 0; cpu < MAXCPU; cpu++)
+			if (irq == XX_PInfo.portal_intr[type][cpu])
+				return (1);
 
 	return (0);
 }
