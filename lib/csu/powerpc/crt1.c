@@ -102,3 +102,9 @@ __asm__(".text");
 __asm__("eprol:");
 __asm__(".previous");
 #endif
+
+#ifndef PIC
+__asm__(".text\n"
+	"\t.global _GLOBAL_OFFSET_TABLE_\n"
+	"\t.reloc 0, R_PPC_NONE, _GLOBAL_OFFSET_TABLE_");
+#endif
