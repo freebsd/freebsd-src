@@ -17,7 +17,8 @@ SRCS=		ucl_emitter_streamline.c \
 		ucl_util.c
 
 .PATH:		${LIBUCL}/src \
-		${LIBUCL}/include
+		${LIBUCL}/include \
+		${LIBUCL}/doc
 
 INCS=		ucl.h
 LIBADD=		m
@@ -27,5 +28,7 @@ CFLAGS+=	-I${LIBUCL}/include \
 		-I${LIBUCL}/src \
 		-I${LIBUCL}/uthash \
 		-I${LIBUCL}/klib
+
+MAN+=		libucl.3
 
 .include <bsd.lib.mk>
