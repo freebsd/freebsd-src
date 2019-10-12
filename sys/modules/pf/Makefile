@@ -6,7 +6,7 @@ KMOD=	pf
 SRCS=	pf.c pf_if.c pf_lb.c pf_osfp.c pf_ioctl.c pf_norm.c pf_table.c \
 	pf_ruleset.c in4_cksum.c \
 	bus_if.h device_if.h \
-	opt_pf.h opt_inet.h opt_inet6.h opt_bpf.h opt_global.h
+	opt_pf.h opt_inet.h opt_inet6.h opt_bpf.h opt_sctp.h opt_global.h
 
 .if !defined(KERNBUILDDIR)
 # pflog can be loaded as a module, have the additional checks turned on
