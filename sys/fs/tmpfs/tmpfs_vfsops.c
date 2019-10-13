@@ -507,7 +507,7 @@ tmpfs_mount(struct mount *mp)
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
 	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED |
-	    MNTK_TEXT_REFS;
+	    MNTK_TEXT_REFS | MNTK_NOMSYNC;
 	MNT_IUNLOCK(mp);
 
 	mp->mnt_data = tmp;
