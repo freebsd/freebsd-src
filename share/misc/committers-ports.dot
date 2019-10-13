@@ -234,6 +234,7 @@ rodrigo [label="Rodrigo Osorio\nrodrigo@FreeBSD.org\n2014/01/15"]
 romain [label="Romain Tartiere\nromain@FreeBSD.org\n2010/01/24"]
 rpaulo [label="Rui Paulo\nrpaulo@FreeBSD.org\n2014/07/15"]
 sahil [label="Sahil Tandon\nsahil@FreeBSD.org\n2010/04/11"]
+samm [label="Alex Samorukov\nsamm@FreeBSD.org\n2019/10/09"]
 sat [label="Andrew Pantyukhin\nsat@FreeBSD.org\n2006/05/06"]
 sbruno [label="Sean Bruno\nsbruno@FreeBSD.org\n2014/09/14"]
 sbz [label="Sofian Brabez\nsbz@FreeBSD.org\n2011/03/14"]
@@ -311,6 +312,7 @@ araujo -> jhixson
 araujo -> lippe
 araujo -> pclin
 araujo -> pgollucci
+araujo -> samm
 
 arved -> markus
 arved -> stefan
@@ -507,6 +509,7 @@ krion -> kbowling
 krion -> miwi
 krion -> novel
 krion -> philip
+krion -> samm
 krion -> sat
 krion -> sem
 krion -> sergei
