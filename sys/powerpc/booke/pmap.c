@@ -1177,7 +1177,7 @@ pte_remove(mmu_t mmu, pmap_t pmap, vm_offset_t va, u_int8_t flags)
 
 		/* Remove pv_entry from pv_list. */
 		pv_remove(pmap, va, m);
-	} else if (m->md.pv_tracked) {
+	} else if (pmap == kernel_pmap && m && m->md.pv_tracked) {
 		pv_remove(pmap, va, m);
 		if (TAILQ_EMPTY(&m->md.pv_list))
 			m->md.pv_tracked = false;
@@ -1373,7 +1373,7 @@ pte_remove(mmu_t mmu, pmap_t pmap, vm_offset_t va, uint8_t flags)
 			vm_page_aflag_set(m, PGA_REFERENCED);
 
 		pv_remove(pmap, va, m);
-	} else if (m->md.pv_tracked) {
+	} else if (pmap == kernel_pmap && m && m->md.pv_tracked) {
 		/*
 		 * Always pv_insert()/pv_remove() on MPC85XX, in case DPAA is
 		 * used.  This is needed by the NCSW support code for fast
