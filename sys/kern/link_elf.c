@@ -40,6 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#ifdef SPARSE_MAPPING
+#include <sys/mman.h>
+#endif
 #include <sys/mutex.h>
 #include <sys/mount.h>
 #include <sys/pcpu.h>
@@ -423,7 +426,7 @@ link_elf_init(void* arg)
 	ef->address = 0;
 #endif
 #ifdef SPARSE_MAPPING
-	ef->object = 0;
+	ef->object = NULL;
 #endif
 	ef->dynamic = dp;
 
@@ -728,7 +731,7 @@ link_elf_link_preload(linker_class_t cls,
 	ef->modptr = modptr;
 	ef->address = *(caddr_t *)baseptr;
 #ifdef SPARSE_MAPPING
-	ef->object = 0;
+	ef->object = NULL;
 #endif
 	dp = (vm_offset_t)ef->address + *(vm_offset_t *)dynptr;
 	ef->dynamic = (Elf_Dyn *)dp;
@@ -782,7 +785,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	struct nameidata nd;
 	struct thread* td = curthread;	/* XXX */
 	Elf_Ehdr *hdr;
-	caddr_t firstpage;
+	caddr_t firstpage, segbase;
 	int nbytes, i;
 	Elf_Phdr *phdr;
 	Elf_Phdr *phlimit;
@@ -949,25 +952,53 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 		error = ENOMEM;
 		goto out;
 	}
-	ef->address = (caddr_t) vm_map_min(kernel_map);
+#ifdef __amd64__
+	mapbase = (caddr_t)KERNBASE;
+#else
+	mapbase = (caddr_t)vm_map_min(kernel_map);
+#endif
+	/*
+	 * Mapping protections are downgraded after relocation processing.
+	 */
 	error = vm_map_find(kernel_map, ef->object, 0,
-	    (vm_offset_t *) &ef->address, mapsize, 0, VMFS_OPTIMAL_SPACE,
+	    (vm_offset_t *)&mapbase, mapsize, 0, VMFS_OPTIMAL_SPACE,
 	    VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error != 0) {
 		vm_object_deallocate(ef->object);
-		ef->object = 0;
+		ef->object = NULL;
 		goto out;
 	}
 #else
-	ef->address = malloc(mapsize, M_LINKER, M_EXEC | M_WAITOK);
+	mapbase = malloc(mapsize, M_LINKER, M_EXEC | M_WAITOK);
 #endif
-	mapbase = ef->address;
+	ef->address = mapbase;
 
 	/*
 	 * Read the text and data sections and zero the bss.
 	 */
 	for (i = 0; i < nsegs; i++) {
-		caddr_t segbase = mapbase + segs[i]->p_vaddr - base_vaddr;
+		segbase = mapbase + segs[i]->p_vaddr - base_vaddr;
+
+#ifdef SPARSE_MAPPING
+		/*
+		 * Consecutive segments may have different mapping permissions,
+		 * so be strict and verify that their mappings do not overlap.
+		 */
+		if (((vm_offset_t)segbase & PAGE_MASK) != 0) {
+			error = EINVAL;
+			goto out;
+		}
+
+		error = vm_map_wire(kernel_map,
+		    (vm_offset_t)segbase,
+		    (vm_offset_t)segbase + round_page(segs[i]->p_memsz),
+		    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
+		if (error != KERN_SUCCESS) {
+			error = ENOMEM;
+			goto out;
+		}
+#endif
+
 		error = vn_rdwr(UIO_READ, nd.ni_vp,
 		    segbase, segs[i]->p_filesz, segs[i]->p_offset,
 		    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
@@ -976,20 +1007,6 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 			goto out;
 		bzero(segbase + segs[i]->p_filesz,
 		    segs[i]->p_memsz - segs[i]->p_filesz);
-
-#ifdef SPARSE_MAPPING
-		/*
-		 * Wire down the pages
-		 */
-		error = vm_map_wire(kernel_map,
-		    (vm_offset_t) segbase,
-		    (vm_offset_t) segbase + segs[i]->p_memsz,
-		    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
-		if (error != KERN_SUCCESS) {
-			error = ENOMEM;
-			goto out;
-		}
-#endif
 	}
 
 #ifdef GPROF
@@ -1026,6 +1043,34 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	error = relocate_file(ef);
 	if (error != 0)
 		goto out;
+
+#ifdef SPARSE_MAPPING
+	/*
+	 * Downgrade permissions on text segment mappings now that relocation
+	 * processing is complete.  Restrict permissions on read-only segments.
+	 */
+	for (i = 0; i < nsegs; i++) {
+		vm_prot_t prot;
+
+		if (segs[i]->p_type != PT_LOAD)
+			continue;
+
+		prot = VM_PROT_READ;
+		if ((segs[i]->p_flags & PF_W) != 0)
+			prot |= VM_PROT_WRITE;
+		if ((segs[i]->p_flags & PF_X) != 0)
+			prot |= VM_PROT_EXECUTE;
+		segbase = mapbase + segs[i]->p_vaddr - base_vaddr;
+		error = vm_map_protect(kernel_map,
+		    (vm_offset_t)segbase,
+		    (vm_offset_t)segbase + round_page(segs[i]->p_memsz),
+		    prot, FALSE);
+		if (error != KERN_SUCCESS) {
+			error = ENOMEM;
+			goto out;
+		}
+	}
+#endif
 
 	/*
 	 * Try and load the symbol table if it's present.  (you can
