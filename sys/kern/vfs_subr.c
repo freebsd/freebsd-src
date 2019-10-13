@@ -4395,8 +4395,6 @@ vfs_msync(struct mount *mp, int flags)
 
 	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
 
-	vnlru_return_batch(mp);
-
 	MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) {
 		obj = vp->v_object;
 		if (obj != NULL && (obj->flags & OBJ_MIGHTBEDIRTY) != 0 &&
@@ -4628,6 +4626,11 @@ sync_fsync(struct vop_fsync_args *ap)
 		return (0);
 	}
 	save = curthread_pflags_set(TDP_SYNCIO);
+	/*
+	 * The filesystem at hand may be idle with free vnodes stored in the
+	 * batch.  Return them instead of letting them stay there indefinitely.
+	 */
+	vnlru_return_batch(mp);
 	vfs_msync(mp, MNT_NOWAIT);
 	error = VFS_SYNC(mp, MNT_LAZY);
 	curthread_pflags_restore(save);
