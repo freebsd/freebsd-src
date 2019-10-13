@@ -57,8 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #include <netinet/udp.h>
 
-extern struct protosw inetsw[];
-
 int
 sctp6_input_with_port(struct mbuf **i_pak, int *offp, uint16_t port)
 {
