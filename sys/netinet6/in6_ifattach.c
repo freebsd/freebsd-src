@@ -423,6 +423,7 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 	struct in6_ifaddr *ia;
 	struct in6_aliasreq ifra;
 	struct nd_prefixctl pr0;
+	struct epoch_tracker et;
 	struct nd_prefix *pr;
 	int error;
 
@@ -437,7 +438,10 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 		ifra.ifra_addr.sin6_addr.s6_addr32[2] = 0;
 		ifra.ifra_addr.sin6_addr.s6_addr32[3] = htonl(1);
 	} else {
-		if (get_ifid(ifp, altifp, &ifra.ifra_addr.sin6_addr) != 0) {
+		NET_EPOCH_ENTER(et);
+		error = get_ifid(ifp, altifp, &ifra.ifra_addr.sin6_addr);
+		NET_EPOCH_EXIT(et);
+		if (error != 0) {
 			nd6log((LOG_ERR,
 			    "%s: no ifid available\n", if_name(ifp)));
 			return (-1);
@@ -472,7 +476,9 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 		return (-1);
 	}
 
+	NET_EPOCH_ENTER(et);
 	ia = in6ifa_ifpforlinklocal(ifp, 0);
+	NET_EPOCH_EXIT(et);
 	if (ia == NULL) {
 		/*
 		 * Another thread removed the address that we just added.
@@ -667,8 +673,6 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 {
 	struct in6_ifaddr *ia;
 
-	NET_EPOCH_ASSERT();
-
 	if (ifp->if_afdata[AF_INET6] == NULL)
 		return;
 	/*
@@ -718,7 +722,11 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 	 */
 	if (!(ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
 	    ND_IFINFO(ifp)->flags & ND6_IFF_AUTO_LINKLOCAL) {
+		struct epoch_tracker et;
+
+		NET_EPOCH_ENTER(et);
 		ia = in6ifa_ifpforlinklocal(ifp, 0);
+		NET_EPOCH_EXIT(et);
 		if (ia == NULL)
 			in6_ifattach_linklocal(ifp, altifp);
 		else

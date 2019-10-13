@@ -1691,7 +1691,6 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		struct ifaddr *ifa;
 		struct in6_ifaddr *ia;
 
-		NET_EPOCH_ENTER(et);
 		if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
 		    !(ND.flags & ND6_IFF_IFDISABLED)) {
 			/* ifdisabled 1->0 transision */
@@ -1702,6 +1701,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			 * do not clear ND6_IFF_IFDISABLED.
 			 * See RFC 4862, Section 5.4.5.
 			 */
+			NET_EPOCH_ENTER(et);
 			CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				if (ifa->ifa_addr->sa_family != AF_INET6)
 					continue;
@@ -1710,6 +1710,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 				    IN6_IS_ADDR_LINKLOCAL(IA6_IN6(ia)))
 					break;
 			}
+			NET_EPOCH_EXIT(et);
 
 			if (ifa != NULL) {
 				/* LLA is duplicated. */
@@ -1730,6 +1731,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			ND_IFINFO(ifp)->flags |= ND6_IFF_IFDISABLED;
 			if (V_ip6_dad_count > 0 &&
 			    (ND_IFINFO(ifp)->flags & ND6_IFF_NO_DAD) == 0) {
+				NET_EPOCH_ENTER(et);
 				CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead,
 				    ifa_link) {
 					if (ifa->ifa_addr->sa_family !=
@@ -1738,6 +1740,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 					ia = (struct in6_ifaddr *)ifa;
 					ia->ia6_flags |= IN6_IFF_TENTATIVE;
 				}
+				NET_EPOCH_EXIT(et);
 			}
 		}
 
@@ -1756,6 +1759,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 				 * address is assigned, and IFF_UP, try to
 				 * assign one.
 				 */
+				NET_EPOCH_ENTER(et);
 				CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead,
 				    ifa_link) {
 					if (ifa->ifa_addr->sa_family !=
@@ -1765,13 +1769,13 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 					if (IN6_IS_ADDR_LINKLOCAL(IA6_IN6(ia)))
 						break;
 				}
+				NET_EPOCH_EXIT(et);
 				if (ifa != NULL)
 					/* No LLA is configured. */
 					in6_ifattach(ifp, NULL);
 			}
 		}
 		ND_IFINFO(ifp)->flags = ND.flags;
-		NET_EPOCH_EXIT(et);
 		break;
 	}
 #undef ND
