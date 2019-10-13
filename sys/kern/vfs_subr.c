@@ -4395,6 +4395,9 @@ vfs_msync(struct mount *mp, int flags)
 
 	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
 
+	if ((mp->mnt_kern_flag & MNTK_NOMSYNC) != 0)
+		return;
+
 	MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) {
 		obj = vp->v_object;
 		if (obj != NULL && (obj->flags & OBJ_MIGHTBEDIRTY) != 0 &&
