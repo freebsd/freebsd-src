@@ -179,7 +179,7 @@ static int		cmp_size(const void *, const void *);
 static int		cmp_value(const void *, const void *);
 static void		filter_dest(void);
 static int		filter_insert(fn_filter);
-static void		get_opt(int, char **);
+static void		get_opt(int *, char ***);
 static int		get_sym(Elf *, struct sym_head *, int, size_t, size_t,
 			    const char *, const char **, int);
 static const char *	get_sym_name(Elf *, const GElf_Sym *, size_t,
@@ -441,18 +441,18 @@ parse_demangle_option(const char *opt)
 }
 
 static void
-get_opt(int argc, char **argv)
+get_opt(int *argc, char ***argv)
 {
 	int ch;
 	bool is_posix, oflag;
 
-	if (argc <= 0 || argv == NULL)
+	if (*argc <= 0 || *argv == NULL)
 		return;
 
 	oflag = is_posix = false;
 	nm_opts.t = RADIX_HEX;
-	while ((ch = getopt_long(argc, argv, "ABCDF:PSVaefghlnoprst:uvx",
-		    nm_longopts, NULL)) != -1) {
+	while ((ch = getopt_long(*argc, *argv, "ABCDF:PSVaefghlnoprst:uvx",
+	    nm_longopts, NULL)) != -1) {
 		switch (ch) {
 		case 'A':
 			nm_opts.print_name = PRINT_NAME_FULL;
@@ -573,6 +573,8 @@ get_opt(int argc, char **argv)
 			usage(1);
 		}
 	}
+	*argc -= optind;
+	*argv += optind;
 
 	/*
 	 * In POSIX mode, the '-o' option controls the output radix.
@@ -2115,8 +2117,8 @@ main(int argc, char **argv)
 	int rtn;
 
 	global_init();
-	get_opt(argc, argv);
-	rtn = read_files(argc - optind, argv + optind);
+	get_opt(&argc, &argv);
+	rtn = read_files(argc, argv);
 	global_dest();
 
 	exit(rtn);
