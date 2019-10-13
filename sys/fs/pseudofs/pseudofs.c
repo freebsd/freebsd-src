@@ -368,6 +368,7 @@ pfs_mount(struct pfs_info *pi, struct mount *mp)
 
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
+	mp->mnt_kern_flag |= MNTK_NOMSYNC;
 	MNT_IUNLOCK(mp);
 	mp->mnt_data = pi;
 	vfs_getnewfsid(mp);
