@@ -61,6 +61,8 @@ int sctp_copy_out_packet_log(uint8_t *target, int length);
 
 void sctp_addr_change(struct ifaddr *ifa, int cmd);
 
+void sctp_addr_change_event_handler(void *, struct ifaddr *, int);
+
 void sctp_add_or_del_interfaces(int (*pred) (struct ifnet *), int add);
 
 #endif

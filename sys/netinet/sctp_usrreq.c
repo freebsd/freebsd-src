@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_auth.h>
 #include <netinet/sctp_bsd_addr.h>
 #include <netinet/udp.h>
+#include <sys/eventhandler.h>
 
 
 
@@ -89,6 +90,8 @@ sctp_init(void)
 	SCTP_BASE_VAR(packet_log_end) = 0;
 	memset(&SCTP_BASE_VAR(packet_log_buffer), 0, SCTP_PACKET_LOG_SIZE);
 #endif
+	EVENTHANDLER_REGISTER(rt_addrmsg, sctp_addr_change_event_handler,
+	    NULL, EVENTHANDLER_PRI_FIRST);
 }
 
 #ifdef VIMAGE
