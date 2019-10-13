@@ -1930,12 +1930,12 @@ in6_if_up(struct ifnet *ifp)
 			    arc4random() % (MAX_RTR_SOLICITATION_DELAY * hz));
 		}
 	}
+	NET_EPOCH_EXIT(et);
 
 	/*
 	 * special cases, like 6to4, are handled in in6_ifattach
 	 */
 	in6_ifattach(ifp, NULL);
-	NET_EPOCH_EXIT(et);
 }
 
 int
