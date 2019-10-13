@@ -261,8 +261,10 @@ list_devs(const char *name, int verbose, int bars, int bridge, int caps,
 			return;
 		}
 		for (p = conf; p < &conf[pc.num_matches]; p++) {
-			printf("%s%d@pci%d:%d:%d:%d:\tclass=0x%06x subvendor=0x%04x subdevice=0x%04x "
-			    "vendor=0x%04x device=0x%04x rev=0x%02x hdr=0x%02x\n",
+			printf("%s%d@pci%d:%d:%d:%d:"
+			    "\tclass=0x%06x rev=0x%02x hdr=0x%02x "
+			    "vendor=0x%04x device=0x%04x "
+			    "subvendor=0x%04x subdevice=0x%04x\n",
 			    *p->pd_name ? p->pd_name :
 			    "none",
 			    *p->pd_name ? (int)p->pd_unit :
@@ -270,9 +272,9 @@ list_devs(const char *name, int verbose, int bars, int bridge, int caps,
 			    p->pc_sel.pc_bus, p->pc_sel.pc_dev,
 			    p->pc_sel.pc_func, (p->pc_class << 16) |
 			    (p->pc_subclass << 8) | p->pc_progif,
-			    p->pc_subdevice, p->pc_subvendor,
-			    p->pc_device,  p->pc_vendor,
-			    p->pc_revid, p->pc_hdr);
+			    p->pc_revid, p->pc_hdr,
+			    p->pc_vendor, p->pc_device,
+			    p->pc_subvendor, p->pc_subdevice);
 			if (verbose)
 				list_verbose(p);
 			if (bars)

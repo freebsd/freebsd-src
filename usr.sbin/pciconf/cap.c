@@ -371,9 +371,12 @@ static void
 cap_subvendor(int fd, struct pci_conf *p, uint8_t ptr)
 {
 	uint32_t id;
+	uint16_t ssid, ssvid;
 
 	id = read_config(fd, &p->pc_sel, ptr + PCIR_SUBVENDCAP_ID, 4);
-	printf("PCI Bridge card=0x%08x", id);
+	ssid = id >> 16;
+	ssvid = id & 0xffff;
+	printf("PCI Bridge subvendor=0x%04x subdevice=0x%04x", ssvid, ssid);
 }
 
 #define	MAX_PAYLOAD(field)		(128 << (field))
