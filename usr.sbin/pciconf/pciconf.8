@@ -60,16 +60,16 @@ option,
 .Nm
 lists PCI devices in the following format:
 .Bd -literal
-foo0@pci0:0:4:0: class=0x010000 card=0x00000000 chip=0x000f1000 rev=0x01 \
-hdr=0x00
-bar0@pci0:0:5:0: class=0x000100 card=0x00000000 chip=0x88c15333 rev=0x00 \
-hdr=0x00
-none0@pci0:0:6:0: class=0x020000 card=0x00000000 chip=0x802910ec rev=0x00 \
-hdr=0x00
+foo0@pci0:0:4:0: class=0x010000 rev=0x01 hdr=0x00 vendor=0x1000 device=0x000f \
+subvendor=0x0000 subdevice=0x0000
+bar0@pci0:0:5:0: class=0x000100 rev=0x00 hdr=0x00 vendor=0x88c1 device=0x5333 \
+subvendor=0x0000 subdevice=0x0000
+none0@pci0:0:6:0: class=0x020000 rev=0x00 hdr=0x00 vendor=0x10ec device=0x8029 \
+subvendor=0x0000 subdevice=0x0000
 .Ed
 .Pp
 The first column gives the
-driver name, unit number, and selector .
+driver name, unit number, and selector.
 If there is no driver attached to the
 .Tn PCI
 device in question, the driver name will be
@@ -80,21 +80,10 @@ The selector
 is in a form which may directly be used for the other forms of the command.
 The second column is the class code, with the class byte printed as two
 hex digits, followed by the sub-class and the interface bytes.
-The third column gives the contents of the subvendorid register, introduced
-in revision 2.1 of the
-.Tn PCI
-standard.
-Note that it will be 0 for older cards.
-The field consists of the card ID in the upper
-half and the card vendor ID in the lower half of the value.
+The third column prints the device's revision.
+The fourth column describes the header type.
 .Pp
-The fourth column contains the chip device ID, which identifies the chip
-this card is based on.
-It consists of two fields, identifying the chip and
-its vendor, as above.
-The fifth column prints the chip's revision.
-The sixth column describes the header type.
-Currently assigned header types include 0 for most devices,
+Currently assigned header types include 0 for standard devices,
 1 for
 .Tn PCI
 to
@@ -112,6 +101,14 @@ device, it is a
 .Em multi-function
 device, which contains several (similar or independent) functions on
 one chip.
+.Pp
+The sixth and seventh columns contain the vendor ID and the device ID of the
+device.
+The eigth and ninth columns contain subvendor and subdevice IDs, introduced
+in revision 2.1 of the
+.Tn PCI
+standard.
+Note that they will be 0 for older cards.
 .Pp
 If the
 .Fl B
