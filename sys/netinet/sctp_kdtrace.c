@@ -34,9 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef _NETINET_SCTP_DTRACE_DEFINE_H_
-#define _NETINET_SCTP_DTRACE_DEFINE_H_
-
+#include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/sdt.h>
 
@@ -173,5 +171,3 @@ SDT_PROBE_DEFINE4(sctp, flightsize, assoc, val,
 				 * order. */
     "int",			/* The up/down amount */
     "int");			/* The new value of the cwnd */
-
-#endif
