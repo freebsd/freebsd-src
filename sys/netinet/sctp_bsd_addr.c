@@ -358,6 +358,12 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 }
 
 void
+sctp_addr_change_event_handler(void *arg __unused, struct ifaddr *ifa, int cmd)
+{
+	sctp_addr_change(ifa, cmd);
+}
+
+void
      sctp_add_or_del_interfaces(int (*pred) (struct ifnet *), int add){
 	struct ifnet *ifn;
 	struct ifaddr *ifa;

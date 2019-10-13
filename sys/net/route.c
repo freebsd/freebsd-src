@@ -38,10 +38,9 @@
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_route.h"
-#include "opt_sctp.h"
 #include "opt_mrouting.h"
 #include "opt_mpath.h"
+#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -90,13 +89,6 @@
 #define	RT_NUMFIBS	1
 #endif
 
-#if defined(INET) || defined(INET6)
-#ifdef SCTP
-extern void sctp_addr_change(struct ifaddr *ifa, int cmd);
-#endif /* SCTP */
-#endif
-
-
 /* This is read-only.. */
 u_int rt_numfibs = RT_NUMFIBS;
 SYSCTL_UINT(_net, OID_AUTO, fibs, CTLFLAG_RDTUN, &rt_numfibs, 0, "");
@@ -139,6 +131,8 @@ VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
 
 VNET_DEFINE_STATIC(uma_zone_t, rtzone);		/* Routing table UMA zone. */
 #define	V_rtzone	VNET(rtzone)
+
+EVENTHANDLER_LIST_DEFINE(rt_addrmsg);
 
 static int rtrequest1_fib_change(struct rib_head *, struct rt_addrinfo *,
     struct rtentry **, u_int);
@@ -2224,20 +2218,10 @@ rt_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
 
 	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
 	    ("unexpected cmd %d", cmd));
-	
 	KASSERT(fibnum == RT_ALL_FIBS || (fibnum >= 0 && fibnum < rt_numfibs),
 	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
 
-#if defined(INET) || defined(INET6)
-#ifdef SCTP
-	/*
-	 * notify the SCTP stack
-	 * this will only get called when an address is added/deleted
-	 * XXX pass the ifaddr struct instead if ifa->ifa_addr...
-	 */
-	sctp_addr_change(ifa, cmd);
-#endif /* SCTP */
-#endif
+	EVENTHANDLER_DIRECT_INVOKE(rt_addrmsg, ifa, cmd);
 	return (rtsock_addrmsg(cmd, ifa, fibnum));
 }
 
