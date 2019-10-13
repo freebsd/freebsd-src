@@ -52,6 +52,7 @@
 #include <sys/sysproto.h>
 #include <sys/proc.h>
 #include <sys/domain.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/rmlock.h>
