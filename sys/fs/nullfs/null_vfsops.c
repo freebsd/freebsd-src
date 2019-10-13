@@ -205,7 +205,7 @@ nullfs_mount(struct mount *mp)
 		    (MNTK_SHARED_WRITES | MNTK_LOOKUP_SHARED |
 		    MNTK_EXTENDED_SHARED);
 	}
-	mp->mnt_kern_flag |= MNTK_LOOKUP_EXCL_DOTDOT;
+	mp->mnt_kern_flag |= MNTK_LOOKUP_EXCL_DOTDOT | MNTK_NOMSYNC;
 	mp->mnt_kern_flag |= lowerrootvp->v_mount->mnt_kern_flag &
 	    (MNTK_USES_BCACHE | MNTK_NO_IOPF | MNTK_UNMAPPED_BUFS);
 	MNT_IUNLOCK(mp);
