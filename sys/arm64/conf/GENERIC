@@ -108,6 +108,7 @@ options 	NETDUMP			# netdump(4) client support
 # SoC support
 options 	SOC_ALLWINNER_A64
 options 	SOC_ALLWINNER_H5
+options 	SOC_ALLWINNER_H6
 options 	SOC_CAVM_THUNDERX
 options 	SOC_HISI_HI6220
 options 	SOC_INTEL_STRATIX10
