@@ -41,4 +41,6 @@ arm/allwinner/clkng/aw_clk_m.c		standard
 arm/allwinner/clkng/aw_clk_mipi.c	standard
 arm/allwinner/clkng/aw_clk_nkmp.c	standard
 arm/allwinner/clkng/aw_clk_nm.c		standard
+arm/allwinner/clkng/aw_clk_np.c		standard
+arm/allwinner/clkng/aw_clk_nmm.c	standard
 arm/allwinner/clkng/aw_clk_prediv_mux.c	standard
