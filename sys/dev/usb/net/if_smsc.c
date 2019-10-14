@@ -691,6 +691,18 @@ smsc_hash(uint8_t addr[ETHER_ADDR_LEN])
 	return (ether_crc32_be(addr, ETHER_ADDR_LEN) >> 26) & 0x3f;
 }
 
+static u_int
+smsc_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint32_t hash, *hashtbl = arg;
+
+	hash = smsc_hash(LLADDR(sdl));
+	hashtbl[hash >> 5] |= 1 << (hash & 0x1F);
+
+	return (1);
+}
+
+
 /**
  *	smsc_setmulti - Setup multicast
  *	@ue: usb ethernet device context
@@ -706,9 +718,7 @@ smsc_setmulti(struct usb_ether *ue)
 {
 	struct smsc_softc *sc = uether_getsc(ue);
 	struct ifnet *ifp = uether_getifp(ue);
-	struct ifmultiaddr *ifma;
 	uint32_t hashtbl[2] = { 0, 0 };
-	uint32_t hash;
 
 	SMSC_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -718,29 +728,19 @@ smsc_setmulti(struct usb_ether *ue)
 		sc->sc_mac_csr &= ~SMSC_MAC_CSR_HPFILT;
 		
 	} else {
-		/* Take the lock of the mac address list before hashing each of them */
-		if_maddr_rlock(ifp);
-
-		if (!CK_STAILQ_EMPTY(&ifp->if_multiaddrs)) {
-			/* We are filtering on a set of address so calculate hashes of each
-			 * of the address and set the corresponding bits in the register.
+		if (if_foreach_llmaddr(ifp, smsc_hash_maddr, &hashtbl) > 0) {
+			/* We are filtering on a set of address so calculate
+			 * hashes of each of the address and set the
+			 * corresponding bits in the register.
 			 */
 			sc->sc_mac_csr |= SMSC_MAC_CSR_HPFILT;
 			sc->sc_mac_csr &= ~(SMSC_MAC_CSR_PRMS | SMSC_MAC_CSR_MCPAS);
-		
-			CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-				if (ifma->ifma_addr->sa_family != AF_LINK)
-					continue;
-
-				hash = smsc_hash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
-				hashtbl[hash >> 5] |= 1 << (hash & 0x1F);
-			}
 		} else {
-			/* Only receive packets with destination set to our mac address */
+			/* Only receive packets with destination set to
+			 * our mac address
+			 */
 			sc->sc_mac_csr &= ~(SMSC_MAC_CSR_MCPAS | SMSC_MAC_CSR_HPFILT);
 		}
-
-		if_maddr_runlock(ifp);
 		
 		/* Debug */
 		if (sc->sc_mac_csr & SMSC_MAC_CSR_HPFILT)
