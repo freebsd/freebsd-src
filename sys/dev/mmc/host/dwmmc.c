@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2014-2019 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -457,26 +457,20 @@ parse_fdt(struct dwmmc_softc *sc)
 
 	/* IP block reset is optional */
 	error = hwreset_get_by_ofw_name(sc->dev, 0, "reset", &sc->hwreset);
-	if (error != 0 && error != ENOENT) {
+	if (error != 0 && error != ENOENT)
 		device_printf(sc->dev, "Cannot get reset\n");
-		goto fail;
-	}
 
 	/* vmmc regulator is optional */
 	error = regulator_get_by_ofw_property(sc->dev, 0, "vmmc-supply",
 	     &sc->vmmc);
-	if (error != 0 && error != ENOENT) {
+	if (error != 0 && error != ENOENT)
 		device_printf(sc->dev, "Cannot get regulator 'vmmc-supply'\n");
-		goto fail;
-	}
 
 	/* vqmmc regulator is optional */
 	error = regulator_get_by_ofw_property(sc->dev, 0, "vqmmc-supply",
 	     &sc->vqmmc);
-	if (error != 0 && error != ENOENT) {
+	if (error != 0 && error != ENOENT)
 		device_printf(sc->dev, "Cannot get regulator 'vqmmc-supply'\n");
-		goto fail;
-	}
 
 	/* Assert reset first */
 	if (sc->hwreset != NULL) {
@@ -489,10 +483,9 @@ parse_fdt(struct dwmmc_softc *sc)
 
 	/* BIU (Bus Interface Unit clock) is optional */
 	error = clk_get_by_ofw_name(sc->dev, 0, "biu", &sc->biu);
-	if (error != 0 && error != ENOENT) {
+	if (error != 0 && error != ENOENT)
 		device_printf(sc->dev, "Cannot get 'biu' clock\n");
-		goto fail;
-	}
+
 	if (sc->biu) {
 		error = clk_enable(sc->biu);
 		if (error != 0) {
@@ -506,10 +499,9 @@ parse_fdt(struct dwmmc_softc *sc)
 	 * if no clock-frequency property is given
 	 */
 	error = clk_get_by_ofw_name(sc->dev, 0, "ciu", &sc->ciu);
-	if (error != 0 && error != ENOENT) {
-		device_printf(sc->dev, "Cannot get 'ciu'clock\n");
-		goto fail;
-	}
+	if (error != 0 && error != ENOENT)
+		device_printf(sc->dev, "Cannot get 'ciu' clock\n");
+
 	if (sc->ciu) {
 		if (bus_hz != 0) {
 			error = clk_set_freq(sc->ciu, bus_hz, 0);
