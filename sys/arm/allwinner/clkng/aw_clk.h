@@ -407,6 +407,35 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.flags = _flags,			\
 	}
 
+#define NP_CLK(_clkname, _id, _name, _pnames,		\
+     _offset,						\
+     _nshift, _nwidth, _nvalue, _nflags,		\
+     _pshift, _pwidth, _pvalue, _pflags,		\
+    _gate_shift,					\
+    _lock, _lock_retries,				\
+    _flags)						\
+	static struct aw_clk_np_def _clkname = 	{	\
+		.clkdef = {				\
+			.id = _id,			\
+			.name = _name,			\
+			.parent_names = _pnames,	\
+			.parent_cnt = nitems(_pnames),	\
+		},					\
+		.offset = _offset,			\
+		.n.shift = _nshift,			\
+		.n.width = _nwidth,			\
+		.n.value = _nvalue,			\
+		.n.flags = _nflags,			\
+		.p.shift = _pshift,			\
+		.p.width = _pwidth,			\
+		.p.value = _pvalue,			\
+		.p.flags = _pflags,			\
+		.gate_shift = _gate_shift,		\
+		.lock_shift = _lock,			\
+		.lock_retries = _lock_retries,		\
+		.flags = _flags,			\
+	}
+
 #define PREDIV_CLK(_clkname, _id, _name, _pnames,	\
   _offset,	\
   _mux_shift, _mux_width,	\

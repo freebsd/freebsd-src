@@ -316,6 +316,10 @@ aw_ccung_attach(device_t dev)
 			break;
 		case AW_CLK_MIPI:
 			aw_clk_mipi_register(sc->clkdom, sc->clks[i].clk.mipi);
+			break;
+		case AW_CLK_NP:
+			aw_clk_np_register(sc->clkdom, sc->clks[i].clk.np);
+			break;
 		}
 	}
 
