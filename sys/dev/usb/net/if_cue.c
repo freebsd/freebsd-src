@@ -307,13 +307,24 @@ cue_setpromisc(struct usb_ether *ue)
 	cue_setmulti(ue);
 }
 
+static u_int
+cue_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint8_t *hashtbl = arg;
+	uint32_t h;
+
+	h = cue_mchash(LLADDR(sdl));
+	hashtbl[h >> 3] |= 1 << (h & 0x7);
+
+	return (1);
+}
+
 static void
 cue_setmulti(struct usb_ether *ue)
 {
 	struct cue_softc *sc = uether_getsc(ue);
 	struct ifnet *ifp = uether_getifp(ue);
-	struct ifmultiaddr *ifma;
-	uint32_t h = 0, i;
+	uint32_t h, i;
 	uint8_t hashtbl[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 	CUE_LOCK_ASSERT(sc, MA_OWNED);
@@ -327,15 +338,7 @@ cue_setmulti(struct usb_ether *ue)
 	}
 
 	/* now program new ones */
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
-	{
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		h = cue_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
-		hashtbl[h >> 3] |= 1 << (h & 0x7);
-	}
-	if_maddr_runlock(ifp);
+	if_foreach_llmaddr(ifp, cue_hash_maddr, hashtbl);
 
 	/*
 	 * Also include the broadcast address in the filter
