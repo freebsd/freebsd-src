@@ -792,6 +792,19 @@ ure_tick(struct usb_ether *ue)
 	}
 }
 
+static u_int
+ure_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint32_t h, *hashes = arg;
+
+	h = ether_crc32_be(LLADDR(sdl), ETHER_ADDR_LEN) >> 26;
+	if (h < 32)
+		hashes[0] |= (1 << h);
+	else
+		hashes[1] |= (1 << (h - 32));
+	return (1);
+}
+
 /*
  * Program the 64-bit multicast hash filter.
  */
@@ -800,9 +813,8 @@ ure_rxfilter(struct usb_ether *ue)
 {
 	struct ure_softc *sc = uether_getsc(ue);
 	struct ifnet *ifp = uether_getifp(ue);
-	struct ifmultiaddr *ifma;
-	uint32_t h, rxmode;
-	uint32_t hashes[2] = { 0, 0 };
+	uint32_t rxmode;
+	uint32_t h, hashes[2] = { 0, 0 };
 
 	URE_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -818,18 +830,7 @@ ure_rxfilter(struct usb_ether *ue)
 	}
 
 	rxmode |= URE_RCR_AM;
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-		ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
-		if (h < 32)
-			hashes[0] |= (1 << h);
-		else
-			hashes[1] |= (1 << (h - 32));
-	}
-	if_maddr_runlock(ifp);
+	if_foreach_llmaddr(ifp, ure_hash_maddr, &hashes);
 
 	h = bswap32(hashes[0]);
 	hashes[0] = bswap32(hashes[1]);
