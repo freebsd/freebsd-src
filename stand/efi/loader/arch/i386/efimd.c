@@ -76,7 +76,7 @@ ldr_bootinfo(struct bootinfo *bi, uint64_t *bi_addr)
 	sz = sizeof(EFI_HANDLE);
 	status = BS->LocateHandle(ByProtocol, &fpswa_guid, 0, &sz, &handle);
 	if (status == 0)
-		status = BS->HandleProtocol(handle, &fpswa_guid, &fpswa);
+		status = OpenProtocolByHandle(handle, &fpswa_guid, &fpswa);
 	bi->bi_fpswa = (status == 0) ? (uintptr_t)fpswa : 0;
 
 	bisz = (sizeof(struct bootinfo) + 0x0f) & ~0x0f;

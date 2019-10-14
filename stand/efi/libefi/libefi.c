@@ -50,3 +50,10 @@ efi_get_table(EFI_GUID *tbl)
 	}
 	return (NULL);
 }
+
+EFI_STATUS
+OpenProtocolByHandle(EFI_HANDLE handle, EFI_GUID *protocol, void **interface)
+{
+	return (BS->OpenProtocol(handle, protocol, interface, IH, NULL,
+	    EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL));
+}

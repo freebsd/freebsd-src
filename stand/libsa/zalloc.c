@@ -1,5 +1,5 @@
 /*
- * This module derived from code donated to the FreeBSD Project by 
+ * This module derived from code donated to the FreeBSD Project by
  * Matthew Dillon <dillon@backplane.com>
  *
  * Copyright (c) 1998 The FreeBSD Project
@@ -30,11 +30,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+
 /*
- * LIB/MEMORY/ZALLOC.C	- self contained low-overhead memory pool/allocation 
+ * LIB/MEMORY/ZALLOC.C	- self contained low-overhead memory pool/allocation
  *			  subsystem
  *
- *	This subsystem implements memory pools and memory allocation 
+ *	This subsystem implements memory pools and memory allocation
  *	routines.
  *
  *	Pools are managed via a linked list of 'free' areas.  Allocating
@@ -43,7 +45,7 @@ __FBSDID("$FreeBSD$");
  *	to allocate the entire pool without incuring any structural overhead.
  *
  *	The system works best when allocating similarly-sized chunks of
- *	memory.  Care must be taken to avoid fragmentation when 
+ *	memory.  Care must be taken to avoid fragmentation when
  *	allocating/deallocating dissimilar chunks.
  *
  *	When a memory pool is first allocated, the entire pool is marked as
@@ -53,7 +55,7 @@ __FBSDID("$FreeBSD$");
  *	available.
  *
  *	z[n]xalloc() works like z[n]alloc() but the allocation is made from
- *	within the specified address range.  If the segment could not be 
+ *	within the specified address range.  If the segment could not be
  *	allocated, NULL is returned.  WARNING!  The address range will be
  *	aligned to an 8 or 16 byte boundry depending on the cpu so if you
  *	give an unaligned address range, unexpected results may occur.
@@ -86,58 +88,82 @@ typedef char assert_align[(sizeof(struct MemNode) <= MALLOCALIGN) ? 1 : -1];
  */
 
 void *
-znalloc(MemPool *mp, uintptr_t bytes)
+znalloc(MemPool *mp, uintptr_t bytes, size_t align)
 {
-    /*
-     * align according to pool object size (can be 0).  This is
-     * inclusive of the MEMNODE_SIZE_MASK minimum alignment.
-     *
-     */
-    bytes = (bytes + MEMNODE_SIZE_MASK) & ~MEMNODE_SIZE_MASK;
-
-    if (bytes == 0)
-	return((void *)-1);
-
-    /*
-     * locate freelist entry big enough to hold the object.  If all objects
-     * are the same size, this is a constant-time function.
-     */
-
-    if (bytes <= mp->mp_Size - mp->mp_Used) {
 	MemNode **pmn;
 	MemNode *mn;
 
-	for (pmn = &mp->mp_First; (mn=*pmn) != NULL; pmn = &mn->mr_Next) {
-	    if (bytes > mn->mr_Bytes)
-		continue;
+	/*
+	 * align according to pool object size (can be 0).  This is
+	 * inclusive of the MEMNODE_SIZE_MASK minimum alignment.
+	 *
+	*/
+	bytes = (bytes + MEMNODE_SIZE_MASK) & ~MEMNODE_SIZE_MASK;
 
-	    /*
-	     *  Cut a chunk of memory out of the beginning of this
-	     *  block and fixup the link appropriately.
-	     */
+	if (bytes == 0)
+		return ((void *)-1);
 
-	    {
+	/*
+	 * locate freelist entry big enough to hold the object.  If all objects
+	 * are the same size, this is a constant-time function.
+	 */
+
+	if (bytes > mp->mp_Size - mp->mp_Used)
+		return (NULL);
+
+	for (pmn = &mp->mp_First; (mn = *pmn) != NULL; pmn = &mn->mr_Next) {
 		char *ptr = (char *)mn;
+		uintptr_t dptr;
+		char *aligned;
+		size_t extra;
+
+		dptr = (uintptr_t)(ptr + MALLOCALIGN);  /* pointer to data */
+		aligned = (char *)(roundup2(dptr, align) - MALLOCALIGN);
+		extra = aligned - ptr;
+
+		if (bytes + extra > mn->mr_Bytes)
+			continue;
+
+		/*
+		 * Cut extra from head and create new memory node from reminder.
+		 */
+
+		if (extra != 0) {
+			MemNode *new;
+
+			new = (MemNode *)aligned;
+			new->mr_Next = mn->mr_Next;
+			new->mr_Bytes = mn->mr_Bytes - extra;
+
+			/* And update current memory node */
+			mn->mr_Bytes = extra;
+			mn->mr_Next = new;
+			/* In next iteration, we will get our aligned address */
+			continue;
+		}
+
+		/*
+		 *  Cut a chunk of memory out of the beginning of this
+		 *  block and fixup the link appropriately.
+		 */
 
 		if (mn->mr_Bytes == bytes) {
-		    *pmn = mn->mr_Next;
+			*pmn = mn->mr_Next;
 		} else {
-		    mn = (MemNode *)((char *)mn + bytes);
-		    mn->mr_Next  = ((MemNode *)ptr)->mr_Next;
-		    mn->mr_Bytes = ((MemNode *)ptr)->mr_Bytes - bytes;
-		    *pmn = mn;
+			mn = (MemNode *)((char *)mn + bytes);
+			mn->mr_Next  = ((MemNode *)ptr)->mr_Next;
+			mn->mr_Bytes = ((MemNode *)ptr)->mr_Bytes - bytes;
+			*pmn = mn;
 		}
 		mp->mp_Used += bytes;
 		return(ptr);
-	    }
 	}
-    }
 
-    /*
-     * Memory pool is full, return NULL.
-     */
+	/*
+	 * Memory pool is full, return NULL.
+	 */
 
-    return(NULL);
+	return (NULL);
 }
 
 /*
@@ -147,99 +173,97 @@ znalloc(MemPool *mp, uintptr_t bytes)
 void
 zfree(MemPool *mp, void *ptr, uintptr_t bytes)
 {
-    /*
-     * align according to pool object size (can be 0).  This is
-     * inclusive of the MEMNODE_SIZE_MASK minimum alignment.
-     */
-    bytes = (bytes + MEMNODE_SIZE_MASK) & ~MEMNODE_SIZE_MASK;
-
-    if (bytes == 0)
-	return;
-
-    /*
-     * panic if illegal pointer
-     */
-
-    if ((char *)ptr < (char *)mp->mp_Base || 
-	(char *)ptr + bytes > (char *)mp->mp_End ||
-	((uintptr_t)ptr & MEMNODE_SIZE_MASK) != 0)
-	panic("zfree(%p,%ju): wild pointer", ptr, (uintmax_t)bytes);
-
-    /*
-     * free the segment
-     */
-
-    {
 	MemNode **pmn;
 	MemNode *mn;
 
+	/*
+	 * align according to pool object size (can be 0).  This is
+	 * inclusive of the MEMNODE_SIZE_MASK minimum alignment.
+	 */
+	bytes = (bytes + MEMNODE_SIZE_MASK) & ~MEMNODE_SIZE_MASK;
+
+	if (bytes == 0)
+		return;
+
+	/*
+	 * panic if illegal pointer
+	 */
+
+	if ((char *)ptr < (char *)mp->mp_Base ||
+	    (char *)ptr + bytes > (char *)mp->mp_End ||
+	    ((uintptr_t)ptr & MEMNODE_SIZE_MASK) != 0)
+		panic("zfree(%p,%ju): wild pointer", ptr, (uintmax_t)bytes);
+
+	/*
+	 * free the segment
+	 */
 	mp->mp_Used -= bytes;
 
 	for (pmn = &mp->mp_First; (mn = *pmn) != NULL; pmn = &mn->mr_Next) {
-	    /*
-	     * If area between last node and current node
-	     *  - check range
-	     *  - check merge with next area
-	     *  - check merge with previous area
-	     */
-	    if ((char *)ptr <= (char *)mn) {
 		/*
-		 * range check
+		 * If area between last node and current node
+		 *  - check range
+		 *  - check merge with next area
+		 *  - check merge with previous area
 		 */
-		if ((char *)ptr + bytes > (char *)mn) {
-		    panic("zfree(%p,%ju): corrupt memlist1", ptr,
-			(uintmax_t)bytes);
+		if ((char *)ptr <= (char *)mn) {
+			/*
+			 * range check
+			 */
+			if ((char *)ptr + bytes > (char *)mn) {
+				panic("zfree(%p,%ju): corrupt memlist1", ptr,
+				    (uintmax_t)bytes);
+			}
+
+			/*
+			 * merge against next area or create independant area
+			 */
+
+			if ((char *)ptr + bytes == (char *)mn) {
+				((MemNode *)ptr)->mr_Next = mn->mr_Next;
+				((MemNode *)ptr)->mr_Bytes =
+				    bytes + mn->mr_Bytes;
+			} else {
+				((MemNode *)ptr)->mr_Next = mn;
+				((MemNode *)ptr)->mr_Bytes = bytes;
+			}
+			*pmn = mn = (MemNode *)ptr;
+
+			/*
+			 * merge against previous area (if there is a previous
+			 * area).
+			 */
+
+			if (pmn != &mp->mp_First) {
+				if ((char *)pmn + ((MemNode*)pmn)->mr_Bytes ==
+				    (char *)ptr) {
+					((MemNode *)pmn)->mr_Next = mn->mr_Next;
+					((MemNode *)pmn)->mr_Bytes +=
+					    mn->mr_Bytes;
+					mn = (MemNode *)pmn;
+				}
+			}
+			return;
 		}
-
-		/*
-		 * merge against next area or create independant area
-		 */
-
-		if ((char *)ptr + bytes == (char *)mn) {
-		    ((MemNode *)ptr)->mr_Next = mn->mr_Next;
-		    ((MemNode *)ptr)->mr_Bytes= bytes + mn->mr_Bytes;
-		} else {
-		    ((MemNode *)ptr)->mr_Next = mn;
-		    ((MemNode *)ptr)->mr_Bytes= bytes;
+		if ((char *)ptr < (char *)mn + mn->mr_Bytes) {
+			panic("zfree(%p,%ju): corrupt memlist2", ptr,
+			    (uintmax_t)bytes);
 		}
-		*pmn = mn = (MemNode *)ptr;
-
-		/*
-		 * merge against previous area (if there is a previous
-		 * area).
-		 */
-
-		if (pmn != &mp->mp_First) {
-		    if ((char*)pmn + ((MemNode*)pmn)->mr_Bytes == (char*)ptr) {
-			((MemNode *)pmn)->mr_Next = mn->mr_Next;
-			((MemNode *)pmn)->mr_Bytes += mn->mr_Bytes;
-			mn = (MemNode *)pmn;
-		    }
-		}
-		return;
-		/* NOT REACHED */
-	    }
-	    if ((char *)ptr < (char *)mn + mn->mr_Bytes) {
-		panic("zfree(%p,%ju): corrupt memlist2", ptr,
-		    (uintmax_t)bytes);
-	    }
 	}
 	/*
 	 * We are beyond the last MemNode, append new MemNode.  Merge against
 	 * previous area if possible.
 	 */
-	if (pmn == &mp->mp_First || 
-	    (char *)pmn + ((MemNode *)pmn)->mr_Bytes != (char *)ptr
-	) {
-	    ((MemNode *)ptr)->mr_Next = NULL;
-	    ((MemNode *)ptr)->mr_Bytes = bytes;
-	    *pmn = (MemNode *)ptr;
-	    mn = (MemNode *)ptr;
+	if (pmn == &mp->mp_First ||
+	    (char *)pmn + ((MemNode *)pmn)->mr_Bytes != (char *)ptr) {
+		((MemNode *)ptr)->mr_Next = NULL;
+		((MemNode *)ptr)->mr_Bytes = bytes;
+		*pmn = (MemNode *)ptr;
+		mn = (MemNode *)ptr;
 	} else {
-	    ((MemNode *)pmn)->mr_Bytes += bytes;
-	    mn = (MemNode *)pmn;
+		((MemNode *)pmn)->mr_Bytes += bytes;
+		mn = (MemNode *)pmn;
 	}
-    }
 }
 
 /*
@@ -256,26 +280,26 @@ zfree(MemPool *mp, void *ptr, uintptr_t bytes)
 void
 zextendPool(MemPool *mp, void *base, uintptr_t bytes)
 {
-    if (mp->mp_Size == 0) {
-	mp->mp_Base = base;
-	mp->mp_Used = bytes;
-	mp->mp_End = (char *)base + bytes;
-	mp->mp_Size = bytes;
-    } else {
-	void *pend = (char *)mp->mp_Base + mp->mp_Size;
+	if (mp->mp_Size == 0) {
+		mp->mp_Base = base;
+		mp->mp_Used = bytes;
+		mp->mp_End = (char *)base + bytes;
+		mp->mp_Size = bytes;
+	} else {
+		void *pend = (char *)mp->mp_Base + mp->mp_Size;
 
-	if (base < mp->mp_Base) {
-	    mp->mp_Size += (char *)mp->mp_Base - (char *)base;
-	    mp->mp_Used += (char *)mp->mp_Base - (char *)base;
-	    mp->mp_Base = base;
+		if (base < mp->mp_Base) {
+			mp->mp_Size += (char *)mp->mp_Base - (char *)base;
+			mp->mp_Used += (char *)mp->mp_Base - (char *)base;
+			mp->mp_Base = base;
+		}
+		base = (char *)base + bytes;
+		if (base > pend) {
+			mp->mp_Size += (char *)base - (char *)pend;
+			mp->mp_Used += (char *)base - (char *)pend;
+			mp->mp_End = (char *)base;
+		}
 	}
-	base = (char *)base + bytes;
-	if (base > pend) {
-	    mp->mp_Size += (char *)base - (char *)pend;
-	    mp->mp_Used += (char *)base - (char *)pend;
-	    mp->mp_End = (char *)base;
-	}
-    }
 }
 
 #ifdef ZALLOCDEBUG
@@ -283,34 +307,32 @@ zextendPool(MemPool *mp, void *base, uintptr_t bytes)
 void
 zallocstats(MemPool *mp)
 {
-    int abytes = 0;
-    int hbytes = 0;
-    int fcount = 0;
-    MemNode *mn;
+	int abytes = 0;
+	int hbytes = 0;
+	int fcount = 0;
+	MemNode *mn;
 
-    printf("%d bytes reserved", (int) mp->mp_Size);
+	printf("%d bytes reserved", (int)mp->mp_Size);
 
-    mn = mp->mp_First;
+	mn = mp->mp_First;
 
-    if ((void *)mn != (void *)mp->mp_Base) {
-	abytes += (char *)mn - (char *)mp->mp_Base;
-    }
-
-    while (mn) {
-	if ((char *)mn + mn->mr_Bytes != mp->mp_End) {
-	    hbytes += mn->mr_Bytes;
-	    ++fcount;
+	if ((void *)mn != (void *)mp->mp_Base) {
+		abytes += (char *)mn - (char *)mp->mp_Base;
 	}
-	if (mn->mr_Next)
-	    abytes += (char *)mn->mr_Next - ((char *)mn + mn->mr_Bytes);
-	mn = mn->mr_Next;
-    }
-    printf(" %d bytes allocated\n%d fragments (%d bytes fragmented)\n",
-	abytes,
-	fcount,
-	hbytes
-    );
+
+	while (mn != NULL) {
+		if ((char *)mn + mn->mr_Bytes != mp->mp_End) {
+			hbytes += mn->mr_Bytes;
+			++fcount;
+		}
+		if (mn->mr_Next != NULL) {
+			abytes += (char *)mn->mr_Next -
+			    ((char *)mn + mn->mr_Bytes);
+		}
+		mn = mn->mr_Next;
+	}
+	printf(" %d bytes allocated\n%d fragments (%d bytes fragmented)\n",
+	    abytes, fcount, hbytes);
 }
 
 #endif
-
