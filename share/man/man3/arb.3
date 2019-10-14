@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 2, 2019
+.Dd October 14, 2019
 .Dt ARB 3
 .Os
 .Sh NAME
@@ -399,7 +399,7 @@ macros can be used to find a particular element in the tree.
 .Bd -literal -offset indent
 struct TYPE find, *res;
 find.key = 30;
-res = RB_FIND(NAME, head, &find);
+res = ARB_FIND(NAME, head, &find);
 .Ed
 .Pp
 The
@@ -411,7 +411,7 @@ and
 .Fn ARB_PREV
 macros can be used to traverse the tree:
 .Pp
-.Dl "for (np = RB_MIN(NAME, &head); np != NULL; np = RB_NEXT(NAME, &head, np))"
+.Dl "for (np = ARB_MIN(NAME, &head); np != NULL; np = ARB_NEXT(NAME, &head, np))"
 .Pp
 Or, for simplicity, one can use the
 .Fn ARB_FOREACH
@@ -419,7 +419,7 @@ or
 .Fn ARB_FOREACH_REVERSE
 macro:
 .Bd -ragged -offset indent
-.Fn RB_FOREACH np NAME head
+.Fn ARB_FOREACH np NAME head
 .Ed
 .Pp
 The macros
