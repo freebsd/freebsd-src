@@ -857,6 +857,18 @@ rsu_get_multi_pos(const uint8_t maddr[])
 	return (pos);
 }
 
+static u_int
+rsu_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint32_t *mfilt = arg;
+	uint8_t pos;
+
+	pos = rsu_get_multi_pos(LLADDR(sdl));
+	mfilt[pos / 32] |= (1 << (pos % 32));
+
+	return (1);
+}
+
 static void
 rsu_set_multi(struct rsu_softc *sc)
 {
@@ -868,28 +880,13 @@ rsu_set_multi(struct rsu_softc *sc)
 	/* general structure was copied from ath(4). */
 	if (ic->ic_allmulti == 0) {
 		struct ieee80211vap *vap;
-		struct ifnet *ifp;
-		struct ifmultiaddr *ifma;
 
 		/*
 		 * Merge multicast addresses to form the hardware filter.
 		 */
 		mfilt[0] = mfilt[1] = 0;
-		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
-			ifp = vap->iv_ifp;
-			if_maddr_rlock(ifp);
-			CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-				caddr_t dl;
-				uint8_t pos;
-
-				dl = LLADDR((struct sockaddr_dl *)
-				    ifma->ifma_addr);
-				pos = rsu_get_multi_pos(dl);
-
-				mfilt[pos / 32] |= (1 << (pos % 32));
-			}
-			if_maddr_runlock(ifp);
-		}
+		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
+			if_foreach_llmaddr(vap->iv_ifp, rsu_hash_maddr, &mfilt);
 	} else
 		mfilt[0] = mfilt[1] = ~0;
 
