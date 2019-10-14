@@ -167,6 +167,7 @@ OLD_FILES+=usr/lib/clang/8.0.1/lib/freebsd/libclang_rt.asan_cxx-i386.a
 OLD_FILES+=usr/lib/clang/8.0.1/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
 OLD_FILES+=usr/lib/clang/8.0.1/lib/freebsd/libclang_rt.msan-x86_64.a
 OLD_FILES+=usr/lib/clang/8.0.1/lib/freebsd/libclang_rt.msan_cxx-x86_64.a
+OLD_FILES+=usr/lib/clang/8.0.1/lib/freebsd/libclang_rt.profile-aarch64.a
 OLD_FILES+=usr/lib/clang/8.0.1/lib/freebsd/libclang_rt.profile-arm.a
 OLD_FILES+=usr/lib/clang/8.0.1/lib/freebsd/libclang_rt.profile-armhf.a
 OLD_FILES+=usr/lib/clang/8.0.1/lib/freebsd/libclang_rt.profile-i386.a
