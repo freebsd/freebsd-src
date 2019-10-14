@@ -4813,8 +4813,8 @@ _vm_map_assert_consistent(vm_map_t map)
 		    entry->start < entry->right->start,
 		    ("map %p start = %jx, right->start = %jx", map,
 		    (uintmax_t)entry->start, (uintmax_t)entry->right->start));
-		max_left = vm_map_entry_max_free_left(entry, lbound);
-		max_right = vm_map_entry_max_free_right(entry, ubound);
+		max_left = vm_map_entry_max_free_left(entry, entry->prev);
+		max_right = vm_map_entry_max_free_right(entry, entry->next);
 		KASSERT(entry->max_free == MAX(max_left, max_right),
 		    ("map %p max = %jx, max_left = %jx, max_right = %jx", map,
 		    (uintmax_t)entry->max_free,
