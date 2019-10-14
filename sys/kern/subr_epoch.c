@@ -258,7 +258,9 @@ epoch_init(void *arg __unused)
 		    DPCPU_ID_PTR(cpu, epoch_cb_task), NULL, cpu, NULL, NULL,
 		    "epoch call task");
 	}
+#ifdef EPOCH_TRACE
 	SLIST_INIT(&thread0.td_epochs);
+#endif
 	inited = 1;
 	global_epoch = epoch_alloc("Global", 0);
 	global_epoch_preempt = epoch_alloc("Global preemptible", EPOCH_PREEMPT);
