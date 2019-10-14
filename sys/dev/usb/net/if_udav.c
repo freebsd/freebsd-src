@@ -504,15 +504,24 @@ udav_reset(struct udav_softc *sc)
 	uether_pause(&sc->sc_ue, hz / 100);
 }
 
-#define	UDAV_BITS	6
+static u_int
+udav_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint8_t *hashtbl = arg;
+	int h;
+
+	h = ether_crc32_be(LLADDR(sdl), ETHER_ADDR_LEN) >> 26;
+	hashtbl[h / 8] |= 1 << (h % 8);
+
+	return (1);
+}
+
 static void
 udav_setmulti(struct usb_ether *ue)
 {
 	struct udav_softc *sc = ue->ue_sc;
 	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
-	struct ifmultiaddr *ifma;
 	uint8_t hashtbl[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-	int h = 0;
 
 	UDAV_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -527,16 +536,7 @@ udav_setmulti(struct usb_ether *ue)
 	udav_csr_write(sc, UDAV_MAR, hashtbl, sizeof(hashtbl));
 
 	/* now program new ones */
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
-	{
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
-		hashtbl[h / 8] |= 1 << (h % 8);
-	}
-	if_maddr_runlock(ifp);
+	if_foreach_llmaddr(ifp, udav_hash_maddr, hashtbl);
 
 	/* disable all multicast */
 	UDAV_CLRBIT(sc, UDAV_RCR, UDAV_RCR_ALL);
