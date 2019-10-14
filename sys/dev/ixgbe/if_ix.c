@@ -2333,7 +2333,7 @@ ixgbe_if_promisc_set(if_ctx_t ctx, int flags)
 	if (ifp->if_flags & IFF_ALLMULTI)
 		mcnt = MAX_NUM_MULTICAST_ADDRESSES;
 	else {
-		mcnt = if_multiaddr_count(ifp, MAX_NUM_MULTICAST_ADDRESSES);
+		mcnt = min(if_llmaddr_count(ifp), MAX_NUM_MULTICAST_ADDRESSES);
 	}
 	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
 		rctl &= (~IXGBE_FCTRL_MPE);
@@ -3207,18 +3207,15 @@ ixgbe_config_delay_values(struct adapter *adapter)
  *
  *   Called whenever multicast address list is updated.
  ************************************************************************/
-static int
-ixgbe_mc_filter_apply(void *arg, struct ifmultiaddr *ifma, int count)
+static u_int
+ixgbe_mc_filter_apply(void *arg, struct sockaddr_dl *sdl, u_int count)
 {
 	struct adapter *adapter = arg;
 	struct ixgbe_mc_addr *mta = adapter->mta;
 
-	if (ifma->ifma_addr->sa_family != AF_LINK)
-		return (0);
 	if (count == MAX_NUM_MULTICAST_ADDRESSES)
 		return (0);
-	bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-	    mta[count].addr, IXGBE_ETH_LENGTH_OF_ADDRESS);
+	bcopy(LLADDR(sdl), mta[count].addr, IXGBE_ETH_LENGTH_OF_ADDRESS);
 	mta[count].vmdq = adapter->pool;
 
 	return (1);
@@ -3231,15 +3228,16 @@ ixgbe_if_multi_set(if_ctx_t ctx)
 	struct ixgbe_mc_addr *mta;
 	struct ifnet         *ifp = iflib_get_ifp(ctx);
 	u8                   *update_ptr;
-	int                  mcnt = 0;
 	u32                  fctrl;
+	u_int		     mcnt;
 
 	IOCTL_DEBUGOUT("ixgbe_if_multi_set: begin");
 
 	mta = adapter->mta;
 	bzero(mta, sizeof(*mta) * MAX_NUM_MULTICAST_ADDRESSES);
 
-	mcnt = if_multi_apply(iflib_get_ifp(ctx), ixgbe_mc_filter_apply, adapter);
+	mcnt = if_foreach_llmaddr(iflib_get_ifp(ctx), ixgbe_mc_filter_apply,
+	    adapter);
 
 	fctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_FCTRL);
 	fctrl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);

@@ -637,6 +637,16 @@ ixl_msix_adminq(void *arg)
 		return (FILTER_HANDLED);
 }
 
+static u_int
+ixl_add_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	struct ixl_vsi *vsi = arg;
+
+	ixl_add_mc_filter(vsi, (u8*)LLADDR(sdl));
+
+	return (1);
+}
+
 /*********************************************************************
  * 	Filter Routines
  *
@@ -646,25 +656,17 @@ ixl_msix_adminq(void *arg)
 void
 ixl_add_multi(struct ixl_vsi *vsi)
 {
-	struct	ifmultiaddr	*ifma;
 	struct ifnet		*ifp = vsi->ifp;
 	struct i40e_hw		*hw = vsi->hw;
 	int			mcnt = 0, flags;
 
 	IOCTL_DEBUGOUT("ixl_add_multi: begin");
 
-	if_maddr_rlock(ifp);
 	/*
 	** First just get a count, to decide if we
 	** we simply use multicast promiscuous.
 	*/
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		mcnt++;
-	}
-	if_maddr_runlock(ifp);
-
+	mcnt = if_llmaddr_count(ifp);
 	if (__predict_false(mcnt >= MAX_MULTICAST_ADDR)) {
 		/* delete existing MC filters */
 		ixl_del_hw_filters(vsi, mcnt);
@@ -673,16 +675,7 @@ ixl_add_multi(struct ixl_vsi *vsi)
 		return;
 	}
 
-	mcnt = 0;
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		ixl_add_mc_filter(vsi,
-		    (u8*)LLADDR((struct sockaddr_dl *) ifma->ifma_addr));
-		mcnt++;
-	}
-	if_maddr_runlock(ifp);
+	mcnt = if_foreach_llmaddr(ifp, ixl_add_maddr, vsi);
 	if (mcnt > 0) {
 		flags = (IXL_FILTER_ADD | IXL_FILTER_USED | IXL_FILTER_MC);
 		ixl_add_hw_filters(vsi, flags, mcnt);
@@ -691,38 +684,33 @@ ixl_add_multi(struct ixl_vsi *vsi)
 	IOCTL_DEBUGOUT("ixl_add_multi: end");
 }
 
+static u_int
+ixl_match_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	struct ixl_mac_filter *f = arg;
+
+	if (cmp_etheraddr(f->macaddr, (u8 *)LLADDR(sdl)))
+		return (1);
+	else
+		return (0);
+}
+
 int
 ixl_del_multi(struct ixl_vsi *vsi)
 {
 	struct ifnet		*ifp = vsi->ifp;
-	struct ifmultiaddr	*ifma;
 	struct ixl_mac_filter	*f;
 	int			mcnt = 0;
-	bool		match = FALSE;
 
 	IOCTL_DEBUGOUT("ixl_del_multi: begin");
 
-	/* Search for removed multicast addresses */
-	if_maddr_rlock(ifp);
-	SLIST_FOREACH(f, &vsi->ftl, next) {
-		if ((f->flags & IXL_FILTER_USED) && (f->flags & IXL_FILTER_MC)) {
-			match = FALSE;
-			CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-				if (ifma->ifma_addr->sa_family != AF_LINK)
-					continue;
-				u8 *mc_addr = (u8 *)LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
-				if (cmp_etheraddr(f->macaddr, mc_addr)) {
-					match = TRUE;
-					break;
-				}
-			}
-			if (match == FALSE) {
-				f->flags |= IXL_FILTER_DEL;
-				mcnt++;
-			}
+	SLIST_FOREACH(f, &vsi->ftl, next)
+		if ((f->flags & IXL_FILTER_USED) &&
+		    (f->flags & IXL_FILTER_MC) &&
+		    (if_foreach_llmaddr(ifp, ixl_match_maddr, f) == 0)) {
+			f->flags |= IXL_FILTER_DEL;
+			mcnt++;
 		}
-	}
-	if_maddr_runlock(ifp);
 
 	if (mcnt > 0)
 		ixl_del_hw_filters(vsi, mcnt);
