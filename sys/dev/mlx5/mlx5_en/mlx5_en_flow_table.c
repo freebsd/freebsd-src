@@ -787,43 +787,47 @@ mlx5e_remove_hn(struct mlx5e_eth_addr_hash_head *fh)
 	return (hn);
 }
 
+struct mlx5e_copy_addr_ctx {
+	struct mlx5e_eth_addr_hash_head *free;
+	struct mlx5e_eth_addr_hash_head *fill;
+	bool success;
+};
+
+static u_int
+mlx5e_copy_addr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	struct mlx5e_copy_addr_ctx *ctx = arg;
+	struct mlx5e_eth_addr_hash_node *hn;
+
+	hn = mlx5e_move_hn(ctx->free, ctx->fill);
+	if (hn == NULL) {
+		ctx->success = false;
+		return (0);
+	}
+	ether_addr_copy(hn->ai.addr, LLADDR(sdl));
+
+	return (1);
+}
+
 static void
 mlx5e_sync_ifp_addr(struct mlx5e_priv *priv)
 {
+	struct mlx5e_copy_addr_ctx ctx;
 	struct mlx5e_eth_addr_hash_head head_free;
 	struct mlx5e_eth_addr_hash_head head_uc;
 	struct mlx5e_eth_addr_hash_head head_mc;
 	struct mlx5e_eth_addr_hash_node *hn;
 	struct ifnet *ifp = priv->ifp;
-	struct ifaddr *ifa;
-	struct ifmultiaddr *ifma;
-	bool success = false;
 	size_t x;
 	size_t num;
 
 	PRIV_ASSERT_LOCKED(priv);
 
+retry:
 	LIST_INIT(&head_free);
 	LIST_INIT(&head_uc);
 	LIST_INIT(&head_mc);
-retry:
-	num = 1;
-
-	if_addr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		if (ifa->ifa_addr->sa_family != AF_LINK)
-			continue;
-		num++;
-	}
-	if_addr_runlock(ifp);
-
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		num++;
-	}
-	if_maddr_runlock(ifp);
+	num = 1 + if_lladdr_count(ifp) + if_llmaddr_count(ifp);
 
 	/* allocate place holders */
 	for (x = 0; x != num; x++) {
@@ -834,38 +838,21 @@ retry:
 	}
 
 	hn = mlx5e_move_hn(&head_free, &head_uc);
-	if (hn == NULL)
-		goto cleanup;
+	MPASS(hn != NULL);
 
 	ether_addr_copy(hn->ai.addr,
 	    LLADDR((struct sockaddr_dl *)(ifp->if_addr->ifa_addr)));
 
-	if_addr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		if (ifa->ifa_addr->sa_family != AF_LINK)
-			continue;
-		hn = mlx5e_move_hn(&head_free, &head_uc);
-		if (hn == NULL)
-			break;
-		ether_addr_copy(hn->ai.addr,
-		    LLADDR((struct sockaddr_dl *)ifa->ifa_addr));
-	}
-	if_addr_runlock(ifp);
-	if (ifa != NULL)
+	ctx.free = &head_free;
+	ctx.fill = &head_uc;
+	ctx.success = true;
+	if_foreach_lladdr(ifp, mlx5e_copy_addr, &ctx);
+	if (ctx.success == false)
 		goto cleanup;
 
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		hn = mlx5e_move_hn(&head_free, &head_mc);
-		if (hn == NULL)
-			break;
-		ether_addr_copy(hn->ai.addr,
-		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
-	}
-	if_maddr_runlock(ifp);
-	if (ifma != NULL)
+	ctx.fill = &head_mc;
+	if_foreach_llmaddr(ifp, mlx5e_copy_addr, &ctx);
+	if (ctx.success == false)
 		goto cleanup;
 
 	/* insert L2 unicast addresses into hash list */
@@ -884,8 +871,6 @@ retry:
 			continue;
 	}
 
-	success = true;
-
 cleanup:
 	while ((hn = mlx5e_remove_hn(&head_uc)) != NULL)
 		free(hn, M_MLX5EN);
@@ -894,7 +879,7 @@ cleanup:
 	while ((hn = mlx5e_remove_hn(&head_free)) != NULL)
 		free(hn, M_MLX5EN);
 
-	if (success == false)
+	if (ctx.success == false)
 		goto retry;
 }
 
