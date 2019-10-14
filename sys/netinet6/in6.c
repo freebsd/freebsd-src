@@ -1548,13 +1548,14 @@ in6ifa_ifpwithaddr(struct ifnet *ifp, const struct in6_addr *addr)
 struct in6_ifaddr *
 in6ifa_llaonifp(struct ifnet *ifp)
 {
+	struct epoch_tracker et;
 	struct sockaddr_in6 *sin6;
 	struct ifaddr *ifa;
 
-	NET_EPOCH_ASSERT();
 
 	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)
 		return (NULL);
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -1564,6 +1565,7 @@ in6ifa_llaonifp(struct ifnet *ifp)
 		    IN6_IS_ADDR_MC_NODELOCAL(&sin6->sin6_addr))
 			break;
 	}
+	NET_EPOCH_EXIT(et);
 
 	return ((struct in6_ifaddr *)ifa);
 }
