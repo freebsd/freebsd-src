@@ -367,7 +367,9 @@ struct thread {
 	void		*td_lkpi_task;	/* LinuxKPI task struct pointer */
 	struct epoch_tracker *td_et;	/* (k) compat KPI spare tracker */
 	int		td_pmcpend;
+#ifdef EPOCH_TRACE
 	SLIST_HEAD(, epoch_tracker) td_epochs;
+#endif
 };
 
 struct thread0_storage {
