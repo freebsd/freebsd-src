@@ -440,7 +440,7 @@ prepare_txkey_wr(struct tls_keyctx *kwr, struct tls_key_context *kctx)
 
 /* TLS Key memory management */
 static int
-get_new_keyid(struct toepcb *toep, struct tls_key_context *k_ctx)
+get_new_keyid(struct toepcb *toep)
 {
 	struct adapter *sc = td_adapter(toep->td);
 	vmem_addr_t addr;
@@ -511,7 +511,7 @@ tls_program_key_id(struct toepcb *toep, struct tls_key_context *k_ctx)
 
 	/* Dont initialize key for re-neg */
 	if (!G_KEY_CLR_LOC(k_ctx->l_p_key)) {
-		if ((keyid = get_new_keyid(toep, k_ctx)) < 0) {
+		if ((keyid = get_new_keyid(toep)) < 0) {
 			return (ENOSPC);
 		}
 	} else {
