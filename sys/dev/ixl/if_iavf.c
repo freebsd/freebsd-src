@@ -1225,18 +1225,13 @@ iavf_if_update_admin_status(if_ctx_t ctx)
 		iavf_enable_adminq_irq(hw);
 }
 
-static int
-iavf_mc_filter_apply(void *arg, struct ifmultiaddr *ifma, int count __unused)
+static u_int
+iavf_mc_filter_apply(void *arg, struct sockaddr_dl *sdl, u_int count __unused)
 {
 	struct iavf_sc *sc = arg;
-	int error = 0;
+	int error;
 
-	if (ifma->ifma_addr->sa_family != AF_LINK)
-		return (0);
-	error = iavf_add_mac_filter(sc,
-	    (u8*)LLADDR((struct sockaddr_dl *) ifma->ifma_addr),
-	    IXL_FILTER_MC);
-
+	error = iavf_add_mac_filter(sc, (u8*)LLADDR(sdl), IXL_FILTER_MC);
 	return (!error);
 }
 
@@ -1244,12 +1239,11 @@ static void
 iavf_if_multi_set(if_ctx_t ctx)
 {
 	struct iavf_sc *sc = iflib_get_softc(ctx);
-	int mcnt = 0;
 
 	IOCTL_DEBUGOUT("iavf_if_multi_set: begin");
 
-	mcnt = if_multiaddr_count(iflib_get_ifp(ctx), MAX_MULTICAST_ADDR);
-	if (__predict_false(mcnt == MAX_MULTICAST_ADDR)) {
+	if (__predict_false(if_llmaddr_count(iflib_get_ifp(ctx)) >=
+	    MAX_MULTICAST_ADDR)) {
 		/* Delete MC filters and enable mulitcast promisc instead */
 		iavf_init_multi(sc);
 		sc->promisc_flags |= FLAG_VF_MULTICAST_PROMISC;
@@ -1261,9 +1255,8 @@ iavf_if_multi_set(if_ctx_t ctx)
 	iavf_init_multi(sc);
 
 	/* And (re-)install filters for all mcast addresses */
-	mcnt = if_multi_apply(iflib_get_ifp(ctx), iavf_mc_filter_apply, sc);
-
-	if (mcnt > 0)
+	if (if_foreach_llmaddr(iflib_get_ifp(ctx), iavf_mc_filter_apply, sc) >
+	    0)
 		iavf_send_vc_msg(sc, IAVF_FLAG_AQ_ADD_MAC_FILTER);
 }
 
@@ -1358,8 +1351,8 @@ iavf_if_promisc_set(if_ctx_t ctx, int flags)
 
 	sc->promisc_flags = 0;
 
-	if (flags & IFF_ALLMULTI ||
-		if_multiaddr_count(ifp, MAX_MULTICAST_ADDR) == MAX_MULTICAST_ADDR)
+	if (flags & IFF_ALLMULTI || if_llmaddr_count(ifp) >=
+	    MAX_MULTICAST_ADDR)
 		sc->promisc_flags |= FLAG_VF_MULTICAST_PROMISC;
 	if (flags & IFF_PROMISC)
 		sc->promisc_flags |= FLAG_VF_UNICAST_PROMISC;
