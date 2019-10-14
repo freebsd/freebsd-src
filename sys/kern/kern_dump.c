@@ -292,7 +292,7 @@ dumpsys_generic(struct dumperinfo *di)
 	size_t hdrsz;
 	int error;
 
-#ifndef __powerpc__
+#if !defined(__powerpc__) || defined(__powerpc64__)
 	if (do_minidump)
 		return (minidumpsys(di));
 #endif

@@ -71,6 +71,9 @@ uma_small_alloc(uma_zone_t zone, vm_size_t bytes, int domain, u_int8_t *flags,
 	if ((vm_offset_t)pa != pa)
 		return (NULL);
 
+	if ((wait & M_NODUMP) == 0)
+		dump_add_page(pa);
+
 	if (!hw_direct_map) {
 		pmap_kenter(pa, pa);
 		va = (void *)(vm_offset_t)pa;
@@ -100,6 +103,7 @@ uma_small_free(void *mem, vm_size_t size, u_int8_t flags)
 		m = PHYS_TO_VM_PAGE((vm_offset_t)mem);
 	KASSERT(m != NULL,
 	    ("Freeing UMA block at %p with no associated page", mem));
+	dump_add_page(VM_PAGE_TO_PHYS(m));
 	vm_page_unwire_noq(m);
 	vm_page_free(m);
 	atomic_subtract_int(&hw_uma_mdpages, 1);

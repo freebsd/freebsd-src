@@ -34,6 +34,12 @@
 
 #include <machine/mmuvar.h>
 
+struct dump_context {
+	u_long ptex;
+	u_long ptex_end;
+	size_t blksz;
+};
+
 extern mmu_def_t oea64_mmu;
 
 /*

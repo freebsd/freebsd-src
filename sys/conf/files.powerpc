@@ -224,6 +224,7 @@ powerpc/powerpc/intr_machdep.c	standard
 powerpc/powerpc/iommu_if.m	standard
 powerpc/powerpc/machdep.c	standard
 powerpc/powerpc/mem.c		optional	mem
+powerpc/powerpc/minidump_machdep.c	optional	powerpc64
 powerpc/powerpc/mmu_if.m	standard
 powerpc/powerpc/mp_machdep.c	optional	smp
 powerpc/powerpc/nexus.c		standard
