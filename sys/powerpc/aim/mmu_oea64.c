@@ -2943,6 +2943,8 @@ moea64_scan_init(mmu_t mmu)
 	}
 }
 
+#ifdef __powerpc64__
+
 static size_t
 moea64_scan_pmap(mmu_t mmu)
 {
@@ -3009,3 +3011,19 @@ moea64_dump_pmap_init(mmu_t mmu, unsigned blkpgs)
 	dump_ctx.blksz = blkpgs * PAGE_SIZE;
 	return (&dump_ctx);
 }
+
+#else
+
+static size_t
+moea64_scan_pmap(mmu_t mmu)
+{
+	return (0);
+}
+
+static void *
+moea64_dump_pmap_init(mmu_t mmu, unsigned blkpgs)
+{
+	return (NULL);
+}
+
+#endif
