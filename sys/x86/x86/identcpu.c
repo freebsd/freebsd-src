@@ -993,7 +993,7 @@ printcpuinfo(void)
 				       "\027RDPID"
 				       "\032CLDEMOTE"
 				       "\034MOVDIRI"
-				       "\035MOVDIRI64B"
+				       "\035MOVDIR64B"
 				       "\036ENQCMD"
 				       "\037SGXLC"
 				       );
