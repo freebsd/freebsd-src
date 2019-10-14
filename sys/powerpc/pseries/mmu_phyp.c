@@ -78,6 +78,8 @@ static struct rmlock mphyp_eviction_lock;
 static void	mphyp_bootstrap(mmu_t mmup, vm_offset_t kernelstart,
 		    vm_offset_t kernelend);
 static void	mphyp_cpu_bootstrap(mmu_t mmup, int ap);
+static void	*mphyp_dump_pmap(mmu_t mmu, void *ctx, void *buf,
+		    u_long *nbytes);
 static int64_t	mphyp_pte_synch(mmu_t, struct pvo_entry *pvo);
 static int64_t	mphyp_pte_clear(mmu_t, struct pvo_entry *pvo, uint64_t ptebit);
 static int64_t	mphyp_pte_unset(mmu_t, struct pvo_entry *pvo);
@@ -86,6 +88,7 @@ static int	mphyp_pte_insert(mmu_t, struct pvo_entry *pvo);
 static mmu_method_t mphyp_methods[] = {
         MMUMETHOD(mmu_bootstrap,        mphyp_bootstrap),
         MMUMETHOD(mmu_cpu_bootstrap,    mphyp_cpu_bootstrap),
+        MMUMETHOD(mmu_dump_pmap,        mphyp_dump_pmap),
 
 	MMUMETHOD(moea64_pte_synch,     mphyp_pte_synch),
         MMUMETHOD(moea64_pte_clear,     mphyp_pte_clear),
@@ -505,3 +508,32 @@ mphyp_pte_insert(mmu_t mmu, struct pvo_entry *pvo)
 	return (result);
 }
 
+static void *
+mphyp_dump_pmap(mmu_t mmu, void *ctx, void *buf, u_long *nbytes)
+{
+	struct dump_context *dctx;
+	struct lpte p, *pbuf;
+	int bufidx;
+	uint64_t junk;
+	u_long ptex, ptex_end;
+
+	dctx = (struct dump_context *)ctx;
+	pbuf = (struct lpte *)buf;
+	bufidx = 0;
+	ptex = dctx->ptex;
+	ptex_end = ptex + dctx->blksz / sizeof(struct lpte);
+	ptex_end = MIN(ptex_end, dctx->ptex_end);
+	*nbytes = (ptex_end - ptex) * sizeof(struct lpte);
+
+	if (*nbytes == 0)
+		return (NULL);
+
+	for (; ptex < ptex_end; ptex++) {
+		phyp_pft_hcall(H_READ, 0, ptex, 0, 0,
+			&p.pte_hi, &p.pte_lo, &junk);
+		pbuf[bufidx++] = p;
+	}
+
+	dctx->ptex = ptex;
+	return (buf);
+}

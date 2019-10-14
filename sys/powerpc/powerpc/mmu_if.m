@@ -130,6 +130,22 @@ CODE {
 	{
 		return (0);
 	}
+
+	static size_t mmu_null_scan_pmap(mmu_t mmu)
+	{
+		return (0);
+	}
+
+	static void *mmu_null_dump_pmap_init(mmu_t mmu, unsigned blkpgs)
+	{
+		return (NULL);
+	}
+
+	static void * mmu_null_dump_pmap(mmu_t mmu, void *ctx, void *buf,
+	    u_long *nbytes)
+	{
+		return (NULL);
+	}
 };
 
 
@@ -973,6 +989,51 @@ METHOD void dumpsys_unmap {
 METHOD void scan_init {
 	mmu_t		_mmu;
 };
+
+/**
+ * @brief Scan kernel PMAP, adding mapped physical pages to dump.
+ *
+ * @retval pmap_size	Number of bytes used by all PTE entries.
+ */
+METHOD size_t scan_pmap {
+	mmu_t		_mmu;
+} DEFAULT mmu_null_scan_pmap;
+
+/**
+ * @brief Initialize a PMAP dump.
+ *
+ * @param _blkpgs	Size of a dump block, in pages.
+ *
+ * @retval ctx		Dump context, used by dump_pmap.
+ */
+METHOD void * dump_pmap_init {
+	mmu_t		_mmu;
+	unsigned	_blkpgs;
+} DEFAULT mmu_null_dump_pmap_init;
+
+/**
+ * @brief Dump a block of PTEs.
+ * The size of the dump block is specified in dump_pmap_init and
+ * the 'buf' argument must be big enough to hold a full block.
+ * If the page table resides in regular memory, then the 'buf'
+ * argument is ignored and a pointer to the specified dump block
+ * is returned instead, avoiding memory copy. Else, the buffer is
+ * filled with PTEs and the own buffer pointer is returned.
+ * In the end, the cursor in 'ctx' is adjusted to point to the next block.
+ *
+ * @param _ctx		Dump context, retrieved from dump_pmap_init.
+ * @param _buf		Buffer to hold the dump block contents.
+ * @param _nbytes	Number of bytes dumped.
+ *
+ * @retval NULL		No more blocks to dump.
+ * @retval buf		Pointer to dumped data (may be different than _buf).
+ */
+METHOD void * dump_pmap {
+	mmu_t		_mmu;
+	void		*_ctx;
+	void		*_buf;
+	u_long		*_nbytes;
+} DEFAULT mmu_null_dump_pmap;
 
 /**
  * @brief Create a temporary thread-local KVA mapping of a single page.
