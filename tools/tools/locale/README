@@ -6,6 +6,7 @@ Tools needed:
 	java (openjdk >= 8)
 	perl
 	converters/p5-Text-Iconv
+	devel/apache-ant
 	devel/p5-Tie-IxHash
 	textproc/p5-XML-Parser
 
