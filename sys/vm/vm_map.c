@@ -739,46 +739,7 @@ static int enable_vmmap_check = 0;
 SYSCTL_INT(_debug, OID_AUTO, vmmap_check, CTLFLAG_RWTUN,
     &enable_vmmap_check, 0, "Enable vm map consistency checking");
 
-static void
-_vm_map_assert_consistent(vm_map_t map)
-{
-	vm_map_entry_t child, entry, prev;
-	vm_size_t max_left, max_right;
-
-	if (!enable_vmmap_check)
-		return;
-
-	for (prev = &map->header; (entry = prev->next) != &map->header;
-	    prev = entry) {
-		KASSERT(prev->end <= entry->start,
-		    ("map %p prev->end = %jx, start = %jx", map,
-		    (uintmax_t)prev->end, (uintmax_t)entry->start));
-		KASSERT(entry->start < entry->end,
-		    ("map %p start = %jx, end = %jx", map,
-		    (uintmax_t)entry->start, (uintmax_t)entry->end));
-		KASSERT(entry->end <= entry->next->start,
-		    ("map %p end = %jx, next->start = %jx", map,
-		    (uintmax_t)entry->end, (uintmax_t)entry->next->start));
-		KASSERT(entry->left == NULL ||
-		    entry->left->start < entry->start,
-		    ("map %p left->start = %jx, start = %jx", map,
-		    (uintmax_t)entry->left->start, (uintmax_t)entry->start));
-		KASSERT(entry->right == NULL ||
-		    entry->start < entry->right->start,
-		    ("map %p start = %jx, right->start = %jx", map,
-		    (uintmax_t)entry->start, (uintmax_t)entry->right->start));
-		child = entry->left;
-		max_left = (child != NULL) ? child->max_free :
-			entry->start - prev->end;
-		child = entry->right;
-		max_right = (child != NULL) ? child->max_free :
-			entry->next->start - entry->end;
-		KASSERT(entry->max_free == MAX(max_left, max_right),
-		    ("map %p max = %jx, max_left = %jx, max_right = %jx", map,
-		     (uintmax_t)entry->max_free,
-		     (uintmax_t)max_left, (uintmax_t)max_right));
-	}	
-}
+static void _vm_map_assert_consistent(vm_map_t map);
 
 #define VM_MAP_ASSERT_CONSISTENT(map) \
     _vm_map_assert_consistent(map)
@@ -4823,6 +4784,49 @@ vm_map_pmap_KBI(vm_map_t map)
 	return (map->pmap);
 }
 
+#ifdef INVARIANTS
+static void
+_vm_map_assert_consistent(vm_map_t map)
+{
+	vm_map_entry_t entry, prev;
+	vm_size_t max_left, max_right;
+
+	if (!enable_vmmap_check)
+		return;
+
+	prev = &map->header;
+	VM_MAP_ENTRY_FOREACH(entry, map) {
+		KASSERT(prev->end <= entry->start,
+		    ("map %p prev->end = %jx, start = %jx", map,
+		    (uintmax_t)prev->end, (uintmax_t)entry->start));
+		KASSERT(entry->start < entry->end,
+		    ("map %p start = %jx, end = %jx", map,
+		    (uintmax_t)entry->start, (uintmax_t)entry->end));
+		KASSERT(entry->end <= entry->next->start,
+		    ("map %p end = %jx, next->start = %jx", map,
+		    (uintmax_t)entry->end, (uintmax_t)entry->next->start));
+		KASSERT(entry->left == NULL ||
+		    entry->left->start < entry->start,
+		    ("map %p left->start = %jx, start = %jx", map,
+		    (uintmax_t)entry->left->start, (uintmax_t)entry->start));
+		KASSERT(entry->right == NULL ||
+		    entry->start < entry->right->start,
+		    ("map %p start = %jx, right->start = %jx", map,
+		    (uintmax_t)entry->start, (uintmax_t)entry->right->start));
+		max_left = vm_map_entry_max_free_left(entry, lbound);
+		max_right = vm_map_entry_max_free_right(entry, ubound);
+		KASSERT(entry->max_free == MAX(max_left, max_right),
+		    ("map %p max = %jx, max_left = %jx, max_right = %jx", map,
+		    (uintmax_t)entry->max_free,
+		    (uintmax_t)max_left, (uintmax_t)max_right));
+		prev = entry;
+	}	
+	KASSERT(prev->end <= entry->start,
+	    ("map %p prev->end = %jx, start = %jx", map,
+	    (uintmax_t)prev->end, (uintmax_t)entry->start));
+}
+#endif
+
 #include "opt_ddb.h"
 #ifdef DDB
 #include <sys/kernel.h>
@@ -4839,8 +4843,8 @@ vm_map_print(vm_map_t map)
 	    (void *)map->pmap, map->nentries, map->timestamp);
 
 	db_indent += 2;
-	for (prev = &map->header; (entry = prev->next) != &map->header;
-	    prev = entry) {
+	prev = &map->header;
+	VM_MAP_ENTRY_FOREACH(entry, map) {
 		db_iprintf("map entry %p: start=%p, end=%p, eflags=%#x, \n",
 		    (void *)entry, (void *)entry->start, (void *)entry->end,
 		    entry->eflags);
@@ -4892,6 +4896,7 @@ vm_map_print(vm_map_t map)
 				db_indent -= 2;
 			}
 		}
+		prev = entry;
 	}
 	db_indent -= 2;
 }
