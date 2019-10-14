@@ -42,6 +42,7 @@ arm/allwinner/aw_spi.c		optional	aw_spi fdt
 arm/allwinner/aw_syscon.c	optional	aw_syscon ext_resources syscon fdt
 arm/allwinner/aw_thermal.c	optional	aw_thermal nvmem fdt
 arm/allwinner/aw_usbphy.c	optional	ehci aw_usbphy fdt
+arm/allwinner/aw_usb3phy.c	optional	xhci aw_usbphy fdt
 arm/allwinner/aw_wdog.c		optional	aw_wdog fdt
 arm/allwinner/axp81x.c		optional	axp81x fdt
 arm/allwinner/if_awg.c		optional	awg ext_resources syscon aw_sid nvmem fdt
