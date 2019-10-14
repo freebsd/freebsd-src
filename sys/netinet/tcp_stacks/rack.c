@@ -8115,7 +8115,7 @@ rack_output(struct tcpcb *tp)
 	struct mbuf *m;
 	struct mbuf *mb;
 	uint32_t if_hw_tsomaxsegcount = 0;
-	uint32_t if_hw_tsomaxsegsize;
+	uint32_t if_hw_tsomaxsegsize = 0;
 	int32_t maxseg;
 	long tot_len_this_send = 0;
 	struct ip *ip = NULL;
