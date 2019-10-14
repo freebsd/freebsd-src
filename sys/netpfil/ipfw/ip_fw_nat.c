@@ -114,10 +114,12 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 	IPFW_UH_WLOCK(chain);
 	/* Check every nat entry... */
 	LIST_FOREACH(ptr, &chain->nat, _next) {
+		struct epoch_tracker et;
+
 		/* ...using nic 'ifp->if_xname' as dynamic alias address. */
 		if (strncmp(ptr->if_name, ifp->if_xname, IF_NAMESIZE) != 0)
 			continue;
-		if_addr_rlock(ifp);
+		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr == NULL)
 				continue;
@@ -129,7 +131,7 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 			LibAliasSetAddress(ptr->lib, ptr->ip);
 			IPFW_WUNLOCK(chain);
 		}
-		if_addr_runlock(ifp);
+		NET_EPOCH_EXIT(et);
 	}
 	IPFW_UH_WUNLOCK(chain);
 }
