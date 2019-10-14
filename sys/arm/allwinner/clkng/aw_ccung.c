@@ -320,6 +320,9 @@ aw_ccung_attach(device_t dev)
 		case AW_CLK_NP:
 			aw_clk_np_register(sc->clkdom, sc->clks[i].clk.np);
 			break;
+		case AW_CLK_NMM:
+			aw_clk_nmm_register(sc->clkdom, sc->clks[i].clk.nmm);
+			break;
 		}
 	}
 
