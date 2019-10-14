@@ -1862,6 +1862,24 @@ muge_hash(uint8_t addr[ETHER_ADDR_LEN])
 	return (ether_crc32_be(addr, ETHER_ADDR_LEN) >> 23) & 0x1ff;
 }
 
+static u_int
+muge_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	struct muge_softc *sc = arg;
+	uint32_t bitnum;
+
+	/* First fill up the perfect address table. */
+	if (cnt < 32 /* XXX */)
+		muge_set_addr_filter(sc, cnt + 1, LLADDR(sdl));
+	else {
+		bitnum = muge_hash(LLADDR(sdl));
+		sc->sc_mchash_table[bitnum / 32] |= (1 << (bitnum % 32));
+		sc->sc_rfe_ctl |= ETH_RFE_CTL_MCAST_HASH_;
+	}
+
+	return (1);
+}
+
 /**
  *	muge_setmulti - Setup multicast
  *	@ue: usb ethernet device context
@@ -1877,8 +1895,7 @@ muge_setmulti(struct usb_ether *ue)
 {
 	struct muge_softc *sc = uether_getsc(ue);
 	struct ifnet *ifp = uether_getifp(ue);
-	uint8_t i, *addr;
-	struct ifmultiaddr *ifma;
+	uint8_t i;
 
 	MUGE_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -1904,28 +1921,7 @@ muge_setmulti(struct usb_ether *ue)
 		muge_dbg_printf(sc, "receive all multicast enabled\n");
 		sc->sc_rfe_ctl |= ETH_RFE_CTL_MCAST_EN_;
 	} else {
-		/* Lock the mac address list before hashing each of them. */
-		if_maddr_rlock(ifp);
-		if (!CK_STAILQ_EMPTY(&ifp->if_multiaddrs)) {
-			i = 1;
-			CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs,
-			    ifma_link) {
-				/* First fill up the perfect address table. */
-				addr = LLADDR((struct sockaddr_dl *)
-				    ifma->ifma_addr);
-				if (i < 33 /* XXX */) {
-					muge_set_addr_filter(sc, i, addr);
-				} else {
-					uint32_t bitnum = muge_hash(addr);
-					sc->sc_mchash_table[bitnum / 32] |=
-					    (1 << (bitnum % 32));
-					sc->sc_rfe_ctl |=
-					    ETH_RFE_CTL_MCAST_HASH_;
-				}
-				i++;
-			}
-		}
-		if_maddr_runlock(ifp);
+		if_foreach_llmaddr(ifp, muge_hash_maddr, sc);
 		muge_multicast_write(sc);
 	}
 	lan78xx_write_reg(sc, ETH_RFE_CTL, sc->sc_rfe_ctl);
