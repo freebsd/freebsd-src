@@ -617,31 +617,30 @@ static void mlx4_en_clear_uclist(struct net_device *dev)
 	}
 }
 
+static u_int mlx4_copy_addr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	struct mlx4_en_priv *priv = arg;
+	struct mlx4_en_addr_list *tmp;
+
+	if (sdl->sdl_alen != ETHER_ADDR_LEN)	/* XXXGL: can that happen? */
+		return (0);
+	tmp = kzalloc(sizeof(struct mlx4_en_addr_list), GFP_ATOMIC);
+	if (tmp == NULL) {
+		en_err(priv, "Failed to allocate address list\n");
+		return (0);
+	}
+	memcpy(tmp->addr, LLADDR(sdl), ETH_ALEN);
+	list_add_tail(&tmp->list, &priv->uc_list);
+
+	return (1);
+}
+
 static void mlx4_en_cache_uclist(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_addr_list *tmp;
-	struct ifaddr *ifa;
 
 	mlx4_en_clear_uclist(dev);
-
-	if_addr_rlock(dev);
-	CK_STAILQ_FOREACH(ifa, &dev->if_addrhead, ifa_link) {
-		if (ifa->ifa_addr->sa_family != AF_LINK)
-			continue;
-		if (((struct sockaddr_dl *)ifa->ifa_addr)->sdl_alen !=
-				ETHER_ADDR_LEN)
-			continue;
-		tmp = kzalloc(sizeof(struct mlx4_en_addr_list), GFP_ATOMIC);
-		if (tmp == NULL) {
-			en_err(priv, "Failed to allocate address list\n");
-			break;
-		}
-		memcpy(tmp->addr,
-			LLADDR((struct sockaddr_dl *)ifa->ifa_addr), ETH_ALEN);
-		list_add_tail(&tmp->list, &priv->uc_list);
-	}
-	if_addr_runlock(dev);
+	if_foreach_lladdr(dev, mlx4_copy_addr, priv);
 }
 
 static void mlx4_en_clear_mclist(struct net_device *dev)
@@ -655,31 +654,29 @@ static void mlx4_en_clear_mclist(struct net_device *dev)
 	}
 }
 
+static u_int mlx4_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int count)
+{
+	struct mlx4_en_priv *priv = arg;
+	struct mlx4_en_addr_list *tmp;
+
+	if (sdl->sdl_alen != ETHER_ADDR_LEN)	/* XXXGL: can that happen? */
+		return (0);
+	tmp = kzalloc(sizeof(struct mlx4_en_addr_list), GFP_ATOMIC);
+	if (tmp == NULL) {
+		en_err(priv, "Failed to allocate address list\n");
+		return (0);
+	}
+	memcpy(tmp->addr, LLADDR(sdl), ETH_ALEN);
+	list_add_tail(&tmp->list, &priv->mc_list);
+	return (1);
+}
+
 static void mlx4_en_cache_mclist(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_addr_list *tmp;
-	struct ifmultiaddr *ifma;
 
 	mlx4_en_clear_mclist(dev);
-
-	if_maddr_rlock(dev);
-	CK_STAILQ_FOREACH(ifma, &dev->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		if (((struct sockaddr_dl *)ifma->ifma_addr)->sdl_alen !=
-				ETHER_ADDR_LEN)
-			continue;
-		tmp = kzalloc(sizeof(struct mlx4_en_addr_list), GFP_ATOMIC);
-		if (tmp == NULL) {
-			en_err(priv, "Failed to allocate address list\n");
-			break;
-		}
-		memcpy(tmp->addr,
-			LLADDR((struct sockaddr_dl *)ifma->ifma_addr), ETH_ALEN);
-		list_add_tail(&tmp->list, &priv->mc_list);
-	}
-	if_maddr_runlock(dev);
+	if_foreach_llmaddr(dev, mlx4_copy_maddr, priv);
 }
 
 static void update_addr_list_flags(struct mlx4_en_priv *priv,
