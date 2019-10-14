@@ -734,21 +734,87 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 	ipoib_mcast_restart(priv);
 }
 
+struct ipoib_mcast_ctx {
+	struct ipoib_dev_priv *priv;
+	struct list_head remove_list;
+};
+
+static u_int
+ipoib_process_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	struct ipoib_mcast_ctx *ctx = arg;
+	struct ipoib_dev_priv *priv = ctx->priv;
+	struct ipoib_mcast *mcast;
+	struct ib_sa_mcmember_rec rec;
+	union ib_gid mgid;
+	uint8_t *addr;
+	int addrlen;
+
+	addr = LLADDR(sdl);
+	addrlen = sdl->sdl_alen;
+	if (!ipoib_mcast_addr_is_valid(addr, addrlen,
+	    priv->dev->if_broadcastaddr))
+		return (0);
+
+	memcpy(mgid.raw, addr + 4, sizeof mgid);
+
+	mcast = __ipoib_mcast_find(priv, &mgid);
+	if (!mcast || test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags)) {
+		struct ipoib_mcast *nmcast;
+
+		/* ignore group which is directly joined by userspace */
+		if (test_bit(IPOIB_FLAG_UMCAST, &priv->flags) &&
+		    !ib_sa_get_mcmember_rec(priv->ca, priv->port, &mgid, &rec)) {
+			ipoib_dbg_mcast(priv, "ignoring multicast entry for mgid %16D\n",
+					mgid.raw, ":");
+			return (0);
+		}
+
+		/* Not found or send-only group, let's add a new entry */
+		ipoib_dbg_mcast(priv, "adding multicast entry for mgid %16D\n",
+				mgid.raw, ":");
+
+		nmcast = ipoib_mcast_alloc(priv, 0);
+		if (!nmcast) {
+			ipoib_warn(priv, "unable to allocate memory for multicast structure\n");
+			return (0);
+		}
+
+		set_bit(IPOIB_MCAST_FLAG_FOUND, &nmcast->flags);
+
+		nmcast->mcmember.mgid = mgid;
+
+		if (mcast) {
+			/* Destroy the send only entry */
+			list_move_tail(&mcast->list, &ctx->remove_list);
+
+			rb_replace_node(&mcast->rb_node,
+					&nmcast->rb_node,
+					&priv->multicast_tree);
+		} else
+			__ipoib_mcast_add(priv, nmcast);
+
+		list_add_tail(&nmcast->list, &priv->multicast_list);
+	}
+
+	if (mcast)
+		set_bit(IPOIB_MCAST_FLAG_FOUND, &mcast->flags);
+
+	return (1);
+}
+
 void ipoib_mcast_restart(struct ipoib_dev_priv *priv)
 {
+	struct ipoib_mcast_ctx ctx = { priv,
+	    { &ctx.remove_list, &ctx.remove_list }};
 	struct ifnet *dev = priv->dev;
-	struct ifmultiaddr *ifma;
 	struct ipoib_mcast *mcast, *tmcast;
-	LIST_HEAD(remove_list);
-	struct ib_sa_mcmember_rec rec;
-	int addrlen;
 
 	ipoib_dbg_mcast(priv, "restarting multicast task flags 0x%lX\n",
 	    priv->flags);
 
 	ipoib_mcast_stop_thread(priv, 0);
 
-	if_maddr_rlock(dev);
 	spin_lock(&priv->lock);
 
 	/*
@@ -762,64 +828,8 @@ void ipoib_mcast_restart(struct ipoib_dev_priv *priv)
 		clear_bit(IPOIB_MCAST_FLAG_FOUND, &mcast->flags);
 
 	/* Mark all of the entries that are found or don't exist */
-
-
-	CK_STAILQ_FOREACH(ifma, &dev->if_multiaddrs, ifma_link) {
-		union ib_gid mgid;
-		uint8_t *addr;
-
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		addr = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
-		addrlen = ((struct sockaddr_dl *)ifma->ifma_addr)->sdl_alen;
-		if (!ipoib_mcast_addr_is_valid(addr, addrlen,
-					       dev->if_broadcastaddr))
-			continue;
-
-		memcpy(mgid.raw, addr + 4, sizeof mgid);
-
-		mcast = __ipoib_mcast_find(priv, &mgid);
-		if (!mcast || test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags)) {
-			struct ipoib_mcast *nmcast;
-
-			/* ignore group which is directly joined by userspace */
-			if (test_bit(IPOIB_FLAG_UMCAST, &priv->flags) &&
-			    !ib_sa_get_mcmember_rec(priv->ca, priv->port, &mgid, &rec)) {
-				ipoib_dbg_mcast(priv, "ignoring multicast entry for mgid %16D\n",
-						mgid.raw, ":");
-				continue;
-			}
-
-			/* Not found or send-only group, let's add a new entry */
-			ipoib_dbg_mcast(priv, "adding multicast entry for mgid %16D\n",
-					mgid.raw, ":");
-
-			nmcast = ipoib_mcast_alloc(priv, 0);
-			if (!nmcast) {
-				ipoib_warn(priv, "unable to allocate memory for multicast structure\n");
-				continue;
-			}
-
-			set_bit(IPOIB_MCAST_FLAG_FOUND, &nmcast->flags);
-
-			nmcast->mcmember.mgid = mgid;
-
-			if (mcast) {
-				/* Destroy the send only entry */
-				list_move_tail(&mcast->list, &remove_list);
-
-				rb_replace_node(&mcast->rb_node,
-						&nmcast->rb_node,
-						&priv->multicast_tree);
-			} else
-				__ipoib_mcast_add(priv, nmcast);
-
-			list_add_tail(&nmcast->list, &priv->multicast_list);
-		}
-
-		if (mcast)
-			set_bit(IPOIB_MCAST_FLAG_FOUND, &mcast->flags);
-	}
+	ctx.priv = priv;
+	if_foreach_llmaddr(dev, ipoib_process_maddr, &ctx);
 
 	/* Remove all of the entries don't exist anymore */
 	list_for_each_entry_safe(mcast, tmcast, &priv->multicast_list, list) {
@@ -831,15 +841,14 @@ void ipoib_mcast_restart(struct ipoib_dev_priv *priv)
 			rb_erase(&mcast->rb_node, &priv->multicast_tree);
 
 			/* Move to the remove list */
-			list_move_tail(&mcast->list, &remove_list);
+			list_move_tail(&mcast->list, &ctx.remove_list);
 		}
 	}
 
 	spin_unlock(&priv->lock);
-	if_maddr_runlock(dev);
 
 	/* We have to cancel outside of the spinlock */
-	list_for_each_entry_safe(mcast, tmcast, &remove_list, list) {
+	list_for_each_entry_safe(mcast, tmcast, &ctx.remove_list, list) {
 		ipoib_mcast_leave(mcast->priv, mcast);
 		ipoib_mcast_free(mcast);
 	}
