@@ -615,6 +615,7 @@ void vm_page_swapqueue(vm_page_t m, uint8_t oldq, uint8_t newq);
 bool vm_page_try_remove_all(vm_page_t m);
 bool vm_page_try_remove_write(vm_page_t m);
 int vm_page_trysbusy(vm_page_t m);
+int vm_page_tryxbusy(vm_page_t m);
 void vm_page_unhold_pages(vm_page_t *ma, int count);
 void vm_page_unswappable(vm_page_t m);
 void vm_page_unwire(vm_page_t m, uint8_t queue);
@@ -666,10 +667,6 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 		    (m));						\
 } while (0)
 
-#define	vm_page_tryxbusy(m)						\
-	(atomic_cmpset_acq_int(&(m)->busy_lock, VPB_UNBUSIED,		\
-	    VPB_SINGLE_EXCLUSIVER))
-
 #define	vm_page_xbusied(m)						\
 	(((m)->busy_lock & VPB_SINGLE_EXCLUSIVER) != 0)
 
@@ -687,13 +684,13 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 } while (0)
 
 #ifdef INVARIANTS
-void vm_page_object_lock_assert(vm_page_t m);
-#define	VM_PAGE_OBJECT_LOCK_ASSERT(m)	vm_page_object_lock_assert(m)
+void vm_page_object_busy_assert(vm_page_t m);
+#define	VM_PAGE_OBJECT_BUSY_ASSERT(m)	vm_page_object_busy_assert(m)
 void vm_page_assert_pga_writeable(vm_page_t m, uint8_t bits);
 #define	VM_PAGE_ASSERT_PGA_WRITEABLE(m, bits)				\
 	vm_page_assert_pga_writeable(m, bits)
 #else
-#define	VM_PAGE_OBJECT_LOCK_ASSERT(m)	(void)0
+#define	VM_PAGE_OBJECT_BUSY_ASSERT(m)	(void)0
 #define	VM_PAGE_ASSERT_PGA_WRITEABLE(m, bits)	(void)0
 #endif
 
@@ -835,7 +832,7 @@ static __inline void
 vm_page_undirty(vm_page_t m)
 {
 
-	VM_PAGE_OBJECT_LOCK_ASSERT(m);
+	VM_PAGE_OBJECT_BUSY_ASSERT(m);
 	m->dirty = 0;
 }
 
