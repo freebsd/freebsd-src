@@ -137,7 +137,7 @@ typedef struct spa_config_lock {
 	kthread_t	*scl_writer;
 	int		scl_write_wanted;
 	kcondvar_t	scl_cv;
-	refcount_t	scl_count;
+	zfs_refcount_t	scl_count;
 } spa_config_lock_t;
 
 typedef struct spa_config_dirent {
@@ -399,11 +399,12 @@ struct spa {
 	/*
 	 * spa_refcount & spa_config_lock must be the last elements
 	 * because refcount_t changes size based on compilation options.
+	 * because zfs_refcount_t changes size based on compilation options.
 	 * In order for the MDB module to function correctly, the other
 	 * fields must remain in the same location.
 	 */
 	spa_config_lock_t spa_config_lock[SCL_LOCKS]; /* config changes */
-	refcount_t	spa_refcount;		/* number of opens */
+	zfs_refcount_t	spa_refcount;		/* number of opens */
 #ifndef illumos
 	boolean_t	spa_splitting_newspa;	/* creating new spa in split */
 #endif
