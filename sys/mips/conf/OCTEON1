@@ -20,7 +20,7 @@
 
 ident		OCTEON1
 
-makeoptions	ARCH_FLAGS="-march=octeon"
+makeoptions	ARCH_FLAGS="-march=octeon+"
 makeoptions	LDSCRIPT_NAME=ldscript.mips.octeon1
 
 # Don't build any modules yet.
