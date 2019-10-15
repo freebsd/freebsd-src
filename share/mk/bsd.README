@@ -17,6 +17,7 @@ files.  In most cases it is only interesting to include bsd.prog.mk or
 bsd.lib.mk.
 
 bsd.arch.inc.mk		- includes arch-specific Makefile.$arch
+bsd.compat.mk		- definitions for building programs against compat ABIs
 bsd.compiler.mk		- defined based on current compiler
 bsd.confs.mk		- install of configuration files
 bsd.cpu.mk		- sets CPU/arch-related variables (included from sys.mk)
@@ -378,6 +379,10 @@ LINKMODE	Mode of links created with LINKS [${BINMODE}].
 MAN		Manual pages.  If no MAN variable is defined,
 		"MAN=${PROG}.1" is assumed. See bsd.man.mk for more details.
 
+NEED_COMPAT	Build and link targeting a compatability ABI or fail if it
+		is not available.  Supported values are "32", "soft", and
+		"any" being a wildcard.
+
 PROG		The name of the program to build.  If not supplied, nothing
 		is built.
 
@@ -439,6 +444,9 @@ STRIP		The flag passed to the install program to cause the binary
 SUBDIR		A list of subdirectories that should be built as well.
 		Each of the targets will execute the same target in the
 		subdirectories.
+
+WANT_COMPAT	Similar to NEED_COMPAT, but build with the base ABI if
+		the specified ABI is not available.
 
 The include file <bsd.prog.mk> includes the file named "../Makefile.inc"
 if it exists, as well as the include file <bsd.man.mk>.
