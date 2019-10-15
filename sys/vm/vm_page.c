@@ -180,6 +180,8 @@ SYSCTL_PROC(_vm, OID_AUTO, page_blacklist, CTLTYPE_STRING | CTLFLAG_RD |
 static uma_zone_t fakepg_zone;
 
 static void vm_page_alloc_check(vm_page_t m);
+static void _vm_page_busy_sleep(vm_object_t obj, vm_page_t m,
+    const char *wmesg, bool nonshared, bool locked);
 static void vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits);
 static void vm_page_dequeue_complete(vm_page_t m);
 static void vm_page_enqueue(vm_page_t m, uint8_t queue);
@@ -899,7 +901,6 @@ int
 vm_page_busy_acquire(vm_page_t m, int allocflags)
 {
 	vm_object_t obj;
-	u_int x;
 	bool locked;
 
 	/*
@@ -920,27 +921,13 @@ vm_page_busy_acquire(vm_page_t m, int allocflags)
 		}
 		if ((allocflags & VM_ALLOC_NOWAIT) != 0)
 			return (FALSE);
-		if (obj != NULL) {
+		if (obj != NULL)
 			locked = VM_OBJECT_WOWNED(obj);
-		} else {
-			MPASS(vm_page_wired(m));
+		else
 			locked = FALSE;
-		}
-		sleepq_lock(m);
-		x = m->busy_lock;
-		if (x == VPB_UNBUSIED ||
-		    ((allocflags & VM_ALLOC_SBUSY) != 0 &&
-		    (x & VPB_BIT_SHARED) != 0) ||
-		    ((x & VPB_BIT_WAITERS) == 0 &&
-		    !atomic_cmpset_int(&m->busy_lock, x,
-		    x | VPB_BIT_WAITERS))) {
-			sleepq_release(m);
-			continue;
-		}
-		if (locked)
-			VM_OBJECT_WUNLOCK(obj);
-		sleepq_add(m, NULL, "vmpba", 0, 0);
-		sleepq_wait(m, PVM);
+		MPASS(locked || vm_page_wired(m));
+		_vm_page_busy_sleep(obj, m, "vmpba",
+		    (allocflags & VM_ALLOC_SBUSY) != 0, locked);
 		if (locked)
 			VM_OBJECT_WLOCK(obj);
 		MPASS(m->object == obj || m->object == NULL);
@@ -1056,22 +1043,42 @@ void
 vm_page_busy_sleep(vm_page_t m, const char *wmesg, bool nonshared)
 {
 	vm_object_t obj;
-	u_int x;
 
 	obj = m->object;
-	vm_page_lock_assert(m, MA_NOTOWNED);
 	VM_OBJECT_ASSERT_LOCKED(obj);
+	vm_page_lock_assert(m, MA_NOTOWNED);
 
+	_vm_page_busy_sleep(obj, m, wmesg, nonshared, true);
+}
+
+static void
+_vm_page_busy_sleep(vm_object_t obj, vm_page_t m, const char *wmesg,
+    bool nonshared, bool locked)
+{
+	u_int x;
+
+	/*
+	 * If the object is busy we must wait for that to drain to zero
+	 * before trying the page again.
+	 */
+	if (obj != NULL && vm_object_busied(obj)) {
+		if (locked)
+			VM_OBJECT_DROP(obj);
+		vm_object_busy_wait(obj, wmesg);
+		return;
+	}
 	sleepq_lock(m);
 	x = m->busy_lock;
 	if (x == VPB_UNBUSIED || (nonshared && (x & VPB_BIT_SHARED) != 0) ||
 	    ((x & VPB_BIT_WAITERS) == 0 &&
 	    !atomic_cmpset_int(&m->busy_lock, x, x | VPB_BIT_WAITERS))) {
-		VM_OBJECT_DROP(obj);
+		if (locked)
+			VM_OBJECT_DROP(obj);
 		sleepq_release(m);
 		return;
 	}
-	VM_OBJECT_DROP(obj);
+	if (locked)
+		VM_OBJECT_DROP(obj);
 	sleepq_add(m, NULL, wmesg, 0, 0);
 	sleepq_wait(m, PVM);
 }
@@ -1086,16 +1093,56 @@ vm_page_busy_sleep(vm_page_t m, const char *wmesg, bool nonshared)
 int
 vm_page_trysbusy(vm_page_t m)
 {
+	vm_object_t obj;
 	u_int x;
 
+	obj = m->object;
 	x = m->busy_lock;
 	for (;;) {
 		if ((x & VPB_BIT_SHARED) == 0)
 			return (0);
+		/*
+		 * Reduce the window for transient busies that will trigger
+		 * false negatives in vm_page_ps_test().
+		 */
+		if (obj != NULL && vm_object_busied(obj))
+			return (0);
 		if (atomic_fcmpset_acq_int(&m->busy_lock, &x,
 		    x + VPB_ONE_SHARER))
-			return (1);
+			break;
 	}
+
+	/* Refetch the object now that we're guaranteed that it is stable. */
+	obj = m->object;
+	if (obj != NULL && vm_object_busied(obj)) {
+		vm_page_sunbusy(m);
+		return (0);
+	}
+	return (1);
+}
+
+/*
+ *	vm_page_tryxbusy:
+ *
+ *	Try to exclusive busy a page.
+ *	If the operation succeeds 1 is returned otherwise 0.
+ *	The operation never sleeps.
+ */
+int
+vm_page_tryxbusy(vm_page_t m)
+{
+	vm_object_t obj;
+
+        if (atomic_cmpset_acq_int(&(m)->busy_lock, VPB_UNBUSIED,
+            VPB_SINGLE_EXCLUSIVER) == 0)
+		return (0);
+
+	obj = m->object;
+	if (obj != NULL && vm_object_busied(obj)) {
+		vm_page_xunbusy(m);
+		return (0);
+	}
+	return (1);
 }
 
 /*
@@ -1317,15 +1364,15 @@ vm_page_sleep_if_busy(vm_page_t m, const char *msg)
 	vm_page_lock_assert(m, MA_NOTOWNED);
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
 
-	if (vm_page_busied(m)) {
-		/*
-		 * The page-specific object must be cached because page
-		 * identity can change during the sleep, causing the
-		 * re-lock of a different object.
-		 * It is assumed that a reference to the object is already
-		 * held by the callers.
-		 */
-		obj = m->object;
+	/*
+	 * The page-specific object must be cached because page
+	 * identity can change during the sleep, causing the
+	 * re-lock of a different object.
+	 * It is assumed that a reference to the object is already
+	 * held by the callers.
+	 */
+	obj = m->object;
+	if (vm_page_busied(m) || (obj != NULL && obj->busy)) {
 		vm_page_busy_sleep(m, msg, false);
 		VM_OBJECT_WLOCK(obj);
 		return (TRUE);
@@ -1350,15 +1397,15 @@ vm_page_sleep_if_xbusy(vm_page_t m, const char *msg)
 	vm_page_lock_assert(m, MA_NOTOWNED);
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
 
-	if (vm_page_xbusied(m)) {
-		/*
-		 * The page-specific object must be cached because page
-		 * identity can change during the sleep, causing the
-		 * re-lock of a different object.
-		 * It is assumed that a reference to the object is already
-		 * held by the callers.
-		 */
-		obj = m->object;
+	/*
+	 * The page-specific object must be cached because page
+	 * identity can change during the sleep, causing the
+	 * re-lock of a different object.
+	 * It is assumed that a reference to the object is already
+	 * held by the callers.
+	 */
+	obj = m->object;
+	if (vm_page_xbusied(m) || (obj != NULL && obj->busy)) {
 		vm_page_busy_sleep(m, msg, true);
 		VM_OBJECT_WLOCK(obj);
 		return (TRUE);
@@ -4883,17 +4930,15 @@ vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line)
 
 #ifdef INVARIANTS
 void
-vm_page_object_lock_assert(vm_page_t m)
+vm_page_object_busy_assert(vm_page_t m)
 {
 
 	/*
 	 * Certain of the page's fields may only be modified by the
-	 * holder of the containing object's lock or the exclusive busy.
-	 * holder.  Unfortunately, the holder of the write busy is
-	 * not recorded, and thus cannot be checked here.
+	 * holder of a page or object busy.
 	 */
-	if (m->object != NULL && !vm_page_xbusied(m))
-		VM_OBJECT_ASSERT_WLOCKED(m->object);
+	if (m->object != NULL && !vm_page_busied(m))
+		VM_OBJECT_ASSERT_BUSY(m->object);
 }
 
 void
@@ -4911,7 +4956,7 @@ vm_page_assert_pga_writeable(vm_page_t m, uint8_t bits)
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("PGA_WRITEABLE on unmanaged page"));
 	if (!vm_page_xbusied(m))
-		VM_OBJECT_ASSERT_LOCKED(m->object);
+		VM_OBJECT_ASSERT_BUSY(m->object);
 }
 #endif
 

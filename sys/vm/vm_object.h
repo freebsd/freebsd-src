@@ -84,6 +84,7 @@
  *	vm_object_t		Virtual memory object.
  *
  * List of locks
+ *	(a)	atomic
  *	(c)	const until freed
  *	(o)	per-object lock 
  *	(f)	free pages queue mutex
@@ -112,6 +113,7 @@ struct vm_object {
 	u_short flags;			/* see below */
 	u_short pg_color;		/* (c) color of first page in obj */
 	volatile u_int paging_in_progress; /* Paging (in or out) so don't collapse or destroy */
+	volatile u_int busy;		/* (a) object is busy, disallow page busy. */
 	int resident_page_count;	/* number of resident pages */
 	struct vm_object *backing_object; /* object that I'm a shadow of */
 	vm_ooffset_t backing_object_offset;/* Offset in backing object */
@@ -312,6 +314,18 @@ void vm_object_pip_wakeup(vm_object_t object);
 void vm_object_pip_wakeupn(vm_object_t object, short i);
 void vm_object_pip_wait(vm_object_t object, char *waitid);
 void vm_object_pip_wait_unlocked(vm_object_t object, char *waitid);
+
+void vm_object_busy(vm_object_t object);
+void vm_object_unbusy(vm_object_t object);
+void vm_object_busy_wait(vm_object_t object, const char *wmesg);
+
+static inline bool
+vm_object_busied(vm_object_t object)
+{
+
+	return (object->busy != 0);
+}
+#define	VM_OBJECT_ASSERT_BUSY(object)	MPASS(vm_object_busied((object)))
 
 void umtx_shm_object_init(vm_object_t object);
 void umtx_shm_object_terminated(vm_object_t object);

@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/refcount.h>
 #include <sys/socket.h>
 #include <sys/resourcevar.h>
+#include <sys/refcount.h>
 #include <sys/rwlock.h>
 #include <sys/user.h>
 #include <sys/vnode.h>
@@ -198,6 +199,9 @@ vm_object_zdtor(void *mem, int size, void *arg)
 	KASSERT(REFCOUNT_COUNT(object->paging_in_progress) == 0,
 	    ("object %p paging_in_progress = %d",
 	    object, REFCOUNT_COUNT(object->paging_in_progress)));
+	KASSERT(object->busy == 0,
+	    ("object %p busy = %d",
+	    object, object->busy));
 	KASSERT(object->resident_page_count == 0,
 	    ("object %p resident_page_count = %d",
 	    object, object->resident_page_count));
@@ -223,6 +227,7 @@ vm_object_zinit(void *mem, int size, int flags)
 	object->ref_count = 0;
 	vm_radix_init(&object->rtree);
 	refcount_init(&object->paging_in_progress, 0);
+	refcount_init(&object->busy, 0);
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
 	object->flags = OBJ_DEAD;
@@ -2237,6 +2242,42 @@ vm_object_vnode(vm_object_t object)
 		vp = NULL;
 	}
 	return (vp);
+}
+
+
+/*
+ * Busy the vm object.  This prevents new pages belonging to the object from
+ * becoming busy.  Existing pages persist as busy.  Callers are responsible
+ * for checking page state before proceeding.
+ */
+void
+vm_object_busy(vm_object_t obj)
+{
+
+	VM_OBJECT_ASSERT_LOCKED(obj);
+
+	refcount_acquire(&obj->busy);
+	/* The fence is required to order loads of page busy. */
+	atomic_thread_fence_acq_rel();
+}
+
+void
+vm_object_unbusy(vm_object_t obj)
+{
+
+	VM_OBJECT_ASSERT_LOCKED(obj);
+
+	refcount_release(&obj->busy);
+}
+
+void
+vm_object_busy_wait(vm_object_t obj, const char *wmesg)
+{
+
+	VM_OBJECT_ASSERT_UNLOCKED(obj);
+
+	if (obj->busy)
+		refcount_sleep(&obj->busy, wmesg, PVM);
 }
 
 /*
