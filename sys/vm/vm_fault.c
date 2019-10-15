@@ -225,15 +225,14 @@ vm_fault_dirty(vm_map_entry_t entry, vm_page_t m, vm_prot_t prot,
 		 * FALSE, one for the map entry with MAP_ENTRY_NOSYNC
 		 * flag set, other with flag clear, race, it is
 		 * possible for the no-NOSYNC thread to see m->dirty
-		 * != 0 and not clear VPO_NOSYNC.  Take vm_page lock
-		 * around manipulation of VPO_NOSYNC and
-		 * vm_page_dirty() call, to avoid the race and keep
-		 * m->oflags consistent.
+		 * != 0 and not clear PGA_NOSYNC.  Take vm_page lock
+		 * around manipulation of PGA_NOSYNC and
+		 * vm_page_dirty() call to avoid the race.
 		 */
 		vm_page_lock(m);
 
 	/*
-	 * If this is a NOSYNC mmap we do not want to set VPO_NOSYNC
+	 * If this is a NOSYNC mmap we do not want to set PGA_NOSYNC
 	 * if the page is already dirty to prevent data written with
 	 * the expectation of being synced from not being synced.
 	 * Likewise if this entry does not request NOSYNC then make
@@ -242,10 +241,10 @@ vm_fault_dirty(vm_map_entry_t entry, vm_page_t m, vm_prot_t prot,
 	 */
 	if ((entry->eflags & MAP_ENTRY_NOSYNC) != 0) {
 		if (m->dirty == 0) {
-			m->oflags |= VPO_NOSYNC;
+			vm_page_aflag_set(m, PGA_NOSYNC);
 		}
 	} else {
-		m->oflags &= ~VPO_NOSYNC;
+		vm_page_aflag_clear(m, PGA_NOSYNC);
 	}
 
 	/*

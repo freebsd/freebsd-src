@@ -772,12 +772,14 @@ static boolean_t
 vm_object_page_remove_write(vm_page_t p, int flags, boolean_t *clearobjflags)
 {
 
+	vm_page_assert_busied(p);
+
 	/*
 	 * If we have been asked to skip nosync pages and this is a
 	 * nosync page, skip it.  Note that the object flags were not
 	 * cleared in this case so we do not have to set them.
 	 */
-	if ((flags & OBJPC_NOSYNC) != 0 && (p->oflags & VPO_NOSYNC) != 0) {
+	if ((flags & OBJPC_NOSYNC) != 0 && (p->aflags & PGA_NOSYNC) != 0) {
 		*clearobjflags = FALSE;
 		return (FALSE);
 	} else {
@@ -791,7 +793,7 @@ vm_object_page_remove_write(vm_page_t p, int flags, boolean_t *clearobjflags)
  *
  *	Clean all dirty pages in the specified range of object.  Leaves page 
  * 	on whatever queue it is currently on.   If NOSYNC is set then do not
- *	write out pages with VPO_NOSYNC set (originally comes from MAP_NOSYNC),
+ *	write out pages with PGA_NOSYNC set (originally comes from MAP_NOSYNC),
  *	leaving the object dirty.
  *
  *	When stuffing pages asynchronously, allow clustering.  XXX we need a
@@ -2270,7 +2272,6 @@ void
 vm_object_unbusy(vm_object_t obj)
 {
 
-	VM_OBJECT_ASSERT_LOCKED(obj);
 
 	refcount_release(&obj->busy);
 }
