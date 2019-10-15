@@ -331,6 +331,25 @@ acpi_pci_probe(device_t dev)
 }
 
 static void
+acpi_pci_bus_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
+{
+	device_t dev;
+
+	dev = context;
+
+	switch (notify) {
+	case ACPI_NOTIFY_BUS_CHECK:
+		mtx_lock(&Giant);
+		BUS_RESCAN(dev);
+		mtx_unlock(&Giant);
+		break;
+	default:
+		device_printf(dev, "unknown notify %#x\n", notify);
+		break;
+	}
+}
+
+static void
 acpi_pci_device_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
 	device_t child, dev;
@@ -401,6 +420,8 @@ acpi_pci_attach(device_t dev)
 	error = pci_attach(dev);
 	if (error)
 		return (error);
+	AcpiInstallNotifyHandler(acpi_get_handle(dev), ACPI_SYSTEM_NOTIFY,
+	    acpi_pci_bus_notify_handler, dev);
 	AcpiWalkNamespace(ACPI_TYPE_DEVICE, acpi_get_handle(dev), 1,
 	    acpi_pci_install_device_notify_handler, NULL, dev, NULL);
 	
@@ -429,6 +450,8 @@ acpi_pci_detach(device_t dev)
 
 	AcpiWalkNamespace(ACPI_TYPE_DEVICE, acpi_get_handle(dev), 1,
 	    acpi_pci_remove_notify_handler, NULL, dev, NULL);
+	AcpiRemoveNotifyHandler(acpi_get_handle(dev), ACPI_SYSTEM_NOTIFY,
+	    acpi_pci_bus_notify_handler);
 	return (pci_detach(dev));
 }
 
