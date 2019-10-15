@@ -1150,7 +1150,7 @@ _libraries:
 everything: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> stage 4.3: building everything"
+	@echo ">>> stage 4.4: building everything"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; _PARALLEL_SUBDIR_OK=1 ${WMAKE} all
 
@@ -1171,10 +1171,10 @@ WMAKE_TGTS+=	_includes
 .if !defined(NO_LIBS)
 WMAKE_TGTS+=	_libraries
 .endif
-WMAKE_TGTS+=	everything
 .if defined(_LIBCOMPAT) && empty(SUBDIR_OVERRIDE)
 WMAKE_TGTS+=	build${libcompat}
 .endif
+WMAKE_TGTS+=	everything
 
 # record buildworld time in seconds
 .if make(buildworld)
