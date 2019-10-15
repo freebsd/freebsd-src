@@ -457,10 +457,9 @@ shm_dotruncate_locked(struct shmfd *shmfd, off_t length, void *rl_cookie)
 		if (base != 0) {
 			idx = OFF_TO_IDX(length);
 retry:
-			m = vm_page_lookup(object, idx);
+			m = vm_page_grab(object, idx, VM_ALLOC_NOCREAT);
 			if (m != NULL) {
-				if (vm_page_sleep_if_busy(m, "shmtrc"))
-					goto retry;
+				MPASS(m->valid == VM_PAGE_BITS_ALL);
 			} else if (vm_pager_has_page(object, idx, NULL, NULL)) {
 				m = vm_page_alloc(object, idx,
 				    VM_ALLOC_NORMAL | VM_ALLOC_WAITFAIL);
@@ -478,7 +477,6 @@ retry:
 					 * as an access.
 					 */
 					vm_page_launder(m);
-					vm_page_xunbusy(m);
 				} else {
 					vm_page_free(m);
 					VM_OBJECT_WUNLOCK(object);
@@ -490,6 +488,7 @@ retry:
 				KASSERT(m->valid == VM_PAGE_BITS_ALL,
 				    ("shm_dotruncate: page %p is invalid", m));
 				vm_page_dirty(m);
+				vm_page_xunbusy(m);
 				vm_pager_page_unswapped(m);
 			}
 		}
