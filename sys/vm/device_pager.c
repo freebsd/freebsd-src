@@ -236,6 +236,7 @@ cdev_pager_free_page(vm_object_t object, vm_page_t m)
 		KASSERT((m->oflags & VPO_UNMANAGED) == 0, ("unmanaged %p", m));
 		pmap_remove_all(m);
 		(void)vm_page_remove(m);
+		vm_page_xunbusy(m);
 	} else if (object->type == OBJT_DEVICE)
 		dev_pager_free_page(object, m);
 }
