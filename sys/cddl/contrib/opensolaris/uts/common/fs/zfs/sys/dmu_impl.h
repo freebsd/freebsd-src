@@ -163,7 +163,7 @@ extern "C" {
  * 	dn_allocated_txg
  * 	dn_free_txg
  * 	dn_assigned_txg
- * 	dd_assigned_tx
+ * 	dn_dirty_txg
  * 	dn_notxholds
  * 	dn_dirtyctx
  * 	dn_dirtyctx_firstset
