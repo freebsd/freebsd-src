@@ -38,7 +38,7 @@ LIB32WMAKEFLAGS=	\
 
 .elif ${TARGET_ARCH:Mmips64*} != ""
 HAS_COMPAT=32
-.if ${WANT_COMPILER_TYPE} == gcc || \
+.if (defined(WANT_COMPILER_TYPE) && ${WANT_COMPILER_TYPE} == gcc) || \
     (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc)
 .if empty(TARGET_CPUTYPE)
 LIB32CPUFLAGS=	-march=mips3
