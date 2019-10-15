@@ -1717,24 +1717,21 @@ do {									\
 #endif
 
 				case IPV6_V6ONLY:
-					INP_WLOCK(inp);
+					/*
+					 * make setsockopt(IPV6_V6ONLY)
+					 * available only prior to bind(2).
+					 * see ipng mailing list, Jun 22 2001.
+					 */
 					if (in6p->inp_lport ||
 					    !IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_laddr)) {
-						/*
-						 * The socket is already bound.
-						 */
-						INP_WUNLOCK(inp);
 						error = EINVAL;
 						break;
 					}
-					if (optval) {
-						inp->inp_flags |= IN6P_IPV6_V6ONLY;
+					OPTSET(IN6P_IPV6_V6ONLY);
+					if (optval)
 						in6p->inp_vflag &= ~INP_IPV4;
-					} else {
-						inp->inp_flags &= ~IN6P_IPV6_V6ONLY;
+					else
 						in6p->inp_vflag |= INP_IPV4;
-					}
-					INP_WUNLOCK(inp);
 					break;
 				case IPV6_RECVTCLASS:
 					/* cannot mix with RFC2292 XXX */
