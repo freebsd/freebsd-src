@@ -12,7 +12,7 @@ cpu		CPU_XBURST
 cpu		CPU_MIPS4KC
 
 makeoptions	KERNLOADADDR=0x80020000
-makeoptions	ARCH_FLAGS="-EL -march=mips32r2"
+makeoptions	ARCH_FLAGS="-march=mips32r2"
 
 # Don't build any modules yet.
 makeoptions	MODULES_OVERRIDE=""
