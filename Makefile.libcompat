@@ -61,7 +61,7 @@ _jevents=	lib/libpmc/pmu-events
 build${libcompat}: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> stage 5.1: building lib${libcompat} shim libraries"
+	@echo ">>> stage 4.3: building lib${libcompat} shim libraries"
 	@echo "--------------------------------------------------------------"
 .if !defined(NO_CLEAN)
 	rm -rf ${LIBCOMPATTMP}
