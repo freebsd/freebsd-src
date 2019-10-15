@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
+OUTPUT_ARCH(mips)
 ENTRY(_start)
-OUTPUT_FORMAT(elf32-tradbigmips)
 __DYNAMIC  =  0;
 
 SECTIONS
