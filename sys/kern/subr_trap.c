@@ -166,6 +166,10 @@ userret(struct thread *td, struct trapframe *frame)
 	WITNESS_WARN(WARN_PANIC, NULL, "userret: returning");
 	KASSERT(td->td_critnest == 0,
 	    ("userret: Returning in a critical section"));
+#ifdef EPOCH_TRACE
+	if (__predict_false(curthread->td_epochnest > 0))
+		epoch_trace_list(curthread);
+#endif
 	KASSERT(td->td_epochnest == 0,
 	    ("userret: Returning in an epoch section"));
 	KASSERT(td->td_locks == 0,

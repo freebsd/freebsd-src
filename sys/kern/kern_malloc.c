@@ -520,6 +520,10 @@ malloc_dbg(caddr_t *vap, size_t *sizep, struct malloc_type *mtp,
 	if (flags & M_WAITOK) {
 		KASSERT(curthread->td_intr_nesting_level == 0,
 		   ("malloc(M_WAITOK) in interrupt context"));
+#ifdef EPOCH_TRACE
+		if (__predict_false(curthread->td_epochnest > 0))
+			epoch_trace_list(curthread);
+#endif
 		KASSERT(curthread->td_epochnest == 0,
 			("malloc(M_WAITOK) in epoch context"));		
 	}
