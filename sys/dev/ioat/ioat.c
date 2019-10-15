@@ -1012,16 +1012,13 @@ ioat_op_generic(struct ioat_softc *ioat, uint8_t op,
 
 	KASSERT((flags & ~_DMA_GENERIC_FLAGS) == 0,
 	    ("Unrecognized flag(s): %#x", flags & ~_DMA_GENERIC_FLAGS));
+	KASSERT(size <= ioat->max_xfer_size, ("%s: size too big (%u > %u)",
+	    __func__, (unsigned)size, ioat->max_xfer_size));
+
 	if ((flags & DMA_NO_WAIT) != 0)
 		mflags = M_NOWAIT;
 	else
 		mflags = M_WAITOK;
-
-	if (size > ioat->max_xfer_size) {
-		ioat_log_message(0, "%s: max_xfer_size = %d, requested = %u\n",
-		    __func__, ioat->max_xfer_size, (unsigned)size);
-		return (NULL);
-	}
 
 	if (ioat_reserve_space(ioat, 1, mflags) != 0)
 		return (NULL);
@@ -1080,11 +1077,8 @@ ioat_copy(bus_dmaengine_t dmaengine, bus_addr_t dst,
 
 	ioat = to_ioat_softc(dmaengine);
 
-	if (((src | dst) & (0xffffull << 48)) != 0) {
-		ioat_log_message(0, "%s: High 16 bits of src/dst invalid\n",
-		    __func__);
-		return (NULL);
-	}
+	KASSERT(((src | dst) & (0xffffull << 48)) == 0,
+	    ("%s: high 16 bits of src/dst are not zero", __func__));
 
 	desc = ioat_op_generic(ioat, IOAT_OP_COPY, len, src, dst, callback_fn,
 	    callback_arg, flags);
@@ -1113,16 +1107,10 @@ ioat_copy_8k_aligned(bus_dmaengine_t dmaengine, bus_addr_t dst1,
 	ioat = to_ioat_softc(dmaengine);
 	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
-	if (((src1 | src2 | dst1 | dst2) & (0xffffull << 48)) != 0) {
-		ioat_log_message(0, "%s: High 16 bits of src/dst invalid\n",
-		    __func__);
-		return (NULL);
-	}
-	if (((src1 | src2 | dst1 | dst2) & PAGE_MASK) != 0) {
-		ioat_log_message(0, "%s: Addresses must be page-aligned\n",
-		    __func__);
-		return (NULL);
-	}
+	KASSERT(((src1 | src2 | dst1 | dst2) & (0xffffull << 48)) == 0,
+	    ("%s: high 16 bits of src/dst are not zero", __func__));
+	KASSERT(((src1 | src2 | dst1 | dst2) & PAGE_MASK) == 0,
+	    ("%s: addresses are not page-aligned", __func__));
 
 	desc = ioat_op_generic(ioat, IOAT_OP_COPY, 2 * PAGE_SIZE, src1, dst1,
 	    callback_fn, callback_arg, flags);
@@ -1160,26 +1148,15 @@ ioat_copy_crc(bus_dmaengine_t dmaengine, bus_addr_t dst, bus_addr_t src,
 	ioat = to_ioat_softc(dmaengine);
 	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
-	if ((ioat->capabilities & IOAT_DMACAP_MOVECRC) == 0) {
-		ioat_log_message(0, "%s: Device lacks MOVECRC capability\n",
-		    __func__);
-		return (NULL);
-	}
-	if (((src | dst) & (0xffffffull << 40)) != 0) {
-		ioat_log_message(0, "%s: High 24 bits of src/dst invalid\n",
-		    __func__);
-		return (NULL);
-	}
+	KASSERT((ioat->capabilities & IOAT_DMACAP_MOVECRC) != 0,
+	    ("%s: device lacks MOVECRC capability", __func__));
+	KASSERT(((src | dst) & (0xffffffull << 40)) == 0,
+	    ("%s: high 24 bits of src/dst are not zero", __func__));
 	teststore = (flags & _DMA_CRC_TESTSTORE);
-	if (teststore == _DMA_CRC_TESTSTORE) {
-		ioat_log_message(0, "%s: TEST and STORE invalid\n", __func__);
-		return (NULL);
-	}
-	if (teststore == 0 && (flags & DMA_CRC_INLINE) != 0) {
-		ioat_log_message(0, "%s: INLINE invalid without TEST or STORE\n",
-		    __func__);
-		return (NULL);
-	}
+	KASSERT(teststore != _DMA_CRC_TESTSTORE,
+	    ("%s: TEST and STORE invalid", __func__));
+	KASSERT(teststore != 0 || (flags & DMA_CRC_INLINE) == 0,
+	    ("%s: INLINE invalid without TEST or STORE", __func__));
 
 	switch (teststore) {
 	case DMA_CRC_STORE:
@@ -1194,12 +1171,9 @@ ioat_copy_crc(bus_dmaengine_t dmaengine, bus_addr_t dst, bus_addr_t src,
 		break;
 	}
 
-	if ((flags & DMA_CRC_INLINE) == 0 &&
-	    (crcptr & (0xffffffull << 40)) != 0) {
-		ioat_log_message(0,
-		    "%s: High 24 bits of crcptr invalid\n", __func__);
-		return (NULL);
-	}
+	KASSERT((flags & DMA_CRC_INLINE) != 0 ||
+	    (crcptr & (0xffffffull << 40)) == 0,
+	    ("%s: high 24 bits of crcptr are not zero", __func__));
 
 	desc = ioat_op_generic(ioat, op, len, src, dst, callback_fn,
 	    callback_arg, flags & ~_DMA_CRC_FLAGS);
@@ -1239,26 +1213,15 @@ ioat_crc(bus_dmaengine_t dmaengine, bus_addr_t src, bus_size_t len,
 	ioat = to_ioat_softc(dmaengine);
 	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
-	if ((ioat->capabilities & IOAT_DMACAP_CRC) == 0) {
-		ioat_log_message(0, "%s: Device lacks CRC capability\n",
-		    __func__);
-		return (NULL);
-	}
-	if ((src & (0xffffffull << 40)) != 0) {
-		ioat_log_message(0, "%s: High 24 bits of src invalid\n",
-		    __func__);
-		return (NULL);
-	}
+	KASSERT((ioat->capabilities & IOAT_DMACAP_CRC) != 0,
+	    ("%s: device lacks CRC capability", __func__));
+	KASSERT((src & (0xffffffull << 40)) == 0,
+	    ("%s: high 24 bits of src are not zero", __func__));
 	teststore = (flags & _DMA_CRC_TESTSTORE);
-	if (teststore == _DMA_CRC_TESTSTORE) {
-		ioat_log_message(0, "%s: TEST and STORE invalid\n", __func__);
-		return (NULL);
-	}
-	if (teststore == 0 && (flags & DMA_CRC_INLINE) != 0) {
-		ioat_log_message(0, "%s: INLINE invalid without TEST or STORE\n",
-		    __func__);
-		return (NULL);
-	}
+	KASSERT(teststore != _DMA_CRC_TESTSTORE,
+	    ("%s: TEST and STORE invalid", __func__));
+	KASSERT(teststore != 0 || (flags & DMA_CRC_INLINE) == 0,
+	    ("%s: INLINE invalid without TEST or STORE", __func__));
 
 	switch (teststore) {
 	case DMA_CRC_STORE:
@@ -1273,12 +1236,9 @@ ioat_crc(bus_dmaengine_t dmaengine, bus_addr_t src, bus_size_t len,
 		break;
 	}
 
-	if ((flags & DMA_CRC_INLINE) == 0 &&
-	    (crcptr & (0xffffffull << 40)) != 0) {
-		ioat_log_message(0,
-		    "%s: High 24 bits of crcptr invalid\n", __func__);
-		return (NULL);
-	}
+	KASSERT((flags & DMA_CRC_INLINE) != 0 ||
+	    (crcptr & (0xffffffull << 40)) == 0,
+	    ("%s: high 24 bits of crcptr are not zero", __func__));
 
 	desc = ioat_op_generic(ioat, op, len, src, 0, callback_fn,
 	    callback_arg, flags & ~_DMA_CRC_FLAGS);
@@ -1316,17 +1276,10 @@ ioat_blockfill(bus_dmaengine_t dmaengine, bus_addr_t dst, uint64_t fillpattern,
 	ioat = to_ioat_softc(dmaengine);
 	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
-	if ((ioat->capabilities & IOAT_DMACAP_BFILL) == 0) {
-		ioat_log_message(0, "%s: Device lacks BFILL capability\n",
-		    __func__);
-		return (NULL);
-	}
-
-	if ((dst & (0xffffull << 48)) != 0) {
-		ioat_log_message(0, "%s: High 16 bits of dst invalid\n",
-		    __func__);
-		return (NULL);
-	}
+	KASSERT((ioat->capabilities & IOAT_DMACAP_BFILL) != 0,
+	    ("%s: device lacks BFILL capability", __func__));
+	KASSERT((dst & (0xffffull << 48)) == 0,
+	    ("%s: high 16 bits of crcptr are not zero", __func__));
 
 	desc = ioat_op_generic(ioat, IOAT_OP_FILL, len, fillpattern, dst,
 	    callback_fn, callback_arg, flags);
@@ -1483,7 +1436,7 @@ ioat_poll_timer_callback(void *arg)
 	struct ioat_softc *ioat;
 
 	ioat = arg;
-	ioat_log_message(3, "%s\n", __func__);
+	CTR1(KTR_IOAT, "%s", __func__);
 
 	ioat_process_events(ioat, FALSE);
 
