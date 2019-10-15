@@ -334,7 +334,7 @@ vm_pageout_cluster(vm_page_t m)
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	pindex = m->pindex;
 
-	vm_page_assert_unbusied(m);
+	vm_page_assert_xbusied(m);
 
 	mc[vm_pageout_page_count] = pb = ps = m;
 	pageout_count = 1;
@@ -360,19 +360,26 @@ more:
 			ib = 0;
 			break;
 		}
-		if ((p = vm_page_prev(pb)) == NULL || vm_page_busied(p) ||
-		    vm_page_wired(p)) {
+		if ((p = vm_page_prev(pb)) == NULL ||
+		    vm_page_tryxbusy(p) == 0) {
 			ib = 0;
+			break;
+		}
+		if (vm_page_wired(p)) {
+			ib = 0;
+			vm_page_xunbusy(p);
 			break;
 		}
 		vm_page_test_dirty(p);
 		if (p->dirty == 0) {
 			ib = 0;
+			vm_page_xunbusy(p);
 			break;
 		}
 		vm_page_lock(p);
 		if (!vm_page_in_laundry(p) || !vm_page_try_remove_write(p)) {
 			vm_page_unlock(p);
+			vm_page_xunbusy(p);
 			ib = 0;
 			break;
 		}
@@ -390,15 +397,22 @@ more:
 	}
 	while (pageout_count < vm_pageout_page_count && 
 	    pindex + is < object->size) {
-		if ((p = vm_page_next(ps)) == NULL || vm_page_busied(p) ||
-		    vm_page_wired(p))
+		if ((p = vm_page_next(ps)) == NULL ||
+		    vm_page_tryxbusy(p) == 0)
 			break;
+		if (vm_page_wired(p)) {
+			vm_page_xunbusy(p);
+			break;
+		}
 		vm_page_test_dirty(p);
-		if (p->dirty == 0)
+		if (p->dirty == 0) {
+			vm_page_xunbusy(p);
 			break;
+		}
 		vm_page_lock(p);
 		if (!vm_page_in_laundry(p) || !vm_page_try_remove_write(p)) {
 			vm_page_unlock(p);
+			vm_page_xunbusy(p);
 			break;
 		}
 		vm_page_unlock(p);
@@ -445,8 +459,8 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
 	/*
-	 * Initiate I/O.  Mark the pages busy and verify that they're valid
-	 * and read-only.
+	 * Initiate I/O.  Mark the pages shared busy and verify that they're
+	 * valid and read-only.
 	 *
 	 * We do not have to fixup the clean/dirty bits here... we can
 	 * allow the pager to do it after the I/O completes.
@@ -460,7 +474,7 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 			mc[i], i, count));
 		KASSERT((mc[i]->aflags & PGA_WRITEABLE) == 0,
 		    ("vm_pageout_flush: writeable page %p", mc[i]));
-		vm_page_sbusy(mc[i]);
+		vm_page_busy_downgrade(mc[i]);
 	}
 	vm_object_pip_add(object, count);
 
@@ -598,6 +612,7 @@ vm_pageout_clean(vm_page_t m, int *numpagedout)
 	 */
 	if (object->type == OBJT_VNODE) {
 		vm_page_unlock(m);
+		vm_page_xunbusy(m);
 		vp = object->handle;
 		if (vp->v_type == VREG &&
 		    vn_start_write(vp, &mp, V_NOWAIT) != 0) {
@@ -648,7 +663,7 @@ vm_pageout_clean(vm_page_t m, int *numpagedout)
 		 * The page may have been busied while the object and page
 		 * locks were released.
 		 */
-		if (vm_page_busied(m)) {
+		if (vm_page_tryxbusy(m) == 0) {
 			vm_page_unlock(m);
 			error = EBUSY;
 			goto unlock_all;
@@ -659,6 +674,7 @@ vm_pageout_clean(vm_page_t m, int *numpagedout)
 	 * Remove all writeable mappings, failing if the page is wired.
 	 */
 	if (!vm_page_try_remove_write(m)) {
+		vm_page_xunbusy(m);
 		vm_page_unlock(m);
 		error = EBUSY;
 		goto unlock_all;
@@ -792,7 +808,7 @@ recheck:
 		KASSERT(m->object == object, ("page %p does not belong to %p",
 		    m, object));
 
-		if (vm_page_busied(m))
+		if (vm_page_tryxbusy(m) == 0)
 			continue;
 
 		/*
@@ -804,6 +820,7 @@ recheck:
 		 * wire count is guaranteed not to increase.
 		 */
 		if (__predict_false(vm_page_wired(m))) {
+			vm_page_xunbusy(m);
 			vm_page_dequeue_deferred(m);
 			continue;
 		}
@@ -837,6 +854,7 @@ recheck:
 		}
 		if (act_delta != 0) {
 			if (object->ref_count != 0) {
+				vm_page_xunbusy(m);
 				VM_CNT_INC(v_reactivated);
 				vm_page_activate(m);
 
@@ -861,6 +879,7 @@ recheck:
 					launder--;
 				continue;
 			} else if ((object->flags & OBJ_DEAD) == 0) {
+				vm_page_xunbusy(m);
 				vm_page_requeue(m);
 				continue;
 			}
@@ -876,6 +895,7 @@ recheck:
 		if (object->ref_count != 0) {
 			vm_page_test_dirty(m);
 			if (m->dirty == 0 && !vm_page_try_remove_all(m)) {
+				vm_page_xunbusy(m);
 				vm_page_dequeue_deferred(m);
 				continue;
 			}
@@ -900,6 +920,7 @@ free_page:
 			else
 				pageout_ok = true;
 			if (!pageout_ok) {
+				vm_page_xunbusy(m);
 				vm_page_requeue(m);
 				continue;
 			}
@@ -927,7 +948,8 @@ free_page:
 			}
 			mtx = NULL;
 			object = NULL;
-		}
+		} else
+			vm_page_xunbusy(m);
 	}
 	if (mtx != NULL) {
 		mtx_unlock(mtx);
@@ -1507,7 +1529,7 @@ recheck:
 		KASSERT(m->object == object, ("page %p does not belong to %p",
 		    m, object));
 
-		if (vm_page_busied(m)) {
+		if (vm_page_tryxbusy(m) == 0) {
 			/*
 			 * Don't mess with busy pages.  Leave them at
 			 * the front of the queue.  Most likely, they
@@ -1529,6 +1551,7 @@ recheck:
 		 * wire count is guaranteed not to increase.
 		 */
 		if (__predict_false(vm_page_wired(m))) {
+			vm_page_xunbusy(m);
 			vm_page_dequeue_deferred(m);
 			continue;
 		}
@@ -1562,6 +1585,7 @@ recheck:
 		}
 		if (act_delta != 0) {
 			if (object->ref_count != 0) {
+				vm_page_xunbusy(m);
 				VM_CNT_INC(v_reactivated);
 				vm_page_activate(m);
 
@@ -1575,6 +1599,7 @@ recheck:
 				m->act_count += act_delta + ACT_ADVANCE;
 				continue;
 			} else if ((object->flags & OBJ_DEAD) == 0) {
+				vm_page_xunbusy(m);
 				vm_page_aflag_set(m, PGA_REQUEUE);
 				goto reinsert;
 			}
@@ -1590,6 +1615,7 @@ recheck:
 		if (object->ref_count != 0) {
 			vm_page_test_dirty(m);
 			if (m->dirty == 0 && !vm_page_try_remove_all(m)) {
+				vm_page_xunbusy(m);
 				vm_page_dequeue_deferred(m);
 				continue;
 			}
@@ -1615,7 +1641,10 @@ free_page:
 			m->queue = PQ_NONE;
 			vm_page_free(m);
 			page_shortage--;
-		} else if ((object->flags & OBJ_DEAD) == 0)
+			continue;
+		}
+		vm_page_xunbusy(m);
+		if ((object->flags & OBJ_DEAD) == 0)
 			vm_page_launder(m);
 		continue;
 reinsert:

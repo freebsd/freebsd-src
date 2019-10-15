@@ -1406,10 +1406,8 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize, boolean_t ignerr)
 		if (base != 0) {
 			idx = OFF_TO_IDX(newsize);
 retry:
-			m = vm_page_lookup(uobj, idx);
+			m = vm_page_grab(uobj, idx, VM_ALLOC_NOCREAT);
 			if (m != NULL) {
-				if (vm_page_sleep_if_busy(m, "tmfssz"))
-					goto retry;
 				MPASS(m->valid == VM_PAGE_BITS_ALL);
 			} else if (vm_pager_has_page(uobj, idx, NULL, NULL)) {
 				m = vm_page_alloc(uobj, idx, VM_ALLOC_NORMAL |
@@ -1430,7 +1428,6 @@ retry:
 					vm_page_lock(m);
 					vm_page_launder(m);
 					vm_page_unlock(m);
-					vm_page_xunbusy(m);
 				} else {
 					vm_page_free(m);
 					if (ignerr)
@@ -1444,6 +1441,7 @@ retry:
 			if (m != NULL) {
 				pmap_zero_page_area(m, base, PAGE_SIZE - base);
 				vm_page_dirty(m);
+				vm_page_xunbusy(m);
 				vm_pager_page_unswapped(m);
 			}
 		}

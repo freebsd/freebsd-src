@@ -787,7 +787,7 @@ RetryFault_oom:
 			 * around with a shared busied page except, perhaps,
 			 * to pmap it.
 			 */
-			if (vm_page_busied(fs.m)) {
+			if (vm_page_tryxbusy(fs.m) == 0) {
 				/*
 				 * Reference the page before unlocking and
 				 * sleeping so that the page daemon is less
@@ -819,12 +819,11 @@ RetryFault_oom:
 			}
 
 			/*
-			 * Mark page busy for other processes, and the 
+			 * The page is marked busy for other processes and the
 			 * pagedaemon.  If it still isn't completely valid
 			 * (readable), jump to readrest, else break-out ( we
 			 * found the page ).
 			 */
-			vm_page_xbusy(fs.m);
 			if (fs.m->valid != VM_PAGE_BITS_ALL)
 				goto readrest;
 			break; /* break to PAGE HAS BEEN FOUND */
@@ -1826,16 +1825,17 @@ again:
 			dst_m->dirty = dst_m->valid = src_m->valid;
 		} else {
 			dst_m = src_m;
-			if (vm_page_sleep_if_busy(dst_m, "fltupg"))
+			if (vm_page_busy_acquire(dst_m, VM_ALLOC_WAITFAIL) == 0)
 				goto again;
-			if (dst_m->pindex >= dst_object->size)
+			if (dst_m->pindex >= dst_object->size) {
 				/*
 				 * We are upgrading.  Index can occur
 				 * out of bounds if the object type is
 				 * vnode and the file was truncated.
 				 */
+				vm_page_xunbusy(dst_m);
 				break;
-			vm_page_xbusy(dst_m);
+			}
 		}
 		VM_OBJECT_WUNLOCK(dst_object);
 

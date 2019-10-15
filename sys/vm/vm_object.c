@@ -838,7 +838,7 @@ rescan:
 		np = TAILQ_NEXT(p, listq);
 		if (p->valid == 0)
 			continue;
-		if (vm_page_sleep_if_busy(p, "vpcwai")) {
+		if (vm_page_busy_acquire(p, VM_ALLOC_WAITFAIL) == 0) {
 			if (object->generation != curgeneration) {
 				if ((flags & OBJPC_SYNC) != 0)
 					goto rescan;
@@ -848,8 +848,10 @@ rescan:
 			np = vm_page_find_least(object, pi);
 			continue;
 		}
-		if (!vm_object_page_remove_write(p, flags, &clearobjflags))
+		if (!vm_object_page_remove_write(p, flags, &clearobjflags)) {
+			vm_page_xunbusy(p);
 			continue;
+		}
 
 		n = vm_object_page_collect_flush(object, p, pagerflags,
 		    flags, &clearobjflags, &eio);
@@ -899,6 +901,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int pagerflags,
 	int count, i, mreq, runlen;
 
 	vm_page_lock_assert(p, MA_NOTOWNED);
+	vm_page_assert_xbusied(p);
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
 	count = 1;
@@ -906,18 +909,22 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int pagerflags,
 
 	for (tp = p; count < vm_pageout_page_count; count++) {
 		tp = vm_page_next(tp);
-		if (tp == NULL || vm_page_busied(tp))
+		if (tp == NULL || vm_page_tryxbusy(tp) == 0)
 			break;
-		if (!vm_object_page_remove_write(tp, flags, clearobjflags))
+		if (!vm_object_page_remove_write(tp, flags, clearobjflags)) {
+			vm_page_xunbusy(tp);
 			break;
+		}
 	}
 
 	for (p_first = p; count < vm_pageout_page_count; count++) {
 		tp = vm_page_prev(p_first);
-		if (tp == NULL || vm_page_busied(tp))
+		if (tp == NULL || vm_page_tryxbusy(tp) == 0)
 			break;
-		if (!vm_object_page_remove_write(tp, flags, clearobjflags))
+		if (!vm_object_page_remove_write(tp, flags, clearobjflags)) {
+			vm_page_xunbusy(tp);
 			break;
+		}
 		p_first = tp;
 		mreq++;
 	}
@@ -1158,7 +1165,7 @@ next_page:
 		    ("vm_object_madvise: page %p is fictitious", tm));
 		KASSERT((tm->oflags & VPO_UNMANAGED) == 0,
 		    ("vm_object_madvise: page %p is not managed", tm));
-		if (vm_page_busied(tm)) {
+		if (vm_page_tryxbusy(tm) == 0) {
 			if (object != tobject)
 				VM_OBJECT_WUNLOCK(object);
 			if (advice == MADV_WILLNEED) {
@@ -1175,6 +1182,7 @@ next_page:
 		vm_page_lock(tm);
 		vm_page_advise(tm, advice);
 		vm_page_unlock(tm);
+		vm_page_xunbusy(tm);
 		vm_object_madvise_freespace(tobject, advice, tm->pindex, 1);
 next_pindex:
 		if (tobject != object)
@@ -1341,7 +1349,7 @@ retry:
 		 * We do not have to VM_PROT_NONE the page as mappings should
 		 * not be changed by this operation.
 		 */
-		if (vm_page_busied(m)) {
+		if (vm_page_tryxbusy(m) == 0) {
 			VM_OBJECT_WUNLOCK(new_object);
 			vm_page_sleep_if_busy(m, "spltwt");
 			VM_OBJECT_WLOCK(new_object);
@@ -1350,6 +1358,7 @@ retry:
 
 		/* vm_page_rename() will dirty the page. */
 		if (vm_page_rename(m, new_object, idx)) {
+			vm_page_xunbusy(m);
 			VM_OBJECT_WUNLOCK(new_object);
 			VM_OBJECT_WUNLOCK(orig_object);
 			vm_radix_wait();
@@ -1357,6 +1366,8 @@ retry:
 			VM_OBJECT_WLOCK(new_object);
 			goto retry;
 		}
+		/* Rename released the xbusy lock. */
+
 #if VM_NRESERVLEVEL > 0
 		/*
 		 * If some of the reservation's allocated pages remain with
@@ -1405,7 +1416,6 @@ vm_object_collapse_scan_wait(vm_object_t object, vm_page_t p, vm_page_t next,
 	backing_object = object->backing_object;
 	VM_OBJECT_ASSERT_WLOCKED(backing_object);
 
-	KASSERT(p == NULL || vm_page_busied(p), ("unbusy page %p", p));
 	KASSERT(p == NULL || p->object == object || p->object == backing_object,
 	    ("invalid ownership %p %p %p", p, object, backing_object));
 	if ((op & OBSC_COLLAPSE_NOWAIT) != 0)
@@ -1510,7 +1520,7 @@ vm_object_collapse_scan(vm_object_t object, int op)
 		/*
 		 * Check for busy page
 		 */
-		if (vm_page_busied(p)) {
+		if (vm_page_tryxbusy(p) == 0) {
 			next = vm_object_collapse_scan_wait(object, p, next, op);
 			continue;
 		}
@@ -1532,7 +1542,8 @@ vm_object_collapse_scan(vm_object_t object, int op)
 		}
 
 		pp = vm_page_lookup(object, new_pindex);
-		if (pp != NULL && vm_page_busied(pp)) {
+		if (pp != NULL && vm_page_tryxbusy(pp) == 0) {
+			vm_page_xunbusy(p);
 			/*
 			 * The page in the parent is busy and possibly not
 			 * (yet) valid.  Until its state is finalized by the
@@ -1568,6 +1579,8 @@ vm_object_collapse_scan(vm_object_t object, int op)
 			    ("freeing mapped page %p", p));
 			if (vm_page_remove(p))
 				vm_page_free(p);
+			if (pp != NULL)
+				vm_page_xunbusy(pp);
 			continue;
 		}
 
@@ -1579,10 +1592,14 @@ vm_object_collapse_scan(vm_object_t object, int op)
 		 * through the rename.  vm_page_rename() will dirty the page.
 		 */
 		if (vm_page_rename(p, object, new_pindex)) {
+			vm_page_xunbusy(p);
+			if (pp != NULL)
+				vm_page_xunbusy(pp);
 			next = vm_object_collapse_scan_wait(object, NULL, next,
 			    op);
 			continue;
 		}
+		/* Rename released the xbusy lock. */
 
 		/* Use the old pindex to free the right page. */
 		if (backing_object->type == OBJT_SWAP)
@@ -1859,7 +1876,7 @@ again:
 		 * however, be invalidated if the option OBJPR_CLEANONLY is
 		 * not specified.
 		 */
-		if (vm_page_busied(p)) {
+		if (vm_page_tryxbusy(p) == 0) {
 			vm_page_sleep_if_busy(p, "vmopar");
 			goto again;
 		}
@@ -1872,6 +1889,7 @@ wired:
 				p->valid = 0;
 				vm_page_undirty(p);
 			}
+			vm_page_xunbusy(p);
 			continue;
 		}
 		KASSERT((p->flags & PG_FICTITIOUS) == 0,
@@ -1881,8 +1899,10 @@ wired:
 			    object->ref_count != 0 &&
 			    !vm_page_try_remove_write(p))
 				goto wired;
-			if (p->dirty != 0)
+			if (p->dirty != 0) {
+				vm_page_xunbusy(p);
 				continue;
+			}
 		}
 		if ((options & OBJPR_NOTMAPPED) == 0 &&
 		    object->ref_count != 0 && !vm_page_try_remove_all(p))
@@ -2168,7 +2188,7 @@ again:
 			tm = m;
 			m = TAILQ_NEXT(m, listq);
 		}
-		if (vm_page_xbusied(tm)) {
+		if (vm_page_trysbusy(tm) == 0) {
 			for (tobject = object; locked_depth >= 1;
 			    locked_depth--) {
 				t1object = tobject->backing_object;
@@ -2180,6 +2200,7 @@ again:
 			goto again;
 		}
 		vm_page_unwire(tm, queue);
+		vm_page_sunbusy(tm);
 next_page:
 		pindex++;
 	}
