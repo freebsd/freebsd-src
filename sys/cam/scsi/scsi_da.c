@@ -2679,6 +2679,7 @@ daregister(struct cam_periph *periph, void *arg)
 	struct ccb_getdev *cgd;
 	char tmpstr[80];
 	caddr_t match;
+	int quirks;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (cgd == NULL) {
@@ -2734,6 +2735,13 @@ daregister(struct cam_periph *periph, void *arg)
 	xpt_path_inq(&cpi, periph->path);
 	if (cpi.ccb_h.status == CAM_REQ_CMP && (cpi.hba_misc & PIM_NO_6_BYTE))
 		softc->quirks |= DA_Q_NO_6_BYTE;
+
+	/* Override quirks if tunable is set */
+	snprintf(tmpstr, sizeof(tmpstr), "kern.cam.da.%d.quirks",
+		 periph->unit_number);
+	quirks = softc->quirks;
+	TUNABLE_INT_FETCH(tmpstr, &quirks);
+	softc->quirks = quirks;
 
 	if (SID_TYPE(&cgd->inq_data) == T_ZBC_HM)
 		softc->zone_mode = DA_ZONE_HOST_MANAGED;
