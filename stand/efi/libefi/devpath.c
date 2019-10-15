@@ -42,8 +42,8 @@ efi_lookup_image_devpath(EFI_HANDLE handle)
 	EFI_DEVICE_PATH *devpath;
 	EFI_STATUS status;
 
-	status = BS->HandleProtocol(handle, &ImageDevicePathGUID,
-	    (VOID **)&devpath);
+	status = OpenProtocolByHandle(handle, &ImageDevicePathGUID,
+	    (void **)&devpath);
 	if (EFI_ERROR(status))
 		devpath = NULL;
 	return (devpath);
@@ -55,7 +55,8 @@ efi_lookup_devpath(EFI_HANDLE handle)
 	EFI_DEVICE_PATH *devpath;
 	EFI_STATUS status;
 
-	status = BS->HandleProtocol(handle, &DevicePathGUID, (VOID **)&devpath);
+	status = OpenProtocolByHandle(handle, &DevicePathGUID,
+	    (void **)&devpath);
 	if (EFI_ERROR(status))
 		devpath = NULL;
 	return (devpath);
@@ -228,4 +229,26 @@ efi_devpath_length(EFI_DEVICE_PATH  *path)
 	while (!IsDevicePathEnd(path))
 		path = NextDevicePathNode(path);
 	return ((UINTN)path - (UINTN)start) + DevicePathNodeLength(path);
+}
+
+EFI_HANDLE
+efi_devpath_to_handle(EFI_DEVICE_PATH *path, EFI_HANDLE *handles, unsigned nhandles)
+{
+	unsigned i;
+	EFI_DEVICE_PATH *media, *devpath;
+	EFI_HANDLE h;
+
+	media = efi_devpath_to_media_path(path);
+	if (media == NULL)
+		return (NULL);
+	for (i = 0; i < nhandles; i++) {
+		h = handles[i];
+		devpath = efi_lookup_devpath(h);
+		if (devpath == NULL)
+			continue;
+		if (!efi_devpath_match_node(media, efi_devpath_to_media_path(devpath)))
+			continue;
+		return (h);
+	}
+	return (NULL);
 }

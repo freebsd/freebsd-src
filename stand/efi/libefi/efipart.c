@@ -64,6 +64,9 @@ static int efipart_printhd(int);
 #define	PNP0700	0x700
 #define	PNP0701	0x701
 
+/* Bounce buffer max size */
+#define	BIO_BUFFER_SIZE	0x4000
+
 struct devsw efipart_fddev = {
 	.dv_name = "fd",
 	.dv_type = DEVT_FD,
@@ -100,12 +103,18 @@ struct devsw efipart_hddev = {
 	.dv_cleanup = NULL
 };
 
-static pdinfo_list_t fdinfo;
-static pdinfo_list_t cdinfo;
-static pdinfo_list_t hdinfo;
+static pdinfo_list_t fdinfo = STAILQ_HEAD_INITIALIZER(fdinfo);
+static pdinfo_list_t cdinfo = STAILQ_HEAD_INITIALIZER(cdinfo);
+static pdinfo_list_t hdinfo = STAILQ_HEAD_INITIALIZER(hdinfo);
 
-static EFI_HANDLE *efipart_handles = NULL;
-static UINTN efipart_nhandles = 0;
+/*
+ * efipart_inithandles() is used to build up the pdinfo list from
+ * block device handles. Then each devsw init callback is used to
+ * pick items from pdinfo and move to proper device list.
+ * In ideal world, we should end up with empty pdinfo once all
+ * devsw initializers are called.
+ */
+static pdinfo_list_t pdinfo = STAILQ_HEAD_INITIALIZER(pdinfo);
 
 pdinfo_list_t *
 efiblk_get_pdinfo_list(struct devsw *dev)
@@ -140,23 +149,14 @@ efiblk_get_pdinfo(struct devdesc *dev)
 pdinfo_t *
 efiblk_get_pdinfo_by_device_path(EFI_DEVICE_PATH *path)
 {
-	unsigned i;
-	EFI_DEVICE_PATH *media, *devpath;
 	EFI_HANDLE h;
+	EFI_STATUS status;
+	EFI_DEVICE_PATH *devp = path;
 
-	media = efi_devpath_to_media_path(path);
-	if (media == NULL)
+	status = BS->LocateDevicePath(&blkio_guid, &devp, &h);
+	if (EFI_ERROR(status))
 		return (NULL);
-	for (i = 0; i < efipart_nhandles; i++) {
-		h = efipart_handles[i];
-		devpath = efi_lookup_devpath(h);
-		if (devpath == NULL)
-			continue;
-		if (!efi_devpath_match_node(media, efi_devpath_to_media_path(devpath)))
-			continue;
-		return (efiblk_get_pdinfo_by_handle(h));
-	}
-	return (NULL);
+	return (efiblk_get_pdinfo_by_handle(h));
 }
 
 static bool
@@ -185,6 +185,10 @@ efiblk_get_pdinfo_by_handle(EFI_HANDLE h)
 	STAILQ_FOREACH(dp, &cdinfo, pd_link) {
 		if (same_handle(dp, h))
 			return (dp);
+		STAILQ_FOREACH(pp, &dp->pd_part, pd_link) {
+			if (same_handle(pp, h))
+				return (pp);
+		}
 	}
 	STAILQ_FOREACH(dp, &fdinfo, pd_link) {
 		if (same_handle(dp, h))
@@ -208,15 +212,16 @@ efiblk_pdinfo_count(pdinfo_list_t *pdi)
 int
 efipart_inithandles(void)
 {
+	unsigned i, nin;
 	UINTN sz;
 	EFI_HANDLE *hin;
+	EFI_DEVICE_PATH *devpath;
+	EFI_BLOCK_IO *blkio;
 	EFI_STATUS status;
+	pdinfo_t *pd;
 
-	if (efipart_nhandles != 0) {
-		free(efipart_handles);
-		efipart_handles = NULL;
-		efipart_nhandles = 0;
-	}
+	if (!STAILQ_EMPTY(&pdinfo))
+		return (0);
 
 	sz = 0;
 	hin = NULL;
@@ -231,12 +236,60 @@ efipart_inithandles(void)
 	if (EFI_ERROR(status))
 		return (efi_status_to_errno(status));
 
-	efipart_handles = hin;
-	efipart_nhandles = sz / sizeof(*hin);
+	nin = sz / sizeof(*hin);
 #ifdef EFIPART_DEBUG
-	printf("%s: Got %d BLOCK IO MEDIA handle(s)\n", __func__,
-	    efipart_nhandles);
+	printf("%s: Got %d BLOCK IO MEDIA handle(s)\n", __func__, nin);
 #endif
+
+	for (i = 0; i < nin; i++) {
+		/*
+		 * Get devpath and open protocol.
+		 * We should not get errors here
+		 */
+		if ((devpath = efi_lookup_devpath(hin[i])) == NULL)
+			continue;
+
+		status = OpenProtocolByHandle(hin[i], &blkio_guid,
+		    (void **)&blkio);
+		if (EFI_ERROR(status)) {
+			printf("error %lu\n", EFI_ERROR_CODE(status));
+			continue;
+		}
+
+		/*
+		 * We assume the block size 512 or greater power of 2.
+		 * Also skip devices with block size > 64k (16 is max
+		 * ashift supported by zfs).
+		 * iPXE is known to insert stub BLOCK IO device with
+		 * BlockSize 1.
+		 */
+		if (blkio->Media->BlockSize < 512 ||
+		    blkio->Media->BlockSize > (1 << 16) ||
+		    !powerof2(blkio->Media->BlockSize)) {
+			continue;
+		}
+
+		/* Allowed values are 0, 1 and power of 2. */
+		if (blkio->Media->IoAlign > 1 &&
+		    !powerof2(blkio->Media->IoAlign)) {
+			continue;
+		}
+
+		/* This is bad. */
+		if ((pd = calloc(1, sizeof(*pd))) == NULL) {
+			printf("efipart_inithandles: Out of memory.\n");
+			free(hin);
+			return (ENOMEM);
+		}
+		STAILQ_INIT(&pd->pd_part);
+
+		pd->pd_handle = hin[i];
+		pd->pd_devpath = devpath;
+		pd->pd_blkio = blkio;
+		STAILQ_INSERT_TAIL(&pdinfo, pd, pd_link);
+	}
+
+	free(hin);
 	return (0);
 }
 
@@ -257,133 +310,48 @@ efipart_floppy(EFI_DEVICE_PATH *node)
 	return (NULL);
 }
 
-/*
- * Determine if the provided device path is hdd.
- *
- * There really is no simple fool proof way to classify the devices.
- * Since we do build three lists of devices - floppy, cd and hdd, we
- * will try to see  if the device is floppy or cd, and list anything else
- * as hdd.
- */
-static bool
-efipart_hdd(EFI_DEVICE_PATH *dp)
+static pdinfo_t *
+efipart_find_parent(pdinfo_list_t *pdi, EFI_DEVICE_PATH *devpath)
 {
-	unsigned i;
-	EFI_DEVICE_PATH *devpath, *node;
-	EFI_BLOCK_IO *blkio;
-	EFI_STATUS status;
+	pdinfo_t *pd;
 
-	if (dp == NULL)
-		return (false);
-
-	if ((node = efi_devpath_last_node(dp)) == NULL)
-		return (false);
-
-	if (efipart_floppy(node) != NULL)
-		return (false);
-
-	/*
-	 * Test every EFI BLOCK IO handle to make sure dp is not device path
-	 * for CD/DVD.
-	 */
-	for (i = 0; i < efipart_nhandles; i++) {
-		devpath = efi_lookup_devpath(efipart_handles[i]);
-		if (devpath == NULL)
-			return (false);
-
-		/* Only continue testing when dp is prefix in devpath. */
-		if (!efi_devpath_is_prefix(dp, devpath))
-			continue;
-
-		/*
-		 * The device path has to have last node describing the
-		 *  device, or we can not test the type.
-		 */
-		if ((node = efi_devpath_last_node(devpath)) == NULL)
-			return (false);
-
-		if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
-		    DevicePathSubType(node) == MEDIA_CDROM_DP) {
-			return (false);
-		}
-
-		/* Make sure we do have the media. */
-		status = BS->HandleProtocol(efipart_handles[i],
-		    &blkio_guid, (void **)&blkio);
-		if (EFI_ERROR(status))
-			return (false);
-
-		/* USB or SATA cd without the media. */
-		if (blkio->Media->RemovableMedia &&
-		    !blkio->Media->MediaPresent) {
-			return (false);
-		}
-
-		/*
-		 * We assume the block size 512 or greater power of 2. 
-		 * iPXE is known to insert stub BLOCK IO device with
-		 * BlockSize 1.
-		 */
-		if (blkio->Media->BlockSize < 512 ||
-		    !powerof2(blkio->Media->BlockSize)) {
-			return (false);
-		}
+	STAILQ_FOREACH(pd, pdi, pd_link) {
+		if (efi_devpath_is_prefix(pd->pd_devpath, devpath))
+			return (pd);
 	}
-	return (true);
-}
-
-/*
- * Add or update entries with new handle data.
- */
-static int
-efipart_fdinfo_add(EFI_HANDLE handle, uint32_t uid, EFI_DEVICE_PATH *devpath)
-{
-	pdinfo_t *fd;
-
-	fd = calloc(1, sizeof(pdinfo_t));
-	if (fd == NULL) {
-		printf("Failed to register floppy %d, out of memory\n", uid);
-		return (ENOMEM);
-	}
-	STAILQ_INIT(&fd->pd_part);
-
-	fd->pd_unit = uid;
-	fd->pd_handle = handle;
-	fd->pd_devpath = devpath;
-	fd->pd_parent = NULL;
-	fd->pd_devsw = &efipart_fddev;
-	STAILQ_INSERT_TAIL(&fdinfo, fd, pd_link);
-	return (0);
-}
-
-static void
-efipart_updatefd(void)
-{
-	EFI_DEVICE_PATH *devpath, *node;
-	ACPI_HID_DEVICE_PATH *acpi;
-	int i;
-
-	for (i = 0; i < efipart_nhandles; i++) {
-		devpath = efi_lookup_devpath(efipart_handles[i]);
-		if (devpath == NULL)
-			continue;
-
-		if ((node = efi_devpath_last_node(devpath)) == NULL)
-			continue;
-		if ((acpi = efipart_floppy(node)) != NULL) {
-			efipart_fdinfo_add(efipart_handles[i], acpi->UID,
-			    devpath);
-		}
-	}
+	return (NULL);
 }
 
 static int
 efipart_initfd(void)
 {
+	EFI_DEVICE_PATH *node;
+	ACPI_HID_DEVICE_PATH *acpi;
+	pdinfo_t *parent, *fd;
 
-	STAILQ_INIT(&fdinfo);
+restart:
+	STAILQ_FOREACH(fd, &pdinfo, pd_link) {
+		if ((node = efi_devpath_last_node(fd->pd_devpath)) == NULL)
+			continue;
 
-	efipart_updatefd();
+		if ((acpi = efipart_floppy(node)) == NULL)
+			continue;
+
+		STAILQ_REMOVE(&pdinfo, fd, pdinfo, pd_link);
+		parent = efipart_find_parent(&pdinfo, fd->pd_devpath);
+		if (parent != NULL) {
+			STAILQ_REMOVE(&pdinfo, parent, pdinfo, pd_link);
+			parent->pd_alias = fd->pd_handle;
+			parent->pd_unit = acpi->UID;
+			free(fd);
+			fd = parent;
+		} else {
+			fd->pd_unit = acpi->UID;
+		}
+		fd->pd_devsw = &efipart_fddev;
+		STAILQ_INSERT_TAIL(&fdinfo, fd, pd_link);
+		goto restart;
+	}
 
 	bcache_add_dev(efiblk_pdinfo_count(&fdinfo));
 	return (0);
@@ -392,68 +360,90 @@ efipart_initfd(void)
 /*
  * Add or update entries with new handle data.
  */
-static int
-efipart_cdinfo_add(EFI_HANDLE handle, EFI_HANDLE alias,
-    EFI_DEVICE_PATH *devpath)
+static void
+efipart_cdinfo_add(pdinfo_t *cd)
 {
-	int unit;
-	pdinfo_t *cd;
-	pdinfo_t *pd;
+	pdinfo_t *pd, *last;
 
-	unit = 0;
 	STAILQ_FOREACH(pd, &cdinfo, pd_link) {
-		if (efi_devpath_match(pd->pd_devpath, devpath) == true) {
-			pd->pd_handle = handle;
-			pd->pd_alias = alias;
-			return (0);
+		if (efi_devpath_is_prefix(pd->pd_devpath, cd->pd_devpath)) {
+			last = STAILQ_LAST(&pd->pd_part, pdinfo, pd_link);
+			if (last != NULL)
+				cd->pd_unit = last->pd_unit + 1;
+			else
+				cd->pd_unit = 0;
+			cd->pd_parent = pd;
+			cd->pd_devsw = &efipart_cddev;
+			STAILQ_INSERT_TAIL(&pd->pd_part, cd, pd_link);
+			return;
 		}
-		unit++;
 	}
 
-	cd = calloc(1, sizeof(pdinfo_t));
-	if (cd == NULL) {
-		printf("Failed to add cd %d, out of memory\n", unit);
-		return (ENOMEM);
-	}
-	STAILQ_INIT(&cd->pd_part);
+	last = STAILQ_LAST(&cdinfo, pdinfo, pd_link);
+	if (last != NULL)
+		cd->pd_unit = last->pd_unit + 1;
+	else
+		cd->pd_unit = 0;
 
-	cd->pd_handle = handle;
-	cd->pd_unit = unit;
-	cd->pd_alias = alias;
-	cd->pd_devpath = devpath;
 	cd->pd_parent = NULL;
 	cd->pd_devsw = &efipart_cddev;
 	STAILQ_INSERT_TAIL(&cdinfo, cd, pd_link);
-	return (0);
+}
+
+static bool
+efipart_testcd(EFI_DEVICE_PATH *node, EFI_BLOCK_IO *blkio)
+{
+	if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
+	    DevicePathSubType(node) == MEDIA_CDROM_DP) {
+		return (true);
+	}
+
+	/* cd drive without the media. */
+	if (blkio->Media->RemovableMedia &&
+	    !blkio->Media->MediaPresent) {
+		return (true);
+	}
+
+	return (false);
 }
 
 static void
 efipart_updatecd(void)
 {
-	int i;
-	EFI_DEVICE_PATH *devpath, *devpathcpy, *tmpdevpath, *node;
-	EFI_HANDLE handle;
-	EFI_BLOCK_IO *blkio;
+	EFI_DEVICE_PATH *devpath, *node;
 	EFI_STATUS status;
+	pdinfo_t *parent, *cd;
 
-	for (i = 0; i < efipart_nhandles; i++) {
-		devpath = efi_lookup_devpath(efipart_handles[i]);
-		if (devpath == NULL)
-			continue;
-
-		if ((node = efi_devpath_last_node(devpath)) == NULL)
+restart:
+	STAILQ_FOREACH(cd, &pdinfo, pd_link) {
+		if ((node = efi_devpath_last_node(cd->pd_devpath)) == NULL)
 			continue;
 
 		if (efipart_floppy(node) != NULL)
 			continue;
 
-		if (efipart_hdd(devpath))
+		/* Is parent of this device already registered? */
+		parent = efipart_find_parent(&cdinfo, cd->pd_devpath);
+		if (parent != NULL) {
+			STAILQ_REMOVE(&pdinfo, cd, pdinfo, pd_link);
+			efipart_cdinfo_add(cd);
+			goto restart;
+		}
+
+		if (!efipart_testcd(node, cd->pd_blkio))
 			continue;
 
-		status = BS->HandleProtocol(efipart_handles[i],
-		    &blkio_guid, (void **)&blkio);
-		if (EFI_ERROR(status))
-			continue;
+		/* Find parent and unlink both parent and cd from pdinfo */
+		STAILQ_REMOVE(&pdinfo, cd, pdinfo, pd_link);
+		parent = efipart_find_parent(&pdinfo, cd->pd_devpath);
+		if (parent != NULL) {
+			STAILQ_REMOVE(&pdinfo, parent, pdinfo, pd_link);
+			efipart_cdinfo_add(parent);
+		}
+
+		if (parent == NULL)
+			parent = efipart_find_parent(&cdinfo, cd->pd_devpath);
+
 		/*
 		 * If we come across a logical partition of subtype CDROM
 		 * it doesn't refer to the CD filesystem itself, but rather
@@ -462,132 +452,79 @@ efipart_updatecd(void)
 		 * that will be the CD filesystem.
 		 */
 		if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
-		    DevicePathSubType(node) == MEDIA_CDROM_DP) {
-			devpathcpy = efi_devpath_trim(devpath);
-			if (devpathcpy == NULL)
-				continue;
-			tmpdevpath = devpathcpy;
-			status = BS->LocateDevicePath(&blkio_guid, &tmpdevpath,
-			    &handle);
-			free(devpathcpy);
-			if (EFI_ERROR(status))
-				continue;
-			devpath = efi_lookup_devpath(handle);
-			efipart_cdinfo_add(handle, efipart_handles[i],
-			    devpath);
-			continue;
+		    DevicePathSubType(node) == MEDIA_CDROM_DP &&
+		    parent == NULL) {
+			parent = calloc(1, sizeof(*parent));
+			if (parent == NULL) {
+				printf("efipart_updatecd: out of memory\n");
+				/* this device is lost but try again. */
+				free(cd);
+				goto restart;
+			}
+
+			devpath = efi_devpath_trim(cd->pd_devpath);
+			if (devpath == NULL) {
+				printf("efipart_updatecd: out of memory\n");
+				/* this device is lost but try again. */
+				free(parent);
+				free(cd);
+				goto restart;
+			}
+			parent->pd_devpath = devpath;
+			status = BS->LocateDevicePath(&blkio_guid,
+			    &parent->pd_devpath, &parent->pd_handle);
+			free(devpath);
+			if (EFI_ERROR(status)) {
+				printf("efipart_updatecd: error %lu\n",
+				    EFI_ERROR_CODE(status));
+				free(parent);
+				free(cd);
+				goto restart;
+			}
+			parent->pd_devpath =
+			    efi_lookup_devpath(parent->pd_handle);
+			efipart_cdinfo_add(parent);
 		}
 
-		if (DevicePathType(node) == MESSAGING_DEVICE_PATH &&
-		    DevicePathSubType(node) == MSG_ATAPI_DP) {
-			efipart_cdinfo_add(efipart_handles[i], NULL,
-			    devpath);
-			continue;
-		}
-
-		/* USB or SATA cd without the media. */
-		if (blkio->Media->RemovableMedia &&
-		    !blkio->Media->MediaPresent) {
-			efipart_cdinfo_add(efipart_handles[i], NULL,
-			    devpath);
-		}
+		efipart_cdinfo_add(cd);
+		goto restart;
 	}
 }
 
 static int
 efipart_initcd(void)
 {
-
-	STAILQ_INIT(&cdinfo);
-
 	efipart_updatecd();
 
 	bcache_add_dev(efiblk_pdinfo_count(&cdinfo));
 	return (0);
 }
 
-static int
-efipart_hdinfo_add(EFI_HANDLE disk_handle, EFI_HANDLE part_handle)
+static void
+efipart_hdinfo_add(pdinfo_t *hd, HARDDRIVE_DEVICE_PATH *node)
 {
-	EFI_DEVICE_PATH *disk_devpath, *part_devpath;
-	HARDDRIVE_DEVICE_PATH *node;
-	int unit;
-	pdinfo_t *hd, *pd, *last;
+	pdinfo_t *pd, *last;
 
-	disk_devpath = efi_lookup_devpath(disk_handle);
-	if (disk_devpath == NULL)
-		return (ENOENT);
-
-	if (part_handle != NULL) {
-		part_devpath = efi_lookup_devpath(part_handle);
-		if (part_devpath == NULL)
-			return (ENOENT);
-		node = (HARDDRIVE_DEVICE_PATH *)
-		    efi_devpath_last_node(part_devpath);
-		if (node == NULL)
-			return (ENOENT);	/* This should not happen. */
-	} else {
-		part_devpath = NULL;
-		node = NULL;
-	}
-
-	pd = calloc(1, sizeof(pdinfo_t));
-	if (pd == NULL) {
-		printf("Failed to add disk, out of memory\n");
-		return (ENOMEM);
-	}
-	STAILQ_INIT(&pd->pd_part);
-
-	STAILQ_FOREACH(hd, &hdinfo, pd_link) {
-		if (efi_devpath_match(hd->pd_devpath, disk_devpath) == true) {
-			if (part_devpath == NULL)
-				return (0);
-
+	STAILQ_FOREACH(pd, &hdinfo, pd_link) {
+		if (efi_devpath_is_prefix(pd->pd_devpath, hd->pd_devpath)) {
 			/* Add the partition. */
-			pd->pd_handle = part_handle;
-			pd->pd_unit = node->PartitionNumber;
-			pd->pd_devpath = part_devpath;
-			pd->pd_parent = hd;
-			pd->pd_devsw = &efipart_hddev;
-			STAILQ_INSERT_TAIL(&hd->pd_part, pd, pd_link);
-			return (0);
+			hd->pd_unit = node->PartitionNumber;
+			hd->pd_parent = pd;
+			hd->pd_devsw = &efipart_hddev;
+			STAILQ_INSERT_TAIL(&pd->pd_part, hd, pd_link);
+			return;
 		}
 	}
 
 	last = STAILQ_LAST(&hdinfo, pdinfo, pd_link);
 	if (last != NULL)
-		unit = last->pd_unit + 1;
+		hd->pd_unit = last->pd_unit + 1;
 	else
-		unit = 0;
+		hd->pd_unit = 0;
 
 	/* Add the disk. */
-	hd = pd;
-	hd->pd_handle = disk_handle;
-	hd->pd_unit = unit;
-	hd->pd_devpath = disk_devpath;
-	hd->pd_parent = NULL;
 	hd->pd_devsw = &efipart_hddev;
 	STAILQ_INSERT_TAIL(&hdinfo, hd, pd_link);
-
-	if (part_devpath == NULL)
-		return (0);
-
-	pd = calloc(1, sizeof(pdinfo_t));
-	if (pd == NULL) {
-		printf("Failed to add partition, out of memory\n");
-		return (ENOMEM);
-	}
-	STAILQ_INIT(&pd->pd_part);
-
-	/* Add the partition. */
-	pd->pd_handle = part_handle;
-	pd->pd_unit = node->PartitionNumber;
-	pd->pd_devpath = part_devpath;
-	pd->pd_parent = hd;
-	pd->pd_devsw = &efipart_hddev;
-	STAILQ_INSERT_TAIL(&hd->pd_part, pd, pd_link);
-
-	return (0);
 }
 
 /*
@@ -596,40 +533,25 @@ efipart_hdinfo_add(EFI_HANDLE disk_handle, EFI_HANDLE part_handle)
  * of typeN:M, where type is interface type, N is disk id
  * and M is partition id.
  */
-static int
-efipart_hdinfo_add_filepath(EFI_HANDLE disk_handle)
+static void
+efipart_hdinfo_add_filepath(pdinfo_t *hd, FILEPATH_DEVICE_PATH *node)
 {
-	EFI_DEVICE_PATH *devpath;
-	FILEPATH_DEVICE_PATH *node;
 	char *pathname, *p;
-	int unit, len;
-	pdinfo_t *pd, *last;
+	int len;
+	pdinfo_t *last;
 
-	/* First collect and verify all the data */
-	if ((devpath = efi_lookup_devpath(disk_handle)) == NULL)
-		return (ENOENT);
-	node = (FILEPATH_DEVICE_PATH *)efi_devpath_last_node(devpath);
-	if (node == NULL)
-		return (ENOENT);	/* This should not happen. */
-
-	pd = calloc(1, sizeof(pdinfo_t));
-	if (pd == NULL) {
-		printf("Failed to add disk, out of memory\n");
-		return (ENOMEM);
-	}
-	STAILQ_INIT(&pd->pd_part);
 	last = STAILQ_LAST(&hdinfo, pdinfo, pd_link);
 	if (last != NULL)
-		unit = last->pd_unit + 1;
+		hd->pd_unit = last->pd_unit + 1;
 	else
-		unit = 0;
+		hd->pd_unit = 0;
 
 	/* FILEPATH_DEVICE_PATH has 0 terminated string */
 	len = ucs2len(node->PathName);
 	if ((pathname = malloc(len + 1)) == NULL) {
 		printf("Failed to add disk, out of memory\n");
-		free(pd);
-		return (ENOMEM);
+		free(hd);
+		return;
 	}
 	cpy16to8(node->PathName, pathname, len + 1);
 	p = strchr(pathname, ':');
@@ -640,23 +562,19 @@ efipart_hdinfo_add_filepath(EFI_HANDLE disk_handle)
 	 * false, this code would need update.
 	 */
 	if (p == NULL) {	/* no colon, add the disk */
-		pd->pd_handle = disk_handle;
-		pd->pd_unit = unit;
-		pd->pd_devpath = devpath;
-		pd->pd_parent = NULL;
-		pd->pd_devsw = &efipart_hddev;
-		STAILQ_INSERT_TAIL(&hdinfo, pd, pd_link);
+		hd->pd_devsw = &efipart_hddev;
+		STAILQ_INSERT_TAIL(&hdinfo, hd, pd_link);
 		free(pathname);
-		return (0);
+		return;
 	}
 	p++;	/* skip the colon */
 	errno = 0;
-	unit = (int)strtol(p, NULL, 0);
+	hd->pd_unit = (int)strtol(p, NULL, 0);
 	if (errno != 0) {
 		printf("Bad unit number for partition \"%s\"\n", pathname);
 		free(pathname);
-		free(pd);
-		return (EUNIT);
+		free(hd);
+		return;
 	}
 
 	/*
@@ -668,88 +586,105 @@ efipart_hdinfo_add_filepath(EFI_HANDLE disk_handle)
 	if (last == NULL) {
 		printf("BUG: No disk for partition \"%s\"\n", pathname);
 		free(pathname);
-		free(pd);
-		return (EINVAL);
+		free(hd);
+		return;
 	}
 	/* Add the partition. */
-	pd->pd_handle = disk_handle;
-	pd->pd_unit = unit;
-	pd->pd_devpath = devpath;
-	pd->pd_parent = last;
-	pd->pd_devsw = &efipart_hddev;
-	STAILQ_INSERT_TAIL(&last->pd_part, pd, pd_link);
+	hd->pd_parent = last;
+	hd->pd_devsw = &efipart_hddev;
+	STAILQ_INSERT_TAIL(&last->pd_part, hd, pd_link);
 	free(pathname);
-	return (0);
 }
 
 static void
 efipart_updatehd(void)
 {
-	int i;
-	EFI_DEVICE_PATH *devpath, *devpathcpy, *tmpdevpath, *node;
-	EFI_HANDLE handle;
-	EFI_BLOCK_IO *blkio;
+	EFI_DEVICE_PATH *devpath, *node;
 	EFI_STATUS status;
+	pdinfo_t *parent, *hd;
 
-	for (i = 0; i < efipart_nhandles; i++) {
-		devpath = efi_lookup_devpath(efipart_handles[i]);
-		if (devpath == NULL)
+restart:
+	STAILQ_FOREACH(hd, &pdinfo, pd_link) {
+		if ((node = efi_devpath_last_node(hd->pd_devpath)) == NULL)
 			continue;
 
-		if ((node = efi_devpath_last_node(devpath)) == NULL)
+		if (efipart_floppy(node) != NULL)
 			continue;
 
-		if (!efipart_hdd(devpath))
+		if (efipart_testcd(node, hd->pd_blkio))
 			continue;
 
-		status = BS->HandleProtocol(efipart_handles[i],
-		    &blkio_guid, (void **)&blkio);
-		if (EFI_ERROR(status))
-			continue;
+		if (DevicePathType(node) == HARDWARE_DEVICE_PATH &&
+		    (DevicePathSubType(node) == HW_PCI_DP ||
+		     DevicePathSubType(node) == HW_VENDOR_DP)) {
+			STAILQ_REMOVE(&pdinfo, hd, pdinfo, pd_link);
+			efipart_hdinfo_add(hd, NULL);
+			goto restart;
+		}
 
 		if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
 		    DevicePathSubType(node) == MEDIA_FILEPATH_DP) {
-			efipart_hdinfo_add_filepath(efipart_handles[i]);
-			continue;
+			STAILQ_REMOVE(&pdinfo, hd, pdinfo, pd_link);
+			efipart_hdinfo_add_filepath(hd,
+			    (FILEPATH_DEVICE_PATH *)node);
+			goto restart;
+		}
+
+		STAILQ_REMOVE(&pdinfo, hd, pdinfo, pd_link);
+		parent = efipart_find_parent(&pdinfo, hd->pd_devpath);
+		if (parent != NULL) {
+			STAILQ_REMOVE(&pdinfo, parent, pdinfo, pd_link);
+			efipart_hdinfo_add(parent, NULL);
+		} else {
+			parent = efipart_find_parent(&hdinfo, hd->pd_devpath);
 		}
 
 		if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
-		    DevicePathSubType(node) == MEDIA_HARDDRIVE_DP) {
-			devpathcpy = efi_devpath_trim(devpath);
-			if (devpathcpy == NULL)
-				continue;
-			tmpdevpath = devpathcpy;
-			status = BS->LocateDevicePath(&blkio_guid, &tmpdevpath,
-			    &handle);
-			free(devpathcpy);
-			if (EFI_ERROR(status))
-				continue;
-			/*
-			 * We do not support nested partitions.
-			 */
-			devpathcpy = efi_lookup_devpath(handle);
-			if (devpathcpy == NULL)
-				continue;
-			if ((node = efi_devpath_last_node(devpathcpy)) == NULL)
-				continue;
+		    DevicePathSubType(node) == MEDIA_HARDDRIVE_DP &&
+		    parent == NULL) {
+			parent = calloc(1, sizeof(*parent));
+			if (parent == NULL) {
+				printf("efipart_updatehd: out of memory\n");
+				/* this device is lost but try again. */
+				free(hd);
+				goto restart;
+			}
 
-			if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
-			    DevicePathSubType(node) == MEDIA_HARDDRIVE_DP)
-				continue;
+			devpath = efi_devpath_trim(hd->pd_devpath);
+			if (devpath == NULL) {
+				printf("efipart_updatehd: out of memory\n");
+				/* this device is lost but try again. */
+				free(parent);
+				free(hd);
+				goto restart;
+			}
 
-			efipart_hdinfo_add(handle, efipart_handles[i]);
-			continue;
+			parent->pd_devpath = devpath;
+			status = BS->LocateDevicePath(&blkio_guid,
+			    &parent->pd_devpath, &parent->pd_handle);
+			free(devpath);
+			if (EFI_ERROR(status)) {
+				printf("efipart_updatehd: error %lu\n",
+				    EFI_ERROR_CODE(status));
+				free(parent);
+				free(hd);
+				goto restart;
+			}
+
+			parent->pd_devpath =
+			    efi_lookup_devpath(&parent->pd_handle);
+
+			efipart_hdinfo_add(parent, NULL);
 		}
 
-		efipart_hdinfo_add(efipart_handles[i], NULL);
+		efipart_hdinfo_add(hd, (HARDDRIVE_DEVICE_PATH *)node);
+		goto restart;
 	}
 }
 
 static int
 efipart_inithd(void)
 {
-
-	STAILQ_INIT(&hdinfo);
 
 	efipart_updatehd();
 
@@ -790,7 +725,7 @@ efipart_print_common(struct devsw *dev, pdinfo_list_t *pdlist, int verbose)
 		snprintf(line, sizeof(line),
 		    "    %s%d", dev->dv_name, pd->pd_unit);
 		printf("%s:", line);
-		status = BS->HandleProtocol(h, &blkio_guid, (void **)&blkio);
+		status = OpenProtocolByHandle(h, &blkio_guid, (void **)&blkio);
 		if (!EFI_ERROR(status)) {
 			printf("    %llu",
 			    blkio->Media->LastBlock == 0? 0:
@@ -863,7 +798,7 @@ efipart_open(struct open_file *f, ...)
 	EFI_STATUS status;
 
 	va_start(args, f);
-	dev = va_arg(args, struct disk_devdesc*);
+	dev = va_arg(args, struct disk_devdesc *);
 	va_end(args);
 	if (dev == NULL)
 		return (EINVAL);
@@ -873,7 +808,7 @@ efipart_open(struct open_file *f, ...)
 		return (EIO);
 
 	if (pd->pd_blkio == NULL) {
-		status = BS->HandleProtocol(pd->pd_handle, &blkio_guid,
+		status = OpenProtocolByHandle(pd->pd_handle, &blkio_guid,
 		    (void **)&pd->pd_blkio);
 		if (EFI_ERROR(status))
 			return (efi_status_to_errno(status));
@@ -1053,9 +988,11 @@ efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t size,
 	EFI_BLOCK_IO *blkio;
 	uint64_t off, disk_blocks, d_offset = 0;
 	char *blkbuf;
-	size_t blkoff, blksz;
-	int error;
-	size_t diskend, readstart;
+	size_t blkoff, blksz, bio_size;
+	unsigned ioalign;
+	bool need_buf;
+	int rc;
+	uint64_t diskend, readstart;
 
 	if (dev == NULL || blk < 0)
 		return (EINVAL);
@@ -1102,40 +1039,118 @@ efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t size,
 		size = size * blkio->Media->BlockSize;
 	}
 
-	if (rsize != NULL)
-		*rsize = size;
-
+	need_buf = true;
+	/* Do we need bounce buffer? */
 	if ((size % blkio->Media->BlockSize == 0) &&
 	    (off % blkio->Media->BlockSize == 0))
-		return (efipart_readwrite(blkio, rw,
-		    off / blkio->Media->BlockSize,
-		    size / blkio->Media->BlockSize, buf));
+		need_buf = false;
 
-	/*
-	 * The block size of the media is not a multiple of I/O.
-	 */
-	blkbuf = malloc(blkio->Media->BlockSize);
+	/* Do we have IO alignment requirement? */
+	ioalign = blkio->Media->IoAlign;
+	if (ioalign == 0)
+		ioalign++;
+
+	if (ioalign > 1 && (uintptr_t)buf != roundup2((uintptr_t)buf, ioalign))
+		need_buf = true;
+
+	if (need_buf) {
+		for (bio_size = BIO_BUFFER_SIZE; bio_size > 0;
+		    bio_size -= blkio->Media->BlockSize) {
+			blkbuf = memalign(ioalign, bio_size);
+			if (blkbuf != NULL)
+				break;
+		}
+	} else {
+		blkbuf = buf;
+		bio_size = size;
+	}
+
 	if (blkbuf == NULL)
 		return (ENOMEM);
 
-	error = 0;
+	if (rsize != NULL)
+		*rsize = size;
+
+	rc = 0;
 	blk = off / blkio->Media->BlockSize;
 	blkoff = off % blkio->Media->BlockSize;
-	blksz = blkio->Media->BlockSize - blkoff;
+
 	while (size > 0) {
-		error = efipart_readwrite(blkio, rw, blk, 1, blkbuf);
-		if (error)
+		size_t x = min(size, bio_size);
+
+		if (x < blkio->Media->BlockSize)
+			x = 1;
+		else
+			x /= blkio->Media->BlockSize;
+
+		switch (rw & F_MASK) {
+		case F_READ:
+			blksz = blkio->Media->BlockSize * x - blkoff;
+			if (size < blksz)
+				blksz = size;
+
+			rc = efipart_readwrite(blkio, rw, blk, x, blkbuf);
+			if (rc != 0)
+				goto error;
+
+			if (need_buf)
+				bcopy(blkbuf + blkoff, buf, blksz);
 			break;
-		if (size < blksz)
-			blksz = size;
-		bcopy(blkbuf + blkoff, buf, blksz);
+		case F_WRITE:
+			rc = 0;
+			if (blkoff != 0) {
+				/*
+				 * We got offset to sector, read 1 sector to
+				 * blkbuf.
+				 */
+				x = 1;
+				blksz = blkio->Media->BlockSize - blkoff;
+				blksz = min(blksz, size);
+				rc = efipart_readwrite(blkio, F_READ, blk, x,
+				    blkbuf);
+			} else if (size < blkio->Media->BlockSize) {
+				/*
+				 * The remaining block is not full
+				 * sector. Read 1 sector to blkbuf.
+				 */
+				x = 1;
+				blksz = size;
+				rc = efipart_readwrite(blkio, F_READ, blk, x,
+				    blkbuf);
+			} else {
+				/* We can write full sector(s). */
+				blksz = blkio->Media->BlockSize * x;
+			}
+
+			if (rc != 0)
+				goto error;
+			/*
+			 * Put your Data In, Put your Data out,
+			 * Put your Data In, and shake it all about
+			 */
+			if (need_buf)
+				bcopy(buf, blkbuf + blkoff, blksz);
+			rc = efipart_readwrite(blkio, F_WRITE, blk, x, blkbuf);
+			if (rc != 0)
+				goto error;
+			break;
+		default:
+			/* DO NOTHING */
+			rc = EROFS;
+			goto error;
+		}
+
+		blkoff = 0;
 		buf += blksz;
 		size -= blksz;
-		blk++;
-		blkoff = 0;
-		blksz = blkio->Media->BlockSize;
+		blk += x;
 	}
 
-	free(blkbuf);
-	return (error);
+error:
+	if (rsize != NULL)
+		*rsize -= size;
+
+	if (need_buf)
+		free(blkbuf);
+	return (rc);
 }

@@ -125,7 +125,7 @@ has_keyboard(void)
 	 */
 	hin_end = &hin[sz / sizeof(*hin)];
 	for (walker = hin; walker < hin_end; walker++) {
-		status = BS->HandleProtocol(*walker, &devid, (VOID **)&path);
+		status = OpenProtocolByHandle(*walker, &devid, (void **)&path);
 		if (EFI_ERROR(status))
 			continue;
 
@@ -769,7 +769,7 @@ main(int argc, CHAR16 *argv[])
 #endif
 
         /* Get our loaded image protocol interface structure. */
-	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
+	(void) OpenProtocolByHandle(IH, &imgid, (void **)&img);
 
 #ifdef EFI_ZFS_BOOT
 	/* Tell ZFS probe code where we booted from */
@@ -894,7 +894,7 @@ main(int argc, CHAR16 *argv[])
 		efi_free_devpath_name(text);
 	}
 
-	rv = BS->HandleProtocol(img->DeviceHandle, &devid, (void **)&imgpath);
+	rv = OpenProtocolByHandle(img->DeviceHandle, &devid, (void **)&imgpath);
 	if (rv == EFI_SUCCESS) {
 		text = efi_devpath_name(imgpath);
 		if (text != NULL) {
@@ -1322,7 +1322,7 @@ command_chain(int argc, char *argv[])
 		command_errmsg = "LoadImage failed";
 		return (CMD_ERROR);
 	}
-	status = BS->HandleProtocol(loaderhandle, &LoadedImageGUID,
+	status = OpenProtocolByHandle(loaderhandle, &LoadedImageGUID,
 	    (void **)&loaded_image);
 
 	if (argc > 2) {
