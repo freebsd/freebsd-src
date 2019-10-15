@@ -83,6 +83,7 @@ DPCPU_DECLARE(struct grouptask, epoch_cb_task);
 void _epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE);
 void _epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE);
 #ifdef EPOCH_TRACE
+void epoch_trace_list(struct thread *);
 #define	epoch_enter_preempt(epoch, et)	_epoch_enter_preempt(epoch, et, __FILE__, __LINE__)
 #define	epoch_exit_preempt(epoch, et)	_epoch_exit_preempt(epoch, et, __FILE__, __LINE__)
 #else
