@@ -979,10 +979,14 @@ exec_map_first_page(struct image_params *imgp)
 retry:
 	ma[0] = vm_page_grab(object, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY |
 	    VM_ALLOC_WIRED);
-	if (ma[0]->valid != VM_PAGE_BITS_ALL) {
+	if (!vm_page_all_valid(ma[0])) {
 		if (vm_page_busy_acquire(ma[0], VM_ALLOC_WAITFAIL) == 0) {
 			vm_page_unwire_noq(ma[0]);
 			goto retry;
+		}
+		if (vm_page_all_valid(ma[0])) {
+			vm_page_xunbusy(ma[0]);
+			goto out;
 		}
 		if (!vm_pager_has_page(object, 0, NULL, &after)) {
 			if (vm_page_unwire_noq(ma[0]))
@@ -1029,6 +1033,8 @@ retry:
 		for (i = 1; i < initial_pagein; i++)
 			vm_page_readahead_finish(ma[i]);
 	}
+
+out:
 	VM_OBJECT_WUNLOCK(object);
 
 	imgp->firstpage = sf_buf_alloc(ma[0], 0);

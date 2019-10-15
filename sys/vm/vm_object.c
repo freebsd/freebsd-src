@@ -841,7 +841,7 @@ rescan:
 		if (pi >= tend)
 			break;
 		np = TAILQ_NEXT(p, listq);
-		if (p->valid == 0)
+		if (vm_page_none_valid(p))
 			continue;
 		if (vm_page_busy_acquire(p, VM_ALLOC_WAITFAIL) == 0) {
 			if (object->generation != curgeneration) {
@@ -1161,10 +1161,10 @@ next_page:
 		}
 
 		/*
-		 * If the page is not in a normal state, skip it.
+		 * If the page is not in a normal state, skip it.  The page
+		 * can not be invalidated while the object lock is held.
 		 */
-		if (tm->valid != VM_PAGE_BITS_ALL ||
-		    vm_page_wired(tm))
+		if (!vm_page_all_valid(tm) || vm_page_wired(tm))
 			goto next_pindex;
 		KASSERT((tm->flags & PG_FICTITIOUS) == 0,
 		    ("vm_object_madvise: page %p is fictitious", tm));
@@ -1488,7 +1488,11 @@ vm_object_scan_all_shadowed(vm_object_t object)
 		 * object and we might as well give up now.
 		 */
 		pp = vm_page_lookup(object, new_pindex);
-		if ((pp == NULL || pp->valid == 0) &&
+		/*
+		 * The valid check here is stable due to object lock being
+		 * required to clear valid and initiate paging.
+		 */
+		if ((pp == NULL || vm_page_none_valid(pp)) &&
 		    !vm_pager_has_page(object, new_pindex, NULL, NULL))
 			return (false);
 	}
@@ -1567,7 +1571,7 @@ vm_object_collapse_scan(vm_object_t object, int op)
 			continue;
 		}
 
-		KASSERT(pp == NULL || pp->valid != 0,
+		KASSERT(pp == NULL || !vm_page_none_valid(pp),
 		    ("unbusy invalid page %p", pp));
 
 		if (pp != NULL || vm_pager_has_page(object, new_pindex, NULL,
@@ -1894,7 +1898,7 @@ wired:
 			    object->ref_count != 0)
 				pmap_remove_all(p);
 			if ((options & OBJPR_CLEANONLY) == 0) {
-				p->valid = 0;
+				vm_page_invalid(p);
 				vm_page_undirty(p);
 			}
 			vm_page_xunbusy(p);
@@ -1902,7 +1906,8 @@ wired:
 		}
 		KASSERT((p->flags & PG_FICTITIOUS) == 0,
 		    ("vm_object_page_remove: page %p is fictitious", p));
-		if ((options & OBJPR_CLEANONLY) != 0 && p->valid != 0) {
+		if ((options & OBJPR_CLEANONLY) != 0 &&
+		    !vm_page_none_valid(p)) {
 			if ((options & OBJPR_NOTMAPPED) == 0 &&
 			    object->ref_count != 0 &&
 			    !vm_page_try_remove_write(p))

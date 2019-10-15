@@ -956,6 +956,12 @@ vfs_buf_test_cache(struct buf *bp, vm_ooffset_t foff, vm_offset_t off,
 {
 
 	VM_OBJECT_ASSERT_LOCKED(m->object);
+
+	/*
+	 * This function and its results are protected by higher level
+	 * synchronization requiring vnode and buf locks to page in and
+	 * validate pages.
+	 */
 	if (bp->b_flags & B_CACHE) {
 		int base = (foff + off) & PAGE_MASK;
 		if (vm_page_is_valid(m, base, size) == 0)
@@ -4640,7 +4646,7 @@ vfs_busy_pages(struct buf *bp, int clear_modify)
 		if (clear_modify) {
 			pmap_remove_write(m);
 			vfs_page_set_validclean(bp, foff, m);
-		} else if (m->valid == VM_PAGE_BITS_ALL &&
+		} else if (vm_page_all_valid(m) &&
 		    (bp->b_flags & B_CACHE) == 0) {
 			bp->b_pages[i] = bogus_page;
 			bogus = true;
@@ -4681,6 +4687,14 @@ vfs_bio_set_valid(struct buf *bp, int base, int size)
 	n = PAGE_SIZE - (base & PAGE_MASK);
 
 	VM_OBJECT_WLOCK(bp->b_bufobj->bo_object);
+
+	/*
+	 * Busy may not be strictly necessary here because the pages are
+	 * unlikely to be fully valid and the vnode lock will synchronize
+	 * their access via getpages.  It is grabbed for consistency with
+	 * other page validation.
+	 */
+	vfs_busy_pages_acquire(bp);
 	for (i = base / PAGE_SIZE; size > 0 && i < bp->b_npages; ++i) {
 		m = bp->b_pages[i];
 		if (n > size)
@@ -4690,6 +4704,7 @@ vfs_bio_set_valid(struct buf *bp, int base, int size)
 		size -= n;
 		n = PAGE_SIZE;
 	}
+	vfs_busy_pages_release(bp);
 	VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
 }
 
@@ -4717,6 +4732,7 @@ vfs_bio_clrbuf(struct buf *bp)
 	bp->b_flags &= ~B_INVAL;
 	bp->b_ioflags &= ~BIO_ERROR;
 	VM_OBJECT_WLOCK(bp->b_bufobj->bo_object);
+	vfs_busy_pages_acquire(bp);
 	if ((bp->b_npages == 1) && (bp->b_bufsize < PAGE_SIZE) &&
 	    (bp->b_offset & PAGE_MASK) == 0) {
 		if (bp->b_pages[0] == bogus_page)
@@ -4758,6 +4774,7 @@ vfs_bio_clrbuf(struct buf *bp)
 		bp->b_pages[i]->valid |= mask;
 	}
 unlock:
+	vfs_busy_pages_release(bp);
 	VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
 	bp->b_resid = 0;
 }
@@ -5189,7 +5206,7 @@ again:
 		 * the end of the function catches the race in a
 		 * reliable way (protected by the object lock).
 		 */
-		if (m->valid == VM_PAGE_BITS_ALL)
+		if (vm_page_all_valid(m))
 			continue;
 
 		poff = IDX_TO_OFF(m->pindex);
@@ -5219,7 +5236,7 @@ again:
 				 * cache pressure.
 				 */
 				if (buf_pager_relbuf ||
-				    m->valid != VM_PAGE_BITS_ALL)
+				    !vm_page_all_valid(m))
 					bp->b_flags |= B_RELBUF;
 
 				bp->b_flags &= ~B_NOCACHE;
@@ -5229,12 +5246,12 @@ again:
 			}
 		}
 		KASSERT(1 /* racy, enable for debugging */ ||
-		    m->valid == VM_PAGE_BITS_ALL || i == count - 1,
+		    vm_page_all_valid(m) || i == count - 1,
 		    ("buf %d %p invalid", i, m));
 		if (i == count - 1 && lpart) {
 			VM_OBJECT_WLOCK(object);
-			if (m->valid != 0 &&
-			    m->valid != VM_PAGE_BITS_ALL)
+			if (!vm_page_none_valid(m) &&
+			    !vm_page_all_valid(m))
 				vm_page_zero_invalid(m, TRUE);
 			VM_OBJECT_WUNLOCK(object);
 		}
@@ -5261,7 +5278,7 @@ end_pages:
 		 * invalidated or removed, so we must restart for
 		 * safety as well.
 		 */
-		if (ma[i]->valid != VM_PAGE_BITS_ALL)
+		if (!vm_page_all_valid(ma[i]))
 			redo = true;
 	}
 	if (redo && error == 0)

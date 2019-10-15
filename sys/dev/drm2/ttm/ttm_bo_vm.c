@@ -252,7 +252,7 @@ reserve:
 		    ("inconsistent insert bo %p m %p m1 %p offset %jx",
 		    bo, m, m1, (uintmax_t)offset));
 	}
-	m->valid = VM_PAGE_BITS_ALL;
+	vm_page_valid(m);
 	if (*mres != NULL) {
 		KASSERT(*mres != m, ("losing %p %p", *mres, m));
 		vm_page_free(*mres);

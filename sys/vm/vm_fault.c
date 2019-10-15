@@ -211,6 +211,7 @@ vm_fault_dirty(vm_map_entry_t entry, vm_page_t m, vm_prot_t prot,
 		return;
 
 	VM_OBJECT_ASSERT_LOCKED(m->object);
+	VM_PAGE_OBJECT_BUSY_ASSERT(m);
 
 	need_dirty = ((fault_type & VM_PROT_WRITE) != 0 &&
 	    (fault_flags & VM_FAULT_WIRE) == 0) ||
@@ -285,7 +286,7 @@ vm_fault_soft_fast(struct faultstate *fs, vm_offset_t vaddr, vm_prot_t prot,
 	m = vm_page_lookup(fs->first_object, fs->first_pindex);
 	/* A busy page can be mapped for read|execute access. */
 	if (m == NULL || ((prot & VM_PROT_WRITE) != 0 &&
-	    vm_page_busied(m)) || m->valid != VM_PAGE_BITS_ALL) {
+	    vm_page_busied(m)) || !vm_page_all_valid(m)) {
 		rv = KERN_FAILURE;
 		goto out;
 	}
@@ -368,7 +369,7 @@ vm_fault_populate_check_page(vm_page_t m)
 	 * valid, and exclusively busied.
 	 */
 	MPASS(m != NULL);
-	MPASS(m->valid == VM_PAGE_BITS_ALL);
+	MPASS(vm_page_all_valid(m));
 	MPASS(vm_page_xbusied(m));
 }
 
@@ -830,7 +831,7 @@ RetryFault_oom:
 			 * (readable), jump to readrest, else break-out ( we
 			 * found the page ).
 			 */
-			if (fs.m->valid != VM_PAGE_BITS_ALL)
+			if (!vm_page_all_valid(fs.m))
 				goto readrest;
 			break; /* break to PAGE HAS BEEN FOUND */
 		}
@@ -1154,7 +1155,7 @@ readrest:
 				VM_CNT_INC(v_ozfod);
 			}
 			VM_CNT_INC(v_zfod);
-			fs.m->valid = VM_PAGE_BITS_ALL;
+			vm_page_valid(fs.m);
 			/* Don't try to prefault neighboring pages. */
 			faultcount = 1;
 			break;	/* break to PAGE HAS BEEN FOUND */
@@ -1245,7 +1246,7 @@ readrest:
 				 * Oh, well, lets copy it.
 				 */
 				pmap_copy_page(fs.m, fs.first_m);
-				fs.first_m->valid = VM_PAGE_BITS_ALL;
+				vm_page_valid(fs.first_m);
 				if (wired && (fault_flags &
 				    VM_FAULT_WIRE) == 0) {
 					vm_page_wire(fs.first_m);
@@ -1364,7 +1365,7 @@ readrest:
 	 * Page must be completely valid or it is not fit to
 	 * map into user space.  vm_pager_get_pages() ensures this.
 	 */
-	KASSERT(fs.m->valid == VM_PAGE_BITS_ALL,
+	KASSERT(vm_page_all_valid(fs.m),
 	    ("vm_fault: page %p partially invalid", fs.m));
 	VM_OBJECT_WUNLOCK(fs.object);
 
@@ -1480,7 +1481,7 @@ vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr, int ahead)
 			    entry->start);
 			while ((m = m_next) != NULL && m->pindex < pend) {
 				m_next = TAILQ_NEXT(m, listq);
-				if (m->valid != VM_PAGE_BITS_ALL ||
+				if (!vm_page_all_valid(m) ||
 				    vm_page_busied(m))
 					continue;
 
@@ -1577,7 +1578,7 @@ vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
 				VM_OBJECT_RUNLOCK(lobject);
 			break;
 		}
-		if (m->valid == VM_PAGE_BITS_ALL &&
+		if (vm_page_all_valid(m) &&
 		    (m->flags & PG_FICTITIOUS) == 0)
 			pmap_enter_quick(pmap, addr, m, entry->protection);
 		if (!obj_locked || lobject != entry->object.vm_object)
@@ -1852,7 +1853,7 @@ again:
 		 * all copies of the wired map entry have similar
 		 * backing pages.
 		 */
-		if (dst_m->valid == VM_PAGE_BITS_ALL) {
+		if (vm_page_all_valid(dst_m)) {
 			pmap_enter(dst_map->pmap, vaddr, dst_m, prot,
 			    access | (upgrade ? PMAP_ENTER_WIRED : 0), 0);
 		}

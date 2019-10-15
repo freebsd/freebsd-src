@@ -1408,7 +1408,7 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize, boolean_t ignerr)
 retry:
 			m = vm_page_grab(uobj, idx, VM_ALLOC_NOCREAT);
 			if (m != NULL) {
-				MPASS(m->valid == VM_PAGE_BITS_ALL);
+				MPASS(vm_page_all_valid(m));
 			} else if (vm_pager_has_page(uobj, idx, NULL, NULL)) {
 				m = vm_page_alloc(uobj, idx, VM_ALLOC_NORMAL |
 				    VM_ALLOC_WAITFAIL);
