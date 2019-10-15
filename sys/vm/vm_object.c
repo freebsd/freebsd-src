@@ -1366,7 +1366,6 @@ retry:
 			VM_OBJECT_WLOCK(new_object);
 			goto retry;
 		}
-		/* Rename released the xbusy lock. */
 
 #if VM_NRESERVLEVEL > 0
 		/*
@@ -1383,8 +1382,8 @@ retry:
 		 */
 		vm_reserv_rename(m, new_object, orig_object, offidxstart);
 #endif
-		if (orig_object->type == OBJT_SWAP)
-			vm_page_xbusy(m);
+		if (orig_object->type != OBJT_SWAP)
+			vm_page_xunbusy(m);
 	}
 	if (orig_object->type == OBJT_SWAP) {
 		/*
@@ -1538,6 +1537,8 @@ vm_object_collapse_scan(vm_object_t object, int op)
 			    ("freeing mapped page %p", p));
 			if (vm_page_remove(p))
 				vm_page_free(p);
+			else
+				vm_page_xunbusy(p);
 			continue;
 		}
 
@@ -1579,6 +1580,8 @@ vm_object_collapse_scan(vm_object_t object, int op)
 			    ("freeing mapped page %p", p));
 			if (vm_page_remove(p))
 				vm_page_free(p);
+			else
+				vm_page_xunbusy(p);
 			if (pp != NULL)
 				vm_page_xunbusy(pp);
 			continue;
@@ -1599,7 +1602,6 @@ vm_object_collapse_scan(vm_object_t object, int op)
 			    op);
 			continue;
 		}
-		/* Rename released the xbusy lock. */
 
 		/* Use the old pindex to free the right page. */
 		if (backing_object->type == OBJT_SWAP)
@@ -1613,6 +1615,7 @@ vm_object_collapse_scan(vm_object_t object, int op)
 		vm_reserv_rename(p, object, backing_object,
 		    backing_offset_index);
 #endif
+		vm_page_xunbusy(p);
 	}
 	return (true);
 }
