@@ -1074,7 +1074,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		len = ((i == lastp) ? lastend : PAGE_SIZE) - offs;
 		m = vm_page_grab(sc->object, i, VM_ALLOC_SYSTEM);
 		if (bp->bio_cmd == BIO_READ) {
-			if (m->valid == VM_PAGE_BITS_ALL)
+			if (vm_page_all_valid(m))
 				rv = VM_PAGER_OK;
 			else
 				rv = vm_pager_get_pages(sc->object, &m, 1,
@@ -1090,7 +1090,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 				 * can be recreated if thrown out.
 				 */
 				pmap_zero_page(m);
-				m->valid = VM_PAGE_BITS_ALL;
+				vm_page_valid(m);
 			}
 			if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
 				pmap_copy_pages(&m, offs, bp->bio_ma,
@@ -1104,7 +1104,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 				cpu_flush_dcache(p, len);
 			}
 		} else if (bp->bio_cmd == BIO_WRITE) {
-			if (len == PAGE_SIZE || m->valid == VM_PAGE_BITS_ALL)
+			if (len == PAGE_SIZE || vm_page_all_valid(m))
 				rv = VM_PAGER_OK;
 			else
 				rv = vm_pager_get_pages(sc->object, &m, 1,
@@ -1125,13 +1125,13 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 				physcopyin(p, VM_PAGE_TO_PHYS(m) + offs, len);
 			}
 
-			m->valid = VM_PAGE_BITS_ALL;
+			vm_page_valid(m);
 			if (m->dirty != VM_PAGE_BITS_ALL) {
 				vm_page_dirty(m);
 				vm_pager_page_unswapped(m);
 			}
 		} else if (bp->bio_cmd == BIO_DELETE) {
-			if (len == PAGE_SIZE || m->valid == VM_PAGE_BITS_ALL)
+			if (len == PAGE_SIZE || vm_page_all_valid(m))
 				rv = VM_PAGER_OK;
 			else
 				rv = vm_pager_get_pages(sc->object, &m, 1,

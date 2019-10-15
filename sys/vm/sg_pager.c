@@ -198,7 +198,7 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	vm_page_free(m[0]);
 	vm_page_unlock(m[0]);
 	m[0] = page;
-	page->valid = VM_PAGE_BITS_ALL;
+	vm_page_valid(page);
 
 	if (rbehind)
 		*rbehind = 0;

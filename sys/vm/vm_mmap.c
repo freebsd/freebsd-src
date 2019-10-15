@@ -893,7 +893,7 @@ RestartScan:
 					}
 				} else
 					vm_page_unlock(m);
-				KASSERT(m->valid == VM_PAGE_BITS_ALL,
+				KASSERT(vm_page_all_valid(m),
 				    ("mincore: page %p is mapped but invalid",
 				    m));
 			} else if (mincoreinfo == 0) {
@@ -915,7 +915,7 @@ RestartScan:
 					pindex = OFF_TO_IDX(current->offset +
 					    (addr - current->start));
 					m = vm_page_lookup(object, pindex);
-					if (m != NULL && m->valid == 0)
+					if (m != NULL && vm_page_none_valid(m))
 						m = NULL;
 					if (m != NULL)
 						mincoreinfo = MINCORE_INCORE;

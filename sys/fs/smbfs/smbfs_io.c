@@ -457,7 +457,7 @@ smbfs_getpages(ap)
 	 * XXXGL: is that true for SMB filesystem?
 	 */
 	VM_OBJECT_WLOCK(object);
-	if (pages[npages - 1]->valid != 0 && --npages == 0)
+	if (!vm_page_none_valid(pages[npages - 1]) && --npages == 0)
 		goto out;
 	VM_OBJECT_WUNLOCK(object);
 
@@ -505,14 +505,14 @@ smbfs_getpages(ap)
 			/*
 			 * Read operation filled an entire page
 			 */
-			m->valid = VM_PAGE_BITS_ALL;
+			vm_page_valid(m);
 			KASSERT(m->dirty == 0,
 			    ("smbfs_getpages: page %p is dirty", m));
 		} else if (size > toff) {
 			/*
 			 * Read operation filled a partial page.
 			 */
-			m->valid = 0;
+			vm_page_invalid(m);
 			vm_page_set_valid_range(m, 0, size - toff);
 			KASSERT(m->dirty == 0,
 			    ("smbfs_getpages: page %p is dirty", m));

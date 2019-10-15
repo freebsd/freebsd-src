@@ -534,7 +534,7 @@ mappedread_sf(vnode_t *vp, int nbytes, uio_t *uio)
 
 		pp = vm_page_grab(obj, OFF_TO_IDX(start), VM_ALLOC_SBUSY |
 		    VM_ALLOC_NORMAL | VM_ALLOC_IGN_SBUSY);
-		if (pp->valid == 0) {
+		if (vm_page_none_valid(pp)) {
 			zfs_vmobject_wunlock(obj);
 			va = zfs_map_page(pp, &sf);
 			error = dmu_read(os, zp->z_id, start, bytes, va,
@@ -543,17 +543,16 @@ mappedread_sf(vnode_t *vp, int nbytes, uio_t *uio)
 				bzero(va + bytes, PAGESIZE - bytes);
 			zfs_unmap_page(sf);
 			zfs_vmobject_wlock(obj);
-			vm_page_sunbusy(pp);
-			if (error) {
-				if (!vm_page_busied(pp) && !vm_page_wired(pp) &&
-				    pp->valid == 0)
-					vm_page_free(pp);
-			} else {
-				pp->valid = VM_PAGE_BITS_ALL;
+			if (error == 0) {
+				vm_page_valid(pp);
 				vm_page_lock(pp);
 				vm_page_activate(pp);
 				vm_page_unlock(pp);
 			}
+			vm_page_sunbusy(pp);
+			if (error != 0 && !vm_page_wired(pp) == 0 &&
+			    pp->valid == 0 && vm_page_tryxbusy(pp))
+				vm_page_free(pp);
 		} else {
 			ASSERT3U(pp->valid, ==, VM_PAGE_BITS_ALL);
 			vm_page_sunbusy(pp);

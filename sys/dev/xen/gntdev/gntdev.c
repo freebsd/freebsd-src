@@ -836,8 +836,8 @@ gntdev_gmap_pg_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 	}
 
 	vm_page_busy_acquire(page, 0);
+	vm_page_valid(page);
 	vm_page_insert(page, object, pidx);
-	page->valid = VM_PAGE_BITS_ALL;
 	*mres = page;
 	return (VM_PAGER_OK);
 }
