@@ -2353,9 +2353,9 @@ do_link_state_change(void *arg, int pending)
 	if (log_link_state_change)
 		if_printf(ifp, "link state changed to %s\n",
 		    (link_state == LINK_STATE_UP) ? "UP" : "DOWN" );
+	NET_EPOCH_EXIT(et);
 	EVENTHANDLER_INVOKE(ifnet_link_event, ifp, link_state);
 	CURVNET_RESTORE();
-	NET_EPOCH_EXIT(et);
 }
 
 /*
