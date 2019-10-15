@@ -329,23 +329,15 @@ MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 
 struct ifnet *
-ifnet_byindex_locked(u_short idx)
-{
-
-	if (idx > V_if_index)
-		return (NULL);
-	if (V_ifindex_table[idx] == IFNET_HOLD)
-		return (NULL);
-	return (V_ifindex_table[idx]);
-}
-
-struct ifnet *
 ifnet_byindex(u_short idx)
 {
 	struct ifnet *ifp;
 
-	ifp = ifnet_byindex_locked(idx);
-	return (ifp);
+	if (__predict_false(idx > V_if_index))
+		return (NULL);
+
+	ifp = *(struct ifnet * const volatile *)(V_ifindex_table + idx);
+	return (__predict_false(ifp == IFNET_HOLD) ? NULL : ifp);
 }
 
 struct ifnet *
@@ -355,7 +347,7 @@ ifnet_byindex_ref(u_short idx)
 
 	NET_EPOCH_ASSERT();
 
-	ifp = ifnet_byindex_locked(idx);
+	ifp = ifnet_byindex(idx);
 	if (ifp == NULL || (ifp->if_flags & IFF_DYING))
 		return (NULL);
 	if_ref(ifp);
@@ -427,7 +419,7 @@ ifaddr_byindex(u_short idx)
 
 	NET_EPOCH_ASSERT();
 
-	ifp = ifnet_byindex_locked(idx);
+	ifp = ifnet_byindex(idx);
 	if (ifp != NULL && (ifa = ifp->if_addr) != NULL)
 		ifa_ref(ifa);
 	return (ifa);
@@ -653,7 +645,7 @@ if_free(struct ifnet *ifp)
 
 	CURVNET_SET_QUIET(ifp->if_vnet);
 	IFNET_WLOCK();
-	KASSERT(ifp == ifnet_byindex_locked(ifp->if_index),
+	KASSERT(ifp == ifnet_byindex(ifp->if_index),
 	    ("%s: freeing unallocated ifnet", ifp->if_xname));
 
 	ifindex_free_locked(ifp->if_index);
