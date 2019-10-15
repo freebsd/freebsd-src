@@ -1293,7 +1293,7 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 	    ifpaddr->sa_family == AF_LINK) {
 	    const struct sockaddr_dl *sdl = (const struct sockaddr_dl *)ifpaddr;
 	    if (sdl->sdl_index != 0)
-		    info->rti_ifp = ifnet_byindex_locked(sdl->sdl_index);
+		    info->rti_ifp = ifnet_byindex(sdl->sdl_index);
 	}
 	/*
 	 * If we have source address specified, try to find it
