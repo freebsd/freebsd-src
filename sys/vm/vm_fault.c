@@ -281,11 +281,14 @@ vm_fault_soft_fast(struct faultstate *fs, vm_offset_t vaddr, vm_prot_t prot,
 	int psind, rv;
 
 	MPASS(fs->vp == NULL);
+	vm_object_busy(fs->first_object);
 	m = vm_page_lookup(fs->first_object, fs->first_pindex);
 	/* A busy page can be mapped for read|execute access. */
 	if (m == NULL || ((prot & VM_PROT_WRITE) != 0 &&
-	    vm_page_busied(m)) || m->valid != VM_PAGE_BITS_ALL)
-		return (KERN_FAILURE);
+	    vm_page_busied(m)) || m->valid != VM_PAGE_BITS_ALL) {
+		rv = KERN_FAILURE;
+		goto out;
+	}
 	m_map = m;
 	psind = 0;
 #if (defined(__aarch64__) || defined(__amd64__) || (defined(__arm__) && \
@@ -323,7 +326,7 @@ vm_fault_soft_fast(struct faultstate *fs, vm_offset_t vaddr, vm_prot_t prot,
 	rv = pmap_enter(fs->map->pmap, vaddr, m_map, prot, fault_type |
 	    PMAP_ENTER_NOSLEEP | (wired ? PMAP_ENTER_WIRED : 0), psind);
 	if (rv != KERN_SUCCESS)
-		return (rv);
+		goto out;
 	if (m_hold != NULL) {
 		*m_hold = m;
 		vm_page_wire(m);
@@ -334,7 +337,10 @@ vm_fault_soft_fast(struct faultstate *fs, vm_offset_t vaddr, vm_prot_t prot,
 	VM_OBJECT_RUNLOCK(fs->first_object);
 	vm_map_lookup_done(fs->map, fs->entry);
 	curthread->td_ru.ru_minflt++;
-	return (KERN_SUCCESS);
+
+out:
+	vm_object_unbusy(fs->first_object);
+	return (rv);
 }
 
 static void
@@ -1351,8 +1357,8 @@ readrest:
 	if (hardfault)
 		fs.entry->next_read = vaddr + ptoa(ahead) + PAGE_SIZE;
 
-	vm_fault_dirty(fs.entry, fs.m, prot, fault_type, fault_flags, true);
 	vm_page_assert_xbusied(fs.m);
+	vm_fault_dirty(fs.entry, fs.m, prot, fault_type, fault_flags, true);
 
 	/*
 	 * Page must be completely valid or it is not fit to

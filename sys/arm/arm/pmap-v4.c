@@ -2979,8 +2979,8 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pa = systempage.pv_pa;
 		m = NULL;
 	} else {
-		if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
-			VM_OBJECT_ASSERT_LOCKED(m->object);
+		if ((m->oflags & VPO_UNMANAGED) == 0)
+			VM_PAGE_OBJECT_BUSY_ASSERT(m);
 		pa = VM_PAGE_TO_PHYS(m);
 	}
 	nflags = 0;
