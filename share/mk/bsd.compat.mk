@@ -81,12 +81,12 @@ LIBSOFTWMAKEFLAGS=        -DCOMPAT_SOFTFP
 # -------------------------------------------------------------------
 # Generic code for each type.
 # Set defaults based on type.
-libcompat=	${LIBCOMPAT:tl}
+libcompat=	${_LIBCOMPAT:tl}
 _LIBCOMPAT_MAKEVARS=	_OBJTOP TMP CPUFLAGS CFLAGS CXXFLAGS WMAKEENV \
 			WMAKEFLAGS WMAKE
 .for _var in ${_LIBCOMPAT_MAKEVARS}
-.if !empty(LIB${LIBCOMPAT}${_var})
-LIBCOMPAT${_var}?=	${LIB${LIBCOMPAT}${_var}}
+.if !empty(LIB${_LIBCOMPAT}${_var})
+LIBCOMPAT${_var}?=	${LIB${_LIBCOMPAT}${_var}}
 .endif
 .endfor
 
