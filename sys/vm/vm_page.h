@@ -542,6 +542,7 @@ malloc2vm_flags(int malloc_flags)
 
 int vm_page_busy_acquire(vm_page_t m, int allocflags);
 void vm_page_busy_downgrade(vm_page_t m);
+int vm_page_busy_tryupgrade(vm_page_t m);
 void vm_page_busy_sleep(vm_page_t m, const char *msg, bool nonshared);
 void vm_page_free(vm_page_t m);
 void vm_page_free_zero(vm_page_t m);

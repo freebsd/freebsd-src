@@ -972,6 +972,32 @@ vm_page_busy_downgrade(vm_page_t m)
 }
 
 /*
+ *
+ *	vm_page_busy_tryupgrade:
+ *
+ *	Attempt to upgrade a single shared busy into an exclusive busy.
+ */
+int
+vm_page_busy_tryupgrade(vm_page_t m)
+{
+	u_int x;
+
+	vm_page_assert_sbusied(m);
+
+	x = m->busy_lock;
+	for (;;) {
+		if (VPB_SHARERS(x) > 1)
+			return (0);
+		KASSERT((x & ~VPB_BIT_WAITERS) == VPB_SHARERS_WORD(1),
+		    ("vm_page_busy_tryupgrade: invalid lock state"));
+		if (!atomic_fcmpset_acq_int(&m->busy_lock, &x,
+		    VPB_SINGLE_EXCLUSIVER | (x & VPB_BIT_WAITERS)))
+			continue;
+		return (1);
+	}
+}
+
+/*
  *	vm_page_sbusied:
  *
  *	Return a positive value if the page is shared busied, 0 otherwise.
@@ -2570,7 +2596,12 @@ retry:
 			else if (object->memattr != VM_MEMATTR_DEFAULT)
 				error = EINVAL;
 			else if (vm_page_queue(m) != PQ_NONE &&
-			    !vm_page_busied(m) && !vm_page_wired(m)) {
+			    vm_page_tryxbusy(m) != 0) {
+				if (vm_page_wired(m)) {
+					vm_page_xunbusy(m);
+					error = EBUSY;
+					goto unlock;
+				}
 				KASSERT(pmap_page_get_memattr(m) ==
 				    VM_MEMATTR_DEFAULT,
 				    ("page %p has an unexpected memattr", m));
@@ -2616,6 +2647,7 @@ retry:
 						    VM_MEMATTR_DEFAULT);
 					}
 					if (m_new == NULL) {
+						vm_page_xunbusy(m);
 						error = ENOMEM;
 						goto unlock;
 					}
@@ -2647,7 +2679,6 @@ retry:
 					m_new->valid = m->valid;
 					m_new->dirty = m->dirty;
 					m->flags &= ~PG_ZERO;
-					vm_page_xbusy(m);
 					vm_page_dequeue(m);
 					vm_page_replace_checked(m_new, object,
 					    m->pindex, m);
@@ -4046,8 +4077,8 @@ vm_page_try_blocked_op(vm_page_t m, void (*op)(vm_page_t))
 
 	KASSERT(m->object != NULL && (m->oflags & VPO_UNMANAGED) == 0,
 	    ("vm_page_try_blocked_op: page %p has no object", m));
-	KASSERT(!vm_page_busied(m),
-	    ("vm_page_try_blocked_op: page %p is busy", m));
+	KASSERT(vm_page_busied(m),
+	    ("vm_page_try_blocked_op: page %p is not busy", m));
 	VM_OBJECT_ASSERT_LOCKED(m->object);
 
 	old = m->ref_count;
@@ -4163,13 +4194,18 @@ vm_page_grab(vm_object_t object, vm_pindex_t pindex, int allocflags)
 	    (allocflags & VM_ALLOC_IGN_SBUSY) != 0,
 	    ("vm_page_grab: VM_ALLOC_SBUSY/VM_ALLOC_IGN_SBUSY mismatch"));
 	pflags = allocflags &
-	    ~(VM_ALLOC_NOWAIT | VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL);
+	    ~(VM_ALLOC_NOWAIT | VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL |
+	    VM_ALLOC_NOBUSY);
 	if ((allocflags & VM_ALLOC_NOWAIT) == 0)
 		pflags |= VM_ALLOC_WAITFAIL;
+	if ((allocflags & VM_ALLOC_IGN_SBUSY) != 0)
+		pflags |= VM_ALLOC_SBUSY;
 retrylookup:
 	if ((m = vm_page_lookup(object, pindex)) != NULL) {
-		sleep = (allocflags & VM_ALLOC_IGN_SBUSY) != 0 ?
-		    vm_page_xbusied(m) : vm_page_busied(m);
+		if ((allocflags & (VM_ALLOC_IGN_SBUSY | VM_ALLOC_SBUSY)) != 0)
+			sleep = !vm_page_trysbusy(m);
+		else
+			sleep = !vm_page_tryxbusy(m);
 		if (sleep) {
 			if ((allocflags & VM_ALLOC_NOWAIT) != 0)
 				return (NULL);
@@ -4189,12 +4225,7 @@ retrylookup:
 		} else {
 			if ((allocflags & VM_ALLOC_WIRED) != 0)
 				vm_page_wire(m);
-			if ((allocflags &
-			    (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)) == 0)
-				vm_page_xbusy(m);
-			else if ((allocflags & VM_ALLOC_SBUSY) != 0)
-				vm_page_sbusy(m);
-			return (m);
+			goto out;
 		}
 	}
 	if ((allocflags & VM_ALLOC_NOCREAT) != 0)
@@ -4207,6 +4238,14 @@ retrylookup:
 	}
 	if (allocflags & VM_ALLOC_ZERO && (m->flags & PG_ZERO) == 0)
 		pmap_zero_page(m);
+
+out:
+	if ((allocflags & VM_ALLOC_NOBUSY) != 0) {
+		if ((allocflags & VM_ALLOC_IGN_SBUSY) != 0)
+			vm_page_sunbusy(m);
+		else
+			vm_page_xunbusy(m);
+	}
 	return (m);
 }
 
@@ -4359,10 +4398,13 @@ vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
 	    ("vm_page_grab_pages: VM_ALLOC_SBUSY/IGN_SBUSY mismatch"));
 	if (count == 0)
 		return (0);
-	pflags = allocflags & ~(VM_ALLOC_NOWAIT | VM_ALLOC_WAITOK |
-	    VM_ALLOC_WAITFAIL | VM_ALLOC_IGN_SBUSY);
+	pflags = allocflags &
+	    ~(VM_ALLOC_NOWAIT | VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL |
+	    VM_ALLOC_NOBUSY);
 	if ((allocflags & VM_ALLOC_NOWAIT) == 0)
 		pflags |= VM_ALLOC_WAITFAIL;
+	if ((allocflags & VM_ALLOC_IGN_SBUSY) != 0)
+		pflags |= VM_ALLOC_SBUSY;
 	i = 0;
 retrylookup:
 	m = vm_radix_lookup_le(&object->rtree, pindex + i);
@@ -4373,8 +4415,11 @@ retrylookup:
 		mpred = TAILQ_PREV(m, pglist, listq);
 	for (; i < count; i++) {
 		if (m != NULL) {
-			sleep = (allocflags & VM_ALLOC_IGN_SBUSY) != 0 ?
-			    vm_page_xbusied(m) : vm_page_busied(m);
+			if ((allocflags &
+			    (VM_ALLOC_SBUSY | VM_ALLOC_IGN_SBUSY)) != 0)
+				sleep = !vm_page_trysbusy(m);
+			else
+				sleep = !vm_page_tryxbusy(m);
 			if (sleep) {
 				if ((allocflags & VM_ALLOC_NOWAIT) != 0)
 					break;
@@ -4392,11 +4437,6 @@ retrylookup:
 			}
 			if ((allocflags & VM_ALLOC_WIRED) != 0)
 				vm_page_wire(m);
-			if ((allocflags & (VM_ALLOC_NOBUSY |
-			    VM_ALLOC_SBUSY)) == 0)
-				vm_page_xbusy(m);
-			if ((allocflags & VM_ALLOC_SBUSY) != 0)
-				vm_page_sbusy(m);
 		} else {
 			if ((allocflags & VM_ALLOC_NOCREAT) != 0)
 				break;
@@ -4412,6 +4452,12 @@ retrylookup:
 			if ((m->flags & PG_ZERO) == 0)
 				pmap_zero_page(m);
 			m->valid = VM_PAGE_BITS_ALL;
+		}
+		if ((allocflags & VM_ALLOC_NOBUSY) != 0) {
+			if ((allocflags & VM_ALLOC_IGN_SBUSY) != 0)
+				vm_page_sunbusy(m);
+			else
+				vm_page_xunbusy(m);
 		}
 		ma[i] = mpred = m;
 		m = vm_page_next(m);
