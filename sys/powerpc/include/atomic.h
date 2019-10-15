@@ -682,7 +682,7 @@ atomic_cmpset_long(volatile u_long* p, u_long cmpval, u_long newval)
     atomic_cmpset_rel_##type(volatile u_##type *p, \
 	    u_##type cmpval, u_##type newval)\
     {\
-	__ATOMIC_ACQ();\
+	__ATOMIC_REL();\
 	return (atomic_cmpset_##type(p, cmpval, newval));\
     }\
     struct hack
