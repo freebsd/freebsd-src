@@ -1314,13 +1314,11 @@ moea_is_modified(mmu_t mmu, vm_page_t m)
 	    ("moea_is_modified: page %p is not managed", m));
 
 	/*
-	 * If the page is not exclusive busied, then PGA_WRITEABLE cannot be
-	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
-	 * is clear, no PTEs can have PTE_CHG set.
+	 * If the page is not busied then this check is racy.
 	 */
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
+	if (!pmap_page_is_write_mapped(m))
 		return (FALSE);
+
 	rw_wlock(&pvh_global_lock);
 	rv = moea_query_bit(m, PTE_CHG);
 	rw_wunlock(&pvh_global_lock);
@@ -1346,16 +1344,9 @@ moea_clear_modify(mmu_t mmu, vm_page_t m)
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_clear_modify: page %p is not managed", m));
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	KASSERT(!vm_page_xbusied(m),
-	    ("moea_clear_modify: page %p is exclusive busy", m));
+	vm_page_assert_busied(m);
 
-	/*
-	 * If the page is not PGA_WRITEABLE, then no PTEs can have PTE_CHG
-	 * set.  If the object containing the page is locked and the page is
-	 * not exclusive busied, then PGA_WRITEABLE cannot be concurrently set.
-	 */
-	if ((m->aflags & PGA_WRITEABLE) == 0)
+	if (!pmap_page_is_write_mapped(m))
 		return;
 	rw_wlock(&pvh_global_lock);
 	moea_clear_bit(m, PTE_CHG);
@@ -1375,14 +1366,9 @@ moea_remove_write(mmu_t mmu, vm_page_t m)
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_remove_write: page %p is not managed", m));
+	vm_page_assert_busied(m);
 
-	/*
-	 * If the page is not exclusive busied, then PGA_WRITEABLE cannot be
-	 * set by another thread while the object is locked.  Thus,
-	 * if PGA_WRITEABLE is clear, no page table entries need updating.
-	 */
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
+	if (!pmap_page_is_write_mapped(m))
 		return;
 	rw_wlock(&pvh_global_lock);
 	lo = moea_attr_fetch(m);
