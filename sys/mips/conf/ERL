@@ -21,7 +21,7 @@
 
 ident		ERL
 
-makeoptions	ARCH_FLAGS="-march=octeon+ -mabi=64"
+makeoptions	ARCH_FLAGS="-march=octeon+"
 makeoptions	LDSCRIPT_NAME=ldscript.mips.octeon1
 
 makeoptions	KERNLOADADDR=0xffffffff80100000

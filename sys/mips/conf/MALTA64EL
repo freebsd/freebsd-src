@@ -8,5 +8,4 @@ include		"std.MALTA"
  
 machine		mips mips64el
  
-makeoptions	ARCH_FLAGS="-march=mips64 -mabi=64"
 makeoptions 	KERNLOADADDR=0xffffffff80100000
