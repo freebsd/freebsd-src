@@ -46,7 +46,7 @@ static boolean_t devmap_bootstrap_done = false;
  * The allocated-kva (akva) devmap table and metadata.  Platforms can call
  * devmap_add_entry() to add static device mappings to this table using
  * automatically allocated virtual addresses carved out of the top of kva space.
- * Allocation begins immediately below the ARM_VECTORS_HIGH address.
+ * Allocation begins immediately below the max kernel virtual address.
  */
 #define	AKVA_DEVMAP_MAX_ENTRIES	32
 static struct devmap_entry	akva_devmap_entries[AKVA_DEVMAP_MAX_ENTRIES];
@@ -115,8 +115,8 @@ devmap_lastaddr()
  * physical address and size and a virtual address allocated from the top of
  * kva.  This automatically registers the akva table on the first call, so all a
  * platform has to do is call this routine to install as many mappings as it
- * needs and when initarm() calls devmap_bootstrap() it will pick up all the
- * entries in the akva table automatically.
+ * needs and when the platform-specific init function calls devmap_bootstrap()
+ * it will pick up all the entries in the akva table automatically.
  */
 void
 devmap_add_entry(vm_paddr_t pa, vm_size_t sz)
@@ -132,13 +132,13 @@ devmap_add_entry(vm_paddr_t pa, vm_size_t sz)
 	if (akva_devmap_idx == 0)
 		devmap_register_table(akva_devmap_entries);
 
-	/*
-	 * Allocate virtual address space from the top of kva downwards.  If the
-	 * range being mapped is aligned and sized to 1MB boundaries then also
-	 * align the virtual address to the next-lower 1MB boundary so that we
-	 * end up with a nice efficient section mapping.
-	 */
+	 /* Allocate virtual address space from the top of kva downwards. */
 #ifdef __arm__
+	/*
+	 * If the range being mapped is aligned and sized to 1MB boundaries then
+	 * also align the virtual address to the next-lower 1MB boundary so that
+	 * we end with a nice efficient section mapping.
+	 */
 	if ((pa & 0x000fffff) == 0 && (sz & 0x000fffff) == 0) {
 		akva_devmap_vaddr = trunc_1mpage(akva_devmap_vaddr - sz);
 	} else
@@ -170,7 +170,8 @@ devmap_register_table(const struct devmap_entry *table)
  * the previously-registered table is used.  This smooths transition from legacy
  * code that fills in a local table then calls this function passing that table,
  * and newer code that uses devmap_register_table() in platform-specific
- * code, then lets the common initarm() call this function with a NULL pointer.
+ * code, then lets the common platform-specific init function call this function
+ * with a NULL pointer.
  */
 void
 devmap_bootstrap(vm_offset_t l1pt, const struct devmap_entry *table)
