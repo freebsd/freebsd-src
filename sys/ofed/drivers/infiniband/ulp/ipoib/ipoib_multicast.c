@@ -157,6 +157,7 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 	struct ipoib_dev_priv *priv = mcast->priv;
 	struct ifnet *dev = priv->dev;
 	struct ipoib_ah *ah;
+	struct epoch_tracker et;
 	int ret;
 	int set_qkey = 0;
 
@@ -227,6 +228,8 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 		}
 	}
 
+	NET_EPOCH_ENTER(et);
+
 	/* actually send any queued packets */
 	while (mcast->pkt_queue.ifq_len) {
 		struct mbuf *mb;
@@ -237,6 +240,7 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 			ipoib_warn(priv, "dev_queue_xmit failed to requeue packet\n");
 	}
 
+	NET_EPOCH_EXIT(et);
 	return 0;
 }
 
