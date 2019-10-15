@@ -2506,7 +2506,7 @@ retry:
 				KASSERT((m->oflags & (VPO_SWAPINPROG |
 				    VPO_SWAPSLEEP | VPO_UNMANAGED)) == 0,
 				    ("page %p has unexpected oflags", m));
-				/* Don't care: VPO_NOSYNC. */
+				/* Don't care: PGA_NOSYNC. */
 				run_ext = 1;
 			} else
 				run_ext = 0;
@@ -2655,7 +2655,7 @@ retry:
 				KASSERT((m->oflags & (VPO_SWAPINPROG |
 				    VPO_SWAPSLEEP | VPO_UNMANAGED)) == 0,
 				    ("page %p has unexpected oflags", m));
-				/* Don't care: VPO_NOSYNC. */
+				/* Don't care: PGA_NOSYNC. */
 				if (!vm_page_none_valid(m)) {
 					/*
 					 * First, try to allocate a new page
@@ -2721,7 +2721,6 @@ retry:
 					    ~PGA_QUEUE_STATE_MASK;
 					KASSERT(m_new->oflags == VPO_UNMANAGED,
 					    ("page %p is managed", m_new));
-					m_new->oflags = m->oflags & VPO_NOSYNC;
 					pmap_copy_page(m, m_new);
 					m_new->valid = m->valid;
 					m_new->dirty = m->dirty;
@@ -4703,8 +4702,6 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	vm_page_bits_t oldvalid, pagebits;
 	int endoff, frag;
 
-	/* Object lock for VPO_NOSYNC */
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	vm_page_assert_busied(m);
 	if (size == 0)	/* handle degenerate case */
 		return;
@@ -4732,7 +4729,7 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	/*
 	 * Set valid, clear dirty bits.  If validating the entire
 	 * page we can safely clear the pmap modify bit.  We also
-	 * use this opportunity to clear the VPO_NOSYNC flag.  If a process
+	 * use this opportunity to clear the PGA_NOSYNC flag.  If a process
 	 * takes a write fault on a MAP_NOSYNC memory area the flag will
 	 * be set again.
 	 *
@@ -4773,7 +4770,7 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 			 */
 			pmap_clear_modify(m);
 		m->dirty = 0;
-		m->oflags &= ~VPO_NOSYNC;
+		vm_page_aflag_clear(m, PGA_NOSYNC);
 	} else if (oldvalid != VM_PAGE_BITS_ALL && vm_page_xbusied(m))
 		m->dirty &= ~pagebits;
 	else

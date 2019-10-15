@@ -287,7 +287,6 @@ struct vm_page {
 #define	VPO_SWAPSLEEP	0x02		/* waiting for swap to finish */
 #define	VPO_UNMANAGED	0x04		/* no PV management for page */
 #define	VPO_SWAPINPROG	0x08		/* swap I/O in progress on page */
-#define	VPO_NOSYNC	0x10		/* do not collect for syncer */
 
 /*
  * Busy page implementation details.
@@ -390,6 +389,8 @@ extern struct mtx_padalign pa_lock[];
  * PGA_EXECUTABLE may be set by pmap routines, and indicates that a page has
  * at least one executable mapping.  It is not consumed by the MI VM layer.
  *
+ * PGA_NOSYNC must be set and cleared with the page busy lock held.
+ *
  * PGA_ENQUEUED is set and cleared when a page is inserted into or removed
  * from a page queue, respectively.  It determines whether the plinks.q field
  * of the page is valid.  To set or clear this flag, the queue lock for the
@@ -420,6 +421,7 @@ extern struct mtx_padalign pa_lock[];
 #define	PGA_DEQUEUE	0x10		/* page is due to be dequeued */
 #define	PGA_REQUEUE	0x20		/* page is due to be requeued */
 #define	PGA_REQUEUE_HEAD 0x40		/* page requeue should bypass LRU */
+#define	PGA_NOSYNC	0x80		/* do not collect for syncer */
 
 #define	PGA_QUEUE_STATE_MASK	(PGA_ENQUEUED | PGA_DEQUEUE | PGA_REQUEUE | \
 				PGA_REQUEUE_HEAD)
