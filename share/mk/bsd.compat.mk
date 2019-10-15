@@ -3,18 +3,16 @@
 .if !targets(__<${_this:T}>__)
 __<${_this:T}>__:
 
-# Makefile for the compatibility libraries.
-# - 32-bit compat libraries on MIPS, PowerPC, and AMD64.
-
 # -------------------------------------------------------------------
 # 32 bit world
 .if ${TARGET_ARCH} == "amd64"
+HAS_COMPAT=32
 .if empty(TARGET_CPUTYPE)
 LIB32CPUFLAGS=	-march=i686 -mmmx -msse -msse2
 .else
 LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
 .endif
-.if ${WANT_COMPILER_TYPE} == gcc || \
+.if (defined(WANT_COMPILER_TYPE) && ${WANT_COMPILER_TYPE} == gcc) || \
     (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc)
 .else
 LIB32CPUFLAGS+=	-target x86_64-unknown-freebsd13.0
@@ -27,6 +25,7 @@ LIB32WMAKEFLAGS=	\
 		LD="${XLD} -m elf_i386_fbsd -L${LIBCOMPATTMP}/usr/lib32"
 
 .elif ${TARGET_ARCH} == "powerpc64"
+HAS_COMPAT=32
 .if empty(TARGET_CPUTYPE)
 LIB32CPUFLAGS=	-mcpu=powerpc
 .else
@@ -38,6 +37,7 @@ LIB32WMAKEFLAGS=	\
 		LD="${XLD} -m elf32ppc_fbsd"
 
 .elif ${TARGET_ARCH:Mmips64*} != ""
+HAS_COMPAT=32
 .if ${WANT_COMPILER_TYPE} == gcc || \
     (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc)
 .if empty(TARGET_CPUTYPE)
@@ -71,10 +71,34 @@ LIB32WMAKEFLAGS+=	-DCOMPAT_32BIT
 # -------------------------------------------------------------------
 # soft-fp world
 .if ${TARGET_ARCH:Marmv[67]*} != ""
+HAS_COMPAT=SOFT
 LIBSOFTCFLAGS=        -DCOMPAT_SOFTFP
 LIBSOFTCPUFLAGS= -mfloat-abi=softfp
 LIBSOFTWMAKEENV= CPUTYPE=soft MACHINE=arm MACHINE_ARCH=${TARGET_ARCH}
 LIBSOFTWMAKEFLAGS=        -DCOMPAT_SOFTFP
+.endif
+
+# -------------------------------------------------------------------
+# In the program linking case, select LIBCOMPAT
+.if defined(NEED_COMPAT)
+.ifndef HAS_COMPAT
+.error NEED_COMPAT defined, but no LIBCOMPAT is available
+.elif !${HAS_COMPAT:M${NEED_COMPAT}} && ${NEED_COMPAT} != "any"
+.error NEED_COMPAT (${NEED_COMPAT}) defined, but not in HAS_COMPAT ($HAS_COMPAT)
+.elif ${NEED_COMPAT} == "any"
+.endif
+.ifdef WANT_COMPAT
+.error Both WANT_COMPAT and NEED_COMPAT defined
+.endif
+WANT_COMPAT:=	${NEED_COMPAT}
+.endif
+
+.if defined(HAS_COMPAT) && defined(WANT_COMPAT)
+.if ${WANT_COMPAT} == "any"
+_LIBCOMPAT:=	${HAS_COMPAT:[1]}
+.else
+_LIBCOMPAT:=	${WANT_COMPAT}
+.endif
 .endif
 
 
@@ -102,5 +126,11 @@ LIBCOMPATCFLAGS+=	${LIBCOMPATCPUFLAGS} \
 # -B is needed to find /usr/lib32/crti.o for GCC and /usr/libsoft/crti.o for
 # Clang/GCC.
 LIBCOMPATCFLAGS+=	-B${LIBCOMPATTMP}/usr/lib${libcompat}
+
+.if defined(WANT_COMPAT)
+LIBDIR_BASE:=	/usr/lib${libcompat}
+_LIB_OBJTOP=	${LIBCOMPAT_OBJTOP}
+CFLAGS+=	${LIBCOMPATCFLAGS}
+.endif
 
 .endif
