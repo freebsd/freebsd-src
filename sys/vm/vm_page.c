@@ -3401,9 +3401,12 @@ vm_page_free_prep(vm_page_t m)
 		vm_page_lock_assert(m, MA_OWNED);
 		KASSERT(!pmap_page_is_mapped(m),
 		    ("vm_page_free_prep: freeing mapped page %p", m));
-	} else
+		KASSERT((m->aflags & (PGA_EXECUTABLE | PGA_WRITEABLE)) == 0,
+		    ("vm_page_free_prep: mapping flags set in page %p", m));
+	} else {
 		KASSERT(m->queue == PQ_NONE,
 		    ("vm_page_free_prep: unmanaged page %p is queued", m));
+	}
 	VM_CNT_INC(v_tfree);
 
 	if (vm_page_sbusied(m))
