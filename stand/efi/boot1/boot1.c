@@ -293,6 +293,18 @@ add_device(dev_info_t **devinfop, dev_info_t *devinfo)
 	dev->next = devinfo;
 }
 
+void
+efi_exit(EFI_STATUS s)
+{
+	BS->Exit(IH, s, 0, NULL);
+}
+
+void
+exit(int error __unused)
+{
+	efi_exit(EFI_LOAD_ERROR);
+}
+
 /*
  * OK. We totally give up. Exit back to EFI with a sensible status so
  * it can try the next option on the list.
@@ -308,7 +320,12 @@ efi_panic(EFI_STATUS s, const char *fmt, ...)
 	va_end(ap);
 	printf("\n");
 
-	BS->Exit(IH, s, 0, NULL);
+	efi_exit(s);
+}
+
+int getchar(void)
+{
+	return (-1);
 }
 
 void
