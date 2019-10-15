@@ -318,7 +318,7 @@ struct dsl_scan_io_queue {
 
 /* private data for dsl_scan_prefetch_cb() */
 typedef struct scan_prefetch_ctx {
-	refcount_t spc_refcnt;		/* refcount for memory management */
+	zfs_refcount_t spc_refcnt;	/* refcount for memory management */
 	dsl_scan_t *spc_scn;		/* dsl_scan_t for the pool */
 	boolean_t spc_root;		/* is this prefetch for an objset? */
 	uint8_t spc_indblkshift;	/* dn_indblkshift of current dnode */
@@ -1326,8 +1326,8 @@ scan_prefetch_queue_compare(const void *a, const void *b)
 static void
 scan_prefetch_ctx_rele(scan_prefetch_ctx_t *spc, void *tag)
 {
-	if (refcount_remove(&spc->spc_refcnt, tag) == 0) {
-		refcount_destroy(&spc->spc_refcnt);
+	if (zfs_refcount_remove(&spc->spc_refcnt, tag) == 0) {
+		zfs_refcount_destroy(&spc->spc_refcnt);
 		kmem_free(spc, sizeof (scan_prefetch_ctx_t));
 	}
 }
@@ -1338,8 +1338,8 @@ scan_prefetch_ctx_create(dsl_scan_t *scn, dnode_phys_t *dnp, void *tag)
 	scan_prefetch_ctx_t *spc;
 
 	spc = kmem_alloc(sizeof (scan_prefetch_ctx_t), KM_SLEEP);
-	refcount_create(&spc->spc_refcnt);
-	refcount_add(&spc->spc_refcnt, tag);
+	zfs_refcount_create(&spc->spc_refcnt);
+	zfs_refcount_add(&spc->spc_refcnt, tag);
 	spc->spc_scn = scn;
 	if (dnp != NULL) {
 		spc->spc_datablkszsec = dnp->dn_datablkszsec;
@@ -1357,7 +1357,7 @@ scan_prefetch_ctx_create(dsl_scan_t *scn, dnode_phys_t *dnp, void *tag)
 static void
 scan_prefetch_ctx_add_ref(scan_prefetch_ctx_t *spc, void *tag)
 {
-	refcount_add(&spc->spc_refcnt, tag);
+	zfs_refcount_add(&spc->spc_refcnt, tag);
 }
 
 static boolean_t
