@@ -244,7 +244,8 @@ efifb_uga_get_pciio(void)
 	/* Get the PCI I/O interface of the first handle that supports it. */
 	pciio = NULL;
 	for (hp = buf; hp < buf + bufsz; hp++) {
-		status = BS->HandleProtocol(*hp, &pciio_guid, (void **)&pciio);
+		status = OpenProtocolByHandle(*hp, &pciio_guid,
+		    (void **)&pciio);
 		if (status == EFI_SUCCESS) {
 			free(buf);
 			return (pciio);

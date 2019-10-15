@@ -246,8 +246,9 @@ try_boot(void)
 		goto errout;
 	}
 
-	if ((status = BS->HandleProtocol(loaderhandle, &LoadedImageGUID,
-	    (VOID**)&loaded_image)) != EFI_SUCCESS) {
+	status = OpenProtocolByHandle(loaderhandle, &LoadedImageGUID,
+	    (void **)&loaded_image);
+	if (status != EFI_SUCCESS) {
 		printf("Failed to query LoadedImage provided by %s (%lu)\n",
 		    mod->name, EFI_ERROR_CODE(status));
 		goto errout;
@@ -306,7 +307,7 @@ probe_handle(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath, BOOLEAN *preferred)
 	UINTN i;
 
 	/* Figure out if we're dealing with an actual partition. */
-	status = BS->HandleProtocol(h, &DevicePathGUID, (void **)&devpath);
+	status = OpenProtocolByHandle(h, &DevicePathGUID, (void **)&devpath);
 	if (status == EFI_UNSUPPORTED)
 		return (status);
 
@@ -322,7 +323,7 @@ probe_handle(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath, BOOLEAN *preferred)
 		efi_free_devpath_name(text);
 	}
 #endif
-	status = BS->HandleProtocol(h, &BlockIoProtocolGUID, (void **)&blkio);
+	status = OpenProtocolByHandle(h, &BlockIoProtocolGUID, (void **)&blkio);
 	if (status == EFI_UNSUPPORTED)
 		return (status);
 
@@ -445,7 +446,7 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	putchar('\n');
 
 	/* Determine the devpath of our image so we can prefer it. */
-	status = BS->HandleProtocol(IH, &LoadedImageGUID, (VOID**)&img);
+	status = OpenProtocolByHandle(IH, &LoadedImageGUID, (void **)&img);
 	imgpath = NULL;
 	if (status == EFI_SUCCESS) {
 		text = efi_devpath_name(img->FilePath);
@@ -455,8 +456,8 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 			efi_free_devpath_name(text);
 		}
 
-		status = BS->HandleProtocol(img->DeviceHandle, &DevicePathGUID,
-		    (void **)&imgpath);
+		status = OpenProtocolByHandle(img->DeviceHandle,
+		    &DevicePathGUID, (void **)&imgpath);
 		if (status != EFI_SUCCESS) {
 			DPRINTF("Failed to get image DevicePath (%lu)\n",
 			    EFI_ERROR_CODE(status));
