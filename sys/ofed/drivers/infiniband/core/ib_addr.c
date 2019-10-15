@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2005 Voltaire Inc.  All rights reserved.
  * Copyright (c) 2002-2005, Network Appliance, Inc. All rights reserved.
- * Copyright (c) 1999-2005, Mellanox Technologies, Inc. All rights reserved.
+ * Copyright (c) 1999-2019, Mellanox Technologies, Inc. All rights reserved.
  * Copyright (c) 2005 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -676,6 +676,7 @@ static int addr_resolve(struct sockaddr *src_in,
 			const struct sockaddr *dst_in,
 			struct rdma_dev_addr *addr)
 {
+	struct epoch_tracker et;
 	struct net_device *ndev = NULL;
 	u8 edst[MAX_ADDR_LEN];
 	int ret;
@@ -683,6 +684,7 @@ static int addr_resolve(struct sockaddr *src_in,
 	if (dst_in->sa_family != src_in->sa_family)
 		return -EINVAL;
 
+	NET_EPOCH_ENTER(et);
 	switch (src_in->sa_family) {
 	case AF_INET:
 		ret = addr4_resolve((struct sockaddr_in *)src_in,
@@ -698,6 +700,7 @@ static int addr_resolve(struct sockaddr *src_in,
 		ret = -EADDRNOTAVAIL;
 		break;
 	}
+	NET_EPOCH_EXIT(et);
 
 	/* check for error */
 	if (ret != 0)
