@@ -395,7 +395,7 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 		vm_page_free(*mres);
 		*mres = page;
 	}
-	page->valid = VM_PAGE_BITS_ALL;
+	vm_page_valid(page);
 	return (VM_PAGER_OK);
 }
 

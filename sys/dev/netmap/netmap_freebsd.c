@@ -1056,7 +1056,7 @@ netmap_dev_pager_fault(vm_object_t object, vm_ooffset_t offset,
 		*mres = page;
 		vm_page_insert(page, object, pidx);
 	}
-	page->valid = VM_PAGE_BITS_ALL;
+	vm_page_valid(page);
 	return (VM_PAGER_OK);
 }
 

@@ -92,31 +92,66 @@
  *	and sundry status bits.
  *
  *	In general, operations on this structure's mutable fields are
- *	synchronized using either one of or a combination of the lock on the
- *	object that the page belongs to (O), the page lock (P),
- *	the per-domain lock for the free queues (F), or the page's queue
- *	lock (Q).  The physical address of a page is used to select its page
- *	lock from a pool.  The queue lock for a page depends on the value of
- *	its queue field and described in detail below.  If a field is
- *	annotated below with two of these locks, then holding either lock is
- *	sufficient for read access, but both locks are required for write
- *	access.  An annotation of (C) indicates that the field is immutable.
- *	An annotation of (A) indicates that modifications to the field must
- *	be atomic.  Accesses to such fields may require additional
- *	synchronization depending on the context.
+ *	synchronized using either one of or a combination of locks.  If a
+ *	field is annotated with two of these locks then holding either is
+ *	sufficient for read access but both are required for write access.
+ *	The physical address of a page is used to select its page lock from
+ *	a pool.  The queue lock for a page depends on the value of its queue
+ *	field and is described in detail below.
+ *
+ *	The following annotations are possible:
+ *	(A) the field is atomic and may require additional synchronization.
+ *	(B) the page busy lock.
+ *	(C) the field is immutable.
+ *	(F) the per-domain lock for the free queues
+ *	(M) Machine dependent, defined by pmap layer.
+ *	(O) the object that the page belongs to.
+ *	(P) the page lock.
+ *	(Q) the page's queue lock.
+ *
+ *	The busy lock is an embedded reader-writer lock that protects the
+ *	page's contents and identity (i.e., its <object, pindex> tuple) as
+ *	well as certain valid/dirty modifications.  To avoid bloating the
+ *	the page structure, the busy lock lacks some of the features available
+ *	the kernel's general-purpose synchronization primitives.  As a result,
+ *	busy lock ordering rules are not verified, lock recursion is not
+ *	detected, and an attempt to xbusy a busy page or sbusy an xbusy page
+ *	results will trigger a panic rather than causing the thread to block.
+ *	vm_page_sleep_if_busy() can be used to sleep until the page's busy
+ *	state changes, after which the caller must re-lookup the page and
+ *	re-evaluate its state.  vm_page_busy_acquire() will block until
+ *	the lock is acquired.
+ *
+ *	The valid field is protected by the page busy lock (B) and object
+ *	lock (O).  Transitions from invalid to valid are generally done
+ *	via I/O or zero filling and do not require the object lock.
+ *	These must be protected with the busy lock to prevent page-in or
+ *	creation races.  Page invalidation generally happens as a result
+ *	of truncate or msync.  When invalidated, pages must not be present
+ *	in pmap and must hold the object lock to prevent concurrent
+ *	speculative read-only mappings that do not require busy.  I/O
+ *	routines may check for validity without a lock if they are prepared
+ *	to handle invalidation races with higher level locks (vnode) or are
+ *	unconcerned with races so long as they hold a reference to prevent
+ *	recycling.  When a valid bit is set while holding a shared busy
+ *	lock (A) atomic operations are used to protect against concurrent
+ *	modification.
  *
  *	In contrast, the synchronization of accesses to the page's
- *	dirty field is machine dependent (M).  In the
- *	machine-independent layer, the lock on the object that the
- *	page belongs to must be held in order to operate on the field.
- *	However, the pmap layer is permitted to set all bits within
- *	the field without holding that lock.  If the underlying
- *	architecture does not support atomic read-modify-write
+ *	dirty field is a mix of machine dependent (M) and busy (B).  In
+ *	the machine-independent layer, the page busy must be held to
+ *	operate on the field.  However, the pmap layer is permitted to
+ *	set all bits within the field without holding that lock.  If the
+ *	underlying architecture does not support atomic read-modify-write
  *	operations on the field's type, then the machine-independent
  *	layer uses a 32-bit atomic on the aligned 32-bit word that
  *	contains the dirty field.  In the machine-independent layer,
  *	the implementation of read-modify-write operations on the
- *	field is encapsulated in vm_page_clear_dirty_mask().
+ *	field is encapsulated in vm_page_clear_dirty_mask().  An
+ *	exclusive busy lock combined with pmap_remove_{write/all}() is the
+ *	only way to ensure a page can not become dirty.  I/O generally
+ *	removes the page from pmap to ensure exclusive access and atomic
+ *	writes.
  *
  *	The ref_count field tracks references to the page.  References that
  *	prevent the page from being reclaimable are called wirings and are
@@ -135,19 +170,6 @@
  *	scanned by the page daemon, without an explicitly counted referenced.
  *	The page daemon must therefore handle the possibility of a concurrent
  *	free of the page.
- *
- *	The busy lock is an embedded reader-writer lock which protects the
- *	page's contents and identity (i.e., its <object, pindex> tuple) and
- *	interlocks with the object lock (O).  In particular, a page may be
- *	busied or unbusied only with the object write lock held.  To avoid
- *	bloating the page structure, the busy lock lacks some of the
- *	features available to the kernel's general-purpose synchronization
- *	primitives.  As a result, busy lock ordering rules are not verified,
- *	lock recursion is not detected, and an attempt to xbusy a busy page
- *	or sbusy an xbusy page results will trigger a panic rather than
- *	causing the thread to block.  vm_page_sleep_if_busy() can be used to
- *	sleep until the page's busy state changes, after which the caller
- *	must re-lookup the page and re-evaluate its state.
  *
  *	The queue field is the index of the page queue containing the page,
  *	or PQ_NONE if the page is not enqueued.  The queue lock of a page is
@@ -215,7 +237,7 @@ struct vm_page {
 	uint16_t flags;			/* page PG_* flags (P) */
 	uint8_t	order;			/* index of the buddy queue (F) */
 	uint8_t pool;			/* vm_phys freepool index (F) */
-	uint8_t aflags;			/* access is atomic */
+	uint8_t aflags;			/* atomic flags (A) */
 	uint8_t oflags;			/* page VPO_* flags (O) */
 	uint8_t queue;			/* page queue index (Q) */
 	int8_t psind;			/* pagesizes[] index (O) */
@@ -223,8 +245,8 @@ struct vm_page {
 	u_char	act_count;		/* page usage count (P) */
 	/* NOTE that these must support one bit per DEV_BSIZE in a page */
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
-	vm_page_bits_t valid;		/* map of valid DEV_BSIZE chunks (O) */
-	vm_page_bits_t dirty;		/* map of dirty DEV_BSIZE chunks (M) */
+	vm_page_bits_t valid;		/* valid DEV_BSIZE chunk map (O,B) */
+	vm_page_bits_t dirty;		/* dirty DEV_BSIZE chunk map (M,B) */
 };
 
 /*
@@ -579,6 +601,7 @@ bool vm_page_free_prep(vm_page_t m);
 vm_page_t vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_initfake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr);
 int vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
+void vm_page_invalid(vm_page_t m);
 void vm_page_launder(vm_page_t m);
 vm_page_t vm_page_lookup (vm_object_t, vm_pindex_t);
 vm_page_t vm_page_next(vm_page_t m);
@@ -625,10 +648,11 @@ void vm_page_wire(vm_page_t);
 bool vm_page_wire_mapped(vm_page_t m);
 void vm_page_xunbusy_hard(vm_page_t m);
 void vm_page_set_validclean (vm_page_t, int, int);
-void vm_page_clear_dirty (vm_page_t, int, int);
-void vm_page_set_invalid (vm_page_t, int, int);
-int vm_page_is_valid (vm_page_t, int, int);
-void vm_page_test_dirty (vm_page_t);
+void vm_page_clear_dirty(vm_page_t, int, int);
+void vm_page_set_invalid(vm_page_t, int, int);
+void vm_page_valid(vm_page_t m);
+int vm_page_is_valid(vm_page_t, int, int);
+void vm_page_test_dirty(vm_page_t);
 vm_page_bits_t vm_page_bits(int base, int size);
 void vm_page_zero_invalid(vm_page_t m, boolean_t setvalid);
 void vm_page_free_toq(vm_page_t m);
@@ -642,6 +666,11 @@ int vm_page_trylock_KBI(vm_page_t m, const char *file, int line);
 void vm_page_assert_locked_KBI(vm_page_t m, const char *file, int line);
 void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 #endif
+
+#define	vm_page_assert_busied(m)					\
+	KASSERT(vm_page_busied(m),					\
+	    ("vm_page_assert_busied: page %p not busy @ %s:%d", \
+	    (m), __FILE__, __LINE__))
 
 #define	vm_page_assert_sbusied(m)					\
 	KASSERT(vm_page_sbusied(m),					\
@@ -926,6 +955,20 @@ vm_page_wired(vm_page_t m)
 {
 
 	return (VPRC_WIRE_COUNT(m->ref_count) > 0);
+}
+
+static inline bool
+vm_page_all_valid(vm_page_t m)
+{
+
+	return (m->valid == VM_PAGE_BITS_ALL);
+}
+
+static inline bool
+vm_page_none_valid(vm_page_t m)
+{
+
+	return (m->valid == 0);
 }
 
 #endif				/* _KERNEL */

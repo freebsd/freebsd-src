@@ -582,14 +582,14 @@ vm_thread_swapin(struct thread *td, int oom_alloc)
 	    pages);
 	for (i = 0; i < pages;) {
 		vm_page_assert_xbusied(ma[i]);
-		if (ma[i]->valid == VM_PAGE_BITS_ALL) {
+		if (vm_page_all_valid(ma[i])) {
 			vm_page_xunbusy(ma[i]);
 			i++;
 			continue;
 		}
 		vm_object_pip_add(ksobj, 1);
 		for (j = i + 1; j < pages; j++)
-			if (ma[j]->valid == VM_PAGE_BITS_ALL)
+			if (vm_page_all_valid(ma[j]))
 				break;
 		rv = vm_pager_has_page(ksobj, ma[i]->pindex, NULL, &a);
 		KASSERT(rv == 1, ("%s: missing page %p", __func__, ma[i]));

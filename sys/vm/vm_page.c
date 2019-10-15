@@ -1330,7 +1330,7 @@ vm_page_readahead_finish(vm_page_t m)
 {
 
 	/* We shouldn't put invalid pages on queues. */
-	KASSERT(m->valid != 0, ("%s: %p is invalid", __func__, m));
+	KASSERT(!vm_page_none_valid(m), ("%s: %p is invalid", __func__, m));
 
 	/*
 	 * Since the page is not the actually needed one, whether it should
@@ -1430,8 +1430,7 @@ vm_page_dirty_KBI(vm_page_t m)
 {
 
 	/* Refer to this operation by its public name. */
-	KASSERT(m->valid == VM_PAGE_BITS_ALL,
-	    ("vm_page_dirty: page is invalid!"));
+	KASSERT(vm_page_all_valid(m), ("vm_page_dirty: page is invalid!"));
 	m->dirty = VM_PAGE_BITS_ALL;
 }
 
@@ -2657,7 +2656,7 @@ retry:
 				    VPO_SWAPSLEEP | VPO_UNMANAGED)) == 0,
 				    ("page %p has unexpected oflags", m));
 				/* Don't care: VPO_NOSYNC. */
-				if (m->valid != 0) {
+				if (!vm_page_none_valid(m)) {
 					/*
 					 * First, try to allocate a new page
 					 * that is above "high".  Failing
@@ -4334,7 +4333,7 @@ retrylookup:
 		 * However, we will not end up with an invalid page and a
 		 * shared lock.
 		 */
-		if (m->valid != VM_PAGE_BITS_ALL ||
+		if (!vm_page_all_valid(m) ||
 		    (allocflags & (VM_ALLOC_IGN_SBUSY | VM_ALLOC_SBUSY)) == 0) {
 			sleep = !vm_page_tryxbusy(m);
 			xbusy = true;
@@ -4354,7 +4353,7 @@ retrylookup:
 			goto retrylookup;
 		}
 		if ((allocflags & VM_ALLOC_NOCREAT) != 0 &&
-		   m->valid != VM_PAGE_BITS_ALL) {
+		   !vm_page_all_valid(m)) {
 			if (xbusy)
 				vm_page_xunbusy(m);
 			else
@@ -4364,7 +4363,7 @@ retrylookup:
 		}
 		if ((allocflags & VM_ALLOC_WIRED) != 0)
 			vm_page_wire(m);
-		if (m->valid == VM_PAGE_BITS_ALL)
+		if (vm_page_all_valid(m))
 			goto out;
 	} else if ((allocflags & VM_ALLOC_NOCREAT) != 0) {
 		*mp = NULL;
@@ -4386,7 +4385,7 @@ retrylookup:
 			*mp = NULL;
 			return (rv);
 		}
-		MPASS(m->valid == VM_PAGE_BITS_ALL);
+		MPASS(vm_page_all_valid(m));
 	} else {
 		vm_page_zero_invalid(m, TRUE);
 	}
@@ -4499,10 +4498,11 @@ retrylookup:
 				goto retrylookup;
 			}
 		}
-		if (m->valid == 0 && (allocflags & VM_ALLOC_ZERO) != 0) {
+		if (vm_page_none_valid(m) &&
+		    (allocflags & VM_ALLOC_ZERO) != 0) {
 			if ((m->flags & PG_ZERO) == 0)
 				pmap_zero_page(m);
-			m->valid = VM_PAGE_BITS_ALL;
+			vm_page_valid(m);
 		}
 		if ((allocflags & VM_ALLOC_NOBUSY) != 0) {
 			if ((allocflags & VM_ALLOC_IGN_SBUSY) != 0)
@@ -4542,6 +4542,72 @@ vm_page_bits(int base, int size)
 	    ((vm_page_bits_t)1 << first_bit));
 }
 
+static inline void
+vm_page_bits_set(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t set)
+{
+
+#if PAGE_SIZE == 32768
+	atomic_set_64((uint64_t *)bits, set);
+#elif PAGE_SIZE == 16384
+	atomic_set_32((uint32_t *)bits, set);
+#elif (PAGE_SIZE == 8192) && defined(atomic_set_16)
+	atomic_set_16((uint16_t *)bits, set);
+#elif (PAGE_SIZE == 4096) && defined(atomic_set_8)
+	atomic_set_8((uint8_t *)bits, set);
+#else		/* PAGE_SIZE <= 8192 */
+	uintptr_t addr;
+	int shift;
+
+	addr = (uintptr_t)bits;
+	/*
+	 * Use a trick to perform a 32-bit atomic on the
+	 * containing aligned word, to not depend on the existence
+	 * of atomic_{set, clear}_{8, 16}.
+	 */
+	shift = addr & (sizeof(uint32_t) - 1);
+#if BYTE_ORDER == BIG_ENDIAN
+	shift = (sizeof(uint32_t) - sizeof(vm_page_bits_t) - shift) * NBBY;
+#else
+	shift *= NBBY;
+#endif
+	addr &= ~(sizeof(uint32_t) - 1);
+	atomic_set_32((uint32_t *)addr, set << shift);
+#endif		/* PAGE_SIZE */
+}
+
+static inline void
+vm_page_bits_clear(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t clear)
+{
+
+#if PAGE_SIZE == 32768
+	atomic_clear_64((uint64_t *)bits, clear);
+#elif PAGE_SIZE == 16384
+	atomic_clear_32((uint32_t *)bits, clear);
+#elif (PAGE_SIZE == 8192) && defined(atomic_clear_16)
+	atomic_clear_16((uint16_t *)bits, clear);
+#elif (PAGE_SIZE == 4096) && defined(atomic_clear_8)
+	atomic_clear_8((uint8_t *)bits, clear);
+#else		/* PAGE_SIZE <= 8192 */
+	uintptr_t addr;
+	int shift;
+
+	addr = (uintptr_t)bits;
+	/*
+	 * Use a trick to perform a 32-bit atomic on the
+	 * containing aligned word, to not depend on the existence
+	 * of atomic_{set, clear}_{8, 16}.
+	 */
+	shift = addr & (sizeof(uint32_t) - 1);
+#if BYTE_ORDER == BIG_ENDIAN
+	shift = (sizeof(uint32_t) - sizeof(vm_page_bits_t) - shift) * NBBY;
+#else
+	shift *= NBBY;
+#endif
+	addr &= ~(sizeof(uint32_t) - 1);
+	atomic_clear_32((uint32_t *)addr, clear << shift);
+#endif		/* PAGE_SIZE */
+}
+
 /*
  *	vm_page_set_valid_range:
  *
@@ -4556,8 +4622,9 @@ void
 vm_page_set_valid_range(vm_page_t m, int base, int size)
 {
 	int endoff, frag;
+	vm_page_bits_t pagebits;
 
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
+	vm_page_assert_busied(m);
 	if (size == 0)	/* handle degenerate case */
 		return;
 
@@ -4591,7 +4658,11 @@ vm_page_set_valid_range(vm_page_t m, int base, int size)
 	/*
 	 * Set valid bits inclusive of any overlap.
 	 */
-	m->valid |= vm_page_bits(base, size);
+	pagebits = vm_page_bits(base, size);
+	if (vm_page_xbusied(m))
+		m->valid |= pagebits;
+	else
+		vm_page_bits_set(m, &m->valid, pagebits);
 }
 
 /*
@@ -4600,52 +4671,20 @@ vm_page_set_valid_range(vm_page_t m, int base, int size)
 static __inline void
 vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits)
 {
-	uintptr_t addr;
-#if PAGE_SIZE < 16384
-	int shift;
-#endif
+
+	vm_page_assert_busied(m);
 
 	/*
-	 * If the object is locked and the page is neither exclusive busy nor
-	 * write mapped, then the page's dirty field cannot possibly be
-	 * set by a concurrent pmap operation.
+	 * If the page is xbusied and not write mapped we are the
+	 * only thread that can modify dirty bits.  Otherwise, The pmap
+	 * layer can call vm_page_dirty() without holding a distinguished
+	 * lock.  The combination of page busy and atomic operations
+	 * suffice to guarantee consistency of the page dirty field.
 	 */
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if (!vm_page_xbusied(m) && !pmap_page_is_write_mapped(m))
+	if (vm_page_xbusied(m) && !pmap_page_is_write_mapped(m))
 		m->dirty &= ~pagebits;
-	else {
-		/*
-		 * The pmap layer can call vm_page_dirty() without
-		 * holding a distinguished lock.  The combination of
-		 * the object's lock and an atomic operation suffice
-		 * to guarantee consistency of the page dirty field.
-		 *
-		 * For PAGE_SIZE == 32768 case, compiler already
-		 * properly aligns the dirty field, so no forcible
-		 * alignment is needed. Only require existence of
-		 * atomic_clear_64 when page size is 32768.
-		 */
-		addr = (uintptr_t)&m->dirty;
-#if PAGE_SIZE == 32768
-		atomic_clear_64((uint64_t *)addr, pagebits);
-#elif PAGE_SIZE == 16384
-		atomic_clear_32((uint32_t *)addr, pagebits);
-#else		/* PAGE_SIZE <= 8192 */
-		/*
-		 * Use a trick to perform a 32-bit atomic on the
-		 * containing aligned word, to not depend on the existence
-		 * of atomic_clear_{8, 16}.
-		 */
-		shift = addr & (sizeof(uint32_t) - 1);
-#if BYTE_ORDER == BIG_ENDIAN
-		shift = (sizeof(uint32_t) - sizeof(m->dirty) - shift) * NBBY;
-#else
-		shift *= NBBY;
-#endif
-		addr &= ~(sizeof(uint32_t) - 1);
-		atomic_clear_32((uint32_t *)addr, pagebits << shift);
-#endif		/* PAGE_SIZE */
-	}
+	else
+		vm_page_bits_clear(m, &m->dirty, pagebits);
 }
 
 /*
@@ -4664,7 +4703,9 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	vm_page_bits_t oldvalid, pagebits;
 	int endoff, frag;
 
+	/* Object lock for VPO_NOSYNC */
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
+	vm_page_assert_busied(m);
 	if (size == 0)	/* handle degenerate case */
 		return;
 
@@ -4701,7 +4742,10 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	 */
 	oldvalid = m->valid;
 	pagebits = vm_page_bits(base, size);
-	m->valid |= pagebits;
+	if (vm_page_xbusied(m))
+		m->valid |= pagebits;
+	else
+		vm_page_bits_set(m, &m->valid, pagebits);
 #if 0	/* NOT YET */
 	if ((frag = base & (DEV_BSIZE - 1)) != 0) {
 		frag = DEV_BSIZE - frag;
@@ -4730,7 +4774,7 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 			pmap_clear_modify(m);
 		m->dirty = 0;
 		m->oflags &= ~VPO_NOSYNC;
-	} else if (oldvalid != VM_PAGE_BITS_ALL)
+	} else if (oldvalid != VM_PAGE_BITS_ALL && vm_page_xbusied(m))
 		m->dirty &= ~pagebits;
 	else
 		vm_page_clear_dirty_mask(m, pagebits);
@@ -4755,21 +4799,53 @@ vm_page_set_invalid(vm_page_t m, int base, int size)
 	vm_page_bits_t bits;
 	vm_object_t object;
 
+	/*
+	 * The object lock is required so that pages can't be mapped
+	 * read-only while we're in the process of invalidating them.
+	 */
 	object = m->object;
 	VM_OBJECT_ASSERT_WLOCKED(object);
+	vm_page_assert_busied(m);
+
 	if (object->type == OBJT_VNODE && base == 0 && IDX_TO_OFF(m->pindex) +
 	    size >= object->un_pager.vnp.vnp_size)
 		bits = VM_PAGE_BITS_ALL;
 	else
 		bits = vm_page_bits(base, size);
-	if (object->ref_count != 0 && m->valid == VM_PAGE_BITS_ALL &&
-	    bits != 0)
+	if (object->ref_count != 0 && vm_page_all_valid(m) && bits != 0)
 		pmap_remove_all(m);
-	KASSERT((bits == 0 && m->valid == VM_PAGE_BITS_ALL) ||
+	KASSERT((bits == 0 && vm_page_all_valid(m)) ||
 	    !pmap_page_is_mapped(m),
 	    ("vm_page_set_invalid: page %p is mapped", m));
-	m->valid &= ~bits;
-	m->dirty &= ~bits;
+	if (vm_page_xbusied(m)) {
+		m->valid &= ~bits;
+		m->dirty &= ~bits;
+	} else {
+		vm_page_bits_clear(m, &m->valid, bits);
+		vm_page_bits_clear(m, &m->dirty, bits);
+	}
+}
+
+/*
+ *	vm_page_invalid:
+ *
+ *	Invalidates the entire page.  The page must be busy, unmapped, and
+ *	the enclosing object must be locked.  The object locks protects
+ *	against concurrent read-only pmap enter which is done without
+ *	busy.
+ */
+void
+vm_page_invalid(vm_page_t m)
+{
+
+	vm_page_assert_busied(m);
+	VM_OBJECT_ASSERT_LOCKED(m->object);
+	MPASS(!pmap_page_is_mapped(m));
+
+	if (vm_page_xbusied(m))
+		m->valid = 0;
+	else
+		vm_page_bits_clear(m, &m->valid, VM_PAGE_BITS_ALL);
 }
 
 /*
@@ -4789,7 +4865,6 @@ vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
 	int b;
 	int i;
 
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	/*
 	 * Scan the valid bits looking for invalid sections that
 	 * must be zeroed.  Invalid sub-DEV_BSIZE'd areas ( where the
@@ -4813,7 +4888,7 @@ vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
 	 * issues.  e.g. it is ok to do with UFS, but not ok to do with NFS.
 	 */
 	if (setvalid)
-		m->valid = VM_PAGE_BITS_ALL;
+		vm_page_valid(m);
 }
 
 /*
@@ -4822,13 +4897,16 @@ vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
  *	Is (partial) page valid?  Note that the case where size == 0
  *	will return FALSE in the degenerate case where the page is
  *	entirely invalid, and TRUE otherwise.
+ *
+ *	Some callers envoke this routine without the busy lock held and
+ *	handle races via higher level locks.  Typical callers should
+ *	hold a busy lock to prevent invalidation.
  */
 int
 vm_page_is_valid(vm_page_t m, int base, int size)
 {
 	vm_page_bits_t bits;
 
-	VM_OBJECT_ASSERT_LOCKED(m->object);
 	bits = vm_page_bits(base, size);
 	return (m->valid != 0 && (m->valid & bits) == bits);
 }
@@ -4886,9 +4964,20 @@ void
 vm_page_test_dirty(vm_page_t m)
 {
 
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
+	vm_page_assert_busied(m);
 	if (m->dirty != VM_PAGE_BITS_ALL && pmap_is_modified(m))
 		vm_page_dirty(m);
+}
+
+void
+vm_page_valid(vm_page_t m)
+{
+
+	vm_page_assert_busied(m);
+	if (vm_page_xbusied(m))
+		m->valid = VM_PAGE_BITS_ALL;
+	else
+		vm_page_bits_set(m, &m->valid, VM_PAGE_BITS_ALL);
 }
 
 void
