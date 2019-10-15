@@ -20,7 +20,7 @@
 machine 	mips mips64
 ident           XLP64
 
-makeoptions	ARCH_FLAGS="-march=mips64r2 -mabi=64"
+makeoptions	ARCH_FLAGS="-march=mips64r2"
 makeoptions	KERNLOADADDR=0xffffffff80100000
 
 include		"std.XLP"

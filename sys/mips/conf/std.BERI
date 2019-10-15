@@ -13,8 +13,6 @@ cpu		CPU_BERI
 
 options 	HZ=200
 
-makeoptions	ARCH_FLAGS="-march=mips64 -mabi=64"
-
 makeoptions 	KERNLOADADDR=0xffffffff80100000
 
 include		"../beri/std.beri"
