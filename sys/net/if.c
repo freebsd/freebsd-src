@@ -2313,11 +2313,9 @@ if_link_state_change(struct ifnet *ifp, int link_state)
 static void
 do_link_state_change(void *arg, int pending)
 {
-	struct epoch_tracker et;
 	struct ifnet *ifp;
 	int link_state;
 
-	NET_EPOCH_ENTER(et);
 	ifp = arg;
 	link_state = ifp->if_link_state;
 
@@ -2345,7 +2343,6 @@ do_link_state_change(void *arg, int pending)
 	if (log_link_state_change)
 		if_printf(ifp, "link state changed to %s\n",
 		    (link_state == LINK_STATE_UP) ? "UP" : "DOWN" );
-	NET_EPOCH_EXIT(et);
 	EVENTHANDLER_INVOKE(ifnet_link_event, ifp, link_state);
 	CURVNET_RESTORE();
 }
