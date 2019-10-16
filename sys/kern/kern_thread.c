@@ -60,6 +60,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/pmckern.h>
 #endif
 
+#ifdef PSPAT
+#include <net/pspat/pspat.h>
+#endif
+
 #include <security/audit/audit.h>
 
 #include <vm/vm.h>
@@ -535,6 +539,14 @@ thread_exit(void)
 	SDT_PROBE0(proc, , , lwp__exit);
 	KASSERT(TAILQ_EMPTY(&td->td_sigqueue.sq_list), ("signal pending"));
 
+    /*
+     * If PSPAT is enabled, we should also let the subsystem know this
+     * thread is exiting
+     */
+#ifdef PSPAT
+    exit_pspat();
+#endif
+
 	/*
 	 * drop FPU & debug register state storage, or any other
 	 * architecture specific resources that
@@ -580,7 +592,7 @@ thread_exit(void)
 			 */
 			panic ("thread_exit: Last thread exiting on its own");
 		}
-	} 
+	}
 #ifdef	HWPMC_HOOKS
 	/*
 	 * If this thread is part of a process that is being tracked by hwpmc(4),

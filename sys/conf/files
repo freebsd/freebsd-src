@@ -1285,7 +1285,7 @@ dev/bhnd/cores/chipc/bhnd_chipc_if.m	optional bhnd
 dev/bhnd/cores/chipc/bhnd_sprom_chipc.c	optional bhnd
 dev/bhnd/cores/chipc/bhnd_pmu_chipc.c	optional bhnd
 dev/bhnd/cores/chipc/chipc.c		optional bhnd
-dev/bhnd/cores/chipc/chipc_cfi.c	optional bhnd cfi 
+dev/bhnd/cores/chipc/chipc_cfi.c	optional bhnd cfi
 dev/bhnd/cores/chipc/chipc_gpio.c	optional bhnd gpio
 dev/bhnd/cores/chipc/chipc_slicer.c	optional bhnd cfi | bhnd spibus
 dev/bhnd/cores/chipc/chipc_spi.c	optional bhnd spibus
@@ -4035,6 +4035,9 @@ net/altq/altq_red.c		optional altq
 net/altq/altq_rio.c		optional altq
 net/altq/altq_rmclass.c		optional altq
 net/altq/altq_subr.c		optional altq
+net/pspat/mailbox.c         optional pspat
+net/pspat/pspat.c           optional pspat
+net/pspat/functions.c       optional pspat
 net/bpf.c			standard
 net/bpf_buffer.c		optional bpf
 net/bpf_jitter.c		optional bpf_jitter
@@ -4348,19 +4351,19 @@ netipsec/xform_ipcomp.c		optional ipsec inet | ipsec inet6
 netipsec/xform_tcp.c		optional ipsec inet tcp_signature | \
 	 ipsec inet6 tcp_signature | ipsec_support inet tcp_signature | \
 	 ipsec_support inet6 tcp_signature
-netpfil/ipfw/dn_aqm_codel.c	optional inet dummynet
-netpfil/ipfw/dn_aqm_pie.c	optional inet dummynet
-netpfil/ipfw/dn_heap.c		optional inet dummynet
-netpfil/ipfw/dn_sched_fifo.c	optional inet dummynet
-netpfil/ipfw/dn_sched_fq_codel.c	optional inet dummynet
-netpfil/ipfw/dn_sched_fq_pie.c	optional inet dummynet
-netpfil/ipfw/dn_sched_prio.c	optional inet dummynet
-netpfil/ipfw/dn_sched_qfq.c	optional inet dummynet
-netpfil/ipfw/dn_sched_rr.c	optional inet dummynet
-netpfil/ipfw/dn_sched_wf2q.c	optional inet dummynet
-netpfil/ipfw/ip_dummynet.c	optional inet dummynet
-netpfil/ipfw/ip_dn_io.c		optional inet dummynet
-netpfil/ipfw/ip_dn_glue.c	optional inet dummynet
+netpfil/ipfw/dn_aqm_codel.c	optional inet dummynet | pspat
+netpfil/ipfw/dn_aqm_pie.c	optional inet dummynet | pspat
+netpfil/ipfw/dn_heap.c		optional inet dummynet | pspat
+netpfil/ipfw/dn_sched_fifo.c	optional inet dummynet | pspat
+netpfil/ipfw/dn_sched_fq_codel.c	optional inet dummynet | pspat
+netpfil/ipfw/dn_sched_fq_pie.c	optional inet dummynet | pspat
+netpfil/ipfw/dn_sched_prio.c	optional inet dummynet | pspat
+netpfil/ipfw/dn_sched_qfq.c	optional inet dummynet | pspat
+netpfil/ipfw/dn_sched_rr.c	optional inet dummynet | pspat
+netpfil/ipfw/dn_sched_wf2q.c	optional inet dummynet | pspat
+netpfil/ipfw/ip_dummynet.c	optional inet dummynet | pspat
+netpfil/ipfw/ip_dn_io.c		optional inet dummynet | pspat
+netpfil/ipfw/ip_dn_glue.c	optional inet dummynet | pspat
 netpfil/ipfw/ip_fw2.c		optional inet ipfirewall
 netpfil/ipfw/ip_fw_bpf.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_dynamic.c	optional inet ipfirewall \

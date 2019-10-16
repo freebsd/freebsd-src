@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>	/* IFNAMSIZ, struct ifaddr, ifq head, lock.h mutex.h */
 #include <net/netisr.h>
 #include <net/vnet.h>
+#include <net/pspat/pspat.h>
 
 #include <netinet/in.h>
 #include <netinet/ip.h>		/* ip_len, ip_off */
@@ -100,7 +101,7 @@ static unsigned long	io_pkt_drop;
  * The heap is checked at every tick and all entities with expired events
  * are extracted.
  */
-  
+
 MALLOC_DEFINE(M_DUMMYNET, "dummynet", "dummynet heap");
 
 extern	void (*bridge_dn_p)(struct mbuf *, struct ifnet *);
@@ -236,7 +237,7 @@ SYSEND
 
 #endif
 
-static void	dummynet_send(struct mbuf *);
+void	dummynet_send(struct mbuf *);
 
 /*
  * Return the mbuf tag holding the dummynet state (it should
@@ -249,7 +250,7 @@ dn_tag_get(struct mbuf *m)
 #ifdef NEW_AQM
 	/* XXX: to skip ts m_tag. For Debugging only*/
 	if (mtag != NULL && mtag->m_tag_id == DN_AQM_MTAG_TS) {
-		m_tag_delete(m,mtag); 
+		m_tag_delete(m,mtag);
 		mtag = m_tag_first(m);
 		D("skip TS tag");
 	}
@@ -310,7 +311,7 @@ mq_append(struct mq *q, struct mbuf *m)
 void dn_free_pkts(struct mbuf *mnext)
 {
         struct mbuf *m;
-    
+
         while ((m = mnext) != NULL) {
                 mnext = m->m_nextpkt;
                 FREE_PKT(m);
@@ -489,7 +490,7 @@ ecn_mark(struct mbuf* m)
  */
 int
 dn_enqueue(struct dn_queue *q, struct mbuf* m, int drop)
-{   
+{
 	struct dn_fs *f;
 	struct dn_flow *ni;	/* stats for scheduler instance */
 	uint64_t len;
@@ -736,7 +737,7 @@ dummynet_task(void *context, int pending)
  * forward a chain of packets to the proper destination.
  * This runs outside the dummynet lock.
  */
-static void
+void
 dummynet_send(struct mbuf *m)
 {
 	struct mbuf *n;
@@ -875,11 +876,19 @@ dummynet_io(struct mbuf **m0, struct ip_fw_args *fwa)
 		dir |= PROTO_LAYER2;
 	else if (fwa->flags & IPFW_ARGS_IP6)
 		dir |= PROTO_IPV6;
-	DN_BH_WLOCK();
 	io_pkt++;
 	/* we could actually tag outside the lock, but who cares... */
 	if (tag_mbuf(m, dir, fwa))
 		goto dropit;
+
+#ifdef PSPAT
+    if (pspat_enable && (dir == DIR_OUT)) {
+        return pspat_client_handler(m, fwa);
+    }
+#endif
+
+    DN_BH_WLOCK();
+
 	if (dn_cfg.busy) {
 		/* if the upper half is busy doing something expensive,
 		 * lets queue the packet and move forward
@@ -942,7 +951,7 @@ dummynet_io(struct mbuf **m0, struct ip_fw_args *fwa)
 	/* optimization -- pass it back to ipfw for immediate send */
 	/* XXX Don't call dummynet_send() if scheduler return the packet
 	 *     just enqueued. This avoid a lock order reversal.
-	 *     
+	 *
 	 */
 	if (/*dn_cfg.io_fast &&*/ m == *m0 && (dir & PROTO_LAYER2) == 0 ) {
 		/* fast io, rename the tag * to carry reinject info. */

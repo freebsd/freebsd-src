@@ -4,10 +4,10 @@
  * Codel/FQ_Codel and PIE/FQ-PIE Code:
  * Copyright (C) 2016 Centre for Advanced Internet Architectures,
  *  Swinburne University of Technology, Melbourne, Australia.
- * Portions of this code were made possible in part by a gift from 
+ * Portions of this code were made possible in part by a gift from
  *  The Comcast Innovation Fund.
  * Implemented by Rasool Al-Saadi <ralsaadi@swin.edu.au>
- * 
+ *
  * Copyright (c) 1998-2002,2010 Luigi Rizzo, Universita` di Pisa
  * Portions Copyright (c) 2000 Akamba Corp.
  * All rights reserved
@@ -327,7 +327,7 @@ q_match(void *obj, uintptr_t key, int flags, void *arg)
  */
 static void *
 q_new(uintptr_t key, int flags, void *arg)
-{   
+{
 	struct dn_queue *q, *template = arg;
 	struct dn_fsk *fs = template->fs;
 	int size = sizeof(*q) + fs->sched->fp->q_datalen;
@@ -560,7 +560,7 @@ si_destroy(void *_si, void *arg)
 #ifdef NEW_AQM
 	/* clean up AQM status for !DN_MULTIQUEUE sched
 	 * Note that all queues belong to fs were cleaned up in fsk_detach.
-	 * When drain_scheduler is called s->fs and q->fs are pointing 
+	 * When drain_scheduler is called s->fs and q->fs are pointing
 	 * to a correct fs, so we can use fs in this case.
 	 */
 	if (!(s->fp->flags & DN_MULTIQUEUE)) {
@@ -686,7 +686,7 @@ q_cleanup_q(void *_q, void *arg)
 /* Clean up all AQM queues status belongs to flowset 'fs' and then
  * deconfig AQM for flowset 'fs'
  */
-static void 
+static void
 aqm_cleanup_deconfig_fs(struct dn_fsk *fs)
 {
 	struct dn_sch_inst *si;
@@ -702,7 +702,7 @@ aqm_cleanup_deconfig_fs(struct dn_fsk *fs)
 					if (si && fs->aqmfp && fs->aqmfp->cleanup)
 						fs->aqmfp->cleanup((struct dn_queue *) (si+1));
 			}
-		} 
+		}
 	}
 
 	/* clean up AQM status for all queues for DN_MULTIQUEUE sched*/
@@ -1021,7 +1021,7 @@ copy_profile(struct copy_args *a, struct dn_profile *p)
 {
 	int have = a->end - *a->start;
 	/* XXX here we check for max length */
-	int profile_len = sizeof(struct dn_profile) - 
+	int profile_len = sizeof(struct dn_profile) -
 		ED_MAX_SAMPLES_NO*sizeof(int);
 
 	if (p == NULL)
@@ -1329,7 +1329,7 @@ update_fs(struct dn_schk *s)
 }
 
 #ifdef NEW_AQM
-/* Retrieve AQM configurations to ipfw userland 
+/* Retrieve AQM configurations to ipfw userland
  */
 static int
 get_aqm_parms(struct sockopt *sopt)
@@ -1338,7 +1338,7 @@ get_aqm_parms(struct sockopt *sopt)
 	struct dn_fsk *fs;
 	size_t sopt_valsize;
 	int l, err = 0;
-	
+
 	sopt_valsize = sopt->sopt_valsize;
 	l = sizeof(*ep);
 	if (sopt->sopt_valsize < l) {
@@ -1393,7 +1393,7 @@ get_sched_parms(struct sockopt *sopt)
 	struct dn_schk *schk;
 	size_t sopt_valsize;
 	int l, err = 0;
-	
+
 	sopt_valsize = sopt->sopt_valsize;
 	l = sizeof(*ep);
 	if (sopt->sopt_valsize < l) {
@@ -1423,7 +1423,7 @@ get_sched_parms(struct sockopt *sopt)
 			err = EINVAL;
 			break;
 		}
-		
+
 		if (schk->fp && schk->fp->getconfig) {
 			if(schk->fp->getconfig(schk, ep)) {
 				D("Error while trying to get sched params");
@@ -1655,7 +1655,7 @@ config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
 			 * Reconfigure AQM as the parameters can be changed.
 			 * We consider the flowset as busy if it has scheduler
 			 * instance(s).
-			 */ 
+			 */
 			s = locate_scheduler(nfs->sched_nr);
 			config_aqm(fs, ep, s != NULL && s->siht != NULL);
 		}
@@ -1758,7 +1758,7 @@ again: /* run twice, for wfq and fifo */
 		s = dn_ht_find(dn_cfg.schedhash, i, 0, &a);
 		if (s != NULL) {
 			a.fp = s->fp;
-			/* Scheduler exists, skip to FIFO scheduler 
+			/* Scheduler exists, skip to FIFO scheduler
 			 * if command was pipe config...
 			 */
 			if (pipe_cmd)
@@ -1814,7 +1814,7 @@ again: /* run twice, for wfq and fifo */
 		DX(2, "sched %d type changed from %s to %s",
 			i, s->fp->name, a.fp->name);
 		DX(4, "   type/sub %d/%d -> %d/%d",
-			s->sch.oid.type, s->sch.oid.subtype, 
+			s->sch.oid.type, s->sch.oid.subtype,
 			a.sch->oid.type, a.sch->oid.subtype);
 		if (s->link.link_nr == 0)
 			D("XXX WARNING link 0 for sched %d", i);
@@ -2109,7 +2109,7 @@ static int
 compute_space(struct dn_id *cmd, struct copy_args *a)
 {
 	int x = 0, need = 0;
-	int profile_size = sizeof(struct dn_profile) - 
+	int profile_size = sizeof(struct dn_profile) -
 		ED_MAX_SAMPLES_NO*sizeof(int);
 
 	/* NOTE about compute space:
@@ -2159,7 +2159,7 @@ compute_space(struct dn_id *cmd, struct copy_args *a)
 		x = DN_C_FS | DN_C_QUEUE;
 		break;
 	case DN_GET_COMPAT:	/* compatibility mode */
-		need =  dn_compat_calc_size(); 
+		need =  dn_compat_calc_size();
 		break;
 	}
 	a->flags = x;
@@ -2426,7 +2426,7 @@ drain_queue_fs_cb(void *_fs, void *arg)
 				drain_queue_cb, NULL);
 		fs->drain_bucket++;
 	} else {
-		/* No hash table for this flowset, null the pointer 
+		/* No hash table for this flowset, null the pointer
 		 * if the queue is deleted
 		 */
 		if (fs->qht) {
@@ -2685,6 +2685,9 @@ static moduledata_t dummynet_mod = {
 #define	DN_MODEV_ORD	(SI_ORDER_ANY - 128) /* after ipfw */
 DECLARE_MODULE(dummynet, dummynet_mod, DN_SI_SUB, DN_MODEV_ORD);
 MODULE_DEPEND(dummynet, ipfw, 3, 3, 3);
+#ifdef PSPAT
+MODULE_DEPEND(dummynet, pspat, 1, 1, 1);
+#endif
 MODULE_VERSION(dummynet, 3);
 
 /*

@@ -40,7 +40,7 @@ AHC_DEBUG_OPTS		opt_aic7xxx.h
 AHC_REG_PRETTY_PRINT	opt_aic7xxx.h
 AHD_DEBUG		opt_aic79xx.h
 AHD_DEBUG_OPTS		opt_aic79xx.h
-AHD_TMODE_ENABLE	opt_aic79xx.h	
+AHD_TMODE_ENABLE	opt_aic79xx.h
 AHD_REG_PRETTY_PRINT	opt_aic79xx.h
 
 TWA_DEBUG		opt_twa.h
@@ -481,6 +481,9 @@ SCTP_DETAILED_STR_STATS	opt_sctp.h # Use per PR-SCTP policy stream stats
 #
 #
 
+# PSPAT - Parallel Scheduling and Parallel Transmission Subsystem
+PSPAT               opt_global.h #Enable PSPAT
+
 # Netgraph(4). Use option NETGRAPH to enable the base netgraph code.
 # Each netgraph node type can be either be compiled into the kernel
 # or loaded dynamically. To get the former, include the corresponding
@@ -654,7 +657,7 @@ BKTR_OVERRIDE_DBX		opt_bktr.h
 BKTR_OVERRIDE_MSP		opt_bktr.h
 BKTR_SYSTEM_DEFAULT		opt_bktr.h
 BKTR_ALLOC_PAGES		opt_bktr.h
-BKTR_USE_PLL			opt_bktr.h	
+BKTR_USE_PLL			opt_bktr.h
 BKTR_GPIO_ACCESS		opt_bktr.h
 BKTR_NO_MSP_RESET		opt_bktr.h
 BKTR_430_FX_MODE		opt_bktr.h
@@ -905,7 +908,7 @@ IWN_DEBUG		opt_iwn.h
 # Options for the Intel 3945ABG wireless driver
 WPI_DEBUG		opt_wpi.h
 
-# dcons options 
+# dcons options
 DCONS_BUF_SIZE		opt_dcons.h
 DCONS_POLL_HZ		opt_dcons.h
 DCONS_FORCE_CONSOLE	opt_dcons.h
