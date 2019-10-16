@@ -632,10 +632,10 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 }
 
 int
-pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
+pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 {
 
-	return (pmap_methods_ptr->pm_mincore(pmap, addr, locked_pa));
+	return (pmap_methods_ptr->pm_mincore(pmap, addr, pap));
 }
 
 void

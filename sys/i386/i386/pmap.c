@@ -5700,10 +5700,12 @@ __CONCAT(PMTYPE, change_attr)(vm_offset_t va, vm_size_t size, int mode)
 }
 
 /*
- * perform the pmap work for mincore
+ * Perform the pmap work for mincore(2).  If the page is not both referenced and
+ * modified by this pmap, returns its physical address so that the caller can
+ * find other mappings.
  */
 static int
-__CONCAT(PMTYPE, mincore)(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
+__CONCAT(PMTYPE, mincore)(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 {
 	pd_entry_t pde;
 	pt_entry_t pte;
@@ -5711,7 +5713,6 @@ __CONCAT(PMTYPE, mincore)(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 	int val;
 
 	PMAP_LOCK(pmap);
-retry:
 	pde = *pmap_pde(pmap, addr);
 	if (pde != 0) {
 		if ((pde & PG_PS) != 0) {
@@ -5740,11 +5741,8 @@ retry:
 	if ((val & (MINCORE_MODIFIED_OTHER | MINCORE_REFERENCED_OTHER)) !=
 	    (MINCORE_MODIFIED_OTHER | MINCORE_REFERENCED_OTHER) &&
 	    (pte & (PG_MANAGED | PG_V)) == (PG_MANAGED | PG_V)) {
-		/* Ensure that "PHYS_TO_VM_PAGE(pa)->object" doesn't change. */
-		if (vm_page_pa_tryrelock(pmap, pa, locked_pa))
-			goto retry;
-	} else
-		PA_UNLOCK_COND(*locked_pa);
+		*pap = pa;
+	}
 	PMAP_UNLOCK(pmap);
 	return (val);
 }

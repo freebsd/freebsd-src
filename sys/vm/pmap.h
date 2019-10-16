@@ -144,8 +144,7 @@ boolean_t	 pmap_is_prefaultable(pmap_t pmap, vm_offset_t va);
 boolean_t	 pmap_is_referenced(vm_page_t m);
 boolean_t	 pmap_is_valid_memattr(pmap_t, vm_memattr_t);
 vm_offset_t	 pmap_map(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
-int		 pmap_mincore(pmap_t pmap, vm_offset_t addr,
-		    vm_paddr_t *locked_pa);
+int		 pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap);
 void		 pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 		    vm_object_t object, vm_pindex_t pindex, vm_size_t size);
 boolean_t	 pmap_page_exists_quick(pmap_t pmap, vm_page_t m);

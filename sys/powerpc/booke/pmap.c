@@ -3565,7 +3565,7 @@ mmu_booke_object_init_pt(mmu_t mmu, pmap_t pmap, vm_offset_t addr,
  */
 static int
 mmu_booke_mincore(mmu_t mmu, pmap_t pmap, vm_offset_t addr,
-    vm_paddr_t *locked_pa)
+    vm_paddr_t *pap)
 {
 
 	/* XXX: this should be implemented at some point */

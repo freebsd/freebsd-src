@@ -91,7 +91,7 @@ CODE {
 	}
 
 	static int mmu_null_mincore(mmu_t mmu, pmap_t pmap, vm_offset_t addr,
-	    vm_paddr_t *locked_pa)
+	    vm_paddr_t *pap)
 	{
 		return (0);
 	}
@@ -679,7 +679,7 @@ METHOD void zero_page_area {
  *
  * @param _pmap		physical map
  * @param _addr		page virtual address
- * @param _locked_pa	page physical address
+ * @param _pa		page physical address
  *
  * @retval 0		no result
  * @retval non-zero	mincore(2) flag values
@@ -688,7 +688,7 @@ METHOD int mincore {
 	mmu_t		_mmu;
 	pmap_t		_pmap;
 	vm_offset_t	_addr;
-	vm_paddr_t	*_locked_pa;
+	vm_paddr_t	*_pap;
 } DEFAULT mmu_null_mincore;
 
 
