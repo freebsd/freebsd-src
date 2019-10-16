@@ -321,6 +321,18 @@ cv_wait(kcondvar_t *cv, kmutex_t *mp)
 	mp->m_owner = curthread;
 }
 
+/*
+ * NB: this emulates FreeBSD cv_wait_sig(9), not the illumos one.
+ * Meanings of the return code is different.
+ * NB: this does not actually catch any siganls.
+ */
+int
+cv_wait_sig(kcondvar_t *cv, kmutex_t *mp)
+{
+	cv_wait(cv, mp);
+	return (0);
+}
+
 clock_t
 cv_timedwait(kcondvar_t *cv, kmutex_t *mp, clock_t abstime)
 {
