@@ -20,6 +20,8 @@ GFB_NO_FONT_LOADING	opt_gfb.h
 GFB_NO_MODE_CHANGE	opt_gfb.h
 
 MOEA64_STATS		opt_pmap.h
+AMIGAONE		opt_platform.h
+MIKROTIK		opt_platform.h
 MPC85XX			opt_platform.h
 POWERMAC		opt_platform.h
 PS3			opt_platform.h
@@ -35,4 +37,3 @@ OFWCONS_POLL_HZ		opt_ofw.h
 # AGP debugging support
 AGP_DEBUG		opt_agp.h
 
-MIKROTIK
