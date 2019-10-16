@@ -800,7 +800,7 @@ kern_mincore(struct thread *td, uintptr_t addr0, size_t len, char *vec)
 	 * mode.
 	 */
 	first_addr = addr = trunc_page(addr0);
-	end = addr + (vm_size_t)round_page(len);
+	end = round_page(addr0 + len);
 	map = &td->td_proc->p_vmspace->vm_map;
 	if (end > vm_map_max(map) || end < addr)
 		return (ENOMEM);
