@@ -2130,7 +2130,10 @@ dsl_get_mountpoint(dsl_dataset_t *ds, const char *dsname, char *value,
 		return (error);
 	}
 
-	/* Process the dsname and source to find the full mountpoint string */
+	/*
+	 * Process the dsname and source to find the full mountpoint string.
+	 * Can be skipped for 'legacy' or 'none'.
+	 */
 	if (value[0] == '/') {
 		char *buf = kmem_alloc(ZAP_MAXVALUELEN, KM_SLEEP);
 		char *root = buf;
@@ -2181,10 +2184,8 @@ dsl_get_mountpoint(dsl_dataset_t *ds, const char *dsname, char *value,
 			    relpath);
 		}
 		kmem_free(buf, ZAP_MAXVALUELEN);
-	} else {
-		/* 'legacy' or 'none' */
-		(void) snprintf(value, ZAP_MAXVALUELEN, "%s", value);
 	}
+
 	return (0);
 }
 
