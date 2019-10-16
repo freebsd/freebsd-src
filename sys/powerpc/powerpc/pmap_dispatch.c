@@ -382,11 +382,11 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 }
 
 int
-pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
+pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 {
 
 	CTR3(KTR_PMAP, "%s(%p, %#x)", __func__, pmap, addr);
-	return (MMU_MINCORE(mmu_obj, pmap, addr, locked_pa));
+	return (MMU_MINCORE(mmu_obj, pmap, addr, pap));
 }
 
 void

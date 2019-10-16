@@ -779,21 +779,16 @@ sys_mincore(struct thread *td, struct mincore_args *uap)
 int
 kern_mincore(struct thread *td, uintptr_t addr0, size_t len, char *vec)
 {
-	vm_offset_t addr, first_addr;
-	vm_offset_t end, cend;
 	pmap_t pmap;
 	vm_map_t map;
-	int error = 0;
-	int vecindex, lastvecindex;
-	vm_map_entry_t current;
-	vm_map_entry_t entry;
+	vm_map_entry_t current, entry;
 	vm_object_t object;
-	vm_paddr_t locked_pa;
+	vm_offset_t addr, cend, end, first_addr;
+	vm_paddr_t pa;
 	vm_page_t m;
 	vm_pindex_t pindex;
-	int mincoreinfo;
+	int error, lastvecindex, mincoreinfo, vecindex;
 	unsigned int timestamp;
-	boolean_t locked;
 
 	/*
 	 * Make sure that the addresses presented are valid for user
@@ -836,7 +831,7 @@ RestartScan:
 		 * ignore submaps (for now) or null objects
 		 */
 		if ((current->eflags & MAP_ENTRY_IS_SUB_MAP) ||
-			current->object.vm_object == NULL)
+		    current->object.vm_object == NULL)
 			continue;
 
 		/*
@@ -849,50 +844,45 @@ RestartScan:
 		if (cend > end)
 			cend = end;
 
-		/*
-		 * scan this entry one page at a time
-		 */
-		while (addr < cend) {
+		for (; addr < cend; addr += PAGE_SIZE) {
 			/*
 			 * Check pmap first, it is likely faster, also
 			 * it can provide info as to whether we are the
 			 * one referencing or modifying the page.
 			 */
-			object = NULL;
-			locked_pa = 0;
-		retry:
 			m = NULL;
-			mincoreinfo = pmap_mincore(pmap, addr, &locked_pa);
+			object = NULL;
+retry:
+			pa = 0;
+			mincoreinfo = pmap_mincore(pmap, addr, &pa);
 			if (mincore_mapped) {
 				/*
 				 * We only care about this pmap's
 				 * mapping of the page, if any.
 				 */
-				if (locked_pa != 0) {
-					vm_page_unlock(PHYS_TO_VM_PAGE(
-					    locked_pa));
-				}
-			} else if (locked_pa != 0) {
+				;
+			} else if (pa != 0) {
 				/*
 				 * The page is mapped by this process but not
 				 * both accessed and modified.  It is also
 				 * managed.  Acquire the object lock so that
-				 * other mappings might be examined.
+				 * other mappings might be examined.  The page's
+				 * identity may change at any point before its
+				 * object lock is acquired, so re-validate if
+				 * necessary.
 				 */
-				m = PHYS_TO_VM_PAGE(locked_pa);
-				if (m->object != object) {
+				m = PHYS_TO_VM_PAGE(pa);
+				while (object == NULL || m->object != object) {
 					if (object != NULL)
 						VM_OBJECT_WUNLOCK(object);
-					object = m->object;
-					locked = VM_OBJECT_TRYWLOCK(object);
-					vm_page_unlock(m);
-					if (!locked) {
-						VM_OBJECT_WLOCK(object);
-						vm_page_lock(m);
+					object = (vm_object_t)atomic_load_ptr(
+					    &m->object);
+					if (object == NULL)
 						goto retry;
-					}
-				} else
-					vm_page_unlock(m);
+					VM_OBJECT_WLOCK(object);
+				}
+				if (pa != pmap_extract(pmap, addr))
+					goto retry;
 				KASSERT(vm_page_all_valid(m),
 				    ("mincore: page %p is mapped but invalid",
 				    m));
@@ -922,11 +912,14 @@ RestartScan:
 				}
 			}
 			if (m != NULL) {
-				/* Examine other mappings to the page. */
+				VM_OBJECT_ASSERT_WLOCKED(m->object);
+
+				/* Examine other mappings of the page. */
 				if (m->dirty == 0 && pmap_is_modified(m))
 					vm_page_dirty(m);
 				if (m->dirty != 0)
 					mincoreinfo |= MINCORE_MODIFIED_OTHER;
+
 				/*
 				 * The first test for PGA_REFERENCED is an
 				 * optimization.  The second test is
@@ -985,7 +978,6 @@ RestartScan:
 				goto RestartScan;
 
 			lastvecindex = vecindex;
-			addr += PAGE_SIZE;
 		}
 	}
 

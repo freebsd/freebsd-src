@@ -2362,7 +2362,7 @@ kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
 	vm_object_t obj, tobj;
 	vm_page_t m, m_adv;
 	vm_offset_t addr;
-	vm_paddr_t locked_pa;
+	vm_paddr_t pa;
 	vm_pindex_t pi, pi_adv, pindex;
 
 	*super = false;
@@ -2370,7 +2370,7 @@ kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
 	if (vmmap_skip_res_cnt)
 		return;
 
-	locked_pa = 0;
+	pa = 0;
 	obj = entry->object.vm_object;
 	addr = entry->start;
 	m_adv = NULL;
@@ -2400,8 +2400,7 @@ kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
 		m_adv = NULL;
 		if (m->psind != 0 && addr + pagesizes[1] <= entry->end &&
 		    (addr & (pagesizes[1] - 1)) == 0 &&
-		    (pmap_mincore(map->pmap, addr, &locked_pa) &
-		    MINCORE_SUPER) != 0) {
+		    (pmap_mincore(map->pmap, addr, &pa) & MINCORE_SUPER) != 0) {
 			*super = true;
 			pi_adv = atop(pagesizes[1]);
 		} else {
@@ -2417,7 +2416,6 @@ kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
 		*resident_count += pi_adv;
 next:;
 	}
-	PA_UNLOCK_COND(locked_pa);
 }
 
 /*
