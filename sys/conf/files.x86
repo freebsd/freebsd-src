@@ -252,6 +252,7 @@ dev/isci/scil/scif_sas_task_request.c				optional isci
 dev/isci/scil/scif_sas_task_request_state_handlers.c		optional isci
 dev/isci/scil/scif_sas_task_request_states.c			optional isci
 dev/isci/scil/scif_sas_timer.c					optional isci
+dev/itwd/itwd.c							optional itwd
 libkern/x86/crc32_sse42.c	standard
 #
 # x86 shared code between IA32 and AMD64 architectures
