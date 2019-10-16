@@ -228,7 +228,7 @@ DEFINE_CLASS_1(pcib, fsl_pcib_driver, fsl_pcib_methods,
 EARLY_DRIVER_MODULE(pcib, ofwbus, fsl_pcib_driver, fsl_pcib_devclass, 0, 0,
     BUS_PASS_BUS);
 
-static int
+static void
 fsl_pcib_err_intr(void *v)
 {
 	struct fsl_pcib_softc *sc;
@@ -253,8 +253,6 @@ fsl_pcib_err_intr(void *v)
 
 	/* Clear pending errors */
 	bus_space_write_4(sc->sc_bst, sc->sc_bsh, REG_PEX_ERR_DR, clear_reg);
-
-	return (0);
 }
 
 static int
@@ -380,7 +378,7 @@ fsl_pcib_attach(device_t dev)
 
 	/* Setup interrupt handler */
 	error = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, (driver_intr_t *)fsl_pcib_err_intr, dev, &sc->sc_ih);
+	    NULL, fsl_pcib_err_intr, dev, &sc->sc_ih);
 	if (error != 0) {
 		device_printf(dev, "Could not setup irq, %d\n", error);
 		sc->sc_ih = NULL;
