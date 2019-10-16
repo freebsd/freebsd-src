@@ -323,8 +323,8 @@ cv_wait(kcondvar_t *cv, kmutex_t *mp)
 
 /*
  * NB: this emulates FreeBSD cv_wait_sig(9), not the illumos one.
- * Meanings of the return code is different.
- * NB: this does not actually catch any siganls.
+ * Meanings of the return code are different.
+ * NB: this does not actually catch any signals.
  */
 int
 cv_wait_sig(kcondvar_t *cv, kmutex_t *mp)
