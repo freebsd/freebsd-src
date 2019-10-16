@@ -19,6 +19,7 @@ FILES=	\
 	bsd.arch.inc.mk \
 	bsd.clang-analyze.mk \
 	bsd.compiler.mk \
+	bsd.compat.mk \
 	bsd.confs.mk \
 	bsd.cpu.mk \
 	bsd.crunchgen.mk \
