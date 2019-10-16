@@ -1393,6 +1393,7 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	struct ixgbe_hw       *hw = &adapter->hw;
 	struct ixgbe_hw_stats *stats = &adapter->stats.pf;
 	u32                   missed_rx = 0, bprc, lxon, lxoff, total;
+	u32                   lxoffrxc;
 	u64                   total_missed_rx = 0;
 
 	stats->crcerrs += IXGBE_READ_REG(hw, IXGBE_CRCERRS);
@@ -1422,15 +1423,24 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 		stats->tor += IXGBE_READ_REG(hw, IXGBE_TORL) +
 		    ((u64)IXGBE_READ_REG(hw, IXGBE_TORH) << 32);
 		stats->lxonrxc += IXGBE_READ_REG(hw, IXGBE_LXONRXCNT);
-		stats->lxoffrxc += IXGBE_READ_REG(hw, IXGBE_LXOFFRXCNT);
+		lxoffrxc = IXGBE_READ_REG(hw, IXGBE_LXOFFRXCNT);
+		stats->lxoffrxc += lxoffrxc;
 	} else {
 		stats->lxonrxc += IXGBE_READ_REG(hw, IXGBE_LXONRXC);
-		stats->lxoffrxc += IXGBE_READ_REG(hw, IXGBE_LXOFFRXC);
+		lxoffrxc = IXGBE_READ_REG(hw, IXGBE_LXOFFRXC);
+		stats->lxoffrxc += lxoffrxc;
 		/* 82598 only has a counter in the high register */
 		stats->gorc += IXGBE_READ_REG(hw, IXGBE_GORCH);
 		stats->gotc += IXGBE_READ_REG(hw, IXGBE_GOTCH);
 		stats->tor += IXGBE_READ_REG(hw, IXGBE_TORH);
 	}
+
+	/*
+	 * For watchdog management we need to know if we have been paused
+	 * during the last interval, so capture that here.
+	*/
+	if (lxoffrxc)
+		adapter->shared->isc_pause_frames = 1;
 
 	/*
 	 * Workaround: mprc hardware is incorrectly counting
