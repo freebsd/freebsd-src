@@ -702,12 +702,10 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 			return -ENODEV;
 		}
 		ndev = ib_get_ndev_from_path(rec);
-		rcu_read_lock();
 		if ((ndev && ndev != resolved_dev) ||
 		    (resolved_dev != idev &&
-		     !rdma_is_upper_dev_rcu(idev, resolved_dev)))
+		     rdma_vlan_dev_real_dev(resolved_dev) != idev))
 			ret = -EHOSTUNREACH;
-		rcu_read_unlock();
 		dev_put(idev);
 		dev_put(resolved_dev);
 		if (ret) {

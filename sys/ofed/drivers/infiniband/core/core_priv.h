@@ -128,16 +128,6 @@ int ib_cache_setup_one(struct ib_device *device);
 void ib_cache_cleanup_one(struct ib_device *device);
 void ib_cache_release_one(struct ib_device *device);
 
-static inline bool rdma_is_upper_dev_rcu(struct net_device *dev,
-					 struct net_device *upper)
-{
-
-	/* TODO: add support for LAGG */
-	upper = VLAN_TRUNKDEV(upper);
-
-	return (dev == upper);
-}
-
 int addr_init(void);
 void addr_cleanup(void);
 
