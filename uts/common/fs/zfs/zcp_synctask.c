@@ -104,11 +104,11 @@ static zcp_synctask_info_t zcp_synctask_destroy_info = {
 	.func = zcp_synctask_destroy,
 	.pargs = {
 	    {.za_name = "filesystem | snapshot", .za_lua_type = LUA_TSTRING},
-	    {NULL, NULL}
+	    {NULL, 0}
 	},
 	.kwargs = {
 	    {.za_name = "defer", .za_lua_type = LUA_TBOOLEAN},
-	    {NULL, NULL}
+	    {NULL, 0}
 	},
 	.space_check = ZFS_SPACE_CHECK_DESTROY,
 	.blocks_modified = 0
@@ -157,10 +157,10 @@ static zcp_synctask_info_t zcp_synctask_promote_info = {
 	.func = zcp_synctask_promote,
 	.pargs = {
 	    {.za_name = "clone", .za_lua_type = LUA_TSTRING},
-	    {NULL, NULL}
+	    {NULL, 0}
 	},
 	.kwargs = {
-	    {NULL, NULL}
+	    {NULL, 0}
 	},
 	.space_check = ZFS_SPACE_CHECK_RESERVED,
 	.blocks_modified = 3
@@ -196,10 +196,10 @@ static zcp_synctask_info_t zcp_synctask_rollback_info = {
 	.blocks_modified = 1,
 	.pargs = {
 	    {.za_name = "filesystem", .za_lua_type = LUA_TSTRING},
-	    {NULL, NULL}
+	    {NULL, 0}
 	},
 	.kwargs = {
-	    {NULL, NULL}
+	    {NULL, 0}
 	}
 };
 
@@ -226,10 +226,10 @@ static zcp_synctask_info_t zcp_synctask_snapshot_info = {
 	.pargs = {
 	    {.za_name = "filesystem@snapname | volume@snapname",
 	    .za_lua_type = LUA_TSTRING},
-	    {NULL, NULL}
+	    {NULL, 0}
 	},
 	.kwargs = {
-	    {NULL, NULL}
+	    {NULL, 0}
 	},
 	.space_check = ZFS_SPACE_CHECK_NORMAL,
 	.blocks_modified = 3

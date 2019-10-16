@@ -68,7 +68,7 @@ static const zcp_errno_global_t errno_globals[] = {
 	{"ENOTSUP", ENOTSUP},
 	{"EDQUOT", EDQUOT},
 	{"ENAMETOOLONG", ENAMETOOLONG},
-	{NULL, NULL}
+	{NULL, 0}
 };
 
 static void

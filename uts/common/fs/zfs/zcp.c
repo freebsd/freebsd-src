@@ -608,23 +608,23 @@ zcp_dataset_hold_error(lua_State *state, dsl_pool_t *dp, const char *dsname,
 {
 	if (error == ENOENT) {
 		(void) zcp_argerror(state, 1, "no such dataset '%s'", dsname);
-		return (NULL); /* not reached; zcp_argerror will longjmp */
+		return (0); /* not reached; zcp_argerror will longjmp */
 	} else if (error == EXDEV) {
 		(void) zcp_argerror(state, 1,
 		    "dataset '%s' is not in the target pool '%s'",
 		    dsname, spa_name(dp->dp_spa));
-		return (NULL); /* not reached; zcp_argerror will longjmp */
+		return (0); /* not reached; zcp_argerror will longjmp */
 	} else if (error == EIO) {
 		(void) luaL_error(state,
 		    "I/O error while accessing dataset '%s'", dsname);
-		return (NULL); /* not reached; luaL_error will longjmp */
+		return (0); /* not reached; luaL_error will longjmp */
 	} else if (error != 0) {
 		(void) luaL_error(state,
 		    "unexpected error %d while accessing dataset '%s'",
 		    error, dsname);
-		return (NULL); /* not reached; luaL_error will longjmp */
+		return (0); /* not reached; luaL_error will longjmp */
 	}
-	return (NULL);
+	return (0);
 }
 
 /*
@@ -647,10 +647,10 @@ static zcp_lib_info_t zcp_debug_info = {
 	.func = zcp_debug,
 	.pargs = {
 	    { .za_name = "debug string", .za_lua_type = LUA_TSTRING},
-	    {NULL, NULL}
+	    {NULL, 0}
 	},
 	.kwargs = {
-	    {NULL, NULL}
+	    {NULL, 0}
 	}
 };
 
@@ -676,10 +676,10 @@ static zcp_lib_info_t zcp_exists_info = {
 	.func = zcp_exists,
 	.pargs = {
 	    { .za_name = "dataset", .za_lua_type = LUA_TSTRING},
-	    {NULL, NULL}
+	    {NULL, 0}
 	},
 	.kwargs = {
-	    {NULL, NULL}
+	    {NULL, 0}
 	}
 };
 

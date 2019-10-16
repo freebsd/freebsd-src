@@ -110,10 +110,10 @@ static zcp_list_info_t zcp_clones_list_info = {
 	.gc = NULL,
 	.pargs = {
 	    { .za_name = "snapshot", .za_lua_type = LUA_TSTRING},
-	    {NULL, NULL}
+	    {NULL, 0}
 	},
 	.kwargs = {
-	    {NULL, NULL}
+	    {NULL, 0}
 	}
 };
 
@@ -199,10 +199,10 @@ static zcp_list_info_t zcp_snapshots_list_info = {
 	.gc = NULL,
 	.pargs = {
 	    { .za_name = "filesystem | volume", .za_lua_type = LUA_TSTRING},
-	    {NULL, NULL}
+	    {NULL, 0}
 	},
 	.kwargs = {
-	    {NULL, NULL}
+	    {NULL, 0}
 	}
 };
 
@@ -300,10 +300,10 @@ static zcp_list_info_t zcp_children_list_info = {
 	.gc = NULL,
 	.pargs = {
 	    { .za_name = "filesystem | volume", .za_lua_type = LUA_TSTRING},
-	    {NULL, NULL}
+	    {NULL, 0}
 	},
 	.kwargs = {
-	    {NULL, NULL}
+	    {NULL, 0}
 	}
 };
 
@@ -381,10 +381,10 @@ static zcp_list_info_t zcp_props_list_info = {
 	.pargs = {
 	    { .za_name = "filesystem | snapshot | volume",
 	    .za_lua_type = LUA_TSTRING},
-	    {NULL, NULL}
+	    {NULL, 0}
 	},
 	.kwargs = {
-	    {NULL, NULL}
+	    {NULL, 0}
 	}
 };
 
@@ -439,10 +439,10 @@ static zcp_list_info_t zcp_system_props_list_info = {
 	.func = zcp_system_props_list,
 	.pargs = {
 	    { .za_name = "dataset", .za_lua_type = LUA_TSTRING},
-	    {NULL, NULL}
+	    {NULL, 0}
 	},
 	.kwargs = {
-	    {NULL, NULL}
+	    {NULL, 0}
 	}
 };
 
