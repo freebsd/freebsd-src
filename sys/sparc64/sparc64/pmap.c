@@ -2241,7 +2241,7 @@ pmap_remove_write(vm_page_t m)
 }
 
 int
-pmap_mincore(pmap_t pm, vm_offset_t addr, vm_paddr_t *locked_pa)
+pmap_mincore(pmap_t pm, vm_offset_t addr, vm_paddr_t *pap)
 {
 
 	/* TODO; */

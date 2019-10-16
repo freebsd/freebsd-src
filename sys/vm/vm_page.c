@@ -168,10 +168,6 @@ SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &boot_pages, 0,
     "number of pages allocated for bootstrapping the VM system");
 
-static int pa_tryrelock_restart;
-SYSCTL_INT(_vm, OID_AUTO, tryrelock_restart, CTLFLAG_RD,
-    &pa_tryrelock_restart, 0, "Number of tryrelock restarts");
-
 static TAILQ_HEAD(, vm_page) blacklist_head;
 static int sysctl_vm_page_blacklist(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_vm, OID_AUTO, page_blacklist, CTLTYPE_STRING | CTLFLAG_RD |
@@ -251,34 +247,6 @@ SYSINIT(vm_page2, SI_SUB_VM_CONF, SI_ORDER_ANY, vm_page_init_cache_zones, NULL);
 CTASSERT(sizeof(u_long) >= 8);
 #endif
 #endif
-
-/*
- * Try to acquire a physical address lock while a pmap is locked.  If we
- * fail to trylock we unlock and lock the pmap directly and cache the
- * locked pa in *locked.  The caller should then restart their loop in case
- * the virtual to physical mapping has changed.
- */
-int
-vm_page_pa_tryrelock(pmap_t pmap, vm_paddr_t pa, vm_paddr_t *locked)
-{
-	vm_paddr_t lockpa;
-
-	lockpa = *locked;
-	*locked = pa;
-	if (lockpa) {
-		PA_LOCK_ASSERT(lockpa, MA_OWNED);
-		if (PA_LOCKPTR(pa) == PA_LOCKPTR(lockpa))
-			return (0);
-		PA_UNLOCK(lockpa);
-	}
-	if (PA_TRYLOCK(pa))
-		return (0);
-	PMAP_UNLOCK(pmap);
-	atomic_add_int(&pa_tryrelock_restart, 1);
-	PA_LOCK(pa);
-	PMAP_LOCK(pmap);
-	return (EAGAIN);
-}
 
 /*
  *	vm_set_page_size:
