@@ -1455,10 +1455,14 @@ vn_stat(struct vnode *vp, struct stat *sb, struct ucred *active_cred,
 	if (vap->va_size > OFF_MAX)
 		return (EOVERFLOW);
 	sb->st_size = vap->va_size;
-	sb->st_atim = vap->va_atime;
-	sb->st_mtim = vap->va_mtime;
-	sb->st_ctim = vap->va_ctime;
-	sb->st_birthtim = vap->va_birthtime;
+	sb->st_atim.tv_sec = vap->va_atime.tv_sec;
+	sb->st_atim.tv_nsec = vap->va_atime.tv_nsec;
+	sb->st_mtim.tv_sec = vap->va_mtime.tv_sec;
+	sb->st_mtim.tv_nsec = vap->va_mtime.tv_nsec;
+	sb->st_ctim.tv_sec = vap->va_ctime.tv_sec;
+	sb->st_ctim.tv_nsec = vap->va_ctime.tv_nsec;
+	sb->st_birthtim.tv_sec = vap->va_birthtime.tv_sec;
+	sb->st_birthtim.tv_nsec = vap->va_birthtime.tv_nsec;
 
         /*
 	 * According to www.opengroup.org, the meaning of st_blksize is 
