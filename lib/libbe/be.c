@@ -229,7 +229,7 @@ be_destroy_cb(zfs_handle_t *zfs_hdl, void *data)
 	return (0);
 }
 
-#define	BE_DESTROY_NEEDORIGIN	(BE_DESTROY_ORIGIN | BE_DESTROY_AUTOORIGIN)
+#define	BE_DESTROY_WANTORIGIN	(BE_DESTROY_ORIGIN | BE_DESTROY_AUTOORIGIN)
 /*
  * Destroy the boot environment or snapshot specified by the name
  * parameter. Options are or'd together with the possible values:
@@ -265,9 +265,10 @@ be_destroy(libbe_handle_t *lbh, const char *name, int options)
 		if (fs == NULL)
 			return (set_error(lbh, BE_ERR_ZFSOPEN));
 
-		if ((options & BE_DESTROY_NEEDORIGIN) != 0 &&
+		if ((options & BE_DESTROY_WANTORIGIN) != 0 &&
 		    zfs_prop_get(fs, ZFS_PROP_ORIGIN, origin, sizeof(origin),
-		    NULL, NULL, 0, 1) != 0)
+		    NULL, NULL, 0, 1) != 0 &&
+		    (options & BE_DESTROY_ORIGIN) != 0)
 			return (set_error(lbh, BE_ERR_NOORIGIN));
 
 		/*
@@ -279,7 +280,7 @@ be_destroy(libbe_handle_t *lbh, const char *name, int options)
 		 * the caller can determine if it needs to warn about the origin
 		 * not being destroyed or not.
 		 */
-		if ((options & BE_DESTROY_AUTOORIGIN) != 0 &&
+		if ((options & BE_DESTROY_AUTOORIGIN) != 0 && *origin != '\0' &&
 		    be_is_auto_snapshot_name(lbh, origin))
 			options |= BE_DESTROY_ORIGIN;
 
