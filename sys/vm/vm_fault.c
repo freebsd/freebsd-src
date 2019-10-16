@@ -562,15 +562,11 @@ int
 vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, int *signo, int *ucode)
 {
-	struct thread *td;
 	int result;
 
 	MPASS(signo == NULL || ucode != NULL);
-	td = curthread;
-	if ((td->td_pflags & TDP_NOFAULTING) != 0)
-		return (KERN_PROTECTION_FAILURE);
 #ifdef KTRACE
-	if (map != kernel_map && KTRPOINT(td, KTR_FAULT))
+	if (map != kernel_map && KTRPOINT(curthread, KTR_FAULT))
 		ktrfault(vaddr, fault_type);
 #endif
 	result = vm_fault(map, trunc_page(vaddr), fault_type, fault_flags,
@@ -582,7 +578,7 @@ vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	    result == KERN_OUT_OF_BOUNDS,
 	    ("Unexpected Mach error %d from vm_fault()", result));
 #ifdef KTRACE
-	if (map != kernel_map && KTRPOINT(td, KTR_FAULTEND))
+	if (map != kernel_map && KTRPOINT(curthread, KTR_FAULTEND))
 		ktrfaultend(result);
 #endif
 	if (result != KERN_SUCCESS && signo != NULL) {
@@ -652,6 +648,10 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	bool dead, hardfault, is_first_object_locked;
 
 	VM_CNT_INC(v_vm_faults);
+
+	if ((curthread->td_pflags & TDP_NOFAULTING) != 0)
+		return (KERN_PROTECTION_FAILURE);
+
 	fs.vp = NULL;
 	faultcount = 0;
 	nera = -1;
