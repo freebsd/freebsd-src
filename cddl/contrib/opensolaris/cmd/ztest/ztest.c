@@ -198,6 +198,7 @@ extern boolean_t zfs_compressed_arc_enabled;
 extern boolean_t zfs_abd_scatter_enabled;
 extern int dmu_object_alloc_chunk_shift;
 extern boolean_t zfs_force_some_double_word_sm_entries;
+extern unsigned long zfs_reconstruct_indirect_damage_fraction;
 
 static ztest_shared_opts_t *ztest_shared_opts;
 static ztest_shared_opts_t ztest_opts;
@@ -5696,7 +5697,8 @@ ztest_run_zdb(char *pool)
 	isa = strdup(isa);
 	/* LINTED */
 	(void) sprintf(bin,
-	    "/usr/sbin%.*s/zdb -bcc%s%s -G -d -U %s %s",
+	    "/usr/sbin%.*s/zdb -bcc%s%s -G -d -U %s "
+	    "-o zfs_reconstruct_indirect_combinations_max=65536 %s",
 	    isalen,
 	    isa,
 	    ztest_opts.zo_verbose >= 3 ? "s" : "",
@@ -6652,6 +6654,13 @@ main(int argc, char **argv)
 	 * of them so the feature get tested.
 	 */
 	zfs_force_some_double_word_sm_entries = B_TRUE;
+
+	/*
+	 * Verify that even extensively damaged split blocks with many
+	 * segments can be reconstructed in a reasonable amount of time
+	 * when reconstruction is known to be possible.
+	 */
+	zfs_reconstruct_indirect_damage_fraction = 4;
 
 	ztest_fd_rand = open("/dev/urandom", O_RDONLY);
 	ASSERT3S(ztest_fd_rand, >=, 0);
