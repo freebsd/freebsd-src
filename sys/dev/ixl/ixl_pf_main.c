@@ -2683,7 +2683,7 @@ ixl_update_stats_counters(struct ixl_pf *pf)
 	 * during the last interval, so capture that here.
 	 */
 	if (pf->stats.link_xoff_rx != prev_link_xoff_rx)
-		adapter->shared->isc_pause_frames = 1;
+		vsi->shared->isc_pause_frames = 1;
 
 	/* Packet size stats rx */
 	ixl_stat_update48(hw, I40E_GLPRT_PRC64H(hw->port),
