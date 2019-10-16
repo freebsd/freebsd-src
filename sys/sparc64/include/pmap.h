@@ -50,6 +50,7 @@
 #include <machine/tte.h>
 
 #define	PMAP_CONTEXT_MAX	8192
+#define	PMAP_ENTER_QUICK_LOCKED	0x10000000
 
 typedef	struct pmap *pmap_t;
 

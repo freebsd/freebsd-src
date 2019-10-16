@@ -1500,8 +1500,12 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	rw_assert(&tte_list_global_lock, RA_WLOCKED);
 	PMAP_LOCK_ASSERT(pm, MA_OWNED);
-	if ((m->oflags & VPO_UNMANAGED) == 0)
-		VM_PAGE_OBJECT_BUSY_ASSERT(m);
+	if ((m->oflags & VPO_UNMANAGED) == 0) {
+		if ((flags & PMAP_ENTER_QUICK_LOCKED) == 0)
+			VM_PAGE_OBJECT_BUSY_ASSERT(m);
+		else
+			VM_OBJECT_ASSERT_LOCKED(m->object);
+	}
 	PMAP_STATS_INC(pmap_nenter);
 	pa = VM_PAGE_TO_PHYS(m);
 	wired = (flags & PMAP_ENTER_WIRED) != 0;
@@ -1649,7 +1653,8 @@ pmap_enter_object(pmap_t pm, vm_offset_t start, vm_offset_t end,
 	PMAP_LOCK(pm);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		pmap_enter_locked(pm, start + ptoa(diff), m, prot &
-		    (VM_PROT_READ | VM_PROT_EXECUTE), 0, 0);
+		    (VM_PROT_READ | VM_PROT_EXECUTE),
+		    PMAP_ENTER_QUICK_LOCKED, 0);
 		m = TAILQ_NEXT(m, listq);
 	}
 	rw_wunlock(&tte_list_global_lock);
@@ -1663,7 +1668,7 @@ pmap_enter_quick(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 	rw_wlock(&tte_list_global_lock);
 	PMAP_LOCK(pm);
 	pmap_enter_locked(pm, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
-	    0, 0);
+	    PMAP_ENTER_QUICK_LOCKED, 0);
 	rw_wunlock(&tte_list_global_lock);
 	PMAP_UNLOCK(pm);
 }
