@@ -4193,7 +4193,7 @@ arc_adjust_cb_check(void *arg, zthr_t *zthr)
  * from the ARC.
  */
 /* ARGSUSED */
-static int
+static void
 arc_adjust_cb(void *arg, zthr_t *zthr)
 {
 	uint64_t evicted = 0;
@@ -4224,8 +4224,6 @@ arc_adjust_cb(void *arg, zthr_t *zthr)
 		cv_broadcast(&arc_adjust_waiters_cv);
 	}
 	mutex_exit(&arc_adjust_lock);
-
-	return (0);
 }
 
 /* ARGSUSED */
@@ -4267,7 +4265,7 @@ arc_reap_cb_check(void *arg, zthr_t *zthr)
  * to free more buffers.
  */
 /* ARGSUSED */
-static int
+static void
 arc_reap_cb(void *arg, zthr_t *zthr)
 {
 	int64_t free_memory;
@@ -4306,8 +4304,6 @@ arc_reap_cb(void *arg, zthr_t *zthr)
 #endif
 		arc_reduce_target_size(to_free);
 	}
-
-	return (0);
 }
 
 /*
