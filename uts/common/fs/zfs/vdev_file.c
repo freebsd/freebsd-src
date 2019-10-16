@@ -148,7 +148,7 @@ vdev_file_close(vdev_t *vd)
  * interrupt taskqs. For consistency, the code structure mimics disk vdev
  * types.
  */
-static void
+static int
 vdev_file_io_intr(buf_t *bp)
 {
 	vdev_buf_t *vb = (vdev_buf_t *)bp;
@@ -166,6 +166,7 @@ vdev_file_io_intr(buf_t *bp)
 
 	kmem_free(vb, sizeof (vdev_buf_t));
 	zio_delay_interrupt(zio);
+	return (0);
 }
 
 static void
@@ -241,7 +242,7 @@ vdev_file_io_start(zio_t *zio)
 	bp->b_lblkno = lbtodb(zio->io_offset);
 	bp->b_bufsize = zio->io_size;
 	bp->b_private = vf->vf_vnode;
-	bp->b_iodone = (int (*)())vdev_file_io_intr;
+	bp->b_iodone = vdev_file_io_intr;
 
 	VERIFY3U(taskq_dispatch(system_taskq, vdev_file_io_strategy, bp,
 	    TQ_SLEEP), !=, 0);

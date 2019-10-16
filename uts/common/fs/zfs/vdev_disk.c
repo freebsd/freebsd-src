@@ -700,7 +700,7 @@ vdev_disk_ldi_physio(ldi_handle_t vd_lh, caddr_t data,
 	return (error);
 }
 
-static void
+static int
 vdev_disk_io_intr(buf_t *bp)
 {
 	vdev_buf_t *vb = (vdev_buf_t *)bp;
@@ -725,6 +725,7 @@ vdev_disk_io_intr(buf_t *bp)
 	kmem_free(vb, sizeof (vdev_buf_t));
 
 	zio_delay_interrupt(zio);
+	return (0);
 }
 
 static void
@@ -844,7 +845,7 @@ vdev_disk_io_start(zio_t *zio)
 
 	bp->b_lblkno = lbtodb(zio->io_offset);
 	bp->b_bufsize = zio->io_size;
-	bp->b_iodone = (int (*)())vdev_disk_io_intr;
+	bp->b_iodone = vdev_disk_io_intr;
 
 	/* ldi_strategy() will return non-zero only on programming errors */
 	VERIFY(ldi_strategy(dvd->vd_lh, bp) == 0);
