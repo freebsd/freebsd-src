@@ -204,68 +204,508 @@ const struct cpu_implementers cpu_implementers[] = {
 #define	MRS_EXACT_FIELD(x)	((x) >> 4)
 #define	MRS_LOWER		2
 
+struct mrs_field_value {
+	uint64_t	value;
+	const char	*desc;
+};
+
+#define	MRS_FIELD_VALUE(_value, _desc)					\
+	{								\
+		.value = (_value),					\
+		.desc = (_desc),					\
+	}
+
+#define	MRS_FIELD_VALUE_NONE_IMPL(_reg, _field, _none, _impl)		\
+	MRS_FIELD_VALUE(_reg ## _ ## _field ## _ ## _none, ""),		\
+	MRS_FIELD_VALUE(_reg ## _ ## _field ## _ ## _impl, #_field)
+
+#define	MRS_FIELD_VALUE_COUNT(_reg, _field, _desc)			\
+	MRS_FIELD_VALUE(0ul << _reg ## _ ## _field ## _SHIFT, "1 " _desc), \
+	MRS_FIELD_VALUE(1ul << _reg ## _ ## _field ## _SHIFT, "2 " _desc "s"), \
+	MRS_FIELD_VALUE(2ul << _reg ## _ ## _field ## _SHIFT, "3 " _desc "s"), \
+	MRS_FIELD_VALUE(3ul << _reg ## _ ## _field ## _SHIFT, "4 " _desc "s"), \
+	MRS_FIELD_VALUE(4ul << _reg ## _ ## _field ## _SHIFT, "5 " _desc "s"), \
+	MRS_FIELD_VALUE(5ul << _reg ## _ ## _field ## _SHIFT, "6 " _desc "s"), \
+	MRS_FIELD_VALUE(6ul << _reg ## _ ## _field ## _SHIFT, "7 " _desc "s"), \
+	MRS_FIELD_VALUE(7ul << _reg ## _ ## _field ## _SHIFT, "8 " _desc "s"), \
+	MRS_FIELD_VALUE(8ul << _reg ## _ ## _field ## _SHIFT, "9 " _desc "s"), \
+	MRS_FIELD_VALUE(9ul << _reg ## _ ## _field ## _SHIFT, "10 "_desc "s"), \
+	MRS_FIELD_VALUE(10ul<< _reg ## _ ## _field ## _SHIFT, "11 "_desc "s"), \
+	MRS_FIELD_VALUE(11ul<< _reg ## _ ## _field ## _SHIFT, "12 "_desc "s"), \
+	MRS_FIELD_VALUE(12ul<< _reg ## _ ## _field ## _SHIFT, "13 "_desc "s"), \
+	MRS_FIELD_VALUE(13ul<< _reg ## _ ## _field ## _SHIFT, "14 "_desc "s"), \
+	MRS_FIELD_VALUE(14ul<< _reg ## _ ## _field ## _SHIFT, "15 "_desc "s"), \
+	MRS_FIELD_VALUE(15ul<< _reg ## _ ## _field ## _SHIFT, "16 "_desc "s")
+
+#define	MRS_FIELD_VALUE_END	{ .desc = NULL }
+
 struct mrs_field {
+	const char	*name;
+	struct mrs_field_value *values;
+	uint64_t	mask;
 	bool		sign;
 	u_int		type;
 	u_int		shift;
 };
 
-#define	MRS_FIELD(_sign, _type, _shift)					\
+#define	MRS_FIELD(_register, _name, _sign, _type, _values)		\
 	{								\
+		.name = #_name,						\
 		.sign = (_sign),					\
 		.type = (_type),					\
-		.shift = (_shift),					\
+		.shift = _register ## _ ## _name ## _SHIFT,		\
+		.mask = _register ## _ ## _name ## _MASK,		\
+		.values = (_values),					\
 	}
 
 #define	MRS_FIELD_END	{ .type = MRS_INVALID, }
 
-static struct mrs_field id_aa64dfr0_fields[] = {
-	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_PMSVer_SHIFT),
-	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_CTX_CMPs_SHIFT),
-	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_WRPs_SHIFT),
-	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_BRPs_SHIFT),
-	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_PMUVer_SHIFT),
-	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_TraceVer_SHIFT),
-	MRS_FIELD(false, MRS_EXACT_VAL(0x6), ID_AA64DFR0_DebugVer_SHIFT),
+/* ID_AA64AFR0_EL1 */
+static struct mrs_field id_aa64afr0_fields[] = {
 	MRS_FIELD_END,
+};
+
+
+/* ID_AA64AFR1_EL1 */
+static struct mrs_field id_aa64afr1_fields[] = {
+	MRS_FIELD_END,
+};
+
+
+/* ID_AA64DFR0_EL1 */
+static struct mrs_field_value id_aa64dfr0_pmsver[] = {
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_V1, "SPE"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64dfr0_ctx_cmps[] = {
+	MRS_FIELD_VALUE_COUNT(ID_AA64DFR0, CTX_CMPs, "CTX BKPT"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64dfr0_wrps[] = {
+	MRS_FIELD_VALUE_COUNT(ID_AA64DFR0, WRPs, "Watchpoint"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64dfr0_brps[] = {
+	MRS_FIELD_VALUE_COUNT(ID_AA64DFR0, BRPs, "Breakpoint"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64dfr0_pmuver[] = {
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3, "PMUv3"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_1, "PMUv3+16 bit evtCount"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_IMPL, "IMPL PMU"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64dfr0_tracever[] = {
+	MRS_FIELD_VALUE(ID_AA64DFR0_TraceVer_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64DFR0_TraceVer_IMPL, "Trace"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64dfr0_debugver[] = {
+	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8, "Debugv8"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8_VHE, "Debugv8_VHE"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8_2, "Debugv8.2"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field id_aa64dfr0_fields[] = {
+	MRS_FIELD(ID_AA64DFR0, PMSVer, false, MRS_EXACT, id_aa64dfr0_pmsver),
+	MRS_FIELD(ID_AA64DFR0, CTX_CMPs, false, MRS_EXACT,
+	    id_aa64dfr0_ctx_cmps),
+	MRS_FIELD(ID_AA64DFR0, WRPs, false, MRS_EXACT, id_aa64dfr0_wrps),
+	MRS_FIELD(ID_AA64DFR0, BRPs, false, MRS_EXACT, id_aa64dfr0_brps),
+	MRS_FIELD(ID_AA64DFR0, PMUVer, false, MRS_EXACT, id_aa64dfr0_pmuver),
+	MRS_FIELD(ID_AA64DFR0, TraceVer, false, MRS_EXACT,
+	    id_aa64dfr0_tracever),
+	MRS_FIELD(ID_AA64DFR0, DebugVer, false, MRS_EXACT_VAL(0x6),
+	    id_aa64dfr0_debugver),
+	MRS_FIELD_END,
+};
+
+
+/* ID_AA64DFR1 */
+static struct mrs_field id_aa64dfr1_fields[] = {
+	MRS_FIELD_END,
+};
+
+
+/* ID_AA64ISAR0_EL1 */
+static struct mrs_field_value id_aa64isar0_dp[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR0, DP, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar0_sm4[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR0, SM4, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar0_sm3[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR0, SM3, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar0_sha3[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR0, SHA3, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar0_rdm[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR0, RDM, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar0_atomic[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR0, Atomic, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar0_crc32[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR0, CRC32, NONE, BASE),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar0_sha2[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR0, SHA2, NONE, BASE),
+	MRS_FIELD_VALUE(ID_AA64ISAR0_SHA2_512, "SHA2+SHA512"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar0_sha1[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR0, SHA1, NONE, BASE),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar0_aes[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR0, AES, NONE, BASE),
+	MRS_FIELD_VALUE(ID_AA64ISAR0_AES_PMULL, "AES+PMULL"),
+	MRS_FIELD_VALUE_END,
 };
 
 static struct mrs_field id_aa64isar0_fields[] = {
-	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_DP_SHIFT),
-	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_SM4_SHIFT),
-	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_SM3_SHIFT),
-	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_SHA3_SHIFT),
-	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_RDM_SHIFT),
-	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_Atomic_SHIFT),
-	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_CRC32_SHIFT),
-	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_SHA2_SHIFT),
-	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_SHA1_SHIFT),
-	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_AES_SHIFT),
+	MRS_FIELD(ID_AA64ISAR0, DP, false, MRS_LOWER, id_aa64isar0_dp),
+	MRS_FIELD(ID_AA64ISAR0, SM4, false, MRS_LOWER, id_aa64isar0_sm4),
+	MRS_FIELD(ID_AA64ISAR0, SM3, false, MRS_LOWER, id_aa64isar0_sm3),
+	MRS_FIELD(ID_AA64ISAR0, SHA3, false, MRS_LOWER, id_aa64isar0_sha3),
+	MRS_FIELD(ID_AA64ISAR0, RDM, false, MRS_LOWER, id_aa64isar0_rdm),
+	MRS_FIELD(ID_AA64ISAR0, Atomic, false, MRS_LOWER, id_aa64isar0_atomic),
+	MRS_FIELD(ID_AA64ISAR0, CRC32, false, MRS_LOWER, id_aa64isar0_crc32),
+	MRS_FIELD(ID_AA64ISAR0, SHA2, false, MRS_LOWER, id_aa64isar0_sha2),
+	MRS_FIELD(ID_AA64ISAR0, SHA1, false, MRS_LOWER, id_aa64isar0_sha1),
+	MRS_FIELD(ID_AA64ISAR0, AES, false, MRS_LOWER, id_aa64isar0_aes),
 	MRS_FIELD_END,
+};
+
+
+/* ID_AA64ISAR1_EL1 */
+static struct mrs_field_value id_aa64isar1_gpi[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, GPI, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar1_gpa[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, GPA, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar1_lrcpc[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, LRCPC, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar1_fcma[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, FCMA, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar1_jscvt[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, JSCVT, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar1_api[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, API, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar1_apa[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, GPA, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar1_dpb[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, DPB, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
 };
 
 static struct mrs_field id_aa64isar1_fields[] = {
-	MRS_FIELD(false, MRS_EXACT, ID_AA64ISAR1_GPI_SHIFT),
-	MRS_FIELD(false, MRS_EXACT, ID_AA64ISAR1_GPA_SHIFT),
-	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR1_LRCPC_SHIFT),
-	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR1_FCMA_SHIFT),
-	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR1_JSCVT_SHIFT),
-	MRS_FIELD(false, MRS_EXACT, ID_AA64ISAR1_API_SHIFT),
-	MRS_FIELD(false, MRS_EXACT, ID_AA64ISAR1_APA_SHIFT),
-	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR1_DPB_SHIFT),
+	MRS_FIELD(ID_AA64ISAR1, GPI, false, MRS_EXACT, id_aa64isar1_gpi),
+	MRS_FIELD(ID_AA64ISAR1, GPA, false, MRS_EXACT, id_aa64isar1_gpa),
+	MRS_FIELD(ID_AA64ISAR1, LRCPC, false, MRS_LOWER, id_aa64isar1_lrcpc),
+	MRS_FIELD(ID_AA64ISAR1, FCMA, false, MRS_LOWER, id_aa64isar1_fcma),
+	MRS_FIELD(ID_AA64ISAR1, JSCVT, false, MRS_LOWER, id_aa64isar1_jscvt),
+	MRS_FIELD(ID_AA64ISAR1, API, false, MRS_EXACT, id_aa64isar1_api),
+	MRS_FIELD(ID_AA64ISAR1, APA, false, MRS_EXACT, id_aa64isar1_apa),
+	MRS_FIELD(ID_AA64ISAR1, DPB, false, MRS_LOWER, id_aa64isar1_dpb),
 	MRS_FIELD_END,
 };
 
+
+/* ID_AA64MMFR0_EL1 */
+static struct mrs_field_value id_aa64mmfr0_tgran4[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, TGran4, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr0_tgran64[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, TGran64, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr0_tgran16[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, TGran16, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr0_bigend_el0[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, BigEndEL0, FIXED, MIXED),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr0_snsmem[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, SNSMem, NONE, DISTINCT),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr0_bigend[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, BigEnd, FIXED, MIXED),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr0_asid_bits[] = {
+	MRS_FIELD_VALUE(ID_AA64MMFR0_ASIDBits_8, "8bit ASID"),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_ASIDBits_16, "16bit ASID"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr0_parange[] = {
+	MRS_FIELD_VALUE(ID_AA64MMFR0_PARange_4G, "4GB PA"),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_PARange_64G, "64GB PA"),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_PARange_1T, "1TB PA"),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_PARange_4T, "4TB PA"),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_PARange_16T, "16TB PA"),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_PARange_256T, "256TB PA"),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_PARange_4P, "4PB PA"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field id_aa64mmfr0_fields[] = {
+	MRS_FIELD(ID_AA64MMFR0, TGran4, false, MRS_EXACT, id_aa64mmfr0_tgran4),
+	MRS_FIELD(ID_AA64MMFR0, TGran64, false, MRS_EXACT,
+	    id_aa64mmfr0_tgran64),
+	MRS_FIELD(ID_AA64MMFR0, TGran16, false, MRS_EXACT,
+	    id_aa64mmfr0_tgran16),
+	MRS_FIELD(ID_AA64MMFR0, BigEndEL0, false, MRS_EXACT,
+	    id_aa64mmfr0_bigend_el0),
+	MRS_FIELD(ID_AA64MMFR0, SNSMem, false, MRS_EXACT, id_aa64mmfr0_snsmem),
+	MRS_FIELD(ID_AA64MMFR0, BigEnd, false, MRS_EXACT, id_aa64mmfr0_bigend),
+	MRS_FIELD(ID_AA64MMFR0, ASIDBits, false, MRS_EXACT,
+	    id_aa64mmfr0_asid_bits),
+	MRS_FIELD(ID_AA64MMFR0, PARange, false, MRS_EXACT,
+	    id_aa64mmfr0_parange),
+	MRS_FIELD_END,
+};
+
+
+/* ID_AA64MMFR1_EL1 */
+static struct mrs_field_value id_aa64mmfr1_xnx[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, XNX, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr1_specsei[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, SpecSEI, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr1_pan[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, PAN, NONE, IMPL),
+	MRS_FIELD_VALUE(ID_AA64MMFR1_PAN_ATS1E1, "PAN+ATS1E1"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr1_lo[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, LO, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr1_hpds[] = {
+	MRS_FIELD_VALUE(ID_AA64MMFR1_HPDS_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64MMFR1_HPDS_HPD, "HPD"),
+	MRS_FIELD_VALUE(ID_AA64MMFR1_HPDS_TTPBHA, "HPD+TTPBHA"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr1_vh[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, VH, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr1_vmidbits[] = {
+	MRS_FIELD_VALUE(ID_AA64MMFR1_VMIDBits_8, "8bit VMID"),
+	MRS_FIELD_VALUE(ID_AA64MMFR1_VMIDBits_16, "16bit VMID"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr1_hafdbs[] = {
+	MRS_FIELD_VALUE(ID_AA64MMFR1_HAFDBS_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64MMFR1_HAFDBS_AF, "HAF"),
+	MRS_FIELD_VALUE(ID_AA64MMFR1_HAFDBS_AF_DBS, "HAF+DS"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field id_aa64mmfr1_fields[] = {
+	MRS_FIELD(ID_AA64MMFR1, XNX, false, MRS_EXACT, id_aa64mmfr1_xnx),
+	MRS_FIELD(ID_AA64MMFR1, SpecSEI, false, MRS_EXACT,
+	    id_aa64mmfr1_specsei),
+	MRS_FIELD(ID_AA64MMFR1, PAN, false, MRS_EXACT, id_aa64mmfr1_pan),
+	MRS_FIELD(ID_AA64MMFR1, LO, false, MRS_EXACT, id_aa64mmfr1_lo),
+	MRS_FIELD(ID_AA64MMFR1, HPDS, false, MRS_EXACT, id_aa64mmfr1_hpds),
+	MRS_FIELD(ID_AA64MMFR1, VH, false, MRS_EXACT, id_aa64mmfr1_vh),
+	MRS_FIELD(ID_AA64MMFR1, VMIDBits, false, MRS_EXACT,
+	    id_aa64mmfr1_vmidbits),
+	MRS_FIELD(ID_AA64MMFR1, HAFDBS, false, MRS_EXACT, id_aa64mmfr1_hafdbs),
+	MRS_FIELD_END,
+};
+
+
+/* ID_AA64MMFR2_EL1 */
+static struct mrs_field_value id_aa64mmfr2_nv[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR2, NV, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr2_ccidx[] = {
+	MRS_FIELD_VALUE(ID_AA64MMFR2_CCIDX_32, "32bit CCIDX"),
+	MRS_FIELD_VALUE(ID_AA64MMFR2_CCIDX_64, "32bit CCIDX"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr2_varange[] = {
+	MRS_FIELD_VALUE(ID_AA64MMFR2_VARange_48, "48bit VA"),
+	MRS_FIELD_VALUE(ID_AA64MMFR2_VARange_52, "52bit VA"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr2_iesb[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR2, IESB, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr2_lsm[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR2, LSM, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr2_uao[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR2, UAO, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr2_cnp[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR2, CnP, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field id_aa64mmfr2_fields[] = {
+	MRS_FIELD(ID_AA64MMFR2, NV, false, MRS_EXACT, id_aa64mmfr2_nv),
+	MRS_FIELD(ID_AA64MMFR2, CCIDX, false, MRS_EXACT, id_aa64mmfr2_ccidx),
+	MRS_FIELD(ID_AA64MMFR2, VARange, false, MRS_EXACT,
+	    id_aa64mmfr2_varange),
+	MRS_FIELD(ID_AA64MMFR2, IESB, false, MRS_EXACT, id_aa64mmfr2_iesb),
+	MRS_FIELD(ID_AA64MMFR2, LSM, false, MRS_EXACT, id_aa64mmfr2_lsm),
+	MRS_FIELD(ID_AA64MMFR2, UAO, false, MRS_EXACT, id_aa64mmfr2_uao),
+	MRS_FIELD(ID_AA64MMFR2, CnP, false, MRS_EXACT, id_aa64mmfr2_cnp),
+	MRS_FIELD_END,
+};
+
+
+/* ID_AA64PFR0_EL1 */
+static struct mrs_field_value id_aa64pfr0_sve[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR0, SVE, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64pfr0_ras[] = {
+	MRS_FIELD_VALUE(ID_AA64PFR0_RAS_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64PFR0_RAS_V1, "RASv1"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64pfr0_gic[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR0, GIC, CPUIF_NONE, CPUIF_EN),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64pfr0_advsimd[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR0, AdvSIMD, NONE, IMPL),
+	MRS_FIELD_VALUE(ID_AA64PFR0_AdvSIMD_HP, "AdvSIMD+HP"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64pfr0_fp[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR0, FP, NONE, IMPL),
+	MRS_FIELD_VALUE(ID_AA64PFR0_FP_HP, "FP+HP"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64pfr0_el3[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR0, EL3, NONE, 64),
+	MRS_FIELD_VALUE(ID_AA64PFR0_EL3_64_32, "EL3 32"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64pfr0_el2[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR0, EL2, NONE, 64),
+	MRS_FIELD_VALUE(ID_AA64PFR0_EL2_64_32, "EL2 32"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64pfr0_el1[] = {
+	MRS_FIELD_VALUE(ID_AA64PFR0_EL1_64, "EL1"),
+	MRS_FIELD_VALUE(ID_AA64PFR0_EL1_64_32, "EL1 32"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64pfr0_el0[] = {
+	MRS_FIELD_VALUE(ID_AA64PFR0_EL0_64, "EL0"),
+	MRS_FIELD_VALUE(ID_AA64PFR0_EL0_64_32, "EL0 32"),
+	MRS_FIELD_VALUE_END,
+};
+
 static struct mrs_field id_aa64pfr0_fields[] = {
-	MRS_FIELD(false, MRS_EXACT, ID_AA64PFR0_SVE_SHIFT),
-	MRS_FIELD(false, MRS_EXACT, ID_AA64PFR0_RAS_SHIFT),
-	MRS_FIELD(false, MRS_EXACT, ID_AA64PFR0_GIC_SHIFT),
-	MRS_FIELD(true,  MRS_LOWER, ID_AA64PFR0_AdvSIMD_SHIFT),
-	MRS_FIELD(true,  MRS_LOWER, ID_AA64PFR0_FP_SHIFT),
-	MRS_FIELD(false, MRS_EXACT, ID_AA64PFR0_EL3_SHIFT),
-	MRS_FIELD(false, MRS_EXACT, ID_AA64PFR0_EL2_SHIFT),
-	MRS_FIELD(false, MRS_LOWER, ID_AA64PFR0_EL1_SHIFT),
-	MRS_FIELD(false, MRS_LOWER, ID_AA64PFR0_EL0_SHIFT),
+	MRS_FIELD(ID_AA64PFR0, SVE, false, MRS_EXACT, id_aa64pfr0_sve),
+	MRS_FIELD(ID_AA64PFR0, RAS, false, MRS_EXACT, id_aa64pfr0_ras),
+	MRS_FIELD(ID_AA64PFR0, GIC, false, MRS_EXACT, id_aa64pfr0_gic),
+	MRS_FIELD(ID_AA64PFR0, AdvSIMD, true, MRS_LOWER, id_aa64pfr0_advsimd),
+	MRS_FIELD(ID_AA64PFR0, FP, true,  MRS_LOWER, id_aa64pfr0_fp),
+	MRS_FIELD(ID_AA64PFR0, EL3, false, MRS_EXACT, id_aa64pfr0_el3),
+	MRS_FIELD(ID_AA64PFR0, EL2, false, MRS_EXACT, id_aa64pfr0_el2),
+	MRS_FIELD(ID_AA64PFR0, EL1, false, MRS_LOWER, id_aa64pfr0_el1),
+	MRS_FIELD(ID_AA64PFR0, EL0, false, MRS_LOWER, id_aa64pfr0_el0),
+	MRS_FIELD_END,
+};
+
+
+/* ID_AA64PFR1_EL1 */
+static struct mrs_field id_aa64pfr1_fields[] = {
 	MRS_FIELD_END,
 };
 
@@ -541,10 +981,52 @@ parse_cpu_features_hwcap(u_int cpu)
 }
 
 static void
+print_id_register(struct sbuf *sb, const char *reg_name, uint64_t reg,
+    struct mrs_field *fields)
+{
+	struct mrs_field_value *fv;
+	int field, i, j, printed;
+
+	sbuf_printf(sb, "%29s = <", reg_name);
+
+#define SEP_STR	((printed++) == 0) ? "" : ","
+	printed = 0;
+	for (i = 0; fields[i].type != 0; i++) {
+		fv = fields[i].values;
+
+		/* TODO: Handle with an unknown message */
+		if (fv == NULL)
+			continue;
+
+		field = (reg & fields[i].mask) >> fields[i].shift;
+		for (j = 0; fv[j].desc != NULL; j++) {
+			if ((fv[j].value >> fields[i].shift) != field)
+				continue;
+
+			if (fv[j].desc[0] != '\0')
+				sbuf_printf(sb, "%s%s", SEP_STR, fv[j].desc);
+				break;
+		}
+		if (fv[j].desc == NULL)
+			sbuf_printf(sb, "%sUnknown %s(%x)", SEP_STR,
+			    fields[i].name, field);
+
+		reg &= ~(0xful << fields[i].shift);
+	}
+
+	if (reg != 0)
+		sbuf_printf(sb, "%s%#lx", SEP_STR, reg);
+#undef SEP_STR
+
+	sbuf_finish(sb);
+	printf("%s>\n", sbuf_data(sb));
+	sbuf_clear(sb);
+}
+
+static void
 print_cpu_features(u_int cpu)
 {
 	struct sbuf *sb;
-	int printed;
 
 	sb = sbuf_new_auto();
 	sbuf_printf(sb, "CPU%3d: %s %s r%dp%d", cpu,
@@ -594,783 +1076,60 @@ print_cpu_features(u_int cpu)
 		    "hardware bugs that may cause the incorrect operation of "
 		    "atomic operations.\n");
 
-#define SEP_STR	((printed++) == 0) ? "" : ","
-
 	/* AArch64 Instruction Set Attribute Register 0 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_ISAR0) != 0) {
-		printed = 0;
-		sbuf_printf(sb, " Instruction Set Attributes 0 = <");
-
-		switch (ID_AA64ISAR0_DP(cpu_desc[cpu].id_aa64isar0)) {
-		case ID_AA64ISAR0_DP_NONE:
-			break;
-		case ID_AA64ISAR0_DP_IMPL:
-			sbuf_printf(sb, "%sDotProd", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown DP", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64ISAR0_SM4(cpu_desc[cpu].id_aa64isar0)) {
-		case ID_AA64ISAR0_SM4_NONE:
-			break;
-		case ID_AA64ISAR0_SM4_IMPL:
-			sbuf_printf(sb, "%sSM4", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown SM4", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64ISAR0_SM3(cpu_desc[cpu].id_aa64isar0)) {
-		case ID_AA64ISAR0_SM3_NONE:
-			break;
-		case ID_AA64ISAR0_SM3_IMPL:
-			sbuf_printf(sb, "%sSM3", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown SM3", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64ISAR0_SHA3(cpu_desc[cpu].id_aa64isar0)) {
-		case ID_AA64ISAR0_SHA3_NONE:
-			break;
-		case ID_AA64ISAR0_SHA3_IMPL:
-			sbuf_printf(sb, "%sSHA3", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown SHA3", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64ISAR0_RDM(cpu_desc[cpu].id_aa64isar0)) {
-		case ID_AA64ISAR0_RDM_NONE:
-			break;
-		case ID_AA64ISAR0_RDM_IMPL:
-			sbuf_printf(sb, "%sRDM", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown RDM", SEP_STR);
-		}
-
-		switch (ID_AA64ISAR0_Atomic(cpu_desc[cpu].id_aa64isar0)) {
-		case ID_AA64ISAR0_Atomic_NONE:
-			break;
-		case ID_AA64ISAR0_Atomic_IMPL:
-			sbuf_printf(sb, "%sAtomic", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown Atomic", SEP_STR);
-		}
-
-		switch (ID_AA64ISAR0_CRC32(cpu_desc[cpu].id_aa64isar0)) {
-		case ID_AA64ISAR0_CRC32_NONE:
-			break;
-		case ID_AA64ISAR0_CRC32_BASE:
-			sbuf_printf(sb, "%sCRC32", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown CRC32", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64ISAR0_SHA2(cpu_desc[cpu].id_aa64isar0)) {
-		case ID_AA64ISAR0_SHA2_NONE:
-			break;
-		case ID_AA64ISAR0_SHA2_BASE:
-			sbuf_printf(sb, "%sSHA2", SEP_STR);
-			break;
-		case ID_AA64ISAR0_SHA2_512:
-			sbuf_printf(sb, "%sSHA2+SHA512", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown SHA2", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64ISAR0_SHA1(cpu_desc[cpu].id_aa64isar0)) {
-		case ID_AA64ISAR0_SHA1_NONE:
-			break;
-		case ID_AA64ISAR0_SHA1_BASE:
-			sbuf_printf(sb, "%sSHA1", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown SHA1", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64ISAR0_AES(cpu_desc[cpu].id_aa64isar0)) {
-		case ID_AA64ISAR0_AES_NONE:
-			break;
-		case ID_AA64ISAR0_AES_BASE:
-			sbuf_printf(sb, "%sAES", SEP_STR);
-			break;
-		case ID_AA64ISAR0_AES_PMULL:
-			sbuf_printf(sb, "%sAES+PMULL", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown AES", SEP_STR);
-			break;
-		}
-
-		if ((cpu_desc[cpu].id_aa64isar0 & ~ID_AA64ISAR0_MASK) != 0)
-			sbuf_printf(sb, "%s%#lx", SEP_STR,
-			    cpu_desc[cpu].id_aa64isar0 & ~ID_AA64ISAR0_MASK);
-
-		sbuf_finish(sb);
-		printf("%s>\n", sbuf_data(sb));
-		sbuf_clear(sb);
-	}
+	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_ISAR0) != 0)
+		print_id_register(sb, "Instruction Set Attributes 0",
+		    cpu_desc[cpu].id_aa64isar0, id_aa64isar0_fields);
 
 	/* AArch64 Instruction Set Attribute Register 1 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_ISAR1) != 0) {
-		printed = 0;
-		sbuf_printf(sb, " Instruction Set Attributes 1 = <");
-
-		switch (ID_AA64ISAR1_GPI(cpu_desc[cpu].id_aa64isar1)) {
-		case ID_AA64ISAR1_GPI_NONE:
-			break;
-		case ID_AA64ISAR1_GPI_IMPL:
-			sbuf_printf(sb, "%sImpl GenericAuth", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown GenericAuth", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64ISAR1_GPA(cpu_desc[cpu].id_aa64isar1)) {
-		case ID_AA64ISAR1_GPA_NONE:
-			break;
-		case ID_AA64ISAR1_GPA_IMPL:
-			sbuf_printf(sb, "%sPrince GenericAuth", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown GenericAuth", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64ISAR1_LRCPC(cpu_desc[cpu].id_aa64isar1)) {
-		case ID_AA64ISAR1_LRCPC_NONE:
-			break;
-		case ID_AA64ISAR1_LRCPC_IMPL:
-			sbuf_printf(sb, "%sRCpc", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown RCpc", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64ISAR1_FCMA(cpu_desc[cpu].id_aa64isar1)) {
-		case ID_AA64ISAR1_FCMA_NONE:
-			break;
-		case ID_AA64ISAR1_FCMA_IMPL:
-			sbuf_printf(sb, "%sFCMA", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown FCMA", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64ISAR1_JSCVT(cpu_desc[cpu].id_aa64isar1)) {
-		case ID_AA64ISAR1_JSCVT_NONE:
-			break;
-		case ID_AA64ISAR1_JSCVT_IMPL:
-			sbuf_printf(sb, "%sJS Conv", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown JS Conv", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64ISAR1_API(cpu_desc[cpu].id_aa64isar1)) {
-		case ID_AA64ISAR1_API_NONE:
-			break;
-		case ID_AA64ISAR1_API_IMPL:
-			sbuf_printf(sb, "%sImpl AddrAuth", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown Impl AddrAuth", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64ISAR1_APA(cpu_desc[cpu].id_aa64isar1)) {
-		case ID_AA64ISAR1_APA_NONE:
-			break;
-		case ID_AA64ISAR1_APA_IMPL:
-			sbuf_printf(sb, "%sPrince AddrAuth", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown Prince AddrAuth", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64ISAR1_DPB(cpu_desc[cpu].id_aa64isar1)) {
-		case ID_AA64ISAR1_DPB_NONE:
-			break;
-		case ID_AA64ISAR1_DPB_IMPL:
-			sbuf_printf(sb, "%sDC CVAP", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown DC CVAP", SEP_STR);
-			break;
-		}
-
-		if ((cpu_desc[cpu].id_aa64isar1 & ~ID_AA64ISAR1_MASK) != 0)
-			sbuf_printf(sb, "%s%#lx", SEP_STR,
-			    cpu_desc[cpu].id_aa64isar1 & ~ID_AA64ISAR1_MASK);
-		sbuf_finish(sb);
-		printf("%s>\n", sbuf_data(sb));
-		sbuf_clear(sb);
-	}
+	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_ISAR1) != 0)
+		print_id_register(sb, "Instruction Set Attributes 1",
+		    cpu_desc[cpu].id_aa64isar1, id_aa64isar1_fields);
 
 	/* AArch64 Processor Feature Register 0 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_PFR0) != 0) {
-		printed = 0;
-		sbuf_printf(sb, "         Processor Features 0 = <");
-
-		switch (ID_AA64PFR0_SVE(cpu_desc[cpu].id_aa64pfr0)) {
-		case ID_AA64PFR0_SVE_NONE:
-			break;
-		case ID_AA64PFR0_SVE_IMPL:
-			sbuf_printf(sb, "%sSVE", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown SVE", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64PFR0_RAS(cpu_desc[cpu].id_aa64pfr0)) {
-		case ID_AA64PFR0_RAS_NONE:
-			break;
-		case ID_AA64PFR0_RAS_V1:
-			sbuf_printf(sb, "%sRASv1", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown RAS", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64PFR0_GIC(cpu_desc[cpu].id_aa64pfr0)) {
-		case ID_AA64PFR0_GIC_CPUIF_NONE:
-			break;
-		case ID_AA64PFR0_GIC_CPUIF_EN:
-			sbuf_printf(sb, "%sGIC", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown GIC interface", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64PFR0_AdvSIMD(cpu_desc[cpu].id_aa64pfr0)) {
-		case ID_AA64PFR0_AdvSIMD_NONE:
-			break;
-		case ID_AA64PFR0_AdvSIMD_IMPL:
-			sbuf_printf(sb, "%sAdvSIMD", SEP_STR);
-			break;
-		case ID_AA64PFR0_AdvSIMD_HP:
-			sbuf_printf(sb, "%sAdvSIMD+HP", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown AdvSIMD", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64PFR0_FP(cpu_desc[cpu].id_aa64pfr0)) {
-		case ID_AA64PFR0_FP_NONE:
-			break;
-		case ID_AA64PFR0_FP_IMPL:
-			sbuf_printf(sb, "%sFloat", SEP_STR);
-			break;
-		case ID_AA64PFR0_FP_HP:
-			sbuf_printf(sb, "%sFloat+HP", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown Float", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64PFR0_EL3(cpu_desc[cpu].id_aa64pfr0)) {
-		case ID_AA64PFR0_EL3_NONE:
-			sbuf_printf(sb, "%sNo EL3", SEP_STR);
-			break;
-		case ID_AA64PFR0_EL3_64:
-			sbuf_printf(sb, "%sEL3", SEP_STR);
-			break;
-		case ID_AA64PFR0_EL3_64_32:
-			sbuf_printf(sb, "%sEL3 32", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown EL3", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64PFR0_EL2(cpu_desc[cpu].id_aa64pfr0)) {
-		case ID_AA64PFR0_EL2_NONE:
-			sbuf_printf(sb, "%sNo EL2", SEP_STR);
-			break;
-		case ID_AA64PFR0_EL2_64:
-			sbuf_printf(sb, "%sEL2", SEP_STR);
-			break;
-		case ID_AA64PFR0_EL2_64_32:
-			sbuf_printf(sb, "%sEL2 32", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown EL2", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64PFR0_EL1(cpu_desc[cpu].id_aa64pfr0)) {
-		case ID_AA64PFR0_EL1_64:
-			sbuf_printf(sb, "%sEL1", SEP_STR);
-			break;
-		case ID_AA64PFR0_EL1_64_32:
-			sbuf_printf(sb, "%sEL1 32", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown EL1", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64PFR0_EL0(cpu_desc[cpu].id_aa64pfr0)) {
-		case ID_AA64PFR0_EL0_64:
-			sbuf_printf(sb, "%sEL0", SEP_STR);
-			break;
-		case ID_AA64PFR0_EL0_64_32:
-			sbuf_printf(sb, "%sEL0 32", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown EL0", SEP_STR);
-			break;
-		}
-
-		if ((cpu_desc[cpu].id_aa64pfr0 & ~ID_AA64PFR0_MASK) != 0)
-			sbuf_printf(sb, "%s%#lx", SEP_STR,
-			    cpu_desc[cpu].id_aa64pfr0 & ~ID_AA64PFR0_MASK);
-
-		sbuf_finish(sb);
-		printf("%s>\n", sbuf_data(sb));
-		sbuf_clear(sb);
-	}
+	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_PFR0) != 0)
+		print_id_register(sb, "Processor Features 0",
+		    cpu_desc[cpu].id_aa64pfr0, id_aa64pfr0_fields);
 
 	/* AArch64 Processor Feature Register 1 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_PFR1) != 0) {
-		printf("         Processor Features 1 = <%#lx>\n",
-		    cpu_desc[cpu].id_aa64pfr1);
-	}
+	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_PFR1) != 0)
+		print_id_register(sb, "Processor Features 1",
+		    cpu_desc[cpu].id_aa64pfr1, id_aa64pfr1_fields);
 
 	/* AArch64 Memory Model Feature Register 0 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_MMFR0) != 0) {
-		printed = 0;
-		sbuf_printf(sb, "      Memory Model Features 0 = <");
-		switch (ID_AA64MMFR0_TGran4(cpu_desc[cpu].id_aa64mmfr0)) {
-		case ID_AA64MMFR0_TGran4_NONE:
-			break;
-		case ID_AA64MMFR0_TGran4_IMPL:
-			sbuf_printf(sb, "%s4k Granule", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown 4k Granule", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR0_TGran64(cpu_desc[cpu].id_aa64mmfr0)) {
-		case ID_AA64MMFR0_TGran64_NONE:
-			break;
-		case ID_AA64MMFR0_TGran64_IMPL:
-			sbuf_printf(sb, "%s64k Granule", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown 64k Granule", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR0_TGran16(cpu_desc[cpu].id_aa64mmfr0)) {
-		case ID_AA64MMFR0_TGran16_NONE:
-			break;
-		case ID_AA64MMFR0_TGran16_IMPL:
-			sbuf_printf(sb, "%s16k Granule", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown 16k Granule", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR0_BigEndEL0(cpu_desc[cpu].id_aa64mmfr0)) {
-		case ID_AA64MMFR0_BigEndEL0_FIXED:
-			break;
-		case ID_AA64MMFR0_BigEndEL0_MIXED:
-			sbuf_printf(sb, "%sEL0 MixEndian", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown EL0 Endian switching", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR0_SNSMem(cpu_desc[cpu].id_aa64mmfr0)) {
-		case ID_AA64MMFR0_SNSMem_NONE:
-			break;
-		case ID_AA64MMFR0_SNSMem_DISTINCT:
-			sbuf_printf(sb, "%sS/NS Mem", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown S/NS Mem", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR0_BigEnd(cpu_desc[cpu].id_aa64mmfr0)) {
-		case ID_AA64MMFR0_BigEnd_FIXED:
-			break;
-		case ID_AA64MMFR0_BigEnd_MIXED:
-			sbuf_printf(sb, "%sMixedEndian", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown Endian switching", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR0_ASIDBits(cpu_desc[cpu].id_aa64mmfr0)) {
-		case ID_AA64MMFR0_ASIDBits_8:
-			sbuf_printf(sb, "%s8bit ASID", SEP_STR);
-			break;
-		case ID_AA64MMFR0_ASIDBits_16:
-			sbuf_printf(sb, "%s16bit ASID", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown ASID", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR0_PARange(cpu_desc[cpu].id_aa64mmfr0)) {
-		case ID_AA64MMFR0_PARange_4G:
-			sbuf_printf(sb, "%s4GB PA", SEP_STR);
-			break;
-		case ID_AA64MMFR0_PARange_64G:
-			sbuf_printf(sb, "%s64GB PA", SEP_STR);
-			break;
-		case ID_AA64MMFR0_PARange_1T:
-			sbuf_printf(sb, "%s1TB PA", SEP_STR);
-			break;
-		case ID_AA64MMFR0_PARange_4T:
-			sbuf_printf(sb, "%s4TB PA", SEP_STR);
-			break;
-		case ID_AA64MMFR0_PARange_16T:
-			sbuf_printf(sb, "%s16TB PA", SEP_STR);
-			break;
-		case ID_AA64MMFR0_PARange_256T:
-			sbuf_printf(sb, "%s256TB PA", SEP_STR);
-			break;
-		case ID_AA64MMFR0_PARange_4P:
-			sbuf_printf(sb, "%s4PB PA", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown PA Range", SEP_STR);
-			break;
-		}
-
-		if ((cpu_desc[cpu].id_aa64mmfr0 & ~ID_AA64MMFR0_MASK) != 0)
-			sbuf_printf(sb, "%s%#lx", SEP_STR,
-			    cpu_desc[cpu].id_aa64mmfr0 & ~ID_AA64MMFR0_MASK);
-		sbuf_finish(sb);
-		printf("%s>\n", sbuf_data(sb));
-		sbuf_clear(sb);
-	}
+	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_MMFR0) != 0)
+		print_id_register(sb, "Memory Model Features 0",
+		    cpu_desc[cpu].id_aa64mmfr0, id_aa64mmfr0_fields);
 
 	/* AArch64 Memory Model Feature Register 1 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_MMFR1) != 0) {
-		printed = 0;
-		sbuf_printf(sb, "      Memory Model Features 1 = <");
-
-		switch (ID_AA64MMFR1_XNX(cpu_desc[cpu].id_aa64mmfr1)) {
-		case ID_AA64MMFR1_XNX_NONE:
-			break;
-		case ID_AA64MMFR1_XNX_IMPL:
-			sbuf_printf(sb, "%sEL2 XN", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown XNX", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR1_SpecSEI(cpu_desc[cpu].id_aa64mmfr1)) {
-		case ID_AA64MMFR1_SpecSEI_NONE:
-			break;
-		case ID_AA64MMFR1_SpecSEI_IMPL:
-			sbuf_printf(sb, "%sSpecSEI", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown SpecSEI", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR1_PAN(cpu_desc[cpu].id_aa64mmfr1)) {
-		case ID_AA64MMFR1_PAN_NONE:
-			break;
-		case ID_AA64MMFR1_PAN_IMPL:
-			sbuf_printf(sb, "%sPAN", SEP_STR);
-			break;
-		case ID_AA64MMFR1_PAN_ATS1E1:
-			sbuf_printf(sb, "%sPAN+AT", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown PAN", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR1_LO(cpu_desc[cpu].id_aa64mmfr1)) {
-		case ID_AA64MMFR1_LO_NONE:
-			break;
-		case ID_AA64MMFR1_LO_IMPL:
-			sbuf_printf(sb, "%sLO", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown LO", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR1_HPDS(cpu_desc[cpu].id_aa64mmfr1)) {
-		case ID_AA64MMFR1_HPDS_NONE:
-			break;
-		case ID_AA64MMFR1_HPDS_HPD:
-			sbuf_printf(sb, "%sHPDS", SEP_STR);
-			break;
-		case ID_AA64MMFR1_HPDS_TTPBHA:
-			sbuf_printf(sb, "%sTTPBHA", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown HPDS", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR1_VH(cpu_desc[cpu].id_aa64mmfr1)) {
-		case ID_AA64MMFR1_VH_NONE:
-			break;
-		case ID_AA64MMFR1_VH_IMPL:
-			sbuf_printf(sb, "%sVHE", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown VHE", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR1_VMIDBits(cpu_desc[cpu].id_aa64mmfr1)) {
-		case ID_AA64MMFR1_VMIDBits_8:
-			break;
-		case ID_AA64MMFR1_VMIDBits_16:
-			sbuf_printf(sb, "%s16 VMID bits", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown VMID bits", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR1_HAFDBS(cpu_desc[cpu].id_aa64mmfr1)) {
-		case ID_AA64MMFR1_HAFDBS_NONE:
-			break;
-		case ID_AA64MMFR1_HAFDBS_AF:
-			sbuf_printf(sb, "%sAF", SEP_STR);
-			break;
-		case ID_AA64MMFR1_HAFDBS_AF_DBS:
-			sbuf_printf(sb, "%sAF+DBS", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown Hardware update AF/DBS", SEP_STR);
-			break;
-		}
-
-		if ((cpu_desc[cpu].id_aa64mmfr1 & ~ID_AA64MMFR1_MASK) != 0)
-			sbuf_printf(sb, "%s%#lx", SEP_STR,
-			    cpu_desc[cpu].id_aa64mmfr1 & ~ID_AA64MMFR1_MASK);
-		sbuf_finish(sb);
-		printf("%s>\n", sbuf_data(sb));
-		sbuf_clear(sb);
-	}
+	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_MMFR1) != 0)
+		print_id_register(sb, "Memory Model Features 1",
+		    cpu_desc[cpu].id_aa64mmfr1, id_aa64mmfr1_fields);
 
 	/* AArch64 Memory Model Feature Register 2 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_MMFR2) != 0) {
-		printed = 0;
-		sbuf_printf(sb, "      Memory Model Features 2 = <");
-
-		switch (ID_AA64MMFR2_NV(cpu_desc[cpu].id_aa64mmfr2)) {
-		case ID_AA64MMFR2_NV_NONE:
-			break;
-		case ID_AA64MMFR2_NV_IMPL:
-			sbuf_printf(sb, "%sNestedVirt", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown NestedVirt", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR2_CCIDX(cpu_desc[cpu].id_aa64mmfr2)) {
-		case ID_AA64MMFR2_CCIDX_32:
-			sbuf_printf(sb, "%s32b CCIDX", SEP_STR);
-			break;
-		case ID_AA64MMFR2_CCIDX_64:
-			sbuf_printf(sb, "%s64b CCIDX", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown CCIDX", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR2_VARange(cpu_desc[cpu].id_aa64mmfr2)) {
-		case ID_AA64MMFR2_VARange_48:
-			sbuf_printf(sb, "%s48b VA", SEP_STR);
-			break;
-		case ID_AA64MMFR2_VARange_52:
-			sbuf_printf(sb, "%s52b VA", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown VA Range", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR2_IESB(cpu_desc[cpu].id_aa64mmfr2)) {
-		case ID_AA64MMFR2_IESB_NONE:
-			break;
-		case ID_AA64MMFR2_IESB_IMPL:
-			sbuf_printf(sb, "%sIESB", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown IESB", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR2_LSM(cpu_desc[cpu].id_aa64mmfr2)) {
-		case ID_AA64MMFR2_LSM_NONE:
-			break;
-		case ID_AA64MMFR2_LSM_IMPL:
-			sbuf_printf(sb, "%sLSM", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown LSM", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR2_UAO(cpu_desc[cpu].id_aa64mmfr2)) {
-		case ID_AA64MMFR2_UAO_NONE:
-			break;
-		case ID_AA64MMFR2_UAO_IMPL:
-			sbuf_printf(sb, "%sUAO", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown UAO", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64MMFR2_CnP(cpu_desc[cpu].id_aa64mmfr2)) {
-		case ID_AA64MMFR2_CnP_NONE:
-			break;
-		case ID_AA64MMFR2_CnP_IMPL:
-			sbuf_printf(sb, "%sCnP", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown CnP", SEP_STR);
-			break;
-		}
-
-		if ((cpu_desc[cpu].id_aa64mmfr2 & ~ID_AA64MMFR2_MASK) != 0)
-			sbuf_printf(sb, "%s%#lx", SEP_STR,
-			    cpu_desc[cpu].id_aa64mmfr2 & ~ID_AA64MMFR2_MASK);
-		sbuf_finish(sb);
-		printf("%s>\n", sbuf_data(sb));
-		sbuf_clear(sb);
-	}
+	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_MMFR2) != 0)
+		print_id_register(sb, "Memory Model Features 2",
+		    cpu_desc[cpu].id_aa64mmfr2, id_aa64mmfr2_fields);
 
 	/* AArch64 Debug Feature Register 0 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_DFR0) != 0) {
-		printed = 0;
-		sbuf_printf(sb, "             Debug Features 0 = <");
-		switch(ID_AA64DFR0_PMSVer(cpu_desc[cpu].id_aa64dfr0)) {
-		case ID_AA64DFR0_PMSVer_NONE:
-			break;
-		case ID_AA64DFR0_PMSVer_V1:
-			sbuf_printf(sb, "%sSPE v1", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown SPE", SEP_STR);
-			break;
-		}
-
-		sbuf_printf(sb, "%s%lu CTX Breakpoints", SEP_STR,
-		    ID_AA64DFR0_CTX_CMPs(cpu_desc[cpu].id_aa64dfr0));
-
-		sbuf_printf(sb, "%s%lu Watchpoints", SEP_STR,
-		    ID_AA64DFR0_WRPs(cpu_desc[cpu].id_aa64dfr0));
-
-		sbuf_printf(sb, "%s%lu Breakpoints", SEP_STR,
-		    ID_AA64DFR0_BRPs(cpu_desc[cpu].id_aa64dfr0));
-
-		switch (ID_AA64DFR0_PMUVer(cpu_desc[cpu].id_aa64dfr0)) {
-		case ID_AA64DFR0_PMUVer_NONE:
-			break;
-		case ID_AA64DFR0_PMUVer_3:
-			sbuf_printf(sb, "%sPMUv3", SEP_STR);
-			break;
-		case ID_AA64DFR0_PMUVer_3_1:
-			sbuf_printf(sb, "%sPMUv3+16 bit evtCount", SEP_STR);
-			break;
-		case ID_AA64DFR0_PMUVer_IMPL:
-			sbuf_printf(sb, "%sImplementation defined PMU", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown PMU", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64DFR0_TraceVer(cpu_desc[cpu].id_aa64dfr0)) {
-		case ID_AA64DFR0_TraceVer_NONE:
-			break;
-		case ID_AA64DFR0_TraceVer_IMPL:
-			sbuf_printf(sb, "%sTrace", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown Trace", SEP_STR);
-			break;
-		}
-
-		switch (ID_AA64DFR0_DebugVer(cpu_desc[cpu].id_aa64dfr0)) {
-		case ID_AA64DFR0_DebugVer_8:
-			sbuf_printf(sb, "%sDebug v8", SEP_STR);
-			break;
-		case ID_AA64DFR0_DebugVer_8_VHE:
-			sbuf_printf(sb, "%sDebug v8+VHE", SEP_STR);
-			break;
-		case ID_AA64DFR0_DebugVer_8_2:
-			sbuf_printf(sb, "%sDebug v8.2", SEP_STR);
-			break;
-		default:
-			sbuf_printf(sb, "%sUnknown Debug", SEP_STR);
-			break;
-		}
-
-		if (cpu_desc[cpu].id_aa64dfr0 & ~ID_AA64DFR0_MASK)
-			sbuf_printf(sb, "%s%#lx", SEP_STR,
-			    cpu_desc[cpu].id_aa64dfr0 & ~ID_AA64DFR0_MASK);
-		sbuf_finish(sb);
-		printf("%s>\n", sbuf_data(sb));
-		sbuf_clear(sb);
-	}
+	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_DFR0) != 0)
+		print_id_register(sb, "Debug Features 0",
+		    cpu_desc[cpu].id_aa64dfr0, id_aa64dfr0_fields);
 
 	/* AArch64 Memory Model Feature Register 1 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_DFR1) != 0) {
-		printf("             Debug Features 1 = <%#lx>\n",
-		    cpu_desc[cpu].id_aa64dfr1);
-	}
+	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_DFR1) != 0)
+		print_id_register(sb, "Debug Features 1",
+		    cpu_desc[cpu].id_aa64dfr1, id_aa64dfr1_fields);
 
 	/* AArch64 Auxiliary Feature Register 0 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_AFR0) != 0) {
-		printf("         Auxiliary Features 0 = <%#lx>\n",
-		    cpu_desc[cpu].id_aa64afr0);
-	}
+	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_AFR0) != 0)
+		print_id_register(sb, "Auxiliary Features 0",
+		    cpu_desc[cpu].id_aa64afr0, id_aa64afr0_fields);
 
 	/* AArch64 Auxiliary Feature Register 1 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_AFR1) != 0) {
-		printf("         Auxiliary Features 1 = <%#lx>\n",
-		    cpu_desc[cpu].id_aa64afr1);
-	}
+	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_AFR1) != 0)
+		print_id_register(sb, "Auxiliary Features 1",
+		    cpu_desc[cpu].id_aa64afr1, id_aa64afr1_fields);
 
 	sbuf_delete(sb);
 	sb = NULL;
