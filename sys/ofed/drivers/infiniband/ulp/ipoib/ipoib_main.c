@@ -1315,13 +1315,16 @@ ipoib_config_vlan(void *arg, struct ifnet *ifp, u_int16_t vtag)
 {
 	struct ipoib_dev_priv *parent;
 	struct ipoib_dev_priv *priv;
+	struct epoch_tracker et;
 	struct ifnet *dev;
 	uint16_t pkey;
 	int error;
 
 	if (ifp->if_type != IFT_INFINIBAND)
 		return;
+	NET_EPOCH_ENTER(et);
 	dev = VLAN_DEVAT(ifp, vtag);
+	NET_EPOCH_EXIT(et);
 	if (dev == NULL)
 		return;
 	priv = NULL;
@@ -1383,13 +1386,16 @@ ipoib_unconfig_vlan(void *arg, struct ifnet *ifp, u_int16_t vtag)
 {
 	struct ipoib_dev_priv *parent;
 	struct ipoib_dev_priv *priv;
+	struct epoch_tracker et;
 	struct ifnet *dev;
 	uint16_t pkey;
 
 	if (ifp->if_type != IFT_INFINIBAND)
 		return;
 
+	NET_EPOCH_ENTER(et);
 	dev = VLAN_DEVAT(ifp, vtag);
+	NET_EPOCH_EXIT(et);
 	if (dev)
 		VLAN_SETCOOKIE(dev, NULL);
 	pkey = vtag | 0x8000;
