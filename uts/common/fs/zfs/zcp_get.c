@@ -330,8 +330,7 @@ get_special_prop(lua_State *state, dsl_dataset_t *ds, const char *dsname,
 		error = get_clones_stat_impl(ds, clones);
 		if (error == 0) {
 			/* push list to lua stack */
-			VERIFY0(zcp_nvlist_to_lua(state, clones, NULL,
-			    NULL));
+			VERIFY0(zcp_nvlist_to_lua(state, clones, NULL, 0));
 			/* source */
 			(void) lua_pushnil(state);
 		}
@@ -792,10 +791,10 @@ static zcp_lib_info_t zcp_get_prop_info = {
 	.pargs = {
 	    { .za_name = "dataset", .za_lua_type = LUA_TSTRING},
 	    { .za_name = "property", .za_lua_type =  LUA_TSTRING},
-	    {NULL, NULL}
+	    {NULL, 0}
 	},
 	.kwargs = {
-	    {NULL, NULL}
+	    {NULL, 0}
 	}
 };
 
