@@ -80,6 +80,8 @@
 struct pmap;
 typedef struct pmap *pmap_t;
 
+#define	PMAP_ENTER_QUICK_LOCKED	0x10000000
+
 #if !defined(NPMAPS)
 #define	NPMAPS		32768
 #endif /* !defined(NPMAPS) */
