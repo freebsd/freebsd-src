@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2019
+.Dd October 16, 2019
 .Dt LIBBE 3
 .Os
 .Sh NAME
@@ -58,6 +58,9 @@
 .Pp
 .Ft const char * Ns
 .Fn be_root_path "libbe_handle_t *hdl"
+.Pp
+.Ft bool Ns
+.Fn be_is_auto_snapshot_name "libbe_handle_t *hdl" "const char *snap"
 .Pp
 .Ft int
 .Fn be_create "libbe_handle_t *hdl" "const char *be_name"
@@ -212,6 +215,18 @@ active on reboot.
 The
 .Fn be_root_path
 function returns the boot environment root path.
+.Pp
+The
+.Fn be_is_auto_snapshot_name
+function is used to determine if the given snapshot name matches the format that
+the
+.Fn be_snapshot
+function will use by default if it is not given a snapshot name to use.
+It returns
+.Dv true
+if the name matches the format, and
+.Dv false
+if it does not.
 .Pp
 The
 .Fn be_create
