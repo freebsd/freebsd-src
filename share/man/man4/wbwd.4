@@ -25,16 +25,17 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 24, 2016
+.Dd October 16, 2019
 .Dt WBWD 4
 .Os
 .Sh NAME
 .Nm wbwd
 .Nd device driver for Winbond/Nuvoton Super I/O chips watchdog timer
 .Sh SYNOPSIS
-To compile this driver into the kernel, place the following line in your
+To compile this driver into the kernel, place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
+.Cd "device superio"
 .Cd "device wbwd"
 .Ed
 .Pp
@@ -91,10 +92,6 @@ Nuvoton NCT6791
 .It
 Nuvoton NCT6792
 .El
-.Pp
-Driver may be forced to attach to unknown chips by adding to
-.Pa /boot/device.hints :
-.Cd hint.wbwd.0.at="isa"
 .Sh SYSCTL VARIABLES
 The
 .Nm
@@ -130,6 +127,7 @@ The
 driver also provides further sysctl options that are hidden by default.
 See the source code for more information.
 .Sh SEE ALSO
+.Xr superio 4
 .Xr watchdog 4 ,
 .Xr device.hints 5 ,
 .Xr watchdog 8 ,
