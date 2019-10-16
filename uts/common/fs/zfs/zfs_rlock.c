@@ -106,14 +106,10 @@
 static int
 rangelock_compare(const void *arg1, const void *arg2)
 {
-	const locked_range_t *rl1 = arg1;
-	const locked_range_t *rl2 = arg2;
+	const locked_range_t *rl1 = (const locked_range_t *)arg1;
+	const locked_range_t *rl2 = (const locked_range_t *)arg2;
 
-	if (rl1->lr_offset > rl2->lr_offset)
-		return (1);
-	if (rl1->lr_offset < rl2->lr_offset)
-		return (-1);
-	return (0);
+	return (AVL_CMP(rl1->lr_offset, rl2->lr_offset));
 }
 
 /*
