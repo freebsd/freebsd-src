@@ -1203,9 +1203,6 @@ metaslab_rangesize_compare(const void *x1, const void *x2)
 	if (likely(cmp))
 		return (cmp);
 
-	if (r1->rs_start < r2->rs_start)
-		return (-1);
-
 	return (AVL_CMP(r1->rs_start, r2->rs_start));
 }
 
