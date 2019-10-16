@@ -75,5 +75,7 @@ pmap_vmspace_copy(pmap_t dst_pmap __unused, pmap_t src_pmap __unused)
 	return (0);
 }
 
+#define	PMAP_ENTER_QUICK_LOCKED	0x10000000
+
 #endif	/* _KERNEL */
 #endif	/* !_MACHINE_PMAP_H_ */
