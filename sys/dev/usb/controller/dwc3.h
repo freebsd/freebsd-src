@@ -92,8 +92,8 @@
 #define	 DWC3_GUSB3PIPECTL0_PHYSOFTRST		(1 << 31)
 #define	 DWC3_GUSB3PIPECTL0_DELAYP1TRANS	(1 << 18)
 
-#define	DWC3_GTXFIFOSIZ(x)	(0xc300 + 0x4 * x)
-#define	DWC3_GRXFIFOSIZ(x)	(0xc380 + 0x4 * x)
+#define	DWC3_GTXFIFOSIZ(x)	(0xc300 + 0x4 * (x))
+#define	DWC3_GRXFIFOSIZ(x)	(0xc380 + 0x4 * (x))
 #define	DWC3_GEVNTADRLO0		0xc400
 #define	DWC3_GEVNTADRHI0		0xc404
 #define	DWC3_GEVNTSIZ0		0xc408
