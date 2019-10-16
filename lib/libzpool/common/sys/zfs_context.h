@@ -285,6 +285,14 @@ extern vnode_t *rootdir;
 #define	minclsyspri	60
 #define	maxclsyspri	99
 
+#if (GCC_VERSION >= 302) || (__INTEL_COMPILER >= 800) || defined(__clang__)
+#define	_zfs_expect(expr, value)    (__builtin_expect((expr), (value)))
+#else
+#define	_zfs_expect(expr, value)    (expr)
+#endif
+
+#define	likely(x)	_zfs_expect((x) != 0, 1)
+
 #define	CPU_SEQID	(thr_self() & (max_ncpus - 1))
 
 extern void kernel_init(int);

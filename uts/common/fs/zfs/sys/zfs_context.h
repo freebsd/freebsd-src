@@ -73,6 +73,14 @@ extern "C" {
 #include <sys/disp.h>
 #include <sys/callo.h>
 
+#if (GCC_VERSION >= 302) || (__INTEL_COMPILER >= 800) || defined(__clang__)
+#define	_zfs_expect(expr, value)    (__builtin_expect((expr), (value)))
+#else
+#define	_zfs_expect(expr, value)    (expr)
+#endif
+
+#define	likely(x)	_zfs_expect((x) != 0, 1)
+
 #define	CPU_SEQID	(CPU->cpu_seqid)
 
 #ifdef	__cplusplus
