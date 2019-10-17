@@ -366,6 +366,10 @@ int dumper_insert(const struct dumperinfo *di_template, const char *devname,
     const struct diocskerneldump_arg *kda);
 int dumper_remove(const char *devname, const struct diocskerneldump_arg *kda);
 
+/* For ddb(4)-time use only. */
+void dumper_ddb_insert(struct dumperinfo *);
+void dumper_ddb_remove(struct dumperinfo *);
+
 int dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh);
 int dump_append(struct dumperinfo *, void *, vm_offset_t, size_t);
 int dump_write(struct dumperinfo *, void *, vm_offset_t, off_t, size_t);
