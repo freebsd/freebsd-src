@@ -1267,6 +1267,20 @@ cleanup:
 	return (error);
 }
 
+#ifdef DDB
+void
+dumper_ddb_insert(struct dumperinfo *newdi)
+{
+	TAILQ_INSERT_HEAD(&dumper_configs, newdi, di_next);
+}
+
+void
+dumper_ddb_remove(struct dumperinfo *di)
+{
+	TAILQ_REMOVE(&dumper_configs, di, di_next);
+}
+#endif
+
 static bool
 dumper_config_match(const struct dumperinfo *di, const char *devname,
     const struct diocskerneldump_arg *kda)
