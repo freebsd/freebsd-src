@@ -466,7 +466,7 @@ wb_probe(device_t dev)
 {
 	char buf[128];
 	struct wb_softc *sc;
-	int found, j;
+	int j;
 	uint8_t devid;
 	uint8_t revid;
 
@@ -478,7 +478,6 @@ wb_probe(device_t dev)
 	sc = device_get_softc(dev);
 	devid = superio_devid(dev) >> 8;
 	revid = superio_revid(dev);
-	found = 0;
 	for (j = 0; j < nitems(wb_devs); j++) {
 		if (wb_devs[j].device_id == devid) {
 			sc->chip = wb_devs[j].chip;
@@ -488,6 +487,11 @@ wb_probe(device_t dev)
 			device_set_desc_copy(dev, buf);
 			return (BUS_PROBE_SPECIFIC);
 		}
+	}
+	if (bootverbose) {
+		device_printf(dev,
+		    "unrecognized chip: devid 0x%02x, revid 0x%02x\n",
+		    devid, revid);
 	}
 	return (ENXIO);
 }
@@ -504,20 +508,27 @@ wb_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-	sc->ctl_reg = 0xf5;
-	sc->time_reg = 0xf6;
-	sc->csr_reg = 0xf7;
-	if (sc->chip == w83697hf || sc->chip == w83697ug) {
+	/* Make sure WDT is enabled. */
+	superio_dev_enable(dev, WB_LDN8_CR30_ACTIVE);
+
+	switch (sc->chip) {
+	case w83697hf:
+	case w83697ug:
 		sc->ctl_reg = 0xf3;
 		sc->time_reg = 0xf4;
-	} else if (sc->chip == nct6102) {
+		sc->csr_reg = 0xf7;
+		break;
+	case nct6102:
 		sc->ctl_reg = 0xf0;
 		sc->time_reg = 0xf1;
 		sc->csr_reg = 0xf2;
+		break;
+	default:
+		sc->ctl_reg = 0xf5;
+		sc->time_reg = 0xf6;
+		sc->csr_reg = 0xf7;
+		break;
 	}
-
-	/* Make sure WDT is enabled. */
-	superio_dev_enable(dev, WB_LDN8_CR30_ACTIVE);
 
 	switch (sc->chip) {
 	case w83627hf:
