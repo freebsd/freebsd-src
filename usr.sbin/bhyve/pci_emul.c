@@ -1686,11 +1686,64 @@ pci_emul_hdrtype_fixup(int bus, int slot, int off, int bytes, uint32_t *rv)
 	}
 }
 
+/*
+ * Update device state in response to changes to the PCI command
+ * register.
+ */
+void
+pci_emul_cmd_changed(struct pci_devinst *pi, uint16_t old)
+{
+	int i;
+	uint16_t changed, new;
+
+	new = pci_get_cfgdata16(pi, PCIR_COMMAND);
+	changed = old ^ new;
+
+	/*
+	 * If the MMIO or I/O address space decoding has changed then
+	 * register/unregister all BARs that decode that address space.
+	 */
+	for (i = 0; i <= PCI_BARMAX; i++) {
+		switch (pi->pi_bar[i].type) {
+			case PCIBAR_NONE:
+			case PCIBAR_MEMHI64:
+				break;
+			case PCIBAR_IO:
+				/* I/O address space decoding changed? */
+				if (changed & PCIM_CMD_PORTEN) {
+					if (new & PCIM_CMD_PORTEN)
+						register_bar(pi, i);
+					else
+						unregister_bar(pi, i);
+				}
+				break;
+			case PCIBAR_MEM32:
+			case PCIBAR_MEM64:
+				/* MMIO address space decoding changed? */
+				if (changed & PCIM_CMD_MEMEN) {
+					if (new & PCIM_CMD_MEMEN)
+						register_bar(pi, i);
+					else
+						unregister_bar(pi, i);
+				}
+				break; 
+			default:
+				assert(0); 
+		}
+	}
+
+	/*
+	 * If INTx has been unmasked and is pending, assert the
+	 * interrupt.
+	 */
+	pci_lintr_update(pi);
+}
+
 static void
 pci_emul_cmdsts_write(struct pci_devinst *pi, int coff, uint32_t new, int bytes)
 {
-	int i, rshift;
-	uint32_t cmd, cmd2, changed, old, readonly;
+	int rshift;
+	uint32_t cmd, old, readonly;
 
 	cmd = pci_get_cfgdata16(pi, PCIR_COMMAND);	/* stash old value */
 
@@ -1709,47 +1762,7 @@ pci_emul_cmdsts_write(struct pci_devinst *pi, int coff, uint32_t new, int bytes)
 	new |= (old & readonly);
 	CFGWRITE(pi, coff, new, bytes);			/* update config */
 
-	cmd2 = pci_get_cfgdata16(pi, PCIR_COMMAND);	/* get updated value */
-	changed = cmd ^ cmd2;
-
-	/*
-	 * If the MMIO or I/O address space decoding has changed then
-	 * register/unregister all BARs that decode that address space.
-	 */
-	for (i = 0; i <= PCI_BARMAX; i++) {
-		switch (pi->pi_bar[i].type) {
-			case PCIBAR_NONE:
-			case PCIBAR_MEMHI64:
-				break;
-			case PCIBAR_IO:
-				/* I/O address space decoding changed? */
-				if (changed & PCIM_CMD_PORTEN) {
-					if (porten(pi))
-						register_bar(pi, i);
-					else
-						unregister_bar(pi, i);
-				}
-				break;
-			case PCIBAR_MEM32:
-			case PCIBAR_MEM64:
-				/* MMIO address space decoding changed? */
-				if (changed & PCIM_CMD_MEMEN) {
-					if (memen(pi))
-						register_bar(pi, i);
-					else
-						unregister_bar(pi, i);
-				}
-				break; 
-			default:
-				assert(0); 
-		}
-	}
-
-	/*
-	 * If INTx has been unmasked and is pending, assert the
-	 * interrupt.
-	 */
-	pci_lintr_update(pi);
+	pci_emul_cmd_changed(pi, cmd);
 }
 
 static void
