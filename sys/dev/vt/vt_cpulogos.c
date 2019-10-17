@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Conrad Meyer <cse.cem@gmail.com>
+ * Copyright (c) 2015 Conrad Meyer <cem@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
