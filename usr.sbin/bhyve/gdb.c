@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
 #endif
+#include <sys/endian.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
@@ -768,15 +769,24 @@ gdb_read_mem(const uint8_t *data, size_t len)
 	bool started;
 	int error;
 
+	/* Skip 'm' */
+	data += 1;
+	len -= 1;
+
+	/* Parse and consume address. */
 	cp = memchr(data, ',', len);
-	if (cp == NULL) {
+	if (cp == NULL || cp == data) {
 		send_error(EINVAL);
 		return;
 	}
-	gva = parse_integer(data + 1, cp - (data + 1));
-	resid = parse_integer(cp + 1, len - (cp + 1 - data));
-	started = false;
+	gva = parse_integer(data, cp - data);
+	len -= (cp - data) + 1;
+	data += (cp - data) + 1;
 
+	/* Parse length. */
+	resid = parse_integer(data, len);
+
+	started = false;
 	while (resid > 0) {
 		error = guest_vaddr2paddr(cur_vcpu, gva, &gpa);
 		if (error == -1) {
@@ -860,6 +870,115 @@ gdb_read_mem(const uint8_t *data, size_t len)
 	if (!started)
 		start_packet();
 	finish_packet();
+}
+
+static void
+gdb_write_mem(const uint8_t *data, size_t len)
+{
+	uint64_t gpa, gva, val;
+	uint8_t *cp;
+	size_t resid, todo, bytes;
+	int error;
+
+	/* Skip 'M' */
+	data += 1;
+	len -= 1;
+
+	/* Parse and consume address. */
+	cp = memchr(data, ',', len);
+	if (cp == NULL || cp == data) {
+		send_error(EINVAL);
+		return;
+	}
+	gva = parse_integer(data, cp - data);
+	len -= (cp - data) + 1;
+	data += (cp - data) + 1;
+
+	/* Parse and consume length. */
+	cp = memchr(data, ':', len);
+	if (cp == NULL || cp == data) {
+		send_error(EINVAL);
+		return;
+	}
+	resid = parse_integer(data, cp - data);
+	len -= (cp - data) + 1;
+	data += (cp - data) + 1;
+
+	/* Verify the available bytes match the length. */
+	if (len != resid * 2) {
+		send_error(EINVAL);
+		return;
+	}
+
+	while (resid > 0) {
+		error = guest_vaddr2paddr(cur_vcpu, gva, &gpa);
+		if (error == -1) {
+			send_error(errno);
+			return;
+		}
+		if (error == 0) {
+			send_error(EFAULT);
+			return;
+		}
+
+		/* Write bytes to current page. */
+		todo = getpagesize() - gpa % getpagesize();
+		if (todo > resid)
+			todo = resid;
+
+		cp = paddr_guest2host(ctx, gpa, todo);
+		if (cp != NULL) {
+			/*
+			 * If this page is guest RAM, write it a byte
+			 * at a time.
+			 */
+			while (todo > 0) {
+				assert(len >= 2);
+				*cp = parse_byte(data);
+				data += 2;
+				len -= 2;
+				cp++;
+				gpa++;
+				gva++;
+				resid--;
+				todo--;
+			}
+		} else {
+			/*
+			 * If this page isn't guest RAM, try to handle
+			 * it via MMIO.  For MMIO requests, use
+			 * aligned writes of words when possible.
+			 */
+			while (todo > 0) {
+				if (gpa & 1 || todo == 1) {
+					bytes = 1;
+					val = parse_byte(data);
+				} else if (gpa & 2 || todo == 2) {
+					bytes = 2;
+					val = be16toh(parse_integer(data, 4));
+				} else {
+					bytes = 4;
+					val = be32toh(parse_integer(data, 8));
+				}
+				error = write_mem(ctx, cur_vcpu, gpa, val,
+				    bytes);
+				if (error == 0) {
+					gpa += bytes;
+					gva += bytes;
+					resid -= bytes;
+					todo -= bytes;
+					data += 2 * bytes;
+					len -= 2 * bytes;
+				} else {
+					send_error(EFAULT);
+					return;
+				}
+			}
+		}
+		assert(resid == 0 || gpa % getpagesize() == 0);
+	}
+	assert(len == 0);
+	send_ok();
 }
 
 static bool
@@ -1001,6 +1120,9 @@ handle_command(const uint8_t *data, size_t len)
 	case 'm':
 		gdb_read_mem(data, len);
 		break;
+	case 'M':
+		gdb_write_mem(data, len);
+		break;
 	case 'T': {
 		int tid;
 
@@ -1036,7 +1158,6 @@ handle_command(const uint8_t *data, size_t len)
 		finish_packet();
 		break;
 	case 'G': /* TODO */
-	case 'M': /* TODO */
 	case 'v':
 		/* Handle 'vCont' */
 		/* 'vCtrlC' */
