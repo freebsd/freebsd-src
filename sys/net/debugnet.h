@@ -176,11 +176,12 @@ void debugnet_any_ifnet_update(struct ifnet *);
 /*
  * DDB parsing helper for common debugnet options.
  *
- * -s <server> [-g <gateway] -c <localip> -i <interface>
+ * -s <server> [-g <gateway -c <localip> -i <interface>]
  *
  * Order is not significant.  Interface is an online interface that supports
  * debugnet and can route to the debugnet server.  The other parameters are all
- * IP addresses.  For now, all parameters are mandatory, except gateway.
+ * IP addresses.  Only the server parameter is required.  The others are
+ * inferred automatically from the routing table, if not explicitly provided.
  *
  * Provides basic '-h' using provided 'cmd' string.
  *
@@ -191,6 +192,7 @@ struct debugnet_ddb_config {
 	in_addr_t	dd_client;
 	in_addr_t	dd_server;
 	in_addr_t	dd_gateway;
+	bool		dd_has_client : 1;
 	bool		dd_has_gateway : 1;
 };
 int debugnet_parse_ddb_cmd(const char *cmd,

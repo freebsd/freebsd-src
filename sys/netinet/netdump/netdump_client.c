@@ -138,8 +138,8 @@ static int nd_debug;
 SYSCTL_INT(_net_netdump, OID_AUTO, debug, CTLFLAG_RWTUN,
     &nd_debug, 0,
     "Debug message verbosity");
-SYSCTL_PROC(_net_netdump, OID_AUTO, enabled, CTLFLAG_RD | CTLTYPE_INT,
-    &nd_ifp, 0, netdump_enabled_sysctl, "I", "netdump configuration status");
+SYSCTL_PROC(_net_netdump, OID_AUTO, enabled, CTLFLAG_RD | CTLTYPE_INT, NULL, 0,
+    netdump_enabled_sysctl, "I", "netdump configuration status");
 static char nd_path[MAXPATHLEN];
 SYSCTL_STRING(_net_netdump, OID_AUTO, path, CTLFLAG_RW,
     nd_path, sizeof(nd_path),
@@ -158,12 +158,21 @@ SYSCTL_INT(_net_netdump, OID_AUTO, arp_retries, CTLFLAG_RWTUN,
     &debugnet_arp_nretries, 0,
     "Number of ARP attempts before giving up");
 
+static bool nd_is_enabled;
 static bool
 netdump_enabled(void)
 {
 
 	NETDUMP_ASSERT_LOCKED();
-	return (nd_ifp != NULL);
+	return (nd_is_enabled);
+}
+
+static void
+netdump_set_enabled(bool status)
+{
+
+	NETDUMP_ASSERT_LOCKED();
+	nd_is_enabled = status;
 }
 
 static int
@@ -296,10 +305,6 @@ netdump_start(struct dumperinfo *di)
 		printf("netdump_start: can't netdump; no server IP given\n");
 		return (EINVAL);
 	}
-	if (nd_client.s_addr == INADDR_ANY) {
-		printf("netdump_start: can't netdump; no client IP given\n");
-		return (EINVAL);
-	}
 
 	/* We start dumping at offset 0. */
 	di->dumpoff = 0;
@@ -369,14 +374,16 @@ netdump_unconfigure(void)
 	struct diocskerneldump_arg kda;
 
 	NETDUMP_ASSERT_WLOCKED();
-	KASSERT(netdump_enabled(), ("%s: nd_ifp NULL", __func__));
+	KASSERT(netdump_enabled(), ("%s: not enabled", __func__));
 
 	bzero(&kda, sizeof(kda));
 	kda.kda_index = KDA_REMOVE_DEV;
 	(void)dumper_remove(nd_conf.ndc_iface, &kda);
 
-	if_rele(nd_ifp);
+	if (nd_ifp != NULL)
+		if_rele(nd_ifp);
 	nd_ifp = NULL;
+	netdump_set_enabled(false);
 
 	log(LOG_WARNING, "netdump: Lost configured interface %s\n",
 	    nd_conf.ndc_iface);
@@ -406,32 +413,25 @@ netdump_configure(struct diocskerneldump_arg *conf, struct thread *td)
 
 	NETDUMP_ASSERT_WLOCKED();
 
-	if (td != NULL)
-		vnet = TD_TO_VNET(td);
-	else
-		vnet = vnet0;
-	CURVNET_SET(vnet);
-	if (td != NULL && !IS_DEFAULT_VNET(curvnet)) {
+	if (conf->kda_iface[0] != 0) {
+		if (td != NULL)
+			vnet = TD_TO_VNET(td);
+		else
+			vnet = vnet0;
+		CURVNET_SET(vnet);
+		if (td != NULL && !IS_DEFAULT_VNET(curvnet)) {
+			CURVNET_RESTORE();
+			return (EINVAL);
+		}
+		ifp = ifunit_ref(conf->kda_iface);
 		CURVNET_RESTORE();
-		return (EINVAL);
-	}
-	ifp = ifunit_ref(conf->kda_iface);
-	CURVNET_RESTORE();
+	} else
+		ifp = NULL;
 
-	if (ifp == NULL)
-		return (ENOENT);
-	if ((if_getflags(ifp) & IFF_UP) == 0) {
-		if_rele(ifp);
-		return (ENXIO);
-	}
-	if (!DEBUGNET_SUPPORTED_NIC(ifp)) {
-		if_rele(ifp);
-		return (ENODEV);
-	}
-
-	if (netdump_enabled())
+	if (nd_ifp != NULL)
 		if_rele(nd_ifp);
 	nd_ifp = ifp;
+	netdump_set_enabled(true);
 
 #define COPY_SIZED(elm) do {	\
 	_Static_assert(sizeof(nd_conf.ndc_ ## elm) ==			\
@@ -527,8 +527,9 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 			break;
 		}
 
-		strlcpy(conf12->ndc12_iface, nd_ifp->if_xname,
-		    sizeof(conf12->ndc12_iface));
+		if (nd_ifp != NULL)
+			strlcpy(conf12->ndc12_iface, nd_ifp->if_xname,
+			    sizeof(conf12->ndc12_iface));
 		memcpy(&conf12->ndc12_server, &nd_server,
 		    sizeof(conf12->ndc12_server));
 		memcpy(&conf12->ndc12_client, &nd_client,
@@ -549,8 +550,9 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 			break;
 		}
 
-		strlcpy(conf->kda_iface, nd_ifp->if_xname,
-		    sizeof(conf->kda_iface));
+		if (nd_ifp != NULL)
+			strlcpy(conf->kda_iface, nd_ifp->if_xname,
+			    sizeof(conf->kda_iface));
 		memcpy(&conf->kda_server, &nd_server, sizeof(nd_server));
 		memcpy(&conf->kda_client, &nd_client, sizeof(nd_client));
 		memcpy(&conf->kda_gateway, &nd_gateway, sizeof(nd_gateway));
@@ -776,11 +778,17 @@ DB_FUNC(netdump, db_netdump_cmd, db_cmd_table, CS_OWN, NULL)
 
 	/* Translate to a netdump dumper config. */
 	memset(&conf, 0, sizeof(conf));
-	strlcpy(conf.kda_iface, if_name(params.dd_ifp), sizeof(conf.kda_iface));
+
+	if (params.dd_ifp != NULL)
+		strlcpy(conf.kda_iface, if_name(params.dd_ifp),
+		    sizeof(conf.kda_iface));
 
 	conf.kda_af = AF_INET;
 	conf.kda_server.in4 = (struct in_addr) { params.dd_server };
-	conf.kda_client.in4 = (struct in_addr) { params.dd_client };
+	if (params.dd_has_client)
+		conf.kda_client.in4 = (struct in_addr) { params.dd_client };
+	else
+		conf.kda_client.in4 = (struct in_addr) { INADDR_ANY };
 	if (params.dd_has_gateway)
 		conf.kda_gateway.in4 = (struct in_addr) { params.dd_gateway };
 	else
