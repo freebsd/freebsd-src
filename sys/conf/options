@@ -319,10 +319,12 @@ NFS_ROOT	opt_nfsroot.h
 # SMB/CIFS requester
 NETSMB		opt_netsmb.h
 
-# Enable netdump(4) client support.
-NETDUMP 	opt_global.h
 # Enable debugnet(4) networking support.
 DEBUGNET 	opt_global.h
+# Enable netdump(4) client support.
+NETDUMP 	opt_global.h
+# Enable netgdb(4) support.
+NETGDB 		opt_global.h
 
 # Options used only in subr_param.c.
 HZ		opt_param.h

@@ -407,7 +407,7 @@ restart:
 			return (error);
 		for (polls = 0; polls < debugnet_npolls &&
 		    pcb->dp_state < DN_STATE_HAVE_GW_MAC; polls++) {
-			debugnet_network_poll(pcb->dp_ifp);
+			debugnet_network_poll(pcb);
 			DELAY(500);
 		}
 		if (pcb->dp_state >= DN_STATE_HAVE_GW_MAC)
