@@ -92,11 +92,6 @@ vtfont_lookup(const struct vt_font *vf, term_char_t c)
 	unsigned int normal_map;
 	unsigned int bold_map;
 
-	/*
-	 * No support for printing right hand sides for CJK fullwidth
-	 * characters. Simply print a space and assume that the left
-	 * hand side describes the entire character.
-	 */
 	src = TCHAR_CHARACTER(c);
 	if (TCHAR_FORMAT(c) & TF_CJK_RIGHT) {
 		normal_map = VFNT_MAP_NORMAL_RIGHT;
