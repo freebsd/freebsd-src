@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 5, 2018
+.Dd October 17, 2019
 .Dt NETDUMP 4
 .Os
 .Sh NAME
@@ -46,7 +46,10 @@ daemon, available in ports as
 .Nm
 clients are configured using the
 .Xr dumpon 8
-utility.
+utility or the
+.Ic netdump
+command in
+.Xr ddb 4 .
 .Pp
 .Nm
 client messages consist of a fixed-size header followed by a variable-sized

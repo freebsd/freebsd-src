@@ -24,43 +24,9 @@
 .\" any improvements or extensions that they make and grant Carnegie Mellon
 .\" the rights to redistribute these changes.
 .\"
-.\" changed a \# to #, since groff choked on it.
-.\"
-.\" HISTORY
-.\" ddb.4,v
-.\" Revision 1.1  1993/07/15  18:41:02  brezak
-.\" Man page for DDB
-.\"
-.\" Revision 2.6  92/04/08  08:52:57  rpd
-.\" 	Changes from OSF.
-.\" 	[92/01/17  14:19:22  jsb]
-.\" 	Changes for OSF debugger modifications.
-.\" 	[91/12/12            tak]
-.\"
-.\" Revision 2.5  91/06/25  13:50:22  rpd
-.\" 	Added some watchpoint explanation.
-.\" 	[91/06/25            rpd]
-.\"
-.\" Revision 2.4  91/06/17  15:47:31  jsb
-.\" 	Added documentation for continue/c, match, search, and watchpoints.
-.\" 	I've not actually explained what a watchpoint is; maybe Rich can
-.\" 	do that (hint, hint).
-.\" 	[91/06/17  10:58:08  jsb]
-.\"
-.\" Revision 2.3  91/05/14  17:04:23  mrt
-.\" 	Correcting copyright
-.\"
-.\" Revision 2.2  91/02/14  14:10:06  mrt
-.\" 	Changed to new Mach copyright
-.\" 	[91/02/12  18:10:12  mrt]
-.\"
-.\" Revision 2.2  90/08/30  14:23:15  dbg
-.\" 	Created.
-.\" 	[90/08/30            dbg]
-.\"
 .\" $FreeBSD$
 .\"
-.Dd October 10, 2019
+.Dd October 17, 2019
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -212,7 +178,12 @@ arrow keys may be used to
 browse through the history buffer, and move the cursor within the
 current line.
 .Sh COMMANDS
+.Ss COMMON DEBUGGER COMMANDS
 .Bl -tag -width indent -compact
+.It Ic help
+Print a short summary of the available commands and command
+abbreviations.
+.Pp
 .It Xo
 .Ic examine Ns Op Li / Ns Cm AISabcdghilmorsuxz ...
 .Oo Ar addr Oc Ns Op , Ns Ar count
@@ -396,6 +367,9 @@ command, or by omitting
 to get the default address of
 .Va dot .
 .Pp
+.It Ic halt
+Halt the system.
+.Pp
 .It Ic watch Oo Ar addr Oc Ns Op , Ns Ar size
 Set a watchpoint for a region.
 Execution stops when an attempt to modify the region occurs.
@@ -428,6 +402,20 @@ its use on user mode address spaces.
 .Pp
 .It Ic dhwatch Oo Ar addr Oc Ns Op , Ns Ar size
 Delete specified hardware watchpoint.
+.Pp
+.It Ic kill Ar sig pid
+Send signal
+.Ar sig
+to process
+.Ar pid .
+The signal is acted on upon returning from the debugger.
+This command can be used to kill a process causing resource contention
+in the case of a hung system.
+See
+.Xr signal 3
+for a list of signals.
+Note that the arguments are reversed relative to
+.Xr kill 2 .
 .Pp
 .It Ic step Ns Oo Li / Ns Cm p Oc Ns Op , Ns Ar count
 .It Ic s    Ns Oo Li / Ns Cm p Oc Ns Op , Ns Ar count
@@ -529,6 +517,25 @@ The optional
 argument limits the search.
 .\"
 .Pp
+.It Ic reboot Op Ar seconds
+.It Ic reset Op Ar seconds
+Hard reset the system.
+If the optional argument
+.Ar seconds
+is given, the debugger will wait for this long, at most a week,
+before rebooting.
+.Pp
+.It Ic thread Ar addr | tid
+Switch the debugger to the thread with ID
+.Ar tid ,
+if the argument is a decimal number, or address
+.Ar addr ,
+otherwise.
+.El
+.Pp
+.Ss SPECIALIZED HELPER COMMANDS
+.Pp
+.Bl -tag -width indent -compact
 .It Xo
 .Ic findstack
 .Ar addr
@@ -1174,46 +1181,35 @@ Shows watchpoints set with "watch" command.
 Shows information about lock acquisition coming from the
 .Xr witness 4
 subsystem.
-.\"
+.El
 .Pp
+.Ss OFFLINE DEBUGGING COMMANDS
+.Bl -tag -width indent -compact
 .It Ic gdb
-Toggles between remote GDB and DDB mode.
+Switches to remote GDB mode.
 In remote GDB mode, another machine is required that runs
 .Xr gdb 1
 using the remote debug feature, with a connection to the serial
 console port on the target machine.
-Currently only available on the
-i386
-architecture.
 .Pp
-.It Ic halt
-Halt the system.
+.It Ic netdump Fl s Ar server Oo Fl g Ar gateway Oc Fl c Ar client Fl i Ar iface
+Configure
+.Xr netdump 4
+with the provided parameters, and immediately perform a netdump.
 .Pp
-.It Ic kill Ar sig pid
-Send signal
-.Ar sig
-to process
-.Ar pid .
-The signal is acted on upon returning from the debugger.
-This command can be used to kill a process causing resource contention
-in the case of a hung system.
-See
-.Xr signal 3
-for a list of signals.
-Note that the arguments are reversed relative to
-.Xr kill 2 .
-.Pp
-.It Ic reboot Op Ar seconds
-.It Ic reset Op Ar seconds
-Hard reset the system.
-If the optional argument
-.Ar seconds
-is given, the debugger will wait for this long, at most a week,
-before rebooting.
-.Pp
-.It Ic help
-Print a short summary of the available commands and command
-abbreviations.
+There are some known limitations.
+Principally,
+.Xr netdump 4
+only supports IPv4 at this time.
+The address arguments to the
+.Ic netdump
+command must be dotted decimal IPv4 addresses.
+(Hostnames are not supported.)
+At present, the command only works if the machine is in a panic state.
+Finally, the
+.Nm
+.Ic netdump
+command does not provide any way to configure compression or encryption.
 .Pp
 .It Ic capture on
 .It Ic capture off
@@ -1286,13 +1282,6 @@ rather than a traditional memory dump or minidump.
 reports whether a textdump has been scheduled.
 .Ic textdump unset
 cancels a request to perform a textdump as the next kernel core dump.
-.Pp
-.It Ic thread Ar addr | tid
-Switch the debugger to the thread with ID
-.Ar tid ,
-if the argument is a decimal number, or address
-.Ar addr ,
-otherwise.
 .El
 .Sh VARIABLES
 The debugger accesses registers and variables as
