@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
+#include <net/debugnet.h>
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
@@ -69,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
-#include <netinet/netdump/netdump.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -230,7 +230,7 @@ static void	vtnet_disable_interrupts(struct vtnet_softc *);
 
 static int	vtnet_tunable_int(struct vtnet_softc *, const char *, int);
 
-NETDUMP_DEFINE(vtnet);
+DEBUGNET_DEFINE(vtnet);
 
 /* Tunables. */
 static SYSCTL_NODE(_hw, OID_AUTO, vtnet, CTLFLAG_RD, 0, "VNET driver parameters");
@@ -1025,7 +1025,7 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	vtnet_set_rx_process_limit(sc);
 	vtnet_set_tx_intr_threshold(sc);
 
-	NETDUMP_SET(ifp, vtnet);
+	DEBUGNET_SET(ifp, vtnet);
 
 	return (0);
 }
@@ -3972,9 +3972,9 @@ vtnet_tunable_int(struct vtnet_softc *sc, const char *knob, int def)
 	return (def);
 }
 
-#ifdef NETDUMP
+#ifdef DEBUGNET
 static void
-vtnet_netdump_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
+vtnet_debugnet_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
 {
 	struct vtnet_softc *sc;
 
@@ -3982,7 +3982,7 @@ vtnet_netdump_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
 
 	VTNET_CORE_LOCK(sc);
 	*nrxr = sc->vtnet_max_vq_pairs;
-	*ncl = NETDUMP_MAX_IN_FLIGHT;
+	*ncl = DEBUGNET_MAX_IN_FLIGHT;
 	*clsize = sc->vtnet_rx_clsize;
 	VTNET_CORE_UNLOCK(sc);
 
@@ -3992,17 +3992,17 @@ vtnet_netdump_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
 	 * XXX add a separate zone like we do for mbufs? otherwise we may alloc
 	 * buckets
 	 */
-	uma_zone_reserve(vtnet_tx_header_zone, NETDUMP_MAX_IN_FLIGHT * 2);
-	uma_prealloc(vtnet_tx_header_zone, NETDUMP_MAX_IN_FLIGHT * 2);
+	uma_zone_reserve(vtnet_tx_header_zone, DEBUGNET_MAX_IN_FLIGHT * 2);
+	uma_prealloc(vtnet_tx_header_zone, DEBUGNET_MAX_IN_FLIGHT * 2);
 }
 
 static void
-vtnet_netdump_event(struct ifnet *ifp __unused, enum netdump_ev event __unused)
+vtnet_debugnet_event(struct ifnet *ifp __unused, enum debugnet_ev event __unused)
 {
 }
 
 static int
-vtnet_netdump_transmit(struct ifnet *ifp, struct mbuf *m)
+vtnet_debugnet_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct vtnet_softc *sc;
 	struct vtnet_txq *txq;
@@ -4021,7 +4021,7 @@ vtnet_netdump_transmit(struct ifnet *ifp, struct mbuf *m)
 }
 
 static int
-vtnet_netdump_poll(struct ifnet *ifp, int count)
+vtnet_debugnet_poll(struct ifnet *ifp, int count)
 {
 	struct vtnet_softc *sc;
 	int i;
@@ -4036,4 +4036,4 @@ vtnet_netdump_poll(struct ifnet *ifp, int count)
 		(void)vtnet_rxq_eof(&sc->vtnet_rxqs[i]);
 	return (0);
 }
-#endif /* NETDUMP */
+#endif /* DEBUGNET */

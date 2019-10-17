@@ -37,28 +37,25 @@
 #include <net/if.h>
 #include <netinet/in.h>
 
+/* Netdump wire protocol definitions are consumed by the ftp/netdumpd port. */
 #define	NETDUMP_PORT		20023	/* Server UDP port for heralds. */
 #define	NETDUMP_ACKPORT		20024	/* Client UDP port for acks. */
 
-#define	NETDUMP_HERALD		1	/* Broadcast before starting a dump. */
-#define	NETDUMP_FINISHED	2	/* Send after finishing a dump. */
-#define	NETDUMP_VMCORE		3	/* Contains dump data. */
+#define	NETDUMP_HERALD		DEBUGNET_HERALD
+#define	NETDUMP_FINISHED	DEBUGNET_FINISHED
+#define	NETDUMP_VMCORE		DEBUGNET_DATA
 #define	NETDUMP_KDH		4	/* Contains kernel dump header. */
 #define	NETDUMP_EKCD_KEY	5	/* Contains kernel dump key. */
 
 #define	NETDUMP_DATASIZE	4096	/* Arbitrary packet size limit. */
 
-struct netdump_msg_hdr {
-	uint32_t	mh_type;	/* Netdump message type. */
-	uint32_t	mh_seqno;	/* Match acks with msgs. */
-	uint64_t	mh_offset;	/* vmcore offset (bytes). */
-	uint32_t	mh_len;		/* Attached data (bytes). */
-	uint32_t	mh__pad;
-} __packed;
-
-struct netdump_ack {
-	uint32_t	na_seqno;	/* Match acks with msgs. */
-} __packed;
+/* For netdumpd. */
+#ifndef _KERNEL
+#define	netdump_msg_hdr	debugnet_msg_hdr
+#define	mh__pad		mh_aux2
+#define	netdump_ack	debugnet_ack
+#define	na_seqno	da_seqno
+#endif /* !_KERNEL */
 
 struct netdump_conf_freebsd12 {
 	struct diocskerneldump_arg_freebsd12 ndc12_kda;
@@ -72,59 +69,5 @@ struct netdump_conf_freebsd12 {
 #define	NETDUMPSCONF_FREEBSD12	_IOW('n', 2, struct netdump_conf_freebsd12)
 
 #define	_PATH_NETDUMP	"/dev/netdump"
-
-#ifdef _KERNEL
-#ifdef NETDUMP
-
-#define	NETDUMP_MAX_IN_FLIGHT	64
-
-enum netdump_ev {
-	NETDUMP_START,
-	NETDUMP_END,
-};
-
-struct ifnet;
-struct mbuf;
-
-void	netdump_reinit(struct ifnet *);
-
-typedef void netdump_init_t(struct ifnet *, int *nrxr, int *ncl, int *clsize);
-typedef void netdump_event_t(struct ifnet *, enum netdump_ev);
-typedef int netdump_transmit_t(struct ifnet *, struct mbuf *);
-typedef int netdump_poll_t(struct ifnet *, int);
-
-struct netdump_methods {
-	netdump_init_t		*nd_init;
-	netdump_event_t		*nd_event;
-	netdump_transmit_t	*nd_transmit;
-	netdump_poll_t		*nd_poll;
-};
-
-#define	NETDUMP_DEFINE(driver)					\
-	static netdump_init_t driver##_netdump_init;		\
-	static netdump_event_t driver##_netdump_event;		\
-	static netdump_transmit_t driver##_netdump_transmit;	\
-	static netdump_poll_t driver##_netdump_poll;		\
-								\
-	static struct netdump_methods driver##_netdump_methods = { \
-		.nd_init = driver##_netdump_init,		\
-		.nd_event = driver##_netdump_event,		\
-		.nd_transmit = driver##_netdump_transmit,	\
-		.nd_poll = driver##_netdump_poll,		\
-	}
-
-#define	NETDUMP_REINIT(ifp)	netdump_reinit(ifp)
-
-#define	NETDUMP_SET(ifp, driver)				\
-	(ifp)->if_netdump_methods = &driver##_netdump_methods
-
-#else /* !NETDUMP */
-
-#define	NETDUMP_DEFINE(driver)
-#define	NETDUMP_REINIT(ifp)
-#define	NETDUMP_SET(ifp, driver)
-
-#endif /* NETDUMP */
-#endif /* _KERNEL */
 
 #endif /* _NETINET_NETDUMP_H_ */

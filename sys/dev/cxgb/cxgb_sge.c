@@ -390,9 +390,9 @@ reclaim_completed_tx(struct sge_qset *qs, int reclaim_min, int queue)
 	return (reclaim);
 }
 
-#ifdef NETDUMP
+#ifdef DEBUGNET
 int
-cxgb_netdump_poll_tx(struct sge_qset *qs)
+cxgb_debugnet_poll_tx(struct sge_qset *qs)
 {
 
 	return (reclaim_completed_tx(qs, TX_RECLAIM_MAX, TXQ_ETH));
@@ -1595,9 +1595,9 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 	return (0);
 }
 
-#ifdef NETDUMP
+#ifdef DEBUGNET
 int
-cxgb_netdump_encap(struct sge_qset *qs, struct mbuf **m)
+cxgb_debugnet_encap(struct sge_qset *qs, struct mbuf **m)
 {
 	int error;
 
@@ -3040,9 +3040,9 @@ process_responses_gts(adapter_t *adap, struct sge_rspq *rq)
 	return (work);
 }
 
-#ifdef NETDUMP
+#ifdef DEBUGNET
 int
-cxgb_netdump_poll_rx(adapter_t *adap, struct sge_qset *qs)
+cxgb_debugnet_poll_rx(adapter_t *adap, struct sge_qset *qs)
 {
 
 	return (process_responses_gts(adap, &qs->rspq));

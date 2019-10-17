@@ -54,7 +54,7 @@
 #include "en.h"
 #include "en_port.h"
 
-NETDUMP_DEFINE(mlx4_en);
+DEBUGNET_DEFINE(mlx4_en);
 
 static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv);
 static void mlx4_en_sysctl_conf(struct mlx4_en_priv *priv);
@@ -2304,7 +2304,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	ifmedia_add(&priv->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&priv->media, IFM_ETHER | IFM_AUTO);
 
-	NETDUMP_SET(dev, mlx4_en);
+	DEBUGNET_SET(dev, mlx4_en);
 
 	en_warn(priv, "Using %d TX rings\n", prof->tx_ring_num);
 	en_warn(priv, "Using %d RX rings\n", prof->rx_ring_num);
@@ -2888,27 +2888,27 @@ static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv)
 	}
 }
 
-#ifdef NETDUMP
+#ifdef DEBUGNET
 static void
-mlx4_en_netdump_init(struct ifnet *dev, int *nrxr, int *ncl, int *clsize)
+mlx4_en_debugnet_init(struct ifnet *dev, int *nrxr, int *ncl, int *clsize)
 {
 	struct mlx4_en_priv *priv;
 
 	priv = if_getsoftc(dev);
 	mutex_lock(&priv->mdev->state_lock);
 	*nrxr = priv->rx_ring_num;
-	*ncl = NETDUMP_MAX_IN_FLIGHT;
+	*ncl = DEBUGNET_MAX_IN_FLIGHT;
 	*clsize = priv->rx_mb_size;
 	mutex_unlock(&priv->mdev->state_lock);
 }
 
 static void
-mlx4_en_netdump_event(struct ifnet *dev, enum netdump_ev event)
+mlx4_en_debugnet_event(struct ifnet *dev, enum debugnet_ev event)
 {
 }
 
 static int
-mlx4_en_netdump_transmit(struct ifnet *dev, struct mbuf *m)
+mlx4_en_debugnet_transmit(struct ifnet *dev, struct mbuf *m)
 {
 	struct mlx4_en_priv *priv;
 	int err;
@@ -2925,7 +2925,7 @@ mlx4_en_netdump_transmit(struct ifnet *dev, struct mbuf *m)
 }
 
 static int
-mlx4_en_netdump_poll(struct ifnet *dev, int count)
+mlx4_en_debugnet_poll(struct ifnet *dev, int count)
 {
 	struct mlx4_en_priv *priv;
 
@@ -2937,4 +2937,4 @@ mlx4_en_netdump_poll(struct ifnet *dev, int count)
 
 	return (0);
 }
-#endif /* NETDUMP */
+#endif /* DEBUGNET */

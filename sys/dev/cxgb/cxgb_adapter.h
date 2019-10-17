@@ -578,10 +578,10 @@ void cxgb_qflush(struct ifnet *ifp);
 void t3_iterate(void (*)(struct adapter *, void *), void *);
 void cxgb_refresh_stats(struct port_info *);
 
-#ifdef NETDUMP
-int cxgb_netdump_encap(struct sge_qset *qs, struct mbuf **m);
-int cxgb_netdump_poll_rx(adapter_t *adap, struct sge_qset *qs);
-int cxgb_netdump_poll_tx(struct sge_qset *qs);
+#ifdef DEBUGNET
+int cxgb_debugnet_encap(struct sge_qset *qs, struct mbuf **m);
+int cxgb_debugnet_poll_rx(adapter_t *adap, struct sge_qset *qs);
+int cxgb_debugnet_poll_tx(struct sge_qset *qs);
 #endif
 
 #endif
