@@ -34,6 +34,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
@@ -51,6 +53,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#include <ddb/db_lex.h>
+#endif
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -387,15 +394,24 @@ netdump_ifdetach(void *arg __unused, struct ifnet *ifp)
 	NETDUMP_WUNLOCK();
 }
 
+/*
+ * td of NULL is a sentinel value that indicates a kernel caller (ddb(4) or
+ * modload-based tunable parameters).
+ */
 static int
 netdump_configure(struct diocskerneldump_arg *conf, struct thread *td)
 {
 	struct ifnet *ifp;
+	struct vnet *vnet;
 
 	NETDUMP_ASSERT_WLOCKED();
 
-	CURVNET_SET(TD_TO_VNET(td));
-	if (!IS_DEFAULT_VNET(curvnet)) {
+	if (td != NULL)
+		vnet = TD_TO_VNET(td);
+	else
+		vnet = vnet0;
+	CURVNET_SET(vnet);
+	if (td != NULL && !IS_DEFAULT_VNET(curvnet)) {
 		CURVNET_RESTORE();
 		return (EINVAL);
 	}
@@ -699,7 +715,7 @@ netdump_modevent(module_t mod __unused, int what, void *priv __unused)
 
 			/* Ignore errors; we print a message to the console. */
 			NETDUMP_WLOCK();
-			(void)netdump_configure(&conf, curthread);
+			(void)netdump_configure(&conf, NULL);
 			NETDUMP_WUNLOCK();
 		}
 		break;
@@ -729,3 +745,72 @@ static moduledata_t netdump_mod = {
 
 MODULE_VERSION(netdump, 1);
 DECLARE_MODULE(netdump, netdump_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+
+#ifdef DDB
+/*
+ * Usage: netdump -s <server> [-g <gateway] -c <localip> -i <interface>
+ *
+ * Order is not significant.
+ *
+ * Currently, this command does not support configuring encryption or
+ * compression.
+ */
+DB_FUNC(netdump, db_netdump_cmd, db_cmd_table, CS_OWN, NULL)
+{
+	static struct diocskerneldump_arg conf;
+	static char blockbuf[NETDUMP_DATASIZE];
+	static union {
+		struct dumperinfo di;
+		/* For valid di_devname. */
+		char di_buf[sizeof(struct dumperinfo) + 1];
+	} u;
+
+	struct debugnet_ddb_config params;
+	int error;
+
+	error = debugnet_parse_ddb_cmd("netdump", &params);
+	if (error != 0) {
+		db_printf("Error configuring netdump: %d\n", error);
+		return;
+	}
+
+	/* Translate to a netdump dumper config. */
+	memset(&conf, 0, sizeof(conf));
+	strlcpy(conf.kda_iface, if_name(params.dd_ifp), sizeof(conf.kda_iface));
+
+	conf.kda_af = AF_INET;
+	conf.kda_server.in4 = (struct in_addr) { params.dd_server };
+	conf.kda_client.in4 = (struct in_addr) { params.dd_client };
+	if (params.dd_has_gateway)
+		conf.kda_gateway.in4 = (struct in_addr) { params.dd_gateway };
+	else
+		conf.kda_gateway.in4 = (struct in_addr) { INADDR_ANY };
+
+	/* Set the global netdump config to these options. */
+	error = netdump_configure(&conf, NULL);
+	if (error != 0) {
+		db_printf("Error enabling netdump: %d\n", error);
+		return;
+	}
+
+	/* Fake the generic dump configuration list entry to avoid malloc. */
+	memset(&u.di_buf, 0, sizeof(u.di_buf));
+	u.di.dumper_start = netdump_start;
+	u.di.dumper_hdr = netdump_write_headers;
+	u.di.dumper = netdump_dumper;
+	u.di.priv = NULL;
+	u.di.blocksize = NETDUMP_DATASIZE;
+	u.di.maxiosize = MAXDUMPPGS * PAGE_SIZE;
+	u.di.mediaoffset = 0;
+	u.di.mediasize = 0;
+	u.di.blockbuf = blockbuf;
+
+	dumper_ddb_insert(&u.di);
+
+	error = doadump(false);
+
+	dumper_ddb_remove(&u.di);
+	if (error != 0)
+		db_printf("Cannot dump: %d\n", error);
+}
+#endif /* DDB */

@@ -31,6 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
 #include "opt_inet.h"
 
 #include <sys/param.h>
@@ -39,6 +40,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#include <ddb/db_lex.h>
+#endif
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -654,3 +660,223 @@ dn_evh_init(void *ctx __unused)
 	    dn_ifnet_event, NULL, EVENTHANDLER_PRI_ANY);
 }
 SYSINIT(dn_evh_init, SI_SUB_EVENTHANDLER + 1, SI_ORDER_ANY, dn_evh_init, NULL);
+
+/*
+ * DDB parsing helpers for debugnet(4) consumers.
+ */
+#ifdef DDB
+struct my_inet_opt {
+	bool has_opt;
+	const char *printname;
+	in_addr_t *result;
+};
+
+static int
+dn_parse_optarg_ipv4(struct my_inet_opt *opt)
+{
+	in_addr_t tmp;
+	unsigned octet;
+	int t;
+
+	tmp = 0;
+	for (octet = 0; octet < 4; octet++) {
+		t = db_read_token_flags(DRT_WSPACE | DRT_DECIMAL);
+		if (t != tNUMBER) {
+			db_printf("%s:%s: octet %u expected number; found %d\n",
+			    __func__, opt->printname, octet, t);
+			return (EINVAL);
+		}
+		/*
+		 * db_lex lexes '-' distinctly from the number itself, but
+		 * let's document that invariant.
+		 */
+		MPASS(db_tok_number >= 0);
+
+		if (db_tok_number > UINT8_MAX) {
+			db_printf("%s:%s: octet %u out of range: %jd\n", __func__,
+			    opt->printname, octet, (intmax_t)db_tok_number);
+			return (EDOM);
+		}
+
+		/* Constructed host-endian and converted to network later. */
+		tmp = (tmp << 8) | db_tok_number;
+
+		if (octet < 3) {
+			t = db_read_token_flags(DRT_WSPACE);
+			if (t != tDOT) {
+				db_printf("%s:%s: octet %u expected '.'; found"
+				    " %d\n", __func__, opt->printname, octet,
+				    t);
+				return (EINVAL);
+			}
+		}
+	}
+
+	*opt->result = htonl(tmp);
+	opt->has_opt = true;
+	return (0);
+}
+
+int
+debugnet_parse_ddb_cmd(const char *cmd, struct debugnet_ddb_config *result)
+{
+	struct ifnet *ifp;
+	int t, error;
+	bool want_ifp;
+	char ch;
+
+	struct my_inet_opt opt_client = {
+		.printname = "client",
+		.result = &result->dd_client,
+	},
+	opt_server = {
+		.printname = "server",
+		.result = &result->dd_server,
+	},
+	opt_gateway = {
+		.printname = "gateway",
+		.result = &result->dd_gateway,
+	},
+	*cur_inet_opt;
+
+	ifp = NULL;
+	memset(result, 0, sizeof(*result));
+
+	/*
+	 * command [space] [-] [opt] [[space] [optarg]] ...
+	 *
+	 * db_command has already lexed 'command' for us.
+	 */
+	t = db_read_token_flags(DRT_WSPACE);
+	if (t == tWSPACE)
+		t = db_read_token_flags(DRT_WSPACE);
+
+	while (t != tEOL) {
+		if (t != tMINUS) {
+			db_printf("%s: Bad syntax; expected '-', got %d\n",
+			    cmd, t);
+			goto usage;
+		}
+
+		t = db_read_token_flags(DRT_WSPACE);
+		if (t != tIDENT) {
+			db_printf("%s: Bad syntax; expected tIDENT, got %d\n",
+			    cmd, t);
+			goto usage;
+		}
+
+		if (strlen(db_tok_string) > 1) {
+			db_printf("%s: Bad syntax; expected single option "
+			    "flag, got '%s'\n", cmd, db_tok_string);
+			goto usage;
+		}
+
+		want_ifp = false;
+		cur_inet_opt = NULL;
+		switch ((ch = db_tok_string[0])) {
+		default:
+			DNETDEBUG("Unexpected: '%c'\n", ch);
+			/* FALLTHROUGH */
+		case 'h':
+			goto usage;
+		case 'c':
+			cur_inet_opt = &opt_client;
+			break;
+		case 'g':
+			cur_inet_opt = &opt_gateway;
+			break;
+		case 's':
+			cur_inet_opt = &opt_server;
+			break;
+		case 'i':
+			want_ifp = true;
+			break;
+		}
+
+		t = db_read_token_flags(DRT_WSPACE);
+		if (t != tWSPACE) {
+			db_printf("%s: Bad syntax; expected space after "
+			    "flag %c, got %d\n", cmd, ch, t);
+			goto usage;
+		}
+
+		if (want_ifp) {
+			t = db_read_token_flags(DRT_WSPACE);
+			if (t != tIDENT) {
+				db_printf("%s: Expected interface but got %d\n",
+				    cmd, t);
+				goto usage;
+			}
+
+			CURVNET_SET(vnet0);
+			/*
+			 * We *don't* take a ref here because the only current
+			 * consumer, db_netdump_cmd, does not need it.  It
+			 * (somewhat redundantly) extracts the if_name(),
+			 * re-lookups the ifp, and takes its own reference.
+			 */
+			ifp = ifunit(db_tok_string);
+			CURVNET_RESTORE();
+			if (ifp == NULL) {
+				db_printf("Could not locate interface %s\n",
+				    db_tok_string);
+				goto cleanup;
+			}
+		} else {
+			MPASS(cur_inet_opt != NULL);
+			/* Assume IPv4 for now. */
+			error = dn_parse_optarg_ipv4(cur_inet_opt);
+			if (error != 0)
+				goto cleanup;
+		}
+
+		/* Skip (mandatory) whitespace after option, if not EOL. */
+		t = db_read_token_flags(DRT_WSPACE);
+		if (t == tEOL)
+			break;
+		if (t != tWSPACE) {
+			db_printf("%s: Bad syntax; expected space after "
+			    "flag %c option; got %d\n", cmd, ch, t);
+			goto usage;
+		}
+		t = db_read_token_flags(DRT_WSPACE);
+	}
+
+	/* Currently, all three are required. */
+	if (!opt_client.has_opt || !opt_server.has_opt || ifp == NULL) {
+		db_printf("%s needs all of client, server, and interface "
+		    "specified.\n", cmd);
+		goto usage;
+	}
+
+	result->dd_has_gateway = opt_gateway.has_opt;
+
+	/* Iface validation stolen from netdump_configure. */
+	if (!DEBUGNET_SUPPORTED_NIC(ifp)) {
+		db_printf("%s: interface '%s' does not support debugnet\n",
+		    cmd, if_name(ifp));
+		error = ENODEV;
+		goto cleanup;
+	}
+	if ((if_getflags(ifp) & IFF_UP) == 0) {
+		db_printf("%s: interface '%s' link is down\n", cmd,
+		    if_name(ifp));
+		error = ENXIO;
+		goto cleanup;
+	}
+
+	result->dd_ifp = ifp;
+
+	/* We parsed the full line to tEOL already, or bailed with an error. */
+	return (0);
+
+usage:
+	db_printf("Usage: %s -s <server> [-g <gateway>] -c <localip> "
+	    "-i <interface>\n", cmd);
+	error = EINVAL;
+	/* FALLTHROUGH */
+cleanup:
+	db_skip_to_eol();
+	return (error);
+}
+#endif /* DDB */
