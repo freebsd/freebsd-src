@@ -491,8 +491,12 @@ debugnet_free(struct debugnet_pcb *pcb)
 	MPASS(pcb == &g_dnet_pcb);
 
 	ifp = pcb->dp_ifp;
-	ifp->if_input = pcb->dp_drv_input;
-	ifp->if_debugnet_methods->dn_event(ifp, DEBUGNET_END);
+	if (ifp != NULL) {
+		if (pcb->dp_drv_input != NULL)
+			ifp->if_input = pcb->dp_drv_input;
+		if (pcb->dp_event_started)
+			ifp->if_debugnet_methods->dn_event(ifp, DEBUGNET_END);
+	}
 	debugnet_mbuf_finish();
 
 	g_debugnet_pcb_inuse = false;
@@ -527,8 +531,87 @@ debugnet_connect(const struct debugnet_conn_params *dcp,
 	/* Switch to the debugnet mbuf zones. */
 	debugnet_mbuf_start();
 
+	/* At least one needed parameter is missing; infer it. */
+	if (pcb->dp_client == INADDR_ANY || pcb->dp_gateway == INADDR_ANY ||
+	    pcb->dp_ifp == NULL) {
+		struct sockaddr_in dest_sin, *gw_sin, *local_sin;
+		struct rtentry *dest_rt;
+		struct ifnet *rt_ifp;
+
+		memset(&dest_sin, 0, sizeof(dest_sin));
+		dest_sin = (struct sockaddr_in) {
+			.sin_len = sizeof(dest_sin),
+			.sin_family = AF_INET,
+			.sin_addr.s_addr = pcb->dp_server,
+		};
+
+		CURVNET_SET(vnet0);
+		dest_rt = rtalloc1((struct sockaddr *)&dest_sin, 0,
+		    RTF_RNH_LOCKED);
+		CURVNET_RESTORE();
+
+		if (dest_rt == NULL) {
+			db_printf("%s: Could not get route for that server.\n",
+			    __func__);
+			error = ENOENT;
+			goto cleanup;
+		}
+
+		if (dest_rt->rt_gateway->sa_family == AF_INET)
+			gw_sin = (struct sockaddr_in *)dest_rt->rt_gateway;
+		else {
+			if (dest_rt->rt_gateway->sa_family == AF_LINK)
+				DNETDEBUG("Destination address is on link.\n");
+			gw_sin = NULL;
+		}
+
+		MPASS(dest_rt->rt_ifa->ifa_addr->sa_family == AF_INET);
+		local_sin = (struct sockaddr_in *)dest_rt->rt_ifa->ifa_addr;
+
+		rt_ifp = dest_rt->rt_ifp;
+
+		if (pcb->dp_client == INADDR_ANY)
+			pcb->dp_client = local_sin->sin_addr.s_addr;
+		if (pcb->dp_gateway == INADDR_ANY && gw_sin != NULL)
+			pcb->dp_gateway = gw_sin->sin_addr.s_addr;
+		if (pcb->dp_ifp == NULL)
+			pcb->dp_ifp = rt_ifp;
+
+		RTFREE_LOCKED(dest_rt);
+	}
+
 	ifp = pcb->dp_ifp;
+
+	if (debugnet_debug > 0) {
+		char serbuf[INET_ADDRSTRLEN], clibuf[INET_ADDRSTRLEN],
+		    gwbuf[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, &pcb->dp_server, serbuf, sizeof(serbuf));
+		inet_ntop(AF_INET, &pcb->dp_client, clibuf, sizeof(clibuf));
+		if (pcb->dp_gateway != INADDR_ANY)
+			inet_ntop(AF_INET, &pcb->dp_gateway, gwbuf, sizeof(gwbuf));
+		DNETDEBUG("Connecting to %s:%d%s%s from %s:%d on %s\n",
+		    serbuf, pcb->dp_server_port,
+		    (pcb->dp_gateway == INADDR_ANY) ? "" : " via ",
+		    (pcb->dp_gateway == INADDR_ANY) ? "" : gwbuf,
+		    clibuf, pcb->dp_client_ack_port, if_name(ifp));
+	}
+
+	/* Validate iface is online and supported. */
+	if (!DEBUGNET_SUPPORTED_NIC(ifp)) {
+		printf("%s: interface '%s' does not support debugnet\n",
+		    __func__, if_name(ifp));
+		error = ENODEV;
+		goto cleanup;
+	}
+	if ((if_getflags(ifp) & IFF_UP) == 0) {
+		printf("%s: interface '%s' link is down\n", __func__,
+		    if_name(ifp));
+		error = ENXIO;
+		goto cleanup;
+	}
+
 	ifp->if_debugnet_methods->dn_event(ifp, DEBUGNET_START);
+	pcb->dp_event_started = true;
 
 	/*
 	 * We maintain the invariant that g_debugnet_pcb_inuse is always true
@@ -842,37 +925,21 @@ debugnet_parse_ddb_cmd(const char *cmd, struct debugnet_ddb_config *result)
 		t = db_read_token_flags(DRT_WSPACE);
 	}
 
-	/* Currently, all three are required. */
-	if (!opt_client.has_opt || !opt_server.has_opt || ifp == NULL) {
-		db_printf("%s needs all of client, server, and interface "
-		    "specified.\n", cmd);
+	if (!opt_server.has_opt) {
+		db_printf("%s: need a destination server address\n", cmd);
 		goto usage;
 	}
 
+	result->dd_has_client = opt_client.has_opt;
 	result->dd_has_gateway = opt_gateway.has_opt;
-
-	/* Iface validation stolen from netdump_configure. */
-	if (!DEBUGNET_SUPPORTED_NIC(ifp)) {
-		db_printf("%s: interface '%s' does not support debugnet\n",
-		    cmd, if_name(ifp));
-		error = ENODEV;
-		goto cleanup;
-	}
-	if ((if_getflags(ifp) & IFF_UP) == 0) {
-		db_printf("%s: interface '%s' link is down\n", cmd,
-		    if_name(ifp));
-		error = ENXIO;
-		goto cleanup;
-	}
-
 	result->dd_ifp = ifp;
 
 	/* We parsed the full line to tEOL already, or bailed with an error. */
 	return (0);
 
 usage:
-	db_printf("Usage: %s -s <server> [-g <gateway>] -c <localip> "
-	    "-i <interface>\n", cmd);
+	db_printf("Usage: %s -s <server> [-g <gateway> -c <localip> "
+	    "-i <interface>]\n", cmd);
 	error = EINVAL;
 	/* FALLTHROUGH */
 cleanup:

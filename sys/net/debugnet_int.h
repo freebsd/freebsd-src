@@ -69,6 +69,7 @@ struct debugnet_pcb {
 
 	enum dnet_pcb_st	dp_state;
 	uint16_t		dp_client_ack_port;
+	bool			dp_event_started;
 };
 
 /* TODO(CEM): Obviate this assertion by using a BITSET(9) for acks. */
