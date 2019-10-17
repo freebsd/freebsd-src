@@ -307,6 +307,7 @@ MAN=	aac.4 \
 	net80211.4 \
 	netdump.4 \
 	netfpga10g_nf10bmac.4 \
+	netgdb.4 \
 	netgraph.4 \
 	netintro.4 \
 	netmap.4 \

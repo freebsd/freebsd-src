@@ -3546,6 +3546,7 @@ fs/tmpfs/tmpfs_subr.c 		optional tmpfs
 gdb/gdb_cons.c			optional gdb
 gdb/gdb_main.c			optional gdb
 gdb/gdb_packet.c		optional gdb
+gdb/netgdb.c			optional ddb debugnet gdb netgdb inet
 geom/bde/g_bde.c		optional geom_bde
 geom/bde/g_bde_crypt.c		optional geom_bde
 geom/bde/g_bde_lock.c		optional geom_bde

@@ -108,6 +108,14 @@ struct debugnet_conn_params {
 	uint32_t	dc_herald_datalen;
 
 	/*
+	 * Consistent with debugnet_send(), aux paramaters to debugnet
+	 * functions are provided host-endian (but converted to
+	 * network endian on the wire).
+	 */
+	uint32_t	dc_herald_aux2;
+	uint64_t	dc_herald_offset;
+
+	/*
 	 * If NULL, debugnet is a unidirectional channel from panic machine to
 	 * remote server (like netdump).
 	 *
@@ -123,12 +131,14 @@ struct debugnet_conn_params {
 	 * If the handler frees the mbuf chain, it should set the mbuf pointer
 	 * to NULL.  Otherwise, the debugnet input framework will free the
 	 * chain.
+	 *
+	 * The handler should ACK receieved packets with debugnet_ack_output.
 	 */
 	void		(*dc_rx_handler)(struct debugnet_pcb *, struct mbuf **);
 };
 
 /*
- * Open a unidirectional stream to the specified server's herald port.
+ * Open a stream to the specified server's herald port.
  *
  * If all goes well, the server will send ACK from a different port to our ack
  * port.  This allows servers to somewhat gracefully handle multiple debugnet
@@ -176,6 +186,16 @@ debugnet_sendempty(struct debugnet_pcb *pcb, uint32_t mhtype)
 {
 	return (debugnet_send(pcb, mhtype, NULL, 0, NULL));
 }
+
+/*
+ * Full-duplex RX should ACK received messages.
+ */
+int debugnet_ack_output(struct debugnet_pcb *, uint32_t seqno /*net endian*/);
+
+/*
+ * Check and/or wait for further packets.
+ */
+void debugnet_network_poll(struct debugnet_pcb *);
 
 /*
  * PCB accessors.

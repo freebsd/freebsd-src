@@ -31,7 +31,13 @@
 #ifndef _GDB_GDB_INT_H_
 #define	_GDB_GDB_INT_H_
 
+#include "opt_ddb.h"
+
 #include <sys/sysctl.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 #ifndef EOF
 #define EOF	(-1)
@@ -47,6 +53,11 @@ void gdb_consinit(void);
 extern char *gdb_rxp;
 extern size_t gdb_rxsz;
 extern char *gdb_txp;
+
+#ifdef DDB
+/* If set, return to DDB when controlling GDB detaches. */
+extern bool gdb_return_to_ddb;
+#endif
 
 int gdb_rx_begin(void);
 int gdb_rx_equal(const char *);

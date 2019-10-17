@@ -87,7 +87,6 @@ SYSCTL_DECL(_net_debugnet);
 int debugnet_ether_output(struct mbuf *, struct ifnet *, struct ether_addr,
     u_short);
 void debugnet_handle_udp(struct debugnet_pcb *, struct mbuf **);
-void debugnet_network_poll(struct ifnet *);
 
 #ifdef INET
 int debugnet_arp_gw(struct debugnet_pcb *);

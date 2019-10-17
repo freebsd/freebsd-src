@@ -60,6 +60,10 @@ int gdb_listening = 0;
 
 static unsigned char gdb_bindata[64];
 
+#ifdef DDB
+bool gdb_return_to_ddb = false;
+#endif
+
 static int
 gdb_init(void)
 {
@@ -569,6 +573,26 @@ unrecognized:
 	return;
 }
 
+static void
+gdb_handle_detach(void)
+{
+	kdb_cpu_clear_singlestep();
+	gdb_listening = 0;
+
+	if (gdb_cur->gdb_dbfeatures & GDB_DBGP_FEAT_WANTTERM)
+		gdb_cur->gdb_term();
+
+#ifdef DDB
+	if (!gdb_return_to_ddb)
+		return;
+
+	gdb_return_to_ddb = false;
+
+	if (kdb_dbbe_select("ddb") != 0)
+		printf("The ddb backend could not be selected.\n");
+#endif
+}
+
 static int
 gdb_trap(int type, int code)
 {
@@ -638,7 +662,7 @@ gdb_trap(int type, int code)
 		}
 		case 'D': {     /* Detach */
 			gdb_tx_ok();
-			kdb_cpu_clear_singlestep();
+			gdb_handle_detach();
 			return (1);
 		}
 		case 'g': {	/* Read registers. */
@@ -675,8 +699,7 @@ gdb_trap(int type, int code)
 			break;
 		}
 		case 'k':	/* Kill request. */
-			kdb_cpu_clear_singlestep();
-			gdb_listening = 1;
+			gdb_handle_detach();
 			return (1);
 		case 'm': {	/* Read memory. */
 			uintmax_t addr, size;

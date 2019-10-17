@@ -183,7 +183,7 @@ debugnet_udp_output(struct debugnet_pcb *pcb, struct mbuf *m)
 	return (debugnet_ip_output(pcb, m));
 }
 
-static int
+int
 debugnet_ack_output(struct debugnet_pcb *pcb, uint32_t seqno /* net endian */)
 {
 	struct debugnet_ack *dn_ack;
@@ -330,7 +330,7 @@ retransmit:
 			printf(". ");
 			goto retransmit;
 		}
-		debugnet_network_poll(pcb->dp_ifp);
+		debugnet_network_poll(pcb);
 		DELAY(500);
 		if (pcb->dp_state == DN_STATE_REMOTE_CLOSED)
 			return (ECONNRESET);
@@ -577,8 +577,11 @@ done:
  * driver directly for packets.
  */
 void
-debugnet_network_poll(struct ifnet *ifp)
+debugnet_network_poll(struct debugnet_pcb *pcb)
 {
+	struct ifnet *ifp;
+
+	ifp = pcb->dp_ifp;
 	ifp->if_debugnet_methods->dn_poll(ifp, 1000);
 }
 
@@ -610,6 +613,7 @@ int
 debugnet_connect(const struct debugnet_conn_params *dcp,
     struct debugnet_pcb **pcb_out)
 {
+	struct debugnet_proto_aux herald_auxdata;
 	struct debugnet_pcb *pcb;
 	struct ifnet *ifp;
 	int error;
@@ -738,8 +742,12 @@ debugnet_connect(const struct debugnet_conn_params *dcp,
 	}
 	MPASS(pcb->dp_state == DN_STATE_HAVE_GW_MAC);
 
+	herald_auxdata = (struct debugnet_proto_aux) {
+		.dp_offset_start = dcp->dc_herald_offset,
+		.dp_aux2 = dcp->dc_herald_aux2,
+	};
 	error = debugnet_send(pcb, DEBUGNET_HERALD, dcp->dc_herald_data,
-	    dcp->dc_herald_datalen, NULL);
+	    dcp->dc_herald_datalen, &herald_auxdata);
 	if (error != 0) {
 		printf("%s: failed to herald debugnet server\n", __func__);
 		goto cleanup;
