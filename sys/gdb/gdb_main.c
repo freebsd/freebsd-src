@@ -57,6 +57,7 @@ SET_DECLARE(gdb_dbgport_set, struct gdb_dbgport);
 
 struct gdb_dbgport *gdb_cur = NULL;
 int gdb_listening = 0;
+bool gdb_ackmode = true;
 
 static unsigned char gdb_bindata[64];
 
@@ -260,6 +261,14 @@ gdb_do_qsupported(uint32_t *feat)
 	gdb_tx_varhex(GDB_BUFSZ + strlen("$#nn") - 1);
 
 	gdb_tx_str(";qXfer:threads:read+");
+
+	/*
+	 * If the debugport is a reliable transport, request No Ack mode from
+	 * the server.  The server may or may not choose to enter No Ack mode.
+	 * https://sourceware.org/gdb/onlinedocs/gdb/Packet-Acknowledgment.html
+	 */
+	if (gdb_cur->gdb_dbfeatures & GDB_DBGP_FEAT_RELIABLE)
+		gdb_tx_str(";QStartNoAckMode+");
 
 	/*
 	 * Future consideration:
@@ -610,6 +619,8 @@ gdb_trap(int type, int code)
 	}
 
 	gdb_listening = 0;
+	gdb_ackmode = true;
+
 	/*
 	 * Send a T packet. We currently do not support watchpoints (the
 	 * awatch, rwatch or watch elements).
@@ -759,6 +770,22 @@ gdb_trap(int type, int code)
 			} else if (gdb_rx_equal("Search:memory:")) {
 				gdb_do_mem_search();
 			} else if (!gdb_cpu_query())
+				gdb_tx_empty();
+			break;
+		case 'Q':
+			if (gdb_rx_equal("StartNoAckMode")) {
+				if ((gdb_cur->gdb_dbfeatures &
+				    GDB_DBGP_FEAT_RELIABLE) == 0) {
+					/*
+					 * Shouldn't happen if we didn't
+					 * advertise support.  Reject.
+					 */
+					gdb_tx_empty();
+					break;
+				}
+				gdb_ackmode = false;
+				gdb_tx_ok();
+			} else
 				gdb_tx_empty();
 			break;
 		case 's': {	/* Step. */
