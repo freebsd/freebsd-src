@@ -1625,14 +1625,16 @@ vlan_setflags(struct ifnet *ifp, int status)
 static void
 vlan_link_state(struct ifnet *ifp)
 {
+	struct epoch_tracker et;
 	struct ifvlantrunk *trunk;
 	struct ifvlan *ifv;
 
-	NET_EPOCH_ASSERT();
-
+	NET_EPOCH_ENTER(et);
 	trunk = ifp->if_vlantrunk;
-	if (trunk == NULL)
+	if (trunk == NULL) {
+		NET_EPOCH_EXIT(et);
 		return;
+	}
 
 	TRUNK_WLOCK(trunk);
 	VLAN_FOREACH(ifv, trunk) {
@@ -1641,6 +1643,7 @@ vlan_link_state(struct ifnet *ifp)
 		    trunk->parent->if_link_state);
 	}
 	TRUNK_WUNLOCK(trunk);
+	NET_EPOCH_EXIT(et);
 }
 
 static void
@@ -1770,6 +1773,7 @@ vlan_capabilities(struct ifvlan *ifv)
 static void
 vlan_trunk_capabilities(struct ifnet *ifp)
 {
+	struct epoch_tracker et;
 	struct ifvlantrunk *trunk;
 	struct ifvlan *ifv;
 
@@ -1779,8 +1783,10 @@ vlan_trunk_capabilities(struct ifnet *ifp)
 		VLAN_SUNLOCK();
 		return;
 	}
+	NET_EPOCH_ENTER(et);
 	VLAN_FOREACH(ifv, trunk)
 		vlan_capabilities(ifv);
+	NET_EPOCH_EXIT(et);
 	VLAN_SUNLOCK();
 }
 
