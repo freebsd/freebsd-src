@@ -50,6 +50,7 @@ enum dnet_pcb_st {
 	DN_STATE_INIT = 1,
 	DN_STATE_HAVE_GW_MAC,
 	DN_STATE_GOT_HERALD_PORT,
+	DN_STATE_REMOTE_CLOSED,
 };
 
 struct debugnet_pcb {
@@ -67,8 +68,12 @@ struct debugnet_pcb {
 	/* Saved driver if_input to restore on close. */
 	void			(*dp_drv_input)(struct ifnet *, struct mbuf *);
 
+	/* RX handler for bidirectional protocols. */
+	void			(*dp_rx_handler)(struct debugnet_pcb *,
+				    struct mbuf **);
+
 	enum dnet_pcb_st	dp_state;
-	uint16_t		dp_client_ack_port;
+	uint16_t		dp_client_port;
 	bool			dp_event_started;
 };
 

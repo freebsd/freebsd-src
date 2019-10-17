@@ -175,12 +175,34 @@ debugnet_udp_output(struct debugnet_pcb *pcb, struct mbuf *m)
 	udp = mtod(m, void *);
 	udp->uh_ulen = htons(m->m_pkthdr.len);
 	/* Use this src port so that the server can connect() the socket */
-	udp->uh_sport = htons(pcb->dp_client_ack_port);
+	udp->uh_sport = htons(pcb->dp_client_port);
 	udp->uh_dport = htons(pcb->dp_server_port);
 	/* Computed later (protocol-dependent). */
 	udp->uh_sum = 0;
 
 	return (debugnet_ip_output(pcb, m));
+}
+
+static int
+debugnet_ack_output(struct debugnet_pcb *pcb, uint32_t seqno /* net endian */)
+{
+	struct debugnet_ack *dn_ack;
+	struct mbuf *m;
+
+	DNETDEBUG("Acking with seqno %u\n", ntohl(seqno));
+
+	m = m_gethdr(M_NOWAIT, MT_DATA);
+	if (m == NULL) {
+		printf("%s: Out of mbufs\n", __func__);
+		return (ENOBUFS);
+	}
+	m->m_len = sizeof(*dn_ack);
+	m->m_pkthdr.len = sizeof(*dn_ack);
+	MH_ALIGN(m, sizeof(*dn_ack));
+	dn_ack = mtod(m, void *);
+	dn_ack->da_seqno = seqno;
+
+	return (debugnet_udp_output(pcb, m));
 }
 
 /*
@@ -215,6 +237,9 @@ debugnet_send(struct debugnet_pcb *pcb, uint32_t type, const void *data,
 	uint64_t want_acks;
 	uint32_t i, pktlen, sent_so_far;
 	int retries, polls, error;
+
+	if (pcb->dp_state == DN_STATE_REMOTE_CLOSED)
+		return (ECONNRESET);
 
 	want_acks = 0;
 	pcb->dp_rcvd_acks = 0;
@@ -307,6 +332,8 @@ retransmit:
 		}
 		debugnet_network_poll(pcb->dp_ifp);
 		DELAY(500);
+		if (pcb->dp_state == DN_STATE_REMOTE_CLOSED)
+			return (ECONNRESET);
 	}
 	pcb->dp_seqno += i;
 	return (0);
@@ -315,6 +342,62 @@ retransmit:
 /*
  * Network input primitives.
  */
+
+/*
+ * Just introspect the header enough to fire off a seqno ack and validate
+ * length fits.
+ */
+static void
+debugnet_handle_rx_msg(struct debugnet_pcb *pcb, struct mbuf **mb)
+{
+	const struct debugnet_msg_hdr *dnh;
+	struct mbuf *m;
+	int error;
+
+	m = *mb;
+
+	if (m->m_pkthdr.len < sizeof(*dnh)) {
+		DNETDEBUG("ignoring small debugnet_msg packet\n");
+		return;
+	}
+
+	/* Get ND header. */
+	if (m->m_len < sizeof(*dnh)) {
+		m = m_pullup(m, sizeof(*dnh));
+		*mb = m;
+		if (m == NULL) {
+			DNETDEBUG("m_pullup failed\n");
+			return;
+		}
+	}
+	dnh = mtod(m, const void *);
+
+	if (ntohl(dnh->mh_len) + sizeof(*dnh) > m->m_pkthdr.len) {
+		DNETDEBUG("Dropping short packet.\n");
+		return;
+	}
+
+	/*
+	 * If the issue is transient (ENOBUFS), sender should resend.  If
+	 * non-transient (like driver objecting to rx -> tx from the same
+	 * thread), not much else we can do.
+	 */
+	error = debugnet_ack_output(pcb, dnh->mh_seqno);
+	if (error != 0)
+		return;
+
+	if (ntohl(dnh->mh_type) == DEBUGNET_FINISHED) {
+		printf("Remote shut down the connection on us!\n");
+		pcb->dp_state = DN_STATE_REMOTE_CLOSED;
+
+		/*
+		 * Continue through to the user handler so they are signalled
+		 * not to wait for further rx.
+		 */
+	}
+
+	pcb->dp_rx_handler(pcb, mb);
+}
 
 static void
 debugnet_handle_ack(struct debugnet_pcb *pcb, struct mbuf **mb, uint16_t sport)
@@ -325,10 +408,6 @@ debugnet_handle_ack(struct debugnet_pcb *pcb, struct mbuf **mb, uint16_t sport)
 
 	m = *mb;
 
-	if (m->m_pkthdr.len < sizeof(*dn_ack)) {
-		DNETDEBUG("ignoring small ACK packet\n");
-		return;
-	}
 	/* Get Ack. */
 	if (m->m_len < sizeof(*dn_ack)) {
 		m = m_pullup(m, sizeof(*dn_ack));
@@ -363,7 +442,7 @@ debugnet_handle_udp(struct debugnet_pcb *pcb, struct mbuf **mb)
 {
 	const struct udphdr *udp;
 	struct mbuf *m;
-	uint16_t sport;
+	uint16_t sport, ulen;
 
 	/* UDP processing. */
 
@@ -384,15 +463,39 @@ debugnet_handle_udp(struct debugnet_pcb *pcb, struct mbuf **mb)
 	}
 	udp = mtod(m, const void *);
 
-	/* For now, the only UDP packets we expect to receive are acks. */
-	if (ntohs(udp->uh_dport) != pcb->dp_client_ack_port) {
-		DNETDEBUG("not on the expected ACK port.\n");
+	/* We expect to receive UDP packets on the configured client port. */
+	if (ntohs(udp->uh_dport) != pcb->dp_client_port) {
+		DNETDEBUG("not on the expected port.\n");
 		return;
 	}
+
+	/* Check that ulen does not exceed actual size of data. */
+	ulen = ntohs(udp->uh_ulen);
+	if (m->m_pkthdr.len < ulen) {
+		DNETDEBUG("ignoring runt UDP packet\n");
+		return;
+	}
+
 	sport = ntohs(udp->uh_sport);
 
 	m_adj(m, sizeof(*udp));
-	debugnet_handle_ack(pcb, mb, sport);
+	ulen -= sizeof(*udp);
+
+	if (ulen == sizeof(struct debugnet_ack)) {
+		debugnet_handle_ack(pcb, mb, sport);
+		return;
+	}
+
+	if (pcb->dp_rx_handler == NULL) {
+		if (ulen < sizeof(struct debugnet_ack))
+			DNETDEBUG("ignoring small ACK packet\n");
+		else
+			DNETDEBUG("ignoring unexpected non-ACK packet on "
+			    "half-duplex connection.\n");
+		return;
+	}
+
+	debugnet_handle_rx_msg(pcb, mb);
 }
 
 /*
@@ -523,9 +626,10 @@ debugnet_connect(const struct debugnet_conn_params *dcp,
 		.dp_server = dcp->dc_server,
 		.dp_gateway = dcp->dc_gateway,
 		.dp_server_port = dcp->dc_herald_port,	/* Initially */
-		.dp_client_ack_port = dcp->dc_client_ack_port,
+		.dp_client_port = dcp->dc_client_port,
 		.dp_seqno = 1,
 		.dp_ifp = dcp->dc_ifp,
+		.dp_rx_handler = dcp->dc_rx_handler,
 	};
 
 	/* Switch to the debugnet mbuf zones. */
@@ -593,7 +697,7 @@ debugnet_connect(const struct debugnet_conn_params *dcp,
 		    serbuf, pcb->dp_server_port,
 		    (pcb->dp_gateway == INADDR_ANY) ? "" : " via ",
 		    (pcb->dp_gateway == INADDR_ANY) ? "" : gwbuf,
-		    clibuf, pcb->dp_client_ack_port, if_name(ifp));
+		    clibuf, pcb->dp_client_port, if_name(ifp));
 	}
 
 	/* Validate iface is online and supported. */

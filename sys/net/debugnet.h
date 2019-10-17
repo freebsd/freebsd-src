@@ -90,6 +90,8 @@ struct debugnet_methods {
 #define	DEBUGNET_SUPPORTED_NIC(ifp)				\
 	((ifp)->if_debugnet_methods != NULL && (ifp)->if_type == IFT_ETHER)
 
+struct debugnet_pcb; /* opaque */
+
 /*
  * Debugnet consumer API.
  */
@@ -100,13 +102,30 @@ struct debugnet_conn_params {
 	in_addr_t	dc_gateway;
 
 	uint16_t	dc_herald_port;
-	uint16_t	dc_client_ack_port;
+	uint16_t	dc_client_port;
 
 	const void	*dc_herald_data;
 	uint32_t	dc_herald_datalen;
-};
 
-struct debugnet_pcb; /* opaque */
+	/*
+	 * If NULL, debugnet is a unidirectional channel from panic machine to
+	 * remote server (like netdump).
+	 *
+	 * If handler is non-NULL, packets received on the client port that are
+	 * not just tx acks are forwarded to the provided handler.
+	 *
+	 * The mbuf chain will have all non-debugnet framing headers removed
+	 * (ethernet, inet, udp).  It will start with a debugnet_msg_hdr, of
+	 * which the header is guaranteed to be contiguous.  If m_pullup is
+	 * used, the supplied in-out mbuf pointer should be updated
+	 * appropriately.
+	 *
+	 * If the handler frees the mbuf chain, it should set the mbuf pointer
+	 * to NULL.  Otherwise, the debugnet input framework will free the
+	 * chain.
+	 */
+	void		(*dc_rx_handler)(struct debugnet_pcb *, struct mbuf **);
+};
 
 /*
  * Open a unidirectional stream to the specified server's herald port.
