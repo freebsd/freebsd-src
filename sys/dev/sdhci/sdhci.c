@@ -902,8 +902,13 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 	    slot->host.host_ocr |= MMC_OCR_320_330 | MMC_OCR_330_340;
 	if (caps & SDHCI_CAN_VDD_300)
 	    slot->host.host_ocr |= MMC_OCR_290_300 | MMC_OCR_300_310;
-	/* 1.8V VDD is not supposed to be used for removable cards. */
-	if ((caps & SDHCI_CAN_VDD_180) && (slot->opt & SDHCI_SLOT_EMBEDDED))
+	/*
+	 * 1.8V VDD is not supposed to be used for removable cards.  Hardware
+	 * prior to v3.0 had no way to indicate embedded slots, but did
+	 * sometimes support 1.8v for non-removable devices.
+	 */
+	if ((caps & SDHCI_CAN_VDD_180) && (slot->version < SDHCI_SPEC_300 ||
+	    (slot->opt & SDHCI_SLOT_EMBEDDED)))
 	    slot->host.host_ocr |= MMC_OCR_LOW_VOLTAGE;
 	if (slot->host.host_ocr == 0) {
 		slot_printf(slot, "Hardware doesn't report any "
