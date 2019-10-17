@@ -1,0 +1,147 @@
+.\"-
+.\" Copyright (c) 2019 Conrad Meyer <cem@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 17, 2019
+.Dt NETGDB 4
+.Os
+.Sh NAME
+.Nm netgdb
+.Nd protocol for debugging the kernel with GDB over the network
+.Sh SYNOPSIS
+NetGDB support is compiled by default, if DDB, GDB, and INET are enabled.
+To build a kernel without it, add the following line to your kernel
+configuration file:
+.Bd -ragged -offset indent
+.Cd "nooptions NETGDB"
+.Ed
+.Sh DESCRIPTION
+.Nm
+is a UDP-based protocol for communicating with a remote GDB client via an
+intermediary proxy.
+.Pp
+A
+.Nm
+session is started by using the
+.Ic netgdb Fl s Ar server Oo Fl g Ar gateway Fl c Ar client Fl i Ar iface Oc
+command in
+.Xr ddb 4
+to connect to a proxy server.
+When the connection is made, the proxy server logs a message that a
+.Nm
+client has connected.
+It subsequently establishes a TCP listening socket and logs a message
+specifying which port it is listening on.
+Then it waits for a GDB client to connect.
+The GDB command to connect is:
+.Bd -ragged -offset indent
+.Ic target remote Aq Ar proxyip:proxyport
+.Ed
+.Pp
+At this point, the server proxies traffic back and forth between
+.Nm
+and the ordinary GDB client, speaking the ordinary GDB remote protocol.
+The
+.Nm
+session is identical to any other kernel GDB sesssion from the perspective
+of the GDB debugger.
+.Sh IMPLEMENTATION NOTES
+The UDP protocol is based on the same packet structure and a subset of the
+exact same message types as
+.Xr netdump 4 .
+It uses the
+.Dv HERALD ,
+.Dv DATA ( née VMCORE ) ,
+and
+.Dv FINISHED
+message types.
+Like
+.Xr netdump 4 ,
+the client's initial
+.Dv HERALD
+message is acknowledged from a random source port, and the client sends
+subsequent communication to that port.
+.Pp
+Unlike
+.Xr netdump 4 ,
+the initial
+.Dv HERALD
+port is 20025.
+Additionally,
+the proxy server sends responses to the source port of the client's initial
+.Dv HERALD ,
+rather than a separate reserved port.
+.Nm
+message and acknowledgements are bidirectional.
+The sequence number and acknowledgement protocol is otherwise identical to
+the unidirectional version used by netdump; it just runs in both directions.
+Acknowledgements are sent to and from the same addresses and ports as
+regular messages.
+.Pp
+The first version of the
+.Nm
+protocol uses the protocol number
+.Dv Sq 0x2515f095
+in the 32-bit
+.Va aux2
+parameter of the initial
+.Dv HERALD
+message.
+.Pp
+The list of supported network drivers and protocol families is identical to
+that of
+.Xr netdump 4 .
+.Sh DIAGNOSTICS
+The following variable is available via both
+.Xr sysctl 8
+and
+.Xr loader 8
+(as a tunable):
+.Bl -tag -width "indent"
+.It Va debug.gdb.netgdb.debug
+Control debug message verbosity.
+Debug messages are disabled by default.
+They may be enabled by setting the variable to a non-zero value.
+.El
+.Sh SEE ALSO
+.Xr ddb 4 ,
+.Xr gdb 4 ,
+.Xr netdump 4
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 13.0 .
+.Sh BUGS
+.Nm
+may only be used after the kernel has panicked, due to limitations in the
+treatment of locking primitives under
+.Xr ddb 4 .
+.Sh SECURITY CONSIDERATIONS
+Version 1 of the
+.Nm
+protocol has no security properties whatsoever.
+All messages are sent and acknowledged in cleartext, and no message
+authentication codes are used to prevent attackers from forging messages.
+It is absolutely inappropriate for use across the public internet.

@@ -1211,6 +1211,15 @@ Finally, the
 .Ic netdump
 command does not provide any way to configure compression or encryption.
 .Pp
+.It Ic netgdb Fl s Ar server Oo Fl g Ar gateway Fl c Ar client Fl i Ar iface Oc
+Initiate a
+.Xr netgdb 4
+session with the provided parameters.
+.Pp
+.Ic netgdb
+has identical limitations to
+.Ic netdump .
+.Pp
 .It Ic capture on
 .It Ic capture off
 .It Ic capture reset
