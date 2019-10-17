@@ -62,7 +62,8 @@ HEADER {
 #
 CODE {
 	static char *
-	acpi_generic_id_probe(device_t bus, device_t dev, char **ids)
+	acpi_generic_id_probe(device_t bus, device_t dev, char **ids,
+	    char **match)
 	{
 		return (NULL);
 	}
