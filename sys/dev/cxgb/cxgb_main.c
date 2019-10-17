@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 
 #include <net/bpf.h>
+#include <net/debugnet.h>
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
@@ -74,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
-#include <netinet/netdump/netdump.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -218,7 +218,7 @@ static devclass_t	cxgb_port_devclass;
 DRIVER_MODULE(cxgb, cxgbc, cxgb_port_driver, cxgb_port_devclass, 0, 0);
 MODULE_VERSION(cxgb, 1);
 
-NETDUMP_DEFINE(cxgb);
+DEBUGNET_DEFINE(cxgb);
 
 static struct mtx t3_list_lock;
 static SLIST_HEAD(, adapter) t3_list;
@@ -1053,8 +1053,8 @@ cxgb_port_attach(device_t dev)
 
 	ether_ifattach(ifp, p->hw_addr);
 
-	/* Attach driver netdump methods. */
-	NETDUMP_SET(ifp, cxgb);
+	/* Attach driver debugnet methods. */
+	DEBUGNET_SET(ifp, cxgb);
 
 #ifdef DEFAULT_JUMBO
 	if (sc->params.nports <= 2)
@@ -3590,9 +3590,9 @@ cxgbc_mod_event(module_t mod, int cmd, void *arg)
 	return (rc);
 }
 
-#ifdef NETDUMP
+#ifdef DEBUGNET
 static void
-cxgb_netdump_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
+cxgb_debugnet_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
 {
 	struct port_info *pi;
 	adapter_t *adap;
@@ -3607,18 +3607,18 @@ cxgb_netdump_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
 }
 
 static void
-cxgb_netdump_event(struct ifnet *ifp, enum netdump_ev event)
+cxgb_debugnet_event(struct ifnet *ifp, enum debugnet_ev event)
 {
 	struct port_info *pi;
 	struct sge_qset *qs;
 	int i;
 
 	pi = if_getsoftc(ifp);
-	if (event == NETDUMP_START)
+	if (event == DEBUGNET_START)
 		for (i = 0; i < pi->adapter->nqsets; i++) {
 			qs = &pi->adapter->sge.qs[i];
 
-			/* Need to reinit after netdump_mbuf_dump(). */
+			/* Need to reinit after debugnet_mbuf_start(). */
 			qs->fl[0].zone = zone_pack;
 			qs->fl[1].zone = zone_clust;
 			qs->lro.enabled = 0;
@@ -3626,7 +3626,7 @@ cxgb_netdump_event(struct ifnet *ifp, enum netdump_ev event)
 }
 
 static int
-cxgb_netdump_transmit(struct ifnet *ifp, struct mbuf *m)
+cxgb_debugnet_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct port_info *pi;
 	struct sge_qset *qs;
@@ -3637,11 +3637,11 @@ cxgb_netdump_transmit(struct ifnet *ifp, struct mbuf *m)
 		return (ENOENT);
 
 	qs = &pi->adapter->sge.qs[pi->first_qset];
-	return (cxgb_netdump_encap(qs, &m));
+	return (cxgb_debugnet_encap(qs, &m));
 }
 
 static int
-cxgb_netdump_poll(struct ifnet *ifp, int count)
+cxgb_debugnet_poll(struct ifnet *ifp, int count)
 {
 	struct port_info *pi;
 	adapter_t *adap;
@@ -3653,8 +3653,8 @@ cxgb_netdump_poll(struct ifnet *ifp, int count)
 
 	adap = pi->adapter;
 	for (i = 0; i < adap->nqsets; i++)
-		(void)cxgb_netdump_poll_rx(adap, &adap->sge.qs[i]);
-	(void)cxgb_netdump_poll_tx(&adap->sge.qs[pi->first_qset]);
+		(void)cxgb_debugnet_poll_rx(adap, &adap->sge.qs[i]);
+	(void)cxgb_debugnet_poll_tx(&adap->sge.qs[pi->first_qset]);
 	return (0);
 }
-#endif /* NETDUMP */
+#endif /* DEBUGNET */

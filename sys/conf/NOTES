@@ -1042,6 +1042,10 @@ options 	DUMMYNET
 # This allows a panicking kernel to transmit a kernel dump to a remote host.
 options 	NETDUMP
 
+# The DEBUGNET option enables a basic debug/panic-time networking API.  It
+# is used by NETDUMP.
+options 	DEBUGNET
+
 #####################################################################
 # FILESYSTEM OPTIONS
 

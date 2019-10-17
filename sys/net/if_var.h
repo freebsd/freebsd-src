@@ -70,7 +70,7 @@ struct	route;			/* if_output */
 struct	vnet;
 struct	ifmedia;
 struct	netmap_adapter;
-struct	netdump_methods;
+struct	debugnet_methods;
 
 #ifdef _KERNEL
 #include <sys/_eventhandler.h>
@@ -417,9 +417,9 @@ struct ifnet {
 	uint8_t if_pcp;
 
 	/*
-	 * Netdump hooks to be called while dumping.
+	 * Debugnet (Netdump) hooks to be called while in db/panic.
 	 */
-	struct netdump_methods *if_netdump_methods;
+	struct debugnet_methods *if_debugnet_methods;
 	struct epoch_context	if_epoch_ctx;
 
 	/*

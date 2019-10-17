@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <contrib/zlib/zlib.h>
 
+#include <net/debugnet.h>
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_arp.h>
@@ -70,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
-#include <netinet/netdump/netdump.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>

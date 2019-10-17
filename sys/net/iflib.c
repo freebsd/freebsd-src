@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/mp_ring.h>
+#include <net/debugnet.h>
 #include <net/pfil.h>
 #include <net/vnet.h>
 
@@ -71,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet/tcp.h>
 #include <netinet/ip_var.h>
-#include <netinet/netdump/netdump.h>
 #include <netinet6/ip6_var.h>
 
 #include <machine/bus.h>
@@ -726,7 +726,7 @@ static struct mtx cpu_offset_mtx;
 MTX_SYSINIT(iflib_cpu_offset, &cpu_offset_mtx, "iflib_cpu_offset lock",
     MTX_DEF);
 
-NETDUMP_DEFINE(iflib);
+DEBUGNET_DEFINE(iflib);
 
 #ifdef DEV_NETMAP
 #include <sys/selinfo.h>
@@ -4775,7 +4775,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	}
 	*ctxp = ctx;
 
-	NETDUMP_SET(ctx->ifc_ifp, iflib);
+	DEBUGNET_SET(ctx->ifc_ifp, iflib);
 
 	if_setgetcounterfn(ctx->ifc_ifp, iflib_if_get_counter);
 	iflib_add_device_sysctl_post(ctx);
@@ -6719,9 +6719,9 @@ iflib_fixup_rx(struct mbuf *m)
 }
 #endif
 
-#ifdef NETDUMP
+#ifdef DEBUGNET
 static void
-iflib_netdump_init(if_t ifp, int *nrxr, int *ncl, int *clsize)
+iflib_debugnet_init(if_t ifp, int *nrxr, int *ncl, int *clsize)
 {
 	if_ctx_t ctx;
 
@@ -6734,7 +6734,7 @@ iflib_netdump_init(if_t ifp, int *nrxr, int *ncl, int *clsize)
 }
 
 static void
-iflib_netdump_event(if_t ifp, enum netdump_ev event)
+iflib_debugnet_event(if_t ifp, enum debugnet_ev event)
 {
 	if_ctx_t ctx;
 	if_softc_ctx_t scctx;
@@ -6746,7 +6746,7 @@ iflib_netdump_event(if_t ifp, enum netdump_ev event)
 	scctx = &ctx->ifc_softc_ctx;
 
 	switch (event) {
-	case NETDUMP_START:
+	case DEBUGNET_START:
 		for (i = 0; i < scctx->isc_nrxqsets; i++) {
 			rxq = &ctx->ifc_rxqs[i];
 			for (j = 0; j < rxq->ifr_nfl; j++) {
@@ -6762,7 +6762,7 @@ iflib_netdump_event(if_t ifp, enum netdump_ev event)
 }
 
 static int
-iflib_netdump_transmit(if_t ifp, struct mbuf *m)
+iflib_debugnet_transmit(if_t ifp, struct mbuf *m)
 {
 	if_ctx_t ctx;
 	iflib_txq_t txq;
@@ -6781,7 +6781,7 @@ iflib_netdump_transmit(if_t ifp, struct mbuf *m)
 }
 
 static int
-iflib_netdump_poll(if_t ifp, int count)
+iflib_debugnet_poll(if_t ifp, int count)
 {
 	if_ctx_t ctx;
 	if_softc_ctx_t scctx;
@@ -6802,4 +6802,4 @@ iflib_netdump_poll(if_t ifp, int count)
 		(void)iflib_rxeof(&ctx->ifc_rxqs[i], 16 /* XXX */);
 	return (0);
 }
-#endif /* NETDUMP */
+#endif /* DEBUGNET */

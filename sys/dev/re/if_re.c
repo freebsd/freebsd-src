@@ -128,6 +128,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 
+#include <net/debugnet.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_arp.h>
@@ -138,8 +139,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_vlan_var.h>
 
 #include <net/bpf.h>
-
-#include <netinet/netdump/netdump.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -310,7 +309,7 @@ static void re_setwol		(struct rl_softc *);
 static void re_clrwol		(struct rl_softc *);
 static void re_set_linkspeed	(struct rl_softc *);
 
-NETDUMP_DEFINE(re);
+DEBUGNET_DEFINE(re);
 
 #ifdef DEV_NETMAP	/* see ixgbe.c for details */
 #include <dev/netmap/if_re_netmap.h>
@@ -1745,7 +1744,7 @@ re_attach(device_t dev)
 		goto fail;
 	}
 
-	NETDUMP_SET(ifp, re);
+	DEBUGNET_SET(ifp, re);
 
 fail:
 	if (error)
@@ -4093,28 +4092,28 @@ sysctl_hw_re_int_mod(SYSCTL_HANDLER_ARGS)
 	    RL_TIMER_MAX));
 }
 
-#ifdef NETDUMP
+#ifdef DEBUGNET
 static void
-re_netdump_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
+re_debugnet_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
 {
 	struct rl_softc *sc;
 
 	sc = if_getsoftc(ifp);
 	RL_LOCK(sc);
 	*nrxr = sc->rl_ldata.rl_rx_desc_cnt;
-	*ncl = NETDUMP_MAX_IN_FLIGHT;
+	*ncl = DEBUGNET_MAX_IN_FLIGHT;
 	*clsize = (ifp->if_mtu > RL_MTU &&
 	    (sc->rl_flags & RL_FLAG_JUMBOV2) != 0) ? MJUM9BYTES : MCLBYTES;
 	RL_UNLOCK(sc);
 }
 
 static void
-re_netdump_event(struct ifnet *ifp __unused, enum netdump_ev event __unused)
+re_debugnet_event(struct ifnet *ifp __unused, enum debugnet_ev event __unused)
 {
 }
 
 static int
-re_netdump_transmit(struct ifnet *ifp, struct mbuf *m)
+re_debugnet_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct rl_softc *sc;
 	int error;
@@ -4131,7 +4130,7 @@ re_netdump_transmit(struct ifnet *ifp, struct mbuf *m)
 }
 
 static int
-re_netdump_poll(struct ifnet *ifp, int count)
+re_debugnet_poll(struct ifnet *ifp, int count)
 {
 	struct rl_softc *sc;
 	int error;
@@ -4147,4 +4146,4 @@ re_netdump_poll(struct ifnet *ifp, int count)
 		return (error);
 	return (0);
 }
-#endif /* NETDUMP */
+#endif /* DEBUGNET */

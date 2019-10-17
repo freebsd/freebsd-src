@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 #include <sys/systm.h>
 
 #include <net/ethernet.h>
@@ -57,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
+#include <net/debugnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -71,57 +73,26 @@ __FBSDID("$FreeBSD$");
 #include <machine/in_cksum.h>
 #include <machine/pcb.h>
 
-#define	NETDDEBUG(f, ...) do {						\
-	if (nd_debug > 0)						\
-		printf(("%s: " f), __func__, ## __VA_ARGS__);		\
-} while (0)
-#define	NETDDEBUG_IF(i, f, ...) do {					\
-	if (nd_debug > 0)						\
-		if_printf((i), ("%s: " f), __func__, ## __VA_ARGS__);	\
-} while (0)
 #define	NETDDEBUGV(f, ...) do {						\
 	if (nd_debug > 1)						\
 		printf(("%s: " f), __func__, ## __VA_ARGS__);		\
 } while (0)
-#define	NETDDEBUGV_IF(i, f, ...) do {					\
-	if (nd_debug > 1)						\
-		if_printf((i), ("%s: " f), __func__, ## __VA_ARGS__);	\
-} while (0)
 
-static int	 netdump_arp_gw(void);
-static void	 netdump_cleanup(void);
 static int	 netdump_configure(struct diocskerneldump_arg *,
 		    struct thread *);
 static int	 netdump_dumper(void *priv __unused, void *virtual,
 		    vm_offset_t physical __unused, off_t offset, size_t length);
 static bool	 netdump_enabled(void);
 static int	 netdump_enabled_sysctl(SYSCTL_HANDLER_ARGS);
-static int	 netdump_ether_output(struct mbuf *m, struct ifnet *ifp,
-		    struct ether_addr dst, u_short etype);
-static void	 netdump_handle_arp(struct mbuf **mb);
-static void	 netdump_handle_ip(struct mbuf **mb);
 static int	 netdump_ioctl(struct cdev *dev __unused, u_long cmd,
 		    caddr_t addr, int flags __unused, struct thread *td);
 static int	 netdump_modevent(module_t mod, int type, void *priv);
-static void	 netdump_network_poll(void);
-static void	 netdump_pkt_in(struct ifnet *ifp, struct mbuf *m);
-static void	 netdump_reinit_internal(struct ifnet *ifp);
-static int	 netdump_send(uint32_t type, off_t offset, unsigned char *data,
-		    uint32_t datalen);
-static int	 netdump_send_arp(in_addr_t dst);
 static int	 netdump_start(struct dumperinfo *di);
-static int	 netdump_udp_output(struct mbuf *m);
 static void	 netdump_unconfigure(void);
 
 /* Must be at least as big as the chunks dumpsys() gives us. */
 static unsigned char nd_buf[MAXDUMPPGS * PAGE_SIZE];
-static uint32_t nd_seqno;
-static int dump_failed, have_gw_mac;
-static void (*drv_if_input)(struct ifnet *, struct mbuf *);
-static int restore_gw_addr;
-
-static uint64_t rcvd_acks;
-CTASSERT(sizeof(rcvd_acks) * NBBY == NETDUMP_MAX_IN_FLIGHT);
+static int dump_failed;
 
 /* Configuration parameters. */
 static struct {
@@ -131,6 +102,7 @@ static struct {
 	union kd_ip	 ndc_gateway;
 	uint8_t		 ndc_af;
 	/* Runtime State */
+	struct debugnet_pcb *nd_pcb;
 	off_t		 nd_tx_off;
 	size_t		 nd_buf_len;
 } nd_conf;
@@ -147,10 +119,8 @@ SX_SYSINIT(nd_conf, &nd_conf_lk, "netdump configuration lock");
 #define NETDUMP_RUNLOCK()		sx_sunlock(&nd_conf_lk)
 #define NETDUMP_ASSERT_WLOCKED()	sx_assert(&nd_conf_lk, SA_XLOCKED)
 #define NETDUMP_ASSERT_LOCKED()		sx_assert(&nd_conf_lk, SA_LOCKED)
-static struct ether_addr nd_gw_mac;
 static struct ifnet *nd_ifp;
 static eventhandler_tag nd_detach_cookie;
-static uint16_t nd_server_port = NETDUMP_PORT;
 
 FEATURE(netdump, "Netdump client support");
 
@@ -167,17 +137,18 @@ static char nd_path[MAXPATHLEN];
 SYSCTL_STRING(_net_netdump, OID_AUTO, path, CTLFLAG_RW,
     nd_path, sizeof(nd_path),
     "Server path for output files");
-static int nd_polls = 2000;
+/*
+ * The following three variables were moved to debugnet(4), but these knobs
+ * were retained as aliases.
+ */
 SYSCTL_INT(_net_netdump, OID_AUTO, polls, CTLFLAG_RWTUN,
-    &nd_polls, 0,
+    &debugnet_npolls, 0,
     "Number of times to poll before assuming packet loss (0.5ms per poll)");
-static int nd_retries = 10;
 SYSCTL_INT(_net_netdump, OID_AUTO, retries, CTLFLAG_RWTUN,
-    &nd_retries, 0,
+    &debugnet_nretries, 0,
     "Number of retransmit attempts before giving up");
-static int nd_arp_retries = 3;
 SYSCTL_INT(_net_netdump, OID_AUTO, arp_retries, CTLFLAG_RWTUN,
-    &nd_arp_retries, 0,
+    &debugnet_arp_nretries, 0,
     "Number of ARP attempts before giving up");
 
 static bool
@@ -203,721 +174,6 @@ netdump_enabled_sysctl(SYSCTL_HANDLER_ARGS)
 	return (EPERM);
 }
 
-/*
- * Checks for netdump support on a network interface
- *
- * Parameters:
- *	ifp	The network interface that is being tested for support
- *
- * Returns:
- *	int	1 if the interface is supported, 0 if not
- */
-static bool
-netdump_supported_nic(struct ifnet *ifp)
-{
-
-	return (ifp->if_netdump_methods != NULL);
-}
-
-/*-
- * Network specific primitives.
- * Following down the code they are divided ordered as:
- * - Packet buffer primitives
- * - Output primitives
- * - Input primitives
- * - Polling primitives
- */
-
-/*
- * Handles creation of the ethernet header, then places outgoing packets into
- * the tx buffer for the NIC
- *
- * Parameters:
- *	m	The mbuf containing the packet to be sent (will be freed by
- *		this function or the NIC driver)
- *	ifp	The interface to send on
- *	dst	The destination ethernet address (source address will be looked
- *		up using ifp)
- *	etype	The ETHERTYPE_* value for the protocol that is being sent
- *
- * Returns:
- *	int	see errno.h, 0 for success
- */
-static int
-netdump_ether_output(struct mbuf *m, struct ifnet *ifp, struct ether_addr dst,
-    u_short etype)
-{
-	struct ether_header *eh;
-
-	if (((ifp->if_flags & (IFF_MONITOR | IFF_UP)) != IFF_UP) ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) != IFF_DRV_RUNNING) {
-		if_printf(ifp, "netdump_ether_output: interface isn't up\n");
-		m_freem(m);
-		return (ENETDOWN);
-	}
-
-	/* Fill in the ethernet header. */
-	M_PREPEND(m, ETHER_HDR_LEN, M_NOWAIT);
-	if (m == NULL) {
-		printf("%s: out of mbufs\n", __func__);
-		return (ENOBUFS);
-	}
-	eh = mtod(m, struct ether_header *);
-	memcpy(eh->ether_shost, IF_LLADDR(ifp), ETHER_ADDR_LEN);
-	memcpy(eh->ether_dhost, dst.octet, ETHER_ADDR_LEN);
-	eh->ether_type = htons(etype);
-	return ((ifp->if_netdump_methods->nd_transmit)(ifp, m));
-}
-
-/*
- * Unreliable transmission of an mbuf chain to the netdump server
- * Note: can't handle fragmentation; fails if the packet is larger than
- *	 nd_ifp->if_mtu after adding the UDP/IP headers
- *
- * Parameters:
- *	m	mbuf chain
- *
- * Returns:
- *	int	see errno.h, 0 for success
- */
-static int
-netdump_udp_output(struct mbuf *m)
-{
-	struct udpiphdr *ui;
-	struct ip *ip;
-
-	MPASS(netdump_enabled());
-
-	M_PREPEND(m, sizeof(struct udpiphdr), M_NOWAIT);
-	if (m == NULL) {
-		printf("%s: out of mbufs\n", __func__);
-		return (ENOBUFS);
-	}
-
-	if (m->m_pkthdr.len > nd_ifp->if_mtu) {
-		printf("netdump_udp_output: Packet is too big: %d > MTU %u\n",
-		    m->m_pkthdr.len, nd_ifp->if_mtu);
-		m_freem(m);
-		return (ENOBUFS);
-	}
-
-	ui = mtod(m, struct udpiphdr *);
-	bzero(ui->ui_x1, sizeof(ui->ui_x1));
-	ui->ui_pr = IPPROTO_UDP;
-	ui->ui_len = htons(m->m_pkthdr.len - sizeof(struct ip));
-	ui->ui_ulen = ui->ui_len;
-	ui->ui_src = nd_client;
-	ui->ui_dst = nd_server;
-	/* Use this src port so that the server can connect() the socket */
-	ui->ui_sport = htons(NETDUMP_ACKPORT);
-	ui->ui_dport = htons(nd_server_port);
-	ui->ui_sum = 0;
-	if ((ui->ui_sum = in_cksum(m, m->m_pkthdr.len)) == 0)
-		ui->ui_sum = 0xffff;
-
-	ip = mtod(m, struct ip *);
-	ip->ip_v = IPVERSION;
-	ip->ip_hl = sizeof(struct ip) >> 2;
-	ip->ip_tos = 0;
-	ip->ip_len = htons(m->m_pkthdr.len);
-	ip->ip_id = 0;
-	ip->ip_off = htons(IP_DF);
-	ip->ip_ttl = 255;
-	ip->ip_sum = 0;
-	ip->ip_sum = in_cksum(m, sizeof(struct ip));
-
-	return (netdump_ether_output(m, nd_ifp, nd_gw_mac, ETHERTYPE_IP));
-}
-
-/*
- * Builds and sends a single ARP request to locate the server
- *
- * Return value:
- *	0 on success
- *	errno on error
- */
-static int
-netdump_send_arp(in_addr_t dst)
-{
-	struct ether_addr bcast;
-	struct mbuf *m;
-	struct arphdr *ah;
-	int pktlen;
-
-	MPASS(netdump_enabled());
-
-	/* Fill-up a broadcast address. */
-	memset(&bcast, 0xFF, ETHER_ADDR_LEN);
-	m = m_gethdr(M_NOWAIT, MT_DATA);
-	if (m == NULL) {
-		printf("netdump_send_arp: Out of mbufs\n");
-		return (ENOBUFS);
-	}
-	pktlen = arphdr_len2(ETHER_ADDR_LEN, sizeof(struct in_addr));
-	m->m_len = pktlen;
-	m->m_pkthdr.len = pktlen;
-	MH_ALIGN(m, pktlen);
-	ah = mtod(m, struct arphdr *);
-	ah->ar_hrd = htons(ARPHRD_ETHER);
-	ah->ar_pro = htons(ETHERTYPE_IP);
-	ah->ar_hln = ETHER_ADDR_LEN;
-	ah->ar_pln = sizeof(struct in_addr);
-	ah->ar_op = htons(ARPOP_REQUEST);
-	memcpy(ar_sha(ah), IF_LLADDR(nd_ifp), ETHER_ADDR_LEN);
-	((struct in_addr *)ar_spa(ah))->s_addr = nd_client.s_addr;
-	bzero(ar_tha(ah), ETHER_ADDR_LEN);
-	((struct in_addr *)ar_tpa(ah))->s_addr = dst;
-	return (netdump_ether_output(m, nd_ifp, bcast, ETHERTYPE_ARP));
-}
-
-/*
- * Sends ARP requests to locate the server and waits for a response.
- * We first try to ARP the server itself, and fall back to the provided
- * gateway if the server appears to be off-link.
- *
- * Return value:
- *	0 on success
- *	errno on error
- */
-static int
-netdump_arp_gw(void)
-{
-	in_addr_t dst;
-	int error, polls, retries;
-
-	dst = nd_server.s_addr;
-restart:
-	for (retries = 0; retries < nd_arp_retries && have_gw_mac == 0;
-	    retries++) {
-		error = netdump_send_arp(dst);
-		if (error != 0)
-			return (error);
-		for (polls = 0; polls < nd_polls && have_gw_mac == 0; polls++) {
-			netdump_network_poll();
-			DELAY(500);
-		}
-		if (have_gw_mac == 0)
-			printf("(ARP retry)");
-	}
-	if (have_gw_mac != 0)
-		return (0);
-	if (dst == nd_server.s_addr && nd_server.s_addr != nd_gateway.s_addr) {
-		printf("Failed to ARP server, trying to reach gateway...\n");
-		dst = nd_gateway.s_addr;
-		goto restart;
-	}
-
-	printf("\nARP timed out.\n");
-	return (ETIMEDOUT);
-}
-
-/*
- * Dummy free function for netdump clusters.
- */
-static void
-netdump_mbuf_free(struct mbuf *m __unused)
-{
-}
-
-/*
- * Construct and reliably send a netdump packet.  May fail from a resource
- * shortage or extreme number of unacknowledged retransmissions.  Wait for
- * an acknowledgement before returning.  Splits packets into chunks small
- * enough to be sent without fragmentation (looks up the interface MTU)
- *
- * Parameters:
- *	type	netdump packet type (HERALD, FINISHED, or VMCORE)
- *	offset	vmcore data offset (bytes)
- *	data	vmcore data
- *	datalen	vmcore data size (bytes)
- *
- * Returns:
- *	int see errno.h, 0 for success
- */
-static int
-netdump_send(uint32_t type, off_t offset, unsigned char *data, uint32_t datalen)
-{
-	struct netdump_msg_hdr *nd_msg_hdr;
-	struct mbuf *m, *m2;
-	uint64_t want_acks;
-	uint32_t i, pktlen, sent_so_far;
-	int retries, polls, error;
-
-	want_acks = 0;
-	rcvd_acks = 0;
-	retries = 0;
-
-	MPASS(netdump_enabled());
-
-retransmit:
-	/* Chunks can be too big to fit in packets. */
-	for (i = sent_so_far = 0; sent_so_far < datalen ||
-	    (i == 0 && datalen == 0); i++) {
-		pktlen = datalen - sent_so_far;
-
-		/* First bound: the packet structure. */
-		pktlen = min(pktlen, NETDUMP_DATASIZE);
-
-		/* Second bound: the interface MTU (assume no IP options). */
-		pktlen = min(pktlen, nd_ifp->if_mtu - sizeof(struct udpiphdr) -
-		    sizeof(struct netdump_msg_hdr));
-
-		/*
-		 * Check if it is retransmitting and this has been ACKed
-		 * already.
-		 */
-		if ((rcvd_acks & (1 << i)) != 0) {
-			sent_so_far += pktlen;
-			continue;
-		}
-
-		/*
-		 * Get and fill a header mbuf, then chain data as an extended
-		 * mbuf.
-		 */
-		m = m_gethdr(M_NOWAIT, MT_DATA);
-		if (m == NULL) {
-			printf("netdump_send: Out of mbufs\n");
-			return (ENOBUFS);
-		}
-		m->m_len = sizeof(struct netdump_msg_hdr);
-		m->m_pkthdr.len = sizeof(struct netdump_msg_hdr);
-		MH_ALIGN(m, sizeof(struct netdump_msg_hdr));
-		nd_msg_hdr = mtod(m, struct netdump_msg_hdr *);
-		nd_msg_hdr->mh_seqno = htonl(nd_seqno + i);
-		nd_msg_hdr->mh_type = htonl(type);
-		nd_msg_hdr->mh_offset = htobe64(offset + sent_so_far);
-		nd_msg_hdr->mh_len = htonl(pktlen);
-		nd_msg_hdr->mh__pad = 0;
-
-		if (pktlen != 0) {
-			m2 = m_get(M_NOWAIT, MT_DATA);
-			if (m2 == NULL) {
-				m_freem(m);
-				printf("netdump_send: Out of mbufs\n");
-				return (ENOBUFS);
-			}
-			MEXTADD(m2, data + sent_so_far, pktlen,
-			    netdump_mbuf_free, NULL, NULL, 0, EXT_DISPOSABLE);
-			m2->m_len = pktlen;
-
-			m_cat(m, m2);
-			m->m_pkthdr.len += pktlen;
-		}
-		error = netdump_udp_output(m);
-		if (error != 0)
-			return (error);
-
-		/* Note that we're waiting for this packet in the bitfield. */
-		want_acks |= (1 << i);
-		sent_so_far += pktlen;
-	}
-	if (i >= NETDUMP_MAX_IN_FLIGHT)
-		printf("Warning: Sent more than %d packets (%d). "
-		    "Acknowledgements will fail unless the size of "
-		    "rcvd_acks/want_acks is increased.\n",
-		    NETDUMP_MAX_IN_FLIGHT, i);
-
-	/*
-	 * Wait for acks.  A *real* window would speed things up considerably.
-	 */
-	polls = 0;
-	while (rcvd_acks != want_acks) {
-		if (polls++ > nd_polls) {
-			if (retries++ > nd_retries)
-				return (ETIMEDOUT);
-			printf(". ");
-			goto retransmit;
-		}
-		netdump_network_poll();
-		DELAY(500);
-	}
-	nd_seqno += i;
-	return (0);
-}
-
-/*
- * Handler for IP packets: checks their sanity and then processes any netdump
- * ACK packets it finds.
- *
- * It needs to replicate partially the behaviour of ip_input() and
- * udp_input().
- *
- * Parameters:
- *	mb	a pointer to an mbuf * containing the packet received
- *		Updates *mb if m_pullup et al change the pointer
- *		Assumes the calling function will take care of freeing the mbuf
- */
-static void
-netdump_handle_ip(struct mbuf **mb)
-{
-	struct ip *ip;
-	struct udpiphdr *udp;
-	struct netdump_ack *nd_ack;
-	struct mbuf *m;
-	int rcv_ackno;
-	unsigned short hlen;
-
-	/* IP processing. */
-	m = *mb;
-	if (m->m_pkthdr.len < sizeof(struct ip)) {
-		NETDDEBUG("dropping packet too small for IP header\n");
-		return;
-	}
-	if (m->m_len < sizeof(struct ip)) {
-		m = m_pullup(m, sizeof(struct ip));
-		*mb = m;
-		if (m == NULL) {
-			NETDDEBUG("m_pullup failed\n");
-			return;
-		}
-	}
-	ip = mtod(m, struct ip *);
-
-	/* IP version. */
-	if (ip->ip_v != IPVERSION) {
-		NETDDEBUG("bad IP version %d\n", ip->ip_v);
-		return;
-	}
-
-	/* Header length. */
-	hlen = ip->ip_hl << 2;
-	if (hlen < sizeof(struct ip)) {
-		NETDDEBUG("bad IP header length (%hu)\n", hlen);
-		return;
-	}
-	if (hlen > m->m_len) {
-		m = m_pullup(m, hlen);
-		*mb = m;
-		if (m == NULL) {
-			NETDDEBUG("m_pullup failed\n");
-			return;
-		}
-		ip = mtod(m, struct ip *);
-	}
-	/* Ignore packets with IP options. */
-	if (hlen > sizeof(struct ip)) {
-		NETDDEBUG("drop packet with IP options\n");
-		return;
-	}
-
-#ifdef INVARIANTS
-	if ((IN_LOOPBACK(ntohl(ip->ip_dst.s_addr)) ||
-	    IN_LOOPBACK(ntohl(ip->ip_src.s_addr))) &&
-	    (m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) {
-		NETDDEBUG("Bad IP header (RFC1122)\n");
-		return;
-	}
-#endif
-
-	/* Checksum. */
-	if ((m->m_pkthdr.csum_flags & CSUM_IP_CHECKED) != 0) {
-		if ((m->m_pkthdr.csum_flags & CSUM_IP_VALID) == 0) {
-			NETDDEBUG("bad IP checksum\n");
-			return;
-		}
-	} else {
-		/* XXX */ ;
-	}
-
-	/* Convert fields to host byte order. */
-	ip->ip_len = ntohs(ip->ip_len);
-	if (ip->ip_len < hlen) {
-		NETDDEBUG("IP packet smaller (%hu) than header (%hu)\n",
-		    ip->ip_len, hlen);
-		return;
-	}
-	if (m->m_pkthdr.len < ip->ip_len) {
-		NETDDEBUG("IP packet bigger (%hu) than ethernet packet (%d)\n",
-		    ip->ip_len, m->m_pkthdr.len);
-		return;
-	}
-	if (m->m_pkthdr.len > ip->ip_len) {
-
-		/* Truncate the packet to the IP length. */
-		if (m->m_len == m->m_pkthdr.len) {
-			m->m_len = ip->ip_len;
-			m->m_pkthdr.len = ip->ip_len;
-		} else
-			m_adj(m, ip->ip_len - m->m_pkthdr.len);
-	}
-
-	ip->ip_off = ntohs(ip->ip_off);
-
-	/* Check that the source is the server's IP. */
-	if (ip->ip_src.s_addr != nd_server.s_addr) {
-		NETDDEBUG("drop packet not from server (from 0x%x)\n",
-		    ip->ip_src.s_addr);
-		return;
-	}
-
-	/* Check if the destination IP is ours. */
-	if (ip->ip_dst.s_addr != nd_client.s_addr) {
-		NETDDEBUGV("drop packet not to our IP\n");
-		return;
-	}
-
-	if (ip->ip_p != IPPROTO_UDP) {
-		NETDDEBUG("drop non-UDP packet\n");
-		return;
-	}
-
-	/* Do not deal with fragments. */
-	if ((ip->ip_off & (IP_MF | IP_OFFMASK)) != 0) {
-		NETDDEBUG("drop fragmented packet\n");
-		return;
-	}
-
-	/* UDP custom is to have packet length not include IP header. */
-	ip->ip_len -= hlen;
-
-	/* UDP processing. */
-
-	/* Get IP and UDP headers together, along with the netdump packet. */
-	if (m->m_pkthdr.len <
-	    sizeof(struct udpiphdr) + sizeof(struct netdump_ack)) {
-		NETDDEBUG("ignoring small packet\n");
-		return;
-	}
-	if (m->m_len < sizeof(struct udpiphdr) + sizeof(struct netdump_ack)) {
-		m = m_pullup(m, sizeof(struct udpiphdr) +
-		    sizeof(struct netdump_ack));
-		*mb = m;
-		if (m == NULL) {
-			NETDDEBUG("m_pullup failed\n");
-			return;
-		}
-	}
-	udp = mtod(m, struct udpiphdr *);
-
-	if (ntohs(udp->ui_u.uh_dport) != NETDUMP_ACKPORT) {
-		NETDDEBUG("not on the netdump port.\n");
-		return;
-	}
-
-	/* Netdump processing. */
-
-	/*
-	 * Packet is meant for us.  Extract the ack sequence number and the
-	 * port number if necessary.
-	 */
-	nd_ack = (struct netdump_ack *)(mtod(m, caddr_t) +
-	    sizeof(struct udpiphdr));
-	rcv_ackno = ntohl(nd_ack->na_seqno);
-	if (nd_server_port == NETDUMP_PORT)
-		nd_server_port = ntohs(udp->ui_u.uh_sport);
-	if (rcv_ackno >= nd_seqno + NETDUMP_MAX_IN_FLIGHT)
-		printf("%s: ACK %d too far in future!\n", __func__, rcv_ackno);
-	else if (rcv_ackno >= nd_seqno) {
-		/* We're interested in this ack. Record it. */
-		rcvd_acks |= 1 << (rcv_ackno - nd_seqno);
-	}
-}
-
-/*
- * Handler for ARP packets: checks their sanity and then
- * 1. If the ARP is a request for our IP, respond with our MAC address
- * 2. If the ARP is a response from our server, record its MAC address
- *
- * It needs to replicate partially the behaviour of arpintr() and
- * in_arpinput().
- *
- * Parameters:
- *	mb	a pointer to an mbuf * containing the packet received
- *		Updates *mb if m_pullup et al change the pointer
- *		Assumes the calling function will take care of freeing the mbuf
- */
-static void
-netdump_handle_arp(struct mbuf **mb)
-{
-	char buf[INET_ADDRSTRLEN];
-	struct in_addr isaddr, itaddr, myaddr;
-	struct ether_addr dst;
-	struct mbuf *m;
-	struct arphdr *ah;
-	struct ifnet *ifp;
-	uint8_t *enaddr;
-	int req_len, op;
-
-	m = *mb;
-	ifp = m->m_pkthdr.rcvif;
-	if (m->m_len < sizeof(struct arphdr)) {
-		m = m_pullup(m, sizeof(struct arphdr));
-		*mb = m;
-		if (m == NULL) {
-			NETDDEBUG("runt packet: m_pullup failed\n");
-			return;
-		}
-	}
-
-	ah = mtod(m, struct arphdr *);
-	if (ntohs(ah->ar_hrd) != ARPHRD_ETHER) {
-		NETDDEBUG("unknown hardware address 0x%2D)\n",
-		    (unsigned char *)&ah->ar_hrd, "");
-		return;
-	}
-	if (ntohs(ah->ar_pro) != ETHERTYPE_IP) {
-		NETDDEBUG("drop ARP for unknown protocol %d\n",
-		    ntohs(ah->ar_pro));
-		return;
-	}
-	req_len = arphdr_len2(ifp->if_addrlen, sizeof(struct in_addr));
-	if (m->m_len < req_len) {
-		m = m_pullup(m, req_len);
-		*mb = m;
-		if (m == NULL) {
-			NETDDEBUG("runt packet: m_pullup failed\n");
-			return;
-		}
-	}
-	ah = mtod(m, struct arphdr *);
-
-	op = ntohs(ah->ar_op);
-	memcpy(&isaddr, ar_spa(ah), sizeof(isaddr));
-	memcpy(&itaddr, ar_tpa(ah), sizeof(itaddr));
-	enaddr = (uint8_t *)IF_LLADDR(ifp);
-	myaddr = nd_client;
-
-	if (memcmp(ar_sha(ah), enaddr, ifp->if_addrlen) == 0) {
-		NETDDEBUG("ignoring ARP from myself\n");
-		return;
-	}
-
-	if (isaddr.s_addr == nd_client.s_addr) {
-		printf("%s: %*D is using my IP address %s!\n", __func__,
-		    ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
-		    inet_ntoa_r(isaddr, buf));
-		return;
-	}
-
-	if (memcmp(ar_sha(ah), ifp->if_broadcastaddr, ifp->if_addrlen) == 0) {
-		NETDDEBUG("ignoring ARP from broadcast address\n");
-		return;
-	}
-
-	if (op == ARPOP_REPLY) {
-		if (isaddr.s_addr != nd_gateway.s_addr &&
-		    isaddr.s_addr != nd_server.s_addr) {
-			inet_ntoa_r(isaddr, buf);
-			NETDDEBUG(
-			    "ignoring ARP reply from %s (not netdump server)\n",
-			    buf);
-			return;
-		}
-		memcpy(nd_gw_mac.octet, ar_sha(ah),
-		    min(ah->ar_hln, ETHER_ADDR_LEN));
-		have_gw_mac = 1;
-		NETDDEBUG("got server MAC address %6D\n", nd_gw_mac.octet, ":");
-		return;
-	}
-
-	if (op != ARPOP_REQUEST) {
-		NETDDEBUG("ignoring ARP non-request/reply\n");
-		return;
-	}
-
-	if (itaddr.s_addr != nd_client.s_addr) {
-		NETDDEBUG("ignoring ARP not to our IP\n");
-		return;
-	}
-
-	memcpy(ar_tha(ah), ar_sha(ah), ah->ar_hln);
-	memcpy(ar_sha(ah), enaddr, ah->ar_hln);
-	memcpy(ar_tpa(ah), ar_spa(ah), ah->ar_pln);
-	memcpy(ar_spa(ah), &itaddr, ah->ar_pln);
-	ah->ar_op = htons(ARPOP_REPLY);
-	ah->ar_pro = htons(ETHERTYPE_IP);
-	m->m_flags &= ~(M_BCAST|M_MCAST);
-	m->m_len = arphdr_len(ah);
-	m->m_pkthdr.len = m->m_len;
-
-	memcpy(dst.octet, ar_tha(ah), ETHER_ADDR_LEN);
-	netdump_ether_output(m, ifp, dst, ETHERTYPE_ARP);
-	*mb = NULL;
-}
-
-/*
- * Handler for incoming packets directly from the network adapter
- * Identifies the packet type (IP or ARP) and passes it along to one of the
- * helper functions netdump_handle_ip or netdump_handle_arp.
- *
- * It needs to replicate partially the behaviour of ether_input() and
- * ether_demux().
- *
- * Parameters:
- *	ifp	the interface the packet came from (should be nd_ifp)
- *	m	an mbuf containing the packet received
- */
-static void
-netdump_pkt_in(struct ifnet *ifp, struct mbuf *m)
-{
-	struct ifreq ifr;
-	struct ether_header *eh;
-	u_short etype;
-
-	/* Ethernet processing. */
-	if ((m->m_flags & M_PKTHDR) == 0) {
-		NETDDEBUG_IF(ifp, "discard frame without packet header\n");
-		goto done;
-	}
-	if (m->m_len < ETHER_HDR_LEN) {
-		NETDDEBUG_IF(ifp,
-	    "discard frame without leading eth header (len %u pktlen %u)\n",
-		    m->m_len, m->m_pkthdr.len);
-		goto done;
-	}
-	if ((m->m_flags & M_HASFCS) != 0) {
-		m_adj(m, -ETHER_CRC_LEN);
-		m->m_flags &= ~M_HASFCS;
-	}
-	eh = mtod(m, struct ether_header *);
-	etype = ntohs(eh->ether_type);
-	if ((m->m_flags & M_VLANTAG) != 0 || etype == ETHERTYPE_VLAN) {
-		NETDDEBUG_IF(ifp, "ignoring vlan packets\n");
-		goto done;
-	}
-	if (if_gethwaddr(ifp, &ifr) != 0) {
-		NETDDEBUG_IF(ifp, "failed to get hw addr for interface\n");
-		goto done;
-	}
-	if (memcmp(ifr.ifr_addr.sa_data, eh->ether_dhost,
-	    ETHER_ADDR_LEN) != 0) {
-		NETDDEBUG_IF(ifp,
-		    "discard frame with incorrect destination addr\n");
-		goto done;
-	}
-
-	/* Done ethernet processing. Strip off the ethernet header. */
-	m_adj(m, ETHER_HDR_LEN);
-	switch (etype) {
-	case ETHERTYPE_ARP:
-		netdump_handle_arp(&m);
-		break;
-	case ETHERTYPE_IP:
-		netdump_handle_ip(&m);
-		break;
-	default:
-		NETDDEBUG_IF(ifp, "dropping unknown ethertype %hu\n", etype);
-		break;
-	}
-done:
-	if (m != NULL)
-		m_freem(m);
-}
-
-/*
- * After trapping, instead of assuming that most of the network stack is sane,
- * we just poll the driver directly for packets.
- */
-static void
-netdump_network_poll(void)
-{
-
-	MPASS(netdump_enabled());
-
-	nd_ifp->if_netdump_methods->nd_poll(nd_ifp, 1000);
-}
-
 /*-
  * Dumping specific primitives.
  */
@@ -932,8 +188,11 @@ netdump_flush_buf(void)
 
 	error = 0;
 	if (nd_conf.nd_buf_len != 0) {
-		error = netdump_send(NETDUMP_VMCORE, nd_conf.nd_tx_off,
-		    nd_buf, nd_conf.nd_buf_len);
+		struct debugnet_proto_aux auxdata = {
+			.dp_offset_start = nd_conf.nd_tx_off,
+		};
+		error = debugnet_send(nd_conf.nd_pcb, DEBUGNET_DATA, nd_buf,
+		    nd_conf.nd_buf_len, &auxdata);
 		if (error == 0)
 			nd_conf.nd_buf_len = 0;
 	}
@@ -972,11 +231,13 @@ netdump_dumper(void *priv __unused, void *virtual,
 
 		if (dump_failed != 0)
 			printf("failed to dump the kernel core\n");
-		else if (netdump_send(NETDUMP_FINISHED, 0, NULL, 0) != 0)
+		else if (
+		    debugnet_sendempty(nd_conf.nd_pcb, DEBUGNET_FINISHED) != 0)
 			printf("failed to close the transaction\n");
 		else
 			printf("\nnetdump finished.\n");
-		netdump_cleanup();
+		debugnet_free(nd_conf.nd_pcb);
+		nd_conf.nd_pcb = NULL;
 		return (0);
 	}
 	if (length > sizeof(nd_buf))
@@ -1005,9 +266,9 @@ netdump_dumper(void *priv __unused, void *virtual,
 static int
 netdump_start(struct dumperinfo *di)
 {
-	char *path;
+	struct debugnet_conn_params dcp;
+	struct debugnet_pcb *pcb;
 	char buf[INET_ADDRSTRLEN];
-	uint32_t len;
 	int error;
 
 	error = 0;
@@ -1022,6 +283,8 @@ netdump_start(struct dumperinfo *di)
 		return (EINVAL);
 	}
 
+	memset(&dcp, 0, sizeof(dcp));
+
 	if (nd_server.s_addr == INADDR_ANY) {
 		printf("netdump_start: can't netdump; no server IP given\n");
 		return (EINVAL);
@@ -1034,54 +297,29 @@ netdump_start(struct dumperinfo *di)
 	/* We start dumping at offset 0. */
 	di->dumpoff = 0;
 
-	nd_seqno = 1;
+	dcp.dc_ifp = nd_ifp;
 
-	/*
-	 * nd_server_port could have switched after the first ack the
-	 * first time it gets called.  Adjust it accordingly.
-	 */
-	nd_server_port = NETDUMP_PORT;
+	dcp.dc_client = nd_client.s_addr;
+	dcp.dc_server = nd_server.s_addr;
+	dcp.dc_gateway = nd_gateway.s_addr;
 
-	/* Switch to the netdump mbuf zones. */
-	netdump_mbuf_dump();
+	dcp.dc_herald_port = NETDUMP_PORT;
+	dcp.dc_client_ack_port = NETDUMP_ACKPORT;
 
-	nd_ifp->if_netdump_methods->nd_event(nd_ifp, NETDUMP_START);
+	dcp.dc_herald_data = nd_path;
+	dcp.dc_herald_datalen = (nd_path[0] == 0) ? 0 : strlen(nd_path) + 1;
 
-	/* Make the card use *our* receive callback. */
-	drv_if_input = nd_ifp->if_input;
-	nd_ifp->if_input = netdump_pkt_in;
-
-	if (nd_gateway.s_addr == INADDR_ANY) {
-		restore_gw_addr = 1;
-		nd_gateway.s_addr = nd_server.s_addr;
-	}
-
-	printf("netdump in progress. searching for server...\n");
-	if (netdump_arp_gw()) {
-		printf("failed to locate server MAC address\n");
-		error = EINVAL;
-		goto trig_abort;
-	}
-
-	if (nd_path[0] != '\0') {
-		path = nd_path;
-		len = strlen(path) + 1;
-	} else {
-		path = NULL;
-		len = 0;
-	}
-	if (netdump_send(NETDUMP_HERALD, 0, path, len) != 0) {
+	error = debugnet_connect(&dcp, &pcb);
+	if (error != 0) {
 		printf("failed to contact netdump server\n");
-		error = EINVAL;
-		goto trig_abort;
+		/* Squash debugnet to something the dumper code understands. */
+		return (EINVAL);
 	}
-	printf("netdumping to %s (%6D)\n", inet_ntoa_r(nd_server, buf),
-	    nd_gw_mac.octet, ":");
-	return (0);
 
-trig_abort:
-	netdump_cleanup();
-	return (error);
+	printf("netdumping to %s (%6D)\n", inet_ntoa_r(nd_server, buf),
+	    debugnet_get_gw_mac(pcb), ":");
+	nd_conf.nd_pcb = pcb;
+	return (0);
 }
 
 static int
@@ -1094,32 +332,16 @@ netdump_write_headers(struct dumperinfo *di, struct kerneldumpheader *kdh,
 	if (error != 0)
 		return (error);
 	memcpy(nd_buf, kdh, sizeof(*kdh));
-	error = netdump_send(NETDUMP_KDH, 0, nd_buf, sizeof(*kdh));
+	error = debugnet_send(nd_conf.nd_pcb, NETDUMP_KDH, nd_buf,
+	    sizeof(*kdh), NULL);
 	if (error == 0 && keysize > 0) {
 		if (keysize > sizeof(nd_buf))
 			return (EINVAL);
 		memcpy(nd_buf, key, keysize);
-		error = netdump_send(NETDUMP_EKCD_KEY, 0, nd_buf, keysize);
+		error = debugnet_send(nd_conf.nd_pcb, NETDUMP_EKCD_KEY, nd_buf,
+		    keysize, NULL);
 	}
 	return (error);
-}
-
-/*
- * Cleanup routine for a possibly failed netdump.
- */
-static void
-netdump_cleanup(void)
-{
-
-	if (restore_gw_addr != 0) {
-		nd_gateway.s_addr = INADDR_ANY;
-		restore_gw_addr = 0;
-	}
-	if (drv_if_input != NULL) {
-		nd_ifp->if_input = drv_if_input;
-		drv_if_input = NULL;
-	}
-	nd_ifp->if_netdump_methods->nd_event(nd_ifp, NETDUMP_END);
 }
 
 /*-
@@ -1146,10 +368,11 @@ netdump_unconfigure(void)
 	kda.kda_index = KDA_REMOVE_DEV;
 	(void)dumper_remove(nd_conf.ndc_iface, &kda);
 
-	netdump_mbuf_drain();
-
 	if_rele(nd_ifp);
 	nd_ifp = NULL;
+
+	log(LOG_WARNING, "netdump: Lost configured interface %s\n",
+	    nd_conf.ndc_iface);
 
 	bzero(&nd_conf, sizeof(nd_conf));
 }
@@ -1185,7 +408,7 @@ netdump_configure(struct diocskerneldump_arg *conf, struct thread *td)
 		if_rele(ifp);
 		return (ENXIO);
 	}
-	if (!netdump_supported_nic(ifp) || ifp->if_type != IFT_ETHER) {
+	if (!DEBUGNET_SUPPORTED_NIC(ifp)) {
 		if_rele(ifp);
 		return (ENODEV);
 	}
@@ -1193,8 +416,6 @@ netdump_configure(struct diocskerneldump_arg *conf, struct thread *td)
 	if (netdump_enabled())
 		if_rele(nd_ifp);
 	nd_ifp = ifp;
-
-	netdump_reinit_internal(ifp);
 
 #define COPY_SIZED(elm) do {	\
 	_Static_assert(sizeof(nd_conf.ndc_ ## elm) ==			\
@@ -1210,43 +431,6 @@ netdump_configure(struct diocskerneldump_arg *conf, struct thread *td)
 #undef COPY_SIZED
 
 	return (0);
-}
-
-/*
- * Reinitialize the mbuf pool used by drivers while dumping. This is called
- * from the generic ioctl handler for SIOCSIFMTU after any NIC driver has
- * reconfigured itself.  (I.e., it may not be a configured netdump interface.)
- */
-void
-netdump_reinit(struct ifnet *ifp)
-{
-
-	NETDUMP_WLOCK();
-	if (ifp != nd_ifp) {
-		NETDUMP_WUNLOCK();
-		return;
-	}
-	netdump_reinit_internal(ifp);
-	NETDUMP_WUNLOCK();
-}
-
-static void
-netdump_reinit_internal(struct ifnet *ifp)
-{
-	int clsize, nmbuf, ncl, nrxr;
-
-	NETDUMP_ASSERT_WLOCKED();
-
-	ifp->if_netdump_methods->nd_init(ifp, &nrxr, &ncl, &clsize);
-	KASSERT(nrxr > 0, ("invalid receive ring count %d", nrxr));
-
-	/*
-	 * We need two headers per message on the transmit side. Multiply by
-	 * four to give us some breathing room.
-	 */
-	nmbuf = ncl * (4 + nrxr);
-	ncl *= nrxr;
-	netdump_mbuf_reinit(nmbuf, ncl, clsize);
 }
 
 /*
