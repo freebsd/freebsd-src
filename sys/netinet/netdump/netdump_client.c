@@ -316,7 +316,7 @@ netdump_start(struct dumperinfo *di)
 	dcp.dc_gateway = nd_gateway.s_addr;
 
 	dcp.dc_herald_port = NETDUMP_PORT;
-	dcp.dc_client_ack_port = NETDUMP_ACKPORT;
+	dcp.dc_client_port = NETDUMP_ACKPORT;
 
 	dcp.dc_herald_data = nd_path;
 	dcp.dc_herald_datalen = (nd_path[0] == 0) ? 0 : strlen(nd_path) + 1;
