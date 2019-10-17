@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Conrad Meyer <cse.cem@gmail.com>
+ * Copyright (c) 2015 Conrad Meyer <cem@FreeBSD.org>
  * Copyright (c) 2005 The FreeBSD Foundation
  * Copyright (c) 1996 Larry Ewing <lewing@isc.tamu.edu>
  * Copyright (c) 1988 Kirk McKusick <mckusick@FreeBSD.org>
