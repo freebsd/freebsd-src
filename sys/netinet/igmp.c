@@ -2179,7 +2179,6 @@ igmp_v1v2_queue_report(struct in_multi *inm, const int type)
 	struct ip		*ip;
 	struct mbuf		*m;
 
-	NET_EPOCH_ASSERT();
 	IN_MULTI_LIST_LOCK_ASSERT();
 	IGMP_LOCK_ASSERT();
 
