@@ -346,10 +346,13 @@ struct ether_vlan_header {
 #define	ETHERTYPE_PAE		0x888e	/* EAPOL PAE/802.1x */
 #define	ETHERTYPE_QINQ		0x88A8	/* 802.1ad VLAN stacking */
 #define	ETHERTYPE_LOOPBACK	0x9000	/* Loopback: used to test interfaces */
+#define	ETHERTYPE_8021Q9100	0x9100	/* IEEE 802.1Q stacking (proprietary) */
 #define	ETHERTYPE_LBACK		ETHERTYPE_LOOPBACK	/* DEC MOP loopback */
 #define	ETHERTYPE_XNSSM		0x9001	/* 3Com (Formerly Bridge Communications), XNS Systems Management */
 #define	ETHERTYPE_TCPSM		0x9002	/* 3Com (Formerly Bridge Communications), TCP/IP Systems Management */
 #define	ETHERTYPE_BCLOOP	0x9003	/* 3Com (Formerly Bridge Communications), loopback detection */
+#define	ETHERTYPE_8021Q9200	0x9200	/* IEEE 802.1Q stacking (proprietary) */
+#define	ETHERTYPE_8021Q9300	0x9300	/* IEEE 802.1Q stacking (proprietary) */
 #define	ETHERTYPE_DEBNI		0xAAAA	/* DECNET? Used by VAX 6220 DEBNI */
 #define	ETHERTYPE_SONIX		0xFAF5	/* Sonix Arpeggio */
 #define	ETHERTYPE_VITAL		0xFF00	/* BBN VITAL-LanBridge cache wakeups */
