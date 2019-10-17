@@ -991,13 +991,72 @@ command_equals(const uint8_t *data, size_t len, const char *cmd)
 }
 
 static void
+check_features(const uint8_t *data, size_t len)
+{
+	char *feature, *next_feature, *str, *value;
+	bool supported;
+
+	str = malloc(len + 1);
+	memcpy(str, data, len);
+	str[len] = '\0';
+	next_feature = str;
+
+	while ((feature = strsep(&next_feature, ";")) != NULL) {
+		/*
+		 * Null features shouldn't exist, but skip if they
+		 * do.
+		 */
+		if (strcmp(feature, "") == 0)
+			continue;
+
+		/*
+		 * Look for the value or supported / not supported
+		 * flag.
+		 */
+		value = strchr(feature, '=');
+		if (value != NULL) {
+			*value = '\0';
+			value++;
+			supported = true;
+		} else {
+			value = feature + strlen(feature) - 1;
+			switch (*value) {
+			case '+':
+				supported = true;
+				break;
+			case '-':
+				supported = false;
+				break;
+			default:
+				/*
+				 * This is really a protocol error,
+				 * but we just ignore malformed
+				 * features for ease of
+				 * implementation.
+				 */
+				continue;
+			}
+			value = NULL;
+		}
+
+		/* No currently supported features. */
+	}
+	free(str);
+
+	start_packet();
+
+	/* This is an arbitrary limit. */
+	append_string("PacketSize=4096");
+	finish_packet();
+}
+
+static void
 gdb_query(const uint8_t *data, size_t len)
 {
 
 	/*
 	 * TODO:
 	 * - qSearch
-	 * - qSupported
 	 */
 	if (command_equals(data, len, "qAttached")) {
 		start_packet();
@@ -1035,6 +1094,10 @@ gdb_query(const uint8_t *data, size_t len)
 		start_packet();
 		append_char('l');
 		finish_packet();
+	} else if (command_equals(data, len, "qSupported")) {
+		data += strlen("qSupported");
+		len -= strlen("qSupported");
+		check_features(data, len);
 	} else if (command_equals(data, len, "qThreadExtraInfo")) {
 		char buf[16];
 		int tid;
