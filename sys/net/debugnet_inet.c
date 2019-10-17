@@ -196,6 +196,15 @@ debugnet_handle_ip(struct debugnet_pcb *pcb, struct mbuf **mb)
 		return;
 	}
 
+	if ((m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR) != 0) {
+		if ((m->m_pkthdr.csum_flags & CSUM_DATA_VALID) == 0) {
+			DNETDEBUG("bad UDP checksum\n");
+			return;
+		}
+	} else {
+		/* XXX */ ;
+	}
+
 	/* UDP custom is to have packet length not include IP header. */
 	ip->ip_len -= hlen;
 
