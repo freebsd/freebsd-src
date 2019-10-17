@@ -1501,11 +1501,12 @@ mbuf_tstmp2timespec(struct mbuf *m, struct timespec *ts)
 }
 #endif
 
-#ifdef NETDUMP
-/* Invoked from the netdump client code. */
-void	netdump_mbuf_drain(void);
-void	netdump_mbuf_dump(void);
-void	netdump_mbuf_reinit(int nmbuf, int nclust, int clsize);
+#ifdef DEBUGNET
+/* Invoked from the debugnet client code. */
+void	debugnet_mbuf_drain(void);
+void	debugnet_mbuf_start(void);
+void	debugnet_mbuf_finish(void);
+void	debugnet_mbuf_reinit(int nmbuf, int nclust, int clsize);
 #endif
 
 static inline bool

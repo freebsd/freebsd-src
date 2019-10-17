@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 
 #include <net/bpf.h>
+#include <net/debugnet.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_arp.h>
@@ -64,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
-#include <netinet/netdump/netdump.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -215,7 +215,7 @@ static int	sysctl_int_range(SYSCTL_HANDLER_ARGS, int, int);
 static int	sysctl_hw_alc_proc_limit(SYSCTL_HANDLER_ARGS);
 static int	sysctl_hw_alc_int_mod(SYSCTL_HANDLER_ARGS);
 
-NETDUMP_DEFINE(alc);
+DEBUGNET_DEFINE(alc);
 
 static device_method_t alc_methods[] = {
 	/* Device interface. */
@@ -1657,8 +1657,8 @@ alc_attach(device_t dev)
 		goto fail;
 	}
 
-	/* Attach driver netdump methods. */
-	NETDUMP_SET(ifp, alc);
+	/* Attach driver debugnet methods. */
+	DEBUGNET_SET(ifp, alc);
 
 fail:
 	if (error != 0)
@@ -4658,9 +4658,9 @@ sysctl_hw_alc_int_mod(SYSCTL_HANDLER_ARGS)
 	    ALC_IM_TIMER_MIN, ALC_IM_TIMER_MAX));
 }
 
-#ifdef NETDUMP
+#ifdef DEBUGNET
 static void
-alc_netdump_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
+alc_debugnet_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
 {
 	struct alc_softc *sc;
 
@@ -4668,17 +4668,17 @@ alc_netdump_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
 	KASSERT(sc->alc_buf_size <= MCLBYTES, ("incorrect cluster size"));
 
 	*nrxr = ALC_RX_RING_CNT;
-	*ncl = NETDUMP_MAX_IN_FLIGHT;
+	*ncl = DEBUGNET_MAX_IN_FLIGHT;
 	*clsize = MCLBYTES;
 }
 
 static void
-alc_netdump_event(struct ifnet *ifp __unused, enum netdump_ev event __unused)
+alc_debugnet_event(struct ifnet *ifp __unused, enum debugnet_ev event __unused)
 {
 }
 
 static int
-alc_netdump_transmit(struct ifnet *ifp, struct mbuf *m)
+alc_debugnet_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct alc_softc *sc;
 	int error;
@@ -4695,7 +4695,7 @@ alc_netdump_transmit(struct ifnet *ifp, struct mbuf *m)
 }
 
 static int
-alc_netdump_poll(struct ifnet *ifp, int count)
+alc_debugnet_poll(struct ifnet *ifp, int count)
 {
 	struct alc_softc *sc;
 
@@ -4707,4 +4707,4 @@ alc_netdump_poll(struct ifnet *ifp, int count)
 	alc_txeof(sc);
 	return (alc_rxintr(sc, count));
 }
-#endif /* NETDUMP */
+#endif /* DEBUGNET */

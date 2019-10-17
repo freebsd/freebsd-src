@@ -237,7 +237,7 @@ MODULE_DEPEND(bxe, pci, 1, 1, 1);
 MODULE_DEPEND(bxe, ether, 1, 1, 1);
 DRIVER_MODULE(bxe, pci, bxe_driver, bxe_devclass, 0, 0);
 
-NETDUMP_DEFINE(bxe);
+DEBUGNET_DEFINE(bxe);
 
 /* resources needed for unloading a previously loaded device */
 
@@ -13124,8 +13124,8 @@ bxe_init_ifnet(struct bxe_softc *sc)
     /* attach to the Ethernet interface list */
     ether_ifattach(ifp, sc->link_params.mac_addr);
 
-    /* Attach driver netdump methods. */
-    NETDUMP_SET(ifp, bxe);
+    /* Attach driver debugnet methods. */
+    DEBUGNET_SET(ifp, bxe);
 
     return (0);
 }
@@ -19533,27 +19533,27 @@ bxe_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
     return (rval);
 }
 
-#ifdef NETDUMP
+#ifdef DEBUGNET
 static void
-bxe_netdump_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
+bxe_debugnet_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
 {
 	struct bxe_softc *sc;
 
 	sc = if_getsoftc(ifp);
 	BXE_CORE_LOCK(sc);
 	*nrxr = sc->num_queues;
-	*ncl = NETDUMP_MAX_IN_FLIGHT;
+	*ncl = DEBUGNET_MAX_IN_FLIGHT;
 	*clsize = sc->fp[0].mbuf_alloc_size;
 	BXE_CORE_UNLOCK(sc);
 }
 
 static void
-bxe_netdump_event(struct ifnet *ifp __unused, enum netdump_ev event __unused)
+bxe_debugnet_event(struct ifnet *ifp __unused, enum debugnet_ev event __unused)
 {
 }
 
 static int
-bxe_netdump_transmit(struct ifnet *ifp, struct mbuf *m)
+bxe_debugnet_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct bxe_softc *sc;
 	int error;
@@ -19570,7 +19570,7 @@ bxe_netdump_transmit(struct ifnet *ifp, struct mbuf *m)
 }
 
 static int
-bxe_netdump_poll(struct ifnet *ifp, int count)
+bxe_debugnet_poll(struct ifnet *ifp, int count)
 {
 	struct bxe_softc *sc;
 	int i;
@@ -19585,4 +19585,4 @@ bxe_netdump_poll(struct ifnet *ifp, int count)
 	(void)bxe_txeof(sc, &sc->fp[0]);
 	return (0);
 }
-#endif /* NETDUMP */
+#endif /* DEBUGNET */

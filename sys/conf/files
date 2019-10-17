@@ -4077,6 +4077,8 @@ net/mp_ring.c			optional ether iflib
 net/mppcc.c			optional netgraph_mppc_compression
 net/mppcd.c			optional netgraph_mppc_compression
 net/netisr.c			standard
+net/debugnet.c			optional inet debugnet
+net/debugnet_inet.c		optional inet debugnet
 net/pfil.c			optional ether | inet
 net/radix.c			standard
 net/radix_mpath.c		standard
