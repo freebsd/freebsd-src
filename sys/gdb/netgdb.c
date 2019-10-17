@@ -272,7 +272,7 @@ static struct gdb_dbgport netgdb_gdb_dbgport = {
 	.gdb_putc = netgdb_dbg_putc,
 	.gdb_term = netgdb_fini,
 	.gdb_sendpacket = netgdb_dbg_sendpacket,
-	.gdb_dbfeatures = GDB_DBGP_FEAT_WANTTERM,
+	.gdb_dbfeatures = GDB_DBGP_FEAT_WANTTERM | GDB_DBGP_FEAT_RELIABLE,
 };
 
 static void

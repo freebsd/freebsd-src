@@ -55,6 +55,9 @@ struct gdb_dbgport {
 					   deadcode and never invoked for so
 					   long I don't want to just blindly
 					   start invoking it without opt-in. */
+#define	GDB_DBGP_FEAT_RELIABLE	0x2	/* The debugport promises it is a
+					   reliable transport, which allows GDB
+					   acks to be turned off. */
 
 #define	GDB_DBGPORT(name, probe, init, term, getc, putc)		\
 	static struct gdb_dbgport name##_gdb_dbgport = {		\
