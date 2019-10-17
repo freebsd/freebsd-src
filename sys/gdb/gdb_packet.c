@@ -134,18 +134,28 @@ gdb_rx_begin(void)
 
 		/* Bail out on a buffer overflow. */
 		if (c != '#') {
-			gdb_cur->gdb_putc('-');
+			gdb_nack();
 			return (ENOSPC);
 		}
+
+		/*
+		 * In Not-AckMode, we can assume reliable transport and neither
+		 * need to verify checksums nor send Ack/Nack.
+		 */
+		if (!gdb_ackmode)
+			break;
 
 		c = gdb_getc();
 		cksum -= (C2N(c) << 4) & 0xf0;
 		c = gdb_getc();
 		cksum -= C2N(c) & 0x0f;
-		gdb_cur->gdb_putc((cksum == 0) ? '+' : '-');
-		if (cksum != 0)
+		if (cksum == 0) {
+			gdb_ack();
+		} else {
+			gdb_nack();
 			printf("GDB: packet `%s' has invalid checksum\n",
 			    gdb_rxbuf);
+		}
 	} while (cksum != 0);
 
 	gdb_rxp = gdb_rxbuf;
@@ -336,6 +346,14 @@ gdb_tx_end(void)
 		gdb_cur->gdb_putc(N2C(c));
 
 getack:
+		/*
+		 * In NoAckMode, it is assumed that the underlying transport is
+		 * reliable and thus neither conservant sends acknowledgements;
+		 * there is nothing to wait for here.
+		 */
+		if (!gdb_ackmode)
+			break;
+
 		c = gdb_getc();
 	} while (c != '+');
 
