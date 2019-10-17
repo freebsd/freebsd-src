@@ -434,7 +434,8 @@ debugnet_pkt_in(struct ifnet *ifp, struct mbuf *m)
 		goto done;
 	}
 	if (memcmp(ifr.ifr_addr.sa_data, eh->ether_dhost,
-	    ETHER_ADDR_LEN) != 0) {
+	    ETHER_ADDR_LEN) != 0 &&
+	    (etype != ETHERTYPE_ARP || !ETHER_IS_BROADCAST(eh->ether_dhost))) {
 		DNETDEBUG_IF(ifp,
 		    "discard frame with incorrect destination addr\n");
 		goto done;
