@@ -61,11 +61,11 @@ HEADER {
 # Default implementation for acpi_id_probe().
 #
 CODE {
-	static char *
+	static int
 	acpi_generic_id_probe(device_t bus, device_t dev, char **ids,
 	    char **match)
 	{
-		return (NULL);
+		return (ENXIO);
 	}
 };
 
