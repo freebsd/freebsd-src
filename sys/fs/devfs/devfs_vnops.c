@@ -283,38 +283,27 @@ devfs_vptocnp(struct vop_vptocnp_args *ap)
 	if (error != 0)
 		return (error);
 
-	i = *buflen;
-	dd = vp->v_data;
-
-	if (vp->v_type == VCHR) {
-		i -= strlen(dd->de_cdp->cdp_c.si_name);
-		if (i < 0) {
-			error = ENOMEM;
-			goto finished;
-		}
-		bcopy(dd->de_cdp->cdp_c.si_name, buf + i,
-		    strlen(dd->de_cdp->cdp_c.si_name));
-		de = dd->de_dir;
-	} else if (vp->v_type == VDIR) {
-		if (dd == dmp->dm_rootdir) {
-			*dvp = vp;
-			vref(*dvp);
-			goto finished;
-		}
-		i -= dd->de_dirent->d_namlen;
-		if (i < 0) {
-			error = ENOMEM;
-			goto finished;
-		}
-		bcopy(dd->de_dirent->d_name, buf + i,
-		    dd->de_dirent->d_namlen);
-		de = dd;
-	} else {
+	if (vp->v_type != VCHR && vp->v_type != VDIR) {
 		error = ENOENT;
 		goto finished;
 	}
+
+	dd = vp->v_data;
+	if (vp->v_type == VDIR && dd == dmp->dm_rootdir) {
+		*dvp = vp;
+		vref(*dvp);
+		goto finished;
+	}
+
+	i = *buflen;
+	i -= dd->de_dirent->d_namlen;
+	if (i < 0) {
+		error = ENOMEM;
+		goto finished;
+	}
+	bcopy(dd->de_dirent->d_name, buf + i, dd->de_dirent->d_namlen);
 	*buflen = i;
-	de = devfs_parent_dirent(de);
+	de = devfs_parent_dirent(dd);
 	if (de == NULL) {
 		error = ENOENT;
 		goto finished;
