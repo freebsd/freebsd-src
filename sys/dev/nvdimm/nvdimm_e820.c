@@ -138,8 +138,8 @@ nvdimm_e820_create_spas(device_t dev)
 
 		hintaddr = (vm_paddr_t)hintaddrl;
 		hintsize = (vm_size_t)hintsizel;
-		if ((hintaddr & PAGE_MASK) != 0 || (hintsize & PAGE_MASK) != 0)
-		{
+		if ((hintaddr & PAGE_MASK) != 0 ||
+		    ((hintsize & PAGE_MASK) != 0 && hintsize != HINT_ALL)) {
 			device_printf(dev, "hint.nvdimm_spa.%u addr or size "
 			    "not page aligned\n", i);
 			continue;
