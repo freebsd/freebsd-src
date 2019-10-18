@@ -659,7 +659,7 @@ debugnet_connect(const struct debugnet_conn_params *dcp,
 		CURVNET_RESTORE();
 
 		if (dest_rt == NULL) {
-			db_printf("%s: Could not get route for that server.\n",
+			printf("%s: Could not get route for that server.\n",
 			    __func__);
 			error = ENOENT;
 			goto cleanup;
