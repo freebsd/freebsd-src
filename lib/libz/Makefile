@@ -78,6 +78,3 @@ FILES=		zlib.pc
 FILESDIR=	${LIBDATADIR}/pkgconfig
 
 .include <bsd.lib.mk>
-
-## XXX: clang integrated-as doesn't grok .intel_syntax directives yet
-#ACFLAGS.gvmat64.S=	${CLANG_NO_IAS}
