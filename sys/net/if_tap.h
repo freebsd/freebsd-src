@@ -43,7 +43,7 @@
 #include <net/if_tun.h>
 
 /* maximum receive packet size (hard limit) */
-#define	TAPMRU		16384
+#define	TAPMRU		65535
 
 #define	tapinfo		tuninfo
 
@@ -56,6 +56,8 @@
 #define	TAPSIFINFO		TUNSIFINFO
 #define	TAPGIFINFO		TUNGIFINFO
 #define	TAPGIFNAME		TUNGIFNAME
+#define	TAPSVNETHDR		_IOW('t', 91, int)
+#define	TAPGVNETHDR		_IOR('t', 94, int)
 
 /* VMware ioctl's */
 #define VMIO_SIOCSIFFLAGS	_IOWINT('V', 0)
