@@ -81,7 +81,6 @@ __FBSDID("$FreeBSD$");
 #include <amd64/linux32/linux.h>
 #include <amd64/linux32/linux32_proto.h>
 #include <compat/linux/linux_emul.h>
-#include <compat/linux/linux_futex.h>
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
@@ -1023,8 +1022,6 @@ linux_elf_modevent(module_t mod, int type, void *data)
 		if (error == 0) {
 			SET_FOREACH(lihp, linux_ioctl_handler_set)
 				linux32_ioctl_register_handler(*lihp);
-			LIST_INIT(&futex_list);
-			mtx_init(&futex_mtx, "ftllk", NULL, MTX_DEF);
 			stclohz = (stathz ? stathz : hz);
 			if (bootverbose)
 				printf("Linux ELF exec handler installed\n");
@@ -1045,7 +1042,6 @@ linux_elf_modevent(module_t mod, int type, void *data)
 		if (error == 0) {
 			SET_FOREACH(lihp, linux_ioctl_handler_set)
 				linux32_ioctl_unregister_handler(*lihp);
-			mtx_destroy(&futex_mtx);
 			if (bootverbose)
 				printf("Linux ELF exec handler removed\n");
 		} else
