@@ -228,7 +228,6 @@ tsc_freq_intel(void)
 static void
 probe_tsc_freq(void)
 {
-	u_int regs[4];
 	uint64_t tsc1, tsc2;
 	uint16_t bootflags;
 
