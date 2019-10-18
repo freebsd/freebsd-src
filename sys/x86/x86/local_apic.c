@@ -480,8 +480,8 @@ native_lapic_init(vm_paddr_t addr)
 	uint64_t r, r1, r2, rx;
 #endif
 	uint32_t ver;
-	u_int regs[4];
-	int i, arat;
+	int i;
+	bool arat;
 
 	/*
 	 * Enable x2APIC mode if possible. Map the local APIC
@@ -526,16 +526,9 @@ native_lapic_init(vm_paddr_t addr)
 	    SDT_APIC, SEL_KPL, GSEL_APIC);
 
 	if ((resource_int_value("apic", 0, "clock", &i) != 0 || i != 0)) {
-		arat = 0;
-		/* Intel CPUID 0x06 EAX[2] set if APIC timer runs in C3. */
-		if (cpu_vendor_id == CPU_VENDOR_INTEL && cpu_high >= 6) {
-			do_cpuid(0x06, regs);
-			if ((regs[0] & CPUTPM1_ARAT) != 0)
-				arat = 1;
-		} else if (cpu_vendor_id == CPU_VENDOR_AMD &&
-		    CPUID_TO_FAMILY(cpu_id) >= 0x12) {
-			arat = 1;
-		}
+		/* Set if APIC timer runs in C3. */
+		arat = (cpu_power_eax & CPUTPM1_ARAT);
+
 		bzero(&lapic_et, sizeof(lapic_et));
 		lapic_et.et_name = "LAPIC";
 		lapic_et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT |
