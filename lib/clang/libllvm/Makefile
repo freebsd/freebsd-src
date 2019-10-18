@@ -1185,6 +1185,7 @@ SRCS_MIN+=	Target/RISCV/RISCVRegisterInfo.cpp
 SRCS_MIN+=	Target/RISCV/RISCVSubtarget.cpp
 SRCS_MIN+=	Target/RISCV/RISCVTargetMachine.cpp
 SRCS_MIN+=	Target/RISCV/RISCVTargetObjectFile.cpp
+SRCS_MIN+=	Target/RISCV/RISCVTargetTransformInfo.cpp
 SRCS_MIN+=	Target/RISCV/TargetInfo/RISCVTargetInfo.cpp
 SRCS_MIN+=	Target/RISCV/Utils/RISCVBaseInfo.cpp
 SRCS_MIN+=	Target/RISCV/Utils/RISCVMatInt.cpp
