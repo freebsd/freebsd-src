@@ -5,5 +5,5 @@ which loads the contents of verified manifests into the kernel
 for use by
 .Xr mac_veriexec 4
 .Pp
-It depends on
-.Va WITH_BEARSSL
+Depends on
+.Va WITH_BEARSSL .
