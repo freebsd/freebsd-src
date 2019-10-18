@@ -135,6 +135,7 @@ VNET_DEFINE_STATIC(uma_zone_t, rtzone);		/* Routing table UMA zone. */
 
 EVENTHANDLER_LIST_DEFINE(rt_addrmsg);
 
+static int rt_getifa_fib(struct rt_addrinfo *, u_int);
 static int rtrequest1_fib_change(struct rib_head *, struct rt_addrinfo *,
     struct rtentry **, u_int);
 static void rt_setmetrics(const struct rt_addrinfo *, struct rtentry *);
