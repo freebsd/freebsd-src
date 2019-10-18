@@ -140,4 +140,6 @@ void bsd_to_linux_sigset(sigset_t *, l_sigset_t *);
 int linux_to_bsd_signal(int sig);
 int bsd_to_linux_signal(int sig);
 
+extern LIST_HEAD(futex_list, futex) futex_list;
+
 #endif /* _LINUX_MI_H_ */

@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_common.h>
 #include <compat/linux/linux_util.h>
 
+struct futex_list futex_list;
+
 CTASSERT(LINUX_IFNAMSIZ == IFNAMSIZ);
 
 static int bsd_to_linux_sigtbl[LINUX_SIGTBLSZ] = {
