@@ -84,15 +84,23 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
+#include <net/if_vlan_var.h>
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/vnet.h>
 #ifdef INET
 #include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/ip6.h>
+#include <netinet6/ip6_var.h>
+#include <netinet/udp.h>
+#include <netinet/tcp.h>
 #endif
 #include <net/bpf.h>
 #include <net/if_tap.h>
 #include <net/if_tun.h>
+
+#include <dev/virtio/network/virtio_net.h>
 
 #include <sys/queue.h>
 #include <sys/condvar.h>
@@ -134,6 +142,7 @@ struct tuntap_softc {
 	struct cv		 tun_cv;	/* for ref'd dev destroy */
 	struct ether_addr	 tun_ether;	/* remote address */
 	int			 tun_busy;	/* busy count */
+	int			 tun_vhdrlen;	/* virtio-net header length */
 };
 #define	TUN2IFP(sc)	((sc)->tun_ifp)
 
@@ -144,6 +153,19 @@ struct tuntap_softc {
 #define	TUN_LOCK_ASSERT(tp)	mtx_assert(&(tp)->tun_mtx, MA_OWNED);
 
 #define	TUN_VMIO_FLAG_MASK	0x0fff
+
+/*
+ * Interface capabilities of a tap device that supports the virtio-net
+ * header.
+ */
+#define TAP_VNET_HDR_CAPS	(IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6	\
+				| IFCAP_VLAN_HWCSUM			\
+				| IFCAP_TSO | IFCAP_LRO			\
+				| IFCAP_VLAN_HWTSO)
+
+#define TAP_ALL_OFFLOAD		(CSUM_TSO | CSUM_TCP | CSUM_UDP |\
+				    CSUM_TCP_IPV6 | CSUM_UDP_IPV6)
+
 
 /*
  * All mutable global variables in if_tun are locked using tunmtx, with
@@ -211,6 +233,7 @@ static int	tap_clone_match(struct if_clone *ifc, const char *name);
 static int	vmnet_clone_match(struct if_clone *ifc, const char *name);
 static int	tun_clone_create(struct if_clone *, char *, size_t, caddr_t);
 static int	tun_clone_destroy(struct if_clone *, struct ifnet *);
+static void	tun_vnethdr_set(struct ifnet *ifp, int vhdrlen);
 
 static d_open_t		tunopen;
 static d_close_t	tunclose;
@@ -1140,6 +1163,7 @@ out:
 	TUNDEBUG (ifp, "closed\n");
 	tp->tun_flags &= ~TUN_OPEN;
 	tp->tun_pid = 0;
+	tun_vnethdr_set(ifp, 0);
 
 	tun_unbusy_locked(tp);
 	TUN_UNLOCK(tp);
@@ -1199,6 +1223,65 @@ tunifinit(void *xtp)
 
 	tp = (struct tuntap_softc *)xtp;
 	tuninit(tp->tun_ifp);
+}
+
+/*
+ * To be called under TUN_LOCK. Update ifp->if_hwassist according to the
+ * current value of ifp->if_capenable.
+ */
+static void
+tun_caps_changed(struct ifnet *ifp)
+{
+	uint64_t hwassist = 0;
+
+	TUN_LOCK_ASSERT((struct tuntap_softc *)ifp->if_softc);
+	if (ifp->if_capenable & IFCAP_TXCSUM)
+		hwassist |= CSUM_TCP | CSUM_UDP;
+	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
+		hwassist |= CSUM_TCP_IPV6
+		    | CSUM_UDP_IPV6;
+	if (ifp->if_capenable & IFCAP_TSO4)
+		hwassist |= CSUM_IP_TSO;
+	if (ifp->if_capenable & IFCAP_TSO6)
+		hwassist |= CSUM_IP6_TSO;
+	ifp->if_hwassist = hwassist;
+}
+
+/*
+ * To be called under TUN_LOCK. Update tp->tun_vhdrlen and adjust
+ * if_capabilities and if_capenable as needed.
+ */
+static void
+tun_vnethdr_set(struct ifnet *ifp, int vhdrlen)
+{
+	struct tuntap_softc *tp = ifp->if_softc;
+
+	TUN_LOCK_ASSERT(tp);
+
+	if (tp->tun_vhdrlen == vhdrlen)
+		return;
+
+	/*
+	 * Update if_capabilities to reflect the
+	 * functionalities offered by the virtio-net
+	 * header.
+	 */
+	if (vhdrlen != 0)
+		ifp->if_capabilities |=
+			TAP_VNET_HDR_CAPS;
+	else
+		ifp->if_capabilities &=
+			~TAP_VNET_HDR_CAPS;
+	/*
+	 * Disable any capabilities that we don't
+	 * support anymore.
+	 */
+	ifp->if_capenable &= ifp->if_capabilities;
+	tun_caps_changed(ifp);
+	tp->tun_vhdrlen = vhdrlen;
+
+	TUNDEBUG(ifp, "vnet_hdr_len=%d, if_capabilities=%x\n",
+	    vhdrlen, ifp->if_capabilities);
 }
 
 /*
@@ -1267,6 +1350,13 @@ tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			int media = IFM_ETHER;
 			error = copyout(&media, ifmr->ifm_ulist, sizeof(int));
 		}
+		break;
+	case SIOCSIFCAP:
+		TUN_LOCK(tp);
+		ifp->if_capenable = ifr->ifr_reqcap;
+		tun_caps_changed(ifp);
+		TUN_UNLOCK(tp);
+		VLAN_CAPABILITIES(ifp);
 		break;
 	default:
 		if (l2tun) {
@@ -1378,12 +1468,9 @@ tunioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 {
 	struct ifreq ifr, *ifrp;
 	struct tuntap_softc *tp = dev->si_drv1;
+	struct ifnet *ifp = TUN2IFP(tp);
 	struct tuninfo *tunp;
-	int error, iflags;
-#if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD4)
-	int	ival;
-#endif
+	int error, iflags, ival;
 	bool	l2tun;
 
 	l2tun = (tp->tun_flags & TUN_L2) != 0;
@@ -1405,8 +1492,8 @@ tunioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 			iflags |= IFF_UP;
 
 			TUN_LOCK(tp);
-			TUN2IFP(tp)->if_flags = iflags |
-			    (TUN2IFP(tp)->if_flags & IFF_CANTCHANGE);
+			ifp->if_flags = iflags |
+			    (ifp->if_flags & IFF_CANTCHANGE);
 			TUN_UNLOCK(tp);
 
 			return (0);
@@ -1421,6 +1508,24 @@ tunioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 			TUN_LOCK(tp);
 			bcopy(data, &tp->tun_ether.octet,
 			    sizeof(tp->tun_ether.octet));
+			TUN_UNLOCK(tp);
+
+			return (0);
+		case TAPSVNETHDR:
+			ival = *(int *)data;
+			if (ival != 0 &&
+			    ival != sizeof(struct virtio_net_hdr) &&
+			    ival != sizeof(struct virtio_net_hdr_mrg_rxbuf)) {
+				return (EINVAL);
+			}
+			TUN_LOCK(tp);
+			tun_vnethdr_set(ifp, ival);
+			TUN_UNLOCK(tp);
+
+			return (0);
+		case TAPGVNETHDR:
+			TUN_LOCK(tp);
+			*(int *)data = tp->tun_vhdrlen;
 			TUN_UNLOCK(tp);
 
 			return (0);
@@ -1578,7 +1683,8 @@ tunread(struct cdev *dev, struct uio *uio, int flag)
 	struct tuntap_softc *tp = dev->si_drv1;
 	struct ifnet	*ifp = TUN2IFP(tp);
 	struct mbuf	*m;
-	int		error=0, len;
+	size_t		len;
+	int		error = 0;
 
 	TUNDEBUG (ifp, "read\n");
 	TUN_LOCK(tp);
@@ -1611,6 +1717,23 @@ tunread(struct cdev *dev, struct uio *uio, int flag)
 	if ((tp->tun_flags & TUN_L2) != 0)
 		BPF_MTAP(ifp, m);
 
+	len = min(tp->tun_vhdrlen, uio->uio_resid);
+	if (len > 0) {
+		struct virtio_net_hdr_mrg_rxbuf vhdr;
+
+		bzero(&vhdr, sizeof(vhdr));
+		if (m->m_pkthdr.csum_flags & TAP_ALL_OFFLOAD) {
+			m = virtio_net_tx_offload(ifp, m, false, &vhdr.hdr);
+		}
+
+		TUNDEBUG(ifp, "txvhdr: f %u, gt %u, hl %u, "
+		    "gs %u, cs %u, co %u\n", vhdr.hdr.flags,
+		    vhdr.hdr.gso_type, vhdr.hdr.hdr_len,
+		    vhdr.hdr.gso_size, vhdr.hdr.csum_start,
+		    vhdr.hdr.csum_offset);
+		error = uiomove(&vhdr, len, uio);
+	}
+
 	while (m && uio->uio_resid > 0 && error == 0) {
 		len = min(uio->uio_resid, m->m_len);
 		if (len != 0)
@@ -1626,7 +1749,8 @@ tunread(struct cdev *dev, struct uio *uio, int flag)
 }
 
 static int
-tunwrite_l2(struct tuntap_softc *tp, struct mbuf *m)
+tunwrite_l2(struct tuntap_softc *tp, struct mbuf *m,
+	    struct virtio_net_hdr_mrg_rxbuf *vhdr)
 {
 	struct ether_header *eh;
 	struct ifnet *ifp;
@@ -1647,6 +1771,11 @@ tunwrite_l2(struct tuntap_softc *tp, struct mbuf *m)
 	if (eh && (ifp->if_flags & IFF_PROMISC) == 0 &&
 	    !ETHER_IS_MULTICAST(eh->ether_dhost) &&
 	    bcmp(eh->ether_dhost, IF_LLADDR(ifp), ETHER_ADDR_LEN) != 0) {
+		m_freem(m);
+		return (0);
+	}
+
+	if (vhdr != NULL && virtio_net_rx_csum(m, &vhdr->hdr)) {
 		m_freem(m);
 		return (0);
 	}
@@ -1717,11 +1846,12 @@ tunwrite_l3(struct tuntap_softc *tp, struct mbuf *m)
 static	int
 tunwrite(struct cdev *dev, struct uio *uio, int flag)
 {
+	struct virtio_net_hdr_mrg_rxbuf vhdr;
 	struct tuntap_softc *tp;
 	struct ifnet	*ifp;
 	struct mbuf	*m;
 	uint32_t	mru;
-	int		align;
+	int		align, vhdrlen, error;
 	bool		l2tun;
 
 	tp = dev->si_drv1;
@@ -1735,15 +1865,28 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		return (0);
 
 	l2tun = (tp->tun_flags & TUN_L2) != 0;
-	align = 0;
 	mru = l2tun ? TAPMRU : TUNMRU;
-	if (l2tun)
+	vhdrlen = tp->tun_vhdrlen;
+	align = 0;
+	if (l2tun) {
 		align = ETHER_ALIGN;
-	else if ((tp->tun_flags & TUN_IFHEAD) != 0)
+		mru += vhdrlen;
+	} else if ((tp->tun_flags & TUN_IFHEAD) != 0)
 		mru += sizeof(uint32_t);	/* family */
 	if (uio->uio_resid < 0 || uio->uio_resid > mru) {
 		TUNDEBUG(ifp, "len=%zd!\n", uio->uio_resid);
 		return (EIO);
+	}
+
+	if (vhdrlen > 0) {
+		error = uiomove(&vhdr, vhdrlen, uio);
+		if (error != 0)
+			return (error);
+		TUNDEBUG(ifp, "txvhdr: f %u, gt %u, hl %u, "
+		    "gs %u, cs %u, co %u\n", vhdr.hdr.flags,
+		    vhdr.hdr.gso_type, vhdr.hdr.hdr_len,
+		    vhdr.hdr.gso_size, vhdr.hdr.csum_start,
+		    vhdr.hdr.csum_offset);
 	}
 
 	if ((m = m_uiotombuf(uio, M_NOWAIT, 0, align, M_PKTHDR)) == NULL) {
@@ -1757,7 +1900,7 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 #endif
 
 	if (l2tun)
-		return (tunwrite_l2(tp, m));
+		return (tunwrite_l2(tp, m, vhdrlen > 0 ? &vhdr : NULL));
 
 	return (tunwrite_l3(tp, m));
 }
