@@ -70,8 +70,8 @@ __FBSDID("$FreeBSD$");
 typedef struct {
 	void		*addr;
 	Elf_Off		size;
-	int		flags;
-	int		sec;	/* Original section */
+	int		flags;	/* Section flags. */
+	int		sec;	/* Original section number. */
 	char		*name;
 } Elf_progent;
 
@@ -195,6 +195,119 @@ link_elf_init(void *arg)
 }
 
 SYSINIT(link_elf_obj, SI_SUB_KLD, SI_ORDER_SECOND, link_elf_init, NULL);
+
+static void
+link_elf_protect_range(elf_file_t ef, vm_offset_t start, vm_offset_t end,
+    vm_prot_t prot)
+{
+	int error __unused;
+
+	KASSERT(start <= end && start >= (vm_offset_t)ef->address &&
+	    end <= round_page((vm_offset_t)ef->address + ef->lf.size),
+	    ("link_elf_protect_range: invalid range %#jx-%#jx",
+	    (uintmax_t)start, (uintmax_t)end));
+
+	if (start == end)
+		return;
+	error = vm_map_protect(kernel_map, start, end, prot, FALSE);
+	KASSERT(error == KERN_SUCCESS,
+	    ("link_elf_protect_range: vm_map_protect() returned %d", error));
+}
+
+/*
+ * Restrict permissions on linker file memory based on section flags.
+ * Sections need not be page-aligned, so overlap within a page is possible.
+ */
+static void
+link_elf_protect(elf_file_t ef)
+{
+	vm_offset_t end, segend, segstart, start;
+	vm_prot_t gapprot, prot, segprot;
+	int i;
+
+	/*
+	 * If the file was preloaded, the last page may contain other preloaded
+	 * data which may need to be writeable.  ELF files are always
+	 * page-aligned, but other preloaded data, such as entropy or CPU
+	 * microcode may be loaded with a smaller alignment.
+	 */
+	gapprot = ef->preloaded ? VM_PROT_RW : VM_PROT_READ;
+
+	start = end = (vm_offset_t)ef->address;
+	prot = VM_PROT_READ;
+	for (i = 0; i < ef->nprogtab; i++) {
+		/*
+		 * VNET and DPCPU sections have their memory allocated by their
+		 * respective subsystems.
+		 */
+		if (ef->progtab[i].name != NULL && (
+#ifdef VIMAGE
+		    strcmp(ef->progtab[i].name, VNET_SETNAME) == 0 ||
+#endif
+		    strcmp(ef->progtab[i].name, DPCPU_SETNAME) == 0))
+			continue;
+
+		segstart = trunc_page((vm_offset_t)ef->progtab[i].addr);
+		segend = round_page((vm_offset_t)ef->progtab[i].addr +
+		    ef->progtab[i].size);
+		segprot = VM_PROT_READ;
+		if ((ef->progtab[i].flags & SHF_WRITE) != 0)
+			segprot |= VM_PROT_WRITE;
+		if ((ef->progtab[i].flags & SHF_EXECINSTR) != 0)
+			segprot |= VM_PROT_EXECUTE;
+
+		if (end <= segstart) {
+			/*
+			 * Case 1: there is no overlap between the previous
+			 * segment and this one.  Apply protections to the
+			 * previous segment, and protect the gap between the
+			 * previous and current segments, if any.
+			 */
+			link_elf_protect_range(ef, start, end, prot);
+			link_elf_protect_range(ef, end, segstart, gapprot);
+
+			start = segstart;
+			end = segend;
+			prot = segprot;
+		} else if (start < segstart && end == segend) {
+			/*
+			 * Case 2: the current segment is a subrange of the
+			 * previous segment.  Apply protections to the
+			 * non-overlapping portion of the previous segment.
+			 */
+			link_elf_protect_range(ef, start, segstart, prot);
+
+			start = segstart;
+			prot |= segprot;
+		} else if (end < segend) {
+			/*
+			 * Case 3: there is partial overlap between the previous
+			 * and current segments.  Apply protections to the
+			 * non-overlapping portion of the previous segment, and
+			 * then the overlap, which must use the union of the two
+			 * segments' protections.
+			 */
+			link_elf_protect_range(ef, start, segstart, prot);
+			link_elf_protect_range(ef, segstart, end,
+			    prot | segprot);
+			start = end;
+			end = segend;
+			prot = segprot;
+		} else {
+			/*
+			 * Case 4: the two segments reside in the same page.
+			 */
+			prot |= segprot;
+		}
+	}
+
+	/*
+	 * Fix up the last unprotected segment and trailing data.
+	 */
+	link_elf_protect_range(ef, start, end, prot);
+	link_elf_protect_range(ef, end,
+	    round_page((vm_offset_t)ef->address + ef->lf.size), gapprot);
+}
 
 static int
 link_elf_link_preload(linker_class_t cls, const char *filename,
@@ -358,6 +471,7 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 			else
 				ef->progtab[pb].name = "<<NOBITS>>";
 			ef->progtab[pb].size = shdr[i].sh_size;
+			ef->progtab[pb].flags = shdr[i].sh_flags;
 			ef->progtab[pb].sec = i;
 			if (ef->shstrtab && shdr[i].sh_name != 0)
 				ef->progtab[pb].name =
@@ -783,7 +897,9 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	/*
 	 * In order to satisfy amd64's architectural requirements on the
 	 * location of code and data in the kernel's address space, request a
-	 * mapping that is above the kernel.  
+	 * mapping that is above the kernel.
+	 *
+	 * Protections will be restricted once relocations are applied.
 	 */
 #ifdef __amd64__
 	mapbase = KERNBASE;
@@ -884,6 +1000,7 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 				goto out;
 			}
 			ef->progtab[pb].size = shdr[i].sh_size;
+			ef->progtab[pb].flags = shdr[i].sh_flags;
 			ef->progtab[pb].sec = i;
 			if (shdr[i].sh_type == SHT_PROGBITS
 #ifdef __amd64__
@@ -1023,9 +1140,8 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		goto out;
 #endif
 
-	/* Invoke .ctors */
+	link_elf_protect(ef);
 	link_elf_invoke_ctors(lf->ctors_addr, lf->ctors_size);
-
 	*result = lf;
 
 out:
