@@ -38,8 +38,6 @@
 #ifndef _LINUX_FUTEX_H
 #define _LINUX_FUTEX_H
 
-extern struct mtx futex_mtx;
-
 #define LINUX_FUTEX_WAIT		 0
 #define LINUX_FUTEX_WAKE		 1
 #define LINUX_FUTEX_FD			 2	/* unused */
