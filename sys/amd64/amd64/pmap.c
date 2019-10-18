@@ -1422,22 +1422,22 @@ nkpt_init(vm_paddr_t addr)
  *
  * This function operates on 2M pages, since we map the kernel space that
  * way.
- *
- * Note that this doesn't currently provide any protection for modules.
  */
 static inline pt_entry_t
 bootaddr_rwx(vm_paddr_t pa)
 {
 
 	/*
-	 * Everything in the same 2M page as the start of the kernel
-	 * should be static. On the other hand, things in the same 2M
-	 * page as the end of the kernel could be read-write/executable,
-	 * as the kernel image is not guaranteed to end on a 2M boundary.
+	 * The kernel is loaded at a 2MB-aligned address, and memory below that
+	 * need not be executable.  The .bss section is padded to a 2MB
+	 * boundary, so memory following the kernel need not be executable
+	 * either.  Preloaded kernel modules have their mapping permissions
+	 * fixed up by the linker.
 	 */
 	if (pa < trunc_2mpage(btext - KERNBASE) ||
-	   pa >= trunc_2mpage(_end - KERNBASE))
-		return (X86_PG_RW);
+	    pa >= trunc_2mpage(_end - KERNBASE))
+		return (X86_PG_RW | pg_nx);
+
 	/*
 	 * The linker should ensure that the read-only and read-write
 	 * portions don't share the same 2M page, so this shouldn't
@@ -1446,6 +1446,7 @@ bootaddr_rwx(vm_paddr_t pa)
 	 */
 	if (pa >= trunc_2mpage(brwsection - KERNBASE))
 		return (X86_PG_RW | pg_nx);
+
 	/*
 	 * Mark any 2M page containing kernel text as read-only. Mark
 	 * other pages with read-only data as read-only and not executable.

@@ -45,12 +45,6 @@ SECTIONS
   .rela.got       : { *(.rela.got) }
   .rel.bss        : { *(.rel.bss .rel.bss.* .rel.gnu.linkonce.b.*) }
   .rela.bss       : { *(.rela.bss .rela.bss.* .rela.gnu.linkonce.b.*) }
-  .rel.ldata      : { *(.rel.ldata .rel.ldata.* .rel.gnu.linkonce.l.*) }
-  .rela.ldata     : { *(.rela.ldata .rela.ldata.* .rela.gnu.linkonce.l.*) }
-  .rel.lbss       : { *(.rel.lbss .rel.lbss.* .rel.gnu.linkonce.lb.*) }
-  .rela.lbss      : { *(.rela.lbss .rela.lbss.* .rela.gnu.linkonce.lb.*) }
-  .rel.lrodata    : { *(.rel.lrodata .rel.lrodata.* .rel.gnu.linkonce.lr.*) }
-  .rela.lrodata   : { *(.rela.lrodata .rela.lrodata.* .rela.gnu.linkonce.lr.*) }
   .rel.plt        : { *(.rel.plt) }
   .rela.plt       : { *(.rela.plt) }
   .init           :
@@ -179,30 +173,10 @@ SECTIONS
    *(.dynbss)
    *(.bss .bss.* .gnu.linkonce.b.*)
    *(COMMON)
-   /* Align here to ensure that the .bss section occupies space up to
-      _end.  Align after .bss to ensure correct alignment even if the
-      .bss section disappears because there are no input sections.
-      FIXME: Why do we need it? When there is no .bss section, we don't
-      pad the .data section.  */
-   . = ALIGN(. != 0 ? 64 / 8 : 1);
+   /* Ensure that the .bss section ends at a superpage boundary.
+      This way it can be mapped using non-executable large pages. */
+   . = ALIGN(0x200000);
   }
-  .lbss   :
-  {
-    *(.dynlbss)
-    *(.lbss .lbss.* .gnu.linkonce.lb.*)
-    *(LARGE_COMMON)
-  }
-  . = ALIGN(64 / 8);
-  .lrodata   ALIGN(CONSTANT (MAXPAGESIZE)) + (. & (CONSTANT (MAXPAGESIZE) - 1)) :
-  {
-    *(.lrodata .lrodata.* .gnu.linkonce.lr.*)
-  }
-  .ldata   ALIGN(CONSTANT (MAXPAGESIZE)) + (. & (CONSTANT (MAXPAGESIZE) - 1)) :
-  {
-    *(.ldata .ldata.* .gnu.linkonce.l.*)
-    . = ALIGN(. != 0 ? 64 / 8 : 1);
-  }
-  . = ALIGN(64 / 8);
   _end = .; PROVIDE (end = .);
   . = DATA_SEGMENT_END (.);
   /* Stabs debugging sections.  */
