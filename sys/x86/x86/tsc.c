@@ -232,20 +232,16 @@ probe_tsc_freq(void)
 	uint64_t tsc1, tsc2;
 	uint16_t bootflags;
 
-	if (cpu_high >= 6) {
-		do_cpuid(6, regs);
-		if ((regs[2] & CPUID_PERF_STAT) != 0) {
-			/*
-			 * XXX Some emulators expose host CPUID without actual
-			 * support for these MSRs.  We must test whether they
-			 * really work.
-			 */
-			wrmsr(MSR_MPERF, 0);
-			wrmsr(MSR_APERF, 0);
-			DELAY(10);
-			if (rdmsr(MSR_MPERF) > 0 && rdmsr(MSR_APERF) > 0)
-				tsc_perf_stat = 1;
-		}
+	if (cpu_power_ecx & CPUID_PERF_STAT) {
+		/*
+		 * XXX Some emulators expose host CPUID without actual support
+		 * for these MSRs.  We must test whether they really work.
+		 */
+		wrmsr(MSR_MPERF, 0);
+		wrmsr(MSR_APERF, 0);
+		DELAY(10);
+		if (rdmsr(MSR_MPERF) > 0 && rdmsr(MSR_APERF) > 0)
+			tsc_perf_stat = 1;
 	}
 
 	if (vm_guest == VM_GUEST_VMWARE) {
