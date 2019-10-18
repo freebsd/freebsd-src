@@ -193,7 +193,6 @@ link_elf_init(void *arg)
 
 	linker_add_class(&link_elf_class);
 }
-
 SYSINIT(link_elf_obj, SI_SUB_KLD, SI_ORDER_SECOND, link_elf_init, NULL);
 
 static void
@@ -209,6 +208,15 @@ link_elf_protect_range(elf_file_t ef, vm_offset_t start, vm_offset_t end,
 
 	if (start == end)
 		return;
+	if (ef->preloaded) {
+#ifdef __amd64__
+		error = pmap_change_prot(start, end - start, prot);
+		KASSERT(error == 0,
+		    ("link_elf_protect_range: pmap_change_prot() returned %d",
+		    error));
+#endif
+		return;
+	}
 	error = vm_map_protect(kernel_map, start, end, prot, FALSE);
 	KASSERT(error == KERN_SUCCESS,
 	    ("link_elf_protect_range: vm_map_protect() returned %d", error));
@@ -564,6 +572,14 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 		goto out;
 	}
 
+	/*
+	 * The file needs to be writeable and executable while applying
+	 * relocations.  Mapping protections are applied once relocation
+	 * processing is complete.
+	 */
+	link_elf_protect_range(ef, (vm_offset_t)ef->address,
+	    round_page((vm_offset_t)ef->address + ef->lf.size), VM_PROT_ALL);
+
 	/* Local intra-module relocations */
 	error = link_elf_reloc_local(lf, false);
 	if (error != 0)
@@ -616,7 +632,9 @@ link_elf_link_preload_finish(linker_file_t lf)
 		return (error);
 #endif
 
-	/* Invoke .ctors */
+	/* Apply protections now that relocation processing is complete. */
+	link_elf_protect(ef);
+
 	link_elf_invoke_ctors(lf->ctors_addr, lf->ctors_size);
 	return (0);
 }
