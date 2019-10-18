@@ -141,5 +141,6 @@ int linux_to_bsd_signal(int sig);
 int bsd_to_linux_signal(int sig);
 
 extern LIST_HEAD(futex_list, futex) futex_list;
+extern struct mtx futex_mtx;
 
 #endif /* _LINUX_MI_H_ */
