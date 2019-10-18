@@ -18,6 +18,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/ttycom.h>
 
+#include <assert.h>
 #include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
@@ -31,7 +32,7 @@ __FBSDID("$FreeBSD$");
 #define NSTUDENT 100
 #define NCONF 6
 static double const studentpct[] = { 80, 90, 95, 98, 99, 99.5 };
-static double student[NSTUDENT + 1][NCONF] = {
+static double const student[NSTUDENT + 1][NCONF] = {
 /* inf */	{	1.282,	1.645,	1.960,	2.326,	2.576,	3.090  },
 /* 1. */	{	3.078,	6.314,	12.706,	31.821,	63.657,	318.313  },
 /* 2. */	{	1.886,	2.920,	4.303,	6.965,	9.925,	22.327  },
@@ -152,8 +153,11 @@ NewSet(void)
 	struct dataset *ds;
 
 	ds = calloc(1, sizeof *ds);
+	assert(ds != NULL);
 	ds->lpoints = 100000;
 	ds->points = calloc(sizeof *ds->points, ds->lpoints);
+	assert(ds->points != NULL);
+	ds->syy = NAN;
 	return(ds);
 }
 
@@ -166,55 +170,58 @@ AddPoint(struct dataset *ds, double a)
 		dp = ds->points;
 		ds->lpoints *= 4;
 		ds->points = calloc(sizeof *ds->points, ds->lpoints);
+		assert(ds->points != NULL);
 		memcpy(ds->points, dp, sizeof *dp * ds->n);
 		free(dp);
 	}
 	ds->points[ds->n++] = a;
 	ds->sy += a;
-	ds->syy += a * a;
 }
 
 static double
-Min(struct dataset *ds)
+Min(const struct dataset *ds)
 {
 
 	return (ds->points[0]);
 }
 
 static double
-Max(struct dataset *ds)
+Max(const struct dataset *ds)
 {
 
 	return (ds->points[ds->n -1]);
 }
 
 static double
-Avg(struct dataset *ds)
+Avg(const struct dataset *ds)
 {
 
 	return(ds->sy / ds->n);
 }
 
 static double
-Median(struct dataset *ds)
+Median(const struct dataset *ds)
 {
+	const unsigned m = ds->n / 2;
+
 	if ((ds->n % 2) == 0)
-		return ((ds->points[ds->n / 2] + (ds->points[(ds->n / 2) - 1])) / 2);
-    	else
-		return (ds->points[ds->n / 2]);
+		return ((ds->points[m] + (ds->points[m - 1])) / 2);
+	return (ds->points[m]);
 }
 
 static double
 Var(struct dataset *ds)
 {
+	unsigned n;
+	const double a = Avg(ds);
 
-	/*
-	 * Due to limited precision it is possible that sy^2/n > syy,
-	 * but variance cannot actually be negative.
-	 */
-	if (ds->syy <= ds->sy * ds->sy / ds->n)
-		return (0);
-	return (ds->syy - ds->sy * ds->sy / ds->n) / (ds->n - 1.0);
+	if (isnan(ds->syy)) {
+		ds->syy = 0.0;
+		for (n = 0; n < ds->n; n++)
+			ds->syy += (ds->points[n] - a) * (ds->points[n] - a);
+	}
+
+	return (ds->syy / (ds->n - 1.0));
 }
 
 static double
@@ -265,7 +272,7 @@ Relative(struct dataset *ds, struct dataset *rs, int confidx)
 	re = t * sqrt(re);
 
 	if (fabs(d) > e) {
-	
+
 		printf("Difference at %.1f%% confidence\n", studentpct[confidx]);
 		printf("	%g +/- %g\n", d, e);
 		printf("	%g%% +/- %g%%\n", d * 100 / Avg(rs), re * 100 / Avg(rs));
@@ -349,13 +356,17 @@ PlotSet(struct dataset *ds, int val)
 	else
 		bar = 0;
 
-	if (pl->bar == NULL)
+	if (pl->bar == NULL) {
 		pl->bar = calloc(sizeof(char *), pl->num_datasets);
+		assert(pl->bar != NULL);
+	}
+
 	if (pl->bar[bar] == NULL) {
 		pl->bar[bar] = malloc(pl->width);
+		assert(pl->bar[bar] != NULL);
 		memset(pl->bar[bar], 0, pl->width);
 	}
-	
+
 	m = 1;
 	i = -1;
 	j = 0;
@@ -373,6 +384,7 @@ PlotSet(struct dataset *ds, int val)
 	m += 1;
 	if (m > pl->height) {
 		pl->data = realloc(pl->data, pl->width * m);
+		assert(pl->data != NULL);
 		memset(pl->data + pl->height * pl->width, 0,
 		    (m - pl->height) * pl->width);
 	}
@@ -477,6 +489,7 @@ ReadSet(FILE *f, const char *n, int column, const char *delim)
 
 	s = NewSet();
 	s->name = strdup(n);
+	assert(s->name != NULL);
 	line = 0;
 	while (fgets(buf, sizeof buf, f) != NULL) {
 		line++;
@@ -619,7 +632,10 @@ main(int argc, char **argv)
 		nds = argc;
 		for (i = 0; i < nds; i++) {
 			setfilenames[i] = argv[i];
-			setfiles[i] = fopen(argv[i], "r");
+			if (!strcmp(argv[i], "-"))
+				setfiles[0] = stdin;
+			else
+				setfiles[i] = fopen(argv[i], "r");
 			if (setfiles[i] == NULL)
 				err(2, "Cannot open %s", argv[i]);
 		}
@@ -639,10 +655,11 @@ main(int argc, char **argv)
 
 	for (i = 0; i < nds; i++) {
 		ds[i] = ReadSet(setfiles[i], setfilenames[i], column, delim);
-		fclose(setfiles[i]);
+		if (setfiles[i] != stdin)
+			fclose(setfiles[i]);
 	}
 
-	for (i = 0; i < nds; i++) 
+	for (i = 0; i < nds; i++)
 		printf("%c %s\n", symbol[i+1], ds[i]->name);
 
 	if (!flag_n && !suppress_plot) {
