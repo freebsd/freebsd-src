@@ -736,9 +736,46 @@ parse_vnet(elf_file_t ef)
 #endif
 #undef LS_PADDING
 
+/*
+ * Apply the specified protection to the loadable segments of a preloaded linker
+ * file.
+ */
 static int
-link_elf_link_preload(linker_class_t cls,
-    const char* filename, linker_file_t *result)
+preload_protect(elf_file_t ef, vm_prot_t prot)
+{
+#ifdef __amd64__
+	Elf_Ehdr *hdr;
+	Elf_Phdr *phdr, *phlimit;
+	vm_prot_t nprot;
+	int error;
+
+	error = 0;
+	hdr = (Elf_Ehdr *)ef->address;
+	phdr = (Elf_Phdr *)(ef->address + hdr->e_phoff);
+	phlimit = phdr + hdr->e_phnum;
+	for (; phdr < phlimit; phdr++) {
+		if (phdr->p_type != PT_LOAD)
+			continue;
+
+		nprot = prot | VM_PROT_READ;
+		if ((phdr->p_flags & PF_W) != 0)
+			nprot |= VM_PROT_WRITE;
+		if ((phdr->p_flags & PF_X) != 0)
+			nprot |= VM_PROT_EXECUTE;
+		error = pmap_change_prot((vm_offset_t)ef->address +
+		    phdr->p_vaddr, round_page(phdr->p_memsz), nprot);
+		if (error != 0)
+			break;
+	}
+	return (error);
+#else
+	return (0);
+#endif
+}
+
+static int
+link_elf_link_preload(linker_class_t cls, const char *filename,
+    linker_file_t *result)
 {
 	Elf_Addr *ctors_addrp;
 	Elf_Size *ctors_sizep;
@@ -798,6 +835,8 @@ link_elf_link_preload(linker_class_t cls,
 	if (error == 0)
 		error = parse_vnet(ef);
 #endif
+	if (error == 0)
+		error = preload_protect(ef, VM_PROT_ALL);
 	if (error != 0) {
 		linker_file_unload(lf, LINKER_UNLOAD_FORCE);
 		return (error);
@@ -815,6 +854,8 @@ link_elf_link_preload_finish(linker_file_t lf)
 
 	ef = (elf_file_t) lf;
 	error = relocate_file(ef);
+	if (error == 0)
+		error = preload_protect(ef, VM_PROT_NONE);
 	if (error != 0)
 		return (error);
 	(void)link_elf_preload_parse_symbols(ef);
@@ -1274,6 +1315,7 @@ link_elf_unload_file(linker_file_t file)
 static void
 link_elf_unload_preload(linker_file_t file)
 {
+
 	if (file->pathname != NULL)
 		preload_delete_name(file->pathname);
 }
