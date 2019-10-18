@@ -274,6 +274,10 @@ AcpiDbConvertToBuffer (
     ACPI_STATUS             Status;
 
 
+    /* Skip all preceding white space*/
+
+    AcpiUtRemoveWhitespace (&String);
+
     /* Generate the final buffer length */
 
     for (i = 0, Length = 0; String[i];)

@@ -410,7 +410,7 @@ AcpiDmDumpStao (
         Namepath = ACPI_ADD_PTR (char, Table, Offset);
         StringLength = strlen (Namepath) + 1;
 
-        AcpiDmLineHeader (Offset, StringLength, "Namestring");
+        AcpiDmLineHeader (Offset, StringLength, "Namepath");
         AcpiOsPrintf ("\"%s\"\n", Namepath);
 
         /* Point to next namepath */
@@ -526,7 +526,7 @@ AcpiDmDumpTpm2Rev3 (
     {
     case ACPI_TPM23_ACPI_START_METHOD:
 
-        Status = AcpiDmDumpTable (Table->Length, Offset, Subtable,
+        (void) AcpiDmDumpTable (Table->Length, Offset, Subtable,
             Table->Length - Offset, AcpiDmTableInfoTpm23a);
         break;
 
@@ -591,7 +591,7 @@ AcpiDmDumpTpm2 (
         Offset += sizeof (ACPI_TPM2_TRAILER);
 
         AcpiOsPrintf ("\n");
-        Status = AcpiDmDumpTable (Table->Length, Offset, ArmSubtable,
+        (void) AcpiDmDumpTable (Table->Length, Offset, ArmSubtable,
             Table->Length - Offset, AcpiDmTableInfoTpm211);
         break;
 

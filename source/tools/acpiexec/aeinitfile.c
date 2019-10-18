@@ -224,9 +224,13 @@ AeProcessInitFile(
     void)
 {
     ACPI_WALK_STATE         *WalkState;
-    int                     i;
     UINT64                  idx;
     ACPI_STATUS             Status;
+    char                    *Token;
+    char                    *ObjectBuffer;
+    char                    *TempNameBuffer;
+    ACPI_OBJECT_TYPE        Type;
+    ACPI_OBJECT             TempObject;
 
 
     if (!InitFile)
@@ -249,26 +253,44 @@ AeProcessInitFile(
         AcpiOsAllocate (sizeof (INIT_FILE_ENTRY) * AcpiGbl_InitFileLineCount);
     for (idx = 0; fgets (LineBuffer, AE_FILE_BUFFER_SIZE, InitFile); ++idx)
     {
-        if (sscanf (LineBuffer, "%s %s\n",
-                &NameBuffer[1], ValueBuffer) != 2)
+
+        TempNameBuffer = AcpiDbGetNextToken (LineBuffer, &Token, &Type);
+        if (LineBuffer[0] == '\\')
         {
-            goto CleanupAndExit;
+            strcpy (NameBuffer, TempNameBuffer);
         }
-
-        /* Add a root prefix if not present in the string */
-
-        i = 0;
-        if (NameBuffer[1] == '\\')
+        else
         {
-            i = 1;
+            /* Add a root prefix if not present in the string */
+
+            strcpy (NameBuffer + 1, TempNameBuffer);
         }
 
         AcpiGbl_InitEntries[idx].Name =
-            AcpiOsAllocateZeroed (strnlen (NameBuffer + i, AE_FILE_BUFFER_SIZE) + 1);
+            AcpiOsAllocateZeroed (strnlen (NameBuffer, AE_FILE_BUFFER_SIZE) + 1);
 
-        strcpy (AcpiGbl_InitEntries[idx].Name, NameBuffer + i);
+        strcpy (AcpiGbl_InitEntries[idx].Name, NameBuffer);
 
-        Status = AcpiUtStrtoul64 (ValueBuffer, &AcpiGbl_InitEntries[idx].Value);
+        ObjectBuffer = AcpiDbGetNextToken (Token, &Token, &Type);
+
+        if (Type == ACPI_TYPE_FIELD_UNIT)
+        {
+            Status = AcpiDbConvertToObject (ACPI_TYPE_BUFFER, ObjectBuffer,
+                &TempObject);
+        }
+        else
+        {
+            Status = AcpiDbConvertToObject (Type, ObjectBuffer, &TempObject);
+        }
+
+        Status = AcpiUtCopyEobjectToIobject (&TempObject,
+            &AcpiGbl_InitEntries[idx].ObjDesc);
+
+        if (Type == ACPI_TYPE_BUFFER || Type == ACPI_TYPE_FIELD_UNIT)
+        {
+            ACPI_FREE (TempObject.Buffer.Pointer);
+        }
+
         if (ACPI_FAILURE (Status))
         {
             AcpiOsPrintf ("%s %s\n", ValueBuffer,
@@ -276,7 +298,16 @@ AeProcessInitFile(
             goto CleanupAndExit;
         }
 
-        AeEnterInitFileEntry (AcpiGbl_InitEntries[idx], WalkState);
+        /*
+         * Special case for field units. Field units are dependent on the
+         * parent region. This parent region has yet to be created so defer the
+         * initialization until the dispatcher. For all other types, initialize
+         * the namespace node with the value found in the init file.
+         */
+        if (Type != ACPI_TYPE_FIELD_UNIT)
+        {
+            AeEnterInitFileEntry (AcpiGbl_InitEntries[idx], WalkState);
+        }
     }
 
     /* Cleanup */
@@ -309,14 +340,12 @@ AeEnterInitFileEntry (
     ACPI_WALK_STATE         *WalkState)
 {
     char                    *Pathname = InitEntry.Name;
-    UINT64                  Value = InitEntry.Value;
-    ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_OPERAND_OBJECT     *ObjDesc = InitEntry.ObjDesc;
     ACPI_NAMESPACE_NODE     *NewNode;
     ACPI_STATUS             Status;
 
 
-    AcpiOsPrintf ("Initializing namespace element: %s\n", Pathname);
-    Status = AcpiNsLookup (NULL, Pathname, ACPI_TYPE_INTEGER,
+    Status = AcpiNsLookup (NULL, Pathname, ObjDesc->Common.Type,
         ACPI_IMODE_LOAD_PASS2, ACPI_NS_ERROR_IF_FOUND | ACPI_NS_NO_UPSEARCH |
         ACPI_NS_EARLY_INIT, NULL, &NewNode);
     if (ACPI_FAILURE (Status))
@@ -327,15 +356,17 @@ AeEnterInitFileEntry (
         return;
     }
 
-    ObjDesc = AcpiUtCreateIntegerObject (Value);
-
-    AcpiOsPrintf ("New value: 0x%8.8X%8.8X\n",
-        ACPI_FORMAT_UINT64 (Value));
-
     /* Store pointer to value descriptor in the Node */
 
     Status = AcpiNsAttachObject (NewNode, ObjDesc,
-         ACPI_TYPE_INTEGER);
+         ObjDesc->Common.Type);
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_EXCEPTION ((AE_INFO, Status,
+            "While attaching object to node from namespace initialization file: %s",
+            Pathname));
+        return;
+    }
 
     /* Remove local reference to the object */
 
@@ -359,7 +390,7 @@ AeEnterInitFileEntry (
 ACPI_STATUS
 AeLookupInitFileEntry (
     char                    *Pathname,
-    UINT64                  *Value)
+    ACPI_OPERAND_OBJECT     **ObjDesc)
 {
     UINT32                  i;
 
@@ -372,7 +403,7 @@ AeLookupInitFileEntry (
     {
         if (!strcmp(AcpiGbl_InitEntries[i].Name, Pathname))
         {
-            *Value = AcpiGbl_InitEntries[i].Value;
+            *ObjDesc = AcpiGbl_InitEntries[i].ObjDesc;
             return AE_OK;
         }
     }

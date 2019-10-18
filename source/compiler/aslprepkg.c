@@ -458,7 +458,7 @@ ApCheckPackage (
 
         for (i = 0; i < Package->RetInfo4.Count1; ++i)
         {
-            Status = ApCheckObjectType (Predefined->Info.Name, Op,
+            ApCheckObjectType (Predefined->Info.Name, Op,
                 Package->RetInfo4.ObjectType1, i);
             Op = Op->Asl.Next;
         }

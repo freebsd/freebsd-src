@@ -327,7 +327,7 @@ AdCreateTableHeader (
      * makes it easier to rename the disassembled ASL file if needed.
      */
     AcpiOsPrintf (
-        "DefinitionBlock (\"\", \"%4.4s\", %hu, \"%.6s\", \"%.8s\", 0x%8.8X)\n",
+        "DefinitionBlock (\"\", \"%4.4s\", %u, \"%.6s\", \"%.8s\", 0x%8.8X)\n",
         Table->Signature, Table->Revision,
         Table->OemId, Table->OemTableId, Table->OemRevision);
 }
@@ -601,7 +601,7 @@ AdParseTable (
     fprintf (stderr,
         "Parsing Deferred Opcodes (Methods/Buffers/Packages/Regions)\n");
 
-    Status = AcpiDmParseDeferredOps (AcpiGbl_ParseOpRoot);
+    (void) AcpiDmParseDeferredOps (AcpiGbl_ParseOpRoot);
     fprintf (stderr, "\n");
 
     /* Process Resource Templates */

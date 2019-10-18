@@ -841,8 +841,8 @@ NormalExit:
 
 ErrorExit:
     AeLateTest ();
+    AcpiOsFree (AcpiGbl_InitEntries);
     (void) AcpiTerminate ();
     AcDeleteTableList (ListHead);
-    AcpiOsFree (AcpiGbl_InitEntries);
     return (ExitCode);
 }

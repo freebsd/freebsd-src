@@ -458,7 +458,7 @@ AcpiOsGetTimer (
     {
         /* Convert milliseconds to 100 nanosecond ticks */
 
-        return ((UINT64) GetTickCount() * ACPI_100NSEC_PER_MSEC);
+        return (GetTickCount64() * ACPI_100NSEC_PER_MSEC);
     }
 }
 

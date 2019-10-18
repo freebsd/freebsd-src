@@ -210,6 +210,17 @@ typedef struct dt_field
 
 #define DT_FIELD_NOT_ALLOCATED      1
 
+/*
+ * Structure used for each individual key or value
+ */
+typedef struct dt_table_unit
+{
+    char                    *Value;      /* Field value (from name : value) */
+    UINT32                  Line;        /* Line number for this field */
+    UINT32                  Column;      /* Start column for field value */
+
+} DT_TABLE_UNIT;
+
 
 /*
  * Structure used for individual subtables within an ACPI table
@@ -292,14 +303,6 @@ DtCompilePadding (
     UINT32                  Length,
     DT_SUBTABLE             **RetSubtable);
 
-void
-DtCreateField (
-    char                    *Name,
-    char                    *Value,
-    UINT32                  Line,
-    UINT32                  Offset,
-    UINT32                  Column,
-    UINT32                  NameColumn);
 
 /* dtio - binary and text input/output */
 
@@ -435,6 +438,26 @@ DtCompileFlag (
     UINT8                   *Buffer,
     DT_FIELD                *Field,
     ACPI_DMTABLE_INFO       *Info);
+
+
+/* dtfield - DT_FIELD operations */
+
+void
+DtLinkField (
+    DT_FIELD                *Field);
+
+void
+DtCreateField (
+    DT_TABLE_UNIT           *FieldKey,
+    DT_TABLE_UNIT           *FieldValue,
+    UINT32                  Offset);
+
+DT_TABLE_UNIT *
+DtCreateTableUnit (
+    char                    *Data,
+    UINT32                  Line,
+    UINT32                  Column);
+
 
 
 /* dtparser - lex/yacc files */

@@ -168,6 +168,8 @@
 
 /* Utilities */
 
+#ifdef ACPI_OBSOLETE_FUNCTIONS
+
 ACPI_STATUS
 AcpiUtCopyIobjectToEobject (
     ACPI_OPERAND_OBJECT     *Obj,
@@ -201,6 +203,7 @@ AcpiUtCopyIobjectToIobject (
 
     return (AE_NOT_IMPLEMENTED);
 }
+#endif
 
 /* Hardware */
 
@@ -212,6 +215,8 @@ AcpiHwGetMode (
 }
 
 /* Event manager */
+
+#ifdef ACPI_OBSOLETE_FUNCTIONS
 
 ACPI_STATUS
 AcpiEvInstallRegionHandlers (
@@ -233,6 +238,7 @@ AcpiEvInitializeRegion (
 {
     return (AE_OK);
 }
+#endif
 
 ACPI_STATUS
 AcpiEvInstallXruptHandlers (
@@ -250,6 +256,8 @@ AcpiEvInitializeEvents (
 
 
 /* AML Interpreter */
+
+#ifdef ACPI_OBSOLETE_FUNCTIONS
 
 ACPI_STATUS
 AcpiExReadDataFromField (
@@ -288,7 +296,6 @@ AcpiExStoreObjectToNode (
     return (AE_NOT_IMPLEMENTED);
 }
 
-
 /* Namespace manager */
 
 ACPI_STATUS
@@ -300,6 +307,7 @@ AcpiNsEvaluate (
 
     return (AE_NOT_IMPLEMENTED);
 }
+#endif
 
 void
 AcpiExDoDebugObject (
@@ -357,6 +365,8 @@ AcpiExTracePoint (
 
 
 /* Dispatcher */
+
+#ifdef ACPI_OBSOLETE_FUNCTIONS
 
 ACPI_STATUS
 AcpiDsAutoSerializeMethod (
@@ -436,6 +446,7 @@ AcpiDsGetPredicateValue (
 
     return (AE_NOT_IMPLEMENTED);
 }
+#endif
 
 ACPI_STATUS
 AcpiDsGetBufferFieldArguments (
@@ -472,6 +483,8 @@ AcpiDsGetPackageArguments (
     return (AE_OK);
 }
 
+#ifdef ACPI_OBSOLETE_FUNCTIONS
+
 ACPI_STATUS
 AcpiDsExecBeginOp (
     ACPI_WALK_STATE         *WalkState,
@@ -492,3 +505,5 @@ AcpiDsExecEndOp (
 
     return (AE_NOT_IMPLEMENTED);
 }
+#endif
+

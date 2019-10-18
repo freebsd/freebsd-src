@@ -22,7 +22,9 @@ PROG = $(OBJDIR)/acpinames
 vpath %.c \
     $(ACPINAMES)\
     $(ACPICA_DISPATCHER)\
+    $(ACPICA_EVENTS)\
     $(ACPICA_EXECUTER)\
+    $(ACPICA_HARDWARE)\
     $(ACPICA_NAMESPACE)\
     $(ACPICA_PARSER)\
     $(ACPICA_TABLES)\
@@ -39,34 +41,69 @@ OBJECTS = \
 	$(OBJDIR)/anstubs.o\
 	$(OBJDIR)/antables.o\
 	$(OBJDIR)/cmfsize.o\
+	$(OBJDIR)/dscontrol.o\
+	$(OBJDIR)/dsdebug.o\
 	$(OBJDIR)/dsfield.o\
 	$(OBJDIR)/dsinit.o\
+	$(OBJDIR)/dsmethod.o\
 	$(OBJDIR)/dsmthdat.o\
 	$(OBJDIR)/dsobject.o\
+	$(OBJDIR)/dsopcode.o\
 	$(OBJDIR)/dspkginit.o\
 	$(OBJDIR)/dsutils.o\
+	$(OBJDIR)/dswexec.o\
 	$(OBJDIR)/dswload.o\
 	$(OBJDIR)/dswload2.o\
 	$(OBJDIR)/dswscope.o\
 	$(OBJDIR)/dswstate.o\
+	$(OBJDIR)/evhandler.o\
+	$(OBJDIR)/evmisc.o\
+	$(OBJDIR)/evregion.o\
+	$(OBJDIR)/evrgnini.o\
+	$(OBJDIR)/evxfregn.o\
+	$(OBJDIR)/exconcat.o\
+	$(OBJDIR)/exconfig.o\
+	$(OBJDIR)/exconvrt.o\
 	$(OBJDIR)/excreate.o\
 	$(OBJDIR)/exdump.o\
+	$(OBJDIR)/exfield.o\
+	$(OBJDIR)/exfldio.o\
+	$(OBJDIR)/exmisc.o\
 	$(OBJDIR)/exmutex.o\
 	$(OBJDIR)/exnames.o\
+	$(OBJDIR)/exoparg1.o\
+	$(OBJDIR)/exoparg2.o\
+	$(OBJDIR)/exoparg3.o\
+	$(OBJDIR)/exoparg6.o\
 	$(OBJDIR)/exprep.o\
+	$(OBJDIR)/exregion.o\
 	$(OBJDIR)/exresnte.o\
 	$(OBJDIR)/exresolv.o\
+	$(OBJDIR)/exresop.o\
+	$(OBJDIR)/exserial.o\
+	$(OBJDIR)/exstore.o\
+	$(OBJDIR)/exstoren.o\
+	$(OBJDIR)/exstorob.o\
 	$(OBJDIR)/exsystem.o\
 	$(OBJDIR)/exutils.o\
 	$(OBJDIR)/getopt.o\
+	$(OBJDIR)/hwpci.o\
+	$(OBJDIR)/hwvalid.o\
 	$(OBJDIR)/nsaccess.o\
 	$(OBJDIR)/nsalloc.o\
+	$(OBJDIR)/nsarguments.o\
+	$(OBJDIR)/nsconvert.o\
 	$(OBJDIR)/nsdump.o\
+	$(OBJDIR)/nseval.o\
 	$(OBJDIR)/nsinit.o\
 	$(OBJDIR)/nsload.o\
 	$(OBJDIR)/nsnames.o\
 	$(OBJDIR)/nsobject.o\
 	$(OBJDIR)/nsparse.o\
+	$(OBJDIR)/nspredef.o\
+	$(OBJDIR)/nsprepkg.o\
+	$(OBJDIR)/nsrepair.o\
+	$(OBJDIR)/nsrepair2.o\
 	$(OBJDIR)/nssearch.o\
 	$(OBJDIR)/nsutils.o\
 	$(OBJDIR)/nswalk.o\
@@ -99,6 +136,7 @@ OBJECTS = \
 	$(OBJDIR)/utascii.o\
 	$(OBJDIR)/utbuffer.o\
 	$(OBJDIR)/utcache.o\
+	$(OBJDIR)/utcopy.o\
 	$(OBJDIR)/utdebug.o\
 	$(OBJDIR)/utdecode.o\
 	$(OBJDIR)/utdelete.o\
@@ -117,8 +155,12 @@ OBJECTS = \
 	$(OBJDIR)/utobject.o\
 	$(OBJDIR)/utosi.o\
 	$(OBJDIR)/utownerid.o\
+	$(OBJDIR)/utpredef.o\
+	$(OBJDIR)/utresrc.o\
 	$(OBJDIR)/utstate.o\
 	$(OBJDIR)/utstring.o\
+	$(OBJDIR)/utstrsuppt.o\
+	$(OBJDIR)/utstrtoul64.o\
 	$(OBJDIR)/utxface.o\
 	$(OBJDIR)/utxferror.o\
 	$(OBJDIR)/utxfinit.o

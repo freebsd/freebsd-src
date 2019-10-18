@@ -532,7 +532,7 @@ AcpiOsGetLine (
                  * Ignore the various keys like insert/delete/home/end, etc.
                  * But we must eat the final character of the ESC sequence.
                  */
-                InputChar = getchar ();
+                (void) getchar ();
                 continue;
 
             default:

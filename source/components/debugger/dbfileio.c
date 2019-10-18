@@ -253,7 +253,7 @@ AcpiDbLoadTables (
     {
         Table = TableListHead->Table;
 
-        Status = AcpiLoadTable (Table);
+        Status = AcpiLoadTable (Table, NULL);
         if (ACPI_FAILURE (Status))
         {
             if (Status == AE_ALREADY_EXISTS)

@@ -487,10 +487,7 @@ RsDoInterruptDescriptor (
 
     if (StringLength && ResSourceString)
     {
-
         strcpy ((char *) Rover, (char *) ResSourceString);
-        Rover = ACPI_ADD_PTR (
-                    AML_RESOURCE, &(Rover->ByteItem), StringLength);
 
         Descriptor->ExtendedIrq.ResourceLength = (UINT16)
             (Descriptor->ExtendedIrq.ResourceLength + StringLength);

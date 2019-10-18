@@ -234,6 +234,10 @@ NsDisplayNamespace (
     Status = AcpiNsWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
         ACPI_UINT32_MAX, FALSE, NsDoOneNamespaceObject, NULL,
         NULL, NULL);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
 
     /* Print the full pathname for each namespace node */
 

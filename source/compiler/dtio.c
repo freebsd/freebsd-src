@@ -162,10 +162,6 @@ static char *
 DtTrim (
     char                    *String);
 
-static void
-DtLinkField (
-    DT_FIELD                *Field);
-
 static ACPI_STATUS
 DtParseLine (
     char                    *LineBuffer,
@@ -294,45 +290,6 @@ DtTrim (
 
     ReturnString[Length] = 0;
     return (ReturnString);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    DtLinkField
- *
- * PARAMETERS:  Field               - New field object to link
- *
- * RETURN:      None
- *
- * DESCRIPTION: Link one field name and value to the list
- *
- *****************************************************************************/
-
-static void
-DtLinkField (
-    DT_FIELD                *Field)
-{
-    DT_FIELD                *Prev;
-    DT_FIELD                *Next;
-
-
-    Prev = Next = AslGbl_FieldList;
-
-    while (Next)
-    {
-        Prev = Next;
-        Next = Next->Next;
-    }
-
-    if (Prev)
-    {
-        Prev->Next = Field;
-    }
-    else
-    {
-        AslGbl_FieldList = Field;
-    }
 }
 
 
@@ -490,59 +447,6 @@ DtParseLine (
     /* Else -- Ignore this field, it has no valid data */
 
     return (AE_OK);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    DtCreateField
- *
- * PARAMETERS: Name
- *             Value
- *             Line
- *             Offset
- *             Column
- *             NameColumn
- *
- * RETURN:     None
- *
- * DESCRIPTION: Create a field
- *
- *****************************************************************************/
-
-void
-DtCreateField (
-    char                    *Name,
-    char                    *Value,
-    UINT32                  Line,
-    UINT32                  Offset,
-    UINT32                  Column,
-    UINT32                  NameColumn)
-{
-    DT_FIELD                *Field = UtFieldCacheCalloc ();
-
-
-    Field->StringLength = 0;
-    if (Name)
-    {
-        Field->Name =
-            strcpy (UtLocalCacheCalloc (strlen (Name) + 1), Name);
-    }
-
-    if (Value)
-    {
-        Field->StringLength = strlen (Value);
-        Field->Value =
-            strcpy (UtLocalCacheCalloc (Field->StringLength + 1), Value);
-    }
-
-    Field->Line = Line;
-    Field->ByteOffset = Offset;
-    Field->NameColumn = NameColumn;
-    Field->Column = Column;
-    DtLinkField (Field);
-
-    DtDumpFieldList (AslGbl_FieldList);
 }
 
 
@@ -840,7 +744,6 @@ DtGetNextLine (
 
             case '\n':
 
-                CurrentLineOffset = AslGbl_NextLineOffset;
                 AslGbl_NextLineOffset = (UINT32) ftell (Handle);
                 AslGbl_CurrentLineNumber++;
                 break;
@@ -882,7 +785,6 @@ DtGetNextLine (
 
                 /* Ignore newline, this will merge the lines */
 
-                CurrentLineOffset = AslGbl_NextLineOffset;
                 AslGbl_NextLineOffset = (UINT32) ftell (Handle);
                 AslGbl_CurrentLineNumber++;
                 State = DT_NORMAL_TEXT;

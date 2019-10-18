@@ -546,7 +546,7 @@ AsConvertFile (
     {
         /* Decode the function bitmap */
 
-        switch ((1 << i) & Functions)
+        switch (((UINT32) 1 << i) & Functions)
         {
         case 0:
 
