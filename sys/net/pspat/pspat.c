@@ -39,31 +39,6 @@ static int pspat_create(void);
 static int pspat_init(void);
 static void pspat_fini(void);
 
-int
-pspat_create_client_queu(void) {
-	struct pspat_mailbox *m;
-	char name[PSPAT_MB_NAMSZ];
-	int err;
-
-	if (curthread->pspat_mb != NULL) {
-		return 0;
-	}
-
-	snprintf(name, PSPAT_MB_NAMSZ, "CM-%d", curthread->td_tid);
-
-	err = pspat_mb_new(name, pspat_mailbox_netries, pspat_mailbox_line_size, &m);
-
-	if (err) {
-		return err;
-	} if (m == NULL) {
-		return -ENOMEM;
-	}
-
-	curthread->pspat_mb = m;
-
-	return 0;
-}
-
 
 static void
 arbiter_worker_func(void *data) {
@@ -315,3 +290,52 @@ static moduledata_t pspat_data = {
 
 DECLARE_MODULE(pspat, pspat_data, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 MODULE_VERSION(pspat, 1);
+
+/* Called on thread_exit() to clean-up PSPAT mailbox, if any. */
+void
+exit_pspat(void)
+{
+	struct pspat_arbiter *arb;
+	struct pspat_queue *pq;
+	int cpu;
+
+	if (curthread->pspat_mb == NULL)
+		return;
+
+	curthread->pspat_mb->dead = 1;
+
+retry:
+	rw_wlock(&pspat_rwlock);
+	arb = &(pspat->arbiter);
+	if (arb) {
+		/* If the arbiter is running, we cannot delete the mailbox
+		 * by ourselves. Instead, we set the "dead" flag and insert
+		 * the mailbox in the client list.
+		 */
+		cpu = curthread->td_oncpu;
+		pq = arb->queues + cpu;
+		if (pspat_mb_insert(pq->inq, curthread->pspat_mb) == 0) {
+			curthread->pspat_mb = NULL;
+		}
+	}
+	rw_wunlock(&pspat_rwlock);
+	if (curthread->pspat_mb) {
+		/* the mailbox is still there */
+		if (arb) {
+			/* We failed to push PSPAT_LAST_SKB but the
+			 * arbiter was running. We must try again.
+			 */
+			printf("PSPAT Try again to destroy mailbox\n");
+			pause("Wait before retrying", 100);
+			goto retry;
+		} else {
+			/* The arbiter is not running. Since
+			 * pspat_shutdown() drains everything, any
+			 * new arbiter will not see this mailbox.
+			 * Therefore, we can safely free it up.
+			 */
+			pspat_mb_delete(curthread->pspat_mb);
+			curthread->pspat_mb = NULL;
+		}
+	}
+}

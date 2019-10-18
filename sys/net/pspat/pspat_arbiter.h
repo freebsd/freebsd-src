@@ -66,7 +66,7 @@ extern unsigned long	      pspat_arb_loop_avg_reqs;	    /* TODO What is the purp
  * Runs the arbiter loop
  * TODO What return codes?
  */
-int pspat_arbiter_run(struct pspat *arb);
+int pspat_arbiter_run(struct pspat *arb, struct pspat_dispatcher *dispatcher);
 
 /*
  * Shuts down the given arbiter
