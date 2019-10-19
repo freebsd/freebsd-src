@@ -126,6 +126,7 @@ __FBSDID("$FreeBSD$");
 struct fsl_pcib_softc {
 	struct ofw_pci_softc pci_sc;
 	device_t	sc_dev;
+	struct mtx	sc_cfg_mtx;
 
 	int		sc_iomem_target;
 	bus_addr_t	sc_iomem_start, sc_iomem_end;
@@ -199,10 +200,6 @@ static int fsl_pcib_maxslots(device_t);
 static uint32_t fsl_pcib_read_config(device_t, u_int, u_int, u_int, u_int, int);
 static void fsl_pcib_write_config(device_t, u_int, u_int, u_int, u_int,
     uint32_t, int);
-
-/* Configuration r/w mutex. */
-struct mtx pcicfg_mtx;
-static int mtx_initialized = 0;
 
 /*
  * Bus interface definitions.
@@ -298,10 +295,7 @@ fsl_pcib_attach(device_t dev)
 	sc->sc_bsh = rman_get_bushandle(sc->sc_res);
 	sc->sc_busnr = 0;
 
-	if (!mtx_initialized) {
-		mtx_init(&pcicfg_mtx, "pcicfg", NULL, MTX_SPIN);
-		mtx_initialized = 1;
-	}
+	mtx_init(&sc->sc_cfg_mtx, "pcicfg", NULL, MTX_SPIN);
 
 	cfgreg = fsl_pcib_cfgread(sc, 0, 0, 0, PCIR_VENDOR, 2);
 	if (cfgreg != 0x1057 && cfgreg != 0x1957)
@@ -413,7 +407,7 @@ fsl_pcib_cfgread(struct fsl_pcib_softc *sc, u_int bus, u_int slot, u_int func,
 	if (sc->sc_pcie)
 		addr |= (reg & 0xf00) << 16;
 
-	mtx_lock_spin(&pcicfg_mtx);
+	mtx_lock_spin(&sc->sc_cfg_mtx);
 	bus_space_write_4(sc->sc_bst, sc->sc_bsh, REG_CFG_ADDR, addr);
 
 	switch (bytes) {
@@ -433,7 +427,7 @@ fsl_pcib_cfgread(struct fsl_pcib_softc *sc, u_int bus, u_int slot, u_int func,
 		data = ~0;
 		break;
 	}
-	mtx_unlock_spin(&pcicfg_mtx);
+	mtx_unlock_spin(&sc->sc_cfg_mtx);
 	return (data);
 }
 
@@ -451,7 +445,7 @@ fsl_pcib_cfgwrite(struct fsl_pcib_softc *sc, u_int bus, u_int slot, u_int func,
 	if (sc->sc_pcie)
 		addr |= (reg & 0xf00) << 16;
 
-	mtx_lock_spin(&pcicfg_mtx);
+	mtx_lock_spin(&sc->sc_cfg_mtx);
 	bus_space_write_4(sc->sc_bst, sc->sc_bsh, REG_CFG_ADDR, addr);
 
 	switch (bytes) {
@@ -468,7 +462,7 @@ fsl_pcib_cfgwrite(struct fsl_pcib_softc *sc, u_int bus, u_int slot, u_int func,
 		    REG_CFG_DATA, htole32(data));
 		break;
 	}
-	mtx_unlock_spin(&pcicfg_mtx);
+	mtx_unlock_spin(&sc->sc_cfg_mtx);
 }
 
 #if 0
@@ -757,11 +751,12 @@ fsl_pcib_err_init(device_t dev)
 static int
 fsl_pcib_detach(device_t dev)
 {
+	struct fsl_pcib_softc *sc;
 
-	if (mtx_initialized) {
-		mtx_destroy(&pcicfg_mtx);
-		mtx_initialized = 0;
-	}
+	sc = device_get_softc(dev);
+
+	mtx_destroy(&sc->sc_cfg_mtx);
+
 	return (bus_generic_detach(dev));
 }
 
