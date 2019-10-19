@@ -3511,8 +3511,8 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 			} while (va % sz != 0);
 		}
 		if (bootverbose)
-			printf("Wiring VA=%lx to PA=%jx (size=%lx)\n",
-			    va, (uintmax_t)pa, sz);
+			printf("Wiring VA=%p to PA=%jx (size=%lx)\n",
+			    (void *)va, (uintmax_t)pa, (long)sz);
 		if (tlb1_set_entry(va, pa, sz,
 		    _TLB_ENTRY_SHARED | tlb_calc_wimg(pa, ma)) < 0)
 			return (NULL);
@@ -4298,9 +4298,9 @@ tlb_print_entry(int i, uint32_t mas1, uint32_t mas2, uint32_t mas3,
 		size = tsize2size(tsize);
 
 	printf("%3d: (%s) [AS=%d] "
-	    "sz = 0x%08x tsz = %d tid = %d mas1 = 0x%08x "
+	    "sz = 0x%jx tsz = %d tid = %d mas1 = 0x%08x "
 	    "mas2(va) = 0x%"PRI0ptrX" mas3(pa) = 0x%08x mas7 = 0x%08x\n",
-	    i, desc, as, size, tsize, tid, mas1, mas2, mas3, mas7);
+	    i, desc, as, (uintmax_t)size, tsize, tid, mas1, mas2, mas3, mas7);
 }
 
 DB_SHOW_COMMAND(tlb0, tlb0_print_tlbentries)
