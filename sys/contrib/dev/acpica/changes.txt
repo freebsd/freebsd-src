@@ -1,4 +1,117 @@
 ----------------------------------------
+18 October 2019. Summary of changes for version 20191018:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Debugger: added a new command: ?Fields [address space ID]?. This command 
+dumps the contents of all field units that are defined within the 
+namespace with a particular address space ID.
+
+Modified the external interface AcpiLoadTable() to return a table index. 
+This table index can be used for unloading a table for debugging.
+    ACPI_STATUS
+    AcpiLoadTable (
+        ACPI_TABLE_HEADER       *Table,
+        UINT32                  *TableIndex))
+
+Implemented a new external interface: AcpiUnloadTable() This new function 
+takes a table index as an argument and unloads the table. Useful for 
+debugging only.
+    ACPI_STATUS
+    AcpiUnloadTable (
+        UINT32                  TableIndex))
+
+Ported the AcpiNames utility to use the new table initialization 
+sequence. The utility was broken before this change. Also, it was 
+required to include most of the AML interpreter into the utility in order 
+to process table initialization (module-level code execution.)
+
+Update for results from running Clang V8.0.1. This fixes all "dead 
+assignment" warnings. There are still several "Dereference of NULL 
+pointer" warnings, but these have been found to be false positive 
+warnings.
+
+
+2) iASL Compiler/Disassembler and ACPICA tools:
+
+iASL: numerous table compiler changes to ensure that the usage of 
+yacc/bison syntax is POSIX-compliant.
+
+iASL/disassembler: several simple bug fixes in the data table 
+disassembler.
+
+Acpiexec: expanded the initialization file (the -fi option) to initialize 
+strings, buffers, packages, and field units.
+
+
+----------------------------------------
+16 August 2019. Summary of changes for version 20190816:
+
+This release is available at https://acpica.org/downloads
+
+
+1) ACPICA kernel-resident subsystem:
+
+Modified the OwnerId mechanism to allow for more Owner Ids. The previous 
+limit was 256 Ids, now it is 4096 Ids. This prevents OWNER_ID_LIMIT 
+exceptions on machines with a large number of initialization threads, 
+many CPU cores and nested initialization control methods.
+
+Introduced acpi_dispatch_gpe() as a wrapper around AcpiEvDetectGpe() for 
+checking if the given GPE (as represented by a GPE device handle and a 
+GPE number) is currently active and dispatching it (if that's the case) 
+outside of interrupt context.
+
+Table load: exit the interpreter before initializing objects within the 
+new table This prevents re-acquiring the interpreter lock when loading 
+tables
+
+Added the "Windows 2019" string to the _OSI support (version 1903). Jung-
+uk Kim
+
+Macros: removed pointer math on a null pointer. Causes warnings on some 
+compilers and/or tools. Changed ACPI_TO_POINTER to use ACPI_CAST_PTR 
+instead of using arithmetic.
+
+Fully deployed the ACPI_PRINTF_LIKE macro. This macro was not being used 
+across all "printf-like" internal functions. Also, cleanup all calls to 
+such functions (both in 32-bit mode and 64-bit mode) now that they are 
+analyzed by the gcc compiler via ACPI_PRINTF_LIKE.
+
+
+2) iASL Compiler/Disassembler and ACPICA tools:
+
+iASL: implemented a new data table compiler flex/bison front-end. This 
+change is internal and is not intended to result in changes to the 
+compiled code. This new compiler front-end can be invoked using the -tp 
+option for now, until the old mechanism is removed.
+
+ASLTS: Implemented a new data table compiler test suite. This test suite 
+generates all table templates and compile/disassemble/re-compile/binary-
+compare each file. 
+
+iASL: return -1 if AML files were not generated due to compiler errors
+
+iASL: added a warning on use of the now-legacy ASL Processor () keyword.
+
+iASL: added an error on _UID object declaration that returns a String 
+within a Processor () declaration. A _UID for a processor must be an 
+Integer.
+
+iASL: added a null terminator to name strings that consist only of 
+multiple parent prefixes (^)
+
+iASL: added support to compile both ASL and data table files in a single 
+command.
+
+Updated the tool generation project files that were recently migrated to 
+MSVC 2017 to eliminate all new warnings. The new project files appear in 
+the directory \acpica\generate\msvc2017. This change effectively 
+deprecates the older project files in \acpica\generate\msvc9.
+
+
+----------------------------------------
 03 July 2019. Summary of changes for version 20190703:
 
 

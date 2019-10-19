@@ -223,7 +223,7 @@ PrAddDefine (
     DefineInfo = PrMatchDefine (Identifier);
     if (DefineInfo)
     {
-        DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID,
+        DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
             "#define: name already exists: %s\n",
             AslGbl_CurrentLineNumber, Identifier);
 

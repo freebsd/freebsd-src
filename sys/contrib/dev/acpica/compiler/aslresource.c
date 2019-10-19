@@ -1226,7 +1226,7 @@ RsDoResourceTemplate (
     BufferOp->Asl.AmlOpcode           = AML_RAW_DATA_CHAIN;
     BufferOp->Asl.AmlOpcodeLength     = 0;
     BufferOp->Asl.AmlLength           = CurrentByteOffset;
-    BufferOp->Asl.Value.Buffer        = (UINT8 *) HeadRnode.Next;
+    BufferOp->Asl.Value.Buffer        = ACPI_CAST_PTR (UINT8,  HeadRnode.Next);
     BufferOp->Asl.CompileFlags       |= OP_IS_RESOURCE_DATA;
     UtSetParseOpName (BufferOp);
 

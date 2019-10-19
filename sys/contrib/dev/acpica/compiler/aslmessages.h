@@ -369,6 +369,8 @@ typedef enum
     ASL_MSG_UNDEFINED_EXTERNAL,
     ASL_MSG_BUFFER_FIELD_OVERFLOW,
     ASL_MSG_INVALID_SPECIAL_NAME,
+    ASL_MSG_INVALID_PROCESSOR_UID,
+    ASL_MSG_LEGACY_PROCESSOR_OP,
 
     /* These messages are used by the Data Table compiler only */
 
@@ -385,6 +387,9 @@ typedef enum
     ASL_MSG_UNKNOWN_SUBTABLE,
     ASL_MSG_UNKNOWN_TABLE,
     ASL_MSG_ZERO_VALUE,
+    ASL_MSG_INVALID_LABEL,
+    ASL_MSG_BUFFER_LIST,
+    ASL_MSG_ENTRY_LIST,
 
     /* These messages are used by the Preprocessor only */
 
