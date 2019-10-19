@@ -227,7 +227,6 @@ int
 DtInitLexer (
     char                    *String)
 {
-
     LexBuffer = yy_scan_string (String);
     return (LexBuffer == NULL);
 }
@@ -236,6 +235,5 @@ void
 DtTerminateLexer (
     void)
 {
-
     yy_delete_buffer (LexBuffer);
 }

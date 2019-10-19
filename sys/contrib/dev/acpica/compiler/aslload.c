@@ -275,7 +275,6 @@ LdLoadFieldElements (
     ACPI_STATUS             Status;
 
 
-
     SourceRegion = UtGetArg (Op, 0);
     if (SourceRegion)
     {
@@ -527,13 +526,12 @@ LdNamespace1Begin (
 
     case AML_INT_CONNECTION_OP:
 
-
         if (Op->Asl.Child->Asl.AmlOpcode != AML_INT_NAMEPATH_OP)
         {
             break;
         }
-        Arg = Op->Asl.Child;
 
+        Arg = Op->Asl.Child;
         Status = AcpiNsLookup (WalkState->ScopeInfo, Arg->Asl.ExternalName,
             ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT,
             WalkState, &Node);
@@ -542,15 +540,6 @@ LdNamespace1Begin (
             break;
         }
 
-        if (Node->Type == ACPI_TYPE_BUFFER)
-        {
-            Arg->Asl.Node = Node;
-
-            Arg = Node->Op->Asl.Child;  /* Get namepath */
-            Arg = Arg->Asl.Next;        /* Get actual buffer */
-            Arg = Arg->Asl.Child;       /* Buffer length */
-            Arg = Arg->Asl.Next;        /* RAW_DATA buffer */
-        }
         break;
 
     default:
@@ -577,7 +566,6 @@ LdNamespace1Begin (
          * These opcodes are guaranteed to have a parent.
          * Examine the parent opcode.
          */
-        Status = AE_OK;
         ParentOp = Op->Asl.Parent;
         OpInfo = AcpiPsGetOpcodeInfo (ParentOp->Asl.AmlOpcode);
 
@@ -1031,7 +1019,8 @@ FinishNode:
  * DESCRIPTION: Check if certain named objects are declared in the incorrect
  *              scope. Special named objects are listed in
  *              AslGbl_SpecialNamedObjects and can only be declared at the root
- *              scope.
+ *              scope. _UID inside of a processor declaration must not be a
+ *              string.
  *
  ******************************************************************************/
 
@@ -1051,6 +1040,13 @@ LdCheckSpecialNames (
             AslError (ASL_ERROR, ASL_MSG_INVALID_SPECIAL_NAME, Op, Op->Asl.ExternalName);
             return;
         }
+    }
+
+    if (ACPI_COMPARE_NAMESEG (Node->Name.Ascii, "_UID") &&
+        Node->Parent->Type == ACPI_TYPE_PROCESSOR &&
+        Node->Type == ACPI_TYPE_STRING)
+    {
+        AslError (ASL_ERROR, ASL_MSG_INVALID_PROCESSOR_UID , Op, "found a string");
     }
 }
 

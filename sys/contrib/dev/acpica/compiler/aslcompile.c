@@ -853,10 +853,11 @@ CmDumpAllEvents (
  *
  ******************************************************************************/
 
-void
+int
 CmCleanupAndExit (
     void)
 {
+    int                     Status = 0;
     BOOLEAN                 DeleteAmlFile = FALSE;
     ASL_GLOBAL_FILE_NODE    *CurrentFileNode = AslGbl_FilesList;
 
@@ -915,20 +916,38 @@ CmCleanupAndExit (
     UtDisplaySummary (ASL_FILE_STDOUT);
 
     /*
-     * We will delete the AML file if there are errors and the
-     * force AML output option has not been used.
+     * Delete the AML file if there are errors and the force AML output option
+     * (-f) has not been used.
+     *
+     * Return -1 as a status of the compiler if no AML files are generated. If
+     * the AML file is generated in the presence of errors, return 0. In the
+     * latter case, the errors were ignored by the user so the compilation is
+     * considered successful.
      */
-    if (AslGbl_ParserErrorDetected || AslGbl_PreprocessOnly || ((AslGbl_ExceptionCount[ASL_ERROR] > 0) &&
+    if (AslGbl_ParserErrorDetected || AslGbl_PreprocessOnly ||
+        ((AslGbl_ExceptionCount[ASL_ERROR] > 0) &&
         (!AslGbl_IgnoreErrors) &&
         AslGbl_Files[ASL_FILE_AML_OUTPUT].Handle))
     {
         DeleteAmlFile = TRUE;
+        Status = -1;
     }
 
     /* Close all open files */
 
     while (CurrentFileNode)
     {
+        /*
+         * Set the program return status based on file errors. If there are any
+         * errors and during compilation, the command is not considered
+         * successful.
+         */
+        if (Status != -1 && !AslGbl_IgnoreErrors &&
+            CurrentFileNode->ParserErrorDetected)
+        {
+            Status = -1;
+        }
+
         switch  (FlSwitchFileSet (CurrentFileNode->Files[ASL_FILE_INPUT].Filename))
         {
             case SWITCH_TO_SAME_FILE:
@@ -952,6 +971,8 @@ CmCleanupAndExit (
     {
         UtDeleteLocalCaches ();
     }
+
+    return (Status);
 }
 
 

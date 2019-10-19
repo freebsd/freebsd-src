@@ -282,7 +282,6 @@ main (
         if (ACPI_FAILURE (Status))
         {
             ReturnStatus = -1;
-            goto CleanupAndExit;
         }
 
         Index2++;
@@ -290,9 +289,10 @@ main (
 
     /*
      * At this point, compilation of a data table or disassembly is complete.
+     * However, if there is a parse tree, perform compiler analysis and
+     * generate AML.
      */
-    if (AslGbl_PreprocessOnly || AcpiGbl_DisasmFlag ||
-        AslGbl_FileType == ASL_INPUT_TYPE_ASCII_DATA)
+    if (AslGbl_PreprocessOnly || AcpiGbl_DisasmFlag || !AslGbl_ParseTreeRoot)
     {
         goto CleanupAndExit;
     }
@@ -338,7 +338,6 @@ main (
     }
 
 
-
 CleanupAndExit:
 
     UtFreeLineBuffers ();
@@ -350,7 +349,7 @@ CleanupAndExit:
 
     if (!AcpiGbl_DisasmFlag)
     {
-        CmCleanupAndExit ();
+        ReturnStatus = CmCleanupAndExit ();
     }
 
 
@@ -400,18 +399,21 @@ AslSignalHandler (
      * Close all open files
      * Note: the .pre file is the same as the input source file
      */
-    AslGbl_Files[ASL_FILE_PREPROCESSOR].Handle = NULL;
-
-    for (i = ASL_FILE_INPUT; i < ASL_MAX_FILE_TYPE; i++)
+    if (AslGbl_Files)
     {
-        FlCloseFile (i);
-    }
+        AslGbl_Files[ASL_FILE_PREPROCESSOR].Handle = NULL;
 
-    /* Delete any output files */
+        for (i = ASL_FILE_INPUT; i < ASL_MAX_FILE_TYPE; i++)
+        {
+            FlCloseFile (i);
+        }
 
-    for (i = ASL_FILE_AML_OUTPUT; i < ASL_MAX_FILE_TYPE; i++)
-    {
-        FlDeleteFile (i);
+        /* Delete any output files */
+
+        for (i = ASL_FILE_AML_OUTPUT; i < ASL_MAX_FILE_TYPE; i++)
+        {
+            FlDeleteFile (i);
+        }
     }
 
     printf (ASL_PREFIX "Terminating\n");

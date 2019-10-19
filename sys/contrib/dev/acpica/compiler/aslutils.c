@@ -223,6 +223,7 @@ UtQueryForOverwrite (
     char                    *Pathname)
 {
     struct stat             StatInfo;
+    int                     InChar;
 
 
     if (!stat (Pathname, &StatInfo))
@@ -230,7 +231,13 @@ UtQueryForOverwrite (
         fprintf (stderr, "Target file \"%s\" already exists, overwrite? [y|n] ",
             Pathname);
 
-        if (getchar () != 'y')
+        InChar = fgetc (stdin);
+        if (InChar == '\n')
+        {
+            InChar = fgetc (stdin);
+        }
+
+        if ((InChar != 'y') && (InChar != 'Y'))
         {
             return (FALSE);
         }
@@ -559,58 +566,54 @@ UtDisplayOneSummary (
 
     /* Summary of main input and output files */
 
-    if (AslGbl_FileType == ASL_INPUT_TYPE_ASCII_DATA)
+    FileNode = FlGetCurrentFileNode ();
+    if (!FileNode)
+    {
+        fprintf (stderr, "Summary could not be generated");
+        return;
+    }
+
+    if (FileNode->ParserErrorDetected)
     {
         FlPrintFile (FileId,
-            "%-14s %s - %u lines, %u bytes, %u fields\n",
-            "Table Input:",
-            AslGbl_Files[ASL_FILE_INPUT].Filename, AslGbl_CurrentLineNumber,
-            AslGbl_InputByteCount, AslGbl_InputFieldCount);
-
-        if ((AslGbl_ExceptionCount[ASL_ERROR] == 0) || (AslGbl_IgnoreErrors))
-        {
-            FlPrintFile (FileId,
-                "%-14s %s - %u bytes\n",
-                "Binary Output:",
-                AslGbl_Files[ASL_FILE_AML_OUTPUT].Filename, AslGbl_TableLength);
-        }
+            "%-14s %s - Compilation aborted due to parser-detected syntax error(s)\n",
+            "Input file:", AslGbl_Files[ASL_FILE_INPUT].Filename);
     }
-    else
+    else if (FileNode->FileType == ASL_INPUT_TYPE_ASCII_DATA)
     {
-        FileNode = FlGetCurrentFileNode ();
-        if (!FileNode)
-        {
-            fprintf (stderr, "Summary could not be generated");
-            return;
-        }
-        if (FileNode->ParserErrorDetected)
+        FlPrintFile (FileId,
+            "%-14s %s - %7u bytes %6u fields %8u source lines\n",
+            "Table Input:",
+            AslGbl_Files[ASL_FILE_INPUT].Filename,
+            FileNode->OriginalInputFileSize, FileNode->TotalFields,
+            FileNode->TotalLineCount);
+
+        FlPrintFile (FileId,
+            "%-14s %s - %7u bytes\n",
+            "Binary Output:",
+            AslGbl_Files[ASL_FILE_AML_OUTPUT].Filename, FileNode->OutputByteLength);
+    }
+    else if (FileNode->FileType == ASL_INPUT_TYPE_ASCII_ASL)
+    {
+        FlPrintFile (FileId,
+            "%-14s %s - %7u bytes %6u keywords %6u source lines\n",
+            "ASL Input:",
+            AslGbl_Files[ASL_FILE_INPUT].Filename,
+            FileNode->OriginalInputFileSize,
+            FileNode->TotalKeywords,
+            FileNode->TotalLineCount);
+
+        /* AML summary */
+
+        if (DisplayAMLSummary)
         {
             FlPrintFile (FileId,
-                "%-14s %s - Compilation aborted due to parser-detected syntax error(s)\n",
-                "ASL Input:", AslGbl_Files[ASL_FILE_INPUT].Filename);
-        }
-        else
-        {
-            FlPrintFile (FileId,
-                "%-14s %s - %7u bytes %6u keywords %6u source lines\n",
-                "ASL Input:",
-                AslGbl_Files[ASL_FILE_INPUT].Filename,
-                FileNode->OriginalInputFileSize,
-                FileNode->TotalKeywords,
-                FileNode->TotalLineCount);
-
-            /* AML summary */
-
-            if (DisplayAMLSummary)
-            {
-                FlPrintFile (FileId,
-                    "%-14s %s - %7u bytes %6u opcodes  %6u named objects\n",
-                    "AML Output:",
-                    AslGbl_Files[ASL_FILE_AML_OUTPUT].Filename,
-                    FlGetFileSize (ASL_FILE_AML_OUTPUT),
-                    FileNode->TotalExecutableOpcodes,
-                    FileNode->TotalNamedObjects);
-            }
+                "%-14s %s - %7u bytes %6u opcodes  %6u named objects\n",
+                "AML Output:",
+                AslGbl_Files[ASL_FILE_AML_OUTPUT].Filename,
+                FlGetFileSize (ASL_FILE_AML_OUTPUT),
+                FileNode->TotalExecutableOpcodes,
+                FileNode->TotalNamedObjects);
         }
     }
 
@@ -994,6 +997,37 @@ UtAttachNamepathToOwner (
 
 /*******************************************************************************
  *
+ * FUNCTION:    UtNameContainsAllPrefix
+ *
+ * PARAMETERS:  Op                  - Op containing NameString
+ *
+ * RETURN:      NameString consists of all ^ characters
+ *
+ * DESCRIPTION: Determine if this Op contains a name segment that consists of
+ *              all '^' characters.
+ *
+ ******************************************************************************/
+
+BOOLEAN
+UtNameContainsAllPrefix (
+    ACPI_PARSE_OBJECT       *Op)
+{
+    UINT32                  Length = Op->Asl.AmlLength;
+    UINT32                  i;
+
+    for (i = 0; i < Length; i++)
+    {
+        if (Op->Asl.Value.String[i] != '^')
+        {
+            return (FALSE);
+        }
+    }
+
+    return (TRUE);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    UtDoConstant
  *
  * PARAMETERS:  String              - Hex/Decimal/Octal
@@ -1025,4 +1059,57 @@ UtDoConstant (
     }
 
     return (ConvertedInteger);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiUtStrdup
+ *
+ * PARAMETERS:  String1             - string to duplicate
+ *
+ * RETURN:      int that signifies string relationship. Zero means strings
+ *              are equal.
+ *
+ * DESCRIPTION: Duplicate the string using UtCacheAlloc to avoid manual memory
+ *              reclamation.
+ *
+ ******************************************************************************/
+
+char *
+AcpiUtStrdup (
+    char                    *String)
+{
+    char                    *NewString = (char *) UtLocalCalloc (strlen (String) + 1);
+
+
+    strcpy (NewString, String);
+    return (NewString);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiUtStrcat
+ *
+ * PARAMETERS:  String1
+ *              String2
+ *
+ * RETURN:      New string with String1 concatenated with String2
+ *
+ * DESCRIPTION: Concatenate string1 and string2
+ *
+ ******************************************************************************/
+
+char *
+AcpiUtStrcat (
+    char                    *String1,
+    char                    *String2)
+{
+    UINT32                  String1Length = strlen (String1);
+    char                    *NewString = (char *) UtLocalCalloc (strlen (String1) + strlen (String2) + 1);
+
+    strcpy (NewString, String1);
+    strcpy (NewString + String1Length, String2);
+    return (NewString);
 }

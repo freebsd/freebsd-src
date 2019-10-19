@@ -309,7 +309,6 @@ AcpiDsCreateBufferField (
     if (WalkState->DeferredNode)
     {
         Node = WalkState->DeferredNode;
-        Status = AE_OK;
     }
     else
     {
@@ -435,7 +434,6 @@ AcpiDsGetFieldNames (
     ACPI_PARSE_OBJECT       *Child;
 
 #if !defined(ACPI_DB_APP) && defined(ACPI_EXEC_APP)
-    UINT64                  Value = 0;
     ACPI_OPERAND_OBJECT     *ResultDesc;
     ACPI_OPERAND_OBJECT     *ObjDesc;
     char                    *NamePath;
@@ -577,14 +575,13 @@ AcpiDsGetFieldNames (
                     }
 #if !defined(ACPI_DB_APP) && defined(ACPI_EXEC_APP)
                     NamePath = AcpiNsGetExternalPathname (Info->FieldNode);
-                    ObjDesc = AcpiUtCreateIntegerObject (Value);
-                    if (ACPI_SUCCESS (AeLookupInitFileEntry (NamePath, &Value)))
+                    if (ACPI_SUCCESS (AeLookupInitFileEntry (NamePath, &ObjDesc)))
                     {
                         AcpiExWriteDataToField (ObjDesc,
                             AcpiNsGetAttachedObject (Info->FieldNode),
                             &ResultDesc);
+                        AcpiUtRemoveReference (ObjDesc);
                     }
-                    AcpiUtRemoveReference (ObjDesc);
                     ACPI_FREE (NamePath);
 #endif
                 }
@@ -813,8 +810,6 @@ AcpiDsInitFieldObjects (
                 }
 
                 /* Name already exists, just ignore this error */
-
-                Status = AE_OK;
             }
 
             Arg->Common.Node = Node;
