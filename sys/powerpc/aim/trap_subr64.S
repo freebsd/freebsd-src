@@ -452,7 +452,7 @@ CNAME(trapcode):
 	blrl				/* Branch to generictrap */
 CNAME(trapcodeend):
 
-/* Same thing for traps setting HSRR0/HSS1 */
+/* Same thing for traps setting HSRR0/HSRR1 */
 	.globl	CNAME(hypertrapcode),CNAME(hypertrapcodeend)
 	.p2align 3
 CNAME(hypertrapcode):
