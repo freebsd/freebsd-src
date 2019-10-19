@@ -105,6 +105,9 @@
 .Ar snapshot snapshot
 .Nm
 .Cm rename
+.Ar bookmark bookmark
+.Nm
+.Cm rename
 .Fl u
 .Op Fl p
 .Ar filesystem filesystem
@@ -2090,6 +2093,16 @@ flag.
 .Pp
 Recursively rename the snapshots of all descendent datasets. Snapshots are the
 only dataset that can be renamed recursively.
+.It Xo
+.Nm
+.Cm rename
+.Ar bookmark bookmark
+.Xc
+.Pp
+Renames the given bookmark.
+Bookmarks can only be renamed within the parent file system or volume.
+When renaming a bookmark, the parent file system or volume of the bookmark
+does not need to be specified as part of the second argument.
 .It Xo
 .Nm
 .Cm list

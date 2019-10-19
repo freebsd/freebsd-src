@@ -284,6 +284,7 @@ get_usage(zfs_help_t idx)
 		    "<filesystem|volume|snapshot>\n"
 		    "\trename [-f] -p <filesystem|volume> <filesystem|volume>\n"
 		    "\trename -r <snapshot> <snapshot>\n"
+		    "\trename <bookmark> <bookmark>\n"
 		    "\trename -u [-p] <filesystem> <filesystem>"));
 	case HELP_ROLLBACK:
 		return (gettext("\trollback [-rRf] <snapshot>\n"));
@@ -3254,6 +3255,7 @@ zfs_do_list(int argc, char **argv)
  * zfs rename [-f] <fs | snap | vol> <fs | snap | vol>
  * zfs rename [-f] -p <fs | vol> <fs | vol>
  * zfs rename -r <snap> <snap>
+ * zfs rename <bmark> <bmark>
  * zfs rename -u [-p] <fs> <fs>
  *
  * Renames the given dataset to another of the same type.
@@ -3270,6 +3272,7 @@ zfs_do_rename(int argc, char **argv)
 	int ret = 0;
 	int types;
 	boolean_t parents = B_FALSE;
+	boolean_t bookmarks = B_FALSE;
 	char *snapshot = NULL;
 
 	/* check options */
@@ -3320,7 +3323,7 @@ zfs_do_rename(int argc, char **argv)
 		usage(B_FALSE);
 	}
 
-	if (flags.recurse && strchr(argv[0], '@') == 0) {
+	if (flags.recurse && strchr(argv[0], '@') == NULL) {
 		(void) fprintf(stderr, gettext("source dataset for recursive "
 		    "rename must be a snapshot\n"));
 		usage(B_FALSE);
@@ -3332,10 +3335,22 @@ zfs_do_rename(int argc, char **argv)
 		usage(B_FALSE);
 	}
 
+	if (strchr(argv[0], '#') != NULL)
+		bookmarks = B_TRUE;
+
+	if (bookmarks && (flags.nounmount || flags.recurse ||
+	    flags.forceunmount || parents)) {
+		(void) fprintf(stderr, gettext("options are not supported "
+		    "for renaming bookmarks\n"));
+		usage(B_FALSE);
+	}
+
 	if (flags.nounmount)
 		types = ZFS_TYPE_FILESYSTEM;
 	else if (parents)
 		types = ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME;
+	else if (bookmarks)
+		types = ZFS_TYPE_BOOKMARK;
 	else
 		types = ZFS_TYPE_DATASET;
 

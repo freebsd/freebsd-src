@@ -4291,17 +4291,18 @@ zfs_rename(zfs_handle_t *zhp, const char *source, const char *target,
 	/*
 	 * Make sure the target name is valid
 	 */
-	if (zhp->zfs_type == ZFS_TYPE_SNAPSHOT) {
-		if ((strchr(target, '@') == NULL) ||
-		    *target == '@') {
+	if (zhp->zfs_type == ZFS_TYPE_SNAPSHOT ||
+	    zhp->zfs_type == ZFS_TYPE_BOOKMARK) {
+		const char sep = zhp->zfs_type == ZFS_TYPE_SNAPSHOT ? '@' : '#';
+
+		if ((strchr(target, sep) == NULL) || *target == sep) {
 			/*
 			 * Snapshot target name is abbreviated,
 			 * reconstruct full dataset name
 			 */
-			(void) strlcpy(parent, zhp->zfs_name,
-			    sizeof (parent));
-			delim = strchr(parent, '@');
-			if (strchr(target, '@') == NULL)
+			(void) strlcpy(parent, zhp->zfs_name, sizeof (parent));
+			delim = strchr(parent, sep);
+			if (strchr(target, sep) == NULL)
 				*(++delim) = '\0';
 			else
 				*delim = '\0';
@@ -4311,12 +4312,13 @@ zfs_rename(zfs_handle_t *zhp, const char *source, const char *target,
 			/*
 			 * Make sure we're renaming within the same dataset.
 			 */
-			delim = strchr(target, '@');
+			delim = strchr(target, sep);
 			if (strncmp(zhp->zfs_name, target, delim - target)
-			    != 0 || zhp->zfs_name[delim - target] != '@') {
+			    != 0 || zhp->zfs_name[delim - target] != sep) {
 				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
-				    "snapshots must be part of same "
-				    "dataset"));
+				    "%s must be part of same dataset"),
+				    zhp->zfs_type == ZFS_TYPE_SNAPSHOT ?
+				    "snapshots" : "bookmarks");
 				return (zfs_error(hdl, EZFS_CROSSTARGET,
 				    errbuf));
 			}
@@ -4379,7 +4381,6 @@ zfs_rename(zfs_handle_t *zhp, const char *source, const char *target,
 		flags.nounmount = B_TRUE;
 	}
 	if (flags.recurse) {
-
 		parentname = zfs_strdup(zhp->zfs_hdl, zhp->zfs_name);
 		if (parentname == NULL) {
 			ret = -1;
@@ -4392,7 +4393,8 @@ zfs_rename(zfs_handle_t *zhp, const char *source, const char *target,
 			ret = -1;
 			goto error;
 		}
-	} else if (zhp->zfs_type != ZFS_TYPE_SNAPSHOT) {
+	} else if (zhp->zfs_type != ZFS_TYPE_SNAPSHOT &&
+	    zhp->zfs_type != ZFS_TYPE_BOOKMARK) {
 		if ((cl = changelist_gather(zhp, ZFS_PROP_NAME,
 		    flags.nounmount ? CL_GATHER_DONT_UNMOUNT : 0,
 		    flags.forceunmount ? MS_FORCE : 0)) == NULL) {
@@ -4437,6 +4439,8 @@ zfs_rename(zfs_handle_t *zhp, const char *source, const char *target,
 			    "a child dataset already has a snapshot "
 			    "with the new name"));
 			(void) zfs_error(hdl, EZFS_EXISTS, errbuf);
+		} else if (errno == EINVAL) {
+			(void) zfs_error(hdl, EZFS_INVALIDNAME, errbuf);
 		} else {
 			(void) zfs_standard_error(zhp->zfs_hdl, errno, errbuf);
 		}
