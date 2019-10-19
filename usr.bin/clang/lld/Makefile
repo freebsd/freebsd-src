@@ -15,6 +15,10 @@ SYMLINKS=	${PROG_CXX} ${BINDIR}/ld
 MLINKS=		ld.lld.1 ld.1
 .endif
 
+.if ${MK_SHARED_TOOLCHAIN} == "no"
+NO_SHARED?= yes
+.endif
+
 CFLAGS+=	-I${LLD_SRCS}/ELF
 CFLAGS+=	-I${LLD_SRCS}/include
 CFLAGS+=	-I${.OBJDIR}
