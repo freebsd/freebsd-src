@@ -390,7 +390,6 @@ cpu_reset(void)
 			mb = &pcpu_find(0)->pc_monitorbuf;
 			atomic_store_int(&mb->stop_state,
 			    MONITOR_STOPSTATE_RUNNING);
-			wmb();
 
 			cnt = 0;
 			while (cpu_reset_proxy_active == 0 && cnt < 10000000) {
