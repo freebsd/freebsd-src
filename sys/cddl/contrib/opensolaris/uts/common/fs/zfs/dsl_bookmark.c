@@ -459,3 +459,108 @@ dsl_bookmark_destroy(nvlist_t *bmarks, nvlist_t *errors)
 	fnvlist_free(dbda.dbda_success);
 	return (rv);
 }
+
+typedef struct dsl_bookmark_rename_arg {
+	const char *dbra_fsname;
+	const char *dbra_oldname;
+	const char *dbra_newname;
+} dsl_bookmark_rename_arg_t;
+
+static int
+dsl_bookmark_rename_check(void *arg, dmu_tx_t *tx)
+{
+	dsl_bookmark_rename_arg_t *dbra = arg;
+	dsl_pool_t *dp = dmu_tx_pool(tx);
+	dsl_dataset_t *ds;
+	zfs_bookmark_phys_t bmark_phys;
+	int error;
+
+	if (!spa_feature_is_enabled(dp->dp_spa, SPA_FEATURE_BOOKMARKS))
+		return (SET_ERROR(ENOTSUP));
+
+	/* Check validity and the full length of the new bookmark name. */
+	if (zfs_component_namecheck(dbra->dbra_newname, NULL, NULL))
+		return (SET_ERROR(EINVAL));
+	if (strlen(dbra->dbra_fsname) + strlen(dbra->dbra_newname) + 1 >=
+	    ZFS_MAX_DATASET_NAME_LEN)
+		return (SET_ERROR(ENAMETOOLONG));
+
+	error = dsl_dataset_hold(dp, dbra->dbra_fsname, FTAG, &ds);
+	if (error != 0)
+		return (error);
+	if (ds->ds_is_snapshot) {
+		dsl_dataset_rele(ds, FTAG);
+		return (SET_ERROR(EINVAL));
+	}
+	error = dsl_dataset_bmark_lookup(ds, dbra->dbra_oldname, &bmark_phys);
+	if (error != 0) {
+		dsl_dataset_rele(ds, FTAG);
+		return (error);
+	}
+
+	error = dsl_dataset_bmark_lookup(ds, dbra->dbra_newname, &bmark_phys);
+	dsl_dataset_rele(ds, FTAG);
+	if (error == 0)
+		return (SET_ERROR(EEXIST));
+	if (error != ESRCH)
+		return (error);
+	return (0);
+}
+
+static void
+dsl_bookmark_rename_sync(void *arg, dmu_tx_t *tx)
+{
+	zfs_bookmark_phys_t bmark_phys;
+	dsl_bookmark_rename_arg_t *dbra = arg;
+	dsl_pool_t *dp = dmu_tx_pool(tx);
+	objset_t *mos;
+	dsl_dataset_t *ds;
+	uint64_t bmark_zapobj;
+	uint64_t int_size, num_ints;
+	matchtype_t mt = 0;
+	int error;
+
+	ASSERT(spa_feature_is_enabled(dp->dp_spa, SPA_FEATURE_BOOKMARKS));
+	VERIFY0(dsl_dataset_hold(dp, dbra->dbra_fsname, FTAG, &ds));
+
+	mos = ds->ds_dir->dd_pool->dp_meta_objset;
+	bmark_zapobj = ds->ds_bookmarks;
+
+	if (dsl_dataset_phys(ds)->ds_flags & DS_FLAG_CI_DATASET)
+		mt = MT_NORMALIZE;
+
+	VERIFY0(zap_length(mos, bmark_zapobj, dbra->dbra_oldname,
+	    &int_size, &num_ints));
+	ASSERT3U(int_size, ==, sizeof (uint64_t));
+	VERIFY0(zap_lookup_norm(mos, bmark_zapobj, dbra->dbra_oldname, int_size,
+	    num_ints, &bmark_phys, mt, NULL, 0, NULL));
+	VERIFY0(zap_remove_norm(mos, bmark_zapobj, dbra->dbra_oldname, mt, tx));
+
+	VERIFY0(zap_add(mos, bmark_zapobj, dbra->dbra_newname, int_size,
+	    num_ints, &bmark_phys, tx));
+
+	spa_history_log_internal_ds(ds, "rename bookmark", tx,
+	    "#%s -> #%s creation_txg=%llu",
+	    dbra->dbra_oldname, dbra->dbra_newname,
+	    (longlong_t)bmark_phys.zbm_creation_txg);
+
+	dsl_dataset_rele(ds, FTAG);
+}
+
+/*
+ * The bookmarks must all be in the same pool.
+ */
+int
+dsl_bookmark_rename(const char *fsname, const char *oldbmark,
+    const char *newbmark)
+{
+	dsl_bookmark_rename_arg_t dbra;
+
+	dbra.dbra_fsname = fsname;
+	dbra.dbra_oldname = oldbmark;
+	dbra.dbra_newname = newbmark;
+
+	return (dsl_sync_task(fsname, dsl_bookmark_rename_check,
+	    dsl_bookmark_rename_sync, &dbra, 1, ZFS_SPACE_CHECK_NORMAL));
+}
+
