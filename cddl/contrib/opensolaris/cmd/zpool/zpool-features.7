@@ -527,6 +527,30 @@ Please note that booting from datasets that have recordsize greater than
 supported by the
 .Fx
 boot loader.
+.It Sy large_dnode
+.Bl -column "READ\-ONLY COMPATIBLE" "org.zfsonlinux:large_dnode"
+.It GUID Ta org.zfsonlinux:large_dnode
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta extensible_dataset
+.El
+.Pp
+The
+.Sy large_dnode
+feature allows the size of dnodes in a dataset to be set larger than 512B.
+.Pp
+This feature becomes
+.Sy active
+once a dataset contains an object with a dnode larger than 512B,
+which occurs as a result of setting the
+.Sy dnodesize
+dataset property to a value other than
+.Sy legacy .
+The feature will return to being
+.Sy enabled
+once all filesystems that have ever contained a dnode larger than 512B are
+destroyed.
+Large dnodes allow more data to be stored in the bonus buffer, thus potentially
+improving performance by avoiding the use of spill blocks.
 .It Sy sha512
 .Bl -column "READ\-ONLY COMPATIBLE" "org.illumos:sha512"
 .It GUID Ta org.illumos:sha512
