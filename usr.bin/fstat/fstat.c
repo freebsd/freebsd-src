@@ -40,8 +40,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/queue.h>
+#include <sys/un.h>
 
 #include <netinet/in.h>
+
+#include <arpa/inet.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -61,6 +64,7 @@ __FBSDID("$FreeBSD$");
 
 static int 	fsflg,	/* show files on same filesystem as file(s) argument */
 		pflg,	/* show files open by a particular pid */
+		sflg,	/* show socket details */
 		uflg;	/* show files open by a particular (effective) user */
 static int 	checkfile; /* restrict to particular files or filesystems */
 static int	nflg;	/* (numerical) display f.s. and rdev as dev_t */
@@ -108,7 +112,7 @@ do_fstat(int argc, char **argv)
 	arg = 0;
 	what = KERN_PROC_PROC;
 	nlistf = memf = NULL;
-	while ((ch = getopt(argc, argv, "fmnp:u:vN:M:")) != -1)
+	while ((ch = getopt(argc, argv, "fmnp:su:vN:M:")) != -1)
 		switch((char)ch) {
 		case 'f':
 			fsflg = 1;
@@ -134,6 +138,9 @@ do_fstat(int argc, char **argv)
 			}
 			what = KERN_PROC_PID;
 			arg = atoi(optarg);
+			break;
+		case 's':
+			sflg = 1;
 			break;
 		case 'u':
 			if (uflg++)
@@ -314,6 +321,55 @@ print_file_info(struct procstat *procstat, struct filestat *fst,
 	putchar('\n');
 }
 
+static char *
+addr_to_string(struct sockaddr_storage *ss, char *buffer, int buflen)
+{
+	char buffer2[INET6_ADDRSTRLEN];
+	struct sockaddr_in6 *sin6;
+	struct sockaddr_in *sin;
+	struct sockaddr_un *sun;
+
+	switch (ss->ss_family) {
+	case AF_LOCAL:
+		sun = (struct sockaddr_un *)ss;
+		if (strlen(sun->sun_path) == 0)
+			strlcpy(buffer, "-", buflen);
+		else
+			strlcpy(buffer, sun->sun_path, buflen);
+		break;
+
+	case AF_INET:
+		sin = (struct sockaddr_in *)ss;
+		if (sin->sin_addr.s_addr == INADDR_ANY)
+			snprintf(buffer, buflen, "%s:%d", "*",
+			    ntohs(sin->sin_port));
+		else if (inet_ntop(AF_INET, &sin->sin_addr, buffer2,
+		    sizeof(buffer2)) != NULL)
+			snprintf(buffer, buflen, "%s:%d", buffer2,
+		            ntohs(sin->sin_port));
+		break;
+
+	case AF_INET6:
+		sin6 = (struct sockaddr_in6 *)ss;
+		if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
+			snprintf(buffer, buflen, "%s.%d", "*",
+			    ntohs(sin6->sin6_port));
+		else if (inet_ntop(AF_INET6, &sin6->sin6_addr, buffer2,
+		    sizeof(buffer2)) != NULL)
+			snprintf(buffer, buflen, "%s.%d", buffer2,
+			    ntohs(sin6->sin6_port));
+		else
+			strlcpy(buffer, "-", buflen);
+		break;
+
+	default:
+		strlcpy(buffer, "", buflen);
+		break;
+	}
+	return buffer;
+}
+
+
 static void
 print_socket_info(struct procstat *procstat, struct filestat *fst)
 {
@@ -329,6 +385,8 @@ print_socket_info(struct procstat *procstat, struct filestat *fst)
 	struct sockstat sock;
 	struct protoent *pe;
 	char errbuf[_POSIX2_LINE_MAX];
+	char src_addr[PATH_MAX], dst_addr[PATH_MAX];
+	struct sockaddr_un *sun;
 	int error;
 	static int isopen;
 
@@ -368,6 +426,11 @@ print_socket_info(struct procstat *procstat, struct filestat *fst)
 		}
 		else if (sock.so_pcb != 0)
 			printf(" %lx", (u_long)sock.so_pcb);
+		if (!sflg)
+			break;
+		printf(" %s <-> %s",
+		    addr_to_string(&sock.sa_local, src_addr, sizeof(src_addr)),
+		    addr_to_string(&sock.sa_peer, dst_addr, sizeof(dst_addr)));
 		break;
 	case AF_UNIX:
 		/* print address of pcb and connected pcb */
@@ -385,8 +448,25 @@ print_socket_info(struct procstat *procstat, struct filestat *fst)
 				*cp = '\0';
 				printf(" %s %lx", shoconn,
 				    (u_long)sock.unp_conn);
-                        }
+			}
 		}
+		if (!sflg)
+			break;
+		sun = (struct sockaddr_un *)&sock.sa_local;
+		/*
+		 * While generally we like to print two addresses,
+		 * local and peer, for sockets, it turns out to be
+		 * more useful to print the first non-null address for
+		 * local sockets, as typically they aren't bound and
+		 *  connected, and the path strings can get long.
+		 */
+		if (sun->sun_path[0] != 0)
+			addr_to_string(&sock.sa_local,
+			    src_addr, sizeof(src_addr));
+		else
+			addr_to_string(&sock.sa_peer,
+			    src_addr, sizeof(src_addr));
+		printf(" %s", src_addr);
 		break;
 	default:
 		/* print protocol number and socket address */
