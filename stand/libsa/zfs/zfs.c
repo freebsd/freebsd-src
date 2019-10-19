@@ -769,11 +769,16 @@ zfs_fmtdev(void *vdev)
 	if (dev->dd.d_dev->dv_type != DEVT_ZFS)
 		return (buf);
 
-	if (dev->pool_guid == 0) {
-		spa = STAILQ_FIRST(&zfs_pools);
+	/* Do we have any pools? */
+	spa = STAILQ_FIRST(&zfs_pools);
+	if (spa == NULL)
+		return (buf);
+
+	if (dev->pool_guid == 0)
 		dev->pool_guid = spa->spa_guid;
-	} else
+	else
 		spa = spa_find_by_guid(dev->pool_guid);
+
 	if (spa == NULL) {
 		printf("ZFS: can't find pool by guid\n");
 		return (buf);
