@@ -409,20 +409,13 @@ static int
 netdump_configure(struct diocskerneldump_arg *conf, struct thread *td)
 {
 	struct ifnet *ifp;
-	struct vnet *vnet;
 
 	NETDUMP_ASSERT_WLOCKED();
 
 	if (conf->kda_iface[0] != 0) {
-		if (td != NULL)
-			vnet = TD_TO_VNET(td);
-		else
-			vnet = vnet0;
-		CURVNET_SET(vnet);
-		if (td != NULL && !IS_DEFAULT_VNET(curvnet)) {
-			CURVNET_RESTORE();
+		if (td != NULL && !IS_DEFAULT_VNET(TD_TO_VNET(td)))
 			return (EINVAL);
-		}
+		CURVNET_SET(vnet0);
 		ifp = ifunit_ref(conf->kda_iface);
 		CURVNET_RESTORE();
 	} else
