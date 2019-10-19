@@ -343,6 +343,10 @@ ATOMIC_STORE_LOAD(32)
 ATOMIC_STORE_LOAD(64)
 #undef ATOMIC_STORE_LOAD
 
+#ifdef __mips_n32
+#define	atomic_load_64	atomic_load_acq_64
+#endif
+
 /*
  * Atomically compare the value stored at *p with cmpval and if the
  * two values are equal, update the value of *p with newval. Returns
