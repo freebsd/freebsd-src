@@ -509,7 +509,7 @@ DtCreateOneTemplate (
     AcpiUtStrlwr (DisasmFilename);
     if (!UtQueryForOverwrite (DisasmFilename))
     {
-        return (AE_ERROR);
+        return (AE_OK);
     }
 
     File = fopen (DisasmFilename, "w+");

@@ -480,6 +480,7 @@ AcpiDmDumpDescending (
 {
     ACPI_OP_WALK_INFO       *Info = Context;
     char                    *Path;
+    ACPI_STATUS             Status;
 
 
     if (!Op)
@@ -522,10 +523,18 @@ AcpiDmDumpDescending (
 
         if (Op->Common.Value.String)
         {
-            AcpiNsExternalizeName (ACPI_UINT32_MAX, Op->Common.Value.String,
+            Status = AcpiNsExternalizeName (ACPI_UINT32_MAX, Op->Common.Value.String,
                 NULL, &Path);
-            AcpiOsPrintf ("%s %p", Path, Op->Common.Node);
-            ACPI_FREE (Path);
+            if (ACPI_SUCCESS (Status))
+            {
+                AcpiOsPrintf ("%s %p", Path, Op->Common.Node);
+                ACPI_FREE (Path);
+            }
+            else
+            {
+                AcpiOsPrintf ("Could not externalize pathname for node [%4.4s]",
+                    Op->Common.Node->Name.Ascii);
+            }
         }
         else
         {
@@ -592,7 +601,9 @@ AcpiDmFindOrphanDescending (
         return (AE_OK);
     }
 
+#ifdef ACPI_UNDER_DEVELOPMENT
     OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
+#endif
 
     switch (Op->Common.AmlOpcode)
     {
@@ -830,9 +841,9 @@ AcpiDmLoadDescendingOp (
          * 2) Not the root node
          * 3) Not a node created by Scope
          */
-
-        if (!PreDefined && Node != AcpiGbl_RootNode &&
-            Op->Common.AmlOpcode != AML_SCOPE_OP)
+        if (!PreDefined &&
+            (Node != AcpiGbl_RootNode) &&
+            (Op->Common.AmlOpcode != AML_SCOPE_OP))
         {
             Node->OwnerId = WalkState->OwnerId;
         }
@@ -1091,7 +1102,7 @@ AcpiDmCommonDescendingOp (
     /* Switch/Case conversion */
 
     Status = AcpiDmProcessSwitch (Op);
-    return (AE_OK);
+    return (Status);
 }
 
 

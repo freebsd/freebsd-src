@@ -194,7 +194,7 @@ typedef struct dt_field
 {
     char                    *Name;       /* Field name (from name : value) */
     char                    *Value;      /* Field value (from name : value) */
-    UINT32                  StringLength;/* Length of Value */
+    UINT32                  StringLength; /* Length of Value */
     struct dt_field         *Next;       /* Next field */
     struct dt_field         *NextLabel;  /* If field is a label, next label */
     UINT32                  Line;        /* Line number for this field */
@@ -209,6 +209,17 @@ typedef struct dt_field
 /* Flags for above */
 
 #define DT_FIELD_NOT_ALLOCATED      1
+
+/*
+ * Structure used for each individual key or value
+ */
+typedef struct dt_table_unit
+{
+    char                    *Value;      /* Field value (from name : value) */
+    UINT32                  Line;        /* Line number for this field */
+    UINT32                  Column;      /* Start column for field value */
+
+} DT_TABLE_UNIT;
 
 
 /*
@@ -255,6 +266,10 @@ DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*AslGbl_LabelList, NULL);
 /* Current offset within the binary output table */
 
 DT_EXTERN UINT32            DT_INIT_GLOBAL (AslGbl_CurrentTableOffset, 0);
+
+/* Data table compiler Flex/Bison prototype */
+
+DT_EXTERN BOOLEAN           DT_INIT_GLOBAL (AslGbl_DtLexBisonPrototype, FALSE);
 
 /* Local caches */
 
@@ -425,11 +440,44 @@ DtCompileFlag (
     ACPI_DMTABLE_INFO       *Info);
 
 
+/* dtfield - DT_FIELD operations */
+
+void
+DtLinkField (
+    DT_FIELD                *Field);
+
+void
+DtCreateField (
+    DT_TABLE_UNIT           *FieldKey,
+    DT_TABLE_UNIT           *FieldValue,
+    UINT32                  Offset);
+
+DT_TABLE_UNIT *
+DtCreateTableUnit (
+    char                    *Data,
+    UINT32                  Line,
+    UINT32                  Column);
+
+
+
 /* dtparser - lex/yacc files */
+
+UINT64                      DtCompilerParserResult; /* Expression return value */
+int
+DtCompilerParserparse (
+    void);
 
 UINT64
 DtEvaluateExpression (
     char                    *ExprString);
+
+void
+DtCompilerInitLexer (
+    FILE                    *inFile);
+
+void
+DtCompilerTerminateLexer (
+    void);
 
 int
 DtInitLexer (

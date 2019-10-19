@@ -746,7 +746,6 @@ AdDoExternalFileList (
             {
                 ExternalFileList = ExternalFileList->Next;
                 GlobalStatus = AE_TYPE;
-                Status = AE_OK;
                 continue;
             }
 
