@@ -3316,7 +3316,8 @@ nmreq_getoption(struct nmreq_header *hdr, uint16_t reqtype)
 	if (!hdr->nr_options)
 		return NULL;
 
-	opt_tab = (struct nmreq_option **)(hdr->nr_options) - (NETMAP_REQ_OPT_MAX + 1);
+	opt_tab = (struct nmreq_option **)((uintptr_t)hdr->nr_options) -
+	    (NETMAP_REQ_OPT_MAX + 1);
 	return opt_tab[reqtype];
 }
 
