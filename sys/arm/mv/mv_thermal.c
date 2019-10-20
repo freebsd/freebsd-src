@@ -44,13 +44,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
-
-#include <dev/fdt/simplebus.h>
+#include <dev/extres/syscon/syscon.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#define	CONTROL0		0x00
+#include "syscon_if.h"
+
+#define	CONTROL0		0	/* Offset in config->regs[] array */
 #define	 CONTROL0_TSEN_START	(1 << 0)
 #define	 CONTROL0_TSEN_RESET	(1 << 1)
 #define	 CONTROL0_TSEN_EN	(1 << 2)
@@ -62,12 +63,12 @@ __FBSDID("$FreeBSD$");
 #define	 CONTROL0_MODE_EXTERNAL	0x2
 #define	 CONTROL0_MODE_MASK	0x3
 
-#define	CONTROL1	0x04
+#define	CONTROL1		1	/* Offset in config->regs[] array */
 /* This doesn't seems to work */
 #define	CONTROL1_TSEN_SENS_SHIFT	21
 #define	CONTROL1_TSEN_SENS_MASK		0x7
 
-#define	STATUS			0x00
+#define	STATUS			2	/* Offset in config->regs[] array */
 #define	STATUS_TEMP_MASK	0x3FF
 
 enum mv_thermal_type {
@@ -77,6 +78,7 @@ enum mv_thermal_type {
 
 struct mv_thermal_config {
 	enum mv_thermal_type	type;
+	int			regs[3];
 	int			ncpus;
 	int64_t			calib_mul;
 	int64_t			calib_add;
@@ -87,15 +89,16 @@ struct mv_thermal_config {
 
 struct mv_thermal_softc {
 	device_t		dev;
-	struct resource		*res[2];
+	struct syscon		*syscon;
 	struct mtx		mtx;
 
-	struct mv_thermal_config	*config;
-	int				cur_sensor;
+	struct mv_thermal_config *config;
+	int			cur_sensor;
 };
 
 static struct mv_thermal_config mv_ap806_config = {
 	.type = MV_AP806,
+	.regs = {0x84, 0x88, 0x8C},
 	.ncpus = 4,
 	.calib_mul = 423,
 	.calib_add = -150000,
@@ -106,17 +109,12 @@ static struct mv_thermal_config mv_ap806_config = {
 
 static struct mv_thermal_config mv_cp110_config = {
 	.type = MV_CP110,
+	.regs = {0x70, 0x74, 0x78},
 	.calib_mul = 2000096,
 	.calib_add = 1172499100,
 	.calib_div = 420100,
 	.valid_mask = (1 << 10),
 	.signed_value = false,
-};
-
-static struct resource_spec mv_thermal_res_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },
-	{ -1, 0 }
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -125,10 +123,10 @@ static struct ofw_compat_data compat_data[] = {
 	{NULL,             0}
 };
 
-#define	RD_STA(sc, reg)		bus_read_4((sc)->res[0], (reg))
-#define	WR_STA(sc, reg, val)	bus_write_4((sc)->res[0], (reg), (val))
-#define	RD_CON(sc, reg)		bus_read_4((sc)->res[1], (reg))
-#define	WR_CON(sc, reg, val)	bus_write_4((sc)->res[1], (reg), (val))
+#define	RD4(sc, reg)							\
+    SYSCON_READ_4((sc)->syscon, sc->config->regs[reg])
+#define	WR4(sc, reg, val)						\
+	SYSCON_WRITE_4((sc)->syscon, sc->config->regs[reg], (val))
 
 static inline int32_t sign_extend(uint32_t value, int index)
 {
@@ -146,7 +144,7 @@ mv_thermal_wait_sensor(struct mv_thermal_softc *sc)
 
 	timeout = 100000;
 	while (--timeout > 0) {
-		reg = RD_STA(sc, STATUS);
+		reg = RD4(sc, STATUS);
 		if ((reg & sc->config->valid_mask) == sc->config->valid_mask)
 			break;
 		DELAY(100);
@@ -167,12 +165,12 @@ mv_thermal_select_sensor(struct mv_thermal_softc *sc, int sensor)
 		return (0);
 
 	/* Stop the current reading and reset the module */
-	reg = RD_CON(sc, CONTROL0);
+	reg = RD4(sc, CONTROL0);
 	reg &= ~(CONTROL0_TSEN_START | CONTROL0_TSEN_EN);
-	WR_CON(sc, CONTROL0, reg);
+	WR4(sc, CONTROL0, reg);
 
 	/* Switch to the selected sensor */
-	/* 
+	/*
 	 * NOTE : Datasheet says to use CONTROL1 for selecting
 	 * but when doing so the sensors >0 are never ready
 	 * Do what Linux does using undocumented bits in CONTROL0
@@ -185,13 +183,13 @@ mv_thermal_select_sensor(struct mv_thermal_softc *sc, int sensor)
 		reg &= ~(CONTROL0_CHANNEL_MASK << CONTROL0_CHANNEL_SHIFT);
 		reg |= (sensor - 1) << CONTROL0_CHANNEL_SHIFT;
 	}
-	WR_CON(sc, CONTROL0, reg);
+	WR4(sc, CONTROL0, reg);
 	sc->cur_sensor = sensor;
 
 	/* Start the reading */
-	reg = RD_CON(sc, CONTROL0);
+	reg = RD4(sc, CONTROL0);
 	reg |= CONTROL0_TSEN_START | CONTROL0_TSEN_EN;
-	WR_CON(sc, CONTROL0, reg);
+	WR4(sc, CONTROL0, reg);
 
 	return (mv_thermal_wait_sensor(sc));
 }
@@ -206,7 +204,7 @@ mv_thermal_read_sensor(struct mv_thermal_softc *sc, int sensor, int *temp)
 	if (rv != 0)
 		return (rv);
 
-	reg = RD_STA(sc, STATUS) & STATUS_TEMP_MASK;
+	reg = RD4(sc, STATUS) & STATUS_TEMP_MASK;
 
 	if (sc->config->signed_value)
 		sample = sign_extend(reg, fls(STATUS_TEMP_MASK) - 1);
@@ -225,14 +223,14 @@ ap806_init(struct mv_thermal_softc *sc)
 	uint32_t reg;
 
 	/* Start the temp capture/conversion */
-	reg = RD_CON(sc, CONTROL0);
+	reg = RD4(sc, CONTROL0);
 	reg &= ~CONTROL0_TSEN_RESET;
 	reg |= CONTROL0_TSEN_START | CONTROL0_TSEN_EN;
 
 	/* Sample every ~2ms */
 	reg |= CONTROL0_OSR_MAX << CONTROL0_OSR_SHIFT;
 
-	WR_CON(sc, CONTROL0, reg);
+	WR4(sc, CONTROL0, reg);
 
 	/* Since we just started the module wait for the sensor to be ready */
 	mv_thermal_wait_sensor(sc);
@@ -245,15 +243,15 @@ cp110_init(struct mv_thermal_softc *sc)
 {
 	uint32_t reg;
 
-	reg = RD_CON(sc, CONTROL1);
+	reg = RD4(sc, CONTROL1);
 	reg &= (1 << 7);
 	reg |= (1 << 8);
-	WR_CON(sc, CONTROL1, reg);
+	WR4(sc, CONTROL1, reg);
 
 	/* Sample every ~2ms */
-	reg = RD_CON(sc, CONTROL0);
+	reg = RD4(sc, CONTROL0);
 	reg |= CONTROL0_OSR_MAX << CONTROL0_OSR_SHIFT;
-	WR_CON(sc, CONTROL0, reg);
+	WR4(sc, CONTROL0, reg);
 
 	return (0);
 }
@@ -300,19 +298,24 @@ mv_thermal_attach(device_t dev)
 	struct mv_thermal_softc *sc;
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid_list *oid;
+	phandle_t node;
 	char name[255];
 	char desc[255];
 	int i;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+	node = ofw_bus_get_node(dev);
 
-	sc->config = (struct mv_thermal_config *)ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	sc->config = (struct mv_thermal_config *)
+	    ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 
 	mtx_init(&sc->mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
-	if (bus_alloc_resources(dev, mv_thermal_res_spec, sc->res) != 0) {
-		device_printf(dev, "cannot allocate resources for device\n");
+
+	if (SYSCON_GET_HANDLE(sc->dev, &sc->syscon) != 0 ||
+	    sc->syscon == NULL) {
+		device_printf(dev, "cannot get syscon for device\n");
 		return (ENXIO);
 	}
 
@@ -354,8 +357,6 @@ mv_thermal_detach(device_t dev)
 	struct mv_thermal_softc *sc;
 
 	sc = device_get_softc(dev);
-
-	bus_release_resources(dev, mv_thermal_res_spec, sc->res);
 
 	return (0);
 }
