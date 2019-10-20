@@ -82,6 +82,8 @@ void be_prop_list_free(nvlist_t *be_list);
 
 int be_activate(libbe_handle_t *, const char *, bool);
 
+bool be_is_auto_snapshot_name(libbe_handle_t *, const char *);
+
 /* Bootenv creation functions */
 int be_create(libbe_handle_t *, const char *);
 int be_create_depth(libbe_handle_t *, const char *, const char *, int);
@@ -97,6 +99,7 @@ int be_rename(libbe_handle_t *, const char *, const char *);
 typedef enum {
 	BE_DESTROY_FORCE	= 1 << 0,
 	BE_DESTROY_ORIGIN	= 1 << 1,
+	BE_DESTROY_AUTOORIGIN	= 1 << 2,
 } be_destroy_opt_t;
 
 int be_destroy(libbe_handle_t *, const char *, int);
