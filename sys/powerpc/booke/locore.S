@@ -252,7 +252,6 @@ __start:
 	isync
 	li	%r4, 0
 	mtspr	SPR_MAS7, %r4
-	bl	zero_mas8
 	isync
 	tlbwe
 	isync
@@ -510,7 +509,6 @@ bp_kernload:
 	isync
 	li	%r4, 0
 	mtspr	SPR_MAS7, %r4
-	bl	zero_mas8
 	isync
 	tlbwe
 	isync
@@ -702,7 +700,6 @@ tlb1_temp_mapping_as1:
 	mflr	%r3
 	li	%r4, 0
 	mtspr	SPR_MAS7, %r4
-	bl	zero_mas8
 	mtlr	%r3
 	isync
 	tlbwe
@@ -738,24 +735,6 @@ tlb1_inval_all_but_current:
 2:	addi	%r4, %r4, 1
 	cmpw	%r4, %r3		/* Check if this is the last entry */
 	bne	1b
-	blr
-
-/*
- * MAS8 conditional zeroing.
- */
-.globl zero_mas8
-zero_mas8:
-	mfpvr	%r20
-	rlwinm	%r20, %r20, 16, 16, 31
-	cmpli	0, 0, %r20, FSL_E500mc
-	beq	1f
-	cmpli	0, 0, %r20, FSL_E5500
-	beq	1f
-
-	blr
-1:
-	li	%r20, 0
-	mtspr	SPR_MAS8, %r20
 	blr
 #endif
 

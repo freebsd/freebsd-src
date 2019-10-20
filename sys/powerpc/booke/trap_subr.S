@@ -767,7 +767,6 @@ search_failed:
 
 	li	%r23, 0
 	mtspr	SPR_MAS7, %r23
-	bl	zero_mas8
 
 	isync
 	tlbwe
@@ -903,10 +902,6 @@ tlb_fill_entry:
 	mtspr	SPR_MAS2, %r27
 	mtspr	SPR_MAS3, %r22
 	mtspr	SPR_MAS7, %r23
-
-	mflr	%r21
-	bl	zero_mas8
-	mtlr	%r21
 
 	isync
 	tlbwe
