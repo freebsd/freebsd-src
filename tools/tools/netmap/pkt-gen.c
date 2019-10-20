@@ -2634,7 +2634,7 @@ main_thread(struct glob_arg *g)
 		D("%spps %s(%spkts %sbps in %llu usec) %.2f avg_batch %d min_space",
 			norm(b1, pps, normalize), b4,
 			norm(b2, (double)x.pkts, normalize),
-			norm(b3, (double)x.bytes*8+(double)x.pkts*g->framing, normalize),
+			norm(b3, 1000000*((double)x.bytes*8+(double)x.pkts*g->framing)/usec, normalize),
 			(unsigned long long)usec,
 			abs, (int)cur.min_space);
 		prev = cur;
@@ -2973,6 +2973,7 @@ main(int arc, char **argv)
 			g.options |= OPT_DUMP;
 			break;
 		case 'C':
+			D("WARNING: the 'C' option is deprecated, use the '+conf:' libnetmap option instead");
 			g.nmr_config = strdup(optarg);
 			break;
 		case 'H':
