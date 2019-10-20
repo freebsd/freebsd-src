@@ -120,7 +120,7 @@ struct tuntap_softc {
 	u_short				 tun_flags;	/* misc flags */
 #define	TUN_OPEN	0x0001
 #define	TUN_INITED	0x0002
-#define	TUN_IASET	0x0008
+#define	TUN_UNUSED1	0x0008
 #define	TUN_DSTADDR	0x0010
 #define	TUN_LMODE	0x0020
 #define	TUN_RWAIT	0x0040
@@ -1191,10 +1191,6 @@ tuninit(struct ifnet *ifp)
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family == AF_INET) {
 				struct sockaddr_in *si;
-
-				si = (struct sockaddr_in *)ifa->ifa_addr;
-				if (si->sin_addr.s_addr)
-					tp->tun_flags |= TUN_IASET;
 
 				si = (struct sockaddr_in *)ifa->ifa_dstaddr;
 				if (si && si->sin_addr.s_addr)
