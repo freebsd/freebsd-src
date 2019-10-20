@@ -60,6 +60,7 @@ struct mv_ap806_gicp_softc {
 
 	ssize_t			spi_ranges_cnt;
 	uint32_t		*spi_ranges;
+	struct intr_map_data_fdt *parent_map_data;
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -96,11 +97,13 @@ mv_ap806_gicp_attach(device_t dev)
 
 	/* Look for our parent */
 	if ((intr_parent = ofw_bus_find_iparent(node)) == 0) {
-		device_printf(dev, "Cannot find our parent interrupt controller\n");
+		device_printf(dev,
+		     "Cannot find our parent interrupt controller\n");
 		return (ENXIO);
 	}
 	if ((sc->parent = OF_device_from_xref(intr_parent)) == NULL) {
-		device_printf(dev, "cannot find parent interrupt controller device\n");
+		device_printf(dev,
+		     "cannot find parent interrupt controller device\n");
 		return (ENXIO);
 	}
 
@@ -112,7 +115,10 @@ mv_ap806_gicp_attach(device_t dev)
 		device_printf(dev, "Cannot register GICP\n");
 		return (ENXIO);
 	}
-
+	/* Allocate GIC compatible mapping entry (3 cells) */
+	sc->parent_map_data = (struct intr_map_data_fdt *)intr_alloc_map_data(
+	    INTR_MAP_DATA_FDT, sizeof(struct intr_map_data_fdt) +
+	    + 3 * sizeof(phandle_t), M_WAITOK | M_ZERO);
 	OF_device_register_xref(xref, dev);
 
 	return (0);
@@ -125,6 +131,45 @@ mv_ap806_gicp_detach(device_t dev)
 	return (EBUSY);
 }
 
+static struct intr_map_data *
+mv_ap806_gicp_convert_map_data(struct mv_ap806_gicp_softc *sc,
+    struct intr_map_data *data)
+{
+	struct intr_map_data_fdt *daf;
+	uint32_t i, irq_num, irq_type;
+
+	daf = (struct intr_map_data_fdt *)data;
+	if (daf->ncells != 2)
+		return (NULL);
+
+	irq_num = daf->cells[0];
+	irq_type = daf->cells[1];
+	if (irq_num >= MV_AP806_GICP_MAX_NIRQS)
+		return (NULL);
+
+	/* Construct GIC compatible mapping. */
+	sc->parent_map_data->ncells = 3;
+	sc->parent_map_data->cells[0] = 0; /* SPI */
+	sc->parent_map_data->cells[2] = irq_type;
+
+	/* Map the interrupt number to SPI number */
+	for (i = 0; i < sc->spi_ranges_cnt / 2; i += 2) {
+		if (irq_num < sc->spi_ranges[i + 1]) {
+			irq_num += sc->spi_ranges[i];
+			break;
+		}
+
+		irq_num -= sc->spi_ranges[i];
+	}
+
+	sc->parent_map_data->cells[1] = irq_num - 32;
+
+	return ((struct intr_map_data *)sc->parent_map_data);
+}
+
+
+
+
 static int
 mv_ap806_gicp_activate_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
@@ -132,6 +177,9 @@ mv_ap806_gicp_activate_intr(device_t dev, struct intr_irqsrc *isrc,
 	struct mv_ap806_gicp_softc *sc;
 
 	sc = device_get_softc(dev);
+	data = mv_ap806_gicp_convert_map_data(sc, data);
+	if (data == NULL)
+		return (EINVAL);
 
 	return (PIC_ACTIVATE_INTR(sc->parent, isrc, res, data));
 }
@@ -161,36 +209,20 @@ mv_ap806_gicp_map_intr(device_t dev, struct intr_map_data *data,
     struct intr_irqsrc **isrcp)
 {
 	struct mv_ap806_gicp_softc *sc;
-	struct intr_map_data_fdt *daf;
-	uint32_t group, irq_num, irq_type;
-	int i;
+	int ret;
 
 	sc = device_get_softc(dev);
 
 	if (data->type != INTR_MAP_DATA_FDT)
 		return (ENOTSUP);
 
-	daf = (struct intr_map_data_fdt *)data;
-	if (daf->ncells != 3 || daf->cells[0] >= MV_AP806_GICP_MAX_NIRQS)
+	data = mv_ap806_gicp_convert_map_data(sc, data);
+	if (data == NULL)
 		return (EINVAL);
 
-	group = daf->cells[0];
-	irq_num = daf->cells[1];
-	irq_type = daf->cells[2];
-
-	/* Map the interrupt number to spi number */
-	for (i = 0; i < sc->spi_ranges_cnt / 2; i += 2) {
-		if (irq_num < sc->spi_ranges[i + 1]) {
-			irq_num += sc->spi_ranges[i];
-			break;
-		}
-
-		irq_num -= sc->spi_ranges[i];
-	}
-
-	daf->cells[1] = irq_num - 32;
-
-	return (PIC_MAP_INTR(sc->parent, data, isrcp));
+	ret = PIC_MAP_INTR(sc->parent, data, isrcp);
+	(*isrcp)->isrc_dev = sc->dev;
+	return(ret);
 }
 
 static int
@@ -200,6 +232,10 @@ mv_ap806_gicp_deactivate_intr(device_t dev, struct intr_irqsrc *isrc,
 	struct mv_ap806_gicp_softc *sc;
 
 	sc = device_get_softc(dev);
+
+	data = mv_ap806_gicp_convert_map_data(sc, data);
+	if (data == NULL)
+		return (EINVAL);
 
 	return (PIC_DEACTIVATE_INTR(sc->parent, isrc, res, data));
 }
@@ -211,6 +247,9 @@ mv_ap806_gicp_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	struct mv_ap806_gicp_softc *sc;
 
 	sc = device_get_softc(dev);
+	data = mv_ap806_gicp_convert_map_data(sc, data);
+	if (data == NULL)
+		return (EINVAL);
 
 	return (PIC_SETUP_INTR(sc->parent, isrc, res, data));
 }
@@ -222,6 +261,9 @@ mv_ap806_gicp_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 	struct mv_ap806_gicp_softc *sc;
 
 	sc = device_get_softc(dev);
+	data = mv_ap806_gicp_convert_map_data(sc, data);
+	if (data == NULL)
+		return (EINVAL);
 
 	return (PIC_TEARDOWN_INTR(sc->parent, isrc, res, data));
 }

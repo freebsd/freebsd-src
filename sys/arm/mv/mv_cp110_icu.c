@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <gnu/dts/include/dt-bindings/interrupt-controller/irq.h>
 #include "pic_if.h"
 
 #define	ICU_GRP_NSR		0x0
@@ -72,6 +73,7 @@ struct mv_cp110_icu_softc {
 	device_t		dev;
 	device_t		parent;
 	struct resource		*res;
+	struct intr_map_data_fdt *parent_map_data;
 };
 
 static struct resource_spec mv_cp110_icu_res_spec[] = {
@@ -80,8 +82,9 @@ static struct resource_spec mv_cp110_icu_res_spec[] = {
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{"marvell,cp110-icu", 1},
-	{NULL,             0}
+	{"marvell,cp110-icu-nsr",	1},
+	{"marvell,cp110-icu-sei",	2},
+	{NULL,				0}
 };
 
 #define	RD4(sc, reg)		bus_read_4((sc)->res, (reg))
@@ -130,12 +133,46 @@ mv_cp110_icu_attach(device_t dev)
 		device_printf(dev, "Cannot register ICU\n");
 		goto fail;
 	}
+
+	/* Allocate GICP compatible mapping entry (2 cells) */
+	sc->parent_map_data = (struct intr_map_data_fdt *)intr_alloc_map_data(
+	    INTR_MAP_DATA_FDT, sizeof(struct intr_map_data_fdt) +
+	    + 3 * sizeof(phandle_t), M_WAITOK | M_ZERO);
 	return (0);
 
 fail:
 	bus_release_resources(dev, mv_cp110_icu_res_spec, &sc->res);
 	return (ENXIO);
 }
+
+static struct intr_map_data *
+mv_cp110_icu_convert_map_data(struct mv_cp110_icu_softc *sc, struct intr_map_data *data)
+{
+	struct intr_map_data_fdt *daf;
+	uint32_t reg, irq_no, irq_type;
+
+	daf = (struct intr_map_data_fdt *)data;
+	if (daf->ncells != 2)
+		return (NULL);
+	irq_no = daf->cells[0];
+	irq_type = daf->cells[1];
+	if (irq_no >= MV_CP110_ICU_MAX_NIRQS)
+		return (NULL);
+	if (irq_type != IRQ_TYPE_LEVEL_HIGH &&
+	    irq_type != IRQ_TYPE_EDGE_RISING)
+		return (NULL);
+
+	/* We rely on fact that ICU->GIC mapping is preset by bootstrap. */
+	reg = RD4(sc, ICU_INT_CFG(irq_no));
+
+	/* Construct GICP compatible mapping. */
+	sc->parent_map_data->ncells = 2;
+	sc->parent_map_data->cells[0] = reg & ICU_INT_MASK;
+	sc->parent_map_data->cells[1] = irq_type;
+
+	return ((struct intr_map_data *)sc->parent_map_data);
+}
+
 
 static int
 mv_cp110_icu_detach(device_t dev)
@@ -151,7 +188,9 @@ mv_cp110_icu_activate_intr(device_t dev, struct intr_irqsrc *isrc,
 	struct mv_cp110_icu_softc *sc;
 
 	sc = device_get_softc(dev);
-
+	data = mv_cp110_icu_convert_map_data(sc, data);
+	if (data == NULL)
+		return (EINVAL);
 	return (PIC_ACTIVATE_INTR(sc->parent, isrc, res, data));
 }
 
@@ -159,7 +198,6 @@ static void
 mv_cp110_icu_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct mv_cp110_icu_softc *sc;
-
 	sc = device_get_softc(dev);
 
 	PIC_ENABLE_INTR(sc->parent, isrc);
@@ -175,32 +213,43 @@ mv_cp110_icu_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 	PIC_DISABLE_INTR(sc->parent, isrc);
 }
 
+
+
 static int
 mv_cp110_icu_map_intr(device_t dev, struct intr_map_data *data,
     struct intr_irqsrc **isrcp)
 {
 	struct mv_cp110_icu_softc *sc;
 	struct intr_map_data_fdt *daf;
-	uint32_t reg;
+	uint32_t reg, irq_no, irq_type;
+	int ret;
 
 	sc = device_get_softc(dev);
 
 	if (data->type != INTR_MAP_DATA_FDT)
 		return (ENOTSUP);
 
+	/* Parse original */
 	daf = (struct intr_map_data_fdt *)data;
-	if (daf->ncells != 3 || daf->cells[0] >= MV_CP110_ICU_MAX_NIRQS)
+	if (daf->ncells != 2)
+		return (EINVAL);
+	irq_no = daf->cells[0];
+	irq_type = daf->cells[1];
+	data = mv_cp110_icu_convert_map_data(sc, data);
+	if (data == NULL)
 		return (EINVAL);
 
-	reg = RD4(sc, ICU_INT_CFG(daf->cells[1]));
+	reg = RD4(sc, ICU_INT_CFG(irq_no));
+	reg |= ICU_INT_ENABLE;
+	if (irq_type == IRQ_TYPE_LEVEL_HIGH)
+		reg &= ~ICU_INT_EDGE;
+	else
+		reg |= ICU_INT_EDGE;
+	WR4(sc, ICU_INT_CFG(irq_no), reg);
 
-	if ((reg & ICU_INT_ENABLE) == 0) {
-		reg |= ICU_INT_ENABLE;
-		WR4(sc, ICU_INT_CFG(daf->cells[1]), reg);
-	}
-
-	daf->cells[1] = reg & ICU_INT_MASK;
-	return (PIC_MAP_INTR(sc->parent, data, isrcp));
+	ret = PIC_MAP_INTR(sc->parent, data, isrcp);
+	(*isrcp)->isrc_dev = sc->dev;
+	return (ret);
 }
 
 static int
@@ -210,6 +259,9 @@ mv_cp110_icu_deactivate_intr(device_t dev, struct intr_irqsrc *isrc,
 	struct mv_cp110_icu_softc *sc;
 
 	sc = device_get_softc(dev);
+	data = mv_cp110_icu_convert_map_data(sc, data);
+	if (data == NULL)
+		return (EINVAL);
 
 	return (PIC_DEACTIVATE_INTR(sc->parent, isrc, res, data));
 }
@@ -221,6 +273,9 @@ mv_cp110_icu_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	struct mv_cp110_icu_softc *sc;
 
 	sc = device_get_softc(dev);
+	data = mv_cp110_icu_convert_map_data(sc, data);
+	if (data == NULL)
+		return (EINVAL);
 
 	return (PIC_SETUP_INTR(sc->parent, isrc, res, data));
 }
@@ -232,6 +287,9 @@ mv_cp110_icu_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 	struct mv_cp110_icu_softc *sc;
 
 	sc = device_get_softc(dev);
+	data = mv_cp110_icu_convert_map_data(sc, data);
+	if (data == NULL)
+		return (EINVAL);
 
 	return (PIC_TEARDOWN_INTR(sc->parent, isrc, res, data));
 }
@@ -295,5 +353,5 @@ static driver_t mv_cp110_icu_driver = {
 	sizeof(struct mv_cp110_icu_softc),
 };
 
-EARLY_DRIVER_MODULE(mv_cp110_icu, simplebus, mv_cp110_icu_driver,
+EARLY_DRIVER_MODULE(mv_cp110_icu, mv_cp110_icu_bus, mv_cp110_icu_driver,
     mv_cp110_icu_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
