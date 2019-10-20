@@ -652,7 +652,7 @@ int main(int argc, char **argv)
 	/* extract the base name */
 	char *nscan = strncmp(glob_arg.ifname, "netmap:", 7) ?
 			glob_arg.ifname : glob_arg.ifname + 7;
-	strncpy(glob_arg.base_name, nscan, MAX_IFNAMELEN-1);
+	strncpy(glob_arg.base_name, nscan, MAX_IFNAMELEN - 1);
 	for (nscan = glob_arg.base_name; *nscan && !index("-*^{}/@", *nscan); nscan++)
 		;
 	*nscan = '\0';
@@ -948,8 +948,8 @@ run:
 			struct netmap_ring *rxring = NETMAP_RXRING(rxport->nmd->nifp, i);
 
 			//D("prepare to scan rings");
-			int next_cur = rxring->cur;
-			struct netmap_slot *next_slot = &rxring->slot[next_cur];
+			int next_head = rxring->head;
+			struct netmap_slot *next_slot = &rxring->slot[next_head];
 			const char *next_buf = NETMAP_BUF(rxring, next_slot->buf_idx);
 			while (!nm_ring_empty(rxring)) {
 				struct netmap_slot *rs = next_slot;
@@ -963,14 +963,14 @@ run:
 					non_ip++; // XXX ??
 				}
 				// prefetch the buffer for the next round
-				next_cur = nm_ring_next(rxring, next_cur);
-				next_slot = &rxring->slot[next_cur];
+				next_head = nm_ring_next(rxring, next_head);
+				next_slot = &rxring->slot[next_head];
 				next_buf = NETMAP_BUF(rxring, next_slot->buf_idx);
 				__builtin_prefetch(next_buf);
 				// 'B' is just a hashing seed
 				rs->buf_idx = forward_packet(g, rs);
 				rs->flags |= NS_BUF_CHANGED;
-				rxring->head = rxring->cur = next_cur;
+				rxring->head = rxring->cur = next_head;
 
 				batch++;
 				if (unlikely(batch >= glob_arg.batch)) {
