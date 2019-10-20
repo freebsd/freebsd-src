@@ -229,6 +229,7 @@ be_destroy_cb(zfs_handle_t *zfs_hdl, void *data)
 	return (0);
 }
 
+#define	BE_DESTROY_WANTORIGIN	(BE_DESTROY_ORIGIN | BE_DESTROY_AUTOORIGIN)
 /*
  * Destroy the boot environment or snapshot specified by the name
  * parameter. Options are or'd together with the possible values:
@@ -264,10 +265,24 @@ be_destroy(libbe_handle_t *lbh, const char *name, int options)
 		if (fs == NULL)
 			return (set_error(lbh, BE_ERR_ZFSOPEN));
 
-		if ((options & BE_DESTROY_ORIGIN) != 0 &&
+		if ((options & BE_DESTROY_WANTORIGIN) != 0 &&
 		    zfs_prop_get(fs, ZFS_PROP_ORIGIN, origin, sizeof(origin),
-		    NULL, NULL, 0, 1) != 0)
+		    NULL, NULL, 0, 1) != 0 &&
+		    (options & BE_DESTROY_ORIGIN) != 0)
 			return (set_error(lbh, BE_ERR_NOORIGIN));
+
+		/*
+		 * If the caller wants auto-origin destruction and the origin
+		 * name matches one of our automatically created snapshot names
+		 * (i.e. strftime("%F-%T") with a serial at the end), then
+		 * we'll set the DESTROY_ORIGIN flag and nuke it
+		 * be_is_auto_snapshot_name is exported from libbe(3) so that
+		 * the caller can determine if it needs to warn about the origin
+		 * not being destroyed or not.
+		 */
+		if ((options & BE_DESTROY_AUTOORIGIN) != 0 && *origin != '\0' &&
+		    be_is_auto_snapshot_name(lbh, origin))
+			options |= BE_DESTROY_ORIGIN;
 
 		/* Don't destroy a mounted dataset unless force is specified */
 		if ((mounted = zfs_is_mounted(fs, NULL)) != 0) {
@@ -341,6 +356,25 @@ be_setup_snapshot_name(libbe_handle_t *lbh, char *buf, size_t buflen)
 		if (!zfs_dataset_exists(lbh->lzh, buf, ZFS_TYPE_SNAPSHOT))
 			return;
 	}
+}
+
+bool
+be_is_auto_snapshot_name(libbe_handle_t *lbh, const char *name)
+{
+	const char *snap;
+	int day, hour, minute, month, second, serial, year;
+
+	if ((snap = strchr(name, '@')) == NULL)
+		return (false);
+	++snap;
+	/* We'll grab the individual components and do some light validation. */
+	if (sscanf(snap, "%d-%d-%d-%d:%d:%d-%d", &year, &month, &day, &hour,
+	    &minute, &second, &serial) != 7)
+		return (false);
+	return (year >= 1970) && (month >= 1 && month <= 12) &&
+	    (day >= 1 && day <= 31) && (hour >= 0 && hour <= 23) &&
+	    (minute >= 0 && minute <= 59) && (second >= 0 && second <= 60) &&
+	    serial >= 0;
 }
 
 int

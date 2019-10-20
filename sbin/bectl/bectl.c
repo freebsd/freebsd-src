@@ -376,6 +376,7 @@ bectl_cmd_destroy(int argc, char *argv[])
 
 	/* We'll emit a notice if there's an origin to be cleaned up */
 	if ((flags & BE_DESTROY_ORIGIN) == 0 && strchr(target, '@') == NULL) {
+		flags |= BE_DESTROY_AUTOORIGIN;
 		if (be_root_concat(be, target, targetds) != 0)
 			goto destroy;
 		if (be_prop_list_alloc(&props) != 0)
@@ -384,7 +385,8 @@ bectl_cmd_destroy(int argc, char *argv[])
 			be_prop_list_free(props);
 			goto destroy;
 		}
-		if (nvlist_lookup_string(props, "origin", &origin) == 0)
+		if (nvlist_lookup_string(props, "origin", &origin) == 0 &&
+		    !be_is_auto_snapshot_name(be, origin))
 			fprintf(stderr, "bectl destroy: leaving origin '%s' intact\n",
 			    origin);
 		be_prop_list_free(props);
