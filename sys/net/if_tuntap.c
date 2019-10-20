@@ -1193,8 +1193,10 @@ tuninit(struct ifnet *ifp)
 				struct sockaddr_in *si;
 
 				si = (struct sockaddr_in *)ifa->ifa_dstaddr;
-				if (si && si->sin_addr.s_addr)
+				if (si && si->sin_addr.s_addr) {
 					tp->tun_flags |= TUN_DSTADDR;
+					break;
+				}
 			}
 		}
 		NET_EPOCH_EXIT(et);
