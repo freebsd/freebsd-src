@@ -220,6 +220,7 @@ static int	tuntap_name2info(const char *name, int *unit, int *flags);
 static void	tunclone(void *arg, struct ucred *cred, char *name,
 		    int namelen, struct cdev **dev);
 static void	tuncreate(struct cdev *dev);
+static void	tundtor(void *data);
 static void	tunrename(void *arg, struct ifnet *ifp);
 static int	tunifioctl(struct ifnet *, u_long, caddr_t);
 static void	tuninit(struct ifnet *);
@@ -238,7 +239,6 @@ static int	tun_clone_destroy(struct if_clone *, struct ifnet *);
 static void	tun_vnethdr_set(struct ifnet *ifp, int vhdrlen);
 
 static d_open_t		tunopen;
-static d_close_t	tunclose;
 static d_read_t		tunread;
 static d_write_t	tunwrite;
 static d_ioctl_t	tunioctl;
@@ -278,7 +278,6 @@ static struct tuntap_driver {
 		    .d_version =	D_VERSION,
 		    .d_flags =		D_NEEDMINOR,
 		    .d_open =		tunopen,
-		    .d_close =		tunclose,
 		    .d_read =		tunread,
 		    .d_write =		tunwrite,
 		    .d_ioctl =		tunioctl,
@@ -296,7 +295,6 @@ static struct tuntap_driver {
 		    .d_version =	D_VERSION,
 		    .d_flags =		D_NEEDMINOR,
 		    .d_open =		tunopen,
-		    .d_close =		tunclose,
 		    .d_read =		tunread,
 		    .d_write =		tunwrite,
 		    .d_ioctl =		tunioctl,
@@ -314,7 +312,6 @@ static struct tuntap_driver {
 		    .d_version =	D_VERSION,
 		    .d_flags =		D_NEEDMINOR,
 		    .d_open =		tunopen,
-		    .d_close =		tunclose,
 		    .d_read =		tunread,
 		    .d_write =		tunwrite,
 		    .d_ioctl =		tunioctl,
@@ -1100,24 +1097,33 @@ tunopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	if_link_state_change(ifp, LINK_STATE_UP);
 	TUNDEBUG(ifp, "open\n");
 	TUN_UNLOCK(tp);
+
+	/*
+	 * This can fail with either ENOENT or EBUSY.  This is in the middle of
+	 * d_open, so ENOENT should not be possible.  EBUSY is possible, but
+	 * the only cdevpriv dtor being set will be tundtor and the softc being
+	 * passed is constant for a given cdev.  We ignore the possible error
+	 * because of this as either "unlikely" or "not actually a problem."
+	 */
+	(void)devfs_set_cdevpriv(tp, tundtor);
 	CURVNET_RESTORE();
 	return (0);
 }
 
 /*
- * tunclose - close the device - mark i/f down & delete
+ * tundtor - tear down the device - mark i/f down & delete
  * routing info
  */
-static	int
-tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
+static void
+tundtor(void *data)
 {
 	struct proc *p;
 	struct tuntap_softc *tp;
 	struct ifnet *ifp;
 	bool l2tun;
 
-	p = td->td_proc;
-	tp = dev->si_drv1;
+	tp = data;
+	p = curproc;
 	ifp = TUN2IFP(tp);
 
 	TUN_LOCK(tp);
@@ -1133,7 +1139,7 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 	if (p->p_pid != tp->tun_pid) {
 		log(LOG_INFO,
 		    "pid %d (%s), %s: tun/tap protocol violation, non-controlling process closed last.\n",
-		    p->p_pid, p->p_comm, dev->si_name);
+		    p->p_pid, p->p_comm, tp->tun_dev->si_name);
 	}
 
 	/*
@@ -1193,7 +1199,6 @@ out:
 
 	tun_unbusy_locked(tp);
 	TUN_UNLOCK(tp);
-	return (0);
 }
 
 static void
