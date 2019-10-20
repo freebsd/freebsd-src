@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 22, 2019
+.Dd October 20, 2019
 .Dt PING6 8
 .Os
 .Sh NAME
@@ -473,13 +473,13 @@ The address
 is named the link-local all-node multicast address, and the packet would
 reach every node on the network link.
 .Bd -literal -offset indent
-ping6 -w ff02::1%wi0
+ping6 -y ff02::1%wi0
 .Ed
 .Pp
 The following will probe addresses assigned to the destination node,
 .Li dst.foo.com .
 .Bd -literal -offset indent
-ping6 -a agl dst.foo.com
+ping6 -k agl dst.foo.com
 .Ed
 .Sh SEE ALSO
 .Xr netstat 1 ,
