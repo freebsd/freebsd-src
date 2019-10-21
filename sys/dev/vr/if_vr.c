@@ -432,6 +432,44 @@ vr_cam_data(struct vr_softc *sc, int type, int idx, uint8_t *mac)
 	return (i == VR_TIMEOUT ? ETIMEDOUT : 0);
 }
 
+struct vr_hash_maddr_cam_ctx {
+	struct vr_softc *sc;
+	uint32_t mask;
+	int error;
+};
+
+static u_int
+vr_hash_maddr_cam(void *arg, struct sockaddr_dl *sdl, u_int mcnt)
+{
+	struct vr_hash_maddr_cam_ctx *ctx = arg;
+
+	if (ctx->error != 0)
+		return (0);
+	ctx->error = vr_cam_data(ctx->sc, VR_MCAST_CAM, mcnt, LLADDR(sdl));
+	if (ctx->error != 0) {
+		ctx->mask = 0;
+		return (0);
+	}
+	ctx->mask |= 1 << mcnt;
+
+	return (1);
+}
+
+static u_int
+vr_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint32_t *hashes = arg;
+	int h;
+
+	h = ether_crc32_be(LLADDR(sdl), ETHER_ADDR_LEN) >> 26;
+	if (h < 32)
+		hashes[0] |= (1 << h);
+	else
+		hashes[1] |= (1 << (h - 32));
+
+	return (1);
+}
+
 /*
  * Program the 64-bit multicast hash filter.
  */
@@ -439,12 +477,9 @@ static void
 vr_set_filter(struct vr_softc *sc)
 {
 	struct ifnet		*ifp;
-	int			h;
 	uint32_t		hashes[2] = { 0, 0 };
-	struct ifmultiaddr	*ifma;
 	uint8_t			rxfilt;
 	int			error, mcnt;
-	uint32_t		cam_mask;
 
 	VR_LOCK_ASSERT(sc);
 
@@ -466,27 +501,18 @@ vr_set_filter(struct vr_softc *sc)
 
 	/* Now program new ones. */
 	error = 0;
-	mcnt = 0;
-	if_maddr_rlock(ifp);
 	if ((sc->vr_quirks & VR_Q_CAM) != 0) {
+		struct vr_hash_maddr_cam_ctx ctx;
+
 		/*
 		 * For hardwares that have CAM capability, use
 		 * 32 entries multicast perfect filter.
 		 */
-		cam_mask = 0;
-		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-			if (ifma->ifma_addr->sa_family != AF_LINK)
-				continue;
-			error = vr_cam_data(sc, VR_MCAST_CAM, mcnt,
-			    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
-			if (error != 0) {
-				cam_mask = 0;
-				break;
-			}
-			cam_mask |= 1 << mcnt;
-			mcnt++;
-		}
-		vr_cam_mask(sc, VR_MCAST_CAM, cam_mask);
+		ctx.sc = sc;
+		ctx.mask = 0;
+		ctx.error = 0;
+		mcnt = if_foreach_llmaddr(ifp, vr_hash_maddr_cam, &ctx);
+		vr_cam_mask(sc, VR_MCAST_CAM, ctx.mask);
 	}
 
 	if ((sc->vr_quirks & VR_Q_CAM) == 0 || error != 0) {
@@ -495,20 +521,8 @@ vr_set_filter(struct vr_softc *sc)
 		 * setting multicast CAM filter failed, use hash
 		 * table based filtering.
 		 */
-		mcnt = 0;
-		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-			if (ifma->ifma_addr->sa_family != AF_LINK)
-				continue;
-			h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-			    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
-			if (h < 32)
-				hashes[0] |= (1 << h);
-			else
-				hashes[1] |= (1 << (h - 32));
-			mcnt++;
-		}
+		mcnt = if_foreach_llmaddr(ifp, vr_hash_maddr, hashes);
 	}
-	if_maddr_runlock(ifp);
 
 	if (mcnt > 0)
 		rxfilt |= VR_RXCFG_RX_MULTI;
