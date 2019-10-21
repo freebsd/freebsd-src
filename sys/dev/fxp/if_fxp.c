@@ -245,7 +245,7 @@ static void		fxp_discard_rfabuf(struct fxp_softc *sc,
 			    struct fxp_rx *rxp);
 static int		fxp_new_rfabuf(struct fxp_softc *sc,
 			    struct fxp_rx *rxp);
-static int		fxp_mc_addrs(struct fxp_softc *sc);
+static void		fxp_mc_addrs(struct fxp_softc *sc);
 static void		fxp_mc_setup(struct fxp_softc *sc);
 static uint16_t		fxp_eeprom_getword(struct fxp_softc *sc, int offset,
 			    int autosize);
@@ -2976,27 +2976,37 @@ fxp_ioctl(if_t ifp, u_long command, caddr_t data)
 	return (error);
 }
 
+static u_int
+fxp_setup_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	struct fxp_softc *sc = arg;
+	struct fxp_cb_mcs *mcsp = sc->mcsp;
+
+	if (mcsp->mc_cnt < MAXMCADDR)
+		bcopy(LLADDR(sdl), mcsp->mc_addr[mcsp->mc_cnt * ETHER_ADDR_LEN],
+		    ETHER_ADDR_LEN);
+	mcsp->mc_cnt++;
+	return (1);
+}
+
 /*
  * Fill in the multicast address list and return number of entries.
  */
-static int
+static void
 fxp_mc_addrs(struct fxp_softc *sc)
 {
 	struct fxp_cb_mcs *mcsp = sc->mcsp;
 	if_t ifp = sc->ifp;
-	int nmcasts = 0;
 
 	if ((if_getflags(ifp) & IFF_ALLMULTI) == 0) {
-		if_maddr_rlock(ifp);
-		if_setupmultiaddr(ifp, mcsp->mc_addr, &nmcasts, MAXMCADDR);
-		if (nmcasts >= MAXMCADDR) {
+		mcsp->mc_cnt = 0;
+		if_foreach_llmaddr(sc->ifp, fxp_setup_maddr, sc);
+		if (mcsp->mc_cnt >= MAXMCADDR) {
 			if_setflagbits(ifp, IFF_ALLMULTI, 0);
-			nmcasts = 0;
+			mcsp->mc_cnt = 0;
 		}
-		if_maddr_runlock(ifp);
 	}
-	mcsp->mc_cnt = htole16(nmcasts * ETHER_ADDR_LEN);
-	return (nmcasts);
+	mcsp->mc_cnt = htole16(mcsp->mc_cnt * ETHER_ADDR_LEN);
 }
 
 /*
