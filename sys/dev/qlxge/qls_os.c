@@ -835,31 +835,27 @@ qls_init(void *arg)
 	QL_DPRINT2((ha->pci_dev, "%s: exit\n", __func__));
 }
 
+static u_int
+qls_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int mcnt)
+{
+	uint8_t *mta = arg;
+
+	if (mcnt == Q8_MAX_NUM_MULTICAST_ADDRS)
+		return (0);
+
+	bcopy(LLADDR(sdl), &mta[mcnt * Q8_MAC_ADDR_LEN], Q8_MAC_ADDR_LEN);
+
+	return (1);
+}
+
 static void
 qls_set_multi(qla_host_t *ha, uint32_t add_multi)
 {
 	uint8_t mta[Q8_MAX_NUM_MULTICAST_ADDRS * Q8_MAC_ADDR_LEN];
-	struct ifmultiaddr *ifma;
-	int mcnt = 0;
 	struct ifnet *ifp = ha->ifp;
+	int mcnt;
 
-	if_maddr_rlock(ifp);
-
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-
-		if (mcnt == Q8_MAX_NUM_MULTICAST_ADDRS)
-			break;
-
-		bcopy(LLADDR((struct sockaddr_dl *) ifma->ifma_addr),
-			&mta[mcnt * Q8_MAC_ADDR_LEN], Q8_MAC_ADDR_LEN);
-
-		mcnt++;
-	}
-
-	if_maddr_runlock(ifp);
+	mcnt = if_foreach_llmaddr(ifp, qls_copy_maddr, mta);
 
 	if (QLA_LOCK(ha, __func__, 1) == 0) {
 		qls_hw_set_multi(ha, mta, mcnt, add_multi);
