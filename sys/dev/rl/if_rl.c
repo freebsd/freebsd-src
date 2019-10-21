@@ -509,6 +509,21 @@ rl_miibus_statchg(device_t dev)
 	 */
 }
 
+static u_int
+rl_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint32_t *hashes = arg;
+	int h;
+
+	h = ether_crc32_be(LLADDR(sdl), ETHER_ADDR_LEN) >> 26;
+	if (h < 32)
+		hashes[0] |= (1 << h);
+	else
+		hashes[1] |= (1 << (h - 32));
+
+	return (1);
+}
+
 /*
  * Program the 64-bit multicast hash filter.
  */
@@ -516,9 +531,7 @@ static void
 rl_rxfilter(struct rl_softc *sc)
 {
 	struct ifnet		*ifp = sc->rl_ifp;
-	int			h = 0;
 	uint32_t		hashes[2] = { 0, 0 };
-	struct ifmultiaddr	*ifma;
 	uint32_t		rxfilt;
 
 	RL_LOCK_ASSERT(sc);
@@ -539,18 +552,7 @@ rl_rxfilter(struct rl_softc *sc)
 		hashes[1] = 0xFFFFFFFF;
 	} else {
 		/* Now program new ones. */
-		if_maddr_rlock(ifp);
-		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-			if (ifma->ifma_addr->sa_family != AF_LINK)
-				continue;
-			h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-			    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
-			if (h < 32)
-				hashes[0] |= (1 << h);
-			else
-				hashes[1] |= (1 << (h - 32));
-		}
-		if_maddr_runlock(ifp);
+		if_foreach_llmaddr(ifp, rl_hash_maddr, hashes);
 		if (hashes[0] != 0 || hashes[1] != 0)
 			rxfilt |= RL_RXCFG_RX_MULTI;
 	}
