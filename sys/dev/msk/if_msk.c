@@ -573,14 +573,27 @@ msk_miibus_statchg(device_t dev)
 	}
 }
 
+static u_int
+msk_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint32_t *mchash = arg;
+	uint32_t crc;
+
+	crc = ether_crc32_be(LLADDR(sdl), ETHER_ADDR_LEN);
+	/* Just want the 6 least significant bits. */
+	crc &= 0x3f;
+	/* Set the corresponding bit in the hash table. */
+	mchash[crc >> 5] |= 1 << (crc & 0x1f);
+
+	return (1);
+}
+
 static void
 msk_rxfilter(struct msk_if_softc *sc_if)
 {
 	struct msk_softc *sc;
 	struct ifnet *ifp;
-	struct ifmultiaddr *ifma;
 	uint32_t mchash[2];
-	uint32_t crc;
 	uint16_t mode;
 
 	sc = sc_if->msk_softc;
@@ -599,18 +612,7 @@ msk_rxfilter(struct msk_if_softc *sc_if)
 		mchash[1] = 0xffff;
 	} else {
 		mode |= GM_RXCR_UCF_ENA;
-		if_maddr_rlock(ifp);
-		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-			if (ifma->ifma_addr->sa_family != AF_LINK)
-				continue;
-			crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-			    ifma->ifma_addr), ETHER_ADDR_LEN);
-			/* Just want the 6 least significant bits. */
-			crc &= 0x3f;
-			/* Set the corresponding bit in the hash table. */
-			mchash[crc >> 5] |= 1 << (crc & 0x1f);
-		}
-		if_maddr_runlock(ifp);
+		if_foreach_llmaddr(ifp, msk_hash_maddr, mchash);
 		if (mchash[0] != 0 || mchash[1] != 0)
 			mode |= GM_RXCR_MCF_ENA;
 	}
