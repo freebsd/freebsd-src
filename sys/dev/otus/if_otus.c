@@ -2308,63 +2308,63 @@ otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
 	return 0;
 }
 
+static u_int
+otus_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint32_t val, *hashes = arg;
+
+	val = le32dec(LLADDR(sdl) + 4);
+	/* Get address byte 5 */
+	val = val & 0x0000ff00;
+	val = val >> 8;
+
+	/* As per below, shift it >> 2 to get only 6 bits */
+	val = val >> 2;
+	if (val < 32)
+		hashes[0] |= 1 << val;
+	else
+		hashes[1] |= 1 << (val - 32);
+
+	return (1);
+}
+
+
 int
 otus_set_multi(struct otus_softc *sc)
 {
-	uint32_t lo, hi;
 	struct ieee80211com *ic = &sc->sc_ic;
+	uint32_t hashes[2];
 	int r;
 
 	if (ic->ic_allmulti > 0 || ic->ic_promisc > 0 ||
 	    ic->ic_opmode == IEEE80211_M_MONITOR) {
-		lo = 0xffffffff;
-		hi = 0xffffffff;
+		hashes[0] = 0xffffffff;
+		hashes[1] = 0xffffffff;
 	} else {
 		struct ieee80211vap *vap;
-		struct ifnet *ifp;
-		struct ifmultiaddr *ifma;
 
-		lo = hi = 0;
-		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
-			ifp = vap->iv_ifp;
-			if_maddr_rlock(ifp);
-			CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-				caddr_t dl;
-				uint32_t val;
-
-				dl = LLADDR((struct sockaddr_dl *) ifma->ifma_addr);
-				val = le32dec(dl + 4);
-				/* Get address byte 5 */
-				val = val & 0x0000ff00;
-				val = val >> 8;
-
-				/* As per below, shift it >> 2 to get only 6 bits */
-				val = val >> 2;
-				if (val < 32)
-					lo |= 1 << val;
-				else
-					hi |= 1 << (val - 32);
-			}
-			if_maddr_runlock(ifp);
-		}
+		hashes[0] = hashes[1] = 0;
+		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
+			if_foreach_llmaddr(vap->iv_ifp, otus_hash_maddr,
+			    hashes);
 	}
 #if 0
 	/* XXX openbsd code */
 	while (enm != NULL) {
 		bit = enm->enm_addrlo[5] >> 2;
 		if (bit < 32)
-			lo |= 1 << bit;
+			hashes[0] |= 1 << bit;
 		else
-			hi |= 1 << (bit - 32);
+			hashes[1] |= 1 << (bit - 32);
 		ETHER_NEXT_MULTI(step, enm);
 	}
 #endif
 
-	hi |= 1U << 31;	/* Make sure the broadcast bit is set. */
+	hashes[1] |= 1U << 31;	/* Make sure the broadcast bit is set. */
 
 	OTUS_LOCK(sc);
-	otus_write(sc, AR_MAC_REG_GROUP_HASH_TBL_L, lo);
-	otus_write(sc, AR_MAC_REG_GROUP_HASH_TBL_H, hi);
+	otus_write(sc, AR_MAC_REG_GROUP_HASH_TBL_L, hashes[0]);
+	otus_write(sc, AR_MAC_REG_GROUP_HASH_TBL_H, hashes[1]);
 	r = otus_write_barrier(sc);
 	/* XXX operating mode? filter? */
 	OTUS_UNLOCK(sc);
