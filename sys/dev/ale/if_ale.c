@@ -3008,12 +3008,21 @@ ale_rxvlan(struct ale_softc *sc)
 	CSR_WRITE_4(sc, ALE_MAC_CFG, reg);
 }
 
+static u_int
+ale_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint32_t crc, *mchash = arg;
+
+	crc = ether_crc32_be(LLADDR(sdl), ETHER_ADDR_LEN);
+	mchash[crc >> 31] |= 1 << ((crc >> 26) & 0x1f);
+
+	return (1);
+}
+
 static void
 ale_rxfilter(struct ale_softc *sc)
 {
 	struct ifnet *ifp;
-	struct ifmultiaddr *ifma;
-	uint32_t crc;
 	uint32_t mchash[2];
 	uint32_t rxcfg;
 
@@ -3038,16 +3047,7 @@ ale_rxfilter(struct ale_softc *sc)
 
 	/* Program new filter. */
 	bzero(mchash, sizeof(mchash));
-
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &sc->ale_ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-		    ifma->ifma_addr), ETHER_ADDR_LEN);
-		mchash[crc >> 31] |= 1 << ((crc >> 26) & 0x1f);
-	}
-	if_maddr_runlock(ifp);
+	if_foreach_llmaddr(ifp, ale_hash_maddr, &mchash);
 
 	CSR_WRITE_4(sc, ALE_MAR0, mchash[0]);
 	CSR_WRITE_4(sc, ALE_MAR1, mchash[1]);
