@@ -1020,8 +1020,10 @@ domod(Char *cp, Char type)
 
     switch (type) {
 
-    case 'x':
     case 'q':
+    case 'x':
+	if (*cp == '\0')
+	    return Strsave(STRQNULL);
 	wp = Strsave(cp);
 	for (xp = wp; (c = *xp) != 0; xp++)
 	    if ((c != ' ' && c != '\t') || type == 'q')
