@@ -213,6 +213,12 @@ static struct rwlock moea64_eviction_lock;
 static volatile struct pate *moea64_part_table;
 
 /*
+ * Dump function.
+ */
+static void	*moea64_dump_pmap_native(mmu_t mmu, void *ctx, void *buf,
+		    u_long *nbytes);
+
+/*
  * PTE calls.
  */
 static int	moea64_pte_insert_native(mmu_t, struct pvo_entry *);
@@ -233,6 +239,7 @@ static mmu_method_t moea64_native_methods[] = {
 	/* Internal interfaces */
 	MMUMETHOD(mmu_bootstrap,	moea64_bootstrap_native),
 	MMUMETHOD(mmu_cpu_bootstrap,	moea64_cpu_bootstrap_native),
+        MMUMETHOD(mmu_dump_pmap,        moea64_dump_pmap_native),
 
 	MMUMETHOD(moea64_pte_synch,	moea64_pte_synch_native),
 	MMUMETHOD(moea64_pte_clear,	moea64_pte_clear_native),	
@@ -787,3 +794,21 @@ moea64_pte_insert_native(mmu_t mmu, struct pvo_entry *pvo)
 	return (-1);
 }
 
+static void *
+moea64_dump_pmap_native(mmu_t mmu, void *ctx, void *buf, u_long *nbytes)
+{
+	struct dump_context *dctx;
+	u_long ptex, ptex_end;
+
+	dctx = (struct dump_context *)ctx;
+	ptex = dctx->ptex;
+	ptex_end = ptex + dctx->blksz / sizeof(struct lpte);
+	ptex_end = MIN(ptex_end, dctx->ptex_end);
+	*nbytes = (ptex_end - ptex) * sizeof(struct lpte);
+
+	if (*nbytes == 0)
+		return (NULL);
+
+	dctx->ptex = ptex_end;
+	return (__DEVOLATILE(struct lpte *, moea64_pteg_table) + ptex);
+}
