@@ -1768,40 +1768,6 @@ if_data_copy(struct ifnet *ifp, struct if_data *ifd)
 }
 
 /*
- * Wrapper functions for struct ifnet address list locking macros.  These are
- * used by kernel modules to avoid encoding programming interface or binary
- * interface assumptions that may be violated when kernel-internal locking
- * approaches change.
- */
-void
-if_addr_rlock(struct ifnet *ifp)
-{
-
-	epoch_enter_preempt(net_epoch_preempt, curthread->td_et);
-}
-
-void
-if_addr_runlock(struct ifnet *ifp)
-{
-
-	epoch_exit_preempt(net_epoch_preempt, curthread->td_et);
-}
-
-void
-if_maddr_rlock(if_t ifp)
-{
-
-	epoch_enter_preempt(net_epoch_preempt, curthread->td_et);
-}
-
-void
-if_maddr_runlock(if_t ifp)
-{
-
-	epoch_exit_preempt(net_epoch_preempt, curthread->td_et);
-}
-
-/*
  * Initialization, destruction and refcounting functions for ifaddrs.
  */
 struct ifaddr *
@@ -4403,77 +4369,6 @@ if_input(if_t ifp, struct mbuf* sendmp)
 	(*((struct ifnet *)ifp)->if_input)((struct ifnet *)ifp, sendmp);
 	return (0);
 
-}
-
-/* XXX */
-#ifndef ETH_ADDR_LEN
-#define ETH_ADDR_LEN 6
-#endif
-
-int 
-if_setupmultiaddr(if_t ifp, void *mta, int *cnt, int max)
-{
-	struct ifmultiaddr *ifma;
-	uint8_t *lmta = (uint8_t *)mta;
-	int mcnt = 0;
-
-	CK_STAILQ_FOREACH(ifma, &((struct ifnet *)ifp)->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-
-		if (mcnt == max)
-			break;
-
-		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-		    &lmta[mcnt * ETH_ADDR_LEN], ETH_ADDR_LEN);
-		mcnt++;
-	}
-	*cnt = mcnt;
-
-	return (0);
-}
-
-int
-if_multiaddr_array(if_t ifp, void *mta, int *cnt, int max)
-{
-	int error;
-
-	if_maddr_rlock(ifp);
-	error = if_setupmultiaddr(ifp, mta, cnt, max);
-	if_maddr_runlock(ifp);
-	return (error);
-}
-
-int
-if_multiaddr_count(if_t ifp, int max)
-{
-	struct ifmultiaddr *ifma;
-	int count;
-
-	count = 0;
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &((struct ifnet *)ifp)->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		count++;
-		if (count == max)
-			break;
-	}
-	if_maddr_runlock(ifp);
-	return (count);
-}
-
-int
-if_multi_apply(struct ifnet *ifp, int (*filter)(void *, struct ifmultiaddr *, int), void *arg)
-{
-	struct ifmultiaddr *ifma;
-	int cnt = 0;
-
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
-		cnt += filter(arg, ifma, cnt);
-	if_maddr_runlock(ifp);
-	return (cnt);
 }
 
 struct mbuf *
