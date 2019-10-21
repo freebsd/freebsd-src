@@ -2557,75 +2557,67 @@ nfe_encap(struct nfe_softc *sc, struct mbuf **m_head)
 	return (0);
 }
 
+struct nfe_hash_maddr_ctx {
+	uint8_t addr[ETHER_ADDR_LEN];
+	uint8_t mask[ETHER_ADDR_LEN];
+};
+
+static u_int
+nfe_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	struct nfe_hash_maddr_ctx *ctx = arg;
+	uint8_t *addrp, mcaddr;
+	int j;
+
+	addrp = LLADDR(sdl);
+	for (j = 0; j < ETHER_ADDR_LEN; j++) {
+		mcaddr = addrp[j];
+		ctx->addr[j] &= mcaddr;
+		ctx->mask[j] &= ~mcaddr;
+	}
+
+	return (1);
+}
 
 static void
 nfe_setmulti(struct nfe_softc *sc)
 {
 	if_t ifp = sc->nfe_ifp;
-	int i, mc_count, mcnt;
+	struct nfe_hash_maddr_ctx ctx;
 	uint32_t filter;
-	uint8_t addr[ETHER_ADDR_LEN], mask[ETHER_ADDR_LEN];
 	uint8_t etherbroadcastaddr[ETHER_ADDR_LEN] = {
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 	};
-	uint8_t *mta;
+	int i;
 
 	NFE_LOCK_ASSERT(sc);
 
 	if ((if_getflags(ifp) & (IFF_ALLMULTI | IFF_PROMISC)) != 0) {
-		bzero(addr, ETHER_ADDR_LEN);
-		bzero(mask, ETHER_ADDR_LEN);
+		bzero(ctx.addr, ETHER_ADDR_LEN);
+		bzero(ctx.mask, ETHER_ADDR_LEN);
 		goto done;
 	}
 
-	bcopy(etherbroadcastaddr, addr, ETHER_ADDR_LEN);
-	bcopy(etherbroadcastaddr, mask, ETHER_ADDR_LEN);
+	bcopy(etherbroadcastaddr, ctx.addr, ETHER_ADDR_LEN);
+	bcopy(etherbroadcastaddr, ctx.mask, ETHER_ADDR_LEN);
 
-	mc_count = if_multiaddr_count(ifp, -1);
-	mta = malloc(sizeof(uint8_t) * ETHER_ADDR_LEN * mc_count, M_DEVBUF,
-	    M_NOWAIT);
-
-	/* Unable to get memory - process without filtering */
-	if (mta == NULL) {
-		device_printf(sc->nfe_dev, "nfe_setmulti: failed to allocate"
-		    "temp multicast buffer!\n");
-
-		bzero(addr, ETHER_ADDR_LEN);
-		bzero(mask, ETHER_ADDR_LEN);
-		goto done;
-	}
-
-	if_multiaddr_array(ifp, mta, &mcnt, mc_count);
-
-	for (i = 0; i < mcnt; i++) {
-		uint8_t *addrp;
-		int j;
-
-		addrp = mta + (i * ETHER_ADDR_LEN);
-		for (j = 0; j < ETHER_ADDR_LEN; j++) {
-			u_int8_t mcaddr = addrp[j];
-			addr[j] &= mcaddr;
-			mask[j] &= ~mcaddr;
-		}
-	}
-
-	free(mta, M_DEVBUF);
+	if_foreach_llmaddr(ifp, nfe_hash_maddr, &ctx);
 
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
-		mask[i] |= addr[i];
+		ctx.mask[i] |= ctx.addr[i];
 	}
 
 done:
-	addr[0] |= 0x01;	/* make sure multicast bit is set */
+	ctx.addr[0] |= 0x01;	/* make sure multicast bit is set */
 
-	NFE_WRITE(sc, NFE_MULTIADDR_HI,
-	    addr[3] << 24 | addr[2] << 16 | addr[1] << 8 | addr[0]);
+	NFE_WRITE(sc, NFE_MULTIADDR_HI, ctx.addr[3] << 24 | ctx.addr[2] << 16 |
+	    ctx.addr[1] << 8 | ctx.addr[0]);
 	NFE_WRITE(sc, NFE_MULTIADDR_LO,
-	    addr[5] <<  8 | addr[4]);
-	NFE_WRITE(sc, NFE_MULTIMASK_HI,
-	    mask[3] << 24 | mask[2] << 16 | mask[1] << 8 | mask[0]);
+	    ctx.addr[5] <<  8 | ctx.addr[4]);
+	NFE_WRITE(sc, NFE_MULTIMASK_HI, ctx.mask[3] << 24 | ctx.mask[2] << 16 |
+	    ctx.mask[1] << 8 | ctx.mask[0]);
 	NFE_WRITE(sc, NFE_MULTIMASK_LO,
-	    mask[5] <<  8 | mask[4]);
+	    ctx.mask[5] <<  8 | ctx.mask[4]);
 
 	filter = NFE_READ(sc, NFE_RXFILTER);
 	filter &= NFE_PFF_RX_PAUSE;
