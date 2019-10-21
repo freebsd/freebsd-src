@@ -718,21 +718,49 @@ sk_rxfilter(sc_if)
 		sk_rxfilter_yukon(sc_if);
 }
 
+struct sk_add_maddr_genesis_ctx {
+	struct sk_if_softc *sc_if;
+	uint32_t hashes[2];
+	uint32_t mode;
+};
+
+static u_int
+sk_add_maddr_genesis(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	struct sk_add_maddr_genesis_ctx *ctx = arg;
+	int h;
+
+	/*
+	 * Program the first XM_RXFILT_MAX multicast groups
+	 * into the perfect filter.
+	 */
+	if (cnt + 1 < XM_RXFILT_MAX) {
+		sk_setfilt(ctx->sc_if, (uint16_t *)LLADDR(sdl), cnt + 1);
+		ctx->mode |= XM_MODE_RX_USE_PERFECT;
+		return (1);
+	}
+	h = sk_xmchash((const uint8_t *)LLADDR(sdl));
+	if (h < 32)
+		ctx->hashes[0] |= (1 << h);
+	else
+		ctx->hashes[1] |= (1 << (h - 32));
+	ctx->mode |= XM_MODE_RX_USE_HASH;
+
+	return (1);
+}
+
 static void
-sk_rxfilter_genesis(sc_if)
-	struct sk_if_softc	*sc_if;
+sk_rxfilter_genesis(struct sk_if_softc *sc_if)
 {
 	struct ifnet		*ifp = sc_if->sk_ifp;
-	u_int32_t		hashes[2] = { 0, 0 }, mode;
-	int			h = 0, i;
-	struct ifmultiaddr	*ifma;
+	struct sk_add_maddr_genesis_ctx ctx = { sc_if, { 0, 0 } };
+	int			i;
 	u_int16_t		dummy[] = { 0, 0, 0 };
-	u_int16_t		maddr[(ETHER_ADDR_LEN+1)/2];
 
 	SK_IF_LOCK_ASSERT(sc_if);
 
-	mode = SK_XM_READ_4(sc_if, XM_MODE);
-	mode &= ~(XM_MODE_RX_PROMISC | XM_MODE_RX_USE_HASH |
+	ctx.mode = SK_XM_READ_4(sc_if, XM_MODE);
+	ctx.mode &= ~(XM_MODE_RX_PROMISC | XM_MODE_RX_USE_HASH |
 	    XM_MODE_RX_USE_PERFECT);
 	/* First, zot all the existing perfect filters. */
 	for (i = 1; i < XM_RXFILT_MAX; i++)
@@ -741,53 +769,39 @@ sk_rxfilter_genesis(sc_if)
 	/* Now program new ones. */
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
 		if (ifp->if_flags & IFF_ALLMULTI)
-			mode |= XM_MODE_RX_USE_HASH;
+			ctx.mode |= XM_MODE_RX_USE_HASH;
 		if (ifp->if_flags & IFF_PROMISC)
-			mode |= XM_MODE_RX_PROMISC;
-		hashes[0] = 0xFFFFFFFF;
-		hashes[1] = 0xFFFFFFFF;
-	} else {
-		i = 1;
-		if_maddr_rlock(ifp);
+			ctx.mode |= XM_MODE_RX_PROMISC;
+		ctx.hashes[0] = 0xFFFFFFFF;
+		ctx.hashes[1] = 0xFFFFFFFF;
+	} else
 		/* XXX want to maintain reverse semantics */
-		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs,
-		    ifma_link) {
-			if (ifma->ifma_addr->sa_family != AF_LINK)
-				continue;
-			/*
-			 * Program the first XM_RXFILT_MAX multicast groups
-			 * into the perfect filter.
-			 */
-			bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-			    maddr, ETHER_ADDR_LEN);
-			if (i < XM_RXFILT_MAX) {
-				sk_setfilt(sc_if, maddr, i);
-				mode |= XM_MODE_RX_USE_PERFECT;
-				i++;
-				continue;
-			}
-			h = sk_xmchash((const uint8_t *)maddr);
-			if (h < 32)
-				hashes[0] |= (1 << h);
-			else
-				hashes[1] |= (1 << (h - 32));
-			mode |= XM_MODE_RX_USE_HASH;
-		}
-		if_maddr_runlock(ifp);
-	}
+		if_foreach_llmaddr(ifp, sk_add_maddr_genesis, &ctx);
 
-	SK_XM_WRITE_4(sc_if, XM_MODE, mode);
-	SK_XM_WRITE_4(sc_if, XM_MAR0, hashes[0]);
-	SK_XM_WRITE_4(sc_if, XM_MAR2, hashes[1]);
+	SK_XM_WRITE_4(sc_if, XM_MODE, ctx.mode);
+	SK_XM_WRITE_4(sc_if, XM_MAR0, ctx.hashes[0]);
+	SK_XM_WRITE_4(sc_if, XM_MAR2, ctx.hashes[1]);
+}
+
+static u_int
+sk_hash_maddr_yukon(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint32_t crc, *hashes = arg;
+
+	crc = ether_crc32_be(LLADDR(sdl), ETHER_ADDR_LEN);
+	/* Just want the 6 least significant bits. */
+	crc &= 0x3f;
+	/* Set the corresponding bit in the hash table. */
+	hashes[crc >> 5] |= 1 << (crc & 0x1f);
+
+	return (1);
 }
 
 static void
-sk_rxfilter_yukon(sc_if)
-	struct sk_if_softc	*sc_if;
+sk_rxfilter_yukon(struct sk_if_softc *sc_if)
 {
 	struct ifnet		*ifp;
-	u_int32_t		crc, hashes[2] = { 0, 0 }, mode;
-	struct ifmultiaddr	*ifma;
+	uint32_t		hashes[2] = { 0, 0 }, mode;
 
 	SK_IF_LOCK_ASSERT(sc_if);
 
@@ -801,18 +815,7 @@ sk_rxfilter_yukon(sc_if)
 		hashes[1] = 0xFFFFFFFF;
 	} else {
 		mode |= YU_RCR_UFLEN;
-		if_maddr_rlock(ifp);
-		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-			if (ifma->ifma_addr->sa_family != AF_LINK)
-				continue;
-			crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-			    ifma->ifma_addr), ETHER_ADDR_LEN);
-			/* Just want the 6 least significant bits. */
-			crc &= 0x3f;
-			/* Set the corresponding bit in the hash table. */
-			hashes[crc >> 5] |= 1 << (crc & 0x1f);
-		}
-		if_maddr_runlock(ifp);
+		if_foreach_llmaddr(ifp, sk_hash_maddr_yukon, hashes);
 		if (hashes[0] != 0 || hashes[1] != 0)
 			mode |= YU_RCR_MUFLEN;
 	}
