@@ -97,6 +97,10 @@ static vm_object_t vnode_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *cred);
 static int vnode_pager_generic_getpages_done(struct buf *);
 static void vnode_pager_generic_getpages_done_async(struct buf *);
+static void vnode_pager_update_writecount(vm_object_t, vm_offset_t,
+    vm_offset_t);
+static void vnode_pager_release_writecount(vm_object_t, vm_offset_t,
+    vm_offset_t);
 
 struct pagerops vnodepagerops = {
 	.pgo_alloc =	vnode_pager_alloc,
@@ -105,6 +109,8 @@ struct pagerops vnodepagerops = {
 	.pgo_getpages_async = vnode_pager_getpages_async,
 	.pgo_putpages =	vnode_pager_putpages,
 	.pgo_haspage =	vnode_pager_haspage,
+	.pgo_update_writecount = vnode_pager_update_writecount,
+	.pgo_release_writecount = vnode_pager_release_writecount,
 };
 
 int vnode_pbuf_freecnt;
@@ -1499,7 +1505,7 @@ done:
 	VM_OBJECT_WUNLOCK(obj);
 }
 
-void
+static void
 vnode_pager_update_writecount(vm_object_t object, vm_offset_t start,
     vm_offset_t end)
 {
@@ -1528,7 +1534,7 @@ vnode_pager_update_writecount(vm_object_t object, vm_offset_t start,
 	VM_OBJECT_WUNLOCK(object);
 }
 
-void
+static void
 vnode_pager_release_writecount(vm_object_t object, vm_offset_t start,
     vm_offset_t end)
 {

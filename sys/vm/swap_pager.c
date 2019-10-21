@@ -375,6 +375,10 @@ static boolean_t
 static void	swap_pager_init(void);
 static void	swap_pager_unswapped(vm_page_t);
 static void	swap_pager_swapoff(struct swdevt *sp);
+static void	swap_pager_update_writecount(vm_object_t object,
+    vm_offset_t start, vm_offset_t end);
+static void	swap_pager_release_writecount(vm_object_t object,
+    vm_offset_t start, vm_offset_t end);
 
 struct pagerops swappagerops = {
 	.pgo_init =	swap_pager_init,	/* early system initialization of pager	*/
@@ -385,6 +389,8 @@ struct pagerops swappagerops = {
 	.pgo_putpages =	swap_pager_putpages,	/* pageout				*/
 	.pgo_haspage =	swap_pager_haspage,	/* get backing store status for page	*/
 	.pgo_pageunswapped = swap_pager_unswapped,	/* remove swap related to page		*/
+	.pgo_update_writecount = swap_pager_update_writecount,
+	.pgo_release_writecount = swap_pager_release_writecount,
 };
 
 /*
@@ -610,6 +616,7 @@ swap_pager_alloc_init(void *handle, struct ucred *cred, vm_ooffset_t size,
 	object = vm_object_allocate(OBJT_SWAP, OFF_TO_IDX(offset +
 	    PAGE_MASK + size));
 
+	object->un_pager.swp.writemappings = 0;
 	object->handle = handle;
 	if (cred != NULL) {
 		object->cred = cred;
@@ -1920,6 +1927,7 @@ swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk)
 		atomic_thread_fence_rel();
 
 		object->type = OBJT_SWAP;
+		object->un_pager.swp.writemappings = 0;
 		KASSERT(object->handle == NULL, ("default pager with handle"));
 	}
 
@@ -3004,4 +3012,28 @@ sysctl_swap_async_max(SYSCTL_HANDLER_ARGS)
 	mtx_unlock(&pbuf_mtx);
 
 	return (0);
+}
+
+static void
+swap_pager_update_writecount(vm_object_t object, vm_offset_t start,
+    vm_offset_t end)
+{
+
+	VM_OBJECT_WLOCK(object);
+	KASSERT((object->flags & OBJ_NOSPLIT) != 0,
+	    ("Splittable object with writecount"));
+	object->un_pager.swp.writemappings += (vm_ooffset_t)end - start;
+	VM_OBJECT_WUNLOCK(object);
+}
+
+static void
+swap_pager_release_writecount(vm_object_t object, vm_offset_t start,
+    vm_offset_t end)
+{
+
+	VM_OBJECT_WLOCK(object);
+	KASSERT((object->flags & OBJ_NOSPLIT) != 0,
+	    ("Splittable object with writecount"));
+	object->un_pager.swp.writemappings -= (vm_ooffset_t)end - start;
+	VM_OBJECT_WUNLOCK(object);
 }

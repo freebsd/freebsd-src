@@ -145,7 +145,7 @@ struct vm_map_entry {
 #define	MAP_ENTRY_GROWS_UP		0x00002000	/* bottom-up stacks */
 
 #define	MAP_ENTRY_WIRE_SKIPPED		0x00004000
-#define	MAP_ENTRY_VN_WRITECNT		0x00008000	/* writeable vnode
+#define	MAP_ENTRY_WRITECNT		0x00008000	/* tracked writeable
 							   mapping */
 #define	MAP_ENTRY_GUARD			0x00010000
 #define	MAP_ENTRY_STACK_GAP_DN		0x00020000
@@ -349,7 +349,7 @@ long vmspace_resident_count(struct vmspace *vmspace);
 #define	MAP_CREATE_GUARD	0x00000080
 #define	MAP_DISABLE_COREDUMP	0x00000100
 #define	MAP_PREFAULT_MADVISE	0x00000200    /* from (user) madvise request */
-#define	MAP_VN_WRITECOUNT	0x00000400
+#define	MAP_WRITECOUNT		0x00000400
 #define	MAP_REMAP		0x00000800
 #define	MAP_STACK_GROWS_DOWN	0x00001000
 #define	MAP_STACK_GROWS_UP	0x00002000

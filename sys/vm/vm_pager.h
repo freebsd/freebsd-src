@@ -61,6 +61,7 @@ typedef boolean_t pgo_haspage_t(vm_object_t, vm_pindex_t, int *, int *);
 typedef int pgo_populate_t(vm_object_t, vm_pindex_t, int, vm_prot_t,
     vm_pindex_t *, vm_pindex_t *);
 typedef void pgo_pageunswapped_t(vm_page_t);
+typedef void pgo_writecount_t(vm_object_t, vm_offset_t, vm_offset_t);
 
 struct pagerops {
 	pgo_init_t		*pgo_init;		/* Initialize pager. */
@@ -72,6 +73,9 @@ struct pagerops {
 	pgo_haspage_t		*pgo_haspage;		/* Query page. */
 	pgo_populate_t		*pgo_populate;		/* Bulk spec pagein. */
 	pgo_pageunswapped_t	*pgo_pageunswapped;
+	/* Operations for specialized writecount handling */
+	pgo_writecount_t	*pgo_update_writecount;
+	pgo_writecount_t	*pgo_release_writecount;
 };
 
 extern struct pagerops defaultpagerops;
@@ -190,6 +194,26 @@ vm_pager_page_unswapped(vm_page_t m)
 	VM_OBJECT_ASSERT_LOCKED(m->object);
 	if (pagertab[m->object->type]->pgo_pageunswapped)
 		(*pagertab[m->object->type]->pgo_pageunswapped)(m);
+}
+
+static __inline void
+vm_pager_update_writecount(vm_object_t object, vm_offset_t start,
+    vm_offset_t end)
+{
+
+	if (pagertab[object->type]->pgo_update_writecount)
+		pagertab[object->type]->pgo_update_writecount(object, start,
+		    end);
+}
+
+static __inline void
+vm_pager_release_writecount(vm_object_t object, vm_offset_t start,
+    vm_offset_t end)
+{
+
+	if (pagertab[object->type]->pgo_release_writecount)
+		pagertab[object->type]->pgo_release_writecount(object, start,
+		    end);
 }
 
 struct cdev_pager_ops {
