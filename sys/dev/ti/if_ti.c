@@ -207,8 +207,8 @@ static uint32_t ti_eeprom_putbyte(struct ti_softc *, int);
 static uint8_t	ti_eeprom_getbyte(struct ti_softc *, int, uint8_t *);
 static int ti_read_eeprom(struct ti_softc *, caddr_t, int, int);
 
-static void ti_add_mcast(struct ti_softc *, struct ether_addr *);
-static void ti_del_mcast(struct ti_softc *, struct ether_addr *);
+static u_int ti_add_mcast(void *, struct sockaddr_dl *, u_int);
+static u_int ti_del_mcast(void *, struct sockaddr_dl *, u_int);
 static void ti_setmulti(struct ti_softc *);
 
 static void ti_mem_read(struct ti_softc *, uint32_t, uint32_t, void *);
@@ -1878,14 +1878,15 @@ ti_init_tx_ring(struct ti_softc *sc)
  * but we have to support the old way too so that Tigon 1 cards will
  * work.
  */
-static void
-ti_add_mcast(struct ti_softc *sc, struct ether_addr *addr)
+static u_int
+ti_add_mcast(void *arg, struct sockaddr_dl *sdl, u_int count)
 {
+	struct ti_softc *sc = arg;
 	struct ti_cmd_desc cmd;
 	uint16_t *m;
 	uint32_t ext[2] = {0, 0};
 
-	m = (uint16_t *)&addr->octet[0];
+	m = (uint16_t *)LLADDR(sdl);
 
 	switch (sc->ti_hwrev) {
 	case TI_HWREV_TIGON:
@@ -1900,18 +1901,20 @@ ti_add_mcast(struct ti_softc *sc, struct ether_addr *addr)
 		break;
 	default:
 		device_printf(sc->ti_dev, "unknown hwrev\n");
-		break;
+		return (0);
 	}
+	return (1);
 }
 
-static void
-ti_del_mcast(struct ti_softc *sc, struct ether_addr *addr)
+static u_int
+ti_del_mcast(void *arg, struct sockaddr_dl *sdl, u_int count)
 {
+	struct ti_softc *sc = arg;
 	struct ti_cmd_desc cmd;
 	uint16_t *m;
 	uint32_t ext[2] = {0, 0};
 
-	m = (uint16_t *)&addr->octet[0];
+	m = (uint16_t *)LLADDR(sdl);
 
 	switch (sc->ti_hwrev) {
 	case TI_HWREV_TIGON:
@@ -1926,8 +1929,10 @@ ti_del_mcast(struct ti_softc *sc, struct ether_addr *addr)
 		break;
 	default:
 		device_printf(sc->ti_dev, "unknown hwrev\n");
-		break;
+		return (0);
 	}
+
+	return (1);
 }
 
 /*
@@ -1948,9 +1953,7 @@ static void
 ti_setmulti(struct ti_softc *sc)
 {
 	struct ifnet *ifp;
-	struct ifmultiaddr *ifma;
 	struct ti_cmd_desc cmd;
-	struct ti_mc_entry *mc;
 	uint32_t intrs;
 
 	TI_LOCK_ASSERT(sc);
@@ -1969,30 +1972,10 @@ ti_setmulti(struct ti_softc *sc)
 	CSR_WRITE_4(sc, TI_MB_HOSTINTR, 1);
 
 	/* First, zot all the existing filters. */
-	while (SLIST_FIRST(&sc->ti_mc_listhead) != NULL) {
-		mc = SLIST_FIRST(&sc->ti_mc_listhead);
-		ti_del_mcast(sc, &mc->mc_addr);
-		SLIST_REMOVE_HEAD(&sc->ti_mc_listhead, mc_entries);
-		free(mc, M_DEVBUF);
-	}
+	if_foreach_llmaddr(ifp, ti_del_mcast, sc);
 
 	/* Now program new ones. */
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		mc = malloc(sizeof(struct ti_mc_entry), M_DEVBUF, M_NOWAIT);
-		if (mc == NULL) {
-			device_printf(sc->ti_dev,
-			    "no memory for mcast filter entry\n");
-			continue;
-		}
-		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-		    (char *)&mc->mc_addr, ETHER_ADDR_LEN);
-		SLIST_INSERT_HEAD(&sc->ti_mc_listhead, mc, mc_entries);
-		ti_add_mcast(sc, &mc->mc_addr);
-	}
-	if_maddr_runlock(ifp);
+	if_foreach_llmaddr(ifp, ti_add_mcast, sc);
 
 	/* Re-enable interrupts. */
 	CSR_WRITE_4(sc, TI_MB_HOSTINTR, intrs);
