@@ -42,7 +42,7 @@
 # include <sys/signal.h>
 #endif /* SYSVREL > 0 */
 
-#if defined(__APPLE__) || defined(SUNOS4) || defined(DGUX) || defined(hp800) || (SYSVREL > 3 && defined(VFORK))
+#if defined(SUNOS4) || defined(DGUX) || defined(hp800) || (SYSVREL > 3 && defined(VFORK))
 # define SAVESIGVEC
 #endif /* SUNOS4 || DGUX || hp800 || SVR4 & VFORK */
 

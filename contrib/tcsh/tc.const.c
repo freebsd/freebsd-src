@@ -253,10 +253,10 @@ Char STRnormal[]	= { 'n', 'o', 'r', 'm', 'a', 'l', '\0' };
 Char STRsldtlogout[]	= { '/', '.', 'l', 'o', 'g', 'o', 'u', 't', '\0' };
 Char STRjobs[]		= { 'j', 'o', 'b', 's', '\0' };
 Char STRdefprompt[]	= { '%', '#', ' ', '\0' };
-Char STRmquestion[]	= { '%', 'R', '?' | QUOTE, ' ', '\0' };
+Char STRmquestion[]	= { '%', 'R', (Char)('?' | QUOTE), ' ', '\0' };
 Char STRKCORRECT[]	= { 'C', 'O', 'R', 'R', 'E', 'C', 'T', '>', '%', 'R', 
 			    ' ', '(', 'y', '|', 'n', '|', 'e', '|', 'a', ')', 
-			    '?' | QUOTE, ' ', '\0' };
+			    (Char)('?' | QUOTE), ' ', '\0' };
 Char STRunalias[]	= { 'u', 'n', 'a', 'l', 'i', 'a', 's', '\0' };
 Char STRalias[]		= { 'a', 'l', 'i', 'a', 's', '\0' };
 Char STRprecmd[]	= { 'p', 'r', 'e', 'c', 'm', 'd', '\0' };
@@ -380,7 +380,7 @@ Char STRlistmaxrows[]	= { 'l', 'i', 's', 't', 'm', 'a', 'x', 'r', 'o', 'w',
 Char STRlistmax[]	= { 'l', 'i', 's', 't', 'm', 'a', 'x', '\0' };
 Char STRlistlinks[]	= { 'l', 'i', 's', 't', 'l', 'i', 'n', 'k', 's', '\0' };
 Char STRDING[]		= { 'D', 'I', 'N', 'G', '!', '\0' };
-Char STRQNULL[]		= { '\0' | QUOTE, '\0' };
+Char STRQNULL[]		= { (Char)('\0' | QUOTE), '\0' };
 Char STRcorrect[]	= { 'c', 'o', 'r', 'r', 'e', 'c', 't', '\0' };
 Char STRcmd[]		= { 'c', 'm', 'd', '\0' };
 Char STRall[]		= { 'a', 'l', 'l', '\0' };

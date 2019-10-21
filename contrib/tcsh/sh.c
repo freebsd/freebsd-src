@@ -237,6 +237,7 @@ main(int argc, char **argv)
     int nofile = 0;
     volatile int nverbose = 0;
     volatile int rdirs = 0;
+    volatile int exitcode = 0;
     int quitit = 0;
     Char *cp;
 #ifdef AUTOLOGOUT
@@ -1390,6 +1391,12 @@ main(int argc, char **argv)
     
 
     if (targinp) {
+	/* If this -c command caused an error before, skip processing */
+	if (reenter && arginp) {
+	    exitcode = 1;
+	    goto done;
+	}
+
 	arginp = SAVE(targinp);
 	/*
 	 * we put the command into a variable
@@ -1422,6 +1429,7 @@ main(int argc, char **argv)
      */
     process(setintr);
 
+done:
     /*
      * Mop-up.
      */
@@ -1443,7 +1451,7 @@ main(int argc, char **argv)
     }
     record();
     exitstat();
-    return (0);
+    return exitcode;
 }
 
 void

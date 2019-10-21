@@ -100,7 +100,7 @@ static	int	 Lstat		(const char *, struct stat *);
 static	int	 Stat		(const char *, struct stat *sb);
 static 	Char 	*Strchr		(Char *, int);
 #ifdef DEBUG
-static	void	 qprintf	(const Char *);
+static	void	 qprintf	(const char *, const Char *);
 #endif
 
 #define	DOLLAR		'$'
@@ -256,19 +256,20 @@ Strchr(Char *str, int ch)
 
 #ifdef DEBUG
 static void
-qprintf(const Char *s)
+qprintf(const char *pre, const Char *s)
 {
     const Char *p;
-
+	
+    xprintf("%s", pre);
     for (p = s; *p; p++)
-	printf("%c", *p & 0xff);
-    printf("\n");
+	xprintf("%c", *p & 0xff);
+    xprintf("\n%s", pre);
     for (p = s; *p; p++)
-	printf("%c", *p & M_PROTECT ? '"' : ' ');
-    printf("\n");
+	xprintf("%c", *p & M_PROTECT ? '"' : ' ');
+    xprintf("\n%s", pre);
     for (p = s; *p; p++)
-	printf("%c", *p & M_META ? '_' : ' ');
-    printf("\n");
+	xprintf("%c", *p & M_META ? '_' : ' ');
+    xprintf("\n");
 }
 #endif /* DEBUG */
 
@@ -412,7 +413,7 @@ glob(const char *pattern, int flags, int (*errfunc) (const char *, int),
     }
     *bufnext = EOS;
 #ifdef DEBUG
-    qprintf(patbuf);
+    qprintf("patbuf=", patbuf);
 #endif
 
     if ((err = glob1(patbuf, pglob, no_match)) != 0) {
@@ -709,7 +710,7 @@ match(const char *name, const Char *pat, const Char *patend, int m_not)
 
     while (pat < patend || *name) {
 	size_t lwk, pwk;
-	__Char wc, wk;
+	__Char wc, wk, wc1;
 
 	c = *pat; /* Only for M_MASK bits */
 	if (*name == EOS)
@@ -744,18 +745,20 @@ match(const char *name, const Char *pat, const Char *patend, int m_not)
 		pat += pwk;
 		pwk = One_Char_mbtowc(&wc, pat, MB_LEN_MAX);
 	    }
+	    wc1 = wc;
 	    while ((*pat & M_MASK) != M_END) {
 		if ((*pat & M_MASK) == M_RNG) {
 		    __Char wc2;
 
 		    pat += pwk;
 		    pwk = One_Char_mbtowc(&wc2, pat, MB_LEN_MAX);
-		    if (globcharcoll(wc, wk, 0) <= 0 &&
+		    if (globcharcoll(wc1, wk, 0) <= 0 &&
 			globcharcoll(wk, wc2, 0) <= 0)
 			ok = 1;
 		} else if (wc == wk)
 		    ok = 1;
 		pat += pwk;
+		wc1 = wc;
 		pwk = One_Char_mbtowc(&wc, pat, MB_LEN_MAX);
 	    }
 	    pat += pwk;

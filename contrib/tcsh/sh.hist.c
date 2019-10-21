@@ -1281,6 +1281,7 @@ rechist(Char *fname, int ref)
 	}
 
 	if (merge) {
+	    jmp_buf_t osetexit;
 	    if (lock) {
 #ifndef WINNT_NATIVE
 		char *lockpath = strsave(short2str(fname));
@@ -1290,7 +1291,10 @@ rechist(Char *fname, int ref)
 		    cleanup_push(lockpath, dotlock_cleanup);
 #endif
 	    }
-	    loadhist(fname, 1);
+	    getexit(osetexit);
+	    if (setexit())
+		loadhist(fname, 1);
+	    resexit(osetexit);
 	}
     }
     rs = randsuf();
