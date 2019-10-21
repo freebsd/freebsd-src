@@ -366,9 +366,13 @@ _epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE)
 	struct thread *td;
 
 	MPASS(cold || epoch != NULL);
-	INIT_CHECK(epoch);
 	MPASS(epoch->e_flags & EPOCH_PREEMPT);
 	td = curthread;
+	MPASS((vm_offset_t)et >= td->td_kstack &&
+	    (vm_offset_t)et + sizeof(struct epoch_tracker) <
+	    td->td_kstack + td->td_kstack_pages * PAGE_SIZE);
+
+	INIT_CHECK(epoch);
 #ifdef EPOCH_TRACE
 	epoch_trace_enter(td, epoch, et, file, line);
 #endif
