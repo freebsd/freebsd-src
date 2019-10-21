@@ -442,12 +442,22 @@ sge_miibus_statchg(device_t dev)
 	}
 }
 
+static u_int
+sge_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int count)
+{
+	uint32_t crc, *hashes = arg;
+
+	crc = ether_crc32_be(LLADDR(sdl), ETHER_ADDR_LEN);
+	hashes[crc >> 31] |= 1 << ((crc >> 26) & 0x1f);
+
+	return (1);
+}
+
 static void
 sge_rxfilter(struct sge_softc *sc)
 {
 	struct ifnet *ifp;
-	struct ifmultiaddr *ifma;
-	uint32_t crc, hashes[2];
+	uint32_t hashes[2];
 	uint16_t rxfilt;
 
 	SGE_LOCK_ASSERT(sc);
@@ -468,15 +478,7 @@ sge_rxfilter(struct sge_softc *sc)
 		rxfilt |= AcceptMulticast;
 		hashes[0] = hashes[1] = 0;
 		/* Now program new ones. */
-		if_maddr_rlock(ifp);
-		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-			if (ifma->ifma_addr->sa_family != AF_LINK)
-				continue;
-			crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-			    ifma->ifma_addr), ETHER_ADDR_LEN);
-			hashes[crc >> 31] |= 1 << ((crc >> 26) & 0x1f);
-		}
-		if_maddr_runlock(ifp);
+		if_foreach_llmaddr(ifp, sge_hash_maddr, hashes);
 	}
 	CSR_WRITE_2(sc, RxMacControl, rxfilt);
 	CSR_WRITE_4(sc, RxHashTable, hashes[0]);
