@@ -2032,45 +2032,51 @@ mge_crc8(uint8_t *data, int size)
 	return(crc);
 }
 
+struct mge_hash_maddr_ctx {
+	uint32_t smt[MGE_MCAST_REG_NUMBER];
+	uint32_t omt[MGE_MCAST_REG_NUMBER];
+};
+
+static u_int
+mge_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	static const uint8_t special[5] = { 0x01, 0x00, 0x5E, 0x00, 0x00 };
+	struct mge_hash_maddr_ctx *ctx = arg;
+	static const uint8_t v = (MGE_RX_DEFAULT_QUEUE << 1) | 1;
+	uint8_t *mac;
+	int i;
+
+	mac = LLADDR(sdl);
+	if (memcmp(mac, special, sizeof(special)) == 0) {
+		i = mac[5];
+		ctx->smt[i >> 2] |= v << ((i & 0x03) << 3);
+	} else {
+		i = mge_crc8(mac, ETHER_ADDR_LEN);
+		ctx->omt[i >> 2] |= v << ((i & 0x03) << 3);
+	}
+	return (1);
+}
+
 static void
 mge_setup_multicast(struct mge_softc *sc)
 {
-	uint8_t special[5] = { 0x01, 0x00, 0x5E, 0x00, 0x00 };
-	uint8_t v = (MGE_RX_DEFAULT_QUEUE << 1) | 1;
-	uint32_t smt[MGE_MCAST_REG_NUMBER];
-	uint32_t omt[MGE_MCAST_REG_NUMBER];
+	struct mge_hash_maddr_ctx ctx;
 	struct ifnet *ifp = sc->ifp;
-	struct ifmultiaddr *ifma;
-	uint8_t *mac;
+	static const uint8_t v = (MGE_RX_DEFAULT_QUEUE << 1) | 1;
 	int i;
 
 	if (ifp->if_flags & IFF_ALLMULTI) {
 		for (i = 0; i < MGE_MCAST_REG_NUMBER; i++)
-			smt[i] = omt[i] = (v << 24) | (v << 16) | (v << 8) | v;
+			ctx.smt[i] = ctx.omt[i] =
+			    (v << 24) | (v << 16) | (v << 8) | v;
 	} else {
-		memset(smt, 0, sizeof(smt));
-		memset(omt, 0, sizeof(omt));
-
-		if_maddr_rlock(ifp);
-		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-			if (ifma->ifma_addr->sa_family != AF_LINK)
-				continue;
-
-			mac = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
-			if (memcmp(mac, special, sizeof(special)) == 0) {
-				i = mac[5];
-				smt[i >> 2] |= v << ((i & 0x03) << 3);
-			} else {
-				i = mge_crc8(mac, ETHER_ADDR_LEN);
-				omt[i >> 2] |= v << ((i & 0x03) << 3);
-			}
-		}
-		if_maddr_runlock(ifp);
+		memset(&ctx, 0, sizeof(ctx));
+		if_foreach_llmaddr(ifp, mge_hash_maddr, &ctx);
 	}
 
 	for (i = 0; i < MGE_MCAST_REG_NUMBER; i++) {
-		MGE_WRITE(sc, MGE_DA_FILTER_SPEC_MCAST(i), smt[i]);
-		MGE_WRITE(sc, MGE_DA_FILTER_OTH_MCAST(i), omt[i]);
+		MGE_WRITE(sc, MGE_DA_FILTER_SPEC_MCAST(i), ctx.smt[i]);
+		MGE_WRITE(sc, MGE_DA_FILTER_OTH_MCAST(i), ctx.omt[i]);
 	}
 }
 
