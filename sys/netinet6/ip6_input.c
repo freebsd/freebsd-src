@@ -393,6 +393,7 @@ ip6_destroy(void *unused __unused)
 	}
 	IFNET_RUNLOCK();
 
+	frag6_destroy();
 	nd6_destroy();
 	in6_ifattach_destroy();
 
