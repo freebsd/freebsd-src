@@ -2507,12 +2507,24 @@ stge_set_filter(struct stge_softc *sc)
 	CSR_WRITE_2(sc, STGE_ReceiveMode, mode);
 }
 
+static u_int
+stge_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint32_t crc, *mchash = arg;
+
+	crc = ether_crc32_be(LLADDR(sdl), ETHER_ADDR_LEN);
+	/* Just want the 6 least significant bits. */
+	crc &= 0x3f;
+	/* Set the corresponding bit in the hash table. */
+	mchash[crc >> 5] |= 1 << (crc & 0x1f);
+
+	return (1);
+}
+
 static void
 stge_set_multi(struct stge_softc *sc)
 {
 	struct ifnet *ifp;
-	struct ifmultiaddr *ifma;
-	uint32_t crc;
 	uint32_t mchash[2];
 	uint16_t mode;
 	int count;
@@ -2542,25 +2554,8 @@ stge_set_multi(struct stge_softc *sc)
 	 * high order bits select the register, while the rest of the bits
 	 * select the bit within the register.
 	 */
-
 	bzero(mchash, sizeof(mchash));
-
-	count = 0;
-	if_maddr_rlock(sc->sc_ifp);
-	CK_STAILQ_FOREACH(ifma, &sc->sc_ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-		    ifma->ifma_addr), ETHER_ADDR_LEN);
-
-		/* Just want the 6 least significant bits. */
-		crc &= 0x3f;
-
-		/* Set the corresponding bit in the hash table. */
-		mchash[crc >> 5] |= 1 << (crc & 0x1f);
-		count++;
-	}
-	if_maddr_runlock(ifp);
+	count = if_foreach_llmaddr(ifp, stge_hash_maddr, mchash);
 
 	mode &= ~(RM_ReceiveMulticast | RM_ReceiveAllFrames);
 	if (count > 0)
