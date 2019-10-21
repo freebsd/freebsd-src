@@ -1080,13 +1080,21 @@ bfe_cam_write(struct bfe_softc *sc, u_char *data, int index)
 	bfe_wait_bit(sc, BFE_CAM_CTRL, BFE_CAM_BUSY, 10000, 1);
 }
 
+static u_int
+bfe_write_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	struct bfe_softc *sc = arg;
+
+	bfe_cam_write(sc, LLADDR(sdl), cnt + 1);
+
+	return (1);
+}
+
 static void
 bfe_set_rx_mode(struct bfe_softc *sc)
 {
 	struct ifnet *ifp = sc->bfe_ifp;
-	struct ifmultiaddr  *ifma;
 	u_int32_t val;
-	int i = 0;
 
 	BFE_LOCK_ASSERT(sc);
 
@@ -1104,20 +1112,13 @@ bfe_set_rx_mode(struct bfe_softc *sc)
 
 
 	CSR_WRITE_4(sc, BFE_CAM_CTRL, 0);
-	bfe_cam_write(sc, IF_LLADDR(sc->bfe_ifp), i++);
+	bfe_cam_write(sc, IF_LLADDR(sc->bfe_ifp), 0);
 
 	if (ifp->if_flags & IFF_ALLMULTI)
 		val |= BFE_RXCONF_ALLMULTI;
 	else {
 		val &= ~BFE_RXCONF_ALLMULTI;
-		if_maddr_rlock(ifp);
-		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-			if (ifma->ifma_addr->sa_family != AF_LINK)
-				continue;
-			bfe_cam_write(sc,
-			    LLADDR((struct sockaddr_dl *)ifma->ifma_addr), i++);
-		}
-		if_maddr_runlock(ifp);
+		if_foreach_llmaddr(ifp, bfe_write_maddr, sc);
 	}
 
 	CSR_WRITE_4(sc, BFE_RXCONF, val);
