@@ -12065,26 +12065,30 @@ bxe_initial_phy_init(struct bxe_softc *sc,
     return (rc);
 }
 
-/* must be called under IF_ADDR_LOCK */
+static u_int
+bxe_push_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+    struct ecore_mcast_list_elem *mc_mac = arg;
+
+    mc_mac += cnt;
+    mc_mac->mac = (uint8_t *)LLADDR(sdl);
+
+    return (1);
+}
+
 static int
 bxe_init_mcast_macs_list(struct bxe_softc                 *sc,
                          struct ecore_mcast_ramrod_params *p)
 {
     if_t ifp = sc->ifp;
-    int mc_count = 0;
-    struct ifmultiaddr *ifma;
+    int mc_count;
     struct ecore_mcast_list_elem *mc_mac;
-
-    CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-        if (ifma->ifma_addr->sa_family != AF_LINK) {
-            continue;
-        }
-
-        mc_count++;
-    }
 
     ECORE_LIST_INIT(&p->mcast_list);
     p->mcast_list_len = 0;
+
+    /* XXXGL: multicast count may change later */
+    mc_count = if_llmaddr_count(ifp);
 
     if (!mc_count) {
         return (0);
@@ -12097,20 +12101,15 @@ bxe_init_mcast_macs_list(struct bxe_softc                 *sc,
         return (-1);
     }
     bzero(mc_mac, (sizeof(*mc_mac) * mc_count));
+    if_foreach_llmaddr(ifp, bxe_push_maddr, mc_mac);
 
-    CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-        if (ifma->ifma_addr->sa_family != AF_LINK) {
-            continue;
-        }
-
-        mc_mac->mac = (uint8_t *)LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
-        ECORE_LIST_PUSH_TAIL(&mc_mac->link, &p->mcast_list);
-
+    for (int i = 0; i < mc_count; i ++) {
+        ECORE_LIST_PUSH_TAIL(&mc_mac[i].link, &p->mcast_list);
         BLOGD(sc, DBG_LOAD,
               "Setting MCAST %02X:%02X:%02X:%02X:%02X:%02X and mc_count %d\n",
-              mc_mac->mac[0], mc_mac->mac[1], mc_mac->mac[2],
-              mc_mac->mac[3], mc_mac->mac[4], mc_mac->mac[5], mc_count);
-       mc_mac++;
+              mc_mac[i].mac[0], mc_mac[i].mac[1], mc_mac[i].mac[2],
+              mc_mac[i].mac[3], mc_mac[i].mac[4], mc_mac[i].mac[5],
+              mc_count);
     }
 
     p->mcast_list_len = mc_count;
@@ -12171,69 +12170,59 @@ bxe_set_mc_list(struct bxe_softc *sc)
     return (rc);
 }
 
+struct bxe_set_addr_ctx {
+   struct bxe_softc *sc;
+   unsigned long ramrod_flags;
+   int rc;
+};
+
+static u_int
+bxe_set_addr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+    struct bxe_set_addr_ctx *ctx = arg;
+    struct ecore_vlan_mac_obj *mac_obj = &ctx->sc->sp_objs->mac_obj;
+    int rc;
+
+    if (ctx->rc < 0)
+	return (0);
+
+    rc = bxe_set_mac_one(ctx->sc, (uint8_t *)LLADDR(sdl), mac_obj, TRUE,
+                         ECORE_UC_LIST_MAC, &ctx->ramrod_flags);
+
+    /* do not treat adding same MAC as an error */
+    if (rc == -EEXIST)
+	BLOGD(ctx->sc, DBG_SP, "Failed to schedule ADD operations (EEXIST)\n");
+    else if (rc < 0) {
+            BLOGE(ctx->sc, "Failed to schedule ADD operations (%d)\n", rc);
+            ctx->rc = rc;
+    }
+
+    return (1);
+}
+
 static int
 bxe_set_uc_list(struct bxe_softc *sc)
 {
     if_t ifp = sc->ifp;
     struct ecore_vlan_mac_obj *mac_obj = &sc->sp_objs->mac_obj;
-    struct ifaddr *ifa;
-    unsigned long ramrod_flags = 0;
+    struct bxe_set_addr_ctx ctx = { sc, 0, 0 };
     int rc;
-
-#if __FreeBSD_version < 800000
-    IF_ADDR_LOCK(ifp);
-#else
-    if_addr_rlock(ifp);
-#endif
 
     /* first schedule a cleanup up of old configuration */
     rc = bxe_del_all_macs(sc, mac_obj, ECORE_UC_LIST_MAC, FALSE);
     if (rc < 0) {
         BLOGE(sc, "Failed to schedule delete of all ETH MACs (%d)\n", rc);
-#if __FreeBSD_version < 800000
-        IF_ADDR_UNLOCK(ifp);
-#else
-        if_addr_runlock(ifp);
-#endif
         return (rc);
     }
 
-    ifa = if_getifaddr(ifp); /* XXX Is this structure */
-    while (ifa) {
-        if (ifa->ifa_addr->sa_family != AF_LINK) {
-            ifa = CK_STAILQ_NEXT(ifa, ifa_link);
-            continue;
-        }
-
-        rc = bxe_set_mac_one(sc, (uint8_t *)LLADDR((struct sockaddr_dl *)ifa->ifa_addr),
-                             mac_obj, TRUE, ECORE_UC_LIST_MAC, &ramrod_flags);
-        if (rc == -EEXIST) {
-            BLOGD(sc, DBG_SP, "Failed to schedule ADD operations (EEXIST)\n");
-            /* do not treat adding same MAC as an error */
-            rc = 0;
-        } else if (rc < 0) {
-            BLOGE(sc, "Failed to schedule ADD operations (%d)\n", rc);
-#if __FreeBSD_version < 800000
-            IF_ADDR_UNLOCK(ifp);
-#else
-            if_addr_runlock(ifp);
-#endif
-            return (rc);
-        }
-
-        ifa = CK_STAILQ_NEXT(ifa, ifa_link);
-    }
-
-#if __FreeBSD_version < 800000
-    IF_ADDR_UNLOCK(ifp);
-#else
-    if_addr_runlock(ifp);
-#endif
+    if_foreach_lladdr(ifp, bxe_set_addr, &ctx);
+    if (ctx.rc < 0)
+	return (ctx.rc);
 
     /* Execute the pending commands */
-    bit_set(&ramrod_flags, RAMROD_CONT);
+    bit_set(&ctx.ramrod_flags, RAMROD_CONT);
     return (bxe_set_mac_one(sc, NULL, mac_obj, FALSE /* don't care */,
-                            ECORE_UC_LIST_MAC, &ramrod_flags));
+                            ECORE_UC_LIST_MAC, &ctx.ramrod_flags));
 }
 
 static void
