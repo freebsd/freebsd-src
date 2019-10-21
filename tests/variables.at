@@ -41,13 +41,16 @@ VAR_UNSET([ampm])
 
 AT_SETUP([$ anyerror])
 
+echo 'exit 1' > myfalse
+chmod +x myfalse
+
 AT_DATA([exit_status.csh],
 [[echo $?anyerror $anyerror
-false | true ; echo $?
+./myfalse | true ; echo $?
 unset anyerror ; echo $?anyerror
-false | true ; echo $?
+./myfalse | true ; echo $?
 set anyerror
-false | true ; echo $?
+./myfalse | true ; echo $?
 ]])
 
 AT_CHECK([tcsh -f exit_status.csh],,
@@ -588,7 +591,7 @@ printenv HOME
 setenv HOME /bar
 echo $home
 ]])
-AT_CHECK([tcsh -f home.csh], ,
+AT_CHECK([export HOME=$(getent passwd $(id -nu) | awk -F: '{ print $(NF - 1) }'); tcsh -f home.csh], ,
 [1
 1
 /foo
@@ -705,7 +708,7 @@ AT_CLEANUP
 
 
 AT_SETUP([$ cdtohome])
-AT_CHECK([tcsh -f -c 'cd'], 0)
+AT_CHECK([export HOME=$(getent passwd $(id -nu) | awk -F: '{ print $(NF - 1) }'); tcsh -f -c 'cd'], 0)
 AT_CLEANUP
 AT_SETUP([$ noimplicithome])
 AT_CHECK([tcsh -f -c 'unset cdtohome; cd'], 1, , [cd: Too few arguments.
@@ -781,10 +784,13 @@ AT_CLEANUP
 
 AT_SETUP([$ printexitvalue])
 
+echo 'exit 1' > myfalse
+chmod +x myfalse
+
 AT_DATA([printexitvalue.csh],
 [[echo $?printexitvalue
 set printexitvalue
-false
+./myfalse
 (exit 3 >/dev/null)
 :
 ]])

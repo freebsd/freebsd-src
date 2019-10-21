@@ -1,4 +1,4 @@
-# Tcsh
+# TCSH
 
 *C shell with file name completion and command line editing*
 
@@ -14,10 +14,10 @@ PLEASE file any bug reports, fixes, and code for new features at:
 > https://bugs.astron.com/
 
 Comments, questions, etc. (even flames) are welcome via email to
-the Tcsh Bugs mailing list:
+the tcsh mailing list:
 
-> tcsh-bugs@astron.com
-> https://mailman.astron.com/
+> tcsh@astron.com  
+> https://mailman.astron.com/mailman/listinfo/tcsh
 
 [![Build Status][status]][travis]
 

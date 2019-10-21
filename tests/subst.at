@@ -50,11 +50,11 @@ nothing*
 foo* ab{c,d} ^fo*
 ])
 
-AT_CHECK([echo 'echo ~; echo "$HOME"' | tcsh -f | uniq | wc -l | tr -d ' \t'],
+AT_CHECK([export HOME=$(getent passwd $(id -un) | awk -F: '{ print $(NF - 1) }'); echo 'echo ~; echo "$HOME"' | tcsh -f | uniq | wc -l | tr -d ' \t'],
 , [1
 ])
 
-AT_CHECK([echo "echo ~$(id -un)/foo; echo \"$HOME/foo\"" | tcsh -f | uniq dnl
+AT_CHECK([export HOME=$(getent passwd $(id -un) | awk -F: '{ print $(NF - 1) }'); echo "echo ~$(id -un)/foo; echo \"\$HOME/foo\"" | tcsh -f | uniq dnl
 	  | wc -l | tr -d ' \t'], , [1
 ])
 

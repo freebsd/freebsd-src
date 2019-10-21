@@ -2,6 +2,10 @@
 
 AT_SETUP([Command combinations])
 
+# False on OpenSolaris returns 255
+echo 'exit 1' > myfalse
+chmod +x myfalse
+
 AT_CHECK([tcsh -f -c 'echo ok|tr ok OK'], ,
 [OK
 ])
@@ -21,7 +25,7 @@ AT_CHECK([tcsh -f -c 'true && echo OK'], ,
 [OK
 ])
 
-AT_CHECK([tcsh -f -c 'false && echo fail'], 1)
+AT_CHECK([tcsh -f -c './myfalse && echo fail'], 1)
 
 AT_CHECK([[tcsh -f -c '(sleep 1; echo async) & echo sync; wait' \
 | sed 's/ [0123456789]*$/ /']], ,
