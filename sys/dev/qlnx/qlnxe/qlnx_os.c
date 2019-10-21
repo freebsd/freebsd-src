@@ -2644,42 +2644,36 @@ qlnx_hw_set_multi(qlnx_host_t *ha, uint8_t *mta, uint32_t mcnt,
 }
 
 
-#define QLNX_MCAST_ADDRS_SIZE (QLNX_MAX_NUM_MULTICAST_ADDRS * ETHER_HDR_LEN)
+static u_int
+qlnx_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int mcnt)
+{
+	uint8_t *mta = arg;
+
+	if (mcnt == QLNX_MAX_NUM_MULTICAST_ADDRS)
+		return (0);
+
+	bcopy(LLADDR(sdl), &mta[mcnt * ETHER_HDR_LEN], ETHER_HDR_LEN);
+
+	return (1);
+}
+
 static int
 qlnx_set_multi(qlnx_host_t *ha, uint32_t add_multi)
 {
-	uint8_t			mta[QLNX_MCAST_ADDRS_SIZE];
-	struct ifmultiaddr	*ifma;
-	int			mcnt = 0;
-	struct ifnet		*ifp = ha->ifp;
-	int			ret = 0;
+	uint8_t		mta[QLNX_MAX_NUM_MULTICAST_ADDRS * ETHER_HDR_LEN];
+	struct ifnet	*ifp = ha->ifp;
+	u_int		mcnt;
 
 	if (qlnx_vf_device(ha) == 0)
 		return (0);
 
-	if_maddr_rlock(ifp);
-
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-
-		if (mcnt == QLNX_MAX_NUM_MULTICAST_ADDRS)
-			break;
-
-		bcopy(LLADDR((struct sockaddr_dl *) ifma->ifma_addr),
-			&mta[mcnt * ETHER_HDR_LEN], ETHER_HDR_LEN);
-
-		mcnt++;
-	}
-
-	if_maddr_runlock(ifp);
+	mcnt = if_foreach_llmaddr(ifp, qlnx_copy_maddr, mta);
 
 	QLNX_LOCK(ha);
 	qlnx_hw_set_multi(ha, mta, mcnt, add_multi);
 	QLNX_UNLOCK(ha);
 
-	return (ret);
+	return (0);
 }
 
 static int
