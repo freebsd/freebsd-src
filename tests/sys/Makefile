@@ -20,6 +20,7 @@ TESTS_SUBDIRS+=		kqueue
 TESTS_SUBDIRS+=		mac
 TESTS_SUBDIRS+=		mqueue
 TESTS_SUBDIRS+=		netinet
+TESTS_SUBDIRS+=		netinet6
 TESTS_SUBDIRS+=		netipsec
 TESTS_SUBDIRS+=		netmap
 TESTS_SUBDIRS+=		netpfil
