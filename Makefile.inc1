@@ -1423,6 +1423,10 @@ packageworld: .PHONY
 . endif
 .endfor
 
+makeman: .PHONY
+	${_+_}cd ${.CURDIR}/tools/build/options; sh makeman > \
+	    ${.CURDIR}/share/man/man5/src.conf.5
+
 _sysent_dirs=	sys/kern
 _sysent_dirs+=	sys/compat/freebsd32
 _sysent_dirs+=	sys/compat/cloudabi32	\
