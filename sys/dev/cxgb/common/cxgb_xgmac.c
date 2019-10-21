@@ -408,9 +408,32 @@ static int hash_hw_addr(const u8 *addr)
  *	Configures the MAC Rx mode (promiscuity, etc) and exact and hash
  *	address filters.
  */
+struct t3_mcaddr_ctx {
+	struct cmac *mac;
+	u32 hash_lo, hash_hi;
+};
+
+static u_int
+t3_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	struct t3_mcaddr_ctx *ctx = arg;
+	int hash;
+
+	if (ctx->mac->nucast + cnt < EXACT_ADDR_FILTERS)
+		set_addr_filter(ctx->mac, ctx->mac->nucast + cnt, LLADDR(sdl));
+	else {
+		hash = hash_hw_addr(LLADDR(sdl));
+		if (hash < 32)
+			ctx->hash_lo |= (1 << hash);
+		else
+			ctx->hash_hi |= (1 << (hash - 32));
+	}
+	return (1);
+}
+
 int t3_mac_set_rx_mode(struct cmac *mac, struct t3_rx_mode *rm)
 {
-	u32 hash_lo, hash_hi;
+	struct t3_mcaddr_ctx ctx;
 	adapter_t *adap = mac->adapter;
 	unsigned int oft = mac->offset;
 
@@ -422,27 +445,15 @@ int t3_mac_set_rx_mode(struct cmac *mac, struct t3_rx_mode *rm)
 			 mac->promisc_map ? F_COPYALLFRAMES : 0);
 
 	if (allmulti_rx_mode(rm) || mac->multiport)
-		hash_lo = hash_hi = 0xffffffff;
+		ctx.hash_lo = ctx.hash_hi = 0xffffffff;
 	else {
-		u8 *addr;
-		int exact_addr_idx = mac->nucast;
-
-		hash_lo = hash_hi = 0;
-		while ((addr = t3_get_next_mcaddr(rm)))
-			if (exact_addr_idx < EXACT_ADDR_FILTERS)
-				set_addr_filter(mac, exact_addr_idx++, addr);
-			else {
-				int hash = hash_hw_addr(addr);
-
-				if (hash < 32)
-					hash_lo |= (1 << hash);
-				else
-					hash_hi |= (1 << (hash - 32));
-			}
+		ctx.mac = mac;
+		ctx.hash_lo = ctx.hash_hi = 0;
+		if_foreach_llmaddr(rm->port->ifp, t3_hash_maddr, &ctx);
 	}
 
-	t3_write_reg(adap, A_XGM_RX_HASH_LOW + oft, hash_lo);
-	t3_write_reg(adap, A_XGM_RX_HASH_HIGH + oft, hash_hi);
+	t3_write_reg(adap, A_XGM_RX_HASH_LOW + oft, ctx.hash_lo);
+	t3_write_reg(adap, A_XGM_RX_HASH_HIGH + oft, ctx.hash_hi);
 	return 0;
 }
 
