@@ -200,8 +200,25 @@ DRIVER_MODULE(fvmdio, simplebus, fvmdio_driver, fvmdio_devclass, 0, 0);
 DRIVER_MODULE(mdio, fvmdio, mdio_driver, mdio_devclass, 0, 0);
 #endif
 
-/* setup frame code refer dc code */
+static u_int
+fv_set_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint16_t *sp = arg;
+	uint8_t *ma;
+	int i;
 
+	ma = LLADDR(sdl);
+	i = cnt * 6;
+	sp[i] = sp[i+1] = (ma[1] << 8 | ma[0]);
+	i += 2;
+	sp[i] = sp[i+1] = (ma[3] << 8 | ma[2]);
+	i += 2;
+	sp[i] = sp[i+1] = (ma[5] << 8 | ma[4]);
+
+	return (1);
+}
+
+/* setup frame code refer dc code */
 static void
 fv_setfilt(struct fv_softc *sc)
 {
@@ -209,9 +226,7 @@ fv_setfilt(struct fv_softc *sc)
 	struct fv_desc *sframe;
 	int i;
 	struct ifnet *ifp;
-	struct ifmultiaddr *ifma;
 	uint16_t *sp;
-	uint8_t *ma;
 
 	ifp = sc->fv_ifp;
 
@@ -225,20 +240,7 @@ fv_setfilt(struct fv_softc *sc)
 	sframe->fv_addr = sc->fv_rdata.fv_sf_paddr;
 	sframe->fv_devcs = ADCTL_Tx_SETUP | FV_DMASIZE(FV_SFRAME_LEN);
 
-	i = 0;
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		ma = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
-		sp[i] = sp[i+1] = (ma[1] << 8 | ma[0]);
-		i += 2;
-		sp[i] = sp[i+1] = (ma[3] << 8 | ma[2]);
-		i += 2;
-		sp[i] = sp[i+1] = (ma[5] << 8 | ma[4]);
-		i += 2;
-	}
-	if_maddr_runlock(ifp);
+	i = if_foreach_llmaddr(ifp, fv_set_maddr, sp) * 6;
 
 	bcopy(IF_LLADDR(sc->fv_ifp), eaddr, ETHER_ADDR_LEN);
 	sp[90] = sp[91] = eaddr[0];
