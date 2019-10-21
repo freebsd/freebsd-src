@@ -1655,7 +1655,7 @@ em_disable_promisc(if_ctx_t ctx)
 	if (if_getflags(ifp) & IFF_ALLMULTI)
 		mcnt = MAX_NUM_MULTICAST_ADDRESSES;
 	else
-		mcnt = if_multiaddr_count(ifp, MAX_NUM_MULTICAST_ADDRESSES);
+		mcnt = if_llmaddr_count(ifp);
 	/* Don't disable if in MAX groups */
 	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
 		reg_rctl &=  (~E1000_RCTL_MPE);
@@ -1663,6 +1663,19 @@ em_disable_promisc(if_ctx_t ctx)
 	E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
 }
 
+
+static u_int
+em_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	u8 *mta = arg;
+
+	if (cnt == MAX_NUM_MULTICAST_ADDRESSES)
+		return (1);
+
+	bcopy(LLADDR(sdl), &mta[cnt * ETH_ADDR_LEN], ETH_ADDR_LEN);
+
+	return (1);
+}
 
 /*********************************************************************
  *  Multicast Update
@@ -1695,7 +1708,7 @@ em_if_multi_set(if_ctx_t ctx)
 		msec_delay(5);
 	}
 
-	if_multiaddr_array(ifp, mta, &mcnt, MAX_NUM_MULTICAST_ADDRESSES);
+	mcnt = if_foreach_llmaddr(ifp, em_copy_maddr, mta);
 
 	if (mcnt >= MAX_NUM_MULTICAST_ADDRESSES) {
 		reg_rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
