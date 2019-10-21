@@ -2425,12 +2425,27 @@ cpsw_ale_dump_table(struct cpsw_softc *sc) {
 	printf("\n");
 }
 
+static u_int
+cpswp_set_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	struct cpswp_softc *sc = arg;
+	uint32_t portmask;
+
+	if (sc->swsc->dualemac)
+		portmask = 1 << (sc->unit + 1) | 1 << 0;
+	else
+		portmask = 7;
+
+	cpsw_ale_mc_entry_set(sc->swsc, portmask, sc->vlan, LLADDR(sdl));
+
+	return (1);
+}
+
 static int
 cpswp_ale_update_addresses(struct cpswp_softc *sc, int purge)
 {
 	uint8_t *mac;
 	uint32_t ale_entry[3], ale_type, portmask;
-	struct ifmultiaddr *ifma;
 
 	if (sc->swsc->dualemac) {
 		ale_type = ALE_TYPE_VLAN_ADDR << 28 | sc->vlan << 16;
@@ -2445,7 +2460,6 @@ cpswp_ale_update_addresses(struct cpswp_softc *sc, int purge)
 	 * For simplicity, keep this entry at table index 0 for port 1 and
 	 * at index 2 for port 2 in the ALE.
 	 */
-        if_addr_rlock(sc->ifp);
 	mac = LLADDR((struct sockaddr_dl *)sc->ifp->if_addr->ifa_addr);
 	ale_entry[0] = mac[2] << 24 | mac[3] << 16 | mac[4] << 8 | mac[5];
 	ale_entry[1] = ale_type | mac[0] << 8 | mac[1]; /* addr entry + mac */
@@ -2457,7 +2471,6 @@ cpswp_ale_update_addresses(struct cpswp_softc *sc, int purge)
 	    mac[3] << 24 | mac[2] << 16 | mac[1] << 8 | mac[0]);
 	cpsw_write_4(sc->swsc, CPSW_PORT_P_SA_LO(sc->unit + 1),
 	    mac[5] << 8 | mac[4]);
-        if_addr_runlock(sc->ifp);
 
 	/* Keep the broadcast address at table entry 1 (or 3). */
 	ale_entry[0] = 0xffffffff; /* Lower 32 bits of MAC */
@@ -2472,14 +2485,7 @@ cpswp_ale_update_addresses(struct cpswp_softc *sc, int purge)
 		cpsw_ale_remove_all_mc_entries(sc->swsc);
 
         /* Set other multicast addrs desired. */
-        if_maddr_rlock(sc->ifp);
-        CK_STAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
-                if (ifma->ifma_addr->sa_family != AF_LINK)
-                        continue;
-		cpsw_ale_mc_entry_set(sc->swsc, portmask, sc->vlan,
-		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
-        }
-        if_maddr_runlock(sc->ifp);
+	if_foreach_llmaddr(sc->ifp, cpswp_set_maddr, sc);
 
 	return (0);
 }
