@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_var.h>
 #include <net/ethernet.h>
@@ -1185,30 +1186,41 @@ bnxt_stop(if_ctx_t ctx)
 	return;
 }
 
+static u_int
+bnxt_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint8_t *mta = arg;
+
+	if (cnt == BNXT_MAX_MC_ADDRS)
+		return (1);
+
+	bcopy(LLADDR(sdl), &mta[cnt * ETHER_ADDR_LEN], ETHER_ADDR_LEN);
+
+	return (1);
+}
+
 static void
 bnxt_multi_set(if_ctx_t ctx)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
 	uint8_t *mta;
-	int cnt, mcnt;
+	int mcnt;
 
-	mcnt = if_multiaddr_count(ifp, -1);
+	mta = softc->vnic_info.mc_list.idi_vaddr;
+	bzero(mta, softc->vnic_info.mc_list.idi_size);
+	mcnt = if_foreach_llmaddr(ifp, bnxt_copy_maddr, mta);
 
 	if (mcnt > BNXT_MAX_MC_ADDRS) {
 		softc->vnic_info.rx_mask |=
 		    HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_ALL_MCAST;
 		bnxt_hwrm_cfa_l2_set_rx_mask(softc, &softc->vnic_info);
-	}
-	else {
+	} else {
 		softc->vnic_info.rx_mask &=
 		    ~HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_ALL_MCAST;
-		mta = softc->vnic_info.mc_list.idi_vaddr;
-		bzero(mta, softc->vnic_info.mc_list.idi_size);
-		if_multiaddr_array(ifp, mta, &cnt, mcnt);
 		bus_dmamap_sync(softc->vnic_info.mc_list.idi_tag,
 		    softc->vnic_info.mc_list.idi_map, BUS_DMASYNC_PREWRITE);
-		softc->vnic_info.mc_list_count = cnt;
+		softc->vnic_info.mc_list_count = mcnt;
 		softc->vnic_info.rx_mask |=
 		    HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_MCAST;
 		if (bnxt_hwrm_cfa_l2_set_rx_mask(softc, &softc->vnic_info))
@@ -1370,7 +1382,7 @@ bnxt_promisc_set(if_ctx_t ctx, int flags)
 	int rc;
 
 	if (ifp->if_flags & IFF_ALLMULTI ||
-	    if_multiaddr_count(ifp, -1) > BNXT_MAX_MC_ADDRS)
+	    if_llmaddr_count(ifp) > BNXT_MAX_MC_ADDRS)
 		softc->vnic_info.rx_mask |=
 		    HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_ALL_MCAST;
 	else
