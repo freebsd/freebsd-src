@@ -1955,27 +1955,57 @@ vte_init_rx_ring(struct vte_softc *sc)
 	return (0);
 }
 
+struct vte_maddr_ctx {
+	uint16_t rxfilt_perf[VTE_RXFILT_PERFECT_CNT][3];
+	uint16_t mchash[4];
+	u_int nperf;
+};
+
+static u_int
+vte_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	struct vte_maddr_ctx *ctx = arg;
+	uint8_t *eaddr;
+	uint32_t crc;
+
+	/*
+	 * Program the first 3 multicast groups into the perfect filter.
+	 * For all others, use the hash table.
+	 */
+	if (ctx->nperf < VTE_RXFILT_PERFECT_CNT) {
+		eaddr = LLADDR(sdl);
+		ctx->rxfilt_perf[ctx->nperf][0] = eaddr[1] << 8 | eaddr[0];
+		ctx->rxfilt_perf[ctx->nperf][1] = eaddr[3] << 8 | eaddr[2];
+		ctx->rxfilt_perf[ctx->nperf][2] = eaddr[5] << 8 | eaddr[4];
+		ctx->nperf++;
+
+		return (1);
+	}
+	crc = ether_crc32_be(LLADDR(sdl), ETHER_ADDR_LEN);
+	ctx->mchash[crc >> 30] |= 1 << ((crc >> 26) & 0x0F);
+
+	return (1);
+}
+
 static void
 vte_rxfilter(struct vte_softc *sc)
 {
 	struct ifnet *ifp;
-	struct ifmultiaddr *ifma;
-	uint8_t *eaddr;
-	uint32_t crc;
-	uint16_t rxfilt_perf[VTE_RXFILT_PERFECT_CNT][3];
-	uint16_t mchash[4], mcr;
-	int i, nperf;
+	struct vte_maddr_ctx ctx;
+	uint16_t mcr;
+	int i;
 
 	VTE_LOCK_ASSERT(sc);
 
 	ifp = sc->vte_ifp;
 
-	bzero(mchash, sizeof(mchash));
+	bzero(ctx.mchash, sizeof(ctx.mchash));
 	for (i = 0; i < VTE_RXFILT_PERFECT_CNT; i++) {
-		rxfilt_perf[i][0] = 0xFFFF;
-		rxfilt_perf[i][1] = 0xFFFF;
-		rxfilt_perf[i][2] = 0xFFFF;
+		ctx.rxfilt_perf[i][0] = 0xFFFF;
+		ctx.rxfilt_perf[i][1] = 0xFFFF;
+		ctx.rxfilt_perf[i][2] = 0xFFFF;
 	}
+	ctx.nperf = 0;
 
 	mcr = CSR_READ_2(sc, VTE_MCR0);
 	mcr &= ~(MCR0_PROMISC | MCR0_MULTICAST);
@@ -1987,54 +2017,32 @@ vte_rxfilter(struct vte_softc *sc)
 			mcr |= MCR0_PROMISC;
 		if ((ifp->if_flags & IFF_ALLMULTI) != 0)
 			mcr |= MCR0_MULTICAST;
-		mchash[0] = 0xFFFF;
-		mchash[1] = 0xFFFF;
-		mchash[2] = 0xFFFF;
-		mchash[3] = 0xFFFF;
+		ctx.mchash[0] = 0xFFFF;
+		ctx.mchash[1] = 0xFFFF;
+		ctx.mchash[2] = 0xFFFF;
+		ctx.mchash[3] = 0xFFFF;
 		goto chipit;
 	}
 
-	nperf = 0;
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &sc->vte_ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		/*
-		 * Program the first 3 multicast groups into
-		 * the perfect filter.  For all others, use the
-		 * hash table.
-		 */
-		if (nperf < VTE_RXFILT_PERFECT_CNT) {
-			eaddr = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
-			rxfilt_perf[nperf][0] = eaddr[1] << 8 | eaddr[0];
-			rxfilt_perf[nperf][1] = eaddr[3] << 8 | eaddr[2];
-			rxfilt_perf[nperf][2] = eaddr[5] << 8 | eaddr[4];
-			nperf++;
-			continue;
-		}
-		crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-		    ifma->ifma_addr), ETHER_ADDR_LEN);
-		mchash[crc >> 30] |= 1 << ((crc >> 26) & 0x0F);
-	}
-	if_maddr_runlock(ifp);
-	if (mchash[0] != 0 || mchash[1] != 0 || mchash[2] != 0 ||
-	    mchash[3] != 0)
+	if_foreach_llmaddr(ifp, vte_hash_maddr, &ctx);
+	if (ctx.mchash[0] != 0 || ctx.mchash[1] != 0 ||
+	    ctx.mchash[2] != 0 || ctx.mchash[3] != 0)
 		mcr |= MCR0_MULTICAST;
 
 chipit:
 	/* Program multicast hash table. */
-	CSR_WRITE_2(sc, VTE_MAR0, mchash[0]);
-	CSR_WRITE_2(sc, VTE_MAR1, mchash[1]);
-	CSR_WRITE_2(sc, VTE_MAR2, mchash[2]);
-	CSR_WRITE_2(sc, VTE_MAR3, mchash[3]);
+	CSR_WRITE_2(sc, VTE_MAR0, ctx.mchash[0]);
+	CSR_WRITE_2(sc, VTE_MAR1, ctx.mchash[1]);
+	CSR_WRITE_2(sc, VTE_MAR2, ctx.mchash[2]);
+	CSR_WRITE_2(sc, VTE_MAR3, ctx.mchash[3]);
 	/* Program perfect filter table. */
 	for (i = 0; i < VTE_RXFILT_PERFECT_CNT; i++) {
 		CSR_WRITE_2(sc, VTE_RXFILTER_PEEFECT_BASE + 8 * i + 0,
-		    rxfilt_perf[i][0]);
+		    ctx.rxfilt_perf[i][0]);
 		CSR_WRITE_2(sc, VTE_RXFILTER_PEEFECT_BASE + 8 * i + 2,
-		    rxfilt_perf[i][1]);
+		    ctx.rxfilt_perf[i][1]);
 		CSR_WRITE_2(sc, VTE_RXFILTER_PEEFECT_BASE + 8 * i + 4,
-		    rxfilt_perf[i][2]);
+		    ctx.rxfilt_perf[i][2]);
 	}
 	CSR_WRITE_2(sc, VTE_MCR0, mcr);
 	CSR_READ_2(sc, VTE_MCR0);
