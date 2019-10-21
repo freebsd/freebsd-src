@@ -4782,6 +4782,54 @@ apply_link_config(struct port_info *pi)
 }
 
 #define FW_MAC_EXACT_CHUNK	7
+struct mcaddr_ctx {
+	struct ifnet *ifp;
+	const uint8_t *mcaddr[FW_MAC_EXACT_CHUNK];
+	uint64_t hash;
+	int i;
+	int del;
+	int rc;
+};
+
+static u_int
+add_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	struct mcaddr_ctx *ctx = arg;
+	struct vi_info *vi = ctx->ifp->if_softc;
+	struct port_info *pi = vi->pi;
+	struct adapter *sc = pi->adapter;
+
+	if (ctx->rc < 0)
+		return (0);
+
+	ctx->mcaddr[ctx->i] = LLADDR(sdl);
+	MPASS(ETHER_IS_MULTICAST(ctx->mcaddr[ctx->i]));
+	ctx->i++;
+
+	if (ctx->i == FW_MAC_EXACT_CHUNK) {
+		ctx->rc = t4_alloc_mac_filt(sc, sc->mbox, vi->viid, ctx->del,
+		    ctx->i, ctx->mcaddr, NULL, &ctx->hash, 0);
+		if (ctx->rc < 0) {
+			int j;
+
+			for (j = 0; j < ctx->i; j++) {
+				if_printf(ctx->ifp,
+				    "failed to add mc address"
+				    " %02x:%02x:%02x:"
+				    "%02x:%02x:%02x rc=%d\n",
+				    ctx->mcaddr[j][0], ctx->mcaddr[j][1],
+				    ctx->mcaddr[j][2], ctx->mcaddr[j][3],
+				    ctx->mcaddr[j][4], ctx->mcaddr[j][5],
+				    -ctx->rc);
+			}
+			return (0);
+		}
+		ctx->del = 0;
+		ctx->i = 0;
+	}
+
+	return (1);
+}
 
 /*
  * Program the port's XGMAC based on parameters in ifnet.  The caller also
@@ -4838,66 +4886,51 @@ update_mac_settings(struct ifnet *ifp, int flags)
 	}
 
 	if (flags & XGMAC_MCADDRS) {
-		const uint8_t *mcaddr[FW_MAC_EXACT_CHUNK];
-		int del = 1;
-		uint64_t hash = 0;
-		struct ifmultiaddr *ifma;
-		int i = 0, j;
+		struct epoch_tracker et;
+		struct mcaddr_ctx ctx;
+		int j;
 
-		if_maddr_rlock(ifp);
-		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-			if (ifma->ifma_addr->sa_family != AF_LINK)
-				continue;
-			mcaddr[i] =
-			    LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
-			MPASS(ETHER_IS_MULTICAST(mcaddr[i]));
-			i++;
-
-			if (i == FW_MAC_EXACT_CHUNK) {
-				rc = t4_alloc_mac_filt(sc, sc->mbox, vi->viid,
-				    del, i, mcaddr, NULL, &hash, 0);
-				if (rc < 0) {
-					rc = -rc;
-					for (j = 0; j < i; j++) {
-						if_printf(ifp,
-						    "failed to add mc address"
-						    " %02x:%02x:%02x:"
-						    "%02x:%02x:%02x rc=%d\n",
-						    mcaddr[j][0], mcaddr[j][1],
-						    mcaddr[j][2], mcaddr[j][3],
-						    mcaddr[j][4], mcaddr[j][5],
-						    rc);
-					}
-					goto mcfail;
-				}
-				del = 0;
-				i = 0;
-			}
+		ctx.ifp = ifp;
+		ctx.hash = 0;
+		ctx.i = 0;
+		ctx.del = 1;
+		/*
+		 * Unlike other drivers, we accumulate list of pointers into
+		 * interface address lists and we need to keep it safe even
+		 * after if_foreach_llmaddr() returns, thus we must enter the
+		 * network epoch.
+		 */
+		NET_EPOCH_ENTER(et);
+		if_foreach_llmaddr(ifp, add_maddr, &ctx);
+		if (ctx.rc < 0) {
+			NET_EPOCH_EXIT(et);
+			rc = -ctx.rc;
+			return (rc);
 		}
-		if (i > 0) {
-			rc = t4_alloc_mac_filt(sc, sc->mbox, vi->viid, del, i,
-			    mcaddr, NULL, &hash, 0);
+		if (ctx.i > 0) {
+			rc = t4_alloc_mac_filt(sc, sc->mbox, vi->viid,
+			    ctx.del, ctx.i, ctx.mcaddr, NULL, &ctx.hash, 0);
+			NET_EPOCH_EXIT(et);
 			if (rc < 0) {
 				rc = -rc;
-				for (j = 0; j < i; j++) {
+				for (j = 0; j < ctx.i; j++) {
 					if_printf(ifp,
 					    "failed to add mc address"
 					    " %02x:%02x:%02x:"
 					    "%02x:%02x:%02x rc=%d\n",
-					    mcaddr[j][0], mcaddr[j][1],
-					    mcaddr[j][2], mcaddr[j][3],
-					    mcaddr[j][4], mcaddr[j][5],
+					    ctx.mcaddr[j][0], ctx.mcaddr[j][1],
+					    ctx.mcaddr[j][2], ctx.mcaddr[j][3],
+					    ctx.mcaddr[j][4], ctx.mcaddr[j][5],
 					    rc);
 				}
-				goto mcfail;
+				return (rc);
 			}
-		}
+		} else
+			NET_EPOCH_EXIT(et);
 
-		rc = -t4_set_addr_hash(sc, sc->mbox, vi->viid, 0, hash, 0);
+		rc = -t4_set_addr_hash(sc, sc->mbox, vi->viid, 0, ctx.hash, 0);
 		if (rc != 0)
 			if_printf(ifp, "failed to set mc address hash: %d", rc);
-mcfail:
-		if_maddr_runlock(ifp);
 	}
 
 	return (rc);
