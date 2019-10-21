@@ -304,7 +304,20 @@ my_phy_writereg(struct my_softc * sc, int reg, int data)
 	return;
 }
 
+static u_int
+my_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint32_t *hashes = arg;
+	int h;
 
+	h = ~ether_crc32_be(LLADDR(sdl), ETHER_ADDR_LEN) >> 26;
+	if (h < 32)
+		hashes[0] |= (1 << h);
+	else
+		hashes[1] |= (1 << (h - 32));
+
+	return (1);
+}
 /*
  * Program the 64-bit multicast hash filter.
  */
@@ -312,11 +325,8 @@ static void
 my_setmulti(struct my_softc * sc)
 {
 	struct ifnet   *ifp;
-	int             h = 0;
 	u_int32_t       hashes[2] = {0, 0};
-	struct ifmultiaddr *ifma;
 	u_int32_t       rxfilt;
-	int             mcnt = 0;
 
 	MY_LOCK_ASSERT(sc);
 
@@ -337,28 +347,13 @@ my_setmulti(struct my_softc * sc)
 	CSR_WRITE_4(sc, MY_MAR1, 0);
 
 	/* now program new ones */
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		h = ~ether_crc32_be(LLADDR((struct sockaddr_dl *)
-		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
-		if (h < 32)
-			hashes[0] |= (1 << h);
-		else
-			hashes[1] |= (1 << (h - 32));
-		mcnt++;
-	}
-	if_maddr_runlock(ifp);
-
-	if (mcnt)
+	if (if_foreach_llmaddr(ifp, my_hash_maddr, hashes) > 0)
 		rxfilt |= MY_AM;
 	else
 		rxfilt &= ~MY_AM;
 	CSR_WRITE_4(sc, MY_MAR0, hashes[0]);
 	CSR_WRITE_4(sc, MY_MAR1, hashes[1]);
 	CSR_WRITE_4(sc, MY_TCRRCR, rxfilt);
-	return;
 }
 
 /*
