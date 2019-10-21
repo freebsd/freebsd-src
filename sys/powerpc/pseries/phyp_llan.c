@@ -508,28 +508,28 @@ llan_start(struct ifnet *ifp)
 	mtx_unlock(&sc->io_lock);
 }
 
+static u_int
+llan_set_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	struct llan_softc *sc = arg;
+	uint64_t macaddr = 0;
+
+	memcpy((uint8_t *)&macaddr + 2, LLADDR(sdl), 6);
+	phyp_hcall(H_MULTICAST_CTRL, sc->unit, LLAN_ADD_MULTICAST, macaddr);
+
+	return (1);
+}
+
 static int
 llan_set_multicast(struct llan_softc *sc)
 {
 	struct ifnet *ifp = sc->ifp;
-	struct ifmultiaddr *inm;
-	uint64_t macaddr = 0;
 
 	mtx_assert(&sc->io_lock, MA_OWNED);
 
 	phyp_hcall(H_MULTICAST_CTRL, sc->unit, LLAN_CLEAR_MULTICAST, 0);
 
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(inm, &ifp->if_multiaddrs, ifma_link) {
-		if (inm->ifma_addr->sa_family != AF_LINK)
-			continue;
-
-		memcpy((uint8_t *)&macaddr + 2,
-		    LLADDR((struct sockaddr_dl *)inm->ifma_addr), 6);
-		phyp_hcall(H_MULTICAST_CTRL, sc->unit, LLAN_ADD_MULTICAST,
-		    macaddr);
-	}
-	if_maddr_runlock(ifp);
+	if_foreach_llmaddr(ifp, llan_set_maddr, sc);
 
 	return (0);
 }
