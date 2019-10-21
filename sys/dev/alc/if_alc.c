@@ -4581,12 +4581,22 @@ alc_rxvlan(struct alc_softc *sc)
 	CSR_WRITE_4(sc, ALC_MAC_CFG, reg);
 }
 
+static u_int
+alc_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint32_t *mchash = arg;
+	uint32_t crc;
+
+	crc = ether_crc32_be(LLADDR(sdl), ETHER_ADDR_LEN);
+	mchash[crc >> 31] |= 1 << ((crc >> 26) & 0x1f);
+
+	return (1);
+}
+
 static void
 alc_rxfilter(struct alc_softc *sc)
 {
 	struct ifnet *ifp;
-	struct ifmultiaddr *ifma;
-	uint32_t crc;
 	uint32_t mchash[2];
 	uint32_t rxcfg;
 
@@ -4609,15 +4619,7 @@ alc_rxfilter(struct alc_softc *sc)
 		goto chipit;
 	}
 
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &sc->alc_ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-		    ifma->ifma_addr), ETHER_ADDR_LEN);
-		mchash[crc >> 31] |= 1 << ((crc >> 26) & 0x1f);
-	}
-	if_maddr_runlock(ifp);
+	if_foreach_llmaddr(ifp, alc_hash_maddr, mchash);
 
 chipit:
 	CSR_WRITE_4(sc, ALC_MAR0, mchash[0]);
