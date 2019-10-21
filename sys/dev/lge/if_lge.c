@@ -367,13 +367,25 @@ lge_miibus_statchg(dev)
 	return;
 }
 
+static u_int
+lge_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int count)
+{
+	uint32_t h, *hashes = arg;
+
+	h = ether_crc32_be(LLADDR(sdl), ETHER_ADDR_LEN) >> 26;
+	if (h < 32)
+		hashes[0] |= (1 << h);
+	else
+		hashes[1] |= (1 << (h - 32));
+	return (1);
+}
+
 static void
 lge_setmulti(sc)
 	struct lge_softc	*sc;
 {
 	struct ifnet		*ifp;
-	struct ifmultiaddr	*ifma;
-	u_int32_t		h = 0, hashes[2] = { 0, 0 };
+	uint32_t hashes[2] = { 0, 0 };
 
 	ifp = sc->lge_ifp;
 	LGE_LOCK_ASSERT(sc);
@@ -392,18 +404,7 @@ lge_setmulti(sc)
 	CSR_WRITE_4(sc, LGE_MAR1, 0);
 
 	/* now program new ones */
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
-		if (h < 32)
-			hashes[0] |= (1 << h);
-		else
-			hashes[1] |= (1 << (h - 32));
-	}
-	if_maddr_runlock(ifp);
+	if_foreach_llmaddr(ifp, lge_hash_maddr, hashes);
 
 	CSR_WRITE_4(sc, LGE_MAR0, hashes[0]);
 	CSR_WRITE_4(sc, LGE_MAR1, hashes[1]);
