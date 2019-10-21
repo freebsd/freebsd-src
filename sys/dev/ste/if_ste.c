@@ -405,14 +405,27 @@ ste_read_eeprom(struct ste_softc *sc, uint16_t *dest, int off, int cnt)
 	return (err ? 1 : 0);
 }
 
+static u_int
+ste_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint32_t *hashes = arg;
+	int h;
+
+	h = ether_crc32_be(LLADDR(sdl), ETHER_ADDR_LEN) & 0x3F;
+	if (h < 32)
+		hashes[0] |= (1 << h);
+	else
+		hashes[1] |= (1 << (h - 32));
+
+	return (1);
+}
+
 static void
 ste_rxfilter(struct ste_softc *sc)
 {
 	struct ifnet *ifp;
-	struct ifmultiaddr *ifma;
 	uint32_t hashes[2] = { 0, 0 };
 	uint8_t rxcfg;
-	int h;
 
 	STE_LOCK_ASSERT(sc);
 
@@ -433,18 +446,7 @@ ste_rxfilter(struct ste_softc *sc)
 
 	rxcfg |= STE_RXMODE_MULTIHASH;
 	/* Now program new ones. */
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-		    ifma->ifma_addr), ETHER_ADDR_LEN) & 0x3F;
-		if (h < 32)
-			hashes[0] |= (1 << h);
-		else
-			hashes[1] |= (1 << (h - 32));
-	}
-	if_maddr_runlock(ifp);
+	if_foreach_llmaddr(ifp, ste_hash_maddr, hashes);
 
 chipit:
 	CSR_WRITE_2(sc, STE_MAR0, hashes[0] & 0xFFFF);
