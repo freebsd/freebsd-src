@@ -143,37 +143,33 @@ ENCODINGS=	Big5 \
 		KOI8-U \
 		SJIS \
 		US-ASCII \
-		UTF-8 \
+		UTF-8
 
-
-POSIX:
-.if exists (${UNIDIR}/tools/java/cldr.jar)
-	mkdir -p ${UNIDIR}/posix
-.  for area in ${BASE_LOCALES_OF_INTEREST}
-.    if !exists(${UNIDIR}/posix/${area}.UTF-8.src)
+POSIX:	posixsrc posixcol posixcm
+.if !exists(${UNIDIR}/tools/java/cldr.jar)
+.error check README about building cldr.jar
+.endif
+.for area in ${BASE_LOCALES_OF_INTEREST}
+posixsrc: ${UNIDIR}/posix/${area}.UTF-8.src
+${UNIDIR}/posix/${area}.UTF-8.src:
 	java -DCLDR_DIR=${UNIDIR:Q} -jar ${UNIDIR}/tools/java/cldr.jar \
 		org.unicode.cldr.posix.GeneratePOSIX \
 		-d ${UNIDIR}/posix -m ${area} -c UTF-8
-.    endif
-.  endfor
-.  for area encoding in ${COLLATION_SPECIAL}
-.    if !exists(${UNIDIR}/posix/${area}.${encoding}.src)
+.endfor
+.for area encoding in ${COLLATION_SPECIAL}
+posixcol: ${UNIDIR}/posix/${area}.${encoding}.src
+${UNIDIR}/posix/${area}.${encoding}.src:
 	java -DCLDR_DIR=${UNIDIR:Q} -jar ${UNIDIR}/tools/java/cldr.jar \
 		org.unicode.cldr.posix.GeneratePOSIX \
 		-d ${UNIDIR}/posix -m ${area} -c ${encoding}
-.    endif
-.  endfor
-.  for enc in ${ENCODINGS}
-.  if !exists(${UNIDIR}/posix/${enc}.cm)
+.endfor
+.for enc in ${ENCODINGS}
+posixcm: ${UNIDIR}/posix/${enc}.cm
+${UNIDIR}/posix/${enc}.cm:
 	java -DCLDR_DIR=${UNIDIR:Q} -jar ${UNIDIR}/tools/java/cldr.jar \
 		org.unicode.cldr.posix.GenerateCharmap \
 		-d ${UNIDIR}/posix -c ${enc}
-.  endif
-.  endfor
-.else
-	@echo "Please install CLDR toolset for the desired release"
-	@echo "It should go at ${UNIDIR}/tools"
-.endif
+.endfor
 
 clean-POSIX:
 	rm -f ${UNIDIR}/posix/*
