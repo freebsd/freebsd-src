@@ -100,6 +100,12 @@ struct	ip6asfrag {
 
 static MALLOC_DEFINE(M_FRAG6, "frag6", "IPv6 fragment reassembly header");
 
+#ifdef VIMAGE
+/* A flag to indicate if IPv6 fragmentation is initialized. */
+VNET_DEFINE_STATIC(bool,		frag6_on);
+#define	V_frag6_on			VNET(frag6_on)
+#endif
+
 /* System wide (global) maximum and count of packets in reassembly queues. */ 
 static int ip6_maxfrags;
 static volatile u_int frag6_nfrags = 0;
@@ -288,6 +294,15 @@ frag6_cleanup(void *arg __unused, struct ifnet *ifp)
 	int i;
 
 	KASSERT(ifp != NULL, ("%s: ifp is NULL", __func__));
+
+#ifdef VIMAGE
+	/*
+	 * Skip processing if IPv6 reassembly is not initialised or
+	 * torn down by frag6_destroy().
+	 */
+	if (!V_frag6_on)
+		return;
+#endif
 
 	CURVNET_SET_QUIET(ifp->if_vnet);
 	for (i = 0; i < IP6REASS_NHASH; i++) {
@@ -929,6 +944,9 @@ frag6_init(void)
 	}
 	V_ip6qb_hashseed = arc4random();
 	V_ip6_maxfragsperpacket = 64;
+#ifdef VIMAGE
+	V_frag6_on = true;
+#endif
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
 
@@ -940,31 +958,57 @@ frag6_init(void)
 /*
  * Drain off all datagram fragments.
  */
+static void
+frag6_drain_one(void)
+{
+	struct ip6q *head;
+	uint32_t bucket;
+
+	for (bucket = 0; bucket < IP6REASS_NHASH; bucket++) {
+		IP6QB_LOCK(bucket);
+		head = IP6QB_HEAD(bucket);
+		while (head->ip6q_next != head) {
+			IP6STAT_INC(ip6s_fragdropped);
+			/* XXX in6_ifstat_inc(ifp, ifs6_reass_fail) */
+			frag6_freef(head->ip6q_next, bucket);
+		}
+		IP6QB_UNLOCK(bucket);
+	}
+}
+
 void
 frag6_drain(void)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
-	struct ip6q *head;
-	uint32_t bucket;
 
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		for (bucket = 0; bucket < IP6REASS_NHASH; bucket++) {
-			if (IP6QB_TRYLOCK(bucket) == 0)
-				continue;
-			head = IP6QB_HEAD(bucket);
-			while (head->ip6q_next != head) {
-				IP6STAT_INC(ip6s_fragdropped);
-				/* XXX in6_ifstat_inc(ifp, ifs6_reass_fail) */
-				frag6_freef(head->ip6q_next, bucket);
-			}
-			IP6QB_UNLOCK(bucket);
-		}
+		frag6_drain_one();
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
 }
+
+#ifdef VIMAGE
+/*
+ * Clear up IPv6 reassembly structures.
+ */
+void
+frag6_destroy(void)
+{
+	uint32_t bucket;
+
+	frag6_drain_one();
+	V_frag6_on = false;
+	for (bucket = 0; bucket < IP6REASS_NHASH; bucket++) {
+		KASSERT(V_ip6qb[bucket].count == 0,
+		    ("%s: V_ip6qb[%d] (%p) count not 0 (%d)", __func__,
+		    bucket, &V_ip6qb[bucket], V_ip6qb[bucket].count));
+		mtx_destroy(&V_ip6qb[bucket].lock);
+	}
+}
+#endif
 
 /*
  * Put an ip fragment on a reassembly chain.

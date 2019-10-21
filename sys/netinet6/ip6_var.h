@@ -392,6 +392,7 @@ int	ip6_fragment(struct ifnet *, struct mbuf *, int, u_char, int,
 int	route6_input(struct mbuf **, int *, int);
 
 void	frag6_init(void);
+void	frag6_destroy(void);
 int	frag6_input(struct mbuf **, int *, int);
 void	frag6_slowtimo(void);
 void	frag6_drain(void);
