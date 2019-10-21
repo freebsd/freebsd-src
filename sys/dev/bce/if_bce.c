@@ -8065,14 +8065,25 @@ bce_intr_exit:
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
 /****************************************************************************/
+static u_int
+bce_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	u32 *hashes = arg;
+	int h;
+
+	h = ether_crc32_le(LLADDR(sdl), ETHER_ADDR_LEN) & 0xFF;
+	hashes[(h & 0xE0) >> 5] |= 1 << (h & 0x1F);
+
+	return (1);
+}
+
 static void
 bce_set_rx_mode(struct bce_softc *sc)
 {
 	struct ifnet *ifp;
-	struct ifmultiaddr *ifma;
 	u32 hashes[NUM_MC_HASH_REGISTERS] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 	u32 rx_mode, sort_mode;
-	int h, i;
+	int i;
 
 	DBENTER(BCE_VERBOSE_MISC);
 
@@ -8115,16 +8126,7 @@ bce_set_rx_mode(struct bce_softc *sc)
 	} else {
 		/* Accept one or more multicast(s). */
 		DBPRINT(sc, BCE_INFO_MISC, "Enabling selective multicast mode.\n");
-
-		if_maddr_rlock(ifp);
-		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-			if (ifma->ifma_addr->sa_family != AF_LINK)
-				continue;
-			h = ether_crc32_le(LLADDR((struct sockaddr_dl *)
-			    ifma->ifma_addr), ETHER_ADDR_LEN) & 0xFF;
-			    hashes[(h & 0xE0) >> 5] |= 1 << (h & 0x1F);
-		}
-		if_maddr_runlock(ifp);
+		if_foreach_llmaddr(ifp, bce_hash_maddr, hashes);
 
 		for (i = 0; i < NUM_MC_HASH_REGISTERS; i++)
 			REG_WR(sc, BCE_EMAC_MULTICAST_HASH0 + (i * 4), hashes[i]);
