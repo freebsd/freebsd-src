@@ -47,14 +47,14 @@ end
 
 function screen.setforeground(color_value)
 	if color.disabled then
-		return color_value
+		return
 	end
 	printc(color.escapefg(color_value))
 end
 
 function screen.setbackground(color_value)
 	if color.disabled then
-		return color_value
+		return
 	end
 	printc(color.escapebg(color_value))
 end
