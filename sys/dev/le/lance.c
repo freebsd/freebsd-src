@@ -577,6 +577,27 @@ lance_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	return (error);
 }
 
+struct lance_hash_maddr_ctx {
+	struct lance_softc *sc;
+	uint16_t *af;
+};
+
+static u_int
+lance_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	struct lance_hash_maddr_ctx *ctx = arg;
+	struct lance_softc *sc = ctx->sc;
+	uint32_t crc;
+
+	crc = ether_crc32_le(LLADDR(sdl), ETHER_ADDR_LEN);
+	/* Just want the 6 most significant bits. */
+	crc >>= 26;
+	/* Set the corresponding bit in the filter. */
+	ctx->af[crc >> 4] |= LE_HTOLE16(1 << (crc & 0xf));
+
+	return (1);
+}
+
 /*
  * Set up the logical address filter.
  */
@@ -584,8 +605,7 @@ void
 lance_setladrf(struct lance_softc *sc, uint16_t *af)
 {
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ifmultiaddr *ifma;
-	uint32_t crc;
+	struct lance_hash_maddr_ctx ctx = { sc, af };
 
 	/*
 	 * Set up multicast address filter by passing all multicast addresses
@@ -601,21 +621,7 @@ lance_setladrf(struct lance_softc *sc, uint16_t *af)
 	}
 
 	af[0] = af[1] = af[2] = af[3] = 0x0000;
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-
-		crc = ether_crc32_le(LLADDR((struct sockaddr_dl *)
-		    ifma->ifma_addr), ETHER_ADDR_LEN);
-
-		/* Just want the 6 most significant bits. */
-		crc >>= 26;
-
-		/* Set the corresponding bit in the filter. */
-		af[crc >> 4] |= LE_HTOLE16(1 << (crc & 0xf));
-	}
-	if_maddr_runlock(ifp);
+	if_foreach_llmaddr(ifp, lance_hash_maddr, &ctx);
 }
 
 /*
