@@ -3591,6 +3591,25 @@ ath_update_promisc(struct ieee80211com *ic)
 	DPRINTF(sc, ATH_DEBUG_MODE, "%s: RX filter 0x%x\n", __func__, rfilt);
 }
 
+static u_int
+ath_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint32_t val, *mfilt = arg;
+	char *dl;
+	uint8_t pos;
+
+	/* calculate XOR of eight 6bit values */
+	dl = LLADDR(sdl);
+	val = le32dec(dl + 0);
+	pos = (val >> 18) ^ (val >> 12) ^ (val >> 6) ^ val;
+	val = le32dec(dl + 3);
+	pos ^= (val >> 18) ^ (val >> 12) ^ (val >> 6) ^ val;
+	pos &= 0x3f;
+	mfilt[pos / 32] |= (1 << (pos % 32));
+
+	return (1);
+}
+
 /*
  * Driver-internal mcast update call.
  *
@@ -3605,35 +3624,13 @@ ath_update_mcast_hw(struct ath_softc *sc)
 	/* calculate and install multicast filter */
 	if (ic->ic_allmulti == 0) {
 		struct ieee80211vap *vap;
-		struct ifnet *ifp;
-		struct ifmultiaddr *ifma;
 
 		/*
 		 * Merge multicast addresses to form the hardware filter.
 		 */
 		mfilt[0] = mfilt[1] = 0;
-		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
-			ifp = vap->iv_ifp;
-			if_maddr_rlock(ifp);
-			CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-				caddr_t dl;
-				uint32_t val;
-				uint8_t pos;
-
-				/* calculate XOR of eight 6bit values */
-				dl = LLADDR((struct sockaddr_dl *)
-				    ifma->ifma_addr);
-				val = le32dec(dl + 0);
-				pos = (val >> 18) ^ (val >> 12) ^ (val >> 6) ^
-				    val;
-				val = le32dec(dl + 3);
-				pos ^= (val >> 18) ^ (val >> 12) ^ (val >> 6) ^
-				    val;
-				pos &= 0x3f;
-				mfilt[pos / 32] |= (1 << (pos % 32));
-			}
-			if_maddr_runlock(ifp);
-		}
+		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
+			if_foreach_llmaddr(vap->iv_ifp, ath_hash_maddr, &mfilt);
 	} else
 		mfilt[0] = mfilt[1] = ~0;
 
