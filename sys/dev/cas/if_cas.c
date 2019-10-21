@@ -2498,14 +2498,27 @@ cas_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	return (error);
 }
 
+static u_int
+cas_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint32_t crc, *hash = arg;
+
+	crc = ether_crc32_le(LLADDR(sdl), ETHER_ADDR_LEN);
+	/* We just want the 8 most significant bits. */
+	crc >>= 24;
+	/* Set the corresponding bit in the filter. */
+	hash[crc >> 4] |= 1 << (15 - (crc & 15));
+
+	return (1);
+}
+
 static void
 cas_setladrf(struct cas_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ifmultiaddr *inm;
 	int i;
 	uint32_t hash[16];
-	uint32_t crc, v;
+	uint32_t v;
 
 	CAS_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -2542,23 +2555,8 @@ cas_setladrf(struct cas_softc *sc)
 	 * is the MSB).
 	 */
 
-	/* Clear the hash table. */
 	memset(hash, 0, sizeof(hash));
-
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(inm, &ifp->if_multiaddrs, ifma_link) {
-		if (inm->ifma_addr->sa_family != AF_LINK)
-			continue;
-		crc = ether_crc32_le(LLADDR((struct sockaddr_dl *)
-		    inm->ifma_addr), ETHER_ADDR_LEN);
-
-		/* We just want the 8 most significant bits. */
-		crc >>= 24;
-
-		/* Set the corresponding bit in the filter. */
-		hash[crc >> 4] |= 1 << (15 - (crc & 15));
-	}
-	if_maddr_runlock(ifp);
+	if_foreach_llmaddr(ifp, cas_hash_maddr, &hash);
 
 	v |= CAS_MAC_RX_CONF_HFILTER;
 
