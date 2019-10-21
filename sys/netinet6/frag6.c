@@ -150,6 +150,10 @@ VNET_DEFINE_STATIC(uint32_t,		ip6qb_hashseed);
  */
 SYSCTL_DECL(_net_inet6_ip6);
 
+SYSCTL_UINT(_net_inet6_ip6, OID_AUTO, frag6_nfrags,
+	CTLFLAG_RD, __DEVOLATILE(u_int *, &frag6_nfrags), 0,
+	"Global number of IPv6 fragments across all reassembly queues.");
+
 static void
 frag6_set_bucketsize(void)
 {
