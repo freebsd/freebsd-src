@@ -1995,12 +1995,23 @@ vmxnet3_vlan_unregister(if_ctx_t ctx, uint16_t tag)
 	vmxnet3_update_vlan_filter(iflib_get_softc(ctx), 0, tag);
 }
 
+static u_int
+vmxnet3_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int count)
+{
+	struct vmxnet3_softc *sc = arg;
+
+	if (count < VMXNET3_MULTICAST_MAX)
+		bcopy(LLADDR(sdl), &sc->vmx_mcast[count * ETHER_ADDR_LEN],
+		    ETHER_ADDR_LEN);
+
+	return (1);
+}
+
 static void
 vmxnet3_set_rxfilter(struct vmxnet3_softc *sc, int flags)
 {
 	struct ifnet *ifp;
 	struct vmxnet3_driver_shared *ds;
-	struct ifmultiaddr *ifma;
 	u_int mode;
 
 	ifp = sc->vmx_ifp;
@@ -2012,24 +2023,10 @@ vmxnet3_set_rxfilter(struct vmxnet3_softc *sc, int flags)
 	if (flags & IFF_ALLMULTI)
 		mode |= VMXNET3_RXMODE_ALLMULTI;
 	else {
-		int cnt = 0, overflow = 0;
+		int cnt;
 
-		if_maddr_rlock(ifp);
-		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-			if (ifma->ifma_addr->sa_family != AF_LINK)
-				continue;
-			else if (cnt == VMXNET3_MULTICAST_MAX) {
-				overflow = 1;
-				break;
-			}
-
-			bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-			   &sc->vmx_mcast[cnt*ETHER_ADDR_LEN], ETHER_ADDR_LEN);
-			cnt++;
-		}
-		if_maddr_runlock(ifp);
-
-		if (overflow != 0) {
+		cnt = if_foreach_llmaddr(ifp, vmxnet3_hash_maddr, sc);
+		if (cnt >= VMXNET3_MULTICAST_MAX) {
 			cnt = 0;
 			mode |= VMXNET3_RXMODE_ALLMULTI;
 		} else if (cnt > 0)
