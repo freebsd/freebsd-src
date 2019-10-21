@@ -1656,6 +1656,20 @@ hme_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	return (error);
 }
 
+static u_int
+hme_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint32_t crc, *hash = arg;
+
+	crc = ether_crc32_le(LLADDR(sdl), ETHER_ADDR_LEN);
+	/* Just want the 6 most significant bits. */
+	crc >>= 26;
+	/* Set the corresponding bit in the filter. */
+	hash[crc >> 4] |= 1 << (crc & 0xf);
+
+	return (1);
+}
+
 /*
  * Set up the logical address filter.
  */
@@ -1663,8 +1677,6 @@ static void
 hme_setladrf(struct hme_softc *sc, int reenable)
 {
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ifmultiaddr *inm;
-	u_int32_t crc;
 	u_int32_t hash[4];
 	u_int32_t macc;
 
@@ -1721,21 +1733,7 @@ hme_setladrf(struct hme_softc *sc, int reenable)
 	 * selects the word, while the rest of the bits select the bit within
 	 * the word.
 	 */
-
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(inm, &ifp->if_multiaddrs, ifma_link) {
-		if (inm->ifma_addr->sa_family != AF_LINK)
-			continue;
-		crc = ether_crc32_le(LLADDR((struct sockaddr_dl *)
-		    inm->ifma_addr), ETHER_ADDR_LEN);
-
-		/* Just want the 6 most significant bits. */
-		crc >>= 26;
-
-		/* Set the corresponding bit in the filter. */
-		hash[crc >> 4] |= 1 << (crc & 0xf);
-	}
-	if_maddr_runlock(ifp);
+	if_foreach_llmaddr(ifp, hme_hash_maddr, &hash);
 
 chipit:
 	/* Now load the hash table into the chip */
