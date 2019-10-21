@@ -514,14 +514,40 @@ xae_media_change(struct ifnet * ifp)
 	return (error);
 }
 
+static u_int
+xae_write_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	struct xae_softc *sc = arg;
+	uint32_t reg;
+	uint8_t *ma;
+
+	if (cnt >= XAE_MULTICAST_TABLE_SIZE)
+		return (1);
+
+	ma = LLADDR(sdl);
+
+	reg = READ4(sc, XAE_FFC) & 0xffffff00;
+	reg |= cnt;
+	WRITE4(sc, XAE_FFC, reg);
+
+	reg = (ma[0]);
+	reg |= (ma[1] << 8);
+	reg |= (ma[2] << 16);
+	reg |= (ma[3] << 24);
+	WRITE4(sc, XAE_FFV(0), reg);
+
+	reg = ma[4];
+	reg |= ma[5] << 8;
+	WRITE4(sc, XAE_FFV(1), reg);
+
+	return (1);
+}
+
 static void
 xae_setup_rxfilter(struct xae_softc *sc)
 {
-	struct ifmultiaddr *ifma;
 	struct ifnet *ifp;
 	uint32_t reg;
-	uint8_t *ma;
-	int i;
 
 	XAE_ASSERT_LOCKED(sc);
 
@@ -539,33 +565,7 @@ xae_setup_rxfilter(struct xae_softc *sc)
 		reg &= ~FFC_PM;
 		WRITE4(sc, XAE_FFC, reg);
 
-		if_maddr_rlock(ifp);
-
-		i = 0;
-		CK_STAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
-			if (ifma->ifma_addr->sa_family != AF_LINK)
-				continue;
-
-			if (i >= XAE_MULTICAST_TABLE_SIZE)
-				break;
-
-			ma = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
-
-			reg = READ4(sc, XAE_FFC) & 0xffffff00;
-			reg |= i++;
-			WRITE4(sc, XAE_FFC, reg);
-
-			reg = (ma[0]);
-			reg |= (ma[1] << 8);
-			reg |= (ma[2] << 16);
-			reg |= (ma[3] << 24);
-			WRITE4(sc, XAE_FFV(0), reg);
-
-			reg = ma[4];
-			reg |= ma[5] << 8;
-			WRITE4(sc, XAE_FFV(1), reg);
-		}
-		if_maddr_runlock(ifp);
+		if_foreach_llmaddr(ifp, xae_write_maddr, sc);
 	}
 
 	/*
