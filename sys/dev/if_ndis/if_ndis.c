@@ -282,6 +282,22 @@ ndisdrv_modevent(mod, cmd, arg)
 	return (error);
 }
 
+struct mclist_ctx {
+	uint8_t *mclist;
+	int mclistsz;
+};
+
+static u_int
+ndis_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	struct mclist_ctx *ctx = arg;
+
+	if (cnt < ctx->mclistsz)
+		bcopy(LLADDR(sdl), ctx->mclist + (ETHER_ADDR_LEN * cnt),
+		    ETHER_ADDR_LEN);
+	return (1);
+}
+
 /*
  * Program the 64-bit multicast hash filter.
  */
@@ -290,9 +306,8 @@ ndis_setmulti(sc)
 	struct ndis_softc	*sc;
 {
 	struct ifnet		*ifp;
-	struct ifmultiaddr	*ifma;
-	int			len, mclistsz, error;
-	uint8_t			*mclist;
+	struct mclist_ctx	ctx;
+	int			len, error;
 
 
 	if (!NDIS_INITIALIZED(sc))
@@ -313,40 +328,31 @@ ndis_setmulti(sc)
 		return;
 	}
 
-	if (CK_STAILQ_EMPTY(&ifp->if_multiaddrs))
+	if (if_llmaddr_count(ifp) == 0)
 		return;
 
-	len = sizeof(mclistsz);
-	ndis_get_info(sc, OID_802_3_MAXIMUM_LIST_SIZE, &mclistsz, &len);
+	len = sizeof(ctx.mclistsz);
+	ndis_get_info(sc, OID_802_3_MAXIMUM_LIST_SIZE, &ctx.mclistsz, &len);
 
-	mclist = malloc(ETHER_ADDR_LEN * mclistsz, M_TEMP, M_NOWAIT|M_ZERO);
+	ctx.mclist = malloc(ETHER_ADDR_LEN * ctx.mclistsz, M_TEMP,
+	    M_NOWAIT | M_ZERO);
 
-	if (mclist == NULL) {
+	if (ctx.mclist == NULL) {
 		sc->ndis_filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
 		goto out;
 	}
 
 	sc->ndis_filter |= NDIS_PACKET_TYPE_MULTICAST;
 
-	len = 0;
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-		    mclist + (ETHER_ADDR_LEN * len), ETHER_ADDR_LEN);
-		len++;
-		if (len > mclistsz) {
-			if_maddr_runlock(ifp);
-			sc->ndis_filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
-			sc->ndis_filter &= ~NDIS_PACKET_TYPE_MULTICAST;
+	len = if_foreach_llmaddr(ifp, ndis_copy_maddr, &ctx);
+	if (len > ctx.mclistsz) {
+		sc->ndis_filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
+		sc->ndis_filter &= ~NDIS_PACKET_TYPE_MULTICAST;
 			goto out;
-		}
 	}
-	if_maddr_runlock(ifp);
 
 	len = len * ETHER_ADDR_LEN;
-	error = ndis_set_info(sc, OID_802_3_MULTICAST_LIST, mclist, &len);
+	error = ndis_set_info(sc, OID_802_3_MULTICAST_LIST, ctx.mclist, &len);
 	if (error) {
 		device_printf(sc->ndis_dev, "set mclist failed: %d\n", error);
 		sc->ndis_filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
@@ -354,7 +360,7 @@ ndis_setmulti(sc)
 	}
 
 out:
-	free(mclist, M_TEMP);
+	free(ctx.mclist, M_TEMP);
 
 	len = sizeof(sc->ndis_filter);
 	error = ndis_set_info(sc, OID_GEN_CURRENT_PACKET_FILTER,
