@@ -1886,13 +1886,22 @@ tsec_offload_process_frame(struct tsec_softc *sc, struct mbuf *m)
 	m_adj(m, sizeof(struct tsec_rx_fcb));
 }
 
+static u_int
+tsec_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint32_t h, *hashtable = arg;
+
+	h = (ether_crc32_be(LLADDR(sdl), ETHER_ADDR_LEN) >> 24) & 0xFF;
+	hashtable[(h >> 5)] |= 1 << (0x1F - (h & 0x1F));
+
+	return (1);
+}
+
 static void
 tsec_setup_multicast(struct tsec_softc *sc)
 {
 	uint32_t hashtable[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 	struct ifnet *ifp = sc->tsec_ifp;
-	struct ifmultiaddr *ifma;
-	uint32_t h;
 	int i;
 
 	TSEC_GLOBAL_LOCK_ASSERT(sc);
@@ -1904,18 +1913,7 @@ tsec_setup_multicast(struct tsec_softc *sc)
 		return;
 	}
 
-	if_maddr_rlock(ifp);
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-
-		h = (ether_crc32_be(LLADDR((struct sockaddr_dl *)
-		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 24) & 0xFF;
-
-		hashtable[(h >> 5)] |= 1 << (0x1F - (h & 0x1F));
-	}
-	if_maddr_runlock(ifp);
+	if_foreach_llmaddr(ifp, tsec_hash_maddr, &hashtable);
 
 	for (i = 0; i < 8; i++)
 		TSEC_WRITE(sc, TSEC_REG_GADDR(i), hashtable[i]);
