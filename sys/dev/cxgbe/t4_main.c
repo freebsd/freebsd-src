@@ -626,6 +626,8 @@ static void quiesce_fl(struct adapter *, struct sge_fl *);
 static int t4_alloc_irq(struct adapter *, struct irq *, int rid,
     driver_intr_t *, void *, char *);
 static int t4_free_irq(struct adapter *, struct irq *);
+static void t4_init_atid_table(struct adapter *);
+static void t4_free_atid_table(struct adapter *);
 static void get_regs(struct adapter *, struct t4_regdump *, uint8_t *);
 static void vi_refresh_stats(struct adapter *, struct vi_info *);
 static void cxgbe_refresh_stats(struct adapter *, struct port_info *);
@@ -1236,6 +1238,7 @@ t4_attach(device_t dev)
 	t4_init_l2t(sc, M_WAITOK);
 	t4_init_smt(sc, M_WAITOK);
 	t4_init_tx_sched(sc);
+	t4_init_atid_table(sc);
 #ifdef RATELIMIT
 	t4_init_etid_table(sc);
 #endif
@@ -1540,6 +1543,7 @@ t4_detach_common(device_t dev)
 		t4_free_l2t(sc->l2t);
 	if (sc->smt)
 		t4_free_smt(sc->smt);
+	t4_free_atid_table(sc);
 #ifdef RATELIMIT
 	t4_free_etid_table(sc);
 #endif
@@ -1568,7 +1572,6 @@ t4_detach_common(device_t dev)
 	free(sc->tids.ftid_tab, M_CXGBE);
 	free(sc->tids.hpftid_tab, M_CXGBE);
 	free_hftid_hash(&sc->tids);
-	free(sc->tids.atid_tab, M_CXGBE);
 	free(sc->tids.tid_tab, M_CXGBE);
 	free(sc->tt.tls_rx_ports, M_CXGBE);
 	t4_destroy_dma_tag(sc);
@@ -2829,31 +2832,34 @@ rw_via_memwin(struct adapter *sc, int idx, uint32_t addr, uint32_t *val,
 	return (0);
 }
 
-int
-alloc_atid_tab(struct tid_info *t, int flags)
+static void
+t4_init_atid_table(struct adapter *sc)
 {
+	struct tid_info *t;
 	int i;
 
-	MPASS(t->natids > 0);
+	t = &sc->tids;
+	if (t->natids == 0)
+		return;
+
 	MPASS(t->atid_tab == NULL);
 
 	t->atid_tab = malloc(t->natids * sizeof(*t->atid_tab), M_CXGBE,
-	    M_ZERO | flags);
-	if (t->atid_tab == NULL)
-		return (ENOMEM);
+	    M_ZERO | M_WAITOK);
 	mtx_init(&t->atid_lock, "atid lock", NULL, MTX_DEF);
 	t->afree = t->atid_tab;
 	t->atids_in_use = 0;
 	for (i = 1; i < t->natids; i++)
 		t->atid_tab[i - 1].next = &t->atid_tab[i];
 	t->atid_tab[t->natids - 1].next = NULL;
-
-	return (0);
 }
 
-void
-free_atid_tab(struct tid_info *t)
+static void
+t4_free_atid_table(struct adapter *sc)
 {
+	struct tid_info *t;
+
+	t = &sc->tids;
 
 	KASSERT(t->atids_in_use == 0,
 	    ("%s: %d atids still in use.", __func__, t->atids_in_use));

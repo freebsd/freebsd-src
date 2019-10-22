@@ -891,11 +891,6 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 			if (rc != 0)
 				goto done;
 		}
-		if (__predict_false(sc->tids.atid_tab == NULL)) {
-			rc = alloc_atid_tab(&sc->tids, M_NOWAIT);
-			if (rc != 0)
-				goto done;
-		}
 	} else if (separate_hpfilter_region(sc) && t->fs.prio &&
 	    __predict_false(ti->hpftid_tab == NULL)) {
 		MPASS(ti->nhpftids != 0);
