@@ -50,10 +50,9 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_PFSVNCACHE, "pfs_vncache", "pseudofs vnode cache");
 
 static struct mtx pfs_vncache_mutex;
-static struct pfs_vdata *pfs_vncache;
 static eventhandler_tag pfs_exit_tag;
 static void pfs_exit(void *arg, struct proc *p);
-static void pfs_purge_locked(struct pfs_node *pn, bool force);
+static void pfs_purge_all(void);
 
 static SYSCTL_NODE(_vfs_pfs, OID_AUTO, vncache, CTLFLAG_RW, 0,
     "pseudofs vnode cache");
@@ -80,6 +79,10 @@ SYSCTL_INT(_vfs_pfs_vncache, OID_AUTO, misses, CTLFLAG_RD,
 
 extern struct vop_vector pfs_vnodeops;	/* XXX -> .h file */
 
+static SLIST_HEAD(pfs_vncache_head, pfs_vdata) *pfs_vncache_hashtbl;
+static u_long pfs_vncache_hash;
+#define PFS_VNCACHE_HASH(pid)	(&pfs_vncache_hashtbl[(pid) & pfs_vncache_hash])
+
 /*
  * Initialize vnode cache
  */
@@ -88,6 +91,7 @@ pfs_vncache_load(void)
 {
 
 	mtx_init(&pfs_vncache_mutex, "pfs_vncache", NULL, MTX_DEF);
+	pfs_vncache_hashtbl = hashinit(maxproc / 4, M_PFSVNCACHE, &pfs_vncache_hash);
 	pfs_exit_tag = EVENTHANDLER_REGISTER(process_exit, pfs_exit, NULL,
 	    EVENTHANDLER_PRI_ANY);
 }
@@ -100,9 +104,7 @@ pfs_vncache_unload(void)
 {
 
 	EVENTHANDLER_DEREGISTER(process_exit, pfs_exit_tag);
-	mtx_lock(&pfs_vncache_mutex);
-	pfs_purge_locked(NULL, true);
-	mtx_unlock(&pfs_vncache_mutex);
+	pfs_purge_all();
 	KASSERT(pfs_vncache_entries == 0,
 	    ("%d vncache entries remaining", pfs_vncache_entries));
 	mtx_destroy(&pfs_vncache_mutex);
@@ -115,17 +117,20 @@ int
 pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 		  struct pfs_node *pn, pid_t pid)
 {
+	struct pfs_vncache_head *hash;
 	struct pfs_vdata *pvd, *pvd2;
 	struct vnode *vp;
 	int error;
 
 	/*
 	 * See if the vnode is in the cache.
-	 * XXX linear search is not very efficient.
 	 */
+	hash = PFS_VNCACHE_HASH(pid);
+	if (SLIST_EMPTY(hash))
+		goto alloc;
 retry:
 	mtx_lock(&pfs_vncache_mutex);
-	for (pvd = pfs_vncache; pvd; pvd = pvd->pvd_next) {
+	SLIST_FOREACH(pvd, hash, pvd_hash) {
 		if (pvd->pvd_pn == pn && pvd->pvd_pid == pid &&
 		    pvd->pvd_vnode->v_mount == mp) {
 			vp = pvd->pvd_vnode;
@@ -150,10 +155,9 @@ retry:
 		}
 	}
 	mtx_unlock(&pfs_vncache_mutex);
-
+alloc:
 	/* nope, get a new one */
 	pvd = malloc(sizeof *pvd, M_PFSVNCACHE, M_WAITOK);
-	pvd->pvd_next = pvd->pvd_prev = NULL;
 	error = getnewvnode("pseudofs", mp, &pfs_vnodeops, vpp);
 	if (error) {
 		free(pvd, M_PFSVNCACHE);
@@ -208,7 +212,7 @@ retry2:
 	 * going to insert into the cache. Recheck after
 	 * pfs_vncache_mutex is reacquired.
 	 */
-	for (pvd2 = pfs_vncache; pvd2; pvd2 = pvd2->pvd_next) {
+	SLIST_FOREACH(pvd2, hash, pvd_hash) {
 		if (pvd2->pvd_pn == pn && pvd2->pvd_pid == pid &&
 		    pvd2->pvd_vnode->v_mount == mp) {
 			vp = pvd2->pvd_vnode;
@@ -228,11 +232,7 @@ retry2:
 	++pfs_vncache_misses;
 	if (++pfs_vncache_entries > pfs_vncache_maxentries)
 		pfs_vncache_maxentries = pfs_vncache_entries;
-	pvd->pvd_prev = NULL;
-	pvd->pvd_next = pfs_vncache;
-	if (pvd->pvd_next)
-		pvd->pvd_next->pvd_prev = pvd;
-	pfs_vncache = pvd;
+	SLIST_INSERT_HEAD(hash, pvd, pvd_hash);
 	mtx_unlock(&pfs_vncache_mutex);
 	return (0);
 }
@@ -243,19 +243,17 @@ retry2:
 int
 pfs_vncache_free(struct vnode *vp)
 {
-	struct pfs_vdata *pvd;
+	struct pfs_vdata *pvd, *pvd2;
 
 	mtx_lock(&pfs_vncache_mutex);
 	pvd = (struct pfs_vdata *)vp->v_data;
 	KASSERT(pvd != NULL, ("pfs_vncache_free(): no vnode data\n"));
-	if (pvd->pvd_next)
-		pvd->pvd_next->pvd_prev = pvd->pvd_prev;
-	if (pvd->pvd_prev) {
-		pvd->pvd_prev->pvd_next = pvd->pvd_next;
+	SLIST_FOREACH(pvd2, PFS_VNCACHE_HASH(pvd->pvd_pid), pvd_hash) {
+		if (pvd2 != pvd)
+			continue;
+		SLIST_REMOVE(PFS_VNCACHE_HASH(pvd->pvd_pid), pvd, pfs_vdata, pvd_hash);
 		--pfs_vncache_entries;
-	} else if (pfs_vncache == pvd) {
-		pfs_vncache = pvd->pvd_next;
-		--pfs_vncache_entries;
+		break;
 	}
 	mtx_unlock(&pfs_vncache_mutex);
 
@@ -267,6 +265,15 @@ pfs_vncache_free(struct vnode *vp)
 /*
  * Purge the cache of dead entries
  *
+ * The code is not very efficient and this perhaps can be addressed without
+ * a complete rewrite. Previous iteration was walking a linked list from
+ * scratch every time. This code only walks the relevant hash chain (if pid
+ * is provided), but still resorts to scanning the entire cache at least twice
+ * if a specific component is to be removed which is slower. This can be
+ * augmented with resizing the hash.
+ *
+ * Explanation of the previous state:
+ *
  * This is extremely inefficient due to the fact that vgone() not only
  * indirectly modifies the vnode cache, but may also sleep.  We can
  * neither hold pfs_vncache_mutex across a vgone() call, nor make any
@@ -277,39 +284,51 @@ pfs_vncache_free(struct vnode *vp)
  * The only way to improve this situation is to change the data structure
  * used to implement the cache.
  */
-static void
-pfs_purge_locked(struct pfs_node *pn, bool force)
-{
-	struct pfs_vdata *pvd;
-	struct vnode *vnp;
 
-	mtx_assert(&pfs_vncache_mutex, MA_OWNED);
-	pvd = pfs_vncache;
-	while (pvd != NULL) {
-		if (force || pvd->pvd_dead ||
-		    (pn != NULL && pvd->pvd_pn == pn)) {
-			vnp = pvd->pvd_vnode;
-			vhold(vnp);
-			mtx_unlock(&pfs_vncache_mutex);
-			VOP_LOCK(vnp, LK_EXCLUSIVE);
-			vgone(vnp);
-			VOP_UNLOCK(vnp, 0);
-			mtx_lock(&pfs_vncache_mutex);
-			vdrop(vnp);
-			pvd = pfs_vncache;
-		} else {
-			pvd = pvd->pvd_next;
-		}
-	}
+static void
+pfs_purge_one(struct vnode *vnp)
+{
+
+	VOP_LOCK(vnp, LK_EXCLUSIVE);
+	vgone(vnp);
+	VOP_UNLOCK(vnp, 0);
+	vdrop(vnp);
 }
 
 void
 pfs_purge(struct pfs_node *pn)
 {
+	struct pfs_vdata *pvd;
+	struct vnode *vnp;
+	u_long i, removed;
 
 	mtx_lock(&pfs_vncache_mutex);
-	pfs_purge_locked(pn, false);
+restart:
+	removed = 0;
+	for (i = 0; i < pfs_vncache_hash; i++) {
+restart_chain:
+		SLIST_FOREACH(pvd, &pfs_vncache_hashtbl[i], pvd_hash) {
+			if (pn != NULL && pvd->pvd_pn != pn)
+				continue;
+			vnp = pvd->pvd_vnode;
+			vhold(vnp);
+			mtx_unlock(&pfs_vncache_mutex);
+			pfs_purge_one(vnp);
+			removed++;
+			mtx_lock(&pfs_vncache_mutex);
+			goto restart_chain;
+		}
+	}
+	if (removed > 0)
+		goto restart;
 	mtx_unlock(&pfs_vncache_mutex);
+}
+
+static void
+pfs_purge_all(void)
+{
+
+	pfs_purge(NULL);
 }
 
 /*
@@ -318,16 +337,25 @@ pfs_purge(struct pfs_node *pn)
 static void
 pfs_exit(void *arg, struct proc *p)
 {
+	struct pfs_vncache_head *hash;
 	struct pfs_vdata *pvd;
-	int dead;
+	struct vnode *vnp;
+	int pid;
 
-	if (pfs_vncache == NULL)
+	pid = p->p_pid;
+	hash = PFS_VNCACHE_HASH(pid);
+	if (SLIST_EMPTY(hash))
 		return;
+restart:
 	mtx_lock(&pfs_vncache_mutex);
-	for (pvd = pfs_vncache, dead = 0; pvd != NULL; pvd = pvd->pvd_next)
-		if (pvd->pvd_pid == p->p_pid)
-			dead = pvd->pvd_dead = 1;
-	if (dead)
-		pfs_purge_locked(NULL, false);
+	SLIST_FOREACH(pvd, hash, pvd_hash) {
+		if (pvd->pvd_pid != pid)
+			continue;
+		vnp = pvd->pvd_vnode;
+		vhold(vnp);
+		mtx_unlock(&pfs_vncache_mutex);
+		pfs_purge_one(vnp);
+		goto restart;
+	}
 	mtx_unlock(&pfs_vncache_mutex);
 }
