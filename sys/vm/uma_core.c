@@ -4055,6 +4055,7 @@ uma_vm_zone_stats(struct uma_type_header *uth, uma_zone_t z, struct sbuf *sbuf,
     struct uma_percpu_stat *ups, bool internal)
 {
 	uma_zone_domain_t zdom;
+	uma_bucket_t bucket;
 	uma_cache_t cache;
 	int i;
 
@@ -4068,28 +4069,29 @@ uma_vm_zone_stats(struct uma_type_header *uth, uma_zone_t z, struct sbuf *sbuf,
 	uth->uth_fails = counter_u64_fetch(z->uz_fails);
 	uth->uth_sleeps = z->uz_sleeps;
 	uth->uth_xdomain = z->uz_xdomain;
+
 	/*
-	 * While it is not normally safe to access the cache
-	 * bucket pointers while not on the CPU that owns the
-	 * cache, we only allow the pointers to be exchanged
-	 * without the zone lock held, not invalidated, so
-	 * accept the possible race associated with bucket
-	 * exchange during monitoring.
+	 * While it is not normally safe to access the cache bucket pointers
+	 * while not on the CPU that owns the cache, we only allow the pointers
+	 * to be exchanged without the zone lock held, not invalidated, so
+	 * accept the possible race associated with bucket exchange during
+	 * monitoring.  Use atomic_load_ptr() to ensure that the bucket pointers
+	 * are loaded only once.
 	 */
 	for (i = 0; i < mp_maxid + 1; i++) {
 		bzero(&ups[i], sizeof(*ups));
 		if (internal || CPU_ABSENT(i))
 			continue;
 		cache = &z->uz_cpu[i];
-		if (cache->uc_allocbucket != NULL)
-			ups[i].ups_cache_free +=
-			    cache->uc_allocbucket->ub_cnt;
-		if (cache->uc_freebucket != NULL)
-			ups[i].ups_cache_free +=
-			    cache->uc_freebucket->ub_cnt;
-		if (cache->uc_crossbucket != NULL)
-			ups[i].ups_cache_free +=
-			    cache->uc_crossbucket->ub_cnt;
+		bucket = (uma_bucket_t)atomic_load_ptr(&cache->uc_allocbucket);
+		if (bucket != NULL)
+			ups[i].ups_cache_free += bucket->ub_cnt;
+		bucket = (uma_bucket_t)atomic_load_ptr(&cache->uc_freebucket);
+		if (bucket != NULL)
+			ups[i].ups_cache_free += bucket->ub_cnt;
+		bucket = (uma_bucket_t)atomic_load_ptr(&cache->uc_crossbucket);
+		if (bucket != NULL)
+			ups[i].ups_cache_free += bucket->ub_cnt;
 		ups[i].ups_allocs = cache->uc_allocs;
 		ups[i].ups_frees = cache->uc_frees;
 	}
