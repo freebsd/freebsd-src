@@ -783,9 +783,15 @@ static moduledata_t tuntap_mod = {
 	0
 };
 
+/* We'll only ever have these two, so no need for a macro. */
+static moduledata_t tun_mod = { "if_tun", NULL, 0 };
+static moduledata_t tap_mod = { "if_tap", NULL, 0 };
+
 DECLARE_MODULE(if_tuntap, tuntap_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_tuntap, 1);
+DECLARE_MODULE(if_tun, tun_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_tun, 1);
+DECLARE_MODULE(if_tap, tap_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_tap, 1);
 
 static int
