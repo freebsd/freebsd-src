@@ -230,6 +230,15 @@ static void cxgbe_init(void *);
 static int cxgbe_ioctl(struct ifnet *, unsigned long, caddr_t);
 static int cxgbe_transmit(struct ifnet *, struct mbuf *);
 static void cxgbe_qflush(struct ifnet *);
+#ifdef RATELIMIT
+static int cxgbe_snd_tag_alloc(struct ifnet *, union if_snd_tag_alloc_params *,
+    struct m_snd_tag **);
+static int cxgbe_snd_tag_modify(struct m_snd_tag *,
+    union if_snd_tag_modify_params *);
+static int cxgbe_snd_tag_query(struct m_snd_tag *,
+    union if_snd_tag_query_params *);
+static void cxgbe_snd_tag_free(struct m_snd_tag *);
+#endif
 
 MALLOC_DEFINE(M_CXGBE, "cxgbe", "Chelsio T4/T5 Ethernet driver and services");
 
@@ -2044,11 +2053,18 @@ cxgbe_transmit(struct ifnet *ifp, struct mbuf *m)
 	struct port_info *pi = vi->pi;
 	struct adapter *sc = pi->adapter;
 	struct sge_txq *txq;
+#ifdef RATELIMIT
+	struct cxgbe_snd_tag *cst;
+#endif
 	void *items[1];
 	int rc;
 
 	M_ASSERTPKTHDR(m);
 	MPASS(m->m_nextpkt == NULL);	/* not quite ready for this yet */
+#ifdef RATELIMIT
+	if (m->m_pkthdr.csum_flags & CSUM_SND_TAG)
+		MPASS(m->m_pkthdr.snd_tag->ifp == ifp);
+#endif
 
 	if (__predict_false(pi->link_cfg.link_ok == false)) {
 		m_freem(m);
@@ -2063,8 +2079,9 @@ cxgbe_transmit(struct ifnet *ifp, struct mbuf *m)
 	}
 #ifdef RATELIMIT
 	if (m->m_pkthdr.csum_flags & CSUM_SND_TAG) {
-		MPASS(m->m_pkthdr.snd_tag->ifp == ifp);
-		return (ethofld_transmit(ifp, m));
+		cst = mst_to_cst(m->m_pkthdr.snd_tag);
+		if (cst->type == IF_SND_TAG_TYPE_RATE_LIMIT)
+			return (ethofld_transmit(ifp, m));
 	}
 #endif
 
@@ -2221,6 +2238,87 @@ cxgbe_get_counter(struct ifnet *ifp, ift_counter c)
 		return (if_get_counter_default(ifp, c));
 	}
 }
+
+#ifdef RATELIMIT
+void
+cxgbe_snd_tag_init(struct cxgbe_snd_tag *cst, struct ifnet *ifp, int type)
+{
+
+	m_snd_tag_init(&cst->com, ifp);
+	cst->type = type;
+}
+
+static int
+cxgbe_snd_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
+    struct m_snd_tag **pt)
+{
+	int error;
+
+	switch (params->hdr.type) {
+#ifdef RATELIMIT
+	case IF_SND_TAG_TYPE_RATE_LIMIT:
+		error = cxgbe_rate_tag_alloc(ifp, params, pt);
+		break;
+#endif
+	default:
+		error = EOPNOTSUPP;
+	}
+	if (error == 0)
+		MPASS(mst_to_cst(*pt)->type == params->hdr.type);
+	return (error);
+}
+
+static int
+cxgbe_snd_tag_modify(struct m_snd_tag *mst,
+    union if_snd_tag_modify_params *params)
+{
+	struct cxgbe_snd_tag *cst;
+
+	cst = mst_to_cst(mst);
+	switch (cst->type) {
+#ifdef RATELIMIT
+	case IF_SND_TAG_TYPE_RATE_LIMIT:
+		return (cxgbe_rate_tag_modify(mst, params));
+#endif
+	default:
+		return (EOPNOTSUPP);
+	}
+}
+
+static int
+cxgbe_snd_tag_query(struct m_snd_tag *mst,
+    union if_snd_tag_query_params *params)
+{
+	struct cxgbe_snd_tag *cst;
+
+	cst = mst_to_cst(mst);
+	switch (cst->type) {
+#ifdef RATELIMIT
+	case IF_SND_TAG_TYPE_RATE_LIMIT:
+		return (cxgbe_rate_tag_query(mst, params));
+#endif
+	default:
+		return (EOPNOTSUPP);
+	}
+}
+
+static void
+cxgbe_snd_tag_free(struct m_snd_tag *mst)
+{
+	struct cxgbe_snd_tag *cst;
+
+	cst = mst_to_cst(mst);
+	switch (cst->type) {
+#ifdef RATELIMIT
+	case IF_SND_TAG_TYPE_RATE_LIMIT:
+		cxgbe_rate_tag_free(mst);
+		return;
+#endif
+	default:
+		panic("shouldn't get here");
+	}
+}
+#endif
 
 /*
  * The kernel picks a media from the list we had provided but we still validate
