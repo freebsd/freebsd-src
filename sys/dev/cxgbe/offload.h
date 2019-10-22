@@ -79,7 +79,7 @@ union aopen_entry {
 	union aopen_entry *next;
 };
 
-/* cxgbe_snd_tag flags */
+/* cxgbe_rate_tag flags */
 enum {
 	EO_FLOWC_PENDING	= (1 << 0),	/* flowc needs to be sent */
 	EO_FLOWC_RPL_PENDING	= (1 << 1),	/* flowc credits due back */
@@ -89,6 +89,11 @@ enum {
 
 struct cxgbe_snd_tag {
 	struct m_snd_tag com;
+	int type;
+};
+
+struct cxgbe_rate_tag {
+	struct cxgbe_snd_tag com;
 	struct adapter *adapter;
 	u_int flags;
 	struct mtx lock;
@@ -114,8 +119,14 @@ mst_to_cst(struct m_snd_tag *t)
 	return (__containerof(t, struct cxgbe_snd_tag, com));
 }
 
+static inline struct cxgbe_rate_tag *
+mst_to_crt(struct m_snd_tag *t)
+{
+	return ((struct cxgbe_rate_tag *)mst_to_cst(t));
+}
+
 union etid_entry {
-	struct cxgbe_snd_tag *cst;
+	struct cxgbe_rate_tag *cst;
 	union etid_entry *next;
 };
 
