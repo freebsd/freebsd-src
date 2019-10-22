@@ -403,7 +403,7 @@ ofw_pcibus_parse_associativity(device_t dev, int *domain)
 	OF_getencprop(node, "ibm,associativity",
 		associativity, res);
 
-	*domain = associativity[3] - 1;
+	*domain = associativity[3];
 	if (bootverbose)
 		device_printf(dev, "domain(%d)\n", *domain);
 	return (0);
