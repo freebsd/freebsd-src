@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_output.h>
 #include <netinet/sctp_timer.h>
 #include <netinet/sctp_bsd_addr.h>
-#include <netinet/sctp_dtrace_define.h>
 #if defined(INET) || defined(INET6)
 #include <netinet/udp.h>
 #endif
