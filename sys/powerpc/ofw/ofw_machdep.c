@@ -487,7 +487,7 @@ ofw_numa_mem_regions(struct numa_mem_region *memp, int *memsz)
 		MPASS(count == 1);
 		OF_getencprop(phandle, "ibm,associativity",
 			associativity, res);
-		curmemp->mr_domain = associativity[3] - 1;
+		curmemp->mr_domain = associativity[3];
 		if (bootverbose)
 			printf("%s %#jx-%#jx domain(%ju)\n",
 			    name, (uintmax_t)curmemp->mr_start,
