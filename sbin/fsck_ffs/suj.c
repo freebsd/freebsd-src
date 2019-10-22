@@ -1555,7 +1555,7 @@ ino_trunc(ino_t ino, off_t size)
 		/* If we freed everything in this indirect free the indir. */
 		if (lastlbn > lbn)
 			continue;
-		blk_free(DIP(ip, di_ib[i]), 0, frags);
+		blk_free(DIP(ip, di_ib[i]), 0, fs->fs_frag);
 		DIP_SET(ip, di_ib[i], 0);
 	}
 	ino_dirty(ino);
