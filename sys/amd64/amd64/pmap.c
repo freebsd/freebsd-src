@@ -951,8 +951,16 @@ SYSCTL_LONG(_vm_pmap, OID_AUTO, invl_wait_slow, CTLFLAG_RD, &invl_wait_slow, 0,
 static u_long *
 pmap_delayed_invl_genp(vm_page_t m)
 {
+	vm_paddr_t pa;
+	u_long *gen;
 
-	return (&pa_to_pmdp(VM_PAGE_TO_PHYS(m))->pv_invl_gen);
+	pa = VM_PAGE_TO_PHYS(m);
+	if (__predict_false((pa) > pmap_last_pa))
+		gen = &pv_dummy_large.pv_invl_gen;
+	else
+		gen = &(pa_to_pmdp(pa)->pv_invl_gen);
+
+	return (gen);
 }
 #else
 static u_long *
