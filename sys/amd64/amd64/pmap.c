@@ -322,7 +322,7 @@ pmap_pku_mask_bit(pmap_t pmap)
 	    ("address %lx beyond the last segment", (pa)));	\
 	(pa) >> PDRSHIFT;					\
 })
-#if VM_NRESERVLEVEL > 0
+#ifdef NUMA
 #define	pa_to_pmdp(pa)	(&pv_table[pa_index(pa)])
 #define	pa_to_pvh(pa)	(&(pa_to_pmdp(pa)->pv_page))
 #define	PHYS_TO_PV_LIST_LOCK(pa)	({			\
@@ -422,7 +422,7 @@ static int pmap_initialized;
  */
 static TAILQ_HEAD(pch, pv_chunk) pv_chunks = TAILQ_HEAD_INITIALIZER(pv_chunks);
 static struct mtx __exclusive_cache_line pv_chunks_mutex;
-#if VM_NRESERVLEVEL > 0
+#ifdef	NUMA
 struct pmap_large_md_page {
 	struct rwlock   pv_lock;
 	struct md_page  pv_page;
@@ -947,7 +947,7 @@ SYSCTL_LONG(_vm_pmap, OID_AUTO, invl_wait_slow, CTLFLAG_RD, &invl_wait_slow, 0,
     "Number of slow invalidation waits for lockless DI");
 #endif
 
-#if VM_NRESERVLEVEL > 0
+#ifdef NUMA
 static u_long *
 pmap_delayed_invl_genp(vm_page_t m)
 {
@@ -1850,7 +1850,7 @@ pmap_page_init(vm_page_t m)
 	m->md.pat_mode = PAT_WRITE_BACK;
 }
 
-#if VM_NRESERVLEVEL > 0
+#ifdef NUMA
 static void
 pmap_init_pv_table(void)
 {
