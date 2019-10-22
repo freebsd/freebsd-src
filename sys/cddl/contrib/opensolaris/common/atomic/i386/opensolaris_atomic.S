@@ -126,6 +126,34 @@
 	ret
 	SET_SIZE(atomic_cas_64)
 
+	ENTRY(atomic_swap_64)
+	pushl	%esi
+	pushl	%ebx
+	movl	12(%esp), %esi
+	movl	16(%esp), %ebx
+	movl	20(%esp), %ecx
+	movl	(%esi), %eax
+	movl	4(%esi), %edx	// %edx:%eax = old value
+1:
+	lock
+	cmpxchg8b (%esi)
+	jne	1b
+	popl	%ebx
+	popl	%esi
+	ret
+	SET_SIZE(atomic_swap_64)
+
+	ENTRY(atomic_load_64)
+	pushl	%esi
+	movl	8(%esp), %esi
+	movl	%ebx, %eax	// make old and new values equal, so that
+	movl	%ecx, %edx	// destination is never changed
+	lock
+	cmpxchg8b (%esi)
+	popl	%esi
+	ret
+	SET_SIZE(atomic_load_64)
+
 	ENTRY(membar_producer)
 	lock
 	xorl	$0, (%esp)
