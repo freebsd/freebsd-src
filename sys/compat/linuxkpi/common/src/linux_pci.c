@@ -500,7 +500,7 @@ static void *
 linux_dma_trie_alloc(struct pctrie *ptree)
 {
 
-	return (uma_zalloc(linux_dma_trie_zone, 0));
+	return (uma_zalloc(linux_dma_trie_zone, M_NOWAIT));
 }
 
 static void
@@ -569,7 +569,10 @@ linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len)
 	if (bus_dma_id_mapped(priv->dmat, phys, len))
 		return (phys);
 
-	obj = uma_zalloc(linux_dma_obj_zone, 0);
+	obj = uma_zalloc(linux_dma_obj_zone, M_NOWAIT);
+	if (obj == NULL) {
+		return (0);
+	}
 
 	DMA_PRIV_LOCK(priv);
 	if (bus_dmamap_create(priv->dmat, 0, &obj->dmamap) != 0) {
