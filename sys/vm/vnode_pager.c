@@ -1149,6 +1149,8 @@ vnode_pager_generic_getpages_done(struct buf *bp)
 
 		nextoff = tfoff + PAGE_SIZE;
 		mt = bp->b_pages[i];
+		if (mt == bogus_page)
+			continue;
 
 		if (nextoff <= object->un_pager.vnp.vnp_size) {
 			/*
