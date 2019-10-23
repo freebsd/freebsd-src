@@ -69,6 +69,22 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 #endif
 
+/*
+ * A "big picture" of how IPv6 fragment queues are all linked together.
+ *
+ * struct ip6qbucket ip6qb[...];			hashed buckets
+ * ||||||||
+ * |
+ * +--- TAILQ(struct ip6q, packets) *q6;		tailq entries holding
+ *      ||||||||					fragmented packets
+ *      |						(1 per original packet)
+ *      |
+ *      +--- TAILQ(struct ip6asfrag, ip6q_frags) *af6;	tailq entries of IPv6
+ *           |                                   *ip6af;fragment packets
+ *           |						for one original packet
+ *           + *mbuf
+ */
+
 /* Reassembly headers are stored in hash buckets. */
 #define	IP6REASS_NHASH_LOG2	10
 #define	IP6REASS_NHASH		(1 << IP6REASS_NHASH_LOG2)
@@ -84,10 +100,10 @@ struct ip6qbucket {
 struct ip6asfrag {
 	TAILQ_ENTRY(ip6asfrag) ip6af_tq;
 	struct mbuf	*ip6af_m;
-	int		ip6af_offset;	/* offset in ip6af_m to next header */
-	int		ip6af_frglen;	/* fragmentable part length */
-	int		ip6af_off;	/* fragment offset */
-	bool		ip6af_mff;	/* more fragment bit in frag off */
+	int		ip6af_offset;	/* Offset in ip6af_m to next header. */
+	int		ip6af_frglen;	/* Fragmentable part length. */
+	int		ip6af_off;	/* Fragment offset. */
+	bool		ip6af_mff;	/* More fragment bit in frag off. */
 };
 
 #define IP6_REASS_MBUF(ip6af) (*(struct mbuf **)&((ip6af)->ip6af_m))
@@ -309,7 +325,7 @@ frag6_cleanup(void *arg __unused, struct ifnet *ifp)
 
 				m = IP6_REASS_MBUF(af6);
 
-				/* clear no longer valid rcvif pointer */
+				/* Clear no longer valid rcvif pointer. */
 				if (m->m_pkthdr.rcvif == ifp)
 					m->m_pkthdr.rcvif = NULL;
 			}
@@ -563,6 +579,7 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		IP6QB_UNLOCK(bucket);
 		return (IPPROTO_DONE);
 	}
+
 	/*
 	 * If it is the first fragment, do the above check for each
 	 * fragment already stored in the reassembly queue.
