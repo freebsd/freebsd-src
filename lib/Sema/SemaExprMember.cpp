@@ -629,7 +629,7 @@ public:
   }
 
   std::unique_ptr<CorrectionCandidateCallback> clone() override {
-    return llvm::make_unique<RecordMemberExprValidatorCCC>(*this);
+    return std::make_unique<RecordMemberExprValidatorCCC>(*this);
   }
 
 private:
@@ -934,19 +934,19 @@ static bool IsInFnTryBlockHandler(const Scope *S) {
   return false;
 }
 
-static VarDecl *
-getVarTemplateSpecialization(Sema &S, VarTemplateDecl *VarTempl,
+VarDecl *
+Sema::getVarTemplateSpecialization(VarTemplateDecl *VarTempl,
                       const TemplateArgumentListInfo *TemplateArgs,
                       const DeclarationNameInfo &MemberNameInfo,
                       SourceLocation TemplateKWLoc) {
   if (!TemplateArgs) {
-    S.diagnoseMissingTemplateArguments(TemplateName(VarTempl),
-                                       MemberNameInfo.getBeginLoc());
+    diagnoseMissingTemplateArguments(TemplateName(VarTempl),
+                                     MemberNameInfo.getBeginLoc());
     return nullptr;
   }
 
-  DeclResult VDecl = S.CheckVarTemplateId(
-      VarTempl, TemplateKWLoc, MemberNameInfo.getLoc(), *TemplateArgs);
+  DeclResult VDecl = CheckVarTemplateId(VarTempl, TemplateKWLoc,
+                                        MemberNameInfo.getLoc(), *TemplateArgs);
   if (VDecl.isInvalid())
     return nullptr;
   VarDecl *Var = cast<VarDecl>(VDecl.get());
@@ -1006,7 +1006,7 @@ Sema::BuildMemberReferenceExpr(Expr *BaseExpr, QualType BaseExprType,
     // Rederive where we looked up.
     DeclContext *DC = (SS.isSet()
                        ? computeDeclContext(SS, false)
-                       : BaseType->getAs<RecordType>()->getDecl());
+                       : BaseType->castAs<RecordType>()->getDecl());
 
     if (ExtraArgs) {
       ExprResult RetryExpr;
@@ -1095,7 +1095,7 @@ Sema::BuildMemberReferenceExpr(Expr *BaseExpr, QualType BaseExprType,
              "How did we get template arguments here sans a variable template");
       if (isa<VarTemplateDecl>(MemberDecl)) {
         MemberDecl = getVarTemplateSpecialization(
-            *this, cast<VarTemplateDecl>(MemberDecl), TemplateArgs,
+            cast<VarTemplateDecl>(MemberDecl), TemplateArgs,
             R.getLookupNameInfo(), TemplateKWLoc);
         if (!MemberDecl)
           return ExprError();
@@ -1160,7 +1160,7 @@ Sema::BuildMemberReferenceExpr(Expr *BaseExpr, QualType BaseExprType,
   }
   if (VarTemplateDecl *VarTempl = dyn_cast<VarTemplateDecl>(MemberDecl)) {
     if (VarDecl *Var = getVarTemplateSpecialization(
-            *this, VarTempl, TemplateArgs, MemberNameInfo, TemplateKWLoc))
+            VarTempl, TemplateArgs, MemberNameInfo, TemplateKWLoc))
       return BuildMemberExpr(
           BaseExpr, IsArrow, OpLoc, &SS, TemplateKWLoc, Var, FoundDecl,
           /*HadMultipleCandidates=*/false, MemberNameInfo,

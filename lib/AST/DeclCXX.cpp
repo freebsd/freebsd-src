@@ -95,14 +95,16 @@ CXXRecordDecl::DefinitionData::DefinitionData(CXXRecordDecl *D)
       HasDefaultedDefaultConstructor(false),
       DefaultedDefaultConstructorIsConstexpr(true),
       HasConstexprDefaultConstructor(false),
-      HasNonLiteralTypeFieldsOrBases(false), ComputedVisibleConversions(false),
+      DefaultedDestructorIsConstexpr(true),
+      HasNonLiteralTypeFieldsOrBases(false),
       UserProvidedDefaultConstructor(false), DeclaredSpecialMembers(0),
       ImplicitCopyConstructorCanHaveConstParamForVBase(true),
       ImplicitCopyConstructorCanHaveConstParamForNonVBase(true),
       ImplicitCopyAssignmentHasConstParam(true),
       HasDeclaredCopyConstructorWithConstParam(false),
       HasDeclaredCopyAssignmentWithConstParam(false), IsLambda(false),
-      IsParsingBaseSpecifiers(false), HasODRHash(false), Definition(D) {}
+      IsParsingBaseSpecifiers(false), ComputedVisibleConversions(false),
+      HasODRHash(false), Definition(D) {}
 
 CXXBaseSpecifier *CXXRecordDecl::DefinitionData::getBasesSlowCase() const {
   return Bases.get(Definition->getASTContext().getExternalSource());
@@ -217,7 +219,7 @@ CXXRecordDecl::setBases(CXXBaseSpecifier const * const *Bases,
     if (BaseType->isDependentType())
       continue;
     auto *BaseClassDecl =
-        cast<CXXRecordDecl>(BaseType->getAs<RecordType>()->getDecl());
+        cast<CXXRecordDecl>(BaseType->castAs<RecordType>()->getDecl());
 
     // C++2a [class]p7:
     //   A standard-layout class is a class that:
@@ -325,10 +327,12 @@ CXXRecordDecl::setBases(CXXBaseSpecifier const * const *Bases,
       data().IsStandardLayout = false;
       data().IsCXX11StandardLayout = false;
 
-      // C++11 [dcl.constexpr]p4:
-      //   In the definition of a constexpr constructor [...]
-      //    -- the class shall not have any virtual base classes
+      // C++20 [dcl.constexpr]p3:
+      //   In the definition of a constexpr function [...]
+      //    -- if the function is a constructor or destructor,
+      //       its class shall not have any virtual base classes
       data().DefaultedDefaultConstructorIsConstexpr = false;
+      data().DefaultedDestructorIsConstexpr = false;
 
       // C++1z [class.copy]p8:
       //   The implicitly-declared copy constructor for a class X will have
@@ -520,6 +524,19 @@ void CXXRecordDecl::addedClassSubobject(CXXRecordDecl *Subobj) {
     data().NeedOverloadResolutionForMoveConstructor = true;
     data().NeedOverloadResolutionForDestructor = true;
   }
+
+  // C++2a [dcl.constexpr]p4:
+  //   The definition of a constexpr destructor [shall] satisfy the
+  //   following requirement:
+  //   -- for every subobject of class type or (possibly multi-dimensional)
+  //      array thereof, that class type shall have a constexpr destructor
+  if (!Subobj->hasConstexprDestructor())
+    data().DefaultedDestructorIsConstexpr = false;
+}
+
+bool CXXRecordDecl::hasConstexprDestructor() const {
+  auto *Dtor = getDestructor();
+  return Dtor ? Dtor->isConstexpr() : defaultedDestructorIsConstexpr();
 }
 
 bool CXXRecordDecl::hasAnyDependentBases() const {
@@ -1263,7 +1280,8 @@ void CXXRecordDecl::addedMember(Decl *D) {
     } else {
       // Base element type of field is a non-class type.
       if (!T->isLiteralType(Context) ||
-          (!Field->hasInClassInitializer() && !isUnion()))
+          (!Field->hasInClassInitializer() && !isUnion() &&
+           !Context.getLangOpts().CPlusPlus2a))
         data().DefaultedDefaultConstructorIsConstexpr = false;
 
       // C++11 [class.copy]p23:
@@ -1382,17 +1400,29 @@ static bool allLookupResultsAreTheSame(const DeclContext::lookup_result &R) {
 }
 #endif
 
-CXXMethodDecl* CXXRecordDecl::getLambdaCallOperator() const {
-  if (!isLambda()) return nullptr;
+static NamedDecl* getLambdaCallOperatorHelper(const CXXRecordDecl &RD) {
+  if (!RD.isLambda()) return nullptr;
   DeclarationName Name =
-    getASTContext().DeclarationNames.getCXXOperatorName(OO_Call);
-  DeclContext::lookup_result Calls = lookup(Name);
+    RD.getASTContext().DeclarationNames.getCXXOperatorName(OO_Call);
+  DeclContext::lookup_result Calls = RD.lookup(Name);
 
   assert(!Calls.empty() && "Missing lambda call operator!");
   assert(allLookupResultsAreTheSame(Calls) &&
          "More than one lambda call operator!");
+  return Calls.front();
+}
 
-  NamedDecl *CallOp = Calls.front();
+FunctionTemplateDecl* CXXRecordDecl::getDependentLambdaCallOperator() const {
+  NamedDecl *CallOp = getLambdaCallOperatorHelper(*this);
+  return  dyn_cast_or_null<FunctionTemplateDecl>(CallOp);
+}
+
+CXXMethodDecl *CXXRecordDecl::getLambdaCallOperator() const {
+  NamedDecl *CallOp = getLambdaCallOperatorHelper(*this);
+
+  if (CallOp == nullptr)
+    return nullptr;
+
   if (const auto *CallOpTmpl = dyn_cast<FunctionTemplateDecl>(CallOp))
     return cast<CXXMethodDecl>(CallOpTmpl->getTemplatedDecl());
 
@@ -1880,7 +1910,7 @@ bool CXXRecordDecl::mayBeAbstract() const {
 
   for (const auto &B : bases()) {
     const auto *BaseDecl =
-        cast<CXXRecordDecl>(B.getType()->getAs<RecordType>()->getDecl());
+        cast<CXXRecordDecl>(B.getType()->castAs<RecordType>()->getDecl());
     if (BaseDecl->isAbstract())
       return true;
   }
@@ -2067,10 +2097,15 @@ CXXMethodDecl *CXXMethodDecl::getDevirtualizedMethod(const Expr *Base,
   if (DevirtualizedMethod->hasAttr<FinalAttr>())
     return DevirtualizedMethod;
 
-  // Similarly, if the class itself is marked 'final' it can't be overridden
-  // and we can therefore devirtualize the member function call.
+  // Similarly, if the class itself or its destructor is marked 'final',
+  // the class can't be derived from and we can therefore devirtualize the 
+  // member function call.
   if (BestDynamicDecl->hasAttr<FinalAttr>())
     return DevirtualizedMethod;
+  if (const auto *dtor = BestDynamicDecl->getDestructor()) {
+    if (dtor->hasAttr<FinalAttr>())
+      return DevirtualizedMethod;
+  }
 
   if (const auto *DRE = dyn_cast<DeclRefExpr>(Base)) {
     if (const auto *VD = dyn_cast<VarDecl>(DRE->getDecl()))
@@ -2532,7 +2567,7 @@ bool CXXConstructorDecl::isConvertingConstructor(bool AllowExplicit) const {
     return false;
 
   return (getNumParams() == 0 &&
-          getType()->getAs<FunctionProtoType>()->isVariadic()) ||
+          getType()->castAs<FunctionProtoType>()->isVariadic()) ||
          (getNumParams() == 1) ||
          (getNumParams() > 1 &&
           (getParamDecl(1)->hasDefaultArg() ||
@@ -2565,20 +2600,19 @@ CXXDestructorDecl *
 CXXDestructorDecl::CreateDeserialized(ASTContext &C, unsigned ID) {
   return new (C, ID)
       CXXDestructorDecl(C, nullptr, SourceLocation(), DeclarationNameInfo(),
-                        QualType(), nullptr, false, false);
+                        QualType(), nullptr, false, false, CSK_unspecified);
 }
 
-CXXDestructorDecl *
-CXXDestructorDecl::Create(ASTContext &C, CXXRecordDecl *RD,
-                          SourceLocation StartLoc,
-                          const DeclarationNameInfo &NameInfo,
-                          QualType T, TypeSourceInfo *TInfo,
-                          bool isInline, bool isImplicitlyDeclared) {
+CXXDestructorDecl *CXXDestructorDecl::Create(
+    ASTContext &C, CXXRecordDecl *RD, SourceLocation StartLoc,
+    const DeclarationNameInfo &NameInfo, QualType T, TypeSourceInfo *TInfo,
+    bool isInline, bool isImplicitlyDeclared, ConstexprSpecKind ConstexprKind) {
   assert(NameInfo.getName().getNameKind()
          == DeclarationName::CXXDestructorName &&
          "Name must refer to a destructor");
-  return new (C, RD) CXXDestructorDecl(C, RD, StartLoc, NameInfo, T, TInfo,
-                                       isInline, isImplicitlyDeclared);
+  return new (C, RD)
+      CXXDestructorDecl(C, RD, StartLoc, NameInfo, T, TInfo, isInline,
+                        isImplicitlyDeclared, ConstexprKind);
 }
 
 void CXXDestructorDecl::setOperatorDelete(FunctionDecl *OD, Expr *ThisArg) {

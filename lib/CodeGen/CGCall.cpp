@@ -903,7 +903,7 @@ struct NoExpansion : TypeExpansion {
 static std::unique_ptr<TypeExpansion>
 getTypeExpansion(QualType Ty, const ASTContext &Context) {
   if (const ConstantArrayType *AT = Context.getAsConstantArrayType(Ty)) {
-    return llvm::make_unique<ConstantArrayExpansion>(
+    return std::make_unique<ConstantArrayExpansion>(
         AT->getElementType(), AT->getSize().getZExtValue());
   }
   if (const RecordType *RT = Ty->getAs<RecordType>()) {
@@ -947,13 +947,13 @@ getTypeExpansion(QualType Ty, const ASTContext &Context) {
         Fields.push_back(FD);
       }
     }
-    return llvm::make_unique<RecordExpansion>(std::move(Bases),
+    return std::make_unique<RecordExpansion>(std::move(Bases),
                                               std::move(Fields));
   }
   if (const ComplexType *CT = Ty->getAs<ComplexType>()) {
-    return llvm::make_unique<ComplexExpansion>(CT->getElementType());
+    return std::make_unique<ComplexExpansion>(CT->getElementType());
   }
-  return llvm::make_unique<NoExpansion>();
+  return std::make_unique<NoExpansion>();
 }
 
 static int getExpansionSize(QualType Ty, const ASTContext &Context) {
@@ -1713,16 +1713,19 @@ void CodeGenModule::ConstructDefaultFnAttrList(StringRef Name, bool HasOptnone,
     if (!CodeGenOpts.TrapFuncName.empty())
       FuncAttrs.addAttribute("trap-func-name", CodeGenOpts.TrapFuncName);
   } else {
-    // Attributes that should go on the function, but not the call site.
-    if (!CodeGenOpts.DisableFPElim) {
-      FuncAttrs.addAttribute("no-frame-pointer-elim", "false");
-    } else if (CodeGenOpts.OmitLeafFramePointer) {
-      FuncAttrs.addAttribute("no-frame-pointer-elim", "false");
-      FuncAttrs.addAttribute("no-frame-pointer-elim-non-leaf");
-    } else {
-      FuncAttrs.addAttribute("no-frame-pointer-elim", "true");
-      FuncAttrs.addAttribute("no-frame-pointer-elim-non-leaf");
+    StringRef FpKind;
+    switch (CodeGenOpts.getFramePointer()) {
+    case CodeGenOptions::FramePointerKind::None:
+      FpKind = "none";
+      break;
+    case CodeGenOptions::FramePointerKind::NonLeaf:
+      FpKind = "non-leaf";
+      break;
+    case CodeGenOptions::FramePointerKind::All:
+      FpKind = "all";
+      break;
     }
+    FuncAttrs.addAttribute("frame-pointer", FpKind);
 
     FuncAttrs.addAttribute("less-precise-fpmad",
                            llvm::toStringRef(CodeGenOpts.LessPreciseFPMAD));
@@ -2123,8 +2126,8 @@ void CodeGenModule::ConstructAttributeList(
       if (!PTy->isIncompleteType() && PTy->isConstantSizeType()) {
         auto info = getContext().getTypeInfoInChars(PTy);
         Attrs.addDereferenceableAttr(info.first.getQuantity());
-        Attrs.addAttribute(llvm::Attribute::getWithAlignment(getLLVMContext(),
-                                                 info.second.getQuantity()));
+        Attrs.addAttribute(llvm::Attribute::getWithAlignment(
+            getLLVMContext(), info.second.getAsAlign()));
       }
       break;
     }
@@ -3089,8 +3092,8 @@ void CodeGenFunction::EmitDelegateCallArg(CallArgList &args,
 
   // Deactivate the cleanup for the callee-destructed param that was pushed.
   if (hasAggregateEvaluationKind(type) && !CurFuncIsThunk &&
-      type->getAs<RecordType>()->getDecl()->isParamDestroyedInCallee() &&
-      type.isDestructedType()) {
+      type->castAs<RecordType>()->getDecl()->isParamDestroyedInCallee() &&
+      param->needsDestruction(getContext())) {
     EHScopeStack::stable_iterator cleanup =
         CalleeDestructedParamCleanups.lookup(cast<ParmVarDecl>(param));
     assert(cleanup.isValid() &&
@@ -3574,7 +3577,7 @@ void CodeGenFunction::EmitCallArg(CallArgList &args, const Expr *E,
   // However, we still have to push an EH-only cleanup in case we unwind before
   // we make it to the call.
   if (HasAggregateEvalKind &&
-      type->getAs<RecordType>()->getDecl()->isParamDestroyedInCallee()) {
+      type->castAs<RecordType>()->getDecl()->isParamDestroyedInCallee()) {
     // If we're using inalloca, use the argument memory.  Otherwise, use a
     // temporary.
     AggValueSlot Slot;
@@ -3838,7 +3841,7 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
       AI = CreateTempAlloca(ArgStruct, "argmem");
     }
     auto Align = CallInfo.getArgStructAlignment();
-    AI->setAlignment(Align.getQuantity());
+    AI->setAlignment(Align.getAsAlign());
     AI->setUsedWithInAlloca(true);
     assert(AI->isUsedWithInAlloca() && !AI->isStaticAlloca());
     ArgMemory = Address(AI, Align);
@@ -3874,6 +3877,11 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
 
   Address swiftErrorTemp = Address::invalid();
   Address swiftErrorArg = Address::invalid();
+
+  // When passing arguments using temporary allocas, we need to add the
+  // appropriate lifetime markers. This vector keeps track of all the lifetime
+  // markers that need to be ended right after the call.
+  SmallVector<CallLifetimeEnd, 2> CallLifetimeEndAfterCall;
 
   // Translate all of the arguments as necessary to match the IR lowering.
   assert(CallInfo.arg_size() == CallArgs.size() &&
@@ -3991,6 +3999,18 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
           Address AI = CreateMemTempWithoutCast(
               I->Ty, ArgInfo.getIndirectAlign(), "byval-temp");
           IRCallArgs[FirstIRArg] = AI.getPointer();
+
+          // Emit lifetime markers for the temporary alloca.
+          uint64_t ByvalTempElementSize =
+              CGM.getDataLayout().getTypeAllocSize(AI.getElementType());
+          llvm::Value *LifetimeSize =
+              EmitLifetimeStart(ByvalTempElementSize, AI.getPointer());
+
+          // Add cleanup code to emit the end lifetime marker after the call.
+          if (LifetimeSize) // In case we disabled lifetime markers.
+            CallLifetimeEndAfterCall.emplace_back(AI, LifetimeSize);
+
+          // Generate the copy.
           I->copyInto(*this, AI);
         } else {
           // Skip the extra memcpy call.
@@ -4129,11 +4149,12 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
         auto scalarAlign = CGM.getDataLayout().getPrefTypeAlignment(scalarType);
 
         // Materialize to a temporary.
-        addr = CreateTempAlloca(RV.getScalarVal()->getType(),
-                                CharUnits::fromQuantity(std::max(
-                                    layout->getAlignment(), scalarAlign)),
-                                "tmp",
-                                /*ArraySize=*/nullptr, &AllocaAddr);
+        addr = CreateTempAlloca(
+            RV.getScalarVal()->getType(),
+            CharUnits::fromQuantity(std::max(
+                (unsigned)layout->getAlignment().value(), scalarAlign)),
+            "tmp",
+            /*ArraySize=*/nullptr, &AllocaAddr);
         tempSize = EmitLifetimeStart(scalarSize, AllocaAddr.getPointer());
 
         Builder.CreateStore(RV.getScalarVal(), addr);
@@ -4273,8 +4294,8 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
   // Update the largest vector width if any arguments have vector types.
   for (unsigned i = 0; i < IRCallArgs.size(); ++i) {
     if (auto *VT = dyn_cast<llvm::VectorType>(IRCallArgs[i]->getType()))
-      LargestVectorWidth = std::max(LargestVectorWidth,
-                                    VT->getPrimitiveSizeInBits());
+      LargestVectorWidth = std::max((uint64_t)LargestVectorWidth,
+                                   VT->getPrimitiveSizeInBits().getFixedSize());
   }
 
   // Compute the calling convention and attributes.
@@ -4357,8 +4378,8 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
 
   // Update largest vector width from the return type.
   if (auto *VT = dyn_cast<llvm::VectorType>(CI->getType()))
-    LargestVectorWidth = std::max(LargestVectorWidth,
-                                  VT->getPrimitiveSizeInBits());
+    LargestVectorWidth = std::max((uint64_t)LargestVectorWidth,
+                                  VT->getPrimitiveSizeInBits().getFixedSize());
 
   // Insert instrumentation or attach profile metadata at indirect call sites.
   // For more details, see the comment before the definition of
@@ -4548,7 +4569,7 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
       llvm::Value *Alignment = EmitScalarExpr(AA->getAlignment());
       llvm::ConstantInt *AlignmentCI = cast<llvm::ConstantInt>(Alignment);
       EmitAlignmentAssumption(Ret.getScalarVal(), RetTy, Loc, AA->getLocation(),
-                              AlignmentCI->getZExtValue(), OffsetValue);
+                              AlignmentCI, OffsetValue);
     } else if (const auto *AA = TargetDecl->getAttr<AllocAlignAttr>()) {
       llvm::Value *AlignmentVal = CallArgs[AA->getParamIndex().getLLVMIndex()]
                                       .getRValue(*this)
@@ -4557,6 +4578,11 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
                               AlignmentVal);
     }
   }
+
+  // Explicitly call CallLifetimeEnd::Emit just to re-use the code even though
+  // we can't use the full cleanup mechanism.
+  for (CallLifetimeEnd &LifetimeEnd : CallLifetimeEndAfterCall)
+    LifetimeEnd.Emit(*this, /*Flags=*/{});
 
   return Ret;
 }

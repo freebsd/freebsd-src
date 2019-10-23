@@ -136,13 +136,17 @@ private:
   mutable std::unique_ptr<Tool> Clang;
   mutable std::unique_ptr<Tool> Assemble;
   mutable std::unique_ptr<Tool> Link;
+  mutable std::unique_ptr<Tool> IfsMerge;
   mutable std::unique_ptr<Tool> OffloadBundler;
+  mutable std::unique_ptr<Tool> OffloadWrapper;
 
   Tool *getClang() const;
   Tool *getAssemble() const;
   Tool *getLink() const;
+  Tool *getIfsMerge() const;
   Tool *getClangAs() const;
   Tool *getOffloadBundler() const;
+  Tool *getOffloadWrapper() const;
 
   mutable std::unique_ptr<SanitizerArgs> SanitizerArguments;
   mutable std::unique_ptr<XRayArgs> XRayArguments;
@@ -541,6 +545,11 @@ public:
   virtual void
   AddClangCXXStdlibIncludeArgs(const llvm::opt::ArgList &DriverArgs,
                                llvm::opt::ArgStringList &CC1Args) const;
+
+  /// AddClangCXXStdlibIsystemArgs - Add the clang -cc1 level arguments to set
+  /// the specified include paths for the C++ standard library.
+  void AddClangCXXStdlibIsystemArgs(const llvm::opt::ArgList &DriverArgs,
+                                    llvm::opt::ArgStringList &CC1Args) const;
 
   /// Returns if the C++ standard library should be linked in.
   /// Note that e.g. -lm should still be linked even if this returns false.

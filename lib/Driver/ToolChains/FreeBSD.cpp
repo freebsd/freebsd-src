@@ -112,7 +112,7 @@ void freebsd::Assembler::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back(II.getFilename());
 
   const char *Exec = Args.MakeArgString(getToolChain().GetProgramPath("as"));
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
 }
 
 void freebsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
@@ -197,6 +197,14 @@ void freebsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     else
       CmdArgs.push_back("elf64ltsmip_fbsd");
     break;
+  case llvm::Triple::riscv32:
+    CmdArgs.push_back("-m");
+    CmdArgs.push_back("elf32lriscv");
+    break;
+  case llvm::Triple::riscv64:
+    CmdArgs.push_back("-m");
+    CmdArgs.push_back("elf64lriscv");
+    break;
   default:
     break;
   }
@@ -262,7 +270,11 @@ void freebsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   AddLinkerInputs(ToolChain, Inputs, Args, CmdArgs, JA);
 
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nodefaultlibs)) {
-    addOpenMPRuntime(CmdArgs, ToolChain, Args);
+    // Use the static OpenMP runtime with -static-openmp
+    bool StaticOpenMP = Args.hasArg(options::OPT_static_openmp) &&
+                        !Args.hasArg(options::OPT_static);
+    addOpenMPRuntime(CmdArgs, ToolChain, Args, StaticOpenMP);
+
     if (D.CCCIsCXX()) {
       if (ToolChain.ShouldLinkCXXStdlib(Args))
         ToolChain.AddCXXStdlibLibArgs(Args, CmdArgs);
@@ -331,7 +343,7 @@ void freebsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   ToolChain.addProfileRTLibs(Args, CmdArgs);
 
   const char *Exec = Args.MakeArgString(getToolChain().GetLinkerPath());
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
 }
 
 /// FreeBSD - FreeBSD tool chain which can call as(1) and ld(1) directly.
@@ -354,6 +366,12 @@ ToolChain::CXXStdlibType FreeBSD::GetDefaultCXXStdlibType() const {
   if (getTriple().getOSMajorVersion() >= 10)
     return ToolChain::CST_Libcxx;
   return ToolChain::CST_Libstdcxx;
+}
+
+unsigned FreeBSD::GetDefaultDwarfVersion() const {
+  if (getTriple().getOSMajorVersion() < 12)
+    return 2;
+  return 4;
 }
 
 void FreeBSD::addLibStdCxxIncludePaths(

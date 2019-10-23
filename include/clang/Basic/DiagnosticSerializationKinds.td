@@ -18,13 +18,16 @@ def err_fe_pch_malformed : Error<
 def err_fe_pch_malformed_block : Error<
     "malformed block record in PCH file: '%0'">, DefaultFatal;
 def err_fe_pch_file_modified : Error<
-    "file '%0' has been modified since the precompiled header '%1' was built">,
+    "file '%0' has been modified since the precompiled header '%1' was built"
+    ": %select{size|mtime|content}2 changed">,
     DefaultFatal;
 def err_fe_module_file_modified : Error<
-    "file '%0' has been modified since the module file '%1' was built">,
+    "file '%0' has been modified since the module file '%1' was built"
+    ": %select{size|mtime|content}2 changed">,
     DefaultFatal;
 def err_fe_ast_file_modified : Error<
-    "file '%0' has been modified since the AST file '%1' was built">,
+    "file '%0' has been modified since the AST file '%1' was built"
+    ": %select{size|mtime|content}2 changed">,
     DefaultFatal;
 def err_fe_pch_file_overridden : Error<
     "file '%0' from the precompiled header has been overridden">;
@@ -77,13 +80,13 @@ def remark_module_import : Remark<
   InGroup<ModuleImport>;
 
 def err_imported_module_not_found : Error<
-    "module '%0' in AST file '%1' (imported by AST file '%2') "
+    "module '%0' in AST file '%1' %select{(imported by AST file '%2') |}4"
     "is not defined in any loaded module map file; "
     "maybe you need to load '%3'?">, DefaultFatal;
 def note_imported_by_pch_module_not_found : Note<
     "consider adding '%0' to the header search path">;
 def err_imported_module_modmap_changed : Error<
-    "module '%0' imported by AST file '%1' found in a different module map file"
+    "module '%0' %select{in|imported by}4 AST file '%1' found in a different module map file"
     " (%2) than when the importing AST file was built (%3)">, DefaultFatal;
 def err_imported_module_relocated : Error<
     "module '%0' was built in directory '%1' but now resides in "
@@ -399,6 +402,8 @@ def warn_module_uses_date_time : Warning<
 def err_module_no_size_mtime_for_header : Error<
   "cannot emit module %0: %select{size|mtime}1 must be explicitly specified "
   "for missing header file \"%2\"">;
+def err_module_unable_to_hash_content : Error<
+  "failed to hash content for '%0' because memory buffer cannot be retrieved">;
 } // let CategoryName
 } // let Component
 

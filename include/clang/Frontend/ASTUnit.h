@@ -315,7 +315,7 @@ public:
 
   CodeCompletionTUInfo &getCodeCompletionTUInfo() {
     if (!CCTUInfo)
-      CCTUInfo = llvm::make_unique<CodeCompletionTUInfo>(
+      CCTUInfo = std::make_unique<CodeCompletionTUInfo>(
           std::make_shared<GlobalCodeCompletionAllocator>());
     return *CCTUInfo;
   }
@@ -390,7 +390,7 @@ private:
   /// just about any usage.
   /// Becomes a noop in release mode; only useful for debug mode checking.
   class ConcurrencyState {
-    void *Mutex; // a llvm::sys::MutexImpl in debug;
+    void *Mutex; // a std::recursive_mutex in debug;
 
   public:
     ConcurrencyState();
@@ -832,6 +832,7 @@ public:
           SkipFunctionBodiesScope::None,
       bool SingleFileParse = false, bool UserFilesAreVolatile = false,
       bool ForSerialization = false,
+      bool RetainExcludedConditionalBlocks = false,
       llvm::Optional<StringRef> ModuleFormat = llvm::None,
       std::unique_ptr<ASTUnit> *ErrAST = nullptr,
       IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS = nullptr);

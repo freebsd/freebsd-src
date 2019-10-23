@@ -13,6 +13,7 @@
 
 #include "clang/Driver/Driver.h"
 #include "clang/Basic/DiagnosticOptions.h"
+#include "clang/Basic/Stack.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/Options.h"
@@ -270,10 +271,9 @@ static void FixupDiagPrefixExeName(TextDiagnosticPrinter *DiagClient,
 static DiagnosticOptions *
 CreateAndPopulateDiagOpts(ArrayRef<const char *> argv) {
   auto *DiagOpts = new DiagnosticOptions;
-  std::unique_ptr<OptTable> Opts(createDriverOptTable());
   unsigned MissingArgIndex, MissingArgCount;
-  InputArgList Args =
-      Opts->ParseArgs(argv.slice(1), MissingArgIndex, MissingArgCount);
+  InputArgList Args = getDriverOptTable().ParseArgs(
+      argv.slice(1), MissingArgIndex, MissingArgCount);
   // We ignore MissingArgCount and the return value of ParseDiagnosticArgs.
   // Any errors that would be diagnosed here will also be diagnosed later,
   // when the DiagnosticsEngine actually exists.
@@ -319,6 +319,7 @@ static int ExecuteCC1Tool(ArrayRef<const char *> argv, StringRef Tool) {
 }
 
 int main(int argc_, const char **argv_) {
+  noteBottomOfStack();
   llvm::InitLLVM X(argc_, argv_);
   SmallVector<const char *, 256> argv(argv_, argv_ + argc_);
 
@@ -498,6 +499,7 @@ int main(int argc_, const char **argv_) {
   // If any timers were active but haven't been destroyed yet, print their
   // results now.  This happens in -disable-free mode.
   llvm::TimerGroup::printAll(llvm::errs());
+  llvm::TimerGroup::clearAll();
 
 #ifdef _WIN32
   // Exit status should not be negative on Win32, unless abnormal termination.

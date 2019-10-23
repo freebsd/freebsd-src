@@ -310,6 +310,14 @@ public:
   void printQualifiedName(raw_ostream &OS) const;
   void printQualifiedName(raw_ostream &OS, const PrintingPolicy &Policy) const;
 
+  /// Print only the nested name specifier part of a fully-qualified name,
+  /// including the '::' at the end. E.g.
+  ///    when `printQualifiedName(D)` prints "A::B::i",
+  ///    this function prints "A::B::".
+  void printNestedNameSpecifier(raw_ostream &OS) const;
+  void printNestedNameSpecifier(raw_ostream &OS,
+                                const PrintingPolicy &Policy) const;
+
   // FIXME: Remove string version.
   std::string getQualifiedNameAsString() const;
 
@@ -800,12 +808,19 @@ struct EvaluatedStmt {
   /// valid if CheckedICE is true.
   bool IsICE : 1;
 
+  /// Whether this variable is known to have constant destruction. That is,
+  /// whether running the destructor on the initial value is a side-effect
+  /// (and doesn't inspect any state that might have changed during program
+  /// execution). This is currently only computed if the destructor is
+  /// non-trivial.
+  bool HasConstantDestruction : 1;
+
   Stmt *Value;
   APValue Evaluated;
 
-  EvaluatedStmt() : WasEvaluated(false), IsEvaluating(false), CheckedICE(false),
-                    CheckingICE(false), IsICE(false) {}
-
+  EvaluatedStmt()
+      : WasEvaluated(false), IsEvaluating(false), CheckedICE(false),
+        CheckingICE(false), IsICE(false), HasConstantDestruction(false) {}
 };
 
 /// Represents a variable declaration or definition.
@@ -1226,6 +1241,14 @@ public:
 
   void setInit(Expr *I);
 
+  /// Get the initializing declaration of this variable, if any. This is
+  /// usually the definition, except that for a static data member it can be
+  /// the in-class declaration.
+  VarDecl *getInitializingDeclaration();
+  const VarDecl *getInitializingDeclaration() const {
+    return const_cast<VarDecl *>(this)->getInitializingDeclaration();
+  }
+
   /// Determine whether this variable's value might be usable in a
   /// constant expression, according to the relevant language standard.
   /// This only checks properties of the declaration, and does not check
@@ -1250,6 +1273,14 @@ public:
   /// initializer, or NULL if the value is not yet known. Returns pointer
   /// to untyped APValue if the value could not be evaluated.
   APValue *getEvaluatedValue() const;
+
+  /// Evaluate the destruction of this variable to determine if it constitutes
+  /// constant destruction.
+  ///
+  /// \pre isInitICE()
+  /// \return \c true if this variable has constant destruction, \c false if
+  ///         not.
+  bool evaluateDestruction(SmallVectorImpl<PartialDiagnosticAt> &Notes) const;
 
   /// Determines whether it is already known whether the
   /// initializer is an integral constant expression or not.
@@ -1489,8 +1520,13 @@ public:
   // has no definition within this source file.
   bool isKnownToBeDefined() const;
 
-  /// Do we need to emit an exit-time destructor for this variable?
+  /// Is destruction of this variable entirely suppressed? If so, the variable
+  /// need not have a usable destructor at all.
   bool isNoDestroy(const ASTContext &) const;
+
+  /// Do we need to emit an exit-time destructor for this variable, and if so,
+  /// what kind?
+  QualType::DestructionKind needsDestruction(const ASTContext &Ctx) const;
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
@@ -4078,13 +4114,9 @@ public:
   void setCaptures(ASTContext &Context, ArrayRef<Capture> Captures,
                    bool CapturesCXXThis);
 
-   unsigned getBlockManglingNumber() const {
-     return ManglingNumber;
-   }
+  unsigned getBlockManglingNumber() const { return ManglingNumber; }
 
-   Decl *getBlockManglingContextDecl() const {
-     return ManglingContextDecl;
-   }
+  Decl *getBlockManglingContextDecl() const { return ManglingContextDecl; }
 
   void setBlockMangling(unsigned Number, Decl *Ctx) {
     ManglingNumber = Number;

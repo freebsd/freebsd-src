@@ -386,7 +386,9 @@ public:
       ArrayRef<llvm::Function *> CXXThreadLocalInits,
       ArrayRef<const VarDecl *> CXXThreadLocalInitVars) override;
 
-  bool usesThreadWrapperFunction() const override { return false; }
+  bool usesThreadWrapperFunction(const VarDecl *VD) const override {
+    return false;
+  }
   LValue EmitThreadLocalVarDeclLValue(CodeGenFunction &CGF, const VarDecl *VD,
                                       QualType LValType) override;
 
@@ -1208,7 +1210,7 @@ static bool hasDefaultCXXMethodCC(ASTContext &Context,
   CallingConv ExpectedCallingConv = Context.getDefaultCallingConvention(
       /*IsVariadic=*/false, /*IsCXXMethod=*/true);
   CallingConv ActualCallingConv =
-      MD->getType()->getAs<FunctionProtoType>()->getCallConv();
+      MD->getType()->castAs<FunctionProtoType>()->getCallConv();
   return ExpectedCallingConv == ActualCallingConv;
 }
 
@@ -1921,10 +1923,11 @@ llvm::Value *MicrosoftCXXABI::EmitVirtualDestructorCall(
       DtorType == Dtor_Deleting);
 
   QualType ThisTy;
-  if (CE)
-    ThisTy = CE->getImplicitObjectArgument()->getType()->getPointeeType();
-  else
+  if (CE) {
+    ThisTy = CE->getObjectType();
+  } else {
     ThisTy = D->getDestroyedType();
+  }
 
   This = adjustThisArgumentForVirtualFunctionCall(CGF, GD, This, true);
   RValue RV = CGF.EmitCXXDestructorCall(GD, Callee, This.getPointer(), ThisTy,
@@ -2352,7 +2355,7 @@ static ConstantAddress getInitThreadEpochPtr(CodeGenModule &CGM) {
       /*isConstant=*/false, llvm::GlobalVariable::ExternalLinkage,
       /*Initializer=*/nullptr, VarName,
       /*InsertBefore=*/nullptr, llvm::GlobalVariable::GeneralDynamicTLSModel);
-  GV->setAlignment(Align.getQuantity());
+  GV->setAlignment(Align.getAsAlign());
   return ConstantAddress(GV, Align);
 }
 
@@ -2495,7 +2498,7 @@ void MicrosoftCXXABI::EmitGuardedInit(CodeGenFunction &CGF, const VarDecl &D,
                                  GV->getLinkage(), Zero, GuardName.str());
     GuardVar->setVisibility(GV->getVisibility());
     GuardVar->setDLLStorageClass(GV->getDLLStorageClass());
-    GuardVar->setAlignment(GuardAlign.getQuantity());
+    GuardVar->setAlignment(GuardAlign.getAsAlign());
     if (GuardVar->isWeakForLinker())
       GuardVar->setComdat(
           CGM.getModule().getOrInsertComdat(GuardVar->getName()));

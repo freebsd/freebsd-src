@@ -71,7 +71,7 @@ void RegistryMaps::registerMatcher(
 
 #define REGISTER_MATCHER_OVERLOAD(name)                                        \
   registerMatcher(#name,                                                       \
-      llvm::make_unique<internal::OverloadedMatcherDescriptor>(name##Callbacks))
+      std::make_unique<internal::OverloadedMatcherDescriptor>(name##Callbacks))
 
 #define SPECIFIC_MATCHER_OVERLOAD(name, Id)                                    \
   static_cast<::clang::ast_matchers::name##_Type##Id>(                         \
@@ -108,6 +108,7 @@ RegistryMaps::RegistryMaps() {
   REGISTER_OVERLOADED_2(hasType);
   REGISTER_OVERLOADED_2(ignoringParens);
   REGISTER_OVERLOADED_2(isDerivedFrom);
+  REGISTER_OVERLOADED_2(isDirectlyDerivedFrom);
   REGISTER_OVERLOADED_2(isSameOrDerivedFrom);
   REGISTER_OVERLOADED_2(loc);
   REGISTER_OVERLOADED_2(pointsTo);

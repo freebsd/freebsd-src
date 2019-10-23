@@ -23,7 +23,7 @@ using namespace clang::driver::tools;
 using namespace clang;
 using namespace llvm::opt;
 
-#if _WIN32 || _WIN64
+#if defined(_WIN32) || defined(_WIN64)
 #define NULL_FILE "nul"
 #else
 #define NULL_FILE "/dev/null"
@@ -48,6 +48,20 @@ static void addBCLib(const Driver &D, const ArgList &Args,
   D.Diag(diag::err_drv_no_such_file) << BCName;
 }
 
+static const char *getOutputFileName(Compilation &C, StringRef Base,
+                                     const char *Postfix,
+                                     const char *Extension) {
+  const char *OutputFileName;
+  if (C.getDriver().isSaveTempsEnabled()) {
+    OutputFileName =
+        C.getArgs().MakeArgString(Base.str() + Postfix + "." + Extension);
+  } else {
+    std::string TmpName =
+        C.getDriver().GetTemporaryPath(Base.str() + Postfix, Extension);
+    OutputFileName = C.addTempFile(C.getArgs().MakeArgString(TmpName));
+  }
+  return OutputFileName;
+}
 } // namespace
 
 const char *AMDGCN::Linker::constructLLVMLinkCommand(
@@ -61,15 +75,12 @@ const char *AMDGCN::Linker::constructLLVMLinkCommand(
 
   // Add an intermediate output file.
   CmdArgs.push_back("-o");
-  std::string TmpName =
-      C.getDriver().GetTemporaryPath(OutputFilePrefix.str() + "-linked", "bc");
-  const char *OutputFileName =
-      C.addTempFile(C.getArgs().MakeArgString(TmpName));
+  auto OutputFileName = getOutputFileName(C, OutputFilePrefix, "-linked", "bc");
   CmdArgs.push_back(OutputFileName);
   SmallString<128> ExecPath(C.getDriver().Dir);
   llvm::sys::path::append(ExecPath, "llvm-link");
   const char *Exec = Args.MakeArgString(ExecPath);
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
   return OutputFileName;
 }
 
@@ -109,26 +120,26 @@ const char *AMDGCN::Linker::constructOptCommand(
   }
 
   OptArgs.push_back("-o");
-  std::string TmpFileName = C.getDriver().GetTemporaryPath(
-      OutputFilePrefix.str() + "-optimized", "bc");
-  const char *OutputFileName =
-      C.addTempFile(C.getArgs().MakeArgString(TmpFileName));
+  auto OutputFileName =
+      getOutputFileName(C, OutputFilePrefix, "-optimized", "bc");
   OptArgs.push_back(OutputFileName);
   SmallString<128> OptPath(C.getDriver().Dir);
   llvm::sys::path::append(OptPath, "opt");
   const char *OptExec = Args.MakeArgString(OptPath);
-  C.addCommand(llvm::make_unique<Command>(JA, *this, OptExec, OptArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, OptExec, OptArgs, Inputs));
   return OutputFileName;
 }
 
 const char *AMDGCN::Linker::constructLlcCommand(
     Compilation &C, const JobAction &JA, const InputInfoList &Inputs,
     const llvm::opt::ArgList &Args, llvm::StringRef SubArchName,
-    llvm::StringRef OutputFilePrefix, const char *InputFileName) const {
+    llvm::StringRef OutputFilePrefix, const char *InputFileName,
+    bool OutputIsAsm) const {
   // Construct llc command.
-  ArgStringList LlcArgs{InputFileName, "-mtriple=amdgcn-amd-amdhsa",
-                        "-filetype=obj",
-                        Args.MakeArgString("-mcpu=" + SubArchName)};
+  ArgStringList LlcArgs{
+      InputFileName, "-mtriple=amdgcn-amd-amdhsa",
+      Args.MakeArgString(Twine("-filetype=") + (OutputIsAsm ? "asm" : "obj")),
+      Args.MakeArgString("-mcpu=" + SubArchName)};
 
   // Extract all the -m options
   std::vector<llvm::StringRef> Features;
@@ -151,15 +162,13 @@ const char *AMDGCN::Linker::constructLlcCommand(
 
   // Add output filename
   LlcArgs.push_back("-o");
-  std::string LlcOutputFileName =
-      C.getDriver().GetTemporaryPath(OutputFilePrefix, "o");
-  const char *LlcOutputFile =
-      C.addTempFile(C.getArgs().MakeArgString(LlcOutputFileName));
+  auto LlcOutputFile =
+      getOutputFileName(C, OutputFilePrefix, "", OutputIsAsm ? "s" : "o");
   LlcArgs.push_back(LlcOutputFile);
   SmallString<128> LlcPath(C.getDriver().Dir);
   llvm::sys::path::append(LlcPath, "llc");
   const char *Llc = Args.MakeArgString(LlcPath);
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Llc, LlcArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, Llc, LlcArgs, Inputs));
   return LlcOutputFile;
 }
 
@@ -175,7 +184,7 @@ void AMDGCN::Linker::constructLldCommand(Compilation &C, const JobAction &JA,
   SmallString<128> LldPath(C.getDriver().Dir);
   llvm::sys::path::append(LldPath, "lld");
   const char *Lld = Args.MakeArgString(LldPath);
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Lld, LldArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, Lld, LldArgs, Inputs));
 }
 
 // Construct a clang-offload-bundler command to bundle code objects for
@@ -209,7 +218,7 @@ void AMDGCN::constructHIPFatbinCommand(Compilation &C, const JobAction &JA,
   SmallString<128> BundlerPath(C.getDriver().Dir);
   llvm::sys::path::append(BundlerPath, "clang-offload-bundler");
   const char *Bundler = Args.MakeArgString(BundlerPath);
-  C.addCommand(llvm::make_unique<Command>(JA, T, Bundler, BundlerArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, T, Bundler, BundlerArgs, Inputs));
 }
 
 // For amdgcn the inputs of the linker job are device bitcode and output is
@@ -230,14 +239,18 @@ void AMDGCN::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   assert(StringRef(SubArchName).startswith("gfx") && "Unsupported sub arch");
 
   // Prefix for temporary file name.
-  std::string Prefix =
-      llvm::sys::path::stem(Inputs[0].getFilename()).str() + "-" + SubArchName;
+  std::string Prefix = llvm::sys::path::stem(Inputs[0].getFilename()).str();
+  if (!C.getDriver().isSaveTempsEnabled())
+    Prefix += "-" + SubArchName;
 
   // Each command outputs different files.
   const char *LLVMLinkCommand =
       constructLLVMLinkCommand(C, JA, Inputs, Args, SubArchName, Prefix);
   const char *OptCommand = constructOptCommand(C, JA, Inputs, Args, SubArchName,
                                                Prefix, LLVMLinkCommand);
+  if (C.getDriver().isSaveTempsEnabled())
+    constructLlcCommand(C, JA, Inputs, Args, SubArchName, Prefix, OptCommand,
+                        /*OutputIsAsm=*/true);
   const char *LlcCommand =
       constructLlcCommand(C, JA, Inputs, Args, SubArchName, Prefix, OptCommand);
   constructLldCommand(C, JA, Inputs, Output, Args, LlcCommand);
@@ -286,6 +299,9 @@ void HIPToolChain::addClangTargetOptions(
     CC1Args.append({"-fvisibility", "hidden"});
     CC1Args.push_back("-fapply-global-visibility-to-externs");
   }
+
+  if (DriverArgs.hasArg(options::OPT_nogpulib))
+    return;
   ArgStringList LibraryPaths;
 
   // Find in --hip-device-lib-path and HIP_LIBRARY_PATH.

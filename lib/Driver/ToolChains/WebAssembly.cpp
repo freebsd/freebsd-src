@@ -89,7 +89,7 @@ void wasm::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   CmdArgs.push_back("-o");
   CmdArgs.push_back(Output.getFilename());
 
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Linker, CmdArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, Linker, CmdArgs, Inputs));
 }
 
 WebAssembly::WebAssembly(const Driver &D, const llvm::Triple &Triple,
@@ -141,7 +141,7 @@ void WebAssembly::addClangTargetOptions(const ArgList &DriverArgs,
                          options::OPT_fno_use_init_array, true))
     CC1Args.push_back("-fuse-init-array");
 
-  // '-pthread' implies atomics, bulk-memory, and mutable-globals
+  // '-pthread' implies atomics, bulk-memory, mutable-globals, and sign-ext
   if (DriverArgs.hasFlag(options::OPT_pthread, options::OPT_no_pthread,
                          false)) {
     if (DriverArgs.hasFlag(options::OPT_mno_atomics, options::OPT_matomics,
@@ -159,12 +159,39 @@ void WebAssembly::addClangTargetOptions(const ArgList &DriverArgs,
       getDriver().Diag(diag::err_drv_argument_not_allowed_with)
           << "-pthread"
           << "-mno-mutable-globals";
+    if (DriverArgs.hasFlag(options::OPT_mno_sign_ext, options::OPT_msign_ext,
+                           false))
+      getDriver().Diag(diag::err_drv_argument_not_allowed_with)
+          << "-pthread"
+          << "-mno-sign-ext";
     CC1Args.push_back("-target-feature");
     CC1Args.push_back("+atomics");
     CC1Args.push_back("-target-feature");
     CC1Args.push_back("+bulk-memory");
     CC1Args.push_back("-target-feature");
     CC1Args.push_back("+mutable-globals");
+    CC1Args.push_back("-target-feature");
+    CC1Args.push_back("+sign-ext");
+  }
+
+  if (DriverArgs.getLastArg(options::OPT_fwasm_exceptions)) {
+    // '-fwasm-exceptions' is not compatible with '-mno-exception-handling'
+    if (DriverArgs.hasFlag(options::OPT_mno_exception_handing,
+                           options::OPT_mexception_handing, false))
+      getDriver().Diag(diag::err_drv_argument_not_allowed_with)
+          << "-fwasm-exceptions"
+          << "-mno-exception-handling";
+    // '-fwasm-exceptions' is not compatible with
+    // '-mllvm -enable-emscripten-cxx-exceptions'
+    for (const Arg *A : DriverArgs.filtered(options::OPT_mllvm)) {
+      if (StringRef(A->getValue(0)) == "-enable-emscripten-cxx-exceptions")
+        getDriver().Diag(diag::err_drv_argument_not_allowed_with)
+            << "-fwasm-exceptions"
+            << "-mllvm -enable-emscripten-cxx-exceptions";
+    }
+    // '-fwasm-exceptions' implies exception-handling
+    CC1Args.push_back("-target-feature");
+    CC1Args.push_back("+exception-handling");
   }
 }
 
