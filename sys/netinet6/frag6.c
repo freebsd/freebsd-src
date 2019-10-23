@@ -106,7 +106,7 @@ VNET_DEFINE_STATIC(bool,		frag6_on);
 #define	V_frag6_on			VNET(frag6_on)
 #endif
 
-/* System wide (global) maximum and count of packets in reassembly queues. */ 
+/* System wide (global) maximum and count of packets in reassembly queues. */
 static int ip6_maxfrags;
 static volatile u_int frag6_nfrags = 0;
 
@@ -215,7 +215,7 @@ ip6_deletefraghdr(struct mbuf *m, int offset, int wait)
 	if (m->m_len >= offset + sizeof(struct ip6_frag)) {
 
 		/* This is the only possible case with !PULLDOWN_TEST. */
-		ip6  = mtod(m, struct ip6_hdr *);
+		ip6 = mtod(m, struct ip6_hdr *);
 		bcopy(ip6, (char *)ip6 + sizeof(struct ip6_frag),
 		    offset);
 		m->m_data += sizeof(struct ip6_frag);
@@ -395,9 +395,7 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		return (IPPROTO_DONE);
 #endif
 
-	/*
-	 * Store receive network interface pointer for later.
-	 */
+	/* Store receive network interface pointer for later. */
 	srcifp = m->m_pkthdr.rcvif;
 
 	dstifp = NULL;
@@ -598,7 +596,7 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 
 				/* Set a valid receive interface pointer. */
 				merr->m_pkthdr.rcvif = srcifp;
-				
+
 				/* Adjust pointer. */
 				ip6err = mtod(merr, struct ip6_hdr *);
 
@@ -697,6 +695,7 @@ insert:
 	frag6_enq(ip6af, af6->ip6af_up, bucket);
 	atomic_add_int(&frag6_nfrags, 1);
 	q6->ip6q_nfrag++;
+
 	plen = 0;
 	for (af6 = q6->ip6q_down; af6 != (struct ip6asfrag *)q6;
 	     af6 = af6->ip6af_down) {
