@@ -65,6 +65,7 @@ typedef TAILQ_HEAD(regnode_list, regnode) regnode_list_t;
 typedef TAILQ_HEAD(regulator_list, regulator) regulator_list_t;
 
 /* Default regulator methods. */
+static int regnode_method_init(struct regnode *regnode);
 static int regnode_method_enable(struct regnode *regnode, bool enable,
     int *udelay);
 static int regnode_method_status(struct regnode *regnode, int *status);
@@ -77,6 +78,7 @@ static void regulator_shutdown(void *dummy);
  * Regulator controller methods.
  */
 static regnode_method_t regnode_methods[] = {
+	REGNODEMETHOD(regnode_init,		regnode_method_init),
 	REGNODEMETHOD(regnode_enable,		regnode_method_enable),
 	REGNODEMETHOD(regnode_status,		regnode_method_status),
 	REGNODEMETHOD(regnode_set_voltage,	regnode_method_set_voltage),
@@ -212,6 +214,13 @@ regnode_uvolt_sysctl(SYSCTL_HANDLER_ARGS)
  * Default regulator methods for base class.
  *
  */
+static int
+regnode_method_init(struct regnode *regnode)
+{
+
+	return (0);
+}
+
 static int
 regnode_method_enable(struct regnode *regnode, bool enable, int *udelay)
 {
