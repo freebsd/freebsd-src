@@ -68,25 +68,27 @@
 
 #include <sys/epoch.h>
 
-struct ip6asfrag;
+#ifdef _KERNEL
+struct ip6asfrag;		/* frag6.c */
+TAILQ_HEAD(ip6fraghead, ip6asfrag);
+
 /*
  * IP6 reassembly queue structure.  Each fragment
  * being reassembled is attached to one of these structures.
  */
 struct	ip6q {
-	struct ip6asfrag *ip6q_down;
-	struct ip6asfrag *ip6q_up;
+	struct ip6fraghead ip6q_frags;
 	u_int32_t	ip6q_ident;
 	u_int8_t	ip6q_nxt;
 	u_int8_t	ip6q_ecn;
 	u_int8_t	ip6q_ttl;
 	struct in6_addr ip6q_src, ip6q_dst;
-	struct ip6q	*ip6q_next;
-	struct ip6q	*ip6q_prev;
+	TAILQ_ENTRY(ip6q) ip6q_tq;
 	int		ip6q_unfrglen;	/* len of unfragmentable part */
 	int		ip6q_nfrag;	/* # of fragments */
 	struct label	*ip6q_label;
 };
+#endif /* _KERNEL */
 
 /*
  * IP6 reinjecting structure.
