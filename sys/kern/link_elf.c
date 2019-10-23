@@ -1163,6 +1163,9 @@ elf_relocaddr(linker_file_t lf, Elf_Addr x)
 {
 	elf_file_t ef;
 
+	KASSERT(lf->ops->cls == (kobj_class_t)&link_elf_class,
+	    ("elf_relocaddr: unexpected linker file %p", lf));
+
 	ef = (elf_file_t)lf;
 	if (x >= ef->pcpu_start && x < ef->pcpu_stop)
 		return ((x - ef->pcpu_start) + ef->pcpu_base);
