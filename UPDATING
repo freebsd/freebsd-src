@@ -16,6 +16,10 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20191023	p15	FreeBSD-EN-19:18.tzdata
+
+	Import tzdata 2019c. [EN-19:18.tzdata]
+	
 20190820	p14	FreeBSD-SA-19:22.mbuf
 			FreeBSD-SA-19:23.midi
 			FreeBSD-SA-19:24.mqueuefs
