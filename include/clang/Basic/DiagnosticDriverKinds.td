@@ -184,9 +184,6 @@ def warn_drv_unknown_argument_clang_cl_with_suggestion : Warning<
 def warn_drv_ycyu_different_arg_clang_cl : Warning<
   "support for '/Yc' and '/Yu' with different filenames not implemented yet; flags ignored">,
   InGroup<ClangClPch>;
-def warn_drv_ycyu_no_fi_arg_clang_cl : Warning<
-  "support for '%0' without a corresponding /FI flag not implemented yet; flag ignored">,
-  InGroup<ClangClPch>;
 def warn_drv_yc_multiple_inputs_clang_cl : Warning<
   "support for '/Yc' with more than one source file not implemented yet; flag ignored">,
   InGroup<ClangClPch>;
@@ -368,6 +365,9 @@ def err_drv_ropi_rwpi_incompatible_with_pic : Error<
 def err_drv_ropi_incompatible_with_cxx : Error<
   "ROPI is not compatible with c++">;
 
+def err_stack_tagging_requires_hardware_feature : Error<
+  "'-fsanitize=memtag' requires hardware support (+memtag)">;
+
 def warn_target_unsupported_nan2008 : Warning<
   "ignoring '-mnan=2008' option because the '%0' architecture does not support it">,
   InGroup<UnsupportedNan>;
@@ -383,6 +383,9 @@ def warn_target_unsupported_abs2008 : Warning<
 def warn_target_unsupported_compact_branches : Warning<
   "ignoring '-mcompact-branches=' option because the '%0' architecture does not"
   " support it">, InGroup<UnsupportedCB>;
+def warn_target_unsupported_extension : Warning<
+  "ignoring extension '%0' because the '%1' architecture does not support it">,
+   InGroup<InvalidCommandLineArgument>;
 def warn_drv_unsupported_gpopt : Warning<
   "ignoring '-mgpopt' option as it cannot be used with %select{|the implicit"
   " usage of }0-mabicalls">,

@@ -294,8 +294,7 @@ public:
 
     Value *AlignmentValue = CGF.EmitScalarExpr(AVAttr->getAlignment());
     llvm::ConstantInt *AlignmentCI = cast<llvm::ConstantInt>(AlignmentValue);
-    CGF.EmitAlignmentAssumption(V, E, AVAttr->getLocation(),
-                                AlignmentCI->getZExtValue());
+    CGF.EmitAlignmentAssumption(V, E, AVAttr->getLocation(), AlignmentCI);
   }
 
   /// EmitLoadOfLValue - Given an expression with complex type that represents a
@@ -674,6 +673,10 @@ public:
     return llvm::ConstantInt::get(ConvertType(E->getType()), E->getValue());
   }
 
+  Value *VisitConceptSpecializationExpr(const ConceptSpecializationExpr *E) {
+    return Builder.getInt1(E->isSatisfied());
+  }
+
   Value *VisitArrayTypeTraitExpr(const ArrayTypeTraitExpr *E) {
     return llvm::ConstantInt::get(Builder.getInt32Ty(), E->getValue());
   }
@@ -813,6 +816,10 @@ public:
 
   Value *VisitBinPtrMemD(const Expr *E) { return EmitLoadOfLValue(E); }
   Value *VisitBinPtrMemI(const Expr *E) { return EmitLoadOfLValue(E); }
+
+  Value *VisitCXXRewrittenBinaryOperator(CXXRewrittenBinaryOperator *E) {
+    return Visit(E->getSemanticForm());
+  }
 
   // Other Operators.
   Value *VisitBlockExpr(const BlockExpr *BE);
@@ -1657,8 +1664,8 @@ Value *ScalarExprEmitter::VisitConvertVectorExpr(ConvertVectorExpr *E) {
   if (SrcTy == DstTy)
     return Src;
 
-  QualType SrcEltType = SrcType->getAs<VectorType>()->getElementType(),
-           DstEltType = DstType->getAs<VectorType>()->getElementType();
+  QualType SrcEltType = SrcType->castAs<VectorType>()->getElementType(),
+           DstEltType = DstType->castAs<VectorType>()->getElementType();
 
   assert(SrcTy->isVectorTy() &&
          "ConvertVector source IR type must be a vector");
@@ -2577,14 +2584,16 @@ ScalarExprEmitter::EmitScalarPrePostIncDec(const UnaryOperator *E, LValue LV,
 
 Value *ScalarExprEmitter::VisitUnaryMinus(const UnaryOperator *E) {
   TestAndClearIgnoreResultAssign();
+  Value *Op = Visit(E->getSubExpr());
+
+  // Generate a unary FNeg for FP ops.
+  if (Op->getType()->isFPOrFPVectorTy())
+    return Builder.CreateFNeg(Op, "fneg");
+
   // Emit unary minus with EmitSub so we handle overflow cases etc.
   BinOpInfo BinOp;
-  BinOp.RHS = Visit(E->getSubExpr());
-
-  if (BinOp.RHS->getType()->isFPOrFPVectorTy())
-    BinOp.LHS = llvm::ConstantFP::getZeroValueForNegation(BinOp.RHS->getType());
-  else
-    BinOp.LHS = llvm::Constant::getNullValue(BinOp.RHS->getType());
+  BinOp.RHS = Op;
+  BinOp.LHS = llvm::Constant::getNullValue(BinOp.RHS->getType());
   BinOp.Ty = E->getType();
   BinOp.Opcode = BO_Sub;
   // FIXME: once UnaryOperator carries FPFeatures, copy it here.
@@ -2662,7 +2671,7 @@ Value *ScalarExprEmitter::VisitOffsetOfExpr(OffsetOfExpr *E) {
 
     case OffsetOfNode::Field: {
       FieldDecl *MemberDecl = ON.getField();
-      RecordDecl *RD = CurrentType->getAs<RecordType>()->getDecl();
+      RecordDecl *RD = CurrentType->castAs<RecordType>()->getDecl();
       const ASTRecordLayout &RL = CGF.getContext().getASTRecordLayout(RD);
 
       // Compute the index of the field in its parent.
@@ -2695,7 +2704,7 @@ Value *ScalarExprEmitter::VisitOffsetOfExpr(OffsetOfExpr *E) {
         continue;
       }
 
-      RecordDecl *RD = CurrentType->getAs<RecordType>()->getDecl();
+      RecordDecl *RD = CurrentType->castAs<RecordType>()->getDecl();
       const ASTRecordLayout &RL = CGF.getContext().getASTRecordLayout(RD);
 
       // Save the element type.
@@ -3745,7 +3754,7 @@ Value *ScalarExprEmitter::EmitCompare(const BinaryOperator *E,
       Value *FirstVecArg = LHS,
             *SecondVecArg = RHS;
 
-      QualType ElTy = LHSTy->getAs<VectorType>()->getElementType();
+      QualType ElTy = LHSTy->castAs<VectorType>()->getElementType();
       const BuiltinType *BTy = ElTy->getAs<BuiltinType>();
       BuiltinType::Kind ElementKind = BTy->getKind();
 
@@ -4414,8 +4423,8 @@ Value *ScalarExprEmitter::VisitAsTypeExpr(AsTypeExpr *E) {
     return Src;
   }
 
-  return Src = createCastsForTypeOfSameSize(Builder, CGF.CGM.getDataLayout(),
-                                            Src, DstTy, "astype");
+  return createCastsForTypeOfSameSize(Builder, CGF.CGM.getDataLayout(),
+                                      Src, DstTy, "astype");
 }
 
 Value *ScalarExprEmitter::VisitAtomicExpr(AtomicExpr *E) {
@@ -4533,32 +4542,43 @@ LValue CodeGenFunction::EmitCompoundAssignmentLValue(
   llvm_unreachable("Unhandled compound assignment operator");
 }
 
-Value *CodeGenFunction::EmitCheckedInBoundsGEP(Value *Ptr,
-                                               ArrayRef<Value *> IdxList,
-                                               bool SignedIndices,
-                                               bool IsSubtraction,
-                                               SourceLocation Loc,
-                                               const Twine &Name) {
-  Value *GEPVal = Builder.CreateInBoundsGEP(Ptr, IdxList, Name);
+struct GEPOffsetAndOverflow {
+  // The total (signed) byte offset for the GEP.
+  llvm::Value *TotalOffset;
+  // The offset overflow flag - true if the total offset overflows.
+  llvm::Value *OffsetOverflows;
+};
 
-  // If the pointer overflow sanitizer isn't enabled, do nothing.
-  if (!SanOpts.has(SanitizerKind::PointerOverflow))
-    return GEPVal;
+/// Evaluate given GEPVal, which is either an inbounds GEP, or a constant,
+/// and compute the total offset it applies from it's base pointer BasePtr.
+/// Returns offset in bytes and a boolean flag whether an overflow happened
+/// during evaluation.
+static GEPOffsetAndOverflow EmitGEPOffsetInBytes(Value *BasePtr, Value *GEPVal,
+                                                 llvm::LLVMContext &VMContext,
+                                                 CodeGenModule &CGM,
+                                                 CGBuilderTy Builder) {
+  const auto &DL = CGM.getDataLayout();
 
-  // If the GEP has already been reduced to a constant, leave it be.
-  if (isa<llvm::Constant>(GEPVal))
-    return GEPVal;
+  // The total (signed) byte offset for the GEP.
+  llvm::Value *TotalOffset = nullptr;
 
-  // Only check for overflows in the default address space.
-  if (GEPVal->getType()->getPointerAddressSpace())
-    return GEPVal;
+  // Was the GEP already reduced to a constant?
+  if (isa<llvm::Constant>(GEPVal)) {
+    // Compute the offset by casting both pointers to integers and subtracting:
+    // GEPVal = BasePtr + ptr(Offset) <--> Offset = int(GEPVal) - int(BasePtr)
+    Value *BasePtr_int =
+        Builder.CreatePtrToInt(BasePtr, DL.getIntPtrType(BasePtr->getType()));
+    Value *GEPVal_int =
+        Builder.CreatePtrToInt(GEPVal, DL.getIntPtrType(GEPVal->getType()));
+    TotalOffset = Builder.CreateSub(GEPVal_int, BasePtr_int);
+    return {TotalOffset, /*OffsetOverflows=*/Builder.getFalse()};
+  }
 
   auto *GEP = cast<llvm::GEPOperator>(GEPVal);
+  assert(GEP->getPointerOperand() == BasePtr &&
+         "BasePtr must be the the base of the GEP.");
   assert(GEP->isInBounds() && "Expected inbounds GEP");
 
-  SanitizerScope SanScope(this);
-  auto &VMContext = getLLVMContext();
-  const auto &DL = CGM.getDataLayout();
   auto *IntPtrTy = DL.getIntPtrType(GEP->getPointerOperandType());
 
   // Grab references to the signed add/mul overflow intrinsics for intptr_t.
@@ -4568,8 +4588,6 @@ Value *CodeGenFunction::EmitCheckedInBoundsGEP(Value *Ptr,
   auto *SMulIntrinsic =
       CGM.getIntrinsic(llvm::Intrinsic::smul_with_overflow, IntPtrTy);
 
-  // The total (signed) byte offset for the GEP.
-  llvm::Value *TotalOffset = nullptr;
   // The offset overflow flag - true if the total offset overflows.
   llvm::Value *OffsetOverflows = Builder.getFalse();
 
@@ -4627,41 +4645,122 @@ Value *CodeGenFunction::EmitCheckedInBoundsGEP(Value *Ptr,
       TotalOffset = eval(BO_Add, TotalOffset, LocalOffset);
   }
 
-  // Common case: if the total offset is zero, don't emit a check.
-  if (TotalOffset == Zero)
+  return {TotalOffset, OffsetOverflows};
+}
+
+Value *
+CodeGenFunction::EmitCheckedInBoundsGEP(Value *Ptr, ArrayRef<Value *> IdxList,
+                                        bool SignedIndices, bool IsSubtraction,
+                                        SourceLocation Loc, const Twine &Name) {
+  Value *GEPVal = Builder.CreateInBoundsGEP(Ptr, IdxList, Name);
+
+  // If the pointer overflow sanitizer isn't enabled, do nothing.
+  if (!SanOpts.has(SanitizerKind::PointerOverflow))
+    return GEPVal;
+
+  llvm::Type *PtrTy = Ptr->getType();
+
+  // Perform nullptr-and-offset check unless the nullptr is defined.
+  bool PerformNullCheck = !NullPointerIsDefined(
+      Builder.GetInsertBlock()->getParent(), PtrTy->getPointerAddressSpace());
+  // Check for overflows unless the GEP got constant-folded,
+  // and only in the default address space
+  bool PerformOverflowCheck =
+      !isa<llvm::Constant>(GEPVal) && PtrTy->getPointerAddressSpace() == 0;
+
+  if (!(PerformNullCheck || PerformOverflowCheck))
+    return GEPVal;
+
+  const auto &DL = CGM.getDataLayout();
+
+  SanitizerScope SanScope(this);
+  llvm::Type *IntPtrTy = DL.getIntPtrType(PtrTy);
+
+  GEPOffsetAndOverflow EvaluatedGEP =
+      EmitGEPOffsetInBytes(Ptr, GEPVal, getLLVMContext(), CGM, Builder);
+
+  assert((!isa<llvm::Constant>(EvaluatedGEP.TotalOffset) ||
+          EvaluatedGEP.OffsetOverflows == Builder.getFalse()) &&
+         "If the offset got constant-folded, we don't expect that there was an "
+         "overflow.");
+
+  auto *Zero = llvm::ConstantInt::getNullValue(IntPtrTy);
+
+  // Common case: if the total offset is zero, and we are using C++ semantics,
+  // where nullptr+0 is defined, don't emit a check.
+  if (EvaluatedGEP.TotalOffset == Zero && CGM.getLangOpts().CPlusPlus)
     return GEPVal;
 
   // Now that we've computed the total offset, add it to the base pointer (with
   // wrapping semantics).
-  auto *IntPtr = Builder.CreatePtrToInt(GEP->getPointerOperand(), IntPtrTy);
-  auto *ComputedGEP = Builder.CreateAdd(IntPtr, TotalOffset);
+  auto *IntPtr = Builder.CreatePtrToInt(Ptr, IntPtrTy);
+  auto *ComputedGEP = Builder.CreateAdd(IntPtr, EvaluatedGEP.TotalOffset);
 
-  // The GEP is valid if:
-  // 1) The total offset doesn't overflow, and
-  // 2) The sign of the difference between the computed address and the base
-  // pointer matches the sign of the total offset.
-  llvm::Value *ValidGEP;
-  auto *NoOffsetOverflow = Builder.CreateNot(OffsetOverflows);
-  if (SignedIndices) {
-    auto *PosOrZeroValid = Builder.CreateICmpUGE(ComputedGEP, IntPtr);
-    auto *PosOrZeroOffset = Builder.CreateICmpSGE(TotalOffset, Zero);
-    llvm::Value *NegValid = Builder.CreateICmpULT(ComputedGEP, IntPtr);
-    ValidGEP = Builder.CreateAnd(
-        Builder.CreateSelect(PosOrZeroOffset, PosOrZeroValid, NegValid),
-        NoOffsetOverflow);
-  } else if (!SignedIndices && !IsSubtraction) {
-    auto *PosOrZeroValid = Builder.CreateICmpUGE(ComputedGEP, IntPtr);
-    ValidGEP = Builder.CreateAnd(PosOrZeroValid, NoOffsetOverflow);
-  } else {
-    auto *NegOrZeroValid = Builder.CreateICmpULE(ComputedGEP, IntPtr);
-    ValidGEP = Builder.CreateAnd(NegOrZeroValid, NoOffsetOverflow);
+  llvm::SmallVector<std::pair<llvm::Value *, SanitizerMask>, 2> Checks;
+
+  if (PerformNullCheck) {
+    // In C++, if the base pointer evaluates to a null pointer value,
+    // the only valid  pointer this inbounds GEP can produce is also
+    // a null pointer, so the offset must also evaluate to zero.
+    // Likewise, if we have non-zero base pointer, we can not get null pointer
+    // as a result, so the offset can not be -intptr_t(BasePtr).
+    // In other words, both pointers are either null, or both are non-null,
+    // or the behaviour is undefined.
+    //
+    // C, however, is more strict in this regard, and gives more
+    // optimization opportunities: in C, additionally, nullptr+0 is undefined.
+    // So both the input to the 'gep inbounds' AND the output must not be null.
+    auto *BaseIsNotNullptr = Builder.CreateIsNotNull(Ptr);
+    auto *ResultIsNotNullptr = Builder.CreateIsNotNull(ComputedGEP);
+    auto *Valid =
+        CGM.getLangOpts().CPlusPlus
+            ? Builder.CreateICmpEQ(BaseIsNotNullptr, ResultIsNotNullptr)
+            : Builder.CreateAnd(BaseIsNotNullptr, ResultIsNotNullptr);
+    Checks.emplace_back(Valid, SanitizerKind::PointerOverflow);
   }
+
+  if (PerformOverflowCheck) {
+    // The GEP is valid if:
+    // 1) The total offset doesn't overflow, and
+    // 2) The sign of the difference between the computed address and the base
+    // pointer matches the sign of the total offset.
+    llvm::Value *ValidGEP;
+    auto *NoOffsetOverflow = Builder.CreateNot(EvaluatedGEP.OffsetOverflows);
+    if (SignedIndices) {
+      // GEP is computed as `unsigned base + signed offset`, therefore:
+      // * If offset was positive, then the computed pointer can not be
+      //   [unsigned] less than the base pointer, unless it overflowed.
+      // * If offset was negative, then the computed pointer can not be
+      //   [unsigned] greater than the bas pointere, unless it overflowed.
+      auto *PosOrZeroValid = Builder.CreateICmpUGE(ComputedGEP, IntPtr);
+      auto *PosOrZeroOffset =
+          Builder.CreateICmpSGE(EvaluatedGEP.TotalOffset, Zero);
+      llvm::Value *NegValid = Builder.CreateICmpULT(ComputedGEP, IntPtr);
+      ValidGEP =
+          Builder.CreateSelect(PosOrZeroOffset, PosOrZeroValid, NegValid);
+    } else if (!IsSubtraction) {
+      // GEP is computed as `unsigned base + unsigned offset`,  therefore the
+      // computed pointer can not be [unsigned] less than base pointer,
+      // unless there was an overflow.
+      // Equivalent to `@llvm.uadd.with.overflow(%base, %offset)`.
+      ValidGEP = Builder.CreateICmpUGE(ComputedGEP, IntPtr);
+    } else {
+      // GEP is computed as `unsigned base - unsigned offset`, therefore the
+      // computed pointer can not be [unsigned] greater than base pointer,
+      // unless there was an overflow.
+      // Equivalent to `@llvm.usub.with.overflow(%base, sub(0, %offset))`.
+      ValidGEP = Builder.CreateICmpULE(ComputedGEP, IntPtr);
+    }
+    ValidGEP = Builder.CreateAnd(ValidGEP, NoOffsetOverflow);
+    Checks.emplace_back(ValidGEP, SanitizerKind::PointerOverflow);
+  }
+
+  assert(!Checks.empty() && "Should have produced some checks.");
 
   llvm::Constant *StaticArgs[] = {EmitCheckSourceLocation(Loc)};
   // Pass the computed GEP to the runtime to avoid emitting poisoned arguments.
   llvm::Value *DynamicArgs[] = {IntPtr, ComputedGEP};
-  EmitCheck(std::make_pair(ValidGEP, SanitizerKind::PointerOverflow),
-            SanitizerHandler::PointerOverflow, StaticArgs, DynamicArgs);
+  EmitCheck(Checks, SanitizerHandler::PointerOverflow, StaticArgs, DynamicArgs);
 
   return GEPVal;
 }

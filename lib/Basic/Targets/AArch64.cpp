@@ -62,6 +62,16 @@ AArch64TargetInfo::AArch64TargetInfo(const llvm::Triple &Triple,
   // Make __builtin_ms_va_list available.
   HasBuiltinMSVaList = true;
 
+  // Make the SVE types available.  Note that this deliberately doesn't
+  // depend on SveMode, since in principle it should be possible to turn
+  // SVE on and off within a translation unit.  It should also be possible
+  // to compile the global declaration:
+  //
+  // __SVInt8_t *ptr;
+  //
+  // even without SVE.
+  HasAArch64SVETypes = true;
+
   // {} in inline assembly are neon specifiers, not assembly variant
   // specifiers.
   NoAsmVariants = true;
@@ -196,9 +206,6 @@ void AArch64TargetInfo::getTargetDefines(const LangOptions &Opts,
     Builder.defineMacro("__ARM_NEON_FP", "0xE");
   }
 
-  if (FPU & SveMode)
-    Builder.defineMacro("__ARM_FEATURE_SVE", "1");
-
   if (HasCRC)
     Builder.defineMacro("__ARM_FEATURE_CRC32", "1");
 
@@ -218,6 +225,9 @@ void AArch64TargetInfo::getTargetDefines(const LangOptions &Opts,
 
   if (HasMTE)
     Builder.defineMacro("__ARM_FEATURE_MEMORY_TAGGING", "1");
+
+  if (HasTME)
+    Builder.defineMacro("__ARM_FEATURE_TME", "1");
 
   if ((FPU & NeonMode) && HasFP16FML)
     Builder.defineMacro("__ARM_FEATURE_FP16FML", "1");
@@ -270,6 +280,7 @@ bool AArch64TargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
   HasDotProd = false;
   HasFP16FML = false;
   HasMTE = false;
+  HasTME = false;
   ArchKind = llvm::AArch64::ArchKind::ARMV8A;
 
   for (const auto &Feature : Features) {
@@ -301,6 +312,8 @@ bool AArch64TargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
       HasFP16FML = true;
     if (Feature == "+mte")
       HasMTE = true;
+    if (Feature == "+tme")
+      HasTME = true;
   }
 
   setDataLayout();
@@ -351,10 +364,19 @@ const char *const AArch64TargetInfo::GCCRegNames[] = {
     "d12", "d13", "d14", "d15", "d16", "d17", "d18", "d19", "d20", "d21", "d22",
     "d23", "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31",
 
-    // Vector registers
+    // Neon vector registers
     "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11",
     "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22",
-    "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
+    "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31",
+
+    // SVE vector registers
+    "z0",  "z1",  "z2",  "z3",  "z4",  "z5",  "z6",  "z7",  "z8",  "z9",  "z10",
+    "z11", "z12", "z13", "z14", "z15", "z16", "z17", "z18", "z19", "z20", "z21",
+    "z22", "z23", "z24", "z25", "z26", "z27", "z28", "z29", "z30", "z31",
+
+    // SVE predicate registers
+    "p0",  "p1",  "p2",  "p3",  "p4",  "p5",  "p6",  "p7",  "p8",  "p9",  "p10",
+    "p11", "p12", "p13", "p14", "p15"
 };
 
 ArrayRef<const char *> AArch64TargetInfo::getGCCRegNames() const {

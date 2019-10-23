@@ -174,7 +174,7 @@ bool Parser::ExpectAndConsumeSemi(unsigned DiagID) {
   return ExpectAndConsume(tok::semi, DiagID);
 }
 
-void Parser::ConsumeExtraSemi(ExtraSemiKind Kind, unsigned TST) {
+void Parser::ConsumeExtraSemi(ExtraSemiKind Kind, DeclSpec::TST TST) {
   if (!Tok.is(tok::semi)) return;
 
   bool HadMultipleSemis = false;
@@ -202,7 +202,7 @@ void Parser::ConsumeExtraSemi(ExtraSemiKind Kind, unsigned TST) {
 
   if (Kind != AfterMemberFunctionDefinition || HadMultipleSemis)
     Diag(StartLoc, diag::ext_extra_semi)
-        << Kind << DeclSpec::getSpecifierName((DeclSpec::TST)TST,
+        << Kind << DeclSpec::getSpecifierName(TST,
                                     Actions.getASTContext().getPrintingPolicy())
         << FixItHint::CreateRemoval(SourceRange(StartLoc, EndLoc));
   else
@@ -1174,8 +1174,7 @@ Decl *Parser::ParseFunctionDefinition(ParsingDeclarator &D,
   if (Tok.isNot(tok::equal)) {
     for (const ParsedAttr &AL : D.getAttributes())
       if (AL.isKnownToGCC() && !AL.isCXX11Attribute())
-        Diag(AL.getLoc(), diag::warn_attribute_on_function_definition)
-            << AL.getName();
+        Diag(AL.getLoc(), diag::warn_attribute_on_function_definition) << AL;
   }
 
   // In delayed template parsing mode, for function template we consume the
@@ -1562,13 +1561,10 @@ void Parser::AnnotateScopeToken(CXXScopeSpec &SS, bool IsNewAnnotation) {
 /// with a typo-corrected keyword. This is only appropriate when the current
 /// name must refer to an entity which has already been declared.
 ///
-/// \param IsAddressOfOperand Must be \c true if the name is preceded by an '&'
-///        and might possibly have a dependent nested name specifier.
 /// \param CCC Indicates how to perform typo-correction for this name. If NULL,
 ///        no typo correction will be performed.
 Parser::AnnotatedNameKind
-Parser::TryAnnotateName(bool IsAddressOfOperand,
-                        CorrectionCandidateCallback *CCC) {
+Parser::TryAnnotateName(CorrectionCandidateCallback *CCC) {
   assert(Tok.is(tok::identifier) || Tok.is(tok::annot_cxxscope));
 
   const bool EnteringContext = false;
@@ -1604,9 +1600,8 @@ Parser::TryAnnotateName(bool IsAddressOfOperand,
   // after a scope specifier, because in general we can't recover from typos
   // there (eg, after correcting 'A::template B<X>::C' [sic], we would need to
   // jump back into scope specifier parsing).
-  Sema::NameClassification Classification =
-      Actions.ClassifyName(getCurScope(), SS, Name, NameLoc, Next,
-                           IsAddressOfOperand, SS.isEmpty() ? CCC : nullptr);
+  Sema::NameClassification Classification = Actions.ClassifyName(
+      getCurScope(), SS, Name, NameLoc, Next, SS.isEmpty() ? CCC : nullptr);
 
   // If name lookup found nothing and we guessed that this was a template name,
   // double-check before committing to that interpretation. C++20 requires that
@@ -1619,7 +1614,7 @@ Parser::TryAnnotateName(bool IsAddressOfOperand,
     FakeNext.setKind(tok::unknown);
     Classification =
         Actions.ClassifyName(getCurScope(), SS, Name, NameLoc, FakeNext,
-                             IsAddressOfOperand, SS.isEmpty() ? CCC : nullptr);
+                             SS.isEmpty() ? CCC : nullptr);
   }
 
   switch (Classification.getKind()) {
@@ -1672,13 +1667,36 @@ Parser::TryAnnotateName(bool IsAddressOfOperand,
     return ANK_Success;
   }
 
-  case Sema::NC_Expression:
+  case Sema::NC_ContextIndependentExpr:
     Tok.setKind(tok::annot_primary_expr);
     setExprAnnotation(Tok, Classification.getExpression());
     Tok.setAnnotationEndLoc(NameLoc);
     if (SS.isNotEmpty())
       Tok.setLocation(SS.getBeginLoc());
     PP.AnnotateCachedTokens(Tok);
+    return ANK_Success;
+
+  case Sema::NC_NonType:
+    Tok.setKind(tok::annot_non_type);
+    setNonTypeAnnotation(Tok, Classification.getNonTypeDecl());
+    Tok.setLocation(NameLoc);
+    Tok.setAnnotationEndLoc(NameLoc);
+    PP.AnnotateCachedTokens(Tok);
+    if (SS.isNotEmpty())
+      AnnotateScopeToken(SS, !WasScopeAnnotation);
+    return ANK_Success;
+
+  case Sema::NC_UndeclaredNonType:
+  case Sema::NC_DependentNonType:
+    Tok.setKind(Classification.getKind() == Sema::NC_UndeclaredNonType
+                    ? tok::annot_non_type_undeclared
+                    : tok::annot_non_type_dependent);
+    setIdentifierAnnotation(Tok, Name);
+    Tok.setLocation(NameLoc);
+    Tok.setAnnotationEndLoc(NameLoc);
+    PP.AnnotateCachedTokens(Tok);
+    if (SS.isNotEmpty())
+      AnnotateScopeToken(SS, !WasScopeAnnotation);
     return ANK_Success;
 
   case Sema::NC_TypeTemplate:
@@ -1702,9 +1720,6 @@ Parser::TryAnnotateName(bool IsAddressOfOperand,
       return ANK_Error;
     return ANK_Success;
   }
-
-  case Sema::NC_NestedNameSpecifier:
-    llvm_unreachable("already parsed nested name specifier");
   }
 
   // Unable to classify the name, but maybe we can annotate a scope specifier.

@@ -150,6 +150,9 @@ public:
   void VisitBinAssign(const BinaryOperator *E);
   void VisitBinComma(const BinaryOperator *E);
   void VisitBinCmp(const BinaryOperator *E);
+  void VisitCXXRewrittenBinaryOperator(CXXRewrittenBinaryOperator *E) {
+    Visit(E->getSemanticForm());
+  }
 
   void VisitObjCMessageExpr(ObjCMessageExpr *E);
   void VisitObjCIvarRefExpr(ObjCIvarRefExpr *E) {
@@ -501,7 +504,7 @@ void AggExprEmitter::EmitArrayInit(Address DestPtr, llvm::ArrayType *AType,
           CGM.getContext().getTargetAddressSpace(AS));
       Emitter.finalize(GV);
       CharUnits Align = CGM.getContext().getTypeAlignInChars(ArrayQTy);
-      GV->setAlignment(Align.getQuantity());
+      GV->setAlignment(Align.getAsAlign());
       EmitFinalDestCopy(ArrayQTy, CGF.MakeAddrLValue(GV, ArrayQTy, Align));
       return;
     }
@@ -1495,6 +1498,13 @@ void AggExprEmitter::VisitInitListExpr(InitListExpr *E) {
   // initializers throws an exception.
   SmallVector<EHScopeStack::stable_iterator, 16> cleanups;
   llvm::Instruction *cleanupDominator = nullptr;
+  auto addCleanup = [&](const EHScopeStack::stable_iterator &cleanup) {
+    cleanups.push_back(cleanup);
+    if (!cleanupDominator) // create placeholder once needed
+      cleanupDominator = CGF.Builder.CreateAlignedLoad(
+          CGF.Int8Ty, llvm::Constant::getNullValue(CGF.Int8PtrTy),
+          CharUnits::One());
+  };
 
   unsigned curInitIndex = 0;
 
@@ -1519,7 +1529,7 @@ void AggExprEmitter::VisitInitListExpr(InitListExpr *E) {
       if (QualType::DestructionKind dtorKind =
               Base.getType().isDestructedType()) {
         CGF.pushDestroy(dtorKind, V, Base.getType());
-        cleanups.push_back(CGF.EHStack.stable_begin());
+        addCleanup(CGF.EHStack.stable_begin());
       }
     }
   }
@@ -1596,15 +1606,9 @@ void AggExprEmitter::VisitInitListExpr(InitListExpr *E) {
           = field->getType().isDestructedType()) {
       assert(LV.isSimple());
       if (CGF.needsEHCleanup(dtorKind)) {
-        if (!cleanupDominator)
-          cleanupDominator = CGF.Builder.CreateAlignedLoad(
-              CGF.Int8Ty,
-              llvm::Constant::getNullValue(CGF.Int8PtrTy),
-              CharUnits::One()); // placeholder
-
         CGF.pushDestroy(EHCleanup, LV.getAddress(), field->getType(),
                         CGF.getDestroyer(dtorKind), false);
-        cleanups.push_back(CGF.EHStack.stable_begin());
+        addCleanup(CGF.EHStack.stable_begin());
         pushedCleanup = true;
       }
     }
@@ -1620,6 +1624,8 @@ void AggExprEmitter::VisitInitListExpr(InitListExpr *E) {
 
   // Deactivate all the partial cleanups in reverse order, which
   // generally means popping them.
+  assert((cleanupDominator || cleanups.empty()) &&
+         "Missing cleanupDominator before deactivating cleanup blocks");
   for (unsigned i = cleanups.size(); i != 0; --i)
     CGF.DeactivateCleanupBlock(cleanups[i-1], cleanupDominator);
 
@@ -1756,7 +1762,7 @@ static CharUnits GetNumNonZeroBytesInInit(const Expr *E, CodeGenFunction &CGF) {
   // referencee.  InitListExprs for unions and arrays can't have references.
   if (const RecordType *RT = E->getType()->getAs<RecordType>()) {
     if (!RT->isUnionType()) {
-      RecordDecl *SD = E->getType()->getAs<RecordType>()->getDecl();
+      RecordDecl *SD = RT->getDecl();
       CharUnits NumNonZeroBytes = CharUnits::Zero();
 
       unsigned ILEElement = 0;

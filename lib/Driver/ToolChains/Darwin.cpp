@@ -146,7 +146,7 @@ void darwin::Assembler::ConstructJob(Compilation &C, const JobAction &JA,
   // asm_final spec is empty.
 
   const char *Exec = Args.MakeArgString(getToolChain().GetProgramPath("as"));
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
 }
 
 void darwin::MachOTool::anchor() {}
@@ -451,7 +451,7 @@ void darwin::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     const char *Exec =
         Args.MakeArgString(getToolChain().GetProgramPath("touch"));
     CmdArgs.push_back(Output.getFilename());
-    C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, None));
+    C.addCommand(std::make_unique<Command>(JA, *this, Exec, CmdArgs, None));
     return;
   }
 
@@ -653,7 +653,7 @@ void darwin::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *Exec = Args.MakeArgString(getToolChain().GetLinkerPath());
   std::unique_ptr<Command> Cmd =
-      llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs);
+      std::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs);
   Cmd->setInputFileList(std::move(InputFileList));
   C.addCommand(std::move(Cmd));
 }
@@ -677,7 +677,7 @@ void darwin::Lipo::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   const char *Exec = Args.MakeArgString(getToolChain().GetProgramPath("lipo"));
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
 }
 
 void darwin::Dsymutil::ConstructJob(Compilation &C, const JobAction &JA,
@@ -697,7 +697,7 @@ void darwin::Dsymutil::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *Exec =
       Args.MakeArgString(getToolChain().GetProgramPath("dsymutil"));
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
 }
 
 void darwin::VerifyDebug::ConstructJob(Compilation &C, const JobAction &JA,
@@ -720,7 +720,7 @@ void darwin::VerifyDebug::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *Exec =
       Args.MakeArgString(getToolChain().GetProgramPath("dwarfdump"));
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
 }
 
 MachO::MachO(const Driver &D, const llvm::Triple &Triple, const ArgList &Args)
@@ -1128,7 +1128,6 @@ void Darwin::addProfileRTLibs(const ArgList &Args,
     } else {
       addExportedSymbol(CmdArgs, "___llvm_profile_filename");
       addExportedSymbol(CmdArgs, "___llvm_profile_raw_version");
-      addExportedSymbol(CmdArgs, "_lprofCurFilename");
     }
     addExportedSymbol(CmdArgs, "_lprofDirMode");
   }
@@ -1480,22 +1479,6 @@ getDeploymentTargetFromEnvironmentVariables(const Driver &TheDriver,
       Targets[I.index()] = Env;
   }
 
-  // Do not allow conflicts with the watchOS target.
-  if (!Targets[Darwin::WatchOS].empty() &&
-      (!Targets[Darwin::IPhoneOS].empty() || !Targets[Darwin::TvOS].empty())) {
-    TheDriver.Diag(diag::err_drv_conflicting_deployment_targets)
-        << "WATCHOS_DEPLOYMENT_TARGET"
-        << (!Targets[Darwin::IPhoneOS].empty() ? "IPHONEOS_DEPLOYMENT_TARGET"
-                                               : "TVOS_DEPLOYMENT_TARGET");
-  }
-
-  // Do not allow conflicts with the tvOS target.
-  if (!Targets[Darwin::TvOS].empty() && !Targets[Darwin::IPhoneOS].empty()) {
-    TheDriver.Diag(diag::err_drv_conflicting_deployment_targets)
-        << "TVOS_DEPLOYMENT_TARGET"
-        << "IPHONEOS_DEPLOYMENT_TARGET";
-  }
-
   // Allow conflicts among OSX and iOS for historical reasons, but choose the
   // default platform.
   if (!Targets[Darwin::MacOS].empty() &&
@@ -1508,6 +1491,18 @@ getDeploymentTargetFromEnvironmentVariables(const Driver &TheDriver,
     else
       Targets[Darwin::IPhoneOS] = Targets[Darwin::WatchOS] =
           Targets[Darwin::TvOS] = "";
+  } else {
+    // Don't allow conflicts in any other platform.
+    int FirstTarget = llvm::array_lengthof(Targets);
+    for (int I = 0; I != llvm::array_lengthof(Targets); ++I) {
+      if (Targets[I].empty())
+        continue;
+      if (FirstTarget == llvm::array_lengthof(Targets))
+        FirstTarget = I;
+      else
+        TheDriver.Diag(diag::err_drv_conflicting_deployment_targets)
+            << Targets[FirstTarget] << Targets[I];
+    }
   }
 
   for (const auto &Target : llvm::enumerate(llvm::makeArrayRef(Targets))) {

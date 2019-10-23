@@ -208,10 +208,10 @@ ObjCMigrateAction::CreateASTConsumer(CompilerInstance &CI, StringRef InFile) {
   CI.getPreprocessor().addPPCallbacks(std::unique_ptr<PPCallbacks>(PPRec));
   std::vector<std::unique_ptr<ASTConsumer>> Consumers;
   Consumers.push_back(WrapperFrontendAction::CreateASTConsumer(CI, InFile));
-  Consumers.push_back(llvm::make_unique<ObjCMigrateASTConsumer>(
+  Consumers.push_back(std::make_unique<ObjCMigrateASTConsumer>(
       MigrateDir, ObjCMigAction, Remapper, CompInst->getFileManager(), PPRec,
       CompInst->getPreprocessor(), false, None));
-  return llvm::make_unique<MultiplexConsumer>(std::move(Consumers));
+  return std::make_unique<MultiplexConsumer>(std::move(Consumers));
 }
 
 bool ObjCMigrateAction::BeginInvocation(CompilerInstance &CI) {
@@ -1951,7 +1951,7 @@ void ObjCMigrateASTConsumer::HandleTranslationUnit(ASTContext &Ctx) {
 
  if (IsOutputFile) {
    std::error_code EC;
-   llvm::raw_fd_ostream OS(MigrateDir, EC, llvm::sys::fs::F_None);
+   llvm::raw_fd_ostream OS(MigrateDir, EC, llvm::sys::fs::OF_None);
    if (EC) {
       DiagnosticsEngine &Diags = Ctx.getDiagnostics();
       Diags.Report(Diags.getCustomDiagID(DiagnosticsEngine::Error, "%0"))
@@ -2034,7 +2034,7 @@ MigrateSourceAction::CreateASTConsumer(CompilerInstance &CI, StringRef InFile) {
   CI.getPreprocessor().addPPCallbacks(std::unique_ptr<PPCallbacks>(PPRec));
   std::vector<std::string> WhiteList =
     getWhiteListFilenames(CI.getFrontendOpts().ObjCMTWhiteListPath);
-  return llvm::make_unique<ObjCMigrateASTConsumer>(
+  return std::make_unique<ObjCMigrateASTConsumer>(
       CI.getFrontendOpts().OutputFile, ObjCMTAction, Remapper,
       CI.getFileManager(), PPRec, CI.getPreprocessor(),
       /*isOutputFile=*/true, WhiteList);
@@ -2141,10 +2141,11 @@ private:
       StringRef Val = ValueString->getValue(ValueStorage);
 
       if (Key == "file") {
-        const FileEntry *FE = FileMgr.getFile(Val);
-        if (!FE)
+        auto FE = FileMgr.getFile(Val);
+        if (FE)
+          Entry.File = *FE;
+        else
           Ignore = true;
-        Entry.File = FE;
       } else if (Key == "offset") {
         if (Val.getAsInteger(10, Entry.Offset))
           Ignore = true;

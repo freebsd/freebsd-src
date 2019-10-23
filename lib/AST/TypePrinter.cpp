@@ -125,7 +125,7 @@ namespace {
 #define TYPE(CLASS, PARENT) \
     void print##CLASS##Before(const CLASS##Type *T, raw_ostream &OS); \
     void print##CLASS##After(const CLASS##Type *T, raw_ostream &OS);
-#include "clang/AST/TypeNodes.def"
+#include "clang/AST/TypeNodes.inc"
 
   private:
     void printBefore(const Type *ty, Qualifiers qs, raw_ostream &OS);
@@ -321,7 +321,7 @@ void TypePrinter::printBefore(const Type *T,Qualifiers Quals, raw_ostream &OS) {
 #define TYPE(CLASS, PARENT) case Type::CLASS: \
     print##CLASS##Before(cast<CLASS##Type>(T), OS); \
     break;
-#include "clang/AST/TypeNodes.def"
+#include "clang/AST/TypeNodes.inc"
   }
 
   if (hasAfterQuals) {
@@ -347,7 +347,7 @@ void TypePrinter::printAfter(const Type *T, Qualifiers Quals, raw_ostream &OS) {
 #define TYPE(CLASS, PARENT) case Type::CLASS: \
     print##CLASS##After(cast<CLASS##Type>(T), OS); \
     break;
-#include "clang/AST/TypeNodes.def"
+#include "clang/AST/TypeNodes.inc"
   }
 }
 
@@ -1204,7 +1204,8 @@ void TypePrinter::printTag(TagDecl *D, raw_ostream &OS) {
   // arguments.
   if (const auto *Spec = dyn_cast<ClassTemplateSpecializationDecl>(D)) {
     ArrayRef<TemplateArgument> Args;
-    if (TypeSourceInfo *TAW = Spec->getTypeAsWritten()) {
+    TypeSourceInfo *TAW = Spec->getTypeAsWritten();
+    if (!Policy.PrintCanonicalTypes && TAW) {
       const TemplateSpecializationType *TST =
         cast<TemplateSpecializationType>(TAW->getType());
       Args = TST->template_arguments();
@@ -1537,7 +1538,7 @@ void TypePrinter::printAttributedAfter(const AttributedType *T,
    QualType t = T->getEquivalentType();
    while (!t->isFunctionType())
      t = t->getPointeeType();
-   OS << (t->getAs<FunctionType>()->getCallConv() == CC_AAPCS ?
+   OS << (t->castAs<FunctionType>()->getCallConv() == CC_AAPCS ?
          "\"aapcs\"" : "\"aapcs-vfp\"");
    OS << ')';
    break;

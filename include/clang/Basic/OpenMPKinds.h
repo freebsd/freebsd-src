@@ -35,6 +35,8 @@ enum OpenMPClauseKind {
 #include "clang/Basic/OpenMPKinds.def"
   OMPC_threadprivate,
   OMPC_uniform,
+  OMPC_device_type,
+  OMPC_match,
   OMPC_unknown
 };
 
@@ -152,6 +154,14 @@ enum OpenMPAtomicDefaultMemOrderClauseKind {
   OMPC_ATOMIC_DEFAULT_MEM_ORDER_unknown
 };
 
+/// OpenMP device type for 'device_type' clause.
+enum OpenMPDeviceType {
+#define OPENMP_DEVICE_TYPE_KIND(Name) \
+  OMPC_DEVICE_TYPE_##Name,
+#include "clang/Basic/OpenMPKinds.def"
+  OMPC_DEVICE_TYPE_unknown
+};
+
 /// Scheduling data for loop-based OpenMP directives.
 struct OpenMPScheduleTy final {
   OpenMPScheduleClauseKind Schedule = OMPC_SCHEDULE_unknown;
@@ -259,7 +269,8 @@ bool isOpenMPPrivate(OpenMPClauseKind Kind);
 bool isOpenMPThreadPrivate(OpenMPClauseKind Kind);
 
 /// Checks if the specified directive kind is one of tasking directives - task,
-/// taskloop or taksloop simd.
+/// taskloop, taksloop simd, master taskloop, parallel master taskloop or master
+/// taskloop simd.
 bool isOpenMPTaskingDirective(OpenMPDirectiveKind Kind);
 
 /// Checks if the specified directive kind is one of the composite or combined

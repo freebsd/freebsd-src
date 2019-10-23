@@ -27,6 +27,7 @@ namespace clang {
 void EmitClangDeclContext(llvm::RecordKeeper &RK, llvm::raw_ostream &OS);
 void EmitClangASTNodes(llvm::RecordKeeper &RK, llvm::raw_ostream &OS,
                        const std::string &N, const std::string &S);
+void EmitClangTypeNodes(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
 
 void EmitClangAttrParserStringSwitches(llvm::RecordKeeper &Records,
                                        llvm::raw_ostream &OS);
@@ -77,6 +78,7 @@ void EmitClangCommentCommandInfo(llvm::RecordKeeper &Records,
                                  llvm::raw_ostream &OS);
 void EmitClangCommentCommandList(llvm::RecordKeeper &Records,
                                  llvm::raw_ostream &OS);
+void EmitClangOpcodes(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
 
 void EmitNeon(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
 void EmitFP16(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);

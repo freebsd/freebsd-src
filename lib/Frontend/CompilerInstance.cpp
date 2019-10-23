@@ -13,6 +13,7 @@
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/FileManager.h"
+#include "clang/Basic/LangStandard.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/Stack.h"
 #include "clang/Basic/TargetInfo.h"
@@ -49,8 +50,6 @@
 #include "llvm/Support/TimeProfiler.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
-#include <sys/stat.h>
-#include <system_error>
 #include <time.h>
 #include <utility>
 
@@ -83,6 +82,16 @@ bool CompilerInstance::shouldBuildGlobalModuleIndex() const {
 
 void CompilerInstance::setDiagnostics(DiagnosticsEngine *Value) {
   Diagnostics = Value;
+}
+
+void CompilerInstance::setVerboseOutputStream(raw_ostream &Value) {
+  OwnedVerboseOutputStream.release();
+  VerboseOutputStream = &Value;
+}
+
+void CompilerInstance::setVerboseOutputStream(std::unique_ptr<raw_ostream> Value) {
+  OwnedVerboseOutputStream.swap(Value);
+  VerboseOutputStream = OwnedVerboseOutputStream.get();
 }
 
 void CompilerInstance::setTarget(TargetInfo *Value) { Target = Value; }
@@ -161,7 +170,7 @@ static void collectIncludePCH(CompilerInstance &CI,
 
   StringRef PCHInclude = PPOpts.ImplicitPCHInclude;
   FileManager &FileMgr = CI.getFileManager();
-  const DirectoryEntry *PCHDir = FileMgr.getDirectory(PCHInclude);
+  auto PCHDir = FileMgr.getDirectory(PCHInclude);
   if (!PCHDir) {
     MDC->addFile(PCHInclude);
     return;
@@ -169,7 +178,7 @@ static void collectIncludePCH(CompilerInstance &CI,
 
   std::error_code EC;
   SmallString<128> DirNative;
-  llvm::sys::path::native(PCHDir->getName(), DirNative);
+  llvm::sys::path::native((*PCHDir)->getName(), DirNative);
   llvm::vfs::FileSystem &FS = FileMgr.getVirtualFileSystem();
   SimpleASTReaderListener Validator(CI.getPreprocessor());
   for (llvm::vfs::directory_iterator Dir = FS.dir_begin(DirNative, EC), DirEnd;
@@ -214,9 +223,9 @@ static void SetUpDiagnosticLog(DiagnosticOptions *DiagOpts,
   raw_ostream *OS = &llvm::errs();
   if (DiagOpts->DiagnosticLogFile != "-") {
     // Create the output stream.
-    auto FileOS = llvm::make_unique<llvm::raw_fd_ostream>(
+    auto FileOS = std::make_unique<llvm::raw_fd_ostream>(
         DiagOpts->DiagnosticLogFile, EC,
-        llvm::sys::fs::F_Append | llvm::sys::fs::F_Text);
+        llvm::sys::fs::OF_Append | llvm::sys::fs::OF_Text);
     if (EC) {
       Diags.Report(diag::warn_fe_cc_log_diagnostics_failure)
           << DiagOpts->DiagnosticLogFile << EC.message();
@@ -228,7 +237,7 @@ static void SetUpDiagnosticLog(DiagnosticOptions *DiagOpts,
   }
 
   // Chain in the diagnostic client which will log the diagnostics.
-  auto Logger = llvm::make_unique<LogDiagnosticPrinter>(*OS, DiagOpts,
+  auto Logger = std::make_unique<LogDiagnosticPrinter>(*OS, DiagOpts,
                                                         std::move(StreamOwner));
   if (CodeGenOpts)
     Logger->setDwarfDebugFlags(CodeGenOpts->DwarfDebugFlags);
@@ -342,7 +351,7 @@ static void InitializeFileRemapping(DiagnosticsEngine &Diags,
   // Remap files in the source manager (with other files).
   for (const auto &RF : InitOpts.RemappedFiles) {
     // Find the file that we're mapping to.
-    const FileEntry *ToFile = FileMgr.getFile(RF.second);
+    auto ToFile = FileMgr.getFile(RF.second);
     if (!ToFile) {
       Diags.Report(diag::err_fe_remap_missing_to_file) << RF.first << RF.second;
       continue;
@@ -350,7 +359,7 @@ static void InitializeFileRemapping(DiagnosticsEngine &Diags,
 
     // Create the file entry for the file that we're mapping from.
     const FileEntry *FromFile =
-        FileMgr.getVirtualFile(RF.first, ToFile->getSize(), 0);
+        FileMgr.getVirtualFile(RF.first, (*ToFile)->getSize(), 0);
     if (!FromFile) {
       Diags.Report(diag::err_fe_remap_missing_from_file) << RF.first;
       continue;
@@ -358,7 +367,7 @@ static void InitializeFileRemapping(DiagnosticsEngine &Diags,
 
     // Override the contents of the "from" file with the contents of
     // the "to" file.
-    SourceMgr.overrideFileContents(FromFile, ToFile);
+    SourceMgr.overrideFileContents(FromFile, *ToFile);
   }
 
   SourceMgr.setOverridenFilesKeepOriginalName(
@@ -509,7 +518,8 @@ IntrusiveRefCntPtr<ASTReader> CompilerInstance::createPCHExternalASTSource(
       PP, ModuleCache, &Context, PCHContainerRdr, Extensions,
       Sysroot.empty() ? "" : Sysroot.data(), DisablePCHValidation,
       AllowPCHWithCompilerErrors, /*AllowConfigurationMismatch*/ false,
-      HSOpts.ModulesValidateSystemHeaders, UseGlobalModuleIndex));
+      HSOpts.ModulesValidateSystemHeaders, HSOpts.ValidateASTInputFilesContent,
+      UseGlobalModuleIndex));
 
   // We need the external source to be set up before we read the AST, because
   // eagerly-deserialized declarations may use it.
@@ -558,7 +568,7 @@ static bool EnableCodeCompletion(Preprocessor &PP,
                                  unsigned Column) {
   // Tell the source manager to chop off the given file at a specific
   // line and column.
-  const FileEntry *Entry = PP.getFileManager().getFile(Filename);
+  auto Entry = PP.getFileManager().getFile(Filename);
   if (!Entry) {
     PP.getDiagnostics().Report(diag::err_fe_invalid_code_complete_file)
       << Filename;
@@ -566,7 +576,7 @@ static bool EnableCodeCompletion(Preprocessor &PP,
   }
 
   // Truncate the named file at the given line/column.
-  PP.SetCodeCompletionPoint(Entry, Line, Column);
+  PP.SetCodeCompletionPoint(*Entry, Line, Column);
   return false;
 }
 
@@ -666,7 +676,7 @@ CompilerInstance::createDefaultOutputFile(bool Binary, StringRef InFile,
 }
 
 std::unique_ptr<raw_pwrite_stream> CompilerInstance::createNullOutputFile() {
-  return llvm::make_unique<llvm::raw_null_ostream>();
+  return std::make_unique<llvm::raw_null_ostream>();
 }
 
 std::unique_ptr<raw_pwrite_stream>
@@ -775,7 +785,7 @@ std::unique_ptr<llvm::raw_pwrite_stream> CompilerInstance::createOutputFile(
     OSFile = OutFile;
     OS.reset(new llvm::raw_fd_ostream(
         OSFile, Error,
-        (Binary ? llvm::sys::fs::F_None : llvm::sys::fs::F_Text)));
+        (Binary ? llvm::sys::fs::OF_None : llvm::sys::fs::OF_Text)));
     if (Error)
       return nullptr;
   }
@@ -792,7 +802,7 @@ std::unique_ptr<llvm::raw_pwrite_stream> CompilerInstance::createOutputFile(
   if (!Binary || OS->supportsSeeking())
     return std::move(OS);
 
-  auto B = llvm::make_unique<llvm::buffer_ostream>(*OS);
+  auto B = std::make_unique<llvm::buffer_ostream>(*OS);
   assert(!NonSeekStream);
   NonSeekStream = std::move(OS);
   return std::move(B);
@@ -830,32 +840,39 @@ bool CompilerInstance::InitializeSourceManager(
 
   // Figure out where to get and map in the main file.
   if (InputFile != "-") {
-    const FileEntry *File = FileMgr.getFile(InputFile, /*OpenFile=*/true);
-    if (!File) {
+    auto FileOrErr = FileMgr.getFileRef(InputFile, /*OpenFile=*/true);
+    if (!FileOrErr) {
+      // FIXME: include the error in the diagnostic.
+      consumeError(FileOrErr.takeError());
       Diags.Report(diag::err_fe_error_reading) << InputFile;
       return false;
     }
+    FileEntryRef File = *FileOrErr;
 
     // The natural SourceManager infrastructure can't currently handle named
     // pipes, but we would at least like to accept them for the main
     // file. Detect them here, read them with the volatile flag so FileMgr will
     // pick up the correct size, and simply override their contents as we do for
     // STDIN.
-    if (File->isNamedPipe()) {
-      auto MB = FileMgr.getBufferForFile(File, /*isVolatile=*/true);
+    if (File.getFileEntry().isNamedPipe()) {
+      auto MB =
+          FileMgr.getBufferForFile(&File.getFileEntry(), /*isVolatile=*/true);
       if (MB) {
         // Create a new virtual file that will have the correct size.
-        File = FileMgr.getVirtualFile(InputFile, (*MB)->getBufferSize(), 0);
-        SourceMgr.overrideFileContents(File, std::move(*MB));
+        const FileEntry *FE =
+            FileMgr.getVirtualFile(InputFile, (*MB)->getBufferSize(), 0);
+        SourceMgr.overrideFileContents(FE, std::move(*MB));
+        SourceMgr.setMainFileID(
+            SourceMgr.createFileID(FE, SourceLocation(), Kind));
       } else {
         Diags.Report(diag::err_cannot_open_file) << InputFile
                                                  << MB.getError().message();
         return false;
       }
+    } else {
+      SourceMgr.setMainFileID(
+          SourceMgr.createFileID(File, SourceLocation(), Kind));
     }
-
-    SourceMgr.setMainFileID(
-        SourceMgr.createFileID(File, SourceLocation(), Kind));
   } else {
     llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> SBOrErr =
         llvm::MemoryBuffer::getSTDIN();
@@ -884,9 +901,12 @@ bool CompilerInstance::ExecuteAction(FrontendAction &Act) {
   assert(!getFrontendOpts().ShowHelp && "Client must handle '-help'!");
   assert(!getFrontendOpts().ShowVersion && "Client must handle '-version'!");
 
-  // FIXME: Take this as an argument, once all the APIs we used have moved to
-  // taking it as an input instead of hard-coding llvm::errs.
-  raw_ostream &OS = llvm::errs();
+  // Mark this point as the bottom of the stack if we don't have somewhere
+  // better. We generally expect frontend actions to be invoked with (nearly)
+  // DesiredStackSpace available.
+  noteBottomOfStack();
+
+  raw_ostream &OS = getVerboseOutputStream();
 
   if (!Act.PrepareToExecute(*this))
     return false;
@@ -986,8 +1006,8 @@ bool CompilerInstance::ExecuteAction(FrontendAction &Act) {
   StringRef StatsFile = getFrontendOpts().StatsFile;
   if (!StatsFile.empty()) {
     std::error_code EC;
-    auto StatS = llvm::make_unique<llvm::raw_fd_ostream>(StatsFile, EC,
-                                                         llvm::sys::fs::F_Text);
+    auto StatS = std::make_unique<llvm::raw_fd_ostream>(
+        StatsFile, EC, llvm::sys::fs::OF_Text);
     if (EC) {
       getDiagnostics().Report(diag::warn_fe_unable_to_open_stats_file)
           << StatsFile << EC.message();
@@ -1001,14 +1021,14 @@ bool CompilerInstance::ExecuteAction(FrontendAction &Act) {
 
 /// Determine the appropriate source input kind based on language
 /// options.
-static InputKind::Language getLanguageFromOptions(const LangOptions &LangOpts) {
+static Language getLanguageFromOptions(const LangOptions &LangOpts) {
   if (LangOpts.OpenCL)
-    return InputKind::OpenCL;
+    return Language::OpenCL;
   if (LangOpts.CUDA)
-    return InputKind::CUDA;
+    return Language::CUDA;
   if (LangOpts.ObjC)
-    return LangOpts.CPlusPlus ? InputKind::ObjCXX : InputKind::ObjC;
-  return LangOpts.CPlusPlus ? InputKind::CXX : InputKind::C;
+    return LangOpts.CPlusPlus ? Language::ObjCXX : Language::ObjC;
+  return LangOpts.CPlusPlus ? Language::CXX : Language::C;
 }
 
 /// Compile a module file for the given module, using the options
@@ -1154,7 +1174,9 @@ static const FileEntry *getPublicModuleMap(const FileEntry *File,
     llvm::sys::path::append(PublicFilename, "module.modulemap");
   else
     return nullptr;
-  return FileMgr.getFile(PublicFilename);
+  if (auto FE = FileMgr.getFile(PublicFilename))
+    return *FE;
+  return nullptr;
 }
 
 /// Compile a module file for the given module, using the options
@@ -1367,22 +1389,22 @@ static void checkConfigMacro(Preprocessor &PP, StringRef ConfigMacro,
 /// Write a new timestamp file with the given path.
 static void writeTimestampFile(StringRef TimestampFile) {
   std::error_code EC;
-  llvm::raw_fd_ostream Out(TimestampFile.str(), EC, llvm::sys::fs::F_None);
+  llvm::raw_fd_ostream Out(TimestampFile.str(), EC, llvm::sys::fs::OF_None);
 }
 
 /// Prune the module cache of modules that haven't been accessed in
 /// a long time.
 static void pruneModuleCache(const HeaderSearchOptions &HSOpts) {
-  struct stat StatBuf;
+  llvm::sys::fs::file_status StatBuf;
   llvm::SmallString<128> TimestampFile;
   TimestampFile = HSOpts.ModuleCachePath;
   assert(!TimestampFile.empty());
   llvm::sys::path::append(TimestampFile, "modules.timestamp");
 
   // Try to stat() the timestamp file.
-  if (::stat(TimestampFile.c_str(), &StatBuf)) {
+  if (std::error_code EC = llvm::sys::fs::status(TimestampFile, StatBuf)) {
     // If the timestamp file wasn't there, create one now.
-    if (errno == ENOENT) {
+    if (EC == std::errc::no_such_file_or_directory) {
       writeTimestampFile(TimestampFile);
     }
     return;
@@ -1390,7 +1412,8 @@ static void pruneModuleCache(const HeaderSearchOptions &HSOpts) {
 
   // Check whether the time stamp is older than our pruning interval.
   // If not, do nothing.
-  time_t TimeStampModTime = StatBuf.st_mtime;
+  time_t TimeStampModTime =
+      llvm::sys::toTimeT(StatBuf.getLastModificationTime());
   time_t CurrentTime = time(nullptr);
   if (CurrentTime - TimeStampModTime <= time_t(HSOpts.ModuleCachePruneInterval))
     return;
@@ -1422,11 +1445,11 @@ static void pruneModuleCache(const HeaderSearchOptions &HSOpts) {
 
       // Look at this file. If we can't stat it, there's nothing interesting
       // there.
-      if (::stat(File->path().c_str(), &StatBuf))
+      if (llvm::sys::fs::status(File->path(), StatBuf))
         continue;
 
       // If the file has been used recently enough, leave it there.
-      time_t FileAccessTime = StatBuf.st_atime;
+      time_t FileAccessTime = llvm::sys::toTimeT(StatBuf.getLastAccessedTime());
       if (CurrentTime - FileAccessTime <=
               time_t(HSOpts.ModuleCachePruneAfter)) {
         continue;
@@ -1467,7 +1490,7 @@ void CompilerInstance::createModuleManager() {
     const PreprocessorOptions &PPOpts = getPreprocessorOpts();
     std::unique_ptr<llvm::Timer> ReadTimer;
     if (FrontendTimerGroup)
-      ReadTimer = llvm::make_unique<llvm::Timer>("reading_modules",
+      ReadTimer = std::make_unique<llvm::Timer>("reading_modules",
                                                  "Reading modules",
                                                  *FrontendTimerGroup);
     ModuleManager = new ASTReader(
@@ -1477,6 +1500,7 @@ void CompilerInstance::createModuleManager() {
         /*AllowASTWithCompilerErrors=*/false,
         /*AllowConfigurationMismatch=*/false,
         HSOpts.ModulesValidateSystemHeaders,
+        HSOpts.ValidateASTInputFilesContent,
         getFrontendOpts().UseGlobalModuleIndex, std::move(ReadTimer));
     if (hasASTConsumer()) {
       ModuleManager->setDeserializationListener(
@@ -1562,7 +1586,7 @@ bool CompilerInstance::loadModuleFile(StringRef FileName) {
                                           SourceLocation())
         <= DiagnosticsEngine::Warning;
 
-  auto Listener = llvm::make_unique<ReadModuleNames>(*this);
+  auto Listener = std::make_unique<ReadModuleNames>(*this);
   auto &ListenerRef = *Listener;
   ASTReader::ListenerScope ReadModuleNamesListener(*ModuleManager,
                                                    std::move(Listener));
@@ -1718,8 +1742,9 @@ CompilerInstance::loadModule(SourceLocation ImportLoc,
       if (Source != ModuleCache && !Module) {
         Module = PP->getHeaderSearchInfo().lookupModule(ModuleName, true,
                                                         !IsInclusionDirective);
+        auto ModuleFile = FileMgr->getFile(ModuleFileName);
         if (!Module || !Module->getASTFile() ||
-            FileMgr->getFile(ModuleFileName) != Module->getASTFile()) {
+            !ModuleFile || (*ModuleFile != Module->getASTFile())) {
           // Error out if Module does not refer to the file in the prebuilt
           // module path.
           getDiagnostics().Report(ModuleNameLoc, diag::err_module_prebuilt)

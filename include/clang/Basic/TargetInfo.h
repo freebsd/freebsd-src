@@ -19,14 +19,15 @@
 #include "clang/Basic/Specifiers.h"
 #include "clang/Basic/TargetCXXABI.h"
 #include "clang/Basic/TargetOptions.h"
+#include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/IR/DataLayout.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/VersionTuple.h"
 #include <cassert>
@@ -35,6 +36,7 @@
 
 namespace llvm {
 struct fltSemantics;
+class DataLayout;
 }
 
 namespace clang {
@@ -193,12 +195,12 @@ protected:
 
   unsigned IsRenderScriptTarget : 1;
 
+  unsigned HasAArch64SVETypes : 1;
+
   // TargetInfo Constructor.  Default initializes all fields.
   TargetInfo(const llvm::Triple &T);
 
-  void resetDataLayout(StringRef DL) {
-    DataLayout.reset(new llvm::DataLayout(DL));
-  }
+  void resetDataLayout(StringRef DL);
 
 public:
   /// Construct a target for the given options.
@@ -789,6 +791,10 @@ public:
   /// Returns true for RenderScript.
   bool isRenderScriptTarget() const { return IsRenderScriptTarget; }
 
+  /// Returns whether or not the AArch64 SVE built-in types are
+  /// available on this target.
+  bool hasAArch64SVETypes() const { return HasAArch64SVETypes; }
+
   /// Returns whether the passed in string is a valid clobber in an
   /// inline asm statement.
   ///
@@ -1249,15 +1255,9 @@ public:
   bool isBigEndian() const { return BigEndian; }
   bool isLittleEndian() const { return !BigEndian; }
 
-  enum CallingConvMethodType {
-    CCMT_Unknown,
-    CCMT_Member,
-    CCMT_NonMember
-  };
-
   /// Gets the default calling convention for the given target and
   /// declaration context.
-  virtual CallingConv getDefaultCallingConv(CallingConvMethodType MT) const {
+  virtual CallingConv getDefaultCallingConv() const {
     // Not all targets will specify an explicit calling convention that we can
     // express.  This will always do the right thing, even though it's not
     // an explicit calling convention.
@@ -1268,6 +1268,7 @@ public:
     CCCR_OK,
     CCCR_Warning,
     CCCR_Ignore,
+    CCCR_Error,
   };
 
   /// Determines whether a given calling convention is valid for the
