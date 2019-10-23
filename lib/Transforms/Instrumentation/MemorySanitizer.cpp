@@ -462,16 +462,9 @@ namespace {
 /// the module.
 class MemorySanitizer {
 public:
-  MemorySanitizer(Module &M, MemorySanitizerOptions Options) {
-    this->CompileKernel =
-        ClEnableKmsan.getNumOccurrences() > 0 ? ClEnableKmsan : Options.Kernel;
-    if (ClTrackOrigins.getNumOccurrences() > 0)
-      this->TrackOrigins = ClTrackOrigins;
-    else
-      this->TrackOrigins = this->CompileKernel ? 2 : Options.TrackOrigins;
-    this->Recover = ClKeepGoing.getNumOccurrences() > 0
-                        ? ClKeepGoing
-                        : (this->CompileKernel | Options.Recover);
+  MemorySanitizer(Module &M, MemorySanitizerOptions Options)
+      : CompileKernel(Options.Kernel), TrackOrigins(Options.TrackOrigins),
+        Recover(Options.Recover) {
     initializeModule(M);
   }
 
@@ -594,9 +587,25 @@ private:
 
   /// An empty volatile inline asm that prevents callback merge.
   InlineAsm *EmptyAsm;
-
-  Function *MsanCtorFunction;
 };
+
+void insertModuleCtor(Module &M) {
+  getOrCreateSanitizerCtorAndInitFunctions(
+      M, kMsanModuleCtorName, kMsanInitName,
+      /*InitArgTypes=*/{},
+      /*InitArgs=*/{},
+      // This callback is invoked when the functions are created the first
+      // time. Hook them into the global ctors list in that case:
+      [&](Function *Ctor, FunctionCallee) {
+        if (!ClWithComdat) {
+          appendToGlobalCtors(M, Ctor, 0);
+          return;
+        }
+        Comdat *MsanCtorComdat = M.getOrInsertComdat(kMsanModuleCtorName);
+        Ctor->setComdat(MsanCtorComdat);
+        appendToGlobalCtors(M, Ctor, 0, Ctor);
+      });
+}
 
 /// A legacy function pass for msan instrumentation.
 ///
@@ -615,7 +624,7 @@ struct MemorySanitizerLegacyPass : public FunctionPass {
 
   bool runOnFunction(Function &F) override {
     return MSan->sanitizeFunction(
-        F, getAnalysis<TargetLibraryInfoWrapperPass>().getTLI());
+        F, getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F));
   }
   bool doInitialization(Module &M) override;
 
@@ -623,7 +632,16 @@ struct MemorySanitizerLegacyPass : public FunctionPass {
   MemorySanitizerOptions Options;
 };
 
+template <class T> T getOptOrDefault(const cl::opt<T> &Opt, T Default) {
+  return (Opt.getNumOccurrences() > 0) ? Opt : Default;
+}
+
 } // end anonymous namespace
+
+MemorySanitizerOptions::MemorySanitizerOptions(int TO, bool R, bool K)
+    : Kernel(getOptOrDefault(ClEnableKmsan, K)),
+      TrackOrigins(getOptOrDefault(ClTrackOrigins, Kernel ? 2 : TO)),
+      Recover(getOptOrDefault(ClKeepGoing, Kernel || R)) {}
 
 PreservedAnalyses MemorySanitizerPass::run(Function &F,
                                            FunctionAnalysisManager &FAM) {
@@ -631,6 +649,14 @@ PreservedAnalyses MemorySanitizerPass::run(Function &F,
   if (Msan.sanitizeFunction(F, FAM.getResult<TargetLibraryAnalysis>(F)))
     return PreservedAnalyses::none();
   return PreservedAnalyses::all();
+}
+
+PreservedAnalyses MemorySanitizerPass::run(Module &M,
+                                           ModuleAnalysisManager &AM) {
+  if (Options.Kernel)
+    return PreservedAnalyses::all();
+  insertModuleCtor(M);
+  return PreservedAnalyses::none();
 }
 
 char MemorySanitizerLegacyPass::ID = 0;
@@ -918,23 +944,6 @@ void MemorySanitizer::initializeModule(Module &M) {
   OriginStoreWeights = MDBuilder(*C).createBranchWeights(1, 1000);
 
   if (!CompileKernel) {
-    std::tie(MsanCtorFunction, std::ignore) =
-        getOrCreateSanitizerCtorAndInitFunctions(
-            M, kMsanModuleCtorName, kMsanInitName,
-            /*InitArgTypes=*/{},
-            /*InitArgs=*/{},
-            // This callback is invoked when the functions are created the first
-            // time. Hook them into the global ctors list in that case:
-            [&](Function *Ctor, FunctionCallee) {
-              if (!ClWithComdat) {
-                appendToGlobalCtors(M, Ctor, 0);
-                return;
-              }
-              Comdat *MsanCtorComdat = M.getOrInsertComdat(kMsanModuleCtorName);
-              Ctor->setComdat(MsanCtorComdat);
-              appendToGlobalCtors(M, Ctor, 0, Ctor);
-            });
-
     if (TrackOrigins)
       M.getOrInsertGlobal("__msan_track_origins", IRB.getInt32Ty(), [&] {
         return new GlobalVariable(
@@ -952,6 +961,8 @@ void MemorySanitizer::initializeModule(Module &M) {
 }
 
 bool MemorySanitizerLegacyPass::doInitialization(Module &M) {
+  if (!Options.Kernel)
+    insertModuleCtor(M);
   MSan.emplace(M, Options);
   return true;
 }
@@ -2562,6 +2573,11 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
     return false;
   }
 
+  void handleInvariantGroup(IntrinsicInst &I) {
+    setShadow(&I, getShadow(&I, 0));
+    setOrigin(&I, getOrigin(&I, 0));
+  }
+
   void handleLifetimeStart(IntrinsicInst &I) {
     if (!PoisonStack)
       return;
@@ -2992,6 +3008,10 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
     switch (I.getIntrinsicID()) {
     case Intrinsic::lifetime_start:
       handleLifetimeStart(I);
+      break;
+    case Intrinsic::launder_invariant_group:
+    case Intrinsic::strip_invariant_group:
+      handleInvariantGroup(I);
       break;
     case Intrinsic::bswap:
       handleBswap(I);
@@ -3627,10 +3647,10 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
   int getNumOutputArgs(InlineAsm *IA, CallBase *CB) {
     int NumRetOutputs = 0;
     int NumOutputs = 0;
-    Type *RetTy = dyn_cast<Value>(CB)->getType();
+    Type *RetTy = cast<Value>(CB)->getType();
     if (!RetTy->isVoidTy()) {
       // Register outputs are returned via the CallInst return value.
-      StructType *ST = dyn_cast_or_null<StructType>(RetTy);
+      auto *ST = dyn_cast<StructType>(RetTy);
       if (ST)
         NumRetOutputs = ST->getNumElements();
       else
@@ -3667,7 +3687,7 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
     // corresponding CallInst has nO+nI+1 operands (the last operand is the
     // function to be called).
     const DataLayout &DL = F.getParent()->getDataLayout();
-    CallBase *CB = dyn_cast<CallBase>(&I);
+    CallBase *CB = cast<CallBase>(&I);
     IRBuilder<> IRB(&I);
     InlineAsm *IA = cast<InlineAsm>(CB->getCalledValue());
     int OutputArgs = getNumOutputArgs(IA, CB);
@@ -4567,8 +4587,9 @@ static VarArgHelper *CreateVarArgHelper(Function &Func, MemorySanitizer &Msan,
 }
 
 bool MemorySanitizer::sanitizeFunction(Function &F, TargetLibraryInfo &TLI) {
-  if (!CompileKernel && (&F == MsanCtorFunction))
+  if (!CompileKernel && F.getName() == kMsanModuleCtorName)
     return false;
+
   MemorySanitizerVisitor Visitor(F, *this, TLI);
 
   // Clear out readonly/readnone attributes.

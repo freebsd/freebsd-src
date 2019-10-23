@@ -1334,12 +1334,12 @@ void ARMInstPrinter::printFPImmOperand(const MCInst *MI, unsigned OpNum,
     << markup(">");
 }
 
-void ARMInstPrinter::printNEONModImmOperand(const MCInst *MI, unsigned OpNum,
+void ARMInstPrinter::printVMOVModImmOperand(const MCInst *MI, unsigned OpNum,
                                             const MCSubtargetInfo &STI,
                                             raw_ostream &O) {
   unsigned EncodedImm = MI->getOperand(OpNum).getImm();
   unsigned EltBits;
-  uint64_t Val = ARM_AM::decodeNEONModImm(EncodedImm, EltBits);
+  uint64_t Val = ARM_AM::decodeVMOVModImm(EncodedImm, EltBits);
   O << markup("<imm:") << "#0x";
   O.write_hex(Val);
   O << markup(">");
@@ -1675,4 +1675,12 @@ void ARMInstPrinter::printExpandedImmOperand(const MCInst *MI, unsigned OpNum,
   O << markup("<imm:") << "#0x";
   O.write_hex(Val);
   O << markup(">");
+}
+
+void ARMInstPrinter::printMveSaturateOp(const MCInst *MI, unsigned OpNum,
+                                        const MCSubtargetInfo &STI,
+                                        raw_ostream &O) {
+  uint32_t Val = MI->getOperand(OpNum).getImm();
+  assert(Val <= 1 && "Invalid MVE saturate operand");
+  O << "#" << (Val == 1 ? 48 : 64);
 }

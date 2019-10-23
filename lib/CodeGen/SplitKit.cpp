@@ -12,7 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "SplitKit.h"
-#include "LiveRangeCalc.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/None.h"
@@ -22,6 +21,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/LiveInterval.h"
 #include "llvm/CodeGen/LiveIntervals.h"
+#include "llvm/CodeGen/LiveRangeCalc.h"
 #include "llvm/CodeGen/LiveRangeEdit.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
@@ -437,7 +437,7 @@ void SplitEditor::addDeadDef(LiveInterval &LI, VNInfo *VNI, bool Original) {
     assert(DefMI != nullptr);
     LaneBitmask LM;
     for (const MachineOperand &DefOp : DefMI->defs()) {
-      unsigned R = DefOp.getReg();
+      Register R = DefOp.getReg();
       if (R != LI.reg)
         continue;
       if (unsigned SR = DefOp.getSubReg())
@@ -1373,7 +1373,7 @@ void SplitEditor::rewriteAssigned(bool ExtendRanges) {
     assert(LI.hasSubRanges());
 
     LiveRangeCalc SubLRC;
-    unsigned Reg = EP.MO.getReg(), Sub = EP.MO.getSubReg();
+    Register Reg = EP.MO.getReg(), Sub = EP.MO.getSubReg();
     LaneBitmask LM = Sub != 0 ? TRI.getSubRegIndexLaneMask(Sub)
                               : MRI.getMaxLaneMaskForVReg(Reg);
     for (LiveInterval::SubRange &S : LI.subranges()) {

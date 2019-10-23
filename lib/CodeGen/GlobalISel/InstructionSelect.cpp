@@ -12,11 +12,14 @@
 #include "llvm/CodeGen/GlobalISel/InstructionSelect.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/CodeGen/GlobalISel/GISelKnownBits.h"
 #include "llvm/CodeGen/GlobalISel/InstructionSelector.h"
 #include "llvm/CodeGen/GlobalISel/LegalizerInfo.h"
 #include "llvm/CodeGen/GlobalISel/Utils.h"
 #include "llvm/CodeGen/MachineOptimizationRemarkEmitter.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetLowering.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
@@ -45,6 +48,7 @@ INITIALIZE_PASS_BEGIN(InstructionSelect, DEBUG_TYPE,
                       "Select target instructions out of generic instructions",
                       false, false)
 INITIALIZE_PASS_DEPENDENCY(TargetPassConfig)
+INITIALIZE_PASS_DEPENDENCY(GISelKnownBitsAnalysis)
 INITIALIZE_PASS_END(InstructionSelect, DEBUG_TYPE,
                     "Select target instructions out of generic instructions",
                     false, false)
@@ -53,6 +57,8 @@ InstructionSelect::InstructionSelect() : MachineFunctionPass(ID) { }
 
 void InstructionSelect::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<TargetPassConfig>();
+  AU.addRequired<GISelKnownBitsAnalysis>();
+  AU.addPreserved<GISelKnownBitsAnalysis>();
   getSelectionDAGFallbackAnalysisUsage(AU);
   MachineFunctionPass::getAnalysisUsage(AU);
 }
@@ -64,11 +70,13 @@ bool InstructionSelect::runOnMachineFunction(MachineFunction &MF) {
     return false;
 
   LLVM_DEBUG(dbgs() << "Selecting function: " << MF.getName() << '\n');
+  GISelKnownBits &KB = getAnalysis<GISelKnownBitsAnalysis>().get(MF);
 
   const TargetPassConfig &TPC = getAnalysis<TargetPassConfig>();
-  const InstructionSelector *ISel = MF.getSubtarget().getInstructionSelector();
+  InstructionSelector *ISel = MF.getSubtarget().getInstructionSelector();
   CodeGenCoverage CoverageInfo;
   assert(ISel && "Cannot work without InstructionSelector");
+  ISel->setupMF(MF, KB, CoverageInfo);
 
   // An optimization remark emitter. Used to report failures.
   MachineOptimizationRemarkEmitter MORE(MF, /*MBFI=*/nullptr);
@@ -124,7 +132,7 @@ bool InstructionSelect::runOnMachineFunction(MachineFunction &MF) {
         continue;
       }
 
-      if (!ISel->select(MI, CoverageInfo)) {
+      if (!ISel->select(MI)) {
         // FIXME: It would be nice to dump all inserted instructions.  It's
         // not obvious how, esp. considering select() can insert after MI.
         reportGISelFailure(MF, TPC, MORE, "gisel-select", "cannot select", MI);
@@ -159,10 +167,10 @@ bool InstructionSelect::runOnMachineFunction(MachineFunction &MF) {
         --MII;
       if (MI.getOpcode() != TargetOpcode::COPY)
         continue;
-      unsigned SrcReg = MI.getOperand(1).getReg();
-      unsigned DstReg = MI.getOperand(0).getReg();
-      if (TargetRegisterInfo::isVirtualRegister(SrcReg) &&
-          TargetRegisterInfo::isVirtualRegister(DstReg)) {
+      Register SrcReg = MI.getOperand(1).getReg();
+      Register DstReg = MI.getOperand(0).getReg();
+      if (Register::isVirtualRegister(SrcReg) &&
+          Register::isVirtualRegister(DstReg)) {
         auto SrcRC = MRI.getRegClass(SrcReg);
         auto DstRC = MRI.getRegClass(DstReg);
         if (SrcRC == DstRC) {
@@ -179,7 +187,7 @@ bool InstructionSelect::runOnMachineFunction(MachineFunction &MF) {
   // that the size of the now-constrained vreg is unchanged and that it has a
   // register class.
   for (unsigned I = 0, E = MRI.getNumVirtRegs(); I != E; ++I) {
-    unsigned VReg = TargetRegisterInfo::index2VirtReg(I);
+    unsigned VReg = Register::index2VirtReg(I);
 
     MachineInstr *MI = nullptr;
     if (!MRI.def_empty(VReg))
@@ -216,6 +224,22 @@ bool InstructionSelect::runOnMachineFunction(MachineFunction &MF) {
 #endif
   auto &TLI = *MF.getSubtarget().getTargetLowering();
   TLI.finalizeLowering(MF);
+
+  // Determine if there are any calls in this machine function. Ported from
+  // SelectionDAG.
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+  for (const auto &MBB : MF) {
+    if (MFI.hasCalls() && MF.hasInlineAsm())
+      break;
+
+    for (const auto &MI : MBB) {
+      if ((MI.isCall() && !MI.isReturn()) || MI.isStackAligningInlineAsm())
+        MFI.setHasCalls(true);
+      if (MI.isInlineAsm())
+        MF.setHasInlineAsm(true);
+    }
+  }
+
 
   LLVM_DEBUG({
     dbgs() << "Rules covered by selecting function: " << MF.getName() << ":";

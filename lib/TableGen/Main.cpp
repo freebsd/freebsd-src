@@ -49,6 +49,9 @@ static cl::list<std::string>
 MacroNames("D", cl::desc("Name of the macro to be defined"),
             cl::value_desc("macro name"), cl::Prefix);
 
+static cl::opt<bool>
+WriteIfChanged("write-if-changed", cl::desc("Only write output if it changed"));
+
 static int reportError(const char *ProgName, Twine Msg) {
   errs() << ProgName << ": " << Msg;
   errs().flush();
@@ -64,7 +67,7 @@ static int createDependencyFile(const TGParser &Parser, const char *argv0) {
     return reportError(argv0, "the option -d must be used together with -o\n");
 
   std::error_code EC;
-  ToolOutputFile DepOut(DependFilename, EC, sys::fs::F_Text);
+  ToolOutputFile DepOut(DependFilename, EC, sys::fs::OF_None);
   if (EC)
     return reportError(argv0, "error opening " + DependFilename + ":" +
                                   EC.message() + "\n");
@@ -114,15 +117,17 @@ int llvm::TableGenMain(char *argv0, TableGenMainFn *MainFn) {
       return Ret;
   }
 
-  // Only updates the real output file if there are any differences.
-  // This prevents recompilation of all the files depending on it if there
-  // aren't any.
-  if (auto ExistingOrErr = MemoryBuffer::getFile(OutputFilename))
-    if (std::move(ExistingOrErr.get())->getBuffer() == Out.str())
-      return 0;
+  if (WriteIfChanged) {
+    // Only updates the real output file if there are any differences.
+    // This prevents recompilation of all the files depending on it if there
+    // aren't any.
+    if (auto ExistingOrErr = MemoryBuffer::getFile(OutputFilename))
+      if (std::move(ExistingOrErr.get())->getBuffer() == Out.str())
+        return 0;
+  }
 
   std::error_code EC;
-  ToolOutputFile OutFile(OutputFilename, EC, sys::fs::F_Text);
+  ToolOutputFile OutFile(OutputFilename, EC, sys::fs::OF_None);
   if (EC)
     return reportError(argv0, "error opening " + OutputFilename + ":" +
                                   EC.message() + "\n");

@@ -129,6 +129,9 @@ public:
   const uint32_t *getThisReturnPreservedMask(const MachineFunction &MF,
                                              CallingConv::ID) const;
 
+  ArrayRef<MCPhysReg>
+  getIntraCallClobberedRegs(const MachineFunction *MF) const override;
+
   BitVector getReservedRegs(const MachineFunction &MF) const override;
   bool isAsmClobberable(const MachineFunction &MF,
                        unsigned PhysReg) const override;
@@ -175,8 +178,6 @@ public:
   // Debug information queries.
   Register getFrameRegister(const MachineFunction &MF) const override;
   unsigned getBaseRegister() const { return BasePtr; }
-
-  bool isLowRegister(unsigned Reg) const;
 
 
   /// emitLoadConstPool - Emits a load from constpool to materialize the

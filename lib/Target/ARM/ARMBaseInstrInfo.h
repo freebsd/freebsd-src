@@ -276,6 +276,10 @@ public:
     return NumCycles == 1;
   }
 
+  unsigned extraSizeToPredicateInstructions(const MachineFunction &MF,
+                                            unsigned NumInsts) const override;
+  unsigned predictBranchSizeForIfCvt(MachineInstr &MI) const override;
+
   bool isProfitableToUnpredicate(MachineBasicBlock &TMBB,
                                  MachineBasicBlock &FMBB) const override;
 
@@ -601,7 +605,8 @@ bool rewriteARMFrameIndex(MachineInstr &MI, unsigned FrameRegIdx,
 
 bool rewriteT2FrameIndex(MachineInstr &MI, unsigned FrameRegIdx,
                          unsigned FrameReg, int &Offset,
-                         const ARMBaseInstrInfo &TII);
+                         const ARMBaseInstrInfo &TII,
+                         const TargetRegisterInfo *TRI);
 
 /// Return true if Reg is defd between From and To
 bool registerDefinedBetween(unsigned Reg, MachineBasicBlock::iterator From,
@@ -619,6 +624,20 @@ void addUnpredicatedMveVpredROp(MachineInstrBuilder &MIB, unsigned DestReg);
 void addPredicatedMveVpredNOp(MachineInstrBuilder &MIB, unsigned Cond);
 void addPredicatedMveVpredROp(MachineInstrBuilder &MIB, unsigned Cond,
                               unsigned Inactive);
+
+/// Returns the number of instructions required to materialize the given
+/// constant in a register, or 3 if a literal pool load is needed.
+/// If ForCodesize is specified, an approximate cost in bytes is returned.
+unsigned ConstantMaterializationCost(unsigned Val,
+                                     const ARMSubtarget *Subtarget,
+                                     bool ForCodesize = false);
+
+/// Returns true if Val1 has a lower Constant Materialization Cost than Val2.
+/// Uses the cost from ConstantMaterializationCost, first with ForCodesize as
+/// specified. If the scores are equal, return the comparison for !ForCodesize.
+bool HasLowerConstantMaterializationCost(unsigned Val1, unsigned Val2,
+                                         const ARMSubtarget *Subtarget,
+                                         bool ForCodesize = false);
 
 } // end namespace llvm
 

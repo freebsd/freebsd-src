@@ -59,7 +59,9 @@ void thinLTOResolvePrevailingInIndex(
 /// must apply the changes to the Module via thinLTOInternalizeModule.
 void thinLTOInternalizeAndPromoteInIndex(
     ModuleSummaryIndex &Index,
-    function_ref<bool(StringRef, GlobalValue::GUID)> isExported);
+    function_ref<bool(StringRef, GlobalValue::GUID)> isExported,
+    function_ref<bool(GlobalValue::GUID, const GlobalValueSummary *)>
+        isPrevailing);
 
 /// Computes a unique hash for the Module considering the current list of
 /// export/import and other global analysis results.
@@ -296,6 +298,10 @@ public:
   /// Cache) for each task identifier.
   Error run(AddStreamFn AddStream, NativeObjectCache Cache = nullptr);
 
+  /// Static method that returns a list of libcall symbols that can be generated
+  /// by LTO but might not be visible from bitcode symbol table.
+  static ArrayRef<const char*> getRuntimeLibcallSymbols();
+
 private:
   Config Conf;
 
@@ -303,7 +309,7 @@ private:
     RegularLTOState(unsigned ParallelCodeGenParallelismLevel, Config &Conf);
     struct CommonResolution {
       uint64_t Size = 0;
-      unsigned Align = 0;
+      MaybeAlign Align;
       /// Record if at least one instance of the common was marked as prevailing
       bool Prevailing = false;
     };

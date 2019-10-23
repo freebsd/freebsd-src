@@ -56,7 +56,11 @@ enum OperandType {
   OPERAND_GENERIC_5 = 11,
   OPERAND_LAST_GENERIC = 11,
 
-  OPERAND_FIRST_TARGET = 12,
+  OPERAND_FIRST_GENERIC_IMM = 12,
+  OPERAND_GENERIC_IMM_0 = 12,
+  OPERAND_LAST_GENERIC_IMM = 12,
+
+  OPERAND_FIRST_TARGET = 13,
 };
 
 }
@@ -103,6 +107,16 @@ public:
     assert(isGenericType() && "non-generic types don't have an index");
     return OperandType - MCOI::OPERAND_FIRST_GENERIC;
   }
+
+  bool isGenericImm() const {
+    return OperandType >= MCOI::OPERAND_FIRST_GENERIC_IMM &&
+           OperandType <= MCOI::OPERAND_LAST_GENERIC_IMM;
+  }
+
+  unsigned getGenericImmIndex() const {
+    assert(isGenericImm() && "non-generic immediates don't have an index");
+    return OperandType - MCOI::OPERAND_FIRST_GENERIC_IMM;
+  }
 };
 
 //===----------------------------------------------------------------------===//
@@ -115,7 +129,8 @@ namespace MCID {
 /// not use these directly.  These all correspond to bitfields in the
 /// MCInstrDesc::Flags field.
 enum Flag {
-  Variadic = 0,
+  PreISelOpcode = 0,
+  Variadic,
   HasOptionalDef,
   Pseudo,
   Return,
@@ -227,6 +242,10 @@ public:
 
   /// Return flags of this instruction.
   uint64_t getFlags() const { return Flags; }
+
+  /// \returns true if this instruction is emitted before instruction selection
+  /// and should be legalized/regbankselected/selected.
+  bool isPreISelOpcode() const { return Flags & (1ULL << MCID::PreISelOpcode); }
 
   /// Return true if this instruction can have a variable number of
   /// operands.  In this case, the variable operands will be after the normal

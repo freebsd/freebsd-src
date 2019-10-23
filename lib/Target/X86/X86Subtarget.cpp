@@ -146,6 +146,9 @@ unsigned char X86Subtarget::classifyGlobalReference(const GlobalValue *GV,
       return X86II::MO_DLLIMPORT;
     return X86II::MO_COFFSTUB;
   }
+  // Some JIT users use *-win32-elf triples; these shouldn't use GOT tables.
+  if (isOSWindows())
+    return X86II::MO_NO_FLAG;
 
   if (is64Bit()) {
     // ELF supports a large, truly PIC code model with non-PC relative GOT
@@ -285,10 +288,10 @@ void X86Subtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
   // Stack alignment is 16 bytes on Darwin, Linux, kFreeBSD and Solaris (both
   // 32 and 64 bit) and for all 64-bit targets.
   if (StackAlignOverride)
-    stackAlignment = StackAlignOverride;
+    stackAlignment = *StackAlignOverride;
   else if (isTargetDarwin() || isTargetLinux() || isTargetSolaris() ||
            isTargetKFreeBSD() || In64BitMode)
-    stackAlignment = 16;
+    stackAlignment = Align(16);
 
   // Some CPUs have more overhead for gather. The specified overhead is relative
   // to the Load operation. "2" is the number provided by Intel architects. This
@@ -304,6 +307,8 @@ void X86Subtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
   // Consume the vector width attribute or apply any target specific limit.
   if (PreferVectorWidthOverride)
     PreferVectorWidth = PreferVectorWidthOverride;
+  else if (Prefer128Bit)
+    PreferVectorWidth = 128;
   else if (Prefer256Bit)
     PreferVectorWidth = 256;
 }
@@ -316,12 +321,11 @@ X86Subtarget &X86Subtarget::initializeSubtargetDependencies(StringRef CPU,
 
 X86Subtarget::X86Subtarget(const Triple &TT, StringRef CPU, StringRef FS,
                            const X86TargetMachine &TM,
-                           unsigned StackAlignOverride,
+                           MaybeAlign StackAlignOverride,
                            unsigned PreferVectorWidthOverride,
                            unsigned RequiredVectorWidth)
-    : X86GenSubtargetInfo(TT, CPU, FS),
-      PICStyle(PICStyles::None), TM(TM), TargetTriple(TT),
-      StackAlignOverride(StackAlignOverride),
+    : X86GenSubtargetInfo(TT, CPU, FS), PICStyle(PICStyles::None), TM(TM),
+      TargetTriple(TT), StackAlignOverride(StackAlignOverride),
       PreferVectorWidthOverride(PreferVectorWidthOverride),
       RequiredVectorWidth(RequiredVectorWidth),
       In64BitMode(TargetTriple.getArch() == Triple::x86_64),
@@ -355,7 +359,7 @@ const CallLowering *X86Subtarget::getCallLowering() const {
   return CallLoweringInfo.get();
 }
 
-const InstructionSelector *X86Subtarget::getInstructionSelector() const {
+InstructionSelector *X86Subtarget::getInstructionSelector() const {
   return InstSelector.get();
 }
 

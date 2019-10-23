@@ -124,6 +124,33 @@ bool MipsSEDAGToDAGISel::replaceUsesWithZeroReg(MachineRegisterInfo *MRI,
   return true;
 }
 
+void MipsSEDAGToDAGISel::emitMCountABI(MachineInstr &MI, MachineBasicBlock &MBB,
+                                       MachineFunction &MF) {
+  MachineInstrBuilder MIB(MF, &MI);
+  if (!Subtarget->isABI_O32()) { // N32, N64
+    // Save current return address.
+    BuildMI(MBB, &MI, MI.getDebugLoc(), TII->get(Mips::OR64))
+        .addDef(Mips::AT_64)
+        .addUse(Mips::RA_64, RegState::Undef)
+        .addUse(Mips::ZERO_64);
+    // Stops instruction above from being removed later on.
+    MIB.addUse(Mips::AT_64, RegState::Implicit);
+  } else {  // O32
+    // Save current return address.
+    BuildMI(MBB, &MI, MI.getDebugLoc(), TII->get(Mips::OR))
+        .addDef(Mips::AT)
+        .addUse(Mips::RA, RegState::Undef)
+        .addUse(Mips::ZERO);
+    // _mcount pops 2 words from stack.
+    BuildMI(MBB, &MI, MI.getDebugLoc(), TII->get(Mips::ADDiu))
+        .addDef(Mips::SP)
+        .addUse(Mips::SP)
+        .addImm(-8);
+    // Stops first instruction above from being removed later on.
+    MIB.addUse(Mips::AT, RegState::Implicit);
+  }
+}
+
 void MipsSEDAGToDAGISel::processFunctionAfterISel(MachineFunction &MF) {
   MF.getInfo<MipsFunctionInfo>()->initGlobalBaseReg();
 
@@ -149,6 +176,24 @@ void MipsSEDAGToDAGISel::processFunctionAfterISel(MachineFunction &MF) {
       case Mips::ExtractElementF64:
         if (Subtarget->isABI_FPXX() && !Subtarget->hasMTHC1())
           MI.addOperand(MachineOperand::CreateReg(Mips::SP, false, true));
+        break;
+      case Mips::JAL:
+      case Mips::JAL_MM:
+        if (MI.getOperand(0).isGlobal() &&
+            MI.getOperand(0).getGlobal()->getGlobalIdentifier() == "_mcount")
+          emitMCountABI(MI, MBB, MF);
+        break;
+      case Mips::JALRPseudo:
+      case Mips::JALR64Pseudo:
+      case Mips::JALR16_MM:
+        if (MI.getOperand(2).isMCSymbol() &&
+            MI.getOperand(2).getMCSymbol()->getName() == "_mcount")
+          emitMCountABI(MI, MBB, MF);
+        break;
+      case Mips::JALR:
+        if (MI.getOperand(3).isMCSymbol() &&
+            MI.getOperand(3).getMCSymbol()->getName() == "_mcount")
+          emitMCountABI(MI, MBB, MF);
         break;
       default:
         replaceUsesWithZeroReg(MRI, MI);
@@ -247,7 +292,8 @@ bool MipsSEDAGToDAGISel::selectAddrFrameIndexOffset(
         Base = Addr.getOperand(0);
         // If base is a FI, additional offset calculation is done in
         // eliminateFrameIndex, otherwise we need to check the alignment
-        if (OffsetToAlignment(CN->getZExtValue(), 1ull << ShiftAmount) != 0)
+        const Align Alignment(1ULL << ShiftAmount);
+        if (!isAligned(Alignment, CN->getZExtValue()))
           return false;
       }
 
@@ -719,7 +765,7 @@ bool MipsSEDAGToDAGISel::trySelect(SDNode *Node) {
   }
 
   case ISD::ConstantFP: {
-    ConstantFPSDNode *CN = dyn_cast<ConstantFPSDNode>(Node);
+    auto *CN = cast<ConstantFPSDNode>(Node);
     if (Node->getValueType(0) == MVT::f64 && CN->isExactlyValue(+0.0)) {
       if (Subtarget->isGP64bit()) {
         SDValue Zero = CurDAG->getCopyFromReg(CurDAG->getEntryNode(), DL,
@@ -743,7 +789,7 @@ bool MipsSEDAGToDAGISel::trySelect(SDNode *Node) {
   }
 
   case ISD::Constant: {
-    const ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Node);
+    auto *CN = cast<ConstantSDNode>(Node);
     int64_t Imm = CN->getSExtValue();
     unsigned Size = CN->getValueSizeInBits(0);
 
@@ -969,7 +1015,7 @@ bool MipsSEDAGToDAGISel::trySelect(SDNode *Node) {
       break;
     }
 
-    SDNode *Res;
+    SDNode *Res = nullptr;
 
     // If we have a signed 10 bit integer, we can splat it directly.
     //

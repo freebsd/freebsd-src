@@ -115,11 +115,12 @@ def FeatureSVE2SM4 : SubtargetFeature<"sve2-sm4", "HasSVE2SM4", "true",
 def FeatureSVE2SHA3 : SubtargetFeature<"sve2-sha3", "HasSVE2SHA3", "true",
   "Enable SHA3 SVE2 instructions", [FeatureSVE2, FeatureSHA3]>;
 
-def FeatureSVE2BitPerm : SubtargetFeature<"bitperm", "HasSVE2BitPerm", "true",
+def FeatureSVE2BitPerm : SubtargetFeature<"sve2-bitperm", "HasSVE2BitPerm", "true",
   "Enable bit permutation SVE2 instructions", [FeatureSVE2]>;
 
 def FeatureZCRegMove : SubtargetFeature<"zcm", "HasZeroCycleRegMove", "true",
                                         "Has zero-cycle register moves">;
+
 def FeatureZCZeroingGP : SubtargetFeature<"zcz-gp", "HasZeroCycleZeroingGP", "true",
                                         "Has zero-cycle zeroing instructions for generic registers">;
 
@@ -284,6 +285,10 @@ def FeatureSEL2 : SubtargetFeature<
     "sel2", "HasSEL2", "true",
     "Enable v8.4-A Secure Exception Level 2 extension">;
 
+def FeaturePMU : SubtargetFeature<
+    "pmu", "HasPMU", "true",
+    "Enable v8.4-A PMU extension">;
+
 def FeatureTLB_RMI : SubtargetFeature<
     "tlb-rmi", "HasTLB_RMI", "true",
     "Enable v8.4-A TLB Range and Maintenance Instructions">;
@@ -345,6 +350,21 @@ def FeatureRandGen : SubtargetFeature<"rand", "HasRandGen",
 def FeatureMTE : SubtargetFeature<"mte", "HasMTE",
     "true", "Enable Memory Tagging Extension" >;
 
+def FeatureTRBE : SubtargetFeature<"trbe", "HasTRBE",
+    "true", "Enable Trace Buffer Extension">;
+
+def FeatureETE : SubtargetFeature<"ete", "HasETE",
+    "true", "Enable Embedded Trace Extension",
+    [FeatureTRBE]>;
+
+def FeatureTME : SubtargetFeature<"tme", "HasTME",
+    "true", "Enable Transactional Memory Extension" >;
+
+def FeatureTaggedGlobals : SubtargetFeature<"tagged-globals",
+    "AllowTaggedGlobals",
+    "true", "Use an instruction sequence for taking the address of a global "
+    "that allows a memory tag in the upper address bits">;
+
 //===----------------------------------------------------------------------===//
 // Architectures.
 //
@@ -354,7 +374,7 @@ def HasV8_1aOps : SubtargetFeature<"v8.1a", "HasV8_1aOps", "true",
   FeaturePAN, FeatureLOR, FeatureVH]>;
 
 def HasV8_2aOps : SubtargetFeature<"v8.2a", "HasV8_2aOps", "true",
-  "Support ARM v8.2a instructions", [HasV8_1aOps, FeaturePsUAO, 
+  "Support ARM v8.2a instructions", [HasV8_1aOps, FeaturePsUAO,
   FeaturePAN_RWV, FeatureRAS, FeatureCCPP]>;
 
 def HasV8_3aOps : SubtargetFeature<"v8.3a", "HasV8_3aOps", "true",
@@ -364,7 +384,7 @@ def HasV8_3aOps : SubtargetFeature<"v8.3a", "HasV8_3aOps", "true",
 def HasV8_4aOps : SubtargetFeature<"v8.4a", "HasV8_4aOps", "true",
   "Support ARM v8.4a instructions", [HasV8_3aOps, FeatureDotProd,
   FeatureNV, FeatureRASv8_4, FeatureMPAM, FeatureDIT,
-  FeatureTRACEV8_4, FeatureAM, FeatureSEL2, FeatureTLB_RMI,
+  FeatureTRACEV8_4, FeatureAM, FeatureSEL2, FeaturePMU, FeatureTLB_RMI,
   FeatureFMI, FeatureRCPC_IMMO]>;
 
 def HasV8_5aOps : SubtargetFeature<
@@ -390,6 +410,7 @@ include "AArch64Schedule.td"
 include "AArch64InstrInfo.td"
 include "AArch64SchedPredicates.td"
 include "AArch64SchedPredExynos.td"
+include "AArch64Combine.td"
 
 def AArch64InstrInfo : InstrInfo;
 
@@ -482,6 +503,19 @@ def ProcA57     : SubtargetFeature<"a57", "ARMProcFamily", "CortexA57",
                                    FeaturePerfMon,
                                    FeaturePostRAScheduler,
                                    FeaturePredictableSelectIsExpensive
+                                   ]>;
+
+def ProcA65     : SubtargetFeature<"a65", "ARMProcFamily", "CortexA65",
+                                   "Cortex-A65 ARM processors", [
+                                   HasV8_2aOps,
+                                   FeatureCrypto,
+                                   FeatureDotProd,
+                                   FeatureFPARMv8,
+                                   FeatureFullFP16,
+                                   FeatureNEON,
+                                   FeatureRAS,
+                                   FeatureRCPC,
+                                   FeatureSSBS,
                                    ]>;
 
 def ProcA72     : SubtargetFeature<"a72", "ARMProcFamily", "CortexA72",
@@ -641,6 +675,33 @@ def ProcFalkor  : SubtargetFeature<"falkor", "ARMProcFamily", "Falkor",
                                    FeatureSlowSTRQro
                                    ]>;
 
+def ProcNeoverseE1 : SubtargetFeature<"neoversee1", "ARMProcFamily",
+                                      "NeoverseE1",
+                                      "Neoverse E1 ARM processors", [
+                                      HasV8_2aOps,
+                                      FeatureCrypto,
+                                      FeatureDotProd,
+                                      FeatureFPARMv8,
+                                      FeatureFullFP16,
+                                      FeatureNEON,
+                                      FeatureRCPC,
+                                      FeatureSSBS,
+                                      ]>;
+
+def ProcNeoverseN1 : SubtargetFeature<"neoversen1", "ARMProcFamily",
+                                      "NeoverseN1",
+                                      "Neoverse N1 ARM processors", [
+                                      HasV8_2aOps,
+                                      FeatureCrypto,
+                                      FeatureDotProd,
+                                      FeatureFPARMv8,
+                                      FeatureFullFP16,
+                                      FeatureNEON,
+                                      FeatureRCPC,
+                                      FeatureSPE,
+                                      FeatureSSBS,
+                                      ]>;
+
 def ProcSaphira  : SubtargetFeature<"saphira", "ARMProcFamily", "Saphira",
                                    "Qualcomm Saphira processors", [
                                    FeatureCrypto,
@@ -732,19 +793,28 @@ def : ProcessorModel<"generic", NoSchedModel, [
                      FeatureFuseAES,
                      FeatureNEON,
                      FeaturePerfMon,
-                     FeaturePostRAScheduler
+                     FeaturePostRAScheduler,
+// ETE and TRBE are future architecture extensions. We temporariliy enable them
+// by default for users targeting generic AArch64, until it is decided in which
+// armv8.x-a architecture revision they will end up. The extensions do not
+// affect code generated by the compiler and can be used only by explicitly
+// mentioning the new system register names in assembly.
+                     FeatureETE
                      ]>;
 
-// FIXME: Cortex-A35 and Cortex-A55 are currently modeled as a Cortex-A53.
 def : ProcessorModel<"cortex-a35", CortexA53Model, [ProcA35]>;
 def : ProcessorModel<"cortex-a53", CortexA53Model, [ProcA53]>;
 def : ProcessorModel<"cortex-a55", CortexA53Model, [ProcA55]>;
 def : ProcessorModel<"cortex-a57", CortexA57Model, [ProcA57]>;
+def : ProcessorModel<"cortex-a65", CortexA53Model, [ProcA65]>;
+def : ProcessorModel<"cortex-a65ae", CortexA53Model, [ProcA65]>;
 def : ProcessorModel<"cortex-a72", CortexA57Model, [ProcA72]>;
 def : ProcessorModel<"cortex-a73", CortexA57Model, [ProcA73]>;
 def : ProcessorModel<"cortex-a75", CortexA57Model, [ProcA75]>;
 def : ProcessorModel<"cortex-a76", CortexA57Model, [ProcA76]>;
 def : ProcessorModel<"cortex-a76ae", CortexA57Model, [ProcA76]>;
+def : ProcessorModel<"neoverse-e1", CortexA53Model, [ProcNeoverseE1]>;
+def : ProcessorModel<"neoverse-n1", CortexA57Model, [ProcNeoverseN1]>;
 def : ProcessorModel<"cyclone", CycloneModel, [ProcCyclone]>;
 def : ProcessorModel<"exynos-m1", ExynosM1Model, [ProcExynosM1]>;
 def : ProcessorModel<"exynos-m2", ExynosM1Model, [ProcExynosM2]>;

@@ -236,7 +236,7 @@ AVRTargetLowering::AVRTargetLowering(const AVRTargetMachine &TM,
   setLibcallName(RTLIB::SIN_F32, "sin");
   setLibcallName(RTLIB::COS_F32, "cos");
 
-  setMinFunctionAlignment(1);
+  setMinFunctionAlignment(Align(2));
   setMinimumJumpTableEntries(UINT_MAX);
 }
 
@@ -1517,11 +1517,11 @@ MachineBasicBlock *AVRTargetLowering::insertShift(MachineInstr &MI,
 
   unsigned ShiftAmtReg = RI.createVirtualRegister(&AVR::LD8RegClass);
   unsigned ShiftAmtReg2 = RI.createVirtualRegister(&AVR::LD8RegClass);
-  unsigned ShiftReg = RI.createVirtualRegister(RC);
-  unsigned ShiftReg2 = RI.createVirtualRegister(RC);
-  unsigned ShiftAmtSrcReg = MI.getOperand(2).getReg();
-  unsigned SrcReg = MI.getOperand(1).getReg();
-  unsigned DstReg = MI.getOperand(0).getReg();
+  Register ShiftReg = RI.createVirtualRegister(RC);
+  Register ShiftReg2 = RI.createVirtualRegister(RC);
+  Register ShiftAmtSrcReg = MI.getOperand(2).getReg();
+  Register SrcReg = MI.getOperand(1).getReg();
+  Register DstReg = MI.getOperand(0).getReg();
 
   // BB:
   // cpi N, 0
@@ -1568,7 +1568,7 @@ MachineBasicBlock *AVRTargetLowering::insertShift(MachineInstr &MI,
 
 static bool isCopyMulResult(MachineBasicBlock::iterator const &I) {
   if (I->getOpcode() == AVR::COPY) {
-    unsigned SrcReg = I->getOperand(1).getReg();
+    Register SrcReg = I->getOperand(1).getReg();
     return (SrcReg == AVR::R0 || SrcReg == AVR::R1);
   }
 
@@ -1689,6 +1689,8 @@ AVRTargetLowering::getConstraintType(StringRef Constraint) const {
   if (Constraint.size() == 1) {
     // See http://www.nongnu.org/avr-libc/user-manual/inline_asm.html
     switch (Constraint[0]) {
+    default:
+      break;
     case 'a': // Simple upper registers
     case 'b': // Base pointer registers pairs
     case 'd': // Upper register
@@ -1715,9 +1717,7 @@ AVRTargetLowering::getConstraintType(StringRef Constraint) const {
     case 'O': // Integer constant (Range: 8, 16, 24)
     case 'P': // Integer constant (Range: 1)
     case 'R': // Integer constant (Range: -6 to 5)x
-      return C_Other;
-    default:
-      break;
+      return C_Immediate;
     }
   }
 
@@ -2006,10 +2006,9 @@ void AVRTargetLowering::LowerAsmOperandForConstraint(SDValue Op,
   return TargetLowering::LowerAsmOperandForConstraint(Op, Constraint, Ops, DAG);
 }
 
-unsigned AVRTargetLowering::getRegisterByName(const char *RegName,
-                                              EVT VT,
-                                              SelectionDAG &DAG) const {
-  unsigned Reg;
+Register AVRTargetLowering::getRegisterByName(const char *RegName, EVT VT,
+                                              const MachineFunction &MF) const {
+  Register Reg;
 
   if (VT == MVT::i8) {
     Reg = StringSwitch<unsigned>(RegName)

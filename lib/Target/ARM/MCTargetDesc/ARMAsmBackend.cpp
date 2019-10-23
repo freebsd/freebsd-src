@@ -233,7 +233,7 @@ static const char *checkPCRelOffset(uint64_t Value, int64_t Min, int64_t Max) {
 
 const char *ARMAsmBackend::reasonForFixupRelaxation(const MCFixup &Fixup,
                                                     uint64_t Value) const {
-  switch ((unsigned)Fixup.getKind()) {
+  switch (Fixup.getTargetKind()) {
   case ARM::fixup_arm_thumb_br: {
     // Relaxing tB to t2B. tB has a signed 12-bit displacement with the
     // low bit being an implied zero. There's an implied +4 offset for the
@@ -870,7 +870,7 @@ bool ARMAsmBackend::shouldForceRelocation(const MCAssembler &Asm,
                                           const MCValue &Target) {
   const MCSymbolRefExpr *A = Target.getSymA();
   const MCSymbol *Sym = A ? &A->getSymbol() : nullptr;
-  const unsigned FixupKind = Fixup.getKind() ;
+  const unsigned FixupKind = Fixup.getKind();
   if (FixupKind == FK_NONE)
     return true;
   if (FixupKind == ARM::fixup_arm_thumb_bl) {
@@ -1105,28 +1105,28 @@ uint32_t ARMAsmBackendDarwin::generateCompactUnwindEncoding(
   if (Instrs.empty())
     return 0;
   // Start off assuming CFA is at SP+0.
-  int CFARegister = ARM::SP;
+  unsigned CFARegister = ARM::SP;
   int CFARegisterOffset = 0;
   // Mark savable registers as initially unsaved
   DenseMap<unsigned, int> RegOffsets;
   int FloatRegCount = 0;
   // Process each .cfi directive and build up compact unwind info.
   for (size_t i = 0, e = Instrs.size(); i != e; ++i) {
-    int Reg;
+    unsigned Reg;
     const MCCFIInstruction &Inst = Instrs[i];
     switch (Inst.getOperation()) {
     case MCCFIInstruction::OpDefCfa: // DW_CFA_def_cfa
       CFARegisterOffset = -Inst.getOffset();
-      CFARegister = MRI.getLLVMRegNum(Inst.getRegister(), true);
+      CFARegister = *MRI.getLLVMRegNum(Inst.getRegister(), true);
       break;
     case MCCFIInstruction::OpDefCfaOffset: // DW_CFA_def_cfa_offset
       CFARegisterOffset = -Inst.getOffset();
       break;
     case MCCFIInstruction::OpDefCfaRegister: // DW_CFA_def_cfa_register
-      CFARegister = MRI.getLLVMRegNum(Inst.getRegister(), true);
+      CFARegister = *MRI.getLLVMRegNum(Inst.getRegister(), true);
       break;
     case MCCFIInstruction::OpOffset: // DW_CFA_offset
-      Reg = MRI.getLLVMRegNum(Inst.getRegister(), true);
+      Reg = *MRI.getLLVMRegNum(Inst.getRegister(), true);
       if (ARMMCRegisterClasses[ARM::GPRRegClassID].contains(Reg))
         RegOffsets[Reg] = Inst.getOffset();
       else if (ARMMCRegisterClasses[ARM::DPRRegClassID].contains(Reg)) {

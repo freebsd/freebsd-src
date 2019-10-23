@@ -9,6 +9,7 @@
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/TargetTransformInfoImpl.h"
 #include "llvm/IR/CallSite.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
@@ -59,11 +60,7 @@ bool HardwareLoopInfo::isHardwareLoopCandidate(ScalarEvolution &SE,
   SmallVector<BasicBlock *, 4> ExitingBlocks;
   L->getExitingBlocks(ExitingBlocks);
 
-  for (SmallVectorImpl<BasicBlock *>::iterator I = ExitingBlocks.begin(),
-                                               IE = ExitingBlocks.end();
-       I != IE; ++I) {
-    BasicBlock *BB = *I;
-
+  for (BasicBlock *BB : ExitingBlocks) {
     // If we pass the updated counter back through a phi, we need to know
     // which latch the updated value will be coming from.
     if (!L->isLoopLatch(BB)) {
@@ -97,13 +94,11 @@ bool HardwareLoopInfo::isHardwareLoopCandidate(ScalarEvolution &SE,
     // For this to be true, we must dominate all blocks with backedges. Such
     // blocks are in-loop predecessors to the header block.
     bool NotAlways = false;
-    for (pred_iterator PI = pred_begin(L->getHeader()),
-                       PIE = pred_end(L->getHeader());
-         PI != PIE; ++PI) {
-      if (!L->contains(*PI))
+    for (BasicBlock *Pred : predecessors(L->getHeader())) {
+      if (!L->contains(Pred))
         continue;
 
-      if (!DT.dominates(*I, *PI)) {
+      if (!DT.dominates(BB, Pred)) {
         NotAlways = true;
         break;
       }
@@ -127,7 +122,7 @@ bool HardwareLoopInfo::isHardwareLoopCandidate(ScalarEvolution &SE,
 
     // Note that this block may not be the loop latch block, even if the loop
     // has a latch block.
-    ExitBlock = *I;
+    ExitBlock = BB;
     ExitCount = EC;
     break;
   }
@@ -227,6 +222,16 @@ unsigned TargetTransformInfo::getFlatAddressSpace() const {
   return TTIImpl->getFlatAddressSpace();
 }
 
+bool TargetTransformInfo::collectFlatAddressOperands(
+  SmallVectorImpl<int> &OpIndexes, Intrinsic::ID IID) const  {
+  return TTIImpl->collectFlatAddressOperands(OpIndexes, IID);
+}
+
+bool TargetTransformInfo::rewriteIntrinsicWithAddressSpace(
+  IntrinsicInst *II, Value *OldV, Value *NewV) const {
+  return TTIImpl->rewriteIntrinsicWithAddressSpace(II, OldV, NewV);
+}
+
 bool TargetTransformInfo::isLoweredToCall(const Function *F) const {
   return TTIImpl->isLoweredToCall(F);
 }
@@ -283,21 +288,22 @@ bool TargetTransformInfo::shouldFavorBackedgeIndex(const Loop *L) const {
   return TTIImpl->shouldFavorBackedgeIndex(L);
 }
 
-bool TargetTransformInfo::isLegalMaskedStore(Type *DataType) const {
-  return TTIImpl->isLegalMaskedStore(DataType);
+bool TargetTransformInfo::isLegalMaskedStore(Type *DataType,
+                                             MaybeAlign Alignment) const {
+  return TTIImpl->isLegalMaskedStore(DataType, Alignment);
 }
 
-bool TargetTransformInfo::isLegalMaskedLoad(Type *DataType) const {
-  return TTIImpl->isLegalMaskedLoad(DataType);
+bool TargetTransformInfo::isLegalMaskedLoad(Type *DataType,
+                                            MaybeAlign Alignment) const {
+  return TTIImpl->isLegalMaskedLoad(DataType, Alignment);
 }
 
 bool TargetTransformInfo::isLegalNTStore(Type *DataType,
-                                         unsigned Alignment) const {
+                                         Align Alignment) const {
   return TTIImpl->isLegalNTStore(DataType, Alignment);
 }
 
-bool TargetTransformInfo::isLegalNTLoad(Type *DataType,
-                                        unsigned Alignment) const {
+bool TargetTransformInfo::isLegalNTLoad(Type *DataType, Align Alignment) const {
   return TTIImpl->isLegalNTLoad(DataType, Alignment);
 }
 
@@ -357,14 +363,6 @@ bool TargetTransformInfo::useAA() const { return TTIImpl->useAA(); }
 
 bool TargetTransformInfo::isTypeLegal(Type *Ty) const {
   return TTIImpl->isTypeLegal(Ty);
-}
-
-unsigned TargetTransformInfo::getJumpBufAlignment() const {
-  return TTIImpl->getJumpBufAlignment();
-}
-
-unsigned TargetTransformInfo::getJumpBufSize() const {
-  return TTIImpl->getJumpBufSize();
 }
 
 bool TargetTransformInfo::shouldBuildLookupTables() const {
@@ -470,8 +468,16 @@ int TargetTransformInfo::getIntImmCost(Intrinsic::ID IID, unsigned Idx,
   return Cost;
 }
 
-unsigned TargetTransformInfo::getNumberOfRegisters(bool Vector) const {
-  return TTIImpl->getNumberOfRegisters(Vector);
+unsigned TargetTransformInfo::getNumberOfRegisters(unsigned ClassID) const {
+  return TTIImpl->getNumberOfRegisters(ClassID);
+}
+
+unsigned TargetTransformInfo::getRegisterClassForType(bool Vector, Type *Ty) const {
+  return TTIImpl->getRegisterClassForType(Vector, Ty);
+}
+
+const char* TargetTransformInfo::getRegisterClassName(unsigned ClassID) const {
+  return TTIImpl->getRegisterClassName(ClassID);
 }
 
 unsigned TargetTransformInfo::getRegisterBitWidth(bool Vector) const {
@@ -1276,6 +1282,8 @@ int TargetTransformInfo::getInstructionThroughput(const Instruction *I) const {
     return getVectorInstrCost(I->getOpcode(),
                                    IE->getType(), Idx);
   }
+  case Instruction::ExtractValue:
+    return 0; // Model all ExtractValue nodes as free.
   case Instruction::ShuffleVector: {
     const ShuffleVectorInst *Shuffle = cast<ShuffleVectorInst>(I);
     Type *Ty = Shuffle->getType();

@@ -22,7 +22,7 @@ StringRef llvm::dwarf::TagString(unsigned Tag) {
   switch (Tag) {
   default:
     return StringRef();
-#define HANDLE_DW_TAG(ID, NAME, VERSION, VENDOR)                               \
+#define HANDLE_DW_TAG(ID, NAME, VERSION, VENDOR, KIND)                         \
   case DW_TAG_##NAME:                                                          \
     return "DW_TAG_" #NAME;
 #include "llvm/BinaryFormat/Dwarf.def"
@@ -31,7 +31,7 @@ StringRef llvm::dwarf::TagString(unsigned Tag) {
 
 unsigned llvm::dwarf::getTag(StringRef TagString) {
   return StringSwitch<unsigned>(TagString)
-#define HANDLE_DW_TAG(ID, NAME, VERSION, VENDOR)                               \
+#define HANDLE_DW_TAG(ID, NAME, VERSION, VENDOR, KIND)                         \
   .Case("DW_TAG_" #NAME, DW_TAG_##NAME)
 #include "llvm/BinaryFormat/Dwarf.def"
       .Default(DW_TAG_invalid);
@@ -41,7 +41,7 @@ unsigned llvm::dwarf::TagVersion(dwarf::Tag Tag) {
   switch (Tag) {
   default:
     return 0;
-#define HANDLE_DW_TAG(ID, NAME, VERSION, VENDOR)                               \
+#define HANDLE_DW_TAG(ID, NAME, VERSION, VENDOR, KIND)                         \
   case DW_TAG_##NAME:                                                          \
     return VERSION;
 #include "llvm/BinaryFormat/Dwarf.def"
@@ -52,7 +52,7 @@ unsigned llvm::dwarf::TagVendor(dwarf::Tag Tag) {
   switch (Tag) {
   default:
     return 0;
-#define HANDLE_DW_TAG(ID, NAME, VERSION, VENDOR)                               \
+#define HANDLE_DW_TAG(ID, NAME, VERSION, VENDOR, KIND)                         \
   case DW_TAG_##NAME:                                                          \
     return DWARF_VENDOR_##VENDOR;
 #include "llvm/BinaryFormat/Dwarf.def"
@@ -149,6 +149,8 @@ StringRef llvm::dwarf::OperationEncodingString(unsigned Encoding) {
     return "DW_OP_LLVM_fragment";
   case DW_OP_LLVM_tag_offset:
     return "DW_OP_LLVM_tag_offset";
+  case DW_OP_LLVM_entry_value:
+    return "DW_OP_LLVM_entry_value";
   }
 }
 
@@ -160,6 +162,7 @@ unsigned llvm::dwarf::getOperationEncoding(StringRef OperationEncodingString) {
       .Case("DW_OP_LLVM_convert", DW_OP_LLVM_convert)
       .Case("DW_OP_LLVM_fragment", DW_OP_LLVM_fragment)
       .Case("DW_OP_LLVM_tag_offset", DW_OP_LLVM_tag_offset)
+      .Case("DW_OP_LLVM_entry_value", DW_OP_LLVM_entry_value)
       .Default(0);
 }
 
@@ -468,6 +471,17 @@ StringRef llvm::dwarf::RangeListEncodingString(unsigned Encoding) {
 #define HANDLE_DW_RLE(ID, NAME)                                                \
   case DW_RLE_##NAME:                                                          \
     return "DW_RLE_" #NAME;
+#include "llvm/BinaryFormat/Dwarf.def"
+  }
+}
+
+StringRef llvm::dwarf::LocListEncodingString(unsigned Encoding) {
+  switch (Encoding) {
+  default:
+    return StringRef();
+#define HANDLE_DW_LLE(ID, NAME)                                                \
+  case DW_LLE_##NAME:                                                          \
+    return "DW_LLE_" #NAME;
 #include "llvm/BinaryFormat/Dwarf.def"
   }
 }

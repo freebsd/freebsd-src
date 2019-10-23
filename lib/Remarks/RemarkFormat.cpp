@@ -19,11 +19,13 @@ using namespace llvm::remarks;
 Expected<Format> llvm::remarks::parseFormat(StringRef FormatStr) {
   auto Result = StringSwitch<Format>(FormatStr)
                     .Cases("", "yaml", Format::YAML)
+                    .Case("yaml-strtab", Format::YAMLStrTab)
+                    .Case("bitstream", Format::Bitstream)
                     .Default(Format::Unknown);
 
   if (Result == Format::Unknown)
     return createStringError(std::make_error_code(std::errc::invalid_argument),
-                             "Unknown remark serializer format: '%s'",
+                             "Unknown remark format: '%s'",
                              FormatStr.data());
 
   return Result;

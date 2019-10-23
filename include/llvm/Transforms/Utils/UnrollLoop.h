@@ -114,8 +114,8 @@ bool computeUnrollCount(Loop *L, const TargetTransformInfo &TTI,
                         DominatorTree &DT, LoopInfo *LI, ScalarEvolution &SE,
                         const SmallPtrSetImpl<const Value *> &EphValues,
                         OptimizationRemarkEmitter *ORE, unsigned &TripCount,
-                        unsigned MaxTripCount, unsigned &TripMultiple,
-                        unsigned LoopSize,
+                        unsigned MaxTripCount, bool MaxOrZero,
+                        unsigned &TripMultiple, unsigned LoopSize,
                         TargetTransformInfo::UnrollingPreferences &UP,
                         bool &UseUpperBound);
 
@@ -132,7 +132,9 @@ TargetTransformInfo::UnrollingPreferences gatherUnrollingPreferences(
     BlockFrequencyInfo *BFI, ProfileSummaryInfo *PSI, int OptLevel,
     Optional<unsigned> UserThreshold, Optional<unsigned> UserCount,
     Optional<bool> UserAllowPartial, Optional<bool> UserRuntime,
-    Optional<bool> UserUpperBound, Optional<bool> UserAllowPeeling);
+    Optional<bool> UserUpperBound, Optional<bool> UserAllowPeeling,
+    Optional<bool> UserAllowProfileBasedPeeling,
+    Optional<unsigned> UserFullUnrollMaxCount);
 
 unsigned ApproximateLoopSize(const Loop *L, unsigned &NumCalls,
                              bool &NotDuplicatable, bool &Convergent,

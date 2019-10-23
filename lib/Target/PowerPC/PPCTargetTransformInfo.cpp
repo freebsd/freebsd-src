@@ -594,10 +594,37 @@ bool PPCTTIImpl::enableInterleavedAccessVectorization() {
   return true;
 }
 
-unsigned PPCTTIImpl::getNumberOfRegisters(bool Vector) {
-  if (Vector && !ST->hasAltivec() && !ST->hasQPX())
-    return 0;
-  return ST->hasVSX() ? 64 : 32;
+unsigned PPCTTIImpl::getNumberOfRegisters(unsigned ClassID) const {
+  assert(ClassID == GPRRC || ClassID == FPRRC ||
+         ClassID == VRRC || ClassID == VSXRC);
+  if (ST->hasVSX()) {
+    assert(ClassID == GPRRC || ClassID == VSXRC);
+    return ClassID == GPRRC ? 32 : 64;
+  }
+  assert(ClassID == GPRRC || ClassID == FPRRC || ClassID == VRRC);
+  return 32;
+}
+
+unsigned PPCTTIImpl::getRegisterClassForType(bool Vector, Type *Ty) const {
+  if (Vector)
+    return ST->hasVSX() ? VSXRC : VRRC;
+  else if (Ty && Ty->getScalarType()->isFloatTy())
+    return ST->hasVSX() ? VSXRC : FPRRC;
+  else
+    return GPRRC;
+}
+
+const char* PPCTTIImpl::getRegisterClassName(unsigned ClassID) const {
+
+  switch (ClassID) {
+    default:
+      llvm_unreachable("unknown register class");
+      return "PPC::unknown register class";
+    case GPRRC:       return "PPC::GPRRC";
+    case FPRRC:       return "PPC::FPRRC";
+    case VRRC:        return "PPC::VRRC";
+    case VSXRC:       return "PPC::VSXRC";
+  }
 }
 
 unsigned PPCTTIImpl::getRegisterBitWidth(bool Vector) const {
@@ -613,7 +640,7 @@ unsigned PPCTTIImpl::getRegisterBitWidth(bool Vector) const {
 
 }
 
-unsigned PPCTTIImpl::getCacheLineSize() {
+unsigned PPCTTIImpl::getCacheLineSize() const {
   // Check first if the user specified a custom line size.
   if (CacheLineSize.getNumOccurrences() > 0)
     return CacheLineSize;
@@ -628,7 +655,7 @@ unsigned PPCTTIImpl::getCacheLineSize() {
   return 64;
 }
 
-unsigned PPCTTIImpl::getPrefetchDistance() {
+unsigned PPCTTIImpl::getPrefetchDistance() const {
   // This seems like a reasonable default for the BG/Q (this pass is enabled, by
   // default, only on the BG/Q).
   return 300;
@@ -752,6 +779,35 @@ int PPCTTIImpl::getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index) {
       return 0;
 
     return Cost;
+
+  } else if (Val->getScalarType()->isIntegerTy() && Index != -1U) {
+    if (ST->hasP9Altivec()) {
+      if (ISD == ISD::INSERT_VECTOR_ELT)
+        // A move-to VSR and a permute/insert.  Assume vector operation cost
+        // for both (cost will be 2x on P9).
+        return vectorCostAdjustment(2, Opcode, Val, nullptr);
+
+      // It's an extract.  Maybe we can do a cheap move-from VSR.
+      unsigned EltSize = Val->getScalarSizeInBits();
+      if (EltSize == 64) {
+        unsigned MfvsrdIndex = ST->isLittleEndian() ? 1 : 0;
+        if (Index == MfvsrdIndex)
+          return 1;
+      } else if (EltSize == 32) {
+        unsigned MfvsrwzIndex = ST->isLittleEndian() ? 2 : 1;
+        if (Index == MfvsrwzIndex)
+          return 1;
+      }
+
+      // We need a vector extract (or mfvsrld).  Assume vector operation cost.
+      // The cost of the load constant for a vector extract is disregarded
+      // (invariant, easily schedulable).
+      return vectorCostAdjustment(1, Opcode, Val, nullptr);
+      
+    } else if (ST->hasDirectMove())
+      // Assume permute has standard cost.
+      // Assume move-to/move-from VSR have 2x standard cost.
+      return 3;
   }
 
   // Estimated cost of a load-hit-store delay.  This was obtained

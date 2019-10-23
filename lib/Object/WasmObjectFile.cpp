@@ -56,7 +56,7 @@ LLVM_DUMP_METHOD void WasmSymbol::dump() const { print(dbgs()); }
 Expected<std::unique_ptr<WasmObjectFile>>
 ObjectFile::createWasmObjectFile(MemoryBufferRef Buffer) {
   Error Err = Error::success();
-  auto ObjectFile = llvm::make_unique<WasmObjectFile>(Buffer, Err);
+  auto ObjectFile = std::make_unique<WasmObjectFile>(Buffer, Err);
   if (Err)
     return std::move(Err);
 
@@ -781,7 +781,7 @@ Error WasmObjectFile::parseRelocSection(StringRef Name, ReadContext &Ctx) {
       break;
     case wasm::R_WASM_GLOBAL_INDEX_LEB:
       // R_WASM_GLOBAL_INDEX_LEB are can be used against function and data
-      // symbols to refer to thier GOT enties.
+      // symbols to refer to their GOT entries.
       if (!isValidGlobalSymbol(Reloc.Index) &&
           !isValidDataSymbol(Reloc.Index) &&
           !isValidFunctionSymbol(Reloc.Index))
@@ -881,12 +881,9 @@ Error WasmObjectFile::parseTypeSection(ReadContext &Ctx) {
       Sig.Params.push_back(wasm::ValType(ParamType));
     }
     uint32_t ReturnCount = readVaruint32(Ctx);
-    if (ReturnCount) {
-      if (ReturnCount != 1) {
-        return make_error<GenericBinaryError>(
-            "Multiple return types not supported", object_error::parse_failed);
-      }
-      Sig.Returns.push_back(wasm::ValType(readUint8(Ctx)));
+    while (ReturnCount--) {
+      uint32_t ReturnType = readUint8(Ctx);
+      Sig.Returns.push_back(wasm::ValType(ReturnType));
     }
     Signatures.push_back(std::move(Sig));
   }

@@ -131,29 +131,70 @@ int getMaskedMIMGOp(unsigned Opc, unsigned NewChannels) {
 struct MUBUFInfo {
   uint16_t Opcode;
   uint16_t BaseOpcode;
-  uint8_t dwords;
+  uint8_t elements;
   bool has_vaddr;
   bool has_srsrc;
   bool has_soffset;
 };
 
+struct MTBUFInfo {
+  uint16_t Opcode;
+  uint16_t BaseOpcode;
+  uint8_t elements;
+  bool has_vaddr;
+  bool has_srsrc;
+  bool has_soffset;
+};
+
+#define GET_MTBUFInfoTable_DECL
+#define GET_MTBUFInfoTable_IMPL
 #define GET_MUBUFInfoTable_DECL
 #define GET_MUBUFInfoTable_IMPL
 #include "AMDGPUGenSearchableTables.inc"
+
+int getMTBUFBaseOpcode(unsigned Opc) {
+  const MTBUFInfo *Info = getMTBUFInfoFromOpcode(Opc);
+  return Info ? Info->BaseOpcode : -1;
+}
+
+int getMTBUFOpcode(unsigned BaseOpc, unsigned Elements) {
+  const MTBUFInfo *Info = getMTBUFInfoFromBaseOpcodeAndElements(BaseOpc, Elements);
+  return Info ? Info->Opcode : -1;
+}
+
+int getMTBUFElements(unsigned Opc) {
+  const MTBUFInfo *Info = getMTBUFOpcodeHelper(Opc);
+  return Info ? Info->elements : 0;
+}
+
+bool getMTBUFHasVAddr(unsigned Opc) {
+  const MTBUFInfo *Info = getMTBUFOpcodeHelper(Opc);
+  return Info ? Info->has_vaddr : false;
+}
+
+bool getMTBUFHasSrsrc(unsigned Opc) {
+  const MTBUFInfo *Info = getMTBUFOpcodeHelper(Opc);
+  return Info ? Info->has_srsrc : false;
+}
+
+bool getMTBUFHasSoffset(unsigned Opc) {
+  const MTBUFInfo *Info = getMTBUFOpcodeHelper(Opc);
+  return Info ? Info->has_soffset : false;
+}
 
 int getMUBUFBaseOpcode(unsigned Opc) {
   const MUBUFInfo *Info = getMUBUFInfoFromOpcode(Opc);
   return Info ? Info->BaseOpcode : -1;
 }
 
-int getMUBUFOpcode(unsigned BaseOpc, unsigned Dwords) {
-  const MUBUFInfo *Info = getMUBUFInfoFromBaseOpcodeAndDwords(BaseOpc, Dwords);
+int getMUBUFOpcode(unsigned BaseOpc, unsigned Elements) {
+  const MUBUFInfo *Info = getMUBUFInfoFromBaseOpcodeAndElements(BaseOpc, Elements);
   return Info ? Info->Opcode : -1;
 }
 
-int getMUBUFDwords(unsigned Opc) {
+int getMUBUFElements(unsigned Opc) {
   const MUBUFInfo *Info = getMUBUFOpcodeHelper(Opc);
-  return Info ? Info->dwords : 0;
+  return Info ? Info->elements : 0;
 }
 
 bool getMUBUFHasVAddr(unsigned Opc) {
@@ -241,7 +282,7 @@ unsigned getMaxWorkGroupsPerCU(const MCSubtargetInfo *STI,
 }
 
 unsigned getMaxWavesPerCU(const MCSubtargetInfo *STI) {
-  return getMaxWavesPerEU() * getEUsPerCU(STI);
+  return getMaxWavesPerEU(STI) * getEUsPerCU(STI);
 }
 
 unsigned getMaxWavesPerCU(const MCSubtargetInfo *STI,
@@ -253,9 +294,11 @@ unsigned getMinWavesPerEU(const MCSubtargetInfo *STI) {
   return 1;
 }
 
-unsigned getMaxWavesPerEU() {
+unsigned getMaxWavesPerEU(const MCSubtargetInfo *STI) {
   // FIXME: Need to take scratch memory into account.
-  return 10;
+  if (!isGFX10(*STI))
+    return 10;
+  return 20;
 }
 
 unsigned getMaxWavesPerEU(const MCSubtargetInfo *STI,
@@ -317,7 +360,7 @@ unsigned getMinNumSGPRs(const MCSubtargetInfo *STI, unsigned WavesPerEU) {
   if (Version.Major >= 10)
     return 0;
 
-  if (WavesPerEU >= getMaxWavesPerEU())
+  if (WavesPerEU >= getMaxWavesPerEU(STI))
     return 0;
 
   unsigned MinNumSGPRs = getTotalNumSGPRs(STI) / (WavesPerEU + 1);
@@ -394,17 +437,19 @@ unsigned getVGPREncodingGranule(const MCSubtargetInfo *STI,
 }
 
 unsigned getTotalNumVGPRs(const MCSubtargetInfo *STI) {
-  return 256;
+  if (!isGFX10(*STI))
+    return 256;
+  return STI->getFeatureBits().test(FeatureWavefrontSize32) ? 1024 : 512;
 }
 
 unsigned getAddressableNumVGPRs(const MCSubtargetInfo *STI) {
-  return getTotalNumVGPRs(STI);
+  return 256;
 }
 
 unsigned getMinNumVGPRs(const MCSubtargetInfo *STI, unsigned WavesPerEU) {
   assert(WavesPerEU != 0);
 
-  if (WavesPerEU >= getMaxWavesPerEU())
+  if (WavesPerEU >= getMaxWavesPerEU(STI))
     return 0;
   unsigned MinNumVGPRs =
       alignDown(getTotalNumVGPRs(STI) / (WavesPerEU + 1),
@@ -510,7 +555,7 @@ bool isReadOnlySegment(const GlobalValue *GV) {
 }
 
 bool shouldEmitConstantsToTextSection(const Triple &TT) {
-  return TT.getOS() != Triple::AMDHSA;
+  return TT.getOS() == Triple::AMDPAL;
 }
 
 int getIntegerAttribute(const Function &F, StringRef Name, int Default) {

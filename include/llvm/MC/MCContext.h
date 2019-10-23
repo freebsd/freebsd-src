@@ -22,6 +22,7 @@
 #include "llvm/MC/MCAsmMacro.h"
 #include "llvm/MC/MCDwarf.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MC/MCTargetOptions.h"
 #include "llvm/MC/SectionKind.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Compiler.h"
@@ -111,6 +112,9 @@ namespace llvm {
     /// non-section symbol (there can be at most one of those, plus an unlimited
     /// number of section symbols with the same name).
     StringMap<bool, BumpPtrAllocator &> UsedNames;
+
+    /// Keeps track of labels that are used in inline assembly.
+    SymbolTable InlineAsmUsedLabelNames;
 
     /// The next ID to dole out to an unnamed assembler temporary symbol with
     /// a given prefix.
@@ -275,6 +279,8 @@ namespace llvm {
     /// Do automatic reset in destructor
     bool AutoReset;
 
+    MCTargetOptions const *TargetOptions;
+
     bool HadError = false;
 
     MCSymbol *createSymbolImpl(const StringMapEntry<bool> *Name,
@@ -298,7 +304,9 @@ namespace llvm {
   public:
     explicit MCContext(const MCAsmInfo *MAI, const MCRegisterInfo *MRI,
                        const MCObjectFileInfo *MOFI,
-                       const SourceMgr *Mgr = nullptr, bool DoAutoReset = true);
+                       const SourceMgr *Mgr = nullptr,
+                       MCTargetOptions const *TargetOpts = nullptr,
+                       bool DoAutoReset = true);
     MCContext(const MCContext &) = delete;
     MCContext &operator=(const MCContext &) = delete;
     ~MCContext();
@@ -376,6 +384,16 @@ namespace llvm {
     /// still want any modifications to the table itself to use the MCContext
     /// APIs.
     const SymbolTable &getSymbols() const { return Symbols; }
+
+    /// isInlineAsmLabel - Return true if the name is a label referenced in
+    /// inline assembly.
+    MCSymbol *getInlineAsmLabel(StringRef Name) const {
+      return InlineAsmUsedLabelNames.lookup(Name);
+    }
+
+    /// registerInlineAsmLabel - Records that the name is a label referenced in
+    /// inline assembly.
+    void registerInlineAsmLabel(MCSymbol *Sym);
 
     /// @}
 
@@ -490,6 +508,8 @@ namespace llvm {
 
     MCSectionXCOFF *getXCOFFSection(StringRef Section,
                                     XCOFF::StorageMappingClass MappingClass,
+                                    XCOFF::SymbolType CSectType,
+                                    XCOFF::StorageClass StorageClass,
                                     SectionKind K,
                                     const char *BeginSymName = nullptr);
 
@@ -659,6 +679,7 @@ namespace llvm {
 
     bool hadError() { return HadError; }
     void reportError(SMLoc L, const Twine &Msg);
+    void reportWarning(SMLoc L, const Twine &Msg);
     // Unrecoverable error has occurred. Display the best diagnostic we can
     // and bail via exit(1). For now, most MC backend errors are unrecoverable.
     // FIXME: We should really do something about that.

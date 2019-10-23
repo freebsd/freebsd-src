@@ -18,6 +18,7 @@
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/Attributes.h"
+#include "llvm/IR/CallSite.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/IR/Function.h"
 #include "llvm/MC/MCRegisterInfo.h"
@@ -71,7 +72,9 @@ void TargetFrameLowering::determineCalleeSaves(MachineFunction &MF,
 
   // When interprocedural register allocation is enabled caller saved registers
   // are preferred over callee saved registers.
-  if (MF.getTarget().Options.EnableIPRA && isSafeForNoCSROpt(MF.getFunction()))
+  if (MF.getTarget().Options.EnableIPRA &&
+      isSafeForNoCSROpt(MF.getFunction()) &&
+      isProfitableForNoCSROpt(MF.getFunction()))
     return;
 
   // Get the callee saved register list...
@@ -116,6 +119,18 @@ unsigned TargetFrameLowering::getStackAlignmentSkew(
     return MF.getTarget().getAllocaPointerSize();
 
   return 0;
+}
+
+bool TargetFrameLowering::isSafeForNoCSROpt(const Function &F) {
+  if (!F.hasLocalLinkage() || F.hasAddressTaken() ||
+      !F.hasFnAttribute(Attribute::NoRecurse))
+    return false;
+  // Function should not be optimized as tail call.
+  for (const User *U : F.users())
+    if (auto CS = ImmutableCallSite(U))
+      if (CS.isTailCall())
+        return false;
+  return true;
 }
 
 int TargetFrameLowering::getInitialCFAOffset(const MachineFunction &MF) const {

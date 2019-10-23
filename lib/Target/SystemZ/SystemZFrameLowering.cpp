@@ -46,8 +46,8 @@ static const TargetFrameLowering::SpillSlot SpillOffsetTable[] = {
 } // end anonymous namespace
 
 SystemZFrameLowering::SystemZFrameLowering()
-    : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, 8,
-                          -SystemZMC::CallFrameSize, 8,
+    : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, Align(8),
+                          -SystemZMC::CallFrameSize, Align(8),
                           false /* StackRealignable */) {
   // Create a mapping from register number to save slot offset.
   RegSpillOffsets.grow(SystemZ::NUM_TARGET_REGS);
@@ -118,7 +118,7 @@ static void addSavedGPR(MachineBasicBlock &MBB, MachineInstrBuilder &MIB,
                         unsigned GPR64, bool IsImplicit) {
   const TargetRegisterInfo *RI =
       MBB.getParent()->getSubtarget().getRegisterInfo();
-  unsigned GPR32 = RI->getSubReg(GPR64, SystemZ::subreg_l32);
+  Register GPR32 = RI->getSubReg(GPR64, SystemZ::subreg_l32);
   bool IsLive = MBB.isLiveIn(GPR64) || MBB.isLiveIn(GPR32);
   if (!IsLive || !IsImplicit) {
     MIB.addReg(GPR64, getImplRegState(IsImplicit) | getKillRegState(!IsLive));

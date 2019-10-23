@@ -259,6 +259,8 @@ StringRef MCSymbolRefExpr::getVariantKindName(VariantKind Kind) {
   case VK_PPC_TOC_LO: return "toc@l";
   case VK_PPC_TOC_HI: return "toc@h";
   case VK_PPC_TOC_HA: return "toc@ha";
+  case VK_PPC_U: return "u";
+  case VK_PPC_L: return "l";
   case VK_PPC_DTPMOD: return "dtpmod";
   case VK_PPC_TPREL_LO: return "tprel@l";
   case VK_PPC_TPREL_HI: return "tprel@h";
@@ -373,6 +375,8 @@ MCSymbolRefExpr::getVariantKindForName(StringRef Name) {
     .Case("toc@l", VK_PPC_TOC_LO)
     .Case("toc@h", VK_PPC_TOC_HI)
     .Case("toc@ha", VK_PPC_TOC_HA)
+    .Case("u", VK_PPC_U)
+    .Case("l", VK_PPC_L)
     .Case("tls", VK_PPC_TLS)
     .Case("dtpmod", VK_PPC_DTPMOD)
     .Case("tprel@l", VK_PPC_TPREL_LO)
@@ -453,41 +457,34 @@ void MCTargetExpr::anchor() {}
 /* *** */
 
 bool MCExpr::evaluateAsAbsolute(int64_t &Res) const {
-  return evaluateAsAbsolute(Res, nullptr, nullptr, nullptr);
+  return evaluateAsAbsolute(Res, nullptr, nullptr, nullptr, false);
 }
 
 bool MCExpr::evaluateAsAbsolute(int64_t &Res,
                                 const MCAsmLayout &Layout) const {
-  return evaluateAsAbsolute(Res, &Layout.getAssembler(), &Layout, nullptr);
+  return evaluateAsAbsolute(Res, &Layout.getAssembler(), &Layout, nullptr, false);
 }
 
 bool MCExpr::evaluateAsAbsolute(int64_t &Res,
                                 const MCAsmLayout &Layout,
                                 const SectionAddrMap &Addrs) const {
-  return evaluateAsAbsolute(Res, &Layout.getAssembler(), &Layout, &Addrs);
+  // Setting InSet causes us to absolutize differences across sections and that
+  // is what the MachO writer uses Addrs for.
+  return evaluateAsAbsolute(Res, &Layout.getAssembler(), &Layout, &Addrs, true);
 }
 
 bool MCExpr::evaluateAsAbsolute(int64_t &Res, const MCAssembler &Asm) const {
-  return evaluateAsAbsolute(Res, &Asm, nullptr, nullptr);
+  return evaluateAsAbsolute(Res, &Asm, nullptr, nullptr, false);
 }
 
 bool MCExpr::evaluateAsAbsolute(int64_t &Res, const MCAssembler *Asm) const {
-  return evaluateAsAbsolute(Res, Asm, nullptr, nullptr);
+  return evaluateAsAbsolute(Res, Asm, nullptr, nullptr, false);
 }
 
 bool MCExpr::evaluateKnownAbsolute(int64_t &Res,
                                    const MCAsmLayout &Layout) const {
   return evaluateAsAbsolute(Res, &Layout.getAssembler(), &Layout, nullptr,
                             true);
-}
-
-bool MCExpr::evaluateAsAbsolute(int64_t &Res, const MCAssembler *Asm,
-                                const MCAsmLayout *Layout,
-                                const SectionAddrMap *Addrs) const {
-  // FIXME: The use if InSet = Addrs is a hack. Setting InSet causes us
-  // absolutize differences across sections and that is what the MachO writer
-  // uses Addrs for.
-  return evaluateAsAbsolute(Res, Asm, Layout, Addrs, Addrs);
 }
 
 bool MCExpr::evaluateAsAbsolute(int64_t &Res, const MCAssembler *Asm,
@@ -577,6 +574,24 @@ static void AttemptToFoldSymbolOffsetDifference(
   A = B = nullptr;
 }
 
+static bool canFold(const MCAssembler *Asm, const MCSymbolRefExpr *A,
+                    const MCSymbolRefExpr *B, bool InSet) {
+  if (InSet)
+    return true;
+
+  if (!Asm->getBackend().requiresDiffExpressionRelocations())
+    return true;
+
+  const MCSymbol &CheckSym = A ? A->getSymbol() : B->getSymbol();
+  if (!CheckSym.isInSection())
+    return true;
+
+  if (!CheckSym.getSection().hasInstructions())
+    return true;
+
+  return false;
+}
+
 /// Evaluate the result of an add between (conceptually) two MCValues.
 ///
 /// This routine conceptually attempts to construct an MCValue:
@@ -617,8 +632,7 @@ EvaluateSymbolicAdd(const MCAssembler *Asm, const MCAsmLayout *Layout,
   // the backend requires this to be emitted as individual relocations, unless
   // the InSet flag is set to get the current difference anyway (used for
   // example to calculate symbol sizes).
-  if (Asm &&
-      (InSet || !Asm->getBackend().requiresDiffExpressionRelocations())) {
+  if (Asm && canFold(Asm, LHS_A, LHS_B, InSet)) {
     // First, fold out any differences which are fully resolved. By
     // reassociating terms in
     //   Result = (LHS_A - LHS_B + LHS_Cst) + (RHS_A - RHS_B + RHS_Cst).

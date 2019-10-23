@@ -31,6 +31,7 @@
 #ifndef LLVM_ANALYSIS_INSTRUCTIONSIMPLIFY_H
 #define LLVM_ANALYSIS_INSTRUCTIONSIMPLIFY_H
 
+#include "llvm/ADT/SetVector.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Operator.h"
 #include "llvm/IR/User.h"
@@ -141,6 +142,13 @@ Value *SimplifyFSubInst(Value *LHS, Value *RHS, FastMathFlags FMF,
 Value *SimplifyFMulInst(Value *LHS, Value *RHS, FastMathFlags FMF,
                         const SimplifyQuery &Q);
 
+/// Given operands for the multiplication of a FMA, fold the result or return
+/// null. In contrast to SimplifyFMulInst, this function will not perform
+/// simplifications whose unrounded results differ when rounded to the argument
+/// type.
+Value *SimplifyFMAFMul(Value *LHS, Value *RHS, FastMathFlags FMF,
+                       const SimplifyQuery &Q);
+
 /// Given operands for a Mul, fold the result or return null.
 Value *SimplifyMulInst(Value *LHS, Value *RHS, const SimplifyQuery &Q);
 
@@ -234,21 +242,19 @@ Value *SimplifyCmpInst(unsigned Predicate, Value *LHS, Value *RHS,
 /// Given operand for a UnaryOperator, fold the result or return null.
 Value *SimplifyUnOp(unsigned Opcode, Value *Op, const SimplifyQuery &Q);
 
-/// Given operand for an FP UnaryOperator, fold the result or return null.
-/// In contrast to SimplifyUnOp, try to use FastMathFlag when folding the
-/// result. In case we don't need FastMathFlags, simply fall to SimplifyUnOp.
-Value *SimplifyFPUnOp(unsigned Opcode, Value *Op, FastMathFlags FMF,
-                      const SimplifyQuery &Q);
+/// Given operand for a UnaryOperator, fold the result or return null.
+/// Try to use FastMathFlags when folding the result.
+Value *SimplifyUnOp(unsigned Opcode, Value *Op, FastMathFlags FMF,
+                    const SimplifyQuery &Q);
 
 /// Given operands for a BinaryOperator, fold the result or return null.
 Value *SimplifyBinOp(unsigned Opcode, Value *LHS, Value *RHS,
                      const SimplifyQuery &Q);
 
-/// Given operands for an FP BinaryOperator, fold the result or return null.
-/// In contrast to SimplifyBinOp, try to use FastMathFlag when folding the
-/// result. In case we don't need FastMathFlags, simply fall to SimplifyBinOp.
-Value *SimplifyFPBinOp(unsigned Opcode, Value *LHS, Value *RHS,
-                       FastMathFlags FMF, const SimplifyQuery &Q);
+/// Given operands for a BinaryOperator, fold the result or return null.
+/// Try to use FastMathFlags when folding the result.
+Value *SimplifyBinOp(unsigned Opcode, Value *LHS, Value *RHS,
+                     FastMathFlags FMF, const SimplifyQuery &Q);
 
 /// Given a callsite, fold the result or return null.
 Value *SimplifyCall(CallBase *Call, const SimplifyQuery &Q);
@@ -263,12 +269,14 @@ Value *SimplifyInstruction(Instruction *I, const SimplifyQuery &Q,
 /// This first performs a normal RAUW of I with SimpleV. It then recursively
 /// attempts to simplify those users updated by the operation. The 'I'
 /// instruction must not be equal to the simplified value 'SimpleV'.
+/// If UnsimplifiedUsers is provided, instructions that could not be simplified
+/// are added to it.
 ///
 /// The function returns true if any simplifications were performed.
-bool replaceAndRecursivelySimplify(Instruction *I, Value *SimpleV,
-                                   const TargetLibraryInfo *TLI = nullptr,
-                                   const DominatorTree *DT = nullptr,
-                                   AssumptionCache *AC = nullptr);
+bool replaceAndRecursivelySimplify(
+    Instruction *I, Value *SimpleV, const TargetLibraryInfo *TLI = nullptr,
+    const DominatorTree *DT = nullptr, AssumptionCache *AC = nullptr,
+    SmallSetVector<Instruction *, 8> *UnsimplifiedUsers = nullptr);
 
 /// Recursively attempt to simplify an instruction.
 ///

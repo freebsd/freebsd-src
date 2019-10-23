@@ -1122,7 +1122,7 @@ bool LLParser::ParseGlobal(const std::string &Name, LocTy NameLoc,
       if (ParseToken(lltok::StringConstant, "expected partition string"))
         return true;
     } else if (Lex.getKind() == lltok::kw_align) {
-      unsigned Alignment;
+      MaybeAlign Alignment;
       if (ParseOptionalAlignment(Alignment)) return true;
       GV->setAlignment(Alignment);
     } else if (Lex.getKind() == lltok::MetadataVar) {
@@ -1229,12 +1229,13 @@ bool LLParser::ParseFnAttributeValuePairs(AttrBuilder &B,
       // As a hack, we allow function alignment to be initially parsed as an
       // attribute on a function declaration/definition or added to an attribute
       // group and later moved to the alignment field.
-      unsigned Alignment;
+      MaybeAlign Alignment;
       if (inAttrGrp) {
         Lex.Lex();
-        if (ParseToken(lltok::equal, "expected '=' here") ||
-            ParseUInt32(Alignment))
+        uint32_t Value = 0;
+        if (ParseToken(lltok::equal, "expected '=' here") || ParseUInt32(Value))
           return true;
+        Alignment = Align(Value);
       } else {
         if (ParseOptionalAlignment(Alignment))
           return true;
@@ -1603,7 +1604,7 @@ bool LLParser::ParseOptionalParamAttrs(AttrBuilder &B) {
       continue;
     }
     case lltok::kw_align: {
-      unsigned Alignment;
+      MaybeAlign Alignment;
       if (ParseOptionalAlignment(Alignment))
         return true;
       B.addAlignmentAttr(Alignment);
@@ -1720,7 +1721,7 @@ bool LLParser::ParseOptionalReturnAttrs(AttrBuilder &B) {
       continue;
     }
     case lltok::kw_align: {
-      unsigned Alignment;
+      MaybeAlign Alignment;
       if (ParseOptionalAlignment(Alignment))
         return true;
       B.addAlignmentAttr(Alignment);
@@ -1955,6 +1956,7 @@ void LLParser::ParseOptionalDLLStorageClass(unsigned &Res) {
 ///   ::= 'amdgpu_ps'
 ///   ::= 'amdgpu_cs'
 ///   ::= 'amdgpu_kernel'
+///   ::= 'tailcc'
 ///   ::= 'cc' UINT
 ///
 bool LLParser::ParseOptionalCallingConv(unsigned &CC) {
@@ -2000,6 +2002,7 @@ bool LLParser::ParseOptionalCallingConv(unsigned &CC) {
   case lltok::kw_amdgpu_ps:      CC = CallingConv::AMDGPU_PS; break;
   case lltok::kw_amdgpu_cs:      CC = CallingConv::AMDGPU_CS; break;
   case lltok::kw_amdgpu_kernel:  CC = CallingConv::AMDGPU_KERNEL; break;
+  case lltok::kw_tailcc:         CC = CallingConv::Tail; break;
   case lltok::kw_cc: {
       Lex.Lex();
       return ParseUInt32(CC);
@@ -2067,16 +2070,19 @@ bool LLParser::ParseOptionalFunctionMetadata(Function &F) {
 /// ParseOptionalAlignment
 ///   ::= /* empty */
 ///   ::= 'align' 4
-bool LLParser::ParseOptionalAlignment(unsigned &Alignment) {
-  Alignment = 0;
+bool LLParser::ParseOptionalAlignment(MaybeAlign &Alignment) {
+  Alignment = None;
   if (!EatIfPresent(lltok::kw_align))
     return false;
   LocTy AlignLoc = Lex.getLoc();
-  if (ParseUInt32(Alignment)) return true;
-  if (!isPowerOf2_32(Alignment))
+  uint32_t Value = 0;
+  if (ParseUInt32(Value))
+    return true;
+  if (!isPowerOf2_32(Value))
     return Error(AlignLoc, "alignment is not a power of two");
-  if (Alignment > Value::MaximumAlignment)
+  if (Value > Value::MaximumAlignment)
     return Error(AlignLoc, "huge alignments are not supported yet");
+  Alignment = Align(Value);
   return false;
 }
 
@@ -2113,7 +2119,7 @@ bool LLParser::ParseOptionalDerefAttrBytes(lltok::Kind AttrKind,
 ///
 /// This returns with AteExtraComma set to true if it ate an excess comma at the
 /// end.
-bool LLParser::ParseOptionalCommaAlign(unsigned &Alignment,
+bool LLParser::ParseOptionalCommaAlign(MaybeAlign &Alignment,
                                        bool &AteExtraComma) {
   AteExtraComma = false;
   while (EatIfPresent(lltok::comma)) {
@@ -2551,6 +2557,7 @@ bool LLParser::ParseOptionalOperandBundles(
 ///
 bool LLParser::ParseArgumentList(SmallVectorImpl<ArgInfo> &ArgList,
                                  bool &isVarArg){
+  unsigned CurValID = 0;
   isVarArg = false;
   assert(Lex.getKind() == lltok::lparen);
   Lex.Lex(); // eat the (.
@@ -2574,6 +2581,12 @@ bool LLParser::ParseArgumentList(SmallVectorImpl<ArgInfo> &ArgList,
 
     if (Lex.getKind() == lltok::LocalVar) {
       Name = Lex.getStrVal();
+      Lex.Lex();
+    } else if (Lex.getKind() == lltok::LocalVarID) {
+      if (Lex.getUIntVal() != CurValID)
+        return Error(TypeLoc, "argument expected to be numbered '%" +
+                                  Twine(CurValID) + "'");
+      ++CurValID;
       Lex.Lex();
     }
 
@@ -2602,6 +2615,13 @@ bool LLParser::ParseArgumentList(SmallVectorImpl<ArgInfo> &ArgList,
         Name = Lex.getStrVal();
         Lex.Lex();
       } else {
+        if (Lex.getKind() == lltok::LocalVarID) {
+          if (Lex.getUIntVal() != CurValID)
+            return Error(TypeLoc, "argument expected to be numbered '%" +
+                                      Twine(CurValID) + "'");
+          Lex.Lex();
+        }
+        ++CurValID;
         Name = "";
       }
 
@@ -3093,7 +3113,7 @@ bool LLParser::ParseValID(ValID &ID, PerFunctionState *PFS) {
         ParseToken(lltok::rbrace, "expected end of struct constant"))
       return true;
 
-    ID.ConstantStructElts = make_unique<Constant *[]>(Elts.size());
+    ID.ConstantStructElts = std::make_unique<Constant *[]>(Elts.size());
     ID.UIntVal = Elts.size();
     memcpy(ID.ConstantStructElts.get(), Elts.data(),
            Elts.size() * sizeof(Elts[0]));
@@ -3115,7 +3135,7 @@ bool LLParser::ParseValID(ValID &ID, PerFunctionState *PFS) {
       return true;
 
     if (isPackedStruct) {
-      ID.ConstantStructElts = make_unique<Constant *[]>(Elts.size());
+      ID.ConstantStructElts = std::make_unique<Constant *[]>(Elts.size());
       memcpy(ID.ConstantStructElts.get(), Elts.data(),
              Elts.size() * sizeof(Elts[0]));
       ID.UIntVal = Elts.size();
@@ -5354,7 +5374,7 @@ bool LLParser::ParseFunctionHeader(Function *&Fn, bool isDefine) {
   LocTy BuiltinLoc;
   std::string Section;
   std::string Partition;
-  unsigned Alignment;
+  MaybeAlign Alignment;
   std::string GC;
   GlobalValue::UnnamedAddr UnnamedAddr = GlobalValue::UnnamedAddr::None;
   unsigned AddrSpace = 0;
@@ -5471,7 +5491,7 @@ bool LLParser::ParseFunctionHeader(Function *&Fn, bool isDefine) {
   Fn->setCallingConv(CC);
   Fn->setAttributes(PAL);
   Fn->setUnnamedAddr(UnnamedAddr);
-  Fn->setAlignment(Alignment);
+  Fn->setAlignment(MaybeAlign(Alignment));
   Fn->setSection(Section);
   Fn->setPartition(Partition);
   Fn->setComdat(C);
@@ -5788,7 +5808,19 @@ int LLParser::ParseInstruction(Instruction *&Inst, BasicBlock *BB,
   case lltok::kw_extractelement: return ParseExtractElement(Inst, PFS);
   case lltok::kw_insertelement:  return ParseInsertElement(Inst, PFS);
   case lltok::kw_shufflevector:  return ParseShuffleVector(Inst, PFS);
-  case lltok::kw_phi:            return ParsePHI(Inst, PFS);
+  case lltok::kw_phi: {
+    FastMathFlags FMF = EatFastMathFlagsIfPresent();
+    int Res = ParsePHI(Inst, PFS);
+    if (Res != 0)
+      return Res;
+    if (FMF.any()) {
+      if (!Inst->getType()->isFPOrFPVectorTy())
+        return Error(Loc, "fast-math-flags specified for phi without "
+                          "floating-point scalar or vector return type");
+      Inst->setFastMathFlags(FMF);
+    }
+    return 0;
+  }
   case lltok::kw_landingpad:     return ParseLandingPad(Inst, PFS);
   // Call.
   case lltok::kw_call:     return ParseCall(Inst, PFS, CallInst::TCK_None);
@@ -6837,7 +6869,7 @@ bool LLParser::ParseCall(Instruction *&Inst, PerFunctionState &PFS,
 int LLParser::ParseAlloc(Instruction *&Inst, PerFunctionState &PFS) {
   Value *Size = nullptr;
   LocTy SizeLoc, TyLoc, ASLoc;
-  unsigned Alignment = 0;
+  MaybeAlign Alignment;
   unsigned AddrSpace = 0;
   Type *Ty = nullptr;
 
@@ -6885,7 +6917,8 @@ int LLParser::ParseAlloc(Instruction *&Inst, PerFunctionState &PFS) {
   if (Size && !Size->getType()->isIntegerTy())
     return Error(SizeLoc, "element count must have integer type");
 
-  AllocaInst *AI = new AllocaInst(Ty, AddrSpace, Size, Alignment);
+  AllocaInst *AI =
+      new AllocaInst(Ty, AddrSpace, Size, Alignment ? Alignment->value() : 0);
   AI->setUsedWithInAlloca(IsInAlloca);
   AI->setSwiftError(IsSwiftError);
   Inst = AI;
@@ -6898,7 +6931,7 @@ int LLParser::ParseAlloc(Instruction *&Inst, PerFunctionState &PFS) {
 ///       'singlethread'? AtomicOrdering (',' 'align' i32)?
 int LLParser::ParseLoad(Instruction *&Inst, PerFunctionState &PFS) {
   Value *Val; LocTy Loc;
-  unsigned Alignment = 0;
+  MaybeAlign Alignment;
   bool AteExtraComma = false;
   bool isAtomic = false;
   AtomicOrdering Ordering = AtomicOrdering::NotAtomic;
@@ -6947,7 +6980,7 @@ int LLParser::ParseLoad(Instruction *&Inst, PerFunctionState &PFS) {
 ///       'singlethread'? AtomicOrdering (',' 'align' i32)?
 int LLParser::ParseStore(Instruction *&Inst, PerFunctionState &PFS) {
   Value *Val, *Ptr; LocTy Loc, PtrLoc;
-  unsigned Alignment = 0;
+  MaybeAlign Alignment;
   bool AteExtraComma = false;
   bool isAtomic = false;
   AtomicOrdering Ordering = AtomicOrdering::NotAtomic;
@@ -8074,7 +8107,7 @@ bool LLParser::ParseFunctionSummary(std::string Name, GlobalValue::GUID GUID,
   if (ParseToken(lltok::rparen, "expected ')' here"))
     return true;
 
-  auto FS = llvm::make_unique<FunctionSummary>(
+  auto FS = std::make_unique<FunctionSummary>(
       GVFlags, InstCount, FFlags, /*EntryCount=*/0, std::move(Refs),
       std::move(Calls), std::move(TypeIdInfo.TypeTests),
       std::move(TypeIdInfo.TypeTestAssumeVCalls),
@@ -8134,7 +8167,7 @@ bool LLParser::ParseVariableSummary(std::string Name, GlobalValue::GUID GUID,
     return true;
 
   auto GS =
-      llvm::make_unique<GlobalVarSummary>(GVFlags, GVarFlags, std::move(Refs));
+      std::make_unique<GlobalVarSummary>(GVFlags, GVarFlags, std::move(Refs));
 
   GS->setModulePath(ModulePath);
   GS->setVTableFuncs(std::move(VTableFuncs));
@@ -8175,7 +8208,7 @@ bool LLParser::ParseAliasSummary(std::string Name, GlobalValue::GUID GUID,
   if (ParseToken(lltok::rparen, "expected ')' here"))
     return true;
 
-  auto AS = llvm::make_unique<AliasSummary>(GVFlags);
+  auto AS = std::make_unique<AliasSummary>(GVFlags);
 
   AS->setModulePath(ModulePath);
 

@@ -98,7 +98,7 @@ bool InstructionSelector::executeMatchTable(
           return false;
         break;
       }
-      if (TRI.isPhysicalRegister(MO.getReg())) {
+      if (Register::isPhysicalRegister(MO.getReg())) {
         DEBUG_WITH_TYPE(TgtInstructionSelector::getName(),
                         dbgs() << CurrentIdx << ": Is a physical register\n");
         if (handleReject() == RejectAndGiveUp)
@@ -409,6 +409,30 @@ bool InstructionSelector::executeMatchTable(
         return false;
       break;
     }
+    case GIM_CheckMemoryAlignment: {
+      int64_t InsnID = MatchTable[CurrentIdx++];
+      int64_t MMOIdx = MatchTable[CurrentIdx++];
+      unsigned MinAlign = MatchTable[CurrentIdx++];
+
+      assert(State.MIs[InsnID] != nullptr && "Used insn before defined");
+
+      if (State.MIs[InsnID]->getNumMemOperands() <= MMOIdx) {
+        if (handleReject() == RejectAndGiveUp)
+          return false;
+        break;
+      }
+
+      MachineMemOperand *MMO
+        = *(State.MIs[InsnID]->memoperands_begin() + MMOIdx);
+      DEBUG_WITH_TYPE(TgtInstructionSelector::getName(),
+                      dbgs() << CurrentIdx << ": GIM_CheckMemoryAlignment"
+                      << "(MIs[" << InsnID << "]->memoperands() + " << MMOIdx
+                      << ")->getAlignment() >= " << MinAlign << ")\n");
+      if (MMO->getAlignment() < MinAlign && handleReject() == RejectAndGiveUp)
+        return false;
+
+      break;
+    }
     case GIM_CheckMemorySizeEqualTo: {
       int64_t InsnID = MatchTable[CurrentIdx++];
       int64_t MMOIdx = MatchTable[CurrentIdx++];
@@ -638,7 +662,21 @@ bool InstructionSelector::executeMatchTable(
           return false;
       break;
     }
-
+    case GIM_CheckCmpPredicate: {
+      int64_t InsnID = MatchTable[CurrentIdx++];
+      int64_t OpIdx = MatchTable[CurrentIdx++];
+      int64_t Value = MatchTable[CurrentIdx++];
+      DEBUG_WITH_TYPE(TgtInstructionSelector::getName(),
+                      dbgs() << CurrentIdx << ": GIM_CheckCmpPredicate(MIs["
+                             << InsnID << "]->getOperand(" << OpIdx
+                             << "), Value=" << Value << ")\n");
+      assert(State.MIs[InsnID] != nullptr && "Used insn before defined");
+      MachineOperand &MO = State.MIs[InsnID]->getOperand(OpIdx);
+      if (!MO.isPredicate() || MO.getPredicate() != Value)
+        if (handleReject() == RejectAndGiveUp)
+          return false;
+      break;
+    }
     case GIM_CheckIsMBB: {
       int64_t InsnID = MatchTable[CurrentIdx++];
       int64_t OpIdx = MatchTable[CurrentIdx++];
@@ -652,7 +690,19 @@ bool InstructionSelector::executeMatchTable(
       }
       break;
     }
-
+    case GIM_CheckIsImm: {
+      int64_t InsnID = MatchTable[CurrentIdx++];
+      int64_t OpIdx = MatchTable[CurrentIdx++];
+      DEBUG_WITH_TYPE(TgtInstructionSelector::getName(),
+                      dbgs() << CurrentIdx << ": GIM_CheckIsImm(MIs[" << InsnID
+                             << "]->getOperand(" << OpIdx << "))\n");
+      assert(State.MIs[InsnID] != nullptr && "Used insn before defined");
+      if (!State.MIs[InsnID]->getOperand(OpIdx).isImm()) {
+        if (handleReject() == RejectAndGiveUp)
+          return false;
+      }
+      break;
+    }
     case GIM_CheckIsSafeToFold: {
       int64_t InsnID = MatchTable[CurrentIdx++];
       DEBUG_WITH_TYPE(TgtInstructionSelector::getName(),
@@ -792,11 +842,13 @@ bool InstructionSelector::executeMatchTable(
     case GIR_AddRegister: {
       int64_t InsnID = MatchTable[CurrentIdx++];
       int64_t RegNum = MatchTable[CurrentIdx++];
+      uint64_t RegFlags = MatchTable[CurrentIdx++];
       assert(OutMIs[InsnID] && "Attempted to add to undefined instruction");
-      OutMIs[InsnID].addReg(RegNum);
-      DEBUG_WITH_TYPE(TgtInstructionSelector::getName(),
-                      dbgs() << CurrentIdx << ": GIR_AddRegister(OutMIs["
-                             << InsnID << "], " << RegNum << ")\n");
+      OutMIs[InsnID].addReg(RegNum, RegFlags);
+      DEBUG_WITH_TYPE(
+        TgtInstructionSelector::getName(),
+        dbgs() << CurrentIdx << ": GIR_AddRegister(OutMIs["
+        << InsnID << "], " << RegNum << ", " << RegFlags << ")\n");
       break;
     }
 

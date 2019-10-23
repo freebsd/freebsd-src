@@ -78,10 +78,11 @@ using namespace llvm;
 
 #define DEBUG_TYPE "codegen"
 
-static cl::opt<unsigned>
-AlignAllFunctions("align-all-functions",
-                  cl::desc("Force the alignment of all functions."),
-                  cl::init(0), cl::Hidden);
+static cl::opt<unsigned> AlignAllFunctions(
+    "align-all-functions",
+    cl::desc("Force the alignment of all functions in log2 format (e.g. 4 "
+             "means align on 16B boundaries)."),
+    cl::init(0), cl::Hidden);
 
 static const char *getPropertyName(MachineFunctionProperties::Property Prop) {
   using P = MachineFunctionProperties::Property;
@@ -181,7 +182,7 @@ void MachineFunction::init() {
                          STI->getTargetLowering()->getPrefFunctionAlignment());
 
   if (AlignAllFunctions)
-    Alignment = AlignAllFunctions;
+    Alignment = Align(1ULL << AlignAllFunctions);
 
   JumpTableInfo = nullptr;
 
@@ -200,7 +201,7 @@ void MachineFunction::init() {
          "Target-incompatible DataLayout attached\n");
 
   PSVManager =
-    llvm::make_unique<PseudoSourceValueManager>(*(getSubtarget().
+    std::make_unique<PseudoSourceValueManager>(*(getSubtarget().
                                                   getInstrInfo()));
 }
 
@@ -823,30 +824,47 @@ try_next:;
   return FilterID;
 }
 
-void MachineFunction::addCodeViewHeapAllocSite(MachineInstr *I, MDNode *MD) {
+void MachineFunction::addCodeViewHeapAllocSite(MachineInstr *I,
+                                               const MDNode *MD) {
   MCSymbol *BeginLabel = Ctx.createTempSymbol("heapallocsite", true);
   MCSymbol *EndLabel = Ctx.createTempSymbol("heapallocsite", true);
   I->setPreInstrSymbol(*this, BeginLabel);
   I->setPostInstrSymbol(*this, EndLabel);
 
-  DIType *DI = dyn_cast<DIType>(MD);
+  const DIType *DI = dyn_cast<DIType>(MD);
   CodeViewHeapAllocSites.push_back(std::make_tuple(BeginLabel, EndLabel, DI));
 }
 
-void MachineFunction::updateCallSiteInfo(const MachineInstr *Old,
-                                         const MachineInstr *New) {
-  if (!Target.Options.EnableDebugEntryValues || Old == New)
-    return;
+void MachineFunction::moveCallSiteInfo(const MachineInstr *Old,
+                                       const MachineInstr *New) {
+  assert(New->isCall() && "Call site info refers only to call instructions!");
 
-  assert(Old->isCall() && (!New || New->isCall()) &&
-         "Call site info referes only to call instructions!");
-  CallSiteInfoMap::iterator CSIt = CallSitesInfo.find(Old);
+  CallSiteInfoMap::iterator CSIt = getCallSiteInfo(Old);
   if (CSIt == CallSitesInfo.end())
     return;
+
   CallSiteInfo CSInfo = std::move(CSIt->second);
   CallSitesInfo.erase(CSIt);
-  if (New)
-    CallSitesInfo[New] = CSInfo;
+  CallSitesInfo[New] = CSInfo;
+}
+
+void MachineFunction::eraseCallSiteInfo(const MachineInstr *MI) {
+  CallSiteInfoMap::iterator CSIt = getCallSiteInfo(MI);
+  if (CSIt == CallSitesInfo.end())
+    return;
+  CallSitesInfo.erase(CSIt);
+}
+
+void MachineFunction::copyCallSiteInfo(const MachineInstr *Old,
+                                       const MachineInstr *New) {
+  assert(New->isCall() && "Call site info refers only to call instructions!");
+
+  CallSiteInfoMap::iterator CSIt = getCallSiteInfo(Old);
+  if (CSIt == CallSitesInfo.end())
+    return;
+
+  CallSiteInfo CSInfo = CSIt->second;
+  CallSitesInfo[New] = CSInfo;
 }
 
 /// \}
@@ -881,13 +899,13 @@ unsigned MachineJumpTableInfo::getEntryAlignment(const DataLayout &TD) const {
   // alignment.
   switch (getEntryKind()) {
   case MachineJumpTableInfo::EK_BlockAddress:
-    return TD.getPointerABIAlignment(0);
+    return TD.getPointerABIAlignment(0).value();
   case MachineJumpTableInfo::EK_GPRel64BlockAddress:
-    return TD.getABIIntegerTypeAlignment(64);
+    return TD.getABIIntegerTypeAlignment(64).value();
   case MachineJumpTableInfo::EK_GPRel32BlockAddress:
   case MachineJumpTableInfo::EK_LabelDifference32:
   case MachineJumpTableInfo::EK_Custom32:
-    return TD.getABIIntegerTypeAlignment(32);
+    return TD.getABIIntegerTypeAlignment(32).value();
   case MachineJumpTableInfo::EK_Inline:
     return 1;
   }

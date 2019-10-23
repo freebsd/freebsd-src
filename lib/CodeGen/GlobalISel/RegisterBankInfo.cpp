@@ -82,7 +82,7 @@ bool RegisterBankInfo::verify(const TargetRegisterInfo &TRI) const {
 const RegisterBank *
 RegisterBankInfo::getRegBank(Register Reg, const MachineRegisterInfo &MRI,
                              const TargetRegisterInfo &TRI) const {
-  if (TargetRegisterInfo::isPhysicalRegister(Reg))
+  if (Register::isPhysicalRegister(Reg))
     return &getRegBankFromRegClass(getMinimalPhysRegClass(Reg, TRI));
 
   assert(Reg && "NoRegister does not have a register bank");
@@ -97,8 +97,7 @@ RegisterBankInfo::getRegBank(Register Reg, const MachineRegisterInfo &MRI,
 const TargetRegisterClass &
 RegisterBankInfo::getMinimalPhysRegClass(Register Reg,
                                          const TargetRegisterInfo &TRI) const {
-  assert(TargetRegisterInfo::isPhysicalRegister(Reg) &&
-         "Reg must be a physreg");
+  assert(Register::isPhysicalRegister(Reg) && "Reg must be a physreg");
   const auto &RegRCIt = PhysRegMinimalRCs.find(Reg);
   if (RegRCIt != PhysRegMinimalRCs.end())
     return *RegRCIt->second;
@@ -284,7 +283,7 @@ RegisterBankInfo::getPartialMapping(unsigned StartIdx, unsigned Length,
   ++NumPartialMappingsCreated;
 
   auto &PartMapping = MapOfPartialMappings[Hash];
-  PartMapping = llvm::make_unique<PartialMapping>(StartIdx, Length, RegBank);
+  PartMapping = std::make_unique<PartialMapping>(StartIdx, Length, RegBank);
   return *PartMapping;
 }
 
@@ -318,7 +317,7 @@ RegisterBankInfo::getValueMapping(const PartialMapping *BreakDown,
   ++NumValueMappingsCreated;
 
   auto &ValMapping = MapOfValueMappings[Hash];
-  ValMapping = llvm::make_unique<ValueMapping>(BreakDown, NumBreakDowns);
+  ValMapping = std::make_unique<ValueMapping>(BreakDown, NumBreakDowns);
   return *ValMapping;
 }
 
@@ -342,7 +341,7 @@ RegisterBankInfo::getOperandsMapping(Iterator Begin, Iterator End) const {
   // mapping, because we use the pointer of the ValueMapping
   // to hash and we expect them to uniquely identify an instance
   // of value mapping.
-  Res = llvm::make_unique<ValueMapping[]>(std::distance(Begin, End));
+  Res = std::make_unique<ValueMapping[]>(std::distance(Begin, End));
   unsigned Idx = 0;
   for (Iterator It = Begin; It != End; ++It, ++Idx) {
     const ValueMapping *ValMap = *It;
@@ -392,7 +391,7 @@ RegisterBankInfo::getInstructionMappingImpl(
   ++NumInstructionMappingsCreated;
 
   auto &InstrMapping = MapOfInstructionMappings[Hash];
-  InstrMapping = llvm::make_unique<InstructionMapping>(
+  InstrMapping = std::make_unique<InstructionMapping>(
       ID, Cost, OperandsMapping, NumOperands);
   return *InstrMapping;
 }
@@ -456,7 +455,7 @@ void RegisterBankInfo::applyDefaultMapping(const OperandsMapper &OpdMapper) {
            "This mapping is too complex for this function");
     iterator_range<SmallVectorImpl<Register>::const_iterator> NewRegs =
         OpdMapper.getVRegs(OpIdx);
-    if (empty(NewRegs)) {
+    if (NewRegs.empty()) {
       LLVM_DEBUG(dbgs() << " has not been repaired, nothing to be done\n");
       continue;
     }
@@ -489,7 +488,7 @@ void RegisterBankInfo::applyDefaultMapping(const OperandsMapper &OpdMapper) {
 unsigned RegisterBankInfo::getSizeInBits(Register Reg,
                                          const MachineRegisterInfo &MRI,
                                          const TargetRegisterInfo &TRI) const {
-  if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+  if (Register::isPhysicalRegister(Reg)) {
     // The size is not directly available for physical registers.
     // Instead, we need to access a register class that contains Reg and
     // get the size of that register class.

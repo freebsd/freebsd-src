@@ -57,7 +57,7 @@ using namespace llvm;
 static cl::opt<unsigned> UnrollThresholdPrivate(
   "amdgpu-unroll-threshold-private",
   cl::desc("Unroll threshold for AMDGPU if private memory used in a loop"),
-  cl::init(2500), cl::Hidden);
+  cl::init(2000), cl::Hidden);
 
 static cl::opt<unsigned> UnrollThresholdLocal(
   "amdgpu-unroll-threshold-local",
@@ -590,6 +590,61 @@ bool GCNTTIImpl::isAlwaysUniform(const Value *V) const {
   return false;
 }
 
+bool GCNTTIImpl::collectFlatAddressOperands(SmallVectorImpl<int> &OpIndexes,
+                                            Intrinsic::ID IID) const {
+  switch (IID) {
+  case Intrinsic::amdgcn_atomic_inc:
+  case Intrinsic::amdgcn_atomic_dec:
+  case Intrinsic::amdgcn_ds_fadd:
+  case Intrinsic::amdgcn_ds_fmin:
+  case Intrinsic::amdgcn_ds_fmax:
+  case Intrinsic::amdgcn_is_shared:
+  case Intrinsic::amdgcn_is_private:
+    OpIndexes.push_back(0);
+    return true;
+  default:
+    return false;
+  }
+}
+
+bool GCNTTIImpl::rewriteIntrinsicWithAddressSpace(
+  IntrinsicInst *II, Value *OldV, Value *NewV) const {
+  auto IntrID = II->getIntrinsicID();
+  switch (IntrID) {
+  case Intrinsic::amdgcn_atomic_inc:
+  case Intrinsic::amdgcn_atomic_dec:
+  case Intrinsic::amdgcn_ds_fadd:
+  case Intrinsic::amdgcn_ds_fmin:
+  case Intrinsic::amdgcn_ds_fmax: {
+    const ConstantInt *IsVolatile = cast<ConstantInt>(II->getArgOperand(4));
+    if (!IsVolatile->isZero())
+      return false;
+    Module *M = II->getParent()->getParent()->getParent();
+    Type *DestTy = II->getType();
+    Type *SrcTy = NewV->getType();
+    Function *NewDecl =
+        Intrinsic::getDeclaration(M, II->getIntrinsicID(), {DestTy, SrcTy});
+    II->setArgOperand(0, NewV);
+    II->setCalledFunction(NewDecl);
+    return true;
+  }
+  case Intrinsic::amdgcn_is_shared:
+  case Intrinsic::amdgcn_is_private: {
+    unsigned TrueAS = IntrID == Intrinsic::amdgcn_is_shared ?
+      AMDGPUAS::LOCAL_ADDRESS : AMDGPUAS::PRIVATE_ADDRESS;
+    unsigned NewAS = NewV->getType()->getPointerAddressSpace();
+    LLVMContext &Ctx = NewV->getType()->getContext();
+    ConstantInt *NewVal = (TrueAS == NewAS) ?
+      ConstantInt::getTrue(Ctx) : ConstantInt::getFalse(Ctx);
+    II->replaceAllUsesWith(NewVal);
+    II->eraseFromParent();
+    return true;
+  }
+  default:
+    return false;
+  }
+}
+
 unsigned GCNTTIImpl::getShuffleCost(TTI::ShuffleKind Kind, Type *Tp, int Index,
                                        Type *SubTp) {
   if (ST->hasVOP3PInsts()) {
@@ -636,6 +691,39 @@ bool GCNTTIImpl::areInlineCompatible(const Function *Caller,
 void GCNTTIImpl::getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
                                          TTI::UnrollingPreferences &UP) {
   CommonTTI.getUnrollingPreferences(L, SE, UP);
+}
+
+unsigned GCNTTIImpl::getUserCost(const User *U,
+                                 ArrayRef<const Value *> Operands) {
+  // Estimate extractelement elimination
+  if (const ExtractElementInst *EE = dyn_cast<ExtractElementInst>(U)) {
+    ConstantInt *CI = dyn_cast<ConstantInt>(EE->getOperand(1));
+    unsigned Idx = -1;
+    if (CI)
+      Idx = CI->getZExtValue();
+    return getVectorInstrCost(EE->getOpcode(), EE->getOperand(0)->getType(),
+                              Idx);
+  }
+
+  // Estimate insertelement elimination
+  if (const InsertElementInst *IE = dyn_cast<InsertElementInst>(U)) {
+    ConstantInt *CI = dyn_cast<ConstantInt>(IE->getOperand(2));
+    unsigned Idx = -1;
+    if (CI)
+      Idx = CI->getZExtValue();
+    return getVectorInstrCost(IE->getOpcode(), IE->getType(), Idx);
+  }
+
+  // Estimate different intrinsics, e.g. llvm.fabs
+  if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(U)) {
+    SmallVector<Value *, 4> Args(II->arg_operands());
+    FastMathFlags FMF;
+    if (auto *FPMO = dyn_cast<FPMathOperator>(II))
+      FMF = FPMO->getFastMathFlags();
+    return getIntrinsicInstrCost(II->getIntrinsicID(), II->getType(), Args,
+                                 FMF);
+  }
+  return BaseT::getUserCost(U, Operands);
 }
 
 unsigned R600TTIImpl::getHardwareNumberOfRegisters(bool Vec) const {

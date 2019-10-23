@@ -119,8 +119,8 @@ public:
   void trackCopy(MachineInstr *MI, const TargetRegisterInfo &TRI) {
     assert(MI->isCopy() && "Tracking non-copy?");
 
-    unsigned Def = MI->getOperand(0).getReg();
-    unsigned Src = MI->getOperand(1).getReg();
+    Register Def = MI->getOperand(0).getReg();
+    Register Src = MI->getOperand(1).getReg();
 
     // Remember Def is defined by the copy.
     for (MCRegUnitIterator RUI(Def, &TRI); RUI.isValid(); ++RUI)
@@ -163,8 +163,8 @@ public:
 
     // Check that the available copy isn't clobbered by any regmasks between
     // itself and the destination.
-    unsigned AvailSrc = AvailCopy->getOperand(1).getReg();
-    unsigned AvailDef = AvailCopy->getOperand(0).getReg();
+    Register AvailSrc = AvailCopy->getOperand(1).getReg();
+    Register AvailDef = AvailCopy->getOperand(0).getReg();
     for (const MachineInstr &MI :
          make_range(AvailCopy->getIterator(), DestCopy.getIterator()))
       for (const MachineOperand &MO : MI.operands())
@@ -205,8 +205,11 @@ public:
   }
 
 private:
+  typedef enum { DebugUse = false, RegularUse = true } DebugType;
+
   void ClobberRegister(unsigned Reg);
-  void ReadRegister(unsigned Reg);
+  void ReadRegister(unsigned Reg, MachineInstr &Reader,
+                    DebugType DT);
   void CopyPropagateBlock(MachineBasicBlock &MBB);
   bool eraseIfRedundant(MachineInstr &Copy, unsigned Src, unsigned Def);
   void forwardUses(MachineInstr &MI);
@@ -216,6 +219,9 @@ private:
 
   /// Candidates for deletion.
   SmallSetVector<MachineInstr *, 8> MaybeDeadCopies;
+
+  /// Multimap tracking debug users in current BB
+  DenseMap<MachineInstr*, SmallVector<MachineInstr*, 2>> CopyDbgUsers;
 
   CopyTracker Tracker;
 
@@ -231,13 +237,19 @@ char &llvm::MachineCopyPropagationID = MachineCopyPropagation::ID;
 INITIALIZE_PASS(MachineCopyPropagation, DEBUG_TYPE,
                 "Machine Copy Propagation Pass", false, false)
 
-void MachineCopyPropagation::ReadRegister(unsigned Reg) {
+void MachineCopyPropagation::ReadRegister(unsigned Reg, MachineInstr &Reader,
+                                          DebugType DT) {
   // If 'Reg' is defined by a copy, the copy is no longer a candidate
-  // for elimination.
+  // for elimination. If a copy is "read" by a debug user, record the user
+  // for propagation.
   for (MCRegUnitIterator RUI(Reg, TRI); RUI.isValid(); ++RUI) {
     if (MachineInstr *Copy = Tracker.findCopyForUnit(*RUI, *TRI)) {
-      LLVM_DEBUG(dbgs() << "MCP: Copy is used - not dead: "; Copy->dump());
-      MaybeDeadCopies.remove(Copy);
+      if (DT == RegularUse) {
+        LLVM_DEBUG(dbgs() << "MCP: Copy is used - not dead: "; Copy->dump());
+        MaybeDeadCopies.remove(Copy);
+      } else {
+        CopyDbgUsers[Copy].push_back(&Reader);
+      }
     }
   }
 }
@@ -250,8 +262,8 @@ void MachineCopyPropagation::ReadRegister(unsigned Reg) {
 /// isNopCopy("ecx = COPY eax", AH, CL) == false
 static bool isNopCopy(const MachineInstr &PreviousCopy, unsigned Src,
                       unsigned Def, const TargetRegisterInfo *TRI) {
-  unsigned PreviousSrc = PreviousCopy.getOperand(1).getReg();
-  unsigned PreviousDef = PreviousCopy.getOperand(0).getReg();
+  Register PreviousSrc = PreviousCopy.getOperand(1).getReg();
+  Register PreviousDef = PreviousCopy.getOperand(0).getReg();
   if (Src == PreviousSrc) {
     assert(Def == PreviousDef);
     return true;
@@ -288,7 +300,7 @@ bool MachineCopyPropagation::eraseIfRedundant(MachineInstr &Copy, unsigned Src,
   // Copy was redundantly redefining either Src or Def. Remove earlier kill
   // flags between Copy and PrevCopy because the value will be reused now.
   assert(Copy.isCopy());
-  unsigned CopyDef = Copy.getOperand(0).getReg();
+  Register CopyDef = Copy.getOperand(0).getReg();
   assert(CopyDef == Src || CopyDef == Def);
   for (MachineInstr &MI :
        make_range(PrevCopy->getIterator(), Copy.getIterator()))
@@ -307,7 +319,7 @@ bool MachineCopyPropagation::isForwardableRegClassCopy(const MachineInstr &Copy,
                                                        const MachineInstr &UseI,
                                                        unsigned UseIdx) {
 
-  unsigned CopySrcReg = Copy.getOperand(1).getReg();
+  Register CopySrcReg = Copy.getOperand(1).getReg();
 
   // If the new register meets the opcode register constraints, then allow
   // forwarding.
@@ -398,9 +410,9 @@ void MachineCopyPropagation::forwardUses(MachineInstr &MI) {
     if (!Copy)
       continue;
 
-    unsigned CopyDstReg = Copy->getOperand(0).getReg();
+    Register CopyDstReg = Copy->getOperand(0).getReg();
     const MachineOperand &CopySrc = Copy->getOperand(1);
-    unsigned CopySrcReg = CopySrc.getReg();
+    Register CopySrcReg = CopySrc.getReg();
 
     // FIXME: Don't handle partial uses of wider COPYs yet.
     if (MOUse.getReg() != CopyDstReg) {
@@ -456,11 +468,11 @@ void MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
     // Analyze copies (which don't overlap themselves).
     if (MI->isCopy() && !TRI->regsOverlap(MI->getOperand(0).getReg(),
                                           MI->getOperand(1).getReg())) {
-      unsigned Def = MI->getOperand(0).getReg();
-      unsigned Src = MI->getOperand(1).getReg();
+      Register Def = MI->getOperand(0).getReg();
+      Register Src = MI->getOperand(1).getReg();
 
-      assert(!TargetRegisterInfo::isVirtualRegister(Def) &&
-             !TargetRegisterInfo::isVirtualRegister(Src) &&
+      assert(!Register::isVirtualRegister(Def) &&
+             !Register::isVirtualRegister(Src) &&
              "MachineCopyPropagation should be run after register allocation!");
 
       // The two copies cancel out and the source of the first copy
@@ -488,14 +500,14 @@ void MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
 
       // If Src is defined by a previous copy, the previous copy cannot be
       // eliminated.
-      ReadRegister(Src);
+      ReadRegister(Src, *MI, RegularUse);
       for (const MachineOperand &MO : MI->implicit_operands()) {
         if (!MO.isReg() || !MO.readsReg())
           continue;
-        unsigned Reg = MO.getReg();
+        Register Reg = MO.getReg();
         if (!Reg)
           continue;
-        ReadRegister(Reg);
+        ReadRegister(Reg, *MI, RegularUse);
       }
 
       LLVM_DEBUG(dbgs() << "MCP: Copy is a deletion candidate: "; MI->dump());
@@ -515,7 +527,7 @@ void MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
       for (const MachineOperand &MO : MI->implicit_operands()) {
         if (!MO.isReg() || !MO.isDef())
           continue;
-        unsigned Reg = MO.getReg();
+        Register Reg = MO.getReg();
         if (!Reg)
           continue;
         Tracker.clobberRegister(Reg, *TRI);
@@ -529,12 +541,12 @@ void MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
     // Clobber any earlyclobber regs first.
     for (const MachineOperand &MO : MI->operands())
       if (MO.isReg() && MO.isEarlyClobber()) {
-        unsigned Reg = MO.getReg();
+        Register Reg = MO.getReg();
         // If we have a tied earlyclobber, that means it is also read by this
         // instruction, so we need to make sure we don't remove it as dead
         // later.
         if (MO.isTied())
-          ReadRegister(Reg);
+          ReadRegister(Reg, *MI, RegularUse);
         Tracker.clobberRegister(Reg, *TRI);
       }
 
@@ -548,18 +560,18 @@ void MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
         RegMask = &MO;
       if (!MO.isReg())
         continue;
-      unsigned Reg = MO.getReg();
+      Register Reg = MO.getReg();
       if (!Reg)
         continue;
 
-      assert(!TargetRegisterInfo::isVirtualRegister(Reg) &&
+      assert(!Register::isVirtualRegister(Reg) &&
              "MachineCopyPropagation should be run after register allocation!");
 
       if (MO.isDef() && !MO.isEarlyClobber()) {
         Defs.push_back(Reg);
         continue;
-      } else if (!MO.isDebug() && MO.readsReg())
-        ReadRegister(Reg);
+      } else if (MO.readsReg())
+        ReadRegister(Reg, *MI, MO.isDebug() ? DebugUse : RegularUse);
     }
 
     // The instruction has a register mask operand which means that it clobbers
@@ -571,7 +583,7 @@ void MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
                MaybeDeadCopies.begin();
            DI != MaybeDeadCopies.end();) {
         MachineInstr *MaybeDead = *DI;
-        unsigned Reg = MaybeDead->getOperand(0).getReg();
+        Register Reg = MaybeDead->getOperand(0).getReg();
         assert(!MRI->isReserved(Reg));
 
         if (!RegMask->clobbersPhysReg(Reg)) {
@@ -609,9 +621,10 @@ void MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
                  MaybeDead->dump());
       assert(!MRI->isReserved(MaybeDead->getOperand(0).getReg()));
 
-      // Update matching debug values.
+      // Update matching debug values, if any.
       assert(MaybeDead->isCopy());
-      MaybeDead->changeDebugValuesDefReg(MaybeDead->getOperand(1).getReg());
+      unsigned SrcReg = MaybeDead->getOperand(1).getReg();
+      MRI->updateDbgUsersToReg(SrcReg, CopyDbgUsers[MaybeDead]);
 
       MaybeDead->eraseFromParent();
       Changed = true;
@@ -620,6 +633,7 @@ void MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
   }
 
   MaybeDeadCopies.clear();
+  CopyDbgUsers.clear();
   Tracker.clear();
 }
 

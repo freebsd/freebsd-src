@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "SystemZMachineScheduler.h"
+#include "llvm/CodeGen/MachineLoopInfo.h"
 
 using namespace llvm;
 
@@ -108,8 +109,8 @@ void SystemZPostRASchedStrategy::enterMBB(MachineBasicBlock *NextMBB) {
        I != SinglePredMBB->end(); I++) {
     LLVM_DEBUG(dbgs() << "** Emitting incoming branch: "; I->dump(););
     bool TakenBranch = (I->isBranch() &&
-      (TII->getBranchInfo(*I).Target->isReg() || // Relative branch
-       TII->getBranchInfo(*I).Target->getMBB() == MBB));
+                        (TII->getBranchInfo(*I).isIndirect() ||
+                         TII->getBranchInfo(*I).getMBBTarget() == MBB));
     HazardRec->emitInstruction(&*I, TakenBranch);
     if (TakenBranch)
       break;

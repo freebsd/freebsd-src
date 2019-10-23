@@ -11,19 +11,15 @@
 //    ldd r2, r1, 0
 //    add r3, struct_base_reg, r2
 //
-// Here @global should either present a AMA (abstruct member access) or
-// a patchable extern variable. And these two kinds of accesses
-// are subject to bpf load time patching. After this pass, the
+// Here @global should represent an AMA (abstruct member access).
+// Such an access is subject to bpf load time patching. After this pass, the
 // code becomes
 //    ld_imm64 r1, @global
 //    add r3, struct_base_reg, r1
 //
 // Eventually, at BTF output stage, a relocation record will be generated
 // for ld_imm64 which should be replaced later by bpf loader:
-//    r1 = <calculated offset> or <to_be_patched_extern_val>
-//    add r3, struct_base_reg, r1
-// or
-//    ld_imm64 r1, <to_be_patched_extern_val>
+//    r1 = <calculated field_info>
 //    add r3, struct_base_reg, r1
 //
 //===----------------------------------------------------------------------===//
@@ -34,6 +30,7 @@
 #include "BPFTargetMachine.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/Support/Debug.h"
 
 using namespace llvm;
 
@@ -100,9 +97,8 @@ bool BPFMISimplifyPatchable::removeLD() {
       if (!MI.getOperand(2).isImm() || MI.getOperand(2).getImm())
         continue;
 
-      unsigned DstReg = MI.getOperand(0).getReg();
-      unsigned SrcReg = MI.getOperand(1).getReg();
-      int64_t ImmVal = MI.getOperand(2).getImm();
+      Register DstReg = MI.getOperand(0).getReg();
+      Register SrcReg = MI.getOperand(1).getReg();
 
       MachineInstr *DefInst = MRI->getUniqueVRegDef(SrcReg);
       if (!DefInst)
@@ -118,17 +114,8 @@ bool BPFMISimplifyPatchable::removeLD() {
             // Global variables representing structure offset or
             // patchable extern globals.
             if (GVar->hasAttribute(BPFCoreSharedInfo::AmaAttr)) {
-              assert(ImmVal == 0);
+              assert(MI.getOperand(2).getImm() == 0);
               IsCandidate = true;
-            } else if (!GVar->hasInitializer() && GVar->hasExternalLinkage() &&
-                       GVar->getSection() ==
-                           BPFCoreSharedInfo::PatchableExtSecName) {
-              if (ImmVal == 0)
-                IsCandidate = true;
-              else
-                errs() << "WARNING: unhandled patchable extern "
-                       << GVar->getName() << " with load offset " << ImmVal
-                       << "\n";
             }
           }
         }

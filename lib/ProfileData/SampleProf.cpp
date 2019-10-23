@@ -16,7 +16,9 @@
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/LEB128.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/raw_ostream.h"
 #include <string>
@@ -28,8 +30,6 @@ using namespace sampleprof;
 namespace llvm {
 namespace sampleprof {
 SampleProfileFormat FunctionSamples::Format;
-DenseMap<uint64_t, StringRef> FunctionSamples::GUIDToFuncNameMap;
-Module *FunctionSamples::CurrentModule;
 } // namespace sampleprof
 } // namespace llvm
 
@@ -68,6 +68,12 @@ class SampleProfErrorCategoryType : public std::error_category {
       return "Counter overflow";
     case sampleprof_error::ostream_seek_unsupported:
       return "Ostream does not support seek";
+    case sampleprof_error::compress_failed:
+      return "Compress failure";
+    case sampleprof_error::uncompress_failed:
+      return "Uncompress failure";
+    case sampleprof_error::zlib_unavailable:
+      return "Zlib is unavailable";
     }
     llvm_unreachable("A value of sampleprof_error has no message.");
   }
@@ -102,8 +108,8 @@ void SampleRecord::print(raw_ostream &OS, unsigned Indent) const {
   OS << NumSamples;
   if (hasCalls()) {
     OS << ", calls:";
-    for (const auto &I : getCallTargets())
-      OS << " " << I.first() << ":" << I.second;
+    for (const auto &I : getSortedCallTargets())
+      OS << " " << I.first << ":" << I.second;
   }
   OS << "\n";
 }
@@ -149,6 +155,7 @@ void FunctionSamples::print(raw_ostream &OS, unsigned Indent) const {
         FS.second.print(OS, Indent + 4);
       }
     }
+    OS.indent(Indent);
     OS << "}\n";
   } else {
     OS << "No inlined callsites in this function\n";
@@ -190,3 +197,44 @@ FunctionSamples::findFunctionSamples(const DILocation *DIL) const {
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 LLVM_DUMP_METHOD void FunctionSamples::dump() const { print(dbgs(), 0); }
 #endif
+
+std::error_code ProfileSymbolList::read(const uint8_t *Data,
+                                        uint64_t ListSize) {
+  const char *ListStart = reinterpret_cast<const char *>(Data);
+  uint64_t Size = 0;
+  while (Size < ListSize) {
+    StringRef Str(ListStart + Size);
+    add(Str);
+    Size += Str.size() + 1;
+  }
+  if (Size != ListSize)
+    return sampleprof_error::malformed;
+  return sampleprof_error::success;
+}
+
+std::error_code ProfileSymbolList::write(raw_ostream &OS) {
+  // Sort the symbols before output. If doing compression.
+  // It will make the compression much more effective.
+  std::vector<StringRef> SortedList;
+  SortedList.insert(SortedList.begin(), Syms.begin(), Syms.end());
+  llvm::sort(SortedList);
+
+  std::string OutputString;
+  for (auto &Sym : SortedList) {
+    OutputString.append(Sym.str());
+    OutputString.append(1, '\0');
+  }
+
+  OS << OutputString;
+  return sampleprof_error::success;
+}
+
+void ProfileSymbolList::dump(raw_ostream &OS) const {
+  OS << "======== Dump profile symbol list ========\n";
+  std::vector<StringRef> SortedList;
+  SortedList.insert(SortedList.begin(), Syms.begin(), Syms.end());
+  llvm::sort(SortedList);
+
+  for (auto &Sym : SortedList)
+    OS << Sym << "\n";
+}

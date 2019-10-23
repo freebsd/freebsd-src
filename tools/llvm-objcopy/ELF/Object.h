@@ -57,8 +57,8 @@ public:
       : Sections(Secs) {}
   SectionTableRef(const SectionTableRef &) = default;
 
-  iterator begin() { return iterator(Sections.data()); }
-  iterator end() { return iterator(Sections.data() + Sections.size()); }
+  iterator begin() const { return iterator(Sections.data()); }
+  iterator end() const { return iterator(Sections.data() + Sections.size()); }
   size_t size() const { return Sections.size(); }
 
   SectionBase *getSection(uint32_t Index, Twine ErrMsg);
@@ -863,7 +863,7 @@ public:
 class Reader {
 public:
   virtual ~Reader();
-  virtual std::unique_ptr<Object> create() const = 0;
+  virtual std::unique_ptr<Object> create(bool EnsureSymtab) const = 0;
 };
 
 using object::Binary;
@@ -873,7 +873,6 @@ using object::OwningBinary;
 
 class BasicELFBuilder {
 protected:
-  uint16_t EMachine;
   std::unique_ptr<Object> Obj;
 
   void initFileHeader();
@@ -883,17 +882,18 @@ protected:
   void initSections();
 
 public:
-  BasicELFBuilder(uint16_t EM)
-      : EMachine(EM), Obj(llvm::make_unique<Object>()) {}
+  BasicELFBuilder() : Obj(std::make_unique<Object>()) {}
 };
 
 class BinaryELFBuilder : public BasicELFBuilder {
   MemoryBuffer *MemBuf;
+  uint8_t NewSymbolVisibility;
   void addData(SymbolTableSection *SymTab);
 
 public:
-  BinaryELFBuilder(uint16_t EM, MemoryBuffer *MB)
-      : BasicELFBuilder(EM), MemBuf(MB) {}
+  BinaryELFBuilder(MemoryBuffer *MB, uint8_t NewSymbolVisibility)
+      : BasicELFBuilder(), MemBuf(MB),
+        NewSymbolVisibility(NewSymbolVisibility) {}
 
   std::unique_ptr<Object> build();
 };
@@ -905,7 +905,7 @@ class IHexELFBuilder : public BasicELFBuilder {
 
 public:
   IHexELFBuilder(const std::vector<IHexRecord> &Records)
-      : BasicELFBuilder(ELF::EM_386), Records(Records) {}
+      : BasicELFBuilder(), Records(Records) {}
 
   std::unique_ptr<Object> build();
 };
@@ -926,7 +926,7 @@ private:
   void initGroupSection(GroupSection *GroupSec);
   void initSymbolTable(SymbolTableSection *SymTab);
   void readSectionHeaders();
-  void readSections();
+  void readSections(bool EnsureSymtab);
   void findEhdrOffset();
   SectionBase &makeSection(const Elf_Shdr &Shdr);
 
@@ -936,17 +936,17 @@ public:
       : ElfFile(*ElfObj.getELFFile()), Obj(Obj),
         ExtractPartition(ExtractPartition) {}
 
-  void build();
+  void build(bool EnsureSymtab);
 };
 
 class BinaryReader : public Reader {
-  const MachineInfo &MInfo;
   MemoryBuffer *MemBuf;
+  uint8_t NewSymbolVisibility;
 
 public:
-  BinaryReader(const MachineInfo &MI, MemoryBuffer *MB)
-      : MInfo(MI), MemBuf(MB) {}
-  std::unique_ptr<Object> create() const override;
+  BinaryReader(MemoryBuffer *MB, const uint8_t NewSymbolVisibility)
+      : MemBuf(MB), NewSymbolVisibility(NewSymbolVisibility) {}
+  std::unique_ptr<Object> create(bool EnsureSymtab) const override;
 };
 
 class IHexReader : public Reader {
@@ -968,7 +968,7 @@ class IHexReader : public Reader {
 public:
   IHexReader(MemoryBuffer *MB) : MemBuf(MB) {}
 
-  std::unique_ptr<Object> create() const override;
+  std::unique_ptr<Object> create(bool EnsureSymtab) const override;
 };
 
 class ELFReader : public Reader {
@@ -976,7 +976,7 @@ class ELFReader : public Reader {
   Optional<StringRef> ExtractPartition;
 
 public:
-  std::unique_ptr<Object> create() const override;
+  std::unique_ptr<Object> create(bool EnsureSymtab) const override;
   explicit ELFReader(Binary *B, Optional<StringRef> ExtractPartition)
       : Bin(B), ExtractPartition(ExtractPartition) {}
 };
@@ -989,6 +989,10 @@ private:
   std::vector<SecPtr> Sections;
   std::vector<SegPtr> Segments;
   std::vector<SecPtr> RemovedSections;
+
+  static bool sectionIsAlloc(const SectionBase &Sec) {
+    return Sec.Flags & ELF::SHF_ALLOC;
+  };
 
 public:
   template <class T>
@@ -1011,13 +1015,14 @@ public:
   uint8_t OSABI;
   uint8_t ABIVersion;
   uint64_t Entry;
-  uint64_t SHOffset;
+  uint64_t SHOff;
   uint32_t Type;
   uint32_t Machine;
   uint32_t Version;
   uint32_t Flags;
 
   bool HadShdrs = true;
+  bool MustBeRelocatable = false;
   StringTableSection *SectionNames = nullptr;
   SymbolTableSection *SymbolTable = nullptr;
   SectionIndexSection *SectionIndexTable = nullptr;
@@ -1027,6 +1032,13 @@ public:
   ConstRange<SectionBase> sections() const {
     return make_pointee_range(Sections);
   }
+  iterator_range<
+      filter_iterator<pointee_iterator<std::vector<SecPtr>::const_iterator>,
+                      decltype(&sectionIsAlloc)>>
+  allocSections() const {
+    return make_filter_range(make_pointee_range(Sections), sectionIsAlloc);
+  }
+
   SectionBase *findSection(StringRef Name) {
     auto SecIt =
         find_if(Sections, [&](const SecPtr &Sec) { return Sec->Name == Name; });
@@ -1041,15 +1053,19 @@ public:
                        std::function<bool(const SectionBase &)> ToRemove);
   Error removeSymbols(function_ref<bool(const Symbol &)> ToRemove);
   template <class T, class... Ts> T &addSection(Ts &&... Args) {
-    auto Sec = llvm::make_unique<T>(std::forward<Ts>(Args)...);
+    auto Sec = std::make_unique<T>(std::forward<Ts>(Args)...);
     auto Ptr = Sec.get();
+    MustBeRelocatable |= isa<RelocationSection>(*Ptr);
     Sections.emplace_back(std::move(Sec));
     Ptr->Index = Sections.size();
     return *Ptr;
   }
   Segment &addSegment(ArrayRef<uint8_t> Data) {
-    Segments.emplace_back(llvm::make_unique<Segment>(Data));
+    Segments.emplace_back(std::make_unique<Segment>(Data));
     return *Segments.back();
+  }
+  bool isRelocatable() const {
+    return (Type != ELF::ET_DYN && Type != ELF::ET_EXEC) || MustBeRelocatable;
   }
 };
 

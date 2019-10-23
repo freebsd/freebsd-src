@@ -140,7 +140,16 @@ unsigned LLVMGetLastEnumAttributeKind(void) {
 
 LLVMAttributeRef LLVMCreateEnumAttribute(LLVMContextRef C, unsigned KindID,
                                          uint64_t Val) {
-  return wrap(Attribute::get(*unwrap(C), (Attribute::AttrKind)KindID, Val));
+  auto &Ctx = *unwrap(C);
+  auto AttrKind = (Attribute::AttrKind)KindID;
+
+  if (AttrKind == Attribute::AttrKind::ByVal) {
+    // After r362128, byval attributes need to have a type attribute. Provide a
+    // NULL one until a proper API is added for this.
+    return wrap(Attribute::getWithByValType(Ctx, NULL));
+  } else {
+    return wrap(Attribute::get(Ctx, AttrKind, Val));
+  }
 }
 
 unsigned LLVMGetEnumAttributeKind(LLVMAttributeRef A) {
@@ -386,7 +395,7 @@ void LLVMDumpModule(LLVMModuleRef M) {
 LLVMBool LLVMPrintModuleToFile(LLVMModuleRef M, const char *Filename,
                                char **ErrorMessage) {
   std::error_code EC;
-  raw_fd_ostream dest(Filename, EC, sys::fs::F_Text);
+  raw_fd_ostream dest(Filename, EC, sys::fs::OF_Text);
   if (EC) {
     *ErrorMessage = strdup(EC.message().c_str());
     return true;
@@ -1999,13 +2008,13 @@ unsigned LLVMGetAlignment(LLVMValueRef V) {
 void LLVMSetAlignment(LLVMValueRef V, unsigned Bytes) {
   Value *P = unwrap<Value>(V);
   if (GlobalObject *GV = dyn_cast<GlobalObject>(P))
-    GV->setAlignment(Bytes);
+    GV->setAlignment(MaybeAlign(Bytes));
   else if (AllocaInst *AI = dyn_cast<AllocaInst>(P))
-    AI->setAlignment(Bytes);
+    AI->setAlignment(MaybeAlign(Bytes));
   else if (LoadInst *LI = dyn_cast<LoadInst>(P))
-    LI->setAlignment(Bytes);
+    LI->setAlignment(MaybeAlign(Bytes));
   else if (StoreInst *SI = dyn_cast<StoreInst>(P))
-    SI->setAlignment(Bytes);
+    SI->setAlignment(MaybeAlign(Bytes));
   else
     llvm_unreachable(
         "only GlobalValue, AllocaInst, LoadInst and StoreInst have alignment");
@@ -2480,7 +2489,7 @@ LLVMValueRef LLVMGetPreviousParam(LLVMValueRef Arg) {
 
 void LLVMSetParamAlignment(LLVMValueRef Arg, unsigned align) {
   Argument *A = unwrap<Argument>(Arg);
-  A->addAttr(Attribute::getWithAlignment(A->getContext(), align));
+  A->addAttr(Attribute::getWithAlignment(A->getContext(), Align(align)));
 }
 
 /*--.. Operations on ifuncs ................................................--*/
@@ -2779,7 +2788,8 @@ void LLVMSetInstructionCallConv(LLVMValueRef Instr, unsigned CC) {
 void LLVMSetInstrParamAlignment(LLVMValueRef Instr, unsigned index,
                                 unsigned align) {
   auto *Call = unwrap<CallBase>(Instr);
-  Attribute AlignAttr = Attribute::getWithAlignment(Call->getContext(), align);
+  Attribute AlignAttr =
+      Attribute::getWithAlignment(Call->getContext(), Align(align));
   Call->addAttribute(index, AlignAttr);
 }
 
@@ -3518,6 +3528,47 @@ static LLVMAtomicOrdering mapToLLVMOrdering(AtomicOrdering Ordering) {
   llvm_unreachable("Invalid AtomicOrdering value!");
 }
 
+static AtomicRMWInst::BinOp mapFromLLVMRMWBinOp(LLVMAtomicRMWBinOp BinOp) {
+  switch (BinOp) {
+    case LLVMAtomicRMWBinOpXchg: return AtomicRMWInst::Xchg;
+    case LLVMAtomicRMWBinOpAdd: return AtomicRMWInst::Add;
+    case LLVMAtomicRMWBinOpSub: return AtomicRMWInst::Sub;
+    case LLVMAtomicRMWBinOpAnd: return AtomicRMWInst::And;
+    case LLVMAtomicRMWBinOpNand: return AtomicRMWInst::Nand;
+    case LLVMAtomicRMWBinOpOr: return AtomicRMWInst::Or;
+    case LLVMAtomicRMWBinOpXor: return AtomicRMWInst::Xor;
+    case LLVMAtomicRMWBinOpMax: return AtomicRMWInst::Max;
+    case LLVMAtomicRMWBinOpMin: return AtomicRMWInst::Min;
+    case LLVMAtomicRMWBinOpUMax: return AtomicRMWInst::UMax;
+    case LLVMAtomicRMWBinOpUMin: return AtomicRMWInst::UMin;
+    case LLVMAtomicRMWBinOpFAdd: return AtomicRMWInst::FAdd;
+    case LLVMAtomicRMWBinOpFSub: return AtomicRMWInst::FSub;
+  }
+
+  llvm_unreachable("Invalid LLVMAtomicRMWBinOp value!");
+}
+
+static LLVMAtomicRMWBinOp mapToLLVMRMWBinOp(AtomicRMWInst::BinOp BinOp) {
+  switch (BinOp) {
+    case AtomicRMWInst::Xchg: return LLVMAtomicRMWBinOpXchg;
+    case AtomicRMWInst::Add: return LLVMAtomicRMWBinOpAdd;
+    case AtomicRMWInst::Sub: return LLVMAtomicRMWBinOpSub;
+    case AtomicRMWInst::And: return LLVMAtomicRMWBinOpAnd;
+    case AtomicRMWInst::Nand: return LLVMAtomicRMWBinOpNand;
+    case AtomicRMWInst::Or: return LLVMAtomicRMWBinOpOr;
+    case AtomicRMWInst::Xor: return LLVMAtomicRMWBinOpXor;
+    case AtomicRMWInst::Max: return LLVMAtomicRMWBinOpMax;
+    case AtomicRMWInst::Min: return LLVMAtomicRMWBinOpMin;
+    case AtomicRMWInst::UMax: return LLVMAtomicRMWBinOpUMax;
+    case AtomicRMWInst::UMin: return LLVMAtomicRMWBinOpUMin;
+    case AtomicRMWInst::FAdd: return LLVMAtomicRMWBinOpFAdd;
+    case AtomicRMWInst::FSub: return LLVMAtomicRMWBinOpFSub;
+    default: break;
+  }
+
+  llvm_unreachable("Invalid AtomicRMWBinOp value!");
+}
+
 // TODO: Should this and other atomic instructions support building with
 // "syncscope"?
 LLVMValueRef LLVMBuildFence(LLVMBuilderRef B, LLVMAtomicOrdering Ordering,
@@ -3593,14 +3644,30 @@ LLVMBool LLVMGetVolatile(LLVMValueRef MemAccessInst) {
   Value *P = unwrap<Value>(MemAccessInst);
   if (LoadInst *LI = dyn_cast<LoadInst>(P))
     return LI->isVolatile();
-  return cast<StoreInst>(P)->isVolatile();
+  if (StoreInst *SI = dyn_cast<StoreInst>(P))
+    return SI->isVolatile();
+  if (AtomicRMWInst *AI = dyn_cast<AtomicRMWInst>(P))
+    return AI->isVolatile();
+  return cast<AtomicCmpXchgInst>(P)->isVolatile();
 }
 
 void LLVMSetVolatile(LLVMValueRef MemAccessInst, LLVMBool isVolatile) {
   Value *P = unwrap<Value>(MemAccessInst);
   if (LoadInst *LI = dyn_cast<LoadInst>(P))
     return LI->setVolatile(isVolatile);
-  return cast<StoreInst>(P)->setVolatile(isVolatile);
+  if (StoreInst *SI = dyn_cast<StoreInst>(P))
+    return SI->setVolatile(isVolatile);
+  if (AtomicRMWInst *AI = dyn_cast<AtomicRMWInst>(P))
+    return AI->setVolatile(isVolatile);
+  return cast<AtomicCmpXchgInst>(P)->setVolatile(isVolatile);
+}
+
+LLVMBool LLVMGetWeak(LLVMValueRef CmpXchgInst) {
+  return unwrap<AtomicCmpXchgInst>(CmpXchgInst)->isWeak();
+}
+
+void LLVMSetWeak(LLVMValueRef CmpXchgInst, LLVMBool isWeak) {
+  return unwrap<AtomicCmpXchgInst>(CmpXchgInst)->setWeak(isWeak);
 }
 
 LLVMAtomicOrdering LLVMGetOrdering(LLVMValueRef MemAccessInst) {
@@ -3608,8 +3675,10 @@ LLVMAtomicOrdering LLVMGetOrdering(LLVMValueRef MemAccessInst) {
   AtomicOrdering O;
   if (LoadInst *LI = dyn_cast<LoadInst>(P))
     O = LI->getOrdering();
+  else if (StoreInst *SI = dyn_cast<StoreInst>(P))
+    O = SI->getOrdering();
   else
-    O = cast<StoreInst>(P)->getOrdering();
+    O = cast<AtomicRMWInst>(P)->getOrdering();
   return mapToLLVMOrdering(O);
 }
 
@@ -3620,6 +3689,14 @@ void LLVMSetOrdering(LLVMValueRef MemAccessInst, LLVMAtomicOrdering Ordering) {
   if (LoadInst *LI = dyn_cast<LoadInst>(P))
     return LI->setOrdering(O);
   return cast<StoreInst>(P)->setOrdering(O);
+}
+
+LLVMAtomicRMWBinOp LLVMGetAtomicRMWBinOp(LLVMValueRef Inst) {
+  return mapToLLVMRMWBinOp(unwrap<AtomicRMWInst>(Inst)->getOperation());
+}
+
+void LLVMSetAtomicRMWBinOp(LLVMValueRef Inst, LLVMAtomicRMWBinOp BinOp) {
+  unwrap<AtomicRMWInst>(Inst)->setOperation(mapFromLLVMRMWBinOp(BinOp));
 }
 
 /*--.. Casts ...............................................................--*/
@@ -3840,20 +3917,7 @@ LLVMValueRef LLVMBuildAtomicRMW(LLVMBuilderRef B,LLVMAtomicRMWBinOp op,
                                LLVMValueRef PTR, LLVMValueRef Val,
                                LLVMAtomicOrdering ordering,
                                LLVMBool singleThread) {
-  AtomicRMWInst::BinOp intop;
-  switch (op) {
-    case LLVMAtomicRMWBinOpXchg: intop = AtomicRMWInst::Xchg; break;
-    case LLVMAtomicRMWBinOpAdd: intop = AtomicRMWInst::Add; break;
-    case LLVMAtomicRMWBinOpSub: intop = AtomicRMWInst::Sub; break;
-    case LLVMAtomicRMWBinOpAnd: intop = AtomicRMWInst::And; break;
-    case LLVMAtomicRMWBinOpNand: intop = AtomicRMWInst::Nand; break;
-    case LLVMAtomicRMWBinOpOr: intop = AtomicRMWInst::Or; break;
-    case LLVMAtomicRMWBinOpXor: intop = AtomicRMWInst::Xor; break;
-    case LLVMAtomicRMWBinOpMax: intop = AtomicRMWInst::Max; break;
-    case LLVMAtomicRMWBinOpMin: intop = AtomicRMWInst::Min; break;
-    case LLVMAtomicRMWBinOpUMax: intop = AtomicRMWInst::UMax; break;
-    case LLVMAtomicRMWBinOpUMin: intop = AtomicRMWInst::UMin; break;
-  }
+  AtomicRMWInst::BinOp intop = mapFromLLVMRMWBinOp(op);
   return wrap(unwrap(B)->CreateAtomicRMW(intop, unwrap(PTR), unwrap(Val),
     mapFromLLVMOrdering(ordering), singleThread ? SyncScope::SingleThread
                                                 : SyncScope::System));

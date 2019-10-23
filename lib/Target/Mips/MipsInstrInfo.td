@@ -211,9 +211,9 @@ def HasCnMips    :    Predicate<"Subtarget->hasCnMips()">,
                       AssemblerPredicate<"FeatureCnMips">;
 def NotCnMips    :    Predicate<"!Subtarget->hasCnMips()">,
                       AssemblerPredicate<"!FeatureCnMips">;
-def IsSym32     :     Predicate<"Subtarget->HasSym32()">,
+def IsSym32     :     Predicate<"Subtarget->hasSym32()">,
                       AssemblerPredicate<"FeatureSym32">;
-def IsSym64     :     Predicate<"!Subtarget->HasSym32()">,
+def IsSym64     :     Predicate<"!Subtarget->hasSym32()">,
                       AssemblerPredicate<"!FeatureSym32">;
 def IsN64       :     Predicate<"Subtarget->isABI_N64()">;
 def IsNotN64    :     Predicate<"!Subtarget->isABI_N64()">;
@@ -1263,6 +1263,7 @@ def immSExt16  : PatLeaf<(imm), [{ return isInt<16>(N->getSExtValue()); }]>;
 
 // Node immediate fits as 7-bit zero extended on target immediate.
 def immZExt7 : PatLeaf<(imm), [{ return isUInt<7>(N->getZExtValue()); }]>;
+def timmZExt7 : PatLeaf<(timm), [{ return isUInt<7>(N->getZExtValue()); }]>;
 
 // Node immediate fits as 16-bit zero extended on target immediate.
 // The LO16 param means that only the lower 16 bits of the node
@@ -1295,6 +1296,7 @@ def immZExt32  : PatLeaf<(imm), [{ return isUInt<32>(N->getZExtValue()); }]>;
 
 // shamt field must fit in 5 bits.
 def immZExt5 : ImmLeaf<i32, [{return Imm == (Imm & 0x1f);}]>;
+def timmZExt5 : TImmLeaf<i32, [{return Imm == (Imm & 0x1f);}]>;
 
 def immZExt5Plus1 : PatLeaf<(imm), [{
   return isUInt<5>(N->getZExtValue() - 1);
@@ -3142,25 +3144,31 @@ multiclass MipsHiLoRelocs<Instruction Lui, Instruction Addiu,
   def : MipsPat<(MipsHi tconstpool:$in), (Lui tconstpool:$in)>;
   def : MipsPat<(MipsHi texternalsym:$in), (Lui texternalsym:$in)>;
 
-  def : MipsPat<(MipsLo tglobaladdr:$in), (Addiu ZeroReg, tglobaladdr:$in)>;
+  def : MipsPat<(MipsLo tglobaladdr:$in),
+                (Addiu ZeroReg, tglobaladdr:$in)>;
   def : MipsPat<(MipsLo tblockaddress:$in),
                 (Addiu ZeroReg, tblockaddress:$in)>;
-  def : MipsPat<(MipsLo tjumptable:$in), (Addiu ZeroReg, tjumptable:$in)>;
-  def : MipsPat<(MipsLo tconstpool:$in), (Addiu ZeroReg, tconstpool:$in)>;
+  def : MipsPat<(MipsLo tjumptable:$in),
+                (Addiu ZeroReg, tjumptable:$in)>;
+  def : MipsPat<(MipsLo tconstpool:$in),
+                (Addiu ZeroReg, tconstpool:$in)>;
   def : MipsPat<(MipsLo tglobaltlsaddr:$in),
                 (Addiu ZeroReg, tglobaltlsaddr:$in)>;
-  def : MipsPat<(MipsLo texternalsym:$in), (Addiu ZeroReg, texternalsym:$in)>;
+  def : MipsPat<(MipsLo texternalsym:$in),
+                (Addiu ZeroReg, texternalsym:$in)>;
 
   def : MipsPat<(add GPROpnd:$hi, (MipsLo tglobaladdr:$lo)),
-              (Addiu GPROpnd:$hi, tglobaladdr:$lo)>;
+                (Addiu GPROpnd:$hi, tglobaladdr:$lo)>;
   def : MipsPat<(add GPROpnd:$hi, (MipsLo tblockaddress:$lo)),
-              (Addiu GPROpnd:$hi, tblockaddress:$lo)>;
+                (Addiu GPROpnd:$hi, tblockaddress:$lo)>;
   def : MipsPat<(add GPROpnd:$hi, (MipsLo tjumptable:$lo)),
-              (Addiu GPROpnd:$hi, tjumptable:$lo)>;
+                (Addiu GPROpnd:$hi, tjumptable:$lo)>;
   def : MipsPat<(add GPROpnd:$hi, (MipsLo tconstpool:$lo)),
-              (Addiu GPROpnd:$hi, tconstpool:$lo)>;
+                (Addiu GPROpnd:$hi, tconstpool:$lo)>;
   def : MipsPat<(add GPROpnd:$hi, (MipsLo tglobaltlsaddr:$lo)),
-              (Addiu GPROpnd:$hi, tglobaltlsaddr:$lo)>;
+                (Addiu GPROpnd:$hi, tglobaltlsaddr:$lo)>;
+  def : MipsPat<(add GPROpnd:$hi, (MipsLo texternalsym:$lo)),
+                (Addiu GPROpnd:$hi, texternalsym:$lo)>;
 }
 
 // wrapper_pic

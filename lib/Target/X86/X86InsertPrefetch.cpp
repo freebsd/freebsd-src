@@ -79,8 +79,8 @@ ErrorOr<PrefetchHints> getPrefetchHints(const FunctionSamples *TopSamples,
 // The prefetch instruction can't take memory operands involving vector
 // registers.
 bool IsMemOpCompatibleWithPrefetch(const MachineInstr &MI, int Op) {
-  unsigned BaseReg = MI.getOperand(Op + X86::AddrBaseReg).getReg();
-  unsigned IndexReg = MI.getOperand(Op + X86::AddrIndexReg).getReg();
+  Register BaseReg = MI.getOperand(Op + X86::AddrBaseReg).getReg();
+  Register IndexReg = MI.getOperand(Op + X86::AddrIndexReg).getReg();
   return (BaseReg == 0 ||
           X86MCRegisterClasses[X86::GR64RegClassID].contains(BaseReg) ||
           X86MCRegisterClasses[X86::GR32RegClassID].contains(BaseReg)) &&
@@ -108,7 +108,7 @@ bool X86InsertPrefetch::findPrefetchInfo(const FunctionSamples *TopSamples,
                                          Prefetches &Prefetches) const {
   assert(Prefetches.empty() &&
          "Expected caller passed empty PrefetchInfo vector.");
-  static const std::pair<const StringRef, unsigned> HintTypes[] = {
+  static constexpr std::pair<StringLiteral, unsigned> HintTypes[] = {
       {"_nta_", X86::PREFETCHNTA},
       {"_t0_", X86::PREFETCHT0},
       {"_t1_", X86::PREFETCHT1},
@@ -173,7 +173,7 @@ bool X86InsertPrefetch::doInitialization(Module &M) {
 
 void X86InsertPrefetch::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesAll();
-  AU.addRequired<MachineModuleInfo>();
+  AU.addRequired<MachineModuleInfoWrapperPass>();
 }
 
 bool X86InsertPrefetch::runOnMachineFunction(MachineFunction &MF) {

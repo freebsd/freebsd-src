@@ -842,8 +842,10 @@ bool Decoder::dumpXDataRecord(const COFFObjectFile &COFF,
 
   if ((int64_t)(Contents.size() - Offset - 4 * HeaderWords(XData) -
                 (XData.E() ? 0 : XData.EpilogueCount() * 4) -
-                (XData.X() ? 8 : 0)) < (int64_t)ByteCodeLength)
+                (XData.X() ? 8 : 0)) < (int64_t)ByteCodeLength) {
+    SW.flush();
     report_fatal_error("Malformed unwind data");
+  }
 
   if (XData.E()) {
     ArrayRef<uint8_t> UC = XData.UnwindByteCode();
@@ -1039,10 +1041,7 @@ bool Decoder::dumpPackedEntry(const object::COFFObjectFile &COFF,
     }
     FunctionAddress = *FunctionAddressOrErr;
   } else {
-    const pe32_header *PEHeader;
-    if (COFF.getPE32Header(PEHeader))
-      return false;
-    FunctionAddress = PEHeader->ImageBase + RF.BeginAddress;
+    FunctionAddress = COFF.getPE32Header()->ImageBase + RF.BeginAddress;
   }
 
   SW.printString("Function", formatSymbol(FunctionName, FunctionAddress));

@@ -157,7 +157,10 @@ public:
   }
 
   bool runOnModule(Module &M) override {
-    return InstrProf.run(M, getAnalysis<TargetLibraryInfoWrapperPass>().getTLI());
+    auto GetTLI = [this](Function &F) -> TargetLibraryInfo & {
+      return this->getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
+    };
+    return InstrProf.run(M, GetTLI);
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
@@ -370,8 +373,12 @@ private:
 } // end anonymous namespace
 
 PreservedAnalyses InstrProfiling::run(Module &M, ModuleAnalysisManager &AM) {
-  auto &TLI = AM.getResult<TargetLibraryAnalysis>(M);
-  if (!run(M, TLI))
+  FunctionAnalysisManager &FAM =
+      AM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
+  auto GetTLI = [&FAM](Function &F) -> TargetLibraryInfo & {
+    return FAM.getResult<TargetLibraryAnalysis>(F);
+  };
+  if (!run(M, GetTLI))
     return PreservedAnalyses::all();
 
   return PreservedAnalyses::none();
@@ -441,7 +448,7 @@ void InstrProfiling::promoteCounterLoadStores(Function *F) {
   std::unique_ptr<BlockFrequencyInfo> BFI;
   if (Options.UseBFIInPromotion) {
     std::unique_ptr<BranchProbabilityInfo> BPI;
-    BPI.reset(new BranchProbabilityInfo(*F, LI, TLI));
+    BPI.reset(new BranchProbabilityInfo(*F, LI, &GetTLI(*F)));
     BFI.reset(new BlockFrequencyInfo(*F, *BPI, LI));
   }
 
@@ -482,9 +489,10 @@ static bool containsProfilingIntrinsics(Module &M) {
   return false;
 }
 
-bool InstrProfiling::run(Module &M, const TargetLibraryInfo &TLI) {
+bool InstrProfiling::run(
+    Module &M, std::function<const TargetLibraryInfo &(Function &F)> GetTLI) {
   this->M = &M;
-  this->TLI = &TLI;
+  this->GetTLI = std::move(GetTLI);
   NamesVar = nullptr;
   NamesSize = 0;
   ProfileDataMap.clear();
@@ -601,6 +609,7 @@ void InstrProfiling::lowerValueProfileInst(InstrProfValueProfileInst *Ind) {
   bool IsRange = (Ind->getValueKind()->getZExtValue() ==
                   llvm::InstrProfValueKind::IPVK_MemOPSize);
   CallInst *Call = nullptr;
+  auto *TLI = &GetTLI(*Ind->getFunction());
   if (!IsRange) {
     Value *Args[3] = {Ind->getTargetValue(),
                       Builder.CreateBitCast(DataVar, Builder.getInt8PtrTy()),
@@ -731,9 +740,8 @@ InstrProfiling::getOrCreateRegionCounters(InstrProfIncrementInst *Inc) {
     PD = It->second;
   }
 
-  // Match the linkage and visibility of the name global, except on COFF, where
-  // the linkage must be local and consequentially the visibility must be
-  // default.
+  // Match the linkage and visibility of the name global. COFF supports using
+  // comdats with internal symbols, so do that if we can.
   Function *Fn = Inc->getParent()->getParent();
   GlobalValue::LinkageTypes Linkage = NamePtr->getLinkage();
   GlobalValue::VisibilityTypes Visibility = NamePtr->getVisibility();
@@ -749,19 +757,21 @@ InstrProfiling::getOrCreateRegionCounters(InstrProfIncrementInst *Inc) {
   // new comdat group for the counters and profiling data. If we use the comdat
   // of the parent function, that will result in relocations against discarded
   // sections.
-  Comdat *Cmdt = nullptr;
-  GlobalValue::LinkageTypes CounterLinkage = Linkage;
-  if (needsComdatForCounter(*Fn, *M)) {
-    StringRef CmdtPrefix = getInstrProfComdatPrefix();
+  bool NeedComdat = needsComdatForCounter(*Fn, *M);
+  if (NeedComdat) {
     if (TT.isOSBinFormatCOFF()) {
-      // For COFF, the comdat group name must be the name of a symbol in the
-      // group. Use the counter variable name, and upgrade its linkage to
-      // something externally visible, like linkonce_odr.
-      CmdtPrefix = getInstrProfCountersVarPrefix();
-      CounterLinkage = GlobalValue::LinkOnceODRLinkage;
+      // For COFF, put the counters, data, and values each into their own
+      // comdats. We can't use a group because the Visual C++ linker will
+      // report duplicate symbol errors if there are multiple external symbols
+      // with the same name marked IMAGE_COMDAT_SELECT_ASSOCIATIVE.
+      Linkage = GlobalValue::LinkOnceODRLinkage;
+      Visibility = GlobalValue::HiddenVisibility;
     }
-    Cmdt = M->getOrInsertComdat(getVarName(Inc, CmdtPrefix));
   }
+  auto MaybeSetComdat = [=](GlobalVariable *GV) {
+    if (NeedComdat)
+      GV->setComdat(M->getOrInsertComdat(GV->getName()));
+  };
 
   uint64_t NumCounters = Inc->getNumCounters()->getZExtValue();
   LLVMContext &Ctx = M->getContext();
@@ -775,9 +785,9 @@ InstrProfiling::getOrCreateRegionCounters(InstrProfIncrementInst *Inc) {
   CounterPtr->setVisibility(Visibility);
   CounterPtr->setSection(
       getInstrProfSectionName(IPSK_cnts, TT.getObjectFormat()));
-  CounterPtr->setAlignment(8);
-  CounterPtr->setComdat(Cmdt);
-  CounterPtr->setLinkage(CounterLinkage);
+  CounterPtr->setAlignment(Align(8));
+  MaybeSetComdat(CounterPtr);
+  CounterPtr->setLinkage(Linkage);
 
   auto *Int8PtrTy = Type::getInt8PtrTy(Ctx);
   // Allocate statically the array of pointers to value profile nodes for
@@ -797,8 +807,8 @@ InstrProfiling::getOrCreateRegionCounters(InstrProfIncrementInst *Inc) {
       ValuesVar->setVisibility(Visibility);
       ValuesVar->setSection(
           getInstrProfSectionName(IPSK_vals, TT.getObjectFormat()));
-      ValuesVar->setAlignment(8);
-      ValuesVar->setComdat(Cmdt);
+      ValuesVar->setAlignment(Align(8));
+      MaybeSetComdat(ValuesVar);
       ValuesPtrExpr =
           ConstantExpr::getBitCast(ValuesVar, Type::getInt8PtrTy(Ctx));
     }
@@ -830,8 +840,9 @@ InstrProfiling::getOrCreateRegionCounters(InstrProfIncrementInst *Inc) {
                                   getVarName(Inc, getInstrProfDataVarPrefix()));
   Data->setVisibility(Visibility);
   Data->setSection(getInstrProfSectionName(IPSK_data, TT.getObjectFormat()));
-  Data->setAlignment(INSTR_PROF_DATA_ALIGNMENT);
-  Data->setComdat(Cmdt);
+  Data->setAlignment(Align(INSTR_PROF_DATA_ALIGNMENT));
+  MaybeSetComdat(Data);
+  Data->setLinkage(Linkage);
 
   PD.RegionCounters = CounterPtr;
   PD.DataVar = Data;
@@ -920,7 +931,7 @@ void InstrProfiling::emitNameData() {
   // On COFF, it's important to reduce the alignment down to 1 to prevent the
   // linker from inserting padding before the start of the names section or
   // between names entries.
-  NamesVar->setAlignment(1);
+  NamesVar->setAlignment(Align::None());
   UsedVars.push_back(NamesVar);
 
   for (auto *NamePtr : ReferencedNames)

@@ -40,16 +40,15 @@ public:
   bool lowerFormalArguments(MachineIRBuilder &MIRBuilder, const Function &F,
                             ArrayRef<ArrayRef<Register>> VRegs) const override;
 
-  bool lowerCall(MachineIRBuilder &MIRBuilder, CallingConv::ID CallConv,
-                 const MachineOperand &Callee, const ArgInfo &OrigRet,
-                 ArrayRef<ArgInfo> OrigArgs,
-                 Register SwiftErrorVReg) const override;
+  bool lowerCall(MachineIRBuilder &MIRBuilder,
+                 CallLoweringInfo &Info) const override;
 
-  bool lowerCall(MachineIRBuilder &MIRBuilder, CallingConv::ID CallConv,
-                 const MachineOperand &Callee, const ArgInfo &OrigRet,
-                 ArrayRef<ArgInfo> OrigArgs) const override {
-    return lowerCall(MIRBuilder, CallConv, Callee, OrigRet, OrigArgs, 0);
-  }
+  /// Returns true if the call can be lowered as a tail call.
+  bool
+  isEligibleForTailCallOptimization(MachineIRBuilder &MIRBuilder,
+                                    CallLoweringInfo &Info,
+                                    SmallVectorImpl<ArgInfo> &InArgs,
+                                    SmallVectorImpl<ArgInfo> &OutArgs) const;
 
   bool supportSwiftError() const override { return true; }
 
@@ -64,6 +63,18 @@ private:
                          SmallVectorImpl<ArgInfo> &SplitArgs,
                          const DataLayout &DL, MachineRegisterInfo &MRI,
                          CallingConv::ID CallConv) const;
+
+  bool lowerTailCall(MachineIRBuilder &MIRBuilder, CallLoweringInfo &Info,
+                     SmallVectorImpl<ArgInfo> &OutArgs) const;
+
+  bool
+  doCallerAndCalleePassArgsTheSameWay(CallLoweringInfo &Info,
+                                      MachineFunction &MF,
+                                      SmallVectorImpl<ArgInfo> &InArgs) const;
+
+  bool
+  areCalleeOutgoingArgsTailCallable(CallLoweringInfo &Info, MachineFunction &MF,
+                                    SmallVectorImpl<ArgInfo> &OutArgs) const;
 };
 
 } // end namespace llvm

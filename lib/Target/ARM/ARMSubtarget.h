@@ -71,6 +71,7 @@ protected:
     Exynos,
     Krait,
     Kryo,
+    NeoverseN1,
     Swift
   };
   enum ARMProcClassEnum {
@@ -179,11 +180,9 @@ protected:
   bool HasVFPv3SP = false;
   bool HasVFPv4SP = false;
   bool HasFPARMv8SP = false;
-  bool HasVFPv2D16 = false;
   bool HasVFPv3D16 = false;
   bool HasVFPv4D16 = false;
   bool HasFPARMv8D16 = false;
-  bool HasVFPv2D16SP = false;
   bool HasVFPv3D16SP = false;
   bool HasVFPv4D16SP = false;
   bool HasFPARMv8D16SP = false;
@@ -450,7 +449,7 @@ protected:
 
   /// stackAlignment - The minimum alignment known to hold of the stack frame on
   /// entry to the function and which must be maintained by every function.
-  unsigned stackAlignment = 4;
+  Align stackAlignment = Align(4);
 
   /// CPUString - String name of used CPU.
   std::string CPUString;
@@ -469,7 +468,12 @@ protected:
   int PreISelOperandLatencyAdjustment = 2;
 
   /// What alignment is preferred for loop bodies, in log2(bytes).
-  unsigned PrefLoopAlignment = 0;
+  unsigned PrefLoopLogAlignment = 0;
+
+  /// The cost factor for MVE instructions, representing the multiple beats an
+  // instruction can take. The default is 2, (set in initSubtargetFeatures so
+  // that we can use subtarget features less than 2).
+  unsigned MVEVectorCostFactor = 0;
 
   /// OptMinSize - True if we're optimising for minimum code size, equal to
   /// the function attribute.
@@ -535,7 +539,7 @@ public:
   }
 
   const CallLowering *getCallLowering() const override;
-  const InstructionSelector *getInstructionSelector() const override;
+  InstructionSelector *getInstructionSelector() const override;
   const LegalizerInfo *getLegalizerInfo() const override;
   const RegisterBankInfo *getRegBankInfo() const override;
 
@@ -600,7 +604,7 @@ public:
 
   bool hasARMOps() const { return !NoARM; }
 
-  bool hasVFP2Base() const { return HasVFPv2D16SP; }
+  bool hasVFP2Base() const { return HasVFPv2SP; }
   bool hasVFP3Base() const { return HasVFPv3D16SP; }
   bool hasVFP4Base() const { return HasVFPv4D16SP; }
   bool hasFPARMv8Base() const { return HasFPARMv8D16SP; }
@@ -668,6 +672,12 @@ public:
   bool hasSB() const { return HasSB; }
   bool genLongCalls() const { return GenLongCalls; }
   bool genExecuteOnly() const { return GenExecuteOnly; }
+  bool hasBaseDSP() const {
+    if (isThumb())
+      return hasDSP();
+    else
+      return hasV5TEOps();
+  }
 
   bool hasFP16() const { return HasFP16; }
   bool hasD32() const { return HasD32; }
@@ -812,7 +822,7 @@ public:
   /// getStackAlignment - Returns the minimum alignment known to hold of the
   /// stack frame on entry to the function and which must be maintained by every
   /// function for this subtarget.
-  unsigned getStackAlignment() const { return stackAlignment; }
+  Align getStackAlignment() const { return stackAlignment; }
 
   unsigned getMaxInterleaveFactor() const { return MaxInterleaveFactor; }
 
@@ -853,9 +863,9 @@ public:
     return isROPI() || !isTargetELF();
   }
 
-  unsigned getPrefLoopAlignment() const {
-    return PrefLoopAlignment;
-  }
+  unsigned getPrefLoopLogAlignment() const { return PrefLoopLogAlignment; }
+
+  unsigned getMVEVectorCostFactor() const { return MVEVectorCostFactor; }
 
   bool ignoreCSRForAllocationOrder(const MachineFunction &MF,
                                    unsigned PhysReg) const override;

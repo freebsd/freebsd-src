@@ -1254,8 +1254,9 @@ static bool eliminateDeadStores(BasicBlock &BB, AliasAnalysis *AA,
 
             auto *SI = new StoreInst(
                 ConstantInt::get(Earlier->getValueOperand()->getType(), Merged),
-                Earlier->getPointerOperand(), false, Earlier->getAlignment(),
-                Earlier->getOrdering(), Earlier->getSyncScopeID(), DepWrite);
+                Earlier->getPointerOperand(), false,
+                MaybeAlign(Earlier->getAlignment()), Earlier->getOrdering(),
+                Earlier->getSyncScopeID(), DepWrite);
 
             unsigned MDToKeep[] = {LLVMContext::MD_dbg, LLVMContext::MD_tbaa,
                                    LLVMContext::MD_alias_scope,
@@ -1361,7 +1362,7 @@ public:
     MemoryDependenceResults *MD =
         &getAnalysis<MemoryDependenceWrapperPass>().getMemDep();
     const TargetLibraryInfo *TLI =
-        &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
+        &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
 
     return eliminateDeadStores(F, AA, MD, DT, TLI);
   }

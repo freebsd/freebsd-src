@@ -316,7 +316,7 @@ StringRef sys::detail::getHostCPUNameForS390x(StringRef ProcCpuinfoContent) {
         unsigned int Id;
         if (!Lines[I].drop_front(Pos).getAsInteger(10, Id)) {
           if (Id >= 8561 && HaveVectorSupport)
-            return "arch13";
+            return "z15";
           if (Id >= 3906 && HaveVectorSupport)
             return "z14";
           if (Id >= 2964 && HaveVectorSupport)
@@ -680,7 +680,7 @@ getIntelProcessorTypeAndSubtype(unsigned Family, unsigned Model,
     // Skylake Xeon:
     case 0x55:
       *Type = X86::INTEL_COREI7;
-      if (Features3 & (1 << (X86::FEATURE_AVX512BF16 - 64)))
+      if (Features2 & (1 << (X86::FEATURE_AVX512BF16 - 32)))
         *Subtype = X86::INTEL_COREI7_COOPERLAKE; // "cooperlake"
       else if (Features2 & (1 << (X86::FEATURE_AVX512VNNI - 32)))
         *Subtype = X86::INTEL_COREI7_CASCADELAKE; // "cascadelake"
@@ -746,6 +746,13 @@ getIntelProcessorTypeAndSubtype(unsigned Family, unsigned Model,
       break;
 
     default: // Unknown family 6 CPU, try to guess.
+      // TODO detect tigerlake host
+      if (Features3 & (1 << (X86::FEATURE_AVX512VP2INTERSECT - 64))) {
+        *Type = X86::INTEL_COREI7;
+        *Subtype = X86::INTEL_COREI7_TIGERLAKE;
+        break;
+      }
+
       if (Features & (1 << X86::FEATURE_AVX512VBMI2)) {
         *Type = X86::INTEL_COREI7;
         *Subtype = X86::INTEL_COREI7_ICELAKE_CLIENT;
@@ -758,7 +765,7 @@ getIntelProcessorTypeAndSubtype(unsigned Family, unsigned Model,
         break;
       }
 
-      if (Features3 & (1 << (X86::FEATURE_AVX512BF16 - 64))) {
+      if (Features2 & (1 << (X86::FEATURE_AVX512BF16 - 32))) {
         *Type = X86::INTEL_COREI7;
         *Subtype = X86::INTEL_COREI7_COOPERLAKE;
         break;
@@ -1034,7 +1041,7 @@ static void getAvailableFeatures(unsigned ECX, unsigned EDX, unsigned MaxLeaf,
     setFeature(X86::FEATURE_BMI);
   if (HasLeaf7 && ((EBX >> 5) & 1) && HasAVX)
     setFeature(X86::FEATURE_AVX2);
-  if (HasLeaf7 && ((EBX >> 9) & 1))
+  if (HasLeaf7 && ((EBX >> 8) & 1))
     setFeature(X86::FEATURE_BMI2);
   if (HasLeaf7 && ((EBX >> 16) & 1) && HasAVX512Save)
     setFeature(X86::FEATURE_AVX512F);
@@ -1078,6 +1085,13 @@ static void getAvailableFeatures(unsigned ECX, unsigned EDX, unsigned MaxLeaf,
     setFeature(X86::FEATURE_AVX5124VNNIW);
   if (HasLeaf7 && ((EDX >> 3) & 1) && HasAVX512Save)
     setFeature(X86::FEATURE_AVX5124FMAPS);
+  if (HasLeaf7 && ((EDX >> 8) & 1) && HasAVX512Save)
+    setFeature(X86::FEATURE_AVX512VP2INTERSECT);
+
+  bool HasLeaf7Subleaf1 =
+      MaxLeaf >= 7 && !getX86CpuIDAndInfoEx(0x7, 0x1, &EAX, &EBX, &ECX, &EDX);
+  if (HasLeaf7Subleaf1 && ((EAX >> 5) & 1) && HasAVX512Save)
+    setFeature(X86::FEATURE_AVX512BF16);
 
   unsigned MaxExtLevel;
   getX86CpuIDAndInfo(0x80000000, &MaxExtLevel, &EBX, &ECX, &EDX);
@@ -1369,7 +1383,6 @@ bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
   Features["bmi2"]       = HasLeaf7 && ((EBX >>  8) & 1);
   Features["invpcid"]    = HasLeaf7 && ((EBX >> 10) & 1);
   Features["rtm"]        = HasLeaf7 && ((EBX >> 11) & 1);
-  Features["mpx"]        = HasLeaf7 && ((EBX >> 14) & 1);
   // AVX512 is only supported if the OS supports the context save for it.
   Features["avx512f"]    = HasLeaf7 && ((EBX >> 16) & 1) && HasAVX512Save;
   Features["avx512dq"]   = HasLeaf7 && ((EBX >> 17) & 1) && HasAVX512Save;
@@ -1496,6 +1509,17 @@ bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
   if (crypto == (CAP_AES | CAP_PMULL | CAP_SHA1 | CAP_SHA2))
     Features["crypto"] = true;
 #endif
+
+  return true;
+}
+#elif defined(_WIN32) && (defined(__aarch64__) || defined(_M_ARM64))
+bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
+  if (IsProcessorFeaturePresent(PF_ARM_NEON_INSTRUCTIONS_AVAILABLE))
+    Features["neon"] = true;
+  if (IsProcessorFeaturePresent(PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE))
+    Features["crc"] = true;
+  if (IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE))
+    Features["crypto"] = true;
 
   return true;
 }

@@ -17,10 +17,11 @@
 #include "RuntimeDyldMachO.h"
 #include "llvm/Object/COFF.h"
 #include "llvm/Object/ELFObjectFile.h"
+#include "llvm/Support/Alignment.h"
 #include "llvm/Support/MSVCErrorWorkarounds.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MathExtras.h"
-#include "llvm/Support/MutexGuard.h"
+#include <mutex>
 
 #include <future>
 
@@ -120,7 +121,7 @@ static void dumpSectionMemory(const SectionEntry &S, StringRef State) {
 
 // Resolve the relocations for all symbols we currently know about.
 void RuntimeDyldImpl::resolveRelocations() {
-  MutexGuard locked(lock);
+  std::lock_guard<sys::Mutex> locked(lock);
 
   // Print out the sections prior to relocation.
   LLVM_DEBUG(for (int i = 0, e = Sections.size(); i != e; ++i)
@@ -156,7 +157,7 @@ void RuntimeDyldImpl::resolveLocalRelocations() {
 
 void RuntimeDyldImpl::mapSectionAddress(const void *LocalAddress,
                                         uint64_t TargetAddress) {
-  MutexGuard locked(lock);
+  std::lock_guard<sys::Mutex> locked(lock);
   for (unsigned i = 0, e = Sections.size(); i != e; ++i) {
     if (Sections[i].getAddress() == LocalAddress) {
       reassignSectionAddress(i, TargetAddress);
@@ -177,7 +178,7 @@ static Error getOffset(const SymbolRef &Sym, SectionRef Sec,
 
 Expected<RuntimeDyldImpl::ObjSectionToIDMap>
 RuntimeDyldImpl::loadObjectImpl(const object::ObjectFile &Obj) {
-  MutexGuard locked(lock);
+  std::lock_guard<sys::Mutex> locked(lock);
 
   // Save information about our target
   Arch = (Triple::ArchType)Obj.getArch();
@@ -347,8 +348,12 @@ RuntimeDyldImpl::loadObjectImpl(const object::ObjectFile &Obj) {
   for (section_iterator SI = Obj.section_begin(), SE = Obj.section_end();
        SI != SE; ++SI) {
     StubMap Stubs;
-    section_iterator RelocatedSection = SI->getRelocatedSection();
 
+    Expected<section_iterator> RelSecOrErr = SI->getRelocatedSection();
+    if (!RelSecOrErr)
+      return RelSecOrErr.takeError();
+
+    section_iterator RelocatedSection = *RelSecOrErr;
     if (RelocatedSection == SE)
       continue;
 
@@ -535,9 +540,10 @@ Error RuntimeDyldImpl::computeTotalAllocSize(const ObjectFile &Obj,
       bool IsCode = Section.isText();
       bool IsReadOnly = isReadOnlyData(Section);
 
-      StringRef Name;
-      if (auto EC = Section.getName(Name))
-        return errorCodeToError(EC);
+      Expected<StringRef> NameOrErr = Section.getName();
+      if (!NameOrErr)
+        return NameOrErr.takeError();
+      StringRef Name = *NameOrErr;
 
       uint64_t StubBufSize = computeSectionStubBufSize(Obj, Section);
 
@@ -646,7 +652,12 @@ unsigned RuntimeDyldImpl::computeSectionStubBufSize(const ObjectFile &Obj,
   unsigned StubBufSize = 0;
   for (section_iterator SI = Obj.section_begin(), SE = Obj.section_end();
        SI != SE; ++SI) {
-    section_iterator RelSecI = SI->getRelocatedSection();
+
+    Expected<section_iterator> RelSecOrErr = SI->getRelocatedSection();
+    if (!RelSecOrErr)
+      report_fatal_error(toString(RelSecOrErr.takeError()));
+
+    section_iterator RelSecI = *RelSecOrErr;
     if (!(RelSecI == Section))
       continue;
 
@@ -727,16 +738,17 @@ Error RuntimeDyldImpl::emitCommonSymbols(const ObjectFile &Obj,
 
   // Assign the address of each symbol
   for (auto &Sym : SymbolsToAllocate) {
-    uint32_t Align = Sym.getAlignment();
+    uint32_t Alignment = Sym.getAlignment();
     uint64_t Size = Sym.getCommonSize();
     StringRef Name;
     if (auto NameOrErr = Sym.getName())
       Name = *NameOrErr;
     else
       return NameOrErr.takeError();
-    if (Align) {
+    if (Alignment) {
       // This symbol has an alignment requirement.
-      uint64_t AlignOffset = OffsetToAlignment((uint64_t)Addr, Align);
+      uint64_t AlignOffset =
+          offsetToAlignment((uint64_t)Addr, Align(Alignment));
       Addr += AlignOffset;
       Offset += AlignOffset;
     }
@@ -777,9 +789,10 @@ RuntimeDyldImpl::emitSection(const ObjectFile &Obj,
   // anyway, so we should guarantee that the alignment is always at least 1.
   Alignment = std::max(1u, Alignment);
 
-  StringRef Name;
-  if (auto EC = Section.getName(Name))
-    return errorCodeToError(EC);
+  Expected<StringRef> NameOrErr = Section.getName();
+  if (!NameOrErr)
+    return NameOrErr.takeError();
+  StringRef Name = *NameOrErr;
 
   StubBufSize = computeSectionStubBufSize(Obj, Section);
 
@@ -917,7 +930,8 @@ void RuntimeDyldImpl::addRelocationForSymbol(const RelocationEntry &RE,
 
 uint8_t *RuntimeDyldImpl::createStubFunction(uint8_t *Addr,
                                              unsigned AbiVariant) {
-  if (Arch == Triple::aarch64 || Arch == Triple::aarch64_be) {
+  if (Arch == Triple::aarch64 || Arch == Triple::aarch64_be ||
+      Arch == Triple::aarch64_32) {
     // This stub has to be able to access the full address space,
     // since symbol lookup won't necessarily find a handy, in-range,
     // PLT stub for functions which could be anywhere.
@@ -1175,17 +1189,15 @@ Error RuntimeDyldImpl::resolveExternalSymbols() {
 }
 
 void RuntimeDyldImpl::finalizeAsync(
-    std::unique_ptr<RuntimeDyldImpl> This, std::function<void(Error)> OnEmitted,
+    std::unique_ptr<RuntimeDyldImpl> This,
+    unique_function<void(Error)> OnEmitted,
     std::unique_ptr<MemoryBuffer> UnderlyingBuffer) {
 
-  // FIXME: Move-capture OnRelocsApplied and UnderlyingBuffer once we have
-  // c++14.
-  auto SharedUnderlyingBuffer =
-      std::shared_ptr<MemoryBuffer>(std::move(UnderlyingBuffer));
   auto SharedThis = std::shared_ptr<RuntimeDyldImpl>(std::move(This));
   auto PostResolveContinuation =
-      [SharedThis, OnEmitted, SharedUnderlyingBuffer](
-          Expected<JITSymbolResolver::LookupResult> Result) {
+      [SharedThis, OnEmitted = std::move(OnEmitted),
+       UnderlyingBuffer = std::move(UnderlyingBuffer)](
+          Expected<JITSymbolResolver::LookupResult> Result) mutable {
         if (!Result) {
           OnEmitted(Result.takeError());
           return;
@@ -1219,7 +1231,7 @@ void RuntimeDyldImpl::finalizeAsync(
   }
 
   if (!Symbols.empty()) {
-    SharedThis->Resolver.lookup(Symbols, PostResolveContinuation);
+    SharedThis->Resolver.lookup(Symbols, std::move(PostResolveContinuation));
   } else
     PostResolveContinuation(std::map<StringRef, JITEvaluatedSymbol>());
 }
@@ -1395,11 +1407,11 @@ void jitLinkForORC(object::ObjectFile &Obj,
                    std::unique_ptr<MemoryBuffer> UnderlyingBuffer,
                    RuntimeDyld::MemoryManager &MemMgr,
                    JITSymbolResolver &Resolver, bool ProcessAllSections,
-                   std::function<Error(
+                   unique_function<Error(
                        std::unique_ptr<RuntimeDyld::LoadedObjectInfo> LoadedObj,
                        std::map<StringRef, JITEvaluatedSymbol>)>
                        OnLoaded,
-                   std::function<void(Error)> OnEmitted) {
+                   unique_function<void(Error)> OnEmitted) {
 
   RuntimeDyld RTDyld(MemMgr, Resolver);
   RTDyld.setProcessAllSections(ProcessAllSections);

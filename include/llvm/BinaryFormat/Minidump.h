@@ -18,11 +18,14 @@
 #ifndef LLVM_BINARYFORMAT_MINIDUMP_H
 #define LLVM_BINARYFORMAT_MINIDUMP_H
 
+#include "llvm/ADT/BitmaskEnum.h"
 #include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/Support/Endian.h"
 
 namespace llvm {
 namespace minidump {
+
+LLVM_ENABLE_BITMASK_ENUMS_IN_NAMESPACE();
 
 /// The minidump header is the first part of a minidump file. It identifies the
 /// file as a minidump file, and gives the location of the stream directory.
@@ -66,6 +69,50 @@ struct MemoryDescriptor {
   LocationDescriptor Memory;
 };
 static_assert(sizeof(MemoryDescriptor) == 16, "");
+
+struct MemoryInfoListHeader {
+  support::ulittle32_t SizeOfHeader;
+  support::ulittle32_t SizeOfEntry;
+  support::ulittle64_t NumberOfEntries;
+
+  MemoryInfoListHeader() = default;
+  MemoryInfoListHeader(uint32_t SizeOfHeader, uint32_t SizeOfEntry,
+                       uint64_t NumberOfEntries)
+      : SizeOfHeader(SizeOfHeader), SizeOfEntry(SizeOfEntry),
+        NumberOfEntries(NumberOfEntries) {}
+};
+static_assert(sizeof(MemoryInfoListHeader) == 16, "");
+
+enum class MemoryProtection : uint32_t {
+#define HANDLE_MDMP_PROTECT(CODE, NAME, NATIVENAME) NAME = CODE,
+#include "llvm/BinaryFormat/MinidumpConstants.def"
+  LLVM_MARK_AS_BITMASK_ENUM(/*LargestValue=*/0xffffffffu),
+};
+
+enum class MemoryState : uint32_t {
+#define HANDLE_MDMP_MEMSTATE(CODE, NAME, NATIVENAME) NAME = CODE,
+#include "llvm/BinaryFormat/MinidumpConstants.def"
+  LLVM_MARK_AS_BITMASK_ENUM(/*LargestValue=*/0xffffffffu),
+};
+
+enum class MemoryType : uint32_t {
+#define HANDLE_MDMP_MEMTYPE(CODE, NAME, NATIVENAME) NAME = CODE,
+#include "llvm/BinaryFormat/MinidumpConstants.def"
+  LLVM_MARK_AS_BITMASK_ENUM(/*LargestValue=*/0xffffffffu),
+};
+
+struct MemoryInfo {
+  support::ulittle64_t BaseAddress;
+  support::ulittle64_t AllocationBase;
+  support::little_t<MemoryProtection> AllocationProtect;
+  support::ulittle32_t Reserved0;
+  support::ulittle64_t RegionSize;
+  support::little_t<MemoryState> State;
+  support::little_t<MemoryProtection> Protect;
+  support::little_t<MemoryType> Type;
+  support::ulittle32_t Reserved1;
+};
+static_assert(sizeof(MemoryInfo) == 48, "");
 
 /// Specifies the location and type of a single stream in the minidump file. The
 /// minidump stream directory is an array of entries of this type, with its size
@@ -179,6 +226,27 @@ struct Thread {
   LocationDescriptor Context;
 };
 static_assert(sizeof(Thread) == 48, "");
+
+struct Exception {
+  static constexpr size_t MaxParameters = 15;
+
+  support::ulittle32_t ExceptionCode;
+  support::ulittle32_t ExceptionFlags;
+  support::ulittle64_t ExceptionRecord;
+  support::ulittle64_t ExceptionAddress;
+  support::ulittle32_t NumberParameters;
+  support::ulittle32_t UnusedAlignment;
+  support::ulittle64_t ExceptionInformation[MaxParameters];
+};
+static_assert(sizeof(Exception) == 152, "");
+
+struct ExceptionStream {
+  support::ulittle32_t ThreadId;
+  support::ulittle32_t UnusedAlignment;
+  Exception ExceptionRecord;
+  LocationDescriptor ThreadContext;
+};
+static_assert(sizeof(ExceptionStream) == 168, "");
 
 } // namespace minidump
 

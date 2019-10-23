@@ -92,7 +92,7 @@ void RegBankSelect::init(MachineFunction &MF) {
     MBPI = nullptr;
   }
   MIRBuilder.setMF(MF);
-  MORE = llvm::make_unique<MachineOptimizationRemarkEmitter>(MF, MBFI);
+  MORE = std::make_unique<MachineOptimizationRemarkEmitter>(MF, MBFI);
 }
 
 void RegBankSelect::getAnalysisUsage(AnalysisUsage &AU) const {
@@ -139,7 +139,7 @@ bool RegBankSelect::repairReg(
          "need new vreg for each breakdown");
 
   // An empty range of new register means no repairing.
-  assert(!empty(NewVRegs) && "We should not have to repair");
+  assert(!NewVRegs.empty() && "We should not have to repair");
 
   MachineInstr *MI;
   if (ValMapping.NumBreakDowns == 1) {
@@ -154,7 +154,7 @@ bool RegBankSelect::repairReg(
       std::swap(Src, Dst);
 
     assert((RepairPt.getNumInsertPoints() == 1 ||
-            TargetRegisterInfo::isPhysicalRegister(Dst)) &&
+            Register::isPhysicalRegister(Dst)) &&
            "We are about to create several defs for Dst");
 
     // Build the instruction used to repair, then clone it at the right
@@ -398,7 +398,7 @@ void RegBankSelect::tryAvoidingSplit(
 
   // Check if this is a physical or virtual register.
   Register Reg = MO.getReg();
-  if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+  if (Register::isPhysicalRegister(Reg)) {
     // We are going to split every outgoing edges.
     // Check that this is possible.
     // FIXME: The machine representation is currently broken
@@ -687,8 +687,9 @@ bool RegBankSelect::runOnMachineFunction(MachineFunction &MF) {
       // iterator before hand.
       MachineInstr &MI = *MII++;
 
-      // Ignore target-specific instructions: they should use proper regclasses.
-      if (isTargetSpecificOpcode(MI.getOpcode()))
+      // Ignore target-specific post-isel instructions: they should use proper
+      // regclasses.
+      if (isTargetSpecificOpcode(MI.getOpcode()) && !MI.isPreISelOpcode())
         continue;
 
       if (!assignInstr(MI)) {

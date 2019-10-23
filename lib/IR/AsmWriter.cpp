@@ -352,6 +352,7 @@ static void PrintCallingConv(unsigned cc, raw_ostream &Out) {
   case CallingConv::PreserveAll:   Out << "preserve_allcc"; break;
   case CallingConv::CXX_FAST_TLS:  Out << "cxx_fast_tlscc"; break;
   case CallingConv::GHC:           Out << "ghccc"; break;
+  case CallingConv::Tail:          Out << "tailcc"; break;
   case CallingConv::X86_StdCall:   Out << "x86_stdcallcc"; break;
   case CallingConv::X86_FastCall:  Out << "x86_fastcallcc"; break;
   case CallingConv::X86_ThisCall:  Out << "x86_thiscallcc"; break;
@@ -835,7 +836,7 @@ SlotTracker *ModuleSlotTracker::getMachine() {
 
   ShouldCreateStorage = false;
   MachineStorage =
-      llvm::make_unique<SlotTracker>(M, ShouldInitializeAllMetadata);
+      std::make_unique<SlotTracker>(M, ShouldInitializeAllMetadata);
   Machine = MachineStorage.get();
   return Machine;
 }
@@ -2312,7 +2313,7 @@ static void WriteAsOperandInternal(raw_ostream &Out, const Metadata *MD,
   if (const MDNode *N = dyn_cast<MDNode>(MD)) {
     std::unique_ptr<SlotTracker> MachineStorage;
     if (!Machine) {
-      MachineStorage = make_unique<SlotTracker>(Context);
+      MachineStorage = std::make_unique<SlotTracker>(Context);
       Machine = MachineStorage.get();
     }
     int Slot = Machine->getMetadataSlot(N);
@@ -2950,7 +2951,7 @@ void AssemblyWriter::printFunctionSummary(const FunctionSummary *FS) {
 
   FunctionSummary::FFlags FFlags = FS->fflags();
   if (FFlags.ReadNone | FFlags.ReadOnly | FFlags.NoRecurse |
-      FFlags.ReturnDoesNotAlias) {
+      FFlags.ReturnDoesNotAlias | FFlags.NoInline) {
     Out << ", funcFlags: (";
     Out << "readNone: " << FFlags.ReadNone;
     Out << ", readOnly: " << FFlags.ReadOnly;
@@ -3553,6 +3554,10 @@ void AssemblyWriter::printArgument(const Argument *Arg, AttributeSet Attrs) {
   if (Arg->hasName()) {
     Out << ' ';
     PrintLLVMName(Out, Arg);
+  } else {
+    int Slot = Machine.getLocalSlot(Arg);
+    assert(Slot != -1 && "expect argument in function here");
+    Out << " %" << Slot;
   }
 }
 

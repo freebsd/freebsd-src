@@ -87,7 +87,7 @@ std::error_code FileError::convertToErrorCode() const {
 Error errorCodeToError(std::error_code EC) {
   if (!EC)
     return Error::success();
-  return Error(llvm::make_unique<ECError>(ECError(EC)));
+  return Error(std::make_unique<ECError>(ECError(EC)));
 }
 
 std::error_code errorToErrorCode(Error Err) {
@@ -167,18 +167,3 @@ void LLVMDisposeErrorMessage(char *ErrMsg) { delete[] ErrMsg; }
 LLVMErrorTypeId LLVMGetStringErrorTypeId() {
   return reinterpret_cast<void *>(&StringError::ID);
 }
-
-#ifndef _MSC_VER
-namespace llvm {
-
-// One of these two variables will be referenced by a symbol defined in
-// llvm-config.h. We provide a link-time (or load time for DSO) failure when
-// there is a mismatch in the build configuration of the API client and LLVM.
-#if LLVM_ENABLE_ABI_BREAKING_CHECKS
-int EnableABIBreakingChecks;
-#else
-int DisableABIBreakingChecks;
-#endif
-
-} // end namespace llvm
-#endif

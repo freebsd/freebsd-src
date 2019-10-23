@@ -25,6 +25,8 @@ class PredicateControl {
   list<Predicate> GPRPredicates = [];
   // Predicates for the PTR size such as IsPTR64bit
   list<Predicate> PTRPredicates = [];
+  // Predicates for a symbol's size such as hasSym32.
+  list<Predicate> SYMPredicates = [];
   // Predicates for the FGR size and layout such as IsFP64bit
   list<Predicate> FGRPredicates = [];
   // Predicates for the instruction group membership such as ISA's.
@@ -38,6 +40,7 @@ class PredicateControl {
   list<Predicate> Predicates = !listconcat(EncodingPredicates,
                                            GPRPredicates,
                                            PTRPredicates,
+                                           SYMPredicates,
                                            FGRPredicates,
                                            InsnPredicates,
                                            HardFloatPredicate,
@@ -206,6 +209,9 @@ def FeatureMT : SubtargetFeature<"mt", "HasMT", "true", "Mips MT ASE">;
 def FeatureLongCalls : SubtargetFeature<"long-calls", "UseLongCalls", "true",
                                         "Disable use of the jal instruction">;
 
+def FeatureXGOT
+    : SubtargetFeature<"xgot", "UseXGOT", "true", "Assume 32-bit GOT">;
+
 def FeatureUseIndirectJumpsHazard : SubtargetFeature<"use-indirect-jump-hazard",
                                                     "UseIndirectJumpsHazard",
                                                     "true", "Use indirect jump"
@@ -257,3 +263,9 @@ def Mips : Target {
   let AssemblyParserVariants = [MipsAsmParserVariant];
   let AllowRegisterRenaming = 1;
 }
+
+//===----------------------------------------------------------------------===//
+// Pfm Counters
+//===----------------------------------------------------------------------===//
+
+include "MipsPfmCounters.td"
