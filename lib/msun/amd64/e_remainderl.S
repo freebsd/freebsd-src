@@ -46,5 +46,6 @@ ENTRY(remainderl)
 	jne	1b
 	fstp	%st(1)
 	ret
+END(remainderl)
 
 	.section .note.GNU-stack,"",%progbits

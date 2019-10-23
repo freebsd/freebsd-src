@@ -33,5 +33,6 @@ ENTRY(lrintl)
 	fistpll	(%rsp)
 	popq	%rax
 	ret
+END(lrintl)
 
 	.section .note.GNU-stack,"",%progbits
