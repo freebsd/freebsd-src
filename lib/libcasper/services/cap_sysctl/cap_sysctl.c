@@ -316,7 +316,7 @@ sysctl_valid(const nvlist_t *nvl, bool limit)
 			 */
 			mask = limit ? (CAP_SYSCTL_RDWR |
 			    CAP_SYSCTL_RECURSIVE) : CAP_SYSCTL_RDWR;
-			if ((operation & ~limit) != 0 ||
+			if ((operation & ~mask) != 0 ||
 			    (operation & CAP_SYSCTL_RDWR) == 0)
 				return (EINVAL);
 			/* Only one 'operation' can be present. */
