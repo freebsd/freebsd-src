@@ -154,11 +154,13 @@ static inline void
 release_page(struct faultstate *fs)
 {
 
-	vm_page_xunbusy(fs->m);
-	vm_page_lock(fs->m);
-	vm_page_deactivate(fs->m);
-	vm_page_unlock(fs->m);
-	fs->m = NULL;
+	if (fs->m != NULL) {
+		vm_page_xunbusy(fs->m);
+		vm_page_lock(fs->m);
+		vm_page_deactivate(fs->m);
+		vm_page_unlock(fs->m);
+		fs->m = NULL;
+	}
 }
 
 static inline void
