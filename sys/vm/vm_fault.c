@@ -637,8 +637,10 @@ vm_fault_lock_vnode(struct faultstate *fs)
 	if (fs->object->type != OBJT_VNODE)
 		return (KERN_SUCCESS);
 	vp = fs->object->handle;
-	if (vp == fs->vp)
+	if (vp == fs->vp) {
+		ASSERT_VOP_LOCKED(vp, "saved vnode is not locked");
 		return (KERN_SUCCESS);
+	}
 
 	/*
 	 * Perform an unlock in case the desired vnode changed while
