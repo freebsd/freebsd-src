@@ -900,9 +900,11 @@ vm_page_busy_acquire(vm_page_t m, int allocflags)
 		    (allocflags & VM_ALLOC_SBUSY) != 0, locked);
 		if (locked)
 			VM_OBJECT_WLOCK(obj);
-		MPASS(m->object == obj || m->object == NULL);
 		if ((allocflags & VM_ALLOC_WAITFAIL) != 0)
 			return (FALSE);
+		KASSERT(m->object == obj || m->object == NULL,
+		    ("vm_page_busy_acquire: page %p does not belong to %p",
+		    m, obj));
 	}
 }
 
