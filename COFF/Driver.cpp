@@ -27,6 +27,7 @@
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/BinaryFormat/Magic.h"
+#include "llvm/LTO/LTO.h"
 #include "llvm/Object/ArchiveWriter.h"
 #include "llvm/Object/COFFImportFile.h"
 #include "llvm/Object/COFFModuleDefinition.h"
@@ -36,6 +37,7 @@
 #include "llvm/Option/Option.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/LEB128.h"
+#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/TarWriter.h"
@@ -62,16 +64,16 @@ LinkerDriver *driver;
 bool link(ArrayRef<const char *> args, bool canExitEarly, raw_ostream &diag) {
   errorHandler().logName = args::getFilenameWithoutExe(args[0]);
   errorHandler().errorOS = &diag;
-  errorHandler().colorDiagnostics = diag.has_colors();
   errorHandler().errorLimitExceededMsg =
       "too many errors emitted, stopping now"
       " (use /errorlimit:0 to see all errors)";
   errorHandler().exitEarly = canExitEarly;
+  enableColors(diag.has_colors());
+
   config = make<Configuration>();
-
   symtab = make<SymbolTable>();
-
   driver = make<LinkerDriver>();
+
   driver->link(args);
 
   // Call exit() if we can to avoid calling destructors.
@@ -169,7 +171,7 @@ MemoryBufferRef LinkerDriver::takeBuffer(std::unique_ptr<MemoryBuffer> mb) {
 }
 
 void LinkerDriver::addBuffer(std::unique_ptr<MemoryBuffer> mb,
-                             bool wholeArchive) {
+                             bool wholeArchive, bool lazy) {
   StringRef filename = mb->getBufferIdentifier();
 
   MemoryBufferRef mbref = takeBuffer(std::move(mb));
@@ -184,19 +186,28 @@ void LinkerDriver::addBuffer(std::unique_ptr<MemoryBuffer> mb,
     if (wholeArchive) {
       std::unique_ptr<Archive> file =
           CHECK(Archive::create(mbref), filename + ": failed to parse archive");
+      Archive *archive = file.get();
+      make<std::unique_ptr<Archive>>(std::move(file)); // take ownership
 
-      for (MemoryBufferRef m : getArchiveMembers(file.get()))
-        addArchiveBuffer(m, "<whole-archive>", filename, 0);
+      int memberIndex = 0;
+      for (MemoryBufferRef m : getArchiveMembers(archive))
+        addArchiveBuffer(m, "<whole-archive>", filename, memberIndex++);
       return;
     }
     symtab->addFile(make<ArchiveFile>(mbref));
     break;
   case file_magic::bitcode:
-    symtab->addFile(make<BitcodeFile>(mbref, "", 0));
+    if (lazy)
+      symtab->addFile(make<LazyObjFile>(mbref));
+    else
+      symtab->addFile(make<BitcodeFile>(mbref, "", 0));
     break;
   case file_magic::coff_object:
   case file_magic::coff_import_library:
-    symtab->addFile(make<ObjFile>(mbref));
+    if (lazy)
+      symtab->addFile(make<LazyObjFile>(mbref));
+    else
+      symtab->addFile(make<ObjFile>(mbref));
     break;
   case file_magic::pdb:
     loadTypeServerSource(mbref);
@@ -217,7 +228,7 @@ void LinkerDriver::addBuffer(std::unique_ptr<MemoryBuffer> mb,
   }
 }
 
-void LinkerDriver::enqueuePath(StringRef path, bool wholeArchive) {
+void LinkerDriver::enqueuePath(StringRef path, bool wholeArchive, bool lazy) {
   auto future =
       std::make_shared<std::future<MBErrPair>>(createFutureForFile(path));
   std::string pathStr = path;
@@ -237,7 +248,7 @@ void LinkerDriver::enqueuePath(StringRef path, bool wholeArchive) {
       else
         error(msg + "; did you mean '" + nearest + "'");
     } else
-      driver->addBuffer(std::move(mbOrErr.first), wholeArchive);
+      driver->addBuffer(std::move(mbOrErr.first), wholeArchive, lazy);
   });
 }
 
@@ -268,13 +279,12 @@ void LinkerDriver::addArchiveBuffer(MemoryBufferRef mb, StringRef symName,
 }
 
 void LinkerDriver::enqueueArchiveMember(const Archive::Child &c,
-                                        StringRef symName,
+                                        const Archive::Symbol &sym,
                                         StringRef parentName) {
 
-  auto reportBufferError = [=](Error &&e,
-                              StringRef childName) {
+  auto reportBufferError = [=](Error &&e, StringRef childName) {
     fatal("could not get the buffer for the member defining symbol " +
-          symName + ": " + parentName + "(" + childName + "): " +
+          toCOFFString(sym) + ": " + parentName + "(" + childName + "): " +
           toString(std::move(e)));
   };
 
@@ -285,7 +295,8 @@ void LinkerDriver::enqueueArchiveMember(const Archive::Child &c,
       reportBufferError(mbOrErr.takeError(), check(c.getFullName()));
     MemoryBufferRef mb = mbOrErr.get();
     enqueueTask([=]() {
-      driver->addArchiveBuffer(mb, symName, parentName, offsetInArchive);
+      driver->addArchiveBuffer(mb, toCOFFString(sym), parentName,
+                               offsetInArchive);
     });
     return;
   }
@@ -293,15 +304,17 @@ void LinkerDriver::enqueueArchiveMember(const Archive::Child &c,
   std::string childName = CHECK(
       c.getFullName(),
       "could not get the filename for the member defining symbol " +
-      symName);
+      toCOFFString(sym));
   auto future = std::make_shared<std::future<MBErrPair>>(
       createFutureForFile(childName));
   enqueueTask([=]() {
     auto mbOrErr = future->get();
     if (mbOrErr.second)
       reportBufferError(errorCodeToError(mbOrErr.second), childName);
-    driver->addArchiveBuffer(takeBuffer(std::move(mbOrErr.first)), symName,
-                             parentName, /* OffsetInArchive */ 0);
+    // Pass empty string as archive name so that the original filename is
+    // used as the buffer identifier.
+    driver->addArchiveBuffer(takeBuffer(std::move(mbOrErr.first)),
+                             toCOFFString(sym), "", /*OffsetInArchive=*/0);
   });
 }
 
@@ -355,7 +368,7 @@ void LinkerDriver::parseDirectives(InputFile *file) {
       break;
     case OPT_defaultlib:
       if (Optional<StringRef> path = findLib(arg->getValue()))
-        enqueuePath(*path, false);
+        enqueuePath(*path, false, false);
       break;
     case OPT_entry:
       config->entry = addUndefined(mangle(arg->getValue()));
@@ -590,6 +603,7 @@ static std::string createResponseFile(const opt::InputArgList &args,
   for (auto *arg : args) {
     switch (arg->getOption().getID()) {
     case OPT_linkrepro:
+    case OPT_reproduce:
     case OPT_INPUT:
     case OPT_defaultlib:
     case OPT_libpath:
@@ -704,8 +718,7 @@ static std::string getImplibPath() {
   return out.str();
 }
 
-//
-// The import name is caculated as the following:
+// The import name is calculated as follows:
 //
 //        | LIBRARY w/ ext |   LIBRARY w/o ext   | no LIBRARY
 //   -----+----------------+---------------------+------------------
@@ -987,30 +1000,37 @@ static void parsePDBAltPath(StringRef altPath) {
   config->pdbAltPath = buf;
 }
 
-/// Check that at most one resource obj file was used.
+/// Convert resource files and potentially merge input resource object
+/// trees into one resource tree.
 /// Call after ObjFile::Instances is complete.
-static void diagnoseMultipleResourceObjFiles() {
-  // The .rsrc$01 section in a resource obj file contains a tree description
-  // of resources.  Merging multiple resource obj files would require merging
-  // the trees instead of using usual linker section merging semantics.
-  // Since link.exe disallows linking more than one resource obj file with
-  // LNK4078, mirror that.  The normal use of resource files is to give the
-  // linker many .res files, which are then converted to a single resource obj
-  // file internally, so this is not a big restriction in practice.
-  ObjFile *resourceObjFile = nullptr;
+void LinkerDriver::convertResources() {
+  std::vector<ObjFile *> resourceObjFiles;
+
   for (ObjFile *f : ObjFile::instances) {
-    if (!f->isResourceObjFile)
-      continue;
-
-    if (!resourceObjFile) {
-      resourceObjFile = f;
-      continue;
-    }
-
-    error(toString(f) +
-          ": more than one resource obj file not allowed, already got " +
-          toString(resourceObjFile));
+    if (f->isResourceObjFile())
+      resourceObjFiles.push_back(f);
   }
+
+  if (!config->mingw &&
+      (resourceObjFiles.size() > 1 ||
+       (resourceObjFiles.size() == 1 && !resources.empty()))) {
+    error((!resources.empty() ? "internal .obj file created from .res files"
+                              : toString(resourceObjFiles[1])) +
+          ": more than one resource obj file not allowed, already got " +
+          toString(resourceObjFiles.front()));
+    return;
+  }
+
+  if (resources.empty() && resourceObjFiles.size() <= 1) {
+    // No resources to convert, and max one resource object file in
+    // the input. Keep that preconverted resource section as is.
+    for (ObjFile *f : resourceObjFiles)
+      f->includeResourceChunks();
+    return;
+  }
+  ObjFile *f = make<ObjFile>(convertResToCOFF(resources, resourceObjFiles));
+  symtab->addFile(f);
+  f->includeResourceChunks();
 }
 
 // In MinGW, if no symbols are chosen to be exported, then all symbols are
@@ -1051,6 +1071,26 @@ void LinkerDriver::maybeExportMinGWSymbols(const opt::InputArgList &args) {
   });
 }
 
+// lld has a feature to create a tar file containing all input files as well as
+// all command line options, so that other people can run lld again with exactly
+// the same inputs. This feature is accessible via /linkrepro and /reproduce.
+//
+// /linkrepro and /reproduce are very similar, but /linkrepro takes a directory
+// name while /reproduce takes a full path. We have /linkrepro for compatibility
+// with Microsoft link.exe.
+Optional<std::string> getReproduceFile(const opt::InputArgList &args) {
+  if (auto *arg = args.getLastArg(OPT_reproduce))
+    return std::string(arg->getValue());
+
+  if (auto *arg = args.getLastArg(OPT_linkrepro)) {
+    SmallString<64> path = StringRef(arg->getValue());
+    sys::path::append(path, "repro.tar");
+    return path.str().str();
+  }
+
+  return None;
+}
+
 void LinkerDriver::link(ArrayRef<const char *> argsArr) {
   // Needed for LTO.
   InitializeAllTargetInfos();
@@ -1069,7 +1109,7 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
 
   // Parse command line options.
   ArgParser parser;
-  opt::InputArgList args = parser.parseLINK(argsArr);
+  opt::InputArgList args = parser.parse(argsArr);
 
   // Parse and evaluate -mllvm options.
   std::vector<const char *> v;
@@ -1113,17 +1153,15 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
   // options are handled.
   config->mingw = args.hasArg(OPT_lldmingw);
 
-  if (auto *arg = args.getLastArg(OPT_linkrepro)) {
-    SmallString<64> path = StringRef(arg->getValue());
-    sys::path::append(path, "repro.tar");
-
+  // Handle /linkrepro and /reproduce.
+  if (Optional<std::string> path = getReproduceFile(args)) {
     Expected<std::unique_ptr<TarWriter>> errOrWriter =
-        TarWriter::create(path, "repro");
+        TarWriter::create(*path, sys::path::stem(*path));
 
     if (errOrWriter) {
       tar = std::move(*errOrWriter);
     } else {
-      error("/linkrepro: failed to open " + path + ": " +
+      error("/linkrepro: failed to open " + *path + ": " +
             toString(errOrWriter.takeError()));
     }
   }
@@ -1139,7 +1177,8 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
   searchPaths.push_back("");
   for (auto *arg : args.filtered(OPT_libpath))
     searchPaths.push_back(arg->getValue());
-  addLibSearchPaths();
+  if (!args.hasArg(OPT_lldignoreenv))
+    addLibSearchPaths();
 
   // Handle /ignore
   for (auto *arg : args.filtered(OPT_ignore)) {
@@ -1419,6 +1458,13 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
   for (auto *arg : args.filtered(OPT_section))
     parseSection(arg->getValue());
 
+  // Handle /align
+  if (auto *arg = args.getLastArg(OPT_align)) {
+    parseNumbers(arg->getValue(), &config->align);
+    if (!isPowerOf2_64(config->align))
+      error("/align: not a power of two: " + StringRef(arg->getValue()));
+  }
+
   // Handle /aligncomm
   for (auto *arg : args.filtered(OPT_aligncomm))
     parseAligncomm(arg->getValue());
@@ -1464,6 +1510,7 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
       getOldNewOptions(args, OPT_thinlto_prefix_replace);
   config->thinLTOObjectSuffixReplace =
       getOldNewOptions(args, OPT_thinlto_object_suffix_replace);
+  config->ltoObjPath = args.getLastArgValue(OPT_lto_obj_path);
   // Handle miscellaneous boolean flags.
   config->allowBind = args.hasFlag(OPT_allowbind, OPT_allowbind_no, true);
   config->allowIsolation =
@@ -1528,19 +1575,45 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
     return false;
   };
 
-  // Create a list of input files. Files can be given as arguments
-  // for /defaultlib option.
-  for (auto *arg : args.filtered(OPT_INPUT, OPT_wholearchive_file))
-    if (Optional<StringRef> path = findFile(arg->getValue()))
-      enqueuePath(*path, isWholeArchive(*path));
+  // Create a list of input files. These can be given as OPT_INPUT options
+  // and OPT_wholearchive_file options, and we also need to track OPT_start_lib
+  // and OPT_end_lib.
+  bool inLib = false;
+  for (auto *arg : args) {
+    switch (arg->getOption().getID()) {
+    case OPT_end_lib:
+      if (!inLib)
+        error("stray " + arg->getSpelling());
+      inLib = false;
+      break;
+    case OPT_start_lib:
+      if (inLib)
+        error("nested " + arg->getSpelling());
+      inLib = true;
+      break;
+    case OPT_wholearchive_file:
+      if (Optional<StringRef> path = findFile(arg->getValue()))
+        enqueuePath(*path, true, inLib);
+      break;
+    case OPT_INPUT:
+      if (Optional<StringRef> path = findFile(arg->getValue()))
+        enqueuePath(*path, isWholeArchive(*path), inLib);
+      break;
+    default:
+      // Ignore other options.
+      break;
+    }
+  }
 
+  // Process files specified as /defaultlib. These should be enequeued after
+  // other files, which is why they are in a separate loop.
   for (auto *arg : args.filtered(OPT_defaultlib))
     if (Optional<StringRef> path = findLib(arg->getValue()))
-      enqueuePath(*path, false);
+      enqueuePath(*path, false, false);
 
   // Windows specific -- Create a resource file containing a manifest file.
   if (config->manifest == Configuration::Embed)
-    addBuffer(createManifestRes(), false);
+    addBuffer(createManifestRes(), false, false);
 
   // Read all input files given via the command line.
   run();
@@ -1564,12 +1637,6 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
   // Handle /functionpadmin
   for (auto *arg : args.filtered(OPT_functionpadmin, OPT_functionpadmin_opt))
     parseFunctionPadMin(arg, config->machine);
-
-  // Input files can be Windows resource files (.res files). We use
-  // WindowsResource to convert resource files to a regular COFF file,
-  // then link the resulting file normally.
-  if (!resources.empty())
-    symtab->addFile(make<ObjFile>(convertResToCOFF(resources)));
 
   if (tar)
     tar->append("response.txt",
@@ -1746,33 +1813,24 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
           u->weakAlias = symtab->addUndefined(to);
     }
 
+    // If any inputs are bitcode files, the LTO code generator may create
+    // references to library functions that are not explicit in the bitcode
+    // file's symbol table. If any of those library functions are defined in a
+    // bitcode file in an archive member, we need to arrange to use LTO to
+    // compile those archive members by adding them to the link beforehand.
+    if (!BitcodeFile::instances.empty())
+      for (auto *s : lto::LTO::getRuntimeLibcallSymbols())
+        symtab->addLibcall(s);
+
     // Windows specific -- if __load_config_used can be resolved, resolve it.
     if (symtab->findUnderscore("_load_config_used"))
       addUndefined(mangle("_load_config_used"));
   } while (run());
 
-  if (errorCount())
-    return;
-
-  // Do LTO by compiling bitcode input files to a set of native COFF files then
-  // link those files (unless -thinlto-index-only was given, in which case we
-  // resolve symbols and write indices, but don't generate native code or link).
-  symtab->addCombinedLTOObjects();
-
-  // If -thinlto-index-only is given, we should create only "index
-  // files" and not object files. Index file creation is already done
-  // in addCombinedLTOObject, so we are done if that's the case.
-  if (config->thinLTOIndexOnly)
-    return;
-
-  // If we generated native object files from bitcode files, this resolves
-  // references to the symbols we use from them.
-  run();
-
   if (args.hasArg(OPT_include_optional)) {
     // Handle /includeoptional
     for (auto *arg : args.filtered(OPT_include_optional))
-      if (dyn_cast_or_null<Lazy>(symtab->find(arg->getValue())))
+      if (dyn_cast_or_null<LazyArchive>(symtab->find(arg->getValue())))
         addUndefined(arg->getValue());
     while (run());
   }
@@ -1795,11 +1853,36 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
     run();
   }
 
-  // Make sure we have resolved all symbols.
-  symtab->reportRemainingUndefines();
+  // At this point, we should not have any symbols that cannot be resolved.
+  // If we are going to do codegen for link-time optimization, check for
+  // unresolvable symbols first, so we don't spend time generating code that
+  // will fail to link anyway.
+  if (!BitcodeFile::instances.empty() && !config->forceUnresolved)
+    symtab->reportUnresolvable();
   if (errorCount())
     return;
 
+  // Do LTO by compiling bitcode input files to a set of native COFF files then
+  // link those files (unless -thinlto-index-only was given, in which case we
+  // resolve symbols and write indices, but don't generate native code or link).
+  symtab->addCombinedLTOObjects();
+
+  // If -thinlto-index-only is given, we should create only "index
+  // files" and not object files. Index file creation is already done
+  // in addCombinedLTOObject, so we are done if that's the case.
+  if (config->thinLTOIndexOnly)
+    return;
+
+  // If we generated native object files from bitcode files, this resolves
+  // references to the symbols we use from them.
+  run();
+
+  // Resolve remaining undefined symbols and warn about imported locals.
+  symtab->resolveRemainingUndefines();
+  if (errorCount())
+    return;
+
+  config->hadExplicitExports = !config->exports.empty();
   if (config->mingw) {
     // In MinGW, all symbols are automatically exported if no symbols
     // are chosen to be exported.
@@ -1823,10 +1906,12 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
   }
 
   // Windows specific -- when we are creating a .dll file, we also
-  // need to create a .lib file.
+  // need to create a .lib file. In MinGW mode, we only do that when the
+  // -implib option is given explicitly, for compatibility with GNU ld.
   if (!config->exports.empty() || config->dll) {
     fixupExports();
-    createImportLibrary(/*asLib=*/false);
+    if (!config->mingw || !config->implib.empty())
+      createImportLibrary(/*asLib=*/false);
     assignExportOrdinals();
   }
 
@@ -1870,7 +1955,7 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
     markLive(symtab->getChunks());
 
   // Needs to happen after the last call to addFile().
-  diagnoseMultipleResourceObjFiles();
+  convertResources();
 
   // Identify identical COMDAT sections to merge them.
   if (config->doICF) {

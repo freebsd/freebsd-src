@@ -135,7 +135,7 @@ private:
 static std::vector<std::vector<DefinedImportData *>>
 binImports(const std::vector<DefinedImportData *> &imports) {
   // Group DLL-imported symbols by DLL name because that's how
-  // symbols are layed out in the import descriptor table.
+  // symbols are laid out in the import descriptor table.
   auto less = [](const std::string &a, const std::string &b) {
     return config->dllOrder[a] < config->dllOrder[b];
   };
@@ -188,7 +188,7 @@ public:
 
 // Initial contents for delay-loaded functions.
 // This code calls __delayLoadHelper2 function to resolve a symbol
-// and then overwrites its jump table slot with the result
+// which then overwrites its jump table slot with the result
 // for subsequent function calls.
 static const uint8_t thunkX64[] = {
     0x48, 0x8D, 0x05, 0, 0, 0, 0,       // lea     rax, [__imp_<FUNCNAME>]
