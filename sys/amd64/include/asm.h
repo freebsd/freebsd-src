@@ -60,25 +60,36 @@
 #define _START_ENTRY	.text; .p2align 4,0x90
 
 #define _ENTRY(x)	_START_ENTRY; \
-			.globl CNAME(x); .type CNAME(x),@function; CNAME(x):
+			.globl CNAME(x); .type CNAME(x),@function; CNAME(x):; \
+			.cfi_startproc
 
 #ifdef PROF
 #define	ALTENTRY(x)	_ENTRY(x); \
-			pushq %rbp; movq %rsp,%rbp; \
+			pushq %rbp; \
+			.cfi_def_cfa_offset 16; \
+			.cfi_offset %rbp, -16; \
+			movq %rsp,%rbp; \
 			call PIC_PLT(HIDENAME(mcount)); \
 			popq %rbp; \
+			.cfi_restore %rbp; \
+			.cfi_def_cfa_offset 8; \
 			jmp 9f
 #define	ENTRY(x)	_ENTRY(x); \
-			pushq %rbp; movq %rsp,%rbp; \
+			pushq %rbp; \
+			.cfi_def_cfa_offset 16; \
+			.cfi_offset %rbp, -16; \
+			movq %rsp,%rbp; \
 			call PIC_PLT(HIDENAME(mcount)); \
 			popq %rbp; \
+			.cfi_restore %rbp; \
+			.cfi_def_cfa_offset 8; \
 			9:
 #else
 #define	ALTENTRY(x)	_ENTRY(x)
 #define	ENTRY(x)	_ENTRY(x)
 #endif
 
-#define	END(x)		.size x, . - x
+#define	END(x)		.size x, . - x; .cfi_endproc
 /*
  * WEAK_REFERENCE(): create a weak reference alias from sym. 
  * The macro is not a general asm macro that takes arbitrary names,
