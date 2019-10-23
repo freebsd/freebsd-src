@@ -1,5 +1,80 @@
 News for the tz database
 
+Release 2019c - 2019-09-11 08:59:48 -0700
+
+  Briefly:
+    Fiji observes DST from 2019-11-10 to 2020-01-12.
+    Norfolk Island starts observing Australian-style DST.
+
+  Changes to future timestamps
+
+    Fiji's next DST transitions will be 2019-11-10 and 2020-01-12
+    instead of 2019-11-03 and 2020-01-19.  (Thanks to Raymond Kumar.)
+    Adjust future guesses accordingly.
+
+    Norfolk Island will observe Australian-style DST starting in
+    spring 2019.  The first transition is on 2019-10-06.  (Thanks to
+    Kyle Czech and Michael Deckers.)
+
+  Changes to past timestamps
+
+    Many corrections to time in Turkey from 1940 through 1985.
+    (Thanks to Oya Vulaş via Alois Treindl, and to Kıvanç Yazan.)
+
+    The Norfolk Island 1975-03-02 transition was at 02:00 standard
+    time, not 02:00 DST.  (Thanks to Michael Deckers.)
+
+    South Korea observed DST from 1948 through 1951.  Although this
+    info was supposed to appear in release 2014j, a typo inadvertently
+    suppressed the change.  (Thanks to Alois Treindl.)
+
+    Detroit observed DST in 1967 and 1968 following the US DST rules,
+    except that its 1967 DST began on June 14 at 00:01.  (Thanks to
+    Alois Treindl for pointing out that the old data entries were
+    probably wrong.)
+
+    Fix several errors in pre-1970 transitions in Perry County, IN.
+    (Thanks to Alois Triendl for pointing out the 1967/9 errors.)
+
+    Edmonton did not observe DST in 1967 or 1969.  In 1946 Vancouver
+    ended DST on 09-29 not 10-13, and Vienna ended DST on 10-07 not
+    10-06.  In 1945 Königsberg (now Kaliningrad) switched from +01/+02
+    to +02/+03 on 04-10 not 01-01, and its +02/+03 is abbreviated
+    EET/EEST, not CET/CEST.  (Thanks to Alois Triendl.)  In 1946
+    Königsberg switched to +03 on 04-07 not 01-01.
+
+    In 1946 Louisville switched from CST to CDT on 04-28 at 00:01, not
+    01-01 at 00:00.  (Thanks to Alois Treindl and Michael Deckers.)
+    Also, it switched from CST to CDT on 1950-04-30, not 1947-04-27.
+
+    The 1892-05-01 transition in Brussels was at 00:17:30, not at noon.
+    (Thanks to Michael Deckers.)
+
+  Changes to past time zone abbreviations and DST flags
+
+    Hong Kong Winter Time, observed from 1941-10-01 to 1941-12-25,
+    is now flagged as DST and is abbreviated HKWT not HKT.
+
+  Changes to code
+
+    leapseconds.awk now relies only on its input data, rather than
+    also relying on its comments.  (Inspired by code from Dennis
+    Ferguson and Chris Woodbury.)
+
+    The code now defends against CRLFs in leap-seconds.list.
+    (Thanks to Brian Inglis and Chris Woodbury.)
+
+  Changes to documentation and commentary
+
+    theory.html discusses leap seconds.  (Thanks to Steve Summit.)
+
+    Nashville's newspapers dueled about the time of day in the 1950s.
+    (Thanks to John Seigenthaler.)
+
+    Liechtenstein observed Swiss DST in 1941/2.
+    (Thanks to Alois Treindl.)
+
+
 Release 2019b - 2019-07-01 00:09:53 -0700
 
   Briefly:
