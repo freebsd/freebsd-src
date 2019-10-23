@@ -191,7 +191,7 @@ public:
                             const MCSubtargetInfo &STI, raw_ostream &O);
   void printFPImmOperand(const MCInst *MI, unsigned OpNum,
                          const MCSubtargetInfo &STI, raw_ostream &O);
-  void printNEONModImmOperand(const MCInst *MI, unsigned OpNum,
+  void printVMOVModImmOperand(const MCInst *MI, unsigned OpNum,
                               const MCSubtargetInfo &STI, raw_ostream &O);
   void printImmPlusOneOperand(const MCInst *MI, unsigned OpNum,
                               const MCSubtargetInfo &STI, raw_ostream &O);
@@ -262,7 +262,8 @@ public:
                                 const MCSubtargetInfo &STI, raw_ostream &O);
   void printExpandedImmOperand(const MCInst *MI, unsigned OpNum,
                                const MCSubtargetInfo &STI, raw_ostream &O);
-
+  void printMveSaturateOp(const MCInst *MI, unsigned OpNum,
+                         const MCSubtargetInfo &STI, raw_ostream &O);
 private:
   unsigned DefaultAltIdx = ARM::NoRegAltName;
 };

@@ -17,7 +17,7 @@
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/PointerLikeTypeTraits.h"
-#include "llvm/Support/ScalableSize.h"
+#include "llvm/Support/TypeSize.h"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -63,6 +63,17 @@ template<> struct DenseMapInfo<char> {
   static unsigned getHashValue(const char& Val) { return Val * 37U; }
 
   static bool isEqual(const char &LHS, const char &RHS) {
+    return LHS == RHS;
+  }
+};
+
+// Provide DenseMapInfo for unsigned chars.
+template <> struct DenseMapInfo<unsigned char> {
+  static inline unsigned char getEmptyKey() { return ~0; }
+  static inline unsigned char getTombstoneKey() { return ~0 - 1; }
+  static unsigned getHashValue(const unsigned char &Val) { return Val * 37U; }
+
+  static bool isEqual(const unsigned char &LHS, const unsigned char &RHS) {
     return LHS == RHS;
   }
 };

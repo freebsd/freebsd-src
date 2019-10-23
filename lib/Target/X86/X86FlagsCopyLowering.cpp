@@ -721,8 +721,9 @@ CondRegArray X86FlagsCopyLoweringPass::collectCondsInRegs(
   for (MachineInstr &MI :
        llvm::reverse(llvm::make_range(MBB.begin(), TestPos))) {
     X86::CondCode Cond = X86::getCondFromSETCC(MI);
-    if (Cond != X86::COND_INVALID && !MI.mayStore() && MI.getOperand(0).isReg() &&
-        TRI->isVirtualRegister(MI.getOperand(0).getReg())) {
+    if (Cond != X86::COND_INVALID && !MI.mayStore() &&
+        MI.getOperand(0).isReg() &&
+        Register::isVirtualRegister(MI.getOperand(0).getReg())) {
       assert(MI.getOperand(0).isDef() &&
              "A non-storing SETcc should always define a register!");
       CondRegs[Cond] = MI.getOperand(0).getReg();
@@ -739,7 +740,7 @@ CondRegArray X86FlagsCopyLoweringPass::collectCondsInRegs(
 unsigned X86FlagsCopyLoweringPass::promoteCondToReg(
     MachineBasicBlock &TestMBB, MachineBasicBlock::iterator TestPos,
     DebugLoc TestLoc, X86::CondCode Cond) {
-  unsigned Reg = MRI->createVirtualRegister(PromoteRC);
+  Register Reg = MRI->createVirtualRegister(PromoteRC);
   auto SetI = BuildMI(TestMBB, TestPos, TestLoc,
                       TII->get(X86::SETCCr), Reg).addImm(Cond);
   (void)SetI;
@@ -813,7 +814,7 @@ void X86FlagsCopyLoweringPass::rewriteArithmetic(
   MachineBasicBlock &MBB = *MI.getParent();
 
   // Insert an instruction that will set the flag back to the desired value.
-  unsigned TmpReg = MRI->createVirtualRegister(PromoteRC);
+  Register TmpReg = MRI->createVirtualRegister(PromoteRC);
   auto AddI =
       BuildMI(MBB, MI.getIterator(), MI.getDebugLoc(), TII->get(X86::ADD8ri))
           .addDef(TmpReg, RegState::Dead)
@@ -974,7 +975,7 @@ void X86FlagsCopyLoweringPass::rewriteSetCarryExtended(
 
   // Now we need to turn this into a bitmask. We do this by subtracting it from
   // zero.
-  unsigned ZeroReg = MRI->createVirtualRegister(&X86::GR32RegClass);
+  Register ZeroReg = MRI->createVirtualRegister(&X86::GR32RegClass);
   BuildMI(MBB, SetPos, SetLoc, TII->get(X86::MOV32r0), ZeroReg);
   ZeroReg = AdjustReg(ZeroReg);
 
@@ -999,7 +1000,7 @@ void X86FlagsCopyLoweringPass::rewriteSetCarryExtended(
   default:
     llvm_unreachable("Invalid SETB_C* opcode!");
   }
-  unsigned ResultReg = MRI->createVirtualRegister(&SetBRC);
+  Register ResultReg = MRI->createVirtualRegister(&SetBRC);
   BuildMI(MBB, SetPos, SetLoc, TII->get(Sub), ResultReg)
       .addReg(ZeroReg)
       .addReg(ExtCondReg);

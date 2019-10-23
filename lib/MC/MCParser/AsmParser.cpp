@@ -22,6 +22,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/BinaryFormat/Dwarf.h"
+#include "llvm/DebugInfo/CodeView/SymbolRecord.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCCodeView.h"
 #include "llvm/MC/MCContext.h"
@@ -524,6 +525,19 @@ private:
   /// directives parsed by this class.
   StringMap<DirectiveKind> DirectiveKindMap;
 
+  // Codeview def_range type parsing.
+  enum CVDefRangeType {
+    CVDR_DEFRANGE = 0, // Placeholder
+    CVDR_DEFRANGE_REGISTER,
+    CVDR_DEFRANGE_FRAMEPOINTER_REL,
+    CVDR_DEFRANGE_SUBFIELD_REGISTER,
+    CVDR_DEFRANGE_REGISTER_REL
+  };
+
+  /// Maps Codeview def_range types --> CVDefRangeType enum, for
+  /// Codeview def_range types parsed by this class.
+  StringMap<CVDefRangeType> CVDefRangeTypeMap;
+
   // ".ascii", ".asciz", ".string"
   bool parseDirectiveAscii(StringRef IDVal, bool ZeroTerminated);
   bool parseDirectiveReloc(SMLoc DirectiveLoc); // ".reloc"
@@ -671,6 +685,7 @@ private:
   bool parseDirectiveAddrsigSym();
 
   void initializeDirectiveKindMap();
+  void initializeCVDefRangeTypeMap();
 };
 
 } // end anonymous namespace
@@ -714,12 +729,14 @@ AsmParser::AsmParser(SourceMgr &SM, MCContext &Ctx, MCStreamer &Out,
     PlatformParser.reset(createWasmAsmParser());
     break;
   case MCObjectFileInfo::IsXCOFF:
-    // TODO: Need to implement createXCOFFAsmParser for XCOFF format.
+    report_fatal_error(
+        "Need to implement createXCOFFAsmParser for XCOFF format.");
     break;
   }
 
   PlatformParser->Initialize(*this);
   initializeDirectiveKindMap();
+  initializeCVDefRangeTypeMap();
 
   NumOfMacroInstantiations = 0;
 }
@@ -1142,7 +1159,9 @@ bool AsmParser::parsePrimaryExpr(const MCExpr *&Res, SMLoc &EndLoc) {
       }
     }
 
-    MCSymbol *Sym = getContext().getOrCreateSymbol(SymbolName);
+    MCSymbol *Sym = getContext().getInlineAsmLabel(SymbolName);
+    if (!Sym)
+      Sym = getContext().getOrCreateSymbol(SymbolName);
 
     // If this is an absolute variable reference, substitute it now to preserve
     // semantics in the face of reassignment.
@@ -1737,6 +1756,7 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
   StringMap<DirectiveKind>::const_iterator DirKindIt =
       DirectiveKindMap.find(IDVal);
   DirectiveKind DirKind = (DirKindIt == DirectiveKindMap.end())
+
                               ? DK_NO_DIRECTIVE
                               : DirKindIt->getValue();
   switch (DirKind) {
@@ -2895,10 +2915,26 @@ bool AsmParser::parseEscapedString(std::string &Data) {
     }
 
     // Recognize escaped characters. Note that this escape semantics currently
-    // loosely follows Darwin 'as'. Notably, it doesn't support hex escapes.
+    // loosely follows Darwin 'as'.
     ++i;
     if (i == e)
       return TokError("unexpected backslash at end of string");
+
+    // Recognize hex sequences similarly to GNU 'as'.
+    if (Str[i] == 'x' || Str[i] == 'X') {
+      size_t length = Str.size();
+      if (i + 1 >= length || !isHexDigit(Str[i + 1]))
+        return TokError("invalid hexadecimal escape sequence");
+
+      // Consume hex characters. GNU 'as' reads all hexadecimal characters and
+      // then truncates to the lower 16 bits. Seems reasonable.
+      unsigned Value = 0;
+      while (i + 1 < length && isHexDigit(Str[i + 1]))
+        Value = Value * 16 + hexDigitValue(Str[++i]);
+
+      Data += (unsigned char)(Value & 0xFF);
+      continue;
+    }
 
     // Recognize octal sequences.
     if ((unsigned)(Str[i] - '0') <= 7) {
@@ -3825,6 +3861,13 @@ bool AsmParser::parseDirectiveCVInlineLinetable() {
   return false;
 }
 
+void AsmParser::initializeCVDefRangeTypeMap() {
+  CVDefRangeTypeMap["reg"] = CVDR_DEFRANGE_REGISTER;
+  CVDefRangeTypeMap["frame_ptr_rel"] = CVDR_DEFRANGE_FRAMEPOINTER_REL;
+  CVDefRangeTypeMap["subfield_reg"] = CVDR_DEFRANGE_SUBFIELD_REGISTER;
+  CVDefRangeTypeMap["reg_rel"] = CVDR_DEFRANGE_REGISTER_REL;
+}
+
 /// parseDirectiveCVDefRange
 /// ::= .cv_def_range RangeStart RangeEnd (GapStart GapEnd)*, bytes*
 bool AsmParser::parseDirectiveCVDefRange() {
@@ -3846,13 +3889,92 @@ bool AsmParser::parseDirectiveCVDefRange() {
     Ranges.push_back({GapStartSym, GapEndSym});
   }
 
-  std::string FixedSizePortion;
-  if (parseToken(AsmToken::Comma, "unexpected token in directive") ||
-      parseEscapedString(FixedSizePortion))
-    return true;
+  StringRef CVDefRangeTypeStr;
+  if (parseToken(
+          AsmToken::Comma,
+          "expected comma before def_range type in .cv_def_range directive") ||
+      parseIdentifier(CVDefRangeTypeStr))
+    return Error(Loc, "expected def_range type in directive");
 
-  getStreamer().EmitCVDefRangeDirective(Ranges, FixedSizePortion);
-  return false;
+  StringMap<CVDefRangeType>::const_iterator CVTypeIt =
+      CVDefRangeTypeMap.find(CVDefRangeTypeStr);
+  CVDefRangeType CVDRType = (CVTypeIt == CVDefRangeTypeMap.end())
+                                ? CVDR_DEFRANGE
+                                : CVTypeIt->getValue();
+  switch (CVDRType) {
+  case CVDR_DEFRANGE_REGISTER: {
+    int64_t DRRegister;
+    if (parseToken(AsmToken::Comma, "expected comma before register number in "
+                                    ".cv_def_range directive") ||
+        parseAbsoluteExpression(DRRegister))
+      return Error(Loc, "expected register number");
+
+    codeview::DefRangeRegisterHeader DRHdr;
+    DRHdr.Register = DRRegister;
+    DRHdr.MayHaveNoName = 0;
+    getStreamer().EmitCVDefRangeDirective(Ranges, DRHdr);
+    break;
+  }
+  case CVDR_DEFRANGE_FRAMEPOINTER_REL: {
+    int64_t DROffset;
+    if (parseToken(AsmToken::Comma,
+                   "expected comma before offset in .cv_def_range directive") ||
+        parseAbsoluteExpression(DROffset))
+      return Error(Loc, "expected offset value");
+
+    codeview::DefRangeFramePointerRelHeader DRHdr;
+    DRHdr.Offset = DROffset;
+    getStreamer().EmitCVDefRangeDirective(Ranges, DRHdr);
+    break;
+  }
+  case CVDR_DEFRANGE_SUBFIELD_REGISTER: {
+    int64_t DRRegister;
+    int64_t DROffsetInParent;
+    if (parseToken(AsmToken::Comma, "expected comma before register number in "
+                                    ".cv_def_range directive") ||
+        parseAbsoluteExpression(DRRegister))
+      return Error(Loc, "expected register number");
+    if (parseToken(AsmToken::Comma,
+                   "expected comma before offset in .cv_def_range directive") ||
+        parseAbsoluteExpression(DROffsetInParent))
+      return Error(Loc, "expected offset value");
+
+    codeview::DefRangeSubfieldRegisterHeader DRHdr;
+    DRHdr.Register = DRRegister;
+    DRHdr.MayHaveNoName = 0;
+    DRHdr.OffsetInParent = DROffsetInParent;
+    getStreamer().EmitCVDefRangeDirective(Ranges, DRHdr);
+    break;
+  }
+  case CVDR_DEFRANGE_REGISTER_REL: {
+    int64_t DRRegister;
+    int64_t DRFlags;
+    int64_t DRBasePointerOffset;
+    if (parseToken(AsmToken::Comma, "expected comma before register number in "
+                                    ".cv_def_range directive") ||
+        parseAbsoluteExpression(DRRegister))
+      return Error(Loc, "expected register value");
+    if (parseToken(
+            AsmToken::Comma,
+            "expected comma before flag value in .cv_def_range directive") ||
+        parseAbsoluteExpression(DRFlags))
+      return Error(Loc, "expected flag value");
+    if (parseToken(AsmToken::Comma, "expected comma before base pointer offset "
+                                    "in .cv_def_range directive") ||
+        parseAbsoluteExpression(DRBasePointerOffset))
+      return Error(Loc, "expected base pointer offset value");
+
+    codeview::DefRangeRegisterRelHeader DRHdr;
+    DRHdr.Register = DRRegister;
+    DRHdr.Flags = DRFlags;
+    DRHdr.BasePointerOffset = DRBasePointerOffset;
+    getStreamer().EmitCVDefRangeDirective(Ranges, DRHdr);
+    break;
+  }
+  default:
+    return Error(Loc, "unexpected def_range type in .cv_def_range directive");
+  }
+  return true;
 }
 
 /// parseDirectiveCVString

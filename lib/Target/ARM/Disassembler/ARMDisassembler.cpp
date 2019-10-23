@@ -314,7 +314,7 @@ static DecodeStatus DecodeVLD3DupInstruction(MCInst &Inst, unsigned Val,
                                uint64_t Address, const void *Decoder);
 static DecodeStatus DecodeVLD4DupInstruction(MCInst &Inst, unsigned Val,
                                uint64_t Address, const void *Decoder);
-static DecodeStatus DecodeNEONModImmInstruction(MCInst &Inst,unsigned Val,
+static DecodeStatus DecodeVMOVModImmInstruction(MCInst &Inst,unsigned Val,
                                uint64_t Address, const void *Decoder);
 static DecodeStatus DecodeMVEModImmInstruction(MCInst &Inst,unsigned Val,
                                uint64_t Address, const void *Decoder);
@@ -561,6 +561,8 @@ static DecodeStatus DecodeMVEVCMP(MCInst &Inst, unsigned Insn,
                                   uint64_t Address, const void *Decoder);
 static DecodeStatus DecodeMveVCTP(MCInst &Inst, unsigned Insn,
                                   uint64_t Address, const void *Decoder);
+static DecodeStatus DecodeMVEVPNOT(MCInst &Inst, unsigned Insn,
+                                   uint64_t Address, const void *Decoder);
 static DecodeStatus DecodeMVEOverlappingLongShift(MCInst &Inst, unsigned Insn,
                                                   uint64_t Address,
                                                   const void *Decoder);
@@ -3445,7 +3447,7 @@ static DecodeStatus DecodeVLD4DupInstruction(MCInst &Inst, unsigned Insn,
 }
 
 static DecodeStatus
-DecodeNEONModImmInstruction(MCInst &Inst, unsigned Insn,
+DecodeVMOVModImmInstruction(MCInst &Inst, unsigned Insn,
                             uint64_t Address, const void *Decoder) {
   DecodeStatus S = MCDisassembler::Success;
 
@@ -5679,7 +5681,7 @@ static DecodeStatus DecodeVCVTD(MCInst &Inst, unsigned Insn,
         }
       }
     }
-    return DecodeNEONModImmInstruction(Inst, Insn, Address, Decoder);
+    return DecodeVMOVModImmInstruction(Inst, Insn, Address, Decoder);
   }
 
   if (!(imm & 0x20)) return MCDisassembler::Fail;
@@ -5738,7 +5740,7 @@ static DecodeStatus DecodeVCVTQ(MCInst &Inst, unsigned Insn,
         }
       }
     }
-    return DecodeNEONModImmInstruction(Inst, Insn, Address, Decoder);
+    return DecodeVMOVModImmInstruction(Inst, Insn, Address, Decoder);
   }
 
   if (!(imm & 0x20)) return MCDisassembler::Fail;
@@ -6481,6 +6483,12 @@ static DecodeStatus DecodeMVEOverlappingLongShift(
     if (!Check(S, DecoderGPRRegisterClass(Inst, Rm, Address, Decoder)))
       return MCDisassembler::Fail;
 
+    if (fieldFromInstruction (Insn, 6, 3) != 4)
+      return MCDisassembler::SoftFail;
+
+    if (Rda == Rm)
+      return MCDisassembler::SoftFail;
+
     return S;
   }
 
@@ -6502,6 +6510,13 @@ static DecodeStatus DecodeMVEOverlappingLongShift(
   // Rm, the amount to shift by
   if (!Check(S, DecoderGPRRegisterClass(Inst, Rm, Address, Decoder)))
     return MCDisassembler::Fail;
+
+  if (Inst.getOpcode() == ARM::MVE_SQRSHRL ||
+      Inst.getOpcode() == ARM::MVE_UQRSHLL) {
+    unsigned Saturate = fieldFromInstruction(Insn, 7, 1);
+    // Saturate, the bit position for saturation
+    Inst.addOperand(MCOperand::createImm(Saturate));
+  }
 
   return S;
 }
@@ -6570,5 +6585,13 @@ static DecodeStatus DecodeMveVCTP(MCInst &Inst, unsigned Insn, uint64_t Address,
   unsigned Rn = fieldFromInstruction(Insn, 16, 4);
   if (!Check(S, DecoderGPRRegisterClass(Inst, Rn, Address, Decoder)))
     return MCDisassembler::Fail;
+  return S;
+}
+
+static DecodeStatus DecodeMVEVPNOT(MCInst &Inst, unsigned Insn, uint64_t Address,
+                                   const void *Decoder) {
+  DecodeStatus S = MCDisassembler::Success;
+  Inst.addOperand(MCOperand::createReg(ARM::VPR));
+  Inst.addOperand(MCOperand::createReg(ARM::VPR));
   return S;
 }

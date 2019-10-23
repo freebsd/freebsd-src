@@ -99,28 +99,27 @@ enum : unsigned { UndefLocNo = ~0U };
 /// usage of the location.
 class DbgValueLocation {
 public:
-  DbgValueLocation(unsigned LocNo, bool WasIndirect)
-      : LocNo(LocNo), WasIndirect(WasIndirect) {
+  DbgValueLocation(unsigned LocNo)
+      : LocNo(LocNo) {
     static_assert(sizeof(*this) == sizeof(unsigned), "bad bitfield packing");
     assert(locNo() == LocNo && "location truncation");
   }
 
-  DbgValueLocation() : LocNo(0), WasIndirect(0) {}
+  DbgValueLocation() : LocNo(0) {}
 
   unsigned locNo() const {
     // Fix up the undef location number, which gets truncated.
     return LocNo == INT_MAX ? UndefLocNo : LocNo;
   }
-  bool wasIndirect() const { return WasIndirect; }
   bool isUndef() const { return locNo() == UndefLocNo; }
 
   DbgValueLocation changeLocNo(unsigned NewLocNo) const {
-    return DbgValueLocation(NewLocNo, WasIndirect);
+    return DbgValueLocation(NewLocNo);
   }
 
   friend inline bool operator==(const DbgValueLocation &LHS,
                                 const DbgValueLocation &RHS) {
-    return LHS.LocNo == RHS.LocNo && LHS.WasIndirect == RHS.WasIndirect;
+    return LHS.LocNo == RHS.LocNo;
   }
 
   friend inline bool operator!=(const DbgValueLocation &LHS,
@@ -129,8 +128,7 @@ public:
   }
 
 private:
-  unsigned LocNo : 31;
-  unsigned WasIndirect : 1;
+  unsigned LocNo;
 };
 
 /// Map of where a user value is live, and its location.
@@ -144,22 +142,51 @@ namespace {
 
 class LDVImpl;
 
+/// A UserValue is uniquely identified by the source variable it refers to
+/// (Variable), the expression describing how to get the value (Expression) and
+/// the specific usage (InlinedAt). InlinedAt differentiates both between
+/// inline and non-inline functions, and multiple inlined instances in the same
+/// scope. FIXME: The only part of the Expression which matters for UserValue
+/// identification is the fragment part.
+class UserValueIdentity {
+private:
+  /// The debug info variable we are part of.
+  const DILocalVariable *Variable;
+  /// Any complex address expression.
+  const DIExpression *Expression;
+  /// Function usage identification.
+  const DILocation *InlinedAt;
+
+public:
+  UserValueIdentity(const DILocalVariable *Var, const DIExpression *Expr,
+                    const DILocation *IA)
+      : Variable(Var), Expression(Expr), InlinedAt(IA) {}
+
+  bool match(const DILocalVariable *Var, const DIExpression *Expr,
+             const DILocation *IA) const {
+    // FIXME: The fragment should be part of the identity, but not
+    // other things in the expression like stack values.
+    return Var == Variable && Expr == Expression && IA == InlinedAt;
+  }
+
+  bool match(const UserValueIdentity &Other) const {
+    return match(Other.Variable, Other.Expression, Other.InlinedAt);
+  }
+
+  unsigned hash_value() const {
+    return hash_combine(Variable, Expression, InlinedAt);
+  }
+};
+
 /// A user value is a part of a debug info user variable.
 ///
 /// A DBG_VALUE instruction notes that (a sub-register of) a virtual register
 /// holds part of a user variable. The part is identified by a byte offset.
-///
-/// UserValues are grouped into equivalence classes for easier searching. Two
-/// user values are related if they refer to the same variable, or if they are
-/// held by the same virtual register. The equivalence class is the transitive
-/// closure of that relation.
 class UserValue {
   const DILocalVariable *Variable; ///< The debug info variable we are part of.
   const DIExpression *Expression; ///< Any complex address expression.
   DebugLoc dl;            ///< The debug location for the variable. This is
                           ///< used by dwarf writer to find lexical scope.
-  UserValue *leader;      ///< Equivalence class leader.
-  UserValue *next = nullptr; ///< Next value in equivalence class, or null.
 
   /// Numbered locations referenced by locmap.
   SmallVector<MachineOperand, 4> locations;
@@ -180,49 +207,15 @@ class UserValue {
                      LiveIntervals &LIS);
 
 public:
+  UserValue(const UserValue &) = delete;
+
   /// Create a new UserValue.
   UserValue(const DILocalVariable *var, const DIExpression *expr, DebugLoc L,
             LocMap::Allocator &alloc)
-      : Variable(var), Expression(expr), dl(std::move(L)), leader(this),
-        locInts(alloc) {}
+      : Variable(var), Expression(expr), dl(std::move(L)), locInts(alloc) {}
 
-  /// Get the leader of this value's equivalence class.
-  UserValue *getLeader() {
-    UserValue *l = leader;
-    while (l != l->leader)
-      l = l->leader;
-    return leader = l;
-  }
-
-  /// Return the next UserValue in the equivalence class.
-  UserValue *getNext() const { return next; }
-
-  /// Does this UserValue match the parameters?
-  bool match(const DILocalVariable *Var, const DIExpression *Expr,
-             const DILocation *IA) const {
-    // FIXME: The fragment should be part of the equivalence class, but not
-    // other things in the expression like stack values.
-    return Var == Variable && Expr == Expression && dl->getInlinedAt() == IA;
-  }
-
-  /// Merge equivalence classes.
-  static UserValue *merge(UserValue *L1, UserValue *L2) {
-    L2 = L2->getLeader();
-    if (!L1)
-      return L2;
-    L1 = L1->getLeader();
-    if (L1 == L2)
-      return L1;
-    // Splice L2 before L1's members.
-    UserValue *End = L2;
-    while (End->next) {
-      End->leader = L1;
-      End = End->next;
-    }
-    End->leader = L1;
-    End->next = L1->next;
-    L1->next = L2;
-    return L1;
+  UserValueIdentity getId() {
+    return UserValueIdentity(Variable, Expression, dl->getInlinedAt());
   }
 
   /// Return the location number that matches Loc.
@@ -261,8 +254,8 @@ public:
   void mapVirtRegs(LDVImpl *LDV);
 
   /// Add a definition point to this value.
-  void addDef(SlotIndex Idx, const MachineOperand &LocMO, bool IsIndirect) {
-    DbgValueLocation Loc(getLocationNo(LocMO), IsIndirect);
+  void addDef(SlotIndex Idx, const MachineOperand &LocMO) {
+    DbgValueLocation Loc(getLocationNo(LocMO));
     // Add a singular (Idx,Idx) -> Loc mapping.
     LocMap::iterator I = locInts.find(Idx);
     if (!I.valid() || I.start() != Idx)
@@ -297,11 +290,10 @@ public:
   ///
   /// \param LI Scan for copies of the value in LI->reg.
   /// \param LocNo Location number of LI->reg.
-  /// \param WasIndirect Indicates if the original use of LI->reg was indirect
   /// \param Kills Points where the range of LocNo could be extended.
   /// \param [in,out] NewDefs Append (Idx, LocNo) of inserted defs here.
   void addDefsFromCopies(
-      LiveInterval *LI, unsigned LocNo, bool WasIndirect,
+      LiveInterval *LI, unsigned LocNo,
       const SmallVectorImpl<SlotIndex> &Kills,
       SmallVectorImpl<std::pair<SlotIndex, DbgValueLocation>> &NewDefs,
       MachineRegisterInfo &MRI, LiveIntervals &LIS);
@@ -335,7 +327,29 @@ public:
 
   void print(raw_ostream &, const TargetRegisterInfo *);
 };
+} // namespace
 
+namespace llvm {
+template <> struct DenseMapInfo<UserValueIdentity> {
+  static UserValueIdentity getEmptyKey() {
+    auto Key = DenseMapInfo<DILocalVariable *>::getEmptyKey();
+    return UserValueIdentity(Key, nullptr, nullptr);
+  }
+  static UserValueIdentity getTombstoneKey() {
+    auto Key = DenseMapInfo<DILocalVariable *>::getTombstoneKey();
+    return UserValueIdentity(Key, nullptr, nullptr);
+  }
+  static unsigned getHashValue(const UserValueIdentity &Val) {
+    return Val.hash_value();
+  }
+  static bool isEqual(const UserValueIdentity &LHS,
+                      const UserValueIdentity &RHS) {
+    return LHS.match(RHS);
+  }
+};
+} // namespace llvm
+
+namespace {
 /// A user label is a part of a debug info user label.
 class UserLabel {
   const DILabel *Label; ///< The debug info label we are part of.
@@ -387,20 +401,20 @@ class LDVImpl {
   /// All allocated UserLabel instances.
   SmallVector<std::unique_ptr<UserLabel>, 2> userLabels;
 
-  /// Map virtual register to eq class leader.
-  using VRMap = DenseMap<unsigned, UserValue *>;
-  VRMap virtRegToEqClass;
+  /// Map virtual register to UserValues which use it.
+  using VRMap = DenseMap<unsigned, SmallVector<UserValue *, 4>>;
+  VRMap VirtRegToUserVals;
 
-  /// Map user variable to eq class leader.
-  using UVMap = DenseMap<const DILocalVariable *, UserValue *>;
-  UVMap userVarMap;
+  /// Map unique UserValue identity to UserValue.
+  using UVMap = DenseMap<UserValueIdentity, UserValue *>;
+  UVMap UserVarMap;
 
   /// Find or create a UserValue.
   UserValue *getUserValue(const DILocalVariable *Var, const DIExpression *Expr,
                           const DebugLoc &DL);
 
-  /// Find the EC leader for VirtReg or null.
-  UserValue *lookupVirtReg(unsigned VirtReg);
+  /// Find the UserValues for VirtReg or null.
+  SmallVectorImpl<UserValue *> *lookupVirtReg(unsigned VirtReg);
 
   /// Add DBG_VALUE instruction to our maps.
   ///
@@ -440,8 +454,8 @@ public:
     MF = nullptr;
     userValues.clear();
     userLabels.clear();
-    virtRegToEqClass.clear();
-    userVarMap.clear();
+    VirtRegToUserVals.clear();
+    UserVarMap.clear();
     // Make sure we call emitDebugValues if the machine function was modified.
     assert((!ModifiedMF || EmitDone) &&
            "Dbg values are not emitted in LDV");
@@ -449,8 +463,8 @@ public:
     ModifiedMF = false;
   }
 
-  /// Map virtual register to an equivalence class.
-  void mapVirtReg(unsigned VirtReg, UserValue *EC);
+  /// Map virtual register to a UserValue.
+  void mapVirtReg(unsigned VirtReg, UserValue *UV);
 
   /// Replace all references to OldReg with NewRegs.
   void splitRegister(unsigned OldReg, ArrayRef<unsigned> NewRegs);
@@ -521,8 +535,6 @@ void UserValue::print(raw_ostream &OS, const TargetRegisterInfo *TRI) {
       OS << "undef";
     else {
       OS << I.value().locNo();
-      if (I.value().wasIndirect())
-        OS << " ind";
     }
   }
   for (unsigned i = 0, e = locations.size(); i != e; ++i) {
@@ -554,37 +566,33 @@ void LDVImpl::print(raw_ostream &OS) {
 void UserValue::mapVirtRegs(LDVImpl *LDV) {
   for (unsigned i = 0, e = locations.size(); i != e; ++i)
     if (locations[i].isReg() &&
-        TargetRegisterInfo::isVirtualRegister(locations[i].getReg()))
+        Register::isVirtualRegister(locations[i].getReg()))
       LDV->mapVirtReg(locations[i].getReg(), this);
 }
 
 UserValue *LDVImpl::getUserValue(const DILocalVariable *Var,
                                  const DIExpression *Expr, const DebugLoc &DL) {
-  UserValue *&Leader = userVarMap[Var];
-  if (Leader) {
-    UserValue *UV = Leader->getLeader();
-    Leader = UV;
-    for (; UV; UV = UV->getNext())
-      if (UV->match(Var, Expr, DL->getInlinedAt()))
-        return UV;
-  }
+  auto Ident = UserValueIdentity(Var, Expr, DL->getInlinedAt());
+  UserValue *&UVEntry = UserVarMap[Ident];
 
-  userValues.push_back(
-      llvm::make_unique<UserValue>(Var, Expr, DL, allocator));
-  UserValue *UV = userValues.back().get();
-  Leader = UserValue::merge(Leader, UV);
-  return UV;
+  if (UVEntry)
+    return UVEntry;
+
+  userValues.push_back(std::make_unique<UserValue>(Var, Expr, DL, allocator));
+  return UVEntry = userValues.back().get();
 }
 
-void LDVImpl::mapVirtReg(unsigned VirtReg, UserValue *EC) {
-  assert(TargetRegisterInfo::isVirtualRegister(VirtReg) && "Only map VirtRegs");
-  UserValue *&Leader = virtRegToEqClass[VirtReg];
-  Leader = UserValue::merge(Leader, EC);
+void LDVImpl::mapVirtReg(unsigned VirtReg, UserValue *UV) {
+  assert(Register::isVirtualRegister(VirtReg) && "Only map VirtRegs");
+  assert(UserVarMap.find(UV->getId()) != UserVarMap.end() &&
+         "UserValue should exist in UserVarMap");
+  VirtRegToUserVals[VirtReg].push_back(UV);
 }
 
-UserValue *LDVImpl::lookupVirtReg(unsigned VirtReg) {
-  if (UserValue *UV = virtRegToEqClass.lookup(VirtReg))
-    return UV->getLeader();
+SmallVectorImpl<UserValue *> *LDVImpl::lookupVirtReg(unsigned VirtReg) {
+  VRMap::iterator Itr = VirtRegToUserVals.find(VirtReg);
+  if (Itr != VirtRegToUserVals.end())
+    return &Itr->getSecond();
   return nullptr;
 }
 
@@ -606,8 +614,8 @@ bool LDVImpl::handleDebugValue(MachineInstr &MI, SlotIndex Idx) {
   // could be removed or replaced by asserts.
   bool Discard = false;
   if (MI.getOperand(0).isReg() &&
-      TargetRegisterInfo::isVirtualRegister(MI.getOperand(0).getReg())) {
-    const unsigned Reg = MI.getOperand(0).getReg();
+      Register::isVirtualRegister(MI.getOperand(0).getReg())) {
+    const Register Reg = MI.getOperand(0).getReg();
     if (!LIS->hasInterval(Reg)) {
       // The DBG_VALUE is described by a virtual register that does not have a
       // live interval. Discard the DBG_VALUE.
@@ -631,19 +639,18 @@ bool LDVImpl::handleDebugValue(MachineInstr &MI, SlotIndex Idx) {
   }
 
   // Get or create the UserValue for (variable,offset) here.
-  bool IsIndirect = MI.getOperand(1).isImm();
-  if (IsIndirect)
-    assert(MI.getOperand(1).getImm() == 0 && "DBG_VALUE with nonzero offset");
+  assert(!MI.getOperand(1).isImm() && "DBG_VALUE with indirect flag before "
+                                      "LiveDebugVariables");
   const DILocalVariable *Var = MI.getDebugVariable();
   const DIExpression *Expr = MI.getDebugExpression();
   UserValue *UV =
       getUserValue(Var, Expr, MI.getDebugLoc());
   if (!Discard)
-    UV->addDef(Idx, MI.getOperand(0), IsIndirect);
+    UV->addDef(Idx, MI.getOperand(0));
   else {
     MachineOperand MO = MachineOperand::CreateReg(0U, false);
     MO.setIsDebug();
-    UV->addDef(Idx, MO, false);
+    UV->addDef(Idx, MO);
   }
   return true;
 }
@@ -666,7 +673,7 @@ bool LDVImpl::handleDebugLabel(MachineInstr &MI, SlotIndex Idx) {
     }
   }
   if (!Found)
-    userLabels.push_back(llvm::make_unique<UserLabel>(Label, DL, Idx));
+    userLabels.push_back(std::make_unique<UserLabel>(Label, DL, Idx));
 
   return true;
 }
@@ -751,14 +758,14 @@ void UserValue::extendDef(SlotIndex Idx, DbgValueLocation Loc, LiveRange *LR,
 }
 
 void UserValue::addDefsFromCopies(
-    LiveInterval *LI, unsigned LocNo, bool WasIndirect,
+    LiveInterval *LI, unsigned LocNo,
     const SmallVectorImpl<SlotIndex> &Kills,
     SmallVectorImpl<std::pair<SlotIndex, DbgValueLocation>> &NewDefs,
     MachineRegisterInfo &MRI, LiveIntervals &LIS) {
   if (Kills.empty())
     return;
   // Don't track copies from physregs, there are too many uses.
-  if (!TargetRegisterInfo::isVirtualRegister(LI->reg))
+  if (!Register::isVirtualRegister(LI->reg))
     return;
 
   // Collect all the (vreg, valno) pairs that are copies of LI.
@@ -768,13 +775,13 @@ void UserValue::addDefsFromCopies(
     // Copies of the full value.
     if (MO.getSubReg() || !MI->isCopy())
       continue;
-    unsigned DstReg = MI->getOperand(0).getReg();
+    Register DstReg = MI->getOperand(0).getReg();
 
     // Don't follow copies to physregs. These are usually setting up call
     // arguments, and the argument registers are always call clobbered. We are
     // better off in the source register which could be a callee-saved register,
     // or it could be spilled.
-    if (!TargetRegisterInfo::isVirtualRegister(DstReg))
+    if (!Register::isVirtualRegister(DstReg))
       continue;
 
     // Is LocNo extended to reach this copy? If not, another def may be blocking
@@ -815,7 +822,7 @@ void UserValue::addDefsFromCopies(
       MachineInstr *CopyMI = LIS.getInstructionFromIndex(DstVNI->def);
       assert(CopyMI && CopyMI->isCopy() && "Bad copy value");
       unsigned LocNo = getLocationNo(CopyMI->getOperand(0));
-      DbgValueLocation NewLoc(LocNo, WasIndirect);
+      DbgValueLocation NewLoc(LocNo);
       I.insert(Idx, Idx.getNextSlot(), NewLoc);
       NewDefs.push_back(std::make_pair(Idx, NewLoc));
       break;
@@ -845,7 +852,7 @@ void UserValue::computeIntervals(MachineRegisterInfo &MRI,
     }
 
     // Register locations are constrained to where the register value is live.
-    if (TargetRegisterInfo::isVirtualRegister(LocMO.getReg())) {
+    if (Register::isVirtualRegister(LocMO.getReg())) {
       LiveInterval *LI = nullptr;
       const VNInfo *VNI = nullptr;
       if (LIS.hasInterval(LocMO.getReg())) {
@@ -863,8 +870,7 @@ void UserValue::computeIntervals(MachineRegisterInfo &MRI,
       // sub-register in that regclass). For now, simply skip handling copies if
       // a sub-register is involved.
       if (LI && !LocMO.getSubReg())
-        addDefsFromCopies(LI, Loc.locNo(), Loc.wasIndirect(), Kills, Defs, MRI,
-                          LIS);
+        addDefsFromCopies(LI, Loc.locNo(), Kills, Defs, MRI, LIS);
       continue;
     }
 
@@ -1123,16 +1129,18 @@ UserValue::splitRegister(unsigned OldReg, ArrayRef<unsigned> NewRegs,
 
 void LDVImpl::splitRegister(unsigned OldReg, ArrayRef<unsigned> NewRegs) {
   bool DidChange = false;
-  for (UserValue *UV = lookupVirtReg(OldReg); UV; UV = UV->getNext())
-    DidChange |= UV->splitRegister(OldReg, NewRegs, *LIS);
+  if (auto *UserVals = lookupVirtReg(OldReg))
+    for (auto *UV : *UserVals)
+      DidChange |= UV->splitRegister(OldReg, NewRegs, *LIS);
 
   if (!DidChange)
     return;
 
   // Map all of the new virtual registers.
-  UserValue *UV = lookupVirtReg(OldReg);
-  for (unsigned i = 0; i != NewRegs.size(); ++i)
-    mapVirtReg(NewRegs[i], UV);
+  if (auto *UserVals = lookupVirtReg(OldReg))
+    for (auto *UV : *UserVals)
+      for (unsigned i = 0; i != NewRegs.size(); ++i)
+        mapVirtReg(NewRegs[i], UV);
 }
 
 void LiveDebugVariables::
@@ -1161,10 +1169,10 @@ void UserValue::rewriteLocations(VirtRegMap &VRM, const MachineFunction &MF,
     MachineOperand Loc = locations[I];
     // Only virtual registers are rewritten.
     if (Loc.isReg() && Loc.getReg() &&
-        TargetRegisterInfo::isVirtualRegister(Loc.getReg())) {
-      unsigned VirtReg = Loc.getReg();
+        Register::isVirtualRegister(Loc.getReg())) {
+      Register VirtReg = Loc.getReg();
       if (VRM.isAssignedReg(VirtReg) &&
-          TargetRegisterInfo::isPhysicalRegister(VRM.getPhys(VirtReg))) {
+          Register::isPhysicalRegister(VRM.getPhys(VirtReg))) {
         // This can create a %noreg operand in rare cases when the sub-register
         // index is no longer available. That means the user value is in a
         // non-existent sub-register, and %noreg is exactly what we want.
@@ -1258,7 +1266,7 @@ findNextInsertLocation(MachineBasicBlock *MBB,
                        const TargetRegisterInfo &TRI) {
   if (!LocMO.isReg())
     return MBB->instr_end();
-  unsigned Reg = LocMO.getReg();
+  Register Reg = LocMO.getReg();
 
   // Find the next instruction in the MBB that define the register Reg.
   while (I != MBB->end() && !I->isTerminator()) {
@@ -1302,21 +1310,14 @@ void UserValue::insertDebugValue(MachineBasicBlock *MBB, SlotIndex StartIdx,
   // that the original virtual register was a pointer. Also, add the stack slot
   // offset for the spilled register to the expression.
   const DIExpression *Expr = Expression;
-  uint8_t DIExprFlags = DIExpression::ApplyOffset;
-  bool IsIndirect = Loc.wasIndirect();
-  if (Spilled) {
-    if (IsIndirect)
-      DIExprFlags |= DIExpression::DerefAfter;
-    Expr =
-        DIExpression::prepend(Expr, DIExprFlags, SpillOffset);
-    IsIndirect = true;
-  }
+  if (Spilled)
+    Expr = DIExpression::prepend(Expr, DIExpression::ApplyOffset, SpillOffset);
 
   assert((!Spilled || MO.isFI()) && "a spilled location must be a frame index");
 
   do {
     BuildMI(*MBB, I, getDebugLoc(), TII.get(TargetOpcode::DBG_VALUE),
-            IsIndirect, MO, Variable, Expr);
+            Spilled, MO, Variable, Expr);
 
     // Continue and insert DBG_VALUES after every redefinition of register
     // associated with the debug value within the range

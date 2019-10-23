@@ -386,7 +386,9 @@ def immZExt16  : PatLeaf<(imm), [{
   // field.  Used by instructions like 'ori'.
   return (uint64_t)N->getZExtValue() == (unsigned short)N->getZExtValue();
 }], LO16>;
-def immAnyExt8 : ImmLeaf<i32, [{ return isInt<8>(Imm) || isUInt<8>(Imm); }]>;
+def immNonAllOneAnyExt8 : ImmLeaf<i32, [{ 
+  return (isInt<8>(Imm) && (Imm != -1)) || (isUInt<8>(Imm) && (Imm != 0xFF));
+}]>;
 def immSExt5NonZero : ImmLeaf<i32, [{ return Imm && isInt<5>(Imm); }]>;
 
 // imm16Shifted* - These match immediates where the low 16-bits are zero.  There
@@ -577,7 +579,7 @@ def sperc : RegisterOperand<SPERC> {
 def PPCRegSPE4RCAsmOperand : AsmOperandClass {
   let Name = "RegSPE4RC"; let PredicateMethod = "isRegNumber";
 }
-def spe4rc : RegisterOperand<SPE4RC> {
+def spe4rc : RegisterOperand<GPRC> {
   let ParserMatchClass = PPCRegSPE4RCAsmOperand;
 }
 
@@ -3161,7 +3163,16 @@ def ADDISdtprelHA32 : PPCEmitTimePseudo<(outs gprc:$rD), (ins gprc_nor0:$reg, s1
 def LWZtoc : PPCEmitTimePseudo<(outs gprc:$rD), (ins tocentry32:$disp, gprc:$reg),
                    "#LWZtoc",
                    [(set i32:$rD,
+                     (PPCtoc_entry tglobaladdr:$disp, i32:$reg))]>;
+def LWZtocL : PPCEmitTimePseudo<(outs gprc:$rD), (ins tocentry32:$disp, gprc_nor0:$reg),
+                    "#LWZtocL",
+                    [(set i32:$rD,
                       (PPCtoc_entry tglobaladdr:$disp, i32:$reg))]>;
+def ADDIStocHA : PPCEmitTimePseudo<(outs gprc:$rD), (ins gprc_nor0:$reg, tocentry32:$disp),
+                       "#ADDIStocHA",
+                       [(set i32:$rD,
+                         (PPCtoc_entry i32:$reg, tglobaladdr:$disp))]>;
+
 // Get Global (GOT) Base Register offset, from the word immediately preceding
 // the function label.
 def UpdateGBR : PPCEmitTimePseudo<(outs gprc:$rD, gprc:$rT), (ins gprc:$rI), "#UpdateGBR", []>;
@@ -3177,21 +3188,21 @@ def : Pat<(srl i32:$rS, i32:$rB),
 def : Pat<(shl i32:$rS, i32:$rB),
           (SLW $rS, $rB)>;
 
-def : Pat<(zextloadi1 iaddr:$src),
+def : Pat<(i32 (zextloadi1 iaddr:$src)),
           (LBZ iaddr:$src)>;
-def : Pat<(zextloadi1 xaddr:$src),
+def : Pat<(i32 (zextloadi1 xaddr:$src)),
           (LBZX xaddr:$src)>;
-def : Pat<(extloadi1 iaddr:$src),
+def : Pat<(i32 (extloadi1 iaddr:$src)),
           (LBZ iaddr:$src)>;
-def : Pat<(extloadi1 xaddr:$src),
+def : Pat<(i32 (extloadi1 xaddr:$src)),
           (LBZX xaddr:$src)>;
-def : Pat<(extloadi8 iaddr:$src),
+def : Pat<(i32 (extloadi8 iaddr:$src)),
           (LBZ iaddr:$src)>;
-def : Pat<(extloadi8 xaddr:$src),
+def : Pat<(i32 (extloadi8 xaddr:$src)),
           (LBZX xaddr:$src)>;
-def : Pat<(extloadi16 iaddr:$src),
+def : Pat<(i32 (extloadi16 iaddr:$src)),
           (LHZ iaddr:$src)>;
-def : Pat<(extloadi16 xaddr:$src),
+def : Pat<(i32 (extloadi16 xaddr:$src)),
           (LHZX xaddr:$src)>;
 let Predicates = [HasFPU] in {
 def : Pat<(f64 (extloadf32 iaddr:$src)),
@@ -3564,23 +3575,6 @@ def : Pat<(i1 (setcc i32:$s1, imm:$imm, SETEQ)),
           (EXTRACT_SUBREG (CMPLWI (XORIS $s1, (HI16 imm:$imm)),
                                   (LO16 imm:$imm)), sub_eq)>;
 
-defm : CRNotPat<(i1 (setcc i32:$s1, immZExt16:$imm, SETUGE)),
-                (EXTRACT_SUBREG (CMPLWI $s1, imm:$imm), sub_lt)>;
-defm : CRNotPat<(i1 (setcc i32:$s1, imm32SExt16:$imm, SETGE)),
-                (EXTRACT_SUBREG (CMPWI $s1, imm:$imm), sub_lt)>;
-defm : CRNotPat<(i1 (setcc i32:$s1, immZExt16:$imm, SETULE)),
-                (EXTRACT_SUBREG (CMPLWI $s1, imm:$imm), sub_gt)>;
-defm : CRNotPat<(i1 (setcc i32:$s1, imm32SExt16:$imm, SETLE)),
-                (EXTRACT_SUBREG (CMPWI $s1, imm:$imm), sub_gt)>;
-defm : CRNotPat<(i1 (setcc i32:$s1, imm32SExt16:$imm, SETNE)),
-                (EXTRACT_SUBREG (CMPWI $s1, imm:$imm), sub_eq)>;
-defm : CRNotPat<(i1 (setcc i32:$s1, immZExt16:$imm, SETNE)),
-                (EXTRACT_SUBREG (CMPLWI $s1, imm:$imm), sub_eq)>;
-
-defm : CRNotPat<(i1 (setcc i32:$s1, imm:$imm, SETNE)),
-                (EXTRACT_SUBREG (CMPLWI (XORIS $s1, (HI16 imm:$imm)),
-                                        (LO16 imm:$imm)), sub_eq)>;
-
 def : Pat<(i1 (setcc i32:$s1, i32:$s2, SETULT)),
           (EXTRACT_SUBREG (CMPLW $s1, $s2), sub_lt)>;
 def : Pat<(i1 (setcc i32:$s1, i32:$s2, SETLT)),
@@ -3591,17 +3585,6 @@ def : Pat<(i1 (setcc i32:$s1, i32:$s2, SETGT)),
           (EXTRACT_SUBREG (CMPW $s1, $s2), sub_gt)>;
 def : Pat<(i1 (setcc i32:$s1, i32:$s2, SETEQ)),
           (EXTRACT_SUBREG (CMPW $s1, $s2), sub_eq)>;
-
-defm : CRNotPat<(i1 (setcc i32:$s1, i32:$s2, SETUGE)),
-                (EXTRACT_SUBREG (CMPLW $s1, $s2), sub_lt)>;
-defm : CRNotPat<(i1 (setcc i32:$s1, i32:$s2, SETGE)),
-                (EXTRACT_SUBREG (CMPW $s1, $s2), sub_lt)>;
-defm : CRNotPat<(i1 (setcc i32:$s1, i32:$s2, SETULE)),
-                (EXTRACT_SUBREG (CMPLW $s1, $s2), sub_gt)>;
-defm : CRNotPat<(i1 (setcc i32:$s1, i32:$s2, SETLE)),
-                (EXTRACT_SUBREG (CMPW $s1, $s2), sub_gt)>;
-defm : CRNotPat<(i1 (setcc i32:$s1, i32:$s2, SETNE)),
-                (EXTRACT_SUBREG (CMPW $s1, $s2), sub_eq)>;
 
 // SETCC for i64.
 def : Pat<(i1 (setcc i64:$s1, immZExt16:$imm, SETULT)),
@@ -3632,6 +3615,47 @@ def : Pat<(i1 (setcc i64:$s1, imm64ZExt32:$imm, SETEQ)),
           (EXTRACT_SUBREG (CMPLDI (XORIS8 $s1, (HI16 imm:$imm)),
                                   (LO16 imm:$imm)), sub_eq)>;
 
+def : Pat<(i1 (setcc i64:$s1, i64:$s2, SETULT)),
+          (EXTRACT_SUBREG (CMPLD $s1, $s2), sub_lt)>;
+def : Pat<(i1 (setcc i64:$s1, i64:$s2, SETLT)),
+          (EXTRACT_SUBREG (CMPD $s1, $s2), sub_lt)>;
+def : Pat<(i1 (setcc i64:$s1, i64:$s2, SETUGT)),
+          (EXTRACT_SUBREG (CMPLD $s1, $s2), sub_gt)>;
+def : Pat<(i1 (setcc i64:$s1, i64:$s2, SETGT)),
+          (EXTRACT_SUBREG (CMPD $s1, $s2), sub_gt)>;
+def : Pat<(i1 (setcc i64:$s1, i64:$s2, SETEQ)),
+          (EXTRACT_SUBREG (CMPD $s1, $s2), sub_eq)>;
+
+// Instantiations of CRNotPat for i32.
+defm : CRNotPat<(i1 (setcc i32:$s1, immZExt16:$imm, SETUGE)),
+                (EXTRACT_SUBREG (CMPLWI $s1, imm:$imm), sub_lt)>;
+defm : CRNotPat<(i1 (setcc i32:$s1, imm32SExt16:$imm, SETGE)),
+                (EXTRACT_SUBREG (CMPWI $s1, imm:$imm), sub_lt)>;
+defm : CRNotPat<(i1 (setcc i32:$s1, immZExt16:$imm, SETULE)),
+                (EXTRACT_SUBREG (CMPLWI $s1, imm:$imm), sub_gt)>;
+defm : CRNotPat<(i1 (setcc i32:$s1, imm32SExt16:$imm, SETLE)),
+                (EXTRACT_SUBREG (CMPWI $s1, imm:$imm), sub_gt)>;
+defm : CRNotPat<(i1 (setcc i32:$s1, imm32SExt16:$imm, SETNE)),
+                (EXTRACT_SUBREG (CMPWI $s1, imm:$imm), sub_eq)>;
+defm : CRNotPat<(i1 (setcc i32:$s1, immZExt16:$imm, SETNE)),
+                (EXTRACT_SUBREG (CMPLWI $s1, imm:$imm), sub_eq)>;
+
+defm : CRNotPat<(i1 (setcc i32:$s1, imm:$imm, SETNE)),
+                (EXTRACT_SUBREG (CMPLWI (XORIS $s1, (HI16 imm:$imm)),
+                                        (LO16 imm:$imm)), sub_eq)>;
+
+defm : CRNotPat<(i1 (setcc i32:$s1, i32:$s2, SETUGE)),
+                (EXTRACT_SUBREG (CMPLW $s1, $s2), sub_lt)>;
+defm : CRNotPat<(i1 (setcc i32:$s1, i32:$s2, SETGE)),
+                (EXTRACT_SUBREG (CMPW $s1, $s2), sub_lt)>;
+defm : CRNotPat<(i1 (setcc i32:$s1, i32:$s2, SETULE)),
+                (EXTRACT_SUBREG (CMPLW $s1, $s2), sub_gt)>;
+defm : CRNotPat<(i1 (setcc i32:$s1, i32:$s2, SETLE)),
+                (EXTRACT_SUBREG (CMPW $s1, $s2), sub_gt)>;
+defm : CRNotPat<(i1 (setcc i32:$s1, i32:$s2, SETNE)),
+                (EXTRACT_SUBREG (CMPW $s1, $s2), sub_eq)>;
+
+// Instantiations of CRNotPat for i64.
 defm : CRNotPat<(i1 (setcc i64:$s1, immZExt16:$imm, SETUGE)),
                 (EXTRACT_SUBREG (CMPLDI $s1, imm:$imm), sub_lt)>;
 defm : CRNotPat<(i1 (setcc i64:$s1, imm64SExt16:$imm, SETGE)),
@@ -3649,17 +3673,6 @@ defm : CRNotPat<(i1 (setcc i64:$s1, imm64ZExt32:$imm, SETNE)),
                 (EXTRACT_SUBREG (CMPLDI (XORIS8 $s1, (HI16 imm:$imm)),
                                         (LO16 imm:$imm)), sub_eq)>;
 
-def : Pat<(i1 (setcc i64:$s1, i64:$s2, SETULT)),
-          (EXTRACT_SUBREG (CMPLD $s1, $s2), sub_lt)>;
-def : Pat<(i1 (setcc i64:$s1, i64:$s2, SETLT)),
-          (EXTRACT_SUBREG (CMPD $s1, $s2), sub_lt)>;
-def : Pat<(i1 (setcc i64:$s1, i64:$s2, SETUGT)),
-          (EXTRACT_SUBREG (CMPLD $s1, $s2), sub_gt)>;
-def : Pat<(i1 (setcc i64:$s1, i64:$s2, SETGT)),
-          (EXTRACT_SUBREG (CMPD $s1, $s2), sub_gt)>;
-def : Pat<(i1 (setcc i64:$s1, i64:$s2, SETEQ)),
-          (EXTRACT_SUBREG (CMPD $s1, $s2), sub_eq)>;
-
 defm : CRNotPat<(i1 (setcc i64:$s1, i64:$s2, SETUGE)),
                 (EXTRACT_SUBREG (CMPLD $s1, $s2), sub_lt)>;
 defm : CRNotPat<(i1 (setcc i64:$s1, i64:$s2, SETGE)),
@@ -3670,6 +3683,56 @@ defm : CRNotPat<(i1 (setcc i64:$s1, i64:$s2, SETLE)),
                 (EXTRACT_SUBREG (CMPD $s1, $s2), sub_gt)>;
 defm : CRNotPat<(i1 (setcc i64:$s1, i64:$s2, SETNE)),
                 (EXTRACT_SUBREG (CMPD $s1, $s2), sub_eq)>;
+
+let Predicates = [HasFPU] in {
+// Instantiations of CRNotPat for f32.
+defm : CRNotPat<(i1 (setcc f32:$s1, f32:$s2, SETUGE)),
+                (EXTRACT_SUBREG (FCMPUS $s1, $s2), sub_lt)>;
+defm : CRNotPat<(i1 (setcc f32:$s1, f32:$s2, SETGE)),
+                (EXTRACT_SUBREG (FCMPUS $s1, $s2), sub_lt)>;
+defm : CRNotPat<(i1 (setcc f32:$s1, f32:$s2, SETULE)),
+                (EXTRACT_SUBREG (FCMPUS $s1, $s2), sub_gt)>;
+defm : CRNotPat<(i1 (setcc f32:$s1, f32:$s2, SETLE)),
+                (EXTRACT_SUBREG (FCMPUS $s1, $s2), sub_gt)>;
+defm : CRNotPat<(i1 (setcc f32:$s1, f32:$s2, SETUNE)),
+                (EXTRACT_SUBREG (FCMPUS $s1, $s2), sub_eq)>;
+defm : CRNotPat<(i1 (setcc f32:$s1, f32:$s2, SETNE)),
+                (EXTRACT_SUBREG (FCMPUS $s1, $s2), sub_eq)>;
+defm : CRNotPat<(i1 (setcc f32:$s1, f32:$s2, SETO)),
+                (EXTRACT_SUBREG (FCMPUS $s1, $s2), sub_un)>;
+
+// Instantiations of CRNotPat for f64.
+defm : CRNotPat<(i1 (setcc f64:$s1, f64:$s2, SETUGE)),
+                (EXTRACT_SUBREG (FCMPUD $s1, $s2), sub_lt)>;
+defm : CRNotPat<(i1 (setcc f64:$s1, f64:$s2, SETGE)),
+                (EXTRACT_SUBREG (FCMPUD $s1, $s2), sub_lt)>;
+defm : CRNotPat<(i1 (setcc f64:$s1, f64:$s2, SETULE)),
+                (EXTRACT_SUBREG (FCMPUD $s1, $s2), sub_gt)>;
+defm : CRNotPat<(i1 (setcc f64:$s1, f64:$s2, SETLE)),
+                (EXTRACT_SUBREG (FCMPUD $s1, $s2), sub_gt)>;
+defm : CRNotPat<(i1 (setcc f64:$s1, f64:$s2, SETUNE)),
+                (EXTRACT_SUBREG (FCMPUD $s1, $s2), sub_eq)>;
+defm : CRNotPat<(i1 (setcc f64:$s1, f64:$s2, SETNE)),
+                (EXTRACT_SUBREG (FCMPUD $s1, $s2), sub_eq)>;
+defm : CRNotPat<(i1 (setcc f64:$s1, f64:$s2, SETO)),
+                (EXTRACT_SUBREG (FCMPUD $s1, $s2), sub_un)>;
+
+// Instantiations of CRNotPat for f128.
+defm : CRNotPat<(i1 (setcc f128:$s1, f128:$s2, SETUGE)),
+                (EXTRACT_SUBREG (XSCMPUQP $s1, $s2), sub_lt)>;
+defm : CRNotPat<(i1 (setcc f128:$s1, f128:$s2, SETGE)),
+                (EXTRACT_SUBREG (XSCMPUQP $s1, $s2), sub_lt)>;
+defm : CRNotPat<(i1 (setcc f128:$s1, f128:$s2, SETULE)),
+                (EXTRACT_SUBREG (XSCMPUQP $s1, $s2), sub_gt)>;
+defm : CRNotPat<(i1 (setcc f128:$s1, f128:$s2, SETLE)),
+                (EXTRACT_SUBREG (XSCMPUQP $s1, $s2), sub_gt)>;
+defm : CRNotPat<(i1 (setcc f128:$s1, f128:$s2, SETUNE)),
+                (EXTRACT_SUBREG (XSCMPUQP $s1, $s2), sub_eq)>;
+defm : CRNotPat<(i1 (setcc f128:$s1, f128:$s2, SETNE)),
+                (EXTRACT_SUBREG (XSCMPUQP $s1, $s2), sub_eq)>;
+defm : CRNotPat<(i1 (setcc f128:$s1, f128:$s2, SETO)),
+                (EXTRACT_SUBREG (XSCMPUQP $s1, $s2), sub_un)>;
+}
 
 // SETCC for f32.
 let Predicates = [HasFPU] in {
@@ -3688,21 +3751,6 @@ def : Pat<(i1 (setcc f32:$s1, f32:$s2, SETEQ)),
 def : Pat<(i1 (setcc f32:$s1, f32:$s2, SETUO)),
           (EXTRACT_SUBREG (FCMPUS $s1, $s2), sub_un)>;
 
-defm : CRNotPat<(i1 (setcc f32:$s1, f32:$s2, SETUGE)),
-                (EXTRACT_SUBREG (FCMPUS $s1, $s2), sub_lt)>;
-defm : CRNotPat<(i1 (setcc f32:$s1, f32:$s2, SETGE)),
-                (EXTRACT_SUBREG (FCMPUS $s1, $s2), sub_lt)>;
-defm : CRNotPat<(i1 (setcc f32:$s1, f32:$s2, SETULE)),
-                (EXTRACT_SUBREG (FCMPUS $s1, $s2), sub_gt)>;
-defm : CRNotPat<(i1 (setcc f32:$s1, f32:$s2, SETLE)),
-                (EXTRACT_SUBREG (FCMPUS $s1, $s2), sub_gt)>;
-defm : CRNotPat<(i1 (setcc f32:$s1, f32:$s2, SETUNE)),
-                (EXTRACT_SUBREG (FCMPUS $s1, $s2), sub_eq)>;
-defm : CRNotPat<(i1 (setcc f32:$s1, f32:$s2, SETNE)),
-                (EXTRACT_SUBREG (FCMPUS $s1, $s2), sub_eq)>;
-defm : CRNotPat<(i1 (setcc f32:$s1, f32:$s2, SETO)),
-                (EXTRACT_SUBREG (FCMPUS $s1, $s2), sub_un)>;
-
 // SETCC for f64.
 def : Pat<(i1 (setcc f64:$s1, f64:$s2, SETOLT)),
           (EXTRACT_SUBREG (FCMPUD $s1, $s2), sub_lt)>;
@@ -3719,21 +3767,6 @@ def : Pat<(i1 (setcc f64:$s1, f64:$s2, SETEQ)),
 def : Pat<(i1 (setcc f64:$s1, f64:$s2, SETUO)),
           (EXTRACT_SUBREG (FCMPUD $s1, $s2), sub_un)>;
 
-defm : CRNotPat<(i1 (setcc f64:$s1, f64:$s2, SETUGE)),
-                (EXTRACT_SUBREG (FCMPUD $s1, $s2), sub_lt)>;
-defm : CRNotPat<(i1 (setcc f64:$s1, f64:$s2, SETGE)),
-                (EXTRACT_SUBREG (FCMPUD $s1, $s2), sub_lt)>;
-defm : CRNotPat<(i1 (setcc f64:$s1, f64:$s2, SETULE)),
-                (EXTRACT_SUBREG (FCMPUD $s1, $s2), sub_gt)>;
-defm : CRNotPat<(i1 (setcc f64:$s1, f64:$s2, SETLE)),
-                (EXTRACT_SUBREG (FCMPUD $s1, $s2), sub_gt)>;
-defm : CRNotPat<(i1 (setcc f64:$s1, f64:$s2, SETUNE)),
-                (EXTRACT_SUBREG (FCMPUD $s1, $s2), sub_eq)>;
-defm : CRNotPat<(i1 (setcc f64:$s1, f64:$s2, SETNE)),
-                (EXTRACT_SUBREG (FCMPUD $s1, $s2), sub_eq)>;
-defm : CRNotPat<(i1 (setcc f64:$s1, f64:$s2, SETO)),
-                (EXTRACT_SUBREG (FCMPUD $s1, $s2), sub_un)>;
-
 // SETCC for f128.
 def : Pat<(i1 (setcc f128:$s1, f128:$s2, SETOLT)),
           (EXTRACT_SUBREG (XSCMPUQP $s1, $s2), sub_lt)>;
@@ -3749,21 +3782,6 @@ def : Pat<(i1 (setcc f128:$s1, f128:$s2, SETEQ)),
           (EXTRACT_SUBREG (XSCMPUQP $s1, $s2), sub_eq)>;
 def : Pat<(i1 (setcc f128:$s1, f128:$s2, SETUO)),
           (EXTRACT_SUBREG (XSCMPUQP $s1, $s2), sub_un)>;
-
-defm : CRNotPat<(i1 (setcc f128:$s1, f128:$s2, SETUGE)),
-                (EXTRACT_SUBREG (XSCMPUQP $s1, $s2), sub_lt)>;
-defm : CRNotPat<(i1 (setcc f128:$s1, f128:$s2, SETGE)),
-                (EXTRACT_SUBREG (XSCMPUQP $s1, $s2), sub_lt)>;
-defm : CRNotPat<(i1 (setcc f128:$s1, f128:$s2, SETULE)),
-                (EXTRACT_SUBREG (XSCMPUQP $s1, $s2), sub_gt)>;
-defm : CRNotPat<(i1 (setcc f128:$s1, f128:$s2, SETLE)),
-                (EXTRACT_SUBREG (XSCMPUQP $s1, $s2), sub_gt)>;
-defm : CRNotPat<(i1 (setcc f128:$s1, f128:$s2, SETUNE)),
-                (EXTRACT_SUBREG (XSCMPUQP $s1, $s2), sub_eq)>;
-defm : CRNotPat<(i1 (setcc f128:$s1, f128:$s2, SETNE)),
-                (EXTRACT_SUBREG (XSCMPUQP $s1, $s2), sub_eq)>;
-defm : CRNotPat<(i1 (setcc f128:$s1, f128:$s2, SETO)),
-                (EXTRACT_SUBREG (XSCMPUQP $s1, $s2), sub_un)>;
 
 }
 

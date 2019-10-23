@@ -746,7 +746,7 @@ Constant *llvm::ConstantFoldSelectInstruction(Constant *Cond,
                                                     ConstantInt::get(Ty, i));
       Constant *V2Element = ConstantExpr::getExtractElement(V2,
                                                     ConstantInt::get(Ty, i));
-      Constant *Cond = dyn_cast<Constant>(CondV->getOperand(i));
+      auto *Cond = cast<Constant>(CondV->getOperand(i));
       if (V1Element == V2Element) {
         V = V1Element;
       } else if (isa<UndefValue>(Cond)) {
@@ -787,12 +787,9 @@ Constant *llvm::ConstantFoldSelectInstruction(Constant *Cond,
 
 Constant *llvm::ConstantFoldExtractElementInstruction(Constant *Val,
                                                       Constant *Idx) {
-  if (isa<UndefValue>(Val))  // ee(undef, x) -> undef
-    return UndefValue::get(Val->getType()->getVectorElementType());
-  if (Val->isNullValue())  // ee(zero, x) -> zero
-    return Constant::getNullValue(Val->getType()->getVectorElementType());
-  // ee({w,x,y,z}, undef) -> undef
-  if (isa<UndefValue>(Idx))
+  // extractelt undef, C -> undef
+  // extractelt C, undef -> undef
+  if (isa<UndefValue>(Val) || isa<UndefValue>(Idx))
     return UndefValue::get(Val->getType()->getVectorElementType());
 
   if (ConstantInt *CIdx = dyn_cast<ConstantInt>(Idx)) {
@@ -1125,7 +1122,7 @@ Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode, Constant *C1,
             isa<GlobalValue>(CE1->getOperand(0))) {
           GlobalValue *GV = cast<GlobalValue>(CE1->getOperand(0));
 
-          unsigned GVAlign;
+          MaybeAlign GVAlign;
 
           if (Module *TheModule = GV->getParent()) {
             GVAlign = GV->getPointerAlignment(TheModule->getDataLayout());
@@ -1139,19 +1136,19 @@ Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode, Constant *C1,
             // increased code size (see https://reviews.llvm.org/D55115)
             // FIXME: This code should be deleted once existing targets have
             // appropriate defaults
-            if (GVAlign == 0U && isa<Function>(GV))
-              GVAlign = 4U;
+            if (!GVAlign && isa<Function>(GV))
+              GVAlign = Align(4);
           } else if (isa<Function>(GV)) {
             // Without a datalayout we have to assume the worst case: that the
             // function pointer isn't aligned at all.
-            GVAlign = 0U;
+            GVAlign = llvm::None;
           } else {
-            GVAlign = GV->getAlignment();
+            GVAlign = MaybeAlign(GV->getAlignment());
           }
 
-          if (GVAlign > 1) {
+          if (GVAlign && *GVAlign > 1) {
             unsigned DstWidth = CI2->getType()->getBitWidth();
-            unsigned SrcWidth = std::min(DstWidth, Log2_32(GVAlign));
+            unsigned SrcWidth = std::min(DstWidth, Log2(*GVAlign));
             APInt BitsNotSet(APInt::getLowBitsSet(DstWidth, SrcWidth));
 
             // If checking bits we know are clear, return zero.

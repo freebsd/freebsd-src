@@ -344,7 +344,7 @@ class TypePromotionTransaction;
     // Get the DominatorTree, building if necessary.
     DominatorTree &getDT(Function &F) {
       if (!DT)
-        DT = llvm::make_unique<DominatorTree>(F);
+        DT = std::make_unique<DominatorTree>(F);
       return *DT;
     }
 
@@ -424,7 +424,7 @@ bool CodeGenPrepare::runOnFunction(Function &F) {
     TLI = SubtargetInfo->getTargetLowering();
     TRI = SubtargetInfo->getRegisterInfo();
   }
-  TLInfo = &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
+  TLInfo = &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
   TTI = &getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
   LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
   BPI.reset(new BranchProbabilityInfo(F, *LI));
@@ -1524,7 +1524,7 @@ SinkShiftAndTruncate(BinaryOperator *ShiftI, Instruction *User, ConstantInt *CI,
                      const TargetLowering &TLI, const DataLayout &DL) {
   BasicBlock *UserBB = User->getParent();
   DenseMap<BasicBlock *, CastInst *> InsertedTruncs;
-  TruncInst *TruncI = dyn_cast<TruncInst>(User);
+  auto *TruncI = cast<TruncInst>(User);
   bool MadeChange = false;
 
   for (Value::user_iterator TruncUI = TruncI->user_begin(),
@@ -1682,10 +1682,11 @@ static bool OptimizeExtractBits(BinaryOperator *ShiftI, ConstantInt *CI,
     TheUse = InsertedShift;
   }
 
-  // If we removed all uses, nuke the shift.
+  // If we removed all uses, or there are none, nuke the shift.
   if (ShiftI->use_empty()) {
     salvageDebugInfo(*ShiftI);
     ShiftI->eraseFromParent();
+    MadeChange = true;
   }
 
   return MadeChange;
@@ -1811,7 +1812,7 @@ bool CodeGenPrepare::optimizeCallInst(CallInst *CI, bool &ModifiedDT) {
       AllocaInst *AI;
       if ((AI = dyn_cast<AllocaInst>(Val)) && AI->getAlignment() < PrefAlign &&
           DL->getTypeAllocSize(AI->getAllocatedType()) >= MinSize + Offset2)
-        AI->setAlignment(PrefAlign);
+        AI->setAlignment(MaybeAlign(PrefAlign));
       // Global variables can only be aligned if they are defined in this
       // object (i.e. they are uniquely initialized in this object), and
       // over-aligning global variables that have an explicit section is
@@ -1821,7 +1822,7 @@ bool CodeGenPrepare::optimizeCallInst(CallInst *CI, bool &ModifiedDT) {
           GV->getPointerAlignment(*DL) < PrefAlign &&
           DL->getTypeAllocSize(GV->getValueType()) >=
               MinSize + Offset2)
-        GV->setAlignment(PrefAlign);
+        GV->setAlignment(MaybeAlign(PrefAlign));
     }
     // If this is a memcpy (or similar) then we may be able to improve the
     // alignment
@@ -1867,24 +1868,10 @@ bool CodeGenPrepare::optimizeCallInst(CallInst *CI, bool &ModifiedDT) {
       });
       return true;
     }
-    case Intrinsic::objectsize: {
-      // Lower all uses of llvm.objectsize.*
-      Value *RetVal =
-          lowerObjectSizeCall(II, *DL, TLInfo, /*MustSucceed=*/true);
-
-      resetIteratorIfInvalidatedWhileCalling(BB, [&]() {
-        replaceAndRecursivelySimplify(CI, RetVal, TLInfo, nullptr);
-      });
-      return true;
-    }
-    case Intrinsic::is_constant: {
-      // If is_constant hasn't folded away yet, lower it to false now.
-      Constant *RetVal = ConstantInt::get(II->getType(), 0);
-      resetIteratorIfInvalidatedWhileCalling(BB, [&]() {
-        replaceAndRecursivelySimplify(CI, RetVal, TLInfo, nullptr);
-      });
-      return true;
-    }
+    case Intrinsic::objectsize:
+      llvm_unreachable("llvm.objectsize.* should have been lowered already");
+    case Intrinsic::is_constant:
+      llvm_unreachable("llvm.is.constant.* should have been lowered already");
     case Intrinsic::aarch64_stlxr:
     case Intrinsic::aarch64_stxr: {
       ZExtInst *ExtVal = dyn_cast<ZExtInst>(CI->getArgOperand(0));
@@ -2024,17 +2011,18 @@ bool CodeGenPrepare::dupRetToEnableTailCallOpts(BasicBlock *BB, bool &ModifiedDT
   /// Only dup the ReturnInst if the CallInst is likely to be emitted as a tail
   /// call.
   const Function *F = BB->getParent();
-  SmallVector<CallInst*, 4> TailCalls;
+  SmallVector<BasicBlock*, 4> TailCallBBs;
   if (PN) {
     for (unsigned I = 0, E = PN->getNumIncomingValues(); I != E; ++I) {
       // Look through bitcasts.
       Value *IncomingVal = PN->getIncomingValue(I)->stripPointerCasts();
       CallInst *CI = dyn_cast<CallInst>(IncomingVal);
+      BasicBlock *PredBB = PN->getIncomingBlock(I);
       // Make sure the phi value is indeed produced by the tail call.
-      if (CI && CI->hasOneUse() && CI->getParent() == PN->getIncomingBlock(I) &&
+      if (CI && CI->hasOneUse() && CI->getParent() == PredBB &&
           TLI->mayBeEmittedAsTailCall(CI) &&
           attributesPermitTailCall(F, CI, RetI, *TLI))
-        TailCalls.push_back(CI);
+        TailCallBBs.push_back(PredBB);
     }
   } else {
     SmallPtrSet<BasicBlock*, 4> VisitedBBs;
@@ -2052,24 +2040,20 @@ bool CodeGenPrepare::dupRetToEnableTailCallOpts(BasicBlock *BB, bool &ModifiedDT
       CallInst *CI = dyn_cast<CallInst>(&*RI);
       if (CI && CI->use_empty() && TLI->mayBeEmittedAsTailCall(CI) &&
           attributesPermitTailCall(F, CI, RetI, *TLI))
-        TailCalls.push_back(CI);
+        TailCallBBs.push_back(*PI);
     }
   }
 
   bool Changed = false;
-  for (unsigned i = 0, e = TailCalls.size(); i != e; ++i) {
-    CallInst *CI = TailCalls[i];
-    CallSite CS(CI);
-
+  for (auto const &TailCallBB : TailCallBBs) {
     // Make sure the call instruction is followed by an unconditional branch to
     // the return block.
-    BasicBlock *CallBB = CI->getParent();
-    BranchInst *BI = dyn_cast<BranchInst>(CallBB->getTerminator());
+    BranchInst *BI = dyn_cast<BranchInst>(TailCallBB->getTerminator());
     if (!BI || !BI->isUnconditional() || BI->getSuccessor(0) != BB)
       continue;
 
-    // Duplicate the return into CallBB.
-    (void)FoldReturnIntoUncondBranch(RetI, BB, CallBB);
+    // Duplicate the return into TailCallBB.
+    (void)FoldReturnIntoUncondBranch(RetI, BB, TailCallBB);
     ModifiedDT = Changed = true;
     ++NumRetsDup;
   }
@@ -2683,26 +2667,26 @@ private:
 
 void TypePromotionTransaction::setOperand(Instruction *Inst, unsigned Idx,
                                           Value *NewVal) {
-  Actions.push_back(llvm::make_unique<TypePromotionTransaction::OperandSetter>(
+  Actions.push_back(std::make_unique<TypePromotionTransaction::OperandSetter>(
       Inst, Idx, NewVal));
 }
 
 void TypePromotionTransaction::eraseInstruction(Instruction *Inst,
                                                 Value *NewVal) {
   Actions.push_back(
-      llvm::make_unique<TypePromotionTransaction::InstructionRemover>(
+      std::make_unique<TypePromotionTransaction::InstructionRemover>(
           Inst, RemovedInsts, NewVal));
 }
 
 void TypePromotionTransaction::replaceAllUsesWith(Instruction *Inst,
                                                   Value *New) {
   Actions.push_back(
-      llvm::make_unique<TypePromotionTransaction::UsesReplacer>(Inst, New));
+      std::make_unique<TypePromotionTransaction::UsesReplacer>(Inst, New));
 }
 
 void TypePromotionTransaction::mutateType(Instruction *Inst, Type *NewTy) {
   Actions.push_back(
-      llvm::make_unique<TypePromotionTransaction::TypeMutator>(Inst, NewTy));
+      std::make_unique<TypePromotionTransaction::TypeMutator>(Inst, NewTy));
 }
 
 Value *TypePromotionTransaction::createTrunc(Instruction *Opnd,
@@ -2732,7 +2716,7 @@ Value *TypePromotionTransaction::createZExt(Instruction *Inst,
 void TypePromotionTransaction::moveBefore(Instruction *Inst,
                                           Instruction *Before) {
   Actions.push_back(
-      llvm::make_unique<TypePromotionTransaction::InstructionMoveBefore>(
+      std::make_unique<TypePromotionTransaction::InstructionMoveBefore>(
           Inst, Before));
 }
 
@@ -3048,7 +3032,7 @@ public:
       To = dyn_cast<PHINode>(OldReplacement);
       OldReplacement = Get(From);
     }
-    assert(Get(To) == To && "Replacement PHI node is already replaced.");
+    assert(To && Get(To) == To && "Replacement PHI node is already replaced.");
     Put(From, To);
     From->replaceAllUsesWith(To);
     AllPhiNodes.erase(From);
@@ -3334,7 +3318,7 @@ private:
         // So the values are different and does not match. So we need them to
         // match. (But we register no more than one match per PHI node, so that
         // we won't later try to replace them twice.)
-        if (!MatchedPHIs.insert(FirstPhi).second)
+        if (MatchedPHIs.insert(FirstPhi).second)
           Matcher.insert({ FirstPhi, SecondPhi });
         // But me must check it.
         WorkList.push_back({ FirstPhi, SecondPhi });
@@ -3412,11 +3396,10 @@ private:
         Select->setFalseValue(ST.Get(Map[FalseValue]));
       } else {
         // Must be a Phi node then.
-        PHINode *PHI = cast<PHINode>(V);
-        auto *CurrentPhi = dyn_cast<PHINode>(Current);
+        auto *PHI = cast<PHINode>(V);
         // Fill the Phi node with values from predecessors.
         for (auto B : predecessors(PHI->getParent())) {
-          Value *PV = CurrentPhi->getIncomingValueForBlock(B);
+          Value *PV = cast<PHINode>(Current)->getIncomingValueForBlock(B);
           assert(Map.find(PV) != Map.end() && "No predecessor Value!");
           PHI->addIncoming(ST.Get(Map[PV]), B);
         }
@@ -3785,13 +3768,11 @@ bool TypePromotionHelper::canGetThrough(const Instruction *Inst,
   //          poisoned value                    regular value
   // It should be OK since undef covers valid value.
   if (Inst->getOpcode() == Instruction::Shl && Inst->hasOneUse()) {
-    const Instruction *ExtInst =
-        dyn_cast<const Instruction>(*Inst->user_begin());
+    const auto *ExtInst = cast<const Instruction>(*Inst->user_begin());
     if (ExtInst->hasOneUse()) {
-      const Instruction *AndInst =
-          dyn_cast<const Instruction>(*ExtInst->user_begin());
+      const auto *AndInst = dyn_cast<const Instruction>(*ExtInst->user_begin());
       if (AndInst && AndInst->getOpcode() == Instruction::And) {
-        const ConstantInt *Cst = dyn_cast<ConstantInt>(AndInst->getOperand(1));
+        const auto *Cst = dyn_cast<ConstantInt>(AndInst->getOperand(1));
         if (Cst &&
             Cst->getValue().isIntN(Inst->getType()->getIntegerBitWidth()))
           return true;
@@ -4793,8 +4774,8 @@ bool CodeGenPrepare::optimizeMemoryInst(Instruction *MemoryInst, Value *Addr,
                       << " for " << *MemoryInst << "\n");
     if (SunkAddr->getType() != Addr->getType())
       SunkAddr = Builder.CreatePointerCast(SunkAddr, Addr->getType());
-  } else if (AddrSinkUsingGEPs ||
-             (!AddrSinkUsingGEPs.getNumOccurrences() && TM && TTI->useAA())) {
+  } else if (AddrSinkUsingGEPs || (!AddrSinkUsingGEPs.getNumOccurrences() &&
+                                   TM && SubtargetInfo->addrSinkUsingGEPs())) {
     // By default, we use the GEP-based method when AA is used later. This
     // prevents new inttoptr/ptrtoint pairs from degrading AA capabilities.
     LLVM_DEBUG(dbgs() << "CGP: SINKING nonlocal addrmode: " << AddrMode
@@ -5816,7 +5797,7 @@ bool CodeGenPrepare::optimizeLoadExt(LoadInst *Load) {
     return false;
 
   IRBuilder<> Builder(Load->getNextNode());
-  auto *NewAnd = dyn_cast<Instruction>(
+  auto *NewAnd = cast<Instruction>(
       Builder.CreateAnd(Load, ConstantInt::get(Ctx, DemandBits)));
   // Mark this instruction as "inserted by CGP", so that other
   // optimizations don't touch it.
@@ -6193,35 +6174,49 @@ bool CodeGenPrepare::tryToSinkFreeOperands(Instruction *I) {
 
   // OpsToSink can contain multiple uses in a use chain (e.g.
   // (%u1 with %u1 = shufflevector), (%u2 with %u2 = zext %u1)). The dominating
-  // uses must come first, which means they are sunk first, temporarily creating
-  // invalid IR. This will be fixed once their dominated users are sunk and
-  // updated.
+  // uses must come first, so we process the ops in reverse order so as to not
+  // create invalid IR.
   BasicBlock *TargetBB = I->getParent();
   bool Changed = false;
   SmallVector<Use *, 4> ToReplace;
-  for (Use *U : OpsToSink) {
+  for (Use *U : reverse(OpsToSink)) {
     auto *UI = cast<Instruction>(U->get());
     if (UI->getParent() == TargetBB || isa<PHINode>(UI))
       continue;
     ToReplace.push_back(U);
   }
 
-  SmallPtrSet<Instruction *, 4> MaybeDead;
+  SetVector<Instruction *> MaybeDead;
+  DenseMap<Instruction *, Instruction *> NewInstructions;
+  Instruction *InsertPoint = I;
   for (Use *U : ToReplace) {
     auto *UI = cast<Instruction>(U->get());
     Instruction *NI = UI->clone();
+    NewInstructions[UI] = NI;
     MaybeDead.insert(UI);
     LLVM_DEBUG(dbgs() << "Sinking " << *UI << " to user " << *I << "\n");
-    NI->insertBefore(I);
+    NI->insertBefore(InsertPoint);
+    InsertPoint = NI;
     InsertedInsts.insert(NI);
-    U->set(NI);
+
+    // Update the use for the new instruction, making sure that we update the
+    // sunk instruction uses, if it is part of a chain that has already been
+    // sunk.
+    Instruction *OldI = cast<Instruction>(U->getUser());
+    if (NewInstructions.count(OldI))
+      NewInstructions[OldI]->setOperand(U->getOperandNo(), NI);
+    else
+      U->set(NI);
     Changed = true;
   }
 
   // Remove instructions that are dead after sinking.
-  for (auto *I : MaybeDead)
-    if (!I->hasNUsesOrMore(1))
+  for (auto *I : MaybeDead) {
+    if (!I->hasNUsesOrMore(1)) {
+      LLVM_DEBUG(dbgs() << "Removing dead instruction: " << *I << "\n");
       I->eraseFromParent();
+    }
+  }
 
   return Changed;
 }
@@ -7106,7 +7101,6 @@ bool CodeGenPrepare::optimizeBlock(BasicBlock &BB, bool &ModifiedDT) {
     for (auto &I : reverse(BB)) {
       if (makeBitReverse(I, *DL, *TLI)) {
         MadeBitReverse = MadeChange = true;
-        ModifiedDT = true;
         break;
       }
     }

@@ -72,7 +72,7 @@ static void srcMgrDiagHandler(const SMDiagnostic &Diag, void *diagInfo) {
 unsigned AsmPrinter::addInlineAsmDiagBuffer(StringRef AsmStr,
                                             const MDNode *LocMDNode) const {
   if (!DiagInfo) {
-    DiagInfo = make_unique<SrcMgrDiagInfo>();
+    DiagInfo = std::make_unique<SrcMgrDiagInfo>();
 
     MCContext &Context = MMI->getContext();
     Context.setInlineSourceManager(&DiagInfo->SrcMgr);
@@ -432,6 +432,7 @@ static void EmitGCCInlineAsmStr(const char *AsmStr, const MachineInstr *MI,
               const BlockAddress *BA = MI->getOperand(OpNo).getBlockAddress();
               MCSymbol *Sym = AP->GetBlockAddressSymbol(BA);
               Sym->print(OS, AP->MAI);
+              MMI->getContext().registerInlineAsmLabel(Sym);
             } else if (MI->getOperand(OpNo).isMBB()) {
               const MCSymbol *Sym = MI->getOperand(OpNo).getMBB()->getSymbol();
               Sym->print(OS, AP->MAI);

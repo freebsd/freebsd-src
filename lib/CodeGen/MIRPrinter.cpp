@@ -197,7 +197,7 @@ void MIRPrinter::print(const MachineFunction &MF) {
 
   yaml::MachineFunction YamlMF;
   YamlMF.Name = MF.getName();
-  YamlMF.Alignment = MF.getAlignment();
+  YamlMF.Alignment = MF.getAlignment().value();
   YamlMF.ExposesReturnsTwice = MF.exposesReturnsTwice();
   YamlMF.HasWinCFI = MF.hasWinCFI();
 
@@ -290,7 +290,7 @@ void MIRPrinter::convert(yaml::MachineFunction &MF,
 
   // Print the virtual register definitions.
   for (unsigned I = 0, E = RegInfo.getNumVirtRegs(); I < E; ++I) {
-    unsigned Reg = TargetRegisterInfo::index2VirtReg(I);
+    unsigned Reg = Register::index2VirtReg(I);
     yaml::VirtualRegisterDefinition VReg;
     VReg.ID = I;
     if (RegInfo.getVRegName(Reg) != "")
@@ -473,10 +473,11 @@ void MIRPrinter::convertCallSiteObjects(yaml::MachineFunction &YMF,
     yaml::CallSiteInfo::MachineInstrLoc CallLocation;
 
     // Prepare instruction position.
-    MachineBasicBlock::const_iterator CallI = CSInfo.first->getIterator();
+    MachineBasicBlock::const_instr_iterator CallI = CSInfo.first->getIterator();
     CallLocation.BlockNum = CallI->getParent()->getNumber();
     // Get call instruction offset from the beginning of block.
-    CallLocation.Offset = std::distance(CallI->getParent()->begin(), CallI);
+    CallLocation.Offset =
+        std::distance(CallI->getParent()->instr_begin(), CallI);
     YmlCS.CallLocation = CallLocation;
     // Construct call arguments and theirs forwarding register info.
     for (auto ArgReg : CSInfo.second) {
@@ -628,9 +629,9 @@ void MIPrinter::print(const MachineBasicBlock &MBB) {
     OS << "landing-pad";
     HasAttributes = true;
   }
-  if (MBB.getAlignment()) {
+  if (MBB.getAlignment() != Align::None()) {
     OS << (HasAttributes ? ", " : " (");
-    OS << "align " << MBB.getAlignment();
+    OS << "align " << MBB.getAlignment().value();
     HasAttributes = true;
   }
   if (HasAttributes)
@@ -842,7 +843,8 @@ void MIPrinter::print(const MachineInstr &MI, unsigned OpIdx,
   case MachineOperand::MO_CFIIndex:
   case MachineOperand::MO_IntrinsicID:
   case MachineOperand::MO_Predicate:
-  case MachineOperand::MO_BlockAddress: {
+  case MachineOperand::MO_BlockAddress:
+  case MachineOperand::MO_ShuffleMask: {
     unsigned TiedOperandIdx = 0;
     if (ShouldPrintRegisterTies && Op.isReg() && Op.isTied() && !Op.isDef())
       TiedOperandIdx = Op.getParent()->findTiedOperandIdx(OpIdx);

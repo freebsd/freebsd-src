@@ -46,12 +46,20 @@ struct MCDwarfFrameInfo;
 class MCExpr;
 class MCInst;
 class MCInstPrinter;
+class MCRegister;
 class MCSection;
 class MCStreamer;
 class MCSymbolRefExpr;
 class MCSubtargetInfo;
 class raw_ostream;
 class Twine;
+
+namespace codeview {
+struct DefRangeRegisterRelHeader;
+struct DefRangeSubfieldRegisterHeader;
+struct DefRangeRegisterHeader;
+struct DefRangeFramePointerRelHeader;
+}
 
 using MCSectionSubPair = std::pair<MCSection *, const MCExpr *>;
 
@@ -536,6 +544,15 @@ public:
   /// \param Symbol - Symbol the image relative relocation should point to.
   virtual void EmitCOFFImgRel32(MCSymbol const *Symbol, int64_t Offset);
 
+  /// Emits an lcomm directive with XCOFF csect information.
+  ///
+  /// \param Symbol - The symbol we are emiting.
+  /// \param Size - The size of the block of storage.
+  /// \param ByteAlignment - The alignment of the symbol in bytes. Must be a power
+  /// of 2.
+  virtual void EmitXCOFFLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                                          unsigned ByteAlignment);
+
   /// Emit an ELF .size directive.
   ///
   /// This corresponds to an assembler statement such as:
@@ -860,6 +877,22 @@ public:
       ArrayRef<std::pair<const MCSymbol *, const MCSymbol *>> Ranges,
       StringRef FixedSizePortion);
 
+  virtual void EmitCVDefRangeDirective(
+      ArrayRef<std::pair<const MCSymbol *, const MCSymbol *>> Ranges,
+      codeview::DefRangeRegisterRelHeader DRHdr);
+
+  virtual void EmitCVDefRangeDirective(
+      ArrayRef<std::pair<const MCSymbol *, const MCSymbol *>> Ranges,
+      codeview::DefRangeSubfieldRegisterHeader DRHdr);
+
+  virtual void EmitCVDefRangeDirective(
+      ArrayRef<std::pair<const MCSymbol *, const MCSymbol *>> Ranges,
+      codeview::DefRangeRegisterHeader DRHdr);
+
+  virtual void EmitCVDefRangeDirective(
+      ArrayRef<std::pair<const MCSymbol *, const MCSymbol *>> Ranges,
+      codeview::DefRangeFramePointerRelHeader DRHdr);
+
   /// This implements the CodeView '.cv_stringtable' assembler directive.
   virtual void EmitCVStringTableDirective() {}
 
@@ -917,13 +950,13 @@ public:
   virtual void EmitWinCFIFuncletOrFuncEnd(SMLoc Loc = SMLoc());
   virtual void EmitWinCFIStartChained(SMLoc Loc = SMLoc());
   virtual void EmitWinCFIEndChained(SMLoc Loc = SMLoc());
-  virtual void EmitWinCFIPushReg(unsigned Register, SMLoc Loc = SMLoc());
-  virtual void EmitWinCFISetFrame(unsigned Register, unsigned Offset,
+  virtual void EmitWinCFIPushReg(MCRegister Register, SMLoc Loc = SMLoc());
+  virtual void EmitWinCFISetFrame(MCRegister Register, unsigned Offset,
                                   SMLoc Loc = SMLoc());
   virtual void EmitWinCFIAllocStack(unsigned Size, SMLoc Loc = SMLoc());
-  virtual void EmitWinCFISaveReg(unsigned Register, unsigned Offset,
+  virtual void EmitWinCFISaveReg(MCRegister Register, unsigned Offset,
                                  SMLoc Loc = SMLoc());
-  virtual void EmitWinCFISaveXMM(unsigned Register, unsigned Offset,
+  virtual void EmitWinCFISaveXMM(MCRegister Register, unsigned Offset,
                                  SMLoc Loc = SMLoc());
   virtual void EmitWinCFIPushFrame(bool Code, SMLoc Loc = SMLoc());
   virtual void EmitWinCFIEndProlog(SMLoc Loc = SMLoc());

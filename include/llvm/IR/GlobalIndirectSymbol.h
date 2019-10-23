@@ -42,6 +42,10 @@ public:
   /// Provide fast operand accessors
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Constant);
 
+  void copyAttributesFrom(const GlobalValue *Src) {
+    GlobalValue::copyAttributesFrom(Src);
+  }
+
   /// These methods set and retrieve indirect symbol.
   void setIndirectSymbol(Constant *Symbol) {
     setOperand(0, Symbol);
@@ -54,9 +58,7 @@ public:
           static_cast<const GlobalIndirectSymbol *>(this)->getIndirectSymbol());
   }
 
-  const GlobalObject *getBaseObject() const {
-    return dyn_cast<GlobalObject>(getIndirectSymbol()->stripInBoundsOffsets());
-  }
+  const GlobalObject *getBaseObject() const;
   GlobalObject *getBaseObject() {
     return const_cast<GlobalObject *>(
               static_cast<const GlobalIndirectSymbol *>(this)->getBaseObject());

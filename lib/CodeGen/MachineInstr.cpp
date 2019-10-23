@@ -636,8 +636,8 @@ bool MachineInstr::isIdenticalTo(const MachineInstr &Other,
       if (Check == IgnoreDefs)
         continue;
       else if (Check == IgnoreVRegDefs) {
-        if (!TargetRegisterInfo::isVirtualRegister(MO.getReg()) ||
-            !TargetRegisterInfo::isVirtualRegister(OMO.getReg()))
+        if (!Register::isVirtualRegister(MO.getReg()) ||
+            !Register::isVirtualRegister(OMO.getReg()))
           if (!MO.isIdenticalTo(OMO))
             return false;
       } else {
@@ -692,8 +692,8 @@ void MachineInstr::eraseFromParentAndMarkDBGValuesForRemoval() {
   for (const MachineOperand &MO : MI->operands()) {
     if (!MO.isReg() || !MO.isDef())
       continue;
-    unsigned Reg = MO.getReg();
-    if (!TargetRegisterInfo::isVirtualRegister(Reg))
+    Register Reg = MO.getReg();
+    if (!Reg.isVirtual())
       continue;
     MRI.markUsesInDebugValueAsUndef(Reg);
   }
@@ -832,6 +832,10 @@ const DIExpression *MachineInstr::getDebugExpression() const {
   return cast<DIExpression>(getOperand(3).getMetadata());
 }
 
+bool MachineInstr::isDebugEntryValue() const {
+  return isDebugValue() && getDebugExpression()->isEntryValue();
+}
+
 const TargetRegisterClass*
 MachineInstr::getRegClassConstraint(unsigned OpIdx,
                                     const TargetInstrInfo *TII,
@@ -873,7 +877,7 @@ MachineInstr::getRegClassConstraint(unsigned OpIdx,
 }
 
 const TargetRegisterClass *MachineInstr::getRegClassConstraintEffectForVReg(
-    unsigned Reg, const TargetRegisterClass *CurRC, const TargetInstrInfo *TII,
+    Register Reg, const TargetRegisterClass *CurRC, const TargetInstrInfo *TII,
     const TargetRegisterInfo *TRI, bool ExploreBundle) const {
   // Check every operands inside the bundle if we have
   // been asked to.
@@ -890,7 +894,7 @@ const TargetRegisterClass *MachineInstr::getRegClassConstraintEffectForVReg(
 }
 
 const TargetRegisterClass *MachineInstr::getRegClassConstraintEffectForVRegImpl(
-    unsigned OpIdx, unsigned Reg, const TargetRegisterClass *CurRC,
+    unsigned OpIdx, Register Reg, const TargetRegisterClass *CurRC,
     const TargetInstrInfo *TII, const TargetRegisterInfo *TRI) const {
   assert(CurRC && "Invalid initial register class");
   // Check if Reg is constrained by some of its use/def from MI.
@@ -933,7 +937,7 @@ unsigned MachineInstr::getBundleSize() const {
 
 /// Returns true if the MachineInstr has an implicit-use operand of exactly
 /// the given register (not considering sub/super-registers).
-bool MachineInstr::hasRegisterImplicitUseOperand(unsigned Reg) const {
+bool MachineInstr::hasRegisterImplicitUseOperand(Register Reg) const {
   for (unsigned i = 0, e = getNumOperands(); i != e; ++i) {
     const MachineOperand &MO = getOperand(i);
     if (MO.isReg() && MO.isUse() && MO.isImplicit() && MO.getReg() == Reg)
@@ -946,12 +950,12 @@ bool MachineInstr::hasRegisterImplicitUseOperand(unsigned Reg) const {
 /// the specific register or -1 if it is not found. It further tightens
 /// the search criteria to a use that kills the register if isKill is true.
 int MachineInstr::findRegisterUseOperandIdx(
-    unsigned Reg, bool isKill, const TargetRegisterInfo *TRI) const {
+    Register Reg, bool isKill, const TargetRegisterInfo *TRI) const {
   for (unsigned i = 0, e = getNumOperands(); i != e; ++i) {
     const MachineOperand &MO = getOperand(i);
     if (!MO.isReg() || !MO.isUse())
       continue;
-    unsigned MOReg = MO.getReg();
+    Register MOReg = MO.getReg();
     if (!MOReg)
       continue;
     if (MOReg == Reg || (TRI && Reg && MOReg && TRI->regsOverlap(MOReg, Reg)))
@@ -965,7 +969,7 @@ int MachineInstr::findRegisterUseOperandIdx(
 /// indicating if this instruction reads or writes Reg. This also considers
 /// partial defines.
 std::pair<bool,bool>
-MachineInstr::readsWritesVirtualRegister(unsigned Reg,
+MachineInstr::readsWritesVirtualRegister(Register Reg,
                                          SmallVectorImpl<unsigned> *Ops) const {
   bool PartDef = false; // Partial redefine.
   bool FullDef = false; // Full define.
@@ -994,9 +998,9 @@ MachineInstr::readsWritesVirtualRegister(unsigned Reg,
 /// that are not dead are skipped. If TargetRegisterInfo is non-null, then it
 /// also checks if there is a def of a super-register.
 int
-MachineInstr::findRegisterDefOperandIdx(unsigned Reg, bool isDead, bool Overlap,
+MachineInstr::findRegisterDefOperandIdx(Register Reg, bool isDead, bool Overlap,
                                         const TargetRegisterInfo *TRI) const {
-  bool isPhys = TargetRegisterInfo::isPhysicalRegister(Reg);
+  bool isPhys = Register::isPhysicalRegister(Reg);
   for (unsigned i = 0, e = getNumOperands(); i != e; ++i) {
     const MachineOperand &MO = getOperand(i);
     // Accept regmask operands when Overlap is set.
@@ -1005,10 +1009,9 @@ MachineInstr::findRegisterDefOperandIdx(unsigned Reg, bool isDead, bool Overlap,
       return i;
     if (!MO.isReg() || !MO.isDef())
       continue;
-    unsigned MOReg = MO.getReg();
+    Register MOReg = MO.getReg();
     bool Found = (MOReg == Reg);
-    if (!Found && TRI && isPhys &&
-        TargetRegisterInfo::isPhysicalRegister(MOReg)) {
+    if (!Found && TRI && isPhys && Register::isPhysicalRegister(MOReg)) {
       if (Overlap)
         Found = TRI->regsOverlap(MOReg, Reg);
       else
@@ -1142,10 +1145,10 @@ void MachineInstr::clearKillInfo() {
   }
 }
 
-void MachineInstr::substituteRegister(unsigned FromReg, unsigned ToReg,
+void MachineInstr::substituteRegister(Register FromReg, Register ToReg,
                                       unsigned SubIdx,
                                       const TargetRegisterInfo &RegInfo) {
-  if (TargetRegisterInfo::isPhysicalRegister(ToReg)) {
+  if (Register::isPhysicalRegister(ToReg)) {
     if (SubIdx)
       ToReg = RegInfo.getSubReg(ToReg, SubIdx);
     for (MachineOperand &MO : operands()) {
@@ -1165,7 +1168,7 @@ void MachineInstr::substituteRegister(unsigned FromReg, unsigned ToReg,
 /// isSafeToMove - Return true if it is safe to move this instruction. If
 /// SawStore is set to true, it means that there is a store (or call) between
 /// the instruction's location and its intended destination.
-bool MachineInstr::isSafeToMove(AliasAnalysis *AA, bool &SawStore) const {
+bool MachineInstr::isSafeToMove(AAResults *AA, bool &SawStore) const {
   // Ignore stuff that we obviously can't move.
   //
   // Treat volatile loads as stores. This is not strictly necessary for
@@ -1194,7 +1197,7 @@ bool MachineInstr::isSafeToMove(AliasAnalysis *AA, bool &SawStore) const {
   return true;
 }
 
-bool MachineInstr::mayAlias(AliasAnalysis *AA, const MachineInstr &Other,
+bool MachineInstr::mayAlias(AAResults *AA, const MachineInstr &Other,
                             bool UseTBAA) const {
   const MachineFunction *MF = getMF();
   const TargetInstrInfo *TII = MF->getSubtarget().getInstrInfo();
@@ -1206,7 +1209,7 @@ bool MachineInstr::mayAlias(AliasAnalysis *AA, const MachineInstr &Other,
     return false;
 
   // Let the target decide if memory accesses cannot possibly overlap.
-  if (TII->areMemAccessesTriviallyDisjoint(*this, Other, AA))
+  if (TII->areMemAccessesTriviallyDisjoint(*this, Other))
     return false;
 
   // FIXME: Need to handle multiple memory operands to support all targets.
@@ -1312,7 +1315,7 @@ bool MachineInstr::hasOrderedMemoryRef() const {
 /// isDereferenceableInvariantLoad - Return true if this instruction will never
 /// trap and is loading from a location whose value is invariant across a run of
 /// this function.
-bool MachineInstr::isDereferenceableInvariantLoad(AliasAnalysis *AA) const {
+bool MachineInstr::isDereferenceableInvariantLoad(AAResults *AA) const {
   // If the instruction doesn't load at all, it isn't an invariant load.
   if (!mayLoad())
     return false;
@@ -1364,7 +1367,7 @@ unsigned MachineInstr::isConstantValuePHI() const {
   assert(getNumOperands() >= 3 &&
          "It's illegal to have a PHI without source operands");
 
-  unsigned Reg = getOperand(1).getReg();
+  Register Reg = getOperand(1).getReg();
   for (unsigned i = 3, e = getNumOperands(); i < e; i += 2)
     if (getOperand(i).getReg() != Reg)
       return 0;
@@ -1726,7 +1729,7 @@ void MachineInstr::print(raw_ostream &OS, ModuleSlotTracker &MST,
       MFI = &MF->getFrameInfo();
       Context = &MF->getFunction().getContext();
     } else {
-      CtxPtr = llvm::make_unique<LLVMContext>();
+      CtxPtr = std::make_unique<LLVMContext>();
       Context = CtxPtr.get();
     }
 
@@ -1780,10 +1783,10 @@ void MachineInstr::print(raw_ostream &OS, ModuleSlotTracker &MST,
     OS << '\n';
 }
 
-bool MachineInstr::addRegisterKilled(unsigned IncomingReg,
+bool MachineInstr::addRegisterKilled(Register IncomingReg,
                                      const TargetRegisterInfo *RegInfo,
                                      bool AddIfNotFound) {
-  bool isPhysReg = TargetRegisterInfo::isPhysicalRegister(IncomingReg);
+  bool isPhysReg = Register::isPhysicalRegister(IncomingReg);
   bool hasAliases = isPhysReg &&
     MCRegAliasIterator(IncomingReg, RegInfo, false).isValid();
   bool Found = false;
@@ -1799,7 +1802,7 @@ bool MachineInstr::addRegisterKilled(unsigned IncomingReg,
     if (MO.isDebug())
       continue;
 
-    unsigned Reg = MO.getReg();
+    Register Reg = MO.getReg();
     if (!Reg)
       continue;
 
@@ -1814,8 +1817,7 @@ bool MachineInstr::addRegisterKilled(unsigned IncomingReg,
         MO.setIsKill();
         Found = true;
       }
-    } else if (hasAliases && MO.isKill() &&
-               TargetRegisterInfo::isPhysicalRegister(Reg)) {
+    } else if (hasAliases && MO.isKill() && Register::isPhysicalRegister(Reg)) {
       // A super-register kill already exists.
       if (RegInfo->isSuperRegister(IncomingReg, Reg))
         return true;
@@ -1847,23 +1849,23 @@ bool MachineInstr::addRegisterKilled(unsigned IncomingReg,
   return Found;
 }
 
-void MachineInstr::clearRegisterKills(unsigned Reg,
+void MachineInstr::clearRegisterKills(Register Reg,
                                       const TargetRegisterInfo *RegInfo) {
-  if (!TargetRegisterInfo::isPhysicalRegister(Reg))
+  if (!Register::isPhysicalRegister(Reg))
     RegInfo = nullptr;
   for (MachineOperand &MO : operands()) {
     if (!MO.isReg() || !MO.isUse() || !MO.isKill())
       continue;
-    unsigned OpReg = MO.getReg();
+    Register OpReg = MO.getReg();
     if ((RegInfo && RegInfo->regsOverlap(Reg, OpReg)) || Reg == OpReg)
       MO.setIsKill(false);
   }
 }
 
-bool MachineInstr::addRegisterDead(unsigned Reg,
+bool MachineInstr::addRegisterDead(Register Reg,
                                    const TargetRegisterInfo *RegInfo,
                                    bool AddIfNotFound) {
-  bool isPhysReg = TargetRegisterInfo::isPhysicalRegister(Reg);
+  bool isPhysReg = Register::isPhysicalRegister(Reg);
   bool hasAliases = isPhysReg &&
     MCRegAliasIterator(Reg, RegInfo, false).isValid();
   bool Found = false;
@@ -1872,7 +1874,7 @@ bool MachineInstr::addRegisterDead(unsigned Reg,
     MachineOperand &MO = getOperand(i);
     if (!MO.isReg() || !MO.isDef())
       continue;
-    unsigned MOReg = MO.getReg();
+    Register MOReg = MO.getReg();
     if (!MOReg)
       continue;
 
@@ -1880,7 +1882,7 @@ bool MachineInstr::addRegisterDead(unsigned Reg,
       MO.setIsDead();
       Found = true;
     } else if (hasAliases && MO.isDead() &&
-               TargetRegisterInfo::isPhysicalRegister(MOReg)) {
+               Register::isPhysicalRegister(MOReg)) {
       // There exists a super-register that's marked dead.
       if (RegInfo->isSuperRegister(Reg, MOReg))
         return true;
@@ -1913,7 +1915,7 @@ bool MachineInstr::addRegisterDead(unsigned Reg,
   return true;
 }
 
-void MachineInstr::clearRegisterDeads(unsigned Reg) {
+void MachineInstr::clearRegisterDeads(Register Reg) {
   for (MachineOperand &MO : operands()) {
     if (!MO.isReg() || !MO.isDef() || MO.getReg() != Reg)
       continue;
@@ -1921,7 +1923,7 @@ void MachineInstr::clearRegisterDeads(unsigned Reg) {
   }
 }
 
-void MachineInstr::setRegisterDefReadUndef(unsigned Reg, bool IsUndef) {
+void MachineInstr::setRegisterDefReadUndef(Register Reg, bool IsUndef) {
   for (MachineOperand &MO : operands()) {
     if (!MO.isReg() || !MO.isDef() || MO.getReg() != Reg || MO.getSubReg() == 0)
       continue;
@@ -1929,9 +1931,9 @@ void MachineInstr::setRegisterDefReadUndef(unsigned Reg, bool IsUndef) {
   }
 }
 
-void MachineInstr::addRegisterDefined(unsigned Reg,
+void MachineInstr::addRegisterDefined(Register Reg,
                                       const TargetRegisterInfo *RegInfo) {
-  if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+  if (Register::isPhysicalRegister(Reg)) {
     MachineOperand *MO = findRegisterDefOperand(Reg, false, false, RegInfo);
     if (MO)
       return;
@@ -1947,7 +1949,7 @@ void MachineInstr::addRegisterDefined(unsigned Reg,
                                        true  /*IsImp*/));
 }
 
-void MachineInstr::setPhysRegsDeadExcept(ArrayRef<unsigned> UsedRegs,
+void MachineInstr::setPhysRegsDeadExcept(ArrayRef<Register> UsedRegs,
                                          const TargetRegisterInfo &TRI) {
   bool HasRegMask = false;
   for (MachineOperand &MO : operands()) {
@@ -1956,18 +1958,19 @@ void MachineInstr::setPhysRegsDeadExcept(ArrayRef<unsigned> UsedRegs,
       continue;
     }
     if (!MO.isReg() || !MO.isDef()) continue;
-    unsigned Reg = MO.getReg();
-    if (!TargetRegisterInfo::isPhysicalRegister(Reg)) continue;
+    Register Reg = MO.getReg();
+    if (!Reg.isPhysical())
+      continue;
     // If there are no uses, including partial uses, the def is dead.
     if (llvm::none_of(UsedRegs,
-                      [&](unsigned Use) { return TRI.regsOverlap(Use, Reg); }))
+                      [&](MCRegister Use) { return TRI.regsOverlap(Use, Reg); }))
       MO.setIsDead();
   }
 
   // This is a call with a register mask operand.
   // Mask clobbers are always dead, so add defs for the non-dead defines.
   if (HasRegMask)
-    for (ArrayRef<unsigned>::iterator I = UsedRegs.begin(), E = UsedRegs.end();
+    for (ArrayRef<Register>::iterator I = UsedRegs.begin(), E = UsedRegs.end();
          I != E; ++I)
       addRegisterDefined(*I, &TRI);
 }
@@ -1979,8 +1982,7 @@ MachineInstrExpressionTrait::getHashValue(const MachineInstr* const &MI) {
   HashComponents.reserve(MI->getNumOperands() + 1);
   HashComponents.push_back(MI->getOpcode());
   for (const MachineOperand &MO : MI->operands()) {
-    if (MO.isReg() && MO.isDef() &&
-        TargetRegisterInfo::isVirtualRegister(MO.getReg()))
+    if (MO.isReg() && MO.isDef() && Register::isVirtualRegister(MO.getReg()))
       continue;  // Skip virtual register defs.
 
     HashComponents.push_back(hash_value(MO));
@@ -2012,7 +2014,7 @@ void MachineInstr::emitError(StringRef Msg) const {
 
 MachineInstrBuilder llvm::BuildMI(MachineFunction &MF, const DebugLoc &DL,
                                   const MCInstrDesc &MCID, bool IsIndirect,
-                                  unsigned Reg, const MDNode *Variable,
+                                  Register Reg, const MDNode *Variable,
                                   const MDNode *Expr) {
   assert(isa<DILocalVariable>(Variable) && "not a variable");
   assert(cast<DIExpression>(Expr)->isValid() && "not an expression");
@@ -2048,7 +2050,7 @@ MachineInstrBuilder llvm::BuildMI(MachineFunction &MF, const DebugLoc &DL,
 MachineInstrBuilder llvm::BuildMI(MachineBasicBlock &BB,
                                   MachineBasicBlock::iterator I,
                                   const DebugLoc &DL, const MCInstrDesc &MCID,
-                                  bool IsIndirect, unsigned Reg,
+                                  bool IsIndirect, Register Reg,
                                   const MDNode *Variable, const MDNode *Expr) {
   MachineFunction &MF = *BB.getParent();
   MachineInstr *MI = BuildMI(MF, DL, MCID, IsIndirect, Reg, Variable, Expr);
@@ -2118,10 +2120,24 @@ void MachineInstr::collectDebugValues(
   }
 }
 
-void MachineInstr::changeDebugValuesDefReg(unsigned Reg) {
+void MachineInstr::changeDebugValuesDefReg(Register Reg) {
   // Collect matching debug values.
   SmallVector<MachineInstr *, 2> DbgValues;
-  collectDebugValues(DbgValues);
+
+  if (!getOperand(0).isReg())
+    return;
+
+  unsigned DefReg = getOperand(0).getReg();
+  auto *MRI = getRegInfo();
+  for (auto &MO : MRI->use_operands(DefReg)) {
+    auto *DI = MO.getParent();
+    if (!DI->isDebugValue())
+      continue;
+    if (DI->getOperand(0).isReg() &&
+        DI->getOperand(0).getReg() == DefReg){
+      DbgValues.push_back(DI);
+    }
+  }
 
   // Propagate Reg to debug value instructions.
   for (auto *DBI : DbgValues)

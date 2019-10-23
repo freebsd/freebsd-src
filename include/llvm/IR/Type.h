@@ -21,6 +21,7 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/TypeSize.h"
 #include <cassert>
 #include <cstdint>
 #include <iterator>
@@ -281,12 +282,15 @@ public:
   /// This will return zero if the type does not have a size or is not a
   /// primitive type.
   ///
+  /// If this is a scalable vector type, the scalable property will be set and
+  /// the runtime size will be a positive integer multiple of the base size.
+  ///
   /// Note that this may not reflect the size of memory allocated for an
   /// instance of the type or the number of bytes that are written when an
   /// instance of the type is stored to memory. The DataLayout class provides
   /// additional query functions to provide this information.
   ///
-  unsigned getPrimitiveSizeInBits() const LLVM_READONLY;
+  TypeSize getPrimitiveSizeInBits() const LLVM_READONLY;
 
   /// If this is a vector type, return the getPrimitiveSizeInBits value for the
   /// element type. Otherwise return the getPrimitiveSizeInBits value for this
@@ -368,6 +372,7 @@ public:
 
   inline bool getVectorIsScalable() const;
   inline unsigned getVectorNumElements() const;
+  inline ElementCount getVectorElementCount() const;
   Type *getVectorElementType() const {
     assert(getTypeID() == VectorTyID);
     return ContainedTys[0];
@@ -377,6 +382,14 @@ public:
     assert(getTypeID() == PointerTyID);
     return ContainedTys[0];
   }
+
+  /// Given an integer or vector type, change the lane bitwidth to NewBitwidth,
+  /// whilst keeping the old number of lanes.
+  inline Type *getWithNewBitWidth(unsigned NewBitWidth) const;
+
+  /// Given scalar/vector integer type, returns a type with elements twice as
+  /// wide as in the original type. For vectors, preserves element count.
+  inline Type *getExtendedType() const;
 
   /// Get the address space of this pointer or pointer vector type.
   inline unsigned getPointerAddressSpace() const;

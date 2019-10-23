@@ -68,7 +68,7 @@ static SDNode *selectImm(SelectionDAG *CurDAG, const SDLoc &DL, int64_t Imm,
   RISCVMatInt::InstSeq Seq;
   RISCVMatInt::generateInstSeq(Imm, XLenVT == MVT::i64, Seq);
 
-  SDNode *Result;
+  SDNode *Result = nullptr;
   SDValue SrcReg = CurDAG->getRegister(RISCV::X0, XLenVT);
   for (RISCVMatInt::Inst &Inst : Seq) {
     SDValue SDImm = CurDAG->getTargetConstant(Inst.Imm, DL, XLenVT);
@@ -177,6 +177,9 @@ bool RISCVDAGToDAGISel::SelectInlineAsmMemoryOperand(
   case InlineAsm::Constraint_m:
     // We just support simple memory operands that have a single address
     // operand and need no special handling.
+    OutOps.push_back(Op);
+    return false;
+  case InlineAsm::Constraint_A:
     OutOps.push_back(Op);
     return false;
   default:

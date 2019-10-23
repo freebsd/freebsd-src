@@ -24,21 +24,23 @@ void DWARFTypeUnit::dump(raw_ostream &OS, DIDumpOptions DumpOpts) {
   if (DumpOpts.SummarizeTypes) {
     OS << "name = '" << Name << "'"
        << " type_signature = " << format("0x%016" PRIx64, getTypeHash())
-       << " length = " << format("0x%08x", getLength()) << '\n';
+       << " length = " << format("0x%08" PRIx64, getLength()) << '\n';
     return;
   }
 
-  OS << format("0x%08x", getOffset()) << ": Type Unit:"
-     << " length = " << format("0x%08x", getLength())
+  OS << format("0x%08" PRIx64, getOffset()) << ": Type Unit:"
+     << " length = " << format("0x%08" PRIx64, getLength())
      << " version = " << format("0x%04x", getVersion());
   if (getVersion() >= 5)
     OS << " unit_type = " << dwarf::UnitTypeString(getUnitType());
-  OS << " abbr_offset = " << format("0x%04x", getAbbreviations()->getOffset())
+  OS << " abbr_offset = "
+     << format("0x%04" PRIx64, getAbbreviations()->getOffset())
      << " addr_size = " << format("0x%02x", getAddressByteSize())
      << " name = '" << Name << "'"
      << " type_signature = " << format("0x%016" PRIx64, getTypeHash())
-     << " type_offset = " << format("0x%04x", getTypeOffset())
-     << " (next unit at " << format("0x%08x", getNextUnitOffset()) << ")\n";
+     << " type_offset = " << format("0x%04" PRIx64, getTypeOffset())
+     << " (next unit at " << format("0x%08" PRIx64, getNextUnitOffset())
+     << ")\n";
 
   if (DWARFDie TU = getUnitDIE(false))
     TU.dump(OS, 0, DumpOpts);

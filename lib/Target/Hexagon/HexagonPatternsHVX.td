@@ -1,5 +1,3 @@
-def SDTVecLeaf:
-  SDTypeProfile<1, 0, [SDTCisVec<0>]>;
 def SDTVecBinOp:
   SDTypeProfile<1, 2, [SDTCisVec<0>, SDTCisVec<1>, SDTCisSameAs<1,2>]>;
 
@@ -162,23 +160,14 @@ let Predicates = [UseHVX] in {
 
 // Bitcasts between same-size vector types are no-ops, except for the
 // actual type change.
-class Bitcast<ValueType ResTy, ValueType InpTy, RegisterClass RC>
-  : Pat<(ResTy (bitconvert (InpTy RC:$Val))), (ResTy RC:$Val)>;
-
 let Predicates = [UseHVX] in {
-  def: Bitcast<VecI8,   VecI16,  HvxVR>;
-  def: Bitcast<VecI8,   VecI32,  HvxVR>;
-  def: Bitcast<VecI16,  VecI8,   HvxVR>;
-  def: Bitcast<VecI16,  VecI32,  HvxVR>;
-  def: Bitcast<VecI32,  VecI8,   HvxVR>;
-  def: Bitcast<VecI32,  VecI16,  HvxVR>;
+  defm: NopCast_pat<VecI8,   VecI16,  HvxVR>;
+  defm: NopCast_pat<VecI8,   VecI32,  HvxVR>;
+  defm: NopCast_pat<VecI16,  VecI32,  HvxVR>;
 
-  def: Bitcast<VecPI8,  VecPI16, HvxWR>;
-  def: Bitcast<VecPI8,  VecPI32, HvxWR>;
-  def: Bitcast<VecPI16, VecPI8,  HvxWR>;
-  def: Bitcast<VecPI16, VecPI32, HvxWR>;
-  def: Bitcast<VecPI32, VecPI8,  HvxWR>;
-  def: Bitcast<VecPI32, VecPI16, HvxWR>;
+  defm: NopCast_pat<VecPI8,  VecPI16, HvxWR>;
+  defm: NopCast_pat<VecPI8,  VecPI32, HvxWR>;
+  defm: NopCast_pat<VecPI16, VecPI32, HvxWR>;
 }
 
 let Predicates = [UseHVX] in {
@@ -258,6 +247,21 @@ class Vneg1<ValueType VecTy>
 
 class Vnot<ValueType VecTy>
   : PatFrag<(ops node:$Vs), (xor $Vs, Vneg1<VecTy>)>;
+
+let Predicates = [UseHVX] in {
+  let AddedComplexity = 220 in {
+    defm: MinMax_pats<V6_vminb,  V6_vmaxb,  vselect,  setgt,  VecQ8,  HVI8>;
+    defm: MinMax_pats<V6_vminb,  V6_vmaxb,  vselect,  setge,  VecQ8,  HVI8>;
+    defm: MinMax_pats<V6_vminub, V6_vmaxub, vselect, setugt,  VecQ8,  HVI8>;
+    defm: MinMax_pats<V6_vminub, V6_vmaxub, vselect, setuge,  VecQ8,  HVI8>;
+    defm: MinMax_pats<V6_vminh,  V6_vmaxh,  vselect,  setgt, VecQ16, HVI16>;
+    defm: MinMax_pats<V6_vminh,  V6_vmaxh,  vselect,  setge, VecQ16, HVI16>;
+    defm: MinMax_pats<V6_vminuh, V6_vmaxuh, vselect, setugt, VecQ16, HVI16>;
+    defm: MinMax_pats<V6_vminuh, V6_vmaxuh, vselect, setuge, VecQ16, HVI16>;
+    defm: MinMax_pats<V6_vminw,  V6_vmaxw,  vselect,  setgt, VecQ32, HVI32>;
+    defm: MinMax_pats<V6_vminw,  V6_vmaxw,  vselect,  setge, VecQ32, HVI32>;
+  }
+}
 
 let Predicates = [UseHVX] in {
   let AddedComplexity = 200 in {

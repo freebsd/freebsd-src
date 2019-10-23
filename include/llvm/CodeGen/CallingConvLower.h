@@ -20,6 +20,7 @@
 #include "llvm/CodeGen/TargetCallingConv.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/MC/MCRegisterInfo.h"
+#include "llvm/Support/Alignment.h"
 
 namespace llvm {
 
@@ -43,6 +44,7 @@ public:
     AExtUpper, // The value is in the upper bits of the location and should be
                // extended with undefined upper bits when retrieved.
     BCvt,      // The value is bit-converted in the location.
+    Trunc,     // The value is truncated in the location.
     VExt,      // The value is vector-widened in the location.
                // FIXME: Not implemented yet. Code that uses AExt to mean
                // vector-widen should be fixed to use VExt instead.
@@ -197,7 +199,7 @@ private:
   LLVMContext &Context;
 
   unsigned StackOffset;
-  unsigned MaxStackArgAlign;
+  Align MaxStackArgAlign;
   SmallVector<uint32_t, 16> UsedRegs;
   SmallVector<CCValAssign, 4> PendingLocs;
   SmallVector<ISD::ArgFlagsTy, 4> PendingArgFlags;
@@ -421,19 +423,19 @@ public:
 
   /// AllocateStack - Allocate a chunk of stack space with the specified size
   /// and alignment.
-  unsigned AllocateStack(unsigned Size, unsigned Align) {
-    assert(Align && ((Align - 1) & Align) == 0); // Align is power of 2.
-    StackOffset = alignTo(StackOffset, Align);
+  unsigned AllocateStack(unsigned Size, unsigned Alignment) {
+    const Align CheckedAlignment(Alignment);
+    StackOffset = alignTo(StackOffset, CheckedAlignment);
     unsigned Result = StackOffset;
     StackOffset += Size;
-    MaxStackArgAlign = std::max(Align, MaxStackArgAlign);
-    ensureMaxAlignment(Align);
+    MaxStackArgAlign = std::max(CheckedAlignment, MaxStackArgAlign);
+    ensureMaxAlignment(CheckedAlignment);
     return Result;
   }
 
-  void ensureMaxAlignment(unsigned Align) {
+  void ensureMaxAlignment(Align Alignment) {
     if (!AnalyzingMustTailForwardedRegs)
-      MF.getFrameInfo().ensureMaxAlignment(Align);
+      MF.getFrameInfo().ensureMaxAlignment(Alignment.value());
   }
 
   /// Version of AllocateStack with extra register to be shadowed.

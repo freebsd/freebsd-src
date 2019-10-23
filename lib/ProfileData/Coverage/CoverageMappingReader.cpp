@@ -506,7 +506,7 @@ public:
       return make_error<CoverageMapError>(coveragemap_error::malformed);
     // Each coverage map has an alignment of 8, so we need to adjust alignment
     // before reading the next map.
-    Buf += alignmentAdjustment(Buf, 8);
+    Buf += offsetToAlignedAddr(Buf, Align(8));
 
     auto CFR = reinterpret_cast<const FuncRecordType *>(FunBuf);
     while ((const char *)CFR < FunEnd) {
@@ -539,7 +539,7 @@ Expected<std::unique_ptr<CovMapFuncRecordReader>> CovMapFuncRecordReader::get(
 
   switch (Version) {
   case CovMapVersion::Version1:
-    return llvm::make_unique<VersionedCovMapFuncRecordReader<
+    return std::make_unique<VersionedCovMapFuncRecordReader<
         CovMapVersion::Version1, IntPtrT, Endian>>(P, R, F);
   case CovMapVersion::Version2:
   case CovMapVersion::Version3:
@@ -547,10 +547,10 @@ Expected<std::unique_ptr<CovMapFuncRecordReader>> CovMapFuncRecordReader::get(
     if (Error E = P.create(P.getNameData()))
       return std::move(E);
     if (Version == CovMapVersion::Version2)
-      return llvm::make_unique<VersionedCovMapFuncRecordReader<
+      return std::make_unique<VersionedCovMapFuncRecordReader<
           CovMapVersion::Version2, IntPtrT, Endian>>(P, R, F);
     else
-      return llvm::make_unique<VersionedCovMapFuncRecordReader<
+      return std::make_unique<VersionedCovMapFuncRecordReader<
           CovMapVersion::Version3, IntPtrT, Endian>>(P, R, F);
   }
   llvm_unreachable("Unsupported version");
@@ -648,7 +648,7 @@ loadTestingFormat(StringRef Data) {
   // Skip the padding bytes because coverage map data has an alignment of 8.
   if (CoverageMapping.empty())
     return make_error<CoverageMapError>(coveragemap_error::truncated);
-  size_t Pad = alignmentAdjustment(CoverageMapping.data(), 8);
+  size_t Pad = offsetToAlignedAddr(CoverageMapping.data(), Align(8));
   if (CoverageMapping.size() < Pad)
     return make_error<CoverageMapError>(coveragemap_error::malformed);
   CoverageMapping = CoverageMapping.substr(Pad);
@@ -666,11 +666,11 @@ static Expected<SectionRef> lookupSection(ObjectFile &OF, StringRef Name) {
   };
   Name = stripSuffix(Name);
 
-  StringRef FoundName;
   for (const auto &Section : OF.sections()) {
-    if (auto EC = Section.getName(FoundName))
-      return errorCodeToError(EC);
-    if (stripSuffix(FoundName) == Name)
+    Expected<StringRef> NameOrErr = Section.getName();
+    if (!NameOrErr)
+      return NameOrErr.takeError();
+    if (stripSuffix(*NameOrErr) == Name)
       return Section;
   }
   return make_error<CoverageMapError>(coveragemap_error::no_data_found);
@@ -682,7 +682,7 @@ loadBinaryFormat(std::unique_ptr<Binary> Bin, StringRef Arch) {
   if (auto *Universal = dyn_cast<MachOUniversalBinary>(Bin.get())) {
     // If we have a universal binary, try to look up the object for the
     // appropriate architecture.
-    auto ObjectFileOrErr = Universal->getObjectForArch(Arch);
+    auto ObjectFileOrErr = Universal->getMachOObjectForArch(Arch);
     if (!ObjectFileOrErr)
       return ObjectFileOrErr.takeError();
     OF = std::move(ObjectFileOrErr.get());

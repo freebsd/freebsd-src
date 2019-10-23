@@ -1369,9 +1369,10 @@ Error DumpOutputStyle::dumpTypesFromObjectFile() {
   LazyRandomTypeCollection Types(100);
 
   for (const auto &S : getObj().sections()) {
-    StringRef SectionName;
-    if (auto EC = S.getName(SectionName))
-      return errorCodeToError(EC);
+    Expected<StringRef> NameOrErr = S.getName();
+    if (!NameOrErr)
+      return NameOrErr.takeError();
+    StringRef SectionName = *NameOrErr;
 
     // .debug$T is a standard CodeView type section, while .debug$P is the same
     // format but used for MSVC precompiled header object files.
@@ -1551,7 +1552,7 @@ Error DumpOutputStyle::dumpModuleSymsForObj() {
         Dumper.setSymbolGroup(&Strings);
         for (auto Symbol : Symbols) {
           if (auto EC = Visitor.visitSymbolRecord(Symbol)) {
-            SymbolError = llvm::make_unique<Error>(std::move(EC));
+            SymbolError = std::make_unique<Error>(std::move(EC));
             return;
           }
         }

@@ -281,7 +281,7 @@ namespace ISD {
     /// Same as the corresponding unsaturated fixed point instructions, but the
     /// result is clamped between the min and max values representable by the
     /// bits of the first 2 operands.
-    SMULFIXSAT,
+    SMULFIXSAT, UMULFIXSAT,
 
     /// Simple binary floating point operators.
     FADD, FSUB, FMUL, FDIV, FREM,
@@ -301,6 +301,14 @@ namespace ISD {
     STRICT_FEXP, STRICT_FEXP2, STRICT_FLOG, STRICT_FLOG10, STRICT_FLOG2,
     STRICT_FRINT, STRICT_FNEARBYINT, STRICT_FMAXNUM, STRICT_FMINNUM,
     STRICT_FCEIL, STRICT_FFLOOR, STRICT_FROUND, STRICT_FTRUNC,
+    STRICT_LROUND, STRICT_LLROUND, STRICT_LRINT, STRICT_LLRINT,
+
+    /// STRICT_FP_TO_[US]INT - Convert a floating point value to a signed or
+    /// unsigned integer. These have the same semantics as fptosi and fptoui 
+    /// in IR.
+    /// They are used to limit optimizations while the DAG is being optimized.
+    STRICT_FP_TO_SINT,
+    STRICT_FP_TO_UINT,
 
     /// X = STRICT_FP_ROUND(Y, TRUNC) - Rounding 'Y' from a larger floating 
     /// point type down to the precision of the destination VT.  TRUNC is a 
@@ -397,6 +405,13 @@ namespace ISD {
     /// are integer types.  In this case the operand is allowed to be wider
     /// than the vector element type, and is implicitly truncated to it.
     SCALAR_TO_VECTOR,
+
+    /// SPLAT_VECTOR(VAL) - Returns a vector with the scalar value VAL
+    /// duplicated in all lanes. The type of the operand must match the vector
+    /// element type, except when they are integer types.  In this case the
+    /// operand is allowed to be wider than the vector element type, and is
+    /// implicitly truncated to it.
+    SPLAT_VECTOR,
 
     /// MULHU/MULHS - Multiply high - Multiply two integers of type iN,
     /// producing an unsigned/signed value of type i[2*N], then return the top
@@ -568,13 +583,6 @@ namespace ISD {
     ///  2 Round to +inf
     ///  3 Round to -inf
     FLT_ROUNDS_,
-
-    /// X = FP_ROUND_INREG(Y, VT) - This operator takes an FP register, and
-    /// rounds it to a floating point value.  It then promotes it and returns it
-    /// in a register of the same size.  This operation effectively just
-    /// discards excess precision.  The type to round down to is specified by
-    /// the VT operand, a VTSDNode.
-    FP_ROUND_INREG,
 
     /// X = FP_EXTEND(Y) - Extend a smaller FP type into a larger FP type.
     FP_EXTEND,
@@ -956,6 +964,23 @@ namespace ISD {
   };
 
   static const int LAST_INDEXED_MODE = POST_DEC + 1;
+
+  //===--------------------------------------------------------------------===//
+  /// MemIndexType enum - This enum defines how to interpret MGATHER/SCATTER's
+  /// index parameter when calculating addresses.
+  ///
+  /// SIGNED_SCALED     Addr = Base + ((signed)Index * sizeof(element))
+  /// SIGNED_UNSCALED   Addr = Base + (signed)Index
+  /// UNSIGNED_SCALED   Addr = Base + ((unsigned)Index * sizeof(element))
+  /// UNSIGNED_UNSCALED Addr = Base + (unsigned)Index
+  enum MemIndexType {
+    SIGNED_SCALED = 0,
+    SIGNED_UNSCALED,
+    UNSIGNED_SCALED,
+    UNSIGNED_UNSCALED
+  };
+
+  static const int LAST_MEM_INDEX_TYPE = UNSIGNED_UNSCALED + 1;
 
   //===--------------------------------------------------------------------===//
   /// LoadExtType enum - This enum defines the three variants of LOADEXT

@@ -209,8 +209,10 @@ public:
 
   unsigned getUsedLQEntries() const { return UsedLQEntries; }
   unsigned getUsedSQEntries() const { return UsedSQEntries; }
-  unsigned assignLQSlot() { return UsedLQEntries++; }
-  unsigned assignSQSlot() { return UsedSQEntries++; }
+  void acquireLQSlot() { ++UsedLQEntries; }
+  void acquireSQSlot() { ++UsedSQEntries; }
+  void releaseLQSlot() { --UsedLQEntries; }
+  void releaseSQSlot() { --UsedSQEntries; }
 
   bool assumeNoAlias() const { return NoAlias; }
 
@@ -285,12 +287,17 @@ public:
 
   unsigned createMemoryGroup() {
     Groups.insert(
-        std::make_pair(NextGroupID, llvm::make_unique<MemoryGroup>()));
+        std::make_pair(NextGroupID, std::make_unique<MemoryGroup>()));
     return NextGroupID++;
   }
 
-  // Instruction executed event handlers.
   virtual void onInstructionExecuted(const InstRef &IR);
+
+  // Loads are tracked by the LDQ (load queue) from dispatch until completion.
+  // Stores are tracked by the STQ (store queue) from dispatch until commitment.
+  // By default we conservatively assume that the LDQ receives a load at
+  // dispatch. Loads leave the LDQ at retirement stage.
+  virtual void onInstructionRetired(const InstRef &IR);
 
   virtual void onInstructionIssued(const InstRef &IR) {
     unsigned GroupID = IR.getInstruction()->getLSUTokenID();
@@ -436,9 +443,6 @@ public:
   /// 6. A store has to wait until an older store barrier is fully executed.
   unsigned dispatch(const InstRef &IR) override;
 
-  // FIXME: For simplicity, we optimistically assume a similar behavior for
-  // store instructions. In practice, store operations don't tend to leave the
-  // store queue until they reach the 'Retired' stage (See PR39830).
   void onInstructionExecuted(const InstRef &IR) override;
 };
 

@@ -106,6 +106,7 @@
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CodeGen.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Target/TargetMachine.h"
 #include <cassert>
 
@@ -115,9 +116,9 @@ using namespace llvm;
 
 #define AARCH64_SPECULATION_HARDENING_NAME "AArch64 speculation hardening pass"
 
-cl::opt<bool> HardenLoads("aarch64-slh-loads", cl::Hidden,
-                          cl::desc("Sanitize loads from memory."),
-                          cl::init(true));
+static cl::opt<bool> HardenLoads("aarch64-slh-loads", cl::Hidden,
+                                 cl::desc("Sanitize loads from memory."),
+                                 cl::init(true));
 
 namespace {
 
@@ -521,7 +522,7 @@ bool AArch64SpeculationHardening::slhLoads(MachineBasicBlock &MBB) {
       for (auto Use : MI.uses()) {
         if (!Use.isReg())
           continue;
-        unsigned Reg = Use.getReg();
+        Register Reg = Use.getReg();
         // Some loads of floating point data have implicit defs/uses on a
         // super register of that floating point data. Some examples:
         // $s0 = LDRSui $sp, 22, implicit-def $q0
@@ -561,8 +562,8 @@ bool AArch64SpeculationHardening::expandSpeculationSafeValue(
     // miss-speculation isn't happening because we're already inserting barriers
     // to guarantee that.
     if (!UseControlFlowSpeculationBarrier && !UsesFullSpeculationBarrier) {
-      unsigned DstReg = MI.getOperand(0).getReg();
-      unsigned SrcReg = MI.getOperand(1).getReg();
+      Register DstReg = MI.getOperand(0).getReg();
+      Register SrcReg = MI.getOperand(1).getReg();
       // Mark this register and all its aliasing registers as needing to be
       // value speculation hardened before its next use, by using a CSDB
       // barrier instruction.

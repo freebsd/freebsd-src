@@ -329,6 +329,7 @@ class PrinterContext {
 
   ScopedPrinter &SW;
   const object::ELFFile<ET> *ELF;
+  StringRef FileName;
   const Elf_Shdr *Symtab;
   ArrayRef<Elf_Word> ShndxTable;
 
@@ -352,8 +353,8 @@ class PrinterContext {
 
 public:
   PrinterContext(ScopedPrinter &SW, const object::ELFFile<ET> *ELF,
-                 const Elf_Shdr *Symtab)
-      : SW(SW), ELF(ELF), Symtab(Symtab) {}
+                 StringRef FileName, const Elf_Shdr *Symtab)
+      : SW(SW), ELF(ELF), FileName(FileName), Symtab(Symtab) {}
 
   void PrintUnwindInformation() const;
 };
@@ -369,10 +370,10 @@ PrinterContext<ET>::FunctionAtAddress(unsigned Section,
     return readobj_error::unknown_symbol;
   auto StrTableOrErr = ELF->getStringTableForSymtab(*Symtab);
   if (!StrTableOrErr)
-    error(StrTableOrErr.takeError());
+    reportError(StrTableOrErr.takeError(), FileName);
   StringRef StrTable = *StrTableOrErr;
 
-  for (const Elf_Sym &Sym : unwrapOrError(ELF->symbols(Symtab)))
+  for (const Elf_Sym &Sym : unwrapOrError(FileName, ELF->symbols(Symtab)))
     if (Sym.st_shndx == Section && Sym.st_value == Address &&
         Sym.getType() == ELF::STT_FUNC) {
       auto NameOrErr = Sym.getName(StrTable);
@@ -398,16 +399,16 @@ PrinterContext<ET>::FindExceptionTable(unsigned IndexSectionIndex,
   /// handling table.  Use this symbol to recover the actual exception handling
   /// table.
 
-  for (const Elf_Shdr &Sec : unwrapOrError(ELF->sections())) {
+  for (const Elf_Shdr &Sec : unwrapOrError(FileName, ELF->sections())) {
     if (Sec.sh_type != ELF::SHT_REL || Sec.sh_info != IndexSectionIndex)
       continue;
 
     auto SymTabOrErr = ELF->getSection(Sec.sh_link);
     if (!SymTabOrErr)
-      error(SymTabOrErr.takeError());
+      reportError(SymTabOrErr.takeError(), FileName);
     const Elf_Shdr *SymTab = *SymTabOrErr;
 
-    for (const Elf_Rel &R : unwrapOrError(ELF->rels(&Sec))) {
+    for (const Elf_Rel &R : unwrapOrError(FileName, ELF->rels(&Sec))) {
       if (R.r_offset != static_cast<unsigned>(IndexTableOffset))
         continue;
 
@@ -417,7 +418,7 @@ PrinterContext<ET>::FindExceptionTable(unsigned IndexSectionIndex,
       RelA.r_addend = 0;
 
       const Elf_Sym *Symbol =
-          unwrapOrError(ELF->getRelocationSymbol(&RelA, SymTab));
+          unwrapOrError(FileName, ELF->getRelocationSymbol(&RelA, SymTab));
 
       auto Ret = ELF->getSection(Symbol, SymTab, ShndxTable);
       if (!Ret)
@@ -570,7 +571,7 @@ void PrinterContext<ET>::PrintUnwindInformation() const {
   DictScope UI(SW, "UnwindInformation");
 
   int SectionIndex = 0;
-  for (const Elf_Shdr &Sec : unwrapOrError(ELF->sections())) {
+  for (const Elf_Shdr &Sec : unwrapOrError(FileName, ELF->sections())) {
     if (Sec.sh_type == ELF::SHT_ARM_EXIDX) {
       DictScope UIT(SW, "UnwindIndexTable");
 

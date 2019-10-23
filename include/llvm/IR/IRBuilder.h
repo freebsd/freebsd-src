@@ -1461,7 +1461,7 @@ public:
     if (Value *V = foldConstant(Opc, LHS, RHS, Name)) return V;
     Instruction *BinOp = BinaryOperator::Create(Opc, LHS, RHS);
     if (isa<FPMathOperator>(BinOp))
-      BinOp = setFPAttrs(BinOp, FPMathTag, FMF);
+      setFPAttrs(BinOp, FPMathTag, FMF);
     return Insert(BinOp, Name);
   }
 
@@ -1479,7 +1479,8 @@ public:
 
     CallInst *C = CreateIntrinsic(ID, {L->getType()},
                                   {L, R, RoundingV, ExceptV}, nullptr, Name);
-    return cast<CallInst>(setFPAttrs(C, FPMathTag, UseFMF));
+    setFPAttrs(C, FPMathTag, UseFMF);
+    return C;
   }
 
   Value *CreateNeg(Value *V, const Twine &Name = "",
@@ -1504,7 +1505,7 @@ public:
                     MDNode *FPMathTag = nullptr) {
     if (auto *VC = dyn_cast<Constant>(V))
       return Insert(Folder.CreateFNeg(VC), Name);
-    return Insert(setFPAttrs(BinaryOperator::CreateFNeg(V), FPMathTag, FMF),
+    return Insert(setFPAttrs(UnaryOperator::CreateFNeg(V), FPMathTag, FMF),
                   Name);
   }
 
@@ -1514,9 +1515,7 @@ public:
                        const Twine &Name = "") {
    if (auto *VC = dyn_cast<Constant>(V))
      return Insert(Folder.CreateFNeg(VC), Name);
-   // TODO: This should return UnaryOperator::CreateFNeg(...) once we are
-   // confident that they are optimized sufficiently.
-   return Insert(setFPAttrs(BinaryOperator::CreateFNeg(V), nullptr,
+   return Insert(setFPAttrs(UnaryOperator::CreateFNeg(V), nullptr,
                             FMFSource->getFastMathFlags()),
                  Name);
   }
@@ -1534,7 +1533,7 @@ public:
       return Insert(Folder.CreateUnOp(Opc, VC), Name);
     Instruction *UnOp = UnaryOperator::Create(Opc, V);
     if (isa<FPMathOperator>(UnOp))
-      UnOp = setFPAttrs(UnOp, FPMathTag, FMF);
+      setFPAttrs(UnOp, FPMathTag, FMF);
     return Insert(UnOp, Name);
   }
 
@@ -1612,19 +1611,19 @@ public:
   LoadInst *CreateAlignedLoad(Type *Ty, Value *Ptr, unsigned Align,
                               const char *Name) {
     LoadInst *LI = CreateLoad(Ty, Ptr, Name);
-    LI->setAlignment(Align);
+    LI->setAlignment(MaybeAlign(Align));
     return LI;
   }
   LoadInst *CreateAlignedLoad(Type *Ty, Value *Ptr, unsigned Align,
                               const Twine &Name = "") {
     LoadInst *LI = CreateLoad(Ty, Ptr, Name);
-    LI->setAlignment(Align);
+    LI->setAlignment(MaybeAlign(Align));
     return LI;
   }
   LoadInst *CreateAlignedLoad(Type *Ty, Value *Ptr, unsigned Align,
                               bool isVolatile, const Twine &Name = "") {
     LoadInst *LI = CreateLoad(Ty, Ptr, isVolatile, Name);
-    LI->setAlignment(Align);
+    LI->setAlignment(MaybeAlign(Align));
     return LI;
   }
 
@@ -1649,7 +1648,7 @@ public:
   StoreInst *CreateAlignedStore(Value *Val, Value *Ptr, unsigned Align,
                                 bool isVolatile = false) {
     StoreInst *SI = CreateStore(Val, Ptr, isVolatile);
-    SI->setAlignment(Align);
+    SI->setAlignment(MaybeAlign(Align));
     return SI;
   }
 
@@ -1913,11 +1912,17 @@ public:
     return V;
   }
 
-  Value *CreateFPToUI(Value *V, Type *DestTy, const Twine &Name = ""){
+  Value *CreateFPToUI(Value *V, Type *DestTy, const Twine &Name = "") {
+    if (IsFPConstrained)
+      return CreateConstrainedFPCast(Intrinsic::experimental_constrained_fptoui,
+                                     V, DestTy, nullptr, Name);
     return CreateCast(Instruction::FPToUI, V, DestTy, Name);
   }
 
-  Value *CreateFPToSI(Value *V, Type *DestTy, const Twine &Name = ""){
+  Value *CreateFPToSI(Value *V, Type *DestTy, const Twine &Name = "") {
+    if (IsFPConstrained)
+      return CreateConstrainedFPCast(Intrinsic::experimental_constrained_fptosi,
+                                     V, DestTy, nullptr, Name);
     return CreateCast(Instruction::FPToSI, V, DestTy, Name);
   }
 
@@ -1931,10 +1936,17 @@ public:
 
   Value *CreateFPTrunc(Value *V, Type *DestTy,
                        const Twine &Name = "") {
+    if (IsFPConstrained)
+      return CreateConstrainedFPCast(
+          Intrinsic::experimental_constrained_fptrunc, V, DestTy, nullptr,
+          Name);
     return CreateCast(Instruction::FPTrunc, V, DestTy, Name);
   }
 
   Value *CreateFPExt(Value *V, Type *DestTy, const Twine &Name = "") {
+    if (IsFPConstrained)
+      return CreateConstrainedFPCast(Intrinsic::experimental_constrained_fpext,
+                                     V, DestTy, nullptr, Name);
     return CreateCast(Instruction::FPExt, V, DestTy, Name);
   }
 
@@ -2044,6 +2056,37 @@ public:
     if (auto *VC = dyn_cast<Constant>(V))
       return Insert(Folder.CreateFPCast(VC, DestTy), Name);
     return Insert(CastInst::CreateFPCast(V, DestTy), Name);
+  }
+
+  CallInst *CreateConstrainedFPCast(
+      Intrinsic::ID ID, Value *V, Type *DestTy,
+      Instruction *FMFSource = nullptr, const Twine &Name = "",
+      MDNode *FPMathTag = nullptr,
+      Optional<ConstrainedFPIntrinsic::RoundingMode> Rounding = None,
+      Optional<ConstrainedFPIntrinsic::ExceptionBehavior> Except = None) {
+    Value *ExceptV = getConstrainedFPExcept(Except);
+
+    FastMathFlags UseFMF = FMF;
+    if (FMFSource)
+      UseFMF = FMFSource->getFastMathFlags();
+
+    CallInst *C;
+    switch (ID) {
+    default: {
+      Value *RoundingV = getConstrainedFPRounding(Rounding);
+      C = CreateIntrinsic(ID, {DestTy, V->getType()}, {V, RoundingV, ExceptV},
+                          nullptr, Name);
+    } break;
+    case Intrinsic::experimental_constrained_fpext:
+    case Intrinsic::experimental_constrained_fptoui:
+    case Intrinsic::experimental_constrained_fptosi:
+      C = CreateIntrinsic(ID, {DestTy, V->getType()}, {V, ExceptV}, nullptr,
+                          Name);
+      break;
+    }
+    if (isa<FPMathOperator>(C))
+      setFPAttrs(C, FPMathTag, UseFMF);
+    return C;
   }
 
   // Provided to resolve 'CreateIntCast(Ptr, Ptr, "...")', giving a
@@ -2187,7 +2230,10 @@ public:
 
   PHINode *CreatePHI(Type *Ty, unsigned NumReservedValues,
                      const Twine &Name = "") {
-    return Insert(PHINode::Create(Ty, NumReservedValues), Name);
+    PHINode *Phi = PHINode::Create(Ty, NumReservedValues);
+    if (isa<FPMathOperator>(Phi))
+      setFPAttrs(Phi, nullptr /* MDNode* */, FMF);
+    return Insert(Phi, Name);
   }
 
   CallInst *CreateCall(FunctionType *FTy, Value *Callee,
@@ -2195,7 +2241,7 @@ public:
                        MDNode *FPMathTag = nullptr) {
     CallInst *CI = CallInst::Create(FTy, Callee, Args, DefaultOperandBundles);
     if (isa<FPMathOperator>(CI))
-      CI = cast<CallInst>(setFPAttrs(CI, FPMathTag, FMF));
+      setFPAttrs(CI, FPMathTag, FMF);
     return Insert(CI, Name);
   }
 
@@ -2204,7 +2250,7 @@ public:
                        const Twine &Name = "", MDNode *FPMathTag = nullptr) {
     CallInst *CI = CallInst::Create(FTy, Callee, Args, OpBundles);
     if (isa<FPMathOperator>(CI))
-      CI = cast<CallInst>(setFPAttrs(CI, FPMathTag, FMF));
+      setFPAttrs(CI, FPMathTag, FMF);
     return Insert(CI, Name);
   }
 
@@ -2252,7 +2298,7 @@ public:
       Sel = addBranchMetadata(Sel, Prof, Unpred);
     }
     if (isa<FPMathOperator>(Sel))
-      Sel = cast<SelectInst>(setFPAttrs(Sel, nullptr /* MDNode* */, FMF));
+      setFPAttrs(Sel, nullptr /* MDNode* */, FMF);
     return Insert(Sel, Name);
   }
 
@@ -2454,7 +2500,7 @@ public:
   }
 
   Value *CreatePreserveArrayAccessIndex(Value *Base, unsigned Dimension,
-                                        unsigned LastIndex) {
+                                        unsigned LastIndex, MDNode *DbgInfo) {
     assert(isa<PointerType>(Base->getType()) &&
            "Invalid Base ptr type for preserve.array.access.index.");
     auto *BaseType = Base->getType();
@@ -2476,6 +2522,8 @@ public:
     Value *DimV = getInt32(Dimension);
     CallInst *Fn =
         CreateCall(FnPreserveArrayAccessIndex, {Base, DimV, LastIndexV});
+    if (DbgInfo)
+      Fn->setMetadata(LLVMContext::MD_preserve_access_index, DbgInfo);
 
     return Fn;
   }
@@ -2493,7 +2541,8 @@ public:
     Value *DIIndex = getInt32(FieldIndex);
     CallInst *Fn =
         CreateCall(FnPreserveUnionAccessIndex, {Base, DIIndex});
-    Fn->setMetadata(LLVMContext::MD_preserve_access_index, DbgInfo);
+    if (DbgInfo)
+      Fn->setMetadata(LLVMContext::MD_preserve_access_index, DbgInfo);
 
     return Fn;
   }
@@ -2516,7 +2565,8 @@ public:
     Value *DIIndex = getInt32(FieldIndex);
     CallInst *Fn = CreateCall(FnPreserveStructAccessIndex,
                               {Base, GEPIndex, DIIndex});
-    Fn->setMetadata(LLVMContext::MD_preserve_access_index, DbgInfo);
+    if (DbgInfo)
+      Fn->setMetadata(LLVMContext::MD_preserve_access_index, DbgInfo);
 
     return Fn;
   }

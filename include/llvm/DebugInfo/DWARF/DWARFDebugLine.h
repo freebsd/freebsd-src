@@ -18,6 +18,7 @@
 #include "llvm/DebugInfo/DWARF/DWARFRelocMap.h"
 #include "llvm/DebugInfo/DWARF/DWARFTypeUnit.h"
 #include "llvm/Support/MD5.h"
+#include "llvm/Support/Path.h"
 #include <cstdint>
 #include <map>
 #include <string>
@@ -128,13 +129,15 @@ public:
 
     bool hasFileAtIndex(uint64_t FileIndex) const;
 
-    bool getFileNameByIndex(uint64_t FileIndex, StringRef CompDir,
-                            DILineInfoSpecifier::FileLineInfoKind Kind,
-                            std::string &Result) const;
+    bool
+    getFileNameByIndex(uint64_t FileIndex, StringRef CompDir,
+                       DILineInfoSpecifier::FileLineInfoKind Kind,
+                       std::string &Result,
+                       sys::path::Style Style = sys::path::Style::native) const;
 
     void clear();
     void dump(raw_ostream &OS, DIDumpOptions DumpOptions) const;
-    Error parse(const DWARFDataExtractor &DebugLineData, uint32_t *OffsetPtr,
+    Error parse(const DWARFDataExtractor &DebugLineData, uint64_t *OffsetPtr,
                 const DWARFContext &Ctx, const DWARFUnit *U = nullptr);
   };
 
@@ -278,7 +281,7 @@ public:
 
     /// Parse prologue and all rows.
     Error parse(
-        DWARFDataExtractor &DebugLineData, uint32_t *OffsetPtr,
+        DWARFDataExtractor &DebugLineData, uint64_t *OffsetPtr,
         const DWARFContext &Ctx, const DWARFUnit *U,
         std::function<void(Error)> RecoverableErrorCallback,
         raw_ostream *OS = nullptr);
@@ -305,9 +308,9 @@ public:
                                 std::vector<uint32_t> &Result) const;
   };
 
-  const LineTable *getLineTable(uint32_t Offset) const;
+  const LineTable *getLineTable(uint64_t Offset) const;
   Expected<const LineTable *> getOrParseLineTable(
-      DWARFDataExtractor &DebugLineData, uint32_t Offset,
+      DWARFDataExtractor &DebugLineData, uint64_t Offset,
       const DWARFContext &Ctx, const DWARFUnit *U,
       std::function<void(Error)> RecoverableErrorCallback);
 
@@ -350,17 +353,17 @@ public:
     bool done() const { return Done; }
 
     /// Get the offset the parser has reached.
-    uint32_t getOffset() const { return Offset; }
+    uint64_t getOffset() const { return Offset; }
 
   private:
-    DWARFUnit *prepareToParse(uint32_t Offset);
-    void moveToNextTable(uint32_t OldOffset, const Prologue &P);
+    DWARFUnit *prepareToParse(uint64_t Offset);
+    void moveToNextTable(uint64_t OldOffset, const Prologue &P);
 
     LineToUnitMap LineToUnit;
 
     DWARFDataExtractor &DebugLineData;
     const DWARFContext &Context;
-    uint32_t Offset = 0;
+    uint64_t Offset = 0;
     bool Done = false;
   };
 
@@ -377,7 +380,7 @@ private:
     struct Sequence Sequence;
   };
 
-  using LineTableMapTy = std::map<uint32_t, LineTable>;
+  using LineTableMapTy = std::map<uint64_t, LineTable>;
   using LineTableIter = LineTableMapTy::iterator;
   using LineTableConstIter = LineTableMapTy::const_iterator;
 
