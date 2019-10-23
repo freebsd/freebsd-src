@@ -32,7 +32,7 @@
 #  define _GNUC_VER_NEW 0
 #endif
 
-#define _LIBCPP_VERSION 9000
+#define _LIBCPP_VERSION 10000
 
 #ifndef _LIBCPP_ABI_VERSION
 #  define _LIBCPP_ABI_VERSION 1
@@ -183,10 +183,6 @@
 #  define _LIBCPP_COMPILER_IBM
 #endif
 
-#ifndef _LIBCPP_CLANG_VER
-#define _LIBCPP_CLANG_VER 0
-#endif
-
 #if defined(_LIBCPP_COMPILER_GCC) && __cplusplus < 201103L
 #error "libc++ does not support using GCC with C++03. Please enable C++11"
 #endif
@@ -246,6 +242,7 @@
 
 #ifdef __FreeBSD__
 #  include <sys/endian.h>
+#  include <osreldate.h>
 #  if _BYTE_ORDER == _LITTLE_ENDIAN
 #    define _LIBCPP_LITTLE_ENDIAN
 #  else  // _BYTE_ORDER == _LITTLE_ENDIAN
@@ -483,10 +480,13 @@ typedef __char32_t char32_t;
 
 #define _LIBCPP_ALWAYS_INLINE __attribute__ ((__always_inline__))
 
-// No apple compilers support ""d and ""y at this time.
-#if _LIBCPP_CLANG_VER < 800 || defined(__apple_build_version__)
-#define	_LIBCPP_HAS_NO_CXX20_CHRONO_LITERALS
+// Literal operators ""d and ""y are supported starting with LLVM Clang 8 and AppleClang 10.0.1
+#if (defined(_LIBCPP_CLANG_VER) && _LIBCPP_CLANG_VER < 800) || \
+    (defined(__apple_build_version__) && __apple_build_version__ < 10010000)
+#define _LIBCPP_HAS_NO_CXX20_CHRONO_LITERALS
 #endif
+
+#define _LIBCPP_DISABLE_EXTENSION_WARNING __extension__
 
 #elif defined(_LIBCPP_COMPILER_GCC)
 
@@ -523,6 +523,8 @@ typedef __char32_t char32_t;
 
 #define _LIBCPP_ALWAYS_INLINE __attribute__ ((__always_inline__))
 
+#define _LIBCPP_DISABLE_EXTENSION_WARNING __extension__
+
 #elif defined(_LIBCPP_COMPILER_MSVC)
 
 #define _LIBCPP_TOSTRING2(x) #x
@@ -548,6 +550,8 @@ typedef __char32_t char32_t;
 
 #define _LIBCPP_HAS_NO_VECTOR_EXTENSION
 
+#define _LIBCPP_DISABLE_EXTENSION_WARNING
+
 #elif defined(_LIBCPP_COMPILER_IBM)
 
 #define _ALIGNAS(x) __attribute__((__aligned__(x)))
@@ -567,6 +571,8 @@ typedef __char32_t char32_t;
 #define _LIBCPP_ALWAYS_INLINE __attribute__ ((__always_inline__))
 
 #define _LIBCPP_HAS_NO_VECTOR_EXTENSION
+
+#define _LIBCPP_DISABLE_EXTENSION_WARNING
 
 #endif // _LIBCPP_COMPILER_[CLANG|GCC|MSVC|IBM]
 
@@ -958,6 +964,20 @@ typedef unsigned int   char32_t;
 #  define _LIBCPP_DEPRECATED_IN_CXX17
 #endif
 
+// Macros to enter and leave a state where deprecation warnings are suppressed.
+#if !defined(_LIBCPP_SUPPRESS_DEPRECATED_PUSH) && \
+    (defined(_LIBCPP_COMPILER_CLANG) || defined(_LIBCPP_COMPILER_GCC))
+#  define _LIBCPP_SUPPRESS_DEPRECATED_PUSH \
+    _Pragma("GCC diagnostic push") \
+    _Pragma("GCC diagnostic ignored \"-Wdeprecated\"")
+#  define _LIBCPP_SUPPRESS_DEPRECATED_POP \
+    _Pragma("GCC diagnostic pop")
+#endif
+#if !defined(_LIBCPP_SUPPRESS_DEPRECATED_PUSH)
+#  define _LIBCPP_SUPPRESS_DEPRECATED_PUSH
+#  define _LIBCPP_SUPPRESS_DEPRECATED_POP
+#endif
+
 #if _LIBCPP_STD_VER <= 11
 #  define _LIBCPP_EXPLICIT_AFTER_CXX11
 #else
@@ -1082,6 +1102,16 @@ _LIBCPP_FUNC_VIS extern "C" void __sanitizer_annotate_contiguous_container(
 #  endif // _LIBCPP_HAS_THREAD_API
 #endif // _LIBCPP_HAS_NO_THREADS
 
+#if defined(_LIBCPP_HAS_THREAD_API_PTHREAD)
+#if defined(__ANDROID__) && __ANDROID_API__ >= 30
+#define _LIBCPP_HAS_COND_CLOCKWAIT
+#elif defined(_LIBCPP_GLIBC_PREREQ)
+#if _LIBCPP_GLIBC_PREREQ(2, 30)
+#define _LIBCPP_HAS_COND_CLOCKWAIT
+#endif
+#endif
+#endif
+
 #if defined(_LIBCPP_HAS_NO_THREADS) && defined(_LIBCPP_HAS_THREAD_API_PTHREAD)
 #error _LIBCPP_HAS_THREAD_API_PTHREAD may only be defined when \
        _LIBCPP_HAS_NO_THREADS is not defined.
@@ -1097,17 +1127,35 @@ _LIBCPP_FUNC_VIS extern "C" void __sanitizer_annotate_contiguous_container(
        _LIBCPP_HAS_NO_THREADS is defined.
 #endif
 
-// The Apple, glibc, and Bionic implementation of pthreads implements
+#if defined(__STDCPP_THREADS__) && defined(_LIBCPP_HAS_NO_THREADS)
+#error _LIBCPP_HAS_NO_THREADS cannot be set when __STDCPP_THREADS__ is set.
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_THREADS) && !defined(__STDCPP_THREADS__)
+#define __STDCPP_THREADS__ 1
+#endif
+
+// The glibc and Bionic implementation of pthreads implements
 // pthread_mutex_destroy as nop for regular mutexes. Additionally, Win32
 // mutexes have no destroy mechanism.
-// TODO(EricWF): Enable this optimization on Apple and Bionic platforms after
-// speaking to their respective stakeholders.
+//
+// This optimization can't be performed on Apple platforms, where
+// pthread_mutex_destroy can allow the kernel to release resources.
+// See https://llvm.org/D64298 for details.
+//
+// TODO(EricWF): Enable this optimization on Bionic after speaking to their
+//               respective stakeholders.
 #if (defined(_LIBCPP_HAS_THREAD_API_PTHREAD) && defined(__GLIBC__)) \
   || defined(_LIBCPP_HAS_THREAD_API_WIN32)
 # define _LIBCPP_HAS_TRIVIAL_MUTEX_DESTRUCTION
 #endif
 
 // Destroying a condvar is a nop on Windows.
+//
+// This optimization can't be performed on Apple platforms, where
+// pthread_cond_destroy can allow the kernel to release resources.
+// See https://llvm.org/D64298 for details.
+//
 // TODO(EricWF): This is potentially true for some pthread implementations
 // as well.
 #if defined(_LIBCPP_HAS_THREAD_API_WIN32)
@@ -1127,6 +1175,14 @@ _LIBCPP_FUNC_VIS extern "C" void __sanitizer_annotate_contiguous_container(
 #ifdef __CloudABI__
 #define _LIBCPP_HAS_NO_STDIN
 #define _LIBCPP_HAS_NO_STDOUT
+#endif
+
+// Some systems do not provide gets() in their C library, for security reasons.
+#ifndef _LIBCPP_C_HAS_NO_GETS
+#  if defined(_LIBCPP_MSVCRT) || \
+      (defined(__FreeBSD_version) && __FreeBSD_version >= 1300043)
+#    define _LIBCPP_C_HAS_NO_GETS
+#  endif
 #endif
 
 #if defined(__BIONIC__) || defined(__CloudABI__) ||                            \
@@ -1224,7 +1280,7 @@ _LIBCPP_FUNC_VIS extern "C" void __sanitizer_annotate_contiguous_container(
 
 #ifndef _LIBCPP_NODEBUG_TYPE
 #if __has_attribute(__nodebug__) && \
-    (defined(_LIBCPP_COMPILER_CLANG) && _LIBCPP_CLANG_VER >= 900)
+    (defined(_LIBCPP_CLANG_VER) && _LIBCPP_CLANG_VER >= 900)
 #define _LIBCPP_NODEBUG_TYPE __attribute__((nodebug))
 #else
 #define _LIBCPP_NODEBUG_TYPE
@@ -1410,6 +1466,17 @@ _LIBCPP_FUNC_VIS extern "C" void __sanitizer_annotate_contiguous_container(
 #endif // _LIBCPP_NO_AUTO_LINK
 
 #define _LIBCPP_UNUSED_VAR(x) ((void)(x))
+
+// Configures the fopen close-on-exec mode character, if any. This string will
+// be appended to any mode string used by fstream for fopen/fdopen.
+//
+// Not all platforms support this, but it helps avoid fd-leaks on platforms that
+// do.
+#if defined(__BIONIC__)
+#  define _LIBCPP_FOPEN_CLOEXEC_MODE "e"
+#else
+#  define _LIBCPP_FOPEN_CLOEXEC_MODE
+#endif
 
 #endif // __cplusplus
 
