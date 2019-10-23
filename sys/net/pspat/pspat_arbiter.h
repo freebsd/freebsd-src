@@ -60,11 +60,11 @@ extern struct rwlocak pspat_rwlock;
  */
 extern unsigned long	      pspat_arb_loop_avg_ns;	    /* The average time it takes to run an iteration of the arbiter loop */
 extern unsigned long	      pspat_arb_loop_max_ns;	    /* Maximum time it ever took to run an iteration of the arbiter loop */
-extern unsigned long	      pspat_arb_loop_avg_reqs;	    /* TODO What is the purpose of this */
+extern unsigned long	      pspat_arb_loop_avg_reqs;	    /* Average number of requests we process per iteration */
 
 /*
  * Runs the arbiter loop
- * TODO What return codes?
+ * @returns 0
  */
 int pspat_arbiter_run(struct pspat *arb, struct pspat_dispatcher *dispatcher);
 

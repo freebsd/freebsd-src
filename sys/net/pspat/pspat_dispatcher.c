@@ -4,9 +4,18 @@
 #include <sys/types.h>
 
 /*
- * Runs the dispatch loop
- * TODO What return codes?
+ * Dispatches a mbuf
  */
+static void dispatch(struct mbuf *m) {
+	/* NOTE : Calling the below function is technically supposed to work
+	 * properly but due to some unresolved issue (potential thread conflict)
+	 * it doesn't. Hence it may be preferred to use printfs and comment
+	 * out the following statement to test the rest of the code well */
+
+	dummynet_send(m);
+}
+
+
 int pspat_dispatcher_run(struct pspat_dispatcher *d) {
 	struct pspat_mailbox *m = d->mb;
 	struct mbuf *mbf = NULL;

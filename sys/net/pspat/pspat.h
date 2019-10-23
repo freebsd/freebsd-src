@@ -20,14 +20,18 @@ void exit_pspat(void);
 
 /*
  * Creates the queue for the client
- * Returns 0 on success, or TODO What error codes can this return?
+ * @returns 0 on success or -ENOMEM if there is not enough memory to allocate a
+ * client queue
  */
 int pspat_create_client_queue(void);
 
 
 /*
- * TODO: Figure out specifics about this
- * Seems to just start up the process
+ * Sends the mbuf to the arbiter with the given arguments
+ *
+ * @mbuf the buffer to send to the arbiter
+ * @fwa the IP / scheduling arguments
+ * @returns 0 on success or a negative error code on failure
  */
 int pspat_client_handler(struct mbuf *mbuf, struct ip_fw_args *fwa);
 

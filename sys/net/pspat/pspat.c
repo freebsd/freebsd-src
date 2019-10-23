@@ -15,9 +15,14 @@ static struct pspat_system *pspat_ptr; /* For internal usage only */
 
 /* Read-write lock for `pspat_info` */
 struct rwlocak pspat_rwlock;
+
+/* Internal global lock */
 static struct mtx pspat_glock;
 
+/* Should the arbiter thread stop? */
 static bool arb_thread_stop __read_mostly = false;
+
+/* Should the dispatcher thread stop? */
 static bool dispatcher_thread_stop __read_mostly = false;
 
 /*
@@ -32,11 +37,44 @@ unsigned long	      pspat_arb_loop_avg_reqs;
 
 MALLOC_DEFINE(M_PSPAT, "pspat", "PSPAT Networking Subsystem");
 
+/*
+ * Kernel thread running the arbiter
+ *
+ * data - a generic pointer representing the arbiter to run as a worker function
+ */
 static void arbiter_worker_func(void *data);
+
+/*
+ * Kernel thread running a dispatcher
+ *
+ * data - a generic pointer representing the dispatcher to run
+ */
 static void dispatcher_worker_func(void *data);
+
+/*
+ * Removes the internal state of the PSPAT subsystem, stopping any
+ * kernel threads running on behalf of the PSPAT subsystem
+ */
 static int pspat_destroy(void);
+
+/*
+ * Sets up the internal state of the PSPAT subsystem
+ * returns 0 on success, or a negative error code on failure
+ */
 static int pspat_create(void);
+
+/*
+ * Sets up the PSPAT subsystem, including system control and the internal
+ * state.
+ * Returns 0 on success or a negative error code on failure
+ */
 static int pspat_init(void);
+
+/*
+ * Tears down the PSPAT subsystem, including system control and the internal
+ * state.
+ * Returns 0 on success or a negative error code on failure
+ */
 static void pspat_fini(void);
 
 

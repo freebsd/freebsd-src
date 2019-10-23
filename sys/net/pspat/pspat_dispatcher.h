@@ -10,13 +10,17 @@ struct pspat_dispatcher {
 };
 
 /*
- * Runs the dispatch loop
- * TODO What return codes?
+ * Runs a dispatcher one cycle.
+ *
+ * @d the dispatcher to run
+ * @returns the number of buffers dispatched
  */
 int pspat_dispatcher_run(struct pspat_dispatcher *d);
 
 /*
  * Shuts down the dispatcher
+ *
+ * @b the dispatcher to run
  */
 void pspat_dispatcher_shutdown(struct pspat_dispatcher *d);
 

@@ -9,6 +9,7 @@ static unsigned int mb_next_id = 0;
  * Enqueues a mbuf into the given client queue
  * returns -ENOBUFS if the queue is full
  */
+int
 pspat_enq_mbuf(struct pspat_queue *pq, struct mbuf *mbf) {
     struct pspat_mailbox *m;
     int err;
@@ -48,7 +49,8 @@ pspat_enq_mbuf(struct pspat_queue *pq, struct mbuf *mbf) {
     return 0;
 }
 
-int pspat_client_handler(struct mbuf *mbf, struct ip_fw_args *fwa) {
+int
+pspat_client_handler(struct mbuf *mbf, struct ip_fw_args *fwa) {
 	static struct mbuf *ins_mbf;
 	/* Avoid duplicate intake of the same packet */
 	if (mbf == ins_mbf) {
@@ -60,6 +62,8 @@ int pspat_client_handler(struct mbuf *mbf, struct ip_fw_args *fwa) {
 	int cpu, rc;
 	struct pspat_queue *pq;
 	struct pspat_arbiter *arb;
+
+    rc = 0;
 
 	rw_rlock(&pspat_rwlock);
 	arb = pspat_arb;
