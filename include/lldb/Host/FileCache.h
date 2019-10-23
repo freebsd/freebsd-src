@@ -14,6 +14,7 @@
 #include "lldb/lldb-forward.h"
 #include "lldb/lldb-types.h"
 
+#include "lldb/Host/File.h"
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/Status.h"
 
@@ -22,12 +23,12 @@ class FileCache {
 private:
   FileCache() {}
 
-  typedef std::map<lldb::user_id_t, lldb::FileSP> FDToFileMap;
+  typedef std::map<lldb::user_id_t, lldb::FileUP> FDToFileMap;
 
 public:
   static FileCache &GetInstance();
 
-  lldb::user_id_t OpenFile(const FileSpec &file_spec, uint32_t flags,
+  lldb::user_id_t OpenFile(const FileSpec &file_spec, File::OpenOptions flags,
                            uint32_t mode, Status &error);
   bool CloseFile(lldb::user_id_t fd, Status &error);
 

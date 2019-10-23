@@ -38,8 +38,7 @@ AddressResolverFileLine::~AddressResolverFileLine() {}
 
 Searcher::CallbackReturn
 AddressResolverFileLine::SearchCallback(SearchFilter &filter,
-                                        SymbolContext &context, Address *addr,
-                                        bool containing) {
+                                        SymbolContext &context, Address *addr) {
   SymbolContextList sc_list;
   uint32_t sc_list_size;
   CompileUnit *cu = context.comp_unit;
@@ -60,15 +59,15 @@ AddressResolverFileLine::SearchCallback(SearchFilter &filter,
         if (log) {
           StreamString s;
           // new_bp_loc->GetDescription (&s, lldb::eDescriptionLevelVerbose);
-          // log->Printf ("Added address: %s\n", s.GetData());
+          // LLDB_LOGF(log, "Added address: %s\n", s.GetData());
         }
       } else {
-        if (log)
-          log->Printf(
-              "error: Unable to resolve address at file address 0x%" PRIx64
-              " for %s:%d\n",
-              line_start.GetFileAddress(),
-              m_file_spec.GetFilename().AsCString("<Unknown>"), m_line_number);
+        LLDB_LOGF(log,
+                  "error: Unable to resolve address at file address 0x%" PRIx64
+                  " for %s:%d\n",
+                  line_start.GetFileAddress(),
+                  m_file_spec.GetFilename().AsCString("<Unknown>"),
+                  m_line_number);
       }
     }
   }

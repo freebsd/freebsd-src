@@ -31,7 +31,8 @@ BreakpointResolverName::BreakpointResolverName(
       m_class_name(), m_regex(), m_match_type(type), m_language(language),
       m_skip_prologue(skip_prologue) {
   if (m_match_type == Breakpoint::Regexp) {
-    if (!m_regex.Compile(llvm::StringRef::withNullAsEmpty(name_cstr))) {
+    m_regex = RegularExpression(llvm::StringRef::withNullAsEmpty(name_cstr));
+    if (!m_regex.IsValid()) {
       Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_BREAKPOINTS));
 
       if (log)
@@ -70,12 +71,12 @@ BreakpointResolverName::BreakpointResolverName(Breakpoint *bkpt,
 }
 
 BreakpointResolverName::BreakpointResolverName(Breakpoint *bkpt,
-                                               RegularExpression &func_regex,
+                                               RegularExpression func_regex,
                                                lldb::LanguageType language,
                                                lldb::addr_t offset,
                                                bool skip_prologue)
     : BreakpointResolver(bkpt, BreakpointResolver::NameResolver, offset),
-      m_class_name(nullptr), m_regex(func_regex),
+      m_class_name(nullptr), m_regex(std::move(func_regex)),
       m_match_type(Breakpoint::Regexp), m_language(language),
       m_skip_prologue(skip_prologue) {}
 
@@ -125,9 +126,8 @@ BreakpointResolver *BreakpointResolverName::CreateFromStructuredData(
   success = options_dict.GetValueForKeyAsString(
       GetKey(OptionNames::RegexString), regex_text);
   if (success) {
-    RegularExpression regex(regex_text);
-    return new BreakpointResolverName(bkpt, regex, language, offset,
-                                      skip_prologue);
+    return new BreakpointResolverName(bkpt, RegularExpression(regex_text),
+                                      language, offset, skip_prologue);
   } else {
     StructuredData::Array *names_array;
     success = options_dict.GetValueForKeyAsArray(
@@ -250,8 +250,7 @@ void BreakpointResolverName::AddNameLookup(ConstString name,
 
 Searcher::CallbackReturn
 BreakpointResolverName::SearchCallback(SearchFilter &filter,
-                                       SymbolContext &context, Address *addr,
-                                       bool containing) {
+                                       SymbolContext &context, Address *addr) {
   SymbolContextList func_list;
   // SymbolContextList sym_list;
 
@@ -272,7 +271,6 @@ BreakpointResolverName::SearchCallback(SearchFilter &filter,
   bool filter_by_language = (m_language != eLanguageTypeUnknown);
   const bool include_symbols = !filter_by_cu;
   const bool include_inlines = true;
-  const bool append = true;
 
   switch (m_match_type) {
   case Breakpoint::Exact:
@@ -281,7 +279,7 @@ BreakpointResolverName::SearchCallback(SearchFilter &filter,
         const size_t start_func_idx = func_list.GetSize();
         context.module_sp->FindFunctions(
             lookup.GetLookupName(), nullptr, lookup.GetNameTypeMask(),
-            include_symbols, include_inlines, append, func_list);
+            include_symbols, include_inlines, func_list);
 
         const size_t end_func_idx = func_list.GetSize();
 
@@ -295,7 +293,7 @@ BreakpointResolverName::SearchCallback(SearchFilter &filter,
       context.module_sp->FindFunctions(
           m_regex,
           !filter_by_cu, // include symbols only if we aren't filtering by CU
-          include_inlines, append, func_list);
+          include_inlines, func_list);
     }
     break;
   case Breakpoint::Glob:
@@ -388,7 +386,7 @@ BreakpointResolverName::SearchCallback(SearchFilter &filter,
               if (log) {
                 StreamString s;
                 bp_loc_sp->GetDescription(&s, lldb::eDescriptionLevelVerbose);
-                log->Printf("Added location: %s\n", s.GetData());
+                LLDB_LOGF(log, "Added location: %s\n", s.GetData());
               }
             }
           }

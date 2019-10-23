@@ -44,6 +44,7 @@ class BreakpointSiteList;
 class BroadcastEventSpec;
 class Broadcaster;
 class BroadcasterManager;
+class CallFrameInfo;
 class ClangASTContext;
 class ClangASTImporter;
 class ClangASTMetadata;
@@ -331,6 +332,7 @@ typedef std::shared_ptr<lldb_private::EventDataStructuredData>
 typedef std::shared_ptr<lldb_private::ExecutionContextRef>
     ExecutionContextRefSP;
 typedef std::shared_ptr<lldb_private::ExpressionVariable> ExpressionVariableSP;
+typedef std::unique_ptr<lldb_private::File> FileUP;
 typedef std::shared_ptr<lldb_private::File> FileSP;
 typedef std::shared_ptr<lldb_private::Function> FunctionSP;
 typedef std::shared_ptr<lldb_private::FunctionCaller> FunctionCallerSP;

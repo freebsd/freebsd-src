@@ -32,14 +32,8 @@ using namespace lldb;
 using namespace lldb_private;
 
 // "register read"
-
-static constexpr OptionDefinition g_register_read_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "alternate", 'A', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,  "Display register names using the alternate register name if there is one." },
-  { LLDB_OPT_SET_1,   false, "set",       's', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeIndex, "Specify which register sets to dump by index." },
-  { LLDB_OPT_SET_2,   false, "all",       'a', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,  "Show all register sets." },
-    // clang-format on
-};
+#define LLDB_OPTIONS_register_read
+#include "CommandOptions.inc"
 
 class CommandObjectRegisterRead : public CommandObjectParsed {
 public:
@@ -212,7 +206,7 @@ protected:
           // consistent towards the user and allow them to say reg read $rbx -
           // internally, however, we should be strict and not allow ourselves
           // to call our registers $rbx in our own API
-          auto arg_str = entry.ref;
+          auto arg_str = entry.ref();
           arg_str.consume_front("$");
 
           reg_info = reg_ctx->GetRegisterInfoByName(arg_str);
@@ -278,9 +272,7 @@ protected:
         break;
 
       default:
-        error.SetErrorStringWithFormat("unrecognized short option '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
       return error;
     }
@@ -343,8 +335,8 @@ protected:
           "register write takes exactly 2 arguments: <reg-name> <value>");
       result.SetStatus(eReturnStatusFailed);
     } else {
-      auto reg_name = command[0].ref;
-      auto value_str = command[1].ref;
+      auto reg_name = command[0].ref();
+      auto value_str = command[1].ref();
 
       // in most LLDB commands we accept $rbx as the name for register RBX -
       // and here we would reject it and non-existant. we should be more
