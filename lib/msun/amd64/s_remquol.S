@@ -60,5 +60,6 @@ ENTRY(remquol)
 /* Store the quotient and return. */
 	movl	%eax,(%rdi)
 	ret
+END(remquol)
 
 	.section .note.GNU-stack,"",%progbits
