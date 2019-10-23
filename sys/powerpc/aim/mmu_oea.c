@@ -2120,23 +2120,26 @@ moea_pvo_remove(struct pvo_entry *pvo, int pteidx)
 		pvo->pvo_pmap->pm_stats.wired_count--;
 
 	/*
+	 * Remove this PVO from the PV and pmap lists.
+	 */
+	LIST_REMOVE(pvo, pvo_vlink);
+	RB_REMOVE(pvo_tree, &pvo->pvo_pmap->pmap_pvo, pvo);
+
+	/*
 	 * Save the REF/CHG bits into their cache if the page is managed.
+	 * Clear PGA_WRITEABLE if all mappings of the page have been removed.
 	 */
 	if ((pvo->pvo_vaddr & PVO_MANAGED) == PVO_MANAGED) {
-		struct	vm_page *pg;
+		struct vm_page *pg;
 
 		pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.pte.pte_lo & PTE_RPGN);
 		if (pg != NULL) {
 			moea_attr_save(pg, pvo->pvo_pte.pte.pte_lo &
 			    (PTE_REF | PTE_CHG));
+			if (LIST_EMPTY(&pg->md.mdpg_pvoh))
+				vm_page_aflag_clear(pg, PGA_WRITEABLE);
 		}
 	}
-
-	/*
-	 * Remove this PVO from the PV and pmap lists.
-	 */
-	LIST_REMOVE(pvo, pvo_vlink);
-	RB_REMOVE(pvo_tree, &pvo->pvo_pmap->pmap_pvo, pvo);
 
 	/*
 	 * Remove this from the overflow list and return it to the pool
