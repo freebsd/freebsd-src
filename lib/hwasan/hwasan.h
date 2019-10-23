@@ -74,8 +74,8 @@ extern int hwasan_report_count;
 
 bool ProtectRange(uptr beg, uptr end);
 bool InitShadow();
+void InitPrctl();
 void InitThreads();
-void InitInstrumentation();
 void MadviseShadow();
 char *GetProcSelfMaps();
 void InitializeInterceptors();
