@@ -1787,6 +1787,8 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 				    hwphyssz - physsz;
 				physsz = hwphyssz;
 				phys_avail_count++;
+				dump_avail[j] = phys_avail[j];
+				dump_avail[j + 1] = phys_avail[j + 1];
 			}
 			break;
 		}
@@ -1796,6 +1798,8 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 		    availmem_regions[i].mr_size;
 		phys_avail_count++;
 		physsz += availmem_regions[i].mr_size;
+		dump_avail[j] = phys_avail[j];
+		dump_avail[j + 1] = phys_avail[j + 1];
 	}
 	physmem = btoc(physsz);
 
