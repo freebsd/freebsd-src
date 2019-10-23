@@ -88,14 +88,16 @@
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/vnet.h>
-#ifdef INET
 #include <netinet/in.h>
+#ifdef INET
 #include <netinet/ip.h>
+#endif
+#ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#endif
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
-#endif
 #include <net/bpf.h>
 #include <net/if_tap.h>
 #include <net/if_tun.h>
