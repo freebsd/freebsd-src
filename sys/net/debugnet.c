@@ -826,6 +826,15 @@ debugnet_any_ifnet_update(struct ifnet *ifp)
 	nmbuf = ncl * (4 + nrxr);
 	ncl *= nrxr;
 
+	/*
+	 * Bandaid for drivers that (incorrectly) advertise LinkUp before their
+	 * dn_init method is available.
+	 */
+	if (nmbuf == 0 || ncl == 0 || clsize == 0) {
+		printf("%s: Bad dn_init result from %s (ifp %p), ignoring.\n",
+		    __func__, if_name(ifp), ifp);
+		return;
+	}
 	dn_maybe_reinit_mbufs(nmbuf, ncl, clsize);
 }
 
