@@ -747,12 +747,6 @@ axp8xx_write(device_t dev, uint8_t reg, uint8_t val)
 }
 
 static int
-axp8xx_regnode_init(struct regnode *regnode)
-{
-	return (0);
-}
-
-static int
 axp8xx_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 {
 	struct axp8xx_reg_sc *sc;
@@ -869,7 +863,6 @@ axp8xx_regnode_get_voltage(struct regnode *regnode, int *uvolt)
 
 static regnode_method_t axp8xx_regnode_methods[] = {
 	/* Regulator interface */
-	REGNODEMETHOD(regnode_init,		axp8xx_regnode_init),
 	REGNODEMETHOD(regnode_enable,		axp8xx_regnode_enable),
 	REGNODEMETHOD(regnode_set_voltage,	axp8xx_regnode_set_voltage),
 	REGNODEMETHOD(regnode_get_voltage,	axp8xx_regnode_get_voltage),
