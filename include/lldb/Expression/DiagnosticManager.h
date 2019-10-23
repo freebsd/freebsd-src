@@ -12,6 +12,7 @@
 #include "lldb/lldb-defines.h"
 #include "lldb/lldb-types.h"
 
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 
 #include <string>
@@ -23,7 +24,6 @@ enum DiagnosticOrigin {
   eDiagnosticOriginUnknown = 0,
   eDiagnosticOriginLLDB,
   eDiagnosticOriginClang,
-  eDiagnosticOriginGo,
   eDiagnosticOriginSwift,
   eDiagnosticOriginLLVM
 };
@@ -47,7 +47,6 @@ public:
     switch (kind) {
     case eDiagnosticOriginUnknown:
     case eDiagnosticOriginLLDB:
-    case eDiagnosticOriginGo:
     case eDiagnosticOriginLLVM:
       return true;
     case eDiagnosticOriginClang:
@@ -89,7 +88,7 @@ protected:
   uint32_t m_compiler_id; // Compiler-specific diagnostic ID
 };
 
-typedef std::vector<Diagnostic *> DiagnosticList;
+typedef std::vector<std::unique_ptr<Diagnostic>> DiagnosticList;
 
 class DiagnosticManager {
 public:
@@ -98,45 +97,33 @@ public:
     m_fixed_expression.clear();
   }
 
-  // The diagnostic manager holds a list of diagnostics, which are owned by the
-  // manager.
   const DiagnosticList &Diagnostics() { return m_diagnostics; }
 
-  ~DiagnosticManager() {
-    for (Diagnostic *diag : m_diagnostics) {
-      delete diag;
-    }
-  }
-
-  bool HasFixIts() {
-    for (Diagnostic *diag : m_diagnostics) {
-      if (diag->HasFixIts())
-        return true;
-    }
-    return false;
+  bool HasFixIts() const {
+    return llvm::any_of(m_diagnostics,
+                        [](const std::unique_ptr<Diagnostic> &diag) {
+                          return diag->HasFixIts();
+                        });
   }
 
   void AddDiagnostic(llvm::StringRef message, DiagnosticSeverity severity,
                      DiagnosticOrigin origin,
                      uint32_t compiler_id = LLDB_INVALID_COMPILER_ID) {
-    m_diagnostics.push_back(
-        new Diagnostic(message, severity, origin, compiler_id));
+    m_diagnostics.emplace_back(
+        std::make_unique<Diagnostic>(message, severity, origin, compiler_id));
   }
 
-  void AddDiagnostic(Diagnostic *diagnostic) {
-    m_diagnostics.push_back(diagnostic);
+  void AddDiagnostic(std::unique_ptr<Diagnostic> diagnostic) {
+    m_diagnostics.push_back(std::move(diagnostic));
   }
-
-  void CopyDiagnostics(DiagnosticManager &otherDiagnostics);
 
   size_t Printf(DiagnosticSeverity severity, const char *format, ...)
       __attribute__((format(printf, 3, 4)));
-  size_t PutString(DiagnosticSeverity severity, llvm::StringRef str);
+  void PutString(DiagnosticSeverity severity, llvm::StringRef str);
 
   void AppendMessageToDiagnostic(llvm::StringRef str) {
-    if (!m_diagnostics.empty()) {
+    if (!m_diagnostics.empty())
       m_diagnostics.back()->AppendMessage(str);
-    }
   }
 
   // Returns a string containing errors in this format:
@@ -153,7 +140,6 @@ public:
   // Moves fixed_expression to the internal storage.
   void SetFixedExpression(std::string fixed_expression) {
     m_fixed_expression = std::move(fixed_expression);
-    fixed_expression.clear();
   }
 
 protected:

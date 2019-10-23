@@ -33,18 +33,8 @@ using namespace lldb_private;
 
 #pragma mark CommandObjectSourceInfo
 // CommandObjectSourceInfo - debug line entries dumping command
-
-static constexpr OptionDefinition g_source_info_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL,                false, "count",    'c', OptionParser::eRequiredArgument, nullptr, {}, 0,                                         eArgTypeCount,               "The number of line entries to display." },
-  { LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "shlib",    's', OptionParser::eRequiredArgument, nullptr, {}, CommandCompletions::eModuleCompletion,     eArgTypeShlibName,           "Look up the source in the given module or shared library (can be specified more than once)." },
-  { LLDB_OPT_SET_1,                  false, "file",     'f', OptionParser::eRequiredArgument, nullptr, {}, CommandCompletions::eSourceFileCompletion, eArgTypeFilename,            "The file from which to display source." },
-  { LLDB_OPT_SET_1,                  false, "line",     'l', OptionParser::eRequiredArgument, nullptr, {}, 0,                                         eArgTypeLineNum,             "The line number at which to start the displaying lines." },
-  { LLDB_OPT_SET_1,                  false, "end-line", 'e', OptionParser::eRequiredArgument, nullptr, {}, 0,                                         eArgTypeLineNum,             "The line number at which to stop displaying lines." },
-  { LLDB_OPT_SET_2,                  false, "name",     'n', OptionParser::eRequiredArgument, nullptr, {}, CommandCompletions::eSymbolCompletion,     eArgTypeSymbol,              "The name of a function whose source to display." },
-  { LLDB_OPT_SET_3,                  false, "address",  'a', OptionParser::eRequiredArgument, nullptr, {}, 0,                                         eArgTypeAddressOrExpression, "Lookup the address and display the source information for the corresponding file and line." },
-    // clang-format on
-};
+#define LLDB_OPTIONS_source_info
+#include "CommandOptions.inc"
 
 class CommandObjectSourceInfo : public CommandObjectParsed {
   class CommandOptions : public Options {
@@ -92,9 +82,7 @@ class CommandObjectSourceInfo : public CommandObjectParsed {
         modules.push_back(std::string(option_arg));
         break;
       default:
-        error.SetErrorStringWithFormat("unrecognized short option '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
 
       return error;
@@ -404,17 +392,18 @@ protected:
     // const.
     ModuleList module_list =
         (m_module_list.GetSize() > 0) ? m_module_list : target->GetImages();
-    size_t num_matches =
-        module_list.FindFunctions(name, eFunctionNameTypeAuto,
-                                  /*include_symbols=*/false,
-                                  /*include_inlines=*/true,
-                                  /*append=*/true, sc_list_funcs);
+    module_list.FindFunctions(name, eFunctionNameTypeAuto,
+                              /*include_symbols=*/false,
+                              /*include_inlines=*/true, sc_list_funcs);
+    size_t num_matches = sc_list_funcs.GetSize();
+
     if (!num_matches) {
       // If we didn't find any functions with that name, try searching for
       // symbols that line up exactly with function addresses.
       SymbolContextList sc_list_symbols;
-      size_t num_symbol_matches = module_list.FindFunctionSymbols(
+      module_list.FindFunctionSymbols(
           name, eFunctionNameTypeAuto, sc_list_symbols);
+      size_t num_symbol_matches = sc_list_symbols.GetSize();
       for (size_t i = 0; i < num_symbol_matches; i++) {
         SymbolContext sc;
         sc_list_symbols.GetContextAtIndex(i, sc);
@@ -592,7 +581,8 @@ protected:
         FileSpec module_file_spec(m_options.modules[i]);
         if (module_file_spec) {
           ModuleSpec module_spec(module_file_spec);
-          if (target->GetImages().FindModules(module_spec, m_module_list) == 0)
+          target->GetImages().FindModules(module_spec, m_module_list);
+          if (m_module_list.IsEmpty())
             result.AppendWarningWithFormat("No module found for '%s'.\n",
                                            m_options.modules[i].c_str());
         }
@@ -643,19 +633,8 @@ protected:
 
 #pragma mark CommandObjectSourceList
 // CommandObjectSourceList
-
-static constexpr OptionDefinition g_source_list_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL,                false, "count",            'c', OptionParser::eRequiredArgument, nullptr, {}, 0,                                         eArgTypeCount,               "The number of source lines to display." },
-  { LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "shlib",            's', OptionParser::eRequiredArgument, nullptr, {}, CommandCompletions::eModuleCompletion,     eArgTypeShlibName,           "Look up the source file in the given shared library." },
-  { LLDB_OPT_SET_ALL,                false, "show-breakpoints", 'b', OptionParser::eNoArgument,       nullptr, {}, 0,                                         eArgTypeNone,                "Show the line table locations from the debug information that indicate valid places to set source level breakpoints." },
-  { LLDB_OPT_SET_1,                  false, "file",             'f', OptionParser::eRequiredArgument, nullptr, {}, CommandCompletions::eSourceFileCompletion, eArgTypeFilename,            "The file from which to display source." },
-  { LLDB_OPT_SET_1,                  false, "line",             'l', OptionParser::eRequiredArgument, nullptr, {}, 0,                                         eArgTypeLineNum,             "The line number at which to start the display source." },
-  { LLDB_OPT_SET_2,                  false, "name",             'n', OptionParser::eRequiredArgument, nullptr, {}, CommandCompletions::eSymbolCompletion,     eArgTypeSymbol,              "The name of a function whose source to display." },
-  { LLDB_OPT_SET_3,                  false, "address",          'a', OptionParser::eRequiredArgument, nullptr, {}, 0,                                         eArgTypeAddressOrExpression, "Lookup the address and display the source information for the corresponding file and line." },
-  { LLDB_OPT_SET_4,                  false, "reverse",          'r', OptionParser::eNoArgument,       nullptr, {}, 0,                                         eArgTypeNone,                "Reverse the listing to look backwards from the last displayed block of source." },
-    // clang-format on
-};
+#define LLDB_OPTIONS_source_list
+#include "CommandOptions.inc"
 
 class CommandObjectSourceList : public CommandObjectParsed {
   class CommandOptions : public Options {
@@ -704,9 +683,7 @@ class CommandObjectSourceList : public CommandObjectParsed {
         reverse = true;
         break;
       default:
-        error.SetErrorStringWithFormat("unrecognized short option '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
 
       return error;
@@ -759,7 +736,7 @@ public:
     // the arguments directly.
     auto iter =
         llvm::find_if(current_command_args, [](const Args::ArgEntry &e) {
-          return e.ref == "-r" || e.ref == "--reverse";
+          return e.ref() == "-r" || e.ref() == "--reverse";
         });
     if (iter == current_command_args.end())
       return m_cmd_name.c_str();
@@ -897,13 +874,11 @@ protected:
   // these somewhere, there should probably be a module-filter-list that can be
   // passed to the various ModuleList::Find* calls, which would either be a
   // vector of string names or a ModuleSpecList.
-  size_t FindMatchingFunctions(Target *target, ConstString name,
+  void FindMatchingFunctions(Target *target, ConstString name,
                                SymbolContextList &sc_list) {
     // Displaying the source for a symbol:
     bool include_inlines = true;
-    bool append = true;
     bool include_symbols = false;
-    size_t num_matches = 0;
 
     if (m_options.num_lines == 0)
       m_options.num_lines = 10;
@@ -917,22 +892,20 @@ protected:
           ModuleSpec module_spec(module_file_spec);
           matching_modules.Clear();
           target->GetImages().FindModules(module_spec, matching_modules);
-          num_matches += matching_modules.FindFunctions(
+          matching_modules.FindFunctions(
               name, eFunctionNameTypeAuto, include_symbols, include_inlines,
-              append, sc_list);
+              sc_list);
         }
       }
     } else {
-      num_matches = target->GetImages().FindFunctions(
-          name, eFunctionNameTypeAuto, include_symbols, include_inlines, append,
-          sc_list);
+      target->GetImages().FindFunctions(name, eFunctionNameTypeAuto,
+                                        include_symbols, include_inlines,
+                                        sc_list);
     }
-    return num_matches;
   }
 
-  size_t FindMatchingFunctionSymbols(Target *target, ConstString name,
-                                     SymbolContextList &sc_list) {
-    size_t num_matches = 0;
+  void FindMatchingFunctionSymbols(Target *target, ConstString name,
+                                   SymbolContextList &sc_list) {
     const size_t num_modules = m_options.modules.size();
     if (num_modules > 0) {
       ModuleList matching_modules;
@@ -942,15 +915,14 @@ protected:
           ModuleSpec module_spec(module_file_spec);
           matching_modules.Clear();
           target->GetImages().FindModules(module_spec, matching_modules);
-          num_matches += matching_modules.FindFunctionSymbols(
-              name, eFunctionNameTypeAuto, sc_list);
+          matching_modules.FindFunctionSymbols(name, eFunctionNameTypeAuto,
+                                               sc_list);
         }
       }
     } else {
-      num_matches = target->GetImages().FindFunctionSymbols(
-          name, eFunctionNameTypeAuto, sc_list);
+      target->GetImages().FindFunctionSymbols(name, eFunctionNameTypeAuto,
+                                              sc_list);
     }
-    return num_matches;
   }
 
   bool DoExecute(Args &command, CommandReturnObject &result) override {
@@ -970,13 +942,15 @@ protected:
       ConstString name(m_options.symbol_name.c_str());
 
       // Displaying the source for a symbol. Search for function named name.
-      size_t num_matches = FindMatchingFunctions(target, name, sc_list);
+      FindMatchingFunctions(target, name, sc_list);
+      size_t num_matches = sc_list.GetSize();
       if (!num_matches) {
         // If we didn't find any functions with that name, try searching for
         // symbols that line up exactly with function addresses.
         SymbolContextList sc_list_symbols;
-        size_t num_symbol_matches =
-            FindMatchingFunctionSymbols(target, name, sc_list_symbols);
+        FindMatchingFunctionSymbols(target, name, sc_list_symbols);
+        size_t num_symbol_matches =sc_list_symbols.GetSize();
+
         for (size_t i = 0; i < num_symbol_matches; i++) {
           SymbolContext sc;
           sc_list_symbols.GetContextAtIndex(i, sc);

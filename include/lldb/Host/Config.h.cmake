@@ -19,6 +19,8 @@
 
 #define LLDB_LIBDIR_SUFFIX "${LLVM_LIBDIR_SUFFIX}"
 
+#cmakedefine01 HAVE_SYS_TYPES_H
+
 #cmakedefine01 HAVE_SYS_EVENT_H
 
 #cmakedefine01 HAVE_PPOLL
@@ -32,5 +34,7 @@
 #ifndef HAVE_LIBCOMPRESSION
 #cmakedefine HAVE_LIBCOMPRESSION
 #endif
+
+#cmakedefine01 LLDB_ENABLE_LZMA
 
 #endif // #ifndef LLDB_HOST_CONFIG_H

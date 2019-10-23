@@ -44,7 +44,7 @@ public:
 
   // Creates a function breakpoint by regular expression.  Takes over control
   // of the lifespan of func_regex.
-  BreakpointResolverName(Breakpoint *bkpt, RegularExpression &func_regex,
+  BreakpointResolverName(Breakpoint *bkpt, RegularExpression func_regex,
                          lldb::LanguageType language, lldb::addr_t offset,
                          bool skip_prologue);
 
@@ -58,8 +58,8 @@ public:
   ~BreakpointResolverName() override;
 
   Searcher::CallbackReturn SearchCallback(SearchFilter &filter,
-                                          SymbolContext &context, Address *addr,
-                                          bool containing) override;
+                                          SymbolContext &context,
+                                          Address *addr) override;
 
   lldb::SearchDepth GetDepth() override;
 

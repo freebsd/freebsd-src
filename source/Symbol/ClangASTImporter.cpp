@@ -30,28 +30,28 @@ ClangASTMetrics::Counters ClangASTMetrics::local_counters = {0, 0, 0, 0, 0, 0};
 
 void ClangASTMetrics::DumpCounters(Log *log,
                                    ClangASTMetrics::Counters &counters) {
-  log->Printf("  Number of visible Decl queries by name     : %" PRIu64,
-              counters.m_visible_query_count);
-  log->Printf("  Number of lexical Decl queries             : %" PRIu64,
-              counters.m_lexical_query_count);
-  log->Printf("  Number of imports initiated by LLDB        : %" PRIu64,
-              counters.m_lldb_import_count);
-  log->Printf("  Number of imports conducted by Clang       : %" PRIu64,
-              counters.m_clang_import_count);
-  log->Printf("  Number of Decls completed                  : %" PRIu64,
-              counters.m_decls_completed_count);
-  log->Printf("  Number of records laid out                 : %" PRIu64,
-              counters.m_record_layout_count);
+  LLDB_LOGF(log, "  Number of visible Decl queries by name     : %" PRIu64,
+            counters.m_visible_query_count);
+  LLDB_LOGF(log, "  Number of lexical Decl queries             : %" PRIu64,
+            counters.m_lexical_query_count);
+  LLDB_LOGF(log, "  Number of imports initiated by LLDB        : %" PRIu64,
+            counters.m_lldb_import_count);
+  LLDB_LOGF(log, "  Number of imports conducted by Clang       : %" PRIu64,
+            counters.m_clang_import_count);
+  LLDB_LOGF(log, "  Number of Decls completed                  : %" PRIu64,
+            counters.m_decls_completed_count);
+  LLDB_LOGF(log, "  Number of records laid out                 : %" PRIu64,
+            counters.m_record_layout_count);
 }
 
 void ClangASTMetrics::DumpCounters(Log *log) {
   if (!log)
     return;
 
-  log->Printf("== ClangASTMetrics output ==");
-  log->Printf("-- Global metrics --");
+  LLDB_LOGF(log, "== ClangASTMetrics output ==");
+  LLDB_LOGF(log, "-- Global metrics --");
   DumpCounters(log, global_counters);
-  log->Printf("-- Local metrics --");
+  LLDB_LOGF(log, "-- Local metrics --");
   DumpCounters(log, local_counters);
 }
 
@@ -127,14 +127,16 @@ clang::Decl *ClangASTImporter::CopyDecl(clang::ASTContext *dst_ast,
         user_id = metadata->GetUserID();
 
       if (NamedDecl *named_decl = dyn_cast<NamedDecl>(decl))
-        log->Printf("  [ClangASTImporter] WARNING: Failed to import a %s "
-                    "'%s', metadata 0x%" PRIx64,
-                    decl->getDeclKindName(),
-                    named_decl->getNameAsString().c_str(), user_id);
+        LLDB_LOGF(log,
+                  "  [ClangASTImporter] WARNING: Failed to import a %s "
+                  "'%s', metadata 0x%" PRIx64,
+                  decl->getDeclKindName(),
+                  named_decl->getNameAsString().c_str(), user_id);
       else
-        log->Printf("  [ClangASTImporter] WARNING: Failed to import a %s, "
-                    "metadata 0x%" PRIx64,
-                    decl->getDeclKindName(), user_id);
+        LLDB_LOGF(log,
+                  "  [ClangASTImporter] WARNING: Failed to import a %s, "
+                  "metadata 0x%" PRIx64,
+                  decl->getDeclKindName(), user_id);
     }
     return nullptr;
   }
@@ -211,12 +213,12 @@ private:
     if (clang::Decl *escaped_child = GetEscapedChild(decl)) {
       Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
 
-      if (log)
-        log->Printf("    [ClangASTImporter] DeclContextOverride couldn't "
-                    "override (%sDecl*)%p - its child (%sDecl*)%p escapes",
-                    decl->getDeclKindName(), static_cast<void *>(decl),
-                    escaped_child->getDeclKindName(),
-                    static_cast<void *>(escaped_child));
+      LLDB_LOGF(log,
+                "    [ClangASTImporter] DeclContextOverride couldn't "
+                "override (%sDecl*)%p - its child (%sDecl*)%p escapes",
+                decl->getDeclKindName(), static_cast<void *>(decl),
+                escaped_child->getDeclKindName(),
+                static_cast<void *>(escaped_child));
       lldbassert(0 && "Couldn't override!");
     }
 
@@ -248,40 +250,117 @@ public:
   }
 };
 
+namespace {
+/// Completes all imported TagDecls at the end of the scope.
+///
+/// While in a CompleteTagDeclsScope, every decl that could be completed will
+/// be completed at the end of the scope (including all Decls that are
+/// imported while completing the original Decls).
+class CompleteTagDeclsScope : public ClangASTImporter::NewDeclListener {
+  ClangASTImporter::ImporterDelegateSP m_delegate;
+  // FIXME: Investigate how many decls we usually have in these sets and
+  // see if we can use SmallPtrSet instead here.
+  std::set<NamedDecl *> m_decls_to_complete;
+  std::set<NamedDecl *> m_decls_already_completed;
+  clang::ASTContext *m_dst_ctx;
+  clang::ASTContext *m_src_ctx;
+  ClangASTImporter &importer;
+
+public:
+  /// Constructs a CompleteTagDeclsScope.
+  /// \param importer The ClangASTImporter that we should observe.
+  /// \param dst_ctx The ASTContext to which Decls are imported.
+  /// \param src_ctx The ASTContext from which Decls are imported.
+  explicit CompleteTagDeclsScope(ClangASTImporter &importer,
+                            clang::ASTContext *dst_ctx,
+                            clang::ASTContext *src_ctx)
+      : m_delegate(importer.GetDelegate(dst_ctx, src_ctx)), m_dst_ctx(dst_ctx),
+        m_src_ctx(src_ctx), importer(importer) {
+    m_delegate->SetImportListener(this);
+  }
+
+  virtual ~CompleteTagDeclsScope() {
+    ClangASTImporter::ASTContextMetadataSP to_context_md =
+        importer.GetContextMetadata(m_dst_ctx);
+
+    // Complete all decls we collected until now.
+    while (!m_decls_to_complete.empty()) {
+      NamedDecl *decl = *m_decls_to_complete.begin();
+
+      m_decls_already_completed.insert(decl);
+      m_decls_to_complete.erase(decl);
+
+      // We should only complete decls coming from the source context.
+      assert(to_context_md->m_origins[decl].ctx == m_src_ctx);
+
+      Decl *original_decl = to_context_md->m_origins[decl].decl;
+
+      // Complete the decl now.
+      ClangASTContext::GetCompleteDecl(m_src_ctx, original_decl);
+      if (auto *tag_decl = dyn_cast<TagDecl>(decl)) {
+        if (auto *original_tag_decl = dyn_cast<TagDecl>(original_decl)) {
+          if (original_tag_decl->isCompleteDefinition()) {
+            m_delegate->ImportDefinitionTo(tag_decl, original_tag_decl);
+            tag_decl->setCompleteDefinition(true);
+          }
+        }
+
+        tag_decl->setHasExternalLexicalStorage(false);
+        tag_decl->setHasExternalVisibleStorage(false);
+      } else if (auto *container_decl = dyn_cast<ObjCContainerDecl>(decl)) {
+        container_decl->setHasExternalLexicalStorage(false);
+        container_decl->setHasExternalVisibleStorage(false);
+      }
+
+      to_context_md->m_origins.erase(decl);
+    }
+
+    // Stop listening to imported decls. We do this after clearing the
+    // Decls we needed to import to catch all Decls they might have pulled in.
+    m_delegate->RemoveImportListener();
+  }
+
+  void NewDeclImported(clang::Decl *from, clang::Decl *to) override {
+    // Filter out decls that we can't complete later.
+    if (!isa<TagDecl>(to) && !isa<ObjCInterfaceDecl>(to))
+      return;
+    RecordDecl *from_record_decl = dyn_cast<RecordDecl>(from);
+    // We don't need to complete injected class name decls.
+    if (from_record_decl && from_record_decl->isInjectedClassName())
+      return;
+
+    NamedDecl *to_named_decl = dyn_cast<NamedDecl>(to);
+    // Check if we already completed this type.
+    if (m_decls_already_completed.count(to_named_decl) != 0)
+      return;
+    m_decls_to_complete.insert(to_named_decl);
+  }
+};
+} // namespace
+
 lldb::opaque_compiler_type_t
 ClangASTImporter::DeportType(clang::ASTContext *dst_ctx,
                              clang::ASTContext *src_ctx,
                              lldb::opaque_compiler_type_t type) {
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
 
-  if (log)
-    log->Printf("    [ClangASTImporter] DeportType called on (%sType*)0x%llx "
-                "from (ASTContext*)%p to (ASTContext*)%p",
-                QualType::getFromOpaquePtr(type)->getTypeClassName(),
-                (unsigned long long)type, static_cast<void *>(src_ctx),
-                static_cast<void *>(dst_ctx));
-
-  ImporterDelegateSP delegate_sp(GetDelegate(dst_ctx, src_ctx));
-
-  if (!delegate_sp)
-    return nullptr;
-
-  std::set<NamedDecl *> decls_to_deport;
-  std::set<NamedDecl *> decls_already_deported;
+  LLDB_LOGF(log,
+            "    [ClangASTImporter] DeportType called on (%sType*)0x%llx "
+            "from (ASTContext*)%p to (ASTContext*)%p",
+            QualType::getFromOpaquePtr(type)->getTypeClassName(),
+            (unsigned long long)type, static_cast<void *>(src_ctx),
+            static_cast<void *>(dst_ctx));
 
   DeclContextOverride decl_context_override;
 
-  if (const clang::TagType *tag_type =
-          clang::QualType::getFromOpaquePtr(type)->getAs<TagType>()) {
-    decl_context_override.OverrideAllDeclsFromContainingFunction(
-        tag_type->getDecl());
+  if (auto *t = QualType::getFromOpaquePtr(type)->getAs<TagType>())
+    decl_context_override.OverrideAllDeclsFromContainingFunction(t->getDecl());
+
+  lldb::opaque_compiler_type_t result;
+  {
+    CompleteTagDeclsScope complete_scope(*this, dst_ctx, src_ctx);
+    result = CopyType(dst_ctx, src_ctx, type);
   }
-
-  delegate_sp->InitDeportWorkQueues(&decls_to_deport, &decls_already_deported);
-
-  lldb::opaque_compiler_type_t result = CopyType(dst_ctx, src_ctx, type);
-
-  delegate_sp->ExecuteDeportWorkQueues();
 
   if (!result)
     return nullptr;
@@ -294,38 +373,30 @@ clang::Decl *ClangASTImporter::DeportDecl(clang::ASTContext *dst_ctx,
                                           clang::Decl *decl) {
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
 
-  if (log)
-    log->Printf("    [ClangASTImporter] DeportDecl called on (%sDecl*)%p from "
-                "(ASTContext*)%p to (ASTContext*)%p",
-                decl->getDeclKindName(), static_cast<void *>(decl),
-                static_cast<void *>(src_ctx), static_cast<void *>(dst_ctx));
-
-  ImporterDelegateSP delegate_sp(GetDelegate(dst_ctx, src_ctx));
-
-  if (!delegate_sp)
-    return nullptr;
-
-  std::set<NamedDecl *> decls_to_deport;
-  std::set<NamedDecl *> decls_already_deported;
+  LLDB_LOGF(log,
+            "    [ClangASTImporter] DeportDecl called on (%sDecl*)%p from "
+            "(ASTContext*)%p to (ASTContext*)%p",
+            decl->getDeclKindName(), static_cast<void *>(decl),
+            static_cast<void *>(src_ctx), static_cast<void *>(dst_ctx));
 
   DeclContextOverride decl_context_override;
 
   decl_context_override.OverrideAllDeclsFromContainingFunction(decl);
 
-  delegate_sp->InitDeportWorkQueues(&decls_to_deport, &decls_already_deported);
-
-  clang::Decl *result = CopyDecl(dst_ctx, src_ctx, decl);
-
-  delegate_sp->ExecuteDeportWorkQueues();
+  clang::Decl *result;
+  {
+    CompleteTagDeclsScope complete_scope(*this, dst_ctx, src_ctx);
+    result = CopyDecl(dst_ctx, src_ctx, decl);
+  }
 
   if (!result)
     return nullptr;
 
-  if (log)
-    log->Printf(
-        "    [ClangASTImporter] DeportDecl deported (%sDecl*)%p to (%sDecl*)%p",
-        decl->getDeclKindName(), static_cast<void *>(decl),
-        result->getDeclKindName(), static_cast<void *>(result));
+  LLDB_LOGF(
+      log,
+      "    [ClangASTImporter] DeportDecl deported (%sDecl*)%p to (%sDecl*)%p",
+      decl->getDeclKindName(), static_cast<void *>(decl),
+      result->getDeclKindName(), static_cast<void *>(result));
 
   return result;
 }
@@ -533,9 +604,8 @@ void ClangASTImporter::InsertRecordDecl(clang::RecordDecl *decl,
 void ClangASTImporter::CompleteDecl(clang::Decl *decl) {
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
 
-  if (log)
-    log->Printf("    [ClangASTImporter] CompleteDecl called on (%sDecl*)%p",
-                decl->getDeclKindName(), static_cast<void *>(decl));
+  LLDB_LOGF(log, "    [ClangASTImporter] CompleteDecl called on (%sDecl*)%p",
+            decl->getDeclKindName(), static_cast<void *>(decl));
 
   if (ObjCInterfaceDecl *interface_decl = dyn_cast<ObjCInterfaceDecl>(decl)) {
     if (!interface_decl->getDefinition()) {
@@ -817,9 +887,9 @@ void ClangASTImporter::BuildNamespaceMap(const clang::NamespaceDecl *decl) {
 void ClangASTImporter::ForgetDestination(clang::ASTContext *dst_ast) {
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
 
-  if (log)
-    log->Printf("    [ClangASTImporter] Forgetting destination (ASTContext*)%p",
-                static_cast<void *>(dst_ast));
+  LLDB_LOGF(log,
+            "    [ClangASTImporter] Forgetting destination (ASTContext*)%p",
+            static_cast<void *>(dst_ast));
 
   m_metadata_map.erase(dst_ast);
 }
@@ -830,10 +900,10 @@ void ClangASTImporter::ForgetSource(clang::ASTContext *dst_ast,
 
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
 
-  if (log)
-    log->Printf("    [ClangASTImporter] Forgetting source->dest "
-                "(ASTContext*)%p->(ASTContext*)%p",
-                static_cast<void *>(src_ast), static_cast<void *>(dst_ast));
+  LLDB_LOGF(log,
+            "    [ClangASTImporter] Forgetting source->dest "
+            "(ASTContext*)%p->(ASTContext*)%p",
+            static_cast<void *>(src_ast), static_cast<void *>(dst_ast));
 
   if (!md)
     return;
@@ -867,63 +937,6 @@ ClangASTImporter::ASTImporterDelegate::ImportImpl(Decl *From) {
   }
 
   return ASTImporter::ImportImpl(From);
-}
-
-void ClangASTImporter::ASTImporterDelegate::InitDeportWorkQueues(
-    std::set<clang::NamedDecl *> *decls_to_deport,
-    std::set<clang::NamedDecl *> *decls_already_deported) {
-  assert(!m_decls_to_deport);
-  assert(!m_decls_already_deported);
-
-  m_decls_to_deport = decls_to_deport;
-  m_decls_already_deported = decls_already_deported;
-}
-
-void ClangASTImporter::ASTImporterDelegate::ExecuteDeportWorkQueues() {
-  assert(m_decls_to_deport);
-  assert(m_decls_already_deported);
-
-  ASTContextMetadataSP to_context_md =
-      m_master.GetContextMetadata(&getToContext());
-
-  while (!m_decls_to_deport->empty()) {
-    NamedDecl *decl = *m_decls_to_deport->begin();
-
-    m_decls_already_deported->insert(decl);
-    m_decls_to_deport->erase(decl);
-
-    DeclOrigin &origin = to_context_md->m_origins[decl];
-    UNUSED_IF_ASSERT_DISABLED(origin);
-
-    assert(origin.ctx ==
-           m_source_ctx); // otherwise we should never have added this
-                          // because it doesn't need to be deported
-
-    Decl *original_decl = to_context_md->m_origins[decl].decl;
-
-    ClangASTContext::GetCompleteDecl(m_source_ctx, original_decl);
-
-    if (TagDecl *tag_decl = dyn_cast<TagDecl>(decl)) {
-      if (TagDecl *original_tag_decl = dyn_cast<TagDecl>(original_decl)) {
-        if (original_tag_decl->isCompleteDefinition()) {
-          ImportDefinitionTo(tag_decl, original_tag_decl);
-          tag_decl->setCompleteDefinition(true);
-        }
-      }
-
-      tag_decl->setHasExternalLexicalStorage(false);
-      tag_decl->setHasExternalVisibleStorage(false);
-    } else if (ObjCContainerDecl *container_decl =
-                   dyn_cast<ObjCContainerDecl>(decl)) {
-      container_decl->setHasExternalLexicalStorage(false);
-      container_decl->setHasExternalVisibleStorage(false);
-    }
-
-    to_context_md->m_origins.erase(decl);
-  }
-
-  m_decls_to_deport = nullptr;
-  m_decls_already_deported = nullptr;
 }
 
 void ClangASTImporter::ASTImporterDelegate::ImportDefinitionTo(
@@ -1045,15 +1058,17 @@ void ClangASTImporter::ASTImporterDelegate::Imported(clang::Decl *from,
       from_named_decl->printName(name_stream);
       name_stream.flush();
 
-      log->Printf("    [ClangASTImporter] Imported (%sDecl*)%p, named %s (from "
-                  "(Decl*)%p), metadata 0x%" PRIx64,
-                  from->getDeclKindName(), static_cast<void *>(to),
-                  name_string.c_str(), static_cast<void *>(from), user_id);
+      LLDB_LOGF(log,
+                "    [ClangASTImporter] Imported (%sDecl*)%p, named %s (from "
+                "(Decl*)%p), metadata 0x%" PRIx64,
+                from->getDeclKindName(), static_cast<void *>(to),
+                name_string.c_str(), static_cast<void *>(from), user_id);
     } else {
-      log->Printf("    [ClangASTImporter] Imported (%sDecl*)%p (from "
-                  "(Decl*)%p), metadata 0x%" PRIx64,
-                  from->getDeclKindName(), static_cast<void *>(to),
-                  static_cast<void *>(from), user_id);
+      LLDB_LOGF(log,
+                "    [ClangASTImporter] Imported (%sDecl*)%p (from "
+                "(Decl*)%p), metadata 0x%" PRIx64,
+                from->getDeclKindName(), static_cast<void *>(to),
+                static_cast<void *>(from), user_id);
     }
   }
 
@@ -1080,37 +1095,27 @@ void ClangASTImporter::ASTImporterDelegate::Imported(clang::Decl *from,
       if (direct_completer.get() != this)
         direct_completer->ASTImporter::Imported(origin_iter->second.decl, to);
 
-      if (log)
-        log->Printf("    [ClangASTImporter] Propagated origin "
-                    "(Decl*)%p/(ASTContext*)%p from (ASTContext*)%p to "
-                    "(ASTContext*)%p",
-                    static_cast<void *>(origin_iter->second.decl),
-                    static_cast<void *>(origin_iter->second.ctx),
-                    static_cast<void *>(&from->getASTContext()),
-                    static_cast<void *>(&to->getASTContext()));
+      LLDB_LOGF(log,
+                "    [ClangASTImporter] Propagated origin "
+                "(Decl*)%p/(ASTContext*)%p from (ASTContext*)%p to "
+                "(ASTContext*)%p",
+                static_cast<void *>(origin_iter->second.decl),
+                static_cast<void *>(origin_iter->second.ctx),
+                static_cast<void *>(&from->getASTContext()),
+                static_cast<void *>(&to->getASTContext()));
     } else {
-      if (m_decls_to_deport && m_decls_already_deported) {
-        if (isa<TagDecl>(to) || isa<ObjCInterfaceDecl>(to)) {
-          RecordDecl *from_record_decl = dyn_cast<RecordDecl>(from);
-          if (from_record_decl == nullptr ||
-              !from_record_decl->isInjectedClassName()) {
-            NamedDecl *to_named_decl = dyn_cast<NamedDecl>(to);
-
-            if (!m_decls_already_deported->count(to_named_decl))
-              m_decls_to_deport->insert(to_named_decl);
-          }
-        }
-      }
+      if (m_new_decl_listener)
+        m_new_decl_listener->NewDeclImported(from, to);
 
       if (to_context_md->m_origins.find(to) == to_context_md->m_origins.end() ||
           user_id != LLDB_INVALID_UID) {
         to_context_md->m_origins[to] = DeclOrigin(m_source_ctx, from);
       }
 
-      if (log)
-        log->Printf("    [ClangASTImporter] Decl has no origin information in "
-                    "(ASTContext*)%p",
-                    static_cast<void *>(&from->getASTContext()));
+      LLDB_LOGF(log,
+                "    [ClangASTImporter] Decl has no origin information in "
+                "(ASTContext*)%p",
+                static_cast<void *>(&from->getASTContext()));
     }
 
     if (clang::NamespaceDecl *to_namespace =
@@ -1130,11 +1135,11 @@ void ClangASTImporter::ASTImporterDelegate::Imported(clang::Decl *from,
   } else {
     to_context_md->m_origins[to] = DeclOrigin(m_source_ctx, from);
 
-    if (log)
-      log->Printf("    [ClangASTImporter] Sourced origin "
-                  "(Decl*)%p/(ASTContext*)%p into (ASTContext*)%p",
-                  static_cast<void *>(from), static_cast<void *>(m_source_ctx),
-                  static_cast<void *>(&to->getASTContext()));
+    LLDB_LOGF(log,
+              "    [ClangASTImporter] Sourced origin "
+              "(Decl*)%p/(ASTContext*)%p into (ASTContext*)%p",
+              static_cast<void *>(from), static_cast<void *>(m_source_ctx),
+              static_cast<void *>(&to->getASTContext()));
   }
 
   if (TagDecl *from_tag_decl = dyn_cast<TagDecl>(from)) {
@@ -1143,13 +1148,13 @@ void ClangASTImporter::ASTImporterDelegate::Imported(clang::Decl *from,
     to_tag_decl->setHasExternalLexicalStorage();
     to_tag_decl->getPrimaryContext()->setMustBuildLookupTable();
 
-    if (log)
-      log->Printf(
-          "    [ClangASTImporter] To is a TagDecl - attributes %s%s [%s->%s]",
-          (to_tag_decl->hasExternalLexicalStorage() ? " Lexical" : ""),
-          (to_tag_decl->hasExternalVisibleStorage() ? " Visible" : ""),
-          (from_tag_decl->isCompleteDefinition() ? "complete" : "incomplete"),
-          (to_tag_decl->isCompleteDefinition() ? "complete" : "incomplete"));
+    LLDB_LOGF(
+        log,
+        "    [ClangASTImporter] To is a TagDecl - attributes %s%s [%s->%s]",
+        (to_tag_decl->hasExternalLexicalStorage() ? " Lexical" : ""),
+        (to_tag_decl->hasExternalVisibleStorage() ? " Visible" : ""),
+        (from_tag_decl->isCompleteDefinition() ? "complete" : "incomplete"),
+        (to_tag_decl->isCompleteDefinition() ? "complete" : "incomplete"));
   }
 
   if (isa<NamespaceDecl>(from)) {
@@ -1171,15 +1176,16 @@ void ClangASTImporter::ASTImporterDelegate::Imported(clang::Decl *from,
     if (log) {
       if (ObjCInterfaceDecl *to_interface_decl =
               llvm::dyn_cast<ObjCInterfaceDecl>(to_container_decl)) {
-        log->Printf(
+        LLDB_LOGF(
+            log,
             "    [ClangASTImporter] To is an ObjCInterfaceDecl - attributes "
             "%s%s%s",
             (to_interface_decl->hasExternalLexicalStorage() ? " Lexical" : ""),
             (to_interface_decl->hasExternalVisibleStorage() ? " Visible" : ""),
             (to_interface_decl->hasDefinition() ? " HasDefinition" : ""));
       } else {
-        log->Printf(
-            "    [ClangASTImporter] To is an %sDecl - attributes %s%s",
+        LLDB_LOGF(
+            log, "    [ClangASTImporter] To is an %sDecl - attributes %s%s",
             ((Decl *)to_container_decl)->getDeclKindName(),
             (to_container_decl->hasExternalLexicalStorage() ? " Lexical" : ""),
             (to_container_decl->hasExternalVisibleStorage() ? " Visible" : ""));

@@ -188,6 +188,7 @@ ArchSpec MinidumpParser::GetArchitecture() {
   case OSPlatform::Win32NT:
   case OSPlatform::Win32CE:
     triple.setOS(llvm::Triple::OSType::Win32);
+    triple.setVendor(llvm::Triple::VendorType::PC);
     break;
   case OSPlatform::Linux:
     triple.setOS(llvm::Triple::OSType::Linux);
@@ -313,13 +314,15 @@ std::vector<const minidump::Module *> MinidumpParser::GetFilteredModuleList() {
   return filtered_modules;
 }
 
-const MinidumpExceptionStream *MinidumpParser::GetExceptionStream() {
-  llvm::ArrayRef<uint8_t> data = GetStream(StreamType::Exception);
+const minidump::ExceptionStream *MinidumpParser::GetExceptionStream() {
+  auto ExpectedStream = GetMinidumpFile().getExceptionStream();
+  if (ExpectedStream)
+    return &*ExpectedStream;
 
-  if (data.size() == 0)
-    return nullptr;
-
-  return MinidumpExceptionStream::Parse(data);
+  LLDB_LOG_ERROR(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_PROCESS),
+                 ExpectedStream.takeError(),
+                 "Failed to read minidump exception stream: {0}");
+  return nullptr;
 }
 
 llvm::Optional<minidump::Range>
@@ -426,23 +429,35 @@ CreateRegionsCacheFromLinuxMaps(MinidumpParser &parser,
 static bool
 CreateRegionsCacheFromMemoryInfoList(MinidumpParser &parser,
                                      std::vector<MemoryRegionInfo> &regions) {
-  auto data = parser.GetStream(StreamType::MemoryInfoList);
-  if (data.empty())
+  Log *log = GetLogIfAnyCategoriesSet(LIBLLDB_LOG_MODULES);
+  auto ExpectedInfo = parser.GetMinidumpFile().getMemoryInfoList();
+  if (!ExpectedInfo) {
+    LLDB_LOG_ERROR(log, ExpectedInfo.takeError(),
+                   "Failed to read memory info list: {0}");
     return false;
-  auto mem_info_list = MinidumpMemoryInfo::ParseMemoryInfoList(data);
-  if (mem_info_list.empty())
-    return false;
+  }
   constexpr auto yes = MemoryRegionInfo::eYes;
   constexpr auto no = MemoryRegionInfo::eNo;
-  regions.reserve(mem_info_list.size());
-  for (const auto &entry : mem_info_list) {
+  for (const MemoryInfo &entry : *ExpectedInfo) {
     MemoryRegionInfo region;
-    region.GetRange().SetRangeBase(entry->base_address);
-    region.GetRange().SetByteSize(entry->region_size);
-    region.SetReadable(entry->isReadable() ? yes : no);
-    region.SetWritable(entry->isWritable() ? yes : no);
-    region.SetExecutable(entry->isExecutable() ? yes : no);
-    region.SetMapped(entry->isMapped() ? yes : no);
+    region.GetRange().SetRangeBase(entry.BaseAddress);
+    region.GetRange().SetByteSize(entry.RegionSize);
+
+    MemoryProtection prot = entry.Protect;
+    region.SetReadable(bool(prot & MemoryProtection::NoAccess) ? no : yes);
+    region.SetWritable(
+        bool(prot & (MemoryProtection::ReadWrite | MemoryProtection::WriteCopy |
+                     MemoryProtection::ExecuteReadWrite |
+                     MemoryProtection::ExeciteWriteCopy))
+            ? yes
+            : no);
+    region.SetExecutable(
+        bool(prot & (MemoryProtection::Execute | MemoryProtection::ExecuteRead |
+                     MemoryProtection::ExecuteReadWrite |
+                     MemoryProtection::ExeciteWriteCopy))
+            ? yes
+            : no);
+    region.SetMapped(entry.State != MemoryState::Free ? yes : no);
     regions.push_back(region);
   }
   return !regions.empty();

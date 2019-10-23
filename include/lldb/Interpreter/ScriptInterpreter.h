@@ -65,6 +65,9 @@ public:
 
     bool GetSetLLDBGlobals() const { return m_set_lldb_globals; }
 
+    // If this is true then any exceptions raised by the script will be
+    // cleared with PyErr_Clear().   If false then they will be left for
+    // the caller to clean up
     bool GetMaskoutErrors() const { return m_maskout_errors; }
 
     ExecuteScriptOptions &SetEnableIO(bool enable) {
@@ -208,6 +211,8 @@ public:
 
   virtual StructuredData::ObjectSP
   CreateScriptedThreadPlan(const char *class_name,
+                           StructuredDataImpl *args_data,
+                           std::string &error_str,
                            lldb::ThreadPlanSP thread_plan_sp) {
     return StructuredData::ObjectSP();
   }
@@ -462,8 +467,6 @@ public:
   static std::string LanguageToString(lldb::ScriptLanguage language);
 
   static lldb::ScriptLanguage StringToLanguage(const llvm::StringRef &string);
-
-  virtual void ResetOutputFileHandle(FILE *new_fh) {} // By default, do nothing.
 
   lldb::ScriptLanguage GetLanguage() { return m_script_lang; }
 

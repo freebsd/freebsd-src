@@ -381,11 +381,10 @@ public:
         static RegularExpression s_regex(
             llvm::StringRef("[ \t]*([^ ^\t]+)[ \t]*([^ ^\t].*)?"));
 
-        RegularExpression::Match matches(3);
-
+        llvm::SmallVector<llvm::StringRef, 4> matches;
         if (s_regex.Execute(out_string, &matches)) {
-          matches.GetMatchAtIndex(out_string.c_str(), 1, m_opcode_name);
-          matches.GetMatchAtIndex(out_string.c_str(), 2, m_mnemonics);
+          m_opcode_name = matches[1].str();
+          m_mnemonics = matches[2].str();
         }
       }
     }
@@ -1190,10 +1189,12 @@ DisassemblerLLVMC::DisassemblerLLVMC(const ArchSpec &arch,
 
   // If any AArch64 variant, enable the ARMv8.5 ISA with SVE extensions so we
   // can disassemble newer instructions.
-  if (triple.getArch() == llvm::Triple::aarch64)
+  if (triple.getArch() == llvm::Triple::aarch64 || 
+      triple.getArch() == llvm::Triple::aarch64_32)
     features_str += "+v8.5a,+sve2";
 
-  if (triple.getArch() == llvm::Triple::aarch64
+  if ((triple.getArch() == llvm::Triple::aarch64 ||
+       triple.getArch() == llvm::Triple::aarch64_32)
       && triple.getVendor() == llvm::Triple::Apple) {
     cpu = "apple-latest";
   }

@@ -34,7 +34,8 @@ using namespace lldb;
 // BreakpointResolver:
 const char *BreakpointResolver::g_ty_to_name[] = {"FileAndLine", "Address",
                                                   "SymbolName",  "SourceRegex",
-                                                  "Exception",   "Unknown"};
+                                                  "Python",   "Exception",
+                                                  "Unknown"};
 
 const char *BreakpointResolver::g_option_names[static_cast<uint32_t>(
     BreakpointResolver::OptionNames::LastOptionName)] = {
@@ -294,18 +295,18 @@ void BreakpointResolver::AddLocation(SearchFilter &filter,
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_BREAKPOINTS));
   Address line_start = sc.line_entry.range.GetBaseAddress();
   if (!line_start.IsValid()) {
-    if (log)
-      log->Printf("error: Unable to set breakpoint %s at file address "
-                  "0x%" PRIx64 "\n",
-                  log_ident.str().c_str(), line_start.GetFileAddress());
+    LLDB_LOGF(log,
+              "error: Unable to set breakpoint %s at file address "
+              "0x%" PRIx64 "\n",
+              log_ident.str().c_str(), line_start.GetFileAddress());
     return;
   }
 
   if (!filter.AddressPasses(line_start)) {
-    if (log)
-      log->Printf("Breakpoint %s at file address 0x%" PRIx64
-                  " didn't pass the filter.\n",
-                  log_ident.str().c_str(), line_start.GetFileAddress());
+    LLDB_LOGF(log,
+              "Breakpoint %s at file address 0x%" PRIx64
+              " didn't pass the filter.\n",
+              log_ident.str().c_str(), line_start.GetFileAddress());
   }
 
   // If the line number is before the prologue end, move it there...
@@ -329,8 +330,8 @@ void BreakpointResolver::AddLocation(SearchFilter &filter,
   if (log && bp_loc_sp && !m_breakpoint->IsInternal()) {
     StreamString s;
     bp_loc_sp->GetDescription(&s, lldb::eDescriptionLevelVerbose);
-    log->Printf("Added location (skipped prologue: %s): %s \n",
-                skipped_prologue ? "yes" : "no", s.GetData());
+    LLDB_LOGF(log, "Added location (skipped prologue: %s): %s \n",
+              skipped_prologue ? "yes" : "no", s.GetData());
   }
 }
 

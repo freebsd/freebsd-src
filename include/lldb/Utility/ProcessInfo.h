@@ -38,7 +38,7 @@ public:
 
   const char *GetName() const;
 
-  size_t GetNameLength() const;
+  llvm::StringRef GetNameAsStringRef() const;
 
   FileSpec &GetExecutableFile() { return m_executable; }
 
@@ -165,12 +165,8 @@ public:
 
   void Append(const ProcessInstanceInfo &info) { m_infos.push_back(info); }
 
-  const char *GetProcessNameAtIndex(size_t idx) {
-    return ((idx < m_infos.size()) ? m_infos[idx].GetName() : nullptr);
-  }
-
-  size_t GetProcessNameLengthAtIndex(size_t idx) {
-    return ((idx < m_infos.size()) ? m_infos[idx].GetNameLength() : 0);
+  llvm::StringRef GetProcessNameAtIndex(size_t idx) {
+    return ((idx < m_infos.size()) ? m_infos[idx].GetNameAsStringRef() : "");
   }
 
   lldb::pid_t GetProcessIDAtIndex(size_t idx) {
@@ -227,7 +223,19 @@ public:
     m_name_match_type = name_match_type;
   }
 
+  /// Return true iff the architecture in this object matches arch_spec.
+  bool ArchitectureMatches(const ArchSpec &arch_spec) const;
+
+  /// Return true iff the process name in this object matches process_name.
   bool NameMatches(const char *process_name) const;
+
+  /// Return true iff the process ID and parent process IDs in this object match
+  /// the ones in proc_info.
+  bool ProcessIDsMatch(const ProcessInstanceInfo &proc_info) const;
+
+  /// Return true iff the (both effective and real) user and group IDs in this
+  /// object match the ones in proc_info.
+  bool UserIDsMatch(const ProcessInstanceInfo &proc_info) const;
 
   bool Matches(const ProcessInstanceInfo &proc_info) const;
 

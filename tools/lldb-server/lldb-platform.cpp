@@ -15,12 +15,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if !defined(_WIN32)
 #include <sys/wait.h>
-
+#endif
 #include <fstream>
 
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FileUtilities.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include "Acceptor.h"
 #include "LLDBServerUtilities.h"
@@ -67,6 +69,7 @@ static struct option g_long_options[] = {
 #define HIGH_PORT (49151u)
 #endif
 
+#if !defined(_WIN32)
 // Watch for signals
 static void signal_handler(int signo) {
   switch (signo) {
@@ -81,6 +84,7 @@ static void signal_handler(int signo) {
     break;
   }
 }
+#endif
 
 static void display_usage(const char *progname, const char *subcommand) {
   fprintf(stderr, "Usage:\n  %s %s [--log-file log-file-name] [--log-channels "
@@ -100,29 +104,36 @@ static Status save_socket_id_to_file(const std::string &socket_id,
 
   llvm::SmallString<64> temp_file_path;
   temp_file_spec.AppendPathComponent("port-file.%%%%%%");
-  int FD;
-  auto err_code = llvm::sys::fs::createUniqueFile(temp_file_spec.GetPath(), FD,
-                                                  temp_file_path);
-  if (err_code)
-    return Status("Failed to create temp file: %s", err_code.message().c_str());
 
-  llvm::FileRemover tmp_file_remover(temp_file_path);
+  Status status;
+  if (auto Err =
+          handleErrors(llvm::writeFileAtomically(
+                           temp_file_path, temp_file_spec.GetPath(), socket_id),
+                       [&status, &file_spec](const AtomicFileWriteError &E) {
+                         std::string ErrorMsgBuffer;
+                         llvm::raw_string_ostream S(ErrorMsgBuffer);
+                         E.log(S);
 
-  {
-    llvm::raw_fd_ostream temp_file(FD, true);
-    temp_file << socket_id;
-    temp_file.close();
-    if (temp_file.has_error())
-      return Status("Failed to write to port file.");
+                         switch (E.Error) {
+                         case atomic_write_error::failed_to_create_uniq_file:
+                           status = Status("Failed to create temp file: %s",
+                                           ErrorMsgBuffer.c_str());
+                           break;
+                         case atomic_write_error::output_stream_error:
+                           status = Status("Failed to write to port file.");
+                           break;
+                         case atomic_write_error::failed_to_rename_temp_file:
+                           status = Status("Failed to rename file %s to %s: %s",
+                                           ErrorMsgBuffer.c_str(),
+                                           file_spec.GetPath().c_str(),
+                                           ErrorMsgBuffer.c_str());
+                           break;
+                         }
+                       })) {
+    return Status("Failed to atomically write file %s",
+                  file_spec.GetPath().c_str());
   }
-
-  err_code = llvm::sys::fs::rename(temp_file_path, file_spec.GetPath());
-  if (err_code)
-    return Status("Failed to rename file %s to %s: %s", temp_file_path.c_str(),
-                  file_spec.GetPath().c_str(), err_code.message().c_str());
-
-  tmp_file_remover.releaseFile();
-  return Status();
+  return status;
 }
 
 // main
@@ -131,8 +142,10 @@ int main_platform(int argc, char *argv[]) {
   const char *subcommand = argv[1];
   argc--;
   argv++;
+#if !defined(_WIN32)
   signal(SIGPIPE, SIG_IGN);
   signal(SIGHUP, signal_handler);
+#endif
   int long_option_index = 0;
   Status error;
   std::string listen_host_port;
@@ -309,8 +322,10 @@ int main_platform(int argc, char *argv[]) {
     printf("Connection established.\n");
     if (g_server) {
       // Collect child zombie processes.
+#if !defined(_WIN32)
       while (waitpid(-1, nullptr, WNOHANG) > 0)
         ;
+#endif
       if (fork()) {
         // Parent doesn't need a connection to the lldb client
         delete conn;
