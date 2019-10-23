@@ -29,8 +29,11 @@
 #include <sys/syscall.h>
 #include <machine/asm.h>
 
-#define	RSYSCALL_ERR(x)	ENTRY(__CONCAT(x, _err));		\
-			mov __CONCAT($SYS_,x),%rax; KERNCALL; ret; 
+#define	RSYSCALL_ERR(x)	ENTRY(__CONCAT(x, _err)); \
+			mov __CONCAT($SYS_,x),%rax; \
+			KERNCALL; \
+			ret; \
+			END(__CONCAT(x, _err));
 
 #define KERNCALL	movq %rcx, %r10; syscall
 
