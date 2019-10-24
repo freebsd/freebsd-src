@@ -52,16 +52,18 @@ struct moduledir {
 	STAILQ_ENTRY(moduledir) d_link;
 };
 
-static int			file_load(char *filename, vm_offset_t dest, struct preloaded_file **result);
-static int			file_load_dependencies(struct preloaded_file *base_mod);
-static char *			file_search(const char *name, char **extlist);
-static struct kernel_module *	file_findmodule(struct preloaded_file *fp, char *modname, struct mod_depend *verinfo);
-static int			file_havepath(const char *name);
-static char			*mod_searchmodule(char *name, struct mod_depend *verinfo);
-static void			file_insert_tail(struct preloaded_file *mp);
-struct file_metadata*		metadata_next(struct file_metadata *base_mp, int type);
-static void			moduledir_readhints(struct moduledir *mdp);
-static void			moduledir_rebuild(void);
+static int file_load(char *, vm_offset_t, struct preloaded_file **);
+static int file_load_dependencies(struct preloaded_file *);
+static char * file_search(const char *, char **);
+static struct kernel_module *file_findmodule(struct preloaded_file *, char *,
+    struct mod_depend *);
+static int file_havepath(const char *);
+static char *mod_searchmodule(char *, struct mod_depend *);
+static void file_insert_tail(struct preloaded_file *);
+static void file_remove(struct preloaded_file *);
+struct file_metadata *metadata_next(struct file_metadata *, int);
+static void moduledir_readhints(struct moduledir *);
+static void moduledir_rebuild(void);
 
 /* load address should be tweaked by first module loaded (kernel) */
 static vm_offset_t	loadaddr = 0;
@@ -70,10 +72,11 @@ static vm_offset_t	loadaddr = 0;
 static const char	*default_searchpath =
     "/boot/kernel;/boot/modules;/boot/dtb";
 #else
-static const char	*default_searchpath ="/boot/kernel;/boot/modules";
+static const char	*default_searchpath = "/boot/kernel;/boot/modules";
 #endif
 
-static STAILQ_HEAD(, moduledir) moduledir_list = STAILQ_HEAD_INITIALIZER(moduledir_list);
+static STAILQ_HEAD(, moduledir) moduledir_list =
+    STAILQ_HEAD_INITIALIZER(moduledir_list);
 
 struct preloaded_file *preloaded_files = NULL;
 
@@ -534,8 +537,7 @@ mod_load(char *modname, struct mod_depend *verinfo, int argc, char *argv[])
 	mp = file_findmodule(NULL, modname, verinfo);
 	if (mp) {
 #ifdef moduleargs
-		if (mp->m_args)
-			free(mp->m_args);
+		free(mp->m_args);
 		mp->m_args = unargv(argc, argv);
 #endif
 		snprintf(command_errbuf, sizeof(command_errbuf),
@@ -560,9 +562,10 @@ mod_load(char *modname, struct mod_depend *verinfo, int argc, char *argv[])
 int
 mod_loadkld(const char *kldname, int argc, char *argv[])
 {
-	struct preloaded_file	*fp, *last_file;
-	int				err;
+	struct preloaded_file	*fp;
+	int			err;
 	char			*filename;
+	vm_offset_t		loadaddr_saved;
 
 	/*
 	 * Get fully qualified KLD name
@@ -583,22 +586,19 @@ mod_loadkld(const char *kldname, int argc, char *argv[])
 		free(filename);
 		return (0);
 	}
-	for (last_file = preloaded_files;
-	     last_file != NULL && last_file->f_next != NULL;
-	     last_file = last_file->f_next)
-		;
 
 	do {
 		err = file_load(filename, loadaddr, &fp);
 		if (err)
 			break;
 		fp->f_args = unargv(argc, argv);
+		loadaddr_saved = loadaddr;
 		loadaddr = fp->f_addr + fp->f_size;
-		file_insert_tail(fp);		/* Add to the list of loaded files */
+		file_insert_tail(fp);	/* Add to the list of loaded files */
 		if (file_load_dependencies(fp) != 0) {
 			err = ENOENT;
-			last_file->f_next = NULL;
-			loadaddr = last_file->f_addr + last_file->f_size;
+			file_remove(fp);
+			loadaddr = loadaddr_saved;
 			fp = NULL;
 			break;
 		}
@@ -678,10 +678,12 @@ file_addmetadata(struct preloaded_file *fp, int type, size_t size, void *p)
 	struct file_metadata	*md;
 
 	md = malloc(sizeof(struct file_metadata) - sizeof(md->md_data) + size);
-	md->md_size = size;
-	md->md_type = type;
-	bcopy(p, md->md_data, size);
-	md->md_next = fp->f_metadata;
+	if (md != NULL) {
+		md->md_size = size;
+		md->md_type = type;
+		bcopy(p, md->md_data, size);
+		md->md_next = fp->f_metadata;
+	}
 	fp->f_metadata = md;
 }
 
@@ -926,11 +928,14 @@ file_addmodule(struct preloaded_file *fp, char *modname, int version,
 	mp = file_findmodule(fp, modname, &mdepend);
 	if (mp)
 		return (EEXIST);
-	mp = malloc(sizeof(struct kernel_module));
+	mp = calloc(1, sizeof(struct kernel_module));
 	if (mp == NULL)
 		return (ENOMEM);
-	bzero(mp, sizeof(struct kernel_module));
 	mp->m_name = strdup(modname);
+	if (mp->m_name == NULL) {
+		free(mp);
+		return (ENOMEM);
+	}
 	mp->m_version = version;
 	mp->m_fp = fp;
 	mp->m_next = fp->f_modules;
@@ -958,18 +963,14 @@ file_discard(struct preloaded_file *fp)
 	}
 	mp = fp->f_modules;
 	while (mp) {
-		if (mp->m_name)
-			free(mp->m_name);
+		free(mp->m_name);
 		mp1 = mp;
 		mp = mp->m_next;
 		free(mp1);
 	}
-	if (fp->f_name != NULL)
-		free(fp->f_name);
-	if (fp->f_type != NULL)
-		free(fp->f_type);
-	if (fp->f_args != NULL)
-		free(fp->f_args);
+	free(fp->f_name);
+	free(fp->f_type);
+	free(fp->f_args);
 	free(fp);
 }
 
@@ -980,12 +981,8 @@ file_discard(struct preloaded_file *fp)
 struct preloaded_file *
 file_alloc(void)
 {
-	struct preloaded_file	*fp;
 
-	if ((fp = malloc(sizeof(struct preloaded_file))) != NULL) {
-		bzero(fp, sizeof(struct preloaded_file));
-	}
-	return (fp);
+	return (calloc(1, sizeof(struct preloaded_file)));
 }
 
 /*
@@ -1004,6 +1001,29 @@ file_insert_tail(struct preloaded_file *fp)
 		for (cm = preloaded_files; cm->f_next != NULL; cm = cm->f_next)
 			;
 		cm->f_next = fp;
+	}
+}
+
+/*
+ * Remove module from the chain
+ */
+static void
+file_remove(struct preloaded_file *fp)
+{
+	struct preloaded_file   *cm;
+
+	if (preloaded_files == NULL)
+		return;
+
+	if (preloaded_files == fp) {
+		preloaded_files = fp->f_next;
+		return;
+        }
+        for (cm = preloaded_files; cm->f_next != NULL; cm = cm->f_next) {
+		if (cm->f_next == fp) {
+			cm->f_next = fp->f_next;
+			return;
+		}
 	}
 }
 
@@ -1056,10 +1076,8 @@ moduledir_readhints(struct moduledir *mdp)
 	return;
 bad:
 	close(fd);
-	if (mdp->d_hints) {
-		free(mdp->d_hints);
-		mdp->d_hints = NULL;
-	}
+	free(mdp->d_hints);
+	mdp->d_hints = NULL;
 	mdp->d_flags |= MDIR_NOHINTS;
 	return;
 }
@@ -1120,8 +1138,7 @@ moduledir_rebuild(void)
 		if ((mdp->d_flags & MDIR_REMOVED) == 0) {
 			mdp = STAILQ_NEXT(mdp, d_link);
 		} else {
-			if (mdp->d_hints)
-				free(mdp->d_hints);
+			free(mdp->d_hints);
 			mtmp = mdp;
 			mdp = STAILQ_NEXT(mdp, d_link);
 			STAILQ_REMOVE(&moduledir_list, mtmp, moduledir, d_link);
