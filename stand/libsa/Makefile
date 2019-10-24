@@ -71,6 +71,11 @@ SRCS+=	divmoddi4.c  divmodsi4.c  divdi3.c  divsi3.c  moddi3.c  modsi3.c
 SRCS+=	udivmoddi4.c udivmodsi4.c udivdi3.c udivsi3.c umoddi3.c umodsi3.c
 SRCS+=	ashldi3.c ashrdi3.c lshrdi3.c
 
+.if ${MACHINE_CPUARCH:Namd64:Ni386} == ""
+.PATH: ${SASRC}/x86
+SRCS+= hypervisor.c
+.endif
+
 .if ${MACHINE_CPUARCH} == "powerpc"
 SRCS+=	syncicache.c
 .endif
