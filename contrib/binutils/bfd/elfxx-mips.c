@@ -3966,7 +3966,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       *namep = bfd_elf_string_from_elf_section (input_bfd,
 						symtab_hdr->sh_link,
 						sym->st_name);
-      if (*namep == '\0')
+      if (*namep == NULL || **namep == '\0')
 	*namep = bfd_section_name (input_bfd, sec);
 
       target_is_16_bit_code_p = (sym->st_other == STO_MIPS16);
