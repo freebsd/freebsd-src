@@ -27,7 +27,8 @@ ATF_TESTS_SH=			\
 				frag6_16 \
 				frag6_17 \
 				frag6_18 \
-				frag6_19
+				frag6_19 \
+				frag6_20
 
 ${PACKAGE}FILES+=		frag6.subr
 ${PACKAGE}FILES+=		sniffer.py
@@ -50,6 +51,7 @@ ${PACKAGE}FILES+=		frag6_16.py
 ${PACKAGE}FILES+=		frag6_17.py
 ${PACKAGE}FILES+=		frag6_18.py
 ${PACKAGE}FILES+=		frag6_19.py
+${PACKAGE}FILES+=		frag6_20.py
 
 ${PACKAGE}FILESMODE_frag6.subr=		0444
 ${PACKAGE}FILESMODE_sniffer.py=		0555
@@ -72,5 +74,6 @@ ${PACKAGE}FILESMODE_frag6_16.py=	0555
 ${PACKAGE}FILESMODE_frag6_17.py=	0555
 ${PACKAGE}FILESMODE_frag6_18.py=	0555
 ${PACKAGE}FILESMODE_frag6_19.py=	0555
+${PACKAGE}FILESMODE_frag6_20.py=	0555
 
 .include <bsd.test.mk>
