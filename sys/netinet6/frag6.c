@@ -712,6 +712,9 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	if (af6tmp != NULL) {
 		if (af6tmp->ip6af_off + af6tmp->ip6af_frglen -
 		    ip6af->ip6af_off > 0) {
+			if (af6tmp->ip6af_off != ip6af->ip6af_off ||
+			    af6tmp->ip6af_frglen != ip6af->ip6af_frglen)
+				frag6_freef(q6, bucket);
 			free(ip6af, M_FRAG6);
 			goto dropfrag;
 		}
@@ -719,6 +722,9 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	if (af6 != NULL) {
 		if (ip6af->ip6af_off + ip6af->ip6af_frglen -
 		    af6->ip6af_off > 0) {
+			if (af6->ip6af_off != ip6af->ip6af_off ||
+			    af6->ip6af_frglen != ip6af->ip6af_frglen)
+				frag6_freef(q6, bucket);
 			free(ip6af, M_FRAG6);
 			goto dropfrag;
 		}
