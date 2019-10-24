@@ -315,7 +315,7 @@ sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
 	MPASS((queue >= 0) && (queue < NR_SLEEPQS));
 
 	/* If this thread is not allowed to sleep, die a horrible death. */
-	KASSERT(td->td_no_sleeping == 0,
+	KASSERT(THREAD_CAN_SLEEP(),
 	    ("%s: td %p to sleep on wchan %p with sleeping prohibited",
 	    __func__, td, wchan));
 
