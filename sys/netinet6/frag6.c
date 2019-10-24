@@ -468,6 +468,18 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	else if (atomic_load_int(&frag6_nfrags) >= (u_int)ip6_maxfrags)
 		goto dropfrag2;
 
+	/*
+	 * Validate that a full header chain to the ULP is present in the
+	 * packet containing the first fragment as per RFC RFC7112 and
+	 * RFC 8200 pages 18,19:
+	 * The first fragment packet is composed of:
+	 * (3)  Extension headers, if any, and the Upper-Layer header.  These
+	 *      headers must be in the first fragment.  ...
+	 */
+	fragoff = ntohs(ip6f->ip6f_offlg & IP6F_OFF_MASK);
+	/* XXX TODO.  thj has D16851 open for this. */
+	/* Send ICMPv6 4,3 in case of violation. */
+
 	/* Store receive network interface pointer for later. */
 	srcifp = m->m_pkthdr.rcvif;
 
@@ -546,7 +558,6 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	 * If it is the 1st fragment, record the length of the
 	 * unfragmentable part and the next header of the fragment header.
 	 */
-	fragoff = ntohs(ip6f->ip6f_offlg & IP6F_OFF_MASK);
 	if (fragoff == 0) {
 		q6->ip6q_unfrglen = offset - sizeof(struct ip6_hdr) -
 		    sizeof(struct ip6_frag);
