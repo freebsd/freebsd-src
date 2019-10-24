@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 15, 2010
+.Dd July 20, 2019
 .Dt EXPAND_NUMBER 3
 .Os
 .Sh NAME
@@ -42,11 +42,10 @@
 .Sh DESCRIPTION
 The
 .Fn expand_number
-function unformats the
+function parses the
 .Fa buf
-string and stores a unsigned 64-bit quantity at address pointed out by the
-.Fa num
-argument.
+string and stores a unsigned 64-bit quantity at
+.Fa *num .
 .Pp
 The
 .Fn expand_number
@@ -54,9 +53,9 @@ function
 is case-insensitive and
 follows the SI power of two convention.
 .Pp
-The prefixes are:
-.Bl -column "Prefix" "Description" "1000000000000000000" -offset indent
-.It Sy "Prefix" Ta Sy "Description" Ta Sy "Multiplier"
+The suffixes are:
+.Bl -column "Suffix" "Description" "1000000000000000000" -offset indent
+.It Sy "Suffix" Ta Sy "Description" Ta Sy "Multiplier"
 .It Li K Ta No kilo Ta 1024
 .It Li M Ta No mega Ta 1048576
 .It Li G Ta No giga Ta 1073741824
@@ -74,7 +73,7 @@ function will fail if:
 .It Bq Er EINVAL
 The given string contains no digits.
 .It Bq Er EINVAL
-An unrecognized prefix was given.
+An unrecognized suffix was given.
 .It Bq Er ERANGE
 Result doesn't fit into 64 bits.
 .El
