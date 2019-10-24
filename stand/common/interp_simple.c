@@ -114,7 +114,7 @@ interp_include(const char *filename)
 		line++;
 		flags = 0;
 		/* Discard comments */
-		if (strncmp(input+strspn(input, " "), "\\ ", 2) == 0)
+		if (strncmp(input+strspn(input, " "), "\\", 1) == 0)
 			continue;
 		cp = input;
 		/* Echo? */
