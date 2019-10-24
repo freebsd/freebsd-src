@@ -47,6 +47,17 @@ frag6_05_check_stats_0() {
 	# The Python script has to wait for this already to get the ICMPv6
 	# hence we do not sleep here anymore.
 
+	nf=`jexec ${jname} sysctl -n net.inet6.ip6.frag6_nfragpackets`
+	case ${nf} in
+	0)	break ;;
+	*)	atf_fail "VNET frag6_nfragpackets not 0 but: ${nf}" ;;
+	esac
+	nf=`sysctl -n net.inet6.ip6.frag6_nfrags`
+	case ${nf} in
+	0)	break ;;
+	*)	atf_fail "Global frag6_nfrags not 0 but: ${nf}" ;;
+	esac
+
 	#
 	# Check that the sysctl is set to what we expect.
 	#
@@ -229,6 +240,16 @@ frag6_05_check_stats_1() {
 	# The Python script has to wait for this already to get the ICMPv6
 	# hence we do not sleep here anymore.
 
+	nf=`jexec ${jname} sysctl -n net.inet6.ip6.frag6_nfragpackets`
+	case ${nf} in
+	0)	break ;;
+	*)	atf_fail "VNET frag6_nfragpackets not 0 but: ${nf}" ;;
+	esac
+	nf=`sysctl -n net.inet6.ip6.frag6_nfrags`
+	case ${nf} in
+	0)	break ;;
+	*)	atf_fail "Global frag6_nfrags not 0 but: ${nf}" ;;
+	esac
 
 	#
 	# Check that the sysctl is set to what we expect.
@@ -272,7 +293,7 @@ EOF
     <dropped-bad-version>0</dropped-bad-version>
     <received-fragments>20</received-fragments>
     <dropped-fragment>10</dropped-fragment>
-    <dropped-fragment-after-timeout>0</dropped-fragment-after-timeout>
+    <dropped-fragment-after-timeout>10</dropped-fragment-after-timeout>
     <dropped-fragments-overflow>0</dropped-fragments-overflow>
     <atomic-fragments>0</atomic-fragments>
     <reassembled-packets>0</reassembled-packets>
@@ -300,7 +321,7 @@ EOF
 	# XXX-TODO check output histogram (just too hard to parse [no multi-line-grep])
 	#
 	cat <<EOF > ${HOME}/filter-${jname}.txt
-    <icmp6-calls>0</icmp6-calls>
+    <icmp6-calls>10</icmp6-calls>
       <no-route>0</no-route>
       <admin-prohibited>0</admin-prohibited>
       <beyond-scope>0</beyond-scope>
@@ -308,7 +329,7 @@ EOF
       <port-unreachable>0</port-unreachable>
       <packet-too-big>0</packet-too-big>
       <time-exceed-transmit>0</time-exceed-transmit>
-      <time-exceed-reassembly>0</time-exceed-reassembly>
+      <time-exceed-reassembly>10</time-exceed-reassembly>
       <bad-header>0</bad-header>
       <bad-next-header>0</bad-next-header>
       <bad-option>0</bad-option>
@@ -372,10 +393,10 @@ EOF
     <received-echo-replies>0</received-echo-replies>
     <received-router-solicitation>0</received-router-solicitation>
     <received-router-advertisement>0</received-router-advertisement>
-    <sent-errors>0</sent-errors>
+    <sent-errors>10</sent-errors>
     <sent-destination-unreachable>0</sent-destination-unreachable>
     <sent-admin-prohibited>0</sent-admin-prohibited>
-    <sent-time-exceeded>0</sent-time-exceeded>
+    <sent-time-exceeded>10</sent-time-exceeded>
     <sent-bad-parameter>0</sent-bad-parameter>
     <sent-packet-too-big>0</sent-packet-too-big>
     <sent-echo-requests>0</sent-echo-requests>

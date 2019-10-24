@@ -72,6 +72,8 @@ def main():
 	sp.sendp(ip6f01, iface=args.sendif[0], verbose=False)
 
 	# We do not generate ICMPv6 for non-off=0-segments.
+	# Wait for expiry.
+	sleep(75)
 
 	sys.exit(0)
 
