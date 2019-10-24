@@ -61,6 +61,17 @@ frag6_06_check_stats_0() {
 	# The Python script has to wait for this already to get the ICMPv6
 	# hence we do not sleep here anymore.
 
+	nf=`jexec ${jname} sysctl -n net.inet6.ip6.frag6_nfragpackets`
+	case ${nf} in
+	0)	break ;;
+	*)	atf_fail "VNET frag6_nfragpackets not 0 but: ${nf}" ;;
+	esac
+	nf=`sysctl -n net.inet6.ip6.frag6_nfrags`
+	case ${nf} in
+	0)	break ;;
+	*)	atf_fail "Global frag6_nfrags not 0 but: ${nf}" ;;
+	esac
+
 	#
 	# Check that the sysctl is set to what we expect.
 	#

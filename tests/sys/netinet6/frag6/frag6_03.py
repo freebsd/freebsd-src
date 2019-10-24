@@ -82,20 +82,21 @@ def main():
 
 	########################################################################
 	#
-	# (1) Atomic fragment.
+	# Atomic fragment.
 	#
 	# A:  Nothing listening on UDP port.
 	# R:  ICMPv6 dst unreach, unreach port.
 	#
 	ip6f01 = sp.Ether() / \
 		sp.IPv6(src=args.src[0], dst=args.to[0]) / \
-		sp.IPv6ExtHdrFragment(offset=0, m=0, id=1) / \
+		sp.IPv6ExtHdrFragment(offset=0, m=0, id=3) / \
 		sp.UDP(dport=3456, sport=6543)
 	if args.debug :
 		ip6f01.display()
 	sp.sendp(ip6f01, iface=args.sendif[0], verbose=False)
 
 	sleep(0.10)
+	sniffer.setEnd()
 	sniffer.join()
 	if not sniffer.foundCorrectPacket:
 		sys.exit(1)
