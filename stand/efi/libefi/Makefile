@@ -12,6 +12,7 @@ SRCS=	delay.c \
 	efi_driver_utils.c \
 	efichar.c \
 	efienv.c \
+	efihttp.c \
 	efinet.c \
 	efipart.c \
 	efizfs.c \

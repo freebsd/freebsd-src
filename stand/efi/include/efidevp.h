@@ -232,6 +232,8 @@ typedef struct _IPv4_DEVICE_PATH {
         UINT16                          RemotePort;
         UINT16                          Protocol;
         BOOLEAN                         StaticIpAddress;
+        EFI_IPv4_ADDRESS                GatewayIpAddress;
+        EFI_IPv4_ADDRESS                SubnetMask;
 } IPv4_DEVICE_PATH;
 
 #define MSG_IPv6_DP                     0x0d
@@ -293,6 +295,26 @@ typedef struct _SATA_DEVICE_PATH {
 	UINT16				PortMultiplierPortNumber;
 	UINT16				Lun;
 } SATA_DEVICE_PATH;
+
+
+/* DNS Device Path SubType */
+#define MSG_DNS_DP                0x1F
+typedef struct {
+  EFI_DEVICE_PATH                 Header;
+  /* Indicates the DNS server address is IPv4 or IPv6 address. */
+  UINT8                           IsIPv6;
+  /* Instance of the DNS server address. */
+  /* XXX: actually EFI_IP_ADDRESS */
+  EFI_IPv4_ADDRESS                DnsServerIp[];
+} DNS_DEVICE_PATH;
+
+/* Uniform Resource Identifiers (URI) Device Path SubType */
+#define MSG_URI_DP                0x18
+typedef struct {
+  EFI_DEVICE_PATH                 Header;
+  /* Instance of the URI pursuant to RFC 3986. */
+  CHAR8                           Uri[];
+} URI_DEVICE_PATH;
 
 #define MEDIA_DEVICE_PATH               0x04
 
