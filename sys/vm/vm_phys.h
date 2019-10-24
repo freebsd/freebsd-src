@@ -122,6 +122,7 @@ vm_phys_domain(vm_page_t m)
 	return (0);
 #endif
 }
+int _vm_phys_domain(vm_paddr_t pa);
 
 #endif	/* _KERNEL */
 #endif	/* !_VM_PHYS_H_ */

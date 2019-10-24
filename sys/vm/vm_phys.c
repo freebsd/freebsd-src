@@ -624,6 +624,26 @@ vm_phys_register_domains(int ndomains, struct mem_affinity *affinity,
 #endif
 }
 
+int
+_vm_phys_domain(vm_paddr_t pa)
+{
+#ifdef NUMA
+	int i;
+
+	if (vm_ndomains == 1 || mem_affinity == NULL)
+		return (0);
+
+	/*
+	 * Check for any memory that overlaps.
+	 */
+	for (i = 0; mem_affinity[i].end != 0; i++)
+		if (mem_affinity[i].start <= pa &&
+		    mem_affinity[i].end >= pa)
+			return (mem_affinity[i].domain);
+#endif
+	return (0);
+}
+
 /*
  * Split a contiguous, power of two-sized set of physical pages.
  *
