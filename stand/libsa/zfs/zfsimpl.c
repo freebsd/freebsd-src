@@ -174,8 +174,7 @@ zfs_alloc(size_t size)
 	char *ptr;
 
 	if (zfs_temp_ptr + size > zfs_temp_end) {
-		printf("ZFS: out of temporary buffer space\n");
-		for (;;) ;
+		panic("ZFS: out of temporary buffer space");
 	}
 	ptr = zfs_temp_ptr;
 	zfs_temp_ptr += size;
@@ -189,8 +188,7 @@ zfs_free(void *ptr, size_t size)
 
 	zfs_temp_ptr -= size;
 	if (zfs_temp_ptr != ptr) {
-		printf("ZFS: zfs_alloc()/zfs_free() mismatch\n");
-		for (;;) ;
+		panic("ZFS: zfs_alloc()/zfs_free() mismatch");
 	}
 }
 
@@ -1341,9 +1339,8 @@ spa_create(uint64_t guid, const char *name)
 {
 	spa_t *spa;
 
-	if ((spa = malloc(sizeof(spa_t))) == NULL)
+	if ((spa = calloc(1, sizeof(spa_t))) == NULL)
 		return (NULL);
-	memset(spa, 0, sizeof(spa_t));
 	if ((spa->spa_name = strdup(name)) == NULL) {
 		free(spa);
 		return (NULL);
