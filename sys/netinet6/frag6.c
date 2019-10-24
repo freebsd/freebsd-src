@@ -202,6 +202,10 @@ SYSCTL_PROC(_net_inet6_ip6, IPV6CTL_MAXFRAGPACKETS, maxfragpackets,
 	"Default maximum number of outstanding fragmented IPv6 packets. "
 	"A value of 0 means no fragmented packets will be accepted, while a "
 	"a value of -1 means no limit");
+SYSCTL_UINT(_net_inet6_ip6, OID_AUTO, frag6_nfragpackets,
+	CTLFLAG_VNET | CTLFLAG_RD,
+	__DEVOLATILE(u_int *, &VNET_NAME(frag6_nfragpackets)), 0,
+	"Per-VNET number of IPv6 fragments across all reassembly queues.");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGSPERPACKET, maxfragsperpacket,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_maxfragsperpacket), 0,
 	"Maximum allowed number of fragments per packet");
