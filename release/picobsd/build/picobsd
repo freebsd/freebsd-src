@@ -1019,6 +1019,7 @@ set_build_parameters() {
 # Main entry of the script. Initialize variables, parse command line
 # arguments.
 
+1>&2 echo "WARNING: picobsd is deprecated and will be removed in FreeBSD 13.0."
 
 set_defaults
 while [ true ]; do
