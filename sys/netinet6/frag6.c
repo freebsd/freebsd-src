@@ -458,6 +458,16 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		return (IPPROTO_DONE);
 	}
 
+	/*
+	 * Enforce upper bound on number of fragments for the entire system.
+	 * If maxfrag is 0, never accept fragments.
+	 * If maxfrag is -1, accept all fragments without limitation.
+	 */
+	if (ip6_maxfrags < 0)
+		;
+	else if (atomic_load_int(&frag6_nfrags) >= (u_int)ip6_maxfrags)
+		goto dropfrag2;
+
 	/* Store receive network interface pointer for later. */
 	srcifp = m->m_pkthdr.rcvif;
 
@@ -472,16 +482,6 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	bucket &= IP6REASS_HMASK;
 	IP6QB_LOCK(bucket);
 	head = IP6QB_HEAD(bucket);
-
-	/*
-	 * Enforce upper bound on number of fragments for the entire system.
-	 * If maxfrag is 0, never accept fragments.
-	 * If maxfrag is -1, accept all fragments without limitation.
-	 */
-	if (ip6_maxfrags < 0)
-		;
-	else if (atomic_load_int(&frag6_nfrags) >= (u_int)ip6_maxfrags)
-		goto dropfrag;
 
 	TAILQ_FOREACH(q6, head, ip6q_tq)
 		if (ip6f->ip6f_ident == q6->ip6q_ident &&
@@ -825,6 +825,7 @@ postinsert:
 
 dropfrag:
 	IP6QB_UNLOCK(bucket);
+dropfrag2:
 	in6_ifstat_inc(dstifp, ifs6_reass_fail);
 	IP6STAT_INC(ip6s_fragdropped);
 	m_freem(m);
