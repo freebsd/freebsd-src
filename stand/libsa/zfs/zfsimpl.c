@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
  *	Stand-alone ZFS file reader.
  */
 
+#include <sys/endian.h>
 #include <sys/stat.h>
 #include <sys/stdint.h>
 #include <sys/list.h>
@@ -195,10 +196,7 @@ zfs_free(void *ptr, size_t size)
 static int
 xdr_int(const unsigned char **xdr, int *ip)
 {
-	*ip = ((*xdr)[0] << 24)
-		| ((*xdr)[1] << 16)
-		| ((*xdr)[2] << 8)
-		| ((*xdr)[3] << 0);
+	*ip = be32dec(*xdr);
 	(*xdr) += 4;
 	return (0);
 }
@@ -206,10 +204,7 @@ xdr_int(const unsigned char **xdr, int *ip)
 static int
 xdr_u_int(const unsigned char **xdr, u_int *ip)
 {
-	*ip = ((*xdr)[0] << 24)
-		| ((*xdr)[1] << 16)
-		| ((*xdr)[2] << 8)
-		| ((*xdr)[3] << 0);
+	*ip = be32dec(*xdr);
 	(*xdr) += 4;
 	return (0);
 }
