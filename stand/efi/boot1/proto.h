@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
- * All rights reserved.
+ * Copyright (c) 2019 Netflix, Inc
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -11,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,16 +25,5 @@
  * $FreeBSD$
  */
 
-#ifndef _GPT_H_
-#define	_GPT_H_
-
-#include <uuid.h>
-#include <drv.h>
-
-#define	MAXTBLENTS	128
-
-int gptread(struct dsk *dskp, char *buf);
-int gptfind(const uuid_t *uuid, struct dsk *dskp, int part);
-void gptbootfailed(struct dsk *dskp);
-
-#endif	/* !_GPT_H_ */
+void choice_protocol(EFI_HANDLE *handles, UINTN nhandles, EFI_DEVICE_PATH *imgpath);
+EFI_STATUS try_boot(const boot_module_t *mod, dev_info_t *dev, void *loaderbuf, size_t loadersize);

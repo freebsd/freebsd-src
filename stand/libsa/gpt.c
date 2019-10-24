@@ -275,8 +275,8 @@ gptbootconv(const char *which, struct dsk *dskp, struct gpt_hdr *hdr,
 }
 
 static int
-gptread_table(const char *which, const uuid_t *uuid, struct dsk *dskp,
-    struct gpt_hdr *hdr, struct gpt_ent *table)
+gptread_table(const char *which, struct dsk *dskp, struct gpt_hdr *hdr,
+    struct gpt_ent *table)
 {
 	struct gpt_ent *ent;
 	int entries_per_sec;
@@ -313,7 +313,7 @@ gptread_table(const char *which, const uuid_t *uuid, struct dsk *dskp,
 }
 
 int
-gptread(const uuid_t *uuid, struct dsk *dskp, char *buf)
+gptread(struct dsk *dskp, char *buf)
 {
 	uint64_t altlba;
 
@@ -328,8 +328,7 @@ gptread(const uuid_t *uuid, struct dsk *dskp, char *buf)
 	dskp->start = 0;
 
 	if (gptread_hdr("primary", dskp, &hdr_primary, 1) == 0 &&
-	    gptread_table("primary", uuid, dskp, &hdr_primary,
-	    table_primary) == 0) {
+	    gptread_table("primary", dskp, &hdr_primary, table_primary) == 0) {
 		hdr_primary_lba = hdr_primary.hdr_lba_self;
 		gpthdr = &hdr_primary;
 		gpttable = table_primary;
@@ -349,8 +348,7 @@ gptread(const uuid_t *uuid, struct dsk *dskp, char *buf)
 	if (altlba == 0)
 		printf("%s: unable to locate backup GPT header\n", BOOTPROG);
 	else if (gptread_hdr("backup", dskp, &hdr_backup, altlba) == 0 &&
-	    gptread_table("backup", uuid, dskp, &hdr_backup,
-	    table_backup) == 0) {
+	    gptread_table("backup", dskp, &hdr_backup, table_backup) == 0) {
 		hdr_backup_lba = hdr_backup.hdr_lba_self;
 		if (hdr_primary_lba == 0) {
 			gpthdr = &hdr_backup;

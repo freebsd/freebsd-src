@@ -33,10 +33,11 @@ __FBSDID("$FreeBSD$");
 
 #include "boot_module.h"
 #include "paths.h"
+#include "proto.h"
 
 static void efi_panic(EFI_STATUS s, const char *fmt, ...) __dead2 __printflike(2, 3);
 
-static const boot_module_t *boot_modules[] =
+const boot_module_t *boot_modules[] =
 {
 #ifdef EFI_ZFS_BOOT
 	&zfs_module,
@@ -45,8 +46,7 @@ static const boot_module_t *boot_modules[] =
 	&ufs_module
 #endif
 };
-
-#define	NUM_BOOT_MODULES	nitems(boot_modules)
+const UINTN num_boot_modules = nitems(boot_modules);
 
 static EFI_GUID BlockIoProtocolGUID = BLOCK_IO_PROTOCOL;
 static EFI_GUID DevicePathGUID = DEVICE_PATH_PROTOCOL;
@@ -91,65 +91,18 @@ Calloc(size_t n1, size_t n2, const char *file, int line)
 }
 
 /*
- * load_loader attempts to load the loader image data.
- *
- * It tries each module and its respective devices, identified by mod->probe,
- * in order until a successful load occurs at which point it returns EFI_SUCCESS
- * and EFI_NOT_FOUND otherwise.
- *
- * Only devices which have preferred matching the preferred parameter are tried.
- */
-static EFI_STATUS
-load_loader(const boot_module_t **modp, dev_info_t **devinfop, void **bufp,
-    size_t *bufsize, BOOLEAN preferred)
-{
-	UINTN i;
-	dev_info_t *dev;
-	const boot_module_t *mod;
-
-	for (i = 0; i < NUM_BOOT_MODULES; i++) {
-		mod = boot_modules[i];
-		for (dev = mod->devices(); dev != NULL; dev = dev->next) {
-			if (dev->preferred != preferred)
-				continue;
-
-			if (mod->load(PATH_LOADER_EFI, dev, bufp, bufsize) ==
-			    EFI_SUCCESS) {
-				*devinfop = dev;
-				*modp = mod;
-				return (EFI_SUCCESS);
-			}
-		}
-	}
-
-	return (EFI_NOT_FOUND);
-}
-
-/*
  * try_boot only returns if it fails to load the loader. If it succeeds
  * it simply boots, otherwise it returns the status of last EFI call.
  */
-static EFI_STATUS
-try_boot(void)
+EFI_STATUS
+try_boot(const boot_module_t *mod, dev_info_t *dev, void *loaderbuf, size_t loadersize)
 {
-	size_t bufsize, loadersize, cmdsize;
-	void *buf, *loaderbuf;
+	size_t bufsize, cmdsize;
+	void *buf;
 	char *cmd;
-	dev_info_t *dev;
-	const boot_module_t *mod;
 	EFI_HANDLE loaderhandle;
 	EFI_LOADED_IMAGE *loaded_image;
 	EFI_STATUS status;
-
-	status = load_loader(&mod, &dev, &loaderbuf, &loadersize, TRUE);
-	if (status != EFI_SUCCESS) {
-		status = load_loader(&mod, &dev, &loaderbuf, &loadersize,
-		    FALSE);
-		if (status != EFI_SUCCESS) {
-			printf("Failed to load '%s'\n", PATH_LOADER_EFI);
-			return (status);
-		}
-	}
 
 	/*
 	 * Read in and parse the command line from /boot.config or /boot/config,
@@ -230,111 +183,6 @@ errout:
 	return (status);
 }
 
-/*
- * probe_handle determines if the passed handle represents a logical partition
- * if it does it uses each module in order to probe it and if successful it
- * returns EFI_SUCCESS.
- */
-static EFI_STATUS
-probe_handle(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath, BOOLEAN *preferred)
-{
-	dev_info_t *devinfo;
-	EFI_BLOCK_IO *blkio;
-	EFI_DEVICE_PATH *devpath;
-	EFI_STATUS status;
-	UINTN i;
-
-	/* Figure out if we're dealing with an actual partition. */
-	status = OpenProtocolByHandle(h, &DevicePathGUID, (void **)&devpath);
-	if (status == EFI_UNSUPPORTED)
-		return (status);
-
-	if (status != EFI_SUCCESS) {
-		DPRINTF("\nFailed to query DevicePath (%lu)\n",
-		    EFI_ERROR_CODE(status));
-		return (status);
-	}
-#ifdef EFI_DEBUG
-	{
-		CHAR16 *text = efi_devpath_name(devpath);
-		DPRINTF("probing: %S\n", text);
-		efi_free_devpath_name(text);
-	}
-#endif
-	status = OpenProtocolByHandle(h, &BlockIoProtocolGUID, (void **)&blkio);
-	if (status == EFI_UNSUPPORTED)
-		return (status);
-
-	if (status != EFI_SUCCESS) {
-		DPRINTF("\nFailed to query BlockIoProtocol (%lu)\n",
-		    EFI_ERROR_CODE(status));
-		return (status);
-	}
-
-	if (!blkio->Media->LogicalPartition)
-		return (EFI_UNSUPPORTED);
-
-	*preferred = efi_devpath_match(imgpath, devpath);
-
-	/* Run through each module, see if it can load this partition */
-	devinfo = malloc(sizeof(*devinfo));
-	if (devinfo == NULL) {
-		DPRINTF("\nFailed to allocate devinfo\n");
-		return (EFI_UNSUPPORTED);
-	}
-	devinfo->dev = blkio;
-	devinfo->devpath = devpath;
-	devinfo->devhandle = h;
-	devinfo->preferred = *preferred;
-	devinfo->next = NULL;
-
-	for (i = 0; i < NUM_BOOT_MODULES; i++) {
-		devinfo->devdata = NULL;
-		status = boot_modules[i]->probe(devinfo);
-		if (status == EFI_SUCCESS)
-			return (EFI_SUCCESS);
-	}
-	free(devinfo);
-
-	return (EFI_UNSUPPORTED);
-}
-
-/*
- * probe_handle_status calls probe_handle and outputs the returned status
- * of the call.
- */
-static void
-probe_handle_status(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath)
-{
-	EFI_STATUS status;
-	BOOLEAN preferred;
-
-	preferred = FALSE;
-	status = probe_handle(h, imgpath, &preferred);
-	
-	DPRINTF("probe: ");
-	switch (status) {
-	case EFI_UNSUPPORTED:
-		printf(".");
-		DPRINTF(" not supported\n");
-		break;
-	case EFI_SUCCESS:
-		if (preferred) {
-			printf("%c", '*');
-			DPRINTF(" supported (preferred)\n");
-		} else {
-			printf("%c", '+');
-			DPRINTF(" supported\n");
-		}
-		break;
-	default:
-		printf("x");
-		DPRINTF(" error (%lu)\n", EFI_ERROR_CODE(status));
-		break;
-	}
-	DSTALL(500000);
-}
-
 EFI_STATUS
 efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 {
@@ -346,9 +194,6 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	SIMPLE_TEXT_OUTPUT_INTERFACE *conout = NULL;
 	UINTN i, hsize, nhandles;
 	CHAR16 *text;
-	UINT16 boot_current;
-	size_t sz;
-	UINT16 boot_order[100];
 
 	/* Basic initialization*/
 	ST = Xsystab;
@@ -376,12 +221,26 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	printf("\n>> FreeBSD EFI boot block\n");
 	printf("   Loader path: %s\n\n", PATH_LOADER_EFI);
 	printf("   Initializing modules:");
-	for (i = 0; i < NUM_BOOT_MODULES; i++) {
+	for (i = 0; i < num_boot_modules; i++) {
 		printf(" %s", boot_modules[i]->name);
 		if (boot_modules[i]->init != NULL)
 			boot_modules[i]->init();
 	}
 	putchar('\n');
+
+	/* Fetch all the block I/O handles, we have to search through them later */
+	hsize = 0;
+	BS->LocateHandle(ByProtocol, &BlockIoProtocolGUID, NULL,
+	    &hsize, NULL);
+	handles = malloc(hsize);
+	if (handles == NULL)
+		efi_panic(EFI_OUT_OF_RESOURCES, "Failed to allocate %d handles\n",
+		    hsize);
+	status = BS->LocateHandle(ByProtocol, &BlockIoProtocolGUID,
+	    NULL, &hsize, handles);
+	if (status != EFI_SUCCESS)
+		efi_panic(status, "Failed to get device handles\n");
+	nhandles = hsize / sizeof(*handles);
 
 	/* Determine the devpath of our image so we can prefer it. */
 	status = OpenProtocolByHandle(IH, &LoadedImageGUID, (void **)&img);
@@ -409,58 +268,7 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 		}
 	}
 
-	boot_current = 0;
-	sz = sizeof(boot_current);
-	if (efi_global_getenv("BootCurrent", &boot_current, &sz) == EFI_SUCCESS) {
-		printf("   BootCurrent: %04x\n", boot_current);
-
-		sz = sizeof(boot_order);
-		if (efi_global_getenv("BootOrder", &boot_order, &sz) == EFI_SUCCESS) {
-			printf("   BootOrder:");
-			for (i = 0; i < sz / sizeof(boot_order[0]); i++)
-				printf(" %04x%s", boot_order[i],
-				    boot_order[i] == boot_current ? "[*]" : "");
-			printf("\n");
-		}
-	}
-
-#ifdef TEST_FAILURE
-	/*
-	 * For testing failover scenarios, it's nice to be able to fail fast.
-	 * Define TEST_FAILURE to create a boot1.efi that always fails after
-	 * reporting the boot manager protocol details.
-	 */
-	BS->Exit(IH, EFI_OUT_OF_RESOURCES, 0, NULL);
-#endif
-
-	hsize = 0;
-	BS->LocateHandle(ByProtocol, &BlockIoProtocolGUID, NULL,
-	    &hsize, NULL);
-	handles = malloc(hsize);
-	if (handles == NULL)
-		efi_panic(EFI_OUT_OF_RESOURCES, "Failed to allocate %d handles\n",
-		    hsize);
-	status = BS->LocateHandle(ByProtocol, &BlockIoProtocolGUID,
-	    NULL, &hsize, handles);
-	if (status != EFI_SUCCESS)
-		efi_panic(status, "Failed to get device handles\n");
-
-	/* Scan all partitions, probing with all modules. */
-	nhandles = hsize / sizeof(*handles);
-	printf("   Probing %zu block devices...", nhandles);
-	DPRINTF("\n");
-
-	for (i = 0; i < nhandles; i++)
-		probe_handle_status(handles[i], imgpath);
-	printf(" done\n");
-
-	/* Status summary. */
-	for (i = 0; i < NUM_BOOT_MODULES; i++) {
-		printf("    ");
-		boot_modules[i]->status();
-	}
-
-	try_boot();
+	choice_protocol(handles, nhandles, imgpath);
 
 	/* If we get here, we're out of luck... */
 	efi_panic(EFI_LOAD_ERROR, "No bootable partitions found!");

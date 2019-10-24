@@ -140,7 +140,6 @@ static EFI_STATUS
 load(const char *filepath, dev_info_t *dev, void **bufp, size_t *bufsize)
 {
 	ufs_ino_t ino;
-	EFI_STATUS status;
 	size_t size;
 	ssize_t read;
 	void *buf;
@@ -167,18 +166,18 @@ load(const char *filepath, dev_info_t *dev, void **bufp, size_t *bufsize)
 		return (EFI_INVALID_PARAMETER);
 	}
 
-	if ((status = BS->AllocatePool(EfiLoaderData, size, &buf)) !=
-	    EFI_SUCCESS) {
-		printf("Failed to allocate read buffer %zu for '%s' (%lu)\n",
-		    size, filepath, EFI_ERROR_CODE(status));
-		return (status);
+	buf = malloc(size);
+	if (buf == NULL) {
+		printf("Failed to allocate read buffer %zu for '%s'\n",
+		    size, filepath);
+		return (EFI_OUT_OF_RESOURCES);
 	}
 
 	read = fsread(ino, buf, size);
 	if ((size_t)read != size) {
 		printf("Failed to read '%s' (%zd != %zu)\n", filepath, read,
 		    size);
-		(void)BS->FreePool(buf);
+		free(buf);
 		return (EFI_INVALID_PARAMETER);
 	}
 
