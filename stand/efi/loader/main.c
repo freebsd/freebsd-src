@@ -239,6 +239,9 @@ sanity_check_currdev(void)
 	struct stat st;
 
 	return (stat(PATH_DEFAULTS_LOADER_CONF, &st) == 0 ||
+#ifdef PATH_BOOTABLE_TOKEN
+	    stat(PATH_BOOTABLE_TOKEN, &st) == 0 || /* non-standard layout */
+#endif
 	    stat(PATH_KERNEL, &st) == 0);
 }
 
