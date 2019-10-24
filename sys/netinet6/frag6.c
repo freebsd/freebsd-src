@@ -399,9 +399,6 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		return (IPPROTO_DONE);
 #endif
 
-	/* Store receive network interface pointer for later. */
-	srcifp = m->m_pkthdr.rcvif;
-
 	dstifp = NULL;
 	/* Find the destination interface of the packet. */
 	ia6 = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */);
@@ -460,6 +457,9 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		IP6STAT_INC(ip6s_fragdropped);
 		return (IPPROTO_DONE);
 	}
+
+	/* Store receive network interface pointer for later. */
+	srcifp = m->m_pkthdr.rcvif;
 
 	/* Generate a hash value for fragment bucket selection. */
 	hashkeyp = hashkey;
@@ -739,8 +739,7 @@ postinsert:
 		    af6->ip6af_m->m_pkthdr.csum_data;
 
 		TAILQ_REMOVE(&q6->ip6q_frags, af6, ip6af_tq);
-		while (t->m_next)
-			t = t->m_next;
+		t = m_last(t);
 		m_adj(af6->ip6af_m, af6->ip6af_offset);
 		m_demote_pkthdr(af6->ip6af_m);
 		m_cat(t, af6->ip6af_m);
@@ -930,7 +929,7 @@ frag6_init(void)
 	frag6_set_bucketsize();
 	for (bucket = 0; bucket < IP6REASS_NHASH; bucket++) {
 		TAILQ_INIT(IP6QB_HEAD(bucket));
-		mtx_init(&V_ip6qb[bucket].lock, "ip6qlock", NULL, MTX_DEF);
+		mtx_init(&V_ip6qb[bucket].lock, "ip6qb", NULL, MTX_DEF);
 		V_ip6qb[bucket].count = 0;
 	}
 	V_ip6qb_hashseed = arc4random();
