@@ -561,11 +561,16 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	/*
 	 * If it is the 1st fragment, record the length of the
 	 * unfragmentable part and the next header of the fragment header.
+	 * Assume the first 1st fragement to arrive will be correct.
+	 * We do not have any duplicate checks here yet so another packet
+	 * with fragoff == 0 could come and overwrite the ip6q_unfrglen
+	 * and worse, the next header, at any time.
 	 */
-	if (fragoff == 0) {
+	if (fragoff == 0 && q6->ip6q_unfrglen == -1) {
 		q6->ip6q_unfrglen = offset - sizeof(struct ip6_hdr) -
 		    sizeof(struct ip6_frag);
 		q6->ip6q_nxt = ip6f->ip6f_nxt;
+		/* XXX ECN? */
 	}
 
 	/*
