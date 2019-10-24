@@ -185,7 +185,7 @@ userret(struct thread *td, struct trapframe *frame)
 	    td->td_lk_slocks));
 	KASSERT((td->td_pflags & TDP_NOFAULTING) == 0,
 	    ("userret: Returning with pagefaults disabled"));
-	KASSERT(td->td_no_sleeping == 0,
+	KASSERT(THREAD_CAN_SLEEP(),
 	    ("userret: Returning with sleep disabled"));
 	KASSERT(td->td_pinned == 0 || (td->td_pflags & TDP_CALLCHAIN) != 0,
 	    ("userret: Returning with with pinned thread"));
