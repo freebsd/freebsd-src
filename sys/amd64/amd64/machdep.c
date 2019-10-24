@@ -230,7 +230,8 @@ struct kva_md_info kmi;
 static struct trapframe proc0_tf;
 struct region_descriptor r_gdt, r_idt;
 
-struct pcpu __pcpu[MAXCPU];
+struct pcpu *__pcpu;
+struct pcpu temp_bsp_pcpu;
 
 struct mtx icu_lock;
 
@@ -1559,13 +1560,68 @@ amd64_conf_fast_syscall(void)
 	wrmsr(MSR_SF_MASK, PSL_NT | PSL_T | PSL_I | PSL_C | PSL_D | PSL_AC);
 }
 
+void
+amd64_bsp_pcpu_init1(struct pcpu *pc)
+{
+
+	PCPU_SET(prvspace, pc);
+	PCPU_SET(curthread, &thread0);
+	PCPU_SET(tssp, &common_tss[0]);
+	PCPU_SET(commontssp, &common_tss[0]);
+	PCPU_SET(tss, (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
+	PCPU_SET(ldt, (struct system_segment_descriptor *)&gdt[GUSERLDT_SEL]);
+	PCPU_SET(fs32p, &gdt[GUFS32_SEL]);
+	PCPU_SET(gs32p, &gdt[GUGS32_SEL]);
+}
+
+void
+amd64_bsp_pcpu_init2(uint64_t rsp0)
+{
+
+	PCPU_SET(rsp0, rsp0);
+	PCPU_SET(pti_rsp0, ((vm_offset_t)PCPU_PTR(pti_stack) +
+	    PC_PTI_STACK_SZ * sizeof(uint64_t)) & ~0xful);
+	PCPU_SET(curpcb, thread0.td_pcb);
+}
+
+void
+amd64_bsp_ist_init(struct pcpu *pc)
+{
+	struct nmi_pcpu *np;
+
+	/* doublefault stack space, runs on ist1 */
+	common_tss[0].tss_ist1 = (long)&dblfault_stack[sizeof(dblfault_stack)];
+
+	/*
+	 * NMI stack, runs on ist2.  The pcpu pointer is stored just
+	 * above the start of the ist2 stack.
+	 */
+	np = ((struct nmi_pcpu *)&nmi0_stack[sizeof(nmi0_stack)]) - 1;
+	np->np_pcpu = (register_t)pc;
+	common_tss[0].tss_ist2 = (long)np;
+
+	/*
+	 * MC# stack, runs on ist3.  The pcpu pointer is stored just
+	 * above the start of the ist3 stack.
+	 */
+	np = ((struct nmi_pcpu *)&mce0_stack[sizeof(mce0_stack)]) - 1;
+	np->np_pcpu = (register_t)pc;
+	common_tss[0].tss_ist3 = (long)np;
+
+	/*
+	 * DB# stack, runs on ist4.
+	 */
+	np = ((struct nmi_pcpu *)&dbg0_stack[sizeof(dbg0_stack)]) - 1;
+	np->np_pcpu = (register_t)pc;
+	common_tss[0].tss_ist4 = (long)np;
+}
+
 u_int64_t
 hammer_time(u_int64_t modulep, u_int64_t physfree)
 {
 	caddr_t kmdp;
 	int gsel_tss, x;
 	struct pcpu *pc;
-	struct nmi_pcpu *np;
 	struct xstate_hdr *xhdr;
 	u_int64_t rsp0;
 	char *env;
@@ -1639,7 +1695,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	r_gdt.rd_limit = NGDT * sizeof(gdt[0]) - 1;
 	r_gdt.rd_base =  (long) gdt;
 	lgdt(&r_gdt);
-	pc = &__pcpu[0];
+	pc = &temp_bsp_pcpu;
 
 	wrmsr(MSR_FSBASE, 0);		/* User value */
 	wrmsr(MSR_GSBASE, (u_int64_t)pc);
@@ -1648,15 +1704,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	dpcpu_init((void *)(physfree + KERNBASE), 0);
 	physfree += DPCPU_SIZE;
-	PCPU_SET(prvspace, pc);
-	PCPU_SET(curthread, &thread0);
+	amd64_bsp_pcpu_init1(pc);
 	/* Non-late cninit() and printf() can be moved up to here. */
-	PCPU_SET(tssp, &common_tss[0]);
-	PCPU_SET(commontssp, &common_tss[0]);
-	PCPU_SET(tss, (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
-	PCPU_SET(ldt, (struct system_segment_descriptor *)&gdt[GUSERLDT_SEL]);
-	PCPU_SET(fs32p, &gdt[GUFS32_SEL]);
-	PCPU_SET(gs32p, &gdt[GUGS32_SEL]);
 
 	/*
 	 * Initialize mutexes.
@@ -1745,31 +1794,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	finishidentcpu();	/* Final stage of CPU initialization */
 	initializecpu();	/* Initialize CPU registers */
 
-	/* doublefault stack space, runs on ist1 */
-	common_tss[0].tss_ist1 = (long)&dblfault_stack[sizeof(dblfault_stack)];
-
-	/*
-	 * NMI stack, runs on ist2.  The pcpu pointer is stored just
-	 * above the start of the ist2 stack.
-	 */
-	np = ((struct nmi_pcpu *) &nmi0_stack[sizeof(nmi0_stack)]) - 1;
-	np->np_pcpu = (register_t) pc;
-	common_tss[0].tss_ist2 = (long) np;
-
-	/*
-	 * MC# stack, runs on ist3.  The pcpu pointer is stored just
-	 * above the start of the ist3 stack.
-	 */
-	np = ((struct nmi_pcpu *) &mce0_stack[sizeof(mce0_stack)]) - 1;
-	np->np_pcpu = (register_t) pc;
-	common_tss[0].tss_ist3 = (long) np;
-
-	/*
-	 * DB# stack, runs on ist4.
-	 */
-	np = ((struct nmi_pcpu *) &dbg0_stack[sizeof(dbg0_stack)]) - 1;
-	np->np_pcpu = (register_t) pc;
-	common_tss[0].tss_ist4 = (long) np;
+	amd64_bsp_ist_init(pc);
 	
 	/* Set the IO permission bitmap (empty due to tss seg limit) */
 	common_tss[0].tss_iobase = sizeof(struct amd64tss) + IOPERM_BITMAP_SIZE;
@@ -1858,10 +1883,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	/* Ensure the stack is aligned to 16 bytes */
 	rsp0 &= ~0xFul;
 	common_tss[0].tss_rsp0 = rsp0;
-	PCPU_SET(rsp0, rsp0);
-	PCPU_SET(pti_rsp0, ((vm_offset_t)PCPU_PTR(pti_stack) +
-	    PC_PTI_STACK_SZ * sizeof(uint64_t)) & ~0xful);
-	PCPU_SET(curpcb, thread0.td_pcb);
+	amd64_bsp_pcpu_init2(rsp0);
 
 	/* transfer to user mode */
 

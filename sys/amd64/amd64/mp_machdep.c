@@ -94,7 +94,7 @@ __FBSDID("$FreeBSD$");
 
 #define	AP_BOOTPT_SZ		(PAGE_SIZE * 3)
 
-extern	struct pcpu __pcpu[];
+extern	struct pcpu *__pcpu;
 
 /* Temporary variables for init_secondary()  */
 char *doublefault_stack;
@@ -407,7 +407,7 @@ mp_realloc_pcpu(int cpuid, int domain)
 		return;
 	na = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
 	pagecopy((void *)oa, (void *)na);
-	pmap_enter(kernel_pmap, oa, m, VM_PROT_READ | VM_PROT_WRITE, 0, 0);
+	pmap_qenter((vm_offset_t)&__pcpu[cpuid], &m, 1);
 	/* XXX old pcpu page leaked. */
 }
 #endif

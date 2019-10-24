@@ -446,6 +446,10 @@ static pml4_entry_t *pti_pml4;
 static vm_pindex_t pti_pg_idx;
 static bool pti_finalized;
 
+extern struct pcpu *__pcpu;
+extern struct pcpu temp_bsp_pcpu;
+extern pt_entry_t *pcpu_pte;
+
 struct pmap_pkru_range {
 	struct rs_el	pkru_rs_el;
 	u_int		pkru_keyidx;
@@ -1595,8 +1599,8 @@ void
 pmap_bootstrap(vm_paddr_t *firstaddr)
 {
 	vm_offset_t va;
-	pt_entry_t *pte;
-	uint64_t cr4;
+	pt_entry_t *pte, *pcpu_pte;
+	uint64_t cr4, pcpu_phys;
 	u_long res;
 	int i;
 
@@ -1610,6 +1614,8 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	 * Create an initial set of page tables to run the kernel in.
 	 */
 	create_pagetables(firstaddr);
+
+	pcpu_phys = allocpages(firstaddr, MAXCPU);
 
 	/*
 	 * Add a physical memory segment (vm_phys_seg) corresponding to the
@@ -1678,7 +1684,20 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	SYSMAP(caddr_t, CMAP1, crashdumpmap, MAXDUMPPGS)
 	CADDR1 = crashdumpmap;
 
+	SYSMAP(struct pcpu *, pcpu_pte, __pcpu, MAXCPU);
 	virtual_avail = va;
+
+	for (i = 0; i < MAXCPU; i++) {
+		pcpu_pte[i] = (pcpu_phys + ptoa(i)) | X86_PG_V | X86_PG_RW |
+		    pg_g | pg_nx | X86_PG_M | X86_PG_A;
+	}
+	STAILQ_INIT(&cpuhead);
+	wrmsr(MSR_GSBASE, (uint64_t)&__pcpu[0]);
+	pcpu_init(&__pcpu[0], 0, sizeof(struct pcpu));
+	amd64_bsp_pcpu_init1(&__pcpu[0]);
+	amd64_bsp_ist_init(&__pcpu[0]);
+	__pcpu[0].pc_dynamic = temp_bsp_pcpu.pc_dynamic;
+	__pcpu[0].pc_acpi_id = temp_bsp_pcpu.pc_acpi_id;
 
 	/*
 	 * Initialize the PAT MSR.
