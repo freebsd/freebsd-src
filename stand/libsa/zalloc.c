@@ -125,7 +125,8 @@ znalloc(MemPool *mp, uintptr_t bytes, size_t align)
 			continue;
 
 		/*
-		 * Cut extra from head and create new memory node from reminder.
+		 * Cut extra from head and create new memory node from
+		 * remainder.
 		 */
 
 		if (extra != 0) {
