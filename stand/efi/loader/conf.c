@@ -31,9 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <bootstrap.h>
 #include <efi.h>
 #include <efilib.h>
-#ifdef EFI_ZFS_BOOT
-#include <libzfs.h>
-#endif
+#include <efizfs.h>
 
 struct devsw *devsw[] = {
 	&efipart_fddev,

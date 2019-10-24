@@ -148,7 +148,7 @@ load(const char *filepath, dev_info_t *dev, void **bufp, size_t *bufsize)
 #ifdef EFI_DEBUG
 	{
 		CHAR16 *text = efi_devpath_name(dev->devpath);
-		DPRINTF("Loading '%s' from %S\n", filepath, text);
+		DPRINTF("UFS Loading '%s' from %S\n", filepath, text);
 		efi_free_devpath_name(text);
 	}
 #endif

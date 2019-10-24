@@ -94,6 +94,9 @@ void efi_free_devpath_name(CHAR16 *);
 EFI_DEVICE_PATH *efi_devpath_to_media_path(EFI_DEVICE_PATH *);
 UINTN efi_devpath_length(EFI_DEVICE_PATH *);
 EFI_HANDLE efi_devpath_to_handle(EFI_DEVICE_PATH *path, EFI_HANDLE *handles, unsigned nhandles);
+EFI_DEVICE_PATH *efi_name_to_devpath(const char *path);
+EFI_DEVICE_PATH *efi_name_to_devpath16(CHAR16 *path);
+void efi_devpath_free(EFI_DEVICE_PATH *dp);
 
 int efi_status_to_errno(EFI_STATUS);
 EFI_STATUS errno_to_efi_status(int errno);
@@ -124,9 +127,11 @@ void cpy16to8(const CHAR16 *, char *, size_t);
  * the loader setting / getting FreeBSD specific variables.
  */
 
+EFI_STATUS efi_delenv(EFI_GUID *guid, const char *varname);
 EFI_STATUS efi_freebsd_getenv(const char *v, void *data, __size_t *len);
 EFI_STATUS efi_getenv(EFI_GUID *g, const char *v, void *data, __size_t *len);
 EFI_STATUS efi_global_getenv(const char *v, void *data, __size_t *len);
+EFI_STATUS efi_setenv(EFI_GUID *guid, const char *varname, UINT32 attr, void *data, __size_t len);
 EFI_STATUS efi_setenv_freebsd_wcs(const char *varname, CHAR16 *valstr);
 
 /* guids and names */

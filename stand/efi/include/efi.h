@@ -62,6 +62,11 @@ Revision History
 #include "efiuga.h"
 
 /*
+ * Global variables
+ */
+extern EFI_LOADED_IMAGE *boot_img;
+
+/*
  * FreeBSD UUID
  */
 #define FREEBSD_BOOT_VAR_GUID \
