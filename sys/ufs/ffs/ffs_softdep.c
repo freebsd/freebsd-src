@@ -9587,6 +9587,11 @@ initiate_write_sbdep(sbdep)
 	} else
 		fs->fs_sujfree = 0;
 	bpfs->fs_sujfree = fs->fs_sujfree;
+	/*
+	 * Because we have made changes to the superblock, we need to
+	 * recompute its check-hash.
+	 */
+	bpfs->fs_ckhash = ffs_calc_sbhash(bpfs);
 }
 
 /*
@@ -9665,7 +9670,7 @@ clear_unlinked_inodedep(inodedep)
 	struct ufsmount *ump;
 	struct inodedep *idp;
 	struct inodedep *idn;
-	struct fs *fs;
+	struct fs *fs, *bpfs;
 	struct buf *bp;
 	ino_t ino;
 	ino_t nino;
@@ -9762,9 +9767,14 @@ clear_unlinked_inodedep(inodedep)
 		 */
 		if (pino == 0) {
 			bcopy((caddr_t)fs, bp->b_data, (u_int)fs->fs_sbsize);
-			ffs_oldfscompat_write((struct fs *)bp->b_data, ump);
-			softdep_setup_sbupdate(ump, (struct fs *)bp->b_data,
-			    bp);
+			bpfs = (struct fs *)bp->b_data;
+			ffs_oldfscompat_write(bpfs, ump);
+			softdep_setup_sbupdate(ump, bpfs, bp);
+			/*
+			 * Because we may have made changes to the superblock,
+			 * we need to recompute its check-hash.
+			 */
+			bpfs->fs_ckhash = ffs_calc_sbhash(bpfs);
 		} else if (fs->fs_magic == FS_UFS1_MAGIC) {
 			((struct ufs1_dinode *)bp->b_data +
 			    ino_to_fsbo(fs, pino))->di_freelink = nino;
@@ -9789,9 +9799,14 @@ clear_unlinked_inodedep(inodedep)
 			bp = getblk(ump->um_devvp, btodb(fs->fs_sblockloc),
 			    (int)fs->fs_sbsize, 0, 0, 0);
 			bcopy((caddr_t)fs, bp->b_data, (u_int)fs->fs_sbsize);
-			ffs_oldfscompat_write((struct fs *)bp->b_data, ump);
-			softdep_setup_sbupdate(ump, (struct fs *)bp->b_data,
-			    bp);
+			bpfs = (struct fs *)bp->b_data;
+			ffs_oldfscompat_write(bpfs, ump);
+			softdep_setup_sbupdate(ump, bpfs, bp);
+			/*
+			 * Because we may have made changes to the superblock,
+			 * we need to recompute its check-hash.
+			 */
+			bpfs->fs_ckhash = ffs_calc_sbhash(bpfs);
 			bwrite(bp);
 			ACQUIRE_LOCK(ump);
 		}
