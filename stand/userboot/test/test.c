@@ -336,7 +336,7 @@ test_setgdt(void *arg, uint64_t v, size_t sz)
 void
 test_exec(void *arg, uint64_t pc)
 {
-	printf("Execute at 0x%"PRIu64"\n", pc);
+	printf("Execute at 0x%"PRIx64"\n", pc);
 	test_exit(arg, 0);
 }
 
