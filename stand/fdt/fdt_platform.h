@@ -55,4 +55,7 @@ int fdt_platform_load_dtb(void);
 void fdt_platform_load_overlays(void);
 void fdt_platform_fixups(void);
 
+/* Devmatch/pnp function */
+const char *fdt_devmatch_next(int *tag, int *compatlen);
+
 #endif /* FDT_PLATFORM_H */
