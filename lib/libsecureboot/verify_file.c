@@ -292,6 +292,28 @@ verify_tweak(int fd, off_t off, struct stat *stp,
 	}
 }
 
+#ifndef VE_DEBUG_LEVEL
+# define VE_DEBUG_LEVEL 0
+#endif
+
+static int
+getenv_int(const char *var, int def)
+{
+	const char *cp;
+	char *ep;
+	long val;
+
+	val = def;
+	cp = getenv(var);
+	if (cp && *cp) {
+		val = strtol(cp, &ep, 0);
+		if ((ep && *ep) || val != (int)val) {
+			val = def;
+		}
+	}
+	return (int)val;
+}
+
 /**
  * @brief verify an open file
  *
@@ -331,9 +353,8 @@ verify_file(int fd, const char *filename, off_t off, int severity)
 
 	if (verifying < 0) {
 		verifying = ve_trust_init();
-#ifdef VE_DEBUG_LEVEL
-		ve_debug_set(VE_DEBUG_LEVEL);
-#endif
+		verbose = getenv_int("VE_VERBOSE", VE_VERBOSE_DEFAULT);
+		ve_debug_set(getenv_int("VE_DEBUG_LEVEL", VE_DEBUG_LEVEL));
 		/* initialize ve_status with default result */
 		rc = verifying ? VE_NOT_CHECKED : VE_NOT_VERIFYING;
 		ve_status_set(0, rc);
