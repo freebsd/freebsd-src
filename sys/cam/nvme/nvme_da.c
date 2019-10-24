@@ -129,12 +129,11 @@ struct nda_softc {
 };
 
 struct nda_trim_request {
-	union {
-		struct nvme_dsm_range dsm;
-		uint8_t		data[NVME_MAX_DSM_TRIM];
-	};
+	struct nvme_dsm_range	dsm[NVME_MAX_DSM_TRIM / sizeof(struct nvme_dsm_range)];
 	TAILQ_HEAD(, bio) bps;
 };
+_Static_assert(NVME_MAX_DSM_TRIM % sizeof(struct nvme_dsm_range) == 0,
+    "NVME_MAX_DSM_TRIM must be an integral number of ranges");
 
 /* Need quirk table */
 
@@ -957,9 +956,8 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 			}
 			TAILQ_INIT(&trim->bps);
 			bp1 = bp;
-			ents = sizeof(trim->data) / sizeof(struct nvme_dsm_range);
-			ents = min(ents, nda_max_trim_entries);
-			dsm_range = &trim->dsm;
+			ents = min(nitems(trim->dsm), nda_max_trim_entries);
+			dsm_range = trim->dsm;
 			dsm_end = dsm_range + ents;
 			do {
 				TAILQ_INSERT_TAIL(&trim->bps, bp1, bio_queue);
@@ -977,8 +975,8 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 				/* XXX -- Could limit based on total payload size */
 			} while (bp1 != NULL);
 			start_ccb->ccb_trim = trim;
-			nda_nvme_trim(softc, &start_ccb->nvmeio, &trim->dsm,
-			    dsm_range - &trim->dsm);
+			nda_nvme_trim(softc, &start_ccb->nvmeio, trim->dsm,
+			    dsm_range - trim->dsm);
 			start_ccb->ccb_state = NDA_CCB_TRIM;
 			softc->trim_count++;
 			softc->trim_ranges += ranges;
