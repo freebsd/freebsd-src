@@ -247,6 +247,7 @@ struct tdq {
 	u_char		tdq_ipipending;		/* IPI pending. */
 	u_char		tdq_idx;		/* Current insert index. */
 	u_char		tdq_ridx;		/* Current removal index. */
+	int		tdq_id;			/* cpuid. */
 	struct runq	tdq_realtime;		/* real-time run queue. */
 	struct runq	tdq_timeshare;		/* timeshare run queue. */
 	struct runq	tdq_idle;		/* Queue of IDLE threads. */
@@ -280,14 +281,14 @@ static int trysteal_limit = 2;
 /*
  * One thread queue per processor.
  */
-static struct tdq	tdq_cpu[MAXCPU];
 static struct tdq	*balance_tdq;
 static int balance_ticks;
+DPCPU_DEFINE_STATIC(struct tdq, tdq);
 DPCPU_DEFINE_STATIC(uint32_t, randomval);
 
-#define	TDQ_SELF()	(&tdq_cpu[PCPU_GET(cpuid)])
-#define	TDQ_CPU(x)	(&tdq_cpu[(x)])
-#define	TDQ_ID(x)	((int)((x) - tdq_cpu))
+#define	TDQ_SELF()	(DPCPU_PTR(tdq))
+#define	TDQ_CPU(x)	(DPCPU_ID_PTR((x), tdq))
+#define	TDQ_ID(x)	((x)->tdq_id)
 #else	/* !SMP */
 static struct tdq	tdq_cpu;
 
@@ -311,7 +312,7 @@ static void sched_pctcpu_update(struct td_sched *, int);
 
 /* Operations on per processor queues */
 static struct thread *tdq_choose(struct tdq *);
-static void tdq_setup(struct tdq *);
+static void tdq_setup(struct tdq *, int i);
 static void tdq_load_add(struct tdq *, struct thread *);
 static void tdq_load_rem(struct tdq *, struct thread *);
 static __inline void tdq_runq_add(struct tdq *, struct thread *, int);
@@ -838,6 +839,7 @@ sched_highest(const struct cpu_group *cg, cpuset_t mask, int minload)
 static void
 sched_balance_group(struct cpu_group *cg)
 {
+	struct tdq *tdq;
 	cpuset_t hmask, lmask;
 	int high, low, anylow;
 
@@ -853,9 +855,9 @@ sched_balance_group(struct cpu_group *cg)
 		if (CPU_EMPTY(&lmask))
 			break;
 		anylow = 1;
+		tdq = TDQ_CPU(high);
 nextlow:
-		low = sched_lowest(cg, lmask, -1,
-		    TDQ_CPU(high)->tdq_load - 1, high);
+		low = sched_lowest(cg, lmask, -1, tdq->tdq_load - 1, high);
 		/* Stop if we looked well and found no less loaded CPU. */
 		if (anylow && low == -1)
 			break;
@@ -863,7 +865,7 @@ nextlow:
 		if (low == -1)
 			continue;
 		/* Transfer thread from high to low. */
-		if (sched_balance_pair(TDQ_CPU(high), TDQ_CPU(low))) {
+		if (sched_balance_pair(tdq, TDQ_CPU(low))) {
 			/* CPU that got thread can no longer be a donor. */
 			CPU_CLR(low, &hmask);
 		} else {
@@ -1271,7 +1273,7 @@ sched_pickcpu(struct thread *td, int flags)
 	    curthread->td_intr_nesting_level && ts->ts_cpu != self) {
 		SCHED_STAT_INC(pickcpu_intrbind);
 		ts->ts_cpu = self;
-		if (TDQ_CPU(self)->tdq_lowpri > pri) {
+		if (TDQ_SELF()->tdq_lowpri > pri) {
 			SCHED_STAT_INC(pickcpu_affinity);
 			return (ts->ts_cpu);
 		}
@@ -1329,9 +1331,10 @@ sched_pickcpu(struct thread *td, int flags)
 	/*
 	 * Compare the lowest loaded cpu to current cpu.
 	 */
-	if (THREAD_CAN_SCHED(td, self) && TDQ_CPU(self)->tdq_lowpri > pri &&
-	    TDQ_CPU(cpu)->tdq_lowpri < PRI_MIN_IDLE &&
-	    TDQ_CPU(self)->tdq_load <= TDQ_CPU(cpu)->tdq_load + 1) {
+	tdq = TDQ_CPU(cpu);
+	if (THREAD_CAN_SCHED(td, self) && TDQ_SELF()->tdq_lowpri > pri &&
+	    tdq->tdq_lowpri < PRI_MIN_IDLE &&
+	    TDQ_SELF()->tdq_load <= tdq->tdq_load + 1) {
 		SCHED_STAT_INC(pickcpu_local);
 		cpu = self;
 	} else
@@ -1376,14 +1379,15 @@ tdq_choose(struct tdq *tdq)
  * Initialize a thread queue.
  */
 static void
-tdq_setup(struct tdq *tdq)
+tdq_setup(struct tdq *tdq, int id)
 {
 
 	if (bootverbose)
-		printf("ULE: setup cpu %d\n", TDQ_ID(tdq));
+		printf("ULE: setup cpu %d\n", id);
 	runq_init(&tdq->tdq_realtime);
 	runq_init(&tdq->tdq_timeshare);
 	runq_init(&tdq->tdq_idle);
+	tdq->tdq_id = id;
 	snprintf(tdq->tdq_name, sizeof(tdq->tdq_name),
 	    "sched lock %d", (int)TDQ_ID(tdq));
 	mtx_init(&tdq->tdq_lock, tdq->tdq_name, "sched lock",
@@ -1403,8 +1407,8 @@ sched_setup_smp(void)
 
 	cpu_top = smp_topo();
 	CPU_FOREACH(i) {
-		tdq = TDQ_CPU(i);
-		tdq_setup(tdq);
+		tdq = DPCPU_ID_PTR(i, tdq);
+		tdq_setup(tdq, i);
 		tdq->tdq_cg = smp_topo_find(cpu_top, i);
 		if (tdq->tdq_cg == NULL)
 			panic("Can't find cpu group for %d\n", i);
@@ -1422,12 +1426,12 @@ sched_setup(void *dummy)
 {
 	struct tdq *tdq;
 
-	tdq = TDQ_SELF();
 #ifdef SMP
 	sched_setup_smp();
 #else
-	tdq_setup(tdq);
+	tdq_setup(TDQ_SELF(), 0);
 #endif
+	tdq = TDQ_SELF();
 
 	/* Add thread0's load since it's running. */
 	TDQ_LOCK(tdq);
@@ -2015,7 +2019,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	KASSERT(newtd == NULL, ("sched_switch: Unsupported newtd argument"));
 
 	cpuid = PCPU_GET(cpuid);
-	tdq = TDQ_CPU(cpuid);
+	tdq = TDQ_SELF();
 	ts = td_get_sched(td);
 	mtx = td->td_lock;
 	sched_pctcpu_update(ts, 1);
@@ -2110,7 +2114,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		 * run queue lock.
 		 */
 		cpuid = PCPU_GET(cpuid);
-		tdq = TDQ_CPU(cpuid);
+		tdq = TDQ_SELF();
 		lock_profile_obtain_lock_success(
 		    &TDQ_LOCKPTR(tdq)->lock_object, 0, 0, __FILE__, __LINE__);
 
@@ -2850,14 +2854,15 @@ sched_throw(struct thread *td)
 	struct thread *newtd;
 	struct tdq *tdq;
 
-	tdq = TDQ_SELF();
 	if (td == NULL) {
 		/* Correct spinlock nesting and acquire the correct lock. */
+		tdq = TDQ_SELF();
 		TDQ_LOCK(tdq);
 		spinlock_exit();
 		PCPU_SET(switchtime, cpu_ticks());
 		PCPU_SET(switchticks, ticks);
 	} else {
+		tdq = TDQ_SELF();
 		MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
 		tdq_load_rem(tdq, td);
 		lock_profile_release_lock(&TDQ_LOCKPTR(tdq)->lock_object);
@@ -2885,7 +2890,7 @@ sched_fork_exit(struct thread *td)
 	 * non-nested critical section with the scheduler lock held.
 	 */
 	cpuid = PCPU_GET(cpuid);
-	tdq = TDQ_CPU(cpuid);
+	tdq = TDQ_SELF();
 	if (TD_IS_IDLETHREAD(td))
 		td->td_lock = TDQ_LOCKPTR(tdq);
 	MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
