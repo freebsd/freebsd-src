@@ -510,6 +510,16 @@ fdt_apply_overlays()
 }
 
 int
+fdt_is_setup(void)
+{
+
+	if (fdtp != NULL)
+		return (1);
+
+	return (0);
+}
+
+int
 fdt_setup_fdtp()
 {
 	struct preloaded_file *bfp;
