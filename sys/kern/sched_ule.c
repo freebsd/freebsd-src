@@ -1251,7 +1251,7 @@ sched_pickcpu(struct thread *td, int flags)
 	struct td_sched *ts;
 	struct tdq *tdq;
 	cpuset_t mask;
-	int cpu, pri, self;
+	int cpu, pri, self, intr;
 
 	self = PCPU_GET(cpuid);
 	ts = td_get_sched(td);
@@ -1268,22 +1268,26 @@ sched_pickcpu(struct thread *td, int flags)
 	 * Prefer to run interrupt threads on the processors that generate
 	 * the interrupt.
 	 */
-	pri = td->td_priority;
 	if (td->td_priority <= PRI_MAX_ITHD && THREAD_CAN_SCHED(td, self) &&
-	    curthread->td_intr_nesting_level && ts->ts_cpu != self) {
-		SCHED_STAT_INC(pickcpu_intrbind);
-		ts->ts_cpu = self;
-		if (TDQ_SELF()->tdq_lowpri > pri) {
-			SCHED_STAT_INC(pickcpu_affinity);
-			return (ts->ts_cpu);
+	    curthread->td_intr_nesting_level) {
+		tdq = TDQ_SELF();
+		if (tdq->tdq_lowpri >= PRI_MIN_IDLE) {
+			SCHED_STAT_INC(pickcpu_idle_affinity);
+			return (self);
 		}
+		ts->ts_cpu = self;
+		intr = 1;
+		cg = tdq->tdq_cg;
+		goto llc;
+	} else {
+		intr = 0;
+		tdq = TDQ_CPU(ts->ts_cpu);
+		cg = tdq->tdq_cg;
 	}
 	/*
 	 * If the thread can run on the last cpu and the affinity has not
 	 * expired and it is idle, run it there.
 	 */
-	tdq = TDQ_CPU(ts->ts_cpu);
-	cg = tdq->tdq_cg;
 	if (THREAD_CAN_SCHED(td, ts->ts_cpu) &&
 	    tdq->tdq_lowpri >= PRI_MIN_IDLE &&
 	    SCHED_AFFINITY(ts, CG_SHARE_L2)) {
@@ -1299,34 +1303,58 @@ sched_pickcpu(struct thread *td, int flags)
 			return (ts->ts_cpu);
 		}
 	}
+llc:
 	/*
 	 * Search for the last level cache CPU group in the tree.
-	 * Skip caches with expired affinity time and SMT groups.
-	 * Affinity to higher level caches will be handled less aggressively.
+	 * Skip SMT, identical groups and caches with expired affinity.
+	 * Interrupt threads affinity is explicit and never expires.
 	 */
 	for (ccg = NULL; cg != NULL; cg = cg->cg_parent) {
 		if (cg->cg_flags & CG_FLAG_THREAD)
 			continue;
-		if (!SCHED_AFFINITY(ts, cg->cg_level))
+		if (cg->cg_children == 1 || cg->cg_count == 1)
+			continue;
+		if (cg->cg_level == CG_SHARE_NONE ||
+		    (!intr && !SCHED_AFFINITY(ts, cg->cg_level)))
 			continue;
 		ccg = cg;
 	}
-	if (ccg != NULL)
-		cg = ccg;
+	/* Found LLC shared by all CPUs, so do a global search. */
+	if (ccg == cpu_top)
+		ccg = NULL;
 	cpu = -1;
-	/* Search the group for the less loaded idle CPU we can run now. */
 	mask = td->td_cpuset->cs_mask;
-	if (cg != NULL && cg != cpu_top &&
-	    CPU_CMP(&cg->cg_mask, &cpu_top->cg_mask) != 0)
-		cpu = sched_lowest(cg, mask, max(pri, PRI_MAX_TIMESHARE),
+	pri = td->td_priority;
+	/*
+	 * Try hard to keep interrupts within found LLC.  Search the LLC for
+	 * the least loaded CPU we can run now.  For NUMA systems it should
+	 * be within target domain, and it also reduces scheduling overhead.
+	 */
+	if (ccg != NULL && intr) {
+		cpu = sched_lowest(ccg, mask, pri, INT_MAX, ts->ts_cpu);
+		if (cpu >= 0)
+			SCHED_STAT_INC(pickcpu_intrbind);
+	} else
+	/* Search the LLC for the least loaded idle CPU we can run now. */
+	if (ccg != NULL) {
+		cpu = sched_lowest(ccg, mask, max(pri, PRI_MAX_TIMESHARE),
 		    INT_MAX, ts->ts_cpu);
-	/* Search globally for the less loaded CPU we can run now. */
-	if (cpu == -1)
+		if (cpu >= 0)
+			SCHED_STAT_INC(pickcpu_affinity);
+	}
+	/* Search globally for the least loaded CPU we can run now. */
+	if (cpu < 0) {
 		cpu = sched_lowest(cpu_top, mask, pri, INT_MAX, ts->ts_cpu);
-	/* Search globally for the less loaded CPU. */
-	if (cpu == -1)
+		if (cpu >= 0)
+			SCHED_STAT_INC(pickcpu_lowest);
+	}
+	/* Search globally for the least loaded CPU. */
+	if (cpu < 0) {
 		cpu = sched_lowest(cpu_top, mask, -1, INT_MAX, ts->ts_cpu);
-	KASSERT(cpu != -1, ("sched_pickcpu: Failed to find a cpu."));
+		if (cpu >= 0)
+			SCHED_STAT_INC(pickcpu_lowest);
+	}
+	KASSERT(cpu >= 0, ("sched_pickcpu: Failed to find a cpu."));
 	KASSERT(!CPU_ABSENT(cpu), ("sched_pickcpu: Picked absent CPU %d.", cpu));
 	/*
 	 * Compare the lowest loaded cpu to current cpu.
@@ -1337,8 +1365,7 @@ sched_pickcpu(struct thread *td, int flags)
 	    TDQ_SELF()->tdq_load <= tdq->tdq_load + 1) {
 		SCHED_STAT_INC(pickcpu_local);
 		cpu = self;
-	} else
-		SCHED_STAT_INC(pickcpu_lowest);
+	}
 	if (cpu != ts->ts_cpu)
 		SCHED_STAT_INC(pickcpu_migration);
 	return (cpu);
