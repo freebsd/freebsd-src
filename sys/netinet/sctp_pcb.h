@@ -259,6 +259,7 @@ struct sctp_base_info {
 	int packet_log_end;
 	uint8_t packet_log_buffer[SCTP_PACKET_LOG_SIZE];
 #endif
+	eventhandler_tag eh_tag;
 };
 
 /*-
