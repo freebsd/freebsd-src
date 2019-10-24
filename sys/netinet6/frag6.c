@@ -608,11 +608,11 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	 * If it is the first fragment, do the above check for each
 	 * fragment already stored in the reassembly queue.
 	 */
-	if (fragoff == 0) {
+	if (fragoff == 0 && !only_frag) {
 		TAILQ_FOREACH_SAFE(af6, &q6->ip6q_frags, ip6af_tq, af6tmp) {
 
-			if (q6->ip6q_unfrglen + af6->ip6af_off + af6->ip6af_frglen >
-			    IPV6_MAXPACKET) {
+			if (q6->ip6q_unfrglen + af6->ip6af_off +
+			    af6->ip6af_frglen > IPV6_MAXPACKET) {
 				struct ip6_hdr *ip6err;
 				struct mbuf *merr;
 				int erroff;
@@ -622,6 +622,8 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 
 				/* Dequeue the fragment. */
 				TAILQ_REMOVE(&q6->ip6q_frags, af6, ip6af_tq);
+				q6->ip6q_nfrag--;
+				atomic_subtract_int(&frag6_nfrags, 1);
 				free(af6, M_FRAG6);
 
 				/* Set a valid receive interface pointer. */
