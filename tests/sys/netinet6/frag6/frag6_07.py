@@ -54,6 +54,25 @@ def check_icmp6_error(args, packet):
 	#icmp6.display()
 	return True
 
+def check_icmp6_error_2(args, packet):
+	ip6 = packet.getlayer(sp.IPv6)
+	if not ip6:
+		return False
+	oip6 = sp.IPv6(src=args.src[0], dst=args.to[0])
+	if ip6.dst != oip6.src:
+		return False
+	icmp6 = packet.getlayer(sp.ICMPv6TimeExceeded)
+	if not icmp6:
+		return False
+	# ICMP6_TIME_EXCEED_REASSEMBLY 1
+	if icmp6.code != 1:
+		return False
+	# Should we check the payload as well?
+	# We are running in a very isolated environment and nothing else
+	# should trigger an ICMPv6 Time Exceeded / Frag reassembly so leave it.
+	#icmp6.display()
+	return True
+
 def main():
 	parser = argparse.ArgumentParser("frag6.py",
 		description="IPv6 fragementation test tool")
@@ -78,6 +97,7 @@ def main():
 
 	# Start sniffing on recvif
 	sniffer = Sniffer(args, check_icmp6_error)
+	sniffer2 = Sniffer(args, check_icmp6_error_2)
 
 
 	########################################################################
@@ -88,6 +108,7 @@ def main():
 	#
 	# A:  Reassembly failure.
 	# R:  ICMPv6 param prob, param header.
+	# R:  ICMPv6 timeout (1st frag, off=0)
 	#
 	data = "6" * 1280
 	ip6f01 = \
@@ -142,6 +163,13 @@ def main():
 	sniffer.setEnd()
 	sniffer.join()
 	if not sniffer.foundCorrectPacket:
+		sys.exit(1)
+
+	# Wait for expiry from first test run.
+	sleep(75)
+	sniffer2.setEnd()
+	sniffer2.join()
+	if not sniffer2.foundCorrectPacket:
 		sys.exit(1)
 
 	sys.exit(0)

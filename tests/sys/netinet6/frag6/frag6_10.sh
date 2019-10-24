@@ -52,6 +52,16 @@ frag6_10_check_stats() {
 	# The Python script has to wait for this already to get the ICMPv6
 	# hence we do not sleep here anymore.
 
+	nf=`jexec ${jname} sysctl -n net.inet6.ip6.frag6_nfragpackets`
+	case ${nf} in
+	0)	break ;;
+	*)	atf_fail "VNET frag6_nfragpackets not 0 but: ${nf}" ;;
+	esac
+	nf=`sysctl -n net.inet6.ip6.frag6_nfrags`
+	case ${nf} in
+	0)	break ;;
+	*)	atf_fail "Global frag6_nfrags not 0 but: ${nf}" ;;
+	esac
 
 	#
 	# Check selection of global UDP stats.
@@ -77,8 +87,8 @@ EOF
 
 	#
 	# Check selection of global IPv6 stats.
-	# We do not seem to sent a timeout ICMPv6 for this one?
-	# No, as it is not an off=0 segment.
+	# We do not sent a timeout ICMPv6 for this one
+	# as it is not an off=0 segment.
 	#
 	cat <<EOF > ${HOME}/filter-${jname}.txt
     <dropped-below-minimum-size>0</dropped-below-minimum-size>
@@ -87,7 +97,7 @@ EOF
     <dropped-bad-version>0</dropped-bad-version>
     <received-fragments>1</received-fragments>
     <dropped-fragment>0</dropped-fragment>
-    <dropped-fragment-after-timeout>0</dropped-fragment-after-timeout>
+    <dropped-fragment-after-timeout>1</dropped-fragment-after-timeout>
     <dropped-fragments-overflow>0</dropped-fragments-overflow>
     <atomic-fragments>0</atomic-fragments>
     <reassembled-packets>0</reassembled-packets>
