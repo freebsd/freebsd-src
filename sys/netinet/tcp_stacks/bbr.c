@@ -11814,12 +11814,13 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 						uint32_t del;
 
 						del = lcts - bbr->rc_pacer_started;
-						if (del > bbr->r_ctl.rc_last_delay_val) {
+						if (bbr->r_ctl.rc_last_delay_val > del) {
 							BBR_STAT_INC(bbr_force_timer_start);
 							bbr->r_ctl.rc_last_delay_val -= del;
 							bbr->rc_pacer_started = lcts;
 						} else {
 							/* We are late */
+							bbr->r_ctl.rc_last_delay_val = 0;
 							BBR_STAT_INC(bbr_force_output);
 							(void)tp->t_fb->tfb_tcp_output(tp);
 						}
@@ -12278,8 +12279,9 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 			 * We are early setup to adjust 
 			 * our slot time.
 			 */
+			uint64_t merged_val;
+			
 			bbr->r_ctl.rc_agg_early += (bbr->r_ctl.rc_last_delay_val - delay_calc);
-			bbr->r_ctl.rc_last_delay_val = 0;
 			bbr->r_agg_early_set = 1;
 			if (bbr->r_ctl.rc_hptsi_agg_delay) {
 				if (bbr->r_ctl.rc_hptsi_agg_delay >= bbr->r_ctl.rc_agg_early) {
@@ -12292,9 +12294,13 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 					bbr->r_ctl.rc_hptsi_agg_delay = 0;
 				}
 			}
+			merged_val = bbr->rc_pacer_started;
+			merged_val <<= 32;
+			merged_val |= bbr->r_ctl.rc_last_delay_val;
 			bbr_log_pacing_delay_calc(bbr, inp->inp_hpts_calls,
-						 bbr->r_ctl.rc_agg_early, cts, 3, 0,
+						 bbr->r_ctl.rc_agg_early, cts, delay_calc, merged_val,
 						 bbr->r_agg_early_set, 3);
+			bbr->r_ctl.rc_last_delay_val = 0;
 			BBR_STAT_INC(bbr_early);
 			delay_calc = 0;
 		}
