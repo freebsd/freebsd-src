@@ -287,6 +287,32 @@ ficlFindfile(FICL_VM *pVM)
 	return;
 }
 
+#ifndef TESTMAIN
+
+/*	isvirtualized? - Return whether the loader runs under a
+ *			hypervisor.
+ *
+ * isvirtualized? ( -- flag )
+ */
+static void
+ficlIsvirtualizedQ(FICL_VM *pVM)
+{
+	FICL_INT flag;
+	const char *hv;
+
+#if FICL_ROBUST > 1
+	vmCheckStack(pVM, 0, 1);
+#endif
+
+	hv = (archsw.arch_hypervisor != NULL)
+	    ? (*archsw.arch_hypervisor)()
+	    : NULL;
+	flag = (hv != NULL) ? FICL_TRUE : FICL_FALSE;
+	stackPushINT(pVM->pStack, flag);
+}
+
+#endif /* ndef TESTMAIN */
+
 void
 ficlCcall(FICL_VM *pVM)
 {
@@ -840,7 +866,10 @@ void ficlCompilePlatform(FICL_SYSTEM *pSys)
     dictAppendWord(dp, "ccall",	    ficlCcall,	    FW_DEFAULT);
     dictAppendWord(dp, "uuid-from-string", ficlUuidFromString, FW_DEFAULT);
     dictAppendWord(dp, "uuid-to-string", ficlUuidToString, FW_DEFAULT);
-
+#ifndef TESTMAIN
+    dictAppendWord(dp, "isvirtualized?",ficlIsvirtualizedQ, FW_DEFAULT);
+#endif
+    
     SET_FOREACH(fnpp, Xficl_compile_set)
 	(*fnpp)(pSys);
 
