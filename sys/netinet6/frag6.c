@@ -106,8 +106,6 @@ struct ip6asfrag {
 	bool		ip6af_mff;	/* More fragment bit in frag off. */
 };
 
-#define IP6_REASS_MBUF(ip6af) (*(struct mbuf **)&((ip6af)->ip6af_m))
-
 static MALLOC_DEFINE(M_FRAG6, "frag6", "IPv6 fragment reassembly header");
 
 #ifdef VIMAGE
@@ -257,7 +255,7 @@ frag6_freef(struct ip6q *q6, uint32_t bucket)
 
 	while ((af6 = TAILQ_FIRST(&q6->ip6q_frags)) != NULL) {
 
-		m = IP6_REASS_MBUF(af6);
+		m = af6->ip6af_m;
 		TAILQ_REMOVE(&q6->ip6q_frags, af6, ip6af_tq);
 
 		/*
@@ -301,7 +299,6 @@ frag6_cleanup(void *arg __unused, struct ifnet *ifp)
 	struct ip6qhead *head;
 	struct ip6q *q6;
 	struct ip6asfrag *af6;
-	struct mbuf *m;
 	uint32_t bucket;
 
 	KASSERT(ifp != NULL, ("%s: ifp is NULL", __func__));
@@ -323,11 +320,9 @@ frag6_cleanup(void *arg __unused, struct ifnet *ifp)
 		TAILQ_FOREACH(q6, head, ip6q_tq) {
 			TAILQ_FOREACH(af6, &q6->ip6q_frags, ip6af_tq) {
 
-				m = IP6_REASS_MBUF(af6);
-
 				/* Clear no longer valid rcvif pointer. */
-				if (m->m_pkthdr.rcvif == ifp)
-					m->m_pkthdr.rcvif = NULL;
+				if (af6->ip6af_m->m_pkthdr.rcvif == ifp)
+					af6->ip6af_m->m_pkthdr.rcvif = NULL;
 			}
 		}
 		IP6QB_UNLOCK(bucket);
@@ -593,7 +588,7 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 				struct mbuf *merr;
 				int erroff;
 
-				merr = IP6_REASS_MBUF(af6);
+				merr = af6->ip6af_m;
 				erroff = af6->ip6af_offset;
 
 				/* Dequeue the fragment. */
@@ -630,7 +625,7 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	ip6af->ip6af_off = fragoff;
 	ip6af->ip6af_frglen = frgpartlen;
 	ip6af->ip6af_offset = offset;
-	IP6_REASS_MBUF(ip6af) = m;
+	ip6af->ip6af_m = m;
 
 	if (only_frag) {
 		/*
@@ -735,20 +730,20 @@ postinsert:
 
 	/* Reassembly is complete; concatenate fragments. */
 	ip6af = TAILQ_FIRST(&q6->ip6q_frags);
-	t = m = IP6_REASS_MBUF(ip6af);
+	t = m = ip6af->ip6af_m;
 	TAILQ_REMOVE(&q6->ip6q_frags, ip6af, ip6af_tq);
 	while ((af6 = TAILQ_FIRST(&q6->ip6q_frags)) != NULL) {
 		m->m_pkthdr.csum_flags &=
-		    IP6_REASS_MBUF(af6)->m_pkthdr.csum_flags;
+		    af6->ip6af_m->m_pkthdr.csum_flags;
 		m->m_pkthdr.csum_data +=
-		    IP6_REASS_MBUF(af6)->m_pkthdr.csum_data;
+		    af6->ip6af_m->m_pkthdr.csum_data;
 
 		TAILQ_REMOVE(&q6->ip6q_frags, af6, ip6af_tq);
 		while (t->m_next)
 			t = t->m_next;
-		m_adj(IP6_REASS_MBUF(af6), af6->ip6af_offset);
-		m_demote_pkthdr(IP6_REASS_MBUF(af6));
-		m_cat(t, IP6_REASS_MBUF(af6));
+		m_adj(af6->ip6af_m, af6->ip6af_offset);
+		m_demote_pkthdr(af6->ip6af_m);
+		m_cat(t, af6->ip6af_m);
 		free(af6, M_FRAG6);
 	}
 
