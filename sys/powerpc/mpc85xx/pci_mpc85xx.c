@@ -144,10 +144,6 @@ struct fsl_pcib_softc {
 	int		sc_busnr;
 	int		sc_pcie;
 	uint8_t		sc_pcie_capreg;		/* PCI-E Capability Reg Set */
-
-	/* Devices that need special attention. */
-	int		sc_devfn_tundra;
-	int		sc_devfn_via_ide;
 };
 
 struct fsl_pcib_err_dr {
@@ -187,7 +183,6 @@ static int fsl_pcib_decode_win(phandle_t, struct fsl_pcib_softc *);
 static void fsl_pcib_err_init(device_t);
 static void fsl_pcib_inbound(struct fsl_pcib_softc *, int, int, uint64_t,
     uint64_t, uint64_t);
-static int fsl_pcib_init(struct fsl_pcib_softc *, int, int);
 static void fsl_pcib_outbound(struct fsl_pcib_softc *, int, int, uint64_t,
     uint64_t, uint64_t);
 
@@ -277,8 +272,8 @@ fsl_pcib_attach(device_t dev)
 {
 	struct fsl_pcib_softc *sc;
 	phandle_t node;
-	uint32_t cfgreg;
-	int error, maxslot, rid;
+	uint32_t cfgreg, brctl;
+	int error, rid;
 	uint8_t ltssm, capptr;
 
 	sc = device_get_softc(dev);
@@ -336,15 +331,17 @@ fsl_pcib_attach(device_t dev)
 	    PCIM_CMD_PORTEN;
 	fsl_pcib_cfgwrite(sc, 0, 0, 0, PCIR_COMMAND, cfgreg, 2);
 
-	sc->sc_devfn_tundra = -1;
-	sc->sc_devfn_via_ide = -1;
-
-
-	/*
-	 * Scan bus using firmware configured, 0 based bus numbering.
-	 */
-	maxslot = (sc->sc_pcie) ? 0 : PCI_SLOTMAX;
-	fsl_pcib_init(sc, sc->sc_busnr, maxslot);
+	/* Reset the bus.  Needed for Radeon video cards. */
+	brctl = fsl_pcib_read_config(sc->sc_dev, 0, 0, 0,
+	    PCIR_BRIDGECTL_1, 1);
+	brctl |= PCIB_BCR_SECBUS_RESET;
+	fsl_pcib_write_config(sc->sc_dev, 0, 0, 0,
+	    PCIR_BRIDGECTL_1, brctl, 1);
+	DELAY(100000);
+	brctl &= ~PCIB_BCR_SECBUS_RESET;
+	fsl_pcib_write_config(sc->sc_dev, 0, 0, 0,
+	    PCIR_BRIDGECTL_1, brctl, 1);
+	DELAY(100000);
 
 	if (sc->sc_pcie) {
 		ltssm = fsl_pcib_cfgread(sc, 0, 0, 0, PCIR_LTSSM, 1);
@@ -513,10 +510,7 @@ fsl_pcib_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 	if (bus == sc->sc_busnr && !sc->sc_pcie && slot < 10)
 		return (~0);
 	devfn = DEVFN(bus, slot, func);
-	if (devfn == sc->sc_devfn_tundra)
-		return (~0);
-	if (devfn == sc->sc_devfn_via_ide && reg == PCIR_INTPIN)
-		return (1);
+
 	return (fsl_pcib_cfgread(sc, bus, slot, func, reg, bytes));
 }
 
@@ -529,126 +523,6 @@ fsl_pcib_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 	if (bus == sc->sc_busnr && !sc->sc_pcie && slot < 10)
 		return;
 	fsl_pcib_cfgwrite(sc, bus, slot, func, reg, val, bytes);
-}
-
-static void
-fsl_pcib_init_via(struct fsl_pcib_softc *sc, uint16_t device, int bus,
-    int slot, int fn)
-{
-
-	if (device == 0x0686) {
-		fsl_pcib_write_config(sc->sc_dev, bus, slot, fn, 0x52, 0x34, 1);
-		fsl_pcib_write_config(sc->sc_dev, bus, slot, fn, 0x77, 0x00, 1);
-		fsl_pcib_write_config(sc->sc_dev, bus, slot, fn, 0x83, 0x98, 1);
-		fsl_pcib_write_config(sc->sc_dev, bus, slot, fn, 0x85, 0x03, 1);
-	} else if (device == 0x0571) {
-		sc->sc_devfn_via_ide = DEVFN(bus, slot, fn);
-		fsl_pcib_write_config(sc->sc_dev, bus, slot, fn, 0x40, 0x0b, 1);
-	}
-}
-
-static int
-fsl_pcib_init(struct fsl_pcib_softc *sc, int bus, int maxslot)
-{
-	int secbus;
-	int old_pribus, old_secbus, old_subbus;
-	int new_pribus, new_secbus, new_subbus;
-	int slot, func, maxfunc;
-	uint16_t vendor, device;
-	uint8_t brctl, command, hdrtype, subclass;
-
-	secbus = bus;
-	for (slot = 0; slot <= maxslot; slot++) {
-		maxfunc = 0;
-		for (func = 0; func <= maxfunc; func++) {
-			hdrtype = fsl_pcib_read_config(sc->sc_dev, bus, slot,
-			    func, PCIR_HDRTYPE, 1);
-
-			if ((hdrtype & PCIM_HDRTYPE) > PCI_MAXHDRTYPE)
-				continue;
-
-			if (func == 0 && (hdrtype & PCIM_MFDEV))
-				maxfunc = PCI_FUNCMAX;
-
-			vendor = fsl_pcib_read_config(sc->sc_dev, bus, slot,
-			    func, PCIR_VENDOR, 2);
-			device = fsl_pcib_read_config(sc->sc_dev, bus, slot,
-			    func, PCIR_DEVICE, 2);
-
-			if (vendor == 0x1957 && device == 0x3fff) {
-				sc->sc_devfn_tundra = DEVFN(bus, slot, func);
-				continue;
-			}
-
-			command = fsl_pcib_read_config(sc->sc_dev, bus, slot,
-			    func, PCIR_COMMAND, 1);
-			command &= ~(PCIM_CMD_MEMEN | PCIM_CMD_PORTEN);
-			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_COMMAND, command, 1);
-
-			if (vendor == 0x1106)
-				fsl_pcib_init_via(sc, device, bus, slot, func);
-
-			/*
-			 * Handle PCI-PCI bridges
-			 */
-			subclass = fsl_pcib_read_config(sc->sc_dev, bus, slot,
-			    func, PCIR_SUBCLASS, 1);
-
-			/* Allow all DEVTYPE 1 devices */
-			if (hdrtype != PCIM_HDRTYPE_BRIDGE)
-				continue;
-
-			brctl = fsl_pcib_read_config(sc->sc_dev, bus, slot, func,
-			    PCIR_BRIDGECTL_1, 1);
-			brctl |= PCIB_BCR_SECBUS_RESET;
-			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_BRIDGECTL_1, brctl, 1);
-			DELAY(100000);
-			brctl &= ~PCIB_BCR_SECBUS_RESET;
-			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_BRIDGECTL_1, brctl, 1);
-			DELAY(100000);
-
-			secbus++;
-
-			/* Read currect bus register configuration */
-			old_pribus = fsl_pcib_read_config(sc->sc_dev, bus,
-			    slot, func, PCIR_PRIBUS_1, 1);
-			old_secbus = fsl_pcib_read_config(sc->sc_dev, bus,
-			    slot, func, PCIR_SECBUS_1, 1);
-			old_subbus = fsl_pcib_read_config(sc->sc_dev, bus,
-			    slot, func, PCIR_SUBBUS_1, 1);
-
-			if (bootverbose)
-				printf("PCI: reading firmware bus numbers for "
-				    "secbus = %d (bus/sec/sub) = (%d/%d/%d)\n",
-				    secbus, old_pribus, old_secbus, old_subbus);
-
-			new_pribus = bus;
-			new_secbus = secbus;
-
-			secbus = fsl_pcib_init(sc, secbus,
-			    (subclass == PCIS_BRIDGE_PCI) ? PCI_SLOTMAX : 0);
-
-			new_subbus = secbus;
-
-			if (bootverbose)
-				printf("PCI: translate firmware bus numbers "
-				    "for secbus %d (%d/%d/%d) -> (%d/%d/%d)\n",
-				    secbus, old_pribus, old_secbus, old_subbus,
-				    new_pribus, new_secbus, new_subbus);
-
-			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_PRIBUS_1, new_pribus, 1);
-			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_SECBUS_1, new_secbus, 1);
-			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_SUBBUS_1, new_subbus, 1);
-		}
-	}
-
-	return (secbus);
 }
 
 static void
