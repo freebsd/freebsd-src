@@ -121,6 +121,19 @@ typedef struct {
     UINT8                   Addr[32];
 } EFI_MAC_ADDRESS;
 
+typedef struct {
+    UINT32 ReceivedQueueTimeoutValue;
+    UINT32 TransmitQueueTimeoutValue;
+    UINT16 ProtocolTypeFilter;
+    BOOLEAN EnableUnicastReceive;
+    BOOLEAN EnableMulticastReceive;
+    BOOLEAN EnableBroadcastReceive;
+    BOOLEAN EnablePromiscuousReceive;
+    BOOLEAN FlushQueuesOnReset;
+    BOOLEAN EnableReceiveTimestamps;
+    BOOLEAN DisableBackgroundPolling;
+} EFI_MANAGED_NETWORK_CONFIG_DATA;
+
 //
 // Memory
 //

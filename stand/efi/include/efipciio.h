@@ -17,6 +17,9 @@
 #ifndef __PCI_IO_H__
 #define __PCI_IO_H__
 
+#define EFI_PCI_ROOT_IO_GUID \
+  { 0x2F707EBB, 0x4A1A, 0x11d4, { 0x9A, 0x38, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
 ///
 /// Global ID for the PCI I/O Protocol
 ///
