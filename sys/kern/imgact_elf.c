@@ -687,7 +687,8 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	imgp->object = NULL;
 	imgp->execlabel = NULL;
 
-	NDINIT(nd, LOOKUP, LOCKLEAF | FOLLOW, UIO_SYSSPACE, file, curthread);
+	NDINIT(nd, LOOKUP, ISOPEN | LOCKLEAF | FOLLOW, UIO_SYSSPACE, file,
+	    curthread);
 	if ((error = namei(nd)) != 0) {
 		nd->ni_vp = NULL;
 		goto fail;
