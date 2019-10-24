@@ -32,32 +32,35 @@
  *
  * Whole disk access:
  *
- * 	d_slice = -1
- * 	d_partition = -1
+ * 	d_slice = D_SLICENONE
+ * 	d_partition = <doesn't matter>
  *
  * Whole MBR slice:
  *
  * 	d_slice = MBR slice number (typically 1..4)
- * 	d_partition = -1
+ * 	d_partition = D_PARTNONE
  *
  * BSD disklabel partition within an MBR slice:
  *
  * 	d_slice = MBR slice number (typically 1..4)
- * 	d_partition = disklabel partition (typically 0..19)
+ * 	d_partition = disklabel partition (typically 0..19 or D_PARTWILD)
  *
  * BSD disklabel partition on the true dedicated disk:
  *
- * 	d_slice = -1
- * 	d_partition = disklabel partition (typically 0..19)
+ * 	d_slice = D_SLICENONE
+ * 	d_partition = disklabel partition (typically 0..19 or D_PARTWILD)
  *
  * GPT partition:
  *
  * 	d_slice = GPT partition number (typically 1..N)
- * 	d_partition = 255
+ * 	d_partition = D_PARTISGPT
  *
- * For both MBR and GPT, to automatically find the 'best' slice or partition,
- * set d_slice to zero. This uses the partition type to decide which partition
- * to use according to the following list of preferences:
+ * For MBR, setting d_partition to D_PARTWILD will automatically use the first
+ * partition within the slice.
+ *
+ * For both MBR and GPT, to automatically find the 'best' slice and partition,
+ * set d_slice to D_SLICEWILD. This uses the partition type to decide which
+ * partition to use according to the following list of preferences:
  *
  * 	FreeBSD (active)
  * 	FreeBSD (inactive)
@@ -80,6 +83,12 @@
 
 #ifndef	_DISK_H
 #define	_DISK_H
+
+#define	D_SLICENONE	-1
+#define	D_SLICEWILD	 0
+#define	D_PARTNONE	-1
+#define	D_PARTWILD	-2
+#define	D_PARTISGPT	255
 
 struct disk_devdesc {
 	struct devdesc	dd;		/* Must be first. */

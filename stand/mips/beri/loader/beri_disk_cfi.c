@@ -129,8 +129,8 @@ beri_cfi_disk_print(int verbose)
 		return (ret);
 	dev.dd.d_dev = &beri_cfi_disk;
 	dev.dd.d_unit = 0;
-	dev.d_slice = -1;
-	dev.d_partition = -1;
+	dev.d_slice = D_SLICENONE;
+	dev.d_partition = D_PARTNONE;
 	if (disk_open(&dev, cfi_get_mediasize(), cfi_get_sectorsize()) == 0) {
 		snprintf(line, sizeof(line), "    cfi%d", 0);
 		ret = disk_print(&dev, line, verbose);

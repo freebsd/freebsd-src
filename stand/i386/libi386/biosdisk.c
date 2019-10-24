@@ -691,8 +691,8 @@ bd_print_common(struct devsw *dev, bdinfo_list_t *bdi, int verbose)
 
 		devd.dd.d_dev = dev;
 		devd.dd.d_unit = i;
-		devd.d_slice = -1;
-		devd.d_partition = -1;
+		devd.d_slice = D_SLICENONE;
+		devd.d_partition = D_PARTNONE;
 		if (disk_open(&devd,
 		    bd->bd_sectorsize * bd->bd_sectors,
 		    bd->bd_sectorsize) == 0) {
@@ -745,8 +745,8 @@ bd_disk_get_sectors(struct disk_devdesc *dev)
 
 	disk.dd.d_dev = dev->dd.d_dev;
 	disk.dd.d_unit = dev->dd.d_unit;
-	disk.d_slice = -1;
-	disk.d_partition = -1;
+	disk.d_slice = D_SLICENONE;
+	disk.d_partition = D_PARTNONE;
 	disk.d_offset = 0;
 
 	size = bd->bd_sectors * bd->bd_sectorsize;

@@ -254,8 +254,8 @@ stor_print(int verbose)
 	for (i = 0; i < stor_info_no; i++) {
 		dev.dd.d_dev = &uboot_storage;
 		dev.dd.d_unit = i;
-		dev.d_slice = -1;
-		dev.d_partition = -1;
+		dev.d_slice = D_SLICENONE;
+		dev.d_partition = D_PARTNONE;
 		snprintf(line, sizeof(line), "\tdisk%d (%s)\n", i,
 		    ub_stor_type(SI(&dev).type));
 		if ((ret = pager_output(line)) != 0)
