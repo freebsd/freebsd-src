@@ -408,7 +408,7 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 	struct ktls_session *tls;
 	int error;
 
-	/* Only TLS 1.0 - 1.2 are supported. */
+	/* Only TLS 1.0 - 1.3 are supported. */
 	if (en->tls_vmajor != TLS_MAJOR_VER_ONE)
 		return (EINVAL);
 	if (en->tls_vminor < TLS_MINOR_VER_ZERO ||
@@ -576,13 +576,24 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 	/*
 	 * This holds the implicit portion of the nonce for GCM and
 	 * the initial implicit IV for TLS 1.0.  The explicit portions
-	 * of the IV are generated in ktls_frame() and ktls_seq().
+	 * of the IV are generated in ktls_frame().
 	 */
 	if (en->iv_len != 0) {
 		tls->params.iv_len = en->iv_len;
 		error = copyin(en->iv, tls->params.iv, en->iv_len);
 		if (error)
 			goto out;
+
+		/*
+		 * For TLS 1.2, generate an 8-byte nonce as a counter
+		 * to generate unique explicit IVs.
+		 *
+		 * Store this counter in the last 8 bytes of the IV
+		 * array so that it is 8-byte aligned.
+		 */
+		if (en->cipher_algorithm == CRYPTO_AES_NIST_GCM_16 &&
+		    en->tls_vminor == TLS_MINOR_VER_TWO)
+			arc4rand(tls->params.iv + 8, sizeof(uint64_t), 0);
 	}
 
 	*tlsp = tls;
@@ -1196,8 +1207,6 @@ void
 ktls_seq(struct sockbuf *sb, struct mbuf *m)
 {
 	struct mbuf_ext_pgs *pgs;
-	struct tls_record_layer *tlshdr;
-	uint64_t seqno;
 
 	for (; m != NULL; m = m->m_next) {
 		KASSERT((m->m_flags & M_NOMAP) != 0,
@@ -1205,17 +1214,6 @@ ktls_seq(struct sockbuf *sb, struct mbuf *m)
 
 		pgs = m->m_ext.ext_pgs;
 		pgs->seqno = sb->sb_tls_seqno;
-
-		/*
-		 * Store the sequence number in the TLS header as the
-		 * explicit part of the IV for GCM.
-		 */
-		if (pgs->tls->params.cipher_algorithm ==
-		    CRYPTO_AES_NIST_GCM_16) {
-			tlshdr = (void *)pgs->hdr;
-			seqno = htobe64(pgs->seqno);
-			memcpy(tlshdr + 1, &seqno, sizeof(seqno));
-		}
 		sb->sb_tls_seqno++;
 	}
 }
@@ -1240,6 +1238,7 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 	struct tls_record_layer *tlshdr;
 	struct mbuf *m;
 	struct mbuf_ext_pgs *pgs;
+	uint64_t *noncep;
 	uint16_t tls_len;
 	int maxlen;
 
@@ -1315,11 +1314,21 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 		tlshdr->tls_length = htons(m->m_len - sizeof(*tlshdr));
 
 		/*
-		 * For GCM, the sequence number is stored in the
-		 * header by ktls_seq().  For CBC, a random nonce is
-		 * inserted for TLS 1.1+.
+		 * Store nonces / explicit IVs after the end of the
+		 * TLS header.
+		 *
+		 * For GCM with TLS 1.2, an 8 byte nonce is copied
+		 * from the end of the IV.  The nonce is then
+		 * incremented for use by the next record.
+		 *
+		 * For CBC, a random nonce is inserted for TLS 1.1+.
 		 */
-		if (tls->params.cipher_algorithm == CRYPTO_AES_CBC &&
+		if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16 &&
+		    tls->params.tls_vminor == TLS_MINOR_VER_TWO) {
+			noncep = (uint64_t *)(tls->params.iv + 8);
+			be64enc(tlshdr + 1, *noncep);
+			(*noncep)++;
+		} else if (tls->params.cipher_algorithm == CRYPTO_AES_CBC &&
 		    tls->params.tls_vminor >= TLS_MINOR_VER_ONE)
 			arc4rand(tlshdr + 1, AES_BLOCK_LEN, 0);
 
