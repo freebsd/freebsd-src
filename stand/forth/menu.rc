@@ -72,7 +72,7 @@ s" currdev" getenv dup 0> [if] drop 4 s" zfs:" compare 0= [if]
     set mainmenu_caption[7]="Select Boot [E]nvironment..."
     set mainmenu_command[7]="3 goto_menu"
     set mainmenu_keycode[7]=101
-    set mainansi_caption[7]="Select Boot ^[1mE^[37mnvironment..."
+    set mainansi_caption[7]="Select Boot ^[1mE^[mnvironment..."
 
     s" chain_disk" getenv? [if]
 	set mainmenu_caption[8]="Chain[L]oad ${chain_disk}"
