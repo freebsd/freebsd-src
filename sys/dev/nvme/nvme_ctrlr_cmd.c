@@ -76,8 +76,7 @@ nvme_ctrlr_cmd_identify_namespace(struct nvme_controller *ctrlr, uint32_t nsid,
 
 void
 nvme_ctrlr_cmd_create_io_cq(struct nvme_controller *ctrlr,
-    struct nvme_qpair *io_que, uint16_t vector, nvme_cb_fn_t cb_fn,
-    void *cb_arg)
+    struct nvme_qpair *io_que, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
 	struct nvme_request *req;
 	struct nvme_command *cmd;
@@ -93,7 +92,7 @@ nvme_ctrlr_cmd_create_io_cq(struct nvme_controller *ctrlr,
 	 */
 	cmd->cdw10 = htole32(((io_que->num_entries-1) << 16) | io_que->id);
 	/* 0x3 = interrupts enabled | physically contiguous */
-	cmd->cdw11 = htole32((vector << 16) | 0x3);
+	cmd->cdw11 = htole32((io_que->vector << 16) | 0x3);
 	cmd->prp1 = htole64(io_que->cpl_bus_addr);
 
 	nvme_ctrlr_submit_admin_request(ctrlr, req);

@@ -175,7 +175,8 @@ struct nvme_qpair {
 
 	struct nvme_controller	*ctrlr;
 	uint32_t		id;
-	uint32_t		phase;
+	int			domain;
+	int			cpu;
 
 	uint16_t		vector;
 	int			rid;
@@ -187,6 +188,7 @@ struct nvme_qpair {
 	uint32_t		sq_tdbl_off;
 	uint32_t		cq_hdbl_off;
 
+	uint32_t		phase;
 	uint32_t		sq_head;
 	uint32_t		sq_tail;
 	uint32_t		cq_head;
@@ -238,7 +240,7 @@ struct nvme_controller {
 	device_t		dev;
 
 	struct mtx		lock;
-
+	int			domain;
 	uint32_t		ready_timeout_in_ms;
 	uint32_t		quirks;
 #define	QUIRK_DELAY_B4_CHK_RDY	1		/* Can't touch MMIO on disable */
@@ -258,11 +260,9 @@ struct nvme_controller {
 	struct resource		*bar4_resource;
 
 	uint32_t		msix_enabled;
-	uint32_t		force_intx;
 	uint32_t		enable_aborts;
 
 	uint32_t		num_io_queues;
-	uint32_t		num_cpus_per_ioq;
 	uint32_t		max_hw_pend_io;
 
 	/* Fields for tracking progress during controller initialization. */
@@ -377,7 +377,7 @@ void	nvme_ctrlr_cmd_get_firmware_page(struct nvme_controller *ctrlr,
 					 nvme_cb_fn_t cb_fn,
 					 void *cb_arg);
 void	nvme_ctrlr_cmd_create_io_cq(struct nvme_controller *ctrlr,
-				    struct nvme_qpair *io_que, uint16_t vector,
+				    struct nvme_qpair *io_que,
 				    nvme_cb_fn_t cb_fn, void *cb_arg);
 void	nvme_ctrlr_cmd_create_io_sq(struct nvme_controller *ctrlr,
 				    struct nvme_qpair *io_que,
@@ -413,9 +413,8 @@ void	nvme_ctrlr_submit_io_request(struct nvme_controller *ctrlr,
 void	nvme_ctrlr_post_failed_request(struct nvme_controller *ctrlr,
 				       struct nvme_request *req);
 
-int	nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
-			     uint16_t vector, uint32_t num_entries,
-			     uint32_t num_trackers,
+int	nvme_qpair_construct(struct nvme_qpair *qpair,
+			     uint32_t num_entries, uint32_t num_trackers,
 			     struct nvme_controller *ctrlr);
 void	nvme_qpair_submit_tracker(struct nvme_qpair *qpair,
 				  struct nvme_tracker *tr);

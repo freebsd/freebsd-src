@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
+#include <vm/vm.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -233,7 +234,6 @@ nvme_ctrlr_configure_intx(struct nvme_controller *ctrlr)
 
 	ctrlr->msix_enabled = 0;
 	ctrlr->num_io_queues = 1;
-	ctrlr->num_cpus_per_ioq = mp_ncpus;
 	ctrlr->rid = 0;
 	ctrlr->res = bus_alloc_resource_any(ctrlr->dev, SYS_RES_IRQ,
 	    &ctrlr->rid, RF_SHAREABLE | RF_ACTIVE);
@@ -259,82 +259,61 @@ static void
 nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr)
 {
 	device_t	dev;
-	int		per_cpu_io_queues;
+	int		force_intx, num_io_queues, per_cpu_io_queues;
 	int		min_cpus_per_ioq;
 	int		num_vectors_requested, num_vectors_allocated;
-	int		num_vectors_available;
 
 	dev = ctrlr->dev;
-	min_cpus_per_ioq = 1;
-	TUNABLE_INT_FETCH("hw.nvme.min_cpus_per_ioq", &min_cpus_per_ioq);
 
-	if (min_cpus_per_ioq < 1) {
-		min_cpus_per_ioq = 1;
-	} else if (min_cpus_per_ioq > mp_ncpus) {
-		min_cpus_per_ioq = mp_ncpus;
-	}
-
-	per_cpu_io_queues = 1;
-	TUNABLE_INT_FETCH("hw.nvme.per_cpu_io_queues", &per_cpu_io_queues);
-
-	if (per_cpu_io_queues == 0) {
-		min_cpus_per_ioq = mp_ncpus;
-	}
-
-	ctrlr->force_intx = 0;
-	TUNABLE_INT_FETCH("hw.nvme.force_intx", &ctrlr->force_intx);
-
-	/*
-	 * FreeBSD currently cannot allocate more than about 190 vectors at
-	 *  boot, meaning that systems with high core count and many devices
-	 *  requesting per-CPU interrupt vectors will not get their full
-	 *  allotment.  So first, try to allocate as many as we may need to
-	 *  understand what is available, then immediately release them.
-	 *  Then figure out how many of those we will actually use, based on
-	 *  assigning an equal number of cores to each I/O queue.
-	 */
-
-	/* One vector for per core I/O queue, plus one vector for admin queue. */
-	num_vectors_available = min(pci_msix_count(dev), mp_ncpus + 1);
-	if (pci_alloc_msix(dev, &num_vectors_available) != 0) {
-		num_vectors_available = 0;
-	}
-	pci_release_msi(dev);
-
-	if (ctrlr->force_intx || num_vectors_available < 2) {
+	force_intx = 0;
+	TUNABLE_INT_FETCH("hw.nvme.force_intx", &force_intx);
+	if (force_intx || pci_msix_count(dev) < 2) {
 		nvme_ctrlr_configure_intx(ctrlr);
 		return;
 	}
 
-	/*
-	 * Do not use all vectors for I/O queues - one must be saved for the
-	 *  admin queue.
-	 */
-	ctrlr->num_cpus_per_ioq = max(min_cpus_per_ioq,
-	    howmany(mp_ncpus, num_vectors_available - 1));
+	num_io_queues = mp_ncpus;
+	TUNABLE_INT_FETCH("hw.nvme.num_io_queues", &num_io_queues);
+	if (num_io_queues < 1 || num_io_queues > mp_ncpus)
+		num_io_queues = mp_ncpus;
 
-	ctrlr->num_io_queues = howmany(mp_ncpus, ctrlr->num_cpus_per_ioq);
-	num_vectors_requested = ctrlr->num_io_queues + 1;
+	per_cpu_io_queues = 1;
+	TUNABLE_INT_FETCH("hw.nvme.per_cpu_io_queues", &per_cpu_io_queues);
+	if (per_cpu_io_queues == 0)
+		num_io_queues = 1;
+
+	min_cpus_per_ioq = smp_threads_per_core;
+	TUNABLE_INT_FETCH("hw.nvme.min_cpus_per_ioq", &min_cpus_per_ioq);
+	if (min_cpus_per_ioq > 1) {
+		num_io_queues = min(num_io_queues,
+		    max(1, mp_ncpus / min_cpus_per_ioq));
+	}
+
+	num_io_queues = min(num_io_queues, pci_msix_count(dev) - 1);
+
+again:
+	if (num_io_queues > vm_ndomains)
+		num_io_queues -= num_io_queues % vm_ndomains;
+	/* One vector for per core I/O queue, plus one vector for admin queue. */
+	num_vectors_requested = num_io_queues + 1;
 	num_vectors_allocated = num_vectors_requested;
-
-	/*
-	 * Now just allocate the number of vectors we need.  This should
-	 *  succeed, since we previously called pci_alloc_msix()
-	 *  successfully returning at least this many vectors, but just to
-	 *  be safe, if something goes wrong just revert to INTx.
-	 */
 	if (pci_alloc_msix(dev, &num_vectors_allocated) != 0) {
 		nvme_ctrlr_configure_intx(ctrlr);
 		return;
 	}
-
-	if (num_vectors_allocated < num_vectors_requested) {
+	if (num_vectors_allocated < 2) {
 		pci_release_msi(dev);
 		nvme_ctrlr_configure_intx(ctrlr);
 		return;
 	}
+	if (num_vectors_allocated != num_vectors_requested) {
+		pci_release_msi(dev);
+		num_io_queues = num_vectors_allocated - 1;
+		goto again;
+	}
 
 	ctrlr->msix_enabled = 1;
+	ctrlr->num_io_queues = num_io_queues;
 }
 
 static int

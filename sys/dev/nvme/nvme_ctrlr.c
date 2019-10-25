@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/uio.h>
 #include <sys/endian.h>
+#include <vm/vm.h>
 
 #include "nvme_private.h"
 
@@ -57,6 +58,9 @@ nvme_ctrlr_construct_admin_qpair(struct nvme_controller *ctrlr)
 	int			error;
 
 	qpair = &ctrlr->adminq;
+	qpair->id = 0;
+	qpair->cpu = CPU_FFS(&cpuset_domain[ctrlr->domain]) - 1;
+	qpair->domain = ctrlr->domain;
 
 	num_entries = NVME_ADMIN_ENTRIES;
 	TUNABLE_INT_FETCH("hw.nvme.admin_entries", &num_entries);
@@ -75,14 +79,12 @@ nvme_ctrlr_construct_admin_qpair(struct nvme_controller *ctrlr)
 	 * The admin queue's max xfer size is treated differently than the
 	 *  max I/O xfer size.  16KB is sufficient here - maybe even less?
 	 */
-	error = nvme_qpair_construct(qpair, 
-				     0, /* qpair ID */
-				     0, /* vector */
-				     num_entries,
-				     NVME_ADMIN_TRACKERS,
-				     ctrlr);
+	error = nvme_qpair_construct(qpair, num_entries, NVME_ADMIN_TRACKERS,
+	     ctrlr);
 	return (error);
 }
+
+#define QP(ctrlr, c)	((c) * (ctrlr)->num_io_queues / mp_ncpus)
 
 static int
 nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
@@ -90,7 +92,8 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	struct nvme_qpair	*qpair;
 	uint32_t		cap_lo;
 	uint16_t		mqes;
-	int			i, error, num_entries, num_trackers, max_entries;
+	int			c, error, i, n;
+	int			num_entries, num_trackers, max_entries;
 
 	/*
 	 * NVMe spec sets a hard limit of 64K max entries, but devices may
@@ -130,32 +133,35 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	 */
 	ctrlr->max_hw_pend_io = num_trackers * ctrlr->num_io_queues * 3 / 4;
 
-	/*
-	 * This was calculated previously when setting up interrupts, but
-	 *  a controller could theoretically support fewer I/O queues than
-	 *  MSI-X vectors.  So calculate again here just to be safe.
-	 */
-	ctrlr->num_cpus_per_ioq = howmany(mp_ncpus, ctrlr->num_io_queues);
-
 	ctrlr->ioq = malloc(ctrlr->num_io_queues * sizeof(struct nvme_qpair),
 	    M_NVME, M_ZERO | M_WAITOK);
 
-	for (i = 0; i < ctrlr->num_io_queues; i++) {
+	for (i = c = n = 0; i < ctrlr->num_io_queues; i++, c += n) {
 		qpair = &ctrlr->ioq[i];
 
 		/*
 		 * Admin queue has ID=0. IO queues start at ID=1 -
 		 *  hence the 'i+1' here.
-		 *
+		 */
+		qpair->id = i + 1;
+		if (ctrlr->num_io_queues > 1) {
+			/* Find number of CPUs served by this queue. */
+			for (n = 1; QP(ctrlr, c + n) == i; n++)
+				;
+			/* Shuffle multiple NVMe devices between CPUs. */
+			qpair->cpu = c + (device_get_unit(ctrlr->dev)+n/2) % n;
+			qpair->domain = pcpu_find(qpair->cpu)->pc_domain;
+		} else {
+			qpair->cpu = CPU_FFS(&cpuset_domain[ctrlr->domain]) - 1;
+			qpair->domain = ctrlr->domain;
+		}
+
+		/*
 		 * For I/O queues, use the controller-wide max_xfer_size
 		 *  calculated in nvme_attach().
 		 */
-		error = nvme_qpair_construct(qpair,
-				     i+1, /* qpair ID */
-				     ctrlr->msix_enabled ? i+1 : 0, /* vector */
-				     num_entries,
-				     num_trackers,
-				     ctrlr);
+		error = nvme_qpair_construct(qpair, num_entries, num_trackers,
+		    ctrlr);
 		if (error)
 			return (error);
 
@@ -164,8 +170,7 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 		 *  interrupt thread for this controller.
 		 */
 		if (ctrlr->num_io_queues > 1)
-			bus_bind_intr(ctrlr->dev, qpair->res,
-			    i * ctrlr->num_cpus_per_ioq);
+			bus_bind_intr(ctrlr->dev, qpair->res, qpair->cpu);
 	}
 
 	return (0);
@@ -458,6 +463,8 @@ nvme_ctrlr_set_num_qpairs(struct nvme_controller *ctrlr)
 	 */
 	ctrlr->num_io_queues = min(ctrlr->num_io_queues, sq_allocated);
 	ctrlr->num_io_queues = min(ctrlr->num_io_queues, cq_allocated);
+	if (ctrlr->num_io_queues > vm_ndomains)
+		ctrlr->num_io_queues -= ctrlr->num_io_queues % vm_ndomains;
 
 	return (0);
 }
@@ -473,7 +480,7 @@ nvme_ctrlr_create_qpairs(struct nvme_controller *ctrlr)
 		qpair = &ctrlr->ioq[i];
 
 		status.done = 0;
-		nvme_ctrlr_cmd_create_io_cq(ctrlr, qpair, qpair->vector,
+		nvme_ctrlr_cmd_create_io_cq(ctrlr, qpair,
 		    nvme_completion_poll_cb, &status);
 		nvme_completion_poll(&status);
 		if (nvme_completion_is_error(&status.cpl)) {
@@ -1132,6 +1139,8 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	ctrlr->dev = dev;
 
 	mtx_init(&ctrlr->lock, "nvme ctrlr lock", NULL, MTX_DEF);
+	if (bus_get_domain(dev, &ctrlr->domain) != 0)
+		ctrlr->domain = 0;
 
 	cap_hi = nvme_mmio_read_4(ctrlr, cap_hi);
 	ctrlr->dstrd = NVME_CAP_HI_DSTRD(cap_hi) + 2;
@@ -1296,7 +1305,7 @@ nvme_ctrlr_submit_io_request(struct nvme_controller *ctrlr,
 {
 	struct nvme_qpair       *qpair;
 
-	qpair = &ctrlr->ioq[curcpu / ctrlr->num_cpus_per_ioq];
+	qpair = &ctrlr->ioq[QP(ctrlr, curcpu)];
 	nvme_qpair_submit_request(qpair, req);
 }
 
