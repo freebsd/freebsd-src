@@ -130,8 +130,6 @@ __FBSDID("$FreeBSD$");
 
 #endif				/* CHECK_POINTS */
 
-extern	struct pcpu __pcpu[];
-
 /*
  * Local data and functions.
  */

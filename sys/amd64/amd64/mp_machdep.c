@@ -94,8 +94,6 @@ __FBSDID("$FreeBSD$");
 
 #define	AP_BOOTPT_SZ		(PAGE_SIZE * 3)
 
-extern	struct pcpu *__pcpu;
-
 /* Temporary variables for init_secondary()  */
 char *doublefault_stack;
 char *mce_stack;

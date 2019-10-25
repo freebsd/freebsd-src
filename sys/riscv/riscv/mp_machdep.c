@@ -71,8 +71,6 @@ __FBSDID("$FreeBSD$");
 
 boolean_t ofw_cpu_reg(phandle_t node, u_int, cell_t *);
 
-extern struct pcpu __pcpu[];
-
 uint32_t __riscv_boot_ap[MAXCPU];
 
 static enum {

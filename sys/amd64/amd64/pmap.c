@@ -446,10 +446,6 @@ static pml4_entry_t *pti_pml4;
 static vm_pindex_t pti_pg_idx;
 static bool pti_finalized;
 
-extern struct pcpu *__pcpu;
-extern struct pcpu temp_bsp_pcpu;
-extern pt_entry_t *pcpu_pte;
-
 struct pmap_pkru_range {
 	struct rs_el	pkru_rs_el;
 	u_int		pkru_keyidx;

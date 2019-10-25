@@ -221,35 +221,6 @@
 #define	PCPU_PTR(member)	__PCPU_PTR(pc_ ## member)
 #define	PCPU_SET(member, val)	__PCPU_SET(pc_ ## member, val)
 
-#define	OFFSETOF_CURTHREAD	0
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wnull-dereference"
-#endif
-static __inline __pure2 struct thread *
-__curthread(void)
-{
-	struct thread *td;
-
-	__asm("movq %%gs:%P1,%0" : "=r" (td) : "n" (OFFSETOF_CURTHREAD));
-	return (td);
-}
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-#define	curthread		(__curthread())
-
-#define	OFFSETOF_CURPCB		32
-static __inline __pure2 struct pcb *
-__curpcb(void)
-{
-	struct pcb *pcb;
-
-	__asm("movq %%gs:%P1,%0" : "=r" (pcb) : "n" (OFFSETOF_CURPCB));
-	return (pcb);
-}
-#define	curpcb		(__curpcb())
-
 #define	IS_BSP()	(PCPU_GET(cpuid) == 0)
 
 #else /* !__GNUCLIKE_ASM || !__GNUCLIKE___TYPEOF */
