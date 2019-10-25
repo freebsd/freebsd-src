@@ -215,6 +215,7 @@ device		ehci_mv			# Marvell EHCI USB interface
 device		xhci			# XHCI USB interface (USB 3.0)
 device		dwc3			# Synopsys DWC controller
 device		aw_dwc3			# Allwinner DWC3 controller
+device		rk_dwc3			# Rockchip DWC3 controller
 device		usb			# USB Bus (required)
 device		ukbd			# Keyboard
 device		umass			# Disks/Mass storage - Requires scbus and da
