@@ -636,7 +636,8 @@ superio_attach(device_t dev)
 	    UID_ROOT, GID_WHEEL, 0600, "superio%d", device_get_unit(dev));
 	if (sc->chardev == NULL)
 		device_printf(dev, "failed to create character device\n");
-	sc->chardev->si_drv1 = sc;
+	else
+		sc->chardev->si_drv1 = sc;
 	return (0);
 }
 
