@@ -75,6 +75,11 @@ __FBSDID("$FreeBSD$");
 #define	PCLK_I2C5		344
 #define	PCLK_I2C6		345
 #define	PCLK_I2C7		346
+#define	PCLK_SPI0		347
+#define	PCLK_SPI1		348
+#define	PCLK_SPI2		349
+#define	PCLK_SPI4		350
+#define	PCLK_SPI5		351
 #define	HCLK_HOST0		456
 #define	HCLK_HOST0_ARB		457
 #define	HCLK_HOST1		458
@@ -132,6 +137,12 @@ static struct rk_cru_gate rk3399_gates[] = {
 	CRU_GATE(PCLK_I2C2, "pclk_rki2c2", "pclk_perilp1", 0x358, 9)
 	CRU_GATE(PCLK_I2C3, "pclk_rki2c3", "pclk_perilp1", 0x358, 10)
 
+	/* CRU_CLKGATE_CON23 */
+	CRU_GATE(PCLK_SPI0, "pclk_spi0", "pclk_perilp1", 0x35C, 10)
+	CRU_GATE(PCLK_SPI1, "pclk_spi1", "pclk_perilp1", 0x35C, 11)
+	CRU_GATE(PCLK_SPI2, "pclk_spi2", "pclk_perilp1", 0x35C, 12)
+	CRU_GATE(PCLK_SPI4, "pclk_spi4", "pclk_perilp1", 0x35C, 13)
+
 	/* CRU_CLKGATE_CON30 */
 	CRU_GATE(ACLK_USB3_NOC, "aclk_usb3_noc", "aclk_usb3", 0x378, 0)
 	CRU_GATE(ACLK_USB3OTG0, "aclk_usb3otg0", "aclk_usb3", 0x378, 1)
@@ -151,6 +162,9 @@ static struct rk_cru_gate rk3399_gates[] = {
 
 	/* CRU_CLKGATE_CON33 */
 	CRU_GATE(HCLK_SDMMC, "hclk_sdmmc", "hclk_sd", 0x384, 8)
+
+	/* CRU_CLKGATE_CON34 */
+	CRU_GATE(PCLK_SPI4, "pclk_spi5", "pclk_perilp1", 0x388, 5)
 };
 
 
@@ -1367,6 +1381,127 @@ static struct rk_clk_composite_def uphy1_tcpdcore = {
 };
 
 /*
+ * spi
+ */
+static const char *spi_parents[] = {"cpll", "gpll"};
+
+#define	SCLK_SPI0	71
+#define	SCLK_SPI1	72
+#define	SCLK_SPI2	73
+#define	SCLK_SPI4	74
+#define	SCLK_SPI5	75
+
+static struct rk_clk_composite_def spi0 = {
+	.clkdef = {
+		.id = SCLK_SPI0,
+		.name = "clk_spi0",
+		.parent_names = spi_parents,
+		.parent_cnt = nitems(spi_parents),
+	},
+	/* CRU_CLKSEL_CON59 */
+	.muxdiv_offset = 0x01ec,
+	.mux_shift = 7,
+	.mux_width = 1,
+
+	.div_shift = 0,
+	.div_width = 7,
+
+	/* CRU_CLKGATE_CON9 */
+	.gate_offset = 0x0324,
+	.gate_shift = 12,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
+static struct rk_clk_composite_def spi1 = {
+	.clkdef = {
+		.id = SCLK_SPI1,
+		.name = "clk_spi1",
+		.parent_names = spi_parents,
+		.parent_cnt = nitems(spi_parents),
+	},
+	/* CRU_CLKSEL_CON59 */
+	.muxdiv_offset = 0x01ec,
+	.mux_shift = 15,
+	.mux_width = 1,
+
+	.div_shift = 8,
+	.div_width = 7,
+
+	/* CRU_CLKGATE_CON9 */
+	.gate_offset = 0x0324,
+	.gate_shift = 13,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
+static struct rk_clk_composite_def spi2 = {
+	.clkdef = {
+		.id = SCLK_SPI2,
+		.name = "clk_spi2",
+		.parent_names = spi_parents,
+		.parent_cnt = nitems(spi_parents),
+	},
+	/* CRU_CLKSEL_CON60 */
+	.muxdiv_offset = 0x01f0,
+	.mux_shift = 7,
+	.mux_width = 1,
+
+	.div_shift = 0,
+	.div_width = 7,
+
+	/* CRU_CLKGATE_CON9 */
+	.gate_offset = 0x0324,
+	.gate_shift = 14,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
+static struct rk_clk_composite_def spi4 = {
+	.clkdef = {
+		.id = SCLK_SPI4,
+		.name = "clk_spi4",
+		.parent_names = spi_parents,
+		.parent_cnt = nitems(spi_parents),
+	},
+	/* CRU_CLKSEL_CON60 */
+	.muxdiv_offset = 0x01f0,
+	.mux_shift = 15,
+	.mux_width = 1,
+
+	.div_shift = 8,
+	.div_width = 7,
+
+	/* CRU_CLKGATE_CON9 */
+	.gate_offset = 0x0324,
+	.gate_shift = 15,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
+static struct rk_clk_composite_def spi5 = {
+	.clkdef = {
+		.id = SCLK_SPI5,
+		.name = "clk_spi5",
+		.parent_names = spi_parents,
+		.parent_cnt = nitems(spi_parents),
+	},
+	/* CRU_CLKSEL_CON58 */
+	.muxdiv_offset = 0x01e8,
+	.mux_shift = 15,
+	.mux_width = 1,
+
+	.div_shift = 8,
+	.div_width = 7,
+
+	/* CRU_CLKGATE_CON13 */
+	.gate_offset = 0x0334,
+	.gate_shift = 13,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
+/*
  * ARM CPU clocks (LITTLE and big)
  */
 #define ARMCLKL				8
@@ -1790,6 +1925,27 @@ static struct rk_clk rk3399_clks[] = {
 	{
 		.type = RK_CLK_COMPOSITE,
 		.clk.composite = &uphy1_tcpdcore,
+	},
+
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &spi0,
+	},
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &spi1,
+	},
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &spi2,
+	},
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &spi4,
+	},
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &spi5,
 	},
 
 	{
