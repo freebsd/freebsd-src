@@ -95,7 +95,7 @@ EOF
     <dropped-bad-version>0</dropped-bad-version>
     <received-fragments>6</received-fragments>
     <dropped-fragment>2</dropped-fragment>
-    <dropped-fragment-after-timeout>4</dropped-fragment-after-timeout>
+    <dropped-fragment-after-timeout>3</dropped-fragment-after-timeout>
     <dropped-fragments-overflow>0</dropped-fragments-overflow>
     <atomic-fragments>0</atomic-fragments>
     <reassembled-packets>0</reassembled-packets>
