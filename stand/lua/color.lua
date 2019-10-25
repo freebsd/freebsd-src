@@ -29,8 +29,13 @@
 --
 
 local core = require("core")
+local hook = require("hook")
 
 local color = {}
+
+local function recalcDisabled()
+	color.disabled = not color.isEnabled()
+end
 
 -- Module exports
 color.BLACK   = 0
@@ -54,11 +59,9 @@ function color.isEnabled()
 	return not core.isSerialBoot()
 end
 
-color.disabled = not color.isEnabled()
-
 function color.escapefg(color_value)
 	if color.disabled then
-		return color_value
+		return ''
 	end
 	return core.KEYSTR_CSI .. "3" .. color_value .. "m"
 end
@@ -72,7 +75,7 @@ end
 
 function color.escapebg(color_value)
 	if color.disabled then
-		return color_value
+		return ''
 	end
 	return core.KEYSTR_CSI .. "4" .. color_value .. "m"
 end
@@ -112,5 +115,8 @@ function color.highlight(str)
 	-- case the terminal defaults don't match what we're expecting.
 	return core.KEYSTR_CSI .. "1m" .. str .. core.KEYSTR_CSI .. "22m"
 end
+
+recalcDisabled()
+hook.register("config.loaded", recalcDisabled)
 
 return color
