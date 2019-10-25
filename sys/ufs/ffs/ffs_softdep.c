@@ -975,7 +975,7 @@ static	int softdep_count_dependencies(struct buf *bp, int);
  * Global lock over all of soft updates.
  */
 static struct mtx lk;
-MTX_SYSINIT(softdep_lock, &lk, "Global Softdep Lock", MTX_DEF);
+MTX_SYSINIT(softdep_lock, &lk, "global softdep", MTX_DEF);
 
 #define ACQUIRE_GBLLOCK(lk)	mtx_lock(lk)
 #define FREE_GBLLOCK(lk)	mtx_unlock(lk)
@@ -2478,7 +2478,7 @@ softdep_mount(devvp, mp, fs, cred)
 	ump = VFSTOUFS(mp);
 	ump->um_softdep = sdp;
 	MNT_IUNLOCK(mp);
-	rw_init(LOCK_PTR(ump), "Per-Filesystem Softdep Lock");
+	rw_init(LOCK_PTR(ump), "per-fs softdep");
 	sdp->sd_ump = ump;
 	LIST_INIT(&ump->softdep_workitem_pending);
 	LIST_INIT(&ump->softdep_journal_pending);
