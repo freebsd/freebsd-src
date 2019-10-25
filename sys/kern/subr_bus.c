@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/conf.h>
+#include <sys/domainset.h>
 #include <sys/eventhandler.h>
 #include <sys/filio.h>
 #include <sys/lock.h>
@@ -2523,7 +2524,7 @@ void
 device_set_softc(device_t dev, void *softc)
 {
 	if (dev->softc && !(dev->flags & DF_EXTERNALSOFTC))
-		free(dev->softc, M_BUS_SC);
+		free_domain(dev->softc, M_BUS_SC);
 	dev->softc = softc;
 	if (dev->softc)
 		dev->flags |= DF_EXTERNALSOFTC;
@@ -2540,7 +2541,7 @@ device_set_softc(device_t dev, void *softc)
 void
 device_free_softc(void *softc)
 {
-	free(softc, M_BUS_SC);
+	free_domain(softc, M_BUS_SC);
 }
 
 /**
@@ -2789,6 +2790,9 @@ device_set_devclass_fixed(device_t dev, const char *classname)
 int
 device_set_driver(device_t dev, driver_t *driver)
 {
+	int domain;
+	struct domainset *policy;
+
 	if (dev->state >= DS_ATTACHED)
 		return (EBUSY);
 
@@ -2796,7 +2800,7 @@ device_set_driver(device_t dev, driver_t *driver)
 		return (0);
 
 	if (dev->softc && !(dev->flags & DF_EXTERNALSOFTC)) {
-		free(dev->softc, M_BUS_SC);
+		free_domain(dev->softc, M_BUS_SC);
 		dev->softc = NULL;
 	}
 	device_set_desc(dev, NULL);
@@ -2805,8 +2809,12 @@ device_set_driver(device_t dev, driver_t *driver)
 	if (driver) {
 		kobj_init((kobj_t) dev, (kobj_class_t) driver);
 		if (!(dev->flags & DF_EXTERNALSOFTC) && driver->size > 0) {
-			dev->softc = malloc(driver->size, M_BUS_SC,
-			    M_NOWAIT | M_ZERO);
+			if (bus_get_domain(dev, &domain) == 0)
+				policy = DOMAINSET_PREF(domain);
+			else
+				policy = DOMAINSET_RR();
+			dev->softc = malloc_domainset(driver->size, M_BUS_SC,
+			    policy, M_NOWAIT | M_ZERO);
 			if (!dev->softc) {
 				kobj_delete((kobj_t) dev, NULL);
 				kobj_init((kobj_t) dev, &null_class);
