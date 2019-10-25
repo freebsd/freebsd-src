@@ -57,16 +57,6 @@ __curthread(void)
 	return (td);
 }
 #define	curthread		(__curthread())
-
-static __inline __pure2 struct pcb *
-__curpcb(void)
-{
-	struct pcb *pcb;
-
-	__asm("movq %%gs:%P1,%0" : "=r" (pcb) : "n" (offsetof(struct pcpu,
-	    pc_curpcb)));
-	return (pcb);
-}
-#define	curpcb		(__curpcb())
+#define	curpcb			(&curthread->td_md.md_pcb)
 
 #endif	/* _MACHINE_PCPU_AUX_H_ */
