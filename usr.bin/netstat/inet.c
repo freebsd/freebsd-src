@@ -640,8 +640,8 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	    "{N:/discarded for bad header offset field%s}\n");
 	p1a(tcps_rcvshort, "\t\t{:discard-too-short/%ju} "
 	    "{N:discarded because packet too short}\n");
-	p1a(tcps_rcvmemdrop, "\t\t{:discard-memory-problems/%ju} "
-	    "{N:discarded due to memory problems}\n");
+	p1a(tcps_rcvreassfull, "\t\t{:discard-reassembly-queue-full/%ju} "
+	    "{N:discarded due to full reassembly queue}\n");
 	p(tcps_connattempt, "\t{:connection-requests/%ju} "
 	    "{N:/connection request%s}\n");
 	p(tcps_accepts, "\t{:connections-accepts/%ju} "
