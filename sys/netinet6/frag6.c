@@ -307,16 +307,18 @@ frag6_cleanup(void *arg __unused, struct ifnet *ifp)
 
 	KASSERT(ifp != NULL, ("%s: ifp is NULL", __func__));
 
+	CURVNET_SET_QUIET(ifp->if_vnet);
 #ifdef VIMAGE
 	/*
 	 * Skip processing if IPv6 reassembly is not initialised or
 	 * torn down by frag6_destroy().
 	 */
-	if (!V_frag6_on)
+	if (!V_frag6_on) {
+		CURVNET_RESTORE();
 		return;
+	}
 #endif
 
-	CURVNET_SET_QUIET(ifp->if_vnet);
 	for (bucket = 0; bucket < IP6REASS_NHASH; bucket++) {
 		IP6QB_LOCK(bucket);
 		head = IP6QB_HEAD(bucket);
