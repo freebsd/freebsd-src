@@ -242,8 +242,8 @@ EXPORT_SYMS?=	NO
 CLEANFILES+=	export_syms
 .endif
 
-.if !defined(FIRMWS) && exists(${SYSDIR}/conf/ldscript.kmod.${MACHINE_ARCH})
-_LDFLAGS+=-T ${SYSDIR}/conf/ldscript.kmod.${MACHINE_ARCH}
+.if exists(${SYSDIR}/conf/ldscript.kmod.${MACHINE_ARCH})
+LDSCRIPT_FLAGS?= -T ${SYSDIR}/conf/ldscript.kmod.${MACHINE_ARCH}
 .endif
 
 .if ${__KLD_SHARED} == yes
@@ -251,7 +251,8 @@ ${KMOD}.kld: ${OBJS}
 .else
 ${FULLPROG}: ${OBJS}
 .endif
-	${LD} -m ${LD_EMULATION} ${_LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
+	${LD} -m ${LD_EMULATION} ${_LDFLAGS} ${LDSCRIPT_FLAGS} -r -d \
+	    -o ${.TARGET} ${OBJS}
 .if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
 .endif
