@@ -288,7 +288,7 @@ EMBEDFS_FORMAT.mips?=		elf32-tradbigmips
 EMBEDFS_FORMAT.mipsel?=		elf32-tradlittlemips
 EMBEDFS_FORMAT.mips64?=		elf64-tradbigmips
 EMBEDFS_FORMAT.mips64el?=	elf64-tradlittlemips
-EMBEDFS_FORMAT.riscv?=		elf64-littleriscv
+EMBEDFS_FORMAT.riscv64?=	elf64-littleriscv
 .endif
 .endif
 
