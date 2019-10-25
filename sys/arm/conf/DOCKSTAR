@@ -69,7 +69,7 @@ device		loop			# Network loopback
 device		md			# Memory/malloc disk
 device		pty			# BSD-style compatibility pseudo ttys
 device		random			# Entropy device
-device		tun			# Packet tunnel.
+device		tuntap			# Packet tunnel.
 device		ether			# Required for all ethernet devices
 device		vlan			# 802.1Q VLAN support
 device		wlan			# 802.11 WLAN support

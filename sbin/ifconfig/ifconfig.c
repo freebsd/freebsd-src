@@ -136,8 +136,16 @@ static struct module_map_entry {
 	const char *kldname;
 } module_map[] = {
 	{
+		.ifname = "tun",
+		.kldname = "if_tuntap",
+	},
+	{
+		.ifname = "tap",
+		.kldname = "if_tuntap",
+	},
+	{
 		.ifname = "vmnet",
-		.kldname = "if_tap",
+		.kldname = "if_tuntap",
 	},
 	{
 		.ifname = "ipsec",

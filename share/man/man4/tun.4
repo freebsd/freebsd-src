@@ -2,14 +2,14 @@
 .\" $FreeBSD$
 .\" Based on PR#2411
 .\"
-.Dd November 29, 2017
+.Dd April 29, 2019
 .Dt TUN 4
 .Os
 .Sh NAME
 .Nm tun
 .Nd tunnel software network interface
 .Sh SYNOPSIS
-.Cd device tun
+.Cd device tuntap
 .Sh DESCRIPTION
 The
 .Nm
@@ -52,7 +52,7 @@ The network interfaces are named
 .Dq Li tun1 ,
 etc., one for each control device that has been opened.
 These network interfaces persist until the
-.Pa if_tun.ko
+.Pa if_tuntap.ko
 module is unloaded, or until removed with the
 .Xr ifconfig 8
 command.
@@ -99,7 +99,7 @@ It therefore defaults to being enabled until further notice.
 .Ef
 .Pp
 Control devices (once successfully opened) persist until
-.Pa if_tun.ko
+.Pa if_tuntap.ko
 is unloaded in the same way that network interfaces persist (see above).
 .Pp
 Each interface supports the usual network-interface

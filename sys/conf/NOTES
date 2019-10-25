@@ -895,11 +895,9 @@ device		epair
 #  which discards all packets sent and receives none.
 device		edsc
 
-#  The `tap' device is a pty-like virtual Ethernet interface
-device		tap
-
-#  The `tun' device implements (user-)ppp and nos-tun(8)
-device		tun
+#  The `tuntap' device implements (user-)ppp, nos-tun(8) and a pty-like virtual
+#  Ethernet interface
+device		tuntap
 
 #  The `gif' device implements IPv6 over IP4 tunneling,
 #  IPv4 over IPv6 tunneling, IPv4 over IPv4 tunneling and
