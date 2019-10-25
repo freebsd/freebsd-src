@@ -159,7 +159,7 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 		(black_hole == 2 ? F_FW_IQ_CMD_FL0PACKEN : 0));
 	c.fl0dcaen_to_fl0cidxfthresh =
 	    htobe16(V_FW_IQ_CMD_FL0FBMIN(chip_id(sc) <= CHELSIO_T5 ?
-		X_FETCHBURSTMIN_128B : X_FETCHBURSTMIN_64B) |
+		X_FETCHBURSTMIN_128B : X_FETCHBURSTMIN_64B_T6) |
 		V_FW_IQ_CMD_FL0FBMAX(chip_id(sc) <= CHELSIO_T5 ?
 		X_FETCHBURSTMAX_512B : X_FETCHBURSTMAX_256B));
 	c.fl0size = htobe16(na->num_rx_desc / 8 + sp->spg_len / EQ_ESIZE);
@@ -274,9 +274,11 @@ alloc_nm_txq_hwq(struct vi_info *vi, struct sge_nm_txq *nm_txq)
 	    htobe32(V_FW_EQ_ETH_CMD_HOSTFCMODE(X_HOSTFCMODE_NONE) |
 		V_FW_EQ_ETH_CMD_PCIECHN(vi->pi->tx_chan) | F_FW_EQ_ETH_CMD_FETCHRO |
 		V_FW_EQ_ETH_CMD_IQID(sc->sge.nm_rxq[nm_txq->iqidx].iq_cntxt_id));
-	c.dcaen_to_eqsize = htobe32(V_FW_EQ_ETH_CMD_FBMIN(X_FETCHBURSTMIN_64B) |
-		      V_FW_EQ_ETH_CMD_FBMAX(X_FETCHBURSTMAX_512B) |
-		      V_FW_EQ_ETH_CMD_EQSIZE(len / EQ_ESIZE));
+	c.dcaen_to_eqsize =
+	    htobe32(V_FW_EQ_ETH_CMD_FBMIN(chip_id(sc) <= CHELSIO_T5 ?
+		X_FETCHBURSTMIN_64B : X_FETCHBURSTMIN_64B_T6) |
+		V_FW_EQ_ETH_CMD_FBMAX(X_FETCHBURSTMAX_512B) |
+		V_FW_EQ_ETH_CMD_EQSIZE(len / EQ_ESIZE));
 	c.eqaddr = htobe64(nm_txq->ba);
 
 	rc = -t4_wr_mbox(sc, sc->mbox, &c, sizeof(c), &c);
