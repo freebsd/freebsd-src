@@ -168,18 +168,33 @@ gpioiic_reset_bus(device_t dev)
 }
 
 static void
+gpioiic_setpin(struct gpioiic_softc *sc, int pin, int val)
+{
+	int				err;
+
+	if (val == 0) {
+		err = GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, pin, 0);
+		GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, pin,
+		    GPIO_PIN_OUTPUT);
+
+		/*
+		 * Some controllers cannot set output value while a pin is in
+		 * input mode.
+		 */
+		if (err != 0)
+			GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, pin, 0);
+	} else {
+		GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, pin,
+		    GPIO_PIN_INPUT);
+	}
+}
+
+static void
 gpioiic_setsda(device_t dev, int val)
 {
 	struct gpioiic_softc		*sc = device_get_softc(dev);
 
-	if (val == 0) {
-		GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, sc->sda_pin, 0);
-		GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, sc->sda_pin,
-		    GPIO_PIN_OUTPUT);
-	} else {
-		GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, sc->sda_pin,
-		    GPIO_PIN_INPUT);
-	}
+	gpioiic_setpin(sc, sc->sda_pin, val);
 }
 
 static void
@@ -187,40 +202,33 @@ gpioiic_setscl(device_t dev, int val)
 {
 	struct gpioiic_softc		*sc = device_get_softc(dev);
 
-	if (val == 0) {
-		GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, sc->scl_pin, 0);
-		GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, sc->scl_pin,
-		    GPIO_PIN_OUTPUT);
-	} else {
-		GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, sc->scl_pin,
-		    GPIO_PIN_INPUT);
-	}
+	gpioiic_setpin(sc, sc->scl_pin, val);
+}
+
+static int
+gpioiic_getpin(struct gpioiic_softc *sc, int pin)
+{
+	unsigned int			val;
+
+	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, pin, GPIO_PIN_INPUT);
+	GPIOBUS_PIN_GET(sc->sc_busdev, sc->sc_dev, pin, &val);
+	return ((int)val);
 }
 
 static int
 gpioiic_getscl(device_t dev)
 {
 	struct gpioiic_softc		*sc = device_get_softc(dev);
-	unsigned int			val;
 
-	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, sc->scl_pin,
-	    GPIO_PIN_INPUT);
-	GPIOBUS_PIN_GET(sc->sc_busdev, sc->sc_dev, sc->scl_pin, &val);
-
-	return ((int)val);
+	return (gpioiic_getpin(sc, sc->scl_pin));
 }
 
 static int
 gpioiic_getsda(device_t dev)
 {
 	struct gpioiic_softc		*sc = device_get_softc(dev);
-	unsigned int			val;
 
-	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, sc->sda_pin,
-	    GPIO_PIN_INPUT);
-	GPIOBUS_PIN_GET(sc->sc_busdev, sc->sc_dev, sc->sda_pin, &val);
-
-	return ((int)val);
+	return (gpioiic_getpin(sc, sc->sda_pin));
 }
 
 static int
