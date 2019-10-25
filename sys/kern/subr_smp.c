@@ -98,6 +98,14 @@ int smp_cpus = 1;	/* how many cpu's running */
 SYSCTL_INT(_kern_smp, OID_AUTO, cpus, CTLFLAG_RD|CTLFLAG_CAPRD, &smp_cpus, 0,
     "Number of CPUs online");
 
+int smp_threads_per_core = 1;	/* how many SMT threads are running per core */
+SYSCTL_INT(_kern_smp, OID_AUTO, threads_per_core, CTLFLAG_RD|CTLFLAG_CAPRD,
+    &smp_threads_per_core, 0, "Number of SMT threads online per core");
+
+int mp_ncores = -1;	/* how many physical cores running */
+SYSCTL_INT(_kern_smp, OID_AUTO, cores, CTLFLAG_RD|CTLFLAG_CAPRD, &mp_ncores, 0,
+    "Number of CPUs online");
+
 int smp_topology = 0;	/* Which topology we're using. */
 SYSCTL_INT(_kern_smp, OID_AUTO, topology, CTLFLAG_RDTUN, &smp_topology, 0,
     "Topology override setting; 0 is default provided by hardware.");
@@ -154,6 +162,7 @@ mp_start(void *dummy)
 
 	/* Probe for MP hardware. */
 	if (smp_disabled != 0 || cpu_mp_probe() == 0) {
+		mp_ncores = 1;
 		mp_ncpus = 1;
 		CPU_SETOF(PCPU_GET(cpuid), &all_cpus);
 		return;
@@ -162,6 +171,11 @@ mp_start(void *dummy)
 	cpu_mp_start();
 	printf("FreeBSD/SMP: Multiprocessor System Detected: %d CPUs\n",
 	    mp_ncpus);
+
+	/* Provide a default for most architectures that don't have SMT/HTT. */
+	if (mp_ncores < 0)
+		mp_ncores = mp_ncpus;
+
 	cpu_mp_announce();
 }
 SYSINIT(cpu_mp, SI_SUB_CPU, SI_ORDER_THIRD, mp_start, NULL);
@@ -823,6 +837,7 @@ static void
 mp_setvariables_for_up(void *dummy)
 {
 	mp_ncpus = 1;
+	mp_ncores = 1;
 	mp_maxid = PCPU_GET(cpuid);
 	CPU_SETOF(mp_maxid, &all_cpus);
 	KASSERT(PCPU_GET(cpuid) == 0, ("UP must have a CPU ID of zero"));
