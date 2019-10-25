@@ -143,7 +143,9 @@ ow_temp_event_thread(void *arg)
 	pause("owtstart", device_get_unit(sc->dev) * hz / 100);	// 10ms stagger
 	mtx_lock(&sc->temp_lock);
 	sc->flags |= OW_TEMP_RUNNING;
+	mtx_unlock(&sc->temp_lock);
 	ow_temp_read_power_supply(sc->dev, &sc->parasite);
+	mtx_lock(&sc->temp_lock);
 	if (sc->parasite)
 		device_printf(sc->dev, "Running in parasitic mode unsupported\n");
 	while ((sc->flags & OW_TEMP_DONE) == 0) {
