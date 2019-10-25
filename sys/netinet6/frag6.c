@@ -528,7 +528,6 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		    atomic_load_int(&V_frag6_nfragpackets) >=
 		    (u_int)V_ip6_maxfragpackets)
 			goto dropfrag;
-		atomic_add_int(&V_frag6_nfragpackets, 1);
 
 		/* Allocate IPv6 fragement packet queue entry. */
 		q6 = (struct ip6q *)malloc(sizeof(struct ip6q), M_FRAG6,
@@ -542,6 +541,7 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		}
 		mac_ip6q_create(m, q6);
 #endif
+		atomic_add_int(&V_frag6_nfragpackets, 1);
 
 		/* ip6q_nxt will be filled afterwards, from 1st fragment. */
 		TAILQ_INIT(&q6->ip6q_frags);
