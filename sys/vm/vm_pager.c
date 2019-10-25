@@ -257,15 +257,20 @@ vm_pager_assert_in(vm_object_t object, vm_page_t *m, int count)
 {
 #ifdef INVARIANTS
 
+	/*
+	 * All pages must be consecutive, busied, not mapped, not fully valid,
+	 * not dirty and belong to the proper object.  Some pages may be the
+	 * bogus page, but the first and last pages must be a real ones.
+	 */
+
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT(count > 0, ("%s: 0 count", __func__));
-	/*
-	 * All pages must be busied, not mapped, not fully valid,
-	 * not dirty and belong to the proper object.
-	 */
 	for (int i = 0 ; i < count; i++) {
-		if (m[i] == bogus_page)
+		if (m[i] == bogus_page) {
+			KASSERT(i != 0 && i != count - 1,
+			    ("%s: page %d is the bogus page", __func__, i));
 			continue;
+		}
 		vm_page_assert_xbusied(m[i]);
 		KASSERT(!pmap_page_is_mapped(m[i]),
 		    ("%s: page %p is mapped", __func__, m[i]));
@@ -275,6 +280,8 @@ vm_pager_assert_in(vm_object_t object, vm_page_t *m, int count)
 		    ("%s: page %p is dirty", __func__, m[i]));
 		KASSERT(m[i]->object == object,
 		    ("%s: wrong object %p/%p", __func__, object, m[i]->object));
+		KASSERT(m[i]->pindex == m[0]->pindex + i,
+		    ("%s: page %p isn't consecutive", __func__, m[i]));
 	}
 #endif
 }
