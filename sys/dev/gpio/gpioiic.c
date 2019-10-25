@@ -141,6 +141,15 @@ gpioiic_attach(device_t dev)
 	return (0);
 }
 
+static int
+gpioiic_detach(device_t dev)
+{
+
+	bus_generic_detach(dev);
+	device_delete_children(dev);
+	return (0);
+}
+
 /*
  * Reset bus by setting SDA first and then SCL. 
  * Must always be called with gpio bus locked.
@@ -239,7 +248,7 @@ static device_method_t gpioiic_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		gpioiic_probe),
 	DEVMETHOD(device_attach,	gpioiic_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_detach,	gpioiic_detach),
 
 	/* iicbb interface */
 	DEVMETHOD(iicbb_setsda,		gpioiic_setsda),
