@@ -142,11 +142,9 @@ fill_elf_hwcap(void *dummy __unused)
 	 * ISAs, keep only the extension bits that are common to all harts.
 	 */
 	for (node = OF_child(node); node > 0; node = OF_peer(node)) {
-		if (!ofw_bus_node_is_compatible(node, "riscv")) {
-			if (bootverbose)
-				printf("fill_elf_hwcap: Can't find cpu\n");
-			return;
-		}
+		/* Skip any non-CPU nodes, such as cpu-map. */
+		if (!ofw_bus_node_is_compatible(node, "riscv"))
+			continue;
 
 		len = OF_getprop(node, "riscv,isa", isa, sizeof(isa));
 		KASSERT(len <= ISA_NAME_MAXLEN, ("ISA string truncated"));
