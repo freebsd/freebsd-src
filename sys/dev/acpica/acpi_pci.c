@@ -71,9 +71,11 @@ CTASSERT(ACPI_STATE_D2 == PCI_POWERSTATE_D2);
 CTASSERT(ACPI_STATE_D3 == PCI_POWERSTATE_D3);
 
 static struct pci_devinfo *acpi_pci_alloc_devinfo(device_t dev);
+static int	acpi_pci_attach(device_t dev);
 static void	acpi_pci_child_deleted(device_t dev, device_t child);
 static int	acpi_pci_child_location_str_method(device_t cbdev,
 		    device_t child, char *buf, size_t buflen);
+static int	acpi_pci_detach(device_t dev);
 static int	acpi_pci_probe(device_t dev);
 static int	acpi_pci_read_ivar(device_t dev, device_t child, int which,
 		    uintptr_t *result);
@@ -89,6 +91,8 @@ static bus_dma_tag_t acpi_pci_get_dma_tag(device_t bus, device_t child);
 static device_method_t acpi_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		acpi_pci_probe),
+	DEVMETHOD(device_attach,	acpi_pci_attach),
+	DEVMETHOD(device_detach,	acpi_pci_detach),
 
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	acpi_pci_read_ivar),
@@ -324,6 +328,108 @@ acpi_pci_probe(device_t dev)
 		return (ENXIO);
 	device_set_desc(dev, "ACPI PCI bus");
 	return (BUS_PROBE_DEFAULT);
+}
+
+static void
+acpi_pci_device_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
+{
+	device_t child, dev;
+	ACPI_STATUS status;
+	int error;
+
+	dev = context;
+
+	switch (notify) {
+	case ACPI_NOTIFY_DEVICE_CHECK:
+		mtx_lock(&Giant);
+		BUS_RESCAN(dev);
+		mtx_unlock(&Giant);
+		break;
+	case ACPI_NOTIFY_EJECT_REQUEST:
+		child = acpi_get_device(h);
+		if (child == NULL) {
+			device_printf(dev, "no device to eject for %s\n",
+			    acpi_name(h));
+			return;
+		}
+		mtx_lock(&Giant);
+		error = device_detach(child);
+		if (error) {
+			mtx_unlock(&Giant);
+			device_printf(dev, "failed to detach %s: %d\n",
+			    device_get_nameunit(child), error);
+			return;
+		}
+		status = acpi_SetInteger(h, "_EJ0", 1);
+		if (ACPI_FAILURE(status)) {
+			mtx_unlock(&Giant);
+			device_printf(dev, "failed to eject %s: %s\n",
+			    acpi_name(h), AcpiFormatException(status));
+			return;
+		}
+		BUS_RESCAN(dev);
+		mtx_unlock(&Giant);
+		break;
+	default:
+		device_printf(dev, "unknown notify %#x for %s\n", notify,
+		    acpi_name(h));
+		break;
+	}
+}
+
+static ACPI_STATUS
+acpi_pci_install_device_notify_handler(ACPI_HANDLE handle, UINT32 level,
+    void *context, void **status)
+{
+	ACPI_HANDLE h;
+
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+	if (ACPI_FAILURE(AcpiGetHandle(handle, "_EJ0", &h)))
+		return_ACPI_STATUS (AE_OK);
+
+	AcpiInstallNotifyHandler(handle, ACPI_SYSTEM_NOTIFY,
+	    acpi_pci_device_notify_handler, context);
+	return_ACPI_STATUS (AE_OK);
+}
+
+static int
+acpi_pci_attach(device_t dev)
+{
+	int error;
+
+	error = pci_attach(dev);
+	if (error)
+		return (error);
+	AcpiWalkNamespace(ACPI_TYPE_DEVICE, acpi_get_handle(dev), 1,
+	    acpi_pci_install_device_notify_handler, NULL, dev, NULL);
+	
+	return (0);
+}
+
+static ACPI_STATUS
+acpi_pci_remove_notify_handler(ACPI_HANDLE handle, UINT32 level, void *context,
+    void **status)
+{
+	ACPI_HANDLE h;
+
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+	if (ACPI_FAILURE(AcpiGetHandle(handle, "_EJ0", &h)))
+		return_ACPI_STATUS (AE_OK);
+
+	AcpiRemoveNotifyHandler(handle, ACPI_SYSTEM_NOTIFY,
+	    acpi_pci_device_notify_handler);
+	return_ACPI_STATUS (AE_OK);
+}
+
+static int
+acpi_pci_detach(device_t dev)
+{
+
+	AcpiWalkNamespace(ACPI_TYPE_DEVICE, acpi_get_handle(dev), 1,
+	    acpi_pci_remove_notify_handler, NULL, dev, NULL);
+	return (pci_detach(dev));
 }
 
 #ifdef ACPI_DMAR

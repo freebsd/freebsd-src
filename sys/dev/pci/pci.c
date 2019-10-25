@@ -98,8 +98,6 @@ static void		pci_assign_interrupt(device_t bus, device_t dev,
 static int		pci_add_map(device_t bus, device_t dev, int reg,
 			    struct resource_list *rl, int force, int prefetch);
 static int		pci_probe(device_t dev);
-static int		pci_attach(device_t dev);
-static int		pci_detach(device_t dev);
 static void		pci_load_vendor_data(void);
 static int		pci_describe_parse_line(char **ptr, int *vendor,
 			    int *device, char **desc);
@@ -4380,7 +4378,7 @@ pci_attach_common(device_t dev)
 	return (0);
 }
 
-static int
+int
 pci_attach(device_t dev)
 {
 	int busno, domain, error;
@@ -4401,7 +4399,7 @@ pci_attach(device_t dev)
 	return (bus_generic_attach(dev));
 }
 
-static int
+int
 pci_detach(device_t dev)
 {
 #ifdef PCI_RES_BUS
