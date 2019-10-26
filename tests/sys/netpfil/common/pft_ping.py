@@ -1,4 +1,4 @@
-#!/usr/local/bin/python2.7
+#!/usr/bin/env python
 
 import argparse
 import scapy.all as sp
@@ -34,15 +34,15 @@ def check_ping4_request(args, packet):
 	raw = packet.getlayer(sp.Raw)
 	if not raw:
 		return False
-	if raw.load != str(PAYLOAD_MAGIC):
+	if int(raw.load) != PAYLOAD_MAGIC:
 		return False
 
 	# Wait to check expectations until we've established this is the packet we
 	# sent.
 	if args.expect_tos:
 		if ip.tos != int(args.expect_tos[0]):
-			print "Unexpected ToS value %d, expected %s" \
-				% (ip.tos, args.expect_tos[0])
+			print("Unexpected ToS value %d, expected %d" \
+				% (ip.tos, int(args.expect_tos[0])))
 			return False
 
 	return True
@@ -62,7 +62,7 @@ def check_ping6_request(args, packet):
 	icmp = packet.getlayer(sp.ICMPv6EchoRequest)
 	if not icmp:
 		return False
-	if icmp.data != str(PAYLOAD_MAGIC):
+	if int(icmp.data) != PAYLOAD_MAGIC:
 		return False
 
 	return True
@@ -71,7 +71,7 @@ def ping(send_if, dst_ip, args):
 	ether = sp.Ether()
 	ip = sp.IP(dst=dst_ip)
 	icmp = sp.ICMP(type='echo-request')
-	raw = sp.Raw(str(PAYLOAD_MAGIC))
+	raw = sp.raw(str(PAYLOAD_MAGIC))
 
 	if args.send_tos:
 		ip.tos = int(args.send_tos[0])
@@ -82,7 +82,7 @@ def ping(send_if, dst_ip, args):
 def ping6(send_if, dst_ip, args):
 	ether = sp.Ether()
 	ip6 = sp.IPv6(dst=dst_ip)
-	icmp = sp.ICMPv6EchoRequest(data=PAYLOAD_MAGIC)
+	icmp = sp.ICMPv6EchoRequest(data=sp.raw(str(PAYLOAD_MAGIC)))
 
 	req = ether / ip6 / icmp
 	sp.sendp(req, iface=send_if, verbose=False)
