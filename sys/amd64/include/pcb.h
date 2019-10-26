@@ -116,6 +116,10 @@ struct susppcb {
 	/* fpu context for suspend/resume */
 	void		*sp_fpususpend;
 };
+#else	/* 32bit */
+struct pcb {
+	uint64_t pcb_dummy[40];
+};
 #endif
 
 #ifdef _KERNEL
