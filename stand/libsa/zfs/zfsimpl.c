@@ -840,18 +840,26 @@ vdev_indirect_remap(vdev_t *vd, uint64_t offset, uint64_t asize, void *arg)
 	list_t stack;
 	spa_t *spa = vd->spa;
 	zio_t *zio = arg;
+	remap_segment_t *rs;
 
 	list_create(&stack, sizeof (remap_segment_t),
 	    offsetof(remap_segment_t, rs_node));
 
-	for (remap_segment_t *rs = rs_alloc(vd, offset, asize, 0);
-	    rs != NULL; rs = list_remove_head(&stack)) {
+	rs = rs_alloc(vd, offset, asize, 0);
+	if (rs == NULL) {
+		printf("vdev_indirect_remap: out of memory.\n");
+		zio->io_error = ENOMEM;
+	}
+	for ( ; rs != NULL; rs = list_remove_head(&stack)) {
 		vdev_t *v = rs->rs_vd;
 		uint64_t num_entries = 0;
 		/* vdev_indirect_mapping_t *vim = v->v_mapping; */
 		vdev_indirect_mapping_entry_phys_t *mapping =
 		    vdev_indirect_mapping_duplicate_adjacent_entries(v,
 		    rs->rs_offset, rs->rs_asize, &num_entries);
+
+		if (num_entries == 0)
+			zio->io_error = ENOMEM;
 
 		for (uint64_t i = 0; i < num_entries; i++) {
 			vdev_indirect_mapping_entry_phys_t *m = &mapping[i];
@@ -865,9 +873,18 @@ vdev_indirect_remap(vdev_t *vd, uint64_t offset, uint64_t asize, void *arg)
 			vdev_t *dst_v = vdev_lookup_top(spa, dst_vdev);
 
 			if (dst_v->v_read == vdev_indirect_read) {
-				list_insert_head(&stack,
-				    rs_alloc(dst_v, dst_offset + inner_offset,
-				    inner_size, rs->rs_split_offset));
+				remap_segment_t *o;
+
+				o = rs_alloc(dst_v, dst_offset + inner_offset,
+				    inner_size, rs->rs_split_offset);
+				if (o == NULL) {
+					printf("vdev_indirect_remap: "
+					    "out of memory.\n");
+					zio->io_error = ENOMEM;
+					break;
+				}
+
+				list_insert_head(&stack, o);
 			}
 			vdev_indirect_gather_splits(rs->rs_split_offset, dst_v,
 			    dst_offset + inner_offset,
