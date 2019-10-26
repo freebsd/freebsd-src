@@ -3656,8 +3656,10 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VI_DOINGINACT", sizeof(buf));
 	if (vp->v_iflag & VI_OWEINACT)
 		strlcat(buf, "|VI_OWEINACT", sizeof(buf));
+	if (vp->v_iflag & VI_TEXT_REF)
+		strlcat(buf, "|VI_TEXT_REF", sizeof(buf));
 	flags = vp->v_iflag & ~(VI_MOUNT | VI_DOOMED | VI_FREE |
-	    VI_ACTIVE | VI_DOINGINACT | VI_OWEINACT);
+	    VI_ACTIVE | VI_DOINGINACT | VI_OWEINACT | VI_TEXT_REF);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VI(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
