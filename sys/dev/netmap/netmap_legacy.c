@@ -100,7 +100,7 @@ nmreq_register_from_legacy(struct nmreq *nmr, struct nmreq_header *hdr,
 			/* No space for the pipe suffix. */
 			return ENOBUFS;
 		}
-		strncat(hdr->nr_name, suffix, strlen(suffix));
+		strlcat(hdr->nr_name, suffix, sizeof(hdr->nr_name));
 		req->nr_mode = NR_REG_ALL_NIC;
 		req->nr_ringid = 0;
 	}
