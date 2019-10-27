@@ -1176,6 +1176,7 @@ ufs_dirremove(dvp, ip, flags, isrmdir)
 	 */
 	if (ip) {
 		ip->i_effnlink--;
+		ip->i_flag |= IN_CHANGE;
 		if (DOINGSOFTDEP(dvp)) {
 			softdep_setup_unlink(dp, ip);
 		} else {
@@ -1289,6 +1290,7 @@ ufs_dirrewrite(dp, oip, newinum, newtype, isrmdir)
 	 * necessary.
 	 */
 	oip->i_effnlink--;
+	oip->i_flag |= IN_CHANGE;
 	if (DOINGSOFTDEP(vdp)) {
 		softdep_setup_unlink(dp, oip);
 	} else {
