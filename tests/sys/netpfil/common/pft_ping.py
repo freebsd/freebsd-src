@@ -5,7 +5,7 @@ import scapy.all as sp
 import sys
 from sniffer import Sniffer
 
-PAYLOAD_MAGIC = 0x42c0ffee
+PAYLOAD_MAGIC = bytes.fromhex('42c0ffee')
 
 def check_ping_request(args, packet):
 	if args.ip6:
@@ -34,7 +34,7 @@ def check_ping4_request(args, packet):
 	raw = packet.getlayer(sp.Raw)
 	if not raw:
 		return False
-	if int(raw.load) != PAYLOAD_MAGIC:
+	if raw.load != PAYLOAD_MAGIC:
 		return False
 
 	# Wait to check expectations until we've established this is the packet we
@@ -62,7 +62,7 @@ def check_ping6_request(args, packet):
 	icmp = packet.getlayer(sp.ICMPv6EchoRequest)
 	if not icmp:
 		return False
-	if int(icmp.data) != PAYLOAD_MAGIC:
+	if icmp.data != PAYLOAD_MAGIC:
 		return False
 
 	return True
@@ -71,7 +71,7 @@ def ping(send_if, dst_ip, args):
 	ether = sp.Ether()
 	ip = sp.IP(dst=dst_ip)
 	icmp = sp.ICMP(type='echo-request')
-	raw = sp.raw(str(PAYLOAD_MAGIC))
+	raw = sp.raw(PAYLOAD_MAGIC)
 
 	if args.send_tos:
 		ip.tos = int(args.send_tos[0])
@@ -82,7 +82,7 @@ def ping(send_if, dst_ip, args):
 def ping6(send_if, dst_ip, args):
 	ether = sp.Ether()
 	ip6 = sp.IPv6(dst=dst_ip)
-	icmp = sp.ICMPv6EchoRequest(data=sp.raw(str(PAYLOAD_MAGIC)))
+	icmp = sp.ICMPv6EchoRequest(data=sp.raw(PAYLOAD_MAGIC))
 
 	req = ether / ip6 / icmp
 	sp.sendp(req, iface=send_if, verbose=False)
