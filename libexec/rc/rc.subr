@@ -1281,7 +1281,7 @@ $command $rc_flags $command_args"
 					${PROTECT} -p ${pid}
 					;;
 				esac
-			fi	
+			fi
 		;;
 		esac
 
