@@ -442,6 +442,13 @@ _NOTE(CONSTCOND) } while (0)
 	ZIO_SET_CHECKSUM(&(bp)->blk_cksum, 0, 0, 0, 0);	\
 }
 
+#if BYTE_ORDER == _BIG_ENDIAN
+#define	ZFS_HOST_BYTEORDER	(0ULL)
+#else
+#define	ZFS_HOST_BYTEORDER	(1ULL)
+#endif
+
+#define	BP_SHOULD_BYTESWAP(bp)	(BP_GET_BYTEORDER(bp) != ZFS_HOST_BYTEORDER)
 #define	BPE_NUM_WORDS 14
 #define	BPE_PAYLOAD_SIZE (BPE_NUM_WORDS * sizeof (uint64_t))
 #define	BPE_IS_PAYLOADWORD(bp, wp) \
