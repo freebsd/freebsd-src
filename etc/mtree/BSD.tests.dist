@@ -384,6 +384,8 @@
         ..
         libdevdctl
         ..
+        libexecinfo
+        ..
         libkvm
         ..
         libmp
