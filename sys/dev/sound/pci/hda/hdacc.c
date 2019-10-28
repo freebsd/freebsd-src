@@ -370,6 +370,11 @@ static const struct {
 	{ HDA_CODEC_INTELSKLK, 0,	"Intel Skylake" },
 	{ HDA_CODEC_INTELKBLK, 0,	"Intel Kaby Lake" },
 	{ HDA_CODEC_INTELCL, 0,		"Intel Crestline" },
+	{ HDA_CODEC_INTELBXTN, 0,	"Intel Broxton" },
+	{ HDA_CODEC_INTELCNLK, 0,	"Intel Cannonlake" },
+	{ HDA_CODEC_INTELGMLK, 0,	"Intel Geminilake" },
+	{ HDA_CODEC_INTELGMLK1, 0,	"Intel Geminilake" },
+	{ HDA_CODEC_INTELICLK, 0,	"Intel Icelake" },
 	{ HDA_CODEC_SII1390, 0,		"Silicon Image SiI1390" },
 	{ HDA_CODEC_SII1392, 0,		"Silicon Image SiI1392" },
 	/* Unknown CODECs */
