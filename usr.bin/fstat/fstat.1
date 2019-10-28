@@ -28,7 +28,7 @@
 .\"     @(#)fstat.1	8.3 (Berkeley) 2/25/94
 .\" $FreeBSD$
 .\"
-.Dd September 28, 2011
+.Dd October 19, 2019
 .Dt FSTAT 1
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd identify active files
 .Sh SYNOPSIS
 .Nm
-.Op Fl fmnv
+.Op Fl fmnsv
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Fl p Ar pid
@@ -85,6 +85,8 @@ in
 and print the mode of the file in octal instead of symbolic form.
 .It Fl p
 Report all files open by the specified process.
+.It Fl s
+Print socket endpoint information.
 .It Fl u
 Report all files open by the specified user.
 .It Fl v
@@ -199,9 +201,6 @@ For tcp, it is the address of the tcpcb, and for udp, the inpcb (socket pcb).
 For unix domain sockets, its the address of the socket pcb and the address
 of the connected pcb (if connected).
 Otherwise the protocol number and address of the socket itself are printed.
-The attempt is to make enough information available to
-permit further analysis without duplicating
-.Xr netstat 1 .
 .Pp
 For example, the addresses mentioned above are the addresses which the
 .Dq Li netstat -A
@@ -211,6 +210,15 @@ connected unix domain stream socket.
 A unidirectional unix domain socket indicates the direction of flow with
 an arrow (``<-'' or ``->''), and a full duplex socket shows a double arrow
 (``<->'').
+.Pp
+When the
+.Fl s
+flag is used, socket endpoint information is shown after the address of the
+socket.
+For internet sockets the local and remote addresses are shown, separated with
+a double arrow (``<->'').
+For unix/local sockets either the local or remote address is shown, depending
+on which one is available.
 .Sh SEE ALSO
 .Xr netstat 1 ,
 .Xr nfsstat 1 ,
