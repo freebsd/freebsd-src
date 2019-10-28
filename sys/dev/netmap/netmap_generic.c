@@ -669,6 +669,11 @@ generic_netmap_txsync(struct netmap_kring *kring, int flags)
 	if (nm_i != head) {	/* we have new packets to send */
 		struct nm_os_gen_arg a;
 		u_int event = -1;
+#ifdef __FreeBSD__
+		struct epoch_tracker et;
+
+		NET_EPOCH_ENTER(et);
+#endif
 
 		if (gna->txqdisc && nm_kr_txempty(kring)) {
 			/* In txqdisc mode, we ask for a delayed notification,
@@ -776,6 +781,10 @@ generic_netmap_txsync(struct netmap_kring *kring, int flags)
 		/* Update hwcur to the next slot to transmit. Here nm_i
 		 * is not necessarily head, we could break early. */
 		kring->nr_hwcur = nm_i;
+
+#ifdef __FreeBSD__
+		NET_EPOCH_EXIT(et);
+#endif
 	}
 
 	/*
