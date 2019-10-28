@@ -1410,11 +1410,11 @@ ncl_asyncio(struct nfsmount *nmp, struct buf *bp, struct ucred *cred, struct thr
 	 * To avoid this deadlock, don't allow the async nfsiod threads to
 	 * perform Readdirplus RPCs.
 	 */
-	mtx_lock(&ncl_iod_mutex);
+	NFSLOCKIOD();
 	if ((bp->b_iocmd == BIO_WRITE && (bp->b_flags & B_NEEDCOMMIT) &&
 	     (nmp->nm_bufqiods > ncl_numasync / 2)) ||
 	    (bp->b_vp->v_type == VDIR && (nmp->nm_flag & NFSMNT_RDIRPLUS))) {
-		mtx_unlock(&ncl_iod_mutex);
+		NFSUNLOCKIOD();
 		return(EIO);
 	}
 again:
@@ -1481,7 +1481,7 @@ again:
 			if (error) {
 				error2 = newnfs_sigintr(nmp, td);
 				if (error2) {
-					mtx_unlock(&ncl_iod_mutex);
+					NFSUNLOCKIOD();
 					return (error2);
 				}
 				if (slpflag == PCATCH) {
@@ -1522,11 +1522,11 @@ again:
 			VTONFS(bp->b_vp)->n_directio_asyncwr++;
 			NFSUNLOCKNODE(VTONFS(bp->b_vp));
 		}
-		mtx_unlock(&ncl_iod_mutex);
+		NFSUNLOCKIOD();
 		return (0);
 	}
 
-	mtx_unlock(&ncl_iod_mutex);
+	NFSUNLOCKIOD();
 
 	/*
 	 * All the iods are busy on other mounts, so return EIO to
