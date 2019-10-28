@@ -742,12 +742,12 @@ nfscl_wcc_data(struct nfsrv_descript *nd, struct vnode *vp,
 		if (*tl == newnfs_true) {
 			NFSM_DISSECT(tl, u_int32_t *, 6 * NFSX_UNSIGNED);
 			if (wccflagp != NULL) {
-				mtx_lock(&np->n_mtx);
+				NFSLOCKNODE(np);
 				*wccflagp = (np->n_mtime.tv_sec ==
 				    fxdr_unsigned(u_int32_t, *(tl + 2)) &&
 				    np->n_mtime.tv_nsec ==
 				    fxdr_unsigned(u_int32_t, *(tl + 3)));
-				mtx_unlock(&np->n_mtx);
+				NFSUNLOCKNODE(np);
 			}
 		}
 		error = nfscl_postop_attr(nd, nap, flagp, stuff);
@@ -768,12 +768,12 @@ nfscl_wcc_data(struct nfsrv_descript *nd, struct vnode *vp,
 			nd->nd_flag |= ND_NOMOREDATA;
 		if (wccflagp != NULL &&
 		    nfsva.na_vattr.va_mtime.tv_sec != 0) {
-			mtx_lock(&np->n_mtx);
+			NFSLOCKNODE(np);
 			*wccflagp = (np->n_mtime.tv_sec ==
 			    nfsva.na_vattr.va_mtime.tv_sec &&
 			    np->n_mtime.tv_nsec ==
 			    nfsva.na_vattr.va_mtime.tv_sec);
-			mtx_unlock(&np->n_mtx);
+			NFSUNLOCKNODE(np);
 		}
 	}
 nfsmout:

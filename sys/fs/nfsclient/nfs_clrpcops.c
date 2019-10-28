@@ -5952,9 +5952,9 @@ nfscl_doflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 				error = EIO;
 		} else {
 			commit_thru_mds = 0;
-			mtx_lock(&np->n_mtx);
+			NFSLOCKNODE(np);
 			np->n_flag |= NDSCOMMIT;
-			mtx_unlock(&np->n_mtx);
+			NFSUNLOCKNODE(np);
 		}
 		if (docommit != 0) {
 			if (error == 0)
@@ -5968,9 +5968,9 @@ nfscl_doflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 				*eofp = 1;
 				uiop->uio_resid = 0;
 			} else {
-				mtx_lock(&np->n_mtx);
+				NFSLOCKNODE(np);
 				np->n_flag &= ~NDSCOMMIT;
-				mtx_unlock(&np->n_mtx);
+				NFSUNLOCKNODE(np);
 			}
 		} else if (rwflag == NFSV4OPEN_ACCESSREAD)
 			error = nfsrpc_readds(vp, uiop, stateidp, eofp, *dspp,
@@ -6036,9 +6036,9 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 			transfer = dp->nfsdi_rsize;
 		else
 			transfer = dp->nfsdi_wsize;
-		mtx_lock(&np->n_mtx);
+		NFSLOCKNODE(np);
 		np->n_flag |= NDSCOMMIT;
-		mtx_unlock(&np->n_mtx);
+		NFSUNLOCKNODE(np);
 		if (len > transfer && docommit == 0)
 			xfer = transfer;
 		else
@@ -6075,9 +6075,9 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 				*eofp = 1;
 				uiop->uio_resid = 0;
 			} else {
-				mtx_lock(&np->n_mtx);
+				NFSLOCKNODE(np);
 				np->n_flag &= ~NDSCOMMIT;
-				mtx_unlock(&np->n_mtx);
+				NFSUNLOCKNODE(np);
 			}
 		} else if (rwflag == NFSV4OPEN_ACCESSREAD) {
 			error = nfsrpc_readds(vp, uiop, stateidp, eofp, *dspp,

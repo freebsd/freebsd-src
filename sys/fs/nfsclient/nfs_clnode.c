@@ -219,7 +219,7 @@ ncl_releasesillyrename(struct vnode *vp, struct thread *td)
 	} else
 		sp = NULL;
 	if (sp != NULL) {
-		mtx_unlock(&np->n_mtx);
+		NFSUNLOCKNODE(np);
 		(void) ncl_vinvalbuf(vp, 0, td, 1);
 		/*
 		 * Remove the silly file that was rename'd earlier
@@ -228,7 +228,7 @@ ncl_releasesillyrename(struct vnode *vp, struct thread *td)
 		crfree(sp->s_cred);
 		TASK_INIT(&sp->s_task, 0, nfs_freesillyrename, sp);
 		taskqueue_enqueue(taskqueue_thread, &sp->s_task);
-		mtx_lock(&np->n_mtx);
+		NFSLOCKNODE(np);
 	}
 }
 
@@ -260,7 +260,7 @@ ncl_inactive(struct vop_inactive_args *ap)
 	}
 
 	np = VTONFS(vp);
-	mtx_lock(&np->n_mtx);
+	NFSLOCKNODE(np);
 	ncl_releasesillyrename(vp, ap->a_td);
 
 	/*
@@ -271,7 +271,7 @@ ncl_inactive(struct vop_inactive_args *ap)
 	 * None of the other flags are meaningful after the vnode is unused.
 	 */
 	np->n_flag &= (NMODIFIED | NDSCOMMIT);
-	mtx_unlock(&np->n_mtx);
+	NFSUNLOCKNODE(np);
 	return (0);
 }
 
@@ -292,9 +292,9 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 	if (nfs_reclaim_p != NULL)
 		nfs_reclaim_p(ap);
 
-	mtx_lock(&np->n_mtx);
+	NFSLOCKNODE(np);
 	ncl_releasesillyrename(vp, ap->a_td);
-	mtx_unlock(&np->n_mtx);
+	NFSUNLOCKNODE(np);
 
 	/*
 	 * Destroy the vm object and flush associated pages.
@@ -353,11 +353,11 @@ ncl_invalcaches(struct vnode *vp)
 	struct nfsnode *np = VTONFS(vp);
 	int i;
 
-	mtx_lock(&np->n_mtx);
+	NFSLOCKNODE(np);
 	for (i = 0; i < NFS_ACCESSCACHESIZE; i++)
 		np->n_accesscache[i].stamp = 0;
 	KDTRACE_NFS_ACCESSCACHE_FLUSH_DONE(vp);
 	np->n_attrstamp = 0;
 	KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
-	mtx_unlock(&np->n_mtx);
+	NFSUNLOCKNODE(np);
 }

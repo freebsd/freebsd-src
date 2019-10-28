@@ -857,11 +857,11 @@ MALLOC_DECLARE(M_NEWNFSDSESSION);
 #define	NFSWRITERPC_SETTIME(w, n, a, v4)				\
 	do {								\
 		if (w) {						\
-			mtx_lock(&((n)->n_mtx));			\
+			NFSLOCKNODE(n);					\
 			(n)->n_mtime = (a)->na_mtime;			\
 			if (v4)						\
 				(n)->n_change = (a)->na_filerev;	\
-			mtx_unlock(&((n)->n_mtx));			\
+			NFSUNLOCKNODE(n);				\
 		}							\
 	} while (0)
 
