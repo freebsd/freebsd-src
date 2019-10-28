@@ -1697,7 +1697,7 @@ buildkernel: .MAKE .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Kernel build for ${_kernel} completed on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
-	
+
 .endfor
 	@seconds=$$(($$(date '+%s') - ${_BUILDKERNEL_START})); \
 	  echo -n ">>> Kernel(s) ${BUILDKERNELS} built in $$seconds seconds, "; \
@@ -2159,7 +2159,7 @@ _bootstrap_tools_links+=m4 lex
 # r339083 libelf: correct mips64el test to use ELF header
 # r348347 Add missing powerpc64 relocation support to libdwarf
 .if ${BOOTSTRAPPING} < 1300030
-_elftoolchain_libs= lib/libelf lib/libdwarf
+_elftoolchain_libs= lib/libelf lib/libdwarf lib/libzstd
 ${_bt}-lib/libelf: ${_bt_m4_depend}
 ${_bt}-lib/libdwarf: ${_bt_m4_depend}
 .endif
@@ -2360,7 +2360,6 @@ ${_bt}-link-${_tool}: .PHONY .MAKE
 	fi
 ${_bt}-links: ${_bt}-link-${_tool}
 .endfor
-
 
 bootstrap-tools: ${_bt}-links .PHONY
 
