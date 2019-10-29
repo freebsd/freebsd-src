@@ -109,7 +109,7 @@ ffs_rawread_sync(struct vnode *vp)
 	if (bo->bo_numoutput > 0 ||
 	    bo->bo_dirty.bv_cnt > 0 ||
 	    ((obj = vp->v_object) != NULL &&
-	     (obj->flags & OBJ_MIGHTBEDIRTY) != 0)) {
+	     vm_object_mightbedirty(obj))) {
 		VI_UNLOCK(vp);
 		BO_UNLOCK(bo);
 		
@@ -140,7 +140,7 @@ ffs_rawread_sync(struct vnode *vp)
 		}
 		/* Attempt to msync mmap() regions to clean dirty mmap */ 
 		if ((obj = vp->v_object) != NULL &&
-		    (obj->flags & OBJ_MIGHTBEDIRTY) != 0) {
+		    vm_object_mightbedirty(obj)) {
 			VI_UNLOCK(vp);
 			VM_OBJECT_WLOCK(obj);
 			vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);

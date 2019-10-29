@@ -210,7 +210,7 @@ unlock_and_deallocate(struct faultstate *fs)
 
 static void
 vm_fault_dirty(vm_map_entry_t entry, vm_page_t m, vm_prot_t prot,
-    vm_prot_t fault_type, int fault_flags, bool set_wd)
+    vm_prot_t fault_type, int fault_flags, bool excl)
 {
 	bool need_dirty;
 
@@ -226,11 +226,11 @@ vm_fault_dirty(vm_map_entry_t entry, vm_page_t m, vm_prot_t prot,
 	    (fault_flags & VM_FAULT_WIRE) == 0) ||
 	    (fault_flags & VM_FAULT_DIRTY) != 0;
 
-	if (set_wd)
-		vm_object_set_writeable_dirty(m->object);
-	else
+	vm_object_set_writeable_dirty(m->object);
+
+	if (!excl)
 		/*
-		 * If two callers of vm_fault_dirty() with set_wd ==
+		 * If two callers of vm_fault_dirty() with excl ==
 		 * FALSE, one for the map entry with MAP_ENTRY_NOSYNC
 		 * flag set, other with flag clear, race, it is
 		 * possible for the no-NOSYNC thread to see m->dirty
@@ -267,7 +267,7 @@ vm_fault_dirty(vm_map_entry_t entry, vm_page_t m, vm_prot_t prot,
 	 */
 	if (need_dirty)
 		vm_page_dirty(m);
-	if (!set_wd)
+	if (!excl)
 		vm_page_unlock(m);
 	else if (need_dirty)
 		vm_pager_page_unswapped(m);
@@ -758,29 +758,17 @@ RetryFault_oom:
 	/*
 	 * Try to avoid lock contention on the top-level object through
 	 * special-case handling of some types of page faults, specifically,
-	 * those that are both (1) mapping an existing page from the top-
-	 * level object and (2) not having to mark that object as containing
-	 * dirty pages.  Under these conditions, a read lock on the top-level
-	 * object suffices, allowing multiple page faults of a similar type to
-	 * run in parallel on the same top-level object.
+	 * those that are mapping an existing page from the top-level object.
+	 * Under this condition, a read lock on the object suffices, allowing
+	 * multiple page faults of a similar type to run in parallel.
 	 */
 	if (fs.vp == NULL /* avoid locked vnode leak */ &&
-	    (fault_flags & (VM_FAULT_WIRE | VM_FAULT_DIRTY)) == 0 &&
-	    /* avoid calling vm_object_set_writeable_dirty() */
-	    ((prot & VM_PROT_WRITE) == 0 ||
-	    (fs.first_object->type != OBJT_VNODE &&
-	    (fs.first_object->flags & OBJ_TMPFS_NODE) == 0) ||
-	    (fs.first_object->flags & OBJ_MIGHTBEDIRTY) != 0)) {
+	    (fault_flags & (VM_FAULT_WIRE | VM_FAULT_DIRTY)) == 0) {
 		VM_OBJECT_RLOCK(fs.first_object);
-		if ((prot & VM_PROT_WRITE) == 0 ||
-		    (fs.first_object->type != OBJT_VNODE &&
-		    (fs.first_object->flags & OBJ_TMPFS_NODE) == 0) ||
-		    (fs.first_object->flags & OBJ_MIGHTBEDIRTY) != 0) {
-			rv = vm_fault_soft_fast(&fs, vaddr, prot, fault_type,
-			    fault_flags, wired, m_hold);
-			if (rv == KERN_SUCCESS)
-				return (rv);
-		}
+		rv = vm_fault_soft_fast(&fs, vaddr, prot, fault_type,
+		    fault_flags, wired, m_hold);
+		if (rv == KERN_SUCCESS)
+			return (rv);
 		if (!VM_OBJECT_TRYUPGRADE(fs.first_object)) {
 			VM_OBJECT_RUNLOCK(fs.first_object);
 			VM_OBJECT_WLOCK(fs.first_object);

@@ -715,7 +715,7 @@ nfs_open(struct vop_open_args *ap)
 	 */
 	if (vp->v_writecount <= -1) {
 		if ((obj = vp->v_object) != NULL &&
-		    (obj->flags & OBJ_MIGHTBEDIRTY) != 0) {
+		    vm_object_mightbedirty(obj)) {
 			VM_OBJECT_WLOCK(obj);
 			vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
 			VM_OBJECT_WUNLOCK(obj);

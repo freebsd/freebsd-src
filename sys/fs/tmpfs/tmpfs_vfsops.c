@@ -172,7 +172,7 @@ tmpfs_update_mtime(struct mount *mp, bool lazy)
 		 * For non-lazy case, we must flush all pending
 		 * metadata changes now.
 		 */
-		if (!lazy || (obj->flags & OBJ_TMPFS_DIRTY) != 0) {
+		if (!lazy || obj->generation != obj->cleangeneration) {
 			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK,
 			    curthread) != 0)
 				continue;
