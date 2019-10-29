@@ -191,7 +191,7 @@ rk_typec_phy_enable(struct phynode *phynode, bool enable)
 	device_t dev;
 	intptr_t phy;
 	uint32_t reg;
-	int err;
+	int err, retry;
 
 	dev = phynode_get_device(phynode);
 	phy = phynode_get_id(phynode);
@@ -271,13 +271,13 @@ rk_typec_phy_enable(struct phynode *phynode, bool enable)
 
 	hwreset_deassert(sc->rst_uphy);
 
-	for (int timeout = 10000; timeout > 0; timeout--) {
+	for (retry = 10000; retry > 0; retry--) {
 		reg = RK_TYPEC_PHY_READ(sc, PMA_CMN_CTRL1);
 		if (reg & PMA_CMN_CTRL1_READY)
 			break;
 		DELAY(10);
 	}
-	if (timeout == 0) {
+	if (retry == 0) {
 		device_printf(sc->dev, "Timeout waiting for PMA\n");
 		return (ENXIO);
 	}
