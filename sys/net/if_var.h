@@ -317,6 +317,7 @@ struct ifnet {
 
 	struct  ifaltq if_snd;		/* output queue (includes altq) */
 	struct	task if_linktask;	/* task for link change events */
+	struct	task if_addmultitask;	/* task for SIOCADDMULTI */
 
 	/* Addresses of different protocol families assigned to this if. */
 	struct mtx if_addr_lock;	/* lock to protect address lists */
