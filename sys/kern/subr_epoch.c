@@ -377,7 +377,7 @@ _epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE)
 	epoch_trace_enter(td, epoch, et, file, line);
 #endif
 	et->et_td = td;
-	td->td_epochnest++;
+	THREAD_NO_SLEEPING();
 	critical_enter();
 	sched_pin();
 	td->td_pre_epoch_prio = td->td_priority;
@@ -390,13 +390,10 @@ _epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE)
 void
 epoch_enter(epoch_t epoch)
 {
-	struct thread *td;
 	epoch_record_t er;
 
 	MPASS(cold || epoch != NULL);
 	INIT_CHECK(epoch);
-	td = curthread;
-	td->td_epochnest++;
 	critical_enter();
 	er = epoch_currecord(epoch);
 	ck_epoch_begin(&er->er_record, NULL);
@@ -412,8 +409,7 @@ _epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE)
 	td = curthread;
 	critical_enter();
 	sched_unpin();
-	MPASS(td->td_epochnest);
-	td->td_epochnest--;
+	THREAD_SLEEPING_OK();
 	er = epoch_currecord(epoch);
 	MPASS(epoch->e_flags & EPOCH_PREEMPT);
 	MPASS(et != NULL);
@@ -435,13 +431,9 @@ _epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE)
 void
 epoch_exit(epoch_t epoch)
 {
-	struct thread *td;
 	epoch_record_t er;
 
 	INIT_CHECK(epoch);
-	td = curthread;
-	MPASS(td->td_epochnest);
-	td->td_epochnest--;
 	er = epoch_currecord(epoch);
 	ck_epoch_end(&er->er_record, NULL);
 	critical_exit();
@@ -740,7 +732,7 @@ in_epoch_verbose(epoch_t epoch, int dump_onfail)
 	epoch_record_t er;
 
 	td = curthread;
-	if (td->td_epochnest == 0)
+	if (THREAD_CAN_SLEEP())
 		return (0);
 	if (__predict_false((epoch) == NULL))
 		return (0);

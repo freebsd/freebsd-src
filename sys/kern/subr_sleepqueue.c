@@ -80,6 +80,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/stack.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#ifdef EPOCH_TRACE
+#include <sys/epoch.h>
+#endif
 
 #include <machine/atomic.h>
 
@@ -315,9 +318,14 @@ sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
 	MPASS((queue >= 0) && (queue < NR_SLEEPQS));
 
 	/* If this thread is not allowed to sleep, die a horrible death. */
-	KASSERT(THREAD_CAN_SLEEP(),
-	    ("%s: td %p to sleep on wchan %p with sleeping prohibited",
-	    __func__, td, wchan));
+	if (__predict_false(!THREAD_CAN_SLEEP())) {
+#ifdef EPOCH_TRACE
+		epoch_trace_list(curthread);
+#endif
+		KASSERT(1,
+		    ("%s: td %p to sleep on wchan %p with sleeping prohibited",
+		    __func__, td, wchan));
+	}
 
 	/* Look up the sleep queue associated with the wait channel 'wchan'. */
 	sq = sleepq_lookup(wchan);

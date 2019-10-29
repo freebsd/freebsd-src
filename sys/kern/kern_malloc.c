@@ -523,12 +523,13 @@ malloc_dbg(caddr_t *vap, size_t *sizep, struct malloc_type *mtp,
 	if (flags & M_WAITOK) {
 		KASSERT(curthread->td_intr_nesting_level == 0,
 		   ("malloc(M_WAITOK) in interrupt context"));
+		if (__predict_false(!THREAD_CAN_SLEEP())) {
 #ifdef EPOCH_TRACE
-		if (__predict_false(curthread->td_epochnest > 0))
 			epoch_trace_list(curthread);
 #endif
-		KASSERT(curthread->td_epochnest == 0,
-			("malloc(M_WAITOK) in epoch context"));		
+			KASSERT(1, 
+			    ("malloc(M_WAITOK) with sleeping prohibited"));
+		}
 	}
 	KASSERT(curthread->td_critnest == 0 || SCHEDULER_STOPPED(),
 	    ("malloc: called with spinlock or critical section held"));
