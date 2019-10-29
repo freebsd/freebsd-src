@@ -1498,8 +1498,7 @@ nfsvno_fsync(struct vnode *vp, u_int64_t off, int cnt, struct ucred *cred,
 		/*
 		 * Give up and do the whole thing
 		 */
-		if (vp->v_object &&
-		   (vp->v_object->flags & OBJ_MIGHTBEDIRTY)) {
+		if (vp->v_object && vm_object_mightbedirty(vp->v_object)) {
 			VM_OBJECT_WLOCK(vp->v_object);
 			vm_object_page_clean(vp->v_object, 0, 0, OBJPC_SYNC);
 			VM_OBJECT_WUNLOCK(vp->v_object);
@@ -1529,8 +1528,7 @@ nfsvno_fsync(struct vnode *vp, u_int64_t off, int cnt, struct ucred *cred,
 		}
 		lblkno = off / iosize;
 
-		if (vp->v_object &&
-		   (vp->v_object->flags & OBJ_MIGHTBEDIRTY)) {
+		if (vp->v_object && vm_object_mightbedirty(vp->v_object)) {
 			VM_OBJECT_WLOCK(vp->v_object);
 			vm_object_page_clean(vp->v_object, off, off + cnt,
 			    OBJPC_SYNC);
