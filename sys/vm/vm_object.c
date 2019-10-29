@@ -112,10 +112,10 @@ SYSCTL_INT(_vm, OID_AUTO, old_msync, CTLFLAG_RW, &old_msync, 0,
     "Use old (insecure) msync behavior");
 
 static int	vm_object_page_collect_flush(vm_object_t object, vm_page_t p,
-		    int pagerflags, int flags, boolean_t *clearobjflags,
+		    int pagerflags, int flags, boolean_t *allclean,
 		    boolean_t *eio);
 static boolean_t vm_object_page_remove_write(vm_page_t p, int flags,
-		    boolean_t *clearobjflags);
+		    boolean_t *allclean);
 static void	vm_object_qcollapse(vm_object_t object);
 static void	vm_object_vndeallocate(vm_object_t object);
 
@@ -282,6 +282,7 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	object->size = size;
 	object->domain.dr_policy = NULL;
 	object->generation = 1;
+	object->cleangeneration = 1;
 	refcount_init(&object->ref_count, 1);
 	object->memattr = VM_MEMATTR_DEFAULT;
 	object->cred = NULL;
@@ -769,7 +770,7 @@ vm_object_terminate(vm_object_t object)
  * page should be flushed, and FALSE otherwise.
  */
 static boolean_t
-vm_object_page_remove_write(vm_page_t p, int flags, boolean_t *clearobjflags)
+vm_object_page_remove_write(vm_page_t p, int flags, boolean_t *allclean)
 {
 
 	vm_page_assert_busied(p);
@@ -780,7 +781,7 @@ vm_object_page_remove_write(vm_page_t p, int flags, boolean_t *clearobjflags)
 	 * cleared in this case so we do not have to set them.
 	 */
 	if ((flags & OBJPC_NOSYNC) != 0 && (p->aflags & PGA_NOSYNC) != 0) {
-		*clearobjflags = FALSE;
+		*allclean = FALSE;
 		return (FALSE);
 	} else {
 		pmap_remove_write(p);
@@ -813,16 +814,11 @@ vm_object_page_clean(vm_object_t object, vm_ooffset_t start, vm_ooffset_t end,
 	vm_page_t np, p;
 	vm_pindex_t pi, tend, tstart;
 	int curgeneration, n, pagerflags;
-	boolean_t clearobjflags, eio, res;
+	boolean_t eio, res, allclean;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
-	/*
-	 * The OBJ_MIGHTBEDIRTY flag is only set for OBJT_VNODE
-	 * objects.  The check below prevents the function from
-	 * operating on non-vnode objects.
-	 */
-	if ((object->flags & OBJ_MIGHTBEDIRTY) == 0 ||
+	if (object->type != OBJT_VNODE || !vm_object_mightbedirty(object) ||
 	    object->resident_page_count == 0)
 		return (TRUE);
 
@@ -832,7 +828,7 @@ vm_object_page_clean(vm_object_t object, vm_ooffset_t start, vm_ooffset_t end,
 
 	tstart = OFF_TO_IDX(start);
 	tend = (end == 0) ? object->size : OFF_TO_IDX(end + PAGE_MASK);
-	clearobjflags = tstart == 0 && tend >= object->size;
+	allclean = tstart == 0 && tend >= object->size;
 	res = TRUE;
 
 rescan:
@@ -846,32 +842,26 @@ rescan:
 		if (vm_page_none_valid(p))
 			continue;
 		if (vm_page_busy_acquire(p, VM_ALLOC_WAITFAIL) == 0) {
-			if (object->generation != curgeneration) {
-				if ((flags & OBJPC_SYNC) != 0)
-					goto rescan;
-				else
-					clearobjflags = FALSE;
-			}
+			if (object->generation != curgeneration &&
+			    (flags & OBJPC_SYNC) != 0)
+				goto rescan;
 			np = vm_page_find_least(object, pi);
 			continue;
 		}
-		if (!vm_object_page_remove_write(p, flags, &clearobjflags)) {
+		if (!vm_object_page_remove_write(p, flags, &allclean)) {
 			vm_page_xunbusy(p);
 			continue;
 		}
 
 		n = vm_object_page_collect_flush(object, p, pagerflags,
-		    flags, &clearobjflags, &eio);
+		    flags, &allclean, &eio);
 		if (eio) {
 			res = FALSE;
-			clearobjflags = FALSE;
+			allclean = FALSE;
 		}
-		if (object->generation != curgeneration) {
-			if ((flags & OBJPC_SYNC) != 0)
-				goto rescan;
-			else
-				clearobjflags = FALSE;
-		}
+		if (object->generation != curgeneration &&
+		    (flags & OBJPC_SYNC) != 0)
+			goto rescan;
 
 		/*
 		 * If the VOP_PUTPAGES() did a truncated write, so
@@ -887,7 +877,7 @@ rescan:
 		 */
 		if (n == 0) {
 			n = 1;
-			clearobjflags = FALSE;
+			allclean = FALSE;
 		}
 		np = vm_page_find_least(object, pi + n);
 	}
@@ -895,14 +885,14 @@ rescan:
 	VOP_FSYNC(vp, (pagerflags & VM_PAGER_PUT_SYNC) ? MNT_WAIT : 0);
 #endif
 
-	if (clearobjflags)
-		vm_object_clear_flag(object, OBJ_MIGHTBEDIRTY);
+	if (allclean)
+		object->cleangeneration = curgeneration;
 	return (res);
 }
 
 static int
 vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int pagerflags,
-    int flags, boolean_t *clearobjflags, boolean_t *eio)
+    int flags, boolean_t *allclean, boolean_t *eio)
 {
 	vm_page_t ma[vm_pageout_page_count], p_first, tp;
 	int count, i, mreq, runlen;
@@ -918,7 +908,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int pagerflags,
 		tp = vm_page_next(tp);
 		if (tp == NULL || vm_page_tryxbusy(tp) == 0)
 			break;
-		if (!vm_object_page_remove_write(tp, flags, clearobjflags)) {
+		if (!vm_object_page_remove_write(tp, flags, allclean)) {
 			vm_page_xunbusy(tp);
 			break;
 		}
@@ -928,7 +918,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int pagerflags,
 		tp = vm_page_prev(p_first);
 		if (tp == NULL || vm_page_tryxbusy(tp) == 0)
 			break;
-		if (!vm_object_page_remove_write(tp, flags, clearobjflags)) {
+		if (!vm_object_page_remove_write(tp, flags, allclean)) {
 			vm_page_xunbusy(tp);
 			break;
 		}
@@ -993,7 +983,7 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 	 * I/O.
 	 */
 	if (object->type == OBJT_VNODE &&
-	    (object->flags & OBJ_MIGHTBEDIRTY) != 0 &&
+	    vm_object_mightbedirty(object) != 0 &&
 	    ((vp = object->handle)->v_vflag & VV_NOSYNC) == 0) {
 		VM_OBJECT_WUNLOCK(object);
 		(void) vn_start_write(vp, &mp, V_WAIT);
@@ -2130,18 +2120,13 @@ void
 vm_object_set_writeable_dirty(vm_object_t object)
 {
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	if (object->type != OBJT_VNODE) {
-		if ((object->flags & OBJ_TMPFS_NODE) != 0) {
-			KASSERT(object->type == OBJT_SWAP, ("non-swap tmpfs"));
-			vm_object_set_flag(object, OBJ_TMPFS_DIRTY);
-		}
+	VM_OBJECT_ASSERT_LOCKED(object);
+
+	/* Only set for vnodes & tmpfs */
+	if (object->type != OBJT_VNODE &&
+	    (object->flags & OBJ_TMPFS_NODE) == 0)
 		return;
-	}
-	object->generation++;
-	if ((object->flags & OBJ_MIGHTBEDIRTY) != 0)
-		return;
-	vm_object_set_flag(object, OBJ_MIGHTBEDIRTY);
+	atomic_add_int(&object->generation, 1);
 }
 
 /*

@@ -1477,10 +1477,10 @@ tmpfs_check_mtime(struct vnode *vp)
 	KASSERT((obj->flags & (OBJ_TMPFS_NODE | OBJ_TMPFS)) ==
 	    (OBJ_TMPFS_NODE | OBJ_TMPFS), ("non-tmpfs obj"));
 	/* unlocked read */
-	if ((obj->flags & OBJ_TMPFS_DIRTY) != 0) {
+	if (obj->generation != obj->cleangeneration) {
 		VM_OBJECT_WLOCK(obj);
-		if ((obj->flags & OBJ_TMPFS_DIRTY) != 0) {
-			obj->flags &= ~OBJ_TMPFS_DIRTY;
+		if (obj->generation != obj->cleangeneration) {
+			obj->cleangeneration = obj->generation;
 			node = VP_TO_TMPFS_NODE(vp);
 			node->tn_status |= TMPFS_NODE_MODIFIED |
 			    TMPFS_NODE_CHANGED;

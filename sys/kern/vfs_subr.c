@@ -3346,7 +3346,7 @@ vinactive(struct vnode *vp, struct thread *td)
 	 * pending I/O and dirty pages in the object.
 	 */
 	if ((obj = vp->v_object) != NULL && (vp->v_vflag & VV_NOSYNC) == 0 &&
-	    (obj->flags & OBJ_MIGHTBEDIRTY) != 0) {
+	    vm_object_mightbedirty(obj)) {
 		VM_OBJECT_WLOCK(obj);
 		vm_object_page_clean(obj, 0, 0, 0);
 		VM_OBJECT_WUNLOCK(obj);
@@ -4406,7 +4406,7 @@ vfs_msync(struct mount *mp, int flags)
 
 	MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) {
 		obj = vp->v_object;
-		if (obj != NULL && (obj->flags & OBJ_MIGHTBEDIRTY) != 0 &&
+		if (obj != NULL && vm_object_mightbedirty(obj) &&
 		    (flags == MNT_WAIT || VOP_ISLOCKED(vp) == 0)) {
 			if (!vget(vp,
 			    LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK,
@@ -4696,7 +4696,7 @@ vn_need_pageq_flush(struct vnode *vp)
 	MPASS(mtx_owned(VI_MTX(vp)));
 	need = 0;
 	if ((obj = vp->v_object) != NULL && (vp->v_vflag & VV_NOSYNC) == 0 &&
-	    (obj->flags & OBJ_MIGHTBEDIRTY) != 0)
+	    vm_object_mightbedirty(obj))
 		need = 1;
 	return (need);
 }

@@ -1323,7 +1323,7 @@ tmpfs_need_inactive(struct vop_need_inactive_args *ap)
 		goto need;
 	if (vp->v_type == VREG) {
 		obj = vp->v_object;
-		if ((obj->flags & OBJ_TMPFS_DIRTY) != 0)
+		if (obj->generation != obj->cleangeneration)
 			goto need;
 	}
 	return (0);

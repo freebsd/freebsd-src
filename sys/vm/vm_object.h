@@ -105,7 +105,8 @@ struct vm_object {
 	struct vm_radix rtree;		/* root of the resident page radix trie*/
 	vm_pindex_t size;		/* Object size */
 	struct domainset_ref domain;	/* NUMA policy. */
-	int generation;			/* generation ID */
+	volatile int generation;	/* generation ID */
+	int cleangeneration;		/* Generation at clean time */
 	volatile u_int ref_count;	/* How many refs?? */
 	int shadow_count;		/* how many objects that this is a shadow for */
 	vm_memattr_t memattr;		/* default memory attribute for pages */
@@ -188,9 +189,7 @@ struct vm_object {
 #define	OBJ_UMTXDEAD	0x0020		/* umtx pshared was terminated */
 #define	OBJ_SIZEVNLOCK	0x0040		/* lock vnode to check obj size */
 #define	OBJ_PG_DTOR	0x0080		/* dont reset object, leave that for dtor */
-#define	OBJ_MIGHTBEDIRTY 0x0100		/* object might be dirty, only for vnode */
 #define	OBJ_TMPFS_NODE	0x0200		/* object belongs to tmpfs VREG node */
-#define	OBJ_TMPFS_DIRTY	0x0400		/* dirty tmpfs obj */
 #define	OBJ_COLORED	0x1000		/* pg_color is defined */
 #define	OBJ_ONEMAPPING	0x2000		/* One USE (a single, non-forked) mapping flag */
 #define	OBJ_TMPFS	0x8000		/* has tmpfs vnode allocated */
@@ -307,6 +306,14 @@ vm_object_reserv(vm_object_t object)
 		return (true);
 	}
 	return (false);
+}
+
+static __inline bool
+vm_object_mightbedirty(vm_object_t object)
+{
+
+	return (object->type == OBJT_VNODE &&
+	    object->generation != object->cleangeneration);
 }
 
 void vm_object_clear_flag(vm_object_t object, u_short bits);
