@@ -271,6 +271,7 @@ static int	if_getgroupmembers(struct ifgroupreq *);
 static void	if_delgroups(struct ifnet *);
 static void	if_attach_internal(struct ifnet *, int, struct if_clone *);
 static int	if_detach_internal(struct ifnet *, int, struct if_clone **);
+static void	if_siocaddmulti(void *, int);
 #ifdef VIMAGE
 static void	if_vmove(struct ifnet *, struct vnet *);
 #endif
@@ -556,6 +557,7 @@ if_alloc_domain(u_char type, int numa_domain)
 
 	IF_ADDR_LOCK_INIT(ifp);
 	TASK_INIT(&ifp->if_linktask, 0, do_link_state_change, ifp);
+	TASK_INIT(&ifp->if_addmultitask, 0, if_siocaddmulti, ifp);
 	ifp->if_afdata_initialized = 0;
 	IF_AFDATA_LOCK_INIT(ifp);
 	CK_STAILQ_INIT(&ifp->if_addrhead);
@@ -1131,6 +1133,7 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 	if_delgroups(ifp);
 
 	taskqueue_drain(taskqueue_swi, &ifp->if_linktask);
+	taskqueue_drain(taskqueue_swi, &ifp->if_addmultitask);
 
 	/*
 	 * Check if this is a cloned interface or not. Must do even if
@@ -3538,7 +3541,10 @@ if_addmulti(struct ifnet *ifp, struct sockaddr *sa,
 	 * interface to let them know about it.
 	 */
 	if (ifp->if_ioctl != NULL) {
-		(void) (*ifp->if_ioctl)(ifp, SIOCADDMULTI, 0);
+		if (THREAD_CAN_SLEEP())
+			(void )(*ifp->if_ioctl)(ifp, SIOCADDMULTI, 0);
+		else
+			taskqueue_enqueue(taskqueue_swi, &ifp->if_addmultitask);
 	}
 
 	if ((llsa != NULL) && (llsa != (struct sockaddr *)&sdl))
@@ -3553,6 +3559,19 @@ free_llsa_out:
 unlock_out:
 	IF_ADDR_WUNLOCK(ifp);
 	return (error);
+}
+
+static void
+if_siocaddmulti(void *arg, int pending)
+{
+	struct ifnet *ifp;
+
+	ifp = arg;
+#ifdef DIAGNOSTIC
+	if (pending > 1)
+		if_printf(ifp, "%d SIOCADDMULTI coalesced\n", pending);
+#endif
+	(void )(*ifp->if_ioctl)(ifp, SIOCADDMULTI, 0);
 }
 
 /*
