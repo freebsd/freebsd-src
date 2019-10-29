@@ -106,7 +106,7 @@ struct vm_object {
 	vm_pindex_t size;		/* Object size */
 	struct domainset_ref domain;	/* NUMA policy. */
 	int generation;			/* generation ID */
-	int ref_count;			/* How many refs?? */
+	volatile u_int ref_count;	/* How many refs?? */
 	int shadow_count;		/* how many objects that this is a shadow for */
 	vm_memattr_t memattr;		/* default memory attribute for pages */
 	objtype_t type;			/* type of pager */
