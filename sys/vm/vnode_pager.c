@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/limits.h>
 #include <sys/conf.h>
+#include <sys/refcount.h>
 #include <sys/rwlock.h>
 #include <sys/sf_buf.h>
 #include <sys/domainset.h>
@@ -172,9 +173,9 @@ vnode_create_vobject(struct vnode *vp, off_t isize, struct thread *td)
 	 * Dereference the reference we just created.  This assumes
 	 * that the object is associated with the vp.
 	 */
-	VM_OBJECT_WLOCK(object);
-	object->ref_count--;
-	VM_OBJECT_WUNLOCK(object);
+	VM_OBJECT_RLOCK(object);
+	refcount_release(&object->ref_count);
+	VM_OBJECT_RUNLOCK(object);
 	vrele(vp);
 
 	KASSERT(vp->v_object != NULL, ("vnode_create_vobject: NULL object"));
@@ -285,7 +286,7 @@ retry:
 			KASSERT(object->ref_count == 1,
 			    ("leaked ref %p %d", object, object->ref_count));
 			object->type = OBJT_DEAD;
-			object->ref_count = 0;
+			refcount_init(&object->ref_count, 0);
 			VM_OBJECT_WUNLOCK(object);
 			vm_object_destroy(object);
 			goto retry;
@@ -294,7 +295,7 @@ retry:
 		VI_UNLOCK(vp);
 	} else {
 		VM_OBJECT_WLOCK(object);
-		object->ref_count++;
+		refcount_acquire(&object->ref_count);
 #if VM_NRESERVLEVEL > 0
 		vm_object_color(object, 0);
 #endif
