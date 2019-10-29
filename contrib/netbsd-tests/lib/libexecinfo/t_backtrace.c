@@ -151,9 +151,6 @@ ATF_TC_HEAD(backtrace_fmt_basic, tc)
 
 ATF_TC_BODY(backtrace_fmt_basic, tc)
 {
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/241562");
-
 	myfunc(12);
 
 	if (prevent_inline)
