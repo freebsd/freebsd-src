@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.sig.h,v 3.34 2010/11/29 15:28:58 christos Exp $ */
 /*
  * tc.sig.h: Signal handling
  *
@@ -43,7 +42,7 @@
 # include <sys/signal.h>
 #endif /* SYSVREL > 0 */
 
-#if defined(__APPLE__) || defined(SUNOS4) || defined(DGUX) || defined(hp800) || (SYSVREL > 3 && defined(VFORK))
+#if defined(SUNOS4) || defined(DGUX) || defined(hp800) || (SYSVREL > 3 && defined(VFORK))
 # define SAVESIGVEC
 #endif /* SUNOS4 || DGUX || hp800 || SVR4 & VFORK */
 

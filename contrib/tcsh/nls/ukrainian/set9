@@ -1,4 +1,3 @@
-$ $tcsh: set9,v 1.5 2015/05/26 17:38:25 christos Exp $
 $ ed.xmap.c
 $set 9
 1 AddXkey: Null extended-key not allowed.\n

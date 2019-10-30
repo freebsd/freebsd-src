@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.c,v 3.189 2016/09/12 16:33:54 christos Exp $ */
 /*
  * sh.c: Main shell routines
  */
@@ -38,8 +37,6 @@ char    copyright[] =
 "@(#) Copyright (c) 1991 The Regents of the University of California.\n\
  All rights reserved.\n";
 #endif /* not lint */
-
-RCSID("$tcsh: sh.c,v 3.189 2016/09/12 16:33:54 christos Exp $")
 
 #include "tc.h"
 #include "ed.h"
@@ -240,6 +237,7 @@ main(int argc, char **argv)
     int nofile = 0;
     volatile int nverbose = 0;
     volatile int rdirs = 0;
+    volatile int exitcode = 0;
     int quitit = 0;
     Char *cp;
 #ifdef AUTOLOGOUT
@@ -248,7 +246,7 @@ main(int argc, char **argv)
     char *tcp, *ttyn;
     int f, reenter;
     char **tempv;
-    const char *targinp = NULL;
+    static const char *targinp = NULL;
     int osetintr;
     struct sigaction oparintr;
 
@@ -1393,6 +1391,12 @@ main(int argc, char **argv)
     
 
     if (targinp) {
+	/* If this -c command caused an error before, skip processing */
+	if (reenter && arginp) {
+	    exitcode = 1;
+	    goto done;
+	}
+
 	arginp = SAVE(targinp);
 	/*
 	 * we put the command into a variable
@@ -1425,6 +1429,7 @@ main(int argc, char **argv)
      */
     process(setintr);
 
+done:
     /*
      * Mop-up.
      */
@@ -1446,7 +1451,7 @@ main(int argc, char **argv)
     }
     record();
     exitstat();
-    return (0);
+    return exitcode;
 }
 
 void

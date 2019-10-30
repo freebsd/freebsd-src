@@ -1,4 +1,3 @@
-$ $tcsh: set31,v 1.2 2006/03/02 18:46:47 christos Exp $
 $ vms.termcap.c
 $set 31 
 1 Non posso aprire il TERMCAP: [%s]\n

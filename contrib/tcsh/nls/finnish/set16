@@ -1,4 +1,3 @@
-$ $tcsh: set16,v 1.3 2011/02/04 18:19:34 christos Exp $
 $ sh.lex.c
 $set 16 
 1 Päätteen prosessiryhmä vaihdettu arvosta %d %d:ksi.\n

@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.time.c,v 3.37 2016/07/09 00:45:29 christos Exp $ */
 /*
  * sh.time.c: Shell time keeping and printing.
  */
@@ -31,9 +30,6 @@
  * SUCH	DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: sh.time.c,v 3.37 2016/07/09 00:45:29 christos Exp $")
-
 #ifdef SUNOS4
 # include <machine/param.h>
 #endif /* SUNOS4 */

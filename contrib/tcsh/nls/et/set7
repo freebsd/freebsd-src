@@ -1,4 +1,3 @@
-$ $tcsh: set7,v 1.3 2011/02/04 18:19:33 christos Exp $
 $ ed.screen.c
 $set 7
 1 \n\tTcsh arvab, et teie terminal omab\n

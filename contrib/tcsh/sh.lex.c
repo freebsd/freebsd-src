@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.lex.c,v 3.91 2016/08/01 16:21:09 christos Exp $ */
 /*
  * sh.lex.c: Lexical analysis into tokens
  */
@@ -31,9 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: sh.lex.c,v 3.91 2016/08/01 16:21:09 christos Exp $")
-
 #include "ed.h"
 
 #include <assert.h>
@@ -142,6 +138,7 @@ static time_t a2time_t (Char *);
  * special parsing rules apply for source -h
  */
 extern int enterhist;
+extern int postcmd_active;
 
 int
 lex(struct wordent *hp)
@@ -149,11 +146,13 @@ lex(struct wordent *hp)
     struct wordent *wdp;
     eChar    c;
     int     parsehtime = enterhist;
+    int	    toolong = 0;
 
     histvalid = 0;
     histline.len = 0;
 
-    btell(&lineloc);
+    if (!postcmd_active)
+	btell(&lineloc);
     hp->next = hp->prev = hp;
     hp->word = STRNULL;
     hadhist = 0;
@@ -183,6 +182,8 @@ lex(struct wordent *hp)
 	wdp = new;
 	wdp->word = word(parsehtime);
 	parsehtime = 0;
+	if (enterhist && toolong++ > 10 * 1024)
+	    stderror(ERR_LTOOLONG);
     } while (wdp->word[0] != '\n');
     cleanup_ignore(hp);
     cleanup_until(hp);
@@ -295,9 +296,12 @@ word(int parsehtime)
     Char    hbuf[12];
     int	    h;
     int dolflg;
+    int toolong = 0;
 
     cleanup_push(&wbuf, Strbuf_cleanup);
 loop:
+    if (enterhist && toolong++ > 256 * 1024)
+	seterror(ERR_WTOOLONG);
     while ((c = getC(DOALL)) == ' ' || c == '\t')
 	continue;
     if (cmap(c, _META | _ESC))
@@ -356,6 +360,8 @@ loop:
     c1 = 0;
     dolflg = DOALL;
     for (;;) {
+	if (enterhist && toolong++ > 256 * 1024)
+	    seterror(ERR_WTOOLONG);
 	if (c1) {
 	    if (c == c1) {
 		c1 = 0;
@@ -1014,8 +1020,10 @@ domod(Char *cp, Char type)
 
     switch (type) {
 
-    case 'x':
     case 'q':
+    case 'x':
+	if (*cp == '\0')
+	    return Strsave(STRQNULL);
 	wp = Strsave(cp);
 	for (xp = wp; (c = *xp) != 0; xp++)
 	    if ((c != ' ' && c != '\t') || type == 'q')

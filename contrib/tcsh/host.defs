@@ -1,5 +1,4 @@
 newcode :
-/* $Header: /p/tcsh/cvsroot/tcsh/host.defs,v 1.61 2015/05/26 18:56:19 christos Exp $ */
 /*
  * host.defs: Hosttype/Machtype etc.
  */
@@ -32,8 +31,6 @@ newcode :
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: host.defs,v 1.61 2015/05/26 18:56:19 christos Exp $")
 
 endcode :
 
@@ -857,9 +854,9 @@ enddef	:
 newdef	: defined(APPLE) && defined(MACH)
 comment : OS X
 vendor	:						: "apple"
-hosttype: defined(i386)					: "intel-pc"
+hosttype: defined(i386)					: "intel-mac"
 hosttype: defined(ppc)					: "powermac"
-hosttype: defined(M_amd64)				: "amd"
+hosttype: defined(M_amd64)				: "intel-mac"
 ostype	:						: "darwin"
 machtype: defined(i386)					: "i386"
 machtype: defined(M_amd64)				: "x86_64"
