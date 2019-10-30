@@ -72,8 +72,8 @@ freebsd32_sysarch(struct thread *td, struct freebsd32_sysarch_args *uap)
 
 	switch(uap->op) {
 	case ARM_SET_TP:
-		WRITE_SPECIALREG(TPIDR_EL0, uap->parms);
-		WRITE_SPECIALREG(TPIDRRO_EL0, uap->parms);
+		WRITE_SPECIALREG(tpidr_el0, uap->parms);
+		WRITE_SPECIALREG(tpidrro_el0, uap->parms);
 		return 0;
 	case ARM_SYNC_ICACHE:
 		{

@@ -389,7 +389,7 @@
 
 #define	gic_icc_write(reg, val)					\
 do {								\
-	WRITE_SPECIALREG(ICC_ ##reg ##_EL1, val);		\
+	WRITE_SPECIALREG(icc_ ##reg ##_el1, val);		\
 	isb();							\
 } while (0)
 
@@ -397,7 +397,7 @@ do {								\
 ({								\
 	uint64_t val;						\
 								\
-	val = READ_SPECIALREG(ICC_ ##reg ##_EL1);		\
+	val = READ_SPECIALREG(icc_ ##reg ##_el1);		\
 	(val);							\
 })
 
