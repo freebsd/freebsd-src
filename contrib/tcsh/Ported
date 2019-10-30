@@ -338,7 +338,7 @@ CFLAGS	:	normal
 LIBES	:	-ltermcap
 OS	:	bsd 4.3reno
 CONFIG	:	bsdreno
-NOTES	:	ttyname() is buggy. calls closedir() twice. See README
+NOTES	:	ttyname() is buggy. calls closedir() twice. See BUILDING
 ENVIRON	:	n/a
 VERSION	:	6.00.04
 

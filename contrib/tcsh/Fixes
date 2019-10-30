@@ -1,4 +1,26 @@
- 22. Fix type of read in prompt confirmation (eg. rmstar) (David Kaspar)
+  5. PR/113: Sobomax: avoid infinite loops for -c commands when stdout is
+     not a tty.
+  4. Avoid infinite loops during history loads when merging, print a better
+     error for errors during history load.
+  3. PR/88: Preserve empty arguments in :q
+  2. PR/94: Small apple issues (SAVESIGVEC, HOSTTYPE)
+  1. PR/81: Fix range matching issue where we were comparing with the
+     range character instead of the start of range. [l-z]* would match foo
+ 12. V6.21.00 - 20190508
+ 11. Abort history loading on words and lines too long
+     https://bugzilla.redhat.com/show_bug.cgi?id=1598502
+ 10. PR/37: Introduce GetCmdChar() to avoid open coding array access.
+  9. make closem() not close sockets so as not to affect nss_ldap.
+     tcsh never creates sockets so that's ok (Miloslav Trmac)
+  8. PR/597: Make rmstar work with aliased rm
+  7. convert match() from recursive to backtracking.
+  6. Handle 8 bit characters in bindkey (Werner Fink)
+  5. Look for tgetent in libtinfo as well (Werner Fink)
+  4. Don't play pointer tricks that are undefined in modern c (Brooks Davis)
+  3. Fix out of bounds read (Brooks Davis)
+  2. Fix type of read in prompt confirmation (eg. rmstar) (David Kaspar)
+  1. PR/471: Delay arginp parsing
+
  20. V6.20.00 - 20161124
  19. Don't resize the screen if it did not change size.
  18. V6.19.01 - 20161025

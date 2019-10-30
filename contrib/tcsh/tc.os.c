@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.os.c,v 3.73 2016/04/16 15:44:18 christos Exp $ */
 /*
  * tc.os.c: OS Dependent builtin functions
  */
@@ -31,9 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: tc.os.c,v 3.73 2016/04/16 15:44:18 christos Exp $")
-
 #include "tw.h"
 #include "ed.h"
 #include "ed.defns.h"		/* for the function names */

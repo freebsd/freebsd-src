@@ -1,5 +1,4 @@
-.\" $tcsh: tcsh.man.new,v 1.5 2016/11/24 15:06:09 christos Exp $
-.\" From: tcsh: tcsh.man,v 3.266 2016/11/24 15:04:52 christos Exp
+.\"
 .\" Copyright (c) 1980, 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -65,9 +64,9 @@
 .\"   used here if you can. In particular, please don't use nroff commands
 .\"   which aren't already used herein.
 .\"
-.Dd November 24, 2016
+.Dd May 8, 2019
 .Dt TCSH 1
-.Os Astron 6.20.00
+.Os Astron 6.21.00
 .Sh NAME
 .Nm tcsh
 .Nd C shell with file name completion and command line editing
@@ -392,7 +391,7 @@ variants; see
 .Sx FILES .
 .Ss Editing
 We first describe
-.Sx The command-line editor" 
+.Sx The command-line editor
 The
 .Sx Completion and listing
 and
@@ -403,7 +402,7 @@ Finally,
 .Sx Editor commands
 lists and describes
 the editor commands specific to the shell and their default bindings.
-.It Sx The command-line editor (+)
+.Ss The command-line editor (+)
 Command-line input can be edited using key sequences much like those used in
 .Xr emacs 1
 or
@@ -685,9 +684,8 @@ If the
 .Va complete
 shell variable is set to
 .Sq enhance ,
-completion
-1) ignores case and 2) considers periods, hyphens and underscores
-.Sq ( . ,
+completion 1) ignores case and 2) considers periods, hyphens and underscores
+.Sq ( \&. ,
 .Sq \&-
 and
 .Sq _ )
@@ -728,7 +726,7 @@ hyphens or underscores.
 If the
 .Va complete
 shell variable is set to
-.Sq enhance ,
+.Sq Enhance ,
 completion
 ignores case and differences between a hyphen and an underscore word
 separator only when the user types a lowercase character or a hyphen.
@@ -1094,17 +1092,20 @@ must be bound to a
 single character for this to work) or one of the following special characters
 may be typed:
 .Pp
-.Sq ^W
+.Bl -tag -width indent -compact
+.It ^W
 Appends the rest of the word under the cursor to the search pattern.
-delete (or any character bound to
+.It delete
+(or any character bound to
 .Ic backward-delete-char )
 Undoes the effect of the last character typed and deletes a character
 from the search pattern if appropriate.
-.Sq ^G
+.It ^G
 If the previous search was successful, aborts the entire search.
 If not, goes back to the last successful search.
-escape
+.It escape
 Ends the search, leaving the current line in the input buffer.
+.El
 .Pp
 Any other character not bound to
 .Ic self-insert-command
@@ -1665,6 +1666,7 @@ The words of an input line are
 numbered from 0, the first (usually command) word being 0, the second word
 (first argument) being 1, etc.
 The basic word designators are:
+.Pp
 .Bl -tag -width XXXX -offset indent -compact
 .It Ar 0
 The first (command) word
@@ -2022,7 +2024,7 @@ cause an error.
 .Pp
 Some aliases are referred to by the shell; see
 .Va Special aliases
-.Sx Variable substitution
+.Ss Variable substitution
 The shell maintains a list of variables, each of which has as value a list of
 zero or more words.
 The values of shell variables can be displayed and changed with the
@@ -2220,7 +2222,7 @@ The following substitutions can not be modified with
 .Sq \&:
 modifiers.
 .Pp
-.Bl -tag -width XXXXXXXX -offset indent -compact
+.Bl -tag -width XXXXXXXXXX -offset indent -compact
 .It Ar $?name
 .It Ar ${?name}
 Substitutes the string
@@ -2239,27 +2241,21 @@ if it is not.
 Always
 .Sq 0
 in interactive shells.
-.It Ar
-$#name
-${#name}
+.It Ar $#name
+.It Ar ${#name}
 Substitutes the number of words in
 .Va name
-.It Ar
-$#
+.It Ar $#
 Equivalent to
 .Sq $#argv
 (+)
-.It Ar
-$%
-.Va name
+.It Ar $%name
 .It Ar ${%name}
 Substitutes the number of characters in
 .Va name
 (+)
 .Pp
-$%
-.Va number
-.TP 8
+.It Ar $%number
 .It Ar ${%number}
 Substitutes the number of characters in
 .Va $argv[number] .
@@ -2750,7 +2746,7 @@ file to it on standard input.
 The standard input and standard output of a command may be redirected with the
 following syntax:
 .Pp
-.Bl -tag -width XXXXXX -offset indent -compact
+.Bl -tag -width XXXXXXXXX -offset indent -compact
 .It Ar < name
 Open file
 .Va name
@@ -3144,63 +3140,47 @@ They have the same format as before;
 .Va op
 may be one of
 .Pp
-.PD 0
-.RS +4
-.TP 8
-.B A
+.Bl -tag -width XXX -offset indent -compact
+.It Ar A
 Last file access time, as the number of seconds since the epoch
-.TP 8
-.B A:
+.It Ar A:
 Like
-.Va A
+.Va Ar A
 , but in timestamp format, e.g.,
 .Sq Fri May 14 16:36:10 1993
-.TP 8
-.B M
+.It Ar M
 Last file modification time
-.TP 8
-.B M:
+.It Ar M:
 Like
 .Va M
 , but in timestamp format
-.TP 8
-.B C
+.It Ar C
 Last inode modification time
-.TP 8
-.B C:
+.It Ar C:
 Like
 .Va C
 , but in timestamp format
-.TP 8
-.B D
+.It Ar D
 Device number
-.TP 8
-.B I
+.It Ar I
 Inode number
-.TP 8
-.B F
+.It Ar F
 Composite
 .Va f
 ile identifier, in the form
-.Va device
-:
+.Va device :
 .Va inode
-.TP 8
-.B L
+.It Ar L
 The name of the file pointed to by a symbolic link
-.TP 8
-.B N
+.It Ar N
 Number of (hard) links
-.TP 8
-.B P
+.It Ar P
 Permissions, in octal, without leading zero
-.TP 8
-.B P:
+.It Ar P:
 Like
 .Va P
 , with leading zero
-.TP 8
-.B P\fImode
+.It Ar P<mode>
 Equivalent to
 .Sq \-P
 .Va file
@@ -3218,28 +3198,22 @@ if by group only,
 and
 .Sq 0
 if by neither
-.TP 8
-.B P\fImode\fB:
-Like \fBP
+.It Ar P<mode>:
+Like 
+.Ar BP
 .Va mode
 , with leading zero
-.TP 8
-.B U
+.It Ar U
 Numeric userid
-.TP 8
-.B U:
+.It Ar U:
 Username, or the numeric userid if the username is unknown
-.TP 8
-.B G
+.It Ar G
 Numeric groupid
-.TP 8
-.B G:
+.It Ar G:
 Groupname, or the numeric groupid if the groupname is unknown
-.TP 8
-.B Z
+.It Ar Z
 Size, in bytes
-.RE
-.PD
+.El
 .Pp
 Only one of these operators may appear in a multiple-operator test, and it
 must be the last.
@@ -3792,45 +3766,24 @@ The next sections of this manual describe all of the available
 and
 .Va Special shell variables
 .Ss "Builtin commands"
-.TP 8
-.B %\fIjob
+.Bl -tag -width XXXXXXX -offset indent
+.It Ar %job
 A synonym for the
 .Va fg
 builtin command.
-.TP 8
-.B %\fIjob \fB&
+.It Ar %job \&&
 A synonym for the
 .Va bg
 builtin command.
-.TP 8
-.B :
+.It Ar \&:
 Does nothing, successfully.
 .Pp
-.B @
-.br
-.B @ \fIname\fB = \fIexpr
-.br
-.B @
-.Va name
-[
-.Va index
-]\fB = \fIexpr
-.br
-.B @ \fIname
-.Va ++
-|\fB--
-.PD 0
-.TP 8
-.B @
-.Va name
-[
-.Va index
-]
-.Va ++
-|\fB--
+.It Ar @
+.It Ar @ name = expr
+.It Ar @ name[index] = expr
+.It Ar @ name++|--
+.It Ar @name[index]++|--
 The first form prints the values of all shell variables.
-.PD
-.RS +8
 .Pp
 The second form assigns the value of
 .Va expr
@@ -3876,7 +3829,10 @@ has nothing to do with that described
 under
 .Va Expressions
 .Pp
-The fourth and fifth forms increment (`++') or decrement (`\-\-')
+The fourth and fifth forms increment (
+.Sq ++ )
+or decrement 
+.Sq ( -- )
 .Va name
 or its
 .Va index
@@ -3899,14 +3855,7 @@ are optional.
 Components of
 .Va expr
 must be separated by spaces.
-.RE
-.PD
-.TP 8
-.B alias \fR[
-.Va name
-[
-.Va wordlist
-]]
+.It Ar alias[name[wordlist]]
 Without arguments, prints all aliases.
 With
 .Va name
@@ -3929,8 +3878,7 @@ or
 See also the
 .Va unalias
 builtin command.
-.TP 8
-.B alloc
+.It Ar alloc
 Shows the amount of dynamic memory acquired, broken down into used and free
 memory.
 With an argument shows the number of free and used blocks in each size
@@ -3940,9 +3888,7 @@ This
 command's output may vary across system types, because systems other than the VAX
 may use a different memory allocator.
 .TP 8
-.B bg \fR[\fB%
-.Va job
-...]
+.It Ar bg[%job...]
 Puts the specified jobs (or, without arguments, the current job)
 into the background, continuing each if it is stopped.
 .Va job
@@ -3958,35 +3904,10 @@ as described
 under
 .Va Jobs
 .Pp
-.B bindkey \fR[
-.Fl l\fR|
-.Fl d\fR|
-.Fl e\fR|
-.Fl v\fR|
-.Fl u\fR] (+)
-.br
-.Va bindkey
-[
-.Fl a\fR] [
-.Fl b\fR] [
-.Fl k\fR] [
-.Fl r\fR] [
-.Fl \-\fR]
-.Va key
-(+)
-.PD 0
-.TP 8
-.Va bindkey
-[
-.Fl a\fR] [
-.Fl b\fR] [
-.Fl k\fR] [
-.Fl c\fR|
-.Fl s\fR] [
-.Fl \-\fR]
-.Va key command
-(+)
-.\" .B macro can't take too many words, so I used \fB in the previous tags
+.It Ar bindkey Oo Fl l Ns | Ns Fl d Ns | Ns Fl e Ns | Ns Fl v Ns | Ns Fl u Oc (+)
+.It Ar bindkey Oo Fl a Oc Oo Fl b Oc Oo Fl k Oc Oo Fl r Oc Oo Fl Fl Oc Ar key (+)
+.It Ar bindkey Oo Fl a Oc Oo Fl b Oc Oo Fl k Oc Oo Fl c Ns | Ns Fl s Oc Oo Fl Fl Oc Ar key command (+)
+.\" .It Ar macro can't take too many words, so I used \fB in the previous tags
 Without options, the first form lists all bound keys and the editor command to which each is bound,
 the second form lists the editor command to which
 .Va key
@@ -3996,43 +3917,35 @@ the third form binds the editor command
 to
 .Va key
 Options include:
-.PD
 .Pp
-.PD 0
-.RS +8
-.TP 4
-.Fl l
+.Bl -tag -width XXX -compact
+.It Fl l
 Lists all editor commands and a short description of each.
-.TP 4
-.Fl d
+.It Fl d
 Binds all keys to the standard bindings for the default editor,
 as per
 .Va -e
 and
 .Va -v
 below.
-.TP 4
-.Fl e
+.It Fl e
 Binds all keys to
 .Va emacs
 (1)\-style bindings.
 Unsets
 .Va vimode
-.TP 4
-.Fl v
+.It Fl v
 Binds all keys to
 .Va vi
 (1)\-style bindings.
 Sets
 .Va vimode
-.TP 4
-.Fl a
+.It Fl a
 Lists or changes key-bindings in the alternative key map.
 This is the key map used in
 .Va vimode
 command mode.
-.TP 4
-.Fl b
+.It Fl b
 .Va key
 is interpreted as
 a control character written ^
@@ -4060,8 +3973,7 @@ or an extended prefix key written X-
 (e.g.,
 .Sq X-A
 ).
-.TP 4
-.Fl k
+.It Fl k
 .Va key
 is interpreted as a symbolic arrow key name, which may be one of
 `down',
@@ -4070,8 +3982,7 @@ is interpreted as a symbolic arrow key name, which may be one of
 .Sq left
 or
 .Sq right
-.TP 4
-.Fl r
+.It Fl r
 Removes
 .Va key
 's binding.
@@ -4086,13 +3997,11 @@ to
 (q.v.), it unbinds
 .Va key
 completely.
-.TP 4
-.Fl c
+.It Fl c
 .Va command
 is interpreted as a builtin or external command instead of an
 editor command.
-.TP 4
-.Fl s
+.It Fl s
 .Va command
 is taken as a literal string and treated as terminal input
 when
@@ -4102,15 +4011,14 @@ Bound keys in
 .Va command
 are themselves
 reinterpreted, and this continues for ten levels of interpretation.
-.TP 4
-.Fl \-
+.It Fl \&-
 Forces a break from option processing, so the next word is taken as
 .Va key
-even if it begins with '\-'.
-.TP 4
-.Fl u \fR(or any invalid option)
+even if it begins with '\&-'.
+.It Fl u 
+(or any invalid option)
 Prints a usage message.
-.PD
+.El
 .Pp
 .Va key
 may be a single character or a string.
@@ -4138,48 +4046,35 @@ can contain backslashed
 escape sequences (in the style of System V
 .Va echo
 (1)) as follows:
-.RS +4
-.TP 8
-.PD 0
-.B \ea
+.Pp
+.Bl -tag -width XXXX -compact -offset indent
+.It \ea
 Bell
-.TP 8
-.B \eb
+.It \eb
 Backspace
-.TP 8
-.B \ee
+.It \ee
 Escape
-.TP 8
-.B \ef
+.It \ef
 Form feed
-.TP 8
-.B \en
+.It \en
 Newline
-.TP 8
-.B \er
+.It \er
 Carriage return
-.TP 8
-.B \et
+.It \et
 Horizontal tab
-.TP 8
-.B \ev
+.It \ev
 Vertical tab
-.TP 8
-.B \e\fInnn
+.It \e\fInnn
 The ASCII character corresponding to the octal number
 .Va nnn
-.PD
-.RE
+.El
 .Pp
 `\e' nullifies the special meaning of the following character, if it has
 any, notably
 .Sq \e
 and
 .Sq ^
-.RE
-.TP 8
-.B bs2cmd
-.Va bs2000-command
+.It bs2cmd Va bs2000-command
 (+)
 Passes
 .Va bs2000-command
@@ -4187,8 +4082,7 @@ to the BS2000 command interpreter for
 execution. Only non-interactive commands can be executed, and it is
 not possible to execute any command that would overlay the image
 of the current process, like /EXECUTE or /CALL-PROCEDURE. (BS2000 only)
-.TP 8
-.B break
+.It break
 Causes execution to resume after the
 .Va end
 of the nearest
@@ -4200,17 +4094,16 @@ The remaining commands on the
 current line are executed.
 Multi-level breaks are thus
 possible by writing them all on one line.
-.TP 8
-.B breaksw
+.It breaksw
 Causes a break from a
 .Va switch
 , resuming after the
 .Va endsw
-.TP 8
-.B builtins \fR(+)
+
+.It builtins \fR(+)
 Prints the names of all builtin commands.
-.TP 8
-.B bye \fR(+)
+
+.It bye \fR(+)
 A synonym for the
 .Va logout
 builtin command.
@@ -4218,13 +4111,13 @@ Available only if the shell was so compiled;
 see the
 .Va version
 shell variable.
-.TP 8
-.B case \fIlabel\fB:
+
+.It case \fIlabel\fB:
 A label in a
 .Va switch
 statement as discussed below.
-.TP 8
-.B cd \fR[
+
+.It cd \fR[
 .Fl p\fR] [
 .Fl l\fR] [
 .Fl n\fR|
@@ -4301,13 +4194,13 @@ and
 .Va cdtohome
 shell variables.
 .RE
-.TP 8
-.B chdir
+
+.It chdir
 A synonym for the
 .Va cd
 builtin command.
-.TP 8
-.B complete \fR[
+
+.It complete \fR[
 .Va command
 [\fIword\fB/\fIpattern\fB/
 .Va list
@@ -4351,7 +4244,7 @@ is to be completed, and may be one of the following:
 .PD 0
 .RS +4
 .TP 4
-.B c
+.It c
 Current-word completion.
 .Va pattern
 is a glob-pattern which must match the beginning of the current word on
@@ -4359,25 +4252,25 @@ the command line.
 .Va pattern
 is ignored when completing the current word.
 .TP 4
-.B C
+.It C
 Like
 .Va c
 , but includes
 .Va pattern
 when completing the current word.
 .TP 4
-.B n
+.It n
 Next-word completion.
 .Va pattern
 is a glob-pattern which must match the beginning of the previous word on
 the command line.
 .TP 4
-.B N
+.It N
 Like
 .Va n
 , but must match the beginning of the word two before the current word.
 .TP 4
-.B p
+.It p
 Position-dependent completion.
 .Va pattern
 is a numeric range, with the same syntax used to index shell
@@ -4388,71 +4281,50 @@ variables, which must include the current word.
 .Va list
 , the list of possible completions, may be one of the following:
 .Pp
-.PD 0
-.RS +4
-.TP 8
-.B a
+.Bl -tag
+.It a
 Aliases
-.TP 8
-.B b
+.It b
 Bindings (editor commands)
-.TP 8
-.B c
+.It c
 Commands (builtin or external commands)
-.TP 8
-.B C
+.It C
 External commands which begin with the supplied path prefix
-.TP 8
-.B d
+.It d
 Directories
-.TP 8
-.B D
+.It D
 Directories which begin with the supplied path prefix
-.TP 8
-.B e
+.It e
 Environment variables
-.TP 8
-.B f
+.It f
 Filenames
-.TP 8
-.B F
+.It F
 Filenames which begin with the supplied path prefix
-.TP 8
-.B g
+.It g
 Groupnames
-.TP 8
-.B j
+.It j
 Jobs
-.TP 8
-.B l
+.It l
 Limits
-.TP 8
-.B n
+.It n
 Nothing
-.TP 8
-.B s
+.It s
 Shell variables
-.TP 8
-.B S
+.It S
 Signals
-.TP 8
-.B t
+.It t
 Plain (
 .Dq text )
 files
-.TP 8
-.B T
+.It T
 Plain (
 .Dq text )
 files which begin with the supplied path prefix
-.TP 8
-.B v
+.It v
 Any variables
-.TP 8
-.B u
+.It u
 Usernames
-.TP 8
-.B x
+.It x
 Like
 .Va n ,
 but prints
@@ -4460,22 +4332,17 @@ but prints
 when
 .Va list-choices
 is used.
-.TP 8
-.B X
+.It X
 Completions
-.TP 8
 $
 .Va var
 Words from the variable
 .Va var
-.TP 8
 (...)
 Words from the given list
-.TP 8
 \`...\`
 Words from the output of command
-.PD
-.RE
+.El
 .Pp
 .Va select
 is an optional glob-pattern.
@@ -9594,10 +9461,10 @@ cycles or backward
 .Va goto
 s.
 .Pp
-Report bugs at http://bugs.gw.com/, preferably with fixes.
+Report bugs at https://bugs.astron.com/, preferably with fixes.
 If you want to
-help maintain and test tcsh, send mail to tcsh-request@mx.gw.com with the
-text
+help maintain and test tcsh, add yourself to the mailing list in
+https://mailman.astron.com/.
 .Sq subscribe tcsh
 on a line by itself in the body.
 .Sh THE T IN TCSH
@@ -9651,7 +9518,7 @@ pipe(2), setrlimit(2), sigvec(2), stat(2), umask(2), vfork(2), wait(2),
 malloc(3), setlocale(3), tty(4), a.out(5), termcap(5), environ(7),
 termio(7), Introduction to the C Shell
 .Sh VERSION
-This manual documents tcsh 6.20.00 (Astron) 2016-11-24.
+This manual documents tcsh 6.21.00 (Astron) 2019-05-08.
 .Sh AUTHORS
 .PD 0
 .TP 2

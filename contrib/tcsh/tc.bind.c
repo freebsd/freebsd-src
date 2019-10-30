@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.bind.c,v 3.46 2015/08/13 08:54:04 christos Exp $ */
 /*
  * tc.bind.c: Key binding functions
  */
@@ -31,9 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: tc.bind.c,v 3.46 2015/08/13 08:54:04 christos Exp $")
-
 #include "ed.h"
 #include "ed.defns.h"
 

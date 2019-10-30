@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/config_f.h,v 3.52 2016/04/16 15:44:18 christos Exp $ */
 /*
  * config_f.h -- configure various defines for tcsh
  *
@@ -176,20 +175,6 @@
  * FILEC    support for old style file completion
  */
 #define FILEC
-
-/*
- * RCSID	This defines if we want rcs strings in the binary or not
- *
- */
-#if !defined(lint) && !defined(SABER) && !defined(__CLCC__)
-# ifndef __GNUC__
-#  define RCSID(id) static char *rcsid = (id);
-# else
-#  define RCSID(id) static const char rcsid[] __attribute__((__used__)) = (id);
-# endif /* !__GNUC__ */
-#else
-# define RCSID(id)	/* Nothing */
-#endif /* !lint && !SABER */
 
 /* Consistency checks */
 #ifdef WIDE_STRINGS

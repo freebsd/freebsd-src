@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tw.init.c,v 3.42 2011/04/17 14:49:30 christos Exp $ */
 /*
  * tw.init.c: Handle lists of things to complete
  */
@@ -31,9 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: tw.init.c,v 3.42 2011/04/17 14:49:30 christos Exp $")
-
 #include "tw.h"
 #include "ed.h"
 #include "tc.h"

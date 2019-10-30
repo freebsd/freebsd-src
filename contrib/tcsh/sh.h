@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.h,v 3.178 2016/09/12 16:33:54 christos Exp $ */
 /*
  * sh.h: Catch it all globals and includes file!
  */
@@ -683,13 +682,27 @@ EXTERN int   OLDSTD IZERO;	/* Old standard input (def for cmds) */
  */
 
 #ifdef SIGSETJMP
-   typedef struct { sigjmp_buf j; } jmp_buf_t;
-# define setexit()  sigsetjmp(reslab.j, 1)
-# define _reset()    siglongjmp(reslab.j, 1)
+   typedef struct { const char *f; size_t l; sigjmp_buf j; } jmp_buf_t;
+# define tcsh_setjmp() sigsetjmp(reslab.j, 1)
+# define tcsh_longjmp()   siglongjmp(reslab.j, 1)
+# define setexit()  (reslab.f = __func__, \
+		    reslab.l = __LINE__, \
+		    sigsetjmp(reslab.j, 1))
+# define _reset()   siglongjmp(reslab.j, 1)
 #else
-   typedef struct { jmp_buf j; } jmp_buf_t;
-# define setexit()  setjmp(reslab.j)
-# define _reset()    longjmp(reslab.j, 1)
+   typedef struct { const char *f; size_t l; jmp_buf j; } jmp_buf_t;
+# define tcsh_setjmp() setjmp(reslab.j)
+# define tcsh_longjmp()   longjmp(reslab.j, 1)
+#endif
+
+#define setexit()  (reslab.f = __func__, \
+		    reslab.l = __LINE__, \
+		    tcsh_setjmp())
+#ifdef SETJMP_DEBUG
+# define _reset()   xprintf("reset %s %zu\n", reslab.f, reslab.l), \
+		    flush(), tcsh_longjmp()
+#else
+# define _reset()   tcsh_longjmp()
 #endif
 
 #define getexit(a) (void) ((a) = reslab)

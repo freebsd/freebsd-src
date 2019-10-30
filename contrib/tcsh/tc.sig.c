@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.sig.c,v 3.40 2012/01/25 15:34:41 christos Exp $ */
 /*
  * tc.sig.c: Signal routine emulations
  */
@@ -31,9 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: tc.sig.c,v 3.40 2012/01/25 15:34:41 christos Exp $")
-
 #include "tc.wait.h"
 
 void

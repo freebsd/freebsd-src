@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/ed.defns.c,v 3.51 2016/02/14 15:44:18 christos Exp $ */
 /*
  * ed.defns.c: Editor function definitions and initialization
  */
@@ -31,9 +30,6 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-
-RCSID("$tcsh: ed.defns.c,v 3.51 2016/02/14 15:44:18 christos Exp $")
-
 #include "ed.h"
 
 static	void		ed_InitMetaBindings 	(void);
@@ -265,26 +261,22 @@ PFCmd   CcFuncTbl[] = {		/* table of available commands */
 #define		F_COMMAND_NORM	111
     e_dabbrev_expand,
 #define		F_DABBREV_EXPAND	112
-    e_copy_to_clipboard,
-#define		F_COPY_CLIP	113
-    e_paste_from_clipboard,
-#define		F_PASTE_CLIP	114
     e_dosify_next,
-#define		F_DOSIFY_NEXT	115
+#define		F_DOSIFY_NEXT	113
     e_dosify_prev,
-#define		F_DOSIFY_PREV	116
+#define		F_DOSIFY_PREV	114
     e_page_up,
-#define		F_PAGE_UP	117
+#define		F_PAGE_UP	115
     e_page_down,
-#define		F_PAGE_DOWN	118
+#define		F_PAGE_DOWN	116
     e_yank_pop,
-#define		F_YANK_POP	119
+#define		F_YANK_POP	117
     e_newline_hold,
-#define		F_NEWLINE_HOLD	120
+#define		F_NEWLINE_HOLD	118
     e_newline_down_hist,
-#define		F_NEWLINE_DOWN_HIST	121
+#define		F_NEWLINE_DOWN_HIST	119
     0				/* DUMMY VALUE */
-#define		F_NUM_FNS	122
+#define		F_NUM_FNS	120
 
 };
 
@@ -1752,18 +1744,6 @@ editinit(void)
     f->func = F_YANK_POP;
     f->desc = CSAVS(3, 115,
 	"Replace just-yanked text with yank from earlier kill");
-
-    f++;
-    f->name = "e_copy_to_clipboard";
-    f->func = F_COPY_CLIP;
-    f->desc = CSAVS(3, 116,
-	"(WIN32 only) Copy cut buffer to system clipboard");
-
-    f++;
-    f->name = "e_paste_from_clipboard";
-    f->func = F_PASTE_CLIP;
-    f->desc = CSAVS(3, 117,
-	"(WIN32 only) Paste clipboard buffer at cursor position");
 
     f++;
     f->name = "e_dosify_next";

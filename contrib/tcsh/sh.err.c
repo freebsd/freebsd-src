@@ -1,4 +1,3 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.err.c,v 3.57 2015/05/26 17:32:45 christos Exp $ */
 /*
  * sh.err.c: Error printing routines. 
  */
@@ -34,8 +33,6 @@
 #include "sh.h"
 #include <assert.h>
 
-RCSID("$tcsh: sh.err.c,v 3.57 2015/05/26 17:32:45 christos Exp $")
-
 /*
  * C Shell
  */
@@ -46,6 +43,7 @@ RCSID("$tcsh: sh.err.c,v 3.57 2015/05/26 17:32:45 christos Exp $")
 #endif
 
 char   *seterr = NULL;	/* Holds last error if there was one */
+extern int enterhist;
 
 #define ERR_FLAGS	0xf0000000
 #define ERR_NAME	0x10000000
@@ -633,6 +631,8 @@ stderror(unsigned int id, ...)
 	 */
 	flush();/*FIXRESET*/
 	haderr = 1;		/* Now to diagnostic output */
+	if (enterhist)
+	    xprintf("Can't load history: ");/*FIXRESET*/
 	if (flags & ERR_NAME)
 	    xprintf("%s: ", bname);/*FIXRESET*/
 	if ((flags & ERR_OLD)) {
