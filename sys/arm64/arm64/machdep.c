@@ -134,7 +134,7 @@ pan_setup(void)
 	uint64_t id_aa64mfr1;
 
 	id_aa64mfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
-	if (ID_AA64MMFR1_PAN(id_aa64mfr1) != ID_AA64MMFR1_PAN_NONE)
+	if (ID_AA64MMFR1_PAN_VAL(id_aa64mfr1) != ID_AA64MMFR1_PAN_NONE)
 		has_pan = 1;
 }
 

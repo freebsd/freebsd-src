@@ -897,25 +897,25 @@ parse_cpu_features_hwcap(u_int cpu)
 {
 	u_long hwcap = 0;
 
-	if (ID_AA64ISAR0_DP(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_DP_IMPL)
+	if (ID_AA64ISAR0_DP_VAL(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_DP_IMPL)
 		hwcap |= HWCAP_ASIMDDP;
 
-	if (ID_AA64ISAR0_SM4(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_SM4_IMPL)
+	if (ID_AA64ISAR0_SM4_VAL(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_SM4_IMPL)
 		hwcap |= HWCAP_SM4;
 
-	if (ID_AA64ISAR0_SM3(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_SM3_IMPL)
+	if (ID_AA64ISAR0_SM3_VAL(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_SM3_IMPL)
 		hwcap |= HWCAP_SM3;
 
-	if (ID_AA64ISAR0_RDM(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_RDM_IMPL)
+	if (ID_AA64ISAR0_RDM_VAL(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_RDM_IMPL)
 		hwcap |= HWCAP_ASIMDRDM;
 
-	if (ID_AA64ISAR0_Atomic(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_Atomic_IMPL)
+	if (ID_AA64ISAR0_Atomic_VAL(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_Atomic_IMPL)
 		hwcap |= HWCAP_ATOMICS;
 
-	if (ID_AA64ISAR0_CRC32(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_CRC32_BASE)
+	if (ID_AA64ISAR0_CRC32_VAL(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_CRC32_BASE)
 		hwcap |= HWCAP_CRC32;
 
-	switch (ID_AA64ISAR0_SHA2(cpu_desc[cpu].id_aa64isar0)) {
+	switch (ID_AA64ISAR0_SHA2_VAL(cpu_desc[cpu].id_aa64isar0)) {
 		case ID_AA64ISAR0_SHA2_BASE:
 			hwcap |= HWCAP_SHA2;
 			break;
@@ -926,10 +926,10 @@ parse_cpu_features_hwcap(u_int cpu)
 		break;
 	}
 
-	if (ID_AA64ISAR0_SHA1(cpu_desc[cpu].id_aa64isar0))
+	if (ID_AA64ISAR0_SHA1_VAL(cpu_desc[cpu].id_aa64isar0))
 		hwcap |= HWCAP_SHA1;
 
-	switch (ID_AA64ISAR0_AES(cpu_desc[cpu].id_aa64isar0)) {
+	switch (ID_AA64ISAR0_AES_VAL(cpu_desc[cpu].id_aa64isar0)) {
 	case ID_AA64ISAR0_AES_BASE:
 		hwcap |= HWCAP_AES;
 		break;
@@ -940,22 +940,22 @@ parse_cpu_features_hwcap(u_int cpu)
 		break;
 	}
 
-	if (ID_AA64ISAR1_LRCPC(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_LRCPC_IMPL)
+	if (ID_AA64ISAR1_LRCPC_VAL(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_LRCPC_IMPL)
 		hwcap |= HWCAP_LRCPC;
 
-	if (ID_AA64ISAR1_FCMA(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_FCMA_IMPL)
+	if (ID_AA64ISAR1_FCMA_VAL(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_FCMA_IMPL)
 		hwcap |= HWCAP_FCMA;
 
-	if (ID_AA64ISAR1_JSCVT(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_JSCVT_IMPL)
+	if (ID_AA64ISAR1_JSCVT_VAL(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_JSCVT_IMPL)
 		hwcap |= HWCAP_JSCVT;
 
-	if (ID_AA64ISAR1_DPB(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_DPB_IMPL)
+	if (ID_AA64ISAR1_DPB_VAL(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_DPB_IMPL)
 		hwcap |= HWCAP_DCPOP;
 
-	if (ID_AA64PFR0_SVE(cpu_desc[cpu].id_aa64pfr0) == ID_AA64PFR0_SVE_IMPL)
+	if (ID_AA64PFR0_SVE_VAL(cpu_desc[cpu].id_aa64pfr0) == ID_AA64PFR0_SVE_IMPL)
 		hwcap |= HWCAP_SVE;
 
-	switch (ID_AA64PFR0_AdvSIMD(cpu_desc[cpu].id_aa64pfr0)) {
+	switch (ID_AA64PFR0_AdvSIMD_VAL(cpu_desc[cpu].id_aa64pfr0)) {
 	case ID_AA64PFR0_AdvSIMD_IMPL:
 		hwcap |= HWCAP_ASIMD;
 		break;
@@ -966,7 +966,7 @@ parse_cpu_features_hwcap(u_int cpu)
 		break;
 	}
 
-	switch (ID_AA64PFR0_FP(cpu_desc[cpu].id_aa64pfr0)) {
+	switch (ID_AA64PFR0_FP_VAL(cpu_desc[cpu].id_aa64pfr0)) {
 	case ID_AA64PFR0_FP_IMPL:
 		hwcap |= HWCAP_FP;
 		break;
