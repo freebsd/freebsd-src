@@ -37,6 +37,7 @@
 
 typedef int (*pcpu_bp_harden)(void);
 typedef int (*pcpu_ssbd)(int);
+struct debug_monitor_state;
 
 #define	PCPU_MD_FIELDS							\
 	u_int	pc_acpi_id;	/* ACPI CPU id */		\

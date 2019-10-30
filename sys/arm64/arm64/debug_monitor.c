@@ -43,8 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/debug_monitor.h>
 #include <machine/kdb.h>
 
+#ifdef DDB
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>
+#endif
 
 enum dbg_t {
 	DBG_TYPE_BREAKPOINT = 0,
@@ -53,8 +55,9 @@ enum dbg_t {
 
 static int dbg_watchpoint_num;
 static int dbg_breakpoint_num;
-static int dbg_ref_count_mde[MAXCPU];
-static int dbg_ref_count_kde[MAXCPU];
+static struct debug_monitor_state kernel_monitor = {
+	.dbg_flags = DBGMON_KERNEL
+};
 
 /* Watchpoints/breakpoints control register bitfields */
 #define DBG_WATCH_CTRL_LEN_1		(0x1 << 5)
@@ -138,6 +141,7 @@ static int dbg_ref_count_kde[MAXCPU];
 	WRITE_WB_REG_CASE(reg, 14, offset, val);	\
 	WRITE_WB_REG_CASE(reg, 15, offset, val)
 
+#ifdef DDB
 static uint64_t
 dbg_wb_read_reg(int reg, int n)
 {
@@ -149,11 +153,12 @@ dbg_wb_read_reg(int reg, int n)
 	SWITCH_CASES_READ_WB_REG(DBG_WB_BVR, DBG_REG_BASE_BVR, val);
 	SWITCH_CASES_READ_WB_REG(DBG_WB_BCR, DBG_REG_BASE_BCR, val);
 	default:
-		db_printf("trying to read from wrong debug register %d\n", n);
+		printf("trying to read from wrong debug register %d\n", n);
 	}
 
 	return val;
 }
+#endif /* DDB */
 
 static void
 dbg_wb_write_reg(int reg, int n, uint64_t val)
@@ -164,17 +169,19 @@ dbg_wb_write_reg(int reg, int n, uint64_t val)
 	SWITCH_CASES_WRITE_WB_REG(DBG_WB_BVR, DBG_REG_BASE_BVR, val);
 	SWITCH_CASES_WRITE_WB_REG(DBG_WB_BCR, DBG_REG_BASE_BCR, val);
 	default:
-		db_printf("trying to write to wrong debug register %d\n", n);
+		printf("trying to write to wrong debug register %d\n", n);
+		return;
 	}
 	isb();
 }
 
+#ifdef DDB
 void
 kdb_cpu_set_singlestep(void)
 {
 
 	kdb_frame->tf_spsr |= DBG_SPSR_SS;
-	WRITE_SPECIALREG(MDSCR_EL1, READ_SPECIALREG(MDSCR_EL1) |
+	WRITE_SPECIALREG(mdscr_el1, READ_SPECIALREG(mdscr_el1) |
 	    DBG_MDSCR_SS | DBG_MDSCR_KDE);
 
 	/*
@@ -182,9 +189,9 @@ kdb_cpu_set_singlestep(void)
 	 * over watched instruction will trigger break exception instead of
 	 * single-step exception and locks CPU on that instruction for ever.
 	 */
-	if (dbg_ref_count_mde[PCPU_GET(cpuid)] > 0) {
-		WRITE_SPECIALREG(MDSCR_EL1,
-		    READ_SPECIALREG(MDSCR_EL1) & ~DBG_MDSCR_MDE);
+	if ((kernel_monitor.dbg_flags & DBGMON_ENABLED) != 0) {
+		WRITE_SPECIALREG(mdscr_el1,
+		    READ_SPECIALREG(mdscr_el1) & ~DBG_MDSCR_MDE);
 	}
 }
 
@@ -192,18 +199,18 @@ void
 kdb_cpu_clear_singlestep(void)
 {
 
-	WRITE_SPECIALREG(MDSCR_EL1, READ_SPECIALREG(MDSCR_EL1) &
+	WRITE_SPECIALREG(mdscr_el1, READ_SPECIALREG(mdscr_el1) &
 	    ~(DBG_MDSCR_SS | DBG_MDSCR_KDE));
 
 	/* Restore breakpoints and watchpoints */
-	if (dbg_ref_count_mde[PCPU_GET(cpuid)] > 0) {
-		WRITE_SPECIALREG(MDSCR_EL1,
-		    READ_SPECIALREG(MDSCR_EL1) | DBG_MDSCR_MDE);
-	}
+	if ((kernel_monitor.dbg_flags & DBGMON_ENABLED) != 0) {
+		WRITE_SPECIALREG(mdscr_el1,
+		    READ_SPECIALREG(mdscr_el1) | DBG_MDSCR_MDE);
 
-	if (dbg_ref_count_kde[PCPU_GET(cpuid)] > 0) {
-		WRITE_SPECIALREG(MDSCR_EL1,
-		    READ_SPECIALREG(MDSCR_EL1) | DBG_MDSCR_KDE);
+		if ((kernel_monitor.dbg_flags & DBGMON_KERNEL) != 0) {
+			WRITE_SPECIALREG(mdscr_el1,
+			    READ_SPECIALREG(mdscr_el1) | DBG_MDSCR_KDE);
+		}
 	}
 }
 
@@ -267,30 +274,30 @@ dbg_show_watchpoint(void)
 		}
 	}
 }
-
+#endif /* DDB */
 
 static int
-dbg_find_free_slot(enum dbg_t type)
+dbg_find_free_slot(struct debug_monitor_state *monitor, enum dbg_t type)
 {
-	u_int max, reg, i;
+	uint64_t *reg;
+	u_int max, i;
 
 	switch(type) {
 	case DBG_TYPE_BREAKPOINT:
 		max = dbg_breakpoint_num;
-		reg = DBG_REG_BASE_BCR;
-
+		reg = monitor->dbg_bcr;
 		break;
 	case DBG_TYPE_WATCHPOINT:
 		max = dbg_watchpoint_num;
-		reg = DBG_REG_BASE_WCR;
+		reg = monitor->dbg_wcr;
 		break;
 	default:
-		db_printf("Unsupported debug type\n");
+		printf("Unsupported debug type\n");
 		return (i);
 	}
 
 	for (i = 0; i < max; i++) {
-		if ((dbg_wb_read_reg(reg, i) & DBG_WB_CTRL_E) == 0)
+		if ((reg[i] & DBG_WB_CTRL_E) == 0)
 			return (i);
 	}
 
@@ -298,81 +305,50 @@ dbg_find_free_slot(enum dbg_t type)
 }
 
 static int
-dbg_find_slot(enum dbg_t type, db_expr_t addr)
+dbg_find_slot(struct debug_monitor_state *monitor, enum dbg_t type,
+    vm_offset_t addr)
 {
-	u_int max, reg_addr, reg_ctrl, i;
+	uint64_t *reg_addr, *reg_ctrl;
+	u_int max, i;
 
 	switch(type) {
 	case DBG_TYPE_BREAKPOINT:
 		max = dbg_breakpoint_num;
-		reg_addr = DBG_REG_BASE_BVR;
-		reg_ctrl = DBG_REG_BASE_BCR;
+		reg_addr = monitor->dbg_bvr;
+		reg_ctrl = monitor->dbg_bcr;
 		break;
 	case DBG_TYPE_WATCHPOINT:
 		max = dbg_watchpoint_num;
-		reg_addr = DBG_REG_BASE_WVR;
-		reg_ctrl = DBG_REG_BASE_WCR;
+		reg_addr = monitor->dbg_wvr;
+		reg_ctrl = monitor->dbg_wcr;
 		break;
 	default:
-		db_printf("Unsupported debug type\n");
+		printf("Unsupported debug type\n");
 		return (i);
 	}
 
 	for (i = 0; i < max; i++) {
-		if ((dbg_wb_read_reg(reg_addr, i) == addr) &&
-		    ((dbg_wb_read_reg(reg_ctrl, i) & DBG_WB_CTRL_E) != 0))
+		if (reg_addr[i] == addr &&
+		    (reg_ctrl[i] & DBG_WB_CTRL_E) != 0)
 			return (i);
 	}
 
 	return (-1);
-}
-
-static void
-dbg_enable_monitor(enum dbg_el_t el)
-{
-	uint64_t reg_mdcr = 0;
-
-	/*
-	 * There is no need to have debug monitor on permanently, thus we are
-	 * refcounting and turn it on only if any of CPU is going to use that.
-	 */
-	if (atomic_fetchadd_int(&dbg_ref_count_mde[PCPU_GET(cpuid)], 1) == 0)
-		reg_mdcr = DBG_MDSCR_MDE;
-
-	if ((el == DBG_FROM_EL1) &&
-	    atomic_fetchadd_int(&dbg_ref_count_kde[PCPU_GET(cpuid)], 1) == 0)
-		reg_mdcr |= DBG_MDSCR_KDE;
-
-	if (reg_mdcr)
-		WRITE_SPECIALREG(MDSCR_EL1, READ_SPECIALREG(MDSCR_EL1) | reg_mdcr);
-}
-
-static void
-dbg_disable_monitor(enum dbg_el_t el)
-{
-	uint64_t reg_mdcr = 0;
-
-	if (atomic_fetchadd_int(&dbg_ref_count_mde[PCPU_GET(cpuid)], -1) == 1)
-		reg_mdcr = DBG_MDSCR_MDE;
-
-	if ((el == DBG_FROM_EL1) &&
-	    atomic_fetchadd_int(&dbg_ref_count_kde[PCPU_GET(cpuid)], -1) == 1)
-		reg_mdcr |= DBG_MDSCR_KDE;
-
-	if (reg_mdcr)
-		WRITE_SPECIALREG(MDSCR_EL1, READ_SPECIALREG(MDSCR_EL1) & ~reg_mdcr);
 }
 
 int
-dbg_setup_watchpoint(db_expr_t addr, db_expr_t size, enum dbg_el_t el,
-    enum dbg_access_t access)
+dbg_setup_watchpoint(struct debug_monitor_state *monitor, vm_offset_t addr,
+    vm_size_t size, enum dbg_access_t access)
 {
 	uint64_t wcr_size, wcr_priv, wcr_access;
 	u_int i;
 
-	i = dbg_find_free_slot(DBG_TYPE_WATCHPOINT);
+	if (monitor == NULL)
+		monitor = &kernel_monitor;
+
+	i = dbg_find_free_slot(monitor, DBG_TYPE_WATCHPOINT);
 	if (i == -1) {
-		db_printf("Can not find slot for watchpoint, max %d"
+		printf("Can not find slot for watchpoint, max %d"
 		    " watchpoints supported\n", dbg_watchpoint_num);
 		return (i);
 	}
@@ -391,21 +367,14 @@ dbg_setup_watchpoint(db_expr_t addr, db_expr_t size, enum dbg_el_t el,
 		wcr_size = DBG_WATCH_CTRL_LEN_8;
 		break;
 	default:
-		db_printf("Unsupported address size for watchpoint\n");
+		printf("Unsupported address size for watchpoint\n");
 		return (-1);
 	}
 
-	switch(el) {
-	case DBG_FROM_EL0:
+	if ((monitor->dbg_flags & DBGMON_KERNEL) == 0)
 		wcr_priv = DBG_WB_CTRL_EL0;
-		break;
-	case DBG_FROM_EL1:
+	else
 		wcr_priv = DBG_WB_CTRL_EL1;
-		break;
-	default:
-		db_printf("Unsupported exception level for watchpoint\n");
-		return (-1);
-	}
 
 	switch(access) {
 	case HW_BREAKPOINT_X:
@@ -421,31 +390,76 @@ dbg_setup_watchpoint(db_expr_t addr, db_expr_t size, enum dbg_el_t el,
 		wcr_access = DBG_WATCH_CTRL_LOAD | DBG_WATCH_CTRL_STORE;
 		break;
 	default:
-		db_printf("Unsupported exception level for watchpoint\n");
+		printf("Unsupported exception level for watchpoint\n");
 		return (-1);
 	}
 
-	dbg_wb_write_reg(DBG_REG_BASE_WVR, i, addr);
-	dbg_wb_write_reg(DBG_REG_BASE_WCR, i, wcr_size | wcr_access | wcr_priv |
-	    DBG_WB_CTRL_E);
-	dbg_enable_monitor(el);
+	monitor->dbg_wvr[i] = addr;
+	monitor->dbg_wcr[i] = wcr_size | wcr_access | wcr_priv | DBG_WB_CTRL_E;
+	monitor->dbg_enable_count++;
+	monitor->dbg_flags |= DBGMON_ENABLED;
+
+	dbg_register_sync(monitor);
 	return (0);
 }
 
 int
-dbg_remove_watchpoint(db_expr_t addr, db_expr_t size, enum dbg_el_t el)
+dbg_remove_watchpoint(struct debug_monitor_state *monitor, vm_offset_t addr,
+    vm_size_t size)
 {
 	u_int i;
 
-	i = dbg_find_slot(DBG_TYPE_WATCHPOINT, addr);
+	if (monitor == NULL)
+		monitor = &kernel_monitor;
+
+	i = dbg_find_slot(monitor, DBG_TYPE_WATCHPOINT, addr);
 	if (i == -1) {
-		db_printf("Can not find watchpoint for address 0%lx\n", addr);
+		printf("Can not find watchpoint for address 0%lx\n", addr);
 		return (i);
 	}
 
-	dbg_wb_write_reg(DBG_REG_BASE_WCR, i, 0);
-	dbg_disable_monitor(el);
+	monitor->dbg_wvr[i] = 0;
+	monitor->dbg_wcr[i] = 0;
+	monitor->dbg_enable_count--;
+	if (monitor->dbg_enable_count == 0)
+		monitor->dbg_flags &= ~DBGMON_ENABLED;
+
+	dbg_register_sync(monitor);
 	return (0);
+}
+
+void
+dbg_register_sync(struct debug_monitor_state *monitor)
+{
+	uint64_t mdscr;
+	int i;
+
+	if (monitor == NULL)
+		monitor = &kernel_monitor;
+
+	mdscr = READ_SPECIALREG(mdscr_el1);
+	if ((monitor->dbg_flags & DBGMON_ENABLED) == 0) {
+		mdscr &= ~(DBG_MDSCR_MDE | DBG_MDSCR_KDE);
+	} else {
+		for (i = 0; i < dbg_breakpoint_num; i++) {
+			dbg_wb_write_reg(DBG_REG_BASE_BCR, i,
+			    monitor->dbg_bcr[i]);
+			dbg_wb_write_reg(DBG_REG_BASE_BVR, i,
+			    monitor->dbg_bvr[i]);
+		}
+
+		for (i = 0; i < dbg_watchpoint_num; i++) {
+			dbg_wb_write_reg(DBG_REG_BASE_WCR, i,
+			    monitor->dbg_wcr[i]);
+			dbg_wb_write_reg(DBG_REG_BASE_WVR, i,
+			    monitor->dbg_wvr[i]);
+		}
+		mdscr |= DBG_MDSCR_MDE;
+		if ((monitor->dbg_flags & DBGMON_KERNEL) == DBGMON_KERNEL)
+			mdscr |= DBG_MDSCR_KDE;
+	}
+	WRITE_SPECIALREG(mdscr_el1, mdscr);
+	isb();
 }
 
 void
@@ -471,12 +485,12 @@ dbg_monitor_init(void)
 	 *
 	 * Reset all breakpoints and watchpoints.
 	 */
-	for (i = 0; i < dbg_watchpoint_num; ++i) {
+	for (i = 0; i < dbg_watchpoint_num; i++) {
 		dbg_wb_write_reg(DBG_REG_BASE_WCR, i, 0);
 		dbg_wb_write_reg(DBG_REG_BASE_WVR, i, 0);
 	}
 
-	for (i = 0; i < dbg_breakpoint_num; ++i) {
+	for (i = 0; i < dbg_breakpoint_num; i++) {
 		dbg_wb_write_reg(DBG_REG_BASE_BCR, i, 0);
 		dbg_wb_write_reg(DBG_REG_BASE_BVR, i, 0);
 	}
