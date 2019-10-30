@@ -1150,7 +1150,7 @@ dbg_init(void)
 {
 
 	/* Clear OS lock */
-	WRITE_SPECIALREG(OSLAR_EL1, 0);
+	WRITE_SPECIALREG(oslar_el1, 0);
 
 	/* This permits DDB to use debug registers for watchpoints. */
 	dbg_monitor_init();
