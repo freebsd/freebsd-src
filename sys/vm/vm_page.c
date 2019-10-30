@@ -3763,6 +3763,9 @@ vm_page_wire(vm_page_t m)
 /*
  * Attempt to wire a mapped page following a pmap lookup of that page.
  * This may fail if a thread is concurrently tearing down mappings of the page.
+ * The transient failure is acceptable because it translates to the
+ * failure of the caller pmap_extract_and_hold(), which should be then
+ * followed by the vm_fault() fallback, see e.g. vm_fault_quick_hold_pages().
  */
 bool
 vm_page_wire_mapped(vm_page_t m)
