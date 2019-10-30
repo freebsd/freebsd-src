@@ -1760,6 +1760,7 @@ static void
 em_handle_link(void *context, int pending)
 {
 	struct adapter	*adapter = context;
+	struct e1000_hw *hw = &adapter->hw;
 	struct tx_ring	*txr = adapter->tx_rings;
 	if_t ifp = adapter->ifp;
 
@@ -1770,8 +1771,8 @@ em_handle_link(void *context, int pending)
 	callout_stop(&adapter->timer);
 	em_update_link_status(adapter);
 	callout_reset(&adapter->timer, hz, em_local_timer, adapter);
-	E1000_WRITE_REG(&adapter->hw, E1000_IMS,
-	    EM_MSIX_LINK | E1000_IMS_LSC);
+	if (hw->mac.type == e1000_82574 && adapter->msix_mem != NULL)
+		E1000_WRITE_REG(hw, E1000_IMS, EM_MSIX_LINK | E1000_IMS_LSC);
 	if (adapter->link_active) {
 		for (int i = 0; i < adapter->num_queues; i++, txr++) {
 			EM_TX_LOCK(txr);
