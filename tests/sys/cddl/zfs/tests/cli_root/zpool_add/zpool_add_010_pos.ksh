@@ -31,25 +31,15 @@
 
 verify_runnable "global"
 
-function cleanup
-{
-	poolexists $TESTPOOL && \
-		destroy_pool $TESTPOOL
-
-	partition_cleanup
-}
-
 log_assert "'zpool add' can add devices, even if a replacing vdev with a spare child is present"
-
-log_onexit cleanup
 
 create_pool $TESTPOOL mirror ${DISK0} ${DISK1}
 # A replacing vdev will automatically detach the older member when resilvering
 # is complete.  We don't want that to happen during this test, so write some
 # data just to slow down resilvering.
 $TIMEOUT 60s $DD if=/dev/zero of=/$TESTPOOL/zerofile bs=128k
-log_must $ZPOOL replace $TESTPOOL ${DISK0} ${DISK2}
 log_must $ZPOOL add $TESTPOOL spare ${DISK3}
+log_must $ZPOOL replace $TESTPOOL ${DISK0} ${DISK2}
 log_must $ZPOOL replace $TESTPOOL ${DISK0} ${DISK3}
 log_must $ZPOOL add $TESTPOOL spare ${DISK4}
 

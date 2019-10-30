@@ -82,6 +82,9 @@ function verify_assertion # spare_dev
 
 	# Re-enable the  missing disk
 	log_must create_gnop $REMOVAL_DISK $PHYSPATH
+
+	# And now the spare should be released
+	wait_for_pool_dev_state_change 20 $spare_dev AVAIL
 }
 
 typeset PHYSPATH="some_physical_path"

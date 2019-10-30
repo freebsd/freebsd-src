@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20191003: Remove useless ZFS tests
+OLD_FILES+=usr/tests/sys/cddl/zfs/tests/cli_root/zpool_create/zpool_create_013_neg.ksh
+OLD_FILES+=usr/tests/sys/cddl/zfs/tests/cli_root/zpool_create/zpool_create_014_neg.ksh
+OLD_FILES+=usr/tests/sys/cddl/zfs/tests/cli_root/zpool_create/zpool_create_016_pos.ksh
 # 20190811: sys/pwm.h renamed to dev/pwmc.h and pwm(9) removed
 OLD_FILES+=usr/include/sys/pwm.h usr/share/man/man9/pwm.9
 # 20190723: new clang import which bumps version from 8.0.0 to 8.0.1.

@@ -66,16 +66,12 @@ function cleanup
 	poolexists $TESTPOOL1 && \
 		destroy_pool $TESTPOOL1
 
-	datasetexists $TESTPOOL/$TESTFS && \
-		log_must $ZFS destroy -f $TESTPOOL/$TESTFS
 	poolexists $TESTPOOL && \
 		destroy_pool $TESTPOOL
 
 	if [[ -d $TESTDIR ]]; then
 		log_must $RM -rf $TESTDIR
 	fi
-
-	partition_cleanup
 }
 
 	
@@ -101,7 +97,6 @@ function setup_vdevs #<disk>
 		# Minus $largest_num/20 to leave 5% space for metadata.
 		(( vdevs_num=largest_num - largest_num/20 ))
 		file_size=64
-		vdev=$disk
 	else
 		vdevs_num=$VDEVS_NUM
 		(( file_size = fs_size / (1024 * 1024 * (vdevs_num + vdevs_num/20)) ))
@@ -112,8 +107,8 @@ function setup_vdevs #<disk>
 		(( slice_size = file_size * (vdevs_num + vdevs_num/20) ))
 		wipe_partition_table $disk					
 		set_partition 0 "" ${slice_size}m $disk
-		vdev=${disk}p1
         fi
+	vdev=${disk}
 
 	create_pool $TESTPOOL $vdev  
 	[[ -d $TESTDIR ]] && \
@@ -143,17 +138,11 @@ log_assert " 'zpool add [-f]' can add large numbers of vdevs to the specified" \
 	   " pool without any errors."
 log_onexit cleanup
 
-if [[ $DISK_ARRAY_NUM == 0 ]]; then
-        disk=$DISK
-else
-        disk=$DISK0
-fi
-
 vdevs_list=""
 vdevs_num=$VDEVS_NUM
 file_size=$FILE_SIZE
 
-setup_vdevs $disk
+setup_vdevs $DISK0
 log_must $ZPOOL add -f "$TESTPOOL1" $vdevs_list
 log_must iscontained "$TESTPOOL1" "$vdevs_list"
 

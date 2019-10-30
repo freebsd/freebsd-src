@@ -60,26 +60,18 @@
 
 verify_runnable "global"
 
-function cleanup
-{
-        poolexists $TESTPOOL && \
-                destroy_pool $TESTPOOL
-
-	partition_cleanup
-}
+set_disks
 
 log_assert "'zpool add -f <pool> <vdev> ...' can successfully add" \
 	"devices to the pool in some cases."
 
-log_onexit cleanup
-
-create_pool "$TESTPOOL" mirror "${disk}p1" "${disk}p2"
+create_pool "$TESTPOOL" mirror "${DISK0}" "${DISK1}"
 log_must poolexists "$TESTPOOL"
 
-log_mustnot $ZPOOL add "$TESTPOOL" ${disk}p3
-log_mustnot iscontained "$TESTPOOL" "${disk}p3"
+log_mustnot $ZPOOL add "$TESTPOOL" ${DISK2}
+log_mustnot iscontained "$TESTPOOL" "${DISK2}"
 
-log_must $ZPOOL add -f "$TESTPOOL" ${disk}p3
-log_must iscontained "$TESTPOOL" "${disk}p3"
+log_must $ZPOOL add -f "$TESTPOOL" ${DISK2}
+log_must iscontained "$TESTPOOL" "${DISK2}"
 
 log_pass "'zpool add -f <pool> <vdev> ...' executes successfully."

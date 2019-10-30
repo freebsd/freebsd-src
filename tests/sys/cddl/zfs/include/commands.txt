@@ -65,6 +65,7 @@
 /usr/bin/dirname
 /usr/bin/du
 #%%STFSUITEDIR%%/bin/dumpadm
+/sbin/dumpon
 /bin/echo
 /usr/bin/egrep
 /usr/bin/env
@@ -131,7 +132,6 @@
 /bin/pkill
 /bin/ps
 #/usr/sbin/psrinfo
-/bin/pwd
 /usr/sbin/quotaon
 /bin/rcp
 /sbin/reboot

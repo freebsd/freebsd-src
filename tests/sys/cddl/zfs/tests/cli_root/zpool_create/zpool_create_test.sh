@@ -219,7 +219,7 @@ atf_test_case zpool_create_008_pos cleanup
 zpool_create_008_pos_head()
 {
 	atf_set "descr" "'zpool create' have to use '-f' scenarios"
-	atf_set "require.progs"  zpool format
+	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
 }
 zpool_create_008_pos_body()
@@ -300,7 +300,7 @@ atf_test_case zpool_create_011_neg cleanup
 zpool_create_011_neg_head()
 {
 	atf_set "descr" "'zpool create' should be failed with inapplicable scenarios."
-	atf_set "require.progs"  dumpadm zpool
+	atf_set "require.progs" zpool
 	atf_set "timeout" 2400
 }
 zpool_create_011_neg_body()
@@ -310,6 +310,7 @@ zpool_create_011_neg_body()
 	. $(atf_get_srcdir)/zpool_create.cfg
 
 	verify_disk_count "$DISKS" 1
+	atf_expect_fail "PR 241070 dumpon opens geom devices non-exclusively"
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_create_011_neg.ksh || atf_fail "Testcase failed"
 }
@@ -323,12 +324,11 @@ zpool_create_011_neg_cleanup()
 }
 
 
-atf_test_case zpool_create_012_neg cleanup
+atf_test_case zpool_create_012_neg
 zpool_create_012_neg_head()
 {
 	atf_set "descr" "'zpool create' should fail with disk slice in swap."
-	atf_set "require.progs"  zpool swap
-	atf_set "timeout" 2400
+	atf_set "require.progs"  zpool
 }
 zpool_create_012_neg_body()
 {
@@ -336,69 +336,8 @@ zpool_create_012_neg_body()
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
 
-	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
-	ksh93 $(atf_get_srcdir)/zpool_create_012_neg.ksh || atf_fail "Testcase failed"
-}
-zpool_create_012_neg_cleanup()
-{
-	. $(atf_get_srcdir)/../../../include/default.cfg
-	. $(atf_get_srcdir)/zpool_create.kshlib
-	. $(atf_get_srcdir)/zpool_create.cfg
-
-	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
-}
-
-
-atf_test_case zpool_create_013_neg cleanup
-zpool_create_013_neg_head()
-{
-	atf_set "descr" "'zpool create' should fail with metadevice in swap."
-	atf_set "require.progs"  metadb metaclear metastat zpool metainit swap
-	atf_set "timeout" 2400
-}
-zpool_create_013_neg_body()
-{
-	. $(atf_get_srcdir)/../../../include/default.cfg
-	. $(atf_get_srcdir)/zpool_create.kshlib
-	. $(atf_get_srcdir)/zpool_create.cfg
-
-	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
-	ksh93 $(atf_get_srcdir)/zpool_create_013_neg.ksh || atf_fail "Testcase failed"
-}
-zpool_create_013_neg_cleanup()
-{
-	. $(atf_get_srcdir)/../../../include/default.cfg
-	. $(atf_get_srcdir)/zpool_create.kshlib
-	. $(atf_get_srcdir)/zpool_create.cfg
-
-	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
-}
-
-
-atf_test_case zpool_create_014_neg cleanup
-zpool_create_014_neg_head()
-{
-	atf_set "descr" "'zpool create' should fail with regular file in swap."
-	atf_set "require.progs"  zfs swap zpool
-	atf_set "timeout" 2400
-}
-zpool_create_014_neg_body()
-{
-	. $(atf_get_srcdir)/../../../include/default.cfg
-	. $(atf_get_srcdir)/zpool_create.kshlib
-	. $(atf_get_srcdir)/zpool_create.cfg
-
 	verify_disk_count "$DISKS" 1
-	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
-	ksh93 $(atf_get_srcdir)/zpool_create_014_neg.ksh || atf_fail "Testcase failed"
-}
-zpool_create_014_neg_cleanup()
-{
-	. $(atf_get_srcdir)/../../../include/default.cfg
-	. $(atf_get_srcdir)/zpool_create.kshlib
-	. $(atf_get_srcdir)/zpool_create.cfg
-
-	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
+	ksh93 $(atf_get_srcdir)/zpool_create_012_neg.ksh || atf_fail "Testcase failed"
 }
 
 
@@ -406,8 +345,7 @@ atf_test_case zpool_create_015_neg cleanup
 zpool_create_015_neg_head()
 {
 	atf_set "descr" "'zpool create' should fail with zfs vol device in swap."
-	atf_set "require.progs"  zfs zpool swap
-	atf_set "timeout" 2400
+	atf_set "require.progs"  zfs zpool
 }
 zpool_create_015_neg_body()
 {
@@ -420,33 +358,6 @@ zpool_create_015_neg_body()
 	ksh93 $(atf_get_srcdir)/zpool_create_015_neg.ksh || atf_fail "Testcase failed"
 }
 zpool_create_015_neg_cleanup()
-{
-	. $(atf_get_srcdir)/../../../include/default.cfg
-	. $(atf_get_srcdir)/zpool_create.kshlib
-	. $(atf_get_srcdir)/zpool_create.cfg
-
-	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
-}
-
-
-atf_test_case zpool_create_016_pos cleanup
-zpool_create_016_pos_head()
-{
-	atf_set "descr" "'zpool create' should success with no device in swap."
-	atf_set "require.progs"  dumpadm swapadd zpool swap
-	atf_set "timeout" 2400
-}
-zpool_create_016_pos_body()
-{
-	. $(atf_get_srcdir)/../../../include/default.cfg
-	. $(atf_get_srcdir)/zpool_create.kshlib
-	. $(atf_get_srcdir)/zpool_create.cfg
-
-	verify_disk_count "$DISKS" 1
-	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
-	ksh93 $(atf_get_srcdir)/zpool_create_016_pos.ksh || atf_fail "Testcase failed"
-}
-zpool_create_016_pos_cleanup()
 {
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
@@ -663,10 +574,7 @@ atf_init_test_cases()
 	atf_add_test_case zpool_create_010_neg
 	atf_add_test_case zpool_create_011_neg
 	atf_add_test_case zpool_create_012_neg
-	atf_add_test_case zpool_create_013_neg
-	atf_add_test_case zpool_create_014_neg
 	atf_add_test_case zpool_create_015_neg
-	atf_add_test_case zpool_create_016_pos
 	atf_add_test_case zpool_create_017_neg
 	atf_add_test_case zpool_create_018_pos
 	atf_add_test_case zpool_create_019_pos

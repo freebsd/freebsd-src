@@ -33,18 +33,7 @@
 
 verify_runnable "global"
 
-DISK=${DISKS%% *}
-
-for dev in $ZFS_DISK1 $ZFS_DISK2 ; do
-	log_must cleanup_devices $dev
-done
-
-typeset -i i=0
-if [[ $DISK_COUNT -lt 2 ]]; then
-    partition_disk $PART_SIZE $ZFS_DISK1 $GROUP_NUM
-fi
-
-create_pool "$TESTPOOL" "$ZFSSIDE_DISK1"
+create_pool "$TESTPOOL" "$DISK0"
 
 if [[ -d $TESTDIR ]]; then
 	$RM -rf $TESTDIR  || log_unresolved Could not remove $TESTDIR
@@ -54,21 +43,8 @@ fi
 log_must $ZFS create $TESTPOOL/$TESTFS
 log_must $ZFS set mountpoint=$TESTDIR $TESTPOOL/$TESTFS
 
-# Limit the filesystem size to 32GiB; this should be sufficient.
-(( MAXSECTS = 32 * 1024 * 1024 ))
-NUMSECTS=`diskinfo ${ZFSSIDE_DISK2} | awk '{print $4}'`
-if [[ $NUMSECTS -gt $MAXSECTS ]]; then
-	NUMSECTS=$MAXSECTS
-fi
-
-$ECHO "y" | $NEWFS -s $NUMSECTS $ZFSSIDE_DISK2 >/dev/null 2>&1
-(( $? != 0 )) &&
-	log_untested "Unable to setup a UFS file system"
-
 [[ ! -d $DEVICE_DIR ]] && \
 	log_must $MKDIR -p $DEVICE_DIR
-
-log_must $MOUNT $ZFSSIDE_DISK2 $DEVICE_DIR
 
 i=0
 while (( i < $MAX_NUM )); do

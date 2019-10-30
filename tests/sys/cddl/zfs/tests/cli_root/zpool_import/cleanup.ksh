@@ -39,24 +39,9 @@ for pool in "$TESTPOOL" "$TESTPOOL1"; do
 	destroy_pool "$pool"
 done
 
-ismounted $DEVICE_DIR ufs
-(( $? == 0 )) && log_must $UMOUNT -f $DEVICE_DIR
-
 for dir in "$TESTDIR" "$TESTDIR1" "$DEVICE_DIR" ; do
 	[[ -d $dir ]] && \
 		log_must $RM -rf $dir
 done
-
-# recreate and destroy a zpool over the disks to restore the partitions to
-# normal
-case $DISK_COUNT in
-0|1)
-	log_note "No disk devices to restore"
-	;;
-*)
-	log_must cleanup_devices $ZFS_DISK1
-	log_must cleanup_devices $ZFS_DISK2
-	;;
-esac
 
 log_pass

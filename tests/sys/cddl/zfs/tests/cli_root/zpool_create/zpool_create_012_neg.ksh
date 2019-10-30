@@ -38,13 +38,12 @@
 #
 #
 # DESCRIPTION:
-# 'zpool create' will fail with formal disk slice in swap
+# 'zpool create' will fail with disk in swap
 #
 #
 # STRATEGY:
-# 1. Get all the disk devices in swap
-# 2. For each device, try to create a new pool with this device
-# 3. Verify the creation is failed.
+# 1. Add a disk to swap
+# 2. Try to create a pool on that disk.  It should fail.
 #
 # TESTABILITY: explicit
 #
@@ -60,21 +59,14 @@ verify_runnable "global"
 
 function cleanup
 {
-	if poolexists $TESTPOOL; then
-		destroy_pool $TESTPOOL
-	fi
+	$SWAPOFF $DISK0
 
 }
-typeset swap_disks=`$SWAP -l | $GREP "c[0-9].*d[0-9].*s[0-9]" | \
-            $AWK '{print $1}'`
 
-log_assert "'zpool create' should fail with disk slice in swap."
+log_assert "'zpool create' should fail with disk in swap."
 log_onexit cleanup
 
-for sdisk in $swap_disks; do
-	for opt in "-n" "" "-f"; do
-		log_mustnot $ZPOOL create $opt $TESTPOOL $sdisk
-	done
-done
+log_must $SWAPON $DISK0
+log_mustnot $ZPOOL create $TESTPOOL $DISK0
 
-log_pass "'zpool create' passed as expected with inapplicable scenario."
+log_pass "'zpool create' cannot use a swap disk"
