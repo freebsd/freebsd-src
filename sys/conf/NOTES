@@ -2896,3 +2896,6 @@ options 	SPIGEN_LEGACY_CDEVNAME # legacy device names for spigen
 # Compression supports.
 device		zlib		# gzip/zlib compression/decompression library
 device		xz		# xz_embedded LZMA de-compression library
+
+# Kernel support for stats(3).
+options 	STATS
