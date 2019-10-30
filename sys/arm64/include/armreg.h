@@ -35,6 +35,23 @@
 
 #define	INSN_SIZE		4
 
+#define	MRS_MASK			0xfff00000
+#define	MRS_VALUE			0xd5300000
+#define	MRS_SPECIAL(insn)		((insn) & 0x000fffe0)
+#define	MRS_REGISTER(insn)		((insn) & 0x0000001f)
+#define	 MRS_Op0_SHIFT			19
+#define	 MRS_Op0_MASK			0x00080000
+#define	 MRS_Op1_SHIFT			16
+#define	 MRS_Op1_MASK			0x00070000
+#define	 MRS_CRn_SHIFT			12
+#define	 MRS_CRn_MASK			0x0000f000
+#define	 MRS_CRm_SHIFT			8
+#define	 MRS_CRm_MASK			0x00000f00
+#define	 MRS_Op2_SHIFT			5
+#define	 MRS_Op2_MASK			0x000000e0
+#define	 MRS_Rt_SHIFT			0
+#define	 MRS_Rt_MASK			0x0000001f
+
 #define	READ_SPECIALREG(reg)						\
 ({	uint64_t _val;							\
 	__asm __volatile("mrs	%0, " __STRING(reg) : "=&r" (_val));	\
