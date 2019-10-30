@@ -107,7 +107,7 @@ armv8_crypto_probe(device_t dev)
 
 	reg = READ_SPECIALREG(id_aa64isar0_el1);
 
-	switch (ID_AA64ISAR0_AES(reg)) {
+	switch (ID_AA64ISAR0_AES_VAL(reg)) {
 	case ID_AA64ISAR0_AES_BASE:
 	case ID_AA64ISAR0_AES_PMULL:
 		ret = 0;
