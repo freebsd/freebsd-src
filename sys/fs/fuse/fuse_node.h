@@ -174,6 +174,8 @@ fuse_vnode_setparent(struct vnode *vp, struct vnode *dvp)
 		MPASS(dvp->v_type == VDIR);
 		VTOFUD(vp)->parent_nid = VTOI(dvp);
 		VTOFUD(vp)->flag |= FN_PARENT_NID;
+	} else {
+		VTOFUD(vp)->flag &= ~FN_PARENT_NID;
 	}
 }
 
