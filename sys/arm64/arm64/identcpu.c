@@ -710,6 +710,7 @@ static struct mrs_field id_aa64pfr1_fields[] = {
 };
 
 struct mrs_user_reg {
+	u_int		reg;
 	u_int		CRm;
 	u_int		Op2;
 	size_t		offset;
@@ -718,24 +719,28 @@ struct mrs_user_reg {
 
 static struct mrs_user_reg user_regs[] = {
 	{	/* id_aa64isar0_el1 */
+		.reg = ID_AA64ISAR0_EL1,
 		.CRm = 6,
 		.Op2 = 0,
 		.offset = __offsetof(struct cpu_desc, id_aa64isar0),
 		.fields = id_aa64isar0_fields,
 	},
 	{	/* id_aa64isar1_el1 */
+		.reg = ID_AA64ISAR1_EL1,
 		.CRm = 6,
 		.Op2 = 1,
 		.offset = __offsetof(struct cpu_desc, id_aa64isar1),
 		.fields = id_aa64isar1_fields,
 	},
 	{	/* id_aa64pfr0_el1 */
+		.reg = ID_AA64PFR0_EL1,
 		.CRm = 4,
 		.Op2 = 0,
 		.offset = __offsetof(struct cpu_desc, id_aa64pfr0),
 		.fields = id_aa64pfr0_fields,
 	},
 	{	/* id_aa64dfr0_el1 */
+		.reg = ID_AA64DFR0_EL1,
 		.CRm = 5,
 		.Op2 = 0,
 		.offset = __offsetof(struct cpu_desc, id_aa64dfr0),
@@ -816,6 +821,23 @@ user_mrs_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 		frame->tf_lr = value;
 
 	return (1);
+}
+
+bool
+extract_user_id_field(u_int reg, u_int field_shift, uint8_t *val)
+{
+	uint64_t value;
+	int i;
+
+	for (i = 0; i < nitems(user_regs); i++) {
+		if (user_regs[i].reg == reg) {
+			value = CPU_DESC_FIELD(user_cpu_desc, i);
+			*val = value >> field_shift;
+			return (true);
+		}
+	}
+
+	return (false);
 }
 
 static void
