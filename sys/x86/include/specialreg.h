@@ -71,6 +71,7 @@
 #define	CR4_PCE	0x00000100	/* Performance monitoring counter enable */
 #define	CR4_FXSR 0x00000200	/* Fast FPU save/restore used by OS */
 #define	CR4_XMM	0x00000400	/* enable SIMD/MMX2 to use except 16 */
+#define	CR4_UMIP 0x00000800	/* User Mode Instruction Prevention */
 #define	CR4_VMXE 0x00002000	/* enable VMX operation (Intel-specific) */
 #define	CR4_FSGSBASE 0x00010000	/* Enable FS/GS BASE accessing instructions */
 #define	CR4_PCIDE 0x00020000	/* Enable Context ID */
@@ -90,6 +91,7 @@
 #define	EFER_LMSLE 0x000002000	/* Long Mode Segment Limit Enable */
 #define	EFER_FFXSR 0x000004000	/* Fast FXSAVE/FSRSTOR */
 #define	EFER_TCE   0x000008000	/* Translation Cache Extension */
+#define	EFER_MCOMMIT	0x00020000	/* Enable MCOMMIT (AMD) */
 
 /*
  * Intel Extended Features registers
@@ -384,6 +386,9 @@
 #define	AMDFEID_CLZERO		0x00000001
 #define	AMDFEID_IRPERF		0x00000002
 #define	AMDFEID_XSAVEERPTR	0x00000004
+#define	AMDFEID_RDPRU		0x00000004
+#define	AMDFEID_MCOMMIT		0x00000100
+#define	AMDFEID_WBNOINVD	0x00000200
 #define	AMDFEID_IBPB		0x00001000
 #define	AMDFEID_IBRS		0x00004000
 #define	AMDFEID_STIBP		0x00008000
