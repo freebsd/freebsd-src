@@ -12,11 +12,6 @@
 # limitations in config: backslash-newline doesn't work in strings, and
 # dependency lines other than the first are silently ignored.
 
-#
-cddl/dev/fbt/x86/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
-cddl/dev/dtrace/x86/dis_tables.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
-cddl/dev/dtrace/x86/instr_size.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
-#
 cddl/dev/fbt/x86/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 cddl/dev/dtrace/x86/dis_tables.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
 cddl/dev/dtrace/x86/instr_size.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
