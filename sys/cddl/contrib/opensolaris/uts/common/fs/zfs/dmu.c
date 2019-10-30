@@ -80,6 +80,13 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, per_txg_dirty_frees_percent, CTLFLAG_RWTUN,
  */
 int zfs_object_remap_one_indirect_delay_ticks = 0;
 
+/*
+ * Limit the amount we can prefetch with one call to this amount.  This
+ * helps to limit the amount of memory that can be used by prefetching.
+ * Larger objects should be prefetched a bit at a time.
+ */
+uint64_t dmu_prefetch_max = 8 * SPA_MAXBLOCKSIZE;
+
 const dmu_object_type_info_t dmu_ot[DMU_OT_NUMTYPES] = {
 	{ DMU_BSWAP_UINT8,  TRUE,  FALSE,  "unallocated"		},
 	{ DMU_BSWAP_ZAP,    TRUE,  TRUE,   "object directory"		},
@@ -641,6 +648,11 @@ dmu_prefetch(objset_t *os, uint64_t object, int64_t level, uint64_t offset,
 		rw_exit(&dn->dn_struct_rwlock);
 		return;
 	}
+
+	/*
+	 * See comment before the definition of dmu_prefetch_max.
+	 */
+	len = MIN(len, dmu_prefetch_max);
 
 	/*
 	 * XXX - Note, if the dnode for the requested object is not
