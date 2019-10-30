@@ -526,8 +526,8 @@ aw_mmc_attach(device_t dev)
 	}
 
 	mtx_init(&sc->sim_mtx, "awmmcsim", NULL, MTX_DEF);
-	sc->sim = cam_sim_alloc(aw_mmc_cam_action, aw_mmc_cam_poll,
-	    "aw_mmc_sim", sc, device_get_unit(dev),
+	sc->sim = cam_sim_alloc_dev(aw_mmc_cam_action, aw_mmc_cam_poll,
+	    "aw_mmc_sim", sc, dev,
 	    &sc->sim_mtx, 1, 1, sc->devq);
 
 	if (sc->sim == NULL) {
@@ -1514,6 +1514,7 @@ static device_method_t aw_mmc_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	aw_mmc_read_ivar),
 	DEVMETHOD(bus_write_ivar,	aw_mmc_write_ivar),
+	DEVMETHOD(bus_add_child,        bus_generic_add_child),
 
 	/* MMC bridge interface */
 	DEVMETHOD(mmcbr_update_ios,	aw_mmc_update_ios),
