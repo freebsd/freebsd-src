@@ -777,7 +777,7 @@ calculate_crc32c(uint32_t crc32c,
 	 * this applies to all CPUs.
 	 */
 	reg = READ_SPECIALREG(id_aa64isar0_el1);
-	if (ID_AA64ISAR0_CRC32(reg) != ID_AA64ISAR0_CRC32_NONE) {
+	if (ID_AA64ISAR0_CRC32_VAL(reg) != ID_AA64ISAR0_CRC32_NONE) {
 		return (armv8_crc32c(crc32c, buffer, length));
 	} else
 #endif
