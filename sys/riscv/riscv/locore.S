@@ -209,7 +209,7 @@ va:
 	sd	t0, 0(sp) /* kern_l1pt */
 	sd	s9, 8(sp) /* kern_phys */
 
-	la	t0, initstack_end
+	la	t0, initstack
 	sd	t0, 16(sp) /* kern_stack */
 
 	li	t0, (VM_MAX_KERNEL_ADDRESS - 2 * L2_SIZE)
