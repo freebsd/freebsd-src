@@ -32,13 +32,20 @@
 #ifndef _MACHINE_DEBUG_MONITOR_H_
 #define	_MACHINE_DEBUG_MONITOR_H_
 
-#ifdef DDB
+#ifdef _KERNEL
 
-#include <machine/db_machdep.h>
+#define	DBG_BRP_MAX	16
+#define	DBG_WRP_MAX	16
 
-enum dbg_el_t {
-	DBG_FROM_EL0 = 0,
-	DBG_FROM_EL1 = 1,
+struct debug_monitor_state {
+	uint32_t	dbg_enable_count;
+	uint32_t	dbg_flags;
+#define	DBGMON_ENABLED		(1 << 0)
+#define	DBGMON_KERNEL		(1 << 1)
+	uint64_t	dbg_bcr[DBG_BRP_MAX];
+	uint64_t	dbg_bvr[DBG_BRP_MAX];
+	uint64_t	dbg_wcr[DBG_WRP_MAX];
+	uint64_t	dbg_wvr[DBG_WRP_MAX];
 };
 
 enum dbg_access_t {
@@ -49,15 +56,15 @@ enum dbg_access_t {
 };
 
 void dbg_monitor_init(void);
+void dbg_register_sync(struct debug_monitor_state *);
+int dbg_setup_watchpoint(struct debug_monitor_state *, vm_offset_t, vm_size_t,
+    enum dbg_access_t);
+int dbg_remove_watchpoint(struct debug_monitor_state *, vm_offset_t, vm_size_t);
+
+#ifdef DDB
 void dbg_show_watchpoint(void);
-int dbg_setup_watchpoint(db_expr_t addr, db_expr_t size, enum dbg_el_t el,
-    enum dbg_access_t access);
-int dbg_remove_watchpoint(db_expr_t addr, db_expr_t size, enum dbg_el_t el);
-#else
-static __inline void
-dbg_monitor_init(void)
-{
-}
 #endif
+
+#endif /* _KERNEL */
 
 #endif /* _MACHINE_DEBUG_MONITOR_H_ */

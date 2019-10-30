@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/kdb.h>
+
 #include <machine/pcb.h>
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>
@@ -53,15 +54,14 @@ int
 db_md_clr_watchpoint(db_expr_t addr, db_expr_t size)
 {
 
-	return (dbg_remove_watchpoint(addr, size, DBG_FROM_EL1));
+	return (dbg_remove_watchpoint(NULL, addr, size));
 }
 
 int
 db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
 {
 
-	return (dbg_setup_watchpoint(addr, size, DBG_FROM_EL1,
-	    HW_BREAKPOINT_RW));
+	return (dbg_setup_watchpoint(NULL, addr, size, HW_BREAKPOINT_RW));
 }
 
 static void
