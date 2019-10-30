@@ -100,52 +100,23 @@ dev/agp/agp_intel.c		optional agp
 dev/agp/agp_nvidia.c		optional agp
 dev/agp/agp_sis.c		optional agp
 dev/agp/agp_via.c		optional agp
-dev/amdsbwd/amdsbwd.c		optional amdsbwd
-dev/amdsmn/amdsmn.c		optional amdsmn | amdtemp
-dev/amdtemp/amdtemp.c		optional amdtemp
-dev/arcmsr/arcmsr.c		optional arcmsr pci
-dev/asmc/asmc.c			optional asmc isa
-dev/atkbdc/atkbd.c		optional atkbd atkbdc
-dev/atkbdc/atkbd_atkbdc.c	optional atkbd atkbdc
-dev/atkbdc/atkbdc.c		optional atkbdc
-dev/atkbdc/atkbdc_isa.c		optional atkbdc isa
-dev/atkbdc/atkbdc_subr.c	optional atkbdc
-dev/atkbdc/psm.c		optional psm atkbdc
 dev/ce/ceddk.c			optional ce
 dev/ce/if_ce.c			optional ce
 dev/ce/tau32-ddk.c		optional ce \
 	compile-with "${NORMAL_C} ${NO_WCONSTANT_CONVERSION}"
-dev/coretemp/coretemp.c		optional coretemp
 dev/cp/cpddk.c			optional cp
 dev/cp/if_cp.c			optional cp
-dev/cpuctl/cpuctl.c		optional cpuctl
 dev/ctau/ctau.c			optional ctau
 dev/ctau/ctddk.c		optional ctau
 dev/ctau/if_ct.c		optional ctau
 dev/cx/csigma.c			optional cx
 dev/cx/cxddk.c			optional cx
 dev/cx/if_cx.c			optional cx
-dev/dpms/dpms.c			optional dpms
-dev/fb/fb.c			optional fb | vga
-dev/fb/s3_pci.c			optional s3pci
-dev/fb/vesa.c			optional vga vesa
-dev/fb/vga.c			optional vga
 dev/glxiic/glxiic.c		optional glxiic
 dev/glxsb/glxsb.c		optional glxsb
 dev/glxsb/glxsb_hash.c		optional glxsb
-dev/gpio/bytgpio.c		optional	bytgpio
-dev/gpio/chvgpio.c		optional	chvgpio
 dev/hyperv/vmbus/i386/hyperv_machdep.c			optional	hyperv
 dev/hyperv/vmbus/i386/vmbus_vector.S			optional	hyperv
-dev/ichwd/ichwd.c		optional ichwd
-dev/if_ndis/if_ndis.c		optional ndis
-dev/if_ndis/if_ndis_pccard.c	optional ndis pccard
-dev/if_ndis/if_ndis_pci.c	optional ndis cardbus | ndis pci
-dev/if_ndis/if_ndis_usb.c	optional ndis usb
-dev/imcsmb/imcsmb.c		optional imcsmb
-dev/imcsmb/imcsmb_pci.c		optional imcsmb pci
-dev/intel/spi.c			optional intelspi
-dev/io/iodev.c			optional io
 dev/le/if_le_isa.c		optional le isa
 dev/nctgpio/nctgpio.c		optional nctgpio
 dev/nfe/if_nfe.c		optional nfe pci
