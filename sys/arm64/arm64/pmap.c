@@ -761,7 +761,7 @@ pmap_bootstrap_l3(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l3_start)
 
 		pa = pmap_early_vtophys(l1pt, l3pt);
 		pmap_store(&l2[l2_slot],
-		    (pa & ~Ln_TABLE_MASK) | L2_TABLE);
+		    (pa & ~Ln_TABLE_MASK) | ATTR_UXN | L2_TABLE);
 		l3pt += PAGE_SIZE;
 	}
 
@@ -1174,6 +1174,8 @@ pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode)
 	attr = ATTR_DEFAULT | ATTR_IDX(mode) | L3_PAGE;
 	if (mode == DEVICE_MEMORY)
 		attr |= ATTR_XN;
+	else
+		attr |= ATTR_UXN;
 
 	va = sva;
 	while (size != 0) {
@@ -1289,7 +1291,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 
 		m = ma[i];
 		pa = VM_PAGE_TO_PHYS(m) | ATTR_DEFAULT | ATTR_AP(ATTR_AP_RW) |
-		    ATTR_IDX(m->md.pv_memattr) | L3_PAGE;
+		    ATTR_UXN | ATTR_IDX(m->md.pv_memattr) | L3_PAGE;
 		if (m->md.pv_memattr == DEVICE_MEMORY)
 			pa |= ATTR_XN;
 		pte = pmap_l2_to_l3(pde, va);
@@ -3194,6 +3196,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		new_l3 |= ATTR_SW_WIRED;
 	if (va < VM_MAXUSER_ADDRESS)
 		new_l3 |= ATTR_AP(ATTR_AP_USER) | ATTR_PXN;
+	else
+		new_l3 |= ATTR_UXN;
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		new_l3 |= ATTR_SW_MANAGED;
 		if ((prot & VM_PROT_WRITE) != 0) {
@@ -3456,6 +3460,8 @@ pmap_enter_2mpage(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		new_l2 |= ATTR_XN;
 	if (va < VM_MAXUSER_ADDRESS)
 		new_l2 |= ATTR_AP(ATTR_AP_USER) | ATTR_PXN;
+	else
+		new_l2 |= ATTR_UXN;
 	return (pmap_enter_l2(pmap, va, new_l2, PMAP_ENTER_NOSLEEP |
 	    PMAP_ENTER_NOREPLACE | PMAP_ENTER_NORECLAIM, NULL, lockp) ==
 	    KERN_SUCCESS);
@@ -3754,6 +3760,8 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		l3_val |= ATTR_XN;
 	if (va < VM_MAXUSER_ADDRESS)
 		l3_val |= ATTR_AP(ATTR_AP_USER) | ATTR_PXN;
+	else
+		l3_val |= ATTR_UXN;
 
 	/*
 	 * Now validate mapping with RO protection
