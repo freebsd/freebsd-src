@@ -29,6 +29,7 @@
  */
 
 #include "opt_acpi.h"
+#include "opt_ddb.h"
 #include "opt_kstack_pages.h"
 #include "opt_platform.h"
 
@@ -55,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 
 #include <machine/machdep.h>
+#include <machine/debug_monitor.h>
 #include <machine/intr.h>
 #include <machine/smp.h>
 #ifdef VFP
@@ -352,6 +354,10 @@ ipi_stop(void *dummy __unused)
 	/* Wait for restart */
 	while (!CPU_ISSET(cpu, &started_cpus))
 		cpu_spinwait();
+
+#ifdef DDB
+	dbg_register_sync(NULL);
+#endif
 
 	CPU_CLR_ATOMIC(cpu, &started_cpus);
 	CPU_CLR_ATOMIC(cpu, &stopped_cpus);
