@@ -480,8 +480,8 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 	case EXCP_SOFTSTP_EL0:
 		td->td_frame->tf_spsr &= ~PSR_SS;
 		td->td_pcb->pcb_flags &= ~PCB_SINGLE_STEP;
-		WRITE_SPECIALREG(MDSCR_EL1,
-		    READ_SPECIALREG(MDSCR_EL1) & ~DBG_MDSCR_SS);
+		WRITE_SPECIALREG(mdscr_el1,
+		    READ_SPECIALREG(mdscr_el1) & ~DBG_MDSCR_SS);
 		call_trapsignal(td, SIGTRAP, TRAP_TRACE,
 		    (void *)frame->tf_elr);
 		userret(td, frame);
