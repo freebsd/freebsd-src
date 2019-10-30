@@ -130,7 +130,7 @@ elf32_arm_abi_supported(struct image_params *imgp)
 	const Elf32_Ehdr *hdr;
 
 	/* Check if we support AArch32 */
-	if (ID_AA64PFR0_EL0(READ_SPECIALREG(id_aa64pfr0_el1)) !=
+	if (ID_AA64PFR0_EL0_VAL(READ_SPECIALREG(id_aa64pfr0_el1)) !=
 	    ID_AA64PFR0_EL0_64_32)
 		return (FALSE);
 
