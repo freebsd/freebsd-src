@@ -6,6 +6,8 @@ SUBDIR=	iwm3160fw \
 	iwm7265fw \
 	iwm7265Dfw \
 	iwm8000Cfw \
-	iwm8265fw
+	iwm8265fw \
+	iwm9000fw \
+	iwm9260fw
 
 .include <bsd.subdir.mk>
