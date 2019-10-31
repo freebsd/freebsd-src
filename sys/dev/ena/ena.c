@@ -3309,7 +3309,7 @@ ena_calc_io_queue_num(struct ena_adapter *adapter,
 static int
 ena_enable_wc(struct resource *res)
 {
-#if defined(__i386) || defined(__amd64)
+#if defined(__i386) || defined(__amd64) || defined(__aarch64__)
 	vm_offset_t va;
 	vm_size_t len;
 	int rc;
@@ -3317,7 +3317,7 @@ ena_enable_wc(struct resource *res)
 	va = (vm_offset_t)rman_get_virtual(res);
 	len = rman_get_size(res);
 	/* Enable write combining */
-	rc = pmap_change_attr(va, len, PAT_WRITE_COMBINING);
+	rc = pmap_change_attr(va, len, VM_MEMATTR_WRITE_COMBINING);
 	if (unlikely(rc != 0)) {
 		ena_trace(ENA_ALERT, "pmap_change_attr failed, %d\n", rc);
 		return (rc);
@@ -4352,14 +4352,6 @@ ena_attach(device_t pdev)
 
 	set_default_llq_configurations(&llq_config);
 
-#if defined(__arm__) || defined(__aarch64__)
-	/*
-	 * Force LLQ disable, as the driver is not supporting WC enablement
-	 * on the ARM architecture. Using LLQ without WC would affect
-	 * performance in a negative way.
-	 */
-	ena_dev->supported_features &= ~(1 << ENA_ADMIN_LLQ);
-#endif
 	rc = ena_set_queues_placement_policy(pdev, ena_dev, &get_feat_ctx.llq,
 	     &llq_config);
 	if (unlikely(rc != 0)) {
