@@ -240,7 +240,7 @@ ve_forbidden_digest_add(hash_data *digest, size_t num)
 
 static size_t
 ve_anchors_add(br_x509_certificate *xcs, size_t num, anchor_list *anchors,
-    char *anchors_name)
+    const char *anchors_name)
 {
 	br_x509_trust_anchor ta;
 	size_t u;
