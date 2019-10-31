@@ -252,6 +252,9 @@ struct ena_rx_buffer {
 	struct mbuf *mbuf;
 	bus_dmamap_t map;
 	struct ena_com_buf ena_buf;
+#ifdef DEV_NETMAP
+	uint32_t netmap_buf_idx;
+#endif /* DEV_NETMAP */
 } __aligned(CACHE_LINE_SIZE);
 
 struct ena_stats_tx {
@@ -351,6 +354,10 @@ struct ena_ring {
 
 	/* Used for LLQ */
 	uint8_t *push_buf_intermediate_buf;
+
+#ifdef DEV_NETMAP
+	bool initialized;
+#endif /* DEV_NETMAP */
 } __aligned(CACHE_LINE_SIZE);
 
 struct ena_stats_dev {
@@ -470,5 +477,25 @@ void	ena_down(struct ena_adapter *);
 int	ena_restore_device(struct ena_adapter *);
 void	ena_destroy_device(struct ena_adapter *, bool);
 int	ena_refill_rx_bufs(struct ena_ring *, uint32_t);
+inline int validate_rx_req_id(struct ena_ring *, uint16_t);
+
+inline int
+validate_rx_req_id(struct ena_ring *rx_ring, uint16_t req_id)
+{
+	if (likely(req_id < rx_ring->ring_size))
+		return (0);
+
+	device_printf(rx_ring->adapter->pdev, "Invalid rx req_id: %hu\n",
+	    req_id);
+	counter_u64_add(rx_ring->rx_stats.bad_req_id, 1);
+
+	/* Trigger device reset */
+	if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, rx_ring->adapter))) {
+		rx_ring->adapter->reset_reason = ENA_REGS_RESET_INV_RX_REQ_ID;
+		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, rx_ring->adapter);
+	}
+
+	return (EFAULT);
+}
 
 #endif /* !(ENA_H) */

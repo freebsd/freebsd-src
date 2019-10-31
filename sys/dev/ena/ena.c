@@ -764,6 +764,11 @@ ena_setup_rx_resources(struct ena_adapter *adapter, unsigned int qid)
 
 	size = sizeof(struct ena_rx_buffer) * rx_ring->ring_size;
 
+#ifdef DEV_NETMAP
+	ena_netmap_reset_rx_ring(adapter, qid);
+	rx_ring->initialized = false;
+#endif /* DEV_NETMAP */
+
 	/*
 	 * Alloc extra element so in rx path
 	 * we can always prefetch rx_info + 1
@@ -1008,8 +1013,12 @@ ena_refill_rx_bufs(struct ena_ring *rx_ring, uint32_t num)
 
 		req_id = rx_ring->free_rx_ids[next_to_use];
 		rx_info = &rx_ring->rx_buffer_info[req_id];
-
-		rc = ena_alloc_rx_mbuf(adapter, rx_ring, rx_info);
+#ifdef DEV_NETMAP
+		if (adapter->ifp->if_capenable & IFCAP_NETMAP)
+			rc = ena_netmap_alloc_rx_slot(adapter, rx_ring, rx_info);
+		else
+#endif /* DEV_NETMAP */
+			rc = ena_alloc_rx_mbuf(adapter, rx_ring, rx_info);
 		if (unlikely(rc != 0)) {
 			ena_trace(ENA_WARNING,
 			    "failed to alloc buffer for rx queue %d\n",
@@ -1054,6 +1063,14 @@ ena_free_rx_bufs(struct ena_adapter *adapter, unsigned int qid)
 
 		if (rx_info->mbuf != NULL)
 			ena_free_rx_mbuf(adapter, rx_ring, rx_info);
+#ifdef DEV_NETMAP
+		if (((if_getflags(adapter->ifp) & IFF_DYING) == 0) &&
+		    (adapter->ifp->if_capenable & IFCAP_NETMAP)) {
+			if (rx_info->netmap_buf_idx != 0)
+				ena_netmap_free_rx_slot(adapter, rx_ring,
+				    rx_info);
+		}
+#endif /* DEV_NETMAP */
 	}
 }
 
@@ -1072,10 +1089,12 @@ ena_refill_all_rx_bufs(struct ena_adapter *adapter)
 		rx_ring = &adapter->rx_ring[i];
 		bufs_num = rx_ring->ring_size - 1;
 		rc = ena_refill_rx_bufs(rx_ring, bufs_num);
-
 		if (unlikely(rc != bufs_num))
 			ena_trace(ENA_WARNING, "refilling Queue %d failed. "
 			    "Allocated %d buffers from: %d\n", i, rc, bufs_num);
+#ifdef DEV_NETMAP
+		rx_ring->initialized = true;
+#endif /* DEV_NETMAP */
 	}
 }
 
