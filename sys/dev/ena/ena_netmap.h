@@ -52,5 +52,7 @@ int	ena_netmap_alloc_rx_slot(struct ena_adapter *, struct ena_ring *,
 void	ena_netmap_free_rx_slot(struct ena_adapter *, struct ena_ring *,
     struct ena_rx_buffer *);
 void	ena_netmap_reset_rx_ring(struct ena_adapter *, int);
+void	ena_netmap_reset_tx_ring(struct ena_adapter *, int);
+void	ena_netmap_unload(struct ena_adapter *, bus_dmamap_t);
 
 #endif /* _ENA_NETMAP_H_ */

@@ -226,6 +226,14 @@ struct ena_calc_queue_size_ctx {
 	uint16_t max_rx_sgl_size;
 };
 
+#ifdef DEV_NETMAP
+struct ena_netmap_tx_info {
+	uint32_t socket_buf_idx[ENA_PKT_MAX_BUFS];
+	bus_dmamap_t map_seg[ENA_PKT_MAX_BUFS];
+	unsigned int sockets_used;
+};
+#endif
+
 struct ena_tx_buffer {
 	struct mbuf *mbuf;
 	/* # of ena desc for this specific mbuf
@@ -244,6 +252,10 @@ struct ena_tx_buffer {
 	/* Used to detect missing tx packets */
 	struct bintime timestamp;
 	bool print_once;
+
+#ifdef DEV_NETMAP
+	struct ena_netmap_tx_info nm_info;
+#endif /* DEV_NETMAP */
 
 	struct ena_com_buf bufs[ENA_PKT_MAX_BUFS];
 } __aligned(CACHE_LINE_SIZE);
