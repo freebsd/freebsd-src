@@ -239,6 +239,11 @@ ena_tx_cleanup(struct ena_ring *tx_ring)
 	io_cq = &adapter->ena_dev->io_cq_queues[ena_qid];
 	next_to_clean = tx_ring->next_to_clean;
 
+#ifdef DEV_NETMAP
+	if (netmap_tx_irq(adapter->ifp, tx_ring->qid) != NM_IRQ_PASS)
+		return (0);
+#endif /* DEV_NETMAP */
+
 	do {
 		struct ena_tx_buffer *tx_info;
 		struct mbuf *mbuf;

@@ -103,6 +103,7 @@ static int	ena_setup_tx_dma_tag(struct ena_adapter *);
 static int	ena_free_tx_dma_tag(struct ena_adapter *);
 static int	ena_setup_rx_dma_tag(struct ena_adapter *);
 static int	ena_free_rx_dma_tag(struct ena_adapter *);
+static void	ena_release_all_tx_dmamap(struct ena_ring *);
 static int	ena_setup_tx_resources(struct ena_adapter *, int);
 static void	ena_free_tx_resources(struct ena_adapter *, int);
 static int	ena_setup_all_tx_resources(struct ena_adapter *);
@@ -531,6 +532,44 @@ ena_free_rx_dma_tag(struct ena_adapter *adapter)
 	return (ret);
 }
 
+static void
+ena_release_all_tx_dmamap(struct ena_ring *tx_ring)
+{
+	struct ena_adapter *adapter = tx_ring->adapter;
+	struct ena_tx_buffer *tx_info;
+	bus_dma_tag_t tx_tag = adapter->tx_buf_tag;;
+	int i;
+#ifdef DEV_NETMAP
+	struct ena_netmap_tx_info *nm_info;
+	int j;
+#endif /* DEV_NETMAP */
+
+	for (i = 0; i < tx_ring->ring_size; ++i) {
+		tx_info = &tx_ring->tx_buffer_info[i];
+#ifdef DEV_NETMAP
+		if (adapter->ifp->if_capenable & IFCAP_NETMAP) {
+			nm_info = &tx_info->nm_info;
+			for (j = 0; j < ENA_PKT_MAX_BUFS; ++j) {
+				if (nm_info->map_seg[j] != NULL) {
+					bus_dmamap_destroy(tx_tag,
+					    nm_info->map_seg[j]);
+					nm_info->map_seg[j] = NULL;
+				}
+			}
+		}
+#endif /* DEV_NETMAP */
+		if (tx_info->map_head != NULL) {
+			bus_dmamap_destroy(tx_tag, tx_info->map_head);
+			tx_info->map_head = NULL;
+		}
+
+		if (tx_info->map_seg != NULL) {
+			bus_dmamap_destroy(tx_tag, tx_info->map_seg);
+			tx_info->map_seg = NULL;
+		}
+	}
+}
+
 /**
  * ena_setup_tx_resources - allocate Tx resources (Descriptors)
  * @adapter: network interface device structure
@@ -544,6 +583,12 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	struct ena_que *que = &adapter->que[qid];
 	struct ena_ring *tx_ring = que->tx_ring;
 	int size, i, err;
+#ifdef DEV_NETMAP
+	bus_dmamap_t *map;
+	int j;
+
+	ena_netmap_reset_tx_ring(adapter, qid);
+#endif /* DEV_NETMAP */
 
 	size = sizeof(struct ena_tx_buffer) * tx_ring->ring_size;
 
@@ -587,7 +632,7 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 			ena_trace(ENA_ALERT,
 			    "Unable to create Tx DMA map_head for buffer %d\n",
 			    i);
-			goto err_buf_info_unmap;
+			goto err_map_release;
 		}
 		tx_ring->tx_buffer_info[i].seg_mapped = false;
 
@@ -597,9 +642,24 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 			ena_trace(ENA_ALERT,
 			    "Unable to create Tx DMA map_seg for buffer %d\n",
 			    i);
-			goto err_buf_info_head_unmap;
+			goto err_map_release;
 		}
 		tx_ring->tx_buffer_info[i].head_mapped = false;
+
+#ifdef DEV_NETMAP
+		if (adapter->ifp->if_capenable & IFCAP_NETMAP) {
+			map = tx_ring->tx_buffer_info[i].nm_info.map_seg;
+			for (j = 0; j < ENA_PKT_MAX_BUFS; j++) {
+				err = bus_dmamap_create(adapter->tx_buf_tag, 0,
+				    &map[j]);
+				if (unlikely(err != 0)) {
+					ena_trace(ENA_ALERT, "Unable to create "
+					    "Tx DMA for buffer %d %d\n", i, j);
+					goto err_map_release;
+				}
+			}
+		}
+#endif /* DEV_NETMAP */
 	}
 
 	/* Allocate taskqueues */
@@ -610,7 +670,7 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 		ena_trace(ENA_ALERT,
 		    "Unable to create taskqueue for enqueue task\n");
 		i = tx_ring->ring_size;
-		goto err_buf_info_unmap;
+		goto err_map_release;
 	}
 
 	tx_ring->running = true;
@@ -620,17 +680,8 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 
 	return (0);
 
-err_buf_info_head_unmap:
-	bus_dmamap_destroy(adapter->tx_buf_tag,
-	    tx_ring->tx_buffer_info[i].map_head);
-err_buf_info_unmap:
-	while (i--) {
-		bus_dmamap_destroy(adapter->tx_buf_tag,
-		    tx_ring->tx_buffer_info[i].map_head);
-		bus_dmamap_destroy(adapter->tx_buf_tag,
-		    tx_ring->tx_buffer_info[i].map_seg);
-	}
-	free(tx_ring->push_buf_intermediate_buf, M_DEVBUF);
+err_map_release:
+	ena_release_all_tx_dmamap(tx_ring);
 err_tx_ids_free:
 	free(tx_ring->free_tx_ids, M_DEVBUF);
 	tx_ring->free_tx_ids = NULL;
@@ -652,6 +703,10 @@ static void
 ena_free_tx_resources(struct ena_adapter *adapter, int qid)
 {
 	struct ena_ring *tx_ring = &adapter->tx_ring[qid];
+#ifdef DEV_NETMAP
+	struct ena_netmap_tx_info *nm_info;
+	int j;
+#endif /* DEV_NETMAP */
 
 	while (taskqueue_cancel(tx_ring->enqueue_tq, &tx_ring->enqueue_task,
 	    NULL))
@@ -686,6 +741,24 @@ ena_free_tx_resources(struct ena_adapter *adapter, int qid)
 		}
 		bus_dmamap_destroy(adapter->tx_buf_tag,
 		    tx_ring->tx_buffer_info[i].map_seg);
+
+#ifdef DEV_NETMAP
+		if (adapter->ifp->if_capenable & IFCAP_NETMAP) {
+			nm_info = &tx_ring->tx_buffer_info[i].nm_info;
+			for (j = 0; j < ENA_PKT_MAX_BUFS; j++) {
+				if (nm_info->socket_buf_idx[j] != 0) {
+					bus_dmamap_sync(adapter->tx_buf_tag,
+					    nm_info->map_seg[j],
+					    BUS_DMASYNC_POSTWRITE);
+					ena_netmap_unload(adapter,
+					    nm_info->map_seg[j]);
+				}
+				bus_dmamap_destroy(adapter->tx_buf_tag,
+				    nm_info->map_seg[j]);
+				nm_info->socket_buf_idx[j] = 0;
+			}
+		}
+#endif /* DEV_NETMAP */
 
 		m_freem(tx_ring->tx_buffer_info[i].mbuf);
 		tx_ring->tx_buffer_info[i].mbuf = NULL;
