@@ -206,6 +206,8 @@ ena_netmap_free_rx_slot(struct ena_adapter *adapter,
 	    BUS_DMASYNC_POSTREAD);
 	netmap_unload_map(na, adapter->rx_buf_tag, rx_info->map);
 
+	KASSERT(kring->ring == NULL, ("Netmap Rx ring is NULL\n"));
+
 	slot = &kring->ring->slot[nm_i];
 
 	ENA_ASSERT(slot->buf_idx == 0, "Overwrite slot buf\n");
@@ -216,18 +218,54 @@ ena_netmap_free_rx_slot(struct ena_adapter *adapter,
 	kring->nr_hwcur = nm_i;
 }
 
+static bool
+ena_ring_in_netmap(struct ena_adapter *adapter, int qid, enum txrx x)
+{
+	struct netmap_adapter *na;
+	struct netmap_kring *kring;
+
+	if (adapter->ifp->if_capenable & IFCAP_NETMAP) {
+		na = NA(adapter->ifp);
+		kring = (x == NR_RX) ? na->rx_rings[qid] : na->tx_rings[qid];
+		if (kring->nr_mode == NKR_NETMAP_ON)
+			return true;
+	}
+	return false;
+}
+
+bool
+ena_tx_ring_in_netmap(struct ena_adapter *adapter, int qid)
+{
+	return ena_ring_in_netmap(adapter, qid, NR_TX);
+}
+
+bool
+ena_rx_ring_in_netmap(struct ena_adapter *adapter, int qid)
+{
+	return ena_ring_in_netmap(adapter, qid, NR_RX);
+}
+
+static void
+ena_netmap_reset_ring(struct ena_adapter *adapter, int qid, enum txrx x)
+{
+	if (!ena_ring_in_netmap(adapter, qid, x))
+		return;
+
+	netmap_reset(NA(adapter->ifp), x, qid, 0);
+	ena_trace(ENA_NETMAP, "%s ring %d is in netmap mode\n",
+	    (x == NR_TX) ? "Tx" : "Rx", qid);
+}
+
 void
 ena_netmap_reset_rx_ring(struct ena_adapter *adapter, int qid)
 {
-	if (adapter->ifp->if_capenable & IFCAP_NETMAP)
-		netmap_reset(NA(adapter->ifp), NR_RX, qid, 0);
+	ena_netmap_reset_ring(adapter, qid, NR_RX);
 }
 
 void
 ena_netmap_reset_tx_ring(struct ena_adapter *adapter, int qid)
 {
-	if (adapter->ifp->if_capenable & IFCAP_NETMAP)
-		netmap_reset(NA(adapter->ifp), NR_TX, qid, 0);
+	ena_netmap_reset_ring(adapter, qid, NR_TX);
 }
 
 static int
@@ -235,7 +273,9 @@ ena_netmap_reg(struct netmap_adapter *na, int onoff)
 {
 	struct ifnet *ifp = na->ifp;
 	struct ena_adapter* adapter = ifp->if_softc;
-	int rc;
+	struct netmap_kring *kring;
+	enum txrx t;
+	int rc, i;
 
 	sx_xlock(&adapter->ioctl_sx);
 	ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
@@ -243,10 +283,26 @@ ena_netmap_reg(struct netmap_adapter *na, int onoff)
 
 	if (onoff) {
 		ena_trace(ENA_NETMAP, "netmap on\n");
+		for_rx_tx(t) {
+			for (i = 0; i <= nma_get_nrings(na, t); i++) {
+				kring = NMR(na, t)[i];
+				if (nm_kring_pending_on(kring)) {
+					kring->nr_mode = NKR_NETMAP_ON;
+				}
+			}
+		}
 		nm_set_native_flags(na);
 	} else {
 		ena_trace(ENA_NETMAP, "netmap off\n");
 		nm_clear_native_flags(na);
+		for_rx_tx(t) {
+			for (i = 0; i <= nma_get_nrings(na, t); i++) {
+				kring = NMR(na, t)[i];
+				if (nm_kring_pending_off(kring)) {
+					kring->nr_mode = NKR_NETMAP_OFF;
+				}
+			}
+		}
 	}
 
 	rc = ena_up(adapter);
