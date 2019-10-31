@@ -5291,7 +5291,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	offset = va & PAGE_MASK;
 	size = round_page(offset + size);
 
-	if (!VIRT_IN_DMAP(base))
+	if (!VIRT_IN_DMAP(base) &&
+	    !(base >= VM_MIN_KERNEL_ADDRESS && base < VM_MAX_KERNEL_ADDRESS))
 		return (EINVAL);
 
 	for (tmpva = base; tmpva < base + size; ) {
