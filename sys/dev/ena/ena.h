@@ -465,4 +465,10 @@ static inline int ena_mbuf_count(struct mbuf *mbuf)
 	return count;
 }
 
+int	ena_up(struct ena_adapter *);
+void	ena_down(struct ena_adapter *);
+int	ena_restore_device(struct ena_adapter *);
+void	ena_destroy_device(struct ena_adapter *, bool);
+int	ena_refill_rx_bufs(struct ena_ring *, uint32_t);
+
 #endif /* !(ENA_H) */
