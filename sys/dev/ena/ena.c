@@ -2350,8 +2350,14 @@ ena_up(struct ena_adapter *adapter)
 		if_setdrvflagbits(adapter->ifp, IFF_DRV_RUNNING,
 		    IFF_DRV_OACTIVE);
 
-		callout_reset_sbt(&adapter->timer_service, SBT_1S, SBT_1S,
-		    ena_timer_service, (void *)adapter, 0);
+		/* Activate timer service only if the device is running.
+		 * If this flag is not set, it means that the driver is being
+		 * reset and timer service will be activated afterwards.
+		 */
+		if (ENA_FLAG_ISSET(ENA_FLAG_DEVICE_RUNNING, adapter)) {
+			callout_reset_sbt(&adapter->timer_service, SBT_1S,
+			    SBT_1S, ena_timer_service, (void *)adapter, 0);
+		}
 
 		ENA_FLAG_SET_ATOMIC(ENA_FLAG_DEV_UP, adapter);
 
@@ -4222,9 +4228,20 @@ ena_restore_device(struct ena_adapter *adapter)
 		}
 	}
 
+	/* Indicate that device is running again and ready to work */
 	ENA_FLAG_SET_ATOMIC(ENA_FLAG_DEVICE_RUNNING, adapter);
-	callout_reset_sbt(&adapter->timer_service, SBT_1S, SBT_1S,
-	    ena_timer_service, (void *)adapter, 0);
+
+	if (ENA_FLAG_ISSET(ENA_FLAG_DEV_UP_BEFORE_RESET, adapter)) {
+		/*
+		 * As the AENQ handlers weren't executed during reset because
+		 * the flag ENA_FLAG_DEVICE_RUNNING was turned off, the
+		 * timestamp must be updated again That will prevent next reset
+		 * caused by missing keep alive.
+		 */
+		adapter->keep_alive_timestamp = getsbinuptime();
+		callout_reset_sbt(&adapter->timer_service, SBT_1S, SBT_1S,
+		    ena_timer_service, (void *)adapter, 0);
+	}
 
 	device_printf(dev,
 	    "Device reset completed successfully, Driver info: %s\n", ena_version);
