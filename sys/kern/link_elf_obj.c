@@ -779,7 +779,6 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		error = ENOMEM;
 		goto out;
 	}
-	ef->address = (caddr_t) vm_map_min(kernel_map);
 
 	/*
 	 * In order to satisfy amd64's architectural requirements on the
@@ -794,9 +793,10 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	error = vm_map_find(kernel_map, ef->object, 0, &mapbase,
 	    round_page(mapsize), 0, VMFS_OPTIMAL_SPACE, VM_PROT_ALL,
 	    VM_PROT_ALL, 0);
-	if (error) {
+	if (error != KERN_SUCCESS) {
 		vm_object_deallocate(ef->object);
-		ef->object = 0;
+		ef->object = NULL;
+		error = ENOMEM;
 		goto out;
 	}
 
@@ -1084,11 +1084,9 @@ link_elf_unload_file(linker_file_t file)
 	free(ef->relatab, M_LINKER);
 	free(ef->progtab, M_LINKER);
 
-	if (ef->object) {
-		vm_map_remove(kernel_map, (vm_offset_t) ef->address,
-		    (vm_offset_t) ef->address +
-		    (ef->object->size << PAGE_SHIFT));
-	}
+	if (ef->object != NULL)
+		vm_map_remove(kernel_map, (vm_offset_t)ef->address,
+		    (vm_offset_t)ef->address + ptoa(ef->object->size));
 	free(ef->e_shdr, M_LINKER);
 	free(ef->ddbsymtab, M_LINKER);
 	free(ef->ddbstrtab, M_LINKER);
