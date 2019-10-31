@@ -47,5 +47,10 @@
 #include <dev/netmap/netmap_kern.h>
 
 int	ena_netmap_attach(struct ena_adapter *);
+int	ena_netmap_alloc_rx_slot(struct ena_adapter *, struct ena_ring *,
+    struct ena_rx_buffer *);
+void	ena_netmap_free_rx_slot(struct ena_adapter *, struct ena_ring *,
+    struct ena_rx_buffer *);
+void	ena_netmap_reset_rx_ring(struct ena_adapter *, int);
 
 #endif /* _ENA_NETMAP_H_ */
