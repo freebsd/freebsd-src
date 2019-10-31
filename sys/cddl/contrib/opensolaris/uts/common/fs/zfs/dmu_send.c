@@ -1441,17 +1441,12 @@ dmu_recv_begin_check(void *arg, dmu_tx_t *tx)
 	/*
 	 * The receiving code doesn't know how to translate large blocks
 	 * to smaller ones, so the pool must have the LARGE_BLOCKS
-	 * feature enabled if the stream has LARGE_BLOCKS.
+	 * feature enabled if the stream has LARGE_BLOCKS. Same with
+	 * large dnodes.
 	 */
 	if ((featureflags & DMU_BACKUP_FEATURE_LARGE_BLOCKS) &&
 	    !spa_feature_is_enabled(dp->dp_spa, SPA_FEATURE_LARGE_BLOCKS))
 		return (SET_ERROR(ENOTSUP));
-
-	/*
-	 * The receiving code doesn't know how to translate large dnodes
-	 * to smaller ones, so the pool must have the LARGE_DNODE
-	 * feature enabled if the stream has LARGE_DNODE.
-	 */
 	if ((featureflags & DMU_BACKUP_FEATURE_LARGE_DNODE) &&
 	    !spa_feature_is_enabled(dp->dp_spa, SPA_FEATURE_LARGE_DNODE))
 		return (SET_ERROR(ENOTSUP));
@@ -1659,6 +1654,9 @@ dmu_recv_resume_begin_check(void *arg, dmu_tx_t *tx)
 	dsl_dataset_t *ds;
 	const char *tofs = drba->drba_cookie->drc_tofs;
 
+	/* 6 extra bytes for /%recv */
+	char recvname[ZFS_MAX_DATASET_NAME_LEN + 6];
+
 	/* already checked */
 	ASSERT3U(drrb->drr_magic, ==, DMU_BACKUP_MAGIC);
 	ASSERT(featureflags & DMU_BACKUP_FEATURE_RESUMING);
@@ -1686,8 +1684,18 @@ dmu_recv_resume_begin_check(void *arg, dmu_tx_t *tx)
 	    !spa_feature_is_enabled(dp->dp_spa, SPA_FEATURE_LZ4_COMPRESS))
 		return (SET_ERROR(ENOTSUP));
 
-	/* 6 extra bytes for /%recv */
-	char recvname[ZFS_MAX_DATASET_NAME_LEN + 6];
+	/*
+	 * The receiving code doesn't know how to translate large blocks
+	 * to smaller ones, so the pool must have the LARGE_BLOCKS
+	 * feature enabled if the stream has LARGE_BLOCKS. Same with
+	 * large dnodes.
+	 */
+	if ((featureflags & DMU_BACKUP_FEATURE_LARGE_BLOCKS) &&
+	    !spa_feature_is_enabled(dp->dp_spa, SPA_FEATURE_LARGE_BLOCKS))
+		return (SET_ERROR(ENOTSUP));
+	if ((featureflags & DMU_BACKUP_FEATURE_LARGE_DNODE) &&
+	    !spa_feature_is_enabled(dp->dp_spa, SPA_FEATURE_LARGE_DNODE))
+		return (SET_ERROR(ENOTSUP));
 
 	(void) snprintf(recvname, sizeof (recvname), "%s/%s",
 	    tofs, recv_clone_name);
@@ -2149,6 +2157,8 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 	dmu_tx_t *tx;
 	uint64_t object;
 	int err;
+	uint8_t dn_slots = drro->drr_dn_slots != 0 ?
+	    drro->drr_dn_slots : DNODE_MIN_SLOTS;
 
 	if (drro->drr_type == DMU_OT_NONE ||
 	    !DMU_OT_IS_VALID(drro->drr_type) ||
@@ -2159,15 +2169,16 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 	    drro->drr_blksz < SPA_MINBLOCKSIZE ||
 	    drro->drr_blksz > spa_maxblocksize(dmu_objset_spa(rwa->os)) ||
 	    drro->drr_bonuslen >
-	    DN_BONUS_SIZE(spa_maxdnodesize(dmu_objset_spa(rwa->os)))) {
+	    DN_BONUS_SIZE(spa_maxdnodesize(dmu_objset_spa(rwa->os))) ||
+	    dn_slots >
+	    (spa_maxdnodesize(dmu_objset_spa(rwa->os)) >> DNODE_SHIFT)) {
 		return (SET_ERROR(EINVAL));
 	}
 
 	err = dmu_object_info(rwa->os, drro->drr_object, &doi);
 
-	if (err != 0 && err != ENOENT)
+	if (err != 0 && err != ENOENT && err != EEXIST)
 		return (SET_ERROR(EINVAL));
-	object = err == 0 ? drro->drr_object : DMU_NEW_OBJECT;
 
 	if (drro->drr_object > rwa->max_object)
 		rwa->max_object = drro->drr_object;
@@ -2180,16 +2191,64 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 	if (err == 0) {
 		int nblkptr;
 
+		object = drro->drr_object;
+
 		nblkptr = deduce_nblkptr(drro->drr_bonustype,
 		    drro->drr_bonuslen);
 
 		if (drro->drr_blksz != doi.doi_data_block_size ||
-		    nblkptr < doi.doi_nblkptr) {
+		    nblkptr < doi.doi_nblkptr ||
+		    dn_slots != doi.doi_dnodesize >> DNODE_SHIFT) {
 			err = dmu_free_long_range(rwa->os, drro->drr_object,
 			    0, DMU_OBJECT_END);
 			if (err != 0)
 				return (SET_ERROR(EINVAL));
 		}
+	} else if (err == EEXIST) {
+		/*
+		 * The object requested is currently an interior slot of a
+		 * multi-slot dnode. This will be resolved when the next txg
+		 * is synced out, since the send stream will have told us
+		 * to free this slot when we freed the associated dnode
+		 * earlier in the stream.
+		 */
+		txg_wait_synced(dmu_objset_pool(rwa->os), 0);
+		object = drro->drr_object;
+	} else {
+		/* object is free and we are about to allocate a new one */
+		object = DMU_NEW_OBJECT;
+	}
+
+	/*
+	 * If this is a multi-slot dnode there is a chance that this
+	 * object will expand into a slot that is already used by
+	 * another object from the previous snapshot. We must free
+	 * these objects before we attempt to allocate the new dnode.
+	 */
+	if (dn_slots > 1) {
+		boolean_t need_sync = B_FALSE;
+
+		for (uint64_t slot = drro->drr_object + 1;
+		    slot < drro->drr_object + dn_slots;
+		    slot++) {
+			dmu_object_info_t slot_doi;
+
+			err = dmu_object_info(rwa->os, slot, &slot_doi);
+			if (err == ENOENT || err == EEXIST)
+				continue;
+			else if (err != 0)
+				return (err);
+
+			err = dmu_free_long_object(rwa->os, slot);
+
+			if (err != 0)
+				return (err);
+
+			need_sync = B_TRUE;
+		}
+
+		if (need_sync)
+			txg_wait_synced(dmu_objset_pool(rwa->os), 0);
 	}
 
 	tx = dmu_tx_create(rwa->os);
@@ -2205,15 +2264,17 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 		err = dmu_object_claim_dnsize(rwa->os, drro->drr_object,
 		    drro->drr_type, drro->drr_blksz,
 		    drro->drr_bonustype, drro->drr_bonuslen,
-		    drro->drr_dn_slots << DNODE_SHIFT, tx);
+		    dn_slots << DNODE_SHIFT, tx);
 	} else if (drro->drr_type != doi.doi_type ||
 	    drro->drr_blksz != doi.doi_data_block_size ||
 	    drro->drr_bonustype != doi.doi_bonus_type ||
-	    drro->drr_bonuslen != doi.doi_bonus_size) {
+	    drro->drr_bonuslen != doi.doi_bonus_size ||
+	    drro->drr_dn_slots != (doi.doi_dnodesize >> DNODE_SHIFT)) {
 		/* currently allocated, but with different properties */
-		err = dmu_object_reclaim(rwa->os, drro->drr_object,
+		err = dmu_object_reclaim_dnsize(rwa->os, drro->drr_object,
 		    drro->drr_type, drro->drr_blksz,
-		    drro->drr_bonustype, drro->drr_bonuslen, tx);
+		    drro->drr_bonustype, drro->drr_bonuslen,
+		    drro->drr_dn_slots << DNODE_SHIFT, tx);
 	}
 	if (err != 0) {
 		dmu_tx_commit(tx);
@@ -2263,13 +2324,11 @@ receive_freeobjects(struct receive_writer_arg *rwa,
 		dmu_object_info_t doi;
 		int err;
 
-		err = dmu_object_info(rwa->os, obj, &doi);
-		if (err == ENOENT) {
-			obj++;
- 			continue;
-		} else if (err != 0) {
+		err = dmu_object_info(rwa->os, obj, NULL);
+		if (err == ENOENT)
+			continue;
+		else if (err != 0)
 			return (err);
-		}
 
 		err = dmu_free_long_object(rwa->os, obj);
 		if (err != 0)
