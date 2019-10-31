@@ -3,14 +3,22 @@
 .if !targets(__<${_this:T}>__)
 __<${_this:T}>__:
 
+.if defined(_LIBCOMPAT)
+COMPAT_ARCH=	${TARGET_ARCH}
+COMPAT_CPUTYPE=	${TARGET_CPUTYPE}
+.else
+COMPAT_ARCH=	${MACHINE_ARCH}
+COMPAT_CPUTYPE=	${CPUTYPE}
+.endif
+
 # -------------------------------------------------------------------
 # 32 bit world
-.if ${TARGET_ARCH} == "amd64"
+.if ${COMPAT_ARCH} == "amd64"
 HAS_COMPAT=32
-.if empty(TARGET_CPUTYPE)
+.if empty(COMPAT_CPUTYPE)
 LIB32CPUFLAGS=	-march=i686 -mmmx -msse -msse2
 .else
-LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
+LIB32CPUFLAGS=	-march=${COMPAT_CPUTYPE}
 .endif
 .if (defined(WANT_COMPILER_TYPE) && ${WANT_COMPILER_TYPE} == gcc) || \
     (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc)
@@ -24,29 +32,29 @@ LIB32WMAKEFLAGS=	\
 		AS="${XAS} --32" \
 		LD="${XLD} -m elf_i386_fbsd -L${LIBCOMPATTMP}/usr/lib32"
 
-.elif ${TARGET_ARCH} == "powerpc64"
+.elif ${COMPAT_ARCH} == "powerpc64"
 HAS_COMPAT=32
-.if empty(TARGET_CPUTYPE)
+.if empty(COMPAT_CPUTYPE)
 LIB32CPUFLAGS=	-mcpu=powerpc
 .else
-LIB32CPUFLAGS=	-mcpu=${TARGET_CPUTYPE}
+LIB32CPUFLAGS=	-mcpu=${COMPAT_CPUTYPE}
 .endif
 LIB32CPUFLAGS+=	-m32
 LIB32WMAKEENV=	MACHINE=powerpc MACHINE_ARCH=powerpc
 LIB32WMAKEFLAGS=	\
 		LD="${XLD} -m elf32ppc_fbsd"
 
-.elif ${TARGET_ARCH:Mmips64*} != ""
+.elif ${COMPAT_ARCH:Mmips64*} != ""
 HAS_COMPAT=32
 .if (defined(WANT_COMPILER_TYPE) && ${WANT_COMPILER_TYPE} == gcc) || \
     (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc)
-.if empty(TARGET_CPUTYPE)
+.if empty(COMPAT_CPUTYPE)
 LIB32CPUFLAGS=	-march=mips3
 .else
-LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
+LIB32CPUFLAGS=	-march=${COMPAT_CPUTYPE}
 .endif
 .else
-.if ${TARGET_ARCH:Mmips64el*} != ""
+.if ${COMPAT_ARCH:Mmips64el*} != ""
 LIB32CPUFLAGS=  -target mipsel-unknown-freebsd13.0
 .else
 LIB32CPUFLAGS=  -target mips-unknown-freebsd13.0
@@ -54,7 +62,7 @@ LIB32CPUFLAGS=  -target mips-unknown-freebsd13.0
 .endif
 LIB32CPUFLAGS+= -mabi=32
 LIB32WMAKEENV=	MACHINE=mips MACHINE_ARCH=mips
-.if ${TARGET_ARCH:Mmips64el*} != ""
+.if ${COMPAT_ARCH:Mmips64el*} != ""
 LIB32WMAKEFLAGS= LD="${XLD} -m elf32ltsmip_fbsd"
 .else
 LIB32WMAKEFLAGS= LD="${XLD} -m elf32btsmip_fbsd"
@@ -70,11 +78,11 @@ LIB32WMAKEFLAGS+=	-DCOMPAT_32BIT
 
 # -------------------------------------------------------------------
 # soft-fp world
-.if ${TARGET_ARCH:Marmv[67]*} != ""
+.if ${COMPAT_ARCH:Marmv[67]*} != ""
 HAS_COMPAT=SOFT
 LIBSOFTCFLAGS=        -DCOMPAT_SOFTFP
 LIBSOFTCPUFLAGS= -mfloat-abi=softfp
-LIBSOFTWMAKEENV= CPUTYPE=soft MACHINE=arm MACHINE_ARCH=${TARGET_ARCH}
+LIBSOFTWMAKEENV= CPUTYPE=soft MACHINE=arm MACHINE_ARCH=${COMPAT_ARCH}
 LIBSOFTWMAKEFLAGS=        -DCOMPAT_SOFTFP
 .endif
 
