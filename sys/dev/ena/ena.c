@@ -80,6 +80,10 @@ __FBSDID("$FreeBSD$");
 #include "ena.h"
 #include "ena_sysctl.h"
 
+#ifdef DEV_NETMAP
+#include "ena_netmap.h"
+#endif /* DEV_NETMAP */
+
 /*********************************************************
  *  Function prototypes
  *********************************************************/
@@ -3317,12 +3321,24 @@ ena_attach(device_t pdev)
 	    sizeof(struct ena_hw_stats));
 	ena_sysctl_add_nodes(adapter);
 
+#ifdef DEV_NETMAP
+	rc = ena_netmap_attach(adapter);
+	if (rc != 0) {
+		device_printf(pdev, "netmap attach failed: %d\n", rc);
+		goto err_detach;
+	}
+#endif /* DEV_NETMAP */
+
 	/* Tell the stack that the interface is not active */
 	if_setdrvflagbits(adapter->ifp, IFF_DRV_OACTIVE, IFF_DRV_RUNNING);
 	ENA_FLAG_SET_ATOMIC(ENA_FLAG_DEVICE_RUNNING, adapter);
 
 	return (0);
 
+#ifdef DEV_NETMAP
+err_detach:
+	ether_ifdetach(adapter->ifp);
+#endif /* DEV_NETMAP */
 err_msix_free:
 	ena_com_dev_reset(adapter->ena_dev, ENA_REGS_RESET_INIT_ERR);
 	ena_free_mgmnt_irq(adapter);
@@ -3377,6 +3393,10 @@ ena_detach(device_t pdev)
 	ena_down(adapter);
 	ena_destroy_device(adapter, true);
 	sx_unlock(&adapter->ioctl_sx);
+
+#ifdef DEV_NETMAP
+	netmap_detach(adapter->ifp);
+#endif /* DEV_NETMAP */
 
 	ena_free_all_io_rings_resources(adapter);
 
@@ -3518,5 +3538,8 @@ MODULE_PNP_INFO("U16:vendor;U16:device", pci, ena, ena_vendor_info_array,
     nitems(ena_vendor_info_array) - 1);
 MODULE_DEPEND(ena, pci, 1, 1, 1);
 MODULE_DEPEND(ena, ether, 1, 1, 1);
+#ifdef DEV_NETMAP
+MODULE_DEPEND(ena, netmap, 1, 1, 1);
+#endif /* DEV_NETMAP */
 
 /*********************************************************************/
