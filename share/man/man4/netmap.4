@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2018
+.Dd October 26, 2019
 .Dt NETMAP 4
 .Os
 .Sh NAME
@@ -1087,14 +1087,14 @@ changing port names, e.g.,
 .Pp
 The following command attaches an interface and the host stack
 to a switch:
-.Dl vale-ctl -h vale2:em0
+.Dl valectl -h vale2:em0
 Other
 .Nm
 clients attached to the same switch can now communicate
 with the network card or the host.
 .Sh SEE ALSO
 .Xr vale 4 ,
-.Xr vale-ctl 4 ,
+.Xr valectl 8 ,
 .Xr bridge 8 ,
 .Xr lb 8 ,
 .Xr nmreplay 8 ,
