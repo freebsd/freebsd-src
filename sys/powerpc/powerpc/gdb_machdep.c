@@ -65,8 +65,10 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 
 	if (regnum == 1)
 		return (&kdb_thrctx->pcb_sp);
-	if (regnum >= 14 && regnum <= 31)
-		return (kdb_thrctx->pcb_context + (regnum - 14));
+	if (regnum == 2 && *regsz == 8)
+		return (&kdb_thrctx->pcb_toc);
+	if (regnum >= 12 && regnum <= 31)
+		return (kdb_thrctx->pcb_context + (regnum - 12));
 	if (regnum == 64)
 		return (&kdb_thrctx->pcb_lr);
 
