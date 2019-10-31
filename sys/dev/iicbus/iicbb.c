@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 
 #ifdef FDT
@@ -68,9 +69,13 @@ __FBSDID("$FreeBSD$");
 #include "iicbus_if.h"
 #include "iicbb_if.h"
 
+/* Based on the SMBus specification. */
+#define	DEFAULT_SCL_LOW_TIMEOUT	(25 * 1000)
+
 struct iicbb_softc {
 	device_t iicbus;
-	int udelay;		/* signal toggle delay in usec */
+	u_int udelay;		/* signal toggle delay in usec */
+	u_int scl_low_timeout;
 };
 
 static int iicbb_attach(device_t);
@@ -86,6 +91,7 @@ static int iicbb_write(device_t, const char *, int, int *, int);
 static int iicbb_read(device_t, char *, int, int *, int, int);
 static int iicbb_reset(device_t, u_char, u_char, u_char *);
 static int iicbb_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs);
+static void iicbb_set_speed(struct iicbb_softc *sc, u_char);
 #ifdef FDT
 static phandle_t iicbb_get_node(device_t, device_t);
 #endif
@@ -142,9 +148,19 @@ iicbb_attach(device_t dev)
 	sc->iicbus = device_add_child(dev, "iicbus", -1);
 	if (!sc->iicbus)
 		return (ENXIO);
-	sc->udelay = 10;		/* 10 uS default */
-	bus_generic_attach(dev);
 
+	sc->scl_low_timeout = DEFAULT_SCL_LOW_TIMEOUT;
+
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "delay", CTLFLAG_RD, &sc->udelay,
+	    0, "Signal change delay controlled by bus frequency, microseconds");
+
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "scl_low_timeout", CTLFLAG_RWTUN, &sc->scl_low_timeout,
+	    0, "SCL low timeout, microseconds");
+	bus_generic_attach(dev);
 	return (0);
 }
 
@@ -201,23 +217,16 @@ iicbb_print_child(device_t bus, device_t dev)
 	return (retval);
 }
 
-#define I2C_SETSDA(sc,dev,val) do {			\
-	IICBB_SETSDA(device_get_parent(dev), val);	\
+#define	I2C_GETSDA(dev)		(IICBB_GETSDA(device_get_parent(dev)))
+#define	I2C_SETSDA(dev, x)	(IICBB_SETSDA(device_get_parent(dev), x))
+#define	I2C_GETSCL(dev)		(IICBB_GETSCL(device_get_parent(dev)))
+#define	I2C_SETSCL(dev, x)	(IICBB_SETSCL(device_get_parent(dev), x))
+
+#define I2C_SET(sc, dev, ctrl, val) do {		\
+	iicbb_setscl(dev, ctrl);			\
+	I2C_SETSDA(dev, val);				\
 	DELAY(sc->udelay);				\
 	} while (0)
-
-#define I2C_SETSCL(dev,val) do {			\
-	iicbb_setscl(dev, val, 100);			\
-	} while (0)
-
-#define I2C_SET(sc,dev,ctrl,data) do {			\
-	I2C_SETSCL(dev, ctrl);				\
-	I2C_SETSDA(sc, dev, data);			\
-	} while (0)
-
-#define I2C_GETSDA(dev) (IICBB_GETSDA(device_get_parent(dev)))
-
-#define I2C_GETSCL(dev) (IICBB_GETSCL(device_get_parent(dev)))
 
 static int i2c_debug = 0;
 #define I2C_DEBUG(x)	do {					\
@@ -229,20 +238,37 @@ static int i2c_debug = 0;
 				} while (0)
 
 static void
-iicbb_setscl(device_t dev, int val, int timeout)
+iicbb_setscl(device_t dev, int val)
 {
 	struct iicbb_softc *sc = device_get_softc(dev);
-	int k = 0;
+	sbintime_t now, end;
+	int fast_timeout;
 
-	IICBB_SETSCL(device_get_parent(dev), val);
+	I2C_SETSCL(dev, val);
 	DELAY(sc->udelay);
 
-	while (val && !I2C_GETSCL(dev) && k++ < timeout) {
-		IICBB_SETSCL(device_get_parent(dev), val);
+	/* Pulling low cannot fail. */
+	if (!val)
+		return;
+
+	/* Use DELAY for up to 1 ms, then switch to pause. */
+	end = sbinuptime() + sc->scl_low_timeout * SBT_1US;
+	fast_timeout = MIN(sc->scl_low_timeout, 1000);
+	while (fast_timeout > 0) {
+		if (I2C_GETSCL(dev))
+			return;
+		I2C_SETSCL(dev, 1);	/* redundant ? */
 		DELAY(sc->udelay);
+		fast_timeout -= sc->udelay;
 	}
 
-	return;
+	while (!I2C_GETSCL(dev)) {
+		now = sbinuptime();
+		if (now >= end)
+			break;
+		pause_sbt("iicbb-scl-low", SBT_1MS, C_PREL(8), 0);
+	}
+
 }
 
 static void
@@ -290,6 +316,11 @@ iicbb_ack(device_t dev, int timeout)
 
 	I2C_SET(sc,dev,0,1);
 	I2C_SET(sc,dev,1,1);
+
+	/* SCL must be high now. */
+	if (!I2C_GETSCL(dev))
+		return (IIC_ETIMEOUT);
+
 	do {
 		noack = I2C_GETSDA(dev);
 		if (!noack)
@@ -301,14 +332,14 @@ iicbb_ack(device_t dev, int timeout)
 	I2C_SET(sc,dev,0,1);
 	I2C_DEBUG(printf("%c ",noack?'-':'+'));
 
-	return (noack);
+	return (noack ? IIC_ENOACK : 0);
 }
 
 static void
 iicbb_sendbyte(device_t dev, u_char data, int timeout)
 {
 	int i;
-    
+
 	for (i=7; i>=0; i--) {
 		if (data&(1<<i)) {
 			iicbb_one(dev, timeout);
@@ -341,7 +372,7 @@ iicbb_readbyte(device_t dev, int last, int timeout)
 		iicbb_zero(dev, timeout);
 	}
 	I2C_DEBUG(printf("r%02x%c ",(int)data,last?'-':'+'));
-	return data;
+	return (data);
 }
 
 static int
@@ -353,6 +384,7 @@ iicbb_callback(device_t dev, int index, caddr_t data)
 static int
 iicbb_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 {
+	iicbb_set_speed(device_get_softc(dev), speed);
 	return (IICBB_RESET(device_get_parent(dev), speed, addr, oldaddr));
 }
 
@@ -365,6 +397,11 @@ iicbb_start(device_t dev, u_char slave, int timeout)
 	I2C_DEBUG(printf("<"));
 
 	I2C_SET(sc,dev,1,1);
+
+	/* SCL must be high now. */
+	if (!I2C_GETSCL(dev))
+		return (IIC_ETIMEOUT);
+
 	I2C_SET(sc,dev,1,0);
 	I2C_SET(sc,dev,0,0);
 
@@ -372,14 +409,10 @@ iicbb_start(device_t dev, u_char slave, int timeout)
 	iicbb_sendbyte(dev, slave, timeout);
 
 	/* check for ack */
-	if (iicbb_ack(dev, timeout)) {
-		error = IIC_ENOACK;
-		goto error;
-	}
+	error = iicbb_ack(dev, timeout);
+	if (error == 0)
+		return (0);
 
-	return(0);
-
-error:
 	iicbb_stop(dev);
 	return (error);
 }
@@ -394,6 +427,10 @@ iicbb_stop(device_t dev)
 	I2C_SET(sc,dev,1,1);
 	I2C_DEBUG(printf(">"));
 	I2C_DEBUG(printf("\n"));
+
+	/* SCL must be high now. */
+	if (!I2C_GETSCL(dev))
+		return (IIC_ETIMEOUT);
 	return (0);
 }
 
@@ -408,15 +445,13 @@ iicbb_write(device_t dev, const char *buf, int len, int *sent, int timeout)
 		iicbb_sendbyte(dev,(u_char)*buf++, timeout);
 
 		/* check for ack */
-		if (iicbb_ack(dev, timeout)) {
-			error = IIC_ENOACK;
-			goto error;
-		}
-		bytes ++;
-		len --;
+		error = iicbb_ack(dev, timeout);
+		if (error != 0)
+			break;
+		bytes++;
+		len--;
 	}
 
-error:
 	*sent = bytes;
 	return (error);
 }
@@ -452,6 +487,24 @@ iicbb_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 
 	IICBB_POST_XFER(device_get_parent(dev));
 	return (error);
+}
+
+static void
+iicbb_set_speed(struct iicbb_softc *sc, u_char speed)
+{
+	u_int busfreq, period;
+
+	/*
+	 * NB: the resulting frequency will be a quarter (even less) of the
+	 * configured bus frequency.  This is for historic reasons.  The default
+	 * bus frequency is 100 kHz.  And the historic default udelay is 10
+	 * microseconds.  The cycle of sending a bit takes four udelay-s plus
+	 * SCL is kept low for extra two udelay-s.  The actual I/O toggling also
+	 * has an overhead.
+	 */
+	busfreq = IICBUS_GET_FREQUENCY(sc->iicbus, speed);
+	period = 1000000 / busfreq;	/* Hz -> uS */
+	sc->udelay = MAX(period, 1);
 }
 
 DRIVER_MODULE(iicbus, iicbb, iicbus_driver, iicbus_devclass, 0, 0);
