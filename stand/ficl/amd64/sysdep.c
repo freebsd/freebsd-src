@@ -17,6 +17,8 @@
 #endif
 #include "ficl.h"
 
+#include "../x86/sysdep.c"
+
 /*
 *******************  FreeBSD  P O R T   B E G I N S   H E R E ******************** Michael Smith
 */

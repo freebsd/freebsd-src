@@ -435,6 +435,8 @@ void *Reallocf(void *, size_t, const char *, int);
 void Free(void *, const char *, int);
 extern void	mallocstats(void);
 
+const char *x86_hypervisor(void);
+
 #ifdef DEBUG_MALLOC
 #define malloc(x)	Malloc(x, __FILE__, __LINE__)
 #define memalign(x, y)	Memalign(x, y, __FILE__, __LINE__)
