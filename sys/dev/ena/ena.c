@@ -1087,7 +1087,7 @@ ena_refill_rx_bufs(struct ena_ring *rx_ring, uint32_t num)
 		req_id = rx_ring->free_rx_ids[next_to_use];
 		rx_info = &rx_ring->rx_buffer_info[req_id];
 #ifdef DEV_NETMAP
-		if (adapter->ifp->if_capenable & IFCAP_NETMAP)
+		if (ena_rx_ring_in_netmap(adapter, rx_ring->qid))
 			rc = ena_netmap_alloc_rx_slot(adapter, rx_ring, rx_info);
 		else
 #endif /* DEV_NETMAP */
