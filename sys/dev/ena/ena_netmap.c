@@ -58,6 +58,23 @@ static int ena_netmap_txsync(struct netmap_kring *, int);
 static int ena_netmap_rxsync(struct netmap_kring *, int);
 
 /* Helper functions */
+static int	ena_netmap_tx_frames(struct ena_netmap_ctx *);
+static int	ena_netmap_tx_frame(struct ena_netmap_ctx *);
+static inline uint16_t ena_netmap_count_slots(struct ena_netmap_ctx *);
+static inline uint16_t ena_netmap_packet_len(struct netmap_slot *, u_int,
+    uint16_t);
+static int	ena_netmap_copy_data(struct netmap_adapter *,
+    struct netmap_slot *, u_int, uint16_t, uint16_t, void *);
+static int	ena_netmap_map_single_slot(struct netmap_adapter *,
+    struct netmap_slot *, bus_dma_tag_t, bus_dmamap_t, void **, uint64_t *);
+static int	ena_netmap_tx_map_slots(struct ena_netmap_ctx *,
+    struct ena_tx_buffer *, void **, uint16_t *, uint16_t *);
+static void	ena_netmap_unmap_last_socket_chain(struct ena_netmap_ctx *,
+    struct ena_tx_buffer *);
+static void	ena_netmap_tx_cleanup(struct ena_netmap_ctx *);
+static uint16_t	ena_netmap_tx_clean_one(struct ena_netmap_ctx *,
+    uint16_t);
+static inline int validate_tx_req_id(struct ena_ring *, uint16_t);
 static int ena_netmap_rx_frames(struct ena_netmap_ctx *);
 static int ena_netmap_rx_frame(struct ena_netmap_ctx *);
 static int ena_netmap_rx_load_desc(struct ena_netmap_ctx *, uint16_t,
@@ -206,6 +223,13 @@ ena_netmap_reset_rx_ring(struct ena_adapter *adapter, int qid)
 		netmap_reset(NA(adapter->ifp), NR_RX, qid, 0);
 }
 
+void
+ena_netmap_reset_tx_ring(struct ena_adapter *adapter, int qid)
+{
+	if (adapter->ifp->if_capenable & IFCAP_NETMAP)
+		netmap_reset(NA(adapter->ifp), NR_TX, qid, 0);
+}
+
 static int
 ena_netmap_reg(struct netmap_adapter *na, int onoff)
 {
@@ -242,8 +266,575 @@ ena_netmap_reg(struct netmap_adapter *na, int onoff)
 static int
 ena_netmap_txsync(struct netmap_kring *kring, int flags)
 {
-	ena_trace(ENA_NETMAP, "netmap txsync\n");
+	struct ena_netmap_ctx ctx;
+	int rc = 0;
+
+	ena_netmap_fill_ctx(kring, &ctx, ENA_IO_TXQ_IDX(kring->ring_id));
+	ctx.ring = &ctx.adapter->tx_ring[kring->ring_id];
+
+	ENA_RING_MTX_LOCK(ctx.ring);
+	if (unlikely(!ENA_FLAG_ISSET(ENA_FLAG_DEV_UP, ctx.adapter)))
+		goto txsync_end;
+
+	if (unlikely(!ENA_FLAG_ISSET(ENA_FLAG_LINK_UP, ctx.adapter)))
+		goto txsync_end;
+
+	rc = ena_netmap_tx_frames(&ctx);
+	ena_netmap_tx_cleanup(&ctx);
+
+txsync_end:
+	ENA_RING_MTX_UNLOCK(ctx.ring);
+	return (rc);
+}
+
+static int
+ena_netmap_tx_frames(struct ena_netmap_ctx *ctx)
+{
+	struct ena_ring *tx_ring = ctx->ring;
+	int rc = 0;
+
+	ctx->nm_i = ctx->kring->nr_hwcur;
+	ctx->nt = ctx->ring->next_to_use;
+
+	__builtin_prefetch(&ctx->slots[ctx->nm_i]);
+
+	while (ctx->nm_i != ctx->kring->rhead) {
+		if ((rc = ena_netmap_tx_frame(ctx)) != 0) {
+			/*
+			* When there is no empty space in Tx ring, error is
+			* still being returned. It should not be passed to the
+			* netmap, as application knows current ring state from
+			* netmap ring pointers. Returning error there could
+			* cause application to exit, but the Tx ring is commonly
+			* being full.
+			*/
+			if (rc == ENA_COM_NO_MEM)
+				rc = 0;
+			break;
+		}
+		tx_ring->acum_pkts++;
+	}
+
+	/* If any packet was sent... */
+	if (likely(ctx->nm_i != ctx->kring->nr_hwcur)) {
+		wmb();
+		/* ...send the doorbell to the device. */
+		ena_com_write_sq_doorbell(ctx->io_sq);
+		counter_u64_add(ctx->ring->tx_stats.doorbells, 1);
+		tx_ring->acum_pkts = 0;
+
+		ctx->ring->next_to_use = ctx->nt;
+		ctx->kring->nr_hwcur = ctx->nm_i;
+	}
+
+	return (rc);
+}
+
+static int
+ena_netmap_tx_frame(struct ena_netmap_ctx *ctx)
+{
+	struct ena_com_tx_ctx ena_tx_ctx;
+	struct ena_adapter *adapter;
+	struct ena_ring *tx_ring;
+	struct ena_tx_buffer *tx_info;
+	uint16_t req_id;
+	uint16_t header_len;
+	uint16_t packet_len;
+	int nb_hw_desc;
+	int rc;
+	void *push_hdr;
+
+	adapter = ctx->adapter;
+	if (ena_netmap_count_slots(ctx) > adapter->max_tx_sgl_size) {
+		ena_trace(ENA_WARNING, "Too many slots per packet\n");
+		return (EINVAL);
+	}
+
+	tx_ring = ctx->ring;
+
+	req_id = tx_ring->free_tx_ids[ctx->nt];
+	tx_info = &tx_ring->tx_buffer_info[req_id];
+	tx_info->num_of_bufs = 0;
+	tx_info->nm_info.sockets_used = 0;
+
+	rc = ena_netmap_tx_map_slots(ctx, tx_info, &push_hdr, &header_len,
+	    &packet_len);
+	if (unlikely(rc != 0)) {
+		device_printf(adapter->pdev, "Failed to map Tx slot\n");
+		return (rc);
+	}
+
+	bzero(&ena_tx_ctx, sizeof(struct ena_com_tx_ctx));
+	ena_tx_ctx.ena_bufs = tx_info->bufs;
+	ena_tx_ctx.push_header = push_hdr;
+	ena_tx_ctx.num_bufs = tx_info->num_of_bufs;
+	ena_tx_ctx.req_id = req_id;
+	ena_tx_ctx.header_len = header_len;
+
+	/* There are no any offloads, as the netmap doesn't support them */
+
+	if (tx_ring->acum_pkts == DB_THRESHOLD ||
+	    ena_com_is_doorbell_needed(ctx->io_sq, &ena_tx_ctx)) {
+		wmb();
+		ena_com_write_sq_doorbell(ctx->io_sq);
+		counter_u64_add(tx_ring->tx_stats.doorbells, 1);
+		tx_ring->acum_pkts = 0;
+	}
+
+	rc = ena_com_prepare_tx(ctx->io_sq, &ena_tx_ctx, &nb_hw_desc);
+	if (unlikely(rc != 0)) {
+		if (likely(rc == ENA_COM_NO_MEM)) {
+			ena_trace(ENA_NETMAP | ENA_DBG | ENA_TXPTH,
+			    "Tx ring[%d] is out of space\n", tx_ring->que->id);
+		} else {
+			device_printf(adapter->pdev,
+			    "Failed to prepare Tx bufs\n");
+		}
+		counter_u64_add(tx_ring->tx_stats.prepare_ctx_err, 1);
+
+		ena_netmap_unmap_last_socket_chain(ctx, tx_info);
+		return (rc);
+	}
+
+	counter_enter();
+	counter_u64_add_protected(tx_ring->tx_stats.cnt, 1);
+	counter_u64_add_protected(tx_ring->tx_stats.bytes, packet_len);
+	counter_u64_add_protected(adapter->hw_stats.tx_packets, 1);
+	counter_u64_add_protected(adapter->hw_stats.tx_bytes, packet_len);
+	counter_exit();
+
+	tx_info->tx_descs = nb_hw_desc;
+
+	ctx->nt = ENA_TX_RING_IDX_NEXT(ctx->nt, ctx->ring->ring_size);
+
+	for (unsigned int i = 0; i < tx_info->num_of_bufs; i++)
+		bus_dmamap_sync(adapter->tx_buf_tag,
+		   tx_info->nm_info.map_seg[i], BUS_DMASYNC_PREWRITE);
+
 	return (0);
+}
+
+static inline uint16_t
+ena_netmap_count_slots(struct ena_netmap_ctx *ctx)
+{
+	uint16_t slots = 1;
+	uint16_t nm = ctx->nm_i;
+
+	while ((ctx->slots[nm].flags & NS_MOREFRAG) != 0) {
+		slots++;
+		nm = nm_next(nm, ctx->lim);
+	}
+
+	return slots;
+}
+
+static inline uint16_t
+ena_netmap_packet_len(struct netmap_slot *slots, u_int slot_index,
+    uint16_t limit)
+{
+	struct netmap_slot *nm_slot;
+	uint16_t packet_size = 0;
+
+	do {
+		nm_slot = &slots[slot_index];
+		packet_size += nm_slot->len;
+		slot_index = nm_next(slot_index, limit);
+	} while ((nm_slot->flags & NS_MOREFRAG) != 0);
+
+	return packet_size;
+}
+
+static int
+ena_netmap_copy_data(struct netmap_adapter *na, struct netmap_slot *slots,
+    u_int slot_index, uint16_t limit, uint16_t bytes_to_copy, void *destination)
+{
+	struct netmap_slot *nm_slot;
+	void *slot_vaddr;
+	uint16_t packet_size;
+	uint16_t data_amount;
+
+	packet_size = 0;
+	do {
+		nm_slot = &slots[slot_index];
+		slot_vaddr = NMB(na, nm_slot);
+		if (unlikely(slot_vaddr == NULL))
+			return (EINVAL);
+
+		data_amount = min_t(uint16_t, bytes_to_copy, nm_slot->len);
+		memcpy(destination, slot_vaddr, data_amount);
+		bytes_to_copy -= data_amount;
+
+		slot_index = nm_next(slot_index, limit);
+	} while ((nm_slot->flags & NS_MOREFRAG) != 0 && bytes_to_copy > 0);
+
+	return (0);
+}
+
+static int
+ena_netmap_map_single_slot(struct netmap_adapter *na, struct netmap_slot *slot,
+    bus_dma_tag_t dmatag, bus_dmamap_t dmamap, void **vaddr, uint64_t *paddr)
+{
+	int rc;
+
+	*vaddr = PNMB(na, slot, paddr);
+	if (unlikely(vaddr == NULL)) {
+		ena_trace(ENA_ALERT, "Slot address is NULL\n");
+		return (EINVAL);
+	}
+
+	rc = netmap_load_map(na, dmatag, dmamap, *vaddr);
+	if (unlikely(rc != 0)) {
+		ena_trace(ENA_ALERT, "Failed to map slot %d for DMA\n",
+		    slot->buf_idx);
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+static int
+ena_netmap_tx_map_slots(struct ena_netmap_ctx *ctx,
+    struct ena_tx_buffer *tx_info, void **push_hdr, uint16_t *header_len,
+    uint16_t *packet_len)
+{
+	struct netmap_slot *slot;
+	struct ena_com_buf *ena_buf;
+	struct ena_adapter *adapter;
+	struct ena_ring *tx_ring;
+	struct ena_netmap_tx_info *nm_info;
+	bus_dmamap_t *nm_maps;
+	void *vaddr;
+	uint64_t paddr;
+	uint32_t *nm_buf_idx;
+	uint32_t slot_head_len;
+	uint32_t frag_len;
+	uint32_t remaining_len;
+	uint16_t push_len;
+	uint16_t delta;
+	int rc;
+
+	adapter = ctx->adapter;
+	tx_ring = ctx->ring;
+	ena_buf = tx_info->bufs;
+	nm_info = &tx_info->nm_info;
+	nm_maps = nm_info->map_seg;
+	nm_buf_idx = nm_info->socket_buf_idx;
+	slot = &ctx->slots[ctx->nm_i];
+
+	slot_head_len = slot->len;
+	*packet_len = ena_netmap_packet_len(ctx->slots, ctx->nm_i, ctx->lim);
+	remaining_len = *packet_len;
+	delta = 0;
+
+	__builtin_prefetch(&ctx->slots[ctx->nm_i + 1]);
+	if (tx_ring->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
+		/*
+		 * When the device is in LLQ mode, the driver will copy
+		 * the header into the device memory space.
+		 * The ena_com layer assumes that the header is in a linear
+		 * memory space.
+		 * This assumption might be wrong since part of the header
+		 * can be in the fragmented buffers.
+		 * First, check if header fits in the first slot. If not, copy
+		 * it to separate buffer that will be holding linearized data.
+		 */
+		push_len = min_t(uint32_t, *packet_len,
+		    tx_ring->tx_max_header_size);
+		*header_len = push_len;
+		/* If header is in linear space, just point to socket's data. */
+		if (likely(push_len <= slot_head_len)) {
+			*push_hdr = NMB(ctx->na, slot);
+			if (unlikely(push_hdr == NULL)) {
+				device_printf(adapter->pdev,
+				    "Slot vaddress is NULL\n");
+				return (EINVAL);
+			}
+		/*
+		 * Otherwise, copy whole portion of header from multiple slots
+		 * to intermediate buffer.
+		 */
+		} else {
+			rc = ena_netmap_copy_data(ctx->na,
+			    ctx->slots,
+			    ctx->nm_i,
+			    ctx->lim,
+			    push_len,
+			    tx_ring->push_buf_intermediate_buf);
+			if (unlikely(rc)) {
+				device_printf(adapter->pdev,
+				    "Failed to copy data from slots to push_buf\n");
+				return (EINVAL);
+			}
+
+			*push_hdr = tx_ring->push_buf_intermediate_buf;
+			counter_u64_add(tx_ring->tx_stats.llq_buffer_copy, 1);
+
+			delta = push_len - slot_head_len;
+		}
+
+		ena_trace(ENA_NETMAP | ENA_DBG | ENA_TXPTH,
+		    "slot: %d header_buf->vaddr: %p push_len: %d\n",
+		    slot->buf_idx, *push_hdr, push_len);
+
+		/*
+		* If header was in linear memory space, map for the dma rest of the data
+		* in the first mbuf of the mbuf chain.
+		*/
+		if (slot_head_len > push_len) {
+			rc = ena_netmap_map_single_slot(ctx->na,
+			    slot,
+			    adapter->tx_buf_tag,
+			    *nm_maps,
+			    &vaddr,
+			    &paddr);
+			if (unlikely(rc != 0)) {
+				device_printf(adapter->pdev,
+				    "DMA mapping error\n");
+				return (rc);
+			}
+			nm_maps++;
+
+			ena_buf->paddr = paddr + push_len;
+			ena_buf->len = slot->len - push_len;
+			ena_buf++;
+
+			tx_info->num_of_bufs++;
+		}
+
+		remaining_len -= slot->len;
+
+		/* Save buf idx before advancing */
+		*nm_buf_idx = slot->buf_idx;
+		nm_buf_idx++;
+		slot->buf_idx = 0;
+
+		/* Advance to the next socket */
+		ctx->nm_i = nm_next(ctx->nm_i, ctx->lim);
+		slot = &ctx->slots[ctx->nm_i];
+		nm_info->sockets_used++;
+
+		/*
+		 * If header is in non linear space (delta > 0), then skip mbufs
+		 * containing header and map the last one containing both header
+		 * and the packet data.
+		 * The first segment is already counted in.
+		 */
+		while (delta > 0) {
+			__builtin_prefetch(&ctx->slots[ctx->nm_i + 1]);
+			frag_len = slot->len;
+
+			/*
+			 * If whole segment contains header just move to the
+			 * next one and reduce delta.
+			 */
+			if (unlikely(delta >= frag_len)) {
+				delta -= frag_len;
+			} else {
+				/*
+				 * Map the data and then assign it with the
+				 * offsets
+				 */
+				rc = ena_netmap_map_single_slot(ctx->na,
+				    slot,
+				    adapter->tx_buf_tag,
+				    *nm_maps,
+				    &vaddr,
+				    &paddr);
+				if (unlikely(rc != 0)) {
+					device_printf(adapter->pdev,
+					    "DMA mapping error\n");
+					goto error_map;
+				}
+				nm_maps++;
+
+				ena_buf->paddr = paddr + delta;
+				ena_buf->len = slot->len - delta;
+				ena_buf++;
+
+				tx_info->num_of_bufs++;
+				delta = 0;
+			}
+
+			remaining_len -= slot->len;
+
+			/* Save buf idx before advancing */
+			*nm_buf_idx = slot->buf_idx;
+			nm_buf_idx++;
+			slot->buf_idx = 0;
+
+			/* Advance to the next socket */
+			ctx->nm_i = nm_next(ctx->nm_i, ctx->lim);
+			slot = &ctx->slots[ctx->nm_i];
+			nm_info->sockets_used++;
+		}
+	} else {
+		*push_hdr = NULL;
+		/*
+		* header_len is just a hint for the device. Because netmap is
+		* not giving us any information about packet header length and
+		* it is not guaranteed that all packet headers will be in the
+		* 1st slot, setting header_len to 0 is making the device ignore
+		* this value and resolve header on it's own.
+		*/
+		*header_len = 0;
+	}
+
+	/* Map all remaining data (regular routine for non-LLQ mode) */
+	while (remaining_len > 0) {
+		__builtin_prefetch(&ctx->slots[ctx->nm_i + 1]);
+
+		rc = ena_netmap_map_single_slot(ctx->na,
+			    slot,
+			    adapter->tx_buf_tag,
+			    *nm_maps,
+			    &vaddr,
+			    &paddr);
+		if (unlikely(rc != 0)) {
+			device_printf(adapter->pdev,
+			    "DMA mapping error\n");
+			goto error_map;
+		}
+		nm_maps++;
+
+		ena_buf->paddr = paddr;
+		ena_buf->len = slot->len;
+		ena_buf++;
+
+		tx_info->num_of_bufs++;
+
+		remaining_len -= slot->len;
+
+		/* Save buf idx before advancing */
+		*nm_buf_idx = slot->buf_idx;
+		nm_buf_idx++;
+		slot->buf_idx = 0;
+
+		/* Advance to the next socket */
+		ctx->nm_i = nm_next(ctx->nm_i, ctx->lim);
+		slot = &ctx->slots[ctx->nm_i];
+		nm_info->sockets_used++;
+	}
+
+	return (0);
+
+error_map:
+	ena_netmap_unmap_last_socket_chain(ctx, tx_info);
+
+	return (rc);
+}
+
+static void
+ena_netmap_unmap_last_socket_chain(struct ena_netmap_ctx *ctx,
+    struct ena_tx_buffer *tx_info)
+{
+	struct ena_netmap_tx_info *nm_info;
+	int n;
+
+	nm_info = &tx_info->nm_info;
+
+	/**
+	 * As the used sockets must not be equal to the buffers used in the LLQ
+	 * mode, they must be treated separately.
+	 * First, unmap the DMA maps.
+	 */
+	n = tx_info->num_of_bufs;
+	while (n--) {
+		netmap_unload_map(ctx->na, ctx->adapter->tx_buf_tag,
+		    nm_info->map_seg[n]);
+	}
+	tx_info->num_of_bufs = 0;
+
+	/* Next, retain the sockets back to the userspace */
+	n = nm_info->sockets_used;
+	while (n--) {
+		ctx->slots[ctx->nm_i].buf_idx = nm_info->socket_buf_idx[n];
+		ctx->slots[ctx->nm_i].flags = NS_BUF_CHANGED;
+		nm_info->socket_buf_idx[n] = 0;
+		ctx->nm_i = nm_prev(ctx->nm_i, ctx->lim);
+	}
+	nm_info->sockets_used = 0;
+}
+
+static void
+ena_netmap_tx_cleanup(struct ena_netmap_ctx *ctx)
+{
+	uint16_t req_id;
+	uint16_t total_tx_descs = 0;
+
+	ctx->nm_i = ctx->kring->nr_hwtail;
+	ctx->nt = ctx->ring->next_to_clean;
+
+	/* Reclaim buffers for completed transmissions */
+	while (ena_com_tx_comp_req_id_get(ctx->io_cq, &req_id) >= 0) {
+		if (validate_tx_req_id(ctx->ring, req_id) != 0)
+			break;
+		total_tx_descs += ena_netmap_tx_clean_one(ctx, req_id);
+	}
+
+	ctx->kring->nr_hwtail = ctx->nm_i;
+
+	if (total_tx_descs > 0) {
+		/* acknowledge completion of sent packets */
+		ctx->ring->next_to_clean = ctx->nt;
+		ena_com_comp_ack(ctx->ring->ena_com_io_sq, total_tx_descs);
+		ena_com_update_dev_comp_head(ctx->ring->ena_com_io_cq);
+	}
+}
+
+static uint16_t
+ena_netmap_tx_clean_one(struct ena_netmap_ctx *ctx, uint16_t req_id)
+{
+	struct ena_tx_buffer *tx_info;
+	struct ena_netmap_tx_info *nm_info;
+	int n;
+
+	tx_info = &ctx->ring->tx_buffer_info[req_id];
+	nm_info = &tx_info->nm_info;
+
+	/**
+	 * As the used sockets must not be equal to the buffers used in the LLQ
+	 * mode, they must be treated separately.
+	 * First, unmap the DMA maps.
+	 */
+	n = tx_info->num_of_bufs;
+	for (n = 0; n < tx_info->num_of_bufs; n++) {
+		netmap_unload_map(ctx->na, ctx->adapter->tx_buf_tag,
+		    nm_info->map_seg[n]);
+	}
+	tx_info->num_of_bufs = 0;
+
+	/* Next, retain the sockets back to the userspace */
+	for (n = 0; n < nm_info->sockets_used; n++) {
+		ctx->nm_i = nm_next(ctx->nm_i, ctx->lim);
+		ENA_ASSERT(ctx->slots[ctx->nm_i].buf_idx == 0,
+		    "Tx idx is not 0.\n");
+		ctx->slots[ctx->nm_i].buf_idx = nm_info->socket_buf_idx[n];
+		ctx->slots[ctx->nm_i].flags = NS_BUF_CHANGED;
+		nm_info->socket_buf_idx[n] = 0;
+	}
+	nm_info->sockets_used = 0;
+
+	ctx->ring->free_tx_ids[ctx->nt] = req_id;
+	ctx->nt = ENA_TX_RING_IDX_NEXT(ctx->nt, ctx->lim);
+
+	return tx_info->tx_descs;
+}
+
+static inline int
+validate_tx_req_id(struct ena_ring *tx_ring, uint16_t req_id)
+{
+	struct ena_adapter *adapter = tx_ring->adapter;
+
+	if (likely(req_id < tx_ring->ring_size))
+		return (0);
+
+	ena_trace(ENA_WARNING, "Invalid req_id: %hu\n", req_id);
+	counter_u64_add(tx_ring->tx_stats.bad_req_id, 1);
+
+	adapter->reset_reason = ENA_REGS_RESET_INV_TX_REQ_ID;
+	ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
+
+	return (EFAULT);
 }
 
 static int
@@ -435,6 +1026,14 @@ ena_netmap_fill_ctx(struct netmap_kring *kring, struct ena_netmap_ctx *ctx,
 	ctx->io_cq = &ctx->adapter->ena_dev->io_cq_queues[ena_qid];
 	ctx->io_sq = &ctx->adapter->ena_dev->io_sq_queues[ena_qid];
 	ctx->slots = kring->ring->slot;
+}
+
+void
+ena_netmap_unload(struct ena_adapter *adapter, bus_dmamap_t map)
+{
+	struct netmap_adapter *na = NA(adapter->ifp);
+
+	netmap_unload_map(na, adapter->tx_buf_tag, map);
 }
 
 #endif /* DEV_NETMAP */
