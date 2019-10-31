@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 .include <bsd.init.mk>
-# .include <bsd.compat.mk>
 .include <bsd.compiler.mk>
 .include <bsd.linker.mk>
 
