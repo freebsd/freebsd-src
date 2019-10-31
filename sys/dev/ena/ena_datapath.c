@@ -32,6 +32,9 @@ __FBSDID("$FreeBSD$");
 
 #include "ena.h"
 #include "ena_datapath.h"
+#ifdef DEV_NETMAP
+#include "ena_netmap.h"
+#endif /* DEV_NETMAP */
 
 /*********************************************************************
  *  Static functions prototypes
@@ -40,7 +43,6 @@ __FBSDID("$FreeBSD$");
 static int	ena_tx_cleanup(struct ena_ring *);
 static int	ena_rx_cleanup(struct ena_ring *);
 static inline int validate_tx_req_id(struct ena_ring *, uint16_t);
-static inline int validate_rx_req_id(struct ena_ring *, uint16_t);
 static void	ena_rx_hash_mbuf(struct ena_ring *, struct ena_com_rx_ctx *,
     struct mbuf *);
 static struct mbuf* ena_rx_mbuf(struct ena_ring *, struct ena_com_rx_buf_info *,
@@ -202,25 +204,6 @@ validate_tx_req_id(struct ena_ring *tx_ring, uint16_t req_id)
 	/* Trigger device reset */
 	adapter->reset_reason = ENA_REGS_RESET_INV_TX_REQ_ID;
 	ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
-
-	return (EFAULT);
-}
-
-static inline int
-validate_rx_req_id(struct ena_ring *rx_ring, uint16_t req_id)
-{
-	if (likely(req_id < rx_ring->ring_size))
-		return (0);
-
-	device_printf(rx_ring->adapter->pdev, "Invalid rx req_id: %hu\n",
-	    req_id);
-	counter_u64_add(rx_ring->rx_stats.bad_req_id, 1);
-
-	/* Trigger device reset */
-	if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, rx_ring->adapter))) {
-		rx_ring->adapter->reset_reason = ENA_REGS_RESET_INV_RX_REQ_ID;
-		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, rx_ring->adapter);
-	}
 
 	return (EFAULT);
 }
@@ -577,6 +560,9 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 	unsigned int qid;
 	int rc, i;
 	int budget = RX_BUDGET;
+#ifdef DEV_NETMAP
+	int done;
+#endif /* DEV_NETMAP */
 
 	adapter = rx_ring->que->adapter;
 	ifp = adapter->ifp;
@@ -585,6 +571,11 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 	io_cq = &adapter->ena_dev->io_cq_queues[ena_qid];
 	io_sq = &adapter->ena_dev->io_sq_queues[ena_qid];
 	next_to_clean = rx_ring->next_to_clean;
+
+#ifdef DEV_NETMAP
+	if (netmap_rx_irq(adapter->ifp, rx_ring->qid, &done) != NM_IRQ_PASS)
+		return (0);
+#endif /* DEV_NETMAP */
 
 	ena_trace(ENA_DBG, "rx: qid %d\n", qid);
 
