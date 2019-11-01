@@ -247,7 +247,17 @@ ksprintn(char *nbuf, uintmax_t num, int base, int *lenp, int upper)
 static int
 kvprintf(char const *fmt, kvprintf_fn_t *func, void *arg, int radix, va_list ap)
 {
-#define PCHAR(c) {int cc=(c); if (func) (*func)(cc, arg); else *d++ = cc; retval++; }
+#define PCHAR(c) { \
+	int cc = (c);				\
+						\
+	if (func) {				\
+		(*func)(cc, arg);		\
+	} else if (d != NULL) {			\
+		*d++ = cc;			\
+	}					\
+	retval++;				\
+	}
+
 	char nbuf[MAXNBUF];
 	char *d;
 	const char *p, *percent, *q;
