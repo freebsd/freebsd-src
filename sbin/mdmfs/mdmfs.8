@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 9, 2017
+.Dd October 31, 2019
 .Dt MDMFS 8
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@ filesystem
 .Op Fl F Ar file
 .Op Fl f Ar frag-size
 .Op Fl i Ar bytes
+.Op Fl k Ar skel
 .Op Fl m Ar percent-free
 .Op Fl O Ar optimization
 .Op Fl o Ar mount-options
@@ -193,6 +194,11 @@ memory disk backed by
 The fragment size of the file system in bytes.
 .It Fl i Ar bytes
 Number of bytes per inode.
+.It Fl k Ar skel
+Copy the content of directory
+.Ar skel
+into
+.Ar mount-point .
 .It Fl l
 Enable multilabel MAC on the new file system.
 .It Fl L

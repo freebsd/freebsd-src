@@ -88,6 +88,7 @@ static void	 do_mount_md(const char *, const char *);
 static void	 do_mount_tmpfs(const char *, const char *);
 static void	 do_mtptsetup(const char *, struct mtpt_info *);
 static void	 do_newfs(const char *);
+static void	 do_copy(const char *, const char *);
 static void	 extract_ugid(const char *, struct mtpt_info *);
 static int	 run(int *, const char *, ...) __printflike(2, 3);
 static const char *run_exitstr(int);
@@ -104,7 +105,7 @@ main(int argc, char **argv)
 	enum md_types mdtype;		/* The type of our memory disk. */
 	bool have_mdtype, mlmac;
 	bool detach, softdep, autounit, newfs;
-	const char *mtpoint, *size_arg, *unitstr;
+	const char *mtpoint, *size_arg, *skel, *unitstr;
 	char *p;
 	int ch, idx;
 	void *set;
@@ -118,6 +119,7 @@ main(int argc, char **argv)
 	mlmac = false;
 	newfs = true;
 	have_mdtype = false;
+	skel = NULL;
 	mdtype = MD_SWAP;
 	mdname = MD_NAME;
 	mdnamelen = strlen(mdname);
@@ -142,7 +144,7 @@ main(int argc, char **argv)
 	}
 
 	while ((ch = getopt(argc, argv,
-	    "a:b:Cc:Dd:E:e:F:f:hi:LlMm:NnO:o:Pp:Ss:tT:Uv:w:X")) != -1)
+	    "a:b:Cc:Dd:E:e:F:f:hi:k:LlMm:NnO:o:Pp:Ss:tT:Uv:w:X")) != -1)
 		switch (ch) {
 		case 'a':
 			argappend(&newfs_arg, "-a %s", optarg);
@@ -183,6 +185,9 @@ main(int argc, char **argv)
 			break;
 		case 'i':
 			argappend(&newfs_arg, "-i %s", optarg);
+			break;
+		case 'k':
+			skel = optarg;
 			break;
 		case 'L':
 			loudsubs = true;
@@ -359,6 +364,8 @@ main(int argc, char **argv)
 	}
 
 	do_mtptsetup(mtpoint, &mi);
+	if (skel != NULL)
+		do_copy(mtpoint, skel);
 
 	return (0);
 }
@@ -615,6 +622,23 @@ do_newfs(const char *args)
 		    run_exitnumber(rv));
 }
 
+
+/*
+ * Copy skel into the mountpoint.
+ */
+static void
+do_copy(const char *mtpoint, const char *skel)
+{
+	int rv;
+
+	rv = chdir(skel);
+	if (rv != 0)
+		err(1, "chdir to %s", skel);
+	rv = run(NULL, "/bin/pax -rw -pe . %s", mtpoint);
+	if (rv != 0)
+		errx(1, "skel copy failed");
+}
+
 /*
  * 'str' should be a user and group name similar to the last argument
  * to chown(1); i.e., a user, followed by a colon, followed by a
@@ -822,8 +846,8 @@ usage(void)
 	fprintf(stderr,
 "usage: %s [-DLlMNnPStUX] [-a maxcontig] [-b block-size]\n"
 "\t[-c blocks-per-cylinder-group][-d max-extent-size] [-E path-mdconfig]\n"
-"\t[-e maxbpg] [-F file] [-f frag-size] [-i bytes] [-m percent-free]\n"
-"\t[-O optimization] [-o mount-options]\n"
+"\t[-e maxbpg] [-F file] [-f frag-size] [-i bytes] [-k skel]\n"
+"\t[-m percent-free] [-O optimization] [-o mount-options]\n"
 "\t[-p permissions] [-s size] [-v version] [-w user:group]\n"
 "\tmd-device mount-point\n", getprogname());
 	exit(1);
