@@ -1881,7 +1881,7 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 }
 
 #ifdef SMP
- void
+void
 tlb1_ap_prep(void)
 {
 	tlb_entry_t *e, tmp;
@@ -3776,14 +3776,34 @@ struct tlbwrite_args {
 	unsigned int idx;
 };
 
+static uint32_t
+tlb1_find_free(void)
+{
+	tlb_entry_t e;
+	int i;
+
+	for (i = 0; i < TLB1_ENTRIES; i++) {
+		tlb1_read_entry(&e, i);
+		if ((e.mas1 & MAS1_VALID) == 0)
+			return (i);
+	}
+	return (-1);
+}
+
 static void
 tlb1_write_entry_int(void *arg)
 {
 	struct tlbwrite_args *args = arg;
-	uint32_t mas0;
+	uint32_t idx, mas0;
 
+	idx = args->idx;
+	if (idx == -1) {
+		idx = tlb1_find_free();
+		if (idx == -1)
+			panic("No free TLB1 entries!\n");
+	}
 	/* Select entry */
-	mas0 = MAS0_TLBSEL(1) | MAS0_ESEL(args->idx);
+	mas0 = MAS0_TLBSEL(1) | MAS0_ESEL(idx);
 
 	mtspr(SPR_MAS0, mas0);
 	mtspr(SPR_MAS1, args->e->mas1);
@@ -3897,20 +3917,15 @@ tlb1_set_entry(vm_offset_t va, vm_paddr_t pa, vm_size_t size,
 	uint32_t ts, tid;
 	int tsize, index;
 
+	/* First try to update an existing entry. */
 	for (index = 0; index < TLB1_ENTRIES; index++) {
 		tlb1_read_entry(&e, index);
-		if ((e.mas1 & MAS1_VALID) == 0)
-			break;
 		/* Check if we're just updating the flags, and update them. */
 		if (e.phys == pa && e.virt == va && e.size == size) {
 			e.mas2 = (va & MAS2_EPN_MASK) | flags;
 			tlb1_write_entry(&e, index);
 			return (0);
 		}
-	}
-	if (index >= TLB1_ENTRIES) {
-		printf("tlb1_set_entry: TLB1 full!\n");
-		return (-1);
 	}
 
 	/* Convert size to TSIZE */
@@ -3931,13 +3946,8 @@ tlb1_set_entry(vm_offset_t va, vm_paddr_t pa, vm_size_t size,
 	e.mas3 = (pa & MAS3_RPN) | MAS3_SR | MAS3_SW | MAS3_SX;
 	e.mas7 = (pa >> 32) & MAS7_RPN;
 
-	tlb1_write_entry(&e, index);
+	tlb1_write_entry(&e, -1);
 
-	/*
-	 * XXX in general TLB1 updates should be propagated between CPUs,
-	 * since current design assumes to have the same TLB1 set-up on all
-	 * cores.
-	 */
 	return (0);
 }
 
