@@ -487,6 +487,12 @@ ppcfbsd_pc_in_sigtramp (CORE_ADDR pc, char *func_name)
   return (pc >= 0x7fffef00U) ? 1 : 0;
 }
 
+static int
+ppc64_fbsd_pc_in_sigtramp (CORE_ADDR pc, char *func_name)
+{
+  return (pc >= 0x3fffffffffffe000U && pc <= 0x3fffffffffffefffU) ? 1 : 0;
+}
+
 /* NetBSD is confused.  It appears that 1.5 was using the correct SVr4
    convention but, 1.6 switched to the below broken convention.  For
    the moment use the broken convention.  Ulgh!.  */
@@ -518,10 +524,9 @@ ppcfbsd_init_abi (struct gdbarch_info info,
   /* FreeBSD doesn't support the 128-bit `long double' from the psABI. */
   set_gdbarch_long_double_bit (gdbarch, 64);
 
-  set_gdbarch_pc_in_sigtramp (gdbarch, ppcfbsd_pc_in_sigtramp);
-
   if (tdep->wordsize == 4)
     {
+      set_gdbarch_pc_in_sigtramp (gdbarch, ppcfbsd_pc_in_sigtramp);
       set_gdbarch_return_value (gdbarch, ppcfbsd_return_value);
       set_solib_svr4_fetch_link_map_offsets (gdbarch,
 					     svr4_ilp32_fetch_link_map_offsets);
@@ -529,6 +534,7 @@ ppcfbsd_init_abi (struct gdbarch_info info,
 
   if (tdep->wordsize == 8)
     {
+      set_gdbarch_pc_in_sigtramp (gdbarch, ppc64_fbsd_pc_in_sigtramp);
       set_gdbarch_convert_from_func_ptr_addr
         (gdbarch, ppc64_fbsd_convert_from_func_ptr_addr);
 
