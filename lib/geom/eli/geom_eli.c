@@ -706,7 +706,7 @@ eli_init(struct gctl_req *req)
 	unsigned char key[G_ELI_USERKEYLEN];
 	char backfile[MAXPATHLEN];
 	const char *str, *prov;
-	unsigned int secsize, version;
+	unsigned int secsize, eli_version;
 	off_t mediasize;
 	intmax_t val;
 	int error, i, nargs, nparams, param;
@@ -723,16 +723,16 @@ eli_init(struct gctl_req *req)
 	strlcpy(md.md_magic, G_ELI_MAGIC, sizeof(md.md_magic));
 	val = gctl_get_intmax(req, "mdversion");
 	if (val == -1) {
-		version = G_ELI_VERSION;
+		eli_version = G_ELI_VERSION;
 	} else if (val < 0 || val > G_ELI_VERSION) {
 		gctl_error(req,
 		    "Invalid version specified should be between %u and %u.",
 		    G_ELI_VERSION_00, G_ELI_VERSION);
 		return;
 	} else {
-		version = val;
+		eli_version = val;
 	}
-	md.md_version = version;
+	md.md_version = eli_version;
 	md.md_flags = G_ELI_FLAG_AUTORESIZE;
 	if (gctl_get_int(req, "boot"))
 		md.md_flags |= G_ELI_FLAG_BOOT;
@@ -747,7 +747,7 @@ eli_init(struct gctl_req *req)
 	md.md_ealgo = CRYPTO_ALGORITHM_MIN - 1;
 	str = gctl_get_ascii(req, "aalgo");
 	if (*str != '\0') {
-		if (version < G_ELI_VERSION_01) {
+		if (eli_version < G_ELI_VERSION_01) {
 			gctl_error(req,
 			    "Data authentication is supported starting from version %u.",
 			    G_ELI_VERSION_01);
@@ -779,7 +779,7 @@ eli_init(struct gctl_req *req)
 	    md.md_ealgo > CRYPTO_ALGORITHM_MAX) {
 		str = gctl_get_ascii(req, "ealgo");
 		if (*str == '\0') {
-			if (version < G_ELI_VERSION_05)
+			if (eli_version < G_ELI_VERSION_05)
 				str = "aes-cbc";
 			else
 				str = GELI_ENC_ALGO;
@@ -791,14 +791,14 @@ eli_init(struct gctl_req *req)
 			return;
 		}
 		if (md.md_ealgo == CRYPTO_CAMELLIA_CBC &&
-		    version < G_ELI_VERSION_04) {
+		    eli_version < G_ELI_VERSION_04) {
 			gctl_error(req,
 			    "Camellia-CBC algorithm is supported starting from version %u.",
 			    G_ELI_VERSION_04);
 			return;
 		}
 		if (md.md_ealgo == CRYPTO_AES_XTS &&
-		    version < G_ELI_VERSION_05) {
+		    eli_version < G_ELI_VERSION_05) {
 			gctl_error(req,
 			    "AES-XTS algorithm is supported starting from version %u.",
 			    G_ELI_VERSION_05);
@@ -1904,7 +1904,7 @@ eli_version(struct gctl_req *req)
 {
 	struct g_eli_metadata md;
 	const char *name;
-	unsigned int version;
+	unsigned int eli_version;
 	int error, i, nargs;
 
 	nargs = gctl_get_int(req, "nargs");
@@ -1934,8 +1934,8 @@ eli_version(struct gctl_req *req)
 			gctl_error(req, "Not fully done.");
 			continue;
 		}
-		version = le32dec(&md.md_version);
-		printf("%s: %u\n", name, version);
+		eli_version = le32dec(&md.md_version);
+		printf("%s: %u\n", name, eli_version);
 	}
 }
 
