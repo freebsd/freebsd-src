@@ -214,7 +214,8 @@ comc_port_set(struct env_var *ev, int flags, const void *value)
 static uint32_t
 comc_parse_pcidev(const char *string)
 {
-#ifdef NO_PCI
+#ifdef EFI
+	/* We don't support PCI in EFI yet */
 	return (0);
 #else
 	char *p, *p1;
@@ -256,7 +257,8 @@ comc_parse_pcidev(const char *string)
 static int
 comc_pcidev_handle(uint32_t locator)
 {
-#ifdef NO_PCI
+#ifdef EFI
+	/* We don't support PCI in EFI yet */
 	return (CMD_ERROR);
 #else
 	char intbuf[64];
