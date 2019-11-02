@@ -98,7 +98,6 @@ ZFS_COMMON_OBJS +=		\
 	dsl_scan.o		\
 	zfeature.o		\
 	gzip.o			\
-	lz4.o			\
 	lzjb.o			\
 	metaslab.o		\
 	multilist.o		\
