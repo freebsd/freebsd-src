@@ -489,9 +489,8 @@ void	ena_down(struct ena_adapter *);
 int	ena_restore_device(struct ena_adapter *);
 void	ena_destroy_device(struct ena_adapter *, bool);
 int	ena_refill_rx_bufs(struct ena_ring *, uint32_t);
-inline int validate_rx_req_id(struct ena_ring *, uint16_t);
 
-inline int
+static inline int
 validate_rx_req_id(struct ena_ring *rx_ring, uint16_t req_id)
 {
 	if (likely(req_id < rx_ring->ring_size))
