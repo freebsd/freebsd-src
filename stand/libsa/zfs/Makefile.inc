@@ -12,4 +12,6 @@ CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
 CFLAGS+=	-I${SYSDIR}/cddl/contrib/opensolaris/uts/common
 CFLAGS+=	-I${SYSDIR}/crypto/skein
 
+CFLAGS.zfs.c+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
+
 CFLAGS+=	-Wformat -Wall
