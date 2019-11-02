@@ -193,6 +193,9 @@ NANO_DATADIR=""
 SRCCONF=/dev/null
 SRC_ENV_CONF=/dev/null
 
+# Comment this out if /usr/obj is a symlink
+# CPIO_SYMLINK=--insecure
+
 #######################################################################
 #
 # The functions which do the real work.
@@ -523,7 +526,7 @@ setup_nanobsd ( ) (
 	if [ -d usr/local/etc ] ; then
 		(
 		cd usr/local/etc
-		find . -print | cpio -dumpl ../../../etc/local
+		find . -print | cpio ${CPIO_SYMLINK} -dumpl ../../../etc/local
 		cd ..
 		rm -xrf etc
 		)
@@ -542,7 +545,7 @@ setup_nanobsd ( ) (
 		# we use hard links so we have them both places.
 		# the files in /$d will be hidden by the mount.
 		mkdir -p conf/base/$d conf/default/$d
-		find $d -print | cpio -dumpl conf/base/
+		find $d -print | cpio ${CPIO_SYMLINK} -dumpl conf/base/
 	done
 
 	echo "$NANO_RAM_ETCSIZE" > conf/base/etc/md_size
@@ -623,7 +626,7 @@ populate_slice ( ) (
 	if [ -n "${dir}" -a -d "${dir}" ]; then
 		echo "Populating ${lbl} from ${dir}"
 		cd "${dir}"
-		find . -print | grep -Ev '/(CVS|\.svn|\.hg|\.git)/' | cpio -dumpv ${mnt}
+		find . -print | grep -Ev '/(CVS|\.svn|\.hg|\.git)/' | cpio ${CPIO_SYMLINK} -dumpv ${mnt}
 	fi
 	df -i ${mnt}
 	nano_umount ${mnt}
@@ -731,7 +734,7 @@ cust_allow_ssh_root ( ) (
 
 cust_install_files ( ) (
 	cd "${NANO_TOOLS}/Files"
-	find . -print | grep -Ev '/(CVS|\.svn|\.hg|\.git)/' | cpio -Ldumpv ${NANO_WORLDDIR}
+	find . -print | grep -Ev '/(CVS|\.svn|\.hg|\.git)/' | cpio ${CPIO_SYMLINK} -Ldumpv ${NANO_WORLDDIR}
 
 	if [ -n "${NANO_CUST_FILES_MTREE}" -a -f ${NANO_CUST_FILES_MTREE} ]; then
 		CR "mtree -eiU -p /" <${NANO_CUST_FILES_MTREE}
