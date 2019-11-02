@@ -384,6 +384,8 @@ luaopen_loader(lua_State *L)
 	lua_setfield(L, -2, "machine");
 	lua_pushstring(L, MACHINE_ARCH);
 	lua_setfield(L, -2, "machine_arch");
+	lua_pushstring(L, LUA_PATH);
+	lua_setfield(L, -2, "lua_path");
 	/* Set global printc to loader.printc */
 	lua_register(L, "printc", lua_printc);
 	return 1;
