@@ -977,7 +977,7 @@ ng_bridge_unmute(hook_p hook, void *arg)
 			    ng_bridge_nodename(node), NG_HOOK_NAME(hook));
 		}
 	}
-	counter++;
+	(*counter)++;
 	return (1);
 }
 
