@@ -92,6 +92,8 @@ fsl_pcib_rc_probe(device_t dev)
 	if (pci_get_subclass(dev) != PCIS_PROCESSOR_POWERPC)
 		return (ENXIO);
 
+	device_set_desc(dev, "MPC85xx Root Complex bridge");
+
 	return (BUS_PROBE_DEFAULT);
 }
 
