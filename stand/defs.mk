@@ -40,6 +40,9 @@ BOOTOBJ=	${OBJTOP}/stand
 # BINDIR is where we install
 BINDIR?=	/boot
 
+# LUAPATH is where we search for and install lua scripts.
+LUAPATH?=	/boot/lua
+
 LIBSA=		${BOOTOBJ}/libsa/libsa.a
 .if ${MACHINE} == "i386"
 LIBSA32=	${LIBSA}
