@@ -62,7 +62,7 @@ static __inline void
 _tcb_set(struct tcb *tcb)
 {
 
-	__asm __volatile("mv tp, %0" :: "r"((uint8_t *)tcb + TP_OFFSET));
+	__asm __volatile("addi tp, %0, %1" :: "r"(tcb), "I"(TP_OFFSET));
 }
 
 /*
@@ -71,11 +71,11 @@ _tcb_set(struct tcb *tcb)
 static __inline struct tcb *
 _tcb_get(void)
 {
-	register uint8_t *_tp;
+	struct tcb *_tcb;
 
-	__asm __volatile("mv %0, tp" : "=r"(_tp));
+	__asm __volatile("addi %0, tp, %1" : "=r"(_tcb) : "I"(-TP_OFFSET));
 
-	return ((struct tcb *)(_tp - TP_OFFSET));
+	return (_tcb);
 }
 
 static __inline struct pthread *
