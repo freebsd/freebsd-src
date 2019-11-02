@@ -688,7 +688,7 @@ setenv_int(const char *key, int val)
  * ACPI name space to map the UID for the serial port to a port. The
  * latter is especially hard.
  */
-static int
+int
 parse_uefi_con_out(void)
 {
 	int how, rv;
