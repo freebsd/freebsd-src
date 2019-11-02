@@ -1,4 +1,6 @@
 # $FreeBSD$
+#
+# NB: Install ports/net-mgmt/libsmi
 
 .PATH:	${SRCTOP}/contrib/bsnmp/gensnmpdef
 
