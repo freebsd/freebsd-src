@@ -110,13 +110,11 @@ static Elf64_Brandinfo freebsd_brand_info = {
 };
 
 SYSINIT(elf64, SI_SUB_EXEC, SI_ORDER_FIRST,
-	(sysinit_cfunc_t) elf64_insert_brand_entry,
-	&freebsd_brand_info);
+    (sysinit_cfunc_t)elf64_insert_brand_entry, &freebsd_brand_info);
 
-static int debug_kld;
-SYSCTL_INT(_kern, OID_AUTO, debug_kld,
-	   CTLFLAG_RW, &debug_kld, 0,
-	   "Activate debug prints in elf_reloc_internal()");
+static bool debug_kld;
+SYSCTL_BOOL(_debug, OID_AUTO, kld_reloc, CTLFLAG_RW, &debug_kld, 0,
+    "Activate debug prints in elf_reloc_internal()");
 
 struct type2str_ent {
 	int type;
@@ -275,7 +273,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	uint32_t before32_1;
 	uint32_t before32;
 	uint64_t before64;
-	uint32_t* insn32p;
+	uint32_t *insn32p;
 	uint32_t imm20;
 	int error;
 
@@ -283,15 +281,15 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	case ELF_RELOC_RELA:
 		rela = (const Elf_Rela *)data;
 		where = (Elf_Addr *)(relocbase + rela->r_offset);
-		insn32p = (uint32_t*)where;
+		insn32p = (uint32_t *)where;
 		addend = rela->r_addend;
 		rtype = ELF_R_TYPE(rela->r_info);
 		symidx = ELF_R_SYM(rela->r_info);
 		break;
 	default:
 		printf("%s:%d unknown reloc type %d\n",
-		       __FUNCTION__, __LINE__, type);
-		return -1;
+		    __FUNCTION__, __LINE__, type);
+		return (-1);
 	}
 
 	switch (rtype) {
@@ -302,43 +300,36 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	case R_RISCV_JUMP_SLOT:
 		error = lookup(lf, symidx, 1, &addr);
 		if (error != 0)
-			return -1;
+			return (-1);
 
 		val = addr;
 		before64 = *where;
 		if (*where != val)
 			*where = val;
-
 		if (debug_kld)
-			printf("%p %c %-24s %016lx -> %016lx\n",
-			       where,
-			       (local? 'l': 'g'),
-			       reloctype_to_str(rtype),
-			       before64, *where);
+			printf("%p %c %-24s %016lx -> %016lx\n", where,
+			    (local ? 'l' : 'g'), reloctype_to_str(rtype),
+			    before64, *where);
 		break;
 
 	case R_RISCV_RELATIVE:
 		before64 = *where;
-
 		*where = elf_relocaddr(lf, relocbase + addend);
-
 		if (debug_kld)
-			printf("%p %c %-24s %016lx -> %016lx\n",
-			       where,
-			       (local? 'l': 'g'),
-			       reloctype_to_str(rtype),
-			       before64, *where);
+			printf("%p %c %-24s %016lx -> %016lx\n", where,
+			    (local ? 'l' : 'g'), reloctype_to_str(rtype),
+			    before64, *where);
 		break;
 
 	case R_RISCV_JAL:
 		error = lookup(lf, symidx, 1, &addr);
 		if (error != 0)
-			return -1;
+			return (-1);
 
 		val = addr - (Elf_Addr)where;
-		if ((val <= -(1UL << 20) || (1UL << 20) <= val)) {
+		if (val <= -(1UL << 20) || (1UL << 20) <= val) {
 			printf("kldload: huge offset against R_RISCV_JAL\n");
-			return -1;
+			return (-1);
 		}
 
 		before32 = *insn32p;
@@ -346,13 +337,10 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		*insn32p = insert_imm(*insn32p, val, 10,  1, 21);
 		*insn32p = insert_imm(*insn32p, val, 11, 11, 20);
 		*insn32p = insert_imm(*insn32p, val, 19, 12, 12);
-
 		if (debug_kld)
-			printf("%p %c %-24s %08x -> %08x\n",
-			       where,
-			       (local? 'l': 'g'),
-			       reloctype_to_str(rtype),
-			       before32, *insn32p);
+			printf("%p %c %-24s %08x -> %08x\n", where,
+			    (local ? 'l' : 'g'), reloctype_to_str(rtype),
+			    before32, *insn32p);
 		break;
 
 	case R_RISCV_CALL:
@@ -360,14 +348,15 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		 * R_RISCV_CALL relocates 8-byte region that consists
 		 * of the sequence of AUIPC and JALR.
 		 */
-		/* calculate and check the pc relative offset. */
+		/* Calculate and check the pc relative offset. */
 		error = lookup(lf, symidx, 1, &addr);
 		if (error != 0)
-			return -1;
+			return (-1);
+
 		val = addr - (Elf_Addr)where;
-		if ((val <= -(1UL << 32) || (1UL << 32) <= val)) {
+		if (val <= -(1UL << 32) || (1UL << 32) <= val) {
 			printf("kldload: huge offset against R_RISCV_CALL\n");
-			return -1;
+			return (-1);
 		}
 
 		/* Relocate AUIPC. */
@@ -378,112 +367,91 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		/* Relocate JALR. */
 		before32_1 = insn32p[1];
 		insn32p[1] = insert_imm(insn32p[1], val, 11,  0, 20);
-
 		if (debug_kld)
-			printf("%p %c %-24s %08x %08x -> %08x %08x\n",
-			       where,
-			       (local? 'l': 'g'),
-			       reloctype_to_str(rtype),
-			       before32,   insn32p[0],
-			       before32_1, insn32p[1]);
+			printf("%p %c %-24s %08x %08x -> %08x %08x\n", where,
+			    (local ? 'l' : 'g'), reloctype_to_str(rtype),
+			    before32, insn32p[0], before32_1, insn32p[1]);
 		break;
 
 	case R_RISCV_PCREL_HI20:
 		val = addr - (Elf_Addr)where;
-		insn32p = (uint32_t*)where;
+		insn32p = (uint32_t *)where;
 		before32 = *insn32p;
 		imm20 = calc_hi20_imm(val);
 		*insn32p = insert_imm(*insn32p, imm20, 31, 12, 12);
-
 		if (debug_kld)
-			printf("%p %c %-24s %08x -> %08x\n",
-			       where,
-			       (local? 'l': 'g'),
-			       reloctype_to_str(rtype),
-			       before32, *insn32p);
+			printf("%p %c %-24s %08x -> %08x\n", where,
+			    (local ? 'l' : 'g'), reloctype_to_str(rtype),
+			    before32, *insn32p);
 		break;
 
 	case R_RISCV_PCREL_LO12_I:
 		val = addr - (Elf_Addr)where;
-		insn32p = (uint32_t*)where;
+		insn32p = (uint32_t *)where;
 		before32 = *insn32p;
 		*insn32p = insert_imm(*insn32p, addr, 11,  0, 20);
-
 		if (debug_kld)
-			printf("%p %c %-24s %08x -> %08x\n",
-			       where,
-			       (local? 'l': 'g'),
-			       reloctype_to_str(rtype),
-			       before32, *insn32p);
+			printf("%p %c %-24s %08x -> %08x\n", where,
+			    (local ? 'l' : 'g'), reloctype_to_str(rtype),
+			    before32, *insn32p);
 		break;
 
 	case R_RISCV_PCREL_LO12_S:
 		val = addr - (Elf_Addr)where;
-		insn32p = (uint32_t*)where;
+		insn32p = (uint32_t *)where;
 		before32 = *insn32p;
 		*insn32p = insert_imm(*insn32p, addr, 11,  5, 25);
 		*insn32p = insert_imm(*insn32p, addr,  4,  0,  7);
 		if (debug_kld)
-			printf("%p %c %-24s %08x -> %08x\n",
-			       where,
-			       (local? 'l': 'g'),
-			       reloctype_to_str(rtype),
-			       before32, *insn32p);
+			printf("%p %c %-24s %08x -> %08x\n", where,
+			    (local ? 'l' : 'g'), reloctype_to_str(rtype),
+			    before32, *insn32p);
 		break;
 
 	case R_RISCV_HI20:
 		error = lookup(lf, symidx, 1, &addr);
 		if (error != 0)
-			return -1;
+			return (-1);
 
-		insn32p = (uint32_t*)where;
+		insn32p = (uint32_t *)where;
 		before32 = *insn32p;
 		imm20 = calc_hi20_imm(val);
 		*insn32p = insert_imm(*insn32p, imm20, 31, 12, 12);
-
 		if (debug_kld)
-			printf("%p %c %-24s %08x -> %08x\n",
-			       where,
-			       (local? 'l': 'g'),
-			       reloctype_to_str(rtype),
-			       before32, *insn32p);
+			printf("%p %c %-24s %08x -> %08x\n", where,
+			    (local ? 'l' : 'g'), reloctype_to_str(rtype),
+			    before32, *insn32p);
 		break;
 
 	case R_RISCV_LO12_I:
 		error = lookup(lf, symidx, 1, &addr);
 		if (error != 0)
-			return -1;
+			return (-1);
 
 		val = addr;
-		insn32p = (uint32_t*)where;
+		insn32p = (uint32_t *)where;
 		before32 = *insn32p;
 		*insn32p = insert_imm(*insn32p, addr, 11,  0, 20);
-
 		if (debug_kld)
-			printf("%p %c %-24s %08x -> %08x\n",
-			       where,
-			       (local? 'l': 'g'),
-			       reloctype_to_str(rtype),
-			       before32, *insn32p);
+			printf("%p %c %-24s %08x -> %08x\n", where,
+			    (local ? 'l' : 'g'), reloctype_to_str(rtype),
+			    before32, *insn32p);
 		break;
 
 	case R_RISCV_LO12_S:
 		error = lookup(lf, symidx, 1, &addr);
 		if (error != 0)
-			return -1;
+			return (-1);
 
 		val = addr;
-		insn32p = (uint32_t*)where;
+		insn32p = (uint32_t *)where;
 		before32 = *insn32p;
 		*insn32p = insert_imm(*insn32p, addr, 11,  5, 25);
 		*insn32p = insert_imm(*insn32p, addr,  4,  0,  7);
-
 		if (debug_kld)
-			printf("%p %c %-24s %08x -> %08x\n",
-			       where,
-			       (local? 'l': 'g'),
-			       reloctype_to_str(rtype),
-			       before32, *insn32p);
+			printf("%p %c %-24s %08x -> %08x\n", where,
+			    (local ? 'l' : 'g'), reloctype_to_str(rtype),
+			    before32, *insn32p);
 		break;
 
 	default:
