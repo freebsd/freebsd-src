@@ -145,7 +145,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t p, vm_prot_t prot,
     u_int flags, int8_t psind)
 {
 
-	CTR6(KTR_PMAP, "pmap_enter(%p, %#x, %p, %#x, %x, %d)", pmap, va,
+	CTR6(KTR_PMAP, "pmap_enter(%p, %#x, %p, %#x, %#x, %d)", pmap, va,
 	    p, prot, flags, psind);
 	return (MMU_ENTER(mmu_obj, pmap, va, p, prot, flags, psind));
 }

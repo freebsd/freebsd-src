@@ -42,6 +42,20 @@ CFLAGS+= -mabi=spe -D__SPE__
 CFLAGS+= -msoft-float
 CFLAGS.gcc+= -Wa,-many
 
+# Apply compiler-specific DPAA exceptions.
+.if "${COMPILER_TYPE}" == "clang"
+DPAAWARNFLAGS += \
+        -Wno-error=parentheses-equality \
+        -Wno-error=self-assign \
+        -Wno-error=incompatible-pointer-types-discards-qualifiers \
+        -Wno-error=non-literal-null-conversion \
+        -Wno-error=enum-conversion
+.elif "${COMPILER_TYPE}" == "gcc" && ${COMPILER_VERSION} >= 50200
+DPAAWARNFLAGS += \
+	-Wno-error=redundant-decls \
+	-Wno-error=int-in-bool-context
+.endif
+
 # Build position-independent kernel
 CFLAGS+= -fPIC
 LDFLAGS+= -pie

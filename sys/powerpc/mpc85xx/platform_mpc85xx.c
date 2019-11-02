@@ -68,7 +68,8 @@ __FBSDID("$FreeBSD$");
 extern void *ap_pcpu;
 extern vm_paddr_t kernload;		/* Kernel physical load address */
 extern uint8_t __boot_page[];		/* Boot page body */
-extern uint32_t bp_kernload;
+extern vm_paddr_t bp_kernload;		/* Boot page copy of kernload */
+extern vm_offset_t bp_virtaddr;		/* Virtual address of boot page */
 extern vm_offset_t __startkernel;
 
 struct cpu_release {
@@ -354,10 +355,12 @@ mpc85xx_smp_start_cpu_epapr(platform_t plat, struct pcpu *pc)
 	pmap_kenter(rel_page, rel_pa & ~PAGE_MASK);
 	rel = (struct cpu_release *)rel_va;
 	bptr = pmap_kextract((uintptr_t)__boot_page);
+
 	cpu_flush_dcache(__DEVOLATILE(struct cpu_release *,rel), sizeof(*rel));
-	rel->pir = pc->pc_cpuid; __asm __volatile("sync");
-	rel->entry_h = (bptr >> 32);
-	rel->entry_l = bptr; __asm __volatile("sync");
+	rel->pir = pc->pc_cpuid; __asm __volatile("sync" ::: "memory");
+	rel->entry_h = (bptr >> 32); __asm __volatile("sync" ::: "memory");
+	cpu_flush_dcache(__DEVOLATILE(struct cpu_release *,rel), sizeof(*rel));
+	rel->entry_l = bptr & 0xffffffff; __asm __volatile("sync" ::: "memory");
 	cpu_flush_dcache(__DEVOLATILE(struct cpu_release *,rel), sizeof(*rel));
 	if (bootverbose)
 		printf("Waking up CPU %d via CPU release page %p\n",
@@ -397,11 +400,13 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 		cpuid = pc->pc_cpuid + 24;
 	}
 	bp_kernload = kernload;
+	bp_virtaddr = (vm_offset_t)&__boot_page;
 	/*
-	 * bp_kernload is in the boot page.  Sync the cache because ePAPR
-	 * booting has the other core(s) already running.
+	 * bp_kernload and bp_virtaddr are in the boot page.  Sync the cache
+	 * because ePAPR booting has the other core(s) already running.
 	 */
 	cpu_flush_dcache(&bp_kernload, sizeof(bp_kernload));
+	cpu_flush_dcache(&bp_virtaddr, sizeof(bp_virtaddr));
 
 	ap_pcpu = pc;
 	__asm __volatile("msync; isync");
