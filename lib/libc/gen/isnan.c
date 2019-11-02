@@ -43,6 +43,13 @@
  */
 
 #ifdef PIC
+/*
+ * Because math.h defines __isnan and __isnanf as aliases for compatibility with
+ * glibc and CUDA, we have to undefine them here to avoid redefinition errors.
+ */
+#undef __isnan
+#undef __isnanf
+
 __weak_reference(__isnan, isnan);
 __weak_reference(__isnanf, isnanf);
 
