@@ -60,6 +60,8 @@ static struct interp_lua_softc lua_softc;
 #define	LDBG(...)
 #endif
 
+#define	LOADER_LUA	LUA_PATH "/loader.lua"
+
 INTERP_DEFINE("lua");
 
 static void *
@@ -120,7 +122,7 @@ interp_init(void)
 		lua_pop(luap, 1);  /* remove lib */
 	}
 
-	filename = "/boot/lua/loader.lua";
+	filename = LOADER_LUA;
 	if (interp_include(filename) != 0) {
                 const char *errstr = lua_tostring(luap, -1);
                 errstr = errstr == NULL ? "unknown" : errstr;
