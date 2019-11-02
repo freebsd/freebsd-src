@@ -35,7 +35,7 @@
  * Copyright (c) 2016 by Delphix. All rights reserved.
  */
 
-#if defined(_KERNEL)
+#if defined(_KERNEL) || defined(_FAKE_KERNEL)
 #include <sys/zfs_context.h>
 #elif defined(_STANDALONE)
 #include <sys/cdefs.h>
@@ -65,7 +65,7 @@ static int LZ4_compressCtx(void *ctx, const char *source, char *dest,
 static int LZ4_compress64kCtx(void *ctx, const char *source, char *dest,
     int isize, int osize);
 
-#if defined(_KERNEL)
+#if defined(_KERNEL) || defined(_FAKE_KERNEL)
 static kmem_cache_t *lz4_ctx_cache;
 #endif
 
@@ -91,7 +91,7 @@ lz4_compress(void *s_start, void *d_start, size_t s_len, size_t d_len,
 	 * added to the compressed buffer and which, if unhandled, would
 	 * confuse the hell out of our decompression function.
 	 */
-#if defined(_KERNEL)
+#if defined(_KERNEL) || defined(_FAKE_KERNEL)
 	*(uint32_t *)(void *)dest = BE_32(bufsiz);
 #else
 	*(uint32_t *)(void *)dest = htonl(bufsiz);
@@ -105,7 +105,7 @@ lz4_decompress(void *s_start, void *d_start, size_t s_len, size_t d_len,
     int n __unused)
 {
 	const char *src = s_start;
-#if defined(_KERNEL)
+#if defined(_KERNEL) || defined(_FAKE_KERNEL)
 	uint32_t bufsiz = BE_IN32(s_start);
 #else
 	uint32_t bufsiz = htonl(*(uint32_t *)s_start);
@@ -857,7 +857,7 @@ static int
 real_LZ4_compress(const char *source, char *dest, int isize, int osize)
 {
 #if HEAPMODE
-#if defined(_KERNEL)
+#if defined(_KERNEL) || defined(_FAKE_KERNEL)
 	void *ctx = kmem_cache_alloc(lz4_ctx_cache, KM_NOSLEEP);
 #else
 	void *ctx = malloc(sizeof(struct refTables));
@@ -877,7 +877,7 @@ real_LZ4_compress(const char *source, char *dest, int isize, int osize)
 	else
 		result = LZ4_compressCtx(ctx, source, dest, isize, osize);
 
-#if defined(_KERNEL)
+#if defined(_KERNEL) || defined(_FAKE_KERNEL)
 	kmem_cache_free(lz4_ctx_cache, ctx);
 #else
 	free(ctx);
@@ -1031,7 +1031,7 @@ LZ4_uncompress_unknownOutputSize(const char *source, char *dest, int isize,
 	return (int)(-(((const char *)ip) - source));
 }
 
-#if defined(_KERNEL)
+#if defined(_KERNEL) || defined(_FAKE_KERNEL)
 extern void
 lz4_init(void)
 {
@@ -1050,4 +1050,4 @@ lz4_fini(void)
 	kmem_cache_destroy(lz4_ctx_cache);
 #endif
 }
-#endif /* _KERNEL */
+#endif /* _KERNEL || _FAKE_KERNEL */
