@@ -1674,7 +1674,7 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	/* Calculate corresponding physical addresses for the kernel region. */
 	phys_kernelend = kernload + kernsize;
 	debugf("kernel image and allocated data:\n");
-	debugf(" kernload    = 0x%09llx\n", (uint64_t)kernload);
+	debugf(" kernload    = 0x%09jx\n", (uintmax_t)kernload);
 	debugf(" kernstart   = 0x%"PRI0ptrX"\n", kernstart);
 	debugf(" kernsize    = 0x%"PRI0ptrX"\n", kernsize);
 
@@ -1859,9 +1859,9 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	thread0.td_kstack = kstack0;
 	thread0.td_kstack_pages = kstack_pages;
 
-	debugf("kstack_sz = 0x%08x\n", kstack0_sz);
-	debugf("kstack0_phys at 0x%09llx - 0x%09llx\n",
-	    kstack0_phys, kstack0_phys + kstack0_sz);
+	debugf("kstack_sz = 0x%08jx\n", (uintmax_t)kstack0_sz);
+	debugf("kstack0_phys at 0x%09jx - 0x%09jx\n",
+	    (uintmax_t)kstack0_phys, (uintmax_t)kstack0_phys + kstack0_sz);
 	debugf("kstack0 at 0x%"PRI0ptrX" - 0x%"PRI0ptrX"\n",
 	    kstack0, kstack0 + kstack0_sz);
 	
@@ -4003,7 +4003,7 @@ tlb1_mapin_region(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 
 	for (idx = 0; idx < nents; idx++) {
 		pgsz = pgs[idx];
-		debugf("%u: %llx -> %jx, size=%jx\n", idx, pa,
+		debugf("%u: %jx -> %jx, size=%jx\n", idx, (uintmax_t)pa,
 		    (uintmax_t)va, (uintmax_t)pgsz);
 		tlb1_set_entry(va, pa, pgsz,
 		    _TLB_ENTRY_SHARED | _TLB_ENTRY_MEM);

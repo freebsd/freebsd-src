@@ -504,7 +504,11 @@
 #define	SPR_HASH2		0x3d3	/* .68 Secondary Hash Address Register */
 #define	SPR_IMISS		0x3d4	/* .68 Instruction TLB Miss Address Register */
 #define	SPR_TLBMISS		0x3d4	/* .6. TLB Miss Address Register */
+#if defined(BOOKE_PPC4XX)
 #define	SPR_DEAR		0x3d5	/* 4.. Data Error Address Register */
+#else
+#define	SPR_DEAR		0x03d	/* ..8 Data Exception Address Register */
+#endif
 #define	SPR_ICMP		0x3d5	/* .68 Instruction TLB Compare Register */
 #define	SPR_PTEHI		0x3d5	/* .6. Instruction TLB Compare Register */
 #define	SPR_EVPR		0x3d6	/* 4.. Exception Vector Prefix Register */

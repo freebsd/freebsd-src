@@ -120,8 +120,8 @@
 	GET_CPUINFO(%r1);		/* Per-cpu structure */		\
 	STORE	%r30, (savearea+CPUSAVE_R30)(%r1);			\
 	STORE	%r31, (savearea+CPUSAVE_R31)(%r1); 			\
-	mfdear	%r30;		 					\
-	mfesr	%r31;							\
+	mfspr	%r30, SPR_DEAR;						\
+	mfspr	%r31, SPR_ESR;						\
 	STORE	%r30, (savearea+CPUSAVE_BOOKE_DEAR)(%r1); 		\
 	STORE	%r31, (savearea+CPUSAVE_BOOKE_ESR)(%r1); 		\
 	mfspr	%r30, isrr0;						\
@@ -143,8 +143,8 @@
 	GET_CPUINFO(%r1);		/* Per-cpu structure */		\
 	STORE	%r30, (savearea+CPUSAVE_R30)(%r1);			\
 	STORE	%r31, (savearea+CPUSAVE_R31)(%r1);			\
-	mfdear	%r30;							\
-	mfesr	%r31;							\
+	mfspr	%r30, SPR_DEAR;						\
+	mfspr	%r31, SPR_ESR;						\
 	STORE	%r30, (savearea+CPUSAVE_BOOKE_DEAR)(%r1);		\
 	STORE	%r31, (savearea+CPUSAVE_BOOKE_ESR)(%r1);		\
 	mfspr	%r30, isrr0;						\
@@ -375,9 +375,9 @@
 	rlwinm	outr, inr, 6, 23, 25;	/* 4 x TLBSAVE_LEN */
 #endif
 #define TLB_PROLOG							\
-	mtsprg4	%r1;			/* Save SP */			\
-	mtsprg5 %r28;							\
-	mtsprg6 %r29;							\
+	mtspr	SPR_SPRG4, %r1;			/* Save SP */		\
+	mtspr	SPR_SPRG5, %r28;					\
+	mtspr	SPR_SPRG6, %r29;					\
 	/* calculate TLB nesting level and TLBSAVE instance address */	\
 	GET_CPUINFO(%r1);	 	/* Per-cpu structure */		\
 	LOAD	%r28, PC_BOOKE_TLB_LEVEL(%r1);				\
@@ -388,8 +388,8 @@
 	add	%r1, %r1, %r29;		/* current TLBSAVE ptr */	\
 									\
 	/* save R20-31 */						\
-	mfsprg5 %r28;		 					\
-	mfsprg6 %r29;							\
+	mfspr	%r28, SPR_SPRG5;		 			\
+	mfspr	%r29, SPR_SPRG6;					\
 	TLB_SAVE_REGS(%r1);			\
 	/* save LR, CR */						\
 	mflr	%r30;		 					\
@@ -402,7 +402,7 @@
 	STORE	%r30, (TLBSAVE_BOOKE_SRR0)(%r1);	/* save SRR0 */	\
 	STORE	%r31, (TLBSAVE_BOOKE_SRR1)(%r1);	/* save SRR1 */	\
 	isync;								\
-	mfsprg4	%r1
+	mfspr	%r1, SPR_SPRG4
 
 /*
  * restores LR, CR, SRR0-1, R20-31 from the TLBSAVE area
@@ -410,7 +410,7 @@
  * same notes as for the TLB_PROLOG
  */
 #define TLB_RESTORE							\
-	mtsprg4	%r1;			/* Save SP */			\
+	mtspr	SPR_SPRG4, %r1;			/* Save SP */		\
 	GET_CPUINFO(%r1);	 	/* Per-cpu structure */		\
 	/* calculate TLB nesting level and TLBSAVE instance addr */	\
 	LOAD	%r28, PC_BOOKE_TLB_LEVEL(%r1);				\
@@ -432,7 +432,7 @@
 	mtsrr1	%r31;							\
 	/* restore R20-31 */						\
 	TLB_RESTORE_REGS(%r1);						\
-	mfsprg4	%r1
+	mfspr	%r1, SPR_SPRG4
 
 #ifdef SMP
 #define TLB_LOCK							\
@@ -693,7 +693,7 @@ INTERRUPT(int_data_tlb_error)
 	TLB_PROLOG
 	TLB_LOCK
 
-	mfdear	%r31
+	mfspr	%r31, SPR_DEAR
 
 	/*
 	 * Save MAS0-MAS2 registers. There might be another tlb miss during
@@ -1052,8 +1052,8 @@ ASENTRY_NOPROF(breakpoint)
 	mflr	%r31
 	mtsrr0	%r31
 
-	mfdear	%r30
-	mfesr	%r31
+	mfspr	%r30, SPR_DEAR
+	mfspr	%r31, SPR_ESR
 	STORE	%r30, (PC_DBSAVE+CPUSAVE_BOOKE_DEAR)(%r3)
 	STORE	%r31, (PC_DBSAVE+CPUSAVE_BOOKE_ESR)(%r3)
 
