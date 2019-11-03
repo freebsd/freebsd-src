@@ -65,6 +65,7 @@ struct ig4iic_softc {
 	int		rnext;
 	int		rpos;
 	char		rbuf[IG4_RBUFSIZE];
+	uint32_t	intr_mask;
 	int		error;
 	uint8_t		last_slave;
 	int		platform_attached : 1;
@@ -72,7 +73,6 @@ struct ig4iic_softc {
 	int		slave_valid : 1;
 	int		read_started : 1;
 	int		write_started : 1;
-	int		access_intr_mask : 1;
 
 	/*
 	 * Locking semantics:
