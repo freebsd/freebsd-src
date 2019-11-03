@@ -32,8 +32,6 @@
 #ifndef _MACHINE_DEBUG_MONITOR_H_
 #define	_MACHINE_DEBUG_MONITOR_H_
 
-#ifdef _KERNEL
-
 #define	DBG_BRP_MAX	16
 #define	DBG_WRP_MAX	16
 
@@ -47,6 +45,8 @@ struct debug_monitor_state {
 	uint64_t	dbg_wcr[DBG_WRP_MAX];
 	uint64_t	dbg_wvr[DBG_WRP_MAX];
 };
+
+#ifdef _KERNEL
 
 enum dbg_access_t {
 	HW_BREAKPOINT_X		= 0,
