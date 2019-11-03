@@ -252,6 +252,14 @@ wait_status(ig4iic_softc_t *sc, uint32_t status)
 			set_intr_mask(sc, 0);
 			mtx_unlock(&sc->io_lock);
 			count_us += 10000;
+		} else if ((status & IG4_STATUS_TX_EMPTY) && !DO_POLL(sc)) {
+			mtx_lock(&sc->io_lock);
+			set_intr_mask(sc, IG4_INTR_TX_EMPTY);
+			mtx_sleep(sc, &sc->io_lock, 0, "i2cwait",
+				  (hz + 99) / 100); /* sleep up to 10ms */
+			set_intr_mask(sc, 0);
+			mtx_unlock(&sc->io_lock);
+			count_us += 10000;
 		} else {
 			DELAY(25);
 			count_us += 25;
@@ -861,6 +869,7 @@ ig4iic_set_config(ig4iic_softc_t *sc)
 	 * See ig4_var.h for details on interrupt handler synchronization.
 	 */
 	reg_write(sc, IG4_REG_RX_TL, 0);
+	reg_write(sc, IG4_REG_TX_TL, 0);
 
 	reg_write(sc, IG4_REG_CTL,
 		  IG4_CTL_MASTER |
