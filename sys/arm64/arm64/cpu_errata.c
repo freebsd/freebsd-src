@@ -59,6 +59,7 @@ static enum {
 
 static cpu_quirk_install install_psci_bp_hardening;
 static cpu_quirk_install install_ssbd_workaround;
+static cpu_quirk_install install_thunderx_bcast_tlbi_workaround;
 
 static struct cpu_quirks cpu_quirks[] = {
 	{
@@ -91,6 +92,18 @@ static struct cpu_quirks cpu_quirks[] = {
 		.midr_mask = 0,
 		.midr_value = 0,
 		.quirk_install = install_ssbd_workaround,
+	},
+	{
+		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
+		.midr_value =
+		    CPU_ID_RAW(CPU_IMPL_CAVIUM, CPU_PART_THUNDERX, 0, 0),
+		.quirk_install = install_thunderx_bcast_tlbi_workaround,
+	},
+	{
+		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
+		.midr_value =
+		    CPU_ID_RAW(CPU_IMPL_CAVIUM, CPU_PART_THUNDERX_81XX, 0, 0),
+		.quirk_install = install_thunderx_bcast_tlbi_workaround,
 	},
 };
 
@@ -135,6 +148,30 @@ install_ssbd_workaround(void)
 	default:
 		PCPU_SET(ssbd, smccc_arch_workaround_2);
 		break;
+	}
+}
+
+/*
+ * Workaround Cavium erratum 27456.
+ *
+ * Invalidate the local icache when changing address spaces.
+ */
+static void
+install_thunderx_bcast_tlbi_workaround(void)
+{
+	u_int midr;
+
+	midr = get_midr();
+	if (CPU_PART(midr) == CPU_PART_THUNDERX_81XX)
+		PCPU_SET(bcast_tlbi_workaround, 1);
+	else if (CPU_PART(midr) == CPU_PART_THUNDERX) {
+		if (CPU_VAR(midr) == 0) {
+			/* ThunderX 1.x */
+			PCPU_SET(bcast_tlbi_workaround, 1);
+		} else if (CPU_VAR(midr) == 1 && CPU_REV(midr) <= 1) {
+			/* ThunderX 2.0 - 2.1 */
+			PCPU_SET(bcast_tlbi_workaround, 1);
+		}
 	}
 }
 

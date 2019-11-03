@@ -79,10 +79,12 @@ struct pv_addr {
 
 struct pmap {
 	struct mtx		pm_mtx;
-	struct pmap_statistics	pm_stats;	/* pmap statictics */
+	struct pmap_statistics	pm_stats;	/* pmap statistics */
+	vm_paddr_t		pm_l0_paddr;
 	pd_entry_t		*pm_l0;
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	struct vm_radix		pm_root;	/* spare page table pages */
+	long			pm_cookie;	/* encodes the pmap's ASID */
 };
 typedef struct pmap *pmap_t;
 
@@ -132,6 +134,15 @@ extern struct pmap	kernel_pmap_store;
 #define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
 
+#define	ASID_RESERVED_FOR_PID_0	0
+#define	ASID_RESERVED_FOR_EFI	1
+#define	ASID_FIRST_AVAILABLE	(ASID_RESERVED_FOR_EFI + 1)
+#define	ASID_TO_OPERAND_SHIFT	48
+#define	ASID_TO_OPERAND(asid)	({					\
+	KASSERT((asid) != -1, ("invalid ASID"));			\
+	(uint64_t)(asid) << ASID_TO_OPERAND_SHIFT;			\
+})
+
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
@@ -152,6 +163,7 @@ void	pmap_kremove_device(vm_offset_t, vm_size_t);
 void	*pmap_mapdev_attr(vm_offset_t pa, vm_size_t size, vm_memattr_t ma);
 bool	pmap_page_is_mapped(vm_page_t m);
 bool	pmap_ps_enabled(pmap_t pmap);
+uint64_t pmap_to_ttbr0(pmap_t pmap);
 
 void	*pmap_mapdev(vm_offset_t, vm_size_t);
 void	*pmap_mapbios(vm_paddr_t, vm_size_t);

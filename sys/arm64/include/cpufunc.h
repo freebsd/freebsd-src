@@ -178,6 +178,27 @@ clrex(void)
 	__asm __volatile("clrex" : : : "memory");
 }
 
+static __inline void
+set_ttbr0(uint64_t ttbr0)
+{
+
+	__asm __volatile(
+	    "msr ttbr0_el1, %0 \n"
+	    "isb               \n"
+	    :
+	    : "r" (ttbr0));
+}
+
+static __inline void
+invalidate_local_icache(void)
+{
+
+	__asm __volatile(
+	    "ic iallu          \n"
+	    "dsb nsh           \n"
+	    "isb               \n");
+}
+
 extern int64_t dcache_line_size;
 extern int64_t icache_line_size;
 extern int64_t idcache_line_size;
@@ -185,7 +206,6 @@ extern int64_t dczva_line_size;
 
 #define	cpu_nullop()			arm64_nullop()
 #define	cpufunc_nullop()		arm64_nullop()
-#define	cpu_setttb(a)			arm64_setttb(a)
 
 #define	cpu_tlb_flushID()		arm64_tlb_flushID()
 
@@ -198,7 +218,6 @@ extern int64_t dczva_line_size;
 #define cpu_icache_sync_range_checked(a, s) arm64_icache_sync_range_checked((a), (s))
 
 void arm64_nullop(void);
-void arm64_setttb(vm_offset_t);
 void arm64_tlb_flushID(void);
 void arm64_icache_sync_range(vm_offset_t, vm_size_t);
 int arm64_icache_sync_range_checked(vm_offset_t, vm_size_t);
