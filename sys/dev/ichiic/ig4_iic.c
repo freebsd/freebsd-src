@@ -98,6 +98,15 @@ reg_read(ig4iic_softc_t *sc, uint32_t reg)
 	return (value);
 }
 
+static void
+set_intr_mask(ig4iic_softc_t *sc, uint32_t val)
+{
+	if (sc->intr_mask != val) {
+		reg_write(sc, IG4_REG_INTR_MASK, val);
+		sc->intr_mask = val;
+	}
+}
+
 /*
  * Enable or disable the controller and wait for the controller to acknowledge
  * the state change.
@@ -113,12 +122,9 @@ set_controller(ig4iic_softc_t *sc, uint32_t ctl)
 	 * When the controller is enabled, interrupt on STOP detect
 	 * or receive character ready and clear pending interrupts.
 	 */
-	if (ctl & IG4_I2C_ENABLE) {
-		reg_write(sc, IG4_REG_INTR_MASK, IG4_INTR_STOP_DET |
-						 IG4_INTR_RX_FULL);
+	set_intr_mask(sc, 0);
+	if (ctl & IG4_I2C_ENABLE)
 		reg_read(sc, IG4_REG_CLR_INTR);
-	} else
-		reg_write(sc, IG4_REG_INTR_MASK, 0);
 
 	reg_write(sc, IG4_REG_I2C_EN, ctl);
 	error = IIC_ETIMEOUT;
@@ -196,8 +202,10 @@ wait_status(ig4iic_softc_t *sc, uint32_t status)
 		 * work, otherwise poll with the lock held.
 		 */
 		if (status & IG4_STATUS_RX_NOTEMPTY) {
+			set_intr_mask(sc, IG4_INTR_STOP_DET | IG4_INTR_RX_FULL);
 			mtx_sleep(sc, &sc->io_lock, 0, "i2cwait",
 				  (hz + 99) / 100); /* sleep up to 10ms */
+			set_intr_mask(sc, 0);
 			count_us += 10000;
 		} else {
 			DELAY(25);
@@ -579,6 +587,10 @@ ig4iic_attach(ig4iic_softc_t *sc)
 	v = reg_read(sc, IG4_REG_SS_SCL_LCNT);
 	reg_write(sc, IG4_REG_FS_SCL_LCNT, v);
 
+	reg_read(sc, IG4_REG_CLR_INTR);
+	reg_write(sc, IG4_REG_INTR_MASK, 0);
+	sc->intr_mask = 0;
+
 	/*
 	 * Program based on a 25000 Hz clock.  This is a bit of a
 	 * hack (obviously).  The defaults are 400 and 470 for standard
@@ -725,7 +737,7 @@ ig4iic_intr(void *cookie)
 	uint32_t status;
 
 	mtx_lock(&sc->io_lock);
-/*	reg_write(sc, IG4_REG_INTR_MASK, IG4_INTR_STOP_DET);*/
+	set_intr_mask(sc, 0);
 	reg_read(sc, IG4_REG_CLR_INTR);
 	status = reg_read(sc, IG4_REG_I2C_STA);
 	while (status & IG4_STATUS_RX_NOTEMPTY) {
@@ -733,18 +745,6 @@ ig4iic_intr(void *cookie)
 		    (uint8_t)reg_read(sc, IG4_REG_DATA_CMD);
 		++sc->rnext;
 		status = reg_read(sc, IG4_REG_I2C_STA);
-	}
-
-	/* 
-	 * Workaround to trigger pending interrupt if IG4_REG_INTR_STAT
-	 * is changed after clearing it
-	 */
-	if (sc->access_intr_mask != 0) {
-		status = reg_read(sc, IG4_REG_INTR_MASK);
-		if (status != 0) {
-			reg_write(sc, IG4_REG_INTR_MASK, 0);
-			reg_write(sc, IG4_REG_INTR_MASK, status);
-		}
 	}
 
 	wakeup(sc);
