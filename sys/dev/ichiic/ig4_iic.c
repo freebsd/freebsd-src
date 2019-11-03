@@ -117,6 +117,7 @@ static const struct ig4_hw ig4iic_hw[] = {
 	},
 };
 
+static int ig4iic_set_config(ig4iic_softc_t *sc, bool reset);
 static void ig4iic_intr(void *cookie);
 static void ig4iic_dump(ig4iic_softc_t *sc);
 
@@ -272,7 +273,7 @@ wait_intr(ig4iic_softc_t *sc, uint32_t intr)
 		 * reset the timeout if we see a change in the transmit
 		 * FIFO level as progress is being made.
 		 */
-		if (intr & IG4_INTR_TX_EMPTY) {
+		if (intr & (IG4_INTR_TX_EMPTY | IG4_INTR_STOP_DET)) {
 			v = reg_read(sc, IG4_REG_TXFLR) & IG4_FIFOLVL_MASK;
 			if (txlvl != v) {
 				txlvl = v;
@@ -367,6 +368,34 @@ ig4iic_xfer_start(ig4iic_softc_t *sc, uint16_t slave, bool repeated_start)
 	}
 
 	return (0);
+}
+
+static bool
+ig4iic_xfer_is_started(ig4iic_softc_t *sc)
+{
+	/*
+	 * It requires that no IG4_REG_CLR_INTR or IG4_REG_CLR_START/STOP_DET
+	 * register reads is issued after START condition.
+	 */
+	return ((reg_read(sc, IG4_REG_RAW_INTR_STAT) &
+	    (IG4_INTR_START_DET | IG4_INTR_STOP_DET)) == IG4_INTR_START_DET);
+}
+
+static int
+ig4iic_xfer_abort(ig4iic_softc_t *sc)
+{
+	int error;
+
+	/* Request send of STOP condition and flush of TX FIFO */
+	set_controller(sc, IG4_I2C_ABORT | IG4_I2C_ENABLE);
+	/*
+	 * Wait for the TX_ABRT interrupt with ABRTSRC_TRANSFER
+	 * bit set in TX_ABRT_SOURCE register.
+	 */
+	error = wait_intr(sc, IG4_INTR_STOP_DET);
+	set_controller(sc, IG4_I2C_ENABLE);
+
+	return (error == IIC_ESTATUS ? 0 : error);
 }
 
 /*
@@ -584,8 +613,27 @@ ig4iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		else
 			error = ig4iic_write(sc, msgs[i].buf, msgs[i].len,
 			    rpstart, stop);
-		if (error != 0)
+
+		if (error != 0) {
+			/*
+			 * Send STOP condition if it's not done yet and flush
+			 * both FIFOs. Do a controller soft reset if transfer
+			 * abort is failed.
+			 */
+			if (ig4iic_xfer_is_started(sc) &&
+			    ig4iic_xfer_abort(sc) != 0) {
+				device_printf(sc->dev, "Failed to abort "
+				    "transfer. Do the controller reset.\n");
+				ig4iic_set_config(sc, true);
+			} else {
+				while (reg_read(sc, IG4_REG_I2C_STA) &
+				    IG4_STATUS_RX_NOTEMPTY)
+					reg_read(sc, IG4_REG_DATA_CMD);
+				reg_read(sc, IG4_REG_TX_ABRT_SOURCE);
+				reg_read(sc, IG4_REG_CLR_INTR);
+			}
 			break;
+		}
 
 		rpstart = !stop;
 	}
@@ -843,7 +891,7 @@ ig4iic_get_config(ig4iic_softc_t *sc)
 }
 
 static int
-ig4iic_set_config(ig4iic_softc_t *sc)
+ig4iic_set_config(ig4iic_softc_t *sc, bool reset)
 {
 	uint32_t v;
 
@@ -851,10 +899,16 @@ ig4iic_set_config(ig4iic_softc_t *sc)
 	if (sc->version == IG4_SKYLAKE && (v & IG4_RESTORE_REQUIRED) ) {
 		reg_write(sc, IG4_REG_DEVIDLE_CTRL, IG4_DEVICE_IDLE | IG4_RESTORE_REQUIRED);
 		reg_write(sc, IG4_REG_DEVIDLE_CTRL, 0);
+		pause("i2crst", 1);
+		reset = true;
+	}
 
+	if ((sc->version == IG4_HASWELL || sc->version == IG4_ATOM) && reset) {
+		reg_write(sc, IG4_REG_RESETS_HSW, IG4_RESETS_ASSERT_HSW);
+		reg_write(sc, IG4_REG_RESETS_HSW, IG4_RESETS_DEASSERT_HSW);
+	} else if (sc->version == IG4_SKYLAKE && reset) {
 		reg_write(sc, IG4_REG_RESETS_SKL, IG4_RESETS_ASSERT_SKL);
 		reg_write(sc, IG4_REG_RESETS_SKL, IG4_RESETS_DEASSERT_SKL);
-		DELAY(1000);
 	}
 
 	if (sc->version == IG4_ATOM)
@@ -922,6 +976,9 @@ ig4iic_set_config(ig4iic_softc_t *sc)
 		  IG4_CTL_RESTARTEN |
 		  (sc->cfg.bus_speed & IG4_CTL_SPEED_MASK));
 
+	/* Force setting of the target address on the next transfer */
+	sc->slave_valid = 0;
+
 	return (0);
 }
 
@@ -938,7 +995,7 @@ ig4iic_attach(ig4iic_softc_t *sc)
 
 	ig4iic_get_config(sc);
 
-	error = ig4iic_set_config(sc);
+	error = ig4iic_set_config(sc, false);
 	if (error)
 		goto done;
 
@@ -948,19 +1005,6 @@ ig4iic_attach(ig4iic_softc_t *sc)
 		error = ENXIO;
 		goto done;
 	}
-
-#if 0
-	/*
-	 * Don't do this, it blows up the PCI config
-	 */
-	if (sc->version == IG4_HASWELL || sc->version == IG4_ATOM) {
-		reg_write(sc, IG4_REG_RESETS_HSW, IG4_RESETS_ASSERT_HSW);
-		reg_write(sc, IG4_REG_RESETS_HSW, IG4_RESETS_DEASSERT_HSW);
-	} else if (sc->version = IG4_SKYLAKE) {
-		reg_write(sc, IG4_REG_RESETS_SKL, IG4_RESETS_ASSERT_SKL);
-		reg_write(sc, IG4_REG_RESETS_SKL, IG4_RESETS_DEASSERT_SKL);
-	}
-#endif
 
 	if (set_controller(sc, IG4_I2C_ENABLE)) {
 		device_printf(sc->dev, "controller error during attach-2\n");
@@ -1051,10 +1095,8 @@ int ig4iic_resume(ig4iic_softc_t *sc)
 	int error;
 
 	sx_xlock(&sc->call_lock);
-	if (ig4iic_set_config(sc))
+	if (ig4iic_set_config(sc, sc->version == IG4_SKYLAKE))
 		device_printf(sc->dev, "controller error during resume\n");
-	/* Force setting of the target address on the next transfer */
-	sc->slave_valid = 0;
 	sx_xunlock(&sc->call_lock);
 
 	error = bus_generic_resume(sc->dev);
