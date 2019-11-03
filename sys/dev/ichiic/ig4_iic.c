@@ -68,17 +68,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 #endif
 
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
 
 #include <dev/ichiic/ig4_reg.h>
 #include <dev/ichiic/ig4_var.h>
-
-#define TRANS_NORMAL	1
-#define TRANS_PCALL	2
-#define TRANS_BLOCK	3
 
 #define DO_POLL(sc)	(cold || kdb_active || SCHEDULER_STOPPED() || sc->poll)
 
@@ -290,21 +284,7 @@ set_slave_addr(ig4iic_softc_t *sc, uint8_t slave)
 
 	/*
 	 * Wait for TXFIFO to drain before disabling the controller.
-	 *
-	 * If a write message has not been completed it's really a
-	 * programming error, but for now in that case issue an extra
-	 * byte + STOP.
-	 *
-	 * If a read message has not been completed it's also a programming
-	 * error, for now just ignore it.
 	 */
-	wait_status(sc, IG4_STATUS_TX_NOTFULL);
-	if (sc->write_started) {
-		reg_write(sc, IG4_REG_DATA_CMD, IG4_DATA_STOP);
-		sc->write_started = 0;
-	}
-	if (sc->read_started)
-		sc->read_started = 0;
 	wait_status(sc, IG4_STATUS_TX_EMPTY);
 
 	set_controller(sc, 0);
