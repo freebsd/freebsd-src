@@ -188,10 +188,12 @@ wait_status(ig4iic_softc_t *sc, uint32_t status)
 		 * work, otherwise poll with the lock held.
 		 */
 		if (status & IG4_STATUS_RX_NOTEMPTY) {
+			mtx_lock(&sc->io_lock);
 			set_intr_mask(sc, IG4_INTR_STOP_DET | IG4_INTR_RX_FULL);
 			mtx_sleep(sc, &sc->io_lock, 0, "i2cwait",
 				  (hz + 99) / 100); /* sleep up to 10ms */
 			set_intr_mask(sc, 0);
+			mtx_unlock(&sc->io_lock);
 			count_us += 10000;
 		} else {
 			DELAY(25);
@@ -405,7 +407,6 @@ ig4iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	}
 
 	sx_xlock(&sc->call_lock);
-	mtx_lock(&sc->io_lock);
 
 	/* Debugging - dump registers. */
 	if (ig4_dump) {
@@ -453,7 +454,6 @@ ig4iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		rpstart = !stop;
 	}
 
-	mtx_unlock(&sc->io_lock);
 	sx_unlock(&sc->call_lock);
 	return (error);
 }
@@ -464,7 +464,6 @@ ig4iic_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 	ig4iic_softc_t *sc = device_get_softc(dev);
 
 	sx_xlock(&sc->call_lock);
-	mtx_lock(&sc->io_lock);
 
 	/* TODO handle speed configuration? */
 	if (oldaddr != NULL)
@@ -473,7 +472,6 @@ ig4iic_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 	if (addr == IIC_UNKNOWN)
 		sc->slave_valid = false;
 
-	mtx_unlock(&sc->io_lock);
 	sx_unlock(&sc->call_lock);
 	return (0);
 }
@@ -664,14 +662,12 @@ ig4iic_detach(ig4iic_softc_t *sc)
 		bus_teardown_intr(sc->dev, sc->intr_res, sc->intr_handle);
 
 	sx_xlock(&sc->call_lock);
-	mtx_lock(&sc->io_lock);
 
 	sc->iicbus = NULL;
 	sc->intr_handle = NULL;
 	reg_write(sc, IG4_REG_INTR_MASK, 0);
 	set_controller(sc, 0);
 
-	mtx_unlock(&sc->io_lock);
 	sx_xunlock(&sc->call_lock);
 
 	mtx_destroy(&sc->io_lock);

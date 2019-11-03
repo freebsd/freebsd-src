@@ -73,8 +73,12 @@ struct ig4iic_softc {
 	 *
 	 * Functions implementing the icbus interface that interact
 	 * with the controller acquire an exclusive lock on call_lock
-	 * to prevent interleaving of calls to the interface and a lock on
-	 * io_lock right afterwards, to synchronize controller I/O activity.
+	 * to prevent interleaving of calls to the interface.
+	 *
+	 * io_lock is used as condition variable to synchronize active process
+	 * with the interrupt handler. It should not be used for tasks other
+	 * than waiting for interrupt and passing parameters to and from
+	 * it's handler.
 	 */
 	struct sx	call_lock;
 	struct mtx	io_lock;
