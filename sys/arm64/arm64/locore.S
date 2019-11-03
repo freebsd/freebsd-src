@@ -392,14 +392,15 @@ create_pagetables:
 	bl	link_l0_pagetable
 
 	/*
-	 * Build the TTBR0 maps.
+	 * Build the TTBR0 maps.  As TTBR0 maps, they must specify ATTR_nG.
+	 * They are only needed early on, so the VA = PA map is uncached.
 	 */
 	add	x27, x24, #PAGE_SIZE
 
 	mov	x6, x27		/* The initial page table */
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
 	/* Create a table for the UART */
-	mov	x7, #DEVICE_MEM
+	mov	x7, #(ATTR_nG | ATTR_IDX(DEVICE_MEM))
 	mov	x8, #(SOCDEV_VA)	/* VA start */
 	mov	x9, #(SOCDEV_PA)	/* PA start */
 	mov	x10, #1
@@ -407,7 +408,7 @@ create_pagetables:
 #endif
 
 	/* Create the VA = PA map */
-	mov	x7, #NORMAL_UNCACHED /* Uncached as it's only needed early on */
+	mov	x7, #(ATTR_nG | ATTR_IDX(NORMAL_UNCACHED))
 	mov	x9, x27
 	mov	x8, x9		/* VA start (== PA start) */
 	mov	x10, #1
@@ -497,7 +498,7 @@ link_l1_pagetable:
 /*
  * Builds count 1 GiB page table entry
  *  x6  = L1 table
- *  x7  = Type (0 = Device, 1 = Normal)
+ *  x7  = Variable lower block attributes
  *  x8  = VA start
  *  x9  = PA start (trashed)
  *  x10 = Entry count
@@ -512,8 +513,7 @@ build_l1_block_pagetable:
 	and	x11, x11, #Ln_ADDR_MASK
 
 	/* Build the L1 block entry */
-	lsl	x12, x7, #2
-	orr	x12, x12, #L1_BLOCK
+	orr	x12, x7, #L1_BLOCK
 	orr	x12, x12, #(ATTR_AF)
 #ifdef SMP
 	orr	x12, x12, ATTR_SH(ATTR_SH_IS)
@@ -599,11 +599,17 @@ start_mmu:
 	msr	mair_el1, x2
 
 	/*
-	 * Setup TCR according to PARange bits from ID_AA64MMFR0_EL1.
+	 * Setup TCR according to the PARange and ASIDBits fields
+	 * from ID_AA64MMFR0_EL1.  More precisely, set TCR_EL1.AS
+	 * to 1 only if the ASIDBits field equals 0b0010.
 	 */
 	ldr	x2, tcr
 	mrs	x3, id_aa64mmfr0_el1
 	bfi	x2, x3, #32, #3
+	and	x3, x3, #0xF0
+	cmp	x3, #0x20
+	cset	x3, eq
+	bfi	x2, x3, #36, #1
 	msr	tcr_el1, x2
 
 	/* Setup SCTLR */
@@ -624,7 +630,7 @@ mair:
 		MAIR_ATTR(MAIR_NORMAL_WB, 2) |		\
 		MAIR_ATTR(MAIR_NORMAL_WT, 3)
 tcr:
-	.quad (TCR_TxSZ(64 - VIRT_BITS) | TCR_ASID_16 | TCR_TG1_4K | \
+	.quad (TCR_TxSZ(64 - VIRT_BITS) | TCR_TG1_4K | \
 	    TCR_CACHE_ATTRS | TCR_SMP_ATTRS)
 sctlr_set:
 	/* Bits to set */

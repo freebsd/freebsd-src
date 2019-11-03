@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_map.h>
 
 #include <machine/machdep.h>
 #include <machine/debug_monitor.h>
@@ -192,6 +193,7 @@ void
 init_secondary(uint64_t cpu)
 {
 	struct pcpu *pcpup;
+	pmap_t pmap0;
 
 	pcpup = &__pcpu[cpu];
 	/*
@@ -210,6 +212,12 @@ init_secondary(uint64_t cpu)
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	pcpup->pc_curthread = pcpup->pc_idlethread;
 	pcpup->pc_curpcb = pcpup->pc_idlethread->td_pcb;
+
+	/* Initialize curpmap to match TTBR0's current setting. */
+	pmap0 = vmspace_pmap(&vmspace0);
+	KASSERT(pmap_to_ttbr0(pmap0) == READ_SPECIALREG(ttbr0_el1),
+	    ("pmap0 doesn't match cpu %ld's ttbr0", cpu));
+	pcpup->pc_curpmap = pmap0;
 
 	/*
 	 * Identify current CPU. This is necessary to setup

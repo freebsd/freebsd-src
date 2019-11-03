@@ -93,14 +93,6 @@ END(arm64_nullop)
  * Generic functions to read/modify/write the internal coprocessor registers
  */
 
-ENTRY(arm64_setttb)
-	dsb	ish
-	msr	ttbr0_el1, x0
-	dsb	ish
-	isb
-	ret
-END(arm64_setttb)
-
 ENTRY(arm64_tlb_flushID)
 	dsb	ishst
 #ifdef SMP
