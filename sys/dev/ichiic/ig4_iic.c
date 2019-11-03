@@ -531,6 +531,13 @@ ig4iic_attach(ig4iic_softc_t *sc)
 			goto done;
 		}
 	}
+
+	if (set_controller(sc, 0)) {
+		device_printf(sc->dev, "controller error during attach-1\n");
+		error = ENXIO;
+		goto done;
+	}
+
 	v = reg_read(sc, IG4_REG_SS_SCL_HCNT);
 	v = reg_read(sc, IG4_REG_SS_SCL_LCNT);
 	v = reg_read(sc, IG4_REG_FS_SCL_HCNT);
@@ -595,11 +602,6 @@ ig4iic_attach(ig4iic_softc_t *sc)
 	}
 #endif
 
-	if (set_controller(sc, 0)) {
-		device_printf(sc->dev, "controller error during attach-1\n");
-		error = ENXIO;
-		goto done;
-	}
 	if (set_controller(sc, IG4_I2C_ENABLE)) {
 		device_printf(sc->dev, "controller error during attach-2\n");
 		error = ENXIO;
