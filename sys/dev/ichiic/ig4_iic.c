@@ -995,7 +995,7 @@ ig4iic_attach(ig4iic_softc_t *sc)
 
 	ig4iic_get_config(sc);
 
-	error = ig4iic_set_config(sc, false);
+	error = ig4iic_set_config(sc, sc->version == IG4_SKYLAKE);
 	if (error)
 		goto done;
 
