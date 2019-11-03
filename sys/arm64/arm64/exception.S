@@ -73,6 +73,9 @@ __FBSDID("$FreeBSD$");
 	mov	w0, #1
 	blr	x1
 1:
+
+	ldr	x0, [x18, #(PC_CURTHREAD)]
+	bl	dbg_monitor_enter
 .endif
 	msr	daifclr, #8	/* Enable the debug exception */
 .endm
@@ -87,6 +90,10 @@ __FBSDID("$FreeBSD$");
 	msr	daifset, #10
 .endif
 .if \el == 0
+	ldr	x0, [x18, #PC_CURTHREAD]
+	mov	x1, sp
+	bl	dbg_monitor_exit
+
 	/* Remove the SSBD (CVE-2018-3639) workaround if needed */
 	ldr	x1, [x18, #PC_SSBD]
 	cbz	x1, 1f
