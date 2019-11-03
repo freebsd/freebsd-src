@@ -46,7 +46,7 @@
 enum ig4_vers { IG4_HASWELL, IG4_ATOM, IG4_SKYLAKE, IG4_APL, IG4_CANNONLAKE };
 /* Controller has additional registers */
 #define	IG4_HAS_ADDREGS(vers)	((vers) == IG4_SKYLAKE || \
-	(vers) == IG4_CANNONLAKE)
+	(vers) == IG4_APL || (vers) == IG4_CANNONLAKE)
 
 struct ig4_hw {
 	uint32_t	ic_clock_rate;	/* MHz */
