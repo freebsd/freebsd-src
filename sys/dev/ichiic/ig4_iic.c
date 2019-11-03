@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #define TRANS_PCALL	2
 #define TRANS_BLOCK	3
 
-#define DO_POLL(sc)	(cold || kdb_active || SCHEDULER_STOPPED())
+#define DO_POLL(sc)	(cold || kdb_active || SCHEDULER_STOPPED() || sc->poll)
 
 static void ig4iic_start(void *xdev);
 static void ig4iic_intr(void *cookie);
@@ -350,6 +350,7 @@ ig4iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	int unit;
 	bool rpstart;
 	bool stop;
+	bool allocated;
 
 	/*
 	 * The hardware interface imposes limits on allowed I2C messages.
@@ -410,7 +411,10 @@ ig4iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		return (IIC_ENOTSUPP);
 	}
 
-	sx_xlock(&sc->call_lock);
+	/* Check if device is already allocated with iicbus_request_bus() */
+	allocated = sx_xlocked(&sc->call_lock) != 0;
+	if (!allocated)
+		sx_xlock(&sc->call_lock);
 
 	/* Debugging - dump registers. */
 	if (ig4_dump) {
@@ -458,7 +462,8 @@ ig4iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		rpstart = !stop;
 	}
 
-	sx_unlock(&sc->call_lock);
+	if (!allocated)
+		sx_unlock(&sc->call_lock);
 	return (error);
 }
 
@@ -466,8 +471,11 @@ int
 ig4iic_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 {
 	ig4iic_softc_t *sc = device_get_softc(dev);
+	bool allocated;
 
-	sx_xlock(&sc->call_lock);
+	allocated = sx_xlocked(&sc->call_lock) != 0;
+	if (!allocated)
+		sx_xlock(&sc->call_lock);
 
 	/* TODO handle speed configuration? */
 	if (oldaddr != NULL)
@@ -476,8 +484,41 @@ ig4iic_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 	if (addr == IIC_UNKNOWN)
 		sc->slave_valid = false;
 
-	sx_unlock(&sc->call_lock);
+	if (!allocated)
+		sx_unlock(&sc->call_lock);
 	return (0);
+}
+
+int
+ig4iic_callback(device_t dev, int index, caddr_t data)
+{
+	ig4iic_softc_t *sc = device_get_softc(dev);
+	int error = 0;
+	int how;
+
+	switch (index) {
+	case IIC_REQUEST_BUS:
+		/* force polling if ig4iic is requested with IIC_DONTWAIT */
+		how = *(int *)data;
+		if ((how & IIC_WAIT) == 0) {
+			if (sx_try_xlock(&sc->call_lock) == 0)
+				error = IIC_EBUSBSY;
+			else
+				sc->poll = true;
+		} else
+			sx_xlock(&sc->call_lock);
+		break;
+
+	case IIC_RELEASE_BUS:
+		sc->poll = false;
+		sx_unlock(&sc->call_lock);
+		break;
+
+	default:
+		error = errno2iic(EINVAL);
+	}
+
+	return (error);
 }
 
 /*
