@@ -46,12 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/types.h>
 #include <sys/malloc.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/condvar.h>
-#include <sys/queue.h>
 #include <sys/bus.h>
 #include <sys/sysctl.h>
+#include <machine/atomic.h>
 #include <machine/bus.h>
 #include <sys/sbuf.h>
 
@@ -80,7 +77,6 @@ struct cfcs_softc {
 	struct cam_sim *sim;
 	struct cam_devq *devq;
 	struct cam_path *path;
-	struct mtx lock;
 	uint64_t wwnn;
 	uint64_t wwpn;
 	uint32_t cur_tag_num;
@@ -135,7 +131,6 @@ cfcs_init(void)
 
 	softc = &cfcs_softc;
 	bzero(softc, sizeof(*softc));
-	mtx_init(&softc->lock, "ctl2cam", NULL, MTX_DEF);
 	port = &softc->port;
 
 	port->frontend = &cfcs_frontend;
@@ -155,7 +150,6 @@ cfcs_init(void)
 	if (retval != 0) {
 		printf("%s: ctl_port_register() failed with error %d!\n",
 		       __func__, retval);
-		mtx_destroy(&softc->lock);
 		return (retval);
 	}
 
@@ -177,7 +171,6 @@ cfcs_init(void)
 		softc->wwpn = port->wwpn;
 	}
 
-	mtx_lock(&softc->lock);
 	softc->devq = cam_simq_alloc(port->num_requested_ctl_io);
 	if (softc->devq == NULL) {
 		printf("%s: error allocating devq\n", __func__);
@@ -186,7 +179,7 @@ cfcs_init(void)
 	}
 
 	softc->sim = cam_sim_alloc(cfcs_action, cfcs_poll, softc->port_name,
-				   softc, /*unit*/ 0, &softc->lock, 1,
+				   softc, /*unit*/ 0, NULL, 1,
 				   port->num_requested_ctl_io, softc->devq);
 	if (softc->sim == NULL) {
 		printf("%s: error allocating SIM\n", __func__);
@@ -210,8 +203,6 @@ cfcs_init(void)
 		goto bailout;
 	}
 
-	mtx_unlock(&softc->lock);
-
 	return (retval);
 
 bailout:
@@ -219,9 +210,6 @@ bailout:
 		cam_sim_free(softc->sim, /*free_devq*/ TRUE);
 	else if (softc->devq)
 		cam_simq_free(softc->devq);
-	mtx_unlock(&softc->lock);
-	mtx_destroy(&softc->lock);
-
 	return (retval);
 }
 
@@ -234,12 +222,9 @@ cfcs_shutdown(void)
 
 	ctl_port_offline(port);
 
-	mtx_lock(&softc->lock);
 	xpt_free_path(softc->path);
 	xpt_bus_deregister(cam_sim_path(softc->sim));
 	cam_sim_free(softc->sim, /*free_devq*/ TRUE);
-	mtx_unlock(&softc->lock);
-	mtx_destroy(&softc->lock);
 
 	if ((error = ctl_port_deregister(port)) != 0)
 		printf("%s: cam_sim port deregistration failed\n", __func__);
@@ -255,18 +240,15 @@ cfcs_poll(struct cam_sim *sim)
 static void
 cfcs_onoffline(void *arg, int online)
 {
-	struct cfcs_softc *softc;
+	struct cfcs_softc *softc = (struct cfcs_softc *)arg;
 	union ccb *ccb;
 
-	softc = (struct cfcs_softc *)arg;
-
-	mtx_lock(&softc->lock);
 	softc->online = online;
 
 	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
 		printf("%s: unable to allocate CCB for rescan\n", __func__);
-		goto bailout;
+		return;
 	}
 
 	if (xpt_create_path(&ccb->ccb_h.path, NULL,
@@ -274,12 +256,9 @@ cfcs_onoffline(void *arg, int online)
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		printf("%s: can't allocate path for rescan\n", __func__);
 		xpt_free_ccb(ccb);
-		goto bailout;
+		return;
 	}
 	xpt_rescan(ccb);
-
-bailout:
-	mtx_unlock(&softc->lock);
 }
 
 static void
@@ -493,13 +472,13 @@ cfcs_done(union ctl_io *io)
 		ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
 		break;
 	}
+	ctl_free_io(io);
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP &&
 	    (ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
 		xpt_freeze_devq(ccb->ccb_h.path, 1);
 		ccb->ccb_h.status |= CAM_DEV_QFRZN;
 	}
 	xpt_done(ccb);
-	ctl_free_io(io);
 }
 
 void
@@ -509,7 +488,6 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 	int err;
 
 	softc = (struct cfcs_softc *)cam_sim_softc(sim);
-	mtx_assert(&softc->lock, MA_OWNED);
 
 	switch (ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO: {
@@ -569,7 +547,7 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		 * enough for now.  Since we're using unsigned ints,
 		 * they'll just wrap around.
 		 */
-		io->scsiio.tag_num = softc->cur_tag_num++;
+		io->scsiio.tag_num = atomic_fetchadd_32(&softc->cur_tag_num, 1);
 		csio->tag_id = io->scsiio.tag_num;
 		switch (csio->tag_action) {
 		case CAM_TAG_ACTION_NONE:
@@ -775,13 +753,13 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->target_sprt = 0;
 		cpi->hba_misc = PIM_EXTLUNS;
 		cpi->hba_eng_cnt = 0;
-		cpi->max_target = 1;
+		cpi->max_target = 0;
 		cpi->max_lun = 1024;
 		/* Do we really have a limit? */
 		cpi->maxio = 1024 * 1024;
 		cpi->async_flags = 0;
 		cpi->hpath_id = 0;
-		cpi->initiator_id = 0;
+		cpi->initiator_id = 1;
 
 		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strlcpy(cpi->hba_vid, "FreeBSD", HBA_IDLEN);
