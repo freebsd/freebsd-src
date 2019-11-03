@@ -1549,26 +1549,163 @@ vdev_label_offset(uint64_t psize, int l, uint64_t offset)
 }
 
 static int
+vdev_uberblock_compare(const uberblock_t *ub1, const uberblock_t *ub2)
+{
+	unsigned int seq1 = 0;
+	unsigned int seq2 = 0;
+	int cmp = AVL_CMP(ub1->ub_txg, ub2->ub_txg);
+
+	if (cmp != 0)
+		return (cmp);
+
+	cmp = AVL_CMP(ub1->ub_timestamp, ub2->ub_timestamp);
+	if (cmp != 0)
+		return (cmp);
+
+	if (MMP_VALID(ub1) && MMP_SEQ_VALID(ub1))
+		seq1 = MMP_SEQ(ub1);
+
+	if (MMP_VALID(ub2) && MMP_SEQ_VALID(ub2))
+		seq2 = MMP_SEQ(ub2);
+
+	return (AVL_CMP(seq1, seq2));
+}
+
+static int
+uberblock_verify(uberblock_t *ub)
+{
+	if (ub->ub_magic == BSWAP_64((uint64_t)UBERBLOCK_MAGIC)) {
+		byteswap_uint64_array(ub, sizeof (uberblock_t));
+	}
+
+	if (ub->ub_magic != UBERBLOCK_MAGIC ||
+	    !SPA_VERSION_IS_SUPPORTED(ub->ub_version))
+		return (EINVAL);
+
+	return (0);
+}
+
+static int
+vdev_label_read(vdev_t *vd, int l, void *buf, uint64_t offset,
+    size_t size)
+{
+	blkptr_t bp;
+	off_t off;
+
+	off = vdev_label_offset(vd->v_psize, l, offset);
+
+	BP_ZERO(&bp);
+	BP_SET_LSIZE(&bp, size);
+	BP_SET_PSIZE(&bp, size);
+	BP_SET_CHECKSUM(&bp, ZIO_CHECKSUM_LABEL);
+	BP_SET_COMPRESS(&bp, ZIO_COMPRESS_OFF);
+	DVA_SET_OFFSET(BP_IDENTITY(&bp), off);
+	ZIO_SET_CHECKSUM(&bp.blk_cksum, off, 0, 0, 0);
+
+	return (vdev_read_phys(vd, &bp, buf, off, size));
+}
+
+static unsigned char *
+vdev_label_read_config(vdev_t *vd, uint64_t txg)
+{
+	vdev_phys_t *label;
+	uint64_t best_txg = 0;
+	uint64_t label_txg = 0;
+	uint64_t asize;
+	unsigned char *nvl;
+	size_t nvl_size;
+	int error;
+
+	label = malloc(sizeof (vdev_phys_t));
+	if (label == NULL)
+		return (NULL);
+
+	nvl_size = VDEV_PHYS_SIZE - sizeof (zio_eck_t) - 4;
+	nvl = malloc(nvl_size);
+	if (nvl == NULL) {
+		free(label);
+		return (NULL);
+	}
+
+	for (int l = 0; l < VDEV_LABELS; l++) {
+		const unsigned char *nvlist;
+
+		if (vdev_label_read(vd, l, label,
+		    offsetof(vdev_label_t, vl_vdev_phys),
+		    sizeof (vdev_phys_t)))
+			continue;
+
+		if (label->vp_nvlist[0] != NV_ENCODE_XDR)
+			continue;
+
+		nvlist = (const unsigned char *) label->vp_nvlist + 4;
+		error = nvlist_find(nvlist, ZPOOL_CONFIG_POOL_TXG,
+		    DATA_TYPE_UINT64, NULL, &label_txg);
+		if (error != 0 || label_txg == 0)
+			return (nvl);
+
+		if (label_txg <= txg && label_txg > best_txg) {
+			best_txg = label_txg;
+			memcpy(nvl, nvlist, nvl_size);
+
+			/*
+			 * Use asize from pool config. We need this
+			 * because we can get bad value from BIOS.
+			 */
+			if (nvlist_find(nvlist, ZPOOL_CONFIG_ASIZE,
+			    DATA_TYPE_UINT64, NULL, &asize) == 0) {
+				vd->v_psize = asize +
+				    VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE;
+			}
+		}
+	}
+
+	if (best_txg == 0) {
+		free(nvl);
+		nvl = NULL;
+	}
+	return (nvl);
+}
+
+static void
+vdev_uberblock_load(vdev_t *vd, uberblock_t *ub)
+{
+	uberblock_t *buf;
+
+	buf = malloc(VDEV_UBERBLOCK_SIZE(vd));
+	if (buf == NULL)
+		return;
+
+	for (int l = 0; l < VDEV_LABELS; l++) {
+		for (int n = 0; n < VDEV_UBERBLOCK_COUNT(vd); n++) {
+			if (vdev_label_read(vd, l, buf,
+			    VDEV_UBERBLOCK_OFFSET(vd, n),
+			    VDEV_UBERBLOCK_SIZE(vd)))
+				continue;
+			if (uberblock_verify(buf) != 0)
+				continue;
+
+			if (vdev_uberblock_compare(buf, ub) > 0)
+				*ub = *buf;
+		}
+	}
+	free(buf);
+}
+
+static int
 vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 {
 	vdev_t vtmp;
-	vdev_phys_t *vdev_label = (vdev_phys_t *) zap_scratch;
-	vdev_phys_t *tmp_label;
 	spa_t *spa;
 	vdev_t *vdev, *top_vdev, *pool_vdev;
-	off_t off;
-	blkptr_t bp;
-	const unsigned char *nvlist = NULL;
+	unsigned char *nvlist;
 	uint64_t val;
 	uint64_t guid;
-	uint64_t best_txg = 0;
 	uint64_t pool_txg, pool_guid;
 	const char *pool_name;
 	const unsigned char *vdevs;
 	const unsigned char *features;
-	int i, l, rc, is_newer;
-	char *upbuf;
-	const struct uberblock *up;
+	int rc, is_newer;
 
 	/*
 	 * Load the vdev label and figure out which
@@ -1580,71 +1717,24 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 	vtmp.v_psize = P2ALIGN(ldi_get_size(read_priv),
 	    (uint64_t)sizeof (vdev_label_t));
 
-	/* Test for minimum pool size. */
+	/* Test for minimum device size. */
 	if (vtmp.v_psize < SPA_MINDEVSIZE)
 		return (EIO);
 
-	tmp_label = zfs_alloc(sizeof(vdev_phys_t));
-
-	for (l = 0; l < VDEV_LABELS; l++) {
-		off = vdev_label_offset(vtmp.v_psize, l,
-		    offsetof(vdev_label_t, vl_vdev_phys));
-
-		BP_ZERO(&bp);
-		BP_SET_LSIZE(&bp, sizeof(vdev_phys_t));
-		BP_SET_PSIZE(&bp, sizeof(vdev_phys_t));
-		BP_SET_CHECKSUM(&bp, ZIO_CHECKSUM_LABEL);
-		BP_SET_COMPRESS(&bp, ZIO_COMPRESS_OFF);
-		DVA_SET_OFFSET(BP_IDENTITY(&bp), off);
-		ZIO_SET_CHECKSUM(&bp.blk_cksum, off, 0, 0, 0);
-
-		if (vdev_read_phys(&vtmp, &bp, tmp_label, off, 0))
-			continue;
-
-		if (tmp_label->vp_nvlist[0] != NV_ENCODE_XDR)
-			continue;
-
-		nvlist = (const unsigned char *) tmp_label->vp_nvlist + 4;
-		if (nvlist_find(nvlist, ZPOOL_CONFIG_POOL_TXG,
-		    DATA_TYPE_UINT64, NULL, &pool_txg) != 0)
-			continue;
-
-		if (best_txg <= pool_txg) {
-			uint64_t asize;
-
-			best_txg = pool_txg;
-			memcpy(vdev_label, tmp_label, sizeof (vdev_phys_t));
-
-			/*
-			 * Use asize from pool config. We need this
-			 * because we can get bad value from BIOS.
-			 */
-			if (nvlist_find(nvlist, ZPOOL_CONFIG_ASIZE,
-			    DATA_TYPE_UINT64, NULL, &asize) == 0) {
-				vtmp.v_psize = asize +
-				    VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE;
-			}
-		}
-	}
-
-	zfs_free(tmp_label, sizeof (vdev_phys_t));
-
-	if (best_txg == 0)
+	nvlist = vdev_label_read_config(&vtmp, UINT64_MAX);
+	if (nvlist == NULL)
 		return (EIO);
-
-	if (vdev_label->vp_nvlist[0] != NV_ENCODE_XDR)
-		return (EIO);
-
-	nvlist = (const unsigned char *) vdev_label->vp_nvlist + 4;
 
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_VERSION, DATA_TYPE_UINT64,
 	    NULL, &val) != 0) {
+		free(nvlist);
 		return (EIO);
 	}
 
 	if (!SPA_VERSION_IS_SUPPORTED(val)) {
 		printf("ZFS: unsupported ZFS version %u (should be %u)\n",
 		    (unsigned) val, (unsigned) SPA_VERSION);
+		free(nvlist);
 		return (EIO);
 	}
 
@@ -1652,16 +1742,19 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_FEATURES_FOR_READ,
 	    DATA_TYPE_NVLIST, NULL, &features) == 0 &&
 	    nvlist_check_features_for_read(features) != 0) {
+		free(nvlist);
 		return (EIO);
 	}
 
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_POOL_STATE, DATA_TYPE_UINT64,
 	    NULL, &val) != 0) {
+		free(nvlist);
 		return (EIO);
 	}
 
 	if (val == POOL_STATE_DESTROYED) {
 		/* We don't boot only from destroyed pools. */
+		free(nvlist);
 		return (EIO);
 	}
 
@@ -1675,12 +1768,13 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 		 * Cache and spare devices end up here - just ignore
 		 * them.
 		 */
-		/*printf("ZFS: can't find pool details\n");*/
+		free(nvlist);
 		return (EIO);
 	}
 
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_IS_LOG, DATA_TYPE_UINT64,
 	    NULL, &val) == 0 && val != 0) {
+		free(nvlist);
 		return (EIO);
 	}
 
@@ -1690,8 +1784,10 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 	spa = spa_find_by_guid(pool_guid);
 	if (spa == NULL) {
 		spa = spa_create(pool_guid, pool_name);
-		if (spa == NULL)
+		if (spa == NULL) {
+			free(nvlist);
 			return (ENOMEM);
+		}
 	}
 	if (pool_txg > spa->spa_txg) {
 		spa->spa_txg = pool_txg;
@@ -1708,18 +1804,24 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 	 */
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_GUID, DATA_TYPE_UINT64,
 	    NULL, &guid) != 0) {
+		free(nvlist);
 		return (EIO);
 	}
 	vdev = vdev_find(guid);
-	if (vdev && vdev->v_phys_read)	/* Has this vdev already been inited? */
+	/* Has this vdev already been inited? */
+	if (vdev && vdev->v_phys_read) {
+		free(nvlist);
 		return (EIO);
+	}
 
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_VDEV_TREE, DATA_TYPE_NVLIST,
 	    NULL, &vdevs)) {
+		free(nvlist);
 		return (EIO);
 	}
 
 	rc = vdev_init_from_nvlist(vdevs, NULL, &top_vdev, is_newer);
+	free(nvlist);
 	if (rc != 0)
 		return (rc);
 
@@ -1729,6 +1831,7 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 	STAILQ_FOREACH(pool_vdev, &spa->spa_vdevs, v_childlink)
 		if (top_vdev == pool_vdev)
 			break;
+
 	if (!pool_vdev && top_vdev) {
 		top_vdev->spa = spa;
 		STAILQ_INSERT_TAIL(&spa->spa_vdevs, top_vdev, v_childlink);
@@ -1765,36 +1868,7 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 	 * the best uberblock and then we can actually access
 	 * the contents of the pool.
 	 */
-	upbuf = zfs_alloc(VDEV_UBERBLOCK_SIZE(vdev));
-	up = (const struct uberblock *)upbuf;
-	for (l = 0; l < VDEV_LABELS; l++) {
-		for (i = 0; i < VDEV_UBERBLOCK_COUNT(vdev); i++) {
-			off = vdev_label_offset(vdev->v_psize, l,
-			    VDEV_UBERBLOCK_OFFSET(vdev, i));
-			BP_ZERO(&bp);
-			DVA_SET_OFFSET(&bp.blk_dva[0], off);
-			BP_SET_LSIZE(&bp, VDEV_UBERBLOCK_SIZE(vdev));
-			BP_SET_PSIZE(&bp, VDEV_UBERBLOCK_SIZE(vdev));
-			BP_SET_CHECKSUM(&bp, ZIO_CHECKSUM_LABEL);
-			BP_SET_COMPRESS(&bp, ZIO_COMPRESS_OFF);
-			ZIO_SET_CHECKSUM(&bp.blk_cksum, off, 0, 0, 0);
-
-			if (vdev_read_phys(vdev, &bp, upbuf, off, 0))
-				continue;
-
-			if (up->ub_magic != UBERBLOCK_MAGIC)
-				continue;
-			if (up->ub_txg < spa->spa_txg)
-				continue;
-			if (up->ub_txg > spa->spa_uberblock.ub_txg ||
-			    (up->ub_txg == spa->spa_uberblock.ub_txg &&
-			    up->ub_timestamp >
-			    spa->spa_uberblock.ub_timestamp)) {
-				spa->spa_uberblock = *up;
-			}
-		}
-	}
-	zfs_free(upbuf, VDEV_UBERBLOCK_SIZE(vdev));
+	vdev_uberblock_load(vdev, &spa->spa_uberblock);
 
 	vdev->spa = spa;
 	if (spap != NULL)
