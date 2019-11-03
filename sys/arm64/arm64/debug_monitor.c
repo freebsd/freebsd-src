@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/kdb.h>
 #include <sys/pcpu.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
 
 #include <machine/armreg.h>
@@ -58,6 +59,10 @@ static int dbg_breakpoint_num;
 static struct debug_monitor_state kernel_monitor = {
 	.dbg_flags = DBGMON_KERNEL
 };
+
+/* Called from the exception handlers */
+void dbg_monitor_enter(struct thread *);
+void dbg_monitor_exit(struct thread *, struct trapframe *);
 
 /* Watchpoints/breakpoints control register bitfields */
 #define DBG_WATCH_CTRL_LEN_1		(0x1 << 5)
@@ -496,4 +501,58 @@ dbg_monitor_init(void)
 	}
 
 	dbg_enable();
+}
+
+void
+dbg_monitor_enter(struct thread *thread)
+{
+	int i;
+
+	if ((kernel_monitor.dbg_flags & DBGMON_ENABLED) != 0) {
+		/* Install the kernel version of the registers */
+		dbg_register_sync(&kernel_monitor);
+	} else if ((thread->td_pcb->pcb_dbg_regs.dbg_flags & DBGMON_ENABLED) != 0) {
+		/* Disable the user breakpoints until we return to userspace */
+		for (i = 0; i < dbg_watchpoint_num; i++) {
+			dbg_wb_write_reg(DBG_REG_BASE_WCR, i, 0);
+			dbg_wb_write_reg(DBG_REG_BASE_WVR, i, 0);
+		}
+
+		for (i = 0; i < dbg_breakpoint_num; ++i) {
+			dbg_wb_write_reg(DBG_REG_BASE_BCR, i, 0);
+			dbg_wb_write_reg(DBG_REG_BASE_BVR, i, 0);
+		}
+		WRITE_SPECIALREG(mdscr_el1,
+		    READ_SPECIALREG(mdscr_el1) &
+		    ~(DBG_MDSCR_MDE | DBG_MDSCR_KDE));
+		isb();
+	}
+}
+
+void
+dbg_monitor_exit(struct thread *thread, struct trapframe *frame)
+{
+	int i;
+
+	frame->tf_spsr |= PSR_D;
+	if ((thread->td_pcb->pcb_dbg_regs.dbg_flags & DBGMON_ENABLED) != 0) {
+		/* Install the kernel version of the registers */
+		dbg_register_sync(&thread->td_pcb->pcb_dbg_regs);
+		frame->tf_spsr &= ~PSR_D;
+	} else if ((kernel_monitor.dbg_flags & DBGMON_ENABLED) != 0) {
+		/* Disable the user breakpoints until we return to userspace */
+		for (i = 0; i < dbg_watchpoint_num; i++) {
+			dbg_wb_write_reg(DBG_REG_BASE_WCR, i, 0);
+			dbg_wb_write_reg(DBG_REG_BASE_WVR, i, 0);
+		}
+
+		for (i = 0; i < dbg_breakpoint_num; ++i) {
+			dbg_wb_write_reg(DBG_REG_BASE_BCR, i, 0);
+			dbg_wb_write_reg(DBG_REG_BASE_BVR, i, 0);
+		}
+		WRITE_SPECIALREG(mdscr_el1,
+		    READ_SPECIALREG(mdscr_el1) &
+		    ~(DBG_MDSCR_MDE | DBG_MDSCR_KDE));
+		isb();
+	}
 }

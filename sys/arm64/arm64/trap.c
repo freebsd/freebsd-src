@@ -482,6 +482,7 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 		call_trapsignal(td, SIGBUS, BUS_ADRALN, (void *)frame->tf_elr);
 		userret(td, frame);
 		break;
+	case EXCP_BRKPT_EL0:
 	case EXCP_BRK:
 		call_trapsignal(td, SIGTRAP, TRAP_BRKPT, (void *)frame->tf_elr);
 		userret(td, frame);

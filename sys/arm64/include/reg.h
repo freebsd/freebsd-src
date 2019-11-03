@@ -60,7 +60,14 @@ struct fpreg32 {
 };
 
 struct dbreg {
-	int dummy;
+	uint32_t	db_info;
+	uint32_t	db_pad;
+
+	struct {
+		uint64_t dbr_addr;
+		uint32_t dbr_ctrl;
+		uint32_t dbr_pad;
+	} db_regs[16];
 };
 
 struct dbreg32 {
