@@ -1670,6 +1670,7 @@ typedef struct vdev {
 	vdev_phys_read_t *v_phys_read;	/* read from raw leaf vdev */
 	vdev_read_t	*v_read;	/* read from vdev */
 	void		*v_read_priv;	/* private data for read function */
+	boolean_t	v_islog;
 	struct spa	*spa;		/* link to spa */
 	/*
 	 * Values stored in the config for an indirect or removing vdev.
@@ -1694,6 +1695,7 @@ typedef struct spa {
 	zio_cksum_salt_t spa_cksum_salt;	/* secret salt for cksum */
 	void		*spa_cksum_tmpls[ZIO_CHECKSUM_FUNCTIONS];
 	int		spa_inited;	/* initialized */
+	boolean_t	spa_with_log;	/* this pool has log */
 } spa_t;
 
 /* IO related arguments. */
