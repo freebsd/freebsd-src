@@ -122,7 +122,7 @@ static const struct ig4_hw ig4iic_hw[] = {
 };
 
 static int ig4iic_set_config(ig4iic_softc_t *sc, bool reset);
-static void ig4iic_intr(void *cookie);
+static driver_filter_t ig4iic_intr;
 static void ig4iic_dump(ig4iic_softc_t *sc);
 
 static int ig4_dump;
@@ -297,12 +297,12 @@ wait_intr(ig4iic_softc_t *sc, uint32_t intr)
 		 * When polling is not requested let the interrupt do its work.
 		 */
 		if (!DO_POLL(sc)) {
-			mtx_lock(&sc->io_lock);
+			mtx_lock_spin(&sc->io_lock);
 			set_intr_mask(sc, intr | IG4_INTR_ERR_MASK);
-			mtx_sleep(sc, &sc->io_lock, 0, "i2cwait",
+			msleep_spin(sc, &sc->io_lock, "i2cwait",
 				  (hz + 99) / 100); /* sleep up to 10ms */
 			set_intr_mask(sc, 0);
-			mtx_unlock(&sc->io_lock);
+			mtx_unlock_spin(&sc->io_lock);
 			count_us += 10000;
 		} else {
 			DELAY(25);
@@ -1010,7 +1010,7 @@ ig4iic_attach(ig4iic_softc_t *sc)
 {
 	int error;
 
-	mtx_init(&sc->io_lock, "IG4 I/O lock", NULL, MTX_DEF);
+	mtx_init(&sc->io_lock, "IG4 I/O lock", NULL, MTX_SPIN);
 	sx_init(&sc->call_lock, "IG4 call lock");
 
 	ig4iic_get_config(sc);
@@ -1037,7 +1037,7 @@ ig4iic_attach(ig4iic_softc_t *sc)
 		goto done;
 	}
 	error = bus_setup_intr(sc->dev, sc->intr_res, INTR_TYPE_MISC | INTR_MPSAFE,
-			       NULL, ig4iic_intr, sc, &sc->intr_handle);
+			       ig4iic_intr, NULL, sc, &sc->intr_handle);
 	if (error) {
 		device_printf(sc->dev,
 			      "Unable to setup irq: error %d\n", error);
@@ -1127,19 +1127,23 @@ int ig4iic_resume(ig4iic_softc_t *sc)
 /*
  * Interrupt Operation, see ig4_var.h for locking semantics.
  */
-static void
+static int
 ig4iic_intr(void *cookie)
 {
 	ig4iic_softc_t *sc = cookie;
+	int retval = FILTER_STRAY;
 
-	mtx_lock(&sc->io_lock);
+	mtx_lock_spin(&sc->io_lock);
 	/* Ignore stray interrupts */
 	if (sc->intr_mask != 0 && reg_read(sc, IG4_REG_INTR_STAT) != 0) {
 		/* Interrupt bits are cleared in wait_intr() loop */
 		set_intr_mask(sc, 0);
 		wakeup(sc);
+		retval = FILTER_HANDLED;
 	}
-	mtx_unlock(&sc->io_lock);
+	mtx_unlock_spin(&sc->io_lock);
+
+	return (retval);
 }
 
 #define REGDUMP(sc, reg)	\
