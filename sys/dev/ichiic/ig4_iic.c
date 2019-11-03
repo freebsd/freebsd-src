@@ -605,6 +605,11 @@ ig4iic_attach(ig4iic_softc_t *sc)
 		error = ENXIO;
 		goto done;
 	}
+	if (set_controller(sc, 0)) {
+		device_printf(sc->dev, "controller error during attach-3\n");
+		error = ENXIO;
+		goto done;
+	}
 	error = bus_setup_intr(sc->dev, sc->intr_res, INTR_TYPE_MISC | INTR_MPSAFE,
 			       NULL, ig4iic_intr, sc, &sc->intr_handle);
 	if (error) {
