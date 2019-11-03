@@ -349,6 +349,8 @@ IDTVEC(dblfault)
 	jz	1f			/* already running with kernel GS.base */
 	swapgs
 1:	lfence
+	movq	%cr3,%rax
+	movq	%rax,PCPU(SAVED_UCR3)
 	movq	PCPU(KCR3),%rax
 	cmpq	$~0,%rax
 	je	2f
