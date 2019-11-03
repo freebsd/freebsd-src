@@ -168,17 +168,6 @@ wait_status(ig4iic_softc_t *sc, uint32_t status)
 		}
 
 		/*
-		 * When waiting for receive data break-out if the interrupt
-		 * loaded data into the FIFO.
-		 */
-		if (status & IG4_STATUS_RX_NOTEMPTY) {
-			if (sc->rpos != sc->rnext) {
-				error = 0;
-				break;
-			}
-		}
-
-		/*
 		 * When waiting for the transmit FIFO to become empty,
 		 * reset the timeout if we see a change in the transmit
 		 * FIFO level as progress is being made.
@@ -214,25 +203,6 @@ wait_status(ig4iic_softc_t *sc, uint32_t status)
 	}
 
 	return (error);
-}
-
-/*
- * Read I2C data.  The data might have already been read by
- * the interrupt code, otherwise it is sitting in the data
- * register.
- */
-static uint8_t
-data_read(ig4iic_softc_t *sc)
-{
-	uint8_t c;
-
-	if (sc->rpos == sc->rnext) {
-		c = (uint8_t)reg_read(sc, IG4_REG_DATA_CMD);
-	} else {
-		c = sc->rbuf[sc->rpos & IG4_RBUFMASK];
-		++sc->rpos;
-	}
-	return (c);
 }
 
 /*
@@ -334,7 +304,7 @@ ig4iic_read(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 		error = wait_status(sc, IG4_STATUS_RX_NOTEMPTY);
 		if (error)
 			break;
-		buf[i] = data_read(sc);
+		buf[i] = (uint8_t)reg_read(sc, IG4_REG_DATA_CMD);
 	}
 
 	(void)reg_read(sc, IG4_REG_TX_ABRT_SOURCE);
@@ -454,16 +424,6 @@ ig4iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	 * the txfifo in reset.
 	 */
 	reg_read(sc, IG4_REG_CLR_TX_ABORT);
-
-	/*
-	 * Clean out any previously received data.
-	 */
-	if (sc->rpos != sc->rnext && bootverbose) {
-		device_printf(sc->dev, "discarding %d bytes of spurious data\n",
-		    sc->rnext - sc->rpos);
-	}
-	sc->rpos = 0;
-	sc->rnext = 0;
 
 	rpstart = false;
 	error = 0;
@@ -734,19 +694,10 @@ static void
 ig4iic_intr(void *cookie)
 {
 	ig4iic_softc_t *sc = cookie;
-	uint32_t status;
 
 	mtx_lock(&sc->io_lock);
 	set_intr_mask(sc, 0);
 	reg_read(sc, IG4_REG_CLR_INTR);
-	status = reg_read(sc, IG4_REG_I2C_STA);
-	while (status & IG4_STATUS_RX_NOTEMPTY) {
-		sc->rbuf[sc->rnext & IG4_RBUFMASK] =
-		    (uint8_t)reg_read(sc, IG4_REG_DATA_CMD);
-		++sc->rnext;
-		status = reg_read(sc, IG4_REG_I2C_STA);
-	}
-
 	wakeup(sc);
 	mtx_unlock(&sc->io_lock);
 }
