@@ -50,10 +50,11 @@ char *host_base = NULL;
 struct termios term, oldterm;
 char *image;
 size_t image_size;
-int disk_fd = -1;
 
 uint64_t regs[16];
 uint64_t pc;
+int *disk_fd;
+int disk_index = -1;
 
 void test_exit(void *arg, int v);
 
@@ -245,9 +246,9 @@ test_diskread(void *arg, int unit, uint64_t offset, void *dst, size_t size,
 {
 	ssize_t n;
 
-	if (unit != 0 || disk_fd == -1)
+	if (unit > disk_index || disk_fd[unit] == -1)
 		return (EIO);
-	n = pread(disk_fd, dst, size, offset);
+	n = pread(disk_fd[unit], dst, size, offset);
 	if (n < 0)
 		return (errno);
 	*resid_return = size - n;
@@ -259,14 +260,14 @@ test_diskioctl(void *arg, int unit, u_long cmd, void *data)
 {
 	struct stat sb;
 
-	if (unit != 0 || disk_fd == -1)
+	if (unit > disk_index || disk_fd[unit] == -1)
 		return (EBADF);
 	switch (cmd) {
 	case DIOCGSECTORSIZE:
 		*(u_int *)data = 512;
 		break;
 	case DIOCGMEDIASIZE:
-		if (fstat(disk_fd, &sb) == 0)
+		if (fstat(disk_fd[unit], &sb) == 0)
 			*(off_t *)data = sb.st_size;
 		else
 			return (ENOTTY);
@@ -424,7 +425,6 @@ main(int argc, char** argv)
 	void *h;
 	void (*func)(struct loader_callbacks *, void *, int, int) __dead2;
 	int opt;
-	char *disk_image = NULL;
 	const char *userboot_obj = "/boot/userboot.so";
 
 	while ((opt = getopt(argc, argv, "b:d:h:")) != -1) {
@@ -434,7 +434,12 @@ main(int argc, char** argv)
 			break;
 
 		case 'd':
-			disk_image = optarg;
+			disk_index++;
+			disk_fd = reallocarray(disk_fd, disk_index + 1,
+			    sizeof (int));
+			disk_fd[disk_index] = open(optarg, O_RDONLY);
+			if (disk_fd[disk_index] < 0)
+				err(1, "Can't open disk image '%s'", optarg);
 			break;
 
 		case 'h':
@@ -459,11 +464,6 @@ main(int argc, char** argv)
 
 	image_size = 128*1024*1024;
 	image = malloc(image_size);
-	if (disk_image) {
-		disk_fd = open(disk_image, O_RDONLY);
-		if (disk_fd < 0)
-			err(1, "Can't open disk image '%s'", disk_image);
-	}
 
 	tcgetattr(0, &term);
 	oldterm = term;
@@ -471,5 +471,5 @@ main(int argc, char** argv)
 	term.c_lflag &= ~(ICANON|ECHO);
 	tcsetattr(0, TCSAFLUSH, &term);
 
-	func(&cb, NULL, USERBOOT_VERSION_3, disk_fd >= 0);
+	func(&cb, NULL, USERBOOT_VERSION_3, disk_index + 1);
 }
