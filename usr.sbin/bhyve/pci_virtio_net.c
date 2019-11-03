@@ -101,7 +101,6 @@ struct pci_vtnet_softc {
 
 	net_backend_t	*vsc_be;
 
-	int		vsc_rx_ready;
 	int		resetting;	/* protected by tx_mtx */
 
 	uint64_t	vsc_features;	/* negotiated features */
@@ -156,7 +155,6 @@ pci_vtnet_reset(void *vsc)
 		pthread_mutex_lock(&sc->tx_mtx);
 	}
 
-	sc->vsc_rx_ready = 0;
 	sc->rx_merge = 1;
 	sc->rx_vhdrlen = sizeof(struct virtio_net_rxhdr);
 
@@ -180,30 +178,29 @@ pci_vtnet_rx(struct pci_vtnet_softc *sc)
 	int len, n;
 	uint16_t idx;
 
-	if (!sc->vsc_rx_ready) {
-		/*
-		 * The rx ring has not yet been set up.
-		 * Drop the packet and try later.
-		 */
-		netbe_rx_discard(sc->vsc_be);
-		return;
-	}
-
-	/*
-	 * Check for available rx buffers
-	 */
 	vq = &sc->vsc_queues[VTNET_RXQ];
-	if (!vq_has_descs(vq)) {
+	for (;;) {
 		/*
-		 * No available rx buffers. Drop the packet and try later.
-		 * Interrupt on empty, if that's negotiated.
+		 * Check for available rx buffers.
 		 */
-		netbe_rx_discard(sc->vsc_be);
-		vq_endchains(vq, /*used_all_avail=*/1);
-		return;
-	}
+		if (!vq_has_descs(vq)) {
+			/* No rx buffers. Enable RX kicks and double check. */
+			vq_kick_enable(vq);
+			if (!vq_has_descs(vq)) {
+				/*
+				 * Still no buffers. Interrupt if needed
+				 * (including for NOTIFY_ON_EMPTY), and
+				 * disable the backend until the next kick.
+				 */
+				vq_endchains(vq, /*used_all_avail=*/1);
+				netbe_rx_disable(sc->vsc_be);
+				return;
+			}
 
-	do {
+			/* More rx buffers found, so keep going. */
+			vq_kick_disable(vq);
+		}
+
 		/*
 		 * Get descriptor chain.
 		 */
@@ -215,7 +212,8 @@ pci_vtnet_rx(struct pci_vtnet_softc *sc)
 		if (len <= 0) {
 			/*
 			 * No more packets (len == 0), or backend errored
-			 * (err < 0). Return unused available buffers.
+			 * (err < 0). Return unused available buffers
+			 * and stop.
 			 */
 			vq_retchain(vq);
 			/* Interrupt if needed/appropriate and stop. */
@@ -225,10 +223,8 @@ pci_vtnet_rx(struct pci_vtnet_softc *sc)
 
 		/* Publish the info to the guest */
 		vq_relchain(vq, idx, (uint32_t)len);
-	} while (vq_has_descs(vq));
+	}
 
-	/* Interrupt if needed, including for NOTIFY_ON_EMPTY. */
-	vq_endchains(vq, /*used_all_avail=*/1);
 }
 
 /*
@@ -254,13 +250,11 @@ pci_vtnet_ping_rxq(void *vsc, struct vqueue_info *vq)
 	struct pci_vtnet_softc *sc = vsc;
 
 	/*
-	 * A qnotify means that the rx process can now begin
+	 * A qnotify means that the rx process can now begin.
 	 */
 	pthread_mutex_lock(&sc->rx_mtx);
-	if (sc->vsc_rx_ready == 0) {
-		sc->vsc_rx_ready = 1;
-		vq_kick_disable(vq);
-	}
+	vq_kick_disable(vq);
+	netbe_rx_enable(sc->vsc_be);
 	pthread_mutex_unlock(&sc->rx_mtx);
 }
 
