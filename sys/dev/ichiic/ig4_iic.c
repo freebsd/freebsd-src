@@ -471,6 +471,7 @@ ig4iic_write(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 	int sent = 0;
 	int burst, target;
 	int error;
+	bool lowat_set = false;
 
 	if (len == 0)
 		return (0);
@@ -479,6 +480,11 @@ ig4iic_write(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 		burst = sc->cfg.txfifo_depth -
 		    (reg_read(sc, IG4_REG_TXFLR) & IG4_FIFOLVL_MASK);
 		target = MIN(sent + burst, (int)len);
+		/* Leave some data queued to maintain the hardware pipeline */
+		if (!lowat_set && target != len) {
+			lowat_set = true;
+			reg_write(sc, IG4_REG_TX_TL, IG4_FIFO_LOWAT);
+		}
 		while(sent < target) {
 			cmd = buf[sent];
 			if (repeated_start && sent == 0)
@@ -494,6 +500,8 @@ ig4iic_write(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 				break;
 		}
 	}
+	if (lowat_set)
+		reg_write(sc, IG4_REG_TX_TL, 0);
 
 	return (error);
 }
