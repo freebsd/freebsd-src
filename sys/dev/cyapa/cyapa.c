@@ -152,6 +152,7 @@ struct cyapa_softc {
 	struct cdev *devnode;
 	struct selinfo selinfo;
 	struct mtx mutex;
+	struct intr_config_hook intr_hook;
 
 	int	cap_resx;
 	int	cap_resy;
@@ -419,6 +420,27 @@ done:
 	return (error);
 }
 
+/*
+ * Start the polling thread
+ */
+static void
+cyapa_start(void *xdev)
+{
+	struct cyapa_softc *sc;
+	device_t dev = xdev;
+
+	sc = device_get_softc(dev);
+
+	config_intrhook_disestablish(&sc->intr_hook);
+
+	/* Setup input event tracking */
+	cyapa_set_power_mode(sc, CMD_POWER_MODE_IDLE);
+
+	/* Start the polling thread */
+	kthread_add(cyapa_poll_thread, sc, NULL, NULL,
+	    0, 0, "cyapa-poll");
+}
+
 static int cyapa_probe(device_t);
 static int cyapa_attach(device_t);
 static int cyapa_detach(device_t);
@@ -536,12 +558,14 @@ cyapa_attach(device_t dev)
 	sc->mode.level = 0;
 	sc->mode.packetsize = MOUSE_PS2_PACKETSIZE;
 
-	/* Setup input event tracking */
-	cyapa_set_power_mode(sc, CMD_POWER_MODE_IDLE);
+	sc->intr_hook.ich_func = cyapa_start;
+	sc->intr_hook.ich_arg = sc->dev;
 
-	/* Start the polling thread */
-	 kthread_add(cyapa_poll_thread, sc, NULL, NULL,
-	    0, 0, "cyapa-poll");
+	/* Postpone start of the polling thread until sleep is available */
+	if (config_intrhook_establish(&sc->intr_hook) != 0) {
+		mtx_destroy(&sc->mutex);
+		return (ENOMEM);
+	}
 
 	sc->devnode = make_dev(&cyapa_cdevsw, unit,
 	    UID_ROOT, GID_WHEEL, 0600, "cyapa%d", unit);
