@@ -117,7 +117,7 @@
 #define IG4_REG_COMP_VER	0x00F8	/* RO	Component Version */
 /* Available at least on Atom SoCs */
 #define IG4_REG_COMP_TYPE	0x00FC	/* RO	Probe width/endian? (linux) */
-/* Available on Skylake-U/Y and Kaby Lake-U/Y */
+/* 0x200-0x2FF - Additional registers available on Skylake-U/Y and others */
 #define IG4_REG_RESETS_SKL	0x0204	/* RW	Reset Register */
 #define IG4_REG_ACTIVE_LTR_VALUE 0x0210	/* RW	Active LTR Value */
 #define IG4_REG_IDLE_LTR_VALUE	0x0214	/* RW	Idle LTR Value */

@@ -90,6 +90,16 @@ static int ig4iic_pci_detach(device_t dev);
 #define PCI_CHIP_APL_I2C_5		0x5ab68086
 #define PCI_CHIP_APL_I2C_6		0x5ab88086
 #define PCI_CHIP_APL_I2C_7		0x5aba8086
+#define PCI_CHIP_CANNONLAKE_LP_I2C_0	0x9dc58086
+#define PCI_CHIP_CANNONLAKE_LP_I2C_1	0x9dc68086
+#define PCI_CHIP_CANNONLAKE_LP_I2C_2	0x9de88086
+#define PCI_CHIP_CANNONLAKE_LP_I2C_3	0x9de98086
+#define PCI_CHIP_CANNONLAKE_LP_I2C_4	0x9dea8086
+#define PCI_CHIP_CANNONLAKE_LP_I2C_5	0x9deb8086
+#define PCI_CHIP_CANNONLAKE_H_I2C_0	0xa3688086
+#define PCI_CHIP_CANNONLAKE_H_I2C_1	0xa3698086
+#define PCI_CHIP_CANNONLAKE_H_I2C_2	0xa36a8086
+#define PCI_CHIP_CANNONLAKE_H_I2C_3	0xa36b8086
 
 struct ig4iic_pci_device {
 	uint32_t	devid;
@@ -121,7 +131,17 @@ static struct ig4iic_pci_device ig4iic_pci_devices[] = {
 	{ PCI_CHIP_APL_I2C_4, "Intel Apollo Lake I2C Controller-4", IG4_APL},
 	{ PCI_CHIP_APL_I2C_5, "Intel Apollo Lake I2C Controller-5", IG4_APL},
 	{ PCI_CHIP_APL_I2C_6, "Intel Apollo Lake I2C Controller-6", IG4_APL},
-	{ PCI_CHIP_APL_I2C_7, "Intel Apollo Lake I2C Controller-7", IG4_APL}
+	{ PCI_CHIP_APL_I2C_7, "Intel Apollo Lake I2C Controller-7", IG4_APL},
+	{ PCI_CHIP_CANNONLAKE_LP_I2C_0, "Intel Cannon Lake-LP I2C Controller-0", IG4_CANNONLAKE},
+	{ PCI_CHIP_CANNONLAKE_LP_I2C_1, "Intel Cannon Lake-LP I2C Controller-1", IG4_CANNONLAKE},
+	{ PCI_CHIP_CANNONLAKE_LP_I2C_2, "Intel Cannon Lake-LP I2C Controller-2", IG4_CANNONLAKE},
+	{ PCI_CHIP_CANNONLAKE_LP_I2C_3, "Intel Cannon Lake-LP I2C Controller-3", IG4_CANNONLAKE},
+	{ PCI_CHIP_CANNONLAKE_LP_I2C_4, "Intel Cannon Lake-LP I2C Controller-4", IG4_CANNONLAKE},
+	{ PCI_CHIP_CANNONLAKE_LP_I2C_5, "Intel Cannon Lake-LP I2C Controller-5", IG4_CANNONLAKE},
+	{ PCI_CHIP_CANNONLAKE_H_I2C_0, "Intel Cannon Lake-H I2C Controller-0", IG4_CANNONLAKE},
+	{ PCI_CHIP_CANNONLAKE_H_I2C_1, "Intel Cannon Lake-H I2C Controller-1", IG4_CANNONLAKE},
+	{ PCI_CHIP_CANNONLAKE_H_I2C_2, "Intel Cannon Lake-H I2C Controller-2", IG4_CANNONLAKE},
+	{ PCI_CHIP_CANNONLAKE_H_I2C_3, "Intel Cannon Lake-H I2C Controller-3", IG4_CANNONLAKE},
 };
 
 static int
