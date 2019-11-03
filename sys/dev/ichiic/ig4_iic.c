@@ -198,10 +198,10 @@ set_controller(ig4iic_softc_t *sc, uint32_t ctl)
 }
 
 /*
- * Wait up to 25ms for the requested status using a 25uS polling loop.
+ * Wait up to 25ms for the requested interrupt using a 25uS polling loop.
  */
 static int
-wait_status(ig4iic_softc_t *sc, uint32_t status)
+wait_intr(ig4iic_softc_t *sc, uint32_t intr)
 {
 	uint32_t v;
 	int error;
@@ -215,8 +215,8 @@ wait_status(ig4iic_softc_t *sc, uint32_t status)
 		/*
 		 * Check requested status
 		 */
-		v = reg_read(sc, IG4_REG_I2C_STA);
-		if (v & status) {
+		v = reg_read(sc, IG4_REG_RAW_INTR_STAT);
+		if (v & intr) {
 			error = 0;
 			break;
 		}
@@ -226,7 +226,7 @@ wait_status(ig4iic_softc_t *sc, uint32_t status)
 		 * reset the timeout if we see a change in the transmit
 		 * FIFO level as progress is being made.
 		 */
-		if (status & IG4_STATUS_TX_EMPTY) {
+		if (intr & IG4_INTR_TX_EMPTY) {
 			v = reg_read(sc, IG4_REG_TXFLR) & IG4_FIFOLVL_MASK;
 			if (txlvl != v) {
 				txlvl = v;
@@ -241,20 +241,11 @@ wait_status(ig4iic_softc_t *sc, uint32_t status)
 			break;
 
 		/*
-		 * When waiting for receive data let the interrupt do its
-		 * work, otherwise poll with the lock held.
+		 * When polling is not requested let the interrupt do its work.
 		 */
-		if ((status & IG4_STATUS_RX_NOTEMPTY) && !DO_POLL(sc)) {
+		if (!DO_POLL(sc)) {
 			mtx_lock(&sc->io_lock);
-			set_intr_mask(sc, IG4_INTR_STOP_DET | IG4_INTR_RX_FULL);
-			mtx_sleep(sc, &sc->io_lock, 0, "i2cwait",
-				  (hz + 99) / 100); /* sleep up to 10ms */
-			set_intr_mask(sc, 0);
-			mtx_unlock(&sc->io_lock);
-			count_us += 10000;
-		} else if ((status & IG4_STATUS_TX_EMPTY) && !DO_POLL(sc)) {
-			mtx_lock(&sc->io_lock);
-			set_intr_mask(sc, IG4_INTR_TX_EMPTY);
+			set_intr_mask(sc, intr);
 			mtx_sleep(sc, &sc->io_lock, 0, "i2cwait",
 				  (hz + 99) / 100); /* sleep up to 10ms */
 			set_intr_mask(sc, 0);
@@ -293,7 +284,7 @@ set_slave_addr(ig4iic_softc_t *sc, uint8_t slave)
 	/*
 	 * Wait for TXFIFO to drain before disabling the controller.
 	 */
-	wait_status(sc, IG4_STATUS_TX_EMPTY);
+	wait_intr(sc, IG4_INTR_TX_EMPTY);
 
 	set_controller(sc, 0);
 	ctl = reg_read(sc, IG4_REG_CTL);
@@ -346,7 +337,7 @@ ig4iic_read(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 		burst = sc->cfg.txfifo_depth -
 		    (reg_read(sc, IG4_REG_TXFLR) & IG4_FIFOLVL_MASK);
 		if (burst <= 0) {
-			error = wait_status(sc, IG4_STATUS_TX_EMPTY);
+			error = wait_intr(sc, IG4_INTR_TX_EMPTY);
 			if (error)
 				break;
 			burst = sc->cfg.txfifo_depth;
@@ -376,7 +367,7 @@ ig4iic_read(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 					buf[received++] = 0xFF &
 					    reg_read(sc, IG4_REG_DATA_CMD);
 			} else {
-				error = wait_status(sc, IG4_STATUS_RX_NOTEMPTY);
+				error = wait_intr(sc, IG4_INTR_RX_FULL);
 				if (error)
 					goto out;
 			}
@@ -413,7 +404,7 @@ ig4iic_write(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 			sent++;
 		}
 		if (sent < len) {
-			error = wait_status(sc, IG4_STATUS_TX_EMPTY);
+			error = wait_intr(sc, IG4_INTR_TX_EMPTY);
 			if (error)
 				break;
 		}
