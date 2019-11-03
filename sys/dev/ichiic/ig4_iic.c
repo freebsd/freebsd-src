@@ -384,21 +384,31 @@ ig4iic_write(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
     bool repeated_start, bool stop)
 {
 	uint32_t cmd;
-	uint16_t i;
+	int sent = 0;
+	int burst, target;
 	int error;
 
 	if (len == 0)
 		return (0);
 
-	cmd = repeated_start ? IG4_DATA_RESTART : 0;
-	for (i = 0; i < len; i++) {
-		error = wait_status(sc, IG4_STATUS_TX_NOTFULL);
-		if (error)
-			break;
-		cmd |= buf[i];
-		cmd |= stop && i == len - 1 ? IG4_DATA_STOP : 0;
-		reg_write(sc, IG4_REG_DATA_CMD, cmd);
-		cmd = 0;
+	while (sent < len) {
+		burst = sc->cfg.txfifo_depth -
+		    (reg_read(sc, IG4_REG_TXFLR) & IG4_FIFOLVL_MASK);
+		target = MIN(sent + burst, (int)len);
+		while(sent < target) {
+			cmd = buf[sent];
+			if (repeated_start && sent == 0)
+				cmd |= IG4_DATA_RESTART;
+			if (stop && sent == len - 1)
+				cmd |= IG4_DATA_STOP;
+			reg_write(sc, IG4_REG_DATA_CMD, cmd);
+			sent++;
+		}
+		if (sent < len) {
+			error = wait_status(sc, IG4_STATUS_TX_EMPTY);
+			if (error)
+				break;
+		}
 	}
 
 	(void)reg_read(sc, IG4_REG_TX_ABRT_SOURCE);
