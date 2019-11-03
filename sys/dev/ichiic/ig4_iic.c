@@ -567,7 +567,7 @@ ig4iic_attach(ig4iic_softc_t *sc)
 	 *
 	 * See ig4_var.h for details on interrupt handler synchronization.
 	 */
-	reg_write(sc, IG4_REG_RX_TL, 1);
+	reg_write(sc, IG4_REG_RX_TL, 0);
 
 	reg_write(sc, IG4_REG_CTL,
 		  IG4_CTL_MASTER |
