@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
  * See ig4_var.h for locking semantics.
  */
 
+#include "opt_acpi.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -60,6 +62,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/rman.h>
 
+#ifdef DEV_ACPI
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <dev/acpica/acpivar.h>
+#endif
+
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/iicbus/iicbus.h>
@@ -74,12 +82,60 @@ __FBSDID("$FreeBSD$");
 
 #define DO_POLL(sc)	(cold || kdb_active || SCHEDULER_STOPPED() || sc->poll)
 
+/*
+ * tLOW, tHIGH periods of the SCL clock and maximal falling time of both
+ * lines are taken from I2C specifications.
+ */
+#define	IG4_SPEED_STD_THIGH	4000	/* nsec */
+#define	IG4_SPEED_STD_TLOW	4700	/* nsec */
+#define	IG4_SPEED_STD_TF_MAX	300	/* nsec */
+#define	IG4_SPEED_FAST_THIGH	600	/* nsec */
+#define	IG4_SPEED_FAST_TLOW	1300	/* nsec */
+#define	IG4_SPEED_FAST_TF_MAX	300	/* nsec */
+
+/*
+ * Ig4 hardware parameters except Haswell are taken from intel_lpss driver
+ */
+static const struct ig4_hw ig4iic_hw[] = {
+	[IG4_HASWELL] = {
+		.ic_clock_rate = 100,	/* MHz */
+		.sda_hold_time = 90,	/* nsec */
+	},
+	[IG4_ATOM] = {
+		.ic_clock_rate = 100,
+		.sda_fall_time = 280,
+		.scl_fall_time = 240,
+		.sda_hold_time = 60,
+	},
+	[IG4_SKYLAKE] = {
+		.ic_clock_rate = 120,
+		.sda_hold_time = 230,
+	},
+	[IG4_APL] = {
+		.ic_clock_rate = 133,
+		.sda_fall_time = 171,
+		.scl_fall_time = 208,
+		.sda_hold_time = 207,
+	},
+};
+
 static void ig4iic_intr(void *cookie);
 static void ig4iic_dump(ig4iic_softc_t *sc);
 
 static int ig4_dump;
 SYSCTL_INT(_debug, OID_AUTO, ig4_dump, CTLFLAG_RW,
 	   &ig4_dump, 0, "Dump controller registers");
+
+/*
+ * Clock registers initialization control
+ * 0 - Try read clock registers from ACPI and fallback to p.1.
+ * 1 - Calculate values based on controller type (IC clock rate).
+ * 2 - Use values inherited from DragonflyBSD driver (old behavior).
+ * 3 - Keep clock registers intact.
+ */
+static int ig4_timings;
+SYSCTL_INT(_debug, OID_AUTO, ig4_timings, CTLFLAG_RDTUN, &ig4_timings, 0,
+    "Controller timings 0=ACPI, 1=predefined, 2=legacy, 3=do not change");
 
 /*
  * Low-level inline support functions
@@ -521,6 +577,166 @@ ig4iic_callback(device_t dev, int index, caddr_t data)
 }
 
 /*
+ * Clock register values can be calculated with following rough equations:
+ * SCL_HCNT = ceil(IC clock rate * tHIGH)
+ * SCL_LCNT = ceil(IC clock rate * tLOW)
+ * SDA_HOLD = ceil(IC clock rate * SDA hold time)
+ * Precise equations take signal's falling, rising and spike suppression
+ * times in to account. They can be found in Synopsys or Intel documentation.
+ *
+ * Here we snarf formulas and defaults from Linux driver to be able to use
+ * timing values provided by Intel LPSS driver "as is".
+ */
+static int
+ig4iic_clk_params(const struct ig4_hw *hw, int speed,
+    uint16_t *scl_hcnt, uint16_t *scl_lcnt, uint16_t *sda_hold)
+{
+	uint32_t thigh, tlow, tf_max;	/* nsec */
+	uint32_t sda_fall_time;		/* nsec */
+        uint32_t scl_fall_time;		/* nsec */
+
+	switch (speed) {
+	case IG4_CTL_SPEED_STD:
+		thigh = IG4_SPEED_STD_THIGH;
+		tlow = IG4_SPEED_STD_TLOW;
+		tf_max = IG4_SPEED_STD_TF_MAX;
+		break;
+
+	case IG4_CTL_SPEED_FAST:
+		thigh = IG4_SPEED_FAST_THIGH;
+		tlow = IG4_SPEED_FAST_TLOW;
+		tf_max = IG4_SPEED_FAST_TF_MAX;
+		break;
+
+	default:
+		return (EINVAL);
+	}
+
+	/* Use slowest falling time defaults to be on the safe side */
+	sda_fall_time = hw->sda_fall_time == 0 ? tf_max : hw->sda_fall_time;
+	*scl_hcnt = (uint16_t)
+	    ((hw->ic_clock_rate * (thigh + sda_fall_time) + 500) / 1000 - 3);
+
+	scl_fall_time = hw->scl_fall_time == 0 ? tf_max : hw->scl_fall_time;
+	*scl_lcnt = (uint16_t)
+	    ((hw->ic_clock_rate * (tlow + scl_fall_time) + 500) / 1000 - 1);
+
+	/*
+	 * There is no "known good" default value for tHD;DAT so keep SDA_HOLD
+	 * intact if sda_hold_time value is not provided.
+	 */
+	if (hw->sda_hold_time != 0)
+		*sda_hold = (uint16_t)
+		    ((hw->ic_clock_rate * hw->sda_hold_time + 500) / 1000);
+
+	return (0);
+}
+
+#ifdef DEV_ACPI
+static ACPI_STATUS
+ig4iic_acpi_params(ACPI_HANDLE handle, char *method,
+    uint16_t *scl_hcnt, uint16_t *scl_lcnt, uint16_t *sda_hold)
+{
+	ACPI_BUFFER buf;
+	ACPI_OBJECT *obj, *elems;
+	ACPI_STATUS status;
+
+	buf.Pointer = NULL;
+	buf.Length = ACPI_ALLOCATE_BUFFER;
+
+	status = AcpiEvaluateObject(handle, method, NULL, &buf);
+	if (ACPI_FAILURE(status))
+		return (status);
+
+	status = AE_TYPE;
+	obj = (ACPI_OBJECT *)buf.Pointer;
+	if (obj->Type == ACPI_TYPE_PACKAGE && obj->Package.Count == 3) {
+		elems = obj->Package.Elements;
+		*scl_hcnt = elems[0].Integer.Value & IG4_SCL_CLOCK_MASK;
+		*scl_lcnt = elems[1].Integer.Value & IG4_SCL_CLOCK_MASK;
+		*sda_hold = elems[2].Integer.Value & IG4_SDA_TX_HOLD_MASK;
+		status = AE_OK;
+	}
+
+	AcpiOsFree(obj);
+
+	return (status);
+}
+#endif /* DEV_ACPI */
+
+static void
+ig4iic_get_config(ig4iic_softc_t *sc)
+{
+	const struct ig4_hw *hw;
+#ifdef DEV_ACPI
+	ACPI_HANDLE handle;
+#endif
+	/* Fetch default hardware config from controller */
+	sc->cfg.version = reg_read(sc, IG4_REG_COMP_VER);
+	sc->cfg.bus_speed = reg_read(sc, IG4_REG_CTL) & IG4_CTL_SPEED_MASK;
+	sc->cfg.ss_scl_hcnt =
+	    reg_read(sc, IG4_REG_SS_SCL_HCNT) & IG4_SCL_CLOCK_MASK;
+	sc->cfg.ss_scl_lcnt =
+	    reg_read(sc, IG4_REG_SS_SCL_LCNT) & IG4_SCL_CLOCK_MASK;
+	sc->cfg.fs_scl_hcnt =
+	    reg_read(sc, IG4_REG_FS_SCL_HCNT) & IG4_SCL_CLOCK_MASK;
+	sc->cfg.fs_scl_lcnt =
+	    reg_read(sc, IG4_REG_FS_SCL_LCNT) & IG4_SCL_CLOCK_MASK;
+	sc->cfg.ss_sda_hold = sc->cfg.fs_sda_hold =
+	    reg_read(sc, IG4_REG_SDA_HOLD) & IG4_SDA_TX_HOLD_MASK;
+
+	if (sc->cfg.bus_speed != IG4_CTL_SPEED_STD)
+		sc->cfg.bus_speed = IG4_CTL_SPEED_FAST;
+
+	/* Override hardware config with IC_clock-based counter values */
+	if (ig4_timings < 2 && sc->version < nitems(ig4iic_hw)) {
+		hw = &ig4iic_hw[sc->version];
+		sc->cfg.bus_speed = IG4_CTL_SPEED_FAST;
+		ig4iic_clk_params(hw, IG4_CTL_SPEED_STD, &sc->cfg.ss_scl_hcnt,
+		    &sc->cfg.ss_scl_lcnt, &sc->cfg.ss_sda_hold);
+		ig4iic_clk_params(hw, IG4_CTL_SPEED_FAST, &sc->cfg.fs_scl_hcnt,
+		    &sc->cfg.fs_scl_lcnt, &sc->cfg.fs_sda_hold);
+	} else if (ig4_timings == 2) {
+		/*
+		 * Timings of original ig4 driver:
+		 * Program based on a 25000 Hz clock.  This is a bit of a
+		 * hack (obviously).  The defaults are 400 and 470 for standard
+		 * and 60 and 130 for fast.  The defaults for standard fail
+		 * utterly (presumably cause an abort) because the clock time
+		 * is ~18.8ms by default.  This brings it down to ~4ms.
+		 */
+		sc->cfg.bus_speed = IG4_CTL_SPEED_STD;
+		sc->cfg.ss_scl_hcnt = sc->cfg.fs_scl_hcnt = 100;
+		sc->cfg.ss_scl_lcnt = sc->cfg.fs_scl_lcnt = 125;
+		if (sc->version == IG4_SKYLAKE)
+			sc->cfg.ss_sda_hold = sc->cfg.fs_sda_hold = 28;
+	}
+
+#ifdef DEV_ACPI
+	/* Evaluate SSCN and FMCN ACPI methods to fetch timings */
+	if (ig4_timings == 0 && (handle = acpi_get_handle(sc->dev)) != NULL) {
+		ig4iic_acpi_params(handle, "SSCN", &sc->cfg.ss_scl_hcnt,
+		    &sc->cfg.ss_scl_lcnt, &sc->cfg.ss_sda_hold);
+		ig4iic_acpi_params(handle, "FMCN", &sc->cfg.fs_scl_hcnt,
+		    &sc->cfg.fs_scl_lcnt, &sc->cfg.fs_sda_hold);
+	}
+#endif
+
+	if (bootverbose) {
+		device_printf(sc->dev, "Controller parameters:\n");
+		printf("  Speed: %s\n",
+		    sc->cfg.bus_speed == IG4_CTL_SPEED_STD ? "Std" : "Fast");
+		printf("  Regs:  HCNT  :LCNT  :SDAHLD\n");
+		printf("  Std:   0x%04hx:0x%04hx:0x%04hx\n",
+		    sc->cfg.ss_scl_hcnt, sc->cfg.ss_scl_lcnt,
+		    sc->cfg.ss_sda_hold);
+		printf("  Fast:  0x%04hx:0x%04hx:0x%04hx\n",
+		    sc->cfg.fs_scl_hcnt, sc->cfg.fs_scl_lcnt,
+		    sc->cfg.fs_sda_hold);
+	}
+}
+
+/*
  * Called from ig4iic_pci_attach/detach()
  */
 int
@@ -531,6 +747,8 @@ ig4iic_attach(ig4iic_softc_t *sc)
 
 	mtx_init(&sc->io_lock, "IG4 I/O lock", NULL, MTX_DEF);
 	sx_init(&sc->call_lock, "IG4 call lock");
+
+	ig4iic_get_config(sc);
 
 	v = reg_read(sc, IG4_REG_DEVIDLE_CTRL);
 	if (sc->version == IG4_SKYLAKE && (v & IG4_RESTORE_REQUIRED) ) {
@@ -582,34 +800,17 @@ ig4iic_attach(ig4iic_softc_t *sc)
 		goto done;
 	}
 
-	v = reg_read(sc, IG4_REG_SS_SCL_HCNT);
-	v = reg_read(sc, IG4_REG_SS_SCL_LCNT);
-	v = reg_read(sc, IG4_REG_FS_SCL_HCNT);
-	v = reg_read(sc, IG4_REG_FS_SCL_LCNT);
-	v = reg_read(sc, IG4_REG_SDA_HOLD);
-
-	v = reg_read(sc, IG4_REG_SS_SCL_HCNT);
-	reg_write(sc, IG4_REG_FS_SCL_HCNT, v);
-	v = reg_read(sc, IG4_REG_SS_SCL_LCNT);
-	reg_write(sc, IG4_REG_FS_SCL_LCNT, v);
-
 	reg_read(sc, IG4_REG_CLR_INTR);
 	reg_write(sc, IG4_REG_INTR_MASK, 0);
 	sc->intr_mask = 0;
 
-	/*
-	 * Program based on a 25000 Hz clock.  This is a bit of a
-	 * hack (obviously).  The defaults are 400 and 470 for standard
-	 * and 60 and 130 for fast.  The defaults for standard fail
-	 * utterly (presumably cause an abort) because the clock time
-	 * is ~18.8ms by default.  This brings it down to ~4ms (for now).
-	 */
-	reg_write(sc, IG4_REG_SS_SCL_HCNT, 100);
-	reg_write(sc, IG4_REG_SS_SCL_LCNT, 125);
-	reg_write(sc, IG4_REG_FS_SCL_HCNT, 100);
-	reg_write(sc, IG4_REG_FS_SCL_LCNT, 125);
-	if (sc->version == IG4_SKYLAKE)
-		reg_write(sc, IG4_REG_SDA_HOLD, 28);
+	reg_write(sc, IG4_REG_SS_SCL_HCNT, sc->cfg.ss_scl_hcnt);
+	reg_write(sc, IG4_REG_SS_SCL_LCNT, sc->cfg.ss_scl_lcnt);
+	reg_write(sc, IG4_REG_FS_SCL_HCNT, sc->cfg.fs_scl_hcnt);
+	reg_write(sc, IG4_REG_FS_SCL_LCNT, sc->cfg.fs_scl_lcnt);
+	reg_write(sc, IG4_REG_SDA_HOLD,
+	    (sc->cfg.bus_speed  & IG4_CTL_SPEED_MASK) == IG4_CTL_SPEED_STD ?
+	      sc->cfg.ss_sda_hold : sc->cfg.fs_sda_hold);
 
 	/*
 	 * Use a threshold of 1 so we get interrupted on each character,
@@ -624,7 +825,7 @@ ig4iic_attach(ig4iic_softc_t *sc)
 		  IG4_CTL_MASTER |
 		  IG4_CTL_SLAVE_DISABLE |
 		  IG4_CTL_RESTARTEN |
-		  IG4_CTL_SPEED_STD);
+		  (sc->cfg.bus_speed & IG4_CTL_SPEED_MASK));
 
 	sc->iicbus = device_add_child(sc->dev, "iicbus", -1);
 	if (sc->iicbus == NULL) {
