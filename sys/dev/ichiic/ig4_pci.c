@@ -214,7 +214,7 @@ static device_method_t ig4iic_pci_methods[] = {
 
 	DEVMETHOD(iicbus_transfer, ig4iic_transfer),
 	DEVMETHOD(iicbus_reset, ig4iic_reset),
-	DEVMETHOD(iicbus_callback, iicbus_null_callback),
+	DEVMETHOD(iicbus_callback, ig4iic_callback),
 
 	DEVMETHOD_END
 };
