@@ -799,19 +799,10 @@ ig4iic_get_config(ig4iic_softc_t *sc)
 	}
 }
 
-/*
- * Called from ig4iic_pci_attach/detach()
- */
-int
-ig4iic_attach(ig4iic_softc_t *sc)
+static int
+ig4iic_set_config(ig4iic_softc_t *sc)
 {
-	int error;
 	uint32_t v;
-
-	mtx_init(&sc->io_lock, "IG4 I/O lock", NULL, MTX_DEF);
-	sx_init(&sc->call_lock, "IG4 call lock");
-
-	ig4iic_get_config(sc);
 
 	v = reg_read(sc, IG4_REG_DEVIDLE_CTRL);
 	if (sc->version == IG4_SKYLAKE && (v & IG4_RESTORE_REQUIRED) ) {
@@ -851,16 +842,13 @@ ig4iic_attach(ig4iic_softc_t *sc)
 
 	if (sc->version == IG4_HASWELL || sc->version == IG4_ATOM) {
 		v = reg_read(sc, IG4_REG_COMP_VER);
-		if (v < IG4_COMP_MIN_VER) {
-			error = ENXIO;
-			goto done;
-		}
+		if (v < IG4_COMP_MIN_VER)
+			return(ENXIO);
 	}
 
 	if (set_controller(sc, 0)) {
 		device_printf(sc->dev, "controller error during attach-1\n");
-		error = ENXIO;
-		goto done;
+		return (ENXIO);
 	}
 
 	reg_read(sc, IG4_REG_CLR_INTR);
@@ -889,6 +877,26 @@ ig4iic_attach(ig4iic_softc_t *sc)
 		  IG4_CTL_SLAVE_DISABLE |
 		  IG4_CTL_RESTARTEN |
 		  (sc->cfg.bus_speed & IG4_CTL_SPEED_MASK));
+
+	return (0);
+}
+
+/*
+ * Called from ig4iic_pci_attach/detach()
+ */
+int
+ig4iic_attach(ig4iic_softc_t *sc)
+{
+	int error;
+
+	mtx_init(&sc->io_lock, "IG4 I/O lock", NULL, MTX_DEF);
+	sx_init(&sc->call_lock, "IG4 call lock");
+
+	ig4iic_get_config(sc);
+
+	error = ig4iic_set_config(sc);
+	if (error)
+		goto done;
 
 	sc->iicbus = device_add_child(sc->dev, "iicbus", -1);
 	if (sc->iicbus == NULL) {
@@ -965,6 +973,49 @@ ig4iic_detach(ig4iic_softc_t *sc)
 	sx_destroy(&sc->call_lock);
 
 	return (0);
+}
+
+int
+ig4iic_suspend(ig4iic_softc_t *sc)
+{
+	int error;
+
+	/* suspend all children */
+	error = bus_generic_suspend(sc->dev);
+
+	sx_xlock(&sc->call_lock);
+	set_controller(sc, 0);
+	if (sc->version == IG4_SKYLAKE) {
+		/*
+		 * Place the device in the idle state, just to be safe
+		 */
+		reg_write(sc, IG4_REG_DEVIDLE_CTRL, IG4_DEVICE_IDLE);
+		/*
+		 * Controller can become dysfunctional if I2C lines are pulled
+		 * down when suspend procedure turns off power to I2C device.
+		 * Place device in the reset state to avoid this.
+		 */
+		reg_write(sc, IG4_REG_RESETS_SKL, IG4_RESETS_ASSERT_SKL);
+	}
+	sx_xunlock(&sc->call_lock);
+
+	return (error);
+}
+
+int ig4iic_resume(ig4iic_softc_t *sc)
+{
+	int error;
+
+	sx_xlock(&sc->call_lock);
+	if (ig4iic_set_config(sc))
+		device_printf(sc->dev, "controller error during resume\n");
+	/* Force setting of the target address on the next transfer */
+	sc->slave_valid = 0;
+	sx_xunlock(&sc->call_lock);
+
+	error = bus_generic_resume(sc->dev);
+
+	return (error);
 }
 
 /*

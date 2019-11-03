@@ -145,11 +145,29 @@ ig4iic_acpi_detach(device_t dev)
 	return (0);
 }
 
+static int
+ig4iic_acpi_suspend(device_t dev)
+{
+	ig4iic_softc_t *sc = device_get_softc(dev);
+
+	return (ig4iic_suspend(sc));
+}
+
+static int
+ig4iic_acpi_resume(device_t dev)
+{
+	ig4iic_softc_t *sc  = device_get_softc(dev);
+
+	return (ig4iic_resume(sc));
+}
+
 static device_method_t ig4iic_acpi_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, ig4iic_acpi_probe),
 	DEVMETHOD(device_attach, ig4iic_acpi_attach),
 	DEVMETHOD(device_detach, ig4iic_acpi_detach),
+	DEVMETHOD(device_suspend, ig4iic_acpi_suspend),
+	DEVMETHOD(device_resume, ig4iic_acpi_resume),
 
 	/* iicbus interface */
 	DEVMETHOD(iicbus_transfer, ig4iic_transfer),
