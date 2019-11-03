@@ -362,7 +362,8 @@ ig4iic_xfer_start(ig4iic_softc_t *sc, uint16_t slave, bool repeated_start)
 
 	if (!repeated_start) {
 		/*
-		 * Clear any previous TX/RX FIFOs overflow/underflow bits.
+		 * Clear any previous TX/RX FIFOs overflow/underflow bits
+		 * and I2C bus STOP condition.
 		 */
 		reg_read(sc, IG4_REG_CLR_INTR);
 	}
@@ -613,6 +614,13 @@ ig4iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		else
 			error = ig4iic_write(sc, msgs[i].buf, msgs[i].len,
 			    rpstart, stop);
+
+		/* Wait for error or stop condition occurred on the I2C bus */
+		if (stop && error == 0) {
+			error = wait_intr(sc, IG4_INTR_STOP_DET);
+			if (error == 0)
+				reg_read(sc, IG4_REG_CLR_INTR);
+		}
 
 		if (error != 0) {
 			/*
