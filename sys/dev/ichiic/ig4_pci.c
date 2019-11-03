@@ -220,17 +220,13 @@ static device_method_t ig4iic_pci_methods[] = {
 };
 
 static driver_t ig4iic_pci_driver = {
-	"ig4iic_pci",
+	"ig4iic",
 	ig4iic_pci_methods,
 	sizeof(struct ig4iic_softc)
 };
 
-static devclass_t ig4iic_pci_devclass;
-
-DRIVER_MODULE_ORDERED(ig4iic_pci, pci, ig4iic_pci_driver, ig4iic_pci_devclass, 0, 0,
+DRIVER_MODULE_ORDERED(ig4iic, pci, ig4iic_pci_driver, ig4iic_devclass, 0, 0,
     SI_ORDER_ANY);
-MODULE_DEPEND(ig4iic_pci, pci, 1, 1, 1);
-MODULE_DEPEND(ig4iic_pci, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
-MODULE_VERSION(ig4iic_pci, 1);
-MODULE_PNP_INFO("W32:vendor/device", pci, ig4iic_pci, ig4iic_pci_devices,
+MODULE_DEPEND(ig4iic, pci, 1, 1, 1);
+MODULE_PNP_INFO("W32:vendor/device", pci, ig4iic, ig4iic_pci_devices,
     nitems(ig4iic_pci_devices));
