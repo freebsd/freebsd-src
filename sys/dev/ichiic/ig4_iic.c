@@ -337,14 +337,14 @@ ig4iic_read(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 	while (received < len) {
 		burst = sc->cfg.txfifo_depth -
 		    (reg_read(sc, IG4_REG_TXFLR) & IG4_FIFOLVL_MASK);
-		/* Ensure we have enough free space in RXFIFO */
-		burst = MIN(burst, sc->cfg.rxfifo_depth - lowat);
 		if (burst <= 0) {
-			error = wait_status(sc, IG4_STATUS_TX_NOTFULL);
+			error = wait_status(sc, IG4_STATUS_TX_EMPTY);
 			if (error)
 				break;
-			burst = 1;
+			burst = sc->cfg.txfifo_depth;
 		}
+		/* Ensure we have enough free space in RXFIFO */
+		burst = MIN(burst, sc->cfg.rxfifo_depth - lowat);
 		target = MIN(requested + burst, (int)len);
 		while (requested < target) {
 			cmd = IG4_DATA_COMMAND_RD;
