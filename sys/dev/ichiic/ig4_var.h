@@ -46,6 +46,24 @@
 enum ig4_op { IG4_IDLE, IG4_READ, IG4_WRITE };
 enum ig4_vers { IG4_HASWELL, IG4_ATOM, IG4_SKYLAKE, IG4_APL };
 
+struct ig4_hw {
+	uint32_t	ic_clock_rate;	/* MHz */
+	uint32_t	sda_fall_time;	/* nsec */
+	uint32_t	scl_fall_time;	/* nsec */
+	uint32_t	sda_hold_time;	/* nsec */
+};
+
+struct ig4_cfg {
+	uint32_t	version;
+	uint32_t	bus_speed;
+	uint16_t	ss_scl_hcnt;
+	uint16_t	ss_scl_lcnt;
+	uint16_t	ss_sda_hold;
+	uint16_t	fs_scl_hcnt;
+	uint16_t	fs_scl_lcnt;
+	uint16_t	fs_sda_hold;
+};
+
 struct ig4iic_softc {
 	device_t	dev;
 	device_t	iicbus;
@@ -57,6 +75,7 @@ struct ig4iic_softc {
 	int		intr_type;
 	enum ig4_vers	version;
 	enum ig4_op	op;
+	struct ig4_cfg	cfg;
 	int		cmd;
 	uint32_t	intr_mask;
 	int		error;

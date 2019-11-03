@@ -154,9 +154,12 @@
 #define IG4_CTL_SLAVE_DISABLE	0x0040	/* snarfed from linux */
 #define IG4_CTL_RESTARTEN	0x0020	/* Allow Restart when master */
 #define IG4_CTL_10BIT		0x0010	/* ctlr accepts 10-bit addresses */
+#define IG4_CTL_SPEED_MASK	0x0006	/* speed at which the I2C operates */
+#define IG4_CTL_MASTER		0x0001	/* snarfed from linux */
+
+#define IG4_CTL_SPEED_HIGH	0x0006	/* snarfed from linux */
 #define IG4_CTL_SPEED_FAST	0x0004	/* snarfed from linux */
 #define IG4_CTL_SPEED_STD	0x0002	/* snarfed from linux */
-#define IG4_CTL_MASTER		0x0001	/* snarfed from linux */
 
 /*
  * TAR_ADD - Target Address Register	22.2.2
@@ -413,7 +416,7 @@
  *
  *	Set the SDA hold time length register in I2C clocks.
  */
-#define IG4_SDA_HOLD_MASK	0x00FF
+#define IG4_SDA_TX_HOLD_MASK	0x0000FFFF
 
 /*
  * TX_ABRT_SOURCE- (RO) Transmit Abort Source Register		22.2.27
