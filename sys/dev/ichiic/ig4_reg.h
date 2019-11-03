@@ -383,7 +383,9 @@
  * I2C_EN	- (RW) I2C Enable Register			22.2.22
  *
  *	ABORT		Software can abort an I2C transfer by setting this
- *			bit.  Hardware will clear the bit once the STOP has
+ *			bit. In response, the controller issues the STOP
+ *			condition over the I2C bus, followed by TX FIFO flush.
+ *			Hardware will clear the bit once the STOP has
  *			been detected.  This bit can only be set while the
  *			I2C interface is enabled.
  *
