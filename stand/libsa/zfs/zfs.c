@@ -669,6 +669,8 @@ zfs_dev_open(struct open_file *f, ...)
 	if (!spa)
 		return (ENXIO);
 	mount = malloc(sizeof(*mount));
+	if (mount == NULL)
+		return (ENOMEM);
 	rv = zfs_mount(spa, dev->root_guid, mount);
 	if (rv != 0) {
 		free(mount);
