@@ -169,6 +169,17 @@ static device_method_t ig4iic_acpi_methods[] = {
 	DEVMETHOD(device_suspend, ig4iic_acpi_suspend),
 	DEVMETHOD(device_resume, ig4iic_acpi_resume),
 
+	/* Bus interface */
+	DEVMETHOD(bus_setup_intr, bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr, bus_generic_teardown_intr),
+	DEVMETHOD(bus_alloc_resource, bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource, bus_generic_adjust_resource),
+	DEVMETHOD(bus_set_resource, bus_generic_rl_set_resource),
+	DEVMETHOD(bus_get_resource, bus_generic_rl_get_resource),
+
 	/* iicbus interface */
 	DEVMETHOD(iicbus_transfer, ig4iic_transfer),
 	DEVMETHOD(iicbus_reset, ig4iic_reset),
