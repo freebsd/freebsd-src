@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 
 #define DO_POLL(sc)	(cold || kdb_active || SCHEDULER_STOPPED() || sc->poll)
 
-static void ig4iic_start(void *xdev);
 static void ig4iic_intr(void *cookie);
 static void ig4iic_dump(ig4iic_softc_t *sc);
 
@@ -664,38 +663,14 @@ ig4iic_attach(ig4iic_softc_t *sc)
 			      "Unable to setup irq: error %d\n", error);
 	}
 
-	sc->enum_hook.ich_func = ig4iic_start;
-	sc->enum_hook.ich_arg = sc->dev;
-
-	/*
-	 * We have to wait until interrupts are enabled. I2C read and write
-	 * only works if the interrupts are available.
-	 */
-	if (config_intrhook_establish(&sc->enum_hook) != 0)
-		error = ENOMEM;
-	else
-		error = 0;
-
-done:
-	return (error);
-}
-
-void
-ig4iic_start(void *xdev)
-{
-	int error;
-	ig4iic_softc_t *sc;
-	device_t dev = (device_t)xdev;
-
-	sc = device_get_softc(dev);
-
-	config_intrhook_disestablish(&sc->enum_hook);
-
 	error = bus_generic_attach(sc->dev);
 	if (error) {
 		device_printf(sc->dev,
 			      "failed to attach child: error %d\n", error);
 	}
+
+done:
+	return (error);
 }
 
 int

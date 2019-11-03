@@ -48,7 +48,6 @@ enum ig4_vers { IG4_HASWELL, IG4_ATOM, IG4_SKYLAKE, IG4_APL };
 
 struct ig4iic_softc {
 	device_t	dev;
-	struct		intr_config_hook enum_hook;
 	device_t	iicbus;
 	struct resource	*regs_res;
 	int		regs_rid;
