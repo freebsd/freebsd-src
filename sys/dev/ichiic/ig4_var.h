@@ -43,7 +43,6 @@
 #include "pci_if.h"
 #include "iicbus_if.h"
 
-enum ig4_op { IG4_IDLE, IG4_READ, IG4_WRITE };
 enum ig4_vers { IG4_HASWELL, IG4_ATOM, IG4_SKYLAKE, IG4_APL };
 
 struct ig4_hw {
@@ -78,17 +77,12 @@ struct ig4iic_softc {
 	void		*intr_handle;
 	int		intr_type;
 	enum ig4_vers	version;
-	enum ig4_op	op;
 	struct ig4_cfg	cfg;
-	int		cmd;
 	uint32_t	intr_mask;
-	int		error;
 	uint8_t		last_slave;
 	int		platform_attached : 1;
 	int		use_10bit : 1;
 	int		slave_valid : 1;
-	int		read_started : 1;
-	int		write_started : 1;
 	int		poll: 1;
 
 	/*
