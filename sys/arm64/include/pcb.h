@@ -31,6 +31,7 @@
 
 #ifndef LOCORE
 
+#include <machine/debug_monitor.h>
 #include <machine/vfp.h>
 
 struct trapframe;
@@ -66,6 +67,8 @@ struct pcb {
 	 * Place last to simplify the asm to access the rest if the struct.
 	 */
 	struct vfpstate	pcb_fpustate;
+
+	struct debug_monitor_state pcb_dbg_regs;
 };
 
 #ifdef _KERNEL
