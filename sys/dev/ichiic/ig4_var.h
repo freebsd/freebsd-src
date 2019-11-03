@@ -67,6 +67,7 @@ struct ig4iic_softc {
 	int		slave_valid : 1;
 	int		read_started : 1;
 	int		write_started : 1;
+	int		poll: 1;
 
 	/*
 	 * Locking semantics:
@@ -95,5 +96,6 @@ int ig4iic_detach(ig4iic_softc_t *sc);
 /* iicbus methods */
 extern iicbus_transfer_t ig4iic_transfer;
 extern iicbus_reset_t   ig4iic_reset;
+extern iicbus_callback_t ig4iic_callback;
 
 #endif /* _ICHIIC_IG4_VAR_H_ */
