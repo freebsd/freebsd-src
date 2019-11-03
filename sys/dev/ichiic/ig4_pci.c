@@ -206,11 +206,29 @@ ig4iic_pci_detach(device_t dev)
 	return (0);
 }
 
+static int
+ig4iic_pci_suspend(device_t dev)
+{
+	ig4iic_softc_t *sc = device_get_softc(dev);
+
+	return (ig4iic_suspend(sc));
+}
+
+static int
+ig4iic_pci_resume(device_t dev)
+{
+	ig4iic_softc_t *sc  = device_get_softc(dev);
+
+	return (ig4iic_resume(sc));
+}
+
 static device_method_t ig4iic_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, ig4iic_pci_probe),
 	DEVMETHOD(device_attach, ig4iic_pci_attach),
 	DEVMETHOD(device_detach, ig4iic_pci_detach),
+	DEVMETHOD(device_suspend, ig4iic_pci_suspend),
+	DEVMETHOD(device_resume, ig4iic_pci_resume),
 
 	DEVMETHOD(iicbus_transfer, ig4iic_transfer),
 	DEVMETHOD(iicbus_reset, ig4iic_reset),
