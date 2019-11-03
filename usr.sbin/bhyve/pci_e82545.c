@@ -2351,6 +2351,8 @@ e82545_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		net_genmac(pi, sc->esc_mac.octet);
 	}
 
+	netbe_rx_enable(sc->esc_be);
+
 	/* H/w initiated reset */
 	e82545_reset(sc, 0);
 
