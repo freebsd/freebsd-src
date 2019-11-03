@@ -1073,6 +1073,8 @@ db_disasm(db_addr_t loc, bool extended)
 	int class;
 	instr_t opcode;
 	opcode = *(instr_t *)(loc);
+	if (extended)
+		db_printf("|%08x| ", opcode);
 	class = opcode >> 26;
 	(opcodes_base[class])(opcode, loc);
 
