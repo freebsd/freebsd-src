@@ -69,7 +69,7 @@ chromebook_i2c_identify(driver_t *driver, device_t bus)
 	 * See http://lxr.free-electrons.com/source/drivers/platform/chrome/chromeos_laptop.c
 	 */
 	controller = device_get_parent(bus);
-	if (strcmp(device_get_name(controller), "ig4iic_pci") != 0)
+	if (strcmp(device_get_name(controller), "ig4iic") != 0)
 		return;
 
 	for (i = 0; i < nitems(slaves); i++) {

@@ -163,15 +163,10 @@ static device_method_t ig4iic_acpi_methods[] = {
 };
 
 static driver_t ig4iic_acpi_driver = {
-	"ig4iic_acpi",
+	"ig4iic",
 	ig4iic_acpi_methods,
 	sizeof(struct ig4iic_softc),
 };
 
-static devclass_t ig4iic_acpi_devclass;
-DRIVER_MODULE(ig4iic_acpi, acpi, ig4iic_acpi_driver, ig4iic_acpi_devclass, 0, 0);
-
-MODULE_DEPEND(ig4iic_acpi, acpi, 1, 1, 1);
-MODULE_DEPEND(ig4iic_acpi, pci, 1, 1, 1);
-MODULE_DEPEND(ig4iic_acpi, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
-MODULE_VERSION(ig4iic_acpi, 1);
+DRIVER_MODULE(ig4iic, acpi, ig4iic_acpi_driver, ig4iic_devclass, 0, 0);
+MODULE_DEPEND(ig4iic, acpi, 1, 1, 1);
