@@ -629,10 +629,18 @@ ig4iic_attach(ig4iic_softc_t *sc)
 #endif
 
 	mtx_lock(&sc->io_lock);
-	if (set_controller(sc, 0))
+	if (set_controller(sc, 0)) {
 		device_printf(sc->dev, "controller error during attach-1\n");
-	if (set_controller(sc, IG4_I2C_ENABLE))
+		mtx_unlock(&sc->io_lock);
+		error = ENXIO;
+		goto done;
+	}
+	if (set_controller(sc, IG4_I2C_ENABLE)) {
 		device_printf(sc->dev, "controller error during attach-2\n");
+		mtx_unlock(&sc->io_lock);
+		error = ENXIO;
+		goto done;
+	}
 	mtx_unlock(&sc->io_lock);
 	error = bus_setup_intr(sc->dev, sc->intr_res, INTR_TYPE_MISC | INTR_MPSAFE,
 			       NULL, ig4iic_intr, sc, &sc->intr_handle);
