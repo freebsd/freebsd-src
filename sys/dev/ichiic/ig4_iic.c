@@ -751,10 +751,8 @@ ig4iic_dump(ig4iic_softc_t *sc)
 	REGDUMP(sc, IG4_REG_DMA_RDLR);
 	REGDUMP(sc, IG4_REG_SDA_SETUP);
 	REGDUMP(sc, IG4_REG_ENABLE_STATUS);
-	if (sc->version == IG4_HASWELL || sc->version == IG4_ATOM) {
-		REGDUMP(sc, IG4_REG_COMP_PARAM1);
-		REGDUMP(sc, IG4_REG_COMP_VER);
-	}
+	REGDUMP(sc, IG4_REG_COMP_PARAM1);
+	REGDUMP(sc, IG4_REG_COMP_VER);
 	if (sc->version == IG4_ATOM) {
 		REGDUMP(sc, IG4_REG_COMP_TYPE);
 		REGDUMP(sc, IG4_REG_CLK_PARMS);

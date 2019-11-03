@@ -112,7 +112,7 @@
 #define IG4_REG_SDA_SETUP	0x0094	/* RW	SDA Setup */
 #define IG4_REG_ACK_GENERAL_CALL 0x0098	/* RW	I2C ACK General Call */
 #define IG4_REG_ENABLE_STATUS	0x009C	/* RO	Enable Status */
-/* Available at least on Atom SoCs and Haswell mobile. */
+/* Available at least on Atom SoCs, Haswell mobile and some Skylakes. */
 #define IG4_REG_COMP_PARAM1	0x00F4	/* RO	Component Parameter */
 #define IG4_REG_COMP_VER	0x00F8	/* RO	Component Version */
 /* Available at least on Atom SoCs */
