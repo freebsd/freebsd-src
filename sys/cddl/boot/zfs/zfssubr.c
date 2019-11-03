@@ -318,8 +318,9 @@ zio_checksum_verify(const spa_t *spa, const blkptr_t *bp, void *data)
 			byteswap_uint64_array(&expected_cksum,
 			    sizeof (zio_cksum_t));
 	} else {
+		byteswap = BP_SHOULD_BYTESWAP(bp);
 		expected_cksum = bp->blk_cksum;
-		ci->ci_func[0](data, size, ctx, &actual_cksum);
+		ci->ci_func[byteswap](data, size, ctx, &actual_cksum);
 	}
 
 	if (!ZIO_CHECKSUM_EQUAL(actual_cksum, expected_cksum)) {
