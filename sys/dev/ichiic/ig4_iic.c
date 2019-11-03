@@ -48,8 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/errno.h>
+#include <sys/kdb.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sx.h>
 #include <sys/syslog.h>
 #include <sys/bus.h>
@@ -69,6 +71,8 @@ __FBSDID("$FreeBSD$");
 #define TRANS_NORMAL	1
 #define TRANS_PCALL	2
 #define TRANS_BLOCK	3
+
+#define DO_POLL(sc)	(cold || kdb_active || SCHEDULER_STOPPED())
 
 static void ig4iic_start(void *xdev);
 static void ig4iic_intr(void *cookie);
@@ -187,7 +191,7 @@ wait_status(ig4iic_softc_t *sc, uint32_t status)
 		 * When waiting for receive data let the interrupt do its
 		 * work, otherwise poll with the lock held.
 		 */
-		if (status & IG4_STATUS_RX_NOTEMPTY) {
+		if ((status & IG4_STATUS_RX_NOTEMPTY) && !DO_POLL(sc)) {
 			mtx_lock(&sc->io_lock);
 			set_intr_mask(sc, IG4_INTR_STOP_DET | IG4_INTR_RX_FULL);
 			mtx_sleep(sc, &sc->io_lock, 0, "i2cwait",
