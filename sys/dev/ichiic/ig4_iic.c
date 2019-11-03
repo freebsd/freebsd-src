@@ -685,9 +685,12 @@ ig4iic_intr(void *cookie)
 	ig4iic_softc_t *sc = cookie;
 
 	mtx_lock(&sc->io_lock);
-	set_intr_mask(sc, 0);
-	reg_read(sc, IG4_REG_CLR_INTR);
-	wakeup(sc);
+	/* Ignore stray interrupts */
+	if (sc->intr_mask != 0 && reg_read(sc, IG4_REG_INTR_STAT) != 0) {
+		set_intr_mask(sc, 0);
+		reg_read(sc, IG4_REG_CLR_INTR);
+		wakeup(sc);
+	}
 	mtx_unlock(&sc->io_lock);
 }
 
