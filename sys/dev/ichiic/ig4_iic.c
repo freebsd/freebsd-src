@@ -115,6 +115,10 @@ static const struct ig4_hw ig4iic_hw[] = {
 		.scl_fall_time = 208,
 		.sda_hold_time = 207,
 	},
+	[IG4_CANNONLAKE] = {
+		.ic_clock_rate = 216,
+		.sda_hold_time = 230,
+	},
 };
 
 static int ig4iic_set_config(ig4iic_softc_t *sc, bool reset);
@@ -912,7 +916,7 @@ ig4iic_set_config(ig4iic_softc_t *sc, bool reset)
 	uint32_t v;
 
 	v = reg_read(sc, IG4_REG_DEVIDLE_CTRL);
-	if (sc->version == IG4_SKYLAKE && (v & IG4_RESTORE_REQUIRED) ) {
+	if (IG4_HAS_ADDREGS(sc->version) && (v & IG4_RESTORE_REQUIRED)) {
 		reg_write(sc, IG4_REG_DEVIDLE_CTRL, IG4_DEVICE_IDLE | IG4_RESTORE_REQUIRED);
 		reg_write(sc, IG4_REG_DEVIDLE_CTRL, 0);
 		pause("i2crst", 1);
@@ -922,7 +926,7 @@ ig4iic_set_config(ig4iic_softc_t *sc, bool reset)
 	if ((sc->version == IG4_HASWELL || sc->version == IG4_ATOM) && reset) {
 		reg_write(sc, IG4_REG_RESETS_HSW, IG4_RESETS_ASSERT_HSW);
 		reg_write(sc, IG4_REG_RESETS_HSW, IG4_RESETS_DEASSERT_HSW);
-	} else if (sc->version == IG4_SKYLAKE && reset) {
+	} else if (IG4_HAS_ADDREGS(sc->version) && reset) {
 		reg_write(sc, IG4_REG_RESETS_SKL, IG4_RESETS_ASSERT_SKL);
 		reg_write(sc, IG4_REG_RESETS_SKL, IG4_RESETS_DEASSERT_SKL);
 	}
@@ -948,7 +952,7 @@ ig4iic_set_config(ig4iic_softc_t *sc, bool reset)
 	if (sc->version == IG4_HASWELL) {
 		v = reg_read(sc, IG4_REG_SW_LTR_VALUE);
 		v = reg_read(sc, IG4_REG_AUTO_LTR_VALUE);
-	} else if (sc->version == IG4_SKYLAKE) {
+	} else if (IG4_HAS_ADDREGS(sc->version)) {
 		v = reg_read(sc, IG4_REG_ACTIVE_LTR_VALUE);
 		v = reg_read(sc, IG4_REG_IDLE_LTR_VALUE);
 	}
@@ -1011,7 +1015,7 @@ ig4iic_attach(ig4iic_softc_t *sc)
 
 	ig4iic_get_config(sc);
 
-	error = ig4iic_set_config(sc, sc->version == IG4_SKYLAKE);
+	error = ig4iic_set_config(sc, IG4_HAS_ADDREGS(sc->version));
 	if (error)
 		goto done;
 
@@ -1089,7 +1093,7 @@ ig4iic_suspend(ig4iic_softc_t *sc)
 
 	sx_xlock(&sc->call_lock);
 	set_controller(sc, 0);
-	if (sc->version == IG4_SKYLAKE) {
+	if (IG4_HAS_ADDREGS(sc->version)) {
 		/*
 		 * Place the device in the idle state, just to be safe
 		 */
@@ -1111,7 +1115,7 @@ int ig4iic_resume(ig4iic_softc_t *sc)
 	int error;
 
 	sx_xlock(&sc->call_lock);
-	if (ig4iic_set_config(sc, sc->version == IG4_SKYLAKE))
+	if (ig4iic_set_config(sc, IG4_HAS_ADDREGS(sc->version)))
 		device_printf(sc->dev, "controller error during resume\n");
 	sx_xunlock(&sc->call_lock);
 
@@ -1183,7 +1187,7 @@ ig4iic_dump(ig4iic_softc_t *sc)
 	if (sc->version == IG4_HASWELL) {
 		REGDUMP(sc, IG4_REG_SW_LTR_VALUE);
 		REGDUMP(sc, IG4_REG_AUTO_LTR_VALUE);
-	} else if (sc->version == IG4_SKYLAKE) {
+	} else if (IG4_HAS_ADDREGS(sc->version)) {
 		REGDUMP(sc, IG4_REG_ACTIVE_LTR_VALUE);
 		REGDUMP(sc, IG4_REG_IDLE_LTR_VALUE);
 	}
