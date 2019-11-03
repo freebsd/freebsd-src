@@ -113,6 +113,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
@@ -276,6 +277,48 @@ static u_int physmap_idx;
 
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
+/*
+ * This ASID allocator uses a bit vector ("asid_set") to remember which ASIDs
+ * that it has currently allocated to a pmap, a cursor ("asid_next") to
+ * optimize its search for a free ASID in the bit vector, and an epoch number
+ * ("asid_epoch") to indicate when it has reclaimed all previously allocated
+ * ASIDs that are not currently active on a processor.
+ *
+ * The current epoch number is always in the range [0, INT_MAX).  Negative
+ * numbers and INT_MAX are reserved for special cases that are described
+ * below.
+ */
+static SYSCTL_NODE(_vm_pmap, OID_AUTO, asid, CTLFLAG_RD, 0, "ASID allocator");
+static int asid_bits;
+SYSCTL_INT(_vm_pmap_asid, OID_AUTO, bits, CTLFLAG_RD, &asid_bits, 0,
+    "The number of bits in an ASID");
+static bitstr_t *asid_set;
+static int asid_set_size;
+static int asid_next;
+SYSCTL_INT(_vm_pmap_asid, OID_AUTO, next, CTLFLAG_RD, &asid_next, 0,
+    "The last allocated ASID plus one");
+static int asid_epoch;
+SYSCTL_INT(_vm_pmap_asid, OID_AUTO, epoch, CTLFLAG_RD, &asid_epoch, 0,
+    "The current epoch number");
+static struct mtx asid_set_mutex;
+
+/*
+ * A pmap's cookie encodes an ASID and epoch number.  Cookies for reserved
+ * ASIDs have a negative epoch number, specifically, INT_MIN.  Cookies for
+ * dynamically allocated ASIDs have a non-negative epoch number.
+ *
+ * An invalid ASID is represented by -1.
+ *
+ * There are two special-case cookie values: (1) COOKIE_FROM(-1, INT_MIN),
+ * which indicates that an ASID should never be allocated to the pmap, and
+ * (2) COOKIE_FROM(-1, INT_MAX), which indicates that an ASID should be
+ * allocated when the pmap is next activated.
+ */
+#define	COOKIE_FROM(asid, epoch)	((long)((u_int)(asid) |	\
+					    ((u_long)(epoch) << 32)))
+#define	COOKIE_TO_ASID(cookie)		((int)(cookie))
+#define	COOKIE_TO_EPOCH(cookie)		((int)((u_long)(cookie) >> 32))
+
 static int superpages_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, superpages_enabled,
     CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &superpages_enabled, 0,
@@ -295,6 +338,8 @@ static void	pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
 		    vm_offset_t va);
 
+static bool pmap_activate_int(pmap_t pmap);
+static void pmap_alloc_asid(pmap_t pmap);
 static int pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode);
 static pt_entry_t *pmap_demote_l1(pmap_t pmap, pt_entry_t *l1, vm_offset_t va);
 static pt_entry_t *pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2,
@@ -308,6 +353,7 @@ static int pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
     pd_entry_t l1e, struct spglist *free, struct rwlock **lockp);
 static int pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t sva,
     pd_entry_t l2e, struct spglist *free, struct rwlock **lockp);
+static void pmap_reset_asid_set(void);
 static boolean_t pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va,
     vm_page_t m, struct rwlock **lockp);
 
@@ -786,6 +832,10 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 	uint64_t kern_delta;
 	int i;
 
+	/* Verify that the ASID is set through TTBR0. */
+	KASSERT((READ_SPECIALREG(tcr_el1) & TCR_A1) == 0,
+	    ("pmap_bootstrap: TCR_EL1.A1 != 0"));
+
 	kern_delta = KERNBASE - kernstart;
 
 	printf("pmap_bootstrap %lx %lx %lx\n", l1pt, kernstart, kernlen);
@@ -795,6 +845,8 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 	/* Set this early so we can use the pagetable walking functions */
 	kernel_pmap_store.pm_l0 = (pd_entry_t *)l0pt;
 	PMAP_LOCK_INIT(kernel_pmap);
+	kernel_pmap->pm_l0_paddr = l0pt - kern_delta;
+	kernel_pmap->pm_cookie = COOKIE_FROM(-1, INT_MIN);
 
 	/* Assume the address we were loaded to is a valid physical address */
 	min_pa = KERNBASE - kern_delta;
@@ -908,6 +960,11 @@ pmap_init(void)
 	int i, pv_npg;
 
 	/*
+	 * Determine whether an ASID is 8 or 16 bits in size.
+	 */
+	asid_bits = (READ_SPECIALREG(tcr_el1) & TCR_ASID_16) != 0 ? 16 : 8;
+
+	/*
 	 * Are large page mappings enabled?
 	 */
 	TUNABLE_INT_FETCH("vm.pmap.superpages_enabled", &superpages_enabled);
@@ -916,6 +973,18 @@ pmap_init(void)
 		    ("pmap_init: can't assign to pagesizes[1]"));
 		pagesizes[1] = L2_SIZE;
 	}
+
+	/*
+	 * Initialize the ASID allocator.  At this point, we are still too
+	 * early in the overall initialization process to use bit_alloc().
+	 */
+	asid_set_size = 1 << asid_bits;
+	asid_set = (bitstr_t *)kmem_malloc(bitstr_size(asid_set_size),
+	    M_WAITOK | M_ZERO);
+	for (i = 0; i < ASID_FIRST_AVAILABLE; i++)
+		bit_set(asid_set, i);
+	asid_next = ASID_FIRST_AVAILABLE;
+	mtx_init(&asid_set_mutex, "asid set", NULL, MTX_SPIN);
 
 	/*
 	 * Initialize the pv chunk list mutex.
@@ -971,30 +1040,42 @@ SYSCTL_ULONG(_vm_pmap_l2, OID_AUTO, promotions, CTLFLAG_RD,
 static __inline void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
+	uint64_t r;
 
 	sched_pin();
-	__asm __volatile(
-	    "dsb  ishst		\n"
-	    "tlbi vaae1is, %0	\n"
-	    "dsb  ish		\n"
-	    "isb		\n"
-	    : : "r"(va >> PAGE_SHIFT));
+	dsb(ishst);
+	if (pmap == kernel_pmap) {
+		r = atop(va);
+		__asm __volatile("tlbi vaae1is, %0" : : "r" (r));
+	} else {
+		r = ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie)) | atop(va);
+		__asm __volatile("tlbi vae1is, %0" : : "r" (r));
+	}
+	dsb(ish);
+	isb();
 	sched_unpin();
 }
 
 static __inline void
 pmap_invalidate_range_nopin(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	vm_offset_t addr;
+	uint64_t end, r, start;
 
 	dsb(ishst);
-	for (addr = sva; addr < eva; addr += PAGE_SIZE) {
-		__asm __volatile(
-		    "tlbi vaae1is, %0" : : "r"(addr >> PAGE_SHIFT));
+	if (pmap == kernel_pmap) {
+		start = atop(sva);
+		end = atop(eva);
+		for (r = start; r < end; r++)
+			__asm __volatile("tlbi vaae1is, %0" : : "r" (r));
+	} else {
+		start = end = ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie));
+		start |= atop(sva);
+		end |= atop(eva);
+		for (r = start; r < end; r++)
+			__asm __volatile("tlbi vae1is, %0" : : "r" (r));
 	}
-	__asm __volatile(
-	    "dsb  ish	\n"
-	    "isb	\n");
+	dsb(ish);
+	isb();
 }
 
 static __inline void
@@ -1009,13 +1090,18 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 static __inline void
 pmap_invalidate_all(pmap_t pmap)
 {
+	uint64_t r;
 
 	sched_pin();
-	__asm __volatile(
-	    "dsb  ishst		\n"
-	    "tlbi vmalle1is	\n"
-	    "dsb  ish		\n"
-	    "isb		\n");
+	dsb(ishst);
+	if (pmap == kernel_pmap) {
+		__asm __volatile("tlbi vmalle1is");
+	} else {
+		r = ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie));
+		__asm __volatile("tlbi aside1is, %0" : : "r" (r));
+	}
+	dsb(ish);
+	isb();
 	sched_unpin();
 }
 
@@ -1446,14 +1532,17 @@ pmap_pinit0(pmap_t pmap)
 
 	PMAP_LOCK_INIT(pmap);
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
-	pmap->pm_l0 = kernel_pmap->pm_l0;
+	pmap->pm_l0_paddr = READ_SPECIALREG(ttbr0_el1);
+	pmap->pm_l0 = (pd_entry_t *)PHYS_TO_DMAP(pmap->pm_l0_paddr);
 	pmap->pm_root.rt_root = 0;
+	pmap->pm_cookie = COOKIE_FROM(ASID_RESERVED_FOR_PID_0, INT_MIN);
+
+	PCPU_SET(curpmap, pmap);
 }
 
 int
 pmap_pinit(pmap_t pmap)
 {
-	vm_paddr_t l0phys;
 	vm_page_t l0pt;
 
 	/*
@@ -1463,14 +1552,15 @@ pmap_pinit(pmap_t pmap)
 	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL)
 		vm_wait(NULL);
 
-	l0phys = VM_PAGE_TO_PHYS(l0pt);
-	pmap->pm_l0 = (pd_entry_t *)PHYS_TO_DMAP(l0phys);
+	pmap->pm_l0_paddr = VM_PAGE_TO_PHYS(l0pt);
+	pmap->pm_l0 = (pd_entry_t *)PHYS_TO_DMAP(pmap->pm_l0_paddr);
 
 	if ((l0pt->flags & PG_ZERO) == 0)
 		pagezero(pmap->pm_l0);
 
 	pmap->pm_root.rt_root = 0;
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
+	pmap->pm_cookie = COOKIE_FROM(-1, INT_MAX);
 
 	return (1);
 }
@@ -1712,6 +1802,7 @@ void
 pmap_release(pmap_t pmap)
 {
 	vm_page_t m;
+	int asid;
 
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
@@ -1719,8 +1810,16 @@ pmap_release(pmap_t pmap)
 	KASSERT(vm_radix_is_empty(&pmap->pm_root),
 	    ("pmap_release: pmap has reserved page table page(s)"));
 
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pmap->pm_l0));
+	mtx_lock_spin(&asid_set_mutex);
+	if (COOKIE_TO_EPOCH(pmap->pm_cookie) == asid_epoch) {
+		asid = COOKIE_TO_ASID(pmap->pm_cookie);
+		KASSERT(asid >= ASID_FIRST_AVAILABLE && asid < asid_set_size,
+		    ("pmap_release: pmap cookie has out-of-range asid"));
+		bit_clear(asid_set, asid);
+	}
+	mtx_unlock_spin(&asid_set_mutex);
 
+	m = PHYS_TO_VM_PAGE(pmap->pm_l0_paddr);
 	vm_page_unwire_noq(m);
 	vm_page_free_zero(m);
 }
@@ -3198,6 +3297,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		new_l3 |= ATTR_AP(ATTR_AP_USER) | ATTR_PXN;
 	else
 		new_l3 |= ATTR_UXN;
+	if (pmap != kernel_pmap)
+		new_l3 |= ATTR_nG;
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		new_l3 |= ATTR_SW_MANAGED;
 		if ((prot & VM_PROT_WRITE) != 0) {
@@ -3462,6 +3563,8 @@ pmap_enter_2mpage(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		new_l2 |= ATTR_AP(ATTR_AP_USER) | ATTR_PXN;
 	else
 		new_l2 |= ATTR_UXN;
+	if (pmap != kernel_pmap)
+		new_l2 |= ATTR_nG;
 	return (pmap_enter_l2(pmap, va, new_l2, PMAP_ENTER_NOSLEEP |
 	    PMAP_ENTER_NOREPLACE | PMAP_ENTER_NORECLAIM, NULL, lockp) ==
 	    KERN_SUCCESS);
@@ -3762,6 +3865,8 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		l3_val |= ATTR_AP(ATTR_AP_USER) | ATTR_PXN;
 	else
 		l3_val |= ATTR_UXN;
+	if (pmap != kernel_pmap)
+		l3_val |= ATTR_nG;
 
 	/*
 	 * Now validate mapping with RO protection
@@ -4298,6 +4403,8 @@ pmap_remove_pages(pmap_t pmap)
 	uint64_t inuse, bitmask;
 	int allfree, field, freed, idx, lvl;
 	vm_paddr_t pa;
+
+	KASSERT(pmap == PCPU_GET(curpmap), ("non-current pmap %p", pmap));
 
 	lock = NULL;
 
@@ -5671,24 +5778,134 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 	return (val);
 }
 
+/*
+ * Garbage collect every ASID that is neither active on a processor nor
+ * reserved.
+ */
+static void
+pmap_reset_asid_set(void)
+{
+	pmap_t pmap;
+	int asid, cpuid, epoch;
+
+	mtx_assert(&asid_set_mutex, MA_OWNED);
+
+	/*
+	 * Ensure that the store to asid_epoch is globally visible before the
+	 * loads from pc_curpmap are performed.
+	 */
+	epoch = asid_epoch + 1;
+	if (epoch == INT_MAX)
+		epoch = 0;
+	asid_epoch = epoch;
+	dsb(ishst);
+	__asm __volatile("tlbi vmalle1is");
+	dsb(ish);
+	bit_nclear(asid_set, ASID_FIRST_AVAILABLE, asid_set_size - 1);
+	CPU_FOREACH(cpuid) {
+		if (cpuid == curcpu)
+			continue;
+		pmap = pcpu_find(cpuid)->pc_curpmap;
+		asid = COOKIE_TO_ASID(pmap->pm_cookie);
+		if (asid == -1)
+			continue;
+		bit_set(asid_set, asid);
+		pmap->pm_cookie = COOKIE_FROM(asid, epoch);
+	}
+}
+
+/*
+ * Allocate a new ASID for the specified pmap.
+ */
+static void
+pmap_alloc_asid(pmap_t pmap)
+{
+	int new_asid;
+
+	mtx_lock_spin(&asid_set_mutex);
+
+	/*
+	 * While this processor was waiting to acquire the asid set mutex,
+	 * pmap_reset_asid_set() running on another processor might have
+	 * updated this pmap's cookie to the current epoch.  In which case, we
+	 * don't need to allocate a new ASID.
+	 */
+	if (COOKIE_TO_EPOCH(pmap->pm_cookie) == asid_epoch)
+		goto out;
+
+	bit_ffc_at(asid_set, asid_next, asid_set_size, &new_asid);
+	if (new_asid == -1) {
+		bit_ffc_at(asid_set, ASID_FIRST_AVAILABLE, asid_next,
+		    &new_asid);
+		if (new_asid == -1) {
+			pmap_reset_asid_set();
+			bit_ffc_at(asid_set, ASID_FIRST_AVAILABLE,
+			    asid_set_size, &new_asid);
+			KASSERT(new_asid != -1, ("ASID allocation failure"));
+		}
+	}
+	bit_set(asid_set, new_asid);
+	asid_next = new_asid + 1;
+	pmap->pm_cookie = COOKIE_FROM(new_asid, asid_epoch);
+out:
+	mtx_unlock_spin(&asid_set_mutex);
+}
+
+/*
+ * Compute the value that should be stored in ttbr0 to activate the specified
+ * pmap.  This value may change from time to time.
+ */
+uint64_t
+pmap_to_ttbr0(pmap_t pmap)
+{
+
+	return (ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie)) |
+	    pmap->pm_l0_paddr);
+}
+
+static bool
+pmap_activate_int(pmap_t pmap)
+{
+	int epoch;
+
+	KASSERT(PCPU_GET(curpmap) != NULL, ("no active pmap"));
+	KASSERT(pmap != kernel_pmap, ("kernel pmap activation"));
+	if (pmap == PCPU_GET(curpmap))
+		return (false);
+
+	/*
+	 * Ensure that the store to curpmap is globally visible before the
+	 * load from asid_epoch is performed.
+	 */
+	PCPU_SET(curpmap, pmap);
+	dsb(ish);
+	epoch = COOKIE_TO_EPOCH(pmap->pm_cookie);
+	if (epoch >= 0 && epoch != asid_epoch)
+		pmap_alloc_asid(pmap);
+
+	set_ttbr0(pmap_to_ttbr0(pmap));
+	if (PCPU_GET(bcast_tlbi_workaround) != 0)
+		invalidate_local_icache();
+	return (true);
+}
+
 void
 pmap_activate(struct thread *td)
 {
 	pmap_t	pmap;
 
-	critical_enter();
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
-	td->td_proc->p_md.md_l0addr = vtophys(pmap->pm_l0);
-	__asm __volatile(
-	    "msr ttbr0_el1, %0	\n"
-	    "isb		\n"
-	    : : "r"(td->td_proc->p_md.md_l0addr));
-	pmap_invalidate_all(pmap);
+	critical_enter();
+	(void)pmap_activate_int(pmap);
 	critical_exit();
 }
 
+/*
+ * To eliminate the unused parameter "old", we would have to add an instruction
+ * to cpu_switch().
+ */
 struct pcb *
-pmap_switch(struct thread *old, struct thread *new)
+pmap_switch(struct thread *old __unused, struct thread *new)
 {
 	pcpu_bp_harden bp_harden;
 	struct pcb *pcb;
@@ -5705,20 +5922,7 @@ pmap_switch(struct thread *old, struct thread *new)
 	 * to a user process.
 	 */
 
-	if (old == NULL ||
-	    old->td_proc->p_md.md_l0addr != new->td_proc->p_md.md_l0addr) {
-		__asm __volatile(
-		    /* Switch to the new pmap */
-		    "msr	ttbr0_el1, %0	\n"
-		    "isb			\n"
-
-		    /* Invalidate the TLB */
-		    "dsb	ishst		\n"
-		    "tlbi	vmalle1is	\n"
-		    "dsb	ish		\n"
-		    "isb			\n"
-		    : : "r"(new->td_proc->p_md.md_l0addr));
-
+	if (pmap_activate_int(vmspace_pmap(new->td_proc->p_vmspace))) {
 		/*
 		 * Stop userspace from training the branch predictor against
 		 * other processes. This will call into a CPU specific

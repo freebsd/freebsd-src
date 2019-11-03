@@ -619,7 +619,7 @@
 #define	PSR_FLAGS	0xf0000000
 
 /* TCR_EL1 - Translation Control Register */
-#define	TCR_ASID_16	(1 << 36)
+#define	TCR_ASID_16	(0x1UL << 36)
 
 #define	TCR_IPS_SHIFT	32
 #define	TCR_IPS_32BIT	(0 << TCR_IPS_SHIFT)
@@ -640,6 +640,8 @@
 #define	TCR_ORGN1_WBWA	(0x1UL << TCR_ORGN1_SHIFT)
 #define	TCR_IRGN1_SHIFT	24
 #define	TCR_IRGN1_WBWA	(0x1UL << TCR_IRGN1_SHIFT)
+#define	TCR_A1_SHIFT	22
+#define	TCR_A1		(0x1UL << TCR_A1_SHIFT)
 #define	TCR_SH0_SHIFT	12
 #define	TCR_SH0_IS	(0x3UL << TCR_SH0_SHIFT)
 #define	TCR_ORGN0_SHIFT	10
