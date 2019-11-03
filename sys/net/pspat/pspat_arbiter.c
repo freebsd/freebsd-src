@@ -1,18 +1,22 @@
+#define PSPAT
+
 #include "pspat_arbiter.h"
+#include "mailbox.h"
+#include "pspat_opts.h"
 
 #include <machine/atomic.h>
-#include <net/dn_ht.h>
+#include <sys/mbuf.h>
+#include <netpfil/ipfw/ip_dn_io.h>
 
-unsigned long	      pspat_arb_loop_avg_ns = 0;
-unsigned long	      pspat_arb_loop_max_ns = 0;
-unsigned long	      pspat_arb_loop_avg_reqs = 0;
+#define	NSEC_PER_SEC	1000000000L
+#define	PSPAT_ARB_STATS_LOOPS	0x1000
 
 /*
  * Delete any mailboxes that appear in the to_delete list
  *
  * @arb the arbiter to delete from
  */
-static void delete_dead_mbs(struct pspat *arb);
+static void delete_dead_mbs(struct pspat_arbiter *arb);
 
 /*
  * Deletes a mailbox from all client queues that contain it
@@ -84,13 +88,14 @@ static void drain_client_queue(struct pspat_arbiter *arb, struct pspat_queue *pq
 
 static void
 delete_dead_mbs(struct pspat_arbiter *arb) {
+	struct pspat_mailbox *mb;
 	struct list *mb_entry, *mb_entry_temp;
 
 	TAILQ_FOREACH_SAFE(mb_entry, &arb->mb_to_delete, entries, mb_entry_temp) {
 		mb = (struct pspat_mailbox *) mb_entry->mb;
 
 		TAILQ_REMOVE(&arb->mb_to_delete, mb_entry, entries);
-		ENTRY_INIT(mb_entry);
+		entry_init(mb_entry);
 		pspat_mb_delete(mb);
 	}
 }
@@ -107,7 +112,7 @@ delete_mb(struct pspat_arbiter *arb, struct pspat_mailbox *m) {
 			pq->arb_last_mb = NULL;
 		}
 	}
-	ENTRY_INIT(&m->entry);
+	entry_init(&m->entry);
 	TAILQ_INSERT_TAIL(&arb->mb_to_delete, &m->entry, entries);
 }
 
@@ -139,7 +144,7 @@ get_client_mb(struct pspat_queue *pq) {
 }
 
 static struct mbuf *
-get_client_mbuf(struct pspat *arb, struct pspat_queue *pq) {
+get_client_mbuf(struct pspat_arbiter *arb, struct pspat_queue *pq) {
 	struct pspat_mailbox *m;
 	struct mbuf *mbf;
 
@@ -154,7 +159,7 @@ retry:
 	mbf = pspat_mb_extract(m);
 	if(mbf != NULL) {
 		/* Let send_ack() see this mailbox */
-		ENTRY_INIT(&m->entry);
+		entry_init(&m->entry);
 		TAILQ_INSERT_TAIL(&pq->mb_to_clear, &m->entry, entries);
 	} else if (m->dead) {
 		/* Potentially remove this mailbox from the ack list */
@@ -179,14 +184,14 @@ prefetch_mb(struct pspat_queue *pq) {
 
 static void
 send_ack(struct pspat_queue *pq) {
-	struct pspat_mbailbox *mb;
+	struct pspat_mailbox *mb;
 	struct list *mb_entry, *mb_entry_temp;
 
 	TAILQ_FOREACH_SAFE(mb_entry, &pq->mb_to_clear, entries, mb_entry_temp) {
 		mb = (struct pspat_mailbox *) mb_entry->mb;
 
 		TAILQ_REMOVE(&pq->mb_to_clear, mb_entry, entries);
-		ENTRY_INIT(&mb->entry);
+		entry_init(&mb->entry);
 		pspat_mb_clear(mb);
 	}
 }
@@ -208,7 +213,7 @@ send_to_dispatcher(struct pspat_arbiter *arb, struct pspat_dispatcher *d, struct
 		if (cli_mb != NULL && cli_mb->backpressure) {
 			cli_mb->backpressure = 1;
 		}
-		dispatch_drop ++;
+		pspat_arb_dispatch_drop ++;
 		m_free(mbf);
 	}
 
@@ -248,7 +253,7 @@ drain_client_queue(struct pspat_arbiter *arb, struct pspat_queue *pq) {
 }
 
 
-int pspat_arbiter_run(struct pspat *arb, struct pspat_dispatcher *dispatcher) {
+int pspat_arbiter_run(struct pspat_arbiter *arb, struct pspat_dispatcher *dispatcher) {
 	int i, empty_inqs;
 	struct timespec ts;
 	unsigned long now, picos, link_idle, nreqs;
@@ -257,7 +262,7 @@ int pspat_arbiter_run(struct pspat *arb, struct pspat_dispatcher *dispatcher) {
 	static unsigned long picos_per_byte = 1;
 
 	nanotime(&ts);
-	now = ts.tv_ns << 10;
+	now = ts.tv_nsec << 10;
 	link_idle = 0;
 	nreqs = 0;
 
@@ -272,13 +277,13 @@ int pspat_arbiter_run(struct pspat *arb, struct pspat_dispatcher *dispatcher) {
 
 	/* Bring in pending packets arrived between link_idle and now */
 	for (i = 0; i < arb->n_queues; i++) {
-		struct pspat_queue *pq = arb->queus + i;
+		struct pspat_queue *pq = arb->queues + i;
 		struct mbuf *mbf = NULL;
 		bool empty = true;
 
-		pq->arb_extract_next = now + (pspat_arb_interval_ns << 10);
+		pq->arb_next = now + (pspat_arb_interval_ns << 10);
 
-		prefetch_mb(arb, &(arb->queues[(i + 1) % arb->n_queues]));
+		prefetch_mb(&(arb->queues[(i + 1) % arb->n_queues]));
 
 		while( (mbf = get_client_mbuf(arb, pq))) {
 			/* Note : Comment the following line - 287 and uncomment line - 251,
@@ -398,7 +403,7 @@ void pspat_arbiter_shutdown(struct pspat_arbiter *arb) {
     /* We need to drain all client lists and client mailboxxes to discover all
      * dead mailboxes */
 
-    for(i = 0; n = 0; i < arb->n_queues; i++) {
+    for(i = 0, n = 0; i < arb->n_queues; i++) {
 	    struct pspat_queue *pq = arb->queues + i;
 	    struct mbuf *mbf;
 

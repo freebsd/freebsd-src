@@ -1,5 +1,8 @@
+#define PSPAT
+
 #include "pspat.h"
 #include "mailbox.h"
+#include "pspat_system.h"
 
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
@@ -11,6 +14,7 @@
 #include <sys/smp.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 
 /*
  * GLOBAL VARIABLE DEFINITIONS
@@ -32,13 +36,8 @@ static bool arb_thread_stop __read_mostly = false;
 /* Should the dispatcher thread stop? */
 static bool dispatcher_thread_stop __read_mostly = false;
 
-/*
- * Data collection information
- */
-struct pspat_stats     *pspat_stats;
-unsigned long	      pspat_arb_loop_avg_ns;
-unsigned long	      pspat_arb_loop_max_ns;
-unsigned long	      pspat_arb_loop_avg_reqs;
+/* Number of pages pspat is using */
+static unsigned long pspat_pages;
 
 #define DIV_ROUND_UP(n, d)  (((n) + (d) - 1 ) / (d))
 
@@ -87,7 +86,7 @@ static void pspat_fini(void);
 
 static void
 arbiter_worker_func(void *data) {
-	struct pspat_arbiter *arb = (struct pspat_arbiter *)data;
+	struct pspat_system *pspat_system = (struct pspat_system *)data;
 	struct timespec ts;
 
 	bool arb_registered = false;
@@ -98,11 +97,11 @@ arbiter_worker_func(void *data) {
 				/* PSPAT is disabled but arbiter is still
 				 * registered, we need to unregister */
 				mtx_lock(&pspat_glock);
-				pspat_arbiter_shutdown(arb);
+				pspat_arbiter_shutdown(&pspat_system->arbiter);
 				rw_wlock(&pspat_rwlock);
 				pspat = NULL;
 				mtx_unlock(&pspat_glock);
-				rwlock_unlock(&pspat_rwlock);
+				rw_wunlock(&pspat_rwlock);
 
 				arb_registered = false;
 				printf("PSPAT Arbiter unregistered\n");
@@ -116,20 +115,20 @@ arbiter_worker_func(void *data) {
 
 				mtx_lock(&pspat_glock);
 				rw_wlock(&pspat_rwlock);
-				pspat = pspat_ptr;
+				pspat = pspat_system;
 				rw_wunlock(&pspat_rwlock);
 				mtx_unlock(&pspat_glock);
 
 				arb_registered = true;
 				printf("PSPAT Arbiter is registered!\n");
 				nanotime(&ts);
-				arb->last_ts = ts.tv_nsec << 10;
-				arb->num_loops = 0;
-				arb->num_picos = 0;
-				arb->max_picos = 0;
+				pspat_system->arbiter.last_ts = ts.tv_nsec << 10;
+				pspat_system->arbiter.num_loops = 0;
+				pspat_system->arbiter.num_picos = 0;
+				pspat_system->arbiter.max_picos = 0;
 			}
 
-			pspat_arbiter_run(arb);
+			pspat_arbiter_run(&pspat_system->arbiter, &pspat_system->dispatchers[0]);
 		}
 	}
 
@@ -145,7 +144,7 @@ dispatcher_worker_func(void *data)
 		if (pspat_xmit_mode != PSPAT_XMIT_MODE_DISPATCH || !pspat_enable) {
 			printf("PSPAT Dispatcher deactivated!\n");
 			pspat_dispatcher_shutdown(d);
-			ktrhead_suspend(curthread, 0);
+			kthread_suspend(curthread, 0);
 			printf("PSPAT Dispatcher activated!\n");
 		} else {
 			pspat_dispatcher_run(d);
@@ -160,7 +159,7 @@ pspat_create(void)
 {
 	int cpus, i, dispatchers, ret;
 	unsigned long mb_entries, mb_line_size;
-	size_t mb_size, arb_size;
+	size_t mb_size, pspat_size;
 	struct pspat_mailbox *m;
 
 	cpus = mp_ncpus;
@@ -171,9 +170,9 @@ pspat_create(void)
 
 	mtx_lock(&pspat_glock);
 
-	arb_size = roundup(sizeof(struct pspat) + cpus * sizeof(struct pspat_queue), CACHE_LINE_SIZE);
+	pspat_size = roundup(sizeof(struct pspat_system) + cpus * sizeof(struct pspat_queue), CACHE_LINE_SIZE);
 
-	pspat_pages = roundup(arb_size + mb_size * (cpus + dispatchers), PAGE_SIZE);
+	pspat_pages = roundup(pspat_size + mb_size * (cpus + dispatchers), PAGE_SIZE);
 
 	pspat_ptr = malloc(pspat_pages, M_PSPAT, M_WAITOK | M_ZERO);
 	if (pspat_ptr == NULL) {
@@ -184,7 +183,7 @@ pspat_create(void)
 	pspat_ptr->arbiter.n_queues = cpus;
 
 	/* Initialize all mailboxes */
-	m = (struct pspat_mailbox *)((char *)arbp + arb_size);
+	m = (struct pspat_mailbox *)((char *)pspat_ptr + pspat_size);
 
 	for (int i = 0; i < cpus; i++) {
 		char name[PSPAT_MB_NAMSZ];
@@ -196,12 +195,12 @@ pspat_create(void)
 			goto free_pspat;
 		}
 
-		arbp->arbiter.queues[i].inq = m;
-		TAILQ_INIT(&arbp->arbiter.queues[i].mb_to_clear);
+		pspat_ptr->arbiter.queues[i].inq = m;
+		TAILQ_INIT(&pspat_ptr->arbiter.queues[i].mb_to_clear);
 		m = (struct pspat_mailbox *) ((char *)m + mb_size);
 	}
 
-	TAILQ_INIT(&arbp->mb_to_delete);
+	TAILQ_INIT(&pspat_ptr->arbiter.mb_to_delete);
 
 	/* Initialize Dispatchers */
 
@@ -215,23 +214,23 @@ pspat_create(void)
 			goto free_pspat;
 		}
 
-		arbp->dispatchers[i].mb = m;
+		pspat_ptr->dispatchers[i].mb = m;
 		m = (struct pspat_mailbox *) ((char *)m + mb_size);
 	}
 
-	arbp->arbiter.fs = NULL;
+	pspat_ptr->arbiter.fs = NULL;
 
-	ret = kthread_add(arb_worker_func, arbp, NULL, &arbp->arb_thread, 0, 0, "pspat_arbiter_thread");
+	ret = kthread_add(arbiter_worker_func, pspat_ptr, NULL, &pspat_ptr->arb_thread, 0, 0, "pspat_arbiter_thread");
 	if (ret) {
-		goto fail;
+		goto free_pspat;
 	}
 
-	ret = kthread_add(dispatcher_worker_func, &arbp->dispatchers[0], NULL, &arbp->dispatcher_thread, 0, 0, "PSPAT_dispatcher_thread");
+	ret = kthread_add(dispatcher_worker_func, &pspat_ptr->dispatchers[0], NULL, &pspat_ptr->dispatcher_thread, 0, 0, "PSPAT_dispatcher_thread");
 	if (ret) {
-		goto fail;
+		goto stop_arbiter;
 	}
 
-	printf("PSPAT Arbiter created with %d per-core queues\n", arbp->n_queues);
+	printf("PSPAT Arbiter created with %d per-core queues\n", pspat_ptr->arbiter.n_queues);
 	mtx_unlock(&pspat_glock);
 	return 0;
 stop_arbiter:
@@ -290,7 +289,7 @@ pspat_destroy(void)
 	}
 
 	pspat_dispatcher_shutdown(&pspat_ptr->dispatchers[0]);
-	pspat_arb_shutdown(&pspat_ptr->arbiter);
+	pspat_arbiter_shutdown(&pspat_ptr->arbiter);
 	free(pspat_ptr, M_PSPAT);
 	pspat_ptr = NULL;
 
@@ -300,7 +299,7 @@ pspat_destroy(void)
 	return 0;
 }
 
-static int
+static void
 pspat_fini(void)
 {
 	pspat_destroy();
@@ -313,8 +312,8 @@ static int pspat_module_handler(struct module *module, int event, void *arg) {
 	int err = 0;
 
 	switch (event) {
-	    case MPD_LOAD:
-		ret = pspat_init();
+	    case MOD_LOAD:
+		err = pspat_init();
 		break;
 	    case MOD_UNLOAD:
 		pspat_fini();

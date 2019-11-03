@@ -1,7 +1,12 @@
+#define PSPAT
+
 #include "pspat_dispatcher.h"
 #include "mailbox.h"
+#include "pspat_opts.h"
 
 #include <sys/types.h>
+#include <sys/mbuf.h>
+#include <netpfil/ipfw/ip_dn_io.h>
 
 /*
  * Dispatches a mbuf
@@ -22,7 +27,7 @@ int pspat_dispatcher_run(struct pspat_dispatcher *d) {
 	int ndeq = 0;
 
 	while (ndeq < pspat_dispatch_batch && ((mbf = pspat_mb_extract(m)) != NULL)) {
-		pspat_txqs_flush(mbf);
+		dispatch(mbf);
 		ndeq ++;
 	}
 
@@ -44,11 +49,9 @@ void pspat_dispatcher_shutdown(struct pspat_dispatcher *d) {
 	int n = 0;
 
 	/* Drain the sender mailbox. */
-	while ( (mbf = pspat_mb_extract(s->mb)) != NULL ) {
+	while ( (mbf = pspat_mb_extract(d->mb)) != NULL ) {
 		m_free(mbf);
 		n ++;
 	}
 	printf("%s: Sender MB drained, found %d mbfs\n", __func__, n);
 }
-
-#endif /* !__PSPAT_H__

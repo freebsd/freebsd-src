@@ -1,11 +1,14 @@
 #include "mailbox.h"
 
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+
 #define is_power_of_2(x)    ((x) != 0 && (((x) & ((x) - 1)) == 0))
 
 MALLOC_DEFINE(M_MB, "pspat_mailbox", "IFFQ Mailbox Implementation");
 
 int
-pspat_mb_new(const char *name, unsigned long entries, unsigvned long line_size, struct pspat_mailbox **m) {
+pspat_mb_new(const char *name, unsigned long entries, unsigned long line_size, struct pspat_mailbox **m) {
     int err;
     *m = malloc(pspat_mb_size(entries), M_MB, M_WAITOK | M_ZERO);
     if (*m == NULL) {
@@ -42,7 +45,7 @@ pspat_mb_init(struct pspat_mailbox *m, const char *name, unsigned long entries, 
 
 #ifdef PSPAT_MB_DEBUG
     printf("PSPAT: mb %p %s: entries per line %lu, line mask 0x%016lx, entry mask 0x%016lx\n",
-            m, m->name, m->line_entries, m->entries_per_line, m->line_mask, m->entry_mask);
+            m, m->name, m->entries_per_line, m->line_mask, m->entry_mask);
 #endif
 
     m->cons_clear = 0;
@@ -58,7 +61,7 @@ pspat_mb_init(struct pspat_mailbox *m, const char *name, unsigned long entries, 
         initial_clear ++;
     }
 
-    ENTRY_INIT(&m->entry);
+    entry_init(&m->entry);
     m->entry.mb = m;
 
     return 0;

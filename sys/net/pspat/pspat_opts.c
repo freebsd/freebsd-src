@@ -1,22 +1,35 @@
+#include "pspat.h"
 #include "pspat_system.h"
 #include "pspat_opts.h"
 
 #include <sys/kthread.h>
+#include <sys/smp.h>
 
 /*
  * Settings for the PSPAT subsystem
  */
-bool		        pspat_enable __read_mostly = false;
-bool		        pspat_debut_xmit __read_mostly = false;
-enum pspat_xmit_mode    pspat_xmit_mode __read_mostly = PSPAT_XMIT_MODE_ARB;
-unsigned long	        pspat_rate __read_mostly = 40000000000; /* 40GB/s */
-unsigned long	        pspat_arb_interval_ns __read_mostly = 1000;
-unsigned long	        pspat_arb_backpressure_drop = 0;
-unsigned long	        pspat_arb_dispatch_drop = 0;
-unsigned long	        pspat_dispatch_deq = 0;
-unsigned long	        *pspat_rounds; /* Currently unused */
+bool		    pspat_enable __read_mostly = false;
+bool		    pspat_debug_xmit __read_mostly = false;
+int				pspat_xmit_mode __read_mostly = PSPAT_XMIT_MODE_ARB;
+unsigned long	pspat_rate __read_mostly = 40000000000; /* 40GB/s */
+unsigned long	pspat_arb_interval_ns __read_mostly = 1000;
+unsigned long	pspat_arb_backpressure_drop = 0;
+unsigned long	pspat_arb_dispatch_drop = 0;
+unsigned long	pspat_dispatch_deq = 0;
+unsigned long 	pspat_arb_loop_avg_ns = 0;
+unsigned long 	pspat_arb_loop_max_ns = 0;
+unsigned long 	pspat_arb_loop_avg_reqs = 0;
+unsigned long 	pspat_mailbox_entries = 512;
+unsigned long 	pspat_mailbox_line_size = 128;
+unsigned long	*pspat_rounds; /* Currently unused */
 uint32_t		pspat_arb_batch __read_mostly = 512;
 uint32_t		pspat_dispatch_batch __read_mostly = 256;
+/*
+ * Data collection information
+ */
+struct pspat_stats     *pspat_stats;
+
+void *pspat_cpu_names = NULL;
 
 int (*orig_oid_handler)(SYSCTL_HANDLER_ARGS);
 
@@ -44,6 +57,7 @@ pspat_enable_oid_handler(struct sysctl_oid *oidp, void *arg1, intmax_t arg2, str
 
 	kthread_resume(pspat->arb_thread);
 	kthread_resume(pspat->dispatcher_thread);
+	return 0;
 }
 
 static int
@@ -55,6 +69,7 @@ pspat_xmit_mode_oid_handler(struct sysctl_oid *oidp, void *arg1, intmax_t arg2, 
 	}
 
 	kthread_resume(pspat->dispatcher_thread);
+	return 0;
 }
 
 int
@@ -94,7 +109,7 @@ pspat_sysctl_init(void)
 			      CTLFLAG_RW, &pspat_xmit_mode, PSPAT_XMIT_MODE_ARB, "xmit mode under pspat");
 	oidp->oid_handler = &pspat_xmit_mode_oid_handler;
 
-	oidp = SYSCTL_ADD_U64(&clist, SYSCTL_CHILDREN(pspat_oid), OID_AUTO, "rounds", CTFFLAG_RD,
+	oidp = SYSCTL_ADD_U64(&clist, SYSCTL_CHILDREN(pspat_oid), OID_AUTO, "rounds", CTLFLAG_RD,
 			      pspat_rounds, 0, "Rounds under PSPAT");
 
 	oidp = SYSCTL_ADD_BOOL(&clist, SYSCTL_CHILDREN(pspat_oid), OID_AUTO, "debug xmit", CTLFLAG_RW,
@@ -103,7 +118,7 @@ pspat_sysctl_init(void)
 	oidp = SYSCTL_ADD_U64(&clist, SYSCTL_CHILDREN(pspat_oid), OID_AUTO, "arb_interval_ns", CTLFLAG_RW,
 			      &pspat_arb_interval_ns, pspat_arb_interval_ns, "arb_interval_ns under pspat");
 
-	oidp = SYSCTL_ADD_U32(&clist, SYSCTL_CHILDREN(pspat_oid), OID_AUTO, "rate", CTLFLAG_RW,
+	oidp = SYSCTL_ADD_U64(&clist, SYSCTL_CHILDREN(pspat_oid), OID_AUTO, "rate", CTLFLAG_RW,
 			      &pspat_rate, pspat_rate, "rate under pspat");
 
 	oidp = SYSCTL_ADD_U64(&clist, SYSCTL_CHILDREN(pspat_oid), OID_AUTO, "arb_backpressure_drop", CTLFLAG_RD,
@@ -148,14 +163,14 @@ pspat_sysctl_init(void)
 		t = SYSCTL_ADD_U64(&clist, SYSCTL_CHILDREN(pspat_cpu_oid), OID_AUTO, name, CTLFLAG_RW,
 				   &pspat_stats[i].inq_drop, 0, name);
 
-		nane += n + 1;
+		name += n + 1;
 	}
 
 	return 0;
 }
 
 
-static void
+void
 pspat_sysctl_fini(void) {
 	sysctl_ctx_free(&clist);
 	if (pspat_cpu_names != NULL) {

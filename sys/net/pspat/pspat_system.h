@@ -1,5 +1,5 @@
-#ifndef __PSPAT_H__
-#define __PSPAT_H__
+#ifndef __PSPAT_SYSTEM_H__
+#define __PSPAT_SYSTEM_H__
 
 #include "mailbox.h"
 #include "pspat_arbiter.h"
@@ -7,17 +7,18 @@
 
 #include <sys/types.h>
 #include <sys/kthread.h>
+#include <sys/lock.h>
 #include <sys/rwlock.h>
 
 /* PSPAT overall data structure */
 struct pspat_system {
 	struct thread	    *arb_thread;	/* The thread that the arbiter is running on */
-	struct thread	    *dispatch_thread;	/* The thread that is actually dispatching */
+	struct thread	    *dispatcher_thread;	/* The thread that is actually dispatching */
 
 	/* Used with PSPAT_XMIT_MODE_DISPATCH */
 	struct pspat_dispatcher dispatchers[1];
 
-  struct pspat_arbiter arbiter;
+  	struct pspat_arbiter arbiter;
 };
 
 
@@ -30,10 +31,10 @@ struct pspat_stats {
  */
 
 /* Global struct containing all of the information about the data structure */
-extern struct pspat_system *pspat_info;
+extern struct pspat_system *pspat;
 
-/* Read-write lock for `pspat_info` */
-extern struct rwlocak pspat_rwlock;
+/* Read-write lock for `pspat` */
+extern struct rwlock pspat_rwlock;
 
 /*
  * Data collection information

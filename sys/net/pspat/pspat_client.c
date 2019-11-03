@@ -1,7 +1,38 @@
+#define PSPAT
+
 #include "pspat.h"
 
 #include <machine/atomic.h>
-#include <net/dn_ht.h>
+
+#include <sys/time.h>
+#include <sys/socket.h>
+#include <sys/mbuf.h>
+#include <sys/kthread.h>
+#include <sys/types.h>
+#include <sys/proc.h>
+#include <sys/lock.h>
+#include <sys/module.h>
+#include <sys/rwlock.h>
+#include <net/if.h>
+#include <net/if_var.h>
+#include <net/if_types.h>
+#include <net/ethernet.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/ip_var.h>
+#include <netinet/ip_fw.h>
+#include <netinet/ip_dummynet.h>
+#include <netinet/if_ether.h>
+#include <netinet/ip6.h>
+#include <netinet6/ip6_var.h>
+
+#include <netpfil/ipfw/ip_fw_private.h>
+#include <netpfil/ipfw/dn_heap.h>
+#include <netpfil/ipfw/ip_dn_private.h>
+#ifdef NEW_AQM
+#include <netpfil/ipfw/dn_aqm.h>
+#endif
+#include <netpfil/ipfw/dn_sched.h>
 
 static unsigned int mb_next_id = 0;
 
@@ -9,7 +40,7 @@ static unsigned int mb_next_id = 0;
  * Enqueues a mbuf into the given client queue
  * returns -ENOBUFS if the queue is full
  */
-int
+static int
 pspat_enq_mbuf(struct pspat_queue *pq, struct mbuf *mbf) {
     struct pspat_mailbox *m;
     int err;
@@ -66,7 +97,7 @@ pspat_client_handler(struct mbuf *mbf, struct ip_fw_args *fwa) {
     rc = 0;
 
 	rw_rlock(&pspat_rwlock);
-	arb = pspat_arb;
+	arb = &pspat->arbiter;
 	rw_unlock(&pspat_rwlock);
 
 	if (!pspat_enable || arb == NULL) {
@@ -77,10 +108,10 @@ pspat_client_handler(struct mbuf *mbf, struct ip_fw_args *fwa) {
 	cpu = curthread->td_oncpu;
 	mbf->sender_cpu = cpu;
 	mbf->fwa = fwa;
-	mbg->ifp = fwa->oif;
+	mbf->ifp = fwa->ifp;
 
 	pq = arb->queues + cpu;
-	if (pspat_cli_enq(pq, mbf)) {
+	if (pspat_enq_mbuf(pq, mbf)) {
 		pspat_stats[cpu].inq_drop++;
 		rc = 1;
 	}
@@ -103,7 +134,7 @@ pspat_create_client_queue() {
 
 	snprintf(name, PSPAT_MB_NAMSZ, "CM-%d", curthread->td_tid);
 
-	err = pspat_mb_new(name, pspat_mailbox_netries, pspat_mailbox_line_size, &m);
+	err = pspat_mb_new(name, pspat_mailbox_entries, pspat_mailbox_line_size, &m);
 
 	if (err) {
 		return err;

@@ -26,7 +26,7 @@ struct pspat_queue {
 
 struct pspat_arbiter {
 	/* Queue of dead mailboxes to be deleted at the first safe opportunity */
-	struct entry_list   *mb_to_delete;
+	struct entry_list   mb_to_delete;
 
 	/* Dummynet scheduling fields */
 	struct dn_fsk	    *fs;
@@ -51,10 +51,10 @@ struct pspat_arbiter {
  */
 
 /* Global struct containing all of the information about the data structure */
-extern struct pspat *pspat_info;
+extern struct pspat_system *pspat_info;
 
 /* Read-write lock for `pspat_info` */
-extern struct rwlocak pspat_rwlock;
+extern struct rwlock pspat_rwlock;
 
 /*
  * Data collection information
