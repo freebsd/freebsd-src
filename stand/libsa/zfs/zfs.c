@@ -110,9 +110,10 @@ zfs_open(const char *upath, struct open_file *f)
 		return (EINVAL);
 
 	/* allocate file system specific data structure */
-	fp = malloc(sizeof(struct file));
-	bzero(fp, sizeof(struct file));
-	f->f_fsdata = (void *)fp;
+	fp = calloc(1, sizeof(struct file));
+	if (fp == NULL)
+		return (ENOMEM);
+	f->f_fsdata = fp;
 
 	rc = zfs_lookup(mount, upath, &fp->f_dnode);
 	fp->f_seekp = 0;
@@ -129,9 +130,7 @@ zfs_close(struct open_file *f)
 	struct file *fp = (struct file *)f->f_fsdata;
 
 	dnode_cache_obj = NULL;
-	f->f_fsdata = (void *)0;
-	if (fp == (struct file *)0)
-		return (0);
+	f->f_fsdata = NULL;
 
 	free(fp);
 	return (0);
@@ -250,7 +249,9 @@ zfs_readdir(struct open_file *f, struct dirent *d)
 				return (rc);
 
 			fp->f_seekp = bsize;
-			fp->f_zap_leaf = (zap_leaf_phys_t *)malloc(bsize);
+			fp->f_zap_leaf = malloc(bsize);
+			if (fp->f_zap_leaf == NULL)
+				return (ENOMEM);
 			rc = dnode_read(spa, &fp->f_dnode,
 					fp->f_seekp,
 					fp->f_zap_leaf,
@@ -675,8 +676,9 @@ zfs_dev_open(struct open_file *f, ...)
 	}
 	mount = malloc(sizeof(*mount));
 	if (mount == NULL)
-		return (ENOMEM);
-	rv = zfs_mount(spa, dev->root_guid, mount);
+		rv = ENOMEM;
+	else
+		rv = zfs_mount(spa, dev->root_guid, mount);
 	if (rv != 0) {
 		free(mount);
 		return (rv);
