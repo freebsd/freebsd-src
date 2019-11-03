@@ -409,7 +409,7 @@
  *	FIFOs.  Note that for some reason the mask is 9 bits instead of
  *	the 8 bits the fill level controls.
  */
-#define IG4_FIFOLVL_MASK	0x001F
+#define IG4_FIFOLVL_MASK	0x01FF
 
 /*
  * SDA_HOLD	- (RW) SDA Hold Time Length Register		22.2.26
@@ -533,8 +533,8 @@
  *
  *	DATAW		- Indicates the internal bus width in bits.
  */
-#define IG4_PARAM1_TXFIFO_DEPTH(v)	(((v) >> 16) & 0xFF)
-#define IG4_PARAM1_RXFIFO_DEPTH(v)	(((v) >> 8) & 0xFF)
+#define IG4_PARAM1_TXFIFO_DEPTH(v)	((((v) >> 16) & 0xFF) + 1)
+#define IG4_PARAM1_RXFIFO_DEPTH(v)	((((v) >> 8) & 0xFF) + 1)
 #define IG4_PARAM1_CONFIG_VALID		0x00000080
 #define IG4_PARAM1_CONFIG_HASDMA	0x00000040
 #define IG4_PARAM1_CONFIG_INTR_IO	0x00000020
