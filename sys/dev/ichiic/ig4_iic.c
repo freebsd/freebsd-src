@@ -164,6 +164,55 @@ set_intr_mask(ig4iic_softc_t *sc, uint32_t val)
 	}
 }
 
+static int
+intrstat2iic(ig4iic_softc_t *sc, uint32_t val)
+{
+	uint32_t src;
+
+	if (val & IG4_INTR_RX_UNDER)
+		reg_read(sc, IG4_REG_CLR_RX_UNDER);
+	if (val & IG4_INTR_RX_OVER)
+		reg_read(sc, IG4_REG_CLR_RX_OVER);
+	if (val & IG4_INTR_TX_OVER)
+		reg_read(sc, IG4_REG_CLR_TX_OVER);
+
+	if (val & IG4_INTR_TX_ABRT) {
+		src = reg_read(sc, IG4_REG_TX_ABRT_SOURCE);
+		reg_read(sc, IG4_REG_CLR_TX_ABORT);
+		/* User-requested abort. Not really a error */
+		if (src & IG4_ABRTSRC_TRANSFER)
+			return (IIC_ESTATUS);
+		/* Master has lost arbitration */
+		if (src & IG4_ABRTSRC_ARBLOST)
+			return (IIC_EBUSBSY);
+		/* Did not receive an acknowledge from the remote slave */
+		if (src & (IG4_ABRTSRC_TXNOACK_ADDR7 |
+			   IG4_ABRTSRC_TXNOACK_ADDR10_1 |
+			   IG4_ABRTSRC_TXNOACK_ADDR10_2 |
+			   IG4_ABRTSRC_TXNOACK_DATA |
+			   IG4_ABRTSRC_GENCALL_NOACK))
+			return (IIC_ENOACK);
+		/* Programming errors */
+		if (src & (IG4_ABRTSRC_GENCALL_READ |
+			   IG4_ABRTSRC_NORESTART_START |
+			   IG4_ABRTSRC_NORESTART_10))
+			return (IIC_ENOTSUPP);
+		/* Other errors */
+		if (src & IG4_ABRTSRC_ACKED_START)
+			return (IIC_EBUSERR);
+	}
+	/*
+	 * TX_OVER, RX_OVER and RX_UNDER are caused by wrong RX/TX FIFO depth
+	 * detection or driver's read/write pipelining errors.
+	 */
+	if (val & (IG4_INTR_TX_OVER | IG4_INTR_RX_OVER))
+		return (IIC_EOVERFLOW);
+	if (val & IG4_INTR_RX_UNDER)
+		return (IIC_EUNDERFLOW);
+
+	return (IIC_NOERR);
+}
+
 /*
  * Enable or disable the controller and wait for the controller to acknowledge
  * the state change.
@@ -209,17 +258,14 @@ wait_intr(ig4iic_softc_t *sc, uint32_t intr)
 	u_int count_us = 0;
 	u_int limit_us = 25000; /* 25ms */
 
-	error = IIC_ETIMEOUT;
-
 	for (;;) {
 		/*
 		 * Check requested status
 		 */
 		v = reg_read(sc, IG4_REG_RAW_INTR_STAT);
-		if (v & intr) {
-			error = 0;
+		error = intrstat2iic(sc, v & IG4_INTR_ERR_MASK);
+		if (error || (v & intr))
 			break;
-		}
 
 		/*
 		 * When waiting for the transmit FIFO to become empty,
@@ -237,15 +283,17 @@ wait_intr(ig4iic_softc_t *sc, uint32_t intr)
 		/*
 		 * Stop if we've run out of time.
 		 */
-		if (count_us >= limit_us)
+		if (count_us >= limit_us) {
+			error = IIC_ETIMEOUT;
 			break;
+		}
 
 		/*
 		 * When polling is not requested let the interrupt do its work.
 		 */
 		if (!DO_POLL(sc)) {
 			mtx_lock(&sc->io_lock);
-			set_intr_mask(sc, intr);
+			set_intr_mask(sc, intr | IG4_INTR_ERR_MASK);
 			mtx_sleep(sc, &sc->io_lock, 0, "i2cwait",
 				  (hz + 99) / 100); /* sleep up to 10ms */
 			set_intr_mask(sc, 0);
@@ -307,9 +355,17 @@ set_slave_addr(ig4iic_softc_t *sc, uint8_t slave)
  *				IICBUS API FUNCTIONS
  */
 static int
-ig4iic_xfer_start(ig4iic_softc_t *sc, uint16_t slave)
+ig4iic_xfer_start(ig4iic_softc_t *sc, uint16_t slave, bool repeated_start)
 {
 	set_slave_addr(sc, slave >> 1);
+
+	if (!repeated_start) {
+		/*
+		 * Clear any previous TX/RX FIFOs overflow/underflow bits.
+		 */
+		reg_read(sc, IG4_REG_CLR_INTR);
+	}
+
 	return (0);
 }
 
@@ -374,7 +430,6 @@ ig4iic_read(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 		}
 	}
 out:
-	(void)reg_read(sc, IG4_REG_TX_ABRT_SOURCE);
 	return (error);
 }
 
@@ -410,7 +465,6 @@ ig4iic_write(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 		}
 	}
 
-	(void)reg_read(sc, IG4_REG_TX_ABRT_SOURCE);
 	return (error);
 }
 
@@ -509,7 +563,7 @@ ig4iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	error = 0;
 	for (i = 0; i < nmsgs; i++) {
 		if ((msgs[i].flags & IIC_M_NOSTART) == 0) {
-			error = ig4iic_xfer_start(sc, msgs[i].slave);
+			error = ig4iic_xfer_start(sc, msgs[i].slave, rpstart);
 		} else {
 			if (!sc->slave_valid ||
 			    (msgs[i].slave >> 1) != sc->last_slave) {
@@ -1019,8 +1073,8 @@ ig4iic_intr(void *cookie)
 	mtx_lock(&sc->io_lock);
 	/* Ignore stray interrupts */
 	if (sc->intr_mask != 0 && reg_read(sc, IG4_REG_INTR_STAT) != 0) {
+		/* Interrupt bits are cleared in wait_intr() loop */
 		set_intr_mask(sc, 0);
-		reg_read(sc, IG4_REG_CLR_INTR);
 		wakeup(sc);
 	}
 	mtx_unlock(&sc->io_lock);
