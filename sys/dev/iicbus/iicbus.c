@@ -330,6 +330,8 @@ static device_method_t iicbus_methods[] = {
 	DEVMETHOD(device_probe,		iicbus_probe),
 	DEVMETHOD(device_attach,	iicbus_attach),
 	DEVMETHOD(device_detach,	iicbus_detach),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* bus interface */
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
