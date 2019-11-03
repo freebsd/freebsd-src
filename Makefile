@@ -496,7 +496,8 @@ _OBSOLETE_GCC_TARGETS+=powerpc
 .endif
 TARGETS?=amd64 arm arm64 i386 riscv ${_OBSOLETE_GCC_TARGETS}
 _UNIVERSE_TARGETS=	${TARGETS}
-TARGET_ARCHES_arm?=	arm armv6 armv7
+# arm (armv5) excluded due to broken buildworld
+TARGET_ARCHES_arm?=	armv6 armv7
 TARGET_ARCHES_arm64?=	aarch64
 TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32 mipselhf mipshf mips64elhf mips64hf
 TARGET_ARCHES_powerpc?=	powerpc powerpc64 powerpcspe
