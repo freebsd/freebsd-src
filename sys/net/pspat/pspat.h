@@ -9,7 +9,12 @@
 
 #include <sys/types.h>
 #include <sys/kthread.h>
+#include <sys/lock.h>
 #include <sys/rwlock.h>
+#include <net/if_types.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/ip_var.h>
 
 MALLOC_DECLARE(M_PSPAT);
 
@@ -35,4 +40,4 @@ int pspat_create_client_queue(void);
  */
 int pspat_client_handler(struct mbuf *mbuf, struct ip_fw_args *fwa);
 
-#endif /* !__PSPAT_H__
+#endif /* !__PSPAT_H__ */

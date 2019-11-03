@@ -392,7 +392,7 @@ int pspat_arbiter_run(struct pspat *arb, struct pspat_dispatcher *dispatcher) {
 
 
 
-void pspat_arbiter_shutdown(struct pspat *arb) {
+void pspat_arbiter_shutdown(struct pspat_arbiter *arb) {
     int n;
     int i;
     /* We need to drain all client lists and client mailboxxes to discover all

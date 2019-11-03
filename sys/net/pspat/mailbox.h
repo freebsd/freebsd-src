@@ -44,7 +44,7 @@ struct pspat_mailbox {
 
 	/* Mutable fields written only by the producer */
 	bool	      dead;		    /* Is this mailbox alive or dead? */
-	unsigned long prod_write CLALINGN;  /* Index of the next entry that producer will write to */
+	unsigned long prod_write CLALIGN;  /* Index of the next entry that producer will write to */
 	unsigned long prod_check;	    /* Index of the first entry we have not reserved */
 
 	/* Mutable fields written only by the consumer */
@@ -113,7 +113,7 @@ void pspat_mb_dump_state(struct pspat_mailbox *m);
  */
 static inline int pspat_mb_insert(struct pspat_mailbox *m, void *v) {
 	/* The location where we will put the value */
-	void *vloc = &m->q[m->prod_write & m->entry_mask];
+	void **vloc = &m->q[m->prod_write & m->entry_mask];
 
 	/* If we've reached the end of the reserved line */
 	if (m->prod_write == m->prod_check) {
@@ -125,7 +125,7 @@ static inline int pspat_mb_insert(struct pspat_mailbox *m, void *v) {
 
 		m->prod_check += m->entries_per_line;
 		/* Prefetch the next line */
-		__builtin_prefetch((char *)vloc + m->line_entries);
+		__builtin_prefetch((char *)vloc + m->entries_per_line);
 	}
 
 	*vloc = v;

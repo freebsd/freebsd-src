@@ -24,4 +24,4 @@ int pspat_dispatcher_run(struct pspat_dispatcher *d);
  */
 void pspat_dispatcher_shutdown(struct pspat_dispatcher *d);
 
-#endif /* !__PSPAT_DISPATCHER_H__
+#endif /* !__PSPAT_DISPATCHER_H__ */

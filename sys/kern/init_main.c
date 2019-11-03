@@ -337,7 +337,8 @@ restart:
 
 	mtx_assert(&Giant, MA_OWNED | MA_NOTRECURSED);
 	mtx_unlock(&Giant);
-
+	
+	printf("\n======================\nHIIII\n==================\n");
 	/*
 	 * Now hand over this thread to swapper.
 	 */

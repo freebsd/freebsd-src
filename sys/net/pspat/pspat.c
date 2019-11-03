@@ -1,9 +1,16 @@
 #include "pspat.h"
 #include "mailbox.h"
 
+#include <sys/kernel.h>
+#include <sys/mbuf.h>
 #include <sys/types.h>
 #include <sys/kthread.h>
+#include <sys/mutex.h>
 #include <sys/rwlock.h>
+#include <sys/sysctl.h>
+#include <sys/smp.h>
+#include <sys/module.h>
+#include <sys/malloc.h>
 
 /*
  * GLOBAL VARIABLE DEFINITIONS
@@ -14,7 +21,7 @@ struct pspat_system *pspat;
 static struct pspat_system *pspat_ptr; /* For internal usage only */
 
 /* Read-write lock for `pspat_info` */
-struct rwlocak pspat_rwlock;
+struct rwlock pspat_rwlock;
 
 /* Internal global lock */
 static struct mtx pspat_glock;
@@ -80,7 +87,7 @@ static void pspat_fini(void);
 
 static void
 arbiter_worker_func(void *data) {
-	struct pspat_arbiter *arb = (struct pspat *)data;
+	struct pspat_arbiter *arb = (struct pspat_arbiter *)data;
 	struct timespec ts;
 
 	bool arb_registered = false;
@@ -107,7 +114,7 @@ arbiter_worker_func(void *data) {
 				/* PSPAT is enabled but arbiter is not
 				 * registered, we need to register */
 
-				mmtx_lock(&pspat_glock);
+				mtx_lock(&pspat_glock);
 				rw_wlock(&pspat_rwlock);
 				pspat = pspat_ptr;
 				rw_wunlock(&pspat_rwlock);

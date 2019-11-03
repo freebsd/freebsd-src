@@ -40,4 +40,4 @@ extern struct rwlocak pspat_rwlock;
  */
 extern struct pspat_stats     *pspat_stats;		    /* Statistics about the PSPAT subsystem */
 
-#endif /* !__PSPAT_SYSTEM_H__
+#endif /* !__PSPAT_SYSTEM_H__ */

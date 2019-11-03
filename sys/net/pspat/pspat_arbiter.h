@@ -2,6 +2,7 @@
 #define __PSPAT_ARBITER_H__
 
 #include "mailbox.h"
+#include "pspat_dispatcher.h"
 
 #include <sys/types.h>
 #include <sys/kthread.h>
@@ -66,11 +67,11 @@ extern unsigned long	      pspat_arb_loop_avg_reqs;	    /* Average number of req
  * Runs the arbiter loop
  * @returns 0
  */
-int pspat_arbiter_run(struct pspat *arb, struct pspat_dispatcher *dispatcher);
+int pspat_arbiter_run(struct pspat_arbiter *arb, struct pspat_dispatcher *dispatcher);
 
 /*
  * Shuts down the given arbiter
  */
-void pspat_arbiter_shutdown(struct pspat *arb);
+void pspat_arbiter_shutdown(struct pspat_arbiter *arb);
 
-#endif /* !__PSPAT_ARBITER_H__
+#endif /* !__PSPAT_ARBITER_H__ */
