@@ -51,6 +51,8 @@ struct ig4_hw {
 	uint32_t	sda_fall_time;	/* nsec */
 	uint32_t	scl_fall_time;	/* nsec */
 	uint32_t	sda_hold_time;	/* nsec */
+	int		txfifo_depth;
+	int		rxfifo_depth;
 };
 
 struct ig4_cfg {
@@ -62,6 +64,8 @@ struct ig4_cfg {
 	uint16_t	fs_scl_hcnt;
 	uint16_t	fs_scl_lcnt;
 	uint16_t	fs_sda_hold;
+	int		txfifo_depth;
+	int		rxfifo_depth;
 };
 
 struct ig4iic_softc {

@@ -100,12 +100,16 @@ static const struct ig4_hw ig4iic_hw[] = {
 	[IG4_HASWELL] = {
 		.ic_clock_rate = 100,	/* MHz */
 		.sda_hold_time = 90,	/* nsec */
+		.txfifo_depth = 32,
+		.rxfifo_depth = 32,
 	},
 	[IG4_ATOM] = {
 		.ic_clock_rate = 100,
 		.sda_fall_time = 280,
 		.scl_fall_time = 240,
 		.sda_hold_time = 60,
+		.txfifo_depth = 32,
+		.rxfifo_depth = 32,
 	},
 	[IG4_SKYLAKE] = {
 		.ic_clock_rate = 120,
@@ -330,41 +334,67 @@ ig4iic_xfer_start(ig4iic_softc_t *sc, uint16_t slave)
 	return (0);
 }
 
+/*
+ * Amount of unread data before next burst to get better I2C bus utilization.
+ * 2 bytes is enough in FAST mode. 8 bytes is better in FAST+ and HIGH modes.
+ * Intel-recommended value is 16 for DMA transfers with 64-byte depth FIFOs.
+ */
+#define	IG4_FIFO_LOWAT	2
+
 static int
 ig4iic_read(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
     bool repeated_start, bool stop)
 {
 	uint32_t cmd;
-	uint16_t i;
+	int requested = 0;
+	int received = 0;
+	int burst, target, lowat = 0;
 	int error;
 
 	if (len == 0)
 		return (0);
 
-	cmd = IG4_DATA_COMMAND_RD;
-	cmd |= repeated_start ? IG4_DATA_RESTART : 0;
-	cmd |= stop && len == 1 ? IG4_DATA_STOP : 0;
-
-	/* Issue request for the first byte (could be last as well). */
-	reg_write(sc, IG4_REG_DATA_CMD, cmd);
-
-	for (i = 0; i < len; i++) {
-		/*
-		 * Maintain a pipeline by queueing the allowance for the next
-		 * read before waiting for the current read.
-		 */
-		cmd = IG4_DATA_COMMAND_RD;
-		if (i < len - 1) {
-			cmd = IG4_DATA_COMMAND_RD;
-			cmd |= stop && i == len - 2 ? IG4_DATA_STOP : 0;
-			reg_write(sc, IG4_REG_DATA_CMD, cmd);
+	while (received < len) {
+		burst = sc->cfg.txfifo_depth -
+		    (reg_read(sc, IG4_REG_TXFLR) & IG4_FIFOLVL_MASK);
+		/* Ensure we have enough free space in RXFIFO */
+		burst = MIN(burst, sc->cfg.rxfifo_depth - lowat);
+		if (burst <= 0) {
+			error = wait_status(sc, IG4_STATUS_TX_NOTFULL);
+			if (error)
+				break;
+			burst = 1;
 		}
-		error = wait_status(sc, IG4_STATUS_RX_NOTEMPTY);
-		if (error)
-			break;
-		buf[i] = (uint8_t)reg_read(sc, IG4_REG_DATA_CMD);
+		target = MIN(requested + burst, (int)len);
+		while (requested < target) {
+			cmd = IG4_DATA_COMMAND_RD;
+			if (repeated_start && requested == 0)
+				cmd |= IG4_DATA_RESTART;
+			if (stop && requested == len - 1)
+				cmd |= IG4_DATA_STOP;
+			reg_write(sc, IG4_REG_DATA_CMD, cmd);
+			requested++;
+		}
+		/* Leave some data queued to maintain the hardware pipeline */
+		lowat = 0;
+		if (requested != len && requested - received > IG4_FIFO_LOWAT)
+			lowat = IG4_FIFO_LOWAT;
+		/* After TXFLR fills up, clear it by reading available data */
+		while (received < requested - lowat) {
+			burst = MIN((int)len - received,
+			    reg_read(sc, IG4_REG_RXFLR) & IG4_FIFOLVL_MASK);
+			if (burst > 0) {
+				while (burst--)
+					buf[received++] = 0xFF &
+					    reg_read(sc, IG4_REG_DATA_CMD);
+			} else {
+				error = wait_status(sc, IG4_STATUS_RX_NOTEMPTY);
+				if (error)
+					goto out;
+			}
+		}
 	}
-
+out:
 	(void)reg_read(sc, IG4_REG_TX_ABRT_SOURCE);
 	return (error);
 }
@@ -668,6 +698,7 @@ static void
 ig4iic_get_config(ig4iic_softc_t *sc)
 {
 	const struct ig4_hw *hw;
+	uint32_t v;
 #ifdef DEV_ACPI
 	ACPI_HANDLE handle;
 #endif
@@ -688,6 +719,32 @@ ig4iic_get_config(ig4iic_softc_t *sc)
 	if (sc->cfg.bus_speed != IG4_CTL_SPEED_STD)
 		sc->cfg.bus_speed = IG4_CTL_SPEED_FAST;
 
+	/* REG_COMP_PARAM1 is not documented in latest Intel specs */
+	if (sc->version == IG4_HASWELL || sc->version == IG4_ATOM) {
+		v = reg_read(sc, IG4_REG_COMP_PARAM1);
+		if (IG4_PARAM1_TXFIFO_DEPTH(v) != 0)
+			sc->cfg.txfifo_depth = IG4_PARAM1_TXFIFO_DEPTH(v);
+		if (IG4_PARAM1_RXFIFO_DEPTH(v) != 0)
+			sc->cfg.rxfifo_depth = IG4_PARAM1_RXFIFO_DEPTH(v);
+	} else {
+		/*
+		 * Hardware does not allow FIFO Threshold Levels value to be
+		 * set larger than the depth of the buffer. If an attempt is
+		 * made to do that, the actual value set will be the maximum
+		 * depth of the buffer.
+		 */
+		v = reg_read(sc, IG4_REG_TX_TL);
+		reg_write(sc, IG4_REG_TX_TL, v | IG4_FIFO_MASK);
+		sc->cfg.txfifo_depth =
+		    (reg_read(sc, IG4_REG_TX_TL) & IG4_FIFO_MASK) + 1;
+		reg_write(sc, IG4_REG_TX_TL, v);
+		v = reg_read(sc, IG4_REG_RX_TL);
+		reg_write(sc, IG4_REG_RX_TL, v | IG4_FIFO_MASK);
+		sc->cfg.rxfifo_depth =
+		    (reg_read(sc, IG4_REG_RX_TL) & IG4_FIFO_MASK) + 1;
+		reg_write(sc, IG4_REG_RX_TL, v);
+	}
+
 	/* Override hardware config with IC_clock-based counter values */
 	if (ig4_timings < 2 && sc->version < nitems(ig4iic_hw)) {
 		hw = &ig4iic_hw[sc->version];
@@ -696,6 +753,10 @@ ig4iic_get_config(ig4iic_softc_t *sc)
 		    &sc->cfg.ss_scl_lcnt, &sc->cfg.ss_sda_hold);
 		ig4iic_clk_params(hw, IG4_CTL_SPEED_FAST, &sc->cfg.fs_scl_hcnt,
 		    &sc->cfg.fs_scl_lcnt, &sc->cfg.fs_sda_hold);
+		if (hw->txfifo_depth != 0)
+			sc->cfg.txfifo_depth = hw->txfifo_depth;
+		if (hw->rxfifo_depth != 0)
+			sc->cfg.rxfifo_depth = hw->rxfifo_depth;
 	} else if (ig4_timings == 2) {
 		/*
 		 * Timings of original ig4 driver:
@@ -733,6 +794,8 @@ ig4iic_get_config(ig4iic_softc_t *sc)
 		printf("  Fast:  0x%04hx:0x%04hx:0x%04hx\n",
 		    sc->cfg.fs_scl_hcnt, sc->cfg.fs_scl_lcnt,
 		    sc->cfg.fs_sda_hold);
+		printf("  FIFO:  RX:0x%04x: TX:0x%04x\n",
+		    sc->cfg.rxfifo_depth, sc->cfg.txfifo_depth);
 	}
 }
 
