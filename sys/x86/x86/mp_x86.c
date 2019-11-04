@@ -144,6 +144,11 @@ static int	hyperthreading_allowed = 1;
 SYSCTL_INT(_machdep, OID_AUTO, hyperthreading_allowed, CTLFLAG_RDTUN,
 	&hyperthreading_allowed, 0, "Use Intel HTT logical CPUs");
 
+static int	hyperthreading_intr_allowed = 0;
+SYSCTL_INT(_machdep, OID_AUTO, hyperthreading_intr_allowed, CTLFLAG_RDTUN,
+	&hyperthreading_intr_allowed, 0,
+	"Allow interrupts on HTT logical CPUs");
+
 static struct topo_node topo_root;
 
 static int pkg_id_shift;
@@ -1121,7 +1126,8 @@ set_interrupt_apic_ids(void)
 			continue;
 
 		/* Don't let hyperthreads service interrupts. */
-		if (cpu_info[apic_id].cpu_hyperthread)
+		if (cpu_info[apic_id].cpu_hyperthread &&
+		    !hyperthreading_intr_allowed)
 			continue;
 
 		intr_add_cpu(i);
