@@ -785,8 +785,8 @@ struct e1000_nvm_operations {
 
 struct e1000_mac_info {
 	struct e1000_mac_operations ops;
-	u8 addr[ETH_ADDR_LEN];
-	u8 perm_addr[ETH_ADDR_LEN];
+	u8 addr[ETHER_ADDR_LEN];
+	u8 perm_addr[ETHER_ADDR_LEN];
 
 	enum e1000_mac_type type;
 

@@ -2780,7 +2780,7 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable)
 		 * SHRAL/H) and initial CRC values to the MAC
 		 */
 		for (i = 0; i < hw->mac.rar_entry_count; i++) {
-			u8 mac_addr[ETH_ADDR_LEN] = {0};
+			u8 mac_addr[ETHER_ADDR_LEN] = {0};
 			u32 addr_high, addr_low;
 
 			addr_high = E1000_READ_REG(hw, E1000_RAH(i));

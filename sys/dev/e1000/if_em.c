@@ -1002,7 +1002,7 @@ em_if_attach_pre(if_ctx_t ctx)
 	hw->mac.report_tx_early = 1;
 
 	/* Allocate multicast array memory. */
-	adapter->mta = malloc(sizeof(u8) * ETH_ADDR_LEN *
+	adapter->mta = malloc(sizeof(u8) * ETHER_ADDR_LEN *
 	    MAX_NUM_MULTICAST_ADDRESSES, M_DEVBUF, M_NOWAIT);
 	if (adapter->mta == NULL) {
 		device_printf(dev, "Can not allocate multicast setup array\n");
@@ -1672,7 +1672,7 @@ em_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 	if (cnt == MAX_NUM_MULTICAST_ADDRESSES)
 		return (1);
 
-	bcopy(LLADDR(sdl), &mta[cnt * ETH_ADDR_LEN], ETH_ADDR_LEN);
+	bcopy(LLADDR(sdl), &mta[cnt * ETHER_ADDR_LEN], ETHER_ADDR_LEN);
 
 	return (1);
 }
@@ -1696,7 +1696,7 @@ em_if_multi_set(if_ctx_t ctx)
 	IOCTL_DEBUGOUT("em_set_multi: begin");
 
 	mta = adapter->mta;
-	bzero(mta, sizeof(u8) * ETH_ADDR_LEN * MAX_NUM_MULTICAST_ADDRESSES);
+	bzero(mta, sizeof(u8) * ETHER_ADDR_LEN * MAX_NUM_MULTICAST_ADDRESSES);
 
 	if (adapter->hw.mac.type == e1000_82542 &&
 	    adapter->hw.revision_id == E1000_REVISION_2) {
