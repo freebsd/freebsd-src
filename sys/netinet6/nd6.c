@@ -918,6 +918,7 @@ nd6_timer(void *arg)
 			defrouter_unlink(dr, &drq);
 	ND6_WUNLOCK();
 
+	NET_EPOCH_ENTER(et);
 	while ((dr = TAILQ_FIRST(&drq)) != NULL) {
 		TAILQ_REMOVE(&drq, dr, dr_entry);
 		defrouter_del(dr);
@@ -931,7 +932,6 @@ nd6_timer(void *arg)
 	 *
 	 * XXXRW: in6_ifaddrhead locking.
 	 */
-	NET_EPOCH_ENTER(et);
   addrloop:
 	CK_STAILQ_FOREACH_SAFE(ia6, &V_in6_ifaddrhead, ia_link, nia6) {
 		/* check address lifetime */
