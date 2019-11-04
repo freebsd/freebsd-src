@@ -122,7 +122,7 @@ static void fixdesc(char *s)
 	--e;
 	while (e >= s && isspace(*e))
 		--e;
-	if (*e == '.')
+	if (e >= s && *e == '.')
 		*e = 0;
 }
 
