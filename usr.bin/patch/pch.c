@@ -70,6 +70,8 @@ static LINENUM	p_bfake = -1;	/* beg of faked up lines */
 static FILE	*pfp = NULL;	/* patch file pointer */
 static char	*bestguess = NULL;	/* guess at correct filename */
 
+char		*source_file;
+
 static void	grow_hunkmax(void);
 static int	intuit_diff_type(void);
 static void	next_intuit_at(off_t, LINENUM);
@@ -218,7 +220,12 @@ there_is_another_patch(void)
 			bestguess = xstrdup(buf);
 			filearg[0] = fetchname(buf, &exists, 0);
 		}
-		if (!exists) {
+		/*
+		 * fetchname can now return buf = NULL, exists = true, to
+		 * indicate to the caller that /dev/null was specified.  Retain
+		 * previous behavior for now until this can be better evaluted.
+		 */
+		if (filearg[0] == NULL || !exists) {
 			int def_skip = *bestguess == '\0';
 			ask("No file found--skip this patch? [%c] ",
 			    def_skip  ? 'y' : 'n');
@@ -402,6 +409,24 @@ scan_exit:
 		struct file_name tmp = names[OLD_FILE];
 		names[OLD_FILE] = names[NEW_FILE];
 		names[NEW_FILE] = tmp;
+	}
+
+	/* Invalidated */
+	free(source_file);
+	source_file = NULL;
+
+	if (retval != 0) {
+		/*
+		 * If we've successfully determined a diff type, stored in
+		 * retval, path == NULL means _PATH_DEVNULL if exists is set.
+		 * Explicitly specify it here to make it easier to detect later
+		 * on that we're actually creating a file and not that we've
+		 * just goofed something up.
+		 */
+		if (names[OLD_FILE].path != NULL)
+			source_file = xstrdup(names[OLD_FILE].path);
+		else if (names[OLD_FILE].exists)
+			source_file = xstrdup(_PATH_DEVNULL);
 	}
 	if (filearg[0] == NULL) {
 		if (posix)
