@@ -161,7 +161,7 @@ reg_read(ig4iic_softc_t *sc, uint32_t reg)
 }
 
 static void
-set_intr_mask(ig4iic_softc_t *sc, uint32_t val)
+ig4iic_set_intr_mask(ig4iic_softc_t *sc, uint32_t val)
 {
 	if (sc->intr_mask != val) {
 		reg_write(sc, IG4_REG_INTR_MASK, val);
@@ -233,7 +233,7 @@ set_controller(ig4iic_softc_t *sc, uint32_t ctl)
 	 * When the controller is enabled, interrupt on STOP detect
 	 * or receive character ready and clear pending interrupts.
 	 */
-	set_intr_mask(sc, 0);
+	ig4iic_set_intr_mask(sc, 0);
 	if (ctl & IG4_I2C_ENABLE)
 		reg_read(sc, IG4_REG_CLR_INTR);
 
@@ -298,10 +298,10 @@ wait_intr(ig4iic_softc_t *sc, uint32_t intr)
 		 */
 		if (!DO_POLL(sc)) {
 			mtx_lock_spin(&sc->io_lock);
-			set_intr_mask(sc, intr | IG4_INTR_ERR_MASK);
+			ig4iic_set_intr_mask(sc, intr | IG4_INTR_ERR_MASK);
 			msleep_spin(sc, &sc->io_lock, "i2cwait",
 				  (hz + 99) / 100); /* sleep up to 10ms */
-			set_intr_mask(sc, 0);
+			ig4iic_set_intr_mask(sc, 0);
 			mtx_unlock_spin(&sc->io_lock);
 			count_us += 10000;
 		} else {
@@ -1137,7 +1137,7 @@ ig4iic_intr(void *cookie)
 	/* Ignore stray interrupts */
 	if (sc->intr_mask != 0 && reg_read(sc, IG4_REG_INTR_STAT) != 0) {
 		/* Interrupt bits are cleared in wait_intr() loop */
-		set_intr_mask(sc, 0);
+		ig4iic_set_intr_mask(sc, 0);
 		wakeup(sc);
 		retval = FILTER_HANDLED;
 	}
