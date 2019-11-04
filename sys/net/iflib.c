@@ -1696,20 +1696,16 @@ iflib_txsd_destroy(if_ctx_t ctx, iflib_txq_t txq, int i)
 {
 	bus_dmamap_t map;
 
-	map = NULL;
-	if (txq->ift_sds.ifsd_map != NULL)
+	if (txq->ift_sds.ifsd_map != NULL) {
 		map = txq->ift_sds.ifsd_map[i];
-	if (map != NULL) {
 		bus_dmamap_sync(txq->ift_buf_tag, map, BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(txq->ift_buf_tag, map);
 		bus_dmamap_destroy(txq->ift_buf_tag, map);
 		txq->ift_sds.ifsd_map[i] = NULL;
 	}
 
-	map = NULL;
-	if (txq->ift_sds.ifsd_tso_map != NULL)
+	if (txq->ift_sds.ifsd_tso_map != NULL) {
 		map = txq->ift_sds.ifsd_tso_map[i];
-	if (map != NULL) {
 		bus_dmamap_sync(txq->ift_tso_buf_tag, map,
 		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(txq->ift_tso_buf_tag, map);
@@ -2120,9 +2116,6 @@ iflib_fl_bufs_free(iflib_fl_t fl)
 			bus_dmamap_unload(fl->ifl_buf_tag, sd_map);
 			if (*sd_cl != NULL)
 				uma_zfree(fl->ifl_zone, *sd_cl);
-			// XXX: Should this get moved out?
-			if (iflib_in_detach(fl->ifl_rxq->ifr_ctx))
-				bus_dmamap_destroy(fl->ifl_buf_tag, sd_map);
 			if (*sd_m != NULL) {
 				m_init(*sd_m, M_NOWAIT, MT_DATA, 0);
 				uma_zfree(zone_mbuf, *sd_m);
@@ -2210,14 +2203,14 @@ iflib_rx_sds_free(iflib_rxq_t rxq)
 			if (fl->ifl_buf_tag != NULL) {
 				if (fl->ifl_sds.ifsd_map != NULL) {
 					for (j = 0; j < fl->ifl_size; j++) {
-						if (fl->ifl_sds.ifsd_map[j] ==
-						    NULL)
-							continue;
 						bus_dmamap_sync(
 						    fl->ifl_buf_tag,
 						    fl->ifl_sds.ifsd_map[j],
 						    BUS_DMASYNC_POSTREAD);
 						bus_dmamap_unload(
+						    fl->ifl_buf_tag,
+						    fl->ifl_sds.ifsd_map[j]);
+						bus_dmamap_destroy(
 						    fl->ifl_buf_tag,
 						    fl->ifl_sds.ifsd_map[j]);
 					}
@@ -5735,9 +5728,12 @@ static void
 iflib_rx_structures_free(if_ctx_t ctx)
 {
 	iflib_rxq_t rxq = ctx->ifc_rxqs;
-	int i;
+	if_shared_ctx_t sctx = ctx->ifc_sctx;
+	int i, j;
 
 	for (i = 0; i < ctx->ifc_softc_ctx.isc_nrxqsets; i++, rxq++) {
+		for (j = 0; j < sctx->isc_nrxqs; j++)
+			iflib_dma_free(&rxq->ifr_ifdi[j]);
 		iflib_rx_sds_free(rxq);
 #if defined(INET6) || defined(INET)
 		if (if_getcapabilities(ctx->ifc_ifp) & IFCAP_LRO)
