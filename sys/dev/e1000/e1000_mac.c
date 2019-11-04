@@ -371,7 +371,7 @@ void e1000_write_vfta_generic(struct e1000_hw *hw, u32 offset, u32 value)
 void e1000_init_rx_addrs_generic(struct e1000_hw *hw, u16 rar_count)
 {
 	u32 i;
-	u8 mac_addr[ETH_ADDR_LEN] = {0};
+	u8 mac_addr[ETHER_ADDR_LEN] = {0};
 
 	DEBUGFUNC("e1000_init_rx_addrs_generic");
 
@@ -403,7 +403,7 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 	u32 i;
 	s32 ret_val;
 	u16 offset, nvm_alt_mac_addr_offset, nvm_data;
-	u8 alt_mac_addr[ETH_ADDR_LEN];
+	u8 alt_mac_addr[ETHER_ADDR_LEN];
 
 	DEBUGFUNC("e1000_check_alt_mac_addr_generic");
 
@@ -440,7 +440,7 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 
 	if (hw->bus.func == E1000_FUNC_3)
 		nvm_alt_mac_addr_offset += E1000_ALT_MAC_ADDRESS_OFFSET_LAN3;
-	for (i = 0; i < ETH_ADDR_LEN; i += 2) {
+	for (i = 0; i < ETHER_ADDR_LEN; i += 2) {
 		offset = nvm_alt_mac_addr_offset + (i >> 1);
 		ret_val = hw->nvm.ops.read(hw, offset, 1, &nvm_data);
 		if (ret_val) {
@@ -604,7 +604,7 @@ void e1000_update_mc_addr_list_generic(struct e1000_hw *hw,
 		hash_bit = hash_value & 0x1F;
 
 		hw->mac.mta_shadow[hash_reg] |= (1 << hash_bit);
-		mc_addr_list += (ETH_ADDR_LEN);
+		mc_addr_list += (ETHER_ADDR_LEN);
 	}
 
 	/* replace the entire MTA table */
