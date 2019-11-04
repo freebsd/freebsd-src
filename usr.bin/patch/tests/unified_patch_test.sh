@@ -103,26 +103,27 @@ file_creation_body()
 # contents as many times as you apply the diff.  It should instead detect that
 # a source of /dev/null creates the file, so it shouldn't exist.  Furthermore,
 # the reverse of creation is deletion -- hence the next test, which ensures that
-# the file is removed if it's empty once the patch is reversed.
+# the file is removed if it's empty once the patch is reversed.  The size checks
+# are scattered throughout to make sure that we didn't get some kind of false
+# error, and the first size check is merely a sanity check that should be
+# trivially true as this is executed in a sandbox.
 atf_test_case file_nodupe
 file_nodupe_body()
 {
 
-	# WIP
-	atf_expect_fail "patch(1) erroneously duplicates created files"
 	echo "x" > foo
 	diff -u /dev/null foo > foo.diff
 
-	atf_check -x "patch -s < foo.diff"
-	atf_check -s not-exit:0 -x "patch -fs < foo.diff"
+	atf_check -o inline:"2\n" stat -f "%z" foo
+	atf_check -s not-exit:0 -o ignore -x "patch -Ns < foo.diff"
+	atf_check -o inline:"2\n" stat -f "%z" foo
+	atf_check -s not-exit:0 -o ignore -x "patch -fs < foo.diff"
+	atf_check -o inline:"2\n" stat -f "%z" foo
 }
 
 atf_test_case file_removal
 file_removal_body()
 {
-
-	# WIP
-	atf_expect_fail "patch(1) does not yet recognize /dev/null as creation"
 
 	echo "x" > foo
 	diff -u /dev/null foo > foo.diff
