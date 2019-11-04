@@ -52,7 +52,8 @@ enum partition_type {
 	PART_LINUX,
 	PART_LINUX_SWAP,
 	PART_DOS,
-	PART_ISO9660
+	PART_ISO9660,
+	PART_APFS
 };
 
 struct ptable_entry {
