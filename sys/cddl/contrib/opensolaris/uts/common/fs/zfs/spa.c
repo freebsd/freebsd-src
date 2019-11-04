@@ -176,7 +176,11 @@ boolean_t	zio_taskq_sysdc = B_TRUE;	/* use SDC scheduling class */
 uint_t		zio_taskq_basedc = 80;		/* base duty cycle */
 #endif
 
+#ifdef _KERNEL
+#define SPA_PROCESS
+#endif
 boolean_t	spa_create_process = B_TRUE;	/* no process ==> no sysdc */
+
 extern int	zfs_sync_pass_deferred_free;
 
 /*
@@ -1090,23 +1094,49 @@ spa_create_zio_taskqs(spa_t *spa)
 	}
 }
 
-#ifdef _KERNEL
 #ifdef SPA_PROCESS
+static int
+newproc(void (*pc)(void *), void *arg, id_t cid, int pri,
+    void **ct, pid_t pid)
+{
+	va_list ap;
+	spa_t *spa = (spa_t *)arg;	/* XXX */
+	struct proc *newp;
+	struct thread *td;
+	int error;
+
+	ASSERT(ct == NULL);
+	ASSERT(pid == 0);
+	ASSERT(cid == syscid);
+
+	error = kproc_create(pc, arg, &newp, 0, 0, "zpool-%s", spa->spa_name);
+	if (error != 0)
+		return (error);
+	td = FIRST_THREAD_IN_PROC(newp);
+	thread_lock(td);
+	sched_prio(td, pri);
+	thread_unlock(td);
+	return (0);
+}
+
 static void
 spa_thread(void *arg)
 {
 	callb_cpr_t cprinfo;
 
 	spa_t *spa = arg;
+#ifdef illumos
 	user_t *pu = PTOU(curproc);
-
+#endif
 	CALLB_CPR_INIT(&cprinfo, &spa->spa_proc_lock, callb_generic_cpr,
 	    spa->spa_name);
 
 	ASSERT(curproc != &p0);
+#ifdef illumos
 	(void) snprintf(pu->u_psargs, sizeof (pu->u_psargs),
 	    "zpool-%s", spa->spa_name);
 	(void) strlcpy(pu->u_comm, pu->u_psargs, sizeof (pu->u_comm));
+#endif
 
 #ifdef PSRSET_BIND
 	/* bind this thread to the requested psrset */
@@ -1160,11 +1190,14 @@ spa_thread(void *arg)
 	cv_broadcast(&spa->spa_proc_cv);
 	CALLB_CPR_EXIT(&cprinfo);	/* drops spa_proc_lock */
 
+#ifdef illumos
 	mutex_enter(&curproc->p_lock);
 	lwp_exit();
+#else
+	kthread_exit();
+#endif
 }
 #endif	/* SPA_PROCESS */
-#endif
 
 /*
  * Activate an uninitialized pool.
@@ -1211,7 +1244,9 @@ spa_activate(spa_t *spa, int mode)
 	mutex_exit(&spa->spa_proc_lock);
 
 	/* If we didn't create a process, we need to create our taskqs. */
+#ifndef SPA_PROCESS
 	ASSERT(spa->spa_proc == &p0);
+#endif	/* SPA_PROCESS */
 	if (spa->spa_proc == &p0) {
 		spa_create_zio_taskqs(spa);
 	}
@@ -1315,6 +1350,7 @@ spa_deactivate(spa_t *spa)
 	mutex_exit(&spa->spa_proc_lock);
 
 #ifdef SPA_PROCESS
+#ifdef illumos
 	/*
 	 * We want to make sure spa_thread() has actually exited the ZFS
 	 * module, so that the module can't be unloaded out from underneath
@@ -1324,6 +1360,7 @@ spa_deactivate(spa_t *spa)
 		thread_join(spa->spa_did);
 		spa->spa_did = 0;
 	}
+#endif
 #endif	/* SPA_PROCESS */
 }
 
