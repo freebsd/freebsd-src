@@ -61,6 +61,7 @@ static const uuid_t gpt_uuid_freebsd_nandfs = GPT_ENT_TYPE_FREEBSD_NANDFS;
 static const uuid_t gpt_uuid_freebsd_swap = GPT_ENT_TYPE_FREEBSD_SWAP;
 static const uuid_t gpt_uuid_freebsd_zfs = GPT_ENT_TYPE_FREEBSD_ZFS;
 static const uuid_t gpt_uuid_freebsd_vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
+static const uuid_t gpt_uuid_apple_apfs = GPT_ENT_TYPE_APPLE_APFS;
 #endif
 
 struct pentry {
@@ -100,6 +101,7 @@ static struct parttypes {
 	{ PART_LINUX_SWAP,	"Linux swap" },
 	{ PART_DOS,		"DOS/Windows" },
 	{ PART_ISO9660,		"ISO9660" },
+	{ PART_APFS,		"APFS" },
 };
 
 const char *
@@ -145,6 +147,8 @@ gpt_parttype(uuid_t type)
 		return (PART_FREEBSD_NANDFS);
 	else if (uuid_equal(&type, &gpt_uuid_freebsd, NULL))
 		return (PART_FREEBSD);
+	else if (uuid_equal(&type, &gpt_uuid_apple_apfs, NULL))
+		return (PART_APFS);
 	return (PART_UNKNOWN);
 }
 
