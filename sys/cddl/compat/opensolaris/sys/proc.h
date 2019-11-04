@@ -47,12 +47,13 @@
 #define	maxclsyspri	PVM
 #define	max_ncpus	(mp_maxid + 1)
 #define	boot_max_ncpus	(mp_maxid + 1)
+#define	syscid		1
 
 #define	TS_RUN	0
 
 #define	p0	proc0
 
-#define	t_tid	td_tid
+#define	t_did	td_tid
 
 typedef	short		pri_t;
 typedef	struct thread	_kthread;
@@ -67,6 +68,7 @@ do_thread_create(caddr_t stk, size_t stksize, void (*proc)(void *), void *arg,
     size_t len, proc_t *pp, int state, pri_t pri)
 {
 	kthread_t *td = NULL;
+	proc_t **ppp;
 	int error;
 
 	/*
@@ -75,9 +77,13 @@ do_thread_create(caddr_t stk, size_t stksize, void (*proc)(void *), void *arg,
 	ASSERT(stk == NULL);
 	ASSERT(len == 0);
 	ASSERT(state == TS_RUN);
-	ASSERT(pp == &p0);
+	ASSERT(pp != NULL);
 
-	error = kproc_kthread_add(proc, arg, &zfsproc, &td, RFSTOPPED,
+	if (pp == &p0)
+		ppp = &zfsproc;
+	else
+		ppp = &pp;
+	error = kproc_kthread_add(proc, arg, ppp, &td, RFSTOPPED,
 	    stksize / PAGE_SIZE, "zfskern", "solthread %p", proc);
 	if (error == 0) {
 		thread_lock(td);
