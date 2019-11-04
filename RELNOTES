@@ -10,6 +10,9 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r354269:
+	sqlite3 is updated to sqlite3-3.30.1.
+
 r352668:
 	cron(8) now supports the -n (suppress mail on succesful run) and -q
 	(suppress logging of command execution) options in the crontab format.
@@ -23,6 +26,9 @@ r351522:
 	Add kernel-side support for in-kernel Transport Layer Security
 	(KTLS).  KTLS permits using sendfile(2) over sockets using
 	TLS.
+
+r351397:
+	WPA is updated from 2.8 to 2.9.
 
 r351361:
 	Add probes for lockmgr(9) to the lockstat DTrace provider, add
