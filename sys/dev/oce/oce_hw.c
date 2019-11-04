@@ -553,7 +553,7 @@ oce_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 		return (0);
 
 	bcopy(LLADDR(sdl), &req->params.req.mac[req->params.req.num_mac++],
-	    ETH_ADDR_LEN);
+	    ETHER_ADDR_LEN);
 
 	return (1);
 }

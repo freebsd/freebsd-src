@@ -200,7 +200,6 @@ extern int mp_ncpus;			/* system's total active cpu cores */
 #define OCE_IF_CAPABILITIES_NONE 	0
 
 
-#define ETH_ADDR_LEN			6
 #define MAX_VLANFILTER_SIZE		64
 #define MAX_VLANS			4096
 

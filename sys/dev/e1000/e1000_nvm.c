@@ -1143,7 +1143,7 @@ s32 e1000_read_mac_addr_generic(struct e1000_hw *hw)
 	for (i = 0; i < E1000_RAH_MAC_ADDR_LEN; i++)
 		hw->mac.perm_addr[i+4] = (u8)(rar_high >> (i*8));
 
-	for (i = 0; i < ETH_ADDR_LEN; i++)
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		hw->mac.addr[i] = hw->mac.perm_addr[i];
 
 	return E1000_SUCCESS;
