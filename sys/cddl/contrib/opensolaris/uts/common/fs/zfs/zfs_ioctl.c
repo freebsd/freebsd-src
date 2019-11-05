@@ -7098,7 +7098,6 @@ zfsdev_fini(void)
 }
 
 static struct root_hold_token *zfs_root_token;
-struct proc *zfsproc;
 
 #ifdef illumos
 int

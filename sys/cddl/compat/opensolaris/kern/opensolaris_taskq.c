@@ -42,6 +42,8 @@ static uma_zone_t taskq_zone;
 
 taskq_t *system_taskq = NULL;
 
+struct proc *system_proc;
+
 static void
 system_taskq_init(void *arg)
 {
@@ -84,7 +86,7 @@ taskq_t *
 taskq_create(const char *name, int nthreads, pri_t pri, int minalloc __unused,
     int maxalloc __unused, uint_t flags)
 {
-	return (taskq_create_impl(name, nthreads, pri, zfsproc, flags));
+	return (taskq_create_impl(name, nthreads, pri, system_proc, flags));
 }
 
 taskq_t *
