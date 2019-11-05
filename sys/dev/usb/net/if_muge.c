@@ -157,9 +157,6 @@ do { \
 #define muge_err_printf(sc, fmt, args...) \
 	device_printf((sc)->sc_ue.ue_dev, "error: " fmt, ##args)
 
-#define ETHER_IS_ZERO(addr) \
-	(!(addr[0] | addr[1] | addr[2] | addr[3] | addr[4] | addr[5]))
-
 #define ETHER_IS_VALID(addr) \
 	(!ETHER_IS_MULTICAST(addr) && !ETHER_IS_ZERO(addr))
 
