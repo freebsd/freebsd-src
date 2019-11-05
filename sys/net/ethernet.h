@@ -74,6 +74,9 @@ struct ether_addr {
 #define	ETHER_IS_BROADCAST(addr) \
 	(((addr)[0] & (addr)[1] & (addr)[2] & \
 	  (addr)[3] & (addr)[4] & (addr)[5]) == 0xff)
+#define	ETHER_IS_ZERO(addr) \
+	(((addr)[0] | (addr)[1] | (addr)[2] | \
+	  (addr)[3] | (addr)[4] | (addr)[5]) == 0x00)
 
 /*
  * 802.1q Virtual LAN header.
