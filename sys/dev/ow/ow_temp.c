@@ -143,9 +143,11 @@ ow_temp_event_thread(void *arg)
 	pause("owtstart", device_get_unit(sc->dev) * hz / 100);	// 10ms stagger
 	mtx_lock(&sc->temp_lock);
 	sc->flags |= OW_TEMP_RUNNING;
+	mtx_unlock(&sc->temp_lock);
 	ow_temp_read_power_supply(sc->dev, &sc->parasite);
 	if (sc->parasite)
 		device_printf(sc->dev, "Running in parasitic mode unsupported\n");
+	mtx_lock(&sc->temp_lock);
 	while ((sc->flags & OW_TEMP_DONE) == 0) {
 		mtx_unlock(&sc->temp_lock);
 		ow_temp_convert_t(sc->dev);
@@ -153,10 +155,9 @@ ow_temp_event_thread(void *arg)
 		msleep(sc, &sc->temp_lock, 0, "owtcvt", hz);
 		if (sc->flags & OW_TEMP_DONE)
 			break;
+		mtx_unlock(&sc->temp_lock);
 		for (retries = 5; retries > 0; retries--) {
-			mtx_unlock(&sc->temp_lock);
 			rv = ow_temp_read_scratchpad(sc->dev, scratch, sizeof(scratch));
-			mtx_lock(&sc->temp_lock);
 			if (rv == 0) {
 				crc = own_crc(sc->dev, scratch, sizeof(scratch) - 1);
 				if (crc == scratch[8]) {
@@ -180,6 +181,7 @@ ow_temp_event_thread(void *arg)
 			} else
 				sc->bad_reads++;
 		}
+		mtx_lock(&sc->temp_lock);
 		msleep(sc, &sc->temp_lock, 0, "owtcvt", sc->reading_interval);
 	}
 	sc->flags &= ~OW_TEMP_RUNNING;
