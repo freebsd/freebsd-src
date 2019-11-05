@@ -38,6 +38,11 @@ exthdr_head() {
 
 exthdr_body() {
 
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "i386" ]; then
+		atf_skip "https://bugs.freebsd.org/241493"
+	fi
+
 	ids=65533
 	id=`printf "%x" ${ids}`
 	if [ $$ -gt 65535 ]; then
