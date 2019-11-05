@@ -669,14 +669,6 @@ zfs_dev_open(struct open_file *f, ...)
 		spa = spa_find_by_guid(dev->pool_guid);
 	if (!spa)
 		return (ENXIO);
-#if 0
-	/* Apparently too many are using slog with boot pool. */
-	if (spa->spa_with_log) {
-		printf("Reading pool %s is not supported due to log device.\n",
-		    spa->spa_name);
-		return (ENXIO);
-	}
-#endif
 	mount = malloc(sizeof(*mount));
 	if (mount == NULL)
 		rv = ENOMEM;
