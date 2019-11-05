@@ -2198,6 +2198,7 @@ uma_startup2(void)
 static void
 uma_startup3(void)
 {
+	uma_zone_t zone;
 
 #ifdef INVARIANTS
 	TUNABLE_INT_FETCH("vm.debug.divisor", &dbg_divisor);
@@ -2205,6 +2206,8 @@ uma_startup3(void)
 	uma_skip_cnt = counter_u64_alloc(M_WAITOK);
 #endif
 	zone_foreach(zone_alloc_counters);
+	LIST_FOREACH(zone, &uma_cachezones, uz_link)
+		zone_alloc_counters(zone);
 	callout_init(&uma_callout, 1);
 	callout_reset(&uma_callout, UMA_TIMEOUT * hz, uma_timeout, NULL);
 	booted = BOOT_RUNNING;
