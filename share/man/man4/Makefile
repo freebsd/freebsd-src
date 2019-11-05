@@ -236,6 +236,7 @@ MAN=	aac.4 \
 	ismt.4 \
 	isp.4 \
 	ispfw.4 \
+	${_itwd.4} \
 	iwi.4 \
 	iwifw.4 \
 	iwm.4 \
@@ -819,6 +820,7 @@ _if_wpi.4=	if_wpi.4
 _imcsmb.4=	imcsmb.4
 _ipmi.4=	ipmi.4
 _io.4=		io.4
+_itwd.4=	itwd.4
 _linux.4=	linux.4
 _nda.4=		nda.4
 _ndis.4=	ndis.4

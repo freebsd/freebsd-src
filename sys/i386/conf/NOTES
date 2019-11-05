@@ -856,11 +856,13 @@ hint.pcf.0.irq="5"
 # amdsbwd: AMD SB7xx watchdog timer
 # viawd: VIA south bridge watchdog timer
 # wbwd: Winbond watchdog timer
+# itwd: ITE Super I/O watchdog timer
 #
 device		ichwd
 device		amdsbwd
 device		viawd
 device		wbwd
+device		itwd
 
 #
 # Temperature sensors:
