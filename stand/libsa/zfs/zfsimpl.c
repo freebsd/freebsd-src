@@ -1641,8 +1641,10 @@ vdev_label_read_config(vdev_t *vd, uint64_t txg)
 		nvlist = (const unsigned char *) label->vp_nvlist + 4;
 		error = nvlist_find(nvlist, ZPOOL_CONFIG_POOL_TXG,
 		    DATA_TYPE_UINT64, NULL, &label_txg);
-		if (error != 0 || label_txg == 0)
+		if (error != 0 || label_txg == 0) {
+			memcpy(nvl, nvlist, nvl_size);
 			return (nvl);
+		}
 
 		if (label_txg <= txg && label_txg > best_txg) {
 			best_txg = label_txg;
