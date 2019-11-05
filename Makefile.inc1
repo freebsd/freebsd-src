@@ -1581,7 +1581,8 @@ buildkernel: .MAKE .PHONY
 	cd ${KRNLCONFDIR}; \
 		PATH=${TMPPATH} \
 		    config ${CONFIGARGS} -d ${KRNLOBJDIR}/${_kernel} \
-			-I '${KERNCONFDIR}' '${KERNCONFDIR}/${_kernel}'
+			-I '${KERNCONFDIR}' -I '${KRNLCONFDIR}' \
+			'${KERNCONFDIR}/${_kernel}'
 .endif
 .if !defined(NO_CLEAN) && !defined(NO_KERNELCLEAN)
 	@echo
