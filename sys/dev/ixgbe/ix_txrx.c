@@ -464,6 +464,12 @@ ixgbe_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 	ri->iri_flowid = le32toh(rxd->wb.lower.hi_dword.rss);
 	ri->iri_rsstype = ixgbe_determine_rsstype(pkt_info);
+	if ((adapter->feat_en & IXGBE_FEATURE_RSS) == 0) {
+		if (ri->iri_rsstype == M_HASHTYPE_OPAQUE)
+			ri->iri_rsstype = M_HASHTYPE_NONE;
+		else
+			ri->iri_rsstype = M_HASHTYPE_OPAQUE_HASH;
+	}
 	ri->iri_vtag = vtag;
 	ri->iri_nfrags = i;
 	if (vtag)
