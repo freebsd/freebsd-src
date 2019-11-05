@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20191105: picobsd(8), et al, removed.
+OLD_FILES+=usr/share/man/man8/picobsd.8.gz
 # 20191009: new clang import which bumps version from 8.0.1 to 9.0.0.
 OLD_FILES+=usr/lib/clang/8.0.1/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/8.0.1/include/sanitizer/asan_interface.h
