@@ -61,7 +61,7 @@ typedef	struct thread	kthread_t;
 typedef struct thread	*kthread_id_t;
 typedef struct proc	proc_t;
 
-extern struct proc *zfsproc;
+extern struct proc *system_proc;
 
 static __inline kthread_t *
 do_thread_create(caddr_t stk, size_t stksize, void (*proc)(void *), void *arg,
@@ -80,7 +80,7 @@ do_thread_create(caddr_t stk, size_t stksize, void (*proc)(void *), void *arg,
 	ASSERT(pp != NULL);
 
 	if (pp == &p0)
-		ppp = &zfsproc;
+		ppp = &system_proc;
 	else
 		ppp = &pp;
 	error = kproc_kthread_add(proc, arg, ppp, &td, RFSTOPPED,
