@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2018 by Delphix. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  * Copyright 2016 Nexenta Systems, Inc. All rights reserved.
  */
@@ -36,6 +36,7 @@
 #include <sys/rrwlock.h>
 #include <sys/zfs_sa.h>
 #include <sys/zfs_stat.h>
+#include <sys/zfs_rlock.h>
 #endif
 #include <sys/zfs_acl.h>
 #include <sys/zil.h>
@@ -57,8 +58,8 @@ extern "C" {
 #define	ZFS_APPENDONLY		0x0000004000000000
 #define	ZFS_NODUMP		0x0000008000000000
 #define	ZFS_OPAQUE		0x0000010000000000
-#define	ZFS_AV_QUARANTINED 	0x0000020000000000
-#define	ZFS_AV_MODIFIED 	0x0000040000000000
+#define	ZFS_AV_QUARANTINED	0x0000020000000000
+#define	ZFS_AV_MODIFIED		0x0000040000000000
 #define	ZFS_REPARSE		0x0000080000000000
 #define	ZFS_OFFLINE		0x0000100000000000
 #define	ZFS_SPARSE		0x0000200000000000
@@ -78,8 +79,8 @@ extern "C" {
  */
 #define	ZFS_XATTR		0x1		/* is an extended attribute */
 #define	ZFS_INHERIT_ACE		0x2		/* ace has inheritable ACEs */
-#define	ZFS_ACL_TRIVIAL 	0x4		/* files ACL is trivial */
-#define	ZFS_ACL_OBJ_ACE 	0x8		/* ACL has CMPLX Object ACE */
+#define	ZFS_ACL_TRIVIAL		0x4		/* files ACL is trivial */
+#define	ZFS_ACL_OBJ_ACE		0x8		/* ACL has CMPLX Object ACE */
 #define	ZFS_ACL_PROTECTED	0x10		/* ACL protected */
 #define	ZFS_ACL_DEFAULTED	0x20		/* ACL should be defaulted */
 #define	ZFS_ACL_AUTO_INHERIT	0x40		/* ACL should be inherited */
@@ -177,8 +178,7 @@ typedef struct znode {
 	krwlock_t	z_name_lock;	/* "master" lock for dirent locks */
 	zfs_dirlock_t	*z_dirlocks;	/* directory entry lock list */
 #endif
-	kmutex_t	z_range_lock;	/* protects changes to z_range_avl */
-	avl_tree_t	z_range_avl;	/* avl tree of file range locks */
+	rangelock_t	z_rangelock;	/* file range locks */
 	uint8_t		z_unlinked;	/* file has been unlinked */
 	uint8_t		z_atime_dirty;	/* atime needs to be synced */
 	uint8_t		z_zn_prefetch;	/* Prefetch znodes? */

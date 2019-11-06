@@ -22,6 +22,9 @@
  * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
+/*
+ * Copyright (c) 2018 by Delphix. All rights reserved.
+ */
 
 #ifndef	_SYS_FS_ZFS_RLOCK_H
 #define	_SYS_FS_ZFS_RLOCK_H
@@ -30,54 +33,53 @@
 extern "C" {
 #endif
 
-#ifdef _KERNEL
-
-#include <sys/zfs_znode.h>
+#ifdef __FreeBSD__
+#define	rangelock_init		zfs_rangelock_init
+#define	rangelock_fini		zfs_rangelock_fini
+#endif
 
 typedef enum {
 	RL_READER,
 	RL_WRITER,
 	RL_APPEND
-} rl_type_t;
+} rangelock_type_t;
 
-typedef struct rl {
-	znode_t *r_zp;		/* znode this lock applies to */
-	avl_node_t r_node;	/* avl node link */
-	uint64_t r_off;		/* file range offset */
-	uint64_t r_len;		/* file range length */
-	uint_t r_cnt;		/* range reference count in tree */
-	rl_type_t r_type;	/* range type */
-	kcondvar_t r_wr_cv;	/* cv for waiting writers */
-	kcondvar_t r_rd_cv;	/* cv for waiting readers */
-	uint8_t r_proxy;	/* acting for original range */
-	uint8_t r_write_wanted;	/* writer wants to lock this range */
-	uint8_t r_read_wanted;	/* reader wants to lock this range */
-} rl_t;
+struct locked_range;
 
-/*
- * Lock a range (offset, length) as either shared (RL_READER)
- * or exclusive (RL_WRITER or RL_APPEND).  RL_APPEND is a special type that
- * is converted to RL_WRITER that specified to lock from the start of the
- * end of file.  Returns the range lock structure.
- */
-rl_t *zfs_range_lock(znode_t *zp, uint64_t off, uint64_t len, rl_type_t type);
+typedef void (rangelock_cb_t)(struct locked_range *, void *);
 
-/* Unlock range and destroy range lock structure. */
-void zfs_range_unlock(rl_t *rl);
+#ifdef __FreeBSD__
+typedef struct zfs_rangelock {
+#else
+typedef struct rangelock {
+#endif
+	avl_tree_t rl_tree; /* contains locked_range_t */
+	kmutex_t rl_lock;
+	rangelock_cb_t *rl_cb;
+	void *rl_arg;
+} rangelock_t;
 
-/*
- * Reduce range locked as RW_WRITER from whole file to specified range.
- * Asserts the whole file was previously locked.
- */
-void zfs_range_reduce(rl_t *rl, uint64_t off, uint64_t len);
+typedef struct locked_range {
+	rangelock_t *lr_rangelock; /* rangelock that this lock applies to */
+	avl_node_t lr_node;	/* avl node link */
+	uint64_t lr_offset;	/* file range offset */
+	uint64_t lr_length;	/* file range length */
+	uint_t lr_count;	/* range reference count in tree */
+	rangelock_type_t lr_type; /* range type */
+	kcondvar_t lr_write_cv;	/* cv for waiting writers */
+	kcondvar_t lr_read_cv;	/* cv for waiting readers */
+	uint8_t lr_proxy;	/* acting for original range */
+	uint8_t lr_write_wanted; /* writer wants to lock this range */
+	uint8_t lr_read_wanted;	/* reader wants to lock this range */
+} locked_range_t;
 
-/*
- * AVL comparison function used to order range locks
- * Locks are ordered on the start offset of the range.
- */
-int zfs_range_compare(const void *arg1, const void *arg2);
+void rangelock_init(rangelock_t *, rangelock_cb_t *, void *);
+void rangelock_fini(rangelock_t *);
 
-#endif /* _KERNEL */
+locked_range_t *rangelock_enter(rangelock_t *,
+    uint64_t, uint64_t, rangelock_type_t);
+void rangelock_exit(locked_range_t *);
+void rangelock_reduce(locked_range_t *, uint64_t, uint64_t);
 
 #ifdef	__cplusplus
 }
