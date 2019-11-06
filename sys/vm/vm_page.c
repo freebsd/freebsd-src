@@ -3421,7 +3421,7 @@ vm_page_dequeue(vm_page_t m)
 	struct vm_pagequeue *pq, *pq1;
 	uint8_t aflags;
 
-	KASSERT(mtx_owned(vm_page_lockptr(m)) || m->object == NULL,
+	KASSERT(mtx_owned(vm_page_lockptr(m)) || m->ref_count == 0,
 	    ("page %p is allocated and unlocked", m));
 
 	for (pq = vm_page_pagequeue(m);; pq = pq1) {
@@ -3475,6 +3475,8 @@ vm_page_enqueue(vm_page_t m, uint8_t queue)
 	vm_page_assert_locked(m);
 	KASSERT(m->queue == PQ_NONE && (m->aflags & PGA_QUEUE_STATE_MASK) == 0,
 	    ("%s: page %p is already enqueued", __func__, m));
+	KASSERT(m->ref_count > 0,
+	    ("%s: page %p does not carry any references", __func__, m));
 
 	m->queue = queue;
 	if ((m->aflags & PGA_REQUEUE) == 0)
@@ -3496,6 +3498,8 @@ vm_page_requeue(vm_page_t m)
 	vm_page_assert_locked(m);
 	KASSERT(vm_page_queue(m) != PQ_NONE,
 	    ("%s: page %p is not logically enqueued", __func__, m));
+	KASSERT(m->ref_count > 0,
+	    ("%s: page %p does not carry any references", __func__, m));
 
 	if ((m->aflags & PGA_REQUEUE) == 0)
 		vm_page_aflag_set(m, PGA_REQUEUE);
@@ -3889,6 +3893,8 @@ vm_page_mvqueue(vm_page_t m, const uint8_t nqueue)
 	vm_page_assert_locked(m);
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("vm_page_mvqueue: page %p is unmanaged", m));
+	KASSERT(m->ref_count > 0,
+	    ("%s: page %p does not carry any references", __func__, m));
 
 	if (vm_page_queue(m) != nqueue) {
 		vm_page_dequeue(m);
