@@ -269,6 +269,16 @@ sendfile_iodone(void *arg, vm_page_t *pg, int count, int error)
 	if (!refcount_release(&sfio->nios))
 		return;
 
+	if (__predict_false(sfio->error && sfio->m == NULL)) {
+		/*
+		 * I/O operation failed, but pru_send hadn't been executed -
+		 * nothing had been sent to the socket.  The syscall has
+		 * returned error to the user.
+		 */
+		free(sfio, M_TEMP);
+		return;
+	}
+
 #if defined(KERN_TLS) && defined(INVARIANTS)
 	if ((sfio->m->m_flags & M_EXT) != 0 &&
 	    sfio->m->m_ext.ext_type == EXT_PGS)
@@ -279,7 +289,7 @@ sendfile_iodone(void *arg, vm_page_t *pg, int count, int error)
 		    ("non-ext_pgs mbuf with TLS session"));
 #endif
 	CURVNET_SET(so->so_vnet);
-	if (sfio->error) {
+	if (__predict_false(sfio->error)) {
 		/*
 		 * I/O operation failed.  The state of data in the socket
 		 * is now inconsistent, and all what we can do is to tear
@@ -414,10 +424,25 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 		rv = vm_pager_get_pages_async(obj, pa + i, count, NULL,
 		    i + count == npages ? &rhpages : NULL,
 		    &sendfile_iodone, sfio);
-		if (rv != VM_PAGER_OK) {
-			for (j = i; j < i + count; j++) {
-				if (pa[j] != bogus_page)
-					vm_page_unwire(pa[j], PQ_INACTIVE);
+		if (__predict_false(rv != VM_PAGER_OK)) {
+			/*
+			 * Perform full pages recovery before returning EIO.
+			 * Pages from 0 to npages are wired.
+			 * Pages from i to npages are also busied.
+			 * Pages from (i + 1) to (i + count - 1) may be
+			 * substituted to bogus page, and not busied.
+			 */
+			for (j = 0; j < npages; j++) {
+				if (j > i && j < i + count - 1 &&
+				    pa[j] == bogus_page)
+					pa[j] = vm_page_lookup(obj,
+					    OFF_TO_IDX(vmoff(j, off)));
+				else if (j >= i)
+					vm_page_xunbusy(pa[j]);
+				KASSERT(pa[j] != NULL && pa[j] != bogus_page,
+				    ("%s: page %p[%d] I/O recovery failure",
+				    __func__, pa, j));
+				vm_page_unwire(pa[j], PQ_INACTIVE);
 			}
 			VM_OBJECT_WUNLOCK(obj);
 			return (EIO);
@@ -806,7 +831,8 @@ retry_space:
 		if (error != 0) {
 			if (vp != NULL)
 				VOP_UNLOCK(vp, 0);
-			free(sfio, M_TEMP);
+			sfio->m = NULL;
+			sendfile_iodone(sfio, NULL, 0, error);
 			goto done;
 		}
 
