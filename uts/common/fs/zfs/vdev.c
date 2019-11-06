@@ -25,7 +25,7 @@
  * Copyright 2017 Nexenta Systems, Inc.
  * Copyright (c) 2014 Integros [integros.com]
  * Copyright 2016 Toomas Soome <tsoome@me.com>
- * Copyright 2017 Joyent, Inc.
+ * Copyright 2019 Joyent, Inc.
  * Copyright (c) 2017, Intel Corporation.
  */
 
@@ -633,7 +633,8 @@ vdev_alloc(spa_t *spa, vdev_t **vdp, nvlist_t *nv, vdev_t *parent, uint_t id,
 			alloc_bias = vdev_derive_alloc_bias(bias);
 
 			/* spa_vdev_add() expects feature to be enabled */
-			if (spa->spa_load_state != SPA_LOAD_CREATE &&
+			if (alloc_bias != VDEV_BIAS_LOG &&
+			    spa->spa_load_state != SPA_LOAD_CREATE &&
 			    !spa_feature_is_enabled(spa,
 			    SPA_FEATURE_ALLOCATION_CLASSES)) {
 				return (SET_ERROR(ENOTSUP));
