@@ -27,6 +27,7 @@
  * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
+ * Copyright (c) 2019, Joyent, Inc.
  */
 
 /*
@@ -1509,7 +1510,7 @@ zvol_getefi(void *arg, int flag, uint64_t vs, uint8_t bs)
 
 		gpt.efi_gpt_Signature = LE_64(EFI_SIGNATURE);
 		gpt.efi_gpt_Revision = LE_32(EFI_VERSION_CURRENT);
-		gpt.efi_gpt_HeaderSize = LE_32(sizeof (gpt));
+		gpt.efi_gpt_HeaderSize = LE_32(EFI_HEADER_SIZE);
 		gpt.efi_gpt_MyLBA = LE_64(1ULL);
 		gpt.efi_gpt_FirstUsableLBA = LE_64(34ULL);
 		gpt.efi_gpt_LastUsableLBA = LE_64((vs >> bs) - 1);
@@ -1519,7 +1520,7 @@ zvol_getefi(void *arg, int flag, uint64_t vs, uint8_t bs)
 		    LE_32(sizeof (efi_gpe_t));
 		CRC32(crc, &gpe, sizeof (gpe), -1U, crc32_table);
 		gpt.efi_gpt_PartitionEntryArrayCRC32 = LE_32(~crc);
-		CRC32(crc, &gpt, sizeof (gpt), -1U, crc32_table);
+		CRC32(crc, &gpt, EFI_HEADER_SIZE, -1U, crc32_table);
 		gpt.efi_gpt_HeaderCRC32 = LE_32(~crc);
 		if (ddi_copyout(&gpt, ptr, MIN(sizeof (gpt), length),
 		    flag))
