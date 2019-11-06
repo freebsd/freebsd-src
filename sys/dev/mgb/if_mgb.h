@@ -75,7 +75,7 @@
 #define MGB_MAC_STAT_RX_FRAME_CNT	0x1254
 /* etc. */
 
-/** Recieve Filtering Engine **/
+/** Receive Filtering Engine **/
 #define MGB_RFE_CTL			0x508
 #define MGB_RFE_ALLOW_BROADCAST		(1 << 10)
 #define MGB_RFE_ALLOW_MULTICAST		(1 << 9)
