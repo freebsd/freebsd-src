@@ -54,24 +54,25 @@ static void	 taskqueue_swi_enqueue(void *);
 static void	 taskqueue_swi_giant_enqueue(void *);
 
 struct taskqueue_busy {
-	struct task	*tb_running;
-	TAILQ_ENTRY(taskqueue_busy) tb_link;
+	struct task		*tb_running;
+	u_int			 tb_seq;
+	LIST_ENTRY(taskqueue_busy) tb_link;
 };
-
-struct task * const TB_DRAIN_WAITER = (struct task *)0x1;
 
 struct taskqueue {
 	STAILQ_HEAD(, task)	tq_queue;
+	LIST_HEAD(, taskqueue_busy) tq_active;
+	struct task		*tq_hint;
+	u_int			tq_seq;
+	int			tq_callouts;
+	struct mtx_padalign	tq_mutex;
 	taskqueue_enqueue_fn	tq_enqueue;
 	void			*tq_context;
 	char			*tq_name;
-	TAILQ_HEAD(, taskqueue_busy) tq_active;
-	struct mtx		tq_mutex;
 	struct thread		**tq_threads;
 	int			tq_tcount;
 	int			tq_spin;
 	int			tq_flags;
-	int			tq_callouts;
 	taskqueue_callback_fn	tq_callbacks[TASKQUEUE_NUM_CALLBACKS];
 	void			*tq_cb_contexts[TASKQUEUE_NUM_CALLBACKS];
 };
@@ -114,12 +115,11 @@ _timeout_task_init(struct taskqueue *queue, struct timeout_task *timeout_task,
 }
 
 static __inline int
-TQ_SLEEP(struct taskqueue *tq, void *p, struct mtx *m, int pri, const char *wm,
-    int t)
+TQ_SLEEP(struct taskqueue *tq, void *p, const char *wm)
 {
 	if (tq->tq_spin)
-		return (msleep_spin(p, m, wm, t));
-	return (msleep(p, m, pri, wm, t));
+		return (msleep_spin(p, (struct mtx *)&tq->tq_mutex, wm, 0));
+	return (msleep(p, &tq->tq_mutex, 0, wm, 0));
 }
 
 static struct taskqueue *
@@ -143,7 +143,7 @@ _taskqueue_create(const char *name, int mflags,
 	snprintf(tq_name, TASKQUEUE_NAMELEN, "%s", (name) ? name : "taskqueue");
 
 	STAILQ_INIT(&queue->tq_queue);
-	TAILQ_INIT(&queue->tq_active);
+	LIST_INIT(&queue->tq_active);
 	queue->tq_enqueue = enqueue;
 	queue->tq_context = context;
 	queue->tq_name = tq_name;
@@ -194,7 +194,7 @@ taskqueue_terminate(struct thread **pp, struct taskqueue *tq)
 
 	while (tq->tq_tcount > 0 || tq->tq_callouts > 0) {
 		wakeup(tq);
-		TQ_SLEEP(tq, pp, &tq->tq_mutex, PWAIT, "taskqueue_destroy", 0);
+		TQ_SLEEP(tq, pp, "tq_destroy");
 	}
 }
 
@@ -205,7 +205,7 @@ taskqueue_free(struct taskqueue *queue)
 	TQ_LOCK(queue);
 	queue->tq_flags &= ~TQ_FLAGS_ACTIVE;
 	taskqueue_terminate(queue->tq_threads, queue);
-	KASSERT(TAILQ_EMPTY(&queue->tq_active), ("Tasks still running?"));
+	KASSERT(LIST_EMPTY(&queue->tq_active), ("Tasks still running?"));
 	KASSERT(queue->tq_callouts == 0, ("Armed timeout tasks"));
 	mtx_destroy(&queue->tq_mutex);
 	free(queue->tq_threads, M_TASKQUEUE);
@@ -231,21 +231,30 @@ taskqueue_enqueue_locked(struct taskqueue *queue, struct task *task)
 	}
 
 	/*
-	 * Optimise the case when all tasks have the same priority.
+	 * Optimise cases when all tasks use small set of priorities.
+	 * In case of only one priority we always insert at the end.
+	 * In case of two tq_hint typically gives the insertion point.
+	 * In case of more then two tq_hint should halve the search.
 	 */
 	prev = STAILQ_LAST(&queue->tq_queue, task, ta_link);
 	if (!prev || prev->ta_priority >= task->ta_priority) {
 		STAILQ_INSERT_TAIL(&queue->tq_queue, task, ta_link);
 	} else {
-		prev = NULL;
-		for (ins = STAILQ_FIRST(&queue->tq_queue); ins;
-		     prev = ins, ins = STAILQ_NEXT(ins, ta_link))
+		prev = queue->tq_hint;
+		if (prev && prev->ta_priority >= task->ta_priority) {
+			ins = STAILQ_NEXT(prev, ta_link);
+		} else {
+			prev = NULL;
+			ins = STAILQ_FIRST(&queue->tq_queue);
+		}
+		for (; ins; prev = ins, ins = STAILQ_NEXT(ins, ta_link))
 			if (ins->ta_priority < task->ta_priority)
 				break;
 
-		if (prev)
+		if (prev) {
 			STAILQ_INSERT_AFTER(&queue->tq_queue, prev, task, ta_link);
-		else
+			queue->tq_hint = task;
+		} else
 			STAILQ_INSERT_HEAD(&queue->tq_queue, task, ta_link);
 	}
 
@@ -362,6 +371,7 @@ taskqueue_drain_tq_queue(struct taskqueue *queue)
 	 */
 	TASK_INIT(&t_barrier, USHRT_MAX, taskqueue_task_nop_fn, &t_barrier);
 	STAILQ_INSERT_TAIL(&queue->tq_queue, &t_barrier, ta_link);
+	queue->tq_hint = &t_barrier;
 	t_barrier.ta_pending = 1;
 
 	/*
@@ -369,7 +379,7 @@ taskqueue_drain_tq_queue(struct taskqueue *queue)
 	 * have completed or are currently executing.
 	 */
 	while (t_barrier.ta_pending != 0)
-		TQ_SLEEP(queue, &t_barrier, &queue->tq_mutex, PWAIT, "-", 0);
+		TQ_SLEEP(queue, &t_barrier, "tq_qdrain");
 	return (1);
 }
 
@@ -381,31 +391,24 @@ taskqueue_drain_tq_queue(struct taskqueue *queue)
 static int
 taskqueue_drain_tq_active(struct taskqueue *queue)
 {
-	struct taskqueue_busy tb_marker, *tb_first;
+	struct taskqueue_busy *tb;
+	u_int seq;
 
-	if (TAILQ_EMPTY(&queue->tq_active))
+	if (LIST_EMPTY(&queue->tq_active))
 		return (0);
 
 	/* Block taskq_terminate().*/
 	queue->tq_callouts++;
 
-	/*
-	 * Wait for all currently executing taskqueue threads
-	 * to go idle.
-	 */
-	tb_marker.tb_running = TB_DRAIN_WAITER;
-	TAILQ_INSERT_TAIL(&queue->tq_active, &tb_marker, tb_link);
-	while (TAILQ_FIRST(&queue->tq_active) != &tb_marker)
-		TQ_SLEEP(queue, &tb_marker, &queue->tq_mutex, PWAIT, "-", 0);
-	TAILQ_REMOVE(&queue->tq_active, &tb_marker, tb_link);
-
-	/*
-	 * Wakeup any other drain waiter that happened to queue up
-	 * without any intervening active thread.
-	 */
-	tb_first = TAILQ_FIRST(&queue->tq_active);
-	if (tb_first != NULL && tb_first->tb_running == TB_DRAIN_WAITER)
-		wakeup(tb_first);
+	/* Wait for any active task with sequence from the past. */
+	seq = queue->tq_seq;
+restart:
+	LIST_FOREACH(tb, &queue->tq_active, tb_link) {
+		if ((int)(tb->tb_seq - seq) <= 0) {
+			TQ_SLEEP(queue, tb->tb_running, "tq_adrain");
+			goto restart;
+		}
+	}
 
 	/* Release taskqueue_terminate(). */
 	queue->tq_callouts--;
@@ -438,42 +441,31 @@ static void
 taskqueue_run_locked(struct taskqueue *queue)
 {
 	struct taskqueue_busy tb;
-	struct taskqueue_busy *tb_first;
 	struct task *task;
 	int pending;
 
 	KASSERT(queue != NULL, ("tq is NULL"));
 	TQ_ASSERT_LOCKED(queue);
 	tb.tb_running = NULL;
+	LIST_INSERT_HEAD(&queue->tq_active, &tb, tb_link);
 
-	while (STAILQ_FIRST(&queue->tq_queue)) {
-		TAILQ_INSERT_TAIL(&queue->tq_active, &tb, tb_link);
-
-		/*
-		 * Carefully remove the first task from the queue and
-		 * zero its pending count.
-		 */
-		task = STAILQ_FIRST(&queue->tq_queue);
-		KASSERT(task != NULL, ("task is NULL"));
+	while ((task = STAILQ_FIRST(&queue->tq_queue)) != NULL) {
 		STAILQ_REMOVE_HEAD(&queue->tq_queue, ta_link);
+		if (queue->tq_hint == task)
+			queue->tq_hint = NULL;
 		pending = task->ta_pending;
 		task->ta_pending = 0;
 		tb.tb_running = task;
+		tb.tb_seq = ++queue->tq_seq;
 		TQ_UNLOCK(queue);
 
 		KASSERT(task->ta_func != NULL, ("task->ta_func is NULL"));
 		task->ta_func(task->ta_context, pending);
 
 		TQ_LOCK(queue);
-		tb.tb_running = NULL;
 		wakeup(task);
-
-		TAILQ_REMOVE(&queue->tq_active, &tb, tb_link);
-		tb_first = TAILQ_FIRST(&queue->tq_active);
-		if (tb_first != NULL &&
-		    tb_first->tb_running == TB_DRAIN_WAITER)
-			wakeup(tb_first);
 	}
+	LIST_REMOVE(&tb, tb_link);
 }
 
 void
@@ -491,7 +483,7 @@ task_is_running(struct taskqueue *queue, struct task *task)
 	struct taskqueue_busy *tb;
 
 	TQ_ASSERT_LOCKED(queue);
-	TAILQ_FOREACH(tb, &queue->tq_active, tb_link) {
+	LIST_FOREACH(tb, &queue->tq_active, tb_link) {
 		if (tb->tb_running == task)
 			return (1);
 	}
@@ -520,8 +512,11 @@ taskqueue_cancel_locked(struct taskqueue *queue, struct task *task,
     u_int *pendp)
 {
 
-	if (task->ta_pending > 0)
+	if (task->ta_pending > 0) {
 		STAILQ_REMOVE(&queue->tq_queue, task, task, ta_link);
+		if (queue->tq_hint == task)
+			queue->tq_hint = NULL;
+	}
 	if (pendp != NULL)
 		*pendp = task->ta_pending;
 	task->ta_pending = 0;
@@ -570,7 +565,7 @@ taskqueue_drain(struct taskqueue *queue, struct task *task)
 
 	TQ_LOCK(queue);
 	while (task->ta_pending != 0 || task_is_running(queue, task))
-		TQ_SLEEP(queue, task, &queue->tq_mutex, PWAIT, "-", 0);
+		TQ_SLEEP(queue, task, "tq_drain");
 	TQ_UNLOCK(queue);
 }
 
@@ -776,7 +771,7 @@ taskqueue_thread_loop(void *arg)
 		 */
 		if ((tq->tq_flags & TQ_FLAGS_ACTIVE) == 0)
 			break;
-		TQ_SLEEP(tq, tq, &tq->tq_mutex, 0, "-", 0);
+		TQ_SLEEP(tq, tq, "-");
 	}
 	taskqueue_run_locked(tq);
 	/*
