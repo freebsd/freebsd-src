@@ -51,10 +51,10 @@ __FBSDID("$FreeBSD$");
  *     structs based on ncpus.
  * - RX/TX Checksum Offloading support
  * - VLAN support
- * - Recieve Packet Filtering (Multicast Perfect/Hash Address) support
+ * - Receive Packet Filtering (Multicast Perfect/Hash Address) support
  * - Wake on LAN (WoL) support
  * - TX LSO support
- * - Recieve Side Scaling (RSS) support
+ * - Receive Side Scaling (RSS) support
  * - Debugging Capabilities:
  *   - Could include MAC statistics and
  *     error status registers in sysctl.
