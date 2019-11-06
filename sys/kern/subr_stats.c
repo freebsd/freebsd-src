@@ -124,7 +124,8 @@ struct statsblobv1 {
 	struct voi	vois[];		/* Array indexed by [voi_id]. */
 } __aligned(sizeof(void *));
 _Static_assert(offsetof(struct statsblobv1, cursz) +
-    SIZEOF_MEMBER(struct statsblobv1, cursz) == sizeof(struct statsblob),
+    SIZEOF_MEMBER(struct statsblobv1, cursz) ==
+    offsetof(struct statsblob, opaque),
     "statsblobv1 ABI mismatch");
 
 struct statsblobv1_tpl {
