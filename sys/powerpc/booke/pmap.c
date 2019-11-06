@@ -3441,31 +3441,57 @@ mmu_booke_mapdev(mmu_t mmu, vm_paddr_t pa, vm_size_t size)
 	return (mmu_booke_mapdev_attr(mmu, pa, size, VM_MEMATTR_DEFAULT));
 }
 
+static int
+tlb1_find_pa(vm_paddr_t pa, tlb_entry_t *e)
+{
+	int i;
+
+	for (i = 0; i < TLB1_ENTRIES; i++) {
+		tlb1_read_entry(e, i);
+		if ((e->mas1 & MAS1_VALID) == 0)
+			return (i);
+	}
+	return (-1);
+}
+
 static void *
 mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 {
 	tlb_entry_t e;
+	vm_paddr_t tmppa;
 	void *res;
 	uintptr_t va, tmpva;
 	vm_size_t sz;
 	int i;
+	int wimge;
 
 	/*
-	 * Check if this is premapped in TLB1. Note: this should probably also
-	 * check whether a sequence of TLB1 entries exist that match the
-	 * requirement, but now only checks the easy case.
+	 * Check if this is premapped in TLB1.
 	 */
+	sz = size;
+	tmppa = pa;
+	va = ~0;
+	wimge = tlb_calc_wimg(pa, ma);
 	for (i = 0; i < TLB1_ENTRIES; i++) {
 		tlb1_read_entry(&e, i);
 		if (!(e.mas1 & MAS1_VALID))
 			continue;
-		if (pa >= e.phys &&
-		    (pa + size) <= (e.phys + e.size) &&
-		    (ma == VM_MEMATTR_DEFAULT ||
-		     tlb_calc_wimg(pa, ma) ==
-		      (e.mas2 & (MAS2_WIMGE_MASK & ~_TLB_ENTRY_SHARED))))
-			return (void *)(e.virt +
-			    (vm_offset_t)(pa - e.phys));
+		if (wimge != (e.mas2 & (MAS2_WIMGE_MASK & ~_TLB_ENTRY_SHARED)))
+			continue;
+		if (tmppa >= e.phys && tmppa < e.phys + e.size) {
+			va = e.virt + (pa - e.phys);
+			tmppa = e.phys + e.size;
+			sz -= MIN(sz, e.size);
+			while (sz > 0 && (i = tlb1_find_pa(tmppa, &e)) != -1) {
+				if (wimge != (e.mas2 & (MAS2_WIMGE_MASK & ~_TLB_ENTRY_SHARED)))
+					break;
+				sz -= MIN(sz, e.size);
+				tmppa = e.phys + e.size;
+			}
+			if (sz != 0)
+				break;
+			return ((void *)va);
+		}
 	}
 
 	size = roundup(size, PAGE_SIZE);
@@ -3489,7 +3515,7 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 	 */
 	do {
 	    tmpva = tlb1_map_base;
-	    sz = ffsl(((1 << flsl(size-1)) - 1) & pa);
+	    sz = ffsl((~((1 << flsl(size-1)) - 1)) & pa);
 	    sz = sz ? min(roundup(sz + 3, 4), flsl(size) - 1) : flsl(size) - 1;
 	    va = roundup(tlb1_map_base, 1 << sz) | (((1 << sz) - 1) & pa);
 #ifdef __powerpc64__
@@ -3568,6 +3594,23 @@ mmu_booke_change_attr(mmu_t mmu, vm_offset_t addr, vm_size_t sz,
 	pte_t *pte;
 	int i, j;
 	tlb_entry_t e;
+
+	addr = trunc_page(addr);
+
+	/* Only allow changes to mapped kernel addresses.  This includes:
+	 * - KVA
+	 * - DMAP (powerpc64)
+	 * - Device mappings
+	 */
+	if (addr <= VM_MAXUSER_ADDRESS ||
+#ifdef __powerpc64__
+	    (addr >= tlb1_map_base && addr < DMAP_BASE_ADDRESS) ||
+	    (addr > DMAP_MAX_ADDRESS && addr < VM_MIN_KERNEL_ADDRESS) ||
+#else
+	    (addr >= tlb1_map_base && addr < VM_MIN_KERNEL_ADDRESS) ||
+#endif
+	    (addr > VM_MAX_KERNEL_ADDRESS))
+		return (EINVAL);
 
 	/* Check TLB1 mappings */
 	for (i = 0; i < TLB1_ENTRIES; i++) {
