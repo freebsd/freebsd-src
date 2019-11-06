@@ -246,6 +246,8 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 			vp->v_type = VDIR;
 		vp->v_vflag |= VV_ROOT;
 	}
+
+	vp->v_vflag |= VV_VMSIZEVNLOCK;
 	
 	np->n_fhp = nfhp;
 	/*
@@ -414,10 +416,7 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	struct nfsnode *np;
 	struct nfsmount *nmp;
 	struct timespec mtime_save;
-	vm_object_t object;
-	u_quad_t nsize;
 	int error, force_fid_err;
-	bool setnsize;
 
 	error = 0;
 
@@ -565,27 +564,53 @@ out:
 	if (np->n_attrstamp != 0)
 		KDTRACE_NFS_ATTRCACHE_LOAD_DONE(vp, vap, error);
 #endif
+	(void)ncl_pager_setsize(vp, NULL);
+	return (error);
+}
+
+/*
+ * Call vnode_pager_setsize() if the size of the node changed, as
+ * recorded in nfsnode vs. v_object, or delay the call if notifying
+ * the pager is not possible at the moment.
+ *
+ * If nsizep is non-NULL, the call is delayed and the new node size is
+ * provided.  Caller should itself call vnode_pager_setsize() if
+ * function returned true.  If nsizep is NULL, function tries to call
+ * vnode_pager_setsize() itself if needed and possible, and the nfs
+ * node is unlocked unconditionally, the return value is not useful.
+ */
+bool
+ncl_pager_setsize(struct vnode *vp, u_quad_t *nsizep)
+{
+	struct nfsnode *np;
+	vm_object_t object;
+	struct vattr *vap;
+	u_quad_t nsize;
+	bool setnsize;
+
+	np = VTONFS(vp);
+	NFSASSERTNODE(np);
+
+	vap = &np->n_vattr.na_vattr;
 	nsize = vap->va_size;
 	object = vp->v_object;
 	setnsize = false;
-	if (object != NULL) {
-		if (OFF_TO_IDX(nsize + PAGE_MASK) < object->size) {
-			/*
-			 * When shrinking the size, the call to
-			 * vnode_pager_setsize() cannot be done with
-			 * the mutex held, because we might need to
-			 * wait for a busy page.  Delay it until after
-			 * the node is unlocked.
-			 */
+
+	if (object != NULL && nsize != object->un_pager.vnp.vnp_size) {
+		if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE)
 			setnsize = true;
-		} else {
-			vnode_pager_setsize(vp, nsize);
-		}
+		else
+			np->n_flag |= NVNSETSZSKIP;
 	}
-	NFSUNLOCKNODE(np);
-	if (setnsize)
-		vnode_pager_setsize(vp, nsize);
-	return (error);
+	if (nsizep == NULL) {
+		NFSUNLOCKNODE(np);
+		if (setnsize)
+			vnode_pager_setsize(vp, nsize);
+		setnsize = false;
+	} else {
+		*nsizep = nsize;
+	}
+	return (setnsize);
 }
 
 /*

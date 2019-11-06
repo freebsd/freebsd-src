@@ -142,6 +142,7 @@ static vop_advlock_t	nfs_advlock;
 static vop_advlockasync_t nfs_advlockasync;
 static vop_getacl_t nfs_getacl;
 static vop_setacl_t nfs_setacl;
+static vop_lock1_t	nfs_lock;
 
 /*
  * Global vfs data structures for nfs
@@ -159,6 +160,7 @@ struct vop_vector newnfs_vnodeops = {
 	.vop_putpages =		ncl_putpages,
 	.vop_inactive =		ncl_inactive,
 	.vop_link =		nfs_link,
+	.vop_lock1 =		nfs_lock,
 	.vop_lookup =		nfs_lookup,
 	.vop_mkdir =		nfs_mkdir,
 	.vop_mknod =		nfs_mknod,
@@ -269,6 +271,73 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_directio_allow_mmap, CTLFLAG_RW,
        rep->r_mtx
  * rep->r_mtx : Protects the fields in an nfsreq.
  */
+
+static int
+nfs_lock(struct vop_lock1_args *ap)
+{
+	struct vnode *vp;
+	struct nfsnode *np;
+	u_quad_t nsize;
+	int error, lktype;
+	bool onfault;
+
+	vp = ap->a_vp;
+	lktype = ap->a_flags & LK_TYPE_MASK;
+	error = VOP_LOCK1_APV(&default_vnodeops, ap);
+	if (error != 0 || vp->v_op != &newnfs_vnodeops)
+		return (error);
+	np = VTONFS(vp);
+	NFSLOCKNODE(np);
+	if ((np->n_flag & NVNSETSZSKIP) == 0 || (lktype != LK_SHARED &&
+	    lktype != LK_EXCLUSIVE && lktype != LK_UPGRADE &&
+	    lktype != LK_TRYUPGRADE)) {
+		NFSUNLOCKNODE(np);
+		return (0);
+	}
+	onfault = (ap->a_flags & LK_EATTR_MASK) == LK_NOWAIT &&
+	    (ap->a_flags & LK_INIT_MASK) == LK_CANRECURSE &&
+	    (lktype == LK_SHARED || lktype == LK_EXCLUSIVE);
+	if (onfault && vp->v_vnlock->lk_recurse == 0) {
+		/*
+		 * Force retry in vm_fault(), to make the lock request
+		 * sleepable, which allows us to piggy-back the
+		 * sleepable call to vnode_pager_setsize().
+		 */
+		NFSUNLOCKNODE(np);
+		VOP_UNLOCK(vp, 0);
+		return (EBUSY);
+	}
+	if ((ap->a_flags & LK_NOWAIT) != 0 ||
+	    (lktype == LK_SHARED && vp->v_vnlock->lk_recurse > 0)) {
+		NFSUNLOCKNODE(np);
+		return (0);
+	}
+	if (lktype == LK_SHARED) {
+		NFSUNLOCKNODE(np);
+		VOP_UNLOCK(vp, 0);
+		ap->a_flags &= ~(LK_TYPE_MASK | LK_INTERLOCK);
+		ap->a_flags |= LK_EXCLUSIVE;
+		error = VOP_LOCK1_APV(&default_vnodeops, ap);
+		if (error != 0 || vp->v_op != &newnfs_vnodeops)
+			return (error);
+		NFSLOCKNODE(np);
+		if ((np->n_flag & NVNSETSZSKIP) == 0) {
+			NFSUNLOCKNODE(np);
+			goto downgrade;
+		}
+	}
+	np->n_flag &= ~NVNSETSZSKIP;
+	nsize = np->n_size;
+	NFSUNLOCKNODE(np);
+	vnode_pager_setsize(vp, nsize);
+downgrade:
+	if (lktype == LK_SHARED) {
+		ap->a_flags &= ~(LK_TYPE_MASK | LK_INTERLOCK);
+		ap->a_flags |= LK_DOWNGRADE;
+		(void)VOP_LOCK1_APV(&default_vnodeops, ap);
+	}
+	return (0);
+}
 
 static int
 nfs34_access_otw(struct vnode *vp, int wmode, struct thread *td,

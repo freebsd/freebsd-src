@@ -162,6 +162,8 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp,
 			vp->v_type = VDIR;
 		vp->v_vflag |= VV_ROOT;
 	}
+
+	vp->v_vflag |= VV_VMSIZEVNLOCK;
 	
 	np->n_fhp = malloc(sizeof (struct nfsfh) + fhsize,
 	    M_NFSFH, M_WAITOK);
