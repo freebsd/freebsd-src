@@ -152,11 +152,13 @@ static inline void
 release_page(struct faultstate *fs)
 {
 
-	vm_page_xunbusy(fs->m);
-	vm_page_lock(fs->m);
-	vm_page_deactivate(fs->m);
-	vm_page_unlock(fs->m);
-	fs->m = NULL;
+	if (fs->m != NULL) {
+		vm_page_xunbusy(fs->m);
+		vm_page_lock(fs->m);
+		vm_page_deactivate(fs->m);
+		vm_page_unlock(fs->m);
+		fs->m = NULL;
+	}
 }
 
 static inline void
@@ -630,19 +632,64 @@ vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	return (result);
 }
 
+static int
+vm_fault_lock_vnode(struct faultstate *fs)
+{
+	struct vnode *vp;
+	int error, locked;
+
+	if (fs->object->type != OBJT_VNODE)
+		return (KERN_SUCCESS);
+	vp = fs->object->handle;
+	if (vp == fs->vp) {
+		ASSERT_VOP_LOCKED(vp, "saved vnode is not locked");
+		return (KERN_SUCCESS);
+	}
+
+	/*
+	 * Perform an unlock in case the desired vnode changed while
+	 * the map was unlocked during a retry.
+	 */
+	unlock_vp(fs);
+
+	locked = VOP_ISLOCKED(vp);
+	if (locked != LK_EXCLUSIVE)
+		locked = LK_SHARED;
+
+	/*
+	 * We must not sleep acquiring the vnode lock while we have
+	 * the page exclusive busied or the object's
+	 * paging-in-progress count incremented.  Otherwise, we could
+	 * deadlock.
+	 */
+	error = vget(vp, locked | LK_CANRECURSE | LK_NOWAIT, curthread);
+	if (error == 0) {
+		fs->vp = vp;
+		return (KERN_SUCCESS);
+	}
+
+	vhold(vp);
+	release_page(fs);
+	unlock_and_deallocate(fs);
+	error = vget(vp, locked | LK_RETRY | LK_CANRECURSE, curthread);
+	vdrop(vp);
+	fs->vp = vp;
+	KASSERT(error == 0, ("vm_fault: vget failed %d", error));
+	return (KERN_RESOURCE_SHORTAGE);
+}
+
 int
 vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, vm_page_t *m_hold)
 {
 	struct faultstate fs;
-	struct vnode *vp;
 	struct domainset *dset;
 	vm_object_t next_object, retry_object;
 	vm_offset_t e_end, e_start;
 	vm_pindex_t retry_pindex;
 	vm_prot_t prot, retry_prot;
-	int ahead, alloc_req, behind, cluster_offset, error, era, faultcount;
-	int locked, nera, oom, result, rv;
+	int ahead, alloc_req, behind, cluster_offset, era, faultcount;
+	int nera, oom, result, rv;
 	u_char behavior;
 	boolean_t wired;	/* Passed by reference. */
 	bool dead, hardfault, is_first_object_locked;
@@ -1006,41 +1053,11 @@ readrest:
 			 */
 			unlock_map(&fs);
 
-			if (fs.object->type == OBJT_VNODE &&
-			    (vp = fs.object->handle) != fs.vp) {
-				/*
-				 * Perform an unlock in case the desired vnode
-				 * changed while the map was unlocked during a
-				 * retry.
-				 */
-				unlock_vp(&fs);
-
-				locked = VOP_ISLOCKED(vp);
-				if (locked != LK_EXCLUSIVE)
-					locked = LK_SHARED;
-
-				/*
-				 * We must not sleep acquiring the vnode lock
-				 * while we have the page exclusive busied or
-				 * the object's paging-in-progress count
-				 * incremented.  Otherwise, we could deadlock.
-				 */
-				error = vget(vp, locked | LK_CANRECURSE |
-				    LK_NOWAIT, curthread);
-				if (error != 0) {
-					vhold(vp);
-					release_page(&fs);
-					unlock_and_deallocate(&fs);
-					error = vget(vp, locked | LK_RETRY |
-					    LK_CANRECURSE, curthread);
-					vdrop(vp);
-					fs.vp = vp;
-					KASSERT(error == 0,
-					    ("vm_fault: vget failed"));
-					goto RetryFault;
-				}
-				fs.vp = vp;
-			}
+			rv = vm_fault_lock_vnode(&fs);
+			MPASS(rv == KERN_SUCCESS ||
+			    rv == KERN_RESOURCE_SHORTAGE);
+			if (rv == KERN_RESOURCE_SHORTAGE)
+				goto RetryFault;
 			KASSERT(fs.vp == NULL || !fs.map->system_map,
 			    ("vm_fault: vnode-backed object mapped by system map"));
 
