@@ -1,0 +1,12 @@
+$FreeBSD$
+
+.circleci
+.cirrus.yml
+.gitignore
+.travis.yml
+build
+contrib/linux-kernel
+contrib/single_file_decoder
+contrib/VS2005
+lib/dll
+programs/windres
