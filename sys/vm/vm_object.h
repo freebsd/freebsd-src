@@ -189,6 +189,7 @@ struct vm_object {
 #define	OBJ_MIGHTBEDIRTY 0x0100		/* object might be dirty, only for vnode */
 #define	OBJ_TMPFS_NODE	0x0200		/* object belongs to tmpfs VREG node */
 #define	OBJ_TMPFS_DIRTY	0x0400		/* dirty tmpfs obj */
+#define	OBJ_SIZEVNLOCK	0x0800		/* lock vnode to check obj size */
 #define	OBJ_COLORED	0x1000		/* pg_color is defined */
 #define	OBJ_ONEMAPPING	0x2000		/* One USE (a single, non-forked) mapping flag */
 #define	OBJ_DISCONNECTWNT 0x4000	/* disconnect from vnode wanted */

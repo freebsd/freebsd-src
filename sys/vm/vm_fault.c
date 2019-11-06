@@ -896,6 +896,13 @@ RetryFault_oom:
 		 */
 		if (fs.object->type != OBJT_DEFAULT ||
 		    fs.object == fs.first_object) {
+			if ((fs.object->flags & OBJ_SIZEVNLOCK) != 0) {
+				rv = vm_fault_lock_vnode(&fs);
+				MPASS(rv == KERN_SUCCESS ||
+				    rv == KERN_RESOURCE_SHORTAGE);
+				if (rv == KERN_RESOURCE_SHORTAGE)
+					goto RetryFault;
+			}
 			if (fs.pindex >= fs.object->size) {
 				unlock_and_deallocate(&fs);
 				return (KERN_OUT_OF_BOUNDS);

@@ -256,8 +256,12 @@ retry:
 		object->un_pager.vnp.vnp_size = size;
 		object->un_pager.vnp.writemappings = 0;
 		object->domain.dr_policy = vnode_domainset;
-
 		object->handle = handle;
+		if ((vp->v_vflag & VV_VMSIZEVNLOCK) != 0) {
+			VM_OBJECT_WLOCK(object);
+			vm_object_set_flag(object, OBJ_SIZEVNLOCK);
+			VM_OBJECT_WUNLOCK(object);
+		}
 		VI_LOCK(vp);
 		if (vp->v_object != NULL) {
 			/*
