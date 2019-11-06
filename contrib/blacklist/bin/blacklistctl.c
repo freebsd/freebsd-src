@@ -1,4 +1,4 @@
-/*	$NetBSD: blacklistctl.c,v 1.21 2016/11/02 03:15:07 jnemeth Exp $	*/
+/*	$NetBSD: blacklistctl.c,v 1.23 2018/05/24 19:21:01 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -33,7 +33,7 @@
 #endif
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: blacklistctl.c,v 1.21 2016/11/02 03:15:07 jnemeth Exp $");
+__RCSID("$NetBSD: blacklistctl.c,v 1.23 2018/05/24 19:21:01 christos Exp $");
 
 #include <stdio.h>
 #include <time.h>
@@ -65,6 +65,15 @@ usage(int c)
 		warnx("Unknown option `%c'", (char)c);
 	fprintf(stderr, "Usage: %s dump [-abdnrw]\n", getprogname());
 	exit(EXIT_FAILURE);
+}
+
+static const char *
+star(char *buf, size_t len, int val)
+{
+	if (val == -1)
+		return "*";
+	snprintf(buf, len, "%d", val);
+	return buf;
 }
 
 int
@@ -128,9 +137,10 @@ main(int argc, char *argv[])
 		    "address", remain ? "remaining time" : "last access");
 	for (i = 1; state_iterate(db, &c, &dbi, i) != 0; i = 0) {
 		char buf[BUFSIZ];
+		char mbuf[64], pbuf[64];
 		if (!all) {
 			if (blocked) {
-				if (dbi.count < c.c_nfail)
+				if (c.c_nfail == -1 || dbi.count < c.c_nfail)
 					continue;
 			} else {
 				if (dbi.count >= c.c_nfail)
@@ -138,13 +148,20 @@ main(int argc, char *argv[])
 			}
 		}
 		sockaddr_snprintf(buf, sizeof(buf), "%a", (void *)&c.c_ss);
-		printf("%*.*s/%d:%d\t", wide, wide, buf, c.c_lmask, c.c_port);
-		if (remain)
-			fmtydhms(buf, sizeof(buf),
-			    c.c_duration - (ts.tv_sec - dbi.last));
-		else
-			fmttime(buf, sizeof(buf), dbi.last);
-		printf("%s\t%d/%d\t%-s\n", dbi.id, dbi.count, c.c_nfail, buf);
+		printf("%*.*s/%s:%s\t", wide, wide, buf,
+		    star(mbuf, sizeof(mbuf), c.c_lmask),
+		    star(pbuf, sizeof(pbuf), c.c_port));
+		if (c.c_duration == -1) {
+			strlcpy(buf, "never", sizeof(buf));
+		} else {
+			if (remain)
+				fmtydhms(buf, sizeof(buf),
+				    c.c_duration - (ts.tv_sec - dbi.last));
+			else
+				fmttime(buf, sizeof(buf), dbi.last);
+		}
+		printf("%s\t%d/%s\t%-s\n", dbi.id, dbi.count,
+		    star(mbuf, sizeof(mbuf), c.c_nfail), buf);
 	}
 	state_close(db);
 	return EXIT_SUCCESS;
