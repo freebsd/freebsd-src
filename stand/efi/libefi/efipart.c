@@ -313,11 +313,14 @@ efipart_floppy(EFI_DEVICE_PATH *node)
 static pdinfo_t *
 efipart_find_parent(pdinfo_list_t *pdi, EFI_DEVICE_PATH *devpath)
 {
-	pdinfo_t *pd;
+	pdinfo_t *pd, *part;
 
 	STAILQ_FOREACH(pd, pdi, pd_link) {
 		if (efi_devpath_is_prefix(pd->pd_devpath, devpath))
 			return (pd);
+		part = efipart_find_parent(&pd->pd_part, devpath);
+		if (part != NULL)
+			return (part);
 	}
 	return (NULL);
 }
@@ -500,21 +503,43 @@ efipart_initcd(void)
 	return (0);
 }
 
+static bool
+efipart_hdinfo_add_node(pdinfo_t *hd, EFI_DEVICE_PATH *node)
+{
+	pdinfo_t *pd, *last;
+	VENDOR_DEVICE_PATH *ven_node;
+
+	STAILQ_FOREACH(pd, &hdinfo, pd_link) {
+		if (efi_devpath_is_prefix(pd->pd_devpath, hd->pd_devpath))
+			break;
+	}
+	if (pd == NULL)
+		return (false);
+
+	/* Add the partition. */
+	if (DevicePathSubType(node) == MEDIA_HARDDRIVE_DP) {
+		hd->pd_unit = ((HARDDRIVE_DEVICE_PATH *)node)->PartitionNumber;
+	} else {
+		last = STAILQ_LAST(&pd->pd_part, pdinfo, pd_link);
+		if (last != NULL)
+			hd->pd_unit = last->pd_unit + 1;
+		else
+			hd->pd_unit = 0;
+	}
+	hd->pd_parent = pd;
+	hd->pd_devsw = &efipart_hddev;
+
+	STAILQ_INSERT_TAIL(&pd->pd_part, hd, pd_link);
+	return (true);
+}
+
 static void
-efipart_hdinfo_add(pdinfo_t *hd, HARDDRIVE_DEVICE_PATH *node)
+efipart_hdinfo_add(pdinfo_t *hd, EFI_DEVICE_PATH *node)
 {
 	pdinfo_t *pd, *last;
 
-	STAILQ_FOREACH(pd, &hdinfo, pd_link) {
-		if (efi_devpath_is_prefix(pd->pd_devpath, hd->pd_devpath)) {
-			/* Add the partition. */
-			hd->pd_unit = node->PartitionNumber;
-			hd->pd_parent = pd;
-			hd->pd_devsw = &efipart_hddev;
-			STAILQ_INSERT_TAIL(&pd->pd_part, hd, pd_link);
-			return;
-		}
-	}
+	if (efipart_hdinfo_add_node(hd, node))
+		return;
 
 	last = STAILQ_LAST(&hdinfo, pdinfo, pd_link);
 	if (last != NULL)
@@ -677,7 +702,7 @@ restart:
 			efipart_hdinfo_add(parent, NULL);
 		}
 
-		efipart_hdinfo_add(hd, (HARDDRIVE_DEVICE_PATH *)node);
+		efipart_hdinfo_add(hd, node);
 		goto restart;
 	}
 }
