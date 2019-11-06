@@ -24,21 +24,40 @@ def abs_join(a, *p):
     return os.path.abspath(os.path.join(a, *p))
 
 
+class InputType(object):
+    RAW_DATA = 1
+    COMPRESSED_DATA = 2
+    DICTIONARY_DATA = 3
+
+
+class FrameType(object):
+    ZSTD = 1
+    BLOCK = 2
+
+
+class TargetInfo(object):
+    def __init__(self, input_type, frame_type=FrameType.ZSTD):
+        self.input_type = input_type
+        self.frame_type = frame_type
+
+
 # Constants
 FUZZ_DIR = os.path.abspath(os.path.dirname(__file__))
 CORPORA_DIR = abs_join(FUZZ_DIR, 'corpora')
-TARGETS = [
-    'simple_round_trip',
-    'stream_round_trip',
-    'block_round_trip',
-    'simple_decompress',
-    'stream_decompress',
-    'block_decompress',
-    'dictionary_round_trip',
-    'dictionary_decompress',
-    'zstd_frame_info',
-    'simple_compress',
-]
+TARGET_INFO = {
+    'simple_round_trip': TargetInfo(InputType.RAW_DATA),
+    'stream_round_trip': TargetInfo(InputType.RAW_DATA),
+    'block_round_trip': TargetInfo(InputType.RAW_DATA, FrameType.BLOCK),
+    'simple_decompress': TargetInfo(InputType.COMPRESSED_DATA),
+    'stream_decompress': TargetInfo(InputType.COMPRESSED_DATA),
+    'block_decompress': TargetInfo(InputType.COMPRESSED_DATA, FrameType.BLOCK),
+    'dictionary_round_trip': TargetInfo(InputType.RAW_DATA),
+    'dictionary_decompress': TargetInfo(InputType.COMPRESSED_DATA),
+    'zstd_frame_info': TargetInfo(InputType.COMPRESSED_DATA),
+    'simple_compress': TargetInfo(InputType.RAW_DATA),
+    'dictionary_loader': TargetInfo(InputType.DICTIONARY_DATA),
+}
+TARGETS = list(TARGET_INFO.keys())
 ALL_TARGETS = TARGETS + ['all']
 FUZZ_RNG_SEED_SIZE = 4
 
@@ -56,6 +75,7 @@ LIB_FUZZING_ENGINE = os.environ.get('LIB_FUZZING_ENGINE', 'libregression.a')
 AFL_FUZZ = os.environ.get('AFL_FUZZ', 'afl-fuzz')
 DECODECORPUS = os.environ.get('DECODECORPUS',
                               abs_join(FUZZ_DIR, '..', 'decodecorpus'))
+ZSTD = os.environ.get('ZSTD', abs_join(FUZZ_DIR, '..', '..', 'zstd'))
 
 # Sanitizer environment variables
 MSAN_EXTRA_CPPFLAGS = os.environ.get('MSAN_EXTRA_CPPFLAGS', '')
@@ -67,7 +87,7 @@ MSAN_EXTRA_LDFLAGS = os.environ.get('MSAN_EXTRA_LDFLAGS', '')
 def create(r):
     d = os.path.abspath(r)
     if not os.path.isdir(d):
-        os.mkdir(d)
+        os.makedirs(d)
     return d
 
 
@@ -158,7 +178,7 @@ def compiler_version(cc, cxx):
         assert(b'clang' in cxx_version_bytes)
         compiler = 'clang'
     elif b'gcc' in cc_version_bytes:
-        assert(b'gcc' in cxx_version_bytes)
+        assert(b'gcc' in cxx_version_bytes or b'g++' in cxx_version_bytes)
         compiler = 'gcc'
     if compiler is not None:
         version_regex = b'([0-9])+\.([0-9])+\.([0-9])+'
@@ -643,7 +663,7 @@ def gen_parser(args):
     parser.add_argument(
         '--max-size-log',
         type=int,
-        default=13,
+        default=18,
         help='Maximum sample size to generate')
     parser.add_argument(
         '--seed',
@@ -656,6 +676,11 @@ def gen_parser(args):
         default=DECODECORPUS,
         help="decodecorpus binary (default: $DECODECORPUS='{}')".format(
             DECODECORPUS))
+    parser.add_argument(
+        '--zstd',
+        type=str,
+        default=ZSTD,
+        help="zstd binary (default: $ZSTD='{}')".format(ZSTD))
     parser.add_argument(
         '--fuzz-rng-seed-size',
         type=int,
@@ -690,46 +715,66 @@ def gen(args):
         return 1
 
     seed = create(args.seed)
-    with tmpdir() as compressed:
-        with tmpdir() as decompressed:
-            cmd = [
-                args.decodecorpus,
-                '-n{}'.format(args.number),
-                '-p{}/'.format(compressed),
-                '-o{}'.format(decompressed),
+    with tmpdir() as compressed, tmpdir() as decompressed, tmpdir() as dict:
+        info = TARGET_INFO[args.TARGET]
+
+        if info.input_type == InputType.DICTIONARY_DATA:
+            number = max(args.number, 1000)
+        else:
+            number = args.number
+        cmd = [
+            args.decodecorpus,
+            '-n{}'.format(args.number),
+            '-p{}/'.format(compressed),
+            '-o{}'.format(decompressed),
+        ]
+
+        if info.frame_type == FrameType.BLOCK:
+            cmd += [
+                '--gen-blocks',
+                '--max-block-size-log={}'.format(min(args.max_size_log, 17))
             ]
+        else:
+            cmd += ['--max-content-size-log={}'.format(args.max_size_log)]
 
-            if 'block_' in args.TARGET:
-                cmd += [
-                    '--gen-blocks',
-                    '--max-block-size-log={}'.format(args.max_size_log)
+        print(' '.join(cmd))
+        subprocess.check_call(cmd)
+
+        if info.input_type == InputType.RAW_DATA:
+            print('using decompressed data in {}'.format(decompressed))
+            samples = decompressed
+        elif info.input_type == InputType.COMPRESSED_DATA:
+            print('using compressed data in {}'.format(compressed))
+            samples = compressed
+        else:
+            assert info.input_type == InputType.DICTIONARY_DATA
+            print('making dictionary data from {}'.format(decompressed))
+            samples = dict
+            min_dict_size_log = 9
+            max_dict_size_log = max(min_dict_size_log + 1, args.max_size_log)
+            for dict_size_log in range(min_dict_size_log, max_dict_size_log):
+                dict_size = 1 << dict_size_log
+                cmd = [
+                    args.zstd,
+                    '--train',
+                    '-r', decompressed,
+                    '--maxdict={}'.format(dict_size),
+                    '-o', abs_join(dict, '{}.zstd-dict'.format(dict_size))
                 ]
-            else:
-                cmd += ['--max-content-size-log={}'.format(args.max_size_log)]
+                print(' '.join(cmd))
+                subprocess.check_call(cmd)
 
-            print(' '.join(cmd))
-            subprocess.check_call(cmd)
-
-            if '_round_trip' in args.TARGET:
-                print('using decompressed data in {}'.format(decompressed))
-                samples = decompressed
-            elif '_decompress' in args.TARGET:
-                print('using compressed data in {}'.format(compressed))
-                samples = compressed
-
-            # Copy the samples over and prepend the RNG seeds
-            for name in os.listdir(samples):
-                samplename = abs_join(samples, name)
-                outname = abs_join(seed, name)
-                rng_seed = os.urandom(args.fuzz_rng_seed_size)
-                with open(samplename, 'rb') as sample:
-                    with open(outname, 'wb') as out:
-                        out.write(rng_seed)
-                        CHUNK_SIZE = 131072
+        # Copy the samples over and prepend the RNG seeds
+        for name in os.listdir(samples):
+            samplename = abs_join(samples, name)
+            outname = abs_join(seed, name)
+            with open(samplename, 'rb') as sample:
+                with open(outname, 'wb') as out:
+                    CHUNK_SIZE = 131072
+                    chunk = sample.read(CHUNK_SIZE)
+                    while len(chunk) > 0:
+                        out.write(chunk)
                         chunk = sample.read(CHUNK_SIZE)
-                        while len(chunk) > 0:
-                            out.write(chunk)
-                            chunk = sample.read(CHUNK_SIZE)
     return 0
 
 
