@@ -54,12 +54,12 @@ frag6_body()
 	ip6b="2001:db8:6666:6666:${yl}:${id}:2:${xl}"
 
 	epair=$(vnet_mkepair)
-	ifconfig ${epair}a mtu 131071 up
+	ifconfig ${epair}a up
 	ifconfig ${epair}a inet6 ${ip6a}/64
 
 	jname="v6t-${id}-${yl}-${xl}"
 	vnet_mkjail ${jname} ${epair}b
-	jexec ${jname} ifconfig ${epair}b mtu 131071 up
+	jexec ${jname} ifconfig ${epair}b up
 	jexec ${jname} ifconfig ${epair}b inet6 ${ip6b}/64
 
 	# Let IPv6 ND do its thing.
