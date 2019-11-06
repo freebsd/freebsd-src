@@ -25,7 +25,7 @@
 .\" Copyright (c) 2017 Datto Inc.
 .\" Copyright (c) 2017 George Melikov. All Rights Reserved.
 .\"
-.Dd August 23, 2017
+.Dd December 6, 2017
 .Dt ZPOOL 1M
 .Os
 .Sh NAME
@@ -521,10 +521,8 @@ change the behavior of the pool.
 .Pp
 The following are read-only properties:
 .Bl -tag -width Ds
-.It Sy available
-Amount of storage available within the pool.
-This property can also be referred to by its shortened column name,
-.Sy avail .
+.It Cm allocated
+Amount of storage space used within the pool.
 .It Sy bootsize
 The size of the system boot partition.
 This property can only be set at pool creation time and is read-only once pool
@@ -572,8 +570,6 @@ Information about unsupported features that are enabled on the pool.
 See
 .Xr zpool-features 5
 for details.
-.It Sy used
-Amount of storage space used within the pool.
 .El
 .Pp
 The space usage properties report actual physical space available to the
@@ -1532,8 +1528,8 @@ See the
 .Sx Properties
 section for a list of valid properties.
 The default list is
-.Sy name , size , used , available , fragmentation , expandsize , capacity ,
-.Sy dedupratio , health , altroot .
+.Cm name , size , allocated , free , expandsize , fragmentation , capacity ,
+.Cm dedupratio , health , altroot .
 .It Fl p
 Display numbers in parsable
 .Pq exact
