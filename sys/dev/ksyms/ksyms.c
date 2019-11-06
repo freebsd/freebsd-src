@@ -442,9 +442,8 @@ ksyms_open(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 		ksyms_size_calc(&ts);
 		elfsz = sizeof(struct ksyms_hdr) + ts.ts_symsz + ts.ts_strsz;
 
-		object = vm_object_allocate(OBJT_DEFAULT,
+		object = vm_object_allocate(OBJT_PHYS,
 		    OFF_TO_IDX(round_page(elfsz)));
-		vm_object_set_flag(object, OBJ_NOSPLIT);
 		sc->sc_obj = object;
 		sc->sc_objsz = elfsz;
 
