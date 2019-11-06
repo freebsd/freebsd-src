@@ -80,6 +80,7 @@ static regnode_method_t regnode_fixed_methods[] = {
 	REGNODEMETHOD(regnode_enable,		regnode_fixed_enable),
 	REGNODEMETHOD(regnode_status,		regnode_fixed_status),
 	REGNODEMETHOD(regnode_stop,		regnode_fixed_stop),
+	REGNODEMETHOD(regnode_check_voltage,	regnode_method_check_voltage),
 	REGNODEMETHOD_END
 };
 DEFINE_CLASS_1(regnode_fixed, regnode_fixed_class, regnode_fixed_methods,
