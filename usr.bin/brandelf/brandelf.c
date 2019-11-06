@@ -135,7 +135,7 @@ main(int argc, char **argv)
 
 	fa = fileargs_init(argc, argv, flags, 0, &rights, FA_OPEN);
 	if (fa == NULL)
-		errx(1, "unable to init casper");
+		err(1, "unable to init casper");
 
 	caph_cache_catpages();
 	if (caph_limit_stdio() < 0 || caph_enter_casper() < 0)
