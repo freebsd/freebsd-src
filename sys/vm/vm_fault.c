@@ -155,10 +155,14 @@ release_page(struct faultstate *fs)
 {
 
 	if (fs->m != NULL) {
-		vm_page_xunbusy(fs->m);
+		/*
+		 * fs->m's object lock might not be held, so the page must be
+		 * kept busy until we are done with it.
+		 */
 		vm_page_lock(fs->m);
 		vm_page_deactivate(fs->m);
 		vm_page_unlock(fs->m);
+		vm_page_xunbusy(fs->m);
 		fs->m = NULL;
 	}
 }
