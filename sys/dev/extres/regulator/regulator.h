@@ -117,6 +117,10 @@ int regnode_status(struct regnode *regnode, int *status);
 int regnode_get_voltage(struct regnode *regnode, int *uvolt);
 int regnode_set_voltage(struct regnode *regnode, int min_uvolt, int max_uvolt);
 int regnode_set_constraint(struct regnode *regnode);
+
+/* Standard method that aren't default */
+int regnode_method_check_voltage(struct regnode *regnode, int uvolt);
+
 #ifdef FDT
 phandle_t regnode_get_ofw_node(struct regnode *regnode);
 #endif
@@ -134,6 +138,7 @@ int regulator_stop(regulator_t reg);
 int regulator_status(regulator_t reg, int *status);
 int regulator_get_voltage(regulator_t reg, int *uvolt);
 int regulator_set_voltage(regulator_t reg, int min_uvolt, int max_uvolt);
+int regulator_check_voltage(regulator_t reg, int uvolt);
 
 #ifdef FDT
 int regulator_get_by_ofw_property(device_t dev, phandle_t node, char *name,

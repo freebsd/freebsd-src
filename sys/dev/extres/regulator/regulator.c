@@ -84,6 +84,7 @@ static regnode_method_t regnode_methods[] = {
 	REGNODEMETHOD(regnode_status,		regnode_method_status),
 	REGNODEMETHOD(regnode_set_voltage,	regnode_method_set_voltage),
 	REGNODEMETHOD(regnode_get_voltage,	regnode_method_get_voltage),
+	REGNODEMETHOD(regnode_check_voltage,	regnode_method_check_voltage),
 
 	REGNODEMETHOD_END
 };
@@ -276,6 +277,16 @@ regnode_method_get_voltage(struct regnode *regnode, int *uvolt)
 
 	return (regnode->std_param.min_uvolt +
 	    (regnode->std_param.max_uvolt - regnode->std_param.min_uvolt) / 2);
+}
+
+int
+regnode_method_check_voltage(struct regnode *regnode, int uvolt)
+{
+
+	if ((uvolt > regnode->std_param.max_uvolt) ||
+	    (uvolt < regnode->std_param.min_uvolt))
+		return (ERANGE);
+	return (0);
 }
 
 /* ----------------------------------------------------------------------------
@@ -991,6 +1002,22 @@ regulator_set_voltage(regulator_t reg, int min_uvolt, int max_uvolt)
 		reg->min_uvolt = min_uvolt;
 		reg->max_uvolt = max_uvolt;
 	}
+	REG_TOPO_UNLOCK();
+	return (rv);
+}
+
+int
+regulator_check_voltage(regulator_t reg, int uvolt)
+{
+	int rv;
+	struct regnode *regnode;
+
+	regnode = reg->regnode;
+	KASSERT(regnode->ref_cnt > 0,
+	   ("Attempt to access unreferenced regulator: %s\n", regnode->name));
+
+	REG_TOPO_SLOCK();
+	rv = REGNODE_CHECK_VOLTAGE(regnode, uvolt);
 	REG_TOPO_UNLOCK();
 	return (rv);
 }

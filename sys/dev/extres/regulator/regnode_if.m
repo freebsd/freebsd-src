@@ -91,6 +91,15 @@ METHOD int get_voltage {
 };
 
 #
+# Check if a given voltage is supported by the regulator
+# Returns 0 on success or a standard errno value.
+#
+METHOD int check_voltage {
+	struct regnode	*regnode;
+	int		uvolt;
+};
+
+#
 # Stop (shutdown) regulator
 # Returns 0 on success or a standard errno value.
 #
