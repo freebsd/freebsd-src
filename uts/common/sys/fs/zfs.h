@@ -26,6 +26,7 @@
  * Copyright (c) 2014 Integros [integros.com]
  * Copyright 2017 Joyent, Inc.
  * Copyright (c) 2017 Datto Inc.
+ * Copyright (c) 2017, Intel Corporation.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -163,6 +164,7 @@ typedef enum {
 	ZFS_PROP_PREV_SNAP,
 	ZFS_PROP_RECEIVE_RESUME_TOKEN,
 	ZFS_PROP_REMAPTXG,		/* not exposed to the user */
+	ZFS_PROP_SPECIAL_SMALL_BLOCKS,
 	ZFS_NUM_PROPS
 } zfs_prop_t;
 
@@ -600,6 +602,8 @@ typedef struct zpool_load_policy {
 #define	ZPOOL_CONFIG_MMP_TXG		"mmp_txg"	/* not stored on disk */
 #define	ZPOOL_CONFIG_MMP_HOSTNAME	"mmp_hostname"	/* not stored on disk */
 #define	ZPOOL_CONFIG_MMP_HOSTID		"mmp_hostid"	/* not stored on disk */
+#define	ZPOOL_CONFIG_ALLOCATION_BIAS	"alloc_bias"	/* not stored on disk */
+
 /*
  * The persistent vdev state is stored as separate values rather than a single
  * 'vdev_state' entry.  This is because a device can be in multiple states, such
@@ -644,6 +648,14 @@ typedef struct zpool_load_policy {
 	"com.delphix:obsolete_counts_are_precise"
 #define	VDEV_TOP_ZAP_POOL_CHECKPOINT_SM \
 	"com.delphix:pool_checkpoint_sm"
+
+#define	VDEV_TOP_ZAP_ALLOCATION_BIAS \
+	"org.zfsonlinux:allocation_bias"
+
+/* vdev metaslab allocation bias */
+#define	VDEV_ALLOC_BIAS_LOG		"log"
+#define	VDEV_ALLOC_BIAS_SPECIAL		"special"
+#define	VDEV_ALLOC_BIAS_DEDUP		"dedup"
 
 #define	VDEV_LEAF_ZAP_INITIALIZE_LAST_OFFSET	\
 	"com.delphix:next_offset_to_initialize"
