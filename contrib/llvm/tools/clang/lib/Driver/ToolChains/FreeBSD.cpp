@@ -409,6 +409,8 @@ llvm::ExceptionHandling FreeBSD::GetExceptionModel(const ArgList &Args) const {
 
 bool FreeBSD::HasNativeLLVMSupport() const { return true; }
 
+bool FreeBSD::IsUnwindTablesDefault(const ArgList &Args) const { return true; }
+
 bool FreeBSD::isPIEDefault() const { return getSanitizerArgs().requiresPIE(); }
 
 SanitizerMask FreeBSD::getSupportedSanitizers() const {
