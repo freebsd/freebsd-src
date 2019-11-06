@@ -213,6 +213,7 @@ typedef enum {
 	ZPOOL_PROP_CHECKPOINT,
 	ZPOOL_PROP_TNAME,
 	ZPOOL_PROP_MAXDNODESIZE,
+	ZPOOL_PROP_MULTIHOST,
 	ZPOOL_NUM_PROPS
 } zpool_prop_t;
 
@@ -580,6 +581,7 @@ typedef struct zpool_load_policy {
 #define	ZPOOL_CONFIG_RESILVER_TXG	"resilver_txg"
 #define	ZPOOL_CONFIG_COMMENT		"comment"
 #define	ZPOOL_CONFIG_SUSPENDED		"suspended"	/* not stored on disk */
+#define	ZPOOL_CONFIG_SUSPENDED_REASON	"suspended_reason"	/* not stored */
 #define	ZPOOL_CONFIG_TIMESTAMP		"timestamp"	/* not stored on disk */
 #define	ZPOOL_CONFIG_BOOTFS		"bootfs"	/* not stored on disk */
 #define	ZPOOL_CONFIG_MISSING_DEVICES	"missing_vdevs"	/* not stored on disk */
@@ -594,6 +596,10 @@ typedef struct zpool_load_policy {
 #define	ZPOOL_CONFIG_VDEV_LEAF_ZAP	"com.delphix:vdev_zap_leaf"
 #define	ZPOOL_CONFIG_HAS_PER_VDEV_ZAPS	"com.delphix:has_per_vdev_zaps"
 #define	ZPOOL_CONFIG_CACHEFILE		"cachefile"	/* not stored on disk */
+#define	ZPOOL_CONFIG_MMP_STATE		"mmp_state"	/* not stored on disk */
+#define	ZPOOL_CONFIG_MMP_TXG		"mmp_txg"	/* not stored on disk */
+#define	ZPOOL_CONFIG_MMP_HOSTNAME	"mmp_hostname"	/* not stored on disk */
+#define	ZPOOL_CONFIG_MMP_HOSTID		"mmp_hostid"	/* not stored on disk */
 /*
  * The persistent vdev state is stored as separate values rather than a single
  * 'vdev_state' entry.  This is because a device can be in multiple states, such
@@ -704,6 +710,7 @@ typedef enum vdev_aux {
 	VDEV_AUX_BAD_LOG,	/* cannot read log chain(s)		*/
 	VDEV_AUX_EXTERNAL,	/* external diagnosis			*/
 	VDEV_AUX_SPLIT_POOL,	/* vdev was split off into another pool	*/
+	VDEV_AUX_ACTIVE,	/* vdev active on a different host	*/
 	VDEV_AUX_CHILDREN_OFFLINE /* all children are offline		*/
 } vdev_aux_t;
 
@@ -723,6 +730,16 @@ typedef enum pool_state {
 	POOL_STATE_UNAVAIL,		/* Internal libzfs state	*/
 	POOL_STATE_POTENTIALLY_ACTIVE	/* Internal libzfs state	*/
 } pool_state_t;
+
+/*
+ * mmp state. The following states provide additional detail describing
+ * why a pool couldn't be safely imported.
+ */
+typedef enum mmp_state {
+	MMP_STATE_ACTIVE = 0,		/* In active use		*/
+	MMP_STATE_INACTIVE,		/* Inactive and safe to import	*/
+	MMP_STATE_NO_HOSTID		/* System hostid is not set	*/
+} mmp_state_t;
 
 /*
  * Scan Functions.
@@ -1076,6 +1093,7 @@ typedef enum {
 #define	ZFS_IMPORT_ONLY		0x8
 #define	ZFS_IMPORT_CHECKPOINT	0x10
 #define	ZFS_IMPORT_TEMP_NAME	0x20
+#define	ZFS_IMPORT_SKIP_MMP	0x40
 
 /*
  * Channel program argument/return nvlist keys and defaults.
