@@ -1376,6 +1376,7 @@ ZFS_COMMON_OBJS +=		\
 	lz4.o			\
 	lzjb.o			\
 	metaslab.o		\
+	mmp.o			\
 	multilist.o		\
 	range_tree.o		\
 	refcount.o		\

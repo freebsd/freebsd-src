@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2018 Joyent, Inc.
+ * Copyright 2019 Joyent, Inc.
  * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>
  * Copyright (c) 2017 Datto Inc.
@@ -52,6 +52,7 @@
 
 #include "libzfs_impl.h"
 #include "zfs_prop.h"
+#include "zfs_comutil.h"
 #include "zfeature_common.h"
 
 int
@@ -249,6 +250,9 @@ libzfs_error_description(libzfs_handle_t *hdl)
 		return (dgettext(TEXT_DOMAIN, "device removal in progress"));
 	case EZFS_VDEV_TOO_BIG:
 		return (dgettext(TEXT_DOMAIN, "device exceeds supported size"));
+	case EZFS_ACTIVE_POOL:
+		return (dgettext(TEXT_DOMAIN, "pool is imported on a "
+		    "different host"));
 	case EZFS_TOOMANY:
 		return (dgettext(TEXT_DOMAIN, "argument list too long"));
 	case EZFS_INITIALIZING:
@@ -418,6 +422,9 @@ zfs_standard_error_fmt(libzfs_handle_t *hdl, int error, const char *fmt, ...)
 		    "pool I/O is currently suspended"));
 		zfs_verror(hdl, EZFS_POOLUNAVAIL, fmt, ap);
 		break;
+	case EREMOTEIO:
+		zfs_verror(hdl, EZFS_ACTIVE_POOL, fmt, ap);
+		break;
 	default:
 		zfs_error_aux(hdl, strerror(error));
 		zfs_verror(hdl, EZFS_UNKNOWN, fmt, ap);
@@ -504,6 +511,9 @@ zpool_standard_error_fmt(libzfs_handle_t *hdl, int error, const char *fmt, ...)
 	/* There is no pending operation to cancel */
 	case ENOTACTIVE:
 		zfs_verror(hdl, EZFS_NO_PENDING, fmt, ap);
+		break;
+	case EREMOTEIO:
+		zfs_verror(hdl, EZFS_ACTIVE_POOL, fmt, ap);
 		break;
 	case ZFS_ERR_CHECKPOINT_EXISTS:
 		zfs_verror(hdl, EZFS_CHECKPOINT_EXISTS, fmt, ap);
@@ -1595,4 +1605,21 @@ zfs_get_hole_count(const char *path, uint64_t *count, uint64_t *bs)
 		return (errno);
 	}
 	return (0);
+}
+
+ulong_t
+get_system_hostid(void)
+{
+	char *env;
+
+	/*
+	 * Allow the hostid to be subverted for testing.
+	 */
+	env = getenv("ZFS_HOSTID");
+	if (env) {
+		ulong_t hostid = strtoull(env, NULL, 16);
+		return (hostid & 0xFFFFFFFF);
+	}
+
+	return (gethostid());
 }

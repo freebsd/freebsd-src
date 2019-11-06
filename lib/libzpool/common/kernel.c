@@ -41,6 +41,7 @@
 #include <sys/zmod.h>
 #include <sys/utsname.h>
 #include <sys/systeminfo.h>
+#include <libzfs.h>
 
 extern void system_taskq_init(void);
 extern void system_taskq_fini(void);
@@ -442,7 +443,7 @@ kernel_init(int mode)
 	    (double)physmem * sysconf(_SC_PAGE_SIZE) / (1ULL << 30));
 
 	(void) snprintf(hw_serial, sizeof (hw_serial), "%ld",
-	    (mode & FWRITE) ? gethostid() : 0);
+	    (mode & FWRITE) ? get_system_hostid() : 0);
 
 	system_taskq_init();
 
