@@ -1,6 +1,6 @@
 --- /dev/null	2015-01-22 23:10:33.000000000 -0500
 +++ dist/pfilter.c	2015-01-22 23:46:03.000000000 -0500
-@@ -0,0 +1,28 @@
+@@ -0,0 +1,32 @@
 +#include "namespace.h"
 +#include "includes.h"
 +#include "ssh.h"
@@ -28,6 +28,10 @@
 +	// XXX: 3?
 + 	fd = packet_connection_is_on_socket() ? packet_get_connection_in() : 3;
 +	(void)blacklist_r(blstate, a, fd, "ssh");
++	if (a == 0) {
++		blacklist_close(blstate);
++		blstate = NULL;
++	}
 +}
 --- /dev/null	2015-01-20 21:14:44.000000000 -0500
 +++ dist/pfilter.h	2015-01-20 20:16:20.000000000 -0500
@@ -58,132 +62,10 @@ diff -u -u -r1.10 Makefile
 +
 +LDADD+=	-lblacklist
 +DPADD+=	${LIBBLACKLIST}
-Index: dist/auth.c
-===================================================================
-RCS file: /cvsroot/src/crypto/external/bsd/openssh/dist/auth.c,v
-retrieving revision 1.10
-diff -u -u -r1.10 auth.c
---- dist/auth.c	19 Oct 2014 16:30:58 -0000	1.10
-+++ dist/auth.c	22 Jan 2015 21:39:22 -0000
-@@ -62,6 +62,7 @@
- #include "monitor_wrap.h"
- #include "krl.h"
- #include "compat.h"
-+#include "pfilter.h"
- 
- #ifdef HAVE_LOGIN_CAP
- #include <login_cap.h>
-@@ -362,6 +363,8 @@
- 	    compat20 ? "ssh2" : "ssh1",
- 	    authctxt->info != NULL ? ": " : "",
- 	    authctxt->info != NULL ? authctxt->info : "");
-+	if (!authctxt->postponed)
-+		pfilter_notify(!authenticated);
- 	free(authctxt->info);
- 	authctxt->info = NULL;
- }
-Index: dist/sshd.c
-===================================================================
-RCS file: /cvsroot/src/crypto/external/bsd/openssh/dist/sshd.c,v
-retrieving revision 1.15
-diff -u -u -r1.15 sshd.c
---- dist/sshd.c	28 Oct 2014 21:36:16 -0000	1.15
-+++ dist/sshd.c	22 Jan 2015 21:39:22 -0000
-@@ -109,6 +109,7 @@
- #include "roaming.h"
- #include "ssh-sandbox.h"
- #include "version.h"
-+#include "pfilter.h"
- 
- #ifdef LIBWRAP
- #include <tcpd.h>
-@@ -364,6 +365,7 @@
- 		killpg(0, SIGTERM);
- 	}
- 
-+	pfilter_notify(1);
- 	/* Log error and exit. */
- 	sigdie("Timeout before authentication for %s", get_remote_ipaddr());
- }
-@@ -1160,6 +1162,7 @@
- 	for (i = 0; i < options.max_startups; i++)
- 		startup_pipes[i] = -1;
- 
-+	pfilter_init();
- 	/*
- 	 * Stay listening for connections until the system crashes or
- 	 * the daemon is killed with a signal.
-Index: auth1.c
-===================================================================
-RCS file: /cvsroot/src/crypto/external/bsd/openssh/dist/auth1.c,v
-retrieving revision 1.9
-diff -u -u -r1.9 auth1.c
---- auth1.c	19 Oct 2014 16:30:58 -0000	1.9
-+++ auth1.c	14 Feb 2015 15:40:51 -0000
-@@ -41,6 +41,7 @@
- #endif
- #include "monitor_wrap.h"
- #include "buffer.h"
-+#include "pfilter.h"
- 
- /* import */
- extern ServerOptions options;
-@@ -445,6 +446,7 @@
- 	else {
- 		debug("do_authentication: invalid user %s", user);
- 		authctxt->pw = fakepw();
-+		pfilter_notify(1);
- 	}
- 
- 	/* Configuration may have changed as a result of Match */
-Index: auth2.c
-===================================================================
-RCS file: /cvsroot/src/crypto/external/bsd/openssh/dist/auth2.c,v
-retrieving revision 1.9
-diff -u -u -r1.9 auth2.c
---- auth2.c	19 Oct 2014 16:30:58 -0000	1.9
-+++ auth2.c	14 Feb 2015 15:40:51 -0000
-@@ -52,6 +52,7 @@
- #include "pathnames.h"
- #include "buffer.h"
- #include "canohost.h"
-+#include "pfilter.h"
- 
- #ifdef GSSAPI
- #include "ssh-gss.h"
-@@ -256,6 +257,7 @@
- 		} else {
- 			logit("input_userauth_request: invalid user %s", user);
- 			authctxt->pw = fakepw();
-+			pfilter_notify(1);
- 		}
- #ifdef USE_PAM
- 		if (options.use_pam)
-Index: sshd.c
-===================================================================
-RCS file: /cvsroot/src/crypto/external/bsd/openssh/dist/sshd.c,v
-retrieving revision 1.16
-diff -u -r1.16 sshd.c
---- sshd.c	25 Jan 2015 15:52:44 -0000	1.16
-+++ sshd.c	14 Feb 2015 09:55:06 -0000
-@@ -628,6 +628,8 @@
- 	explicit_bzero(pw->pw_passwd, strlen(pw->pw_passwd));
- 	endpwent();
- 
-+	pfilter_init();
-+
- 	/* Change our root directory */
- 	if (chroot(_PATH_PRIVSEP_CHROOT_DIR) == -1)
- 		fatal("chroot(\"%s\"): %s", _PATH_PRIVSEP_CHROOT_DIR,
-
-Index: auth-pam.c
-===================================================================
-RCS file: /cvsroot/src/crypto/external/bsd/openssh/dist/auth-pam.c,v
-retrieving revision 1.7
-diff -u -u -r1.7 auth-pam.c
---- auth-pam.c	3 Jul 2015 00:59:59 -0000	1.7
-+++ auth-pam.c	23 Jan 2016 00:01:16 -0000
-@@ -114,6 +114,7 @@
+diff -ru openssh-7.7p1/auth-pam.c dist/auth-pam.c
+--- openssh-7.7p1/auth-pam.c	2018-04-02 01:38:28.000000000 -0400
++++ dist/auth-pam.c	2018-05-23 11:56:22.206661484 -0400
+@@ -103,6 +103,7 @@
  #include "ssh-gss.h"
  #endif
  #include "monitor_wrap.h"
@@ -191,7 +73,15 @@ diff -u -u -r1.7 auth-pam.c
  
  extern ServerOptions options;
  extern Buffer loginmsg;
-@@ -809,6 +810,7 @@
+@@ -526,6 +527,7 @@
+ 		ssh_msg_send(ctxt->pam_csock, PAM_MAXTRIES, &buffer);
+ 	else
+ 		ssh_msg_send(ctxt->pam_csock, PAM_AUTH_ERR, &buffer);
++	pfilter_notify(1);
+ 	buffer_free(&buffer);
+ 	pthread_exit(NULL);
+ 
+@@ -804,6 +806,7 @@
  				free(msg);
  				return (0);
  			}
@@ -199,33 +89,62 @@ diff -u -u -r1.7 auth-pam.c
  			error("PAM: %s for %s%.100s from %.100s", msg,
  			    sshpam_authctxt->valid ? "" : "illegal user ",
  			    sshpam_authctxt->user,
-Index: auth.c
-===================================================================
-RCS file: /cvsroot/src/crypto/external/bsd/openssh/dist/auth.c,v
-retrieving revision 1.15
-diff -u -u -r1.15 auth.c
---- auth.c	21 Aug 2015 08:20:59 -0000	1.15
-+++ auth.c	23 Jan 2016 00:01:16 -0000
-@@ -656,6 +656,7 @@
+diff -ru openssh-7.7p1/auth2.c dist/auth2.c
+--- openssh-7.7p1/auth2.c	2018-04-02 01:38:28.000000000 -0400
++++ dist/auth2.c	2018-05-23 11:57:31.022197317 -0400
+@@ -51,6 +51,7 @@
+ #include "dispatch.h"
+ #include "pathnames.h"
+ #include "buffer.h"
++#include "pfilter.h"
  
- 	pw = getpwnam(user);
- 	if (pw == NULL) {
-+		pfilter_notify(1);
- 		logit("Invalid user %.100s from %.100s",
- 		    user, get_remote_ipaddr());
- 		return (NULL);
-Index: auth1.c
-===================================================================
-RCS file: /cvsroot/src/crypto/external/bsd/openssh/dist/auth1.c,v
-retrieving revision 1.12
-diff -u -u -r1.12 auth1.c
---- auth1.c	3 Jul 2015 00:59:59 -0000	1.12
-+++ auth1.c	23 Jan 2016 00:01:16 -0000
-@@ -376,6 +376,7 @@
- 			char *msg;
- 			size_t len;
- 
+ #ifdef GSSAPI
+ #include "ssh-gss.h"
+@@ -242,6 +243,7 @@
+ 		} else {
+ 			/* Invalid user, fake password information */
+ 			authctxt->pw = fakepw();
 +			pfilter_notify(1);
- 			error("Access denied for user %s by PAM account "
- 			    "configuration", authctxt->user);
- 			len = buffer_len(&loginmsg);
+ #ifdef SSH_AUDIT_EVENTS
+ 			PRIVSEP(audit_event(SSH_INVALID_USER));
+ #endif
+Only in dist: pfilter.c
+Only in dist: pfilter.h
+diff -ru openssh-7.7p1/sshd.c dist/sshd.c
+--- openssh-7.7p1/sshd.c	2018-04-02 01:38:28.000000000 -0400
++++ dist/sshd.c	2018-05-23 11:59:39.573197347 -0400
+@@ -122,6 +122,7 @@
+ #include "auth-options.h"
+ #include "version.h"
+ #include "ssherr.h"
++#include "pfilter.h"
+ 
+ /* Re-exec fds */
+ #define REEXEC_DEVCRYPTO_RESERVED_FD	(STDERR_FILENO + 1)
+@@ -346,6 +347,7 @@
+ static void
+ grace_alarm_handler(int sig)
+ {
++	pfilter_notify(1);
+ 	if (use_privsep && pmonitor != NULL && pmonitor->m_pid > 0)
+ 		kill(pmonitor->m_pid, SIGALRM);
+ 
+@@ -1835,6 +1837,8 @@
+ 	if (test_flag)
+ 		exit(0);
+ 
++	pfilter_init();
++
+ 	/*
+ 	 * Clear out any supplemental groups we may have inherited.  This
+ 	 * prevents inadvertent creation of files with bad modes (in the
+@@ -2280,6 +2284,9 @@
+ {
+ 	struct ssh *ssh = active_state; /* XXX */
+ 
++	if (i == 255)
++		pfilter_notify(1);
++
+ 	if (the_authctxt) {
+ 		do_cleanup(ssh, the_authctxt);
+ 		if (use_privsep && privsep_is_preauth &&
