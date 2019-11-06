@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 22, 2014
+.Dd June 19, 2019
 .Dt SLEEPQUEUE 9
 .Os
 .Sh NAME
@@ -291,7 +291,8 @@ and
 functions.
 The
 .Fn sleepq_signal
-function awakens the highest priority thread sleeping on a wait channel while
+function awakens the highest priority thread sleeping on a wait channel
+(if SLEEPQ_UNFAIR flag is set, thread that went to sleep recently) while
 .Fn sleepq_broadcast
 awakens all of the threads sleeping on a wait channel.
 The
