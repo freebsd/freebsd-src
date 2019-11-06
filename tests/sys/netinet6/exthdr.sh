@@ -31,7 +31,7 @@
 atf_test_case "exthdr" "cleanup"
 exthdr_head() {
 
-	atf_set descr 'Test IPv6 fragmentation code'
+	atf_set descr 'Test IPv6 extension header code paths'
 	atf_set require.user root
 	atf_set require.progs scapy
 }
@@ -59,12 +59,12 @@ exthdr_body() {
 	ip6b="2001:db8:6666:0000:${yl}:${id}:2:${xl}"
 
 	epair=$(vnet_mkepair)
-	ifconfig ${epair}a mtu 131071 up
+	ifconfig ${epair}a up
 	ifconfig ${epair}a inet6 ${ip6a}/64
 
 	jname="v6t-${id}-${yl}-${xl}"
 	vnet_mkjail ${jname} ${epair}b
-	jexec ${jname} ifconfig ${epair}b mtu 131071 up
+	jexec ${jname} ifconfig ${epair}b up
 	jexec ${jname} ifconfig ${epair}b inet6 ${ip6b}/64
 
 	# Let IPv6 ND do its thing.
@@ -75,7 +75,7 @@ exthdr_body() {
 	# Clear statistics.
 	jexec ${jname} netstat -z -s > /dev/null
 
-	# Run fragment tests.
+	# Run extension header tests.
 	pyname=$(atf_get ident)
 	pyname=${pyname%*_[0-9]}
 
