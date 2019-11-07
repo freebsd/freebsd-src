@@ -1245,12 +1245,10 @@ tcp_input_data(struct tcp_hpts_entry *hpts, struct timeval *tv)
 	int16_t set_cpu;
 	uint32_t did_prefetch = 0;
 	int dropped;
-	struct epoch_tracker et;
 
 	HPTS_MTX_ASSERT(hpts);
-#ifndef VIMAGE
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
-#endif
+	NET_EPOCH_ASSERT();
+
 	while ((inp = TAILQ_FIRST(&hpts->p_input)) != NULL) {
 		HPTS_MTX_ASSERT(hpts);
 		hpts_sane_input_remove(hpts, inp, 0);
@@ -1266,7 +1264,6 @@ tcp_input_data(struct tcp_hpts_entry *hpts, struct timeval *tv)
 		INP_WLOCK(inp);
 #ifdef VIMAGE
 		CURVNET_SET(inp->inp_vnet);
-		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 #endif
 		if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) ||
 		    (inp->inp_flags2 & INP_FREED)) {
@@ -1276,7 +1273,6 @@ out:
 				INP_WUNLOCK(inp);
 			}
 #ifdef VIMAGE
-			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 			CURVNET_RESTORE();
 #endif
 			mtx_lock(&hpts->p_mtx);
@@ -1296,7 +1292,6 @@ out:
 			if (in_pcbrele_wlocked(inp) == 0)
 				INP_WUNLOCK(inp);
 #ifdef VIMAGE
-			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 			CURVNET_RESTORE();
 #endif
 			mtx_lock(&hpts->p_mtx);
@@ -1349,22 +1344,16 @@ out:
 			INP_WUNLOCK(inp);
 		INP_UNLOCK_ASSERT(inp);
 #ifdef VIMAGE
-		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 		CURVNET_RESTORE();
 #endif
 		mtx_lock(&hpts->p_mtx);
 		hpts->p_inp = NULL;
 	}
-#ifndef VIMAGE
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
-	INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
-#endif
 }
 
 static void
 tcp_hptsi(struct tcp_hpts_entry *hpts)
 {
-	struct epoch_tracker et;
 	struct tcpcb *tp;
 	struct inpcb *inp = NULL, *ninp;
 	struct timeval tv;
@@ -1378,6 +1367,8 @@ tcp_hptsi(struct tcp_hpts_entry *hpts)
 	int16_t set_cpu;
 
 	HPTS_MTX_ASSERT(hpts);
+	NET_EPOCH_ASSERT();
+
 	/* record previous info for any logging */
 	hpts->saved_lasttick = hpts->p_lasttick;
 	hpts->saved_curtick = hpts->p_curtick;
@@ -1469,9 +1460,6 @@ again:
 		goto no_one;
 	}
 	HPTS_MTX_ASSERT(hpts);
-#ifndef VIMAGE
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
-#endif
 	for (i = 0; i < ticks_to_run; i++) {
 		/*
 		 * Calculate our delay, if there are no extra ticks there
@@ -1586,7 +1574,6 @@ again:
 			}
 #ifdef VIMAGE
 			CURVNET_SET(inp->inp_vnet);
-			INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 #endif
 			/* Lets do any logging that we might want to */
 			if (hpts_does_tp_logging && (tp->t_logstate != TCP_LOG_STATE_OFF)) {
@@ -1658,7 +1645,6 @@ again:
 			INP_WUNLOCK(inp);
 		skip_pacing:
 #ifdef VIMAGE
-			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 			CURVNET_RESTORE();
 #endif
 			INP_UNLOCK_ASSERT(inp);
@@ -1678,9 +1664,6 @@ again:
 			hpts->p_runningtick = 0;
 		}
 	}
-#ifndef VIMAGE
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
-#endif
 no_one:
 	HPTS_MTX_ASSERT(hpts);
 	hpts->p_delayed_by = 0;
@@ -1820,6 +1803,7 @@ static void
 tcp_hpts_thread(void *ctx)
 {
 	struct tcp_hpts_entry *hpts;
+	struct epoch_tracker et;
 	struct timeval tv;
 	sbintime_t sb;
 
@@ -1839,7 +1823,9 @@ tcp_hpts_thread(void *ctx)
 	}
 	hpts->p_hpts_wake_scheduled = 0;
 	hpts->p_hpts_active = 1;
+	NET_EPOCH_ENTER(et);
 	tcp_hptsi(hpts);
+	NET_EPOCH_EXIT(et);
 	HPTS_MTX_ASSERT(hpts);
 	tv.tv_sec = 0;
 	tv.tv_usec = hpts->p_hpts_sleep_time * HPTS_TICKS_PER_USEC;
