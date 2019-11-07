@@ -771,7 +771,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	int error;
 	char *s;
 
-	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
+	NET_EPOCH_ASSERT();
 
 	/*
 	 * Ok, create the full blown connection, and set things up
@@ -1091,11 +1091,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	char *s;
 	bool locked;
 
-	/*
-	 * Global TCP locks are held because we manipulate the PCB lists
-	 * and create a new socket.
-	 */
-	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
+	NET_EPOCH_ASSERT();
 	KASSERT((th->th_flags & (TH_RST|TH_ACK|TH_SYN)) == TH_ACK,
 	    ("%s: can handle only ACK", __func__));
 
@@ -1331,11 +1327,7 @@ syncache_tfo_expand(struct syncache *sc, struct socket **lsop, struct mbuf *m,
 	struct tcpcb *tp;
 	unsigned int *pending_counter;
 
-	/*
-	 * Global TCP locks are held because we manipulate the PCB lists
-	 * and create a new socket.
-	 */
-	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
+	NET_EPOCH_ASSERT();
 
 	pending_counter = intotcpcb(sotoinpcb(*lsop))->t_tfo_pending;
 	*lsop = syncache_socket(sc, *lsop, m);

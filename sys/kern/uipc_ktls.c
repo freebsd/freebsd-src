@@ -1137,7 +1137,7 @@ ktls_reset_send_tag(void *context, int pending)
 		 * the send tag is fixed or just rely on timers?
 		 */
 	} else {
-		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_ENTER(et);
 		INP_WLOCK(inp);
 		if (!in_pcbrele_wlocked(inp)) {
 			if (!(inp->inp_flags & INP_TIMEWAIT) &&
@@ -1150,7 +1150,7 @@ ktls_reset_send_tag(void *context, int pending)
 			} else
 				INP_WUNLOCK(inp);
 		}
-		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_EXIT(et);
 
 		counter_u64_add(ktls_ifnet_reset_failed, 1);
 

@@ -949,7 +949,7 @@ t4_offload_socket(struct toedev *tod, void *arg, struct socket *so)
 #endif
 	struct toepcb *toep = synqe->toep;
 
-	INP_INFO_RLOCK_ASSERT(&V_tcbinfo); /* prevents bad race with accept() */
+	NET_EPOCH_ASSERT();	/* prevents bad race with accept() */
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(synqe->flags & TPF_SYNQE,
 	    ("%s: %p not a synq_entry?", __func__, arg));
@@ -1242,12 +1242,12 @@ found:
 		REJECT_PASS_ACCEPT_REQ(true);
 
 	/* Don't offload if the 4-tuple is already in use */
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);	/* for 4-tuple check */
+	NET_EPOCH_ENTER(et);	/* for 4-tuple check */
 	if (toe_4tuple_check(&inc, &th, ifp) != 0) {
-		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_EXIT(et);
 		REJECT_PASS_ACCEPT_REQ(false);
 	}
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_EXIT(et);
 
 	inp = lctx->inp;		/* listening socket, not owned by TOE */
 	INP_WLOCK(inp);
@@ -1396,7 +1396,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 	    ("%s: tid %u (ctx %p) not a synqe", __func__, tid, synqe));
 
 	CURVNET_SET(lctx->vnet);
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);	/* for syncache_expand */
+	NET_EPOCH_ENTER(et);	/* for syncache_expand */
 	INP_WLOCK(inp);
 
 	CTR6(KTR_CXGBE,
@@ -1412,7 +1412,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 reset:
 		send_reset_synqe(TOEDEV(ifp), synqe);
 		INP_WUNLOCK(inp);
-		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_EXIT(et);
 		CURVNET_RESTORE();
 		return (0);
 	}
@@ -1471,7 +1471,7 @@ reset:
 	inp = release_synqe(sc, synqe);
 	if (inp != NULL)
 		INP_WUNLOCK(inp);
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 
 	return (0);

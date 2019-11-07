@@ -1214,7 +1214,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	KASSERT(toep->tid == tid, ("%s: toep tid mismatch", __func__));
 
 	CURVNET_SET(toep->vnet);
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_ENTER(et);
 	INP_WLOCK(inp);
 	tp = intotcpcb(inp);
 
@@ -1260,7 +1260,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	case TCPS_FIN_WAIT_2:
 		tcp_twstart(tp);
 		INP_UNLOCK_ASSERT(inp);	 /* safe, we have a ref on the inp */
-		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_EXIT(et);
 		CURVNET_RESTORE();
 
 		INP_WLOCK(inp);
@@ -1273,7 +1273,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 done:
 	INP_WUNLOCK(inp);
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 	return (0);
 }
@@ -1303,7 +1303,7 @@ do_close_con_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	KASSERT(toep->tid == tid, ("%s: toep tid mismatch", __func__));
 
 	CURVNET_SET(toep->vnet);
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_ENTER(et);
 	INP_WLOCK(inp);
 	tp = intotcpcb(inp);
 
@@ -1321,7 +1321,7 @@ do_close_con_rpl(struct sge_iq *iq, const struct rss_header *rss,
 		tcp_twstart(tp);
 release:
 		INP_UNLOCK_ASSERT(inp);	/* safe, we have a ref on the  inp */
-		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_EXIT(et);
 		CURVNET_RESTORE();
 
 		INP_WLOCK(inp);
@@ -1346,7 +1346,7 @@ release:
 	}
 done:
 	INP_WUNLOCK(inp);
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 	return (0);
 }
@@ -1423,7 +1423,7 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	inp = toep->inp;
 	CURVNET_SET(toep->vnet);
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);	/* for tcp_close */
+	NET_EPOCH_ENTER(et);	/* for tcp_close */
 	INP_WLOCK(inp);
 
 	tp = intotcpcb(inp);
@@ -1457,7 +1457,7 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	final_cpl_received(toep);
 done:
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 	send_abort_rpl(sc, ofld_txq, tid, CPL_ABORT_NO_RST);
 	return (0);
@@ -1572,12 +1572,12 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		INP_WUNLOCK(inp);
 
 		CURVNET_SET(toep->vnet);
-		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_ENTER(et);
 		INP_WLOCK(inp);
 		tp = tcp_drop(tp, ECONNRESET);
 		if (tp)
 			INP_WUNLOCK(inp);
-		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_EXIT(et);
 		CURVNET_RESTORE();
 
 		return (0);
