@@ -28,8 +28,8 @@ S1lo = -9.2563760475949941e-18;		/* -0x15580000000000.0p-109 */
 #define	C1	((long double)C1hi + C1lo)
 #else
 static const long double
-C1 =  0.0416666666666666666136L;	/*  0xaaaaaaaaaaaaaa9b.0p-68 */
-S1 = -0.166666666666666666671L,		/* -0xaaaaaaaaaaaaaaab.0p-66 */
+C1 =  0.0416666666666666666136L,	/*  0xaaaaaaaaaaaaaa9b.0p-68 */
+S1 = -0.166666666666666666671L;		/* -0xaaaaaaaaaaaaaaab.0p-66 */
 #endif
 
 static const double

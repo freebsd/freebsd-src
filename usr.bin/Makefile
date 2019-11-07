@@ -226,7 +226,6 @@ SUBDIR.${MK_KDUMP}+=	truss
 SUBDIR.${MK_KERBEROS_SUPPORT}+=	compile_et
 SUBDIR.${MK_LDNS_UTILS}+=	drill
 SUBDIR.${MK_LDNS_UTILS}+=	host
-SUBDIR.${MK_LIB32}+=	ldd32
 SUBDIR.${MK_LOCATE}+=	locate
 # XXX msgs?
 SUBDIR.${MK_MAIL}+=	biff
