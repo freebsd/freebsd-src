@@ -3882,11 +3882,12 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 	if (hdrlen & 3) {
 		/* First segment length must be a multiple of 4. */
 		flags |= IWM_TX_CMD_FLG_MH_PAD;
+		tx->offload_assist |= htole16(1 << IWM_TX_CMD_OFFLD_PAD);
 		pad = 4 - (hdrlen & 3);
-	} else
+	} else {
+		tx->offload_assist = 0;
 		pad = 0;
-
-	tx->next_frame_len = 0;
+	}
 
 	tx->len = htole16(totlen);
 	tx->tid_tspec = tid;
