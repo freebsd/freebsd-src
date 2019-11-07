@@ -165,20 +165,6 @@ struct iwm_ucode_capabilities {
 	uint8_t enabled_capa[howmany(IWM_NUM_UCODE_TLV_CAPA, NBBY)];
 };
 
-static inline int
-fw_has_api(const struct iwm_ucode_capabilities *capabilities,
-	   unsigned int api)
-{
-	return isset(capabilities->enabled_api, api);
-}
-
-static inline int
-fw_has_capa(const struct iwm_ucode_capabilities *capabilities,
-	    unsigned int capa)
-{
-	return isset(capabilities->enabled_capa, capa);
-}
-
 /* one for each uCode image (inst/data, init/runtime/wowlan) */
 struct iwm_fw_desc {
 	const void *data;	/* vmalloc'ed data */
@@ -576,3 +562,15 @@ struct iwm_softc {
 #define	IWM_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	IWM_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define IWM_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
+
+static inline bool
+iwm_fw_has_api(struct iwm_softc *sc, unsigned int api)
+{
+	return isset(sc->sc_fw.ucode_capa.enabled_api, api);
+}
+
+static inline bool
+iwm_fw_has_capa(struct iwm_softc *sc, unsigned int capa)
+{
+	return isset(sc->sc_fw.ucode_capa.enabled_capa, capa);
+}

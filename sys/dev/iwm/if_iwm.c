@@ -4442,8 +4442,7 @@ static boolean_t
 iwm_mvm_is_lar_supported(struct iwm_softc *sc)
 {
 	boolean_t nvm_lar = sc->nvm_data->lar_enabled;
-	boolean_t tlv_lar = fw_has_capa(&sc->sc_fw.ucode_capa,
-					IWM_UCODE_TLV_CAPA_LAR_SUPPORT);
+	boolean_t tlv_lar = iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_LAR_SUPPORT);
 
 	if (iwm_lar_disable)
 		return FALSE;
@@ -4461,10 +4460,8 @@ iwm_mvm_is_lar_supported(struct iwm_softc *sc)
 static boolean_t
 iwm_mvm_is_wifi_mcc_supported(struct iwm_softc *sc)
 {
-	return fw_has_api(&sc->sc_fw.ucode_capa,
-			  IWM_UCODE_TLV_API_WIFI_MCC_UPDATE) ||
-	       fw_has_capa(&sc->sc_fw.ucode_capa,
-			   IWM_UCODE_TLV_CAPA_LAR_MULTI_MCC);
+	return iwm_fw_has_api(sc, IWM_UCODE_TLV_API_WIFI_MCC_UPDATE) ||
+	    iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_LAR_MULTI_MCC);
 }
 
 static int
@@ -4484,8 +4481,7 @@ iwm_send_update_mcc_cmd(struct iwm_softc *sc, const char *alpha2)
 	int n_channels;
 	uint16_t mcc;
 #endif
-	int resp_v2 = fw_has_capa(&sc->sc_fw.ucode_capa,
-	    IWM_UCODE_TLV_CAPA_LAR_SUPPORT_V2);
+	int resp_v2 = iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_LAR_SUPPORT_V2);
 
 	if (!iwm_mvm_is_lar_supported(sc)) {
 		IWM_DPRINTF(sc, IWM_DEBUG_LAR, "%s: no LAR support\n",
@@ -4646,7 +4642,7 @@ iwm_init_hw(struct iwm_softc *sc)
 	if ((error = iwm_send_update_mcc_cmd(sc, "ZZ")) != 0)
 		goto error;
 
-	if (fw_has_capa(&sc->sc_fw.ucode_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN)) {
+	if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_UMAC_SCAN)) {
 		if ((error = iwm_mvm_config_umac_scan(sc)) != 0)
 			goto error;
 	}
@@ -6183,7 +6179,7 @@ iwm_scan_start(struct ieee80211com *ic)
 		device_printf(sc->sc_dev,
 		    "%s: Previous scan not completed yet\n", __func__);
 	}
-	if (fw_has_capa(&sc->sc_fw.ucode_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN))
+	if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_UMAC_SCAN))
 		error = iwm_mvm_umac_scan(sc);
 	else
 		error = iwm_mvm_lmac_scan(sc);
