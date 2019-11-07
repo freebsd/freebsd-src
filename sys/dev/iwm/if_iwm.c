@@ -5743,8 +5743,6 @@ iwm_pci_detach(device_t dev)
 		    rman_get_rid(sc->sc_mem), sc->sc_mem);
 }
 
-
-
 static int
 iwm_attach(device_t dev)
 {
@@ -5760,6 +5758,10 @@ iwm_attach(device_t dev)
 	callout_init_mtx(&sc->sc_watchdog_to, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->sc_led_blink_to, &sc->sc_mtx, 0);
 	TASK_INIT(&sc->sc_es_task, 0, iwm_endscan_cb, sc);
+
+	error = iwm_dev_check(dev);
+	if (error != 0)
+		goto fail;
 
 	sc->sc_notif_wait = iwm_notification_wait_init(sc);
 	if (sc->sc_notif_wait == NULL) {
@@ -5785,11 +5787,6 @@ iwm_attach(device_t dev)
 		goto fail;
 
 	sc->sc_wantresp = -1;
-
-	/* Match device id */
-	error = iwm_dev_check(dev);
-	if (error != 0)
-		goto fail;
 
 	sc->sc_hw_rev = IWM_READ(sc, IWM_CSR_HW_REV);
 	/*
