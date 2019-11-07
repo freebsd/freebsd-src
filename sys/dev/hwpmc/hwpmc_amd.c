@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/pcpu.h>
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
 #include <sys/smp.h>
@@ -52,6 +53,10 @@ __FBSDID("$FreeBSD$");
 #ifdef	HWPMC_DEBUG
 enum pmc_class	amd_pmc_class;
 #endif
+
+#define	OVERFLOW_WAIT_COUNT	50
+
+DPCPU_DEFINE_STATIC(uint32_t, nmi_counter);
 
 /* AMD K7 & K8 PMCs */
 struct amd_descr {
@@ -739,6 +744,7 @@ amd_stop_pmc(int cpu, int ri)
 	struct pmc_hw *phw;
 	const struct amd_descr *pd;
 	uint64_t config;
+	int i;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[amd,%d] illegal CPU value %d", __LINE__, cpu));
@@ -761,6 +767,21 @@ amd_stop_pmc(int cpu, int ri)
 	/* turn off the PMC ENABLE bit */
 	config = pm->pm_md.pm_amd.pm_amd_evsel & ~AMD_PMC_ENABLE;
 	wrmsr(pd->pm_evsel, config);
+
+	/*
+	 * Due to NMI latency on newer AMD processors
+	 * NMI interrupts are ignored, which leads to
+	 * panic or messages based on kernel configuraiton
+	 */
+
+	/* Wait for the count to be reset */
+	for (i = 0; i < OVERFLOW_WAIT_COUNT; i++) {
+		if (rdmsr(pd->pm_perfctr) & (1 << (pd->pm_descr.pd_width - 1)))
+			break;
+
+		DELAY(1);
+	}
+
 	return 0;
 }
 
@@ -779,6 +800,7 @@ amd_intr(struct trapframe *tf)
 	struct pmc *pm;
 	struct amd_cpu *pac;
 	pmc_value_t v;
+	uint32_t active = 0, count = 0;
 
 	cpu = curcpu;
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -798,18 +820,20 @@ amd_intr(struct trapframe *tf)
 	 *
 	 * If found, we call a helper to process the interrupt.
 	 *
-	 * If multiple PMCs interrupt at the same time, the AMD64
-	 * processor appears to deliver as many NMIs as there are
-	 * outstanding PMC interrupts.  So we process only one NMI
-	 * interrupt at a time.
+	 * PMCs interrupting at the same time are collapsed into
+	 * a single interrupt. Check all the valid pmcs for
+	 * overflow.
 	 */
 
-	for (i = 0; retval == 0 && i < AMD_NPMCS; i++) {
+	for (i = 0; i < AMD_CORE_NPMCS; i++) {
 
 		if ((pm = pac->pc_amdpmcs[i].phw_pmc) == NULL ||
 		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
 			continue;
 		}
+
+		/* Consider pmc with valid handle as active */
+		active++;
 
 		if (!AMD_PMC_HAS_OVERFLOWED(i))
 			continue;
@@ -820,8 +844,8 @@ amd_intr(struct trapframe *tf)
 			continue;
 
 		/* Stop the PMC, reload count. */
-		evsel   = AMD_PMC_EVSEL_0 + i;
-		perfctr = AMD_PMC_PERFCTR_0 + i;
+		evsel	= amd_pmcdesc[i].pm_evsel;
+		perfctr	= amd_pmcdesc[i].pm_perfctr;
 		v       = pm->pm_sc.pm_reloadcount;
 		config  = rdmsr(evsel);
 
@@ -837,6 +861,26 @@ amd_intr(struct trapframe *tf)
 		error = pmc_process_interrupt(PMC_HR, pm, tf);
 		if (error == 0)
 			wrmsr(evsel, config);
+	}
+
+	/*
+	 * Due to NMI latency, there can be a scenario in which
+	 * multiple pmcs gets serviced in an earlier NMI and we
+	 * do not find an overflow in the subsequent NMI.
+	 *
+	 * For such cases we keep a per-cpu count of active NMIs
+	 * and compare it with min(active pmcs, 2) to determine
+	 * if this NMI was for a pmc overflow which was serviced
+	 * in an earlier request or should be ignored.
+	 */
+
+	if (retval) {
+		DPCPU_SET(nmi_counter, min(2, active));
+	} else {
+		if ((count = DPCPU_GET(nmi_counter))) {
+			retval = 1;
+			DPCPU_SET(nmi_counter, --count);
+		}
 	}
 
 	if (retval)
