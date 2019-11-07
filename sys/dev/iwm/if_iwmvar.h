@@ -459,8 +459,6 @@ struct iwm_softc {
 	struct iwm_rx_ring	rxq;
 	int			qfullmsk;
 
-	int			sc_sf_state;
-
 	/* ICT table. */
 	struct iwm_dma_info	ict_dma;
 	int			ict_cur;
@@ -525,8 +523,6 @@ struct iwm_softc {
 
 	struct iwm_notif_statistics_v10 sc_stats;
 	int			sc_noise;
-
-	caddr_t			sc_drvbpf;
 
 	struct iwm_rx_radiotap_header sc_rxtap;
 	struct iwm_tx_radiotap_header sc_txtap;
