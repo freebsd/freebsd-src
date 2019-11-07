@@ -121,12 +121,12 @@ and then updated by
 .Sh BUGS
 The
 .Nm
-driver does not utilize the Block Window interface, so if the write to
-NVDIMM was interrupted due to a system crash or power outage,
-the corresponding page might be left in partially updated state.
+driver does not utilize the Block Window interface, so if a write to an
+NVDIMM is interrupted due to a system crash or power outage,
+the corresponding page might be left in a partially updated state.
 .Pp
 There is no support for Device-Specific Methods (DSM), used to report and
-control the device health and wearing.
+control device health and wearing.
 .Pp
 The driver depends on the
 .Xr pmap_largemap 9
