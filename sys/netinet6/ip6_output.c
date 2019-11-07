@@ -966,6 +966,7 @@ passout:
 				in_pcboutput_txrtlmt(inp, ifp, m);
 			/* stamp send tag on mbuf */
 			m->m_pkthdr.snd_tag = inp->inp_snd_tag;
+			m->m_pkthdr.csum_flags |= CSUM_SND_TAG;
 		} else {
 			m->m_pkthdr.snd_tag = NULL;
 		}
@@ -1081,6 +1082,7 @@ sendorfree:
 					in_pcboutput_txrtlmt(inp, ifp, m);
 				/* stamp send tag on mbuf */
 				m->m_pkthdr.snd_tag = inp->inp_snd_tag;
+				m->m_pkthdr.csum_flags |= CSUM_SND_TAG;
 			} else {
 				m->m_pkthdr.snd_tag = NULL;
 			}
