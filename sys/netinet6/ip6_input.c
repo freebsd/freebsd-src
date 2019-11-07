@@ -1409,13 +1409,14 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 void
 ip6_savecontrol(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 {
-	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
+	struct ip6_hdr *ip6;
 	int v4only = 0;
 
 	mp = ip6_savecontrol_v4(inp, m, mp, &v4only);
 	if (v4only)
 		return;
 
+	ip6 = mtod(m, struct ip6_hdr *);
 	/*
 	 * IPV6_HOPOPTS socket option.  Recall that we required super-user
 	 * privilege for the option (see ip6_ctloutput), but it might be too
