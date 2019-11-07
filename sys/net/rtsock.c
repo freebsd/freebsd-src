@@ -1970,7 +1970,8 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static SYSCTL_NODE(_net, PF_ROUTE, routetable, CTLFLAG_RD, sysctl_rtsock, "");
+static SYSCTL_NODE(_net, PF_ROUTE, routetable, CTLFLAG_RD | CTLFLAG_MPSAFE,
+    sysctl_rtsock, "Return route tables and interface/address lists");
 
 /*
  * Definitions of protocols supported in the ROUTE domain.
