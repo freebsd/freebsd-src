@@ -47,14 +47,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
-#include <sys/lock.h>
 #include <sys/module.h>
-#include <sys/rman.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/watchdog.h>
 
-#include <isa/isavar.h>
+#include <dev/superio/superio.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -101,13 +99,7 @@ enum chips { w83627hf, w83627s, w83697hf, w83697ug, w83637hf, w83627thf,
 
 struct wb_softc {
 	device_t		dev;
-	struct resource		*portres;
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-	int			rid;
 	eventhandler_tag	ev_tag;
-	int			(*ext_cfg_enter_f)(struct wb_softc *, u_short);
-	void			(*ext_cfg_exit_f)(struct wb_softc *, u_short);
 	enum chips		chip;
 	uint8_t			ctl_reg;
 	uint8_t			time_reg;
@@ -130,26 +122,6 @@ struct wb_softc {
 	uint8_t			reg_timeout;
 	uint8_t			reg_1;
 	uint8_t			reg_2;
-};
-
-static int	ext_cfg_enter_0x87_0x87(struct wb_softc *, u_short);
-static void	ext_cfg_exit_0xaa(struct wb_softc *, u_short);
-
-struct winbond_superio_cfg {
-	uint8_t			efer;	/* and efir */
-	int			(*ext_cfg_enter_f)(struct wb_softc *, u_short);
-	void			(*ext_cfg_exit_f)(struct wb_softc *, u_short);
-} probe_addrs[] = {
-	{
-		.efer			= 0x2e,
-		.ext_cfg_enter_f	= ext_cfg_enter_0x87_0x87,
-		.ext_cfg_exit_f		= ext_cfg_exit_0xaa,
-	},
-	{
-		.efer			= 0x4e,
-		.ext_cfg_enter_f	= ext_cfg_enter_0x87_0x87,
-		.ext_cfg_exit_f		= ext_cfg_exit_0xaa,
-	},
 };
 
 struct winbond_vendor_device_id {
@@ -264,65 +236,6 @@ struct winbond_vendor_device_id {
 	},
 };
 
-static void
-write_efir_1(struct wb_softc *sc, u_short baseport, uint8_t value)
-{
-
-	MPASS(sc != NULL || baseport != 0);
-	if (sc != NULL)
-		bus_space_write_1((sc)->bst, (sc)->bsh, 0, (value));
-	else
-		outb(baseport, value);
-}
-
-static uint8_t __unused
-read_efir_1(struct wb_softc *sc, u_short baseport)
-{
-
-	MPASS(sc != NULL || baseport != 0);
-	if (sc != NULL)
-		return (bus_space_read_1((sc)->bst, (sc)->bsh, 0));
-	else
-		return (inb(baseport));
-}
-
-static void
-write_efdr_1(struct wb_softc *sc, u_short baseport, uint8_t value)
-{
-
-	MPASS(sc != NULL || baseport != 0);
-	if (sc != NULL)
-		bus_space_write_1((sc)->bst, (sc)->bsh, 1, (value));
-	else
-		outb(baseport + 1, value);
-}
-
-static uint8_t
-read_efdr_1(struct wb_softc *sc, u_short baseport)
-{
-
-	MPASS(sc != NULL || baseport != 0);
-	if (sc != NULL)
-		return (bus_space_read_1((sc)->bst, (sc)->bsh, 1));
-	else
-		return (inb(baseport + 1));
-}
-
-static void
-write_reg(struct wb_softc *sc, uint8_t reg, uint8_t value)
-{
-
-	write_efir_1(sc, 0, reg);
-	write_efdr_1(sc, 0, value);
-}
-
-static uint8_t
-read_reg(struct wb_softc *sc, uint8_t reg)
-{
-
-	write_efir_1(sc, 0, reg);
-	return (read_efdr_1(sc, 0));
-}
 
 /*
  * Return the watchdog related registers as we last read them.  This will
@@ -362,17 +275,9 @@ sysctl_wb_debug_current(SYSCTL_HANDLER_ARGS)
 
 	sc = arg1;
 
-	if ((*sc->ext_cfg_enter_f)(sc, 0) != 0)
-		return (ENXIO);
-
-	/* Watchdog is configured as part of LDN 8 (GPIO Port2, Watchdog). */
-	write_reg(sc, WB_LDN_REG, WB_LDN_REG_LDN8);
-
-	sc->reg_1 = read_reg(sc, sc->ctl_reg);
-	sc->reg_timeout = read_reg(sc, sc->time_reg);
-	sc->reg_2 = read_reg(sc, sc->csr_reg);
-
-	(*sc->ext_cfg_exit_f)(sc, 0);
+	sc->reg_1 = superio_read(sc->dev, sc->ctl_reg);
+	sc->reg_timeout = superio_read(sc->dev, sc->time_reg);
+	sc->reg_2 = superio_read(sc->dev, sc->csr_reg);
 
 	return (sysctl_wb_debug(oidp, arg1, arg2, req));
 }
@@ -411,12 +316,7 @@ sysctl_wb_force_test_nmi(SYSCTL_HANDLER_ARGS)
 		sc->test_nmi = 0;
 		return (0);
 	}
-#endif
 
-	if ((*sc->ext_cfg_enter_f)(sc, 0) != 0)
-		return (ENXIO);
-
-#ifdef notyet
 	/*
 	 * If we are testing the NMI functionality, set the flag before
 	 * forcing the timeout.
@@ -425,15 +325,10 @@ sysctl_wb_force_test_nmi(SYSCTL_HANDLER_ARGS)
 		sc->test_nmi = 1;
 #endif
 
-	/* Watchdog is configured as part of LDN 8 (GPIO Port2, Watchdog). */
-	write_reg(sc, WB_LDN_REG, WB_LDN_REG_LDN8);
-
 	/* Force watchdog to fire. */
-	sc->reg_2 = read_reg(sc, sc->csr_reg);
+	sc->reg_2 = superio_read(sc->dev, sc->csr_reg);
 	sc->reg_2 |= WB_LDN8_CRF7_FORCE;
-	write_reg(sc, sc->csr_reg, sc->reg_2);
-
-	(*sc->ext_cfg_exit_f)(sc, 0);
+	superio_write(sc->dev, sc->csr_reg, sc->reg_2);
 
 	return (0);
 }
@@ -450,7 +345,7 @@ wb_print_state(struct wb_softc *sc, const char *msg)
 
 	device_printf(sc->dev, "%s%sWatchdog %sabled. %s"
 	    "Scaling by %ds, timer at %d (%s=%ds%s). "
-	    "CRF5 0x%02x CRF7 0x%02x\n",
+	    "CR%02X 0x%02x CR%02X 0x%02x\n",
 	    (msg != NULL) ? msg : "", (msg != NULL) ? ": " : "",
 	    (sc->reg_timeout > 0x00) ? "en" : "dis",
 	    (sc->reg_2 & WB_LDN8_CRF7_TS) ? "Watchdog fired. " : "",
@@ -459,32 +354,7 @@ wb_print_state(struct wb_softc *sc, const char *msg)
 	    (sc->reg_timeout > 0x00) ? "<" : "",
 	    sc->reg_timeout * ((sc->reg_1 & WB_LDN8_CRF5_SCALE) ? 60 : 1),
 	    (sc->reg_timeout > 0x00) ? " left" : "",
-	    sc->reg_1, sc->reg_2);
-}
-
-/*
- * Functions to enter and exit extended function mode.  Possibly shared
- * between different chips.
- */
-static int
-ext_cfg_enter_0x87_0x87(struct wb_softc *sc, u_short baseport)
-{
-
-	/*
-	 * Enable extended function mode.
-	 * Winbond does not allow us to validate so always return success.
-	 */
-	write_efir_1(sc, baseport, 0x87);
-	write_efir_1(sc, baseport, 0x87);
-
-	return (0);
-}
-
-static void
-ext_cfg_exit_0xaa(struct wb_softc *sc, u_short baseport)
-{
-
-	write_efir_1(sc, baseport, 0xaa);
+	    sc->ctl_reg, sc->reg_1, sc->csr_reg, sc->reg_2);
 }
 
 /*
@@ -511,20 +381,14 @@ wb_set_watchdog(struct wb_softc *sc, unsigned int timeout)
 	if (sc->debug_verbose)
 		wb_print_state(sc, "Before watchdog counter (re)load");
 
-	if ((*sc->ext_cfg_enter_f)(sc, 0) != 0)
-		return (ENXIO);
-
-	/* Watchdog is configured as part of LDN 8 (GPIO Port2, Watchdog) */
-	write_reg(sc, WB_LDN_REG, WB_LDN_REG_LDN8);
-
 	if (timeout == 0) {
 		/* Disable watchdog. */
 		sc->reg_timeout = 0;
-		write_reg(sc, sc->time_reg, sc->reg_timeout);
+		superio_write(sc->dev, sc->time_reg, sc->reg_timeout);
 
 	} else {
 		/* Read current scaling factor. */
-		sc->reg_1 = read_reg(sc, sc->ctl_reg);
+		sc->reg_1 = superio_read(sc->dev, sc->ctl_reg);
 
 		if (timeout > 255) {
 			/* Set scaling factor to 60s. */
@@ -539,20 +403,18 @@ wb_set_watchdog(struct wb_softc *sc, unsigned int timeout)
 		}
 
 		/* In case we fired before we need to clear to fire again. */
-		sc->reg_2 = read_reg(sc, sc->csr_reg);
+		sc->reg_2 = superio_read(sc->dev, sc->csr_reg);
 		if (sc->reg_2 & WB_LDN8_CRF7_TS) {
 			sc->reg_2 &= ~WB_LDN8_CRF7_TS;
-			write_reg(sc, sc->csr_reg, sc->reg_2);
+			superio_write(sc->dev, sc->csr_reg, sc->reg_2);
 		}
 
 		/* Write back scaling factor. */
-		write_reg(sc, sc->ctl_reg, sc->reg_1);
+		superio_write(sc->dev, sc->ctl_reg, sc->reg_1);
 
 		/* Set timer and arm/reset the watchdog. */
-		write_reg(sc, sc->time_reg, sc->reg_timeout);
+		superio_write(sc->dev, sc->time_reg, sc->reg_timeout);
 	}
-
-	(*sc->ext_cfg_exit_f)(sc, 0);
 
 	if (sc->debug_verbose)
 		wb_print_state(sc, "After watchdog counter (re)load");
@@ -599,155 +461,39 @@ wb_watchdog_fn(void *private, u_int cmd, int *error)
 	}
 }
 
-/*
- * Probe/attach the Winbond Super I/O chip.
- *
- * Initial abstraction to possibly support more chips:
- * - Iterate over the well known base ports, try to enable extended function
- *   mode and read and match the device ID and device revision.  Unfortunately
- *   the Vendor ID is in the hardware monitoring section accessible by different
- *   base ports only.
- * - Also HEFRAS, which would tell use the base port, is only accessible after
- *   entering extended function mode, for which the base port is needed.
- *   At least check HEFRAS to match the current base port we are probing.
- * - On match set the description, remember functions to enter/exit extended
- *   function mode as well as the base port.
- */
-static int
-wb_probe_enable(device_t dev, int probe)
-{
-	struct wb_softc *sc;
-	int error, found, i, j;
-	uint8_t dev_id, dev_rev, cr26;
-	char buf[128];
-
-	if (dev == NULL)
-		sc = NULL;
-	else {
-		sc = device_get_softc(dev);
-		bzero(sc, sizeof(*sc));
-		sc->dev = dev;
-	}
-
-	error = ENXIO;
-	found = 0;
-	for (i = 0; i < nitems(probe_addrs); i++) {
-
-		if (sc != NULL) {
-			/* Allocate bus resources for IO index/data register access. */
-			sc->portres = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->rid,
-			    probe_addrs[i].efer, probe_addrs[i].efer + 1, 2, RF_ACTIVE);
-			if (sc->portres == NULL)
-				continue;
-			sc->bst = rman_get_bustag(sc->portres);
-			sc->bsh = rman_get_bushandle(sc->portres);
-		}
-
-		error = (*probe_addrs[i].ext_cfg_enter_f)(sc, probe_addrs[i].efer);
-		if (error != 0)
-			goto cleanup;
-
-		/* Identify the SuperIO chip. */
-		write_efir_1(sc, probe_addrs[i].efer, WB_DEVICE_ID_REG);
-		dev_id = read_efdr_1(sc, probe_addrs[i].efer);
-		write_efir_1(sc, probe_addrs[i].efer, WB_DEVICE_REV_REG);
-		dev_rev = read_efdr_1(sc, probe_addrs[i].efer);
-		write_efir_1(sc, probe_addrs[i].efer, WB_CR26);
-		cr26 = read_efdr_1(sc, probe_addrs[i].efer);
-
-		if (dev_id == 0xff && dev_rev == 0xff)
-			goto cleanup;
-
-		/* HEFRAS of 0 means EFER at 0x2e, 1 means EFER at 0x4e. */
-		if (((cr26 & 0x40) == 0x00 && probe_addrs[i].efer != 0x2e) ||
-		    ((cr26 & 0x40) == 0x40 && probe_addrs[i].efer != 0x4e)) {
-			if (dev != NULL)
-				device_printf(dev, "HEFRAS and EFER do not "
-				    "align: EFER 0x%02x DevID 0x%02x DevRev "
-				    "0x%02x CR26 0x%02x\n",
-				    probe_addrs[i].efer, dev_id, dev_rev, cr26);
-			goto cleanup;
-		}
-
-		for (j = 0; j < nitems(wb_devs); j++) {
-			if (wb_devs[j].device_id == dev_id) {
-				found = 1;
-				break;
-			}
-		}
-
-		if (probe && dev != NULL) {
-			snprintf(buf, sizeof(buf),
-			    "%s (0x%02x/0x%02x) Watchdog Timer",
-			    found ? wb_devs[j].descr :
-			     "Unknown Winbond/Nuvoton", dev_id, dev_rev);
-			device_set_desc_copy(dev, buf);
-		}
-
-		/* If this is hinted attach, try to guess the model. */
-		if (dev != NULL && !found) {
-			found = 1;
-			j = 0;
-		}
-
-cleanup:
-		if (probe || !found) {
-			(*probe_addrs[i].ext_cfg_exit_f)(sc, probe_addrs[i].efer);
-			if (sc != NULL)
-				(void) bus_release_resource(dev, SYS_RES_IOPORT,
-				    sc->rid, sc->portres);
-		}
-
-		/*
-		 * Stop probing if have successfully identified the SuperIO.
-		 * Remember the extended function mode enter/exit functions
-		 * for operations.
-		 */
-		if (found) {
-			if (sc != NULL) {
-				sc->ext_cfg_enter_f = probe_addrs[i].ext_cfg_enter_f;
-				sc->ext_cfg_exit_f = probe_addrs[i].ext_cfg_exit_f;
-				sc->chip = wb_devs[j].chip;
-				sc->ctl_reg = 0xf5;
-				sc->time_reg = 0xf6;
-				sc->csr_reg = 0xf7;
-				if (sc->chip == w83697hf ||
-				    sc->chip == w83697ug) {
-					sc->ctl_reg = 0xf3;
-					sc->time_reg = 0xf4;
-				} else if (sc->chip == nct6102) {
-					sc->ctl_reg = 0xf0;
-					sc->time_reg = 0xf1;
-					sc->csr_reg = 0xf2;
-				}
-			}
-			return (BUS_PROBE_SPECIFIC);
-		} else
-			error = ENXIO;
-	}
-
-	return (error);
-}
-
-static void
-wb_identify(driver_t *driver, device_t parent)
-{
-
-	if (device_find_child(parent, driver->name, 0) == NULL) {
-		if (wb_probe_enable(NULL, 1) <= 0)
-			BUS_ADD_CHILD(parent, 0, driver->name, 0);
-	}
-}
-
 static int
 wb_probe(device_t dev)
 {
+	char buf[128];
+	struct wb_softc *sc;
+	int j;
+	uint8_t devid;
+	uint8_t revid;
 
-	/* Make sure we do not claim some ISA PNP device. */
-	if (isa_get_logicalid(dev) != 0)
+	if (superio_vendor(dev) != SUPERIO_VENDOR_NUVOTON)
+		return (ENXIO);
+	if (superio_get_type(dev) != SUPERIO_DEV_WDT)
 		return (ENXIO);
 
-	return (wb_probe_enable(dev, 1));
+	sc = device_get_softc(dev);
+	devid = superio_devid(dev) >> 8;
+	revid = superio_revid(dev);
+	for (j = 0; j < nitems(wb_devs); j++) {
+		if (wb_devs[j].device_id == devid) {
+			sc->chip = wb_devs[j].chip;
+			snprintf(buf, sizeof(buf),
+			    "%s (0x%02x/0x%02x) Watchdog Timer",
+			    wb_devs[j].descr, devid, revid);
+			device_set_desc_copy(dev, buf);
+			return (BUS_PROBE_SPECIFIC);
+		}
+	}
+	if (bootverbose) {
+		device_printf(dev,
+		    "unrecognized chip: devid 0x%02x, revid 0x%02x\n",
+		    devid, revid);
+	}
+	return (ENXIO);
 }
 
 static int
@@ -757,59 +503,68 @@ wb_attach(device_t dev)
 	struct sysctl_ctx_list *sctx;
 	struct sysctl_oid *soid;
 	unsigned long timeout;
-	int error;
 	uint8_t t;
 
-	error = wb_probe_enable(dev, 0);
-	if (error > 0)
-		return (ENXIO);
-
 	sc = device_get_softc(dev);
-	KASSERT(sc->ext_cfg_enter_f != NULL && sc->ext_cfg_exit_f != NULL,
-	    ("%s: successful probe result but not setup correctly", __func__));
-
-	/* Watchdog is configured as part of LDN 8 (GPIO Port2, Watchdog). */
-	write_reg(sc, WB_LDN_REG, WB_LDN_REG_LDN8);
+	sc->dev = dev;
 
 	/* Make sure WDT is enabled. */
-	write_reg(sc, WB_LDN8_CR30,
-	    read_reg(sc, WB_LDN8_CR30) | WB_LDN8_CR30_ACTIVE);
+	superio_dev_enable(dev, WB_LDN8_CR30_ACTIVE);
+
+	switch (sc->chip) {
+	case w83697hf:
+	case w83697ug:
+		sc->ctl_reg = 0xf3;
+		sc->time_reg = 0xf4;
+		sc->csr_reg = 0xf7;
+		break;
+	case nct6102:
+		sc->ctl_reg = 0xf0;
+		sc->time_reg = 0xf1;
+		sc->csr_reg = 0xf2;
+		break;
+	default:
+		sc->ctl_reg = 0xf5;
+		sc->time_reg = 0xf6;
+		sc->csr_reg = 0xf7;
+		break;
+	}
 
 	switch (sc->chip) {
 	case w83627hf:
 	case w83627s:
-		t = read_reg(sc, 0x2B) & ~0x10;
-		write_reg(sc, 0x2B, t); /* set GPIO24 to WDT0 */
+		t = superio_read(dev, 0x2B) & ~0x10;
+		superio_write(dev, 0x2B, t); /* set GPIO24 to WDT0 */
 		break;
 	case w83697hf:
 		/* Set pin 119 to WDTO# mode (= CR29, WDT0) */
-		t = read_reg(sc, 0x29) & ~0x60;
+		t = superio_read(dev, 0x29) & ~0x60;
 		t |= 0x20;
-		write_reg(sc, 0x29, t);
+		superio_write(dev, 0x29, t);
 		break;
 	case w83697ug:
 		/* Set pin 118 to WDTO# mode */
-		t = read_reg(sc, 0x2b) & ~0x04;
-		write_reg(sc, 0x2b, t);
+		t = superio_read(dev, 0x2b) & ~0x04;
+		superio_write(dev, 0x2b, t);
 		break;
 	case w83627thf:
-		t = (read_reg(sc, 0x2B) & ~0x08) | 0x04;
-		write_reg(sc, 0x2B, t); /* set GPIO3 to WDT0 */
+		t = (superio_read(dev, 0x2B) & ~0x08) | 0x04;
+		superio_write(dev, 0x2B, t); /* set GPIO3 to WDT0 */
 		break;
 	case w83627dhg:
 	case w83627dhg_p:
-		t = read_reg(sc, 0x2D) & ~0x01; /* PIN77 -> WDT0# */
-		write_reg(sc, 0x2D, t); /* set GPIO5 to WDT0 */
-		t = read_reg(sc, sc->ctl_reg);
+		t = superio_read(dev, 0x2D) & ~0x01; /* PIN77 -> WDT0# */
+		superio_write(dev, 0x2D, t); /* set GPIO5 to WDT0 */
+		t = superio_read(dev, sc->ctl_reg);
 		t |= 0x02;	/* enable the WDTO# output low pulse
 				 * to the KBRST# pin */
-		write_reg(sc, sc->ctl_reg, t);
+		superio_write(dev, sc->ctl_reg, t);
 		break;
 	case w83637hf:
 		break;
 	case w83687thf:
-		t = read_reg(sc, 0x2C) & ~0x80; /* PIN47 -> WDT0# */
-		write_reg(sc, 0x2C, t);
+		t = superio_read(dev, 0x2C) & ~0x80; /* PIN47 -> WDT0# */
+		superio_write(dev, 0x2C, t);
 		break;
 	case w83627ehf:
 	case w83627uhg:
@@ -829,19 +584,19 @@ wb_attach(device_t dev)
 		 * Don't touch its configuration, and hope the BIOS
 		 * does the right thing.
 		 */
-		t = read_reg(sc, sc->ctl_reg);
+		t = superio_read(dev, sc->ctl_reg);
 		t |= 0x02;	/* enable the WDTO# output low pulse
 				 * to the KBRST# pin */
-		write_reg(sc, sc->ctl_reg, t);
+		superio_write(dev, sc->ctl_reg, t);
 		break;
 	default:
 		break;
 	}
 
 	/* Read the current watchdog configuration. */
-	sc->reg_1 = read_reg(sc, sc->ctl_reg);
-	sc->reg_timeout = read_reg(sc, sc->time_reg);
-	sc->reg_2 = read_reg(sc, sc->csr_reg);
+	sc->reg_1 = superio_read(dev, sc->ctl_reg);
+	sc->reg_timeout = superio_read(dev, sc->time_reg);
+	sc->reg_2 = superio_read(dev, sc->csr_reg);
 
 	/* Print current state if bootverbose or watchdog already enabled. */
 	if (bootverbose || (sc->reg_timeout > 0x00))
@@ -849,7 +604,7 @@ wb_attach(device_t dev)
 
 	sc->reg_1 &= ~WB_LDN8_CRF5_KEYB_P20;
 	sc->reg_1 |= WB_LDN8_CRF5_KBRST;
-	write_reg(sc, sc->ctl_reg, sc->reg_1);
+	superio_write(dev, sc->ctl_reg, sc->reg_1);
 
 	/*
 	 * Clear a previous watchdog timeout event (if still set).
@@ -857,9 +612,7 @@ wb_attach(device_t dev)
 	 * since one of my boards is getting stuck in reboot without it.
 	 */
 	sc->reg_2 &= ~(WB_LDN8_CRF7_MOUSE|WB_LDN8_CRF7_TS);
-	write_reg(sc, sc->csr_reg, sc->reg_2);
-
-	(*sc->ext_cfg_exit_f)(sc, 0);
+	superio_write(dev, sc->csr_reg, sc->reg_2);
 
 	/* Read global timeout override tunable, Add per device sysctls. */
 	if (TUNABLE_ULONG_FETCH("hw.wbwd.timeout_override", &timeout)) {
@@ -907,12 +660,6 @@ wb_detach(device_t dev)
 		EVENTHANDLER_DEREGISTER(watchdog_list, sc->ev_tag);
 	wb_set_watchdog(sc, 0);
 
-	/* Disable extended function mode. */
-	(*sc->ext_cfg_exit_f)(sc, 0);
-
-	/* Cleanup resources. */
-	(void) bus_release_resource(dev, SYS_RES_IOPORT, sc->rid, sc->portres);
-
 	/* Bus subroutines take care of sysctls already. */
 
 	return (0);
@@ -920,7 +667,6 @@ wb_detach(device_t dev)
 
 static device_method_t wb_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	wb_identify),
 	DEVMETHOD(device_probe,		wb_probe),
 	DEVMETHOD(device_attach,	wb_attach),
 	DEVMETHOD(device_detach,	wb_detach),
@@ -928,7 +674,7 @@ static device_method_t wb_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t wb_isa_driver = {
+static driver_t wb_driver = {
 	"wbwd",
 	wb_methods,
 	sizeof(struct wb_softc)
@@ -936,4 +682,6 @@ static driver_t wb_isa_driver = {
 
 static devclass_t wb_devclass;
 
-DRIVER_MODULE(wb, isa, wb_isa_driver, wb_devclass, NULL, NULL);
+DRIVER_MODULE(wb, superio, wb_driver, wb_devclass, NULL, NULL);
+MODULE_DEPEND(wb, superio, 1, 1, 1);
+MODULE_VERSION(wb, 1);
