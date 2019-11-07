@@ -803,7 +803,6 @@ XCFLAGS+=	${BFLAGS}
 .endif
 
 .if ${MK_LIB32} == "yes"
-.error WTF
 _LIBCOMPAT= 32
 .include "Makefile.libcompat"
 .elif ${MK_LIBSOFT} == "yes"
