@@ -586,6 +586,7 @@ struct inpcblbgroup {
 #define INP_TRY_WLOCK(inp)	rw_try_wlock(&(inp)->inp_lock)
 #define INP_RUNLOCK(inp)	rw_runlock(&(inp)->inp_lock)
 #define INP_WUNLOCK(inp)	rw_wunlock(&(inp)->inp_lock)
+#define INP_UNLOCK(inp)		rw_unlock(&(inp)->inp_lock)
 #define	INP_TRY_UPGRADE(inp)	rw_try_upgrade(&(inp)->inp_lock)
 #define	INP_DOWNGRADE(inp)	rw_downgrade(&(inp)->inp_lock)
 #define	INP_WLOCKED(inp)	rw_wowned(&(inp)->inp_lock)
