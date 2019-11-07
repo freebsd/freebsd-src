@@ -793,7 +793,7 @@ iwm_read_firmware(struct iwm_softc *sc)
 			break;
 		}
 
-		case 48: /* undocumented TLV */
+		case IWM_UCODE_TLV_CMD_VERSIONS:
 		case IWM_UCODE_TLV_SDIO_ADMA_ADDR:
 		case IWM_UCODE_TLV_FW_GSCAN_CAPA:
 			/* ignore, not used by current driver */
