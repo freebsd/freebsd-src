@@ -3768,7 +3768,10 @@ iwm_tx_fill_cmd(struct iwm_softc *sc, struct iwm_node *in,
 	    );
 
 	/* XXX TODO: hard-coded TX antenna? */
-	rate_flags = 1 << IWM_RATE_MCS_ANT_POS;
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_9000)
+		rate_flags = IWM_RATE_MCS_ANT_B_MSK;
+	else
+		rate_flags = IWM_RATE_MCS_ANT_A_MSK;
 	if (IWM_RIDX_IS_CCK(ridx))
 		rate_flags |= IWM_RATE_MCS_CCK_MSK;
 	tx->rate_n_flags = htole32(rate_flags | rinfo->plcp);
