@@ -1245,7 +1245,6 @@ in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 {
 	struct inpcb *inp;
 
-	INP_HASH_RLOCK(pcbinfo);
 	inp = in6_pcblookup_hash_locked(pcbinfo, faddr, fport, laddr, lport,
 	    (lookupflags & ~(INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)), ifp);
 	if (inp != NULL) {
@@ -1272,7 +1271,6 @@ in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 		}
 #endif
 	}
-	INP_HASH_RUNLOCK(pcbinfo);
 	return (inp);
 }
 
