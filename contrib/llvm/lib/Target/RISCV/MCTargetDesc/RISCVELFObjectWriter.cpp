@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/RISCVFixupKinds.h"
+#include "MCTargetDesc/RISCVMCExpr.h"
 #include "MCTargetDesc/RISCVMCTargetDesc.h"
 #include "llvm/MC/MCELFObjectWriter.h"
 #include "llvm/MC/MCFixup.h"
@@ -47,6 +48,7 @@ unsigned RISCVELFObjectWriter::getRelocType(MCContext &Ctx,
                                             const MCValue &Target,
                                             const MCFixup &Fixup,
                                             bool IsPCRel) const {
+  const MCExpr *Expr = Fixup.getValue();
   // Determine the type of the relocation
   unsigned Kind = Fixup.getKind();
   if (IsPCRel) {
@@ -87,6 +89,9 @@ unsigned RISCVELFObjectWriter::getRelocType(MCContext &Ctx,
   default:
     llvm_unreachable("invalid fixup kind!");
   case FK_Data_4:
+    if (Expr->getKind() == MCExpr::Target &&
+        cast<RISCVMCExpr>(Expr)->getKind() == RISCVMCExpr::VK_RISCV_32_PCREL)
+      return ELF::R_RISCV_32_PCREL;
     return ELF::R_RISCV_32;
   case FK_Data_8:
     return ELF::R_RISCV_64;
@@ -98,6 +103,8 @@ unsigned RISCVELFObjectWriter::getRelocType(MCContext &Ctx,
     return ELF::R_RISCV_ADD32;
   case FK_Data_Add_8:
     return ELF::R_RISCV_ADD64;
+  case FK_Data_Add_6b:
+    return ELF::R_RISCV_SET6;
   case FK_Data_Sub_1:
     return ELF::R_RISCV_SUB8;
   case FK_Data_Sub_2:
@@ -106,6 +113,8 @@ unsigned RISCVELFObjectWriter::getRelocType(MCContext &Ctx,
     return ELF::R_RISCV_SUB32;
   case FK_Data_Sub_8:
     return ELF::R_RISCV_SUB64;
+  case FK_Data_Sub_6b:
+    return ELF::R_RISCV_SUB6;
   case RISCV::fixup_riscv_hi20:
     return ELF::R_RISCV_HI20;
   case RISCV::fixup_riscv_lo12_i:
