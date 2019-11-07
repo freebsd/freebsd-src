@@ -616,6 +616,10 @@ iwm_start_hw(struct iwm_softc *sc)
 	if ((error = iwm_apm_init(sc)) != 0)
 		return error;
 
+	/* On newer chipsets MSI is disabled by default. */
+	if (sc->cfg->mqrx_supported)
+		iwm_write_prph(sc, IWM_UREG_CHICK, IWM_UREG_CHICK_MSI_ENABLE);
+
 	iwm_enable_rfkill_int(sc);
 	iwm_check_rfkill(sc);
 
