@@ -3002,6 +3002,15 @@ iwm_run_init_mvm_ucode(struct iwm_softc *sc, int justnvm)
 		goto error;
 	}
 
+	if (sc->cfg->device_family < IWM_DEVICE_FAMILY_8000) {
+		ret = iwm_send_bt_init_conf(sc);
+		if (ret) {
+			device_printf(sc->sc_dev,
+			    "failed to send bt coex configuration: %d\n", ret);
+			goto error;
+		}
+	}
+
 	if (justnvm) {
 		/* Read nvm */
 		ret = iwm_nvm_init(sc);
@@ -3010,13 +3019,6 @@ iwm_run_init_mvm_ucode(struct iwm_softc *sc, int justnvm)
 			goto error;
 		}
 		IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, sc->nvm_data->hw_addr);
-		goto error;
-	}
-
-	ret = iwm_send_bt_init_conf(sc);
-	if (ret) {
-		device_printf(sc->sc_dev,
-		    "failed to send bt coex configuration: %d\n", ret);
 		goto error;
 	}
 
