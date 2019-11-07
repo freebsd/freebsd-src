@@ -3656,7 +3656,6 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 	} else
 		pad = 0;
 
-	tx->driver_txop = 0;
 	tx->next_frame_len = 0;
 
 	tx->len = htole16(totlen);
