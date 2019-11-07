@@ -106,6 +106,10 @@
 
 extern	uint32_t iwm_read_prph(struct iwm_softc *sc, uint32_t addr);
 extern	void iwm_write_prph(struct iwm_softc *sc, uint32_t addr, uint32_t val);
+extern	void iwm_write_prph64(struct iwm_softc *sc, uint64_t addr,
+    uint64_t val);
+extern	int iwm_poll_prph(struct iwm_softc *sc, uint32_t addr, uint32_t bits,
+    uint32_t mask, int timeout);
 extern	int iwm_read_mem(struct iwm_softc *sc, uint32_t addr, void *buf, int dwords);
 extern	int iwm_write_mem(struct iwm_softc *sc, uint32_t addr, const void *buf,
 		int dwords);
