@@ -17,13 +17,13 @@ supporting CSS and Javascript files, and written to standard output or
 the file given in the "-f" option.  The "-b" option can be used to
 provide an alternative base path for the support files:
 
-============== ===================================================
- Option         Meaning
-============== ===================================================
- -b <base>      Base path for finding css/javascript files
- -c <command>   Command to execute
- -f <file>      Output file name
-============== ===================================================
+  ============== ===================================================
+   Option         Meaning
+  ============== ===================================================
+   -b <base>      Base path for finding css/javascript files
+   -c <command>   Command to execute
+   -f <file>      Output file name
+  ============== ===================================================
 
 The "-c" option takes a full command with arguments, including
 any libxo options needed to generate html (`--libxo=html`).  This

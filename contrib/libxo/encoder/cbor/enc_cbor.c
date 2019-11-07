@@ -208,9 +208,9 @@ cbor_content (xo_handle_t *xop, cbor_private_t *cbor, xo_buffer_t *xbp,
 
     unsigned offset = xo_buf_offset(xbp);
 
-    if (value == NULL || *value == '\0' || strcmp(value, "true") == 0)
+    if (value == NULL || *value == '\0' || xo_streq(value, "true"))
 	cbor_append(xop, cbor, &cbor->c_data, CBOR_TRUE, 0, NULL);
-    else if (strcmp(value, "false") == 0)
+    else if (xo_streq(value, "false"))
 	cbor_append(xop, cbor, &cbor->c_data, CBOR_FALSE, 0, NULL);
     else {
 	int negative = 0;
@@ -360,6 +360,7 @@ int
 xo_encoder_library_init (XO_ENCODER_INIT_ARGS)
 {
     arg->xei_handler = cbor_handler;
+    arg->xei_version = XO_ENCODER_VERSION;
 
     return 0;
 }

@@ -102,7 +102,7 @@
   <div class="data" data-tag="version" data-xpath="/top/version">1.2.3</div>
 </div>
 <div class="line">
-  <div class="data" data-tag="program" data-xpath="/top/xo_emit_warn_hcv/__warning/program">gt_01.test</div>
+  <div class="data" data-tag="program" data-xpath="/top/xo_emit_warn_hcv/__warning/program">gt_01</div>
   <div class="decoration">:</div>
   <div class="padding"> </div>
   <div class="text">Nableuay otay </div>
@@ -112,7 +112,7 @@
   <div class="data" data-tag="error" data-xpath="/top/xo_emit_warn_hcv/__warning/error">Ermissionpay eniedday</div>
 </div>
 <div class="line">
-  <div class="data" data-tag="program" data-xpath="/top/xo_emit_warn_hcv/__warning/program">gt_01.test</div>
+  <div class="data" data-tag="program" data-xpath="/top/xo_emit_warn_hcv/__warning/program">gt_01</div>
   <div class="decoration">:</div>
   <div class="padding"> </div>
   <div class="data" data-tag="style" data-xpath="/top/xo_emit_warn_hcv/__warning/style">automaticyay</div>

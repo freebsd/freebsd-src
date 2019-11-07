@@ -53,48 +53,48 @@ removed eventually.
 
 The format character is described in the following table:
 
-===== ================= ======================
- Ltr   Argument Type     Format
-===== ================= ======================
- d     int               base 10 (decimal)
- i     int               base 10 (decimal)
- o     int               base 8 (octal)
- u     unsigned          base 10 (decimal)
- x     unsigned          base 16 (hex)
- X     unsigned long     base 16 (hex)
- D     long              base 10 (decimal)
- O     unsigned long     base 8 (octal)
- U     unsigned long     base 10 (decimal)
- e     double            [-]d.ddde+-dd
- E     double            [-]d.dddE+-dd
- f     double            [-]ddd.ddd
- F     double            [-]ddd.ddd
- g     double            as 'e' or 'f'
- G     double            as 'E' or 'F'
- a     double            [-]0xh.hhhp[+-]d
- A     double            [-]0Xh.hhhp[+-]d
- c     unsigned char     a character
- C     wint_t            a character
- s     char \*           a UTF-8 string
- S     wchar_t \*        a unicode/WCS string
- p     void \*           '%#lx'
-===== ================= ======================
+  ===== ================= ======================
+   Ltr   Argument Type     Format
+  ===== ================= ======================
+   d     int               base 10 (decimal)
+   i     int               base 10 (decimal)
+   o     int               base 8 (octal)
+   u     unsigned          base 10 (decimal)
+   x     unsigned          base 16 (hex)
+   X     unsigned long     base 16 (hex)
+   D     long              base 10 (decimal)
+   O     unsigned long     base 8 (octal)
+   U     unsigned long     base 10 (decimal)
+   e     double            [-]d.ddde+-dd
+   E     double            [-]d.dddE+-dd
+   f     double            [-]ddd.ddd
+   F     double            [-]ddd.ddd
+   g     double            as 'e' or 'f'
+   G     double            as 'E' or 'F'
+   a     double            [-]0xh.hhhp[+-]d
+   A     double            [-]0Xh.hhhp[+-]d
+   c     unsigned char     a character
+   C     wint_t            a character
+   s     char \*           a UTF-8 string
+   S     wchar_t \*        a unicode/WCS string
+   p     void \*           '%#lx'
+  ===== ================= ======================
 
 The 'h' and 'l' modifiers affect the size and treatment of the
 argument:
 
-===== ============= ====================
- Mod   d, i          o, u, x, X
-===== ============= ====================
- hh    signed char   unsigned char
- h     short         unsigned short
- l     long          unsigned long
- ll    long long     unsigned long long
- j     intmax_t      uintmax_t
- t     ptrdiff_t     ptrdiff_t
- z     size_t        size_t
- q     quad_t        u_quad_t
-===== ============= ====================
+  ===== ============= ====================
+   Mod   d, i          o, u, x, X
+  ===== ============= ====================
+   hh    signed char   unsigned char
+   h     short         unsigned short
+   l     long          unsigned long
+   ll    long long     unsigned long long
+   j     intmax_t      uintmax_t
+   t     ptrdiff_t     ptrdiff_t
+   z     size_t        size_t
+   q     quad_t        u_quad_t
+  ===== ============= ====================
 
 .. index:: UTF-8
 .. index:: Locale
@@ -122,14 +122,14 @@ style::
    xo_emit("All strings are utf-8 content {:tag/%ls}",
            L"except for wide strings");
 
-======== ================== ===============================
- Format   Argument Type      Argument Contents
-======== ================== ===============================
- %s       const char \*      UTF-8 string
- %S       const char \*      UTF-8 string (alias for '%ls')
- %ls      const wchar_t \*   Wide character UNICODE string
- %hs      const char *       locale-based string
-======== ================== ===============================
+  ======== ================== ===============================
+   Format   Argument Type      Argument Contents
+  ======== ================== ===============================
+   %s       const char \*      UTF-8 string
+   %S       const char \*      UTF-8 string (alias for '%ls')
+   %ls      const wchar_t \*   Wide character UNICODE string
+   %hs      const char *       locale-based string
+  ======== ================== ===============================
 
 .. admonition:: "Long", not "locale"
 
@@ -266,21 +266,21 @@ incompatible with printf-like testing:
 If none of these features are in use by your code, then using the "_p"
 variants might be wise:
 
-================== ========================
- Function           printf-like Equivalent
-================== ========================
- xo_emit_hv         xo_emit_hvp
- xo_emit_h          xo_emit_hp
- xo_emit            xo_emit_p
- xo_emit_warn_hcv   xo_emit_warn_hcvp
- xo_emit_warn_hc    xo_emit_warn_hcp
- xo_emit_warn_c     xo_emit_warn_cp
- xo_emit_warn       xo_emit_warn_p
- xo_emit_warnx      xo_emit_warnx_p
- xo_emit_err        xo_emit_err_p
- xo_emit_errx       xo_emit_errx_p
- xo_emit_errc       xo_emit_errc_p
-================== ========================
+  ================== ========================
+   Function           printf-like Equivalent
+  ================== ========================
+   xo_emit_hv         xo_emit_hvp
+   xo_emit_h          xo_emit_hp
+   xo_emit            xo_emit_p
+   xo_emit_warn_hcv   xo_emit_warn_hcvp
+   xo_emit_warn_hc    xo_emit_warn_hcp
+   xo_emit_warn_c     xo_emit_warn_cp
+   xo_emit_warn       xo_emit_warn_p
+   xo_emit_warnx      xo_emit_warnx_p
+   xo_emit_err        xo_emit_err_p
+   xo_emit_errx       xo_emit_errx_p
+   xo_emit_errc       xo_emit_errc_p
+  ================== ========================
 
 .. index:: performance
 .. index:: XOEF_RETAIN
@@ -305,16 +305,16 @@ xo_emit_f() function.  A complete set of xo_emit_f functions exist to
 match all the xo_emit function signatures (with handles, varadic
 argument, and printf-like flags):
 
-================== ========================
- Function           Flags Equivalent
-================== ========================
- xo_emit_hv         xo_emit_hvf
- xo_emit_h          xo_emit_hf
- xo_emit            xo_emit_f
- xo_emit_hvp        xo_emit_hvfp
- xo_emit_hp         xo_emit_hfp
- xo_emit_p          xo_emit_fp
-================== ========================
+  ================== ========================
+   Function           Flags Equivalent
+  ================== ========================
+   xo_emit_hv         xo_emit_hvf
+   xo_emit_h          xo_emit_hf
+   xo_emit            xo_emit_f
+   xo_emit_hvp        xo_emit_hvfp
+   xo_emit_hp         xo_emit_hfp
+   xo_emit_p          xo_emit_fp
+  ================== ========================
 
 The format string must be immutable across multiple calls to xo_emit_f(),
 since the library retains the string.  Typically this is done by using
