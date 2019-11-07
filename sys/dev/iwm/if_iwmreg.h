@@ -635,6 +635,40 @@ P2P_PS_SCM\31UAPSD_SUPPORT\32EBS\33P2P_PS_UAPSD\36BCAST_FILTERING\37GO_UAPSD\40L
  *	longer than the passive one, which is essential for fragmented scan.
  * @IWM_UCODE_TLV_API_WIFI_MCC_UPDATE: ucode supports MCC updates with source.
  * @IWM_UCODE_TLV_API_LQ_SS_PARAMS: Configure STBC/BFER via LQ CMD ss_params
+ * @IWM_UCODE_TLV_API_NEW_VERSION: new versioning format
+ * @IWM_UCODE_TLV_API_SCAN_TSF_REPORT: Scan start time reported in scan
+ *	iteration complete notification, and the timestamp reported for RX
+ *	received during scan, are reported in TSF of the mac specified in the
+ *	scan request.
+ * @IWM_UCODE_TLV_API_TKIP_MIC_KEYS: This ucode supports version 2 of
+ *	ADD_MODIFY_STA_KEY_API_S_VER_2.
+ * @IWM_UCODE_TLV_API_STA_TYPE: This ucode supports station type assignement.
+ * @IWM_UCODE_TLV_API_NAN2_VER2: This ucode supports NAN API version 2
+ * @IWM_UCODE_TLV_API_NEW_RX_STATS: should new RX STATISTICS API be used
+ * @IWM_UCODE_TLV_API_QUOTA_LOW_LATENCY: Quota command includes a field
+ *	indicating low latency direction.
+ * @IWM_UCODE_TLV_API_DEPRECATE_TTAK: RX status flag TTAK ok (bit 7) is
+ *	deprecated.
+ * @IWM_UCODE_TLV_API_ADAPTIVE_DWELL_V2: This ucode supports version 8
+ *	of scan request: SCAN_REQUEST_CMD_UMAC_API_S_VER_8
+ * @IWM_UCODE_TLV_API_FRAG_EBS: This ucode supports fragmented EBS
+ * @IWM_UCODE_TLV_API_REDUCE_TX_POWER: This ucode supports v5 of
+ *	the REDUCE_TX_POWER_CMD.
+ * @IWM_UCODE_TLV_API_SHORT_BEACON_NOTIF: This ucode supports the short
+ *	version of the beacon notification.
+ * @IWM_UCODE_TLV_API_BEACON_FILTER_V4: This ucode supports v4 of
+ *	BEACON_FILTER_CONFIG_API_S_VER_4.
+ * @IWM_UCODE_TLV_API_REGULATORY_NVM_INFO: This ucode supports v4 of
+ *	REGULATORY_NVM_GET_INFO_RSP_API_S.
+ * @IWM_UCODE_TLV_API_FTM_NEW_RANGE_REQ: This ucode supports v7 of
+ *	LOCATION_RANGE_REQ_CMD_API_S and v6 of LOCATION_RANGE_RESP_NTFY_API_S.
+ * @IWM_UCODE_TLV_API_SCAN_OFFLOAD_CHANS: This ucode supports v2 of
+ *	SCAN_OFFLOAD_PROFILE_MATCH_RESULTS_S and v3 of
+ *	SCAN_OFFLOAD_PROFILES_QUERY_RSP_S.
+ * @IWM_UCODE_TLV_API_MBSSID_HE: This ucode supports v2 of
+ *	STA_CONTEXT_DOT11AX_API_S
+ * @IWM_UCODE_TLV_CAPA_SAR_TABLE_VER: This ucode supports different sar
+ *	version tables.
  *
  * @IWM_NUM_UCODE_TLV_API: number of bits used
  */
@@ -642,12 +676,35 @@ enum iwm_ucode_tlv_api {
 	IWM_UCODE_TLV_API_FRAGMENTED_SCAN	= 8,
 	IWM_UCODE_TLV_API_WIFI_MCC_UPDATE	= 9,
 	IWM_UCODE_TLV_API_LQ_SS_PARAMS		= 18,
+	IWM_UCODE_TLV_API_NEW_VERSION		= 20,
+	IWM_UCODE_TLV_API_SCAN_TSF_REPORT	= 28,
+	IWM_UCODE_TLV_API_TKIP_MIC_KEYS		= 29,
+	IWM_UCODE_TLV_API_STA_TYPE		= 30,
+	IWM_UCODE_TLV_API_NAN2_VER2		= 31,
+	IWM_UCODE_TLV_API_ADAPTIVE_DWELL	= 32,
+	IWM_UCODE_TLV_API_OCE			= 33,
+	IWM_UCODE_TLV_API_NEW_BEACON_TEMPLATE	= 34,
+	IWM_UCODE_TLV_API_NEW_RX_STATS		= 35,
+	IWM_UCODE_TLV_API_WOWLAN_KEY_MATERIAL	= 36,
+	IWM_UCODE_TLV_API_QUOTA_LOW_LATENCY	= 38,
+	IWM_UCODE_TLV_API_DEPRECATE_TTAK	= 41,
+	IWM_UCODE_TLV_API_ADAPTIVE_DWELL_V2	= 42,
+	IWM_UCODE_TLV_API_FRAG_EBS		= 44,
+	IWM_UCODE_TLV_API_REDUCE_TX_POWER	= 45,
+	IWM_UCODE_TLV_API_SHORT_BEACON_NOTIF	= 46,
+	IWM_UCODE_TLV_API_BEACON_FILTER_V4      = 47,
+	IWM_UCODE_TLV_API_REGULATORY_NVM_INFO   = 48,
+	IWM_UCODE_TLV_API_FTM_NEW_RANGE_REQ     = 49,
+	IWM_UCODE_TLV_API_SCAN_OFFLOAD_CHANS    = 50,
+	IWM_UCODE_TLV_API_MBSSID_HE		= 52,
+	IWM_UCODE_TLV_API_WOWLAN_TCP_SYN_WAKE	= 53,
+	IWM_UCODE_TLV_API_FTM_RTT_ACCURACY      = 54,
+	IWM_UCODE_TLV_API_SAR_TABLE_VER         = 55,
+	IWM_UCODE_TLV_API_ADWELL_HB_DEF_N_AP	= 57,
+	IWM_UCODE_TLV_API_SCAN_EXT_CHAN_VER	= 58,
 
-	IWM_NUM_UCODE_TLV_API = 32
+	IWM_NUM_UCODE_TLV_API			= 128,
 };
-
-#define IWM_UCODE_TLV_API_BITS \
-	"\020\10FRAGMENTED_SCAN\11WIFI_MCC_UPDATE\16WIDE_CMD_HDR\22LQ_SS_PARAMS\30EXT_SCAN_PRIO\33TX_POWER_CHAIN"
 
 /**
  * enum iwm_ucode_tlv_capa - ucode capabilities
