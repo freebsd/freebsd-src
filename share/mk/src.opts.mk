@@ -126,6 +126,7 @@ __DEFAULT_YES_OPTIONS = \
     LDNS \
     LDNS_UTILS \
     LEGACY_CONSOLE \
+    LIB32 \
     LIBPTHREAD \
     LIBTHR \
     LLVM_COV \
@@ -356,13 +357,6 @@ BROKEN_OPTIONS+=LLDB
 __DEFAULT_NO_OPTIONS+=GDB_LIBEXEC
 .else
 __DEFAULT_YES_OPTIONS+=GDB_LIBEXEC
-.endif
-# LIB32 is supported on amd64, mips64, and powerpc64
-.if (${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH:Mmips64*} || \
-    ${MACHINE_ARCH} == "powerpc64")
-__DEFAULT_YES_OPTIONS+=LIB32
-.else
-BROKEN_OPTIONS+=LIB32
 .endif
 # Only doing soft float API stuff on armv6 and armv7
 .if ${__T} != "armv6" && ${__T} != "armv7"
