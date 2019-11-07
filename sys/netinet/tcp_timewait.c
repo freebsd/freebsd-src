@@ -689,25 +689,8 @@ tcp_tw_2msl_scan(int reuse)
 {
 	struct tcptw *tw;
 	struct inpcb *inp;
-	struct epoch_tracker et;
 
-#ifdef INVARIANTS
-	if (reuse) {
-		/*
-		 * Exclusive pcbinfo lock is not required in reuse case even if
-		 * two inpcb locks can be acquired simultaneously:
-		 *  - the inpcb transitioning to TIME_WAIT state in
-		 *    tcp_tw_start(),
-		 *  - the inpcb closed by tcp_twclose().
-		 *
-		 * It is because only inpcbs in FIN_WAIT2 or CLOSING states can
-		 * transition in TIME_WAIT state.  Then a pcbcb cannot be in
-		 * TIME_WAIT list and transitioning to TIME_WAIT state at same
-		 * time.
-		 */
-		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
-	}
-#endif
+	NET_EPOCH_ASSERT();
 
 	for (;;) {
 		TW_RLOCK(V_tw_lock);
@@ -723,12 +706,10 @@ tcp_tw_2msl_scan(int reuse)
 		in_pcbref(inp);
 		TW_RUNLOCK(V_tw_lock);
 
-		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 		INP_WLOCK(inp);
 		tw = intotw(inp);
 		if (in_pcbrele_wlocked(inp)) {
 			if (__predict_true(tw == NULL)) {
-				INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 				continue;
 			} else {
 				/* This should not happen as in TIMEWAIT
@@ -747,7 +728,6 @@ tcp_tw_2msl_scan(int reuse)
 					"|| inp last reference) && tw != "
 					"NULL", __func__);
 #endif
-				INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 				break;
 			}
 		}
@@ -755,12 +735,10 @@ tcp_tw_2msl_scan(int reuse)
 		if (tw == NULL) {
 			/* tcp_twclose() has already been called */
 			INP_WUNLOCK(inp);
-			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 			continue;
 		}
 
 		tcp_twclose(tw, reuse);
-		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 		if (reuse)
 			return tw;
 	}
