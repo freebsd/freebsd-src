@@ -457,6 +457,10 @@ enum iwm_secure_boot_status_reg {
 #define IWM_LMPM_CHICK				0xa01ff8
 #define IWM_LMPM_CHICK_EXTENDED_ADDR_SPACE	0x01
 
+#define	IWM_UREG_CHICK			0xa05c00
+#define	IWM_UREG_CHICK_MSI_ENABLE	0x01000000
+#define	IWM_UREG_CHICK_MSIX_ENABLE	0x02000000
+
 #define IWM_FH_TCSR_0_REG0 (0x1D00)
 
 /*
