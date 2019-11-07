@@ -1583,25 +1583,31 @@ iwm_nic_init(struct iwm_softc *sc)
 int
 iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo)
 {
+	int qmsk;
+
+	qmsk = 1 << qid;
+
 	if (!iwm_nic_lock(sc)) {
-		device_printf(sc->sc_dev,
-		    "%s: cannot enable txq %d\n",
-		    __func__,
-		    qid);
+		device_printf(sc->sc_dev, "%s: cannot enable txq %d\n",
+		    __func__, qid);
 		return EBUSY;
 	}
 
 	IWM_WRITE(sc, IWM_HBUS_TARG_WRPTR, qid << 8 | 0);
 
 	if (qid == IWM_MVM_CMD_QUEUE) {
-		/* unactivate before configuration */
+		/* Disable the scheduler. */
+		iwm_write_prph(sc, IWM_SCD_EN_CTRL, 0);
+
+		/* Stop the TX queue prior to configuration. */
 		iwm_write_prph(sc, IWM_SCD_QUEUE_STATUS_BITS(qid),
-		    (0 << IWM_SCD_QUEUE_STTS_REG_POS_ACTIVE)
-		    | (1 << IWM_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
+		    (0 << IWM_SCD_QUEUE_STTS_REG_POS_ACTIVE) |
+		    (1 << IWM_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
 
 		iwm_nic_unlock(sc);
 
-		iwm_clear_bits_prph(sc, IWM_SCD_AGGR_SEL, (1 << qid));
+		/* Disable aggregations for this queue. */
+		iwm_clear_bits_prph(sc, IWM_SCD_AGGR_SEL, qmsk);
 
 		if (!iwm_nic_lock(sc)) {
 			device_printf(sc->sc_dev,
@@ -1611,7 +1617,8 @@ iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo)
 		iwm_write_prph(sc, IWM_SCD_QUEUE_RDPTR(qid), 0);
 		iwm_nic_unlock(sc);
 
-		iwm_write_mem32(sc, sc->scd_base_addr + IWM_SCD_CONTEXT_QUEUE_OFFSET(qid), 0);
+		iwm_write_mem32(sc,
+		    sc->scd_base_addr + IWM_SCD_CONTEXT_QUEUE_OFFSET(qid), 0);
 		/* Set scheduler window size and frame limit. */
 		iwm_write_mem32(sc,
 		    sc->scd_base_addr + IWM_SCD_CONTEXT_QUEUE_OFFSET(qid) +
@@ -1631,6 +1638,9 @@ iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo)
 		    (fifo << IWM_SCD_QUEUE_STTS_REG_POS_TXF) |
 		    (1 << IWM_SCD_QUEUE_STTS_REG_POS_WSL) |
 		    IWM_SCD_QUEUE_STTS_REG_MSK);
+
+		/* Enable the scheduler for this queue. */
+		iwm_write_prph(sc, IWM_SCD_EN_CTRL, qmsk);
 	} else {
 		struct iwm_scd_txq_cfg_cmd cmd;
 		int error;
@@ -1656,9 +1666,6 @@ iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo)
 		if (!iwm_nic_lock(sc))
 			return EBUSY;
 	}
-
-	iwm_write_prph(sc, IWM_SCD_EN_CTRL,
-	    iwm_read_prph(sc, IWM_SCD_EN_CTRL) | qid);
 
 	iwm_nic_unlock(sc);
 
