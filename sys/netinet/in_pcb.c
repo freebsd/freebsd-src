@@ -515,7 +515,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 
 #ifdef INVARIANTS
 	if (pcbinfo == &V_tcbinfo) {
-		INP_INFO_RLOCK_ASSERT(pcbinfo);
+		NET_EPOCH_ASSERT();
 	} else {
 		INP_INFO_WLOCK_ASSERT(pcbinfo);
 	}
@@ -2657,7 +2657,7 @@ in_pcbremlists(struct inpcb *inp)
 
 #ifdef INVARIANTS
 	if (pcbinfo == &V_tcbinfo) {
-		INP_INFO_RLOCK_ASSERT(pcbinfo);
+		NET_EPOCH_ASSERT();
 	} else {
 		INP_INFO_WLOCK_ASSERT(pcbinfo);
 	}
