@@ -62,12 +62,16 @@ int
 route6_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct ip6_hdr *ip6;
-	struct mbuf *m = *mp;
+	struct mbuf *m;
 	struct ip6_rthdr *rh;
 	int off = *offp, rhlen;
 #ifdef __notyet__
 	struct ip6aux *ip6a;
+#endif
 
+	m = *mp;
+
+#ifdef __notyet__
 	ip6a = ip6_findaux(m);
 	if (ip6a) {
 		/* XXX reject home-address option before rthdr */

@@ -1260,8 +1260,6 @@ mld_input(struct mbuf *m, int off, int icmp6len)
 
 	ifp = m->m_pkthdr.rcvif;
 
-	ip6 = mtod(m, struct ip6_hdr *);
-
 	/* Pullup to appropriate size. */
 	mld = (struct mld_hdr *)(mtod(m, uint8_t *) + off);
 	if (mld->mld_type == MLD_LISTENER_QUERY &&
@@ -1275,6 +1273,7 @@ mld_input(struct mbuf *m, int off, int icmp6len)
 		ICMP6STAT_INC(icp6s_badlen);
 		return (IPPROTO_DONE);
 	}
+	ip6 = mtod(m, struct ip6_hdr *);
 
 	/*
 	 * Userland needs to see all of this traffic for implementing

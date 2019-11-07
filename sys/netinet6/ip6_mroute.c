@@ -1720,12 +1720,10 @@ pim6_input(struct mbuf *m, int off, int proto, void *arg __unused)
 
 	PIM6STAT_INC(pim6s_rcv_total);
 
-	ip6 = mtod(m, struct ip6_hdr *);
-	pimlen = m->m_pkthdr.len - off;
-
 	/*
 	 * Validate lengths
 	 */
+	pimlen = m->m_pkthdr.len - off;
 	if (pimlen < PIM_MINLEN) {
 		PIM6STAT_INC(pim6s_rcv_tooshort);
 		MRT6_DLOG(DEBUG_PIM, "PIM packet too short");
