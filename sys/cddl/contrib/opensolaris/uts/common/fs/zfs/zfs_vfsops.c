@@ -1400,6 +1400,7 @@ zfs_domount(vfs_t *vfsp, char *osname)
 	vfsp->mnt_kern_flag |= MNTK_SHARED_WRITES;
 	vfsp->mnt_kern_flag |= MNTK_EXTENDED_SHARED;
 	vfsp->mnt_kern_flag |= MNTK_NO_IOPF;	/* vn_io_fault can be used */
+	vfsp->mnt_kern_flag |= MNTK_VMSETSIZE_BUG;
 
 	/*
 	 * The fsid is 64 bits, composed of an 8-bit fs type, which
