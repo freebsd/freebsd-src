@@ -283,7 +283,7 @@ tcp_usr_detach(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_detach: inp == NULL"));
 	if (!INP_INFO_WLOCKED(&V_tcbinfo)) {
-		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_ENTER(et);
 		rlock = 1;
 	}
 	INP_WLOCK(inp);
@@ -291,7 +291,7 @@ tcp_usr_detach(struct socket *so)
 	    ("tcp_usr_detach: inp_socket == NULL"));
 	tcp_detach(so, inp);
 	if (rlock)
-		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_EXIT(et);
 }
 
 #ifdef INET
@@ -706,7 +706,7 @@ tcp_usr_disconnect(struct socket *so)
 	int error = 0;
 
 	TCPDEBUG0;
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_ENTER(et);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_disconnect: inp == NULL"));
 	INP_WLOCK(inp);
@@ -723,7 +723,7 @@ out:
 	TCPDEBUG2(PRU_DISCONNECT);
 	TCP_PROBE2(debug__user, tp, PRU_DISCONNECT);
 	INP_WUNLOCK(inp);
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_EXIT(et);
 	return (error);
 }
 
@@ -792,7 +792,7 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_accept: inp == NULL"));
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_ENTER(et);
 	INP_WLOCK(inp);
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = ECONNABORTED;
@@ -819,7 +819,7 @@ out:
 	TCPDEBUG2(PRU_ACCEPT);
 	TCP_PROBE2(debug__user, tp, PRU_ACCEPT);
 	INP_WUNLOCK(inp);
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_EXIT(et);
 	if (error == 0) {
 		if (v4)
 			*nam = in6_v4mapsin6_sockaddr(port, &addr);
@@ -842,7 +842,7 @@ tcp_usr_shutdown(struct socket *so)
 	struct epoch_tracker et;
 
 	TCPDEBUG0;
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_ENTER(et);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("inp == NULL"));
 	INP_WLOCK(inp);
@@ -861,7 +861,7 @@ out:
 	TCPDEBUG2(PRU_SHUTDOWN);
 	TCP_PROBE2(debug__user, tp, PRU_SHUTDOWN);
 	INP_WUNLOCK(inp);
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_EXIT(et);
 
 	return (error);
 }
@@ -921,10 +921,10 @@ static int
 tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
     struct sockaddr *nam, struct mbuf *control, struct thread *td)
 {
+	struct epoch_tracker et;
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
-	struct epoch_tracker net_et;
 #ifdef INET
 #ifdef INET6
 	struct sockaddr_in sin;
@@ -940,11 +940,11 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	TCPDEBUG0;
 
 	/*
-	 * We require the pcbinfo lock if we will close the socket as part of
-	 * this call.
+	 * We require the pcbinfo "read lock" if we will close the socket
+	 * as part of this call.
 	 */
 	if (flags & PRUS_EOF)
-		INP_INFO_RLOCK_ET(&V_tcbinfo, net_et);
+		NET_EPOCH_ENTER(et);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_send: inp == NULL"));
 	INP_WLOCK(inp);
@@ -1135,7 +1135,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			 * Close the send side of the connection after
 			 * the data is sent.
 			 */
-			INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
+			NET_EPOCH_ASSERT();
 			socantsendmore(so);
 			tcp_usrclosed(tp);
 		}
@@ -1231,7 +1231,7 @@ out:
 		   ((flags & PRUS_EOF) ? PRU_SEND_EOF : PRU_SEND));
 	INP_WUNLOCK(inp);
 	if (flags & PRUS_EOF)
-		INP_INFO_RUNLOCK_ET(&V_tcbinfo, net_et);
+		NET_EPOCH_EXIT(et);
 	return (error);
 }
 
@@ -1275,7 +1275,7 @@ tcp_usr_abort(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_abort: inp == NULL"));
 
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_ENTER(et);
 	INP_WLOCK(inp);
 	KASSERT(inp->inp_socket != NULL,
 	    ("tcp_usr_abort: inp_socket == NULL"));
@@ -1301,7 +1301,7 @@ tcp_usr_abort(struct socket *so)
 	}
 	INP_WUNLOCK(inp);
 dropped:
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_EXIT(et);
 }
 
 /*
@@ -1318,7 +1318,7 @@ tcp_usr_close(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_close: inp == NULL"));
 
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_ENTER(et);
 	INP_WLOCK(inp);
 	KASSERT(inp->inp_socket != NULL,
 	    ("tcp_usr_close: inp_socket == NULL"));
@@ -1342,7 +1342,7 @@ tcp_usr_close(struct socket *so)
 		inp->inp_flags |= INP_SOCKREF;
 	}
 	INP_WUNLOCK(inp);
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_EXIT(et);
 }
 
 /*
@@ -2317,10 +2317,10 @@ tcp_attach(struct socket *so)
 	}
 	so->so_rcv.sb_flags |= SB_AUTOSIZE;
 	so->so_snd.sb_flags |= SB_AUTOSIZE;
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_ENTER(et);
 	error = in_pcballoc(so, &V_tcbinfo);
 	if (error) {
-		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_EXIT(et);
 		return (error);
 	}
 	inp = sotoinpcb(so);
@@ -2338,12 +2338,12 @@ tcp_attach(struct socket *so)
 	if (tp == NULL) {
 		in_pcbdetach(inp);
 		in_pcbfree(inp);
-		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_EXIT(et);
 		return (ENOBUFS);
 	}
 	tp->t_state = TCPS_CLOSED;
 	INP_WUNLOCK(inp);
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_EXIT(et);
 	TCPSTATES_INC(TCPS_CLOSED);
 	return (0);
 }
@@ -2362,7 +2362,7 @@ tcp_disconnect(struct tcpcb *tp)
 	struct inpcb *inp = tp->t_inpcb;
 	struct socket *so = inp->inp_socket;
 
-	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
+	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
 
 	/*
@@ -2401,7 +2401,7 @@ static void
 tcp_usrclosed(struct tcpcb *tp)
 {
 
-	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
+	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	switch (tp->t_state) {
