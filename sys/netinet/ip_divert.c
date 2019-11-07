@@ -192,7 +192,8 @@ divert_packet(struct mbuf *m, bool incoming)
 	u_int16_t nport;
 	struct sockaddr_in divsrc;
 	struct m_tag *mtag;
-	struct epoch_tracker et;
+
+	NET_EPOCH_ASSERT();
 
 	mtag = m_tag_locate(m, MTAG_IPFW_RULE, 0, NULL);
 	if (mtag == NULL) {
@@ -231,7 +232,6 @@ divert_packet(struct mbuf *m, bool incoming)
 
 		/* Sanity check */
 		M_ASSERTPKTHDR(m);
-		NET_EPOCH_ASSERT();
 
 		/* Find IP address for receive interface */
 		ifp = m->m_pkthdr.rcvif;
@@ -272,7 +272,6 @@ divert_packet(struct mbuf *m, bool incoming)
 	/* Put packet on socket queue, if any */
 	sa = NULL;
 	nport = htons((u_int16_t)(((struct ipfw_rule_ref *)(mtag+1))->info));
-	INP_INFO_RLOCK_ET(&V_divcbinfo, et);
 	CK_LIST_FOREACH(inp, &V_divcb, inp_list) {
 		/* XXX why does only one socket match? */
 		if (inp->inp_lport == nport) {
@@ -290,7 +289,6 @@ divert_packet(struct mbuf *m, bool incoming)
 			break;
 		}
 	}
-	INP_INFO_RUNLOCK_ET(&V_divcbinfo, et);
 	if (sa == NULL) {
 		m_freem(m);
 		KMOD_IPSTAT_INC(ips_noproto);
