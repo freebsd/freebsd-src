@@ -5620,7 +5620,7 @@ void e1000_igp3_phy_powerdown_workaround_ich8lan(struct e1000_hw *hw)
 void e1000_gig_downshift_workaround_ich8lan(struct e1000_hw *hw)
 {
 	s32 ret_val;
-	u16 reg_data;
+	u16 reg_data = 0;
 
 	DEBUGFUNC("e1000_gig_downshift_workaround_ich8lan");
 

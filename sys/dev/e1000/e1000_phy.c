@@ -1695,7 +1695,7 @@ s32 e1000_copper_link_autoneg(struct e1000_hw *hw)
 s32 e1000_setup_copper_link_generic(struct e1000_hw *hw)
 {
 	s32 ret_val;
-	bool link;
+	bool link = true;
 
 	DEBUGFUNC("e1000_setup_copper_link_generic");
 
