@@ -1941,7 +1941,7 @@ tcp_timer_discard(void *ptp)
 	
 	tp = (struct tcpcb *)ptp;
 	CURVNET_SET(tp->t_vnet);
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_ENTER(et);
 	inp = tp->t_inpcb;
 	KASSERT(inp != NULL, ("%s: tp %p tp->t_inpcb == NULL",
 		__func__, tp));
@@ -1961,13 +1961,13 @@ tcp_timer_discard(void *ptp)
 		tp->t_inpcb = NULL;
 		uma_zfree(V_tcpcb_zone, tp);
 		if (in_pcbrele_wlocked(inp)) {
-			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+			NET_EPOCH_EXIT(et);
 			CURVNET_RESTORE();
 			return;
 		}
 	}
 	INP_WUNLOCK(inp);
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 }
 
@@ -2770,7 +2770,7 @@ tcp_drop_syn_sent(struct inpcb *inp, int errno)
 {
 	struct tcpcb *tp;
 
-	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
+	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
 
 	if ((inp->inp_flags & INP_TIMEWAIT) ||
@@ -3042,7 +3042,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	default:
 		return (EINVAL);
 	}
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_ENTER(et);
 	switch (addrs[0].ss_family) {
 #ifdef INET6
 	case AF_INET6:
@@ -3081,7 +3081,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 			INP_WUNLOCK(inp);
 	} else
 		error = ESRCH;
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_EXIT(et);
 	return (error);
 }
 
@@ -3157,7 +3157,7 @@ sysctl_switch_tls(SYSCTL_HANDLER_ARGS)
 	default:
 		return (EINVAL);
 	}
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_ENTER(et);
 	switch (addrs[0].ss_family) {
 #ifdef INET6
 	case AF_INET6:
@@ -3173,7 +3173,7 @@ sysctl_switch_tls(SYSCTL_HANDLER_ARGS)
 		break;
 #endif
 	}
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_EXIT(et);
 	if (inp != NULL) {
 		if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) != 0 ||
 		    inp->inp_socket == NULL) {

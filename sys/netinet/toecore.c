@@ -360,7 +360,7 @@ toe_syncache_expand(struct in_conninfo *inc, struct tcpopt *to,
     struct tcphdr *th, struct socket **lsop)
 {
 
-	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
+	NET_EPOCH_ASSERT();
 
 	return (syncache_expand(inc, to, th, lsop, NULL));
 }
@@ -390,8 +390,6 @@ toe_4tuple_check(struct in_conninfo *inc, struct tcphdr *th, struct ifnet *ifp)
 		INP_WLOCK_ASSERT(inp);
 
 		if ((inp->inp_flags & INP_TIMEWAIT) && th != NULL) {
-
-			INP_INFO_RLOCK_ASSERT(&V_tcbinfo); /* for twcheck */
 			if (!tcp_twcheck(inp, NULL, th, NULL, 0))
 				return (EADDRINUSE);
 		} else {
@@ -529,7 +527,7 @@ toe_connect_failed(struct toedev *tod, struct inpcb *inp, int err)
 			(void) tp->t_fb->tfb_tcp_output(tp);
 		} else {
 
-			INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
+			NET_EPOCH_ASSERT();
 			tp = tcp_drop(tp, err);
 			if (tp == NULL)
 				INP_WLOCK(inp);	/* re-acquire */

@@ -884,7 +884,7 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 	 */
 	if ((tcplro_stacks_wanting_mbufq == 0) || (le->m_head->m_flags & M_VLANTAG))
 		goto skip_lookup;
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_ENTER(et);
 	switch (le->eh_type) {
 #ifdef INET6
 	case ETHERTYPE_IPV6:
@@ -903,7 +903,7 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 		break;
 #endif
 	}
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_EXIT(et);
 	if (inp && ((inp->inp_flags & (INP_DROPPED|INP_TIMEWAIT)) ||
 		    (inp->inp_flags2 & INP_FREED))) {
 		/* We don't want this guy */

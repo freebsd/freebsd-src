@@ -124,12 +124,12 @@ act_open_failure_cleanup(struct adapter *sc, u_int atid, u_int status)
 
 	CURVNET_SET(toep->vnet);
 	if (status != EAGAIN)
-		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_ENTER(et);
 	INP_WLOCK(inp);
 	toe_connect_failed(tod, inp, status);
 	final_cpl_received(toep);	/* unlocks inp */
 	if (status != EAGAIN)
-		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 }
 
