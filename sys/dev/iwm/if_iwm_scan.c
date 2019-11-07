@@ -215,8 +215,7 @@ static inline boolean_t
 iwm_mvm_rrm_scan_needed(struct iwm_softc *sc)
 {
 	/* require rrm scan whenever the fw supports it */
-	return fw_has_capa(&sc->sc_fw.ucode_capa,
-			   IWM_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT);
+	return iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT);
 }
 
 #ifdef IWM_DEBUG
@@ -251,7 +250,7 @@ iwm_mvm_rx_lmac_scan_complete_notif(struct iwm_softc *sc,
 	/* If this happens, the firmware has mistakenly sent an LMAC
 	 * notification during UMAC scans -- warn and ignore it.
 	 */
-	if (fw_has_capa(&sc->sc_fw.ucode_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN)) {
+	if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_UMAC_SCAN)) {
 		device_printf(sc->sc_dev,
 		    "%s: Mistakenly got LMAC notification during UMAC scan\n",
 		    __func__);
@@ -866,7 +865,7 @@ iwm_mvm_scan_stop_wait(struct iwm_softc *sc)
 
 	IWM_DPRINTF(sc, IWM_DEBUG_SCAN, "Preparing to stop scan\n");
 
-	if (fw_has_capa(&sc->sc_fw.ucode_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN))
+	if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_UMAC_SCAN))
 		ret = iwm_mvm_umac_scan_abort(sc);
 	else
 		ret = iwm_mvm_lmac_scan_abort(sc);
