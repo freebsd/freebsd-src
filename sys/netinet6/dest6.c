@@ -64,10 +64,13 @@ __FBSDID("$FreeBSD$");
 int
 dest6_input(struct mbuf **mp, int *offp, int proto)
 {
-	struct mbuf *m = *mp;
-	int off = *offp, dstoptlen, optlen;
+	struct mbuf *m;
+	int off, dstoptlen, optlen;
 	struct ip6_dest *dstopts;
 	u_int8_t *opt;
+
+	m = *mp;
+	off = *offp;
 
 	/* validation of the length of the header */
 #ifndef PULLDOWN_TEST
