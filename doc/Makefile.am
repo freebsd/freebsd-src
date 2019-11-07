@@ -8,68 +8,22 @@
 # using the SOFTWARE, you agree to be bound by the terms of that
 # LICENSE.
 
-if HAVE_OXTRADOC
-OXTRADOC_DIR = ${SLAX_OXTRADOCDIR}
-OXTRADOC_PREFIX = ${OXTRADOC_DIR}
-OXTRADOC = ${OXTRADOC_DIR}/oxtradoc
-SLAXPROC_BINDIR = ${SLAX_BINDIR}
+doc docs: xolint.rst html
 
-XML2RFC = ${OXTRADOC_DIR}/xml2rfc.tcl
-XML2HTMLDIR = ${OXTRADOC_DIR}
-XML2HTMLBIN = ${XML2HTMLDIR}/rfc2629-to-html.slax
-SLAXPROC = ${SLAX_BINDIR}/slaxproc
+#
+# The contents of xolint.rst is generated based on xolint.pl, since we
+# really want this to be self-documenting.  But readthedocs.org needs this
+# data to be _in_ repo.  So we generate this file on command only, and
+# the developer needs to commit any changes.
+#
 
-SLAXPROC_ARGS = \
-    -a oxtradoc-dir ${OXTRADOC_DIR} \
-    -a oxtradoc-install-dir ${OXTRADOC_DIR} \
-    -a anchor-prefix docs
+xolint.rst: ${top_srcdir}/xolint/xolint.pl
+	perl ${top_srcdir}/xolint/xolint.pl -D > ${top_srcdir}/doc/xolint.rst
 
-SLAXPROC_ARGS_INLINE = \
-    -a oxtradoc-inline yes
-
-SLAXPROC_ARGS += ${SLAXPROC_ARGS_INLINE}
-
-XML2HTML = \
-    ${SLAXPROC} -g -e -I ${OXTRADOC_DIR} -I . \
-    ${SLAXPROC_ARGS} \
-    ${XML2HTMLBIN}
-
-OX_ARGS = -P ${OXTRADOC_PREFIX} -L ${OXTRADOC_PREFIX}
-OX_ARGS += -S ${SLAXPROC} -p doc
-OX_CMD = ${PERL} ${PERLOPTS} ${OXTRADOC} ${OX_ARGS}
-OXTRADOC_CMD = ${OX_CMD}
-
-OUTPUT = libxo-manual
-INPUT = libxo
-
-EXTRA_DIST = \
-    ${INPUT}.txt \
-    ${OUTPUT}.html \
-    ${OUTPUT}.txt
-
-doc docs: ${OUTPUT}.txt ${OUTPUT}.html
-
-${OUTPUT}.txt: ${INPUT}.txt ${OXTRADOC} xolint.txt
-	${OXTRADOC_CMD} -m text -o $@ $<
-
-${OUTPUT}.html: ${INPUT}.txt ${OXTRADOC} ${XML2HTMLBIN} xolint.txt
-	${OXTRADOC_CMD} -m html -o $@ $<
-
-xolint.txt: ${top_srcdir}/xolint/xolint.pl
-	perl ${top_srcdir}/xolint/xolint.pl -D > xolint.txt
-
-CLEANFILES = \
-xolint.txt \
-${INPUT}.xml \
-${INPUT}.fxml \
-${OUTPUT}.txt \
-${OUTPUT}.html
-else
-doc docs:
-	@${ECHO} "The 'oxtradoc' tool is not installed; see libslax.org"
-endif
-
-SPHINX = python3.4 -msphinx
+SPHINX = python3 -msphinx
 
 html sphinx sphinx-html:
-	${SPHINX} -M html ${srcdir} .
+	${SPHINX} -M html ${srcdir} . -N -E
+
+singlehtml:
+	${SPHINX} -M singlehtml ${srcdir} . -N -E

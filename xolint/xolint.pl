@@ -98,16 +98,18 @@ sub extract_docs {
 		$need_nl = 0;
 	    }
 
-	    print "*** '$_'\n\n";
-	    print "The message \"$_\" can be caused by code like:\n\n";
+	    $under = "+" x (length($_) + 2);
+
+	    print "'$_'\n$under\n\n";
+	    print "The message \"$_\" can be caused by code like:\n";
 	    $new = 0;
 
 	} elsif (/xo_emit\s*\(/) {
 	    s/^\s+//;
-	    print "    $_\n\n";
+	    print "\n::\n\n    $_\n\n";
 
 	} elsif (/^Should be/i) {
-	    print "This code should be replaced with code like:\n\n";
+	    print "This code should be replaced with code like:\n";
 
 	} else {
 	    print "$_\n";

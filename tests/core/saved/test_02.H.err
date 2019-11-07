@@ -1,1 +1,1 @@
-test_02.test: key field emitted after normal value field: 'name'
+test_02: key field emitted after normal value field: 'name'

@@ -1,4 +1,4 @@
-op create: [] [] [0]
+op create: [test] [] [0]
 op open_container: [top] [] [0x4040010]
 op open_container: [data] [] [0x4040010]
 op string: [animal] [fish] [0]

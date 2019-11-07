@@ -20,13 +20,13 @@ In the second mode, a simple message given using the "-s" option on
 the command, and the simplified version of that message is printed on
 stdout:
 
-=========== =================================
- Option      Meaning
-=========== =================================
- -o <file>   Output file name
- -f <file>   Use the given .po file as input
- -s <text>   Simplify a format string
-=========== =================================
+  =========== =================================
+   Option      Meaning
+  =========== =================================
+   -o <file>   Output file name
+   -f <file>   Use the given .po file as input
+   -s <text>   Simplify a format string
+  =========== =================================
 
 ::
 
