@@ -5806,30 +5806,34 @@ struct iwm_mvm_keyinfo {
 #define IWM_ADD_STA_BAID_SHIFT		8
 
 /**
- * struct iwm_mvm_add_sta_cmd - Add/modify a station in the fw's sta table.
+ * struct iwl_mvm_add_sta_cmd_v7 - Add/modify a station in the fw's sta table.
  * ( REPLY_ADD_STA = 0x18 )
- * @add_modify: 1: modify existing, 0: add new station
- * @awake_acs:
+ * @add_modify: see &enum iwl_sta_mode
+ * @awake_acs: ACs to transmit data on while station is sleeping (for U-APSD)
  * @tid_disable_tx: is tid BIT(tid) enabled for Tx. Clear BIT(x) to enable
- *	AMPDU for tid x. Set %IWM_STA_MODIFY_TID_DISABLE_TX to change this field.
- * @mac_id_n_color: the Mac context this station belongs to
- * @addr[IEEE80211_ADDR_LEN]: station's MAC address
+ *	AMPDU for tid x. Set %STA_MODIFY_TID_DISABLE_TX to change this field.
+ * @mac_id_n_color: the Mac context this station belongs to,
+ *	see &enum iwl_ctxt_id_and_color
+ * @addr: station's MAC address
+ * @reserved2: reserved
  * @sta_id: index of station in uCode's station table
- * @modify_mask: IWM_STA_MODIFY_*, selects which parameters to modify vs. leave
+ * @modify_mask: STA_MODIFY_*, selects which parameters to modify vs. leave
  *	alone. 1 - modify, 0 - don't change.
- * @station_flags: look at %iwm_sta_flags
- * @station_flags_msk: what of %station_flags have changed
+ * @reserved3: reserved
+ * @station_flags: look at &enum iwl_sta_flags
+ * @station_flags_msk: what of %station_flags have changed,
+ *	also &enum iwl_sta_flags
  * @add_immediate_ba_tid: tid for which to add block-ack support (Rx)
- *	Set %IWM_STA_MODIFY_ADD_BA_TID to use this field, and also set
+ *	Set %STA_MODIFY_ADD_BA_TID to use this field, and also set
  *	add_immediate_ba_ssn.
  * @remove_immediate_ba_tid: tid for which to remove block-ack support (Rx)
- *	Set %IWM_STA_MODIFY_REMOVE_BA_TID to use this field
+ *	Set %STA_MODIFY_REMOVE_BA_TID to use this field
  * @add_immediate_ba_ssn: ssn for the Rx block-ack session. Used together with
  *	add_immediate_ba_tid.
  * @sleep_tx_count: number of packets to transmit to station even though it is
  *	asleep. Used to synchronise PS-poll and u-APSD responses while ucode
  *	keeps track of STA sleep state.
- * @sleep_state_flags: Look at %iwm_sta_sleep_flag.
+ * @sleep_state_flags: Look at &enum iwl_sta_sleep_flag.
  * @assoc_id: assoc_id to be sent in VHT PLCP (9-bit), for grp use 0, for AP
  *	mac-addr.
  * @beamform_flags: beam forming controls
@@ -5837,12 +5841,12 @@ struct iwm_mvm_keyinfo {
  *
  * The device contains an internal table of per-station information, with info
  * on security keys, aggregation parameters, and Tx rates for initial Tx
- * attempt and any retries (set by IWM_REPLY_TX_LINK_QUALITY_CMD).
+ * attempt and any retries (set by REPLY_TX_LINK_QUALITY_CMD).
  *
  * ADD_STA sets up the table entry for one station, either creating a new
  * entry, or modifying a pre-existing one.
  */
-struct iwm_mvm_add_sta_cmd {
+struct iwm_mvm_add_sta_cmd_v7 {
 	uint8_t add_modify;
 	uint8_t awake_acs;
 	uint16_t tid_disable_tx;
@@ -5863,6 +5867,97 @@ struct iwm_mvm_add_sta_cmd {
 	uint16_t beamform_flags;
 	uint32_t tfd_queue_msk;
 } __packed; /* ADD_STA_CMD_API_S_VER_7 */
+
+/**
+ * enum iwm_sta_type - FW station types
+ * ( REPLY_ADD_STA = 0x18 )
+ * @IWM_STA_LINK: Link station - normal RX and TX traffic.
+ * @IWM_STA_GENERAL_PURPOSE: General purpose. In AP mode used for beacons
+ *	and probe responses.
+ * @IWM_STA_MULTICAST: multicast traffic,
+ * @IWM_STA_TDLS_LINK: TDLS link station
+ * @IWM_STA_AUX_ACTIVITY: auxilary station (scan, ROC and so on).
+ */
+enum iwm_sta_type {
+	IWM_STA_LINK,
+	IWM_STA_GENERAL_PURPOSE,
+	IWM_STA_MULTICAST,
+	IWM_STA_TDLS_LINK,
+	IWM_STA_AUX_ACTIVITY,
+};
+
+/**
+ * struct iwm_mvm_add_sta_cmd - Add/modify a station in the fw's sta table.
+ * ( REPLY_ADD_STA = 0x18 )
+ * @add_modify: see &enum iwm_sta_mode
+ * @awake_acs: ACs to transmit data on while station is sleeping (for U-APSD)
+ * @tid_disable_tx: is tid BIT(tid) enabled for Tx. Clear BIT(x) to enable
+ *	AMPDU for tid x. Set %STA_MODIFY_TID_DISABLE_TX to change this field.
+ * @mac_id_n_color: the Mac context this station belongs to,
+ *	see &enum iwl_ctxt_id_and_color
+ * @addr: station's MAC address
+ * @reserved2: reserved
+ * @sta_id: index of station in uCode's station table
+ * @modify_mask: STA_MODIFY_*, selects which parameters to modify vs. leave
+ *	alone. 1 - modify, 0 - don't change.
+ * @reserved3: reserved
+ * @station_flags: look at &enum iwm_sta_flags
+ * @station_flags_msk: what of %station_flags have changed,
+ *	also &enum iwm_sta_flags
+ * @add_immediate_ba_tid: tid for which to add block-ack support (Rx)
+ *	Set %STA_MODIFY_ADD_BA_TID to use this field, and also set
+ *	add_immediate_ba_ssn.
+ * @remove_immediate_ba_tid: tid for which to remove block-ack support (Rx)
+ *	Set %STA_MODIFY_REMOVE_BA_TID to use this field
+ * @add_immediate_ba_ssn: ssn for the Rx block-ack session. Used together with
+ *	add_immediate_ba_tid.
+ * @sleep_tx_count: number of packets to transmit to station even though it is
+ *	asleep. Used to synchronise PS-poll and u-APSD responses while ucode
+ *	keeps track of STA sleep state.
+ * @station_type: type of this station. See &enum iwl_sta_type.
+ * @sleep_state_flags: Look at &enum iwl_sta_sleep_flag.
+ * @assoc_id: assoc_id to be sent in VHT PLCP (9-bit), for grp use 0, for AP
+ *	mac-addr.
+ * @beamform_flags: beam forming controls
+ * @tfd_queue_msk: tfd queues used by this station.
+ *	Obselete for new TX API (9 and above).
+ * @rx_ba_window: aggregation window size
+ * @sp_length: the size of the SP in actual number of frames
+ * @uapsd_acs:  4 LS bits are trigger enabled ACs, 4 MS bits are the deliver
+ *	enabled ACs.
+ *
+ * The device contains an internal table of per-station information, with info
+ * on security keys, aggregation parameters, and Tx rates for initial Tx
+ * attempt and any retries (set by REPLY_TX_LINK_QUALITY_CMD).
+ *
+ * ADD_STA sets up the table entry for one station, either creating a new
+ * entry, or modifying a pre-existing one.
+ */
+struct iwm_mvm_add_sta_cmd {
+	uint8_t add_modify;
+	uint8_t awake_acs;
+	uint16_t tid_disable_tx;
+	uint32_t mac_id_n_color;
+	uint8_t addr[IEEE80211_ADDR_LEN]; /* _STA_ID_MODIFY_INFO_API_S_VER_1 */
+	uint16_t reserved2;
+	uint8_t sta_id;
+	uint8_t modify_mask;
+	uint16_t reserved3;
+	uint32_t station_flags;
+	uint32_t station_flags_msk;
+	uint8_t add_immediate_ba_tid;
+	uint8_t remove_immediate_ba_tid;
+	uint16_t add_immediate_ba_ssn;
+	uint16_t sleep_tx_count;
+	uint8_t sleep_state_flags;
+	uint8_t station_type;
+	uint16_t assoc_id;
+	uint16_t beamform_flags;
+	uint32_t tfd_queue_msk;
+	uint16_t rx_ba_window;
+	uint8_t sp_length;
+	uint8_t uapsd_acs;
+} __packed; /* ADD_STA_CMD_API_S_VER_10 */
 
 /**
  * struct iwm_mvm_add_sta_key_cmd - add/modify sta key

@@ -138,13 +138,8 @@ __FBSDID("$FreeBSD$");
 static inline int
 iwm_mvm_add_sta_cmd_size(struct iwm_softc *sc)
 {
-#ifdef notyet
-	return iwm_mvm_has_new_rx_api(mvm) ?
-		sizeof(struct iwm_mvm_add_sta_cmd) :
-		sizeof(struct iwm_mvm_add_sta_cmd_v7);
-#else
-	return sizeof(struct iwm_mvm_add_sta_cmd);
-#endif
+	return sc->cfg->mqrx_supported ? sizeof(struct iwm_mvm_add_sta_cmd) :
+	    sizeof(struct iwm_mvm_add_sta_cmd_v7);
 }
 
 /* send station add/update command to firmware */
@@ -318,7 +313,7 @@ iwm_mvm_rm_sta_id(struct iwm_softc *sc, struct ieee80211vap *vap)
 
 static int
 iwm_mvm_add_int_sta_common(struct iwm_softc *sc, struct iwm_int_sta *sta,
-	const uint8_t *addr, uint16_t mac_id, uint16_t color)
+    const uint8_t *addr, uint16_t mac_id, uint16_t color)
 {
 	struct iwm_mvm_add_sta_cmd cmd;
 	int ret;
@@ -327,6 +322,8 @@ iwm_mvm_add_int_sta_common(struct iwm_softc *sc, struct iwm_int_sta *sta,
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.sta_id = sta->sta_id;
 	cmd.mac_id_n_color = htole32(IWM_FW_CMD_ID_AND_COLOR(mac_id, color));
+	if (sta->sta_id == IWM_AUX_STA_ID && sc->cfg->mqrx_supported)
+		cmd.station_type = IWM_STA_AUX_ACTIVITY;
 
 	cmd.tfd_queue_msk = htole32(sta->tfd_queue_msk);
 	cmd.tid_disable_tx = htole16(0xffff);
@@ -362,7 +359,8 @@ iwm_mvm_add_aux_sta(struct iwm_softc *sc)
 	sc->sc_aux_sta.tfd_queue_msk = (1 << IWM_MVM_AUX_QUEUE);
 
 	/* Map Aux queue to fifo - needs to happen before adding Aux station */
-	ret = iwm_enable_txq(sc, 0, IWM_MVM_AUX_QUEUE, IWM_MVM_TX_FIFO_MCAST);
+	ret = iwm_enable_txq(sc, IWM_AUX_STA_ID, IWM_MVM_AUX_QUEUE,
+	    IWM_MVM_TX_FIFO_MCAST);
 	if (ret)
 		return ret;
 
