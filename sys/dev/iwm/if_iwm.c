@@ -322,16 +322,14 @@ static int	iwm_mvm_load_ucode_wait_alive(struct iwm_softc *,
 static int	iwm_run_init_mvm_ucode(struct iwm_softc *, int);
 static int	iwm_mvm_config_ltr(struct iwm_softc *sc);
 static int	iwm_rx_addbuf(struct iwm_softc *, int, int);
-static int	iwm_mvm_get_signal_strength(struct iwm_softc *,
-					    struct iwm_rx_phy_info *);
 static void	iwm_mvm_rx_rx_phy_cmd(struct iwm_softc *,
                                       struct iwm_rx_packet *);
 static int	iwm_get_noise(struct iwm_softc *,
 		    const struct iwm_mvm_statistics_rx_non_phy *);
 static void	iwm_mvm_handle_rx_statistics(struct iwm_softc *,
 		    struct iwm_rx_packet *);
-static boolean_t iwm_mvm_rx_rx_mpdu(struct iwm_softc *, struct mbuf *,
-				    uint32_t, boolean_t);
+static bool	iwm_mvm_rx_mpdu(struct iwm_softc *, struct mbuf *,
+		    uint32_t, bool);
 static int	iwm_mvm_rx_tx_cmd_single(struct iwm_softc *,
                                          struct iwm_rx_packet *,
 				         struct iwm_node *);
@@ -929,19 +927,28 @@ static int
 iwm_alloc_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
 {
 	bus_size_t size;
-	int i, error;
+	size_t descsz;
+	int count, i, error;
 
 	ring->cur = 0;
+	if (sc->cfg->mqrx_supported) {
+		count = IWM_RX_MQ_RING_COUNT;
+		descsz = sizeof(uint64_t);
+	} else {
+		count = IWM_RX_LEGACY_RING_COUNT;
+		descsz = sizeof(uint32_t);
+	}
 
 	/* Allocate RX descriptors (256-byte aligned). */
-	size = IWM_RX_RING_COUNT * sizeof(uint32_t);
-	error = iwm_dma_contig_alloc(sc->sc_dmat, &ring->desc_dma, size, 256);
+	size = count * descsz;
+	error = iwm_dma_contig_alloc(sc->sc_dmat, &ring->free_desc_dma, size,
+	    256);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "could not allocate RX ring DMA memory\n");
 		goto fail;
 	}
-	ring->desc = ring->desc_dma.vaddr;
+	ring->desc = ring->free_desc_dma.vaddr;
 
 	/* Allocate RX status area (16-byte aligned). */
 	error = iwm_dma_contig_alloc(sc->sc_dmat, &ring->stat_dma,
@@ -952,6 +959,17 @@ iwm_alloc_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
 		goto fail;
 	}
 	ring->stat = ring->stat_dma.vaddr;
+
+	if (sc->cfg->mqrx_supported) {
+		size = count * sizeof(uint32_t);
+		error = iwm_dma_contig_alloc(sc->sc_dmat, &ring->used_desc_dma,
+		    size, 256);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "could not allocate RX ring DMA memory\n");
+			goto fail;
+		}
+	}
 
         /* Create RX buffer DMA tag. */
         error = bus_dma_tag_create(sc->sc_dmat, 1, 0,
@@ -972,10 +990,11 @@ iwm_alloc_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
 		    __func__, error);
 		goto fail;
 	}
+
 	/*
 	 * Allocate and map RX buffers.
 	 */
-	for (i = 0; i < IWM_RX_RING_COUNT; i++) {
+	for (i = 0; i < count; i++) {
 		struct iwm_rx_data *data = &ring->data[i];
 		error = bus_dmamap_create(ring->data_dmat, 0, &data->map);
 		if (error != 0) {
@@ -1013,12 +1032,16 @@ iwm_reset_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
 static void
 iwm_free_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
 {
-	int i;
+	int count, i;
 
-	iwm_dma_contig_free(&ring->desc_dma);
+	iwm_dma_contig_free(&ring->free_desc_dma);
 	iwm_dma_contig_free(&ring->stat_dma);
+	iwm_dma_contig_free(&ring->used_desc_dma);
 
-	for (i = 0; i < IWM_RX_RING_COUNT; i++) {
+	count = sc->cfg->mqrx_supported ? IWM_RX_MQ_RING_COUNT :
+	    IWM_RX_LEGACY_RING_COUNT;
+
+	for (i = 0; i < count; i++) {
 		struct iwm_rx_data *data = &ring->data[i];
 
 		if (data->m != NULL) {
@@ -1377,12 +1400,61 @@ iwm_mvm_nic_config(struct iwm_softc *sc)
 }
 
 static int
-iwm_nic_rx_init(struct iwm_softc *sc)
+iwm_nic_rx_mq_init(struct iwm_softc *sc)
 {
-	/*
-	 * Initialize RX ring.  This is from the iwn driver.
-	 */
-	memset(sc->rxq.stat, 0, sizeof(*sc->rxq.stat));
+	int enabled;
+
+	if (!iwm_nic_lock(sc))
+		return EBUSY;
+
+	/* Stop RX DMA. */
+	iwm_write_prph(sc, IWM_RFH_RXF_DMA_CFG, 0);
+	/* Disable RX used and free queue operation. */
+	iwm_write_prph(sc, IWM_RFH_RXF_RXQ_ACTIVE, 0);
+
+	iwm_write_prph64(sc, IWM_RFH_Q0_FRBDCB_BA_LSB,
+	    sc->rxq.free_desc_dma.paddr);
+	iwm_write_prph64(sc, IWM_RFH_Q0_URBDCB_BA_LSB,
+	    sc->rxq.used_desc_dma.paddr);
+	iwm_write_prph64(sc, IWM_RFH_Q0_URBD_STTS_WPTR_LSB,
+	    sc->rxq.stat_dma.paddr);
+	iwm_write_prph(sc, IWM_RFH_Q0_FRBDCB_WIDX, 0);
+	iwm_write_prph(sc, IWM_RFH_Q0_FRBDCB_RIDX, 0);
+	iwm_write_prph(sc, IWM_RFH_Q0_URBDCB_WIDX, 0);
+
+	/* We configure only queue 0 for now. */
+	enabled = ((1 << 0) << 16) | (1 << 0);
+
+	/* Enable RX DMA, 4KB buffer size. */
+	iwm_write_prph(sc, IWM_RFH_RXF_DMA_CFG,
+	    IWM_RFH_DMA_EN_ENABLE_VAL |
+	    IWM_RFH_RXF_DMA_RB_SIZE_4K |
+	    IWM_RFH_RXF_DMA_MIN_RB_4_8 |
+	    IWM_RFH_RXF_DMA_DROP_TOO_LARGE_MASK |
+	    IWM_RFH_RXF_DMA_RBDCB_SIZE_512);
+
+	/* Enable RX DMA snooping. */
+	iwm_write_prph(sc, IWM_RFH_GEN_CFG,
+	    IWM_RFH_GEN_CFG_RFH_DMA_SNOOP |
+	    IWM_RFH_GEN_CFG_SERVICE_DMA_SNOOP |
+	    (sc->cfg->integrated ? IWM_RFH_GEN_CFG_RB_CHUNK_SIZE_64 :
+	    IWM_RFH_GEN_CFG_RB_CHUNK_SIZE_128));
+
+	/* Enable the configured queue(s). */
+	iwm_write_prph(sc, IWM_RFH_RXF_RXQ_ACTIVE, enabled);
+
+	iwm_nic_unlock(sc);
+
+	IWM_WRITE_1(sc, IWM_CSR_INT_COALESCING, IWM_HOST_INT_TIMEOUT_DEF);
+
+	IWM_WRITE(sc, IWM_RFH_Q0_FRBDCB_WIDX_TRG, 8);
+
+	return (0);
+}
+
+static int
+iwm_nic_rx_legacy_init(struct iwm_softc *sc)
+{
 
 	/* Stop Rx DMA */
 	iwm_pcie_rx_stop(sc);
@@ -1398,7 +1470,8 @@ iwm_nic_rx_init(struct iwm_softc *sc)
 
 	/* Set physical address of RX ring (256-byte aligned). */
 	IWM_WRITE(sc,
-	    IWM_FH_RSCSR_CHNL0_RBDCB_BASE_REG, sc->rxq.desc_dma.paddr >> 8);
+	    IWM_FH_RSCSR_CHNL0_RBDCB_BASE_REG,
+	    sc->rxq.free_desc_dma.paddr >> 8);
 
 	/* Set physical address of RX status (16-byte aligned). */
 	IWM_WRITE(sc,
@@ -1427,17 +1500,20 @@ iwm_nic_rx_init(struct iwm_softc *sc)
 	if (sc->cfg->host_interrupt_operation_mode)
 		IWM_SETBITS(sc, IWM_CSR_INT_COALESCING, IWM_HOST_INT_OPER_MODE);
 
-	/*
-	 * Thus sayeth el jefe (iwlwifi) via a comment:
-	 *
-	 * This value should initially be 0 (before preparing any
-	 * RBs), should be 8 after preparing the first 8 RBs (for example)
-	 */
-	IWM_WRITE(sc, IWM_FH_RSCSR_CHNL0_WPTR, 8);
-
 	iwm_nic_unlock(sc);
 
+	IWM_WRITE(sc, IWM_FH_RSCSR_CHNL0_WPTR, 8);
+
 	return 0;
+}
+
+static int
+iwm_nic_rx_init(struct iwm_softc *sc)
+{
+	if (sc->cfg->mqrx_supported)
+		return iwm_nic_rx_mq_init(sc);
+	else
+		return iwm_nic_rx_legacy_init(sc);
 }
 
 static int
@@ -3030,44 +3106,14 @@ iwm_rx_addbuf(struct iwm_softc *sc, int size, int idx)
 
 	/* Update RX descriptor. */
 	KASSERT((seg.ds_addr & 255) == 0, ("seg.ds_addr not aligned"));
-	ring->desc[idx] = htole32(seg.ds_addr >> 8);
-	bus_dmamap_sync(ring->desc_dma.tag, ring->desc_dma.map,
+	if (sc->cfg->mqrx_supported)
+		((uint64_t *)ring->desc)[idx] = htole64(seg.ds_addr);
+	else
+		((uint32_t *)ring->desc)[idx] = htole32(seg.ds_addr >> 8);
+	bus_dmamap_sync(ring->free_desc_dma.tag, ring->free_desc_dma.map,
 	    BUS_DMASYNC_PREWRITE);
 
 	return 0;
-}
-
-/* iwlwifi: mvm/rx.c */
-/*
- * iwm_mvm_get_signal_strength - use new rx PHY INFO API
- * values are reported by the fw as positive values - need to negate
- * to obtain their dBM.  Account for missing antennas by replacing 0
- * values by -256dBm: practically 0 power and a non-feasible 8 bit value.
- */
-static int
-iwm_mvm_get_signal_strength(struct iwm_softc *sc, struct iwm_rx_phy_info *phy_info)
-{
-	int energy_a, energy_b, energy_c, max_energy;
-	uint32_t val;
-
-	val = le32toh(phy_info->non_cfg_phy[IWM_RX_INFO_ENERGY_ANT_ABC_IDX]);
-	energy_a = (val & IWM_RX_INFO_ENERGY_ANT_A_MSK) >>
-	    IWM_RX_INFO_ENERGY_ANT_A_POS;
-	energy_a = energy_a ? -energy_a : -256;
-	energy_b = (val & IWM_RX_INFO_ENERGY_ANT_B_MSK) >>
-	    IWM_RX_INFO_ENERGY_ANT_B_POS;
-	energy_b = energy_b ? -energy_b : -256;
-	energy_c = (val & IWM_RX_INFO_ENERGY_ANT_C_MSK) >>
-	    IWM_RX_INFO_ENERGY_ANT_C_POS;
-	energy_c = energy_c ? -energy_c : -256;
-	max_energy = MAX(energy_a, energy_b);
-	max_energy = MAX(max_energy, energy_c);
-
-	IWM_DPRINTF(sc, IWM_DEBUG_RECV,
-	    "energy In A %d B %d C %d , and max %d\n",
-	    energy_a, energy_b, energy_c, max_energy);
-
-	return max_energy;
 }
 
 static void
@@ -3123,19 +3169,65 @@ iwm_mvm_handle_rx_statistics(struct iwm_softc *sc, struct iwm_rx_packet *pkt)
 	sc->sc_noise = iwm_get_noise(sc, &stats->rx.general);
 }
 
+/* iwlwifi: mvm/rx.c */
+/*
+ * iwm_mvm_get_signal_strength - use new rx PHY INFO API
+ * values are reported by the fw as positive values - need to negate
+ * to obtain their dBM.  Account for missing antennas by replacing 0
+ * values by -256dBm: practically 0 power and a non-feasible 8 bit value.
+ */
+static int
+iwm_mvm_rx_get_signal_strength(struct iwm_softc *sc,
+    struct iwm_rx_phy_info *phy_info)
+{
+	int energy_a, energy_b, energy_c, max_energy;
+	uint32_t val;
+
+	val = le32toh(phy_info->non_cfg_phy[IWM_RX_INFO_ENERGY_ANT_ABC_IDX]);
+	energy_a = (val & IWM_RX_INFO_ENERGY_ANT_A_MSK) >>
+	    IWM_RX_INFO_ENERGY_ANT_A_POS;
+	energy_a = energy_a ? -energy_a : -256;
+	energy_b = (val & IWM_RX_INFO_ENERGY_ANT_B_MSK) >>
+	    IWM_RX_INFO_ENERGY_ANT_B_POS;
+	energy_b = energy_b ? -energy_b : -256;
+	energy_c = (val & IWM_RX_INFO_ENERGY_ANT_C_MSK) >>
+	    IWM_RX_INFO_ENERGY_ANT_C_POS;
+	energy_c = energy_c ? -energy_c : -256;
+	max_energy = MAX(energy_a, energy_b);
+	max_energy = MAX(max_energy, energy_c);
+
+	IWM_DPRINTF(sc, IWM_DEBUG_RECV,
+	    "energy In A %d B %d C %d , and max %d\n",
+	    energy_a, energy_b, energy_c, max_energy);
+
+	return max_energy;
+}
+
+static int
+iwm_mvm_rxmq_get_signal_strength(struct iwm_softc *sc,
+    struct iwm_rx_mpdu_desc *desc)
+{
+	int energy_a, energy_b;
+
+	energy_a = desc->v1.energy_a;
+	energy_b = desc->v1.energy_b;
+	energy_a = energy_a ? -energy_a : -256;
+	energy_b = energy_b ? -energy_b : -256;
+	return MAX(energy_a, energy_b);
+}
+
 /*
  * iwm_mvm_rx_rx_mpdu - IWM_REPLY_RX_MPDU_CMD handler
  *
  * Handles the actual data of the Rx packet from the fw
  */
-static boolean_t
+static bool
 iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc, struct mbuf *m, uint32_t offset,
-	boolean_t stolen)
+    bool stolen)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ieee80211_frame *wh;
-	struct ieee80211_node *ni;
 	struct ieee80211_rx_stats rxs;
 	struct iwm_rx_phy_info *phy_info;
 	struct iwm_rx_mpdu_res_start *rx_res;
@@ -3154,17 +3246,17 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc, struct mbuf *m, uint32_t offset,
 		device_printf(sc->sc_dev,
 		    "dsp size out of range [0,20]: %d\n",
 		    phy_info->cfg_phy_cnt);
-		goto fail;
+		return false;
 	}
 
 	if (!(rx_pkt_status & IWM_RX_MPDU_RES_STATUS_CRC_OK) ||
 	    !(rx_pkt_status & IWM_RX_MPDU_RES_STATUS_OVERRUN_OK)) {
 		IWM_DPRINTF(sc, IWM_DEBUG_RECV,
 		    "Bad CRC or FIFO: 0x%08X.\n", rx_pkt_status);
-		goto fail;
+		return false;
 	}
 
-	rssi = iwm_mvm_get_signal_strength(sc, phy_info);
+	rssi = iwm_mvm_rx_get_signal_strength(sc, phy_info);
 
 	/* Map it to relative value */
 	rssi = rssi - sc->sc_noise;
@@ -3173,7 +3265,7 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc, struct mbuf *m, uint32_t offset,
 	if (!stolen && iwm_rx_addbuf(sc, IWM_RBUF_SIZE, sc->rxq.cur) != 0) {
 		device_printf(sc->sc_dev, "%s: unable to add more buffers\n",
 		    __func__);
-		goto fail;
+		return false;
 	}
 
 	m->m_data = pkt->data + sizeof(*rx_res);
@@ -3181,8 +3273,6 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc, struct mbuf *m, uint32_t offset,
 
 	IWM_DPRINTF(sc, IWM_DEBUG_RECV,
 	    "%s: rssi=%d, noise=%d\n", __func__, rssi, sc->sc_noise);
-
-	ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
 
 	IWM_DPRINTF(sc, IWM_DEBUG_RECV,
 	    "%s: phy_info: channel=%d, flags=0x%08x\n",
@@ -3206,11 +3296,8 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc, struct mbuf *m, uint32_t offset,
 	/* rssi is in 1/2db units */
 	rxs.c_rssi = rssi * 2;
 	rxs.c_nf = sc->sc_noise;
-	if (ieee80211_add_rx_params(m, &rxs) == 0) {
-		if (ni)
-			ieee80211_free_node(ni);
-		goto fail;
-	}
+	if (ieee80211_add_rx_params(m, &rxs) == 0)
+		return false;
 
 	if (ieee80211_radiotap_active_vap(vap)) {
 		struct iwm_rx_radiotap_header *tap = &sc->sc_rxtap;
@@ -3244,6 +3331,139 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc, struct mbuf *m, uint32_t offset,
 		}
 	}
 
+	return true;
+}
+
+static bool
+iwm_mvm_rx_mpdu_mq(struct iwm_softc *sc, struct mbuf *m, uint32_t offset,
+    bool stolen)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	struct ieee80211_frame *wh;
+	struct ieee80211_rx_stats rxs;
+	struct iwm_rx_mpdu_desc *desc;
+	struct iwm_rx_packet *pkt;
+	int rssi;
+	uint32_t hdrlen, len, rate_n_flags;
+	uint16_t phy_info;
+	uint8_t channel;
+
+	pkt = mtodo(m, offset);
+	desc = (void *)pkt->data;
+
+	if (!(desc->status & htole16(IWM_RX_MPDU_RES_STATUS_CRC_OK)) ||
+	    !(desc->status & htole16(IWM_RX_MPDU_RES_STATUS_OVERRUN_OK))) {
+		IWM_DPRINTF(sc, IWM_DEBUG_RECV,
+		    "Bad CRC or FIFO: 0x%08X.\n", desc->status);
+		return false;
+	}
+
+	channel = desc->v1.channel;
+	len = le16toh(desc->mpdu_len);
+	phy_info = le16toh(desc->phy_info);
+	rate_n_flags = desc->v1.rate_n_flags;
+
+	wh = mtodo(m, sizeof(*desc));
+	m->m_data = pkt->data + sizeof(*desc);
+	m->m_pkthdr.len = m->m_len = len;
+	m->m_len = len;
+
+	/* Account for padding following the frame header. */
+	if ((desc->mac_flags2 & IWM_RX_MPDU_MFLG2_PAD)) {
+		hdrlen = ieee80211_anyhdrsize(wh);
+		memmove(mtodo(m, 2), mtodo(m, 0), hdrlen);
+		m->m_data = mtodo(m, 2);
+		wh = mtod(m, struct ieee80211_frame *);
+	}
+
+	/* Map it to relative value */
+	rssi = iwm_mvm_rxmq_get_signal_strength(sc, desc);
+	rssi = rssi - sc->sc_noise;
+
+	/* replenish ring for the buffer we're going to feed to the sharks */
+	if (!stolen && iwm_rx_addbuf(sc, IWM_RBUF_SIZE, sc->rxq.cur) != 0) {
+		device_printf(sc->sc_dev, "%s: unable to add more buffers\n",
+		    __func__);
+		return false;
+	}
+
+	IWM_DPRINTF(sc, IWM_DEBUG_RECV,
+	    "%s: rssi=%d, noise=%d\n", __func__, rssi, sc->sc_noise);
+
+	/*
+	 * Populate an RX state struct with the provided information.
+	 */
+	bzero(&rxs, sizeof(rxs));
+	rxs.r_flags |= IEEE80211_R_IEEE | IEEE80211_R_FREQ;
+	rxs.r_flags |= IEEE80211_R_NF | IEEE80211_R_RSSI;
+	rxs.c_ieee = channel;
+	rxs.c_freq = ieee80211_ieee2mhz(rxs.c_ieee,
+	    channel <= 14 ? IEEE80211_CHAN_2GHZ : IEEE80211_CHAN_5GHZ);
+
+	/* rssi is in 1/2db units */
+	rxs.c_rssi = rssi * 2;
+	rxs.c_nf = sc->sc_noise;
+	if (ieee80211_add_rx_params(m, &rxs) == 0)
+		return false;
+
+	if (ieee80211_radiotap_active_vap(vap)) {
+		struct iwm_rx_radiotap_header *tap = &sc->sc_rxtap;
+
+		tap->wr_flags = 0;
+		if ((phy_info & IWM_RX_MPDU_PHY_SHORT_PREAMBLE) != 0)
+			tap->wr_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
+		tap->wr_chan_freq = htole16(rxs.c_freq);
+		/* XXX only if ic->ic_curchan->ic_ieee == rxs.c_ieee */
+		tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
+		tap->wr_dbm_antsignal = (int8_t)rssi;
+		tap->wr_dbm_antnoise = (int8_t)sc->sc_noise;
+		tap->wr_tsft = desc->v1.gp2_on_air_rise;
+		switch ((rate_n_flags & 0xff)) {
+		/* CCK rates. */
+		case  10: tap->wr_rate =   2; break;
+		case  20: tap->wr_rate =   4; break;
+		case  55: tap->wr_rate =  11; break;
+		case 110: tap->wr_rate =  22; break;
+		/* OFDM rates. */
+		case 0xd: tap->wr_rate =  12; break;
+		case 0xf: tap->wr_rate =  18; break;
+		case 0x5: tap->wr_rate =  24; break;
+		case 0x7: tap->wr_rate =  36; break;
+		case 0x9: tap->wr_rate =  48; break;
+		case 0xb: tap->wr_rate =  72; break;
+		case 0x1: tap->wr_rate =  96; break;
+		case 0x3: tap->wr_rate = 108; break;
+		/* Unknown rate: should not happen. */
+		default:  tap->wr_rate =   0;
+		}
+	}
+
+	return true;
+}
+
+static bool
+iwm_mvm_rx_mpdu(struct iwm_softc *sc, struct mbuf *m, uint32_t offset,
+    bool stolen)
+{
+	struct ieee80211com *ic;
+	struct ieee80211_frame *wh;
+	struct ieee80211_node *ni;
+	bool ret;
+
+	ic = &sc->sc_ic;
+
+	ret = sc->cfg->mqrx_supported ?
+	    iwm_mvm_rx_mpdu_mq(sc, m, offset, stolen) :
+	    iwm_mvm_rx_rx_mpdu(sc, m, offset, stolen);
+	if (!ret) {
+		counter_u64_add(ic->ic_ierrors, 1);
+		return (ret);
+	}
+
+	wh = mtod(m, struct ieee80211_frame *);
+	ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
+
 	IWM_UNLOCK(sc);
 	if (ni != NULL) {
 		IWM_DPRINTF(sc, IWM_DEBUG_RECV, "input m %p\n", m);
@@ -3255,11 +3475,7 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc, struct mbuf *m, uint32_t offset,
 	}
 	IWM_LOCK(sc);
 
-	return TRUE;
-
-fail:
-	counter_u64_add(ic->ic_ierrors, 1);
-	return FALSE;
+	return true;
 }
 
 static int
@@ -5153,7 +5369,7 @@ iwm_handle_rxb(struct iwm_softc *sc, struct mbuf *m)
 			     nextpkt->hdr.idx == 0) ||
 			    (nextpkt->len_n_flags ==
 			     htole32(IWM_FH_RSCSR_FRAME_INVALID))) {
-				if (iwm_mvm_rx_rx_mpdu(sc, m, offset, stolen)) {
+				if (iwm_mvm_rx_mpdu(sc, m, offset, stolen)) {
 					stolen = FALSE;
 					/* Make sure we abort the loop */
 					nextoff = maxoff;
@@ -5164,14 +5380,14 @@ iwm_handle_rxb(struct iwm_softc *sc, struct mbuf *m)
 			/*
 			 * Use m_copym instead of m_split, because that
 			 * makes it easier to keep a valid rx buffer in
-			 * the ring, when iwm_mvm_rx_rx_mpdu() fails.
+			 * the ring, when iwm_mvm_rx_mpdu() fails.
 			 *
 			 * We need to start m_copym() at offset 0, to get the
 			 * M_PKTHDR flag preserved.
 			 */
 			m1 = m_copym(m, 0, M_COPYALL, M_NOWAIT);
 			if (m1) {
-				if (iwm_mvm_rx_rx_mpdu(sc, m1, offset, stolen))
+				if (iwm_mvm_rx_mpdu(sc, m1, offset, stolen))
 					stolen = TRUE;
 				else
 					m_freem(m1);
@@ -5420,10 +5636,20 @@ iwm_handle_rxb(struct iwm_softc *sc, struct mbuf *m)
 static void
 iwm_notif_intr(struct iwm_softc *sc)
 {
+	int count;
+	uint32_t wreg;
 	uint16_t hw;
 
 	bus_dmamap_sync(sc->rxq.stat_dma.tag, sc->rxq.stat_dma.map,
 	    BUS_DMASYNC_POSTREAD);
+
+	if (sc->cfg->mqrx_supported) {
+		count = IWM_RX_MQ_RING_COUNT;
+		wreg = IWM_RFH_Q0_FRBDCB_WIDX_TRG;
+	} else {
+		count = IWM_RX_LEGACY_RING_COUNT;
+		wreg = IWM_FH_RSCSR_CHNL0_WPTR;
+	}
 
 	hw = le16toh(sc->rxq.stat->closed_rb_num) & 0xfff;
 
@@ -5441,7 +5667,7 @@ iwm_notif_intr(struct iwm_softc *sc)
 		    "%s: hw = %d cur = %d\n", __func__, hw, ring->cur);
 		iwm_handle_rxb(sc, data->m);
 
-		ring->cur = (ring->cur + 1) % IWM_RX_RING_COUNT;
+		ring->cur = (ring->cur + 1) % count;
 	}
 
 	/*
@@ -5450,8 +5676,8 @@ iwm_notif_intr(struct iwm_softc *sc)
 	 * Seems like the hardware gets upset unless we align
 	 * the write by 8??
 	 */
-	hw = (hw == 0) ? IWM_RX_RING_COUNT - 1 : hw - 1;
-	IWM_WRITE(sc, IWM_FH_RSCSR_CHNL0_WPTR, rounddown2(hw, 8));
+	hw = (hw == 0) ? count - 1 : hw - 1;
+	IWM_WRITE(sc, wreg, rounddown2(hw, 8));
 }
 
 static void
