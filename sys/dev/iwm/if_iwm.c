@@ -5624,6 +5624,9 @@ iwm_intr(void *arg)
 #define	PCI_PRODUCT_INTEL_WL_8260_1	0x24f3
 #define	PCI_PRODUCT_INTEL_WL_8260_2	0x24f4
 #define	PCI_PRODUCT_INTEL_WL_8265_1	0x24fd
+#define	PCI_PRODUCT_INTEL_WL_9560_1	0x9df0
+#define	PCI_PRODUCT_INTEL_WL_9560_2	0xa370
+#define	PCI_PRODUCT_INTEL_WL_9260_1	0x2526
 
 static const struct iwm_devices {
 	uint16_t		device;
@@ -5641,6 +5644,9 @@ static const struct iwm_devices {
 	{ PCI_PRODUCT_INTEL_WL_8260_1, &iwm8260_cfg },
 	{ PCI_PRODUCT_INTEL_WL_8260_2, &iwm8260_cfg },
 	{ PCI_PRODUCT_INTEL_WL_8265_1, &iwm8265_cfg },
+	{ PCI_PRODUCT_INTEL_WL_9560_1, &iwm9560_cfg },
+	{ PCI_PRODUCT_INTEL_WL_9560_2, &iwm9560_cfg },
+	{ PCI_PRODUCT_INTEL_WL_9260_1, &iwm9260_cfg },
 };
 
 static int
