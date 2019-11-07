@@ -156,7 +156,7 @@ struct xunpcb {
 		char	xu_dummy2[256];
 	};
 	struct xsocket	xu_socket;
-} __aligned(8);
+} __aligned(MAX(8, sizeof(void *)));
 
 struct xunpgen {
 	ksize_t	xug_len;
