@@ -58,7 +58,7 @@
 #define	atomic_store_long(p, v)		\
     (*(volatile u_long *)(p) = (u_long)(v))
 #define	atomic_store_ptr(p, v)		\
-    (*(uintptr_t *)(p) = (uintptr_t)(v))
+    (*(volatile uintptr_t *)(p) = (uintptr_t)(v))
 #define	atomic_store_8(p, v)		\
     (*(volatile uint8_t *)(p) = (uint8_t)(v))
 #define	atomic_store_16(p, v)		\
