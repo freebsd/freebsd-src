@@ -253,7 +253,6 @@ ctf_process_inbound_raw(struct tcpcb *tp, struct socket *so, struct mbuf *m, int
 	 */
 	struct mbuf *m_save;
 	struct ether_header *eh;
-	struct epoch_tracker et;
 	struct tcphdr *th;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;	/* Keep compiler happy. */
@@ -268,14 +267,8 @@ ctf_process_inbound_raw(struct tcpcb *tp, struct socket *so, struct mbuf *m, int
 	uint16_t drop_hdrlen;
 	uint8_t iptos, no_vn=0, bpf_req=0;
 
-	/* 
-	 * This is a bit deceptive, we get the
-	 * "info epoch" which is really the network
-	 * epoch. This covers us on both any INP
-	 * type change but also if the ifp goes
-	 * away it covers us as well.
-	 */
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_ASSERT();
+
 	if (m && m->m_pkthdr.rcvif)
 		ifp = m->m_pkthdr.rcvif;
 	else
@@ -445,7 +438,6 @@ skip_vnet:
 			}
 			if (no_vn == 0)
 				CURVNET_RESTORE();
-			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 			return(retval);
 		}
 skipped_pkt:
@@ -453,7 +445,6 @@ skipped_pkt:
 	}
 	if (no_vn == 0)
 		CURVNET_RESTORE();
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 	return(retval);
 }
 
@@ -680,7 +671,6 @@ ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tcp
 	    SEQ_LT(th->th_seq, tp->last_ack_sent + tp->rcv_wnd)) ||
 	    (tp->rcv_wnd == 0 && tp->last_ack_sent == th->th_seq)) {
 
-		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 		KASSERT(tp->t_state != TCPS_SYN_SENT,
 		    ("%s: TH_RST for TCPS_SYN_SENT th %p tp %p",
 		    __func__, th, tp));
@@ -732,7 +722,8 @@ ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tcp
 void
 ctf_challenge_ack(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t * ret_val)
 {
-	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
+
+	NET_EPOCH_ASSERT();
 
 	TCPSTAT_INC(tcps_badsyn);
 	if (V_tcp_insecure_syn &&
