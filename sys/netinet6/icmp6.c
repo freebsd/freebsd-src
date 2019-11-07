@@ -1893,8 +1893,9 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 	struct inpcb *last = NULL;
 	struct sockaddr_in6 fromsa;
 	struct icmp6_hdr *icmp6;
-	struct epoch_tracker et;
 	struct mbuf *opts = NULL;
+
+	NET_EPOCH_ASSERT();
 
 #ifndef PULLDOWN_TEST
 	/* this is assumed to be safe. */
@@ -1920,7 +1921,6 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 		return (IPPROTO_DONE);
 	}
 
-	INP_INFO_RLOCK_ET(&V_ripcbinfo, et);
 	CK_LIST_FOREACH(inp, &V_ripcb, inp_list) {
 		if ((inp->inp_vflag & INP_IPV6) == 0)
 			continue;
@@ -2002,7 +2002,6 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 		}
 		last = inp;
 	}
-	INP_INFO_RUNLOCK_ET(&V_ripcbinfo, et);
 	if (last != NULL) {
 		if (last->inp_flags & INP_CONTROLOPTS)
 			ip6_savecontrol(last, m, &opts);
