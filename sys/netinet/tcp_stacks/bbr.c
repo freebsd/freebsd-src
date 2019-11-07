@@ -8618,7 +8618,6 @@ dodata:				/* XXX */
 			bbr->rc_timer_first = 1;
 			bbr_timer_cancel(bbr,
 			    __LINE__, bbr->r_ctl.rc_rcvtime);
-			INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 			INP_WLOCK_ASSERT(tp->t_inpcb);
 			tcp_twstart(tp);
 			return (1);
@@ -9619,7 +9618,6 @@ bbr_check_data_after_close(struct mbuf *m, struct tcp_bbr *bbr,
     struct tcpcb *tp, int32_t * tlen, struct tcphdr *th, struct socket *so)
 {
 
-	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 	if (bbr->rc_allow_data_af_clo == 0) {
 close_now:
 		tp = tcp_close(tp);
@@ -9861,7 +9859,6 @@ bbr_do_closing(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		return (ret_val);
 	}
 	if (ourfinisacked) {
-		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 		tcp_twstart(tp);
 		m_freem(m);
 		return (1);
@@ -9974,7 +9971,6 @@ bbr_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		return (ret_val);
 	}
 	if (ourfinisacked) {
-		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 		tp = tcp_close(tp);
 		ctf_do_drop(m, tp);
 		return (1);
