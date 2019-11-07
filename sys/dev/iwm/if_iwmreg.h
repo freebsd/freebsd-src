@@ -2907,6 +2907,69 @@ enum iwm_mvm_rx_status {
 	IWM_RX_MPDU_RES_STATUS2_FILTERING_MSK		= (0xc0000000),
 };
 
+enum iwm_rx_mpdu_mac_flags1 {
+	IWM_RX_MPDU_MFLG1_ADDRTYPE_MASK		= 0x03,
+	IWM_RX_MPDU_MFLG1_MIC_CRC_LEN_MASK	= 0xf0,
+	IWM_RX_MPDU_MFLG1_MIC_CRC_LEN_SHIFT	= 3,
+};
+
+enum iwm_rx_mpdu_mac_flags2 {
+	IWM_RX_MPDU_MFLG2_HDR_LEN_MASK		= 0x1f,
+	IWM_RX_MPDU_MFLG2_PAD			= 0x20,
+	IWM_RX_MPDU_MFLG2_AMSDU			= 0x40,
+};
+
+enum iwm_rx_mpdu_phy_info {
+	IWM_RX_MPDU_PHY_AMPDU			= (1 << 5),
+	IWM_RX_MPDU_PHY_AMPDU_TOGGLE		= (1 << 6),
+	IWM_RX_MPDU_PHY_SHORT_PREAMBLE		= (1 << 7),
+	IWM_RX_MPDU_PHY_NCCK_ADDTL_NTFY		= (1 << 7),
+	IWM_RX_MPDU_PHY_TSF_OVERLOAD		= (1 << 8),
+};
+
+struct iwm_rx_mpdu_desc_v1 {
+	union {
+		uint32_t rss_hash;
+		uint32_t phy_data2;
+	};
+	union {
+		uint32_t filter_match;
+		uint32_t phy_data3;
+	};
+	uint32_t rate_n_flags;
+	uint8_t energy_a;
+	uint8_t energy_b;
+	uint8_t channel;
+	uint8_t mac_context;
+	uint32_t gp2_on_air_rise;
+	union {
+		uint64_t tsf_on_air_rise;
+		struct {
+			uint32_t phy_data0;
+			uint32_t phy_data1;
+		};
+	};
+} __packed;
+
+struct iwm_rx_mpdu_desc {
+	uint16_t mpdu_len;
+	uint8_t mac_flags1;
+	uint8_t mac_flags2;
+	uint8_t amsdu_info;
+	uint16_t phy_info;
+	uint8_t mac_phy_idx;
+	uint16_t raw_csum;
+	union {
+		uint16_t l3l4_flags;
+		uint16_t phy_data4;
+	};
+	uint16_t status;
+	uint8_t hash_filter;
+	uint8_t sta_id_flags;
+	uint32_t reorder_data;
+	struct iwm_rx_mpdu_desc_v1 v1;
+} __packed;
+
 /**
  * struct iwm_radio_version_notif - information on the radio version
  * ( IWM_RADIO_VERSION_NOTIFICATION = 0x68 )
