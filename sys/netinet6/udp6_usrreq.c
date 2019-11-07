@@ -634,6 +634,7 @@ udp6_getcred(SYSCTL_HANDLER_ARGS)
 {
 	struct xucred xuc;
 	struct sockaddr_in6 addrs[2];
+	struct epoch_tracker et;
 	struct inpcb *inp;
 	int error;
 
@@ -652,9 +653,11 @@ udp6_getcred(SYSCTL_HANDLER_ARGS)
 	    (error = sa6_embedscope(&addrs[1], V_ip6_use_defzone)) != 0) {
 		return (error);
 	}
+	NET_EPOCH_ENTER(et);
 	inp = in6_pcblookup(&V_udbinfo, &addrs[1].sin6_addr,
 	    addrs[1].sin6_port, &addrs[0].sin6_addr, addrs[0].sin6_port,
 	    INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB, NULL);
+	NET_EPOCH_EXIT(et);
 	if (inp != NULL) {
 		INP_RLOCK_ASSERT(inp);
 		if (inp->inp_socket == NULL)
