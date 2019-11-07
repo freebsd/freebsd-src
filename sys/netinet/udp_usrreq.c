@@ -963,6 +963,7 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 {
 	struct xucred xuc;
 	struct sockaddr_in addrs[2];
+	struct epoch_tracker et;
 	struct inpcb *inp;
 	int error;
 
@@ -972,9 +973,11 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_IN(req, addrs, sizeof(addrs));
 	if (error)
 		return (error);
+	NET_EPOCH_ENTER(et);
 	inp = in_pcblookup(&V_udbinfo, addrs[1].sin_addr, addrs[1].sin_port,
 	    addrs[0].sin_addr, addrs[0].sin_port,
 	    INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB, NULL);
+	NET_EPOCH_EXIT(et);
 	if (inp != NULL) {
 		INP_RLOCK_ASSERT(inp);
 		if (inp->inp_socket == NULL)
