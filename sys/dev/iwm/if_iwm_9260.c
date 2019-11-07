@@ -92,4 +92,5 @@ const struct iwm_cfg iwm9260_cfg = {
 	.fw_name = IWM9260_FW,
 	IWM_DEVICE_9260_COMMON,
 	.host_interrupt_operation_mode = 0,
+	.mqrx_supported = 1,
 };
