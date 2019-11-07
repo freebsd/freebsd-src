@@ -399,7 +399,6 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	struct sockaddr_in udp_in[2];
 	struct mbuf *m;
 	struct m_tag *fwd_tag;
-	struct epoch_tracker et;
 	int cscov_partial, iphlen;
 
 	m = *mp;
@@ -528,7 +527,8 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 		struct inpcb *last;
 		struct inpcbhead *pcblist;
 
-		INP_INFO_RLOCK_ET(pcbinfo, et);
+		NET_EPOCH_ASSERT();
+
 		pcblist = udp_get_pcblist(proto);
 		last = NULL;
 		CK_LIST_FOREACH(inp, pcblist, inp_list) {
@@ -635,7 +635,6 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			UDPSTAT_INC(udps_noportbcast);
 			if (inp)
 				INP_RUNLOCK(inp);
-			INP_INFO_RUNLOCK_ET(pcbinfo, et);
 			goto badunlocked;
 		}
 		if (proto == IPPROTO_UDPLITE)
@@ -645,7 +644,6 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 		if (udp_append(last, ip, m, iphlen, udp_in) == 0) 
 			INP_RUNLOCK(last);
 	inp_lost:
-		INP_INFO_RUNLOCK_ET(pcbinfo, et);
 		return (IPPROTO_DONE);
 	}
 
