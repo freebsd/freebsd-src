@@ -1062,7 +1062,7 @@ static s32 e1000_setup_copper_link_82543(struct e1000_hw *hw)
 {
 	u32 ctrl;
 	s32 ret_val;
-	bool link;
+	bool link = true;
 
 	DEBUGFUNC("e1000_setup_copper_link_82543");
 
