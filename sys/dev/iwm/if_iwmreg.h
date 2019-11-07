@@ -5488,21 +5488,44 @@ struct iwm_scan_req_umac_tail {
 } __packed;
 
 /**
+ * struct iwm_scan_uma_chan_param
+ * @flags: channel flags &enum iwm_scan_channel_flags
+ * @count: num of channels in scan request
+ * @reserved: for future use and alignment
+ */
+struct iwm_scan_umac_chan_param {
+	uint8_t flags;
+	uint8_t count;
+	uint16_t reserved;
+} __packed;
+
+/**
  * struct iwm_scan_req_umac
  * @flags: &enum iwm_umac_scan_flags
  * @uid: scan id, &enum iwm_umac_scan_uid_offsets
  * @ooc_priority: out of channel priority - &enum iwm_scan_priority
  * @general_flags: &enum iwm_umac_scan_general_flags
+ * @scan_start_mac_id: report the scan start TSF time according to this mac TSF
  * @extended_dwell: dwell time for channels 1, 6 and 11
- * @active_dwell: dwell time for active scan
- * @passive_dwell: dwell time for passive scan
+ * @active_dwell: dwell time for active scan per LMAC
+ * @passive_dwell: dwell time for passive scan per LMAC
  * @fragmented_dwell: dwell time for fragmented passive scan
- * @max_out_time: max out of serving channel time
- * @suspend_time: max suspend time
- * @scan_priority: scan internal prioritization &enum iwm_scan_priority
- * @channel_flags: &enum iwm_scan_channel_flags
- * @n_channels: num of channels in scan request
+ * @adwell_default_n_aps: for adaptive dwell the default number of APs
+ *	per channel
+ * @adwell_default_n_aps_social: for adaptive dwell the default
+ *	number of APs per social (1,6,11) channel
+ * @general_flags2: &enum iwl_umac_scan_general_flags2
+ * @adwell_max_budget: for adaptive dwell the maximal budget of TU to be added
+ *	to total scan time
+ * @max_out_time: max out of serving channel time, per LMAC - for CDB there
+ *	are 2 LMACs
+ * @suspend_time: max suspend time, per LMAC - for CDB there are 2 LMACs
+ * @scan_priority: scan internal prioritization &enum iwl_scan_priority
+ * @num_of_fragments: Number of fragments needed for full coverage per band.
+ *	Relevant only for fragmented scan.
+ * @channel: &struct iwl_scan_umac_chan_param
  * @reserved: for future use and alignment
+ * @reserved3: for future use and alignment
  * @data: &struct iwm_scan_channel_cfg_umac and
  *	&struct iwm_scan_req_umac_tail
  */
@@ -5510,21 +5533,40 @@ struct iwm_scan_req_umac {
 	uint32_t flags;
 	uint32_t uid;
 	uint32_t ooc_priority;
-	/* SCAN_GENERAL_PARAMS_API_S_VER_1 */
-	uint32_t general_flags;
-	uint8_t extended_dwell;
-	uint8_t active_dwell;
-	uint8_t passive_dwell;
-	uint8_t fragmented_dwell;
-	uint32_t max_out_time;
-	uint32_t suspend_time;
-	uint32_t scan_priority;
-	/* SCAN_CHANNEL_PARAMS_API_S_VER_1 */
-	uint8_t channel_flags;
-	uint8_t n_channels;
-	uint16_t reserved;
-	uint8_t data[];
-} __packed; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_1 */
+	uint16_t general_flags;
+	uint8_t reserved;
+	uint8_t scan_start_mac_id;
+	union {
+		struct {
+			uint8_t extended_dwell;
+			uint8_t active_dwell;
+			uint8_t passive_dwell;
+			uint8_t fragmented_dwell;
+			uint32_t max_out_time;
+			uint32_t suspend_time;
+			uint32_t scan_priority;
+			struct iwm_scan_umac_chan_param channel;
+			uint8_t data[];
+		} v1;
+		struct {
+			uint8_t active_dwell;
+			uint8_t passive_dwell;
+			uint8_t fragmented_dwell;
+			uint8_t adwell_default_n_aps;
+			uint8_t adwell_default_n_aps_social;
+			uint8_t reserved3;
+			uint16_t adwell_max_budget;
+			uint32_t max_out_time[2];
+			uint32_t suspend_time[2];
+			uint32_t scan_priority;
+			struct iwm_scan_umac_chan_param channel;
+			uint8_t data[];
+		} v7;
+	};
+} __packed;
+
+#define IWM_SCAN_REQ_UMAC_SIZE_V7 48
+#define IWM_SCAN_REQ_UMAC_SIZE_V1 36
 
 /**
  * struct iwm_umac_scan_abort
