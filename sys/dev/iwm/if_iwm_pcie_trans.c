@@ -611,7 +611,7 @@ iwm_start_hw(struct iwm_softc *sc)
 
 	/* Reset the entire device */
 	IWM_WRITE(sc, IWM_CSR_RESET, IWM_CSR_RESET_REG_FLAG_SW_RESET);
-	DELAY(10);
+	DELAY(5000);
 
 	if ((error = iwm_apm_init(sc)) != 0)
 		return error;
