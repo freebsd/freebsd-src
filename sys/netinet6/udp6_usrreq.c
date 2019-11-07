@@ -678,14 +678,10 @@ udp6_getcred(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_net_inet6_udp6, OID_AUTO, getcred, CTLTYPE_OPAQUE|CTLFLAG_RW, 0,
     0, udp6_getcred, "S,xucred", "Get the xucred of a UDP6 connection");
 
-#define	UH_WLOCKED	2
-#define	UH_RLOCKED	1
-#define	UH_UNLOCKED	0
 static int
 udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
     struct sockaddr *addr6, struct mbuf *control, struct thread *td)
 {
-	struct inpcbinfo *pcbinfo;
 	struct inpcb *inp;
 	struct ip6_hdr *ip6;
 	struct udphdr *udp6;
@@ -697,7 +693,7 @@ udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
 	u_int32_t ulen, plen;
 	uint16_t cscov;
 	u_short fport;
-	uint8_t nxt, unlock_inp, unlock_udbinfo;
+	uint8_t nxt;
 
 	/* addr6 has been validated in udp6_send(). */
 	sin6 = (struct sockaddr_in6 *)addr6;
@@ -740,30 +736,17 @@ udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
 	 * - on connected sockets (sin6 is NULL) for route cache updates,
 	 * - when we are not bound to an address and source port (it is
 	 *   in6_pcbsetport() which will require the write lock).
+	 *
+	 * We check the inp fields before actually locking the inp, so
+	 * here exists a race, and we may WLOCK the inp and end with already
+	 * bound one by other thread. This is fine.
 	 */
-retry:
 	if (sin6 == NULL || (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr) &&
-	    inp->inp_lport == 0)) {
+	    inp->inp_lport == 0))
 		INP_WLOCK(inp);
-		/*
-		 * In case we lost a race and another thread bound addr/port
-		 * on the inp we cannot keep the wlock (which still would be
-		 * fine) as further down, based on these values we make
-		 * decisions for the pcbinfo lock.  If the locks are not in
-		 * synch the assertions on unlock will fire, hence we go for
-		 * one retry loop.
-		 */
-		if (sin6 != NULL &&
-		    (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr) ||
-		    inp->inp_lport != 0)) {
-			INP_WUNLOCK(inp);
-			goto retry;
-		}
-		unlock_inp = UH_WLOCKED;
-	} else {
+	else
 		INP_RLOCK(inp);
-		unlock_inp = UH_RLOCKED;
-	}
+
 	nxt = (inp->inp_socket->so_proto->pr_protocol == IPPROTO_UDP) ?
 	    IPPROTO_UDP : IPPROTO_UDPLITE;
 
@@ -787,10 +770,7 @@ retry:
 			 * potential race in which the factors causing us to
 			 * select the UDPv4 output routine are invalidated?
 			 */
-			if (unlock_inp == UH_WLOCKED)
-				INP_WUNLOCK(inp);
-			else
-				INP_RUNLOCK(inp);
+			INP_UNLOCK(inp);
 			if (sin6)
 				in6_sin6_2_sin_in_sock((struct sockaddr *)sin6);
 			pru = inetsw[ip_protox[nxt]].pr_usrreqs;
@@ -805,21 +785,17 @@ retry:
 		 * Given this is either an IPv6-only socket or no INET is
 		 * supported we will fail the send if the given destination
 		 * address is a v4mapped address.
+		 *
+		 * XXXGL: do we leak m and control?
 		 */
-		if (unlock_inp == UH_WLOCKED)
-			INP_WUNLOCK(inp);
-		else
-			INP_RUNLOCK(inp);
+		INP_UNLOCK(inp);
 		return (EINVAL);
 	}
 
 	if (control) {
 		if ((error = ip6_setpktopts(control, &opt,
 		    inp->in6p_outputopts, td->td_ucred, nxt)) != 0) {
-			if (unlock_inp == UH_WLOCKED)
-				INP_WUNLOCK(inp);
-			else
-				INP_RUNLOCK(inp);
+			INP_UNLOCK(inp);
 			ip6_clearpktopts(&opt, -1);
 			if (control)
 				m_freem(control);
@@ -830,20 +806,7 @@ retry:
 	} else
 		optp = inp->in6p_outputopts;
 
-	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
-	if (sin6 != NULL &&
-	    IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr) && inp->inp_lport == 0) {
-		INP_HASH_WLOCK(pcbinfo);
-		unlock_udbinfo = UH_WLOCKED;
-	} else if (sin6 != NULL &&
-	    (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) ||
-	    IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr) ||
-	    inp->inp_lport == 0)) {
-		INP_HASH_RLOCK_ET(pcbinfo, et);
-		unlock_udbinfo = UH_RLOCKED;
-	} else
-		unlock_udbinfo = UH_UNLOCKED;
-
+	NET_EPOCH_ENTER(et);
 	if (sin6) {
 
 		/*
@@ -879,9 +842,14 @@ retry:
 		laddr = &in6a;
 
 		if (inp->inp_lport == 0) {
+			struct inpcbinfo *pcbinfo;
 
 			INP_WLOCK_ASSERT(inp);
+
+			pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
+			INP_HASH_WLOCK(pcbinfo);
 			error = in6_pcbsetport(laddr, inp, td->td_ucred);
+			INP_HASH_WUNLOCK(pcbinfo);
 			if (error != 0) {
 				/* Undo an address bind that may have occurred. */
 				inp->in6p_laddr = in6addr_any;
@@ -1005,21 +973,15 @@ retry:
 #endif
 
 	UDPSTAT_INC(udps_opackets);
-	if (unlock_udbinfo == UH_WLOCKED)
-		INP_HASH_WUNLOCK(pcbinfo);
-	else if (unlock_udbinfo == UH_RLOCKED)
-		INP_HASH_RUNLOCK_ET(pcbinfo, et);
 	if (nxt == IPPROTO_UDPLITE)
 		UDPLITE_PROBE(send, NULL, inp, ip6, inp, udp6);
 	else
 		UDP_PROBE(send, NULL, inp, ip6, inp, udp6);
 	error = ip6_output(m, optp,
-	    (unlock_inp == UH_WLOCKED) ? &inp->inp_route6 : NULL, flags,
+	    INP_WLOCKED(inp) ? &inp->inp_route6 : NULL, flags,
 	    inp->in6p_moptions, NULL, inp);
-	if (unlock_inp == UH_WLOCKED)
-		INP_WUNLOCK(inp);
-	else
-		INP_RUNLOCK(inp);
+	INP_UNLOCK(inp);
+	NET_EPOCH_EXIT(et);
 
 	if (control) {
 		ip6_clearpktopts(&opt, -1);
@@ -1028,22 +990,8 @@ retry:
 	return (error);
 
 release:
-	if (unlock_udbinfo == UH_WLOCKED) {
-		KASSERT(unlock_inp == UH_WLOCKED, ("%s: excl udbinfo lock, "
-		    "non-excl inp lock: pcbinfo %p %#x inp %p %#x",
-		    __func__, pcbinfo, unlock_udbinfo, inp, unlock_inp));
-		INP_HASH_WUNLOCK(pcbinfo);
-		INP_WUNLOCK(inp);
-	} else if (unlock_udbinfo == UH_RLOCKED) {
-		KASSERT(unlock_inp == UH_RLOCKED, ("%s: non-excl udbinfo lock, "
-		    "excl inp lock: pcbinfo %p %#x inp %p %#x",
-		    __func__, pcbinfo, unlock_udbinfo, inp, unlock_inp));
-		INP_HASH_RUNLOCK_ET(pcbinfo, et);
-		INP_RUNLOCK(inp);
-	} else if (unlock_inp == UH_WLOCKED)
-		INP_WUNLOCK(inp);
-	else
-		INP_RUNLOCK(inp);
+	INP_UNLOCK(inp);
+	NET_EPOCH_EXIT(et);
 	if (control) {
 		ip6_clearpktopts(&opt, -1);
 		m_freem(control);
