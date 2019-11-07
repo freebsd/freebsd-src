@@ -2452,46 +2452,41 @@ syncache_unpause(void *arg)
  * amount of space the caller allocated for this function to use.
  */
 int
-syncache_pcblist(struct sysctl_req *req, int max_pcbs, int *pcbs_exported)
+syncache_pcblist(struct sysctl_req *req)
 {
 	struct xtcpcb xt;
 	struct syncache *sc;
 	struct syncache_head *sch;
-	int count, error, i;
+	int error, i;
 
-	for (count = 0, error = 0, i = 0; i < V_tcp_syncache.hashsize; i++) {
+	bzero(&xt, sizeof(xt));
+	xt.xt_len = sizeof(xt);
+	xt.t_state = TCPS_SYN_RECEIVED;
+	xt.xt_inp.xi_socket.xso_protocol = IPPROTO_TCP;
+	xt.xt_inp.xi_socket.xso_len = sizeof (struct xsocket);
+	xt.xt_inp.xi_socket.so_type = SOCK_STREAM;
+	xt.xt_inp.xi_socket.so_state = SS_ISCONNECTING;
+
+	for (i = 0; i < V_tcp_syncache.hashsize; i++) {
 		sch = &V_tcp_syncache.hashbase[i];
 		SCH_LOCK(sch);
 		TAILQ_FOREACH(sc, &sch->sch_bucket, sc_hash) {
-			if (count >= max_pcbs) {
-				SCH_UNLOCK(sch);
-				goto exit;
-			}
 			if (cr_cansee(req->td->td_ucred, sc->sc_cred) != 0)
 				continue;
-			bzero(&xt, sizeof(xt));
-			xt.xt_len = sizeof(xt);
 			if (sc->sc_inc.inc_flags & INC_ISIPV6)
 				xt.xt_inp.inp_vflag = INP_IPV6;
 			else
 				xt.xt_inp.inp_vflag = INP_IPV4;
 			bcopy(&sc->sc_inc, &xt.xt_inp.inp_inc,
 			    sizeof (struct in_conninfo));
-			xt.t_state = TCPS_SYN_RECEIVED;
-			xt.xt_inp.xi_socket.xso_protocol = IPPROTO_TCP;
-			xt.xt_inp.xi_socket.xso_len = sizeof (struct xsocket);
-			xt.xt_inp.xi_socket.so_type = SOCK_STREAM;
-			xt.xt_inp.xi_socket.so_state = SS_ISCONNECTING;
 			error = SYSCTL_OUT(req, &xt, sizeof xt);
 			if (error) {
 				SCH_UNLOCK(sch);
-				goto exit;
+				return (0);
 			}
-			count++;
 		}
 		SCH_UNLOCK(sch);
 	}
-exit:
-	*pcbs_exported = count;
-	return error;
+
+	return (0);
 }

@@ -48,7 +48,7 @@ int	 syncache_add(struct in_conninfo *, struct tcpopt *,
 	     void *, void *);
 void	 syncache_chkrst(struct in_conninfo *, struct tcphdr *, struct mbuf *);
 void	 syncache_badack(struct in_conninfo *);
-int	 syncache_pcblist(struct sysctl_req *req, int max_pcbs, int *pcbs_exported);
+int	 syncache_pcblist(struct sysctl_req *);
 
 struct syncache {
 	TAILQ_ENTRY(syncache)	sc_hash;
