@@ -185,6 +185,27 @@ iwm_write_prph(struct iwm_softc *sc, uint32_t addr, uint32_t val)
 	IWM_WRITE(sc, IWM_HBUS_TARG_PRPH_WDAT, val);
 }
 
+void
+iwm_write_prph64(struct iwm_softc *sc, uint64_t addr, uint64_t val)
+{
+	iwm_write_prph(sc, (uint32_t)addr, val & 0xffffffff);
+	iwm_write_prph(sc, (uint32_t)addr + 4, val >> 32);
+}
+
+int
+iwm_poll_prph(struct iwm_softc *sc, uint32_t addr, uint32_t bits, uint32_t mask,
+    int timeout)
+{
+	do {
+		if ((iwm_read_prph(sc, addr) & mask) == (bits & mask))
+			return (0);
+		DELAY(10);
+		timeout -= 10;
+	} while (timeout > 0);
+
+	return (ETIMEDOUT);
+}
+
 #ifdef IWM_DEBUG
 /* iwlwifi: pcie/trans.c */
 int
