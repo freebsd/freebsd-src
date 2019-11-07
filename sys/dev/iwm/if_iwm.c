@@ -3568,7 +3568,6 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 	tid = 0;
 	ring = &sc->txq[ac];
 	desc = &ring->desc[ring->cur];
-	memset(desc, 0, sizeof(*desc));
 	data = &ring->data[ring->cur];
 
 	/* Fill out iwm_tx_cmd to send to the firmware */
@@ -3607,17 +3606,15 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 		ieee80211_radiotap_tx(vap, m);
 	}
 
-
-	totlen = m->m_pkthdr.len;
-
 	flags = 0;
+	totlen = m->m_pkthdr.len;
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		flags |= IWM_TX_CMD_FLG_ACK;
 	}
 
-	if (type == IEEE80211_FC0_TYPE_DATA
-	    && (totlen + IEEE80211_CRC_LEN > vap->iv_rtsthreshold)
-	    && !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+	if (type == IEEE80211_FC0_TYPE_DATA &&
+	    totlen + IEEE80211_CRC_LEN > vap->iv_rtsthreshold &&
+	    !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		flags |= IWM_TX_CMD_FLG_PROT_REQUIRE;
 	}
 
@@ -3661,7 +3658,7 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 	tx->dram_msb_ptr = iwm_get_dma_hi_addr(data->scratch_paddr);
 
 	/* Copy 802.11 header in TX command. */
-	memcpy(((uint8_t *)tx) + sizeof(*tx), wh, hdrlen);
+	memcpy((uint8_t *)tx + sizeof(*tx), wh, hdrlen);
 
 	flags |= IWM_TX_CMD_FLG_BT_DIS | IWM_TX_CMD_FLG_SEQ_CTL;
 
@@ -3715,23 +3712,24 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 	    );
 
 	/* Fill TX descriptor. */
+	memset(desc, 0, sizeof(*desc));
 	desc->num_tbs = 2 + nsegs;
 
 	desc->tbs[0].lo = htole32(data->cmd_paddr);
-	desc->tbs[0].hi_n_len = htole16(iwm_get_dma_hi_addr(data->cmd_paddr)) |
-	    (TB0_SIZE << 4);
+	desc->tbs[0].hi_n_len = htole16(iwm_get_dma_hi_addr(data->cmd_paddr) |
+	    (TB0_SIZE << 4));
 	desc->tbs[1].lo = htole32(data->cmd_paddr + TB0_SIZE);
-	desc->tbs[1].hi_n_len = htole16(iwm_get_dma_hi_addr(data->cmd_paddr)) |
-	    ((sizeof(struct iwm_cmd_header) + sizeof(*tx)
-	      + hdrlen + pad - TB0_SIZE) << 4);
+	desc->tbs[1].hi_n_len = htole16(iwm_get_dma_hi_addr(data->cmd_paddr) |
+	    ((sizeof(struct iwm_cmd_header) + sizeof(*tx) +
+	    hdrlen + pad - TB0_SIZE) << 4));
 
 	/* Other DMA segments are for data payload. */
 	for (i = 0; i < nsegs; i++) {
 		seg = &segs[i];
-		desc->tbs[i+2].lo = htole32(seg->ds_addr);
-		desc->tbs[i+2].hi_n_len = \
-		    htole16(iwm_get_dma_hi_addr(seg->ds_addr))
-		    | ((seg->ds_len) << 4);
+		desc->tbs[i + 2].lo = htole32(seg->ds_addr);
+		desc->tbs[i + 2].hi_n_len =
+		    htole16(iwm_get_dma_hi_addr(seg->ds_addr)) |
+		    (seg->ds_len << 4);
 	}
 
 	bus_dmamap_sync(ring->data_dmat, data->map,
