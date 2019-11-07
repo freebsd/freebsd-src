@@ -3858,11 +3858,7 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 		flags |= IWM_TX_CMD_FLG_PROT_REQUIRE;
 	}
 
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
-	    type != IEEE80211_FC0_TYPE_DATA)
-		tx->sta_id = sc->sc_aux_sta.sta_id;
-	else
-		tx->sta_id = IWM_STATION_ID;
+	tx->sta_id = IWM_STATION_ID;
 
 	if (type == IEEE80211_FC0_TYPE_MGT) {
 		uint8_t subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
