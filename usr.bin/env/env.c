@@ -59,21 +59,32 @@ int	 env_verbosity;
 
 static void usage(void);
 
+/*
+ * Exit codes.
+ */
+#define EXIT_CANCELED      125 /* Internal error prior to exec attempt. */
+#define EXIT_CANNOT_INVOKE 126 /* Program located, but not usable. */
+#define EXIT_ENOENT        127 /* Could not find program to exec. */
+
 int
 main(int argc, char **argv)
 {
-	char *altpath, **ep, *p, **parg;
+	char *altpath, **ep, *p, **parg, term;
 	char *cleanenv[1];
 	int ch, want_clear;
 	int rtrn;
 
 	altpath = NULL;
 	want_clear = 0;
-	while ((ch = getopt(argc, argv, "-iP:S:u:v")) != -1)
+	term = '\n';
+	while ((ch = getopt(argc, argv, "-0iP:S:u:v")) != -1)
 		switch(ch) {
 		case '-':
 		case 'i':
 			want_clear = 1;
+			break;
+		case '0':
+			term = '\0';
 			break;
 		case 'P':
 			altpath = strdup(optarg);
@@ -118,6 +129,8 @@ main(int argc, char **argv)
 			err(EXIT_FAILURE, "setenv %s", *argv);
 	}
 	if (*argv) {
+		if (term == '\0')
+			errx(EXIT_CANCELED, "cannot specify command with -0");
 		if (altpath)
 			search_paths(altpath, argv);
 		if (env_verbosity) {
@@ -129,10 +142,11 @@ main(int argc, char **argv)
 				sleep(1);
 		}
 		execvp(*argv, argv);
-		err(errno == ENOENT ? 127 : 126, "%s", *argv);
+		err(errno == ENOENT ? EXIT_ENOENT : EXIT_CANNOT_INVOKE,
+		    "%s", *argv);
 	}
 	for (ep = environ; *ep; ep++)
-		(void)printf("%s\n", *ep);
+		(void)printf("%s%c", *ep, term);
 	exit(0);
 }
 
@@ -140,7 +154,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: env [-iv] [-P utilpath] [-S string] [-u name]\n"
+	    "usage: env [-0iv] [-P utilpath] [-S string] [-u name]\n"
 	    "           [name=value ...] [utility [argument ...]]\n");
 	exit(1);
 }
