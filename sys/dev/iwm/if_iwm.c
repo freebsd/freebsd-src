@@ -1315,12 +1315,14 @@ iwm_stop_device(struct iwm_softc *sc)
 	/* Stop the device, and put it in low power state */
 	iwm_apm_stop(sc);
 
-	/* Upon stop, the APM issues an interrupt if HW RF kill is set.
-	 * Clean again the interrupt here
+	/* stop and reset the on-board processor */
+	IWM_SETBITS(sc, IWM_CSR_RESET, IWM_CSR_RESET_REG_FLAG_SW_RESET);
+	DELAY(5000);
+
+	/*
+	 * Upon stop, the APM issues an interrupt if HW RF kill is set.
 	 */
 	iwm_disable_interrupts(sc);
-	/* stop and reset the on-board processor */
-	IWM_WRITE(sc, IWM_CSR_RESET, IWM_CSR_RESET_REG_FLAG_SW_RESET);
 
 	/*
 	 * Even if we stop the HW, we still want the RF kill
