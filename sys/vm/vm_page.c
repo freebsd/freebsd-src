@@ -1053,8 +1053,10 @@ _vm_page_busy_sleep(vm_object_t obj, vm_page_t m, const char *wmesg,
 	}
 	if (locked)
 		VM_OBJECT_DROP(obj);
+	DROP_GIANT();
 	sleepq_add(m, NULL, wmesg, 0, 0);
 	sleepq_wait(m, PVM);
+	PICKUP_GIANT();
 }
 
 /*
