@@ -209,10 +209,10 @@ tcp_tw_destroy(void)
 	struct tcptw *tw;
 	struct epoch_tracker et;
 
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_ENTER(et);
 	while ((tw = TAILQ_FIRST(&V_twq_2msl)) != NULL)
 		tcp_twclose(tw, 0);
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_EXIT(et);
 
 	TW_LOCK_DESTROY(V_tw_lock);
 	uma_zdestroy(V_tcptw_zone);
@@ -236,7 +236,7 @@ tcp_twstart(struct tcpcb *tp)
 	bool isipv6 = inp->inp_inc.inc_flags & INC_ISIPV6;
 #endif
 
-	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
+	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
 
 	/* A dropped inp should never transition to TIME_WAIT state. */
@@ -382,7 +382,7 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to __unused, struct tcphdr *th,
 	int thflags;
 	tcp_seq seq;
 
-	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
+	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
 
 	/*
@@ -488,7 +488,7 @@ tcp_twclose(struct tcptw *tw, int reuse)
 	inp = tw->tw_inpcb;
 	KASSERT((inp->inp_flags & INP_TIMEWAIT), ("tcp_twclose: !timewait"));
 	KASSERT(intotw(inp) == tw, ("tcp_twclose: inp_ppcb != tw"));
-	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);	/* in_pcbfree() */
+	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
 
 	tcp_tw_2msl_stop(tw, reuse);
@@ -644,7 +644,7 @@ static void
 tcp_tw_2msl_reset(struct tcptw *tw, int rearm)
 {
 
-	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
+	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(tw->tw_inpcb);
 
 	TW_WLOCK(V_tw_lock);
@@ -662,7 +662,7 @@ tcp_tw_2msl_stop(struct tcptw *tw, int reuse)
 	struct inpcb *inp;
 	int released __unused;
 
-	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
+	NET_EPOCH_ASSERT();
 
 	TW_WLOCK(V_tw_lock);
 	inp = tw->tw_inpcb;
