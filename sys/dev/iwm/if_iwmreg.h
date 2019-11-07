@@ -4465,8 +4465,7 @@ struct iwm_tx_cmd {
 	uint8_t initial_rate_index;
 	uint8_t reserved2;
 	uint8_t key[16];
-	uint16_t next_frame_flags;
-	uint16_t reserved3;
+	uint32_t reserved3;
 	uint32_t life_time;
 	uint32_t dram_lsb_ptr;
 	uint8_t dram_msb_ptr;
@@ -4474,7 +4473,7 @@ struct iwm_tx_cmd {
 	uint8_t data_retry_limit;
 	uint8_t tid_tspec;
 	uint16_t pm_frame_timeout;
-	uint16_t driver_txop;
+	uint16_t reserved4;
 	uint8_t payload[0];
 	struct ieee80211_frame hdr[0];
 } __packed; /* IWM_TX_CMD_API_S_VER_3 */
