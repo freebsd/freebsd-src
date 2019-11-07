@@ -4477,13 +4477,41 @@ enum iwm_tx_pm_timeouts {
 #define IWM_BAR_DFAULT_RETRY_LIMIT		60
 #define IWM_LOW_RETRY_LIMIT			7
 
+/**
+ * enum iwm_tx_offload_assist_flags_pos -  set %iwm_tx_cmd offload_assist values
+ * @IWM_TX_CMD_OFFLD_IP_HDR: offset to start of IP header (in words)
+ *	from mac header end. For normal case it is 4 words for SNAP.
+ *	note: tx_cmd, mac header and pad are not counted in the offset.
+ *	This is used to help the offload in case there is tunneling such as
+ *	IPv6 in IPv4, in such case the ip header offset should point to the
+ *	inner ip header and IPv4 checksum of the external header should be
+ *	calculated by driver.
+ * @IWM_TX_CMD_OFFLD_L4_EN: enable TCP/UDP checksum
+ * @IWM_TX_CMD_OFFLD_L3_EN: enable IP header checksum
+ * @IWM_TX_CMD_OFFLD_MH_SIZE: size of the mac header in words. Includes the IV
+ *	field. Doesn't include the pad.
+ * @IWM_TX_CMD_OFFLD_PAD: mark 2-byte pad was inserted after the mac header for
+ *	alignment
+ * @IWM_TX_CMD_OFFLD_AMSDU: mark TX command is A-MSDU
+ */
+enum iwm_tx_offload_assist_flags_pos {
+	IWM_TX_CMD_OFFLD_IP_HDR =	0,
+	IWM_TX_CMD_OFFLD_L4_EN =	6,
+	IWM_TX_CMD_OFFLD_L3_EN =	7,
+	IWM_TX_CMD_OFFLD_MH_SIZE =	8,
+	IWM_TX_CMD_OFFLD_PAD =		13,
+	IWM_TX_CMD_OFFLD_AMSDU =	14,
+};
+
+#define IWM_TX_CMD_OFFLD_MH_MASK	0x1f
+#define IWM_TX_CMD_OFFLD_IP_HDR_MASK	0x3f
+
 /* TODO: complete documentation for try_cnt and btkill_cnt */
 /**
  * struct iwm_tx_cmd - TX command struct to FW
  * ( IWM_TX_CMD = 0x1c )
  * @len: in bytes of the payload, see below for details
- * @next_frame_len: same as len, but for next frame (0 if not applicable)
- *	Used for fragmentation and bursting, but not in 11n aggregation.
+ * @offload_assist: TX offload configuration
  * @tx_flags: combination of IWM_TX_CMD_FLG_*
  * @rate_n_flags: rate for *all* Tx attempts, if IWM_TX_CMD_FLG_STA_RATE_MSK is
  *	cleared. Combination of IWM_RATE_MCS_*
@@ -4519,7 +4547,7 @@ enum iwm_tx_pm_timeouts {
  */
 struct iwm_tx_cmd {
 	uint16_t len;
-	uint16_t next_frame_len;
+	uint16_t offload_assist;
 	uint32_t tx_flags;
 	struct {
 		uint8_t try_cnt;
