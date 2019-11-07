@@ -127,4 +127,11 @@
 #define	LINUX_F_UNLCK		2
 #endif
 
+/*
+ * renameat2 flags
+ */
+#define	LINUX_RENAME_NOREPLACE	0x00000001
+#define	LINUX_RENAME_EXCHANGE	0x00000002
+#define	LINUX_RENAME_WHITEOUT	0x00000004
+
 #endif	/* !_LINUX_FILE_H_ */
