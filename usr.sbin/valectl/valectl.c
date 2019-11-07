@@ -42,10 +42,8 @@
 #include <libgen.h>	/* basename */
 #include <stdlib.h>	/* atoi, free */
 
-/* XXX cut and paste from pkt-gen.c because I'm not sure whether this
- * program may include nm_util.h
- */
-void parse_nmr_config(const char* conf, struct nmreq *nmr)
+static void
+parse_nmr_config(const char* conf, struct nmreq *nmr)
 {
 	char *w, *tok;
 	int i, v;
@@ -201,7 +199,7 @@ usage(int errcode)
 {
 	fprintf(stderr,
 	    "Usage:\n"
-	    "vale-ctl arguments\n"
+	    "valectl arguments\n"
 	    "\t-g interface	interface name to get info\n"
 	    "\t-d interface	interface name to be detached\n"
 	    "\t-a interface	interface name to be attached\n"

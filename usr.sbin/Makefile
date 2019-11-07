@@ -96,6 +96,7 @@ SUBDIR=	adduser \
 	trpt \
 	tzsetup \
 	ugidfw \
+	valectl \
 	vigr \
 	vipw \
 	wake \
