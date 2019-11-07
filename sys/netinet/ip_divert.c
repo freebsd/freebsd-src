@@ -629,71 +629,41 @@ div_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 static int
 div_pcblist(SYSCTL_HANDLER_ARGS)
 {
-	int error, i, n;
-	struct inpcb *inp, **inp_list;
-	inp_gen_t gencnt;
 	struct xinpgen xig;
 	struct epoch_tracker et;
+	struct inpcb *inp;
+	int error;
 
-	/*
-	 * The process of preparing the TCB list is too time-consuming and
-	 * resource-intensive to repeat twice on every request.
-	 */
+	if (req->newptr != 0)
+		return EPERM;
+
 	if (req->oldptr == 0) {
+		int n;
+
 		n = V_divcbinfo.ipi_count;
 		n += imax(n / 8, 10);
 		req->oldidx = 2 * (sizeof xig) + n * sizeof(struct xinpcb);
 		return 0;
 	}
 
-	if (req->newptr != 0)
-		return EPERM;
-
-	/*
-	 * OK, now we're committed to doing something.
-	 */
-	INP_INFO_WLOCK(&V_divcbinfo);
-	gencnt = V_divcbinfo.ipi_gencnt;
-	n = V_divcbinfo.ipi_count;
-	INP_INFO_WUNLOCK(&V_divcbinfo);
-
-	error = sysctl_wire_old_buffer(req,
-	    2 * sizeof(xig) + n*sizeof(struct xinpcb));
-	if (error != 0)
+	if ((error = sysctl_wire_old_buffer(req, 0)) != 0)
 		return (error);
 
 	bzero(&xig, sizeof(xig));
 	xig.xig_len = sizeof xig;
-	xig.xig_count = n;
-	xig.xig_gen = gencnt;
+	xig.xig_count = V_divcbinfo.ipi_count;
+	xig.xig_gen = V_divcbinfo.ipi_gencnt;
 	xig.xig_sogen = so_gencnt;
 	error = SYSCTL_OUT(req, &xig, sizeof xig);
 	if (error)
 		return error;
 
-	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
-	if (inp_list == NULL)
-		return ENOMEM;
-	
-	INP_INFO_RLOCK_ET(&V_divcbinfo, et);
-	for (inp = CK_LIST_FIRST(V_divcbinfo.ipi_listhead), i = 0; inp && i < n;
-	     inp = CK_LIST_NEXT(inp, inp_list)) {
-		INP_WLOCK(inp);
-		if (inp->inp_gencnt <= gencnt &&
-		    cr_canseeinpcb(req->td->td_ucred, inp) == 0) {
-			in_pcbref(inp);
-			inp_list[i++] = inp;
-		}
-		INP_WUNLOCK(inp);
-	}
-	INP_INFO_RUNLOCK_ET(&V_divcbinfo, et);
-	n = i;
-
-	error = 0;
-	for (i = 0; i < n; i++) {
-		inp = inp_list[i];
+	NET_EPOCH_ENTER(et);
+	for (inp = CK_LIST_FIRST(V_divcbinfo.ipi_listhead);
+	    inp != NULL;
+	    inp = CK_LIST_NEXT(inp, inp_list)) {
 		INP_RLOCK(inp);
-		if (inp->inp_gencnt <= gencnt) {
+		if (inp->inp_gencnt <= xig.xig_gen) {
 			struct xinpcb xi;
 
 			in_pcbtoxinpcb(inp, &xi);
@@ -702,17 +672,9 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 		} else
 			INP_RUNLOCK(inp);
 	}
-	INP_INFO_WLOCK(&V_divcbinfo);
-	for (i = 0; i < n; i++) {
-		inp = inp_list[i];
-		INP_RLOCK(inp);
-		if (!in_pcbrele_rlocked(inp))
-			INP_RUNLOCK(inp);
-	}
-	INP_INFO_WUNLOCK(&V_divcbinfo);
+	NET_EPOCH_EXIT(et);
 
 	if (!error) {
-		struct epoch_tracker et;
 		/*
 		 * Give the user an updated idea of our state.
 		 * If the generation differs from what we told
@@ -720,15 +682,13 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 		 * while we were processing this request, and it
 		 * might be necessary to retry.
 		 */
-		INP_INFO_RLOCK_ET(&V_divcbinfo, et);
 		xig.xig_gen = V_divcbinfo.ipi_gencnt;
 		xig.xig_sogen = so_gencnt;
 		xig.xig_count = V_divcbinfo.ipi_count;
-		INP_INFO_RUNLOCK_ET(&V_divcbinfo, et);
 		error = SYSCTL_OUT(req, &xig, sizeof xig);
 	}
-	free(inp_list, M_TEMP);
-	return error;
+
+	return (error);
 }
 
 #ifdef SYSCTL_NODE
