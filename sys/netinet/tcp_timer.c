@@ -339,9 +339,9 @@ tcp_timer_2msl(void *xtp)
 			tcp_inpinfo_lock_del(inp, tp);
 			goto out;
 		}
-		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_ENTER(et);
 		tp = tcp_close(tp);             
-		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_EXIT(et);
 		tcp_inpinfo_lock_del(inp, tp);
 		goto out;
 	} else {
@@ -353,9 +353,9 @@ tcp_timer_2msl(void *xtp)
 				tcp_inpinfo_lock_del(inp, tp);
 				goto out;
 			}
-			INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+			NET_EPOCH_ENTER(et);
 			tp = tcp_close(tp);
-			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+			NET_EPOCH_EXIT(et);
 			tcp_inpinfo_lock_del(inp, tp);
 			goto out;
 		}
@@ -478,7 +478,7 @@ dropit:
 		tcp_inpinfo_lock_del(inp, tp);
 		goto out;
 	}
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_ENTER(et);
 	tp = tcp_drop(tp, ETIMEDOUT);
 
 #ifdef TCPDEBUG
@@ -487,7 +487,7 @@ dropit:
 			  PRU_SLOWTIMO);
 #endif
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_EXIT(et);
 	tcp_inpinfo_lock_del(inp, tp);
  out:
 	CURVNET_RESTORE();
@@ -542,9 +542,9 @@ tcp_timer_persist(void *xtp)
 			tcp_inpinfo_lock_del(inp, tp);
 			goto out;
 		}
-		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_ENTER(et);
 		tp = tcp_drop(tp, ETIMEDOUT);
-		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_EXIT(et);
 		tcp_inpinfo_lock_del(inp, tp);
 		goto out;
 	}
@@ -559,9 +559,9 @@ tcp_timer_persist(void *xtp)
 			tcp_inpinfo_lock_del(inp, tp);
 			goto out;
 		}
-		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_ENTER(et);
 		tp = tcp_drop(tp, ETIMEDOUT);
-		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_EXIT(et);
 		tcp_inpinfo_lock_del(inp, tp);
 		goto out;
 	}
@@ -628,9 +628,9 @@ tcp_timer_rexmt(void * xtp)
 			tcp_inpinfo_lock_del(inp, tp);
 			goto out;
 		}
-		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_ENTER(et);
 		tp = tcp_drop(tp, ETIMEDOUT);
-		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+		NET_EPOCH_EXIT(et);
 		tcp_inpinfo_lock_del(inp, tp);
 		goto out;
 	}
