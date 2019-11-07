@@ -131,13 +131,15 @@ enum iwm_nvm_type {
  */
 struct iwm_cfg {
 	const char *name;
-        const char *fw_name;
-        uint16_t eeprom_size;
-        enum iwm_device_family device_family;
-        int host_interrupt_operation_mode;
-        uint8_t nvm_hw_section_num;
-        int apmg_wake_up_wa;
-        enum iwm_nvm_type nvm_type;
+	const char *fw_name;
+	uint16_t eeprom_size;
+	enum iwm_device_family device_family;
+	int host_interrupt_operation_mode;
+	int mqrx_supported;
+	int integrated;
+	uint8_t nvm_hw_section_num;
+	int apmg_wake_up_wa;
+	enum iwm_nvm_type nvm_type;
 };
 
 /*
