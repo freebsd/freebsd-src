@@ -664,11 +664,7 @@ int	inp_so_options(const struct inpcb *inp);
 
 #define	INP_HASH_LOCK_INIT(ipi, d) mtx_init(&(ipi)->ipi_hash_lock, (d), NULL, MTX_DEF)
 #define	INP_HASH_LOCK_DESTROY(ipi)	mtx_destroy(&(ipi)->ipi_hash_lock)
-#define	INP_HASH_RLOCK(ipi)		struct epoch_tracker inp_hash_et; epoch_enter_preempt(net_epoch_preempt, &inp_hash_et)
-#define	INP_HASH_RLOCK_ET(ipi, et)		epoch_enter_preempt(net_epoch_preempt, &(et))
 #define	INP_HASH_WLOCK(ipi)		mtx_lock(&(ipi)->ipi_hash_lock)
-#define	INP_HASH_RUNLOCK(ipi)		NET_EPOCH_EXIT(inp_hash_et)
-#define	INP_HASH_RUNLOCK_ET(ipi, et)	NET_EPOCH_EXIT((et))
 #define	INP_HASH_WUNLOCK(ipi)		mtx_unlock(&(ipi)->ipi_hash_lock)
 #define	INP_HASH_LOCK_ASSERT(ipi)	MPASS(in_epoch(net_epoch_preempt) || mtx_owned(&(ipi)->ipi_hash_lock))
 #define	INP_HASH_WLOCK_ASSERT(ipi)	mtx_assert(&(ipi)->ipi_hash_lock, MA_OWNED);
