@@ -284,8 +284,9 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 	struct ip *ip = mtod(m, struct ip *);
 	struct inpcb *inp, *last;
 	struct sockaddr_in ripsrc;
-	struct epoch_tracker et;
 	int hash;
+
+	NET_EPOCH_ASSERT();
 
 	*mp = NULL;
 
@@ -299,7 +300,6 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 
 	hash = INP_PCBHASH_RAW(proto, ip->ip_src.s_addr,
 	    ip->ip_dst.s_addr, V_ripcbinfo.ipi_hashmask);
-	INP_INFO_RLOCK_ET(&V_ripcbinfo, et);
 	CK_LIST_FOREACH(inp, &V_ripcbinfo.ipi_hashbase[hash], inp_hash) {
 		if (inp->inp_ip_p != proto)
 			continue;
@@ -422,7 +422,6 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 	skip_2:
 		INP_RUNLOCK(inp);
 	}
-	INP_INFO_RUNLOCK_ET(&V_ripcbinfo, et);
 	if (last != NULL) {
 		if (rip_append(last, ip, m, &ripsrc) != 0)
 			IPSTAT_INC(ips_delivered);
