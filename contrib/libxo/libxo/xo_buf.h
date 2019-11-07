@@ -72,14 +72,14 @@ xo_buf_is_empty (xo_buffer_t *xbp)
 /*
  * Return the current offset
  */
-static inline unsigned
+static inline ssize_t
 xo_buf_offset (xo_buffer_t *xbp)
 {
     return xbp ? (xbp->xb_curp - xbp->xb_bufp) : 0;
 }
 
 static inline char *
-xo_buf_data (xo_buffer_t *xbp, unsigned offset)
+xo_buf_data (xo_buffer_t *xbp, ssize_t offset)
 {
     if (xbp == NULL)
 	return NULL;

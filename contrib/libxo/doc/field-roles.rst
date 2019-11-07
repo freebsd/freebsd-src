@@ -8,23 +8,25 @@ Field Roles
 Field roles are optional, and indicate the role and formatting of the
 content.  The roles are listed below; only one role is permitted:
 
-=== ============== =================================================
-R   Name           Description
-=== ============== =================================================
-C   color          Field has color and effect controls
-D   decoration     Field is non-text (e.g., colon, comma)
-E   error          Field is an error message
-G   gettext        Call gettext(3) on the format string
-L   label          Field is text that prefixes a value
-N   note           Field is text that follows a value
-P   padding        Field is spaces needed for vertical alignment
-T   title          Field is a title value for headings
-U   units          Field is the units for the previous value field
-V   value          Field is the name of field (the default)
-W   warning        Field is a warning message
-[   start-anchor   Begin a section of anchored variable-width text
-]   stop-anchor    End a section of anchored variable-width text
-=== ============== =================================================
+  === ============== =================================================
+  R   Name           Description
+  === ============== =================================================
+  C   color          Field has color and effect controls
+  D   decoration     Field is non-text (e.g., colon, comma)
+  E   error          Field is an error message
+  G   gettext        Call gettext(3) on the format string
+  L   label          Field is text that prefixes a value
+  N   note           Field is text that follows a value
+  P   padding        Field is spaces needed for vertical alignment
+  T   title          Field is a title value for headings
+  U   units          Field is the units for the previous value field
+  V   value          Field is the name of field (the default)
+  W   warning        Field is a warning message
+  [   start-anchor   Begin a section of anchored variable-width text
+  ]   stop-anchor    End a section of anchored variable-width text
+  === ============== =================================================
+
+::
 
     EXAMPLE:
         xo_emit("{L:Free}{D::}{P:   }{:free/%u} {U:Blocks}\n",
@@ -80,36 +82,36 @@ foreground and background colors, respectively::
 
 The following table lists the supported effects:
 
-=============== =================================================
- Name           Description
-=============== =================================================
- bg-XXXXX       Change background color
- bold           Start bold text effect
- fg-XXXXX       Change foreground color
- inverse        Start inverse (aka reverse) text effect
- no-bold        Stop bold text effect
- no-inverse     Stop inverse (aka reverse) text effect
- no-underline   Stop underline text effect
- normal         Reset effects (only)
- reset          Reset colors and effects (restore defaults)
- underline      Start underline text effect
-=============== =================================================
+  =============== =================================================
+   Name           Description
+  =============== =================================================
+   bg-XXXXX       Change background color
+   bold           Start bold text effect
+   fg-XXXXX       Change foreground color
+   inverse        Start inverse (aka reverse) text effect
+   no-bold        Stop bold text effect
+   no-inverse     Stop inverse (aka reverse) text effect
+   no-underline   Stop underline text effect
+   normal         Reset effects (only)
+   reset          Reset colors and effects (restore defaults)
+   underline      Start underline text effect
+  =============== =================================================
 
 The following color names are supported:
 
-========= ============================================
- Name      Description
-========= ============================================
- black
- blue
- cyan
- default   Default color for foreground or background
- green
- magenta
- red
- white
- yellow
-========= ============================================
+  ========= ============================================
+   Name      Description
+  ========= ============================================
+   black
+   blue
+   cyan
+   default   Default color for foreground or background
+   green
+   magenta
+   red
+   white
+   yellow
+  ========= ============================================
 
 When using colors, the developer should remember that users will
 change the foreground and background colors of terminal session

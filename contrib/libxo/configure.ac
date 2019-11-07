@@ -12,7 +12,7 @@
 #
 
 AC_PREREQ(2.2)
-AC_INIT([libxo], [1.0.4], [phil@juniper.net])
+AC_INIT([libxo], [1.3.0], [phil@juniper.net])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign -Wno-portability])
 
 # Support silent build rules.  Requires at least automake-1.11.
@@ -452,6 +452,7 @@ AC_CONFIG_FILES([
   libxo/add.man
   encoder/Makefile
   encoder/cbor/Makefile
+  encoder/csv/Makefile
   encoder/test/Makefile
   xo/Makefile
   xolint/Makefile
@@ -459,6 +460,7 @@ AC_CONFIG_FILES([
   xopo/Makefile
   packaging/libxo.pc
   doc/Makefile
+  doc/top-link.html
   tests/Makefile
   tests/core/Makefile
   tests/gettext/Makefile

@@ -114,4 +114,6 @@ MLINKS=	xo_attr.3 xo_attr_h.3 \
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
+SUBDIR = encoder
+
 .include <bsd.lib.mk>

@@ -6,6 +6,7 @@ Usage: xo [options] format [fields]
     --depth <num>         Set the depth for pretty printing
     --help                Display this help text
     --html OR -H          Generate HTML output
+    --instance OR -I <name> Wrap in an instance of the given name
     --json OR -J          Generate JSON output
     --leading-xpath <path> OR -l <path> Add a prefix to generated XPaths (HTML)
     --not-first           Indicate this object is not the first (JSON)

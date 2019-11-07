@@ -201,6 +201,7 @@ print_help (void)
 "    --depth <num>         Set the depth for pretty printing\n"
 "    --help                Display this help text\n"
 "    --html OR -H          Generate HTML output\n"
+"    --instance OR -I <name> Wrap in an instance of the given name\n"
 "    --json OR -J          Generate JSON output\n"
 "    --leading-xpath <path> OR -l <path> "
 	    "Add a prefix to generated XPaths (HTML)\n"
@@ -245,6 +246,7 @@ static struct option long_opts[] = {
     { "depth", required_argument, &opts.o_depth, 1 },
     { "help", no_argument, &opts.o_help, 1 },
     { "html", no_argument, NULL, 'H' },
+    { "instance", required_argument, NULL, 'I' },
     { "json", no_argument, NULL, 'J' },
     { "leading-xpath", required_argument, NULL, 'l' },
     { "not-first", no_argument, &opts.o_not_first, 1 },
@@ -271,6 +273,7 @@ main (int argc UNUSED, char **argv)
     char *fmt = NULL, *cp, *np;
     char *opt_opener = NULL, *opt_closer = NULL, *opt_wrapper = NULL;
     char *opt_options = NULL;
+    char *opt_instance = NULL;
     char *opt_name = NULL;
     xo_state_t new_state = 0;
     int opt_depth = 0;
@@ -296,6 +299,10 @@ main (int argc UNUSED, char **argv)
 
 	case 'H':
 	    xo_set_style(NULL, XO_STYLE_HTML);
+	    break;
+
+	case 'I':
+	    opt_instance = optarg;
 	    break;
 
 	case 'J':
@@ -496,12 +503,18 @@ main (int argc UNUSED, char **argv)
 	}
     }
 
+    if (opt_instance)
+	xo_open_instance(opt_instance);
+
     /* If there's a format string, call xo_emit to emit the contents */
     if (fmt && *fmt) {
 	save_argv = argv;
 	prep_arg(fmt);
 	xo_emit(fmt);		/* This call does the real formatting */
     }
+
+    if (opt_instance)
+	xo_close_instance(opt_instance);
     
     /* If there's an wrapper hierarchy, close each element's container */
     while (opt_wrapper) {

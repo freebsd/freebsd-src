@@ -18,6 +18,7 @@
 #include <syslog.h>
 
 #include "xo.h"
+#include "xo_encoder.h"
 
 void
 test_syslog_open (void)
@@ -50,11 +51,11 @@ main (int argc, char **argv)
 	return 1;
 
     for (argc = 1; argv[argc]; argc++) {
-	if (strcmp(argv[argc], "full") == 0)
+	if (xo_streq(argv[argc], "full"))
 	    unit_test = 0;
-	else if (strcmp(argv[argc], "fire") == 0)
+	else if (xo_streq(argv[argc], "fire"))
 	    fire = 1;
-	else if (strcmp(argv[argc], "tz") == 0)
+	else if (xo_streq(argv[argc], "tz"))
 	    tzone = argv[++argc];
     }
 

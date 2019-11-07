@@ -5,7 +5,7 @@ uses
 version @LIBXO_VERSION@.
 Complete documentation can be found on github:
 .Bd -literal -offset indent
-http://juniper.github.io/libxo/@LIBXO_VERSION@/libxo\-manual.html
+https://juniper.github.io/libxo/@LIBXO_VERSION@/html/index.html
 .Ed
 .Pp
 .Nm libxo

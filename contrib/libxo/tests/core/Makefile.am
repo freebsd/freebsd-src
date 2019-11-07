@@ -86,6 +86,11 @@ TEST_JIG = \
  ${DIFF} -Nu ${srcdir}/saved/$$base.$$fmt.out out/$$base.$$fmt.out ${S2O} ; \
  ${DIFF} -Nu ${srcdir}/saved/$$base.$$fmt.err out/$$base.$$fmt.err ${S2O}
 
+TEST_JIG2 = \
+echo "... $$test ... $$fmt ..."; \
+xoopts==warn,encoder=csv$$csv ; \
+${TEST_JIG}; true;
+
 TEST_FORMATS = T XP JP HP X J H HIPx
 
 test tests: ${bin_PROGRAMS}
@@ -105,6 +110,12 @@ test tests: ${bin_PROGRAMS}
                 true; \
             done) \
 	done)
+	-@ (${TEST_TRACE} test=test_01.c; base=test_01; \
+	    (   fmt=Ecsv1; csv= ; ${TEST_JIG2} ); \
+	    (   fmt=Ecsv2; csv=:path=top/data/item+no-header ; ${TEST_JIG2} ); \
+	    (   fmt=Ecsv3; csv=:path=item+leafs=sku.sold+no-quotes ; ${TEST_JIG2} ); \
+	)
+
 
 one:
 	-@(test=${TEST_CASE}; data=${TEST_DATA}; ${TEST_ONE} ; true)
@@ -112,11 +123,16 @@ one:
 accept:
 	-@(for test in ${TEST_CASES} ; do \
 	    base=`${BASENAME} $$test .c` ; \
-            (for fmt in ${TEST_FORMATS} E; do \
+            (for fmt in ${TEST_FORMATS} E ; do \
 	        echo "... $$test ... $$fmt ..."; \
 	        ${CP} out/$$base.$$fmt.out ${srcdir}/saved/$$base.$$fmt.out ; \
 	        ${CP} out/$$base.$$fmt.err ${srcdir}/saved/$$base.$$fmt.err ; \
 	    done) \
+	done)
+	-@(test=test_01.c; base=test_01; for fmt in Ecsv1 Ecsv2 Ecsv3 ; do \
+	        echo "... $$test ... $$fmt ..."; \
+	        ${CP} out/$$base.$$fmt.out ${srcdir}/saved/$$base.$$fmt.out ; \
+	        ${CP} out/$$base.$$fmt.err ${srcdir}/saved/$$base.$$fmt.err ; \
 	done)
 
 .c.test:

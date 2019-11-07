@@ -10,6 +10,9 @@ application calls a function "xo_emit" to product output that is
 described in a format string.  A "field descriptor" tells libxo what
 the field is and what it means.
 
+Imagine a simplified ``wc`` that emits its output fields in a single
+xo_emit call:
+
 ```
     xo_emit(" {:lines/%7ju/%ju} {:words/%7ju/%ju} "
             "{:characters/%7ju/%ju}{d:filename/%s}\n",

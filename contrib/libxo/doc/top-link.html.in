@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Refresh" content="0; url=@LIBXO_VERSION@/html/index.html" />
+  </head>
+  <body>
+    <p>The current libxo version is <a href="@LIBXO_VERSION@/html/index.html">@LIBXO_VERSION@</a>.</p>
+  </body>
+</html>
