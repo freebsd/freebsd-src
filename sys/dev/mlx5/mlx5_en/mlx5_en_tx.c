@@ -609,7 +609,8 @@ mlx5e_xmit(struct ifnet *ifp, struct mbuf *mb)
 	struct mlx5e_sq *sq;
 	int ret;
 
-	if (mb->m_pkthdr.snd_tag != NULL) {
+	if ((mb->m_pkthdr.csum_flags & CSUM_SND_TAG) != 0 &&
+	    (mb->m_pkthdr.snd_tag != NULL)) {
 		sq = mlx5e_select_queue_by_send_tag(ifp, mb);
 		if (unlikely(sq == NULL)) {
 			/* Check for route change */
