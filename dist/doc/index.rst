@@ -38,6 +38,7 @@ libxo ships as part of FreeBSD.
     field-modifiers
     field-formatting
     api
+    encoders
     xo
     xolint
     xohtml

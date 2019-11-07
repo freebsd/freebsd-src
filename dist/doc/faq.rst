@@ -202,8 +202,7 @@ will lead users to ask the difference between the two fields.  If
 there is no difference, use only one of the field names.  If there is
 a difference, change the names to make that difference more obvious.
 
-.. ignore for now, since we want can't have generated content
-  What does this message mean?
-  ----------------------------
+What does this message mean?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  !!include-file xolint.txt
+.. include:: xolint.rst

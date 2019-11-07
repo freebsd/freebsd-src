@@ -1,5 +1,5 @@
-
 .. index:: --libxo, xo
+.. _xo:
 
 The "xo" Utility
 ================
@@ -12,9 +12,7 @@ The style of output can be selected using a specific option: "-X" for
 XML, "-J" for JSON, "-H" for HTML, or "-T" for TEXT, which is the
 default.  The "--style <style>" option can also be used.  The standard
 set of "--libxo" options are available (see :ref:`options`), as well
-as the `LIBXO_OPTIONS`_ environment variable.
-
-.. _`LIBXO_OPTIONS`: :ref:`libxo-options`
+as the :ref:`LIBXO_OPTIONS <libxo-options>` environment variable.
 
 The `xo` utility accepts a format string suitable for `xo_emit` and
 a set of zero or more arguments used to supply data for that string::
@@ -23,12 +21,15 @@ a set of zero or more arguments used to supply data for that string::
 
   TEXT:
     The fish weighs 6 pounds.
+
   XML:
     <name>fish</name>
     <weight>6</weight>
+
   JSON:
     "name": "fish",
     "weight": 6
+
   HTML:
     <div class="line">
       <div class="text">The </div>
@@ -54,6 +55,7 @@ by the '/' character::
         </b>
       </a>
     </top>
+
   JSON:
     "top": {
       "a": {
@@ -72,17 +74,19 @@ then close tags.  The `--depth` option may be used to set the
 depth for indentation.  The `--leading-xpath` may be used to
 prepend data to the XPath values used for HTML output style::
 
-  EXAMPLE;
+  EXAMPLE:
     #!/bin/sh
     xo --open top/data
     xo --depth 2 '{:tag}' value
     xo --close top/data
+
   XML:
     <top>
       <data>
         <tag>value</tag>
       </data>
     </top>
+
   JSON:
     "top": {
       "data": {
@@ -102,14 +106,18 @@ Use the `--top-wrap` option to ensure any top-level object details are
 handled correctly, e.g. wrap the entire output in a top-level set of
 braces for JSON output.
 
-  EXAMPLE;
+::
+
+  EXAMPLE:
     #!/bin/sh
     xo --top-wrap --open top/data
     xo --depth 2 'First {:tag} ' value1
     xo --depth 2 --continuation 'and then {:tag}\n' value2
     xo --top-wrap --close top/data
+
   TEXT:
     First value1 and then value2
+
   HTML:
     <div class="line">
       <div class="text">First </div>
@@ -118,6 +126,7 @@ braces for JSON output.
       <div class="text">and then </div>
       <div class="data" data-tag="tag">value2</div>
     </div>
+
   XML:
     <top>
       <data>
@@ -125,6 +134,7 @@ braces for JSON output.
         <tag>value2</tag>
       </data>
     </top>
+
   JSON:
     {
       "top": {
@@ -150,7 +160,7 @@ them.  Each of these options take a `name` parameter, providing the
 name of the list and instance.
 
 In the following example, a list named "machine" is created with three
-instances:
+instances::
 
     opts="--json"
     xo $opts --open-list machine
@@ -168,6 +178,15 @@ transitions, but since each `xo` command is invoked independent of the
 previous calls, the state must be passed in explicitly via these
 command line options.
 
+The `--instance` option can be used to treat a single `xo` invocation
+as an instance with the given set of fields::
+
+  % xo --libxo:XP --instance foo 'The {:product} is {:status}\n' stereo "in route"
+  <foo>
+    <product>stereo</product>
+    <status>in route</status>
+  </foo>
+
 Command Line Options
 --------------------
 
@@ -181,6 +200,7 @@ Command Line Options
     --depth <num>         Set the depth for pretty printing
     --help                Display this help text
     --html OR -H          Generate HTML output
+    --instance OR -I <name> Wrap in an instance of the given name
     --json OR -J          Generate JSON output
     --leading-xpath <path> Add a prefix to generated XPaths (HTML)
     --not-first           Indicate this object is not the first (JSON)
@@ -197,7 +217,7 @@ Command Line Options
     --warn-xml            Display warnings in xml on stdout
     --wrap <path>         Wrap output in a set of containers
     --xml OR -X           Generate XML output
-    --xpath               Add XPath data to HTML output);
+    --xpath               Add XPath data to HTML output)
 
 Example
 -------
@@ -206,6 +226,9 @@ Example
 
   % xo 'The {:product} is {:status}\n' stereo "in route"
   The stereo is in route
-  % ./xo/xo -p -X 'The {:product} is {:status}\n' stereo "in route"
+  % xo -p -X 'The {:product} is {:status}\n' stereo "in route"
+  <product>stereo</product>
+  <status>in route</status>
+  % xo --libxo xml,pretty 'The {:product} is {:status}\n' stereo "in route"
   <product>stereo</product>
   <status>in route</status>

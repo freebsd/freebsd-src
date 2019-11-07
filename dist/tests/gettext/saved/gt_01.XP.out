@@ -31,13 +31,13 @@
   <version>1.2.3</version>
   <date>Tue Jun 23 18:47:09 UTC 2015</date>
   <__warning>
-    <program>gt_01.test</program>
+    <program>gt_01</program>
     <message>Nableuay otay ectulatobjay orwardfay elocipingvay</message>
     <verb>ectulatobjay</verb>
     <error>Ermissionpay eniedday</error>
   </__warning>
   <__warning>
-    <program>gt_01.test</program>
+    <program>gt_01</program>
     <message>automaticyay ynchronizationsay ofyay ardinalyay ammetersgray ailedfay</message>
     <style>automaticyay</style>
     <type>ardinalyay</type>

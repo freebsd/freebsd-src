@@ -8,26 +8,26 @@ Field Modifiers
 Field modifiers are flags which modify the way content emitted for
 particular output styles:
 
-=== =============== ===================================================
- M   Name            Description
-=== =============== ===================================================
- a   argument        The content appears as a 'const char \*' argument
- c   colon           A colon (":") is appended after the label
- d   display         Only emit field for display styles (text/HTML)
- e   encoding        Only emit for encoding styles (XML/JSON)
- g   gettext         Call gettext on field's render content
- h   humanize (hn)   Format large numbers in human-readable style
-\    hn-space        Humanize: Place space between numeric and unit
-\    hn-decimal      Humanize: Add a decimal digit, if number < 10
-\    hn-1000         Humanize: Use 1000 as divisor instead of 1024
- k   key             Field is a key, suitable for XPath predicates
- l   leaf-list       Field is a leaf-list
- n   no-quotes       Do not quote the field when using JSON style
- p   plural          Gettext: Use comma-separated plural form
- q   quotes          Quote the field when using JSON style
- t   trim            Trim leading and trailing whitespace
- w   white           A blank (" ") is appended after the label
-=== =============== ===================================================
+  === =============== ===================================================
+   M   Name            Description
+  === =============== ===================================================
+   a   argument        The content appears as a 'const char \*' argument
+   c   colon           A colon (":") is appended after the label
+   d   display         Only emit field for display styles (text/HTML)
+   e   encoding        Only emit for encoding styles (XML/JSON)
+   g   gettext         Call gettext on field's render content
+   h   humanize (hn)   Format large numbers in human-readable style
+  \    hn-space        Humanize: Place space between numeric and unit
+  \    hn-decimal      Humanize: Add a decimal digit, if number < 10
+  \    hn-1000         Humanize: Use 1000 as divisor instead of 1024
+   k   key             Field is a key, suitable for XPath predicates
+   l   leaf-list       Field is a leaf-list
+   n   no-quotes       Do not quote the field when using JSON style
+   p   plural          Gettext: Use comma-separated plural form
+   q   quotes          Quote the field when using JSON style
+   t   trim            Trim leading and trailing whitespace
+   w   white           A blank (" ") is appended after the label
+  === =============== ===================================================
 
 Roles and modifiers can also use more verbose names, when preceded by
 a comma.  For example, the modifier string "Lwc" (or "L,white,colon")
