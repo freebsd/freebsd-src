@@ -135,6 +135,13 @@ int
 stack_save_td_running(struct stack *st, struct thread *td)
 {
 
+#ifdef XENHVM
+	/*
+	 * There is no NMI support on Xen, so this code can lead to
+	 * an inter-processor deadlock.
+	 */
+	return (EOPNOTSUPP);
+#endif /* XENHVM */
 #ifdef STACK
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	MPASS(TD_IS_RUNNING(td));
