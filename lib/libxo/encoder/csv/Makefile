@@ -2,7 +2,7 @@
 
 LIBXODIR=       ${STAGEDIR}${PREFIX}/usr/lib/libxo/encoder
 SHLIBDIR?=      ${LIBXODIR}
-LIBDIR?=      ${LIBXODIR}
+LIBDIR?=        ${LIBXODIR}
 
 .include <src.opts.mk>
 
@@ -21,6 +21,7 @@ CFLAGS+=-I${LIBXOSRC}/libxo -I${.CURDIR}
 CFLAGS+=-DXO_ENCODERDIR=\"/usr/lib/libxo/encoder\"
 
 LIBADD=	util xo
+LDFLAGS += -L${.OBJDIR}/../../wildebeast
 
 WARNS?= 5
 

@@ -50,6 +50,9 @@ main (int argc, char **argv)
 	{ "sold", "number", "Number of items sold" },
 	{ XO_INFO_NULL },
     };
+
+    char name[] = "test_01.test";  /* test trimming of xo_program */
+    argv[0] = name;
     
     argc = xo_parse_args(argc, argv);
     if (argc < 0)

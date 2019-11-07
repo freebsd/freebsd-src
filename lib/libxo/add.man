@@ -3,10 +3,10 @@
 .Fx
 uses
 .Nm libxo
-version 1.3.0.
+version 1.3.1.
 Complete documentation can be found on github:
 .Bd -literal -offset indent
-https://juniper.github.io/libxo/1.3.0/html/index.html
+https://juniper.github.io/libxo/1.3.1/html/index.html
 .Ed
 .Pp
 .Nm libxo
