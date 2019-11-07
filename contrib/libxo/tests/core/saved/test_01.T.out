@@ -50,6 +50,14 @@ Item: rope
 Item: ladder
 Item: bolt
 Item: water
+Item        Total Sold    In Stock    On Order  SKU
+gum               1412          10          54  GRO-000-415
+rope                85Extra: special           2           4  HRD-000-212
+ladder               0Extra: special           1           2  HRD-000-517
+bolt              4123          42         144  HRD-000-632
+water               17Extra: special           2          14  GRO-000-2331
+
+
 XXXXXXXX
 X        XCost: 425
 X                              XCost: 455

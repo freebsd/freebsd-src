@@ -21,6 +21,7 @@
 #include <libintl.h>
 
 #include "xo.h"
+#include "xo_encoder.h"
 
 int
 main (int argc, char **argv)
@@ -35,11 +36,11 @@ main (int argc, char **argv)
 	return 1;
 
     for (argc = 1; argv[argc]; argc++) {
-	if (strcmp(argv[argc], "tz") == 0)
+	if (xo_streq(argv[argc], "tz"))
 	    tzone = argv[++argc];
-	else if (strcmp(argv[argc], "lang") == 0)
+	else if (xo_streq(argv[argc], "lang"))
 	    lang = argv[++argc];
-	else if (strcmp(argv[argc], "po") == 0)
+	else if (xo_streq(argv[argc], "po"))
 	    strlcpy(path, argv[++argc], sizeof(path));
     }
 

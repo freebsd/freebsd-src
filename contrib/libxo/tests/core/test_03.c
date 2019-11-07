@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "xo.h"
+#include "xo_encoder.h"
 
 xo_info_t info[] = {
     { "employee", "object", "Employee data" },
@@ -44,10 +45,10 @@ main (int argc, char **argv)
 	return 1;
 
     for (argc = 1; argv[argc]; argc++) {
-	if (strcmp(argv[argc], "count") == 0) {
+	if (xo_streq(argv[argc], "count")) {
 	    if (argv[argc + 1])
 		opt_count = atoi(argv[++argc]);
-	} else if (strcmp(argv[argc], "extra") == 0) {
+	} else if (xo_streq(argv[argc], "extra")) {
 	    if (argv[argc + 1])
 		opt_extra = atoi(argv[++argc]);
 	}
