@@ -629,19 +629,14 @@ int	inp_so_options(const struct inpcb *inp);
 #define INP_INFO_LOCK_INIT(ipi, d) \
 	mtx_init(&(ipi)->ipi_lock, (d), NULL, MTX_DEF| MTX_RECURSE)
 #define INP_INFO_LOCK_DESTROY(ipi)  mtx_destroy(&(ipi)->ipi_lock)
-#define INP_INFO_RLOCK_ET(ipi, et)	NET_EPOCH_ENTER((et))
 #define INP_INFO_WLOCK(ipi) mtx_lock(&(ipi)->ipi_lock)
 #define INP_INFO_TRY_WLOCK(ipi)	mtx_trylock(&(ipi)->ipi_lock)
 #define INP_INFO_WLOCKED(ipi)	mtx_owned(&(ipi)->ipi_lock)
-#define INP_INFO_RUNLOCK_ET(ipi, et)	NET_EPOCH_EXIT((et))
-#define INP_INFO_RUNLOCK_TP(ipi, tp)	NET_EPOCH_EXIT(*(tp)->t_inpcb->inp_et)
 #define INP_INFO_WUNLOCK(ipi)	mtx_unlock(&(ipi)->ipi_lock)
 #define	INP_INFO_LOCK_ASSERT(ipi)	MPASS(in_epoch(net_epoch_preempt) || mtx_owned(&(ipi)->ipi_lock))
-#define INP_INFO_RLOCK_ASSERT(ipi)	MPASS(in_epoch(net_epoch_preempt))
 #define INP_INFO_WLOCK_ASSERT(ipi)	mtx_assert(&(ipi)->ipi_lock, MA_OWNED)
 #define INP_INFO_WUNLOCK_ASSERT(ipi)	\
 	mtx_assert(&(ipi)->ipi_lock, MA_NOTOWNED)
-#define INP_INFO_UNLOCK_ASSERT(ipi)	MPASS(!in_epoch(net_epoch_preempt) && !mtx_owned(&(ipi)->ipi_lock))
 
 #define INP_LIST_LOCK_INIT(ipi, d) \
         rw_init_flags(&(ipi)->ipi_list_lock, (d), 0)
