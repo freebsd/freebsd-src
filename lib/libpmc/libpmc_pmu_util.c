@@ -34,6 +34,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <regex.h>
 #include <string.h>
 #include <pmc.h>
 #include <pmclog.h>
