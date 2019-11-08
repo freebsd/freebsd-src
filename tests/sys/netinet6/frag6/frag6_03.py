@@ -101,6 +101,33 @@ def main():
 	if not sniffer.foundCorrectPacket:
 		sys.exit(1)
 
+
+	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # ##
+	#
+	# Atomic fragment with extension header.
+	#
+	# A:  Nothing listening on UDP port.
+	# R:  ICMPv6 dst unreach, unreach port.
+	#
+	# Start sniffing on recvif
+	sniffer = Sniffer(args, check_icmp6_error)
+
+	ip6f01 = sp.Ether() / \
+		sp.IPv6(src=args.src[0], dst=args.to[0]) / \
+		sp.IPv6ExtHdrDestOpt(options = \
+		    sp.PadN(optdata="\x00\x00\x00\x00\x00\x00")) / \
+		sp.IPv6ExtHdrFragment(offset=0, m=0, id=0x3001) / \
+		sp.UDP(dport=3456, sport=6543)
+	if args.debug :
+		ip6f01.display()
+	sp.sendp(ip6f01, iface=args.sendif[0], verbose=False)
+
+	sleep(0.10)
+	sniffer.setEnd()
+	sniffer.join()
+	if not sniffer.foundCorrectPacket:
+		sys.exit(1)
+
 	sys.exit(0)
 
 if __name__ == '__main__':
