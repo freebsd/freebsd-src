@@ -307,7 +307,7 @@ owc_gpiobus_read_data(device_t dev, struct ow_timing *t, int *bit)
 	/* Wait out the rest of t_slot */
 	do {
 		now = sbinuptime();
-	} while (now - then < t->t_slot * SBT_1US);
+	} while (now - then < (t->t_slot + t->t_rec) * SBT_1US);
 
 	RELBUS(sc);
 
