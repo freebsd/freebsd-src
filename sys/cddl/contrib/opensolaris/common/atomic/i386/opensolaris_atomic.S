@@ -89,28 +89,6 @@
 	SET_SIZE(atomic_add_64_nv)
 	SET_SIZE(atomic_add_64)
 
-	ENTRY(atomic_or_8_nv)
-	movl	4(%esp), %edx	// %edx = target address
-	movb	(%edx), %al	// %al = old value
-1:
-	movl	8(%esp), %ecx	// %ecx = delta
-	orb	%al, %cl	// %cl = new value
-	lock
-	cmpxchgb %cl, (%edx)	// try to stick it in
-	jne	1b
-	movzbl	%cl, %eax	// return new value
-	ret
-	SET_SIZE(atomic_or_8_nv)
-
-	ENTRY(atomic_cas_32)
-	movl	4(%esp), %edx
-	movl	8(%esp), %eax
-	movl	12(%esp), %ecx
-	lock
-	cmpxchgl %ecx, (%edx)
-	ret
-	SET_SIZE(atomic_cas_32)
-
 	ENTRY(atomic_cas_64)
 	pushl	%ebx
 	pushl	%esi

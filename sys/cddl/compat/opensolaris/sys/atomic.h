@@ -32,12 +32,13 @@
 #include <sys/types.h>
 #include <machine/atomic.h>
 
-#define	casptr(_a, _b, _c)	\
-	atomic_cmpset_ptr((volatile uintptr_t *)(_a), (uintptr_t)(_b), (uintptr_t) (_c))
-#define cas32	atomic_cmpset_32
-
 #if defined(__i386__) && (defined(_KERNEL) || defined(KLD_MODULE))
 #define	I386_HAVE_ATOMIC64
+#endif
+
+#if defined(__i386__) || defined(__amd64__) || defined(__arm__)
+/* No spurious failures from fcmpset. */
+#define	STRONG_FCMPSET
 #endif
 
 #if !defined(__LP64__) && !defined(__mips_n32) && \
@@ -46,27 +47,12 @@ extern void atomic_add_64(volatile uint64_t *target, int64_t delta);
 extern void atomic_dec_64(volatile uint64_t *target);
 extern uint64_t atomic_swap_64(volatile uint64_t *a, uint64_t value);
 extern uint64_t atomic_load_64(volatile uint64_t *a);
-#endif
-#ifndef __sparc64__
-extern uint32_t atomic_cas_32(volatile uint32_t *target, uint32_t cmp,
-    uint32_t newval);
+extern uint64_t atomic_add_64_nv(volatile uint64_t *target, int64_t delta);
 extern uint64_t atomic_cas_64(volatile uint64_t *target, uint64_t cmp,
     uint64_t newval);
 #endif
-extern uint64_t atomic_add_64_nv(volatile uint64_t *target, int64_t delta);
-extern uint8_t atomic_or_8_nv(volatile uint8_t *target, uint8_t value);
-extern void membar_producer(void);
 
-#if defined(__sparc64__) || defined(__powerpc__) || defined(__arm__) || \
-    defined(__mips__) || defined(__aarch64__) || defined(__riscv)
-extern void atomic_or_8(volatile uint8_t *target, uint8_t value);
-#else
-static __inline void
-atomic_or_8(volatile uint8_t *target, uint8_t value)
-{
-	atomic_set_8(target, value);
-}
-#endif
+extern void membar_producer(void);
 
 static __inline uint32_t
 atomic_add_32_nv(volatile uint32_t *target, int32_t delta)
@@ -81,27 +67,6 @@ atomic_add_int_nv(volatile u_int *target, int delta)
 }
 
 static __inline void
-atomic_dec_32(volatile uint32_t *target)
-{
-	atomic_subtract_32(target, 1);
-}
-
-static __inline uint32_t
-atomic_dec_32_nv(volatile uint32_t *target)
-{
-	return (atomic_fetchadd_32(target, -1) - 1);
-}
-
-#if defined(__LP64__) || defined(__mips_n32) || \
-    defined(ARM_HAVE_ATOMIC64) || defined(I386_HAVE_ATOMIC64)
-static __inline void
-atomic_dec_64(volatile uint64_t *target)
-{
-	atomic_subtract_64(target, 1);
-}
-#endif
-
-static __inline void
 atomic_inc_32(volatile uint32_t *target)
 {
 	atomic_add_32(target, 1);
@@ -112,6 +77,69 @@ atomic_inc_32_nv(volatile uint32_t *target)
 {
 	return (atomic_add_32_nv(target, 1));
 }
+
+static __inline void
+atomic_dec_32(volatile uint32_t *target)
+{
+	atomic_subtract_32(target, 1);
+}
+
+static __inline uint32_t
+atomic_dec_32_nv(volatile uint32_t *target)
+{
+	return (atomic_add_32_nv(target, -1));
+}
+
+#ifndef __sparc64__
+static inline uint32_t
+atomic_cas_32(volatile uint32_t *target, uint32_t cmp, uint32_t newval)
+{
+#ifdef STRONG_FCMPSET
+	(void)atomic_fcmpset_32(target, &cmp, newval);
+#else
+	uint32_t expected = cmp;
+
+	do {
+		if (atomic_fcmpset_32(target, &cmp, newval))
+			break;
+	} while (cmp == expected);
+#endif
+	return (cmp);
+}
+#endif
+
+#if defined(__LP64__) || defined(__mips_n32) || \
+    defined(ARM_HAVE_ATOMIC64) || defined(I386_HAVE_ATOMIC64)
+static __inline void
+atomic_dec_64(volatile uint64_t *target)
+{
+	atomic_subtract_64(target, 1);
+}
+
+static inline uint64_t
+atomic_add_64_nv(volatile uint64_t *target, int64_t delta)
+{
+	return (atomic_fetchadd_64(target, delta) + delta);
+}
+
+#ifndef __sparc64__
+static inline uint64_t
+atomic_cas_64(volatile uint64_t *target, uint64_t cmp, uint64_t newval)
+{
+#ifdef STRONG_FCMPSET
+	(void)atomic_fcmpset_64(target, &cmp, newval);
+#else
+	uint64_t expected = cmp;
+
+	do {
+		if (atomic_fcmpset_64(target, &cmp, newval))
+			break;
+	} while (cmp == expected);
+#endif
+	return (cmp);
+}
+#endif
+#endif
 
 static __inline void
 atomic_inc_64(volatile uint64_t *target)
