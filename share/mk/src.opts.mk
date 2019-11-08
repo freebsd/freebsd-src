@@ -411,9 +411,11 @@ BROKEN_OPTIONS+=HYPERV
 BROKEN_OPTIONS+=NVME
 .endif
 
-# Sparc64 need extra crt*.o files - PR 239851
 .if ${__T:Msparc64}
+# Sparc64 need extra crt*.o files - PR 239851
 BROKEN_OPTIONS+=BSD_CRTBEGIN
+# PR 233405
+BROKEN_OPTIONS+=LLVM_LIBUNWIND
 .endif
 
 .if ${COMPILER_FEATURES:Mc++11} && \
