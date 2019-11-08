@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 2019
+.Dd November 7, 2019
 .Dt VOP_COPY_FILE_RANGE 9
 .Os
 .Sh NAME
@@ -60,7 +60,7 @@ The vnode of the output file.
 .It Fa outoff
 A pointer to the file offset for the output file.
 .It Fa len
-A pointer to the number of bytes to be copied.
+A pointer to the byte count for the copy.
 .It Fa flags
 Flags, should be set to 0 for now.
 .It Fa incred
@@ -89,11 +89,11 @@ The
 .Fa len
 argument points to the location that stores the number of bytes
 to be copied.
-It should be reduced by the number of bytes copied, which implies that
-the value pointed to by
+Upon a successful return
 .Fa len
-will normally be zero for a non-error return.
-However, a copy of fewer bytes than requested is permitted.
+will be updated to the number of bytes actually copied.
+Normally, this will be the number of bytes requested to be copied,
+however a copy of fewer bytes than requested is permitted.
 .Sh LOCKS
 The vnode are unlocked on entry and must be unlocked on return.
 The byte ranges for both
