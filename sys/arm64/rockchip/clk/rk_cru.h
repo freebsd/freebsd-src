@@ -31,8 +31,15 @@
 #ifndef __RK_CRU_H__
 #define __RK_CRU_H__
 
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/clk/clk_div.h>
+#include <dev/extres/clk/clk_gate.h>
+#include <dev/extres/clk/clk_fixed.h>
+#include <dev/extres/clk/clk_link.h>
+
 #include <arm64/rockchip/clk/rk_clk_armclk.h>
 #include <arm64/rockchip/clk/rk_clk_composite.h>
+#include <arm64/rockchip/clk/rk_clk_fract.h>
 #include <arm64/rockchip/clk/rk_clk_gate.h>
 #include <arm64/rockchip/clk/rk_clk_mux.h>
 #include <arm64/rockchip/clk/rk_clk_pll.h>
@@ -59,8 +66,11 @@ enum rk_clk_type {
 	RK3328_CLK_PLL,
 	RK3399_CLK_PLL,
 	RK_CLK_COMPOSITE,
+	RK_CLK_FIXED,
+	RK_CLK_FRACT,
 	RK_CLK_MUX,
 	RK_CLK_ARMCLK,
+	RK_CLK_LINK,
 };
 
 struct rk_clk {
@@ -70,6 +80,9 @@ struct rk_clk {
 		struct rk_clk_composite_def	*composite;
 		struct rk_clk_mux_def		*mux;
 		struct rk_clk_armclk_def	*armclk;
+		struct clk_fixed_def		*fixed;
+		struct rk_clk_fract_def		*fract;
+		struct clk_link_def		*link;
 	} clk;
 };
 
