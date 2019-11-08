@@ -77,14 +77,14 @@ struct pvo_entry;
 #endif
 
 #define	BOOKE_CRITSAVE_LEN	(CPUSAVE_LEN + 2)
-#define	BOOKE_TLB_MAXNEST	3
+#define	BOOKE_TLB_MAXNEST	4
 #define	BOOKE_TLB_SAVELEN	16
 #define	BOOKE_TLBSAVE_LEN	(BOOKE_TLB_SAVELEN * BOOKE_TLB_MAXNEST)
 
 #ifdef __powerpc64__
 #define	BOOKE_PCPU_PAD	901
 #else
-#define	BOOKE_PCPU_PAD	429
+#define	BOOKE_PCPU_PAD	365
 #endif
 #define PCPU_MD_BOOKE_FIELDS						\
 	register_t	critsave[BOOKE_CRITSAVE_LEN];		\
