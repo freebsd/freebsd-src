@@ -51,8 +51,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/queue.h>
 #include <sys/rman.h>
 #include <sys/endian.h>
+#include <sys/vmem.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -67,6 +69,7 @@ __FBSDID("$FreeBSD$");
 
 #include "ofw_bus_if.h"
 #include "pcib_if.h"
+#include "pic_if.h"
 
 #include <machine/resource.h>
 #include <machine/bus.h>
@@ -80,6 +83,12 @@ __FBSDID("$FreeBSD$");
 #define	REG_CFG_DATA	0x0004
 #define	REG_INT_ACK	0x0008
 
+#define	REG_PEX_IP_BLK_REV1	0x0bf8
+#define	  IP_MJ_M		  0x0000ff00
+#define	  IP_MJ_S		  8
+#define	  IP_MN_M		  0x000000ff
+#define	  IP_MN_S		  0
+
 #define	REG_POTAR(n)	(0x0c00 + 0x20 * (n))
 #define	REG_POTEAR(n)	(0x0c04 + 0x20 * (n))
 #define	REG_POWBAR(n)	(0x0c08 + 0x20 * (n))
@@ -89,6 +98,12 @@ __FBSDID("$FreeBSD$");
 #define	REG_PIWBAR(n)	(0x0e08 - 0x20 * (n))
 #define	REG_PIWBEAR(n)	(0x0e0c - 0x20 * (n))
 #define	REG_PIWAR(n)	(0x0e10 - 0x20 * (n))
+#define	  PIWAR_EN	  0x80000000
+#define	  PIWAR_PF	  0x40000000
+#define	  PIWAR_TRGT_M	  0x00f00000
+#define	  PIWAR_TRGT_S	  20
+#define	  PIWAR_TRGT_CCSR	  0xe
+#define	  PIWAR_TRGT_LOCAL	  0xf
 
 #define	REG_PEX_MES_DR	0x0020
 #define	REG_PEX_MES_IER	0x0028
@@ -123,10 +138,14 @@ __FBSDID("$FreeBSD$");
 
 #define	DEVFN(b, s, f)	((b << 16) | (s << 8) | f)
 
+#define	FSL_NUM_MSIS		256	/* 8 registers of 32 bits (8 hardware IRQs) */
+
 struct fsl_pcib_softc {
 	struct ofw_pci_softc pci_sc;
 	device_t	sc_dev;
 	struct mtx	sc_cfg_mtx;
+	int		sc_ip_maj;
+	int		sc_ip_min;
 
 	int		sc_iomem_target;
 	bus_addr_t	sc_iomem_start, sc_iomem_end;
@@ -150,6 +169,14 @@ struct fsl_pcib_err_dr {
 	const char	*msg;
 	uint32_t	err_dr_mask;
 };
+
+struct fsl_msi_map {
+	SLIST_ENTRY(fsl_msi_map) slist;
+	uint32_t	irq_base;
+	bus_addr_t	target;
+};
+
+SLIST_HEAD(msi_head, fsl_msi_map) fsl_msis = SLIST_HEAD_INITIALIZER(msi_head);
 
 static const struct fsl_pcib_err_dr pci_err[] = {
 	{"ME",		REG_PEX_ERR_DR_ME},
@@ -195,6 +222,16 @@ static int fsl_pcib_maxslots(device_t);
 static uint32_t fsl_pcib_read_config(device_t, u_int, u_int, u_int, u_int, int);
 static void fsl_pcib_write_config(device_t, u_int, u_int, u_int, u_int,
     uint32_t, int);
+static int fsl_pcib_alloc_msi(device_t dev, device_t child,
+    int count, int maxcount, int *irqs);
+static int fsl_pcib_release_msi(device_t dev, device_t child,
+    int count, int *irqs);
+static int fsl_pcib_alloc_msix(device_t dev, device_t child, int *irq);
+static int fsl_pcib_release_msix(device_t dev, device_t child, int irq);
+static int fsl_pcib_map_msi(device_t dev, device_t child,
+    int irq, uint64_t *addr, uint32_t *data);
+
+static vmem_t *msi_vmem;	/* Global MSI vmem, holds all MSI ranges. */
 
 /*
  * Bus interface definitions.
@@ -209,6 +246,11 @@ static device_method_t fsl_pcib_methods[] = {
 	DEVMETHOD(pcib_maxslots,	fsl_pcib_maxslots),
 	DEVMETHOD(pcib_read_config,	fsl_pcib_read_config),
 	DEVMETHOD(pcib_write_config,	fsl_pcib_write_config),
+	DEVMETHOD(pcib_alloc_msi,	fsl_pcib_alloc_msi),
+	DEVMETHOD(pcib_release_msi,	fsl_pcib_release_msi),
+	DEVMETHOD(pcib_alloc_msix,	fsl_pcib_alloc_msix),
+	DEVMETHOD(pcib_release_msix,	fsl_pcib_release_msix),
+	DEVMETHOD(pcib_map_msi,		fsl_pcib_map_msi),
 
 	DEVMETHOD_END
 };
@@ -272,7 +314,7 @@ fsl_pcib_attach(device_t dev)
 {
 	struct fsl_pcib_softc *sc;
 	phandle_t node;
-	uint32_t cfgreg, brctl;
+	uint32_t cfgreg, brctl, ipreg;
 	int error, rid;
 	uint8_t ltssm, capptr;
 
@@ -290,6 +332,9 @@ fsl_pcib_attach(device_t dev)
 	sc->sc_bsh = rman_get_bushandle(sc->sc_res);
 	sc->sc_busnr = 0;
 
+	ipreg = bus_read_4(sc->sc_res, REG_PEX_IP_BLK_REV1);
+	sc->sc_ip_min = (ipreg & IP_MN_M) >> IP_MN_S;
+	sc->sc_ip_maj = (ipreg & IP_MJ_M) >> IP_MJ_S;
 	mtx_init(&sc->sc_cfg_mtx, "pcicfg", NULL, MTX_SPIN);
 
 	cfgreg = fsl_pcib_cfgread(sc, 0, 0, 0, PCIR_VENDOR, 2);
@@ -533,14 +578,16 @@ fsl_pcib_inbound(struct fsl_pcib_softc *sc, int wnd, int tgt, uint64_t start,
 
 	KASSERT(wnd > 0, ("%s: inbound window 0 is invalid", __func__));
 
+	attr = PIWAR_EN;
+
 	switch (tgt) {
-	/* XXX OCP85XX_TGTIF_RAM2, OCP85XX_TGTIF_RAM_INTL should be handled */
-	case OCP85XX_TGTIF_RAM1_85XX:
-	case OCP85XX_TGTIF_RAM1_QORIQ:
-		attr = 0xa0f55000 | (ffsl(size) - 2);
+	case -1:
+		attr &= ~PIWAR_EN;
 		break;
+	case PIWAR_TRGT_LOCAL:
+		attr |= (ffsl(size) - 2);
 	default:
-		attr = 0;
+		attr |= (tgt << PIWAR_TRGT_S);
 		break;
 	}
 	tar = start >> 12;
@@ -702,8 +749,209 @@ fsl_pcib_decode_win(phandle_t node, struct fsl_pcib_softc *sc)
 
 	fsl_pcib_inbound(sc, 1, -1, 0, 0, 0);
 	fsl_pcib_inbound(sc, 2, -1, 0, 0, 0);
-	fsl_pcib_inbound(sc, 3, OCP85XX_TGTIF_RAM1, 0,
-	    2U * 1024U * 1024U * 1024U, 0);
+	fsl_pcib_inbound(sc, 3, PIWAR_TRGT_LOCAL, 0,
+	    ptoa(Maxmem), 0);
+
+	/* Direct-map the CCSR for MSIs. */
+	/* Freescale PCIe 2.x has a dedicated MSI window. */
+	/* inbound window 8 makes it hit 0xD00 offset, the MSI window. */
+	if (sc->sc_ip_maj >= 2)
+		fsl_pcib_inbound(sc, 8, PIWAR_TRGT_CCSR, ccsrbar_pa,
+		    ccsrbar_size, ccsrbar_pa);
+	else
+		fsl_pcib_inbound(sc, 1, PIWAR_TRGT_CCSR, ccsrbar_pa,
+		    ccsrbar_size, ccsrbar_pa);
 
 	return (0);
 }
+
+static int fsl_pcib_alloc_msi(device_t dev, device_t child,
+    int count, int maxcount, int *irqs)
+{
+	struct fsl_pcib_softc *sc;
+	vmem_addr_t start;
+	int err, i;
+
+	sc = device_get_softc(dev);
+	if (msi_vmem == NULL)
+		return (ENODEV);
+
+	err = vmem_xalloc(msi_vmem, count, powerof2(count), 0, 0,
+	    VMEM_ADDR_MIN, VMEM_ADDR_MAX, M_BESTFIT | M_WAITOK, &start);
+
+	if (err)
+		return (err);
+
+	for (i = 0; i < count; i++)
+		irqs[i] = start + i;
+
+	return (0);
+}
+
+static int fsl_pcib_release_msi(device_t dev, device_t child,
+    int count, int *irqs)
+{
+	if (msi_vmem == NULL)
+		return (ENODEV);
+
+	vmem_xfree(msi_vmem, irqs[0], count);
+	return (0);
+}
+
+static int fsl_pcib_alloc_msix(device_t dev, device_t child, int *irq)
+{
+	return (fsl_pcib_alloc_msi(dev, child, 1, 1, irq));
+}
+
+static int fsl_pcib_release_msix(device_t dev, device_t child, int irq)
+{
+	return (fsl_pcib_release_msi(dev, child, 1, &irq));
+}
+
+static int fsl_pcib_map_msi(device_t dev, device_t child,
+    int irq, uint64_t *addr, uint32_t *data)
+{
+	struct fsl_msi_map *mp;
+
+	SLIST_FOREACH(mp, &fsl_msis, slist) {
+		if (irq >= mp->irq_base && irq < mp->irq_base + FSL_NUM_MSIS)
+			break;
+	}
+
+	if (mp == NULL)
+		return (ENODEV);
+
+	*data = (irq & 255);
+	*addr = ccsrbar_pa + mp->target;
+
+	return (0);
+}
+
+
+/*
+ * Linux device trees put the msi@<x> as children of the SoC, with ranges based
+ * on the CCSR.  Since rman doesn't permit overlapping or sub-ranges between
+ * devices (bus_space_subregion(9) could do it, but let's not touch the PIC
+ * driver just to allocate a subregion for a sibling driver).  This driver will
+ * use ccsr_write() and ccsr_read() instead.
+ */
+
+#define	FSL_NUM_IRQS		8
+#define	FSL_NUM_MSI_PER_IRQ	32
+#define	FSL_MSI_TARGET	0x140
+
+struct fsl_msi_softc {
+	vm_offset_t	sc_base;
+	vm_offset_t	sc_target;
+	int		sc_msi_base_irq;
+	struct fsl_msi_map sc_map;
+	struct fsl_msi_irq {
+		/* This struct gets passed as the filter private data. */
+		struct fsl_msi_softc *sc_ptr;	/* Pointer back to softc. */
+		struct resource *res;
+		int irq;
+		void *cookie;
+		int vectors[FSL_NUM_MSI_PER_IRQ];
+		vm_offset_t reg;
+	} sc_msi_irq[FSL_NUM_IRQS];
+};
+
+static int
+fsl_msi_intr_filter(void *priv)
+{
+	struct fsl_msi_irq *data = priv;
+	uint32_t reg;
+	int i;
+
+	reg = ccsr_read4(ccsrbar_va + data->reg);
+	i = 0;
+	while (reg != 0) {
+		if (reg & 1)
+			powerpc_dispatch_intr(data->vectors[i], NULL);
+		reg >>= 1;
+		i++;
+	}
+
+	return (FILTER_HANDLED);
+}
+
+static int
+fsl_msi_probe(device_t dev)
+{
+	if (!ofw_bus_is_compatible(dev, "fsl,mpic-msi"))
+		return (ENXIO);
+
+	device_set_desc(dev, "Freescale MSI");
+
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+fsl_msi_attach(device_t dev)
+{
+	struct fsl_msi_softc *sc;
+	struct fsl_msi_irq *irq;
+	int i;
+
+	sc = device_get_softc(dev);
+
+	if (msi_vmem == NULL)
+		msi_vmem = vmem_create("MPIC MSI", 0, 0, 1, 1, M_BESTFIT | M_WAITOK);
+
+	/* Manually play with resource entries. */
+	sc->sc_base = bus_get_resource_start(dev, SYS_RES_MEMORY, 0);
+	sc->sc_map.target = bus_get_resource_start(dev, SYS_RES_MEMORY, 1);
+
+	if (sc->sc_map.target == 0)
+		sc->sc_map.target = sc->sc_base + FSL_MSI_TARGET;
+
+	for (i = 0; i < FSL_NUM_IRQS; i++) {
+		irq = &sc->sc_msi_irq[i];
+		irq->irq = i;
+		irq->reg = sc->sc_base + 16 * i;
+		irq->res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+		    &irq->irq, RF_ACTIVE);
+		bus_setup_intr(dev, irq->res, INTR_TYPE_MISC | INTR_MPSAFE,
+		    fsl_msi_intr_filter, NULL, irq, &irq->cookie);
+	}
+	sc->sc_map.irq_base = powerpc_register_pic(dev, ofw_bus_get_node(dev),
+	    FSL_NUM_MSIS, 0, 0);
+
+	/* Let vmem and the IRQ subsystem work their magic for allocations. */
+	vmem_add(msi_vmem, sc->sc_map.irq_base, FSL_NUM_MSIS, M_WAITOK);
+
+	SLIST_INSERT_HEAD(&fsl_msis, &sc->sc_map, slist);
+
+	return (0);
+}
+
+static void
+fsl_msi_enable(device_t dev, u_int irq, u_int vector, void **priv)
+{
+	struct fsl_msi_softc *sc;
+	struct fsl_msi_irq *irqd;
+
+	sc = device_get_softc(dev);
+
+	irqd = &sc->sc_msi_irq[irq / FSL_NUM_MSI_PER_IRQ];
+	irqd->vectors[irq % FSL_NUM_MSI_PER_IRQ] = vector;
+}
+
+static device_method_t fsl_msi_methods[] = {
+	DEVMETHOD(device_probe,		fsl_msi_probe),
+	DEVMETHOD(device_attach,	fsl_msi_attach),
+
+	DEVMETHOD(pic_enable,		fsl_msi_enable),
+	DEVMETHOD_END
+};
+
+static devclass_t fsl_msi_devclass;
+
+static driver_t fsl_msi_driver = {
+	"fsl_msi",
+	fsl_msi_methods,
+	sizeof(struct fsl_msi_softc)
+};
+
+EARLY_DRIVER_MODULE(fsl_msi, simplebus, fsl_msi_driver, fsl_msi_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + 1);
