@@ -41,10 +41,6 @@ v4_head()
 
 v4_body()
 {
-	if [ `uname -p` = "i386" ]; then
-		atf_skip "https://bugs.freebsd.org/239380"
-	fi
-
 	pft_init
 
 	epair_send=$(vnet_mkepair)
@@ -104,10 +100,6 @@ v6_head()
 
 v6_body()
 {
-	if [ `uname -p` = "i386" ]; then
-		atf_skip "https://bugs.freebsd.org/239380"
-	fi
-
 	pft_init
 
 	epair_send=$(vnet_mkepair)
