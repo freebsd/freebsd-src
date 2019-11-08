@@ -879,6 +879,43 @@ pad_section(struct elfcopy *ecp, struct section *s)
 		    elf_errmsg(-1));
 }
 
+static int
+section_type_alignment(int sht, int class)
+{
+	switch (sht)
+	{
+	case SHT_DYNAMIC:
+	case SHT_DYNSYM:
+	case SHT_FINI_ARRAY:
+	case SHT_GNU_HASH:
+	case SHT_INIT_ARRAY:
+	case SHT_PREINIT_ARRAY:
+	case SHT_REL:
+	case SHT_RELA:
+	case SHT_SYMTAB:
+		return (class == ELFCLASS64 ? 8 : 4);
+	case SHT_SUNW_move:
+		return (8);
+	case SHT_GNU_LIBLIST:
+	case SHT_GROUP:
+	case SHT_HASH:
+	case SHT_NOTE:
+	case SHT_SUNW_verdef:	/* == SHT_GNU_verdef */
+	case SHT_SUNW_verneed:	/* == SHT_GNU_verneed */
+	case SHT_SYMTAB_SHNDX:
+		return (4);
+	case SHT_SUNW_syminfo:
+	case SHT_SUNW_versym:	/* == SHT_GNU_versym */
+		return (2);
+	case SHT_NOBITS:
+	case SHT_PROGBITS:
+	case SHT_STRTAB:
+	case SHT_SUNW_dof:
+		return (1);
+	}
+	return (1);
+}
+
 void
 resync_sections(struct elfcopy *ecp)
 {
@@ -886,6 +923,7 @@ resync_sections(struct elfcopy *ecp)
 	GElf_Shdr	 osh;
 	uint64_t	 off;
 	int		 first;
+	int		 min_alignment;
 
 	ps = NULL;
 	first = 1;
@@ -908,6 +946,12 @@ resync_sections(struct elfcopy *ecp)
 		/* Align section offset. */
 		if (s->align == 0)
 			s->align = 1;
+		min_alignment = section_type_alignment(s->type, ecp->oec);
+		if (s->align < INT_MAX && (int)s->align < min_alignment) {
+			warnx("section %s alignment %d increased to %d",
+			    s->name, (int)s->align, min_alignment);
+			s->align = min_alignment;
+		}
 		if (off <= s->off) {
 			if (!s->loadable || (ecp->flags & RELOCATABLE))
 				s->off = roundup(off, s->align);
@@ -937,6 +981,7 @@ resync_sections(struct elfcopy *ecp)
 			errx(EXIT_FAILURE, "gelf_getshdr() failed: %s",
 			    elf_errmsg(-1));
 		osh.sh_addr = s->vma;
+		osh.sh_addralign = s->align;
 		osh.sh_offset = s->off;
 		osh.sh_size = s->sz;
 		if (!gelf_update_shdr(s->os, &osh))
