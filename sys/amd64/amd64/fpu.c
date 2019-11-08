@@ -1190,7 +1190,7 @@ struct savefpu *
 fpu_save_area_alloc(void)
 {
 
-	return (uma_zalloc(fpu_save_area_zone, 0));
+	return (uma_zalloc(fpu_save_area_zone, M_WAITOK));
 }
 
 void
