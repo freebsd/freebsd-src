@@ -189,7 +189,11 @@ CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
     !defined(CROSS_BINUTILS_PREFIX)
 CROSS_BINUTILS_PREFIX=/usr/local/${TARGET_TRIPLE}/bin/
 .if !exists(${CROSS_BINUTILS_PREFIX})
+.if !empty(BROKEN_OPTIONS:MGCC_BOOTSTRAP) && ${MK_CLANG_BOOTSTRAP} == "no"
+.error In-tree toolchain does not support the ${TARGET_ARCH} architecture. Install the ${TARGET_ARCH}-xtoolchain-gcc port or package or set CROSS_TOOLCHAIN_PREFIX.
+.else
 .error In-tree binutils does not support the ${TARGET_ARCH} architecture. Install the ${TARGET_ARCH}-binutils port or package or set CROSS_BINUTILS_PREFIX.
+.endif
 .endif
 .endif
 .endif
