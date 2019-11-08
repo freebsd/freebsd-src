@@ -158,31 +158,44 @@ rk_clk_composite_recalc(struct clknode *clk, uint64_t *freq)
 
 	DEVICE_UNLOCK(clk);
 
-	div = ((reg & sc->div_mask) >> sc->div_shift) + 1;
-	dprintf("parent_freq=%lu, div=%u\n", *freq, div);
+	div = ((reg & sc->div_mask) >> sc->div_shift);
+	if (sc->flags & RK_CLK_COMPOSITE_DIV_EXP)
+		div = 1 << div;
+	else
+		div += 1;
+	dprintf("parent_freq=%ju, div=%u\n", *freq, div);
 	*freq = *freq / div;
-
 	dprintf("Final freq=%ju\n", *freq);
 	return (0);
 }
 
 static uint32_t
 rk_clk_composite_find_best(struct rk_clk_composite_sc *sc, uint64_t fparent,
-    uint64_t freq)
+    uint64_t freq, uint32_t *reg)
 {
 	uint64_t best, cur;
-	uint32_t best_div, div;
+	uint32_t best_div, best_div_reg;
+	uint32_t div, div_reg;
 
-	for (best = 0, best_div = 0, div = 0;
-	     div <= ((sc->div_mask >> sc->div_shift) + 1); div++) {
+	best = 0;
+	best_div = 0;
+	best_div_reg = 0;
+
+	for (div_reg = 0;  div_reg <= ((sc->div_mask >> sc->div_shift) + 1);
+	    div_reg++) {
+		if (sc->flags == RK_CLK_COMPOSITE_DIV_EXP)
+			div = 1 << div_reg;
+		else
+			div = div_reg + 1;
 		cur = fparent / div;
 		if ((freq - cur) < (freq - best)) {
 			best = cur;
 			best_div = div;
+			best_div_reg = div_reg;
 			break;
 		}
 	}
-
+	*reg = div_reg;
 	return (best_div);
 }
 
@@ -194,11 +207,10 @@ rk_clk_composite_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	struct clknode *p_clk;
 	const char **p_names;
 	uint64_t best, cur;
-	uint32_t div, best_div, val = 0;
+	uint32_t div, div_reg, best_div, best_div_reg, val;
 	int p_idx, best_parent;
 
 	sc = clknode_get_softc(clk);
-
 	dprintf("Finding best parent/div for target freq of %ju\n", *fout);
 	p_names = clknode_get_parent_names(clk);
 	for (best_div = 0, best = 0, p_idx = 0;
@@ -207,34 +219,31 @@ rk_clk_composite_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 		clknode_get_freq(p_clk, &fparent);
 		dprintf("Testing with parent %s (%d) at freq %ju\n",
 		    clknode_get_name(p_clk), p_idx, fparent);
-		div = rk_clk_composite_find_best(sc, fparent, *fout);
+		div = rk_clk_composite_find_best(sc, fparent, *fout, &div_reg);
 		cur = fparent / div;
 		if ((*fout - cur) < (*fout - best)) {
 			best = cur;
 			best_div = div;
+			best_div_reg = div_reg;
 			best_parent = p_idx;
 			dprintf("Best parent so far %s (%d) with best freq at "
 			    "%ju\n", clknode_get_name(p_clk), p_idx, best);
 		}
 	}
 
+	*stop = 1;
 	if (best_div == 0)
-		return (0);
-
-	if ((best < *fout) &&
-	  ((flags & CLK_SET_ROUND_DOWN) == 0)) {
-		*stop = 1;
 		return (ERANGE);
-	}
-	if ((best > *fout) &&
-	  ((flags & CLK_SET_ROUND_UP) == 0)) {
-		*stop = 1;
+
+	if ((best < *fout) && ((flags & CLK_SET_ROUND_DOWN) == 0))
+		return (ERANGE);
+
+	if ((best > *fout) && ((flags & CLK_SET_ROUND_UP) == 0)) {
 		return (ERANGE);
 	}
 
 	if ((flags & CLK_SET_DRYRUN) != 0) {
 		*fout = best;
-		*stop = 1;
 		return (0);
 	}
 
@@ -245,17 +254,18 @@ rk_clk_composite_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 		clknode_set_parent_by_idx(clk, best_parent);
 	}
 
-	dprintf("Setting divider to %d\n", best_div);
+	dprintf("Setting divider to %d (reg: %d)\n", best_div, best_div_reg);
+	dprintf(" div_mask: 0x%X, div_shift: %d\n", sc->div_mask,
+	    sc->div_shift);
+
 	DEVICE_LOCK(clk);
-	val |= (best_div - 1) << sc->div_shift;
-	val |= (sc->div_mask << sc->div_shift) << RK_CLK_COMPOSITE_MASK_SHIFT;
+	val = best_div_reg << sc->div_shift;
+	val |= sc->div_mask << RK_CLK_COMPOSITE_MASK_SHIFT;
 	dprintf("Write: muxdiv_offset=%x, val=%x\n", sc->muxdiv_offset, val);
 	WRITE4(clk, sc->muxdiv_offset, val);
 	DEVICE_UNLOCK(clk);
 
 	*fout = best;
-	*stop = 1;
-
 	return (0);
 }
 
