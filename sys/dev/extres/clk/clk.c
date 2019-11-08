@@ -189,6 +189,9 @@ enum clknode_sysctl_type {
 static int clknode_sysctl(SYSCTL_HANDLER_ARGS);
 static int clkdom_sysctl(SYSCTL_HANDLER_ARGS);
 
+static void clknode_finish(void *dummy);
+SYSINIT(clknode_finish, SI_SUB_LAST, SI_ORDER_ANY, clknode_finish, NULL);
+
 /*
  * Default clock methods for base class.
  */
@@ -526,20 +529,71 @@ clknode_create(struct clkdom * clkdom, clknode_class_t clknode_class,
 {
 	struct clknode *clknode;
 	struct sysctl_oid *clknode_oid;
+	bool replaced;
 
 	KASSERT(def->name != NULL, ("clock name is NULL"));
 	KASSERT(def->name[0] != '\0', ("clock name is empty"));
-#ifdef   INVARIANTS
-	CLK_TOPO_SLOCK();
-	if (clknode_find_by_name(def->name) != NULL)
-		panic("Duplicated clock registration: %s\n", def->name);
-	CLK_TOPO_UNLOCK();
-#endif
+	if (def->flags & CLK_NODE_LINKED) {
+		KASSERT(def->parent_cnt == 0,
+		 ("Linked clock must not have parents"));
+		KASSERT(clknode_class->size== 0,
+		 ("Linked clock cannot have own softc"));
+	}
 
-	/* Create object and initialize it. */
-	clknode = malloc(sizeof(struct clknode), M_CLOCK, M_WAITOK | M_ZERO);
+	/* Process duplicated clocks */
+	CLK_TOPO_SLOCK();
+	clknode = clknode_find_by_name(def->name);
+	CLK_TOPO_UNLOCK();
+		if (clknode !=  NULL) {
+		if (!(clknode->flags & CLK_NODE_LINKED) &&
+		    def->flags & CLK_NODE_LINKED) {
+			/*
+			 * New clock is linked and real already exists.
+			 * Do nothing and return real node. It is in right
+			 * domain, enqueued in right lists and fully initialized.
+			 */
+			return (clknode);
+		} else if (clknode->flags & CLK_NODE_LINKED &&
+		   !(def->flags & CLK_NODE_LINKED)) {
+			/*
+			 * New clock is real but linked already exists.
+			 * Remove old linked node from originating domain
+			 * (real clock must be owned by another) and from
+			 * global names link (it will be added back into it
+			 * again in following clknode_register()). Then reuse
+			 * original clknode structure and reinitialize it
+			 * with new dat. By this, all lists containing this
+			 * node remains valid, but the new node virtually
+			 * replace the linked one.
+			 */
+			KASSERT(clkdom != clknode->clkdom,
+			    ("linked clock must be from another "
+			    "domain that real one"));
+			TAILQ_REMOVE(&clkdom->clknode_list, clknode,
+			    clkdom_link);
+			TAILQ_REMOVE(&clknode_list, clknode, clklist_link);
+			replaced = true;
+		} else if (clknode->flags & CLK_NODE_LINKED &&
+		   def->flags & CLK_NODE_LINKED) {
+			/*
+			 * Both clocks are linked.
+			 * Return old one, so we hold only one copy od link.
+			 */
+			return (clknode);
+		} else {
+			/* Both clocks are real */
+			panic("Duplicated clock registration: %s\n", def->name);
+		}
+	} else {
+		/* Create clknode object and initialize it. */
+		clknode = malloc(sizeof(struct clknode), M_CLOCK,
+		    M_WAITOK | M_ZERO);
+		sx_init(&clknode->lock, "Clocknode lock");
+		TAILQ_INIT(&clknode->children);
+		replaced = false;
+	}
+
 	kobj_init((kobj_t)clknode, (kobj_class_t)clknode_class);
-	sx_init(&clknode->lock, "Clocknode lock");
 
 	/* Allocate softc if required. */
 	if (clknode_class->size > 0) {
@@ -568,7 +622,9 @@ clknode_create(struct clkdom * clkdom, clknode_class_t clknode_class,
 	clknode->parent_cnt = def->parent_cnt;
 	clknode->parent = NULL;
 	clknode->parent_idx = CLKNODE_IDX_NONE;
-	TAILQ_INIT(&clknode->children);
+
+	if (replaced)
+			return (clknode);
 
 	sysctl_ctx_init(&clknode->sysctl_ctx);
 	clknode_oid = SYSCTL_ADD_NODE(&clknode->sysctl_ctx,
@@ -617,6 +673,10 @@ clknode_register(struct clkdom * clkdom, struct clknode *clknode)
 {
 	int rv;
 
+	/* Skip already registered linked node */
+	if (clknode->flags & CLK_NODE_REGISTERED)
+		return(clknode);
+
 	rv = CLKNODE_INIT(clknode, clknode_get_device(clknode));
 	if (rv != 0) {
 		printf(" CLKNODE_INIT failed: %d\n", rv);
@@ -624,10 +684,24 @@ clknode_register(struct clkdom * clkdom, struct clknode *clknode)
 	}
 
 	TAILQ_INSERT_TAIL(&clkdom->clknode_list, clknode, clkdom_link);
-
+	clknode->flags |= CLK_NODE_REGISTERED;
 	return (clknode);
 }
 
+
+static void
+clknode_finish(void *dummy)
+{
+	struct clknode *clknode;
+
+	CLK_TOPO_SLOCK();
+	TAILQ_FOREACH(clknode, &clknode_list, clklist_link) {
+		if (clknode->flags & CLK_NODE_LINKED)
+			printf("Unresolved linked clock found: %s\n",
+			    clknode->name);
+	}
+	CLK_TOPO_UNLOCK();
+}
 /*
  * Clock providers interface.
  */
