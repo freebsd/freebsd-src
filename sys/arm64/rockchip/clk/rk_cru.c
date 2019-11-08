@@ -233,10 +233,12 @@ rk_cru_attach(device_t dev)
 		case RK_CLK_UNDEFINED:
 			break;
 		case RK3328_CLK_PLL:
-			rk3328_clk_pll_register(sc->clkdom, sc->clks[i].clk.pll);
+			rk3328_clk_pll_register(sc->clkdom,
+			    sc->clks[i].clk.pll);
 			break;
 		case RK3399_CLK_PLL:
-			rk3399_clk_pll_register(sc->clkdom, sc->clks[i].clk.pll);
+			rk3399_clk_pll_register(sc->clkdom,
+			    sc->clks[i].clk.pll);
 			break;
 		case RK_CLK_COMPOSITE:
 			rk_clk_composite_register(sc->clkdom,
@@ -246,7 +248,8 @@ rk_cru_attach(device_t dev)
 			rk_clk_mux_register(sc->clkdom, sc->clks[i].clk.mux);
 			break;
 		case RK_CLK_ARMCLK:
-			rk_clk_armclk_register(sc->clkdom, sc->clks[i].clk.armclk);
+			rk_clk_armclk_register(sc->clkdom,
+			    sc->clks[i].clk.armclk);
 			break;
 		default:
 			device_printf(dev, "Unknown clock type\n");
