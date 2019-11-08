@@ -619,18 +619,18 @@ bcm_dma_intr(void *arg)
 	/* my interrupt? */
 	cs = bus_read_4(sc->sc_mem, BCM_DMA_CS(ch->ch));
 
-	if (!(cs & (CS_INT | CS_ERR))) {
-		device_printf(sc->sc_dev,
-		    "unexpected DMA intr CH=%d, CS=%x\n", ch->ch, cs);
+	/*
+	 * Is it an active channel?  Our diagnostics could be better here, but
+	 * it's not necessarily an easy task to resolve a rid/resource to an
+	 * actual irq number.  We'd want to do this to set a flag indicating
+	 * whether the irq is shared or not, so we know to complain.
+	 */
+	if (!(ch->flags & BCM_DMA_CH_USED))
 		return;
-	}
 
-	/* running? */
-	if (!(ch->flags & BCM_DMA_CH_USED)) {
-		device_printf(sc->sc_dev,
-		    "unused DMA intr CH=%d, CS=%x\n", ch->ch, cs);
+	/* Again, we can't complain here.  The same logic applies. */
+	if (!(cs & (CS_INT | CS_ERR)))
 		return;
-	}
 
 	if (cs & CS_ERR) {
 		debug = bus_read_4(sc->sc_mem, BCM_DMA_DEBUG(ch->ch));
@@ -715,7 +715,7 @@ bcm_dma_attach(device_t dev)
 			continue;
 
 		sc->sc_irq[rid] = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-						       RF_ACTIVE);
+		    RF_ACTIVE | RF_SHAREABLE);
 		if (sc->sc_irq[rid] == NULL) {
 			device_printf(dev, "cannot allocate interrupt\n");
 			err = ENXIO;
