@@ -67,12 +67,12 @@ frag6_03_check_stats() {
 	# Check selection of global UDP stats.
 	#
 	cat <<EOF > ${HOME}/filter-${jname}.txt
-    <received-datagrams>1</received-datagrams>
+    <received-datagrams>2</received-datagrams>
     <dropped-incomplete-headers>0</dropped-incomplete-headers>
     <dropped-bad-data-length>0</dropped-bad-data-length>
     <dropped-bad-checksum>0</dropped-bad-checksum>
     <dropped-no-checksum>0</dropped-no-checksum>
-    <dropped-no-socket>1</dropped-no-socket>
+    <dropped-no-socket>2</dropped-no-socket>
     <dropped-broadcast-multicast>0</dropped-broadcast-multicast>
     <dropped-full-socket-buffer>0</dropped-full-socket-buffer>
     <not-for-hashed-pcb>0</not-for-hashed-pcb>
@@ -94,11 +94,11 @@ EOF
     <dropped-short-packets>0</dropped-short-packets>
     <dropped-bad-options>0</dropped-bad-options>
     <dropped-bad-version>0</dropped-bad-version>
-    <received-fragments>1</received-fragments>
+    <received-fragments>2</received-fragments>
     <dropped-fragment>0</dropped-fragment>
     <dropped-fragment-after-timeout>0</dropped-fragment-after-timeout>
     <dropped-fragments-overflow>0</dropped-fragments-overflow>
-    <atomic-fragments>1</atomic-fragments>
+    <atomic-fragments>2</atomic-fragments>
     <reassembled-packets>0</reassembled-packets>
     <forwarded-packets>0</forwarded-packets>
     <packets-not-forwardable>0</packets-not-forwardable>
@@ -124,12 +124,12 @@ EOF
 	# XXX-TODO check output histogram (just too hard to parse [no multi-line-grep])
 	#
 	cat <<EOF > ${HOME}/filter-${jname}.txt
-    <icmp6-calls>1</icmp6-calls>
+    <icmp6-calls>2</icmp6-calls>
       <no-route>0</no-route>
       <admin-prohibited>0</admin-prohibited>
       <beyond-scope>0</beyond-scope>
       <address-unreachable>0</address-unreachable>
-      <port-unreachable>1</port-unreachable>
+      <port-unreachable>2</port-unreachable>
       <packet-too-big>0</packet-too-big>
       <time-exceed-transmit>0</time-exceed-transmit>
       <time-exceed-reassembly>0</time-exceed-reassembly>
@@ -170,8 +170,8 @@ EOF
     <discard-fragments>0</discard-fragments>
     <fragments-failed>0</fragments-failed>
     <fragments-created>0</fragments-created>
-    <reassembly-required>1</reassembly-required>
-    <reassembled-packets>1</reassembled-packets>
+    <reassembly-required>2</reassembly-required>
+    <reassembled-packets>2</reassembled-packets>
     <reassembly-failed>0</reassembly-failed>
 EOF
 	count=`jexec ${jname} netstat -s -p ip6 -I ${ifname} --libxo xml,pretty | grep -E -x -c -f ${HOME}/filter-${jname}.txt`
@@ -196,8 +196,8 @@ EOF
     <received-echo-replies>0</received-echo-replies>
     <received-router-solicitation>0</received-router-solicitation>
     <received-router-advertisement>0</received-router-advertisement>
-    <sent-errors>1</sent-errors>
-    <sent-destination-unreachable>1</sent-destination-unreachable>
+    <sent-errors>2</sent-errors>
+    <sent-destination-unreachable>2</sent-destination-unreachable>
     <sent-admin-prohibited>0</sent-admin-prohibited>
     <sent-time-exceeded>0</sent-time-exceeded>
     <sent-bad-parameter>0</sent-bad-parameter>
