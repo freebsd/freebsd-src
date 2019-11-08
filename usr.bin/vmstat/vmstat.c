@@ -646,9 +646,8 @@ getcpuinfo(u_long *maskp, int *maxidp)
 
 
 static void
-prthuman(const char *name, uint64_t val, int size)
+prthuman(const char *name, uint64_t val, int size, int flags)
 {
-	int flags;
 	char buf[10];
 	char fmt[128];
 
@@ -656,7 +655,7 @@ prthuman(const char *name, uint64_t val, int size)
 
 	if (size < 5 || size > 9)
 		xo_errx(1, "doofus");
-	flags = HN_B | HN_NOSPACE | HN_DECIMAL;
+	flags |= HN_NOSPACE | HN_DECIMAL;
 	humanize_number(buf, size, val, "", HN_AUTOSCALE, flags);
 	xo_attr("value", "%ju", (uintmax_t) val);
 	xo_emit(fmt, size, buf);
@@ -784,20 +783,21 @@ dovmstat(unsigned int interval, int reps)
 		fill_vmmeter(&sum);
 		fill_vmtotal(&total);
 		xo_open_container("processes");
-		xo_emit("{:runnable/%1d} {:waiting/%ld} "
-		    "{:swapped-out/%ld}", total.t_rq - 1, total.t_dw +
+		xo_emit("{:runnable/%2d} {:waiting/%2ld} "
+		    "{:swapped-out/%2ld}", total.t_rq - 1, total.t_dw +
 		    total.t_pw, total.t_sw);
 		xo_close_container("processes");
 		xo_open_container("memory");
 #define vmstat_pgtok(a) ((uintmax_t)(a) * (sum.v_page_size >> 10))
 #define	rate(x)	(((x) * rate_adj + halfuptime) / uptime)	/* round */
 		if (hflag) {
-			xo_emit("");
 			prthuman("available-memory",
-			    total.t_avm * (uint64_t)sum.v_page_size, 5);
-			xo_emit(" ");
+			    total.t_avm * (uint64_t)sum.v_page_size, 5, HN_B);
 			prthuman("free-memory",
-			    total.t_free * (uint64_t)sum.v_page_size, 5);
+			    total.t_free * (uint64_t)sum.v_page_size, 5, HN_B);
+			prthuman("total-page-faults",
+			    (unsigned long)rate(sum.v_vm_faults -
+			    osum.v_vm_faults), 5, 0);
 			xo_emit(" ");
 		} else {
 			xo_emit(" ");
@@ -807,10 +807,10 @@ dovmstat(unsigned int interval, int reps)
 			xo_emit("{:free-memory/%7ju}",
 			    vmstat_pgtok(total.t_free));
 			xo_emit(" ");
+			xo_emit("{:total-page-faults/%5lu} ",
+			    (unsigned long)rate(sum.v_vm_faults -
+			    osum.v_vm_faults));
 		}
-		xo_emit("{:total-page-faults/%5lu} ",
-		    (unsigned long)rate(sum.v_vm_faults -
-		    osum.v_vm_faults));
 		xo_close_container("memory");
 
 		xo_open_container("paging-rates");
@@ -820,22 +820,44 @@ dovmstat(unsigned int interval, int reps)
 		xo_emit("{:paged-in/%3lu} ",
 		    (unsigned long)rate(sum.v_swapin + sum.v_vnodein -
 		    (osum.v_swapin + osum.v_vnodein)));
-		xo_emit("{:paged-out/%3lu} ",
+		xo_emit("{:paged-out/%3lu}",
 		    (unsigned long)rate(sum.v_swapout + sum.v_vnodeout -
 		    (osum.v_swapout + osum.v_vnodeout)));
-		xo_emit("{:freed/%5lu} ",
-		    (unsigned long)rate(sum.v_tfree - osum.v_tfree));
-		xo_emit("{:scanned/%4lu} ",
-		    (unsigned long)rate(sum.v_pdpages - osum.v_pdpages));
+		if (hflag) {
+			prthuman("freed",
+			    (unsigned long)rate(sum.v_tfree - osum.v_tfree),
+			    5, 0);
+			prthuman("scanned",
+			    (unsigned long)rate(sum.v_pdpages - osum.v_pdpages),
+			    5, 0);
+			xo_emit(" ");
+		} else {
+			xo_emit(" ");
+			xo_emit("{:freed/%5lu} ",
+			    (unsigned long)rate(sum.v_tfree - osum.v_tfree));
+			xo_emit("{:scanned/%4lu} ",
+			    (unsigned long)rate(sum.v_pdpages - osum.v_pdpages));
+		}
 		xo_close_container("paging-rates");
 
 		devstats();
 		xo_open_container("fault-rates");
-		xo_emit("{:interrupts/%4lu} {:system-calls/%5lu} "
-		    "{:context-switches/%5lu}",
-		    (unsigned long)rate(sum.v_intr - osum.v_intr),
-		    (unsigned long)rate(sum.v_syscall - osum.v_syscall),
-		    (unsigned long)rate(sum.v_swtch - osum.v_swtch));
+		xo_emit("{:interrupts/%4lu}",
+		    (unsigned long)rate(sum.v_intr - osum.v_intr));
+		if (hflag) {
+			prthuman("system-calls",
+			    (unsigned long)rate(sum.v_syscall - osum.v_syscall),
+			    5, 0);
+			prthuman("context-switches",
+			    (unsigned long)rate(sum.v_swtch - osum.v_swtch),
+			    5, 0);
+		} else {
+			xo_emit(" ");
+			xo_emit("{:system-calls/%5lu} "
+			    "{:context-switches/%5lu}",
+			    (unsigned long)rate(sum.v_syscall - osum.v_syscall),
+			    (unsigned long)rate(sum.v_swtch - osum.v_swtch));
+		}
 		xo_close_container("fault-rates");
 		if (Pflag)
 			pcpustats(cpumask, maxid);
@@ -867,14 +889,14 @@ printhdr(int maxid, u_long cpumask)
 
 	num_shown = MIN(num_selected, maxshowdevs);
 	if (hflag)
-		xo_emit("{T:procs}  {T:memory}      {T:/page%*s}", 19, "");
+		xo_emit(" {T:procs}    {T:memory}    {T:/page%*s}", 19, "");
 	else
 		xo_emit("{T:procs}     {T:memory}       {T:/page%*s}", 19, "");
 	if (num_shown > 1)
-		xo_emit("    {T:/disks %*s}", num_shown * 4 - 7, "");
+		xo_emit("   {T:/disks %*s}  ", num_shown * 4 - 7, "");
 	else if (num_shown == 1)
 		xo_emit("   {T:disks}");
-	xo_emit("   {T:faults}      ");
+	xo_emit(" {T:faults}      ");
 	if (Pflag) {
 		for (i = 0; i <= maxid; i++) {
 			if (cpumask & (1ul << i))
@@ -882,10 +904,10 @@ printhdr(int maxid, u_long cpumask)
 		}
 		xo_emit("\n");
 	} else
-		xo_emit("   {T:cpu}\n");
+		xo_emit(" {T:cpu}\n");
 	if (hflag) {
-		xo_emit("{T:r} {T:b} {T:w}  {T:avm}   {T:fre}   {T:flt}  {T:re}"
-		    "  {T:pi}  {T:po}    {T:fr}   {T:sr} ");
+		xo_emit(" {T:r}  {T:b}  {T:w}  {T:avm}  {T:fre}  {T:flt}  {T:re}"
+		    "  {T:pi}  {T:po}   {T:fr}   {T:sr} ");
 	} else {
 		xo_emit("{T:r} {T:b} {T:w}     {T:avm}     {T:fre}  {T:flt}  "
 		    "{T:re}  {T:pi}  {T:po}    {T:fr}   {T:sr} ");
@@ -896,7 +918,7 @@ printhdr(int maxid, u_long cpumask)
 			xo_emit("{T:/%c%c%d} ", dev_select[i].device_name[0],
 			    dev_select[i].device_name[1],
 			    dev_select[i].unit_number);
-	xo_emit("  {T:in}    {T:sy}    {T:cs}");
+	xo_emit("  {T:in}   {T:sy}   {T:cs}");
 	if (Pflag) {
 		for (i = 0; i <= maxid; i++) {
 			if (cpumask & (1ul << i))
