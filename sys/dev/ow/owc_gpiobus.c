@@ -279,6 +279,8 @@ owc_gpiobus_read_data(device_t dev, struct ow_timing *t, int *bit)
 	if (error != 0)
 		return (error);
 
+	critical_enter();
+
 	/* Force low for t_lowr microseconds */
 	then = sbinuptime();
 	OUTPIN(sc);
@@ -291,7 +293,6 @@ owc_gpiobus_read_data(device_t dev, struct ow_timing *t, int *bit)
 	 * master's pushing the line low.
 	 */
 	INPIN(sc);
-	critical_enter();
 	do {
 		now = sbinuptime();
 		GETPIN(sc, &sample);
