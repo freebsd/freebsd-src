@@ -149,9 +149,7 @@ rk_clk_fract_init(struct clknode *clk, device_t dev)
 
 	return(0);
 }
-static int
-rk_clk_fract_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
-    int flags, int *stop);
+
 static int
 rk_clk_fract_recalc(struct clknode *clk, uint64_t *freq)
 {
