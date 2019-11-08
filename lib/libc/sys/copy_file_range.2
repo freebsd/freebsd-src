@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 2019
+.Dd November 8, 2019
 .Dt COPY_FILE_RANGE 2
 .Os
 .Sh NAME
@@ -113,6 +113,14 @@ data ranges found.
 If it succeeds, the call returns the number of bytes copied, which can be fewer
 than
 .Fa len .
+Returning fewer bytes than
+.Fa len
+does not necessarily indicate that EOF was reached.
+However, a return of zero for a non-zero
+.Fa len
+argument indicates that the offset for
+.Fa infd
+is at or beyond EOF.
 .Fn copy_file_range
 should be used in a loop until copying of the desired byte range has been
 completed.
@@ -154,13 +162,6 @@ and
 .Fa outoffp
 are reset to the initial values for the system call.
 .It Bq Er EINVAL
-If the initial offset for
-.Fa infd
-plus
-.Fa len
-exceeds EOF for
-.Fa infd
-or
 .Fa
 flags
 is not zero.
