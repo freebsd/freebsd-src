@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2019
+.Dd November 8, 2019
 .Dt VOP_COPY_FILE_RANGE 9
 .Os
 .Sh NAME
@@ -94,6 +94,13 @@ Upon a successful return
 will be updated to the number of bytes actually copied.
 Normally, this will be the number of bytes requested to be copied,
 however a copy of fewer bytes than requested is permitted.
+This does not necessarily indicate that the copy reached EOF on the input file.
+However, if the value pointed to by the
+.Fa len
+argument is zero upon a successful return,
+it indicates that the offset pointed to by
+.Fa inoff
+is at or beyond EOF on the input file.
 .Sh LOCKS
 The vnode are unlocked on entry and must be unlocked on return.
 The byte ranges for both
