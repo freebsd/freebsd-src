@@ -713,6 +713,15 @@ INTERRUPT(int_data_tlb_error)
 	mtcr	%r21
 	bt	17, search_failed	/* check MSR[PR] */
 
+#ifdef __powerpc64__
+	srdi	%r21, %r31, 48
+	cmpldi	cr0, %r21, VM_MIN_KERNEL_ADDRESS@highest
+#else
+	lis	%r21, VM_MIN_KERNEL_ADDRESS@h
+	cmplw	cr0, %r31, %r21
+#endif
+	blt	search_failed
+
 search_kernel_pmap:
 	/* Load r26 with kernel_pmap address */
 	bl	1f
