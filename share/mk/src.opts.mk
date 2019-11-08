@@ -411,7 +411,7 @@ BROKEN_OPTIONS+=HYPERV
 BROKEN_OPTIONS+=NVME
 .endif
 
-# Sparc64 need extra crt*.o files
+# Sparc64 need extra crt*.o files - PR 239851
 .if ${__T:Msparc64}
 BROKEN_OPTIONS+=BSD_CRTBEGIN
 .endif
