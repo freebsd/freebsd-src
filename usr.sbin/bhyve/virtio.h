@@ -392,6 +392,7 @@ struct vqueue_info {
 
 	uint16_t vq_flags;	/* flags (see above) */
 	uint16_t vq_last_avail;	/* a recent value of vq_avail->va_idx */
+	uint16_t vq_next_used;	/* index of the next used slot to be filled */
 	uint16_t vq_save_used;	/* saved vq_used->vu_idx; see vq_endchains */
 	uint16_t vq_msix_idx;	/* MSI-X index, or VIRTIO_MSI_NO_VECTOR */
 
@@ -479,7 +480,10 @@ void	vi_set_io_bar(struct virtio_softc *, int);
 
 int	vq_getchain(struct vqueue_info *vq, uint16_t *pidx,
 		    struct iovec *iov, int n_iov, uint16_t *flags);
-void	vq_retchain(struct vqueue_info *vq);
+void	vq_retchains(struct vqueue_info *vq, uint16_t n_chains);
+void	vq_relchain_prepare(struct vqueue_info *vq, uint16_t idx,
+			    uint32_t iolen);
+void	vq_relchain_publish(struct vqueue_info *vq);
 void	vq_relchain(struct vqueue_info *vq, uint16_t idx, uint32_t iolen);
 void	vq_endchains(struct vqueue_info *vq, int used_all_avail);
 
