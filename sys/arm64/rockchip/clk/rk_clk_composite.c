@@ -61,15 +61,19 @@ struct rk_clk_composite_sc {
 	CLKDEV_WRITE_4(clknode_get_device(_clk), off, val)
 #define	READ4(_clk, off, val)						\
 	CLKDEV_READ_4(clknode_get_device(_clk), off, val)
-#define	DEVICE_LOCK(_clk)							\
+#define	DEVICE_LOCK(_clk)						\
 	CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
 #define	DEVICE_UNLOCK(_clk)						\
 	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
 #define	RK_CLK_COMPOSITE_MASK_SHIFT	16
 
-/* #define	dprintf(format, arg...)	printf("%s:(%s)" format, __func__, clknode_get_name(clk), arg) */
+#if 0
+#define	dprintf(format, arg...)						\
+	printf("%s:(%s)" format, __func__, clknode_get_name(clk), arg)
+#else
 #define	dprintf(format, arg...)
+#endif
 
 static int
 rk_clk_composite_init(struct clknode *clk, device_t dev)
@@ -158,6 +162,7 @@ rk_clk_composite_recalc(struct clknode *clk, uint64_t *freq)
 	dprintf("parent_freq=%lu, div=%u\n", *freq, div);
 	*freq = *freq / div;
 
+	dprintf("Final freq=%ju\n", *freq);
 	return (0);
 }
 
@@ -194,20 +199,22 @@ rk_clk_composite_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 
 	sc = clknode_get_softc(clk);
 
-	dprintf("Finding best parent/div for target freq of %lu\n", *fout);
+	dprintf("Finding best parent/div for target freq of %ju\n", *fout);
 	p_names = clknode_get_parent_names(clk);
 	for (best_div = 0, best = 0, p_idx = 0;
 	     p_idx != clknode_get_parents_num(clk); p_idx++) {
 		p_clk = clknode_find_by_name(p_names[p_idx]);
 		clknode_get_freq(p_clk, &fparent);
-		dprintf("Testing with parent %s (%d) at freq %lu\n", clknode_get_name(p_clk), p_idx, fparent);
+		dprintf("Testing with parent %s (%d) at freq %ju\n",
+		    clknode_get_name(p_clk), p_idx, fparent);
 		div = rk_clk_composite_find_best(sc, fparent, *fout);
 		cur = fparent / div;
 		if ((*fout - cur) < (*fout - best)) {
 			best = cur;
 			best_div = div;
 			best_parent = p_idx;
-			dprintf("Best parent so far %s (%d) with best freq at %lu\n", clknode_get_name(p_clk), p_idx, best);
+			dprintf("Best parent so far %s (%d) with best freq at "
+			    "%ju\n", clknode_get_name(p_clk), p_idx, best);
 		}
 	}
 
@@ -233,7 +240,8 @@ rk_clk_composite_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 
 	p_idx = clknode_get_parent_idx(clk);
 	if (p_idx != best_parent) {
-		dprintf("Switching parent index from %d to %d\n", p_idx, best_parent);
+		dprintf("Switching parent index from %d to %d\n", p_idx,
+		    best_parent);
 		clknode_set_parent_by_idx(clk, best_parent);
 	}
 
@@ -266,7 +274,8 @@ DEFINE_CLASS_1(rk_clk_composite_clknode, rk_clk_composite_clknode_class,
     clknode_class);
 
 int
-rk_clk_composite_register(struct clkdom *clkdom, struct rk_clk_composite_def *clkdef)
+rk_clk_composite_register(struct clkdom *clkdom,
+    struct rk_clk_composite_def *clkdef)
 {
 	struct clknode *clk;
 	struct rk_clk_composite_sc *sc;
