@@ -91,7 +91,6 @@ struct bcm_mmc_conf {
 	int	clock_id;
 	int	clock_src;
 	int	default_freq;
-	int	power_id;
 	int	quirks;
 	bool	use_dma;
 };
