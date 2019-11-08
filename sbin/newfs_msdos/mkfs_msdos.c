@@ -285,8 +285,10 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 	if (!S_ISREG(sb.st_mode))
 	    warnx("warning, %s is not a regular file", fname);
     } else {
+#ifndef MAKEFS
 	if (!S_ISCHR(sb.st_mode))
 	    warnx("warning, %s is not a character device", fname);
+#endif
     }
     if (!o.no_create)
 	if (check_mounted(fname, sb.st_mode) == -1)
