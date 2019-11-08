@@ -41,7 +41,9 @@
 /* clknode flags. */
 #define	CLK_NODE_STATIC_STRINGS	0x00000001	/* Static name strings */
 #define	CLK_NODE_GLITCH_FREE	0x00000002	/* Freq can change w/o stop */
-#define	CLK_NODE_CANNOT_STOP	0x00000004	/* Clock cannot be disabled */
+#define	CLK_NODE_CANNOT_STOP	0x00000004	/* Cannot be disabled */
+#define	CLK_NODE_LINKED		0x00000008	/* Is linked clock */
+#define	CLK_NODE_REGISTERED	0x00000020	/* Is already registered */
 
 /* Flags passed to clk_set_freq() and clknode_set_freq(). */
 #define	CLK_SET_ROUND(x)	((x) & (CLK_SET_ROUND_UP | CLK_SET_ROUND_DOWN))
