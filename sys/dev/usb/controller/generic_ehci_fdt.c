@@ -114,6 +114,7 @@ generic_ehci_fdt_probe(device_t self)
 static int
 generic_ehci_fdt_attach(device_t dev)
 {
+	int err;
 #ifdef EXT_RESOURCES
 	struct generic_ehci_fdt_softc *sc;
 	struct clk_list *clkp;
@@ -122,7 +123,7 @@ generic_ehci_fdt_attach(device_t dev)
 	hwreset_t rst;
 	struct phy_list *phyp;
 	phy_t phy;
-	int err, off;
+	int off;
 
 	sc = device_get_softc(dev);
 
