@@ -528,7 +528,10 @@ g_disk_start(struct bio *bp)
 		else if (g_handleattr_uint16_t(bp, "GEOM::rotation_rate",
 		    dp->d_rotation_rate))
 			break;
-		else 
+		else if (g_handleattr_str(bp, "GEOM::attachment",
+		    dp->d_attachment))
+			break;
+		else
 			error = ENOIOCTL;
 		break;
 	case BIO_FLUSH:
