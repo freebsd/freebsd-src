@@ -3420,6 +3420,8 @@ adasetgeom(struct ada_softc *softc, struct ccb_getdev *cgd)
 	softc->disk->d_fwheads = softc->params.heads;
 	ata_disk_firmware_geom_adjust(softc->disk);
 	softc->disk->d_rotation_rate = cgd->ident_data.media_rotation_rate;
+	snprintf(softc->disk->d_attachment, sizeof(softc->disk->d_attachment),
+	    "%s%d", softc->cpi.dev_name, softc->cpi.unit_number);
 }
 
 static void

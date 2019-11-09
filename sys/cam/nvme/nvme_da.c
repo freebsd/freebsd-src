@@ -815,6 +815,8 @@ ndaregister(struct cam_periph *periph, void *arg)
 	disk->d_hba_device = cpi.hba_device;
 	disk->d_hba_subvendor = cpi.hba_subvendor;
 	disk->d_hba_subdevice = cpi.hba_subdevice;
+	snprintf(disk->d_attachment, sizeof(disk->d_attachment),
+	    "%s%d", cpi.dev_name, cpi.unit_number);
 	disk->d_stripesize = disk->d_sectorsize;
 	disk->d_stripeoffset = 0;
 	disk->d_devstat = devstat_new_entry(periph->periph_name,

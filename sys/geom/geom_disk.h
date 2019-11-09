@@ -118,6 +118,7 @@ struct disk {
 	uint16_t		d_hba_subvendor;
 	uint16_t		d_hba_subdevice;
 	uint16_t		d_rotation_rate;
+	char			d_attachment[DISK_IDENT_SIZE];
 
 	/* Fields private to the driver */
 	void			*d_drv1;
