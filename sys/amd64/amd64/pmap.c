@@ -8370,7 +8370,7 @@ pmap_activate_sw_pti_post(struct thread *td, pmap_t pmap)
 {
 
 	PCPU_GET(tssp)->tss_rsp0 = pmap->pm_ucr3 != PMAP_NO_CR3 ?
-	    PCPU_GET(pti_rsp0) : (uintptr_t)td->td_pcb;
+	    PCPU_GET(pti_rsp0) : (uintptr_t)td->td_md.md_stack_base;
 }
 
 static void inline

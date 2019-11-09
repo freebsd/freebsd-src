@@ -87,35 +87,39 @@ __FBSDID("$FreeBSD$");
 _Static_assert(OFFSETOF_MONITORBUF == offsetof(struct pcpu, pc_monitorbuf),
     "OFFSETOF_MONITORBUF does not correspond with offset of pc_monitorbuf.");
 
+void
+set_top_of_stack_td(struct thread *td)
+{
+	td->td_md.md_stack_base = td->td_kstack +
+	    td->td_kstack_pages * PAGE_SIZE -
+	    roundup2(cpu_max_ext_state_size, XSAVE_AREA_ALIGN);
+}
+
 struct savefpu *
 get_pcb_user_save_td(struct thread *td)
 {
 	vm_offset_t p;
 
-	p = td->td_kstack + td->td_kstack_pages * PAGE_SIZE -
-	    roundup2(cpu_max_ext_state_size, XSAVE_AREA_ALIGN);
-	KASSERT((p % XSAVE_AREA_ALIGN) == 0, ("Unaligned pcb_user_save area"));
-	return ((struct savefpu *)p);
-}
-
-struct savefpu *
-get_pcb_user_save_pcb(struct pcb *pcb)
-{
-	vm_offset_t p;
-
-	p = (vm_offset_t)(pcb + 1);
+	p = td->td_md.md_stack_base;
+	KASSERT((p % XSAVE_AREA_ALIGN) == 0,
+	    ("Unaligned pcb_user_save area ptr %#lx td %p", p, td));
 	return ((struct savefpu *)p);
 }
 
 struct pcb *
 get_pcb_td(struct thread *td)
 {
-	vm_offset_t p;
 
-	p = td->td_kstack + td->td_kstack_pages * PAGE_SIZE -
-	    roundup2(cpu_max_ext_state_size, XSAVE_AREA_ALIGN) -
-	    sizeof(struct pcb);
-	return ((struct pcb *)p);
+	return (&td->td_md.md_pcb);
+}
+
+struct savefpu *
+get_pcb_user_save_pcb(struct pcb *pcb)
+{
+	struct thread *td;
+
+	td = __containerof(pcb, struct thread, td_md.md_pcb);
+	return (get_pcb_user_save_td(td));
 }
 
 void *
@@ -165,9 +169,9 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	fpuexit(td1);
 	update_pcb_bases(td1->td_pcb);
 
-	/* Point the pcb to the top of the stack */
-	pcb2 = get_pcb_td(td2);
-	td2->td_pcb = pcb2;
+	/* Point the stack and pcb to the actual location */
+	set_top_of_stack_td(td2);
+	td2->td_pcb = pcb2 = get_pcb_td(td2);
 
 	/* Copy td1's pcb */
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
@@ -187,7 +191,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	 * Copy the trap frame for the return to user mode as if from a
 	 * syscall.  This copies most of the user mode register values.
 	 */
-	td2->td_frame = (struct trapframe *)td2->td_pcb - 1;
+	td2->td_frame = (struct trapframe *)td2->td_md.md_stack_base - 1;
 	bcopy(td1->td_frame, td2->td_frame, sizeof(struct trapframe));
 
 	td2->td_frame->tf_rax = 0;		/* Child returns zero */
@@ -352,8 +356,9 @@ cpu_thread_alloc(struct thread *td)
 	struct pcb *pcb;
 	struct xstate_hdr *xhdr;
 
+	set_top_of_stack_td(td);
 	td->td_pcb = pcb = get_pcb_td(td);
-	td->td_frame = (struct trapframe *)pcb - 1;
+	td->td_frame = (struct trapframe *)td->td_md.md_stack_base - 1;
 	pcb->pcb_save = get_pcb_user_save_pcb(pcb);
 	if (use_xsave) {
 		xhdr = (struct xstate_hdr *)(pcb->pcb_save + 1);
@@ -491,7 +496,6 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 {
 	struct pcb *pcb2;
 
-	/* Point the pcb to the top of the stack. */
 	pcb2 = td->td_pcb;
 
 	/*

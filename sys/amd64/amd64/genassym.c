@@ -87,6 +87,8 @@ ASSYM(TD_PFLAGS, offsetof(struct thread, td_pflags));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
+ASSYM(TD_MD_PCB, offsetof(struct thread, td_md.md_pcb));
+ASSYM(TD_MD_STACK_BASE, offsetof(struct thread, td_md.md_stack_base));
 
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
 ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);

@@ -1805,12 +1805,12 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	amd64_conf_fast_syscall();
 
 	/*
-	 * Temporary forge some valid pointer to PCB, for exception
-	 * handlers.  It is reinitialized properly below after FPU is
-	 * set up.  Also set up td_critnest to short-cut the page
-	 * fault handler.
+	 * We initialize the PCB pointer early so that exception
+	 * handlers will work.  Also set up td_critnest to short-cut
+	 * the page fault handler.
 	 */
 	cpu_max_ext_state_size = sizeof(struct savefpu);
+	set_top_of_stack_td(&thread0);
 	thread0.td_pcb = get_pcb_td(&thread0);
 	thread0.td_critnest = 1;
 
@@ -1866,11 +1866,10 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	fpuinit();
 
 	/*
-	 * Set up thread0 pcb after fpuinit calculated pcb + fpu save
+	 * Set up thread0 pcb save area after fpuinit calculated fpu save
 	 * area size.  Zero out the extended state header in fpu save
 	 * area.
 	 */
-	thread0.td_pcb = get_pcb_td(&thread0);
 	thread0.td_pcb->pcb_save = get_pcb_user_save_td(&thread0);
 	bzero(get_pcb_user_save_td(&thread0), cpu_max_ext_state_size);
 	if (use_xsave) {
@@ -1879,7 +1878,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		xhdr->xstate_bv = xsave_mask;
 	}
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
-	rsp0 = (vm_offset_t)thread0.td_pcb;
+	rsp0 = thread0.td_md.md_stack_base;
 	/* Ensure the stack is aligned to 16 bytes */
 	rsp0 &= ~0xFul;
 	common_tss[0].tss_rsp0 = rsp0;
@@ -1915,7 +1914,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	TSEXIT();
 
 	/* Location of kernel stack for locore */
-	return ((u_int64_t)thread0.td_pcb);
+	return (thread0.td_md.md_stack_base);
 }
 
 void

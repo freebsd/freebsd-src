@@ -36,6 +36,7 @@
 #define	_MACHINE_PROC_H_
 
 #include <sys/queue.h>
+#include <machine/pcb.h>
 #include <machine/segments.h>
 
 /*
@@ -72,6 +73,8 @@ struct mdthread {
 	struct pmap_invl_gen md_invl_gen;
 	register_t md_efirt_tmp;	/* (k) */
 	int	md_efirt_dis_pf;	/* (k) */
+	struct pcb md_pcb;
+	vm_offset_t md_stack_base;
 };
 
 struct mdproc {
