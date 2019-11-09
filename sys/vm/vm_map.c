@@ -596,10 +596,54 @@ vm_map_process_deferred(void)
 	}
 }
 
+#ifdef INVARIANTS
+static void
+_vm_map_assert_locked(vm_map_t map, const char *file, int line)
+{
+
+	if (map->system_map)
+		mtx_assert_(&map->system_mtx, MA_OWNED, file, line);
+	else
+		sx_assert_(&map->lock, SA_XLOCKED, file, line);
+}
+
+#define	VM_MAP_ASSERT_LOCKED(map) \
+    _vm_map_assert_locked(map, LOCK_FILE, LOCK_LINE)
+
+enum { VMMAP_CHECK_NONE, VMMAP_CHECK_UNLOCK, VMMAP_CHECK_ALL };
+#ifdef DIAGNOSTIC
+static int enable_vmmap_check = VMMAP_CHECK_UNLOCK;
+#else
+static int enable_vmmap_check = VMMAP_CHECK_NONE;
+#endif
+SYSCTL_INT(_debug, OID_AUTO, vmmap_check, CTLFLAG_RWTUN,
+    &enable_vmmap_check, 0, "Enable vm map consistency checking");
+
+static void _vm_map_assert_consistent(vm_map_t map, int check);
+
+#define VM_MAP_ASSERT_CONSISTENT(map) \
+    _vm_map_assert_consistent(map, VMMAP_CHECK_ALL)
+#ifdef DIAGNOSTIC
+#define VM_MAP_UNLOCK_CONSISTENT(map) do {				\
+	if (map->nupdates > map->nentries) {				\
+		_vm_map_assert_consistent(map, VMMAP_CHECK_UNLOCK);	\
+		map->nupdates = 0;					\
+	}								\
+} while (0)
+#else
+#define VM_MAP_UNLOCK_CONSISTENT(map)
+#endif
+#else
+#define	VM_MAP_ASSERT_LOCKED(map)
+#define VM_MAP_ASSERT_CONSISTENT(map)
+#define VM_MAP_UNLOCK_CONSISTENT(map)
+#endif /* INVARIANTS */
+
 void
 _vm_map_unlock(vm_map_t map, const char *file, int line)
 {
 
+	VM_MAP_UNLOCK_CONSISTENT(map);
 	if (map->system_map)
 		mtx_unlock_flags_(&map->system_mtx, 0, file, line);
 	else {
@@ -697,8 +741,10 @@ _vm_map_lock_downgrade(vm_map_t map, const char *file, int line)
 
 	if (map->system_map) {
 		mtx_assert_(&map->system_mtx, MA_OWNED, file, line);
-	} else
+	} else {
+		VM_MAP_UNLOCK_CONSISTENT(map);
 		sx_downgrade_(&map->lock, file, line);
+	}
 }
 
 /*
@@ -716,37 +762,6 @@ vm_map_locked(vm_map_t map)
 	else
 		return (sx_xlocked(&map->lock));
 }
-
-#ifdef INVARIANTS
-static void
-_vm_map_assert_locked(vm_map_t map, const char *file, int line)
-{
-
-	if (map->system_map)
-		mtx_assert_(&map->system_mtx, MA_OWNED, file, line);
-	else
-		sx_assert_(&map->lock, SA_XLOCKED, file, line);
-}
-
-#define	VM_MAP_ASSERT_LOCKED(map) \
-    _vm_map_assert_locked(map, LOCK_FILE, LOCK_LINE)
-
-#ifdef DIAGNOSTIC
-static int enable_vmmap_check = 1;
-#else
-static int enable_vmmap_check = 0;
-#endif
-SYSCTL_INT(_debug, OID_AUTO, vmmap_check, CTLFLAG_RWTUN,
-    &enable_vmmap_check, 0, "Enable vm map consistency checking");
-
-static void _vm_map_assert_consistent(vm_map_t map);
-
-#define VM_MAP_ASSERT_CONSISTENT(map) \
-    _vm_map_assert_consistent(map)
-#else
-#define	VM_MAP_ASSERT_LOCKED(map)
-#define VM_MAP_ASSERT_CONSISTENT(map)
-#endif /* INVARIANTS */
 
 /*
  *	_vm_map_unlock_and_wait:
@@ -766,6 +781,7 @@ int
 _vm_map_unlock_and_wait(vm_map_t map, int timo, const char *file, int line)
 {
 
+	VM_MAP_UNLOCK_CONSISTENT(map);
 	mtx_lock(&map_sleep_mtx);
 	if (map->system_map)
 		mtx_unlock_flags_(&map->system_mtx, 0, file, line);
@@ -874,6 +890,9 @@ _vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
 	map->timestamp = 0;
 	map->busy = 0;
 	map->anon_loc = 0;
+#ifdef DIAGNOSTIC
+	map->nupdates = 0;
+#endif
 }
 
 void
@@ -1132,6 +1151,9 @@ vm_map_splay_merge(vm_map_t map, vm_map_entry_t root,
 	}		
 	root->max_free = MAX(max_free_left, max_free_right);
 	map->root = root;
+#ifdef DIAGNOSTIC
+	++map->nupdates;
+#endif
 }
 
 /*
@@ -1330,8 +1352,10 @@ vm_map_lookup_entry(
 		 * on a temporary upgrade.
 		 */
 		cur = vm_map_splay(map, address);
-		if (!locked)
+		if (!locked) {
+			VM_MAP_UNLOCK_CONSISTENT(map);
 			sx_downgrade(&map->lock);
+		}
 
 		/*
 		 * If "address" is contained within a map entry, the new root
@@ -4786,12 +4810,12 @@ vm_map_pmap_KBI(vm_map_t map)
 
 #ifdef INVARIANTS
 static void
-_vm_map_assert_consistent(vm_map_t map)
+_vm_map_assert_consistent(vm_map_t map, int check)
 {
 	vm_map_entry_t entry, prev;
 	vm_size_t max_left, max_right;
 
-	if (!enable_vmmap_check)
+	if (enable_vmmap_check != check)
 		return;
 
 	prev = &map->header;

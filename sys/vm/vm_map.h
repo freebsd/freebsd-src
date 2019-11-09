@@ -207,6 +207,9 @@ struct vm_map {
 	pmap_t pmap;			/* (c) Physical map */
 	vm_offset_t anon_loc;
 	int busy;
+#ifdef DIAGNOSTIC
+	int nupdates;
+#endif
 };
 
 /*
