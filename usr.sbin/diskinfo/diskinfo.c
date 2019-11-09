@@ -251,6 +251,10 @@ main(int argc, char **argv)
 				printf("\t%-12s\t# Disk descr.\n", arg.value.str);
 			if (ioctl(fd, DIOCGIDENT, ident) == 0)
 				printf("\t%-12s\t# Disk ident.\n", ident);
+			strlcpy(arg.name, "GEOM::attachment", sizeof(arg.name));
+			arg.len = sizeof(arg.value.str);
+			if (ioctl(fd, DIOCGATTR, &arg) == 0)
+				printf("\t%-12s\t# Attachment\n", arg.value.str);
 			if (ioctl(fd, DIOCGPHYSPATH, physpath) == 0)
 				printf("\t%-12s\t# Physical path\n", physpath);
 			printf("\t%-12s\t# TRIM/UNMAP support\n",
