@@ -503,8 +503,8 @@ zone_put_bucket(uma_zone_t zone, uma_zone_domain_t zdom, uma_bucket_t bucket,
 {
 
 	ZONE_LOCK_ASSERT(zone);
-	KASSERT(zone->uz_bkt_count < zone->uz_bkt_max, ("%s: zone %p overflow",
-	    __func__, zone));
+	KASSERT(!ws || zone->uz_bkt_count < zone->uz_bkt_max,
+	    ("%s: zone %p overflow", __func__, zone));
 
 	if (ws)
 		TAILQ_INSERT_HEAD(&zdom->uzd_buckets, bucket, ub_link);
@@ -582,9 +582,13 @@ zone_domain_update_wss(uma_zone_domain_t zdom)
 static void
 zone_timeout(uma_zone_t zone)
 {
-	uma_keg_t keg = zone->uz_keg;
+	uma_keg_t keg;
 	u_int slabs;
 
+	if ((zone->uz_flags & UMA_ZFLAG_CACHE) != 0)
+		goto update_wss;
+
+	keg = zone->uz_keg;
 	KEG_LOCK(keg);
 	/*
 	 * Expand the keg hash table.
@@ -623,6 +627,7 @@ zone_timeout(uma_zone_t zone)
 	}
 	KEG_UNLOCK(keg);
 
+update_wss:
 	ZONE_LOCK(zone);
 	for (int i = 0; i < vm_ndomains; i++)
 		zone_domain_update_wss(&zone->uz_domain[i]);
@@ -1081,7 +1086,8 @@ zone_reclaim(uma_zone_t zone, int waitok, bool drain)
 	 * we're running.  Normally the uma_rwlock would protect us but we
 	 * must be able to release and acquire the right lock for each keg.
 	 */
-	keg_drain(zone->uz_keg);
+	if ((zone->uz_flags & UMA_ZFLAG_CACHE) == 0)
+		keg_drain(zone->uz_keg);
 	ZONE_LOCK(zone);
 	zone->uz_flags &= ~UMA_ZFLAG_RECLAIMING;
 	wakeup(zone);
@@ -2027,6 +2033,8 @@ zone_foreach(void (*zfunc)(uma_zone_t))
 		LIST_FOREACH(zone, &keg->uk_zones, uz_link)
 			zfunc(zone);
 	}
+	LIST_FOREACH(zone, &uma_cachezones, uz_link)
+		zfunc(zone);
 	if (__predict_true(booted == BOOT_RUNNING))
 		rw_runlock(&uma_rwlock);
 }
@@ -2198,7 +2206,6 @@ uma_startup2(void)
 static void
 uma_startup3(void)
 {
-	uma_zone_t zone;
 
 #ifdef INVARIANTS
 	TUNABLE_INT_FETCH("vm.debug.divisor", &dbg_divisor);
@@ -2206,8 +2213,6 @@ uma_startup3(void)
 	uma_skip_cnt = counter_u64_alloc(M_WAITOK);
 #endif
 	zone_foreach(zone_alloc_counters);
-	LIST_FOREACH(zone, &uma_cachezones, uz_link)
-		zone_alloc_counters(zone);
 	callout_init(&uma_callout, 1);
 	callout_reset(&uma_callout, UMA_TIMEOUT * hz, uma_timeout, NULL);
 	booted = BOOT_RUNNING;
