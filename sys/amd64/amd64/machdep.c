@@ -669,8 +669,6 @@ static char nmi0_stack[PAGE_SIZE] __aligned(16);
 static char dbg0_stack[PAGE_SIZE] __aligned(16);
 CTASSERT(sizeof(struct nmi_pcpu) == 16);
 
-struct amd64tss common_tss[MAXCPU];
-
 /*
  * Software prototypes -- in more palatable form.
  *
@@ -1550,8 +1548,7 @@ amd64_bsp_pcpu_init1(struct pcpu *pc)
 
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
-	PCPU_SET(tssp, &common_tss[0]);
-	PCPU_SET(commontssp, &common_tss[0]);
+	PCPU_SET(tssp, PCPU_PTR(common_tss));
 	PCPU_SET(tss, (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
 	PCPU_SET(ldt, (struct system_segment_descriptor *)&gdt[GUSERLDT_SEL]);
 	PCPU_SET(fs32p, &gdt[GUFS32_SEL]);
@@ -1572,9 +1569,12 @@ void
 amd64_bsp_ist_init(struct pcpu *pc)
 {
 	struct nmi_pcpu *np;
+	struct amd64tss *tssp;
+
+	tssp = &pc->pc_common_tss;
 
 	/* doublefault stack space, runs on ist1 */
-	common_tss[0].tss_ist1 = (long)&dblfault_stack[sizeof(dblfault_stack)];
+	tssp->tss_ist1 = (long)&dblfault_stack[sizeof(dblfault_stack)];
 
 	/*
 	 * NMI stack, runs on ist2.  The pcpu pointer is stored just
@@ -1582,7 +1582,7 @@ amd64_bsp_ist_init(struct pcpu *pc)
 	 */
 	np = ((struct nmi_pcpu *)&nmi0_stack[sizeof(nmi0_stack)]) - 1;
 	np->np_pcpu = (register_t)pc;
-	common_tss[0].tss_ist2 = (long)np;
+	tssp->tss_ist2 = (long)np;
 
 	/*
 	 * MC# stack, runs on ist3.  The pcpu pointer is stored just
@@ -1590,14 +1590,14 @@ amd64_bsp_ist_init(struct pcpu *pc)
 	 */
 	np = ((struct nmi_pcpu *)&mce0_stack[sizeof(mce0_stack)]) - 1;
 	np->np_pcpu = (register_t)pc;
-	common_tss[0].tss_ist3 = (long)np;
+	tssp->tss_ist3 = (long)np;
 
 	/*
 	 * DB# stack, runs on ist4.
 	 */
 	np = ((struct nmi_pcpu *)&dbg0_stack[sizeof(dbg0_stack)]) - 1;
 	np->np_pcpu = (register_t)pc;
-	common_tss[0].tss_ist4 = (long)np;
+	tssp->tss_ist4 = (long)np;
 }
 
 u_int64_t
@@ -1664,6 +1664,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 */
 	pmap_thread_init_invl_gen(&thread0);
 
+	pc = &temp_bsp_pcpu;
+
 	/*
 	 * make gdt memory segments
 	 */
@@ -1672,14 +1674,13 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		    x != GUSERLDT_SEL && x != (GUSERLDT_SEL) + 1)
 			ssdtosd(&gdt_segs[x], &gdt[x]);
 	}
-	gdt_segs[GPROC0_SEL].ssd_base = (uintptr_t)&common_tss[0];
+	gdt_segs[GPROC0_SEL].ssd_base = (uintptr_t)&pc->pc_common_tss;
 	ssdtosyssd(&gdt_segs[GPROC0_SEL],
 	    (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
 
 	r_gdt.rd_limit = NGDT * sizeof(gdt[0]) - 1;
 	r_gdt.rd_base =  (long) gdt;
 	lgdt(&r_gdt);
-	pc = &temp_bsp_pcpu;
 
 	wrmsr(MSR_FSBASE, 0);		/* User value */
 	wrmsr(MSR_GSBASE, (u_int64_t)pc);
@@ -1781,7 +1782,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	amd64_bsp_ist_init(pc);
 	
 	/* Set the IO permission bitmap (empty due to tss seg limit) */
-	common_tss[0].tss_iobase = sizeof(struct amd64tss) + IOPERM_BITMAP_SIZE;
+	pc->pc_common_tss.tss_iobase = sizeof(struct amd64tss) +
+	    IOPERM_BITMAP_SIZE;
 
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	ltr(gsel_tss);
@@ -1865,7 +1867,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	rsp0 = thread0.td_md.md_stack_base;
 	/* Ensure the stack is aligned to 16 bytes */
 	rsp0 &= ~0xFul;
-	common_tss[0].tss_rsp0 = rsp0;
+	__pcpu[0].pc_common_tss.tss_rsp0 = rsp0;
 	amd64_bsp_pcpu_init2(rsp0);
 
 	/* transfer to user mode */
