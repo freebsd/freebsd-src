@@ -92,7 +92,7 @@ struct region_descriptor {
 extern struct user_segment_descriptor gdt[];
 extern struct soft_segment_descriptor gdt_segs[];
 extern struct gate_descriptor *idt;
-extern struct region_descriptor r_gdt, r_idt;
+extern struct region_descriptor r_idt;
 
 void	lgdt(struct region_descriptor *rdp);
 void	sdtossd(struct user_segment_descriptor *sdp,

@@ -213,7 +213,7 @@ long realmem = 0;
 struct kva_md_info kmi;
 
 static struct trapframe proc0_tf;
-struct region_descriptor r_gdt, r_idt;
+struct region_descriptor r_idt;
 
 struct pcpu *__pcpu;
 struct pcpu temp_bsp_pcpu;
@@ -1609,6 +1609,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	struct xstate_hdr *xhdr;
 	u_int64_t rsp0;
 	char *env;
+	struct region_descriptor r_gdt;
 	size_t kstack0_sz;
 	int late_console;
 
