@@ -25,12 +25,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 8, 2019
+.Dd November 9, 2019
 .Dt COPY_FILE_RANGE 2
 .Os
 .Sh NAME
 .Nm copy_file_range
 .Nd kernel copy of a byte range from one file to another
+or within one file
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -61,6 +62,14 @@ It may do this using a file system specific technique if
 and
 .Fa outfd
 are on the same file system.
+If
+.Fa infd
+and
+.Fa outfd
+refer to the same file, the byte ranges defined by
+the input file offset, output file offset and
+.Fa len
+cannot overlap.
 The
 .Fa infd
 argument must be opened for reading and the
@@ -162,6 +171,10 @@ and
 .Fa outoffp
 are reset to the initial values for the system call.
 .It Bq Er EINVAL
+.Fa infd
+and
+.Fa outfd
+refer to the same file and the byte ranges overlap or
 .Fa
 flags
 is not zero.
