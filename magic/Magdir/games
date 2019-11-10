@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: games,v 1.16 2017/10/19 16:40:37 christos Exp $
+# $File: games,v 1.17 2019/04/19 00:42:27 christos Exp $
 # games:  file(1) for games
 
 # Fabio Bonelli <fabiobonelli@libero.it>
@@ -211,7 +211,7 @@
 
 # Summary: SGF Smart Game Format
 # Extension: .sgf
-# Reference: http://www.red-bean.com/sgf/
+# Reference: https://www.red-bean.com/sgf/
 # Created by: Eduardo Sabbatella <eduardo_sabbatella@yahoo.com.ar>
 # Modified by (1): Abel Cheung (regex, more game format)
 # FIXME: Some games don't have GM (game type)
@@ -281,7 +281,7 @@
 >>&0		regex		[0-9a-z.]+				\b, version %s
 
 # Type:	SGF Smart Game Format
-# URL:	http://www.red-bean.com/sgf/
+# URL:	https://www.red-bean.com/sgf/
 # From:	Eduardo Sabbatella <eduardo_sabbatella@yahoo.com.ar>
 2	regex/c	\\(;.*GM\\[[0-9]{1,2}\\]	Smart Game Format
 >2	regex/c	GM\\[1\\]			- Go Game

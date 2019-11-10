@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: intel,v 1.16 2017/11/14 15:48:36 christos Exp $
+# $File: intel,v 1.17 2018/08/01 10:34:03 christos Exp $
 # intel:  file(1) magic for x86 Unix
 #
 # Various flavors of x86 UNIX executable/object (other than Xenix, which
@@ -42,6 +42,10 @@
 #>12	lelong		>0		not stripped
 # no hint found, that at offset 22 is version
 #>22	leshort		>0		- version %d
+0	leshort		0x0200
+>0	use				display-coff
+0	leshort		0x8664
+>0	use				display-coff
 
 # rom: file(1) magic for BIOS ROM Extensions found in intel machines
 #      mapped into memory between 0xC0000 and 0xFFFFF

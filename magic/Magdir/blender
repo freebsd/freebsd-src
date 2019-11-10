@@ -1,10 +1,10 @@
 
 #------------------------------------------------------------------------------
-# $File: blender,v 1.7 2017/03/17 21:35:28 christos Exp $
+# $File: blender,v 1.8 2019/04/19 00:42:27 christos Exp $
 # blender: file(1) magic for Blender 3D related files
 #
 # Native format rule v1.2. For questions use the developers list
-# http://lists.blender.org/mailman/listinfo/bf-committers
+# https://lists.blender.org/mailman/listinfo/bf-committers
 # GLOB chunk was moved near start and provides subversion info since 2.42
 
 0		string	=BLENDER	Blender3D,

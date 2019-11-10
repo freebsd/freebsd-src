@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------
-# $File: android,v 1.10 2017/03/17 21:35:28 christos Exp $
+# $File: android,v 1.12 2019/04/19 00:42:27 christos Exp $
 # Various android related magic entries
 #------------------------------------------------------------
 
@@ -32,33 +32,68 @@
 
 # Android Backup archive
 # From: Ariel Shkedi
-# File extension: .ab
-# No mime-type defined
+# Update: Joerg Jenderek 
 # URL: https://github.com/android/platform_frameworks_base/blob/\
 # 0bacfd2ba68d21a68a3df345b830bc2a1e515b5a/services/java/com/\
 # android/server/BackupManagerService.java#L2367
+# Reference: https://sourceforge.net/projects/adbextractor/
+#            android-backup-extractor/perl/backupencrypt.pl 
+# Note:	only unix line feeds "\n" found
 # After the header comes a tar file
 # If compressed, the entire tar file is compressed with JAVA deflate
 #
 # Include the version number hardcoded with the magic string to avoid
 # false positives
-0	string/b	ANDROID\ BACKUP\n1\n	Android Backup
+0	string/b	ANDROID\ BACKUP\n	Android Backup
+# maybe look for some more characteristics like linefeed '\n' or version
+#>16	string		\n			
+# No mime-type defined offically
+!:mime	application/x-google-ab
+!:ext	ab
+# on 2nd line version (often 1, 2 on kitkat 4.4.3+, 4 on 7.1.2)
+>15	string		>\0			\b, version %s
+# "1" on 3rd line means compressed
 >17	string		0\n			\b, Not-Compressed
 >17	string		1\n			\b, Compressed
+# The 4th line is encryption "none" or "AES-256"
 # any string as long as it's not the word none (which is matched below)
+>19	string		none\n			\b, Not-Encrypted
+# look for backup content after line with encryption info
+#>>19	search/7	\n
+# data part after header for not encrypted Android Backup 
+#>>>&0	ubequad		x	\b, content 0x%16.16llx...
+# look for zlib compressed by ./compress after message with 1 space at end
+#>>>&0	indirect	x	\b; contains 
+# look for tar archive block by ./archive for package name manifest
+>>288	string		ustar	\b; contains
+>>>31	use	tar-file
+# look for zip/jar archive by ./archive ./zip after message with 1 space at end
+#>>2079	search/1025/s	PK\003\004	\b; contains 
+#>>>&0	indirect	x
+>19	string		!none			
 >>19    regex/1l	\^([^n\n]|n[^o]|no[^n]|non[^e]|none.+).*	\b, Encrypted (%s)
->>19	string		none\n			\b, Not-Encrypted
 # Commented out because they don't seem useful to print
 # (but they are part of the header - the tar file comes after them):
+# The 5th line is User Password Salt (128 Hex)
+# string length too high with standard src configuration
+#>>>&1		string	>\0	\b, PASSWORD salt: "%-128.128s"
 #>>>&1		regex/1l .*	\b, Password salt: %s
+# The 6th line is Master Key Checksum Salt (128 Hex)
 #>>>>&1		regex/1l .*	\b, Master salt: %s
+# The 7th line is Number of PBDKF2 Rounds (10000)
 #>>>>>&1	regex/1l .*	\b, PBKDF2 rounds: %s
+# The 8th line is User key Initialization Vector (IV) (32 Hex)
 #>>>>>>&1	regex/1l .*	\b, IV: %s
+#>>>>>>&1	regex/1l .*	\b, IV: %s
+# The 9th line is Master IV+Key+Checksum (192 Hex)
 #>>>>>>>&1	regex/1l .*	\b, Key: %s
+# look for new line separator char after line number 9
+#>>>0x204	ubyte	0x0a	NL found
+#>>>>&1		ubequad	x	\b, Content magic %16.16llx
 
 # *.pit files by Joerg Jenderek
-# http://forum.xda-developers.com/showthread.php?p=9122369
-# http://forum.xda-developers.com/showthread.php?t=816449
+# https://forum.xda-developers.com/showthread.php?p=9122369
+# https://forum.xda-developers.com/showthread.php?t=816449
 # Partition Information Table for Samsung's smartphone with Android
 # used by flash software Odin
 0		ulelong			0x12349876

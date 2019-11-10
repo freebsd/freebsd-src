@@ -1,9 +1,9 @@
 
 #------------------------------------------------------------------------------
-# $File: cups,v 1.5 2017/03/17 21:35:28 christos Exp $
+# $File: cups,v 1.6 2019/04/19 00:42:27 christos Exp $
 # Cups: file(1) magic for the cups raster file format
 # From: Laurent Martelli <martellilaurent@gmail.com>
-# http://www.cups.org/documentation.php/spec-raster.html
+# https://www.cups.org/documentation.php/spec-raster.html
 #
 
 0	name		cups-le

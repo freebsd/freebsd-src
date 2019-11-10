@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: images,v 1.146 2018/07/03 20:55:37 christos Exp $
+# $File: images,v 1.160 2019/04/19 00:42:27 christos Exp $
 # images:  file(1) magic for image formats (see also "iff", and "c-lang" for
 # XPM bitmaps)
 #
@@ -27,23 +27,25 @@
 # and Image Type 1 2 3 9 10 11 32 33
 # and Color Map Entry Size 0 15 16 24 32
 0	ubequad&0x00FeC400000000C0	0
+# Prevent conflicts with CRI ADX.
+>(2.S-2) belong	!0x28632943
 # skip more garbage like *.iso by looking for positive image type
->2	ubyte			>0
+>>2	ubyte			>0
 # skip some compiled terminfo like xterm+tmux by looking for image type less equal 33
->>2	ubyte			<34
+>>>2	ubyte			<34
 # skip arches.3200 , Finder.Root , Slp.1 by looking for low pixel depth 1 8 15 16 24 32
->>>16	ubyte			1
->>>>0		use		tga-image
->>>16	ubyte			8
->>>>0		use		tga-image
->>>16	ubyte			15
->>>>0		use		tga-image
->>>16	ubyte			16
->>>>0		use		tga-image
->>>16	ubyte			24
->>>>0		use		tga-image
->>>16	ubyte			32
->>>>0		use		tga-image
+>>>>16	ubyte			1
+>>>>>0		use		tga-image
+>>>>16	ubyte			8
+>>>>>0		use		tga-image
+>>>>16	ubyte			15
+>>>>>0		use		tga-image
+>>>>16	ubyte			16
+>>>>>0		use		tga-image
+>>>>16	ubyte			24
+>>>>>0		use		tga-image
+>>>>16	ubyte			32
+>>>>>0		use		tga-image
 #	display tga bitmap image information
 0	name				tga-image
 >2	ubyte		<34		Targa image data
@@ -174,43 +176,43 @@
 0	search/1	P1
 >0	regex/4		P1[\040\t\f\r\n]
 >>0	use		netpbm
->>>0	string		x	\b, bitmap
-!:strength + 45
+>>0	string		x	\b, bitmap
+!:strength + 65
 !:mime	image/x-portable-bitmap
 
 0	search/1	P2
 >0	regex/4		P2[\040\t\f\r\n]
 >>0	use		netpbm
->>>0	string		x	\b, greymap
-!:strength + 45
+>>0	string		x	\b, greymap
+!:strength + 65
 !:mime	image/x-portable-greymap
 
 0	search/1	P3
 >0	regex/4		P3[\040\t\f\r\n]
 >>0	use		netpbm
->>>0	string		x	\b, pixmap
-!:strength + 45
+>>0	string		x	\b, pixmap
+!:strength + 65
 !:mime	image/x-portable-pixmap
 
 0	string		P4
 >0	regex/4		P4[\040\t\f\r\n]
 >>0	use		netpbm
->>>0	string		x	\b, rawbits, bitmap
-!:strength + 45
+>>0	string		x	\b, rawbits, bitmap
+!:strength + 65
 !:mime	image/x-portable-bitmap
 
 0	string		P5
 >0	regex/4		P5[\040\t\f\r\n]
 >>0	use		netpbm
->>>0	string		x	\b, rawbits, greymap
-!:strength + 45
+>>0	string		x	\b, rawbits, greymap
+!:strength + 65
 !:mime	image/x-portable-greymap
 
 0	string		P6
 >0	regex/4		P6[\040\t\f\r\n]
 >>0	use		netpbm
->>>0	string		x	\b, rawbits, pixmap
-!:strength + 45
+>>0	string		x	\b, rawbits, pixmap
+!:strength + 65
 !:mime	image/x-portable-pixmap
 
 0	string		P7		Netpbm PAM image file
@@ -235,7 +237,7 @@
 # Canon RAW version 1 (CRW) files are a type of Canon Image File Format
 # (CIFF) file. These are apparently all little-endian.
 # From: Adam Buchbinder <adam.buchbinder@gmail.com>
-# URL: http://www.sno.phy.queensu.ca/~phil/exiftool/canon_raw.html
+# URL: https://www.sno.phy.queensu.ca/~phil/exiftool/canon_raw.html
 0	string		II\x1a\0\0\0HEAPCCDR	Canon CIFF raw image data
 !:mime	image/x-canon-crw
 >16	leshort		x	\b, version %d.
@@ -245,9 +247,10 @@
 # number. Put this above the TIFF test to make sure we detect them.
 # These are apparently all little-endian.
 # From: Adam Buchbinder <adam.buchbinder@gmail.com>
-# URL: http://libopenraw.freedesktop.org/wiki/Canon_CR2
+# URL: https://libopenraw.freedesktop.org/wiki/Canon_CR2
 0	string		II\x2a\0\x10\0\0\0CR	Canon CR2 raw image data
 !:mime	image/x-canon-cr2
+!:strength +80
 >10	byte		x	\b, version %d.
 >11	byte		x	\b%d
 
@@ -437,6 +440,7 @@
 # Standard PNG image.
 0	string		\x89PNG\x0d\x0a\x1a\x0a\x00\x00\x00\x0DIHDR	PNG image data
 !:mime	image/png
+!:ext   png
 !:strength +10
 >16	use		png-ihdr
 
@@ -444,6 +448,7 @@
 0	string		\x89PNG\x0d\x0a\x1a\x0a\x00\x00\x00\x04CgBI
 >24	string  	\x00\x00\x00\x0DIHDR	PNG image data (CgBI)
 !:mime	image/png
+!:ext   png
 !:strength +10
 >>32	use		png-ihdr
 
@@ -565,7 +570,7 @@
 # at offset 8 starts imagedata followed by "RGB " marker
 
 # PC bitmaps (OS/2, Windows BMP files)  (Greg Roelofs, newt@uchicago.edu)
-# http://en.wikipedia.org/wiki/BMP_file_format#DIB_header_.\
+# https://en.wikipedia.org/wiki/BMP_file_format#DIB_header_.\
 # 28bitmap_information_header.29
 0	string		BM
 >14	leshort		12		PC bitmap, OS/2 1.x format
@@ -755,7 +760,7 @@
 >5	byte	0xFF		(black background)
 
 # From: Alex Myczko <alex@aiei.ch>
-# http://www.atarimax.com/jindroush.atari.org/afmtatr.html
+# https://www.atarimax.com/jindroush.atari.org/afmtatr.html
 0	leshort	0x0296		Atari ATR image
 
 # XXX:
@@ -781,8 +786,8 @@
 
 # PCX image files
 # From: Dan Fandrich <dan@coneharvesters.com>
-# updated by Joerg Jenderek at Feb 2013 by http://de.wikipedia.org/wiki/PCX
-# http://web.archive.org/web/20100206055706/http://www.qzx.com/pc-gpe/pcx.txt
+# updated by Joerg Jenderek at Feb 2013 by https://de.wikipedia.org/wiki/PCX
+# https://web.archive.org/web/20100206055706/http://www.qzx.com/pc-gpe/pcx.txt
 # GRR: original test was still too general as it catches xbase examples T5.DBT,T6.DBT with 0xa000000
 # test for bytes 0x0a,version byte (0,2,3,4,5),compression byte flag(0,1), bit depth (>0) of PCX or T5.DBT,T6.DBT
 0	ubelong&0xffF8fe00	0x0a000000
@@ -849,7 +854,7 @@
 # Update: Joerg Jenderek
 # See http://fileformats.archiveteam.org/wiki/GEM_Raster
 # For variations, also see:
-#    http://www.seasip.info/Gem/ff_img.html (Ventura)
+#    https://www.seasip.info/Gem/ff_img.html (Ventura)
 #    http://www.atari-wiki.com/?title=IMG_file (XIMG, STTT)
 #    http://www.fileformat.info/format/gemraster/spec/index.htm (XIMG, STTT)
 #    http://sylvana.net/1stguide/1STGUIDE.ENG (TIMG)
@@ -877,7 +882,7 @@
 0   name        gem_info
 # version is 2 for some XIMG and 1 for all others
 >0	beshort		<0x0003		GEM
-# http://www.snowstone.org.uk/riscos/mimeman/mimemap.txt
+# https://www.snowstone.org.uk/riscos/mimeman/mimemap.txt
 !:mime	image/x-gem
 # header_size 24 25 27 59 779 words for colored bitmaps
 >>2	beshort		>9
@@ -1020,8 +1025,8 @@
 # and related image processing software used by biologists.
 # From: Vebjorn Ljosa <vebjorn@ljosa.com>
 # BOOL values are two-byte integers; use them to rule out false positives.
-# http://web.archive.org/web/20050317223257/www.cs.ubc.ca/spider/ladic/text/biorad.txt
-# Samples: http://www.loci.wisc.edu/software/sample-data
+# https://web.archive.org/web/20050317223257/www.cs.ubc.ca/spider/ladic/text/biorad.txt
+# Samples: https://www.loci.wisc.edu/software/sample-data
 14	leshort <2
 >62	leshort <2
 >>54	leshort 12345		Bio-Rad .PIC Image File
@@ -1052,7 +1057,7 @@
 
 # Originally by Marc Espie
 # Modified by Robert Minsk <robertminsk at yahoo.com>
-# http://www.openexr.com/openexrfilelayout.pdf
+# https://www.openexr.com/openexrfilelayout.pdf
 0	lelong		20000630	OpenEXR image data,
 !:mime image/x-exr
 >4	lelong&0x000000ff x		version %d,
@@ -1116,7 +1121,7 @@
 >768	beshort		7	bottom to top/right to left
 
 # From: Tom Hilinski <tom.hilinski@comcast.net>
-# http://www.unidata.ucar.edu/packages/netcdf/
+# https://www.unidata.ucar.edu/packages/netcdf/
 0	string	CDF\001			NetCDF Data Format data
 
 #-----------------------------------------------------------------------
@@ -1141,7 +1146,7 @@
 # http://www.xara.com/ for Windows and as GPL application for Linux
 0	string	XARA\243\243	Xara graphics file
 
-# http://www.cartesianinc.com/Tech/
+# https://www.cartesianinc.com/Tech/
 0	string	CPC\262		Cartesian Perceptual Compression image
 !:mime	image/x-cpi
 
@@ -1210,8 +1215,8 @@
 # extension is also used for
 # Sony SRF raw image (image/x-sony-srf)
 # SRF map
-# Terragen Surface Map (http://www.planetside.co.uk/terragen)
-# FileLocator Pro search criteria file (http://www.mythicsoft.com/filelocatorpro)
+# Terragen Surface Map (https://www.planetside.co.uk/terragen)
+# FileLocator Pro search criteria file (https://www.mythicsoft.com/filelocatorpro)
 !:ext srf
 #!:mime	image/x-garmin-srf
 # version 1.00,2.00,2.10,2.40,2.50
@@ -1232,7 +1237,7 @@
 0	string	Xcur			X11 cursor
 
 # Type:	Olympus ORF raw images.
-# URL:	http://libopenraw.freedesktop.org/wiki/Olympus_ORF
+# URL:	https://libopenraw.freedesktop.org/wiki/Olympus_ORF
 # From:	Adam Buchbinder <adam.buchbinder@gmail.com>
 0	string		MMOR		Olympus ORF raw image data, big-endian
 !:mime	image/x-olympus-orf
@@ -1253,7 +1258,7 @@
 #!mime	image/vnd.radiance
 
 # From: Adam Buchbinder <adam.buchbinder@gmail.com>
-# URL: http://www.mpi-inf.mpg.de/resources/pfstools/pfs_format_spec.pdf
+# URL: https://www.mpi-inf.mpg.de/resources/pfstools/pfs_format_spec.pdf
 # Used by the pfstools packages. The regex matches for the image size could
 # probably use some work. The MIME type is made up; if there's one in
 # actual common use, it should replace the one below.
@@ -1263,7 +1268,7 @@
 >>1	regex	\ [0-9]{4}		\bx%s
 
 # Type: Foveon X3F
-# URL:  http://www.photofo.com/downloads/x3f-raw-format.pdf
+# URL:  https://www.photofo.com/downloads/x3f-raw-format.pdf
 # From: Adam Buchbinder <adam.buchbinder@gmail.com>
 # Note that the MIME type isn't defined anywhere that I can find; if
 # there's a canonical type for this format, it should replace this one.
@@ -1283,8 +1288,8 @@
 # From: "Tano M. Fotang" <mfotang@quanteq.com>
 0	string	\x46\x4d\x52\x00	ISO/IEC 19794-2 Format Minutiae Record (FMR)
 
-# doc: http://www.shikino.co.jp/eng/products/images/FLOWER.jpg.zip
-# example: http://www.shikino.co.jp/eng/products/images/FLOWER.wdp.zip
+# doc: https://www.shikino.co.jp/eng/products/images/FLOWER.jpg.zip
+# example: https://www.shikino.co.jp/eng/products/images/FLOWER.wdp.zip
 90	bequad		0x574D50484F544F00	JPEG-XR Image
 >98	byte&0x08	=0x08			\b, hard tiling
 >99	byte&0x80	=0x80			\b, tiling present
@@ -1336,7 +1341,7 @@
 # From: Johan van der Knijff <johan.vanderknijff@kb.nl>
 #
 # BPG (Better Portable Graphics) format
-# http://bellard.org/bpg/
+# https://bellard.org/bpg/
 # http://fileformats.archiveteam.org/wiki/BPG
 #
 0	string	\x42\x50\x47\xFB	BPG (Better Portable Graphics)
@@ -1399,7 +1404,7 @@
 >12		ubelong		x		\b%d
 
 # Type: Microsoft DirectDraw Surface (common data)
-# URL:	http://msdn.microsoft.com/library/default.asp?url=/library/en-us/directx9_c/directx/graphics/reference/DDSFileReference/ddsfileformat.asp
+# URL:	https://msdn.microsoft.com/library/default.asp?url=/library/en-us/directx9_c/directx/graphics/reference/DDSFileReference/ddsfileformat.asp
 # From: Morten Hustveit <morten@debian.org>
 # Updated by: David Korth <gerbilsoft@gerbilsoft.com>
 0	name	ms-directdraw-surface
@@ -1501,7 +1506,7 @@
 >>>>0x64	ulequad 0xC00000003FF00000	\b, A2B10G10R10
 
 # Type: Microsoft DirectDraw Surface
-# URL:	http://msdn.microsoft.com/library/default.asp?url=/library/en-us/directx9_c/directx/graphics/reference/DDSFileReference/ddsfileformat.asp
+# URL:	https://msdn.microsoft.com/library/default.asp?url=/library/en-us/directx9_c/directx/graphics/reference/DDSFileReference/ddsfileformat.asp
 # From: Morten Hustveit <morten@debian.org>
 # Updated by: David Korth <gerbilsoft@gerbilsoft.com>
 0	string/b	DDS\040\174\000\000\000 Microsoft DirectDraw Surface (DDS):
@@ -1510,7 +1515,7 @@
 # Type: Sega PVR image.
 # From: David Korth <gerbilsoft@gerbilsoft.com>
 # References:
-# - http://fabiensanglard.net/Mykaruga/tools/segaPVRFormat.txt
+# - https://fabiensanglard.net/Mykaruga/tools/segaPVRFormat.txt
 # - https://github.com/yazgoo/pvrx2png
 # - https://github.com/nickworonekin/puyotools
 
@@ -1553,7 +1558,7 @@
 0	string	GBIX
 >0x10	string	PVRT
 >>0x10	string	DDS\040\174\000\000\000 Sega PVR (Xbox) image:
->>0x20	use	ms-directdraw-surface
+>>>0x20	use	ms-directdraw-surface
 >>0x10	belong	!0x44445320		Sega PVR image:
 >>>0x10	use	sega-pvr-image-header
 >>0x08	lelong	x	\b, global index = %u
@@ -1703,7 +1708,7 @@
 >12	lelong	0x04030201			(little-endian)
 >>16	use	khronos-ktx-endian-header
 >12	belong	0x04030201			(big-endian)
->>16	use	^khronos-ktx-endian-header
+>>16	use	\^khronos-ktx-endian-header
 
 # Type: Valve VTF texture.
 # From: David Korth <gerbilsoft@gerbilsoft.com>
@@ -1793,3 +1798,165 @@
 0	string	LinS 	Microsoft Paint image data (version 2.0)
 >4	leshort	x	(%d
 >>6	leshort	x	x %d)
+
+# reMarkable tablet internal file format (https://www.remarkable.com/)
+# https://github.com/ax3l/lines-are-beautiful
+# https://plasma.ninja/blog/devices/remarkable/binary/format/2017/12/26/\
+#	reMarkable-lines-file-format.html#what-to-do-next
+# from Axel Huebl
+0		string	reMarkable
+>11		string	lines
+>>17		string	with
+>>>22		string	selections
+>>>>33		string	and
+>>>>>37		string	layers
+>>>>>>43	lelong	x	reMarkable tablet notebook lines, 1404 x 1872, %x page(s)
+
+# newer per-page files for the reMarkable
+0		string	reMarkable
+>11		string	.lines
+>>18		string	file,
+>>>24		string	version=
+>>>>32		byte	x	reMarkable tablet page (v%c), 1404 x 1872,
+>>>>>43		lelong	x	%d layer(s)
+
+# Type: PVR3 texture.
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+# References:
+# - http://cdn.imgtec.com/sdk-documentation/PVR+File+Format.Specification.pdf
+
+# PVR3 pixel formats.
+0	name		pvr3-pixel-format
+>4	ulelong	0
+>>0	ulelong	0	PVRTC 2bpp RGB
+>>0	ulelong	1	PVRTC 2bpp RGBA
+>>0	ulelong	2	PVRTC 4bpp RGB
+>>0	ulelong	3	PVRTC 4bpp RGBA
+>>0	ulelong	4	PVRTC-II 2bpp
+>>0	ulelong	5	PVRTC-II 4bpp
+>>0	ulelong	6	ETC1
+>>0	ulelong	7	DXT1
+>>0	ulelong	8	DXT2
+>>0	ulelong	9	DXT3
+>>0	ulelong	10	DXT4
+>>0	ulelong	11	DXT5
+>>0	ulelong	12	BC4
+>>0	ulelong	13	BC5
+>>0	ulelong	14	BC6
+>>0	ulelong	15	BC7
+>>0	ulelong	16	UYVY
+>>0	ulelong	17	YUY2
+>>0	ulelong	18	BW1bpp
+>>0	ulelong	19	R9G9B9E5 Shared Exponent
+>>0	ulelong	20	RGBG8888
+>>0	ulelong	21	GRGB8888
+>>0	ulelong	22	ETC2 RGB
+>>0	ulelong	23	ETC2 RGBA
+>>0	ulelong	24	ETC2 RGB A1
+>>0	ulelong	25	EAC R11
+>>0	ulelong	26	EAC RG11
+>>0	ulelong	27	ASTC_4x4
+>>0	ulelong	28	ASTC_5x4
+>>0	ulelong	29	ASTC_5x5
+>>0	ulelong	30	ASTC_6x5
+>>0	ulelong	31	ASTC_6x6
+>>0	ulelong	32	ASTC_8x5
+>>0	ulelong	33	ASTC_8x6
+>>0	ulelong	34	ASTC_8x8
+>>0	ulelong	35	ASTC_10x5
+>>0	ulelong	36	ASTC_10x6
+>>0	ulelong	37	ASTC_10x8
+>>0	ulelong	38	ASTC_10x10
+>>0	ulelong	39	ASTC_12x10
+>>0	ulelong	40	ASTC_12x12
+>>0	ulelong	41	ASTC_3x3x3
+>>0	ulelong	42	ASTC_4x3x3
+>>0	ulelong	43	ASTC_4x4x3
+>>0	ulelong	44	ASTC_4x4x4
+>>0	ulelong	45	ASTC_5x4x4
+>>0	ulelong	46	ASTC_5x5x4
+>>0	ulelong	47	ASTC_5x5x5
+>>0	ulelong	48	ASTC_6x5x5
+>>0	ulelong	49	ASTC_6x6x5
+>>0	ulelong	50	ASTC_6x6x6
+>4	ulelong	!0
+>>0	byte	!0	%c
+>>1	byte	!0	\b%c
+>>2	byte	!0	\b%c
+>>3	byte	!0	\b%c
+
+0	string		PVR\x03			PVR 3.0 texture:
+>0x18	ulelong		x	%u x
+>0x1C	ulelong		x	%u
+>0x20	ulelong		>1	x %u
+>0x08	byte		x	\b,
+>0x08	use	pvr3-pixel-format
+>0x10	ulelong		1	\b, sRGB
+>0x04	ulelong&0x02	0x02	\b, premultiplied alpha
+
+# Type: Microsoft Xbox XPR0 texture.
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+# References:
+# - https://github.com/Cxbx-Reloaded/Cxbx-Reloaded/blob/develop/src/core/hle/D3D8/XbD3D8Types.h
+
+# XPR pixel formats.
+0	name	xbox-xpr-pixel-format
+>0	byte	0x00	L8
+>0	byte	0x01	AL8
+>0	byte	0x02	ARGB1555
+>0	byte	0x03	RGB555
+>0	byte	0x04	ARGB4444
+>0	byte	0x05	RGB565
+>0	byte	0x06	ARGB8888
+>0	byte	0x07	xRGB8888
+>0	byte	0x0B	P8
+>0	byte	0x0C	DXT1
+>0	byte	0x0E	DXT2
+>0	byte	0x0F	DXT4
+>0	byte	0x10	Linear ARGB1555
+>0	byte	0x11	Linear RGB565
+>0	byte	0x12	Linear ARGB8888
+>0	byte	0x13	Linear L8
+>0	byte	0x16	Linear R8B8
+>0	byte	0x17	Linear G8B8
+>0	byte	0x19	A8
+>0	byte	0x1A	A8L8
+>0	byte	0x1B	Linear AL8
+>0	byte	0x1C	Linear RGB555
+>0	byte	0x1D	Linear ARGB4444
+>0	byte	0x1E	Linear xRGB8888
+>0	byte	0x1F	Linear A8
+>0	byte	0x20	Linear A8L8
+>0	byte	0x24	YUY2
+>0	byte	0x25	UYVY
+>0	byte	0x27	L6V5U5
+>0	byte	0x28	V8U8
+>0	byte	0x29	R8B8
+>0	byte	0x2A	D24S8
+>0	byte	0x2B	F24S8
+>0	byte	0x2C	D16
+>0	byte	0x2D	F16
+>0	byte	0x2E	Linear D24S8
+>0	byte	0x2F	Linear F24S8
+>0	byte	0x30	Linear D16
+>0	byte	0x31	Linear F16
+>0	byte	0x32	L16
+>0	byte	0x33	V16U16
+>0	byte	0x35	Linear L16
+>0	byte	0x36	Linear V16U16
+>0	byte	0x37	Linear L6V5U5
+>0	byte	0x38	RGBA5551
+>0	byte	0x39	RGBA4444
+>0	byte	0x3A	QWVU8888
+>0	byte	0x3B	BGRA8888
+>0	byte	0x3C	RGBA8888
+>0	byte	0x3D	Linear RGBA5551
+>0	byte	0x3E	Linear RGBA4444
+>0	byte	0x3F	Linear ABGR8888
+>0	byte	0x40	Linear BGRA8888
+>0	byte	0x41	Linear RGBA8888
+>0	byte	0x64	Vertex Data
+
+0	string		XPR0	Microsoft Xbox XPR0 texture
+>0x19	byte	x	\b, format:
+>>0x19	use	xbox-xpr-pixel-format

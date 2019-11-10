@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: animation,v 1.68 2018/05/06 16:08:07 christos Exp $
+# $File: animation,v 1.71 2019/04/19 00:42:27 christos Exp $
 # animation:  file(1) magic for animation/movie formats
 #
 # animation formats
@@ -32,9 +32,9 @@
 !:mime	application/x-quicktime-player
 4	string/W	jP		JPEG 2000 image
 !:mime	image/jp2
-# http://www.ftyps.com/ with local additions
+# https://www.ftyps.com/ with local additions
 4	string		ftyp		ISO Media
-# http://aeroquartet.com/wordpress/2016/03/05/3-xavc-s/
+# https://aeroquartet.com/wordpress/2016/03/05/3-xavc-s/
 >8	string		XAVC		\b, MPEG v4 system, Sony XAVC Codec
 >>96	string		x		\b, Audio "%.4s"
 >>118	beshort		x		at %dHz
@@ -46,7 +46,7 @@
 >>11	byte		4		\b v4 (H.263/AMR GSM 6.10)
 >>11	byte		5		\b v5 (H.263/AMR GSM 6.10)
 >>11	byte		6		\b v6 (ITU H.264/AMR GSM 6.10)
-# http://www.3gpp2.org/Public_html/Specs/C.S0050-B_v1.0_070521.pdf
+# https://www.3gpp2.org/Public_html/Specs/C.S0050-B_v1.0_070521.pdf
 # Section 8.1.1, corresponds to a, b, c
 >>11	byte		0x61		\b C.S0050-0 V1.0
 >>11	byte		0x62		\b C.S0050-0-A V1.0.0
@@ -855,6 +855,7 @@
 # conti_count   4 bit	-
 0	belong&0xFF5FFF10	0x47400010
 >188	byte			0x47		MPEG transport stream data
+!:mime  video/MP2T
 
 # DIF digital video file format <mpruett@sgi.com>
 0	belong&0xffffff00	0x1f070000      DIF
@@ -892,10 +893,10 @@
 0	string/w	#VRML\ V2.0\ utf8	ISO/IEC 14772 VRML 97 file
 !:mime	model/vrml
 
-# X3D (Extensible 3D) [http://www.web3d.org/specifications/x3d-3.0.dtd]
+# X3D (Extensible 3D) [https://www.web3d.org/specifications/x3d-3.0.dtd]
 # From Michel Briand <michelbriand@free.fr>
 # mimetype from https://www.iana.org/assignments/media-types/model/x3d+xml
-# Example http://www.web3d.org/x3d/content/examples/Basic/course/CreateX3DFromStringRandomSpheres.x3d
+# Example https://www.web3d.org/x3d/content/examples/Basic/course/CreateX3DFromStringRandomSpheres.x3d
 0	string/w	\<?xml\ version=
 !:strength + 5
 >20	search/1000/w	\<!DOCTYPE\ X3D		X3D (Extensible 3D) model xml text
@@ -967,7 +968,7 @@
 
 # Type: Bink Video
 # Extension: .bik
-# URL:  http://wiki.multimedia.cx/index.php?title=Bink_Container
+# URL:  https://wiki.multimedia.cx/index.php?title=Bink_Container
 # From: <hoehle@users.sourceforge.net>  2008-07-18
 0	string		BIK	Bink Video
 >3	regex		=[a-z]	rev.%s
@@ -988,61 +989,61 @@
 #>>51	byte&0x10	!0	DCT
 
 # Type:	NUT Container
-# URL:	http://wiki.multimedia.cx/index.php?title=NUT
+# URL:	https://wiki.multimedia.cx/index.php?title=NUT
 # From:	Adam Buchbinder <adam.buchbinder@gmail.com>
 0	string	nut/multimedia\ container\0	NUT multimedia container
 
 # Type: Nullsoft Video (NSV)
-# URL:  http://wiki.multimedia.cx/index.php?title=Nullsoft_Video
+# URL:  https://wiki.multimedia.cx/index.php?title=Nullsoft_Video
 # From: Mike Melanson <mike@multimedia.cx>
 0	string	NSVf	Nullsoft Video
 
 # Type: REDCode Video
-# URL:  http://www.red.com/ ; http://wiki.multimedia.cx/index.php?title=REDCode
+# URL:  https://www.red.com/ ; https://wiki.multimedia.cx/index.php?title=REDCode
 # From: Mike Melanson <mike@multimedia.cx>
 4	string	RED1	REDCode Video
 
 # Type: MTV Multimedia File
-# URL:  http://wiki.multimedia.cx/index.php?title=MTV
+# URL:  https://wiki.multimedia.cx/index.php?title=MTV
 # From: Mike Melanson <mike@multimedia.cx>
 0	string	AMVS	MTV Multimedia File
 
 # Type: ARMovie
-# URL:  http://wiki.multimedia.cx/index.php?title=ARMovie
+# URL:  https://wiki.multimedia.cx/index.php?title=ARMovie
 # From: Mike Melanson <mike@multimedia.cx>
 0	string	ARMovie\012	ARMovie
 
 # Type: Interplay MVE Movie
-# URL:  http://wiki.multimedia.cx/index.php?title=Interplay_MVE
+# URL:  https://wiki.multimedia.cx/index.php?title=Interplay_MVE
 # From: Mike Melanson <mike@multimedia.cx>
 0	string	Interplay\040MVE\040File\032	Interplay MVE Movie
 
 # Type: Windows Television DVR File
-# URL:  http://wiki.multimedia.cx/index.php?title=WTV
+# URL:  https://wiki.multimedia.cx/index.php?title=WTV
 # From: Mike Melanson <mike@mutlimedia.cx>
 # This takes the form of a Windows-style GUID
 0	bequad	0xB7D800203749DA11
 >8	bequad	0xA64E0007E95EAD8D	Windows Television DVR Media
 
 # Type: Sega FILM/CPK Multimedia
-# URL:  http://wiki.multimedia.cx/index.php?title=Sega_FILM
+# URL:  https://wiki.multimedia.cx/index.php?title=Sega_FILM
 # From: Mike Melanson <mike@multimedia.cx>
 0	string	FILM	Sega FILM/CPK Multimedia,
 >32	belong	x	%d x
 >28	belong	x	%d
 
 # Type: Nintendo THP Multimedia
-# URL:  http://wiki.multimedia.cx/index.php?title=THP
+# URL:  https://wiki.multimedia.cx/index.php?title=THP
 # From: Mike Melanson <mike@multimedia.cx>
 0	string	THP\0	Nintendo THP Multimedia
 
 # Type: BBC Dirac Video
-# URL:  http://wiki.multimedia.cx/index.php?title=Dirac
+# URL:  https://wiki.multimedia.cx/index.php?title=Dirac
 # From: Mike Melanson <mike@multimedia.cx>
 0	string	BBCD	BBC Dirac Video
 
 # Type: RAD Game Tools Smacker Multimedia
-# URL:  http://wiki.multimedia.cx/index.php?title=Smacker
+# URL:  https://wiki.multimedia.cx/index.php?title=Smacker
 # From: Mike Melanson <mike@multimedia.cx>
 0	string	SMK	RAD Game Tools Smacker Multimedia
 >3	byte	x	version %c,
@@ -1064,3 +1065,10 @@
 >8	string	AHDR	LucasArts Smush Animation Format (SAN) video
 0	string	SANM
 >8	string	SHDR	LucasArts Smush v2 (SANM) video
+
+# Type: Scaleform video
+# Extension: .usm
+# URL:  https://wiki.multimedia.cx/index.php/USM
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+0	string	CRID
+>32	string	@UTF	Scaleform video

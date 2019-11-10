@@ -1,9 +1,9 @@
 
 #------------------------------------------------------------------------------
-# $File: guile,v 1.1 2011/12/16 17:44:33 christos Exp $
+# $File: guile,v 1.2 2019/04/19 00:42:27 christos Exp $
 # Guile file magic from <dalepsmith@gmail.com>
-# http://www.gnu.org/s/guile/
-# http://git.savannah.gnu.org/gitweb/?p=guile.git;f=libguile/_scm.h;hb=HEAD#l250
+# https://www.gnu.org/s/guile/
+# https://git.savannah.gnu.org/gitweb/?p=guile.git;f=libguile/_scm.h;hb=HEAD#l250
 
 0	string	GOOF----	Guile Object
 >8	string	LE		\b, little endian

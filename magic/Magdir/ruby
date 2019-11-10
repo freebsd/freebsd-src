@@ -1,8 +1,8 @@
 
 #------------------------------------------------------------------------------
-# $File: ruby,v 1.7 2017/08/14 13:39:18 christos Exp $
+# $File: ruby,v 1.9 2019/04/19 00:42:27 christos Exp $
 # ruby:  file(1) magic for Ruby scripting language
-# URL:  http://www.ruby-lang.org/
+# URL:  https://www.ruby-lang.org/
 # From: Reuben Thomas <rrt@sc3d.org>
 
 # Ruby scripts
@@ -22,9 +22,10 @@
 # What looks like ruby, but does not have a shebang
 # (modules and such)
 # From: Lubomir Rintel <lkundrak@v3.sk>
-0	regex		\^[[:space:]]*require[[:space:]]'[A-Za-z_/]+'
->0	regex		def\ [a-z]|\ do$
->>&0	regex		\^[[:space:]]*end([[:space:]]+[;#].*)?$		Ruby script text
+0	search/8192	require
+>0	regex		\^[[:space:]]*require[[:space:]]'[A-Za-z_/]+'
+>>0	regex		def\ [a-z]|\ do$
+>>>&0	regex		\^[[:space:]]*end([[:space:]]+[;#].*)?$		Ruby script text
 !:strength + 30
 !:mime	text/x-ruby
 0	regex		\^[[:space:]]*(class|module)[[:space:]][A-Z]
@@ -40,12 +41,15 @@
 # Looks for function definition to balance python magic
 # def name (args)
 # end
-0	regex		\^[[:space:]]*def\ [a-z]|def\ [[:alpha:]]+::[a-z]
->&0	regex		\^[[:space:]]*end([[:space:]]+[;#].*)?$		Ruby script text
+0	search/8192	def\ 
+>0	regex		\^[[:space:]]*def\ [a-z]|def\ [[:alpha:]]+::[a-z]
+>>&0	regex		\^[[:space:]]*end([[:space:]]+[;#].*)?$		Ruby script text
 !:strength + 10
 !:mime	text/x-ruby
 
-0	regex		\^[[:space:]]*require[[:space:]]'[A-Za-z_/]+'	Ruby script text
+0	search/8192	require
+>0	regex		\^[[:space:]]*require[[:space:]]'[A-Za-z_/]+'	Ruby script text
 !:mime	text/x-ruby
-0 regex 	\^[[:space:]]*include\ ([A-Z]+[a-z]*(::))+	Ruby script text
+0	search/8192	include
+>0 regex 	\^[[:space:]]*include\ ([A-Z]+[a-z]*(::))+	Ruby script text
 !:mime	text/x-ruby
