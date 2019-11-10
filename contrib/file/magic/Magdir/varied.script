@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: varied.script,v 1.11 2015/03/27 17:59:39 christos Exp $
+# $File: varied.script,v 1.12 2019/04/19 00:42:27 christos Exp $
 # varied.script:  file(1) magic for various interpreter scripts
 
 0	string/t		#!\ /			a
@@ -45,7 +45,7 @@
 
 # From: arno <arenevier@fdn.fr>
 # mozilla xpconnect typelib
-# see http://www.mozilla.org/scriptable/typelib_file.html
+# see https://www.mozilla.org/scriptable/typelib_file.html
 0	string 		XPCOM\nTypeLib\r\n\032		XPConnect Typelib
 >0x10  byte        x       version %d
 >>0x11 byte        x      \b.%d

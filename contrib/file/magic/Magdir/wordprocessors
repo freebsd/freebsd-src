@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: wordprocessors,v 1.19 2015/10/16 15:11:07 christos Exp $
+# $File: wordprocessors,v 1.20 2019/04/19 00:42:27 christos Exp $
 # wordprocessors:  file(1) magic fo word processors.
 #
 ####### PWP file format used on Smith Corona Personal Word Processors:
@@ -210,7 +210,7 @@
 >5      string          >\0             version %s
 0       string          \\1cw           ChiWriter file
 
-# Quark Express from http://www.garykessler.net/library/file_sigs.html
+# Quark Express from https://www.garykessler.net/library/file_sigs.html
 2	string	IIXPR3			Intel Quark Express Document (English)
 2	string	IIXPRa			Intel Quark Express Document (Korean)
 2	string	MMXPR3			Motorola Quark Express Document (English)

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: windows,v 1.22 2018/02/16 15:44:00 christos Exp $
+# $File: windows,v 1.26 2019/05/01 17:55:25 christos Exp $
 # windows:  file(1) magic for Microsoft Windows
 #
 # This file is mainly reserved for files where programs
@@ -26,8 +26,8 @@
 
 # Summary: Windows crash dump
 # Extension: .dmp
-# Created by: Andreas Schuster (http://computer.forensikblog.de/)
-# Reference (1): http://computer.forensikblog.de/en/2008/02/64bit_magic.html
+# Created by: Andreas Schuster (https://computer.forensikblog.de/)
+# Reference (1): https://computer.forensikblog.de/en/2008/02/64bit_magic.html
 # Modified by (1): Abel Cheung (Avoid match with first 4 bytes only)
 0	string		PAGE
 >4	string		DUMP		MS Windows 32bit crash dump
@@ -46,8 +46,8 @@
 
 # Summary: Vista Event Log
 # Extension: .evtx
-# Created by: Andreas Schuster (http://computer.forensikblog.de/)
-# Reference (1): http://computer.forensikblog.de/en/2007/05/some_magic.html
+# Created by: Andreas Schuster (https://computer.forensikblog.de/)
+# Reference (1): https://computer.forensikblog.de/en/2007/05/some_magic.html
 0	string		ElfFile\0	MS Windows Vista Event Log
 >0x2a	leshort		x		\b, %d chunks
 >>0x10	lelong		x		\b (no. %d in use)
@@ -56,6 +56,80 @@
 >0x78	lelong		&1		\b, DIRTY
 >0x78	lelong		&2		\b, FULL
 
+# Summary: Windows System Deployment Image
+# Created by: Joerg Jenderek
+# URL: http://en.wikipedia.org/wiki/System_Deployment_Image
+# Reference: http://skolk.livejournal.com/1320.html
+0	string			$SDI
+>4	string			0001		System Deployment Image
+!:mime	application/x-ms-sdi
+#!:mime	application/octet-stream
+# \Boot\boot.sdi
+!:ext	sdi
+# MDBtype: 0~Unspecified 1~RAM 2~ROM
+>>8	ulequad			!0		\b, MDBtype 0x%llx
+# BootCodeOffset
+>>16	ulequad			!0		\b, BootCodeOffset 0x%llx
+# BootCodeSize
+>>24	ulequad			!0		\b, BootCodeSize 0x%llx
+# VendorID
+>>32	ulequad			!0		\b, VendorID 0x%llx
+# DeviceID
+>>40	ulequad			!0		\b, DeviceID 0x%llx
+# DeviceModel
+>>48	ulequad			!0		\b, DeviceModel 0x%llx
+>>>56	ulequad			!0		\b%llx
+# DeviceRole
+>>64	ulequad			!0		\b, DeviceRole 0x%llx
+# Reserved1; reserved fields and gaps between BLOBs are padded with \0
+#>>72	ulequad			!0		\b, Reserved1 0x%llx
+# RuntimeGUID
+>>80	ulequad			!0		\b, RuntimeGUID 0x%llx
+>>>88	ulequad			!0		\b%llx
+# RuntimeOEMrev
+>>96	ulequad			!0		\b, RuntimeOEMrev 0x%llx
+# Reserved2
+#>>104	ulequad			!0		\b, Reserved2 0x%llx
+# BLOB alignment value in pages, as specified in sdimgr /pack: 1~4K 2~8k
+>>112	ulequad			!0		\b, PageAlignment %llu
+# Reserved3[48]
+#>>120	ulequad			!0		\b, Reserved3 0x%llx
+# SDI checksum 39h
+>>0x1f8	ulequad			x		\b, checksum 0x%llx
+# BLOBtype[8] \0-padded: PART, WIM , BOOT, LOAD, DISK
+>>0x400	string			>\0		\b, type %-3.8s
+# 0~non-filesystem 7~NTFS 6~BIGFAT
+>>>0x420	ulequad		!0		(0x%llx)
+# ATTRibutes
+>>>0x408	ulequad		!0		0x%llx attributes
+# Offset
+>>>0x410	ulequad		x		at 0x%llx
+# print 1 space after size and then handles NTFS boot sector by ./filesystems
+>>>0x418	ulequad		>0		%llu bytes 
+>>>>(0x410.l)	indirect	x
+# 2nd BLOB: WIM
+>>0x440		string		>\0		\b, type %-3.8s
+>>>0x428	ulequad		!0		(0x%llx)
+# ATTRibutes
+>>>0x448	ulequad		!0		0x%llx attributes
+# Offset
+>>>0x450	ulequad		x		at 0x%llx
+>>>0x458	ulequad		>0		%llu bytes 
+>>>>(0x450.l)	indirect	x
+# 3rd BLOB
+>>0x480		string		>\0		\b, type %-3.8s
+
+# Summary:	Windows Error Report text files
+# URL:		https://en.wikipedia.org/wiki/Windows_Error_Reporting
+# Reference:	https://www.nirsoft.net/utils/app_crash_view.html
+# Created by:	Joerg Jenderek
+# Note:		in directories	%ProgramData%\Microsoft\Windows\WER\{ReportArchive,ReportQueue}
+#				%LOCALAPPDATA%\Microsoft\Windows\WER\{ReportArchive,ReportQueue}
+0	lestring16	Version=	
+>22	lestring16	EventType	Windows Error Report
+!:mime	text/plain
+# Report.wer
+!:ext	wer
 
 # Summary: Windows 3.1 group files
 # Extension: .grp
@@ -65,7 +139,7 @@
 
 # Summary: Old format help files
 # URL: https://en.wikipedia.org/wiki/WinHelp
-# Reference: http://www.oocities.org/mwinterhoff/helpfile.htm
+# Reference: https://www.oocities.org/mwinterhoff/helpfile.htm
 # Update: Joerg Jenderek
 # Created by: Dirk Jagdmann <doj@cubic.org>
 #
@@ -213,7 +287,7 @@
 0	string		HyperTerminal\040
 >15	string		1.0\ --\ HyperTerminal\ data\ file	MS Windows HyperTerminal profile
 
-# http://ithreats.files.wordpress.com/2009/05/\040
+# https://ithreats.files.wordpress.com/2009/05/\040
 # lnk_the_windows_shortcut_file_format.pdf
 # Summary: Windows shortcut
 # Extension: .lnk
@@ -343,8 +417,8 @@
 0	name		ini-file
 # look for left bracket in section line
 >0	search/8192	[
-# http://en.wikipedia.org/wiki/Autorun.inf
-# http://msdn.microsoft.com/en-us/library/windows/desktop/cc144200.aspx
+# https://en.wikipedia.org/wiki/Autorun.inf
+# https://msdn.microsoft.com/en-us/library/windows/desktop/cc144200.aspx
 # space after right bracket
 # or AutoRun.Amd64 for 64 bit systems
 # or only NL separator
@@ -360,7 +434,7 @@
 >>>&0	string		!]\r\n[					Microsoft Windows Autorun file
 !:mime application/x-setupscript
 !:ext	inf
-# http://msdn.microsoft.com/en-us/library/windows/hardware/ff549520(v=vs.85).aspx
+# https://msdn.microsoft.com/en-us/library/windows/hardware/ff549520(v=vs.85).aspx
 # version strings ASCII coded case-independent for Windows setup information script file
 >>&0	regex/c		\^(version|strings)]				Windows setup INFormation
 !:mime	application/x-setupscript
@@ -371,24 +445,24 @@
 !:mime	application/x-setupscript
 !:ext	inf
 # http://www.winfaq.de/faq_html/Content/tip2500/onlinefaq.php?h=tip2653.htm
-# http://msdn.microsoft.com/en-us/library/windows/desktop/cc144102.aspx
+# https://msdn.microsoft.com/en-us/library/windows/desktop/cc144102.aspx
 # .ShellClassInfo DeleteOnCopy LocalizedFileNames ASCII coded case-independent
 >>&0	regex/c	\^(\.ShellClassInfo|DeleteOnCopy|LocalizedFileNames)]	Windows desktop.ini
 !:mime application/x-wine-extension-ini
 #!:mime text/plain
-# http://support.microsoft.com/kb/84709/
+# https://support.microsoft.com/kb/84709/
 >>&0	regex/c		\^(don't\ load)]				Windows CONTROL.INI
 !:mime application/x-wine-extension-ini
 !:ext	ini
 >>&0	regex/c		\^(ndishlp\\$|protman\\$|NETBEUI\\$)]		Windows PROTOCOL.INI
 !:mime application/x-wine-extension-ini
 !:ext	ini
-# http://technet.microsoft.com/en-us/library/cc722567.aspx
+# https://technet.microsoft.com/en-us/library/cc722567.aspx
 # http://www.winfaq.de/faq_html/Content/tip0000/onlinefaq.php?h=tip0137.htm
 >>&0	regex/c		\^(windows|Compatibility|embedding)]		Windows WIN.INI
 !:mime application/x-wine-extension-ini
 !:ext	ini
-# http://en.wikipedia.org/wiki/SYSTEM.INI
+# https://en.wikipedia.org/wiki/SYSTEM.INI
 >>&0	regex/c		\^(boot|386enh|drivers)]			Windows SYSTEM.INI
 !:mime application/x-wine-extension-ini
 !:ext	ini
@@ -396,18 +470,18 @@
 >>&0	regex/c		\^(SafeList)]					Windows IOS.INI
 !:mime application/x-wine-extension-ini
 !:ext	ini
-# http://en.wikipedia.org/wiki/NTLDR	Windows Boot Loader information
+# https://en.wikipedia.org/wiki/NTLDR	Windows Boot Loader information
 >>&0	regex/c		\^(boot\x20loader)]				Windows boot.ini
 !:mime application/x-wine-extension-ini
 !:ext	ini
-# http://en.wikipedia.org/wiki/CONFIG.SYS
+# https://en.wikipedia.org/wiki/CONFIG.SYS
 >>&0	regex/c		\^(menu)]					MS-DOS CONFIG.SYS
 # @CONFIG.UI configuration file of previous DOS version saved by Caldera OPENDOS INSTALL.EXE
 # CONFIG.PSS saved version of file CONFIG.SYS created by %WINDIR%\SYTEM\MSCONFIG.EXE
 # CONFIG.TSH renamed file CONFIG.SYS.BAT by %WINDIR%\SYTEM\MSCONFIG.EXE
 # dos and w40 used in dual booting scene
 !:ext	sys/dos/w40
-# http://support.microsoft.com/kb/118579/
+# https://support.microsoft.com/kb/118579/
 >>&0	regex/c		\^(Paths)]\r\n					MS-DOS MSDOS.SYS
 !:ext	sys/dos
 # http://chmspec.nongnu.org/latest/INI.html#HHP
@@ -423,7 +497,7 @@
 >>>>&0	string/c			version				Windows setup INFormation
 !:mime application/x-setupscript
 !:ext	inf
-# http://en.wikipedia.org/wiki/Initialization_file	Windows Initialization File or other
+# https://en.wikipedia.org/wiki/Initialization_file	Windows Initialization File or other
 >>>>&0	default				x
 >>>>>&0	ubyte				x
 # characters, digits, underscore and white space followed by right bracket
@@ -560,7 +634,7 @@
 # Summary: backup file created with utility like NTBACKUP.EXE shipped with Windows NT/2K/XP/2003
 # Extension: .bkf
 # Created by: Joerg Jenderek
-# URL: http://en.wikipedia.org/wiki/NTBackup
+# URL: https://en.wikipedia.org/wiki/NTBackup
 # Reference: http://laytongraphics.com/mtf/MTF_100a.PDF
 # Descriptor BloCK name of Microsoft Tape Format
 0	string			TAPE
@@ -657,7 +731,7 @@
 #
 
 # URL: https://en.wikipedia.org/wiki/PaintShop_Pro
-# Reference: http://www.cryer.co.uk/file-types/p/pal.htm
+# Reference: https://www.cryer.co.uk/file-types/p/pal.htm
 # Created by: Joerg Jenderek
 # Note: there exist other color palette formats also with .pal extension
 0	string	JASC-PAL\r\n	PaintShop Pro color palette
@@ -669,7 +743,7 @@
 # third line contains the number of colours: 16 256 ...
 >16	string	x		\b, %.3s colors
 
-# URL: http://en.wikipedia.org/wiki/Innosetup
+# URL: https://en.wikipedia.org/wiki/Innosetup
 # Reference: https://github.com/jrsoftware/issrc/blob/master/Projects/Undo.pas
 # Created by: Joerg Jenderek
 # Note:	created by like "InnoSetup self-extracting archive" inside ./msdos
@@ -715,4 +789,93 @@
 >>>&0	search/43	\xFF\xFF\xFF			
 # directory like C:\Program Files\GIMP 2
 >>>>&0	lestring16	x				\b, %-.42s
+
+# Windows Imaging (WIM) Image
+# Update: Joerg Jenderek at Mar 2019
+# URL: https://en.wikipedia.org/wiki/Windows_Imaging_Format
+# Reference: https://download.microsoft.com/download/f/e/f/
+# fefdc36e-392d-4678-9e4e-771ffa2692ab/Windows%20Imaging%20File%20Format.rtf
+# Note: verified by like `7z t boot.wim` `wiminfo install.esd --header`
+0	string		MSWIM\000\000\000
+>0	use		wim-archive
+# https://wimlib.net/man1/wimoptimize.html
+0	string		WLPWM\000\000\000
+>0	use		wim-archive
+0	name		wim-archive
+# _WIMHEADER_V1_PACKED ImageTag[8]
+>0	string		x			Windows imaging
+!:mime	application/x-ms-wim
+# TO avoid in file version 5.36 error like
+# Magdir/windows, 760: Warning: Current entry does not yet have a description
+# file: could not find any valid magic files! (No error)
+# splitted WIM
+>16	ulelong		&0x00000008		(SWM
+!:ext	swm
+# usPartNumber; 1, unless the file was split into multiple parts
+>>40	uleshort	x			\b %u
+# usTotalParts; The total number of WIM file parts in a spanned set
+>>42	uleshort	x			\b of %u) image
+# non splitted WIM
+>16	ulelong		^0x00000008
+# https://wimlib.net/man1/wimmount.html
+# solid WIMs; version 3584; usually contain LZMS-compressed and the .esd extension
+>>12	ulelong		3584			(ESD) image
+!:ext	esd
+>>12	ulelong		!3584			(WIM) image
+!:ext	wim
+>0	string/b	WLPWM\000\000\000	\b, wimlib pipable format
+# cbSize size of the WIM header in bytes like 208
+#>8	ulelong		x			\b, headersize %u
+# dwVersion version of the WIM file 00010d00h~1.13 00000e00h~0.14
+>14	uleshort	x			v%u
+>13	ubyte		x			\b.%u
+# dwImageCount; The number of images contained in the WIM file
+>44	ulelong		>1			\b, %u images
+# dwBootIndex
+# 1-based index of the bootable image of the WIM, or 0 if no image is bootable
+>0x78	ulelong		>0			\b, bootable no. %u
+# dwFlags
+#>16	ulelong		x			\b, flags 0x%8.8x
+#define FLAG_HEADER_COMPRESSION		0x00000002
+#define FLAG_HEADER_READONLY            0x00000004
+#define FLAG_HEADER_SPANNED		0x00000008
+#define FLAG_HEADER_RESOURCE_ONLY       0x00000010
+#define FLAG_HEADER_METADATA_ONLY       0x00000020
+#define FLAG_HEADER_WRITE_IN_PROGRESS   0x00000040
+#define FLAG_HEADER_RP_FIX		0x00000080 reparse point fixup
+#define FLAG_HEADER_COMPRESS_RESERVED   0x00010000
+#define FLAG_HEADER_COMPRESS_XPRESS     0x00020000
+#define FLAG_HEADER_COMPRESS_LZX	0x00040000
+#define FLAG_HEADER_COMPRESS_LZMS	0x00080000
+#define FLAG_HEADER_COMPRESS_XPRESS2    0x00100000 wimlib-1.13.0\include\wimlib\header.h 
+# XPRESS, with small chunk size
+>16	ulelong		&0x00100000		\b, XPRESS2
+>16	ulelong		&0x00080000		\b, LZMS
+>16	ulelong		&0x00040000		\b, LZX
+>16	ulelong		&0x00020000		\b, XPRESS
+>16	ulelong		&0x00000002		compressed
+>16	ulelong		&0x00000004		\b, read only
+>16	ulelong		&0x00000010		\b, resource only
+>16	ulelong		&0x00000020		\b, metadata only
+>16	ulelong		&0x00000080		\b, reparse point fixup
+#>16	ulelong		&0x00010000		\b, RESERVED
+# dwCompressionSize; Uncompressed chunk size for resources or 0 if uncompressed
+#>20	ulelong		>0			\b, chunk size %u bytes
+# gWIMGuid
+#>24	ubequad		x			\b, GUID 0x%16.16llx
+#>>32	ubequad		x			\b%16.16llx
+# rhOffsetTable; the location of the resource lookup table
+# wim_reshdr_disk[24]= u8 size_in_wim[7] + u8 flags + le64 offset_in_wim + le64 uncompressed_size
+#>48	ubequad		x			\b, rhOffsetTable 0x%16.16llx
+# rhXmlData; the location of the XML data
+#>0x50	ulelong		x			\b, at 0x%8.8x
+# NOT WORKING \xff\xfe<\0W\0I\0M\0
+#>(0x50.l)	ubequad	x			\b, xml=%16.16llx
+# rhBootMetadata; the location of the metadata resource
+#>0x60	ubequad		x			\b, rhBootMetadata 0x%16.16llx
+# rhIntegrity; the location of integrity table used to verify files
+#>0x7c	ubequad		x			\b, rhIntegrity 0x%16.16llx
+# Unused[60]
+#>148	ubequad		!0			\b,unused 0x%16.16llx
+#
 

@@ -1,9 +1,9 @@
 
 #------------------------------------------------------------------------------
-# $File: matroska,v 1.8 2013/02/08 17:25:16 christos Exp $
+# $File: matroska,v 1.9 2019/04/19 00:42:27 christos Exp $
 # matroska:  file(1) magic for Matroska files
 #
-# See http://www.matroska.org/
+# See https://www.matroska.org/
 #
 
 # EBML id:

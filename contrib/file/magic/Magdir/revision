@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: revision,v 1.10 2017/10/19 16:40:37 christos Exp $
+# $File: revision,v 1.11 2019/04/19 00:42:27 christos Exp $
 # file(1) magic for revision control files
 # From Hendrik Scholz <hendrik@scholz.net>
 0	string/t	/1\ :pserver:	cvs password text file
@@ -60,7 +60,7 @@
 >28	string	>\0				(version: %s)
 
 # Type:	Bazaar revision bundles and merge requests
-# URL:	http://www.bazaar-vcs.org/
+# URL:	https://www.bazaar-vcs.org/
 # From:	Jelmer Vernooij <jelmer@samba.org>
 0	string	#\ Bazaar\ revision\ bundle\ v Bazaar Bundle
 0	string	#\ Bazaar\ merge\ directive\ format Bazaar merge directive

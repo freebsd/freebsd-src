@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: ber,v 1.1 2016/06/05 00:21:30 christos Exp $
+# $File: ber,v 1.2 2019/04/19 00:42:27 christos Exp $
 # ber:  file(1) magic for several BER formats used in the mobile
 # telecommunications industry (Georg Sauthoff)
 
@@ -19,7 +19,7 @@
 #
 # TAP 3 Files
 # TAP -> Transferred Account Procedure
-# cf. http://www.gsma.com/newsroom/wp-content/uploads/TD.57-v32.31.pdf
+# cf. https://www.gsma.com/newsroom/wp-content/uploads/TD.57-v32.31.pdf
 # TransferBatch short tag
 0	byte	0x61
 # BatchControlInfo short tag
@@ -47,7 +47,7 @@
 >>&0	byte	x	NRT 2.%d (TD.35, Near Real Time Roaming Data Exchange)
 
 # RAP Files
-# cf. http://www.gsma.com/newsroom/wp-content/uploads/TD.32-v6.11.pdf
+# cf. https://www.gsma.com/newsroom/wp-content/uploads/TD.32-v6.11.pdf
 # Long ReturnBatch tag
 0	string	\x7f\x84\x16
 # Long RapBatchControlInfo tag

@@ -1,13 +1,13 @@
 
 #------------------------------------------------------------------------------
-# $File: polyml,v 1.1 2016/02/26 15:52:45 christos Exp $
+# $File: polyml,v 1.2 2019/04/19 00:42:27 christos Exp $
 # polyml:  file(1) magic for PolyML
 #
 # PolyML
 # MPEG, FLI, DL originally from vax@ccwf.cc.utexas.edu (VaX#n8)
 # FLC, SGI, Apple originally from Daniel Quinlan (quinlan@yggdrasil.com)
 
-# [0]: http://www.polyml.org/
+# [0]: https://www.polyml.org/
 # [1]: https://github.com/polyml/polyml/blob/master/\
 #	libpolyml/savestate.cpp#L146-L147
 # [2]: https://github.com/polyml/polyml/blob/master/\

@@ -1,8 +1,8 @@
 
 #------------------------------------------------------------------------------
-# $File: lua,v 1.6 2013/01/09 16:23:17 christos Exp $
+# $File: lua,v 1.7 2019/04/19 00:42:27 christos Exp $
 # lua:  file(1) magic for Lua scripting language
-# URL:  http://www.lua.org/
+# URL:  https://www.lua.org/
 # From: Reuben Thomas <rrt@sc3d.org>, Seo Sanghyeon <tinuviel@sparcs.kaist.ac.kr>
 
 # Lua scripts

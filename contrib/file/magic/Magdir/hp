@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: hp,v 1.24 2014/04/30 21:41:02 christos Exp $
+# $File: hp,v 1.25 2019/01/13 00:32:38 christos Exp $
 # hp:  file(1) magic for Hewlett Packard machines (see also "printer")
 #
 # XXX - somebody should figure out whether any byte order needs to be
@@ -119,12 +119,6 @@
 
 0	belong 		0x020b010d	PA-RISC1.0 dynamic load library
 >96	belong		>0		- not stripped
-
-0	belong		0x213c6172	archive file
->68	belong 		0x020b0619	- PA-RISC1.0 relocatable library
->68	belong	 	0x02100619	- PA-RISC1.1 relocatable library
->68	belong 		0x02110619	- PA-RISC1.2 relocatable library
->68	belong 		0x02140619	- PA-RISC2.0 relocatable library
 
 #### 500
 0	long		0x02080106	HP s500 relocatable executable

@@ -2,7 +2,7 @@
 #--------------------------------------------------------------
 # ctf:  file(1) magic for CTF (Common Trace Format) trace files
 #
-# Specs. available here: <http://www.efficios.com/ctf>
+# Specs. available here: <https://www.efficios.com/ctf>
 #--------------------------------------------------------------
 
 # CTF trace data

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: tex,v 1.20 2014/03/16 02:53:03 christos Exp $
+# $File: tex,v 1.21 2019/04/19 00:42:27 christos Exp $
 # tex:  file(1) magic for TeX files
 #
 # XXX - needs byte-endian stuff (big-endian and little-endian DVI?)
@@ -108,7 +108,7 @@
 0	string		#LyX		LyX document text
 
 # ConTeXt documents
-#	http://wiki.contextgarden.net/
+#	https://wiki.contextgarden.net/
 0	search/4096	\\setupcolors[		ConTeXt document text
 !:strength + 15
 0	search/4096	\\definecolor[		ConTeXt document text

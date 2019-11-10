@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: fonts,v 1.38 2017/11/14 15:48:36 christos Exp $
+# $File: fonts,v 1.41 2019/05/05 16:44:04 christos Exp $
 # fonts:  file(1) magic for font data
 #
 0	search/1	FONT		ASCII vfont text
@@ -17,7 +17,7 @@
 
 # Summary:	PostScript Type 1 Printer Font Metrics
 # URL:		https://en.wikipedia.org/wiki/PostScript_fonts
-# Reference:	http://partners.adobe.com/public/developer/en/font/5178.PFM.pdf
+# Reference:	https://partners.adobe.com/public/developer/en/font/5178.PFM.pdf
 # Modified by:	Joerg Jenderek
 # Note:		moved from ./msdos magic
 # dfVersion 256=0100h
@@ -80,7 +80,7 @@
 0	search/1	STARTFONT\ 		X11 BDF font text
 
 # From: Joerg Jenderek
-# URL: http://grub.gibibit.com/New_font_format
+# URL: https://grub.gibibit.com/New_font_format
 # Reference: util/grub-mkfont.c
 #		include/grub/fontformat.h
 # FONT_FORMAT_SECTION_NAMES_FILE
@@ -128,6 +128,58 @@
 7	belong		0x00564944	DOS code page font data (from Linux?)
 4098	string		DOSFONT		DOSFONT2 encrypted font data
 
+# From: Joerg Jenderek
+# URL: http://fileformats.archiveteam.org/wiki/GEM_bitmap_font
+# Reference: http://cd.textfiles.com/ataricompendium/BOOK/HTML/APPENDC.HTM#cnt
+#
+# usual case with lightening mask and skewing mask 5555h~UU
+62	ulelong		0x55555555
+>0	use		gdos-font
+# BOX18.GFT COWBOY30.GFT ROYALK30.GFT
+62	ulelong		0
+# skip ISO 9660 CD-ROM ./filesystem by looking for low positive face size
+>2	uleshort	>2
+# skip DOS 2.0 backup id file ./msdos by looking for face size lower/equal 48
+>>2	uleshort	<49
+# skip MS Windows ICO ./msdos by looking for valid face name
+>>>4	ubeshort	>0x1F00
+# skip DOS executable BACKM212.COM by looking for horizontal offset table after header
+#>>>>68	ulelong		>87		OFFSET_OK
+>>>>0	use		gdos-font
+0	name		gdos-font
+>0	uleshort	x		GEM GDOS font
+!:mime	application/x-font-gdos
+# also .eps found like AA070GEP.EPS AI360GEP.EPS
+!:ext	fnt/gtf
+# font name like University Bold
+>4	string		x		%.32s
+# face size in points 3-48
+>2	uleshort	x		%u
+# face ID (must be unique)
+>0	uleshort	x		\b, ID 0x%4.4x
+# lowest character index in face (usually 32 for disk-loaded fonts).
+#>36	uleshort	x		\b, low character index %u
+# width of the widest character
+#>50	uleshort	x		\b, %u char width
+# width of the widest character cell
+#>52	uleshort	x		\b, %u cell width
+# thickening size
+#>58	uleshort	x		\b, %u thick
+# lightening mask to eliminate pixels, usually 5555h
+>62	uleshort	!0x5555		\b, lightening mask 0x%x
+# skewing mask to determine when to perform additional rotation when skewing, usually 5555h
+>64	uleshort	!0x5555		\b, skewing mask 0x%x
+# offset to horizontal offset table 58h~88 5eh
+#>68	ulelong		>88		\b, 0x%x horizontal table offset
+# offset character offset table
+#>72	ulelong		x		\b, 0x%x coffset
+# offset to font data
+#>72	ulelong		x		\b, 0x%x foffset
+# form width in bytes
+#>80	uleshort	x		\b, %u fwidth
+# pointer to the next font, set by GDOS after loading
+#>84	ulelong		x		\b, 0x%x noffset
+
 # downloadable fonts for browser (prints type) anthon@mnt.org
 # https://tools.ietf.org/html/rfc3073
 0	string		PFR1		Portable Font Resource font data (new)
@@ -167,16 +219,14 @@
 >>12	regex/4l	\^[A-Za-z][A-Za-z][A-Za-z/][A-Za-z2\ ]	
 #>>>0	ubelong	x	\b, sfnt version 0x%x
 >>>0	ubelong	!0x4f54544f	TrueType
-!:mime	application/font-sfnt
-#!:mime	font/ttf
+!:mime	font/sfnt
 !:apple	????tfil
 # .ttf for TrueType font
 # EUDC.tte created by privat character editor %WINDIR%\system32\eudcedit.exe
 !:ext	ttf/tte
 # sfnt version 4F54544Fh~OTTO
 >>>0	ubelong	=0x4f54544f	OpenType
-!:mime	application/font-sfnt
-#!:mime	font/otf
+!:mime	font/otf
 !:apple	????OTTO
 !:ext	otf
 >>>0	ubelong	x		Font data
@@ -257,7 +307,7 @@
 
 # TrueType/OpenType font collections (.ttc)
 # URL: https://en.wikipedia.org/wiki/OpenType
-# http://www.microsoft.com/typography/otspec/otff.htm
+# https://www.microsoft.com/typography/otspec/otff.htm
 # Modified by: Joerg Jenderek
 # Note:	container for TrueType, OpenType font
 0	string		ttcf
@@ -265,17 +315,16 @@
 >4	ubyte		0		
 # sfnt version often 0x00010000 of 1st table is TrueType
 >>(12.L)	ubelong	!0x4f54544f	TrueType
-#!:mime	font/ttf
+!:mime	font/ttf
 !:apple	????tfil
 !:ext	ttc
 # sfnt version 4F54544Fh~OTTO of 1st table is OpenType font 
 >>(12.L)	ubelong	=0x4f54544f	OpenType
-#!:mime	font/otf
+!:mime	font/otf
 !:apple	????OTTO
 # no example found for otc
 !:ext	ttc/otc
 >>4	ubyte		x		font collection data
-!:mime	application/font-sfnt
 #!:mime	font/collection
 # TCC version
 >>4	belong		0x00010000	\b, 1.0
@@ -320,12 +369,12 @@
 #>14	beshort		x		\b, reserved %d
 #>16	belong		x		\b, totalSfntSize %d
 
-# http://www.w3.org/TR/WOFF/
+# https://www.w3.org/TR/WOFF/
 0	string		wOFF	Web Open Font Format
 >0	use		woff
 >20	beshort		x	\b, version %d
 >22	beshort		x	\b.%d
-# http://www.w3.org/TR/WOFF2/
+# https://www.w3.org/TR/WOFF2/
 0	string		wOF2	Web Open Font Format (Version 2)
 >0	use		woff
 #>20	belong		x	\b, totalCompressedSize %d

@@ -1,9 +1,9 @@
 
 #------------------------------------------------------------------------------
-# $File: esri,v 1.4 2009/09/19 16:28:09 christos Exp $
+# $File: esri,v 1.5 2019/04/19 00:42:27 christos Exp $
 # ESRI Shapefile format (.shp .shx .dbf=DBaseIII)
 # Based on info from
-# <URL:http://www.esri.com/library/whitepapers/pdfs/shapefile.pdf>
+# <URL:https://www.esri.com/library/whitepapers/pdfs/shapefile.pdf>
 0	belong	9994	ESRI Shapefile
 >4	belong	=0
 >8	belong	=0

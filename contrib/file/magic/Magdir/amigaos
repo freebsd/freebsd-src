@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: amigaos,v 1.16 2017/03/17 21:35:28 christos Exp $
+# $File: amigaos,v 1.17 2018/10/16 18:57:19 christos Exp $
 # amigaos:  file(1) magic for AmigaOS binary formats:
 
 #
@@ -66,3 +66,22 @@
 # From: Przemek Kramarczyk <pkramarczyk@gmail.com>
 0	string 		.KEY		AmigaDOS script
 0	string 		.key		AmigaDOS script
+
+# AMOS Basic file formats
+# https://www.exotica.org.uk/wiki/AMOS_file_formats
+0	string		AMOS\040Basic\040 	AMOS Basic source code
+>11	byte		=0x56 			\b, tested
+>11	byte		=0x76 			\b, untested
+0 	string		AMOS\040Pro		AMOS Basic source code
+>11	byte		=0x56 			\b, tested
+>11	byte		=0x76 			\b, untested
+0	string		AmSp			AMOS Basic sprite bank
+>4	beshort		x			\b, %d sprites
+0	string		AmIc			AMOS Basic icon bank
+>4	beshort		x			\b, %d icons
+0	string		AmBk			AMOS Basic memory bank
+>4	beshort		x			\b, bank number %d
+>8	belong&0xFFFFFFF	x		\b, length %d
+>12	regex		.{8}			\b, type %s
+0	string		AmBs			AMOS Basic memory banks
+>4	beshort		x			\b, %d banks
