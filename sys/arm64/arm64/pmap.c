@@ -4434,7 +4434,6 @@ pmap_remove_pages(pmap_t pmap)
 					    L2_BLOCK,
 					    ("Attempting to remove an invalid "
 					    "block: %lx", tpte));
-					tpte = pmap_load(pte);
 					break;
 				case 2:
 					pte = pmap_l2_to_l3(pde, pv->pv_va);
@@ -4552,17 +4551,15 @@ pmap_remove_pages(pmap_t pmap)
 			free_pv_chunk(pc);
 		}
 	}
-	pmap_invalidate_all(pmap);
 	if (lock != NULL)
 		rw_wunlock(lock);
+	pmap_invalidate_all(pmap);
 	PMAP_UNLOCK(pmap);
 	vm_page_free_pages_toq(&free, true);
 }
 
 /*
- * This is used to check if a page has been accessed or modified. As we
- * don't have a bit to see if it has been modified we have to assume it
- * has been if the page is read/write.
+ * This is used to check if a page has been accessed or modified.
  */
 static boolean_t
 pmap_page_test_mappings(vm_page_t m, boolean_t accessed, boolean_t modified)
