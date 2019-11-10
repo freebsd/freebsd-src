@@ -1,9 +1,9 @@
 
 #------------------------------------------------------------
-# $File: neko,v 1.1 2009/11/10 20:36:10 christos Exp $
+# $File: neko,v 1.2 2019/04/19 00:42:27 christos Exp $
 
 # From: Mikhail Gusarov <dottedmag@dottedmag.net>
-# NekoVM (http://nekovm.org/) bytecode
+# NekoVM (https://nekovm.org/) bytecode
 0	string		NEKO	NekoVM bytecode
 >4	lelong		x	(%d global symbols,
 >8	lelong		x	%d global fields,

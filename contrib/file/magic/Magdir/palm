@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: palm,v 1.13 2014/03/30 21:40:08 christos Exp $
+# $File: palm,v 1.14 2019/04/19 00:42:27 christos Exp $
 # palm:	 file(1) magic for PalmOS {.prc,.pdb}: applications, docfiles, and hacks
 #
 # Brian Lalor <blalor@hcirisc.cs.binghamton.edu>
@@ -143,8 +143,8 @@
 # Palm OS .prc file types
 60		string		libr
 # flags, only bit 0 or bit 6
-# http://en.wikipedia.org/wiki/PRC_%28Palm_OS%29
-# http://web.mit.edu/tytso/www/pilot/prc-format.html
+# https://en.wikipedia.org/wiki/PRC_%28Palm_OS%29
+# https://web.mit.edu/tytso/www/pilot/prc-format.html
 >0x20		beshort&0xffbe	0
 >>0		string		>\0		Palm OS dynamic library data "%s"
 60		string		ptch		Palm OS operating system patch data

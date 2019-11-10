@@ -1,5 +1,5 @@
 # Berkeley Lab Checkpoint Restart (BLCR) checkpoint context files
-# http://ftg.lbl.gov/checkpoint
+# https://ftg.lbl.gov/checkpoint
 0	string	C\0\0\0R\0\0\0	BLCR
 >16	lelong	1	x86
 >16	lelong	3	alpha

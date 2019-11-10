@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: compress,v 1.72 2018/03/27 23:26:41 christos Exp $
+# $File: compress,v 1.75 2019/04/19 00:42:27 christos Exp $
 # compress:  file(1) magic for pure-compression formats (no archives)
 #
 # compress, gzip, pack, compact, huf, squeeze, crunch, freeze, yabba, etc.
@@ -16,13 +16,78 @@
 >2	byte&0x1f	x		%d bits
 
 # gzip (GNU zip, not to be confused with Info-ZIP or PKWARE zip archiver)
+# URL: https://en.wikipedia.org/wiki/Gzip
+# Reference: https://tools.ietf.org/html/rfc1952
+# Update: Joerg Jenderek, Apr 2019
 #   Edited by Chris Chittleborough <cchittleborough@yahoo.com.au>, March 2002
 #	* Original filename is only at offset 10 if "extra field" absent
 #	* Produce shorter output - notably, only report compression methods
 #         other than 8 ("deflate", the only method defined in RFC 1952).
-0       string          \037\213        gzip compressed data
-!:mime	application/x-gzip
-!:strength * 2
+# Note: find defs -iname '*.trid.xml' -exec grep -q '<Bytes>1F8B08' {} \; -ls
+# TODO:
+# FBR	Blueberry FlashBack screen Record	https://www.flashbackrecorder.com/
+# KPR	KOffice/Calligra KPresenter		application/x-kpresenter
+# KPT	KOffice/Calligra KPresenter template?	application/x-kpresenter
+# SAV	Diggles Saved Game File			http://www.innonics.com
+# SAV	FarCry (demo) saved game		http://www.farcry-thegame.com
+# DAT	ZOAGZIP game data format		http://en.wikipedia.org/wiki/SD_Gundam_Capsule_Fighter
+0       string          \037\213
+# to display gzip compressed (strength=100=2*50) before other (strength=50)?
+#!:strength * 2
+# no FNAME and FCOMMENT bit implies no file name/comment. That means only binary
+>3	byte&0x18	=0
+# For binary gzipped no ASCII text should occur
+#	mcd-monu-cad.trid.xml
+>>10	string		MCD			Monu-Cad Drawing, Component or Font
+#>>36	string		Created\ with\ MONU-CAD	
+#!:mime	application/octet-stream
+# http://fileformats.archiveteam.org/wiki/Monu-CAD
+#	http://www.monucad.com/downloads/FullDemo-2005.EXE
+#	/HANDS96.MCC	Component
+#	/DEMO_DD01.MCD	Drawing
+#	/MCALF020.FNT	Font
+!:ext	mcc/mcd/fnt
+# http://www.generalcadd.com
+>>10	string		GXD			General CADD, Drawing or Component
+#!:mime	application/octet-stream
+#	/gxc/BUILDINGEDGE.gxc			Component
+#	/gxd/HOCKETT-STPAUL-WRHSE.gxd		Drawing
+#	/gxd/POWERLAND-MILL-ADD-11.gxd		Drawing		v9.1.06
+!:ext	gxc/gxd
+#>>>13	ubyte		0			\b, version 0
+>>>13	string		09			\b, version 9
+# other gzipped binary like gzipped tar, VirtualBox extension package,...
+>>10	default		x		gzip compressed data
+>>>0	use	gzip-info
+# size of the original (uncompressed) input data modulo 2^32
+>>>-4	ulelong		x		\b, original size modulo 2^32 %u
+# gzipped TAR or VirtualBox extension package
+!:mime	application/gzip
+#!:mime	application/x-compressed-tar
+#!:mime	application/x-virtualbox-vbox-extpack
+# https://www.w3.org/TR/SVG/mimereg.html
+#!:mime	image/image/svg+xml-compressed
+#	zlib.3.gz
+#	microcode-20180312.tgz
+#	tpz same as tgz
+#	lua-md5_1.2-1_i386_i486.ipk	https://en.wikipedia.org/wiki/Opkg
+#	Oracle_VM_VirtualBox_Extension_Pack-5.0.12-104815.vbox-extpack
+!:ext	gz/tgz/tpz/ipk/vbox-extpack/svgz
+# FNAME/FCOMMENT bit implies file name/comment as iso-8859-1 text
+>3	byte&0x18	>0		gzip compressed data
+!:mime	application/gzip
+# gzipped tar, gzipped Abiword document
+#!:mime	application/x-compressed-tar
+#!:mime	application/x-abiword-compressed
+#!:mime	image/image/svg+xml-compressed
+#	kleopatra_splashscreen.svgz	gzipped .svg
+!:ext	gz/tgz/tpz/zabw/svgz
+>>0	use	gzip-info
+# size of the original (uncompressed) input data modulo 2^32
+>>-4	ulelong		x		\b, original size modulo 2^32 %u
+#	display information of gzip compressed files
+0	name				gzip-info
+#>2	byte		x		THIS iS GZIP
 >2	byte		<8		\b, reserved method
 >2	byte		>8		\b, unknown method
 >3	byte		&0x01		\b, ASCII
@@ -49,7 +114,9 @@
 >9	byte		=0x0B		\b, from NTFS filesystem (NT)
 >9	byte		=0x0C		\b, from QDOS
 >9	byte		=0x0D		\b, from Acorn RISCOS
->-4	lelong		x		\b, original size %d
+# size of the original (uncompressed) input data modulo 2^32
+#>-4	ulelong		x		\b, original size modulo 2^32 %u
+#ERROR: line 114: non zero offset 1048572 at level 1
 
 # packed data, Huffman (minimum redundancy) codes on a byte-by-byte basis
 0	string		\037\036	packed data
@@ -160,7 +227,7 @@
 >>17	byte		=0x0E		os: Win32
 
 # 4.3BSD-Quasijarus Strong Compression
-# http://minnie.tuhs.org/Quasijarus/compress.html
+# https://minnie.tuhs.org/Quasijarus/compress.html
 0	string		\037\241	Quasijarus strong compressed data
 
 # From: Cory Dikkers <cdikkers@swbell.net>
@@ -174,7 +241,7 @@
 >4	belong		0x090A0C0D	best compression
 
 # 7-zip archiver, from Thomas Klausner (wiz@danbala.tuwien.ac.at)
-# http://www.7-zip.org or DOC/7zFormat.txt
+# https://www.7-zip.org or DOC/7zFormat.txt
 #
 0	string		7z\274\257\047\034	7-zip archive data,
 >6	byte		x			version %d
@@ -203,7 +270,7 @@
 >5	byte		x			\b.%d
 !:mime	application/x-lrzip
 
-# http://fastcompression.blogspot.fi/2013/04/lz4-streaming-format-final.html
+# https://fastcompression.blogspot.fi/2013/04/lz4-streaming-format-final.html
 0	lelong		0x184d2204	LZ4 compressed data (v1.4+)
 !:mime	application/x-lz4
 # Added by osm0sis@xda-developers.com
@@ -292,11 +359,11 @@
 >0x8	lelong	x		\b, %u entries
 
 # Snappy framing format
-# http://code.google.com/p/snappy/source/browse/trunk/framing_format.txt
+# https://code.google.com/p/snappy/source/browse/trunk/framing_format.txt
 0	string	\377\006\0\0sNaPpY	snappy framed data
 !:mime	application/x-snappy-framed
 
-# qpress, http://www.quicklz.com/
+# qpress, https://www.quicklz.com/
 0	string	qpress10	qpress compressed data
 !:mime	application/x-qpress
 

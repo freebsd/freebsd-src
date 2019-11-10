@@ -83,12 +83,6 @@
 /* Define to 1 if you have the `z' library (-lz). */
 #undef HAVE_LIBZ
 
-/* Define to 1 if you have the <limits.h> header file. */
-#undef HAVE_LIMITS_H
-
-/* Define to 1 if you have the <locale.h> header file. */
-#undef HAVE_LOCALE_H
-
 /* Define to 1 if you have the `localtime_r' function. */
 #undef HAVE_LOCALTIME_R
 
@@ -97,6 +91,9 @@
 
 /* Define to 1 if <wchar.h> declares mbstate_t. */
 #undef HAVE_MBSTATE_T
+
+/* Define to 1 if you have the `memmem' function. */
+#undef HAVE_MEMMEM
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
@@ -116,17 +113,8 @@
 /* Define to 1 if you have the `pread' function. */
 #undef HAVE_PREAD
 
-/* Define to 1 if you have the `setlocale' function. */
-#undef HAVE_SETLOCALE
-
-/* Define to 1 if you have the <signal.h> header file. */
-#undef HAVE_SIGNAL_H
-
 /* Have sig_t type */
 #undef HAVE_SIG_T
-
-/* Define to 1 if you have the <stddef.h> header file. */
-#undef HAVE_STDDEF_H
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -136,9 +124,6 @@
 
 /* Define to 1 if you have the `strcasestr' function. */
 #undef HAVE_STRCASESTR
-
-/* Define to 1 if you have the `strerror' function. */
-#undef HAVE_STRERROR
 
 /* Define to 1 if you have the <strings.h> header file. */
 #undef HAVE_STRINGS_H
@@ -157,9 +142,6 @@
 
 /* Define to 1 if you have the `strtof' function. */
 #undef HAVE_STRTOF
-
-/* Define to 1 if you have the `strtoul' function. */
-#undef HAVE_STRTOUL
 
 /* HAVE_STRUCT_OPTION */
 #undef HAVE_STRUCT_OPTION
@@ -181,6 +163,9 @@
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/sysmacros.h> header file. */
+#undef HAVE_SYS_SYSMACROS_H
 
 /* Define to 1 if you have the <sys/time.h> header file. */
 #undef HAVE_SYS_TIME_H

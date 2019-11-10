@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: linux,v 1.65 2018/07/16 12:32:08 christos Exp $
+# $File: linux,v 1.67 2019/04/19 00:42:27 christos Exp $
 # linux:  file(1) magic for Linux files
 #
 # Values for Linux/i386 binaries, from Daniel Quinlan <quinlan@yggdrasil.com>
@@ -56,7 +56,7 @@
 #
 # PSF fonts, from H. Peter Anvin <hpa@yggdrasil.com>
 # Updated by Adam Buchbinder <adam.buchbinder@gmail.com>
-# See: http://www.win.tue.nl/~aeb/linux/kbd/font-formats-1.html
+# See: https://www.win.tue.nl/~aeb/linux/kbd/font-formats-1.html
 0	leshort		0x0436		Linux/i386 PC Screen Font v1 data,
 >2	byte&0x01	0		256 characters,
 >2	byte&0x01	!0		512 characters,
@@ -79,7 +79,7 @@
 4076    string          SWAPSPACE2LINHIB0001    Linux/i386 swap file (new style) (compressed hibernate)
 # according to man page of mkswap (8) March 1999
 # volume label and UUID Russell Coker
-# http://etbe.coker.com.au/2008/07/08/label-vs-uuid-vs-device/
+# https://etbe.coker.com.au/2008/07/08/label-vs-uuid-vs-device/
 4086	string		SWAPSPACE2	Linux/i386 swap file (new style),
 >0x400	long		x		version %d (4K pages),
 >0x404	long		x		size %d pages,
@@ -111,8 +111,13 @@
 # and Nicolas Lichtmaier <nick@debian.org>
 # All known start with: b8 c0 07 8e d8 b8 00 90 8e c0 b9 00 01 29 f6 29
 # Linux kernel boot images (i386 arch) (Wolfram Kleff)
+# URL: https://www.kernel.org/doc/Documentation/x86/boot.txt
 514	string		HdrS		Linux kernel
 !:strength + 55
+# often no extension like in linux, vmlinuz, bzimage or memdisk but sometimes
+# Acronis Recovery kernel64.dat and Plop Boot Manager plpbtrom.bin
+# DamnSmallLinux 1.5 damnsmll.lnx 
+!:ext	/dat/bin/lnx
 >510	leshort		0xAA55		x86 boot executable
 >>518	leshort		>0x1ff
 >>>529	byte		0		zImage,
@@ -203,7 +208,10 @@
 
 # Linux ARM compressed kernel image
 # From: Kevin Cernekee <cernekee@gmail.com>
+# Update: Joerg Jenderek
 36	lelong	0x016f2818	Linux kernel ARM boot executable zImage (little-endian)
+# raspian "kernel7.img", Vu+ Ultimo4K "kernel_auto.bin"
+!:ext	img/bin
 36	belong	0x016f2818	Linux kernel ARM boot executable zImage (big-endian)
 
 ############################################################################
@@ -232,7 +240,7 @@
 # 0	lelong&0xFF00FFFF 0x17000301	ld86 SPARC executable
 
 # SYSLINUX boot logo files (from 'ppmtolss16' sources)
-# http://www.syslinux.org/wiki/index.php/SYSLINUX#Display_graphic_from_filename:
+# https://www.syslinux.org/wiki/index.php/SYSLINUX#Display_graphic_from_filename:
 # file extension .lss .16
 0	lelong	=0x1413f33d		SYSLINUX' LSS16 image data
 # syslinux-4.05/mime/image/x-lss16.xml
@@ -361,7 +369,7 @@
 >>&1	string		x			%s...)
 
 # Systemd journald files
-# See http://www.freedesktop.org/wiki/Software/systemd/journal-files/.
+# See https://www.freedesktop.org/wiki/Software/systemd/journal-files/.
 # From: Zbigniew Jedrzejewski-Szmek <zbyszek@in.waw.pl>
 
 # check magic
@@ -453,7 +461,7 @@
 #              the default version of locate on Arch Linux (and others).
 # File path:   /var/lib/mlocate/mlocate.db by default (but configurable)
 # Site:        https://fedorahosted.org/mlocate/
-# Format docs: http://linux.die.net/man/5/mlocate.db
+# Format docs: https://linux.die.net/man/5/mlocate.db
 # Type: mlocate database file
 # URL:  https://fedorahosted.org/mlocate/
 # From: Wander Nauta <info@wandernauta.nl>
@@ -469,14 +477,14 @@
 0		lelong		0x47361222	iproute2 addresses dump
 
 # Image and service files for CRIU tool.
-# URL: http://criu.org
+# URL: https://criu.org
 # From: Pavel Emelyanov <xemul@parallels.com>
 0		lelong		0x54564319	CRIU image file v1.1
 0		lelong		0x55105940	CRIU service file
 0		lelong		0x58313116	CRIU inventory
 
 # Kdump compressed dump files
-# http://sourceforge.net/p/makedumpfile/code/ci/master/tree/IMPLEMENTATION
+# https://sourceforge.net/p/makedumpfile/code/ci/master/tree/IMPLEMENTATION
 
 0		string		KDUMP          	Kdump compressed dump
 >8		long		x		v%d

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: audio,v 1.89 2018/07/03 20:55:37 christos Exp $
+# $File: audio,v 1.111 2019/05/08 18:02:45 christos Exp $
 # audio:  file(1) magic for sound formats (see also "iff")
 #
 # Jan Nicolai Langfeldt (janl@ifi.uio.no), Dan Quinlan (quinlan@yggdrasil.com),
@@ -393,9 +393,15 @@
 0	string		MED		MED_Song
 0	string		SymM		Symphonie SymMOD music file
 #
+# Track Length (TRL), Tracks (TRK), Samples (SMP), Subsongs (SS)
+# http://lclevy.free.fr/exotica/ahx/ahxformat.txt
 0	string		THX		AHX version
 >3	byte		=0		1 module data
 >3	byte		=1		2 module data
+>10	byte		x		TRL: %u
+>11	byte		x		TRK: %u
+>12	byte		x		SMP: %u
+>13	byte		x		SS: %u
 #
 0	string		OKTASONG	Oktalyzer module data
 #
@@ -535,6 +541,18 @@
 
 # adlib sound files
 # From: Alex Myczko <alex@aiei.ch>
+
+# https://github.com/rerrahkr/BambooTracker
+0	string		BambooTrackerMod	BambooTracker module
+>22	byte	x	\b, version %u
+>21	byte	x	\b.%u
+>20	byte	x	\b.%u
+
+0	string		BambooTrackerIst	BambooTracker instrument
+>22	byte	x	\b, version %u
+>21	byte	x	\b.%u
+>20	byte	x	\b.%u
+
 0    	string		RAWADATA	RdosPlay RAW
 
 1068	string		RoR		AMUSIC Adlib Tracker
@@ -549,6 +567,14 @@
 0	string		XAD!		eXotic ADlib
 
 0	string		ofTAZ!		eXtra Simple Music
+
+0	string		FMK!		FM Kingtracker Song
+
+0	string		DFM		DFM Song
+
+0	string		\<CUD-FM-File\>	CFF Song
+
+0	string		_A2module	A2M Song
 
 # Spectrum 128 tunes (.ay files).
 # From: Emanuel Haupt <ehaupt@critical.ch>
@@ -631,7 +657,7 @@
 
 # IMY
 # from http://filext.com/detaillist.php?extdetail=IMY
-# http://cellphones.about.com/od/cellularfaqs/f/rf_imelody.htm
+# https://cellphones.about.com/od/cellularfaqs/f/rf_imelody.htm
 # http://download.ncl.ie/doc/api/ie/ncl/media/music/IMelody.html
 # http://www.wx800.com/msg/download/irda/iMelody.pdf
 0	string	BEGIN:IMELODY	iMelody Ringtone Format
@@ -647,6 +673,8 @@
 # URL:  http://filext.com/detaillist.php?extdetail=AMR
 # From: Russell Coker <russell@coker.com.au>
 0	string	#!AMR		Adaptive Multi-Rate Codec (GSM telephony)
+!:mime	audio/amr
+!:ext  amr
 
 # Type: SuperCollider 3 Synth Definition File Format
 # From: Mario Lang <mlang@debian.org>
@@ -654,12 +682,12 @@
 >4	belong	x	version %d
 
 # Type: True Audio Lossless Audio
-# URL:  http://wiki.multimedia.cx/index.php?title=True_Audio
+# URL:  https://wiki.multimedia.cx/index.php?title=True_Audio
 # From: Mike Melanson <mike@multimedia.cx>
 0	string	TTA1	True Audio Lossless Audio
 
 # Type: WavPack Lossless Audio
-# URL:  http://wiki.multimedia.cx/index.php?title=WavPack
+# URL:  https://wiki.multimedia.cx/index.php?title=WavPack
 # From: Mike Melanson <mike@multimedia.cx>
 0	string	wvpk	WavPack Lossless Audio
 
@@ -667,6 +695,8 @@
 # VGM music file
 0	string		Vgm\040
 >9	ubyte		>0	VGM Video Game Music dump v
+!:mime	audio/x-vgm
+!:ext	vgm
 >>9	ubyte/16	>0	\b%d
 >>9	ubyte&0x0F	x	\b%d
 >>8	ubyte/16	x	\b.%d
@@ -713,6 +743,54 @@
 >>>>0x78 ubyte		0x03	AY-3-8930,
 >>>>0x78 ubyte		0x10	YM2149,
 >>>>0x78 ubyte		0x11	YM3439,
+# VGM 1.61
+>>0x34	ulelong		>0x4C
+>>>0x80	ulelong		>0	DMG,
+>>0x34	ulelong		>0x50
+>>>0x84	lelong		>0	NES APU,
+>>>0x84	lelong		<0	NES APU with FDS,
+>>0x34	ulelong		>0x54
+>>>0x88	ulelong		>0	MultiPCM,
+>>0x34	ulelong		>0x58
+>>>0x8C	ulelong		>0	uPD7759,
+>>0x34	ulelong		>0x5C
+>>>0x90	ulelong		>0	OKIM6258,
+>>0x34	ulelong		>0x64
+>>>0x98	ulelong		>0	OKIM6295,
+>>0x34	ulelong		>0x68
+>>>0x9C	ulelong		>0	K051649,
+>>0x34	ulelong		>0x6C
+>>>0xA0	ulelong		>0	K054539,
+>>0x34	ulelong		>0x70
+>>>0xA4	ulelong		>0	HuC6280,
+>>0x34	ulelong		>0x74
+>>>0xA8	ulelong		>0	C140,
+>>0x34	ulelong		>0x78
+>>>0xAC	ulelong		>0	K053260,
+>>0x34	ulelong		>0x7C
+>>>0xB0	ulelong		>0	Pokey,
+>>0x34	ulelong		>0x80
+>>>0xB4	ulelong		>0	QSound,
+# VGM 1.71
+>>0x34	ulelong		>0x84
+>>>0xB8	ulelong		>0	SCSP,
+>>0x34	ulelong		>0x8C
+>>>0xC0	ulelong		>0	WonderSwan,
+>>0x34	ulelong		>0x90
+>>>0xC4	ulelong		>0	VSU,
+>>0x34	ulelong		>0x94
+>>>0xC8	ulelong		>0	SAA1099,
+>>0x34	ulelong		>0x98
+>>>0xCC	ulelong		>0	ES5503,
+>>0x34	ulelong		>0x9C
+>>>0xD0	lelong		>0	ES5505,
+>>>0xD0	lelong		<0	ES5506,
+>>0x34	ulelong		>0xA4
+>>>0xD8	ulelong		>0	X1-010,
+>>0x34	ulelong		>0xA8
+>>>0xDC	ulelong		>0	C352,
+>>0x34	ulelong		>0xAC
+>>>0xE0	ulelong		>0	GA20,
 
 # GVOX Encore file format
 # Since this is a proprietary file format and there is no publicly available
@@ -727,8 +805,8 @@
 
 # Summary:	Garmin Voice Processing Module (WAVE audios)
 # From:		Joerg Jenderek
-# URL:		http://www.garmin.com/
-# Reference:	http://turboccc.wikispaces.com/share/view/28622555
+# URL:		https://www.garmin.com/
+# Reference:	http://www.poi-factory.com/node/19580
 # NOTE:		there exist 2 other Garmin VPM formats
 0		string	AUDIMG
 # skip text files starting with string "AUDIMG"
@@ -752,16 +830,35 @@
 # if you select a language like german on your garmin device
 # you can only select voice modules with corresponding language byte ID like 1
 >>18		ubyte		x	\b, language ID %d
+# structure for phrases/sentences?
+# number of voice sample in the 1st phrase?
+#>>19		uleshort		x	\b, 0x%x samples
+#>>>21		uleshort		>0	\b, at 0x%4.4x
+#>>>(21.s)	ubequad			x	0x%llx
+# 2nd phrase?
+#>>23		uleshort		x	\b, 0x%x samples
+#>>>25		uleshort		>0	\b, at 0x%4.4x
+#>>>(25.s)	ubequad			x	0x%llx
 # pointer to 1st audio WAV sample
 >>16		uleshort	>0
->>>(16.s)	ulelong		>0	\b, at offset 0x%x
+>>>(16.s)	ulelong		>0	\b, at 0x%x
 # WAV length
->>>>(16.s+4)	ulelong		>0	%d Bytes
+# 1 space char after "bytes" to get phrase "bytes RIFF"
+>>>>(16.s+4)	ulelong		>0	%u bytes 
 # look for magic
 >>>>>(&-8.l)	string		RIFF
 # determine type by ./riff
->>>>>>&-4	indirect	x	\b
+>>>>>>&-4	indirect	x
 # 2 - ~ 131 WAV samples following same way
+#
+# Summary:	encrypted Garmin Voice Processing Module
+# From:		Joerg Jenderek
+# URL:		https://www.garmin.com/us/products/ontheroad/voicestudio
+# NOTE:		Encrypted variant used in voices like DrNightmare, Elfred, Yeti.
+#		There exist 2 other Garmin VPM formats
+0	ubequad		0xa141190fecc8ced6	Garmin Voice Processing Module (encrypted)
+!:mime	audio/x-vpm-garmin
+!:ext	vpm
 
 # From Martin Mueller Skarbiniks Pedersen
 0		string		GDM
@@ -816,7 +913,7 @@
 >>>0x31		byte&0x0F	x	\b%02d
 >>>>0x4		string		>\0	\b, title: "%s"
 
-# magic for Klystrack, http://kometbomb.github.io/klystrack/
+# magic for Klystrack, https://kometbomb.github.io/klystrack/
 # from Alex Myczko <alex@aiei.ch>
 0	string	cyd!song	Klystrack song
 >8	byte	>0		\b, version %u
@@ -866,11 +963,15 @@
 # Added by David Korth <gerbilsoft@gerbilsoft.com>
 0x00		beshort		0x8000
 >(2.S-2)	string		(c)CRI		CRI ADX ADPCM audio
+!:ext adx
+!:mime audio/x-adx
+!:strength +50
 >>0x12		byte		x		v%u
 >>0x04		byte		0x02		\b, pre-set prediction coefficients
 >>0x04		byte		0x03		\b, standard ADX
 >>0x04		byte		0x04		\b, exponential scale
->>0x04		byte		0x05		\b, AHX
+>>0x04		byte		0x10		\b, AHX (Dreamcast)
+>>0x04		byte		0x11		\b, AHX
 >>0x08		belong		x		\b, %u Hz
 >>0x12		byte		0x03
 >>>0x02		beshort		>0x2B
@@ -888,3 +989,125 @@
 # Sony PlayStation Audio (.xa)
 0	leshort 0x4158	Sony PlayStation Audio
 
+# Portable Sound Format
+# Used for audio rips for various consoles.
+# http://fileformats.archiveteam.org/wiki/Portable_Sound_Format
+# Added by David Korth <gerbilsoft@gerbilsoft.com>
+0	string	PSF	Portable Sound Format
+!:mime	audio/x-psf
+>3	byte	0x01	(Sony PlayStation)
+>3	byte	0x02	(Sony PlayStation 2)
+>3	byte	0x11	(Sega Saturn)
+>3	byte	0x12	(Sega Dreamcast)
+>3	byte	0x13	(Sega Mega Drive)
+>3	byte	0x21	(Nintendo 64)
+>3	byte	0x22	(Game Boy Advance)
+>3	byte	0x23	(Super NES)
+>3	byte	0x41	(Capcom QSound)
+
+# Atari 8-bit SAP audio format
+# http://asap.sourceforge.net/sap-format.html
+# Added by David Korth <gerbilsoft@gerbilsoft.com>
+0	string		SAP\r\n	Atari 8-bit SAP audio file
+!:mime	audio/x-sap
+!:ext	sap
+>5	search/1024	NAME
+>>&1	string		x	\b: %s
+>>5	search/1024	AUTHOR
+>>>&1	string		x	by %s
+
+# Nintendo Wii BRSTM audio format (fields)
+# NOTE: Assuming HEAD starts at 0x40.
+# FIXME: Replace 0x48 with HEAD offset plus 8.
+0	name	nintendo-wii-brstm-fields
+>(0x10.L)	string	HEAD	\b:
+>>(0x10.L+0x0C)	belong	x
+>>>(&-4.L+0x48)	belong	x
+>>>>&-4		byte	0	PCM, signed 8-bit,
+>>>>&-4		byte	1	PCM, signed 16-bit,
+>>>>&-4		byte	2	THP ADPCM,
+>>>>&-3		byte	!0	looping,
+>>>>&-2		byte	1	mono
+>>>>&-2		byte	2	stereo
+>>>>&-2		byte	3	3 channels
+>>>>&-2		byte	4	quad
+>>>>&-2		byte	>4	%u channels
+>>>>&0		beshort	!0	%u Hz
+
+# Nintendo Wii BRSTM audio format
+# https://wiibrew.org/wiki/BRSTM_file
+# Added by David Korth <gerbilsoft@gerbilsoft.com>
+0	string		RSTM	Nintendo Wii BRSTM audio file
+!:mime	audio/x-brstm
+!:ext	brstm
+# Wii is big-endian, so default to BE.
+>4	beshort		0xFEFF
+>>0	use		nintendo-wii-brstm-fields
+>4	leshort		0xFEFF
+>>0	use		\^nintendo-wii-brstm-fields
+
+# Nintendo 3DS BCSTM audio format (fields)
+0	name	nintendo-3ds-bcstm-fields
+>(0x18.l)	string	INFO	\b:
+# INFO block: Stream information starts at 0x20 (minus 4 for the 'INFO' magic)
+>>&0x1C		byte	0	PCM, signed 8-bit,
+>>&0x1C		byte	1	PCM, signed 16-bit,
+>>&0x1C		byte	2	DSP ADPCM,
+>>&0x1C		byte	3	IMA ADPCM,
+>>&0x1D		byte	!0	looping,
+>>&0x1E		byte	1	mono
+>>&0x1E		byte	2	stereo
+>>&0x1E		byte	3	3 channels
+>>&0x1E		byte	4	quad
+>>&0x1E		byte	>4	%u channels
+>>&0x20		lelong	!0	%u Hz
+
+# Nintendo 3DS BCSTM audio format
+# https://www.3dbrew.org/wiki/BCSTM
+# Added by David Korth <gerbilsoft@gerbilsoft.com>
+0	string		CSTM	Nintendo 3DS BCSTM audio file
+!:mime	audio/x-bcstm
+!:ext	bcstm
+# 3DS is little-endian, so default to LE.
+>4	leshort		0xFEFF
+>>0	use		nintendo-3ds-bcstm-fields
+>4	beshort		0xFEFF
+>>0	use		\^nintendo-3ds-bcstm-fields
+
+# Nintendo Wii U BFSTM audio format
+# http://mk8.tockdom.com/wiki/BFSTM_(File_Format)
+# NOTE: This format is very similar to BCSTM.
+# Added by David Korth <gerbilsoft@gerbilsoft.com>
+0	string		FSTM	Nintendo Wii U BFSTM audio file
+!:mime	audio/x-bfstm
+!:ext	bfstm
+# BFSTM is used on both Wii U (BE) and Switch (LE),
+# so default to LE.
+>4	leshort		0xFEFF
+>>0	use		nintendo-3ds-bcstm-fields
+>4	beshort		0xFEFF
+>>0	use		\^nintendo-3ds-bcstm-fields
+
+# Nintendo 3DS BCSTM audio format (fields)
+0	name	nintendo-3ds-bcwav-fields
+>(0x18.l)	string	INFO	\b:
+# INFO block (minus 4 for INFO magic)
+>>&0x4		byte	0	PCM, signed 8-bit,
+>>&0x4		byte	1	PCM, signed 16-bit,
+>>&0x4		byte	2	DSP ADPCM,
+>>&0x4		byte	3	IMA ADPCM,
+>>&0x5		byte	!0	looping,
+>>&0x8		lelong	x	stereo
+>>&0x8		lelong	!0	%u Hz
+
+# Nintendo 3DS BCWAV audio format
+# https://www.3dbrew.org/wiki/BCWAV
+# Added by David Korth <gerbilsoft@gerbilsoft.com>
+0	string		CWAV	Nintendo 3DS BCWAV audio file
+!:mime	audio/x-bcwav
+!:ext	bcwav
+# 3DS is little-endian, so default to LE.
+>4	leshort		0xFEFF
+>>0	use		nintendo-3ds-bcwav-fields
+>4	beshort		0xFEFF
+>>0	use		\^nintendo-3ds-bcwav-fields

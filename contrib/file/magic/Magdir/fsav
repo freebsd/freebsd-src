@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: fsav,v 1.15 2018/07/16 12:30:41 christos Exp $
+# $File: fsav,v 1.19 2019/04/19 00:42:27 christos Exp $
 # fsav:  file(1) magic for datafellows fsav virus definition files
 # Anthon van der Neut (anthon@mnt.org)
 
@@ -40,25 +40,64 @@
 #>>>>>>13	ubyte	x		\b%02x bytes
 
 # Joerg Jenderek: joerg dot jenderek at web dot de
-# http://www.clamav.net/doc/latest/html/node45.html
-# .cvd files start with a 512 bytes colon separated header
+# clamav-0.100.2\docs\html\node60.html 
+# https://github.com/vrtadmin/clamav-faq/raw/master/manual/clamdoc.pdf
+# ClamAV virus database files start with a 512 bytes colon separated header
 # ClamAV-VDB:buildDate:version:signaturesNumbers:functionalityLevelRequired:MD5:Signature:builder:buildTime
-# + gzipped tarball files
-0	string		ClamAV-VDB:
->11	string		>\0		Clam AntiVirus database %-.23s
->>34	string		:
->>>35		string		!:	\b, version
->>>>35		string		x 	\b %-.1s
->>>>>36		string		!:
->>>>>>36	string		x 	\b%-.1s
->>>>>>>37	string		!:
->>>>>>>>37	string		x 	\b%-.1s
->>>>>>>>>38	string		!:
->>>>>>>>>>38	string		x 	\b%-.1s
->>>>>>>>>>>39	string		!:
->>>>>>>>>>>>39	string		x 	\b%-.1s
->512	string		\037\213	\b, gzipped
->769	string		ustar\0		\b, tarred
+# + gzipped (optional) tarball files
+# output can often be verified by `sigtool --info=FILE`
+0	string		ClamAV-VDB:	Clam AntiVirus
+# padding spaces implies database
+>511	ubyte		=0x20		database
+!:mime	application/x-clamav-database
+# empty build time
+>>10	string		=::		(unsigned)
+# sigtool(1) man page
+!:ext	cud
+# display some text to avoid error like:
+# Magdir/fsav, 78: Warning: Current entry does not yet have a description for adding a EXTENSION type
+# file: could not find any valid magic files! (No error)
+>>10	default		x		(with buildtime)
+#>>10	default		x
+# clamtmp is used for temporily database like update process
+# for pure tar database only cld extension found
+!:ext	cld/cvd/clamtmp/cud
+>511	default		x		file
+!:mime	application/x-clamav
+!:ext	info
+>11	string		>\0
+# buildDate empty or like "22 Mar 2017 12-57 -0400"; verified by `sigtool -i FILE`
+>>11	regex		\^[^:]{0,23}	\b, %s
+# version like 25170
+>>>&1	regex		\^[^:]{1,6}	\b, version %s
+# signaturesNumbers like 4566249
+>>>>&1	regex		\^[^:]{1,10}	\b, %s signatures
+# functionalityLevelRequired like 60
+>>>>>&1	regex		\^[^:]{1,4}	\b, level %s
+# X for nothing or MD5
+#>>>>>>&1	regex	\^[^:]{1,32}	\b, MD5 "%s"
+>>>>>>&1	regex	\^[^:]{1,32}
+# X for nothing or digital signature starting like AIzk/LYbX
+#>>>>>>>&1	regex	\^[^:]{1,255}	\b, signature "%s"
+>>>>>>>&1	regex	\^[^:]{1,255}
+# builder like neo
+>>>>>>>>&1	regex	\^[^:]{1,32}	\b, builder %s
+# buildTime like 1506611558
+#>>>>>>>>>&1	regex	\^[^:]{1,10}	\b, %s
+>>>>>>>>>&1	regex	\^[^:]{1,10}	
+# padding with spaces
+#>>>>>>>>>>&1	ubequad	x		\b, padding 0x%16.16llx
+>510	ubyte		=0x20
+# inspect real database content
+#>>512	ubeshort	x		\b, database MAGIC 0x%x
+# ./archive handle pure tar archives
+>>1012	quad		=0		\b, with
+>>>512	use		tar-file
+# not pure tar
+>>1012	quad		!0
+# one space at the end of text and then handles gziped archives by ./compress
+>>>512	string		\037\213	\b, with 
+>>>>512	indirect	x
 
 # Type: Grisoft AVG AntiVirus
 # From: David Newgas <david@newgas.net>
@@ -66,3 +105,24 @@
 
 0	string	X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR
 >33	string	-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*	EICAR virus test files
+
+# From: Joerg Jenderek
+# URL: https://www.avira.com/
+# Note: found in directory %ProgramData%\Avira\Antivirus\INFECTED (Windows)
+# tested with version 15.0.43.23 at November 2019
+0	string		AntiVir\ Qua	Avira AntiVir quarantined
+!:mime	application/x-avira-qua
+#!:mime	application/octet-stream
+!:ext	qua
+>156	string		SUSPICIOUS_FILE
+# file path of suspicious file
+>>220	lestring16	x		%s
+>156	string		!SUSPICIOUS_FILE
+# file path of virus file
+>>228	lestring16	x		%s
+# quarantined date
+>60	ldate		x		at %s
+# virus/danger name
+>156	string		!SUSPICIOUS_FILE
+>>156	string		x		\b, category "%s"
+

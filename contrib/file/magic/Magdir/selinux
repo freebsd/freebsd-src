@@ -1,6 +1,6 @@
 # Type:	SE Linux policy modules *.pp reference policy
 #	for Fedora 5 to 9, RHEL5, and Debian Etch and Lenny.
-# URL:	http://doc.coker.com.au/computers/selinux-magic
+# URL:	https://doc.coker.com.au/computers/selinux-magic
 # From:	Russell Coker <russell@coker.com.au>
 
 0		lelong	0xf97cff8f	SE Linux modular policy

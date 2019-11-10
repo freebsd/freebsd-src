@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------
-# $File: java,v 1.18 2015/11/29 22:08:14 christos Exp $
+# $File: java,v 1.21 2019/02/18 17:58:50 christos Exp $
 # Java ByteCode and Mach-O binaries (e.g., Mac OS X) use the
 # same magic number, 0xcafebabe, so they are both handled
 # in the entry called "cafebabe".
@@ -22,6 +22,24 @@
 # Java HPROF dumps
 # https://java.net/downloads/heap-snapshot/hprof-binary-format.html
 0	string		JAVA\x20PROFILE\x201.0.
->0x12	short		0
->>0x11	ushort-0x31	<2      Java HPROF dump,
->>0x17	beqdate/1000	x       created %s
+>0x12	byte		0
+>>0x11	ubyte-0x31	<2      Java HPROF dump,
+>>>0x17	beqdate/1000	x       created %s
+
+# Java jmod module
+# See https://hg.openjdk.java.net/jdk9/jdk9/jdk/file/tip/src/java.base/share/classes/jdk/internal/jmod/JmodFile.java
+# Grr. 2 byte magic "JM", really? In 2019?
+0	belong		0x4a4d0100	Java jmod module version 1.0
+!:mime	application/x-java-jmod
+
+# Java jlinked image
+# See https://hg.openjdk.java.net/jdk9/jdk9/jdk/file/tip/src/java.base/share/native/libjimage/imageFile.hpp
+0	belong	0xcafedada	Java module image (big endian)
+>4	beshort	>0x00	\b, version %d
+>6	beshort	x	\b.%d
+!:mime	application/x-java-image
+
+0	lelong	0xcafedada	Java module image (little endian)
+>6	leshort	>0x00	\b, version %d
+>4	leshort	x	\b.%d
+!:mime	application/x-java-image

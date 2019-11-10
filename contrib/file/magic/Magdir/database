@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: database,v 1.54 2018/06/23 16:37:21 christos Exp $
+# $File: database,v 1.55 2019/04/19 00:42:27 christos Exp $
 # database:  file(1) magic for various databases
 #
 # extracted from header/code files by Graeme Wilford (eep2gw@ee.surrey.ac.uk)
@@ -147,8 +147,8 @@
 
 ## XBase database files
 # updated by Joerg Jenderek at Feb 2013
-# http://www.dbase.com/Knowledgebase/INT/db7_file_fmt.htm
-# http://www.clicketyclick.dk/databases/xbase/format/dbf.html
+# https://www.dbase.com/Knowledgebase/INT/db7_file_fmt.htm
+# https://www.clicketyclick.dk/databases/xbase/format/dbf.html
 # http://home.f1.htw-berlin.de/scheibl/db/intern/dBase.htm
 # inspect VVYYMMDD , where 1<= MM <= 12 and 1<= DD <= 31
 0	ubelong&0x0000FFFF		<0x00000C20
@@ -187,13 +187,13 @@
 >>>>>>>>>>>>4	lelong			>0		\b, %d record
 # plural s appended
 >>>>>>>>>>>>>4	lelong			>1		\bs
-# http://www.clicketyclick.dk/databases/xbase/format/dbf_check.html#CHECK_DBF
+# https://www.clicketyclick.dk/databases/xbase/format/dbf_check.html#CHECK_DBF
 # 1 <= record size <= 4000 (dBase 3,4) or 32 * KB (=0x8000)
 >>>>>>>>>>>>10	uleshort		x		* %d
 # file size = records * record size + header size
 >>>>>>>>>>>>1	ubyte			x		\b, update-date
 >>>>>>>>>>>>1	use			xbase-date
-# http://msdn.microsoft.com/de-de/library/cc483186(v=vs.71).aspx
+# https://msdn.microsoft.com/de-de/library/cc483186(v=vs.71).aspx
 #>>>>>>>>>>>>29	ubyte			=0		\b, codepage ID=0x%x
 # 2~cp850 , 3~cp1252 , 0x1b~?? ; what code page is 0x1b ?
 >>>>>>>>>>>>29	ubyte			>0		\b, codepage ID=0x%x
@@ -261,13 +261,13 @@
 # dBASE IV SQL, no memo;dbv memo var size (Flagship)
 >>0	ubyte		0x43		dBase IV, with SQL table
 !:mime	application/x-dbf
-# http://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
+# https://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
 #>>0	ubyte		0x62		dBase IV, with SQL table
 #!:mime	application/x-dbf
 # dBASE IV, with memo!!
 >>0	ubyte		0x7b		dBase IV, with memo
 !:mime	application/x-dbf
-# http://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
+# https://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
 #>>0	ubyte		0x82		dBase IV, with SQL system
 #!:mime	application/x-dbf
 # FoxBase+/dBaseIII+ with memo .DBT!
@@ -276,7 +276,7 @@
 # VISUAL OBJECTS (first 1.0 versions) for the Dbase III files (NTX clipper driver); memo file
 >>0	ubyte		0x87		VISUAL OBJECTS, with memo file
 !:mime	application/x-dbf
-# http://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
+# https://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
 #>>0	ubyte		0x8A		FoxBase+/dBase III, with memo .DBT
 #!:mime	application/x-dbf
 # dBASE IV with memo!
@@ -287,7 +287,7 @@
 !:mime	application/x-dbf
 # .dbv and .dbt memo (Flagship)?
 >>0	ubyte		0xB3		Flagship
-# http://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
+# https://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
 #>>0	ubyte		0xCA		dBase IV with memo .DBT
 #!:mime	application/x-dbf
 # dBASE IV with SQL table, with memo .DBT
@@ -296,12 +296,12 @@
 # HiPer-Six format;Clipper SIX, with SMT memo file
 >>0	ubyte		0xE5		Clipper SIX with memo
 !:mime	application/x-dbf
-# http://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
+# https://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
 #>>0	ubyte		0xF4		dBase IV, with SQL table, with memo
 #!:mime	application/x-dbf
 >>0	ubyte		0xF5		FoxPro with memo
 !:mime	application/x-dbf
-# http://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
+# https://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
 #>>0	ubyte		0xFA		FoxPro 2.x, with memo
 #!:mime	application/x-dbf
 # unknown version (should not happen)
@@ -332,7 +332,7 @@
 >>>>>2	ubyte		x		\b-%d
 
 #	dBase memo files .DBT or .FPT
-# http://msdn.microsoft.com/en-us/library/8599s21w(v=vs.80).aspx
+# https://msdn.microsoft.com/en-us/library/8599s21w(v=vs.80).aspx
 16		ubyte		<4
 >16		ubyte		!2
 >>16		ubyte		!1
@@ -495,7 +495,7 @@
 >>220	ulelong		x		\b.%d
 
 # From: Joerg Jenderek
-# URL: http://forensicswiki.org/wiki/Windows_Application_Compatibility
+# URL: https://forensicswiki.org/wiki/Windows_Application_Compatibility
 # Note: files contain application compatibility fixes, application compatibility modes and application help messages.
 8	string		sdbf
 >7	ubyte		0
@@ -542,7 +542,7 @@
 >>7	byte		x		\b-%d
 
 # Type: Advanced Data Format (ADF) database
-# URL:  http://www.grc.nasa.gov/WWW/cgns/adf/
+# URL:  https://www.grc.nasa.gov/WWW/cgns/adf/
 # From: Nicolas Chauvat <nicolas.chauvat@logilab.fr>
 0	string	@(#)ADF\ Database	CGNS Advanced Data Format
 
@@ -582,7 +582,7 @@
 0	string		ToKyO\ CaBiNeT\n	TokyoCabinet database
 >14	string		x			(version %s)
 
-# From:  Stephane Blondon http://www.yaal.fr
+# From:  Stephane Blondon https://www.yaal.fr
 # Database file for Zope (done by FileStorage)
 0	string	FS21	Zope Object Database File Storage v3 (data)
 0	string	FS30	Zope Object Database File Storage v4 (data)
@@ -593,7 +593,7 @@
 # IDA (Interactive Disassembler) database
 0	string		IDA1	IDA (Interactive Disassembler) database
 
-# Hopper (reverse engineering tool) http://www.hopperapp.com/
+# Hopper (reverse engineering tool) https://www.hopperapp.com/
 0	string		hopperdb	Hopper database
 
 # URL: https://en.wikipedia.org/wiki/Panorama_(database_engine)

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sun,v 1.27 2014/04/30 21:41:02 christos Exp $
+# $File: sun,v 1.28 2019/04/19 00:42:27 christos Exp $
 # sun:  file(1) magic for Sun machines
 #
 # Values for big-endian Sun (MC680x0, SPARC) binaries on pre-5.x
@@ -93,7 +93,7 @@
 0	string		#SUNPC_CONFIG	SunPC 4.0 Properties Values
 # Sun snoop (see RFC 1761, which describes the capture file format,
 # RFC 3827, which describes some additional datalink types, and
-# http://www.iana.org/assignments/snoop-datalink-types/snoop-datalink-types.xml,
+# https://www.iana.org/assignments/snoop-datalink-types/snoop-datalink-types.xml,
 # which is the IANA registry of Snoop datalink types)
 #
 0	string		snoop		Snoop capture file
