@@ -45,6 +45,12 @@ isnan(double d)
 }
 #endif /* !PIC */
 
+/*
+ * Because math.h defines __isnanf as an alias for compatibility with glibc and
+ * CUDA, we have to undefine it here to avoid redefinition errors.
+ */
+#undef __isnanf
+
 int
 __isnanf(float f)
 {

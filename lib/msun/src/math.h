@@ -215,6 +215,12 @@ __inline_isnanl(__const long double __x)
 }
 
 /*
+ * Define the following aliases, for compatibility with glibc and CUDA.
+ */
+#define __isnan __inline_isnan
+#define __isnanf __inline_isnanf
+
+/*
  * Version 2 of the Single UNIX Specification (UNIX98) defined isnan() and
  * isinf() as functions taking double.  C99, and the subsequent POSIX revisions
  * (SUSv3, POSIX.1-2001, define it as a macro that accepts any real floating
