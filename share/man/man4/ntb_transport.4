@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2019
+.Dd November 9, 2019
 .Dt NTB_TRANSPORT 4
 .Os
 .Sh NAME
@@ -64,6 +64,12 @@ is a name of the driver to attach (empty means any),
 is a number of queues to allocate (empty means automatic).
 The default configuration is empty string, which means single consumer
 with one queue per memory window, allowing any driver to attach.
+.It Va hint.ntb_transport. Ns Ar X Ns Va .compact
+Non-zero value enables compact version of sratchpad protocol, using twice
+less registers.
+Enabled automatically if there is not enough registers to negotiate all
+available memory windows.
+The compact version does not support memory windows of 4GB and above.
 .El
 .Sh DESCRIPTION
 The
@@ -85,7 +91,8 @@ instance:
 .It
 1 or more memory windows;
 .It
-6 scratchpads, plus 2 more for each additional memory window;
+6 scratchpads, plus 2 more for each additional memory window,
+or 3 plus 1 in case of compact protocol;
 .It
 1 doorbell for each memory window or configured queue.
 .El
