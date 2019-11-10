@@ -1697,7 +1697,7 @@ vdev_uberblock_load(vdev_t *vd, uberblock_t *ub)
 static int
 vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 {
-	vdev_t vtmp;
+	vdev_t vtmp = { 0 };
 	spa_t *spa;
 	vdev_t *vdev, *top_vdev, *pool_vdev;
 	unsigned char *nvlist;
@@ -1713,7 +1713,6 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 	 * Load the vdev label and figure out which
 	 * uberblock is most current.
 	 */
-	memset(&vtmp, 0, sizeof(vtmp));
 	vtmp.v_phys_read = _read;
 	vtmp.v_read_priv = read_priv;
 	vtmp.v_psize = P2ALIGN(ldi_get_size(read_priv),
