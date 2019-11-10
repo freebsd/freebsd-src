@@ -18,6 +18,7 @@ SOC_ALLWINNER_A64		opt_soc.h
 SOC_ALLWINNER_H5		opt_soc.h
 SOC_ALLWINNER_H6		opt_soc.h
 SOC_BRCM_BCM2837		opt_soc.h
+SOC_BRCM_BCM2838		opt_soc.h
 SOC_CAVM_THUNDERX		opt_soc.h
 SOC_HISI_HI6220			opt_soc.h
 SOC_INTEL_STRATIX10		opt_soc.h
