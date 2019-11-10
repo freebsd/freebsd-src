@@ -409,10 +409,12 @@ opalpci_attach(device_t dev)
 
 	/*
 	 * Invalidate all previous TCE entries.
-	 *
-	 * TODO: add support for other PHBs than PHB3
 	 */
-	pci_phb3_tce_invalidate_entire(sc);
+	if (ofw_bus_is_compatible(dev, "power8-pciex"))
+		pci_phb3_tce_invalidate_entire(sc);
+	else
+		opal_call(OPAL_PCI_TCE_KILL, sc->phb_id, OPAL_PCI_TCE_KILL_ALL,
+		    OPAL_PCI_DEFAULT_PE, 0, 0, 0);
 
 	/*
 	 * Get MSI properties

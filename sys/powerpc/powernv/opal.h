@@ -129,6 +129,11 @@ int opal_call(uint64_t token, ...);
 #define	OPAL_IGNORE_RID_FUNC_NUMBER	0
 #define	OPAL_COMPARE_RID_FUNC_NUMBER	1
 
+/* For OPAL_PCI_TCE_KILL */
+#define	OPAL_PCI_TCE_KILL_PAGE		0
+#define	OPAL_PCI_TCE_KILL_PE		1
+#define	OPAL_PCI_TCE_KILL_ALL		2
+
 #define	OPAL_SUCCESS			0
 #define	OPAL_PARAMETER			-1
 #define	OPAL_BUSY			-2
