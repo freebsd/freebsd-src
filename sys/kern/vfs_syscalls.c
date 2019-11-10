@@ -4838,7 +4838,7 @@ kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
 	outvp = outfp->f_vnode;
 	/* Sanity check the f_flag bits. */
 	if ((outfp->f_flag & (FWRITE | FAPPEND)) != FWRITE ||
-	    (infp->f_flag & FREAD) == 0 || invp == outvp) {
+	    (infp->f_flag & FREAD) == 0) {
 		error = EBADF;
 		goto out;
 	}
@@ -4846,6 +4846,17 @@ kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
 	/* If len == 0, just return 0. */
 	if (len == 0)
 		goto out;
+
+	/*
+	 * If infp and outfp refer to the same file, the byte ranges cannot
+	 * overlap.
+	 */
+	if (invp == outvp && ((savinoff <= savoutoff && savinoff + len >
+	    savoutoff) || (savinoff > savoutoff && savoutoff + len >
+	    savinoff))) {
+		error = EINVAL;
+		goto out;
+	}
 
 	/* Range lock the byte ranges for both invp and outvp. */
 	for (;;) {

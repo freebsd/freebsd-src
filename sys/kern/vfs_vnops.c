@@ -2699,8 +2699,6 @@ vn_copy_file_range(struct vnode *invp, off_t *inoffp, struct vnode *outvp,
 	    uvalout < (uint64_t)*outoffp || invp->v_type != VREG ||
 	    outvp->v_type != VREG)
 		error = EINVAL;
-	else if (invp == outvp)
-		error = EBADF;
 	if (error != 0)
 		goto out;
 
