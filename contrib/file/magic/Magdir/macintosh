@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: macintosh,v 1.28 2017/12/05 02:17:48 christos Exp $
+# $File: macintosh,v 1.29 2019/04/19 00:42:27 christos Exp $
 # macintosh description
 #
 # BinHex is the Macintosh ASCII-encoded file format (see also "apple")
@@ -62,7 +62,7 @@
 # MacBinary format (Eric Fischer, enf@pobox.com)
 # Update: Joerg Jenderek 
 # URL: https://en.wikipedia.org/wiki/MacBinary
-# Reference: http://files.stairways.com/other/macbinaryii-standard-info.txt
+# Reference: https://files.stairways.com/other/macbinaryii-standard-info.txt
 #
 # Unfortunately MacBinary doesn't really have a magic number prior
 # to the MacBinary III format.
@@ -180,8 +180,8 @@
 
 # Apple Type/Creator Database
 # URL: https://en.wikipedia.org/wiki/Type_code
-# Reference:	http://www.lacikam.co.il/tcdb/
-#		http://www.macdisk.com/macsigen.php
+# Reference:	https://www.lacikam.co.il/tcdb/
+#		https://www.macdisk.com/macsigen.php
 # Note:	classic Mac OS files have two 4 character codes for type and creator.
 #	Thereby the Finder attach documents types to applications.
 
@@ -379,7 +379,7 @@
 >0x424	pstring			x		volume name: %s
 
 # *.hfs updated by Joerg Jenderek
-# http://en.wikipedia.org/wiki/Hierarchical_File_System
+# https://en.wikipedia.org/wiki/Hierarchical_File_System
 # "BD" gives many false positives
 0x400	beshort			0x4244
 # ftp://ftp.mars.org/pub/hfs/hfsutils-3.2.6.tar.gz/hfsutils-3.2.6/libhfs/apple.h
@@ -390,7 +390,7 @@
 !:mime	application/x-apple-diskimage
 #!:apple	hfsdINIT
 #!:apple	MACSdisk
-# http://www.macdisk.com/macsigen.php
+# https://www.macdisk.com/macsigen.php
 #!:apple	ddskdevi
 !:apple	????devi
 # https://en.wikipedia.org/wiki/Apple_Disk_Image
@@ -402,7 +402,7 @@
 >>>0x40a	beshort			&0x0200	(spared blocks)
 >>>0x40a	beshort			&0x0800	(unclean)
 >>>0x47C	beshort			0x482B	(Embedded HFS+ Volume)
-# http://www.epochconverter.com/
+# https://www.epochconverter.com/
 # 0x7C245F00 seconds	~ 2082758400	~ 01 Jan 2036 00:00:00	~ 66 years to 1970
 # 0x7C25B080 seconds	~ 2082844800	~ 02 Jan 2036 00:00:00
 # construct not working
@@ -458,7 +458,7 @@
 0		string		BOMStore	Mac OS X bill of materials (BOM) file
 
 # From: Adam Buchbinder <adam.buchbinder@gmail.com>
-# URL: http://en.wikipedia.org/wiki/Datafork_TrueType
+# URL: https://en.wikipedia.org/wiki/Datafork_TrueType
 # Derived from the 'fondu' and 'ufond' source code (fondu.sf.net). 'sfnt' is
 # TrueType; 'POST' is PostScript. 'FONT' and 'NFNT' sometimes appear, but I
 # don't know what they mean.

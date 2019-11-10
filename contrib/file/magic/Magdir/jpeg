@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: jpeg,v 1.31 2017/03/17 21:35:28 christos Exp $
+# $File: jpeg,v 1.32 2018/10/01 18:58:29 christos Exp $
 # JPEG images
 # SunOS 5.5.1 had
 #
@@ -51,21 +51,21 @@
 >>4	byte		x		\b, baseline, precision %d
 >>7	beshort		x		\b, %dx
 >>5	beshort		x		\b%d
->>9	byte		x		\b, frames %d
+>>9	byte		x		\b, components %d
 
 >0	beshort		0xFFC1
 >>(2.S+2)	use			jpeg_segment
 >>4	byte		x		\b, extended sequential, precision %d
 >>7	beshort		x		\b, %dx
 >>5	beshort		x		\b%d
->>9	byte		x		\b, frames %d
+>>9	byte		x		\b, components %d
 
 >0	beshort		0xFFC2
 >>(2.S+2)	use			jpeg_segment
 >>4	byte		x		\b, progressive, precision %d
 >>7	beshort		x		\b, %dx
 >>5	beshort		x		\b%d
->>9	byte		x		\b, frames %d
+>>9	byte		x		\b, components %d
 
 # Define Huffman Tables
 >0	beshort		0xFFC4

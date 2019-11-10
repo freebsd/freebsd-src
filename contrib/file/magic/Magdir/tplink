@@ -1,17 +1,19 @@
 
 #------------------------------------------------------------------------------
-# $File: tplink,v 1.2 2017/12/14 05:52:56 christos Exp $
+# $File: tplink,v 1.4 2019/04/19 00:42:27 christos Exp $
 # tplink: File magic for openwrt firmware files
 
 # URL: https://wiki.openwrt.org/doc/techref/header
-# Reference: http://git.openwrt.org/?p=openwrt.git;a=blob;f=tools/firmware-utils/src/mktplinkfw.c
+# Reference: https://git.openwrt.org/?p=openwrt.git;a=blob;f=tools/firmware-utils/src/mktplinkfw.c
 # From: Joerg Jenderek
 # check for valid header version 1 or 2
 0		ulelong		<3
 >0		ulelong		!0
 # test for header padding with nulls
 >>0x100		long		0
->>>0		use		firmware-tplink
+# skip Norton Commander Cleanup Utility NCCLEAN.INI by looking for valid vendor
+>>>4		ubelong		>0x1F000000
+>>>>0		use		firmware-tplink
 
 0		name		firmware-tplink
 >0		ubyte		x		firmware
@@ -63,11 +65,13 @@
 # look for kernel type (gzip compressed vmlinux.bin by ./compress)
 >(0x80.L)	indirect	x
 # root file system data offset
+# WRONG in 5.35 with above indirect expression
 >0x88		ubelong		x		\b, at 0x%x
 # rootfs data length and 1 space
 >0x8C		ubelong		x		%u bytes 
 # in 5.32 only true for offset ~< FILE_BYTES_MAX=9 MB defined in ../../src/file.h 
 >(0x88.L)	indirect	x
+# 'qshs' for wr940nv1_en_3_13_7_up(111228).bin
 #>(0x88.L)	string		x		\b, file system '%.4s'
 #>(0x88.L)	ubequad		x		\b, file system 0x%llx
 # bootloader data offset

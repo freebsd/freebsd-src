@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sgml,v 1.38 2017/10/11 11:40:43 christos Exp $
+# $File: sgml,v 1.39 2019/04/19 00:42:27 christos Exp $
 # Type:	SVG Vectorial Graphics
 # From:	Noel Torres <tecnico@ejerciciosresueltos.com>
 0	string		\<?xml\ version=
@@ -19,7 +19,7 @@
 !:mime	application/xml-sitemap
 
 # OpenStreetMap XML (.osm)
-# http://wiki.openstreetmap.org/wiki/OSM_XML
+# https://wiki.openstreetmap.org/wiki/OSM_XML
 # From: Markus Heidelberg <markus.heidelberg@web.de>
 0	string		\<?xml\ version=
 >14	regex		['"\ \t]*[0-9.]+['"\ \t]*

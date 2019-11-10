@@ -2,7 +2,7 @@
  * Copyright (c) Ian F. Darwin 1986-1995.
  * Software written by Ian F. Darwin and others;
  * maintained 1995-present by Christos Zoulas and others.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -12,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- *  
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: print.c,v 1.82 2017/02/10 18:14:01 christos Exp $")
+FILE_RCSID("@(#)$File: print.c,v 1.85 2019/03/12 20:43:05 christos Exp $")
 #endif  /* lint */
 
 #include <string.h>
@@ -42,8 +42,6 @@ FILE_RCSID("@(#)$File: print.c,v 1.82 2017/02/10 18:14:01 christos Exp $")
 #include <unistd.h>
 #endif
 #include <time.h>
-
-#define SZOF(a)	(sizeof(a) / sizeof(a[0]))
 
 #include "cdf.h"
 
@@ -65,9 +63,9 @@ file_mdump(struct magic *m)
 		if (m->in_op & FILE_OPINVERSE)
 			(void) fputc('~', stderr);
 		(void) fprintf(stderr, "%c%u),",
-		    ((size_t)(m->in_op & FILE_OPS_MASK) <
-		    SZOF(optyp)) ? optyp[m->in_op & FILE_OPS_MASK] : '?',
-		    m->in_offset);
+		    (CAST(size_t, m->in_op & FILE_OPS_MASK) <
+		    __arraycount(optyp)) ?
+		    optyp[m->in_op & FILE_OPS_MASK] : '?', m->in_offset);
 	}
 	(void) fprintf(stderr, " %s%s", (m->flag & UNSIGNED) ? "u" : "",
 	    /* Note: type is unsigned */
@@ -78,16 +76,16 @@ file_mdump(struct magic *m)
 	if (IS_STRING(m->type)) {
 		if (m->str_flags) {
 			(void) fputc('/', stderr);
-			if (m->str_flags & STRING_COMPACT_WHITESPACE) 
+			if (m->str_flags & STRING_COMPACT_WHITESPACE)
 				(void) fputc(CHAR_COMPACT_WHITESPACE, stderr);
-			if (m->str_flags & STRING_COMPACT_OPTIONAL_WHITESPACE) 
+			if (m->str_flags & STRING_COMPACT_OPTIONAL_WHITESPACE)
 				(void) fputc(CHAR_COMPACT_OPTIONAL_WHITESPACE,
 				    stderr);
-			if (m->str_flags & STRING_IGNORE_LOWERCASE) 
+			if (m->str_flags & STRING_IGNORE_LOWERCASE)
 				(void) fputc(CHAR_IGNORE_LOWERCASE, stderr);
-			if (m->str_flags & STRING_IGNORE_UPPERCASE) 
+			if (m->str_flags & STRING_IGNORE_UPPERCASE)
 				(void) fputc(CHAR_IGNORE_UPPERCASE, stderr);
-			if (m->str_flags & REGEX_OFFSET_START) 
+			if (m->str_flags & REGEX_OFFSET_START)
 				(void) fputc(CHAR_REGEX_OFFSET_START, stderr);
 			if (m->str_flags & STRING_TEXTTEST)
 				(void) fputc(CHAR_TEXTTEST, stderr);
@@ -112,14 +110,15 @@ file_mdump(struct magic *m)
 			(void) fprintf(stderr, "/%u", m->str_range);
 	}
 	else {
-		if ((size_t)(m->mask_op & FILE_OPS_MASK) < SZOF(optyp))
+		if (CAST(size_t, m->mask_op & FILE_OPS_MASK) <
+		    __arraycount(optyp))
 			(void) fputc(optyp[m->mask_op & FILE_OPS_MASK], stderr);
 		else
 			(void) fputc('?', stderr);
-			
+
 		if (m->num_mask) {
 			(void) fprintf(stderr, "%.8llx",
-			    (unsigned long long)m->num_mask);
+			    CAST(unsigned long long, m->num_mask));
 		}
 	}
 	(void) fprintf(stderr, ",%c", m->reln);
@@ -141,7 +140,7 @@ file_mdump(struct magic *m)
 		case FILE_LEQUAD:
 		case FILE_QUAD:
 			(void) fprintf(stderr, "%" INT64_T_FORMAT "d",
-			    (unsigned long long)m->value.q);
+			    CAST(long long, m->value.q));
 			break;
 		case FILE_PSTRING:
 		case FILE_STRING:
@@ -149,7 +148,8 @@ file_mdump(struct magic *m)
 		case FILE_BESTRING16:
 		case FILE_LESTRING16:
 		case FILE_SEARCH:
-			file_showstr(stderr, m->value.s, (size_t)m->vallen);
+			file_showstr(stderr, m->value.s,
+			    CAST(size_t, m->vallen));
 			break;
 		case FILE_DATE:
 		case FILE_LEDATE:
@@ -217,11 +217,11 @@ file_magwarn(struct magic_set *ms, const char *f, ...)
 	va_list va;
 
 	/* cuz we use stdout for most, stderr here */
-	(void) fflush(stdout); 
+	(void) fflush(stdout);
 
 	if (ms->file)
 		(void) fprintf(stderr, "%s, %lu: ", ms->file,
-		    (unsigned long)ms->line);
+		    CAST(unsigned long, ms->line));
 	(void) fprintf(stderr, "Warning: ");
 	va_start(va, f);
 	(void) vfprintf(stderr, f, va);
@@ -243,7 +243,7 @@ file_fmttime(uint64_t v, int flags, char *buf)
 	} else {
 		// XXX: perhaps detect and print something if overflow
 		// on 32 bit time_t?
-		t = (time_t)v;
+		t = CAST(time_t, v);
 	}
 
 	if (flags & FILE_T_LOCAL) {

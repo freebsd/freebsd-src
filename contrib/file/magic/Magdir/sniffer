@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sniffer,v 1.19 2013/01/06 01:11:04 christos Exp $
+# $File: sniffer,v 1.25 2019/05/05 17:03:41 christos Exp $
 # sniffer:  file(1) magic for packet capture files
 #
 # From: guy@alum.mit.edu (Guy Harris)
@@ -42,7 +42,7 @@
 # Sorry, make that "Network Associates Sniffer capture files."
 # Sorry, make that "Network General old DOS Sniffer capture files."
 #
-0	string		TRSNIFF\ data\ \ \ \ \032	Sniffer capture file
+0	string		TRSNIFF\040data\040\040\040\040\032	Sniffer capture file
 >33	byte		2		(compressed)
 >23	leshort		x		- version %d
 >25	leshort		x		\b.%d
@@ -77,6 +77,7 @@
 
 #
 # "libpcap" capture files.
+# https://www.tcpdump.org/manpages/pcap-savefile.5.html
 # (We call them "tcpdump capture file(s)" for now, as "tcpdump" is
 # the main program that uses that format, but there are other programs
 # that use "libpcap", or that use the same capture file format.)
@@ -84,6 +85,8 @@
 0	name		pcap-be
 >4	beshort		x		- version %d
 >6	beshort		x		\b.%d
+# clear that continuation level match
+>20	clear		x
 >20	belong		0		(No link-layer encapsulation
 >20	belong		1		(Ethernet
 >20	belong		2		(3Mb Ethernet
@@ -114,7 +117,7 @@
 >20	belong		108		(OpenBSD loopback
 >20	belong		109		(OpenBSD IPsec encrypted
 >20	belong		112		(Cisco HDLC
->20	belong		113		(Linux "cooked"
+>20	belong		113		(Linux cooked v1
 >20	belong		114		(LocalTalk
 >20	belong		117		(OpenBSD PFLOG
 >20	belong		119		(802.11 with Prism header
@@ -122,13 +125,21 @@
 >20	belong		123		(SunATM
 >20	belong		127		(802.11 with radiotap header
 >20	belong		129		(Linux ARCNET
+>20	belong		130		(Juniper Multi-Link PPP
+>20	belong		131		(Juniper Multi-Link Frame Relay
+>20	belong		132		(Juniper Encryption Services PIC
+>20	belong		133		(Juniper GGSN PIC
+>20	belong		134		(Juniper FRF.16 Frame Relay
+>20	belong		135		(Juniper ATM2 PIC
+>20	belong		136		(Juniper Advanced Services PIC
+>20	belong		137		(Juniper ATM1 PIC
 >20	belong		138		(Apple IP over IEEE 1394
->20	belong		139		(MTP2 with pseudo-header
->20	belong		140		(MTP2
->20	belong		141		(MTP3
->20	belong		142		(SCCP
+>20	belong		139		(SS7 MTP2 with pseudo-header
+>20	belong		140		(SS7 MTP2
+>20	belong		141		(SS7 MTP3
+>20	belong		142		(SS7 SCCP
 >20	belong		143		(DOCSIS
->20	belong		144		(IrDA
+>20	belong		144		(Linux IrDA
 >20	belong		147		(Private use 0
 >20	belong		148		(Private use 1
 >20	belong		149		(Private use 2
@@ -146,16 +157,41 @@
 >20	belong		161		(Private use 14
 >20	belong		162		(Private use 15
 >20	belong		163		(802.11 with AVS header
+>20	belong		164		(Juniper Passive Monitor PIC
 >20	belong		165		(BACnet MS/TP
 >20	belong		166		(PPPD
+>20	belong		167		(Juniper PPPoE
+>20	belong		168		(Juniper PPPoE/ATM
 >20	belong		169		(GPRS LLC
+>20	belong		170		(GPF-T
+>20	belong		171		(GPF-F
+>20	belong		174		(Juniper PIC Peer
+>20	belong		175		(Ethernet with Endace ERF header
+>20	belong		176		(Packet-over-SONET with Endace ERF header
 >20	belong		177		(Linux LAPD
+>20	belong		178		(Juniper Ethernet
+>20	belong		179		(Juniper PPP
+>20	belong		180		(Juniper Frame Relay
+>20	belong		181		(Juniper C-HDLC
+>20	belong		182		(FRF.16 Frame Relay
+>20	belong		183		(Juniper Voice PIC
+>20	belong		184		(Arinc 429
+>20	belong		185		(Arinc 653 Interpartition Communication
+>20	belong		186		(USB with FreeBSD header
 >20	belong		187		(Bluetooth HCI H4
+>20	belong		188		(802.16 MAC Common Part Sublayer
 >20	belong		189		(Linux USB
+>20	belong		190		(Controller Area Network (CAN) v. 2.0B
+>20	belong		191		(802.15.4 with Linux padding
 >20	belong		192		(PPI
->20	belong		195		(802.15.4
+>20	belong		193		(802.16 MAC Common Part Sublayer plus radiotap header
+>20	belong		194		(Juniper Integrated Service Module
+>20	belong		195		(802.15.4 with FCS
 >20	belong		196		(SITA
 >20	belong		197		(Endace ERF
+>20	belong		198		(Ethernet with u10 Networks pseudo-header
+>20	belong		199		(IPMB
+>20	belong		200		(Juniper Secure Tunnel
 >20	belong		201		(Bluetooth HCI H4 with pseudo-header
 >20	belong		202		(AX.25 with KISS header
 >20	belong		203		(LAPD
@@ -164,7 +200,12 @@
 >20	belong		206		(Frame Relay with direction pseudo-header
 >20	belong		209		(Linux IPMB
 >20	belong		215		(802.15.4 with non-ASK PHY header
+>20	belong		216		(Linux evdev events
+>20	belong		219		(MPLS with label as link-layer header
 >20	belong		220		(Memory-mapped Linux USB
+>20	belong		221		(DECT
+>20	belong		222		(AOS Space Data Link protocol
+>20	belong		223		(Wireless HART
 >20	belong		224		(Fibre Channel FC-2
 >20	belong		225		(Fibre Channel FC-2 with frame delimiters
 >20	belong		226		(Solaris IPNET
@@ -173,69 +214,114 @@
 >20	belong		229		(Raw IPv6
 >20	belong		230		(802.15.4 without FCS
 >20	belong		231		(D-Bus messages
+>20	belong		232		(Juniper Virtual Server
+>20	belong		233		(Juniper SRX E2E
+>20	belong		234		(Juniper Fibre Channel
 >20	belong		235		(DVB-CI
 >20	belong		236		(MUX27010
 >20	belong		237		(STANAG 5066 D_PDUs
->20	belong		239		(Linux netlink NFLOG messages
+>20	belong		238		(Juniper ATM CEMIC
+>20	belong		239		(Linux netfilter log messages
 >20	belong		240		(Hilscher netAnalyzer
 >20	belong		241		(Hilscher netAnalyzer with delimiters
 >20	belong		242		(IP-over-Infiniband
 >20	belong		243		(MPEG-2 Transport Stream packets
 >20	belong		244		(ng4t ng40
 >20	belong		245		(NFC LLCP
->20	belong		247		(Infiniband
+>20	belong		246		(Packet filter state syncing
+>20	belong		247		(InfiniBand
 >20	belong		248		(SCTP
->16	belong		x		\b, capture length %d)
+>20	belong		249		(USB with USBPcap header
+>20	belong		250		(Schweitzer Engineering Laboratories RTAC packets
+>20	belong		251		(Bluetooth Low Energy air interface
+>20	belong		252		(Wireshark Upper PDU export
+>20	belong		253		(Linux netlink
+>20	belong		254		(Bluetooth Linux Monitor
+>20	belong		255		(Bluetooth Basic Rate/Enhanced Data Rate baseband packets
+>20	belong		256		(Bluetooth Low Energy air interface with pseudo-header
+>20	belong		257		(PROFIBUS data link layer
+>20	belong		258		(Apple DLT_PKTAP
+>20	belong		259		(Ethernet with 802.3 Clause 65 EPON preamble
+>20	belong		260		(IPMI trace packets
+>20	belong		261		(Z-Wave RF profile R1 and R2 packets
+>20	belong		262		(Z-Wave RF profile R3 packets
+>20	belong		263		(WattStopper Digital Lighting Mngmt/Legrand Nitoo Open Proto
+>20	belong		264		(ISO 14443 messages
+>20	belong		265		(IEC 62106 Radio Data System groups
+>20	belong		266		(USB with Darwin header
+>20	belong		267		(OpenBSD DLT_OPENFLOW
+>20	belong		268		(IBM SDLC frames
+>20	belong		269		(TI LLN sniffer frames
+>20	belong		271		(Linux vsock
+>20	belong		272		(Nordic Semiconductor Bluetooth LE sniffer frames
+>20	belong		273		(Excentis XRA-31 DOCSIS 3.1 RF sniffer frames
+>20	belong		274		(802.3br mPackets
+>20	belong		275		(DisplayPort AUX channel monitoring data
+>20	belong		276		(Linux cooked v2
+>20	belong		278		(OpenVizsla USB
+>20	belong		279		(Elektrobit High Speed Capture and Replay (EBHSCR)
+>20	belong		281		(Broadcom tag
+>20	belong		282		(Broadcom tag (prepended)
+# print default match
+>20	default		x
+>>20	belong		x		(linktype#%u
+>16	belong		x		\b, capture length %u)
 
-0	ubelong		0xa1b2c3d4	tcpdump capture file (big-endian)
+# packets time stamps in seconds and microseconds.
+0	ubelong		0xa1b2c3d4	pcap capture file, microseconds ts (big-endian)
 !:mime	application/vnd.tcpdump.pcap
 >0	use	pcap-be
-0	ulelong		0xa1b2c3d4	tcpdump capture file (little-endian)
+0	ulelong		0xa1b2c3d4	pcap capture file, microsecond ts (little-endian)
+!:mime	application/vnd.tcpdump.pcap
+>0	use	\^pcap-be
+
+# packets time stamps in seconds and nanoseconds.
+0	ubelong		0xa1b23c4d	pcap capture file, nanosecond ts (big-endian)
+!:mime	application/vnd.tcpdump.pcap
+>0	use	pcap-be
+0	ulelong		0xa1b23c4d	pcap capture file, nanosecond ts (little-endian)
 !:mime	application/vnd.tcpdump.pcap
 >0	use	\^pcap-be
 
 #
 # "libpcap"-with-Alexey-Kuznetsov's-patches capture files.
-# (We call them "tcpdump capture file(s)" for now, as "tcpdump" is
-# the main program that uses that format, but there are other programs
-# that use "libpcap", or that use the same capture file format.)
 #
-0	ubelong		0xa1b2cd34	extended tcpdump capture file (big-endian)
+0	ubelong		0xa1b2cd34	pcap capture file, microsecond ts, extensions (big-endian)
 >0	use	pcap-be
-0	ulelong		0xa1b2cd34	extended tcpdump capture file (little-endian)
+0	ulelong		0xa1b2cd34	pcap capture file, microsecond ts, extensions (little-endian)
 >0	use	\^pcap-be
 
 #
-# "pcap-ng" capture files.
-# http://www.winpcap.org/ntar/draft/PCAP-DumpFileFormat.html
-# Pcap-ng files can contain multiple sections. Printing the endianness,
+# "pcapng" capture files.
+# https://github.com/pcapng/pcapng
+# Pcapng files can contain multiple sections. Printing the endianness,
 # snaplen, or other information from the first SHB may be misleading.
 #
 0	ubelong		0x0a0d0d0a
->8	ubelong		0x1a2b3c4d	pcap-ng capture file
+>8	ubelong		0x1a2b3c4d	pcapng capture file
 >>12	beshort		x		- version %d
 >>14	beshort		x		\b.%d
 0	ulelong		0x0a0d0d0a
->8	ulelong		0x1a2b3c4d	pcap-ng capture file
+>8	ulelong		0x1a2b3c4d	pcapng capture file
 >>12	leshort		x		- version %d
 >>14	leshort		x		\b.%d
 
 #
 # AIX "iptrace" capture files.
 #
-0	string		iptrace\ 1.0	"iptrace" capture file
-0	string		iptrace\ 2.0	"iptrace" capture file
+0	string		iptrace\0401.0	AIX iptrace capture file
+0	string		iptrace\0402.0	AIX iptrace capture file
 
 #
 # Novell LANalyzer capture files.
 #
-0	leshort		0x1001		LANalyzer capture file
-0	leshort		0x1007		LANalyzer capture file
+0	leshort		0x1001		Novell LANalyzer capture file
+0	leshort		0x1007		Novell LANalyzer capture file
 
 #
 # HP-UX "nettl" capture files.
 #
-0	string		\x54\x52\x00\x64\x00	"nettl" capture file
+0	string		\x54\x52\x00\x64\x00	HP/UX nettl capture file
 
 #
 # RADCOM WAN/LAN Analyzer capture files.

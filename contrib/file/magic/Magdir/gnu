@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: gnu,v 1.20 2018/02/24 16:11:23 christos Exp $
+# $File: gnu,v 1.21 2019/04/19 00:42:27 christos Exp $
 # gnu:  file(1) magic for various GNU tools
 #
 # GNU nlsutils message catalog file format
@@ -148,7 +148,7 @@
 
 
 # GnuPG Keybox file
-# <http://git.gnupg.org/cgi-bin/gitweb.cgi?p=gnupg.git;a=blob;f=kbx/keybox-blob.c;hb=HEAD>
+# <https://git.gnupg.org/cgi-bin/gitweb.cgi?p=gnupg.git;a=blob;f=kbx/keybox-blob.c;hb=HEAD>
 # From: Philipp Hahn <hahn@univention.de>
 0	belong	32
 >4	byte	1

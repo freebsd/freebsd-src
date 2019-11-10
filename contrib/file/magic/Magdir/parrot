@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
-# $File: parrot,v 1.1 2010/07/08 20:18:40 christos Exp $
+# $File: parrot,v 1.2 2019/04/19 00:42:27 christos Exp $
 # parrot: file(1) magic for Parrot Virtual Machine
-# URL:	http://www.lua.org/
+# URL:	https://www.lua.org/
 # From: Lubomir Rintel <lkundrak@v3.sk>
 
 # Compiled Parrot byte code

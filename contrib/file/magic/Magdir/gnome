@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: gnome,v 1.5 2014/04/30 21:41:02 christos Exp $
+# $File: gnome,v 1.6 2019/04/19 00:42:27 christos Exp $
 # GNOME related files
 
 # Contributed by Josh Triplett
@@ -42,7 +42,7 @@
 # It's always "GVariant", it's byte swapped on incompatible archs
 # See https://github.com/GNOME/gvdb/blob/master/gvdb-builder.c
 # file_builder_serialise()
-# http://developer.gnome.org/glib/2.34/glib-GVariant.html#GVariant
+# https://developer.gnome.org/glib/2.34/glib-GVariant.html#GVariant
 0	string	GVariant	GVariant Database file,
 # version is never filled. probably future extension
 >8	lelong	x		version %d
@@ -51,7 +51,7 @@
 #>>>20	lelong	x		end %d
 
 # G-IR database made by gobject-introspect toolset,
-# http://live.gnome.org/GObjectIntrospection
+# https://live.gnome.org/GObjectIntrospection
 0	string		GOBJ\nMETADATA\r\n\032	G-IR binary database
 >16	byte		x			\b, v%d
 >17	byte		x			\b.%d

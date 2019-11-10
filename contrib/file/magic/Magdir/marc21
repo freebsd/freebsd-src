@@ -5,7 +5,7 @@
 #
 # MARC21 formats are for the representation and communication
 # of bibliographic and related information in machine-readable
-# form.  For more info, see http://www.loc.gov/marc/
+# form.  For more info, see https://www.loc.gov/marc/
 
 
 # leader position 20-21 must be 45

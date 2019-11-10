@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: filesystems,v 1.124 2018/01/12 12:35:30 christos Exp $
+# $File: filesystems,v 1.128 2019/04/23 15:43:27 christos Exp $
 # filesystems:  file(1) magic for different filesystems
 #
 0	name	partid
@@ -268,21 +268,21 @@
 # to display information (50) before DOS BPB (strength=70) and after DOS floppy (120) like in old file version
 !:strength +65
 >2		string		OSBS		OS/BS MBR
-# added by Joerg Jenderek at Feb 2013 according to http://thestarman.pcministry.com/asm/mbr/
-# and http://en.wikipedia.org/wiki/Master_Boot_Record
+# added by Joerg Jenderek at Feb 2013 according to https://thestarman.pcministry.com/asm/mbr/
+# and https://en.wikipedia.org/wiki/Master_Boot_Record
 # test for nearly all MS-DOS Master Boot Record initial program loader (IPL) is now done by
 # characteristic assembler instructions: xor ax,ax;mov ss,ax;mov sp,7c00
 >0	search/2	\x33\xc0\x8e\xd0\xbc\x00\x7c	MS-MBR
-# Microsoft Windows 95A and early ( http://thestarman.pcministry.com/asm/mbr/STDMBR.htm )
+# Microsoft Windows 95A and early ( https://thestarman.pcministry.com/asm/mbr/STDMBR.htm )
 # assembler instructions: mov si,sp;push ax;pop es;push ax;pop ds;sti;cld
 >>8	ubequad		0x8bf45007501ffbfc
-# http://thestarman.pcministry.com/asm/mbr/200MBR.htm
+# https://thestarman.pcministry.com/asm/mbr/200MBR.htm
 >>>0x16	ubyte		0xF3				\b,DOS 2
 >>>>219	regex		Author\ -\ 			Author:
 # found "David Litton" , "A Pehrsson  "
 >>>>>&0	string		x				"%s"
 >>>0x16	ubyte		0xF2
-# NEC MS-DOS 3.30 Rev. 3 . See http://thestarman.pcministry.com/asm/mbr/DOS33MBR.htm
+# NEC MS-DOS 3.30 Rev. 3 . See https://thestarman.pcministry.com/asm/mbr/DOS33MBR.htm
 # assembler instructions: mov di,077c;cmp word ptrl[di],a55a;jnz
 >>>>0x22	ubequad	0xbf7c07813d5aa575		\b,NEC 3.3
 # version MS-DOS 3.30 til MS-Windows 95A (WinVer=4.00.1111)
@@ -314,7 +314,7 @@
 # "Sistema operativo mancante"				nn=0xe2 for italian version
 >>>>>0x79	ubyte		>0			at offset 0x%x
 >>>>>>(0x79.b)	string		>\0			"%s"
-# Microsoft Windows 95B to XP (http://thestarman.pcministry.com/asm/mbr/95BMEMBR.htm)
+# Microsoft Windows 95B to XP (https://thestarman.pcministry.com/asm/mbr/95BMEMBR.htm)
 # assembler instructions: push ax;pop es;push  ax;pop ds;cld;mov si,7c1b
 >>8	ubequad		0x5007501ffcbe1b7c
 # assembler instructions: rep;movsb;retf;mov si,07be;mov cl,04
@@ -341,7 +341,7 @@
 # "\216\257\245\340\240\346\250\256\255\255\240\357 \341\250\341\342\245\254\240 \255\245 \255\240\251\244\245\255\240"	nn=0x156 for russian version
 >>>>0xA9		ubyte	x			at offset 0x1%x
 >>>>(0xA9.b+0x100)	string	>\0			"%s"
-# http://thestarman.pcministry.com/asm/mbr/Win2kmbr.htm
+# https://thestarman.pcministry.com/asm/mbr/Win2kmbr.htm
 # assembler instructions: rep;movsb;retf;mov BP,07be;mov cl,04
 >>>24		ubequad	0xf3a4cbbdbe07b104		XP
 # where xxyyzz are lower bits from offsets of error messages varying for different languages
@@ -362,7 +362,7 @@
 # Microsoft Windows Vista or 7
 # assembler instructions: ..;mov ds,ax;mov si,7c00;mov di,..00
 >>8	ubequad		0xc08ed8be007cbf00
-# Microsoft Windows Vista (http://thestarman.pcministry.com/asm/mbr/VistaMBR.htm)
+# Microsoft Windows Vista (https://thestarman.pcministry.com/asm/mbr/VistaMBR.htm)
 # assembler instructions: jnz 0729;cmp ebx,"TCPA"
 >>>0xEC		ubequad	0x753b6681fb544350		Vista
 # where xxyyzz are lower bits from offsets of error messages varying for different languages
@@ -380,7 +380,7 @@
 # "Betriebssystem nicht vorhanden"			zz=0x1?? for german version
 >>>>0x1b7	ubyte		>0			at offset 0x1%x
 >>>>(0x1b7.b+0x100)	string	>\0			"%s"
-# Microsoft Windows 7 (http://thestarman.pcministry.com/asm/mbr/W7MBR.htm)
+# Microsoft Windows 7 (https://thestarman.pcministry.com/asm/mbr/W7MBR.htm)
 # assembler instructions: cmp ebx,"TCPA";cmp
 >>>0xEC		ubequad	0x6681fb5443504175		Windows 7
 # where xxyyzz are lower bits from offsets of error messages varying for different languages
@@ -398,10 +398,10 @@
 # "Betriebssystem nicht vorhanden"			zz=0x1?? for german version
 >>>>0x1b7	ubyte		>0			at offset 0x1%x
 >>>>(0x1b7.b+0x100)	string	>\0			"%s"
-# http://thestarman.pcministry.com/asm/mbr/Win2kmbr.htm#DiskSigs
-# http://en.wikipedia.org/wiki/MBR_disk_signature#ID
+# https://thestarman.pcministry.com/asm/mbr/Win2kmbr.htm#DiskSigs
+# https://en.wikipedia.org/wiki/MBR_disk_signature#ID
 >>0x1b8	ulelong		>0				\b, disk signature 0x%-.4x
-# driveID/timestamp for Win 95B,98,98SE and ME. See http://thestarman.pcministry.com/asm/mbr/mystery.htm
+# driveID/timestamp for Win 95B,98,98SE and ME. See https://thestarman.pcministry.com/asm/mbr/mystery.htm
 >>0xDA	uleshort		0
 >>>0xDC 	ulelong		>0			\b, created
 # physical drive number (0x80-0xFF) when the Windows wrote that byte to the drive
@@ -465,13 +465,13 @@
 >>>>>420	ubyte		x			\b)
 #
 # SYSLINUX MBR moved
-# http://www.acronis.de/
+# https://www.acronis.de/
 >362	string	MBR\ Error\ \0\r
 >>376	string	ress\ any\ key\ to\040
 >>>392	string	boot\ from\ floppy...\0			\b, Acronis MBR
 # added by Joerg Jenderek
-# http://www.visopsys.org/
-# http://partitionlogic.org.uk/
+# https://www.visopsys.org/
+# https://partitionlogic.org.uk/
 >309	string	No\ bootable\ partition\ found\r
 >>339	string	I/O\ Error\ reading\ boot\ sector\r	\b, Visopsys MBR
 >349	string	No\ bootable\ partition\ found\r
@@ -490,7 +490,7 @@
 >>172	string	LILO				\b, version 22.5.8 Debian
 # updated by Joerg Jenderek at Oct 2008
 # variables according to grub-0.97/stage1/stage1.S or
-# http://www.gnu.org/software/grub/manual/grub.html#Embedded-data
+# https://www.gnu.org/software/grub/manual/grub.html#Embedded-data
 # usual values are marked with comments to get only informations of strange GRUB loaders
 >342		search/60	\0Geom\0
 #>0		ulelong		x		%x=0x009048EB ,	0x2a9048EB  0
@@ -549,7 +549,7 @@
 # skip FSInfosector
 >>>>>>0		string		!RRaA
 # skip 3rd sector of MS x86 bootloader with assember instructions cli;MOVZX EAX,BYTE PTR [BP+10];MOV ECX,
-# http://thestarman.pcministry.com/asm/mbr/MSWIN41.htm
+# https://thestarman.pcministry.com/asm/mbr/MSWIN41.htm
 >>>>>>>0	ubequad		!0xfa660fb64610668b
 # skip 13rd sector of MS x86 bootloader
 >>>>>>>>0	ubequad		!0x660fb64610668b4e
@@ -562,7 +562,7 @@
 >>>>>>>>>>>446	use		partition-table
 # TODO: test for extended bootrecord (ebr) moved and merged with mbr partition table entries
 # mbr partition table entries end
-# http://www.acronis.de/
+# https://www.acronis.de/
 #FAT label=ACRONIS\ SZ
 #OEM-ID=BOOTWIZ0
 >442	string	Non-system\ disk,\040
@@ -995,8 +995,8 @@
 >>>>505		ubyte&0xDF	>0
 >>>>>505	string		x 			\b.%-.3s
 # added by Joerg Jenderek
-# http://www.visopsys.org/
-# http://partitionlogic.org.uk/
+# https://www.visopsys.org/
+# https://partitionlogic.org.uk/
 # OEM-ID=Visopsys
 >478		ulelong	0
 >>(1.b+326)	string	I/O\ Error\ reading\040
@@ -1023,8 +1023,8 @@
 #it prints a very short message ("RE") to the screen and hangs the computer.
 # x86 bootloader end
 
-# added by Joerg Jenderek at Feb 2013 according to http://thestarman.pcministry.com/asm/mbr/MSWIN41.htm#FSINFO
-# and http://en.wikipedia.org/wiki/File_Allocation_Table#FS_Information_Sector
+# added by Joerg Jenderek at Feb 2013 according to https://thestarman.pcministry.com/asm/mbr/MSWIN41.htm#FSINFO
+# and https://en.wikipedia.org/wiki/File_Allocation_Table#FS_Information_Sector
 >0		string		RRaA
 >>0x1E4		string		rrAa		\b, FSInfosector
 #>>0x1FC	uleshort	=0		SHOULD BE ZERO
@@ -1087,7 +1087,7 @@
 >11			ubyte		x		\b+
 >11			use		DOS-filename
 
-# http://en.wikipedia.org/wiki/Master_boot_record#PTE
+# https://en.wikipedia.org/wiki/Master_boot_record#PTE
 # display standard partition table
 0	name				partition-table
 #>0		ubyte		x	PARTITION-TABLE
@@ -1154,20 +1154,20 @@
 0x18b	string	OS/2	OS/2 Boot Manager
 
 # updated by Joerg Jenderek at Oct 2008 and Sep 2012
-# http://syslinux.zytor.com/iso.php
+# https://syslinux.zytor.com/iso.php
 # tested with versions 1.47,1.48,1.49,1.50,1.62,1.76,2.00,2.10;3.00,3.11,3.31,;3.70,3.71,3.73,3.75,3.80,3.82,3.84,3.86,4.01,4.03 and 4.05
 # assembler instructions: cli;jmp 0:7Cyy (yy=0x40,0x5e,0x6c,0x6e,0x77);nop;nop
 0	ulequad&0x909000007cc0eafa	0x909000007c40eafa
 >631	search/689	ISOLINUX\ 	isolinux Loader
 >>&0	string		x		(version %-4.4s)
-# http://syslinux.zytor.com/pxe.php
+# https://syslinux.zytor.com/pxe.php
 # assembler instructions: jmp 7C05
 0	ulelong	0x007c05ea		pxelinux loader (version 2.13 or older)
 # assembler instructions: pushfd;pushad
 0	ulelong	0x60669c66		pxelinux loader
 # assembler instructions: jmp 05
 0	ulelong	0xc00005ea		pxelinux loader (version 3.70 or newer)
-# http://syslinux.zytor.com/wiki/index.php/SYSLINUX
+# https://syslinux.zytor.com/wiki/index.php/SYSLINUX
 0	string	LDLINUX\ SYS\ 		SYSLINUX loader
 >12	string	x			(older version %-4.4s)
 0	string	\r\nSYSLINUX\ 		SYSLINUX loader
@@ -1213,7 +1213,7 @@
 >0004	uleshort	x
 # ERRorTeXT
 >>181	search/166		Error\ \0\r\n				NetBSD mbr
-# NT Drive Serial Number http://thestarman.pcministry.com/asm/mbr/Win2kmbr.htm#DS
+# NT Drive Serial Number https://thestarman.pcministry.com/asm/mbr/Win2kmbr.htm#DS
 >>>0x1B8	ubelong		>0					\b,Serial 0x%-.8x
 # BOOTSEL definitions contains assembler instructions: int 0x13;pop dx;push dx;push dx
 >>>0xbb		search/71	\xcd\x13\x5a\x52\x52			\b,bootselector
@@ -1249,7 +1249,7 @@
 >>>398		string	Disk\ error\r\n\0FDD\0HDD\0
 >>>>419		string	\ EBIOS\r\n\0				AdvanceMAME mbr
 
-# Neil Turton mbr loader variant of http://www.chiark.greenend.org.uk/~neilt/mbr/
+# Neil Turton mbr loader variant of https://www.chiark.greenend.org.uk/~neilt/mbr/
 # added by Joerg Jenderek at Mar 2011 for versions 1.0.0 - 1.1.11
 # for 1st version assembler instructions:	cld;xor ax,ax;mov DS,ax;MOV ES,AX;mov SI,
 # or  	  	  	    			cld;xor ax,ax;mov SS,ax;XOR SP,SP;mov DS,
@@ -1262,7 +1262,7 @@
 >>>(0x1BC.s+9)		ubyte		x			\bVersion<=%u
 #>>>(0x1BC.s+8)		ubyte		x			asm_flag_%x
 >>>(0x1BC.s+8)		ubyte&1		1			\b,Y2K-Fix
-# variant used by testdisk of http://www.cgsecurity.org/wiki/Menu_MBRCode
+# variant used by testdisk of https://www.cgsecurity.org/wiki/Menu_MBRCode
 >>>(0x1BC.s+8)		ubyte&2		2			\b,TestDisk
 #0x1~1,..,0x8~4,0x10~F,0x80~A enabled
 #>>>(0x1BC.s+10)		ubyte		x			\b,flags 0x%x
@@ -1295,7 +1295,7 @@
 # added by Joerg Jenderek
 # In the second sector (+0x200) are variables according to grub-0.97/stage2/asm.S or
 # grub-1.94/kern/i386/pc/startup.S
-# http://www.gnu.org/software/grub/manual/grub.html#Embedded-data
+# https://www.gnu.org/software/grub/manual/grub.html#Embedded-data
 # usual values are marked with comments to get only informations of strange GRUB loaders
 0x200	uleshort		0x70EA
 # found only version 3.{1,2}
@@ -1350,7 +1350,7 @@
 # DOS x86 sector updated and separated from "DOS/MBR boot sector" by Joerg Jenderek at May 2011
 # JuMP short     bootcodeoffset NOP assembler instructions will usually be EB xx 90
 # over BIOS parameter block (BPB)
-# http://thestarman.pcministry.com/asm/2bytejumps.htm#FWD
+# https://thestarman.pcministry.com/asm/2bytejumps.htm#FWD
 # older drives may use Near JuMP instruction E9 xx xx
 # minimal short forward jump found 0x29 for bootloaders or 0x0
 # maximal short forward jump is 0x7f
@@ -1403,7 +1403,7 @@
 >>>>>26		ubyte		=1		\b, heads %u
 # valid only for sector sizes with more then 32 Bytes
 >>>>>11		uleshort	>32
-# http://en.wikipedia.org/wiki/Design_of_the_FAT_file_system#Extended_BIOS_Parameter_Block
+# https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system#Extended_BIOS_Parameter_Block
 # skip for values 2,2Ah,70h,73h,DFh
 # and continue for extended boot signature values 0,28h,29h,80h
 >>>>>>38	ubyte&0x56	=0
@@ -1465,7 +1465,7 @@
 # FAT32 bit specific
 >>>>>82		string/c	fat32		\b, FAT (32 bit)
 >>>>>>36	ulelong		x		\b, sectors/FAT %u
-# http://technet.microsoft.com/en-us/library/cc977221.aspx
+# https://technet.microsoft.com/en-us/library/cc977221.aspx
 >>>>>>40	uleshort	>0		\b, extension flags 0x%x
 #>>>>>>40	uleshort	=0		\b, extension flags %hu
 >>>>>>42	uleshort	>0		\b, fsVersion %u
@@ -1482,7 +1482,7 @@
 #>>>>>>50	uleshort	=6		\b, Backup boot sector %u (usual)
 >>>>>>50	default		x
 >>>>>>>50	uleshort	x		\b, Backup boot sector %u
-# corrected by Joerg Jenderek at Feb 2011 according to http://thestarman.pcministry.com/asm/mbr/MSWIN41.htm#FSINFO
+# corrected by Joerg Jenderek at Feb 2011 according to https://thestarman.pcministry.com/asm/mbr/MSWIN41.htm#FSINFO
 >>>>>>52	ulelong		>0		\b, reserved1 0x%x
 >>>>>>56	ulelong		>0		\b, reserved2 0x%x
 >>>>>>60	ulelong		>0		\b, reserved3 0x%x
@@ -1508,7 +1508,7 @@
 >>>>>>>(11.s)	ulelong&0x00ffffF0	0x00ffffF0	\b, followed by FAT
 # floppy image
 !:mime application/x-ima
-# NTFS specific added by Joerg Jenderek at Mar 2011 according to http://thestarman.pcministry.com/asm/mbr/NTFSBR.htm
+# NTFS specific added by Joerg Jenderek at Mar 2011 according to https://thestarman.pcministry.com/asm/mbr/NTFSBR.htm
 # and http://homepage.ntlworld.com/jonathan.deboynepollard/FGA/bios-parameter-block.html
 # 0 FATs
 >>>>>16	ubyte		=0
@@ -1539,18 +1539,39 @@
 >>>>>>>>>72	ulequad		x		\b, serial number 0%llx
 >>>>>>>>>80	ulelong		>0		\b, checksum 0x%x
 #>>>>>>>>>80	ulelong		=0		\b, checksum 0x%x=0 (usual)
->>>>>>>>>0x258	ulelong&0x00009090	=0x00009090
->>>>>>>>>>&-92		indirect	x	\b; contains
-# For 2nd NTFS sector added by Joerg Jenderek at Jan 2013
-# http://thestarman.pcministry.com/asm/mbr/NTFSbrHexEd.htm
-# unused assembler instructions JMP y2;NOP;NOP
-0x056		ulelong&0xFFFF0FFF	0x909002EB
-# unicode loadername terminated by CTRL-D
->(0.s*2)	ulelong&0xFFFFFF00	0x00040000
+# unicode loadername size jump
+>>>>>>>>>(0x200.s*2)	ubyte				x
+# in next sector loadername terminated by unicode CTRL-D and $
+>>>>>>>>>>&0x1FF	ulequad&0x0000FFffFFffFF00	0x0000002400040000 \b; contains
+# if 2nd NTFS sectors is found then assume whole filesystem
+#!:mime		application/x-raw-disk-image
+!:ext		img/bin/ntfs
+>>>>>>>>>>>0x200	use				ntfs-sector2
+
+# For 2nd NTFS sector added by Joerg Jenderek at Jan 2013, Mar 2019
+# https://thestarman.pcministry.com/asm/mbr/NTFSbrHexEd.htm
+# unused assembler instructions short JMP y2;NOP;NOP
+0x056		ulelong&0xFFFF0FFF	0x909002EB	NTFS
+#!:mime		application/octet-stream
+!:ext		bin
+>0		use		ntfs-sector2
+# https://memory.dataram.com/products-and-services/software/ramdisk
+# assembler instructions JMP C000;NOP
+0x056		ulelong			0x9000c0e9	NTFS
+#!:mime		application/octet-stream
+!:ext		bin
+>0		use		ntfs-sector2
+# check for characteristics of second NTFS sector and then display loader name
+0		name		ntfs-sector2
+# number of utf16 characters of loadername
+>0		uleshort	<8
+# unused assembler instructions JMP y2;NOP;NOP or JMP C000;NOP
+>>0x056		ulelong&0xFF0000FD	0x900000E9
 # loadernames are NTLDR,CMLDR,PELDR,$LDR$ or BOOTMGR
->>0x002		lestring16	x	Microsoft Windows XP/VISTA bootloader %-5.5s
->>0x12		string		$
->>>0x0c		lestring16	x	\b%-2.2s
+>>>0x002		lestring16	x	bootstrap %-5.5s
+# check for 7 character length of loader name like BOOTMGR
+>>>0		uleshort	7
+>>>>0x0c	lestring16	x	\b%-2.2s
 ### DOS,NTFS boot sectors end
 
 # ntfsclone-image is a special save format for NTFS volumes,
@@ -1689,7 +1710,7 @@
 # ext2/ext3 filesystems - Andreas Dilger <adilger@dilger.ca>
 # ext4 filesystem - Eric Sandeen <sandeen@sandeen.net>
 # volume label and UUID Russell Coker
-# http://etbe.coker.com.au/2008/07/08/label-vs-uuid-vs-device/
+# https://etbe.coker.com.au/2008/07/08/label-vs-uuid-vs-device/
 0x438   leshort         0xEF53          Linux
 >0x44c  lelong          x               rev %d
 >0x43e  leshort         x               \b.%d
@@ -1801,7 +1822,7 @@
 ############################################################################
 # Minix-ST kernel floppy
 0x800	belong		0x46fc2700	Atari-ST Minix kernel image
-# http://en.wikipedia.org/wiki/BIOS_parameter_block
+# https://en.wikipedia.org/wiki/BIOS_parameter_block
 # floppies with valid BPB and any instruction at beginning
 >19	string		\240\005\371\005\0\011\0\2\0	\b, 720k floppy
 >19	string		\320\002\370\005\0\011\0\1\0	\b, 360k floppy
@@ -1871,7 +1892,7 @@
 #
 
 # all FAT12 (strength=70) floppies with sectorsize 512 added by Joerg Jenderek at Jun 2013
-# http://en.wikipedia.org/wiki/File_Allocation_Table#Exceptions
+# https://en.wikipedia.org/wiki/File_Allocation_Table#Exceptions
 # Too Weak.
 #512		ubelong&0xE0ffff00	0xE0ffff00
 # without valid Media descriptor in place of BPB, cases with are done at other places
@@ -1884,7 +1905,7 @@
 #>>512		ubyte			=0xfa			320k
 #>>512		ubyte			=0xfb			640k
 #>>512		ubyte			=0xfc			180k
-# look like an an old DOS directory entry
+# look like an old DOS directory entry
 #>>>0xA0E	ubequad			0
 #>>>>0xA00	ubequad			!0
 #!:mime application/x-ima
@@ -1915,26 +1936,26 @@
 # only x86 short jump instruction found
 #>>>0		ubyte			=0xEB
 #>>>>1		ubyte			x			\b, code offset 0x%x+2
-# http://thestarman.pcministry.com/DOS/ibm100/Boot.htm
+# https://thestarman.pcministry.com/DOS/ibm100/Boot.htm
 # assembler instructions: CLI;MOV AX,CS;MOV DS,AX;MOV DX,0
 #>>>>(1.b+2)	ubequad			0xfa8cc88ed8ba0000	\b, PC-DOS 1.0 bootloader
 # ibmbio.com+ibmdos.com
 #>>>>>0x176	use			DOS-filename
 #>>>>>0x181	ubyte			x			\b+
 #>>>>>0x182	use			DOS-filename
-# http://thestarman.pcministry.com/DOS/ibm110/Boot.htm
+# https://thestarman.pcministry.com/DOS/ibm110/Boot.htm
 # assembler instructions: CLI;MOV AX,CS;MOV DS,AX;XOR DX,DX;MOV
 #>>>>(1.b+2)	ubequad			0xfa8cc88ed833d28e	\b, PC-DOS 1.1 bootloader
 # ibmbio.com+ibmdos.com
 #>>>>>0x18b	use			DOS-filename
 #>>>>>0x196	ubyte			x			\b+
 #>>>>>0x197	use			DOS-filename
-# http://en.wikipedia.org/wiki/Zenith_Data_Systems
+# https://en.wikipedia.org/wiki/Zenith_Data_Systems
 # assembler instructions: MOV BX,07c0;MOV SS,BX;MOV SP,01c6
 #>>>>(1.b+2)	ubequad			0xbbc0078ed3bcc601	\b, Zenith Data Systems MS-DOS 1.25 bootloader
 # IO.SYS+MSDOS.SYS
 #>>>>>0x20	use			2xDOS-filename
-# http://en.wikipedia.org/wiki/Corona_Data_Systems
+# https://en.wikipedia.org/wiki/Corona_Data_Systems
 # assembler instructions: MOV AX,CS;MOV DS,AX;CLI;MOV SS,AX;
 #>>>>(1.b+2)	ubequad			0x8cc88ed8fa8ed0bc	\b, MS-DOS 1.25 bootloader
 # IO.SYS+MSDOS.SYS
@@ -1987,7 +2008,7 @@
 >307200	use cdrom
 
 # .cso files
-# Reference: http://pismotec.com/ciso/ciso.h
+# Reference: https://pismotec.com/ciso/ciso.h
 # NOTE: There are two other formats with the same magic but
 # completely incompatible specifications:
 # - GameCube/Wii CISO: https://github.com/dolphin-emu/dolphin/blob/master/Source/Core/DiscIO/CISOBlob.h
@@ -1996,10 +2017,13 @@
 # Other fields are used to determine what type of CISO this is:
 # - 0x04 == 0x00200000: GameCube/Wii CISO (block_size)
 # - 0x10 == 0x00000800: PSP CISO (ISO-9660 sector size)
+# - 0x10 == 0x00004000: For >2GB files using maxcso...
+# 			https://github.com/unknownbrackets/maxcso/issues/26
 # - None of the above: Compact ISO.
 >4	lelong	!0
 >>4	lelong	!0x200000
->>>0x10	lelong	!0x800		Compressed ISO CD image
+>>>16	lelong	!0x800
+>>>>16	lelong	!0x4000		Compressed ISO CD image
 
 # cramfs filesystem - russell@coker.com.au
 0       lelong    0x28cd3d45      Linux Compressed ROM File System data, little endian
@@ -2247,7 +2271,7 @@
 >984    string          x               volume label is '%-12.12s'
 
 # From: Thomas Klausner <wiz@NetBSD.org>
-# http://filext.com/file-extension/DAA
+# https://filext.com/file-extension/DAA
 # describes the daa file format. The magic would be:
 0	string		DAA\x0\x0\x0\x0\x0	PowerISO Direct-Access-Archive
 

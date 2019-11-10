@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: acorn,v 1.6 2017/10/19 16:40:37 christos Exp $
+# $File: acorn,v 1.7 2019/04/19 00:42:27 christos Exp $
 # acorn:  file(1) magic for files found on Acorn systems
 #
 
@@ -83,7 +83,7 @@
 # compression mode y (0 - 4) for GIF LZW with a maximum n bits
 # (y~n,0~12,1~13,2~14,3~15,4~16)
 >>>5	ulelong+12 x	\b, LZW %u-bits compression
-# http://www.filebase.org.uk/filetypes
+# https://www.filebase.org.uk/filetypes
 # !Packdir compressed archive has three hexadecimal digits code 68E
 !:mime	application/x-acorn-68E
 !:ext	pkd/bin
