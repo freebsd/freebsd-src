@@ -570,6 +570,13 @@ bcm_sdhci_dma_intr(int ch, void *arg)
 
 	mtx_lock(&slot->mtx);
 
+	if (slot->curcmd == NULL) {
+		mtx_unlock(&slot->mtx);
+		device_printf(sc->sc_dev,
+		    "command aborted in the middle of DMA\n");
+		return;
+	}
+
 	/*
 	 * If there are more segments for the current dma, start the next one.
 	 * Otherwise unload the dma map and decide what to do next based on the
