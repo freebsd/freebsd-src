@@ -65,8 +65,8 @@ is a number of queues to allocate (empty means automatic).
 The default configuration is empty string, which means single consumer
 with one queue per memory window, allowing any driver to attach.
 .It Va hint.ntb_transport. Ns Ar X Ns Va .compact
-Non-zero value enables compact version of sratchpad protocol, using twice
-less registers.
+Non-zero value enables compact version of scratchpad protocol, using half
+as many registers.
 Enabled automatically if there is not enough registers to negotiate all
 available memory windows.
 The compact version does not support memory windows of 4GB and above.
