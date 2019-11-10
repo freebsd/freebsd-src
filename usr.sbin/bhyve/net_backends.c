@@ -860,12 +860,12 @@ void
 netbe_rx_disable(struct net_backend *be)
 {
 
-	return be->recv_enable(be);
+	return be->recv_disable(be);
 }
 
 void
 netbe_rx_enable(struct net_backend *be)
 {
 
-	return be->recv_disable(be);
+	return be->recv_enable(be);
 }
