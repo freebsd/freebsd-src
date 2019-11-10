@@ -25,12 +25,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 8, 2019
+.Dd November 9, 2019
 .Dt VOP_COPY_FILE_RANGE 9
 .Os
 .Sh NAME
 .Nm VOP_COPY_FILE_RANGE
-.Nd copy a byte range from one regular file to another within a file system
+.Nd copy a byte range from one file to another or within one file
+in a single file system
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/vnode.h
@@ -46,8 +47,17 @@
 .Fa "struct ucred *outcred"
 .Fa "struct thread *fsize_td"
 .Sh DESCRIPTION
-This entry point copies a byte range from one regular file to another within a
-file system.
+This entry point copies a byte range from one regular file to another
+or within one file in a single file system.
+.Fa invp
+and
+.Fa outvp
+can refer to the same file.
+For this case, the byte ranges defined by
+.Fa *inoff ,
+.Fa *outoff and
+.Fa *len
+will not overlap.
 .Pp
 The arguments are:
 .Bl -tag -width ioflag
