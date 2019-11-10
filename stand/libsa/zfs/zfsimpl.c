@@ -1622,10 +1622,8 @@ vdev_label_read_config(vdev_t *vd, uint64_t txg)
 
 	nvl_size = VDEV_PHYS_SIZE - sizeof (zio_eck_t) - 4;
 	nvl = malloc(nvl_size);
-	if (nvl == NULL) {
-		free(label);
-		return (NULL);
-	}
+	if (nvl == NULL)
+		goto done;
 
 	for (int l = 0; l < VDEV_LABELS; l++) {
 		const unsigned char *nvlist;
@@ -1643,7 +1641,7 @@ vdev_label_read_config(vdev_t *vd, uint64_t txg)
 		    DATA_TYPE_UINT64, NULL, &label_txg);
 		if (error != 0 || label_txg == 0) {
 			memcpy(nvl, nvlist, nvl_size);
-			return (nvl);
+			goto done;
 		}
 
 		if (label_txg <= txg && label_txg > best_txg) {
@@ -1666,6 +1664,8 @@ vdev_label_read_config(vdev_t *vd, uint64_t txg)
 		free(nvl);
 		nvl = NULL;
 	}
+done:
+	free(label);
 	return (nvl);
 }
 
