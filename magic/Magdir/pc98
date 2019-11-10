@@ -21,7 +21,7 @@
 
 # Maki-chan v2 Graphic format
 # http://www.jisyo.com/viewer/faq/mag_tech.htm
-# http://mooncore.eu/bunny/txt/makichan.htm
+# https://mooncore.eu/bunny/txt/makichan.htm
 # http://metanest.jp/mag/mag.xhtml
 0	string/b		MAKI02\ \ 	Maki-chan v2 image,
 >8	byte		x		system ID: %c

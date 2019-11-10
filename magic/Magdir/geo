@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: geo,v 1.6 2018/03/11 00:48:16 christos Exp $
+# $File: geo,v 1.7 2019/04/19 00:42:27 christos Exp $
 # Geo- files from Kurt Schwehr <schwehr@ccom.unh.edu>
 
 ######################################################################
@@ -49,7 +49,7 @@
 
 ######################################################################
 #
-# MULTIBEAM SONARS http://www.ldeo.columbia.edu/res/pi/MB-System/formatdoc/
+# MULTIBEAM SONARS https://www.ldeo.columbia.edu/res/pi/MB-System/formatdoc/
 #
 ######################################################################
 
@@ -67,11 +67,11 @@
 # format. It is the format of our upgraded SeaBeam 2112 on R/V KNORR.
 0    string $HSF    XSE multibeam
 
-# mb121 http://www.saic.com/maritime/gsf/
+# mb121 https://www.saic.com/maritime/gsf/
 8	string	GSF-v	SAIC generic sensor format (GSF) sonar data,
 >&0	regex [0-9]*\.[0-9]*	version %s
 
-# MGD77 - http://www.ngdc.noaa.gov/mgg/dat/geodas/docs/mgd77.htm
+# MGD77 - https://www.ngdc.noaa.gov/mgg/dat/geodas/docs/mgd77.htm
 # mb161
 9	string MGD77	MGD77 Header, Marine Geophysical Data Exchange Format
 
@@ -104,7 +104,7 @@
 # https://midas.psi.ch/elog/
 0	string	$@MID@$	elog journal entry
 
-# Geospatial Designs http://www.geospatialdesigns.com/surfer6_format.htm
+# Geospatial Designs https://www.geospatialdesigns.com/surfer6_format.htm
 0	string		DSBB	Surfer 6 binary grid file
 >4	leshort		x	\b, %d
 >6	leshort		x	\bx%d
@@ -117,7 +117,7 @@
 
 # magic for LAS format files
 # alex myczko <alex@aiei.ch>
-# http://www.asprs.org/wp-content/uploads/2010/12/LAS_1_3_r11.pdf
+# https://www.asprs.org/wp-content/uploads/2010/12/LAS_1_3_r11.pdf
 0	string		LASF	LIDAR point data records
 >24	byte		>0	\b, version %u
 >25	byte		>0	\b.%u

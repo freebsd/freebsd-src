@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: mail.news,v 1.23 2015/06/29 14:44:26 christos Exp $
+# $File: mail.news,v 1.24 2019/04/19 00:42:27 christos Exp $
 # mail.news:  file(1) magic for mail and news
 #
 # Unfortunately, saved netnews also has From line added in some news software.
@@ -57,7 +57,7 @@
 #0	string		\<!--\ MHonArc		text/html; x-type=mhonarc
 
 # Cyrus: file(1) magic for compiled Cyrus sieve scripts
-# URL: http://www.cyrusimap.org/docs/cyrus-imapd/2.4.6/internal/bytecode.php
+# URL: https://www.cyrusimap.org/docs/cyrus-imapd/2.4.6/internal/bytecode.php
 # URL: http://git.cyrusimap.org/cyrus-imapd/tree/sieve/bytecode.h?h=master
 # From: Philipp Hahn <hahn@univention.de>
 

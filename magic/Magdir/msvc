@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msvc,v 1.9 2017/08/02 08:15:20 christos Exp $
+# $File: msvc,v 1.10 2018/10/01 19:14:03 christos Exp $
 # msvc:  file(1) magic for msvc
 # "H. Nanosecond" <aldomel@ix.netcom.com>
 # Microsoft visual C
@@ -55,7 +55,7 @@
 >>>0x32	leshort	x	\b*%d bytes
 
 # Reference: https://github.com/Microsoft/vstest/pull/856/commits/fdc7a9f074ca5a8dfeec83b1be9162bf0cf4000d
-0       string/c bsjb\001\000\001\000\000\000\000\000\f\000\000\000pdb\ v1.0     Microsoft Rosyln C# debugging symbols version 1.0
+0       string/c bsjb\001\000\001\000\000\000\000\000\f\000\000\000pdb\ v1.0     Microsoft Roslyn C# debugging symbols version 1.0
 
 #.sbr
 0	string	\000\002\000\007\000	MSVC .sbr

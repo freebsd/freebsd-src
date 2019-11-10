@@ -1,12 +1,12 @@
 
 #------------------------------------------------------------------------------
-# $File: flash,v 1.14 2017/05/25 20:09:55 christos Exp $
+# $File: flash,v 1.15 2019/04/19 00:42:27 christos Exp $
 # flash:	file(1) magic for Macromedia Flash file format
 #
 # See
 #
-#	http://www.macromedia.com/software/flash/open/
-#	http://wwwimages.adobe.com/www.adobe.com/content/dam/Adobe/\
+#	https://www.macromedia.com/software/flash/open/
+#	https://wwwimages.adobe.com/www.adobe.com/content/dam/Adobe/\
 #	en/devnet/swf/pdf/swf-file-format-spec.pdf page 27
 #
 

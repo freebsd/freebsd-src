@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: archive,v 1.119 2018/04/24 23:19:45 christos Exp $
+# $File: archive,v 1.129 2019/05/09 18:58:02 christos Exp $
 # archive:  file(1) magic for archive formats (see also "msdos" for self-
 #           extracting compressed archives)
 #
@@ -148,7 +148,7 @@
 >>>257	string		>\0		\b, comment: %-.40s
 
 # Incremental snapshot gnu-tar format from:
-# http://www.gnu.org/software/tar/manual/html_node/Snapshot-Files.html
+# https://www.gnu.org/software/tar/manual/html_node/Snapshot-Files.html
 0	string		GNU\ tar-	GNU tar incremental snapshot data
 >&0	regex		[0-9]\.[0-9]+-[0-9]+	version %s
 
@@ -226,21 +226,48 @@
 # a portable archive whose first member has a name beginning with
 # "debian".
 #
+# Update: Joerg Jenderek
+# URL: https://en.wikipedia.org/wiki/Deb_(file_format)
 0	string		=!<arch>\ndebian
->8	string		debian-split	part of multipart Debian package
+# https://manpages.debian.org/testing/dpkg/dpkg-split.1.en.html
+>14	string		-split	part of multipart Debian package
 !:mime	application/vnd.debian.binary-package
->8	string		debian-binary	Debian binary package
+# udeb is used for stripped down deb file
+!:ext	deb/udeb
+>14	string		-binary	Debian binary package
 !:mime	application/vnd.debian.binary-package
->8	string		!debian
+!:ext	deb/udeb
+# This should not happen
+>14	default		x	Unknown Debian package
+# NL terminated version; for most Debian cases this is 2.0 or 2.1 for splitted
 >68	string		>\0		(format %s)
-# These next two lines do not work, because a bzip2 Debian archive
-# still uses gzip for the control.tar (first in the archive).  Only
-# data.tar varies, and the location of its filename varies too.
-# file/libmagic does not current have support for ascii-string based
-# (offsets) as of 2005-09-15.
-#>81	string		bz2		\b, uses bzip2 compression
-#>84	string		gz		\b, uses gzip compression
-#>136	ledate		x		created: %s
+#>68	string		!2.0\n
+#>>68	string		x		(format %.3s)
+>68	string		=2.0\n
+# 2nd archive name=control archive name like control.tar.gz or control.tar.xz
+>>72	string		>\0		\b, with %.14s
+# look for 3rd archive name=data archive name like data.tar.{gz,xz,bz2,lzma}
+>>0	search/0x93e4f	data.tar.	\b, data compression
+# the above line only works if FILE_BYTES_MAX in ../../src/file.h is raised
+# for example like libreoffice-dev-doc_1%3a5.2.7-1+rpi1+deb9u3_all.deb
+>>>&0	string		x		%.4s
+# splitted debian package case
+>68	string		=2.1\n
+# dpkg-1.18.25/dpkg-split/info.c
+# NL terminated ASCII package name like ckermit
+>>&0	string		x		\b, %s
+# NL terminated package version like 302-5.3
+>>>&1	string		x		%s
+# NL terminated MD5 checksum
+>>>>&1	string		x		\b, MD5 %s
+# NL terminated original package length
+>>>>>&1	string		x		\b, unsplitted size %s
+# NL terminated part length
+>>>>>>&1	string	x		\b, part lenght %s
+# NL terminated package part like n/m
+>>>>>>>&1	string	x		\b, part %s
+# NL terminated package architecture like armhf since dpkg 1.16.1 or later
+>>>>>>>>&1	string	x		\b, %s
 
 #
 # MIPS archive; they're in the portable archive format, and need to go
@@ -257,15 +284,35 @@
 >19	string	B			and an EB hash table
 >22	string	X			-- out of date
 
-0	search/1	-h-		Software Tools format archive text
-
 #
 # BSD/SVR2-and-later portable archive formats.
 #
+# Update: Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/AR
+# Reference:	https://www.unix.com/man-page/opensolaris/3HEAD/ar.h/
+# Note:		Mach-O universal binary in ./cafebabe is dependent
+# TODO:		unify current ar archive, MIPS archive, Debian package
+#		distinguish BSD, SVR; 32, 64 bit; HP from other 32-bit SVR;
+#		*.ar packages from *.a libraries. handle empty archive
 0	string		=!<arch>\n		current ar archive
+# print first and possibly second ar_name[16] for debugging purpose
+#>8			string	x	\b, 1st "%.16s"
+#>68			string	x	\b, 2nd "%.16s"
 !:mime	application/x-archive
+# a in most case for libraries; lib for Microsoft libraries; ar else cases
+!:ext	a/lib/ar
 >8	string		__.SYMDEF	random library
+# first member with long marked name __.SYMDEF SORTED implies BSD library
 >68	string		__.SYMDEF\ SORTED	random library
+# Reference: https://parisc.wiki.kernel.org/images-parisc/b/b2/Rad_11_0_32.pdf
+# "archive file" entry moved from ./hp
+# LST header system_id 0210h~PA-RISC 1.1,... identifies the target architecture
+# LST header a_magic 0619h~relocatable library
+>68	belong 		0x020b0619	- PA-RISC1.0 relocatable library
+>68	belong	 	0x02100619	- PA-RISC1.1 relocatable library
+>68	belong 		0x02110619	- PA-RISC1.2 relocatable library
+>68	belong 		0x02140619	- PA-RISC2.0 relocatable library
+#EOF for common ar archives
 
 #
 # "Thin" archive, as can be produced by GNU ar.
@@ -274,6 +321,8 @@
 >68	belong		0		no symbol entries
 >68	belong		1		%d symbol entry
 >68	belong		>1		%d symbol entries
+
+0	search/1	-h-		Software Tools format archive text
 
 # ARC archiver, from Daniel Quinlan (quinlan@yggdrasil.com)
 #
@@ -799,7 +848,7 @@
 # LHARC/LHA archiver (Greg Roelofs, newt@uchicago.edu)
 # Update: Joerg Jenderek
 # URL: https://en.wikipedia.org/wiki/LHA_(file_format)
-# Reference: http://web.archive.org/web/20021005080911/http://www.osirusoft.com/joejared/lzhformat.html
+# Reference: https://web.archive.org/web/20021005080911/http://www.osirusoft.com/joejared/lzhformat.html
 #
 #	check and display information of lharc (LHa,PMarc) file
 0	name				lharc-file
@@ -999,7 +1048,7 @@
 !:ext	rar
 
 # Very old RAR archive
-# http://jasonblanks.com/wp-includes/images/papers/KnowyourarchiveRAR.pdf
+# https://jasonblanks.com/wp-includes/images/papers/KnowyourarchiveRAR.pdf
 0	string		RE\x7e\x5e  RAR archive data (<v1.5)
 !:mime	application/x-rar
 !:ext	rar/cbr
@@ -1020,7 +1069,9 @@
 0	string		PK\005\006	Zip archive data (empty)
 !:mime application/zip
 !:ext zip/cbz
+!:strength +1
 0	string		PK\003\004
+!:strength +1
 
 # Specialised zip formats which start with a member named 'mimetype'
 # (stored uncompressed, with no 'extra field') containing the file's MIME type.
@@ -1063,7 +1114,7 @@
 >>>62	string	base			Database file
 
 #   OpenDocument formats (for OpenOffice 2.x / StarOffice >= 8)
-#    http://lists.oasis-open.org/archives/office/200505/msg00006.html
+#    https://lists.oasis-open.org/archives/office/200505/msg00006.html
 #    (mimetype contains "application/vnd.oasis.opendocument.<SUBTYPE>")
 >>50	string	vnd.oasis.opendocument.	OpenDocument
 >>>73	string	text
@@ -1112,7 +1163,7 @@
 !:mime	application/vnd.oasis.opendocument.image-template
 
 #  EPUB (OEBPS) books using OCF (OEBPS Container Format)
-#    http://www.idpf.org/ocf/ocf1.0/download/ocf10.htm, section 4.
+#    https://www.idpf.org/ocf/ocf1.0/download/ocf10.htm, section 4.
 #    From: Ralf Brown <ralf.brown@gmail.com>
 >>50	string	epub+zip	EPUB document
 !:mime application/epub+zip
@@ -1306,6 +1357,16 @@
 >5	byte	x		\b.%d
 >6	belong	x		(%d bytes)
 
+# From:		Joerg Jenderek
+# URL:		https://help.foxitsoftware.com/kb/install-fzip-file.php
+# reference:	http://mark0.net/download/triddefs_xml.7z/
+#		defs/f/fzip.trid.xml
+# Note: unknown compression; No "PK" zip magic; normally in directory like
+#	"%APPDATA%\Foxit Software\Addon\Foxit Reader\Install"
+0	ubequad	0x2506781901010000	Foxit add-on/update
+!:mime	application/x-fzip
+!:ext	fzip
+
 # From: "Robert Dale" <robdale@gmail.com>
 0	belong	123		dar archive,
 >4	belong	x		label "%.8x
@@ -1316,7 +1377,7 @@
 >14	beshort	0x4e53		multi-part, with -S
 
 # Symbian installation files
-#  http://www.thouky.co.uk/software/psifs/sis.html
+#  https://www.thouky.co.uk/software/psifs/sis.html
 #  http://developer.symbian.com/main/downloads/papers/SymbianOSv91/softwareinstallsis.pdf
 8	lelong	0x10000419	Symbian installation file
 !:mime	application/vnd.symbian.install
@@ -1334,24 +1395,74 @@
 >10	string x		with compression level %.1s
 
 # xar (eXtensible ARchiver) archive
-# xar archive format: http://code.google.com/p/xar/
+# URL: https://en.wikipedia.org/wiki/Xar_(archiver)
+# xar archive format: https://code.google.com/p/xar/
 # From: "David Remahl" <dremahl@apple.com>
+# Update: Joerg Jenderek
+# TODO: lzma compression; X509Data for pkg and xip
+# Note: verified by `xar --dump-header -f FullBundleUpdate.xar` or
+# 7z t -txar Xcode_10.2_beta_4.xip`
 0	string	xar!		xar archive
 !:mime	application/x-xar
-#>4	beshort	x		header size %d
->6	beshort	x		version %d,
-#>8	quad	x		compressed TOC: %d,
-#>16	quad	x		uncompressed TOC: %d,
+# pkg for Mac OSX installer package like FullBundleUpdate.pkg
+# xip for signed Apple software like Xcode_10.2_beta_4.xip
+!:ext	xar/pkg/xip
+# always 28 in older archives
+>4	ubeshort >28		\b, header size %u
+# currently there exit only version 1 since about 2014
+>6	ubeshort >1		version %u,
+>8	ubequad	x		compressed TOC: %llu,
+#>16	ubequad	x		uncompressed TOC: %llu,
+# cksum_alg 0-2 in older and also 3-4 in newer
 >24	belong	0		no checksum
 >24	belong	1		SHA-1 checksum
 >24	belong	2		MD5 checksum
+>24	belong	3		SHA-256 checksum
+>24	belong	4		SHA-512 checksum
+>24	belong	>4		unknown 0x%x checksum
+#>24	belong	>4		checksum
+#			For no compression jump 0 bytes
+>24	belong	0
+>>0		ubyte	x
+# jump more bytes forward by header size
+>>>&(4.S)	ubyte	x
+# jump more bytes forward by compressed table of contents size
+#>>>>&(8.Q)	ubequad	x	\b, heap data 0x%llx
+>>>>&(8.Q)	ubyte	x
+# look for data by ./compress after message with 1 space at end
+>>>>>&-3	indirect x	\b, contains 
+#			For SHA-1 jump 20 minus 2 bytes
+>24	belong	1
+>>18		ubyte	x
+# jump more bytes forward by header size
+>>>&(4.S)	ubyte	x
+# jump more bytes forward by compressed table of contents size
+>>>>&(8.Q)	ubyte	x
+# data compressed by gzip, bzip, lzma or none
+>>>>>&-1	indirect x	\b, contains 
+#			For SHA-256 jump 32 minus 2 bytes
+>24	belong	3
+>>30		ubyte	x
+# jump more bytes forward by header size
+>>>&(4.S)	ubyte	x
+# jump more bytes forward by compressed table of contents size
+>>>>&(8.Q)	ubyte	x
+>>>>>&-1	indirect x	\b, contains 
+#			For SHA-512 jump 64 minus 2 bytes
+>24	belong	4
+>>62		ubyte	x
+# jump more bytes forward by header size
+>>>&(4.S)	ubyte	x
+# jump more bytes forward by compressed table of contents size
+>>>>&(8.Q)	ubyte	x
+>>>>>&-1	indirect x	\b, contains 
 
 # Type: Parity Archive
 # From: Daniel van Eeden <daniel_e@dds.nl>
 0	string	PAR2		Parity Archive Volume Set
 
 # Bacula volume format. (Volumes always start with a block header.)
-# URL: http://bacula.org/3.0.x-manuals/en/developers/developers/Block_Header.html
+# URL: https://bacula.org/3.0.x-manuals/en/developers/developers/Block_Header.html
 # From: Adam Buchbinder <adam.buchbinder@gmail.com>
 12	string	BB02		Bacula volume
 >20	bedate	x		\b, started %s
@@ -1366,11 +1477,11 @@
 0	string	zPQ	ZPAQ stream
 >3	byte	x	\b, level %d
 # From: Barry Carter <carter.barry@gmail.com>
-# http://encode.ru/threads/456-zpaq-updates/page32
+# https://encode.ru/threads/456-zpaq-updates/page32
 0	string	7kSt	ZPAQ file
 
 # BBeB ebook, unencrypted (LRF format)
-# URL: http://www.sven.de/librie/Librie/LrfFormat
+# URL: https://www.sven.de/librie/Librie/LrfFormat
 # From: Adam Buchbinder <adam.buchbinder@gmail.com>
 0	string	L\0R\0F\0\0\0	BBeB ebook data, unencrypted
 >8	beshort	x		\b, version %d
@@ -1380,8 +1491,8 @@
 >44	beshort	x		%d)
 
 # Symantec GHOST image by Joerg Jenderek at May 2014
-# http://us.norton.com/ghost/
-# http://www.garykessler.net/library/file_sigs.html
+# https://us.norton.com/ghost/
+# https://www.garykessler.net/library/file_sigs.html
 0		ubelong&0xFFFFf7f0	0xFEEF0100	Norton GHost image
 # *.GHO
 >2		ubyte&0x08		0x00		\b, first file
@@ -1427,3 +1538,55 @@
 
 # LyNX archive
 56	string	USE\040LYNX\040TO\040DISSOLVE\040THIS\040FILE	 LyNX archive
+
+# From: Joerg Jenderek
+# URL: https://www.acronis.com/
+# Reference: https://en.wikipedia.org/wiki/TIB_(file_format)
+# Note: only tested with True Image 2013 Build 5962 and 2019 Build 14110
+0	ubequad		0xce24b9a220000000	Acronis True Image backup
+!:mime	application/x-acronis-tib
+!:ext	tib
+# 01000000
+#>20	ubelong		x			\b, at 20 0x%x
+# 20000000
+#>28	ubelong		x			\b, at 28 0x%x
+# strings like "Generic- SD/MMC 1.00" "Unknown Disk" "Msft Virtual Disk 1.0"
+# ???
+# strings like "\Device\0000011e" "\Device\0000015a"
+#>0	search/0x6852300/cs	\\Device\\
+#>>&-1	pstring		x			\b, %s
+# "\Device\HarddiskVolume30" "\Device\HarddiskVolume39"
+#>>>&1	search/180/cs	\\Device\\
+#>>>>&-1	pstring		x			\b, %s
+#>>>>>&0	search/29/cs	\0\0\xc8\0
+# disk label
+#>>>>>>&10	lestring16	x		\b, disk label %11.11s
+#>>>>>>&9	plestring16	x		\b, disk label "%11.11s"
+#>>>>>>&10	ubequad	x			%16.16llx
+
+
+# Gentoo XPAK binary package
+# by Michal Gorny <mgorny@gentoo.org>
+# https://gitweb.gentoo.org/proj/portage.git/tree/man/xpak.5
+-4	string	STOP
+>-16	string	XPAKSTOP	Gentoo binary package (XPAK)
+
+# From:		Joerg Jenderek
+# URL:		https://kodi.wiki/view/TexturePacker
+# Reference:	https://mirrors.kodi.tv/releases/source/17.3-Krypton.tar.gz
+# /xbmc-Krypton/xbmc/guilib/XBTF.h
+# /xbmc-Krypton/xbmc/guilib/XBTF.cpp 
+0	string	XBTF
+# skip ASCII text by looking for terminating \0 of path
+>264	ubyte	0		XBMC texture package
+!:mime	application/x-xbmc-xbt
+!:ext	xbt
+# XBTF_VERSION 2
+>>4	string	!2		\b, version %-.1s
+# nofFiles /xbmc-Krypton/xbmc/guilib/XBTFReader.cpp
+>>5	ulelong	x		\b, %u file
+# plural s
+>>5	ulelong	>1		\bs
+# path[CXBTFFile[MaximumPathLength=256]
+>>9	string	x		\b, 1st %s
+

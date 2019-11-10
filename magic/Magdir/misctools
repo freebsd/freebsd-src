@@ -1,6 +1,6 @@
 
 #-----------------------------------------------------------------------------
-# $File: misctools,v 1.17 2017/03/17 21:35:28 christos Exp $
+# $File: misctools,v 1.18 2019/04/19 00:42:27 christos Exp $
 # misctools:  file(1) magic for miscellaneous UNIX tools.
 #
 0	search/1	%%!!			X-Post-It-Note text
@@ -8,7 +8,7 @@
 !:mime	text/calendar
 # updated by Joerg Jenderek at Apr 2015
 # Extension: .vcf
-# http://en.wikipedia.org/wiki/VCard
+# https://en.wikipedia.org/wiki/VCard
 0	string/c	BEGIN:VCARD		vCard visiting card
 # deprecated
 #!:mime	text/x-vcard
@@ -36,7 +36,7 @@
 # "Windows Minidump" by TrID
 # ./misctools (version 5.25) labeled the entry as "MDMP crash report data"
 0	string		MDMP					Mini DuMP crash report
-# http://filext.com/file-extension/DMP
+# https://filext.com/file-extension/DMP
 !:mime	application/x-dmp
 !:ext	dmp/mdmp
 # The high-order word is an internal value that is implementation specific.

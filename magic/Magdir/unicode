@@ -1,10 +1,9 @@
 
 #------------------------------------------------------------------------------
-# $File: unicode,v 1.6 2010/09/20 18:55:20 rrt Exp $
+# $File: unicode,v 1.7 2019/02/19 20:34:42 christos Exp $
 # Unicode:  BOM prefixed text files - Adrian Havill <havill@turbolinux.co.jp>
-# GRR: These types should be recognised in file_ascmagic so these
-# encodings can be treated by text patterns.
-# Missing types are already dealt with internally.
+# These types are recognised in file_ascmagic so these encodings can be
+# treated by text patterns.  Missing types are already dealt with internally.
 #
 0	string	+/v8			Unicode text, UTF-7
 0	string	+/v9			Unicode text, UTF-7
