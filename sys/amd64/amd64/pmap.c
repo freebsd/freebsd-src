@@ -1765,6 +1765,10 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	pcpu_init(&__pcpu[0], 0, sizeof(struct pcpu));
 	amd64_bsp_pcpu_init1(&__pcpu[0]);
 	amd64_bsp_ist_init(&__pcpu[0]);
+	gdt_segs[GPROC0_SEL].ssd_base = (uintptr_t)&__pcpu[0].pc_common_tss;
+	ssdtosyssd(&gdt_segs[GPROC0_SEL],
+	    (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
+	ltr(GSEL(GPROC0_SEL, SEL_KPL));
 	__pcpu[0].pc_dynamic = temp_bsp_pcpu.pc_dynamic;
 	__pcpu[0].pc_acpi_id = temp_bsp_pcpu.pc_acpi_id;
 
@@ -9719,20 +9723,19 @@ pmap_pti_init(void)
 	    sizeof(struct user_segment_descriptor) * NGDT * MAXCPU, false);
 	pmap_pti_add_kva_locked((vm_offset_t)idt, (vm_offset_t)idt +
 	    sizeof(struct gate_descriptor) * NIDT, false);
-	pmap_pti_add_kva_locked((vm_offset_t)common_tss,
-	    (vm_offset_t)common_tss + sizeof(struct amd64tss) * MAXCPU, false);
 	CPU_FOREACH(i) {
 		/* Doublefault stack IST 1 */
-		va = common_tss[i].tss_ist1;
+		va = __pcpu[i].pc_common_tss.tss_ist1;
 		pmap_pti_add_kva_locked(va - PAGE_SIZE, va, false);
 		/* NMI stack IST 2 */
-		va = common_tss[i].tss_ist2 + sizeof(struct nmi_pcpu);
+		va = __pcpu[i].pc_common_tss.tss_ist2 + sizeof(struct nmi_pcpu);
 		pmap_pti_add_kva_locked(va - PAGE_SIZE, va, false);
 		/* MC# stack IST 3 */
-		va = common_tss[i].tss_ist3 + sizeof(struct nmi_pcpu);
+		va = __pcpu[i].pc_common_tss.tss_ist3 +
+		    sizeof(struct nmi_pcpu);
 		pmap_pti_add_kva_locked(va - PAGE_SIZE, va, false);
 		/* DB# stack IST 4 */
-		va = common_tss[i].tss_ist4 + sizeof(struct nmi_pcpu);
+		va = __pcpu[i].pc_common_tss.tss_ist4 + sizeof(struct nmi_pcpu);
 		pmap_pti_add_kva_locked(va - PAGE_SIZE, va, false);
 	}
 	pmap_pti_add_kva_locked((vm_offset_t)kernphys + KERNBASE,

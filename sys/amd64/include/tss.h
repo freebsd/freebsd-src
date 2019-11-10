@@ -65,8 +65,4 @@ struct amd64tss {
 	u_int16_t	tss_iobase;	/* io bitmap offset */
 };
 
-#ifdef _KERNEL
-extern struct amd64tss common_tss[];
-#endif
-
 #endif /* _MACHINE_TSS_H_ */

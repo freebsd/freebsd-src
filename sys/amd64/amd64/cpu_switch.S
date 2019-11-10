@@ -188,8 +188,10 @@ do_kthread:
 	/* Do we need to reload tss ? */
 	movq	PCPU(TSSP),%rax
 	movq	PCB_TSSP(%r8),%rdx
+	movq	PCPU(PRVSPACE),%r13
+	addq	$PC_COMMONTSS,%r13
 	testq	%rdx,%rdx
-	cmovzq	PCPU(COMMONTSSP),%rdx
+	cmovzq	%r13,%rdx
 	cmpq	%rax,%rdx
 	jne	do_tss
 done_tss:
