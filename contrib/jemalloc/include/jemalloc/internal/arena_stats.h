@@ -4,9 +4,7 @@
 #include "jemalloc/internal/atomic.h"
 #include "jemalloc/internal/mutex.h"
 #include "jemalloc/internal/mutex_prof.h"
-#include "jemalloc/internal/sc.h"
-
-JEMALLOC_DIAGNOSTIC_DISABLE_SPURIOUS
+#include "jemalloc/internal/size_classes.h"
 
 /*
  * In those architectures that support 64-bit atomics, we use atomic updates for
@@ -35,13 +33,6 @@ struct arena_stats_large_s {
 	 * periodically merges into this counter.
 	 */
 	arena_stats_u64_t	nrequests; /* Partially derived. */
-	/*
-	 * Number of tcache fills / flushes for large (similarly, periodically
-	 * merged).  Note that there is no large tcache batch-fill currently
-	 * (i.e. only fill 1 at a time); however flush may be batched.
-	 */
-	arena_stats_u64_t	nfills; /* Partially derived. */
-	arena_stats_u64_t	nflushes; /* Partially derived. */
 
 	/* Current number of allocations of this size class. */
 	size_t		curlextents; /* Derived. */
@@ -55,22 +46,6 @@ struct arena_stats_decay_s {
 	arena_stats_u64_t	nmadvise;
 	/* Total number of pages purged. */
 	arena_stats_u64_t	purged;
-};
-
-typedef struct arena_stats_extents_s arena_stats_extents_t;
-struct arena_stats_extents_s {
-	/*
-	 * Stats for a given index in the range [0, SC_NPSIZES] in an extents_t.
-	 * We track both bytes and # of extents: two extents in the same bucket
-	 * may have different sizes if adjacent size classes differ by more than
-	 * a page, so bytes cannot always be derived from # of extents.
-	 */
-	atomic_zu_t ndirty;
-	atomic_zu_t dirty_bytes;
-	atomic_zu_t nmuzzy;
-	atomic_zu_t muzzy_bytes;
-	atomic_zu_t nretained;
-	atomic_zu_t retained_bytes;
 };
 
 /*
@@ -94,9 +69,6 @@ struct arena_stats_s {
 	 */
 	atomic_zu_t		retained; /* Derived. */
 
-	/* Number of extent_t structs allocated by base, but not being used. */
-	atomic_zu_t		extent_avail;
-
 	arena_stats_decay_t	decay_dirty;
 	arena_stats_decay_t	decay_muzzy;
 
@@ -108,12 +80,7 @@ struct arena_stats_s {
 	atomic_zu_t		allocated_large; /* Derived. */
 	arena_stats_u64_t	nmalloc_large; /* Derived. */
 	arena_stats_u64_t	ndalloc_large; /* Derived. */
-	arena_stats_u64_t	nfills_large; /* Derived. */
-	arena_stats_u64_t	nflushes_large; /* Derived. */
 	arena_stats_u64_t	nrequests_large; /* Derived. */
-
-	/* VM space had to be leaked (undocumented).  Normally 0. */
-	atomic_zu_t		abandoned_vm;
 
 	/* Number of bytes cached in tcache associated with this arena. */
 	atomic_zu_t		tcache_bytes; /* Derived. */
@@ -121,14 +88,14 @@ struct arena_stats_s {
 	mutex_prof_data_t mutex_prof_data[mutex_prof_num_arena_mutexes];
 
 	/* One element for each large size class. */
-	arena_stats_large_t	lstats[SC_NSIZES - SC_NBINS];
+	arena_stats_large_t	lstats[NSIZES - NBINS];
 
 	/* Arena uptime. */
 	nstime_t		uptime;
 };
 
 static inline bool
-arena_stats_init(tsdn_t *tsdn, arena_stats_t *arena_stats) {
+arena_stats_init(UNUSED tsdn_t *tsdn, arena_stats_t *arena_stats) {
 	if (config_debug) {
 		for (size_t i = 0; i < sizeof(arena_stats_t); i++) {
 			assert(((char *)arena_stats)[i] == 0);
@@ -180,11 +147,11 @@ arena_stats_add_u64(tsdn_t *tsdn, arena_stats_t *arena_stats,
 #endif
 }
 
-static inline void
+UNUSED static inline void
 arena_stats_sub_u64(tsdn_t *tsdn, arena_stats_t *arena_stats,
     arena_stats_u64_t *p, uint64_t x) {
 #ifdef JEMALLOC_ATOMIC_U64
-	uint64_t r = atomic_fetch_sub_u64(p, x, ATOMIC_RELAXED);
+	UNUSED uint64_t r = atomic_fetch_sub_u64(p, x, ATOMIC_RELAXED);
 	assert(r - x <= r);
 #else
 	malloc_mutex_assert_owner(tsdn, &arena_stats->mtx);
@@ -209,8 +176,7 @@ arena_stats_accum_u64(arena_stats_u64_t *dst, uint64_t src) {
 }
 
 static inline size_t
-arena_stats_read_zu(tsdn_t *tsdn, arena_stats_t *arena_stats,
-    atomic_zu_t *p) {
+arena_stats_read_zu(tsdn_t *tsdn, arena_stats_t *arena_stats, atomic_zu_t *p) {
 #ifdef JEMALLOC_ATOMIC_U64
 	return atomic_load_zu(p, ATOMIC_RELAXED);
 #else
@@ -220,8 +186,8 @@ arena_stats_read_zu(tsdn_t *tsdn, arena_stats_t *arena_stats,
 }
 
 static inline void
-arena_stats_add_zu(tsdn_t *tsdn, arena_stats_t *arena_stats,
-    atomic_zu_t *p, size_t x) {
+arena_stats_add_zu(tsdn_t *tsdn, arena_stats_t *arena_stats, atomic_zu_t *p,
+    size_t x) {
 #ifdef JEMALLOC_ATOMIC_U64
 	atomic_fetch_add_zu(p, x, ATOMIC_RELAXED);
 #else
@@ -232,10 +198,10 @@ arena_stats_add_zu(tsdn_t *tsdn, arena_stats_t *arena_stats,
 }
 
 static inline void
-arena_stats_sub_zu(tsdn_t *tsdn, arena_stats_t *arena_stats,
-    atomic_zu_t *p, size_t x) {
+arena_stats_sub_zu(tsdn_t *tsdn, arena_stats_t *arena_stats, atomic_zu_t *p,
+    size_t x) {
 #ifdef JEMALLOC_ATOMIC_U64
-	size_t r = atomic_fetch_sub_zu(p, x, ATOMIC_RELAXED);
+	UNUSED size_t r = atomic_fetch_sub_zu(p, x, ATOMIC_RELAXED);
 	assert(r - x <= r);
 #else
 	malloc_mutex_assert_owner(tsdn, &arena_stats->mtx);
@@ -252,12 +218,11 @@ arena_stats_accum_zu(atomic_zu_t *dst, size_t src) {
 }
 
 static inline void
-arena_stats_large_flush_nrequests_add(tsdn_t *tsdn, arena_stats_t *arena_stats,
+arena_stats_large_nrequests_add(tsdn_t *tsdn, arena_stats_t *arena_stats,
     szind_t szind, uint64_t nrequests) {
 	arena_stats_lock(tsdn, arena_stats);
-	arena_stats_large_t *lstats = &arena_stats->lstats[szind - SC_NBINS];
-	arena_stats_add_u64(tsdn, arena_stats, &lstats->nrequests, nrequests);
-	arena_stats_add_u64(tsdn, arena_stats, &lstats->nflushes, 1);
+	arena_stats_add_u64(tsdn, arena_stats, &arena_stats->lstats[szind -
+	    NBINS].nrequests, nrequests);
 	arena_stats_unlock(tsdn, arena_stats);
 }
 
@@ -267,5 +232,6 @@ arena_stats_mapped_add(tsdn_t *tsdn, arena_stats_t *arena_stats, size_t size) {
 	arena_stats_add_zu(tsdn, arena_stats, &arena_stats->mapped, size);
 	arena_stats_unlock(tsdn, arena_stats);
 }
+
 
 #endif /* JEMALLOC_INTERNAL_ARENA_STATS_H */

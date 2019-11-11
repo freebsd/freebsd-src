@@ -67,8 +67,7 @@ atomic_exchange_##short_type(atomic_##short_type##_t *a, type val,	\
 									\
 ATOMIC_INLINE bool							\
 atomic_compare_exchange_weak_##short_type(atomic_##short_type##_t *a,	\
-    UNUSED type *expected, type desired,				\
-    atomic_memory_order_t success_mo,					\
+    type *expected, type desired, atomic_memory_order_t success_mo,	\
     atomic_memory_order_t failure_mo) {					\
 	return __atomic_compare_exchange(&a->repr, expected, &desired,	\
 	    true, atomic_enum_to_builtin(success_mo),			\
@@ -77,8 +76,7 @@ atomic_compare_exchange_weak_##short_type(atomic_##short_type##_t *a,	\
 									\
 ATOMIC_INLINE bool							\
 atomic_compare_exchange_strong_##short_type(atomic_##short_type##_t *a,	\
-    UNUSED type *expected, type desired,				\
-    atomic_memory_order_t success_mo,					\
+    type *expected, type desired, atomic_memory_order_t success_mo,	\
     atomic_memory_order_t failure_mo) {					\
 	return __atomic_compare_exchange(&a->repr, expected, &desired,	\
 	    false,							\

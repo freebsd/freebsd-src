@@ -2,6 +2,7 @@
 #define JEMALLOC_INTERNAL_EXTERNS_H
 
 #include "jemalloc/internal/atomic.h"
+#include "jemalloc/internal/size_classes.h"
 #include "jemalloc/internal/tsd_types.h"
 
 /* TSD checks this to set thread local slow state accordingly. */
@@ -10,7 +11,6 @@ extern bool malloc_slow;
 /* Run-time options. */
 extern bool opt_abort;
 extern bool opt_abort_conf;
-extern bool opt_confirm_conf;
 extern const char *opt_junk;
 extern bool opt_junk_alloc;
 extern bool opt_junk_free;
@@ -24,9 +24,6 @@ extern unsigned ncpus;
 
 /* Number of arenas used for automatic multiplexing of threads and arenas. */
 extern unsigned narenas_auto;
-
-/* Base index for manual arenas. */
-extern unsigned manual_arena_base;
 
 /*
  * Arenas that are used to service external requests.  Not all elements of the
@@ -52,6 +49,5 @@ void jemalloc_prefork(void);
 void jemalloc_postfork_parent(void);
 void jemalloc_postfork_child(void);
 bool malloc_initialized(void);
-void je_sdallocx_noflags(void *ptr, size_t size);
 
 #endif /* JEMALLOC_INTERNAL_EXTERNS_H */

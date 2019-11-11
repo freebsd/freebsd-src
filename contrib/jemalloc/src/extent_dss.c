@@ -113,7 +113,7 @@ extent_alloc_dss(tsdn_t *tsdn, arena_t *arena, void *new_addr, size_t size,
 
 	cassert(have_dss);
 	assert(size > 0);
-	assert(alignment == ALIGNMENT_CEILING(alignment, PAGE));
+	assert(alignment > 0);
 
 	/*
 	 * sbrk() uses a signed increment argument, so take care not to
@@ -154,10 +154,9 @@ extent_alloc_dss(tsdn_t *tsdn, arena_t *arena, void *new_addr, size_t size,
 			    (uintptr_t)gap_addr_page;
 			if (gap_size_page != 0) {
 				extent_init(gap, arena, gap_addr_page,
-				    gap_size_page, false, SC_NSIZES,
+				    gap_size_page, false, NSIZES,
 				    arena_extent_sn_next(arena),
-				    extent_state_active, false, true, true,
-				    EXTENT_NOT_HEAD);
+				    extent_state_active, false, true, true);
 			}
 			/*
 			 * Compute the address just past the end of the desired
@@ -199,9 +198,9 @@ extent_alloc_dss(tsdn_t *tsdn, arena_t *arena, void *new_addr, size_t size,
 					extent_t extent;
 
 					extent_init(&extent, arena, ret, size,
-					    size, false, SC_NSIZES,
+					    size, false, NSIZES,
 					    extent_state_active, false, true,
-					    true, EXTENT_NOT_HEAD);
+					    true);
 					if (extent_purge_forced_wrapper(tsdn,
 					    arena, &extent_hooks, &extent, 0,
 					    size)) {
