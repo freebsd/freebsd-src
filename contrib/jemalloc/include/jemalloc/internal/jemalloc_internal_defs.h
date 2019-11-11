@@ -45,29 +45,17 @@
 #define LG_VADDR 48
 
 /* Defined if C11 atomics are available. */
-/* #undef JEMALLOC_C11_ATOMICS */
+#define JEMALLOC_C11_ATOMICS 1
 
 /* Defined if GCC __atomic atomics are available. */
-/* #undef JEMALLOC_GCC_ATOMIC_ATOMICS */
+#define JEMALLOC_GCC_ATOMIC_ATOMICS 1
+/* and the 8-bit variant support. */
+#define JEMALLOC_GCC_U8_ATOMIC_ATOMICS 1
 
 /* Defined if GCC __sync atomics are available. */
 #define JEMALLOC_GCC_SYNC_ATOMICS 1
-
-/*
- * Defined if __sync_add_and_fetch(uint32_t *, uint32_t) and
- * __sync_sub_and_fetch(uint32_t *, uint32_t) are available, despite
- * __GCC_HAVE_SYNC_COMPARE_AND_SWAP_4 not being defined (which means the
- * functions are defined in libgcc instead of being inlines).
- */
-#define JE_FORCE_SYNC_COMPARE_AND_SWAP_4 
-
-/*
- * Defined if __sync_add_and_fetch(uint64_t *, uint64_t) and
- * __sync_sub_and_fetch(uint64_t *, uint64_t) are available, despite
- * __GCC_HAVE_SYNC_COMPARE_AND_SWAP_8 not being defined (which means the
- * functions are defined in libgcc instead of being inlines).
- */
-#define JE_FORCE_SYNC_COMPARE_AND_SWAP_8 
+/* and the 8-bit variant support. */
+#define JEMALLOC_GCC_U8_SYNC_ATOMICS 1
 
 /*
  * Defined if __builtin_clz() and __builtin_clzl() are available.
@@ -78,12 +66,6 @@
  * Defined if os_unfair_lock_*() functions are available, as provided by Darwin.
  */
 /* #undef JEMALLOC_OS_UNFAIR_LOCK */
-
-/*
- * Defined if OSSpin*() functions are available, as provided by Darwin, and
- * documented in the spinlock(3) manual page.
- */
-/* #undef JEMALLOC_OSSPIN */
 
 /* Defined if syscall(2) is usable. */
 #define JEMALLOC_USE_SYSCALL 
@@ -153,6 +135,9 @@
 
 /* JEMALLOC_STATS enables statistics calculation. */
 #define JEMALLOC_STATS 
+
+/* JEMALLOC_EXPERIMENTAL_SMALLOCX_API enables experimental smallocx API. */
+/* #undef JEMALLOC_EXPERIMENTAL_SMALLOCX_API */
 
 /* JEMALLOC_PROF enables allocation profiling. */
 /* #undef JEMALLOC_PROF */
@@ -224,7 +209,7 @@
  * Used to mark unreachable code to quiet "end of non-void" compiler warnings.
  * Don't use this directly; instead use unreachable() from util.h
  */
-#define JEMALLOC_INTERNAL_UNREACHABLE abort
+#define JEMALLOC_INTERNAL_UNREACHABLE __builtin_unreachable
 
 /*
  * ffs*() functions to use for bitmapping.  Don't use these directly; instead,
@@ -233,6 +218,12 @@
 #define JEMALLOC_INTERNAL_FFSLL __builtin_ffsll
 #define JEMALLOC_INTERNAL_FFSL __builtin_ffsl
 #define JEMALLOC_INTERNAL_FFS __builtin_ffs
+
+/*
+ * popcount*() functions to use for bitmapping.
+ */
+#define JEMALLOC_INTERNAL_POPCOUNTL __builtin_popcountl
+#define JEMALLOC_INTERNAL_POPCOUNT __builtin_popcount
 
 /*
  * If defined, explicitly attempt to more uniformly distribute large allocation
@@ -245,6 +236,12 @@
  * avoid taking extra branches everywhere.
  */
 /* #undef JEMALLOC_LOG */
+
+/*
+ * If defined, use readlinkat() (instead of readlink()) to follow
+ * /etc/malloc_conf.
+ */
+/* #undef JEMALLOC_READLINKAT */
 
 /*
  * Darwin (OS X) uses zones to work around Mach-O symbol override shortcomings.
@@ -363,5 +360,8 @@
  * Defined if strerror_r returns char * if _GNU_SOURCE is defined.
  */
 /* #undef JEMALLOC_STRERROR_R_RETURNS_CHAR_WITH_GNU_SOURCE */
+
+/* Performs additional safety checks when defined. */
+/* #undef JEMALLOC_OPT_SAFETY_CHECKS */
 
 #endif /* JEMALLOC_INTERNAL_DEFS_H_ */
