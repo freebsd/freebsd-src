@@ -4613,6 +4613,14 @@ dadone_probewp(struct cam_periph *periph, union ccb *done_ccb)
 
 	cam_periph_assert(periph, MA_OWNED);
 
+	KASSERT(softc->state == DA_STATE_PROBE_WP,
+	    ("State (%d) not PROBE_WP in dadone_probewp, periph %p ccb %p",
+		softc->state, periph, done_ccb));
+        KASSERT((csio->ccb_h.ccb_state & DA_CCB_TYPE_MASK) == DA_CCB_PROBE_WP,
+	    ("CCB State (%lu) not PROBE_WP in dadone_probewp, periph %p ccb %p",
+		(unsigned long)csio->ccb_h.ccb_state & DA_CCB_TYPE_MASK, periph,
+		done_ccb));
+
 	if (softc->minimum_cmd_size > 6) {
 		mode_hdr10 = (struct scsi_mode_header_10 *)csio->data_ptr;
 		dev_spec = mode_hdr10->dev_spec;
@@ -4672,6 +4680,13 @@ dadone_proberc(struct cam_periph *periph, union ccb *done_ccb)
 	priority = done_ccb->ccb_h.pinfo.priority;
 	csio = &done_ccb->csio;
 	state = csio->ccb_h.ccb_state & DA_CCB_TYPE_MASK;
+
+	KASSERT(softc->state == DA_STATE_PROBE_RC || softc->state == DA_STATE_PROBE_RC16,
+	    ("State (%d) not PROBE_RC* in dadone_proberc, periph %p ccb %p",
+		softc->state, periph, done_ccb));
+	KASSERT(state == DA_CCB_PROBE_RC || state == DA_CCB_PROBE_RC16,
+	    ("CCB State (%lu) not PROBE_RC* in dadone_probewp, periph %p ccb %p",
+		(unsigned long)state, periph, done_ccb));
 
 	lbp = 0;
 	rdcap = NULL;
