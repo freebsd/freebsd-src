@@ -413,6 +413,60 @@ wflag_emptypat_body()
 	atf_check -o file:test4 grep -w -e "" test4
 }
 
+atf_test_case xflag_emptypat
+xflag_emptypat_body()
+{
+	printf "" > test1
+	printf "\n" > test2
+	printf "qaz" > test3
+	printf " qaz\n" > test4
+
+	# -x is whole-line, more strict than -w.
+	atf_check -s exit:1 -o empty grep -x -e "" test1
+
+	atf_check -o file:test2 grep -x -e "" test2
+
+	atf_check -s exit:1 -o empty grep -x -e "" test3
+
+	atf_check -s exit:1 -o empty grep -x -e "" test4
+
+	total=$(wc -l /COPYRIGHT | sed 's/[^0-9]//g')
+
+	# Simple checks that grep -x with an empty pattern isn't matching every
+	# line.  The exact counts aren't important, as long as they don't
+	# match the total line count and as long as they don't match each other.
+	atf_check -o save:xpositive.count grep -Fxc '' /COPYRIGHT
+	atf_check -o save:xnegative.count grep -Fvxc '' /COPYRIGHT
+
+	atf_check -o not-inline:"${total}" cat xpositive.count
+	atf_check -o not-inline:"${total}" cat xnegative.count
+
+	atf_check -o not-file:xnegative.count cat xpositive.count
+}
+
+atf_test_case xflag_emptypat_plus
+xflag_emptypat_plus_body()
+{
+	printf "foo\n\nbar\n\nbaz\n" > target
+	printf "foo\n \nbar\n \nbaz\n" > target_spacelines
+	printf "foo\nbar\nbaz\n" > matches
+	printf " \n \n" > spacelines
+
+	printf "foo\n\nbar\n\nbaz\n" > patlist1
+	printf "foo\n\nba\n\nbaz\n" > patlist2
+
+	sed -e '/bar/d' target > matches_not2
+
+	# Normal handling first
+	atf_check -o file:target grep -Fxf patlist1 target
+	atf_check -o file:matches grep -Fxf patlist1 target_spacelines
+	atf_check -o file:matches_not2 grep -Fxf patlist2 target
+
+	# -v handling
+	atf_check -s exit:1 -o empty grep -Fvxf patlist1 target
+	atf_check -o file:spacelines grep -Fxvf patlist1 target_spacelines
+}
+
 atf_test_case excessive_matches
 excessive_matches_head()
 {
@@ -551,6 +605,12 @@ grep_nomatch_flags_head()
 
 grep_nomatch_flags_body()
 {
+	grep_type
+
+	if [ $? -eq $GREP_TYPE_GNU_FREEBSD ]; then
+		atf_expect_fail "this test does not pass with GNU grep in base"
+	fi
+
 	printf "A\nB\nC\n" > test1
 
 	atf_check -o inline:"1\n" grep -c -C 1 -e "B" test1
@@ -563,7 +623,7 @@ grep_nomatch_flags_body()
 	atf_check -o inline:"test1\n" grep -l -A 1 -e "B" test1
 	atf_check -o inline:"test1\n" grep -l -C 1 -e "B" test1
 
-	atf_check -s exit:1 -o inline:"test1\n" grep -L -e "D" test1
+	atf_check -o inline:"test1\n" grep -L -e "D" test1
 
 	atf_check -o empty grep -q -e "B" test1
 	atf_check -o empty grep -q -B 1 -e "B" test1
@@ -646,28 +706,6 @@ mmap_body()
 	atf_check -s exit:1 grep --mmap -e "Z" test1
 }
 
-atf_test_case mmap_eof_not_eol
-mmap_eof_not_eol_head()
-{
-	atf_set "descr" "Check --mmap flag handling of encountering EOF without EOL (PR 165471, 219402)"
-}
-mmap_eof_not_eol_body()
-{
-	grep_type
-	if [ $? -eq $GREP_TYPE_GNU ]; then
-		atf_expect_fail "gnu grep from ports has no --mmap option"
-	fi
-
-	printf "ABC" > test1
-	jot -b " "  -s "" 4096 >> test2
-
-	atf_check -s exit:0 -o inline:"B\n" grep --mmap -oe "B" test1
-	# Dependency on jemalloc(3) to detect buffer overflow, otherwise this
-	# unreliably produces a SIGSEGV or SIGBUS
-	atf_check -s exit:0 -o not-empty \
-	    env MALLOC_CONF="redzone:true" grep --mmap -e " " test2
-}
-
 atf_test_case matchall
 matchall_head()
 {
@@ -738,6 +776,38 @@ fgrep_oflag_body()
 	atf_check -s exit:1 grep -Fo "ghix" test1
 	atf_check -s exit:1 grep -Fo "abcdefghiklmnopqrstuvwxyz" test1
 }
+
+atf_test_case cflag
+cflag_head()
+{
+	atf_set "descr" "Check proper handling of -c"
+}
+cflag_body()
+{
+	printf "a\nb\nc\n" > test1
+
+	atf_check -o inline:"1\n" grep -Ec "a" test1
+	atf_check -o inline:"2\n" grep -Ec "a|b" test1
+	atf_check -o inline:"3\n" grep -Ec "a|b|c" test1
+
+	atf_check -o inline:"test1:2\n" grep -EHc "a|b" test1
+}
+
+atf_test_case mflag
+mflag_head()
+{
+	atf_set "descr" "Check proper handling of -m"
+}
+mflag_body()
+{
+	printf "a\nb\nc\nd\ne\nf\n" > test1
+
+	atf_check -o inline:"1\n" grep -m 1 -Ec "a" test1
+	atf_check -o inline:"2\n" grep -m 2 -Ec "a|b" test1
+	atf_check -o inline:"3\n" grep -m 3 -Ec "a|b|c|f" test1
+
+	atf_check -o inline:"test1:2\n" grep -m 2 -EHc "a|b|e|f" test1
+}
 # End FreeBSD
 
 atf_init_test_cases()
@@ -767,6 +837,8 @@ atf_init_test_cases()
 	atf_add_test_case egrep_empty_invalid
 	atf_add_test_case zerolen
 	atf_add_test_case wflag_emptypat
+	atf_add_test_case xflag_emptypat
+	atf_add_test_case xflag_emptypat_plus
 	atf_add_test_case excessive_matches
 	atf_add_test_case wv_combo_break
 	atf_add_test_case fgrep_sanity
@@ -777,10 +849,11 @@ atf_init_test_cases()
 	atf_add_test_case binary_flags
 	atf_add_test_case badcontext
 	atf_add_test_case mmap
-	atf_add_test_case mmap_eof_not_eol
 	atf_add_test_case matchall
 	atf_add_test_case fgrep_multipattern
 	atf_add_test_case fgrep_icase
 	atf_add_test_case fgrep_oflag
+	atf_add_test_case cflag
+	atf_add_test_case mflag
 # End FreeBSD
 }

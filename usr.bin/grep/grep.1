@@ -30,7 +30,7 @@
 .\"
 .\"	@(#)grep.1	8.3 (Berkeley) 4/18/94
 .\"
-.Dd April 17, 2017
+.Dd May 7, 2018
 .Dt GREP 1
 .Os
 .Sh NAME
@@ -410,6 +410,13 @@ and block buffered otherwise.
 .El
 .Pp
 If no file arguments are specified, the standard input is used.
+Additionally,
+.Dq -
+may be used in place of a file name, anywhere that a file name is accepted, to
+read from standard input.
+This includes both
+.Fl f
+and file arguments.
 .Sh EXIT STATUS
 The
 .Nm grep

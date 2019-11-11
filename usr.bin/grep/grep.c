@@ -239,20 +239,9 @@ static void
 add_pattern(char *pat, size_t len)
 {
 
-	/* Do not add further pattern is we already match everything */
-	if (matchall)
-	  return;
-
 	/* Check if we can do a shortcut */
 	if (len == 0) {
 		matchall = true;
-		for (unsigned int i = 0; i < patterns; i++) {
-			free(pattern[i].pat);
-		}
-		pattern = grep_realloc(pattern, sizeof(struct pat));
-		pattern[0].pat = NULL;
-		pattern[0].len = 0;
-		patterns = 1;
 		return;
 	}
 	/* Increase size if necessary */
@@ -319,7 +308,9 @@ read_patterns(const char *fn)
 	size_t len;
 	ssize_t rlen;
 
-	if ((f = fopen(fn, "r")) == NULL)
+	if (strcmp(fn, "-") == 0)
+		f = stdin;
+	else if ((f = fopen(fn, "r")) == NULL)
 		err(2, "%s", fn);
 	if ((fstat(fileno(f), &st) == -1) || (S_ISDIR(st.st_mode))) {
 		fclose(f);
@@ -336,7 +327,8 @@ read_patterns(const char *fn)
 	free(line);
 	if (ferror(f))
 		err(2, "%s", fn);
-	fclose(f);
+	if (strcmp(fn, "-") != 0)
+		fclose(f);
 }
 
 static inline const char *
@@ -357,6 +349,7 @@ main(int argc, char *argv[])
 	long long l;
 	unsigned int aargc, eargc, i;
 	int c, lastc, needpattern, newarg, prevoptind;
+	bool matched;
 
 	setlocale(LC_ALL, "");
 
@@ -701,7 +694,7 @@ main(int argc, char *argv[])
 	aargv += optind;
 
 	/* Empty pattern file matches nothing */
-	if (!needpattern && (patterns == 0))
+	if (!needpattern && (patterns == 0) && !matchall)
 		exit(1);
 
 	/* Fail if we don't have any pattern */
@@ -751,11 +744,10 @@ main(int argc, char *argv[])
 #endif
 	r_pattern = grep_calloc(patterns, sizeof(*r_pattern));
 
-	/* Don't process any patterns if we have a blank one */
 #ifdef WITH_INTERNAL_NOSPEC
-	if (!matchall && grepbehave != GREP_FIXED) {
+	if (grepbehave != GREP_FIXED) {
 #else
-	if (!matchall) {
+	{
 #endif
 		/* Check if cheating is allowed (always is for fgrep). */
 		for (i = 0; i < patterns; ++i) {
@@ -787,12 +779,13 @@ main(int argc, char *argv[])
 		exit(!procfile("-"));
 
 	if (dirbehave == DIR_RECURSE)
-		c = grep_tree(aargv);
+		matched = grep_tree(aargv);
 	else
-		for (c = 0; aargc--; ++aargv) {
+		for (matched = false; aargc--; ++aargv) {
 			if ((finclude || fexclude) && !file_matching(*aargv))
 				continue;
-			c+= procfile(*aargv);
+			if (procfile(*aargv))
+				matched = true;
 		}
 
 #ifndef WITHOUT_NLS
@@ -801,5 +794,8 @@ main(int argc, char *argv[])
 
 	/* Find out the correct return value according to the
 	   results and the command line option. */
-	exit(c ? (file_err ? (qflag ? 0 : 2) : 0) : (file_err ? 2 : 1));
+	if (Lflag)
+		matched = !matched;
+
+	exit(matched ? (file_err ? (qflag ? 0 : 2) : 0) : (file_err ? 2 : 1));
 }
