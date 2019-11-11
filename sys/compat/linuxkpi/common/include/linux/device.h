@@ -40,7 +40,6 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/workqueue.h>
-#include <linux/sysfs.h>
 #include <linux/kdev_t.h>
 #include <asm/atomic.h>
 
@@ -315,6 +314,10 @@ device_add(struct device *dev)
 			dev->devt = makedev(0, device_get_unit(dev->bsddev));
 	}
 	kobject_add(&dev->kobj, &dev->class->kobj, dev_name(dev));
+
+	if (dev->groups)
+		return (sysfs_create_groups(&dev->kobj, dev->groups));
+
 	return (0);
 }
 
