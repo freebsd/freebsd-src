@@ -308,6 +308,8 @@ struct vnet_sysinit {
 };
 
 #define	VNET_SYSINIT(ident, subsystem, order, func, arg)		\
+	CTASSERT((subsystem) > SI_SUB_VNET &&				\
+	    (subsystem) <= SI_SUB_VNET_DONE);				\
 	static struct vnet_sysinit ident ## _vnet_init = {		\
 		subsystem,						\
 		order,							\
@@ -320,6 +322,8 @@ struct vnet_sysinit {
 	    vnet_deregister_sysinit, &ident ## _vnet_init)
 
 #define	VNET_SYSUNINIT(ident, subsystem, order, func, arg)		\
+	CTASSERT((subsystem) > SI_SUB_VNET &&				\
+	    (subsystem) <= SI_SUB_VNET_DONE);				\
 	static struct vnet_sysinit ident ## _vnet_uninit = {		\
 		subsystem,						\
 		order,							\
