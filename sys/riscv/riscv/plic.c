@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include "pic_if.h"
 
-#define	PLIC_MAX_IRQS		2048
+#define	PLIC_MAX_IRQS		1024
 #define	PLIC_PRIORITY(n)	(0x000000 + (n) * 0x4)
 #define	PLIC_ENABLE(n, h)	(0x002000 + (h) * 0x80 + 4 * ((n) / 32))
 #define	PLIC_THRESHOLD(h)	(0x200000 + (h) * 0x1000 + 0x0)
