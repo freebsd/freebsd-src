@@ -95,6 +95,10 @@ static int xhcistreams;
 SYSCTL_INT(_hw_usb_xhci, OID_AUTO, streams, CTLFLAG_RWTUN,
     &xhcistreams, 0, "Set to enable streams mode support");
 
+static int xhcictlquirk = 1;
+SYSCTL_INT(_hw_usb_xhci, OID_AUTO, ctlquirk, CTLFLAG_RWTUN,
+    &xhcictlquirk, 0, "Set to enable control endpoint quirk");
+
 #ifdef USB_DEBUG
 static int xhcidebug;
 static int xhciroute;
@@ -602,7 +606,7 @@ xhci_init(struct xhci_softc *sc, device_t self, uint8_t dma32)
 	    sc->sc_ctx_is_64_byte ? 64 : 32, (int)sc->sc_bus.dma_bits);
 
 	/* enable 64Kbyte control endpoint quirk */
-	sc->sc_bus.control_ep_quirk = 1;
+	sc->sc_bus.control_ep_quirk = (xhcictlquirk ? 1 : 0);
 
 	temp = XREAD4(sc, capa, XHCI_HCSPARAMS1);
 
