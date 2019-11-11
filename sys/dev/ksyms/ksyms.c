@@ -397,6 +397,7 @@ ksyms_open(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 {
 	struct tsizes ts;
 	struct ksyms_softc *sc;
+	vm_object_t object;
 	vm_size_t elfsz;
 	int error, try;
 
@@ -434,8 +435,9 @@ ksyms_open(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 		ksyms_size_calc(&ts);
 		elfsz = sizeof(struct ksyms_hdr) + ts.ts_symsz + ts.ts_strsz;
 
-		sc->sc_obj = vm_object_allocate(OBJT_DEFAULT,
+		object = vm_object_allocate(OBJT_PHYS,
 		    OFF_TO_IDX(round_page(elfsz)));
+		sc->sc_obj = object;
 		sc->sc_objsz = elfsz;
 
 		error = ksyms_snapshot(sc, &ts);
