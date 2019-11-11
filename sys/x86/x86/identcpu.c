@@ -1045,6 +1045,7 @@ printcpuinfo(void)
 				       "\003RSBA"
 				       "\004SKIP_L1DFL_VME"
 				       "\005SSB_NO"
+				       "\006MDS_NO"
 				       );
 			}
 
