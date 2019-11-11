@@ -71,8 +71,7 @@ arena_ichoose(tsd_t *tsd, arena_t *arena) {
 static inline bool
 arena_is_auto(arena_t *arena) {
 	assert(narenas_auto > 0);
-
-	return (arena_ind_get(arena) < manual_arena_base);
+	return (arena_ind_get(arena) < narenas_auto);
 }
 
 JEMALLOC_ALWAYS_INLINE extent_t *

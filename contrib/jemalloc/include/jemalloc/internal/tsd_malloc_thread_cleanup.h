@@ -3,10 +3,8 @@
 #endif
 #define JEMALLOC_INTERNAL_TSD_MALLOC_THREAD_CLEANUP_H
 
-#define JEMALLOC_TSD_TYPE_ATTR(type) __thread type JEMALLOC_TLS_MODEL
-
-extern JEMALLOC_TSD_TYPE_ATTR(tsd_t) tsd_tls;
-extern JEMALLOC_TSD_TYPE_ATTR(bool) tsd_initialized;
+extern __thread tsd_t tsd_tls;
+extern __thread bool tsd_initialized;
 extern bool tsd_booted;
 
 /* Initialization/cleanup. */
@@ -49,6 +47,7 @@ tsd_get_allocates(void) {
 /* Get/set. */
 JEMALLOC_ALWAYS_INLINE tsd_t *
 tsd_get(bool init) {
+	assert(tsd_booted);
 	return &tsd_tls;
 }
 JEMALLOC_ALWAYS_INLINE void
