@@ -152,6 +152,29 @@ sysfs_remove_file(struct kobject *kobj, const struct attribute *attr)
 		sysctl_remove_name(kobj->oidp, attr->name, 1, 1);
 }
 
+static inline int
+sysfs_create_files(struct kobject *kobj, const struct attribute * const *attrs)
+{
+	int error = 0;
+	int i;
+
+	for (i = 0; attrs[i] && !error; i++)
+		error = sysfs_create_file(kobj, attrs[i]);
+	while (error && --i >= 0)
+		sysfs_remove_file(kobj, attrs[i]);
+
+	return (error);
+}
+
+static inline void
+sysfs_remove_files(struct kobject *kobj, const struct attribute * const *attrs)
+{
+	int i;
+
+	for (i = 0; attrs[i]; i++)
+		sysfs_remove_file(kobj, attrs[i]);
+}
+
 static inline void
 sysfs_remove_group(struct kobject *kobj, const struct attribute_group *grp)
 {
