@@ -191,8 +191,6 @@ db_ss(struct db_variable *vp, db_expr_t *valuep, int op)
 #define	INTERRUPT	2
 #define	SYSCALL		3
 #define	DOUBLE_FAULT	4
-#define	TRAP_INTERRUPT	5
-#define	TRAP_TIMERINT	6
 
 static void db_nextframe(struct i386_frame **, db_addr_t *, struct thread *);
 static int db_numargs(struct i386_frame *);
@@ -299,6 +297,7 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 {
 	struct trapframe *tf;
 	int frame_type;
+	int narg;
 	int eip, esp, ebp;
 	db_expr_t offset;
 	c_db_sym_t sym;
@@ -317,6 +316,15 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 	 * actually made the call.
 	 */
 	frame_type = NORMAL;
+
+	/*
+	 * This is the number of arguments that a syscall / trap / interrupt
+	 * service routine passes to its callee.  This number is used only for
+	 * special frame types.  In most cases there is one argument: the trap
+	 * frame address.
+	 */
+	narg = 1;
+
 	if (eip >= PMAP_TRM_MIN_ADDRESS) {
 		sym = db_search_symbol(eip - 1 - setidt_disp, DB_STGY_ANY,
 		    &offset);
@@ -329,20 +337,24 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 		    strcmp(name, "fork_trampoline") == 0)
 			frame_type = TRAP;
 		else if (strncmp(name, "Xatpic_intr", 11) == 0 ||
-		    strncmp(name, "Xapic_isr", 9) == 0)
+		    strncmp(name, "Xapic_isr", 9) == 0) {
+			/* Additional argument: vector number. */
+			narg = 2;
 			frame_type = INTERRUPT;
-		else if (strcmp(name, "Xlcall_syscall") == 0 ||
+		} else if (strcmp(name, "Xlcall_syscall") == 0 ||
 		    strcmp(name, "Xint0x80_syscall") == 0)
 			frame_type = SYSCALL;
 		else if (strcmp(name, "dblfault_handler") == 0)
 			frame_type = DOUBLE_FAULT;
-		/* XXX: These are interrupts with trap frames. */
 		else if (strcmp(name, "Xtimerint") == 0)
-			frame_type = TRAP_TIMERINT;
+			frame_type = INTERRUPT;
 		else if (strcmp(name, "Xcpustop") == 0 ||
 		    strcmp(name, "Xrendezvous") == 0 ||
-		    strcmp(name, "Xipi_intr_bitmap_handler") == 0)
-			frame_type = TRAP_INTERRUPT;
+		    strcmp(name, "Xipi_intr_bitmap_handler") == 0) {
+			/* No arguments. */
+			narg = 0;
+			frame_type = INTERRUPT;
+		}
 	}
 
 	/*
@@ -375,14 +387,11 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 
 	/*
 	 * Point to base of trapframe which is just above the
-	 * current frame.
+	 * current frame.  Note that struct i386_frame already accounts for one
+	 * argument.
 	 */
-	if (frame_type == INTERRUPT)
-		tf = (struct trapframe *)((int)*fp + 16);
-	else if (frame_type == TRAP_INTERRUPT)
-		tf = (struct trapframe *)((int)*fp + 8);
-	else
-		tf = (struct trapframe *)((int)*fp + 12);
+	tf = (struct trapframe *)((char *)*fp + sizeof(struct i386_frame) +
+	    4 * (narg - 1));
 
 	esp = get_esp(tf);
 	eip = tf->tf_eip;
@@ -395,8 +404,6 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 		db_printf("--- syscall");
 		decode_syscall(tf->tf_eax, td);
 		break;
-	case TRAP_TIMERINT:
-	case TRAP_INTERRUPT:
 	case INTERRUPT:
 		db_printf("--- interrupt");
 		break;
@@ -407,8 +414,6 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 
 	switch (frame_type) {
 	case TRAP:
-	case TRAP_TIMERINT:
-	case TRAP_INTERRUPT:
 	case INTERRUPT:
 		if ((tf->tf_eflags & PSL_VM) != 0 ||
 		    (tf->tf_cs & SEL_RPL_MASK) != 0)
@@ -418,7 +423,7 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 		ebp = 0;
 		break;
 	}
-	
+
 	*ip = (db_addr_t) eip;
 	*fp = (struct i386_frame *) ebp;
 }
