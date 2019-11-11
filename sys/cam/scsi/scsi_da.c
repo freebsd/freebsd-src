@@ -2133,8 +2133,8 @@ daasync(void *callback_arg, u_int32_t code,
 				    "Capacity data has changed\n");
 				cam_periph_lock(periph);
 				softc->flags &= ~DA_FLAG_PROBED;
-				cam_periph_unlock(periph);
 				dareprobe(periph);
+				cam_periph_unlock(periph);
 			} else if (asc == 0x28 && ascq == 0x00) {
 				cam_periph_lock(periph);
 				softc->flags &= ~DA_FLAG_PROBED;
@@ -2145,8 +2145,8 @@ daasync(void *callback_arg, u_int32_t code,
 				    "INQUIRY data has changed\n");
 				cam_periph_lock(periph);
 				softc->flags &= ~DA_FLAG_PROBED;
-				cam_periph_unlock(periph);
 				dareprobe(periph);
+				cam_periph_unlock(periph);
 			}
 		}
 		break;
@@ -5826,6 +5826,8 @@ dareprobe(struct cam_periph *periph)
 	int status;
 
 	softc = (struct da_softc *)periph->softc;
+
+	cam_periph_assert(periph, MA_OWNED);
 
 	/* Probe in progress; don't interfere. */
 	if (softc->state != DA_STATE_NORMAL)
