@@ -10,7 +10,7 @@
 #include "jemalloc/internal/mutex.h"
 #include "jemalloc/internal/nstime.h"
 #include "jemalloc/internal/ql.h"
-#include "jemalloc/internal/sc.h"
+#include "jemalloc/internal/size_classes.h"
 #include "jemalloc/internal/smoothstep.h"
 #include "jemalloc/internal/ticker.h"
 
@@ -90,9 +90,6 @@ struct arena_s {
 	 */
 	atomic_u_t		nthreads[2];
 
-	/* Next bin shard for binding new threads. Synchronization: atomic. */
-	atomic_u_t		binshard_next;
-
 	/*
 	 * When percpu_arena is enabled, to amortize the cost of reading /
 	 * updating the current CPU id, track the most recent thread accessing
@@ -116,6 +113,7 @@ struct arena_s {
 
 	/* Synchronization: internal. */
 	prof_accum_t		prof_accum;
+	uint64_t		prof_accumbytes;
 
 	/*
 	 * PRNG state for cache index randomization of large allocation base
@@ -198,7 +196,6 @@ struct arena_s {
 	 * Synchronization: extent_avail_mtx.
 	 */
 	extent_tree_t		extent_avail;
-	atomic_zu_t		extent_avail_cnt;
 	malloc_mutex_t		extent_avail_mtx;
 
 	/*
@@ -206,7 +203,7 @@ struct arena_s {
 	 *
 	 * Synchronization: internal.
 	 */
-	bins_t			bins[SC_NBINS];
+	bin_t			bins[NBINS];
 
 	/*
 	 * Base allocator, from which arena metadata are allocated.
