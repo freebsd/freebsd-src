@@ -4645,11 +4645,11 @@ dadone_probewp(struct cam_periph *periph, union ccb *done_ccb)
 	}
 
 	free(csio->data_ptr, M_SCSIDA);
-	xpt_release_ccb(done_ccb);
 	if ((softc->flags & DA_FLAG_CAN_RC16) != 0)
 		softc->state = DA_STATE_PROBE_RC16;
 	else
 		softc->state = DA_STATE_PROBE_RC;
+	xpt_release_ccb(done_ccb);
 	xpt_schedule(periph, priority);
 	return;
 }
@@ -4709,8 +4709,8 @@ dadone_proberc(struct cam_periph *periph, union ccb *done_ccb)
 			 */
 			if (maxsector == 0xffffffff) {
 				free(rdcap, M_SCSIDA);
-				xpt_release_ccb(done_ccb);
 				softc->state = DA_STATE_PROBE_RC16;
+				xpt_release_ccb(done_ccb);
 				xpt_schedule(periph, priority);
 				return;
 			}
@@ -4816,8 +4816,8 @@ dadone_proberc(struct cam_periph *periph, union ccb *done_ccb)
 				cam_periph_assert(periph, MA_OWNED);
 				softc->flags &= ~DA_FLAG_CAN_RC16;
 				free(rdcap, M_SCSIDA);
-				xpt_release_ccb(done_ccb);
 				softc->state = DA_STATE_PROBE_RC;
+				xpt_release_ccb(done_ccb);
 				xpt_schedule(periph, priority);
 				return;
 			}
@@ -4924,14 +4924,14 @@ dadone_proberc(struct cam_periph *periph, union ccb *done_ccb)
 		dadeleteflag(softc, DA_DELETE_WS10, 1);
 		dadeleteflag(softc, DA_DELETE_UNMAP, 1);
 
-		xpt_release_ccb(done_ccb);
 		softc->state = DA_STATE_PROBE_LBP;
+		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
 		return;
 	}
 
-	xpt_release_ccb(done_ccb);
 	softc->state = DA_STATE_PROBE_BDC;
+	xpt_release_ccb(done_ccb);
 	xpt_schedule(periph, priority);
 	return;
 }
@@ -4988,8 +4988,8 @@ dadone_probelbp(struct cam_periph *periph, union ccb *done_ccb)
 	}
 
 	free(lbp, M_SCSIDA);
-	xpt_release_ccb(done_ccb);
 	softc->state = DA_STATE_PROBE_BLK_LIMITS;
+	xpt_release_ccb(done_ccb);
 	xpt_schedule(periph, priority);
 	return;
 }
@@ -5082,8 +5082,8 @@ dadone_probeblklimits(struct cam_periph *periph, union ccb *done_ccb)
 	}
 
 	free(block_limits, M_SCSIDA);
-	xpt_release_ccb(done_ccb);
 	softc->state = DA_STATE_PROBE_BDC;
+	xpt_release_ccb(done_ccb);
 	xpt_schedule(periph, priority);
 	return;
 }
@@ -5183,8 +5183,8 @@ dadone_probebdc(struct cam_periph *periph, union ccb *done_ccb)
 	}
 
 	free(bdc, M_SCSIDA);
-	xpt_release_ccb(done_ccb);
 	softc->state = DA_STATE_PROBE_ATA;
+	xpt_release_ccb(done_ccb);
 	xpt_schedule(periph, priority);
 	return;
 }
@@ -5323,8 +5323,8 @@ dadone_probeata(struct cam_periph *periph, union ccb *done_ccb)
 		continue_probe = 1;
 	}
 	if (continue_probe != 0) {
-		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
+		xpt_release_ccb(done_ccb);
 		return;
 	} else
 		daprobedone(periph, done_ccb);
@@ -5813,8 +5813,8 @@ dadone_tur(struct cam_periph *periph, union ccb *done_ccb)
 					 /*timeout*/0,
 					 /*getcount_only*/0);
 	}
-	xpt_release_ccb(done_ccb);
 	softc->flags &= ~DA_FLAG_TUR_PENDING;
+	xpt_release_ccb(done_ccb);
 	da_periph_release_locked(periph, DA_REF_TUR);
 	return;
 }
