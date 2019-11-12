@@ -110,9 +110,11 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 		IP6STAT_INC(ip6s_badoptions);
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
 			    (caddr_t)&rh->ip6r_type - (caddr_t)ip6);
+		*mp = NULL;
 		return (IPPROTO_DONE);
 	}
 
 	*offp += rhlen;
+	*mp = m;
 	return (rh->ip6r_nxt);
 }
