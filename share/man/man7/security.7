@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 13, 2019
+.Dd November 12, 2019
 .Dt SECURITY 7
 .Os
 .Sh NAME
@@ -1015,6 +1015,13 @@ hardware information leak.
 .It Dv hw.vmm.vmx.l1d_flush
 amd64.
 Controls the mitigation of L1 Terminal Fault in bhyve hypervisor.
+.It Dv vm.pmap.allow_2m_x_ept
+amd64.
+Allows the use of superpages for executable mappings under the EPT
+page table format used by hypervisors on Intel CPUs to map the guest
+physical address space to machine physical memory.
+May be disabled to work around a CPU Erratum called
+Machine Check Error Avoidance on Page Size Change.
 .It Dv kern.elf32.aslr.enable
 Controls system-global Address Space Layout Randomization (ASLR) for
 normal non-PIE (Position Independent Executable) 32bit binaries.
