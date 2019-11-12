@@ -297,7 +297,6 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 {
 	struct trapframe *tf;
 	int frame_type;
-	int narg;
 	int eip, esp, ebp;
 	db_expr_t offset;
 	c_db_sym_t sym;
@@ -317,14 +316,6 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 	 */
 	frame_type = NORMAL;
 
-	/*
-	 * This is the number of arguments that a syscall / trap / interrupt
-	 * service routine passes to its callee.  This number is used only for
-	 * special frame types.  In most cases there is one argument: the trap
-	 * frame address.
-	 */
-	narg = 1;
-
 	if (eip >= PMAP_TRM_MIN_ADDRESS) {
 		sym = db_search_symbol(eip - 1 - setidt_disp, DB_STGY_ANY,
 		    &offset);
@@ -338,8 +329,6 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 			frame_type = TRAP;
 		else if (strncmp(name, "Xatpic_intr", 11) == 0 ||
 		    strncmp(name, "Xapic_isr", 9) == 0) {
-			/* Additional argument: vector number. */
-			narg = 2;
 			frame_type = INTERRUPT;
 		} else if (strcmp(name, "Xlcall_syscall") == 0 ||
 		    strcmp(name, "Xint0x80_syscall") == 0)
@@ -353,7 +342,6 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 		    strcmp(name, "Xrendezvous") == 0 ||
 		    strcmp(name, "Xipi_intr_bitmap_handler") == 0) {
 			/* No arguments. */
-			narg = 0;
 			frame_type = INTERRUPT;
 		}
 	}
@@ -387,12 +375,22 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 	}
 
 	/*
-	 * Point to base of trapframe which is just above the
-	 * current frame.  Note that struct i386_frame already accounts for one
-	 * argument.
+	 * Point to base of trapframe which is just above the current
+	 * frame.  Pointer to it was put into %ebp by the kernel entry
+	 * code.
 	 */
-	tf = (struct trapframe *)((char *)*fp + sizeof(struct i386_frame) +
-	    4 * (narg - 1));
+	tf = (struct trapframe *)(*fp)->f_frame;
+
+	/*
+	 * This can be the case for e.g. fork_trampoline, last frame
+	 * of a kernel thread stack.
+	 */
+	if (tf == NULL) {
+		*ip = 0;
+		*fp = 0;
+		db_printf("--- kthread start\n");
+		return;
+	}
 
 	esp = get_esp(tf);
 	eip = tf->tf_eip;
@@ -413,15 +411,20 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 	}
 	db_printf(", eip = %#r, esp = %#r, ebp = %#r ---\n", eip, esp, ebp);
 
+	/*
+	 * Detect the last (trap) frame on the kernel stack, where we
+	 * entered kernel from usermode.  Terminate tracing in this
+	 * case.
+	 */
 	switch (frame_type) {
 	case TRAP:
 	case INTERRUPT:
-		if ((tf->tf_eflags & PSL_VM) != 0 ||
-		    (tf->tf_cs & SEL_RPL_MASK) != 0)
-			ebp = 0;
-		break;
+		if (!TRAPF_USERMODE(tf))
+			break;
+		/* FALLTHROUGH */
 	case SYSCALL:
 		ebp = 0;
+		eip = 0;
 		break;
 	}
 
@@ -575,9 +578,12 @@ out:
 		 * after printing the pc if it is the kernel.
 		 */
 		if (frame == NULL || frame <= actframe) {
-			sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
-			db_symbol_values(sym, &name, NULL);
-			db_print_stack_entry(name, 0, 0, 0, pc, frame);
+			if (pc != 0) {
+				sym = db_search_symbol(pc, DB_STGY_ANY,
+				    &offset);
+				db_symbol_values(sym, &name, NULL);
+				db_print_stack_entry(name, 0, 0, 0, pc, frame);
+			}
 			break;
 		}
 	}
