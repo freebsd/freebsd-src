@@ -794,6 +794,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_def32 = 0,
 	.ssd_gran = 0		},
 };
+_Static_assert(nitems(gdt_segs) == NGDT, "Stale NGDT");
 
 void
 setidt(int idx, inthand_t *func, int typ, int dpl, int ist)
