@@ -241,6 +241,10 @@ uint64_t	zfs_max_missing_tvds_cachefile = SPA_DVAS_PER_BP - 1;
 uint64_t	zfs_max_missing_tvds_scan = 0;
 
 
+SYSCTL_DECL(_vfs_zfs_zio);
+SYSCTL_INT(_vfs_zfs_zio, OID_AUTO, taskq_batch_pct, CTLFLAG_RDTUN,
+    &zio_taskq_batch_pct, 0,
+    "Percentage of CPUs to run an IO worker thread");
 SYSCTL_INT(_vfs_zfs, OID_AUTO, spa_load_print_vdev_tree, CTLFLAG_RWTUN,
     &spa_load_print_vdev_tree, 0,
     "print out vdev tree during pool import");
