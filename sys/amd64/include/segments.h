@@ -89,7 +89,6 @@ struct region_descriptor {
 } __packed;
 
 #ifdef _KERNEL
-extern struct user_segment_descriptor gdt[];
 extern struct soft_segment_descriptor gdt_segs[];
 extern struct gate_descriptor *idt;
 extern struct region_descriptor r_idt;

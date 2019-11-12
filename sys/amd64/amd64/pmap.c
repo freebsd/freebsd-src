@@ -1669,6 +1669,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 {
 	vm_offset_t va;
 	pt_entry_t *pte, *pcpu_pte;
+	struct region_descriptor r_gdt;
 	uint64_t cr4, pcpu_phys;
 	u_long res;
 	int i;
@@ -1760,14 +1761,25 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 		pcpu_pte[i] = (pcpu_phys + ptoa(i)) | X86_PG_V | X86_PG_RW |
 		    pg_g | pg_nx | X86_PG_M | X86_PG_A;
 	}
+
+	/*
+	 * Re-initialize PCPU area for BSP after switching.
+	 * Make hardware use gdt and common_tss from the new PCPU.
+	 */
 	STAILQ_INIT(&cpuhead);
 	wrmsr(MSR_GSBASE, (uint64_t)&__pcpu[0]);
 	pcpu_init(&__pcpu[0], 0, sizeof(struct pcpu));
 	amd64_bsp_pcpu_init1(&__pcpu[0]);
 	amd64_bsp_ist_init(&__pcpu[0]);
+	memcpy(__pcpu[0].pc_gdt, temp_bsp_pcpu.pc_gdt, NGDT *
+	    sizeof(struct user_segment_descriptor));
 	gdt_segs[GPROC0_SEL].ssd_base = (uintptr_t)&__pcpu[0].pc_common_tss;
 	ssdtosyssd(&gdt_segs[GPROC0_SEL],
-	    (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
+	    (struct system_segment_descriptor *)&__pcpu[0].pc_gdt[GPROC0_SEL]);
+	r_gdt.rd_limit = NGDT * sizeof(struct user_segment_descriptor) - 1;
+	r_gdt.rd_base = (long)__pcpu[0].pc_gdt;
+	lgdt(&r_gdt);
+	wrmsr(MSR_GSBASE, (uint64_t)&__pcpu[0]);
 	ltr(GSEL(GPROC0_SEL, SEL_KPL));
 	__pcpu[0].pc_dynamic = temp_bsp_pcpu.pc_dynamic;
 	__pcpu[0].pc_acpi_id = temp_bsp_pcpu.pc_acpi_id;
@@ -9722,8 +9734,6 @@ pmap_pti_init(void)
 	}
 	pmap_pti_add_kva_locked((vm_offset_t)&__pcpu[0],
 	    (vm_offset_t)&__pcpu[0] + sizeof(__pcpu[0]) * MAXCPU, false);
-	pmap_pti_add_kva_locked((vm_offset_t)gdt, (vm_offset_t)gdt +
-	    sizeof(struct user_segment_descriptor) * NGDT * MAXCPU, false);
 	pmap_pti_add_kva_locked((vm_offset_t)idt, (vm_offset_t)idt +
 	    sizeof(struct gate_descriptor) * NIDT, false);
 	CPU_FOREACH(i) {
