@@ -144,7 +144,9 @@ nvdimm_root_create_spas(struct nvdimm_root_dev *dev, ACPI_TABLE_NFIT *nfitbl)
 			free(spa_mapping, M_NVDIMM_ACPI);
 			break;
 		}
-		nvdimm_create_namespaces(spa_mapping, nfitbl);
+		if (nvdimm_spa_type_user_accessible(spa_type) &&
+		    spa_type != SPA_TYPE_CONTROL_REGION)
+			nvdimm_create_namespaces(spa_mapping, nfitbl);
 		SLIST_INSERT_HEAD(&dev->spas, spa_mapping, link);
 	}
 	free(spas, M_NVDIMM_ACPI);
