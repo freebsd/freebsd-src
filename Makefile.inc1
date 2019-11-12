@@ -734,6 +734,7 @@ TMAKE=		\
 # TOOLS_PREFIX set in BMAKE
 XMAKE=		${BMAKE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		MK_CLANG_IS_CC=yes \
 		MK_GDB=no MK_TESTS=no
 
 # kernel-tools stage
