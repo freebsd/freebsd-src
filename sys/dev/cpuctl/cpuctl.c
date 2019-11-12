@@ -48,6 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/pmckern.h>
 #include <sys/cpuctl.h>
 
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
@@ -535,6 +539,9 @@ cpuctl_do_eval_cpu_features(int cpu, struct thread *td)
 	hw_ibrs_recalculate();
 	restore_cpu(oldcpu, is_bound, td);
 	hw_ssb_recalculate(true);
+#ifdef __amd64__
+	pmap_allow_2m_x_ept_recalculate();
+#endif
 	hw_mds_recalculate();
 	printcpuinfo();
 	return (0);
