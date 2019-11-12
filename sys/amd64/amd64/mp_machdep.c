@@ -275,9 +275,10 @@ init_secondary(void)
 {
 	struct pcpu *pc;
 	struct nmi_pcpu *np;
+	struct user_segment_descriptor *gdt;
+	struct region_descriptor ap_gdt;
 	u_int64_t cr0;
 	int cpu, gsel_tss, x;
-	struct region_descriptor ap_gdt;
 
 	/* Set by the startup code for us to use */
 	cpu = bootAP;
@@ -298,12 +299,11 @@ init_secondary(void)
 	pc->pc_rsp0 = 0;
 	pc->pc_pti_rsp0 = (((vm_offset_t)&pc->pc_pti_stack +
 	    PC_PTI_STACK_SZ * sizeof(uint64_t)) & ~0xful);
-	pc->pc_tss = (struct system_segment_descriptor *)&gdt[NGDT * cpu +
-	    GPROC0_SEL];
-	pc->pc_fs32p = &gdt[NGDT * cpu + GUFS32_SEL];
-	pc->pc_gs32p = &gdt[NGDT * cpu + GUGS32_SEL];
-	pc->pc_ldt = (struct system_segment_descriptor *)&gdt[NGDT * cpu +
-	    GUSERLDT_SEL];
+	gdt = pc->pc_gdt;
+	pc->pc_tss = (struct system_segment_descriptor *)&gdt[GPROC0_SEL];
+	pc->pc_fs32p = &gdt[GUFS32_SEL];
+	pc->pc_gs32p = &gdt[GUGS32_SEL];
+	pc->pc_ldt = (struct system_segment_descriptor *)&gdt[GUSERLDT_SEL];
 	/* See comment in pmap_bootstrap(). */
 	pc->pc_pcid_next = PMAP_PCID_KERN + 2;
 	pc->pc_pcid_gen = 1;
@@ -331,14 +331,14 @@ init_secondary(void)
 	/* Prepare private GDT */
 	gdt_segs[GPROC0_SEL].ssd_base = (long)&pc->pc_common_tss;
 	for (x = 0; x < NGDT; x++) {
-		if (x != GPROC0_SEL && x != (GPROC0_SEL + 1) &&
-		    x != GUSERLDT_SEL && x != (GUSERLDT_SEL + 1))
-			ssdtosd(&gdt_segs[x], &gdt[NGDT * cpu + x]);
+		if (x != GPROC0_SEL && x != GPROC0_SEL + 1 &&
+		    x != GUSERLDT_SEL && x != GUSERLDT_SEL + 1)
+			ssdtosd(&gdt_segs[x], &gdt[x]);
 	}
 	ssdtosyssd(&gdt_segs[GPROC0_SEL],
-	    (struct system_segment_descriptor *)&gdt[NGDT * cpu + GPROC0_SEL]);
+	    (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
 	ap_gdt.rd_limit = NGDT * sizeof(gdt[0]) - 1;
-	ap_gdt.rd_base = (u_long)&gdt[NGDT * cpu];
+	ap_gdt.rd_base = (u_long)gdt;
 	lgdt(&ap_gdt);			/* does magic intra-segment return */
 
 	/* Save the per-cpu pointer for use by the NMI handler. */
