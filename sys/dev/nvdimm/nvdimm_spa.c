@@ -155,6 +155,15 @@ nvdimm_spa_type_from_uuid(struct uuid *uuid)
 	return (SPA_TYPE_UNKNOWN);
 }
 
+bool
+nvdimm_spa_type_user_accessible(enum SPA_mapping_type spa_type)
+{
+
+	if ((int)spa_type < 0 || spa_type >= nitems(nvdimm_SPA_uuid_list))
+		return (false);
+	return (nvdimm_SPA_uuid_list[spa_type].u_usr_acc);
+}
+
 static vm_memattr_t
 nvdimm_spa_memattr(uint64_t efi_mem_flags)
 {
