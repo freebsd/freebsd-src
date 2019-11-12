@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 20, 2019
+.Dd November 7, 2019
 .Dt ZPOOL 8
 .Os
 .Sh NAME
@@ -599,8 +599,8 @@ Each pool has several properties associated with it. Some properties are
 read-only statistics while others are configurable and change the behavior of
 the pool. The following are read-only properties:
 .Bl -tag -width "dedupratio"
-.It Sy alloc
-Amount of storage space within the pool that has been physically allocated.
+.It Sy allocated
+Amount of storage space used within the pool.
 .It Sy capacity
 Percentage of pool space used. This property can also be referred to by its
 shortened column name, "cap".
@@ -650,8 +650,6 @@ Information about unsupported features that are enabled on the pool.
 See
 .Xr zpool-features 7
 for details.
-.It Sy used
-Amount of storage space used within the pool.
 .El
 .Pp
 The space usage properties report actual physical space available to the
@@ -1573,8 +1571,8 @@ Comma-separated list of properties to display. See the
 section for a list of valid properties. The default list is
 .Sy name ,
 .Sy size ,
-.Sy used ,
-.Sy available ,
+.Sy allocated ,
+.Sy free ,
 .Sy checkpoint ,
 .Sy expandsize ,
 .Sy fragmentation ,
