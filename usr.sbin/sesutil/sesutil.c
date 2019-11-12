@@ -247,7 +247,7 @@ sesled(int argc, char **argv, bool setfault)
 		}
 
 		if (isses) {
-			if (sesid > nobj) {
+			if (sesid >= nobj) {
 				close(fd);
 				xo_errx(EXIT_FAILURE,
 				     "Requested SES ID does not exist");
