@@ -95,7 +95,7 @@ static void
 efi_verify_staging_size(unsigned long *nr_pages)
 {
 	UINTN sz;
-	EFI_MEMORY_DESCRIPTOR *map, *p;
+	EFI_MEMORY_DESCRIPTOR *map = NULL, *p;
 	EFI_PHYSICAL_ADDRESS start, end;
 	UINTN key, dsz;
 	UINT32 dver;
@@ -104,17 +104,28 @@ efi_verify_staging_size(unsigned long *nr_pages)
 	unsigned long available_pages = 0;
 
 	sz = 0;
-	status = BS->GetMemoryMap(&sz, 0, &key, &dsz, &dver);
-	if (status != EFI_BUFFER_TOO_SMALL) {
-		printf("Can't determine memory map size\n");
-		return;
-	}
 
-	map = malloc(sz);
-	status = BS->GetMemoryMap(&sz, map, &key, &dsz, &dver);
-	if (EFI_ERROR(status)) {
-		printf("Can't read memory map\n");
-		goto out;
+	for (;;) {
+		status = BS->GetMemoryMap(&sz, map, &key, &dsz, &dver);
+		if (!EFI_ERROR(status))
+			break;
+
+		if (status != EFI_BUFFER_TOO_SMALL) {
+			printf("Can't read memory map: %lu\n",
+			    EFI_ERROR_CODE(status));
+			goto out;
+		}
+
+		free(map);
+
+		/* Allocate 10 descriptors more than the size reported,
+		 * to allow for any fragmentation caused by calling
+		 * malloc */
+		map = malloc(sz + (10 * dsz));
+		if (map == NULL) {
+			printf("Unable to allocate memory\n");
+			goto out;
+		}
 	}
 
 	ndesc = sz / dsz;
