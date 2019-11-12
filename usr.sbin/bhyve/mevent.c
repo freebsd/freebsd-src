@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <err.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -62,12 +63,6 @@ __FBSDID("$FreeBSD$");
 
 #define	MEVENT_MAX	64
 
-#define	MEV_ADD			1
-#define	MEV_ENABLE		2
-#define	MEV_DISABLE		3
-#define	MEV_DEL_PENDING		4
-#define	MEV_ADD_DISABLED	5
-
 extern char *vmname;
 
 static pthread_t mevent_tid;
@@ -83,7 +78,7 @@ struct mevent {
 	enum ev_type me_type;
 	void    *me_param;
 	int	me_cq;
-	int	me_state;
+	int	me_state; /* Desired kevent flags. */
 	int	me_closefd;
 	LIST_ENTRY(mevent) me_list;
 };
@@ -156,30 +151,7 @@ mevent_kq_filter(struct mevent *mevp)
 static int
 mevent_kq_flags(struct mevent *mevp)
 {
-	int ret;
-
-	switch (mevp->me_state) {
-	case MEV_ADD:
-		ret = EV_ADD;		/* implicitly enabled */
-		break;
-	case MEV_ADD_DISABLED:
-		ret = EV_ADD | EV_DISABLE;
-		break;
-	case MEV_ENABLE:
-		ret = EV_ENABLE;
-		break;
-	case MEV_DISABLE:
-		ret = EV_DISABLE;
-		break;
-	case MEV_DEL_PENDING:
-		ret = EV_DELETE;
-		break;
-	default:
-		assert(0);
-		break;
-	}
-
-	return (ret);
+	return (mevp->me_state);
 }
 
 static int
@@ -224,9 +196,15 @@ mevent_build(int mfd, struct kevent *kev)
 		mevp->me_cq = 0;
 		LIST_REMOVE(mevp, me_list);
 
-		if (mevp->me_state == MEV_DEL_PENDING) {
+		if (mevp->me_state & EV_DELETE) {
 			free(mevp);
 		} else {
+			/*
+			 * We need to add the event only once, so we can
+			 * reset the EV_ADD bit after it has been propagated
+			 * to the kevent() arguments the first time.
+			 */
+			mevp->me_state &= ~EV_ADD;
 			LIST_INSERT_HEAD(&global_head, mevp, me_list);
 		}
 
@@ -318,7 +296,7 @@ mevent_add(int tfd, enum ev_type type,
 	   void (*func)(int, enum ev_type, void *), void *param)
 {
 
-	return mevent_add_state(tfd, type, func, param, MEV_ADD);
+	return (mevent_add_state(tfd, type, func, param, EV_ADD));
 }
 
 struct mevent *
@@ -326,36 +304,46 @@ mevent_add_disabled(int tfd, enum ev_type type,
 		    void (*func)(int, enum ev_type, void *), void *param)
 {
 
-	return mevent_add_state(tfd, type, func, param, MEV_ADD_DISABLED);
+	return (mevent_add_state(tfd, type, func, param, EV_ADD | EV_DISABLE));
 }
 
 static int
-mevent_update(struct mevent *evp, int newstate)
+mevent_update(struct mevent *evp, bool enable)
 {
+	int newstate;
+
+	mevent_qlock();
+
 	/*
 	 * It's not possible to enable/disable a deleted event
 	 */
-	if (evp->me_state == MEV_DEL_PENDING)
-		return (EINVAL);
+	assert((evp->me_state & EV_DELETE) == 0);
+
+	newstate = evp->me_state;
+	if (enable) {
+		newstate |= EV_ENABLE;
+		newstate &= ~EV_DISABLE;
+	} else {
+		newstate |= EV_DISABLE;
+		newstate &= ~EV_ENABLE;
+	}
 
 	/*
 	 * No update needed if state isn't changing
 	 */
-	if (evp->me_state == newstate)
-		return (0);
-	
-	mevent_qlock();
+	if (evp->me_state != newstate) {
+		evp->me_state = newstate;
 
-	evp->me_state = newstate;
-
-	/*
-	 * Place the entry onto the changed list if not already there.
-	 */
-	if (evp->me_cq == 0) {
-		evp->me_cq = 1;
-		LIST_REMOVE(evp, me_list);
-		LIST_INSERT_HEAD(&change_head, evp, me_list);
-		mevent_notify();
+		/*
+		 * Place the entry onto the changed list if not
+		 * already there.
+		 */
+		if (evp->me_cq == 0) {
+			evp->me_cq = 1;
+			LIST_REMOVE(evp, me_list);
+			LIST_INSERT_HEAD(&change_head, evp, me_list);
+			mevent_notify();
+		}
 	}
 
 	mevent_qunlock();
@@ -367,14 +355,14 @@ int
 mevent_enable(struct mevent *evp)
 {
 
-	return (mevent_update(evp, MEV_ENABLE));
+	return (mevent_update(evp, true));
 }
 
 int
 mevent_disable(struct mevent *evp)
 {
 
-	return (mevent_update(evp, MEV_DISABLE));
+	return (mevent_update(evp, false));
 }
 
 static int
@@ -392,7 +380,7 @@ mevent_delete_event(struct mevent *evp, int closefd)
 		LIST_INSERT_HEAD(&change_head, evp, me_list);
 		mevent_notify();
         }
-	evp->me_state = MEV_DEL_PENDING;
+	evp->me_state = EV_DELETE;
 
 	if (closefd)
 		evp->me_closefd = 1;
