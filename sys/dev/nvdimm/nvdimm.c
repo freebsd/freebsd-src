@@ -183,7 +183,7 @@ label_index_is_valid(struct nvdimm_label_index *index, uint32_t max_labels,
 {
 	uint64_t checksum;
 
-	index = (struct nvdimm_label_index *)((uint8_t *)index + offset);
+	index = (struct nvdimm_label_index *)((uint8_t *)index + size * offset);
 	if (strcmp(index->signature, NVDIMM_INDEX_BLOCK_SIGNATURE) != 0)
 		return false;
 	checksum = index->checksum;
@@ -242,7 +242,7 @@ read_label(struct nvdimm_dev *nv, int num)
 static int
 read_labels(struct nvdimm_dev *nv)
 {
-	struct nvdimm_label_index *indices;
+	struct nvdimm_label_index *indices, *index1;
 	size_t bitfield_size, index_size, num_labels;
 	int error, n;
 	bool index_0_valid, index_1_valid;
@@ -258,6 +258,7 @@ read_labels(struct nvdimm_dev *nv)
 	    sizeof(struct nvdimm_label);
 	bitfield_size = roundup2(num_labels, 8) / 8;
 	indices = malloc(2 * index_size, M_NVDIMM, M_WAITOK);
+	index1 = (void *)((uint8_t *)indices + index_size);
 	error = read_label_area(nv, (void *)indices, 0, 2 * index_size);
 	if (error != 0) {
 		free(indices, M_NVDIMM);
@@ -271,18 +272,29 @@ read_labels(struct nvdimm_dev *nv)
 		free(indices, M_NVDIMM);
 		return (ENXIO);
 	}
-	if (index_0_valid && index_1_valid &&
-	    (indices[1].seq > indices[0].seq ||
-	    (indices[1].seq == 1 && indices[0].seq == 3)))
-		index_0_valid = false;
+	if (index_0_valid && index_1_valid) {
+		if (((int)indices->seq - (int)index1->seq + 3) % 3 == 1) {
+			/* index 0 was more recently updated */
+			index_1_valid = false;
+		} else {
+			/*
+			 * either index 1 was more recently updated,
+			 * or the sequence numbers are equal, in which
+			 * case the specification says the block with
+			 * the higher offset is to be treated as valid
+			 */
+			index_0_valid = false;
+		}
+	}
 	nv->label_index = malloc(index_size, M_NVDIMM, M_WAITOK);
-	bcopy(indices + (index_0_valid ? 0 : 1), nv->label_index, index_size);
+	bcopy(index_0_valid ? indices : index1, nv->label_index, index_size);
 	free(indices, M_NVDIMM);
-	for (bit_ffc_at((bitstr_t *)nv->label_index->free, 0, num_labels, &n);
-	     n >= 0;
-	     bit_ffc_at((bitstr_t *)nv->label_index->free, n + 1, num_labels,
-	     &n)) {
+	bit_ffc_at((bitstr_t *)nv->label_index->free, 0,
+	    nv->label_index->slot_cnt, &n);
+	while (n >= 0) {
 		read_label(nv, n);
+		bit_ffc_at((bitstr_t *)nv->label_index->free, n + 1,
+		    nv->label_index->slot_cnt, &n);
 	}
 	return (0);
 }
