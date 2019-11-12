@@ -242,18 +242,21 @@ sesled(int argc, char **argv, bool setfault)
 		}
 
 		if (ioctl(fd, ENCIOC_GETELMMAP, (caddr_t) objp) < 0) {
+			free(objp);
 			close(fd);
 			xo_err(EXIT_FAILURE, "ENCIOC_GETELMMAP");
 		}
 
 		if (isses) {
 			if (sesid >= nobj) {
+				free(objp);
 				close(fd);
 				xo_errx(EXIT_FAILURE,
 				     "Requested SES ID does not exist");
 			}
 			do_led(fd, sesid, objp[sesid].elm_type, onoff, setfault);
 			ndisks++;
+			free(objp);
 			close(fd);
 			break;
 		}
