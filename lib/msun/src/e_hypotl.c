@@ -115,10 +115,8 @@ hypotl(long double x, long double y)
 	    w  = sqrtl(t1*y1-(w*(-w)-(t1*y2+t2*b)));
 	}
 	if(k!=0) {
-	    u_int32_t high;
-	    t1 = 1.0;
-	    GET_HIGH_WORD(high,t1);
-	    SET_HIGH_WORD(t1,high+DESW(k));
+	    t1 = 0;
+	    SET_HIGH_WORD(t1, ESW(k)); /* t1=2^k */
 	    return t1*w;
 	} else return w;
 }
