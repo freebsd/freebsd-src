@@ -1230,10 +1230,12 @@ igmp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	if (igmpstat.igps_version != IGPS_VERSION_3) {
 		xo_warnx("%s: version mismatch (%d != %d)", __func__,
 		    igmpstat.igps_version, IGPS_VERSION_3);
+		return;
 	}
 	if (igmpstat.igps_len != IGPS_VERSION3_LEN) {
 		xo_warnx("%s: size mismatch (%d != %d)", __func__,
 		    igmpstat.igps_len, IGPS_VERSION3_LEN);
+		return;
 	}
 
 	xo_open_container(name);
