@@ -261,19 +261,19 @@ sesled(int argc, char **argv, bool setfault)
 			break;
 		}
 		for (j = 0; j < nobj; j++) {
+			const int devnames_size = 128;
+			char devnames[devnames_size];
+
 			if (all) {
 				do_led(fd, objp[j].elm_idx, objp[j].elm_type,
 				    onoff, setfault);
 				continue;
 			}
 			memset(&objdn, 0, sizeof(objdn));
+			memset(devnames, 0, devnames_size);
 			objdn.elm_idx = objp[j].elm_idx;
-			objdn.elm_names_size = 128;
-			objdn.elm_devnames = calloc(128, sizeof(char));
-			if (objdn.elm_devnames == NULL) {
-				close(fd);
-				xo_err(EXIT_FAILURE, "calloc()");
-			}
+			objdn.elm_names_size = devnames_size;
+			objdn.elm_devnames = devnames;
 			if (ioctl(fd, ENCIOC_GETELMDEVNAMES,
 			    (caddr_t) &objdn) <0) {
 				continue;
