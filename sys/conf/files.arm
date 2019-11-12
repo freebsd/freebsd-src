@@ -94,7 +94,7 @@ board_id.h			standard				   \
 	compile-with	"${AWK} -f $S/arm/conf/genboardid.awk $S/arm/conf/mach-types > board_id.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"board_id.h"
-cddl/compat/opensolaris/kern/opensolaris_atomic.c	optional zfs | dtrace compile-with "${CDDL_C}"
+cddl/compat/opensolaris/kern/opensolaris_atomic.c	optional !armv7 !armv6 zfs | !armv7 !armv6 dtrace compile-with "${CDDL_C}"
 cddl/dev/dtrace/arm/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/arm/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/fbt/arm/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
