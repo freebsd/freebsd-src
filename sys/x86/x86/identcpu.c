@@ -1046,6 +1046,8 @@ printcpuinfo(void)
 				       "\004SKIP_L1DFL_VME"
 				       "\005SSB_NO"
 				       "\006MDS_NO"
+				       "\010TSX_CTRL"
+				       "\011TAA_NO"
 				       );
 			}
 
