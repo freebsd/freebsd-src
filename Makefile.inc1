@@ -902,7 +902,7 @@ _sanity_check: .PHONY .MAKE
 # replacing generated files.  Handle these cases here in an ad-hoc fashion.
 _cleanobj_fast_depend_hack: .PHONY
 # Syscall stubs rewritten in C and obsolete MD assembly implementations
-# Date      SVN Rev  Syscalls
+# Date      SVN Rev  Syscalls/Changes
 # 20170624  r320278  fstat fstatat fstatfs getdirentries getfsstat statfs
 # 20180404  r332048  sigreturn
 # 20180405  r332080  shmat
@@ -970,6 +970,17 @@ _cleanobj_fast_depend_hack: .PHONY
 		echo "Removing stale wpa dependencies"; \
 		rm -f ${OBJTOP}/usr.sbin/wpa/*/.depend*; \
 	fi
+# 20191112  r354634  removal of opensolaris_atomic.S
+.if ${MACHINE} != i386
+.for f in opensolaris_atomic
+	@if [ -e "${OBJTOP}/cddl/lib/libzpool/.depend.${f}.o" ] && \
+	    egrep -qw 'opensolaris_atomic\.S' ${OBJTOP}/cddl/lib/libzpool/.depend.${f}.o; then \
+		echo "Removing stale dependencies for opensolaris_atomic"; \
+		rm -f ${OBJTOP}/cddl/lib/libzpool/.depend.${f}.* \
+		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/cddl/lib/libzpool/.depend.${f}.*}; \
+	fi
+.endfor
+.endif
 
 _worldtmp: .PHONY
 	@echo
