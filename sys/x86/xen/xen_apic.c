@@ -72,7 +72,6 @@ static driver_filter_t xen_invlcache;
 static driver_filter_t xen_ipi_bitmap_handler;
 static driver_filter_t xen_cpustop_handler;
 static driver_filter_t xen_cpususpend_handler;
-static driver_filter_t xen_cpustophard_handler;
 #endif
 
 /*---------------------------------- Macros ----------------------------------*/
@@ -96,7 +95,6 @@ static struct xen_ipi_handler xen_ipis[] =
 	[IPI_TO_IDX(IPI_BITMAP_VECTOR)] = { xen_ipi_bitmap_handler,	"b"   },
 	[IPI_TO_IDX(IPI_STOP)]		= { xen_cpustop_handler,	"st"  },
 	[IPI_TO_IDX(IPI_SUSPEND)]	= { xen_cpususpend_handler,	"sp"  },
-	[IPI_TO_IDX(IPI_STOP_HARD)]	= { xen_cpustophard_handler,	"sth" },
 };
 #endif
 
@@ -259,11 +257,51 @@ xen_pv_lapic_ipi_raw(register_t icrlo, u_int dest)
 	XEN_APIC_UNSUPPORTED;
 }
 
+#define PCPU_ID_GET(id, field) (pcpu_find(id)->pc_##field)
+static void
+send_nmi(int dest)
+{
+	unsigned int cpu;
+
+	/*
+	 * NMIs are not routed over event channels, and instead delivered as on
+	 * native using the exception vector (#2). Triggering them can be done
+	 * using the local APIC, or an hypercall as a shortcut like it's done
+	 * below.
+	 */
+	switch(dest) {
+	case APIC_IPI_DEST_SELF:
+		HYPERVISOR_vcpu_op(VCPUOP_send_nmi, PCPU_GET(vcpu_id), NULL);
+		break;
+	case APIC_IPI_DEST_ALL:
+		CPU_FOREACH(cpu)
+			HYPERVISOR_vcpu_op(VCPUOP_send_nmi,
+			    PCPU_ID_GET(cpu, vcpu_id), NULL);
+		break;
+	case APIC_IPI_DEST_OTHERS:
+		CPU_FOREACH(cpu)
+			if (cpu != PCPU_GET(cpuid))
+				HYPERVISOR_vcpu_op(VCPUOP_send_nmi,
+				    PCPU_ID_GET(cpu, vcpu_id), NULL);
+		break;
+	default:
+		HYPERVISOR_vcpu_op(VCPUOP_send_nmi,
+		    PCPU_ID_GET(apic_cpuid(dest), vcpu_id), NULL);
+		break;
+	}
+}
+#undef PCPU_ID_GET
+
 static void
 xen_pv_lapic_ipi_vectored(u_int vector, int dest)
 {
 	xen_intr_handle_t *ipi_handle;
 	int ipi_idx, to_cpu, self;
+
+	if (vector >= IPI_NMI_FIRST) {
+		send_nmi(dest);
+		return;
+	}
 
 	ipi_idx = IPI_TO_IDX(vector);
 	if (ipi_idx >= nitems(xen_ipis))
@@ -519,14 +557,6 @@ xen_cpususpend_handler(void *arg)
 {
 
 	cpususpend_handler();
-	return (FILTER_HANDLED);
-}
-
-static int
-xen_cpustophard_handler(void *arg)
-{
-
-	ipi_nmi_handler();
 	return (FILTER_HANDLED);
 }
 
