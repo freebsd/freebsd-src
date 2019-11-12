@@ -1010,8 +1010,10 @@ ip6_hopopts_input(u_int32_t *plenp, u_int32_t *rtalertp,
 	off += hbhlen;
 	hbhlen -= sizeof(struct ip6_hbh);
 	if (ip6_process_hopopts(m, (u_int8_t *)hbh + sizeof(struct ip6_hbh),
-				hbhlen, rtalertp, plenp) < 0)
+				hbhlen, rtalertp, plenp) < 0) {
+		*mp = NULL;
 		return (-1);
+	}
 
 	*offp = off;
 	*mp = m;

@@ -617,8 +617,10 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 		 */
 		if ((ip6->ip6_hlim != 1) || (m->m_flags & M_RTALERT_MLD) == 0)
 			goto freeit;
-		if (mld_input(m, off, icmp6len) != 0)
+		if (mld_input(m, off, icmp6len) != 0) {
+			*mp = NULL;
 			return (IPPROTO_DONE);
+		}
 		/* m stays. */
 		break;
 
@@ -853,6 +855,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 	deliver:
 		if (icmp6_notify_error(&m, off, icmp6len, code) != 0) {
 			/* In this case, m should've been freed. */
+			*mp = NULL;
 			return (IPPROTO_DONE);
 		}
 		break;
@@ -869,11 +872,13 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 	/* deliver the packet to appropriate sockets */
 	icmp6_rip6_input(&m, *offp);
 
-	return IPPROTO_DONE;
+	*mp = m;
+	return (IPPROTO_DONE);
 
  freeit:
 	m_freem(m);
-	return IPPROTO_DONE;
+	*mp = NULL;
+	return (IPPROTO_DONE);
 }
 
 static int
@@ -1106,6 +1111,7 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len, int code)
 
   freeit:
 	m_freem(m);
+	*mp = NULL;
 	return (-1);
 }
 
@@ -1918,6 +1924,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 	fromsa.sin6_addr = ip6->ip6_src;
 	if (sa6_recoverscope(&fromsa)) {
 		m_freem(m);
+		*mp = NULL;
 		return (IPPROTO_DONE);
 	}
 
@@ -2041,7 +2048,8 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 		m_freem(m);
 		IP6STAT_DEC(ip6s_delivered);
 	}
-	return IPPROTO_DONE;
+	*mp = NULL;
+	return (IPPROTO_DONE);
 }
 
 /*

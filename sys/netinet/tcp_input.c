@@ -530,11 +530,13 @@ tcp6_input(struct mbuf **mp, int *offp, int proto)
 		ifa_free(&ia6->ia_ifa);
 		icmp6_error(m, ICMP6_DST_UNREACH, ICMP6_DST_UNREACH_ADDR,
 			    (caddr_t)&ip6->ip6_dst - (caddr_t)ip6);
+		*mp = NULL;
 		return (IPPROTO_DONE);
 	}
 	if (ia6)
 		ifa_free(&ia6->ia_ifa);
 
+	*mp = m;
 	return (tcp_input(mp, offp, proto));
 }
 #endif /* INET6 */
