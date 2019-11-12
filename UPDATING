@@ -16,6 +16,10 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20191112	p5	FreeBSD-SA-19:25.mcepsc
+
+	Fix Machine Check Exception on Page Size Change [SA-19:25.mcepsc]
+	
 20191023	p4	FreeBSD-EN-19:18.tzdata
 
 	Import tzdata 2019c. [EN-19:18.tzdata]
