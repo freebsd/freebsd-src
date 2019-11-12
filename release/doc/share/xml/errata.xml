@@ -46,6 +46,14 @@
 	<entry>20&nbsp;August&nbsp;2019</entry>
 	<entry><para>&quot;jail&quot; keyword fix</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-19:18.tzdata.asc">FreeBSD-EN-19:18.tzdata</link></entry>
+	<entry>23&nbsp;October&nbsp;2019</entry>
+	<entry><para>Timezone database information
+	    update</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>

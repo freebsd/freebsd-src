@@ -110,6 +110,21 @@
 	<entry>20&nbsp;August&nbsp;2019</entry>
 	<entry><para>Reference count overflow</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:25.mcepsc.asc">FreeBSD-SA-19:25.mcepce</link></entry>
+	<entry>12&nbsp;November&nbsp;2019</entry>
+	<entry><para>Machine Check Exception on Page Size
+	  Change</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:26.mcu.asc">FreeBSD-SA-19:26.mcu</link></entry>
+	<entry>12&nbsp;November&nbsp;2019</entry>
+	<entry><para>Intel CPU Microcode Update</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
