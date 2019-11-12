@@ -157,6 +157,7 @@
 	movw	%es,(%esp)
 	pushl	$0
 	movw	%fs,(%esp)
+	movl	%esp,%ebp
 	.endm
 
 	.macro	PUSH_FRAME
