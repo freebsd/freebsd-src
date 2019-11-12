@@ -658,8 +658,6 @@ cpu_setregs(void)
 /*
  * Initialize segments & interrupt table
  */
-
-struct user_segment_descriptor gdt[NGDT * MAXCPU];/* global descriptor tables */
 static struct gate_descriptor idt0[NIDT];
 struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
 
@@ -1546,8 +1544,10 @@ amd64_conf_fast_syscall(void)
 void
 amd64_bsp_pcpu_init1(struct pcpu *pc)
 {
+	struct user_segment_descriptor *gdt;
 
 	PCPU_SET(prvspace, pc);
+	gdt = *PCPU_PTR(gdt);
 	PCPU_SET(curthread, &thread0);
 	PCPU_SET(tssp, PCPU_PTR(common_tss));
 	PCPU_SET(tss, (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
@@ -1610,6 +1610,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	struct xstate_hdr *xhdr;
 	u_int64_t rsp0;
 	char *env;
+	struct user_segment_descriptor *gdt;
 	struct region_descriptor r_gdt;
 	size_t kstack0_sz;
 	int late_console;
@@ -1667,6 +1668,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	pmap_thread_init_invl_gen(&thread0);
 
 	pc = &temp_bsp_pcpu;
+	pcpu_init(pc, 0, sizeof(struct pcpu));
+	gdt = &temp_bsp_pcpu.pc_gdt[0];
 
 	/*
 	 * make gdt memory segments
@@ -1681,14 +1684,13 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	    (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
 
 	r_gdt.rd_limit = NGDT * sizeof(gdt[0]) - 1;
-	r_gdt.rd_base =  (long) gdt;
+	r_gdt.rd_base = (long)gdt;
 	lgdt(&r_gdt);
 
 	wrmsr(MSR_FSBASE, 0);		/* User value */
 	wrmsr(MSR_GSBASE, (u_int64_t)pc);
 	wrmsr(MSR_KGSBASE, 0);		/* User value while in the kernel */
 
-	pcpu_init(pc, 0, sizeof(struct pcpu));
 	dpcpu_init((void *)(physfree + KERNBASE), 0);
 	physfree += DPCPU_SIZE;
 	amd64_bsp_pcpu_init1(pc);

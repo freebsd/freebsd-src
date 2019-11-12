@@ -69,7 +69,7 @@ static __inline uint64_t
 vmm_get_host_gdtrbase(void)
 {
 
-	return ((uint64_t)&gdt[NGDT * curcpu]);
+	return ((uint64_t)*PCPU_PTR(gdt));
 }
 
 static __inline uint64_t

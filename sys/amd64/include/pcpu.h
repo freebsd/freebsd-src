@@ -35,6 +35,7 @@
 #error "sys/cdefs.h is a prerequisite for this file"
 #endif
 
+#include <machine/segments.h>
 #include <machine/tss.h>
 
 #define	PC_PTI_STACK_SZ	16
@@ -92,7 +93,8 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 	uint8_t	pc_mds_tmp[64];						\
 	u_int 	pc_ipi_bitmap;						\
 	struct amd64tss pc_common_tss;					\
-	char	__pad[3068]		/* pad to UMA_PCPU_ALLOC_SIZE */
+	struct user_segment_descriptor pc_gdt[NGDT];			\
+	char	__pad[2956]		/* pad to UMA_PCPU_ALLOC_SIZE */
 
 #define	PC_DBREG_CMD_NONE	0
 #define	PC_DBREG_CMD_LOAD	1

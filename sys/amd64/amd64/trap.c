@@ -861,14 +861,15 @@ trap_fatal(frame, eva)
 	int code, ss;
 	u_int type;
 	struct soft_segment_descriptor softseg;
+	struct user_segment_descriptor *gdt;
 #ifdef KDB
 	bool handled;
 #endif
 
 	code = frame->tf_err;
 	type = frame->tf_trapno;
-	sdtossd(&gdt[NGDT * PCPU_GET(cpuid) + IDXSEL(frame->tf_cs & 0xffff)],
-	    &softseg);
+	gdt = *PCPU_PTR(gdt);
+	sdtossd(&gdt[IDXSEL(frame->tf_cs & 0xffff)], &softseg);
 
 	printf("\n\nFatal trap %d: %s while in %s mode\n", type,
 	    type < nitems(trap_msg) ? trap_msg[type] : UNKNOWN,
