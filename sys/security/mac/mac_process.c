@@ -363,7 +363,8 @@ mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
 			}
 			pmap_protect(map->pmap, vme->start, vme->end,
 			    vme->protection & ~revokeperms);
-			vm_map_try_merge_entries(map, vme->prev, vme);
+			vm_map_try_merge_entries(map, vm_map_entry_pred(vme),
+			    vme);
 		}
 	}
 	vm_map_unlock(map);
