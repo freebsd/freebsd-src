@@ -335,7 +335,6 @@ VNET_DECLARE(int, nd6_mmaxtries);
 VNET_DECLARE(int, nd6_useloopback);
 VNET_DECLARE(int, nd6_maxnudhint);
 VNET_DECLARE(int, nd6_gctimer);
-VNET_DECLARE(struct nd_drhead, nd_defrouter);
 VNET_DECLARE(struct nd_prhead, nd_prefix);
 VNET_DECLARE(int, nd6_debug);
 VNET_DECLARE(int, nd6_onlink_ns_rfc4861);
@@ -346,7 +345,6 @@ VNET_DECLARE(int, nd6_onlink_ns_rfc4861);
 #define	V_nd6_useloopback		VNET(nd6_useloopback)
 #define	V_nd6_maxnudhint		VNET(nd6_maxnudhint)
 #define	V_nd6_gctimer			VNET(nd6_gctimer)
-#define	V_nd_defrouter			VNET(nd_defrouter)
 #define	V_nd_prefix			VNET(nd_prefix)
 #define	V_nd6_debug			VNET(nd6_debug)
 #define	V_nd6_onlink_ns_rfc4861		VNET(nd6_onlink_ns_rfc4861)
@@ -477,14 +475,18 @@ void nd6_dad_stop(struct ifaddr *);
 void nd6_rs_input(struct mbuf *, int, int);
 void nd6_ra_input(struct mbuf *, int, int);
 void nd6_ifnet_link_event(void *, struct ifnet *, int);
+struct nd_defrouter *defrouter_lookup(struct in6_addr *, struct ifnet *);
+struct nd_defrouter *defrouter_lookup_locked(struct in6_addr *, struct ifnet *);
 void defrouter_reset(void);
 void defrouter_select_fib(int fibnum);
 void defrouter_select(void);
-void defrouter_ref(struct nd_defrouter *);
 void defrouter_rele(struct nd_defrouter *);
 bool defrouter_remove(struct in6_addr *, struct ifnet *);
-void defrouter_unlink(struct nd_defrouter *, struct nd_drhead *);
-void defrouter_del(struct nd_defrouter *);
+bool nd6_defrouter_list_empty(void);
+void nd6_defrouter_flush_all(void);
+void nd6_defrouter_purge(struct ifnet *);
+void nd6_defrouter_timer(void);
+void nd6_defrouter_init(void);
 int nd6_prelist_add(struct nd_prefixctl *, struct nd_defrouter *,
     struct nd_prefix **);
 void nd6_prefix_unlink(struct nd_prefix *, struct nd_prhead *);
@@ -494,8 +496,6 @@ void nd6_prefix_rele(struct nd_prefix *);
 int nd6_prefix_onlink(struct nd_prefix *);
 int nd6_prefix_offlink(struct nd_prefix *);
 void pfxlist_onlink_check(void);
-struct nd_defrouter *defrouter_lookup(struct in6_addr *, struct ifnet *);
-struct nd_defrouter *defrouter_lookup_locked(struct in6_addr *, struct ifnet *);
 struct nd_prefix *nd6_prefix_lookup(struct nd_prefixctl *);
 void rt6_flush(struct in6_addr *, struct ifnet *);
 int nd6_setdefaultiface(int);
