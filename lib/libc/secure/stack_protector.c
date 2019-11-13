@@ -47,13 +47,15 @@ __FBSDID("$FreeBSD$");
  * they're either not usually statically linked or they simply don't do things
  * in constructors that would be adversely affected by their positioning with
  * respect to this initialization.
+ *
+ * This conditional should be removed when GCC 4.2 is removed.
  */
-#if defined(__GNUC__) && __GNUC__ <= 4
-#define	_GUARD_SETUP_CTOR_ATTR	\
-    __attribute__((__constructor__, __used__));
-#else
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ > 4)
 #define	_GUARD_SETUP_CTOR_ATTR	 \
     __attribute__((__constructor__ (200), __used__));
+#else
+#define	_GUARD_SETUP_CTOR_ATTR	\
+    __attribute__((__constructor__, __used__));
 #endif
 
 extern int __sysctl(const int *name, u_int namelen, void *oldp,
