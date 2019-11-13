@@ -116,59 +116,13 @@ struct in6_nbrinfo {
 	int	expire;		/* lifetime for NDP state transition */
 };
 
-#define DRLSTSIZ 10
-#define PRLSTSIZ 10
-struct	in6_drlist {
-	char ifname[IFNAMSIZ];
-	struct {
-		struct	in6_addr rtaddr;
-		u_char	flags;
-		u_short	rtlifetime;
-		u_long	expire;
-		u_short if_index;
-	} defrouter[DRLSTSIZ];
-};
-
+/* Sysctls, shared with user space. */
 struct	in6_defrouter {
 	struct	sockaddr_in6 rtaddr;
 	u_char	flags;
 	u_short	rtlifetime;
 	u_long	expire;
 	u_short if_index;
-};
-
-#ifdef _KERNEL
-struct	in6_oprlist {
-	char ifname[IFNAMSIZ];
-	struct {
-		struct	in6_addr prefix;
-		struct prf_ra raflags;
-		u_char	prefixlen;
-		u_char	origin;
-		u_long vltime;
-		u_long pltime;
-		u_long expire;
-		u_short if_index;
-		u_short advrtrs; /* number of advertisement routers */
-		struct	in6_addr advrtr[DRLSTSIZ]; /* XXX: explicit limit */
-	} prefix[PRLSTSIZ];
-};
-#endif
-
-struct	in6_prlist {
-	char ifname[IFNAMSIZ];
-	struct {
-		struct	in6_addr prefix;
-		struct prf_ra raflags;
-		u_char	prefixlen;
-		u_char	origin;
-		u_int32_t vltime;
-		u_int32_t pltime;
-		time_t expire;
-		u_short if_index;
-		u_short advrtrs; /* number of advertisement routers */
-		struct	in6_addr advrtr[DRLSTSIZ]; /* XXX: explicit limit */
-	} prefix[PRLSTSIZ];
 };
 
 struct in6_prefix {
@@ -291,32 +245,6 @@ struct nd_prefix {
 #define ndpr_raf_onlink		ndpr_flags.onlink
 #define ndpr_raf_auto		ndpr_flags.autonomous
 #define ndpr_raf_router		ndpr_flags.router
-
-/*
- * Message format for use in obtaining information about prefixes
- * from inet6 sysctl function
- */
-struct inet6_ndpr_msghdr {
-	u_short	inpm_msglen;	/* to skip over non-understood messages */
-	u_char	inpm_version;	/* future binary compatibility */
-	u_char	inpm_type;	/* message type */
-	struct in6_addr inpm_prefix;
-	u_long	prm_vltim;
-	u_long	prm_pltime;
-	u_long	prm_expire;
-	u_long	prm_preferred;
-	struct in6_prflags prm_flags;
-	u_short	prm_index;	/* index for associated ifp */
-	u_char	prm_plen;	/* length of prefix in bits */
-};
-
-#define prm_raf_onlink		prm_flags.prf_ra.onlink
-#define prm_raf_auto		prm_flags.prf_ra.autonomous
-
-#define prm_statef_onlink	prm_flags.prf_state.onlink
-
-#define prm_rrf_decrvalid	prm_flags.prf_rr.decrvalid
-#define prm_rrf_decrprefd	prm_flags.prf_rr.decrprefd
 
 struct nd_pfxrouter {
 	LIST_ENTRY(nd_pfxrouter) pfr_entry;
