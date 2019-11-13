@@ -3571,7 +3571,9 @@ if_siocaddmulti(void *arg, int pending)
 	if (pending > 1)
 		if_printf(ifp, "%d SIOCADDMULTI coalesced\n", pending);
 #endif
+	CURVNET_SET(ifp->if_vnet);
 	(void )(*ifp->if_ioctl)(ifp, SIOCADDMULTI, 0);
+	CURVNET_RESTORE();
 }
 
 /*
