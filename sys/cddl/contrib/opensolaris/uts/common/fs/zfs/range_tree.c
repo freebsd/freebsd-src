@@ -164,7 +164,7 @@ range_tree_seg_compare(const void *x1, const void *x2)
 
 	ASSERT3U(r1->rs_start, <=, r1->rs_end);
 	ASSERT3U(r2->rs_start, <=, r2->rs_end);
-	
+
 	return ((r1->rs_start >= r2->rs_end) - (r1->rs_end <= r2->rs_start));
 }
 

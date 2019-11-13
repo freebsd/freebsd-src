@@ -259,8 +259,13 @@ lz4_decompress(void *s_start, void *d_start, size_t s_len, size_t d_len, int n)
 #undef unlikely
 #endif
 
+#ifndef likely
 #define	likely(expr)	expect((expr) != 0, 1)
+#endif
+
+#ifndef unlikely
 #define	unlikely(expr)	expect((expr) != 0, 0)
+#endif
 
 /* Basic types */
 #define	BYTE	uint8_t
