@@ -307,7 +307,7 @@ do_msr(const char *cmdarg, const char *dev)
 	}
 	error = ioctl(fd, command, &args);
 	if (error < 0) {
-		WARN(0, "ioctl(%s, CPUCTL_%s (%lu))", dev, command_name, command);
+		WARN(0, "ioctl(%s, CPUCTL_%s (%#x))", dev, command_name, msr);
 		close(fd);
 		return (1);
 	}
