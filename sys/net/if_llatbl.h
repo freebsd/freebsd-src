@@ -211,14 +211,9 @@ void		lltable_free(struct lltable *);
 void		lltable_link(struct lltable *llt);
 void		lltable_prefix_free(int, struct sockaddr *,
 		    struct sockaddr *, u_int);
-#if 0
-void		lltable_drain(int);
-#endif
 int		lltable_sysctl_dumparp(int, struct sysctl_req *);
 
 size_t		llentry_free(struct llentry *);
-struct llentry  *llentry_alloc(struct ifnet *, struct lltable *,
-		    struct sockaddr_storage *);
 
 /* helper functions */
 size_t lltable_drop_entry_queue(struct llentry *);
