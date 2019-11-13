@@ -5949,6 +5949,7 @@ damediapoll(void *arg)
 
 	if (!cam_iosched_has_work_flags(softc->cam_iosched, DA_WORK_TUR) &&
 	    (softc->flags & DA_FLAG_TUR_PENDING) == 0 &&
+	    softc->state == DA_STATE_NORMAL &&
 	    LIST_EMPTY(&softc->pending_ccbs)) {
 		if (da_periph_acquire(periph, DA_REF_TUR) == 0) {
 			cam_iosched_set_work_flags(softc->cam_iosched, DA_WORK_TUR);
