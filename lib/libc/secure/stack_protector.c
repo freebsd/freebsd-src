@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
  *
  * This conditional should be removed when GCC 4.2 is removed.
  */
-#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ > 4)
+#if __has_attribute(__constructor__) || __GNUC_PREREQ__(4, 3)
 #define	_GUARD_SETUP_CTOR_ATTR	 \
     __attribute__((__constructor__ (200), __used__));
 #else
