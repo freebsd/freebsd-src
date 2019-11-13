@@ -379,7 +379,6 @@ cpu_reset(void)
 
 			/* Restart CPU #0. */
 			CPU_SETOF(0, &started_cpus);
-			wmb();
 
 			cnt = 0;
 			while (cpu_reset_proxy_active == 0 && cnt < 10000000) {
