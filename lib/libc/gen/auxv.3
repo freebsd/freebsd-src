@@ -50,8 +50,9 @@ can be requested:
 The canary value for SSP.
 .It AT_EXECPATH
 The path of executed program.
-This will not be present if the process was initialized by
-.Xr fexecve 2 .
+This may not be present if the process was initialized by
+.Xr fexecve 2
+and the namecache no longer contains the file's name.
 .It AT_HWCAP
 CPU / hardware feature flags.
 .It AT_HWCAP2
