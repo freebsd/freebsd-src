@@ -1935,6 +1935,12 @@ vesa_load(void)
 	if (error == 0)
 		vesa_bios_info(bootverbose);
 
+	/* Don't return ENODEV, the upper layers will whine. */
+	if (error == ENODEV) {
+		error = 0;
+		vesa_adp = NULL;
+	}
+
 	return (error);
 }
 
@@ -1943,8 +1949,12 @@ vesa_unload(void)
 {
 	int error;
 
+	/* The driver never initialized, so make it easy to unload. */
+	if (vesa_adp == NULL)
+		return (0);
+
 	/* if the adapter is currently in a VESA mode, don't unload */
-	if ((vesa_adp != NULL) && VESA_MODE(vesa_adp->va_mode))
+	if (VESA_MODE(vesa_adp->va_mode))
 		return (EBUSY);
 	/* 
 	 * FIXME: if there is at least one vty which is in a VESA mode,
