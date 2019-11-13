@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2019
+.Dd November 13, 2019
 .Dt ELF_AUX_INFO 3
 .Os
 .Sh NAME
@@ -48,6 +48,10 @@ can be requested:
 .Bl -tag -width AT_OSRELDATE
 .It AT_CANARY
 The canary value for SSP.
+.It AT_EXECPATH
+The path of executed program.
+This will not be present if the process was initialized by
+.Xr fexecve 2 .
 .It AT_HWCAP
 CPU / hardware feature flags.
 .It AT_HWCAP2
