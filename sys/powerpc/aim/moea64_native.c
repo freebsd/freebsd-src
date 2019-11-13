@@ -545,9 +545,8 @@ moea64_bootstrap_native(mmu_t mmup, vm_offset_t kernelstart,
 	if (cpu_features2 & PPC_FEATURE2_ARCH_3_00) {
 		moea64_part_table =
 		    (struct pate *)moea64_bootstrap_alloc(PART_SIZE, PART_SIZE);
-		if (hw_direct_map)
-			moea64_part_table =
-			    (struct pate *)PHYS_TO_DMAP((vm_offset_t)moea64_part_table);
+		moea64_part_table =
+		    (struct pate *)PHYS_TO_DMAP((vm_offset_t)moea64_part_table);
 	}
 	DISABLE_TRANS(msr);
 	bzero(__DEVOLATILE(void *, moea64_pteg_table), moea64_pteg_count *
