@@ -497,8 +497,8 @@ prot_addrf:
 3:	cmpw	$KUG32SEL,TF_GS(%rsp)
 	jne	4f
 	movq	%rdx,PCB_GSBASE(%rdi)
+	orl	$PCB_FULL_IRET,PCB_FLAGS(%rdi)	/* full iret from user #gp */
 4:	call	handle_ibrs_entry
-	orl	$PCB_FULL_IRET,PCB_FLAGS(%rdi)	/* always full iret from GPF */
 	movw	%es,TF_ES(%rsp)
 	movw	%ds,TF_DS(%rsp)
 	testl	$PSL_I,TF_RFLAGS(%rsp)
