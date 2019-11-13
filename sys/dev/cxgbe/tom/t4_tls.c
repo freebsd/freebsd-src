@@ -865,87 +865,6 @@ t4_ctloutput_tls(struct socket *so, struct sockopt *sopt)
 }
 
 #ifdef KERN_TLS
-/* XXX: Should share this with ccr(4) eventually. */
-static void
-init_ktls_gmac_hash(const char *key, int klen, char *ghash)
-{
-	static char zeroes[GMAC_BLOCK_LEN];
-	uint32_t keysched[4 * (RIJNDAEL_MAXNR + 1)];
-	int rounds;
-
-	rounds = rijndaelKeySetupEnc(keysched, key, klen);
-	rijndaelEncrypt(keysched, rounds, zeroes, ghash);
-}
-
-/* XXX: Should share this with ccr(4) eventually. */
-static void
-ktls_copy_partial_hash(void *dst, int cri_alg, union authctx *auth_ctx)
-{
-	uint32_t *u32;
-	uint64_t *u64;
-	u_int i;
-
-	u32 = (uint32_t *)dst;
-	u64 = (uint64_t *)dst;
-	switch (cri_alg) {
-	case CRYPTO_SHA1_HMAC:
-		for (i = 0; i < SHA1_HASH_LEN / 4; i++)
-			u32[i] = htobe32(auth_ctx->sha1ctx.h.b32[i]);
-		break;
-	case CRYPTO_SHA2_256_HMAC:
-		for (i = 0; i < SHA2_256_HASH_LEN / 4; i++)
-			u32[i] = htobe32(auth_ctx->sha256ctx.state[i]);
-		break;
-	case CRYPTO_SHA2_384_HMAC:
-		for (i = 0; i < SHA2_512_HASH_LEN / 8; i++)
-			u64[i] = htobe64(auth_ctx->sha384ctx.state[i]);
-		break;
-	}
-}
-
-static void
-init_ktls_hmac_digest(struct auth_hash *axf, u_int partial_digest_len,
-    char *key, int klen, char *dst)
-{
-	union authctx auth_ctx;
-	char ipad[SHA2_512_BLOCK_LEN], opad[SHA2_512_BLOCK_LEN];
-	u_int i;
-
-	/*
-	 * If the key is larger than the block size, use the digest of
-	 * the key as the key instead.
-	 */
-	klen /= 8;
-	if (klen > axf->blocksize) {
-		axf->Init(&auth_ctx);
-		axf->Update(&auth_ctx, key, klen);
-		axf->Final(ipad, &auth_ctx);
-		klen = axf->hashsize;
-	} else
-		memcpy(ipad, key, klen);
-
-	memset(ipad + klen, 0, axf->blocksize - klen);
-	memcpy(opad, ipad, axf->blocksize);
-
-	for (i = 0; i < axf->blocksize; i++) {
-		ipad[i] ^= HMAC_IPAD_VAL;
-		opad[i] ^= HMAC_OPAD_VAL;
-	}
-
-	/*
-	 * Hash the raw ipad and opad and store the partial results in
-	 * the key context.
-	 */
-	axf->Init(&auth_ctx);
-	axf->Update(&auth_ctx, ipad, axf->blocksize);
-	ktls_copy_partial_hash(dst, axf->type, &auth_ctx);
-
-	dst += roundup2(partial_digest_len, 16);
-	axf->Init(&auth_ctx);
-	axf->Update(&auth_ctx, opad, axf->blocksize);
-	ktls_copy_partial_hash(dst, axf->type, &auth_ctx);
-}
-
 static void
 init_ktls_key_context(struct ktls_session *tls, struct tls_key_context *k_ctx)
 {
@@ -972,7 +891,7 @@ init_ktls_key_context(struct ktls_session *tls, struct tls_key_context *k_ctx)
 		k_ctx->hmac_ctrl = SCMD_HMAC_CTRL_NOP;
 		k_ctx->tx_key_info_size += GMAC_BLOCK_LEN;
 		memcpy(k_ctx->tx.salt, tls->params.iv, SALT_SIZE);
-		init_ktls_gmac_hash(tls->params.cipher_key,
+		t4_init_gmac_hash(tls->params.cipher_key,
 		    tls->params.cipher_key_len * 8, hash);
 	} else {
 		switch (tls->params.auth_algorithm) {
@@ -1000,7 +919,7 @@ init_ktls_key_context(struct ktls_session *tls, struct tls_key_context *k_ctx)
 		k_ctx->hmac_ctrl = SCMD_HMAC_CTRL_NO_TRUNC;
 		k_ctx->tx_key_info_size += roundup2(mac_key_size, 16) * 2;
 		k_ctx->mac_secret_size = mac_key_size;
-		init_ktls_hmac_digest(axf, mac_key_size, tls->params.auth_key,
+		t4_init_hmac_digest(axf, mac_key_size, tls->params.auth_key,
 		    tls->params.auth_key_len * 8, hash);
 	}
 

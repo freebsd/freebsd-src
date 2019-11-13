@@ -1142,7 +1142,6 @@ void t4_os_link_changed(struct port_info *);
 void t4_iterate(void (*)(struct adapter *, void *), void *);
 void t4_init_devnames(struct adapter *);
 void t4_add_adapter(struct adapter *);
-void t4_aes_getdeckey(void *, const void *, unsigned int);
 int t4_detach_common(device_t);
 int t4_map_bars_0_and_4(struct adapter *);
 int t4_map_bar_2(struct adapter *);
@@ -1169,6 +1168,15 @@ int cxgbe_media_change(struct ifnet *);
 void cxgbe_media_status(struct ifnet *, struct ifmediareq *);
 bool t4_os_dump_cimla(struct adapter *, int, bool);
 void t4_os_dump_devlog(struct adapter *);
+
+/* t4_keyctx.c */
+struct auth_hash;
+union authctx;
+
+void t4_aes_getdeckey(void *, const void *, unsigned int);
+void t4_copy_partial_hash(int, union authctx *, void *);
+void t4_init_gmac_hash(const char *, int, char *);
+void t4_init_hmac_digest(struct auth_hash *, u_int, char *, int, char *);
 
 #ifdef DEV_NETMAP
 /* t4_netmap.c */

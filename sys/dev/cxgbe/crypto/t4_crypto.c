@@ -141,8 +141,7 @@ struct ccr_session_hmac {
 	unsigned int partial_digest_len;
 	unsigned int auth_mode;
 	unsigned int mk_size;
-	char ipad[CHCR_HASH_MAX_BLOCK_SIZE_128];
-	char opad[CHCR_HASH_MAX_BLOCK_SIZE_128];
+	char pads[CHCR_HASH_MAX_BLOCK_SIZE_128 * 2];
 };
 
 struct ccr_session_gmac {
@@ -530,10 +529,7 @@ ccr_hash(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	    V_SCMD_LAST_FRAG(0) |
 	    V_SCMD_MORE_FRAGS(crd->crd_len == 0 ? 1 : 0) | V_SCMD_MAC_ONLY(1));
 
-	memcpy(crwr->key_ctx.key, s->hmac.ipad, s->hmac.partial_digest_len);
-	if (use_opad)
-		memcpy(crwr->key_ctx.key + iopad_size, s->hmac.opad,
-		    s->hmac.partial_digest_len);
+	memcpy(crwr->key_ctx.key, s->hmac.pads, kctx_len);
 
 	/* XXX: F_KEY_CONTEXT_SALT_PRESENT set, but 'salt' not set. */
 	kctx_flits = (sizeof(struct _key_ctx) + kctx_len) / 16;
@@ -1069,8 +1065,7 @@ ccr_authenc(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp,
 	}
 
 	dst = crwr->key_ctx.key + roundup2(s->blkcipher.key_len, 16);
-	memcpy(dst, s->hmac.ipad, s->hmac.partial_digest_len);
-	memcpy(dst + iopad_size, s->hmac.opad, s->hmac.partial_digest_len);
+	memcpy(dst, s->hmac.pads, iopad_size * 2);
 
 	dst = (char *)(crwr + 1) + kctx_len;
 	ccr_write_phys_dsgl(sc, dst, dsgl_nsegs);
@@ -2212,44 +2207,6 @@ ccr_detach(device_t dev)
 }
 
 static void
-ccr_copy_partial_hash(void *dst, int cri_alg, union authctx *auth_ctx)
-{
-	uint32_t *u32;
-	uint64_t *u64;
-	u_int i;
-
-	u32 = (uint32_t *)dst;
-	u64 = (uint64_t *)dst;
-	switch (cri_alg) {
-	case CRYPTO_SHA1:
-	case CRYPTO_SHA1_HMAC:
-		for (i = 0; i < SHA1_HASH_LEN / 4; i++)
-			u32[i] = htobe32(auth_ctx->sha1ctx.h.b32[i]);
-		break;
-	case CRYPTO_SHA2_224:
-	case CRYPTO_SHA2_224_HMAC:
-		for (i = 0; i < SHA2_256_HASH_LEN / 4; i++)
-			u32[i] = htobe32(auth_ctx->sha224ctx.state[i]);
-		break;
-	case CRYPTO_SHA2_256:
-	case CRYPTO_SHA2_256_HMAC:
-		for (i = 0; i < SHA2_256_HASH_LEN / 4; i++)
-			u32[i] = htobe32(auth_ctx->sha256ctx.state[i]);
-		break;
-	case CRYPTO_SHA2_384:
-	case CRYPTO_SHA2_384_HMAC:
-		for (i = 0; i < SHA2_512_HASH_LEN / 8; i++)
-			u64[i] = htobe64(auth_ctx->sha384ctx.state[i]);
-		break;
-	case CRYPTO_SHA2_512:
-	case CRYPTO_SHA2_512_HMAC:
-		for (i = 0; i < SHA2_512_HASH_LEN / 8; i++)
-			u64[i] = htobe64(auth_ctx->sha512ctx.state[i]);
-		break;
-	}
-}
-
-static void
 ccr_init_hash_digest(struct ccr_session *s, int cri_alg)
 {
 	union authctx auth_ctx;
@@ -2257,64 +2214,7 @@ ccr_init_hash_digest(struct ccr_session *s, int cri_alg)
 
 	axf = s->hmac.auth_hash;
 	axf->Init(&auth_ctx);
-	ccr_copy_partial_hash(s->hmac.ipad, cri_alg, &auth_ctx);
-}
-
-static void
-ccr_init_hmac_digest(struct ccr_session *s, int cri_alg, char *key,
-    int klen)
-{
-	union authctx auth_ctx;
-	struct auth_hash *axf;
-	u_int i;
-
-	/*
-	 * If the key is larger than the block size, use the digest of
-	 * the key as the key instead.
-	 */
-	axf = s->hmac.auth_hash;
-	klen /= 8;
-	if (klen > axf->blocksize) {
-		axf->Init(&auth_ctx);
-		axf->Update(&auth_ctx, key, klen);
-		axf->Final(s->hmac.ipad, &auth_ctx);
-		klen = axf->hashsize;
-	} else
-		memcpy(s->hmac.ipad, key, klen);
-
-	memset(s->hmac.ipad + klen, 0, axf->blocksize - klen);
-	memcpy(s->hmac.opad, s->hmac.ipad, axf->blocksize);
-
-	for (i = 0; i < axf->blocksize; i++) {
-		s->hmac.ipad[i] ^= HMAC_IPAD_VAL;
-		s->hmac.opad[i] ^= HMAC_OPAD_VAL;
-	}
-
-	/*
-	 * Hash the raw ipad and opad and store the partial result in
-	 * the same buffer.
-	 */
-	axf->Init(&auth_ctx);
-	axf->Update(&auth_ctx, s->hmac.ipad, axf->blocksize);
-	ccr_copy_partial_hash(s->hmac.ipad, cri_alg, &auth_ctx);
-
-	axf->Init(&auth_ctx);
-	axf->Update(&auth_ctx, s->hmac.opad, axf->blocksize);
-	ccr_copy_partial_hash(s->hmac.opad, cri_alg, &auth_ctx);
-}
-
-/*
- * Borrowed from AES_GMAC_Setkey().
- */
-static void
-ccr_init_gmac_hash(struct ccr_session *s, char *key, int klen)
-{
-	static char zeroes[GMAC_BLOCK_LEN];
-	uint32_t keysched[4 * (RIJNDAEL_MAXNR + 1)];
-	int rounds;
-
-	rounds = rijndaelKeySetupEnc(keysched, key, klen);
-	rijndaelEncrypt(keysched, rounds, zeroes, s->gmac.ghash_h);
+	t4_copy_partial_hash(cri_alg, &auth_ctx, s->hmac.pads);
 }
 
 static int
@@ -2613,7 +2513,8 @@ ccr_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 			s->gmac.hash_len = AES_GMAC_HASH_LEN;
 		else
 			s->gmac.hash_len = hash->cri_mlen;
-		ccr_init_gmac_hash(s, hash->cri_key, hash->cri_klen);
+		t4_init_gmac_hash(hash->cri_key, hash->cri_klen,
+		    s->gmac.ghash_h);
 	} else if (auth_mode == SCMD_AUTH_MODE_CBCMAC) {
 		if (hash->cri_mlen == 0)
 			s->ccm_mac.hash_len = AES_CBC_MAC_HASH_LEN;
@@ -2629,8 +2530,8 @@ ccr_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 		else
 			s->hmac.hash_len = hash->cri_mlen;
 		if (hmac)
-			ccr_init_hmac_digest(s, hash->cri_alg, hash->cri_key,
-			    hash->cri_klen);
+			t4_init_hmac_digest(auth_hash, partial_digest_len,
+			    hash->cri_key, hash->cri_klen, s->hmac.pads);
 		else
 			ccr_init_hash_digest(s, hash->cri_alg);
 	}
@@ -2694,8 +2595,9 @@ ccr_process(device_t dev, struct cryptop *crp, int hint)
 		break;
 	case HMAC:
 		if (crd->crd_flags & CRD_F_KEY_EXPLICIT)
-			ccr_init_hmac_digest(s, crd->crd_alg, crd->crd_key,
-			    crd->crd_klen);
+			t4_init_hmac_digest(s->hmac.auth_hash,
+			    s->hmac.partial_digest_len, crd->crd_key,
+			    crd->crd_klen, s->hmac.pads);
 		error = ccr_hash(sc, s, crp);
 		if (error == 0)
 			sc->stats_hmac++;
@@ -2743,8 +2645,9 @@ ccr_process(device_t dev, struct cryptop *crp, int hint)
 		if (error)
 			break;
 		if (crda->crd_flags & CRD_F_KEY_EXPLICIT)
-			ccr_init_hmac_digest(s, crda->crd_alg, crda->crd_key,
-			    crda->crd_klen);
+			t4_init_hmac_digest(s->hmac.auth_hash,
+			    s->hmac.partial_digest_len, crda->crd_key,
+			    crda->crd_klen, s->hmac.pads);
 		if (crde->crd_flags & CRD_F_KEY_EXPLICIT) {
 			error = ccr_aes_check_keylen(crde->crd_alg,
 			    crde->crd_klen);
@@ -2771,7 +2674,8 @@ ccr_process(device_t dev, struct cryptop *crp, int hint)
 			crde = crd->crd_next;
 		}
 		if (crda->crd_flags & CRD_F_KEY_EXPLICIT)
-			ccr_init_gmac_hash(s, crda->crd_key, crda->crd_klen);
+			t4_init_gmac_hash(crda->crd_key, crda->crd_klen,
+			    s->gmac.ghash_h);
 		if (crde->crd_flags & CRD_F_KEY_EXPLICIT) {
 			error = ccr_aes_check_keylen(crde->crd_alg,
 			    crde->crd_klen);
