@@ -331,7 +331,6 @@ powerpc_ipi_handler(void *arg)
 			    __func__);
 			cpuid = PCPU_GET(cpuid);
 			savectx(&stoppcbs[cpuid]);
-			savectx(PCPU_GET(curpcb));
 			CPU_SET_ATOMIC(cpuid, &stopped_cpus);
 			while (!CPU_ISSET(cpuid, &started_cpus))
 				cpu_spinwait();
