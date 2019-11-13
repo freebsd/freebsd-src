@@ -1564,6 +1564,18 @@ _cleankernobj_fast_depend_hack: .PHONY
 		rm -f ${OBJTOP}/sys/${KERNCONF}/assym.* \
 		    ${OBJTOP}/sys/${KERNCONF}/.depend.assym.*; \
 	fi
+# 20191112  r354634  removal of opensolaris_atomic.S
+.if ${MACHINE} != i386
+.for f in opensolaris_atomic
+.for m in opensolaris zfs
+	@if [ -e "${KRNLOBJDIR}/${KERNCONF}/modules${SRCTOP}/sys/modules/${m}/.depend.${f}.o" ] && \
+	    grep -q ${f}.S "${KRNLOBJDIR}/${KERNCONF}/modules${SRCTOP}/sys/modules/${m}/.depend.${f}.o"; then \
+		echo "Removing stale dependencies for opensolaris_atomic"; \
+		rm -f ${KRNLOBJDIR}/${KERNCONF}/modules${SRCTOP}/sys/modules/${m}/.depend.${f}.*; \
+	fi
+.endfor
+.endfor
+.endif
 
 ${WMAKE_TGTS:N_worldtmp:Nbuild${libcompat}} ${.ALLTARGETS:M_*:N_worldtmp}: .MAKE .PHONY
 
