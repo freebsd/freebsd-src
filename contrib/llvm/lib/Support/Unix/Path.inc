@@ -38,6 +38,9 @@
 #include <mach-o/dyld.h>
 #include <sys/attr.h>
 #include <copyfile.h>
+#elif defined(__FreeBSD__)
+#include <machine/elf.h>
+extern char **environ;
 #elif defined(__DragonFly__)
 #include <sys/mount.h>
 #endif
@@ -183,13 +186,32 @@ std::string getMainExecutable(const char *argv0, void *MainAddr) {
     if (realpath(exe_path, link_path))
       return link_path;
   }
-#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) ||   \
-    defined(__minix) || defined(__DragonFly__) ||                              \
-    defined(__FreeBSD_kernel__) || defined(_AIX)
+#elif defined(__FreeBSD__)
+  // On FreeBSD if the exec path specified in ELF auxiliary vectors is
+  // preferred, if available.  /proc/curproc/file and the KERN_PROC_PATHNAME
+  // sysctl may not return the desired path if there are multiple hardlinks
+  // to the file.
+  char exe_path[PATH_MAX];
+  char **p = ::environ;
+  while (*p++ != 0)
+    ;
+  // ELF auxiliary vectors immediately follow the process's environment.
+  for (;;) {
+    switch (*(uintptr_t *)p++) {
+    case AT_EXECPATH:
+      return *p;
+    case AT_NULL:
+      break;
+    }
+    p++;
+  }
+  // Fall back to argv[0] if auxiliary vectors are not available.
+  if (getprogpath(exe_path, argv0) != NULL)
+    return exe_path;
+#elif defined(__NetBSD__) || defined(__OpenBSD__) || defined(__minix) || \
+    defined(__DragonFly__) || defined(__FreeBSD_kernel__) || defined(_AIX)
   StringRef curproc("/proc/curproc/file");
   char exe_path[PATH_MAX];
-  // /proc is not mounted by default under FreeBSD, but gives more accurate
-  // information than argv[0] when it is.
   if (sys::fs::exists(curproc)) {
     ssize_t len = readlink(curproc.str().c_str(), exe_path, sizeof(exe_path));
     if (len > 0) {
