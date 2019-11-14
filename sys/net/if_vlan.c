@@ -1408,11 +1408,19 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid)
 	 * Set up our interface address to reflect the underlying
 	 * physical interface's.
 	 */
-	bcopy(IF_LLADDR(p), IF_LLADDR(ifp), p->if_addrlen);
+	TASK_INIT(&ifv->lladdr_task, 0, vlan_lladdr_fn, ifv);
 	((struct sockaddr_dl *)ifp->if_addr->ifa_addr)->sdl_alen =
 	    p->if_addrlen;
 
-	TASK_INIT(&ifv->lladdr_task, 0, vlan_lladdr_fn, ifv);
+	/*
+	 * Do not schedule link address update if it was the same
+	 * as previous parent's. This helps avoid updating for each
+	 * associated llentry.
+	 */
+	if (memcmp(IF_LLADDR(p), IF_LLADDR(ifp), p->if_addrlen) != 0) {
+		bcopy(IF_LLADDR(p), IF_LLADDR(ifp), p->if_addrlen);
+		taskqueue_enqueue(taskqueue_thread, &ifv->lladdr_task);
+	}
 
 	/* We are ready for operation now. */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
