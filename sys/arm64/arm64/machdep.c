@@ -963,6 +963,16 @@ try_load_dtb(caddr_t kmdp)
 	vm_offset_t dtbp;
 
 	dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
+
+#if defined(FDT_DTB_STATIC)
+	/*
+	 * In case the device tree blob was not retrieved (from metadata) try
+	 * to use the statically embedded one.
+	 */
+	if (dtbp == 0)
+		dtbp = (vm_offset_t)&fdt_static_dtb;
+#endif
+
 	if (dtbp == (vm_offset_t)NULL) {
 		printf("ERROR loading DTB\n");
 		return;
@@ -1066,6 +1076,26 @@ cache_setup(void)
 	}
 }
 
+static vm_offset_t
+freebsd_parse_boot_param(struct arm64_bootparams *abp)
+{
+	vm_offset_t lastaddr;
+	void *kmdp;
+	static char *loader_envp;
+
+	preload_metadata = (caddr_t)(uintptr_t)(abp->modulep);
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp == NULL)
+		return (0);
+
+	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
+	loader_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	init_static_kenv(loader_envp, 0);
+	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
+
+	return (lastaddr);
+}
+
 void
 initarm(struct arm64_bootparams *abp)
 {
@@ -1081,26 +1111,31 @@ initarm(struct arm64_bootparams *abp)
 	caddr_t kmdp;
 	bool valid;
 
-	/* Set the module data location */
-	preload_metadata = (caddr_t)(uintptr_t)(abp->modulep);
+	if ((abp->modulep & VM_MIN_KERNEL_ADDRESS) ==
+	    VM_MIN_KERNEL_ADDRESS)
+		/* Booted from loader. */
+		lastaddr = freebsd_parse_boot_param(abp);
+#ifdef LINUX_BOOT_ABI
+	else
+		/* Booted from U-Boot. */
+		lastaddr = linux_parse_boot_param(abp);
+#endif
 
 	/* Find the kernel address */
 	kmdp = preload_search_by_type("elf kernel");
 	if (kmdp == NULL)
 		kmdp = preload_search_by_type("elf64 kernel");
 
-	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	init_static_kenv(MD_FETCH(kmdp, MODINFOMD_ENVP, char *), 0);
 	link_elf_ireloc(kmdp);
 
 #ifdef FDT
 	try_load_dtb(kmdp);
+#ifdef LINUX_BOOT_ABI
+	parse_bootargs(&lastaddr, abp);
+#endif
 #endif
 
 	efi_systbl_phys = MD_FETCH(kmdp, MODINFOMD_FW_HANDLE, vm_paddr_t);
-
-	/* Find the address to start allocating from */
-	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
 
 	/* Load the physical memory ranges */
 	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
