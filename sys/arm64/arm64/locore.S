@@ -57,6 +57,29 @@
 	.text
 	.globl _start
 _start:
+#ifdef LINUX_BOOT_ABI
+	/*
+	 * See Documentation/arm64/booting.txt in the Linux kernel.
+	 * This is needed to boot using U-Boot's booti command.
+	 */
+
+#define	BOOTI_MAGIC		0x644d5241
+#define	UBOOT_IMAGE_OFFSET	0
+#define	UBOOT_IMAGE_SIZE	_end - _start
+#define	UBOOT_IMAGE_FLAGS	0
+
+	b	1f			/* Executable code */
+	.long	0			/* Executable code */
+	.quad	UBOOT_IMAGE_OFFSET	/* Image load offset, little endian */
+	.quad	UBOOT_IMAGE_SIZE	/* Effective Image size, little endian */
+	.quad	UBOOT_IMAGE_FLAGS	/* kernel flags, little endian */
+	.quad	0			/* reserved */
+	.quad	0			/* reserved */
+	.quad	0			/* reserved */
+	.long	BOOTI_MAGIC		/* Magic number, little endian, "ARM\x64" */
+	.long	0			/* reserved (used for PE COFF offset) */
+1:
+#endif
 	/* Drop to EL1 */
 	bl	drop_to_el1
 
@@ -351,15 +374,25 @@ create_pagetables:
 	 * Build the TTBR1 maps.
 	 */
 
-	/* Find the size of the kernel */
 	mov	x6, #(KERNBASE)
-	/* Find modulep - begin */
-	sub	x8, x0, x6
+	and	x7, x0, x6
+	cmp	x7, x6
+	b.eq	1f
+	/* booted from U-Boot */
+	ldr     x7, .Lend
+	sub	x8, x7, x6	/* kernel size = end - begin */
+	b	2f
+1:
+	/* booted from FreeBSD loader */
+	sub	x8, x0, x6	/* size = modulep - begin */
 	/* Add two 2MiB pages for the module data and round up */
 	ldr	x7, =(3 * L2_SIZE - 1)
 	add	x8, x8, x7
+2:
 	/* Get the number of l2 pages to allocate, rounded down */
 	lsr	x10, x8, #(L2_SHIFT)
+	/* Add 1 to get actual count */
+	add	x10, x10, #1
 
 	/* Create the kernel space L2 table */
 	mov	x6, x26

@@ -77,6 +77,7 @@ options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
 options 	RCTL			# Resource limits
 options 	SMP
 options 	INTRNG
+options		LINUX_BOOT_ABI		# Boot using booti command from U-Boot
 
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
