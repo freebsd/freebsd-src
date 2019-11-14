@@ -39,8 +39,13 @@
 #include <sys/attr.h>
 #include <copyfile.h>
 #elif defined(__FreeBSD__)
+#include <osreldate.h>
+#if __FreeBSD_version >= 1300057
+#include <sys/auxv.h>
+#else
 #include <machine/elf.h>
 extern char **environ;
+#endif
 #elif defined(__DragonFly__)
 #include <sys/mount.h>
 #endif
@@ -192,10 +197,17 @@ std::string getMainExecutable(const char *argv0, void *MainAddr) {
   // sysctl may not return the desired path if there are multiple hardlinks
   // to the file.
   char exe_path[PATH_MAX];
+#if __FreeBSD_version >= 1300057
+  if (elf_aux_info(AT_EXECPATH, exe_path, sizeof(exe_path)) == 0)
+    return exe_path;
+#else
+  // elf_aux_info(AT_EXECPATH, ... is not available on older FreeBSD.  Fall
+  // back to finding the ELF auxiliary vectors after the processes's
+  // environment.
   char **p = ::environ;
   while (*p++ != 0)
     ;
-  // ELF auxiliary vectors immediately follow the process's environment.
+  // Iterate through auxiliary vectors for AT_EXECPATH.
   for (;;) {
     switch (*(uintptr_t *)p++) {
     case AT_EXECPATH:
@@ -205,6 +217,7 @@ std::string getMainExecutable(const char *argv0, void *MainAddr) {
     }
     p++;
   }
+#endif
   // Fall back to argv[0] if auxiliary vectors are not available.
   if (getprogpath(exe_path, argv0) != NULL)
     return exe_path;
