@@ -345,6 +345,7 @@ dev/vmware/vmci/vmci_kernel_if.c	optional	vmci
 dev/vmware/vmci/vmci_qpair.c		optional	vmci
 dev/vmware/vmci/vmci_queue_pair.c	optional	vmci
 dev/vmware/vmci/vmci_resource.c		optional	vmci
+dev/vmware/pvscsi/pvscsi.c		optional	pvscsi
 dev/vmd/vmd.c			optional	vmd
 dev/vmd/vmd_bus.c		optional	vmd_bus
 dev/wbwd/wbwd.c			optional	wbwd
