@@ -23,8 +23,8 @@
  * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  * Copyright 2017-2018 Mark Johnston <markj@FreeBSD.org>
- * 2019 <klaus@unixcomp.de> 
  */
+
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
@@ -428,7 +428,7 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 		for (j = 0; j < nrel; j++) {
 #if defined(__aarch64__)
 #define R_AARCH64_ABS64			257
-		rel->r_offset = s->dofs_offset +
+rel->r_offset = s->dofs_offset +
 			    dofr[j].dofr_offset;
 			rel->r_info = ELF64_R_INFO(count + dep->de_global,
 			    R_AARCH64_ABS64);
@@ -816,8 +816,8 @@ dt_symtab_lookup(Elf_Data *data_sym, int start, int end, uintptr_t addr,
 #define	DT_OP_RET		0xd65f03c0
 #define	DT_OP_CALL26		0x94000000
 #define	DT_OP_JUMP26		0x14000000
-#define  R_AARCH64_CALL26	0x11b
-#define  R_AARCH64_JUMP26	0x11a
+#define R_AARCH64_JUMP26		282
+#define R_AARCH64_CALL26		283
 
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
@@ -835,12 +835,11 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 	 * We only know about some specific relocation types.
 	 * We also recognize relocation type NONE, since that gets used for
 	 * relocations of USDT probes, and we might be re-processing a file.
-	 if (GELF_R_TYPE(rela->r_info) != R_AARCH64_CALL26 &&
+	 */
+	if (GELF_R_TYPE(rela->r_info) != R_AARCH64_CALL26 &&
 	    GELF_R_TYPE(rela->r_info) != R_AARCH64_JUMP26 &&
 	    GELF_R_TYPE(rela->r_info) != R_AARCH64_NONE)
 		return (-1);
-	 */
-
 
 	ip = (uint32_t *)(p + rela->r_offset);
 
