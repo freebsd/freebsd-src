@@ -64,7 +64,7 @@ ENTRY(setjmp)
 
 	ldr	r1, .Lsetjmp_magic
 
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH >= 6 && !defined(SOFTFLOAT_FOR_GCC)
 	add	r2, r0, #(_JB_REG_D8 * 4)
 	vstmia	r2, {d8-d15}
 	vmrs	r2, fpscr
@@ -105,7 +105,7 @@ ENTRY(__longjmp)
 	bl	PIC_SYM(_C_LABEL(sigprocmask), PLT)
 	ldmfd	sp!, {r0-r2, r14}
 
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH >= 6 && !defined(SOFTFLOAT_FOR_GCC)
 	add	ip, r0, #(_JB_REG_D8 * 4)
 	vldmia	ip, {d8-d15}
 	ldr	ip, [r0, #(_JB_REG_FPSCR * 4)]
