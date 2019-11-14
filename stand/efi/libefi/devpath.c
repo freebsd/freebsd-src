@@ -30,13 +30,16 @@ __FBSDID("$FreeBSD$");
 #include <efi.h>
 #include <efilib.h>
 #include <efichar.h>
+#include <uuid.h>
+#include <machine/_inttypes.h>
 
 static EFI_GUID ImageDevicePathGUID =
     EFI_LOADED_IMAGE_DEVICE_PATH_PROTOCOL_GUID;
 static EFI_GUID DevicePathGUID = DEVICE_PATH_PROTOCOL;
 static EFI_GUID DevicePathToTextGUID = EFI_DEVICE_PATH_TO_TEXT_PROTOCOL_GUID;
 static EFI_DEVICE_PATH_TO_TEXT_PROTOCOL *toTextProtocol;
-static EFI_GUID DevicePathFromTextGUID = EFI_DEVICE_PATH_FROM_TEXT_PROTOCOL_GUID;
+static EFI_GUID DevicePathFromTextGUID =
+    EFI_DEVICE_PATH_FROM_TEXT_PROTOCOL_GUID;
 static EFI_DEVICE_PATH_FROM_TEXT_PROTOCOL *fromTextProtocol;
 
 EFI_DEVICE_PATH *
@@ -65,6 +68,427 @@ efi_lookup_devpath(EFI_HANDLE handle)
 	return (devpath);
 }
 
+static char *
+efi_make_tail(char *suffix)
+{
+	char *tail;
+
+	tail = NULL;
+	if (suffix != NULL)
+		(void)asprintf(&tail, "/%s", suffix);
+	else
+		tail = strdup("");
+	return (tail);
+}
+
+typedef struct {
+	EFI_DEVICE_PATH	Header;
+	EFI_GUID	Guid;
+	UINT8		VendorDefinedData[1];
+} __packed VENDOR_DEVICE_PATH_WITH_DATA;
+
+static char *
+efi_vendor_path(const char *type, VENDOR_DEVICE_PATH *node, char *suffix)
+{
+	uint32_t size = DevicePathNodeLength(&node->Header) - sizeof(*node);
+	VENDOR_DEVICE_PATH_WITH_DATA *dp = (VENDOR_DEVICE_PATH_WITH_DATA *)node;
+	char *name, *tail, *head;
+	char *uuid;
+	int rv;
+
+	uuid_to_string((const uuid_t *)(void *)&node->Guid, &uuid, &rv);
+	if (rv != uuid_s_ok)
+		return (NULL);
+
+	tail = efi_make_tail(suffix);
+	rv = asprintf(&head, "%sVendor(%s)[%x:", type, uuid, size);
+	free(uuid);
+	if (rv < 0)
+		return (NULL);
+
+	if (DevicePathNodeLength(&node->Header) > sizeof(*node)) {
+		for (uint32_t i = 0; i < size; i++) {
+			rv = asprintf(&name, "%s%02x", head,
+			    dp->VendorDefinedData[i]);
+			if (rv < 0) {
+				free(tail);
+				free(head);
+				return (NULL);
+			}
+			free(head);
+			head = name;
+		}
+	}
+
+	if (asprintf(&name, "%s]%s", head, tail) < 0)
+		name = NULL;
+	free(head);
+	free(tail);
+	return (name);
+}
+
+static char *
+efi_hw_dev_path(EFI_DEVICE_PATH *node, char *suffix)
+{
+	uint8_t subtype = DevicePathSubType(node);
+	char *name, *tail;
+
+	tail = efi_make_tail(suffix);
+	switch (subtype) {
+	case HW_PCI_DP:
+		if (asprintf(&name, "Pci(%x,%x)%s",
+		    ((PCI_DEVICE_PATH *)node)->Function,
+		    ((PCI_DEVICE_PATH *)node)->Device, tail) < 0)
+			name = NULL;
+		break;
+	case HW_PCCARD_DP:
+		if (asprintf(&name, "PCCARD(%x)%s",
+		    ((PCCARD_DEVICE_PATH *)node)->FunctionNumber, tail) < 0)
+			name = NULL;
+		break;
+	case HW_MEMMAP_DP:
+		if (asprintf(&name, "MMap(%x,%" PRIx64 ",%" PRIx64 ")%s",
+		    ((MEMMAP_DEVICE_PATH *)node)->MemoryType,
+		    ((MEMMAP_DEVICE_PATH *)node)->StartingAddress,
+		    ((MEMMAP_DEVICE_PATH *)node)->EndingAddress, tail) < 0)
+			name = NULL;
+		break;
+	case HW_VENDOR_DP:
+		name = efi_vendor_path("Hardware",
+		    (VENDOR_DEVICE_PATH *)node, tail);
+		break;
+	case HW_CONTROLLER_DP:
+		if (asprintf(&name, "Ctrl(%x)%s",
+		    ((CONTROLLER_DEVICE_PATH *)node)->Controller, tail) < 0)
+			name = NULL;
+		break;
+	default:
+		if (asprintf(&name, "UnknownHW(%x)%s", subtype, tail) < 0)
+			name = NULL;
+		break;
+	}
+	free(tail);
+	return (name);
+}
+
+static char *
+efi_acpi_dev_path(EFI_DEVICE_PATH *node, char *suffix)
+{
+	uint8_t subtype = DevicePathSubType(node);
+	ACPI_HID_DEVICE_PATH *acpi = (ACPI_HID_DEVICE_PATH *)node;
+	char *name, *tail;
+
+	tail = efi_make_tail(suffix);
+	switch (subtype) {
+	case ACPI_DP:
+		if ((acpi->HID & PNP_EISA_ID_MASK) == PNP_EISA_ID_CONST) {
+			switch (EISA_ID_TO_NUM (acpi->HID)) {
+			case 0x0a03:
+				if (asprintf(&name, "PciRoot(%x)%s",
+				    acpi->UID, tail) < 0)
+					name = NULL;
+				break;
+			case 0x0a08:
+				if (asprintf(&name, "PcieRoot(%x)%s",
+				    acpi->UID, tail) < 0)
+					name = NULL;
+				break;
+			case 0x0604:
+				if (asprintf(&name, "Floppy(%x)%s",
+				    acpi->UID, tail) < 0)
+					name = NULL;
+				break;
+			case 0x0301:
+				if (asprintf(&name, "Keyboard(%x)%s",
+				    acpi->UID, tail) < 0)
+					name = NULL;
+				break;
+			case 0x0501:
+				if (asprintf(&name, "Serial(%x)%s",
+				    acpi->UID, tail) < 0)
+					name = NULL;
+				break;
+			case 0x0401:
+				if (asprintf(&name, "ParallelPort(%x)%s",
+				    acpi->UID, tail) < 0)
+					name = NULL;
+				break;
+			default:
+				if (asprintf(&name, "Acpi(PNP%04x,%x)%s",
+				    EISA_ID_TO_NUM(acpi->HID),
+				    acpi->UID, tail) < 0)
+					name = NULL;
+				break;
+			}
+		} else {
+			if (asprintf(&name, "Acpi(%08x,%x)%s",
+			    acpi->HID, acpi->UID, tail) < 0)
+				name = NULL;
+		}
+		break;
+	case ACPI_EXTENDED_DP:
+	default:
+		if (asprintf(&name, "UnknownACPI(%x)%s", subtype, tail) < 0)
+			name = NULL;
+		break;
+	}
+	free(tail);
+	return (name);
+}
+
+static char *
+efi_messaging_dev_path(EFI_DEVICE_PATH *node, char *suffix)
+{
+	uint8_t subtype = DevicePathSubType(node);
+	char *name;
+	char *tail;
+
+	tail = efi_make_tail(suffix);
+	switch (subtype) {
+	case MSG_ATAPI_DP:
+		if (asprintf(&name, "ATA(%s,%s,%x)%s",
+		    ((ATAPI_DEVICE_PATH *)node)->PrimarySecondary == 1 ?
+		    "Secondary" : "Primary",
+		    ((ATAPI_DEVICE_PATH *)node)->SlaveMaster == 1 ?
+		    "Slave" : "Master",
+		    ((ATAPI_DEVICE_PATH *)node)->Lun, tail) < 0)
+			name = NULL;
+		break;
+	case MSG_SCSI_DP:
+		if (asprintf(&name, "SCSI(%x,%x)%s",
+		    ((SCSI_DEVICE_PATH *)node)->Pun,
+		    ((SCSI_DEVICE_PATH *)node)->Lun, tail) < 0)
+			name = NULL;
+		break;
+	case MSG_FIBRECHANNEL_DP:
+		if (asprintf(&name, "Fibre(%" PRIx64 ",%" PRIx64 ")%s",
+		    ((FIBRECHANNEL_DEVICE_PATH *)node)->WWN,
+		    ((FIBRECHANNEL_DEVICE_PATH *)node)->Lun, tail) < 0)
+			name = NULL;
+		break;
+	case MSG_1394_DP:
+		if (asprintf(&name, "I1394(%016" PRIx64 ")%s",
+		    ((F1394_DEVICE_PATH *)node)->Guid, tail) < 0)
+			name = NULL;
+		break;
+	case MSG_USB_DP:
+		if (asprintf(&name, "USB(%x,%x)%s",
+		    ((USB_DEVICE_PATH *)node)->ParentPortNumber,
+		    ((USB_DEVICE_PATH *)node)->InterfaceNumber, tail) < 0)
+			name = NULL;
+		break;
+	case MSG_USB_CLASS_DP:
+		if (asprintf(&name, "UsbClass(%x,%x,%x,%x,%x)%s",
+		    ((USB_CLASS_DEVICE_PATH *)node)->VendorId,
+		    ((USB_CLASS_DEVICE_PATH *)node)->ProductId,
+		    ((USB_CLASS_DEVICE_PATH *)node)->DeviceClass,
+		    ((USB_CLASS_DEVICE_PATH *)node)->DeviceSubClass,
+		    ((USB_CLASS_DEVICE_PATH *)node)->DeviceProtocol, tail) < 0)
+			name = NULL;
+		break;
+	case MSG_MAC_ADDR_DP:
+		if (asprintf(&name, "MAC(%02x:%02x:%02x:%02x:%02x:%02x,%x)%s",
+		    ((MAC_ADDR_DEVICE_PATH *)node)->MacAddress.Addr[0],
+		    ((MAC_ADDR_DEVICE_PATH *)node)->MacAddress.Addr[1],
+		    ((MAC_ADDR_DEVICE_PATH *)node)->MacAddress.Addr[2],
+		    ((MAC_ADDR_DEVICE_PATH *)node)->MacAddress.Addr[3],
+		    ((MAC_ADDR_DEVICE_PATH *)node)->MacAddress.Addr[4],
+		    ((MAC_ADDR_DEVICE_PATH *)node)->MacAddress.Addr[5],
+		    ((MAC_ADDR_DEVICE_PATH *)node)->IfType, tail) < 0)
+			name = NULL;
+		break;
+	case MSG_VENDOR_DP:
+		name = efi_vendor_path("Messaging",
+		    (VENDOR_DEVICE_PATH *)node, tail);
+		break;
+	case MSG_UART_DP:
+		if (asprintf(&name, "UART(%" PRIu64 ",%u,%x,%x)%s",
+		    ((UART_DEVICE_PATH *)node)->BaudRate,
+		    ((UART_DEVICE_PATH *)node)->DataBits,
+		    ((UART_DEVICE_PATH *)node)->Parity,
+		    ((UART_DEVICE_PATH *)node)->StopBits, tail) < 0)
+			name = NULL;
+		break;
+	case MSG_SATA_DP:
+		if (asprintf(&name, "Sata(%x,%x,%x)%s",
+		    ((SATA_DEVICE_PATH *)node)->HBAPortNumber,
+		    ((SATA_DEVICE_PATH *)node)->PortMultiplierPortNumber,
+		    ((SATA_DEVICE_PATH *)node)->Lun, tail) < 0)
+			name = NULL;
+		break;
+	default:
+		if (asprintf(&name, "UnknownMessaging(%x)%s",
+		    subtype, tail) < 0)
+			name = NULL;
+		break;
+	}
+	free(tail);
+	return (name);
+}
+
+static char *
+efi_media_dev_path(EFI_DEVICE_PATH *node, char *suffix)
+{
+	uint8_t subtype = DevicePathSubType(node);
+	HARDDRIVE_DEVICE_PATH *hd;
+	char *name;
+	char *str;
+	char *tail;
+	int rv;
+
+	tail = efi_make_tail(suffix);
+	name = NULL;
+	switch (subtype) {
+	case MEDIA_HARDDRIVE_DP:
+		hd = (HARDDRIVE_DEVICE_PATH *)node;
+		switch (hd->SignatureType) {
+		case SIGNATURE_TYPE_MBR:
+			if (asprintf(&name, "HD(%d,MBR,%08x,%" PRIx64
+			    ",%" PRIx64 ")%s",
+			    hd->PartitionNumber,
+			    *((uint32_t *)(uintptr_t)&hd->Signature[0]),
+			    hd->PartitionStart,
+			    hd->PartitionSize, tail) < 0)
+				name = NULL;
+			break;
+		case SIGNATURE_TYPE_GUID:
+			name = NULL;
+			uuid_to_string((const uuid_t *)(void *)
+			    &hd->Signature[0], &str, &rv);
+			if (rv != uuid_s_ok)
+				break;
+			rv = asprintf(&name, "HD(%d,GPT,%s,%" PRIx64 ",%"
+			    PRIx64 ")%s",
+			    hd->PartitionNumber, str,
+			    hd->PartitionStart, hd->PartitionSize, tail);
+			free(str);
+			break;
+		default:
+			if (asprintf(&name, "HD(%d,%d,0)%s",
+			    hd->PartitionNumber,
+			    hd->SignatureType, tail) < 0) {
+				name = NULL;
+			}
+			break;
+		}
+		break;
+	case MEDIA_CDROM_DP:
+		if (asprintf(&name, "CD(%x,%" PRIx64 ",%" PRIx64 ")%s",
+		    ((CDROM_DEVICE_PATH *)node)->BootEntry,
+		    ((CDROM_DEVICE_PATH *)node)->PartitionStart,
+		    ((CDROM_DEVICE_PATH *)node)->PartitionSize, tail) < 0) {
+			name = NULL;
+		}
+		break;
+	case MEDIA_VENDOR_DP:
+		name = efi_vendor_path("Media",
+		    (VENDOR_DEVICE_PATH *)node, tail);
+		break;
+	case MEDIA_FILEPATH_DP:
+		name = NULL;
+		str = NULL;
+		if (ucs2_to_utf8(((FILEPATH_DEVICE_PATH *)node)->PathName,
+		    &str) == 0) {
+			(void)asprintf(&name, "%s%s", str, tail);
+			free(str);
+		}
+		break;
+	case MEDIA_PROTOCOL_DP:
+		name = NULL;
+		uuid_to_string((const uuid_t *)(void *)
+		    &((MEDIA_PROTOCOL_DEVICE_PATH *)node)->Protocol,
+		    &str, &rv);
+		if (rv != uuid_s_ok)
+			break;
+		rv = asprintf(&name, "Protocol(%s)%s", str, tail);
+		free(str);
+		break;
+	default:
+		if (asprintf(&name, "UnknownMedia(%x)%s",
+		    subtype, tail) < 0)
+			name = NULL;
+	}
+	free(tail);
+	return (name);
+}
+
+static char *
+efi_translate_devpath(EFI_DEVICE_PATH *devpath)
+{
+	EFI_DEVICE_PATH *dp = NextDevicePathNode(devpath);
+	char *name, *ptr;
+	uint8_t type;
+
+	if (!IsDevicePathEnd(devpath))
+		name = efi_translate_devpath(dp);
+	else
+		return (NULL);
+
+	ptr = NULL;
+	type = DevicePathType(devpath);
+	switch (type) {
+	case HARDWARE_DEVICE_PATH:
+		ptr = efi_hw_dev_path(devpath, name);
+		break;
+	case ACPI_DEVICE_PATH:
+		ptr = efi_acpi_dev_path(devpath, name);
+		break;
+	case MESSAGING_DEVICE_PATH:
+		ptr = efi_messaging_dev_path(devpath, name);
+		break;
+	case MEDIA_DEVICE_PATH:
+		ptr = efi_media_dev_path(devpath, name);
+		break;
+	case BBS_DEVICE_PATH:
+	default:
+		if (asprintf(&ptr, "UnknownPath(%x)%s", type,
+		    name? name : "") < 0)
+			ptr = NULL;
+		break;
+	}
+
+	if (ptr != NULL) {
+		free(name);
+		name = ptr;
+	}
+	return (name);
+}
+
+static CHAR16 *
+efi_devpath_to_name(EFI_DEVICE_PATH *devpath)
+{
+	char *name = NULL;
+	CHAR16 *ptr = NULL;
+	size_t len;
+	int rv;
+
+	name = efi_translate_devpath(devpath);
+	if (name == NULL)
+		return (NULL);
+
+	/*
+	 * We need to return memory from AllocatePool, so it can be freed
+	 * with FreePool() in efi_free_devpath_name().
+	 */
+	rv = utf8_to_ucs2(name, &ptr, &len);
+	free(name);
+	if (rv == 0) {
+		CHAR16 *out = NULL;
+		EFI_STATUS status;
+
+		status = BS->AllocatePool(EfiLoaderData, len, (void **)&out);
+		if (EFI_ERROR(status)) {
+			free(ptr);
+                	return (out);
+		}
+		memcpy(out, ptr, len);
+		free(ptr);
+		ptr = out;
+	}
+	
+	return (ptr);
+}
+
 CHAR16 *
 efi_devpath_name(EFI_DEVICE_PATH *devpath)
 {
@@ -79,7 +503,7 @@ efi_devpath_name(EFI_DEVICE_PATH *devpath)
 			toTextProtocol = NULL;
 	}
 	if (toTextProtocol == NULL)
-		return (NULL);
+		return (efi_devpath_to_name(devpath));
 
 	return (toTextProtocol->ConvertDevicePathToText(devpath, TRUE, TRUE));
 }
@@ -87,8 +511,8 @@ efi_devpath_name(EFI_DEVICE_PATH *devpath)
 void
 efi_free_devpath_name(CHAR16 *text)
 {
-
-	BS->FreePool(text);
+	if (text != NULL)
+		BS->FreePool(text);
 }
 
 EFI_DEVICE_PATH *
