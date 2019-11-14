@@ -3124,6 +3124,7 @@ static device_method_t ntb_intel_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_child_location_str, ntb_child_location_str),
 	DEVMETHOD(bus_print_child,	ntb_print_child),
+	DEVMETHOD(bus_get_dma_tag,	ntb_get_dma_tag),
 	/* NTB interface */
 	DEVMETHOD(ntb_port_number,	intel_ntb_port_number),
 	DEVMETHOD(ntb_peer_port_count,	intel_ntb_peer_port_count),
