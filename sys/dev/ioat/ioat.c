@@ -555,13 +555,14 @@ ioat3_attach(device_t device)
 	    &ioat->comp_update_tag);
 
 	error = bus_dmamem_alloc(ioat->comp_update_tag,
-	    (void **)&ioat->comp_update, BUS_DMA_ZERO, &ioat->comp_update_map);
+	    (void **)&ioat->comp_update, BUS_DMA_ZERO | BUS_DMA_WAITOK,
+	    &ioat->comp_update_map);
 	if (ioat->comp_update == NULL)
 		return (ENOMEM);
 
 	error = bus_dmamap_load(ioat->comp_update_tag, ioat->comp_update_map,
 	    ioat->comp_update, sizeof(uint64_t), ioat_comp_update_map, ioat,
-	    0);
+	    BUS_DMA_NOWAIT);
 	if (error != 0)
 		return (error);
 
@@ -582,7 +583,7 @@ ioat3_attach(device_t device)
 		return (error);
 
 	error = bus_dmamap_load(ioat->hw_desc_tag, ioat->hw_desc_map, hw_desc,
-	    ringsz, ioat_dmamap_cb, &ioat->hw_desc_bus_addr, BUS_DMA_WAITOK);
+	    ringsz, ioat_dmamap_cb, &ioat->hw_desc_bus_addr, BUS_DMA_NOWAIT);
 	if (error)
 		return (error);
 
