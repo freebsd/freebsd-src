@@ -552,7 +552,7 @@
 ; syscall numbers for FreeBSD
 300	AUE_NULL	NOPROTO	{ int modnext(int modid); }
 301	AUE_NULL	STD	{ int freebsd32_modstat(int modid, \
-				    struct module_stat32* stat); }
+				    struct module_stat32 *stat); }
 302	AUE_NULL	NOPROTO	{ int modfnext(int modid); }
 303	AUE_NULL	NOPROTO	{ int modfind(const char *name); }
 304	AUE_MODLOAD	NOPROTO	{ int kldload(const char *file); }
@@ -560,7 +560,7 @@
 306	AUE_NULL	NOPROTO	{ int kldfind(const char *file); }
 307	AUE_NULL	NOPROTO	{ int kldnext(int fileid); }
 308	AUE_NULL	STD	{ int freebsd32_kldstat(int fileid, \
-				    struct kld32_file_stat* stat); }
+				    struct kld32_file_stat *stat); }
 309	AUE_NULL	NOPROTO	{ int kldfirstmod(int fileid); }
 310	AUE_GETSID	NOPROTO	{ int getsid(pid_t pid); }
 311	AUE_SETRESUID	NOPROTO	{ int setresuid(uid_t ruid, uid_t euid, \

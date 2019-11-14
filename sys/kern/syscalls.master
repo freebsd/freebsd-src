@@ -1472,7 +1472,7 @@
 257	AUE_LIO_LISTIO	STD {
 		int lio_listio(
 		    int mode,
-		    _Inout_updates_(nent) struct aiocb* const *acb_list,
+		    _Inout_updates_(nent) struct aiocb * const *acb_list,
 		    int nent,
 		    _In_opt_ struct sigevent *sig
 		);
@@ -1562,7 +1562,7 @@
 301	AUE_NULL	STD {
 		int modstat(
 		    int modid,
-		    _Out_ struct module_stat* stat
+		    _Out_ struct module_stat *stat
 		);
 	}
 302	AUE_NULL	STD {
