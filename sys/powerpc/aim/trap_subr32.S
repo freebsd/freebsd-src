@@ -302,10 +302,8 @@ CNAME(restorebridgesize) = .-CNAME(restorebridge)
  */
 	.globl	CNAME(rstcode), CNAME(rstcodeend)
 CNAME(rstcode):
-	bl	1f
-	.long	cpu_reset
-1:	mflr	%r31
-	lwz	%r31,0(%r31)
+	lwz	%r31, TRAP_GENTRAP(0)
+	addi	%r31, %r31, (cpu_reset - generictrap)
 	mtlr	%r31
 	blrl
 CNAME(rstcodeend):
@@ -384,10 +382,8 @@ CNAME(alitrap):
 	mtcr	%r31
 
 	/* Jump to s_trap */
-	bl	1f
-	.long	s_trap
-1:	mflr	%r31
-	lwz	%r31,0(%r31)
+	lwz	%r31, TRAP_GENTRAP(0)
+	addi	%r31, %r31, (s_trap - generictrap)
 	mtlr	%r31
 	blrl
 CNAME(aliend):
@@ -652,10 +648,8 @@ CNAME(dsitrap):
 	mflr	%r28			/* save LR (SP already saved) */
 
 	/* Jump to disitrap */
-	bl	4f
-	.long	disitrap
-4:	mflr	%r1
-	lwz	%r1,0(%r1)
+	lwz	%r1, TRAP_GENTRAP(0)
+	addi	%r1, %r1, (disitrap - generictrap)
 	mtlr	%r1
 	blrl
 CNAME(dsiend):
@@ -929,10 +923,8 @@ CNAME(dblow):
         mflr	%r28					/* save LR */
 
 	/* Jump to dbtrap */
-	bl	2f
-	.long	dbtrap
-2:	mflr	%r1
-	lwz	%r1,0(%r1)
+	lwz	%r1, TRAP_GENTRAP(0)
+	addi	%r1, %r1, (dbtrap - generictrap)
 	mtlr	%r1
 	blrl
 CNAME(dbend):
