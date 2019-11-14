@@ -23,6 +23,6 @@
 # SUCH DAMAGE.
 #
 
-SUBDIR=	 vmci vmxnet3
+SUBDIR=	 pvscsi vmci vmxnet3
 
 .include <bsd.subdir.mk>

@@ -138,6 +138,7 @@ device		mpr			# LSI-Logic MPT-Fusion 3
 device		sym			# NCR/Symbios Logic
 device		trm			# Tekram DC395U/UW/F DC315U adapters
 device		isci			# Intel C600 SAS controller
+device		pvscsi			# VMware PVSCSI
 
 # ATA/SCSI peripherals
 device		scbus			# SCSI bus (required for ATA/SCSI)

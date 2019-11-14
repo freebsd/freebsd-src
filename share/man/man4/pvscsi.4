@@ -1,0 +1,74 @@
+.\" Copyright (c) 2018 VMware, Inc.
+.\"
+.\" SPDX-License-Identifier: (BSD-2-Clause OR GPL-2.0)
+.\"
+.\" $FreeBSD$
+.Dd December 5, 2018
+.Dt PVSCSI 4
+.Os
+.Sh NAME
+.Nm pvscsi
+.Nd VMware Paravirtual SCSI Controller
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device scbus"
+.Cd "device pvscsi"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+pvscsi_load="YES"
+.Ed
+.Pp
+The following tunables are settable from the
+.Xr loader 8 :
+.Bl -ohang
+.It Va hw.pvscsi.request_ring_pages
+controls how many pages are allocated for the device request ring.
+A non-positive value will cause the driver to choose the value based on device
+capabilities.
+A non-zero value will use that many number of pages up to a maximum of 32.
+The default setting is 0.
+.It Va hw.pvscsi.max_queue_depth
+controls the queue size for the adapter.
+A non-positive value will cause the driver to choose the value based on number
+of request ring pages.
+A non-zero value will set the queue size up to a maximum allowed by the number
+of request ring pages.
+Default is 0.
+.It Va hw.pvscsi.use_msg
+setting to nonzero value enables the use of the PVSCSI message queue allowing
+for disk hot-add and remove without manual rescan needed.
+Default is 1.
+.It Va hw.pvscsi.use_msi
+setting to nonzero value enables the use of MSI interrupts.
+Default is 1.
+.It Va hw.pvscsi.use_msix
+setting to nonzero value enables the use of MSI-X interrupts.
+Default is 1.
+.It Va hw.pvscsi.use_req_call_threshold
+setting to nonzero value enables the request call threshold functionality.
+TODO.
+Default is 1.
+.El
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the VMware Paravirtual SCSI Controller (PVSCSI) in
+virtual machines by VMware.
+.Sh SEE ALSO
+.Xr cam 4 ,
+.Xr da 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+.An Vishal Bhakta Aq Mt vbhakta@vmware.com .
