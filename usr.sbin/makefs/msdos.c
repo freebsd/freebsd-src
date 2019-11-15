@@ -262,7 +262,8 @@ msdos_populate_dir(const char *path, struct denode *dir, fsnode *root,
 			    cur->name);
 			continue;
 		}
-		if (msdosfs_mkfile(pbuf, dir, cur) == NULL) {
+		if (msdosfs_mkfile(cur->contents ? cur->contents : pbuf, dir,
+		    cur) == NULL) {
 			warn("msdosfs_mkfile %s", pbuf);
 			return -1;
 		}
