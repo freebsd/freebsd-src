@@ -850,6 +850,9 @@ initriscv(struct riscv_bootparams *rvbp)
 
 	PCPU_SET(curthread, &thread0);
 
+	/* Initialize SBI interface. */
+	sbi_init();
+
 	/* Set the module data location */
 	lastaddr = fake_preload_metadata(rvbp);
 
