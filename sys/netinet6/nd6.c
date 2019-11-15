@@ -2328,13 +2328,7 @@ nd6_resolve_slow(struct ifnet *ifp, int flags, struct mbuf *m,
 		}
 	} 
 	if (lle == NULL) {
-		if (!(ND_IFINFO(ifp)->flags & ND6_IFF_PERFORMNUD)) {
-			m_freem(m);
-			return (ENOBUFS);
-		}
-
-		if (m != NULL)
-			m_freem(m);
+		m_freem(m);
 		return (ENOBUFS);
 	}
 
