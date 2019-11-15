@@ -177,15 +177,16 @@ static void
 htable_unlink_entry(struct llentry *lle)
 {
 
-	if ((lle->la_flags & LLE_LINKED) != 0) {
-		IF_AFDATA_WLOCK_ASSERT(lle->lle_tbl->llt_ifp);
-		CK_LIST_REMOVE(lle, lle_next);
-		lle->la_flags &= ~(LLE_VALID | LLE_LINKED);
+	if ((lle->la_flags & LLE_LINKED) == 0)
+		return;
+
+	IF_AFDATA_WLOCK_ASSERT(lle->lle_tbl->llt_ifp);
+	CK_LIST_REMOVE(lle, lle_next);
+	lle->la_flags &= ~(LLE_VALID | LLE_LINKED);
 #if 0
-		lle->lle_tbl = NULL;
-		lle->lle_head = NULL;
+	lle->lle_tbl = NULL;
+	lle->lle_head = NULL;
 #endif
-	}
 }
 
 struct prefix_match_data {
