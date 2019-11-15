@@ -72,25 +72,23 @@ dest6_input(struct mbuf **mp, int *offp, int proto)
 	m = *mp;
 	off = *offp;
 
-	/* validation of the length of the header */
-#ifndef PULLDOWN_TEST
-	IP6_EXTHDR_CHECK(m, off, sizeof(*dstopts), IPPROTO_DONE);
+	/* Validation of the length of the header. */
+	m = m_pullup(m, off + sizeof(*dstopts));
+	if (m == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		*mp = m;
+		return (IPPROTO_DONE);
+	}
 	dstopts = (struct ip6_dest *)(mtod(m, caddr_t) + off);
-#else
-	IP6_EXTHDR_GET(dstopts, struct ip6_dest *, m, off, sizeof(*dstopts));
-	if (dstopts == NULL)
-		return IPPROTO_DONE;
-#endif
 	dstoptlen = (dstopts->ip6d_len + 1) << 3;
 
-#ifndef PULLDOWN_TEST
-	IP6_EXTHDR_CHECK(m, off, dstoptlen, IPPROTO_DONE);
+	m = m_pullup(m, off + dstoptlen);
+	if (m == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		*mp = m;
+		return (IPPROTO_DONE);
+	}
 	dstopts = (struct ip6_dest *)(mtod(m, caddr_t) + off);
-#else
-	IP6_EXTHDR_GET(dstopts, struct ip6_dest *, m, off, dstoptlen);
-	if (dstopts == NULL)
-		return IPPROTO_DONE;
-#endif
 	off += dstoptlen;
 	dstoptlen -= sizeof(struct ip6_dest);
 	opt = (u_int8_t *)dstopts + sizeof(struct ip6_dest);

@@ -218,30 +218,22 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGBUCKETSIZE, maxfragbucketsize,
  * Remove the IPv6 fragmentation header from the mbuf.
  */
 int
-ip6_deletefraghdr(struct mbuf *m, int offset, int wait)
+ip6_deletefraghdr(struct mbuf *m, int offset, int wait __unused)
 {
 	struct ip6_hdr *ip6;
-	struct mbuf *t;
+
+	KASSERT(m->m_len >= offset + sizeof(struct ip6_frag),
+	    ("%s: ext headers not contigous in mbuf %p m_len %d >= "
+	    "offset %d + %zu\n", __func__, m, m->m_len, offset,
+	    sizeof(struct ip6_frag)));
 
 	/* Delete frag6 header. */
-	if (m->m_len >= offset + sizeof(struct ip6_frag)) {
-
-		/* This is the only possible case with !PULLDOWN_TEST. */
-		ip6 = mtod(m, struct ip6_hdr *);
-		bcopy(ip6, (char *)ip6 + sizeof(struct ip6_frag),
-		    offset);
-		m->m_data += sizeof(struct ip6_frag);
-		m->m_len -= sizeof(struct ip6_frag);
-	} else {
-
-		/* This comes with no copy if the boundary is on cluster. */
-		if ((t = m_split(m, offset, wait)) == NULL)
-			return (ENOMEM);
-		m_adj(t, sizeof(struct ip6_frag));
-		m_cat(m, t);
-	}
-
+	ip6 = mtod(m, struct ip6_hdr *);
+	bcopy(ip6, (char *)ip6 + sizeof(struct ip6_frag), offset);
+	m->m_data += sizeof(struct ip6_frag);
+	m->m_len -= sizeof(struct ip6_frag);
 	m->m_flags |= M_FRAGMENTED;
+
 	return (0);
 }
 
@@ -397,15 +389,13 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 
 	M_ASSERTPKTHDR(m);
 
-	ip6 = mtod(m, struct ip6_hdr *);
-#ifndef PULLDOWN_TEST
-	IP6_EXTHDR_CHECK(m, offset, sizeof(struct ip6_frag), IPPROTO_DONE);
-	ip6f = (struct ip6_frag *)((caddr_t)ip6 + offset);
-#else
-	IP6_EXTHDR_GET(ip6f, struct ip6_frag *, m, offset, sizeof(*ip6f));
-	if (ip6f == NULL)
+	m = m_pullup(m, offset + sizeof(struct ip6_frag));
+	if (m == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		*mp = NULL;
 		return (IPPROTO_DONE);
-#endif
+	}
+	ip6 = mtod(m, struct ip6_hdr *);
 
 	dstifp = NULL;
 	/* Find the destination interface of the packet. */
@@ -429,6 +419,7 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	 * sizeof(struct ip6_frag) == 8
 	 * sizeof(struct ip6_hdr) = 40
 	 */
+	ip6f = (struct ip6_frag *)((caddr_t)ip6 + offset);
 	if ((ip6f->ip6f_offlg & IP6F_MORE_FRAG) &&
 	    (((ntohs(ip6->ip6_plen) - offset) & 0x7) != 0)) {
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
@@ -833,15 +824,7 @@ postinsert:
 	V_ip6qb[bucket].count--;
 	atomic_subtract_int(&frag6_nfrags, q6->ip6q_nfrag);
 
-	if (ip6_deletefraghdr(m, offset, M_NOWAIT) != 0) {
-#ifdef MAC
-		mac_ip6q_destroy(q6);
-#endif
-		free(q6, M_FRAG6);
-		atomic_subtract_int(&V_frag6_nfragpackets, 1);
-
-		goto dropfrag;
-	}
+	ip6_deletefraghdr(m, offset, M_NOWAIT);
 
 	/* Set nxt(-hdr field value) to the original value. */
 	m_copyback(m, ip6_get_prevhdr(m, offset), sizeof(uint8_t),

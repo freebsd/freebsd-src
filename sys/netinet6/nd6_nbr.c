@@ -148,17 +148,13 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		goto bads;
 	}
 
-#ifndef PULLDOWN_TEST
-	IP6_EXTHDR_CHECK(m, off, icmp6len,);
-	nd_ns = (struct nd_neighbor_solicit *)((caddr_t)ip6 + off);
-#else
-	IP6_EXTHDR_GET(nd_ns, struct nd_neighbor_solicit *, m, off, icmp6len);
-	if (nd_ns == NULL) {
-		ICMP6STAT_INC(icp6s_tooshort);
+	m = m_pullup(m, off + icmp6len);
+	if (m == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
 		return;
 	}
-#endif
-	ip6 = mtod(m, struct ip6_hdr *); /* adjust pointer for safety */
+	ip6 = mtod(m, struct ip6_hdr *);
+	nd_ns = (struct nd_neighbor_solicit *)((caddr_t)ip6 + off);
 
 	saddr6 = ip6->ip6_src;
 	daddr6 = ip6->ip6_dst;
@@ -656,16 +652,13 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		goto bad;
 	}
 
-#ifndef PULLDOWN_TEST
-	IP6_EXTHDR_CHECK(m, off, icmp6len,);
-	nd_na = (struct nd_neighbor_advert *)((caddr_t)ip6 + off);
-#else
-	IP6_EXTHDR_GET(nd_na, struct nd_neighbor_advert *, m, off, icmp6len);
-	if (nd_na == NULL) {
-		ICMP6STAT_INC(icp6s_tooshort);
+	m = m_pullup(m, off + icmp6len);
+	if (m == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
 		return;
 	}
-#endif
+	ip6 = mtod(m, struct ip6_hdr *);
+	nd_na = (struct nd_neighbor_advert *)((caddr_t)ip6 + off);
 
 	flags = nd_na->nd_na_flags_reserved;
 	is_router = ((flags & ND_NA_FLAG_ROUTER) != 0);
