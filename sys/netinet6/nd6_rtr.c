@@ -202,16 +202,13 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 	if (IN6_IS_ADDR_UNSPECIFIED(&saddr6))
 		goto freeit;
 
-#ifndef PULLDOWN_TEST
-	IP6_EXTHDR_CHECK(m, off, icmp6len,);
-	nd_rs = (struct nd_router_solicit *)((caddr_t)ip6 + off);
-#else
-	IP6_EXTHDR_GET(nd_rs, struct nd_router_solicit *, m, off, icmp6len);
-	if (nd_rs == NULL) {
-		ICMP6STAT_INC(icp6s_tooshort);
+	m = m_pullup(m, off + icmp6len);
+	if (m == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
 		return;
 	}
-#endif
+	ip6 = mtod(m, struct ip6_hdr *);
+	nd_rs = (struct nd_router_solicit *)((caddr_t)ip6 + off);
 
 	icmp6len -= sizeof(*nd_rs);
 	nd6_option_init(nd_rs + 1, icmp6len, &ndopts);
@@ -403,16 +400,13 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 		goto bad;
 	}
 
-#ifndef PULLDOWN_TEST
-	IP6_EXTHDR_CHECK(m, off, icmp6len,);
-	nd_ra = (struct nd_router_advert *)((caddr_t)ip6 + off);
-#else
-	IP6_EXTHDR_GET(nd_ra, struct nd_router_advert *, m, off, icmp6len);
-	if (nd_ra == NULL) {
-		ICMP6STAT_INC(icp6s_tooshort);
+	m = m_pullup(m, off + icmp6len);
+	if (m == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
 		return;
 	}
-#endif
+	ip6 = mtod(m, struct ip6_hdr *);
+	nd_ra = (struct nd_router_advert *)((caddr_t)ip6 + off);
 
 	icmp6len -= sizeof(*nd_ra);
 	nd6_option_init(nd_ra + 1, icmp6len, &ndopts);

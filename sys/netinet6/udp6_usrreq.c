@@ -223,16 +223,14 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 
 	ifp = m->m_pkthdr.rcvif;
 
-#ifndef PULLDOWN_TEST
-	IP6_EXTHDR_CHECK(m, off, sizeof(struct udphdr), IPPROTO_DONE);
+	m = m_pullup(m, off + sizeof(struct udphdr));
+	if (m == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		*mp = NULL;
+		return (IPPROTO_DONE);
+	}
 	ip6 = mtod(m, struct ip6_hdr *);
 	uh = (struct udphdr *)((caddr_t)ip6 + off);
-#else
-	IP6_EXTHDR_GET(uh, struct udphdr *, m, off, sizeof(*uh));
-	if (!uh)
-		return (IPPROTO_DONE);
-	ip6 = mtod(m, struct ip6_hdr *);
-#endif
 
 	UDPSTAT_INC(udps_ipackets);
 
