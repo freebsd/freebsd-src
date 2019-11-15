@@ -1069,7 +1069,7 @@ hw_mds_recalculate(void)
 		}
 		xcr0 = rxcr(0);
 		if ((xcr0 & XFEATURE_ENABLED_ZMM_HI256) != 0 &&
-		    (cpu_stdext_feature2 & CPUID_STDEXT_AVX512DQ) != 0)
+		    (cpu_stdext_feature & CPUID_STDEXT_AVX512DQ) != 0)
 			mds_handler = mds_handler_skl_avx512;
 		else if ((xcr0 & XFEATURE_ENABLED_AVX) != 0 &&
 		    (cpu_feature2 & CPUID2_AVX) != 0)
