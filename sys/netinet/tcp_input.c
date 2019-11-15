@@ -517,7 +517,12 @@ tcp6_input(struct mbuf **mp, int *offp, int proto)
 	struct ip6_hdr *ip6;
 
 	m = *mp;
-	IP6_EXTHDR_CHECK(m, *offp, sizeof(struct tcphdr), IPPROTO_DONE);
+	m = m_pullup(m, *offp + sizeof(struct tcphdr));
+	if (m == NULL) {
+		*mp = m;
+		TCPSTAT_INC(tcps_rcvshort);
+		return (IPPROTO_DONE);
+	}
 
 	/*
 	 * draft-itojun-ipv6-tcp-to-anycast
@@ -595,15 +600,6 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 
 #ifdef INET6
 	if (isipv6) {
-		/* IP6_EXTHDR_CHECK() is already done at tcp6_input(). */
-
-		if (m->m_len < (sizeof(*ip6) + sizeof(*th))) {
-			m = m_pullup(m, sizeof(*ip6) + sizeof(*th));
-			if (m == NULL) {
-				TCPSTAT_INC(tcps_rcvshort);
-				return (IPPROTO_DONE);
-			}
-		}
 
 		ip6 = mtod(m, struct ip6_hdr *);
 		th = (struct tcphdr *)((caddr_t)ip6 + off0);
@@ -712,7 +708,11 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 	if (off > sizeof (struct tcphdr)) {
 #ifdef INET6
 		if (isipv6) {
-			IP6_EXTHDR_CHECK(m, off0, off, IPPROTO_DONE);
+			m = m_pullup(m, off0 + off);
+			if (m == NULL) {
+				TCPSTAT_INC(tcps_rcvshort);
+				return (IPPROTO_DONE);
+			}
 			ip6 = mtod(m, struct ip6_hdr *);
 			th = (struct tcphdr *)((caddr_t)ip6 + off0);
 		}
