@@ -236,12 +236,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	return (error);
 }
 
-bus_dma_tag_t
-bus_dma_tag_alloc(bus_dma_tag_t parent, bus_dma_props_t props)
-{
-	return (NULL);
-}
-
 int
 bus_dma_tag_destroy(bus_dma_tag_t dmat)
 {
