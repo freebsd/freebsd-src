@@ -47,25 +47,32 @@
 #define	SBI_REMOTE_SFENCE_VMA_ASID	7
 #define	SBI_SHUTDOWN			8
 
+#define	SBI_CALL0(e, f)			SBI_CALL4(e, f, 0, 0, 0, 0)
+#define	SBI_CALL1(e, f, p1)		SBI_CALL4(e, f, p1, 0, 0, 0)
+#define	SBI_CALL2(e, f, p1, p2)		SBI_CALL4(e, f, p1, p2, 0, 0)
+#define	SBI_CALL3(e, f, p1, p2, p3)	SBI_CALL4(e, f, p1, p2, p3, 0)
+#define	SBI_CALL4(e, f, p1, p2, p3, p4)	sbi_call(e, f, p1, p2, p3, p4)
+
 /*
  * Documentation available at
  * https://github.com/riscv/riscv-sbi-doc/blob/master/riscv-sbi.md
  */
 
 static __inline uint64_t
-sbi_call(uint64_t arg7, uint64_t arg0, uint64_t arg1, uint64_t arg2,
-    uint64_t arg3)
+sbi_call(uint64_t arg7, uint64_t arg6, uint64_t arg0, uint64_t arg1,
+    uint64_t arg2, uint64_t arg3)
 {
 	register uintptr_t a0 __asm ("a0") = (uintptr_t)(arg0);
 	register uintptr_t a1 __asm ("a1") = (uintptr_t)(arg1);
 	register uintptr_t a2 __asm ("a2") = (uintptr_t)(arg2);
 	register uintptr_t a3 __asm ("a3") = (uintptr_t)(arg3);
+	register uintptr_t a6 __asm ("a6") = (uintptr_t)(arg6);
 	register uintptr_t a7 __asm ("a7") = (uintptr_t)(arg7);
 
 	__asm __volatile(			\
 		"ecall"				\
 		:"+r"(a0)			\
-		:"r"(a1), "r"(a2), "r" (a3), "r"(a7)	\
+		:"r"(a1), "r"(a2), "r"(a3), "r"(a6), "r"(a7)	\
 		:"memory");
 
 	return (a0);
@@ -75,49 +82,49 @@ static __inline void
 sbi_console_putchar(int ch)
 {
 
-	sbi_call(SBI_CONSOLE_PUTCHAR, ch, 0, 0, 0);
+	(void)SBI_CALL1(SBI_CONSOLE_PUTCHAR, 0, ch);
 }
 
 static __inline int
 sbi_console_getchar(void)
 {
 
-	return (sbi_call(SBI_CONSOLE_GETCHAR, 0, 0, 0, 0));
+	return (SBI_CALL0(SBI_CONSOLE_GETCHAR, 0));
 }
 
 static __inline void
 sbi_set_timer(uint64_t val)
 {
 
-	sbi_call(SBI_SET_TIMER, val, 0, 0, 0);
+	(void)SBI_CALL1(SBI_SET_TIMER, 0, val);
 }
 
 static __inline void
 sbi_shutdown(void)
 {
 
-	sbi_call(SBI_SHUTDOWN, 0, 0, 0, 0);
+	(void)SBI_CALL0(SBI_SHUTDOWN, 0);
 }
 
 static __inline void
 sbi_clear_ipi(void)
 {
 
-	sbi_call(SBI_CLEAR_IPI, 0, 0, 0, 0);
+	(void)SBI_CALL0(SBI_CLEAR_IPI, 0);
 }
 
 static __inline void
 sbi_send_ipi(const unsigned long *hart_mask)
 {
 
-	sbi_call(SBI_SEND_IPI, (uint64_t)hart_mask, 0, 0, 0);
+	(void)SBI_CALL1(SBI_SEND_IPI, 0, (uint64_t)hart_mask);
 }
 
 static __inline void
 sbi_remote_fence_i(const unsigned long *hart_mask)
 {
 
-	sbi_call(SBI_REMOTE_FENCE_I, (uint64_t)hart_mask, 0, 0, 0);
+	(void)SBI_CALL1(SBI_REMOTE_FENCE_I, 0, (uint64_t)hart_mask);
 }
 
 static __inline void
@@ -125,7 +132,8 @@ sbi_remote_sfence_vma(const unsigned long *hart_mask,
     unsigned long start, unsigned long size)
 {
 
-	sbi_call(SBI_REMOTE_SFENCE_VMA, (uint64_t)hart_mask, start, size, 0);
+	(void)SBI_CALL3(SBI_REMOTE_SFENCE_VMA, 0, (uint64_t)hart_mask, start,
+	    size);
 }
 
 static __inline void
@@ -134,8 +142,8 @@ sbi_remote_sfence_vma_asid(const unsigned long *hart_mask,
     unsigned long asid)
 {
 
-	sbi_call(SBI_REMOTE_SFENCE_VMA_ASID, (uint64_t)hart_mask, start, size,
-	    asid);
+	(void)SBI_CALL4(SBI_REMOTE_SFENCE_VMA_ASID, 0, (uint64_t)hart_mask,
+	    start, size, asid);
 }
 
 #endif /* !_MACHINE_SBI_H_ */
