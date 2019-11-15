@@ -63,6 +63,7 @@
     ((((__uintptr_t)(p) % 4)) * NBBY)
 #endif
 
+#ifndef	_atomic_cmpset_masked_word
 /*
  * Pass these bad boys a couple words and a mask of the bits you care about,
  * they'll loop until we either succeed or fail because of those bits rather
@@ -92,7 +93,9 @@ _atomic_cmpset_masked_word(uint32_t *addr, uint32_t old, uint32_t val,
 
 	return (ret);
 }
+#endif
 
+#ifndef	_atomic_fcmpset_masked_word
 static __inline int
 _atomic_fcmpset_masked_word(uint32_t *addr, uint32_t *old, uint32_t val,
     uint32_t mask)
@@ -108,6 +111,7 @@ _atomic_fcmpset_masked_word(uint32_t *addr, uint32_t *old, uint32_t val,
 	*old = (*addr & ~mask) | *old;
 	return (atomic_fcmpset_32(addr, old, (*old & ~mask) | val));
 }
+#endif
 
 static __inline int
 atomic_cmpset_8(__volatile uint8_t *addr, uint8_t old, uint8_t val)
