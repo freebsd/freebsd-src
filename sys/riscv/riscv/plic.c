@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
+#include <sys/smp.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>
@@ -53,20 +54,40 @@ __FBSDID("$FreeBSD$");
 #include "pic_if.h"
 
 #define	PLIC_MAX_IRQS		1024
-#define	PLIC_PRIORITY(n)	(0x000000 + (n) * 0x4)
-#define	PLIC_ENABLE(n, h)	(0x002000 + (h) * 0x80 + 4 * ((n) / 32))
-#define	PLIC_THRESHOLD(h)	(0x200000 + (h) * 0x1000 + 0x0)
-#define	PLIC_CLAIM(h)		(0x200000 + (h) * 0x1000 + 0x4)
+
+#define	PLIC_PRIORITY_BASE	0x000000U
+
+#define	PLIC_ENABLE_BASE	0x002000U
+#define	PLIC_ENABLE_STRIDE	0x80U
+
+#define	PLIC_CONTEXT_BASE	0x200000U
+#define	PLIC_CONTEXT_STRIDE	0x1000U
+#define	PLIC_CONTEXT_THRESHOLD	0x0U
+#define	PLIC_CONTEXT_CLAIM	0x4U
+
+#define	PLIC_PRIORITY(n)	(PLIC_PRIORITY_BASE + (n) * sizeof(uint32_t))
+#define	PLIC_ENABLE(sc, n, h)						\
+    (sc->contexts[h].enable_offset + ((n) / 32) * sizeof(uint32_t))
+#define	PLIC_THRESHOLD(sc, h)						\
+    (sc->contexts[h].context_offset + PLIC_CONTEXT_THRESHOLD)
+#define	PLIC_CLAIM(sc, h)						\
+    (sc->contexts[h].context_offset + PLIC_CONTEXT_CLAIM)
 
 struct plic_irqsrc {
 	struct intr_irqsrc	isrc;
 	u_int			irq;
 };
 
+struct plic_context {
+	bus_size_t enable_offset;
+	bus_size_t context_offset;
+};
+
 struct plic_softc {
 	device_t		dev;
 	struct resource *	intc_res;
 	struct plic_irqsrc	isrcs[PLIC_MAX_IRQS];
+	struct plic_context	contexts[MAXCPU];
 	int			ndev;
 };
 
@@ -74,6 +95,45 @@ struct plic_softc {
     bus_read_4(sc->intc_res, (reg))
 #define	WR4(sc, reg, val)			\
     bus_write_4(sc->intc_res, (reg), (val))
+
+static int
+riscv_hartid_to_cpu(int hartid)
+{
+	int i;
+
+	CPU_FOREACH(i) {
+		if (pcpu_find(i)->pc_hart == hartid)
+			return (i);
+	}
+
+	return (-1);
+}
+
+static int
+plic_get_hartid(device_t dev, phandle_t intc)
+{
+	int hart;
+
+	/* Check the interrupt controller layout. */
+	if (OF_searchencprop(intc, "#interrupt-cells", &hart,
+	    sizeof(hart)) == -1) {
+		device_printf(dev,
+		    "Could not find #interrupt-cells for phandle %u\n", intc);
+		return (-1);
+	}
+
+	/*
+	 * The parent of the interrupt-controller is the CPU we are
+	 * interested in, so search for its hart ID.
+	 */
+	if (OF_searchencprop(OF_parent(intc), "reg", (pcell_t *)&hart,
+	    sizeof(hart)) == -1) {
+		device_printf(dev, "Could not find hartid\n");
+		return (-1);
+	}
+
+	return (hart);
+}
 
 static inline void
 plic_irq_dispatch(struct plic_softc *sc, u_int irq,
@@ -98,11 +158,11 @@ plic_intr(void *arg)
 	sc = arg;
 	cpu = PCPU_GET(cpuid);
 
-	pending = RD4(sc, PLIC_CLAIM(cpu));
+	pending = RD4(sc, PLIC_CLAIM(sc, cpu));
 	if (pending) {
 		tf = curthread->td_intr_frame;
 		plic_irq_dispatch(sc, pending, tf);
-		WR4(sc, PLIC_CLAIM(cpu), pending);
+		WR4(sc, PLIC_CLAIM(sc, cpu), pending);
 	}
 
 	return (FILTER_HANDLED);
@@ -121,9 +181,9 @@ plic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 
 	cpu = PCPU_GET(cpuid);
 
-	reg = RD4(sc, PLIC_ENABLE(src->irq, cpu));
+	reg = RD4(sc, PLIC_ENABLE(sc, src->irq, cpu));
 	reg &= ~(1 << (src->irq % 32));
-	WR4(sc, PLIC_ENABLE(src->irq, cpu), reg);
+	WR4(sc, PLIC_ENABLE(sc, src->irq, cpu), reg);
 }
 
 static void
@@ -141,9 +201,9 @@ plic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 
 	cpu = PCPU_GET(cpuid);
 
-	reg = RD4(sc, PLIC_ENABLE(src->irq, cpu));
+	reg = RD4(sc, PLIC_ENABLE(sc, src->irq, cpu));
 	reg |= (1 << (src->irq % 32));
-	WR4(sc, PLIC_ENABLE(src->irq, cpu), reg);
+	WR4(sc, PLIC_ENABLE(sc, src->irq, cpu), reg);
 }
 
 static int
@@ -189,6 +249,7 @@ plic_attach(device_t dev)
 	struct plic_irqsrc *isrcs;
 	struct plic_softc *sc;
 	struct intr_pic *pic;
+	pcell_t *cells;
 	uint32_t irq;
 	const char *name;
 	phandle_t node;
@@ -196,6 +257,10 @@ plic_attach(device_t dev)
 	uint32_t cpu;
 	int error;
 	int rid;
+	int nintr;
+	int context;
+	int i;
+	int hart;
 
 	sc = device_get_softc(dev);
 
@@ -225,6 +290,7 @@ plic_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	/* Register the interrupt sources */
 	isrcs = sc->isrcs;
 	name = device_get_nameunit(sc->dev);
 	cpu = PCPU_GET(cpuid);
@@ -236,9 +302,69 @@ plic_attach(device_t dev)
 			return (error);
 
 		WR4(sc, PLIC_PRIORITY(irq), 0);
-		WR4(sc, PLIC_ENABLE(irq, cpu), 0);
 	}
-	WR4(sc, PLIC_THRESHOLD(cpu), 0);
+
+	/*
+	 * Calculate the per-cpu enable and context register offsets.
+	 *
+	 * This is tricky for a few reasons. The PLIC divides the interrupt
+	 * enable, threshold, and claim bits by "context", where each context
+	 * routes to a Core-Local Interrupt Controller (CLIC).
+	 *
+	 * The tricky part is that the PLIC spec imposes no restrictions on how
+	 * these contexts are laid out. So for example, there is no guarantee
+	 * that each CPU will have both a machine mode and supervisor context,
+	 * or that different PLIC implementations will organize the context
+	 * registers in the same way. On top of this, we must handle the fact
+	 * that cpuid != hartid, as they may have been renumbered during boot.
+	 * We perform the following steps:
+	 *
+	 * 1. Examine the PLIC's "interrupts-extended" property and skip any
+	 *    entries that are not for supervisor external interrupts.
+	 *
+	 * 2. Walk up the device tree to find the corresponding CPU, and grab
+	 *    it's hart ID.
+	 *
+	 * 3. Convert the hart to a cpuid, and calculate the register offsets
+	 *    based on the context number.
+	 */
+	nintr = OF_getencprop_alloc_multi(node, "interrupts-extended",
+	    sizeof(uint32_t), (void **)&cells);
+	if (nintr <= 0) {
+		device_printf(dev, "Could not read interrupts-extended\n");
+		return (ENXIO);
+	}
+
+	/* interrupts-extended is a list of phandles and interrupt types. */
+	for (i = 0, context = 0; i < nintr; i += 2, context++) {
+		/* Skip M-mode external interrupts */
+		if (cells[i + 1] != IRQ_EXTERNAL_SUPERVISOR)
+			continue;
+
+		/* Get the hart ID from the CLIC's phandle. */
+		hart = plic_get_hartid(dev, OF_node_from_xref(cells[i]));
+		if (hart < 0) {
+			OF_prop_free(cells);
+			return (ENXIO);
+		}
+
+		/* Get the corresponding cpuid. */
+		cpu = riscv_hartid_to_cpu(hart);
+		if (cpu < 0) {
+			device_printf(dev, "Invalid hart!\n");
+			OF_prop_free(cells);
+			return (ENXIO);
+		}
+
+		/* Set the enable and context register offsets for the CPU. */
+		sc->contexts[cpu].enable_offset = PLIC_ENABLE_BASE +
+		    context * PLIC_ENABLE_STRIDE;
+		sc->contexts[cpu].context_offset = PLIC_CONTEXT_BASE +
+		    context * PLIC_CONTEXT_STRIDE;
+	}
+	OF_prop_free(cells);
+
+	WR4(sc, PLIC_THRESHOLD(sc, cpu), 0);
 
 	xref = OF_xref_from_node(node);
 	pic = intr_pic_register(sc->dev, xref);
