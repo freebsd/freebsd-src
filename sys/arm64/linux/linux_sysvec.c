@@ -87,6 +87,7 @@ LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 /* DTrace probes */
 LIN_SDT_PROBE_DEFINE2(sysvec, linux_translate_traps, todo, "int", "int");
 LIN_SDT_PROBE_DEFINE0(sysvec, linux_exec_setregs, todo);
+LIN_SDT_PROBE_DEFINE0(sysvec, linux_copyout_auxargs, todo);
 LIN_SDT_PROBE_DEFINE0(sysvec, linux_elf_fixup, todo);
 LIN_SDT_PROBE_DEFINE0(sysvec, linux_rt_sigreturn, todo);
 LIN_SDT_PROBE_DEFINE0(sysvec, linux_rt_sendsig, todo);
@@ -140,26 +141,19 @@ linux_set_syscall_retval(struct thread *td, int error)
 	cpu_set_syscall_retval(td, error);
 }
 
-static int
-linux_elf_fixup(register_t **stack_base, struct image_params *imgp)
+static void
+linux_copyout_auxargs(struct image_params *imgp, u_long *base)
 {
 	Elf_Auxargs *args;
 	Elf_Auxinfo *argarray, *pos;
-	Elf_Addr *auxbase, *base;
-	struct ps_strings *arginfo;
+	u_long auxlen;
 	struct proc *p;
-	int error, issetugid;
+	int issetugid;
 
-	LIN_SDT_PROBE0(sysvec, linux_elf_fixup, todo);
+	LIN_SDT_PROBE0(sysvec, linux_copyout_auxargs, todo);
 	p = imgp->proc;
-	arginfo = (struct ps_strings *)p->p_sysent->sv_psstrings;
 
-	KASSERT(curthread->td_proc == imgp->proc,
-	    ("unsafe linux_elf_fixup(), should be curproc"));
-	base = (Elf64_Addr *)*stack_base;
 	args = (Elf64_Auxargs *)imgp->auxargs;
-	/* Auxargs after argc, and NULL-terminated argv and envv lists. */
-	auxbase = base + 1 + imgp->args->argc + 1 + imgp->args->envc + 1;
 	argarray = pos = malloc(LINUX_AT_COUNT * sizeof(*pos), M_TEMP,
 	    M_WAITOK | M_ZERO);
 
@@ -195,10 +189,17 @@ linux_elf_fixup(register_t **stack_base, struct image_params *imgp)
 	imgp->auxargs = NULL;
 	KASSERT(pos - argarray <= LINUX_AT_COUNT, ("Too many auxargs"));
 
-	error = copyout(argarray, auxbase, sizeof(*argarray) * LINUX_AT_COUNT);
+	auxlen = sizeof(*argarray) * (pos - argarray);
+	*base -= auxlen;
+	copyout(argarray, (void *)*base, auxlen);
 	free(argarray, M_TEMP);
-	if (error != 0)
-		return (error);
+}
+
+static int
+linux_elf_fixup(register_t **stack_base, struct image_params *imgp)
+{
+
+	LIN_SDT_PROBE0(sysvec, linux_elf_fixup, todo);
 
 	return (0);
 }
@@ -247,14 +248,8 @@ linux_copyout_strings(struct image_params *imgp)
 	copyout(canary, (void *)imgp->canary, sizeof(canary));
 
 	vectp = (char **)destp;
-	if (imgp->auxargs) {
-		/*
-		 * Allocate room on the stack for the ELF auxargs
-		 * array.  It has up to LINUX_AT_COUNT entries.
-		 */
-		vectp -= howmany(LINUX_AT_COUNT * sizeof(Elf64_Auxinfo),
-		    sizeof(*vectp));
-	}
+	if (imgp->auxargs)
+		imgp->sysent->sv_copyout_auxargs(imgp, (u_long *)&vectp);
 
 	/*
 	 * Allocate room for argc and the argv[] and env vectors including the
@@ -372,6 +367,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_usrstack	= USRSTACK,
 	.sv_psstrings	= PS_STRINGS, /* XXX */
 	.sv_stackprot	= VM_PROT_READ | VM_PROT_WRITE,
+	.sv_copyout_auxargs = linux_copyout_auxargs,
 	.sv_copyout_strings = linux_copyout_strings,
 	.sv_setregs	= linux_exec_setregs,
 	.sv_fixlimit	= NULL,
