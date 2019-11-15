@@ -54,7 +54,6 @@ MALLOC_DEFINE(M_PVSCSI, "pvscsi", "PVSCSI memory");
 #define	ccb_pvscsi_sc	spriv_ptr1
 
 struct pvscsi_softc;
-static timeout_t pvscsi_timeout;
 struct pvscsi_hcb;
 struct pvscsi_dma;
 
