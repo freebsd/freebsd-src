@@ -201,6 +201,7 @@ sbi_remote_sfence_vma_asid(const unsigned long *hart_mask,
 	    start, size, asid);
 }
 
+void sbi_print_version(void);
 void sbi_init(void);
 
 #endif /* !_MACHINE_SBI_H_ */

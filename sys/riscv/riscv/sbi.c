@@ -35,6 +35,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/sbi.h>
 
+/* SBI Implementation-Specific Definitions */
+#define	OPENSBI_VERSION_MAJOR_OFFSET	16
+#define	OPENSBI_VERSION_MINOR_MASK	0xFFFF
+
 u_long sbi_spec_version;
 u_long sbi_impl_id;
 u_long sbi_impl_version;
@@ -74,6 +78,39 @@ static struct sbi_ret
 sbi_get_mimpid(void)
 {
 	return (SBI_CALL0(SBI_EXT_ID_BASE, SBI_BASE_GET_MIMPID));
+}
+
+void
+sbi_print_version(void)
+{
+	u_int major;
+	u_int minor;
+
+	/* For legacy SBI implementations. */
+	if (sbi_spec_version == 0) {
+		printf("SBI: Unknown (Legacy) Implementation\n");
+		printf("SBI Specification Version: 0.1\n");
+		return;
+	}
+
+	switch (sbi_impl_id) {
+	case (SBI_IMPL_ID_BBL):
+		printf("SBI: Berkely Boot Loader %u\n", sbi_impl_version);
+		break;
+	case (SBI_IMPL_ID_OPENSBI):
+		major = sbi_impl_version >> OPENSBI_VERSION_MAJOR_OFFSET;
+		minor = sbi_impl_version & OPENSBI_VERSION_MINOR_MASK;
+		printf("SBI: OpenSBI v%u.%u\n", major, minor);
+		break;
+	default:
+		printf("SBI: Unrecognized Implementation: %u\n", sbi_impl_id);
+		break;
+	}
+
+	major = (sbi_spec_version & SBI_SPEC_VERS_MAJOR_MASK) >>
+	    SBI_SPEC_VERS_MAJOR_OFFSET;
+	minor = (sbi_spec_version & SBI_SPEC_VERS_MINOR_MASK);
+	printf("SBI Specification Version: %u.%u\n", major, minor);
 }
 
 void
