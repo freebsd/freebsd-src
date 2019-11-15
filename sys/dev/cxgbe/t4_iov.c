@@ -81,16 +81,10 @@ struct {
 	{0x5012,  "Chelsio T560-CR"},		/* 1 x 40G, 2 x 10G */
 	{0x5014,  "Chelsio T580-LP-SO-CR"},	/* 2 x 40G, nomem */
 	{0x5015,  "Chelsio T502-BT"},		/* 2 x 1G */
-#ifdef notyet
-	{0x5004,  "Chelsio T520-BCH"},
-	{0x5005,  "Chelsio T540-BCH"},
-	{0x5006,  "Chelsio T540-CH"},
-	{0x5008,  "Chelsio T520-CX"},
-	{0x500b,  "Chelsio B520-SR"},
-	{0x500c,  "Chelsio B504-BT"},
-	{0x500f,  "Chelsio Amsterdam"},
-	{0x5013,  "Chelsio T580-CHR"},
-#endif
+	{0x5018,  "Chelsio T540-BT"},		/* 4 x 10GBaseT */
+	{0x5019,  "Chelsio T540-LP-BT"},	/* 4 x 10GBaseT */
+	{0x501a,  "Chelsio T540-SO-BT"},	/* 4 x 10GBaseT, nomem */
+	{0x501b,  "Chelsio T540-SO-CR"},	/* 4 x 10G, nomem */
 }, t6iov_pciids[] = {
 	{0x6000, "Chelsio T6-DBG-25"},		/* 2 x 10/25G, debug */
 	{0x6001, "Chelsio T6225-CR"},		/* 2 x 10/25G */
@@ -111,6 +105,12 @@ struct {
 	/* Custom */
 	{0x6080, "Chelsio T6225 80"},
 	{0x6081, "Chelsio T62100 81"},
+	{0x6082, "Chelsio T6225-CR 82"},
+	{0x6083, "Chelsio T62100-CR 83"},
+	{0x6084, "Chelsio T64100-CR 84"},
+	{0x6085, "Chelsio T6240-SO 85"},
+	{0x6086, "Chelsio T6225-SO-CR 86"},
+	{0x6087, "Chelsio T6225-CR 87"},
 };
 
 static int	t4iov_attach_child(device_t dev);
