@@ -642,10 +642,9 @@ ioat3_attach(device_t device)
 		dma_hw_desc->next = RING_PHYS_ADDR(ioat, i + 1);
 	}
 
-	ioat->head = 0;
-	ioat->tail = 0;
-	ioat->last_seen = 0;
-	*ioat->comp_update = 0;
+	ioat->tail = ioat->head = 0;
+	*ioat->comp_update = ioat->last_seen =
+	    RING_PHYS_ADDR(ioat, ioat->tail - 1);
 	return (0);
 }
 
@@ -1751,8 +1750,8 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	 * at zero as well.
 	 */
 	ioat->tail = ioat->head = 0;
-	ioat->last_seen = 0;
-	*ioat->comp_update = 0;
+	*ioat->comp_update = ioat->last_seen =
+	    RING_PHYS_ADDR(ioat, ioat->tail - 1);
 
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 	ioat_write_chancmp(ioat, ioat->comp_update_bus_addr);
