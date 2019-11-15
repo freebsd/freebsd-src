@@ -109,6 +109,8 @@ linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mod
 		bsd_flags |= O_APPEND;
 	if (l_flags & LINUX_O_SYNC)
 		bsd_flags |= O_FSYNC;
+	if (l_flags & LINUX_O_CLOEXEC)
+		bsd_flags |= O_CLOEXEC;
 	if (l_flags & LINUX_O_NONBLOCK)
 		bsd_flags |= O_NONBLOCK;
 	if (l_flags & LINUX_FASYNC)
