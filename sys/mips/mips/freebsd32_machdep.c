@@ -94,6 +94,7 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_usrstack	= FREEBSD32_USRSTACK,
 	.sv_psstrings	= FREEBSD32_PS_STRINGS,
 	.sv_stackprot	= VM_PROT_ALL,
+	.sv_copyout_auxargs = __elfN(freebsd_copyout_auxargs),
 	.sv_copyout_strings = freebsd32_copyout_strings,
 	.sv_setregs	= freebsd32_exec_setregs,
 	.sv_fixlimit	= NULL,
