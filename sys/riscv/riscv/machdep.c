@@ -128,6 +128,7 @@ static void
 cpu_startup(void *dummy)
 {
 
+	sbi_print_version();
 	identify_cpu();
 
 	printf("real memory  = %ju (%ju MB)\n", ptoa((uintmax_t)realmem),
