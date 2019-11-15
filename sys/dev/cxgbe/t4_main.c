@@ -4998,6 +4998,7 @@ update_mac_settings(struct ifnet *ifp, int flags)
 		ctx.hash = 0;
 		ctx.i = 0;
 		ctx.del = 1;
+		ctx.rc = 0;
 		/*
 		 * Unlike other drivers, we accumulate list of pointers into
 		 * interface address lists and we need to keep it safe even
