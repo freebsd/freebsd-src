@@ -647,7 +647,7 @@ ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
 	struct dos_partition *dp;
 	struct ptable *table;
 	uint8_t *buf;
-	int i, count;
+	int i;
 #ifdef LOADER_MBR_SUPPORT
 	struct pentry *entry;
 	uint32_t start, end;
@@ -709,28 +709,23 @@ ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
 	}
 	/* Check that we have PMBR. Also do some validation. */
 	dp = (struct dos_partition *)(buf + DOSPARTOFF);
-	for (i = 0, count = 0; i < NDOSPART; i++) {
+	/*
+	 * In mac we can have PMBR partition in hybrid MBR;
+	 * that is, MBR partition which has DOSPTYP_PMBR entry defined as
+	 * start sector 1. After DOSPTYP_PMBR, there may be other partitions.
+	 * UEFI compliant PMBR has no other partitions.
+	 */
+	for (i = 0; i < NDOSPART; i++) {
 		if (dp[i].dp_flag != 0 && dp[i].dp_flag != 0x80) {
 			DPRINTF("invalid partition flag %x", dp[i].dp_flag);
 			goto out;
 		}
 #ifdef LOADER_GPT_SUPPORT
-		if (dp[i].dp_typ == DOSPTYP_PMBR) {
+		if (dp[i].dp_typ == DOSPTYP_PMBR && dp[i].dp_start == 1) {
 			table->type = PTABLE_GPT;
 			DPRINTF("PMBR detected");
 		}
 #endif
-		if (dp[i].dp_typ != 0)
-			count++;
-	}
-	/* Do we have some invalid values? */
-	if (table->type == PTABLE_GPT && count > 1) {
-		if (dp[1].dp_typ != DOSPTYP_HFS) {
-			table->type = PTABLE_NONE;
-			DPRINTF("Incorrect PMBR, ignore it");
-		} else {
-			DPRINTF("Bootcamp detected");
-		}
 	}
 #ifdef LOADER_GPT_SUPPORT
 	if (table->type == PTABLE_GPT) {
