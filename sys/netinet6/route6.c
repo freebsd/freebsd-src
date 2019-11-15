@@ -83,18 +83,14 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 	}
 #endif
 
-#ifndef PULLDOWN_TEST
-	IP6_EXTHDR_CHECK(m, off, sizeof(*rh), IPPROTO_DONE);
+	m = m_pullup(m, off + sizeof(*rh));
+	if (m == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		*mp = NULL;
+		return (IPPROTO_DONE);
+	}
 	ip6 = mtod(m, struct ip6_hdr *);
 	rh = (struct ip6_rthdr *)((caddr_t)ip6 + off);
-#else
-	ip6 = mtod(m, struct ip6_hdr *);
-	IP6_EXTHDR_GET(rh, struct ip6_rthdr *, m, off, sizeof(*rh));
-	if (rh == NULL) {
-		IP6STAT_INC(ip6s_tooshort);
-		return IPPROTO_DONE;
-	}
-#endif
 
 	/*
 	 * While this switch may look gratuitous, leave it in

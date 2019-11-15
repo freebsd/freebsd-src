@@ -1261,6 +1261,11 @@ mld_input(struct mbuf *m, int off, int icmp6len)
 	ifp = m->m_pkthdr.rcvif;
 
 	/* Pullup to appropriate size. */
+	m = m_pullup(m, off + sizeof(*mld));
+	if (m == NULL) {
+		ICMP6STAT_INC(icp6s_badlen);
+		return (IPPROTO_DONE);
+	}
 	mld = (struct mld_hdr *)(mtod(m, uint8_t *) + off);
 	if (mld->mld_type == MLD_LISTENER_QUERY &&
 	    icmp6len >= sizeof(struct mldv2_query)) {
@@ -1268,12 +1273,13 @@ mld_input(struct mbuf *m, int off, int icmp6len)
 	} else {
 		mldlen = sizeof(struct mld_hdr);
 	}
-	IP6_EXTHDR_GET(mld, struct mld_hdr *, m, off, mldlen);
-	if (mld == NULL) {
+	m = m_pullup(m, off + mldlen);
+	if (m == NULL) {
 		ICMP6STAT_INC(icp6s_badlen);
 		return (IPPROTO_DONE);
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
+	mld = (struct mld_hdr *)(mtod(m, uint8_t *) + off);
 
 	/*
 	 * Userland needs to see all of this traffic for implementing
