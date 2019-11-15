@@ -3,11 +3,12 @@
  *
  * Copyright (c) 2018 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
+ * Copyright (c) 2019 Mitchell Horne <mhorne@FreeBSD.org>
  *
- * This software was developed by SRI International and the University of
- * Cambridge Computer Laboratory (Department of Computer Science and
- * Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
- * DARPA SSITH research programme.
+ * Portions of this software were developed by SRI International and the
+ * University of Cambridge Computer Laboratory (Department of Computer Science
+ * and Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of
+ * the DARPA SSITH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -73,6 +74,14 @@ __FBSDID("$FreeBSD$");
 #define	PLIC_CLAIM(sc, h)						\
     (sc->contexts[h].context_offset + PLIC_CONTEXT_CLAIM)
 
+static pic_disable_intr_t	plic_disable_intr;
+static pic_enable_intr_t	plic_enable_intr;
+static pic_map_intr_t		plic_map_intr;
+static pic_setup_intr_t		plic_setup_intr;
+static pic_post_ithread_t	plic_post_ithread;
+static pic_pre_ithread_t	plic_pre_ithread;
+static pic_bind_intr_t		plic_bind_intr;
+
 struct plic_irqsrc {
 	struct intr_irqsrc	isrc;
 	u_int			irq;
@@ -95,6 +104,8 @@ struct plic_softc {
     bus_read_4(sc->intc_res, (reg))
 #define	WR4(sc, reg, val)			\
     bus_write_4(sc->intc_res, (reg), (val))
+
+static u_int plic_irq_cpu;
 
 static int
 riscv_hartid_to_cpu(int hartid)
@@ -173,17 +184,11 @@ plic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct plic_softc *sc;
 	struct plic_irqsrc *src;
-	uint32_t reg;
-	uint32_t cpu;
 
 	sc = device_get_softc(dev);
 	src = (struct plic_irqsrc *)isrc;
 
-	cpu = PCPU_GET(cpuid);
-
-	reg = RD4(sc, PLIC_ENABLE(sc, src->irq, cpu));
-	reg &= ~(1 << (src->irq % 32));
-	WR4(sc, PLIC_ENABLE(sc, src->irq, cpu), reg);
+	WR4(sc, PLIC_PRIORITY(src->irq), 0);
 }
 
 static void
@@ -191,19 +196,11 @@ plic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct plic_softc *sc;
 	struct plic_irqsrc *src;
-	uint32_t reg;
-	uint32_t cpu;
 
 	sc = device_get_softc(dev);
 	src = (struct plic_irqsrc *)isrc;
 
 	WR4(sc, PLIC_PRIORITY(src->irq), 1);
-
-	cpu = PCPU_GET(cpuid);
-
-	reg = RD4(sc, PLIC_ENABLE(sc, src->irq, cpu));
-	reg |= (1 << (src->irq % 32));
-	WR4(sc, PLIC_ENABLE(sc, src->irq, cpu), reg);
 }
 
 static int
@@ -293,7 +290,6 @@ plic_attach(device_t dev)
 	/* Register the interrupt sources */
 	isrcs = sc->isrcs;
 	name = device_get_nameunit(sc->dev);
-	cpu = PCPU_GET(cpuid);
 	for (irq = 1; irq <= sc->ndev; irq++) {
 		isrcs[irq].irq = irq;
 		error = intr_isrc_register(&isrcs[irq].isrc, sc->dev,
@@ -364,7 +360,9 @@ plic_attach(device_t dev)
 	}
 	OF_prop_free(cells);
 
-	WR4(sc, PLIC_THRESHOLD(sc, cpu), 0);
+	/* Set the threshold for each CPU to accept all priorities. */
+	CPU_FOREACH(cpu)
+		WR4(sc, PLIC_THRESHOLD(sc, cpu), 0);
 
 	xref = OF_xref_from_node(node);
 	pic = intr_pic_register(sc->dev, xref);
@@ -379,17 +377,20 @@ plic_attach(device_t dev)
 static void
 plic_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
-	struct plic_softc *sc;
-	struct plic_irqsrc *src;
 
-	sc = device_get_softc(dev);
-	src = (struct plic_irqsrc *)isrc;
-
-	WR4(sc, PLIC_PRIORITY(src->irq), 0);
+	plic_disable_intr(dev, isrc);
 }
 
 static void
 plic_post_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+
+	plic_enable_intr(dev, isrc);
+}
+
+static int
+plic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
 {
 	struct plic_softc *sc;
 	struct plic_irqsrc *src;
@@ -397,7 +398,48 @@ plic_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 	sc = device_get_softc(dev);
 	src = (struct plic_irqsrc *)isrc;
 
-	WR4(sc, PLIC_PRIORITY(src->irq), 1);
+	/* Bind to the boot CPU for now. */
+	CPU_SET(PCPU_GET(cpuid), &isrc->isrc_cpu);
+	plic_bind_intr(dev, isrc);
+
+	return (0);
+}
+
+static int
+plic_bind_intr(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct plic_softc *sc;
+	struct plic_irqsrc *src;
+	uint32_t reg;
+	u_int cpu;
+
+	sc = device_get_softc(dev);
+	src = (struct plic_irqsrc *)isrc;
+
+	/* Disable the interrupt source on all CPUs. */
+	CPU_FOREACH(cpu) {
+		reg = RD4(sc, PLIC_ENABLE(sc, src->irq, cpu));
+		reg &= ~(1 << (src->irq % 32));
+		WR4(sc, PLIC_ENABLE(sc, src->irq, cpu), reg);
+	}
+
+	if (CPU_EMPTY(&isrc->isrc_cpu)) {
+		cpu = plic_irq_cpu = intr_irq_next_cpu(plic_irq_cpu, &all_cpus);
+		CPU_SETOF(cpu, &isrc->isrc_cpu);
+	} else {
+		/*
+		 * We will only bind to a single CPU so select the first
+		 * CPU found.
+		 */
+		cpu = CPU_FFS(&isrc->isrc_cpu) - 1;
+	}
+
+	/* Enable the interrupt on the selected CPU only. */
+	reg = RD4(sc, PLIC_ENABLE(sc, src->irq, cpu));
+	reg |= (1 << (src->irq % 32));
+	WR4(sc, PLIC_ENABLE(sc, src->irq, cpu), reg);
+
+	return (0);
 }
 
 static device_method_t plic_methods[] = {
@@ -409,6 +451,8 @@ static device_method_t plic_methods[] = {
 	DEVMETHOD(pic_map_intr,		plic_map_intr),
 	DEVMETHOD(pic_pre_ithread,	plic_pre_ithread),
 	DEVMETHOD(pic_post_ithread,	plic_post_ithread),
+	DEVMETHOD(pic_setup_intr,	plic_setup_intr),
+	DEVMETHOD(pic_bind_intr,	plic_bind_intr),
 
 	DEVMETHOD_END
 };
