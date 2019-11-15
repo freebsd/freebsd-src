@@ -575,14 +575,14 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	/* Figure out header size. */
 	rplen = HDRSIZE(sav);
 
-	/* XXX don't pullup, just copy header */
-	IP6_EXTHDR_GET(ah, struct newah *, m, skip, rplen);
-	if (ah == NULL) {
+	m = m_pullup(m, skip + rplen);
+	if (m == NULL) {
 		DPRINTF(("ah_input: cannot pullup header\n"));
 		AHSTAT_INC(ahs_hdrops);		/*XXX*/
 		error = ENOBUFS;
 		goto bad;
 	}
+	ah = (struct newah *)(mtod(m, caddr_t) + skip);
 
 	/* Check replay window, if applicable. */
 	SECASVAR_LOCK(sav);

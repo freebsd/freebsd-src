@@ -567,12 +567,13 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 
 	/* verify that we have a complete carp packet */
 	len = m->m_len;
-	IP6_EXTHDR_GET(ch, struct carp_header *, m, *offp, sizeof(*ch));
-	if (ch == NULL) {
+	m = m_pullup(m, *offp + sizeof(*ch));
+	if (m == NULL) {
 		CARPSTATS_INC(carps_badlen);
 		CARP_DEBUG("%s: packet size %u too small\n", __func__, len);
 		return (IPPROTO_DONE);
 	}
+	ch = (struct carp_header *)(mtod(m, caddr_t) + *offp);
 
 
 	/* verify the CARP checksum */

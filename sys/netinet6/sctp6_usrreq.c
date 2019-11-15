@@ -103,13 +103,13 @@ sctp6_input_with_port(struct mbuf **i_pak, int *offp, uint16_t port)
 	SCTP_STAT_INCR_COUNTER64(sctps_inpackets);
 	/* Get IP, SCTP, and first chunk header together in the first mbuf. */
 	offset = iphlen + sizeof(struct sctphdr) + sizeof(struct sctp_chunkhdr);
-	ip6 = mtod(m, struct ip6_hdr *);
-	IP6_EXTHDR_GET(sh, struct sctphdr *, m, iphlen,
-	    (int)(sizeof(struct sctphdr) + sizeof(struct sctp_chunkhdr)));
-	if (sh == NULL) {
+	m = m_pullup(m, offset);
+	if (m == NULL) {
 		SCTP_STAT_INCR(sctps_hdrops);
 		return (IPPROTO_DONE);
 	}
+	ip6 = mtod(m, struct ip6_hdr *);
+	sh = (struct sctphdr *)(mtod(m, caddr_t) + iphlen);
 	ch = (struct sctp_chunkhdr *)((caddr_t)sh + sizeof(struct sctphdr));
 	offset -= sizeof(struct sctp_chunkhdr);
 	memset(&src, 0, sizeof(struct sockaddr_in6));
