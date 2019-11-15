@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2016-2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
+ * Copyright (c) 2019 Mitchell Horne <mhorne@FreeBSD.org>
  *
  * Portions of this software were developed by SRI International and the
  * University of Cambridge Computer Laboratory under DARPA/AFRL contract
@@ -37,6 +38,35 @@
 #ifndef _MACHINE_SBI_H_
 #define	_MACHINE_SBI_H_
 
+/* SBI Specification Version */
+#define	SBI_SPEC_VERS_MAJOR_OFFSET	24
+#define	SBI_SPEC_VERS_MAJOR_MASK	(0x7F << SBI_SPEC_VERS_MAJOR_OFFSET)
+#define	SBI_SPEC_VERS_MINOR_OFFSET	0
+#define	SBI_SPEC_VERS_MINOR_MASK	(0xFFFFFF << SBI_SPEC_VERS_MINOR_OFFSET)
+
+/* SBI Implementation IDs */
+#define	SBI_IMPL_ID_BBL			0
+#define	SBI_IMPL_ID_OPENSBI		1
+
+/* SBI Error Codes */
+#define	SBI_SUCCESS			0
+#define	SBI_ERR_FAILURE			-1
+#define	SBI_ERR_NOT_SUPPORTED		-2
+#define	SBI_ERR_INVALID_PARAM		-3
+#define	SBI_ERR_DENIED			-4
+#define	SBI_ERR_INVALID_ADDRESS		-5
+
+/* SBI Base Extension */
+#define	SBI_EXT_ID_BASE			0x10
+#define	SBI_BASE_GET_SPEC_VERSION	0
+#define	SBI_BASE_GET_IMPL_ID		1
+#define	SBI_BASE_GET_IMPL_VERSION	2
+#define	SBI_BASE_PROBE_EXTENSION	3
+#define	SBI_BASE_GET_MVENDORID		4
+#define	SBI_BASE_GET_MARCHID		5
+#define	SBI_BASE_GET_MIMPID		6
+
+/* Legacy Extensions */
 #define	SBI_SET_TIMER			0
 #define	SBI_CONSOLE_PUTCHAR		1
 #define	SBI_CONSOLE_GETCHAR		2
@@ -55,13 +85,20 @@
 
 /*
  * Documentation available at
- * https://github.com/riscv/riscv-sbi-doc/blob/master/riscv-sbi.md
+ * https://github.com/riscv/riscv-sbi-doc/blob/master/riscv-sbi.adoc
  */
 
-static __inline uint64_t
+struct sbi_ret {
+	long error;
+	long value;
+};
+
+static __inline struct sbi_ret
 sbi_call(uint64_t arg7, uint64_t arg6, uint64_t arg0, uint64_t arg1,
     uint64_t arg2, uint64_t arg3)
 {
+	struct sbi_ret ret;
+
 	register uintptr_t a0 __asm ("a0") = (uintptr_t)(arg0);
 	register uintptr_t a1 __asm ("a1") = (uintptr_t)(arg1);
 	register uintptr_t a2 __asm ("a2") = (uintptr_t)(arg2);
@@ -71,13 +108,27 @@ sbi_call(uint64_t arg7, uint64_t arg6, uint64_t arg0, uint64_t arg1,
 
 	__asm __volatile(			\
 		"ecall"				\
-		:"+r"(a0)			\
-		:"r"(a1), "r"(a2), "r"(a3), "r"(a6), "r"(a7)	\
+		:"+r"(a0), "+r"(a1)		\
+		:"r"(a2), "r"(a3), "r"(a6), "r"(a7)	\
 		:"memory");
 
-	return (a0);
+	ret.error = a0;
+	ret.value = a1;
+	return (ret);
 }
 
+/* Base extension functions and variables. */
+extern u_long sbi_spec_version;
+extern u_long sbi_impl_id;
+extern u_long sbi_impl_version;
+
+static __inline long
+sbi_probe_extension(long id)
+{
+	return (SBI_CALL1(SBI_EXT_ID_BASE, SBI_BASE_PROBE_EXTENSION, id).value);
+}
+
+/* Legacy extension functions. */
 static __inline void
 sbi_console_putchar(int ch)
 {
@@ -89,7 +140,11 @@ static __inline int
 sbi_console_getchar(void)
 {
 
-	return (SBI_CALL0(SBI_CONSOLE_GETCHAR, 0));
+	/*
+	 * XXX: The "error" is returned here because legacy SBI functions
+	 * continue to return their value in a0.
+	 */
+	return (SBI_CALL0(SBI_CONSOLE_GETCHAR, 0).error);
 }
 
 static __inline void
@@ -145,5 +200,7 @@ sbi_remote_sfence_vma_asid(const unsigned long *hart_mask,
 	(void)SBI_CALL4(SBI_REMOTE_SFENCE_VMA_ASID, 0, (uint64_t)hart_mask,
 	    start, size, asid);
 }
+
+void sbi_init(void);
 
 #endif /* !_MACHINE_SBI_H_ */
