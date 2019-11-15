@@ -608,6 +608,38 @@ atomic_cmpset_short(volatile u_short *p, u_short cmpval, u_short newval)
 
 	return (ret);
 }
+#else
+static __inline int
+atomic_cmpset_masked(uint32_t *p, uint32_t cmpval, uint32_t newval,
+    uint32_t mask)
+{
+	int		ret;
+	uint32_t	tmp;
+
+	__asm __volatile (
+		"1:\tlwarx %2, 0, %2\n\t"	/* load old value */
+		"and %0, %2, %7\n\t"
+		"cmplw %4, %0\n\t"		/* compare */
+		"bne- 2f\n\t"			/* exit if not equal */
+		"andc %2, %2, %7\n\t"
+		"or %2, %2, %5\n\t"
+		"stwcx. %2, 0, %3\n\t"      	/* attempt to store */
+		"bne- 1b\n\t"			/* spin if failed */
+		"li %0, 1\n\t"			/* success - retval = 1 */
+		"b 3f\n\t"			/* we've succeeded */
+		"2:\n\t"
+		"stwcx. %2, 0, %3\n\t"       	/* clear reservation (74xx) */
+		"li %0, 0\n\t"			/* failure - retval = 0 */
+		"3:\n\t"
+		: "=&r" (ret), "=m" (*p), "+&r" (tmp)
+		: "r" (p), "r" (cmpval), "r" (newval), "m" (*p),
+		  "r" (mask)
+		: "cr0", "memory");
+
+	return (ret);
+}
+
+#define	_atomic_cmpset_masked_word(a,o,v,m) atomic_cmpset_masked(a, o, v, m)
 #endif
 
 static __inline int
