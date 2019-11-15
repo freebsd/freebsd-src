@@ -189,6 +189,14 @@ also exists (because it was created by a script), then delete it and reboot.
 .Ss Operation of Nm rc.shutdown
 .Bl -enum
 .It
+Set
+.Va rc_shutdown
+to the value of the first argument passed to
+.Nm rc.shutdown
+or to
+.Dq Li unspecified
+if no argument was passed.
+.It
 Source
 .Pa /etc/rc.subr
 to load various

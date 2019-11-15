@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2014
+.Dd August 6, 2019
 .Dt JAIL.CONF 5
 .Os
 .Sh NAME
@@ -182,7 +182,7 @@ in the middle of a string or a token.
 # Typical static defaults:
 # Use the rc scripts to start and stop jails.  Mount jail's /dev.
 exec.start = "/bin/sh /etc/rc";
-exec.stop = "/bin/sh /etc/rc.shutdown";
+exec.stop = "/bin/sh /etc/rc.shutdown jail";
 exec.clean;
 mount.devfs;
 

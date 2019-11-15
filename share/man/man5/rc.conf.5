@@ -3753,6 +3753,41 @@ is set to
 these are the flags passed to the
 .Xr watchdogd 8
 daemon.
+.It Va watchdogd_timeout
+.Pq Vt int
+If
+.Va watchdogd_enable
+is set to
+.Dq Li YES ,
+this is a timeout that will be used by the
+.Xr watchdogd 8
+daemon.
+If this option is set, it overrides
+.Fl t
+in
+.Va watchdogd_flags .
+.It Va watchdogd_shutdown_timeout
+.Pq Vt int
+If
+.Va watchdogd_enable
+is set to
+.Dq Li YES ,
+this is a timeout that will be set by the
+.Xr watchdogd 8
+daemon when it exits during the system shutdown.
+This timeout will not be set when returning to the single-user mode
+or when the watchdogd service is stopped individually using the
+.Xr service 8
+command or the rc.d script.
+Note that the timeout will be applied if
+.Xr watchdogd 8
+is stopped outside of
+.Xr rc 8
+framework.
+If this option is set, it overrides
+.Fl x
+in
+.Va watchdogd_flags .
 .It Va devfs_rulesets
 .Pq Vt str
 List of files containing sets of rules for
