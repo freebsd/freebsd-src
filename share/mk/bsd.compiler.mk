@@ -155,8 +155,8 @@ _can_export=	no
 .endfor
 .if ${_can_export} == yes
 .for var in ${_exported_vars}
-.if defined(${var}.${${X_}_cc_hash})
-${var}=	${${var}.${${X_}_cc_hash}}
+.if defined(${var}__${${X_}_cc_hash})
+${var}=	${${var}__${${X_}_cc_hash}}
 .endif
 .endfor
 .endif
@@ -229,9 +229,9 @@ X_COMPILER_FEATURES=	${COMPILER_FEATURES}
 # Export the values so sub-makes don't have to look them up again, using the
 # hash key computed above.
 .for var in ${_exported_vars}
-${var}.${${X_}_cc_hash}:=	${${var}}
-.export-env ${var}.${${X_}_cc_hash}
-.undef ${var}.${${X_}_cc_hash}
+${var}__${${X_}_cc_hash}:=	${${var}}
+.export-env ${var}__${${X_}_cc_hash}
+.undef ${var}__${${X_}_cc_hash}
 .endfor
 
 .endif	# ${cc} == "CC" || !empty(XCC)
