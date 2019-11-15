@@ -307,8 +307,15 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		ESPSTAT_INC(esps_badilen);
 		goto bad;
 	}
-	/* XXX don't pullup, just copy header */
-	IP6_EXTHDR_GET(esp, struct newesp *, m, skip, sizeof (struct newesp));
+
+	m = m_pullup(m, skip + sizeof(*esp));
+	if (m == NULL) {
+		DPRINTF(("%s: cannot pullup header\n", __func__));
+		ESPSTAT_INC(esps_hdrops);	/*XXX*/
+		error = ENOBUFS;
+		goto bad;
+	}
+	esp = (struct newesp *)(mtod(m, caddr_t) + skip);
 
 	esph = sav->tdb_authalgxform;
 	espx = sav->tdb_encalgxform;
