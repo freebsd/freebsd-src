@@ -60,6 +60,11 @@ char machine[] = "riscv";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0,
     "Machine class");
 
+/* Hardware implementation info. These values may be empty. */
+register_t mvendorid;	/* The CPU's JEDEC vendor ID */
+register_t marchid;	/* The architecture ID */
+register_t mimpid;	/* The implementation ID */
+
 struct cpu_desc {
 	u_int		cpu_impl;
 	u_int		cpu_part_num;
