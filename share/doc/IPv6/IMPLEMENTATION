@@ -1049,20 +1049,6 @@ requirement. (For more information, refer to Section 2.)
                 3282 one ext mbuf
                 0 two or more ext mbuf
 
-Each input function calls IP6_EXTHDR_CHECK in the beginning to check
-if the region between IP6 and its header is
-continuous.  IP6_EXTHDR_CHECK calls m_pullup() only if the mbuf has
-M_LOOP flag, that is, the packet comes from the loopback
-interface.  m_pullup() is never called for packets coming from physical
-network interfaces.
-
-TCP6 reassembly makes use of IP6 header to store reassemble
-information.  IP6 is not supposed to be just before TCP6, so
-ip6tcpreass structure has a pointer to TCP6 header.  Of course, it has
-also a pointer back to mbuf to avoid m_pullup().
-
-Like TCP6, both IP and IP6 reassemble functions never call m_pullup().
-
 xxx_ctlinput() calls in_mrejoin() on PRC_IFNEWADDR.  We think this is
 one of 4.4BSD implementation flaws.  Since 4.4BSD keeps ia_multiaddrs
 in in_ifaddr{}, it can't use multicast feature if the interface has no
