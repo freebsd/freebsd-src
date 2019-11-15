@@ -87,6 +87,7 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_errtbl	= NULL,
 	.sv_transtrap	= NULL,
 	.sv_fixup	= __elfN(freebsd_fixup),
+	.sv_copyout_auxargs = __elfN(freebsd_copyout_auxargs),
 	.sv_sendsig	= sendsig,
 	.sv_sigcode	= sigcode32,
 	.sv_szsigcode	= &szsigcode32,

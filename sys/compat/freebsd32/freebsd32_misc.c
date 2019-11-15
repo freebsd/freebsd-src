@@ -3195,14 +3195,8 @@ freebsd32_copyout_strings(struct image_params *imgp)
 	if (imgp->sysent->sv_stackgap != NULL)
 		imgp->sysent->sv_stackgap(imgp, (u_long *)&vectp);
 
-	if (imgp->auxargs) {
-		/*
-		 * Allocate room on the stack for the ELF auxargs
-		 * array.  It has up to AT_COUNT entries.
-		 */
-		vectp -= howmany(AT_COUNT * sizeof(Elf32_Auxinfo),
-		    sizeof(*vectp));
-	}
+	if (imgp->auxargs)
+		imgp->sysent->sv_copyout_auxargs(imgp, (u_long *)&vectp);
 
 	/*
 	 * Allocate room for the argv[] and env vectors including the
