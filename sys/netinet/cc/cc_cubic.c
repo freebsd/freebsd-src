@@ -78,6 +78,7 @@ static int	cubic_mod_init(void);
 static void	cubic_post_recovery(struct cc_var *ccv);
 static void	cubic_record_rtt(struct cc_var *ccv);
 static void	cubic_ssthresh_update(struct cc_var *ccv);
+static void	cubic_after_idle(struct cc_var *ccv);
 
 struct cubic {
 	/* Cubic K in fixed point form with CUBIC_SHIFT worth of precision. */
@@ -112,6 +113,7 @@ struct cc_algo cubic_cc_algo = {
 	.conn_init = cubic_conn_init,
 	.mod_init = cubic_mod_init,
 	.post_recovery = cubic_post_recovery,
+	.after_idle = cubic_after_idle,
 };
 
 static void
@@ -191,6 +193,23 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 		}
 	}
 }
+
+/*
+ * This is a Cubic specific implementation of after_idle.
+ *   - Reset cwnd by calling New Reno implementation of after_idle.
+ *   - Reset t_last_cong.
+ */
+static void
+cubic_after_idle(struct cc_var *ccv)
+{
+	struct cubic *cubic_data;
+
+	cubic_data = ccv->cc_data;
+
+	newreno_cc_algo.after_idle(ccv);
+	cubic_data->t_last_cong = ticks;
+}
+
 
 static void
 cubic_cb_destroy(struct cc_var *ccv)
@@ -287,9 +306,6 @@ cubic_conn_init(struct cc_var *ccv)
 static int
 cubic_mod_init(void)
 {
-
-	cubic_cc_algo.after_idle = newreno_cc_algo.after_idle;
-
 	return (0);
 }
 
