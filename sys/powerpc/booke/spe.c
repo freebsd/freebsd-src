@@ -176,19 +176,28 @@ save_vec(struct thread *td)
 
 /*
  * Save SPE state without dropping ownership.  This will only save state if
- * the current vector-thread is `td'.
+ * the current vector-thread is `td'.  This is used for taking core dumps, so
+ * don't leak kernel information; overwrite the low words of each vector with
+ * their real value, taken from the thread's trap frame, unconditionally.
  */
 void
 save_vec_nodrop(struct thread *td)
 {
 	struct thread *vtd;
+	struct pcb *pcb;
+	int i;
 
 	vtd = PCPU_GET(vecthread);
-	if (td != vtd) {
-		return;
+	if (td == vtd) {
+		save_vec_int(td);
 	}
 
-	save_vec_int(td);
+	pcb = td->td_pcb;
+
+	for (i = 0; i < 32; i++) {
+		pcb->pcb_vec.vr[i][1] =
+		    td->td_frame ? td->td_frame->fixreg[i] : 0;
+	}
 }
 
 
