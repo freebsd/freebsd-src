@@ -405,7 +405,6 @@ struct nd_defrouter *defrouter_lookup(struct in6_addr *, struct ifnet *);
 struct nd_defrouter *defrouter_lookup_locked(struct in6_addr *, struct ifnet *);
 void defrouter_reset(void);
 void defrouter_select_fib(int fibnum);
-void defrouter_select(void);
 void defrouter_rele(struct nd_defrouter *);
 bool defrouter_remove(struct in6_addr *, struct ifnet *);
 bool nd6_defrouter_list_empty(void);
