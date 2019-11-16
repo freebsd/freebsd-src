@@ -426,7 +426,7 @@ spe_save_reg_high(int reg)
 {
 	uint32_t vec[2];
 #define EVSTDW(n)   case n: __asm __volatile ("evstdw %1,0(%0)" \
-		:: "b"(vec), "n"(n)); break;
+		:: "b"(vec), "n"(n) : "memory"); break;
 	switch (reg) {
 	EVSTDW(0);	EVSTDW(1);	EVSTDW(2);	EVSTDW(3);
 	EVSTDW(4);	EVSTDW(5);	EVSTDW(6);	EVSTDW(7);
