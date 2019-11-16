@@ -87,6 +87,7 @@ extern	int	pti;
 extern	int	hw_ibrs_active;
 extern	int	hw_mds_disable;
 extern	int	hw_ssb_active;
+extern	int	hw_tsx_disable;
 
 struct	pcb;
 struct	thread;
@@ -143,6 +144,7 @@ void	handle_ibrs_exit(void);
 void	hw_ibrs_recalculate(void);
 void	hw_mds_recalculate(void);
 void	hw_ssb_recalculate(bool all_cpus);
+void	hw_tsx_recalculate(void);
 void	nmi_call_kdb(u_int cpu, u_int type, struct trapframe *frame);
 void	nmi_call_kdb_smp(u_int type, struct trapframe *frame);
 void	nmi_handle_intr(u_int type, struct trapframe *frame);

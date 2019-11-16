@@ -1120,6 +1120,187 @@ SYSCTL_PROC(_hw, OID_AUTO, mds_disable, CTLTYPE_INT |
     "Microarchitectural Data Sampling Mitigation "
     "(0 - off, 1 - on VERW, 2 - on SW, 3 - on AUTO");
 
+int hw_tsx_disable;
+int hw_tsx_state;
+enum {
+	TSX_TAA_NONE	= 0,
+	TSX_TAA_DISABLE	= 1,
+	TSX_TAA_VERW	= 2,
+	TSX_TAA_AUTO	= 3
+};
+
+static void
+hw_tsx_set_one(bool enable)
+{
+	uint64_t v;
+
+	v = rdmsr(MSR_IA32_TSX_CTRL);
+	if (enable)
+		v |= (uint64_t)(IA32_TSX_CTRL_RTM_DISABLE |
+		    IA32_TSX_CTRL_TSX_CPUID_CLEAR);
+	else
+		v &= ~(uint64_t)(IA32_TSX_CTRL_RTM_DISABLE |
+		    IA32_TSX_CTRL_TSX_CPUID_CLEAR);
+
+	wrmsr(MSR_IA32_TSX_CTRL, v);
+}
+
+static void
+hw_tsx_set(bool enable, bool all)
+{
+	struct thread *td;
+	int bound_cpu, i, is_bound;
+
+	if (all) {
+		td = curthread;
+		thread_lock(td);
+		is_bound = sched_is_bound(td);
+		bound_cpu = td->td_oncpu;
+		CPU_FOREACH(i) {
+			sched_bind(td, i);
+			hw_tsx_set_one(enable);
+		}
+		if (is_bound)
+			sched_bind(td, bound_cpu);
+		else
+			sched_unbind(td);
+		thread_unlock(td);
+	} else
+		hw_tsx_set_one(enable);
+
+}
+
+void
+hw_tsx_recalculate(void)
+{
+	static int tsx_saved_mds_disable = 0;
+	int tsx_need = 0, tsx_state = 0;
+	int mds_disable = 0, need_mds_recalc = 0;
+
+	/* Check CPUID.07h.EBX.HLE and RTM for the presence of TSX */
+	if ((cpu_stdext_feature & CPUID_STDEXT_HLE) == 0 ||
+	    (cpu_stdext_feature & CPUID_STDEXT_RTM) == 0) {
+		/* TSX is not present */
+		hw_tsx_state = 0;
+		return;
+	}
+
+	/* Check to see what mitigation options the CPU gives us */
+	if (cpu_ia32_arch_caps & IA32_ARCH_CAP_TAA_NO)
+		tsx_need = TSX_TAA_NONE;
+	else if (cpu_ia32_arch_caps & IA32_ARCH_CAP_TSX_CTRL)
+		tsx_need = TSX_TAA_DISABLE;
+	else {
+		/* No TSX specific remedies are available. */
+		if (hw_tsx_disable == TSX_TAA_DISABLE) {
+			/* The user asked for the disable option, but
+			 * it's not available. */
+			if (bootverbose)
+				printf("TSX control not available\n");
+			return;
+		} else
+			tsx_need = TSX_TAA_VERW;
+	}
+
+	/* Can we automatically take action, or are we being forced? */
+	if (hw_tsx_disable == TSX_TAA_AUTO)
+		tsx_state = tsx_need;
+	else
+		tsx_state = hw_tsx_disable;
+
+	/* No state change, nothing to do */
+	if (tsx_state == hw_tsx_state) {
+		if (bootverbose)
+			printf("No TSX change made\n");
+		return;
+	}
+
+	/* Does the MSR need to be turned on or off? */
+	if (tsx_state == TSX_TAA_DISABLE)
+		hw_tsx_set(1 /* enable */, 1 /* all */);
+	else if (hw_tsx_state == TSX_TAA_DISABLE)
+		hw_tsx_set(0 /* disable */, 1 /* all */);
+
+	/* Does MDS need to be set to turn on VERW? */
+	if (tsx_state == TSX_TAA_VERW) {
+		tsx_saved_mds_disable = hw_mds_disable;
+		mds_disable = hw_mds_disable = 1;
+		need_mds_recalc = 1;
+	} else if (hw_tsx_state == TSX_TAA_VERW) {
+		mds_disable = hw_mds_disable = tsx_saved_mds_disable;
+		need_mds_recalc = 1;
+	}
+	if (need_mds_recalc) {
+		hw_mds_recalculate();
+		if (mds_disable != hw_mds_disable) {
+			if (bootverbose)
+				printf("Cannot change MDS state for TSX\n");
+			/* Don't update our state */
+			return;
+		}
+	}
+
+	hw_tsx_state = tsx_state;
+	return;
+}
+
+static void
+hw_tsx_recalculate_boot(void * arg __unused)
+{
+
+	hw_tsx_recalculate();
+}
+SYSINIT(tsx_recalc, SI_SUB_SMP, SI_ORDER_ANY, hw_tsx_recalculate_boot, NULL);
+
+static int
+sysctl_tsx_disable_handler(SYSCTL_HANDLER_ARGS)
+{
+	int error, val;
+
+	val = hw_tsx_disable;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (val < 0 || val > 3)
+		return (EINVAL);
+	hw_tsx_disable = val;
+	hw_tsx_recalculate();
+	return (0);
+}
+
+SYSCTL_PROC(_hw, OID_AUTO, tsx_disable, CTLTYPE_INT |
+    CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_tsx_disable_handler, "I",
+    "TSX Asynchronous Abort Mitigation "
+    "(0 - off, 1 - disable TSX, 2 - MDS/VERW, 3 - on AUTO");
+
+static int
+sysctl_hw_tsx_disable_state_handler(SYSCTL_HANDLER_ARGS)
+{
+	const char *state;
+
+	switch (hw_tsx_state) {
+	case TSX_TAA_NONE:
+		state = "inactive";
+		break;
+	case TSX_TAA_DISABLE:
+		state = "TSX disabled";
+		break;
+	case TSX_TAA_VERW:
+		state = "MDS/VERW";
+		break;
+	default:
+		state = "unknown";
+	}
+
+	return (SYSCTL_OUT(req, state, strlen(state)));
+}
+
+SYSCTL_PROC(_hw, OID_AUTO, tsx_disable_state,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_hw_tsx_disable_state_handler, "A",
+    "Transactional Memory Asynchronous Abort Mitigation state");
+
 /*
  * Enable and restore kernel text write permissions.
  * Callers must ensure that disable_wp()/restore_wp() are executed
