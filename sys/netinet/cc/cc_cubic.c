@@ -190,6 +190,8 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 			if (cubic_data->num_cong_events == 0 &&
 			    cubic_data->max_cwnd < CCV(ccv, snd_cwnd))
 				cubic_data->max_cwnd = CCV(ccv, snd_cwnd);
+				cubic_data->K = cubic_k(cubic_data->max_cwnd /
+				    CCV(ccv, t_maxseg));
 		}
 	}
 }
@@ -205,6 +207,9 @@ cubic_after_idle(struct cc_var *ccv)
 	struct cubic *cubic_data;
 
 	cubic_data = ccv->cc_data;
+
+	cubic_data->max_cwnd = ulmax(cubic_data->max_cwnd, CCV(ccv, snd_cwnd));
+	cubic_data->K = cubic_k(cubic_data->max_cwnd / CCV(ccv, t_maxseg));
 
 	newreno_cc_algo.after_idle(ccv);
 	cubic_data->t_last_cong = ticks;
