@@ -988,16 +988,6 @@ defrouter_select_fib(int fibnum)
 }
 
 /*
- * Maintain old KPI for default router selection.
- * If unspecified, we can re-select routers for all FIBs.
- */
-void
-defrouter_select(void)
-{
-	defrouter_select_fib(RT_ALL_FIBS);
-}
-
-/*
  * for default router selection
  * regards router-preference field as a 2-bit signed integer
  */
