@@ -382,7 +382,9 @@ elf_putnotes(pid_t pid, struct sbuf *sb, size_t *sizep)
 #endif
 #if defined(__powerpc__)
 		elf_putnote(NT_PPC_VMX, elf_note_powerpc_vmx, tids + i, sb);
+#ifndef __SPE__
 		elf_putnote(NT_PPC_VSX, elf_note_powerpc_vsx, tids + i, sb);
+#endif
 #endif
 	}
 
