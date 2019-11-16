@@ -546,6 +546,7 @@ cpuctl_do_eval_cpu_features(int cpu, struct thread *td)
 	pmap_allow_2m_x_ept_recalculate();
 #endif
 	hw_mds_recalculate();
+	x86_taa_recalculate();
 	printcpuinfo();
 	return (0);
 }
