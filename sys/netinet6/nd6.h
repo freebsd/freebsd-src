@@ -193,7 +193,6 @@ struct	in6_ndifreq {
 		(((MIN_RANDOM_FACTOR * (x >> 10)) + (arc4random() & \
 		((MAX_RANDOM_FACTOR - MIN_RANDOM_FACTOR) * (x >> 10)))) /1000)
 
-TAILQ_HEAD(nd_drhead, nd_defrouter);
 struct nd_defrouter {
 	TAILQ_ENTRY(nd_defrouter) dr_entry;
 	struct in6_addr rtaddr;

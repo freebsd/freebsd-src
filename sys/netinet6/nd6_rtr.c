@@ -92,8 +92,9 @@ static void in6_init_address_ltimes(struct nd_prefix *,
 
 static int rt6_deleteroute(const struct rtentry *, void *);
 
-VNET_DEFINE_STATIC(struct nd_drhead, nd_defrouter);
-#define	V_nd_defrouter			VNET(nd_defrouter)
+TAILQ_HEAD(nd6_drhead, nd_defrouter);
+VNET_DEFINE_STATIC(struct nd6_drhead, nd6_defrouter);
+#define	V_nd6_defrouter			VNET(nd6_defrouter)
 
 VNET_DECLARE(int, nd6_recalc_reachtm_interval);
 #define	V_nd6_recalc_reachtm_interval	VNET(nd6_recalc_reachtm_interval)
@@ -141,12 +142,12 @@ defrouter_rele(struct nd_defrouter *dr)
  * caller-supplied queue.
  */
 static void
-defrouter_unlink(struct nd_defrouter *dr, struct nd_drhead *drq)
+defrouter_unlink(struct nd_defrouter *dr, struct nd6_drhead *drq)
 {
 
 	ND6_WLOCK_ASSERT();
 
-	TAILQ_REMOVE(&V_nd_defrouter, dr, dr_entry);
+	TAILQ_REMOVE(&V_nd6_defrouter, dr, dr_entry);
 	V_nd6_list_genid++;
 	if (drq != NULL)
 		TAILQ_INSERT_TAIL(drq, dr, dr_entry);
@@ -270,7 +271,7 @@ defrtr_ipv6_only_ifp(struct ifnet *ifp)
 
 	ipv6_only = true;
 	ND6_RLOCK();
-	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry)
+	TAILQ_FOREACH(dr, &V_nd6_defrouter, dr_entry)
 		if (dr->ifp == ifp &&
 		    (dr->raflags & ND_RA_FLAG_IPV6_ONLY) == 0)
 			ipv6_only = false;
@@ -680,7 +681,7 @@ defrouter_lookup_locked(struct in6_addr *addr, struct ifnet *ifp)
 	struct nd_defrouter *dr;
 
 	ND6_LOCK_ASSERT();
-	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry)
+	TAILQ_FOREACH(dr, &V_nd6_defrouter, dr_entry)
 		if (dr->ifp == ifp && IN6_ARE_ADDR_EQUAL(addr, &dr->rtaddr)) {
 			defrouter_ref(dr);
 			return (dr);
@@ -746,14 +747,14 @@ defrouter_reset(void)
 	 * current default router list and use that when deleting routes.
 	 */
 	ND6_RLOCK();
-	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry)
+	TAILQ_FOREACH(dr, &V_nd6_defrouter, dr_entry)
 		count++;
 	ND6_RUNLOCK();
 
 	dra = malloc(count * sizeof(*dra), M_TEMP, M_WAITOK | M_ZERO);
 
 	ND6_RLOCK();
-	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
+	TAILQ_FOREACH(dr, &V_nd6_defrouter, dr_entry) {
 		if (i == count)
 			break;
 		defrouter_ref(dr);
@@ -891,7 +892,7 @@ defrouter_select_fib(int fibnum)
 	 * Let's handle easy case (3) first:
 	 * If default router list is empty, there's nothing to be done.
 	 */
-	if (TAILQ_EMPTY(&V_nd_defrouter)) {
+	if (TAILQ_EMPTY(&V_nd6_defrouter)) {
 		ND6_RUNLOCK();
 		return;
 	}
@@ -902,7 +903,7 @@ defrouter_select_fib(int fibnum)
 	 * the ordering rule of the list described in defrtrlist_update().
 	 */
 	selected_dr = installed_dr = NULL;
-	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
+	TAILQ_FOREACH(dr, &V_nd6_defrouter, dr_entry) {
 		NET_EPOCH_ENTER(et);
 		if (selected_dr == NULL && dr->ifp->if_fib == fibnum &&
 		    (ln = nd6_lookup(&dr->rtaddr, 0, dr->ifp)) &&
@@ -941,12 +942,12 @@ defrouter_select_fib(int fibnum)
 	if (selected_dr == NULL) {
 		if (installed_dr == NULL ||
 		    TAILQ_NEXT(installed_dr, dr_entry) == NULL)
-			dr = TAILQ_FIRST(&V_nd_defrouter);
+			dr = TAILQ_FIRST(&V_nd6_defrouter);
 		else
 			dr = TAILQ_NEXT(installed_dr, dr_entry);
 
 		/* Ensure we select a router for this FIB. */
-		TAILQ_FOREACH_FROM(dr, &V_nd_defrouter, dr_entry) {
+		TAILQ_FOREACH_FROM(dr, &V_nd6_defrouter, dr_entry) {
 			if (dr->ifp->if_fib == fibnum) {
 				selected_dr = dr;
 				defrouter_ref(selected_dr);
@@ -1084,7 +1085,7 @@ restart:
 		 * The preferred router may have changed, so relocate this
 		 * router.
 		 */
-		TAILQ_REMOVE(&V_nd_defrouter, dr, dr_entry);
+		TAILQ_REMOVE(&V_nd6_defrouter, dr, dr_entry);
 		n = dr;
 	} else {
 		n = malloc(sizeof(*n), M_IP6NDP, M_NOWAIT | M_ZERO);
@@ -1105,14 +1106,14 @@ restart:
 	 */
 
 	/* insert at the end of the group */
-	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
+	TAILQ_FOREACH(dr, &V_nd6_defrouter, dr_entry) {
 		if (rtpref(n) > rtpref(dr))
 			break;
 	}
 	if (dr != NULL)
 		TAILQ_INSERT_BEFORE(dr, n, dr_entry);
 	else
-		TAILQ_INSERT_TAIL(&V_nd_defrouter, n, dr_entry);
+		TAILQ_INSERT_TAIL(&V_nd6_defrouter, n, dr_entry);
 	V_nd6_list_genid++;
 	ND6_WUNLOCK();
 
@@ -1750,7 +1751,7 @@ pfxlist_onlink_check(void)
 	 * that does not advertise any prefixes.
 	 */
 	if (pr == NULL) {
-		TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
+		TAILQ_FOREACH(dr, &V_nd6_defrouter, dr_entry) {
 			struct nd_prefix *pr0;
 
 			LIST_FOREACH(pr0, &V_nd_prefix, ndpr_entry) {
@@ -1761,7 +1762,7 @@ pfxlist_onlink_check(void)
 				break;
 		}
 	}
-	if (pr != NULL || (!TAILQ_EMPTY(&V_nd_defrouter) && pfxrtr == NULL)) {
+	if (pr != NULL || (!TAILQ_EMPTY(&V_nd6_defrouter) && pfxrtr == NULL)) {
 		/*
 		 * There is at least one prefix that has a reachable router,
 		 * or at least a router which probably does not advertise
@@ -2550,7 +2551,7 @@ nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
 	d.rtaddr.sin6_len = sizeof(d.rtaddr);
 
 	ND6_RLOCK();
-	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
+	TAILQ_FOREACH(dr, &V_nd6_defrouter, dr_entry) {
 		d.rtaddr.sin6_addr = dr->rtaddr;
 		error = sa6_recoverscope(&d.rtaddr);
 		if (error != 0)
@@ -2576,19 +2577,19 @@ bool
 nd6_defrouter_list_empty(void)
 {
 
-	return (TAILQ_EMPTY(&V_nd_defrouter));
+	return (TAILQ_EMPTY(&V_nd6_defrouter));
 }
 
 void
 nd6_defrouter_timer(void)
 {
 	struct nd_defrouter *dr, *ndr;
-	struct nd_drhead drq;
+	struct nd6_drhead drq;
 
 	TAILQ_INIT(&drq);
 
 	ND6_WLOCK();
-	TAILQ_FOREACH_SAFE(dr, &V_nd_defrouter, dr_entry, ndr)
+	TAILQ_FOREACH_SAFE(dr, &V_nd6_defrouter, dr_entry, ndr)
 		if (dr->expire && dr->expire < time_uptime)
 			defrouter_unlink(dr, &drq);
 	ND6_WUNLOCK();
@@ -2608,18 +2609,18 @@ void
 nd6_defrouter_purge(struct ifnet *ifp)
 {
 	struct nd_defrouter *dr, *ndr;
-	struct nd_drhead drq;
+	struct nd6_drhead drq;
 
 	TAILQ_INIT(&drq);
 
 	ND6_WLOCK();
-	TAILQ_FOREACH_SAFE(dr, &V_nd_defrouter, dr_entry, ndr) {
+	TAILQ_FOREACH_SAFE(dr, &V_nd6_defrouter, dr_entry, ndr) {
 		if (dr->installed)
 			continue;
 		if (dr->ifp == ifp)
 			defrouter_unlink(dr, &drq);
 	}
-	TAILQ_FOREACH_SAFE(dr, &V_nd_defrouter, dr_entry, ndr) {
+	TAILQ_FOREACH_SAFE(dr, &V_nd6_defrouter, dr_entry, ndr) {
 		if (!dr->installed)
 			continue;
 		if (dr->ifp == ifp)
@@ -2638,12 +2639,12 @@ void
 nd6_defrouter_flush_all(void)
 {
 	struct nd_defrouter *dr;
-	struct nd_drhead drq;
+	struct nd6_drhead drq;
 
 	TAILQ_INIT(&drq);
 
 	ND6_WLOCK();
-	while ((dr = TAILQ_FIRST(&V_nd_defrouter)) != NULL)
+	while ((dr = TAILQ_FIRST(&V_nd6_defrouter)) != NULL)
 		defrouter_unlink(dr, &drq);
 	ND6_WUNLOCK();
 
@@ -2657,5 +2658,5 @@ void
 nd6_defrouter_init(void)
 {
 
-	TAILQ_INIT(&V_nd_defrouter);
+	TAILQ_INIT(&V_nd6_defrouter);
 }
