@@ -1353,6 +1353,7 @@ device		ctl		#CAM Target Layer
 # CAM_DEBUG_TARGET	Limit debugging to the given target.
 # CAM_DEBUG_LUN		Limit debugging to the given lun.
 # CAM_DEBUG_DELAY	Delay in us after printing each debug line.
+# CAM_IO_STATS		Publish additional CAM device statics by sysctl
 #
 # CAM_MAX_HIGHPOWER: Maximum number of concurrent high power (start unit) cmds
 # SCSI_NO_SENSE_STRINGS: When defined disables sense descriptions
@@ -1374,6 +1375,7 @@ options 	SCSI_NO_SENSE_STRINGS
 options 	SCSI_NO_OP_STRINGS
 options 	SCSI_DELAY=5000	# Be pessimistic about Joe SCSI device
 options 	CAM_IOSCHED_DYNAMIC
+options		CAM_IO_STATS
 options		CAM_TEST_FAILURE
 
 # Options for the CAM CDROM driver:
