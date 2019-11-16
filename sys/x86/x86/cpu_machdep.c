@@ -1135,6 +1135,202 @@ SYSCTL_PROC(_hw, OID_AUTO, mds_disable, CTLTYPE_INT |
     "Microarchitectural Data Sampling Mitigation "
     "(0 - off, 1 - on VERW, 2 - on SW, 3 - on AUTO");
 
+
+/*
+ * Intel Transactional Memory Asynchronous Abort Mitigation
+ * CVE-2019-11135
+ */
+int x86_taa_enable;
+int x86_taa_state;
+enum {
+	TAA_NONE	= 0,
+	TAA_TSX_DISABLE	= 1,
+	TAA_VERW	= 2,
+	TAA_AUTO	= 3,
+	TAA_TAA_NO	= 4
+};
+
+static void
+taa_set_one(bool enable)
+{
+	uint64_t v;
+
+	v = rdmsr(MSR_IA32_TSX_CTRL);
+	if (enable)
+		v |= (uint64_t)(IA32_TSX_CTRL_RTM_DISABLE |
+		    IA32_TSX_CTRL_TSX_CPUID_CLEAR);
+	else
+		v &= ~(uint64_t)(IA32_TSX_CTRL_RTM_DISABLE |
+		    IA32_TSX_CTRL_TSX_CPUID_CLEAR);
+
+	wrmsr(MSR_IA32_TSX_CTRL, v);
+}
+
+static void
+taa_set(bool enable, bool all)
+{
+	struct thread *td;
+	int bound_cpu, i, is_bound;
+
+	if (all) {
+		td = curthread;
+		thread_lock(td);
+		is_bound = sched_is_bound(td);
+		bound_cpu = td->td_oncpu;
+		CPU_FOREACH(i) {
+			sched_bind(td, i);
+			taa_set_one(enable);
+		}
+		if (is_bound)
+			sched_bind(td, bound_cpu);
+		else
+			sched_unbind(td);
+		thread_unlock(td);
+	} else
+		taa_set_one(enable);
+}
+
+void
+x86_taa_recalculate(void)
+{
+	static int taa_saved_mds_disable = 0;
+	int taa_need = 0, taa_state = 0;
+	int mds_disable = 0, need_mds_recalc = 0;
+
+	/* Check CPUID.07h.EBX.HLE and RTM for the presence of TSX */
+	if ((cpu_stdext_feature & CPUID_STDEXT_HLE) == 0 ||
+	    (cpu_stdext_feature & CPUID_STDEXT_RTM) == 0) {
+		/* TSX is not present */
+		x86_taa_state = 0;
+		return;
+	}
+
+	/* Check to see what mitigation options the CPU gives us */
+	if (cpu_ia32_arch_caps & IA32_ARCH_CAP_TAA_NO) {
+		/* CPU is not suseptible to TAA */
+		taa_need = TAA_NONE;
+		taa_state = TAA_TAA_NO;
+	} else if (cpu_ia32_arch_caps & IA32_ARCH_CAP_TSX_CTRL) {
+		/*
+		 * CPU can turn off TSX.  This is the next best option
+		 * if TAA_NO hardware mitigation isn't present
+		 */
+		taa_need = TAA_TSX_DISABLE;
+	} else {
+		/* No TSX/TAA specific remedies are available. */
+		if (x86_taa_enable == TAA_TSX_DISABLE) {
+			if (bootverbose)
+				printf("TSX control not available\n");
+			return;
+		} else
+			taa_need = TAA_VERW;
+	}
+
+	/* Can we automatically take action, or are we being forced? */
+	if (x86_taa_enable == TAA_AUTO)
+		taa_state = taa_need;
+	else
+		taa_state = x86_taa_enable;
+
+	/* No state change, nothing to do */
+	if (taa_state == x86_taa_state) {
+		if (bootverbose)
+			printf("No TSX change made\n");
+		return;
+	}
+
+	/* Does the MSR need to be turned on or off? */
+	if (taa_state == TAA_TSX_DISABLE)
+		taa_set(true, true);
+	else if (x86_taa_state == TAA_TSX_DISABLE)
+		taa_set(false, true);
+
+	/* Does MDS need to be set to turn on VERW? */
+	if (taa_state == TAA_VERW) {
+		taa_saved_mds_disable = hw_mds_disable;
+		mds_disable = hw_mds_disable = 1;
+		need_mds_recalc = 1;
+	} else if (x86_taa_state == TAA_VERW) {
+		mds_disable = hw_mds_disable = taa_saved_mds_disable;
+		need_mds_recalc = 1;
+	}
+	if (need_mds_recalc) {
+		hw_mds_recalculate();
+		if (mds_disable != hw_mds_disable) {
+			if (bootverbose)
+				printf("Cannot change MDS state for TAA\n");
+			/* Don't update our state */
+			return;
+		}
+	}
+
+	x86_taa_state = taa_state;
+	return;
+}
+
+static void
+taa_recalculate_boot(void * arg __unused)
+{
+
+	x86_taa_recalculate();
+}
+SYSINIT(taa_recalc, SI_SUB_SMP, SI_ORDER_ANY, taa_recalculate_boot, NULL);
+
+SYSCTL_NODE(_machdep_mitigations, OID_AUTO, taa, CTLFLAG_RW, 0,
+	"TSX Asynchronous Abort Mitigation");
+
+static int
+sysctl_taa_handler(SYSCTL_HANDLER_ARGS)
+{
+	int error, val;
+
+	val = x86_taa_enable;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (val < TAA_NONE || val > TAA_AUTO)
+		return (EINVAL);
+	x86_taa_enable = val;
+	x86_taa_recalculate();
+	return (0);
+}
+
+SYSCTL_PROC(_machdep_mitigations_taa, OID_AUTO, enable, CTLTYPE_INT |
+    CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_taa_handler, "I",
+    "TAA Mitigation enablement control "
+    "(0 - off, 1 - disable TSX, 2 - VERW, 3 - on AUTO");
+
+static int
+sysctl_taa_state_handler(SYSCTL_HANDLER_ARGS)
+{
+	const char *state;
+
+	switch (x86_taa_state) {
+	case TAA_NONE:
+		state = "inactive";
+		break;
+	case TAA_TSX_DISABLE:
+		state = "TSX disabled";
+		break;
+	case TAA_VERW:
+		state = "VERW";
+		break;
+	case TAA_TAA_NO:
+		state = "Not vulnerable";
+		break;
+	default:
+		state = "unknown";
+	}
+
+	return (SYSCTL_OUT(req, state, strlen(state)));
+}
+
+SYSCTL_PROC(_machdep_mitigations_taa, OID_AUTO, state,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_taa_state_handler, "A",
+    "TAA Mitigation state");
+
 /*
  * Enable and restore kernel text write permissions.
  * Callers must ensure that disable_wp()/restore_wp() are executed
