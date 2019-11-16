@@ -554,7 +554,7 @@ efipart_hdinfo_add_node(pdinfo_t *hd, EFI_DEVICE_PATH *node)
 static void
 efipart_hdinfo_add(pdinfo_t *hd, EFI_DEVICE_PATH *node)
 {
-	pdinfo_t *pd, *last;
+	pdinfo_t *last;
 
 	if (efipart_hdinfo_add_node(hd, node))
 		return;
