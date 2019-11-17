@@ -2879,11 +2879,12 @@ retry:
 
 		pte = pmap_l2_to_l3(pde, pv->pv_va);
 		tpte = pmap_load_clear(pte);
-		pmap_invalidate_page(pmap, pv->pv_va);
 		if (tpte & ATTR_SW_WIRED)
 			pmap->pm_stats.wired_count--;
-		if ((tpte & ATTR_AF) != 0)
+		if ((tpte & ATTR_AF) != 0) {
+			pmap_invalidate_page(pmap, pv->pv_va);
 			vm_page_aflag_set(m, PGA_REFERENCED);
+		}
 
 		/*
 		 * Update the vm_page_t clean and reference bits.
