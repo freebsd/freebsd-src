@@ -1086,15 +1086,17 @@ emulate_mfspr(int spr, int reg, struct trapframe *frame){
 	td = curthread;
 
 	if (spr == SPR_DSCR || spr == SPR_DSCRP) {
+		if (!(cpu_features2 & PPC_FEATURE2_DSCR))
+			return (SIGILL);
 		// If DSCR was never set, get the default DSCR
 		if ((td->td_pcb->pcb_flags & PCB_CDSCR) == 0)
 			td->td_pcb->pcb_dscr = mfspr(SPR_DSCRP);
 
 		frame->fixreg[reg] = td->td_pcb->pcb_dscr;
 		frame->srr0 += 4;
-		return 0;
+		return (0);
 	} else
-		return SIGILL;
+		return (SIGILL);
 }
 
 static int
@@ -1104,13 +1106,15 @@ emulate_mtspr(int spr, int reg, struct trapframe *frame){
 	td = curthread;
 
 	if (spr == SPR_DSCR || spr == SPR_DSCRP) {
+		if (!(cpu_features2 & PPC_FEATURE2_DSCR))
+			return (SIGILL);
 		td->td_pcb->pcb_flags |= PCB_CDSCR;
 		td->td_pcb->pcb_dscr = frame->fixreg[reg];
 		mtspr(SPR_DSCRP, frame->fixreg[reg]);
 		frame->srr0 += 4;
-		return 0;
+		return (0);
 	} else
-		return SIGILL;
+		return (SIGILL);
 }
 
 #define XFX 0xFC0007FF
