@@ -671,13 +671,7 @@ END(fillw)
 	movq	$copy_fault,PCB_ONFAULT(%r11)
 
 	/*
-	 * Check explicitly for non-user addresses.  If 486 write protection
-	 * is being used, this check is essential because we are in kernel
-	 * mode so the h/w does not provide any protection against writing
-	 * kernel addresses.
-	 */
-
-	/*
+	 * Check explicitly for non-user addresses.
 	 * First, prevent address wrapping.
 	 */
 	movq	%rsi,%rax
