@@ -3019,7 +3019,6 @@ pmap_update_entry(pmap_t pmap, pd_entry_t *pte, pd_entry_t newpte,
 	 * as they may make use of an address we are about to invalidate.
 	 */
 	intr = intr_disable();
-	critical_enter();
 
 	/* Clear the old mapping */
 	pmap_clear(pte);
@@ -3029,7 +3028,6 @@ pmap_update_entry(pmap_t pmap, pd_entry_t *pte, pd_entry_t newpte,
 	pmap_store(pte, newpte);
 	dsb(ishst);
 
-	critical_exit();
 	intr_restore(intr);
 }
 
@@ -3763,8 +3761,8 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	    ATTR_AP(ATTR_AP_RO) | L3_PAGE;
 	if ((prot & VM_PROT_EXECUTE) == 0 || m->md.pv_memattr == DEVICE_MEMORY)
 		l3_val |= ATTR_XN;
-	else if (va < VM_MAXUSER_ADDRESS)
-		l3_val |= ATTR_PXN;
+	if (va < VM_MAXUSER_ADDRESS)
+		l3_val |= ATTR_AP(ATTR_AP_USER) | ATTR_PXN;
 
 	/*
 	 * Now validate mapping with RO protection
@@ -4330,7 +4328,6 @@ pmap_remove_pages(pmap_t pmap)
 					    L2_BLOCK,
 					    ("Attempting to remove an invalid "
 					    "block: %lx", tpte));
-					tpte = pmap_load(pte);
 					break;
 				case 2:
 					pte = pmap_l2_to_l3(pde, pv->pv_va);
@@ -4448,17 +4445,15 @@ pmap_remove_pages(pmap_t pmap)
 			free_pv_chunk(pc);
 		}
 	}
-	pmap_invalidate_all(pmap);
 	if (lock != NULL)
 		rw_wunlock(lock);
+	pmap_invalidate_all(pmap);
 	PMAP_UNLOCK(pmap);
 	vm_page_free_pages_toq(&free, true);
 }
 
 /*
- * This is used to check if a page has been accessed or modified. As we
- * don't have a bit to see if it has been modified we have to assume it
- * has been if the page is read/write.
+ * This is used to check if a page has been accessed or modified.
  */
 static boolean_t
 pmap_page_test_mappings(vm_page_t m, boolean_t accessed, boolean_t modified)
