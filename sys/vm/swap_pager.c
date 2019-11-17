@@ -407,6 +407,7 @@ SYSCTL_INT(_vm, OID_AUTO, dmmax, CTLFLAG_RD, &nsw_cluster_max, 0,
 static void	swp_sizecheck(void);
 static void	swp_pager_async_iodone(struct buf *bp);
 static bool	swp_pager_swblk_empty(struct swblk *sb, int start, int limit);
+static void	swp_pager_free_empty_swblk(vm_object_t, struct swblk *sb);
 static int	swapongeom(struct vnode *);
 static int	swaponvp(struct thread *, struct vnode *, u_long);
 static int	swapoff_one(struct swdevt *sp, struct ucred *cred);
@@ -1872,6 +1873,21 @@ swp_pager_swblk_empty(struct swblk *sb, int start, int limit)
 	}
 	return (true);
 }
+
+/*
+ * SWP_PAGER_FREE_EMPTY_SWBLK() - frees if a block is free
+ *
+ *  Nothing is done if the block is still in use.
+ */
+static void
+swp_pager_free_empty_swblk(vm_object_t object, struct swblk *sb)
+{
+
+	if (swp_pager_swblk_empty(sb, 0, SWAP_META_PAGES)) {
+		SWAP_PCTRIE_REMOVE(&object->un_pager.swp.swp_blks, sb->p);
+		uma_zfree(swblk_zone, sb);
+	}
+}
    
 /*
  * SWP_PAGER_META_BUILD() -	add swap block to swap meta data for object
@@ -1990,11 +2006,8 @@ allocated:
 	/*
 	 * Free the swblk if we end up with the empty page run.
 	 */
-	if (swapblk == SWAPBLK_NONE &&
-	    swp_pager_swblk_empty(sb, 0, SWAP_META_PAGES)) {
-		SWAP_PCTRIE_REMOVE(&object->un_pager.swp.swp_blks, rdpi);
-		uma_zfree(swblk_zone, sb);
-	}
+	if (swapblk == SWAPBLK_NONE)
+	    swp_pager_free_empty_swblk(object, sb);
 	return (prev_swapblk);
 }
 
@@ -2140,11 +2153,7 @@ swp_pager_meta_ctl(vm_object_t object, vm_pindex_t pindex, int flags)
 		return (SWAPBLK_NONE);
 	if ((flags & SWM_POP) != 0) {
 		sb->d[pindex % SWAP_META_PAGES] = SWAPBLK_NONE;
-		if (swp_pager_swblk_empty(sb, 0, SWAP_META_PAGES)) {
-			SWAP_PCTRIE_REMOVE(&object->un_pager.swp.swp_blks,
-			    rounddown(pindex, SWAP_META_PAGES));
-			uma_zfree(swblk_zone, sb);
-		}
+		swp_pager_free_empty_swblk(object, sb);
 	}
 	return (r1);
 }
