@@ -3129,7 +3129,7 @@ int	freebsd12_shm_open(struct thread *, struct freebsd12_shm_open_args *);
 #define	SYS_AUE_copy_file_range	AUE_NULL
 #define	SYS_AUE___sysctlbyname	AUE_SYSCTL
 #define	SYS_AUE_shm_open2	AUE_SHMOPEN
-#define	SYS_AUE_shm_rename	AUE_NULL
+#define	SYS_AUE_shm_rename	AUE_SHMRENAME
 
 #undef PAD_
 #undef PADL_

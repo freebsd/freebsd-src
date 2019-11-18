@@ -118,6 +118,15 @@
 #define	MAP_ALIGNMENT_SHIFT	24
 #define	MAP_ALIGNMENT_MASK	MAP_ALIGNED(0xff)
 #define	MAP_ALIGNED_SUPER	MAP_ALIGNED(1) /* align on a superpage */
+
+/*
+ * Flags provided to shm_rename
+ */
+/* Don't overwrite dest, if it exists */
+#define SHM_RENAME_NOREPLACE	(1 << 0)
+/* Atomically swap src and dest */
+#define SHM_RENAME_EXCHANGE	(1 << 1)
+
 #endif /* __BSD_VISIBLE */
 
 #if __POSIX_VISIBLE >= 199309
@@ -132,14 +141,6 @@
  * Error return from mmap()
  */
 #define MAP_FAILED	((void *)-1)
-
-/*
- * Flags provided to shm_rename
- */
-/* Don't overwrite dest, if it exists */
-#define SHM_RENAME_NOREPLACE	(1 << 0)
-/* Atomically swap src and dest */
-#define SHM_RENAME_EXCHANGE	(1 << 1)
 
 /*
  * msync() flags
@@ -321,11 +322,11 @@ int	posix_madvise(void *, size_t, int);
 int	mlockall(int);
 int	munlockall(void);
 int	shm_open(const char *, int, mode_t);
-int	shm_rename(const char *, const char *, int);
 int	shm_unlink(const char *);
 #endif
 #if __BSD_VISIBLE
 int	memfd_create(const char *, unsigned int);
+int	shm_rename(const char *, const char *, int);
 #endif
 __END_DECLS
 
