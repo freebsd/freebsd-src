@@ -1257,12 +1257,8 @@ pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode)
 	KASSERT((size & PAGE_MASK) == 0,
 	    ("pmap_kenter: Mapping is not page-sized"));
 
-	attr = ATTR_DEFAULT | ATTR_IDX(mode) | L3_PAGE;
-	if (mode == DEVICE_MEMORY)
-		attr |= ATTR_XN;
-	else
-		attr |= ATTR_UXN;
-
+	attr = ATTR_DEFAULT | ATTR_AP(ATTR_AP_RW) | ATTR_XN | ATTR_IDX(mode) |
+	    L3_PAGE;
 	va = sva;
 	while (size != 0) {
 		pde = pmap_pde(kernel_pmap, va, &lvl);
@@ -1377,9 +1373,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 
 		m = ma[i];
 		pa = VM_PAGE_TO_PHYS(m) | ATTR_DEFAULT | ATTR_AP(ATTR_AP_RW) |
-		    ATTR_UXN | ATTR_IDX(m->md.pv_memattr) | L3_PAGE;
-		if (m->md.pv_memattr == DEVICE_MEMORY)
-			pa |= ATTR_XN;
+		    ATTR_XN | ATTR_IDX(m->md.pv_memattr) | L3_PAGE;
 		pte = pmap_l2_to_l3(pde, va);
 		pmap_load_store(pte, pa);
 
