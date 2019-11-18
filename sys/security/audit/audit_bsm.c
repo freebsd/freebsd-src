@@ -1565,6 +1565,16 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		}
 		break;
 
+	/* shm_rename is a non-Posix extension to the Posix shm implementation */
+	case AUE_SHMRENAME:
+		UPATH1_TOKENS;
+		UPATH2_TOKENS;
+		if (ARG_IS_VALID(kar, ARG_FFLAGS)) {
+			tok = au_to_arg32(2, "flags", ar->ar_arg_fflags);
+			kau_write(rec, tok);
+		}
+		break;
+
 	/* AUE_SHMOPEN, AUE_SHMUNLINK, AUE_SEMOPEN, AUE_SEMCLOSE
 	 * and AUE_SEMUNLINK are Posix IPC */
 	case AUE_SHMOPEN:

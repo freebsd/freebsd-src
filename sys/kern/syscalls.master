@@ -3205,7 +3205,7 @@
 		    _In_z_ const char *name
 		);
 	}
-572	AUE_NULL	STD {
+572	AUE_SHMRENAME	STD {
 		int shm_rename(
 		    _In_z_ const char *path_from,
 		    _In_z_ const char *path_to,

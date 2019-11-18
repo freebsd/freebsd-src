@@ -122,6 +122,8 @@ static struct shmfd *shm_lookup(char *path, Fnv32_t fnv);
 static int	shm_remove(char *path, Fnv32_t fnv, struct ucred *ucred);
 static int	shm_dotruncate_locked(struct shmfd *shmfd, off_t length,
     void *rl_cookie);
+static int	shm_copyin_path(struct thread *td, const char *userpath_in,
+    char **path_out);
 
 static fo_rdwr_t	shm_read;
 static fo_rdwr_t	shm_write;
@@ -422,6 +424,44 @@ shm_close(struct file *fp, struct thread *td)
 }
 
 static int
+shm_copyin_path(struct thread *td, const char *userpath_in, char **path_out) {
+	int error;
+	char *path;
+	const char *pr_path;
+	size_t pr_pathlen;
+
+	path = malloc(MAXPATHLEN, M_SHMFD, M_WAITOK);
+	pr_path = td->td_ucred->cr_prison->pr_path;
+
+	/* Construct a full pathname for jailed callers. */
+	pr_pathlen = strcmp(pr_path, "/") ==
+	    0 ? 0 : strlcpy(path, pr_path, MAXPATHLEN);
+	error = copyinstr(userpath_in, path + pr_pathlen,
+	    MAXPATHLEN - pr_pathlen, NULL);
+	if (error != 0)
+		goto out;
+
+#ifdef KTRACE
+	if (KTRPOINT(curthread, KTR_NAMEI))
+		ktrnamei(path);
+#endif
+
+	/* Require paths to start with a '/' character. */
+	if (path[pr_pathlen] != '/') {
+		error = EINVAL;
+		goto out;
+	}
+
+	*path_out = path;
+
+out:
+	if (error != 0)
+		free(path, M_SHMFD);
+
+	return (error);
+}
+
+static int
 shm_dotruncate_locked(struct shmfd *shmfd, off_t length, void *rl_cookie)
 {
 	vm_object_t object;
@@ -707,9 +747,7 @@ kern_shm_open(struct thread *td, const char *userpath, int flags, mode_t mode,
 	struct shmfd *shmfd;
 	struct file *fp;
 	char *path;
-	const char *pr_path;
 	void *rl_cookie;
-	size_t pr_pathlen;
 	Fnv32_t fnv;
 	mode_t cmode;
 	int fd, error;
@@ -767,25 +805,10 @@ kern_shm_open(struct thread *td, const char *userpath, int flags, mode_t mode,
 		shmfd = shm_alloc(td->td_ucred, cmode);
 		shmfd->shm_seals = initial_seals;
 	} else {
-		path = malloc(MAXPATHLEN, M_SHMFD, M_WAITOK);
-		pr_path = td->td_ucred->cr_prison->pr_path;
-
-		/* Construct a full pathname for jailed callers. */
-		pr_pathlen = strcmp(pr_path, "/") == 0 ? 0
-		    : strlcpy(path, pr_path, MAXPATHLEN);
-		error = copyinstr(userpath, path + pr_pathlen,
-		    MAXPATHLEN - pr_pathlen, NULL);
-#ifdef KTRACE
-		if (error == 0 && KTRPOINT(curthread, KTR_NAMEI))
-			ktrnamei(path);
-#endif
-		/* Require paths to start with a '/' character. */
-		if (error == 0 && path[pr_pathlen] != '/')
-			error = EINVAL;
-		if (error) {
+		error = shm_copyin_path(td, userpath, &path);
+		if (error != 0) {
 			fdclose(td, fp, fd);
 			fdrop(fp, td);
-			free(path, M_SHMFD);
 			return (error);
 		}
 
@@ -918,25 +941,13 @@ int
 sys_shm_unlink(struct thread *td, struct shm_unlink_args *uap)
 {
 	char *path;
-	const char *pr_path;
-	size_t pr_pathlen;
 	Fnv32_t fnv;
 	int error;
 
-	path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	pr_path = td->td_ucred->cr_prison->pr_path;
-	pr_pathlen = strcmp(pr_path, "/") == 0 ? 0
-	    : strlcpy(path, pr_path, MAXPATHLEN);
-	error = copyinstr(uap->path, path + pr_pathlen, MAXPATHLEN - pr_pathlen,
-	    NULL);
-	if (error) {
-		free(path, M_TEMP);
+	error = shm_copyin_path(td, uap->path, &path);
+	if (error != 0)
 		return (error);
-	}
-#ifdef KTRACE
-	if (KTRPOINT(curthread, KTR_NAMEI))
-		ktrnamei(path);
-#endif
+
 	AUDIT_ARG_UPATH1_CANON(path);
 	fnv = fnv_32_str(path, FNV1_32_INIT);
 	sx_xlock(&shm_dict_lock);
@@ -958,6 +969,7 @@ sys_shm_rename(struct thread *td, struct shm_rename_args *uap)
 	int flags;
 
 	flags = uap->flags;
+	AUDIT_ARG_FFLAGS(flags);
 
 	/*
 	 * Make sure the user passed only valid flags.
@@ -981,22 +993,25 @@ sys_shm_rename(struct thread *td, struct shm_rename_args *uap)
 		goto out;
 	}
 
-	/*
-	 * Malloc zone M_SHMFD, since this path may end up freed later from
-	 * M_SHMFD if we end up doing an insert.
-	 */
-	path_from = malloc(MAXPATHLEN, M_SHMFD, M_WAITOK);
-	error = copyinstr(uap->path_from, path_from, MAXPATHLEN, NULL);
-	if (error)
+	/* Renaming to or from anonymous makes no sense */
+	if (uap->path_from == SHM_ANON || uap->path_to == SHM_ANON) {
+		error = EINVAL;
+		goto out;
+	}
+
+	error = shm_copyin_path(td, uap->path_from, &path_from);
+	if (error != 0)
 		goto out;
 
-	path_to = malloc(MAXPATHLEN, M_SHMFD, M_WAITOK);
-	error = copyinstr(uap->path_to, path_to, MAXPATHLEN, NULL);
-	if (error)
+	error = shm_copyin_path(td, uap->path_to, &path_to);
+	if (error != 0)
 		goto out;
+
+	AUDIT_ARG_UPATH1_CANON(path_from);
+	AUDIT_ARG_UPATH2_CANON(path_to);
 
 	/* Rename with from/to equal is a no-op */
-	if (strncmp(path_from, path_to, MAXPATHLEN) == 0)
+	if (strcmp(path_from, path_to) == 0)
 		goto out;
 
 	fnv_from = fnv_32_str(path_from, FNV1_32_INIT);
@@ -1006,16 +1021,14 @@ sys_shm_rename(struct thread *td, struct shm_rename_args *uap)
 
 	fd_from = shm_lookup(path_from, fnv_from);
 	if (fd_from == NULL) {
-		sx_xunlock(&shm_dict_lock);
 		error = ENOENT;
-		goto out;
+		goto out_locked;
 	}
 
 	fd_to = shm_lookup(path_to, fnv_to);
 	if ((flags & SHM_RENAME_NOREPLACE) != 0 && fd_to != NULL) {
-		sx_xunlock(&shm_dict_lock);
 		error = EEXIST;
-		goto out;
+		goto out_locked;
 	}
 
 	/*
@@ -1031,10 +1044,9 @@ sys_shm_rename(struct thread *td, struct shm_rename_args *uap)
 	 */
 	KASSERT(error != ENOENT, ("Our shm disappeared during shm_rename: %s",
 	    path_from));
-	if (error) {
+	if (error != 0) {
 		shm_drop(fd_from);
-		sx_xunlock(&shm_dict_lock);
-		goto out;
+		goto out_locked;
 	}
 
 	/*
@@ -1057,14 +1069,15 @@ sys_shm_rename(struct thread *td, struct shm_rename_args *uap)
 	 * operation.
 	 */
 	error = shm_remove(path_to, fnv_to, td->td_ucred);
-	if (error && error != ENOENT) {
+	if (error != 0 && error != ENOENT) {
 		shm_insert(path_from, fnv_from, fd_from);
 		shm_drop(fd_from);
 		/* Don't free path_from now, since the hash references it */
 		path_from = NULL;
-		sx_xunlock(&shm_dict_lock);
-		goto out;
+		goto out_locked;
 	}
+
+	error = 0;
 
 	shm_insert(path_to, fnv_to, fd_from);
 
@@ -1073,30 +1086,24 @@ sys_shm_rename(struct thread *td, struct shm_rename_args *uap)
 
 	/* We kept a ref when we removed, and incremented again in insert */
 	shm_drop(fd_from);
-#ifdef DEBUG
 	KASSERT(fd_from->shm_refs > 0, ("Expected >0 refs; got: %d\n",
 	    fd_from->shm_refs));
-#endif
 
 	if ((flags & SHM_RENAME_EXCHANGE) != 0 && fd_to != NULL) {
 		shm_insert(path_from, fnv_from, fd_to);
 		path_from = NULL;
 		shm_drop(fd_to);
-#ifdef DEBUG
 		KASSERT(fd_to->shm_refs > 0, ("Expected >0 refs; got: %d\n",
 		    fd_to->shm_refs));
-#endif
 	}
 
-	error = 0;
+out_locked:
 	sx_xunlock(&shm_dict_lock);
 
 out:
-	if (path_from != NULL)
-		free(path_from, M_SHMFD);
-	if (path_to != NULL)
-		free(path_to, M_SHMFD);
-	return(error);
+	free(path_from, M_SHMFD);
+	free(path_to, M_SHMFD);
+	return (error);
 }
 
 int

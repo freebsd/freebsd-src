@@ -640,6 +640,19 @@
 #define	AUE_SETLOGINCLASS	43238	/* FreeBSD-specific. */
 #define	AUE_POSIX_FADVISE	43239	/* FreeBSD-specific. */
 #define	AUE_SCTP_GENERIC_SENDMSG_IOV	43240	/* FreeBSD-specific. */
+#define	AUE_ABORT2		43241	/* FreeBSD-specific. */
+#define	AUE_SEMTIMEDWAIT	43242	/* FreeBSD-specific. */
+#define	AUE_SEMDESTROY		43243	/* FreeBSD-specific. */
+#define	AUE_SEMGETVALUE		43244	/* FreeBSD-specific. */
+#define	AUE_SEMINIT		43245	/* FreeBSD-specific. */
+#define	AUE_SEMPOST		43246	/* FreeBSD-specific. */
+#define	AUE_SEMTRYWAIT		43247	/* FreeBSD-specific. */
+#define	AUE_SEMWAIT		43258	/* FreeBSD-specific. */
+#define	AUE_FGETUUID		43259	/* CADETS. */
+#define	AUE_GETUUID		43260	/* CADETS. */
+#define	AUE_LGETUUID		43261	/* CADETS. */
+#define	AUE_EXECVEAT		43262	/* FreeBSD/Linux. */
+#define	AUE_SHMRENAME		43263	/* FreeBSD-specific. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the
@@ -794,12 +807,6 @@
 #define	AUE_REMOVEXATTR		AUE_NULL
 #define	AUE_SBRK		AUE_NULL
 #define	AUE_SELECT		AUE_NULL
-#define	AUE_SEMDESTROY		AUE_NULL
-#define	AUE_SEMGETVALUE		AUE_NULL
-#define	AUE_SEMINIT		AUE_NULL
-#define	AUE_SEMPOST		AUE_NULL
-#define	AUE_SEMTRYWAIT		AUE_NULL
-#define	AUE_SEMWAIT		AUE_NULL
 #define	AUE_SEMWAITSIGNAL	AUE_NULL
 #define	AUE_SETITIMER		AUE_NULL
 #define	AUE_SETSGROUPS		AUE_NULL
