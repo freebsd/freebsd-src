@@ -33,6 +33,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_acpi.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -245,3 +247,10 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 	return (tc->impl->tag_destroy(dmat));
 }
 
+#ifndef ACPI_DMAR
+bool
+bus_dma_dmar_set_buswide(device_t dev)
+{
+	return (false);
+}
+#endif

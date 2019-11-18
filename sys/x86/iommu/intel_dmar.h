@@ -239,6 +239,15 @@ struct dmar_unit {
 	struct taskqueue *delayed_taskqueue;
 
 	int dma_enabled;
+
+	/*
+	 * Bitmap of buses for which context must ignore slot:func,
+	 * duplicating the page table pointer into all context table
+	 * entries.  This is a client-controlled quirk to support some
+	 * NTBs.
+	 */
+	uint32_t buswide_ctxs[(PCI_BUSMAX + 1) / NBBY / sizeof(uint32_t)];
+
 };
 
 #define	DMAR_LOCK(dmar)		mtx_lock(&(dmar)->lock)
@@ -376,6 +385,9 @@ void dmar_quirks_pre_use(struct dmar_unit *dmar);
 
 int dmar_init_irt(struct dmar_unit *unit);
 void dmar_fini_irt(struct dmar_unit *unit);
+
+void dmar_set_buswide_ctx(struct dmar_unit *unit, u_int busno);
+bool dmar_is_buswide_ctx(struct dmar_unit *unit, u_int busno);
 
 #define	DMAR_GM_CANWAIT	0x0001
 #define	DMAR_GM_CANSPLIT 0x0002

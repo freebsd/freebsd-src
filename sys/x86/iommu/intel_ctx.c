@@ -67,8 +67,8 @@ __FBSDID("$FreeBSD$");
 #include <x86/include/busdma_impl.h>
 #include <x86/iommu/intel_reg.h>
 #include <x86/iommu/busdma_dmar.h>
-#include <x86/iommu/intel_dmar.h>
 #include <dev/pci/pcireg.h>
+#include <x86/iommu/intel_dmar.h>
 #include <dev/pci/pcivar.h>
 
 static MALLOC_DEFINE(M_DMAR_CTX, "dmar_ctx", "Intel DMAR Context");
@@ -141,20 +141,9 @@ ctx_tag_init(struct dmar_ctx *ctx, device_t dev)
 }
 
 static void
-ctx_id_entry_init(struct dmar_ctx *ctx, dmar_ctx_entry_t *ctxp, bool move)
+ctx_id_entry_init_one(dmar_ctx_entry_t *ctxp, struct dmar_domain *domain,
+    vm_page_t ctx_root)
 {
-	struct dmar_unit *unit;
-	struct dmar_domain *domain;
-	vm_page_t ctx_root;
-
-	domain = ctx->domain;
-	unit = domain->dmar;
-	KASSERT(move || (ctxp->ctx1 == 0 && ctxp->ctx2 == 0),
-	    ("dmar%d: initialized ctx entry %d:%d:%d 0x%jx 0x%jx",
-	    unit->unit, pci_get_bus(ctx->ctx_tag.owner),
-	    pci_get_slot(ctx->ctx_tag.owner),
-	    pci_get_function(ctx->ctx_tag.owner),
-	    ctxp->ctx1, ctxp->ctx2));
 	/*
 	 * For update due to move, the store is not atomic.  It is
 	 * possible that DMAR read upper doubleword, while low
@@ -166,16 +155,48 @@ ctx_id_entry_init(struct dmar_ctx *ctx, dmar_ctx_entry_t *ctxp, bool move)
 	 */
 	dmar_pte_store1(&ctxp->ctx2, DMAR_CTX2_DID(domain->domain) |
 	    domain->awlvl);
+	if (ctx_root == NULL) {
+		dmar_pte_store1(&ctxp->ctx1, DMAR_CTX1_T_PASS | DMAR_CTX1_P);
+	} else {
+		dmar_pte_store1(&ctxp->ctx1, DMAR_CTX1_T_UNTR |
+		    (DMAR_CTX1_ASR_MASK & VM_PAGE_TO_PHYS(ctx_root)) |
+		    DMAR_CTX1_P);
+	}
+}
+
+static void
+ctx_id_entry_init(struct dmar_ctx *ctx, dmar_ctx_entry_t *ctxp, bool move,
+    int busno)
+{
+	struct dmar_unit *unit;
+	struct dmar_domain *domain;
+	vm_page_t ctx_root;
+	int i;
+
+	domain = ctx->domain;
+	unit = domain->dmar;
+	KASSERT(move || (ctxp->ctx1 == 0 && ctxp->ctx2 == 0),
+	    ("dmar%d: initialized ctx entry %d:%d:%d 0x%jx 0x%jx",
+	    unit->unit, busno, pci_get_slot(ctx->ctx_tag.owner),
+	    pci_get_function(ctx->ctx_tag.owner),
+	    ctxp->ctx1, ctxp->ctx2));
+
 	if ((domain->flags & DMAR_DOMAIN_IDMAP) != 0 &&
 	    (unit->hw_ecap & DMAR_ECAP_PT) != 0) {
 		KASSERT(domain->pgtbl_obj == NULL,
 		    ("ctx %p non-null pgtbl_obj", ctx));
-		dmar_pte_store1(&ctxp->ctx1, DMAR_CTX1_T_PASS | DMAR_CTX1_P);
+		ctx_root = NULL;
 	} else {
 		ctx_root = dmar_pgalloc(domain->pgtbl_obj, 0, DMAR_PGF_NOALLOC);
-		dmar_pte_store1(&ctxp->ctx1, DMAR_CTX1_T_UNTR |
-		    (DMAR_CTX1_ASR_MASK & VM_PAGE_TO_PHYS(ctx_root)) |
-		    DMAR_CTX1_P);
+	}
+
+	if (dmar_is_buswide_ctx(unit, busno)) {
+		MPASS(!move);
+		for (i = 0; i <= PCI_BUSMAX; i++) {
+			ctx_id_entry_init_one(&ctxp[i], domain, ctx_root);
+		}
+	} else {
+		ctx_id_entry_init_one(ctxp, domain, ctx_root);
 	}
 	dmar_flush_ctx_to_ram(unit, ctxp);
 }
@@ -444,6 +465,9 @@ dmar_get_ctx_for_dev1(struct dmar_unit *dmar, device_t dev, uint16_t rid,
 	enable = false;
 	TD_PREP_PINNED_ASSERT;
 	DMAR_LOCK(dmar);
+	KASSERT(!dmar_is_buswide_ctx(dmar, bus) || (slot == 0 && func == 0),
+	    ("dmar%d pci%d:%d:%d get_ctx for buswide", dmar->unit, bus,
+	    slot, func));
 	ctx = dmar_find_ctx_locked(dmar, rid);
 	error = 0;
 	if (ctx == NULL) {
@@ -492,7 +516,7 @@ dmar_get_ctx_for_dev1(struct dmar_unit *dmar, device_t dev, uint16_t rid,
 			if (LIST_EMPTY(&dmar->domains))
 				enable = true;
 			LIST_INSERT_HEAD(&dmar->domains, domain, link);
-			ctx_id_entry_init(ctx, ctxp, false);
+			ctx_id_entry_init(ctx, ctxp, false, bus);
 			if (dev != NULL) {
 				device_printf(dev,
 			    "dmar%d pci%d:%d:%d:%d rid %x domain %d mgaw %d "
@@ -597,7 +621,7 @@ dmar_move_ctx_to_domain(struct dmar_domain *domain, struct dmar_ctx *ctx)
 	dmar_ctx_unlink(ctx);
 	ctx->domain = domain;
 	dmar_ctx_link(ctx);
-	ctx_id_entry_init(ctx, ctxp, true);
+	ctx_id_entry_init(ctx, ctxp, true, PCI_BUSMAX + 100);
 	dmar_unmap_pgtbl(sf);
 	error = dmar_flush_for_ctx_entry(dmar, true);
 	/* If flush failed, rolling back would not work as well. */
