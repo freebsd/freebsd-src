@@ -51,6 +51,10 @@ lastline_body() {
 	printf '#ifdef foo\n#endif\n' >input
 	atf_check -o file:input unifdef -Ubar input
 
+	# Begin FreeBSD
+	atf_skip "our version doesn't have this behavior"
+	# Endif
+
 	# Without newline after cpp directive
 	printf '#ifdef foo\n#endif' >input
 	atf_check -o file:input unifdef -Ubar input
