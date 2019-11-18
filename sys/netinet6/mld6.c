@@ -1249,13 +1249,15 @@ out_locked:
  * Return IPPROTO_DONE if we freed m. Otherwise, return 0.
  */
 int
-mld_input(struct mbuf *m, int off, int icmp6len)
+mld_input(struct mbuf **mp, int off, int icmp6len)
 {
 	struct ifnet	*ifp;
 	struct ip6_hdr	*ip6;
+	struct mbuf	*m;
 	struct mld_hdr	*mld;
 	int		 mldlen;
 
+	m = *mp;
 	CTR3(KTR_MLD, "%s: called w/mbuf (%p,%d)", __func__, m, off);
 
 	ifp = m->m_pkthdr.rcvif;
@@ -1278,6 +1280,7 @@ mld_input(struct mbuf *m, int off, int icmp6len)
 		ICMP6STAT_INC(icp6s_badlen);
 		return (IPPROTO_DONE);
 	}
+	*mp = m;
 	ip6 = mtod(m, struct ip6_hdr *);
 	mld = (struct mld_hdr *)(mtod(m, uint8_t *) + off);
 
