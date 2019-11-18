@@ -480,7 +480,7 @@ table_check_response(struct tabwork *work, const struct snmp_pdu *resp)
 		if (snmp_client.version == SNMP_V1 &&
 		    resp->error_status == SNMP_ERR_NOSUCHNAME &&
 		    resp->error_index ==
-		    (work->descr->last_change.len == 0) ? 1 : 2)
+		    ((work->descr->last_change.len == 0) ? 1 : 2))
 			/* EOT */
 			return (0);
 		/* Error */
