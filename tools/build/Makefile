@@ -127,6 +127,7 @@ INSTALLDIR_LIST= \
 	usr/include/casper \
 	usr/include/private/zstd \
 	usr/lib \
+	usr/libexec
 
 installdirs:
 	mkdir -p ${INSTALLDIR_LIST:S,^,${DESTDIR}/,}

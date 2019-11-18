@@ -6,6 +6,8 @@
 # Don't use an OBJDIR
 .OBJDIR: ${.CURDIR}
 
+.include <src.lua.mk>
+
 all:
 	@echo "make sysent only"
 
@@ -13,6 +15,6 @@ sysent: init_sysent.c syscalls.c ../sys/syscall.h ../sys/syscall.mk \
 ../sys/sysproto.h
 
 init_sysent.c syscalls.c systrace_args.c ../sys/syscall.h \
-../sys/syscall.mk ../sys/sysproto.h: makesyscalls.sh syscalls.master \
+../sys/syscall.mk ../sys/sysproto.h: ../tools/makesyscalls.lua syscalls.master \
 capabilities.conf
-	sh makesyscalls.sh syscalls.master
+	${LUA} ../tools/makesyscalls.lua syscalls.master
