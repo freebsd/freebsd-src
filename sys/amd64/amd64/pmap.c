@@ -1105,10 +1105,11 @@ static caddr_t crashdumpmap;
 
 /*
  * Internal flags for pmap_mapdev_internal() and
- * pmap_change_attr_locked().
+ * pmap_change_props_locked().
  */
-#define	MAPDEV_FLUSHCACHE	0x0000001	/* Flush cache after mapping. */
-#define	MAPDEV_SETATTR		0x0000002	/* Modify existing attrs. */
+#define	MAPDEV_FLUSHCACHE	0x00000001	/* Flush cache after mapping. */
+#define	MAPDEV_SETATTR		0x00000002	/* Modify existing attrs. */
+#define	MAPDEV_ASSERTVALID	0x00000004	/* Assert mapping validity. */
 
 static void	free_pv_chunk(struct pv_chunk *pc);
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
@@ -1129,8 +1130,8 @@ static void	pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
 		    vm_offset_t va);
 
-static int pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode,
-    int flags);
+static int pmap_change_props_locked(vm_offset_t va, vm_size_t size,
+    vm_prot_t prot, int mode, int flags);
 static boolean_t pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va);
 static boolean_t pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde,
     vm_offset_t va, struct rwlock **lockp);
@@ -1153,14 +1154,13 @@ static void pmap_invalidate_pde_page(pmap_t pmap, vm_offset_t va,
 static void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode);
 static vm_page_t pmap_large_map_getptp_unlocked(void);
 static vm_paddr_t pmap_large_map_kextract(vm_offset_t va);
-static void pmap_pde_attr(pd_entry_t *pde, int cache_bits, int mask);
 #if VM_NRESERVLEVEL > 0
 static void pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
     struct rwlock **lockp);
 #endif
 static boolean_t pmap_protect_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t sva,
     vm_prot_t prot);
-static void pmap_pte_attr(pt_entry_t *pte, int cache_bits, int mask);
+static void pmap_pte_props(pt_entry_t *pte, u_long bits, u_long mask);
 static void pmap_pti_add_kva_locked(vm_offset_t sva, vm_offset_t eva,
     bool exec);
 static pdp_entry_t *pmap_pti_pdpe(vm_offset_t va);
@@ -7797,38 +7797,18 @@ restart:
  * Miscellaneous support routines follow
  */
 
-/* Adjust the cache mode for a 4KB page mapped via a PTE. */
+/* Adjust the properties for a leaf page table entry. */
 static __inline void
-pmap_pte_attr(pt_entry_t *pte, int cache_bits, int mask)
+pmap_pte_props(pt_entry_t *pte, u_long bits, u_long mask)
 {
-	u_int opte, npte;
+	u_long opte, npte;
 
-	/*
-	 * The cache mode bits are all in the low 32-bits of the
-	 * PTE, so we can just spin on updating the low 32-bits.
-	 */
+	opte = *(u_long *)pte;
 	do {
-		opte = *(u_int *)pte;
 		npte = opte & ~mask;
-		npte |= cache_bits;
-	} while (npte != opte && !atomic_cmpset_int((u_int *)pte, opte, npte));
-}
-
-/* Adjust the cache mode for a 2MB page mapped via a PDE. */
-static __inline void
-pmap_pde_attr(pd_entry_t *pde, int cache_bits, int mask)
-{
-	u_int opde, npde;
-
-	/*
-	 * The cache mode bits are all in the low 32-bits of the
-	 * PDE, so we can just spin on updating the low 32-bits.
-	 */
-	do {
-		opde = *(u_int *)pde;
-		npde = opde & ~mask;
-		npde |= cache_bits;
-	} while (npde != opde && !atomic_cmpset_int((u_int *)pde, opde, npde));
+		npte |= bits;
+	} while (npte != opte && !atomic_fcmpset_long((u_long *)pte, &opte,
+	    npte));
 }
 
 /*
@@ -7884,7 +7864,8 @@ pmap_mapdev_internal(vm_paddr_t pa, vm_size_t size, int mode, int flags)
 			va = PHYS_TO_DMAP(pa);
 			if ((flags & MAPDEV_SETATTR) != 0) {
 				PMAP_LOCK(kernel_pmap);
-				i = pmap_change_attr_locked(va, size, mode, flags);
+				i = pmap_change_props_locked(va, size,
+				    PROT_NONE, mode, flags);
 				PMAP_UNLOCK(kernel_pmap);
 			} else
 				i = 0;
@@ -8070,21 +8051,46 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	int error;
 
 	PMAP_LOCK(kernel_pmap);
-	error = pmap_change_attr_locked(va, size, mode, MAPDEV_FLUSHCACHE);
+	error = pmap_change_props_locked(va, size, PROT_NONE, mode,
+	    MAPDEV_FLUSHCACHE);
+	PMAP_UNLOCK(kernel_pmap);
+	return (error);
+}
+
+/*
+ * Changes the specified virtual address range's protections to those
+ * specified by "prot".  Like pmap_change_attr(), protections for aliases
+ * in the direct map are updated as well.  Protections on aliasing mappings may
+ * be a subset of the requested protections; for example, mappings in the direct
+ * map are never executable.
+ */
+int
+pmap_change_prot(vm_offset_t va, vm_size_t size, vm_prot_t prot)
+{
+	int error;
+
+	/* Only supported within the kernel map. */
+	if (va < VM_MIN_KERNEL_ADDRESS)
+		return (EINVAL);
+
+	PMAP_LOCK(kernel_pmap);
+	error = pmap_change_props_locked(va, size, prot, -1,
+	    MAPDEV_ASSERTVALID);
 	PMAP_UNLOCK(kernel_pmap);
 	return (error);
 }
 
 static int
-pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, int flags)
+pmap_change_props_locked(vm_offset_t va, vm_size_t size, vm_prot_t prot,
+    int mode, int flags)
 {
 	vm_offset_t base, offset, tmpva;
 	vm_paddr_t pa_start, pa_end, pa_end1;
 	pdp_entry_t *pdpe;
-	pd_entry_t *pde;
-	pt_entry_t *pte;
-	int cache_bits_pte, cache_bits_pde, error;
-	boolean_t changed;
+	pd_entry_t *pde, pde_bits, pde_mask;
+	pt_entry_t *pte, pte_bits, pte_mask;
+	int error;
+	bool changed;
 
 	PMAP_LOCK_ASSERT(kernel_pmap, MA_OWNED);
 	base = trunc_page(va);
@@ -8098,9 +8104,33 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, int flags)
 	if (base < DMAP_MIN_ADDRESS)
 		return (EINVAL);
 
-	cache_bits_pde = pmap_cache_bits(kernel_pmap, mode, 1);
-	cache_bits_pte = pmap_cache_bits(kernel_pmap, mode, 0);
-	changed = FALSE;
+	/*
+	 * Construct our flag sets and masks.  "bits" is the subset of
+	 * "mask" that will be set in each modified PTE.
+	 *
+	 * Mappings in the direct map are never allowed to be executable.
+	 */
+	pde_bits = pte_bits = 0;
+	pde_mask = pte_mask = 0;
+	if (mode != -1) {
+		pde_bits |= pmap_cache_bits(kernel_pmap, mode, true);
+		pde_mask |= X86_PG_PDE_CACHE;
+		pte_bits |= pmap_cache_bits(kernel_pmap, mode, false);
+		pte_mask |= X86_PG_PTE_CACHE;
+	}
+	if (prot != VM_PROT_NONE) {
+		if ((prot & VM_PROT_WRITE) != 0) {
+			pde_bits |= X86_PG_RW;
+			pte_bits |= X86_PG_RW;
+		}
+		if ((prot & VM_PROT_EXECUTE) == 0 ||
+		    va < VM_MIN_KERNEL_ADDRESS) {
+			pde_bits |= pg_nx;
+			pte_bits |= pg_nx;
+		}
+		pde_mask |= X86_PG_RW | pg_nx;
+		pte_mask |= X86_PG_RW | pg_nx;
+	}
 
 	/*
 	 * Pages that aren't mapped aren't supported.  Also break down 2MB pages
@@ -8108,15 +8138,18 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, int flags)
 	 */
 	for (tmpva = base; tmpva < base + size; ) {
 		pdpe = pmap_pdpe(kernel_pmap, tmpva);
-		if (pdpe == NULL || *pdpe == 0)
+		if (pdpe == NULL || *pdpe == 0) {
+			KASSERT((flags & MAPDEV_ASSERTVALID) == 0,
+			    ("%s: addr %#lx is not mapped", __func__, tmpva));
 			return (EINVAL);
+		}
 		if (*pdpe & PG_PS) {
 			/*
 			 * If the current 1GB page already has the required
-			 * memory type, then we need not demote this page. Just
+			 * properties, then we need not demote this page.  Just
 			 * increment tmpva to the next 1GB page frame.
 			 */
-			if ((*pdpe & X86_PG_PDE_CACHE) == cache_bits_pde) {
+			if ((*pdpe & pde_mask) == pde_bits) {
 				tmpva = trunc_1gpage(tmpva) + NBPDP;
 				continue;
 			}
@@ -8135,15 +8168,18 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, int flags)
 				return (ENOMEM);
 		}
 		pde = pmap_pdpe_to_pde(pdpe, tmpva);
-		if (*pde == 0)
+		if (*pde == 0) {
+			KASSERT((flags & MAPDEV_ASSERTVALID) == 0,
+			    ("%s: addr %#lx is not mapped", __func__, tmpva));
 			return (EINVAL);
+		}
 		if (*pde & PG_PS) {
 			/*
 			 * If the current 2MB page already has the required
-			 * memory type, then we need not demote this page. Just
+			 * properties, then we need not demote this page.  Just
 			 * increment tmpva to the next 2MB page frame.
 			 */
-			if ((*pde & X86_PG_PDE_CACHE) == cache_bits_pde) {
+			if ((*pde & pde_mask) == pde_bits) {
 				tmpva = trunc_2mpage(tmpva) + NBPDR;
 				continue;
 			}
@@ -8162,24 +8198,27 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, int flags)
 				return (ENOMEM);
 		}
 		pte = pmap_pde_to_pte(pde, tmpva);
-		if (*pte == 0)
+		if (*pte == 0) {
+			KASSERT((flags & MAPDEV_ASSERTVALID) == 0,
+			    ("%s: addr %#lx is not mapped", __func__, tmpva));
 			return (EINVAL);
+		}
 		tmpva += PAGE_SIZE;
 	}
 	error = 0;
 
 	/*
 	 * Ok, all the pages exist, so run through them updating their
-	 * cache mode if required.
+	 * properties if required.
 	 */
+	changed = false;
 	pa_start = pa_end = 0;
 	for (tmpva = base; tmpva < base + size; ) {
 		pdpe = pmap_pdpe(kernel_pmap, tmpva);
 		if (*pdpe & PG_PS) {
-			if ((*pdpe & X86_PG_PDE_CACHE) != cache_bits_pde) {
-				pmap_pde_attr(pdpe, cache_bits_pde,
-				    X86_PG_PDE_CACHE);
-				changed = TRUE;
+			if ((*pdpe & pde_mask) != pde_bits) {
+				pmap_pte_props(pdpe, pde_bits, pde_mask);
+				changed = true;
 			}
 			if (tmpva >= VM_MIN_KERNEL_ADDRESS &&
 			    (*pdpe & PG_PS_FRAME) < dmaplimit) {
@@ -8191,9 +8230,10 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, int flags)
 					pa_end += NBPDP;
 				else {
 					/* Run ended, update direct map. */
-					error = pmap_change_attr_locked(
+					error = pmap_change_props_locked(
 					    PHYS_TO_DMAP(pa_start),
-					    pa_end - pa_start, mode, flags);
+					    pa_end - pa_start, prot, mode,
+					    flags);
 					if (error != 0)
 						break;
 					/* Start physical address run. */
@@ -8206,10 +8246,9 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, int flags)
 		}
 		pde = pmap_pdpe_to_pde(pdpe, tmpva);
 		if (*pde & PG_PS) {
-			if ((*pde & X86_PG_PDE_CACHE) != cache_bits_pde) {
-				pmap_pde_attr(pde, cache_bits_pde,
-				    X86_PG_PDE_CACHE);
-				changed = TRUE;
+			if ((*pde & pde_mask) != pde_bits) {
+				pmap_pte_props(pde, pde_bits, pde_mask);
+				changed = true;
 			}
 			if (tmpva >= VM_MIN_KERNEL_ADDRESS &&
 			    (*pde & PG_PS_FRAME) < dmaplimit) {
@@ -8221,9 +8260,10 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, int flags)
 					pa_end += NBPDR;
 				else {
 					/* Run ended, update direct map. */
-					error = pmap_change_attr_locked(
+					error = pmap_change_props_locked(
 					    PHYS_TO_DMAP(pa_start),
-					    pa_end - pa_start, mode, flags);
+					    pa_end - pa_start, prot, mode,
+					    flags);
 					if (error != 0)
 						break;
 					/* Start physical address run. */
@@ -8234,10 +8274,9 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, int flags)
 			tmpva = trunc_2mpage(tmpva) + NBPDR;
 		} else {
 			pte = pmap_pde_to_pte(pde, tmpva);
-			if ((*pte & X86_PG_PTE_CACHE) != cache_bits_pte) {
-				pmap_pte_attr(pte, cache_bits_pte,
-				    X86_PG_PTE_CACHE);
-				changed = TRUE;
+			if ((*pte & pte_mask) != pte_bits) {
+				pmap_pte_props(pte, pte_bits, pte_mask);
+				changed = true;
 			}
 			if (tmpva >= VM_MIN_KERNEL_ADDRESS &&
 			    (*pte & PG_FRAME) < dmaplimit) {
@@ -8249,9 +8288,10 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, int flags)
 					pa_end += PAGE_SIZE;
 				else {
 					/* Run ended, update direct map. */
-					error = pmap_change_attr_locked(
+					error = pmap_change_props_locked(
 					    PHYS_TO_DMAP(pa_start),
-					    pa_end - pa_start, mode, flags);
+					    pa_end - pa_start, prot, mode,
+					    flags);
 					if (error != 0)
 						break;
 					/* Start physical address run. */
@@ -8265,8 +8305,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, int flags)
 	if (error == 0 && pa_start != pa_end && pa_start < dmaplimit) {
 		pa_end1 = MIN(pa_end, dmaplimit);
 		if (pa_start != pa_end1)
-			error = pmap_change_attr_locked(PHYS_TO_DMAP(pa_start),
-			    pa_end1 - pa_start, mode, flags);
+			error = pmap_change_props_locked(PHYS_TO_DMAP(pa_start),
+			    pa_end1 - pa_start, prot, mode, flags);
 	}
 
 	/*

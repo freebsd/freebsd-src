@@ -428,6 +428,7 @@ void	pmap_allow_2m_x_ept_recalculate(void);
 void	pmap_bootstrap(vm_paddr_t *);
 int	pmap_cache_bits(pmap_t pmap, int mode, boolean_t is_pde);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);
+int	pmap_change_prot(vm_offset_t, vm_size_t, vm_prot_t);
 void	pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate);
 void	pmap_flush_cache_range(vm_offset_t, vm_offset_t);
 void	pmap_flush_cache_phys_range(vm_paddr_t, vm_paddr_t, vm_memattr_t);
