@@ -38,3 +38,4 @@ nooptions       DEADLKRES
 nooptions       USB_DEBUG
 nooptions	COVERAGE
 nooptions	KCOV
+nooptions	MALLOC_DEBUG_MAXZONES
