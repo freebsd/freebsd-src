@@ -69,7 +69,8 @@ extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
 
 SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
 
-static register_t *linux_copyout_strings(struct image_params *imgp);
+static int	linux_copyout_strings(struct image_params *imgp,
+		    register_t **stack_base);
 static int	linux_elf_fixup(register_t **stack_base,
 		    struct image_params *iparams);
 static bool	linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
@@ -141,14 +142,14 @@ linux_set_syscall_retval(struct thread *td, int error)
 	cpu_set_syscall_retval(td, error);
 }
 
-static void
+static int
 linux_copyout_auxargs(struct image_params *imgp, u_long *base)
 {
 	Elf_Auxargs *args;
 	Elf_Auxinfo *argarray, *pos;
 	u_long auxlen;
 	struct proc *p;
-	int issetugid;
+	int error, issetugid;
 
 	LIN_SDT_PROBE0(sysvec, linux_copyout_auxargs, todo);
 	p = imgp->proc;
@@ -191,8 +192,9 @@ linux_copyout_auxargs(struct image_params *imgp, u_long *base)
 
 	auxlen = sizeof(*argarray) * (pos - argarray);
 	*base -= auxlen;
-	copyout(argarray, (void *)*base, auxlen);
+	error = copyout(argarray, (void *)*base, auxlen);
 	free(argarray, M_TEMP);
+	return (error);
 }
 
 static int
@@ -210,17 +212,16 @@ linux_elf_fixup(register_t **stack_base, struct image_params *imgp)
  * as the initial stack pointer.
  * LINUXTODO: deduplicate against other linuxulator archs
  */
-static register_t *
-linux_copyout_strings(struct image_params *imgp)
+static int
+linux_copyout_strings(struct image_params *imgp, register_t **stack_base)
 {
 	char **vectp;
 	char *stringp, *destp;
-	register_t *stack_base;
 	struct ps_strings *arginfo;
 	char canary[LINUX_AT_RANDOM_LEN];
 	size_t execpath_len;
 	struct proc *p;
-	int argc, envc;
+	int argc, envc, error;
 
 	/* Calculate string base and vector table pointers. */
 	if (imgp->execpath != NULL && imgp->auxargs != NULL)
@@ -237,7 +238,10 @@ linux_copyout_strings(struct image_params *imgp)
 
 	if (execpath_len != 0) {
 		imgp->execpathp = (uintptr_t)arginfo - execpath_len;
-		copyout(imgp->execpath, (void *)imgp->execpathp, execpath_len);
+		error = copyout(imgp->execpath, (void *)imgp->execpathp,
+		    execpath_len);
+		if (error != 0)
+			return (error);
 	}
 
 	/* Prepare the canary for SSP. */
@@ -245,11 +249,17 @@ linux_copyout_strings(struct image_params *imgp)
 	imgp->canary = (uintptr_t)arginfo -
 	    roundup(execpath_len, sizeof(char *)) -
 	    roundup(sizeof(canary), sizeof(char *));
-	copyout(canary, (void *)imgp->canary, sizeof(canary));
+	error = copyout(canary, (void *)imgp->canary, sizeof(canary));
+	if (error != 0)
+		return (error);
 
 	vectp = (char **)destp;
-	if (imgp->auxargs)
-		imgp->sysent->sv_copyout_auxargs(imgp, (u_long *)&vectp);
+	if (imgp->auxargs) {
+		error = imgp->sysent->sv_copyout_auxargs(imgp,
+		    (u_long *)&vectp);
+		if (error != 0)
+			return (error);
+	}
 
 	/*
 	 * Allocate room for argc and the argv[] and env vectors including the
@@ -259,45 +269,56 @@ linux_copyout_strings(struct image_params *imgp)
 	vectp = (char **)STACKALIGN(vectp);
 
 	/* vectp also becomes our initial stack base. */
-	stack_base = (register_t *)vectp;
+	*stack_base = (register_t *)vectp;
 
 	stringp = imgp->args->begin_argv;
 	argc = imgp->args->argc;
 	envc = imgp->args->envc;
 
 	/* Copy out strings - arguments and environment. */
-	copyout(stringp, destp, ARG_MAX - imgp->args->stringspace);
+	error = copyout(stringp, destp, ARG_MAX - imgp->args->stringspace);
+	if (error != 0)
+		return (error);
 
 	/* Fill in "ps_strings" struct for ps, w, etc. */
-	suword(&arginfo->ps_argvstr, (long)(intptr_t)vectp);
-	suword(&arginfo->ps_nargvstr, argc);
+	if (suword(&arginfo->ps_argvstr, (long)(intptr_t)vectp) != 0 ||
+	    suword(&arginfo->ps_nargvstr, argc) != 0)
+		return (EFAULT);
 
-	suword(vectp++, argc);
+	if (suword(vectp++, argc) != 0)
+		return (EFAULT);
+
 	/* Fill in argument portion of vector table. */
 	for (; argc > 0; --argc) {
-		suword(vectp++, (long)(intptr_t)destp);
+		if (suword(vectp++, (long)(intptr_t)destp) != 0)
+			return (EFAULT);
 		while (*stringp++ != 0)
 			destp++;
 		destp++;
 	}
 
 	/* A null vector table pointer separates the argp's from the envp's. */
-	suword(vectp++, 0);
+	if (suword(vectp++, 0) != 0)
+		return (EFAULT);
 
-	suword(&arginfo->ps_envstr, (long)(intptr_t)vectp);
-	suword(&arginfo->ps_nenvstr, envc);
+	if (suword(&arginfo->ps_envstr, (long)(intptr_t)vectp) != 0 ||
+	    suword(&arginfo->ps_nenvstr, envc) != 0)
+		return (EFAULT);
 
 	/* Fill in environment portion of vector table. */
 	for (; envc > 0; --envc) {
-		suword(vectp++, (long)(intptr_t)destp);
+		if (suword(vectp++, (long)(intptr_t)destp) != 0)
+			return (EFAULT);
 		while (*stringp++ != 0)
 			destp++;
 		destp++;
 	}
 
 	/* The end of the vector table is a null pointer. */
-	suword(vectp, 0);
-	return (stack_base);
+	if (suword(vectp, 0) != 0)
+		return (EFAULT);
+
+	return (0);
 }
 
 /*
