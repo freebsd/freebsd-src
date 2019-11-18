@@ -604,7 +604,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 		 */
 		if ((ip6->ip6_hlim != 1) || (m->m_flags & M_RTALERT_MLD) == 0)
 			goto freeit;
-		if (mld_input(m, off, icmp6len) != 0) {
+		if (mld_input(&m, off, icmp6len) != 0) {
 			*mp = NULL;
 			return (IPPROTO_DONE);
 		}
