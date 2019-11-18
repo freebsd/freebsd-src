@@ -121,6 +121,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
+#include <sys/sbuf.h>
 #include <sys/sx.h>
 #include <sys/vmem.h>
 #include <sys/vmmeter.h>
@@ -6156,3 +6157,212 @@ pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
 
 	return (mode >= VM_MEMATTR_DEVICE && mode <= VM_MEMATTR_WRITE_THROUGH);
 }
+
+/*
+ * Track a range of the kernel's virtual address space that is contiguous
+ * in various mapping attributes.
+ */
+struct pmap_kernel_map_range {
+	vm_offset_t sva;
+	pt_entry_t attrs;
+	int l3pages;
+	int l3contig;
+	int l2blocks;
+	int l1blocks;
+};
+
+static void
+sysctl_kmaps_dump(struct sbuf *sb, struct pmap_kernel_map_range *range,
+    vm_offset_t eva)
+{
+	const char *mode;
+	int index;
+
+	if (eva <= range->sva)
+		return;
+
+	index = range->attrs & ATTR_IDX_MASK;
+	switch (index) {
+	case ATTR_IDX(VM_MEMATTR_DEVICE):
+		mode = "DEV";
+		break;
+	case ATTR_IDX(VM_MEMATTR_UNCACHEABLE):
+		mode = "UC";
+		break;
+	case ATTR_IDX(VM_MEMATTR_WRITE_BACK):
+		mode = "WB";
+		break;
+	case ATTR_IDX(VM_MEMATTR_WRITE_THROUGH):
+		mode = "WT";
+		break;
+	default:
+		printf(
+		    "%s: unknown memory type %x for range 0x%016lx-0x%016lx\n",
+		    __func__, index, range->sva, eva);
+		mode = "??";
+		break;
+	}
+
+	sbuf_printf(sb, "0x%016lx-0x%016lx r%c%c%c %3s %d %d %d %d\n",
+	    range->sva, eva,
+	    (range->attrs & ATTR_AP_RW_BIT) == ATTR_AP_RW ? 'w' : '-',
+	    (range->attrs & ATTR_PXN) != 0 ? '-' : 'x',
+	    (range->attrs & ATTR_AP_USER) != 0 ? 'u' : 's',
+	    mode, range->l1blocks, range->l2blocks, range->l3contig,
+	    range->l3pages);
+
+	/* Reset to sentinel value. */
+	range->sva = 0xfffffffffffffffful;
+}
+
+/*
+ * Determine whether the attributes specified by a page table entry match those
+ * being tracked by the current range.
+ */
+static bool
+sysctl_kmaps_match(struct pmap_kernel_map_range *range, pt_entry_t attrs)
+{
+
+	return (range->attrs == attrs);
+}
+
+static void
+sysctl_kmaps_reinit(struct pmap_kernel_map_range *range, vm_offset_t va,
+    pt_entry_t attrs)
+{
+
+	memset(range, 0, sizeof(*range));
+	range->sva = va;
+	range->attrs = attrs;
+}
+
+/*
+ * Given a leaf PTE, derive the mapping's attributes.  If they do not match
+ * those of the current run, dump the address range and its attributes, and
+ * begin a new run.
+ */
+static void
+sysctl_kmaps_check(struct sbuf *sb, struct pmap_kernel_map_range *range,
+    vm_offset_t va, pd_entry_t l0e, pd_entry_t l1e, pd_entry_t l2e,
+    pt_entry_t l3e)
+{
+	pt_entry_t attrs;
+
+	attrs = l0e & (ATTR_AP_MASK | ATTR_XN);
+	attrs |= l1e & (ATTR_AP_MASK | ATTR_XN);
+	if ((l1e & ATTR_DESCR_MASK) == L1_BLOCK)
+		attrs |= l1e & ATTR_IDX_MASK;
+	attrs |= l2e & (ATTR_AP_MASK | ATTR_XN);
+	if ((l2e & ATTR_DESCR_MASK) == L2_BLOCK)
+		attrs |= l2e & ATTR_IDX_MASK;
+	attrs |= l3e & (ATTR_AP_MASK | ATTR_XN | ATTR_IDX_MASK);
+
+	if (range->sva > va || !sysctl_kmaps_match(range, attrs)) {
+		sysctl_kmaps_dump(sb, range, va);
+		sysctl_kmaps_reinit(range, va, attrs);
+	}
+}
+
+static int
+sysctl_kmaps(SYSCTL_HANDLER_ARGS)
+{
+	struct pmap_kernel_map_range range;
+	struct sbuf sbuf, *sb;
+	pd_entry_t l0e, *l1, l1e, *l2, l2e;
+	pt_entry_t *l3, l3e;
+	vm_offset_t sva;
+	vm_paddr_t pa;
+	int error, i, j, k, l;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	sb = &sbuf;
+	sbuf_new_for_sysctl(sb, NULL, PAGE_SIZE, req);
+
+	/* Sentinel value. */
+	range.sva = 0xfffffffffffffffful;
+
+	/*
+	 * Iterate over the kernel page tables without holding the kernel pmap
+	 * lock.  Kernel page table pages are never freed, so at worst we will
+	 * observe inconsistencies in the output.
+	 */
+	for (sva = 0xffff000000000000ul, i = pmap_l0_index(sva); i < Ln_ENTRIES;
+	    i++) {
+		if (i == pmap_l0_index(DMAP_MIN_ADDRESS))
+			sbuf_printf(sb, "\nDirect map:\n");
+		else if (i == pmap_l0_index(VM_MIN_KERNEL_ADDRESS))
+			sbuf_printf(sb, "\nKernel map:\n");
+
+		l0e = kernel_pmap->pm_l0[i];
+		if ((l0e & ATTR_DESCR_VALID) == 0) {
+			sysctl_kmaps_dump(sb, &range, sva);
+			sva += L0_SIZE;
+			continue;
+		}
+		pa = l0e & ~ATTR_MASK;
+		l1 = (pd_entry_t *)PHYS_TO_DMAP(pa);
+
+		for (j = pmap_l1_index(sva); j < Ln_ENTRIES; j++) {
+			l1e = l1[j];
+			if ((l1e & ATTR_DESCR_VALID) == 0) {
+				sysctl_kmaps_dump(sb, &range, sva);
+				sva += L1_SIZE;
+				continue;
+			}
+			if ((l1e & ATTR_DESCR_MASK) == L1_BLOCK) {
+				sysctl_kmaps_check(sb, &range, sva, l0e, l1e,
+				    0, 0);
+				range.l1blocks++;
+				sva += L1_SIZE;
+				continue;
+			}
+			pa = l1e & ~ATTR_MASK;
+			l2 = (pd_entry_t *)PHYS_TO_DMAP(pa);
+
+			for (k = pmap_l2_index(sva); k < Ln_ENTRIES; k++) {
+				l2e = l2[k];
+				if ((l2e & ATTR_DESCR_VALID) == 0) {
+					sysctl_kmaps_dump(sb, &range, sva);
+					sva += L2_SIZE;
+					continue;
+				}
+				if ((l2e & ATTR_DESCR_MASK) == L2_BLOCK) {
+					sysctl_kmaps_check(sb, &range, sva,
+					    l0e, l1e, l2e, 0);
+					range.l2blocks++;
+					sva += L2_SIZE;
+					continue;
+				}
+				pa = l2e & ~ATTR_MASK;
+				l3 = (pt_entry_t *)PHYS_TO_DMAP(pa);
+
+				for (l = pmap_l3_index(sva); l < Ln_ENTRIES;
+				    l++, sva += L3_SIZE) {
+					l3e = l3[l];
+					if ((l3e & ATTR_DESCR_VALID) == 0) {
+						sysctl_kmaps_dump(sb, &range,
+						    sva);
+						continue;
+					}
+					sysctl_kmaps_check(sb, &range, sva,
+					    l0e, l1e, l2e, l3e);
+					if ((l3e & ATTR_CONTIGUOUS) != 0)
+						range.l3contig += l % 16 == 0 ?
+						    1 : 0;
+					else
+						range.l3pages++;
+				}
+			}
+		}
+	}
+
+	error = sbuf_finish(sb);
+	sbuf_delete(sb);
+	return (error);
+}
+SYSCTL_OID(_vm_pmap, OID_AUTO, kernel_maps,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, 0, sysctl_kmaps, "A",
+    "Dump kernel address layout");
