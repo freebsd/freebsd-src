@@ -42,6 +42,7 @@ BINDIR?=	/boot
 
 # LUAPATH is where we search for and install lua scripts.
 LUAPATH?=	/boot/lua
+FLUASRC?=	${SRCTOP}/libexec/flua
 
 LIBSA=		${BOOTOBJ}/libsa/libsa.a
 .if ${MACHINE} == "i386"
