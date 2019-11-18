@@ -128,6 +128,7 @@
 #include <errno.h>
 #include <sys/fs/zfs.h>
 #include <libnvpair.h>
+#include <libzfs.h>
 #include <libcmdutils.h>
 
 static int ztest_fd_data = -1;
@@ -166,6 +167,7 @@ typedef struct ztest_shared_opts {
 	uint64_t zo_time;
 	uint64_t zo_maxloops;
 	uint64_t zo_metaslab_force_ganging;
+	int zo_mmp_test;
 } ztest_shared_opts_t;
 
 static const ztest_shared_opts_t ztest_opts_defaults = {
@@ -184,6 +186,7 @@ static const ztest_shared_opts_t ztest_opts_defaults = {
 	.zo_passtime = 60,		/* 60 seconds */
 	.zo_killrate = 70,		/* 70% kill rate */
 	.zo_verbose = 0,
+	.zo_mmp_test = 0,
 	.zo_init = 1,
 	.zo_time = 300,			/* 5 minutes */
 	.zo_maxloops = 50,		/* max loops during spa_freeze() */
@@ -343,6 +346,7 @@ ztest_func_t ztest_spa_create_destroy;
 ztest_func_t ztest_fault_inject;
 ztest_func_t ztest_ddt_repair;
 ztest_func_t ztest_dmu_snapshot_hold;
+ztest_func_t ztest_mmp_enable_disable;
 ztest_func_t ztest_scrub;
 ztest_func_t ztest_dsl_dataset_promote_busy;
 ztest_func_t ztest_vdev_attach_detach;
@@ -388,6 +392,7 @@ ztest_info_t ztest_info[] = {
 	{ ztest_fault_inject,			1,	&zopt_incessant	},
 	{ ztest_ddt_repair,			1,	&zopt_sometimes	},
 	{ ztest_dmu_snapshot_hold,		1,	&zopt_sometimes	},
+	{ ztest_mmp_enable_disable,		1,	&zopt_sometimes	},
 	{ ztest_reguid,				1,	&zopt_rarely	},
 	{ ztest_scrub,				1,	&zopt_often	},
 	{ ztest_spa_upgrade,			1,	&zopt_rarely	},
@@ -601,6 +606,7 @@ usage(boolean_t requested)
 	    "\t[-k kill_percentage (default: %llu%%)]\n"
 	    "\t[-p pool_name (default: %s)]\n"
 	    "\t[-f dir (default: %s)] file directory for vdev files\n"
+	    "\t[-M] Multi-host simulate pool imported on remote host\n"
 	    "\t[-V] verbose (use multiple times for ever more blather)\n"
 	    "\t[-E] use existing pool instead of creating new one\n"
 	    "\t[-T time (default: %llu sec)] total run time\n"
@@ -644,7 +650,7 @@ process_options(int argc, char **argv)
 	bcopy(&ztest_opts_defaults, zo, sizeof (*zo));
 
 	while ((opt = getopt(argc, argv,
-	    "v:s:a:m:r:R:d:t:g:i:k:p:f:VET:P:hF:B:o:")) != EOF) {
+	    "v:s:a:m:r:R:d:t:g:i:k:p:f:MVET:P:hF:B:o:")) != EOF) {
 		value = 0;
 		switch (opt) {
 		case 'v':
@@ -712,6 +718,9 @@ process_options(int argc, char **argv)
 				(void) strlcpy(zo->zo_dir, path,
 				    sizeof (zo->zo_dir));
 			}
+			break;
+		case 'M':
+			zo->zo_mmp_test = 1;
 			break;
 		case 'V':
 			zo->zo_verbose++;
@@ -2480,6 +2489,9 @@ ztest_spa_create_destroy(ztest_ds_t *zd, uint64_t id)
 	spa_t *spa;
 	nvlist_t *nvroot;
 
+	if (zo->zo_mmp_test)
+		return;
+
 	/*
 	 * Attempt to create using a bad file.
 	 */
@@ -2511,6 +2523,56 @@ ztest_spa_create_destroy(ztest_ds_t *zd, uint64_t id)
 	rw_exit(&ztest_name_lock);
 }
 
+/*
+ * Start and then stop the MMP threads to ensure the startup and shutdown code
+ * works properly.  Actual protection and property-related code tested via ZTS.
+ */
+/* ARGSUSED */
+void
+ztest_mmp_enable_disable(ztest_ds_t *zd, uint64_t id)
+{
+	ztest_shared_opts_t *zo = &ztest_opts;
+	spa_t *spa = ztest_spa;
+
+	if (zo->zo_mmp_test)
+		return;
+
+	/*
+	 * Since enabling MMP involves setting a property, it could not be done
+	 * while the pool is suspended.
+	 */
+	if (spa_suspended(spa))
+		return;
+
+	spa_config_enter(spa, SCL_CONFIG, FTAG, RW_READER);
+	mutex_enter(&spa->spa_props_lock);
+
+	zfs_multihost_fail_intervals = 0;
+
+	if (!spa_multihost(spa)) {
+		spa->spa_multihost = B_TRUE;
+		mmp_thread_start(spa);
+	}
+
+	mutex_exit(&spa->spa_props_lock);
+	spa_config_exit(spa, SCL_CONFIG, FTAG);
+
+	txg_wait_synced(spa_get_dsl(spa), 0);
+	mmp_signal_all_threads();
+	txg_wait_synced(spa_get_dsl(spa), 0);
+
+	spa_config_enter(spa, SCL_CONFIG, FTAG, RW_READER);
+	mutex_enter(&spa->spa_props_lock);
+
+	if (spa_multihost(spa)) {
+		mmp_thread_stop(spa);
+		spa->spa_multihost = B_FALSE;
+	}
+
+	mutex_exit(&spa->spa_props_lock);
+	spa_config_exit(spa, SCL_CONFIG, FTAG);
+}
+
 /* ARGSUSED */
 void
 ztest_spa_upgrade(ztest_ds_t *zd, uint64_t id)
@@ -2520,6 +2582,9 @@ ztest_spa_upgrade(ztest_ds_t *zd, uint64_t id)
 	uint64_t version, newversion;
 	nvlist_t *nvroot, *props;
 	char *name;
+
+	if (ztest_opts.zo_mmp_test)
+		return;
 
 	mutex_enter(&ztest_vdev_lock);
 	name = kmem_asprintf("%s_upgrade", ztest_opts.zo_pool);
@@ -2689,6 +2754,9 @@ ztest_vdev_add_remove(ztest_ds_t *zd, uint64_t id)
 	nvlist_t *nvroot;
 	int error;
 
+	if (ztest_opts.zo_mmp_test)
+		return;
+
 	mutex_enter(&ztest_vdev_lock);
 	leaves = MAX(zs->zs_mirrors + zs->zs_splits, 1) * ztest_opts.zo_raidz;
 
@@ -2770,6 +2838,9 @@ ztest_vdev_aux_add_remove(ztest_ds_t *zd, uint64_t id)
 	char *aux;
 	uint64_t guid = 0;
 	int error;
+
+	if (ztest_opts.zo_mmp_test)
+		return;
 
 	if (ztest_random(2) == 0) {
 		sav = &spa->spa_spares;
@@ -2865,6 +2936,9 @@ ztest_split_pool(ztest_ds_t *zd, uint64_t id)
 	nvlist_t *tree, **child, *config, *split, **schild;
 	uint_t c, children, schildren = 0, lastlogid = 0;
 	int error = 0;
+
+	if (ztest_opts.zo_mmp_test)
+		return;
 
 	mutex_enter(&ztest_vdev_lock);
 
@@ -2971,6 +3045,9 @@ ztest_vdev_attach_detach(ztest_ds_t *zd, uint64_t id)
 	int newvd_is_spare = B_FALSE;
 	int oldvd_is_log;
 	int error, expected_error;
+
+	if (ztest_opts.zo_mmp_test)
+		return;
 
 	mutex_enter(&ztest_vdev_lock);
 	leaves = MAX(zs->zs_mirrors, 1) * ztest_opts.zo_raidz;
@@ -5564,6 +5641,9 @@ ztest_reguid(ztest_ds_t *zd, uint64_t id)
 	uint64_t orig, load;
 	int error;
 
+	if (ztest_opts.zo_mmp_test)
+		return;
+
 	orig = spa_guid(spa);
 	load = spa_load_guid(spa);
 
@@ -6249,7 +6329,7 @@ ztest_run(ztest_shared_t *zs)
 	 * Verify that we can export the pool and reimport it under a
 	 * different name.
 	 */
-	if (ztest_random(2) == 0) {
+	if ((ztest_random(2) == 0) && !ztest_opts.zo_mmp_test) {
 		char name[ZFS_MAX_DATASET_NAME_LEN];
 		(void) snprintf(name, sizeof (name), "%s_import",
 		    ztest_opts.zo_pool);
@@ -6398,6 +6478,56 @@ make_random_props()
 }
 
 /*
+ * Import a storage pool with the given name.
+ */
+static void
+ztest_import(ztest_shared_t *zs)
+{
+	libzfs_handle_t *hdl;
+	importargs_t args = { 0 };
+	spa_t *spa;
+	nvlist_t *cfg = NULL;
+	int nsearch = 1;
+	char *searchdirs[nsearch];
+	char *name = ztest_opts.zo_pool;
+	int flags = ZFS_IMPORT_MISSING_LOG;
+	int error;
+
+	mutex_init(&ztest_vdev_lock, NULL, MUTEX_DEFAULT, NULL);
+	rw_init(&ztest_name_lock, NULL, USYNC_THREAD, NULL);
+
+	kernel_init(FREAD | FWRITE);
+	hdl = libzfs_init();
+
+	searchdirs[0] = ztest_opts.zo_dir;
+	args.paths = nsearch;
+	args.path = searchdirs;
+	args.can_be_active = B_FALSE;
+
+	error = zpool_tryimport(hdl, name, &cfg, &args);
+	if (error)
+		(void) fatal(0, "No pools found\n");
+
+	VERIFY0(spa_import(name, cfg, NULL, flags));
+	VERIFY0(spa_open(name, &spa, FTAG));
+	zs->zs_metaslab_sz =
+	    1ULL << spa->spa_root_vdev->vdev_child[0]->vdev_ms_shift;
+	spa_close(spa, FTAG);
+
+	libzfs_fini(hdl);
+	kernel_fini();
+
+	if (!ztest_opts.zo_mmp_test) {
+		ztest_run_zdb(ztest_opts.zo_pool);
+		ztest_freeze();
+		ztest_run_zdb(ztest_opts.zo_pool);
+	}
+
+	rw_destroy(&ztest_name_lock);
+	mutex_destroy(&ztest_vdev_lock);
+}
+
+/*
  * Create a storage pool with the given name and initial vdev size.
  * Then test spa_freeze() functionality.
  */
@@ -6441,11 +6571,11 @@ ztest_init(ztest_shared_t *zs)
 
 	kernel_fini();
 
-	ztest_run_zdb(ztest_opts.zo_pool);
-
-	ztest_freeze();
-
-	ztest_run_zdb(ztest_opts.zo_pool);
+	if (!ztest_opts.zo_mmp_test) {
+		ztest_run_zdb(ztest_opts.zo_pool);
+		ztest_freeze();
+		ztest_run_zdb(ztest_opts.zo_pool);
+	}
 
 	rw_destroy(&ztest_name_lock);
 	mutex_destroy(&ztest_vdev_lock);
@@ -6610,12 +6740,18 @@ ztest_run_init(void)
 {
 	ztest_shared_t *zs = ztest_shared;
 
-	ASSERT(ztest_opts.zo_init != 0);
-
 	/*
 	 * Blow away any existing copy of zpool.cache
 	 */
 	(void) remove(spa_config_path);
+
+	if (ztest_opts.zo_init == 0) {
+		if (ztest_opts.zo_verbose >= 1)
+			(void) printf("Importing pool %s\n",
+			    ztest_opts.zo_pool);
+		ztest_import(zs);
+		return;
+	}
 
 	/*
 	 * Create and initialize our storage pool.
@@ -6823,7 +6959,8 @@ main(int argc, char **argv)
 			(void) printf("\n");
 		}
 
-		ztest_run_zdb(ztest_opts.zo_pool);
+		if (!ztest_opts.zo_mmp_test)
+			ztest_run_zdb(ztest_opts.zo_pool);
 	}
 
 	if (ztest_opts.zo_verbose >= 1) {

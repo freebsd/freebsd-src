@@ -1599,16 +1599,87 @@ name_or_guid_exists(zpool_handle_t *zhp, void *data)
 nvlist_t *
 zpool_search_import(libzfs_handle_t *hdl, importargs_t *import)
 {
+	nvlist_t *pools = NULL;
+
 	verify(import->poolname == NULL || import->guid == 0);
 
 	if (import->unique)
 		import->exists = zpool_iter(hdl, name_or_guid_exists, import);
 
 	if (import->cachefile != NULL)
-		return (zpool_find_import_cached(hdl, import->cachefile,
-		    import->poolname, import->guid));
+		pools = zpool_find_import_cached(hdl, import->cachefile,
+		    import->poolname, import->guid);
+	else
+		pools = zpool_find_import_impl(hdl, import);
 
-	return (zpool_find_import_impl(hdl, import));
+	return (pools);
+}
+
+static boolean_t
+pool_match(nvlist_t *cfg, char *tgt)
+{
+	uint64_t v, guid = strtoull(tgt, NULL, 0);
+	char *s;
+
+	if (guid != 0) {
+		if (nvlist_lookup_uint64(cfg, ZPOOL_CONFIG_POOL_GUID, &v) == 0)
+			return (v == guid);
+	} else {
+		if (nvlist_lookup_string(cfg, ZPOOL_CONFIG_POOL_NAME, &s) == 0)
+			return (strcmp(s, tgt) == 0);
+	}
+	return (B_FALSE);
+}
+
+int
+zpool_tryimport(libzfs_handle_t *hdl, char *target, nvlist_t **configp,
+    importargs_t *args)
+{
+	nvlist_t *pools;
+	nvlist_t *match = NULL;
+	nvlist_t *config = NULL;
+	char *sepp = NULL;
+	int count = 0;
+	char *targetdup = strdup(target);
+
+	*configp = NULL;
+
+	if ((sepp = strpbrk(targetdup, "/@")) != NULL) {
+		*sepp = '\0';
+	}
+
+	pools = zpool_search_import(hdl, args);
+
+	if (pools != NULL) {
+		nvpair_t *elem = NULL;
+		while ((elem = nvlist_next_nvpair(pools, elem)) != NULL) {
+			VERIFY0(nvpair_value_nvlist(elem, &config));
+			if (pool_match(config, targetdup)) {
+				count++;
+				if (match != NULL) {
+					/* multiple matches found */
+					continue;
+				} else {
+					match = config;
+				}
+			}
+		}
+	}
+
+	if (count == 0) {
+		free(targetdup);
+		return (ENOENT);
+	}
+
+	if (count > 1) {
+		free(targetdup);
+		return (EINVAL);
+	}
+
+	*configp = match;
+	free(targetdup);
+
+	return (0);
 }
 
 boolean_t

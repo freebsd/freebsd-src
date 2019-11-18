@@ -22,6 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2018 by Delphix. All rights reserved.
+ * Copyright 2019 Joyent, Inc.
  */
 
 /*
@@ -189,8 +190,9 @@ static void
 vdev_label_read(zio_t *zio, vdev_t *vd, int l, abd_t *buf, uint64_t offset,
     uint64_t size, zio_done_func_t *done, void *private, int flags)
 {
-	ASSERT(spa_config_held(zio->io_spa, SCL_STATE_ALL, RW_WRITER) ==
-	    SCL_STATE_ALL);
+	ASSERT(
+	    spa_config_held(zio->io_spa, SCL_STATE, RW_READER) == SCL_STATE ||
+	    spa_config_held(zio->io_spa, SCL_STATE, RW_WRITER) == SCL_STATE);
 	ASSERT(flags & ZIO_FLAG_CONFIG_WRITER);
 
 	zio_nowait(zio_read_phys(zio, vd,
@@ -199,14 +201,13 @@ vdev_label_read(zio_t *zio, vdev_t *vd, int l, abd_t *buf, uint64_t offset,
 	    ZIO_PRIORITY_SYNC_READ, flags, B_TRUE));
 }
 
-static void
+void
 vdev_label_write(zio_t *zio, vdev_t *vd, int l, abd_t *buf, uint64_t offset,
     uint64_t size, zio_done_func_t *done, void *private, int flags)
 {
-	ASSERT(spa_config_held(zio->io_spa, SCL_ALL, RW_WRITER) == SCL_ALL ||
-	    (spa_config_held(zio->io_spa, SCL_CONFIG | SCL_STATE, RW_READER) ==
-	    (SCL_CONFIG | SCL_STATE) &&
-	    dsl_pool_sync_context(spa_get_dsl(zio->io_spa))));
+	ASSERT(
+	    spa_config_held(zio->io_spa, SCL_STATE, RW_READER) == SCL_STATE ||
+	    spa_config_held(zio->io_spa, SCL_STATE, RW_WRITER) == SCL_STATE);
 	ASSERT(flags & ZIO_FLAG_CONFIG_WRITER);
 
 	zio_nowait(zio_write_phys(zio, vd,
@@ -1050,10 +1051,35 @@ static int
 vdev_uberblock_compare(const uberblock_t *ub1, const uberblock_t *ub2)
 {
 	int cmp = AVL_CMP(ub1->ub_txg, ub2->ub_txg);
+
 	if (likely(cmp))
 		return (cmp);
 
-	return (AVL_CMP(ub1->ub_timestamp, ub2->ub_timestamp));
+	cmp = AVL_CMP(ub1->ub_timestamp, ub2->ub_timestamp);
+	if (likely(cmp))
+		return (cmp);
+
+	/*
+	 * If MMP_VALID(ub) && MMP_SEQ_VALID(ub) then the host has an MMP-aware
+	 * ZFS, e.g. zfsonlinux >= 0.7.
+	 *
+	 * If one ub has MMP and the other does not, they were written by
+	 * different hosts, which matters for MMP.  So we treat no MMP/no SEQ as
+	 * a 0 value.
+	 *
+	 * Since timestamp and txg are the same if we get this far, either is
+	 * acceptable for importing the pool.
+	 */
+	unsigned int seq1 = 0;
+	unsigned int seq2 = 0;
+
+	if (MMP_VALID(ub1) && MMP_SEQ_VALID(ub1))
+		seq1 = MMP_SEQ(ub1);
+
+	if (MMP_VALID(ub2) && MMP_SEQ_VALID(ub2))
+		seq2 = MMP_SEQ(ub2);
+
+	return (AVL_CMP(seq1, seq2));
 }
 
 struct ubl_cbdata {
@@ -1194,7 +1220,8 @@ vdev_uberblock_sync(zio_t *zio, uint64_t *good_writes,
 	if (!vdev_writeable(vd))
 		return;
 
-	int n = ub->ub_txg & (VDEV_UBERBLOCK_COUNT(vd) - 1);
+	int m = spa_multihost(vd->vdev_spa) ? MMP_BLOCKS_PER_LABEL : 0;
+	int n = ub->ub_txg % (VDEV_UBERBLOCK_COUNT(vd) - m);
 
 	/* Copy the uberblock_t into the ABD */
 	abd_t *ub_abd = abd_alloc_for_io(VDEV_UBERBLOCK_SIZE(vd), B_TRUE);
@@ -1412,10 +1439,13 @@ retry:
 	 * and the vdev configuration hasn't changed,
 	 * then there's nothing to do.
 	 */
-	if (ub->ub_txg < txg &&
-	    uberblock_update(ub, spa->spa_root_vdev, txg) == B_FALSE &&
-	    list_is_empty(&spa->spa_config_dirty_list))
-		return (0);
+	if (ub->ub_txg < txg) {
+		boolean_t changed = uberblock_update(ub, spa->spa_root_vdev,
+		    txg, spa->spa_mmp.mmp_delay);
+
+		if (!changed && list_is_empty(&spa->spa_config_dirty_list))
+			return (0);
+	}
 
 	if (txg > spa_freeze_txg(spa))
 		return (0);
@@ -1477,6 +1507,9 @@ retry:
 		}
 		goto retry;
 	}
+
+	if (spa_multihost(spa))
+		mmp_update_uberblock(spa, ub);
 
 	/*
 	 * Sync out odd labels for every dirty vdev.  If the system dies

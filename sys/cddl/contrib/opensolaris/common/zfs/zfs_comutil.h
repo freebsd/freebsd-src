@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
+ * Copyright 2019 Joyent, Inc.
  */
 
 #ifndef	_ZFS_COMUTIL_H
@@ -32,6 +33,9 @@
 #ifdef	__cplusplus
 extern "C" {
 #endif
+
+/* Needed for ZoL errno usage in MMP kernel and user code */
+#define	EREMOTEIO EREMOTE
 
 extern boolean_t zfs_allocatable_devs(nvlist_t *);
 extern void zpool_get_load_policy(nvlist_t *, zpool_load_policy_t *);
