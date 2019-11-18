@@ -1314,7 +1314,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 257: {
 		struct lio_listio_args *p = params;
 		iarg[0] = p->mode; /* int */
-		uarg[1] = (intptr_t) p->acb_list; /* struct aiocb *const * */
+		uarg[1] = (intptr_t) p->acb_list; /* struct aiocb * const * */
 		iarg[2] = p->nent; /* int */
 		uarg[3] = (intptr_t) p->sig; /* struct sigevent * */
 		*n_args = 4;
@@ -1471,7 +1471,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* aio_suspend */
 	case 315: {
 		struct aio_suspend_args *p = params;
-		uarg[0] = (intptr_t) p->aiocbp; /* struct aiocb *const * */
+		uarg[0] = (intptr_t) p->aiocbp; /* struct aiocb * const * */
 		iarg[1] = p->nent; /* int */
 		uarg[2] = (intptr_t) p->timeout; /* const struct timespec * */
 		*n_args = 3;
@@ -5421,7 +5421,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "userland struct aiocb *const *";
+			p = "userland struct aiocb * const *";
 			break;
 		case 2:
 			p = "int";
@@ -5672,7 +5672,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 315:
 		switch(ndx) {
 		case 0:
-			p = "userland struct aiocb *const *";
+			p = "userland struct aiocb * const *";
 			break;
 		case 1:
 			p = "int";
