@@ -5014,7 +5014,7 @@ vm_page_object_busy_assert(vm_page_t m)
 }
 
 void
-vm_page_assert_pga_writeable(vm_page_t m, uint8_t bits)
+vm_page_assert_pga_writeable(vm_page_t m, uint16_t bits)
 {
 
 	if ((bits & PGA_WRITEABLE) == 0)

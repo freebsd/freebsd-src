@@ -234,15 +234,15 @@ struct vm_page {
 	struct md_page md;		/* machine dependent stuff */
 	u_int ref_count;		/* page references (A) */
 	volatile u_int busy_lock;	/* busy owners lock */
-	uint16_t flags;			/* page PG_* flags (P) */
-	uint8_t	order;			/* index of the buddy queue (F) */
-	uint8_t pool;			/* vm_phys freepool index (F) */
-	uint8_t aflags;			/* atomic flags (A) */
-	uint8_t oflags;			/* page VPO_* flags (O) */
+	uint16_t aflags;		/* atomic flags (A) */
 	uint8_t queue;			/* page queue index (Q) */
+	uint8_t act_count;		/* page usage count (P) */
+	uint8_t order;			/* index of the buddy queue (F) */
+	uint8_t pool;			/* vm_phys freepool index (F) */
+	uint8_t flags;			/* page PG_* flags (P) */
+	uint8_t oflags;			/* page VPO_* flags (O) */
 	int8_t psind;			/* pagesizes[] index (O) */
 	int8_t segind;			/* vm_phys segment index (C) */
-	u_char	act_count;		/* page usage count (P) */
 	/* NOTE that these must support one bit per DEV_BSIZE in a page */
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
 	vm_page_bits_t valid;		/* valid DEV_BSIZE chunk map (O,B) */
@@ -414,14 +414,14 @@ extern struct mtx_padalign pa_lock[];
  * the inactive queue, thus bypassing LRU.  The page lock must be held to
  * set this flag, and the queue lock for the page must be held to clear it.
  */
-#define	PGA_WRITEABLE	0x01		/* page may be mapped writeable */
-#define	PGA_REFERENCED	0x02		/* page has been referenced */
-#define	PGA_EXECUTABLE	0x04		/* page may be mapped executable */
-#define	PGA_ENQUEUED	0x08		/* page is enqueued in a page queue */
-#define	PGA_DEQUEUE	0x10		/* page is due to be dequeued */
-#define	PGA_REQUEUE	0x20		/* page is due to be requeued */
-#define	PGA_REQUEUE_HEAD 0x40		/* page requeue should bypass LRU */
-#define	PGA_NOSYNC	0x80		/* do not collect for syncer */
+#define	PGA_WRITEABLE	0x0001		/* page may be mapped writeable */
+#define	PGA_REFERENCED	0x0002		/* page has been referenced */
+#define	PGA_EXECUTABLE	0x0004		/* page may be mapped executable */
+#define	PGA_ENQUEUED	0x0008		/* page is enqueued in a page queue */
+#define	PGA_DEQUEUE	0x0010		/* page is due to be dequeued */
+#define	PGA_REQUEUE	0x0020		/* page is due to be requeued */
+#define	PGA_REQUEUE_HEAD 0x0040		/* page requeue should bypass LRU */
+#define	PGA_NOSYNC	0x0080		/* do not collect for syncer */
 
 #define	PGA_QUEUE_STATE_MASK	(PGA_ENQUEUED | PGA_DEQUEUE | PGA_REQUEUE | \
 				PGA_REQUEUE_HEAD)
@@ -434,11 +434,11 @@ extern struct mtx_padalign pa_lock[];
  * allocated from a per-CPU cache.  It is cleared the next time that the
  * page is allocated from the physical memory allocator.
  */
-#define	PG_PCPU_CACHE	0x0001		/* was allocated from per-CPU caches */
-#define	PG_FICTITIOUS	0x0004		/* physical page doesn't exist */
-#define	PG_ZERO		0x0008		/* page is zeroed */
-#define	PG_MARKER	0x0010		/* special queue marker page */
-#define	PG_NODUMP	0x0080		/* don't include this page in a dump */
+#define	PG_PCPU_CACHE	0x01		/* was allocated from per-CPU caches */
+#define	PG_FICTITIOUS	0x02		/* physical page doesn't exist */
+#define	PG_ZERO		0x04		/* page is zeroed */
+#define	PG_MARKER	0x08		/* special queue marker page */
+#define	PG_NODUMP	0x10		/* don't include this page in a dump */
 
 /*
  * Misc constants.
@@ -716,7 +716,7 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 #ifdef INVARIANTS
 void vm_page_object_busy_assert(vm_page_t m);
 #define	VM_PAGE_OBJECT_BUSY_ASSERT(m)	vm_page_object_busy_assert(m)
-void vm_page_assert_pga_writeable(vm_page_t m, uint8_t bits);
+void vm_page_assert_pga_writeable(vm_page_t m, uint16_t bits);
 #define	VM_PAGE_ASSERT_PGA_WRITEABLE(m, bits)				\
 	vm_page_assert_pga_writeable(m, bits)
 #else
@@ -749,7 +749,7 @@ _Static_assert(sizeof(((struct vm_page *)NULL)->queue) == 1,
 #define	VM_PAGE_AFLAG_SHIFT	0
 #define	VM_PAGE_QUEUE_SHIFT	16
 #else
-#define	VM_PAGE_AFLAG_SHIFT	24
+#define	VM_PAGE_AFLAG_SHIFT	16
 #define	VM_PAGE_QUEUE_SHIFT	8
 #endif
 #define	VM_PAGE_QUEUE_MASK	(0xff << VM_PAGE_QUEUE_SHIFT)
@@ -758,7 +758,7 @@ _Static_assert(sizeof(((struct vm_page *)NULL)->queue) == 1,
  *	Clear the given bits in the specified page.
  */
 static inline void
-vm_page_aflag_clear(vm_page_t m, uint8_t bits)
+vm_page_aflag_clear(vm_page_t m, uint16_t bits)
 {
 	uint32_t *addr, val;
 
@@ -782,7 +782,7 @@ vm_page_aflag_clear(vm_page_t m, uint8_t bits)
  *	Set the given bits in the specified page.
  */
 static inline void
-vm_page_aflag_set(vm_page_t m, uint8_t bits)
+vm_page_aflag_set(vm_page_t m, uint16_t bits)
 {
 	uint32_t *addr, val;
 
