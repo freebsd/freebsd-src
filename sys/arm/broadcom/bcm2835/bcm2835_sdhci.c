@@ -68,6 +68,8 @@ __FBSDID("$FreeBSD$");
 #define	BCM_SDHCI_BUFFER_SIZE		512
 #define	NUM_DMA_SEGS			2
 
+#define	DATA_PENDING_MASK	(SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL)
+
 #ifdef DEBUG
 static int bcm2835_sdhci_debug = 0;
 
@@ -548,8 +550,7 @@ bcm_sdhci_start_dma_seg(struct bcm_sdhci_softc *sc)
 	 */
 	if (idx == 0) {
 		bus_dmamap_sync(sc->sc_dma_tag, sc->sc_dma_map, sync_op);
-		slot->intmask &= ~(SDHCI_INT_DATA_AVAIL |
-		    SDHCI_INT_SPACE_AVAIL);
+		slot->intmask &= ~DATA_PENDING_MASK;
 		bcm_sdhci_write_4(sc->sc_dev, &sc->sc_slot, SDHCI_SIGNAL_ENABLE,
 		    slot->intmask);
 	}
@@ -567,7 +568,7 @@ bcm_sdhci_dma_intr(int ch, void *arg)
 {
 	struct bcm_sdhci_softc *sc = (struct bcm_sdhci_softc *)arg;
 	struct sdhci_slot *slot = &sc->sc_slot;
-	uint32_t reg, mask;
+	uint32_t reg;
 	int left, sync_op;
 
 	mtx_lock(&slot->mtx);
@@ -588,13 +589,10 @@ bcm_sdhci_dma_intr(int ch, void *arg)
 		return;
 	}
 
-	if (slot->curcmd->data->flags & MMC_DATA_READ) {
+	if (slot->curcmd->data->flags & MMC_DATA_READ)
 		sync_op = BUS_DMASYNC_POSTREAD;
-		mask = SDHCI_INT_DATA_AVAIL;
-	} else {
+	else
 		sync_op = BUS_DMASYNC_POSTWRITE;
-		mask = SDHCI_INT_SPACE_AVAIL;
-	}
 
 	if (sc->dmamap_seg_count != 0) {
 		bus_dmamap_sync(sc->sc_dma_tag, sc->sc_dma_map, sync_op);
@@ -615,7 +613,7 @@ bcm_sdhci_dma_intr(int ch, void *arg)
 	 */
 	if (left < BCM_SDHCI_BUFFER_SIZE) {
 		/* Re-enable data interrupts. */
-		slot->intmask |= SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL;
+		slot->intmask |= DATA_PENDING_MASK;
 		bcm_sdhci_write_4(slot->bus, slot, SDHCI_SIGNAL_ENABLE,
 		    slot->intmask);
 		mtx_unlock(&slot->mtx);
@@ -625,11 +623,11 @@ bcm_sdhci_dma_intr(int ch, void *arg)
 	reg = bcm_sdhci_read_4(slot->bus, slot, SDHCI_INT_STATUS);
 
 	/* already available? */
-	if (reg & mask) {
+	if ((reg & DATA_PENDING_MASK) != 0) {
 
 		/* ACK for DATA_AVAIL or SPACE_AVAIL */
 		bcm_sdhci_write_4(slot->bus, slot,
-		    SDHCI_INT_STATUS, mask);
+		    SDHCI_INT_STATUS, DATA_PENDING_MASK);
 
 		/* continue next DMA transfer */
 		if (bus_dmamap_load(sc->sc_dma_tag, sc->sc_dma_map,
@@ -645,8 +643,7 @@ bcm_sdhci_dma_intr(int ch, void *arg)
 		/* wait for next data by INT */
 
 		/* enable INT */
-		slot->intmask |= SDHCI_INT_DATA_AVAIL |
-		    SDHCI_INT_SPACE_AVAIL;
+		slot->intmask |= DATA_PENDING_MASK;
 		bcm_sdhci_write_4(slot->bus, slot, SDHCI_SIGNAL_ENABLE,
 		    slot->intmask);
 	}
@@ -767,13 +764,12 @@ bcm_sdhci_finish_transfer(device_t dev, struct sdhci_slot *slot)
 		sc->dmamap_seg_count = 0;
 		sc->dmamap_seg_index = 0;
 
-		slot->intmask |= SDHCI_INT_DATA_AVAIL |
-		    SDHCI_INT_SPACE_AVAIL;
+		slot->intmask |= DATA_PENDING_MASK;
 		bcm_sdhci_write_4(slot->bus, slot, SDHCI_SIGNAL_ENABLE,
 		    slot->intmask);
 	} else {
-		KASSERT((slot->intmask & SDHCI_INT_DATA_AVAIL) != 0 &&
-		    (slot->intmask & SDHCI_INT_SPACE_AVAIL) != 0,
+		KASSERT((slot->intmask & DATA_PENDING_MASK) ==
+		    DATA_PENDING_MASK,
 		    ("%s: interrupt mask not restored", __func__));
 	}
 	sdhci_finish_data(slot);
