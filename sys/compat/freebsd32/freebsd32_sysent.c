@@ -661,5 +661,5 @@ struct sysent freebsd32_sysent[] = {
 	{ AS(copy_file_range_args), (sy_call_t *)sys_copy_file_range, AUE_NULL, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 569 = copy_file_range */
 	{ AS(freebsd32___sysctlbyname_args), (sy_call_t *)freebsd32___sysctlbyname, AUE_SYSCTL, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 570 = freebsd32___sysctlbyname */
 	{ AS(shm_open2_args), (sy_call_t *)sys_shm_open2, AUE_SHMOPEN, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 571 = shm_open2 */
-	{ AS(shm_rename_args), (sy_call_t *)sys_shm_rename, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 572 = shm_rename */
+	{ AS(shm_rename_args), (sy_call_t *)sys_shm_rename, AUE_SHMRENAME, NULL, 0, 0, 0, SY_THR_STATIC },	/* 572 = shm_rename */
 };

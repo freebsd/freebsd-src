@@ -601,6 +601,19 @@
 43238:AUE_SETLOGINCLASS:setloginclass(2):pc
 43239:AUE_POSIX_FADVISE:posix_fadvise(2):no
 43240:AUE_SCTP_GENERIC_SENDMSG_IOV:sctp_generic_sendmsg_iov(2):nt
+43241:AUE_ABORT2:abort(2):pc
+43242:AUE_SEMTIMEDWAIT:sem_timedwait(3):ip
+43243:AUE_SEMDESTROY:sem_destroy(3):ip
+43244:AUE_SEMGETVALUE:sem_getvalue(3):ip
+43245:AUE_SEMINIT:sem_init(3):ip
+43246:AUE_SEMPOST:sem_post(3):ip
+43247:AUE_SEMTRYWAIT:sem_trywait(3):ip
+43258:AUE_SEMWAIT:sem_wait(3):ip
+43259:AUE_FGETUUID:fgetuuid(2):ip
+43260:AUE_GETUUID:getuuid(2):ip
+43261:AUE_LGETUUID:lgetuuid(2):ip
+43262:AUE_EXECVEAT:execveat(2):pc,ex
+43263:AUE_SHMRENAME:shm_rename(2):ip
 #
 # Solaris userspace events.
 #

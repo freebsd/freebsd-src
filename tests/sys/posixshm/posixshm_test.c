@@ -53,7 +53,7 @@ static unsigned int test_path_idx = 0;
 static void
 gen_a_test_path(char *path)
 {
-	snprintf(path, TEST_PATH_LEN, "%s/tmp.XXXXXX%d",
+	snprintf(path, TEST_PATH_LEN, "/%s/tmp.XXXXXX%d",
 	    getenv("TMPDIR") == NULL ? "/tmp" : getenv("TMPDIR"),
 	    test_path_idx);
 
@@ -232,12 +232,14 @@ ATF_TC_BODY(rename_from_nonexisting, tc)
 	int rc;
 
 	gen_test_path();
+	gen_test_path2();
 	rc = shm_rename(test_path, test_path2, 0);
 	if (rc != -1)
 		atf_tc_fail("shm_rename of nonexisting shm succeeded unexpectedly");
 
 	if (errno != ENOENT)
-		atf_tc_fail("Expected ENOENT to rename of nonexistent shm");
+		atf_tc_fail("Expected ENOENT to rename of nonexistent shm; got %d",
+		    errno);
 }
 
 ATF_TC_WITHOUT_HEAD(rename_to_anon);
