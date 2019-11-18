@@ -42,7 +42,7 @@ extern Elf32_Brandinfo cloudabi32_brand;
 #define	TO_PTR(x)	((void *)(uintptr_t)(x))
 
 /* Stack initialization during process execution. */
-register_t *cloudabi32_copyout_strings(struct image_params *);
+int	cloudabi32_copyout_strings(struct image_params *, register_t **);
 int	cloudabi32_fixup(register_t **, struct image_params *);
 
 int	cloudabi32_thread_setregs(struct thread *,

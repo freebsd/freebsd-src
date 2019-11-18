@@ -1323,12 +1323,13 @@ ret:
 
 #define	suword __CONCAT(suword, __ELF_WORD_SIZE)
 
-void
+int
 __elfN(freebsd_copyout_auxargs)(struct image_params *imgp, u_long *base)
 {
 	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;
 	Elf_Auxinfo *argarray, *pos;
 	u_long auxlen;
+	int error;
 
 	argarray = pos = malloc(AT_COUNT * sizeof(*pos), M_TEMP,
 	    M_WAITOK | M_ZERO);
@@ -1375,8 +1376,9 @@ __elfN(freebsd_copyout_auxargs)(struct image_params *imgp, u_long *base)
 
 	auxlen = sizeof(*argarray) * (pos - argarray);
 	*base -= auxlen;
-	copyout(argarray, (void *)*base, auxlen);
+	error = copyout(argarray, (void *)*base, auxlen);
 	free(argarray, M_TEMP);
+	return (error);
 }
 
 int
