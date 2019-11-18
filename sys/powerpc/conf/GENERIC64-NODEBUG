@@ -35,3 +35,4 @@ nooptions       INVARIANT_SUPPORT
 nooptions       WITNESS
 nooptions       WITNESS_SKIPSPIN
 nooptions       DEADLKRES
+nooptions       MALLOC_DEBUG_MAXZONES
