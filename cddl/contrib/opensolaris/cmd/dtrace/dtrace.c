@@ -681,7 +681,7 @@ anon_prog(const dtrace_cmd_t *dcp, dof_hdr_t *dof, int n)
 		dfatal("failed to create DOF image for '%s'", dcp->dc_name);
 
 	p = (uchar_t *)dof;
-	q = p + dof->dofh_loadsz;
+	q = p + dof->dofh_filesz;
 
 #ifdef __FreeBSD__
 	/*
