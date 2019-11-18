@@ -710,7 +710,7 @@ struct aio_write_args {
 };
 struct lio_listio_args {
 	char mode_l_[PADL_(int)]; int mode; char mode_r_[PADR_(int)];
-	char acb_list_l_[PADL_(struct aiocb *const *)]; struct aiocb *const * acb_list; char acb_list_r_[PADR_(struct aiocb *const *)];
+	char acb_list_l_[PADL_(struct aiocb * const *)]; struct aiocb * const * acb_list; char acb_list_r_[PADR_(struct aiocb * const *)];
 	char nent_l_[PADL_(int)]; int nent; char nent_r_[PADR_(int)];
 	char sig_l_[PADL_(struct sigevent *)]; struct sigevent * sig; char sig_r_[PADR_(struct sigevent *)];
 };
@@ -787,7 +787,7 @@ struct aio_return_args {
 	char aiocbp_l_[PADL_(struct aiocb *)]; struct aiocb * aiocbp; char aiocbp_r_[PADR_(struct aiocb *)];
 };
 struct aio_suspend_args {
-	char aiocbp_l_[PADL_(struct aiocb *const *)]; struct aiocb *const * aiocbp; char aiocbp_r_[PADR_(struct aiocb *const *)];
+	char aiocbp_l_[PADL_(struct aiocb * const *)]; struct aiocb * const * aiocbp; char aiocbp_r_[PADR_(struct aiocb * const *)];
 	char nent_l_[PADL_(int)]; int nent; char nent_r_[PADR_(int)];
 	char timeout_l_[PADL_(const struct timespec *)]; const struct timespec * timeout; char timeout_r_[PADR_(const struct timespec *)];
 };
@@ -2495,7 +2495,7 @@ struct freebsd6_aio_write_args {
 };
 struct freebsd6_lio_listio_args {
 	char mode_l_[PADL_(int)]; int mode; char mode_r_[PADR_(int)];
-	char acb_list_l_[PADL_(struct oaiocb *const *)]; struct oaiocb *const * acb_list; char acb_list_r_[PADR_(struct oaiocb *const *)];
+	char acb_list_l_[PADL_(struct oaiocb * const *)]; struct oaiocb * const * acb_list; char acb_list_r_[PADR_(struct oaiocb * const *)];
 	char nent_l_[PADL_(int)]; int nent; char nent_r_[PADR_(int)];
 	char sig_l_[PADL_(struct osigevent *)]; struct osigevent * sig; char sig_r_[PADR_(struct osigevent *)];
 };
