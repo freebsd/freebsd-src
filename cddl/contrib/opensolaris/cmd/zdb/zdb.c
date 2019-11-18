@@ -24,6 +24,7 @@
  * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  * Copyright 2017 Nexenta Systems, Inc.
+ * Copyright (c) 2017, 2018 Lawrence Livermore National Security, LLC.
  * Copyright 2017 RackTop Systems.
  */
 
@@ -2436,6 +2437,26 @@ dump_uberblock(uberblock_t *ub, const char *header, const char *footer)
 	(void) printf("\tguid_sum = %llu\n", (u_longlong_t)ub->ub_guid_sum);
 	(void) printf("\ttimestamp = %llu UTC = %s",
 	    (u_longlong_t)ub->ub_timestamp, asctime(localtime(&timestamp)));
+
+	(void) printf("\tmmp_magic = %016llx\n",
+	    (u_longlong_t)ub->ub_mmp_magic);
+	if (MMP_VALID(ub)) {
+		(void) printf("\tmmp_delay = %0llu\n",
+		    (u_longlong_t)ub->ub_mmp_delay);
+		if (MMP_SEQ_VALID(ub))
+			(void) printf("\tmmp_seq = %u\n",
+			    (unsigned int) MMP_SEQ(ub));
+		if (MMP_FAIL_INT_VALID(ub))
+			(void) printf("\tmmp_fail = %u\n",
+			    (unsigned int) MMP_FAIL_INT(ub));
+		if (MMP_INTERVAL_VALID(ub))
+			(void) printf("\tmmp_write = %u\n",
+			    (unsigned int) MMP_INTERVAL(ub));
+		/* After MMP_* to make summarize_uberblock_mmp cleaner */
+		(void) printf("\tmmp_valid = %x\n",
+		    (unsigned int) ub->ub_mmp_config & 0xFF);
+	}
+
 	if (dump_opt['u'] >= 3) {
 		char blkbuf[BP_SPRINTF_LEN];
 		snprintf_blkptr(blkbuf, sizeof (blkbuf), &ub->ub_rootbp);
@@ -2534,6 +2555,12 @@ dump_label_uberblocks(vdev_label_t *lbl, uint64_t ashift)
 
 		if (uberblock_verify(ub))
 			continue;
+
+		if ((dump_opt['u'] < 4) &&
+		    (ub->ub_mmp_magic == MMP_MAGIC) && ub->ub_mmp_delay &&
+		    (i >= VDEV_UBERBLOCK_COUNT(&vd) - MMP_BLOCKS_PER_LABEL))
+			continue;
+
 		(void) snprintf(header, ZDB_MAX_UB_HEADER_SIZE,
 		    "Uberblock[%d]\n", i);
 		dump_uberblock(ub, header, "");
@@ -4173,6 +4200,22 @@ verify_device_removal_feature_counts(spa_t *spa)
 	return (ret);
 }
 
+static void
+zdb_set_skip_mmp(char *target)
+{
+	spa_t *spa;
+
+	/*
+	 * Disable the activity check to allow examination of
+	 * active pools.
+	 */
+	mutex_enter(&spa_namespace_lock);
+	if ((spa = spa_lookup(target)) != NULL) {
+		spa->spa_import_flags |= ZFS_IMPORT_SKIP_MMP;
+	}
+	mutex_exit(&spa_namespace_lock);
+}
+
 #define	BOGUS_SUFFIX "_CHECKPOINTED_UNIVERSE"
 /*
  * Import the checkpointed state of the pool specified by the target
@@ -4207,6 +4250,7 @@ import_checkpointed_state(char *target, nvlist_t *cfg, char **new_path)
 	}
 
 	if (cfg == NULL) {
+		zdb_set_skip_mmp(poolname);
 		error = spa_get_stats(poolname, &cfg, NULL, 0);
 		if (error != 0) {
 			fatal("Tried to read config of pool \"%s\" but "
@@ -4219,7 +4263,8 @@ import_checkpointed_state(char *target, nvlist_t *cfg, char **new_path)
 	fnvlist_add_string(cfg, ZPOOL_CONFIG_POOL_NAME, bogus_name);
 
 	error = spa_import(bogus_name, cfg, NULL,
-	    ZFS_IMPORT_MISSING_LOG | ZFS_IMPORT_CHECKPOINT);
+	    ZFS_IMPORT_MISSING_LOG | ZFS_IMPORT_CHECKPOINT |
+	    ZFS_IMPORT_SKIP_MMP);
 	if (error != 0) {
 		fatal("Tried to import pool \"%s\" but spa_import() failed "
 		    "with error %d\n", bogus_name, error);
@@ -5222,90 +5267,6 @@ zdb_embedded_block(char *thing)
 	free(buf);
 }
 
-static boolean_t
-pool_match(nvlist_t *cfg, char *tgt)
-{
-	uint64_t v, guid = strtoull(tgt, NULL, 0);
-	char *s;
-
-	if (guid != 0) {
-		if (nvlist_lookup_uint64(cfg, ZPOOL_CONFIG_POOL_GUID, &v) == 0)
-			return (v == guid);
-	} else {
-		if (nvlist_lookup_string(cfg, ZPOOL_CONFIG_POOL_NAME, &s) == 0)
-			return (strcmp(s, tgt) == 0);
-	}
-	return (B_FALSE);
-}
-
-static char *
-find_zpool(char **target, nvlist_t **configp, int dirc, char **dirv)
-{
-	nvlist_t *pools;
-	nvlist_t *match = NULL;
-	char *name = NULL;
-	char *sepp = NULL;
-	char sep = '\0';
-	int count = 0;
-	importargs_t args;
-
-	bzero(&args, sizeof (args));
-	args.paths = dirc;
-	args.path = dirv;
-	args.can_be_active = B_TRUE;
-
-	if ((sepp = strpbrk(*target, "/@")) != NULL) {
-		sep = *sepp;
-		*sepp = '\0';
-	}
-
-	pools = zpool_search_import(g_zfs, &args);
-
-	if (pools != NULL) {
-		nvpair_t *elem = NULL;
-		while ((elem = nvlist_next_nvpair(pools, elem)) != NULL) {
-			verify(nvpair_value_nvlist(elem, configp) == 0);
-			if (pool_match(*configp, *target)) {
-				count++;
-				if (match != NULL) {
-					/* print previously found config */
-					if (name != NULL) {
-						(void) printf("%s\n", name);
-						dump_nvlist(match, 8);
-						name = NULL;
-					}
-					(void) printf("%s\n",
-					    nvpair_name(elem));
-					dump_nvlist(*configp, 8);
-				} else {
-					match = *configp;
-					name = nvpair_name(elem);
-				}
-			}
-		}
-	}
-	if (count > 1)
-		(void) fatal("\tMatched %d pools - use pool GUID "
-		    "instead of pool name or \n"
-		    "\tpool name part of a dataset name to select pool", count);
-
-	if (sepp)
-		*sepp = sep;
-	/*
-	 * If pool GUID was specified for pool id, replace it with pool name
-	 */
-	if (name && (strstr(*target, name) != *target)) {
-		int sz = 1 + strlen(name) + ((sepp) ? strlen(sepp) : 0);
-
-		*target = umem_alloc(sz, UMEM_NOFAIL);
-		(void) snprintf(*target, sz, "%s%s", name, sepp ? sepp : "");
-	}
-
-	*configp = name ? match : NULL;
-
-	return (name);
-}
-
 int
 main(int argc, char **argv)
 {
@@ -5318,7 +5279,7 @@ main(int argc, char **argv)
 	int error = 0;
 	char **searchdirs = NULL;
 	int nsearch = 0;
-	char *target;
+	char *target, *target_pool;
 	nvlist_t *policy = NULL;
 	uint64_t max_txg = UINT64_MAX;
 	int flags = ZFS_IMPORT_MISSING_LOG;
@@ -5526,22 +5487,48 @@ main(int argc, char **argv)
 	error = 0;
 	target = argv[0];
 
-	if (dump_opt['e']) {
-		char *name = find_zpool(&target, &cfg, nsearch, searchdirs);
+	if (strpbrk(target, "/@") != NULL) {
+		size_t targetlen;
 
-		error = ENOENT;
-		if (name) {
-			if (dump_opt['C'] > 1) {
-				(void) printf("\nConfiguration for import:\n");
-				dump_nvlist(cfg, 8);
-			}
+		target_pool = strdup(target);
+		*strpbrk(target_pool, "/@") = '\0';
+
+		target_is_spa = B_FALSE;
+		targetlen = strlen(target);
+		if (targetlen && target[targetlen - 1] == '/')
+			target[targetlen - 1] = '\0';
+	} else {
+		target_pool = target;
+	}
+
+	if (dump_opt['e']) {
+		importargs_t args = { 0 };
+
+		args.paths = nsearch;
+		args.path = searchdirs;
+		args.can_be_active = B_TRUE;
+
+		error = zpool_tryimport(g_zfs, target_pool, &cfg, &args);
+
+		if (error == 0) {
 
 			if (nvlist_add_nvlist(cfg,
 			    ZPOOL_LOAD_POLICY, policy) != 0) {
 				fatal("can't open '%s': %s",
 				    target, strerror(ENOMEM));
 			}
-			error = spa_import(name, cfg, NULL, flags);
+
+			if (dump_opt['C'] > 1) {
+				(void) printf("\nConfiguration for import:\n");
+				dump_nvlist(cfg, 8);
+			}
+
+			/*
+			 * Disable the activity check to allow examination of
+			 * active pools.
+			 */
+			error = spa_import(target_pool, cfg, NULL,
+			    flags | ZFS_IMPORT_SKIP_MMP);
 		}
 	}
 
@@ -5554,21 +5541,6 @@ main(int argc, char **argv)
 		if (checkpoint_target != NULL)
 			target = checkpoint_target;
 
-	}
-
-	if (strpbrk(target, "/@") != NULL) {
-		size_t targetlen;
-
-		target_is_spa = B_FALSE;
-		/*
-		 * Remove any trailing slash.  Later code would get confused
-		 * by it, but we want to allow it so that "pool/" can
-		 * indicate that we want to dump the topmost filesystem,
-		 * rather than the whole pool.
-		 */
-		targetlen = strlen(target);
-		if (targetlen != 0 && target[targetlen - 1] == '/')
-			target[targetlen - 1] = '\0';
 	}
 
 	if (error == 0) {
@@ -5584,6 +5556,7 @@ main(int argc, char **argv)
 			}
 
 		} else if (target_is_spa || dump_opt['R']) {
+			zdb_set_skip_mmp(target);
 			error = spa_open_rewind(target, &spa, FTAG, policy,
 			    NULL);
 			if (error) {
@@ -5606,6 +5579,7 @@ main(int argc, char **argv)
 				}
 			}
 		} else {
+			zdb_set_skip_mmp(target);
 			error = open_objset(target, DMU_OST_ANY, FTAG, &os);
 		}
 	}

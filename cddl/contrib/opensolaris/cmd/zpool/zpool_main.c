@@ -53,6 +53,7 @@
 #include <zfs_prop.h>
 #include <sys/fs/zfs.h>
 #include <sys/stat.h>
+#include <sys/debug.h>
 
 #include <libzfs.h>
 
@@ -1635,6 +1636,10 @@ print_status_config(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 			(void) printf(gettext("split into new pool"));
 			break;
 
+		case VDEV_AUX_ACTIVE:
+			(void) printf(gettext("currently in use"));
+			break;
+
 		case VDEV_AUX_CHILDREN_OFFLINE:
 			(void) printf(gettext("all children offline"));
 			break;
@@ -1769,6 +1774,10 @@ print_import_config(const char *name, nvlist_t *nv, int namewidth, int depth)
 			(void) printf(gettext("too many errors"));
 			break;
 
+		case VDEV_AUX_ACTIVE:
+			(void) printf(gettext("currently in use"));
+			break;
+
 		case VDEV_AUX_CHILDREN_OFFLINE:
 			(void) printf(gettext("all children offline"));
 			break;
@@ -1866,8 +1875,10 @@ show_import(nvlist_t *config)
 	vdev_stat_t *vs;
 	char *name;
 	uint64_t guid;
+	uint64_t hostid = 0;
 	char *msgid;
-	nvlist_t *nvroot;
+	char *hostname = "unknown";
+	nvlist_t *nvroot, *nvinfo;
 	int reason;
 	const char *health;
 	uint_t vsc;
@@ -1952,6 +1963,17 @@ show_import(nvlist_t *config)
 		    "accessed in read-write mode because it uses the "
 		    "following\n\tfeature(s) not supported on this system:\n"));
 		zpool_print_unsup_feat(config);
+		break;
+
+	case ZPOOL_STATUS_HOSTID_ACTIVE:
+		(void) printf(gettext(" status: The pool is currently "
+		    "imported by another system.\n"));
+		break;
+
+	case ZPOOL_STATUS_HOSTID_REQUIRED:
+		(void) printf(gettext(" status: The pool has the "
+		    "multihost property on.  It cannot\n\tbe safely imported "
+		    "when the system hostid is not set.\n"));
 		break;
 
 	case ZPOOL_STATUS_HOSTID_MISMATCH:
@@ -2040,6 +2062,27 @@ show_import(nvlist_t *config)
 			    "imported. Attach the missing\n\tdevices and try "
 			    "again.\n"));
 			break;
+		case ZPOOL_STATUS_HOSTID_ACTIVE:
+			VERIFY0(nvlist_lookup_nvlist(config,
+			    ZPOOL_CONFIG_LOAD_INFO, &nvinfo));
+
+			if (nvlist_exists(nvinfo, ZPOOL_CONFIG_MMP_HOSTNAME))
+				hostname = fnvlist_lookup_string(nvinfo,
+				    ZPOOL_CONFIG_MMP_HOSTNAME);
+
+			if (nvlist_exists(nvinfo, ZPOOL_CONFIG_MMP_HOSTID))
+				hostid = fnvlist_lookup_uint64(nvinfo,
+				    ZPOOL_CONFIG_MMP_HOSTID);
+
+			(void) printf(gettext(" action: The pool must be "
+			    "exported from %s (hostid=%lx)\n\tbefore it "
+			    "can be safely imported.\n"), hostname,
+			    (unsigned long) hostid);
+			break;
+		case ZPOOL_STATUS_HOSTID_REQUIRED:
+			(void) printf(gettext(" action: Check the SMF "
+			    "svc:/system/hostid service.\n"));
+			break;
 		default:
 			(void) printf(gettext(" action: The pool cannot be "
 			    "imported due to damaged devices or data.\n"));
@@ -2087,6 +2130,31 @@ show_import(nvlist_t *config)
 	}
 }
 
+static boolean_t
+zfs_force_import_required(nvlist_t *config)
+{
+	uint64_t state;
+	uint64_t hostid = 0;
+	nvlist_t *nvinfo;
+
+	state = fnvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_STATE);
+	(void) nvlist_lookup_uint64(config, ZPOOL_CONFIG_HOSTID, &hostid);
+
+	if (state != POOL_STATE_EXPORTED && hostid != get_system_hostid())
+		return (B_TRUE);
+
+	nvinfo = fnvlist_lookup_nvlist(config, ZPOOL_CONFIG_LOAD_INFO);
+	if (nvlist_exists(nvinfo, ZPOOL_CONFIG_MMP_STATE)) {
+		mmp_state_t mmp_state = fnvlist_lookup_uint64(nvinfo,
+		    ZPOOL_CONFIG_MMP_STATE);
+
+		if (mmp_state != MMP_STATE_INACTIVE)
+			return (B_TRUE);
+	}
+
+	return (B_FALSE);
+}
+
 /*
  * Perform the import for the given configuration.  This passes the heavy
  * lifting off to zpool_import_props(), and then mounts the datasets contained
@@ -2098,53 +2166,73 @@ do_import(nvlist_t *config, const char *newname, const char *mntopts,
 {
 	zpool_handle_t *zhp;
 	char *name;
-	uint64_t state;
 	uint64_t version;
 
-	verify(nvlist_lookup_string(config, ZPOOL_CONFIG_POOL_NAME,
-	    &name) == 0);
+	name = fnvlist_lookup_string(config, ZPOOL_CONFIG_POOL_NAME);
+	version = fnvlist_lookup_uint64(config, ZPOOL_CONFIG_VERSION);
 
-	verify(nvlist_lookup_uint64(config,
-	    ZPOOL_CONFIG_POOL_STATE, &state) == 0);
-	verify(nvlist_lookup_uint64(config,
-	    ZPOOL_CONFIG_VERSION, &version) == 0);
 	if (!SPA_VERSION_IS_SUPPORTED(version)) {
 		(void) fprintf(stderr, gettext("cannot import '%s': pool "
 		    "is formatted using an unsupported ZFS version\n"), name);
 		return (1);
-	} else if (state != POOL_STATE_EXPORTED &&
+	} else if (zfs_force_import_required(config) &&
 	    !(flags & ZFS_IMPORT_ANY_HOST)) {
-		uint64_t hostid;
+		mmp_state_t mmp_state = MMP_STATE_INACTIVE;
+		nvlist_t *nvinfo;
 
-		if (nvlist_lookup_uint64(config, ZPOOL_CONFIG_HOSTID,
-		    &hostid) == 0) {
-			if ((unsigned long)hostid != gethostid()) {
-				char *hostname;
-				uint64_t timestamp;
-				time_t t;
+		nvinfo = fnvlist_lookup_nvlist(config, ZPOOL_CONFIG_LOAD_INFO);
+		if (nvlist_exists(nvinfo, ZPOOL_CONFIG_MMP_STATE))
+			mmp_state = fnvlist_lookup_uint64(nvinfo,
+			    ZPOOL_CONFIG_MMP_STATE);
 
-				verify(nvlist_lookup_string(config,
-				    ZPOOL_CONFIG_HOSTNAME, &hostname) == 0);
-				verify(nvlist_lookup_uint64(config,
-				    ZPOOL_CONFIG_TIMESTAMP, &timestamp) == 0);
-				t = timestamp;
-				(void) fprintf(stderr, gettext("cannot import "
-				    "'%s': pool may be in use from other "
-				    "system, it was last accessed by %s "
-				    "(hostid: 0x%lx) on %s"), name, hostname,
-				    (unsigned long)hostid,
-				    asctime(localtime(&t)));
-				(void) fprintf(stderr, gettext("use '-f' to "
-				    "import anyway\n"));
-				return (1);
-			}
-		} else {
+		if (mmp_state == MMP_STATE_ACTIVE) {
+			char *hostname = "<unknown>";
+			uint64_t hostid = 0;
+
+			if (nvlist_exists(nvinfo, ZPOOL_CONFIG_MMP_HOSTNAME))
+				hostname = fnvlist_lookup_string(nvinfo,
+				    ZPOOL_CONFIG_MMP_HOSTNAME);
+
+			if (nvlist_exists(nvinfo, ZPOOL_CONFIG_MMP_HOSTID))
+				hostid = fnvlist_lookup_uint64(nvinfo,
+				    ZPOOL_CONFIG_MMP_HOSTID);
+
 			(void) fprintf(stderr, gettext("cannot import '%s': "
-			    "pool may be in use from other system\n"), name);
-			(void) fprintf(stderr, gettext("use '-f' to import "
-			    "anyway\n"));
-			return (1);
+			    "pool is imported on %s (hostid: "
+			    "0x%lx)\nExport the pool on the other system, "
+			    "then run 'zpool import'.\n"),
+			    name, hostname, (unsigned long) hostid);
+		} else if (mmp_state == MMP_STATE_NO_HOSTID) {
+			(void) fprintf(stderr, gettext("Cannot import '%s': "
+			    "pool has the multihost property on and the\n"
+			    "system's hostid is not set.\n"), name);
+		} else {
+			char *hostname = "<unknown>";
+			uint64_t timestamp = 0;
+			uint64_t hostid = 0;
+
+			if (nvlist_exists(config, ZPOOL_CONFIG_HOSTNAME))
+				hostname = fnvlist_lookup_string(config,
+				    ZPOOL_CONFIG_HOSTNAME);
+
+			if (nvlist_exists(config, ZPOOL_CONFIG_TIMESTAMP))
+				timestamp = fnvlist_lookup_uint64(config,
+				    ZPOOL_CONFIG_TIMESTAMP);
+
+			if (nvlist_exists(config, ZPOOL_CONFIG_HOSTID))
+				hostid = fnvlist_lookup_uint64(config,
+				    ZPOOL_CONFIG_HOSTID);
+
+			(void) fprintf(stderr, gettext("cannot import '%s': "
+			    "pool was previously in use from another system.\n"
+			    "Last accessed by %s (hostid=%lx) at %s"
+			    "The pool can be imported, use 'zpool import -f' "
+			    "to import the pool.\n"), name, hostname,
+			    (unsigned long)hostid, ctime((time_t *)&timestamp));
+
 		}
+
+		return (1);
 	}
 
 	if (zpool_import_props(g_zfs, config, newname, props, flags) != 0)
@@ -5106,6 +5194,15 @@ status_callback(zpool_handle_t *zhp, void *data)
 		    "from a backup source.  Manually marking the device\n"
 		    "\trepaired using 'zpool clear' may allow some data "
 		    "to be recovered.\n"));
+		break;
+
+	case ZPOOL_STATUS_IO_FAILURE_MMP:
+		(void) printf(gettext("status: The pool is suspended because "
+		    "multihost writes failed or were delayed;\n\tanother "
+		    "system could import the pool undetected.\n"));
+		(void) printf(gettext("action: Make sure the pool's devices "
+		    "are connected, then reboot your system and\n\timport the "
+		    "pool.\n"));
 		break;
 
 	case ZPOOL_STATUS_IO_FAILURE_WAIT:
