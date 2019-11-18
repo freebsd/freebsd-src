@@ -110,14 +110,14 @@ struct sysentvec {
 					/* function to dump core, or NULL */
 	int		(*sv_imgact_try)(struct image_params *);
 	void		(*sv_stackgap)(struct image_params *, u_long *);
-	void		(*sv_copyout_auxargs)(struct image_params *, u_long *);
+	int		(*sv_copyout_auxargs)(struct image_params *, u_long *);
 	int		sv_minsigstksz;	/* minimum signal stack size */
 	vm_offset_t	sv_minuser;	/* VM_MIN_ADDRESS */
 	vm_offset_t	sv_maxuser;	/* VM_MAXUSER_ADDRESS */
 	vm_offset_t	sv_usrstack;	/* USRSTACK */
 	vm_offset_t	sv_psstrings;	/* PS_STRINGS */
 	int		sv_stackprot;	/* vm protection for stack */
-	register_t	*(*sv_copyout_strings)(struct image_params *);
+	int		(*sv_copyout_strings)(struct image_params *, register_t **);
 	void		(*sv_setregs)(struct thread *, struct image_params *,
 			    u_long);
 	void		(*sv_fixlimit)(struct rlimit *, int);

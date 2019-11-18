@@ -3119,19 +3119,18 @@ syscall32_helper_unregister(struct syscall_helper_data *sd)
 	return (kern_syscall_helper_unregister(freebsd32_sysent, sd));
 }
 
-register_t *
-freebsd32_copyout_strings(struct image_params *imgp)
+int
+freebsd32_copyout_strings(struct image_params *imgp, register_t **stack_base)
 {
 	int argc, envc, i;
 	u_int32_t *vectp;
 	char *stringp;
 	uintptr_t destp;
-	u_int32_t *stack_base;
 	struct freebsd32_ps_strings *arginfo;
 	char canary[sizeof(long) * 8];
 	int32_t pagesizes32[MAXPAGESIZES];
 	size_t execpath_len;
-	int szsigcode;
+	int error, szsigcode;
 
 	/*
 	 * Calculate string base and vector table pointers.
@@ -3155,8 +3154,10 @@ freebsd32_copyout_strings(struct image_params *imgp)
 	if (szsigcode != 0) {
 		destp -= szsigcode;
 		destp = rounddown2(destp, sizeof(uint32_t));
-		copyout(imgp->proc->p_sysent->sv_sigcode, (void *)destp,
+		error = copyout(imgp->proc->p_sysent->sv_sigcode, (void *)destp,
 		    szsigcode);
+		if (error != 0)
+			return (error);
 	}
 
 	/*
@@ -3165,7 +3166,9 @@ freebsd32_copyout_strings(struct image_params *imgp)
 	if (execpath_len != 0) {
 		destp -= execpath_len;
 		imgp->execpathp = destp;
-		copyout(imgp->execpath, (void *)destp, execpath_len);
+		error = copyout(imgp->execpath, (void *)destp, execpath_len);
+		if (error != 0)
+			return (error);
 	}
 
 	/*
@@ -3174,7 +3177,9 @@ freebsd32_copyout_strings(struct image_params *imgp)
 	arc4rand(canary, sizeof(canary), 0);
 	destp -= sizeof(canary);
 	imgp->canary = destp;
-	copyout(canary, (void *)destp, sizeof(canary));
+	error = copyout(canary, (void *)destp, sizeof(canary));
+	if (error != 0)
+		return (error);
 	imgp->canarylen = sizeof(canary);
 
 	/*
@@ -3185,7 +3190,9 @@ freebsd32_copyout_strings(struct image_params *imgp)
 	destp -= sizeof(pagesizes32);
 	destp = rounddown2(destp, sizeof(uint32_t));
 	imgp->pagesizes = destp;
-	copyout(pagesizes32, (void *)destp, sizeof(pagesizes32));
+	error = copyout(pagesizes32, (void *)destp, sizeof(pagesizes32));
+	if (error != 0)
+		return (error);
 	imgp->pagesizeslen = sizeof(pagesizes32);
 
 	destp -= ARG_MAX - imgp->args->stringspace;
@@ -3195,8 +3202,12 @@ freebsd32_copyout_strings(struct image_params *imgp)
 	if (imgp->sysent->sv_stackgap != NULL)
 		imgp->sysent->sv_stackgap(imgp, (u_long *)&vectp);
 
-	if (imgp->auxargs)
-		imgp->sysent->sv_copyout_auxargs(imgp, (u_long *)&vectp);
+	if (imgp->auxargs) {
+		error = imgp->sysent->sv_copyout_auxargs(imgp,
+		    (u_long *)&vectp);
+		if (error != 0)
+			return (error);
+	}
 
 	/*
 	 * Allocate room for the argv[] and env vectors including the
@@ -3207,7 +3218,7 @@ freebsd32_copyout_strings(struct image_params *imgp)
 	/*
 	 * vectp also becomes our initial stack base
 	 */
-	stack_base = vectp;
+	*stack_base = (register_t *)vectp;
 
 	stringp = imgp->args->begin_argv;
 	argc = imgp->args->argc;
@@ -3215,44 +3226,53 @@ freebsd32_copyout_strings(struct image_params *imgp)
 	/*
 	 * Copy out strings - arguments and environment.
 	 */
-	copyout(stringp, (void *)destp, ARG_MAX - imgp->args->stringspace);
+	error = copyout(stringp, (void *)destp,
+	    ARG_MAX - imgp->args->stringspace);
+	if (error != 0)
+		return (error);
 
 	/*
 	 * Fill in "ps_strings" struct for ps, w, etc.
 	 */
-	suword32(&arginfo->ps_argvstr, (u_int32_t)(intptr_t)vectp);
-	suword32(&arginfo->ps_nargvstr, argc);
+	if (suword32(&arginfo->ps_argvstr, (u_int32_t)(intptr_t)vectp) != 0 ||
+	    suword32(&arginfo->ps_nargvstr, argc) != 0)
+		return (EFAULT);
 
 	/*
 	 * Fill in argument portion of vector table.
 	 */
 	for (; argc > 0; --argc) {
-		suword32(vectp++, (u_int32_t)(intptr_t)destp);
+		if (suword32(vectp++, (u_int32_t)(intptr_t)destp) != 0)
+			return (EFAULT);
 		while (*stringp++ != 0)
 			destp++;
 		destp++;
 	}
 
 	/* a null vector table pointer separates the argp's from the envp's */
-	suword32(vectp++, 0);
+	if (suword32(vectp++, 0) != 0)
+		return (EFAULT);
 
-	suword32(&arginfo->ps_envstr, (u_int32_t)(intptr_t)vectp);
-	suword32(&arginfo->ps_nenvstr, envc);
+	if (suword32(&arginfo->ps_envstr, (u_int32_t)(intptr_t)vectp) != 0 ||
+	    suword32(&arginfo->ps_nenvstr, envc) != 0)
+		return (EFAULT);
 
 	/*
 	 * Fill in environment portion of vector table.
 	 */
 	for (; envc > 0; --envc) {
-		suword32(vectp++, (u_int32_t)(intptr_t)destp);
+		if (suword32(vectp++, (u_int32_t)(intptr_t)destp) != 0)
+			return (EFAULT);
 		while (*stringp++ != 0)
 			destp++;
 		destp++;
 	}
 
 	/* end of vector table is a null pointer */
-	suword32(vectp, 0);
+	if (suword32(vectp, 0) != 0)
+		return (EFAULT);
 
-	return ((register_t *)stack_base);
+	return (0);
 }
 
 int
