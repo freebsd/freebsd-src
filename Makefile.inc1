@@ -1499,6 +1499,11 @@ makeman: .PHONY
 	${_+_}cd ${.CURDIR}/tools/build/options; sh makeman > \
 	    ${.CURDIR}/share/man/man5/src.conf.5
 
+.if make(sysent)
+.include <src.lua.mk>
+.endif
+
+_sysent_PATH=	${WORLDTMP}/legacy/usr/libexec:/usr/libexec:${PATH}
 _sysent_dirs=	sys/kern
 _sysent_dirs+=	sys/compat/freebsd32
 _sysent_dirs+=	sys/compat/cloudabi32	\
@@ -1509,7 +1514,9 @@ _sysent_dirs+=	sys/amd64/linux		\
 		sys/i386/linux
 sysent: .PHONY
 .for _dir in ${_sysent_dirs}
-	${_+_}${MAKE} -C ${.CURDIR}/${_dir} sysent
+	@echo "${MAKE} -C ${.CURDIR}/${_dir} sysent"
+	${_+_}@env PATH=${_sysent_PATH} LUA=${LUA_CMD} \
+	    ${MAKE} -C ${.CURDIR}/${_dir} sysent
 .endfor
 
 #
@@ -2168,6 +2175,13 @@ ${_bt}-lib/libelf: ${_bt_m4_depend}
 ${_bt}-lib/libdwarf: ${_bt_m4_depend}
 .endif
 
+# flua is required to regenerate syscall files.  It first appeared during the
+# 13.0-CURRENT cycle, thus needs to be built on -older releases and stable
+# branches.
+.if ${BOOTSTRAPPING} < 1300059
+_flua= libexec/flua
+.endif
+
 # r245440 mtree -N support added
 # r313404 requires sha384.h for libnetbsd, added to libmd in r292782
 .if ${BOOTSTRAPPING} < 1100093
@@ -2390,6 +2404,7 @@ bootstrap-tools: ${_bt}-links .PHONY
     usr.bin/xinstall \
     ${_gensnmptree} \
     usr.sbin/config \
+    ${_flua} \
     ${_crunchide} \
     ${_crunchgen} \
     ${_nmtree} \
