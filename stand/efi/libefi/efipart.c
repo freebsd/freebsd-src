@@ -506,9 +506,12 @@ efipart_initcd(void)
 static bool
 efipart_hdinfo_add_node(pdinfo_t *hd, EFI_DEVICE_PATH *node)
 {
-	pdinfo_t *pd, *last;
-	VENDOR_DEVICE_PATH *ven_node;
+	pdinfo_t *pd, *ptr;
 
+	if (node == NULL)
+		return (false);
+
+	/* Find our disk device. */
 	STAILQ_FOREACH(pd, &hdinfo, pd_link) {
 		if (efi_devpath_is_prefix(pd->pd_devpath, hd->pd_devpath))
 			break;
@@ -516,13 +519,28 @@ efipart_hdinfo_add_node(pdinfo_t *hd, EFI_DEVICE_PATH *node)
 	if (pd == NULL)
 		return (false);
 
+	/* If the node is not MEDIA_HARDDRIVE_DP, it is sub-partition. */
+	if (DevicePathSubType(node) != MEDIA_HARDDRIVE_DP) {
+		STAILQ_FOREACH(ptr, &pd->pd_part, pd_link) {
+			if (efi_devpath_is_prefix(ptr->pd_devpath,
+			    hd->pd_devpath))
+				break;
+		}
+		/*
+		 * ptr == NULL means we have handles in unexpected order
+		 * and we would need to re-order the partitions later.
+		 */
+		if (ptr != NULL)
+			pd = ptr;
+	}
+
 	/* Add the partition. */
 	if (DevicePathSubType(node) == MEDIA_HARDDRIVE_DP) {
 		hd->pd_unit = ((HARDDRIVE_DEVICE_PATH *)node)->PartitionNumber;
 	} else {
-		last = STAILQ_LAST(&pd->pd_part, pdinfo, pd_link);
-		if (last != NULL)
-			hd->pd_unit = last->pd_unit + 1;
+		ptr = STAILQ_LAST(&pd->pd_part, pdinfo, pd_link);
+		if (ptr != NULL)
+			hd->pd_unit = ptr->pd_unit + 1;
 		else
 			hd->pd_unit = 0;
 	}
@@ -536,7 +554,7 @@ efipart_hdinfo_add_node(pdinfo_t *hd, EFI_DEVICE_PATH *node)
 static void
 efipart_hdinfo_add(pdinfo_t *hd, EFI_DEVICE_PATH *node)
 {
-	pdinfo_t *pd, *last;
+	pdinfo_t *last;
 
 	if (efipart_hdinfo_add_node(hd, node))
 		return;
