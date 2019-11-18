@@ -52,12 +52,24 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifndef _STANDALONE
+#include <sys/stat.h>
+#include <dirent.h>
+#include <errno.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <string.h>
+#endif
+
 #include <lua.h>
 #include "lauxlib.h"
 #include "lfs.h"
+
+#ifdef _STANDALONE
 #include "lstd.h"
 #include "lutils.h"
 #include "bootstrap.h"
+#endif
 
 #ifndef nitems
 #define	nitems(x)	(sizeof((x)) / sizeof((x)[0]))
@@ -120,7 +132,11 @@ lua_dir_iter_next(lua_State *L)
 	dp = *dpp;
 	luaL_argcheck(L, dp != NULL, 1, "closed directory");
 
+#ifdef _STANDALONE
 	entry = readdirfd(dp->fd);
+#else
+	entry = readdir(dp);
+#endif
 	if (entry == NULL) {
 		closedir(dp);
 		*dpp = NULL;
@@ -325,10 +341,76 @@ lua_attributes(lua_State *L)
 	return 1;
 }
 
+#ifndef _STANDALONE
+#define	lfs_mkdir_impl(path)	(mkdir((path), \
+    S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | \
+    S_IROTH | S_IXOTH))
+
+static int
+lua_mkdir(lua_State *L)
+{
+	const char *path;
+	int error, serrno;
+
+	path = luaL_checkstring(L, 1);
+	if (path == NULL) {
+		lua_pushnil(L);
+		lua_pushfstring(L, "cannot convert first argument to string");
+		lua_pushinteger(L, EINVAL);
+		return 3;
+	}
+
+	error = lfs_mkdir_impl(path);
+	if (error == -1) {
+		/* Save it; unclear what other libc functions may be invoked */
+		serrno = errno;
+		lua_pushnil(L);
+		lua_pushfstring(L, strerror(serrno));
+		lua_pushinteger(L, serrno);
+		return 3;
+	}
+
+	lua_pushboolean(L, 1);
+	return 1;
+}
+
+static int
+lua_rmdir(lua_State *L)
+{
+	const char *path;
+	int error, serrno;
+
+	path = luaL_checkstring(L, 1);
+	if (path == NULL) {
+		lua_pushnil(L);
+		lua_pushfstring(L, "cannot convert first argument to string");
+		lua_pushinteger(L, EINVAL);
+		return 3;
+	}
+
+	error = rmdir(path);
+	if (error == -1) {
+		/* Save it; unclear what other libc functions may be invoked */
+		serrno = errno;
+		lua_pushnil(L);
+		lua_pushfstring(L, strerror(serrno));
+		lua_pushinteger(L, serrno);
+		return 3;
+	}
+
+	lua_pushboolean(L, 1);
+	return 1;
+}
+#endif
+
 #define REG_SIMPLE(n)	{ #n, lua_ ## n }
 static const struct luaL_Reg fslib[] = {
 	REG_SIMPLE(attributes),
 	REG_SIMPLE(dir),
+#ifndef _STANDALONE
+	REG_SIMPLE(mkdir),
+	REG_SIMPLE(rmdir),
+#endif
 	{ NULL, NULL },
 };
 #undef REG_SIMPLE

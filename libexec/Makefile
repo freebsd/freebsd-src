@@ -8,6 +8,7 @@ SUBDIR=	${_atf} \
 	${_blacklistd-helper} \
 	${_comsat} \
 	${_dma} \
+	flua \
 	getty \
 	${_mail.local} \
 	${_makewhatis.local} \

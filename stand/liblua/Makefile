@@ -23,7 +23,10 @@ SRCS+=	lauxlib.c lbaselib.c lstrlib.c loadlib.c
 #SRCS+=	lbitlib.c liolib.c lmathlib.c loslib.c ltablib.c
 
 # Our utilities.
-SRCS+=	lerrno.c lfs.c lstd.c lutils.c
+SRCS+=	lerrno.c lstd.c lutils.c
+
+.PATH:	${FLUASRC}/modules
+SRCS+=	lfs.c
 
 WARNS=	3
 
