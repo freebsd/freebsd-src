@@ -972,15 +972,8 @@ retry:
 		goto error1;
 	}
 
-	while (wpipe->pipe_map.cnt != 0) {
-		if (wpipe->pipe_state & PIPE_EOF) {
-			wpipe->pipe_map.cnt = 0;
-			pipe_destroy_write_buffer(wpipe);
-			pipeselwakeup(wpipe);
-			pipeunlock(wpipe);
-			error = EPIPE;
-			goto error1;
-		}
+	while (wpipe->pipe_map.cnt != 0 &&
+	    (wpipe->pipe_state & PIPE_EOF) == 0) {
 		if (wpipe->pipe_state & PIPE_WANTR) {
 			wpipe->pipe_state &= ~PIPE_WANTR;
 			wakeup(wpipe);
@@ -995,12 +988,16 @@ retry:
 			break;
 	}
 
-	if (wpipe->pipe_state & PIPE_EOF)
-		error = EPIPE;
-	if (error == EINTR || error == ERESTART)
-		pipe_clone_write_buffer(wpipe);
-	else
+	if ((wpipe->pipe_state & PIPE_EOF) != 0) {
+		wpipe->pipe_map.cnt = 0;
 		pipe_destroy_write_buffer(wpipe);
+		pipeselwakeup(wpipe);
+		error = EPIPE;
+	} else if (error == EINTR || error == ERESTART) {
+		pipe_clone_write_buffer(wpipe);
+	} else {
+		pipe_destroy_write_buffer(wpipe);
+	}
 	pipeunlock(wpipe);
 	KASSERT((wpipe->pipe_state & PIPE_DIRECTW) == 0,
 	    ("pipe %p leaked PIPE_DIRECTW", wpipe));
