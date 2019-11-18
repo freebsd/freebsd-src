@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 5, 2015
+.Dd November 12, 2019
 .Dt SES 4
 .Os
 .Sh NAME
@@ -77,33 +77,47 @@ calls apply to
 .Nm
 devices.
 They are defined in the header file
-.In cam/scsi/scsi_ses.h
+.In cam/scsi/scsi_enc.h
 (\fIq.v.\fR).
-.Bl -tag -width SESIOC_GETENCSTAT
-.It Dv SESIOC_GETNOBJ
+.Bl -tag -width ENCIOC_GETENCSTAT
+.It Dv ENCIOC_GETNELM
 Used to find out how many
 .Nm
-objects are driven by this particular device instance.
-.It Dv SESIOC_GETOBJMAP
-Read, from the kernel, an array of SES objects which contains
-the object identifier, which subenclosure it is in, and the
+elements are driven by this particular device instance.
+.It Dv ENCIOC_GETELMMAP
+Read, from the kernel, an array of SES elements which contains
+the element identifier, which subenclosure it is in, and the
 .Nm
-type of the object.
-.It Dv SESIOC_GETENCSTAT
+type of the element.
+.It Dv ENCIOC_GETENCSTAT
 Get the overall enclosure status.
-.It Dv SESIOC_SETENCSTAT
+.It Dv ENCIOC_SETENCSTAT
 Set the overall enclosure status.
-.It Dv SESIOC_GETOBJSTAT
-Get the status of a particular object.
-.It Dv SESIOC_SETOBJSTAT
-Set the status of a particular object.
-.It Dv SESIOC_GETTEXT
-Get the associated help text for an object (not yet implemented).
+.It Dv ENCIOC_GETELMSTAT
+Get the status of a particular element.
+.It Dv ENCIOC_SETELMSTAT
+Set the status of a particular element.
+.It Dv ENCIOC_GETTEXT
+Get the associated help text for an element (not yet implemented).
 .Nm
-devices often have descriptive text for an object which can tell
+devices often have descriptive text for an element which can tell
 you things like location (e.g., "left power supply").
-.It Dv SESIOC_INIT
+.It Dv ENCIOC_INIT
 Initialize the enclosure.
+.It Dv ENCIOC_GETELMDESC
+Get the element's descriptor string.
+.It Dv ENCIOC_GETELMDEVNAMES
+Get the device names, if any, associated with this element.
+.It Dv ENCIOC_GETSTRING
+Used to read the SES String In Diagnostic Page.
+The contents of this page are device-specific.
+.It Dv ENCIOC_SETSTRING
+Used to set the SES String Out Diagnostic Page.
+The contents of this page are device-specific.
+.It Dv ENCIOC_GETENCNAME
+Used to get the name of the enclosure.
+.It Dv ENCIOC_GETENCID
+Used to get the Enclosure Logical Identifier.
 .El
 .Sh EXAMPLE USAGE
 The files contained in
@@ -128,9 +142,12 @@ parameters to the console.
 .Sh HISTORY
 The
 .Nm
-driver was written for the
+driver was originally written for the
 .Tn CAM
 .Tn SCSI
-subsystem by Matthew Jacob.
-This is a functional equivalent of a similar
+subsystem by Matthew Jacob and first released in
+.Fx 4.3 .
+It was a functional equivalent of a similar
 driver available in Solaris, Release 7.
+It was largely rewritten by Alexander Motin, Justin Gibbs, and Will Andrews for
+.Fx 9.2 .
