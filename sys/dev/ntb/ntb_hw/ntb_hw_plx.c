@@ -339,6 +339,12 @@ ntb_plx_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	/*
+	 * The device occupies whole bus.  In translated TLP slot field
+	 * keeps LUT index (original bus/slot), function is passed through.
+	 */
+	bus_dma_dmar_set_buswide(dev);
+
 	/* Identify chip port we are connected to. */
 	val = bus_read_4(sc->conf_res, 0x360);
 	sc->port = (val >> ((sc->ntx == 0) ? 8 : 16)) & 0x1f;
