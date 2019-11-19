@@ -4527,7 +4527,7 @@ vm_page_bits(int base, int size)
 	    ((vm_page_bits_t)1 << first_bit));
 }
 
-static inline void
+void
 vm_page_bits_set(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t set)
 {
 
