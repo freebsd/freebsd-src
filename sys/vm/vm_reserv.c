@@ -719,20 +719,15 @@ out:
 
 	/*
 	 * Would the last new reservation extend past the end of the object?
+	 *
+	 * If the object is unlikely to grow don't allocate a reservation for
+	 * the tail.
 	 */
-	if (first + maxpages > object->size) {
-		/*
-		 * Don't allocate the last new reservation if the object is a
-		 * vnode or backed by another object that is a vnode. 
-		 */
-		if (object->type == OBJT_VNODE ||
-		    (object->backing_object != NULL &&
-		    object->backing_object->type == OBJT_VNODE)) {
-			if (maxpages == VM_LEVEL_0_NPAGES)
-				return (NULL);
-			allocpages = minpages;
-		}
-		/* Speculate that the object may grow. */
+	if ((object->flags & OBJ_ANON) == 0 &&
+	    first + maxpages > object->size) {
+		if (maxpages == VM_LEVEL_0_NPAGES)
+			return (NULL);
+		allocpages = minpages;
 	}
 
 	/*
@@ -878,19 +873,14 @@ out:
 	vm_reserv_object_unlock(object);
 
 	/*
-	 * Would a new reservation extend past the end of the object? 
+	 * Would the last new reservation extend past the end of the object?
+	 *
+	 * If the object is unlikely to grow don't allocate a reservation for
+	 * the tail.
 	 */
-	if (first + VM_LEVEL_0_NPAGES > object->size) {
-		/*
-		 * Don't allocate a new reservation if the object is a vnode or
-		 * backed by another object that is a vnode. 
-		 */
-		if (object->type == OBJT_VNODE ||
-		    (object->backing_object != NULL &&
-		    object->backing_object->type == OBJT_VNODE))
-			return (NULL);
-		/* Speculate that the object may grow. */
-	}
+	if ((object->flags & OBJ_ANON) == 0 &&
+	    first + VM_LEVEL_0_NPAGES > object->size)
+		return (NULL);
 
 	/*
 	 * Allocate and populate the new reservation.

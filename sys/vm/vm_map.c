@@ -1504,10 +1504,12 @@ charged:
 		 * reference counting is insufficient to recognize
 		 * aliases with precision.)
 		 */
-		VM_OBJECT_WLOCK(object);
-		if (object->ref_count > 1 || object->shadow_count != 0)
-			vm_object_clear_flag(object, OBJ_ONEMAPPING);
-		VM_OBJECT_WUNLOCK(object);
+		if ((object->flags & OBJ_ANON) != 0) {
+			VM_OBJECT_WLOCK(object);
+			if (object->ref_count > 1 || object->shadow_count != 0)
+				vm_object_clear_flag(object, OBJ_ONEMAPPING);
+			VM_OBJECT_WUNLOCK(object);
+		}
 	} else if ((prev_entry->eflags & ~MAP_ENTRY_USER_WIRED) ==
 	    protoeflags &&
 	    (cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP |
@@ -2101,8 +2103,7 @@ vm_map_entry_back(vm_map_entry_t entry)
 	    ("map entry %p has backing object", entry));
 	KASSERT((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0,
 	    ("map entry %p is a submap", entry));
-	object = vm_object_allocate(OBJT_DEFAULT,
-	    atop(entry->end - entry->start));
+	object = vm_object_allocate_anon(atop(entry->end - entry->start));
 	entry->object.vm_object = object;
 	entry->offset = 0;
 	if (entry->cred != NULL) {
@@ -3488,8 +3489,10 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 		crfree(entry->cred);
 	}
 
-	if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0 &&
-	    (object != NULL)) {
+	if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0 || object == NULL) {
+		entry->object.vm_object = NULL;
+	} else if ((object->flags & OBJ_ANON) != 0 ||
+	    object == kernel_object) {
 		KASSERT(entry->cred == NULL || object->cred == NULL ||
 		    (entry->eflags & MAP_ENTRY_NEEDS_COPY),
 		    ("OVERCOMMIT vm_map_entry_delete: both cred %p", entry));
@@ -3497,8 +3500,8 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 		offidxstart = OFF_TO_IDX(entry->offset);
 		offidxend = offidxstart + count;
 		VM_OBJECT_WLOCK(object);
-		if (object->ref_count != 1 && ((object->flags & (OBJ_NOSPLIT |
-		    OBJ_ONEMAPPING)) == OBJ_ONEMAPPING ||
+		if (object->ref_count != 1 &&
+		    ((object->flags & OBJ_ONEMAPPING) != 0 ||
 		    object == kernel_object)) {
 			vm_object_collapse(object);
 
@@ -3528,8 +3531,7 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 			}
 		}
 		VM_OBJECT_WUNLOCK(object);
-	} else
-		entry->object.vm_object = NULL;
+	}
 	if (map->system_map)
 		vm_map_entry_deallocate(entry, TRUE);
 	else {
@@ -3748,11 +3750,9 @@ vm_map_copy_entry(
 			VM_OBJECT_WLOCK(src_object);
 			charged = ENTRY_CHARGED(src_entry);
 			if (src_object->handle == NULL &&
-			    (src_object->type == OBJT_DEFAULT ||
-			    src_object->type == OBJT_SWAP)) {
+			    (src_object->flags & OBJ_ANON) != 0) {
 				vm_object_collapse(src_object);
-				if ((src_object->flags & (OBJ_NOSPLIT |
-				    OBJ_ONEMAPPING)) == OBJ_ONEMAPPING) {
+				if ((src_object->flags & OBJ_ONEMAPPING) != 0) {
 					vm_object_split(src_entry);
 					src_object =
 					    src_entry->object.vm_object;
@@ -4686,8 +4686,7 @@ RetryLookupLocked:
 	    !map->system_map) {
 		if (vm_map_lock_upgrade(map))
 			goto RetryLookup;
-		entry->object.vm_object = vm_object_allocate(OBJT_DEFAULT,
-		    atop(size));
+		entry->object.vm_object = vm_object_allocate_anon(atop(size));
 		entry->offset = 0;
 		if (entry->cred != NULL) {
 			VM_OBJECT_WLOCK(entry->object.vm_object);

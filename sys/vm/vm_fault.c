@@ -1239,8 +1239,7 @@ readrest:
 				/*
 				 * No other ways to look the object up
 				 */
-				((fs.object->type == OBJT_DEFAULT) ||
-				 (fs.object->type == OBJT_SWAP)) &&
+				((fs.object->flags & OBJ_ANON) != 0) &&
 			    (is_first_object_locked = VM_OBJECT_TRYWLOCK(fs.first_object)) &&
 				/*
 				 * We don't chase down the shadow chain
@@ -1739,7 +1738,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		 * Create the top-level object for the destination entry. (Doesn't
 		 * actually shadow anything - we copy the pages directly.)
 		 */
-		dst_object = vm_object_allocate(OBJT_DEFAULT,
+		dst_object = vm_object_allocate_anon(
 		    atop(dst_entry->end - dst_entry->start));
 #if VM_NRESERVLEVEL > 0
 		dst_object->flags |= OBJ_COLORED;

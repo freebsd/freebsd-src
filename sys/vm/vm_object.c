@@ -239,7 +239,8 @@ vm_object_zinit(void *mem, int size, int flags)
 }
 
 static void
-_vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
+_vm_object_allocate(objtype_t type, vm_pindex_t size, u_short flags,
+    vm_object_t object)
 {
 
 	TAILQ_INIT(&object->memq);
@@ -256,29 +257,8 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	 */
 	atomic_thread_fence_rel();
 
-	switch (type) {
-	case OBJT_DEAD:
-		panic("_vm_object_allocate: can't create OBJT_DEAD");
-	case OBJT_DEFAULT:
-	case OBJT_SWAP:
-		object->flags = OBJ_ONEMAPPING;
-		break;
-	case OBJT_DEVICE:
-	case OBJT_SG:
-		object->flags = OBJ_FICTITIOUS | OBJ_UNMANAGED;
-		break;
-	case OBJT_MGTDEVICE:
-		object->flags = OBJ_FICTITIOUS;
-		break;
-	case OBJT_PHYS:
-		object->flags = OBJ_UNMANAGED;
-		break;
-	case OBJT_VNODE:
-		object->flags = 0;
-		break;
-	default:
-		panic("_vm_object_allocate: type %d is undefined", type);
-	}
+	object->pg_color = 0;
+	object->flags = flags;
 	object->size = size;
 	object->domain.dr_policy = NULL;
 	object->generation = 1;
@@ -309,7 +289,7 @@ vm_object_init(void)
 	
 	rw_init(&kernel_object->lock, "kernel vm object");
 	_vm_object_allocate(OBJT_PHYS, atop(VM_MAX_KERNEL_ADDRESS -
-	    VM_MIN_KERNEL_ADDRESS), kernel_object);
+	    VM_MIN_KERNEL_ADDRESS), OBJ_UNMANAGED, kernel_object);
 #if VM_NRESERVLEVEL > 0
 	kernel_object->flags |= OBJ_COLORED;
 	kernel_object->pg_color = (u_short)atop(VM_MIN_KERNEL_ADDRESS);
@@ -427,9 +407,53 @@ vm_object_t
 vm_object_allocate(objtype_t type, vm_pindex_t size)
 {
 	vm_object_t object;
+	u_short flags;
+
+	switch (type) {
+	case OBJT_DEAD:
+		panic("vm_object_allocate: can't create OBJT_DEAD");
+	case OBJT_DEFAULT:
+	case OBJT_SWAP:
+		flags = OBJ_COLORED;
+		break;
+	case OBJT_DEVICE:
+	case OBJT_SG:
+		flags = OBJ_FICTITIOUS | OBJ_UNMANAGED;
+		break;
+	case OBJT_MGTDEVICE:
+		flags = OBJ_FICTITIOUS;
+		break;
+	case OBJT_PHYS:
+		flags = OBJ_UNMANAGED;
+		break;
+	case OBJT_VNODE:
+		flags = 0;
+		break;
+	default:
+		panic("vm_object_allocate: type %d is undefined", type);
+	}
+	object = (vm_object_t)uma_zalloc(obj_zone, M_WAITOK);
+	_vm_object_allocate(type, size, flags, object);
+
+	return (object);
+}
+
+/*
+ *	vm_object_allocate_anon:
+ *
+ *	Returns a new default object of the given size and marked as
+ *	anonymous memory for special split/collapse handling.  Color
+ *	to be initialized by the caller.
+ */
+vm_object_t
+vm_object_allocate_anon(vm_pindex_t size)
+{
+	vm_object_t object;
 
 	object = (vm_object_t)uma_zalloc(obj_zone, M_WAITOK);
-	_vm_object_allocate(type, size, object);
+	_vm_object_allocate(OBJT_DEFAULT, size, OBJ_ANON | OBJ_ONEMAPPING,
+	    object);
+
 	return (object);
 }
 
@@ -522,7 +546,10 @@ vm_object_deallocate(vm_object_t object)
 		 * being 0 or 1.  These cases require a write lock on the
 		 * object.
 		 */
-		released = refcount_release_if_gt(&object->ref_count, 2);
+		if ((object->flags & OBJ_ANON) == 0)
+			released = refcount_release_if_gt(&object->ref_count, 1);
+		else
+			released = refcount_release_if_gt(&object->ref_count, 2);
 		VM_OBJECT_RUNLOCK(object);
 		if (released)
 			return;
@@ -538,14 +565,11 @@ vm_object_deallocate(vm_object_t object)
 		} else if (object->ref_count == 1) {
 			if (object->shadow_count == 0 &&
 			    object->handle == NULL &&
-			    (object->type == OBJT_DEFAULT ||
-			    (object->type == OBJT_SWAP &&
-			    (object->flags & OBJ_TMPFS_NODE) == 0))) {
+			    (object->flags & OBJ_ANON) != 0) {
 				vm_object_set_flag(object, OBJ_ONEMAPPING);
 			} else if ((object->shadow_count == 1) &&
 			    (object->handle == NULL) &&
-			    (object->type == OBJT_DEFAULT ||
-			     object->type == OBJT_SWAP)) {
+			    (object->flags & OBJ_ANON) != 0) {
 				vm_object_t robject;
 
 				robject = LIST_FIRST(&object->shadow_head);
@@ -576,10 +600,9 @@ vm_object_deallocate(vm_object_t object)
 				 * be deallocated by the thread that is
 				 * deallocating its shadow.
 				 */
-				if ((robject->flags & OBJ_DEAD) == 0 &&
-				    (robject->handle == NULL) &&
-				    (robject->type == OBJT_DEFAULT ||
-				     robject->type == OBJT_SWAP)) {
+				if ((robject->flags &
+				    (OBJ_DEAD | OBJ_ANON)) == OBJ_ANON &&
+				    robject->handle == NULL) {
 
 					refcount_acquire(&robject->ref_count);
 retry:
@@ -1049,8 +1072,8 @@ vm_object_advice_applies(vm_object_t object, int advice)
 		return (false);
 	if (advice != MADV_FREE)
 		return (true);
-	return ((object->type == OBJT_DEFAULT || object->type == OBJT_SWAP) &&
-	    (object->flags & OBJ_ONEMAPPING) != 0);
+	return ((object->flags & (OBJ_ONEMAPPING | OBJ_ANON)) ==
+	    (OBJ_ONEMAPPING | OBJ_ANON));
 }
 
 static void
@@ -1211,23 +1234,20 @@ vm_object_shadow(
 
 	/*
 	 * Don't create the new object if the old object isn't shared.
+	 *
+	 * If we hold the only reference we can guarantee that it won't
+	 * increase while we have the map locked.  Otherwise the race is
+	 * harmless and we will end up with an extra shadow object that
+	 * will be collapsed later.
 	 */
-	if (source != NULL) {
-		VM_OBJECT_RLOCK(source);
-		if (source->ref_count == 1 &&
-		    source->handle == NULL &&
-		    (source->type == OBJT_DEFAULT ||
-		     source->type == OBJT_SWAP)) {
-			VM_OBJECT_RUNLOCK(source);
-			return;
-		}
-		VM_OBJECT_RUNLOCK(source);
-	}
+	if (source != NULL && source->ref_count == 1 &&
+	    source->handle == NULL && (source->flags & OBJ_ANON) != 0)
+		return;
 
 	/*
 	 * Allocate a new object with the given length.
 	 */
-	result = vm_object_allocate(OBJT_DEFAULT, atop(length));
+	result = vm_object_allocate_anon(atop(length));
 
 	/*
 	 * The new object shadows the source object, adding a reference to it.
@@ -1282,7 +1302,7 @@ vm_object_split(vm_map_entry_t entry)
 	vm_size_t size;
 
 	orig_object = entry->object.vm_object;
-	if (orig_object->type != OBJT_DEFAULT && orig_object->type != OBJT_SWAP)
+	if ((orig_object->flags & OBJ_ANON) == 0)
 		return;
 	if (orig_object->ref_count <= 1)
 		return;
@@ -1295,7 +1315,7 @@ vm_object_split(vm_map_entry_t entry)
 	 * If swap_pager_copy() is later called, it will convert new_object
 	 * into a swap object.
 	 */
-	new_object = vm_object_allocate(OBJT_DEFAULT, size);
+	new_object = vm_object_allocate_anon(size);
 
 	/*
 	 * At this point, the new object is still private, so the order in
@@ -1443,8 +1463,7 @@ vm_object_scan_all_shadowed(vm_object_t object)
 
 	backing_object = object->backing_object;
 
-	if (backing_object->type != OBJT_DEFAULT &&
-	    backing_object->type != OBJT_SWAP)
+	if ((backing_object->flags & OBJ_ANON) == 0)
 		return (false);
 
 	pi = backing_offset_index = OFF_TO_IDX(object->backing_object_offset);
@@ -1668,15 +1687,13 @@ vm_object_collapse(vm_object_t object)
 		 * we check the backing object first, because it is most likely
 		 * not collapsable.
 		 */
+		if ((backing_object->flags & OBJ_ANON) == 0)
+			break;
 		VM_OBJECT_WLOCK(backing_object);
 		if (backing_object->handle != NULL ||
-		    (backing_object->type != OBJT_DEFAULT &&
-		    backing_object->type != OBJT_SWAP) ||
-		    (backing_object->flags & (OBJ_DEAD | OBJ_NOSPLIT)) != 0 ||
+		    (backing_object->flags & OBJ_DEAD) != 0 ||
 		    object->handle != NULL ||
-		    (object->type != OBJT_DEFAULT &&
-		     object->type != OBJT_SWAP) ||
-		    (object->flags & OBJ_DEAD)) {
+		    (object->flags & OBJ_DEAD) != 0) {
 			VM_OBJECT_WUNLOCK(backing_object);
 			break;
 		}
@@ -2027,14 +2044,10 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 
 	if (prev_object == NULL)
 		return (TRUE);
-	VM_OBJECT_WLOCK(prev_object);
-	if ((prev_object->type != OBJT_DEFAULT &&
-	    prev_object->type != OBJT_SWAP) ||
-	    (prev_object->flags & OBJ_NOSPLIT) != 0) {
-		VM_OBJECT_WUNLOCK(prev_object);
+	if ((prev_object->flags & OBJ_ANON) == 0)
 		return (FALSE);
-	}
 
+	VM_OBJECT_WLOCK(prev_object);
 	/*
 	 * Try to collapse the object first
 	 */
