@@ -520,6 +520,7 @@ bcm_sdhci_start_dma_seg(struct bcm_sdhci_softc *sc)
 	int err, idx, len, sync_op, width;
 
 	slot = &sc->sc_slot;
+	mtx_assert(&slot->mtx, MA_OWNED);
 	idx = sc->dmamap_seg_index++;
 	len = sc->dmamap_seg_sizes[idx];
 	slot->offset += len;
