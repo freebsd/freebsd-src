@@ -61,6 +61,7 @@
 	__GLOBL(__CONCAT(__stop_set_,set));		\
 	static void const * qv				\
 	__set_##set##_sym_##sym __section("set_" #set)	\
+	__nosanitizeaddress				\
 	__used = &(sym)
 #define __MAKE_SET(set, sym)	__MAKE_SET_QV(set, sym, __MAKE_SET_CONST)
 #else /* !__GNUCLIKE___SECTION */
