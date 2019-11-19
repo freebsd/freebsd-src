@@ -1915,6 +1915,7 @@ create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *reqp)
 	reqp->sense_info_len = csio->sense_len;
 
 	reqp->ccb = ccb;
+	ccb->ccb_h.spriv_ptr0 = reqp;
 
 	if (0 == csio->dxfer_len) {
 		return (0);
