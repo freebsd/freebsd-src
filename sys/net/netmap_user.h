@@ -981,7 +981,8 @@ nm_close(struct nm_desc *d)
 static int
 nm_mmap(struct nm_desc *d, const struct nm_desc *parent)
 {
-	//XXX TODO: check if mmap is already done
+	if (d->done_mmap)
+		return 0;
 
 	if (IS_NETMAP_DESC(parent) && parent->mem &&
 	    parent->req.nr_arg2 == d->req.nr_arg2) {
