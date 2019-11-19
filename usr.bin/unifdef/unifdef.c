@@ -45,7 +45,16 @@
  *   it possible to handle all "dodgy" directives correctly.
  */
 
-#include "unifdef.h"
+#include <sys/stat.h>
+
+#include <ctype.h>
+#include <err.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 static const char copyright[] =
     "@(#) $Version: unifdef-2.11 $\n"
@@ -250,6 +259,21 @@ static const char      *xstrdup(const char *, const char *);
 
 #define endsym(c) (!isalnum((unsigned char)c) && c != '_')
 
+static FILE *
+mktempmode(char *tmp, int mode)
+{
+	int rc, fd;
+
+	mode &= (S_IRWXU|S_IRWXG|S_IRWXO);
+	fd = mkstemp(tmp);
+	if (fd < 0)
+		err(2, "can't create %s", tmp);
+	rc = fchmod(fd, mode);
+	if (rc < 0)
+		err(2, "can't fchmod %s mode=0o%o", tmp, mode);
+	return (fdopen(fd, "wb"));
+}
+
 /*
  * The main program.
  */
@@ -388,7 +412,7 @@ processinout(const char *ifn, const char *ofn)
 	if (ifn == NULL || strcmp(ifn, "-") == 0) {
 		filename = "[stdin]";
 		linefile = NULL;
-		input = fbinmode(stdin);
+		input = stdin;
 	} else {
 		filename = ifn;
 		linefile = ifn;
@@ -397,7 +421,7 @@ processinout(const char *ifn, const char *ofn)
 			err(2, "can't open %s", ifn);
 	}
 	if (strcmp(ofn, "-") == 0) {
-		output = fbinmode(stdout);
+		output = stdout;
 		process();
 		return;
 	}
@@ -426,7 +450,7 @@ processinout(const char *ifn, const char *ofn)
 	if (!altered && backext == NULL) {
 		if (remove(tempname) < 0)
 			warn("can't remove \"%s\"", tempname);
-	} else if (replace(tempname, ofn) < 0)
+	} else if (rename(tempname, ofn) < 0)
 		err(2, "can't rename \"%s\" to \"%s\"", tempname, ofn);
 	free(tempname);
 	tempname = NULL;
