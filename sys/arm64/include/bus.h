@@ -322,7 +322,7 @@ struct bus_space {
 #define	bus_space_read_stream_1(t, h, o)        __bs_rs_s(1,(t), (h), (o))
 #define	bus_space_read_stream_2(t, h, o)        __bs_rs_s(2,(t), (h), (o))
 #define	bus_space_read_stream_4(t, h, o)        __bs_rs_s(4,(t), (h), (o))
-#define	bus_space_read_stream_8(t, h, o)	__bs_rs_s(8,8,(t),(h),(o))
+#define	bus_space_read_stream_8(t, h, o)	__bs_rs_s(8,(t), (h), (o))
 
 /*
  * Bus read multiple operations.
