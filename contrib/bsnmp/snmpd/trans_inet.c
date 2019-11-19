@@ -458,12 +458,10 @@ struct inet_port_params {
 static int
 ipv4_create(struct inet_port *port, struct inet_port_params *params)
 {
-	uint32_t ip;
 
 	if (params->addr_len != 4)
 		return (SNMP_ERR_INCONS_VALUE);
 
-	memcpy(&ip, params->addr, 4);
 	struct port_sock *sock = calloc(1, sizeof(struct port_sock));
 	if (sock == NULL)
 		return (SNMP_ERR_GENERR);
@@ -477,8 +475,8 @@ ipv4_create(struct inet_port *port, struct inet_port_params *params)
 
 	sin->sin_len = sizeof(struct sockaddr_in);
 	sin->sin_family = AF_INET;
-	sin->sin_addr.s_addr = htonl(ip);
 	sin->sin_port = htons(params->port);
+	memcpy(&sin->sin_addr, params->addr, 4); /* network byte order */
 
 	sock->port = port;
 
