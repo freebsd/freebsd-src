@@ -6865,7 +6865,7 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 		error = vec->zvec_func(zc->zc_name, innvl, outnvl);
 
 		/*
-		 * Some commands can partially execute, modfiy state, and still
+		 * Some commands can partially execute, modify state, and still
 		 * return an error.  In these cases, attempt to record what
 		 * was modified.
 		 */

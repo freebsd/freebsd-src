@@ -330,6 +330,7 @@ typedef cond_t kcondvar_t;
 extern void cv_init(kcondvar_t *cv, char *name, int type, void *arg);
 extern void cv_destroy(kcondvar_t *cv);
 extern void cv_wait(kcondvar_t *cv, kmutex_t *mp);
+extern int cv_wait_sig(kcondvar_t *cv, kmutex_t *mp);
 extern clock_t cv_timedwait(kcondvar_t *cv, kmutex_t *mp, clock_t abstime);
 extern clock_t cv_timedwait_hires(kcondvar_t *cvp, kmutex_t *mp, hrtime_t tim,
     hrtime_t res, int flag);
