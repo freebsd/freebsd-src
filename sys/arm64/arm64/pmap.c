@@ -2062,12 +2062,13 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 				if ((tpte & ATTR_SW_WIRED) != 0)
 					continue;
 				tpte = pmap_load_clear(pte);
-				pmap_invalidate_page(pmap, va);
 				m = PHYS_TO_VM_PAGE(tpte & ~ATTR_MASK);
 				if (pmap_pte_dirty(tpte))
 					vm_page_dirty(m);
-				if ((tpte & ATTR_AF) != 0)
+				if ((tpte & ATTR_AF) != 0) {
+					pmap_invalidate_page(pmap, va);
 					vm_page_aflag_set(m, PGA_REFERENCED);
+				}
 				CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
 				TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 				m->md.pv_gen++;
