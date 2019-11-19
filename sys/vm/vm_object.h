@@ -185,7 +185,7 @@ struct vm_object {
 #define	OBJ_UNMANAGED	0x0002		/* (c) contains unmanaged pages */
 #define	OBJ_POPULATE	0x0004		/* pager implements populate() */
 #define	OBJ_DEAD	0x0008		/* dead objects (during rundown) */
-#define	OBJ_NOSPLIT	0x0010		/* dont split this object */
+#define	OBJ_ANON	0x0010		/* (c) contains anonymous memory */
 #define	OBJ_UMTXDEAD	0x0020		/* umtx pshared was terminated */
 #define	OBJ_SIZEVNLOCK	0x0040		/* lock vnode to check obj size */
 #define	OBJ_PG_DTOR	0x0080		/* dont reset object, leave that for dtor */
@@ -340,6 +340,7 @@ void umtx_shm_object_terminated(vm_object_t object);
 extern int umtx_shm_vnobj_persistent;
 
 vm_object_t vm_object_allocate (objtype_t, vm_pindex_t);
+vm_object_t vm_object_allocate_anon(vm_pindex_t);
 boolean_t vm_object_coalesce(vm_object_t, vm_ooffset_t, vm_size_t, vm_size_t,
    boolean_t);
 void vm_object_collapse (vm_object_t);

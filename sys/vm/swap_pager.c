@@ -3038,7 +3038,7 @@ swap_pager_update_writecount(vm_object_t object, vm_offset_t start,
 {
 
 	VM_OBJECT_WLOCK(object);
-	KASSERT((object->flags & OBJ_NOSPLIT) != 0,
+	KASSERT((object->flags & OBJ_ANON) == 0,
 	    ("Splittable object with writecount"));
 	object->un_pager.swp.writemappings += (vm_ooffset_t)end - start;
 	VM_OBJECT_WUNLOCK(object);
@@ -3050,7 +3050,7 @@ swap_pager_release_writecount(vm_object_t object, vm_offset_t start,
 {
 
 	VM_OBJECT_WLOCK(object);
-	KASSERT((object->flags & OBJ_NOSPLIT) != 0,
+	KASSERT((object->flags & OBJ_ANON) == 0,
 	    ("Splittable object with writecount"));
 	object->un_pager.swp.writemappings -= (vm_ooffset_t)end - start;
 	VM_OBJECT_WUNLOCK(object);
