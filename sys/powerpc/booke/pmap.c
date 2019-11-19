@@ -4254,7 +4254,7 @@ tid_flush(tlbtid_t tid)
 	case FSL_E6500:
 		mtspr(SPR_MAS6, tid << MAS6_SPID0_SHIFT);
 		/* tlbilxpid */
-		__asm __volatile("isync; .long 0x7c000024; isync; msync");
+		__asm __volatile("isync; .long 0x7c200024; isync; msync");
 		__asm __volatile("wrtee %0" :: "r"(msr));
 		return;
 	}
