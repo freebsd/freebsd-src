@@ -9,6 +9,8 @@ PROG=	flua
 WARNS?=	2
 MAN=	# No manpage; this is internal.
 
+CWARNFLAGS.gcc+=	-Wno-format-nonliteral
+
 LIBADD=	m
 
 # Core functions
