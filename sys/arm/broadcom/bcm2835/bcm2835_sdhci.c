@@ -240,18 +240,21 @@ bcm_sdhci_attach(device_t dev)
 #ifdef NOTYET
 	if (sc->conf->clock_src > 0) {
 		uint32_t f;
-		sc->clkman = devclass_get_device(devclass_find("bcm2835_clkman"), 0);
+		sc->clkman = devclass_get_device(
+		    devclass_find("bcm2835_clkman"), 0);
 		if (sc->clkman == NULL) {
 			device_printf(dev, "cannot find Clock Manager\n");
 			return (ENXIO);
 		}
 
-		f = bcm2835_clkman_set_frequency(sc->clkman, sc->conf->clock_src, default_freq);
+		f = bcm2835_clkman_set_frequency(sc->clkman,
+		    sc->conf->clock_src, default_freq);
 		if (f == 0)
 			return (EINVAL);
 
 		if (bootverbose)
-			device_printf(dev, "Clock source frequency: %dMHz\n", f);
+			device_printf(dev, "Clock source frequency: %dMHz\n",
+			    f);
 	}
 #endif
 
@@ -291,7 +294,7 @@ bcm_sdhci_attach(device_t dev)
 		sc->sc_slot.caps |= SDHCI_CAN_DO_HISPD;
 	sc->sc_slot.caps |= (default_freq << SDHCI_CLOCK_BASE_SHIFT);
 	sc->sc_slot.quirks = sc->conf->quirks;
- 
+
 	sdhci_init_slot(dev, &sc->sc_slot, 0);
 
 	if (sc->conf->use_dma) {
@@ -299,8 +302,10 @@ bcm_sdhci_attach(device_t dev)
 		if (sc->sc_dma_ch == BCM_DMA_CH_INVALID)
 			goto fail;
 
-		if (bcm_dma_setup_intr(sc->sc_dma_ch, bcm_sdhci_dma_intr, sc) != 0) {
-			device_printf(dev, "cannot setup dma interrupt handler\n");
+		err = bcm_dma_setup_intr(sc->sc_dma_ch, bcm_sdhci_dma_intr, sc);
+		if (err != 0) {
+			device_printf(dev,
+			    "cannot setup dma interrupt handler\n");
 			err = ENXIO;
 			goto fail;
 		}
@@ -388,7 +393,7 @@ WR4(struct bcm_sdhci_softc *sc, bus_size_t off, uint32_t val)
 	/*
 	 * The Arasan HC has a bug where it may lose the content of
 	 * consecutive writes to registers that are within two SD-card
-	 * clock cycles of each other (a clock domain crossing problem). 
+	 * clock cycles of each other (a clock domain crossing problem).
 	 */
 	if (sc->sc_slot.clock > 0)
 		DELAY(((2 * 1000000) / sc->sc_slot.clock) + 1);
@@ -442,7 +447,8 @@ bcm_sdhci_read_multi_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 }
 
 static void
-bcm_sdhci_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint8_t val)
+bcm_sdhci_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off,
+    uint8_t val)
 {
 	struct bcm_sdhci_softc *sc = device_get_softc(dev);
 	uint32_t val32 = RD4(sc, off & ~3);
@@ -452,7 +458,8 @@ bcm_sdhci_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint8_t
 }
 
 static void
-bcm_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16_t val)
+bcm_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off,
+    uint16_t val)
 {
 	struct bcm_sdhci_softc *sc = device_get_softc(dev);
 	uint32_t val32;
@@ -497,7 +504,8 @@ bcm_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16_
 }
 
 static void
-bcm_sdhci_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint32_t val)
+bcm_sdhci_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
+    uint32_t val)
 {
 	struct bcm_sdhci_softc *sc = device_get_softc(dev);
 	WR4(sc, off, val);
@@ -528,7 +536,7 @@ bcm_sdhci_start_dma_seg(struct bcm_sdhci_softc *sc)
 
 	if (slot->curcmd->data->flags & MMC_DATA_READ) {
 		bcm_dma_setup_src(sc->sc_dma_ch, BCM_DMA_DREQ_EMMC,
-		    BCM_DMA_SAME_ADDR, BCM_DMA_32BIT); 
+		    BCM_DMA_SAME_ADDR, BCM_DMA_32BIT);
 		bcm_dma_setup_dst(sc->sc_dma_ch, BCM_DMA_DREQ_NONE,
 		    BCM_DMA_INC_ADDR, width);
 		psrc = sc->sc_sdhci_buffer_phys;
@@ -670,8 +678,8 @@ bcm_sdhci_read_dma(device_t dev, struct sdhci_slot *slot)
 	KASSERT((left & 3) == 0,
 	    ("%s: len = %zu, not word-aligned", __func__, left));
 
-	if (bus_dmamap_load(sc->sc_dma_tag, sc->sc_dma_map, 
-	    (uint8_t *)slot->curcmd->data->data + slot->offset, left, 
+	if (bus_dmamap_load(sc->sc_dma_tag, sc->sc_dma_map,
+	    (uint8_t *)slot->curcmd->data->data + slot->offset, left,
 	    bcm_sdhci_dmacb, sc, BUS_DMA_NOWAIT) != 0 ||
 	    sc->dmamap_status != 0) {
 		slot->curcmd->error = MMC_ERR_NO_MEMORY;
@@ -701,7 +709,7 @@ bcm_sdhci_write_dma(device_t dev, struct sdhci_slot *slot)
 	    ("%s: len = %zu, not word-aligned", __func__, left));
 
 	if (bus_dmamap_load(sc->sc_dma_tag, sc->sc_dma_map,
-	    (uint8_t *)slot->curcmd->data->data + slot->offset, left, 
+	    (uint8_t *)slot->curcmd->data->data + slot->offset, left,
 	    bcm_sdhci_dmacb, sc, BUS_DMA_NOWAIT) != 0 ||
 	    sc->dmamap_status != 0) {
 		slot->curcmd->error = MMC_ERR_NO_MEMORY;
