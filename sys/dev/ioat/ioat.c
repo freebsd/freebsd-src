@@ -1025,6 +1025,15 @@ ioat_get_capabilities(bus_dmaengine_t dmaengine)
 }
 
 int
+ioat_get_domain(bus_dmaengine_t dmaengine, int *domain)
+{
+	struct ioat_softc *ioat;
+
+	ioat = to_ioat_softc(dmaengine);
+	return (bus_get_domain(ioat->device, domain));
+}
+
+int
 ioat_set_interrupt_coalesce(bus_dmaengine_t dmaengine, uint16_t delay)
 {
 	struct ioat_softc *ioat;
