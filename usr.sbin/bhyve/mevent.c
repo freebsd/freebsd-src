@@ -321,6 +321,14 @@ mevent_add(int tfd, enum ev_type type,
 	return mevent_add_state(tfd, type, func, param, MEV_ADD);
 }
 
+struct mevent *
+mevent_add_disabled(int tfd, enum ev_type type,
+		    void (*func)(int, enum ev_type, void *), void *param)
+{
+
+	return mevent_add_state(tfd, type, func, param, MEV_ADD_DISABLED);
+}
+
 static int
 mevent_update(struct mevent *evp, int newstate)
 {

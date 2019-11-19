@@ -220,7 +220,7 @@ tap_init(struct net_backend *be, const char *devname,
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
 
-	priv->mevp = mevent_add(be->fd, EVF_READ, cb, param);
+	priv->mevp = mevent_add_disabled(be->fd, EVF_READ, cb, param);
 	if (priv->mevp == NULL) {
 		WPRINTF(("Could not register event\n"));
 		goto error;
@@ -432,7 +432,7 @@ netmap_init(struct net_backend *be, const char *devname,
 	priv->cb_param = param;
 	be->fd = priv->nmd->fd;
 
-	priv->mevp = mevent_add(be->fd, EVF_READ, cb, param);
+	priv->mevp = mevent_add_disabled(be->fd, EVF_READ, cb, param);
 	if (priv->mevp == NULL) {
 		WPRINTF(("Could not register event\n"));
 		return (-1);
