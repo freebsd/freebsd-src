@@ -649,9 +649,7 @@ vnode_pager_input_smlfs(vm_object_t object, vm_page_t m)
 			bzero((caddr_t)sf_buf_kva(sf) + i * bsize, bsize);
 		KASSERT((m->dirty & bits) == 0,
 		    ("vnode_pager_input_smlfs: page %p is dirty", m));
-		VM_OBJECT_WLOCK(object);
-		m->valid |= bits;
-		VM_OBJECT_WUNLOCK(object);
+		vm_page_bits_set(m, &m->valid, bits);
 	}
 	sf_buf_free(sf);
 	if (error) {
@@ -888,9 +886,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 		pmap_zero_page(m[0]);
 		KASSERT(m[0]->dirty == 0, ("%s: page %p is dirty",
 		    __func__, m[0]));
-		VM_OBJECT_WLOCK(object);
 		vm_page_valid(m[0]);
-		VM_OBJECT_WUNLOCK(object);
 		return (VM_PAGER_OK);
 	}
 
@@ -1143,7 +1139,8 @@ vnode_pager_generic_getpages_done(struct buf *bp)
 		bp->b_data = unmapped_buf;
 	}
 
-	VM_OBJECT_WLOCK(object);
+	/* Read lock to protect size. */
+	VM_OBJECT_RLOCK(object);
 	for (i = 0, tfoff = IDX_TO_OFF(bp->b_pages[0]->pindex);
 	    i < bp->b_npages; i++, tfoff = nextoff) {
 		vm_page_t mt;
@@ -1180,7 +1177,7 @@ vnode_pager_generic_getpages_done(struct buf *bp)
 		if (i < bp->b_pgbefore || i >= bp->b_npages - bp->b_pgafter)
 			vm_page_readahead_finish(mt);
 	}
-	VM_OBJECT_WUNLOCK(object);
+	VM_OBJECT_RUNLOCK(object);
 	if (error != 0)
 		printf("%s: I/O read error %d\n", __func__, error);
 
@@ -1304,12 +1301,6 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	 */
 	VM_OBJECT_RLOCK(object);
 	if (maxsize + poffset > object->un_pager.vnp.vnp_size) {
-		if (!VM_OBJECT_TRYUPGRADE(object)) {
-			VM_OBJECT_RUNLOCK(object);
-			VM_OBJECT_WLOCK(object);
-			if (maxsize + poffset <= object->un_pager.vnp.vnp_size)
-				goto downgrade;
-		}
 		if (object->un_pager.vnp.vnp_size > poffset) {
 			maxsize = object->un_pager.vnp.vnp_size - poffset;
 			ncount = btoc(maxsize);
@@ -1317,7 +1308,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 				pgoff = roundup2(pgoff, DEV_BSIZE);
 
 				/*
-				 * If the object is locked and the following
+				 * If the page is busy and the following
 				 * conditions hold, then the page's dirty
 				 * field cannot be concurrently changed by a
 				 * pmap operation.
@@ -1336,9 +1327,8 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 		}
 		for (i = ncount; i < count; i++)
 			rtvals[i] = VM_PAGER_BAD;
-downgrade:
-		VM_OBJECT_LOCK_DOWNGRADE(object);
 	}
+	VM_OBJECT_RUNLOCK(object);
 
 	auio.uio_iov = &aiov;
 	auio.uio_segflg = UIO_NOCOPY;
@@ -1384,7 +1374,6 @@ start_write:
 		 */
 		MPASS(prev_offset < next_offset);
 
-		VM_OBJECT_RUNLOCK(object);
 		aiov.iov_base = NULL;
 		auio.uio_iovcnt = 1;
 		auio.uio_offset = prev_offset;
@@ -1400,7 +1389,6 @@ start_write:
 				    "zero-length write at %ju resid %zd\n",
 				    auio.uio_offset, auio.uio_resid);
 			}
-			VM_OBJECT_RLOCK(object);
 			break;
 		}
 
@@ -1418,7 +1406,6 @@ start_write:
 			vn_printf(vp, "vnode_pager_putpages: residual I/O %zd "
 			    "at %ju\n", auio.uio_resid,
 			    (uintmax_t)ma[0]->pindex);
-		VM_OBJECT_RLOCK(object);
 		if (error != 0 || auio.uio_resid != 0)
 			break;
 	}
@@ -1432,7 +1419,6 @@ write_done:
 	/* Unwritten pages in range, free bonus if the page is clean. */
 	for (; i < ncount; i++)
 		rtvals[i] = ma[i]->dirty == 0 ? VM_PAGER_OK : VM_PAGER_ERROR;
-	VM_OBJECT_RUNLOCK(object);
 	VM_CNT_ADD(v_vnodepgsout, i);
 	VM_CNT_INC(v_vnodeout);
 	return (rtvals[0]);
@@ -1482,7 +1468,6 @@ vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written, off_t eof,
 	if (written == 0 && eof >= lpos)
 		return;
 	obj = ma[0]->object;
-	VM_OBJECT_WLOCK(obj);
 	for (i = 0, pos = 0; pos < written; i++, pos += PAGE_SIZE) {
 		if (pos < trunc_page(written)) {
 			rtvals[i] = VM_PAGER_OK;
@@ -1494,7 +1479,7 @@ vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written, off_t eof,
 		}
 	}
 	if (eof >= lpos) /* avoid truncation */
-		goto done;
+		return;
 	for (pos = eof, i = OFF_TO_IDX(trunc_page(pos)); pos < lpos; i++) {
 		if (pos != trunc_page(pos)) {
 			/*
@@ -1523,8 +1508,6 @@ vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written, off_t eof,
 			pos += PAGE_SIZE;
 		}
 	}
-done:
-	VM_OBJECT_WUNLOCK(obj);
 }
 
 static void
