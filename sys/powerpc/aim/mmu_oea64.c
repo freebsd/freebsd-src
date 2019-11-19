@@ -1877,7 +1877,7 @@ moea64_kenter_attr(mmu_t mmu, vm_offset_t va, vm_paddr_t pa, vm_memattr_t ma)
 		free_pvo_entry(oldpvo);
 	}
 
-	if (error != 0 && error != ENOENT)
+	if (error != 0)
 		panic("moea64_kenter: failed to enter va %#zx pa %#jx: %d", va,
 		    (uintmax_t)pa, error);
 }
@@ -2515,8 +2515,8 @@ static int
 moea64_pvo_enter(mmu_t mmu, struct pvo_entry *pvo, struct pvo_head *pvo_head,
     struct pvo_entry **oldpvop)
 {
-	int first, err;
 	struct pvo_entry *old_pvo;
+	int err;
 
 	PMAP_LOCK_ASSERT(pvo->pvo_pmap, MA_OWNED);
 
@@ -2533,13 +2533,7 @@ moea64_pvo_enter(mmu_t mmu, struct pvo_entry *pvo, struct pvo_head *pvo_head,
 		return (EEXIST);
 	}
 
-	/*
-	 * Remember if the list was empty and therefore will be the first
-	 * item.
-	 */
 	if (pvo_head != NULL) {
-		if (LIST_FIRST(pvo_head) == NULL)
-			first = 1;
 		LIST_INSERT_HEAD(pvo_head, pvo, pvo_vlink);
 	}
 
@@ -2570,7 +2564,7 @@ moea64_pvo_enter(mmu_t mmu, struct pvo_entry *pvo, struct pvo_head *pvo_head,
 		    pvo->pvo_vaddr & PVO_LARGE);
 #endif
 
-	return (first ? ENOENT : 0);
+	return (0);
 }
 
 static void
