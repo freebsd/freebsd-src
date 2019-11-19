@@ -179,10 +179,14 @@ static struct mtx mfc_mtx;
 
 VNET_DEFINE_STATIC(vifi_t, numvifs);
 #define	V_numvifs		VNET(numvifs)
-VNET_DEFINE_STATIC(struct vif, viftable[MAXVIFS]);
+VNET_DEFINE_STATIC(struct vif *, viftable);
 #define	V_viftable		VNET(viftable)
+/*
+ * No one should be able to "query" this before initialisation happened in 
+ * vnet_mroute_init(), so we should still be fine.
+ */
 SYSCTL_OPAQUE(_net_inet_ip, OID_AUTO, viftable, CTLFLAG_VNET | CTLFLAG_RD,
-    &VNET_NAME(viftable), sizeof(V_viftable), "S,vif[MAXVIFS]",
+    &VNET_NAME(viftable), sizeof(*V_viftable) * MAXVIFS, "S,vif[MAXVIFS]",
     "IPv4 Multicast Interfaces (struct vif[MAXVIFS], netinet/ip_mroute.h)");
 
 static struct mtx vif_mtx;
@@ -210,7 +214,7 @@ static MALLOC_DEFINE(M_BWMETER, "bwmeter", "multicast upcall bw meters");
  * expiration time. Periodically, the entries are analysed and processed.
  */
 #define	BW_METER_BUCKETS	1024
-VNET_DEFINE_STATIC(struct bw_meter*, bw_meter_timers[BW_METER_BUCKETS]);
+VNET_DEFINE_STATIC(struct bw_meter **, bw_meter_timers);
 #define	V_bw_meter_timers	VNET(bw_meter_timers)
 VNET_DEFINE_STATIC(struct callout, bw_meter_ch);
 #define	V_bw_meter_ch		VNET(bw_meter_ch)
@@ -220,7 +224,7 @@ VNET_DEFINE_STATIC(struct callout, bw_meter_ch);
  * Pending upcalls are stored in a vector which is flushed when
  * full, or periodically
  */
-VNET_DEFINE_STATIC(struct bw_upcall, bw_upcalls[BW_UPCALLS_MAX]);
+VNET_DEFINE_STATIC(struct bw_upcall *, bw_upcalls);
 #define	V_bw_upcalls		VNET(bw_upcalls)
 VNET_DEFINE_STATIC(u_int, bw_upcalls_n); /* # of pending upcalls */
 #define	V_bw_upcalls_n    	VNET(bw_upcalls_n)
@@ -764,7 +768,7 @@ X_ip_mrouter_done(void)
     bzero(V_nexpire, sizeof(V_nexpire[0]) * mfchashsize);
 
     V_bw_upcalls_n = 0;
-    bzero(V_bw_meter_timers, sizeof(V_bw_meter_timers));
+    bzero(V_bw_meter_timers, BW_METER_BUCKETS * sizeof(*V_bw_meter_timers));
 
     MFC_UNLOCK();
 
@@ -2802,7 +2806,14 @@ vnet_mroute_init(const void *unused __unused)
 {
 
 	V_nexpire = malloc(mfchashsize, M_MRTABLE, M_WAITOK|M_ZERO);
-	bzero(V_bw_meter_timers, sizeof(V_bw_meter_timers));
+
+	V_viftable = mallocarray(MAXVIFS, sizeof(*V_viftable),
+	    M_MRTABLE, M_WAITOK|M_ZERO);
+	V_bw_meter_timers = mallocarray(BW_METER_BUCKETS,
+	    sizeof(*V_bw_meter_timers), M_MRTABLE, M_WAITOK|M_ZERO);
+	V_bw_upcalls = mallocarray(BW_UPCALLS_MAX, sizeof(*V_bw_upcalls),
+	    M_MRTABLE, M_WAITOK|M_ZERO);
+
 	callout_init(&V_expire_upcalls_ch, 1);
 	callout_init(&V_bw_upcalls_ch, 1);
 	callout_init(&V_bw_meter_ch, 1);
@@ -2815,6 +2826,9 @@ static void
 vnet_mroute_uninit(const void *unused __unused)
 {
 
+	free(V_bw_upcalls, M_MRTABLE);
+	free(V_bw_meter_timers, M_MRTABLE);
+	free(V_viftable, M_MRTABLE);
 	free(V_nexpire, M_MRTABLE);
 	V_nexpire = NULL;
 }
