@@ -66,7 +66,17 @@ __FBSDID("$FreeBSD$");
 #define	BCM2838_DEFAULT_SDHCI_FREQ	100
 
 #define	BCM_SDHCI_BUFFER_SIZE		512
-#define	NUM_DMA_SEGS			2
+/*
+ * NUM_DMA_SEGS is the number of DMA segments we want to accommodate on average.
+ * We add in a number of segments based on how much we may need to spill into
+ * another segment due to crossing page boundaries.  e.g. up to PAGE_SIZE, an
+ * extra page is needed as we can cross a page boundary exactly once.
+ */
+#define	NUM_DMA_SEGS			1
+#define	NUM_DMA_SPILL_SEGS		\
+	((((NUM_DMA_SEGS * BCM_SDHCI_BUFFER_SIZE) - 1) / PAGE_SIZE) + 1)
+#define	ALLOCATED_DMA_SEGS		(NUM_DMA_SEGS +	NUM_DMA_SPILL_SEGS)
+#define	BCM_DMA_MAXSIZE			(NUM_DMA_SEGS * BCM_SDHCI_BUFFER_SIZE)
 
 #define	DATA_PENDING_MASK	(SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL)
 
@@ -141,8 +151,8 @@ struct bcm_sdhci_softc {
 	bus_dma_tag_t		sc_dma_tag;
 	bus_dmamap_t		sc_dma_map;
 	vm_paddr_t		sc_sdhci_buffer_phys;
-	bus_addr_t		dmamap_seg_addrs[NUM_DMA_SEGS];
-	bus_size_t		dmamap_seg_sizes[NUM_DMA_SEGS];
+	bus_addr_t		dmamap_seg_addrs[ALLOCATED_DMA_SEGS];
+	bus_size_t		dmamap_seg_sizes[ALLOCATED_DMA_SEGS];
 	int			dmamap_seg_count;
 	int			dmamap_seg_index;
 	int			dmamap_status;
@@ -314,7 +324,7 @@ bcm_sdhci_attach(device_t dev)
 		err = bus_dma_tag_create(bus_get_dma_tag(dev),
 		    1, 0, BUS_SPACE_MAXADDR_32BIT,
 		    BUS_SPACE_MAXADDR, NULL, NULL,
-		    BCM_SDHCI_BUFFER_SIZE, NUM_DMA_SEGS, BCM_SDHCI_BUFFER_SIZE,
+		    BCM_DMA_MAXSIZE, ALLOCATED_DMA_SEGS, BCM_SDHCI_BUFFER_SIZE,
 		    BUS_DMA_ALLOCNOW, NULL, NULL,
 		    &sc->sc_dma_tag);
 
