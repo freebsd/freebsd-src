@@ -197,7 +197,7 @@ as part
 of the normal system build.
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf and sparc64/sparc64.
+amd64/amd64, arm/armv6, arm/armv7, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf and sparc64/sparc64.
 .It Va WITHOUT_BINUTILS_BOOTSTRAP
 Set to not build binutils (as, ld, and objdump)
 as part of the bootstrap process.
@@ -213,7 +213,7 @@ Set build binutils (as, ld, and objdump)
 as part of the bootstrap process.
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf and sparc64/sparc64.
+amd64/amd64, arm/armv6, arm/armv7, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf and sparc64/sparc64.
 .It Va WITHOUT_BLACKLIST
 Set this if you do not want to build
 .Xr blacklistd 8
@@ -268,7 +268,7 @@ and
 .Pa crtend.o .
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITH_BSD_GREP
 Install BSD-licensed grep as '[ef]grep' instead of GNU grep.
 .It Va WITHOUT_BSNMP
@@ -365,7 +365,7 @@ When set, it enforces these options:
 Set to not build the Clang C/C++ compiler during the regular phase of the build.
 .Pp
 This is a default setting on
-riscv/riscv64 and sparc64/sparc64.
+sparc64/sparc64.
 When set, it enforces these options:
 .Pp
 .Bl -item -compact
@@ -400,6 +400,10 @@ is set explicitly)
 (unless
 .Va WITH_LLVM_TARGET_POWERPC
 is set explicitly)
+.It Va WITHOUT_LLVM_TARGET_RISCV
+(unless
+.Va WITH_LLVM_TARGET_RISCV
+is set explicitly)
 .It Va WITHOUT_LLVM_TARGET_SPARC
 (unless
 .Va WITH_LLVM_TARGET_SPARC
@@ -413,7 +417,7 @@ is set explicitly)
 Set to build the Clang C/C++ compiler during the normal phase of the build.
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITHOUT_CLANG_BOOTSTRAP
 Set to not build the Clang C/C++ compiler during the bootstrap phase of
 the build.
@@ -426,7 +430,7 @@ riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32,
 Set to build the Clang C/C++ compiler during the bootstrap phase of the build.
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64 and i386/i386.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64 and i386/i386.
 .It Va WITH_CLANG_EXTRAS
 Set to build additional clang and llvm tools, such as bugpoint and
 clang-format.
@@ -435,13 +439,13 @@ Set to avoid building the ARCMigrate, Rewriter and StaticAnalyzer components of
 the Clang C/C++ compiler.
 .Pp
 This is a default setting on
-riscv/riscv64 and sparc64/sparc64.
+sparc64/sparc64.
 .It Va WITH_CLANG_FULL
 Set to build the ARCMigrate, Rewriter and StaticAnalyzer components of the
 Clang C/C++ compiler.
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITHOUT_CLANG_IS_CC
 Set to install the GCC compiler as
 .Pa /usr/bin/cc ,
@@ -459,7 +463,7 @@ and
 .Pa /usr/bin/cpp .
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64 and i386/i386.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64 and i386/i386.
 .It Va WITHOUT_CPP
 Set to not build
 .Xr cpp 1 .
@@ -522,7 +526,7 @@ Set to not build
 .Xr cxgbetool 8
 .Pp
 This is a default setting on
-arm/arm, arm/armv6, arm/armv7, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+arm/armv6, arm/armv7, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITH_CXGBETOOL
 Set to build
 .Xr cxgbetool 8
@@ -691,7 +695,7 @@ and
 .Xr efivar 8 .
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64 and i386/i386.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64 and i386/i386.
 .It Va WITHOUT_ELFTOOLCHAIN_BOOTSTRAP
 Set to not build ELF Tool Chain tools
 (addr2line, nm, size, strings and strip)
@@ -749,7 +753,7 @@ Set to not build games.
 Set to not build and install gcc and g++ as part of the normal build process.
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64, i386/i386 and riscv/riscv64.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386 and riscv/riscv64.
 .It Va WITH_GCC
 Set to build and install gcc and g++.
 .Pp
@@ -762,7 +766,7 @@ unless an alternative compiler is provided via
 XCC.
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64, i386/i386 and riscv/riscv64.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386 and riscv/riscv64.
 .It Va WITH_GCC_BOOTSTRAP
 Set to build gcc and g++ as part of the bootstrap process.
 .Pp
@@ -783,7 +787,7 @@ Set to build
 .Xr gdb 1 .
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf and sparc64/sparc64.
+amd64/amd64, arm/armv6, arm/armv7, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf and sparc64/sparc64.
 .It Va WITHOUT_GDB_LIBEXEC
 Set to install
 .Xr gdb 1
@@ -804,13 +808,13 @@ to be used as a fallback for
 if a newer version is not installed.
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITHOUT_GNUCXX
 Do not build the GNU C++ stack (g++, libstdc++).
 This is the default on platforms where clang is the system compiler.
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64 and i386/i386.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64 and i386/i386.
 .It Va WITH_GNUCXX
 Build the GNU C++ stack (g++, libstdc++).
 This is the default on platforms where gcc is the system compiler.
@@ -844,7 +848,7 @@ Set to build and install
 and dependent tests.
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64 and sparc64/sparc64.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64 and sparc64/sparc64.
 .It Va WITHOUT_GPIO
 Set to not build
 .Xr gpioctl 8
@@ -854,7 +858,7 @@ Set to build the BSD licensed version of the device tree compiler rather
 than the GPLed one from elinux.org.
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64 and i386/i386.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64 and i386/i386.
 .It Va WITH_GPL_DTC
 Set to build the GPL'd version of the device tree compiler from elinux.org,
 instead of the BSD licensed one.
@@ -877,7 +881,7 @@ Set to build and install httpd
 Set to not build or install HyperV utilities.
 .Pp
 This is a default setting on
-arm/arm, arm/armv6, arm/armv7, arm64/aarch64, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf and sparc64/sparc64.
+arm/armv6, arm/armv7, arm64/aarch64, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf and sparc64/sparc64.
 .It Va WITH_HYPERV
 Set to build or install HyperV utilities.
 .Pp
@@ -1029,6 +1033,9 @@ and
 On 64-bit platforms, set to not build 32-bit library set and a
 .Nm ld-elf32.so.1
 runtime linker.
+.Pp
+This is a default setting on
+arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mipsn32, mips/mipselhf, mips/mipshf and sparc64/sparc64.
 .It Va WITHOUT_LIBCPLUSPLUS
 Set to avoid building libcxxrt and libc++.
 .It Va WITHOUT_LIBPTHREAD
@@ -1054,17 +1061,17 @@ library.
 Set to not build LLVM's lld linker.
 .Pp
 This is a default setting on
-riscv/riscv64 and sparc64/sparc64.
+sparc64/sparc64.
 .It Va WITH_LLD
 Set to build LLVM's lld linker.
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITHOUT_LLDB
 Set to not build the LLDB debugger.
 .Pp
 This is a default setting on
-arm/arm, arm/armv6, arm/armv7, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf and sparc64/sparc64.
+arm/armv6, arm/armv7, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf and sparc64/sparc64.
 .It Va WITH_LLDB
 Set to build the LLDB debugger.
 .Pp
@@ -1077,47 +1084,47 @@ To be able to build the system, either Binutils or LLD bootstrap must be
 enabled unless an alternate linker is provided via XLD.
 .Pp
 This is a default setting on
-arm/arm, arm/armv6, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf and sparc64/sparc64.
+riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf and sparc64/sparc64.
 .It Va WITH_LLD_BOOTSTRAP
 Set to build the LLD linker during the bootstrap phase of the build,
 and use it during buildworld and buildkernel.
 .Pp
 This is a default setting on
-amd64/amd64, arm/armv7, arm64/aarch64 and i386/i386.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64 and i386/i386.
 .It Va WITHOUT_LLD_IS_LD
 Set to use GNU binutils ld as the system linker, instead of LLVM's LLD.
 .Pp
 This is a default setting on
-arm/arm, arm/armv6, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf and sparc64/sparc64.
+riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf and sparc64/sparc64.
 .It Va WITH_LLD_IS_LD
 Set to use LLVM's LLD as the system linker, instead of GNU binutils ld.
 .Pp
 This is a default setting on
-amd64/amd64, arm/armv7, arm64/aarch64 and i386/i386.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64 and i386/i386.
 .It Va WITHOUT_LLVM_COV
 Set to not build the
 .Xr llvm-cov 1
 tool.
 .Pp
 This is a default setting on
-riscv/riscv64 and sparc64/sparc64.
+sparc64/sparc64.
 .It Va WITH_LLVM_COV
 Set to build the
 .Xr llvm-cov 1
 tool.
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITHOUT_LLVM_LIBUNWIND
 Set to use GCC's stack unwinder (instead of LLVM's libunwind).
 .Pp
 This is a default setting on
-arm/arm, arm/armv6, arm/armv7 and sparc64/sparc64.
+sparc64/sparc64.
 .It Va WITH_LLVM_LIBUNWIND
 Set to use LLVM's libunwind stack unwinder (instead of GCC's unwinder).
 .Pp
 This is a default setting on
-amd64/amd64, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITHOUT_LLVM_TARGET_AARCH64
 Set to not build LLVM target support for AArch64.
 The
@@ -1125,7 +1132,7 @@ The
 option should be used rather than this in most cases.
 .Pp
 This is a default setting on
-arm/arm, arm/armv6, riscv/riscv64 and sparc64/sparc64.
+arm/armv6 and sparc64/sparc64.
 .It Va WITH_LLVM_TARGET_AARCH64
 Set to build LLVM target support for AArch64.
 The
@@ -1133,13 +1140,13 @@ The
 option should be used rather than this in most cases.
 .Pp
 This is a default setting on
-amd64/amd64, arm/armv7, arm64/aarch64, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+amd64/amd64, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITHOUT_LLVM_TARGET_ALL
 Set to only build the required LLVM target support.
 This option is preferred to specific target support options.
 .Pp
 This is a default setting on
-riscv/riscv64 and sparc64/sparc64.
+sparc64/sparc64.
 When set, these options are also in effect:
 .Pp
 .Bl -inset -compact
@@ -1159,6 +1166,10 @@ is set explicitly)
 (unless
 .Va WITH_LLVM_TARGET_POWERPC
 is set explicitly)
+.It Va WITHOUT_LLVM_TARGET_RISCV
+(unless
+.Va WITH_LLVM_TARGET_RISCV
+is set explicitly)
 .It Va WITHOUT_LLVM_TARGET_SPARC
 (unless
 .Va WITH_LLVM_TARGET_SPARC
@@ -1170,7 +1181,7 @@ This option is always applied to the bootstrap compiler for buildworld when
 LLVM is used.
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITHOUT_LLVM_TARGET_ARM
 Set to not build LLVM target support for ARM.
 The
@@ -1178,7 +1189,7 @@ The
 option should be used rather than this in most cases.
 .Pp
 This is a default setting on
-riscv/riscv64 and sparc64/sparc64.
+sparc64/sparc64.
 .It Va WITH_LLVM_TARGET_ARM
 Set to build LLVM target support for ARM.
 The
@@ -1186,7 +1197,7 @@ The
 option should be used rather than this in most cases.
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITH_LLVM_TARGET_BPF
 Set to build LLVM target support for BPF.
 The
@@ -1199,7 +1210,7 @@ The
 option should be used rather than this in most cases.
 .Pp
 This is a default setting on
-arm/arm, arm/armv6, riscv/riscv64 and sparc64/sparc64.
+arm/armv6 and sparc64/sparc64.
 .It Va WITH_LLVM_TARGET_MIPS
 Set to build LLVM target support for MIPS.
 The
@@ -1207,7 +1218,7 @@ The
 option should be used rather than this in most cases.
 .Pp
 This is a default setting on
-amd64/amd64, arm/armv7, arm64/aarch64, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+amd64/amd64, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITHOUT_LLVM_TARGET_POWERPC
 Set to not build LLVM target support for PowerPC.
 The
@@ -1215,7 +1226,7 @@ The
 option should be used rather than this in most cases.
 .Pp
 This is a default setting on
-arm/arm, arm/armv6, riscv/riscv64 and sparc64/sparc64.
+arm/armv6 and sparc64/sparc64.
 .It Va WITH_LLVM_TARGET_POWERPC
 Set to build LLVM target support for PowerPC.
 The
@@ -1223,12 +1234,23 @@ The
 option should be used rather than this in most cases.
 .Pp
 This is a default setting on
-amd64/amd64, arm/armv7, arm64/aarch64, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+amd64/amd64, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+.It Va WITHOUT_LLVM_TARGET_RISCV
+Set to not build LLVM target support for RISC-V.
+The
+.Va LLVM_TARGET_ALL
+option should be used rather than this in most cases.
+.Pp
+This is a default setting on
+arm/armv6 and sparc64/sparc64.
 .It Va WITH_LLVM_TARGET_RISCV
 Set to build LLVM target support for RISC-V.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
+.Pp
+This is a default setting on
+amd64/amd64, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITHOUT_LLVM_TARGET_SPARC
 Set to not build LLVM target support for SPARC.
 The
@@ -1236,7 +1258,7 @@ The
 option should be used rather than this in most cases.
 .Pp
 This is a default setting on
-arm/arm, arm/armv6, riscv/riscv64 and sparc64/sparc64.
+arm/armv6 and sparc64/sparc64.
 .It Va WITH_LLVM_TARGET_SPARC
 Set to build LLVM target support for SPARC.
 The
@@ -1244,7 +1266,7 @@ The
 option should be used rather than this in most cases.
 .Pp
 This is a default setting on
-amd64/amd64, arm/armv7, arm64/aarch64, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+amd64/amd64, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITHOUT_LLVM_TARGET_X86
 Set to not build LLVM target support for X86.
 The
@@ -1252,7 +1274,7 @@ The
 option should be used rather than this in most cases.
 .Pp
 This is a default setting on
-arm/arm, arm/armv6, riscv/riscv64 and sparc64/sparc64.
+arm/armv6 and sparc64/sparc64.
 .It Va WITH_LLVM_TARGET_X86
 Set to build LLVM target support for X86.
 The
@@ -1260,7 +1282,7 @@ The
 option should be used rather than this in most cases.
 .Pp
 This is a default setting on
-amd64/amd64, arm/armv7, arm64/aarch64, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+amd64/amd64, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITH_LOADER_EFI_SECUREBOOT
 Enable building
 .Xr loader 8
@@ -1281,7 +1303,7 @@ sparc64/sparc64.
 Set to build GELI bootloader support.
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITHOUT_LOADER_LUA
 Set to not build LUA bindings for the boot loader.
 .Pp
@@ -1291,12 +1313,12 @@ sparc64/sparc64.
 Set to build LUA bindings for the boot loader.
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITHOUT_LOADER_OFW
 Disable building of openfirmware bootloader components.
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITH_LOADER_OFW
 Set to build openfirmware bootloader components.
 .Pp
@@ -1311,7 +1333,7 @@ amd64/amd64, arm64/aarch64, i386/i386, riscv/riscv64 and sparc64/sparc64.
 Set to build ubldr.
 .Pp
 This is a default setting on
-arm/arm, arm/armv6, arm/armv7, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+arm/armv6, arm/armv7, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITH_LOADER_VERBOSE
 Set to build with extra verbose debugging in the loader.
 May explode already nearly too large loader over the limit.
@@ -1471,7 +1493,7 @@ Set to not build
 .Xr mlx5tool 8
 .Pp
 This is a default setting on
-arm/arm, arm/armv6, arm/armv7, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
+arm/armv6, arm/armv7, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf and mips/mips64hf.
 .It Va WITH_MLX5TOOL
 Set to build
 .Xr mlx5tool 8
@@ -1542,7 +1564,7 @@ and related programs.
 Set to not build nvme related tools and kernel modules.
 .Pp
 This is a default setting on
-arm/arm, arm/armv6, arm/armv7, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf and sparc64/sparc64.
+arm/armv6, arm/armv7, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf and sparc64/sparc64.
 .It Va WITH_NVME
 Set to build nvme related tools and kernel modules.
 
@@ -1563,7 +1585,7 @@ Enable building openldap support for kerberos.
 Set to not build LLVM's OpenMP runtime.
 .Pp
 This is a default setting on
-arm/arm, arm/armv6, arm/armv7, arm64/aarch64, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf and sparc64/sparc64.
+arm/armv6, arm/armv7, arm64/aarch64, riscv/riscv64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf and sparc64/sparc64.
 .It Va WITH_OPENMP
 Set to build LLVM's OpenMP runtime.
 .Pp
@@ -1652,7 +1674,7 @@ Set to build profiled libraries for use with
 .Xr gprof 8 .
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mipsn32, mips/mipselhf, mips/mipshf and sparc64/sparc64.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64, mips/mipsel, mips/mips, mips/mipsn32, mips/mipselhf, mips/mipshf and sparc64/sparc64.
 .It Va WITHOUT_QUOTAS
 Set to not build
 .Xr quota 1
@@ -1742,7 +1764,7 @@ mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf,
 Set to build world with propolice stack smashing protection.
 .Pp
 This is a default setting on
-amd64/amd64, arm/arm, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64 and sparc64/sparc64.
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64 and sparc64/sparc64.
 .It Va WITH_STAGING
 Enable staging of files to a stage tree.
 This can be best thought of as auto-install to
