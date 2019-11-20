@@ -49,6 +49,11 @@
 .Op Fl b Ar bootnum
 .Op Fl k Ar kernel
 .Op Fl L Ar label
+.Op Fl e Ar env
+.Nm
+.Fl E
+.Op Fl d
+.Op Fl p
 .Nm
 .Fl n
 .Fl b Ar bootnum
@@ -111,6 +116,21 @@ Create a new
 variable.
 .It Fl D -dry-run
 Process but do not change any variables.
+.It Fl E -esp
+Print the
+.Fx
+path to the ESP device, derived from the EFI variables
+.Va BootCurrent
+and
+.Va BootXXXX .
+This is the ESP partition used by UEFI to boot the current
+instance of the system.
+If
+.Fl d -device-path
+is specified, the UEFI device path to the ESP is reported instead.
+If
+.Fl p -unix-path
+is specified, the mount point of the ESP is reported instead.
 .It Fl k -kernel Ar kernel
 The path to and name of the kernel.
 .It Fl l -loader Ar loader
