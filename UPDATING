@@ -32,7 +32,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	for automounting.
 
 20191120:
-	Defining the long deprected NO_CTF, NO_DEBUG_FILES, NO_INSTALLLIB,
+	Defining the long deprecated NO_CTF, NO_DEBUG_FILES, NO_INSTALLLIB,
 	NO_MAN, NO_PROFILE, and NO_WARNS variables is now an error.  Update
 	your Makefiles and scripts to define MK_<var>=no instead as required.
 
