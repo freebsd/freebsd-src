@@ -3185,7 +3185,7 @@ vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m)
 	 * the page queue lock held.  In this case it is about to free the page,
 	 * which must not have any queue state.
 	 */
-	qflags = atomic_load_8(&m->aflags);
+	qflags = atomic_load_16(&m->aflags);
 	KASSERT(pq == vm_page_pagequeue(m) ||
 	    (qflags & PGA_QUEUE_STATE_MASK) == 0,
 	    ("page %p doesn't belong to queue %p but has aflags %#x",
@@ -3433,7 +3433,7 @@ vm_page_dequeue(vm_page_t m)
 			 * vm_page_dequeue_complete().  Ensure that all queue
 			 * state is cleared before we return.
 			 */
-			aflags = atomic_load_8(&m->aflags);
+			aflags = atomic_load_16(&m->aflags);
 			if ((aflags & PGA_QUEUE_STATE_MASK) == 0)
 				return;
 			KASSERT((aflags & PGA_DEQUEUE) != 0,
