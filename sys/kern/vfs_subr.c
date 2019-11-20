@@ -3526,11 +3526,9 @@ vfs_notify_upper(struct vnode *vp, int event)
 	mp = vp->v_mount;
 	if (mp == NULL)
 		return;
-
-	MNT_ILOCK(mp);
 	if (TAILQ_EMPTY(&mp->mnt_uppers))
-		goto unlock;
-	MNT_IUNLOCK(mp);
+		return;
+
 	mmp = malloc(sizeof(struct mount), M_TEMP, M_WAITOK | M_ZERO);
 	mmp->mnt_op = &vgonel_vfsops;
 	mmp->mnt_kern_flag |= MNTK_MARKER;
@@ -3564,7 +3562,6 @@ vfs_notify_upper(struct vnode *vp, int event)
 		mp->mnt_kern_flag &= ~MNTK_VGONE_WAITER;
 		wakeup(&mp->mnt_uppers);
 	}
-unlock:
 	MNT_IUNLOCK(mp);
 }
 
