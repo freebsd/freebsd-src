@@ -18,6 +18,8 @@
             rockchip              tags=package=runtime
             ..
         ..
+        efi
+        ..
         firmware
         ..
         lua
