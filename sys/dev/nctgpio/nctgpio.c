@@ -69,21 +69,49 @@
 #define NCT_LDF_GPIO0_OUTCFG		0xe0
 #define NCT_LDF_GPIO1_OUTCFG		0xe1
 
+/* Direct I/O port access. */
+#define	NCT_IO_GSR			0
+#define	NCT_IO_IOR			1
+#define	NCT_IO_DAT			2
+#define	NCT_IO_INV			3
 
 #define NCT_MAX_PIN			15
 #define NCT_IS_VALID_PIN(_p)	((_p) >= 0 && (_p) <= NCT_MAX_PIN)
 
-#define NCT_PIN_BIT(_p)         (1 << ((_p) % 8))
+#define NCT_PIN_BIT(_p)         (1 << ((_p) & 7))
 
 #define NCT_GPIO_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT | \
 	GPIO_PIN_OPENDRAIN | GPIO_PIN_PUSHPULL | \
 	GPIO_PIN_INVIN | GPIO_PIN_INVOUT)
+
+/*
+ * Note that the values are important.
+ * They match actual register offsets.
+ */
+typedef enum {
+	REG_IOR = 0,
+	REG_DAT = 1,
+	REG_INV = 2,
+} reg_t;
 
 struct nct_softc {
 	device_t			dev;
 	device_t			dev_f;
 	device_t			busdev;
 	struct mtx			mtx;
+	struct resource			*iores;
+	int				iorid;
+	int				curgrp;
+	struct {
+		/* direction, 1: pin is input */
+		uint8_t			ior[2];
+		/* output value */
+		uint8_t			out[2];
+		/* whether out is valid */
+		uint8_t			out_known[2];
+		/* inversion, 1: pin is inverted */
+		uint8_t			inv[2];
+	} 				cache;
 	struct gpio_pin			pins[NCT_MAX_PIN + 1];
 };
 
@@ -113,97 +141,142 @@ struct nuvoton_vendor_device_id {
 	},
 };
 
-/*
- * Get the GPIO Input/Output register address
- * for a pin.
- */
-static uint8_t
-nct_ior_addr(uint32_t pin_num)
+static void
+nct_io_set_group(struct nct_softc *sc, int group)
 {
-	uint8_t addr;
 
-	addr = NCT_LD7_GPIO0_IOR;
-	if (pin_num > 7)
-		addr = NCT_LD7_GPIO1_IOR;
+	GPIO_ASSERT_LOCKED(sc);
+	if (group != sc->curgrp) {
+		bus_write_1(sc->iores, NCT_IO_GSR, group);
+		sc->curgrp = group;
+	}
+}
 
-	return (addr);
+static uint8_t
+nct_io_read(struct nct_softc *sc, int group, uint8_t reg)
+{
+	nct_io_set_group(sc, group);
+	return (bus_read_1(sc->iores, reg));
+}
+
+static void
+nct_io_write(struct nct_softc *sc, int group, uint8_t reg, uint8_t val)
+{
+	nct_io_set_group(sc, group);
+	return (bus_write_1(sc->iores, reg, val));
+}
+
+static uint8_t
+nct_get_ioreg(struct nct_softc *sc, reg_t reg, int group)
+{
+	uint8_t ioreg;
+
+	if (sc->iores != NULL)
+		ioreg = NCT_IO_IOR + reg;
+	else if (group == 0)
+		ioreg = NCT_LD7_GPIO0_IOR + reg;
+	else
+		ioreg = NCT_LD7_GPIO1_IOR + reg;
+	return (ioreg);
+}
+
+static uint8_t
+nct_read_reg(struct nct_softc *sc, reg_t reg, int group)
+{
+	uint8_t ioreg;
+	uint8_t val;
+
+	ioreg = nct_get_ioreg(sc, reg, group);
+	if (sc->iores != NULL)
+		val = nct_io_read(sc, group, ioreg);
+	else
+		val = superio_read(sc->dev, ioreg);
+
+	return (val);
+}
+
+#define GET_BIT(v, b)	(((v) >> (b)) & 1)
+static bool
+nct_get_pin_reg(struct nct_softc *sc, reg_t reg, uint32_t pin_num)
+{
+	uint8_t bit;
+	uint8_t group;
+	uint8_t val;
+
+	KASSERT(NCT_IS_VALID_PIN(pin_num), ("%s: invalid pin number %d",
+	    __func__, pin_num));
+
+	group = pin_num >> 3;
+	bit = pin_num & 7;
+	val = nct_read_reg(sc, reg, group);
+	return (GET_BIT(val, bit));
+}
+
+static int
+nct_get_pin_cache(struct nct_softc *sc, uint32_t pin_num, uint8_t *cache)
+{
+	uint8_t bit;
+	uint8_t group;
+	uint8_t val;
+
+	KASSERT(NCT_IS_VALID_PIN(pin_num), ("%s: invalid pin number %d",
+	    __func__, pin_num));
+
+	group = pin_num >> 3;
+	bit = pin_num & 7;
+	val = cache[group];
+	return (GET_BIT(val, bit));
+}
+
+static void
+nct_write_reg(struct nct_softc *sc, reg_t reg, int group, uint8_t val)
+{
+	uint8_t ioreg;
+
+	ioreg = nct_get_ioreg(sc, reg, group);
+	if (sc->iores != NULL)
+		nct_io_write(sc, group, ioreg, val);
+	else
+		superio_write(sc->dev, ioreg, val);
+}
+
+static void
+nct_set_pin_reg(struct nct_softc *sc, reg_t reg, uint32_t pin_num, bool val)
+{
+	uint8_t *cache;
+	uint8_t bit;
+	uint8_t bitval;
+	uint8_t group;
+	uint8_t mask;
+
+	KASSERT(NCT_IS_VALID_PIN(pin_num),
+	    ("%s: invalid pin number %d", __func__, pin_num));
+	KASSERT(reg == REG_IOR || reg == REG_INV,
+	    ("%s: unsupported register %d", __func__, reg));
+
+	group = pin_num >> 3;
+	bit = pin_num & 7;
+	mask = (uint8_t)1 << bit;
+	bitval = (uint8_t)val << bit;
+
+	if (reg == REG_IOR)
+		cache = &sc->cache.ior[group];
+	else
+		cache = &sc->cache.inv[group];
+	if ((*cache & mask) == bitval)
+		return;
+	*cache &= ~mask;
+	*cache |= bitval;
+	nct_write_reg(sc, reg, group, *cache);
 }
 
 /*
- * Get the GPIO Data register address for a pin.
- */
-static uint8_t
-nct_dat_addr(uint32_t pin_num)
-{
-	uint8_t addr;
-
-	addr = NCT_LD7_GPIO0_DAT;
-	if (pin_num > 7)
-		addr = NCT_LD7_GPIO1_DAT;
-
-	return (addr);
-}
-
-/*
- * Get the GPIO Inversion register address
- * for a pin.
- */
-static uint8_t
-nct_inv_addr(uint32_t pin_num)
-{
-	uint8_t addr;
-
-	addr = NCT_LD7_GPIO0_INV;
-	if (pin_num > 7)
-		addr = NCT_LD7_GPIO1_INV;
-
-	return (addr);
-}
-
-/*
- * Get the GPIO Output Configuration/Mode
- * register address for a pin.
- */
-static uint8_t
-nct_outcfg_addr(uint32_t pin_num)
-{
-	uint8_t addr;
-
-	addr = NCT_LDF_GPIO0_OUTCFG;
-	if (pin_num > 7)
-		addr = NCT_LDF_GPIO1_OUTCFG;
-
-	return (addr);
-}
-
-/*
- * Set a pin to output mode.
+ * Set a pin to input (val is true) or output (val is false) mode.
  */
 static void
-nct_set_pin_is_output(struct nct_softc *sc, uint32_t pin_num)
+nct_set_pin_input(struct nct_softc *sc, uint32_t pin_num, bool val)
 {
-	uint8_t reg;
-	uint8_t ior;
-
-	reg = nct_ior_addr(pin_num);
-	ior = superio_read(sc->dev, reg);
-	ior &= ~(NCT_PIN_BIT(pin_num));
-	superio_write(sc->dev, reg, ior);
-}
-
-/*
- * Set a pin to input mode.
- */
-static void
-nct_set_pin_is_input(struct nct_softc *sc, uint32_t pin_num)
-{
-	uint8_t reg;
-	uint8_t ior;
-
-	reg = nct_ior_addr(pin_num);
-	ior = superio_read(sc->dev, reg);
-	ior |= NCT_PIN_BIT(pin_num);
-	superio_write(sc->dev, reg, ior);
+	nct_set_pin_reg(sc, REG_IOR, pin_num, val);
 }
 
 /*
@@ -212,80 +285,98 @@ nct_set_pin_is_input(struct nct_softc *sc, uint32_t pin_num)
 static bool
 nct_pin_is_input(struct nct_softc *sc, uint32_t pin_num)
 {
-	uint8_t reg;
-	uint8_t ior;
-
-	reg = nct_ior_addr(pin_num);
-	ior = superio_read(sc->dev, reg);
-
-	return (ior & NCT_PIN_BIT(pin_num));
+	return (nct_get_pin_cache(sc, pin_num, sc->cache.ior));
 }
 
 /*
- * Write a value to an output pin.
+ * Set a pin to inverted (val is true) or normal (val is false) mode.
  */
 static void
-nct_write_pin(struct nct_softc *sc, uint32_t pin_num, uint8_t data)
+nct_set_pin_inverted(struct nct_softc *sc, uint32_t pin_num, bool val)
 {
-	uint8_t reg;
-	uint8_t value;
-
-	reg = nct_dat_addr(pin_num);
-	value = superio_read(sc->dev, reg);
-	if (data)
-		value |= NCT_PIN_BIT(pin_num);
-	else
-		value &= ~(NCT_PIN_BIT(pin_num));
-
-	superio_write(sc->dev, reg, value);
-}
-
-static bool
-nct_read_pin(struct nct_softc *sc, uint32_t pin_num)
-{
-	uint8_t reg;
-
-	reg = nct_dat_addr(pin_num);
-
-	return (superio_read(sc->dev, reg) & NCT_PIN_BIT(pin_num));
-}
-
-static void
-nct_set_pin_is_inverted(struct nct_softc *sc, uint32_t pin_num)
-{
-	uint8_t reg;
-	uint8_t inv;
-
-	reg = nct_inv_addr(pin_num);
-	inv = superio_read(sc->dev, reg);
-	inv |= (NCT_PIN_BIT(pin_num));
-	superio_write(sc->dev, reg, inv);
-}
-
-static void
-nct_set_pin_not_inverted(struct nct_softc *sc, uint32_t pin_num)
-{
-	uint8_t reg;
-	uint8_t inv;
-
-	reg = nct_inv_addr(pin_num);
-	inv = superio_read(sc->dev, reg);
-	inv &= ~(NCT_PIN_BIT(pin_num));
-	superio_write(sc->dev, reg, inv);
+	nct_set_pin_reg(sc, REG_INV, pin_num, val);
 }
 
 static bool
 nct_pin_is_inverted(struct nct_softc *sc, uint32_t pin_num)
 {
-	uint8_t reg;
-	uint8_t inv;
-
-	reg = nct_inv_addr(pin_num);
-	inv = superio_read(sc->dev, reg);
-
-	return (inv & NCT_PIN_BIT(pin_num));
+	return (nct_get_pin_cache(sc, pin_num, sc->cache.inv));
 }
 
+/*
+ * Write a value to an output pin.
+ * NB: the hardware remembers last output value across switching from
+ * output mode to input mode and back.
+ * Writes to a pin in input mode are not allowed here as they cannot
+ * have any effect and would corrupt the output value cache.
+ */
+static void
+nct_write_pin(struct nct_softc *sc, uint32_t pin_num, bool val)
+{
+	uint8_t bit;
+	uint8_t group;
+
+	KASSERT(!nct_pin_is_input(sc, pin_num), ("attempt to write input pin"));
+	group = pin_num >> 3;
+	bit = pin_num & 7;
+	if (GET_BIT(sc->cache.out_known[group], bit) &&
+	    GET_BIT(sc->cache.out[group], bit) == val) {
+		/* The pin is already in requested state. */
+		return;
+	}
+	sc->cache.out_known[group] |= 1 << bit;
+	if (val)
+		sc->cache.out[group] |= 1 << bit;
+	else
+		sc->cache.out[group] &= ~(1 << bit);
+	nct_write_reg(sc, REG_DAT, group, sc->cache.out[group]);
+}
+
+/*
+ * NB: state of an input pin cannot be cached, of course.
+ * For an output we can either take the value from the cache if it's valid
+ * or read the state from the hadrware and cache it.
+ */
+static bool
+nct_read_pin(struct nct_softc *sc, uint32_t pin_num)
+{
+	uint8_t bit;
+	uint8_t group;
+	bool val;
+
+	if (nct_pin_is_input(sc, pin_num))
+		return (nct_get_pin_reg(sc, REG_DAT, pin_num));
+
+	group = pin_num >> 3;
+	bit = pin_num & 7;
+	if (GET_BIT(sc->cache.out_known[group], bit))
+		return (GET_BIT(sc->cache.out[group], bit));
+
+	val = nct_get_pin_reg(sc, REG_DAT, pin_num);
+	sc->cache.out_known[group] |= 1 << bit;
+	if (val)
+		sc->cache.out[group] |= 1 << bit;
+	else
+		sc->cache.out[group] &= ~(1 << bit);
+	return (val);
+}
+
+static uint8_t
+nct_outcfg_addr(uint32_t pin_num)
+{
+	KASSERT(NCT_IS_VALID_PIN(pin_num), ("%s: invalid pin number %d",
+	    __func__, pin_num));
+	if ((pin_num >> 3) == 0)
+		return (NCT_LDF_GPIO0_OUTCFG);
+	else
+		return (NCT_LDF_GPIO1_OUTCFG);
+}
+
+/*
+ * NB: PP/OD can be configured only via configuration registers.
+ * Also, the registers are in a different logical device.
+ * So, this is a special case.  No caching too.
+ */
 static void
 nct_set_pin_opendrain(struct nct_softc *sc, uint32_t pin_num)
 {
@@ -353,6 +444,9 @@ static int
 nct_attach(device_t dev)
 {
 	struct nct_softc *sc;
+	device_t dev_8;
+	uint16_t iobase;
+	int err;
 	int i;
 
 	sc = device_get_softc(dev);
@@ -364,11 +458,66 @@ nct_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	/*
+	 * As strange as it may seem, I/O port base is configured in the
+	 * Logical Device 8 which is primarily used for WDT, but also plays
+	 * a role in GPIO configuration.
+	 */
+	iobase = 0;
+	dev_8 = superio_find_dev(device_get_parent(dev), SUPERIO_DEV_WDT, 8);
+	if (dev_8 != NULL)
+		iobase = superio_get_iobase(dev_8);
+	if (iobase != 0 && iobase != 0xffff) {
+		sc->curgrp = -1;
+		sc->iorid = 0;
+		err = bus_set_resource(dev, SYS_RES_IOPORT, sc->iorid,
+		    iobase, 7);
+		if (err == 0) {
+			sc->iores = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+			    &sc->iorid, RF_ACTIVE);
+			if (sc->iores == NULL) {
+				device_printf(dev, "can't map i/o space, "
+				    "iobase=0x%04x\n", iobase);
+			}
+		} else {
+			device_printf(dev,
+			    "failed to set io port resource at 0x%x\n", iobase);
+		}
+	}
+
 	/* Enable gpio0 and gpio1. */
 	superio_dev_enable(dev, 0x03);
 
 	GPIO_LOCK_INIT(sc);
 	GPIO_LOCK(sc);
+
+	sc->cache.inv[0] = nct_read_reg(sc, REG_INV, 0);
+	sc->cache.inv[1] = nct_read_reg(sc, REG_INV, 1);
+	sc->cache.ior[0] = nct_read_reg(sc, REG_IOR, 0);
+	sc->cache.ior[1] = nct_read_reg(sc, REG_IOR, 1);
+
+	/*
+	 * Caching input values is meaningless as an input can be changed at any
+	 * time by an external agent.  But outputs are controlled by this
+	 * driver, so it can cache their state.  Also, the hardware remembers
+	 * the output state of a pin when the pin is switched to input mode and
+	 * then back to output mode.  So, the cache stays valid.
+	 * The only problem is with pins that are in input mode at the attach
+	 * time.  For them the output state is not known until it is set by the
+	 * driver for the first time.
+	 * 'out' and 'out_known' bits form a tri-state output cache:
+	 * |-----+-----------+---------|
+	 * | out | out_known | cache   |
+	 * |-----+-----------+---------|
+	 * |   X |         0 | invalid |
+	 * |   0 |         1 |       0 |
+	 * |   1 |         1 |       1 |
+	 * |-----+-----------+---------|
+	 */
+	sc->cache.out[0] = nct_read_reg(sc, REG_DAT, 0);
+	sc->cache.out[1] = nct_read_reg(sc, REG_DAT, 1);
+	sc->cache.out_known[0] = ~sc->cache.ior[0];
+	sc->cache.out_known[1] = ~sc->cache.ior[1];
 
 	for (i = 0; i <= NCT_MAX_PIN; i++) {
 		struct gpio_pin *pin;
@@ -398,7 +547,6 @@ nct_attach(device_t dev)
 
 	sc->busdev = gpiobus_attach_bus(dev);
 	if (sc->busdev == NULL) {
-		GPIO_ASSERT_UNLOCKED(sc);
 		GPIO_LOCK_DESTROY(sc);
 		return (ENXIO);
 	}
@@ -414,6 +562,8 @@ nct_detach(device_t dev)
 	sc = device_get_softc(dev);
 	gpiobus_detach_bus(dev);
 
+	if (sc->iores != NULL)
+		bus_release_resource(dev, SYS_RES_IOPORT, sc->iorid, sc->iores);
 	GPIO_ASSERT_UNLOCKED(sc);
 	GPIO_LOCK_DESTROY(sc);
 
@@ -447,8 +597,11 @@ nct_gpio_pin_set(device_t dev, uint32_t pin_num, uint32_t pin_value)
 		return (EINVAL);
 
 	sc = device_get_softc(dev);
-	GPIO_ASSERT_UNLOCKED(sc);
 	GPIO_LOCK(sc);
+	if ((sc->pins[pin_num].gp_flags & GPIO_PIN_OUTPUT) == 0) {
+		GPIO_UNLOCK(sc);
+		return (EINVAL);
+	}
 	nct_write_pin(sc, pin_num, pin_value);
 	GPIO_UNLOCK(sc);
 
@@ -483,6 +636,10 @@ nct_gpio_pin_toggle(device_t dev, uint32_t pin_num)
 	sc = device_get_softc(dev);
 	GPIO_ASSERT_UNLOCKED(sc);
 	GPIO_LOCK(sc);
+	if ((sc->pins[pin_num].gp_flags & GPIO_PIN_OUTPUT) == 0) {
+		GPIO_UNLOCK(sc);
+		return (EINVAL);
+	}
 	if (nct_read_pin(sc, pin_num))
 		nct_write_pin(sc, pin_num, 0);
 	else
@@ -558,53 +715,41 @@ nct_gpio_pin_setflags(device_t dev, uint32_t pin_num, uint32_t flags)
 	if ((flags & pin->gp_caps) != flags)
 		return (EINVAL);
 
-	GPIO_ASSERT_UNLOCKED(sc);
-	GPIO_LOCK(sc);
-	if (flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) {
-		if ((flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) ==
-			(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) {
-				GPIO_UNLOCK(sc);
-				return (EINVAL);
-		}
-
-		if (flags & GPIO_PIN_INPUT)
-			nct_set_pin_is_input(sc, pin_num);
-		else
-			nct_set_pin_is_output(sc, pin_num);
+	if ((flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) ==
+		(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) {
+			return (EINVAL);
+	}
+	if ((flags & (GPIO_PIN_OPENDRAIN | GPIO_PIN_PUSHPULL)) ==
+		(GPIO_PIN_OPENDRAIN | GPIO_PIN_PUSHPULL)) {
+			return (EINVAL);
+	}
+	if ((flags & (GPIO_PIN_INVIN | GPIO_PIN_INVOUT)) ==
+		(GPIO_PIN_INVIN | GPIO_PIN_INVOUT)) {
+			return (EINVAL);
 	}
 
-	if (flags & (GPIO_PIN_OPENDRAIN | GPIO_PIN_PUSHPULL)) {
-		if (flags & GPIO_PIN_INPUT) {
-			GPIO_UNLOCK(sc);
-			return (EINVAL);
-		}
-
-		if ((flags & (GPIO_PIN_OPENDRAIN | GPIO_PIN_PUSHPULL)) ==
-			(GPIO_PIN_OPENDRAIN | GPIO_PIN_PUSHPULL)) {
-				GPIO_UNLOCK(sc);
-				return (EINVAL);
-		}
-
+	GPIO_ASSERT_UNLOCKED(sc);
+	GPIO_LOCK(sc);
+	if ((flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) != 0) {
+		nct_set_pin_input(sc, pin_num, (flags & GPIO_PIN_INPUT) != 0);
+		pin->gp_flags &= ~(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT);
+		pin->gp_flags |= flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT);
+	}
+	if ((flags & (GPIO_PIN_INVIN | GPIO_PIN_INVOUT)) != 0) {
+		nct_set_pin_inverted(sc, pin_num,
+		    (flags & GPIO_PIN_INVIN) != 0);
+		pin->gp_flags &= ~(GPIO_PIN_INVIN | GPIO_PIN_INVOUT);
+		pin->gp_flags |= flags & (GPIO_PIN_INVIN | GPIO_PIN_INVOUT);
+	}
+	if ((flags & (GPIO_PIN_OPENDRAIN | GPIO_PIN_PUSHPULL)) != 0) {
 		if (flags & GPIO_PIN_OPENDRAIN)
 			nct_set_pin_opendrain(sc, pin_num);
 		else
 			nct_set_pin_pushpull(sc, pin_num);
+		pin->gp_flags &= ~(GPIO_PIN_OPENDRAIN | GPIO_PIN_PUSHPULL);
+		pin->gp_flags |=
+		    flags & (GPIO_PIN_OPENDRAIN | GPIO_PIN_PUSHPULL);
 	}
-
-	if (flags & (GPIO_PIN_INVIN | GPIO_PIN_INVOUT)) {
-		if ((flags & (GPIO_PIN_INVIN | GPIO_PIN_INVOUT)) !=
-			(GPIO_PIN_INVIN | GPIO_PIN_INVOUT)) {
-				GPIO_UNLOCK(sc);
-				return (EINVAL);
-		}
-
-		if (flags & GPIO_PIN_INVIN)
-			nct_set_pin_is_inverted(sc, pin_num);
-		else
-			nct_set_pin_not_inverted(sc, pin_num);
-	}
-
-	pin->gp_flags = flags;
 	GPIO_UNLOCK(sc);
 
 	return (0);
