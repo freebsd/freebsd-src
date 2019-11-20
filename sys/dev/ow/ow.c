@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/sysctl.h>
 
 #include <dev/ow/ow.h>
 #include <dev/ow/owll.h>
@@ -73,34 +74,137 @@ static void ow_release_bus(device_t ndev, device_t pdev);
 
 static MALLOC_DEFINE(M_OW, "ow", "House keeping data for 1wire bus");
 
+static const struct ow_timing timing_regular_min = {
+	.t_slot = 60,
+	.t_low0 = 60,
+	.t_low1 = 1,
+	.t_release = 0,
+	.t_rec = 1,
+	.t_rdv = 15,		/* fixed */
+	.t_rstl = 480,
+	.t_rsth = 480,
+	.t_pdl = 60,
+	.t_pdh = 15,
+	.t_lowr = 1,
+};
+
+static const struct ow_timing timing_regular_max = {
+	.t_slot = 120,
+	.t_low0 = 120,
+	.t_low1 = 15,
+	.t_release = 45,
+	.t_rec = 960,		/* infinity */
+	.t_rdv = 15,		/* fixed */
+	.t_rstl = 960,		/* infinity */
+	.t_rsth = 960,		/* infinity */
+	.t_pdl = 240,		/* 60us to 240us */
+	.t_pdh = 60,		/* 15us to 60us */
+	.t_lowr = 15,		/* 1us */
+};
+
 static struct ow_timing timing_regular = {
-	.t_slot = 60,		/* 60 to 120 */
-	.t_low0 = 60,		/* really 60 to 120 */
-	.t_low1 = 1,		/* really 1 to 15 */
-	.t_release = 45,	/* <= 45us */
-	.t_rec = 15,		/* at least 1us */
-	.t_rdv = 15,		/* 15us */
-	.t_rstl = 480,		/* 480us or more */
-	.t_rsth = 480,		/* 480us or more */
-	.t_pdl = 60,		/* 60us to 240us */
- 	.t_pdh = 60,		/* 15us to 60us */
-	.t_lowr = 1,		/* 1us */
+	.t_slot = 60,		/*  60 <= t < 120 */
+	.t_low0 = 60,		/*  60 <= t < t_slot < 120 */
+	.t_low1 = 1,		/*   1 <= t < 15 */
+	.t_release = 45,	/*   0 <= t < 45 */
+	.t_rec = 15,		/*   1 <= t < inf */
+	.t_rdv = 15,		/* t == 15 */
+	.t_rstl = 480,		/* 480 <= t < inf */
+	.t_rsth = 480,		/* 480 <= t < inf */
+	.t_pdl = 60,		/*  60 <= t < 240 */
+	.t_pdh = 60,		/*  15 <= t < 60 */
+	.t_lowr = 1,		/*   1 <= t < 15 */
 };
 
 /* NB: Untested */
-static struct ow_timing timing_overdrive = {
-	.t_slot = 11,		/* 6us to 16us */
-	.t_low0 = 6,		/* really 6 to 16 */
-	.t_low1 = 1,		/* really 1 to 2 */
-	.t_release = 4,		/* <= 4us */
-	.t_rec = 1,		/* at least 1us */
-	.t_rdv = 2,		/* 2us */
-	.t_rstl = 48,		/* 48us to 80us */
-	.t_rsth = 48,		/* 48us or more  */
-	.t_pdl = 8,		/* 8us to 24us */
-	.t_pdh = 2,		/* 2us to 6us */
-	.t_lowr = 1,		/* 1us */
+static const struct ow_timing timing_overdrive_min = {
+	.t_slot = 6,
+	.t_low0 = 6,
+	.t_low1 = 1,
+	.t_release = 0,
+	.t_rec = 1,
+	.t_rdv = 2,		/* fixed */
+	.t_rstl = 48,
+	.t_rsth = 48,
+	.t_pdl = 8,
+	.t_pdh = 2,
+	.t_lowr = 1,
 };
+
+static const struct ow_timing timing_overdrive_max = {
+	.t_slot = 16,
+	.t_low0 = 16,
+	.t_low1 = 2,
+	.t_release = 4,
+	.t_rec = 960,		/* infinity */
+	.t_rdv = 2,		/* fixed */
+	.t_rstl = 80,
+	.t_rsth = 960,		/* infinity */
+	.t_pdl = 24,
+	.t_pdh = 6,
+	.t_lowr = 2,
+};
+
+static struct ow_timing timing_overdrive = {
+	.t_slot = 11,		/* 6 <= t < 16 */
+	.t_low0 = 6,		/* 6 <= t < t_slot < 16 */
+	.t_low1 = 1,		/* 1 <= t < 2 */
+	.t_release = 4,		/* 0 <= t < 4 */
+	.t_rec = 1,		/* 1 <= t < inf */
+	.t_rdv = 2,		/* t == 2 */
+	.t_rstl = 48,		/* 48 <= t < 80 */
+	.t_rsth = 48,		/* 48 <= t < inf */
+	.t_pdl = 8,		/* 8 <= t < 24 */
+	.t_pdh = 2,		/* 2 <= t < 6 */
+	.t_lowr = 1,		/* 1 <= t < 2 */
+};
+
+SYSCTL_DECL(_hw);
+SYSCTL_NODE(_hw, OID_AUTO, ow, CTLFLAG_RD, 0, "1-Wire protocol");
+SYSCTL_NODE(_hw_ow, OID_AUTO, regular, CTLFLAG_RD, 0,
+    "Regular mode timings");
+SYSCTL_NODE(_hw_ow, OID_AUTO, overdrive, CTLFLAG_RD, 0,
+    "Overdrive mode timings");
+
+#define	_OW_TIMING_SYSCTL(mode, param)		\
+    static int \
+    sysctl_ow_timing_ ## mode ## _ ## param(SYSCTL_HANDLER_ARGS) \
+    { \
+	    int val = timing_ ## mode.param; \
+	    int err; \
+	    err = sysctl_handle_int(oidp, &val, 0, req); \
+	    if (err != 0 || req->newptr == NULL) \
+		return (err); \
+	    if (val < timing_ ## mode ## _min.param) \
+		return (EINVAL); \
+	    else if (val >= timing_ ## mode ## _max.param) \
+		return (EINVAL); \
+	    timing_ ## mode.param = val; \
+	    return (0); \
+    } \
+SYSCTL_PROC(_hw_ow_ ## mode, OID_AUTO, param, \
+    CTLTYPE_INT | CTLFLAG_RWTUN, 0, sizeof(int), \
+    sysctl_ow_timing_ ## mode ## _ ## param, "I", \
+    "1-Wire timing parameter in microseconds (-1 resets to default)")
+
+#define	OW_TIMING_SYSCTL(param)	\
+    _OW_TIMING_SYSCTL(regular, param); \
+    _OW_TIMING_SYSCTL(overdrive, param)
+
+OW_TIMING_SYSCTL(t_slot);
+OW_TIMING_SYSCTL(t_low0);
+OW_TIMING_SYSCTL(t_low1);
+OW_TIMING_SYSCTL(t_release);
+OW_TIMING_SYSCTL(t_rec);
+OW_TIMING_SYSCTL(t_rdv);
+OW_TIMING_SYSCTL(t_rstl);
+OW_TIMING_SYSCTL(t_rsth);
+OW_TIMING_SYSCTL(t_pdl);
+OW_TIMING_SYSCTL(t_pdh);
+OW_TIMING_SYSCTL(t_lowr);
+
+#undef _OW_TIMING_SYSCTL
+#undef OW_TIMING_SYSCTL
 
 static void
 ow_send_byte(device_t lldev, struct ow_timing *t, uint8_t byte)
