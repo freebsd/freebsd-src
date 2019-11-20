@@ -15,6 +15,11 @@ NO_WMISSING_VARIABLE_DECLARATIONS=
 YFLAGS+=-v
 CFLAGS+=-I. -I${.CURDIR}
 
+# workaround for GNU ld (GNU Binutils) 2.33.1:
+#   relocation truncated to fit: R_RISCV_GPREL_I against `.LANCHOR2'
+# https://bugs.freebsd.org/242109
+CFLAGS+=-Wl,--no-relax
+
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6
 .endif
