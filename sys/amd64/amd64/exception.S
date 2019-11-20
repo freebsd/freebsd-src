@@ -345,10 +345,11 @@ IDTVEC(dblfault)
 	pushfq
 	andq	$~(PSL_D | PSL_AC),(%rsp)
 	popfq
-	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
-	jz	1f			/* already running with kernel GS.base */
-	swapgs
-1:	lfence
+	movq	TF_SIZE(%rsp),%rdx
+	movl	%edx,%eax
+	shrq	$32,%rdx
+	movl	$MSR_GSBASE,%ecx
+	wrmsr
 	movq	%cr3,%rax
 	movq	%rax,PCPU(SAVED_UCR3)
 	movq	PCPU(KCR3),%rax

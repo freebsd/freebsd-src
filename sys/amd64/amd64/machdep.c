@@ -1575,7 +1575,9 @@ amd64_bsp_ist_init(struct pcpu *pc)
 	tssp = &pc->pc_common_tss;
 
 	/* doublefault stack space, runs on ist1 */
-	tssp->tss_ist1 = (long)&dblfault_stack[sizeof(dblfault_stack)];
+	np = ((struct nmi_pcpu *)&dblfault_stack[sizeof(dblfault_stack)]) - 1;
+	np->np_pcpu = (register_t)pc;
+	tssp->tss_ist1 = (long)np;
 
 	/*
 	 * NMI stack, runs on ist2.  The pcpu pointer is stored just
