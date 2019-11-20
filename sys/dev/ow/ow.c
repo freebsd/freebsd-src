@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 typedef int ow_enum_fn(device_t, device_t);
 typedef int ow_found_fn(device_t, romid_t);
 
-struct ow_softc 
+struct ow_softc
 {
 	device_t	dev;		/* Newbus driver back pointer */
 	struct mtx	mtx;		/* bus mutex */
@@ -210,7 +210,7 @@ static void
 ow_send_byte(device_t lldev, struct ow_timing *t, uint8_t byte)
 {
 	int i;
-	
+
 	for (i = 0; i < 8; i++)
 		if (byte & (1 << i))
 			OWLL_WRITE_ONE(lldev, t);
@@ -224,7 +224,7 @@ ow_read_byte(device_t lldev, struct ow_timing *t, uint8_t *bytep)
 	int i;
 	uint8_t byte = 0;
 	int bit;
-	
+
 	for (i = 0; i < 8; i++) {
 		OWLL_READ_DATA(lldev, t, &bit);
 		byte |= bit << i;
