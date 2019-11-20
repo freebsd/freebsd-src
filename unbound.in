@@ -76,7 +76,7 @@ restart_unbound()
 		eval $unbound_restart
 	elif [ -n "$RESTARTCMD" ]; then
 		set -- ${unbound_service}
-		eval $RESTARTCMD
+		eval "$RESTARTCMD"
 	else
 		@SBINDIR@/resolvconf -r ${unbound_service}
 	fi
