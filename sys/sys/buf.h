@@ -262,9 +262,9 @@ struct buf {
 #define	BX_VNDIRTY	0x00000001	/* On vnode dirty list */
 #define	BX_VNCLEAN	0x00000002	/* On vnode clean list */
 #define	BX_BKGRDWRITE	0x00000010	/* Do writes in background */
-#define BX_BKGRDMARKER	0x00000020	/* Mark buffer for splay tree */
+#define	BX_BKGRDMARKER	0x00000020	/* Mark buffer for splay tree */
 #define	BX_ALTDATA	0x00000040	/* Holds extended data */
-#define	BX_FSPRIV	0x00FF0000	/* filesystem-specific flags mask */
+#define	BX_FSPRIV	0x00FF0000	/* Filesystem-specific flags mask */
 
 #define	PRINT_BUF_XFLAGS "\20\7altdata\6bkgrdmarker\5bkgrdwrite\2clean\1dirty"
 
