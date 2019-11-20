@@ -1556,6 +1556,8 @@ pmap_pinit(pmap_t pmap)
 	pmap->pm_root.rt_root = 0;
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
 	pmap->pm_cookie = COOKIE_FROM(-1, INT_MAX);
+	/* XXX Temporarily disable deferred ASID allocation. */
+	pmap_alloc_asid(pmap);
 
 	return (1);
 }
