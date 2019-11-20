@@ -56,6 +56,15 @@
 # KMODMODE	KLD mode. [${BINMODE}]
 #
 #
+# EFIDIR	Base path for the UEFI ESP [/boot/efi]
+#
+# EFIOWN	EFIDIR owner. [root]
+#
+# EFIGRP	EFIDIR group. [wheel]
+#
+# EFIMODE	EFIDIR mode. [555]
+#
+#
 # SHAREDIR	Base path for architecture-independent ascii
 #		text files. [/usr/share]
 #
@@ -169,6 +178,10 @@ DTBODIR?=	/boot/dtb/overlays
 DTBOWN?=	root
 DTBGRP?=	wheel
 DTBMODE?=	444
+EFIDIR?=	/boot/efi
+EFIOWN?=	root
+EFIGRP?=	wheel
+EFIMODE?=	555
 
 # Use make.conf / environment LIBDIR as default if set...
 .if !empty(_PREMK_LIBDIR)
