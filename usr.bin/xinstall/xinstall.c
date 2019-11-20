@@ -75,6 +75,17 @@ __FBSDID("$FreeBSD$");
 
 #include "mtree.h"
 
+/*
+ * We need to build xinstall during the bootstrap stage when building on a
+ * non-FreeBSD system. Linux does not have the st_flags and st_birthtime
+ * members in struct stat so we need to omit support for changing those fields.
+ */
+#ifdef UF_SETTABLE
+#define HAVE_STRUCT_STAT_ST_FLAGS 1
+#else
+#define HAVE_STRUCT_STAT_ST_FLAGS 0
+#endif
+
 #define MAX_CMP_SIZE	(16 * 1024 * 1024)
 
 #define	LN_ABSOLUTE	0x01
