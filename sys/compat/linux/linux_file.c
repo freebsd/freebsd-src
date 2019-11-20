@@ -137,6 +137,8 @@ linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mod
 			error = ELOOP;
 		goto done;
 	}
+	if (p->p_flag & P_CONTROLT)
+		goto done;
 	if (bsd_flags & O_NOCTTY)
 		goto done;
 
