@@ -118,6 +118,7 @@ static boolean_t vm_object_page_remove_write(vm_page_t p, int flags,
 		    boolean_t *allclean);
 static void	vm_object_qcollapse(vm_object_t object);
 static void	vm_object_vndeallocate(vm_object_t object);
+static void	vm_object_backing_remove(vm_object_t object);
 
 /*
  *	Virtual memory objects maintain the actual data
@@ -651,11 +652,7 @@ doterm:
 		if (temp != NULL) {
 			KASSERT((object->flags & OBJ_TMPFS_NODE) == 0,
 			    ("shadowed tmpfs v_object 2 %p", object));
-			VM_OBJECT_WLOCK(temp);
-			LIST_REMOVE(object, shadow_list);
-			temp->shadow_count--;
-			VM_OBJECT_WUNLOCK(temp);
-			object->backing_object = NULL;
+			vm_object_backing_remove(object);
 		}
 		/*
 		 * Don't double-terminate, we could be in a termination
@@ -694,6 +691,70 @@ vm_object_destroy(vm_object_t object)
 	 */
 	uma_zfree(obj_zone, object);
 }
+
+static void
+vm_object_backing_remove_locked(vm_object_t object)
+{
+	vm_object_t backing_object;
+
+	backing_object = object->backing_object;
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	VM_OBJECT_ASSERT_WLOCKED(backing_object);
+
+	if ((object->flags & OBJ_SHADOWLIST) != 0) {
+		LIST_REMOVE(object, shadow_list);
+		backing_object->shadow_count--;
+		object->flags &= ~OBJ_SHADOWLIST;
+	}
+	object->backing_object = NULL;
+}
+
+static void
+vm_object_backing_remove(vm_object_t object)
+{
+	vm_object_t backing_object;
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+
+	if ((object->flags & OBJ_SHADOWLIST) != 0) {
+		backing_object = object->backing_object;
+		VM_OBJECT_WLOCK(backing_object);
+		vm_object_backing_remove_locked(object);
+		VM_OBJECT_WUNLOCK(backing_object);
+	} else
+		object->backing_object = NULL;
+}
+
+static void
+vm_object_backing_insert_locked(vm_object_t object, vm_object_t backing_object)
+{
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+
+	if ((backing_object->flags & OBJ_ANON) != 0) {
+		VM_OBJECT_ASSERT_WLOCKED(backing_object);
+		LIST_INSERT_HEAD(&backing_object->shadow_head, object,
+		    shadow_list);
+		backing_object->shadow_count++;
+		object->flags |= OBJ_SHADOWLIST;
+	}
+	object->backing_object = backing_object;
+}
+
+static void
+vm_object_backing_insert(vm_object_t object, vm_object_t backing_object)
+{
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+
+	if ((backing_object->flags & OBJ_ANON) != 0) {
+		VM_OBJECT_WLOCK(backing_object);
+		vm_object_backing_insert_locked(object, backing_object);
+		VM_OBJECT_WUNLOCK(backing_object);
+	} else
+		object->backing_object = backing_object;
+}
+
 
 /*
  *	vm_object_terminate_pages removes any remaining pageable pages
@@ -1250,6 +1311,12 @@ vm_object_shadow(
 	result = vm_object_allocate_anon(atop(length));
 
 	/*
+	 * Store the offset into the source object, and fix up the offset into
+	 * the new object.
+	 */
+	result->backing_object_offset = *offset;
+
+	/*
 	 * The new object shadows the source object, adding a reference to it.
 	 * Our caller changes his reference to point to the new object,
 	 * removing a reference to the source object.  Net result: no change
@@ -1259,25 +1326,17 @@ vm_object_shadow(
 	 * in order to maintain page coloring consistency in the combined 
 	 * shadowed object.
 	 */
-	result->backing_object = source;
-	/*
-	 * Store the offset into the source object, and fix up the offset into
-	 * the new object.
-	 */
-	result->backing_object_offset = *offset;
 	if (source != NULL) {
-		VM_OBJECT_WLOCK(source);
+		VM_OBJECT_WLOCK(result);
+		vm_object_backing_insert(result, source);
 		result->domain = source->domain;
-		LIST_INSERT_HEAD(&source->shadow_head, result, shadow_list);
-		source->shadow_count++;
 #if VM_NRESERVLEVEL > 0
 		result->flags |= source->flags & OBJ_COLORED;
 		result->pg_color = (source->pg_color + OFF_TO_IDX(*offset)) &
 		    ((1 << (VM_NFREEORDER - 1)) - 1);
 #endif
-		VM_OBJECT_WUNLOCK(source);
+		VM_OBJECT_WUNLOCK(result);
 	}
-
 
 	/*
 	 * Return the new things
@@ -1326,24 +1385,26 @@ vm_object_split(vm_map_entry_t entry)
 	new_object->domain = orig_object->domain;
 	source = orig_object->backing_object;
 	if (source != NULL) {
-		VM_OBJECT_WLOCK(source);
-		if ((source->flags & OBJ_DEAD) != 0) {
+		if ((source->flags & (OBJ_ANON | OBJ_DEAD)) != 0) {
+			VM_OBJECT_WLOCK(source);
+			if ((source->flags & OBJ_DEAD) != 0) {
+				VM_OBJECT_WUNLOCK(source);
+				VM_OBJECT_WUNLOCK(orig_object);
+				VM_OBJECT_WUNLOCK(new_object);
+				vm_object_deallocate(new_object);
+				VM_OBJECT_WLOCK(orig_object);
+				return;
+			}
+			vm_object_backing_insert_locked(new_object, source);
+			vm_object_reference_locked(source);	/* for new_object */
+			vm_object_clear_flag(source, OBJ_ONEMAPPING);
 			VM_OBJECT_WUNLOCK(source);
-			VM_OBJECT_WUNLOCK(orig_object);
-			VM_OBJECT_WUNLOCK(new_object);
-			vm_object_deallocate(new_object);
-			VM_OBJECT_WLOCK(orig_object);
-			return;
+		} else {
+			vm_object_backing_insert(new_object, source);
+			vm_object_reference(source);
 		}
-		LIST_INSERT_HEAD(&source->shadow_head,
-				  new_object, shadow_list);
-		source->shadow_count++;
-		vm_object_reference_locked(source);	/* for new_object */
-		vm_object_clear_flag(source, OBJ_ONEMAPPING);
-		VM_OBJECT_WUNLOCK(source);
 		new_object->backing_object_offset = 
 			orig_object->backing_object_offset + entry->offset;
-		new_object->backing_object = source;
 	}
 	if (orig_object->cred != NULL) {
 		new_object->cred = orig_object->cred;
@@ -1756,20 +1817,15 @@ vm_object_collapse(vm_object_t object)
 			 * backing_object->backing_object moves from within 
 			 * backing_object to within object.
 			 */
-			LIST_REMOVE(object, shadow_list);
-			backing_object->shadow_count--;
-			if (backing_object->backing_object) {
-				VM_OBJECT_WLOCK(backing_object->backing_object);
-				LIST_REMOVE(backing_object, shadow_list);
-				LIST_INSERT_HEAD(
-				    &backing_object->backing_object->shadow_head,
-				    object, shadow_list);
-				/*
-				 * The shadow_count has not changed.
-				 */
-				VM_OBJECT_WUNLOCK(backing_object->backing_object);
+			vm_object_backing_remove_locked(object);
+			new_backing_object = backing_object->backing_object;
+			if (new_backing_object != NULL) {
+				VM_OBJECT_WLOCK(new_backing_object);
+				vm_object_backing_remove_locked(backing_object);
+				vm_object_backing_insert_locked(object,
+				    new_backing_object);
+				VM_OBJECT_WUNLOCK(new_backing_object);
 			}
-			object->backing_object = backing_object->backing_object;
 			object->backing_object_offset +=
 			    backing_object->backing_object_offset;
 
@@ -1807,20 +1863,13 @@ vm_object_collapse(vm_object_t object)
 			 * chain.  Deallocating backing_object will not remove
 			 * it, since its reference count is at least 2.
 			 */
-			LIST_REMOVE(object, shadow_list);
-			backing_object->shadow_count--;
+			vm_object_backing_remove_locked(object);
 
 			new_backing_object = backing_object->backing_object;
-			if ((object->backing_object = new_backing_object) != NULL) {
-				VM_OBJECT_WLOCK(new_backing_object);
-				LIST_INSERT_HEAD(
-				    &new_backing_object->shadow_head,
-				    object,
-				    shadow_list
-				);
-				new_backing_object->shadow_count++;
-				vm_object_reference_locked(new_backing_object);
-				VM_OBJECT_WUNLOCK(new_backing_object);
+			if (new_backing_object != NULL) {
+				vm_object_backing_insert(object,
+				    new_backing_object);
+				vm_object_reference(new_backing_object);
 				object->backing_object_offset +=
 					backing_object->backing_object_offset;
 			}
