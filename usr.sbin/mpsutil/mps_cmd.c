@@ -283,6 +283,29 @@ mps_map_btdh(int fd, uint16_t *devhandle, uint16_t *bus, uint16_t *target)
 }
 
 int
+mps_set_slot_status(int fd, U16 handle, U16 slot, U32 status)
+{
+	MPI2_SEP_REQUEST req;
+	MPI2_SEP_REPLY reply;
+
+	bzero(&req, sizeof(req));
+	req.Function = MPI2_FUNCTION_SCSI_ENCLOSURE_PROCESSOR;
+	req.Action = MPI2_SEP_REQ_ACTION_WRITE_STATUS;
+	req.Flags = MPI2_SEP_REQ_FLAGS_ENCLOSURE_SLOT_ADDRESS;
+	req.EnclosureHandle = handle;
+	req.Slot = slot;
+	req.SlotStatus = status;
+
+	if (mps_pass_command(fd, &req, sizeof(req), &reply, sizeof(reply),
+	    NULL, 0, NULL, 0, 30) != 0)
+		return (errno);
+
+	if (!IOC_STATUS_SUCCESS(reply.IOCStatus))
+		return (EIO);
+	return (0);
+}
+
+int
 mps_read_config_page_header(int fd, U8 PageType, U8 PageNumber, U32 PageAddress,
     MPI2_CONFIG_PAGE_HEADER *header, U16 *IOCStatus)
 {
