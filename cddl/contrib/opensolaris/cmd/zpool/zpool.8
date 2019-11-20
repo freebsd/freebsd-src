@@ -829,13 +829,13 @@ When a pool is determined to be active it cannot be imported, even with the
 option.
 This property is intended to be used in failover configurations
 where multiple hosts have access to a pool on shared storage.
-.sp
+.Pp
 Multihost provides protection on import only.
 It does not protect against an
 individual device being used in multiple pools, regardless of the type of vdev.
 See the discussion under
 .Sy zpool create.
-.sp
+.Pp
 When this property is on, periodic writes to storage occur to show the pool is
 in use.
 See
@@ -975,9 +975,14 @@ Discards an existing checkpoint from
 .Op Ar device
 .Xc
 .Pp
-Clears device errors in a pool. If no arguments are specified, all device
-errors within the pool are cleared. If one or more devices is specified, only
-those errors associated with the specified device or devices are cleared.
+Clears device errors in a pool.
+If no arguments are specified, all device errors within the pool are cleared.
+If one or more devices is specified, only those errors associated with the
+specified device or devices are cleared.
+If multihost is enabled, and the pool has been suspended, this will not
+resume I/O.
+While the pool was suspended, it may have been imported on
+another host, and resuming I/O could result in pool damage.
 .Bl -tag -width indent
 .It Fl F
 Initiates recovery mode for an unopenable pool. Attempts to discard the last
@@ -988,22 +993,8 @@ discarded transactions is irretrievably lost.
 Used in combination with the
 .Fl F
 flag. Check whether discarding transactions would make the pool openable, but
-<<<<<<<
 do not actually discard any transactions.
 .El
-|||||||
-If no arguments are specified, all device errors within the pool are cleared.
-If one or more devices is specified, only those errors associated with the
-specified device or devices are cleared.
-=======
-If no arguments are specified, all device errors within the pool are cleared.
-If one or more devices is specified, only those errors associated with the
-specified device or devices are cleared.
-If multihost is enabled, and the pool has been suspended, this will not
-resume I/O.
-While the pool was suspended, it may have been imported on
-another host, and resuming I/O could result in pool damage.
->>>>>>>
 .It Xo
 .Nm
 .Cm create
@@ -1028,15 +1019,6 @@ specification is described in the
 .Qq Sx Virtual Devices
 section.
 .Pp
-<<<<<<<
-The command verifies that each device specified is accessible and not currently
-|||||||
-The command verifies that each device specified is accessible and not currently
-in use by another subsystem.
-There are some uses, such as being currently mounted, or specified as the
-dedicated dump device, that prevents a device from ever being used by ZFS.
-Other uses, such as having a preexisting UFS file system, can be overridden with
-=======
 The command attempts to verify that each device specified is accessible and not
 currently in use by another subsystem.
 However this check is not robust enough
@@ -1054,18 +1036,11 @@ or
 do not refer to the same device.
 Using the same device in two pools will
 result in pool corruption.
-.sp
+.Pp
 There are some uses, such as being currently mounted, or specified as the
 dedicated dump device, that prevents a device from ever being used by ZFS.
-Other uses, such as having a preexisting UFS file system, can be overridden with
->>>>>>>
-in use by another subsystem. There are some uses, such as being currently
-mounted, or specified as the dedicated dump device, that prevents a device from
-ever being used by
-.Tn ZFS
-Other uses, such as having a preexisting
-.Sy UFS
-file system, can be overridden with the
+Other uses, such as having a preexisting UFS file system, can be overridden
+with the
 .Fl f
 option.
 .Pp
@@ -1720,7 +1695,7 @@ devices in this pool are online and healthy before performing this action.
 Removes the specified device from the pool.
 This command currently only supports removing hot spares, cache, log
 devices and mirrored top-level vdevs (mirror of leaf devices); but not raidz.
-.sp
+.Pp
 Removing a top-level vdev reduces the total amount of space in the storage pool.
 The specified device will be evacuated by copying all allocated space from it to
 the other devices in the pool.
