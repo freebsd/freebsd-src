@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #ifdef NOTYET
 #include <arm/broadcom/bcm2835/bcm2835_clkman.h>
 #endif
+#include <arm/broadcom/bcm2835/bcm2835_vcbus.h>
 
 #define	BCM2835_DEFAULT_SDHCI_FREQ	50
 #define	BCM2838_DEFAULT_SDHCI_FREQ	100
@@ -330,7 +331,7 @@ bcm_sdhci_attach(device_t dev)
 
 		/* Allocate bus_dma resources. */
 		err = bus_dma_tag_create(bus_get_dma_tag(dev),
-		    1, 0, BUS_SPACE_MAXADDR_32BIT,
+		    1, 0, bcm283x_dmabus_peripheral_lowaddr(),
 		    BUS_SPACE_MAXADDR, NULL, NULL,
 		    BCM_DMA_MAXSIZE, ALLOCATED_DMA_SEGS, BCM_SDHCI_BUFFER_SIZE,
 		    BUS_DMA_ALLOCNOW, NULL, NULL,

@@ -35,47 +35,40 @@
 #ifndef _BCM2835_VCBUS_H_
 #define _BCM2835_VCBUS_H_
 
-/*
- * ARM64 define its SOC options in opt_soc.h
- */
-#if defined(__aarch64__)
-#include "opt_soc.h"
-#endif
-
 #define	BCM2835_VCBUS_SDRAM_CACHED	0x40000000
-#define	BCM2835_VCBUS_IO_BASE		0x7E000000
 #define	BCM2835_VCBUS_SDRAM_UNCACHED	0xC0000000
 
-#if defined(SOC_BCM2835)
 #define	BCM2835_ARM_IO_BASE		0x20000000
+#define	BCM2835_VCBUS_IO_BASE		0x7E000000
 #define	BCM2835_VCBUS_SDRAM_BASE	BCM2835_VCBUS_SDRAM_CACHED
-#else
-#define	BCM2835_ARM_IO_BASE		0x3f000000
-#define	BCM2835_VCBUS_SDRAM_BASE	BCM2835_VCBUS_SDRAM_UNCACHED
-#endif
-#define	BCM2835_ARM_IO_SIZE		0x01000000
+
+#define	BCM2837_ARM_IO_BASE		0x3f000000
+#define	BCM2837_VCBUS_IO_BASE		BCM2835_VCBUS_IO_BASE
+#define	BCM2837_VCBUS_SDRAM_BASE	BCM2835_VCBUS_SDRAM_UNCACHED
+
+#define	BCM2838_ARM_IO_BASE		0xfe000000
+#define	BCM2838_VCBUS_IO_BASE		BCM2835_VCBUS_IO_BASE
+#define	BCM2838_VCBUS_SDRAM_BASE	BCM2835_VCBUS_SDRAM_UNCACHED
 
 /*
- * Convert physical address to VC bus address. Should be used 
- * when submitting address over mailbox interface 
+ * Max allowed SDRAM mapping for most peripherals.  The Raspberry Pi 4 has more
+ * than 1 GB of SDRAM, but only the lowest 1 GB is mapped into the "Legacy
+ * Master view" of the address space accessible by the DMA engine.  Technically,
+ * we can slide this window around to whatever similarly sized range is
+ * convenient, but this is the most useful window given how busdma(9) works and
+ * that the window must be reconfigured for all channels in a given DMA engine.
+ * The DMA lite engine's window can be configured separately from the 30-bit DMA
+ * engine.
  */
-#define	PHYS_TO_VCBUS(pa)	((pa) + BCM2835_VCBUS_SDRAM_BASE)
+#define	BCM2838_PERIPH_MAXADDR		0x3fffffff
 
-/* Check whether pa bellong top IO window */
-#define BCM2835_ARM_IS_IO(pa)	(((pa) >= BCM2835_ARM_IO_BASE) && \
-    ((pa) < BCM2835_ARM_IO_BASE + BCM2835_ARM_IO_SIZE))
+#define	BCM28XX_ARM_IO_SIZE		0x01000000
 
-/*
- * Convert physical address in IO space to VC bus address. 
- */
-#define	IO_TO_VCBUS(pa)		((pa - BCM2835_ARM_IO_BASE) + \
-    BCM2835_VCBUS_IO_BASE)
+vm_paddr_t bcm283x_armc_to_vcbus(vm_paddr_t pa);
+vm_paddr_t bcm283x_vcbus_to_armc(vm_paddr_t vca);
+bus_addr_t bcm283x_dmabus_peripheral_lowaddr(void);
 
-/*
- * Convert address from VC bus space to physical. Should be used
- * when address is returned by VC over mailbox interface. e.g.
- * framebuffer base
- */
-#define	VCBUS_TO_PHYS(vca)	((vca) & ~(BCM2835_VCBUS_SDRAM_BASE))
+#define	ARMC_TO_VCBUS(pa)	bcm283x_armc_to_vcbus(pa)
+#define	VCBUS_TO_ARMC(vca)	bcm283x_vcbus_to_armc(vca)
 
 #endif /* _BCM2835_VCBUS_H_ */
