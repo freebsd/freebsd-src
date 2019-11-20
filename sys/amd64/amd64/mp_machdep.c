@@ -314,18 +314,24 @@ init_secondary(void)
 	    IOPERM_BITMAP_SIZE;
 	pc->pc_common_tss.tss_rsp0 = 0;
 
-	pc->pc_common_tss.tss_ist1 = (long)&doublefault_stack[PAGE_SIZE];
+	/* The doublefault stack runs on IST1. */
+	np = ((struct nmi_pcpu *)&doublefault_stack[PAGE_SIZE]) - 1;
+	np->np_pcpu = (register_t)pc;
+	pc->pc_common_tss.tss_ist1 = (long)np;
 
 	/* The NMI stack runs on IST2. */
 	np = ((struct nmi_pcpu *) &nmi_stack[PAGE_SIZE]) - 1;
+	np->np_pcpu = (register_t)pc;
 	pc->pc_common_tss.tss_ist2 = (long)np;
 
 	/* The MC# stack runs on IST3. */
 	np = ((struct nmi_pcpu *) &mce_stack[PAGE_SIZE]) - 1;
+	np->np_pcpu = (register_t)pc;
 	pc->pc_common_tss.tss_ist3 = (long)np;
 
 	/* The DB# stack runs on IST4. */
 	np = ((struct nmi_pcpu *) &dbg_stack[PAGE_SIZE]) - 1;
+	np->np_pcpu = (register_t)pc;
 	pc->pc_common_tss.tss_ist4 = (long)np;
 
 	/* Prepare private GDT */
@@ -340,18 +346,6 @@ init_secondary(void)
 	ap_gdt.rd_limit = NGDT * sizeof(gdt[0]) - 1;
 	ap_gdt.rd_base = (u_long)gdt;
 	lgdt(&ap_gdt);			/* does magic intra-segment return */
-
-	/* Save the per-cpu pointer for use by the NMI handler. */
-	np = ((struct nmi_pcpu *) &nmi_stack[PAGE_SIZE]) - 1;
-	np->np_pcpu = (register_t)pc;
-
-	/* Save the per-cpu pointer for use by the MC# handler. */
-	np = ((struct nmi_pcpu *) &mce_stack[PAGE_SIZE]) - 1;
-	np->np_pcpu = (register_t)pc;
-
-	/* Save the per-cpu pointer for use by the DB# handler. */
-	np = ((struct nmi_pcpu *) &dbg_stack[PAGE_SIZE]) - 1;
-	np->np_pcpu = (register_t)pc;
 
 	wrmsr(MSR_FSBASE, 0);		/* User value */
 	wrmsr(MSR_GSBASE, (u_int64_t)pc);
