@@ -77,6 +77,7 @@ CONFS=	DAEMON \
 	nsswitch \
 	ntpdate \
 	${_opensm} \
+	os-release \
 	pf \
 	pflog \
 	pfsync \
