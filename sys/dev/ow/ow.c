@@ -159,7 +159,6 @@ static struct ow_timing timing_overdrive = {
 	.t_lowr = 1,		/* 1 <= t < 2 */
 };
 
-SYSCTL_DECL(_hw);
 SYSCTL_NODE(_hw, OID_AUTO, ow, CTLFLAG_RD, 0, "1-Wire protocol");
 SYSCTL_NODE(_hw_ow, OID_AUTO, regular, CTLFLAG_RD, 0,
     "Regular mode timings");
