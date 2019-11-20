@@ -227,7 +227,7 @@ ft5406ts_init(void *arg)
 		return;
 	}
 
-	touchbuf = VCBUS_TO_PHYS(msg.body.resp.address);
+	touchbuf = VCBUS_TO_ARMC(msg.body.resp.address);
 	sc->touch_buf = (uint8_t*)pmap_mapdev(touchbuf, FT5406_WINDOW_SIZE);
 
 	/* 60Hz */
