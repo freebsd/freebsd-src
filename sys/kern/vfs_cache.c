@@ -204,14 +204,8 @@ static u_long __read_mostly	ncnegfactor = 5; /* ratio of negative entries */
 SYSCTL_ULONG(_vfs, OID_AUTO, ncnegfactor, CTLFLAG_RW, &ncnegfactor, 0,
     "Ratio of negative namecache entries");
 static u_long __exclusive_cache_line	numneg;	/* number of negative entries allocated */
-SYSCTL_ULONG(_debug, OID_AUTO, numneg, CTLFLAG_RD, &numneg, 0,
-    "Number of negative entries in namecache");
 static u_long __exclusive_cache_line	numcache;/* number of cache entries allocated */
-SYSCTL_ULONG(_debug, OID_AUTO, numcache, CTLFLAG_RD, &numcache, 0,
-    "Number of namecache entries");
 static u_long __exclusive_cache_line	numcachehv;/* number of cache entries with vnodes held */
-SYSCTL_ULONG(_debug, OID_AUTO, numcachehv, CTLFLAG_RD, &numcachehv, 0,
-    "Number of namecache entries with vnodes held");
 u_int ncsizefactor = 2;
 SYSCTL_UINT(_vfs, OID_AUTO, ncsizefactor, CTLFLAG_RW, &ncsizefactor, 0,
     "Size factor for namecache");
@@ -356,6 +350,7 @@ static SYSCTL_NODE(_vfs, OID_AUTO, cache, CTLFLAG_RW, 0,
 	SYSCTL_COUNTER_U64(_vfs_cache, OID_AUTO, name, CTLFLAG_RD, &name, descr);
 STATNODE_ULONG(numneg, "Number of negative cache entries");
 STATNODE_ULONG(numcache, "Number of cache entries");
+STATNODE_ULONG(numcachehv, "Number of namecache entries with vnodes held");
 STATNODE_COUNTER(numcalls, "Number of cache lookups");
 STATNODE_COUNTER(dothits, "Number of '.' hits");
 STATNODE_COUNTER(dotdothits, "Number of '..' hits");
