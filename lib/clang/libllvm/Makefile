@@ -26,6 +26,17 @@ CFLAGS+=	-I${LLVM_SRCS}/lib/Target/${arch}
 
 SRCDIR=		lib
 
+# Explanation of different SRCS variants below:
+# SRCS_MIN:	always required, even for bootstrap
+# SRCS_MIW:	required for world stage (after cross-tools)
+# SRCS_EXT:	required for MK_CLANG_EXTRAS
+# SRCS_EXL:	required for MK_CLANG_EXTRAS and MK_LLD
+# SRCS_FUL:	required for MK_CLANG_FULL
+# SRCS_LLD:	required for MK_LLD
+# SRCS_XDB:	required for MK_CLANG_EXTRAS and MK_LLDB
+# SRCS_XDL:	required for MK_CLANG_EXTRAS, MK_LLD and MK_LLDB
+# SRCS_XDW:	required for MK_CLANG_EXTRAS and MK_LLDB in world stage
+
 SRCS_MIN+=	Analysis/AliasAnalysis.cpp
 SRCS_MIN+=	Analysis/AliasAnalysisEvaluator.cpp
 SRCS_MIN+=	Analysis/AliasAnalysisSummary.cpp
