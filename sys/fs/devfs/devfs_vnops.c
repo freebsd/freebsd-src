@@ -481,7 +481,7 @@ loop:
 		vp->v_rdev = dev;
 		KASSERT(vp->v_usecount == 1,
 		    ("%s %d (%d)\n", __func__, __LINE__, vp->v_usecount));
-		dev->si_usecount += vp->v_usecount;
+		dev->si_usecount++;
 		/* Special casing of ttys for deadfs.  Probably redundant. */
 		dsw = dev->si_devsw;
 		if (dsw != NULL && (dsw->d_flags & D_TTY) != 0)
@@ -581,7 +581,7 @@ devfs_close(struct vop_close_args *ap)
 	 * if the reference count is 2 (this last descriptor
 	 * plus the session), release the reference from the session.
 	 */
-	if (td != NULL) {
+	if (vp->v_usecount == 2 && td != NULL) {
 		p = td->td_proc;
 		PROC_LOCK(p);
 		if (vp == p->p_session->s_ttyvp) {
@@ -591,7 +591,7 @@ devfs_close(struct vop_close_args *ap)
 			if (vp == p->p_session->s_ttyvp) {
 				SESS_LOCK(p->p_session);
 				VI_LOCK(vp);
-				if (count_dev(dev) == 2 &&
+				if (vp->v_usecount == 2 && vcount(vp) == 1 &&
 				    (vp->v_iflag & VI_DOOMED) == 0) {
 					p->p_session->s_ttyvp = NULL;
 					p->p_session->s_ttydp = NULL;
@@ -620,19 +620,19 @@ devfs_close(struct vop_close_args *ap)
 		return (ENXIO);
 	dflags = 0;
 	VI_LOCK(vp);
+	if (vp->v_usecount == 1 && vcount(vp) == 1)
+		dflags |= FLASTCLOSE;
 	if (vp->v_iflag & VI_DOOMED) {
 		/* Forced close. */
 		dflags |= FREVOKE | FNONBLOCK;
 	} else if (dsw->d_flags & D_TRACKCLOSE) {
 		/* Keep device updated on status. */
-	} else if (count_dev(dev) > 1) {
+	} else if ((dflags & FLASTCLOSE) == 0) {
 		VI_UNLOCK(vp);
 		dev_relthread(dev, ref);
 		return (0);
 	}
-	if (count_dev(dev) == 1)
-		dflags |= FLASTCLOSE;
-	vholdl(vp);
+	vholdnz(vp);
 	VI_UNLOCK(vp);
 	vp_locked = VOP_ISLOCKED(vp);
 	VOP_UNLOCK(vp, 0);
@@ -1425,7 +1425,7 @@ devfs_reclaim_vchr(struct vop_reclaim_args *ap)
 	dev = vp->v_rdev;
 	vp->v_rdev = NULL;
 	if (dev != NULL)
-		dev->si_usecount -= vp->v_usecount;
+		dev->si_usecount -= (vp->v_usecount > 0);
 	dev_unlock();
 	VI_UNLOCK(vp);
 	if (dev != NULL)
