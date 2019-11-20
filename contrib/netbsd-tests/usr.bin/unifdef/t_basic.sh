@@ -35,9 +35,6 @@ basic_head() {
 }
 
 basic_body() {
-	if [ "$(atf_config_get ci false)" = "true" ]; then
-		atf_skip "https://bugs.freebsd.org/242095"
-	fi
 
 	atf_check -s ignore -o file:$(atf_get_srcdir)/d_basic.out \
 		-x "unifdef -U__FreeBSD__ $(atf_get_srcdir)/d_basic.in"
