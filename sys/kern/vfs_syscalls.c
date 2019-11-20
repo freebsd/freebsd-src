@@ -4148,7 +4148,7 @@ sys_revoke(struct thread *td, struct revoke_args *uap)
 		if (error != 0)
 			goto out;
 	}
-	if (vcount(vp) > 1)
+	if (vp->v_usecount > 1 || vcount(vp) > 1)
 		VOP_REVOKE(vp, REVOKEALL);
 out:
 	vput(vp);
