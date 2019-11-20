@@ -433,7 +433,7 @@ sysctl_vm_page_blacklist(SYSCTL_HANDLER_ARGS)
  * Nonetheless, it write busies the page as a safety precaution.
  */
 static void
-vm_page_init_marker(vm_page_t marker, int queue, uint8_t aflags)
+vm_page_init_marker(vm_page_t marker, int queue, uint16_t aflags)
 {
 
 	bzero(marker, sizeof(*marker));
@@ -3175,7 +3175,7 @@ static inline void
 vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m)
 {
 	struct vm_domain *vmd;
-	uint8_t qflags;
+	uint16_t qflags;
 
 	CRITICAL_ASSERT(curthread);
 	vm_pagequeue_assert_locked(pq);
@@ -3421,7 +3421,7 @@ void
 vm_page_dequeue(vm_page_t m)
 {
 	struct vm_pagequeue *pq, *pq1;
-	uint8_t aflags;
+	uint16_t aflags;
 
 	KASSERT(mtx_owned(vm_page_lockptr(m)) || m->ref_count == 0,
 	    ("page %p is allocated and unlocked", m));
