@@ -59,7 +59,7 @@ static struct random_source random_ivy = {
 	.rs_read = random_ivy_read
 };
 
-static int
+static bool
 x86_rdrand_store(u_long *buf)
 {
 	u_long rndval;
@@ -75,10 +75,10 @@ x86_rdrand_store(u_long *buf)
 	    "2:"
 	    : "+r" (retry), "=r" (rndval) : : "cc");
 	*buf = rndval;
-	return (retry);
+	return (retry != 0);
 }
 
-static int
+static bool
 x86_rdseed_store(u_long *buf)
 {
 	u_long rndval;
@@ -94,17 +94,17 @@ x86_rdseed_store(u_long *buf)
 	    "2:"
 	    : "+r" (retry), "=r" (rndval) : : "cc");
 	*buf = rndval;
-	return (retry);
+	return (retry != 0);
 }
 
-static int
+static bool
 x86_unimpl_store(u_long *buf __unused)
 {
 
 	panic("%s called", __func__);
 }
 
-DEFINE_IFUNC(static, int, x86_rng_store, (u_long *buf))
+DEFINE_IFUNC(static, bool, x86_rng_store, (u_long *buf))
 {
 	has_rdrand = (cpu_feature2 & CPUID2_RDRAND);
 	has_rdseed = (cpu_stdext_feature & CPUID_STDEXT_RDSEED);
@@ -127,7 +127,7 @@ random_ivy_read(void *buf, u_int c)
 	KASSERT(c % sizeof(*b) == 0, ("partial read %d", c));
 	b = buf;
 	for (count = c; count > 0; count -= sizeof(*b)) {
-		if (x86_rng_store(&rndval) == 0)
+		if (!x86_rng_store(&rndval))
 			break;
 		*b++ = rndval;
 	}
