@@ -71,4 +71,7 @@ bus_addr_t bcm283x_dmabus_peripheral_lowaddr(void);
 #define	ARMC_TO_VCBUS(pa)	bcm283x_armc_to_vcbus(pa)
 #define	VCBUS_TO_ARMC(vca)	bcm283x_vcbus_to_armc(vca)
 
+/* Compatibility name for vchiq arm interface. */
+#define	PHYS_TO_VCBUS		ARMC_TO_VCBUS
+
 #endif /* _BCM2835_VCBUS_H_ */
