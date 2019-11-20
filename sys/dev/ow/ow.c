@@ -78,7 +78,7 @@ static struct ow_timing timing_regular = {
 	.t_low0 = 60,		/* really 60 to 120 */
 	.t_low1 = 1,		/* really 1 to 15 */
 	.t_release = 45,	/* <= 45us */
-	.t_rec = 1,		/* at least 1us */
+	.t_rec = 15,		/* at least 1us */
 	.t_rdv = 15,		/* 15us */
 	.t_rstl = 480,		/* 480us or more */
 	.t_rsth = 480,		/* 480us or more */
