@@ -45,11 +45,8 @@
  *   it possible to handle all "dodgy" directives correctly.
  */
 
-#include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/tree.h>
 
-#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <stdarg.h>
@@ -152,32 +149,13 @@ static char const * const linestate_name[] = {
  */
 #define	MAXDEPTH        64			/* maximum #if nesting */
 #define	MAXLINE         4096			/* maximum length of line */
+#define	MAXSYMS         16384			/* maximum number of symbols */
 
 /*
  * Sometimes when editing a keyword the replacement text is longer, so
  * we leave some space at the end of the tline buffer to accommodate this.
  */
 #define	EDITSLOP        10
-
-/*
- * C17/18 allow 63 characters per macro name, but up to 127 arbitrarily large
- * parameters.
- */
-struct macro {
-	RB_ENTRY(macro)	entry;
-	const char	*name;
-	const char	*value;
-	bool		ignore;		/* -iDsym or -iUsym */
-};
-
-static int
-macro_cmp(struct macro *a, struct macro *b)
-{
-	return (strcmp(a->name, b->name));
-}
-
-static RB_HEAD(macrohd, macro) macro_tree = RB_INITIALIZER(&macro_tree);
-RB_GENERATE_STATIC(macrohd, macro, entry, macro_cmp);
 
 /*
  * Globals.
@@ -195,6 +173,11 @@ static bool             lnnum;			/* -n: add #line directives */
 static bool             symlist;		/* -s: output symbol list */
 static bool             symdepth;		/* -S: output symbol depth */
 static bool             text;			/* -t: this is a text file */
+
+static const char      *symname[MAXSYMS];	/* symbol name */
+static const char      *value[MAXSYMS];		/* -Dsym=value */
+static bool             ignore[MAXSYMS];	/* -iDsym or -iUsym */
+static int              nsyms;			/* number of symbols */
 
 static FILE            *input;			/* input file pointer */
 static const char      *filename;		/* input file name */
@@ -244,12 +227,12 @@ static char            *astrcat(const char *, const char *);
 static void             cleantemp(void);
 static void             closeio(void);
 static void             debug(const char *, ...);
-static void             debugsym(const char *, const struct macro *);
+static void             debugsym(const char *, int);
 static bool             defundef(void);
 static void             defundefile(const char *);
 static void             done(void);
 static void             error(const char *);
-static struct macro    *findsym(const char **);
+static int              findsym(const char **);
 static void             flushline(bool);
 static void             hashline(void);
 static void             help(void);
@@ -824,7 +807,7 @@ static Linetype
 parseline(void)
 {
 	const char *cp;
-	struct macro *cursym;
+	int cursym;
 	Linetype retval;
 	Comment_state wascomment;
 
@@ -846,15 +829,15 @@ parseline(void)
 	if ((cp = matchsym("ifdef", keyword)) != NULL ||
 	    (cp = matchsym("ifndef", keyword)) != NULL) {
 		cp = skipcomment(cp);
-		if ((cursym = findsym(&cp)) == NULL)
+		if ((cursym = findsym(&cp)) < 0)
 			retval = LT_IF;
 		else {
 			retval = (keyword[2] == 'n')
 			    ? LT_FALSE : LT_TRUE;
-			if (cursym->value == NULL)
+			if (value[cursym] == NULL)
 				retval = (retval == LT_TRUE)
 				    ? LT_FALSE : LT_TRUE;
-			if (cursym->ignore)
+			if (ignore[cursym])
 				retval = (retval == LT_TRUE)
 				    ? LT_TRUEI : LT_FALSEI;
 		}
@@ -1054,7 +1037,7 @@ eval_unary(const struct ops *ops, long *valp, const char **cpp)
 {
 	const char *cp;
 	char *ep;
-	struct macro *sym;
+	int sym;
 	bool defparen;
 	Linetype lt;
 
@@ -1119,27 +1102,27 @@ eval_unary(const struct ops *ops, long *valp, const char **cpp)
 			debug("eval%d defined missing ')'", prec(ops));
 			return (LT_ERROR);
 		}
-		if (sym == NULL) {
+		if (sym < 0) {
 			debug("eval%d defined unknown", prec(ops));
 			lt = LT_IF;
 		} else {
-			debug("eval%d defined %s", prec(ops), sym->name);
-			*valp = (sym->value != NULL);
+			debug("eval%d defined %s", prec(ops), symname[sym]);
+			*valp = (value[sym] != NULL);
 			lt = *valp ? LT_TRUE : LT_FALSE;
 		}
 		constexpr = false;
 	} else if (!endsym(*cp)) {
 		debug("eval%d symbol", prec(ops));
 		sym = findsym(&cp);
-		if (sym == NULL) {
+		if (sym < 0) {
 			lt = LT_IF;
 			cp = skipargs(cp);
-		} else if (sym->value == NULL) {
+		} else if (value[sym] == NULL) {
 			*valp = 0;
 			lt = LT_FALSE;
 		} else {
-			*valp = strtol(sym->value, &ep, 0);
-			if (*ep != '\0' || ep == sym->value)
+			*valp = strtol(value[sym], &ep, 0);
+			if (*ep != '\0' || ep == value[sym])
 				return (LT_ERROR);
 			lt = *valp ? LT_TRUE : LT_FALSE;
 			cp = skipargs(cp);
@@ -1456,17 +1439,17 @@ matchsym(const char *s, const char *t)
  * Look for the symbol in the symbol table. If it is found, we return
  * the symbol table index, else we return -1.
  */
-static struct macro *
+static int
 findsym(const char **strp)
 {
 	const char *str;
-	struct macro key, *res;
+	int symind;
 
 	str = *strp;
 	*strp = skipsym(str);
 	if (symlist) {
 		if (*strp == str)
-			return (NULL);
+			return (-1);
 		if (symdepth && firstsym)
 			printf("%s%3d", zerosyms ? "" : "\n", depth);
 		firstsym = zerosyms = false;
@@ -1475,14 +1458,15 @@ findsym(const char **strp)
 		       (int)(*strp-str), str,
 		       symdepth ? "" : "\n");
 		/* we don't care about the value of the symbol */
-		return (NULL);
+		return (0);
 	}
-
-	key.name = str;
-	res = RB_FIND(macrohd, &macro_tree, &key);
-	if (res != NULL)
-		debugsym("findsym", res);
-	return (res);
+	for (symind = 0; symind < nsyms; ++symind) {
+		if (matchsym(symname[symind], str) != NULL) {
+			debugsym("findsym", symind);
+			return (symind);
+		}
+	}
+	return (-1);
 }
 
 /*
@@ -1492,23 +1476,22 @@ static void
 indirectsym(void)
 {
 	const char *cp;
-	int changed;
-	struct macro *sym, *ind;
+	int changed, sym, ind;
 
 	do {
 		changed = 0;
-		RB_FOREACH(sym, macrohd, &macro_tree) {
-			if (sym->value == NULL)
+		for (sym = 0; sym < nsyms; ++sym) {
+			if (value[sym] == NULL)
 				continue;
-			cp = sym->value;
+			cp = value[sym];
 			ind = findsym(&cp);
-			if (ind == NULL || ind == sym ||
+			if (ind == -1 || ind == sym ||
 			    *cp != '\0' ||
-			    ind->value == NULL ||
-			    ind->value == sym->value)
+			    value[ind] == NULL ||
+			    value[ind] == value[sym])
 				continue;
 			debugsym("indir...", sym);
-			sym->value = ind->value;
+			value[sym] = value[ind];
 			debugsym("...ectsym", sym);
 			changed++;
 		}
@@ -1540,29 +1523,29 @@ addsym1(bool ignorethis, bool definethis, char *symval)
  * Add a symbol to the symbol table.
  */
 static void
-addsym2(bool ignorethis, const char *symname, const char *val)
+addsym2(bool ignorethis, const char *sym, const char *val)
 {
-	const char *cp = symname;
-	struct macro *sym, *r;
+	const char *cp = sym;
+	int symind;
 
-	sym = findsym(&cp);
-	if (sym == NULL) {
-		sym = calloc(1, sizeof(*sym));
-		sym->ignore = ignorethis;
-		sym->name = symname;
-		sym->value = val;
-		r = RB_INSERT(macrohd, &macro_tree, sym);
-		assert(r == NULL);
+	symind = findsym(&cp);
+	if (symind < 0) {
+		if (nsyms >= MAXSYMS)
+			errx(2, "too many symbols");
+		symind = nsyms++;
 	}
-	debugsym("addsym", sym);
+	ignore[symind] = ignorethis;
+	symname[symind] = sym;
+	value[symind] = val;
+	debugsym("addsym", symind);
 }
 
 static void
-debugsym(const char *why, const struct macro *sym)
+debugsym(const char *why, int symind)
 {
-	debug("%s %s%c%s", why, sym->name,
-	    sym->value ? '=' : ' ',
-	    sym->value ? sym->value : "undef");
+	debug("%s %s%c%s", why, symname[symind],
+	    value[symind] ? '=' : ' ',
+	    value[symind] ? value[symind] : "undef");
 }
 
 /*
