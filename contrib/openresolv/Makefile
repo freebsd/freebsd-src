@@ -10,6 +10,7 @@ SYSCONFDIR?=	/etc
 LIBEXECDIR?=	/libexec/resolvconf
 VARDIR?=	/var/run/resolvconf
 
+ECHO?=		echo
 INSTALL?=	install
 SED?=		sed
 
@@ -20,7 +21,7 @@ DOCMODE?=	0644
 MANMODE?=	0444
 
 RESOLVCONF=	resolvconf resolvconf.8 resolvconf.conf.5
-SUBSCRIBERS=	libc dnsmasq named pdnsd unbound
+SUBSCRIBERS=	libc dnsmasq named pdnsd pdns_recursor unbound
 TARGET=		${RESOLVCONF} ${SUBSCRIBERS}
 SRCS=		${TARGET:C,$,.in,} # pmake
 SRCS:=		${TARGET:=.in} # gmake
@@ -42,7 +43,7 @@ DISTINFOSIGN=	${DISTINFO}.asc
 CKSUM?=		cksum -a SHA256
 PGP?=		netpgp
 
-FOSSILID?=	current
+GITREF?=	HEAD
 
 .SUFFIXES: .in
 
@@ -79,15 +80,17 @@ maninstall:
 
 install: proginstall maninstall
 
-import:
-	rm -rf /tmp/${DISTPREFIX}
-	${INSTALL} -d /tmp/${DISTPREFIX}
-	cp README ${SRCS} /tmp/${DISTPREFIX}
+dist-git:
+	git archive --prefix=${DISTPREFIX}/ ${GITREF} | xz >${DISTFILE}
 
-dist:
-	fossil tarball --name ${DISTPREFIX} ${FOSSILID} ${DISTFILEGZ}
-	gunzip -c ${DISTFILEGZ} | xz >${DISTFILE}
-	rm ${DISTFILEGZ}
+dist-inst:
+	mkdir /tmp/${DISTPREFIX}
+	cp -RPp * /tmp/${DISTPREFIX}
+	(cd /tmp/${DISTPREFIX}; make clean)
+	tar -cvjpf ${DISTFILE} -C /tmp ${DISTPREFIX}
+	rm -rf /tmp/${DISTPREFIX}
+
+dist: dist-git
 
 distinfo: dist
 	rm -f ${DISTINFO} ${DISTINFOSIGN}
@@ -96,3 +99,20 @@ distinfo: dist
 	${PGP} --clearsign --output=${DISTINFOSIGN} ${DISTINFO}
 	chmod 644 ${DISTINFOSIGN}
 	ls -l ${DISTFILE} ${DISTINFO} ${DISTINFOSIGN}
+
+import: dist
+	rm -rf /tmp/${DISTPREFIX}
+	${INSTALL} -d /tmp/${DISTPREFIX}
+	tar xvJpf ${DISTFILE} -C /tmp
+
+_import-src:
+	rm -rf ${DESTDIR}/*
+	${INSTALL} -d ${DESTDIR}
+	cp LICENSE README.md ${SRCS} resolvconf.conf ${DESTDIR};
+	cp resolvconf.8.in resolvconf.conf.5.in ${DESTDIR};
+	@${ECHO}
+	@${ECHO} "============================================================="
+	@${ECHO} "openresolv-${VERSION} imported to ${DESTDIR}"
+
+import-src:
+	${MAKE} _import-src DESTDIR=`if [ -n "${DESTDIR}" ]; then echo "${DESTDIR}"; else  echo /tmp/${DISTPREFIX}; fi`

@@ -28,14 +28,14 @@
 
 [ -f "@SYSCONFDIR@"/resolvconf.conf ] || exit 0
 . "@SYSCONFDIR@/resolvconf.conf" || exit 1
-[ -z "$named_zones" -a -z "$named_options" ] && exit 0
+[ -z "${named_zones}${named_options}" ] && exit 0
 [ -z "$RESOLVCONF" ] && eval "$(@SBINDIR@/resolvconf -v)"
 NL="
 "
 
 # Platform specific kludges
-if [ -z "$named_service" -a -z "$named_restart" -a \
-	-d "$RCDIR" -a ! -x "$RCDIR"/named ]
+if [ -z "${named_service}${named_restart}" ] &&
+   [ -d "$RCDIR" ] && ! [ -x "$RCDIR"/named ]
 then
 	if [ -x "$RCDIR"/bind9 ]; then
 		# Debian and derivatives
@@ -111,7 +111,7 @@ if $changed; then
 		eval $named_restart
 	elif [ -n "$RESTARTCMD" ]; then
 		set -- ${named_service}
-		eval $RESTARTCMD
+		eval "$RESTARTCMD"
 	else
 		@SBINDIR@/resolvconf -r ${named_service}
 	fi

@@ -44,41 +44,7 @@ for x do
 	esac
 done
 
-if [ -z "$LIBEXECDIR" ]; then
-	printf "Checking for directory /libexec ... "
-	if [ -d /libexec ]; then
-		echo "yes"
-		LIBEXECDIR=$PREFIX/libexec/resolvconf
-	else
-		echo "no"
-		LIBEXECDIR=$PREFIX/lib/resolvconf
-	fi
-fi
-if [ -z "$RUNDIR" ]; then
-	printf "Checking for directory /run ... "
-	if [ -d /run ]; then
-		echo "yes"
-		RUNDIR=/run
-	else
-		echo "no"
-		RUNDIR=/var/run
-	fi
-fi	
-
 : ${SED:=sed}
-
-: ${SYSCONFDIR:=$PREFIX/etc}
-: ${SBINDIR:=$PREFIX/sbin}
-: ${LIBEXECDIR:=$PREFIX/libexec/resolvconf}
-: ${STATEDIR:=/var}
-: ${RUNDIR:=$STATEDIR/run}
-: ${MANDIR:=${PREFIX:-/usr}/share/man}
-
-eval SYSCONFDIR="$SYSCONFDIR"
-eval SBINDIR="$SBINDIR"
-eval LIBEXECDIR="$LIBEXECDIR"
-eval VARDIR="$RUNDIR/resolvconf"
-eval MANDIR="$MANDIR"
 
 CONFIG_MK=config.mk
 
@@ -121,13 +87,9 @@ rm -rf $CONFIG_MK
 echo "# $OS" >$CONFIG_MK
 
 case "$OS" in
-freebsd*)
-	# On FreeBSD, /etc/init.d/foo status returns 0 if foo is not enabled
-	# regardless of if it's not running.
-	# So we force onestatus to work around this silly bug.
-	if [ -z "$STATUSARG" ]; then
-		STATUSARG="onestatus"
-	fi
+dragonfly*)
+	# This means /usr HAS to be mounted not via dhcpcd
+	: ${LIBEXECDIR:=${PREFIX:-/usr}/libexec/resolvconf}
 	;;
 linux*)
 	# cksum does't support -a and netpgp is rare
@@ -135,6 +97,52 @@ linux*)
 	echo "PGP=		gpg2" >>$CONFIG_MK
 	;;
 esac
+
+case "$OS" in
+dragonfly*|freebsd*)
+	# On FreeBSD, /etc/init.d/foo status returns 0 if foo is not enabled
+	# regardless of if it's not running.
+	# So we force onestatus to work around this silly bug.
+	if [ -z "$STATUSARG" ]; then
+		STATUSARG="onestatus"
+	fi
+	;;
+esac
+
+
+if [ -z "$LIBEXECDIR" ]; then
+	printf "Checking for directory /libexec ... "
+	if [ -d /libexec ]; then
+		echo "yes"
+		LIBEXECDIR=$PREFIX/libexec/resolvconf
+	else
+		echo "no"
+		LIBEXECDIR=$PREFIX/lib/resolvconf
+	fi
+fi
+if [ -z "$RUNDIR" ]; then
+	printf "Checking for directory /run ... "
+	if [ -d /run ]; then
+		echo "yes"
+		RUNDIR=/run
+	else
+		echo "no"
+		RUNDIR=/var/run
+	fi
+fi
+
+: ${SYSCONFDIR:=$PREFIX/etc}
+: ${SBINDIR:=$PREFIX/sbin}
+: ${LIBEXECDIR:=$PREFIX/libexec/resolvconf}
+: ${STATEDIR:=/var}
+: ${RUNDIR:=$STATEDIR/run}
+: ${MANDIR:=${PREFIX:-/usr}/share/man}
+
+eval SYSCONFDIR="$SYSCONFDIR"
+eval SBINDIR="$SBINDIR"
+eval LIBEXECDIR="$LIBEXECDIR"
+eval VARDIR="$RUNDIR/resolvconf"
+eval MANDIR="$MANDIR"
 
 for x in SYSCONFDIR SBINDIR LIBEXECDIR VARDIR MANDIR RESTARTCMD RCDIR STATUSARG
 do

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2010-2013 Roy Marples
+# Copyright (c) 2010-2018 Roy Marples
 # All rights reserved
 
 # pdnsd subscriber for resolvconf
@@ -28,7 +28,7 @@
 
 [ -f "@SYSCONFDIR@"/resolvconf.conf ] || exit 0
 . "@SYSCONFDIR@/resolvconf.conf" || exit 1
-[ -z "$pdnsd_conf" -a -z "$pdnsd_resolv" ] && exit 0
+[ -z "${pdnsd_conf}${pdnsd_resolv}" ] && exit 0
 [ -z "$RESOLVCONF" ] && eval "$(@SBINDIR@/resolvconf -v)"
 NL="
 "
@@ -41,14 +41,16 @@ signature_end="# End of resolvconf"
 # but sed may not always be available at the time.
 remove_markers()
 {
-	local m1="$1" m2="$2" x= line= in_marker=0
+	m1="$1"
+	m2="$2"
+	in_marker=0
 
 	shift; shift
 	if type sed >/dev/null 2>&1; then
 		sed "/^$m1/,/^$m2/d" $@
 	else
-		for x; do
-			while read -r line; do
+		for x do
+			while read line; do
 				case "$line" in
 				"$m1"*) in_marker=1;;
 				"$m2"*) in_marker=0;;

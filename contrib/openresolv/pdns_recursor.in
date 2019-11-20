@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2009-2011 Roy Marples
+# Copyright (c) 2009-2019 Roy Marples
 # All rights reserved
 
 # PowerDNS Recursor subscriber for resolvconf
@@ -33,17 +33,14 @@
 NL="
 "
 
-: ${pdns_service:=pdns_recursor}
+: ${pdns_service:=pdns-recursor}
 
 newzones=
 
-# pds_recursor does not present support global forward servers, which
-# does limit it's usefulness somewhat.
-# If it did, the below code can be enabled, or something like it.
-#for n in $NAMESERVERS; do
-#	newzones="$newzones${newzones:+,}$n"
-#done
-#[ -n "$newzones" ] && newzones=".=$newzones$NL"
+for n in $NAMESERVERS; do
+	newzones="$newzones${newzones:+,}$n"
+done
+[ -n "$newzones" ] && newzones="+.=$newzones$NL"
 
 for d in $DOMAINS; do
 	newns=
@@ -71,7 +68,7 @@ then
 		eval $pdns_restart
 	elif [ -n "$RESTARTCMD" ]; then
 		set -- ${pdns_service}
-		eval $RESTARTCMD
+		eval "$RESTARTCMD"
 	else
 		@SBINDIR@/resolvconf -r ${pdns_service}
 	fi
