@@ -11,12 +11,7 @@ DTC?=		dtc
 .if defined(S)
 SYSDIR=	${S}
 .else
-# Search for kernel source tree in standard places.
-.for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
-.if exists(${_dir}/kern/)
-SYSDIR=	${_dir:tA}
-.endif
-.endfor
+.include <bsd.sysdir.mk>
 .endif	# defined(S)
 .endif	# defined(SYSDIR)
 
