@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: lisp,v 1.25 2017/03/17 21:35:28 christos Exp $
+# $File: lisp,v 1.26 2019/04/19 00:42:27 christos Exp $
 # lisp:  file(1) magic for lisp programs
 #
 # various lisp types, from Daniel Quinlan (quinlan@yggdrasil.com)
@@ -27,7 +27,7 @@
 !:mime	text/x-lisp
 
 # URL: https://en.wikipedia.org/wiki/Emacs_Lisp
-# Reference: http://ftp.gnu.org/old-gnu/emacs/elisp-manual-18-1.03.tar.gz
+# Reference: https://ftp.gnu.org/old-gnu/emacs/elisp-manual-18-1.03.tar.gz
 # Update: Joerg Jenderek
 # Emacs 18 - this is always correct, but not very magical.
 0	string	\012(

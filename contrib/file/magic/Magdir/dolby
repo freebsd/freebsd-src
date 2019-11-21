@@ -1,8 +1,8 @@
 
 #------------------------------------------------------------------------------
-# $File: dolby,v 1.8 2017/03/17 21:35:28 christos Exp $
+# $File: dolby,v 1.9 2019/04/19 00:42:27 christos Exp $
 # ATSC A/53 aka AC-3 aka Dolby Digital <ashitaka@gmx.at>
-# from http://www.atsc.org/standards/a_52a.pdf
+# from https://www.atsc.org/standards/a_52a.pdf
 # corrections, additions, etc. are always welcome!
 #
 # syncword

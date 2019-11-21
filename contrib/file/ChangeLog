@@ -1,3 +1,75 @@
+2019-05-14  22:26  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.37
+
+2019-05-09  22:27  Christos Zoulas <christos@zoulas.com>
+	
+	* Make sure that continuation separators are printed
+	  with -k within softmagic
+
+2019-05-06  22:27  Christos Zoulas <christos@zoulas.com>
+
+	* Change SIGPIPE saving and restoring during compression to use
+	  sigaction(2) instead of signal(3) and cache it. (Denys Vlasenko)
+	* Cache stat(2) calls more to reduce number of calls (Denys Vlasenko)
+
+2019-05-06  17:25  Christos Zoulas <christos@zoulas.com>
+
+	* PR/77: Handle --mime-type and -k correctly.
+
+2019-05-03  15:26  Christos Zoulas <christos@zoulas.com>
+
+	* Switch decompression code to use vfork() because
+	  tools like rpmdiff and rpmbuild call libmagic
+	  with large process footprints (Denys Vlasenko)
+
+2019-04-07  14:05  Christos Zoulas <christos@zoulas.com>
+
+	* PR/75: --enable-zlib, did not work.
+
+2019-02-27  11:54  Christos Zoulas <christos@zoulas.com>
+
+	* Improve regex efficiency (Michael Schroeder) by:
+		1. Prefixing regex searches with regular search
+		   for keywords where possible
+		2. Using memmem(3) where available
+
+2019-02-20  10:16  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.36
+
+2019-02-19  15:30  Christos Zoulas <christos@zoulas.com>
+
+	* Fix cast to use cast macros
+	* Add UCS-32 builtin detection (PR/61) reported by tmc
+
+2019-02-18  18:24  Christos Zoulas <christos@zoulas.com>
+
+	* Fix stack read (PR/62) and write (PR/64) stack overflows
+	  reported by spinpx 
+
+2018-10-18  19:32  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.35
+
+2018-09-10  20:38  Christos Zoulas <christos@zoulas.com>
+
+	* Add FreeBSD ELF core file support (John Baldwin)
+
+2018-08-20  18:40  Christos Zoulas <christos@zoulas.com>
+
+	* PR/30: Allow all parameter values to be set (don't treat 0 specially)
+	* handle default annotations on the softmagic match instead at the
+	  end.
+
+2018-07-25  10:17  Christos Zoulas <christos@zoulas.com>
+
+	* PR/23: Recognize JSON files
+
+2018-07-25  10:17  Christos Zoulas <christos@zoulas.com>
+
+	* PR/18: file --mime-encoding should not print mime-type
+
 2018-07-25   8:50  Christos Zoulas <christos@zoulas.com>
 
 	* release 5.34
@@ -14,11 +86,11 @@
 
 	* release 5.33
 
-2018-02-24  14:50  Christos Zoulas <christos@zoulas.com> 
+2018-02-24  14:50  Christos Zoulas <christos@zoulas.com>
 
 	* extend the support for ${x?:} expansions for magic descriptions
 
-2018-02-21  16:25  Christos Zoulas <christos@zoulas.com> 
+2018-02-21  16:25  Christos Zoulas <christos@zoulas.com>
 
 	* add support for ${x?:} in mime types to handle
 	  pie binaries.
@@ -90,7 +162,7 @@
 	* Add missing overflow check in der magic (Jonas Wagner)
 
 2016-10-25  10:40  Christos Zoulas <christos@zoulas.com>
-	
+
 	* release 5.29
 
 2016-10-24  11:20  Christos Zoulas <christos@zoulas.com>
@@ -131,11 +203,11 @@
 	    - set offset to 0 on failure.
 
 2016-05-13  12:00  Christos Zoulas <christos@zoulas.com>
-	
+
 	* release 5.27
 
 2016-04-18   9:35  Christos Zoulas <christos@zoulas.com>
-	
+
 	* Errors comparing DER entries or computing offsets
 	  are just indications of malformed non-DER files.
 	  Don't print them.
@@ -144,7 +216,7 @@
 	* Put new bytes constant in the right file (not the generated one)
 
 2016-04-16  18:34  Christos Zoulas <christos@zoulas.com>
-	
+
 	* release 5.26
 
 2016-03-31  13:50  Christos Zoulas <christos@zoulas.com>
@@ -190,7 +262,7 @@
 	* PR/492: compression forking was broken with magic_buffer.
 
 2015-09-16   9:50  Christos Zoulas <christos@zoulas.com>
-	
+
 	* release 5.25
 
 2015-09-11  13:25  Christos Zoulas <christos@zoulas.com>
@@ -218,7 +290,7 @@
 	* release 5.23
 
 2015-06-09  16:10  Christos Zoulas <christos@zoulas.com>
-	
+
 	* Fix issue with regex range for magic with offset
 	* Always return true from mget with USE (success to mget not match
 	  indication). Fixes mime evaluation after USE magic
@@ -271,12 +343,12 @@
 	* add indirect relative for TIFF/Exif
 
 2014-12-16  18:10  Christos Zoulas <christos@zoulas.com>
-	
+
 	* restructure elf note printing to avoid repeated messages
 	* add note limit, suggested by Alexander Cherepanov
 
 2014-12-16  16:53  Christos Zoulas <christos@zoulas.com>
-	
+
 	* Bail out on partial pread()'s (Alexander Cherepanov)
 	* Fix incorrect bounds check in file_printable (Alexander Cherepanov)
 
@@ -287,7 +359,7 @@
 	  more places for safety
 	* in ELF, instead of "(uses dynamic libraries)" when PT_INTERP
 	  is present print the interpreter name.
-	
+
 2014-12-10  20:01  Christos Zoulas <christos@zoulas.com>
 
 	* release 5.21
@@ -330,7 +402,7 @@
 	  on a byte by byte basis, so that we don't get issues with
 	  locale's trying to interpret random byte streams as UTF-8 and
 	  having printf error out with EILSEQ.
-	  
+
 2014-10-17  11:48  Christos Zoulas <christos@zoulas.com>
 
 	* fix bounds in note reading (Francisco Alonso / Red Hat)
@@ -361,7 +433,7 @@
 	* release 5.19
 
 2014-06-09   9:04  Christos Zoulas <christos@zoulas.com>
-	
+
 	* Misc buffer overruns and missing buffer size tests in cdf parsing
 	  (Francisco Alonso, Jan Kaluza)
 
@@ -391,7 +463,7 @@
 
 2014-05-04  14:55  Christos Zoulas <christos@zoulas.com>
 
-	* PR/351: Fix compilation of empty files 
+	* PR/351: Fix compilation of empty files
 
 2014-04-30  17:39  Christos Zoulas <christos@zoulas.com>
 
@@ -495,7 +567,7 @@
 	* Don't treat magic as an error if offset was past EOF (Christoph Biedl)
 
 2013-05-28  17:25  Christos Zoulas <christos@zoulas.com>
-	
+
 	* Fix spacing issues in softmagic and elf (Jan Kaluza)
 
 2013-05-02  18:00  Christos Zoulas <christos@zoulas.com>
@@ -551,7 +623,7 @@
 	* Make getline public so that file can link against it.
 	  Perhaps it is better to rename it, or hide it differently.
 	  Fixes builds on platforms that do not provide it.
-	  
+
 2013-01-07  16:30  Christos Zoulas <christos@zoulas.com>
 
 	* Add SuS d{,1,2,4,8}, u{,1,2,4,8} and document
@@ -901,7 +973,7 @@
 	  (Cheng Renquan)
 
 2009-05-08  13:40  Christos Zoulas <christos@zoulas.com>
-	
+
 	* lint fixes and more from NetBSD
 
 2009-05-06  10:25  Christos Zoulas <christos@zoulas.com>
@@ -921,7 +993,7 @@
 
 2009-03-27  18:43  Christos Zoulas <christos@zoulas.com>
 
-	* don't print \012- separators in the same magic entry 
+	* don't print \012- separators in the same magic entry
 	  if it consists of multiple magic printing lines.
 
 2009-03-23  10:20  Christos Zoulas <christos@zoulas.com>

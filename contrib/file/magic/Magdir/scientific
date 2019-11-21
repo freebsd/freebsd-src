@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: scientific,v 1.12 2017/03/17 22:20:22 christos Exp $
+# $File: scientific,v 1.13 2019/04/19 00:42:27 christos Exp $
 # scientific:  file(1) magic for scientific formats
 #
 # From: Joe Krahn <krahn@niehs.nih.gov>
@@ -75,8 +75,8 @@
 # PDB: Protein Data Bank files
 # Adam Buchbinder <adam.buchbinder@gmail.com>
 #
-# http://www.wwpdb.org/documentation/format32/sect2.html
-# http://www.ch.ic.ac.uk/chemime/
+# https://www.wwpdb.org/documentation/format32/sect2.html
+# https://www.ch.ic.ac.uk/chemime/
 #
 # The PDB file format is fixed-field, 80 columns. From the spec:
 #

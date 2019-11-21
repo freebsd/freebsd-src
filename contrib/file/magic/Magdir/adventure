@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: adventure,v 1.17 2017/07/03 16:03:40 christos Exp $
+# $File: adventure,v 1.18 2019/04/19 00:42:27 christos Exp $
 # adventure: file(1) magic for Adventure game files
 #
 # from Allen Garvin <earendil@faeryland.tamu-commerce.edu>
@@ -21,8 +21,8 @@
 # Updated by Adam Buchbinder <adam.buchbinder@gmail.com>
 #
 #http://www.gnelson.demon.co.uk/zspec/sect11.html
-#http://www.jczorkmid.net/~jpenney/ZSpec11-latest.txt
-#http://en.wikipedia.org/wiki/Z-machine
+#https://www.jczorkmid.net/~jpenney/ZSpec11-latest.txt
+#https://en.wikipedia.org/wiki/Z-machine
 # The first byte is the Z-machine revision; it is always between 1 and 8. We
 # had false matches (for instance, inbig5.ocp from the Omega TeX extension as
 # well as an occasional MP3 file), so we sanity-check the version number.
@@ -111,7 +111,7 @@
 # Danny Milosavljevic <danny.milo@gmx.net>
 # These are ADRIFT (adventure game standard) game files, extension .taf
 # Checked from source at (http://www.adrift.co/) and various taf files
-# found at the Interactive Fiction Archive (http://ifarchive.org/)
+# found at the Interactive Fiction Archive (https://ifarchive.org/)
 0	belong  0x3C423FC9
 >4	belong  0x6A87C2CF	Adrift game file version
 >>8	belong  0x94453661	3.80

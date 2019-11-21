@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: xwindows,v 1.10 2017/03/17 21:35:28 christos Exp $
+# $File: xwindows,v 1.11 2019/04/19 00:42:27 christos Exp $
 # xwindows:  file(1) magic for various X/Window system file formats.
 
 # Compiled X Keymap
@@ -27,8 +27,8 @@
 
 # Xcursor data
 # X11 mouse cursor format defined in libXcursor, see
-# http://www.x.org/archive/X11R6.8.1/doc/Xcursor.3.html
-# http://cgit.freedesktop.org/xorg/lib/libXcursor/tree/include/X11/Xcursor/Xcursor.h
+# https://www.x.org/archive/X11R6.8.1/doc/Xcursor.3.html
+# https://cgit.freedesktop.org/xorg/lib/libXcursor/tree/include/X11/Xcursor/Xcursor.h
 0	string		Xcur		Xcursor data
 !:mime	image/x-xcursor
 >10	leshort		x		version %d

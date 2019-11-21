@@ -1,10 +1,10 @@
 
 #------------------------------------------------------------------------------
-# $File: riff,v 1.33 2017/10/06 01:11:24 christos Exp $
+# $File: riff,v 1.34 2019/04/19 00:42:27 christos Exp $
 # riff:  file(1) magic for RIFF format
 # See
 #
-#	http://www.seanet.com/users/matts/riffmci/riffmci.htm
+#	https://www.seanet.com/users/matts/riffmci/riffmci.htm
 #	http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/Docs/riffmci.pdf
 #
 
@@ -73,7 +73,7 @@
 # RIFF Palette format
 # Update: Joerg Jenderek
 # URL: https://en.wikipedia.org/wiki/Resource_Interchange_File_Format
-# Reference: http://worms2d.info/Palette_file
+# Reference: https://worms2d.info/Palette_file
 >8	string		PAL\ 		\b, palette
 !:mime	application/x-riff
 # color palette by Microsoft Corporation
@@ -250,7 +250,7 @@
 # MPEG-1 wrapped in a RIFF, apparently
 >8      string          CDXA            \b, wrapped MPEG-1 (CDXA)
 >8	string		4XMV		\b, 4X Movie file
-# AMV-type AVI file: http://wiki.multimedia.cx/index.php?title=AMV
+# AMV-type AVI file: https://wiki.multimedia.cx/index.php?title=AMV
 >8	string		AMV\040		\b, AMV
 >8      string          WEBP            \b, Web/P image
 !:mime	image/webp
@@ -322,7 +322,7 @@
 
 #------------------------------------------------------------------------------
 # MBWF/RF64
-# see EBU TECH 3306 http://tech.ebu.ch/docs/tech/tech3306-2009.pdf
+# see EBU TECH 3306 https://tech.ebu.ch/docs/tech/tech3306-2009.pdf
 0	string	RF64\xff\xff\xff\xffWAVEds64		MBWF/RF64 audio
 !:mime	audio/x-wav
 >40	search/256	fmt\x20		\b

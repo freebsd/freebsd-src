@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: cad,v 1.16 2018/05/07 23:26:31 christos Exp $
+# $File: cad,v 1.19 2019/04/19 00:42:27 christos Exp $
 # autocad:  file(1) magic for cad files
 #
 
@@ -11,12 +11,12 @@
 # raster underlays to Microstation DGN (vector) drawings.
 #
 # http://www.wotsit.org/search.asp
-# http://filext.com/detaillist.php?extdetail=DGN
-# http://filext.com/detaillist.php?extdetail=CIT
+# https://filext.com/detaillist.php?extdetail=DGN
+# https://filext.com/detaillist.php?extdetail=CIT
 #
-# http://www.bentley.com/products/default.cfm?objectid=97F351F5-9C35-4E5E-89C2
+# https://www.bentley.com/products/default.cfm?objectid=97F351F5-9C35-4E5E-89C2
 # 3F86C928&method=display&p_objectid=97F351F5-9C35-4E5E-89C280A93F86C928
-# http://www.bentley.com/products/default.cfm?objectid=A5C2FD43-3AC9-4C71-B682
+# https://www.bentley.com/products/default.cfm?objectid=A5C2FD43-3AC9-4C71-B682
 # 721C479F&method=display&p_objectid=A5C2FD43-3AC9-4C71-B682C7BE721C479F
 0	string	\010\011\376			Microstation
 >3	string	\002
@@ -43,8 +43,8 @@
 >4	string	\030\000\003			CITFile
 
 # AutoCAD
-# Merge of the different contributions and updates from http://en.wikipedia.org/wiki/Dwg
-# and http://www.iana.org/assignments/media-types/image/vnd.dwg
+# Merge of the different contributions and updates from https://en.wikipedia.org/wiki/Dwg
+# and https://www.iana.org/assignments/media-types/image/vnd.dwg
 0	string	MC0.0	DWG AutoDesk AutoCAD Release 1.0
 !:mime image/vnd.dwg
 0	string	AC1.2	DWG AutoDesk AutoCAD Release 1.2
@@ -89,7 +89,7 @@
 # Sergey Zaykov (mail_of_sergey@mail.ru, sergey_zaikov@rambler.ru,
 # ICQ 358572321)
 # From various sources like:
-# http://autodesk.blogs.com/between_the_lines/autocad-release-history.html
+# https://autodesk.blogs.com/between_the_lines/autocad-release-history.html
 0	string	AC1018	DWG AutoDesk AutoCAD 2004/2005/2006
 !:mime image/vnd.dwg
 0	string	AC1021	DWG AutoDesk AutoCAD 2007/2008/2009
@@ -102,13 +102,13 @@
 # KOMPAS 2D drawing from ASCON
 # This is KOMPAS 2D drawing or fragment of drawing but is not detailed nor
 # gathered nor specification
-# ASCON http://ascon.net/main/ in English,
-#	http://ascon.ru/ main site in Russian
+# ASCON https://ascon.net/main/ in English,
+#	https://ascon.ru/ main site in Russian
 # Extension is CDW for drawing and FRW for fragment of drawing
 # Sergey Zaykov (mail_of_sergey@mail.ru, sergey_zaikov@rambler.ru,
-# ICQ 358572321, http://vkontakte.ru/id16076543)
+# ICQ 358572321, https://vkontakte.ru/id16076543)
 # From:
-# http://sd.ascon.ru/otrs/customer.pl?Action=CustomerFAQ&CategoryID=4&ItemID=292
+# https://sd.ascon.ru/otrs/customer.pl?Action=CustomerFAQ&CategoryID=4&ItemID=292
 # (in russian) and my experiments
 0	string	KF
 >2	belong	0x4E00000C	Kompas drawing 12.0 SP1
@@ -156,7 +156,7 @@
 !:ext 3ds
 
 # MegaCAD 2D/3D drawing (.prt)
-# http://megacad.de/
+# https://megacad.de/
 # From: Markus Heidelberg <markus.heidelberg@web.de>
 0	string	MegaCad23\0	MegaCAD 2D/3D drawing
 
@@ -167,3 +167,24 @@
 0	string	;;\020HSF\020V		OpenHSF (Hoops Stream Format)
 >7	regex/9 V[.0-9]{4,5}\020	%s
 !:ext hsf
+
+# AutoCAD Drawing Exchange Format
+0	regex		\^[\ \t]*0\r?\000$
+>1	regex		\^[\ \t]*SECTION\r?$
+>>2	regex		\^[\ \t]*2\r?$
+>>>3	regex		\^[\ \t]*HEADER\r?$	AutoCAD Drawing Exchange Format
+!:mime	application/x-dxf
+!:ext	dxf
+>>>>&1	search/8192	AC1006			\b, R10
+>>>>&1	search/8192	AC1009			\b, R11/R12
+>>>>&1	search/8192	AC1012			\b, R13
+>>>>&1	search/8192	AC1014			\b, R14
+>>>>&1	search/8192	AC1015			\b, version 2000
+>>>>&1	search/8192	AC1018			\b, version 2004
+>>>>&1	search/8192	AC1021			\b, version 2007
+>>>>&1	search/8192	AC1024			\b, version 2010
+
+# The Sketchup 3D model format https://www.sketchup.com/
+0	string	\xff\xfe\xff\x0e\x53\x00\x6b\x00\x65\x00\x74\x00\x63\x00\x68\x00\x55\x00\x70\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00	SketchUp Model
+!:mime application/vnd.sketchup.skp
+!:ext skp

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: elf,v 1.74 2018/06/23 16:39:53 christos Exp $
+# $File: elf,v 1.77 2019/01/16 19:33:35 christos Exp $
 # elf:  file(1) magic for ELF executables
 #
 # We have to check the byte order flag to see what byte order all the
@@ -38,6 +38,8 @@
 >0	lelong&0x3		2		relaxed memory ordering,
 
 0	name		elf-pa-risc
+>2	leshort		0x0208		1.0
+>2	leshort		0x0210		1.1
 >2	leshort		0x0214		2.0
 >0	leshort		&0x0008		(LP64)
 
@@ -262,6 +264,8 @@
 >18	leshort		217		iCelero CoolEngine,
 >18	leshort		218		Nanoradio Optimized RISC,
 >18	leshort		243		UCB RISC-V,
+>18	leshort		247		eBPF,
+>18	leshort		251             NEC VE,
 >18	leshort		0x1057		AVR (unofficial),
 >18	leshort		0x1059		MSP430 (unofficial),
 >18	leshort		0x1223		Adapteva Epiphany (unofficial),

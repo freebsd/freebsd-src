@@ -136,9 +136,9 @@ LTLIBRARIES = $(lib_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 libmagic_la_DEPENDENCIES = $(LTLIBOBJS) $(am__DEPENDENCIES_1)
 am_libmagic_la_OBJECTS = buffer.lo magic.lo apprentice.lo softmagic.lo \
-	ascmagic.lo encoding.lo compress.lo is_tar.lo readelf.lo \
-	print.lo fsmagic.lo funcs.lo apptype.lo der.lo cdf.lo \
-	cdf_time.lo readcdf.lo
+	ascmagic.lo encoding.lo compress.lo is_json.lo is_tar.lo \
+	readelf.lo print.lo fsmagic.lo funcs.lo apptype.lo der.lo \
+	cdf.lo cdf_time.lo readcdf.lo
 libmagic_la_OBJECTS = $(am_libmagic_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -343,7 +343,7 @@ nodist_include_HEADERS = magic.h
 AM_CPPFLAGS = -DMAGIC='"$(MAGIC)"'
 AM_CFLAGS = $(CFLAG_VISIBILITY) @WARNINGS@
 libmagic_la_SOURCES = buffer.c magic.c apprentice.c softmagic.c ascmagic.c \
-	encoding.c compress.c is_tar.c readelf.c print.c fsmagic.c \
+	encoding.c compress.c is_json.c is_tar.c readelf.c print.c fsmagic.c \
 	funcs.c file.h readelf.h tar.h apptype.c der.c der.h \
 	file_opts.h elfclass.h mygetopt.h cdf.c cdf_time.c readcdf.c cdf.h
 
@@ -515,6 +515,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/file.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fsmagic.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/funcs.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/is_json.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/is_tar.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/magic.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/print.Plo@am__quote@

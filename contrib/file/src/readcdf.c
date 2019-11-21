@@ -26,7 +26,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: readcdf.c,v 1.67 2018/04/15 19:57:07 christos Exp $")
+FILE_RCSID("@(#)$File: readcdf.c,v 1.73 2019/03/12 20:43:05 christos Exp $")
 #endif
 
 #include <assert.h>
@@ -38,10 +38,6 @@ FILE_RCSID("@(#)$File: readcdf.c,v 1.67 2018/04/15 19:57:07 christos Exp $")
 
 #include "cdf.h"
 #include "magic.h"
-
-#ifndef __arraycount
-#define __arraycount(a) (sizeof(a) / sizeof(a[0]))
-#endif
 
 #define NOTMIME(ms) (((ms)->flags & MAGIC_MIME) == 0)
 
@@ -204,7 +200,7 @@ cdf_file_property_info(struct magic_set *ms, const cdf_property_info_t *info,
 				    && len--; s += k) {
 					if (*s == '\0')
 						break;
-					if (isprint((unsigned char)*s))
+					if (isprint(CAST(unsigned char, *s)))
 						vbuf[j++] = *s;
 				}
 				if (j == sizeof(vbuf))
@@ -252,7 +248,7 @@ cdf_file_property_info(struct magic_set *ms, const cdf_property_info_t *info,
 			return -1;
 		}
 	}
-	if (!NOTMIME(ms)) {
+	if (ms->flags & MAGIC_MIME_TYPE) {
 		if (str == NULL)
 			return 0;
 		if (file_printf(ms, "application/%s", str) == -1)
@@ -285,7 +281,7 @@ cdf_file_catalog(struct magic_set *ms, const cdf_header_t *h,
 				return -1;
 			}
 		free(cat);
-	} else {
+	} else if (ms->flags & MAGIC_MIME_TYPE) {
 		if (file_printf(ms, "application/CDFV2") == -1)
 			return -1;
 	}
@@ -318,19 +314,19 @@ cdf_file_summary_info(struct magic_set *ms, const cdf_header_t *h,
 		case 2:
 			if (file_printf(ms, ", Os: Windows, Version %d.%d",
 			    si.si_os_version & 0xff,
-			    (uint32_t)si.si_os_version >> 8) == -1)
+			    CAST(uint32_t, si.si_os_version) >> 8) == -1)
 				return -2;
 			break;
 		case 1:
 			if (file_printf(ms, ", Os: MacOS, Version %d.%d",
-			    (uint32_t)si.si_os_version >> 8,
+			    CAST(uint32_t, si.si_os_version) >> 8,
 			    si.si_os_version & 0xff) == -1)
 				return -2;
 			break;
 		default:
 			if (file_printf(ms, ", Os %d, Version: %d.%d", si.si_os,
 			    si.si_os_version & 0xff,
-			    (uint32_t)si.si_os_version >> 8) == -1)
+			    CAST(uint32_t, si.si_os_version) >> 8) == -1)
 				return -2;
 			break;
 		}
@@ -353,11 +349,11 @@ cdf_file_summary_info(struct magic_set *ms, const cdf_header_t *h,
 #ifdef notdef
 private char *
 format_clsid(char *buf, size_t len, const uint64_t uuid[2]) {
-	snprintf(buf, len, "%.8" PRIx64 "-%.4" PRIx64 "-%.4" PRIx64 "-%.4" 
+	snprintf(buf, len, "%.8" PRIx64 "-%.4" PRIx64 "-%.4" PRIx64 "-%.4"
 	    PRIx64 "-%.12" PRIx64,
 	    (uuid[0] >> 32) & (uint64_t)0x000000000ffffffffULL,
 	    (uuid[0] >> 16) & (uint64_t)0x0000000000000ffffULL,
-	    (uuid[0] >>  0) & (uint64_t)0x0000000000000ffffULL, 
+	    (uuid[0] >>  0) & (uint64_t)0x0000000000000ffffULL,
 	    (uuid[1] >> 48) & (uint64_t)0x0000000000000ffffULL,
 	    (uuid[1] >>  0) & (uint64_t)0x0000fffffffffffffULL);
 	return buf;
@@ -406,7 +402,7 @@ cdf_check_summary_info(struct magic_set *ms, const cdf_info_t *info,
 	for (j = 0; str == NULL && j < dir->dir_len; j++) {
 		d = &dir->dir_tab[j];
 		for (k = 0; k < sizeof(name); k++)
-			name[k] = (char)cdf_tole2(d->d_name[k]);
+			name[k] = CAST(char, cdf_tole2(d->d_name[k]));
 		str = cdf_app_to_mime(name,
 				      NOTMIME(ms) ? name2desc : name2mime);
 	}
@@ -416,7 +412,7 @@ cdf_check_summary_info(struct magic_set *ms, const cdf_info_t *info,
 				return -1;
 			i = 1;
 		}
-	} else {
+	} else if (ms->flags & MAGIC_MIME_TYPE) {
 		if (str == NULL)
 			str = "vnd.ms-office";
 		if (file_printf(ms, "application/%s", str) == -1)
@@ -436,7 +432,7 @@ private struct sinfo {
 	const char *sections[5];
 	const int  types[5];
 } sectioninfo[] = {
-	{ "Encrypted", "encrypted", 
+	{ "Encrypted", "encrypted",
 		{
 			"EncryptedPackage", "EncryptedSummary",
 			NULL, NULL, NULL,
@@ -448,7 +444,7 @@ private struct sinfo {
 
 		},
 	},
-	{ "QuickBooks", "quickbooks", 
+	{ "QuickBooks", "quickbooks",
 		{
 #if 0
 			"TaxForms", "PDFTaxForms", "modulesInBackup",
@@ -527,7 +523,7 @@ cdf_file_dir_info(struct magic_set *ms, const cdf_dir_t *dir)
 		if (NOTMIME(ms)) {
 			if (file_printf(ms, "CDFV2 %s", si->name) == -1)
 				return -1;
-		} else {
+		} else if (ms->flags & MAGIC_MIME_TYPE) {
 			if (file_printf(ms, "application/%s", si->mime) == -1)
 				return -1;
 		}
@@ -540,7 +536,7 @@ protected int
 file_trycdf(struct magic_set *ms, const struct buffer *b)
 {
 	int fd = b->fd;
-	const unsigned char *buf = b->fbuf;
+	const unsigned char *buf = CAST(const unsigned char *, b->fbuf);
 	size_t nbytes = b->flen;
 	cdf_info_t info;
 	cdf_header_t h;
@@ -614,7 +610,7 @@ file_trycdf(struct magic_set *ms, const struct buffer *b)
 			if (file_printf(ms,
 			    "Hangul (Korean) Word Processor File 5.x") == -1)
 			    return -1;
-		    } else {
+		    } else if (ms->flags & MAGIC_MIME_TYPE) {
 			if (file_printf(ms, "application/x-hwp") == -1)
 			    return -1;
 		    }
@@ -661,19 +657,20 @@ out2:
 out1:
 	free(sat.sat_tab);
 out0:
-	if (i == -1) {
-	    if (NOTMIME(ms)) {
+	/* If we handled it already, return */
+	if (i != -1)
+		return i;
+	/* Provide a default handler */
+	if (NOTMIME(ms)) {
 		if (file_printf(ms,
 		    "Composite Document File V2 Document") == -1)
-		    return -1;
-		if (*expn)
-		    if (file_printf(ms, ", %s", expn) == -1)
 			return -1;
-	    } else {
+		if (*expn)
+			if (file_printf(ms, ", %s", expn) == -1)
+				return -1;
+	} else if (ms->flags & MAGIC_MIME_TYPE) {
 		if (file_printf(ms, "application/CDFV2") == -1)
-		    return -1;
-	    }
-	    i = 1;
+			return -1;
 	}
-	return i;
+	return 1;
 }

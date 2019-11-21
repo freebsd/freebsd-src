@@ -235,7 +235,7 @@ fmtcheck(const char *f1, const char *f2)
 	EFT		f1t, f2t;
 
 	if (!f1) return f2;
-	
+
 	f1p = f1;
 	f1t = FMTCHECK_START;
 	f2p = f2;
