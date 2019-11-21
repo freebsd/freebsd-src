@@ -630,7 +630,6 @@ vdev_alloc_common(spa_t *spa, uint_t id, uint64_t guid, vdev_ops_t *ops)
 	mutex_init(&vd->vdev_dtl_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&vd->vdev_stat_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&vd->vdev_probe_lock, NULL, MUTEX_DEFAULT, NULL);
-	mutex_init(&vd->vdev_queue_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&vd->vdev_scan_io_queue_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&vd->vdev_initialize_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&vd->vdev_initialize_io_lock, NULL, MUTEX_DEFAULT, NULL);
@@ -1032,7 +1031,6 @@ vdev_free(vdev_t *vd)
 	rw_destroy(&vd->vdev_indirect_rwlock);
 	mutex_destroy(&vd->vdev_obsolete_lock);
 
-	mutex_destroy(&vd->vdev_queue_lock);
 	mutex_destroy(&vd->vdev_dtl_lock);
 	mutex_destroy(&vd->vdev_stat_lock);
 	mutex_destroy(&vd->vdev_probe_lock);
@@ -1401,12 +1399,12 @@ vdev_metaslab_fini(vdev_t *vd)
 	}
 
 	if (vd->vdev_ms != NULL) {
-		uint64_t count = vd->vdev_ms_count;
+		metaslab_group_t *mg = vd->vdev_mg;
+		metaslab_group_passivate(mg);
 
-		metaslab_group_passivate(vd->vdev_mg);
+		uint64_t count = vd->vdev_ms_count;
 		for (uint64_t m = 0; m < count; m++) {
 			metaslab_t *msp = vd->vdev_ms[m];
-
 			if (msp != NULL)
 				metaslab_fini(msp);
 		}
@@ -1414,6 +1412,9 @@ vdev_metaslab_fini(vdev_t *vd)
 		vd->vdev_ms = NULL;
 
 		vd->vdev_ms_count = 0;
+
+		for (int i = 0; i < RANGE_TREE_HISTOGRAM_SIZE; i++)
+			ASSERT0(mg->mg_histogram[i]);
 	}
 	ASSERT0(vd->vdev_ms_count);
 }
@@ -2767,13 +2768,6 @@ vdev_dtl_load(vdev_t *vd)
 		ASSERT(vd->vdev_dtl_sm != NULL);
 
 		mutex_enter(&vd->vdev_dtl_lock);
-
-		/*
-		 * Now that we've opened the space_map we need to update
-		 * the in-core DTL.
-		 */
-		space_map_update(vd->vdev_dtl_sm);
-
 		error = space_map_load(vd->vdev_dtl_sm,
 		    vd->vdev_dtl[DTL_MISSING], SM_ALLOC);
 		mutex_exit(&vd->vdev_dtl_lock);
@@ -2933,10 +2927,6 @@ vdev_dtl_sync(vdev_t *vd, uint64_t txg)
 	}
 
 	dmu_tx_commit(tx);
-
-	mutex_enter(&vd->vdev_dtl_lock);
-	space_map_update(vd->vdev_dtl_sm);
-	mutex_exit(&vd->vdev_dtl_lock);
 }
 
 /*
@@ -3079,7 +3069,10 @@ vdev_load(vdev_t *vd)
 			    "asize=%llu", (u_longlong_t)vd->vdev_ashift,
 			    (u_longlong_t)vd->vdev_asize);
 			return (SET_ERROR(ENXIO));
-		} else if ((error = vdev_metaslab_init(vd, 0)) != 0) {
+		}
+
+		error = vdev_metaslab_init(vd, 0);
+		if (error != 0) {
 			vdev_dbgmsg(vd, "vdev_load: metaslab_init failed "
 			    "[error=%d]", error);
 			vdev_set_state(vd, B_FALSE, VDEV_STATE_CANT_OPEN,
@@ -3093,9 +3086,10 @@ vdev_load(vdev_t *vd)
 			ASSERT(vd->vdev_asize != 0);
 			ASSERT3P(vd->vdev_checkpoint_sm, ==, NULL);
 
-			if ((error = space_map_open(&vd->vdev_checkpoint_sm,
+			error = space_map_open(&vd->vdev_checkpoint_sm,
 			    mos, checkpoint_sm_obj, 0, vd->vdev_asize,
-			    vd->vdev_ashift))) {
+			    vd->vdev_ashift);
+			if (error != 0) {
 				vdev_dbgmsg(vd, "vdev_load: space_map_open "
 				    "failed for checkpoint spacemap (obj %llu) "
 				    "[error=%d]",
@@ -3103,15 +3097,15 @@ vdev_load(vdev_t *vd)
 				return (error);
 			}
 			ASSERT3P(vd->vdev_checkpoint_sm, !=, NULL);
-			space_map_update(vd->vdev_checkpoint_sm);
 
 			/*
 			 * Since the checkpoint_sm contains free entries
-			 * exclusively we can use sm_alloc to indicate the
-			 * culmulative checkpointed space that has been freed.
+			 * exclusively we can use space_map_allocated() to
+			 * indicate the cumulative checkpointed space that
+			 * has been freed.
 			 */
 			vd->vdev_stat.vs_checkpoint_space =
-			    -vd->vdev_checkpoint_sm->sm_alloc;
+			    -space_map_allocated(vd->vdev_checkpoint_sm);
 			vd->vdev_spa->spa_checkpoint_info.sci_dspace +=
 			    vd->vdev_stat.vs_checkpoint_space;
 		}
@@ -3143,7 +3137,6 @@ vdev_load(vdev_t *vd)
 			    (u_longlong_t)obsolete_sm_object, error);
 			return (error);
 		}
-		space_map_update(vd->vdev_obsolete_sm);
 	}
 
 	return (0);
@@ -3230,47 +3223,6 @@ vdev_remove_empty_log(vdev_t *vd, uint64_t txg)
 	ASSERT(vd == vd->vdev_top);
 	ASSERT3U(txg, ==, spa_syncing_txg(spa));
 
-	if (vd->vdev_ms != NULL) {
-		metaslab_group_t *mg = vd->vdev_mg;
-
-		metaslab_group_histogram_verify(mg);
-		metaslab_class_histogram_verify(mg->mg_class);
-
-		for (int m = 0; m < vd->vdev_ms_count; m++) {
-			metaslab_t *msp = vd->vdev_ms[m];
-
-			if (msp == NULL || msp->ms_sm == NULL)
-				continue;
-
-			mutex_enter(&msp->ms_lock);
-			/*
-			 * If the metaslab was not loaded when the vdev
-			 * was removed then the histogram accounting may
-			 * not be accurate. Update the histogram information
-			 * here so that we ensure that the metaslab group
-			 * and metaslab class are up-to-date.
-			 */
-			metaslab_group_histogram_remove(mg, msp);
-
-			VERIFY0(space_map_allocated(msp->ms_sm));
-			space_map_close(msp->ms_sm);
-			msp->ms_sm = NULL;
-			mutex_exit(&msp->ms_lock);
-		}
-
-		if (vd->vdev_checkpoint_sm != NULL) {
-			ASSERT(spa_has_checkpoint(spa));
-			space_map_close(vd->vdev_checkpoint_sm);
-			vd->vdev_checkpoint_sm = NULL;
-		}
-
-		metaslab_group_histogram_verify(mg);
-		metaslab_class_histogram_verify(mg->mg_class);
-
-		for (int i = 0; i < RANGE_TREE_HISTOGRAM_SIZE; i++)
-			ASSERT0(mg->mg_histogram[i]);
-	}
-
 	dmu_tx_t *tx = dmu_tx_create_assigned(spa_get_dsl(spa), txg);
 
 	vdev_destroy_spacemaps(vd, tx);
@@ -3304,17 +3256,14 @@ vdev_sync(vdev_t *vd, uint64_t txg)
 	spa_t *spa = vd->vdev_spa;
 	vdev_t *lvd;
 	metaslab_t *msp;
-	dmu_tx_t *tx;
 
+	ASSERT3U(txg, ==, spa->spa_syncing_txg);
+	dmu_tx_t *tx = dmu_tx_create_assigned(spa->spa_dsl_pool, txg);
 	if (range_tree_space(vd->vdev_obsolete_segments) > 0) {
-		dmu_tx_t *tx;
-
 		ASSERT(vd->vdev_removing ||
 		    vd->vdev_ops == &vdev_indirect_ops);
 
-		tx = dmu_tx_create_assigned(spa->spa_dsl_pool, txg);
 		vdev_indirect_sync_obsolete(vd, tx);
-		dmu_tx_commit(tx);
 
 		/*
 		 * If the vdev is indirect, it can't have dirty
@@ -3323,6 +3272,7 @@ vdev_sync(vdev_t *vd, uint64_t txg)
 		if (vd->vdev_ops == &vdev_indirect_ops) {
 			ASSERT(txg_list_empty(&vd->vdev_ms_list, txg));
 			ASSERT(txg_list_empty(&vd->vdev_dtl_list, txg));
+			dmu_tx_commit(tx);
 			return;
 		}
 	}
@@ -3333,12 +3283,10 @@ vdev_sync(vdev_t *vd, uint64_t txg)
 	    !vd->vdev_removing) {
 		ASSERT(vd == vd->vdev_top);
 		ASSERT0(vd->vdev_indirect_config.vic_mapping_object);
-		tx = dmu_tx_create_assigned(spa->spa_dsl_pool, txg);
 		vd->vdev_ms_array = dmu_object_alloc(spa->spa_meta_objset,
 		    DMU_OT_OBJECT_ARRAY, 0, DMU_OT_NONE, 0, tx);
 		ASSERT(vd->vdev_ms_array != 0);
 		vdev_config_dirty(vd);
-		dmu_tx_commit(tx);
 	}
 
 	while ((msp = txg_list_remove(&vd->vdev_ms_list, txg)) != NULL) {
@@ -3357,6 +3305,7 @@ vdev_sync(vdev_t *vd, uint64_t txg)
 		vdev_remove_empty_log(vd, txg);
 
 	(void) txg_list_add(&spa->spa_vdev_txg_list, vd, TXG_CLEAN(txg));
+	dmu_tx_commit(tx);
 }
 
 uint64_t
@@ -3586,8 +3535,6 @@ top:
 			 */
 			if (error == 0 &&
 			    tvd->vdev_checkpoint_sm != NULL) {
-				ASSERT3U(tvd->vdev_checkpoint_sm->sm_alloc,
-				    !=, 0);
 				error = ZFS_ERR_CHECKPOINT_EXISTS;
 			}
 
