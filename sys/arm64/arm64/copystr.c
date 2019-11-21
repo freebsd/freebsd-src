@@ -32,7 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 int
-copystr(const void * __restrict kfaddr, void * __restrict kdaddr, size_t len,
+(copystr)(const void * __restrict kfaddr, void * __restrict kdaddr, size_t len,
     size_t * __restrict lencopied)
 {
 	const char *src;

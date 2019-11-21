@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
  * Compare strings.
  */
 int
-strcmp(const char *s1, const char *s2)
+(strcmp)(const char *s1, const char *s2)
 {
 	while (*s1 == *s2++)
 		if (*s1++ == '\0')

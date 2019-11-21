@@ -57,6 +57,20 @@
 #define	wmb()	__asm __volatile("sfence;" : : : "memory")
 #define	rmb()	__asm __volatile("lfence;" : : : "memory")
 
+#ifdef _KERNEL
+/*
+ * OFFSETOF_MONITORBUF == __pcpu_offset(pc_monitorbuf).
+ *
+ * The open-coded number is used instead of the symbolic expression to
+ * avoid a dependency on sys/pcpu.h in machine/atomic.h consumers.
+ * An assertion in amd64/vm_machdep.c ensures that the value is correct.
+ */
+#define	OFFSETOF_MONITORBUF	0x100
+#endif
+
+#if defined(KCSAN) && !defined(KCSAN_RUNTIME)
+#include <sys/_cscan_atomic.h>
+#else
 #include <sys/atomic_common.h>
 
 /*
@@ -344,15 +358,6 @@ atomic_testandclear_long(volatile u_long *p, u_int v)
  */
 
 #if defined(_KERNEL)
-
-/*
- * OFFSETOF_MONITORBUF == __pcpu_offset(pc_monitorbuf).
- *
- * The open-coded number is used instead of the symbolic expression to
- * avoid a dependency on sys/pcpu.h in machine/atomic.h consumers.
- * An assertion in amd64/vm_machdep.c ensures that the value is correct.
- */
-#define	OFFSETOF_MONITORBUF	0x100
 
 #if defined(SMP) || defined(KLD_MODULE)
 static __inline void
@@ -678,5 +683,7 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 #define	atomic_readandclear_ptr	atomic_readandclear_long
 
 #endif /* !WANT_FUNCTIONS */
+
+#endif /* KCSAN && !KCSAN_RUNTIME */
 
 #endif /* !_MACHINE_ATOMIC_H_ */

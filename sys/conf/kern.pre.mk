@@ -117,6 +117,11 @@ PROF=		-pg
 .endif
 DEFINED_PROF=	${PROF}
 
+KCSAN_ENABLED!=	grep KCSAN opt_global.h || true ; echo
+.if !empty(KCSAN_ENABLED)
+SAN_CFLAGS+=	-fsanitize=thread
+.endif
+
 KUBSAN_ENABLED!=	grep KUBSAN opt_global.h || true ; echo
 .if !empty(KUBSAN_ENABLED)
 SAN_CFLAGS+=	-fsanitize=undefined
