@@ -56,6 +56,7 @@ FILES=	\
 	bsd.suffixes.mk \
 	bsd.symver.mk \
 	bsd.sys.mk \
+	bsd.sysdir.mk \
 	bsd.test.mk \
 	dirdeps.mk \
 	dirdeps-options.mk \
