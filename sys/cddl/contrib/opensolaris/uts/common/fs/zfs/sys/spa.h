@@ -27,6 +27,7 @@
  * Copyright (c) 2014 Integros [integros.com]
  * Copyright 2017 Joyent, Inc.
  * Copyright (c) 2017 Datto Inc.
+ * Copyright (c) 2017, Intel Corporation.
  */
 
 #ifndef _SYS_SPA_H
@@ -821,6 +822,11 @@ extern uint64_t spa_version(spa_t *spa);
 extern boolean_t spa_deflate(spa_t *spa);
 extern metaslab_class_t *spa_normal_class(spa_t *spa);
 extern metaslab_class_t *spa_log_class(spa_t *spa);
+extern metaslab_class_t *spa_special_class(spa_t *spa);
+extern metaslab_class_t *spa_dedup_class(spa_t *spa);
+extern metaslab_class_t *spa_preferred_class(spa_t *spa, uint64_t size,
+    dmu_object_type_t objtype, uint_t level, uint_t special_smallblk);
+
 extern void spa_evicting_os_register(spa_t *, objset_t *os);
 extern void spa_evicting_os_deregister(spa_t *, objset_t *os);
 extern void spa_evicting_os_wait(spa_t *spa);
@@ -883,6 +889,7 @@ extern boolean_t spa_trust_config(spa_t *spa);
 extern uint64_t spa_missing_tvds_allowed(spa_t *spa);
 extern void spa_set_missing_tvds(spa_t *spa, uint64_t missing);
 extern boolean_t spa_top_vdevs_spacemap_addressable(spa_t *spa);
+extern void spa_activate_allocation_classes(spa_t *, dmu_tx_t *);
 
 extern int spa_mode(spa_t *spa);
 extern uint64_t zfs_strtonum(const char *str, char **nptr);
