@@ -40,7 +40,7 @@
 /*
  * Misc. magic numbers.
  */
-#define AAC_MAX_CONTAINERS	64
+#define AAC_MAX_CONTAINERS	240
 #define AAC_BLOCK_SIZE		512
 
 /*
