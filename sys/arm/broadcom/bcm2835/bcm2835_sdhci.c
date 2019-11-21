@@ -87,7 +87,6 @@ __FBSDID("$FreeBSD$");
 	    rounddown(BCM_SDHCI_SLOT_LEFT(slot), BCM_SDHCI_BUFFER_SIZE))
 
 #define	DATA_PENDING_MASK	(SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL)
-#define	DATA_XFER_MASK		(DATA_PENDING_MASK | SDHCI_INT_DATA_END)
 
 #ifdef DEBUG
 static int bcm2835_sdhci_debug = 0;
@@ -580,7 +579,7 @@ bcm_sdhci_start_dma_seg(struct bcm_sdhci_softc *sc)
 	if (idx == 0) {
 		bus_dmamap_sync(sc->sc_dma_tag, sc->sc_dma_map, sync_op);
 
-		slot->intmask &= ~DATA_XFER_MASK;
+		slot->intmask &= ~DATA_PENDING_MASK;
 		bcm_sdhci_write_4(sc->sc_dev, slot, SDHCI_SIGNAL_ENABLE,
 		    slot->intmask);
 	}
@@ -601,7 +600,7 @@ bcm_sdhci_dma_exit(struct bcm_sdhci_softc *sc)
 	mtx_assert(&slot->mtx, MA_OWNED);
 
 	/* Re-enable interrupts */
-	slot->intmask |= DATA_XFER_MASK;
+	slot->intmask |= DATA_PENDING_MASK;
 	bcm_sdhci_write_4(slot->bus, slot, SDHCI_SIGNAL_ENABLE,
 	    slot->intmask);
 }
@@ -655,12 +654,6 @@ bcm_sdhci_dma_intr(int ch, void *arg)
 			sdhci_finish_data(slot);
 			bcm_sdhci_dma_exit(sc);
 		}
-	} else if ((reg & SDHCI_INT_DATA_END) != 0) {
-		bcm_sdhci_dma_exit(sc);
-		bcm_sdhci_write_4(slot->bus, slot, SDHCI_INT_STATUS,
-		    reg);
-		slot->flags &= ~PLATFORM_DATA_STARTED;
-		sdhci_finish_data(slot);
 	} else {
 		bcm_sdhci_dma_exit(sc);
 	}
@@ -739,11 +732,7 @@ bcm_sdhci_finish_transfer(device_t dev, struct sdhci_slot *slot)
 {
 	struct bcm_sdhci_softc *sc = device_get_softc(slot->bus);
 
-	/*
-	 * Clean up.  Interrupts are clearly enabled, because we received an
-	 * SDHCI_INT_DATA_END to get this far -- just make sure we don't leave
-	 * anything laying around.
-	 */
+	/* Clean up */
 	if (sc->dmamap_seg_count != 0) {
 		/*
 		 * Our segment math should have worked out such that we would
@@ -764,6 +753,7 @@ bcm_sdhci_finish_transfer(device_t dev, struct sdhci_slot *slot)
 		sc->dmamap_seg_index = 0;
 	}
 
+	bcm_sdhci_dma_exit(sc);
 	sdhci_finish_data(slot);
 }
 
