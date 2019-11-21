@@ -607,6 +607,25 @@ bcm_sdhci_dma_exit(struct bcm_sdhci_softc *sc)
 }
 
 static void
+bcm_sdhci_dma_unload(struct bcm_sdhci_softc *sc)
+{
+	struct sdhci_slot *slot = &sc->sc_slot;
+
+	if (sc->dmamap_seg_count == 0)
+		return;
+	if ((slot->curcmd->data->flags & MMC_DATA_READ) != 0)
+		bus_dmamap_sync(sc->sc_dma_tag, sc->sc_dma_map,
+		    BUS_DMASYNC_POSTREAD);
+	else
+		bus_dmamap_sync(sc->sc_dma_tag, sc->sc_dma_map,
+		    BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_unload(sc->sc_dma_tag, sc->sc_dma_map);
+
+	sc->dmamap_seg_count = 0;
+	sc->dmamap_seg_index = 0;
+}
+
+static void
 bcm_sdhci_dma_intr(int ch, void *arg)
 {
 	struct bcm_sdhci_softc *sc = (struct bcm_sdhci_softc *)arg;
@@ -626,18 +645,7 @@ bcm_sdhci_dma_intr(int ch, void *arg)
 		goto out;
 	}
 
-	if (sc->dmamap_seg_count == 0)
-		return;
-	if ((slot->curcmd->data->flags & MMC_DATA_READ) != 0)
-		bus_dmamap_sync(sc->sc_dma_tag, sc->sc_dma_map,
-		    BUS_DMASYNC_POSTREAD);
-	else
-		bus_dmamap_sync(sc->sc_dma_tag, sc->sc_dma_map,
-		    BUS_DMASYNC_POSTWRITE);
-	bus_dmamap_unload(sc->sc_dma_tag, sc->sc_dma_map);
-
-	sc->dmamap_seg_count = 0;
-	sc->dmamap_seg_index = 0;
+	bcm_sdhci_dma_unload(sc);
 
 	/*
 	 * If we had no further segments pending, we need to determine how to
@@ -654,8 +662,10 @@ bcm_sdhci_dma_intr(int ch, void *arg)
 
 		bcm_sdhci_start_dma(slot);
 		if (slot->curcmd->error != 0) {
-			sdhci_finish_data(slot);
+			/* We won't recover from this error for this command. */
+			bcm_sdhci_dma_unload(sc);
 			bcm_sdhci_dma_exit(sc);
+			sdhci_finish_data(slot);
 		}
 	} else if ((reg & SDHCI_INT_DATA_END) != 0) {
 		bcm_sdhci_dma_exit(sc);
@@ -754,16 +764,7 @@ bcm_sdhci_finish_transfer(device_t dev, struct sdhci_slot *slot)
 		 * regressed to SDHCI-driven PIO to finish the operation and
 		 * this is certainly caused by developer-error.
 		 */
-		if (slot->curcmd->data->flags & MMC_DATA_READ)
-			bus_dmamap_sync(sc->sc_dma_tag, sc->sc_dma_map,
-			    BUS_DMASYNC_POSTREAD);
-		else
-			bus_dmamap_sync(sc->sc_dma_tag, sc->sc_dma_map,
-			    BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_unload(sc->sc_dma_tag, sc->sc_dma_map);
-
-		sc->dmamap_seg_count = 0;
-		sc->dmamap_seg_index = 0;
+		bcm_sdhci_dma_unload(sc);
 	}
 
 	sdhci_finish_data(slot);
