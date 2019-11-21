@@ -202,6 +202,11 @@ bit_ffs_at(bitstr_t *_bitstr, int _start, int _nbits, int *_result)
 	bitstr_t _test;
 	int _value, _offset;
 
+	if (_start >= _nbits) {
+		*_result = -1;
+		return;
+	}
+
 	if (_nbits > 0) {
 		_curbitstr = _bitstr + _bit_idx(_start);
 		_stopbitstr = _bitstr + _bit_idx(_nbits - 1);
@@ -230,6 +235,11 @@ bit_ffc_at(bitstr_t *_bitstr, int _start, int _nbits, int *_result)
 	bitstr_t *_stopbitstr;
 	bitstr_t _test;
 	int _value, _offset;
+
+	if (_start >= _nbits) {
+		*_result = -1;
+		return;
+	}
 
 	if (_nbits > 0) {
 		_curbitstr = _bitstr + _bit_idx(_start);
