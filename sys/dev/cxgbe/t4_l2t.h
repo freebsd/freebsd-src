@@ -48,6 +48,7 @@ enum {
 
 	/* when state is one of the below the entry is not hashed */
 	L2T_STATE_SWITCHING,	/* entry is being used by a switching filter */
+	L2T_STATE_TLS,		/* entry is being used by TLS sessions */
 	L2T_STATE_UNUSED	/* entry not in use */
 };
 
@@ -93,6 +94,8 @@ int t4_free_l2t(struct l2t_data *);
 struct l2t_entry *t4_alloc_l2e(struct l2t_data *);
 struct l2t_entry *t4_l2t_alloc_switching(struct adapter *, uint16_t, uint8_t,
     uint8_t *);
+struct l2t_entry *t4_l2t_alloc_tls(struct adapter *, struct sge_txq *,
+    void *, int *, uint16_t, uint8_t, uint8_t *);
 int t4_l2t_set_switching(struct adapter *, struct l2t_entry *, uint16_t,
     uint8_t, uint8_t *);
 int t4_write_l2e(struct l2t_entry *, int);

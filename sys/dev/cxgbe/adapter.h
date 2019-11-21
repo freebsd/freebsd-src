@@ -35,6 +35,7 @@
 
 #include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/counter.h>
 #include <sys/rman.h>
 #include <sys/types.h>
 #include <sys/lock.h>
@@ -158,6 +159,7 @@ enum {
 	ADAP_ERR	= (1 << 5),
 	BUF_PACKING_OK	= (1 << 6),
 	IS_VF		= (1 << 7),
+	KERN_TLS_OK	= (1 << 8),
 
 	CXGBE_BUSY	= (1 << 9),
 
@@ -380,7 +382,7 @@ enum {
 	CPL_COOKIE_TOM,
 	CPL_COOKIE_HASHFILTER,
 	CPL_COOKIE_ETHOFLD,
-	CPL_COOKIE_AVAILABLE3,
+	CPL_COOKIE_KERN_TLS,
 
 	NUM_CPL_COOKIES = 8	/* Limited by M_COOKIE.  Do not increase. */
 };
@@ -582,8 +584,25 @@ struct sge_txq {
 	uint64_t txpkts0_pkts;	/* # of frames in type0 coalesced tx WRs */
 	uint64_t txpkts1_pkts;	/* # of frames in type1 coalesced tx WRs */
 	uint64_t raw_wrs;	/* # of raw work requests (alloc_wr_mbuf) */
+	uint64_t tls_wrs;	/* # of TLS work requests */
+
+	uint64_t kern_tls_records;
+	uint64_t kern_tls_short;
+	uint64_t kern_tls_partial;
+	uint64_t kern_tls_full;
+	uint64_t kern_tls_octets;
+	uint64_t kern_tls_waste;
+	uint64_t kern_tls_options;
+	uint64_t kern_tls_header;
+	uint64_t kern_tls_fin;
+	uint64_t kern_tls_fin_short;
+	uint64_t kern_tls_cbc;
+	uint64_t kern_tls_gcm;
 
 	/* stats for not-that-common events */
+
+	/* Optional scratch space for constructing work requests. */
+	uint8_t ss[SGE_MAX_WR_LEN] __aligned(16);
 } __aligned(CACHE_LINE_SIZE);
 
 /* rxq: SGE ingress queue + SGE free list + miscellaneous items */
@@ -840,6 +859,7 @@ struct adapter {
 	struct smt_data *smt;	/* Source MAC Table */
 	struct tid_info tids;
 	vmem_t *key_map;
+	struct tls_tunables tlst;
 
 	uint8_t doorbells;
 	int offload_map;	/* ports with IFCAP_TOE enabled */
@@ -897,6 +917,8 @@ struct adapter {
 	int last_op_flags;
 
 	int swintr;
+
+	struct callout ktls_tick;
 };
 
 #define ADAPTER_LOCK(sc)		mtx_lock(&(sc)->sc_lock)
@@ -1168,6 +1190,18 @@ int cxgbe_media_change(struct ifnet *);
 void cxgbe_media_status(struct ifnet *, struct ifmediareq *);
 bool t4_os_dump_cimla(struct adapter *, int, bool);
 void t4_os_dump_devlog(struct adapter *);
+
+#ifdef KERN_TLS
+/* t4_kern_tls.c */
+int cxgbe_tls_tag_alloc(struct ifnet *, union if_snd_tag_alloc_params *,
+    struct m_snd_tag **);
+void cxgbe_tls_tag_free(struct m_snd_tag *);
+void t6_ktls_modload(void);
+void t6_ktls_modunload(void);
+int t6_ktls_try(struct ifnet *, struct socket *, struct ktls_session *);
+int t6_ktls_parse_pkt(struct mbuf *, int *, int *);
+int t6_ktls_write_wr(struct sge_txq *, void *, struct mbuf *, u_int, u_int);
+#endif
 
 /* t4_keyctx.c */
 struct auth_hash;

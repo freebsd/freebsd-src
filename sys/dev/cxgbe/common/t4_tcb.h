@@ -753,6 +753,9 @@
 #define S_TF_CCTRL_RFR    62
 #define V_TF_CCTRL_RFR(x) ((__u64)(x) << S_TF_CCTRL_RFR)
 
+#define S_TF_CORE_BYPASS    63
+#define V_TF_CORE_BYPASS(x) ((__u64)(x) << S_TF_CORE_BYPASS)
+
 #define S_TF_DDP_INDICATE_OUT    16
 #define V_TF_DDP_INDICATE_OUT(x) ((x) << S_TF_DDP_INDICATE_OUT)
 
