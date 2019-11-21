@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2019
+.Dd November 20, 2019
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -347,6 +347,24 @@ Unless the make variable
 is defined, make universe will not build mips, powerpc, nor sparc64
 architectures unless the xtoolchain binaries have been installed for
 the architecture.
+.Ss MACHINE_ARCH vs MACHINE_CPUARCH
+.Dv MACHINE_CPUARCH
+should be preferred in Makefiles when the generic
+architecture is being tested.
+.Dv MACHINE_ARCH
+should be preferred when there is something specific to a particular type of
+architecture where there is a choice of many, or could be a choice of many.
+.Bl -column -offset indent "Dv MACHINE" "Dv MACHINE_CPUARCH" "Dv MACHINE_ARCH"
+.It Dv MACHINE Ta Dv MACHINE_CPUARCH Ta Dv MACHINE_ARCH
+.It arm64 Ta aarch64 Ta aarch64
+.It amd64 Ta amd64 Ta amd64
+.It arm Ta arm Ta arm, armv6, armv7
+.It i386 Ta i386 Ta i386
+.It mips Ta mips Ta mips, mipsel, mips64, mips64el, mipshf, mipselhf, mips64elhf, mipsn32
+.It powerpc Ta powerpc Ta powerpc, powerpcspe, powerpc64
+.It riscv Ta riscv Ta riscv64, riscv64sf
+.It sparc64 Ta sparc64 Ta sparc64
+.El
 .Ss Predefined Macros
 The compiler provides a number of predefined macros.
 Some of these provide architecture-specific details and are explained below.
@@ -473,6 +491,8 @@ There is no standard name for the processor: each OS selects its own
 conventions.
 .It Dv MACHINE_CPUARCH	Represents the source location for a given
 .Dv MACHINE_ARCH .
+It is generally the common prefix for all the MACHINE_ARCH that
+share the same implementation, though 'riscv' breaks this rule.
 For example,
 .Dv MACHINE_CPUARCH
 is defined to be mips for all the flavors of mips that we support
