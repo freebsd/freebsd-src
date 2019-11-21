@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_kern_tls.h"
 #include "opt_ratelimit.h"
 
 #include <sys/types.h>
@@ -39,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/kernel.h>
+#include <sys/ktls.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
@@ -47,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sglist.h>
 #include <sys/sysctl.h>
 #include <sys/smp.h>
+#include <sys/socketvar.h>
 #include <sys/counter.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -85,6 +88,7 @@ __FBSDID("$FreeBSD$");
 /* Internal mbuf flags stored in PH_loc.eight[1]. */
 #define	MC_NOMAP		0x01
 #define	MC_RAW_WR		0x02
+#define	MC_TLS			0x04
 
 /*
  * Ethernet frames are DMA'd at this byte offset into the freelist buffer.
@@ -2240,7 +2244,8 @@ mbuf_len16(struct mbuf *m)
 
 	M_ASSERTPKTHDR(m);
 	n = m->m_pkthdr.PH_loc.eight[0];
-	MPASS(n > 0 && n <= SGE_MAX_WR_LEN / 16);
+	if (!(mbuf_cflags(m) & MC_TLS))
+		MPASS(n > 0 && n <= SGE_MAX_WR_LEN / 16);
 
 	return (n);
 }
@@ -2542,7 +2547,7 @@ parse_pkt(struct adapter *sc, struct mbuf **mp)
 #if defined(INET) || defined(INET6)
 	struct tcphdr *tcp;
 #endif
-#ifdef RATELIMIT
+#if defined(KERN_TLS) || defined(RATELIMIT)
 	struct cxgbe_snd_tag *cst;
 #endif
 	uint16_t eh_type;
@@ -2565,11 +2570,25 @@ restart:
 	M_ASSERTPKTHDR(m0);
 	MPASS(m0->m_pkthdr.len > 0);
 	nsegs = count_mbuf_nsegs(m0, 0, &cflags);
-#ifdef RATELIMIT
+#if defined(KERN_TLS) || defined(RATELIMIT)
 	if (m0->m_pkthdr.csum_flags & CSUM_SND_TAG)
 		cst = mst_to_cst(m0->m_pkthdr.snd_tag);
 	else
 		cst = NULL;
+#endif
+#ifdef KERN_TLS
+	if (cst != NULL && cst->type == IF_SND_TAG_TYPE_TLS) {
+		int len16;
+
+		cflags |= MC_TLS;
+		set_mbuf_cflags(m0, cflags);
+		rc = t6_ktls_parse_pkt(m0, &nsegs, &len16);
+		if (rc != 0)
+			goto fail;
+		set_mbuf_nsegs(m0, nsegs);
+		set_mbuf_len16(m0, len16);
+		return (0);
+	}
 #endif
 	if (nsegs > (needs_tso(m0) ? TX_SGL_SEGS_TSO : TX_SGL_SEGS)) {
 		if (defragged++ > 0 || (m = m_defrag(m0, M_NOWAIT)) == NULL) {
@@ -2841,7 +2860,7 @@ cannot_use_txpkts(struct mbuf *m)
 {
 	/* maybe put a GL limit too, to avoid silliness? */
 
-	return (needs_tso(m) || (mbuf_cflags(m) & MC_RAW_WR) != 0);
+	return (needs_tso(m) || (mbuf_cflags(m) & (MC_RAW_WR | MC_TLS)) != 0);
 }
 
 static inline int
@@ -2917,7 +2936,8 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx)
 		M_ASSERTPKTHDR(m0);
 		MPASS(m0->m_nextpkt == NULL);
 
-		if (available < SGE_MAX_WR_NDESC) {
+		if (available < howmany(mbuf_len16(m0), EQ_ESIZE / 16)) {
+			MPASS(howmany(mbuf_len16(m0), EQ_ESIZE / 16) <= 64);
 			available += reclaim_tx_descs(txq, 64);
 			if (available < howmany(mbuf_len16(m0), EQ_ESIZE / 16))
 				break;	/* out of descriptors */
@@ -2928,7 +2948,19 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx)
 			next_cidx = 0;
 
 		wr = (void *)&eq->desc[eq->pidx];
-		if (sc->flags & IS_VF) {
+		if (mbuf_cflags(m0) & MC_RAW_WR) {
+			total++;
+			remaining--;
+			n = write_raw_wr(txq, (void *)wr, m0, available);
+#ifdef KERN_TLS
+		} else if (mbuf_cflags(m0) & MC_TLS) {
+			total++;
+			remaining--;
+			ETHER_BPF_MTAP(ifp, m0);
+			n = t6_ktls_write_wr(txq,(void *)wr, m0,
+			    mbuf_nsegs(m0), available);
+#endif
+		} else if (sc->flags & IS_VF) {
 			total++;
 			remaining--;
 			ETHER_BPF_MTAP(ifp, m0);
@@ -2962,17 +2994,15 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx)
 			n = write_txpkts_wr(txq, wr, m0, &txp, available);
 			total += txp.npkt;
 			remaining -= txp.npkt;
-		} else if (mbuf_cflags(m0) & MC_RAW_WR) {
-			total++;
-			remaining--;
-			n = write_raw_wr(txq, (void *)wr, m0, available);
 		} else {
 			total++;
 			remaining--;
 			ETHER_BPF_MTAP(ifp, m0);
 			n = write_txpkt_wr(txq, (void *)wr, m0, available);
 		}
-		MPASS(n >= 1 && n <= available && n <= SGE_MAX_WR_NDESC);
+		MPASS(n >= 1 && n <= available);
+		if (!(mbuf_cflags(m0) & MC_TLS))
+			MPASS(n <= SGE_MAX_WR_NDESC);
 
 		available -= n;
 		dbdiff += n;
@@ -4188,6 +4218,49 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 	    "# of frames tx'd using type1 txpkts work requests");
 	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "raw_wrs", CTLFLAG_RD,
 	    &txq->raw_wrs, "# of raw work requests (non-packets)");
+	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "tls_wrs", CTLFLAG_RD,
+	    &txq->tls_wrs, "# of TLS work requests (TLS records)");
+
+#ifdef KERN_TLS
+	if (sc->flags & KERN_TLS_OK) {
+		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
+		    "kern_tls_records", CTLFLAG_RD, &txq->kern_tls_records,
+		    "# of NIC TLS records transmitted");
+		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
+		    "kern_tls_short", CTLFLAG_RD, &txq->kern_tls_short,
+		    "# of short NIC TLS records transmitted");
+		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
+		    "kern_tls_partial", CTLFLAG_RD, &txq->kern_tls_partial,
+		    "# of partial NIC TLS records transmitted");
+		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
+		    "kern_tls_full", CTLFLAG_RD, &txq->kern_tls_full,
+		    "# of full NIC TLS records transmitted");
+		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
+		    "kern_tls_octets", CTLFLAG_RD, &txq->kern_tls_octets,
+		    "# of payload octets in transmitted NIC TLS records");
+		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
+		    "kern_tls_waste", CTLFLAG_RD, &txq->kern_tls_waste,
+		    "# of octets DMAd but not transmitted in NIC TLS records");
+		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
+		    "kern_tls_options", CTLFLAG_RD, &txq->kern_tls_options,
+		    "# of NIC TLS options-only packets transmitted");
+		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
+		    "kern_tls_header", CTLFLAG_RD, &txq->kern_tls_header,
+		    "# of NIC TLS header-only packets transmitted");
+		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
+		    "kern_tls_fin", CTLFLAG_RD, &txq->kern_tls_fin,
+		    "# of NIC TLS FIN-only packets transmitted");
+		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
+		    "kern_tls_fin_short", CTLFLAG_RD, &txq->kern_tls_fin_short,
+		    "# of NIC TLS padded FIN packets on short TLS records");
+		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
+		    "kern_tls_cbc", CTLFLAG_RD, &txq->kern_tls_cbc,
+		    "# of NIC TLS sessions using AES-CBC");
+		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
+		    "kern_tls_gcm", CTLFLAG_RD, &txq->kern_tls_gcm,
+		    "# of NIC TLS sessions using AES-GCM");
+	}
+#endif
 
 	SYSCTL_ADD_COUNTER_U64(&vi->ctx, children, OID_AUTO, "r_enqueues",
 	    CTLFLAG_RD, &txq->r->enqueues,

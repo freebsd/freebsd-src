@@ -255,6 +255,8 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOSYS); /* XXX: implement lagg+TOE */
 	else
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOTSUP);
+	if (sc->flags & KERN_TLS_OK)
+		DONT_OFFLOAD_ACTIVE_OPEN(ENOTSUP);
 
 	rw_rlock(&sc->policy_lock);
 	settings = *lookup_offload_policy(sc, OPEN_TYPE_ACTIVE, NULL,
