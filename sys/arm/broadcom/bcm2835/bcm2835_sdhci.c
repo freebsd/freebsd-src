@@ -653,7 +653,8 @@ bcm_sdhci_dma_intr(int ch, void *arg)
 	 * can continue via DMA, do so.  Otherwise, re-enable interrupts and
 	 * return.
 	 */
-	reg = bcm_sdhci_read_4(slot->bus, slot, SDHCI_INT_STATUS);
+	reg = bcm_sdhci_read_4(slot->bus, slot, SDHCI_INT_STATUS) &
+	    DATA_XFER_MASK;
 	if ((reg & DATA_PENDING_MASK) != 0 &&
 	    BCM_SDHCI_SEGSZ_LEFT(slot) >= BCM_SDHCI_BUFFER_SIZE) {
 		/* ACK any pending interrupts */
