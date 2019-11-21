@@ -25,6 +25,8 @@
  *
  */
 
+#define	KCSAN_RUNTIME
+
 #include "opt_platform.h"
 
 #include <sys/param.h>

@@ -24,6 +24,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define	KCSAN_RUNTIME
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 

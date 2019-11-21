@@ -146,6 +146,10 @@ DEFINE_IFUNC(, int, casueword, (volatile u_long *, u_long, u_long *, u_long))
 	    casueword_smap : casueword_nosmap);
 }
 
+#undef copyinstr
+#undef copyin
+#undef copyout
+
 int	copyinstr_nosmap(const void *udaddr, void *kaddr, size_t len,
 	    size_t *lencopied);
 int	copyinstr_smap(const void *udaddr, void *kaddr, size_t len,

@@ -101,6 +101,7 @@
 
 #include <machine/_bus.h>
 #include <machine/cpufunc.h>
+#include <machine/bus_dma.h>
 
 #ifndef __GNUCLIKE_ASM
 #error "no assembler code for your compiler"
@@ -130,6 +131,13 @@
 
 #define BUS_SPACE_INVALID_DATA	(~0)
 #define BUS_SPACE_UNRESTRICTED	(~0)
+
+#define	BUS_SPACE_BARRIER_READ	0x01		/* force read barrier */
+#define	BUS_SPACE_BARRIER_WRITE	0x02		/* force write barrier */
+
+#if defined(KCSAN) && !defined(KCSAN_RUNTIME)
+#include <sys/_cscan_bus.h>
+#else
 
 /*
  * Map a region of device bus space into CPU virtual address space.
@@ -992,9 +1000,6 @@ bus_space_copy_region_4(bus_space_tag_t tag, bus_space_handle_t bsh1,
  * prevent reordering by the compiler; all Intel x86 processors currently
  * retire operations outside the CPU in program order.
  */
-#define	BUS_SPACE_BARRIER_READ	0x01		/* force read barrier */
-#define	BUS_SPACE_BARRIER_WRITE	0x02		/* force write barrier */
-
 static __inline void
 bus_space_barrier(bus_space_tag_t tag __unused, bus_space_handle_t bsh __unused,
 		  bus_size_t offset __unused, bus_size_t len __unused, int flags)
@@ -1021,8 +1026,6 @@ bus_space_barrier(bus_space_tag_t tag __unused, bus_space_handle_t bsh __unused,
 #define outw(a, b) compiler_error
 #define outl(a, b) compiler_error
 #endif
-
-#include <machine/bus_dma.h>
 
 /*
  * Stream accesses are the same as normal accesses on x86; there are no
@@ -1087,5 +1090,7 @@ bus_space_barrier(bus_space_tag_t tag __unused, bus_space_handle_t bsh __unused,
 	bus_space_copy_region_2((t), (h1), (o1), (h2), (o2), (c))
 #define	bus_space_copy_region_stream_4(t, h1, o1, h2, o2, c) \
 	bus_space_copy_region_4((t), (h1), (o1), (h2), (o2), (c))
+
+#endif /* KCSAN && !KCSAN_RUNTIME */
 
 #endif /* _X86_BUS_H_ */

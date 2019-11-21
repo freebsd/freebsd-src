@@ -1,4 +1,4 @@
-/*	$NetBSD: csan.h,v 1.1 2019/11/05 20:19:18 maxv Exp $	*/
+/*	$NetBSD: csan.h,v 1.2 2019/11/06 06:57:22 maxv Exp $	*/
 
 /*
  * Copyright (c) 2019 The NetBSD Foundation, Inc.
@@ -31,15 +31,74 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS_CSAN_H_
-#define _SYS_CSAN_H_
+#include <machine/cpufunc.h>
+#include <machine/stack.h>
+#include <machine/vmparam.h>
 
-#include <sys/types.h>
+static inline bool
+kcsan_md_is_avail(void)
+{
+	return true;
+}
 
-#ifdef KCSAN
-void kcsan_cpu_init(u_int);
-#else
-#define kcsan_cpu_init(ci)	((void)0)
+static inline void
+kcsan_md_disable_intrs(uint64_t *state)
+{
+
+	*state = intr_disable();
+}
+
+static inline void
+kcsan_md_enable_intrs(uint64_t *state)
+{
+
+	intr_restore(*state);
+}
+
+static inline void
+kcsan_md_delay(uint64_t us)
+{
+	DELAY(us);
+}
+
+static void
+kcsan_md_unwind(void)
+{
+#ifdef DDB
+	c_db_sym_t sym;
+	db_expr_t offset;
+	const char *symname;
 #endif
+	struct unwind_state frame;
+	uint64_t sp;
+	int nsym;
 
-#endif /* !_SYS_CSAN_H_ */
+	__asm __volatile("mov %0, sp" : "=&r" (sp));
+
+	frame.sp = sp;
+	frame.fp = (uint64_t)__builtin_frame_address(0);
+	frame.pc = (uint64_t)kcsan_md_unwind;
+	nsym = 0;
+
+	while (1) {
+		unwind_frame(&frame);
+		if (!INKERNEL((vm_offset_t)frame.fp) ||
+		     !INKERNEL((vm_offset_t)frame.pc))
+			break;
+
+#ifdef DDB
+		sym = db_search_symbol((vm_offset_t)frame.pc, DB_STGY_PROC,
+		    &offset);
+		db_symbol_values(sym, &symname, NULL);
+		printf("#%d %p in %s+%#lx\n", nsym, (void *)frame.pc,
+		    symname, offset);
+#else
+		printf("#%d %p\n", nsym, (void *)frame.pc);
+#endif
+		nsym++;
+
+		if (nsym >= 15) {
+			break;
+		}
+	}
+}

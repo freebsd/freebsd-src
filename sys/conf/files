@@ -3805,6 +3805,8 @@ kern/subr_compressor.c		standard \
 kern/subr_coverage.c		optional coverage \
 	compile-with "${NORMAL_C:N-fsanitize*}"
 kern/subr_counter.c		standard
+kern/subr_csan.c		optional kcsan \
+	compile-with "${NORMAL_C:N-fsanitize*}"
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
 kern/subr_early.c		standard
