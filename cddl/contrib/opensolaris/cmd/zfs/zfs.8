@@ -1134,8 +1134,23 @@ This feature must be enabled to be used
 .Po see
 .Xr zpool-features 7
 .Pc .
+.It Sy special_small_blocks Ns = Ns Ar size
+This value represents the threshold block size for including small file
+blocks into the special allocation class.
+Blocks smaller than or equal to this value will be assigned to the special
+allocation class while greater blocks will be assigned to the regular class.
+Valid values are zero or a power of two from 512B up to 128K.
+The default size is 0 which means no small file blocks will be allocated in
+the special class.
+.Pp
+Before setting this property, a special class vdev must be added to the
+pool.
+See
+.Xr zpool 8
+for more details on the special allocation class.
 .It Sy mountpoint Ns = Ns Ar path | Cm none | legacy
-Controls the mount point used for this file system. See the
+Controls the mount point used for this file system.
+See the
 .Qq Sx Mount Points
 section for more information on how this property is used.
 .Pp
@@ -3023,7 +3038,7 @@ property of the filesystem or volume which is received into.
 To use this flag, the storage pool must have the
 .Sy extensible_dataset
 feature enabled.  See
-.Xr zpool-features 5
+.Xr zpool-features 7
 for details on ZFS feature flags.
 .El
 .It Xo

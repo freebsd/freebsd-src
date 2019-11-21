@@ -950,14 +950,17 @@ spa_vdev_copy_segment(vdev_t *vd, range_tree_t *segs,
 	ASSERT3U(size, <=, maxalloc);
 
 	/*
-	 * We use allocator 0 for this I/O because we don't expect device remap
-	 * to be the steady state of the system, so parallelizing is not as
-	 * critical as it is for other allocation types. We also want to ensure
-	 * that the IOs are allocated together as much as possible, to reduce
-	 * mapping sizes.
+	 * An allocation class might not have any remaining vdevs or space
 	 */
-	int error = metaslab_alloc_dva(spa, mg->mg_class, size,
-	    &dst, 0, NULL, txg, 0, zal, 0);
+	metaslab_class_t *mc = mg->mg_class;
+	if (mc != spa_normal_class(spa) && mc->mc_groups <= 1)
+		mc = spa_normal_class(spa);
+	int error = metaslab_alloc_dva(spa, mc, size, &dst, 0, NULL, txg, 0,
+	    zal, 0);
+	if (error == ENOSPC && mc != spa_normal_class(spa)) {
+		error = metaslab_alloc_dva(spa, spa_normal_class(spa), size,
+		    &dst, 0, NULL, txg, 0, zal, 0);
+	}
 	if (error != 0)
 		return (error);
 
@@ -1869,15 +1872,31 @@ spa_vdev_remove_top_check(vdev_t *vd)
 	if (!spa_feature_is_enabled(spa, SPA_FEATURE_DEVICE_REMOVAL))
 		return (SET_ERROR(ENOTSUP));
 
+	/* available space in the pool's normal class */
+	uint64_t available = dsl_dir_space_available(
+	    spa->spa_dsl_pool->dp_root_dir, NULL, 0, B_TRUE);
+
+	metaslab_class_t *mc = vd->vdev_mg->mg_class;
+
+	/*
+	 * When removing a vdev from an allocation class that has
+	 * remaining vdevs, include available space from the class.
+	 */
+	if (mc != spa_normal_class(spa) && mc->mc_groups > 1) {
+		uint64_t class_avail = metaslab_class_get_space(mc) -
+		    metaslab_class_get_alloc(mc);
+
+		/* add class space, adjusted for overhead */
+		available += (class_avail * 94) / 100;
+	}
+
 	/*
 	 * There has to be enough free space to remove the
 	 * device and leave double the "slop" space (i.e. we
 	 * must leave at least 3% of the pool free, in addition to
 	 * the normal slop space).
 	 */
-	if (dsl_dir_space_available(spa->spa_dsl_pool->dp_root_dir,
-	    NULL, 0, B_TRUE) <
-	    vd->vdev_stat.vs_dspace + spa_get_slop_space(spa)) {
+	if (available < vd->vdev_stat.vs_dspace + spa_get_slop_space(spa)) {
 		return (SET_ERROR(ENOSPC));
 	}
 
