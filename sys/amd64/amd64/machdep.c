@@ -2742,21 +2742,21 @@ void *
 memset(void *buf, int c, size_t len)
 {
 
-	return memset_std(buf, c, len);
+	return (memset_std(buf, c, len));
 }
 
 void *
 memmove(void * _Nonnull dst, const void * _Nonnull src, size_t len)
 {
 
-	return memmove_std(dst, src, len);
+	return (memmove_std(dst, src, len));
 }
 
 void *
 memcpy(void * _Nonnull dst, const void * _Nonnull src, size_t len)
 {
 
-	return memcpy_std(dst, src, len);
+	return (memcpy_std(dst, src, len));
 }
 #else
 DEFINE_IFUNC(, void *, memset, (void *, int, size_t))
