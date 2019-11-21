@@ -185,6 +185,27 @@ iwm_write_prph(struct iwm_softc *sc, uint32_t addr, uint32_t val)
 	IWM_WRITE(sc, IWM_HBUS_TARG_PRPH_WDAT, val);
 }
 
+void
+iwm_write_prph64(struct iwm_softc *sc, uint64_t addr, uint64_t val)
+{
+	iwm_write_prph(sc, (uint32_t)addr, val & 0xffffffff);
+	iwm_write_prph(sc, (uint32_t)addr + 4, val >> 32);
+}
+
+int
+iwm_poll_prph(struct iwm_softc *sc, uint32_t addr, uint32_t bits, uint32_t mask,
+    int timeout)
+{
+	do {
+		if ((iwm_read_prph(sc, addr) & mask) == (bits & mask))
+			return (0);
+		DELAY(10);
+		timeout -= 10;
+	} while (timeout > 0);
+
+	return (ETIMEDOUT);
+}
+
 #ifdef IWM_DEBUG
 /* iwlwifi: pcie/trans.c */
 int
@@ -261,7 +282,7 @@ iwm_nic_lock(struct iwm_softc *sc)
 	IWM_SETBITS(sc, IWM_CSR_GP_CNTRL,
 	    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
-	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000)
+	if (sc->cfg->device_family >= IWM_DEVICE_FAMILY_8000)
 		DELAY(2);
 
 	if (iwm_poll_bit(sc, IWM_CSR_GP_CNTRL,
@@ -325,6 +346,8 @@ iwm_enable_rfkill_int(struct iwm_softc *sc)
 {
 	sc->sc_intmask = IWM_CSR_INT_BIT_RF_KILL;
 	IWM_WRITE(sc, IWM_CSR_INT_MASK, sc->sc_intmask);
+	IWM_SETBITS(sc, IWM_CSR_GP_CNTRL,
+	    IWM_CSR_GP_CNTRL_REG_FLAG_RFKILL_WAKE_L1A_EN);
 }
 
 int
@@ -383,7 +406,9 @@ iwm_prepare_card_hw(struct iwm_softc *sc)
 	if (iwm_set_hw_ready(sc))
 		goto out;
 
-	DELAY(100);
+	IWM_SETBITS(sc, IWM_CSR_DBG_LINK_PWR_MGMT_REG,
+	    IWM_CSR_RESET_LINK_PWR_MGMT_DISABLED);
+	DELAY(1000);
 
 	/* If HW is not ready, prepare the conditions to check again */
 	IWM_SETBITS(sc, IWM_CSR_HW_IF_CONFIG_REG,
@@ -454,7 +479,7 @@ iwm_apm_init(struct iwm_softc *sc)
 	IWM_DPRINTF(sc, IWM_DEBUG_RESET, "iwm apm start\n");
 
 	/* Disable L0S exit timer (platform NMI Work/Around) */
-	if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000) {
+	if (sc->cfg->device_family < IWM_DEVICE_FAMILY_8000) {
 		IWM_SETBITS(sc, IWM_CSR_GIO_CHICKEN_BITS,
 		    IWM_CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER);
 	}
@@ -569,6 +594,16 @@ iwm_apm_init(struct iwm_softc *sc)
 void
 iwm_apm_stop(struct iwm_softc *sc)
 {
+	IWM_SETBITS(sc, IWM_CSR_DBG_LINK_PWR_MGMT_REG,
+	    IWM_CSR_RESET_LINK_PWR_MGMT_DISABLED);
+	IWM_SETBITS(sc, IWM_CSR_HW_IF_CONFIG_REG,
+	    IWM_CSR_HW_IF_CONFIG_REG_PREPARE |
+	    IWM_CSR_HW_IF_CONFIG_REG_ENABLE_PME);
+	DELAY(1000);
+	IWM_CLRBITS(sc, IWM_CSR_DBG_LINK_PWR_MGMT_REG,
+	    IWM_CSR_RESET_LINK_PWR_MGMT_DISABLED);
+	DELAY(5000);
+
 	/* stop device's busmaster DMA activity */
 	IWM_SETBITS(sc, IWM_CSR_RESET, IWM_CSR_RESET_REG_FLAG_STOP_MASTER);
 
@@ -576,6 +611,14 @@ iwm_apm_stop(struct iwm_softc *sc)
 	    IWM_CSR_RESET_REG_FLAG_MASTER_DISABLED,
 	    IWM_CSR_RESET_REG_FLAG_MASTER_DISABLED, 100))
 		device_printf(sc->sc_dev, "timeout waiting for master\n");
+
+	/*
+	 * Clear "initialization complete" bit to move adapter from
+	 * D0A* (powered-up Active) --> D0U* (Uninitialized) state.
+	 */
+	IWM_CLRBITS(sc, IWM_CSR_GP_CNTRL,
+	    IWM_CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+
 	IWM_DPRINTF(sc, IWM_DEBUG_TRANS, "%s: iwm apm stop\n", __func__);
 }
 
@@ -590,10 +633,14 @@ iwm_start_hw(struct iwm_softc *sc)
 
 	/* Reset the entire device */
 	IWM_WRITE(sc, IWM_CSR_RESET, IWM_CSR_RESET_REG_FLAG_SW_RESET);
-	DELAY(10);
+	DELAY(5000);
 
 	if ((error = iwm_apm_init(sc)) != 0)
 		return error;
+
+	/* On newer chipsets MSI is disabled by default. */
+	if (sc->cfg->mqrx_supported)
+		iwm_write_prph(sc, IWM_UREG_CHICK, IWM_UREG_CHICK_MSI_ENABLE);
 
 	iwm_enable_rfkill_int(sc);
 	iwm_check_rfkill(sc);
@@ -613,13 +660,21 @@ iwm_set_pwr(struct iwm_softc *sc)
 int
 iwm_pcie_rx_stop(struct iwm_softc *sc)
 {
-	int ret = 0;
+	int ret;
+
+	ret = 0;
 	if (iwm_nic_lock(sc)) {
-		IWM_WRITE(sc, IWM_FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
-		ret = iwm_poll_bit(sc, IWM_FH_MEM_RSSR_RX_STATUS_REG,
-		    IWM_FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
-		    IWM_FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
-		    1000);
+		if (sc->cfg->mqrx_supported) {
+			iwm_write_prph(sc, IWM_RFH_RXF_DMA_CFG, 0);
+			ret = iwm_poll_prph(sc, IWM_RFH_GEN_STATUS,
+			    IWM_RXF_DMA_IDLE, IWM_RXF_DMA_IDLE, 1000);
+		} else {
+			IWM_WRITE(sc, IWM_FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+			ret = iwm_poll_bit(sc, IWM_FH_MEM_RSSR_RX_STATUS_REG,
+			    IWM_FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
+			    IWM_FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
+			    1000);
+		}
 		iwm_nic_unlock(sc);
 	}
 	return ret;

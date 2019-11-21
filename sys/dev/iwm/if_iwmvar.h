@@ -165,20 +165,6 @@ struct iwm_ucode_capabilities {
 	uint8_t enabled_capa[howmany(IWM_NUM_UCODE_TLV_CAPA, NBBY)];
 };
 
-static inline int
-fw_has_api(const struct iwm_ucode_capabilities *capabilities,
-	   unsigned int api)
-{
-	return isset(capabilities->enabled_api, api);
-}
-
-static inline int
-fw_has_capa(const struct iwm_ucode_capabilities *capabilities,
-	    unsigned int capa)
-{
-	return isset(capabilities->enabled_capa, capa);
-}
-
 /* one for each uCode image (inst/data, init/runtime/wowlan) */
 struct iwm_fw_desc {
 	const void *data;	/* vmalloc'ed data */
@@ -299,11 +285,12 @@ struct iwm_tx_ring {
 	int			cur;
 };
 
-#define IWM_RX_RING_COUNT	256
-/* Linux driver optionally uses 8k buffer */
+#define IWM_RX_LEGACY_RING_COUNT	256
+#define IWM_RX_MQ_RING_COUNT		512
+
 #define IWM_RBUF_SIZE		4096
 
-#define	IWM_MAX_SCATTER		20
+#define IWM_MAX_SCATTER		20
 
 struct iwm_rx_data {
 	struct mbuf	*m;
@@ -311,12 +298,13 @@ struct iwm_rx_data {
 };
 
 struct iwm_rx_ring {
-	struct iwm_dma_info	desc_dma;
+	struct iwm_dma_info	free_desc_dma;
+	struct iwm_dma_info	used_desc_dma;
 	struct iwm_dma_info	stat_dma;
 	struct iwm_dma_info	buf_dma;
-	uint32_t		*desc;
+	void			*desc;
 	struct iwm_rb_status	*stat;
-	struct iwm_rx_data	data[IWM_RX_RING_COUNT];
+	struct iwm_rx_data	data[512];
 	bus_dmamap_t		spare_map;	/* for iwm_rx_addbuf() */
 	bus_dma_tag_t           data_dmat;
 	int			cur;
@@ -459,8 +447,6 @@ struct iwm_softc {
 	struct iwm_rx_ring	rxq;
 	int			qfullmsk;
 
-	int			sc_sf_state;
-
 	/* ICT table. */
 	struct iwm_dma_info	ict_dma;
 	int			ict_cur;
@@ -526,8 +512,6 @@ struct iwm_softc {
 	struct iwm_notif_statistics_v10 sc_stats;
 	int			sc_noise;
 
-	caddr_t			sc_drvbpf;
-
 	struct iwm_rx_radiotap_header sc_rxtap;
 	struct iwm_tx_radiotap_header sc_txtap;
 
@@ -580,3 +564,15 @@ struct iwm_softc {
 #define	IWM_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	IWM_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define IWM_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
+
+static inline bool
+iwm_fw_has_api(struct iwm_softc *sc, unsigned int api)
+{
+	return isset(sc->sc_fw.ucode_capa.enabled_api, api);
+}
+
+static inline bool
+iwm_fw_has_capa(struct iwm_softc *sc, unsigned int capa)
+{
+	return isset(sc->sc_fw.ucode_capa.enabled_capa, capa);
+}

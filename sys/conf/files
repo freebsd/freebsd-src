@@ -1989,6 +1989,8 @@ iwi_monitor.fw			optional iwimonitorfw | iwifw		\
 dev/iwm/if_iwm.c		optional iwm
 dev/iwm/if_iwm_7000.c		optional iwm
 dev/iwm/if_iwm_8000.c		optional iwm
+dev/iwm/if_iwm_9000.c		optional iwm
+dev/iwm/if_iwm_9260.c		optional iwm
 dev/iwm/if_iwm_binding.c	optional iwm
 dev/iwm/if_iwm_fw.c		optional iwm
 dev/iwm/if_iwm_led.c		optional iwm

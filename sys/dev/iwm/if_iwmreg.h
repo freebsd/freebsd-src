@@ -289,7 +289,7 @@
 #define IWM_CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN           (0x00000001)
 
 #define IWM_CSR_GP_CNTRL_REG_MSK_POWER_SAVE_TYPE         (0x07000000)
-#define IWM_CSR_GP_CNTRL_REG_FLAG_MAC_POWER_SAVE         (0x04000000)
+#define IWM_CSR_GP_CNTRL_REG_FLAG_RFKILL_WAKE_L1A_EN     (0x04000000)
 #define IWM_CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW          (0x08000000)
 
 
@@ -456,6 +456,10 @@ enum iwm_secure_boot_status_reg {
 /* FW chicken bits */
 #define IWM_LMPM_CHICK				0xa01ff8
 #define IWM_LMPM_CHICK_EXTENDED_ADDR_SPACE	0x01
+
+#define	IWM_UREG_CHICK			0xa05c00
+#define	IWM_UREG_CHICK_MSI_ENABLE	0x01000000
+#define	IWM_UREG_CHICK_MSIX_ENABLE	0x02000000
 
 #define IWM_FH_TCSR_0_REG0 (0x1D00)
 
@@ -635,6 +639,40 @@ P2P_PS_SCM\31UAPSD_SUPPORT\32EBS\33P2P_PS_UAPSD\36BCAST_FILTERING\37GO_UAPSD\40L
  *	longer than the passive one, which is essential for fragmented scan.
  * @IWM_UCODE_TLV_API_WIFI_MCC_UPDATE: ucode supports MCC updates with source.
  * @IWM_UCODE_TLV_API_LQ_SS_PARAMS: Configure STBC/BFER via LQ CMD ss_params
+ * @IWM_UCODE_TLV_API_NEW_VERSION: new versioning format
+ * @IWM_UCODE_TLV_API_SCAN_TSF_REPORT: Scan start time reported in scan
+ *	iteration complete notification, and the timestamp reported for RX
+ *	received during scan, are reported in TSF of the mac specified in the
+ *	scan request.
+ * @IWM_UCODE_TLV_API_TKIP_MIC_KEYS: This ucode supports version 2 of
+ *	ADD_MODIFY_STA_KEY_API_S_VER_2.
+ * @IWM_UCODE_TLV_API_STA_TYPE: This ucode supports station type assignement.
+ * @IWM_UCODE_TLV_API_NAN2_VER2: This ucode supports NAN API version 2
+ * @IWM_UCODE_TLV_API_NEW_RX_STATS: should new RX STATISTICS API be used
+ * @IWM_UCODE_TLV_API_QUOTA_LOW_LATENCY: Quota command includes a field
+ *	indicating low latency direction.
+ * @IWM_UCODE_TLV_API_DEPRECATE_TTAK: RX status flag TTAK ok (bit 7) is
+ *	deprecated.
+ * @IWM_UCODE_TLV_API_ADAPTIVE_DWELL_V2: This ucode supports version 8
+ *	of scan request: SCAN_REQUEST_CMD_UMAC_API_S_VER_8
+ * @IWM_UCODE_TLV_API_FRAG_EBS: This ucode supports fragmented EBS
+ * @IWM_UCODE_TLV_API_REDUCE_TX_POWER: This ucode supports v5 of
+ *	the REDUCE_TX_POWER_CMD.
+ * @IWM_UCODE_TLV_API_SHORT_BEACON_NOTIF: This ucode supports the short
+ *	version of the beacon notification.
+ * @IWM_UCODE_TLV_API_BEACON_FILTER_V4: This ucode supports v4 of
+ *	BEACON_FILTER_CONFIG_API_S_VER_4.
+ * @IWM_UCODE_TLV_API_REGULATORY_NVM_INFO: This ucode supports v4 of
+ *	REGULATORY_NVM_GET_INFO_RSP_API_S.
+ * @IWM_UCODE_TLV_API_FTM_NEW_RANGE_REQ: This ucode supports v7 of
+ *	LOCATION_RANGE_REQ_CMD_API_S and v6 of LOCATION_RANGE_RESP_NTFY_API_S.
+ * @IWM_UCODE_TLV_API_SCAN_OFFLOAD_CHANS: This ucode supports v2 of
+ *	SCAN_OFFLOAD_PROFILE_MATCH_RESULTS_S and v3 of
+ *	SCAN_OFFLOAD_PROFILES_QUERY_RSP_S.
+ * @IWM_UCODE_TLV_API_MBSSID_HE: This ucode supports v2 of
+ *	STA_CONTEXT_DOT11AX_API_S
+ * @IWM_UCODE_TLV_CAPA_SAR_TABLE_VER: This ucode supports different sar
+ *	version tables.
  *
  * @IWM_NUM_UCODE_TLV_API: number of bits used
  */
@@ -642,12 +680,35 @@ enum iwm_ucode_tlv_api {
 	IWM_UCODE_TLV_API_FRAGMENTED_SCAN	= 8,
 	IWM_UCODE_TLV_API_WIFI_MCC_UPDATE	= 9,
 	IWM_UCODE_TLV_API_LQ_SS_PARAMS		= 18,
+	IWM_UCODE_TLV_API_NEW_VERSION		= 20,
+	IWM_UCODE_TLV_API_SCAN_TSF_REPORT	= 28,
+	IWM_UCODE_TLV_API_TKIP_MIC_KEYS		= 29,
+	IWM_UCODE_TLV_API_STA_TYPE		= 30,
+	IWM_UCODE_TLV_API_NAN2_VER2		= 31,
+	IWM_UCODE_TLV_API_ADAPTIVE_DWELL	= 32,
+	IWM_UCODE_TLV_API_OCE			= 33,
+	IWM_UCODE_TLV_API_NEW_BEACON_TEMPLATE	= 34,
+	IWM_UCODE_TLV_API_NEW_RX_STATS		= 35,
+	IWM_UCODE_TLV_API_WOWLAN_KEY_MATERIAL	= 36,
+	IWM_UCODE_TLV_API_QUOTA_LOW_LATENCY	= 38,
+	IWM_UCODE_TLV_API_DEPRECATE_TTAK	= 41,
+	IWM_UCODE_TLV_API_ADAPTIVE_DWELL_V2	= 42,
+	IWM_UCODE_TLV_API_FRAG_EBS		= 44,
+	IWM_UCODE_TLV_API_REDUCE_TX_POWER	= 45,
+	IWM_UCODE_TLV_API_SHORT_BEACON_NOTIF	= 46,
+	IWM_UCODE_TLV_API_BEACON_FILTER_V4      = 47,
+	IWM_UCODE_TLV_API_REGULATORY_NVM_INFO   = 48,
+	IWM_UCODE_TLV_API_FTM_NEW_RANGE_REQ     = 49,
+	IWM_UCODE_TLV_API_SCAN_OFFLOAD_CHANS    = 50,
+	IWM_UCODE_TLV_API_MBSSID_HE		= 52,
+	IWM_UCODE_TLV_API_WOWLAN_TCP_SYN_WAKE	= 53,
+	IWM_UCODE_TLV_API_FTM_RTT_ACCURACY      = 54,
+	IWM_UCODE_TLV_API_SAR_TABLE_VER         = 55,
+	IWM_UCODE_TLV_API_ADWELL_HB_DEF_N_AP	= 57,
+	IWM_UCODE_TLV_API_SCAN_EXT_CHAN_VER	= 58,
 
-	IWM_NUM_UCODE_TLV_API = 32
+	IWM_NUM_UCODE_TLV_API			= 128,
 };
-
-#define IWM_UCODE_TLV_API_BITS \
-	"\020\10FRAGMENTED_SCAN\11WIFI_MCC_UPDATE\16WIDE_CMD_HDR\22LQ_SS_PARAMS\30EXT_SCAN_PRIO\33TX_POWER_CHAIN"
 
 /**
  * enum iwm_ucode_tlv_capa - ucode capabilities
@@ -933,6 +994,7 @@ enum iwm_ucode_tlv_type {
 	IWM_UCODE_TLV_FW_DBG_DEST	= 38,
 	IWM_UCODE_TLV_FW_DBG_CONF	= 39,
 	IWM_UCODE_TLV_FW_DBG_TRIGGER	= 40,
+	IWM_UCODE_TLV_CMD_VERSIONS	= 48,
 	IWM_UCODE_TLV_FW_GSCAN_CAPA	= 50,
 	IWM_UCODE_TLV_FW_MEM_SEG	= 51,
 };
@@ -1468,6 +1530,52 @@ static inline unsigned int IWM_FH_MEM_CBBC_QUEUE(unsigned int chnl)
 #define IWM_FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE	(0x01000000)
 
 #define IWM_FH_MEM_TFDIB_REG1_ADDR_BITSHIFT	28
+
+/* 9000 rx series registers */
+
+#define IWM_RFH_Q0_FRBDCB_BA_LSB	0xa08000
+#define IWM_RFH_Q_FRBDCB_BA_LSB		(IWM_RFH_Q0_FRBDCB_BA_LSB + (q) * 8)
+/* Write index table */
+#define IWM_RFH_Q0_FRBDCB_WIDX		0xa08080
+#define IWM_RFH_Q_FRBDCB_WIDX		(IWM_RFH_Q0_FRBDCB_WIDX + (q) * 4)
+/* Write index table - shadow registers */
+#define IWM_RFH_Q0_FRBDCB_WIDX_TRG	0x1c80
+#define IWM_RFH_Q_FRBDCB_WIDX_TRG	(IWM_RFH_Q0_FRBDCB_WIDX_TRG + (q) * 4)
+/* Read index table */
+#define IWM_RFH_Q0_FRBDCB_RIDX		0xa080c0
+#define IWM_RFH_Q_FRBDCB_RIDX		(IWM_RFH_Q0_FRBDCB_RIDX + (q) * 4)
+/* Used list table */
+#define IWM_RFH_Q0_URBDCB_BA_LSB	0xa08100
+#define IWM_RFH_Q_URBDCB_BA_LSB		(IWM_RFH_Q0_URBDCB_BA_LSB + (q) * 8)
+/* Write index table */
+#define IWM_RFH_Q0_URBDCB_WIDX		0xa08180
+#define IWM_RFH_Q_URBDCB_WIDX		(IWM_RFH_Q0_URBDCB_WIDX + (q) * 4)
+/* stts */
+#define IWM_RFH_Q0_URBD_STTS_WPTR_LSB	0xa08200
+#define IWM_RFH_Q_URBD_STTS_WPTR_LSB (IWM_RFH_Q0_URBD_STTS_WPTR_LSB + (q) * 8)
+
+#define IWM_RFH_GEN_STATUS		0xa09808
+#define IWM_RXF_DMA_IDLE		0x80000000
+
+/* DMA configuration */
+#define IWM_RFH_RXF_DMA_CFG		0xa09820
+#define IWM_RFH_RXF_DMA_RB_SIZE_1K	0x00010000
+#define IWM_RFH_RXF_DMA_RB_SIZE_2K	0x00020000
+#define IWM_RFH_RXF_DMA_RB_SIZE_4K	0x00040000
+#define IWM_RFH_RXF_DMA_RBDCB_SIZE_512	0x00900000
+#define IWM_RFH_RXF_DMA_MIN_RB_4_8	0x03000000
+#define IWM_RFH_RXF_DMA_DROP_TOO_LARGE_MASK 0x04000000
+#define IWM_RFH_DMA_EN_ENABLE_VAL	0x80000000
+
+#define IWM_RFH_GEN_CFG			0xa09800
+#define IWM_RFH_GEN_CFG_SERVICE_DMA_SNOOP 0x00000001
+#define IWM_RFH_GEN_CFG_RFH_DMA_SNOOP	0x00000002
+#define IWM_RFH_GEN_CFG_RB_CHUNK_SIZE_128 0x00000010
+#define IWM_RFH_GEN_CFG_RB_CHUNK_SIZE_64 0x00000000
+
+#define IWM_RFH_RXF_RXQ_ACTIVE		0xa0980c
+
+/* end of 9000 rx series registers */
 
 /* TFDB  Area - TFDs buffer table */
 #define IWM_FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK      (0xFFFFFFFF)
@@ -2798,6 +2906,69 @@ enum iwm_mvm_rx_status {
 	IWM_RX_MPDU_RES_STATUS_FILTERING_MSK		= (0xc00000),
 	IWM_RX_MPDU_RES_STATUS2_FILTERING_MSK		= (0xc0000000),
 };
+
+enum iwm_rx_mpdu_mac_flags1 {
+	IWM_RX_MPDU_MFLG1_ADDRTYPE_MASK		= 0x03,
+	IWM_RX_MPDU_MFLG1_MIC_CRC_LEN_MASK	= 0xf0,
+	IWM_RX_MPDU_MFLG1_MIC_CRC_LEN_SHIFT	= 3,
+};
+
+enum iwm_rx_mpdu_mac_flags2 {
+	IWM_RX_MPDU_MFLG2_HDR_LEN_MASK		= 0x1f,
+	IWM_RX_MPDU_MFLG2_PAD			= 0x20,
+	IWM_RX_MPDU_MFLG2_AMSDU			= 0x40,
+};
+
+enum iwm_rx_mpdu_phy_info {
+	IWM_RX_MPDU_PHY_AMPDU			= (1 << 5),
+	IWM_RX_MPDU_PHY_AMPDU_TOGGLE		= (1 << 6),
+	IWM_RX_MPDU_PHY_SHORT_PREAMBLE		= (1 << 7),
+	IWM_RX_MPDU_PHY_NCCK_ADDTL_NTFY		= (1 << 7),
+	IWM_RX_MPDU_PHY_TSF_OVERLOAD		= (1 << 8),
+};
+
+struct iwm_rx_mpdu_desc_v1 {
+	union {
+		uint32_t rss_hash;
+		uint32_t phy_data2;
+	};
+	union {
+		uint32_t filter_match;
+		uint32_t phy_data3;
+	};
+	uint32_t rate_n_flags;
+	uint8_t energy_a;
+	uint8_t energy_b;
+	uint8_t channel;
+	uint8_t mac_context;
+	uint32_t gp2_on_air_rise;
+	union {
+		uint64_t tsf_on_air_rise;
+		struct {
+			uint32_t phy_data0;
+			uint32_t phy_data1;
+		};
+	};
+} __packed;
+
+struct iwm_rx_mpdu_desc {
+	uint16_t mpdu_len;
+	uint8_t mac_flags1;
+	uint8_t mac_flags2;
+	uint8_t amsdu_info;
+	uint16_t phy_info;
+	uint8_t mac_phy_idx;
+	uint16_t raw_csum;
+	union {
+		uint16_t l3l4_flags;
+		uint16_t phy_data4;
+	};
+	uint16_t status;
+	uint8_t hash_filter;
+	uint8_t sta_id_flags;
+	uint32_t reorder_data;
+	struct iwm_rx_mpdu_desc_v1 v1;
+} __packed;
 
 /**
  * struct iwm_radio_version_notif - information on the radio version
@@ -4306,13 +4477,41 @@ enum iwm_tx_pm_timeouts {
 #define IWM_BAR_DFAULT_RETRY_LIMIT		60
 #define IWM_LOW_RETRY_LIMIT			7
 
+/**
+ * enum iwm_tx_offload_assist_flags_pos -  set %iwm_tx_cmd offload_assist values
+ * @IWM_TX_CMD_OFFLD_IP_HDR: offset to start of IP header (in words)
+ *	from mac header end. For normal case it is 4 words for SNAP.
+ *	note: tx_cmd, mac header and pad are not counted in the offset.
+ *	This is used to help the offload in case there is tunneling such as
+ *	IPv6 in IPv4, in such case the ip header offset should point to the
+ *	inner ip header and IPv4 checksum of the external header should be
+ *	calculated by driver.
+ * @IWM_TX_CMD_OFFLD_L4_EN: enable TCP/UDP checksum
+ * @IWM_TX_CMD_OFFLD_L3_EN: enable IP header checksum
+ * @IWM_TX_CMD_OFFLD_MH_SIZE: size of the mac header in words. Includes the IV
+ *	field. Doesn't include the pad.
+ * @IWM_TX_CMD_OFFLD_PAD: mark 2-byte pad was inserted after the mac header for
+ *	alignment
+ * @IWM_TX_CMD_OFFLD_AMSDU: mark TX command is A-MSDU
+ */
+enum iwm_tx_offload_assist_flags_pos {
+	IWM_TX_CMD_OFFLD_IP_HDR =	0,
+	IWM_TX_CMD_OFFLD_L4_EN =	6,
+	IWM_TX_CMD_OFFLD_L3_EN =	7,
+	IWM_TX_CMD_OFFLD_MH_SIZE =	8,
+	IWM_TX_CMD_OFFLD_PAD =		13,
+	IWM_TX_CMD_OFFLD_AMSDU =	14,
+};
+
+#define IWM_TX_CMD_OFFLD_MH_MASK	0x1f
+#define IWM_TX_CMD_OFFLD_IP_HDR_MASK	0x3f
+
 /* TODO: complete documentation for try_cnt and btkill_cnt */
 /**
  * struct iwm_tx_cmd - TX command struct to FW
  * ( IWM_TX_CMD = 0x1c )
  * @len: in bytes of the payload, see below for details
- * @next_frame_len: same as len, but for next frame (0 if not applicable)
- *	Used for fragmentation and bursting, but not in 11n aggregation.
+ * @offload_assist: TX offload configuration
  * @tx_flags: combination of IWM_TX_CMD_FLG_*
  * @rate_n_flags: rate for *all* Tx attempts, if IWM_TX_CMD_FLG_STA_RATE_MSK is
  *	cleared. Combination of IWM_RATE_MCS_*
@@ -4348,7 +4547,7 @@ enum iwm_tx_pm_timeouts {
  */
 struct iwm_tx_cmd {
 	uint16_t len;
-	uint16_t next_frame_len;
+	uint16_t offload_assist;
 	uint32_t tx_flags;
 	struct {
 		uint8_t try_cnt;
@@ -4361,8 +4560,7 @@ struct iwm_tx_cmd {
 	uint8_t initial_rate_index;
 	uint8_t reserved2;
 	uint8_t key[16];
-	uint16_t next_frame_flags;
-	uint16_t reserved3;
+	uint32_t reserved3;
 	uint32_t life_time;
 	uint32_t dram_lsb_ptr;
 	uint8_t dram_msb_ptr;
@@ -4370,7 +4568,7 @@ struct iwm_tx_cmd {
 	uint8_t data_retry_limit;
 	uint8_t tid_tspec;
 	uint16_t pm_frame_timeout;
-	uint16_t driver_txop;
+	uint16_t reserved4;
 	uint8_t payload[0];
 	struct ieee80211_frame hdr[0];
 } __packed; /* IWM_TX_CMD_API_S_VER_3 */
@@ -5290,21 +5488,44 @@ struct iwm_scan_req_umac_tail {
 } __packed;
 
 /**
+ * struct iwm_scan_uma_chan_param
+ * @flags: channel flags &enum iwm_scan_channel_flags
+ * @count: num of channels in scan request
+ * @reserved: for future use and alignment
+ */
+struct iwm_scan_umac_chan_param {
+	uint8_t flags;
+	uint8_t count;
+	uint16_t reserved;
+} __packed;
+
+/**
  * struct iwm_scan_req_umac
  * @flags: &enum iwm_umac_scan_flags
  * @uid: scan id, &enum iwm_umac_scan_uid_offsets
  * @ooc_priority: out of channel priority - &enum iwm_scan_priority
  * @general_flags: &enum iwm_umac_scan_general_flags
+ * @scan_start_mac_id: report the scan start TSF time according to this mac TSF
  * @extended_dwell: dwell time for channels 1, 6 and 11
- * @active_dwell: dwell time for active scan
- * @passive_dwell: dwell time for passive scan
+ * @active_dwell: dwell time for active scan per LMAC
+ * @passive_dwell: dwell time for passive scan per LMAC
  * @fragmented_dwell: dwell time for fragmented passive scan
- * @max_out_time: max out of serving channel time
- * @suspend_time: max suspend time
- * @scan_priority: scan internal prioritization &enum iwm_scan_priority
- * @channel_flags: &enum iwm_scan_channel_flags
- * @n_channels: num of channels in scan request
+ * @adwell_default_n_aps: for adaptive dwell the default number of APs
+ *	per channel
+ * @adwell_default_n_aps_social: for adaptive dwell the default
+ *	number of APs per social (1,6,11) channel
+ * @general_flags2: &enum iwl_umac_scan_general_flags2
+ * @adwell_max_budget: for adaptive dwell the maximal budget of TU to be added
+ *	to total scan time
+ * @max_out_time: max out of serving channel time, per LMAC - for CDB there
+ *	are 2 LMACs
+ * @suspend_time: max suspend time, per LMAC - for CDB there are 2 LMACs
+ * @scan_priority: scan internal prioritization &enum iwl_scan_priority
+ * @num_of_fragments: Number of fragments needed for full coverage per band.
+ *	Relevant only for fragmented scan.
+ * @channel: &struct iwl_scan_umac_chan_param
  * @reserved: for future use and alignment
+ * @reserved3: for future use and alignment
  * @data: &struct iwm_scan_channel_cfg_umac and
  *	&struct iwm_scan_req_umac_tail
  */
@@ -5312,21 +5533,40 @@ struct iwm_scan_req_umac {
 	uint32_t flags;
 	uint32_t uid;
 	uint32_t ooc_priority;
-	/* SCAN_GENERAL_PARAMS_API_S_VER_1 */
-	uint32_t general_flags;
-	uint8_t extended_dwell;
-	uint8_t active_dwell;
-	uint8_t passive_dwell;
-	uint8_t fragmented_dwell;
-	uint32_t max_out_time;
-	uint32_t suspend_time;
-	uint32_t scan_priority;
-	/* SCAN_CHANNEL_PARAMS_API_S_VER_1 */
-	uint8_t channel_flags;
-	uint8_t n_channels;
-	uint16_t reserved;
-	uint8_t data[];
-} __packed; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_1 */
+	uint16_t general_flags;
+	uint8_t reserved;
+	uint8_t scan_start_mac_id;
+	union {
+		struct {
+			uint8_t extended_dwell;
+			uint8_t active_dwell;
+			uint8_t passive_dwell;
+			uint8_t fragmented_dwell;
+			uint32_t max_out_time;
+			uint32_t suspend_time;
+			uint32_t scan_priority;
+			struct iwm_scan_umac_chan_param channel;
+			uint8_t data[];
+		} v1;
+		struct {
+			uint8_t active_dwell;
+			uint8_t passive_dwell;
+			uint8_t fragmented_dwell;
+			uint8_t adwell_default_n_aps;
+			uint8_t adwell_default_n_aps_social;
+			uint8_t reserved3;
+			uint16_t adwell_max_budget;
+			uint32_t max_out_time[2];
+			uint32_t suspend_time[2];
+			uint32_t scan_priority;
+			struct iwm_scan_umac_chan_param channel;
+			uint8_t data[];
+		} v7;
+	};
+} __packed;
+
+#define IWM_SCAN_REQ_UMAC_SIZE_V7 48
+#define IWM_SCAN_REQ_UMAC_SIZE_V1 36
 
 /**
  * struct iwm_umac_scan_abort
@@ -5636,30 +5876,34 @@ struct iwm_mvm_keyinfo {
 #define IWM_ADD_STA_BAID_SHIFT		8
 
 /**
- * struct iwm_mvm_add_sta_cmd - Add/modify a station in the fw's sta table.
+ * struct iwl_mvm_add_sta_cmd_v7 - Add/modify a station in the fw's sta table.
  * ( REPLY_ADD_STA = 0x18 )
- * @add_modify: 1: modify existing, 0: add new station
- * @awake_acs:
+ * @add_modify: see &enum iwl_sta_mode
+ * @awake_acs: ACs to transmit data on while station is sleeping (for U-APSD)
  * @tid_disable_tx: is tid BIT(tid) enabled for Tx. Clear BIT(x) to enable
- *	AMPDU for tid x. Set %IWM_STA_MODIFY_TID_DISABLE_TX to change this field.
- * @mac_id_n_color: the Mac context this station belongs to
- * @addr[IEEE80211_ADDR_LEN]: station's MAC address
+ *	AMPDU for tid x. Set %STA_MODIFY_TID_DISABLE_TX to change this field.
+ * @mac_id_n_color: the Mac context this station belongs to,
+ *	see &enum iwl_ctxt_id_and_color
+ * @addr: station's MAC address
+ * @reserved2: reserved
  * @sta_id: index of station in uCode's station table
- * @modify_mask: IWM_STA_MODIFY_*, selects which parameters to modify vs. leave
+ * @modify_mask: STA_MODIFY_*, selects which parameters to modify vs. leave
  *	alone. 1 - modify, 0 - don't change.
- * @station_flags: look at %iwm_sta_flags
- * @station_flags_msk: what of %station_flags have changed
+ * @reserved3: reserved
+ * @station_flags: look at &enum iwl_sta_flags
+ * @station_flags_msk: what of %station_flags have changed,
+ *	also &enum iwl_sta_flags
  * @add_immediate_ba_tid: tid for which to add block-ack support (Rx)
- *	Set %IWM_STA_MODIFY_ADD_BA_TID to use this field, and also set
+ *	Set %STA_MODIFY_ADD_BA_TID to use this field, and also set
  *	add_immediate_ba_ssn.
  * @remove_immediate_ba_tid: tid for which to remove block-ack support (Rx)
- *	Set %IWM_STA_MODIFY_REMOVE_BA_TID to use this field
+ *	Set %STA_MODIFY_REMOVE_BA_TID to use this field
  * @add_immediate_ba_ssn: ssn for the Rx block-ack session. Used together with
  *	add_immediate_ba_tid.
  * @sleep_tx_count: number of packets to transmit to station even though it is
  *	asleep. Used to synchronise PS-poll and u-APSD responses while ucode
  *	keeps track of STA sleep state.
- * @sleep_state_flags: Look at %iwm_sta_sleep_flag.
+ * @sleep_state_flags: Look at &enum iwl_sta_sleep_flag.
  * @assoc_id: assoc_id to be sent in VHT PLCP (9-bit), for grp use 0, for AP
  *	mac-addr.
  * @beamform_flags: beam forming controls
@@ -5667,12 +5911,12 @@ struct iwm_mvm_keyinfo {
  *
  * The device contains an internal table of per-station information, with info
  * on security keys, aggregation parameters, and Tx rates for initial Tx
- * attempt and any retries (set by IWM_REPLY_TX_LINK_QUALITY_CMD).
+ * attempt and any retries (set by REPLY_TX_LINK_QUALITY_CMD).
  *
  * ADD_STA sets up the table entry for one station, either creating a new
  * entry, or modifying a pre-existing one.
  */
-struct iwm_mvm_add_sta_cmd {
+struct iwm_mvm_add_sta_cmd_v7 {
 	uint8_t add_modify;
 	uint8_t awake_acs;
 	uint16_t tid_disable_tx;
@@ -5693,6 +5937,97 @@ struct iwm_mvm_add_sta_cmd {
 	uint16_t beamform_flags;
 	uint32_t tfd_queue_msk;
 } __packed; /* ADD_STA_CMD_API_S_VER_7 */
+
+/**
+ * enum iwm_sta_type - FW station types
+ * ( REPLY_ADD_STA = 0x18 )
+ * @IWM_STA_LINK: Link station - normal RX and TX traffic.
+ * @IWM_STA_GENERAL_PURPOSE: General purpose. In AP mode used for beacons
+ *	and probe responses.
+ * @IWM_STA_MULTICAST: multicast traffic,
+ * @IWM_STA_TDLS_LINK: TDLS link station
+ * @IWM_STA_AUX_ACTIVITY: auxilary station (scan, ROC and so on).
+ */
+enum iwm_sta_type {
+	IWM_STA_LINK,
+	IWM_STA_GENERAL_PURPOSE,
+	IWM_STA_MULTICAST,
+	IWM_STA_TDLS_LINK,
+	IWM_STA_AUX_ACTIVITY,
+};
+
+/**
+ * struct iwm_mvm_add_sta_cmd - Add/modify a station in the fw's sta table.
+ * ( REPLY_ADD_STA = 0x18 )
+ * @add_modify: see &enum iwm_sta_mode
+ * @awake_acs: ACs to transmit data on while station is sleeping (for U-APSD)
+ * @tid_disable_tx: is tid BIT(tid) enabled for Tx. Clear BIT(x) to enable
+ *	AMPDU for tid x. Set %STA_MODIFY_TID_DISABLE_TX to change this field.
+ * @mac_id_n_color: the Mac context this station belongs to,
+ *	see &enum iwl_ctxt_id_and_color
+ * @addr: station's MAC address
+ * @reserved2: reserved
+ * @sta_id: index of station in uCode's station table
+ * @modify_mask: STA_MODIFY_*, selects which parameters to modify vs. leave
+ *	alone. 1 - modify, 0 - don't change.
+ * @reserved3: reserved
+ * @station_flags: look at &enum iwm_sta_flags
+ * @station_flags_msk: what of %station_flags have changed,
+ *	also &enum iwm_sta_flags
+ * @add_immediate_ba_tid: tid for which to add block-ack support (Rx)
+ *	Set %STA_MODIFY_ADD_BA_TID to use this field, and also set
+ *	add_immediate_ba_ssn.
+ * @remove_immediate_ba_tid: tid for which to remove block-ack support (Rx)
+ *	Set %STA_MODIFY_REMOVE_BA_TID to use this field
+ * @add_immediate_ba_ssn: ssn for the Rx block-ack session. Used together with
+ *	add_immediate_ba_tid.
+ * @sleep_tx_count: number of packets to transmit to station even though it is
+ *	asleep. Used to synchronise PS-poll and u-APSD responses while ucode
+ *	keeps track of STA sleep state.
+ * @station_type: type of this station. See &enum iwl_sta_type.
+ * @sleep_state_flags: Look at &enum iwl_sta_sleep_flag.
+ * @assoc_id: assoc_id to be sent in VHT PLCP (9-bit), for grp use 0, for AP
+ *	mac-addr.
+ * @beamform_flags: beam forming controls
+ * @tfd_queue_msk: tfd queues used by this station.
+ *	Obselete for new TX API (9 and above).
+ * @rx_ba_window: aggregation window size
+ * @sp_length: the size of the SP in actual number of frames
+ * @uapsd_acs:  4 LS bits are trigger enabled ACs, 4 MS bits are the deliver
+ *	enabled ACs.
+ *
+ * The device contains an internal table of per-station information, with info
+ * on security keys, aggregation parameters, and Tx rates for initial Tx
+ * attempt and any retries (set by REPLY_TX_LINK_QUALITY_CMD).
+ *
+ * ADD_STA sets up the table entry for one station, either creating a new
+ * entry, or modifying a pre-existing one.
+ */
+struct iwm_mvm_add_sta_cmd {
+	uint8_t add_modify;
+	uint8_t awake_acs;
+	uint16_t tid_disable_tx;
+	uint32_t mac_id_n_color;
+	uint8_t addr[IEEE80211_ADDR_LEN]; /* _STA_ID_MODIFY_INFO_API_S_VER_1 */
+	uint16_t reserved2;
+	uint8_t sta_id;
+	uint8_t modify_mask;
+	uint16_t reserved3;
+	uint32_t station_flags;
+	uint32_t station_flags_msk;
+	uint8_t add_immediate_ba_tid;
+	uint8_t remove_immediate_ba_tid;
+	uint16_t add_immediate_ba_ssn;
+	uint16_t sleep_tx_count;
+	uint8_t sleep_state_flags;
+	uint8_t station_type;
+	uint16_t assoc_id;
+	uint16_t beamform_flags;
+	uint32_t tfd_queue_msk;
+	uint16_t rx_ba_window;
+	uint8_t sp_length;
+	uint8_t uapsd_acs;
+} __packed; /* ADD_STA_CMD_API_S_VER_10 */
 
 /**
  * struct iwm_mvm_add_sta_key_cmd - add/modify sta key

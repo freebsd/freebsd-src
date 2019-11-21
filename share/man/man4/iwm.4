@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 29, 2017
+.Dd November 7, 2019
 .Dt IWM 4
 .Os
 .Sh NAME
@@ -51,6 +51,8 @@ Choose one from:
 .Cd "device iwm7265fw"
 .Cd "device iwm8000Cfw"
 .Cd "device iwm8265fw"
+.Cd "device iwm9000fw"
+.Cd "device iwm9260fw"
 .Ed
 .Pp
 Or you can use
@@ -71,6 +73,8 @@ iwm7260fw_load="YES"
 iwm7265fw_load="YES"
 iwm8000Cfw_load="YES"
 iwm8265fw_load="YES"
+iwm9000fw_load="YES"
+iwm9260fw_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
@@ -84,6 +88,10 @@ driver provides support for:
 .It Intel Dual Band Wireless AC 7260
 .It Intel Dual Band Wireless AC 7265
 .It Intel Dual Band Wireless AC 8260
+.It Intel Dual Band Wireless AC 9260
+.It Intel Dual Band Wireless AC 9270
+.It Intel Dual Band Wireless AC 946X
+.It Intel Dual Band Wireless AC 9560
 .El
 .Pp
 .Nm
