@@ -44,7 +44,7 @@ documentation.
 .Pp
 If not explicitly mentioned, sizes are in bytes.
 The architecture details in this document apply to
-.Fx 10.0
+.Fx 11.0
 and later, unless otherwise noted.
 .Pp
 .Fx
@@ -274,8 +274,8 @@ is 8 bytes on all supported architectures except i386.
 .It aarch64     Ta hard Ta soft, quad precision
 .It amd64       Ta hard Ta hard, 80 bit
 .It arm         Ta soft Ta soft, double precision
-.It armv6       Ta hard(1) Ta hard, double precision
-.It armv7       Ta hard(1) Ta hard, double precision
+.It armv6       Ta hard Ta hard, double precision
+.It armv7       Ta hard Ta hard, double precision
 .It i386        Ta hard Ta hard, 80 bit
 .It mips        Ta soft Ta identical to double
 .It mipsel      Ta soft Ta identical to double
@@ -293,11 +293,6 @@ is 8 bytes on all supported architectures except i386.
 .It riscv64sf   Ta soft Ta soft, double precision
 .It sparc64     Ta hard Ta hard, quad precision
 .El
-.Pp
-(1) Prior to
-.Fx 11.0 ,
-armv6 used the softfp ABI even though it supported only processors
-with a floating point unit.
 .Ss Default Tool Chain
 .Fx uses a variety of tool chain components for the supported CPU
 architectures:
