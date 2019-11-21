@@ -79,21 +79,7 @@ OBJCOPY?=	objcopy
 .include "kern.opts.mk"
 .include <bsd.compiler.mk>
 .include "config.mk"
-
-# Search for kernel source tree in standard places.
-.if empty(KERNBUILDDIR)
-.if !defined(SYSDIR)
-.for _dir in ${SRCTOP:D${SRCTOP}/sys} \
-    ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
-.if !defined(SYSDIR) && exists(${_dir}/kern/)
-SYSDIR=	${_dir:tA}
-.endif
-.endfor
-.endif
-.if !defined(SYSDIR) || !exists(${SYSDIR}/kern/)
-.error "can't find kernel source tree"
-.endif
-.endif
+.include <bsd.sysdir.mk>
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S .m
 
