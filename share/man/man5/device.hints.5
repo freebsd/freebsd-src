@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 23, 2015
+.Dd November 19, 2019
 .Dt DEVICE.HINTS 5
 .Os
 .Sh NAME
@@ -138,13 +138,13 @@ Notes on the kernel configuration file and device resource hints.
 .El
 .Sh EXAMPLES
 The following example sets up resources for the
-.Xr sio 4
+.Xr uart 4
 driver on the ISA bus:
 .Bd -literal -offset indent
-hint.sio.0.at="isa"
-hint.sio.0.port="0x3F8"
-hint.sio.0.flags="0x10"
-hint.sio.0.irq="4"
+hint.uart.0.at="isa"
+hint.uart.0.port="0x3F8"
+hint.uart.0.flags="0x10"
+hint.uart.0.irq="4"
 .Ed
 .Pp
 The following example disables the ACPI driver:
