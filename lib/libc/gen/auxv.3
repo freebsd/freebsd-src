@@ -49,6 +49,12 @@ can be requested (corresponding buffer sizes are specified in parenthesis):
 .It AT_CANARY
 The canary value for SSP (arbitrary sized buffer, as many bytes are
 returned as it fits into it, rest is zeroed).
+.It AT_EXECPATH
+The path of executed program
+.Dv (MAXPATHLEN).
+This may not be present if the process was initialized by
+.Xr fexecve 2
+and the namecache no longer contains the file's name.
 .It AT_HWCAP
 CPU / hardware feature flags
 .Dv (sizeof(u_long)).
