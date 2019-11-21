@@ -275,6 +275,84 @@ bit_ffc(bitstr_t *_bitstr, int _nbits, int *_result)
 	bit_ffc_at(_bitstr, /*start*/0, _nbits, _result);
 }
 
+/* Find contiguous sequence of at least size set bits at or after start */
+static inline void
+bit_ffs_area_at(bitstr_t *_bitstr, int _start, int _nbits, int _size, int *_result)
+{
+	int _index, _end, _i;
+again:
+	/* Find the first set bit */
+	bit_ffs_at(_bitstr, _start, _nbits, &_index);
+	if (_index < 0) {
+		*_result = -1;
+		return;
+	}
+
+	/* Make sure there is enough room left in the bitstr */
+	_end = _index + _size;
+	if (_end > _nbits) {
+		*_result = -1;
+		return;
+	}
+
+	/* Find the next cleared bit starting at _index, stopping at _end */
+	bit_ffc_at(_bitstr, _index, _end, &_i);
+	if (_i >= 0) {
+		/* we found a clear bit between _index and _end, so skip ahead
+		 * to the next bit and try again
+		 */
+		_start = _i + 1;
+		goto again;
+	}
+	*_result = _index;
+}
+
+/* Find contiguous sequence of at least size cleared bits at or after start */
+static inline void
+bit_ffc_area_at(bitstr_t *_bitstr, int _start, int _nbits, int _size, int *_result)
+{
+	int _index, _end, _i;
+again:
+	/* Find the first zero bit */
+	bit_ffc_at(_bitstr, _start, _nbits, &_index);
+	if (_index < 0) {
+		*_result = -1;
+		return;
+	}
+
+	/* Make sure there is enough room left in the bitstr */
+	_end = _index + _size;
+	if (_end > _nbits) {
+		*_result = -1;
+		return;
+	}
+
+	/* Find the next set bit starting at _index, stopping at _end */
+	bit_ffs_at(_bitstr, _index, _end, &_i);
+	if (_i >= 0) {
+		/* we found a set bit between _index and _end, so skip ahead
+		 * to the next bit and try again
+		 */
+		_start = _i + 1;
+		goto again;
+	}
+	*_result = _index;
+}
+
+/* Find contiguous sequence of at least size set bits in bit string */
+static inline void
+bit_ffs_area(bitstr_t *_bitstr, int _nbits, int _size, int *_result)
+{
+	bit_ffs_area_at(_bitstr, /*start*/0, _nbits, _size, _result);
+}
+
+/* Find contiguous sequence of at least size cleared bits in bit string */
+static inline void
+bit_ffc_area(bitstr_t *_bitstr, int _nbits, int _size, int *_result)
+{
+	bit_ffc_area_at(_bitstr, /*start*/0, _nbits, _size, _result);
+}
+
 /* Count the number of bits set in a bitstr of size _nbits at or after _start */
 static inline void
 bit_count(bitstr_t *_bitstr, int _start, int _nbits, int *_result)
