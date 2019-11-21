@@ -175,7 +175,9 @@ struct callout_cpu {
 	void			*cc_cookie;
 	u_int			cc_bucket;
 	u_int			cc_inited;
+#ifdef KTR
 	char			cc_ktr_event_name[20];
+#endif
 };
 
 #define	callout_migrating(c)	((c)->c_iflags & CALLOUT_DFRMIGRATION)
@@ -335,8 +337,10 @@ callout_cpu_init(struct callout_cpu *cc, int cpu)
 	cc->cc_firstevent = SBT_MAX;
 	for (i = 0; i < 2; i++)
 		cc_cce_cleanup(cc, i);
+#ifdef KTR
 	snprintf(cc->cc_ktr_event_name, sizeof(cc->cc_ktr_event_name),
 	    "callwheel cpu %d", cpu);
+#endif
 	if (cc->cc_callout == NULL)	/* Only BSP handles timeout(9) */
 		return;
 	for (i = 0; i < ncallout; i++) {
