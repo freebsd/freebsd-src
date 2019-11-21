@@ -414,8 +414,6 @@ main(int argc, char *argv[])
     progname = "amd";
   am_set_progname(progname);
 
-  plog(XLOG_WARNING, "built-in amd in FreeBSD is deprecated and will be removed before FreeBSD 13");
-
   /*
    * Initialize process id.  This is kept
    * cached since it is used for generating
