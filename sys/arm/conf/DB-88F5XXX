@@ -3,6 +3,7 @@
 #
 # $FreeBSD$
 #
+#NO_UNIVERSE
 
 ident		DB-88F5XXX
 include 	"std.arm"
