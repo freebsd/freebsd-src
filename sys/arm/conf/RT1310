@@ -3,6 +3,7 @@
 #
 # $FreeBSD$
 #
+#NO_UNIVERSE
 
 ident		RT1310
 include 	"std.arm"
