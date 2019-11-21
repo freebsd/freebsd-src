@@ -347,13 +347,17 @@ Unless the make variable
 is defined, make universe will not build mips, powerpc, nor sparc64
 architectures unless the xtoolchain binaries have been installed for
 the architecture.
-.Ss MACHINE_ARCH vs MACHINE_CPUARCH
+.Ss MACHINE_ARCH vs MACHINE_CPUARCH vs MACHINE
 .Dv MACHINE_CPUARCH
 should be preferred in Makefiles when the generic
 architecture is being tested.
 .Dv MACHINE_ARCH
 should be preferred when there is something specific to a particular type of
 architecture where there is a choice of many, or could be a choice of many.
+Use
+.Dv MACHINE
+when referring to the kernel, interfaces dependent on a specific type of kernel
+or similar things like boot sequences.
 .Bl -column -offset indent "Dv MACHINE" "Dv MACHINE_CPUARCH" "Dv MACHINE_ARCH"
 .It Dv MACHINE Ta Dv MACHINE_CPUARCH Ta Dv MACHINE_ARCH
 .It arm64 Ta aarch64 Ta aarch64
