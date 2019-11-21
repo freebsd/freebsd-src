@@ -461,7 +461,6 @@ MAN=	aac.4 \
 	siftr.4 \
 	siis.4 \
 	simplebus.4 \
-	sio.4 \
 	sis.4 \
 	sk.4 \
 	${_smartpqi.4} \
