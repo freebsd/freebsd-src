@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20191121: Removal of sio(4)
+OLD_FILES+=usr/share/man/man4/sio.4.gz
 # 20191105: picobsd(8), et al, removed.
 OLD_FILES+=usr/share/man/man8/picobsd.8.gz
 # 20191009: new clang import which bumps version from 8.0.1 to 9.0.0.
