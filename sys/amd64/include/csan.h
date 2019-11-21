@@ -36,6 +36,12 @@
 #include <machine/vmparam.h>
 
 static inline bool
+kcsan_md_unsupported(vm_offset_t addr)
+{
+	return false;
+}
+
+static inline bool
 kcsan_md_is_avail(void)
 {
 	return true;
