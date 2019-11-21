@@ -11,6 +11,9 @@ clean:
 .if ${TARGET} == "amd64" || ${TARGET} == "i386"
 	rm -f LINT-VIMAGE LINT-NOINET LINT-NOINET6 LINT-NOIP
 .endif
+.if ${TARGET} == "powerpc"
+	rm -f LINT64
+.endif
 
 NOTES=	${.CURDIR}/../../conf/NOTES ${.CURDIR}/NOTES
 MAKELINT_SED= ${.CURDIR}/../../conf/makeLINT.sed
