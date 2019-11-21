@@ -286,8 +286,10 @@ kern/pic_if.m			optional	intrng
 kern/subr_devmap.c		standard
 kern/subr_intr.c		optional	intrng
 libkern/bcmp.c			standard
-libkern/memcmp.c		standard
-libkern/memset.c		standard
+libkern/memcmp.c		standard				\
+	compile-with "${NORMAL_C:N-fsanitize*}"
+libkern/memset.c		standard				\
+	compile-with "${NORMAL_C:N-fsanitize*}"
 libkern/arm64/crc32c_armv8.S	standard
 cddl/dev/dtrace/aarch64/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/aarch64/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"

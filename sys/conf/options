@@ -230,6 +230,7 @@ ZSTDIO		opt_zstdio.h
 # Sanitizers
 COVERAGE	opt_global.h
 KCOV
+KCSAN		opt_global.h
 KUBSAN		opt_global.h
 
 # POSIX kernel options

@@ -3,6 +3,7 @@
 /*
  * Copyright (c) 2019 The NetBSD Foundation, Inc.
  * All rights reserved.
+ * Copyright (c) 2019 Andrew Turner
  *
  * This code is derived from software contributed to The NetBSD Foundation
  * by Maxime Villard.
@@ -29,18 +30,25 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define	KCSAN_RUNTIME
+
+#include "opt_ddb.h"
+
 #include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD: subr_csan.c,v 1.5 2019/11/15 08:11:37 maxv Exp $");
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/device.h>
 #include <sys/kernel.h>
-#include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/systm.h>
-#include <sys/types.h>
-#include <sys/csan.h>
 #include <sys/cpu.h>
+#include <sys/csan.h>
+#include <sys/proc.h>
+#include <sys/smp.h>
+#include <sys/systm.h>
+
+#include <ddb/ddb.h>
+#include <ddb/db_sym.h>
 
 #ifdef KCSAN_PANIC
 #define REPORT panic
@@ -62,7 +70,7 @@ typedef struct {
 	csan_cell_t cell;
 } csan_cpu_t;
 
-static csan_cpu_t kcsan_cpus[MAXCPUS];
+static csan_cpu_t kcsan_cpus[MAXCPU];
 static bool kcsan_enabled __read_mostly;
 
 #define __RET_ADDR	(uintptr_t)__builtin_return_address(0)
@@ -77,34 +85,43 @@ static bool kcsan_enabled __read_mostly;
 
 /* -------------------------------------------------------------------------- */
 
-void
-kcsan_init(void)
+static void
+kcsan_enable(void *dummy __unused)
 {
+
+	printf("Enabling KCSCAN, expect reduced performance.\n");
 	kcsan_enabled = true;
 }
+SYSINIT(kcsan_enable, SI_SUB_SMP, SI_ORDER_SECOND, kcsan_enable, NULL);
 
 void
-kcsan_cpu_init(struct cpu_info *ci)
+kcsan_cpu_init(u_int cpu)
 {
-	kcsan_cpus[cpu_index(ci)].inited = true;
+	kcsan_cpus[cpu].inited = true;
 }
 
 /* -------------------------------------------------------------------------- */
 
 static inline void
-kcsan_report(csan_cell_t *new, cpuid_t newcpu, csan_cell_t *old, cpuid_t oldcpu)
+kcsan_report(csan_cell_t *new, u_int newcpu, csan_cell_t *old, u_int oldcpu)
 {
 	const char *newsym, *oldsym;
+#ifdef DDB
+	c_db_sym_t sym;
+	db_expr_t offset;
 
-	if (ksyms_getname(NULL, &newsym, (vaddr_t)new->pc, KSYMS_PROC) != 0) {
-		newsym = "Unknown";
-	}
-	if (ksyms_getname(NULL, &oldsym, (vaddr_t)old->pc, KSYMS_PROC) != 0) {
-		oldsym = "Unknown";
-	}
+	sym = db_search_symbol((vm_offset_t)new->pc, DB_STGY_PROC, &offset);
+	db_symbol_values(sym, &newsym, NULL);
+
+	sym = db_search_symbol((vm_offset_t)old->pc, DB_STGY_PROC, &offset);
+	db_symbol_values(sym, &oldsym, NULL);
+#else
+	newsym = "";
+	oldsym = "";
+#endif
 	REPORT("CSan: Racy Access "
-	    "[Cpu%lu %s%s Addr=%p Size=%u PC=%p<%s>] "
-	    "[Cpu%lu %s%s Addr=%p Size=%u PC=%p<%s>]\n",
+	    "[Cpu%u %s%s Addr=%p Size=%u PC=%p<%s>] "
+	    "[Cpu%u %s%s Addr=%p Size=%u PC=%p<%s>]\n",
 	    newcpu,
 	    (new->atomic ? "Atomic " : ""), (new->write ? "Write" : "Read"),
 	    (void *)new->addr, new->size, (void *)new->pc, newsym,
@@ -134,8 +151,6 @@ kcsan_access(uintptr_t addr, size_t size, bool write, bool atomic, uintptr_t pc)
 
 	if (__predict_false(!kcsan_enabled))
 		return;
-	if (__predict_false(kcsan_md_unsupported((vaddr_t)addr)))
-		return;
 
 	new.addr = addr;
 	new.size = size;
@@ -143,7 +158,7 @@ kcsan_access(uintptr_t addr, size_t size, bool write, bool atomic, uintptr_t pc)
 	new.atomic = atomic;
 	new.pc = pc;
 
-	for (i = 0; i < ncpu; i++) {
+	CPU_FOREACH(i) {
 		__builtin_memcpy(&old, &kcsan_cpus[i].cell, sizeof(old));
 
 		if (old.addr + old.size <= new.addr)
@@ -155,7 +170,7 @@ kcsan_access(uintptr_t addr, size_t size, bool write, bool atomic, uintptr_t pc)
 		if (__predict_true(kcsan_access_is_atomic(&new, &old)))
 			continue;
 
-		kcsan_report(&new, cpu_number(), &old, i);
+		kcsan_report(&new, PCPU_GET(cpuid), &old, i);
 		break;
 	}
 
@@ -164,7 +179,7 @@ kcsan_access(uintptr_t addr, size_t size, bool write, bool atomic, uintptr_t pc)
 
 	kcsan_md_disable_intrs(&intr);
 
-	cpu = &kcsan_cpus[cpu_number()];
+	cpu = &kcsan_cpus[PCPU_GET(cpuid)];
 	if (__predict_false(!cpu->inited))
 		goto out;
 	cpu->cnt = (cpu->cnt + 1) % KCSAN_NACCESSES;
@@ -184,6 +199,11 @@ out:
 	void __tsan_read##size(uintptr_t addr)				\
 	{								\
 		kcsan_access(addr, size, false, false, __RET_ADDR);	\
+	}								\
+	void __tsan_unaligned_read##size(uintptr_t);			\
+	void __tsan_unaligned_read##size(uintptr_t addr)		\
+	{								\
+		kcsan_access(addr, size, false, false, __RET_ADDR);	\
 	}
 
 CSAN_READ(1)
@@ -195,6 +215,11 @@ CSAN_READ(16)
 #define CSAN_WRITE(size)						\
 	void __tsan_write##size(uintptr_t);				\
 	void __tsan_write##size(uintptr_t addr)				\
+	{								\
+		kcsan_access(addr, size, true, false, __RET_ADDR);	\
+	}								\
+	void __tsan_unaligned_write##size(uintptr_t);			\
+	void __tsan_unaligned_write##size(uintptr_t addr)		\
 	{								\
 		kcsan_access(addr, size, true, false, __RET_ADDR);	\
 	}
@@ -321,33 +346,12 @@ kcsan_strlen(const char *str)
 	return (s - str);
 }
 
-#undef kcopy
 #undef copystr
-#undef copyinstr
-#undef copyoutstr
 #undef copyin
+#undef copyin_nofault
+#undef copyinstr
 #undef copyout
-
-int	kcsan_kcopy(const void *, void *, size_t);
-int	kcsan_copystr(const void *, void *, size_t, size_t *);
-int	kcsan_copyinstr(const void *, void *, size_t, size_t *);
-int	kcsan_copyoutstr(const void *, void *, size_t, size_t *);
-int	kcsan_copyin(const void *, void *, size_t);
-int	kcsan_copyout(const void *, void *, size_t);
-int	kcopy(const void *, void *, size_t);
-int	copystr(const void *, void *, size_t, size_t *);
-int	copyinstr(const void *, void *, size_t, size_t *);
-int	copyoutstr(const void *, void *, size_t, size_t *);
-int	copyin(const void *, void *, size_t);
-int	copyout(const void *, void *, size_t);
-
-int
-kcsan_kcopy(const void *src, void *dst, size_t len)
-{
-	kcsan_access((uintptr_t)src, len, false, false, __RET_ADDR);
-	kcsan_access((uintptr_t)dst, len, true, false, __RET_ADDR);
-	return kcopy(src, dst, len);
-}
+#undef copyout_nofault
 
 int
 kcsan_copystr(const void *kfaddr, void *kdaddr, size_t len, size_t *done)
@@ -364,13 +368,6 @@ kcsan_copyin(const void *uaddr, void *kaddr, size_t len)
 }
 
 int
-kcsan_copyout(const void *kaddr, void *uaddr, size_t len)
-{
-	kcsan_access((uintptr_t)kaddr, len, false, false, __RET_ADDR);
-	return copyout(kaddr, uaddr, len);
-}
-
-int
 kcsan_copyinstr(const void *uaddr, void *kaddr, size_t len, size_t *done)
 {
 	kcsan_access((uintptr_t)kaddr, len, true, false, __RET_ADDR);
@@ -378,377 +375,477 @@ kcsan_copyinstr(const void *uaddr, void *kaddr, size_t len, size_t *done)
 }
 
 int
-kcsan_copyoutstr(const void *kaddr, void *uaddr, size_t len, size_t *done)
+kcsan_copyout(const void *kaddr, void *uaddr, size_t len)
 {
 	kcsan_access((uintptr_t)kaddr, len, false, false, __RET_ADDR);
-	return copyoutstr(kaddr, uaddr, len, done);
+	return copyout(kaddr, uaddr, len);
 }
 
 /* -------------------------------------------------------------------------- */
 
-#undef atomic_add_32
-#undef atomic_add_int
-#undef atomic_add_long
-#undef atomic_add_ptr
-#undef atomic_add_64
-#undef atomic_add_32_nv
-#undef atomic_add_int_nv
-#undef atomic_add_long_nv
-#undef atomic_add_ptr_nv
-#undef atomic_add_64_nv
-#undef atomic_and_32
-#undef atomic_and_uint
-#undef atomic_and_ulong
-#undef atomic_and_64
-#undef atomic_and_32_nv
-#undef atomic_and_uint_nv
-#undef atomic_and_ulong_nv
-#undef atomic_and_64_nv
-#undef atomic_or_32
-#undef atomic_or_uint
-#undef atomic_or_ulong
-#undef atomic_or_64
-#undef atomic_or_32_nv
-#undef atomic_or_uint_nv
-#undef atomic_or_ulong_nv
-#undef atomic_or_64_nv
-#undef atomic_cas_32
-#undef atomic_cas_uint
-#undef atomic_cas_ulong
-#undef atomic_cas_ptr
-#undef atomic_cas_64
-#undef atomic_cas_32_ni
-#undef atomic_cas_uint_ni
-#undef atomic_cas_ulong_ni
-#undef atomic_cas_ptr_ni
-#undef atomic_cas_64_ni
-#undef atomic_swap_32
-#undef atomic_swap_uint
-#undef atomic_swap_ulong
-#undef atomic_swap_ptr
-#undef atomic_swap_64
-#undef atomic_dec_32
-#undef atomic_dec_uint
-#undef atomic_dec_ulong
-#undef atomic_dec_ptr
-#undef atomic_dec_64
-#undef atomic_dec_32_nv
-#undef atomic_dec_uint_nv
-#undef atomic_dec_ulong_nv
-#undef atomic_dec_ptr_nv
-#undef atomic_dec_64_nv
-#undef atomic_inc_32
-#undef atomic_inc_uint
-#undef atomic_inc_ulong
-#undef atomic_inc_ptr
-#undef atomic_inc_64
-#undef atomic_inc_32_nv
-#undef atomic_inc_uint_nv
-#undef atomic_inc_ulong_nv
-#undef atomic_inc_ptr_nv
-#undef atomic_inc_64_nv
+#include <machine/atomic.h>
+#include <sys/_cscan_atomic.h>
 
-#define CSAN_ATOMIC_FUNC_ADD(name, tret, targ1, targ2) \
-	void atomic_add_##name(volatile targ1 *, targ2); \
-	void kcsan_atomic_add_##name(volatile targ1 *, targ2); \
-	void kcsan_atomic_add_##name(volatile targ1 *ptr, targ2 val) \
-	{ \
-		kcsan_access((uintptr_t)ptr, sizeof(tret), true, true, \
-		    __RET_ADDR); \
-		atomic_add_##name(ptr, val); \
-	} \
-	tret atomic_add_##name##_nv(volatile targ1 *, targ2); \
-	tret kcsan_atomic_add_##name##_nv(volatile targ1 *, targ2); \
-	tret kcsan_atomic_add_##name##_nv(volatile targ1 *ptr, targ2 val) \
-	{ \
-		kcsan_access((uintptr_t)ptr, sizeof(tret), true, true, \
-		    __RET_ADDR); \
-		return atomic_add_##name##_nv(ptr, val); \
+#define	_CSAN_ATOMIC_FUNC_ADD(name, type)				\
+	void kcsan_atomic_add_##name(volatile type *ptr, type val)	\
+	{								\
+		kcsan_access((uintptr_t)ptr, sizeof(type), true, true,	\
+		    __RET_ADDR);					\
+		atomic_add_##name(ptr, val); 				\
 	}
 
-#define CSAN_ATOMIC_FUNC_AND(name, tret, targ1, targ2) \
-	void atomic_and_##name(volatile targ1 *, targ2); \
-	void kcsan_atomic_and_##name(volatile targ1 *, targ2); \
-	void kcsan_atomic_and_##name(volatile targ1 *ptr, targ2 val) \
-	{ \
-		kcsan_access((uintptr_t)ptr, sizeof(tret), true, true, \
-		    __RET_ADDR); \
-		atomic_and_##name(ptr, val); \
-	} \
-	tret atomic_and_##name##_nv(volatile targ1 *, targ2); \
-	tret kcsan_atomic_and_##name##_nv(volatile targ1 *, targ2); \
-	tret kcsan_atomic_and_##name##_nv(volatile targ1 *ptr, targ2 val) \
-	{ \
-		kcsan_access((uintptr_t)ptr, sizeof(tret), true, true, \
-		    __RET_ADDR); \
-		return atomic_and_##name##_nv(ptr, val); \
+#define	CSAN_ATOMIC_FUNC_ADD(name, type)				\
+	_CSAN_ATOMIC_FUNC_ADD(name, type)				\
+	_CSAN_ATOMIC_FUNC_ADD(acq_##name, type)				\
+	_CSAN_ATOMIC_FUNC_ADD(rel_##name, type)
+
+#define	_CSAN_ATOMIC_FUNC_CLEAR(name, type)				\
+	void kcsan_atomic_clear_##name(volatile type *ptr, type val)	\
+	{								\
+		kcsan_access((uintptr_t)ptr, sizeof(type), true, true,	\
+		    __RET_ADDR);					\
+		atomic_clear_##name(ptr, val); 				\
 	}
 
-#define CSAN_ATOMIC_FUNC_OR(name, tret, targ1, targ2) \
-	void atomic_or_##name(volatile targ1 *, targ2); \
-	void kcsan_atomic_or_##name(volatile targ1 *, targ2); \
-	void kcsan_atomic_or_##name(volatile targ1 *ptr, targ2 val) \
-	{ \
-		kcsan_access((uintptr_t)ptr, sizeof(tret), true, true, \
-		    __RET_ADDR); \
-		atomic_or_##name(ptr, val); \
-	} \
-	tret atomic_or_##name##_nv(volatile targ1 *, targ2); \
-	tret kcsan_atomic_or_##name##_nv(volatile targ1 *, targ2); \
-	tret kcsan_atomic_or_##name##_nv(volatile targ1 *ptr, targ2 val) \
-	{ \
-		kcsan_access((uintptr_t)ptr, sizeof(tret), true, true, \
-		    __RET_ADDR); \
-		return atomic_or_##name##_nv(ptr, val); \
+#define	CSAN_ATOMIC_FUNC_CLEAR(name, type)				\
+	_CSAN_ATOMIC_FUNC_CLEAR(name, type)				\
+	_CSAN_ATOMIC_FUNC_CLEAR(acq_##name, type)			\
+	_CSAN_ATOMIC_FUNC_CLEAR(rel_##name, type)
+
+#define	_CSAN_ATOMIC_FUNC_CMPSET(name, type)				\
+	int kcsan_atomic_cmpset_##name(volatile type *ptr, type val1,	\
+	    type val2)							\
+	{								\
+		kcsan_access((uintptr_t)ptr, sizeof(type), true, true,	\
+		    __RET_ADDR);					\
+		return (atomic_cmpset_##name(ptr, val1, val2));		\
 	}
 
-#define CSAN_ATOMIC_FUNC_CAS(name, tret, targ1, targ2) \
-	tret atomic_cas_##name(volatile targ1 *, targ2, targ2); \
-	tret kcsan_atomic_cas_##name(volatile targ1 *, targ2, targ2); \
-	tret kcsan_atomic_cas_##name(volatile targ1 *ptr, targ2 exp, targ2 new) \
-	{ \
-		kcsan_access((uintptr_t)ptr, sizeof(tret), true, true, \
-		    __RET_ADDR); \
-		return atomic_cas_##name(ptr, exp, new); \
-	} \
-	tret atomic_cas_##name##_ni(volatile targ1 *, targ2, targ2); \
-	tret kcsan_atomic_cas_##name##_ni(volatile targ1 *, targ2, targ2); \
-	tret kcsan_atomic_cas_##name##_ni(volatile targ1 *ptr, targ2 exp, targ2 new) \
-	{ \
-		kcsan_access((uintptr_t)ptr, sizeof(tret), true, true, \
-		    __RET_ADDR); \
-		return atomic_cas_##name##_ni(ptr, exp, new); \
+#define	CSAN_ATOMIC_FUNC_CMPSET(name, type)				\
+	_CSAN_ATOMIC_FUNC_CMPSET(name, type)				\
+	_CSAN_ATOMIC_FUNC_CMPSET(acq_##name, type)			\
+	_CSAN_ATOMIC_FUNC_CMPSET(rel_##name, type)
+
+#define	_CSAN_ATOMIC_FUNC_FCMPSET(name, type)				\
+	int kcsan_atomic_fcmpset_##name(volatile type *ptr, type *val1,	\
+	    type val2)							\
+	{								\
+		kcsan_access((uintptr_t)ptr, sizeof(type), true, true,	\
+		    __RET_ADDR);					\
+		return (atomic_fcmpset_##name(ptr, val1, val2));	\
 	}
 
-#define CSAN_ATOMIC_FUNC_SWAP(name, tret, targ1, targ2) \
-	tret atomic_swap_##name(volatile targ1 *, targ2); \
-	tret kcsan_atomic_swap_##name(volatile targ1 *, targ2); \
-	tret kcsan_atomic_swap_##name(volatile targ1 *ptr, targ2 val) \
-	{ \
-		kcsan_access((uintptr_t)ptr, sizeof(tret), true, true, \
-		    __RET_ADDR); \
-		return atomic_swap_##name(ptr, val); \
+#define	CSAN_ATOMIC_FUNC_FCMPSET(name, type)				\
+	_CSAN_ATOMIC_FUNC_FCMPSET(name, type)				\
+	_CSAN_ATOMIC_FUNC_FCMPSET(acq_##name, type)			\
+	_CSAN_ATOMIC_FUNC_FCMPSET(rel_##name, type)
+
+#define	CSAN_ATOMIC_FUNC_FETCHADD(name, type)				\
+	type kcsan_atomic_fetchadd_##name(volatile type *ptr, type val)	\
+	{								\
+		kcsan_access((uintptr_t)ptr, sizeof(type), true, true,	\
+		    __RET_ADDR);					\
+		return (atomic_fetchadd_##name(ptr, val));		\
 	}
 
-#define CSAN_ATOMIC_FUNC_DEC(name, tret, targ1) \
-	void atomic_dec_##name(volatile targ1 *); \
-	void kcsan_atomic_dec_##name(volatile targ1 *); \
-	void kcsan_atomic_dec_##name(volatile targ1 *ptr) \
-	{ \
-		kcsan_access((uintptr_t)ptr, sizeof(tret), true, true, \
-		    __RET_ADDR); \
-		atomic_dec_##name(ptr); \
-	} \
-	tret atomic_dec_##name##_nv(volatile targ1 *); \
-	tret kcsan_atomic_dec_##name##_nv(volatile targ1 *); \
-	tret kcsan_atomic_dec_##name##_nv(volatile targ1 *ptr) \
-	{ \
-		kcsan_access((uintptr_t)ptr, sizeof(tret), true, true, \
-		    __RET_ADDR); \
-		return atomic_dec_##name##_nv(ptr); \
+#define	_CSAN_ATOMIC_FUNC_LOAD(name, type)				\
+	type kcsan_atomic_load_##name(volatile type *ptr)		\
+	{								\
+		kcsan_access((uintptr_t)ptr, sizeof(type), false, true,	\
+		    __RET_ADDR);					\
+		return (atomic_load_##name(ptr));			\
 	}
 
-#define CSAN_ATOMIC_FUNC_INC(name, tret, targ1) \
-	void atomic_inc_##name(volatile targ1 *); \
-	void kcsan_atomic_inc_##name(volatile targ1 *); \
-	void kcsan_atomic_inc_##name(volatile targ1 *ptr) \
-	{ \
-		kcsan_access((uintptr_t)ptr, sizeof(tret), true, true, \
-		    __RET_ADDR); \
-		atomic_inc_##name(ptr); \
-	} \
-	tret atomic_inc_##name##_nv(volatile targ1 *); \
-	tret kcsan_atomic_inc_##name##_nv(volatile targ1 *); \
-	tret kcsan_atomic_inc_##name##_nv(volatile targ1 *ptr) \
-	{ \
-		kcsan_access((uintptr_t)ptr, sizeof(tret), true, true, \
-		    __RET_ADDR); \
-		return atomic_inc_##name##_nv(ptr); \
+#define	CSAN_ATOMIC_FUNC_LOAD(name, type)				\
+	_CSAN_ATOMIC_FUNC_LOAD(name, type)				\
+	_CSAN_ATOMIC_FUNC_LOAD(acq_##name, type)			\
+
+#define	CSAN_ATOMIC_FUNC_READANDCLEAR(name, type)			\
+	type kcsan_atomic_readandclear_##name(volatile type *ptr)	\
+	{								\
+		kcsan_access((uintptr_t)ptr, sizeof(type), true, true,	\
+		    __RET_ADDR);					\
+		return (atomic_readandclear_##name(ptr));		\
 	}
 
-CSAN_ATOMIC_FUNC_ADD(32, uint32_t, uint32_t, int32_t);
-CSAN_ATOMIC_FUNC_ADD(64, uint64_t, uint64_t, int64_t);
-CSAN_ATOMIC_FUNC_ADD(int, unsigned int, unsigned int, int);
-CSAN_ATOMIC_FUNC_ADD(long, unsigned long, unsigned long, long);
-CSAN_ATOMIC_FUNC_ADD(ptr, void *, void, ssize_t);
+#define	_CSAN_ATOMIC_FUNC_SET(name, type)				\
+	void kcsan_atomic_set_##name(volatile type *ptr, type val)	\
+	{								\
+		kcsan_access((uintptr_t)ptr, sizeof(type), true, true,	\
+		    __RET_ADDR);					\
+		atomic_set_##name(ptr, val); 				\
+	}
 
-CSAN_ATOMIC_FUNC_AND(32, uint32_t, uint32_t, uint32_t);
-CSAN_ATOMIC_FUNC_AND(64, uint64_t, uint64_t, uint64_t);
-CSAN_ATOMIC_FUNC_AND(uint, unsigned int, unsigned int, unsigned int);
-CSAN_ATOMIC_FUNC_AND(ulong, unsigned long, unsigned long, unsigned long);
+#define	CSAN_ATOMIC_FUNC_SET(name, type)				\
+	_CSAN_ATOMIC_FUNC_SET(name, type)				\
+	_CSAN_ATOMIC_FUNC_SET(acq_##name, type)				\
+	_CSAN_ATOMIC_FUNC_SET(rel_##name, type)
 
-CSAN_ATOMIC_FUNC_OR(32, uint32_t, uint32_t, uint32_t);
-CSAN_ATOMIC_FUNC_OR(64, uint64_t, uint64_t, uint64_t);
-CSAN_ATOMIC_FUNC_OR(uint, unsigned int, unsigned int, unsigned int);
-CSAN_ATOMIC_FUNC_OR(ulong, unsigned long, unsigned long, unsigned long);
+#define	_CSAN_ATOMIC_FUNC_SUBTRACT(name, type)				\
+	void kcsan_atomic_subtract_##name(volatile type *ptr, type val)	\
+	{								\
+		kcsan_access((uintptr_t)ptr, sizeof(type), true, true,	\
+		    __RET_ADDR);					\
+		atomic_subtract_##name(ptr, val); 			\
+	}
 
-CSAN_ATOMIC_FUNC_CAS(32, uint32_t, uint32_t, uint32_t);
-CSAN_ATOMIC_FUNC_CAS(64, uint64_t, uint64_t, uint64_t);
-CSAN_ATOMIC_FUNC_CAS(uint, unsigned int, unsigned int, unsigned int);
-CSAN_ATOMIC_FUNC_CAS(ulong, unsigned long, unsigned long, unsigned long);
-CSAN_ATOMIC_FUNC_CAS(ptr, void *, void, void *);
 
-CSAN_ATOMIC_FUNC_SWAP(32, uint32_t, uint32_t, uint32_t);
-CSAN_ATOMIC_FUNC_SWAP(64, uint64_t, uint64_t, uint64_t);
-CSAN_ATOMIC_FUNC_SWAP(uint, unsigned int, unsigned int, unsigned int);
-CSAN_ATOMIC_FUNC_SWAP(ulong, unsigned long, unsigned long, unsigned long);
-CSAN_ATOMIC_FUNC_SWAP(ptr, void *, void, void *);
+#define	CSAN_ATOMIC_FUNC_SUBTRACT(name, type)				\
+	_CSAN_ATOMIC_FUNC_SUBTRACT(name, type)				\
+	_CSAN_ATOMIC_FUNC_SUBTRACT(acq_##name, type)			\
+	_CSAN_ATOMIC_FUNC_SUBTRACT(rel_##name, type)
 
-CSAN_ATOMIC_FUNC_DEC(32, uint32_t, uint32_t)
-CSAN_ATOMIC_FUNC_DEC(64, uint64_t, uint64_t)
-CSAN_ATOMIC_FUNC_DEC(uint, unsigned int, unsigned int);
-CSAN_ATOMIC_FUNC_DEC(ulong, unsigned long, unsigned long);
-CSAN_ATOMIC_FUNC_DEC(ptr, void *, void);
+#define	_CSAN_ATOMIC_FUNC_STORE(name, type)				\
+	void kcsan_atomic_store_##name(volatile type *ptr, type val)	\
+	{								\
+		kcsan_access((uintptr_t)ptr, sizeof(type), true, true,	\
+		    __RET_ADDR);					\
+		atomic_store_##name(ptr, val); 				\
+	}
 
-CSAN_ATOMIC_FUNC_INC(32, uint32_t, uint32_t)
-CSAN_ATOMIC_FUNC_INC(64, uint64_t, uint64_t)
-CSAN_ATOMIC_FUNC_INC(uint, unsigned int, unsigned int);
-CSAN_ATOMIC_FUNC_INC(ulong, unsigned long, unsigned long);
-CSAN_ATOMIC_FUNC_INC(ptr, void *, void);
+#define	CSAN_ATOMIC_FUNC_STORE(name, type)				\
+	_CSAN_ATOMIC_FUNC_STORE(name, type)				\
+	_CSAN_ATOMIC_FUNC_STORE(rel_##name, type)
+
+#define	CSAN_ATOMIC_FUNC_SWAP(name, type)				\
+	type kcsan_atomic_swap_##name(volatile type *ptr, type val)	\
+	{								\
+		kcsan_access((uintptr_t)ptr, sizeof(type), true, true,	\
+		    __RET_ADDR);					\
+		return(atomic_swap_##name(ptr, val)); 			\
+	}
+
+#define	CSAN_ATOMIC_FUNC_TESTANDCLEAR(name, type)			\
+	int kcsan_atomic_testandclear_##name(volatile type *ptr, u_int val) \
+	{								\
+		kcsan_access((uintptr_t)ptr, sizeof(type), true, true,	\
+		    __RET_ADDR);					\
+		return(atomic_testandclear_##name(ptr, val)); 		\
+	}
+
+#define	CSAN_ATOMIC_FUNC_TESTANDSET(name, type)				\
+	int kcsan_atomic_testandset_##name(volatile type *ptr, u_int val) \
+	{								\
+		kcsan_access((uintptr_t)ptr, sizeof(type), true, true,	\
+		    __RET_ADDR);					\
+		return (atomic_testandset_##name(ptr, val)); 		\
+	}
+
+
+CSAN_ATOMIC_FUNC_ADD(8, uint8_t)
+CSAN_ATOMIC_FUNC_CLEAR(8, uint8_t)
+CSAN_ATOMIC_FUNC_CMPSET(8, uint8_t)
+CSAN_ATOMIC_FUNC_FCMPSET(8, uint8_t)
+_CSAN_ATOMIC_FUNC_LOAD(8, uint8_t)
+CSAN_ATOMIC_FUNC_SET(8, uint8_t)
+CSAN_ATOMIC_FUNC_SUBTRACT(8, uint8_t)
+_CSAN_ATOMIC_FUNC_STORE(8, uint8_t)
+#if 0
+CSAN_ATOMIC_FUNC_FETCHADD(8, uint8_t)
+CSAN_ATOMIC_FUNC_READANDCLEAR(8, uint8_t)
+CSAN_ATOMIC_FUNC_SWAP(8, uint8_t)
+CSAN_ATOMIC_FUNC_TESTANDCLEAR(8, uint8_t)
+CSAN_ATOMIC_FUNC_TESTANDSET(8, uint8_t)
+#endif
+
+CSAN_ATOMIC_FUNC_ADD(16, uint16_t)
+CSAN_ATOMIC_FUNC_CLEAR(16, uint16_t)
+CSAN_ATOMIC_FUNC_CMPSET(16, uint16_t)
+CSAN_ATOMIC_FUNC_FCMPSET(16, uint16_t)
+#if defined(__aarch64__)
+_CSAN_ATOMIC_FUNC_LOAD(16, uint16_t)
+#else
+CSAN_ATOMIC_FUNC_LOAD(16, uint16_t)
+#endif
+CSAN_ATOMIC_FUNC_SET(16, uint16_t)
+CSAN_ATOMIC_FUNC_SUBTRACT(16, uint16_t)
+_CSAN_ATOMIC_FUNC_STORE(16, uint16_t)
+#if 0
+CSAN_ATOMIC_FUNC_FETCHADD(16, uint16_t)
+CSAN_ATOMIC_FUNC_READANDCLEAR(16, uint16_t)
+CSAN_ATOMIC_FUNC_SWAP(16, uint16_t)
+CSAN_ATOMIC_FUNC_TESTANDCLEAR(16, uint16_t)
+CSAN_ATOMIC_FUNC_TESTANDSET(16, uint16_t)
+#endif
+
+CSAN_ATOMIC_FUNC_ADD(32, uint32_t)
+CSAN_ATOMIC_FUNC_CLEAR(32, uint32_t)
+CSAN_ATOMIC_FUNC_CMPSET(32, uint32_t)
+CSAN_ATOMIC_FUNC_FCMPSET(32, uint32_t)
+CSAN_ATOMIC_FUNC_FETCHADD(32, uint32_t)
+CSAN_ATOMIC_FUNC_LOAD(32, uint32_t)
+CSAN_ATOMIC_FUNC_READANDCLEAR(32, uint32_t)
+CSAN_ATOMIC_FUNC_SET(32, uint32_t)
+CSAN_ATOMIC_FUNC_SUBTRACT(32, uint32_t)
+CSAN_ATOMIC_FUNC_STORE(32, uint32_t)
+CSAN_ATOMIC_FUNC_SWAP(32, uint32_t)
+#if !defined(__aarch64__)
+CSAN_ATOMIC_FUNC_TESTANDCLEAR(32, uint32_t)
+CSAN_ATOMIC_FUNC_TESTANDSET(32, uint32_t)
+#endif
+
+CSAN_ATOMIC_FUNC_ADD(64, uint64_t)
+CSAN_ATOMIC_FUNC_CLEAR(64, uint64_t)
+CSAN_ATOMIC_FUNC_CMPSET(64, uint64_t)
+CSAN_ATOMIC_FUNC_FCMPSET(64, uint64_t)
+CSAN_ATOMIC_FUNC_FETCHADD(64, uint64_t)
+CSAN_ATOMIC_FUNC_LOAD(64, uint64_t)
+CSAN_ATOMIC_FUNC_READANDCLEAR(64, uint64_t)
+CSAN_ATOMIC_FUNC_SET(64, uint64_t)
+CSAN_ATOMIC_FUNC_SUBTRACT(64, uint64_t)
+CSAN_ATOMIC_FUNC_STORE(64, uint64_t)
+CSAN_ATOMIC_FUNC_SWAP(64, uint64_t)
+#if !defined(__aarch64__)
+CSAN_ATOMIC_FUNC_TESTANDCLEAR(64, uint64_t)
+CSAN_ATOMIC_FUNC_TESTANDSET(64, uint64_t)
+#endif
+
+CSAN_ATOMIC_FUNC_ADD(int, u_int)
+CSAN_ATOMIC_FUNC_CLEAR(int, u_int)
+CSAN_ATOMIC_FUNC_CMPSET(int, u_int)
+CSAN_ATOMIC_FUNC_FCMPSET(int, u_int)
+CSAN_ATOMIC_FUNC_FETCHADD(int, u_int)
+CSAN_ATOMIC_FUNC_LOAD(int, u_int)
+CSAN_ATOMIC_FUNC_READANDCLEAR(int, u_int)
+CSAN_ATOMIC_FUNC_SET(int, u_int)
+CSAN_ATOMIC_FUNC_SUBTRACT(int, u_int)
+CSAN_ATOMIC_FUNC_STORE(int, u_int)
+CSAN_ATOMIC_FUNC_SWAP(int, u_int)
+#if !defined(__aarch64__)
+CSAN_ATOMIC_FUNC_TESTANDCLEAR(int, u_int)
+CSAN_ATOMIC_FUNC_TESTANDSET(int, u_int)
+#endif
+
+CSAN_ATOMIC_FUNC_ADD(long, u_long)
+CSAN_ATOMIC_FUNC_CLEAR(long, u_long)
+CSAN_ATOMIC_FUNC_CMPSET(long, u_long)
+CSAN_ATOMIC_FUNC_FCMPSET(long, u_long)
+CSAN_ATOMIC_FUNC_FETCHADD(long, u_long)
+CSAN_ATOMIC_FUNC_LOAD(long, u_long)
+CSAN_ATOMIC_FUNC_READANDCLEAR(long, u_long)
+CSAN_ATOMIC_FUNC_SET(long, u_long)
+CSAN_ATOMIC_FUNC_SUBTRACT(long, u_long)
+CSAN_ATOMIC_FUNC_STORE(long, u_long)
+CSAN_ATOMIC_FUNC_SWAP(long, u_long)
+#if !defined(__aarch64__)
+CSAN_ATOMIC_FUNC_TESTANDCLEAR(long, u_long)
+CSAN_ATOMIC_FUNC_TESTANDSET(long, u_long)
+#endif
+
+CSAN_ATOMIC_FUNC_ADD(ptr, uintptr_t)
+CSAN_ATOMIC_FUNC_CLEAR(ptr, uintptr_t)
+CSAN_ATOMIC_FUNC_CMPSET(ptr, uintptr_t)
+CSAN_ATOMIC_FUNC_FCMPSET(ptr, uintptr_t)
+#if !defined(__amd64__)
+CSAN_ATOMIC_FUNC_FETCHADD(ptr, uintptr_t)
+#endif
+CSAN_ATOMIC_FUNC_LOAD(ptr, uintptr_t)
+CSAN_ATOMIC_FUNC_READANDCLEAR(ptr, uintptr_t)
+CSAN_ATOMIC_FUNC_SET(ptr, uintptr_t)
+CSAN_ATOMIC_FUNC_SUBTRACT(ptr, uintptr_t)
+CSAN_ATOMIC_FUNC_STORE(ptr, uintptr_t)
+CSAN_ATOMIC_FUNC_SWAP(ptr, uintptr_t)
+#if 0
+CSAN_ATOMIC_FUNC_TESTANDCLEAR(ptr, uintptr_t)
+CSAN_ATOMIC_FUNC_TESTANDSET(ptr, uintptr_t)
+#endif
+
+#define	CSAN_ATOMIC_FUNC_THREAD_FENCE(name)				\
+	void kcsan_atomic_thread_fence_##name(void)			\
+	{								\
+		atomic_thread_fence_##name();				\
+	}
+
+
+CSAN_ATOMIC_FUNC_THREAD_FENCE(acq)
+CSAN_ATOMIC_FUNC_THREAD_FENCE(acq_rel)
+CSAN_ATOMIC_FUNC_THREAD_FENCE(rel)
+CSAN_ATOMIC_FUNC_THREAD_FENCE(seq_cst)
 
 /* -------------------------------------------------------------------------- */
 
 #include <sys/bus.h>
+#include <machine/bus.h>
+#include <sys/_cscan_bus.h>
 
-#undef bus_space_read_multi_1
-#undef bus_space_read_multi_2
-#undef bus_space_read_multi_4
-#undef bus_space_read_multi_8
-#undef bus_space_read_multi_stream_1
-#undef bus_space_read_multi_stream_2
-#undef bus_space_read_multi_stream_4
-#undef bus_space_read_multi_stream_8
-#undef bus_space_read_region_1
-#undef bus_space_read_region_2
-#undef bus_space_read_region_4
-#undef bus_space_read_region_8
-#undef bus_space_read_region_stream_1
-#undef bus_space_read_region_stream_2
-#undef bus_space_read_region_stream_4
-#undef bus_space_read_region_stream_8
-#undef bus_space_write_multi_1
-#undef bus_space_write_multi_2
-#undef bus_space_write_multi_4
-#undef bus_space_write_multi_8
-#undef bus_space_write_multi_stream_1
-#undef bus_space_write_multi_stream_2
-#undef bus_space_write_multi_stream_4
-#undef bus_space_write_multi_stream_8
-#undef bus_space_write_region_1
-#undef bus_space_write_region_2
-#undef bus_space_write_region_4
-#undef bus_space_write_region_8
-#undef bus_space_write_region_stream_1
-#undef bus_space_write_region_stream_2
-#undef bus_space_write_region_stream_4
-#undef bus_space_write_region_stream_8
+int
+kcsan_bus_space_map(bus_space_tag_t tag, bus_addr_t hnd, bus_size_t size,
+    int flags, bus_space_handle_t *handlep)
+{
 
-#define CSAN_BUS_READ_FUNC(bytes, bits) \
-	void bus_space_read_multi_##bytes(bus_space_tag_t, bus_space_handle_t,	\
-	    bus_size_t, uint##bits##_t *, bus_size_t);				\
-	void kcsan_bus_space_read_multi_##bytes(bus_space_tag_t,		\
-	    bus_space_handle_t, bus_size_t, uint##bits##_t *, bus_size_t);	\
-	void kcsan_bus_space_read_multi_##bytes(bus_space_tag_t tag,		\
-	    bus_space_handle_t hnd, bus_size_t size, uint##bits##_t *buf,	\
-	    bus_size_t count)							\
-	{									\
-		kcsan_access((uintptr_t)buf, sizeof(uint##bits##_t) * count,	\
-		    false, false, __RET_ADDR);					\
-		bus_space_read_multi_##bytes(tag, hnd, size, buf, count);	\
-	}									\
-	void bus_space_read_multi_stream_##bytes(bus_space_tag_t,		\
-	    bus_space_handle_t, bus_size_t, uint##bits##_t *, bus_size_t);	\
-	void kcsan_bus_space_read_multi_stream_##bytes(bus_space_tag_t,		\
-	    bus_space_handle_t, bus_size_t, uint##bits##_t *, bus_size_t);	\
-	void kcsan_bus_space_read_multi_stream_##bytes(bus_space_tag_t tag,	\
-	    bus_space_handle_t hnd, bus_size_t size, uint##bits##_t *buf,	\
-	    bus_size_t count)							\
-	{									\
-		kcsan_access((uintptr_t)buf, sizeof(uint##bits##_t) * count,	\
-		    false, false, __RET_ADDR);					\
-		bus_space_read_multi_stream_##bytes(tag, hnd, size, buf, count);\
-	}									\
-	void bus_space_read_region_##bytes(bus_space_tag_t, bus_space_handle_t,	\
-	    bus_size_t, uint##bits##_t *, bus_size_t);				\
-	void kcsan_bus_space_read_region_##bytes(bus_space_tag_t,		\
-	    bus_space_handle_t, bus_size_t, uint##bits##_t *, bus_size_t);	\
-	void kcsan_bus_space_read_region_##bytes(bus_space_tag_t tag,		\
-	    bus_space_handle_t hnd, bus_size_t size, uint##bits##_t *buf,	\
-	    bus_size_t count)							\
-	{									\
-		kcsan_access((uintptr_t)buf, sizeof(uint##bits##_t) * count,	\
-		    false, false, __RET_ADDR);					\
-		bus_space_read_region_##bytes(tag, hnd, size, buf, count);	\
-	}									\
-	void bus_space_read_region_stream_##bytes(bus_space_tag_t,		\
-	    bus_space_handle_t, bus_size_t, uint##bits##_t *, bus_size_t);	\
-	void kcsan_bus_space_read_region_stream_##bytes(bus_space_tag_t,	\
-	    bus_space_handle_t, bus_size_t, uint##bits##_t *, bus_size_t);	\
-	void kcsan_bus_space_read_region_stream_##bytes(bus_space_tag_t tag,	\
-	    bus_space_handle_t hnd, bus_size_t size, uint##bits##_t *buf,	\
-	    bus_size_t count)							\
-	{									\
-		kcsan_access((uintptr_t)buf, sizeof(uint##bits##_t) * count,	\
-		    false, false, __RET_ADDR);					\
-		bus_space_read_region_stream_##bytes(tag, hnd, size, buf, count);\
+	return (bus_space_map(tag, hnd, size, flags, handlep));
+}
+
+void
+kcsan_bus_space_unmap(bus_space_tag_t tag, bus_space_handle_t hnd,
+    bus_size_t size)
+{
+
+	bus_space_unmap(tag, hnd, size);
+}
+
+int
+kcsan_bus_space_subregion(bus_space_tag_t tag, bus_space_handle_t hnd,
+    bus_size_t offset, bus_size_t size, bus_space_handle_t *handlep)
+{
+
+	return (bus_space_subregion(tag, hnd, offset, size, handlep));
+}
+
+#if !defined(__amd64__)
+int
+kcsan_bus_space_alloc(bus_space_tag_t tag, bus_addr_t reg_start,
+    bus_addr_t reg_end, bus_size_t size, bus_size_t alignment,
+    bus_size_t boundary, int flags, bus_addr_t *addrp,
+    bus_space_handle_t *handlep)
+{
+
+	return (bus_space_alloc(tag, reg_start, reg_end, size, alignment,
+	    boundary, flags, addrp, handlep));
+}
+#endif
+
+void
+kcsan_bus_space_free(bus_space_tag_t tag, bus_space_handle_t hnd,
+    bus_size_t size)
+{
+
+	bus_space_free(tag, hnd, size);
+}
+
+void
+kcsan_bus_space_barrier(bus_space_tag_t tag, bus_space_handle_t hnd,
+    bus_size_t offset, bus_size_t size, int flags)
+{
+
+	bus_space_barrier(tag, hnd, offset, size, flags);
+}
+
+#define CSAN_BUS_READ_FUNC(func, width, type)				\
+	type kcsan_bus_space_read##func##_##width(bus_space_tag_t tag,	\
+	    bus_space_handle_t hnd, bus_size_t offset)			\
+	{								\
+		return (bus_space_read##func##_##width(tag, hnd,	\
+		    offset));						\
+	}								\
+
+#define CSAN_BUS_READ_PTR_FUNC(func, width, type)			\
+	void kcsan_bus_space_read_##func##_##width(bus_space_tag_t tag,	\
+	    bus_space_handle_t hnd, bus_size_t size, type *buf,		\
+	    bus_size_t count)						\
+	{								\
+		kcsan_access((uintptr_t)buf, sizeof(type) * count,	\
+		    false, false, __RET_ADDR);				\
+		bus_space_read_##func##_##width(tag, hnd, size, buf, 	\
+		    count);						\
 	}
 
-#define CSAN_BUS_WRITE_FUNC(bytes, bits) \
-	void bus_space_write_multi_##bytes(bus_space_tag_t, bus_space_handle_t,	\
-	    bus_size_t, const uint##bits##_t *, bus_size_t);			\
-	void kcsan_bus_space_write_multi_##bytes(bus_space_tag_t,		\
-	    bus_space_handle_t, bus_size_t, const uint##bits##_t *, bus_size_t);\
-	void kcsan_bus_space_write_multi_##bytes(bus_space_tag_t tag,		\
-	    bus_space_handle_t hnd, bus_size_t size, const uint##bits##_t *buf,	\
-	    bus_size_t count)							\
-	{									\
-		kcsan_access((uintptr_t)buf, sizeof(uint##bits##_t) * count,	\
-		    true, false, __RET_ADDR);					\
-		bus_space_write_multi_##bytes(tag, hnd, size, buf, count);	\
-	}									\
-	void bus_space_write_multi_stream_##bytes(bus_space_tag_t,		\
-	    bus_space_handle_t, bus_size_t, const uint##bits##_t *, bus_size_t);\
-	void kcsan_bus_space_write_multi_stream_##bytes(bus_space_tag_t,	\
-	    bus_space_handle_t, bus_size_t, const uint##bits##_t *, bus_size_t);\
-	void kcsan_bus_space_write_multi_stream_##bytes(bus_space_tag_t tag,	\
-	    bus_space_handle_t hnd, bus_size_t size, const uint##bits##_t *buf,	\
-	    bus_size_t count)							\
-	{									\
-		kcsan_access((uintptr_t)buf, sizeof(uint##bits##_t) * count,	\
-		    true, false, __RET_ADDR);					\
-		bus_space_write_multi_stream_##bytes(tag, hnd, size, buf, count);\
-	}									\
-	void bus_space_write_region_##bytes(bus_space_tag_t, bus_space_handle_t,\
-	    bus_size_t, const uint##bits##_t *, bus_size_t);			\
-	void kcsan_bus_space_write_region_##bytes(bus_space_tag_t,		\
-	    bus_space_handle_t, bus_size_t, const uint##bits##_t *, bus_size_t);\
-	void kcsan_bus_space_write_region_##bytes(bus_space_tag_t tag,		\
-	    bus_space_handle_t hnd, bus_size_t size, const uint##bits##_t *buf,	\
-	    bus_size_t count)							\
-	{									\
-		kcsan_access((uintptr_t)buf, sizeof(uint##bits##_t) * count,	\
-		    true, false, __RET_ADDR);					\
-		bus_space_write_region_##bytes(tag, hnd, size, buf, count);	\
-	}									\
-	void bus_space_write_region_stream_##bytes(bus_space_tag_t,		\
-	    bus_space_handle_t, bus_size_t, const uint##bits##_t *, bus_size_t);\
-	void kcsan_bus_space_write_region_stream_##bytes(bus_space_tag_t,	\
-	    bus_space_handle_t, bus_size_t, const uint##bits##_t *, bus_size_t);\
-	void kcsan_bus_space_write_region_stream_##bytes(bus_space_tag_t tag,	\
-	    bus_space_handle_t hnd, bus_size_t size, const uint##bits##_t *buf,	\
-	    bus_size_t count)							\
-	{									\
-		kcsan_access((uintptr_t)buf, sizeof(uint##bits##_t) * count,	\
-		    true, false, __RET_ADDR);					\
-		bus_space_write_region_stream_##bytes(tag, hnd, size, buf, count);\
+CSAN_BUS_READ_FUNC(, 1, uint8_t)
+CSAN_BUS_READ_FUNC(_stream, 1, uint8_t)
+CSAN_BUS_READ_PTR_FUNC(multi, 1, uint8_t)
+CSAN_BUS_READ_PTR_FUNC(multi_stream, 1, uint8_t)
+CSAN_BUS_READ_PTR_FUNC(region, 1, uint8_t)
+CSAN_BUS_READ_PTR_FUNC(region_stream, 1, uint8_t)
+
+CSAN_BUS_READ_FUNC(, 2, uint16_t)
+CSAN_BUS_READ_FUNC(_stream, 2, uint16_t)
+CSAN_BUS_READ_PTR_FUNC(multi, 2, uint16_t)
+CSAN_BUS_READ_PTR_FUNC(multi_stream, 2, uint16_t)
+CSAN_BUS_READ_PTR_FUNC(region, 2, uint16_t)
+CSAN_BUS_READ_PTR_FUNC(region_stream, 2, uint16_t)
+
+CSAN_BUS_READ_FUNC(, 4, uint32_t)
+CSAN_BUS_READ_FUNC(_stream, 4, uint32_t)
+CSAN_BUS_READ_PTR_FUNC(multi, 4, uint32_t)
+CSAN_BUS_READ_PTR_FUNC(multi_stream, 4, uint32_t)
+CSAN_BUS_READ_PTR_FUNC(region, 4, uint32_t)
+CSAN_BUS_READ_PTR_FUNC(region_stream, 4, uint32_t)
+
+CSAN_BUS_READ_FUNC(, 8, uint64_t)
+#if defined(__aarch64__)
+CSAN_BUS_READ_FUNC(_stream, 8, uint64_t)
+CSAN_BUS_READ_PTR_FUNC(multi, 8, uint64_t)
+CSAN_BUS_READ_PTR_FUNC(multi_stream, 8, uint64_t)
+CSAN_BUS_READ_PTR_FUNC(region, 8, uint64_t)
+CSAN_BUS_READ_PTR_FUNC(region_stream, 8, uint64_t)
+#endif
+
+#define CSAN_BUS_WRITE_FUNC(func, width, type)				\
+	void kcsan_bus_space_write##func##_##width(bus_space_tag_t tag,		\
+	    bus_space_handle_t hnd, bus_size_t offset, type value)	\
+	{								\
+		bus_space_write##func##_##width(tag, hnd, offset, value); \
+	}								\
+
+#define CSAN_BUS_WRITE_PTR_FUNC(func, width, type)			\
+	void kcsan_bus_space_write_##func##_##width(bus_space_tag_t tag, \
+	    bus_space_handle_t hnd, bus_size_t size, const type *buf,	\
+	    bus_size_t count)						\
+	{								\
+		kcsan_access((uintptr_t)buf, sizeof(type) * count,	\
+		    true, false, __RET_ADDR);				\
+		bus_space_write_##func##_##width(tag, hnd, size, buf, 	\
+		    count);						\
 	}
 
-CSAN_BUS_READ_FUNC(1, 8)
-CSAN_BUS_READ_FUNC(2, 16)
-CSAN_BUS_READ_FUNC(4, 32)
-CSAN_BUS_READ_FUNC(8, 64)
+CSAN_BUS_WRITE_FUNC(, 1, uint8_t)
+CSAN_BUS_WRITE_FUNC(_stream, 1, uint8_t)
+CSAN_BUS_WRITE_PTR_FUNC(multi, 1, uint8_t)
+CSAN_BUS_WRITE_PTR_FUNC(multi_stream, 1, uint8_t)
+CSAN_BUS_WRITE_PTR_FUNC(region, 1, uint8_t)
+CSAN_BUS_WRITE_PTR_FUNC(region_stream, 1, uint8_t)
 
-CSAN_BUS_WRITE_FUNC(1, 8)
-CSAN_BUS_WRITE_FUNC(2, 16)
-CSAN_BUS_WRITE_FUNC(4, 32)
-CSAN_BUS_WRITE_FUNC(8, 64)
+CSAN_BUS_WRITE_FUNC(, 2, uint16_t)
+CSAN_BUS_WRITE_FUNC(_stream, 2, uint16_t)
+CSAN_BUS_WRITE_PTR_FUNC(multi, 2, uint16_t)
+CSAN_BUS_WRITE_PTR_FUNC(multi_stream, 2, uint16_t)
+CSAN_BUS_WRITE_PTR_FUNC(region, 2, uint16_t)
+CSAN_BUS_WRITE_PTR_FUNC(region_stream, 2, uint16_t)
+
+CSAN_BUS_WRITE_FUNC(, 4, uint32_t)
+CSAN_BUS_WRITE_FUNC(_stream, 4, uint32_t)
+CSAN_BUS_WRITE_PTR_FUNC(multi, 4, uint32_t)
+CSAN_BUS_WRITE_PTR_FUNC(multi_stream, 4, uint32_t)
+CSAN_BUS_WRITE_PTR_FUNC(region, 4, uint32_t)
+CSAN_BUS_WRITE_PTR_FUNC(region_stream, 4, uint32_t)
+
+CSAN_BUS_WRITE_FUNC(, 8, uint64_t)
+#if defined(__aarch64__)
+CSAN_BUS_WRITE_FUNC(_stream, 8, uint64_t)
+CSAN_BUS_WRITE_PTR_FUNC(multi, 8, uint64_t)
+CSAN_BUS_WRITE_PTR_FUNC(multi_stream, 8, uint64_t)
+CSAN_BUS_WRITE_PTR_FUNC(region, 8, uint64_t)
+CSAN_BUS_WRITE_PTR_FUNC(region_stream, 8, uint64_t)
+#endif
+
+#define CSAN_BUS_SET_FUNC(func, width, type)				\
+	void kcsan_bus_space_set_##func##_##width(bus_space_tag_t tag,	\
+	    bus_space_handle_t hnd, bus_size_t offset, type value,	\
+	    bus_size_t count)						\
+	{								\
+		bus_space_set_##func##_##width(tag, hnd, offset, value,	\
+		    count);						\
+	}
+
+CSAN_BUS_SET_FUNC(multi, 1, uint8_t)
+CSAN_BUS_SET_FUNC(multi_stream, 1, uint8_t)
+CSAN_BUS_SET_FUNC(region, 1, uint8_t)
+CSAN_BUS_SET_FUNC(region_stream, 1, uint8_t)
+
+CSAN_BUS_SET_FUNC(multi, 2, uint16_t)
+CSAN_BUS_SET_FUNC(multi_stream, 2, uint16_t)
+CSAN_BUS_SET_FUNC(region, 2, uint16_t)
+CSAN_BUS_SET_FUNC(region_stream, 2, uint16_t)
+
+CSAN_BUS_SET_FUNC(multi, 4, uint32_t)
+CSAN_BUS_SET_FUNC(multi_stream, 4, uint32_t)
+CSAN_BUS_SET_FUNC(region, 4, uint32_t)
+CSAN_BUS_SET_FUNC(region_stream, 4, uint32_t)
+
+#if !defined(__amd64__)
+CSAN_BUS_SET_FUNC(multi, 8, uint64_t)
+CSAN_BUS_SET_FUNC(multi_stream, 8, uint64_t)
+CSAN_BUS_SET_FUNC(region, 8, uint64_t)
+CSAN_BUS_SET_FUNC(region_stream, 8, uint64_t)
+#endif
+

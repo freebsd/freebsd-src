@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/cpu.h>
+#include <sys/csan.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/malloc.h>
@@ -252,6 +253,8 @@ init_secondary(uint64_t cpu)
 	}
 
 	mtx_unlock_spin(&ap_boot_mtx);
+
+	kcsan_cpu_init(cpu);
 
 	/* Enter the scheduler */
 	sched_throw(NULL);

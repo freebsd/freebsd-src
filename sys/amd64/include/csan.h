@@ -1,4 +1,4 @@
-/*	$NetBSD: csan.h,v 1.1 2019/11/05 20:19:18 maxv Exp $	*/
+/*	$NetBSD: csan.h,v 1.2 2019/11/06 06:57:22 maxv Exp $	*/
 
 /*
  * Copyright (c) 2019 The NetBSD Foundation, Inc.
@@ -31,15 +31,37 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS_CSAN_H_
-#define _SYS_CSAN_H_
+#include <machine/cpufunc.h>
+#include <machine/stack.h>
+#include <machine/vmparam.h>
 
-#include <sys/types.h>
+static inline bool
+kcsan_md_is_avail(void)
+{
+	return true;
+}
 
-#ifdef KCSAN
-void kcsan_cpu_init(u_int);
-#else
-#define kcsan_cpu_init(ci)	((void)0)
-#endif
+static inline void
+kcsan_md_disable_intrs(uint64_t *state)
+{
 
-#endif /* !_SYS_CSAN_H_ */
+	*state = intr_disable();
+}
+
+static inline void
+kcsan_md_enable_intrs(uint64_t *state)
+{
+
+	intr_restore(*state);
+}
+
+static inline void
+kcsan_md_delay(uint64_t us)
+{
+	DELAY(us);
+}
+
+static void
+kcsan_md_unwind(void)
+{
+}

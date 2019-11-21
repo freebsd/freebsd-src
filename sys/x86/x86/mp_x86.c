@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cons.h>	/* cngetc() */
 #include <sys/cpuset.h>
+#include <sys/csan.h>
 #ifdef GPROF 
 #include <sys/gmon.h>
 #endif
@@ -1079,6 +1080,8 @@ init_secondary_tail(void)
 	/* Start per-CPU event timers. */
 	cpu_initclocks_ap();
 #endif
+
+	kcsan_cpu_init(cpuid);
 
 	sched_throw(NULL);
 

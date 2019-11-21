@@ -644,11 +644,11 @@ _ciss=		ciss
 _chromebook_platform=	chromebook_platform
 _cmx=		cmx
 _coretemp=	coretemp
-.if ${MK_SOURCELESS_HOST} != "no"
+.if ${MK_SOURCELESS_HOST} != "no" && empty(KCSAN_ENABLED)
 _hpt27xx=	hpt27xx
 .endif
 _hptiop=	hptiop
-.if ${MK_SOURCELESS_HOST} != "no"
+.if ${MK_SOURCELESS_HOST} != "no" && empty(KCSAN_ENABLED)
 _hptmv=		hptmv
 _hptnr=		hptnr
 _hptrr=		hptrr

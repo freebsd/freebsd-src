@@ -106,6 +106,7 @@ options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
 #options 	KCOV			# Kernel Coverage Sanitizer
 # Warning: KUBSAN can result in a kernel too large for loader to load
 #options 	KUBSAN			# Kernel Undefined Behavior Sanitizer
+#options 	KCSAN			# Kernel Concurrency Sanitizer
 
 # Kernel dump features.
 options 	EKCD			# Support for encrypted kernel dumps
