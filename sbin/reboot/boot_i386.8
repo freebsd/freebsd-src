@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 30, 2019
+.Dd November 19, 2019
 .Dt BOOT 8 i386
 .Os
 .Sh NAME
@@ -223,15 +223,6 @@ you can use the
 .Fl h
 option to force the kernel to use the serial port as its
 console device.
-The serial port driver
-.Xr sio 4
-(but not
-.Xr uart 4 )
-has a flag (0x20) to override this option.
-If that flag is set, the serial port will always be used as the console,
-regardless of the
-.Fl h
-option described here.
 .It Fl m
 mute the console to suppress all kernel console input and output during the
 boot.
