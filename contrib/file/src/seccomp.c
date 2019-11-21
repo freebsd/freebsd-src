@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: seccomp.c,v 1.6 2018/06/26 20:29:29 christos Exp $")
+FILE_RCSID("@(#)$File: seccomp.c,v 1.8 2019/02/24 18:12:04 christos Exp $")
 #endif	/* lint */
 
 #if HAVE_LIBSECCOMP
@@ -126,14 +126,14 @@ enable_sandbox_basic(void)
 	DENY_RULE (socket);
 	// ...
 
-	
+
 	// applying filter...
 	if (seccomp_load (ctx) == -1)
 		goto out;
 	// free ctx after the filter has been loaded into the kernel
 	seccomp_release(ctx);
 	return 0;
-	
+
 out:
 	seccomp_release(ctx);
 	return -1;
@@ -151,7 +151,7 @@ enable_sandbox_full(void)
 
 	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) == -1)
 		return -1;
-	
+
 	// initialize the filter
 	ctx = seccomp_init(SCMP_ACT_KILL);
 	if (ctx == NULL)
@@ -163,10 +163,10 @@ enable_sandbox_full(void)
 	ALLOW_RULE(dup2);
 	ALLOW_RULE(exit);
 	ALLOW_RULE(exit_group);
-	ALLOW_RULE(fcntl);  
- 	ALLOW_RULE(fcntl64);  
+	ALLOW_RULE(fcntl);
+ 	ALLOW_RULE(fcntl64);
 	ALLOW_RULE(fstat);
- 	ALLOW_RULE(fstat64);  
+ 	ALLOW_RULE(fstat64);
 	ALLOW_RULE(getdents);
 #ifdef __NR_getdents64
 	ALLOW_RULE(getdents64);
@@ -176,6 +176,7 @@ enable_sandbox_full(void)
  	ALLOW_RULE(_llseek);
 	ALLOW_RULE(lstat);
  	ALLOW_RULE(lstat64);
+	ALLOW_RULE(madvise);
 	ALLOW_RULE(mmap);
  	ALLOW_RULE(mmap2);
 	ALLOW_RULE(mprotect);

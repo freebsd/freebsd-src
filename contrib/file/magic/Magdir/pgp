@@ -1,8 +1,8 @@
 
 #------------------------------------------------------------------------------
-# $File: pgp,v 1.15 2018/02/24 16:11:23 christos Exp $
+# $File: pgp,v 1.17 2019/04/19 00:42:27 christos Exp $
 # pgp:  file(1) magic for Pretty Good Privacy
-# see http://lists.gnupg.org/pipermail/gnupg-devel/1999-September/016052.html
+# see https://lists.gnupg.org/pipermail/gnupg-devel/1999-September/016052.html
 #
 # Update: Joerg Jenderek
 # Note: verified by `gpg -v --debug 0x02 --list-packets < PUBRING263_10.PGP`
@@ -74,7 +74,7 @@
 # Decode the type of the packet based on it's base64 encoding.
 # Idea from Mark Martinec
 # The specification is in RFC 4880, section 4.2 and 4.3:
-# http://tools.ietf.org/html/rfc4880#section-4.2
+# https://tools.ietf.org/html/rfc4880#section-4.2
 
 0	name		pgp
 >0	byte		0x67		Reserved (old)
@@ -517,9 +517,9 @@
 
 # PGP RSA (e=65537) secret (sub-)key header
 
-0	byte	0x95			PGP	Secret Key -
+0	byte	0x95			PGP Secret Key -
 >1	use	pgpkey
-0	byte	0x97			PGP	Secret Sub-key -
+0	byte	0x97			PGP Secret Sub-key -
 >1	use	pgpkey
 0	byte	0x9d
 # Update: Joerg Jenderek

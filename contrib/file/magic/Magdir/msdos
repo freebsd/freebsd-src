@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msdos,v 1.124 2018/07/10 04:05:50 christos Exp $
+# $File: msdos,v 1.128 2019/04/19 00:42:27 christos Exp $
 # msdos:  file(1) magic for MS-DOS files
 #
 
@@ -9,12 +9,16 @@
 0	string/t	@
 >1	string/cW	\ echo\ off	DOS batch file text
 !:mime	text/x-msdos-batch
+!:ext	bat
 >1	string/cW	echo\ off	DOS batch file text
 !:mime	text/x-msdos-batch
+!:ext	bat
 >1	string/cW	rem		DOS batch file text
 !:mime	text/x-msdos-batch
+!:ext	bat
 >1	string/cW	set\ 		DOS batch file text
 !:mime	text/x-msdos-batch
+!:ext	bat
 
 
 # OS/2 batch files are REXX. the second regex is a bit generic, oh well
@@ -49,6 +53,9 @@
 # All non-DOS EXE extensions have the relocation table more than 0x40 bytes into the file.
 >0x18	leshort <0x40 MS-DOS executable
 !:mime	application/x-dosexec
+# Windows and later versions of DOS will allow .EXEs to be named with a .COM
+# extension, mostly for compatibility's sake.
+!:ext	exe/com
 # These traditional tests usually work but not always.  When test quality support is
 # implemented these can be turned on.
 #>>0x18	leshort	0x1c	(Borland compiler)
@@ -67,9 +74,33 @@
 >>>(0x3c.l+24)	default		x	Unknown PE signature
 >>>>&0 		leshort		x	0x%x
 >>>(0x3c.l+22)	leshort&0x2000	>0	(DLL)
->>>(0x3c.l+92)	leshort		1	(native)
->>>(0x3c.l+92)	leshort		2	(GUI)
->>>(0x3c.l+92)	leshort		3	(console)
+>>>(0x3c.l+92)	leshort		1
+# Native PEs include ntoskrnl.exe, hal.dll, smss.exe, autochk.exe, and all the
+# drivers in Windows/System32/drivers/*.sys.
+>>>>(0x3c.l+22)	leshort&0x2000	>0	(native)
+!:ext	dll/sys
+>>>>(0x3c.l+22)	leshort&0x2000	0	(native)
+!:ext	exe/sys
+>>>(0x3c.l+92)	leshort		2
+>>>>(0x3c.l+22)	leshort&0x2000	>0	(GUI)
+# These could probably be at least partially distinguished from one another by
+# looking for specific exported functions.
+# CPL: Control Panel item
+# TLB: Type library
+# OCX: OLE/ActiveX control
+# ACM: Audio compression manager codec
+# AX: DirectShow source filter
+# IME: Input method editor
+!:ext	dll/cpl/tlb/ocx/acm/ax/ime
+>>>>(0x3c.l+22)	leshort&0x2000	0	(GUI)
+# Screen savers typically include code from the scrnsave.lib static library, but
+# that's not guaranteed.
+!:ext	exe/scr
+>>>(0x3c.l+92)	leshort		3
+>>>>(0x3c.l+22)	leshort&0x2000	>0	(console)
+!:ext	dll/cpl/tlb/ocx/acm/ax/ime
+>>>>(0x3c.l+22)	leshort&0x2000	0	(console)
+!:ext	exe/com
 >>>(0x3c.l+92)	leshort		7	(POSIX)
 >>>(0x3c.l+92)	leshort		9	(Windows CE)
 >>>(0x3c.l+92)	leshort		10	(EFI application)
@@ -151,8 +182,16 @@
 >>>(0x3c.l+0x36)	default		x
 >>>>(0x3c.l+0x36)	byte		x (unknown OS %x)
 >>>(0x3c.l+0x36)	byte		0x81 for MS-DOS, Phar Lap DOS extender
->>>(0x3c.l+0x0c)	leshort&0x8003	0x8002 (DLL)
->>>(0x3c.l+0x0c)	leshort&0x8003	0x8001 (driver)
+>>>(0x3c.l+0x0c)	leshort&0x8000	0x8000 (DLL or font)
+# DRV: Driver
+# 3GR: Grabber device driver
+# CPL: Control Panel Item
+# VBX: Visual Basic Extension
+# FON: Bitmap font
+# FOT: Font resource file
+!:ext	dll/drv/3gr/cpl/vbx/fon/fot
+>>>(0x3c.l+0x0c)	leshort&0x8000	0 (EXE)
+!:ext	exe/scr
 >>>&(&0x24.s-1)		string		ARJSFX \b, ARJ self-extracting archive
 >>>(0x3c.l+0x70)	search/0x80	WinZip(R)\ Self-Extractor \b, ZIP self-extracting archive (WinZip)
 
@@ -199,6 +238,11 @@
 >>>(0x3c.l+0x0a)	leshort		2 for MS Windows
 >>>(0x3c.l+0x0a)	leshort		3 for DOS
 >>>(0x3c.l+0x0a)	leshort		4 for MS Windows (VxD)
+# VXD: VxD for Windows 95/98/Me
+# 386: VxD for Windows 2.10, 3.0, 3.1x
+# PDR: Port driver
+# MPD: Miniport driver (?)
+!:ext	vxd/386/pdr/mpd
 >>>(&0x7c.l+0x26)	string		UPX \b, UPX compressed
 >>>&(&0x54.l-3)		string		UNACE \b, ACE self-extracting archive
 
@@ -207,6 +251,7 @@
 >>0x3c		lelong	>0x20000000
 >>>(4.s*512)	leshort !0x014c \b, MZ for MS-DOS
 !:mime	application/x-dosexec
+!:ext	exe/com
 # header data too small for extended executable
 >2		long	!0
 >>0x18		leshort <0x40
@@ -305,8 +350,8 @@
 >>49824 leshort		=1			\b, 1 file
 >>49824 leshort		>1			\b, %u files
 
-# added by Joerg Jenderek of http://www.freedos.org/software/?prog=kc
-# and http://www.freedos.org/software/?prog=kpdos
+# added by Joerg Jenderek of https://www.freedos.org/software/?prog=kc
+# and https://www.freedos.org/software/?prog=kpdos
 # for FreeDOS files like KEYBOARD.SYS, KEYBRD2.SYS, KEYBRD3.SYS, *.KBD
 0	string/b	KCF		FreeDOS KEYBoard Layout collection
 # only version=0x100 found
@@ -448,6 +493,8 @@
 
 0       name    msdos-com
 >0  byte        x               DOS executable (COM)
+!:mime	application/x-dosexec
+!:ext	com
 >6	string		SFX\ of\ LHarc	\b, %s
 >0x1FE leshort	0xAA55		    \b, boot code
 >85	string		UPX		        \b, UPX compressed
@@ -484,11 +531,11 @@
 # modified by Joerg Jenderek
 # syslinux COM32 or COM32R executable
 >>1	lelong&0xFFFFFFFe 0x21CD4CFe	COM executable (32-bit COMBOOT
-# http://www.syslinux.org/wiki/index.php/Comboot_API
+# https://www.syslinux.org/wiki/index.php/Comboot_API
 # Since version 5.00 c32 modules switched from the COM32 object format to ELF
 !:mime	application/x-c32-comboot-syslinux-exec
 !:ext c32
-# http://syslinux.zytor.com/comboot.php
+# https://syslinux.zytor.com/comboot.php
 # older syslinux version ( <4 )
 # (32-bit COMBOOT) programs *.C32 contain 32-bit code and run in flat-memory 32-bit protected mode
 # start with assembler instructions mov eax,21cd4cffh
@@ -514,41 +561,75 @@
 0	string/b	\x81\xfc
 >4	string	\x77\x02\xcd\x20\xb9
 >>36	string	UPX!			FREE-DOS executable (COM), UPX compressed
+!:mime	application/x-dosexec
+!:ext	com
 252	string Must\ have\ DOS\ version DR-DOS executable (COM)
+!:mime	application/x-dosexec
+!:ext	com
 # added by Joerg Jenderek at Oct 2008
 # GRR search is not working
 #34	search/2	UPX!		FREE-DOS executable (COM), UPX compressed
 34	string	UPX!			FREE-DOS executable (COM), UPX compressed
+!:mime	application/x-dosexec
+!:ext	com
 35	string	UPX!			FREE-DOS executable (COM), UPX compressed
+!:mime	application/x-dosexec
+!:ext	com
 # GRR search is not working
 #2	search/28	\xcd\x21	COM executable for MS-DOS
 #WHICHFAT.cOM
 2	string	\xcd\x21		COM executable for DOS
+!:mime	application/x-dosexec
+!:ext	com
 #DELTREE.cOM DELTREE2.cOM
 4	string	\xcd\x21		COM executable for DOS
+!:mime	application/x-dosexec
+!:ext	com
 #IFMEMDSK.cOM ASSIGN.cOM COMP.cOM
 5	string	\xcd\x21		COM executable for DOS
+!:mime	application/x-dosexec
+!:ext	com
 #DELTMP.COm HASFAT32.cOM
 7	string	\xcd\x21
 >0	byte	!0xb8			COM executable for DOS
+!:mime	application/x-dosexec
+!:ext	com
 #COMP.cOM MORE.COm
 10	string	\xcd\x21
 >5	string	!\xcd\x21		COM executable for DOS
+!:mime	application/x-dosexec
+!:ext	com
 #comecho.com
 13	string	\xcd\x21		COM executable for DOS
+!:mime	application/x-dosexec
+!:ext	com
 #HELP.COm EDIT.coM
 18	string	\xcd\x21		COM executable for MS-DOS
+!:mime	application/x-dosexec
+!:ext	com
 #NWRPLTRM.COm
 23	string	\xcd\x21		COM executable for MS-DOS
+!:mime	application/x-dosexec
+!:ext	com
 #LOADFIX.cOm LOADFIX.cOm
 30	string	\xcd\x21		COM executable for MS-DOS
+!:mime	application/x-dosexec
+!:ext	com
 #syslinux.com 3.11
 70	string	\xcd\x21		COM executable for DOS
+!:mime	application/x-dosexec
+!:ext	com
 # many compressed/converted COMs start with a copy loop instead of a jump
 0x6	search/0xa	\xfc\x57\xf3\xa5\xc3	COM executable for MS-DOS
+!:mime	application/x-dosexec
+!:ext	com
 0x6	search/0xa	\xfc\x57\xf3\xa4\xc3	COM executable for DOS
+!:mime	application/x-dosexec
+!:ext	com
 >0x18	search/0x10	\x50\xa4\xff\xd5\x73	\b, aPack compressed
 0x3c	string		W\ Collis\0\0		COM executable for MS-DOS, Compack compressed
+!:mime	application/x-dosexec
+!:ext	com
 # FIXME: missing diet .com compression
 
 # miscellaneous formats
@@ -843,8 +924,9 @@
 # skip remaining worksheets, because valid only for DIB image (40) or PNG image (\x89PNG)
 >>(18.l)	ulelong		x		MS Windows
 >>>0		ubelong		0x00000100	icon resource
-#!:mime		image/vnd.microsoft.icon
-!:mime		image/x-icon
+# https://www.iana.org/assignments/media-types/image/vnd.microsoft.icon
+!:mime		image/vnd.microsoft.icon
+#!:mime		image/x-icon
 !:ext		ico
 >>>>4 		uleshort	x		- %d icon
 # plural s
@@ -890,7 +972,8 @@
 #>12		ulelong		x		\b, offset 0x%x
 # PNG header (\x89PNG)
 >(12.l)		ubelong		=0x89504e47
->>&-4		indirect	x	\b with
+# 1 space char after "with" to get phrase "with PNG image" by magic in ./images
+>>&-4		indirect	x	\b with 
 # DIB image
 >(12.l)		ubelong		!0x89504e47
 #>>&-4		use     	dib-image
@@ -959,10 +1042,11 @@
 0	lelong		0x4C
 >4	lelong		0x00021401	Windows shortcut file
 
-# .PIF files added by Joerg Jenderek from http://smsoft.ru/en/pifdoc.htm
+# .PIF files added by Joerg Jenderek from https://smsoft.ru/en/pifdoc.htm
 # only for windows versions equal or greater 3.0
 0x171	string	MICROSOFT\ PIFEX\0	Windows Program Information File
 !:mime	application/x-dosexec
+!:ext	pif
 #>2	string	 	>\0		\b, Title:%.30s
 >0x24	string		>\0		\b for %.63s
 >0x65	string		>\0		\b, directory=%.64s
@@ -1010,7 +1094,7 @@
 
 # Norton Guide (.NG , .HLP) files added by Joerg Jenderek from source NG2HTML.C
 # of http://www.davep.org/norton-guides/ng2h-105.tgz
-# http://en.wikipedia.org/wiki/Norton_Guides
+# https://en.wikipedia.org/wiki/Norton_Guides
 0	string		NG\0\001
 # only value 0x100 found at offset 2
 >2	ulelong		0x00000100	Norton Guide
@@ -1022,7 +1106,7 @@
 >>114	string		>\0		%-.66s
 
 # 4DOS help (.HLP) files added by Joerg Jenderek from source TPHELP.PAS
-# of http://www.4dos.info/
+# of https://www.4dos.info/
 # pointer,HelpID[8]=4DHnnnmm
 0	ulelong	0x48443408		4DOS help file
 >4	string	x			\b, version %-4.4s
@@ -1098,7 +1182,7 @@
 !:mime	application/vnd.ms-cab-compressed
 !:ext	cab
 
-# http://support.microsoft.com/kb/934307/en-US
+# https://support.microsoft.com/kb/934307/en-US
 # All inspected MSU contain a file with name WSUSSCAN.cab
 # that is called "Windows Update meta data" by Microsoft
 >>>&-1	string/c 	wsusscan.cab	\b, Microsoft Standalone Update
@@ -1119,7 +1203,7 @@
 # or Windows 8 Desktop Theme Pack like in PanoramicGlaciers.deskthemepack
 >>>>>&0	string/c	theme		\b, Windows
 !:mime	application/x-windows-themepack
-# http://www.drewkeller.com/content/using-theme-both-windows-7-and-windows-8
+# https://www.drewkeller.com/content/using-theme-both-windows-7-and-windows-8
 # 1st member Panoramic.theme or Panoramas.theme implies Windows 8-10 Theme Pack
 # with MTSM=RJSPBS in [MasterThemeSelector] inside *.theme
 >>>>>>(16.l+16)	string	=Panoram	8
@@ -1329,7 +1413,7 @@
 >>48	string x			version %.3s
 
 # Type: Microsoft Document Imaging Format (.mdi)
-# URL:	http://en.wikipedia.org/wiki/Microsoft_Document_Imaging_Format
+# URL:	https://en.wikipedia.org/wiki/Microsoft_Document_Imaging_Format
 # From: Daniele Sempione <scrows@oziosi.org>
 # Too weak (EP)
 #0	short	0x5045			Microsoft Document Imaging Format
@@ -1342,10 +1426,6 @@
 # Windows CE Binary Image Data Format
 # From: Dr. Jesus <j@hug.gs>
 0	string/b	B000FF\n	Windows Embedded CE binary image
-
-# Windows Imaging (WIM) Image
-0	string/b	MSWIM\000\000\000	Windows imaging (WIM) image
-0	string/b	WLPWM\000\000\000	Windows imaging (WIM) image, wimlib pipable format
 
 # The second byte of these signatures is a file version; I don't know what,
 # if anything, produced files with version numbers 0-2.

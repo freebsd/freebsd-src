@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: bioinformatics,v 1.4 2016/06/20 16:13:46 christos Exp $
+# $File: bioinformatics,v 1.5 2019/04/19 00:42:27 christos Exp $
 # bioinfomatics:  file(1) magic for Bioinfomatics file formats
 
 ###############################################################################
@@ -83,7 +83,7 @@
 
 ###############################################################################
 # BCF (Binary Call Format), version 2.1
-# used by SAMtools (http://samtools.github.io/hts-specs/BCFv2_qref.pdf)
+# used by SAMtools (https://samtools.github.io/hts-specs/BCFv2_qref.pdf)
 # data is normally present only within compressed BGZF blocks (CDATA), so use file -z to examine it
 ###############################################################################
 0		string	   BCF\2\1    Binary Call Format (BCF) version 2.1
@@ -96,7 +96,7 @@
 
 ###############################################################################
 # BCF (Binary Call Format), version 2.2
-# used by SAMtools (http://samtools.github.io/hts-specs/BCFv2_qref.pdf)
+# used by SAMtools (https://samtools.github.io/hts-specs/BCFv2_qref.pdf)
 # data is normally present only within compressed BGZF blocks (CDATA), so use file -z to examine it
 ###############################################################################
 0		string	   BCF\2\2    Binary Call Format (BCF) version 2.2
@@ -129,7 +129,7 @@
 
 ###############################################################################
 # FASTA
-# used by FASTA (http://fasta.bioch.virginia.edu/fasta_www2/fasta_guide.pdf)
+# used by FASTA (https://fasta.bioch.virginia.edu/fasta_www2/fasta_guide.pdf)
 ###############################################################################
 #0	byte	0x3e
 # q>0	regex	=^[>][!-~\t\ ]+$

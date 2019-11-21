@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sql,v 1.21 2017/03/17 21:35:28 christos Exp $
+# $File: sql,v 1.22 2019/04/19 00:42:27 christos Exp $
 # sql:  file(1) magic for SQL files
 #
 # From: "Marty Leisner" <mleisner@eng.mc.xerox.com>
@@ -119,13 +119,13 @@
 
 
 # SQLite Write-Ahead Log from SQLite version >= 3.7.0
-# http://www.sqlite.org/fileformat.html#walformat
+# https://www.sqlite.org/fileformat.html#walformat
 0	belong&0xfffffffe	0x377f0682	SQLite Write-Ahead Log,
 !:ext sqlite-wal/db-wal
 >4	belong	x	version %d
 
 # SQLite Rollback Journal
-# http://www.sqlite.org/fileformat.html#rollbackjournal
+# https://www.sqlite.org/fileformat.html#rollbackjournal
 0	string	\xd9\xd5\x05\xf9\x20\xa1\x63\xd7	SQLite Rollback Journal
 
 # Panasonic channel list database svl.bin or svl.db added by Joerg Jenderek
@@ -137,5 +137,5 @@
 #!:mime	application/x-panasonic-sqlite3
 >>&-15	indirect	x			\b; contains
 
-# H2 Database from http://www.h2database.com/
+# H2 Database from https://www.h2database.com/
 0	string		--\ H2\ 0.5/B\ --\ \n	H2 Database file
