@@ -2514,6 +2514,8 @@ dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 	zp->zp_dedup = dedup;
 	zp->zp_dedup_verify = dedup && dedup_verify;
 	zp->zp_nopwrite = nopwrite;
+	zp->zp_zpl_smallblk = DMU_OT_IS_FILE(zp->zp_type) ?
+	    os->os_zpl_special_smallblock : 0;
 }
 
 int

@@ -24,6 +24,7 @@
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
+ * Copyright (c) 2017, Intel Corporation.
  */
 
 #ifndef _ZFEATURE_COMMON_H
@@ -62,6 +63,7 @@ typedef enum spa_feature {
 	SPA_FEATURE_OBSOLETE_COUNTS,
 	SPA_FEATURE_POOL_CHECKPOINT,
 	SPA_FEATURE_SPACEMAP_V2,
+	SPA_FEATURE_ALLOCATION_CLASSES,
 	SPA_FEATURES
 } spa_feature_t;
 

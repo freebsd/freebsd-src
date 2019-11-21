@@ -23,6 +23,7 @@
  * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
+ * Copyright (c) 2017, Intel Corporation.
  */
 
 #include <sys/zfs_context.h>
@@ -356,7 +357,7 @@ metaslab_class_validate(metaslab_class_t *mc)
 	return (0);
 }
 
-void
+static void
 metaslab_class_space_update(metaslab_class_t *mc, int64_t alloc_delta,
     int64_t defer_delta, int64_t space_delta, int64_t dspace_delta)
 {
@@ -420,7 +421,8 @@ metaslab_class_get_minblocksize(metaslab_class_t *mc)
 void
 metaslab_class_histogram_verify(metaslab_class_t *mc)
 {
-	vdev_t *rvd = mc->mc_spa->spa_root_vdev;
+	spa_t *spa = mc->mc_spa;
+	vdev_t *rvd = spa->spa_root_vdev;
 	uint64_t *mc_hist;
 	int i;
 
@@ -928,7 +930,8 @@ metaslab_group_histogram_verify(metaslab_group_t *mg)
 	for (int m = 0; m < vd->vdev_ms_count; m++) {
 		metaslab_t *msp = vd->vdev_ms[m];
 
-		if (msp->ms_sm == NULL)
+		/* skip if not active or not a member */
+		if (msp->ms_sm == NULL || msp->ms_group != mg)
 			continue;
 
 		for (i = 0; i < SPACE_MAP_HISTOGRAM_SIZE; i++)
@@ -1061,12 +1064,14 @@ metaslab_group_fragmentation(metaslab_group_t *mg)
 
 		if (msp->ms_fragmentation == ZFS_FRAG_INVALID)
 			continue;
+		if (msp->ms_group != mg)
+			continue;
 
 		valid_ms++;
 		fragmentation += msp->ms_fragmentation;
 	}
 
-	if (valid_ms <= vd->vdev_ms_count / 2)
+	if (valid_ms <= mg->mg_vd->vdev_ms_count / 2)
 		return (ZFS_FRAG_INVALID);
 
 	fragmentation /= valid_ms;
@@ -1097,7 +1102,10 @@ metaslab_group_allocatable(metaslab_group_t *mg, metaslab_group_t *rotor,
 	 * groups to select from. Otherwise, we always consider it eligible
 	 * for allocations.
 	 */
-	if (mc != spa_normal_class(spa) || mc->mc_groups <= 1)
+	if ((mc != spa_normal_class(spa) &&
+	    mc != spa_special_class(spa) &&
+	    mc != spa_dedup_class(spa)) ||
+	    mc->mc_groups <= 1)
 		return (B_TRUE);
 
 	/*
@@ -1559,12 +1567,26 @@ metaslab_unload(metaslab_t *msp)
 	msp->ms_max_size = 0;
 }
 
+static void
+metaslab_space_update(vdev_t *vd, metaslab_class_t *mc, int64_t alloc_delta,
+    int64_t defer_delta, int64_t space_delta)
+{
+	vdev_space_update(vd, alloc_delta, defer_delta, space_delta);
+
+	ASSERT3P(vd->vdev_spa->spa_root_vdev, ==, vd->vdev_parent);
+	ASSERT(vd->vdev_ms_count != 0);
+
+	metaslab_class_space_update(mc, alloc_delta, defer_delta, space_delta,
+	    vdev_deflated_space(vd, space_delta));
+}
+
 int
 metaslab_init(metaslab_group_t *mg, uint64_t id, uint64_t object, uint64_t txg,
     metaslab_t **msp)
 {
 	vdev_t *vd = mg->mg_vd;
-	objset_t *mos = vd->vdev_spa->spa_meta_objset;
+	spa_t *spa = vd->vdev_spa;
+	objset_t *mos = spa->spa_meta_objset;
 	metaslab_t *ms;
 	int error;
 
@@ -1622,8 +1644,8 @@ metaslab_init(metaslab_group_t *mg, uint64_t id, uint64_t object, uint64_t txg,
 
 	/*
 	 * If metaslab_debug_load is set and we're initializing a metaslab
-	 * that has an allocated space map object then load the its space
-	 * map so that can verify frees.
+	 * that has an allocated space map object then load the space map
+	 * so that we can verify frees.
 	 */
 	if (metaslab_debug_load && ms->ms_sm != NULL) {
 		mutex_enter(&ms->ms_lock);
@@ -1645,16 +1667,19 @@ void
 metaslab_fini(metaslab_t *msp)
 {
 	metaslab_group_t *mg = msp->ms_group;
+	vdev_t *vd = mg->mg_vd;
 
 	metaslab_group_remove(mg, msp);
 
 	mutex_enter(&msp->ms_lock);
 	VERIFY(msp->ms_group == NULL);
-	vdev_space_update(mg->mg_vd, -space_map_allocated(msp->ms_sm),
-	    0, -msp->ms_size);
+	metaslab_space_update(vd, mg->mg_class,
+	    -space_map_allocated(msp->ms_sm), 0, -msp->ms_size);
+
 	space_map_close(msp->ms_sm);
 
 	metaslab_unload(msp);
+
 	range_tree_destroy(msp->ms_allocatable);
 	range_tree_destroy(msp->ms_freeing);
 	range_tree_destroy(msp->ms_freed);
@@ -2669,7 +2694,7 @@ metaslab_sync_done(metaslab_t *msp, uint64_t txg)
 		ASSERT3P(msp->ms_checkpointing, ==, NULL);
 		msp->ms_checkpointing = range_tree_create(NULL, NULL);
 
-		vdev_space_update(vd, 0, 0, msp->ms_size);
+		metaslab_space_update(vd, mg->mg_class, 0, 0, msp->ms_size);
 	}
 	ASSERT0(range_tree_space(msp->ms_freeing));
 	ASSERT0(range_tree_space(msp->ms_checkpointing));
@@ -2691,7 +2716,8 @@ metaslab_sync_done(metaslab_t *msp, uint64_t txg)
 		defer_delta -= range_tree_space(*defer_tree);
 	}
 
-	vdev_space_update(vd, alloc_delta + defer_delta, defer_delta, 0);
+	metaslab_space_update(vd, mg->mg_class, alloc_delta + defer_delta,
+	    defer_delta, 0);
 
 	/*
 	 * If there's a metaslab_load() in progress, wait for it to complete
@@ -2790,21 +2816,25 @@ metaslab_sync_reassess(metaslab_group_t *mg)
 	spa_config_exit(spa, SCL_ALLOC, FTAG);
 }
 
-static uint64_t
-metaslab_distance(metaslab_t *msp, dva_t *dva)
+/*
+ * When writing a ditto block (i.e. more than one DVA for a given BP) on
+ * the same vdev as an existing DVA of this BP, then try to allocate it
+ * on a different metaslab than existing DVAs (i.e. a unique metaslab).
+ */
+static boolean_t
+metaslab_is_unique(metaslab_t *msp, dva_t *dva)
 {
-	uint64_t ms_shift = msp->ms_group->mg_vd->vdev_ms_shift;
-	uint64_t offset = DVA_GET_OFFSET(dva) >> ms_shift;
-	uint64_t start = msp->ms_id;
+	uint64_t dva_ms_id;
+
+	if (DVA_GET_ASIZE(dva) == 0)
+		return (B_TRUE);
 
 	if (msp->ms_group->mg_vd->vdev_id != DVA_GET_VDEV(dva))
-		return (1ULL << 63);
+		return (B_TRUE);
 
-	if (offset < start)
-		return ((start - offset) << ms_shift);
-	if (offset > start)
-		return ((offset - start) << ms_shift);
-	return (0);
+	dva_ms_id = DVA_GET_OFFSET(dva) >> msp->ms_group->mg_vd->vdev_ms_shift;
+
+	return (msp->ms_id != dva_ms_id);
 }
 
 /*
@@ -3065,7 +3095,7 @@ metaslab_block_alloc(metaslab_t *msp, uint64_t size, uint64_t txg)
  */
 static metaslab_t *
 find_valid_metaslab(metaslab_group_t *mg, uint64_t activation_weight,
-    dva_t *dva, int d, uint64_t min_distance, uint64_t asize, int allocator,
+    dva_t *dva, int d, boolean_t want_unique, uint64_t asize, int allocator,
     zio_alloc_list_t *zal, metaslab_t *search, boolean_t *was_active)
 {
 	avl_index_t idx;
@@ -3100,13 +3130,10 @@ find_valid_metaslab(metaslab_group_t *mg, uint64_t activation_weight,
 		if (activation_weight == METASLAB_WEIGHT_PRIMARY || *was_active)
 			break;
 
-		uint64_t target_distance = min_distance
-		    + (space_map_allocated(msp->ms_sm) != 0 ? 0 :
-		    min_distance >> 1);
-
 		for (i = 0; i < d; i++) {
-			if (metaslab_distance(msp, &dva[i]) < target_distance)
-				break;
+			if (want_unique &&
+			    !metaslab_is_unique(msp, &dva[i]))
+				break;  /* try another metaslab */
 		}
 		if (i == d)
 			break;
@@ -3124,8 +3151,8 @@ find_valid_metaslab(metaslab_group_t *mg, uint64_t activation_weight,
 /* ARGSUSED */
 static uint64_t
 metaslab_group_alloc_normal(metaslab_group_t *mg, zio_alloc_list_t *zal,
-    uint64_t asize, uint64_t txg, uint64_t min_distance, dva_t *dva, int d,
-    int allocator)
+    uint64_t asize, uint64_t txg, boolean_t want_unique, dva_t *dva,
+    int d, int allocator)
 {
 	metaslab_t *msp = NULL;
 	uint64_t offset = -1ULL;
@@ -3179,7 +3206,7 @@ metaslab_group_alloc_normal(metaslab_group_t *mg, zio_alloc_list_t *zal,
 			was_active = B_TRUE;
 		} else {
 			msp = find_valid_metaslab(mg, activation_weight, dva, d,
-			    min_distance, asize, allocator, zal, search,
+			    want_unique, asize, allocator, zal, search,
 			    &was_active);
 		}
 
@@ -3317,6 +3344,7 @@ next:
 		 * metaslab.
 		 */
 		ASSERT(!metaslab_should_allocate(msp, asize));
+
 		mutex_exit(&msp->ms_lock);
 	}
 	mutex_exit(&msp->ms_lock);
@@ -3326,14 +3354,14 @@ next:
 
 static uint64_t
 metaslab_group_alloc(metaslab_group_t *mg, zio_alloc_list_t *zal,
-    uint64_t asize, uint64_t txg, uint64_t min_distance, dva_t *dva, int d,
-    int allocator)
+    uint64_t asize, uint64_t txg, boolean_t want_unique, dva_t *dva,
+    int d, int allocator)
 {
 	uint64_t offset;
 	ASSERT(mg->mg_initialized);
 
-	offset = metaslab_group_alloc_normal(mg, zal, asize, txg,
-	    min_distance, dva, d, allocator);
+	offset = metaslab_group_alloc_normal(mg, zal, asize, txg, want_unique,
+	    dva, d, allocator);
 
 	mutex_enter(&mg->mg_lock);
 	if (offset == -1ULL) {
@@ -3361,14 +3389,6 @@ metaslab_group_alloc(metaslab_group_t *mg, zio_alloc_list_t *zal,
 }
 
 /*
- * If we have to write a ditto block (i.e. more than one DVA for a given BP)
- * on the same vdev as an existing DVA of this BP, then try to allocate it
- * at least (vdev_asize / (2 ^ ditto_same_vdev_distance_shift)) away from the
- * existing DVAs.
- */
-int ditto_same_vdev_distance_shift = 3;
-
-/*
  * Allocate a block for the specified i/o.
  */
 int
@@ -3384,6 +3404,7 @@ metaslab_alloc_dva(spa_t *spa, metaslab_class_t *mc, uint64_t psize,
 
 	/*
 	 * For testing, make some blocks above a certain size be gang blocks.
+	 * This will also test spilling from special to normal.
 	 */
 	if (psize >= metaslab_force_ganging && (ddi_get_lbolt() & 3) == 0) {
 		metaslab_trace_add(zal, NULL, NULL, psize, d, TRACE_FORCE_GANG,
@@ -3435,6 +3456,7 @@ metaslab_alloc_dva(spa_t *spa, metaslab_class_t *mc, uint64_t psize,
 		vd = vdev_lookup_top(spa, DVA_GET_VDEV(&dva[d - 1]));
 		mg = vd->vdev_mg->mg_next;
 	} else {
+		ASSERT(mc->mc_rotor != NULL);
 		mg = mc->mc_rotor;
 	}
 
@@ -3499,25 +3521,17 @@ top:
 
 		ASSERT(mg->mg_class == mc);
 
-		/*
-		 * If we don't need to try hard, then require that the
-		 * block be 1/8th of the device away from any other DVAs
-		 * in this BP.  If we are trying hard, allow any offset
-		 * to be used (distance=0).
-		 */
-		uint64_t distance = 0;
-		if (!try_hard) {
-			distance = vd->vdev_asize >>
-			    ditto_same_vdev_distance_shift;
-			if (distance <= (1ULL << vd->vdev_ms_shift))
-				distance = 0;
-		}
-
 		uint64_t asize = vdev_psize_to_asize(vd, psize);
 		ASSERT(P2PHASE(asize, 1ULL << vd->vdev_ashift) == 0);
 
+		/*
+		 * If we don't need to try hard, then require that the
+		 * block be on an different metaslab from any other DVAs
+		 * in this BP (unique=true).  If we are trying hard, then
+		 * allow any metaslab to be used (unique=false).
+		 */
 		uint64_t offset = metaslab_group_alloc(mg, zal, asize, txg,
-		    distance, dva, d, allocator);
+		    !try_hard, dva, d, allocator);
 
 		if (offset != -1ULL) {
 			/*
@@ -3896,7 +3910,8 @@ metaslab_class_throttle_reserve(metaslab_class_t *mc, int slots, int allocator,
 	if (reserved_slots < max)
 		available_slots = max - reserved_slots;
 
-	if (slots <= available_slots || GANG_ALLOCATION(flags)) {
+	if (slots <= available_slots || GANG_ALLOCATION(flags) ||
+	    flags & METASLAB_MUST_RESERVE) {
 		/*
 		 * We reserve the slots individually so that we can unreserve
 		 * them individually when an I/O completes.
@@ -4179,9 +4194,11 @@ metaslab_claim(spa_t *spa, const blkptr_t *bp, uint64_t txg)
 
 	spa_config_enter(spa, SCL_ALLOC, FTAG, RW_READER);
 
-	for (int d = 0; d < ndvas; d++)
-		if ((error = metaslab_claim_dva(spa, &dva[d], txg)) != 0)
+	for (int d = 0; d < ndvas; d++) {
+		error = metaslab_claim_dva(spa, &dva[d], txg);
+		if (error != 0)
 			break;
+	}
 
 	spa_config_exit(spa, SCL_ALLOC, FTAG);
 
