@@ -65,12 +65,9 @@ extern bool random_bypass_disable_warnings;
 
 struct harvest_event;
 
-typedef void random_alg_init_t(void *);
-typedef void random_alg_deinit_t(void *);
 typedef void random_alg_pre_read_t(void);
 typedef void random_alg_read_t(uint8_t *, size_t);
 typedef bool random_alg_seeded_t(void);
-typedef void random_alg_reseed_t(void);
 typedef void random_alg_eventprocessor_t(struct harvest_event *);
 
 typedef u_int random_source_read_t(void *, u_int);
