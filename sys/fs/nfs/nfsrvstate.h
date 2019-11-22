@@ -355,14 +355,24 @@ struct nfsdevice {
 };
 
 /*
- * This structure holds the va_size, va_filerev, va_atime and va_mtime for the
- * DS file and is stored in the metadata file's extended attribute pnfsd.dsattr.
+ * This structure holds the va_size, va_filerev, va_atime, va_mtime and
+ * va_bytes for the DS file and is stored in the metadata file's extended
+ * attribute pnfsd.dsattr.
+ * opnfsdsattr was missing the va_bytes field and, as such, it was updated.
  */
+struct opnfsdsattr {
+	uint64_t	dsa_filerev;
+	uint64_t	dsa_size;
+	struct timespec	dsa_atime;
+	struct timespec	dsa_mtime;
+};
+
 struct pnfsdsattr {
 	uint64_t	dsa_filerev;
 	uint64_t	dsa_size;
 	struct timespec	dsa_atime;
 	struct timespec	dsa_mtime;
+	uint64_t	dsa_bytes;
 };
 
 /*
