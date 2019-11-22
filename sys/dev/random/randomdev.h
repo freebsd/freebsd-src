@@ -102,14 +102,6 @@ struct random_source {
 	random_source_read_t		*rs_read;
 };
 
-struct random_sources {
-	LIST_ENTRY(random_sources)	 rrs_entries;
-	struct random_source		*rrs_source;
-};
-
-LIST_HEAD(sources_head, random_sources);
-extern struct sources_head source_list;
-
 void random_source_register(struct random_source *);
 void random_source_deregister(struct random_source *);
 
