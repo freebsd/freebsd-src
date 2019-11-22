@@ -120,6 +120,7 @@ main(int argc, char **argv)
 	char *endptr, **hosts_bak;
 	struct sigaction sigalarm;
 	int grace_period = 30;
+	int foreground = 0;
 	struct netconfig *nconf;
 	int have_v6 = 1;
 	int maxrec = RPC_MAXDATASIZE;
@@ -127,7 +128,7 @@ main(int argc, char **argv)
 	int attempt_cnt, port_len, port_pos, ret;
 	char **port_list;
 
-	while ((ch = getopt(argc, argv, "d:g:h:p:")) != (-1)) {
+	while ((ch = getopt(argc, argv, "d:Fg:h:p:")) != (-1)) {
 		switch (ch) {
 		case 'd':
 			debug_level = atoi(optarg);
@@ -135,6 +136,9 @@ main(int argc, char **argv)
 				usage();
 				/* NOTREACHED */
 			}
+			break;
+		case 'F':
+			foreground = 1;
 			break;
 		case 'g':
 			grace_period = atoi(optarg);
@@ -422,7 +426,7 @@ main(int argc, char **argv)
 	 * Note that it is NOT sensible to run this program from inetd - the
 	 * protocol assumes that it will run immediately at boot time.
 	 */
-	if (daemon(0, debug_level > 0)) {
+	if ((foreground == 0) && daemon(0, debug_level > 0)) {
 		err(1, "cannot fork");
 		/* NOTREACHED */
 	}
@@ -844,7 +848,7 @@ void
 usage()
 {
 	errx(1, "usage: rpc.lockd [-d <debuglevel>]"
-	    " [-g <grace period>] [-h <bindip>] [-p <port>]");
+	    " [-F] [-g <grace period>] [-h <bindip>] [-p <port>]");
 }
 
 /*
