@@ -80,9 +80,6 @@ static void random_sources_feed(void);
 
 static u_int read_rate;
 
-/* List for the dynamic sysctls */
-static struct sysctl_ctx_list random_clist;
-
 /*
  * How many events to queue up. We create this many items in
  * an 'empty' queue, then transfer them to the 'harvest' queue with
@@ -100,6 +97,9 @@ volatile int random_kthread_control;
  * entropy types to harvest.
  */
 __read_frequently u_int hc_source_mask;
+
+SYSCTL_NODE(_kern_random, OID_AUTO, harvest, CTLFLAG_RW, 0,
+    "Entropy Device Parameters");
 
 /*
  * Put all the harvest queue context stuff in one place.
@@ -292,6 +292,8 @@ random_check_uint_harvestmask(SYSCTL_HANDLER_ARGS)
 	    (orig_value & user_immutable_mask);
 	return (0);
 }
+SYSCTL_PROC(_kern_random_harvest, OID_AUTO, mask, CTLTYPE_UINT | CTLFLAG_RW,
+    NULL, 0, random_check_uint_harvestmask, "IU", "Entropy harvesting mask");
 
 /* ARGSUSED */
 static int
@@ -310,6 +312,9 @@ random_print_harvestmask(SYSCTL_HANDLER_ARGS)
 	}
 	return (error);
 }
+SYSCTL_PROC(_kern_random_harvest, OID_AUTO, mask_bin,
+    CTLTYPE_STRING | CTLFLAG_RD, NULL, 0, random_print_harvestmask, "A",
+    "Entropy harvesting mask (printable)");
 
 static const char *random_source_descr[ENTROPYSOURCE] = {
 	[RANDOM_CACHED] = "CACHED",
@@ -367,6 +372,9 @@ random_print_harvestmask_symbolic(SYSCTL_HANDLER_ARGS)
 	}
 	return (error);
 }
+SYSCTL_PROC(_kern_random_harvest, OID_AUTO, mask_symbolic,
+    CTLTYPE_STRING | CTLFLAG_RD, NULL, 0, random_print_harvestmask_symbolic,
+    "A", "Entropy harvesting mask (symbolic)");
 
 /* ARGSUSED */
 static void
@@ -376,26 +384,7 @@ random_harvestq_init(void *unused __unused)
 	    (((1 << (RANDOM_ENVIRONMENTAL_END + 1)) - 1) &
 	    ~_RANDOM_HARVEST_ETHER_OFF & ~_RANDOM_HARVEST_UMA_OFF);
 
-	struct sysctl_oid *random_sys_o;
-
-	random_sys_o = SYSCTL_ADD_NODE(&random_clist,
-	    SYSCTL_STATIC_CHILDREN(_kern_random),
-	    OID_AUTO, "harvest", CTLFLAG_RW, 0,
-	    "Entropy Device Parameters");
 	hc_source_mask = almost_everything_mask;
-	SYSCTL_ADD_PROC(&random_clist,
-	    SYSCTL_CHILDREN(random_sys_o),
-	    OID_AUTO, "mask", CTLTYPE_UINT | CTLFLAG_RW,
-	    NULL, 0, random_check_uint_harvestmask, "IU",
-	    "Entropy harvesting mask");
-	SYSCTL_ADD_PROC(&random_clist,
-	    SYSCTL_CHILDREN(random_sys_o),
-	    OID_AUTO, "mask_bin", CTLTYPE_STRING | CTLFLAG_RD,
-	    NULL, 0, random_print_harvestmask, "A", "Entropy harvesting mask (printable)");
-	SYSCTL_ADD_PROC(&random_clist,
-	    SYSCTL_CHILDREN(random_sys_o),
-	    OID_AUTO, "mask_symbolic", CTLTYPE_STRING | CTLFLAG_RD,
-	    NULL, 0, random_print_harvestmask_symbolic, "A", "Entropy harvesting mask (symbolic)");
 	RANDOM_HARVEST_INIT_LOCK();
 	harvest_context.hc_entropy_ring.in = harvest_context.hc_entropy_ring.out = 0;
 }
@@ -487,7 +476,6 @@ random_harvestq_deinit(void *unused __unused)
 	random_kthread_control = 0;
 	while (random_kthread_control >= 0)
 		tsleep(&harvest_context.hc_kthread_proc, 0, "harvqterm", hz/5);
-	sysctl_ctx_free(&random_clist);
 }
 SYSUNINIT(random_device_h_init, SI_SUB_RANDOM, SI_ORDER_SECOND, random_harvestq_deinit, NULL);
 
