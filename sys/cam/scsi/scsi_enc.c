@@ -205,10 +205,7 @@ enc_dtor(struct cam_periph *periph)
 	if (enc->enc_vec.softc_cleanup != NULL)
 		enc->enc_vec.softc_cleanup(enc);
 
-	if (enc->enc_boot_hold_ch.ich_func != NULL) {
-		config_intrhook_disestablish(&enc->enc_boot_hold_ch);
-		enc->enc_boot_hold_ch.ich_func = NULL;
-	}
+	root_mount_rel(&enc->enc_rootmount);
 
 	ENC_FREE(enc);
 }
@@ -835,7 +832,6 @@ enc_daemon(void *arg)
 	cam_periph_lock(enc->periph);
 	while ((enc->enc_flags & ENC_FLAG_SHUTDOWN) == 0) {
 		if (enc->pending_actions == 0) {
-			struct intr_config_hook *hook;
 
 			/*
 			 * Reset callout and msleep, or
@@ -848,11 +844,7 @@ enc_daemon(void *arg)
 			 * We've been through our state machine at least
 			 * once.  Allow the transition to userland.
 			 */
-			hook = &enc->enc_boot_hold_ch;
-			if (hook->ich_func != NULL) {
-				config_intrhook_disestablish(hook);
-				hook->ich_func = NULL;
-			}
+			root_mount_rel(&enc->enc_rootmount);
 
 			callout_reset(&enc->status_updater, 60*hz,
 				      enc_status_updater, enc);
@@ -890,22 +882,6 @@ enc_kproc_init(enc_softc_t *enc)
 	} else
 		cam_periph_release(enc->periph);
 	return (result);
-}
- 
-/**
- * \brief Interrupt configuration hook callback associated with
- *        enc_boot_hold_ch.
- *
- * Since interrupts are always functional at the time of enclosure
- * configuration, there is nothing to be done when the callback occurs.
- * This hook is only registered to hold up boot processing while initial
- * eclosure processing occurs.
- * 
- * \param arg  The enclosure softc, but currently unused in this callback.
- */
-static void
-enc_nop_confighook_cb(void *arg __unused)
-{
 }
 
 static cam_status
@@ -964,9 +940,7 @@ enc_ctor(struct cam_periph *periph, void *arg)
 	 * present.
 	 */
 	if (enc->enc_vec.poll_status != NULL) {
-		enc->enc_boot_hold_ch.ich_func = enc_nop_confighook_cb;
-		enc->enc_boot_hold_ch.ich_arg = enc;
-		config_intrhook_establish(&enc->enc_boot_hold_ch);
+		root_mount_hold_token(periph->periph_name, &enc->enc_rootmount);
 	}
 
 	/*

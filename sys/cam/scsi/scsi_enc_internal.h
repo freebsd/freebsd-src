@@ -163,7 +163,7 @@ struct enc_softc {
 
 	struct enc_fsm_state 	*enc_fsm_states;
 
-	struct intr_config_hook  enc_boot_hold_ch;
+	struct root_hold_token	 enc_rootmount;
 
 #define 	ENC_ANNOUNCE_SZ		400
 	char			announce_buf[ENC_ANNOUNCE_SZ];
