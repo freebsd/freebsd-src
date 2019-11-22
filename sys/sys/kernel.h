@@ -124,6 +124,7 @@ enum sysinit_sub_id {
 	SI_SUB_MBUF		= 0x2700000,	/* mbuf subsystem */
 	SI_SUB_INTR		= 0x2800000,	/* interrupt threads */
 	SI_SUB_TASKQ		= 0x2880000,	/* task queues */
+	SI_SUB_EPOCH		= 0x2888000,	/* epoch subsystem */
 #ifdef EARLY_AP_STARTUP
 	SI_SUB_SMP		= 0x2900000,	/* start the APs*/
 #endif

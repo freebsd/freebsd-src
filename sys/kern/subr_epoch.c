@@ -276,7 +276,7 @@ epoch_init(void *arg __unused)
 	global_epoch = epoch_alloc("Global", 0);
 	global_epoch_preempt = epoch_alloc("Global preemptible", EPOCH_PREEMPT);
 }
-SYSINIT(epoch, SI_SUB_TASKQ + 1, SI_ORDER_FIRST, epoch_init, NULL);
+SYSINIT(epoch, SI_SUB_EPOCH, SI_ORDER_FIRST, epoch_init, NULL);
 
 #if !defined(EARLY_AP_STARTUP)
 static void
