@@ -494,7 +494,7 @@ int uma_zone_reserve_kva(uma_zone_t zone, int nitems);
  *	nitems  The requested upper limit on the number of items allowed
  *
  * Returns:
- *	int  The effective value of nitems after rounding up based on page size
+ *	int  The effective value of nitems
  */
 int uma_zone_set_max(uma_zone_t zone, int nitems);
 
@@ -504,11 +504,8 @@ int uma_zone_set_max(uma_zone_t zone, int nitems);
  * Arguments:
  *      zone  The zone to limit
  *      nitems  The requested upper limit on the number of items allowed
- *
- * Returns:
- *      int  The effective value of nitems set
  */
-int uma_zone_set_maxcache(uma_zone_t zone, int nitems);
+void uma_zone_set_maxcache(uma_zone_t zone, int nitems);
 
 /*
  * Obtains the effective limit on the number of items in a zone
