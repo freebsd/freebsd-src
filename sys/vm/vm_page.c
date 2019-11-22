@@ -1829,21 +1829,14 @@ vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex,
  * Returns true if the number of free pages exceeds the minimum
  * for the request class and false otherwise.
  */
-int
-vm_domain_allocate(struct vm_domain *vmd, int req, int npages)
+static int
+_vm_domain_allocate(struct vm_domain *vmd, int req_class, int npages)
 {
 	u_int limit, old, new;
 
-	req = req & VM_ALLOC_CLASS_MASK;
-
-	/*
-	 * The page daemon is allowed to dig deeper into the free page list.
-	 */
-	if (curproc == pageproc && req != VM_ALLOC_INTERRUPT)
-		req = VM_ALLOC_SYSTEM;
-	if (req == VM_ALLOC_INTERRUPT)
+	if (req_class == VM_ALLOC_INTERRUPT)
 		limit = 0;
-	else if (req == VM_ALLOC_SYSTEM)
+	else if (req_class == VM_ALLOC_SYSTEM)
 		limit = vmd->vmd_interrupt_free_min;
 	else
 		limit = vmd->vmd_free_reserved;
@@ -1869,6 +1862,20 @@ vm_domain_allocate(struct vm_domain *vmd, int req, int npages)
 		vm_domain_set(vmd);
 
 	return (1);
+}
+
+int
+vm_domain_allocate(struct vm_domain *vmd, int req, int npages)
+{
+	int req_class;
+
+	/*
+	 * The page daemon is allowed to dig deeper into the free page list.
+	 */
+	req_class = req & VM_ALLOC_CLASS_MASK;
+	if (curproc == pageproc && req_class != VM_ALLOC_INTERRUPT)
+		req_class = VM_ALLOC_SYSTEM;
+	return (_vm_domain_allocate(vmd, req_class, npages));
 }
 
 vm_page_t
@@ -2316,8 +2323,13 @@ vm_page_zone_import(void *arg, void **store, int cnt, int domain, int flags)
 
 	pgcache = arg;
 	vmd = VM_DOMAIN(pgcache->domain);
-	/* Only import if we can bring in a full bucket. */
-	if (cnt == 1 || !vm_domain_allocate(vmd, VM_ALLOC_NORMAL, cnt))
+
+	/*
+	 * The page daemon should avoid creating extra memory pressure since its
+	 * main purpose is to replenish the store of free pages.
+	 */
+	if (vmd->vmd_severeset || curproc == pageproc ||
+	    !_vm_domain_allocate(vmd, VM_ALLOC_NORMAL, cnt))
 		return (0);
 	domain = vmd->vmd_domain;
 	vm_domain_free_lock(vmd);
