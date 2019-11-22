@@ -89,14 +89,18 @@ main(int argc, char **argv)
   char *endptr;
   char **hosts_bak;
   int have_v6 = 1;
+  int foreground = 0;
   int maxrec = RPC_MAXDATASIZE;
   int attempt_cnt, port_len, port_pos, ret;
   char **port_list;
 
-  while ((ch = getopt(argc, argv, "dh:p:")) != -1)
+  while ((ch = getopt(argc, argv, "dFh:p:")) != -1)
     switch (ch) {
     case 'd':
       debug = 1;
+      break;
+    case 'F':
+      foreground = 1;
       break;
     case 'h':
       ++nhosts;
@@ -288,7 +292,11 @@ main(int argc, char **argv)
 
   /* Note that it is NOT sensible to run this program from inetd - the 	*/
   /* protocol assumes that it will run immediately at boot time.	*/
-  daemon(0, 0);
+  if ((foreground == 0) && daemon(0, 0) < 0) {
+  	err(1, "cannot fork");
+  	/* NOTREACHED */
+  }
+
   openlog("rpc.statd", 0, LOG_DAEMON);
   if (debug) syslog(LOG_INFO, "Starting - debug enabled");
   else syslog(LOG_INFO, "Starting");
@@ -618,7 +626,7 @@ clearout_service(void)
 static void
 usage(void)
 {
-      fprintf(stderr, "usage: rpc.statd [-d] [-h <bindip>] [-p <port>]\n");
+      fprintf(stderr, "usage: rpc.statd [-d] [-F] [-h <bindip>] [-p <port>]\n");
       exit(1);
 }
 
