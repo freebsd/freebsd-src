@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/random.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 
 #include <machine/md_var.h>
@@ -59,23 +60,46 @@ static struct random_source random_ivy = {
 	.rs_read = random_ivy_read
 };
 
+SYSCTL_NODE(_kern_random, OID_AUTO, rdrand, CTLFLAG_RW, 0,
+    "rdrand (ivy) entropy source");
+static bool acquire_independent_seed_samples = false;
+SYSCTL_BOOL(_kern_random_rdrand, OID_AUTO, rdrand_independent_seed,
+    CTLFLAG_RWTUN, &acquire_independent_seed_samples, 0,
+    "If non-zero, use more expensive and slow, but safer, seeded samples "
+    "where RDSEED is not present.");
+
 static bool
 x86_rdrand_store(u_long *buf)
 {
-	u_long rndval;
+	u_long rndval, seed_iterations, i;
 	int retry;
 
-	retry = RETRY_COUNT;
-	__asm __volatile(
-	    "1:\n\t"
-	    "rdrand	%1\n\t"	/* read randomness into rndval */
-	    "jc		2f\n\t" /* CF is set on success, exit retry loop */
-	    "dec	%0\n\t" /* otherwise, retry-- */
-	    "jne	1b\n\t" /* and loop if retries are not exhausted */
-	    "2:"
-	    : "+r" (retry), "=r" (rndval) : : "cc");
+	/* Per [1], "§ 5.2.6 Generating Seeds from RDRAND,"
+	 * machines lacking RDSEED will guarantee RDRAND is reseeded every 8kB
+	 * of generated output.
+	 *
+	 * [1]: https://software.intel.com/en-us/articles/intel-digital-random-number-generator-drng-software-implementation-guide#inpage-nav-6-8
+	 */
+	if (acquire_independent_seed_samples)
+		seed_iterations = 8 * 1024 / sizeof(*buf);
+	else
+		seed_iterations = 1;
+
+	for (i = 0; i < seed_iterations; i++) {
+		retry = RETRY_COUNT;
+		__asm __volatile(
+		    "1:\n\t"
+		    "rdrand	%1\n\t"	/* read randomness into rndval */
+		    "jc		2f\n\t" /* CF is set on success, exit retry loop */
+		    "dec	%0\n\t" /* otherwise, retry-- */
+		    "jne	1b\n\t" /* and loop if retries are not exhausted */
+		    "2:"
+		    : "+r" (retry), "=r" (rndval) : : "cc");
+		if (retry == 0)
+			return (false);
+	}
 	*buf = rndval;
-	return (retry != 0);
+	return (true);
 }
 
 static bool
