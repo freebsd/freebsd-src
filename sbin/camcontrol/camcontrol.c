@@ -1961,7 +1961,7 @@ atahpa_proc_resp(struct cam_device *device, union ccb *ccb, u_int64_t *hpasize)
 	if (hpasize != NULL) {
 		if (retval == 2 || retval == 6)
 			return (1);
-		*hpasize = lba;
+		*hpasize = lba + 1;
 	}
 
 	return (0);
