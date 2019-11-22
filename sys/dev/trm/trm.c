@@ -3376,7 +3376,9 @@ trm_attach(device_t dev)
 	PACB	pACB = 0;
 	int	rid = 0;
 	int unit = device_get_unit(dev);
-	
+
+	gone_in(13, "Giant locked CAM drivers");
+
 	device_id = pci_get_devid(dev);
 	/*
 	 * These cards do not allow memory mapped accesses
