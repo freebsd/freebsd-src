@@ -128,7 +128,6 @@ struct xpt_softc {
 	struct root_hold_token	xpt_rootmount;
 
 	struct mtx		xpt_topo_lock;
-	struct mtx		xpt_lock;
 	struct taskqueue	*xpt_taskq;
 };
 
@@ -895,7 +894,6 @@ xpt_init(void *dummy)
 	STAILQ_INIT(&xsoftc.highpowerq);
 	xsoftc.num_highpower = CAM_MAX_HIGHPOWER;
 
-	mtx_init(&xsoftc.xpt_lock, "XPT lock", NULL, MTX_DEF);
 	mtx_init(&xsoftc.xpt_highpower_lock, "XPT highpower lock", NULL, MTX_DEF);
 	xsoftc.xpt_taskq = taskqueue_create("CAM XPT task", M_WAITOK,
 	    taskqueue_thread_enqueue, /*context*/&xsoftc.xpt_taskq);
@@ -920,21 +918,18 @@ xpt_init(void *dummy)
 				"xpt",
 				/*softc*/NULL,
 				/*unit*/0,
-				/*mtx*/&xsoftc.xpt_lock,
+				/*mtx*/NULL,
 				/*max_dev_transactions*/0,
 				/*max_tagged_dev_transactions*/0,
 				devq);
 	if (xpt_sim == NULL)
 		return (ENOMEM);
 
-	mtx_lock(&xsoftc.xpt_lock);
 	if ((status = xpt_bus_register(xpt_sim, NULL, 0)) != CAM_SUCCESS) {
-		mtx_unlock(&xsoftc.xpt_lock);
 		printf("xpt_init: xpt_bus_register failed with status %#x,"
 		       " failing attach\n", status);
 		return (EINVAL);
 	}
-	mtx_unlock(&xsoftc.xpt_lock);
 
 	/*
 	 * Looking at the XPT from the SIM layer, the XPT is
