@@ -587,6 +587,9 @@ Servers should be listed in order of preference.
 The StreetTalk Directory Assistance (STDA) server option specifies a
 list of STDA servers available to the client.
 Servers should be listed in order of preference.
+.It Ic option url Ar string ;
+This option specifies the URL that the client may use when using UEFI
+boot from a HTTP server.
 .El
 .Sh SEE ALSO
 .Xr dhclient.conf 5 ,
@@ -595,7 +598,7 @@ Servers should be listed in order of preference.
 .Xr dhclient 8 ,
 .Xr dhcpd 8
 .Rs
-.%R "RFC 2131, RFC 2132"
+.%R "RFC 2131, RFC 2132, RFC 3769"
 .Re
 .Sh AUTHORS
 .An -nosplit
