@@ -88,7 +88,7 @@ struct vm_batchqueue {
 struct sysctl_oid;
 
 /*
- * One vm_domain per-numa domain.  Contains pagequeues, free page structures,
+ * One vm_domain per NUMA domain.  Contains pagequeues, free page structures,
  * and accounting.
  *
  * Lock Key:
@@ -98,7 +98,141 @@ struct sysctl_oid;
  * a	atomic
  * c	const after boot
  * q	page queue lock
-*/
+ *
+ * A unique page daemon thread manages each vm_domain structure and is
+ * responsible for ensuring that some free memory is available by freeing
+ * inactive pages and aging active pages.  To decide how many pages to process,
+ * it uses thresholds derived from the number of pages in the domain:
+ *
+ *  vmd_page_count
+ *       ---
+ *        |
+ *        |-> vmd_inactive_target (~3%)
+ *        |   - The active queue scan target is given by
+ *        |     (vmd_inactive_target + vmd_free_target - vmd_free_count).
+ *        |
+ *        |
+ *        |-> vmd_free_target (~2%)
+ *        |   - Target for page reclamation.
+ *        |
+ *        |-> vmd_pageout_wakeup_thresh (~1.8%)
+ *        |   - Threshold for waking up the page daemon.
+ *        |
+ *        |
+ *        |-> vmd_free_min (~0.5%)
+ *        |   - First low memory threshold.
+ *        |   - Causes per-CPU caching to be lazily disabled in UMA.
+ *        |   - vm_wait() sleeps below this threshold.
+ *        |
+ *        |-> vmd_free_severe (~0.25%)
+ *        |   - Second low memory threshold.
+ *        |   - Triggers aggressive UMA reclamation, disables delayed buffer
+ *        |     writes.
+ *        |
+ *        |-> vmd_free_reserved (~0.13%)
+ *        |   - Minimum for VM_ALLOC_NORMAL page allocations.
+ *        |-> vmd_pageout_free_min (32 + 2 pages)
+ *        |   - Minimum for waking a page daemon thread sleeping in vm_wait().
+ *        |-> vmd_interrupt_free_min (2 pages)
+ *        |   - Minimum for VM_ALLOC_SYSTEM page allocations.
+ *       ---
+ *
+ *--
+ * Free page count regulation:
+ *
+ * The page daemon attempts to ensure that the free page count is above the free
+ * target.  It wakes up periodically (every 100ms) to input the current free
+ * page shortage (free_target - free_count) to a PID controller, which in
+ * response outputs the number of pages to attempt to reclaim.  The shortage's
+ * current magnitude, rate of change, and cumulative value are together used to
+ * determine the controller's output.  The page daemon target thus adapts
+ * dynamically to the system's demand for free pages, resulting in less
+ * burstiness than a simple hysteresis loop.
+ *
+ * When the free page count drops below the wakeup threshold,
+ * vm_domain_allocate() proactively wakes up the page daemon.  This helps ensure
+ * that the system responds promptly to a large instantaneous free page
+ * shortage.
+ *
+ * The page daemon also attempts to ensure that some fraction of the system's
+ * memory is present in the inactive (I) and laundry (L) page queues, so that it
+ * can respond promptly to a sudden free page shortage.  In particular, the page
+ * daemon thread aggressively scans active pages so long as the following
+ * condition holds:
+ *
+ *         len(I) + len(L) + free_target - free_count < inactive_target
+ *
+ * Otherwise, when the inactive target is met, the page daemon periodically
+ * scans a small portion of the active queue in order to maintain up-to-date
+ * per-page access history.  Unreferenced pages in the active queue thus
+ * eventually migrate to the inactive queue.
+ *
+ * The per-domain laundry thread periodically launders dirty pages based on the
+ * number of clean pages freed by the page daemon since the last laundering.  If
+ * the page daemon fails to meet its scan target (i.e., the PID controller
+ * output) because of a shortage of clean inactive pages, the laundry thread
+ * attempts to launder enough pages to meet the free page target.
+ *
+ *--
+ * Page allocation priorities:
+ *
+ * The system defines three page allocation priorities: VM_ALLOC_NORMAL,
+ * VM_ALLOC_SYSTEM and VM_ALLOC_INTERRUPT.  An interrupt-priority allocation can
+ * claim any free page.  This priority is used in the pmap layer when attempting
+ * to allocate a page for the kernel page tables; in such cases an allocation
+ * failure will usually result in a kernel panic.  The system priority is used
+ * for most other kernel memory allocations, for instance by UMA's slab
+ * allocator or the buffer cache.  Such allocations will fail if the free count
+ * is below interrupt_free_min.  All other allocations occur at the normal
+ * priority, which is typically used for allocation of user pages, for instance
+ * in the page fault handler or when allocating page table pages or pv_entry
+ * structures for user pmaps.  Such allocations fail if the free count is below
+ * the free_reserved threshold.
+ *
+ *--
+ * Free memory shortages:
+ *
+ * The system uses the free_min and free_severe thresholds to apply
+ * back-pressure and give the page daemon a chance to recover.  When a page
+ * allocation fails due to a shortage and the allocating thread cannot handle
+ * failure, it may call vm_wait() to sleep until free pages are available.
+ * vm_domain_freecnt_inc() wakes sleeping threads once the free page count rises
+ * above the free_min threshold; the page daemon and laundry threads are given
+ * priority and will wake up once free_count reaches the (much smaller)
+ * pageout_free_min threshold.
+ *
+ * On NUMA systems, the domainset iterators always prefer NUMA domains where the
+ * free page count is above the free_min threshold.  This means that given the
+ * choice between two NUMA domains, one above the free_min threshold and one
+ * below, the former will be used to satisfy the allocation request regardless
+ * of the domain selection policy.
+ *
+ * In addition to reclaiming memory from the page queues, the vm_lowmem event
+ * fires every ten seconds so long as the system is under memory pressure (i.e.,
+ * vmd_free_count < vmd_free_target).  This allows kernel subsystems to register
+ * for notifications of free page shortages, upon which they may shrink their
+ * caches.  Following a vm_lowmem event, UMA's caches are pruned to ensure that
+ * they do not contain an excess of unused memory.  When a domain is below the
+ * free_min threshold, UMA limits the population of per-CPU caches.  When a
+ * domain falls below the free_severe threshold, UMA's caches are completely
+ * drained.
+ *
+ * If the system encounters a global memory shortage, it may resort to the
+ * out-of-memory (OOM) killer, which selects a process and delivers SIGKILL in a
+ * last-ditch attempt to free up some pages.  Either of the two following
+ * conditions will activate the OOM killer:
+ *
+ *  1. The page daemons collectively fail to reclaim any pages during their
+ *     inactive queue scans.  After vm_pageout_oom_seq consecutive scans fail,
+ *     the page daemon thread votes for an OOM kill, and an OOM kill is
+ *     triggered when all page daemons have voted.  This heuristic is strict and
+ *     may fail to trigger even when the system is effectively deadlocked.
+ *
+ *  2. Threads in the user fault handler are repeatedly unable to make progress
+ *     while allocating a page to satisfy the fault.  After
+ *     vm_pfault_oom_attempts page allocation failures with intervening
+ *     vm_wait() calls, the faulting thread will trigger an OOM kill.
+ */
 struct vm_domain {
 	struct vm_pagequeue vmd_pagequeues[PQ_COUNT];
 	struct mtx_padalign vmd_free_mtx;

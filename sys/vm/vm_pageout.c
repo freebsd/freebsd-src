@@ -2104,7 +2104,9 @@ vm_pageout_worker(void *arg)
 }
 
 /*
- *	vm_pageout_init initialises basic pageout daemon settings.
+ * Initialize basic pageout daemon settings.  See the comment above the
+ * definition of vm_domain for some explanation of how these thresholds are
+ * used.
  */
 static void
 vm_pageout_init_domain(int domain)
@@ -2120,14 +2122,11 @@ vm_pageout_init_domain(int domain)
 	 * swap pager structures plus enough for any pv_entry structs
 	 * when paging. 
 	 */
-	if (vmd->vmd_page_count > 1024)
-		vmd->vmd_free_min = 4 + (vmd->vmd_page_count - 1024) / 200;
-	else
-		vmd->vmd_free_min = 4;
 	vmd->vmd_pageout_free_min = 2 * MAXBSIZE / PAGE_SIZE +
 	    vmd->vmd_interrupt_free_min;
 	vmd->vmd_free_reserved = vm_pageout_page_count +
-	    vmd->vmd_pageout_free_min + (vmd->vmd_page_count / 768);
+	    vmd->vmd_pageout_free_min + vmd->vmd_page_count / 768;
+	vmd->vmd_free_min = vmd->vmd_page_count / 200;
 	vmd->vmd_free_severe = vmd->vmd_free_min / 2;
 	vmd->vmd_free_target = 4 * vmd->vmd_free_min + vmd->vmd_free_reserved;
 	vmd->vmd_free_min += vmd->vmd_free_reserved;
