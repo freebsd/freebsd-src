@@ -158,6 +158,11 @@ static struct bcm283x_memory_soc_cfg {
 #ifdef SOC_BRCM_BCM2838
 	{
 		.memmap = bcm2838_memmap,
+		.soc_compat = "brcm,bcm2711",
+		.busdma_lowaddr = BCM2838_PERIPH_MAXADDR,
+	},
+	{
+		.memmap = bcm2838_memmap,
 		.soc_compat = "brcm,bcm2838",
 		.busdma_lowaddr = BCM2838_PERIPH_MAXADDR,
 	},
