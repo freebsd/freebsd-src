@@ -350,6 +350,8 @@ ATF_TC_BODY(bit_ffs_area, tc)
 	bitstr_t bit_decl(bitstr, nbits);
 	int location;
 
+	memset(bitstr, 0, bitstr_size(nbits));
+
 	bit_set(bitstr, 5);
 	bit_set(bitstr, 6);
 
