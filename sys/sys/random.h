@@ -81,7 +81,6 @@ enum random_entropy_source {
 _Static_assert(ENTROPYSOURCE <= 32,
     "hardcoded assumption that values fit in a typical word-sized bitset");
 
-#define RANDOM_LEGACY_BOOT_ENTROPY_MODULE	"/boot/entropy"
 #define RANDOM_CACHED_BOOT_ENTROPY_MODULE	"boot_entropy_cache"
 
 extern u_int hc_source_mask;

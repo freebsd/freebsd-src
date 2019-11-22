@@ -402,6 +402,57 @@ random_harvestq_init(void *unused __unused)
 SYSINIT(random_device_h_init, SI_SUB_RANDOM, SI_ORDER_SECOND, random_harvestq_init, NULL);
 
 /*
+ * Subroutine to slice up a contiguous chunk of 'entropy' and feed it into the
+ * underlying algorithm.  Returns number of bytes actually fed into underlying
+ * algorithm.
+ */
+static size_t
+random_early_prime(char *entropy, size_t len)
+{
+	struct harvest_event event;
+	size_t i;
+
+	len = rounddown(len, sizeof(event.he_entropy));
+	if (len == 0)
+		return (0);
+
+	for (i = 0; i < len; i += sizeof(event.he_entropy)) {
+		event.he_somecounter = (uint32_t)get_cyclecount();
+		event.he_size = sizeof(event.he_entropy);
+		event.he_source = RANDOM_CACHED;
+		event.he_destination =
+		    harvest_context.hc_destination[RANDOM_CACHED]++;
+		memcpy(event.he_entropy, entropy + i, sizeof(event.he_entropy));
+		random_harvestq_fast_process_event(&event);
+	}
+	explicit_bzero(entropy, len);
+	return (len);
+}
+
+/*
+ * Subroutine to search for known loader-loaded files in memory and feed them
+ * into the underlying algorithm early in boot.  Returns the number of bytes
+ * loaded (zero if none were loaded).
+ */
+static size_t
+random_prime_loader_file(const char *type)
+{
+	uint8_t *keyfile, *data;
+	size_t size;
+
+	keyfile = preload_search_by_type(type);
+	if (keyfile == NULL)
+		return (0);
+
+	data = preload_fetch_addr(keyfile);
+	size = preload_fetch_size(keyfile);
+	if (data == NULL)
+		return (0);
+
+	return (random_early_prime(data, size));
+}
+
+/*
  * This is used to prime the RNG by grabbing any early random stuff
  * known to the kernel, and inserting it directly into the hashing
  * module, currently Fortuna.
@@ -410,41 +461,19 @@ SYSINIT(random_device_h_init, SI_SUB_RANDOM, SI_ORDER_SECOND, random_harvestq_in
 static void
 random_harvestq_prime(void *unused __unused)
 {
-	struct harvest_event event;
-	size_t count, size, i;
-	uint8_t *keyfile, *data;
+	size_t size;
 
 	/*
 	 * Get entropy that may have been preloaded by loader(8)
 	 * and use it to pre-charge the entropy harvest queue.
 	 */
-	keyfile = preload_search_by_type(RANDOM_CACHED_BOOT_ENTROPY_MODULE);
-#ifndef NO_BACKWARD_COMPATIBILITY
-	if (keyfile == NULL)
-	    keyfile = preload_search_by_type(RANDOM_LEGACY_BOOT_ENTROPY_MODULE);
-#endif
-	if (keyfile != NULL) {
-		data = preload_fetch_addr(keyfile);
-		size = preload_fetch_size(keyfile);
-		/* Trim the size. If the admin has a file with a funny size, we lose some. Tough. */
-		size -= (size % sizeof(event.he_entropy));
-		if (data != NULL && size != 0) {
-			for (i = 0; i < size; i += sizeof(event.he_entropy)) {
-				count = sizeof(event.he_entropy);
-				event.he_somecounter = (uint32_t)get_cyclecount();
-				event.he_size = count;
-				event.he_source = RANDOM_CACHED;
-				event.he_destination =
-				    harvest_context.hc_destination[RANDOM_CACHED]++;
-				memcpy(event.he_entropy, data + i, sizeof(event.he_entropy));
-				random_harvestq_fast_process_event(&event);
-			}
-			explicit_bzero(data, size);
-			if (bootverbose)
-				printf("random: read %zu bytes from preloaded cache\n", size);
-		} else
-			if (bootverbose)
-				printf("random: no preloaded entropy cache\n");
+	size = random_prime_loader_file(RANDOM_CACHED_BOOT_ENTROPY_MODULE);
+	if (bootverbose) {
+		if (size > 0)
+			printf("random: read %zu bytes from preloaded cache\n",
+			    size);
+		else
+			printf("random: no preloaded entropy cache\n");
 	}
 }
 SYSINIT(random_device_prime, SI_SUB_RANDOM, SI_ORDER_MIDDLE, random_harvestq_prime, NULL);
