@@ -181,10 +181,11 @@ popmap_is_set(popmap_t popmap[], int i)
  *
  * A partially populated reservation can be broken and reclaimed at any time.
  *
- * r - vm_reserv_lock
+ * c - constant after boot
  * d - vm_reserv_domain_lock
  * o - vm_reserv_object_lock
- * c - constant after boot
+ * r - vm_reserv_lock
+ * s - vm_reserv_domain_scan_lock
  */
 struct vm_reserv {
 	struct mtx	lock;			/* reservation lock. */
@@ -199,6 +200,8 @@ struct vm_reserv {
 	int		lasttick;		/* (r) last pop update tick. */
 	popmap_t	popmap[NPOPMAP_MAX];	/* (r) bit vector, used pages */
 };
+
+TAILQ_HEAD(vm_reserv_queue, vm_reserv);
 
 #define	vm_reserv_lockptr(rv)		(&(rv)->lock)
 #define	vm_reserv_assert_locked(rv)					\
@@ -238,17 +241,25 @@ static vm_reserv_t vm_reserv_array;
  * is the least recently changed, partially populated reservation.
  *
  * Access to this queue is synchronized by the per-domain reservation lock.
+ * Threads reclaiming free pages from the queue must hold the per-domain scan
+ * lock.
  */
 struct vm_reserv_domain {
-	struct mtx lock;
-	TAILQ_HEAD(, vm_reserv) partpop;
+	struct mtx 		lock;
+	struct vm_reserv_queue	partpop;	/* (d) */
+	struct vm_reserv	marker;		/* (d, s) scan marker/lock */
 } __aligned(CACHE_LINE_SIZE);
 
 static struct vm_reserv_domain vm_rvd[MAXMEMDOM];
 
 #define	vm_reserv_domain_lockptr(d)	(&vm_rvd[(d)].lock)
+#define	vm_reserv_domain_assert_locked(d)	\
+	mtx_assert(vm_reserv_domain_lockptr(d), MA_OWNED)
 #define	vm_reserv_domain_lock(d)	mtx_lock(vm_reserv_domain_lockptr(d))
 #define	vm_reserv_domain_unlock(d)	mtx_unlock(vm_reserv_domain_lockptr(d))
+
+#define	vm_reserv_domain_scan_lock(d)	mtx_lock(&vm_rvd[(d)].marker.lock)
+#define	vm_reserv_domain_scan_unlock(d)	mtx_unlock(&vm_rvd[(d)].marker.lock)
 
 static SYSCTL_NODE(_vm, OID_AUTO, reserv, CTLFLAG_RD, 0, "Reservation Info");
 
@@ -350,6 +361,8 @@ sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS)
 			unused_pages = 0;
 			vm_reserv_domain_lock(domain);
 			TAILQ_FOREACH(rv, &vm_rvd[domain].partpop, partpopq) {
+				if (rv == &vm_rvd[domain].marker)
+					continue;
 				counter++;
 				unused_pages += VM_LEVEL_0_NPAGES - rv->popcnt;
 			}
@@ -1037,7 +1050,8 @@ vm_reserv_init(void)
 	vm_paddr_t paddr;
 	struct vm_phys_seg *seg;
 	struct vm_reserv *rv;
-	int i, segind;
+	struct vm_reserv_domain *rvd;
+	int i, j, segind;
 
 	/*
 	 * Initialize the reservation array.  Specifically, initialize the
@@ -1056,8 +1070,18 @@ vm_reserv_init(void)
 		}
 	}
 	for (i = 0; i < MAXMEMDOM; i++) {
-		mtx_init(&vm_rvd[i].lock, "VM reserv domain", NULL, MTX_DEF);
-		TAILQ_INIT(&vm_rvd[i].partpop);
+		rvd = &vm_rvd[i];
+		mtx_init(&rvd->lock, "vm reserv domain", NULL, MTX_DEF);
+		TAILQ_INIT(&rvd->partpop);
+		mtx_init(&rvd->marker.lock, "vm reserv marker", NULL, MTX_DEF);
+
+		/*
+		 * Fully populated reservations should never be present in the
+		 * partially populated reservation queues.
+		 */
+		rvd->marker.popcnt = VM_LEVEL_0_NPAGES;
+		for (j = 0; j < NBPOPMAP; j++)
+			popmap_set(rvd->marker.popmap, j);
 	}
 
 	for (i = 0; i < VM_RESERV_OBJ_LOCK_COUNT; i++)
@@ -1107,6 +1131,24 @@ vm_reserv_level_iffullpop(vm_page_t m)
 }
 
 /*
+ * Remove a partially populated reservation from the queue.
+ */
+static void
+vm_reserv_dequeue(vm_reserv_t rv)
+{
+
+	vm_reserv_domain_assert_locked(rv->domain);
+	vm_reserv_assert_locked(rv);
+	CTR5(KTR_VM, "%s: rv %p object %p popcnt %d inpartpop %d",
+	    __FUNCTION__, rv, rv->object, rv->popcnt, rv->inpartpopq);
+	KASSERT(rv->inpartpopq,
+	    ("vm_reserv_reclaim: reserv %p's inpartpopq is FALSE", rv));
+
+	TAILQ_REMOVE(&vm_rvd[rv->domain].partpop, rv, partpopq);
+	rv->inpartpopq = FALSE;
+}
+
+/*
  * Breaks the given partially populated reservation, releasing its free pages
  * to the physical memory allocator.
  */
@@ -1117,40 +1159,43 @@ vm_reserv_reclaim(vm_reserv_t rv)
 	vm_reserv_assert_locked(rv);
 	CTR5(KTR_VM, "%s: rv %p object %p popcnt %d inpartpop %d",
 	    __FUNCTION__, rv, rv->object, rv->popcnt, rv->inpartpopq);
-	vm_reserv_domain_lock(rv->domain);
-	KASSERT(rv->inpartpopq,
-	    ("vm_reserv_reclaim: reserv %p's inpartpopq is FALSE", rv));
-	KASSERT(rv->domain < vm_ndomains,
-	    ("vm_reserv_reclaim: reserv %p's domain is corrupted %d",
-	    rv, rv->domain));
-	TAILQ_REMOVE(&vm_rvd[rv->domain].partpop, rv, partpopq);
-	rv->inpartpopq = FALSE;
-	vm_reserv_domain_unlock(rv->domain);
+	if (rv->inpartpopq) {
+		vm_reserv_domain_lock(rv->domain);
+		vm_reserv_dequeue(rv);
+		vm_reserv_domain_unlock(rv->domain);
+	}
 	vm_reserv_break(rv);
 	counter_u64_add(vm_reserv_reclaimed, 1);
 }
 
 /*
- * Breaks the reservation at the head of the partially populated reservation
+ * Breaks a reservation near the head of the partially populated reservation
  * queue, releasing its free pages to the physical memory allocator.  Returns
  * TRUE if a reservation is broken and FALSE otherwise.
  */
-boolean_t
+bool
 vm_reserv_reclaim_inactive(int domain)
 {
 	vm_reserv_t rv;
 
-	while ((rv = TAILQ_FIRST(&vm_rvd[domain].partpop)) != NULL) {
-		vm_reserv_lock(rv);
-		if (rv != TAILQ_FIRST(&vm_rvd[domain].partpop)) {
-			vm_reserv_unlock(rv);
-			continue;
+	vm_reserv_domain_lock(domain);
+	TAILQ_FOREACH(rv, &vm_rvd[domain].partpop, partpopq) {
+		/*
+		 * A locked reservation is likely being updated or reclaimed,
+		 * so just skip ahead.
+		 */
+		if (rv != &vm_rvd[domain].marker && vm_reserv_trylock(rv)) {
+			vm_reserv_dequeue(rv);
+			break;
 		}
+	}
+	vm_reserv_domain_unlock(domain);
+	if (rv != NULL) {
 		vm_reserv_reclaim(rv);
 		vm_reserv_unlock(rv);
-		return (TRUE);
+		return (true);
 	}
-	return (FALSE);
+	return (false);
 }
 
 /*
@@ -1236,20 +1281,23 @@ vm_reserv_test_contig(vm_reserv_t rv, u_long npages, vm_paddr_t low,
  * contiguous physical memory.  If a satisfactory reservation is found, it is
  * broken.  Returns true if a reservation is broken and false otherwise.
  */
-boolean_t
+bool
 vm_reserv_reclaim_contig(int domain, u_long npages, vm_paddr_t low,
     vm_paddr_t high, u_long alignment, vm_paddr_t boundary)
 {
+	struct vm_reserv_queue *queue;
 	vm_paddr_t pa, size;
-	vm_reserv_t rv, rvn;
+	vm_reserv_t marker, rv, rvn;
 
 	if (npages > VM_LEVEL_0_NPAGES - 1)
 		return (false);
+	marker = &vm_rvd[domain].marker;
+	queue = &vm_rvd[domain].partpop;
 	size = npages << PAGE_SHIFT;
+
+	vm_reserv_domain_scan_lock(domain);
 	vm_reserv_domain_lock(domain);
-again:
-	for (rv = TAILQ_FIRST(&vm_rvd[domain].partpop); rv != NULL; rv = rvn) {
-		rvn = TAILQ_NEXT(rv, partpopq);
+	TAILQ_FOREACH_SAFE(rv, queue, partpopq, rvn) {
 		pa = VM_PAGE_TO_PHYS(&rv->pages[0]);
 		if (pa + VM_LEVEL_0_SIZE - size < low) {
 			/* This entire reservation is too low; go to next. */
@@ -1259,29 +1307,35 @@ again:
 			/* This entire reservation is too high; go to next. */
 			continue;
 		}
+
 		if (vm_reserv_trylock(rv) == 0) {
+			TAILQ_INSERT_AFTER(queue, rv, marker, partpopq);
 			vm_reserv_domain_unlock(domain);
 			vm_reserv_lock(rv);
-			if (!rv->inpartpopq) {
+			if (!rv->inpartpopq ||
+			    TAILQ_NEXT(rv, partpopq) != marker) {
+				vm_reserv_unlock(rv);
 				vm_reserv_domain_lock(domain);
-				if (!rvn->inpartpopq)
-					goto again;
+				rvn = TAILQ_NEXT(marker, partpopq);
+				TAILQ_REMOVE(queue, marker, partpopq);
 				continue;
 			}
-		} else
-			vm_reserv_domain_unlock(domain);
+			vm_reserv_domain_lock(domain);
+			TAILQ_REMOVE(queue, marker, partpopq);
+		}
+		vm_reserv_domain_unlock(domain);
 		if (vm_reserv_test_contig(rv, npages, low, high,
 		    alignment, boundary)) {
+			vm_reserv_domain_scan_unlock(domain);
 			vm_reserv_reclaim(rv);
 			vm_reserv_unlock(rv);
 			return (true);
 		}
 		vm_reserv_unlock(rv);
 		vm_reserv_domain_lock(domain);
-		if (rvn != NULL && !rvn->inpartpopq)
-			goto again;
 	}
 	vm_reserv_domain_unlock(domain);
+	vm_reserv_domain_scan_unlock(domain);
 	return (false);
 }
 
