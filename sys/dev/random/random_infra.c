@@ -101,8 +101,6 @@ SYSCTL_BOOL(_kern_random_initial_seeding, OID_AUTO,
 
 MALLOC_DEFINE(M_ENTROPY, "entropy", "Entropy harvesting buffers and data structures");
 
-struct sources_head source_list = LIST_HEAD_INITIALIZER(source_list);
-
 #if defined(RANDOM_LOADABLE)
 struct random_algorithm *p_random_alg_context = NULL;
 #else /* !defined(RANDOM_LOADABLE) */
