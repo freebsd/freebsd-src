@@ -98,6 +98,14 @@ volatile int random_kthread_control;
  */
 __read_frequently u_int hc_source_mask;
 
+struct random_sources {
+	LIST_ENTRY(random_sources)	 rrs_entries;
+	struct random_source		*rrs_source;
+};
+
+static LIST_HEAD(sources_head, random_sources) source_list =
+    LIST_HEAD_INITIALIZER(source_list);
+
 SYSCTL_NODE(_kern_random, OID_AUTO, harvest, CTLFLAG_RW, 0,
     "Entropy Device Parameters");
 
