@@ -347,7 +347,7 @@ ATF_TC_WITHOUT_HEAD(bit_ffs_area);
 ATF_TC_BODY(bit_ffs_area, tc)
 {
 	const int nbits = 72;
-	bitstr_t bit_decl(bitstr, nbits) = {};
+	bitstr_t bit_decl(bitstr, nbits);
 	int location;
 
 	bit_set(bitstr, 5);
@@ -416,7 +416,7 @@ ATF_TC_WITHOUT_HEAD(bit_ffc_area);
 ATF_TC_BODY(bit_ffc_area, tc)
 {
 	const int nbits = 80;
-	bitstr_t bit_decl(bitstr, nbits) = {};
+	bitstr_t bit_decl(bitstr, nbits);
 	int location;
 
 	/* set all bits */
