@@ -216,30 +216,28 @@ vm_page_init_cache_zones(void *dummy __unused)
 {
 	struct vm_domain *vmd;
 	struct vm_pgcache *pgcache;
-	int domain, maxcache, pool;
+	int cache, domain, maxcache, pool;
 
 	maxcache = 0;
 	TUNABLE_INT_FETCH("vm.pgcache_zone_max", &maxcache);
 	for (domain = 0; domain < vm_ndomains; domain++) {
 		vmd = VM_DOMAIN(domain);
-
-		/*
-		 * Don't allow the page caches to take up more than .1875% of
-		 * memory.  A UMA bucket contains at most 256 free pages, and we
-		 * have two buckets per CPU per free pool.
-		 */
-		if (vmd->vmd_page_count / 600 < 2 * 256 * mp_ncpus *
-		    VM_NFREEPOOL)
-			continue;
 		for (pool = 0; pool < VM_NFREEPOOL; pool++) {
 			pgcache = &vmd->vmd_pgcache[pool];
 			pgcache->domain = domain;
 			pgcache->pool = pool;
 			pgcache->zone = uma_zcache_create("vm pgcache",
-			    sizeof(struct vm_page), NULL, NULL, NULL, NULL,
+			    PAGE_SIZE, NULL, NULL, NULL, NULL,
 			    vm_page_zone_import, vm_page_zone_release, pgcache,
-			    UMA_ZONE_MAXBUCKET | UMA_ZONE_VM);
-			(void)uma_zone_set_maxcache(pgcache->zone, maxcache);
+			    UMA_ZONE_VM);
+
+			/*
+			 * Limit each pool's zone to 0.1% of the pages in the
+			 * domain.
+			 */
+			cache = maxcache != 0 ? maxcache :
+			    vmd->vmd_page_count / 1000;
+			uma_zone_set_maxcache(pgcache->zone, cache);
 		}
 	}
 }

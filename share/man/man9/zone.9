@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 1, 2019
+.Dd November 22, 2019
 .Dt UMA 9
 .Os
 .Sh NAME
@@ -107,7 +107,7 @@ typedef void (*uma_free)(void *item, vm_size_t size, uint8_t pflag);
 .Fn uma_zone_set_freef "uma_zone_t zone" "uma_free freef"
 .Ft int
 .Fn uma_zone_set_max "uma_zone_t zone" "int nitems"
-.Ft int
+.Ft void
 .Fn uma_zone_set_maxcache "uma_zone_t zone" "int nitems"
 .Ft int
 .Fn uma_zone_get_max "uma_zone_t zone"
@@ -501,11 +501,8 @@ other CPUs when the limit is hit.
 .Pp
 The
 .Fn uma_zone_set_maxcache
-function limits the number of free items which may be cached in the zone,
-excluding the per-CPU caches, which are bounded in size.
-For example, to implement a
-.Ql pure
-per-CPU cache, a cache zone may be configured with a maximum cache size of 0.
+function limits the number of free items which may be cached in the zone.
+This limit applies to both the per-CPU caches and the cache of free buckets.
 .Pp
 The
 .Fn uma_zone_get_max
