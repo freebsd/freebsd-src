@@ -47,7 +47,7 @@ and
 allow the manipulation of sets of memory domains and allocation policy available
 to processes, threads, jails and other resources.
 These functions may manipulate sets of memory domains that contain many processes
-or per-object anonymous masks that effect only a single object.
+or per-object anonymous masks that affect only a single object.
 .Pp
 The valid values for the
 .Fa level
@@ -97,7 +97,8 @@ mask and policy from the object specified by
 and
 .Fa id
 and stores it in the space provided by
-.Fa mask and
+.Fa mask
+and
 .Fa policy .
 .Pp
 .Fn cpuset_setdomain
@@ -107,7 +108,8 @@ attempts to set the mask and policy for the object specified by
 and
 .Fa id
 to the values in
-.Fa mask and
+.Fa mask
+and
 .Fa policy .
 .Sh ALLOCATION POLICIES
 Valid policy values are as follows:
