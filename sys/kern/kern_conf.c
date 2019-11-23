@@ -664,6 +664,9 @@ prep_cdevsw(struct cdevsw *devsw, int flags)
 	}
 	
 	if (devsw->d_flags & D_NEEDGIANT) {
+		printf("WARNING: Device \"%s\" is Giant locked and may be "
+		    "deleted before FreeBSD 13.0.\n",
+		    devsw->d_name == NULL ? "???" : devsw->d_name);
 		if (devsw->d_gianttrick == NULL) {
 			memcpy(dsw2, devsw, sizeof *dsw2);
 			devsw->d_gianttrick = dsw2;
