@@ -83,7 +83,7 @@ save_vec_int(struct thread *td)
 #undef EVSTDW
 
 	__asm ( "evxor 0,0,0\n"
-		"evaddumiaaw 0,0\n"
+		"evmwumiaa 0,0,0\n"
 		"evstdd 0,0(%0)" :: "b"(&pcb->pcb_vec.spare[0]));
 	pcb->pcb_vec.vscr = mfspr(SPR_SPEFSCR);
 
