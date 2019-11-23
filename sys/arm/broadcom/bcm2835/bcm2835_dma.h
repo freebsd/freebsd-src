@@ -42,6 +42,10 @@
 
 /* Peripheral DREQ Signals (4.2.1.3) */
 #define	BCM_DMA_DREQ_NONE	0
+/*
+ * XXX This doesn't seem to work for the Raspberry Pi 4, but the peripheral
+ * documentation still lists it at 11.
+ */
 #define	BCM_DMA_DREQ_EMMC	11
 #define	BCM_DMA_DREQ_SDHOST	13
 
