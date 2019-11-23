@@ -445,18 +445,21 @@ pci_find_bsf(uint8_t bus, uint8_t slot, uint8_t func)
 device_t
 pci_find_dbsf(uint32_t domain, uint8_t bus, uint8_t slot, uint8_t func)
 {
-	struct pci_devinfo *dinfo;
+	struct pci_devinfo *dinfo = NULL;
 
+	/* Giant because newbus is Giant locked revisit with newbus locking */
+	mtx_lock(&Giant);
 	STAILQ_FOREACH(dinfo, &pci_devq, pci_links) {
 		if ((dinfo->cfg.domain == domain) &&
 		    (dinfo->cfg.bus == bus) &&
 		    (dinfo->cfg.slot == slot) &&
 		    (dinfo->cfg.func == func)) {
-			return (dinfo->cfg.dev);
+			break;
 		}
 	}
+	mtx_unlock(&Giant);
 
-	return (NULL);
+	return (dinfo != NULL ? dinfo->cfg.dev : NULL);
 }
 
 /* Find a device_t by vendor/device ID */
