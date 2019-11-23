@@ -119,7 +119,7 @@ static d_ioctl_t	pci_ioctl;
 
 struct cdevsw pcicdev = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
+	.d_flags =	0,
 	.d_open =	pci_open,
 	.d_close =	pci_close,
 	.d_ioctl =	pci_ioctl,
