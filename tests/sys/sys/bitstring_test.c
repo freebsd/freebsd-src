@@ -340,7 +340,7 @@ BITSTRING_TC_DEFINE(bit_ffs_area_no_match)
 	memset(bitstr, 0, bitstr_size(nbits));
 	bit_ffs_area(bitstr, nbits, 2, &found_clear_bits);
 	ATF_REQUIRE_EQ_MSG(-1, found_clear_bits,
-		"bit_ffc_area_%d_%s: Failed all clear bits.", nbits, memloc);
+		"bit_ffs_area_%d_%s: Failed all clear bits.", nbits, memloc);
 }
 
 ATF_TC_WITHOUT_HEAD(bit_ffs_area);
@@ -358,36 +358,36 @@ ATF_TC_BODY(bit_ffs_area, tc)
 	location = 0;
 	bit_ffs_area(bitstr, nbits, 3, &location);
 	ATF_REQUIRE_EQ_MSG(-1, location,
-			"bit_ffc_area: found location of size 3 when only 2 bits are set");
+			"bit_ffs_area: found location of size 3 when only 2 bits are set");
 
 	bit_set(bitstr, 7);
 
 	location = 0;
 	bit_ffs_area(bitstr, nbits, 3, &location);
 	ATF_REQUIRE_EQ_MSG(5, location,
-			"bit_ffc_area: failed to find location of size 3");
+			"bit_ffs_area: failed to find location of size 3");
 
 	bit_set(bitstr, 8);
 
 	location = 0;
 	bit_ffs_area(bitstr, nbits, 3, &location);
 	ATF_REQUIRE_EQ_MSG(5, location,
-			"bit_ffc_area: failed to find location of size 3");
+			"bit_ffs_area: failed to find location of size 3");
 
 	location = 0;
 	bit_ffs_area_at(bitstr, 2, nbits, 3, &location);
 	ATF_REQUIRE_EQ_MSG(5, location,
-			"bit_ffc_area: failed to find location of size 3");
+			"bit_ffs_area_at: failed to find location of size 3");
 
 	location = 0;
 	bit_ffs_area_at(bitstr, 6, nbits, 3, &location);
 	ATF_REQUIRE_EQ_MSG(6, location,
-			"bit_ffc_area: failed to find location of size 3");
+			"bit_ffs_area_at: failed to find location of size 3");
 
 	location = 0;
 	bit_ffs_area_at(bitstr, 8, nbits, 3, &location);
 	ATF_REQUIRE_EQ_MSG(-1, location,
-			"bit_ffc_area: found invalid location");
+			"bit_ffs_area_at: found invalid location");
 
 	bit_set(bitstr, 69);
 	bit_set(bitstr, 70);
@@ -396,22 +396,22 @@ ATF_TC_BODY(bit_ffs_area, tc)
 	location = 0;
 	bit_ffs_area_at(bitstr, 8, nbits, 3, &location);
 	ATF_REQUIRE_EQ_MSG(69, location,
-			"bit_ffc_area: failed to find location of size 3");
+			"bit_ffs_area_at: failed to find location of size 3");
 
 	location = 0;
 	bit_ffs_area_at(bitstr, 69, nbits, 3, &location);
 	ATF_REQUIRE_EQ_MSG(69, location,
-			"bit_ffc_area: failed to find location of size 3");
+			"bit_ffs_area_at: failed to find location of size 3");
 
 	location = 0;
 	bit_ffs_area_at(bitstr, 70, nbits, 3, &location);
 	ATF_REQUIRE_EQ_MSG(-1, location,
-			"bit_ffc_area: found invalid location");
+			"bit_ffs_area_at: found invalid location");
 
 	location = 0;
 	bit_ffs_area_at(bitstr, 72, nbits, 3, &location);
 	ATF_REQUIRE_EQ_MSG(-1, location,
-			"bit_ffc_area: found invalid location");
+			"bit_ffs_area_at: found invalid location");
 }
 
 ATF_TC_WITHOUT_HEAD(bit_ffc_area);
@@ -449,17 +449,17 @@ ATF_TC_BODY(bit_ffc_area, tc)
 	location = 0;
 	bit_ffc_area_at(bitstr, 2, nbits, 3, &location);
 	ATF_REQUIRE_EQ_MSG(7, location,
-			"bit_ffc_area: failed to find location of size 3");
+			"bit_ffc_area_at: failed to find location of size 3");
 
 	location = 0;
 	bit_ffc_area_at(bitstr, 8, nbits, 3, &location);
 	ATF_REQUIRE_EQ_MSG(8, location,
-			"bit_ffc_area: failed to find location of size 3");
+			"bit_ffc_area_at: failed to find location of size 3");
 
 	location = 0;
 	bit_ffc_area_at(bitstr, 9, nbits, 3, &location);
 	ATF_REQUIRE_EQ_MSG(-1, location,
-			"bit_ffc_area: found invalid bit location");
+			"bit_ffc_area_at: found invalid bit location");
 
 	bit_clear(bitstr, 77);
 	bit_clear(bitstr, 78);
@@ -468,22 +468,22 @@ ATF_TC_BODY(bit_ffc_area, tc)
 	location = 0;
 	bit_ffc_area_at(bitstr, 12, nbits, 3, &location);
 	ATF_REQUIRE_EQ_MSG(77, location,
-			"bit_ffc_area: failed to find location of size 3");
+			"bit_ffc_area_at: failed to find location of size 3");
 
 	location = 0;
 	bit_ffc_area_at(bitstr, 77, nbits, 3, &location);
 	ATF_REQUIRE_EQ_MSG(77, location,
-			"bit_ffc_area: failed to find location of size 3");
+			"bit_ffc_area_at: failed to find location of size 3");
 
 	location = 0;
 	bit_ffc_area_at(bitstr, 78, nbits, 3, &location);
 	ATF_REQUIRE_EQ_MSG(-1, location,
-			"bit_ffc_area: found invalid location");
+			"bit_ffc_area_at: found invalid location");
 
 	location = 0;
 	bit_ffc_area_at(bitstr, 85, nbits, 3, &location);
 	ATF_REQUIRE_EQ_MSG(-1, location,
-			"bit_ffc_area: found invalid location");
+			"bit_ffc_area_at: found invalid location");
 }
 
 BITSTRING_TC_DEFINE(bit_nclear)
