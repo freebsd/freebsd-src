@@ -718,7 +718,9 @@ bcm_sdhci_start_dma(struct sdhci_slot *slot)
 static int
 bcm_sdhci_will_handle_transfer(device_t dev, struct sdhci_slot *slot)
 {
+#ifdef INVARIANTS
 	struct bcm_sdhci_softc *sc = device_get_softc(slot->bus);
+#endif
 
 	/*
 	 * This indicates that we somehow let a data interrupt slip by into the
