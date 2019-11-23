@@ -48,6 +48,6 @@
 	addis	%r30,%r30,_GLOBAL_OFFSET_TABLE_-1b@ha
 	addi	%r30,%r30,_GLOBAL_OFFSET_TABLE_-1b@l
 	bl	PIC_PLT(CNAME(abort))	/* abort */
- END(_cts_start)
+ END(_ctx_start)
 
 	.section .note.GNU-stack,"",%progbits
