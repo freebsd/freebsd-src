@@ -114,6 +114,7 @@ struct bcm_mmc_conf {
 	int	default_freq;
 	int	quirks;
 	bool	use_dma;
+	int	emmc_dreq;
 };
 
 struct bcm_mmc_conf bcm2835_sdhci_conf = {
@@ -124,6 +125,7 @@ struct bcm_mmc_conf bcm2835_sdhci_conf = {
 	    SDHCI_QUIRK_BROKEN_TIMEOUT_VAL | SDHCI_QUIRK_DONT_SET_HISPD_BIT |
 	    SDHCI_QUIRK_MISSING_CAPS,
 	.use_dma	= true
+	.emmc_dreq	= BCM_DMA_DREQ_EMMC,
 };
 
 struct bcm_mmc_conf bcm2838_emmc2_conf = {
@@ -131,8 +133,8 @@ struct bcm_mmc_conf bcm2838_emmc2_conf = {
 	.clock_src	= -1,
 	.default_freq	= BCM2838_DEFAULT_SDHCI_FREQ,
 	.quirks		= 0,
-	/* XXX DMA is currently broken, but it shouldn't be. */
-	.use_dma	= false
+	.use_dma	= true
+	.emmc_dreq	= BCM_DMA_DREQ_NONE,
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -555,7 +557,11 @@ bcm_sdhci_start_dma_seg(struct bcm_sdhci_softc *sc)
 	width = (len & 0xf ? BCM_DMA_32BIT : BCM_DMA_128BIT);
 
 	if (slot->curcmd->data->flags & MMC_DATA_READ) {
-		bcm_dma_setup_src(sc->sc_dma_ch, BCM_DMA_DREQ_EMMC,
+		/*
+		 * Peripherals on the AXI bus do not need DREQ pacing for reads
+		 * from the ARM core, so we can safely set this to NONE.
+		 */
+		bcm_dma_setup_src(sc->sc_dma_ch, BCM_DMA_DREQ_NONE,
 		    BCM_DMA_SAME_ADDR, BCM_DMA_32BIT);
 		bcm_dma_setup_dst(sc->sc_dma_ch, BCM_DMA_DREQ_NONE,
 		    BCM_DMA_INC_ADDR, width);
@@ -563,9 +569,13 @@ bcm_sdhci_start_dma_seg(struct bcm_sdhci_softc *sc)
 		pdst = sc->dmamap_seg_addrs[idx];
 		sync_op = BUS_DMASYNC_PREREAD;
 	} else {
+		/*
+		 * The ordering here is important, because the last write to
+		 * dst/src in the dma control block writes the real dreq value.
+		 */
 		bcm_dma_setup_src(sc->sc_dma_ch, BCM_DMA_DREQ_NONE,
 		    BCM_DMA_INC_ADDR, width);
-		bcm_dma_setup_dst(sc->sc_dma_ch, BCM_DMA_DREQ_EMMC,
+		bcm_dma_setup_dst(sc->sc_dma_ch, sc->conf->emmc_dreq,
 		    BCM_DMA_SAME_ADDR, BCM_DMA_32BIT);
 		psrc = sc->dmamap_seg_addrs[idx];
 		pdst = sc->sc_sdhci_buffer_phys;
