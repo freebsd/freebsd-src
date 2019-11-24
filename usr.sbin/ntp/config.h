@@ -1477,7 +1477,7 @@
 #define PACKAGE_URL "http://www.ntp.org./"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "4.2.8p12"
+#define PACKAGE_VERSION "4.2.8p13"
 
 /* data dir */
 #define PERLLIBDIR "/usr/share/ntp/lib"
