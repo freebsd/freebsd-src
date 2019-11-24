@@ -261,7 +261,7 @@ sendfile_iodone(void *arg, vm_page_t *pg, int count, int error)
 
 	for (int i = 0; i < count; i++)
 		if (pg[i] != bogus_page)
-			vm_page_xunbusy(pg[i]);
+			vm_page_xunbusy_unchecked(pg[i]);
 
 	if (error)
 		sfio->error = error;

@@ -307,7 +307,13 @@ struct vm_page {
 #define	VPB_SHARERS_WORD(x)	((x) << VPB_SHARERS_SHIFT | VPB_BIT_SHARED)
 #define	VPB_ONE_SHARER		(1 << VPB_SHARERS_SHIFT)
 
-#define	VPB_SINGLE_EXCLUSIVER	VPB_BIT_EXCLUSIVE
+#define	VPB_SINGLE_EXCLUSIVE	VPB_BIT_EXCLUSIVE
+#ifdef INVARIANTS
+#define	VPB_CURTHREAD_EXCLUSIVE						\
+	(VPB_BIT_EXCLUSIVE | ((u_int)(uintptr_t)curthread & ~VPB_BIT_FLAGMASK))
+#else
+#define	VPB_CURTHREAD_EXCLUSIVE	VPB_SINGLE_EXCLUSIVE
+#endif
 
 #define	VPB_UNBUSIED		VPB_SHARERS_WORD(0)
 
@@ -649,6 +655,7 @@ void vm_page_updatefake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_wire(vm_page_t);
 bool vm_page_wire_mapped(vm_page_t m);
 void vm_page_xunbusy_hard(vm_page_t m);
+void vm_page_xunbusy_hard_unchecked(vm_page_t m);
 void vm_page_set_validclean (vm_page_t, int, int);
 void vm_page_clear_dirty(vm_page_t, int, int);
 void vm_page_set_invalid(vm_page_t, int, int);
@@ -684,10 +691,19 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 	    ("vm_page_assert_unbusied: page %p busy @ %s:%d",		\
 	    (m), __FILE__, __LINE__))
 
-#define	vm_page_assert_xbusied(m)					\
+#define	vm_page_assert_xbusied_unchecked(m) do {			\
 	KASSERT(vm_page_xbusied(m),					\
 	    ("vm_page_assert_xbusied: page %p not exclusive busy @ %s:%d", \
-	    (m), __FILE__, __LINE__))
+	    (m), __FILE__, __LINE__));					\
+} while (0)
+#define	vm_page_assert_xbusied(m) do {					\
+	vm_page_assert_xbusied_unchecked(m);				\
+	KASSERT((m->busy_lock & ~VPB_BIT_WAITERS) == 			\
+	    VPB_CURTHREAD_EXCLUSIVE,					\
+	    ("vm_page_assert_xbusied: page %p busy_lock %#x not owned"	\
+            " by me @ %s:%d",						\
+	    (m), (m)->busy_lock, __FILE__, __LINE__));			\
+} while (0)
 
 #define	vm_page_busied(m)						\
 	((m)->busy_lock != VPB_UNBUSIED)
@@ -699,7 +715,7 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 } while (0)
 
 #define	vm_page_xbusied(m)						\
-	(((m)->busy_lock & VPB_SINGLE_EXCLUSIVER) != 0)
+	(((m)->busy_lock & VPB_SINGLE_EXCLUSIVE) != 0)
 
 #define	vm_page_xbusy(m) do {						\
 	if (!vm_page_tryxbusy(m))					\
@@ -710,8 +726,13 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 /* Note: page m's lock must not be owned by the caller. */
 #define	vm_page_xunbusy(m) do {						\
 	if (!atomic_cmpset_rel_int(&(m)->busy_lock,			\
-	    VPB_SINGLE_EXCLUSIVER, VPB_UNBUSIED))			\
+	    VPB_CURTHREAD_EXCLUSIVE, VPB_UNBUSIED))			\
 		vm_page_xunbusy_hard(m);				\
+} while (0)
+#define	vm_page_xunbusy_unchecked(m) do {				\
+	if (!atomic_cmpset_rel_int(&(m)->busy_lock,			\
+	    VPB_CURTHREAD_EXCLUSIVE, VPB_UNBUSIED))			\
+		vm_page_xunbusy_hard_unchecked(m);			\
 } while (0)
 
 #ifdef INVARIANTS
