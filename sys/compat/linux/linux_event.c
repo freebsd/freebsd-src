@@ -306,7 +306,7 @@ epoll_to_kevent(struct thread *td, struct file *epfp,
 
 	/* flags related to how event is registered */
 	if ((levents & LINUX_EPOLLONESHOT) != 0)
-		*kev_flags |= EV_ONESHOT;
+		*kev_flags |= EV_DISPATCH;
 	if ((levents & LINUX_EPOLLET) != 0)
 		*kev_flags |= EV_CLEAR;
 	if ((levents & LINUX_EPOLLERR) != 0)
@@ -501,16 +501,17 @@ linux_epoll_ctl(struct thread *td, struct linux_epoll_ctl_args *args)
 	case LINUX_EPOLL_CTL_ADD:
 		/*
 		 * kqueue_register() return ENOENT if event does not exists
-		 * and the EV_ADD flag is not set.
+		 * and the EV_ADD flag is not set. Reset EV_ENABLE flag to
+		 * avoid accidental activation of fired oneshot events.
 		 */
-		kev[0].flags &= ~EV_ADD;
+		kev[0].flags &= ~(EV_ADD | EV_ENABLE);
 		error = kqfd_register(args->epfd, &kev[0], td, M_WAITOK);
 		if (error != ENOENT) {
 			error = EEXIST;
 			goto leave0;
 		}
 		error = 0;
-		kev[0].flags |= EV_ADD;
+		kev[0].flags |= (EV_ADD | EV_ENABLE);
 		break;
 
 	case LINUX_EPOLL_CTL_DEL:
