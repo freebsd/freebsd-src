@@ -557,13 +557,13 @@ linux_epoll_wait_common(struct thread *td, int epfd, struct epoll_event *events,
 		return (error);
 	if (epfp->f_type != DTYPE_KQUEUE) {
 		error = EINVAL;
-		goto leave1;
+		goto leave;
 	}
 	if (uset != NULL) {
 		error = kern_sigprocmask(td, SIG_SETMASK, uset,
 		    &omask, 0);
 		if (error != 0)
-			goto leave1;
+			goto leave;
 		td->td_pflags |= TDP_OLDMASK;
 		/*
 		 * Make sure that ast() is called on return to
@@ -581,11 +581,12 @@ linux_epoll_wait_common(struct thread *td, int epfd, struct epoll_event *events,
 	coargs.count = 0;
 	coargs.error = 0;
 
-	if (timeout != -1) {
-		if (timeout < 0) {
-			error = EINVAL;
-			goto leave0;
-		}
+	/*
+	 * Linux epoll_wait(2) man page states that timeout of -1 causes caller
+	 * to block indefinitely. Real implementation does it if any negative
+	 * timeout value is passed.
+	 */
+	if (timeout >= 0) {
 		/* Convert from milliseconds to timespec. */
 		ts.tv_sec = timeout / 1000;
 		ts.tv_nsec = (timeout % 1000) * 1000000;
@@ -605,11 +606,10 @@ linux_epoll_wait_common(struct thread *td, int epfd, struct epoll_event *events,
 	if (error == 0)
 		td->td_retval[0] = coargs.count;
 
-leave0:
 	if (uset != NULL)
 		error = kern_sigprocmask(td, SIG_SETMASK, &omask,
 		    NULL, 0);
-leave1:
+leave:
 	fdrop(epfp, td);
 	return (error);
 }
