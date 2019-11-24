@@ -111,7 +111,7 @@ _ENTRY(.rtld_start)
 /* stack space for 30 GPRs + lr/cr */
 #define	NREGS		30
 #define	GPRWIDTH	4
-#define	FUDGE		0
+#define	FUDGE		4
 #endif
 /* Stack frame needs the 12-byte ABI frame plus fudge factor. */
 #define	STACK_SIZE	(NREGS * GPRWIDTH + 4 * 2 + 12 + FUDGE)
