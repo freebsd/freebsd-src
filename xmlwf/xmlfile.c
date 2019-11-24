@@ -37,87 +37,77 @@
 #include <fcntl.h>
 
 #ifdef _WIN32
-#include "winconfig.h"
+#  include "winconfig.h"
 #elif defined(HAVE_EXPAT_CONFIG_H)
-#include <expat_config.h>
+#  include <expat_config.h>
 #endif /* ndef _WIN32 */
 
 #include "expat.h"
-#include "internal.h"  /* for UNUSED_P only */
+#include "internal.h" /* for UNUSED_P only */
 #include "xmlfile.h"
 #include "xmltchar.h"
 #include "filemap.h"
 
 #if defined(_MSC_VER)
-#include <io.h>
+#  include <io.h>
 #endif
 
 #ifdef HAVE_UNISTD_H
-#include <unistd.h>
+#  include <unistd.h>
 #endif
 
 #ifndef O_BINARY
-#ifdef _O_BINARY
-#define O_BINARY _O_BINARY
-#else
-#define O_BINARY 0
-#endif
+#  ifdef _O_BINARY
+#    define O_BINARY _O_BINARY
+#  else
+#    define O_BINARY 0
+#  endif
 #endif
 
 #ifdef _DEBUG
-#define READ_SIZE 16
+#  define READ_SIZE 16
 #else
-#define READ_SIZE (1024*8)
+#  define READ_SIZE (1024 * 8)
 #endif
-
 
 typedef struct {
   XML_Parser parser;
   int *retPtr;
 } PROCESS_ARGS;
 
-static int
-processStream(const XML_Char *filename, XML_Parser parser);
+static int processStream(const XML_Char *filename, XML_Parser parser);
 
 static void
-reportError(XML_Parser parser, const XML_Char *filename)
-{
+reportError(XML_Parser parser, const XML_Char *filename) {
   enum XML_Error code = XML_GetErrorCode(parser);
   const XML_Char *message = XML_ErrorString(code);
   if (message)
     ftprintf(stdout,
-             T("%s")
-               T(":%") T(XML_FMT_INT_MOD) T("u")
-               T(":%") T(XML_FMT_INT_MOD) T("u")
-               T(": %s\n"),
-             filename,
-             XML_GetErrorLineNumber(parser),
-             XML_GetErrorColumnNumber(parser),
-             message);
+             T("%s") T(":%") T(XML_FMT_INT_MOD) T("u") T(":%")
+                 T(XML_FMT_INT_MOD) T("u") T(": %s\n"),
+             filename, XML_GetErrorLineNumber(parser),
+             XML_GetErrorColumnNumber(parser), message);
   else
     ftprintf(stderr, T("%s: (unknown message %d)\n"), filename, code);
 }
- 
+
 /* This implementation will give problems on files larger than INT_MAX. */
 static void
-processFile(const void *data, size_t size,
-            const XML_Char *filename, void *args)
-{
+processFile(const void *data, size_t size, const XML_Char *filename,
+            void *args) {
   XML_Parser parser = ((PROCESS_ARGS *)args)->parser;
   int *retPtr = ((PROCESS_ARGS *)args)->retPtr;
   if (XML_Parse(parser, (const char *)data, (int)size, 1) == XML_STATUS_ERROR) {
     reportError(parser, filename);
     *retPtr = 0;
-  }
-  else
+  } else
     *retPtr = 1;
 }
 
 #if defined(_WIN32)
 
 static int
-isAsciiLetter(XML_Char c)
-{
+isAsciiLetter(XML_Char c) {
   return (T('a') <= c && c <= T('z')) || (T('A') <= c && c <= T('Z'));
 }
 
@@ -125,21 +115,19 @@ isAsciiLetter(XML_Char c)
 
 static const XML_Char *
 resolveSystemId(const XML_Char *base, const XML_Char *systemId,
-                XML_Char **toFree)
-{
+                XML_Char **toFree) {
   XML_Char *s;
   *toFree = 0;
-  if (!base
-      || *systemId == T('/')
+  if (! base || *systemId == T('/')
 #if defined(_WIN32)
       || *systemId == T('\\')
       || (isAsciiLetter(systemId[0]) && systemId[1] == T(':'))
 #endif
-     )
+  )
     return systemId;
   *toFree = (XML_Char *)malloc((tcslen(base) + tcslen(systemId) + 2)
                                * sizeof(XML_Char));
-  if (!*toFree)
+  if (! *toFree)
     return systemId;
   tcscpy(*toFree, base);
   s = *toFree;
@@ -154,18 +142,16 @@ resolveSystemId(const XML_Char *base, const XML_Char *systemId,
 }
 
 static int
-externalEntityRefFilemap(XML_Parser parser,
-                         const XML_Char *context,
-                         const XML_Char *base,
-                         const XML_Char *systemId,
-                         const XML_Char *UNUSED_P(publicId))
-{
+externalEntityRefFilemap(XML_Parser parser, const XML_Char *context,
+                         const XML_Char *base, const XML_Char *systemId,
+                         const XML_Char *publicId) {
   int result;
   XML_Char *s;
   const XML_Char *filename;
   XML_Parser entParser = XML_ExternalEntityParserCreate(parser, context, 0);
   int filemapRes;
   PROCESS_ARGS args;
+  UNUSED_P(publicId);
   args.retPtr = &result;
   args.parser = entParser;
   filename = resolveSystemId(base, systemId, &s);
@@ -176,8 +162,10 @@ externalEntityRefFilemap(XML_Parser parser,
     result = 0;
     break;
   case 2:
-    ftprintf(stderr, T("%s: file too large for memory-mapping")
-        T(", switching to streaming\n"), filename);
+    ftprintf(stderr,
+             T("%s: file too large for memory-mapping")
+                 T(", switching to streaming\n"),
+             filename);
     result = processStream(filename, entParser);
     break;
   }
@@ -187,13 +175,12 @@ externalEntityRefFilemap(XML_Parser parser,
 }
 
 static int
-processStream(const XML_Char *filename, XML_Parser parser)
-{
+processStream(const XML_Char *filename, XML_Parser parser) {
   /* passing NULL for filename means read intput from stdin */
-  int fd = 0;   /* 0 is the fileno for stdin */
+  int fd = 0; /* 0 is the fileno for stdin */
 
   if (filename != NULL) {
-    fd = topen(filename, O_BINARY|O_RDONLY);
+    fd = topen(filename, O_BINARY | O_RDONLY);
     if (fd < 0) {
       tperror(filename);
       return 0;
@@ -202,7 +189,7 @@ processStream(const XML_Char *filename, XML_Parser parser)
   for (;;) {
     int nread;
     char *buf = (char *)XML_GetBuffer(parser, READ_SIZE);
-    if (!buf) {
+    if (! buf) {
       if (filename != NULL)
         close(fd);
       ftprintf(stderr, T("%s: out of memory\n"),
@@ -217,7 +204,7 @@ processStream(const XML_Char *filename, XML_Parser parser)
       return 0;
     }
     if (XML_ParseBuffer(parser, nread, nread == 0) == XML_STATUS_ERROR) {
-        reportError(parser, filename != NULL ? filename : T("STDIN"));
+      reportError(parser, filename != NULL ? filename : T("STDIN"));
       if (filename != NULL)
         close(fd);
       return 0;
@@ -225,23 +212,22 @@ processStream(const XML_Char *filename, XML_Parser parser)
     if (nread == 0) {
       if (filename != NULL)
         close(fd);
-      break;;
+      break;
+      ;
     }
   }
   return 1;
 }
 
 static int
-externalEntityRefStream(XML_Parser parser,
-                        const XML_Char *context,
-                        const XML_Char *base,
-                        const XML_Char *systemId,
-                        const XML_Char *UNUSED_P(publicId))
-{
+externalEntityRefStream(XML_Parser parser, const XML_Char *context,
+                        const XML_Char *base, const XML_Char *systemId,
+                        const XML_Char *publicId) {
   XML_Char *s;
   const XML_Char *filename;
   int ret;
   XML_Parser entParser = XML_ExternalEntityParserCreate(parser, context, 0);
+  UNUSED_P(publicId);
   filename = resolveSystemId(base, systemId, &s);
   XML_SetBase(entParser, filename);
   ret = processStream(filename, entParser);
@@ -251,22 +237,18 @@ externalEntityRefStream(XML_Parser parser,
 }
 
 int
-XML_ProcessFile(XML_Parser parser,
-                const XML_Char *filename,
-                unsigned flags)
-{
+XML_ProcessFile(XML_Parser parser, const XML_Char *filename, unsigned flags) {
   int result;
 
-  if (!XML_SetBase(parser, filename)) {
+  if (! XML_SetBase(parser, filename)) {
     ftprintf(stderr, T("%s: out of memory"), filename);
     exit(1);
   }
 
   if (flags & XML_EXTERNAL_ENTITIES)
-      XML_SetExternalEntityRefHandler(parser,
-                                      (flags & XML_MAP_FILE)
-                                      ? externalEntityRefFilemap
-                                      : externalEntityRefStream);
+    XML_SetExternalEntityRefHandler(parser, (flags & XML_MAP_FILE)
+                                                ? externalEntityRefFilemap
+                                                : externalEntityRefStream);
   if (flags & XML_MAP_FILE) {
     int filemapRes;
     PROCESS_ARGS args;
@@ -278,13 +260,14 @@ XML_ProcessFile(XML_Parser parser,
       result = 0;
       break;
     case 2:
-      ftprintf(stderr, T("%s: file too large for memory-mapping")
-          T(", switching to streaming\n"), filename);
+      ftprintf(stderr,
+               T("%s: file too large for memory-mapping")
+                   T(", switching to streaming\n"),
+               filename);
       result = processStream(filename, parser);
       break;
     }
-  }
-  else
+  } else
     result = processStream(filename, parser);
   return result;
 }

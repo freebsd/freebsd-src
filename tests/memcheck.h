@@ -36,7 +36,7 @@ extern "C" {
 #endif
 
 #ifndef XML_MEMCHECK_H
-#define XML_MEMCHECK_H 1
+#  define XML_MEMCHECK_H 1
 
 /* Allocation declarations */
 
