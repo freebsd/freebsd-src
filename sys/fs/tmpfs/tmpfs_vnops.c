@@ -792,7 +792,6 @@ tmpfs_rename(struct vop_rename_args *v)
 	struct vnode *tdvp = v->a_tdvp;
 	struct vnode *tvp = v->a_tvp;
 	struct componentname *tcnp = v->a_tcnp;
-	struct mount *mp = NULL;
 	char *newname;
 	struct tmpfs_dirent *de;
 	struct tmpfs_mount *tmp;
@@ -829,18 +828,10 @@ tmpfs_rename(struct vop_rename_args *v)
 	 */
 	if (fdvp != tdvp && fdvp != tvp) {
 		if (vn_lock(fdvp, LK_EXCLUSIVE | LK_NOWAIT) != 0) {
-			mp = tdvp->v_mount;
-			error = vfs_busy(mp, 0);
-			if (error != 0) {
-				mp = NULL;
-				goto out;
-			}
 			error = tmpfs_rename_relock(fdvp, &fvp, tdvp, &tvp,
 			    fcnp, tcnp);
-			if (error != 0) {
-				vfs_unbusy(mp);
+			if (error != 0)
 				return (error);
-			}
 			ASSERT_VOP_ELOCKED(fdvp,
 			    "tmpfs_rename: fdvp not locked");
 			ASSERT_VOP_ELOCKED(tdvp,
@@ -1083,9 +1074,6 @@ out:
 	/* Release source nodes. */
 	vrele(fdvp);
 	vrele(fvp);
-
-	if (mp != NULL)
-		vfs_unbusy(mp);
 
 	return (error);
 }
