@@ -619,6 +619,7 @@ mpssas_remove_device(struct mps_softc *sc, struct mps_command *tm)
 		mps_dprint(sc, MPS_XINFO, "Completing missed command %p\n", tm);
 		ccb = tm->cm_complete_data;
 		mpssas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
+		tm->cm_state = MPS_CM_STATE_BUSY;
 		mpssas_scsiio_complete(sc, tm);
 	}
 }
