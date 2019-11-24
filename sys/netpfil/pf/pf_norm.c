@@ -550,25 +550,25 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 
 	/* No empty fragments. */
 	if (frent->fe_len == 0) {
-		DPFPRINTF(("bad fragment: len 0"));
+		DPFPRINTF(("bad fragment: len 0\n"));
 		goto bad_fragment;
 	}
 
 	/* All fragments are 8 byte aligned. */
 	if (frent->fe_mff && (frent->fe_len & 0x7)) {
-		DPFPRINTF(("bad fragment: mff and len %d", frent->fe_len));
+		DPFPRINTF(("bad fragment: mff and len %d\n", frent->fe_len));
 		goto bad_fragment;
 	}
 
 	/* Respect maximum length, IP_MAXPACKET == IPV6_MAXPACKET. */
 	if (frent->fe_off + frent->fe_len > IP_MAXPACKET) {
-		DPFPRINTF(("bad fragment: max packet %d",
+		DPFPRINTF(("bad fragment: max packet %d\n",
 		    frent->fe_off + frent->fe_len));
 		goto bad_fragment;
 	}
 
 	DPFPRINTF((key->frc_af == AF_INET ?
-	    "reass frag %d @ %d-%d" : "reass frag %#08x @ %d-%d",
+	    "reass frag %d @ %d-%d\n" : "reass frag %#08x @ %d-%d\n",
 	    key->frc_id, frent->fe_off, frent->fe_off + frent->fe_len));
 
 	/* Fully buffer all of the fragments in this fragment queue. */
@@ -642,7 +642,7 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 		precut = prev->fe_off + prev->fe_len - frent->fe_off;
 		if (precut >= frent->fe_len)
 			goto bad_fragment;
-		DPFPRINTF(("overlap -%d", precut));
+		DPFPRINTF(("overlap -%d\n", precut));
 		m_adj(frent->fe_m, precut);
 		frent->fe_off += precut;
 		frent->fe_len -= precut;
@@ -653,7 +653,7 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 		uint16_t aftercut;
 
 		aftercut = frent->fe_off + frent->fe_len - after->fe_off;
-		DPFPRINTF(("adjust overlap %d", aftercut));
+		DPFPRINTF(("adjust overlap %d\n", aftercut));
 		if (aftercut < after->fe_len) {
 			m_adj(after->fe_m, aftercut);
 			after->fe_off += aftercut;
@@ -670,7 +670,7 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 
 	/* If part of the queue gets too long, there is not way to recover. */
 	if (pf_frent_insert(frag, frent, prev)) {
-		DPFPRINTF(("fragment queue limit exceeded"));
+		DPFPRINTF(("fragment queue limit exceeded\n"));
 		goto bad_fragment;
 	}
 
@@ -744,7 +744,7 @@ pf_reassemble(struct mbuf **m0, struct ip *ip, int dir, u_short *reason)
 	m = *m0 = NULL;
 
 	if (frag->fr_holes) {
-		DPFPRINTF(("frag %d, holes %d", frag->fr_id, frag->fr_holes));
+		DPFPRINTF(("frag %d, holes %d\n", frag->fr_id, frag->fr_holes));
 		return (PF_PASS);  /* drop because *m0 is NULL, no error */
 	}
 
@@ -771,7 +771,7 @@ pf_reassemble(struct mbuf **m0, struct ip *ip, int dir, u_short *reason)
 	ip->ip_off &= ~(IP_MF|IP_OFFMASK);
 
 	if (hdrlen + total > IP_MAXPACKET) {
-		DPFPRINTF(("drop: too big: %d", total));
+		DPFPRINTF(("drop: too big: %d\n", total));
 		ip->ip_len = 0;
 		REASON_SET(reason, PFRES_SHORT);
 		/* PF_DROP requires a valid mbuf *m0 in pf_test() */
@@ -830,7 +830,8 @@ pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
 	m = *m0 = NULL;
 
 	if (frag->fr_holes) {
-		DPFPRINTF(("frag %d, holes %d", frag->fr_id, frag->fr_holes));
+		DPFPRINTF(("frag %d, holes %d\n", frag->fr_id,
+		    frag->fr_holes));
 		PF_FRAG_UNLOCK();
 		return (PF_PASS);  /* Drop because *m0 is NULL, no error. */
 	}
@@ -891,14 +892,14 @@ pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
 		ip6->ip6_nxt = proto;
 
 	if (hdrlen - sizeof(struct ip6_hdr) + total > IPV6_MAXPACKET) {
-		DPFPRINTF(("drop: too big: %d", total));
+		DPFPRINTF(("drop: too big: %d\n", total));
 		ip6->ip6_plen = 0;
 		REASON_SET(reason, PFRES_SHORT);
 		/* PF_DROP requires a valid mbuf *m0 in pf_test6(). */
 		return (PF_DROP);
 	}
 
-	DPFPRINTF(("complete: %p(%d)", m, ntohs(ip6->ip6_plen)));
+	DPFPRINTF(("complete: %p(%d)\n", m, ntohs(ip6->ip6_plen)));
 	return (PF_PASS);
 
 fail:
@@ -967,7 +968,7 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag)
 		action = PF_PASS;
 	} else {
 		/* Drop expects an mbuf to free. */
-		DPFPRINTF(("refragment error %d", error));
+		DPFPRINTF(("refragment error %d\n", error));
 		action = PF_DROP;
 	}
 	for (t = m; m; m = t) {
@@ -1572,7 +1573,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 				if (got_ts) {
 					/* Huh?  Multiple timestamps!? */
 					if (V_pf_status.debug >= PF_DEBUG_MISC) {
-						DPFPRINTF(("multiple TS??"));
+						DPFPRINTF(("multiple TS??\n"));
 						pf_print_state(state);
 						printf("\n");
 					}
