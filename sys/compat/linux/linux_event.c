@@ -98,14 +98,16 @@ __attribute__((packed))
 #define	LINUX_MAX_EVENTS	(INT_MAX / sizeof(struct epoll_event))
 
 static void	epoll_fd_install(struct thread *td, int fd, epoll_udata_t udata);
-static int	epoll_to_kevent(struct thread *td, struct file *epfp,
-		    int fd, struct epoll_event *l_event, int *kev_flags,
-		    struct kevent *kevent, int *nkevents);
+static int	epoll_to_kevent(struct thread *td, int fd,
+		    struct epoll_event *l_event, struct kevent *kevent,
+		    int *nkevents);
 static void	kevent_to_epoll(struct kevent *kevent, struct epoll_event *l_event);
 static int	epoll_kev_copyout(void *arg, struct kevent *kevp, int count);
 static int	epoll_kev_copyin(void *arg, struct kevent *kevp, int count);
-static int	epoll_delete_event(struct thread *td, struct file *epfp,
-		    int fd, int filter);
+static int	epoll_register_kevent(struct thread *td, struct file *epfp,
+		    int fd, int filter, unsigned int flags);
+static int	epoll_fd_registered(struct thread *td, struct file *epfp,
+		    int fd);
 static int	epoll_delete_all_events(struct thread *td, struct file *epfp,
 		    int fd);
 
@@ -296,31 +298,31 @@ linux_epoll_create1(struct thread *td, struct linux_epoll_create1_args *args)
 
 /* Structure converting function from epoll to kevent. */
 static int
-epoll_to_kevent(struct thread *td, struct file *epfp,
-    int fd, struct epoll_event *l_event, int *kev_flags,
+epoll_to_kevent(struct thread *td, int fd, struct epoll_event *l_event,
     struct kevent *kevent, int *nkevents)
 {
 	uint32_t levents = l_event->events;
 	struct linux_pemuldata *pem;
 	struct proc *p;
+	unsigned short kev_flags = EV_ADD | EV_ENABLE;
 
 	/* flags related to how event is registered */
 	if ((levents & LINUX_EPOLLONESHOT) != 0)
-		*kev_flags |= EV_DISPATCH;
+		kev_flags |= EV_DISPATCH;
 	if ((levents & LINUX_EPOLLET) != 0)
-		*kev_flags |= EV_CLEAR;
+		kev_flags |= EV_CLEAR;
 	if ((levents & LINUX_EPOLLERR) != 0)
-		*kev_flags |= EV_ERROR;
+		kev_flags |= EV_ERROR;
 	if ((levents & LINUX_EPOLLRDHUP) != 0)
-		*kev_flags |= EV_EOF;
+		kev_flags |= EV_EOF;
 
 	/* flags related to what event is registered */
 	if ((levents & LINUX_EPOLL_EVRD) != 0) {
-		EV_SET(kevent++, fd, EVFILT_READ, *kev_flags, 0, 0, 0);
+		EV_SET(kevent++, fd, EVFILT_READ, kev_flags, 0, 0, 0);
 		++(*nkevents);
 	}
 	if ((levents & LINUX_EPOLL_EVWR) != 0) {
-		EV_SET(kevent++, fd, EVFILT_WRITE, *kev_flags, 0, 0, 0);
+		EV_SET(kevent++, fd, EVFILT_WRITE, kev_flags, 0, 0, 0);
 		++(*nkevents);
 	}
 
@@ -451,7 +453,6 @@ linux_epoll_ctl(struct thread *td, struct linux_epoll_ctl_args *args)
 					epoll_kev_copyin};
 	struct epoll_event le;
 	cap_rights_t rights;
-	int kev_flags;
 	int nchanges = 0;
 	int error;
 
@@ -484,9 +485,7 @@ linux_epoll_ctl(struct thread *td, struct linux_epoll_ctl_args *args)
 	ciargs.changelist = kev;
 
 	if (args->op != LINUX_EPOLL_CTL_DEL) {
-		kev_flags = EV_ADD | EV_ENABLE;
-		error = epoll_to_kevent(td, epfp, args->fd, &le,
-		    &kev_flags, kev, &nchanges);
+		error = epoll_to_kevent(td, args->fd, &le, kev, &nchanges);
 		if (error != 0)
 			goto leave0;
 	}
@@ -499,19 +498,10 @@ linux_epoll_ctl(struct thread *td, struct linux_epoll_ctl_args *args)
 		break;
 
 	case LINUX_EPOLL_CTL_ADD:
-		/*
-		 * kqueue_register() return ENOENT if event does not exists
-		 * and the EV_ADD flag is not set. Reset EV_ENABLE flag to
-		 * avoid accidental activation of fired oneshot events.
-		 */
-		kev[0].flags &= ~(EV_ADD | EV_ENABLE);
-		error = kqfd_register(args->epfd, &kev[0], td, M_WAITOK);
-		if (error != ENOENT) {
+		if (epoll_fd_registered(td, epfp, args->fd)) {
 			error = EEXIST;
 			goto leave0;
 		}
-		error = 0;
-		kev[0].flags |= (EV_ADD | EV_ENABLE);
 		break;
 
 	case LINUX_EPOLL_CTL_DEL:
@@ -651,7 +641,8 @@ linux_epoll_pwait(struct thread *td, struct linux_epoll_pwait_args *args)
 }
 
 static int
-epoll_delete_event(struct thread *td, struct file *epfp, int fd, int filter)
+epoll_register_kevent(struct thread *td, struct file *epfp, int fd, int filter,
+    unsigned int flags)
 {
 	struct epoll_copyin_args ciargs;
 	struct kevent kev;
@@ -660,9 +651,27 @@ epoll_delete_event(struct thread *td, struct file *epfp, int fd, int filter)
 					epoll_kev_copyin};
 
 	ciargs.changelist = &kev;
-	EV_SET(&kev, fd, filter, EV_DELETE | EV_DISABLE, 0, 0, 0);
+	EV_SET(&kev, fd, filter, flags, 0, 0, 0);
 
 	return (kern_kevent_fp(td, epfp, 1, 0, &k_ops, NULL));
+}
+
+static int
+epoll_fd_registered(struct thread *td, struct file *epfp, int fd)
+{
+	/*
+	 * Set empty filter flags to avoid accidental modification of already
+	 * registered events. In the case of event re-registration:
+	 * 1. If event does not exists kevent() does nothing and returns ENOENT
+	 * 2. If event does exists, it's enabled/disabled state is preserved
+	 *    but fflags, data and udata fields are overwritten. So we can not
+	 *    set socket lowats and store user's context pointer in udata.
+	 */
+	if (epoll_register_kevent(td, epfp, fd, EVFILT_READ, 0) != ENOENT ||
+	    epoll_register_kevent(td, epfp, fd, EVFILT_WRITE, 0) != ENOENT)
+		return (1);
+
+	return (0);
 }
 
 static int
@@ -670,8 +679,8 @@ epoll_delete_all_events(struct thread *td, struct file *epfp, int fd)
 {
 	int error1, error2;
 
-	error1 = epoll_delete_event(td, epfp, fd, EVFILT_READ);
-	error2 = epoll_delete_event(td, epfp, fd, EVFILT_WRITE);
+	error1 = epoll_register_kevent(td, epfp, fd, EVFILT_READ, EV_DELETE);
+	error2 = epoll_register_kevent(td, epfp, fd, EVFILT_WRITE, EV_DELETE);
 
 	/* return 0 if at least one result positive */
 	return (error1 == 0 ? 0 : error2);
