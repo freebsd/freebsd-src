@@ -34,8 +34,7 @@
 #include "xmlmime.h"
 
 static const char *
-getTok(const char **pp)
-{
+getTok(const char **pp) {
   /* inComment means one level of nesting; inComment+1 means two levels etc */
   enum { inAtom, inString, init, inComment };
   int state = init;
@@ -106,9 +105,8 @@ getTok(const char **pp)
 /* key must be lowercase ASCII */
 
 static int
-matchkey(const char *start, const char *end, const char *key)
-{
-  if (!start)
+matchkey(const char *start, const char *end, const char *key) {
+  if (! start)
     return 0;
   for (; start != end; start++, key++)
     if (*start != *key && *start != 'A' + (*key - 'a'))
@@ -117,8 +115,7 @@ matchkey(const char *start, const char *end, const char *key)
 }
 
 void
-getXMLCharset(const char *buf, char *charset)
-{
+getXMLCharset(const char *buf, char *charset) {
   const char *next, *p;
 
   charset[0] = '\0';
@@ -126,16 +123,18 @@ getXMLCharset(const char *buf, char *charset)
   p = getTok(&next);
   if (matchkey(p, next, "text"))
     strcpy(charset, "us-ascii");
-  else if (!matchkey(p, next, "application"))
+  else if (! matchkey(p, next, "application"))
     return;
   p = getTok(&next);
-  if (!p || *p != '/')
+  if (! p || *p != '/')
     return;
   p = getTok(&next);
-#if 0
-  if (!matchkey(p, next, "xml") && charset[0] == '\0')
-    return;
-#endif
+  /* BEGIN disabled code */
+  if (0) {
+    if (! matchkey(p, next, "xml") && charset[0] == '\0')
+      return;
+  }
+  /* END disabled code */
   p = getTok(&next);
   while (p) {
     if (*p == ';') {
@@ -157,8 +156,7 @@ getXMLCharset(const char *buf, char *charset)
                 *s++ = *p;
               }
               *s++ = '\0';
-            }
-            else {
+            } else {
               if (next - p > CHARSET_MAX - 1)
                 break;
               while (p != next)
@@ -170,19 +168,17 @@ getXMLCharset(const char *buf, char *charset)
         }
         break;
       }
-    }
-  else
-    p = getTok(&next);
+    } else
+      p = getTok(&next);
   }
 }
 
 #ifdef TEST
 
-#include <stdio.h>
+#  include <stdio.h>
 
 int
-main(int argc, char *argv[])
-{
+main(int argc, char *argv[]) {
   char buf[CHARSET_MAX];
   if (argc <= 1)
     return 1;

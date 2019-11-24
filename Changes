@@ -2,6 +2,162 @@ NOTE: We are looking for help with a few things:
       https://github.com/libexpat/libexpat/labels/help%20wanted
       If you can help, please get in touch.  Thanks!
 
+Release 2.2.9 Wed Septemper 25 2019
+        Other changes:
+                  examples: Drop executable bits from elements.c
+            #349  Windows: Change the name of the Windows DLLs from expat*.dll
+                    to libexpat*.dll once more (regression from 2.2.8, first
+                    fixed in 1.95.3, issue #61 on SourceForge today,
+                    was issue #432456 back then); needs a fix due
+                    case-insensitive file systems on Windows and the fact that
+                    Perl's XML::Parser::Expat compiles into Expat.dll.
+            #347  Windows: Only define _CRT_RAND_S if not defined
+                  Version info bumped from 7:10:6 to 7:11:6
+
+        Special thanks to:
+            Ben Wagner
+
+Release 2.2.8 Fri Septemper 13 2019
+        Security fixes:
+       #317 #318  CVE-2019-15903 -- Fix heap overflow triggered by
+                    XML_GetCurrentLineNumber (or XML_GetCurrentColumnNumber),
+                    and deny internal entities closing the doctype;
+                    fixed in commit c20b758c332d9a13afbbb276d30db1d183a85d43
+
+        Bug fixes:
+            #240  Fix cases where XML_StopParser did not have any effect
+                    when called from inside of an end element handler
+            #341  xmlwf: Fix exit code for operation without "-d DIRECTORY";
+                    previously, only "-d DIRECTORY" would give you a proper
+                    exit code:
+                      # xmlwf -d . <<<'<not well-formed>' 2>/dev/null ; echo $?
+                      2
+                      # xmlwf <<<'<not well-formed>' 2>/dev/null ; echo $?
+                      0
+                    Now both cases return exit code 2.
+
+        Other changes:
+       #299 #302  Windows: Replace LoadLibrary hack to access
+                    unofficial API function SystemFunction036 (RtlGenRandom)
+                    by using official API function rand_s (needs WinXP+)
+            #325  Windows: Drop support for Visual Studio <=7.1/2003
+                    and document supported compilers in README.md
+            #286  Windows: Remove COM code from xmlwf; in case it turns
+                    out needed later, there will be a dedicated repository
+                    below https://github.com/libexpat/ for that code
+            #322  Windows: Remove explicit MSVC solution and project files.
+                    You can generate Visual Studio solution files through
+                    CMake, e.g.: cmake -G"Visual Studio 15 2017" .
+            #338  xmlwf: Make "xmlwf -h" help output more friendly
+            #339  examples: Improve elements.c
+       #244 #264  Autotools: Add argument --enable-xml-attr-info
+       #239 #301  Autotools: Add arguments
+                    --with-getrandom
+                    --without-getrandom
+                    --with-sys-getrandom
+                    --without-sys-getrandom
+       #312 #343  Autotools: Fix linking issues with "./configure LD=clang"
+                  Autotools: Fix "make run-xmltest" for out-of-source builds
+       #329 #336  CMake: Pull all options from Expat <=2.2.7 into namespace
+                    prefix EXPAT_ with the exception of DOCBOOK_TO_MAN:
+                    - BUILD_doc            -> EXPAT_BUILD_DOCS (plural)
+                    - BUILD_examples       -> EXPAT_BUILD_EXAMPLES
+                    - BUILD_shared         -> EXPAT_SHARED_LIBS
+                    - BUILD_tests          -> EXPAT_BUILD_TESTS
+                    - BUILD_tools          -> EXPAT_BUILD_TOOLS
+                    - DOCBOOK_TO_MAN       -> DOCBOOK_TO_MAN (unchanged)
+                    - INSTALL              -> EXPAT_ENABLE_INSTALL
+                    - MSVC_USE_STATIC_CRT  -> EXPAT_MSVC_STATIC_CRT
+                    - USE_libbsd           -> EXPAT_WITH_LIBBSD
+                    - WARNINGS_AS_ERRORS   -> EXPAT_WARNINGS_AS_ERRORS
+                    - XML_CONTEXT_BYTES    -> EXPAT_CONTEXT_BYTES
+                    - XML_DEV_URANDOM      -> EXPAT_DEV_URANDOM
+                    - XML_DTD              -> EXPAT_DTD
+                    - XML_NS               -> EXPAT_NS
+                    - XML_UNICODE          -> EXPAT_CHAR_TYPE=ushort (!)
+                    - XML_UNICODE_WCHAR_T  -> EXPAT_CHAR_TYPE=wchar_t (!)
+       #244 #264  CMake: Add argument -DEXPAT_ATTR_INFO=(ON|OFF),
+                    default OFF
+            #326  CMake: Add argument -DEXPAT_LARGE_SIZE=(ON|OFF),
+                    default OFF
+            #328  CMake: Add argument -DEXPAT_MIN_SIZE=(ON|OFF),
+                    default OFF
+       #239 #277  CMake: Add arguments
+                    -DEXPAT_WITH_GETRANDOM=(ON|OFF|AUTO), default AUTO
+                    -DEXPAT_WITH_SYS_GETRANDOM=(ON|OFF|AUTO), default AUTO
+            #326  CMake: Install expat_config.h to include directory
+            #326  CMake: Generate and install configuration files for
+                    future find_package(expat [..] CONFIG [..])
+                  CMake: Now produces a summary of applied configuration
+                  CMake: Require C++ compiler only when tests are enabled
+            #330  CMake: Fix compilation for 16bit character types,
+                    i.e. ex -DXML_UNICODE=ON (and ex -DXML_UNICODE_WCHAR_T=ON)
+            #265  CMake: Fix linking with MinGW
+            #330  CMake: Add full support for MinGW; to enable, use
+                    -DCMAKE_TOOLCHAIN_FILE=[expat]/cmake/mingw-toolchain.cmake
+            #330  CMake: Port "make run-xmltest" from GNU Autotools to CMake
+            #316  CMake: Windows: Make binary postfix match MSVC
+                    Old: expat[d].lib
+                    New: expat[w][d][MD|MT].lib
+                  CMake: Migrate files from Windows to Unix line endings
+            #308  CMake: Integrate OSS-Fuzz fuzzers, option
+                    -DEXPAT_BUILD_FUZZERS=(ON|OFF), default OFF
+             #14  Drop an OpenVMS support leftover
+    #235 #268 ..
+    #270 #310 ..
+  #313 #331 #333  Address compiler warnings
+    #282 #283 ..
+       #284 #285  Address cppcheck warnings
+       #294 #295  Address Clang Static Analyzer warnings
+        #24 #293  Mass-apply clang-format 9 (and ensure conformance during CI)
+                  Version info bumped from 7:9:6 to 7:10:6
+
+        Special thanks to:
+            David Loffredo
+            Joonun Jang
+            Khajapasha Mohammed
+            Kishore Kunche
+            Marco Maggi
+            Mitch Phillips
+            Rolf Ade
+            xantares
+            Zhongyuan Zhou
+
+Release 2.2.7 Wed June 19 2019
+        Security fixes:
+       #186 #262  CVE-2018-20843 -- Fix extraction of namespace prefixes from
+                    XML names; XML names with multiple colons could end up in
+                    the wrong namespace, and take a high amount of RAM and CPU
+                    resources while processing, opening the door to
+                    use for denial-of-service attacks
+
+        Other changes:
+       #195 #197  Autotools/CMake: Utilize -fvisibility=hidden to stop
+                    exporting non-API symbols
+            #227  Autotools: Add --without-examples and --without-tests
+            #228  Autotools: Modernize configure.ac
+       #245 #246  Autotools: Fix check for -fvisibility=hidden for Clang
+       #247 #248  Autotools: Fix compilation for lack of docbook2x-man
+       #236 #258  Autotools: Produce .tar.{gz,lz,xz} release archives
+            #212  CMake: Make libdir of pkgconfig expat.pc support multilib
+       #158 #263  CMake: Build man page in PROJECT_BINARY_DIR not _SOURCE_DIR
+            #219  Remove fallback to bcopy, assume that memmove(3) exists
+            #257  Use portable "/usr/bin/env bash" shebang (e.g. for OpenBSD)
+            #243  Windows: Fix syntax of .def module definition files
+                  Version info bumped from 7:8:6 to 7:9:6
+
+        Special thanks to:
+            Benjamin Peterson
+            Caolán McNamara
+            Hanno Böck
+            KangLin
+            Kishore Kunche
+            Marco Maggi
+            Rhodri James
+            Sebastian Dröge
+            userwithuid
+            Yury Gribov
+
 Release 2.2.6 Sun August 12 2018
         Bug fixes:
        #170 #206  Avoid doing arithmetic with NULL pointers in XML_GetBuffer
