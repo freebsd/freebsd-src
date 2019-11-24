@@ -325,6 +325,11 @@ epoll_to_kevent(struct thread *td, int fd, struct epoll_event *l_event,
 		EV_SET(kevent++, fd, EVFILT_WRITE, kev_flags, 0, 0, 0);
 		++(*nkevents);
 	}
+	/* zero event mask is legal */
+	if ((levents & (LINUX_EPOLL_EVRD | LINUX_EPOLL_EVWR)) == 0) {
+		EV_SET(kevent++, fd, EVFILT_READ, EV_ADD|EV_DISABLE, 0, 0, 0);
+		++(*nkevents);
+	}
 
 	if ((levents & ~(LINUX_EPOLL_EVSUP)) != 0) {
 		p = td->td_proc;
