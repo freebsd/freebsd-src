@@ -40,7 +40,7 @@ stack_capture(struct stack *st, struct unwind_state *state)
 {
 
 	stack_zero(st);
-	while (unwind_stack_one(state, 1) == 0) {
+	while (unwind_stack_one(state, 0) == 0) {
 		if (stack_put(st, state->registers[PC]) == -1)
 			break;
 	}
