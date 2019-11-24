@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 2, 2017
+.Dd August 29, 2019
 .Dt NTB 4
 .Os
 .Sh NAME
@@ -66,7 +66,7 @@ The default configuration is empty string, which means single function
 with all available resources, allowing any driver to attach.
 .El
 .Sh DESCRIPTION
-Non-Transparent Bridges allow to connect two computer systems with PCIe
+Non-Transparent Bridges connect two computer systems with PCIe
 link(s), providing each of them limited access to others memory space,
 scratchpad registers and interrupts.
 The
@@ -76,9 +76,10 @@ and splits them between several functions, according to specified
 configuration.
 .Sh SEE ALSO
 .Xr if_ntb 4 ,
-.Xr ntb_transport 4 ,
+.Xr ntb_hw_amd 4 ,
 .Xr ntb_hw_intel 4 ,
-.Xr ntb_hw_plx 4
+.Xr ntb_hw_plx 4 ,
+.Xr ntb_transport 4
 .Sh AUTHORS
 .An -nosplit
 The

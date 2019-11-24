@@ -1,0 +1,94 @@
+.\"
+.\" Copyright (c) 2019 Rajesh Kumar <rajesh1.kumar@amd.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 29, 2019
+.Dt NTB_HW_AMD 4
+.Os
+.Sh NAME
+.Nm ntb_hw_amd
+.Nd AMD Non-Transparent Bridge driver
+.Sh SYNOPSIS
+To compile this driver into your kernel,
+place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ntb"
+.Cd "device ntb_hw_amd"
+.Ed
+.Pp
+Or, to load the driver as a module at boot, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ntb_hw_amd_load="YES"
+.Ed
+.Pp
+The following sysctls are supported in this driver
+.Bl -ohang
+.It Va dev.ntb_hw.X.info
+Reading this sysctl will give the basic details like the number of memory
+windows, scratchpads and doorbells exposed by the NTB on the local host to
+access the devices beyond the bridge.
+It also provides details about the masked doorbells, translation address and
+size limit of each exposed memory window and link status information.
+.El
+.Sh DESCRIPTION
+The
+.Nm ntb_hw_amd
+driver provides support for the Non-Transparent Bridge (NTB) hardware in
+AMD EPYC processor family.
+The Non-Transparent Bridge does not look as a regular PCI bridge, but as PCI
+endpoint device, hiding the devices behind it.
+The driver hides details of hardware on the other side, but exposes memory windows,
+scratchpads and doorbells to access the other side via hardware independent
+KPI to
+.Xr ntb 4
+subsystem.
+.Pp
+The hardware provides 2 (both 64-bit) or 3 (one 32-bit and two 64-bit) memory
+windows to the other system's memory, up to 16 scratchpad registers and 16
+doorbells to communicate with and interrupt the other system respectively.
+.Sh CONFIGURATION
+The NTB configuration should be set by BIOS.
+This includes enabling NTB, choosing topology (only NTB-to-Root Port
+mode is supported now), role of the host in the topology.
+This needs to be done on both systems.
+.Pp
+The BAR size for memory windows is configured to 1 MiB by default.
+.Sh SEE ALSO
+.Xr if_ntb 4 ,
+.Xr ntb 4 ,
+.Xr ntb_transport 4
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was developed by AMD and originally written by
+.An Rajesh Kumar Aq Mt rajesh1.kumar@amd.com .
+Reviewed by
+.An Alexander Motin Aq Mt mav@FreeBSD.org ,
+.An Conrad E. Meyer Aq Mt cem@FreeBSD.org
+and
+.An Warner Losh Aq Mt imp@FreeBSD.org .

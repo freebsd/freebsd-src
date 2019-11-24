@@ -386,6 +386,7 @@ MAN=	aac.4 \
 	nmdm.4 \
 	nsp.4 \
 	${_ntb.4} \
+	${_ntb_hw_amd.4} \
 	${_ntb_hw_intel.4} \
 	${_ntb_hw_plx.4} \
 	${_ntb_transport.4} \
@@ -856,6 +857,7 @@ _xnb.4=		xnb.4
 _if_ntb.4=	if_ntb.4
 _ioat.4=	ioat.4
 _ntb.4=		ntb.4
+_ntb_hw_amd.4=	ntb_hw_amd.4
 _ntb_hw_intel.4=	ntb_hw_intel.4
 _ntb_hw_plx.4=	ntb_hw_plx.4
 _ntb_transport.4=ntb_transport.4
