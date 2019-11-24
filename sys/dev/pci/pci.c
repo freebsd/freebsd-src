@@ -447,8 +447,6 @@ pci_find_dbsf(uint32_t domain, uint8_t bus, uint8_t slot, uint8_t func)
 {
 	struct pci_devinfo *dinfo = NULL;
 
-	/* Giant because newbus is Giant locked revisit with newbus locking */
-	mtx_lock(&Giant);
 	STAILQ_FOREACH(dinfo, &pci_devq, pci_links) {
 		if ((dinfo->cfg.domain == domain) &&
 		    (dinfo->cfg.bus == bus) &&
@@ -457,7 +455,6 @@ pci_find_dbsf(uint32_t domain, uint8_t bus, uint8_t slot, uint8_t func)
 			break;
 		}
 	}
-	mtx_unlock(&Giant);
 
 	return (dinfo != NULL ? dinfo->cfg.dev : NULL);
 }
