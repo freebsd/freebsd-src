@@ -400,14 +400,14 @@ FreeBSD 5.2           |      |                 |                       |
  |     |      |       |      |   8.1              |            DragonFly 5.6
  |     |      |       |      |                    |                    |
  |     |      |       |      |                    |            DragonFly 5.6.1
- |     |   FreeBSD    |      |                    |                    |
- |     |     11.3     |      |                    |                    |
+ |     |   FreeBSD  macOS    |                    |                    |
+ |     |     11.3   10.15    |                    |                    |
  |  FreeBSD           |      |                OpenBSD 6.6              |
- |   12.1             |      |                    |                    |
- |     |              |      |                    |                    |
+ |   12.1           macOS    |                    |                    |
+ |     |           10.15.1   |                    |            DragonFly 5.6.2
  |     v              |      |                    |                    |
  |                    |      |                    |                    |
-FreeBSD 13 -current   |  NetBSD -current   OpenBSD -current   DragonFly -current
+FreeBSD 13 -current   |  NetBSD -current   OpenBSD -current    DragonFly -current
  |                    |      |                    |                    |
  v                    v      v                    v                    v
 
@@ -793,7 +793,10 @@ NetBSD 8.1		2019-06-04 [NBD]
 DragonFly 5.6		2019-06-17 [DFB]
 DragonFly 5.6.1		2019-06-19 [DFB]
 FreeBSD 11.3		2019-07-09 [FBD]
+DragonFly 5.6.2		2019-08-11 [DFB]
 OpenBSD 6.6		2019-10-17 [OBD]
+macOS 10.15		2019-10.29 [APL]
+macOS 10.15.1		2019-10-29 [APL] (security/critical release)
 FreeBSD 12.1		2019-11-04 [FBD]
 
 Bibliography
