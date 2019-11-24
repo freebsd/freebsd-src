@@ -218,7 +218,7 @@ static u_int32_t
 
 static struct cdevsw aacraid_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
+	.d_flags =	0,
 	.d_open =	aac_open,
 #if __FreeBSD_version < 702000
 	.d_close =	aac_close,
@@ -1044,9 +1044,7 @@ aac_command_thread(struct aac_softc *sc)
 					"aacraid_aifthd", AAC_PERIODIC_INTERVAL * hz);
 
 		/*
-		 * First see if any FIBs need to be allocated.  This needs
-		 * to be called without the driver lock because contigmalloc
-		 * will grab Giant, and would result in an LOR.
+		 * First see if any FIBs need to be allocated.
 		 */
 		if ((sc->aifflags & AAC_AIFFLAGS_ALLOCFIBS) != 0) {
 			aac_alloc_commands(sc);
@@ -3090,9 +3088,7 @@ aac_cdevpriv_dtor(void *arg)
 
 	sc = arg;
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
-	mtx_lock(&Giant);
 	device_unbusy(sc->aac_dev);
-	mtx_unlock(&Giant);
 }
 #else
 static int

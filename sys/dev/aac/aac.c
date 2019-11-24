@@ -215,7 +215,7 @@ static struct aac_mntinforesp *
 
 static struct cdevsw aac_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
+	.d_flags =	0,
 	.d_open =	aac_open,
 	.d_ioctl =	aac_ioctl,
 	.d_poll =	aac_poll,
@@ -3210,9 +3210,7 @@ aac_cdevpriv_dtor(void *arg)
 
 	sc = arg;
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
-	mtx_lock(&Giant);
 	device_unbusy(sc->aac_dev);
-	mtx_unlock(&Giant);
 }
 
 /*
