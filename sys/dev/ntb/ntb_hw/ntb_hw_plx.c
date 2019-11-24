@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2017-2019 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #define PLX_NUM_SPAD		8	/* There are 8 scratchpads. */
 #define PLX_NUM_SPAD_PATT	4	/* Use test pattern as 4 more. */
 #define PLX_NUM_DB		16	/* There are 16 doorbells. */
+#define PLX_MAX_SPLIT		128	/* Allow are at most 128 splits. */
 
 struct ntb_plx_mw_info {
 	int			 mw_bar;
@@ -65,9 +66,11 @@ struct ntb_plx_mw_info {
 	vm_paddr_t		 mw_pbase;
 	caddr_t			 mw_vbase;
 	vm_size_t		 mw_size;
-	vm_memattr_t		 mw_map_mode;
-	bus_addr_t		 mw_xlat_addr;
-	size_t			 mw_xlat_size;
+	struct {
+		vm_memattr_t	 mw_map_mode;
+		bus_addr_t	 mw_xlat_addr;
+		bus_size_t	 mw_xlat_size;
+	} splits[PLX_MAX_SPLIT];
 };
 
 struct ntb_plx_softc {
@@ -81,6 +84,7 @@ struct ntb_plx_softc {
 	u_int			 link;		/* Link v/s Virtual side. */
 	u_int			 port;		/* Port number within chip. */
 	u_int			 alut;		/* A-LUT is enabled for NTx */
+	u_int			 split;		/* split BAR2 into 2^x parts */
 
 	int			 int_rid;
 	struct resource		*int_res;
@@ -222,11 +226,8 @@ ntb_plx_init(device_t dev)
 	NTX_WRITE(sc, sc->link ? 0xdbc : 0xd9c, 0xc0218021);
 
 	/* Set Link to Virtual address translation. */
-	for (i = 0; i < sc->mw_count; i++) {
-		mw = &sc->mw_info[i];
-		if (mw->mw_xlat_size != 0)
-			ntb_plx_mw_set_trans_internal(dev, i);
-	}
+	for (i = 0; i < sc->mw_count; i++)
+		ntb_plx_mw_set_trans_internal(dev, i);
 
 	pci_enable_busmaster(dev);
 	if (sc->b2b_mw >= 0)
@@ -319,7 +320,7 @@ ntb_plx_attach(device_t dev)
 {
 	struct ntb_plx_softc *sc = device_get_softc(dev);
 	struct ntb_plx_mw_info *mw;
-	int error = 0, i;
+	int error = 0, i, j;
 	uint32_t val;
 	char buf[32];
 
@@ -361,7 +362,8 @@ ntb_plx_attach(device_t dev)
 		mw->mw_pbase = rman_get_start(mw->mw_res);
 		mw->mw_size = rman_get_size(mw->mw_res);
 		mw->mw_vbase = rman_get_virtual(mw->mw_res);
-		mw->mw_map_mode = VM_MEMATTR_UNCACHEABLE;
+		for (j = 0; j < PLX_MAX_SPLIT; j++)
+			mw->splits[j].mw_map_mode = VM_MEMATTR_UNCACHEABLE;
 		sc->mw_count++;
 
 		/* Skip over adjacent BAR for 64-bit BARs. */
@@ -400,6 +402,26 @@ ntb_plx_attach(device_t dev)
 			sc->b2b_off = mw->mw_size / 2;
 		else
 			sc->b2b_off = 0;
+	}
+
+	snprintf(buf, sizeof(buf), "hint.%s.%d.split", device_get_name(dev),
+	    device_get_unit(dev));
+	TUNABLE_INT_FETCH(buf, &sc->split);
+	if (sc->split > 7) {
+		device_printf(dev, "Split value is too high (%u)\n", sc->split);
+		sc->split = 0;
+	} else if (sc->split > 0 && sc->alut == 0) {
+		device_printf(dev, "Can't split with disabled A-LUT\n");
+		sc->split = 0;
+	} else if (sc->split > 0 && (sc->mw_count == 0 || sc->mw_info[0].mw_bar != 2)) {
+		device_printf(dev, "Can't split disabled BAR2\n");
+		sc->split = 0;
+	} else if (sc->split > 0 && (sc->b2b_mw == 0 && sc->b2b_off == 0)) {
+		device_printf(dev, "Can't split BAR2 consumed by B2B\n");
+		sc->split = 0;
+	} else if (sc->split > 0) {
+		device_printf(dev, "Splitting BAR2 into %d memory windows\n",
+		    1 << sc->split);
 	}
 
 	/*
@@ -582,10 +604,27 @@ static uint8_t
 ntb_plx_mw_count(device_t dev)
 {
 	struct ntb_plx_softc *sc = device_get_softc(dev);
+	uint8_t res;
 
+	res = sc->mw_count;
+	res += (1 << sc->split) - 1;
 	if (sc->b2b_mw >= 0 && sc->b2b_off == 0)
-		return (sc->mw_count - 1); /* B2B consumed whole window. */
-	return (sc->mw_count);
+		res--; /* B2B consumed whole window. */
+	return (res);
+}
+
+static unsigned
+ntb_plx_user_mw_to_idx(struct ntb_plx_softc *sc, unsigned uidx, unsigned *sp)
+{
+	unsigned t;
+
+	t = 1 << sc->split;
+	if (uidx < t) {
+		*sp = uidx;
+		return (0);
+	}
+	*sp = 0;
+	return (uidx - (t - 1));
 }
 
 static int
@@ -595,8 +634,10 @@ ntb_plx_mw_get_range(device_t dev, unsigned mw_idx, vm_paddr_t *base,
 {
 	struct ntb_plx_softc *sc = device_get_softc(dev);
 	struct ntb_plx_mw_info *mw;
-	size_t off;
+	size_t off, ss;
+	unsigned sp, split;
 
+	mw_idx = ntb_plx_user_mw_to_idx(sc, mw_idx, &sp);
 	if (mw_idx >= sc->mw_count)
 		return (EINVAL);
 	off = 0;
@@ -606,14 +647,16 @@ ntb_plx_mw_get_range(device_t dev, unsigned mw_idx, vm_paddr_t *base,
 		off = sc->b2b_off;
 	}
 	mw = &sc->mw_info[mw_idx];
+	split = (mw->mw_bar == 2) ? sc->split : 0;
+	ss = (mw->mw_size - off) >> split;
 
 	/* Local to remote memory window parameters. */
 	if (base != NULL)
-		*base = mw->mw_pbase + off;
+		*base = mw->mw_pbase + off + ss * sp;
 	if (vbase != NULL)
-		*vbase = mw->mw_vbase + off;
+		*vbase = mw->mw_vbase + off + ss * sp;
 	if (size != NULL)
-		*size = mw->mw_size - off;
+		*size = ss;
 
 	/*
 	 * Remote to local memory window translation address alignment.
@@ -660,91 +703,72 @@ ntb_plx_mw_set_trans_internal(device_t dev, unsigned mw_idx)
 	struct ntb_plx_mw_info *mw;
 	uint64_t addr, eaddr, off, size, bsize, esize, val64;
 	uint32_t val;
-	int i;
+	unsigned i, sp, split;
 
 	mw = &sc->mw_info[mw_idx];
-	addr = mw->mw_xlat_addr;
-	size = mw->mw_xlat_size;
-	off = 0;
-	if (mw_idx == sc->b2b_mw) {
-		off = sc->b2b_off;
-		KASSERT(off != 0, ("user shouldn't get non-shared b2b mw"));
+	off = (mw_idx == sc->b2b_mw) ? sc->b2b_off : 0;
+	split = (mw->mw_bar == 2) ? sc->split : 0;
 
-		/*
-		 * While generally we can set any BAR size on link side,
-		 * for B2B shared window we can't go above preconfigured
-		 * size due to BAR address alignment requirements.
-		 */
-		if (size > mw->mw_size - off)
-			return (EINVAL);
-	}
-
-	if (size > 0) {
-		/* Round BAR size to next power of 2 or at least 1MB. */
-		bsize = size;
+	/* Get BAR size.  In case of split or B2RP we can't change it. */
+	if (split || sc->b2b_mw < 0) {
+		bsize = mw->mw_size - off;
+	} else {
+		bsize = mw->splits[0].mw_xlat_size;
 		if (!powerof2(bsize))
 			bsize = 1LL << flsll(bsize);
-		if (bsize < 1024 * 1024)
+		if (bsize > 0 && bsize < 1024 * 1024)
 			bsize = 1024 * 1024;
+	}
 
-		/* A-LUT has 128 or 256 times better granularity. */
-		esize = bsize;
-		if (sc->alut && mw->mw_bar == 2)
-			esize /= 128 * sc->alut;
+	/*
+	 * While for B2B we can set any BAR size on a link side, for shared
+	 * window we can't go above preconfigured size due to BAR address
+	 * alignment requirements.
+	 */
+	if ((off & (bsize - 1)) != 0)
+		return (EINVAL);
 
-		/* addr should be aligned to BAR or A-LUT element size. */
-		if ((addr & (esize - 1)) != 0)
-			return (EINVAL);
-	} else
-		esize = bsize = 0;
+	/* In B2B mode set Link Interface BAR size/address. */
+	if (sc->b2b_mw >= 0 && mw->mw_64bit) {
+		val64 = 0;
+		if (bsize > 0)
+			val64 = (~(bsize - 1) & ~0xfffff);
+		val64 |= 0xc;
+		PNTX_WRITE(sc, 0xe8 + (mw->mw_bar - 2) * 4, val64);
+		PNTX_WRITE(sc, 0xe8 + (mw->mw_bar - 2) * 4 + 4, val64 >> 32);
 
+		val64 = 0x2000000000000000 * mw->mw_bar + off;
+		PNTX_WRITE(sc, PCIR_BAR(mw->mw_bar), val64);
+		PNTX_WRITE(sc, PCIR_BAR(mw->mw_bar) + 4, val64 >> 32);
+	} else if (sc->b2b_mw >= 0) {
+		val = 0;
+		if (bsize > 0)
+			val = (~(bsize - 1) & ~0xfffff);
+		PNTX_WRITE(sc, 0xe8 + (mw->mw_bar - 2) * 4, val);
+
+		val64 = 0x20000000 * mw->mw_bar + off;
+		PNTX_WRITE(sc, PCIR_BAR(mw->mw_bar), val64);
+	}
+
+	/* Set BARs address translation */
+	addr = split ? UINT64_MAX : mw->splits[0].mw_xlat_addr;
 	if (mw->mw_64bit) {
-		if (sc->b2b_mw >= 0) {
-			/* Set Link Interface BAR size and enable/disable it. */
-			val64 = 0;
-			if (bsize > 0)
-				val64 = (~(bsize - 1) & ~0xfffff);
-			val64 |= 0xc;
-			PNTX_WRITE(sc, 0xe8 + (mw->mw_bar - 2) * 4, val64);
-			PNTX_WRITE(sc, 0xe8 + (mw->mw_bar - 2) * 4 + 4, val64 >> 32);
-
-			/* Set Link Interface BAR address. */
-			val64 = 0x2000000000000000 * mw->mw_bar + off;
-			PNTX_WRITE(sc, PCIR_BAR(mw->mw_bar), val64);
-			PNTX_WRITE(sc, PCIR_BAR(mw->mw_bar) + 4, val64 >> 32);
-		}
-
-		/* Set Virtual Interface BARs address translation */
 		PNTX_WRITE(sc, 0xc3c + (mw->mw_bar - 2) * 4, addr);
 		PNTX_WRITE(sc, 0xc3c + (mw->mw_bar - 2) * 4 + 4, addr >> 32);
 	} else {
-		/* Make sure we fit into 32-bit address space. */
-		if ((addr & UINT32_MAX) != addr)
-			return (ERANGE);
-		if (((addr + bsize) & UINT32_MAX) != (addr + bsize))
-			return (ERANGE);
-
-		if (sc->b2b_mw >= 0) {
-			/* Set Link Interface BAR size and enable/disable it. */
-			val = 0;
-			if (bsize > 0)
-				val = (~(bsize - 1) & ~0xfffff);
-			PNTX_WRITE(sc, 0xe8 + (mw->mw_bar - 2) * 4, val);
-
-			/* Set Link Interface BAR address. */
-			val64 = 0x20000000 * mw->mw_bar + off;
-			PNTX_WRITE(sc, PCIR_BAR(mw->mw_bar), val64);
-		}
-
-		/* Set Virtual Interface BARs address translation */
 		PNTX_WRITE(sc, 0xc3c + (mw->mw_bar - 2) * 4, addr);
 	}
 
-	/* Configure and enable Link to Virtual A-LUT if we need it. */
-	if (sc->alut && mw->mw_bar == 2 &&
-	    ((addr & (bsize - 1)) != 0 || size != bsize)) {
-		eaddr = addr;
-		for (i = 0; i < 128 * sc->alut; i++) {
+	/* Configure and enable A-LUT if we need it. */
+	size = split ? 0 : mw->splits[0].mw_xlat_size;
+	if (sc->alut && mw->mw_bar == 2 && (sc->split > 0 ||
+	    ((addr & (bsize - 1)) != 0 || size != bsize))) {
+		esize = bsize / (128 * sc->alut);
+		for (i = sp = 0; i < 128 * sc->alut; i++) {
+			if (i % (128 * sc->alut >> sc->split) == 0) {
+				eaddr = addr = mw->splits[sp].mw_xlat_addr;
+				size = mw->splits[sp++].mw_xlat_size;
+			}
 			val = sc->link ? 0 : 1;
 			if (sc->alut == 1)
 				val += 2 * sc->ntx;
@@ -768,12 +792,18 @@ ntb_plx_mw_set_trans(device_t dev, unsigned mw_idx, bus_addr_t addr, size_t size
 {
 	struct ntb_plx_softc *sc = device_get_softc(dev);
 	struct ntb_plx_mw_info *mw;
+	unsigned sp;
 
+	mw_idx = ntb_plx_user_mw_to_idx(sc, mw_idx, &sp);
 	if (mw_idx >= sc->mw_count)
 		return (EINVAL);
 	mw = &sc->mw_info[mw_idx];
-	mw->mw_xlat_addr = addr;
-	mw->mw_xlat_size = size;
+	if (!mw->mw_64bit &&
+	    ((addr & UINT32_MAX) != addr ||
+	     ((addr + size) & UINT32_MAX) != (addr + size)))
+		return (ERANGE);
+	mw->splits[sp].mw_xlat_addr = addr;
+	mw->splits[sp].mw_xlat_size = size;
 	return (ntb_plx_mw_set_trans_internal(dev, mw_idx));
 }
 
@@ -785,43 +815,49 @@ ntb_plx_mw_clear_trans(device_t dev, unsigned mw_idx)
 }
 
 static int
-ntb_plx_mw_get_wc(device_t dev, unsigned idx, vm_memattr_t *mode)
+ntb_plx_mw_get_wc(device_t dev, unsigned mw_idx, vm_memattr_t *mode)
 {
 	struct ntb_plx_softc *sc = device_get_softc(dev);
 	struct ntb_plx_mw_info *mw;
+	unsigned sp;
 
-	if (idx >= sc->mw_count)
+	mw_idx = ntb_plx_user_mw_to_idx(sc, mw_idx, &sp);
+	if (mw_idx >= sc->mw_count)
 		return (EINVAL);
-	mw = &sc->mw_info[idx];
-	*mode = mw->mw_map_mode;
+	mw = &sc->mw_info[mw_idx];
+	*mode = mw->splits[sp].mw_map_mode;
 	return (0);
 }
 
 static int
-ntb_plx_mw_set_wc(device_t dev, unsigned idx, vm_memattr_t mode)
+ntb_plx_mw_set_wc(device_t dev, unsigned mw_idx, vm_memattr_t mode)
 {
 	struct ntb_plx_softc *sc = device_get_softc(dev);
 	struct ntb_plx_mw_info *mw;
-	uint64_t off;
+	uint64_t off, ss;
 	int rc;
+	unsigned sp, split;
 
-	if (idx >= sc->mw_count)
+	mw_idx = ntb_plx_user_mw_to_idx(sc, mw_idx, &sp);
+	if (mw_idx >= sc->mw_count)
 		return (EINVAL);
-	mw = &sc->mw_info[idx];
-	if (mw->mw_map_mode == mode)
+	mw = &sc->mw_info[mw_idx];
+	if (mw->splits[sp].mw_map_mode == mode)
 		return (0);
 
 	off = 0;
-	if (idx == sc->b2b_mw) {
+	if (mw_idx == sc->b2b_mw) {
 		KASSERT(sc->b2b_off != 0,
 		    ("user shouldn't get non-shared b2b mw"));
 		off = sc->b2b_off;
 	}
 
-	rc = pmap_change_attr((vm_offset_t)mw->mw_vbase + off,
-	    mw->mw_size - off, mode);
+	split = (mw->mw_bar == 2) ? sc->split : 0;
+	ss = (mw->mw_size - off) >> split;
+	rc = pmap_change_attr((vm_offset_t)mw->mw_vbase + off + ss * sp,
+	    ss, mode);
 	if (rc == 0)
-		mw->mw_map_mode = mode;
+		mw->splits[sp].mw_map_mode = mode;
 	return (rc);
 }
 

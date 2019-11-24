@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2017 Alexander Motin <mav@FreeBSD.org>
+.\" Copyright (c) 2017-2019 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 30, 2017
+.Dd November 9, 2019
 .Dt NTB_HW_PLX 4
 .Os
 .Sh NAME
@@ -54,6 +54,9 @@ NTB that it works in NTB-to-NTB (back-to-back) mode, 0 -- NTB-to-Root Port.
 Driver attached to Link Interface (visible from Root Port side) switches to
 NTB-to-Root Port mode automatically, but one attached to Virtual Interface
 can't detect what is on the other side and require external knowledge.
+.It Va hint.ntb_hw. Ns Ar X Ns Va .split
+Being set above zero splits BAR2 into 2^x memory windows using Address
+Lookup Table (A-LUT).
 .El
 .Sh DESCRIPTION
 The
@@ -70,6 +73,8 @@ subsystem.
 Each PLX NTB provides up to 2 64-bit or 4 32-bit memory windows to the
 other system's memory, 6 or 12 scratchpad registers and 16 doorbells to
 interrupt the other system.
+If Address Lookup Table (A-LUT) is enabled, BAR2 can be split into several
+(up to 128) memory windows.
 In NTB-to-NTB mode one of memory windows (or half of it, if bigger then 1MB)
 is consumed by the driver itself to access scratchpad and doorbell registers
 of the other side.
