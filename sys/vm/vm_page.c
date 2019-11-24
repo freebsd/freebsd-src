@@ -437,7 +437,7 @@ vm_page_init_marker(vm_page_t marker, int queue, uint16_t aflags)
 	bzero(marker, sizeof(*marker));
 	marker->flags = PG_MARKER;
 	marker->aflags = aflags;
-	marker->busy_lock = VPB_SINGLE_EXCLUSIVER;
+	marker->busy_lock = VPB_CURTHREAD_EXCLUSIVE;
 	marker->queue = queue;
 }
 
@@ -939,18 +939,19 @@ vm_page_busy_downgrade(vm_page_t m)
 int
 vm_page_busy_tryupgrade(vm_page_t m)
 {
-	u_int x;
+	u_int ce, x;
 
 	vm_page_assert_sbusied(m);
 
 	x = m->busy_lock;
+	ce = VPB_CURTHREAD_EXCLUSIVE;
 	for (;;) {
 		if (VPB_SHARERS(x) > 1)
 			return (0);
 		KASSERT((x & ~VPB_BIT_WAITERS) == VPB_SHARERS_WORD(1),
 		    ("vm_page_busy_tryupgrade: invalid lock state"));
 		if (!atomic_fcmpset_acq_int(&m->busy_lock, &x,
-		    VPB_SINGLE_EXCLUSIVER | (x & VPB_BIT_WAITERS)))
+		    ce | (x & VPB_BIT_WAITERS)))
 			continue;
 		return (1);
 	}
@@ -1108,7 +1109,7 @@ vm_page_tryxbusy(vm_page_t m)
 	vm_object_t obj;
 
         if (atomic_cmpset_acq_int(&(m)->busy_lock, VPB_UNBUSIED,
-            VPB_SINGLE_EXCLUSIVER) == 0)
+            VPB_CURTHREAD_EXCLUSIVE) == 0)
 		return (0);
 
 	obj = m->object;
@@ -1119,6 +1120,14 @@ vm_page_tryxbusy(vm_page_t m)
 	return (1);
 }
 
+static void
+vm_page_xunbusy_hard_tail(vm_page_t m)
+{
+	atomic_store_rel_int(&m->busy_lock, VPB_UNBUSIED);
+	/* Wake the waiter. */
+	wakeup(m);
+}
+
 /*
  *	vm_page_xunbusy_hard:
  *
@@ -1127,14 +1136,15 @@ vm_page_tryxbusy(vm_page_t m)
 void
 vm_page_xunbusy_hard(vm_page_t m)
 {
-
 	vm_page_assert_xbusied(m);
+	vm_page_xunbusy_hard_tail(m);
+}
 
-	/*
-	 * Wake the waiter.
-	 */
-	atomic_store_rel_int(&m->busy_lock, VPB_UNBUSIED);
-	wakeup(m);
+void
+vm_page_xunbusy_hard_unchecked(vm_page_t m)
+{
+	vm_page_assert_xbusied_unchecked(m);
+	vm_page_xunbusy_hard_tail(m);
 }
 
 /*
@@ -1228,7 +1238,7 @@ vm_page_initfake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr)
 	m->flags = PG_FICTITIOUS;
 	/* Fictitious pages don't use "order" or "pool". */
 	m->oflags = VPO_UNMANAGED;
-	m->busy_lock = VPB_SINGLE_EXCLUSIVER;
+	m->busy_lock = VPB_CURTHREAD_EXCLUSIVE;
 	/* Fictitious pages are unevictable. */
 	m->ref_count = 1;
 	pmap_page_init(m);
@@ -1318,7 +1328,7 @@ vm_page_readahead_finish(vm_page_t m)
 	else
 		vm_page_deactivate(m);
 	vm_page_unlock(m);
-	vm_page_xunbusy(m);
+	vm_page_xunbusy_unchecked(m);
 }
 
 /*
@@ -1967,7 +1977,7 @@ found:
 	    VPO_UNMANAGED : 0;
 	m->busy_lock = VPB_UNBUSIED;
 	if ((req & (VM_ALLOC_NOBUSY | VM_ALLOC_NOOBJ | VM_ALLOC_SBUSY)) == 0)
-		m->busy_lock = VPB_SINGLE_EXCLUSIVER;
+		m->busy_lock = VPB_CURTHREAD_EXCLUSIVE;
 	if ((req & VM_ALLOC_SBUSY) != 0)
 		m->busy_lock = VPB_SHARERS_WORD(1);
 	if (req & VM_ALLOC_WIRED) {
@@ -2161,7 +2171,7 @@ found:
 	    VPO_UNMANAGED : 0;
 	busy_lock = VPB_UNBUSIED;
 	if ((req & (VM_ALLOC_NOBUSY | VM_ALLOC_NOOBJ | VM_ALLOC_SBUSY)) == 0)
-		busy_lock = VPB_SINGLE_EXCLUSIVER;
+		busy_lock = VPB_CURTHREAD_EXCLUSIVE;
 	if ((req & VM_ALLOC_SBUSY) != 0)
 		busy_lock = VPB_SHARERS_WORD(1);
 	if ((req & VM_ALLOC_WIRED) != 0)
