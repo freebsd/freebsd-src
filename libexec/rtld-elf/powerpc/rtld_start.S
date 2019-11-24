@@ -30,6 +30,7 @@
  */
 
 #include <machine/asm.h>
+#include <machine/spr.h>	/* For SPR_SPEFSCR if needed. */
 
 .extern _GLOBAL_OFFSET_TABLE_
 .extern _DYNAMIC
@@ -101,6 +102,20 @@ _ENTRY(.rtld_start)
 	li      %r0,1		/* _exit() */
 	sc
 
+#ifdef __SPE__
+/* stack space for 30 GPRs + SPEFSCR/ACC/lr/cr */
+#define	NREGS		31
+#define	GPRWIDTH	8
+#define	FUDGE		4	/* Fudge factor for alignment */
+#else
+/* stack space for 30 GPRs + lr/cr */
+#define	NREGS		30
+#define	GPRWIDTH	4
+#define	FUDGE		0
+#endif
+/* Stack frame needs the 12-byte ABI frame plus fudge factor. */
+#define	STACK_SIZE	(NREGS * GPRWIDTH + 4 * 2 + 12 + FUDGE)
+
 /*
  * _rtld_bind_secureplt_start()
  *
@@ -110,8 +125,12 @@ _ENTRY(.rtld_start)
  * So for bss-plt, we multiply the index by 12 to get the offset.
  */
 _ENTRY(_rtld_bind_secureplt_start)
-	stwu    %r1,-160(%r1)		# stack space for 29 regs + r0/lr/cr
+	stwu    %r1,-STACK_SIZE(%r1)
+#ifdef __SPE__
+	evstdd	%r0,24(%r1)
+#else
 	stw     %r0,20(%r1)		# save r0
+#endif
 
 	/*
 	 * Instead of division which is costly we will use multiplicative
@@ -137,28 +156,113 @@ _ENTRY(_rtld_bind_secureplt_start)
 	.globl  _rtld_bind
 
 _ENTRY(_rtld_bind_start)
-	stwu    %r1,-160(%r1)		# stack space for 29 regs + r0/lr/cr
+	stwu    %r1,-STACK_SIZE(%r1)
+#ifdef __SPE__
+	evstdd	%r0,24(%r1)
+#else
 	stw     %r0,20(%r1)		# save r0
+#endif
 1:
 	mflr    %r0
 	stw     %r0,16(%r1)		# save lr
 	mfcr    %r0
 	stw     %r0,12(%r1)		# save cr
+#ifdef __SPE__
+	evstdd	%r3, 32(%r1)
+	evstdd	%r4, 40(%r1)
+	evstdd	%r5, 48(%r1)
+	evstdd	%r6, 56(%r1)
+	evstdd	%r7, 64(%r1)
+	evstdd	%r8, 72(%r1)
+	evstdd	%r9, 80(%r1)
+	evstdd	%r10, 88(%r1)
+	evstdd	%r11, 96(%r1)
+	evstdd	%r12, 104(%r1)
+	evstdd	%r13, 112(%r1)
+	evstdd	%r14, 120(%r1)
+	evstdd	%r15, 128(%r1)
+	evstdd	%r16, 136(%r1)
+	evstdd	%r17, 144(%r1)
+	evstdd	%r18, 152(%r1)
+	evstdd	%r19, 160(%r1)
+	evstdd	%r20, 168(%r1)
+	evstdd	%r21, 176(%r1)
+	evstdd	%r22, 184(%r1)
+	evstdd	%r23, 192(%r1)
+	evstdd	%r24, 200(%r1)
+	evstdd	%r25, 208(%r1)
+	evstdd	%r26, 216(%r1)
+	evstdd	%r27, 224(%r1)
+	evstdd	%r28, 232(%r1)
+	evstdd	%r29, 240(%r1)
+	evstdd	%r30, 248(%r1)
+	li	%r3, 256
+	evstddx	%r31, %r1, %r3
+	evxor	%r0, %r0, %r0
+	li	%r3, 264
+	evmwumiaa	%r0, %r0, %r0
+	evstddx	%r0, %r1, %r3
+	mfspr	%r3, SPR_SPEFSCR
+	stw	%r3, 20(%r1)
+#else
 	stmw    %r3,24(%r1)		# save r3-r31
+#endif
 
 	mr      %r3,%r12		# obj
 	mulli   %r4,%r11,12		# rela index * sizeof(Elf_Rela)
 	bl      _rtld_bind		# target addr = _rtld_bind(obj, reloff)
 	mtctr   %r3			# move absolute target addr into ctr
 
+#ifdef __SPE__
+	lwz	%r3, 20(%r1)
+	mtspr	SPR_SPEFSCR, %r3
+	li	%r3, 264
+	evlddx	%r0, %r3, %r1
+	evmra	%r0, %r0
+	evldd	%r3, 32(%r1)
+	evldd	%r4, 40(%r1)
+	evldd	%r5, 48(%r1)
+	evldd	%r6, 56(%r1)
+	evldd	%r7, 64(%r1)
+	evldd	%r8, 72(%r1)
+	evldd	%r9, 80(%r1)
+	evldd	%r10, 88(%r1)
+	evldd	%r11, 96(%r1)
+	evldd	%r12, 104(%r1)
+	evldd	%r13, 112(%r1)
+	evldd	%r14, 120(%r1)
+	evldd	%r15, 128(%r1)
+	evldd	%r16, 136(%r1)
+	evldd	%r17, 144(%r1)
+	evldd	%r18, 152(%r1)
+	evldd	%r19, 160(%r1)
+	evldd	%r20, 168(%r1)
+	evldd	%r21, 176(%r1)
+	evldd	%r22, 184(%r1)
+	evldd	%r23, 192(%r1)
+	evldd	%r24, 200(%r1)
+	evldd	%r25, 208(%r1)
+	evldd	%r26, 216(%r1)
+	evldd	%r27, 224(%r1)
+	evldd	%r28, 232(%r1)
+	evldd	%r29, 240(%r1)
+	evldd	%r30, 248(%r1)
+	li	%r0, 256
+	evlddx	%r31, %r1, %r0
+#else
         lmw     %r3,24(%r1)		# restore r3-r31
+#endif
         lwz     %r0,12(%r1)		# restore cr
         mtcr    %r0
         lwz     %r0,16(%r1)		# restore lr
         mtlr    %r0
+#ifdef __SPE__
+	evldd	%r0,24(%r1)
+#else
         lwz     %r0,20(%r1)		# restore r0
+#endif
 
-        addi    %r1,%r1,160		# restore stack
+        addi    %r1,%r1,STACK_SIZE	# restore stack
         bctr				# jump to target
 
 
