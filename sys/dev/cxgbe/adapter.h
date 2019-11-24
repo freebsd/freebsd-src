@@ -917,6 +917,7 @@ struct adapter {
 	int last_op_flags;
 
 	int swintr;
+	int sensor_resets;
 
 	struct callout ktls_tick;
 };
