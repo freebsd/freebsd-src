@@ -3764,8 +3764,7 @@ vm_map_copy_entry(
 		if ((src_object = src_entry->object.vm_object) != NULL) {
 			VM_OBJECT_WLOCK(src_object);
 			charged = ENTRY_CHARGED(src_entry);
-			if (src_object->handle == NULL &&
-			    (src_object->flags & OBJ_ANON) != 0) {
+			if ((src_object->flags & OBJ_ANON) != 0) {
 				vm_object_collapse(src_object);
 				if ((src_object->flags & OBJ_ONEMAPPING) != 0) {
 					vm_object_split(src_entry);
