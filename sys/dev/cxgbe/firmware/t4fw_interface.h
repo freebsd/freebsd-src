@@ -142,6 +142,7 @@ enum fw_wr_opcodes {
 	FW_ISCSI_TX_DATA_WR	= 0x45,
 	FW_PTP_TX_PKT_WR        = 0x46,
 	FW_TLSTX_DATA_WR	= 0x68,
+	FW_TLS_TUNNEL_OFLD_WR	= 0x69,
 	FW_CRYPTO_LOOKASIDE_WR	= 0x6d,
 	FW_COISCSI_TGT_WR	= 0x70,
 	FW_COISCSI_TGT_CONN_WR	= 0x71,
@@ -2200,6 +2201,11 @@ enum fw_chnet_ifconf_wr_subop {
 	FW_CHNET_IFCONF_WR_SUBOP_ICMP_PING4,
 	FW_CHNET_IFCONF_WR_SUBOP_ICMP_PING6,
 
+	FW_CHNET_IFCONF_WR_SUBOP_ICMP_PLD_PING4,
+	FW_CHNET_IFCONF_WR_SUBOP_ICMP_PLD_PING6,
+
+	FW_CHNET_IFCONF_WR_SUBOP_PMTU6_CLEAR,
+
 	FW_CHNET_IFCONF_WR_SUBOP_MAX,
 };
 
@@ -2228,7 +2234,8 @@ struct fw_chnet_ifconf_wr {
 		} mac;
 	} u;
 	struct fw_chnet_ifconf_params {
-		__be32 r0;
+		__be16 ping_pldsize;
+		__be16 r0;
 		__be16 vlanid;
 		__be16 mtu;
 		union fw_chnet_ifconf_addr_type {
@@ -4080,6 +4087,13 @@ struct fw_crypto_lookaside_wr {
     (((x) >> S_FW_CRYPTO_LOOKASIDE_WR_HASH_SIZE) & \
      M_FW_CRYPTO_LOOKASIDE_WR_HASH_SIZE)
 
+struct fw_tls_tunnel_ofld_wr {
+	__be32 op_compl;
+	__be32 flowid_len16;
+	__be32 plen;
+	__be32 r4;
+};
+
 /******************************************************************************
  *  C O M M A N D s
  *********************/
@@ -4137,6 +4151,7 @@ enum fw_cmd_opcodes {
 	FW_DEVLOG_CMD                  = 0x25,
 	FW_WATCHDOG_CMD                = 0x27,
 	FW_CLIP_CMD                    = 0x28,
+	FW_CLIP2_CMD                   = 0x29,
 	FW_CHNET_IFACE_CMD             = 0x26,
 	FW_FCOE_RES_INFO_CMD           = 0x31,
 	FW_FCOE_LINK_CMD               = 0x32,
@@ -4752,6 +4767,22 @@ enum fw_params_mnem {
 /*
  * device parameters
  */
+#define S_FW_PARAMS_PARAM_FILTER_MODE 16
+#define M_FW_PARAMS_PARAM_FILTER_MODE 0xffff
+#define V_FW_PARAMS_PARAM_FILTER_MODE(x) \
+    ((x) << S_FW_PARAMS_PARAM_FILTER_MODE)
+#define G_FW_PARAMS_PARAM_FILTER_MODE(x) \
+    (((x) >> S_FW_PARAMS_PARAM_FILTER_MODE) & \
+	M_FW_PARAMS_PARAM_FILTER_MODE)
+
+#define S_FW_PARAMS_PARAM_FILTER_MASK 0
+#define M_FW_PARAMS_PARAM_FILTER_MASK 0xffff
+#define V_FW_PARAMS_PARAM_FILTER_MASK(x) \
+    ((x) << S_FW_PARAMS_PARAM_FILTER_MASK)
+#define G_FW_PARAMS_PARAM_FILTER_MASK(x) \
+    (((x) >> S_FW_PARAMS_PARAM_FILTER_MASK) & \
+	M_FW_PARAMS_PARAM_FILTER_MASK)
+
 enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_CCLK	= 0x00, /* chip core clock in khz */
 	FW_PARAMS_PARAM_DEV_PORTVEC	= 0x01, /* the port vector */
@@ -4799,6 +4830,14 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_ADD_SMAC = 0x25,
 	FW_PARAMS_PARAM_DEV_HPFILTER_REGION_SUPPORT = 0x26,
 	FW_PARAMS_PARAM_DEV_OPAQUE_VIID_SMT_EXTN = 0x27,
+	FW_PARAMS_PARAM_DEV_HASHFILTER_WITH_OFLD = 0x28,
+	FW_PARAMS_PARAM_DEV_DBQ_TIMER	= 0x29,
+	FW_PARAMS_PARAM_DEV_DBQ_TIMERTICK = 0x2A,
+	FW_PARAMS_PARAM_DEV_NUM_TM_CLASS	= 0x2B,
+	FW_PARAMS_PARAM_DEV_VF_TRVLAN = 0x2C,
+	FW_PARAMS_PARAM_DEV_TCB_CACHE_FLUSH = 0x2D,
+	FW_PARAMS_PARAM_DEV_FILTER = 0x2E,
+	FW_PARAMS_PARAM_DEV_CLIP2_CMD = 0x2F,
 };
 
 /*
@@ -4827,6 +4866,12 @@ enum fw_params_param_dev_diag {
 	FW_PARAM_DEV_DIAG_TMP		= 0x00,
 	FW_PARAM_DEV_DIAG_VDD		= 0x01,
 	FW_PARAM_DEV_DIAG_MAXTMPTHRESH	= 0x02,
+	FW_PARAM_DEV_DIAG_RESET_TMP_SENSOR = 0x03,
+};
+
+enum fw_params_param_dev_filter{
+	FW_PARAM_DEV_FILTER_VNIC_MODE	= 0x00,
+	FW_PARAM_DEV_FILTER_MODE_MASK	= 0x01,
 };
 
 enum fw_params_param_dev_fwcache {
@@ -4892,6 +4937,18 @@ enum fw_params_param_pfvf {
 	FW_PARAMS_PARAM_PFVF_PPOD_EDRAM_START = 0x3B,
 	FW_PARAMS_PARAM_PFVF_PPOD_EDRAM_END = 0x3C,
 	FW_PARAMS_PARAM_PFVF_MAX_PKTS_PER_ETH_TX_PKTS_WR = 0x3D,
+	FW_PARAMS_PARAM_PFVF_GET_SMT_START = 0x3E,
+	FW_PARAMS_PARAM_PFVF_GET_SMT_SIZE = 0x3F,
+	FW_PARAMS_PARAM_PFVF_LINK_STATE = 0x40,
+};
+
+/*
+ * virtual link state as seen by the specified VF
+ */
+enum vf_link_states {
+	VF_LINK_STATE_AUTO		= 0x00,
+	VF_LINK_STATE_ENABLE		= 0x01,
+	VF_LINK_STATE_DISABLE		= 0x02,
 };
 
 /*
@@ -4907,6 +4964,7 @@ enum fw_params_param_dmaq {
 	FW_PARAMS_PARAM_DMAQ_EQ_SCHEDCLASS_ETH = 0x12,
 	FW_PARAMS_PARAM_DMAQ_EQ_DCBPRIO_ETH = 0x13,
 	FW_PARAMS_PARAM_DMAQ_EQ_DCA	= 0x14,
+	FW_PARAMS_PARAM_DMAQ_EQ_TIMERIX	= 0x15,
 	FW_PARAMS_PARAM_DMAQ_CONM_CTXT	= 0x20,
 	FW_PARAMS_PARAM_DMAQ_FLM_DCA	= 0x30
 };
@@ -4922,6 +4980,7 @@ enum fw_params_param_chnet_flags {
 	FW_PARAMS_PARAM_CHNET_FLAGS_ENABLE_IPV6	= 0x1,
 	FW_PARAMS_PARAM_CHNET_FLAGS_ENABLE_DAD	= 0x2,
 	FW_PARAMS_PARAM_CHNET_FLAGS_ENABLE_MLDV2= 0x4,
+	FW_PARAMS_PARAM_CHNET_FLAGS_ENABLE_IPV6_SLAAC = 0x8,
 };
 
 #define S_FW_PARAMS_MNEM	24
@@ -5852,7 +5911,7 @@ struct fw_eq_eth_cmd {
 	__be32 dcaen_to_eqsize;
 	__be64 eqaddr;
 	__be32 autoequiqe_to_viid;
-	__be32 r8_lo;
+	__be32 timeren_timerix;
 	__be64 r9;
 };
 
@@ -6045,6 +6104,19 @@ struct fw_eq_eth_cmd {
 #define V_FW_EQ_ETH_CMD_VIID(x)		((x) << S_FW_EQ_ETH_CMD_VIID)
 #define G_FW_EQ_ETH_CMD_VIID(x)		\
     (((x) >> S_FW_EQ_ETH_CMD_VIID) & M_FW_EQ_ETH_CMD_VIID)
+
+#define S_FW_EQ_ETH_CMD_TIMEREN		3
+#define M_FW_EQ_ETH_CMD_TIMEREN		0x1
+#define V_FW_EQ_ETH_CMD_TIMEREN(x)	((x) << S_FW_EQ_ETH_CMD_TIMEREN)
+#define G_FW_EQ_ETH_CMD_TIMEREN(x)	\
+    (((x) >> S_FW_EQ_ETH_CMD_TIMEREN) & M_FW_EQ_ETH_CMD_TIMEREN)
+#define F_FW_EQ_ETH_CMD_TIMEREN	V_FW_EQ_ETH_CMD_TIMEREN(1U)
+
+#define S_FW_EQ_ETH_CMD_TIMERIX		0
+#define M_FW_EQ_ETH_CMD_TIMERIX		0x7
+#define V_FW_EQ_ETH_CMD_TIMERIX(x)	((x) << S_FW_EQ_ETH_CMD_TIMERIX)
+#define G_FW_EQ_ETH_CMD_TIMERIX(x)	\
+    (((x) >> S_FW_EQ_ETH_CMD_TIMERIX) & M_FW_EQ_ETH_CMD_TIMERIX)
 
 struct fw_eq_ctrl_cmd {
 	__be32 op_to_vfn;
@@ -6414,6 +6486,8 @@ struct fw_eq_ofld_cmd {
 #define G_FW_EQ_OFLD_CMD_EQSIZE(x)	\
     (((x) >> S_FW_EQ_OFLD_CMD_EQSIZE) & M_FW_EQ_OFLD_CMD_EQSIZE)
 
+/* Following macros present here only to maintain backward
+ * compatibiity. Driver must not use these anymore */
 /* Macros for VIID parsing:
    VIID - [10:8] PFN, [7] VI Valid, [6:0] VI number */
 #define S_FW_VIID_PFN		8
@@ -7125,11 +7199,12 @@ enum fw_port_mdi {
 #define	FW_PORT_CAP32_MDISTRAIGHT	0x00400000UL
 #define	FW_PORT_CAP32_FEC_RS		0x00800000UL
 #define	FW_PORT_CAP32_FEC_BASER_RS	0x01000000UL
-#define	FW_PORT_CAP32_FEC_RESERVED1	0x02000000UL
+#define	FW_PORT_CAP32_FEC_NO_FEC	0x02000000UL
 #define	FW_PORT_CAP32_FEC_RESERVED2	0x04000000UL
 #define	FW_PORT_CAP32_FEC_RESERVED3	0x08000000UL
 #define	FW_PORT_CAP32_FORCE_PAUSE	0x10000000UL
-#define	FW_PORT_CAP32_RESERVED2		0xe0000000UL
+#define	FW_PORT_CAP32_FORCE_FEC		0x20000000UL
+#define	FW_PORT_CAP32_RESERVED2		0xc0000000UL
 
 #define S_FW_PORT_CAP32_SPEED	0
 #define M_FW_PORT_CAP32_SPEED	0xfff
@@ -7190,6 +7265,14 @@ enum fw_port_mdi32 {
 #define CAP32_FC(__cap32) \
 	(V_FW_PORT_CAP32_FC(M_FW_PORT_CAP32_FC) & __cap32)
 
+static inline bool
+fec_supported(uint32_t caps)
+{
+
+	return ((caps & (FW_PORT_CAP32_SPEED_25G | FW_PORT_CAP32_SPEED_50G |
+	    FW_PORT_CAP32_SPEED_100G)) != 0);
+}
+
 enum fw_port_action {
 	FW_PORT_ACTION_L1_CFG		= 0x0001,
 	FW_PORT_ACTION_L2_CFG		= 0x0002,
@@ -7226,7 +7309,8 @@ enum fw_port_l2cfg_ctlbf {
 	FW_PORT_L2_CTLBF_OVLAN3	= 0x08,
 	FW_PORT_L2_CTLBF_IVLAN	= 0x10,
 	FW_PORT_L2_CTLBF_TXIPG	= 0x20,
-	FW_PORT_L2_CTLBF_MTU	= 0x40
+	FW_PORT_L2_CTLBF_MTU	= 0x40,
+	FW_PORT_L2_CTLBF_OVLAN_FILT	= 0x80,
 };
 
 enum fw_dcb_app_tlv_sf {
@@ -7434,6 +7518,13 @@ struct fw_port_cmd {
 #define G_FW_PORT_CMD_IVLAN0(x)		\
     (((x) >> S_FW_PORT_CMD_IVLAN0) & M_FW_PORT_CMD_IVLAN0)
 #define F_FW_PORT_CMD_IVLAN0		V_FW_PORT_CMD_IVLAN0(1U)
+
+#define S_FW_PORT_CMD_OVLAN_FILT	2
+#define M_FW_PORT_CMD_OVLAN_FILT	0x1
+#define V_FW_PORT_CMD_OVLAN_FILT(x)	((x) << S_FW_PORT_CMD_OVLAN_FILT)
+#define G_FW_PORT_CMD_OVLAN_FILT(x)	\
+    (((x) >> S_FW_PORT_CMD_OVLAN_FILT) & M_FW_PORT_CMD_OVLAN_FILT)
+#define F_FW_PORT_CMD_OVLAN_FILT	V_FW_PORT_CMD_OVLAN_FILT(1U)
 
 #define S_FW_PORT_CMD_TXIPG		3
 #define M_FW_PORT_CMD_TXIPG		0x1fff
@@ -8145,7 +8236,7 @@ struct fw_ptp_cmd {
 			__u8   txchan;
 			__be16 absid;
 			__be16 mode;
-			__be16 r3;
+			__be16 ptp_rx_ctrl_pkd;
 		} init;
 		struct fw_ptp_ts {
 			__u8   sc;
@@ -8163,6 +8254,14 @@ struct fw_ptp_cmd {
 #define V_FW_PTP_CMD_PORTID(x)		((x) << S_FW_PTP_CMD_PORTID)
 #define G_FW_PTP_CMD_PORTID(x)		\
     (((x) >> S_FW_PTP_CMD_PORTID) & M_FW_PTP_CMD_PORTID)
+
+#define S_FW_PTP_CMD_PTP_RX_CTRL	15
+#define M_FW_PTP_CMD_PTP_RX_CTRL	0x1
+#define V_FW_PTP_CMD_PTP_RX_CTRL(x)	((x) << S_FW_PTP_CMD_PTP_RX_CTRL)
+#define G_FW_PTP_CMD_PTP_RX_CTRL(x)	\
+    (((x) >> S_FW_PTP_CMD_PTP_RX_CTRL) & M_FW_PTP_CMD_PTP_RX_CTRL)
+#define F_FW_PTP_CMD_PTP_RX_CTRL	V_FW_PTP_CMD_PTP_RX_CTRL(1U)
+
 
 struct fw_rss_ind_tbl_cmd {
 	__be32 op_to_viid;
@@ -8814,6 +8913,16 @@ struct fw_clip_cmd {
 #define V_FW_CLIP_CMD_INDEX(x)	((x) << S_FW_CLIP_CMD_INDEX)
 #define G_FW_CLIP_CMD_INDEX(x)	\
     (((x) >> S_FW_CLIP_CMD_INDEX) & M_FW_CLIP_CMD_INDEX)
+
+struct fw_clip2_cmd {
+        __be32 op_to_write;
+        __be32 alloc_to_len16;
+        __be64 ip_hi;
+        __be64 ip_lo;
+        __be64 ipm_hi;
+        __be64 ipm_lo;
+        __be32 r4[2];
+};
 
 /******************************************************************************
  *   F O i S C S I   C O M M A N D s
@@ -9880,6 +9989,10 @@ enum {
 	T6FW_HDR_INTFVER_FCOE	= 0x00,
 };
 
+#define FW_VERSION32(MAJOR, MINOR, MICRO, BUILD) ( \
+    V_FW_HDR_FW_VER_MAJOR(MAJOR) | V_FW_HDR_FW_VER_MINOR(MINOR) | \
+    V_FW_HDR_FW_VER_MICRO(MICRO) | V_FW_HDR_FW_VER_BUILD(BUILD))
+
 enum {
 	FW_HDR_MAGIC_RUNTIME	= 0x00000000,
 	FW_HDR_MAGIC_BOOTSTRAP	= 0x626f6f74,
@@ -9918,6 +10031,10 @@ struct fw_ifconf_dhcp_info {
 	__u8		op;
 	__u8		len;
 	__u8		data[270];
+};
+
+struct fw_ifconf_ping_info {
+	__be16		ping_pldsize;
 };
 
 #endif /* _T4FW_INTERFACE_H_ */
