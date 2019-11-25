@@ -36,7 +36,7 @@
 .\" File: am-utils/amd/amd.8
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2016
+.Dd November 22, 2019
 .Dt AMD 8
 .Os
 .Sh NAME
@@ -72,10 +72,17 @@
 .Ar ...
 .Sh DESCRIPTION
 .Bf -symbolic
-This daemon is obsolete.
+The
+.Nm
+daemon in the
+.Fx
+base system is deprecated and will be removed before
+.Fx 13.0 .
 Users are advised to use
 .Xr autofs 5
-instead.
+or the
+.Pa sysutils/am-utils
+port or package instead.
 .Ef
 .Pp
 The
