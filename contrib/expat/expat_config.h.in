@@ -1,6 +1,9 @@
 /* expat_config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* 1234 = LIL_ENDIAN, 4321 = BIGENDIAN */
+/* Define if building universal (internal helper macro) */
+#undef AC_APPLE_UNIVERSAL_BUILD
+
+/* 1234 = LILENDIAN, 4321 = BIGENDIAN */
 #undef BYTEORDER
 
 /* Define to 1 if you have the `arc4random' function. */
@@ -8,9 +11,6 @@
 
 /* Define to 1 if you have the `arc4random_buf' function. */
 #undef HAVE_ARC4RANDOM_BUF
-
-/* Define to 1 if you have the `bcopy' function. */
-#undef HAVE_BCOPY
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
@@ -29,9 +29,6 @@
 
 /* Define to 1 if you have the `bsd' library (-lbsd). */
 #undef HAVE_LIBBSD
-
-/* Define to 1 if you have the `memmove' function. */
-#undef HAVE_MEMMOVE
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
@@ -96,8 +93,21 @@
 /* Version number of package */
 #undef VERSION
 
-/* whether byteorder is bigendian */
-#undef WORDS_BIGENDIAN
+/* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
+   significant byte first (like Motorola and SPARC, unlike Intel). */
+#if defined AC_APPLE_UNIVERSAL_BUILD
+# if defined __BIG_ENDIAN__
+#  define WORDS_BIGENDIAN 1
+# endif
+#else
+# ifndef WORDS_BIGENDIAN
+#  undef WORDS_BIGENDIAN
+# endif
+#endif
+
+/* Define to allow retrieving the byte offsets for attribute names and values.
+   */
+#undef XML_ATTR_INFO
 
 /* Define to specify how much context to retain around the current parse
    point. */

@@ -37,43 +37,40 @@
 #include "expat.h"
 
 #ifdef XML_LARGE_SIZE
-# define XML_FMT_INT_MOD "ll"
+#  define XML_FMT_INT_MOD "ll"
 #else
-# define XML_FMT_INT_MOD "l"
+#  define XML_FMT_INT_MOD "l"
 #endif
 
 #ifdef XML_UNICODE_WCHAR_T
-# define XML_FMT_STR "ls"
+#  define XML_FMT_STR "ls"
 #else
-# define XML_FMT_STR "s"
+#  define XML_FMT_STR "s"
 #endif
 
 static void
-usage(const char *prog, int rc)
-{
-  fprintf(stderr,
-          "usage: %s [-n] filename bufferSize nr_of_loops\n", prog);
+usage(const char *prog, int rc) {
+  fprintf(stderr, "usage: %s [-n] filename bufferSize nr_of_loops\n", prog);
   exit(rc);
 }
 
-int main (int argc, char *argv[]) 
-{
-  XML_Parser  parser;
-  char        *XMLBuf, *XMLBufEnd, *XMLBufPtr;
-  FILE        *fd;
+int
+main(int argc, char *argv[]) {
+  XML_Parser parser;
+  char *XMLBuf, *XMLBufEnd, *XMLBufPtr;
+  FILE *fd;
   struct stat fileAttr;
-  int         nrOfLoops, bufferSize, fileSize, i, isFinal;
-  int         j = 0, ns = 0;
-  clock_t     tstart, tend;
-  double      cpuTime = 0.0;
+  int nrOfLoops, bufferSize, fileSize, i, isFinal;
+  int j = 0, ns = 0;
+  clock_t tstart, tend;
+  double cpuTime = 0.0;
 
   if (argc > 1) {
     if (argv[1][0] == '-') {
       if (argv[1][1] == 'n' && argv[1][2] == '\0') {
         ns = 1;
         j = 1;
-      }
-      else
+      } else
         usage(argv[0], 1);
     }
   }
@@ -81,29 +78,28 @@ int main (int argc, char *argv[])
   if (argc != j + 4)
     usage(argv[0], 1);
 
-  if (stat (argv[j + 1], &fileAttr) != 0) {
-    fprintf (stderr, "could not access file '%s'\n", argv[j + 1]);
+  if (stat(argv[j + 1], &fileAttr) != 0) {
+    fprintf(stderr, "could not access file '%s'\n", argv[j + 1]);
     return 2;
   }
-  
-  fd = fopen (argv[j + 1], "r");
-  if (!fd) {
-    fprintf (stderr, "could not open file '%s'\n", argv[j + 1]);
+
+  fd = fopen(argv[j + 1], "r");
+  if (! fd) {
+    fprintf(stderr, "could not open file '%s'\n", argv[j + 1]);
     exit(2);
   }
-  
-  bufferSize = atoi (argv[j + 2]);
-  nrOfLoops = atoi (argv[j + 3]);
+
+  bufferSize = atoi(argv[j + 2]);
+  nrOfLoops = atoi(argv[j + 3]);
   if (bufferSize <= 0 || nrOfLoops <= 0) {
-    fprintf (stderr, 
-             "buffer size and nr of loops must be greater than zero.\n");
+    fprintf(stderr, "buffer size and nr of loops must be greater than zero.\n");
     exit(3);
   }
 
-  XMLBuf = malloc (fileAttr.st_size);
-  fileSize = fread (XMLBuf, sizeof (char), fileAttr.st_size, fd);
-  fclose (fd);
-  
+  XMLBuf = malloc(fileAttr.st_size);
+  fileSize = fread(XMLBuf, sizeof(char), fileAttr.st_size, fd);
+  fclose(fd);
+
   if (ns)
     parser = XML_ParserCreateNS(NULL, '!');
   else
@@ -121,29 +117,29 @@ int main (int argc, char *argv[])
         isFinal = 1;
       else
         parseBufferSize = bufferSize;
-      if (!XML_Parse (parser, XMLBufPtr, parseBufferSize, isFinal)) {
-        fprintf (stderr,
-                 "error '%" XML_FMT_STR "' at line %" XML_FMT_INT_MOD   \
-                     "u character %" XML_FMT_INT_MOD "u\n",
-                 XML_ErrorString (XML_GetErrorCode (parser)),
-                 XML_GetCurrentLineNumber (parser),
-                 XML_GetCurrentColumnNumber (parser));
-        free (XMLBuf);
-        XML_ParserFree (parser);
-        exit (4);
+      if (! XML_Parse(parser, XMLBufPtr, parseBufferSize, isFinal)) {
+        fprintf(stderr,
+                "error '%" XML_FMT_STR "' at line %" XML_FMT_INT_MOD
+                "u character %" XML_FMT_INT_MOD "u\n",
+                XML_ErrorString(XML_GetErrorCode(parser)),
+                XML_GetCurrentLineNumber(parser),
+                XML_GetCurrentColumnNumber(parser));
+        free(XMLBuf);
+        XML_ParserFree(parser);
+        exit(4);
       }
       XMLBufPtr += bufferSize;
-    } while (!isFinal);
+    } while (! isFinal);
     tend = clock();
-    cpuTime += ((double) (tend - tstart)) / CLOCKS_PER_SEC;
+    cpuTime += ((double)(tend - tstart)) / CLOCKS_PER_SEC;
     XML_ParserReset(parser, NULL);
     i++;
   }
 
-  XML_ParserFree (parser);
-  free (XMLBuf);
-      
-  printf ("%d loops, with buffer size %d. Average time per loop: %f\n", 
-          nrOfLoops, bufferSize, cpuTime / (double) nrOfLoops);
+  XML_ParserFree(parser);
+  free(XMLBuf);
+
+  printf("%d loops, with buffer size %d. Average time per loop: %f\n",
+         nrOfLoops, bufferSize, cpuTime / (double)nrOfLoops);
   return 0;
 }

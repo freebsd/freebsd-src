@@ -5,7 +5,10 @@
 
 #include <machine/endian.h>
 
-/* 1234 = LIL_ENDIAN, 4321 = BIGENDIAN */
+/* Define if building universal (internal helper macro) */
+/* #undef AC_APPLE_UNIVERSAL_BUILD */
+
+/* 1234 = LILENDIAN, 4321 = BIGENDIAN */
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define BYTEORDER 1234
 #else
@@ -17,9 +20,6 @@
 
 /* Define to 1 if you have the `arc4random_buf' function. */
 #define HAVE_ARC4RANDOM_BUF 1
-
-/* Define to 1 if you have the `bcopy' function. */
-#define HAVE_BCOPY 1
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
@@ -38,9 +38,6 @@
 
 /* Define to 1 if you have the `bsd' library (-lbsd). */
 /* #undef HAVE_LIBBSD */
-
-/* Define to 1 if you have the `memmove' function. */
-#define HAVE_MEMMOVE 1
 
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
@@ -88,7 +85,7 @@
 #define PACKAGE_NAME "expat"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "expat 2.2.6"
+#define PACKAGE_STRING "expat 2.2.9"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "expat"
@@ -97,20 +94,29 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.2.6"
+#define PACKAGE_VERSION "2.2.9"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "2.2.6"
+#define VERSION "2.2.9"
 
-/* whether byteorder is bigendian */
-#if BYTE_ORDER == BIG_ENDIAN
-#define WORDS_BIGENDIAN
+/* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
+   significant byte first (like Motorola and SPARC, unlike Intel). */
+#if defined AC_APPLE_UNIVERSAL_BUILD
+# if defined __BIG_ENDIAN__
+#  define WORDS_BIGENDIAN 1
+# endif
 #else
-#undef WORDS_BIGENDIAN 
+# ifndef WORDS_BIGENDIAN
+/* #  undef WORDS_BIGENDIAN */
+# endif
 #endif
+
+/* Define to allow retrieving the byte offsets for attribute names and values.
+   */
+/* #undef XML_ATTR_INFO */
 
 /* Define to specify how much context to retain around the current parse
    point. */

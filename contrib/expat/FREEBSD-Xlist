@@ -8,6 +8,7 @@
 *.pc.in
 *.vcxproj*
 *config.h
+cmake
 CMake*
 Configure*
 amiga

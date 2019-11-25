@@ -31,25 +31,24 @@
 */
 
 #include "codepage.h"
-#include "internal.h"  /* for UNUSED_P only */
+#include "internal.h" /* for UNUSED_P only */
 
 #if defined(_WIN32)
-#define STRICT 1
-#define WIN32_LEAN_AND_MEAN 1
+#  define STRICT 1
+#  define WIN32_LEAN_AND_MEAN 1
 
-#include <windows.h>
+#  include <windows.h>
 
 int
-codepageMap(int cp, int *map)
-{
+codepageMap(int cp, int *map) {
   int i;
   CPINFO info;
-  if (!GetCPInfo(cp, &info) || info.MaxCharSize > 2)
+  if (! GetCPInfo(cp, &info) || info.MaxCharSize > 2)
     return 0;
   for (i = 0; i < 256; i++)
     map[i] = -1;
   if (info.MaxCharSize > 1) {
-    for (i = 0; i < MAX_LEADBYTES; i+=2) {
+    for (i = 0; i < MAX_LEADBYTES; i += 2) {
       int j, lim;
       if (info.LeadByte[i] == 0 && info.LeadByte[i + 1] == 0)
         break;
@@ -59,23 +58,24 @@ codepageMap(int cp, int *map)
     }
   }
   for (i = 0; i < 256; i++) {
-   if (map[i] == -1) {
-     char c = (char)i;
-     unsigned short n;
-     if (MultiByteToWideChar(cp, MB_PRECOMPOSED|MB_ERR_INVALID_CHARS,
-                             &c, 1, &n, 1) == 1)
-       map[i] = n;
-   }
+    if (map[i] == -1) {
+      char c = (char)i;
+      unsigned short n;
+      if (MultiByteToWideChar(cp, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, &c, 1,
+                              &n, 1)
+          == 1)
+        map[i] = n;
+    }
   }
   return 1;
 }
 
 int
-codepageConvert(int cp, const char *p)
-{
+codepageConvert(int cp, const char *p) {
   unsigned short c;
-  if (MultiByteToWideChar(cp, MB_PRECOMPOSED|MB_ERR_INVALID_CHARS,
-                          p, 2, &c, 1) == 1)
+  if (MultiByteToWideChar(cp, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, p, 2, &c,
+                          1)
+      == 1)
     return c;
   return -1;
 }
@@ -83,14 +83,16 @@ codepageConvert(int cp, const char *p)
 #else /* not _WIN32 */
 
 int
-codepageMap(int UNUSED_P(cp), int *UNUSED_P(map))
-{
+codepageMap(int cp, int *map) {
+  UNUSED_P(cp);
+  UNUSED_P(map);
   return 0;
 }
 
 int
-codepageConvert(int UNUSED_P(cp), const char *UNUSED_P(p))
-{
+codepageConvert(int cp, const char *p) {
+  UNUSED_P(cp);
+  UNUSED_P(p);
   return -1;
 }
 
