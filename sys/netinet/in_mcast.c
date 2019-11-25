@@ -1268,7 +1268,9 @@ in_joingroup_locked(struct ifnet *ifp, const struct in_addr *gina,
 	if (error) {
 
 		CTR2(KTR_IGMPV3, "%s: dropping ref on %p", __func__, inm);
+		IF_ADDR_WLOCK(ifp);
 		inm_release_deferred(inm);
+		IF_ADDR_WUNLOCK(ifp);
 	} else {
 		*pinm = inm;
 	}
@@ -2247,7 +2249,9 @@ out_inp_unlocked:
 	if (is_new && imf) {
 		if (imf->imf_inm != NULL) {
 			IN_MULTI_LIST_LOCK();
+			IF_ADDR_WLOCK(ifp);
 			inm_release_deferred(imf->imf_inm);
+			IF_ADDR_WUNLOCK(ifp);
 			IN_MULTI_LIST_UNLOCK();
 		}
 		ip_mfilter_free(imf);
