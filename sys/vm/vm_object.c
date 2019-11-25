@@ -1496,6 +1496,8 @@ vm_object_collapse_scan_wait(vm_object_t object, vm_page_t p, vm_page_t next,
 		return (next);
 	/* The page is only NULL when rename fails. */
 	if (p == NULL) {
+		VM_OBJECT_WUNLOCK(object);
+		VM_OBJECT_WUNLOCK(backing_object);
 		vm_radix_wait();
 	} else {
 		if (p->object == object)
