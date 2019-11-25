@@ -993,11 +993,14 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 
 	switch (idtype) {
 	case P_ALL:
-		if (p->p_procdesc != NULL) {
-			PROC_UNLOCK(p);
-			return (0);
+		if (p->p_procdesc == NULL ||
+		   (p->p_pptr == td->td_proc &&
+		   (p->p_flag & P_TRACED) != 0)) {
+			break;
 		}
-		break;
+
+		PROC_UNLOCK(p);
+		return (0);
 	case P_PID:
 		if (p->p_pid != (pid_t)id) {
 			PROC_UNLOCK(p);
