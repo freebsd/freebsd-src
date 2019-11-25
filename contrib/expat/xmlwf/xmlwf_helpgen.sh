@@ -6,7 +6,7 @@
 #                      \___/_/\_\ .__/ \__,_|\__|
 #                               |_| XML parser
 #
-# Copyright (c) 2017 Expat development team
+# Copyright (c) 2019 Expat development team
 # Licensed under the MIT license:
 #
 # Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -28,16 +28,8 @@
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 # USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-set -e
-top_srcdir="$(dirname "$(type -p "$0")")"
-top_builddir=..
-
-# Suck up all dash-dash test-driver arguments
-test_driver_args=()
-while [[ ${1} != '--' ]]; do
-    test_driver_args=( "${test_driver_args[@]}" "${1}" )
-    shift
-done
-shift  # drop "--"
-
-exec "${top_srcdir}"/conftools/test-driver "${test_driver_args[@]}" "${top_builddir}"/run.sh "$@"
+./xmlwf/xmlwf_helpgen.py | sed \
+        -e 's,usage: xmlwf,usage: %s,' \
+        -e 's, \[-h | -v\],,' \
+        -e 's,^,      T(",' \
+        -e 's,$,\\n"),'

@@ -36,30 +36,25 @@
 #include <expat.h>
 
 #ifdef XML_LARGE_SIZE
-# if defined(XML_USE_MSC_EXTENSIONS) && _MSC_VER < 1400
-#  define XML_FMT_INT_MOD "I64"
-# else
 #  define XML_FMT_INT_MOD "ll"
-# endif
 #else
-# define XML_FMT_INT_MOD "l"
+#  define XML_FMT_INT_MOD "l"
 #endif
 
 #ifdef XML_UNICODE_WCHAR_T
-# define XML_FMT_STR "ls"
+#  define XML_FMT_STR "ls"
 #else
-# define XML_FMT_STR "s"
+#  define XML_FMT_STR "s"
 #endif
 
-#define BUFFSIZE        8192
+#define BUFFSIZE 8192
 
 char Buff[BUFFSIZE];
 
 int Depth;
 
 static void XMLCALL
-start(void *data, const XML_Char *el, const XML_Char **attr)
-{
+start(void *data, const XML_Char *el, const XML_Char **attr) {
   int i;
   (void)data;
 
@@ -77,8 +72,7 @@ start(void *data, const XML_Char *el, const XML_Char **attr)
 }
 
 static void XMLCALL
-end(void *data, const XML_Char *el)
-{
+end(void *data, const XML_Char *el) {
   (void)data;
   (void)el;
 
@@ -86,8 +80,7 @@ end(void *data, const XML_Char *el)
 }
 
 int
-main(int argc, char *argv[])
-{
+main(int argc, char *argv[]) {
   XML_Parser p = XML_ParserCreate(NULL);
   (void)argc;
   (void)argv;

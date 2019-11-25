@@ -40,23 +40,22 @@
 #include <unistd.h>
 
 #ifndef MAP_FILE
-#define MAP_FILE 0
+#  define MAP_FILE 0
 #endif
 
 #include "xmltchar.h"
 #include "filemap.h"
 
 #ifdef XML_UNICODE_WCHAR_T
-# define XML_FMT_STR "ls"
+#  define XML_FMT_STR "ls"
 #else
-# define XML_FMT_STR "s"
+#  define XML_FMT_STR "s"
 #endif
 
 int
 filemap(const tchar *name,
         void (*processor)(const void *, size_t, const tchar *, void *arg),
-        void *arg)
-{
+        void *arg) {
   int fd;
   size_t nbytes;
   struct stat sb;
@@ -72,14 +71,14 @@ filemap(const tchar *name,
     close(fd);
     return 0;
   }
-  if (!S_ISREG(sb.st_mode)) {
+  if (! S_ISREG(sb.st_mode)) {
     close(fd);
     fprintf(stderr, "%" XML_FMT_STR ": not a regular file\n", name);
     return 0;
   }
   if (sb.st_size > XML_MAX_CHUNK_LEN) {
     close(fd);
-    return 2;  /* Cannot be passed to XML_Parse in one go */
+    return 2; /* Cannot be passed to XML_Parse in one go */
   }
 
   nbytes = sb.st_size;
@@ -90,8 +89,8 @@ filemap(const tchar *name,
     close(fd);
     return 1;
   }
-  p = (void *)mmap((void *)0, (size_t)nbytes, PROT_READ,
-                   MAP_FILE|MAP_PRIVATE, fd, (off_t)0);
+  p = (void *)mmap((void *)0, (size_t)nbytes, PROT_READ, MAP_FILE | MAP_PRIVATE,
+                   fd, (off_t)0);
   if (p == (void *)-1) {
     tperror(name);
     close(fd);

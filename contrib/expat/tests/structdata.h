@@ -36,40 +36,34 @@ extern "C" {
 #endif
 
 #ifndef XML_STRUCTDATA_H
-#define XML_STRUCTDATA_H 1
+#  define XML_STRUCTDATA_H 1
 
-#include "expat.h"
+#  include "expat.h"
 
 typedef struct {
-    const XML_Char *str;
-    int data0;
-    int data1;
-    int data2;
+  const XML_Char *str;
+  int data0;
+  int data1;
+  int data2;
 } StructDataEntry;
 
 typedef struct {
-    int count;       /* Number of entries used */
-    int max_count;   /* Number of StructDataEntry items in `entries` */
-    StructDataEntry *entries;
+  int count;     /* Number of entries used */
+  int max_count; /* Number of StructDataEntry items in `entries` */
+  StructDataEntry *entries;
 } StructData;
-
 
 void StructData_Init(StructData *storage);
 
-void StructData_AddItem(StructData *storage,
-                        const XML_Char *s,
-                        int data0,
-                        int data1,
-                        int data2);
+void StructData_AddItem(StructData *storage, const XML_Char *s, int data0,
+                        int data1, int data2);
 
-void StructData_CheckItems(StructData *storage,
-                           const StructDataEntry *expected,
+void StructData_CheckItems(StructData *storage, const StructDataEntry *expected,
                            int count);
 
 void StructData_Dispose(StructData *storage);
 
-
-#endif  /* XML_STRUCTDATA_H */
+#endif /* XML_STRUCTDATA_H */
 
 #ifdef __cplusplus
 }
