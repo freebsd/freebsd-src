@@ -2786,6 +2786,7 @@ ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
 	u_int cg;
 	u_int8_t *inosused;
 	struct cdev *dev;
+	ino_t cgino;
 
 	cg = ino_to_cg(fs, ino);
 	if (devvp->v_type == VREG) {
@@ -2805,16 +2806,16 @@ ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
 	if ((error = ffs_getcg(fs, devvp, cg, 0, &bp, &cgp)) != 0)
 		return (error);
 	inosused = cg_inosused(cgp);
-	ino %= fs->fs_ipg;
-	if (isclr(inosused, ino)) {
+	cgino = ino % fs->fs_ipg;
+	if (isclr(inosused, cgino)) {
 		printf("dev = %s, ino = %ju, fs = %s\n", devtoname(dev),
-		    (uintmax_t)(ino + cg * fs->fs_ipg), fs->fs_fsmnt);
+		    (uintmax_t)ino, fs->fs_fsmnt);
 		if (fs->fs_ronly == 0)
 			panic("ffs_freefile: freeing free inode");
 	}
-	clrbit(inosused, ino);
-	if (ino < cgp->cg_irotor)
-		cgp->cg_irotor = ino;
+	clrbit(inosused, cgino);
+	if (cgino < cgp->cg_irotor)
+		cgp->cg_irotor = cgino;
 	cgp->cg_cs.cs_nifree++;
 	UFS_LOCK(ump);
 	fs->fs_cstotal.cs_nifree++;
@@ -2828,8 +2829,7 @@ ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
 	ACTIVECLEAR(fs, cg);
 	UFS_UNLOCK(ump);
 	if (MOUNTEDSOFTDEP(UFSTOVFS(ump)) && devvp->v_type == VCHR)
-		softdep_setup_inofree(UFSTOVFS(ump), bp,
-		    ino + cg * fs->fs_ipg, wkhd);
+		softdep_setup_inofree(UFSTOVFS(ump), bp, ino, wkhd);
 	bdwrite(bp);
 	return (0);
 }
