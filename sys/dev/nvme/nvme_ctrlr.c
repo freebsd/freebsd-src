@@ -1004,6 +1004,8 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 		req = nvme_allocate_request_null(nvme_pt_done, pt);
 
 	req->cmd.opc	= pt->cmd.opc;
+	req->cmd.rsvd2	= pt->cmd.rsvd2;
+	req->cmd.rsvd3	= pt->cmd.rsvd3;
 	req->cmd.cdw10	= pt->cmd.cdw10;
 	req->cmd.cdw11	= pt->cmd.cdw11;
 	req->cmd.cdw12	= pt->cmd.cdw12;
