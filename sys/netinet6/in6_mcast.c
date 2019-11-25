@@ -1267,6 +1267,7 @@ out_in6m_release:
 		struct epoch_tracker et;
 
 		CTR2(KTR_MLD, "%s: dropping ref on %p", __func__, inm);
+		IF_ADDR_WLOCK(ifp);
 		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_protospec == inm) {
@@ -1277,6 +1278,7 @@ out_in6m_release:
 		in6m_disconnect_locked(&inmh, inm);
 		in6m_rele_locked(&inmh, inm);
 		NET_EPOCH_EXIT(et);
+		IF_ADDR_WUNLOCK(ifp);
 	} else {
 		*pinm = inm;
 	}
