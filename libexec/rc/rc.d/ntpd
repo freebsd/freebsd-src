@@ -28,6 +28,16 @@ pidfile="${_ntp_default_dir}/${name}.pid"
 
 load_rc_config $name
 
+leapfile_is_disabled() {
+	# Return true (0) if automatic leapfile handling is disabled.
+	case "$ntp_db_leapfile" in
+	[Nn][Oo] | [Nn][Oo][Nn][Ee] )
+		return 0;;
+	* )
+		return 1;;
+	esac
+}
+
 can_run_nonroot()
 {
 	# If the admin set what uid to use, we don't change it.
@@ -107,7 +117,12 @@ ntpd_precmd()
 		command_args="${command_args} -g"
 	fi
 
-	# Make sure the leapfile is ready to use.
+	# Make sure the leapfile is ready to use, unless leapfile
+	# handling is disabled.
+	if leapfile_is_disabled; then
+		return
+	fi
+
 	ntpd_init_leapfile
 	if [ ! -f "${ntp_db_leapfile}" ]; then
 		ntpd_fetch_leapfile
@@ -135,6 +150,11 @@ get_ntp_leapfile_expiry() {
 }
 
 ntpd_init_leapfile() {
+
+	if leapfile_is_disabled; then
+		return
+	fi
+
 	# Refresh working leapfile with an invalid hash due to
 	# FreeBSD id header. Ntpd will ignore leapfiles with a
 	# mismatch hash. The file must be the virgin file from
@@ -146,7 +166,12 @@ ntpd_init_leapfile() {
 
 ntpd_needfetch_leapfile() {
 	local rc verbose
-	
+
+	if leapfile_is_disabled; then
+		# Return code 1: ntp leapfile fetch not needed
+		return 1
+	fi
+
 	if checkyesno ntp_leapfile_fetch_verbose; then
 		verbose=echo
 	else
@@ -182,6 +207,11 @@ ntpd_needfetch_leapfile() {
 }
 
 ntpd_fetch_leapfile() {
+
+	if leapfile_is_disabled; then
+		return
+	fi
+
 	if checkyesno ntp_leapfile_fetch_verbose; then
 		verbose=echo
 	else
