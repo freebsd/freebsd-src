@@ -4135,6 +4135,105 @@ ATF_TC_BODY(ptrace__proc_reparent, tc)
 	ATF_REQUIRE(errno == ECHILD);
 }
 
+/*
+ * Ensure that traced processes created with pdfork(2) are visible to
+ * waitid(P_ALL).
+ */
+ATF_TC_WITHOUT_HEAD(ptrace__procdesc_wait_child);
+ATF_TC_BODY(ptrace__procdesc_wait_child, tc)
+{
+	pid_t child, wpid;
+	int pd, status;
+
+	child = pdfork(&pd, 0);
+	ATF_REQUIRE(child >= 0);
+
+	if (child == 0) {
+		trace_me();
+		(void)raise(SIGSTOP);
+		exit(0);
+	}
+
+	wpid = waitpid(child, &status, 0);
+	ATF_REQUIRE(wpid == child);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+
+	ATF_REQUIRE(ptrace(PT_CONTINUE, child, (caddr_t)1, 0) != -1);
+
+	wpid = wait(&status);
+	ATF_REQUIRE(wpid == child);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+
+	ATF_REQUIRE(ptrace(PT_CONTINUE, child, (caddr_t)1, 0) != -1);
+
+	/*
+	 * If process was created by pdfork, the return code have to
+	 * be collected through process descriptor.
+	 */
+	wpid = wait(&status);
+	ATF_REQUIRE(wpid == -1);
+	ATF_REQUIRE(errno == ECHILD);
+
+	ATF_REQUIRE(close(pd) != -1);
+}
+
+/*
+ * Ensure that traced processes created with pdfork(2) are not visible
+ * after returning to parent - waitid(P_ALL).
+ */
+ATF_TC_WITHOUT_HEAD(ptrace__procdesc_reparent_wait_child);
+ATF_TC_BODY(ptrace__procdesc_reparent_wait_child, tc)
+{
+	pid_t traced, debuger, wpid;
+	int pd, status;
+
+	traced = pdfork(&pd, 0);
+	ATF_REQUIRE(traced >= 0);
+	if (traced == 0) {
+		raise(SIGSTOP);
+		exit(0);
+	}
+	ATF_REQUIRE(pd >= 0);
+
+	debuger = fork();
+	ATF_REQUIRE(debuger >= 0);
+	if (debuger == 0) {
+		/* The traced process is reparented to debuger. */
+		ATF_REQUIRE(ptrace(PT_ATTACH, traced, 0, 0) == 0);
+		wpid = waitpid(traced, &status, 0);
+		ATF_REQUIRE(wpid == traced);
+		ATF_REQUIRE(WIFSTOPPED(status));
+		ATF_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+
+		/* Allow process to die. */
+		ATF_REQUIRE(ptrace(PT_CONTINUE, traced, (caddr_t)1, 0) == 0);
+		wpid = waitpid(traced, &status, 0);
+		ATF_REQUIRE(wpid == traced);
+		ATF_REQUIRE(WIFEXITED(status));
+		ATF_REQUIRE(WEXITSTATUS(status) == 0);
+
+		/* Reparent back to the orginal process. */
+		ATF_REQUIRE(close(pd) == 0);
+		exit(0);
+	}
+
+	wpid = waitpid(debuger, &status, 0);
+	ATF_REQUIRE(wpid == debuger);
+	ATF_REQUIRE(WEXITSTATUS(status) == 0);
+
+	/*
+	 * We have a child but it has a process descriptori
+	 * so we should not be able to collect it process.
+	 */
+	wpid = wait(&status);
+	ATF_REQUIRE(wpid == -1);
+	ATF_REQUIRE(errno == ECHILD);
+
+	ATF_REQUIRE(close(pd) == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -4198,6 +4297,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__PT_LWPINFO_stale_siginfo);
 	ATF_TP_ADD_TC(tp, ptrace__syscall_args);
 	ATF_TP_ADD_TC(tp, ptrace__proc_reparent);
+	ATF_TP_ADD_TC(tp, ptrace__procdesc_wait_child);
+	ATF_TP_ADD_TC(tp, ptrace__procdesc_reparent_wait_child);
 
 	return (atf_no_error());
 }
