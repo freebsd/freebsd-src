@@ -3722,6 +3722,56 @@ vm_map_check_protection(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	return (TRUE);
 }
 
+
+/*
+ *
+ *	vm_map_copy_anon_object:
+ *
+ *	Copies an anonymous object from an existing map entry to a
+ *	new one.  Carries forward the swap charge.  May change the
+ *	src object on return.
+ */
+static void
+vm_map_copy_anon_object(vm_map_entry_t src_entry, vm_map_entry_t dst_entry,
+    vm_offset_t size, vm_ooffset_t *fork_charge)
+{
+	vm_object_t src_object;
+	struct ucred *cred;
+	int charged;
+
+	src_object = src_entry->object.vm_object;
+	VM_OBJECT_WLOCK(src_object);
+	charged = ENTRY_CHARGED(src_entry);
+	vm_object_collapse(src_object);
+	if ((src_object->flags & OBJ_ONEMAPPING) != 0) {
+		vm_object_split(src_entry);
+		src_object = src_entry->object.vm_object;
+	}
+	vm_object_reference_locked(src_object);
+	vm_object_clear_flag(src_object, OBJ_ONEMAPPING);
+	if (src_entry->cred != NULL &&
+	    !(src_entry->eflags & MAP_ENTRY_NEEDS_COPY)) {
+		KASSERT(src_object->cred == NULL,
+		    ("OVERCOMMIT: vm_map_copy_anon_entry: cred %p",
+		     src_object));
+		src_object->cred = src_entry->cred;
+		src_object->charge = size;
+	}
+	VM_OBJECT_WUNLOCK(src_object);
+	dst_entry->object.vm_object = src_object;
+	if (charged) {
+		cred = curthread->td_ucred;
+		crhold(cred);
+		dst_entry->cred = cred;
+		*fork_charge += size;
+		if (!(src_entry->eflags & MAP_ENTRY_NEEDS_COPY)) {
+			crhold(cred);
+			src_entry->cred = cred;
+			*fork_charge += size;
+		}
+	}
+}
+
 /*
  *	vm_map_copy_entry:
  *
@@ -3739,8 +3789,6 @@ vm_map_copy_entry(
 	vm_object_t src_object;
 	vm_map_entry_t fake_entry;
 	vm_offset_t size;
-	struct ucred *cred;
-	int charged;
 
 	VM_MAP_ASSERT_LOCKED(dst_map);
 
@@ -3766,39 +3814,14 @@ vm_map_copy_entry(
 		 */
 		size = src_entry->end - src_entry->start;
 		if ((src_object = src_entry->object.vm_object) != NULL) {
-			VM_OBJECT_WLOCK(src_object);
-			charged = ENTRY_CHARGED(src_entry);
 			if ((src_object->flags & OBJ_ANON) != 0) {
-				vm_object_collapse(src_object);
-				if ((src_object->flags & OBJ_ONEMAPPING) != 0) {
-					vm_object_split(src_entry);
-					src_object =
-					    src_entry->object.vm_object;
-				}
-			}
-			vm_object_reference_locked(src_object);
-			vm_object_clear_flag(src_object, OBJ_ONEMAPPING);
-			if (src_entry->cred != NULL &&
-			    !(src_entry->eflags & MAP_ENTRY_NEEDS_COPY)) {
-				KASSERT(src_object->cred == NULL,
-				    ("OVERCOMMIT: vm_map_copy_entry: cred %p",
-				     src_object));
-				src_object->cred = src_entry->cred;
-				src_object->charge = size;
-			}
-			VM_OBJECT_WUNLOCK(src_object);
-			dst_entry->object.vm_object = src_object;
-			if (charged) {
-				cred = curthread->td_ucred;
-				crhold(cred);
-				dst_entry->cred = cred;
-				*fork_charge += size;
-				if (!(src_entry->eflags &
-				      MAP_ENTRY_NEEDS_COPY)) {
-					crhold(cred);
-					src_entry->cred = cred;
-					*fork_charge += size;
-				}
+				vm_map_copy_anon_object(src_entry, dst_entry,
+				    size, fork_charge);
+				/* May have split/collapsed, reload obj. */
+				src_object = src_entry->object.vm_object;
+			} else {
+				vm_object_reference(src_object);
+				dst_entry->object.vm_object = src_object;
 			}
 			src_entry->eflags |= MAP_ENTRY_COW |
 			    MAP_ENTRY_NEEDS_COPY;
