@@ -289,6 +289,34 @@ dmar_get_dma_tag(device_t dev, device_t child)
 	return (res);
 }
 
+bool
+bus_dma_dmar_set_buswide(device_t dev)
+{
+	struct dmar_unit *dmar;
+	device_t parent;
+	u_int busno, slot, func;
+
+	parent = device_get_parent(dev);
+	if (device_get_devclass(parent) != devclass_find("pci"))
+		return (false);
+	dmar = dmar_find(dev, bootverbose);
+	if (dmar == NULL)
+		return (false);
+	busno = pci_get_bus(dev);
+	slot = pci_get_slot(dev);
+	func = pci_get_function(dev);
+	if (slot != 0 || func != 0) {
+		if (bootverbose) {
+			device_printf(dev,
+			    "dmar%d pci%d:%d:%d requested buswide busdma\n",
+			    dmar->unit, busno, slot, func);
+		}
+		return (false);
+	}
+	dmar_set_buswide_ctx(dmar, busno);
+	return (true);
+}
+
 static MALLOC_DEFINE(M_DMAR_DMAMAP, "dmar_dmamap", "Intel DMAR DMA Map");
 
 static void dmar_bus_schedule_dmamap(struct dmar_unit *unit,

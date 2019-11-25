@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/include/busdma_impl.h>
 #include <x86/iommu/intel_reg.h>
 #include <x86/iommu/busdma_dmar.h>
+#include <dev/pci/pcireg.h>
 #include <x86/iommu/intel_dmar.h>
 
 static int domain_unmap_buf_locked(struct dmar_domain *domain,
