@@ -191,7 +191,9 @@ _bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
 	return (tc->impl->map_complete(dmat, map, segs, nsegs, error));
 }
 
+#ifdef _KERNEL
 bool bus_dma_dmar_set_buswide(device_t dev);
+#endif
 
 #endif /* !_X86_BUS_DMA_H_ */
 
