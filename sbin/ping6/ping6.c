@@ -574,7 +574,15 @@ main(int argc, char *argv[])
 			if (alarmtimeout > MAXALARM)
 				errx(EX_USAGE, "invalid timeout: `%s' > %d",
 				    optarg, MAXALARM);
-			alarm((int)alarmtimeout);
+			{
+				struct itimerval itv;
+
+				timerclear(&itv.it_interval);
+				timerclear(&itv.it_value);
+				itv.it_value.tv_sec = (time_t)alarmtimeout;
+				if (setitimer(ITIMER_REAL, &itv, NULL) != 0)
+					err(1, "setitimer");
+			}
 			break;
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
