@@ -182,6 +182,8 @@ ehci_pci_match(device_t self)
 		return ("Intel Wellsburg USB 2.0 controller");
 	case 0x9c268086:
 		return ("Intel Lynx Point-LP USB 2.0 controller");
+	case 0x9ca68086:
+		return ("Intel Wildcat Point-LP USB 2.0 controller");
 
 	case 0x00e01033:
 		return ("NEC uPD 72010x USB 2.0 controller");
