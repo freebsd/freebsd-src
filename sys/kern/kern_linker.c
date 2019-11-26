@@ -2079,14 +2079,16 @@ linker_load_module(const char *kldname, const char *modname,
  		 */
 		KASSERT(verinfo == NULL, ("linker_load_module: verinfo"
 		    " is not NULL"));
+		if (rootvnode == NULL)
+			return (ENXIO);
 		pathname = linker_search_kld(kldname);
 	} else {
 		if (modlist_lookup2(modname, verinfo) != NULL)
 			return (EEXIST);
+		if (rootvnode == NULL)
+			return (ENXIO);
 		if (kldname != NULL)
 			pathname = strdup(kldname, M_LINKER);
-		else if (rootvnode == NULL)
-			pathname = NULL;
 		else
 			/*
 			 * Need to find a KLD with required module
