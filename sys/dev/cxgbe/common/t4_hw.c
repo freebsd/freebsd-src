@@ -3841,6 +3841,43 @@ is_bt(struct port_info *pi)
 	    pi->port_type == FW_PORT_TYPE_BT_XAUI);
 }
 
+static int8_t fwcap_to_fec(uint32_t caps, bool unset_means_none)
+{
+	int8_t fec = 0;
+
+	if ((caps & V_FW_PORT_CAP32_FEC(M_FW_PORT_CAP32_FEC)) == 0)
+		return (unset_means_none ? FEC_NONE : 0);
+
+	if (caps & FW_PORT_CAP32_FEC_RS)
+		fec |= FEC_RS;
+	if (caps & FW_PORT_CAP32_FEC_BASER_RS)
+		fec |= FEC_BASER_RS;
+	if (caps & FW_PORT_CAP32_FEC_NO_FEC)
+		fec |= FEC_NONE;
+
+	return (fec);
+}
+
+/*
+ * Note that 0 is not translated to NO_FEC.
+ */
+static uint32_t fec_to_fwcap(int8_t fec)
+{
+	uint32_t caps = 0;
+
+	/* Only real FECs allowed. */
+	MPASS((fec & ~M_FW_PORT_CAP32_FEC) == 0);
+
+	if (fec & FEC_RS)
+		caps |= FW_PORT_CAP32_FEC_RS;
+	if (fec & FEC_BASER_RS)
+		caps |= FW_PORT_CAP32_FEC_BASER_RS;
+	if (fec & FEC_NONE)
+		caps |= FW_PORT_CAP32_FEC_NO_FEC;
+
+	return (caps);
+}
+
 /**
  *	t4_link_l1cfg - apply link configuration to MAC/PHY
  *	@phy: the PHY to setup
@@ -3869,41 +3906,61 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 	if (!(lc->requested_fc & PAUSE_AUTONEG))
 		fc |= FW_PORT_CAP32_FORCE_PAUSE;
 
-	fec = 0;
-	if (lc->requested_fec == FEC_AUTO)
-		fec = lc->fec_hint;
-	else {
-		if (lc->requested_fec & FEC_RS)
-			fec |= FW_PORT_CAP32_FEC_RS;
-		if (lc->requested_fec & FEC_BASER_RS)
-			fec |= FW_PORT_CAP32_FEC_BASER_RS;
-	}
-
 	if (lc->requested_aneg == AUTONEG_DISABLE)
 		aneg = 0;
 	else if (lc->requested_aneg == AUTONEG_ENABLE)
 		aneg = FW_PORT_CAP32_ANEG;
 	else
-		aneg = lc->supported & FW_PORT_CAP32_ANEG;
+		aneg = lc->pcaps & FW_PORT_CAP32_ANEG;
 
 	if (aneg) {
-		speed = lc->supported & V_FW_PORT_CAP32_SPEED(M_FW_PORT_CAP32_SPEED);
+		speed = lc->pcaps &
+		    V_FW_PORT_CAP32_SPEED(M_FW_PORT_CAP32_SPEED);
 	} else if (lc->requested_speed != 0)
 		speed = speed_to_fwcap(lc->requested_speed);
 	else
-		speed = fwcap_top_speed(lc->supported);
+		speed = fwcap_top_speed(lc->pcaps);
+
+	fec = 0;
+	if (fec_supported(lc->pcaps)) {
+		if (lc->requested_fec == FEC_AUTO) {
+			if (lc->pcaps & FW_PORT_CAP32_FORCE_FEC) {
+				if (speed & FW_PORT_CAP32_SPEED_100G) {
+					fec |= FW_PORT_CAP32_FEC_RS;
+					fec |= FW_PORT_CAP32_FEC_NO_FEC;
+				} else {
+					fec |= FW_PORT_CAP32_FEC_RS;
+					fec |= FW_PORT_CAP32_FEC_BASER_RS;
+					fec |= FW_PORT_CAP32_FEC_NO_FEC;
+				}
+			} else {
+				/* Set only 1b with old firmwares. */
+				fec |= fec_to_fwcap(lc->fec_hint);
+			}
+		} else {
+			fec |= fec_to_fwcap(lc->requested_fec &
+			    M_FW_PORT_CAP32_FEC);
+			if (lc->requested_fec & FEC_MODULE)
+				fec |= fec_to_fwcap(lc->fec_hint);
+		}
+
+		if (lc->pcaps & FW_PORT_CAP32_FORCE_FEC)
+			fec |= FW_PORT_CAP32_FORCE_FEC;
+		else if (fec == FW_PORT_CAP32_FEC_NO_FEC)
+			fec = 0;
+	}
 
 	/* Force AN on for BT cards. */
 	if (is_bt(adap->port[adap->chan_map[port]]))
-		aneg = lc->supported & FW_PORT_CAP32_ANEG;
+		aneg = lc->pcaps & FW_PORT_CAP32_ANEG;
 
 	rcap = aneg | speed | fc | fec;
-	if ((rcap | lc->supported) != lc->supported) {
+	if ((rcap | lc->pcaps) != lc->pcaps) {
 #ifdef INVARIANTS
-		CH_WARN(adap, "rcap 0x%08x, pcap 0x%08x\n", rcap,
-		    lc->supported);
+		CH_WARN(adap, "rcap 0x%08x, pcap 0x%08x, removed 0x%x\n", rcap,
+		    lc->pcaps, rcap & (rcap ^ lc->pcaps));
 #endif
-		rcap &= lc->supported;
+		rcap &= lc->pcaps;
 	}
 	rcap |= mdi;
 
@@ -8470,7 +8527,6 @@ uint32_t fwcap_top_speed(uint32_t caps)
 	return 0;
 }
 
-
 /**
  *	lstatus_to_fwcap - translate old lstatus to 32-bit Port Capabilities
  *	@lstatus: old FW_PORT_ACTION_GET_PORT_INFO lstatus value
@@ -8516,7 +8572,7 @@ static void handle_port_info(struct port_info *pi, const struct fw_port_cmd *p,
     enum fw_port_action action, bool *mod_changed, bool *link_changed)
 {
 	struct link_config old_lc, *lc = &pi->link_cfg;
-	unsigned char fc, fec;
+	unsigned char fc;
 	u32 stat, linkattr;
 	int old_ptype, old_mtype;
 
@@ -8531,9 +8587,9 @@ static void handle_port_info(struct port_info *pi, const struct fw_port_cmd *p,
 		pi->mdio_addr = stat & F_FW_PORT_CMD_MDIOCAP ?
 		    G_FW_PORT_CMD_MDIOADDR(stat) : -1;
 
-		lc->supported = fwcaps16_to_caps32(be16_to_cpu(p->u.info.pcap));
-		lc->advertising = fwcaps16_to_caps32(be16_to_cpu(p->u.info.acap));
-		lc->lp_advertising = fwcaps16_to_caps32(be16_to_cpu(p->u.info.lpacap));
+		lc->pcaps = fwcaps16_to_caps32(be16_to_cpu(p->u.info.pcap));
+		lc->acaps = fwcaps16_to_caps32(be16_to_cpu(p->u.info.acap));
+		lc->lpacaps = fwcaps16_to_caps32(be16_to_cpu(p->u.info.lpacap));
 		lc->link_ok = (stat & F_FW_PORT_CMD_LSTATUS) != 0;
 		lc->link_down_rc = G_FW_PORT_CMD_LINKDNRC(stat);
 
@@ -8546,9 +8602,9 @@ static void handle_port_info(struct port_info *pi, const struct fw_port_cmd *p,
 		pi->mdio_addr = stat & F_FW_PORT_CMD_MDIOCAP32 ?
 		    G_FW_PORT_CMD_MDIOADDR32(stat) : -1;
 
-		lc->supported = be32_to_cpu(p->u.info32.pcaps32);
-		lc->advertising = be32_to_cpu(p->u.info32.acaps32);
-		lc->lp_advertising = be32_to_cpu(p->u.info32.lpacaps32);
+		lc->pcaps = be32_to_cpu(p->u.info32.pcaps32);
+		lc->acaps = be32_to_cpu(p->u.info32.acaps32);
+		lc->lpacaps = be32_to_cpu(p->u.info32.lpacaps32);
 		lc->link_ok = (stat & F_FW_PORT_CMD_LSTATUS32) != 0;
 		lc->link_down_rc = G_FW_PORT_CMD_LINKDNRC32(stat);
 
@@ -8559,6 +8615,7 @@ static void handle_port_info(struct port_info *pi, const struct fw_port_cmd *p,
 	}
 
 	lc->speed = fwcap_to_speed(linkattr);
+	lc->fec = fwcap_to_fec(linkattr, true);
 
 	fc = 0;
 	if (linkattr & FW_PORT_CAP32_FC_RX)
@@ -8567,23 +8624,14 @@ static void handle_port_info(struct port_info *pi, const struct fw_port_cmd *p,
 		fc |= PAUSE_TX;
 	lc->fc = fc;
 
-	fec = FEC_NONE;
-	if (linkattr & FW_PORT_CAP32_FEC_RS)
-		fec |= FEC_RS;
-	if (linkattr & FW_PORT_CAP32_FEC_BASER_RS)
-		fec |= FEC_BASER_RS;
-	lc->fec = fec;
-
 	if (mod_changed != NULL)
 		*mod_changed = false;
 	if (link_changed != NULL)
 		*link_changed = false;
 	if (old_ptype != pi->port_type || old_mtype != pi->mod_type ||
-	    old_lc.supported != lc->supported) {
-		if (pi->mod_type != FW_PORT_MOD_TYPE_NONE) {
-			lc->fec_hint = lc->advertising &
-			    V_FW_PORT_CAP32_FEC(M_FW_PORT_CAP32_FEC);
-		}
+	    old_lc.pcaps != lc->pcaps) {
+		if (pi->mod_type != FW_PORT_MOD_TYPE_NONE)
+			lc->fec_hint = fwcap_to_fec(lc->acaps, true);
 		if (mod_changed != NULL)
 			*mod_changed = true;
 	}
