@@ -76,9 +76,7 @@ static int hpt_attach(device_t dev)
 	HPT_UINT size;
 	PVBUS vbus;
 	PVBUS_EXT vbus_ext;
-
-	gone_in(13, "Giant locked CAM drivers");
-
+	
 	KdPrint(("hpt_attach(%d/%d/%d)", pci_get_bus(dev), pci_get_slot(dev), pci_get_function(dev)));
 
 	him = hpt_match(dev, 1);
