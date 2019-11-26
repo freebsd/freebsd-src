@@ -102,6 +102,7 @@ vi_reset_dev(struct virtio_softc *vs)
 	for (vq = vs->vs_queues, i = 0; i < nvq; vq++, i++) {
 		vq->vq_flags = 0;
 		vq->vq_last_avail = 0;
+		vq->vq_next_used = 0;
 		vq->vq_save_used = 0;
 		vq->vq_pfn = 0;
 		vq->vq_msix_idx = VIRTIO_MSI_NO_VECTOR;
@@ -199,6 +200,7 @@ vi_vq_init(struct virtio_softc *vs, uint32_t pfn)
 	/* Mark queue as allocated, and start at 0 when we use it. */
 	vq->vq_flags = VQ_ALLOC;
 	vq->vq_last_avail = 0;
+	vq->vq_next_used = 0;
 	vq->vq_save_used = 0;
 }
 
@@ -279,7 +281,7 @@ vq_getchain(struct vqueue_info *vq, uint16_t *pidx,
          * the guest has written are valid (including all their
          * vd_next fields and vd_flags).
 	 *
-	 * Compute (last_avail - va_idx) in integers mod 2**16.  This is
+	 * Compute (va_idx - last_avail) in integers mod 2**16.  This is
 	 * the number of descriptors the device has made available
 	 * since the last time we updated vq->vq_last_avail.
 	 *
@@ -382,16 +384,52 @@ loopy:
 }
 
 /*
- * Return the currently-first request chain back to the available queue.
+ * Return the first n_chain request chains back to the available queue.
  *
- * (This chain is the one you handled when you called vq_getchain()
+ * (These chains are the ones you handled when you called vq_getchain()
  * and used its positive return value.)
  */
 void
-vq_retchain(struct vqueue_info *vq)
+vq_retchains(struct vqueue_info *vq, uint16_t n_chains)
 {
 
-	vq->vq_last_avail--;
+	vq->vq_last_avail -= n_chains;
+}
+
+void
+vq_relchain_prepare(struct vqueue_info *vq, uint16_t idx, uint32_t iolen)
+{
+	volatile struct vring_used *vuh;
+	volatile struct virtio_used *vue;
+	uint16_t mask;
+
+	/*
+	 * Notes:
+	 *  - mask is N-1 where N is a power of 2 so computes x % N
+	 *  - vuh points to the "used" data shared with guest
+	 *  - vue points to the "used" ring entry we want to update
+	 *
+	 * (I apologize for the two fields named vu_idx; the
+	 * virtio spec calls the one that vue points to, "id"...)
+	 */
+	mask = vq->vq_qsize - 1;
+	vuh = vq->vq_used;
+
+	vue = &vuh->vu_ring[vq->vq_next_used++ & mask];
+	vue->vu_idx = idx;
+	vue->vu_tlen = iolen;
+}
+
+void
+vq_relchain_publish(struct vqueue_info *vq)
+{
+	/*
+	 * Ensure the used descriptor is visible before updating the index.
+	 * This is necessary on ISAs with memory ordering less strict than x86
+	 * (and even on x86 to act as a compiler barrier).
+	 */
+	atomic_thread_fence_rel();
+	vq->vq_used->vu_idx = vq->vq_next_used;
 }
 
 /*
@@ -404,35 +442,8 @@ vq_retchain(struct vqueue_info *vq)
 void
 vq_relchain(struct vqueue_info *vq, uint16_t idx, uint32_t iolen)
 {
-	uint16_t uidx, mask;
-	volatile struct vring_used *vuh;
-	volatile struct virtio_used *vue;
-
-	/*
-	 * Notes:
-	 *  - mask is N-1 where N is a power of 2 so computes x % N
-	 *  - vuh points to the "used" data shared with guest
-	 *  - vue points to the "used" ring entry we want to update
-	 *  - head is the same value we compute in vq_iovecs().
-	 *
-	 * (I apologize for the two fields named vu_idx; the
-	 * virtio spec calls the one that vue points to, "id"...)
-	 */
-	mask = vq->vq_qsize - 1;
-	vuh = vq->vq_used;
-
-	uidx = vuh->vu_idx;
-	vue = &vuh->vu_ring[uidx++ & mask];
-	vue->vu_idx = idx;
-	vue->vu_tlen = iolen;
-
-	/*
-	 * Ensure the used descriptor is visible before updating the index.
-	 * This is necessary on ISAs with memory ordering less strict than x86
-	 * (and even on x86 to act as a compiler barrier).
-	 */
-	atomic_thread_fence_rel();
-	vuh->vu_idx = uidx;
+	vq_relchain_prepare(vq, idx, iolen);
+	vq_relchain_publish(vq);
 }
 
 /*
