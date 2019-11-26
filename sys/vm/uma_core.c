@@ -273,7 +273,7 @@ static void bucket_init(void);
 static uma_bucket_t bucket_alloc(uma_zone_t zone, void *, int);
 static void bucket_free(uma_zone_t zone, uma_bucket_t, void *);
 static void bucket_zone_drain(void);
-static uma_bucket_t zone_alloc_bucket(uma_zone_t, void *, int, int, int);
+static uma_bucket_t zone_alloc_bucket(uma_zone_t, void *, int, int);
 static uma_slab_t zone_fetch_slab(uma_zone_t, uma_keg_t, int, int);
 static void *slab_alloc_item(uma_keg_t keg, uma_slab_t slab);
 static void slab_free_item(uma_zone_t zone, uma_slab_t slab, void *item);
@@ -282,6 +282,7 @@ static uma_keg_t uma_kcreate(uma_zone_t zone, size_t size, uma_init uminit,
 static int zone_import(uma_zone_t, void **, int, int, int);
 static void zone_release(uma_zone_t, void **, int);
 static void uma_zero_item(void *, uma_zone_t);
+static bool cache_alloc(uma_zone_t, uma_cache_t, void *, int);
 
 void uma_print_zone(uma_zone_t);
 void uma_print_stats(void);
@@ -2441,18 +2442,58 @@ uma_zfree_pcpu_arg(uma_zone_t zone, void *item, void *udata)
 	uma_zfree_arg(zone, item, udata);
 }
 
+static inline void *
+bucket_pop(uma_zone_t zone, uma_cache_t cache, uma_bucket_t bucket)
+{
+	void *item;
+
+	bucket->ub_cnt--;
+	item = bucket->ub_bucket[bucket->ub_cnt];
+#ifdef INVARIANTS
+	bucket->ub_bucket[bucket->ub_cnt] = NULL;
+	KASSERT(item != NULL, ("uma_zalloc: Bucket pointer mangled."));
+#endif
+	cache->uc_allocs++;
+
+	return (item);
+}
+
+static void *
+item_ctor(uma_zone_t zone, void *udata, int flags, void *item)
+{
+#ifdef INVARIANTS
+	int skipdbg;
+
+	skipdbg = uma_dbg_zskip(zone, item);
+	if (zone->uz_ctor != NULL &&
+	    (!skipdbg || zone->uz_ctor != trash_ctor ||
+	    zone->uz_dtor != trash_dtor) &&
+#else
+	if (__predict_false(zone->uz_ctor != NULL) &&
+#endif
+	    zone->uz_ctor(item, zone->uz_size, udata, flags) != 0) {
+		counter_u64_add(zone->uz_fails, 1);
+		zone_free_item(zone, item, udata, SKIP_DTOR | SKIP_CNT);
+		return (NULL);
+	}
+#ifdef INVARIANTS
+	if (!skipdbg)
+		uma_dbg_alloc(zone, NULL, item);
+#endif
+	if (flags & M_ZERO)
+		uma_zero_item(item, zone);
+
+	return (item);
+}
+
 /* See uma.h */
 void *
 uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 {
-	uma_zone_domain_t zdom;
 	uma_bucket_t bucket;
 	uma_cache_t cache;
 	void *item;
-	int cpu, domain, lockfail, maxbucket;
-#ifdef INVARIANTS
-	bool skipdbg;
-#endif
+	int cpu, domain;
 
 	/* Enable entropy collection for RANDOM_ENABLE_UMA kernel option */
 	random_harvest_fast_uma(&zone, sizeof(zone), RANDOM_UMA);
@@ -2501,56 +2542,55 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	 * the current cache; when we re-acquire the critical section, we
 	 * must detect and handle migration if it has occurred.
 	 */
-zalloc_restart:
 	critical_enter();
-	cpu = curcpu;
-	cache = &zone->uz_cpu[cpu];
-
-zalloc_start:
-	bucket = cache->uc_allocbucket;
-	if (bucket != NULL && bucket->ub_cnt > 0) {
-		bucket->ub_cnt--;
-		item = bucket->ub_bucket[bucket->ub_cnt];
-#ifdef INVARIANTS
-		bucket->ub_bucket[bucket->ub_cnt] = NULL;
-#endif
-		KASSERT(item != NULL, ("uma_zalloc: Bucket pointer mangled."));
-		cache->uc_allocs++;
-		critical_exit();
-#ifdef INVARIANTS
-		skipdbg = uma_dbg_zskip(zone, item);
-#endif
-		if (zone->uz_ctor != NULL &&
-#ifdef INVARIANTS
-		    (!skipdbg || zone->uz_ctor != trash_ctor ||
-		    zone->uz_dtor != trash_dtor) &&
-#endif
-		    zone->uz_ctor(item, zone->uz_size, udata, flags) != 0) {
-			counter_u64_add(zone->uz_fails, 1);
-			zone_free_item(zone, item, udata, SKIP_DTOR | SKIP_CNT);
-			return (NULL);
+	do {
+		cpu = curcpu;
+		cache = &zone->uz_cpu[cpu];
+		bucket = cache->uc_allocbucket;
+		if (__predict_true(bucket != NULL && bucket->ub_cnt != 0)) {
+			item = bucket_pop(zone, cache, bucket);
+			critical_exit();
+			return (item_ctor(zone, udata, flags, item));
 		}
-#ifdef INVARIANTS
-		if (!skipdbg)
-			uma_dbg_alloc(zone, NULL, item);
-#endif
-		if (flags & M_ZERO)
-			uma_zero_item(item, zone);
-		return (item);
-	}
+	} while (cache_alloc(zone, cache, udata, flags));
+	critical_exit();
 
 	/*
-	 * We have run out of items in our alloc bucket.
-	 * See if we can switch with our free bucket.
+	 * We can not get a bucket so try to return a single item.
+	 */
+	if (zone->uz_flags & UMA_ZONE_NUMA)
+		domain = PCPU_GET(domain);
+	else
+		domain = UMA_ANYDOMAIN;
+	return (zone_alloc_item_locked(zone, udata, domain, flags));
+}
+
+/*
+ * Replenish an alloc bucket and possibly restore an old one.  Called in
+ * a critical section.  Returns in a critical section.
+ *
+ * A false return value indicates failure and returns with the zone lock
+ * held.  A true return value indicates success and the caller should retry.
+ */
+static __noinline bool
+cache_alloc(uma_zone_t zone, uma_cache_t cache, void *udata, int flags)
+{
+	uma_zone_domain_t zdom;
+	uma_bucket_t bucket;
+	int cpu, domain;
+	bool lockfail;
+
+	CRITICAL_ASSERT(curthread);
+
+	/*
+	 * If we have run out of items in our alloc bucket see
+	 * if we can switch with the free bucket.
 	 */
 	bucket = cache->uc_freebucket;
-	if (bucket != NULL && bucket->ub_cnt > 0) {
-		CTR2(KTR_UMA,
-		    "uma_zalloc: zone %s(%p) swapping empty with alloc",
-		    zone->uz_name, zone);
+	if (bucket != NULL && bucket->ub_cnt != 0) {
 		cache->uc_freebucket = cache->uc_allocbucket;
 		cache->uc_allocbucket = bucket;
-		goto zalloc_start;
+		return (true);
 	}
 
 	/*
@@ -2561,16 +2601,6 @@ zalloc_start:
 	critical_exit();
 	if (bucket != NULL)
 		bucket_free(zone, bucket, udata);
-
-	/* Short-circuit for zones without buckets and low memory. */
-	if (zone->uz_count == 0 || bucketdisable) {
-		ZONE_LOCK(zone);
-		if (zone->uz_flags & UMA_ZONE_NUMA)
-			domain = PCPU_GET(domain);
-		else
-			domain = UMA_ANYDOMAIN;
-		goto zalloc_item;
-	}
 
 	/*
 	 * Attempt to retrieve the item from the per-CPU cache has failed, so
@@ -2587,14 +2617,19 @@ zalloc_start:
 		ZONE_LOCK(zone);
 		lockfail = 1;
 	}
+
 	critical_enter();
+	/* Short-circuit for zones without buckets and low memory. */
+	if (zone->uz_count == 0 || bucketdisable)
+		return (false);
+
 	cpu = curcpu;
 	cache = &zone->uz_cpu[cpu];
 
 	/* See if we lost the race to fill the cache. */
 	if (cache->uc_allocbucket != NULL) {
 		ZONE_UNLOCK(zone);
-		goto zalloc_start;
+		return (true);
 	}
 
 	/*
@@ -2609,11 +2644,11 @@ zalloc_start:
 	}
 
 	if ((bucket = zone_fetch_bucket(zone, zdom)) != NULL) {
+		ZONE_UNLOCK(zone);
 		KASSERT(bucket->ub_cnt != 0,
 		    ("uma_zalloc_arg: Returning an empty bucket."));
 		cache->uc_allocbucket = bucket;
-		ZONE_UNLOCK(zone);
-		goto zalloc_start;
+		return (true);
 	}
 	/* We are no longer associated with this CPU. */
 	critical_exit();
@@ -2625,71 +2660,39 @@ zalloc_start:
 	if (lockfail && zone->uz_count < zone->uz_count_max)
 		zone->uz_count++;
 
-	if (zone->uz_max_items > 0) {
-		if (zone->uz_items >= zone->uz_max_items)
-			goto zalloc_item;
-		maxbucket = MIN(zone->uz_count,
-		    zone->uz_max_items - zone->uz_items);
-		zone->uz_items += maxbucket;
-	} else
-		maxbucket = zone->uz_count;
-	ZONE_UNLOCK(zone);
-
 	/*
-	 * Now lets just fill a bucket and put it on the free list.  If that
-	 * works we'll restart the allocation from the beginning and it
-	 * will use the just filled bucket.
+	 * Fill a bucket and attempt to use it as the alloc bucket.
 	 */
-	bucket = zone_alloc_bucket(zone, udata, domain, flags, maxbucket);
+	bucket = zone_alloc_bucket(zone, udata, domain, flags);
 	CTR3(KTR_UMA, "uma_zalloc: zone %s(%p) bucket zone returned %p",
 	    zone->uz_name, zone, bucket);
-	ZONE_LOCK(zone);
-	if (bucket != NULL) {
-		if (zone->uz_max_items > 0 && bucket->ub_cnt < maxbucket) {
-			MPASS(zone->uz_items >= maxbucket - bucket->ub_cnt);
-			zone->uz_items -= maxbucket - bucket->ub_cnt;
-			if (zone->uz_sleepers > 0 &&
-			    zone->uz_items < zone->uz_max_items)
-				wakeup_one(zone);
-		}
-		critical_enter();
-		cpu = curcpu;
-		cache = &zone->uz_cpu[cpu];
-
-		/*
-		 * See if we lost the race or were migrated.  Cache the
-		 * initialized bucket to make this less likely or claim
-		 * the memory directly.
-		 */
-		if (cache->uc_allocbucket == NULL &&
-		    ((zone->uz_flags & UMA_ZONE_NUMA) == 0 ||
-		    domain == PCPU_GET(domain))) {
-			cache->uc_allocbucket = bucket;
-			zdom->uzd_imax += bucket->ub_cnt;
-		} else if (zone->uz_bkt_count >= zone->uz_bkt_max) {
-			critical_exit();
-			ZONE_UNLOCK(zone);
-			bucket_drain(zone, bucket);
-			bucket_free(zone, bucket, udata);
-			goto zalloc_restart;
-		} else
-			zone_put_bucket(zone, zdom, bucket, false);
-		ZONE_UNLOCK(zone);
-		goto zalloc_start;
-	} else if (zone->uz_max_items > 0) {
-		zone->uz_items -= maxbucket;
-		if (zone->uz_sleepers > 0 &&
-		    zone->uz_items + 1 < zone->uz_max_items)
-			wakeup_one(zone);
-	}
+	critical_enter();
+	if (bucket == NULL)
+		return (false);
 
 	/*
-	 * We may not be able to get a bucket so return an actual item.
+	 * See if we lost the race or were migrated.  Cache the
+	 * initialized bucket to make this less likely or claim
+	 * the memory directly.
 	 */
-zalloc_item:
-	item = zone_alloc_item_locked(zone, udata, domain, flags);
-
-	return (item);
+	cpu = curcpu;
+	cache = &zone->uz_cpu[cpu];
+	if (cache->uc_allocbucket == NULL &&
+	    ((zone->uz_flags & UMA_ZONE_NUMA) == 0 ||
+	    domain == PCPU_GET(domain))) {
+		cache->uc_allocbucket = bucket;
+		zdom->uzd_imax += bucket->ub_cnt;
+	} else if (zone->uz_bkt_count >= zone->uz_bkt_max) {
+		critical_exit();
+		ZONE_UNLOCK(zone);
+		bucket_drain(zone, bucket);
+		bucket_free(zone, bucket, udata);
+		critical_enter();
+		return (true);
+	} else
+		zone_put_bucket(zone, zdom, bucket, false);
+	ZONE_UNLOCK(zone);
+	return (true);
 }
 
 void *
@@ -2943,9 +2946,10 @@ zone_import(uma_zone_t zone, void **bucket, int max, int domain, int flags)
 }
 
 static uma_bucket_t
-zone_alloc_bucket(uma_zone_t zone, void *udata, int domain, int flags, int max)
+zone_alloc_bucket(uma_zone_t zone, void *udata, int domain, int flags)
 {
 	uma_bucket_t bucket;
+	int maxbucket, cnt;
 
 	CTR1(KTR_UMA, "zone_alloc:_bucket domain %d)", domain);
 
@@ -2953,13 +2957,25 @@ zone_alloc_bucket(uma_zone_t zone, void *udata, int domain, int flags, int max)
 	if (domain != UMA_ANYDOMAIN && VM_DOMAIN_EMPTY(domain))
 		domain = UMA_ANYDOMAIN;
 
+	if (zone->uz_max_items > 0) {
+		if (zone->uz_items >= zone->uz_max_items)
+			return (false);
+		maxbucket = MIN(zone->uz_count,
+		    zone->uz_max_items - zone->uz_items);
+		zone->uz_items += maxbucket;
+	} else
+		maxbucket = zone->uz_count;
+	ZONE_UNLOCK(zone);
+
 	/* Don't wait for buckets, preserve caller's NOVM setting. */
 	bucket = bucket_alloc(zone, udata, M_NOWAIT | (flags & M_NOVM));
-	if (bucket == NULL)
-		return (NULL);
+	if (bucket == NULL) {
+		cnt = 0;
+		goto out;
+	}
 
 	bucket->ub_cnt = zone->uz_import(zone->uz_arg, bucket->ub_bucket,
-	    MIN(max, bucket->ub_entries), domain, flags);
+	    MIN(maxbucket, bucket->ub_entries), domain, flags);
 
 	/*
 	 * Initialize the memory if necessary.
@@ -2986,10 +3002,21 @@ zone_alloc_bucket(uma_zone_t zone, void *udata, int domain, int flags, int max)
 		}
 	}
 
+	cnt = bucket->ub_cnt;
 	if (bucket->ub_cnt == 0) {
 		bucket_free(zone, bucket, udata);
 		counter_u64_add(zone->uz_fails, 1);
-		return (NULL);
+		bucket = NULL;
+	}
+out:
+	ZONE_LOCK(zone);
+	if (zone->uz_max_items > 0 && cnt < maxbucket) {
+		MPASS(zone->uz_items >= maxbucket - cnt);
+		zone->uz_items -= maxbucket - cnt;
+		if (zone->uz_sleepers > 0 &&
+		    (cnt == 0 ? zone->uz_items + 1 : zone->uz_items) <
+		    zone->uz_max_items)
+			wakeup_one(zone);
 	}
 
 	return (bucket);
@@ -3024,9 +3051,6 @@ static void *
 zone_alloc_item_locked(uma_zone_t zone, void *udata, int domain, int flags)
 {
 	void *item;
-#ifdef INVARIANTS
-	bool skipdbg;
-#endif
 
 	ZONE_LOCK_ASSERT(zone);
 
@@ -3057,11 +3081,8 @@ zone_alloc_item_locked(uma_zone_t zone, void *udata, int domain, int flags)
 		domain = UMA_ANYDOMAIN;
 
 	if (zone->uz_import(zone->uz_arg, &item, 1, domain, flags) != 1)
-		goto fail;
+		goto fail_cnt;
 
-#ifdef INVARIANTS
-	skipdbg = uma_dbg_zskip(zone, item);
-#endif
 	/*
 	 * We have to call both the zone's init (not the keg's init)
 	 * and the zone's ctor.  This is because the item is going from
@@ -3071,24 +3092,12 @@ zone_alloc_item_locked(uma_zone_t zone, void *udata, int domain, int flags)
 	if (zone->uz_init != NULL) {
 		if (zone->uz_init(item, zone->uz_size, flags) != 0) {
 			zone_free_item(zone, item, udata, SKIP_FINI | SKIP_CNT);
-			goto fail;
+			goto fail_cnt;
 		}
 	}
-	if (zone->uz_ctor != NULL &&
-#ifdef INVARIANTS
-	    (!skipdbg || zone->uz_ctor != trash_ctor ||
-	    zone->uz_dtor != trash_dtor) &&
-#endif
-	    zone->uz_ctor(item, zone->uz_size, udata, flags) != 0) {
-		zone_free_item(zone, item, udata, SKIP_DTOR | SKIP_CNT);
+	item = item_ctor(zone, udata, flags, item);
+	if (item == NULL)
 		goto fail;
-	}
-#ifdef INVARIANTS
-	if (!skipdbg)
-		uma_dbg_alloc(zone, NULL, item);
-#endif
-	if (flags & M_ZERO)
-		uma_zero_item(item, zone);
 
 	counter_u64_add(zone->uz_allocs, 1);
 	CTR3(KTR_UMA, "zone_alloc_item item %p from %s(%p)", item,
@@ -3096,13 +3105,15 @@ zone_alloc_item_locked(uma_zone_t zone, void *udata, int domain, int flags)
 
 	return (item);
 
+fail_cnt:
+	counter_u64_add(zone->uz_fails, 1);
 fail:
 	if (zone->uz_max_items > 0) {
 		ZONE_LOCK(zone);
+		/* XXX Decrement without wakeup */
 		zone->uz_items--;
 		ZONE_UNLOCK(zone);
 	}
-	counter_u64_add(zone->uz_fails, 1);
 	CTR2(KTR_UMA, "zone_alloc_item failed from %s(%p)",
 	    zone->uz_name, zone);
 	return (NULL);
