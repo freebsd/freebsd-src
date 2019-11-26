@@ -131,6 +131,7 @@ void ioat_put_dmaengine(bus_dmaengine_t dmaengine);
 int ioat_get_hwversion(bus_dmaengine_t dmaengine);
 size_t ioat_get_max_io_size(bus_dmaengine_t dmaengine);
 uint32_t ioat_get_capabilities(bus_dmaengine_t dmaengine);
+int ioat_get_domain(bus_dmaengine_t dmaengine, int *domain);
 
 /*
  * Set interrupt coalescing on a DMA channel.
