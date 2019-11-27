@@ -330,9 +330,11 @@ cache_out_ts(struct namecache *ncp, struct timespec *tsp, int *ticksp)
 		*ticksp = ncp_ts->nc_ticks;
 }
 
+#ifdef DEBUG_CACHE
 static int __read_mostly	doingcache = 1;	/* 1 => enable the cache */
 SYSCTL_INT(_debug, OID_AUTO, vfscache, CTLFLAG_RW, &doingcache, 0,
     "VFS namecache enabled");
+#endif
 
 /* Export size information to userland */
 SYSCTL_INT(_debug_sizeof, OID_AUTO, namecache, CTLFLAG_RD, SYSCTL_NULL_INT_PTR,
@@ -1298,10 +1300,12 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	enum vgetstate vs;
 	int error, ltype;
 
+#ifdef DEBUG_CACHE
 	if (__predict_false(!doingcache)) {
 		cnp->cn_flags &= ~MAKEENTRY;
 		return (0);
 	}
+#endif
 
 	counter_u64_add(numcalls, 1);
 
@@ -1681,8 +1685,10 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	VNASSERT(dvp == NULL || (dvp->v_iflag & VI_DOOMED) == 0, dvp,
 	    ("cache_enter: Doomed vnode used as src"));
 
+#ifdef DEBUG_CACHE
 	if (__predict_false(!doingcache))
 		return;
+#endif
 
 	/*
 	 * Avoid blowout in namecache entries.
