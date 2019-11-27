@@ -165,7 +165,7 @@ __FBSDID("$FreeBSD$");
  * Construct the generic fields of the PHY context command
  */
 static void
-iwm_mvm_phy_ctxt_cmd_hdr(struct iwm_softc *sc, struct iwm_mvm_phy_ctxt *ctxt,
+iwm_phy_ctxt_cmd_hdr(struct iwm_softc *sc, struct iwm_phy_ctxt *ctxt,
 	struct iwm_phy_context_cmd *cmd, uint32_t action, uint32_t apply_time)
 {
 	memset(cmd, 0, sizeof(struct iwm_phy_context_cmd));
@@ -188,7 +188,7 @@ iwm_mvm_phy_ctxt_cmd_hdr(struct iwm_softc *sc, struct iwm_mvm_phy_ctxt *ctxt,
  * Add the phy configuration to the PHY context command
  */
 static void
-iwm_mvm_phy_ctxt_cmd_data(struct iwm_softc *sc,
+iwm_phy_ctxt_cmd_data(struct iwm_softc *sc,
 	struct iwm_phy_context_cmd *cmd, struct ieee80211_channel *chan,
 	uint8_t chains_static, uint8_t chains_dynamic)
 {
@@ -203,8 +203,8 @@ iwm_mvm_phy_ctxt_cmd_data(struct iwm_softc *sc,
 	    ieee80211_chan2ieee(ic, chan),
 	    chains_static,
 	    chains_dynamic,
-	    iwm_mvm_get_valid_rx_ant(sc),
-	    iwm_mvm_get_valid_tx_ant(sc));
+	    iwm_get_valid_rx_ant(sc),
+	    iwm_get_valid_tx_ant(sc));
 
 
 	cmd->ci.band = IEEE80211_IS_CHAN_2GHZ(chan) ?
@@ -225,18 +225,18 @@ iwm_mvm_phy_ctxt_cmd_data(struct iwm_softc *sc,
 	 * between the two antennas is sufficiently different to impact
 	 * performance.
 	 */
-	if (active_cnt == 1 && iwm_mvm_rx_diversity_allowed(sc)) {
+	if (active_cnt == 1 && iwm_rx_diversity_allowed(sc)) {
 		idle_cnt = 2;
 		active_cnt = 2;
 	}
 
-	cmd->rxchain_info = htole32(iwm_mvm_get_valid_rx_ant(sc) <<
+	cmd->rxchain_info = htole32(iwm_get_valid_rx_ant(sc) <<
 					IWM_PHY_RX_CHAIN_VALID_POS);
 	cmd->rxchain_info |= htole32(idle_cnt << IWM_PHY_RX_CHAIN_CNT_POS);
 	cmd->rxchain_info |= htole32(active_cnt <<
 	    IWM_PHY_RX_CHAIN_MIMO_CNT_POS);
 
-	cmd->txchain_info = htole32(iwm_mvm_get_valid_tx_ant(sc));
+	cmd->txchain_info = htole32(iwm_get_valid_tx_ant(sc));
 }
 
 /*
@@ -246,8 +246,8 @@ iwm_mvm_phy_ctxt_cmd_data(struct iwm_softc *sc,
  * configuration changed from the previous apply.
  */
 static int
-iwm_mvm_phy_ctxt_apply(struct iwm_softc *sc,
-	struct iwm_mvm_phy_ctxt *ctxt,
+iwm_phy_ctxt_apply(struct iwm_softc *sc,
+	struct iwm_phy_ctxt *ctxt,
 	uint8_t chains_static, uint8_t chains_dynamic,
 	uint32_t action, uint32_t apply_time)
 {
@@ -260,13 +260,13 @@ iwm_mvm_phy_ctxt_apply(struct iwm_softc *sc,
 	    ctxt->channel);
 
 	/* Set the command header fields */
-	iwm_mvm_phy_ctxt_cmd_hdr(sc, ctxt, &cmd, action, apply_time);
+	iwm_phy_ctxt_cmd_hdr(sc, ctxt, &cmd, action, apply_time);
 
 	/* Set the command data */
-	iwm_mvm_phy_ctxt_cmd_data(sc, &cmd, ctxt->channel,
+	iwm_phy_ctxt_cmd_data(sc, &cmd, ctxt->channel,
 	    chains_static, chains_dynamic);
 
-	ret = iwm_mvm_send_cmd_pdu(sc, IWM_PHY_CONTEXT_CMD, IWM_CMD_SYNC,
+	ret = iwm_send_cmd_pdu(sc, IWM_PHY_CONTEXT_CMD, IWM_CMD_SYNC,
 	    sizeof(struct iwm_phy_context_cmd), &cmd);
 	if (ret) {
 		device_printf(sc->sc_dev,
@@ -279,7 +279,7 @@ iwm_mvm_phy_ctxt_apply(struct iwm_softc *sc,
  * Send a command to add a PHY context based on the current HW configuration.
  */
 int
-iwm_mvm_phy_ctxt_add(struct iwm_softc *sc, struct iwm_mvm_phy_ctxt *ctxt,
+iwm_phy_ctxt_add(struct iwm_softc *sc, struct iwm_phy_ctxt *ctxt,
 	struct ieee80211_channel *chan,
 	uint8_t chains_static, uint8_t chains_dynamic)
 {
@@ -290,7 +290,7 @@ iwm_mvm_phy_ctxt_add(struct iwm_softc *sc, struct iwm_mvm_phy_ctxt *ctxt,
 	    __func__,
 	    ieee80211_chan2ieee(&sc->sc_ic, chan));
 
-	return iwm_mvm_phy_ctxt_apply(sc, ctxt,
+	return iwm_phy_ctxt_apply(sc, ctxt,
 	    chains_static, chains_dynamic, IWM_FW_CTXT_ACTION_ADD, 0);
 }
 
@@ -300,8 +300,8 @@ iwm_mvm_phy_ctxt_add(struct iwm_softc *sc, struct iwm_mvm_phy_ctxt *ctxt,
  * changed.
  */
 int
-iwm_mvm_phy_ctxt_changed(struct iwm_softc *sc,
-	struct iwm_mvm_phy_ctxt *ctxt, struct ieee80211_channel *chan,
+iwm_phy_ctxt_changed(struct iwm_softc *sc,
+	struct iwm_phy_ctxt *ctxt, struct ieee80211_channel *chan,
 	uint8_t chains_static, uint8_t chains_dynamic)
 {
 	ctxt->channel = chan;
@@ -311,7 +311,7 @@ iwm_mvm_phy_ctxt_changed(struct iwm_softc *sc,
 	    __func__,
 	    ieee80211_chan2ieee(&sc->sc_ic, chan));
 
-	return iwm_mvm_phy_ctxt_apply(sc, ctxt,
+	return iwm_phy_ctxt_apply(sc, ctxt,
 	    chains_static, chains_dynamic, IWM_FW_CTXT_ACTION_MODIFY, 0);
 }
 

@@ -162,7 +162,7 @@ __FBSDID("$FreeBSD$");
 #define TU_TO_HZ(tu)	(((uint64_t)(tu) * 1024 * hz) / 1000000)
 
 static void
-iwm_mvm_te_clear_data(struct iwm_softc *sc)
+iwm_te_clear_data(struct iwm_softc *sc)
 {
 	sc->sc_time_event_uid = 0;
 	sc->sc_time_event_duration = 0;
@@ -178,7 +178,7 @@ iwm_mvm_te_clear_data(struct iwm_softc *sc)
  * @notif: the notification data corresponding the time event data.
  */
 static void
-iwm_mvm_te_handle_notif(struct iwm_softc *sc,
+iwm_te_handle_notif(struct iwm_softc *sc,
     struct iwm_time_event_notif *notif)
 {
 	IWM_DPRINTF(sc, IWM_DEBUG_TE,
@@ -202,7 +202,7 @@ iwm_mvm_te_handle_notif(struct iwm_softc *sc,
 		    "TE ended - current time %d, estimated end %d\n",
 		    ticks, sc->sc_time_event_end_ticks);
 
-		iwm_mvm_te_clear_data(sc);
+		iwm_te_clear_data(sc);
 	} else if (le32toh(notif->action) & IWM_TE_V2_NOTIF_HOST_EVENT_START) {
 		sc->sc_time_event_end_ticks =
 		    ticks + TU_TO_HZ(sc->sc_time_event_duration);
@@ -215,7 +215,7 @@ iwm_mvm_te_handle_notif(struct iwm_softc *sc,
  * The Rx handler for time event notifications
  */
 void
-iwm_mvm_rx_time_event_notif(struct iwm_softc *sc, struct iwm_rx_packet *pkt)
+iwm_rx_time_event_notif(struct iwm_softc *sc, struct iwm_rx_packet *pkt)
 {
 	struct iwm_time_event_notif *notif = (void *)pkt->data;
 
@@ -224,11 +224,11 @@ iwm_mvm_rx_time_event_notif(struct iwm_softc *sc, struct iwm_rx_packet *pkt)
 	    le32toh(notif->unique_id),
 	    le32toh(notif->action));
 
-	iwm_mvm_te_handle_notif(sc, notif);
+	iwm_te_handle_notif(sc, notif);
 }
 
 static int
-iwm_mvm_te_notif(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
+iwm_te_notif(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
     void *data)
 {
 	struct iwm_time_event_notif *resp;
@@ -259,7 +259,7 @@ iwm_mvm_te_notif(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
 }
 
 static int
-iwm_mvm_time_event_response(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
+iwm_time_event_response(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
     void *data)
 {
 	struct iwm_time_event_resp *resp;
@@ -292,7 +292,7 @@ iwm_mvm_time_event_response(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
 /* XXX Use the te_data function argument properly, like in iwlwifi's code. */
 
 static int
-iwm_mvm_time_event_send_add(struct iwm_softc *sc, struct iwm_vap *ivp,
+iwm_time_event_send_add(struct iwm_softc *sc, struct iwm_vap *ivp,
 	void *te_data, struct iwm_time_event_cmd *te_cmd)
 {
 	static const uint16_t time_event_response[] = { IWM_TIME_EVENT_CMD };
@@ -316,9 +316,9 @@ iwm_mvm_time_event_send_add(struct iwm_softc *sc, struct iwm_vap *ivp,
 	iwm_init_notification_wait(sc->sc_notif_wait, &wait_time_event,
 				   time_event_response,
 				   nitems(time_event_response),
-				   iwm_mvm_time_event_response, /*te_data*/NULL);
+				   iwm_time_event_response, /*te_data*/NULL);
 
-	ret = iwm_mvm_send_cmd_pdu(sc, IWM_TIME_EVENT_CMD, 0, sizeof(*te_cmd),
+	ret = iwm_send_cmd_pdu(sc, IWM_TIME_EVENT_CMD, 0, sizeof(*te_cmd),
 	    te_cmd);
 	if (ret) {
 		IWM_DPRINTF(sc, IWM_DEBUG_TE,
@@ -343,7 +343,7 @@ iwm_mvm_time_event_send_add(struct iwm_softc *sc, struct iwm_vap *ivp,
 }
 
 void
-iwm_mvm_protect_session(struct iwm_softc *sc, struct iwm_vap *ivp,
+iwm_protect_session(struct iwm_softc *sc, struct iwm_vap *ivp,
 	uint32_t duration, uint32_t max_delay, boolean_t wait_for_notif)
 {
 	const uint16_t te_notif_response[] = { IWM_TIME_EVENT_NOTIFICATION };
@@ -373,7 +373,7 @@ iwm_mvm_protect_session(struct iwm_softc *sc, struct iwm_vap *ivp,
 		IWM_T2_V2_START_IMMEDIATELY);
 
 	if (!wait_for_notif) {
-		iwm_mvm_time_event_send_add(sc, ivp, /*te_data*/NULL, &time_cmd);
+		iwm_time_event_send_add(sc, ivp, /*te_data*/NULL, &time_cmd);
 		DELAY(100);
 		sc->sc_flags |= IWM_FLAG_TE_ACTIVE;
 		return;
@@ -385,10 +385,10 @@ iwm_mvm_protect_session(struct iwm_softc *sc, struct iwm_vap *ivp,
 	 */
 	iwm_init_notification_wait(sc->sc_notif_wait, &wait_te_notif,
 	    te_notif_response, nitems(te_notif_response),
-	    iwm_mvm_te_notif, /*te_data*/NULL);
+	    iwm_te_notif, /*te_data*/NULL);
 
 	/* If TE was sent OK - wait for the notification that started */
-	if (iwm_mvm_time_event_send_add(sc, ivp, /*te_data*/NULL, &time_cmd)) {
+	if (iwm_time_event_send_add(sc, ivp, /*te_data*/NULL, &time_cmd)) {
 		IWM_DPRINTF(sc, IWM_DEBUG_TE,
 		    "%s: Failed to add TE to protect session\n", __func__);
 		iwm_remove_notification(sc->sc_notif_wait, &wait_te_notif);
@@ -406,7 +406,7 @@ iwm_mvm_protect_session(struct iwm_softc *sc, struct iwm_vap *ivp,
 }
 
 void
-iwm_mvm_stop_session_protection(struct iwm_softc *sc, struct iwm_vap *ivp)
+iwm_stop_session_protection(struct iwm_softc *sc, struct iwm_vap *ivp)
 {
 	struct iwm_time_event_cmd time_cmd = {};
 
@@ -421,9 +421,9 @@ iwm_mvm_stop_session_protection(struct iwm_softc *sc, struct iwm_vap *ivp)
 
 	IWM_DPRINTF(sc, IWM_DEBUG_TE,
 	    "%s: Removing TE 0x%x\n", __func__, le32toh(time_cmd.id));
-	if (iwm_mvm_send_cmd_pdu(sc, IWM_TIME_EVENT_CMD, 0, sizeof(time_cmd),
+	if (iwm_send_cmd_pdu(sc, IWM_TIME_EVENT_CMD, 0, sizeof(time_cmd),
 	    &time_cmd) == 0)
-		iwm_mvm_te_clear_data(sc);
+		iwm_te_clear_data(sc);
 
 	DELAY(100);
 }

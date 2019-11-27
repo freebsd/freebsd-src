@@ -106,10 +106,10 @@
 #ifndef	__IF_IWM_MAC_CTXT_H__
 #define	__IF_IWM_MAC_CTXT_H__
 
-extern const uint8_t iwm_mvm_ac_to_tx_fifo[];
+extern const uint8_t iwm_ac_to_tx_fifo[];
 
-extern	int iwm_mvm_mac_ctxt_add(struct iwm_softc *sc, struct ieee80211vap *vap);
-extern	int iwm_mvm_mac_ctxt_changed(struct iwm_softc *sc, struct ieee80211vap *vap);
-extern	int iwm_mvm_mac_ctxt_remove(struct iwm_softc *sc, struct ieee80211vap *vap);
+extern	int iwm_mac_ctxt_add(struct iwm_softc *sc, struct ieee80211vap *vap);
+extern	int iwm_mac_ctxt_changed(struct iwm_softc *sc, struct ieee80211vap *vap);
+extern	int iwm_mac_ctxt_remove(struct iwm_softc *sc, struct ieee80211vap *vap);
 
 #endif	/* __IF_IWM_MAC_CTXT_H__ */

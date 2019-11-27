@@ -88,14 +88,14 @@
  * keeps the fw's station table up to date with the ADD_STA command. Stations
  * can be removed by the REMOVE_STA command.
  *
- * All the data related to a station is held in the structure %iwl_mvm_sta
+ * All the data related to a station is held in the structure %iwl_sta
  * which is embed in the mac80211's %ieee80211_sta (in the drv_priv) area.
  * This data includes the index of the station in the fw, per tid information
  * (sequence numbers, Block-ack state machine, etc...). The stations are
  * created and deleted by the %sta_state callback from %ieee80211_ops.
  *
  * The driver holds a map: %fw_id_to_mac_id that allows to fetch a
- * %ieee80211_sta (and the %iwl_mvm_sta embedded into it) based on a fw
+ * %ieee80211_sta (and the %iwl_sta embedded into it) based on a fw
  * station index. That way, the driver is able to get the tid related data in
  * O(1) in time sensitive paths (Tx / Tx response / BA notification). These
  * paths are triggered by the fw, and the driver needs to get a pointer to the
@@ -133,8 +133,8 @@
  * The FW needs a few internal stations that are not reflected in
  * mac80211, such as broadcast station in AP / GO mode, or AUX sta for
  * scanning and P2P device (during the GO negotiation).
- * For these kind of stations we have %iwl_mvm_int_sta struct which holds the
- * data relevant for them from both %iwl_mvm_sta and %ieee80211_sta.
+ * For these kind of stations we have %iwl_int_sta struct which holds the
+ * data relevant for them from both %iwl_sta and %ieee80211_sta.
  * Usually the data for these stations is static, so no locking is required,
  * and no TID data as this is also not needed.
  * One thing to note, is that these stations have an ID in the fw, but not
@@ -150,7 +150,7 @@
 /**
  * DOC: station table - AP Station in STA mode
  *
- * %iwl_mvm_vif includes the index of the AP station in the fw's STA table:
+ * %iwl_vif includes the index of the AP station in the fw's STA table:
  * %ap_sta_id. To get the point to the corresponding %ieee80211_sta,
  * &fw_id_to_mac_id can be used. Due to the way the fw works, we must not remove
  * the AP station from the fw before setting the MAC context as unassociated.
@@ -173,10 +173,10 @@
  * the fw. In order to do so, we track the non-AMPDU packets for each station.
  * If mac80211 removes a STA and if it still has non-AMPDU packets pending in
  * the queues, we mark this station as %EBUSY in %fw_id_to_mac_id, and drop all
- * the frames for this STA (%iwl_mvm_rm_sta). When the last frame is dropped
+ * the frames for this STA (%iwl_rm_sta). When the last frame is dropped
  * (we know about it with its Tx response), we remove the station in fw and set
  * it as %NULL in %fw_id_to_mac_id: this is the purpose of
- * %iwl_mvm_sta_drained_wk.
+ * %iwl_sta_drained_wk.
  */
 
 /**
@@ -186,14 +186,14 @@
  * driver, we require mac80211 to reconfigure the driver. Since the private
  * data of the stations is embed in mac80211's %ieee80211_sta, that data will
  * not be zeroed and needs to be reinitialized manually.
- * %IWL_MVM_STATUS_IN_HW_RESTART is set during restart and that will hint us
+ * %IWL_STATUS_IN_HW_RESTART is set during restart and that will hint us
  * that we must not allocate a new sta_id but reuse the previous one. This
  * means that the stations being re-added after the reset will have the same
  * place in the fw as before the reset. We do need to zero the %fw_id_to_mac_id
  * map, since the stations aren't in the fw any more. Internal stations that
  * are not added by mac80211 will be re-added in the init flow that is called
- * after the restart: mac80211 call's %iwl_mvm_mac_start which calls to
- * %iwl_mvm_up.
+ * after the restart: mac80211 call's %iwl_mac_start which calls to
+ * %iwl_up.
  */
 
 /**
@@ -206,18 +206,18 @@
  * @flags: if update==true, this marks what is being changed via ORs of values
  *	from enum iwm_sta_modify_flag. Otherwise, this is ignored.
  */
-extern	int iwm_mvm_sta_send_to_fw(struct iwm_softc *sc, struct iwm_node *in,
+extern	int iwm_sta_send_to_fw(struct iwm_softc *sc, struct iwm_node *in,
 				   boolean_t update);
-extern	int iwm_mvm_add_sta(struct iwm_softc *sc, struct iwm_node *in);
-extern	int iwm_mvm_update_sta(struct iwm_softc *sc, struct iwm_node *in);
-extern	int iwm_mvm_rm_sta(struct iwm_softc *sc, struct ieee80211vap *vap,
+extern	int iwm_add_sta(struct iwm_softc *sc, struct iwm_node *in);
+extern	int iwm_update_sta(struct iwm_softc *sc, struct iwm_node *in);
+extern	int iwm_rm_sta(struct iwm_softc *sc, struct ieee80211vap *vap,
 			   boolean_t is_assoc);
-extern	int iwm_mvm_rm_sta_id(struct iwm_softc *sc, struct ieee80211vap *vap);
+extern	int iwm_rm_sta_id(struct iwm_softc *sc, struct ieee80211vap *vap);
 
-extern	int iwm_mvm_add_aux_sta(struct iwm_softc *sc);
-extern	void iwm_mvm_del_aux_sta(struct iwm_softc *sc);
+extern	int iwm_add_aux_sta(struct iwm_softc *sc);
+extern	void iwm_del_aux_sta(struct iwm_softc *sc);
 
-extern	int iwm_mvm_drain_sta(struct iwm_softc *sc, struct iwm_vap *ivp,
+extern	int iwm_drain_sta(struct iwm_softc *sc, struct iwm_vap *ivp,
 			      boolean_t drain);
 
 #endif /* __IF_IWM_STA_H__ */

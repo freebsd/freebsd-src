@@ -1814,29 +1814,29 @@ struct iwm_agn_scd_bc_tbl {
  */
 
 /* Maximum number of Tx queues. */
-#define IWM_MVM_MAX_QUEUES	31
+#define IWM_MAX_QUEUES	31
 
 /* Tx queue numbers */
 enum {
-	IWM_MVM_OFFCHANNEL_QUEUE = 8,
-	IWM_MVM_CMD_QUEUE = 9,
-	IWM_MVM_AUX_QUEUE = 15,
+	IWM_OFFCHANNEL_QUEUE = 8,
+	IWM_CMD_QUEUE = 9,
+	IWM_AUX_QUEUE = 15,
 };
 
-enum iwm_mvm_tx_fifo {
-	IWM_MVM_TX_FIFO_BK = 0,
-	IWM_MVM_TX_FIFO_BE,
-	IWM_MVM_TX_FIFO_VI,
-	IWM_MVM_TX_FIFO_VO,
-	IWM_MVM_TX_FIFO_MCAST = 5,
-	IWM_MVM_TX_FIFO_CMD = 7,
+enum iwm_tx_fifo {
+	IWM_TX_FIFO_BK = 0,
+	IWM_TX_FIFO_BE,
+	IWM_TX_FIFO_VI,
+	IWM_TX_FIFO_VO,
+	IWM_TX_FIFO_MCAST = 5,
+	IWM_TX_FIFO_CMD = 7,
 };
 
-#define IWM_MVM_STATION_COUNT	16
+#define IWM_STATION_COUNT	16
 
 /* commands */
 enum {
-	IWM_MVM_ALIVE = 0x1,
+	IWM_ALIVE = 0x1,
 	IWM_REPLY_ERROR = 0x2,
 
 	IWM_INIT_COMPLETE_NOTIF = 0x4,
@@ -2218,7 +2218,7 @@ struct iwm_nvm_access_resp {
 	uint8_t data[];
 } __packed; /* IWM_NVM_ACCESS_CMD_RESP_API_S_VER_2 */
 
-/* IWM_MVM_ALIVE 0x1 */
+/* IWM_ALIVE 0x1 */
 
 /* alive response is_valid values */
 #define IWM_ALIVE_RESP_UCODE_OK	(1 << 0)
@@ -2276,14 +2276,14 @@ struct iwm_umac_alive {
 	uint32_t dbg_print_buff_addr;
 } __packed; /* UMAC_ALIVE_DATA_API_S_VER_2 */
 
-struct iwm_mvm_alive_resp_v3 {
+struct iwm_alive_resp_v3 {
 	uint16_t status;
 	uint16_t flags;
 	struct iwm_lmac_alive lmac_data;
 	struct iwm_umac_alive umac_data;
 } __packed; /* ALIVE_RES_API_S_VER_3 */
 
-struct iwm_mvm_alive_resp {
+struct iwm_alive_resp {
 	uint16_t status;
 	uint16_t flags;
 	struct iwm_lmac_alive lmac_data[2];
@@ -2622,7 +2622,7 @@ struct iwm_binding_cmd {
 } __packed; /* IWM_BINDING_CMD_API_S_VER_1 */
 
 /* The maximal number of fragments in the FW's schedule session */
-#define IWM_MVM_MAX_QUOTA 128
+#define IWM_MAX_QUOTA 128
 
 /**
  * struct iwm_time_quota_data - configuration of time quota per binding
@@ -2846,7 +2846,7 @@ enum iwm_rx_phy_flags {
 };
 
 /**
- * enum iwm_mvm_rx_status - written by fw for each Rx packet
+ * enum iwm_rx_status - written by fw for each Rx packet
  * @IWM_RX_MPDU_RES_STATUS_CRC_OK: CRC is fine
  * @IWM_RX_MPDU_RES_STATUS_OVERRUN_OK: there was no RXE overflow
  * @IWM_RX_MPDU_RES_STATUS_SRC_STA_FOUND:
@@ -2877,7 +2877,7 @@ enum iwm_rx_phy_flags {
  * @IWM_RX_MPDU_RES_STATUS_FILTERING_MSK:
  * @IWM_RX_MPDU_RES_STATUS2_FILTERING_MSK:
  */
-enum iwm_mvm_rx_status {
+enum iwm_rx_status {
 	IWM_RX_MPDU_RES_STATUS_CRC_OK			= (1 << 0),
 	IWM_RX_MPDU_RES_STATUS_OVERRUN_OK		= (1 << 1),
 	IWM_RX_MPDU_RES_STATUS_SRC_STA_FOUND		= (1 << 2),
@@ -3086,14 +3086,14 @@ struct iwm_mcast_filter_cmd {
 /***********************************
  * Statistics API
  ***********************************/
-struct iwm_mvm_statistics_dbg {
+struct iwm_statistics_dbg {
 	uint32_t burst_check;
 	uint32_t burst_count;
 	uint32_t wait_for_silence_timeout_cnt;
 	uint32_t reserved[3];
 } __packed; /* IWM_STATISTICS_DEBUG_API_S_VER_2 */
 
-struct iwm_mvm_statistics_div {
+struct iwm_statistics_div {
 	uint32_t tx_on_a;
 	uint32_t tx_on_b;
 	uint32_t exec_time;
@@ -3102,7 +3102,7 @@ struct iwm_mvm_statistics_div {
 	uint32_t reserved2;
 } __packed; /* IWM_STATISTICS_SLOW_DIV_API_S_VER_2 */
 
-struct iwm_mvm_statistics_rx_non_phy {
+struct iwm_statistics_rx_non_phy {
 	uint32_t bogus_cts;	/* CTS received when not expecting CTS */
 	uint32_t bogus_ack;	/* ACK received when not expecting ACK */
 	uint32_t non_bssid_frames;	/* number of frames with BSSID that
@@ -3136,7 +3136,7 @@ struct iwm_mvm_statistics_rx_non_phy {
 	uint32_t directed_data_mpdu;
 } __packed; /* IWM_STATISTICS_RX_NON_PHY_API_S_VER_3 */
 
-struct iwm_mvm_statistics_rx_phy {
+struct iwm_statistics_rx_phy {
 	uint32_t ina_cnt;
 	uint32_t fina_cnt;
 	uint32_t plcp_err;
@@ -3159,7 +3159,7 @@ struct iwm_mvm_statistics_rx_phy {
 	uint32_t reserved;
 } __packed; /* IWM_STATISTICS_RX_PHY_API_S_VER_2 */
 
-struct iwm_mvm_statistics_rx_ht_phy {
+struct iwm_statistics_rx_ht_phy {
 	uint32_t plcp_err;
 	uint32_t overrun_err;
 	uint32_t early_overrun_err;
@@ -3172,7 +3172,7 @@ struct iwm_mvm_statistics_rx_ht_phy {
 	uint32_t unsupport_mcs;
 } __packed;  /* IWM_STATISTICS_HT_RX_PHY_API_S_VER_1 */
 
-struct iwm_mvm_statistics_tx_non_phy {
+struct iwm_statistics_tx_non_phy {
 	uint32_t preamble_cnt;
 	uint32_t rx_detected_cnt;
 	uint32_t bt_prio_defer_cnt;
@@ -3191,7 +3191,7 @@ struct iwm_mvm_statistics_tx_non_phy {
 
 #define IWM_MAX_CHAINS 3
 
-struct iwm_mvm_statistics_tx_non_phy_agg {
+struct iwm_statistics_tx_non_phy_agg {
 	uint32_t ba_timeout;
 	uint32_t ba_reschedule_frames;
 	uint32_t scd_query_agg_frame_cnt;
@@ -3207,7 +3207,7 @@ struct iwm_mvm_statistics_tx_non_phy_agg {
 	uint32_t reserved2;
 } __packed; /* IWM_STATISTICS_TX_NON_PHY_AGG_API_S_VER_1 */
 
-struct iwm_mvm_statistics_tx_channel_width {
+struct iwm_statistics_tx_channel_width {
 	uint32_t ext_cca_narrow_ch20[1];
 	uint32_t ext_cca_narrow_ch40[2];
 	uint32_t ext_cca_narrow_ch80[3];
@@ -3218,14 +3218,14 @@ struct iwm_mvm_statistics_tx_channel_width {
 	uint32_t fail_per_ch_width[4];
 }; /* IWM_STATISTICS_TX_CHANNEL_WIDTH_API_S_VER_1 */
 
-struct iwm_mvm_statistics_tx {
-	struct iwm_mvm_statistics_tx_non_phy general;
-	struct iwm_mvm_statistics_tx_non_phy_agg agg;
-	struct iwm_mvm_statistics_tx_channel_width channel_width;
+struct iwm_statistics_tx {
+	struct iwm_statistics_tx_non_phy general;
+	struct iwm_statistics_tx_non_phy_agg agg;
+	struct iwm_statistics_tx_channel_width channel_width;
 } __packed; /* IWM_STATISTICS_TX_API_S_VER_4 */
 
 
-struct iwm_mvm_statistics_bt_activity {
+struct iwm_statistics_bt_activity {
 	uint32_t hi_priority_tx_req_cnt;
 	uint32_t hi_priority_tx_denied_cnt;
 	uint32_t lo_priority_tx_req_cnt;
@@ -3236,15 +3236,15 @@ struct iwm_mvm_statistics_bt_activity {
 	uint32_t lo_priority_rx_denied_cnt;
 } __packed;  /* IWM_STATISTICS_BT_ACTIVITY_API_S_VER_1 */
 
-struct iwm_mvm_statistics_general_v8 {
+struct iwm_statistics_general_v8 {
 	uint32_t radio_temperature;
 	uint32_t radio_voltage;
-	struct iwm_mvm_statistics_dbg dbg;
+	struct iwm_statistics_dbg dbg;
 	uint32_t sleep_time;
 	uint32_t slots_out;
 	uint32_t slots_idle;
 	uint32_t ttl_timestamp;
-	struct iwm_mvm_statistics_div slow_div;
+	struct iwm_statistics_div slow_div;
 	uint32_t rx_enable_counter;
 	/*
 	 * num_of_sos_states:
@@ -3259,7 +3259,7 @@ struct iwm_mvm_statistics_general_v8 {
 	uint8_t beacon_filter_current_energy;
 	uint8_t beacon_filter_reserved;
 	uint32_t beacon_filter_delta_time;
-	struct iwm_mvm_statistics_bt_activity bt_activity;
+	struct iwm_statistics_bt_activity bt_activity;
 	uint64_t rx_time;
 	uint64_t on_time_rf;
 	uint64_t on_time_scan;
@@ -3269,11 +3269,11 @@ struct iwm_mvm_statistics_general_v8 {
 	uint8_t reserved[4 - (IWM_NUM_MAC_INDEX % 4)];
 } __packed; /* IWM_STATISTICS_GENERAL_API_S_VER_8 */
 
-struct iwm_mvm_statistics_rx {
-	struct iwm_mvm_statistics_rx_phy ofdm;
-	struct iwm_mvm_statistics_rx_phy cck;
-	struct iwm_mvm_statistics_rx_non_phy general;
-	struct iwm_mvm_statistics_rx_ht_phy ofdm_ht;
+struct iwm_statistics_rx {
+	struct iwm_statistics_rx_phy ofdm;
+	struct iwm_statistics_rx_phy cck;
+	struct iwm_statistics_rx_non_phy general;
+	struct iwm_statistics_rx_ht_phy ofdm_ht;
 } __packed; /* IWM_STATISTICS_RX_API_S_VER_3 */
 
 /*
@@ -3286,9 +3286,9 @@ struct iwm_mvm_statistics_rx {
 
 struct iwm_notif_statistics_v10 {
 	uint32_t flag;
-	struct iwm_mvm_statistics_rx rx;
-	struct iwm_mvm_statistics_tx tx;
-	struct iwm_mvm_statistics_general_v8 general;
+	struct iwm_statistics_rx rx;
+	struct iwm_statistics_tx tx;
+	struct iwm_statistics_general_v8 general;
 } __packed; /* IWM_STATISTICS_NTFY_API_S_VER_10 */
 
 #define IWM_STATISTICS_FLG_CLEAR		0x1
@@ -3677,7 +3677,7 @@ struct iwm_mac_ctx_cmd {
 	};
 } __packed; /* IWM_MAC_CONTEXT_CMD_API_S_VER_1 */
 
-static inline uint32_t iwm_mvm_reciprocal(uint32_t v)
+static inline uint32_t iwm_reciprocal(uint32_t v)
 {
 	if (!v)
 		return 0;
@@ -4754,11 +4754,11 @@ struct iwm_agg_tx_status {
 #define IWM_TX_RES_RATE_TABLE_COLOR_MSK 0x70
 #define IWM_TX_RES_INV_RATE_INDEX_MSK 0x80
 
-#define IWM_MVM_TX_RES_GET_TID(_ra_tid) ((_ra_tid) & 0x0f)
-#define IWM_MVM_TX_RES_GET_RA(_ra_tid) ((_ra_tid) >> 4)
+#define IWM_TX_RES_GET_TID(_ra_tid) ((_ra_tid) & 0x0f)
+#define IWM_TX_RES_GET_RA(_ra_tid) ((_ra_tid) >> 4)
 
 /**
- * struct iwm_mvm_tx_resp - notifies that fw is TXing a packet
+ * struct iwm_tx_resp - notifies that fw is TXing a packet
  * ( IWM_REPLY_TX = 0x1c )
  * @frame_count: 1 no aggregation, >1 aggregation
  * @bt_kill_count: num of times blocked by bluetooth (unused for agg)
@@ -4785,9 +4785,9 @@ struct iwm_agg_tx_status {
  *	follow this one, up to frame_count.
  *
  * After the array of statuses comes the SSN of the SCD. Look at
- * %iwm_mvm_get_scd_ssn for more details.
+ * %iwm_get_scd_ssn for more details.
  */
-struct iwm_mvm_tx_resp {
+struct iwm_tx_resp {
 	uint8_t frame_count;
 	uint8_t bt_kill_count;
 	uint8_t failure_rts;
@@ -4814,7 +4814,7 @@ struct iwm_mvm_tx_resp {
 } __packed; /* IWM_TX_RSP_API_S_VER_3 */
 
 /**
- * struct iwm_mvm_ba_notif - notifies about reception of BA
+ * struct iwm_ba_notif - notifies about reception of BA
  * ( IWM_BA_NOTIF = 0xc5 )
  * @sta_addr_lo32: lower 32 bits of the MAC address
  * @sta_addr_hi16: upper 16 bits of the MAC address
@@ -4827,7 +4827,7 @@ struct iwm_mvm_tx_resp {
  * @txed: number of Txed frames in this batch
  * @txed_2_done: number of Acked frames in this batch
  */
-struct iwm_mvm_ba_notif {
+struct iwm_ba_notif {
 	uint32_t sta_addr_lo32;
 	uint16_t sta_addr_hi16;
 	uint16_t reserved;
@@ -4861,7 +4861,7 @@ struct iwm_mac_beacon_cmd {
 } __packed;
 
 struct iwm_beacon_notif {
-	struct iwm_mvm_tx_resp beacon_notify_hdr;
+	struct iwm_tx_resp beacon_notify_hdr;
 	uint64_t tsf;
 	uint32_t ibss_mgr_status;
 } __packed;
@@ -4888,7 +4888,7 @@ struct iwm_tx_path_flush_cmd {
 } __packed; /* IWM_TX_PATH_FLUSH_CMD_API_S_VER_1 */
 
 /**
- * iwm_mvm_get_scd_ssn - returns the SSN of the SCD
+ * iwm_get_scd_ssn - returns the SSN of the SCD
  * @tx_resp: the Tx response from the fw (agg or non-agg)
  *
  * When the fw sends an AMPDU, it fetches the MPDUs one after the other. Since
@@ -4900,7 +4900,7 @@ struct iwm_tx_path_flush_cmd {
  * whole struct at a variable offset. This function knows how to cope with the
  * variable offset and returns the SSN of the SCD.
  */
-static inline uint32_t iwm_mvm_get_scd_ssn(struct iwm_mvm_tx_resp *tx_resp)
+static inline uint32_t iwm_get_scd_ssn(struct iwm_tx_resp *tx_resp)
 {
 	return le32_to_cpup((uint32_t *)&tx_resp->status +
 			    tx_resp->frame_count) & 0xfff;
@@ -4922,7 +4922,7 @@ static inline uint32_t iwm_mvm_get_scd_ssn(struct iwm_mvm_tx_resp *tx_resp)
  * @scd_queue: scheduler queue to confiug
  * @enable: 1 queue enable, 0 queue disable
  * @aggregate: 1 aggregated queue, 0 otherwise
- * @tx_fifo: %enum iwm_mvm_tx_fifo
+ * @tx_fifo: %enum iwm_tx_fifo
  * @window: BA window size
  * @ssn: SSN for the BA agreement
  */
@@ -5082,30 +5082,30 @@ struct iwm_scan_channel_opt {
 } __packed;
 
 /**
- * iwm_mvm_lmac_scan_flags
- * @IWM_MVM_LMAC_SCAN_FLAG_PASS_ALL: pass all beacons and probe responses
+ * iwm_lmac_scan_flags
+ * @IWM_LMAC_SCAN_FLAG_PASS_ALL: pass all beacons and probe responses
  *      without filtering.
- * @IWM_MVM_LMAC_SCAN_FLAG_PASSIVE: force passive scan on all channels
- * @IWM_MVM_LMAC_SCAN_FLAG_PRE_CONNECTION: single channel scan
- * @IWM_MVM_LMAC_SCAN_FLAG_ITER_COMPLETE: send iteration complete notification
- * @IWM_MVM_LMAC_SCAN_FLAG_MULTIPLE_SSIDS multiple SSID matching
- * @IWM_MVM_LMAC_SCAN_FLAG_FRAGMENTED: all passive scans will be fragmented
- * @IWM_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED: insert WFA vendor-specific TPC report
+ * @IWM_LMAC_SCAN_FLAG_PASSIVE: force passive scan on all channels
+ * @IWM_LMAC_SCAN_FLAG_PRE_CONNECTION: single channel scan
+ * @IWM_LMAC_SCAN_FLAG_ITER_COMPLETE: send iteration complete notification
+ * @IWM_LMAC_SCAN_FLAG_MULTIPLE_SSIDS multiple SSID matching
+ * @IWM_LMAC_SCAN_FLAG_FRAGMENTED: all passive scans will be fragmented
+ * @IWM_LMAC_SCAN_FLAGS_RRM_ENABLED: insert WFA vendor-specific TPC report
  *      and DS parameter set IEs into probe requests.
- * @IWM_MVM_LMAC_SCAN_FLAG_EXTENDED_DWELL: use extended dwell time on channels
+ * @IWM_LMAC_SCAN_FLAG_EXTENDED_DWELL: use extended dwell time on channels
  *      1, 6 and 11.
- * @IWM_MVM_LMAC_SCAN_FLAG_MATCH: Send match found notification on matches
+ * @IWM_LMAC_SCAN_FLAG_MATCH: Send match found notification on matches
  */
-enum iwm_mvm_lmac_scan_flags {
-	IWM_MVM_LMAC_SCAN_FLAG_PASS_ALL		= (1 << 0),
-	IWM_MVM_LMAC_SCAN_FLAG_PASSIVE		= (1 << 1),
-	IWM_MVM_LMAC_SCAN_FLAG_PRE_CONNECTION	= (1 << 2),
-	IWM_MVM_LMAC_SCAN_FLAG_ITER_COMPLETE	= (1 << 3),
-	IWM_MVM_LMAC_SCAN_FLAG_MULTIPLE_SSIDS	= (1 << 4),
-	IWM_MVM_LMAC_SCAN_FLAG_FRAGMENTED	= (1 << 5),
-	IWM_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED	= (1 << 6),
-	IWM_MVM_LMAC_SCAN_FLAG_EXTENDED_DWELL	= (1 << 7),
-	IWM_MVM_LMAC_SCAN_FLAG_MATCH		= (1 << 9),
+enum iwm_lmac_scan_flags {
+	IWM_LMAC_SCAN_FLAG_PASS_ALL		= (1 << 0),
+	IWM_LMAC_SCAN_FLAG_PASSIVE		= (1 << 1),
+	IWM_LMAC_SCAN_FLAG_PRE_CONNECTION	= (1 << 2),
+	IWM_LMAC_SCAN_FLAG_ITER_COMPLETE	= (1 << 3),
+	IWM_LMAC_SCAN_FLAG_MULTIPLE_SSIDS	= (1 << 4),
+	IWM_LMAC_SCAN_FLAG_FRAGMENTED	= (1 << 5),
+	IWM_LMAC_SCAN_FLAGS_RRM_ENABLED	= (1 << 6),
+	IWM_LMAC_SCAN_FLAG_EXTENDED_DWELL	= (1 << 7),
+	IWM_LMAC_SCAN_FLAG_MATCH		= (1 << 9),
 };
 
 enum iwm_scan_priority {
@@ -5124,7 +5124,7 @@ enum iwm_scan_priority {
  * @extended_dwell: dwell time for channels 1, 6 and 11 (in certain cases)
  * @reserved2: for alignment and future use
  * @rx_chain_selct: PHY_RX_CHAIN_* flags
- * @scan_flags: &enum iwm_mvm_lmac_scan_flags
+ * @scan_flags: &enum iwm_lmac_scan_flags
  * @max_out_time: max time (in TU) to be out of associated channel
  * @suspend_time: pause scan this long (TUs) when returning to service channel
  * @flags: RXON flags
@@ -5316,10 +5316,10 @@ struct iwm_lmac_scan_complete_notif {
 /* UMAC Scan API */
 
 /* The maximum of either of these cannot exceed 8, because we use an
- * 8-bit mask (see IWM_MVM_SCAN_MASK).
+ * 8-bit mask (see IWM_SCAN_MASK).
  */
-#define IWM_MVM_MAX_UMAC_SCANS 8
-#define IWM_MVM_MAX_LMAC_SCANS 1
+#define IWM_MAX_UMAC_SCANS 8
+#define IWM_MAX_LMAC_SCANS 1
 
 enum iwm_scan_config_flags {
 	IWM_SCAN_CONFIG_FLAG_ACTIVATE			= (1 << 0),
@@ -5847,7 +5847,7 @@ enum iwm_sta_sleep_flag {
 #define IWM_STA_KEY_LEN_WEP104 (13)
 
 /**
- * struct iwm_mvm_keyinfo - key information
+ * struct iwm_keyinfo - key information
  * @key_flags: type %iwm_sta_key_flag
  * @tkip_rx_tsc_byte2: TSC[2] for key mix ph1 detection
  * @tkip_rx_ttak: 10-byte unicast TKIP TTAK for Rx
@@ -5857,7 +5857,7 @@ enum iwm_sta_sleep_flag {
  * @hw_tkip_mic_rx_key: byte: MIC Rx Key - used for TKIP only
  * @hw_tkip_mic_tx_key: byte: MIC Tx Key - used for TKIP only
  */
-struct iwm_mvm_keyinfo {
+struct iwm_keyinfo {
 	uint16_t key_flags;
 	uint8_t tkip_rx_tsc_byte2;
 	uint8_t reserved1;
@@ -5876,7 +5876,7 @@ struct iwm_mvm_keyinfo {
 #define IWM_ADD_STA_BAID_SHIFT		8
 
 /**
- * struct iwl_mvm_add_sta_cmd_v7 - Add/modify a station in the fw's sta table.
+ * struct iwl_add_sta_cmd_v7 - Add/modify a station in the fw's sta table.
  * ( REPLY_ADD_STA = 0x18 )
  * @add_modify: see &enum iwl_sta_mode
  * @awake_acs: ACs to transmit data on while station is sleeping (for U-APSD)
@@ -5916,7 +5916,7 @@ struct iwm_mvm_keyinfo {
  * ADD_STA sets up the table entry for one station, either creating a new
  * entry, or modifying a pre-existing one.
  */
-struct iwm_mvm_add_sta_cmd_v7 {
+struct iwm_add_sta_cmd_v7 {
 	uint8_t add_modify;
 	uint8_t awake_acs;
 	uint16_t tid_disable_tx;
@@ -5957,7 +5957,7 @@ enum iwm_sta_type {
 };
 
 /**
- * struct iwm_mvm_add_sta_cmd - Add/modify a station in the fw's sta table.
+ * struct iwm_add_sta_cmd - Add/modify a station in the fw's sta table.
  * ( REPLY_ADD_STA = 0x18 )
  * @add_modify: see &enum iwm_sta_mode
  * @awake_acs: ACs to transmit data on while station is sleeping (for U-APSD)
@@ -6003,7 +6003,7 @@ enum iwm_sta_type {
  * ADD_STA sets up the table entry for one station, either creating a new
  * entry, or modifying a pre-existing one.
  */
-struct iwm_mvm_add_sta_cmd {
+struct iwm_add_sta_cmd {
 	uint8_t add_modify;
 	uint8_t awake_acs;
 	uint16_t tid_disable_tx;
@@ -6030,7 +6030,7 @@ struct iwm_mvm_add_sta_cmd {
 } __packed; /* ADD_STA_CMD_API_S_VER_10 */
 
 /**
- * struct iwm_mvm_add_sta_key_cmd - add/modify sta key
+ * struct iwm_add_sta_key_cmd - add/modify sta key
  * ( IWM_REPLY_ADD_STA_KEY = 0x17 )
  * @sta_id: index of station in uCode's station table
  * @key_offset: key offset in key storage
@@ -6041,7 +6041,7 @@ struct iwm_mvm_add_sta_cmd {
  * @tkip_rx_tsc_byte2: TSC[2] for key mix ph1 detection
  * @tkip_rx_ttak: 10-byte unicast TKIP TTAK for Rx
  */
-struct iwm_mvm_add_sta_key_cmd {
+struct iwm_add_sta_key_cmd {
 	uint8_t sta_id;
 	uint8_t key_offset;
 	uint16_t key_flags;
@@ -6054,14 +6054,14 @@ struct iwm_mvm_add_sta_key_cmd {
 } __packed; /* IWM_ADD_MODIFY_STA_KEY_API_S_VER_1 */
 
 /**
- * enum iwm_mvm_add_sta_rsp_status - status in the response to ADD_STA command
+ * enum iwm_add_sta_rsp_status - status in the response to ADD_STA command
  * @IWM_ADD_STA_SUCCESS: operation was executed successfully
  * @IWM_ADD_STA_STATIONS_OVERLOAD: no room left in the fw's station table
  * @IWM_ADD_STA_IMMEDIATE_BA_FAILURE: can't add Rx block ack session
  * @IWM_ADD_STA_MODIFY_NON_EXISTING_STA: driver requested to modify a station
  *	that doesn't exist.
  */
-enum iwm_mvm_add_sta_rsp_status {
+enum iwm_add_sta_rsp_status {
 	IWM_ADD_STA_SUCCESS			= 0x1,
 	IWM_ADD_STA_STATIONS_OVERLOAD		= 0x2,
 	IWM_ADD_STA_IMMEDIATE_BA_FAILURE	= 0x4,
@@ -6069,17 +6069,17 @@ enum iwm_mvm_add_sta_rsp_status {
 };
 
 /**
- * struct iwm_mvm_rm_sta_cmd - Add / modify a station in the fw's station table
+ * struct iwm_rm_sta_cmd - Add / modify a station in the fw's station table
  * ( IWM_REMOVE_STA = 0x19 )
  * @sta_id: the station id of the station to be removed
  */
-struct iwm_mvm_rm_sta_cmd {
+struct iwm_rm_sta_cmd {
 	uint8_t sta_id;
 	uint8_t reserved[3];
 } __packed; /* IWM_REMOVE_STA_CMD_API_S_VER_2 */
 
 /**
- * struct iwm_mvm_mgmt_mcast_key_cmd
+ * struct iwm_mgmt_mcast_key_cmd
  * ( IWM_MGMT_MCAST_KEY = 0x1f )
  * @ctrl_flags: %iwm_sta_key_flag
  * @IGTK:
@@ -6089,7 +6089,7 @@ struct iwm_mvm_rm_sta_cmd {
  * @key_id:
  * @receive_seq_cnt: initial RSC/PN needed for replay check
  */
-struct iwm_mvm_mgmt_mcast_key_cmd {
+struct iwm_mgmt_mcast_key_cmd {
 	uint32_t ctrl_flags;
 	uint8_t IGTK[16];
 	uint8_t K1[16];
@@ -6099,7 +6099,7 @@ struct iwm_mvm_mgmt_mcast_key_cmd {
 	uint64_t receive_seq_cnt;
 } __packed; /* SEC_MGMT_MULTICAST_KEY_CMD_API_S_VER_1 */
 
-struct iwm_mvm_wep_key {
+struct iwm_wep_key {
 	uint8_t key_index;
 	uint8_t key_offset;
 	uint16_t reserved1;
@@ -6108,13 +6108,13 @@ struct iwm_mvm_wep_key {
 	uint8_t key[16];
 } __packed;
 
-struct iwm_mvm_wep_key_cmd {
+struct iwm_wep_key_cmd {
 	uint32_t mac_id_n_color;
 	uint8_t num_keys;
 	uint8_t decryption_type;
 	uint8_t flags;
 	uint8_t reserved;
-	struct iwm_mvm_wep_key wep_key[0];
+	struct iwm_wep_key wep_key[0];
 } __packed; /* SEC_CURR_WEP_KEY_CMD_API_S_VER_2 */
 
 /*
