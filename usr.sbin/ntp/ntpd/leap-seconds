@@ -62,7 +62,7 @@
 #		Terry Quinn, "The BIPM and the Accurate Measurement
 #		of Time," Proc. of the IEEE, Vol. 79, pp. 894-905,
 #		July, 1991. <http://dx.doi.org/10.1109/5.84965>
-#		reprinted in: 
+#		reprinted in:
 #		   Christine Hackman and Donald B Sullivan (eds.)
 #		   Time and Frequency Measurement
 #		   American Association of Physics Teachers (1996)
@@ -204,10 +204,10 @@
 #	current -- the update time stamp, the data and the name of the file
 #	will not change.
 #
-#	Updated through IERS Bulletin C57
-#	File expires on:  28 December 2019
+#	Updated through IERS Bulletin C58
+#	File expires on:  28 June 2020
 #
-#@	3786480000
+#@	3802291200
 #
 2272060800	10	# 1 Jan 1972
 2287785600	11	# 1 Jul 1972
@@ -252,4 +252,4 @@
 #	the hash line is also ignored in the
 #	computation.
 #
-#h 	83c68138 d3650221 07dbbbcd 11fcc859 ced1106a
+#h 	f28827d2 f263b6c3 ec0f19eb a3e0dbf0 97f3fa30
