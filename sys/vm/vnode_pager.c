@@ -150,6 +150,7 @@ vnode_create_vobject(struct vnode *vp, off_t isize, struct thread *td)
 	vm_object_t object;
 	vm_ooffset_t size = isize;
 	struct vattr va;
+	bool last;
 
 	if (!vn_isdisk(vp, NULL) && vn_canvmio(vp) == FALSE)
 		return (0);
@@ -171,12 +172,15 @@ vnode_create_vobject(struct vnode *vp, off_t isize, struct thread *td)
 	object = vnode_pager_alloc(vp, size, 0, 0, td->td_ucred);
 	/*
 	 * Dereference the reference we just created.  This assumes
-	 * that the object is associated with the vp.
+	 * that the object is associated with the vp.  We still have
+	 * to serialize with vnode_pager_dealloc() for the last
+	 * potential reference.
 	 */
 	VM_OBJECT_RLOCK(object);
-	refcount_release(&object->ref_count);
+	last = refcount_release(&object->ref_count);
 	VM_OBJECT_RUNLOCK(object);
-	vrele(vp);
+	if (last)
+		vrele(vp);
 
 	KASSERT(vp->v_object != NULL, ("vnode_create_vobject: NULL object"));
 
@@ -293,15 +297,17 @@ retry:
 		}
 		vp->v_object = object;
 		VI_UNLOCK(vp);
+		vrefact(vp);
 	} else {
-		VM_OBJECT_WLOCK(object);
-		refcount_acquire(&object->ref_count);
+		vm_object_reference(object);
 #if VM_NRESERVLEVEL > 0
-		vm_object_color(object, 0);
+		if ((object->flags & OBJ_COLORED) == 0) {
+			VM_OBJECT_WLOCK(object);
+			vm_object_color(object, 0);
+			VM_OBJECT_WUNLOCK(object);
+		}
 #endif
-		VM_OBJECT_WUNLOCK(object);
 	}
-	vrefact(vp);
 	return (object);
 }
 
@@ -345,7 +351,7 @@ vnode_pager_dealloc(vm_object_t object)
 		vp->v_writecount = 0;
 	VI_UNLOCK(vp);
 	VM_OBJECT_WUNLOCK(object);
-	while (refs-- > 0)
+	if (refs > 0)
 		vunref(vp);
 	VM_OBJECT_WLOCK(object);
 }
