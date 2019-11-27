@@ -161,15 +161,15 @@ __FBSDID("$FreeBSD$");
  * BEGIN mvm/mac-ctxt.c
  */
 
-const uint8_t iwm_mvm_ac_to_tx_fifo[] = {
-	IWM_MVM_TX_FIFO_BE,
-	IWM_MVM_TX_FIFO_BK,
-	IWM_MVM_TX_FIFO_VI,
-	IWM_MVM_TX_FIFO_VO,
+const uint8_t iwm_ac_to_tx_fifo[] = {
+	IWM_TX_FIFO_BE,
+	IWM_TX_FIFO_BK,
+	IWM_TX_FIFO_VI,
+	IWM_TX_FIFO_VO,
 };
 
 static void
-iwm_mvm_ack_rates(struct iwm_softc *sc, int is2ghz,
+iwm_ack_rates(struct iwm_softc *sc, int is2ghz,
 	int *cck_rates, int *ofdm_rates, struct iwm_node *in)
 {
 	int lowest_present_ofdm = 100;
@@ -253,7 +253,7 @@ iwm_mvm_ack_rates(struct iwm_softc *sc, int is2ghz,
 }
 
 static void
-iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
+iwm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	struct iwm_mac_ctx_cmd *cmd, uint32_t action)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -305,8 +305,8 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	 * XXX This workaround makes the firmware behave more correctly once
 	 *     we are associated, regularly giving us statistics notifications,
 	 *     as well as signaling missed beacons to us.
-	 *     Since we only call iwm_mvm_mac_ctxt_add() and
-	 *     iwm_mvm_mac_ctxt_changed() when already authenticating or
+	 *     Since we only call iwm_mac_ctxt_add() and
+	 *     iwm_mac_ctxt_changed() when already authenticating or
 	 *     associating, ni->ni_bssid should always make sense here.
 	 */
 	if (ivp->iv_auth) {
@@ -325,7 +325,7 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	} else {
 		is2ghz = 1;
 	}
-	iwm_mvm_ack_rates(sc, is2ghz, &cck_ack_rates, &ofdm_ack_rates, in);
+	iwm_ack_rates(sc, is2ghz, &cck_ack_rates, &ofdm_ack_rates, in);
 	cmd->cck_rates = htole32(cck_ack_rates);
 	cmd->ofdm_rates = htole32(ofdm_ack_rates);
 
@@ -342,7 +342,7 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	 */
 
 	for (i = 0; i < WME_NUM_AC; i++) {
-		uint8_t txf = iwm_mvm_ac_to_tx_fifo[i];
+		uint8_t txf = iwm_ac_to_tx_fifo[i];
 
 		cmd->ac[txf].cw_min = htole16(ivp->queue_params[i].cw_min);
 		cmd->ac[txf].cw_max = htole16(ivp->queue_params[i].cw_max);
@@ -362,9 +362,9 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 }
 
 static int
-iwm_mvm_mac_ctxt_send_cmd(struct iwm_softc *sc, struct iwm_mac_ctx_cmd *cmd)
+iwm_mac_ctxt_send_cmd(struct iwm_softc *sc, struct iwm_mac_ctx_cmd *cmd)
 {
-	int ret = iwm_mvm_send_cmd_pdu(sc, IWM_MAC_CONTEXT_CMD, IWM_CMD_SYNC,
+	int ret = iwm_send_cmd_pdu(sc, IWM_MAC_CONTEXT_CMD, IWM_CMD_SYNC,
 				       sizeof(*cmd), cmd);
 	if (ret)
 		device_printf(sc->sc_dev,
@@ -377,7 +377,7 @@ iwm_mvm_mac_ctxt_send_cmd(struct iwm_softc *sc, struct iwm_mac_ctx_cmd *cmd)
  * Fill the specific data for mac context of type station or p2p client
  */
 static void
-iwm_mvm_mac_ctxt_cmd_fill_sta(struct iwm_softc *sc, struct iwm_node *in,
+iwm_mac_ctxt_cmd_fill_sta(struct iwm_softc *sc, struct iwm_node *in,
 	struct iwm_mac_data_sta *ctxt_sta, int force_assoc_off)
 {
 	struct ieee80211_node *ni = &in->in_ni;
@@ -444,15 +444,15 @@ iwm_mvm_mac_ctxt_cmd_fill_sta(struct iwm_softc *sc, struct iwm_node *in,
 	    "%s: ni_intval: %d, bi_reciprocal: %d, dtim_interval: %d, dtim_reciprocal: %d\n",
 	    __func__,
 	    ni->ni_intval,
-	    iwm_mvm_reciprocal(ni->ni_intval),
+	    iwm_reciprocal(ni->ni_intval),
 	    ni->ni_intval * dtim_period,
-	    iwm_mvm_reciprocal(ni->ni_intval * dtim_period));
+	    iwm_reciprocal(ni->ni_intval * dtim_period));
 
 	ctxt_sta->bi = htole32(ni->ni_intval);
-	ctxt_sta->bi_reciprocal = htole32(iwm_mvm_reciprocal(ni->ni_intval));
+	ctxt_sta->bi_reciprocal = htole32(iwm_reciprocal(ni->ni_intval));
 	ctxt_sta->dtim_interval = htole32(ni->ni_intval * dtim_period);
 	ctxt_sta->dtim_reciprocal =
-	    htole32(iwm_mvm_reciprocal(ni->ni_intval * dtim_period));
+	    htole32(iwm_reciprocal(ni->ni_intval * dtim_period));
 
 	/* 10 = CONN_MAX_LISTEN_INTERVAL */
 	ctxt_sta->listen_interval = htole32(10);
@@ -462,7 +462,7 @@ iwm_mvm_mac_ctxt_cmd_fill_sta(struct iwm_softc *sc, struct iwm_node *in,
 }
 
 static int
-iwm_mvm_mac_ctxt_cmd_station(struct iwm_softc *sc, struct ieee80211vap *vap,
+iwm_mac_ctxt_cmd_station(struct iwm_softc *sc, struct ieee80211vap *vap,
 	uint32_t action)
 {
 	struct ieee80211_node *ni = vap->iv_bss;
@@ -473,7 +473,7 @@ iwm_mvm_mac_ctxt_cmd_station(struct iwm_softc *sc, struct ieee80211vap *vap,
 	    "%s: called; action=%d\n", __func__, action);
 
 	/* Fill the common data for all mac context types */
-	iwm_mvm_mac_ctxt_cmd_common(sc, in, &cmd, action);
+	iwm_mac_ctxt_cmd_common(sc, in, &cmd, action);
 
 	/* Allow beacons to pass through as long as we are not associated,or we
 	 * do not have dtim period information */
@@ -483,21 +483,21 @@ iwm_mvm_mac_ctxt_cmd_station(struct iwm_softc *sc, struct ieee80211vap *vap,
 		cmd.filter_flags &= ~htole32(IWM_MAC_FILTER_IN_BEACON);
 
 	/* Fill the data specific for station mode */
-	iwm_mvm_mac_ctxt_cmd_fill_sta(sc, in,
+	iwm_mac_ctxt_cmd_fill_sta(sc, in,
 	    &cmd.sta, action == IWM_FW_CTXT_ACTION_ADD);
 
-	return iwm_mvm_mac_ctxt_send_cmd(sc, &cmd);
+	return iwm_mac_ctxt_send_cmd(sc, &cmd);
 }
 
 static int
-iwm_mvm_mac_ctx_send(struct iwm_softc *sc, struct ieee80211vap *vap,
+iwm_mac_ctx_send(struct iwm_softc *sc, struct ieee80211vap *vap,
     uint32_t action)
 {
-	return iwm_mvm_mac_ctxt_cmd_station(sc, vap, action);
+	return iwm_mac_ctxt_cmd_station(sc, vap, action);
 }
 
 int
-iwm_mvm_mac_ctxt_add(struct iwm_softc *sc, struct ieee80211vap *vap)
+iwm_mac_ctxt_add(struct iwm_softc *sc, struct ieee80211vap *vap)
 {
 	struct iwm_vap *iv = IWM_VAP(vap);
 	int ret;
@@ -508,7 +508,7 @@ iwm_mvm_mac_ctxt_add(struct iwm_softc *sc, struct ieee80211vap *vap)
 		return (EIO);
 	}
 
-	ret = iwm_mvm_mac_ctx_send(sc, vap, IWM_FW_CTXT_ACTION_ADD);
+	ret = iwm_mac_ctx_send(sc, vap, IWM_FW_CTXT_ACTION_ADD);
 	if (ret)
 		return (ret);
 	iv->is_uploaded = 1;
@@ -516,7 +516,7 @@ iwm_mvm_mac_ctxt_add(struct iwm_softc *sc, struct ieee80211vap *vap)
 }
 
 int
-iwm_mvm_mac_ctxt_changed(struct iwm_softc *sc, struct ieee80211vap *vap)
+iwm_mac_ctxt_changed(struct iwm_softc *sc, struct ieee80211vap *vap)
 {
 	struct iwm_vap *iv = IWM_VAP(vap);
 
@@ -525,12 +525,12 @@ iwm_mvm_mac_ctxt_changed(struct iwm_softc *sc, struct ieee80211vap *vap)
 		    __func__);
 		return (EIO);
 	}
-	return iwm_mvm_mac_ctx_send(sc, vap, IWM_FW_CTXT_ACTION_MODIFY);
+	return iwm_mac_ctx_send(sc, vap, IWM_FW_CTXT_ACTION_MODIFY);
 }
 
 #if 0
 static int
-iwm_mvm_mac_ctxt_remove(struct iwm_softc *sc, struct iwm_node *in)
+iwm_mac_ctxt_remove(struct iwm_softc *sc, struct iwm_node *in)
 {
 	struct iwm_mac_ctx_cmd cmd;
 	int ret;
@@ -547,7 +547,7 @@ iwm_mvm_mac_ctxt_remove(struct iwm_softc *sc, struct iwm_node *in)
 	    IWM_DEFAULT_COLOR));
 	cmd.action = htole32(IWM_FW_CTXT_ACTION_REMOVE);
 
-	ret = iwm_mvm_send_cmd_pdu(sc,
+	ret = iwm_send_cmd_pdu(sc,
 	    IWM_MAC_CONTEXT_CMD, IWM_CMD_SYNC, sizeof(cmd), &cmd);
 	if (ret) {
 		device_printf(sc->sc_dev,

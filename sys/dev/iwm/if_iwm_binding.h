@@ -105,7 +105,7 @@
 #ifndef	__IF_IWM_BINDING_H__
 #define	__IF_IWM_BINDING_H__
 
-extern	int iwm_mvm_binding_add_vif(struct iwm_softc *sc, struct iwm_vap *ivp);
-extern	int iwm_mvm_binding_remove_vif(struct iwm_softc *sc, struct iwm_vap *ivp);
+extern	int iwm_binding_add_vif(struct iwm_softc *sc, struct iwm_vap *ivp);
+extern	int iwm_binding_remove_vif(struct iwm_softc *sc, struct iwm_vap *ivp);
 
 #endif	/* __IF_IWM_BINDING_H__ */
