@@ -1690,15 +1690,6 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 		return;
 #endif
 
-	/*
-	 * Avoid blowout in namecache entries.
-	 */
-	lnumcache = atomic_fetchadd_long(&numcache, 1) + 1;
-	if (__predict_false(lnumcache >= ncsize)) {
-		atomic_add_long(&numcache, -1);
-		return;
-	}
-
 	cache_celockstate_init(&cel);
 	ndd = NULL;
 	ncp_ts = NULL;
@@ -1760,6 +1751,15 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 			SDT_PROBE3(vfs, namecache, enter, done, dvp, "..", vp);
 			flag = NCF_ISDOTDOT;
 		}
+	}
+
+	/*
+	 * Avoid blowout in namecache entries.
+	 */
+	lnumcache = atomic_fetchadd_long(&numcache, 1) + 1;
+	if (__predict_false(lnumcache >= ncsize)) {
+		atomic_add_long(&numcache, -1);
+		return;
 	}
 
 	held_dvp = false;
