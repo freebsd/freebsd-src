@@ -1180,11 +1180,15 @@ SYSCTL_PROC(_hw, OID_AUTO, mds_disable, CTLTYPE_INT |
 int x86_taa_enable;
 int x86_taa_state;
 enum {
-	TAA_NONE	= 0,
-	TAA_TSX_DISABLE	= 1,
-	TAA_VERW	= 2,
-	TAA_AUTO	= 3,
-	TAA_TAA_NO	= 4
+	TAA_NONE	= 0,	/* No mitigation enabled */
+	TAA_TSX_DISABLE	= 1,	/* Disable TSX via MSR */
+	TAA_VERW	= 2,	/* Use VERW mitigation */
+	TAA_AUTO	= 3,	/* Automatically select the mitigation */
+
+	/* The states below are not selectable by the operator */
+
+	TAA_TAA_UC	= 4,	/* Mitigation present in microcode */
+	TAA_NOT_PRESENT	= 5	/* TSX is not present */
 };
 
 static void
@@ -1208,7 +1212,7 @@ x86_taa_recalculate(void)
 	if ((cpu_stdext_feature & CPUID_STDEXT_HLE) == 0 ||
 	    (cpu_stdext_feature & CPUID_STDEXT_RTM) == 0) {
 		/* TSX is not present */
-		x86_taa_state = 0;
+		x86_taa_state = TAA_NOT_PRESENT;
 		return;
 	}
 
@@ -1216,7 +1220,7 @@ x86_taa_recalculate(void)
 	if (cpu_ia32_arch_caps & IA32_ARCH_CAP_TAA_NO) {
 		/* CPU is not suseptible to TAA */
 		taa_need = TAA_NONE;
-		taa_state = TAA_TAA_NO;
+		taa_state = TAA_TAA_UC;
 	} else if (cpu_ia32_arch_caps & IA32_ARCH_CAP_TSX_CTRL) {
 		/*
 		 * CPU can turn off TSX.  This is the next best option
@@ -1323,9 +1327,11 @@ sysctl_taa_state_handler(SYSCTL_HANDLER_ARGS)
 	case TAA_VERW:
 		state = "VERW";
 		break;
-	case TAA_TAA_NO:
-		state = "Not vulnerable";
+	case TAA_TAA_UC:
+		state = "Mitigated in microcode";
 		break;
+	case TAA_NOT_PRESENT:
+		state = "TSX not present";
 	default:
 		state = "unknown";
 	}
