@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/procdesc.h>
+#include <sys/ptrace.h>
 #include <sys/posix4.h>
 #include <sys/pioctl.h>
 #include <sys/racct.h>
@@ -1252,11 +1253,13 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 	int error, sig, timo, timevalid = 0;
 	struct timespec rts, ets, ts;
 	struct timeval tv;
+	bool traced;
 
 	p = td->td_proc;
 	error = 0;
 	ets.tv_sec = 0;
 	ets.tv_nsec = 0;
+	traced = false;
 
 	if (timeout != NULL) {
 		if (timeout->tv_nsec >= 0 && timeout->tv_nsec < 1000000000) {
@@ -1309,6 +1312,11 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 			timo = 0;
 		}
 
+		if (traced) {
+			error = EINTR;
+			break;
+		}
+
 		error = msleep(ps, &p->p_mtx, PPAUSE|PCATCH, "sigwait", timo);
 
 		if (timeout != NULL) {
@@ -1320,6 +1328,16 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 				error = 0;
 			}
 		}
+
+		/*
+		 * If PTRACE_SCE or PTRACE_SCX were set after
+		 * userspace entered the syscall, return spurious
+		 * EINTR after wait was done.  Only do this as last
+		 * resort after rechecking for possible queued signals
+		 * and expired timeouts.
+		 */
+		if (error == 0 && (p->p_ptevents & PTRACE_SYSCALL) != 0)
+			traced = true;
 	}
 
 	new_block = saved_mask;
@@ -1532,6 +1550,14 @@ kern_sigsuspend(struct thread *td, sigset_t mask)
 			has_sig += postsig(sig);
 		}
 		mtx_unlock(&p->p_sigacts->ps_mtx);
+
+		/*
+		 * If PTRACE_SCE or PTRACE_SCX were set after
+		 * userspace entered the syscall, return spurious
+		 * EINTR.
+		 */
+		if ((p->p_ptevents & PTRACE_SYSCALL) != 0)
+			has_sig += 1;
 	}
 	PROC_UNLOCK(p);
 	td->td_errno = EINTR;
