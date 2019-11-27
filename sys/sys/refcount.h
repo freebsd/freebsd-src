@@ -72,7 +72,7 @@ refcount_init(volatile u_int *count, u_int value)
 	*count = value;
 }
 
-static __inline void
+static __inline u_int
 refcount_acquire(volatile u_int *count)
 {
 	u_int old;
@@ -80,9 +80,11 @@ refcount_acquire(volatile u_int *count)
 	old = atomic_fetchadd_int(count, 1);
 	if (__predict_false(REFCOUNT_SATURATED(old)))
 		_refcount_update_saturated(count);
+
+	return (old);
 }
 
-static __inline void
+static __inline u_int
 refcount_acquiren(volatile u_int *count, u_int n)
 {
 	u_int old;
@@ -92,6 +94,8 @@ refcount_acquiren(volatile u_int *count, u_int n)
 	old = atomic_fetchadd_int(count, n);
 	if (__predict_false(REFCOUNT_SATURATED(old)))
 		_refcount_update_saturated(count);
+
+	return (old);
 }
 
 static __inline __result_use_check bool
@@ -144,13 +148,13 @@ refcount_wait(volatile u_int *count, const char *wmesg, int prio)
  * incremented. Else zero is returned.
  */
 static __inline __result_use_check bool
-refcount_acquire_if_not_zero(volatile u_int *count)
+refcount_acquire_if_gt(volatile u_int *count, u_int n)
 {
 	u_int old;
 
 	old = *count;
 	for (;;) {
-		if (REFCOUNT_COUNT(old) == 0)
+		if (REFCOUNT_COUNT(old) <= n)
 			return (false);
 		if (__predict_false(REFCOUNT_SATURATED(old)))
 			return (true);
@@ -160,19 +164,10 @@ refcount_acquire_if_not_zero(volatile u_int *count)
 }
 
 static __inline __result_use_check bool
-refcount_release_if_not_last(volatile u_int *count)
+refcount_acquire_if_not_zero(volatile u_int *count)
 {
-	u_int old;
 
-	old = *count;
-	for (;;) {
-		if (REFCOUNT_COUNT(old) == 1)
-			return (false);
-		if (__predict_false(REFCOUNT_SATURATED(old)))
-			return (true);
-		if (atomic_fcmpset_int(count, &old, old - 1))
-			return (true);
-	}
+	return refcount_acquire_if_gt(count, 0);
 }
 
 static __inline __result_use_check bool
@@ -193,4 +188,10 @@ refcount_release_if_gt(volatile u_int *count, u_int n)
 	}
 }
 
+static __inline __result_use_check bool
+refcount_release_if_not_last(volatile u_int *count)
+{
+
+	return refcount_release_if_gt(count, 1);
+}
 #endif	/* ! __SYS_REFCOUNT_H__ */

@@ -468,11 +468,28 @@ vm_object_allocate_anon(vm_pindex_t size)
 void
 vm_object_reference(vm_object_t object)
 {
+	struct vnode *vp;
+	u_int old;
+
 	if (object == NULL)
 		return;
-	VM_OBJECT_RLOCK(object);
-	vm_object_reference_locked(object);
-	VM_OBJECT_RUNLOCK(object);
+
+	/*
+	 * Many places assume exclusive access to objects with a single
+	 * ref. vm_object_collapse() in particular will directly mainpulate
+	 * references for objects in this state.  vnode objects only need
+	 * the lock for the first ref to reference the vnode.
+	 */
+	if (!refcount_acquire_if_gt(&object->ref_count,
+	    object->type == OBJT_VNODE ? 0 : 1)) {
+		VM_OBJECT_RLOCK(object);
+		old = refcount_acquire(&object->ref_count);
+		if (object->type == OBJT_VNODE && old == 0) {
+			vp = object->handle;
+			vref(vp);
+		}
+		VM_OBJECT_RUNLOCK(object);
+	}
 }
 
 /*
@@ -486,10 +503,11 @@ void
 vm_object_reference_locked(vm_object_t object)
 {
 	struct vnode *vp;
+	u_int old;
 
 	VM_OBJECT_ASSERT_LOCKED(object);
-	refcount_acquire(&object->ref_count);
-	if (object->type == OBJT_VNODE) {
+	old = refcount_acquire(&object->ref_count);
+	if (object->type == OBJT_VNODE && old == 0) {
 		vp = object->handle;
 		vref(vp);
 	}
@@ -507,11 +525,10 @@ vm_object_vndeallocate(vm_object_t object)
 	    ("vm_object_vndeallocate: not a vnode object"));
 	KASSERT(vp != NULL, ("vm_object_vndeallocate: missing vp"));
 
-	if (refcount_release(&object->ref_count) &&
-	    !umtx_shm_vnobj_persistent)
+	if (!umtx_shm_vnobj_persistent)
 		umtx_shm_object_terminated(object);
 
-	VM_OBJECT_RUNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 	/* vrele may need the vnode lock. */
 	vrele(vp);
 }
@@ -531,15 +548,9 @@ void
 vm_object_deallocate(vm_object_t object)
 {
 	vm_object_t robject, temp;
-	bool released;
+	bool last, released;
 
 	while (object != NULL) {
-		VM_OBJECT_RLOCK(object);
-		if (object->type == OBJT_VNODE) {
-			vm_object_vndeallocate(object);
-			return;
-		}
-
 		/*
 		 * If the reference count goes to 0 we start calling
 		 * vm_object_terminate() on the object chain.  A ref count
@@ -551,7 +562,6 @@ vm_object_deallocate(vm_object_t object)
 			released = refcount_release_if_gt(&object->ref_count, 1);
 		else
 			released = refcount_release_if_gt(&object->ref_count, 2);
-		VM_OBJECT_RUNLOCK(object);
 		if (released)
 			return;
 
@@ -559,7 +569,14 @@ vm_object_deallocate(vm_object_t object)
 		KASSERT(object->ref_count != 0,
 			("vm_object_deallocate: object deallocated too many times: %d", object->type));
 
-		refcount_release(&object->ref_count);
+		last = refcount_release(&object->ref_count);
+		if (object->type == OBJT_VNODE) {
+			if (last)
+				vm_object_vndeallocate(object);
+			else
+				VM_OBJECT_WUNLOCK(object);
+			return;
+		}
 		if (object->ref_count > 1) {
 			VM_OBJECT_WUNLOCK(object);
 			return;
@@ -629,7 +646,7 @@ retry:
 						VM_OBJECT_WUNLOCK(object);
 
 					if (robject->ref_count == 1) {
-						robject->ref_count--;
+						refcount_release(&robject->ref_count);
 						object = robject;
 						goto doterm;
 					}
@@ -1838,7 +1855,7 @@ vm_object_collapse(vm_object_t object)
 			    backing_object));
 			vm_object_pip_wakeup(backing_object);
 			backing_object->type = OBJT_DEAD;
-			backing_object->ref_count = 0;
+			refcount_release(&backing_object->ref_count);
 			VM_OBJECT_WUNLOCK(backing_object);
 			vm_object_destroy(backing_object);
 
