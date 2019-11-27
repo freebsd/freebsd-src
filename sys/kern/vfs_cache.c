@@ -1661,6 +1661,33 @@ cache_enter_unlock(struct celockstate *cel)
 	cache_unlock_vnodes_cel(cel);
 }
 
+static void __noinline
+cache_enter_dotdot_prep(struct vnode *dvp, struct vnode *vp,
+    struct componentname *cnp)
+{
+	struct celockstate cel;
+	struct namecache *ncp;
+	uint32_t hash;
+	int len;
+
+	if (dvp->v_cache_dd == NULL)
+		return;
+	len = cnp->cn_namelen;
+	cache_celockstate_init(&cel);
+	hash = cache_get_hash(cnp->cn_nameptr, len, dvp);
+	cache_enter_lock_dd(&cel, dvp, vp, hash);
+	ncp = dvp->v_cache_dd;
+	if (ncp != NULL && (ncp->nc_flag & NCF_ISDOTDOT)) {
+		KASSERT(ncp->nc_dvp == dvp, ("wrong isdotdot parent"));
+		cache_zap_locked(ncp, false);
+	} else {
+		ncp = NULL;
+	}
+	dvp->v_cache_dd = NULL;
+	cache_enter_unlock(&cel);
+	cache_free(ncp);
+}
+
 /*
  * Add an entry to the cache.
  */
@@ -1672,11 +1699,10 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	struct namecache *ncp, *n2, *ndd;
 	struct namecache_ts *ncp_ts, *n2_ts;
 	struct nchashhead *ncpp;
-	struct neglist *neglist;
 	uint32_t hash;
 	int flag;
 	int len;
-	bool neg_locked, held_dvp;
+	bool held_dvp;
 	u_long lnumcache;
 
 	CTR3(KTR_VFS, "cache_enter(%p, %p, %s)", dvp, vp, cnp->cn_nameptr);
@@ -1690,65 +1716,12 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 		return;
 #endif
 
-	cache_celockstate_init(&cel);
-	ndd = NULL;
-	ncp_ts = NULL;
 	flag = 0;
-	if (cnp->cn_nameptr[0] == '.') {
+	if (__predict_false(cnp->cn_nameptr[0] == '.')) {
 		if (cnp->cn_namelen == 1)
 			return;
 		if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.') {
-			len = cnp->cn_namelen;
-			hash = cache_get_hash(cnp->cn_nameptr, len, dvp);
-			cache_enter_lock_dd(&cel, dvp, vp, hash);
-			/*
-			 * If dotdot entry already exists, just retarget it
-			 * to new parent vnode, otherwise continue with new
-			 * namecache entry allocation.
-			 */
-			if ((ncp = dvp->v_cache_dd) != NULL &&
-			    ncp->nc_flag & NCF_ISDOTDOT) {
-				KASSERT(ncp->nc_dvp == dvp,
-				    ("wrong isdotdot parent"));
-				neg_locked = false;
-				if (ncp->nc_flag & NCF_NEGATIVE || vp == NULL) {
-					neglist = NCP2NEGLIST(ncp);
-					mtx_lock(&ncneg_hot.nl_lock);
-					mtx_lock(&neglist->nl_lock);
-					neg_locked = true;
-				}
-				if (!(ncp->nc_flag & NCF_NEGATIVE)) {
-					TAILQ_REMOVE(&ncp->nc_vp->v_cache_dst,
-					    ncp, nc_dst);
-				} else {
-					cache_negative_remove(ncp, true);
-				}
-				if (vp != NULL) {
-					TAILQ_INSERT_HEAD(&vp->v_cache_dst,
-					    ncp, nc_dst);
-					if (ncp->nc_flag & NCF_HOTNEGATIVE)
-						numhotneg--;
-					ncp->nc_flag &= ~(NCF_NEGATIVE|NCF_HOTNEGATIVE);
-				} else {
-					if (ncp->nc_flag & NCF_HOTNEGATIVE) {
-						numhotneg--;
-						ncp->nc_flag &= ~(NCF_HOTNEGATIVE);
-					}
-					ncp->nc_flag |= NCF_NEGATIVE;
-					cache_negative_insert(ncp, true);
-				}
-				if (neg_locked) {
-					mtx_unlock(&neglist->nl_lock);
-					mtx_unlock(&ncneg_hot.nl_lock);
-				}
-				ncp->nc_vp = vp;
-				cache_enter_unlock(&cel);
-				return;
-			}
-			dvp->v_cache_dd = NULL;
-			cache_enter_unlock(&cel);
-			cache_celockstate_init(&cel);
-			SDT_PROBE3(vfs, namecache, enter, done, dvp, "..", vp);
+			cache_enter_dotdot_prep(dvp, vp, cnp);
 			flag = NCF_ISDOTDOT;
 		}
 	}
@@ -1761,6 +1734,10 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 		atomic_add_long(&numcache, -1);
 		return;
 	}
+
+	cache_celockstate_init(&cel);
+	ndd = NULL;
+	ncp_ts = NULL;
 
 	held_dvp = false;
 	if (LIST_EMPTY(&dvp->v_cache_src) && flag != NCF_ISDOTDOT) {
