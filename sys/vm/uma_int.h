@@ -389,6 +389,7 @@ struct uma_zone {
 #define	UMA_ZFLAG_RECLAIMING	0x08000000	/* Running zone_reclaim(). */
 #define	UMA_ZFLAG_BUCKET	0x10000000	/* Bucket zone. */
 #define UMA_ZFLAG_INTERNAL	0x20000000	/* No offpage no PCPU. */
+#define UMA_ZFLAG_TRASH		0x40000000	/* Add trash ctor/dtor. */
 #define UMA_ZFLAG_CACHEONLY	0x80000000	/* Don't ask VM for buckets. */
 
 #define	UMA_ZFLAG_INHERIT						\
