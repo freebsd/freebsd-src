@@ -10288,15 +10288,13 @@ ipf_pcksum6(fin, ip6, off, len)
 {
 #ifdef	_KERNEL
 	struct mbuf *m;
-	int sum;
 
 	m = fin->fin_m;
 	if (m->m_len < sizeof(struct ip6_hdr)) {
 		return 0xffff;
 	}
 
-	sum = in6_cksum(m, ip6->ip6_nxt, off, len);
-	return(sum);
+	return(in6_cksum(m, ip6->ip6_nxt, off, len));
 #else
 	u_short *sp;
 	u_int sum;
