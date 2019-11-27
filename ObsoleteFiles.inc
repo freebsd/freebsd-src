@@ -1136,6 +1136,9 @@ OLD_FILES+=usr/tests/usr.sbin/pw/pw_useradd
 OLD_FILES+=usr/tests/usr.sbin/pw/pw_userdel
 OLD_FILES+=usr/tests/usr.sbin/pw/pw_usermod
 OLD_FILES+=usr/tests/usr.sbin/pw/pw_usernext
+# 20170313: sbin/ipftest and ipresend temporarily disconnected.
+OLD_FILES+=sbin/ipftest
+OLD_FILES+=sbin/ipresend
 # 20170308: rename some tests
 OLD_FILES+=usr/tests/bin/pwait/pwait
 OLD_FILES+=usr/tests/usr.bin/timeout/timeout
