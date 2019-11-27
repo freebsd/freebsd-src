@@ -973,3 +973,66 @@ dmar_fini_busdma(struct dmar_unit *unit)
 	taskqueue_free(unit->delayed_taskqueue);
 	unit->delayed_taskqueue = NULL;
 }
+
+int
+bus_dma_dmar_load_ident(bus_dma_tag_t dmat, bus_dmamap_t map1,
+    vm_paddr_t start, vm_size_t length, int flags)
+{
+	struct bus_dma_tag_common *tc;
+	struct bus_dma_tag_dmar *tag;
+	struct bus_dmamap_dmar *map;
+	struct dmar_ctx *ctx;
+	struct dmar_domain *domain;
+	struct dmar_map_entry *entry;
+	vm_page_t *ma;
+	vm_size_t i;
+	int error;
+	bool waitok;
+
+	MPASS((start & PAGE_MASK) == 0);
+	MPASS((length & PAGE_MASK) == 0);
+	MPASS(length > 0);
+	MPASS(start + length >= start);
+	MPASS((flags & ~(BUS_DMA_NOWAIT | BUS_DMA_NOWRITE)) == 0);
+
+	tc = (struct bus_dma_tag_common *)dmat;
+	if (tc->impl != &bus_dma_dmar_impl)
+		return (0);
+
+	tag = (struct bus_dma_tag_dmar *)dmat;
+	ctx = tag->ctx;
+	domain = ctx->domain;
+	map = (struct bus_dmamap_dmar *)map1;
+	waitok = (flags & BUS_DMA_NOWAIT) != 0;
+
+	entry = dmar_gas_alloc_entry(domain, waitok ? 0 : DMAR_PGF_WAITOK);
+	if (entry == NULL)
+		return (ENOMEM);
+	entry->start = start;
+	entry->end = start + length;
+	ma = malloc(sizeof(vm_page_t) * atop(length), M_TEMP, waitok ?
+	    M_WAITOK : M_NOWAIT);
+	if (ma == NULL) {
+		dmar_gas_free_entry(domain, entry);
+		return (ENOMEM);
+	}
+	for (i = 0; i < atop(length); i++) {
+		ma[i] = vm_page_getfake(entry->start + PAGE_SIZE * i,
+		    VM_MEMATTR_DEFAULT);
+	}
+	error = dmar_gas_map_region(domain, entry, DMAR_MAP_ENTRY_READ |
+	    ((flags & BUS_DMA_NOWRITE) ? 0 : DMAR_MAP_ENTRY_WRITE),
+	    waitok ? DMAR_GM_CANWAIT : 0, ma);
+	if (error == 0) {
+		DMAR_DOMAIN_LOCK(domain);
+		TAILQ_INSERT_TAIL(&map->map_entries, entry, dmamap_link);
+		entry->flags |= DMAR_MAP_ENTRY_MAP;
+		DMAR_DOMAIN_UNLOCK(domain);
+	} else {
+		dmar_domain_unload_entry(entry, true);
+	}
+	for (i = 0; i < atop(length); i++)
+		vm_page_putfake(ma[i]);
+	free(ma, M_TEMP);
+	return (error);
+}

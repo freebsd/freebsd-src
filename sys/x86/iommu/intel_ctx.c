@@ -279,7 +279,7 @@ domain_init_rmrr(struct dmar_domain *domain, device_t dev, int bus,
 		}
 		error1 = dmar_gas_map_region(domain, entry,
 		    DMAR_MAP_ENTRY_READ | DMAR_MAP_ENTRY_WRITE,
-		    DMAR_GM_CANWAIT, ma);
+		    DMAR_GM_CANWAIT | DMAR_GM_RMRR, ma);
 		/*
 		 * Non-failed RMRR entries are owned by context rb
 		 * tree.  Get rid of the failed entry, but do not stop
