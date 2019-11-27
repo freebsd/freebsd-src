@@ -107,6 +107,7 @@ struct lock_class {
 #define	LOP_TRYLOCK	0x00000004	/* Don't check lock order. */
 #define	LOP_EXCLUSIVE	0x00000008	/* Exclusive lock. */
 #define	LOP_DUPOK	0x00000010	/* Don't check for duplicate acquires */
+#define	LOP_NOSLEEP	0x00000020	/* Non-sleepable despite LO_SLEEPABLE */
 
 /* Flags passed to witness_assert. */
 #define	LA_MASKASSERT	0x000000ff	/* Mask for witness defined asserts. */

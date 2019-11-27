@@ -652,8 +652,8 @@ _rm_rlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
 		KASSERT(!rm_wowned(rm),
 		    ("rm_rlock: wlock already held for %s @ %s:%d",
 		    rm->lock_object.lo_name, file, line));
-		WITNESS_CHECKORDER(&rm->lock_object, LOP_NEWORDER, file, line,
-		    NULL);
+		WITNESS_CHECKORDER(&rm->lock_object,
+		    LOP_NEWORDER | LOP_NOSLEEP, file, line, NULL);
 	}
 
 	if (_rm_rlock(rm, tracker, trylock)) {
@@ -663,7 +663,7 @@ _rm_rlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
 		else
 			LOCK_LOG_LOCK("RMRLOCK", &rm->lock_object, 0, 0, file,
 			    line);
-		WITNESS_LOCK(&rm->lock_object, 0, file, line);
+		WITNESS_LOCK(&rm->lock_object, LOP_NOSLEEP, file, line);
 		TD_LOCKS_INC(curthread);
 		return (1);
 	} else if (trylock)
