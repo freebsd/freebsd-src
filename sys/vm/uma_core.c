@@ -283,6 +283,7 @@ static int zone_import(uma_zone_t, void **, int, int, int);
 static void zone_release(uma_zone_t, void **, int);
 static void uma_zero_item(void *, uma_zone_t);
 static bool cache_alloc(uma_zone_t, uma_cache_t, void *, int);
+static bool cache_free(uma_zone_t, uma_cache_t, void *, void *, int);
 
 void uma_print_zone(uma_zone_t);
 void uma_print_stats(void);
@@ -2466,6 +2467,17 @@ bucket_pop(uma_zone_t zone, uma_cache_t cache, uma_bucket_t bucket)
 	return (item);
 }
 
+static inline void
+bucket_push(uma_zone_t zone, uma_cache_t cache, uma_bucket_t bucket,
+    void *item)
+{
+	KASSERT(bucket->ub_bucket[bucket->ub_cnt] == NULL,
+	    ("uma_zfree: Freeing to non free bucket index."));
+	bucket->ub_bucket[bucket->ub_cnt] = item;
+	bucket->ub_cnt++;
+	cache->uc_frees++;
+}
+
 static void *
 item_ctor(uma_zone_t zone, void *udata, int flags, void *item)
 {
@@ -3158,12 +3170,7 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 {
 	uma_cache_t cache;
 	uma_bucket_t bucket;
-	uma_zone_domain_t zdom;
-	int cpu, domain;
-#ifdef UMA_XDOMAIN
-	int itemdomain;
-#endif
-	bool lockfail;
+	int cpu, domain, itemdomain;
 
 	/* Enable entropy collection for RANDOM_ENABLE_UMA kernel option */
 	random_harvest_fast_uma(&zone, sizeof(zone), RANDOM_UMA);
@@ -3196,11 +3203,6 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	if (zone->uz_sleepers > 0)
 		goto zfree_item;
 
-#ifdef UMA_XDOMAIN
-	if ((zone->uz_flags & UMA_ZONE_NUMA) != 0)
-		itemdomain = _vm_phys_domain(pmap_kextract((vm_offset_t)item));
-#endif
-
 	/*
 	 * If possible, free to the per-CPU cache.  There are two
 	 * requirements for safe access to the per-CPU cache: (1) the thread
@@ -3212,175 +3214,187 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	 * current cache; when we re-acquire the critical section, we must
 	 * detect and handle migration if it has occurred.
 	 */
-zfree_restart:
+	domain = itemdomain = 0;
 	critical_enter();
-	cpu = curcpu;
-	cache = &zone->uz_cpu[cpu];
-
-zfree_start:
-	domain = PCPU_GET(domain);
-#ifdef UMA_XDOMAIN
-	if ((zone->uz_flags & UMA_ZONE_NUMA) == 0)
-		itemdomain = domain;
-#endif
-	/*
-	 * Try to free into the allocbucket first to give LIFO ordering
-	 * for cache-hot datastructures.  Spill over into the freebucket
-	 * if necessary.  Alloc will swap them if one runs dry.
-	 */
-#ifdef UMA_XDOMAIN
-	if (domain != itemdomain) {
-		bucket = cache->uc_crossbucket;
-	} else
-#endif
-	{
+	do {
+		cpu = curcpu;
+		cache = &zone->uz_cpu[cpu];
 		bucket = cache->uc_allocbucket;
+#ifdef UMA_XDOMAIN
+		if ((zone->uz_flags & UMA_ZONE_NUMA) != 0) {
+			itemdomain = _vm_phys_domain(pmap_kextract((vm_offset_t)item));
+			domain = PCPU_GET(domain);
+		}
+		if ((zone->uz_flags & UMA_ZONE_NUMA) != 0 &&
+		    domain != itemdomain) {
+			bucket = cache->uc_crossbucket;
+		} else
+#endif
+
+		/*
+		 * Try to free into the allocbucket first to give LIFO ordering
+		 * for cache-hot datastructures.  Spill over into the freebucket
+		 * if necessary.  Alloc will swap them if one runs dry.
+		 */
 		if (bucket == NULL || bucket->ub_cnt >= bucket->ub_entries)
 			bucket = cache->uc_freebucket;
-	}
-	if (bucket != NULL && bucket->ub_cnt < bucket->ub_entries) {
-		KASSERT(bucket->ub_bucket[bucket->ub_cnt] == NULL,
-		    ("uma_zfree: Freeing to non free bucket index."));
-		bucket->ub_bucket[bucket->ub_cnt] = item;
-		bucket->ub_cnt++;
-		cache->uc_frees++;
-		critical_exit();
-		return;
-	}
-
-	/*
-	 * We must go back the zone, which requires acquiring the zone lock,
-	 * which in turn means we must release and re-acquire the critical
-	 * section.  Since the critical section is released, we may be
-	 * preempted or migrate.  As such, make sure not to maintain any
-	 * thread-local state specific to the cache from prior to releasing
-	 * the critical section.
-	 */
-	critical_exit();
-	if (zone->uz_count == 0 || bucketdisable)
-		goto zfree_item;
-
-	lockfail = false;
-	if (ZONE_TRYLOCK(zone) == 0) {
-		/* Record contention to size the buckets. */
-		ZONE_LOCK(zone);
-		lockfail = true;
-	}
-	critical_enter();
-	cpu = curcpu;
-	domain = PCPU_GET(domain);
-	cache = &zone->uz_cpu[cpu];
-
-#ifdef UMA_XDOMAIN
-	if (domain != itemdomain)
-		bucket = cache->uc_crossbucket;
-	else
-#endif
-		bucket = cache->uc_freebucket;
-	if (bucket != NULL && bucket->ub_cnt < bucket->ub_entries) {
-		ZONE_UNLOCK(zone);
-		goto zfree_start;
-	}
-#ifdef UMA_XDOMAIN
-	if (domain != itemdomain)
-		cache->uc_crossbucket = NULL;
-	else
-#endif
-		cache->uc_freebucket = NULL;
-	/* We are no longer associated with this CPU. */
-	critical_exit();
-
-#ifdef UMA_XDOMAIN
-	if (domain != itemdomain) {
-		if (bucket != NULL) {
-			zone->uz_xdomain += bucket->ub_cnt;
-			if (vm_ndomains > 2 ||
-			    zone->uz_bkt_count >= zone->uz_bkt_max) {
-				ZONE_UNLOCK(zone);
-				bucket_drain(zone, bucket);
-				bucket_free(zone, bucket, udata);
-			} else {
-				zdom = &zone->uz_domain[itemdomain];
-				zone_put_bucket(zone, zdom, bucket, true);
-				ZONE_UNLOCK(zone);
-			}
-		} else
-			ZONE_UNLOCK(zone);
-		bucket = bucket_alloc(zone, udata, M_NOWAIT);
-		if (bucket == NULL)
-			goto zfree_item;
-		critical_enter();
-		cpu = curcpu;
-		cache = &zone->uz_cpu[cpu];
-		if (cache->uc_crossbucket == NULL) {
-			cache->uc_crossbucket = bucket;
-			goto zfree_start;
+		if (__predict_true(bucket != NULL &&
+		    bucket->ub_cnt < bucket->ub_entries)) {
+			bucket_push(zone, cache, bucket, item);
+			critical_exit();
+			return;
 		}
-		critical_exit();
-		bucket_free(zone, bucket, udata);
-		goto zfree_restart;
-	}
-#endif
-
-	if ((zone->uz_flags & UMA_ZONE_NUMA) != 0) {
-		zdom = &zone->uz_domain[domain];
-	} else {
-		domain = 0;
-		zdom = &zone->uz_domain[0];
-	}
-
-	/* Can we throw this on the zone full list? */
-	if (bucket != NULL) {
-		CTR3(KTR_UMA,
-		    "uma_zfree: zone %s(%p) putting bucket %p on free list",
-		    zone->uz_name, zone, bucket);
-		/* ub_cnt is pointing to the last free item */
-		KASSERT(bucket->ub_cnt == bucket->ub_entries,
-		    ("uma_zfree: Attempting to insert not full bucket onto the full list.\n"));
-		if (zone->uz_bkt_count >= zone->uz_bkt_max) {
-			ZONE_UNLOCK(zone);
-			bucket_drain(zone, bucket);
-			bucket_free(zone, bucket, udata);
-			goto zfree_restart;
-		} else
-			zone_put_bucket(zone, zdom, bucket, true);
-	}
-
-	/*
-	 * We bump the uz count when the cache size is insufficient to
-	 * handle the working set.
-	 */
-	if (lockfail && zone->uz_count < zone->uz_count_max)
-		zone->uz_count++;
-	ZONE_UNLOCK(zone);
-
-	bucket = bucket_alloc(zone, udata, M_NOWAIT);
-	CTR3(KTR_UMA, "uma_zfree: zone %s(%p) allocated bucket %p",
-	    zone->uz_name, zone, bucket);
-	if (bucket) {
-		critical_enter();
-		cpu = curcpu;
-		cache = &zone->uz_cpu[cpu];
-		if (cache->uc_freebucket == NULL &&
-		    ((zone->uz_flags & UMA_ZONE_NUMA) == 0 ||
-		    domain == PCPU_GET(domain))) {
-			cache->uc_freebucket = bucket;
-			goto zfree_start;
-		}
-		/*
-		 * We lost the race, start over.  We have to drop our
-		 * critical section to free the bucket.
-		 */
-		critical_exit();
-		bucket_free(zone, bucket, udata);
-		goto zfree_restart;
-	}
+	} while (cache_free(zone, cache, udata, item, itemdomain));
+	critical_exit();
 
 	/*
 	 * If nothing else caught this, we'll just do an internal free.
 	 */
 zfree_item:
 	zone_free_item(zone, item, udata, SKIP_DTOR);
+}
+
+static void
+zone_free_bucket(uma_zone_t zone, uma_bucket_t bucket, void *udata,
+    int domain, int itemdomain)
+{
+	uma_zone_domain_t zdom;
+
+#ifdef UMA_XDOMAIN
+	/*
+	 * Buckets coming from the wrong domain will be entirely for the
+	 * only other domain on two domain systems.  In this case we can
+	 * simply cache them.  Otherwise we need to sort them back to
+	 * correct domains by freeing the contents to the slab layer.
+	 */
+	if (domain != itemdomain && vm_ndomains > 2) {
+		CTR3(KTR_UMA,
+		    "uma_zfree: zone %s(%p) draining cross bucket %p",
+		    zone->uz_name, zone, bucket);
+		bucket_drain(zone, bucket);
+		bucket_free(zone, bucket, udata);
+		return;
+	}
+#endif
+	/*
+	 * Attempt to save the bucket in the zone's domain bucket cache.
+	 *
+	 * We bump the uz count when the cache size is insufficient to
+	 * handle the working set.
+	 */
+	if (ZONE_TRYLOCK(zone) == 0) {
+		/* Record contention to size the buckets. */
+		ZONE_LOCK(zone);
+		if (zone->uz_count < zone->uz_count_max)
+			zone->uz_count++;
+	}
+
+	CTR3(KTR_UMA,
+	    "uma_zfree: zone %s(%p) putting bucket %p on free list",
+	    zone->uz_name, zone, bucket);
+	/* ub_cnt is pointing to the last free item */
+	KASSERT(bucket->ub_cnt == bucket->ub_entries,
+	    ("uma_zfree: Attempting to insert partial  bucket onto the full list.\n"));
+	if (zone->uz_bkt_count >= zone->uz_bkt_max) {
+		ZONE_UNLOCK(zone);
+		bucket_drain(zone, bucket);
+		bucket_free(zone, bucket, udata);
+	} else {
+		zdom = &zone->uz_domain[itemdomain];
+		zone_put_bucket(zone, zdom, bucket, true);
+		ZONE_UNLOCK(zone);
+	}
+}
+
+/*
+ * Populate a free or cross bucket for the current cpu cache.  Free any
+ * existing full bucket either to the zone cache or back to the slab layer.
+ *
+ * Enters and returns in a critical section.  false return indicates that
+ * we can not satisfy this free in the cache layer.  true indicates that
+ * the caller should retry.
+ */
+static __noinline bool
+cache_free(uma_zone_t zone, uma_cache_t cache, void *udata, void *item,
+    int itemdomain)
+{
+	uma_bucket_t bucket;
+	int cpu, domain;
+
+	CRITICAL_ASSERT(curthread);
+
+	if (zone->uz_count == 0 || bucketdisable)
+		return false;
+
+	cpu = curcpu;
+	cache = &zone->uz_cpu[cpu];
+
+	/*
+	 * NUMA domains need to free to the correct zdom.  When XDOMAIN
+	 * is enabled this is the zdom of the item and the bucket may be
+	 * the cross bucket if they do not match.
+	 */
+	if ((zone->uz_flags & UMA_ZONE_NUMA) != 0)
+#ifdef UMA_XDOMAIN
+		domain = PCPU_GET(domain);
+#else
+		itemdomain = domain = PCPU_GET(domain);
+#endif
+	else
+		itemdomain = domain = 0;
+#ifdef UMA_XDOMAIN
+	if (domain != itemdomain) {
+		bucket = cache->uc_crossbucket;
+		cache->uc_crossbucket = NULL;
+		if (bucket != NULL)
+			atomic_add_64(&zone->uz_xdomain, bucket->ub_cnt);
+	} else
+#endif
+	{
+		bucket = cache->uc_freebucket;
+		cache->uc_freebucket = NULL;
+	}
+
+
+	/* We are no longer associated with this CPU. */
+	critical_exit();
+
+	if (bucket != NULL)
+		zone_free_bucket(zone, bucket, udata, domain, itemdomain);
+
+	bucket = bucket_alloc(zone, udata, M_NOWAIT);
+	CTR3(KTR_UMA, "uma_zfree: zone %s(%p) allocated bucket %p",
+	    zone->uz_name, zone, bucket);
+	critical_enter();
+	if (bucket == NULL)
+		return (false);
+	cpu = curcpu;
+	cache = &zone->uz_cpu[cpu];
+#ifdef UMA_XDOMAIN
+	/*
+	 * Check to see if we should be populating the cross bucket.  If it
+	 * is already populated we will fall through and attempt to populate
+	 * the free bucket.
+	 */
+	if ((zone->uz_flags & UMA_ZONE_NUMA) != 0) {
+		domain = PCPU_GET(domain);
+		if (domain != itemdomain && cache->uc_crossbucket == NULL) {
+			cache->uc_crossbucket = bucket;
+			return (true);
+		}
+	}
+#endif
+	/*
+	 * We may have lost the race to fill the bucket or switched CPUs.
+	 */
+	if (cache->uc_freebucket != NULL) {
+		critical_exit();
+		bucket_free(zone, bucket, udata);
+		critical_enter();
+	} else
+		cache->uc_freebucket = bucket;
+
+	return (true);
 }
 
 void
