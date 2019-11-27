@@ -185,7 +185,7 @@ out:
 #endif
 #endif
 
-EFI_PHYSICAL_ADDRESS	staging, staging_end;
+EFI_PHYSICAL_ADDRESS	staging, staging_end, staging_base;
 int			stage_offset_set = 0;
 ssize_t			stage_offset;
 
@@ -224,6 +224,7 @@ efi_copy_init(void)
 		    EFI_ERROR_CODE(status));
 		return (status);
 	}
+	staging_base = staging;
 	staging_end = staging + nr_pages * EFI_PAGE_SIZE;
 
 #if defined(__aarch64__) || defined(__arm__)
@@ -238,6 +239,66 @@ efi_copy_init(void)
 #endif
 
 	return (0);
+}
+
+static bool
+efi_check_space(vm_offset_t end)
+{
+	EFI_PHYSICAL_ADDRESS addr;
+	EFI_STATUS status;
+	unsigned long nr_pages;
+
+	/* There is already enough space */
+	if (end <= staging_end)
+		return (true);
+
+	end = roundup2(end, EFI_PAGE_SIZE);
+	nr_pages = EFI_SIZE_TO_PAGES(end - staging_end);
+
+#if defined(__i386__) || defined(__amd64__)
+	/* X86 needs all memory to be allocated under the 1G boundary */
+	if (end > 1024*1024*1024)
+		goto before_staging;
+#endif
+
+	/* Try to allocate more space after the previous allocation */
+	addr = staging_end;
+	status = BS->AllocatePages(AllocateAddress, EfiLoaderData, nr_pages,
+	    &addr);
+	if (!EFI_ERROR(status)) {
+		staging_end = staging_end + nr_pages * EFI_PAGE_SIZE;
+		return (true);
+	}
+
+before_staging:
+	/* Try allocating space before the previous allocation */
+	if (staging < nr_pages * EFI_PAGE_SIZE) {
+		printf("Not enough space before allocation\n");
+		return (false);
+	}
+	addr = staging - nr_pages * EFI_PAGE_SIZE;
+#if defined(__aarch64__) || defined(__arm__)
+	/* See efi_copy_init for why this is needed */
+	addr = rounddown2(addr, 2 * 1024 * 1024);
+#endif
+	nr_pages = EFI_SIZE_TO_PAGES(staging_base - addr);
+	status = BS->AllocatePages(AllocateAddress, EfiLoaderData, nr_pages,
+	    &addr);
+	if (!EFI_ERROR(status)) {
+		/*
+		 * Move the old allocation and update the state so
+		 * translation still works.
+		 */
+		staging_base = addr;
+		memmove((void *)staging_base, (void *)staging,
+		    staging_end - staging);
+		stage_offset -= (staging - staging_base);
+		staging = staging_base;
+		return (true);
+	}
+
+	printf("efi_check_space: Unable to expand staging area\n");
+	return (false);
 }
 
 void *
@@ -257,7 +318,7 @@ efi_copyin(const void *src, vm_offset_t dest, const size_t len)
 	}
 
 	/* XXX: Callers do not check for failure. */
-	if (dest + stage_offset + len > staging_end) {
+	if (!efi_check_space(dest + stage_offset + len)) {
 		errno = ENOMEM;
 		return (-1);
 	}
@@ -283,7 +344,7 @@ ssize_t
 efi_readin(const int fd, vm_offset_t dest, const size_t len)
 {
 
-	if (dest + stage_offset + len > staging_end) {
+	if (!efi_check_space(dest + stage_offset + len)) {
 		errno = ENOMEM;
 		return (-1);
 	}
