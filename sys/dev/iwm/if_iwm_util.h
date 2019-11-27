@@ -107,12 +107,12 @@
 #define	__IF_IWM_UTIL_H__
 
 extern	int iwm_send_cmd(struct iwm_softc *sc, struct iwm_host_cmd *hcmd);
-extern	int iwm_mvm_send_cmd_pdu(struct iwm_softc *sc, uint32_t id,
+extern	int iwm_send_cmd_pdu(struct iwm_softc *sc, uint32_t id,
 	    uint32_t flags, uint16_t len, const void *data);
 
-extern	int iwm_mvm_send_cmd_status(struct iwm_softc *sc,
+extern	int iwm_send_cmd_status(struct iwm_softc *sc,
 	    struct iwm_host_cmd *cmd, uint32_t *status);
-extern	int iwm_mvm_send_cmd_pdu_status(struct iwm_softc *sc, uint32_t id,
+extern	int iwm_send_cmd_pdu_status(struct iwm_softc *sc, uint32_t id,
 	uint16_t len, const void *data, uint32_t *status);
 extern	void iwm_free_resp(struct iwm_softc *sc, struct iwm_host_cmd *hcmd);
 
@@ -120,18 +120,18 @@ extern	int iwm_dma_contig_alloc(bus_dma_tag_t tag, struct iwm_dma_info *dma,
 				 bus_size_t size, bus_size_t alignment);
 extern	void iwm_dma_contig_free(struct iwm_dma_info *);
 
-extern	int iwm_mvm_send_lq_cmd(struct iwm_softc *sc, struct iwm_lq_cmd *lq,
+extern	int iwm_send_lq_cmd(struct iwm_softc *sc, struct iwm_lq_cmd *lq,
 				boolean_t init);
 
-extern	boolean_t iwm_mvm_rx_diversity_allowed(struct iwm_softc *sc);
+extern	boolean_t iwm_rx_diversity_allowed(struct iwm_softc *sc);
 
 extern	uint8_t iwm_ridx2rate(struct ieee80211_rateset *rs, int ridx);
 extern	int iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo);
-extern	int iwm_mvm_flush_tx_path(struct iwm_softc *sc, uint32_t tfd_msk,
+extern	int iwm_flush_tx_path(struct iwm_softc *sc, uint32_t tfd_msk,
 				  uint32_t flags);
 
 static inline uint8_t
-iwm_mvm_get_valid_tx_ant(struct iwm_softc *sc)
+iwm_get_valid_tx_ant(struct iwm_softc *sc)
 {
 	return sc->nvm_data && sc->nvm_data->valid_tx_ant ?
 	       sc->sc_fw.valid_tx_ant & sc->nvm_data->valid_tx_ant :
@@ -139,7 +139,7 @@ iwm_mvm_get_valid_tx_ant(struct iwm_softc *sc)
 }
 
 static inline uint8_t
-iwm_mvm_get_valid_rx_ant(struct iwm_softc *sc)
+iwm_get_valid_rx_ant(struct iwm_softc *sc)
 {
 	return sc->nvm_data && sc->nvm_data->valid_rx_ant ?
 	       sc->sc_fw.valid_rx_ant & sc->nvm_data->valid_rx_ant :
@@ -147,12 +147,12 @@ iwm_mvm_get_valid_rx_ant(struct iwm_softc *sc)
 }
 
 static inline uint32_t
-iwm_mvm_get_phy_config(struct iwm_softc *sc)
+iwm_get_phy_config(struct iwm_softc *sc)
 {
 	uint32_t phy_config = ~(IWM_FW_PHY_CFG_TX_CHAIN |
 				IWM_FW_PHY_CFG_RX_CHAIN);
-	uint32_t valid_rx_ant = iwm_mvm_get_valid_rx_ant(sc);
-	uint32_t valid_tx_ant = iwm_mvm_get_valid_tx_ant(sc);
+	uint32_t valid_rx_ant = iwm_get_valid_rx_ant(sc);
+	uint32_t valid_tx_ant = iwm_get_valid_tx_ant(sc);
 
 	phy_config |= valid_tx_ant << IWM_FW_PHY_CFG_TX_CHAIN_POS |
 		      valid_rx_ant << IWM_FW_PHY_CFG_RX_CHAIN_POS;
