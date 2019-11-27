@@ -614,6 +614,13 @@ esp_input_cb(struct cryptop *crp)
 		}
 	}
 
+	/*
+	 * RFC4303 2.6:
+	 * Silently drop packet if next header field is IPPROTO_NONE.
+	 */
+	if (lastthree[2] == IPPROTO_NONE)
+		goto bad;
+
 	/* Trim the mbuf chain to remove trailing authenticator and padding */
 	m_adj(m, -(lastthree[1] + 2));
 
