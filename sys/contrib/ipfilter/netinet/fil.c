@@ -10279,7 +10279,6 @@ ipf_inet6_mask_del(bits, mask, mtab)
 	ASSERT(mtab->imt6_max >= 0);
 }
 
-#ifdef	_KERNEL
 static u_int
 ipf_pcksum6(fin, ip6, off, len)
 	fr_info_t *fin;
@@ -10287,6 +10286,7 @@ ipf_pcksum6(fin, ip6, off, len)
 	u_int32_t off;
 	u_int32_t len;
 {
+#ifdef	_KERNEL
 	struct mbuf *m;
 	int sum;
 
@@ -10297,15 +10297,7 @@ ipf_pcksum6(fin, ip6, off, len)
 
 	sum = in6_cksum(m, ip6->ip6_nxt, off, len);
 	return(sum);
-}
 #else
-static u_int
-ipf_pcksum6(fin, ip6, off, len)
-	fr_info_t *fin;
-	ip6_t *ip6;
-	u_int32_t off;
-	u_int32_t len;
-{
 	u_short *sp;
 	u_int sum;
 
@@ -10327,6 +10319,6 @@ ipf_pcksum6(fin, ip6, off, len)
 	sum += *sp++;
 	sum += *sp++;
 	return(ipf_pcksum(fin, off, sum));
-}
 #endif
+}
 #endif
