@@ -1128,40 +1128,35 @@ vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
 	pt_entry_t *pte, tpte;
-	vm_paddr_t pa;
-	int lvl;
 
-	if (va >= DMAP_MIN_ADDRESS && va < DMAP_MAX_ADDRESS) {
-		pa = DMAP_TO_PHYS(va);
-	} else {
-		pa = 0;
-		pte = pmap_pte(kernel_pmap, va, &lvl);
-		if (pte != NULL) {
-			tpte = pmap_load(pte);
-			pa = tpte & ~ATTR_MASK;
-			switch(lvl) {
-			case 1:
-				KASSERT((tpte & ATTR_DESCR_MASK) == L1_BLOCK,
-				    ("pmap_kextract: Invalid L1 pte found: %lx",
-				    tpte & ATTR_DESCR_MASK));
-				pa |= (va & L1_OFFSET);
-				break;
-			case 2:
-				KASSERT((tpte & ATTR_DESCR_MASK) == L2_BLOCK,
-				    ("pmap_kextract: Invalid L2 pte found: %lx",
-				    tpte & ATTR_DESCR_MASK));
-				pa |= (va & L2_OFFSET);
-				break;
-			case 3:
-				KASSERT((tpte & ATTR_DESCR_MASK) == L3_PAGE,
-				    ("pmap_kextract: Invalid L3 pte found: %lx",
-				    tpte & ATTR_DESCR_MASK));
-				pa |= (va & L3_OFFSET);
-				break;
-			}
-		}
-	}
-	return (pa);
+	if (va >= DMAP_MIN_ADDRESS && va < DMAP_MAX_ADDRESS)
+		return (DMAP_TO_PHYS(va));
+	pte = pmap_l1(kernel_pmap, va);
+	if (pte == NULL)
+		return (0);
+
+	/*
+	 * A concurrent pmap_update_entry() will clear the entry's valid bit
+	 * but leave the rest of the entry unchanged.  Therefore, we treat a
+	 * non-zero entry as being valid, and we ignore the valid bit when
+	 * determining whether the entry maps a block, page, or table.
+	 */
+	tpte = pmap_load(pte);
+	if (tpte == 0)
+		return (0);
+	if ((tpte & ATTR_DESCR_TYPE_MASK) == ATTR_DESCR_TYPE_BLOCK)
+		return ((tpte & ~ATTR_MASK) | (va & L1_OFFSET));
+	pte = pmap_l1_to_l2(&tpte, va);
+	tpte = pmap_load(pte);
+	if (tpte == 0)
+		return (0);
+	if ((tpte & ATTR_DESCR_TYPE_MASK) == ATTR_DESCR_TYPE_BLOCK)
+		return ((tpte & ~ATTR_MASK) | (va & L2_OFFSET));
+	pte = pmap_l2_to_l3(&tpte, va);
+	tpte = pmap_load(pte);
+	if (tpte == 0)
+		return (0);
+	return ((tpte & ~ATTR_MASK) | (va & L3_OFFSET));
 }
 
 /***************************************************
@@ -3020,8 +3015,12 @@ pmap_update_entry(pmap_t pmap, pd_entry_t *pte, pd_entry_t newpte,
 	 */
 	intr = intr_disable();
 
-	/* Clear the old mapping */
-	pmap_clear(pte);
+	/*
+	 * Clear the old mapping's valid bit, but leave the rest of the entry
+	 * unchanged, so that a lockless, concurrent pmap_kextract() can still
+	 * lookup the physical address.
+	 */
+	pmap_clear_bits(pte, ATTR_DESCR_VALID);
 	pmap_invalidate_range_nopin(pmap, va, va + size);
 
 	/* Create the new mapping */
@@ -3423,8 +3422,7 @@ validate:
 	}
 
 #if VM_NRESERVLEVEL > 0
-	if (pmap != pmap_kernel() &&
-	    (mpte == NULL || mpte->wire_count == NL3PG) &&
+	if ((mpte == NULL || mpte->wire_count == NL3PG) &&
 	    pmap_ps_enabled(pmap) &&
 	    (m->flags & PG_FICTITIOUS) == 0 &&
 	    vm_reserv_level_iffullpop(m) == 0) {
@@ -5835,23 +5833,33 @@ pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 	case ISS_DATA_DFSC_TF_L1:
 	case ISS_DATA_DFSC_TF_L2:
 	case ISS_DATA_DFSC_TF_L3:
-		PMAP_LOCK(pmap);
-		/* Ask the MMU to check the address */
-		intr = intr_disable();
-		if (pmap == kernel_pmap)
-			par = arm64_address_translate_s1e1r(far);
-		else
-			par = arm64_address_translate_s1e0r(far);
-		intr_restore(intr);
-		PMAP_UNLOCK(pmap);
-
 		/*
-		 * If the translation was successful the address was invalid
-		 * due to a break-before-make sequence. We can unlock and
-		 * return success to the trap handler.
+		 * Retry the translation.  A break-before-make sequence can
+		 * produce a transient fault.
 		 */
-		if (PAR_SUCCESS(par))
-			rv = KERN_SUCCESS;
+		if (pmap == kernel_pmap) {
+			/*
+			 * The translation fault may have occurred within a
+			 * critical section.  Therefore, we must check the
+			 * address without acquiring the kernel pmap's lock.
+			 */
+			if (pmap_kextract(far) != 0)
+				rv = KERN_SUCCESS;
+		} else {
+			PMAP_LOCK(pmap);
+			/* Ask the MMU to check the address. */
+			intr = intr_disable();
+			par = arm64_address_translate_s1e0r(far);
+			intr_restore(intr);
+			PMAP_UNLOCK(pmap);
+
+			/*
+			 * If the translation was successful, then we can
+			 * return success to the trap handler.
+			 */
+			if (PAR_SUCCESS(par))
+				rv = KERN_SUCCESS;
+		}
 		break;
 	}
 
