@@ -1069,53 +1069,48 @@ vm_map_entry_pred(vm_map_entry_t entry)
  * the subsequent call to vm_map_splay_merge, rely on the start and end address
  * values in &map->header.
  */
-static vm_map_entry_t
+static __always_inline vm_map_entry_t
 vm_map_splay_split(vm_map_t map, vm_offset_t addr, vm_size_t length,
-    vm_map_entry_t *out_llist, vm_map_entry_t *out_rlist)
+    vm_map_entry_t *llist, vm_map_entry_t *rlist)
 {
-	vm_map_entry_t llist, rlist, root, y;
+	vm_map_entry_t root, y;
 
-	llist = rlist = &map->header;
+	*llist = *rlist = &map->header;
 	root = map->root;
 	while (root != NULL && root->max_free >= length) {
-		KASSERT(llist->end <= root->start && root->end <= rlist->start,
+		KASSERT((*llist)->end <= root->start &&
+		    root->end <= (*rlist)->start,
 		    ("%s: root not within tree bounds", __func__));
 		if (addr < root->start) {
-			SPLAY_LEFT_STEP(root, y, rlist,
+			SPLAY_LEFT_STEP(root, y, *rlist,
 			    y->max_free >= length && addr < y->start);
 		} else if (addr >= root->end) {
-			SPLAY_RIGHT_STEP(root, y, llist,
+			SPLAY_RIGHT_STEP(root, y, *llist,
 			    y->max_free >= length && addr >= y->end);
 		} else
 			break;
 	}
-	*out_llist = llist;
-	*out_rlist = rlist;
 	return (root);
 }
 
-static void
-vm_map_splay_findnext(vm_map_entry_t root, vm_map_entry_t *iolist)
+static __always_inline void
+vm_map_splay_findnext(vm_map_entry_t root, vm_map_entry_t *rlist)
 {
-	vm_map_entry_t rlist, y;
+	vm_map_entry_t hi, y;
 
-	root = root->right;
-	rlist = *iolist;
-	while (root != NULL)
-		SPLAY_LEFT_STEP(root, y, rlist, true);
-	*iolist = rlist;
+	hi = root->right;
+	while (hi != NULL)
+		SPLAY_LEFT_STEP(hi, y, *rlist, true);
 }
 
-static void
-vm_map_splay_findprev(vm_map_entry_t root, vm_map_entry_t *iolist)
+static __always_inline void
+vm_map_splay_findprev(vm_map_entry_t root, vm_map_entry_t *llist)
 {
-	vm_map_entry_t llist, y;
+	vm_map_entry_t lo, y;
 
-	root = root->left;
-	llist = *iolist;
-	while (root != NULL)
-		SPLAY_RIGHT_STEP(root, y, llist, true);
-	*iolist = llist;
+	lo = root->left;
+	while (lo != NULL)
+		SPLAY_RIGHT_STEP(lo, y, *llist, true);
 }
 
 static inline void
@@ -1270,30 +1265,22 @@ vm_map_entry_unlink(vm_map_t map, vm_map_entry_t entry,
 	KASSERT(root != NULL,
 	    ("vm_map_entry_unlink: unlink object not mapped"));
 
+	vm_map_splay_findprev(root, &llist);
 	vm_map_splay_findnext(root, &rlist);
-	switch (op) {
-	case UNLINK_MERGE_NEXT:
+	if (op == UNLINK_MERGE_NEXT) {
 		rlist->start = root->start;
 		rlist->offset = root->offset;
-		y = root->left;
+	}
+	if (llist != &map->header) {
+		root = llist;
+		llist = root->right;
+		root->right = NULL;
+	} else if (rlist != &map->header) {
 		root = rlist;
 		rlist = root->left;
-		root->left = y;
-		break;
-	case UNLINK_MERGE_NONE:
-		vm_map_splay_findprev(root, &llist);
-		if (llist != &map->header) {
-			root = llist;
-			llist = root->right;
-			root->right = NULL;
-		} else if (rlist != &map->header) {
-			root = rlist;
-			rlist = root->left;
-			root->left = NULL;
-		} else
-			root = NULL;
-		break;
-	}
+		root->left = NULL;
+	} else
+		root = NULL;
 	y = entry->next;
 	y->prev = entry->prev;
 	y->prev->next = y;
@@ -1322,8 +1309,7 @@ vm_map_entry_resize(vm_map_t map, vm_map_entry_t entry, vm_size_t grow_amount)
 
 	VM_MAP_ASSERT_LOCKED(map);
 	root = vm_map_splay_split(map, entry->start, 0, &llist, &rlist);
-	KASSERT(root != NULL,
-	    ("%s: resize object not mapped", __func__));
+	KASSERT(root != NULL, ("%s: resize object not mapped", __func__));
 	vm_map_splay_findnext(root, &rlist);
 	root->right = NULL;
 	entry->end += grow_amount;
