@@ -851,7 +851,7 @@ iwm_read_firmware(struct iwm_softc *sc)
 				goto parse_out;
 			}
 			snprintf(sc->sc_fwver, sizeof(sc->sc_fwver),
-			    "%d.%d.%d",
+			    "%u.%u.%u",
 			    le32toh(((const uint32_t *)tlv_data)[0]),
 			    le32toh(((const uint32_t *)tlv_data)[1]),
 			    le32toh(((const uint32_t *)tlv_data)[2]));
