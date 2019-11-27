@@ -1869,6 +1869,11 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	for (i = 0; i < vm_ndomains; i++)
 		TAILQ_INIT(&zone->uz_domain[i].uzd_buckets);
 
+#ifdef INVARIANTS
+	if (arg->uminit == trash_init && arg->fini == trash_fini)
+		zone->uz_flags |= UMA_ZFLAG_TRASH;
+#endif
+
 	/*
 	 * This is a pure cache zone, no kegs.
 	 */
@@ -2302,14 +2307,17 @@ uma_zcreate(const char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 	args.fini = fini;
 #ifdef  INVARIANTS
 	/*
-	 * If a zone is being created with an empty constructor and
-	 * destructor, pass UMA constructor/destructor which checks for
-	 * memory use after free.
+	 * Inject procedures which check for memory use after free if we are
+	 * allowed to scramble the memory while it is not allocated.  This
+	 * requires that: UMA is actually able to access the memory, no init
+	 * or fini procedures, no dependency on the initial value of the
+	 * memory, and no (legitimate) use of the memory after free.  Note,
+	 * the ctor and dtor do not need to be empty.
+	 *
+	 * XXX UMA_ZONE_OFFPAGE.
 	 */
 	if ((!(flags & (UMA_ZONE_ZINIT | UMA_ZONE_NOFREE))) &&
-	    ctor == NULL && dtor == NULL && uminit == NULL && fini == NULL) {
-		args.ctor = trash_ctor;
-		args.dtor = trash_dtor;
+	    uminit == NULL && fini == NULL) {
 		args.uminit = trash_init;
 		args.fini = trash_fini;
 	}
@@ -2462,15 +2470,14 @@ static void *
 item_ctor(uma_zone_t zone, void *udata, int flags, void *item)
 {
 #ifdef INVARIANTS
-	int skipdbg;
+	bool skipdbg;
 
 	skipdbg = uma_dbg_zskip(zone, item);
-	if (zone->uz_ctor != NULL &&
-	    (!skipdbg || zone->uz_ctor != trash_ctor ||
-	    zone->uz_dtor != trash_dtor) &&
-#else
-	if (__predict_false(zone->uz_ctor != NULL) &&
+	if (!skipdbg && (zone->uz_flags & UMA_ZFLAG_TRASH) != 0 &&
+	    zone->uz_ctor != trash_ctor)
+		trash_ctor(item, zone->uz_size, udata, flags);
 #endif
+	if (__predict_false(zone->uz_ctor != NULL) &&
 	    zone->uz_ctor(item, zone->uz_size, udata, flags) != 0) {
 		counter_u64_add(zone->uz_fails, 1);
 		zone_free_item(zone, item, udata, SKIP_DTOR | SKIP_CNT);
@@ -2484,6 +2491,31 @@ item_ctor(uma_zone_t zone, void *udata, int flags, void *item)
 		uma_zero_item(item, zone);
 
 	return (item);
+}
+
+static inline void
+item_dtor(uma_zone_t zone, void *item, void *udata, enum zfreeskip skip)
+{
+#ifdef INVARIANTS
+	bool skipdbg;
+
+	skipdbg = uma_dbg_zskip(zone, item);
+	if (skip == SKIP_NONE && !skipdbg) {
+		if ((zone->uz_flags & UMA_ZONE_MALLOC) != 0)
+			uma_dbg_free(zone, udata, item);
+		else
+			uma_dbg_free(zone, NULL, item);
+	}
+#endif
+	if (skip < SKIP_DTOR) {
+		if (zone->uz_dtor != NULL)
+			zone->uz_dtor(item, zone->uz_size, udata);
+#ifdef INVARIANTS
+		if (!skipdbg && (zone->uz_flags & UMA_ZFLAG_TRASH) != 0 &&
+		    zone->uz_dtor != trash_dtor)
+			trash_dtor(item, zone->uz_size, udata);
+#endif
+	}
 }
 
 /* See uma.h */
@@ -2523,6 +2555,7 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 			if (zone->uz_ctor != NULL &&
 			    zone->uz_ctor(item, zone->uz_size, udata,
 			    flags) != 0) {
+				counter_u64_add(zone->uz_fails, 1);
 			    	zone->uz_fini(item, zone->uz_size);
 				return (NULL);
 			}
@@ -3131,9 +3164,6 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	int itemdomain;
 #endif
 	bool lockfail;
-#ifdef INVARIANTS
-	bool skipdbg;
-#endif
 
 	/* Enable entropy collection for RANDOM_ENABLE_UMA kernel option */
 	random_harvest_fast_uma(&zone, sizeof(zone), RANDOM_UMA);
@@ -3157,20 +3187,7 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 		return;
 	}
 #endif
-#ifdef INVARIANTS
-	skipdbg = uma_dbg_zskip(zone, item);
-	if (skipdbg == false) {
-		if (zone->uz_flags & UMA_ZONE_MALLOC)
-			uma_dbg_free(zone, udata, item);
-		else
-			uma_dbg_free(zone, NULL, item);
-	}
-	if (zone->uz_dtor != NULL && (!skipdbg ||
-	    zone->uz_dtor != trash_dtor || zone->uz_ctor != trash_ctor))
-#else
-	if (zone->uz_dtor != NULL)
-#endif
-		zone->uz_dtor(item, zone->uz_size, udata);
+	item_dtor(zone, item, udata, SKIP_NONE);
 
 	/*
 	 * The race here is acceptable.  If we miss it we'll just have to wait
@@ -3459,24 +3476,8 @@ zone_release(uma_zone_t zone, void **bucket, int cnt)
 static void
 zone_free_item(uma_zone_t zone, void *item, void *udata, enum zfreeskip skip)
 {
-#ifdef INVARIANTS
-	bool skipdbg;
 
-	skipdbg = uma_dbg_zskip(zone, item);
-	if (skip == SKIP_NONE && !skipdbg) {
-		if (zone->uz_flags & UMA_ZONE_MALLOC)
-			uma_dbg_free(zone, udata, item);
-		else
-			uma_dbg_free(zone, NULL, item);
-	}
-
-	if (skip < SKIP_DTOR && zone->uz_dtor != NULL &&
-	    (!skipdbg || zone->uz_dtor != trash_dtor ||
-	    zone->uz_ctor != trash_ctor))
-#else
-	if (skip < SKIP_DTOR && zone->uz_dtor != NULL)
-#endif
-		zone->uz_dtor(item, zone->uz_size, udata);
+	item_dtor(zone, item, udata, skip);
 
 	if (skip < SKIP_FINI && zone->uz_fini)
 		zone->uz_fini(item, zone->uz_size);
