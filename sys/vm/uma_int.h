@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2002-2005, 2009, 2013 Jeffrey Roberson <jeff@FreeBSD.org>
+ * Copyright (c) 2002-2019 Jeffrey Roberson <jeff@FreeBSD.org>
  * Copyright (c) 2004, 2005 Bosko Milekic <bmilekic@FreeBSD.org>
  * All rights reserved.
  *
@@ -281,7 +281,6 @@ BITSET_DEFINE(slabbits, SLAB_SETSIZE);
  * store and subdivides it into individually allocatable items.
  */
 struct uma_slab {
-	uma_keg_t	us_keg;			/* Keg we live in */
 	union {
 		LIST_ENTRY(uma_slab)	_us_link;	/* slabs in zone */
 		unsigned long	_us_size;	/* Size of allocation */
@@ -478,16 +477,27 @@ vtoslab(vm_offset_t va)
 	vm_page_t p;
 
 	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
-	return ((uma_slab_t)p->plinks.s.pv);
+	return (p->plinks.uma.slab);
 }
 
 static __inline void
-vsetslab(vm_offset_t va, uma_slab_t slab)
+vtozoneslab(vm_offset_t va, uma_zone_t *zone, uma_slab_t *slab)
 {
 	vm_page_t p;
 
 	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
-	p->plinks.s.pv = slab;
+	*slab = p->plinks.uma.slab;
+	*zone = p->plinks.uma.zone;
+}
+
+static __inline void
+vsetzoneslab(vm_offset_t va, uma_zone_t zone, uma_slab_t slab)
+{
+	vm_page_t p;
+
+	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
+	p->plinks.uma.slab = slab;
+	p->plinks.uma.zone = zone;
 }
 
 /*

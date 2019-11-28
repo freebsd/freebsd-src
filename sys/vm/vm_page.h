@@ -220,12 +220,15 @@ struct vm_page {
 		TAILQ_ENTRY(vm_page) q; /* page queue or free list (Q) */
 		struct {
 			SLIST_ENTRY(vm_page) ss; /* private slists */
-			void *pv;
 		} s;
 		struct {
 			u_long p;
 			u_long v;
 		} memguard;
+		struct {
+			void *slab;
+			void *zone;
+		} uma;
 	} plinks;
 	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) */
 	vm_object_t object;		/* which object am I in (O) */
