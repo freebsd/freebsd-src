@@ -1261,7 +1261,7 @@
 			};
 		};
 
-		target-module@51000 {			/* 0x48051000, ap 45 2e.0 */
+		gpio7_target: target-module@51000 {		/* 0x48051000, ap 45 2e.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
 			ti,hwmods = "gpio7";
 			reg = <0x51000 0x4>,
@@ -2499,7 +2499,7 @@
 			ranges = <0x0 0x3a000 0x1000>;
 		};
 
-		target-module@3c000 {			/* 0x4843c000, ap 23 08.0 */
+		atl_tm: target-module@3c000 {		/* 0x4843c000, ap 23 08.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
 			reg = <0x3c000 0x4>;
 			reg-names = "rev";
@@ -3025,7 +3025,7 @@
 
 		target-module@80000 {			/* 0x48480000, ap 31 16.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			reg = <0x80000 0x4>;
+			reg = <0x80020 0x4>;
 			reg-names = "rev";
 			clocks = <&l4per2_clkctrl DRA7_L4PER2_DCAN2_CLKCTRL 0>;
 			clock-names = "fck";
@@ -3543,7 +3543,7 @@
 			};
 		};
 
-		target-module@38000 {			/* 0x48838000, ap 29 12.0 */
+		rtctarget: target-module@38000 {			/* 0x48838000, ap 29 12.0 */
 			compatible = "ti,sysc-omap4-simple", "ti,sysc";
 			ti,hwmods = "rtcss";
 			reg = <0x38074 0x4>,
@@ -4099,7 +4099,7 @@
 			};
 		};
 
-		target-module@100000 {			/* 0x48900000, ap 85 04.0 */
+		usb3_tm: target-module@100000 {		/* 0x48900000, ap 85 04.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
 			ti,hwmods = "usb_otg_ss3";
 			reg = <0x100000 0x4>,
@@ -4148,7 +4148,7 @@
 			};
 		};
 
-		target-module@140000 {			/* 0x48940000, ap 75 3c.0 */
+		usb4_tm: target-module@140000 {		/* 0x48940000, ap 75 3c.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
 			ti,hwmods = "usb_otg_ss4";
 			reg = <0x140000 0x4>,
@@ -4450,8 +4450,6 @@
 			timer12: timer@0 {
 				compatible = "ti,omap5430-timer";
 				reg = <0x0 0x80>;
-				clocks = <&wkupaon_clkctrl DRA7_WKUPAON_TIMER12_CLKCTRL 24>;
-				clock-names = "fck";
 				interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
 				ti,timer-alwon;
 				ti,timer-secure;
@@ -4579,7 +4577,7 @@
 
 		target-module@c000 {			/* 0x4ae3c000, ap 30 04.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			reg = <0xc000 0x4>;
+			reg = <0xc020 0x4>;
 			reg-names = "rev";
 			clocks = <&wkupaon_clkctrl DRA7_WKUPAON_DCAN1_CLKCTRL 0>;
 			clock-names = "fck";
