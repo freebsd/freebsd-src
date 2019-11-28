@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20191128: Removal of trm(4)
+OLD_FILES+=usr/share/man/man4/trm.4.gz
 # 20191121: Removal of sio(4)
 OLD_FILES+=usr/share/man/man4/sio.4.gz
 # 20191105: picobsd(8), et al, removed.

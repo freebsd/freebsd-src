@@ -136,7 +136,6 @@ device		mpt			# LSI-Logic MPT-Fusion
 device		mps			# LSI-Logic MPT-Fusion 2
 device		mpr			# LSI-Logic MPT-Fusion 3
 device		sym			# NCR/Symbios Logic
-device		trm			# Tekram DC395U/UW/F DC315U adapters
 device		isci			# Intel C600 SAS controller
 device		pvscsi			# VMware PVSCSI
 
