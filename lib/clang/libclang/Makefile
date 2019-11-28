@@ -20,6 +20,12 @@ CXXFLAGS.Module.cpp+= -fpermissive
 
 SRCDIR=		tools/clang/lib
 
+# Explanation of different SRCS variants below:
+# SRCS_MIN:	always required, even for bootstrap
+# SRCS_EXT:	required for MK_CLANG_EXTRAS
+# SRCS_FUL:	required for MK_CLANG_FULL
+# SRCS_LDB:	required for MK_LLDB
+
 SRCS_FUL+=	ARCMigrate/ARCMT.cpp
 SRCS_FUL+=	ARCMigrate/ARCMTActions.cpp
 SRCS_FUL+=	ARCMigrate/FileRemapper.cpp
