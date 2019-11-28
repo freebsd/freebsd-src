@@ -338,8 +338,8 @@ struct uma_zone {
 	uint64_t	uz_items;	/* Total items count */
 	uint64_t	uz_max_items;	/* Maximum number of items to alloc */
 	uint32_t	uz_sleepers;	/* Number of sleepers on memory */
-	uint16_t	uz_count;	/* Amount of items in full bucket */
-	uint16_t	uz_count_max;	/* Maximum amount of items there */
+	uint16_t	uz_bucket_size;	/* Number of items in full bucket */
+	uint16_t	uz_bucket_size_max; /* Maximum number of bucket items */
 
 	/* Offset 64, used in bucket replenish. */
 	uma_import	uz_import;	/* Import new memory to cache. */
@@ -364,14 +364,17 @@ struct uma_zone {
 	const char	*uz_warning;	/* Warning to print on failure */
 	struct timeval	uz_ratecheck;	/* Warnings rate-limiting */
 	struct task	uz_maxaction;	/* Task to run when at limit */
-	uint16_t	uz_count_min;	/* Minimal amount of items in bucket */
+	uint16_t	uz_bucket_size_min; /* Min number of items in bucket */
 
-	/* Offset 256, stats. */
+	/* Offset 256+, stats and misc. */
 	counter_u64_t	uz_allocs;	/* Total number of allocations */
 	counter_u64_t	uz_frees;	/* Total number of frees */
 	counter_u64_t	uz_fails;	/* Total number of alloc failures */
 	uint64_t	uz_sleeps;	/* Total number of alloc sleeps */
 	uint64_t	uz_xdomain;	/* Total number of cross-domain frees */
+	char		*uz_ctlname;	/* sysctl safe name string. */
+	struct sysctl_oid *uz_oid;	/* sysctl oid pointer. */
+	int		uz_namecnt;	/* duplicate name count. */
 
 	/*
 	 * This HAS to be the last item because we adjust the zone size
