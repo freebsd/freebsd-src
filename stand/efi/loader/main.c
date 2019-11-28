@@ -741,7 +741,7 @@ parse_uefi_con_out(void)
 			 */
 			pci_pending = true;
 		}
-		node = NextDevicePathNode(node); /* Skip the end node */
+		node = NextDevicePathNode(node);
 	}
 	if (pci_pending && vid_seen == 0)
 		vid_seen = ++seen;
