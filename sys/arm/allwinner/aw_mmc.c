@@ -1424,6 +1424,10 @@ aw_mmc_update_ios(device_t bus, device_t child)
 		}
 
 		/* Set the MMC clock. */
+		error = clk_disable(sc->aw_clk_mmc);
+		if (error != 0 && bootverbose)
+			device_printf(sc->aw_dev,
+			  "failed to disable mmc clock: %d\n", error);
 		error = clk_set_freq(sc->aw_clk_mmc, clock,
 		    CLK_SET_ROUND_DOWN);
 		if (error != 0) {
@@ -1432,6 +1436,10 @@ aw_mmc_update_ios(device_t bus, device_t child)
 			    clock, error);
 			return (error);
 		}
+		error = clk_enable(sc->aw_clk_mmc);
+		if (error != 0 && bootverbose)
+			device_printf(sc->aw_dev,
+			  "failed to re-enable mmc clock: %d\n", error);
 
 		if (sc->aw_mmc_conf->can_calibrate)
 			AW_MMC_WRITE_4(sc, AW_MMC_SAMP_DL, AW_MMC_SAMP_DL_SW_EN);

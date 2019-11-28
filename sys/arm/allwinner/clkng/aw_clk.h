@@ -407,6 +407,69 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.flags = _flags,			\
 	}
 
+#define NMM_CLK(_clkname, _id, _name, _pnames,		\
+     _offset,						\
+     _nshift, _nwidth, _nvalue, _nflags,		\
+    _m0shift, _m0width, _m0value, _m0flags,		\
+    _m1shift, _m1width, _m1value, _m1flags,		\
+    _gate_shift,					\
+    _lock, _lock_retries,				\
+    _flags)						\
+	static struct aw_clk_nmm_def _clkname = {	\
+		.clkdef = {				\
+			.id = _id,			\
+			.name = _name,			\
+			.parent_names = _pnames,	\
+			.parent_cnt = nitems(_pnames),	\
+		},					\
+		.offset = _offset,			\
+		.n.shift = _nshift,			\
+		.n.width = _nwidth,			\
+		.n.value = _nvalue,			\
+		.n.flags = _nflags,			\
+		.m0.shift = _m0shift,			\
+		.m0.width = _m0width,			\
+		.m0.value = _m0value,			\
+		.m0.flags = _m0flags,			\
+		.m1.shift = _m1shift,			\
+		.m1.width = _m1width,			\
+		.m1.value = _m1value,			\
+		.m1.flags = _m1flags,			\
+		.gate_shift = _gate_shift,		\
+		.lock_shift = _lock,			\
+		.lock_retries = _lock_retries,		\
+		.flags = _flags,			\
+	}
+
+#define NP_CLK(_clkname, _id, _name, _pnames,		\
+     _offset,						\
+     _nshift, _nwidth, _nvalue, _nflags,		\
+     _pshift, _pwidth, _pvalue, _pflags,		\
+    _gate_shift,					\
+    _lock, _lock_retries,				\
+    _flags)						\
+	static struct aw_clk_np_def _clkname = 	{	\
+		.clkdef = {				\
+			.id = _id,			\
+			.name = _name,			\
+			.parent_names = _pnames,	\
+			.parent_cnt = nitems(_pnames),	\
+		},					\
+		.offset = _offset,			\
+		.n.shift = _nshift,			\
+		.n.width = _nwidth,			\
+		.n.value = _nvalue,			\
+		.n.flags = _nflags,			\
+		.p.shift = _pshift,			\
+		.p.width = _pwidth,			\
+		.p.value = _pvalue,			\
+		.p.flags = _pflags,			\
+		.gate_shift = _gate_shift,		\
+		.lock_shift = _lock,			\
+		.lock_retries = _lock_retries,		\
+		.flags = _flags,			\
+	}
+
 #define PREDIV_CLK(_clkname, _id, _name, _pnames,	\
   _offset,	\
   _mux_shift, _mux_width,	\
