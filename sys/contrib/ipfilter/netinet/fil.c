@@ -6742,7 +6742,7 @@ ipf_checkl4sum(fin)
 		FR_DEBUG(("checkl4sum: %hx != %hx\n", sum, hdrsum));
 	}
 #endif
-	DT2(l4sums, u_short, hdrsum, u_short, sum);
+	DT3(l4sums, u_short, hdrsum, u_short, sum, fr_info_t *, fin);
 #ifdef USE_INET6
 	if (hdrsum == sum || (sum == 0 && fin->fin_p == IPPROTO_ICMPV6)) {
 #else
