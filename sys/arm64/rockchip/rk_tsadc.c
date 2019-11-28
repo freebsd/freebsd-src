@@ -728,16 +728,17 @@ tsadc_attach(device_t dev)
 	rv = tsadc_init_sysctl(sc);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot initialize sysctls\n");
-		goto fail;
+		goto fail_sysctl;
 	}
 
 	OF_device_register_xref(OF_xref_from_node(node), dev);
 	return (bus_generic_attach(dev));
 
+fail_sysctl:
+	sysctl_ctx_free(&tsadc_sysctl_ctx);
 fail:
 	if (sc->irq_ih != NULL)
 		bus_teardown_intr(dev, sc->irq_res, sc->irq_ih);
-	sysctl_ctx_free(&tsadc_sysctl_ctx);
 	if (sc->tsadc_clk != NULL)
 		clk_release(sc->tsadc_clk);
 	if (sc->apb_pclk_clk != NULL)
