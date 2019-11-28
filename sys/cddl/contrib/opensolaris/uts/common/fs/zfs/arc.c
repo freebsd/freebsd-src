@@ -7886,7 +7886,6 @@ l2arc_read_done(zio_t *zio)
 		zio->io_private = hdr;
 		arc_read_done(zio);
 	} else {
-		mutex_exit(hash_lock);
 		/*
 		 * Buffer didn't survive caching.  Increment stats and
 		 * reissue to the original storage device.
@@ -7909,11 +7908,17 @@ l2arc_read_done(zio_t *zio)
 
 			ASSERT(!pio || pio->io_child_type == ZIO_CHILD_LOGICAL);
 
-			zio_nowait(zio_read(pio, zio->io_spa, zio->io_bp,
+			zio = zio_read(pio, zio->io_spa, zio->io_bp,
 			    hdr->b_l1hdr.b_pabd, zio->io_size, arc_read_done,
 			    hdr, zio->io_priority, cb->l2rcb_flags,
-			    &cb->l2rcb_zb));
-		}
+			    &cb->l2rcb_zb);
+			for (struct arc_callback *acb = hdr->b_l1hdr.b_acb;
+			    acb != NULL; acb = acb->acb_next)
+				acb->acb_zio_head = zio;
+			mutex_exit(hash_lock);
+			zio_nowait(zio);
+		} else
+			mutex_exit(hash_lock);
 	}
 
 	kmem_free(cb, sizeof (l2arc_read_callback_t));
