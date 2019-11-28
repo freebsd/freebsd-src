@@ -2079,13 +2079,15 @@ linker_load_module(const char *kldname, const char *modname,
  		 */
 		KASSERT(verinfo == NULL, ("linker_load_module: verinfo"
 		    " is not NULL"));
-		if (rootvnode == NULL)
+		/* check if root file system is not mounted */
+		if (rootvnode == NULL || curproc->p_fd->fd_rdir == NULL)
 			return (ENXIO);
 		pathname = linker_search_kld(kldname);
 	} else {
 		if (modlist_lookup2(modname, verinfo) != NULL)
 			return (EEXIST);
-		if (rootvnode == NULL)
+		/* check if root file system is not mounted */
+		if (rootvnode == NULL || curproc->p_fd->fd_rdir == NULL)
 			return (ENXIO);
 		if (kldname != NULL)
 			pathname = strdup(kldname, M_LINKER);
