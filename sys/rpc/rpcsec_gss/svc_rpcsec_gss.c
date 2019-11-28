@@ -173,6 +173,7 @@ struct svc_rpc_gss_cookedcred {
 #define CLIENT_MAX		1024
 u_int svc_rpc_gss_client_max = CLIENT_MAX;
 u_int svc_rpc_gss_client_hash_size = CLIENT_HASH_SIZE;
+u_int svc_rpc_gss_lifetime_max = 0;
 
 SYSCTL_NODE(_kern, OID_AUTO, rpc, CTLFLAG_RW, 0, "RPC");
 SYSCTL_NODE(_kern_rpc, OID_AUTO, gss, CTLFLAG_RW, 0, "GSS");
@@ -184,6 +185,10 @@ SYSCTL_UINT(_kern_rpc_gss, OID_AUTO, client_max, CTLFLAG_RW,
 SYSCTL_UINT(_kern_rpc_gss, OID_AUTO, client_hash, CTLFLAG_RDTUN,
     &svc_rpc_gss_client_hash_size, 0,
     "Size of rpc-gss client hash table");
+
+SYSCTL_UINT(_kern_rpc_gss, OID_AUTO, lifetime_max, CTLFLAG_RW,
+    &svc_rpc_gss_lifetime_max, 0,
+    "Maximum lifetime (seconds) of rpc-gss clients");
 
 static u_int svc_rpc_gss_client_count;
 SYSCTL_UINT(_kern_rpc_gss, OID_AUTO, client_count, CTLFLAG_RD,
@@ -956,8 +961,15 @@ svc_rpc_gss_accept_sec_context(struct svc_rpc_gss_client *client,
 		 * that out).
 		 */
 		if (cred_lifetime == GSS_C_INDEFINITE)
-			cred_lifetime = time_uptime + 24*60*60;
+			cred_lifetime = 24*60*60;
 
+		/*
+		 * Cap cred_lifetime if sysctl kern.rpc.gss.lifetime_max is set.
+		 */
+		if (svc_rpc_gss_lifetime_max > 0 && cred_lifetime >
+		    svc_rpc_gss_lifetime_max)
+			cred_lifetime = svc_rpc_gss_lifetime_max;
+		
 		client->cl_expiration = time_uptime + cred_lifetime;
 
 		/*
