@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2002-2005, 2009, 2013 Jeffrey Roberson <jeff@FreeBSD.org>
+ * Copyright (c) 2002-2019 Jeffrey Roberson <jeff@FreeBSD.org>
  * Copyright (c) 2004, 2005 Bosko Milekic <bmilekic@FreeBSD.org>
  * Copyright (c) 2004-2006 Robert N. M. Watson
  * All rights reserved.
@@ -275,7 +275,6 @@ static uma_bucket_t bucket_alloc(uma_zone_t zone, void *, int);
 static void bucket_free(uma_zone_t zone, uma_bucket_t, void *);
 static void bucket_zone_drain(void);
 static uma_bucket_t zone_alloc_bucket(uma_zone_t, void *, int, int);
-static uma_slab_t zone_fetch_slab(uma_zone_t, uma_keg_t, int, int);
 static void *slab_alloc_item(uma_keg_t keg, uma_slab_t slab);
 static void slab_free_item(uma_zone_t zone, uma_slab_t slab, void *item);
 static uma_keg_t uma_kcreate(uma_zone_t zone, size_t size, uma_init uminit,
@@ -1210,9 +1209,9 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 
 	if (keg->uk_flags & UMA_ZONE_VTOSLAB)
 		for (i = 0; i < keg->uk_ppera; i++)
-			vsetslab((vm_offset_t)mem + (i * PAGE_SIZE), slab);
+			vsetzoneslab((vm_offset_t)mem + (i * PAGE_SIZE),
+			    zone, slab);
 
-	slab->us_keg = keg;
 	slab->us_data = mem;
 	slab->us_freecount = keg->uk_ipers;
 	slab->us_flags = sflags;
@@ -3017,10 +3016,8 @@ restart:
 
 	for (;;) {
 		slab = keg_fetch_free_slab(keg, domain, rr, flags);
-		if (slab != NULL) {
-			MPASS(slab->us_keg == keg);
+		if (slab != NULL)
 			return (slab);
-		}
 
 		/*
 		 * M_NOVM means don't ask at all!
@@ -3039,7 +3036,6 @@ restart:
 		 * at least one item.
 		 */
 		if (slab) {
-			MPASS(slab->us_keg == keg);
 			dom = &keg->uk_domain[slab->us_domain];
 			LIST_INSERT_HEAD(&dom->ud_part_slab, slab, us_link);
 			return (slab);
@@ -3062,30 +3058,8 @@ restart:
 	 * fail.
 	 */
 	if ((slab = keg_fetch_free_slab(keg, domain, rr, flags)) != NULL) {
-		MPASS(slab->us_keg == keg);
 		return (slab);
 	}
-	return (NULL);
-}
-
-static uma_slab_t
-zone_fetch_slab(uma_zone_t zone, uma_keg_t keg, int domain, int flags)
-{
-	uma_slab_t slab;
-
-	if (keg == NULL) {
-		keg = zone->uz_keg;
-		KEG_LOCK(keg);
-	}
-
-	for (;;) {
-		slab = keg_fetch_slab(keg, zone, domain, flags);
-		if (slab)
-			return (slab);
-		if (flags & (M_NOWAIT | M_NOVM))
-			break;
-	}
-	KEG_UNLOCK(keg);
 	return (NULL);
 }
 
@@ -3096,7 +3070,6 @@ slab_alloc_item(uma_keg_t keg, uma_slab_t slab)
 	void *item;
 	uint8_t freei;
 
-	MPASS(keg == slab->us_keg);
 	KEG_LOCK_ASSERT(keg);
 
 	freei = BIT_FFS(SLAB_SETSIZE, &slab->us_free) - 1;
@@ -3126,12 +3099,12 @@ zone_import(uma_zone_t zone, void **bucket, int max, int domain, int flags)
 	int i;
 
 	slab = NULL;
-	keg = NULL;
+	keg = zone->uz_keg;
+	KEG_LOCK(keg);
 	/* Try to keep the buckets totally full */
 	for (i = 0; i < max; ) {
-		if ((slab = zone_fetch_slab(zone, keg, domain, flags)) == NULL)
+		if ((slab = keg_fetch_slab(keg, zone, domain, flags)) == NULL)
 			break;
-		keg = slab->us_keg;
 #ifdef NUMA
 		stripe = howmany(max, vm_ndomains);
 #endif
@@ -3157,8 +3130,7 @@ zone_import(uma_zone_t zone, void **bucket, int max, int domain, int flags)
 		flags &= ~M_WAITOK;
 		flags |= M_NOWAIT;
 	}
-	if (slab != NULL)
-		KEG_UNLOCK(keg);
+	KEG_UNLOCK(keg);
 
 	return i;
 }
@@ -3599,7 +3571,6 @@ slab_free_item(uma_zone_t zone, uma_slab_t slab, void *item)
 	keg = zone->uz_keg;
 	MPASS(zone->uz_lockptr == &keg->uk_lock);
 	KEG_LOCK_ASSERT(keg);
-	MPASS(keg == slab->us_keg);
 
 	dom = &keg->uk_domain[slab->us_domain];
 
@@ -3642,10 +3613,8 @@ zone_release(uma_zone_t zone, void **bucket, int cnt)
 				mem += keg->uk_pgoff;
 				slab = (uma_slab_t)mem;
 			}
-		} else {
+		} else
 			slab = vtoslab((vm_offset_t)item);
-			MPASS(slab->us_keg == keg);
-		}
 		slab_free_item(zone, slab, item);
 	}
 	KEG_UNLOCK(keg);
@@ -3996,7 +3965,6 @@ uma_prealloc(uma_zone_t zone, int items)
 			slab = keg_alloc_slab(keg, zone, domain, M_WAITOK,
 			    aflags);
 			if (slab != NULL) {
-				MPASS(slab->us_keg == keg);
 				dom = &keg->uk_domain[slab->us_domain];
 				LIST_INSERT_HEAD(&dom->ud_free_slab, slab,
 				    us_link);
@@ -4134,7 +4102,7 @@ uma_large_malloc_domain(vm_size_t size, int domain, int wait)
 	    DOMAINSET_FIXED(domain);
 	addr = kmem_malloc_domainset(policy, size, wait);
 	if (addr != 0) {
-		vsetslab(addr, slab);
+		vsetzoneslab(addr, NULL, slab);
 		slab->us_data = (void *)addr;
 		slab->us_flags = UMA_SLAB_KERNEL | UMA_SLAB_MALLOC;
 		slab->us_size = size;
@@ -4546,7 +4514,7 @@ uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
 			panic("uma: item %p did not belong to zone %s\n",
 			    item, zone->uz_name);
 	}
-	keg = slab->us_keg;
+	keg = zone->uz_keg;
 	freei = ((uintptr_t)item - (uintptr_t)slab->us_data) / keg->uk_rsize;
 
 	if (BIT_ISSET(SLAB_SETSIZE, freei, &slab->us_debugfree))
@@ -4574,7 +4542,7 @@ uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 			panic("uma: Freed item %p did not belong to zone %s\n",
 			    item, zone->uz_name);
 	}
-	keg = slab->us_keg;
+	keg = zone->uz_keg;
 	freei = ((uintptr_t)item - (uintptr_t)slab->us_data) / keg->uk_rsize;
 
 	if (freei >= keg->uk_ipers)
