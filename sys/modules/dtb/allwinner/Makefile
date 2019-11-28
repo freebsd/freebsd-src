@@ -24,6 +24,7 @@ DTS=	\
 	sun8i-h3-orangepi-plus2e.dts
 
 DTSO=	sun8i-a83t-sid.dtso \
+	sun8i-h3-i2c0.dtso \
 	sun8i-h3-sid.dtso \
 	sun8i-h3-ths.dtso
 
