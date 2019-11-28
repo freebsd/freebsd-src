@@ -219,6 +219,9 @@ struct ntb_softc {
 	struct ntb_pci_bar_info	*peer_lapic_bar;
 	struct callout		peer_msix_work;
 
+	bus_dma_tag_t		bar0_dma_tag;
+	bus_dmamap_t		bar0_dma_map;
+
 	struct callout		heartbeat_timer;
 	struct callout		lr_timer;
 
@@ -791,6 +794,29 @@ intel_ntb_map_pci_bars(struct ntb_softc *ntb)
 	if (rc != 0)
 		goto out;
 
+	/*
+	 * At least on Xeon v4 NTB device leaks to host some remote side
+	 * BAR0 writes supposed to update scratchpad registers.  I am not
+	 * sure why it happens, but it may be related to the fact that
+	 * on a link side BAR0 is 32KB, while on a host side it is 64KB.
+	 * Without this hack DMAR blocks those accesses as not allowed.
+	 */
+	if (bus_dma_tag_create(bus_get_dma_tag(ntb->device), 1, 0,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+	    bar->size, 1, bar->size, 0, NULL, NULL, &ntb->bar0_dma_tag)) {
+		device_printf(ntb->device, "Unable to create BAR0 tag\n");
+		return (ENOMEM);
+	}
+	if (bus_dmamap_create(ntb->bar0_dma_tag, 0, &ntb->bar0_dma_map)) {
+		device_printf(ntb->device, "Unable to create BAR0 map\n");
+		return (ENOMEM);
+	}
+	if (bus_dma_dmar_load_ident(ntb->bar0_dma_tag, ntb->bar0_dma_map,
+	    bar->pbase, bar->size, 0)) {
+		device_printf(ntb->device, "Unable to load BAR0 map\n");
+		return (ENOMEM);
+	}
+
 	bar = &ntb->bar_info[NTB_B2B_BAR_1];
 	bar->pci_resource_id = PCIR_BAR(2);
 	rc = map_memory_window_bar(ntb, bar);
@@ -943,6 +969,12 @@ intel_ntb_unmap_pci_bar(struct ntb_softc *ntb)
 	struct ntb_pci_bar_info *bar;
 	int i;
 
+	if (ntb->bar0_dma_map != NULL) {
+		bus_dmamap_unload(ntb->bar0_dma_tag, ntb->bar0_dma_map);
+		bus_dmamap_destroy(ntb->bar0_dma_tag, ntb->bar0_dma_map);
+	}
+	if (ntb->bar0_dma_tag != NULL)
+		bus_dma_tag_destroy(ntb->bar0_dma_tag);
 	for (i = 0; i < NTB_MAX_BARS; i++) {
 		bar = &ntb->bar_info[i];
 		if (bar->pci_resource != NULL)
