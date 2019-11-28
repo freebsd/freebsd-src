@@ -797,6 +797,9 @@ struct nfsslot {
 	struct mbuf	*nfssl_reply;
 };
 
+/* Enumerated type for nfsuserd state. */
+typedef enum { NOTRUNNING=0, STARTSTOP=1, RUNNING=2 } nfsuserd_state;
+
 #endif	/* _KERNEL */
 
 #endif	/* _NFS_NFS_H */
