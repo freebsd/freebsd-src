@@ -1511,7 +1511,6 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 #      53C810, 53C810A, 53C815, 53C825,  53C825A, 53C860, 53C875,
 #      53C876, 53C885,  53C895, 53C895A, 53C896,  53C897, 53C1510D,
 #      53C1010-33, 53C1010-66.
-# trm: Tekram DC395U/UW/F DC315U adapters.
 
 device		ahc
 device		ahd
@@ -1538,7 +1537,6 @@ device		mpr			# LSI-Logic MPT-Fusion 3
 device		mps			# LSI-Logic MPT-Fusion 2
 device		mpt			# LSI-Logic MPT-Fusion
 device		sym
-device		trm
 
 # The aic7xxx driver will attempt to use memory mapped I/O for all PCI
 # controllers that have it configured only if this option is set. Unfortunately,
