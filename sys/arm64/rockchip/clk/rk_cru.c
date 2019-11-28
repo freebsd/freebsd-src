@@ -153,7 +153,7 @@ rk_cru_reset_is_asserted(device_t dev, intptr_t id, bool *reset)
 	val = CCU_READ4(sc, reg);
 	mtx_unlock(&sc->mtx);
 
-	*reset = true;
+	*reset = false;
 	if (val & (1 << bit))
 		*reset = true;
 
@@ -263,9 +263,8 @@ rk_cru_attach(device_t dev)
 
 	clk_set_assigned(dev, node);
 
-	/* If we have resets, register our self as a reset provider */
-	/* if (sc->resets) */
-	/* 	hwreset_register_ofw_provider(dev); */
+	/* register our self as a reset provider */
+	hwreset_register_ofw_provider(dev);
 
 	return (0);
 }
