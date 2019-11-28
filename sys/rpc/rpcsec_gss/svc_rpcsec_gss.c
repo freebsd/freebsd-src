@@ -173,7 +173,6 @@ struct svc_rpc_gss_cookedcred {
 #define CLIENT_MAX		1024
 u_int svc_rpc_gss_client_max = CLIENT_MAX;
 u_int svc_rpc_gss_client_hash_size = CLIENT_HASH_SIZE;
-u_int svc_rpc_gss_lifetime_max = 0;
 
 SYSCTL_NODE(_kern, OID_AUTO, rpc, CTLFLAG_RW, 0, "RPC");
 SYSCTL_NODE(_kern_rpc, OID_AUTO, gss, CTLFLAG_RW, 0, "GSS");
@@ -186,6 +185,7 @@ SYSCTL_UINT(_kern_rpc_gss, OID_AUTO, client_hash, CTLFLAG_RDTUN,
     &svc_rpc_gss_client_hash_size, 0,
     "Size of rpc-gss client hash table");
 
+static u_int svc_rpc_gss_lifetime_max = 0;
 SYSCTL_UINT(_kern_rpc_gss, OID_AUTO, lifetime_max, CTLFLAG_RW,
     &svc_rpc_gss_lifetime_max, 0,
     "Maximum lifetime (seconds) of rpc-gss clients");
