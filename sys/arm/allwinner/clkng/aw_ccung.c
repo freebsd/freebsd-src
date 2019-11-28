@@ -299,6 +299,9 @@ aw_ccung_attach(device_t dev)
 		case AW_CLK_NM:
 			aw_clk_nm_register(sc->clkdom, sc->clks[i].clk.nm);
 			break;
+		case AW_CLK_M:
+			aw_clk_m_register(sc->clkdom, sc->clks[i].clk.m);
+			break;
 		case AW_CLK_PREDIV_MUX:
 			aw_clk_prediv_mux_register(sc->clkdom,
 			    sc->clks[i].clk.prediv_mux);
@@ -306,6 +309,8 @@ aw_ccung_attach(device_t dev)
 		case AW_CLK_FRAC:
 			aw_clk_frac_register(sc->clkdom, sc->clks[i].clk.frac);
 			break;
+		case AW_CLK_MIPI:
+			aw_clk_mipi_register(sc->clkdom, sc->clks[i].clk.mipi);
 		}
 	}
 

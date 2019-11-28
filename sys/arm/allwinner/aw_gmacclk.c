@@ -277,4 +277,4 @@ static driver_t aw_gmacclk_driver = {
 static devclass_t aw_gmacclk_devclass;
 
 EARLY_DRIVER_MODULE(aw_gmacclk, simplebus, aw_gmacclk_driver,
-    aw_gmacclk_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+    aw_gmacclk_devclass, 0, 0, BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);

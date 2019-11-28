@@ -25,24 +25,22 @@
  * $FreeBSD$
  */
 
-#ifndef	__AW_CLK_FRAC_H__
-#define __AW_CLK_FRAC_H__
+#ifndef	__AW_CLK_MIPI_H__
+#define __AW_CLK_MIPI_H__
 
 #include <dev/extres/clk/clk.h>
 
-struct aw_clk_frac_def {
+struct aw_clk_mipi_def {
 	struct clknode_init_def clkdef;
 	uint32_t		offset;
 
+	struct aw_clk_factor	k;
 	struct aw_clk_factor	m;
 	struct aw_clk_factor	n;
-	struct aw_clk_frac	frac;
 
 	uint64_t		min_freq;
 	uint64_t		max_freq;
 
-	uint32_t		mux_shift;
-	uint32_t		mux_width;
 	uint32_t		gate_shift;
 	uint32_t		lock_shift;
 	uint32_t		lock_retries;
@@ -50,6 +48,6 @@ struct aw_clk_frac_def {
 	uint32_t		flags;
 };
 
-int	aw_clk_frac_register(struct clkdom *clkdom, struct aw_clk_frac_def *clkdef);
+int	aw_clk_mipi_register(struct clkdom *clkdom, struct aw_clk_mipi_def *clkdef);
 
-#endif /* __AW_CLK_FRAC_H__ */
+#endif /* __AW_CLK_MIPI_H__ */

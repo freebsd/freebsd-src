@@ -221,7 +221,8 @@ FRAC_CLK(pll_video0_clk,
     31, 0, 0,					/* gate, lock, lock retries */
     AW_CLK_HAS_GATE,				/* flags */
     270000000, 297000000,			/* freq0, freq1 */
-    15, 14);					/* mode sel, freq sel */
+    15, 14,					/* mode sel, freq sel */
+    27000000, 381000000);			/* min freq, max freq */
 static const char *pll_video0_2x_parents[] = {"pll_video0"};
 FIXED_CLK(pll_video0_2x_clk,
     CLK_PLL_VIDEO0_2X,				/* id */
@@ -240,7 +241,8 @@ FRAC_CLK(pll_video1_clk,
     31, 0, 0,					/* gate, lock, lock retries */
     AW_CLK_HAS_GATE,				/* flags */
     270000000, 297000000,			/* freq0, freq1 */
-    15, 14);					/* mode sel, freq sel */
+    15, 14,					/* mode sel, freq sel */
+    27000000, 381000000);			/* min freq, max freq */
 static const char *pll_video1_2x_parents[] = {"pll_video1"};
 FIXED_CLK(pll_video1_2x_clk,
     CLK_PLL_VIDEO1_2X,				/* id */
@@ -621,4 +623,4 @@ DEFINE_CLASS_1(ccu_a10ng, ccu_a10ng_driver, ccu_a10ng_methods,
   sizeof(struct aw_ccung_softc), aw_ccung_driver);
 
 EARLY_DRIVER_MODULE(ccu_a10ng, simplebus, ccu_a10ng_driver,
-    ccu_a10ng_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+    ccu_a10ng_devclass, 0, 0, BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
