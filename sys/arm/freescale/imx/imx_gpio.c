@@ -865,6 +865,15 @@ imx51_gpio_detach(device_t dev)
 	return(0);
 }
 
+static phandle_t
+imx51_gpio_get_node(device_t bus, device_t dev)
+{
+	/*
+	 * Share controller node with gpiobus device
+	 */
+	return ofw_bus_get_node(bus);
+}
+
 static device_method_t imx51_gpio_methods[] = {
 	DEVMETHOD(device_probe,		imx51_gpio_probe),
 	DEVMETHOD(device_attach,	imx51_gpio_attach),
@@ -881,6 +890,9 @@ static device_method_t imx51_gpio_methods[] = {
 	DEVMETHOD(pic_post_ithread,	gpio_pic_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	gpio_pic_pre_ithread),
 #endif
+
+	/* OFW methods */
+	DEVMETHOD(ofw_bus_get_node,	imx51_gpio_get_node),
 
 	/* GPIO protocol */
 	DEVMETHOD(gpio_get_bus,		imx51_gpio_get_bus),
