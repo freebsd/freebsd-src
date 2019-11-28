@@ -824,9 +824,13 @@ efi_cons_update_mode(void)
 	 * terminal emulator for efi text mode to support the menu.
 	 * While teken is too expensive to be used on serial console, the
 	 * pre-teken emulator is light enough to be used on serial console.
+	 *
+	 * When doing multiple consoles (both serial and video),
+	 * also just use the old emulator. RB_MULTIPLE also implies
+	 * we're using a serial console.
 	 */
 	mode = parse_uefi_con_out();
-	if ((mode & RB_SERIAL) == 0) {
+	if ((mode & (RB_SERIAL | RB_MULTIPLE)) == 0) {
 		if (buffer != NULL) {
 			if (tp.tp_row == rows && tp.tp_col == cols)
 				return (true);
@@ -998,7 +1002,11 @@ efi_cons_putchar(int c)
 {
 	unsigned char ch = c;
 
-	if ((mode & RB_SERIAL) != 0) {
+	/*
+	 * Don't use Teken when we're doing pure serial, or a multiple console
+	 * with video "primary" because that's also serial.
+	 */
+	if ((mode & (RB_SERIAL | RB_MULTIPLE)) != 0) {
 		input_byte(ch);
 		return;
 	}
