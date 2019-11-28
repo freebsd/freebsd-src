@@ -34,6 +34,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <regex.h>
 #include <string.h>
 #include <pmc.h>
 #include <pmclog.h>
@@ -165,8 +166,11 @@ struct pmu_event_desc {
 static const struct pmu_events_map *
 pmu_events_map_get(const char *cpuid)
 {
-	size_t s;
+	regex_t re;
+	regmatch_t pmatch[1];
+	size_t s, len;
 	char buf[64];
+	int match;
 	const struct pmu_events_map *pme;
 
 	if (cpuid != NULL) {
@@ -179,9 +183,20 @@ pmu_events_map_get(const char *cpuid)
 		    (void *)NULL, 0) == -1)
 			return (NULL);
 	}
-	for (pme = pmu_events_map; pme->cpuid != NULL; pme++)
-		if (strcmp(buf, pme->cpuid) == 0)
-			return (pme);
+	for (pme = pmu_events_map; pme->cpuid != NULL; pme++) {
+		if (regcomp(&re, pme->cpuid, REG_EXTENDED) != 0) {
+			printf("regex '%s' failed to compile, ignoring\n",
+			    pme->cpuid);
+			continue;
+		}
+		match = regexec(&re, buf, 1, pmatch, 0);
+		regfree(&re);
+		if (match == 0) {
+			len = pmatch[0].rm_eo - pmatch[0].rm_so;
+			if(len == strlen(buf))
+				return (pme);
+		}
+	}
 	return (NULL);
 }
 
