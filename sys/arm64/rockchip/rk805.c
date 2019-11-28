@@ -362,6 +362,7 @@ static regnode_method_t rk805_regnode_methods[] = {
 	REGNODEMETHOD(regnode_enable,		rk805_regnode_enable),
 	REGNODEMETHOD(regnode_set_voltage,	rk805_regnode_set_voltage),
 	REGNODEMETHOD(regnode_get_voltage,	rk805_regnode_get_voltage),
+	REGNODEMETHOD(regnode_check_voltage,	regnode_method_check_voltage),
 	REGNODEMETHOD_END
 };
 DEFINE_CLASS_1(rk805_regnode, rk805_regnode_class, rk805_regnode_methods,

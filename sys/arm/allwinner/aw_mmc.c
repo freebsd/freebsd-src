@@ -509,7 +509,13 @@ aw_mmc_attach(device_t dev)
 			   MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR50 |
 			   MMC_CAP_UHS_DDR50 | MMC_CAP_MMC_DDR52;
 
-	sc->aw_host.caps |= MMC_CAP_SIGNALING_330 | MMC_CAP_SIGNALING_180;
+	if (sc->aw_reg_vqmmc != NULL) {
+		if (regulator_check_voltage(sc->aw_reg_vqmmc, 1800000) == 0)
+			sc->aw_host.caps |= MMC_CAP_SIGNALING_180;
+		if (regulator_check_voltage(sc->aw_reg_vqmmc, 3300000) == 0)
+			sc->aw_host.caps |= MMC_CAP_SIGNALING_330;
+	} else
+		sc->aw_host.caps |= MMC_CAP_SIGNALING_330;
 
 	if (bus_width >= 4)
 		sc->aw_host.caps |= MMC_CAP_4_BIT_DATA;
