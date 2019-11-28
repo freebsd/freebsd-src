@@ -241,7 +241,7 @@ auditd_wait_for_events(void)
 			auditd_config_controls();
 		}
 
-		if ((num == -1) && (errno == EINTR))
+		if (num == -1)
 			continue;
 		if (num == 0) {
 			auditd_log_err("%s: read EOF", __FUNCTION__);
