@@ -834,6 +834,7 @@ realloc(void *addr, size_t size, struct malloc_type *mtp, int flags)
 
 #ifdef DEBUG_REDZONE
 	slab = NULL;
+	zone = NULL;
 	alloc = redzone_get_size(addr);
 #else
 	vtozoneslab((vm_offset_t)addr & (~UMA_SLAB_MASK), &zone, &slab);
