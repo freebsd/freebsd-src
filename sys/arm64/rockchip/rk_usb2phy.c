@@ -87,12 +87,17 @@ struct rk_usb2phy_softc {
 	struct syscon		*grf;
 	regulator_t		phy_supply;
 	clk_t			clk;
+	int			mode;
 };
 
 /* Phy class and methods. */
 static int rk_usb2phy_enable(struct phynode *phynode, bool enable);
+static int rk_usb2phy_get_mode(struct phynode *phy, int *mode);
+static int rk_usb2phy_set_mode(struct phynode *phy, int mode);
 static phynode_method_t rk_usb2phy_phynode_methods[] = {
-	PHYNODEMETHOD(phynode_enable,	rk_usb2phy_enable),
+	PHYNODEMETHOD(phynode_enable,		rk_usb2phy_enable),
+	PHYNODEMETHOD(phynode_usb_get_mode,	rk_usb2phy_get_mode),
+	PHYNODEMETHOD(phynode_usb_set_mode,	rk_usb2phy_set_mode),
 
 	PHYNODEMETHOD_END
 };
@@ -136,6 +141,44 @@ rk_usb2phy_enable(struct phynode *phynode, bool enable)
 	return (0);
 fail:
 	return (ENXIO);
+}
+
+static int
+rk_usb2phy_get_mode(struct phynode *phynode, int *mode)
+{
+	struct rk_usb2phy_softc *sc;
+	intptr_t phy;
+	device_t dev;
+
+	dev = phynode_get_device(phynode);
+	phy = phynode_get_id(phynode);
+	sc = device_get_softc(dev);
+
+	if (phy != RK3399_USBPHY_HOST)
+		return (ERANGE);
+
+	*mode = sc->mode;
+
+	return (0);
+}
+
+static int
+rk_usb2phy_set_mode(struct phynode *phynode, int mode)
+{
+	struct rk_usb2phy_softc *sc;
+	intptr_t phy;
+	device_t dev;
+
+	dev = phynode_get_device(phynode);
+	phy = phynode_get_id(phynode);
+	sc = device_get_softc(dev);
+
+	if (phy != RK3399_USBPHY_HOST)
+		return (ERANGE);
+
+	sc->mode = mode;
+
+	return (0);
 }
 
 /* Clock class and method */

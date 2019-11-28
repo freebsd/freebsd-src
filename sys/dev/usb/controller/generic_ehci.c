@@ -60,27 +60,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ehci.h>
 #include <dev/usb/controller/ehcireg.h>
 
-#include <contrib/dev/acpica/include/acpi.h>
-#include <contrib/dev/acpica/include/accommon.h>
-#include <dev/acpica/acpivar.h>
+#include "generic_ehci.h"
 
-static device_attach_t generic_ehci_attach;
-static device_detach_t generic_ehci_detach;
-
-static int
-generic_ehci_probe(device_t self)
-{
-	ACPI_HANDLE h;
-
-	if ((h = acpi_get_handle(self)) == NULL ||
-	    !acpi_MatchHid(h, "PNP0D20"))
-		return (ENXIO);
-
-	device_set_desc(self, "Generic EHCI Controller");
-	return (BUS_PROBE_DEFAULT);
-}
-
-static int
+int
 generic_ehci_attach(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
@@ -152,7 +134,7 @@ error:
 	return (ENXIO);
 }
 
-static int
+int
 generic_ehci_detach(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
@@ -192,7 +174,6 @@ generic_ehci_detach(device_t self)
 
 static device_method_t ehci_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		generic_ehci_probe),
 	DEVMETHOD(device_attach,	generic_ehci_attach),
 	DEVMETHOD(device_detach,	generic_ehci_detach),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
@@ -202,13 +183,8 @@ static device_method_t ehci_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t ehci_driver = {
+driver_t generic_ehci_driver = {
 	.name = "ehci",
 	.methods = ehci_methods,
 	.size = sizeof(ehci_softc_t),
 };
-
-static devclass_t ehci_devclass;
-
-DRIVER_MODULE(ehci, acpi, ehci_driver, ehci_devclass, 0, 0);
-MODULE_DEPEND(ehci, usb, 1, 1, 1);
