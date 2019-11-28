@@ -257,7 +257,6 @@ firmware_unregister(const char *imagename)
 static void
 loadimage(void *arg, int npending)
 {
-	struct thread *td = curthread;
 	char *imagename = arg;
 	struct priv_fw *fp;
 	linker_file_t result;
@@ -267,11 +266,6 @@ loadimage(void *arg, int npending)
 	mtx_lock(&firmware_mtx);
 	mtx_unlock(&firmware_mtx);
 
-	if (td->td_proc->p_fd->fd_rdir == NULL) {
-		printf("%s: root not mounted yet, no way to load image\n",
-		    imagename);
-		goto done;
-	}
 	error = linker_reference_module(imagename, NULL, &result);
 	if (error != 0) {
 		printf("%s: could not load firmware image, error %d\n",
