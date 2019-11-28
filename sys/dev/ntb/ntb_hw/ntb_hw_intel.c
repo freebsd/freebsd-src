@@ -782,37 +782,42 @@ bar_get_xlat_params(struct ntb_softc *ntb, enum ntb_bar bar, uint32_t *base,
 static int
 intel_ntb_map_pci_bars(struct ntb_softc *ntb)
 {
+	struct ntb_pci_bar_info *bar;
 	int rc;
 
-	ntb->bar_info[NTB_CONFIG_BAR].pci_resource_id = PCIR_BAR(0);
-	rc = map_mmr_bar(ntb, &ntb->bar_info[NTB_CONFIG_BAR]);
+	bar = &ntb->bar_info[NTB_CONFIG_BAR];
+	bar->pci_resource_id = PCIR_BAR(0);
+	rc = map_mmr_bar(ntb, bar);
 	if (rc != 0)
 		goto out;
 
-	ntb->bar_info[NTB_B2B_BAR_1].pci_resource_id = PCIR_BAR(2);
-	rc = map_memory_window_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_1]);
+	bar = &ntb->bar_info[NTB_B2B_BAR_1];
+	bar->pci_resource_id = PCIR_BAR(2);
+	rc = map_memory_window_bar(ntb, bar);
 	if (rc != 0)
 		goto out;
-	ntb->bar_info[NTB_B2B_BAR_1].psz_off = XEON_PBAR23SZ_OFFSET;
-	ntb->bar_info[NTB_B2B_BAR_1].ssz_off = XEON_SBAR23SZ_OFFSET;
-	ntb->bar_info[NTB_B2B_BAR_1].pbarxlat_off = XEON_PBAR2XLAT_OFFSET;
+	bar->psz_off = XEON_PBAR23SZ_OFFSET;
+	bar->ssz_off = XEON_SBAR23SZ_OFFSET;
+	bar->pbarxlat_off = XEON_PBAR2XLAT_OFFSET;
 
-	ntb->bar_info[NTB_B2B_BAR_2].pci_resource_id = PCIR_BAR(4);
-	rc = map_memory_window_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_2]);
+	bar = &ntb->bar_info[NTB_B2B_BAR_2];
+	bar->pci_resource_id = PCIR_BAR(4);
+	rc = map_memory_window_bar(ntb, bar);
 	if (rc != 0)
 		goto out;
-	ntb->bar_info[NTB_B2B_BAR_2].psz_off = XEON_PBAR4SZ_OFFSET;
-	ntb->bar_info[NTB_B2B_BAR_2].ssz_off = XEON_SBAR4SZ_OFFSET;
-	ntb->bar_info[NTB_B2B_BAR_2].pbarxlat_off = XEON_PBAR4XLAT_OFFSET;
+	bar->psz_off = XEON_PBAR4SZ_OFFSET;
+	bar->ssz_off = XEON_SBAR4SZ_OFFSET;
+	bar->pbarxlat_off = XEON_PBAR4XLAT_OFFSET;
 
 	if (!HAS_FEATURE(ntb, NTB_SPLIT_BAR))
 		goto out;
 
-	ntb->bar_info[NTB_B2B_BAR_3].pci_resource_id = PCIR_BAR(5);
-	rc = map_memory_window_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_3]);
-	ntb->bar_info[NTB_B2B_BAR_3].psz_off = XEON_PBAR5SZ_OFFSET;
-	ntb->bar_info[NTB_B2B_BAR_3].ssz_off = XEON_SBAR5SZ_OFFSET;
-	ntb->bar_info[NTB_B2B_BAR_3].pbarxlat_off = XEON_PBAR5XLAT_OFFSET;
+	bar = &ntb->bar_info[NTB_B2B_BAR_3];
+	bar->pci_resource_id = PCIR_BAR(5);
+	rc = map_memory_window_bar(ntb, bar);
+	bar->psz_off = XEON_PBAR5SZ_OFFSET;
+	bar->ssz_off = XEON_SBAR5SZ_OFFSET;
+	bar->pbarxlat_off = XEON_PBAR5XLAT_OFFSET;
 
 out:
 	if (rc != 0)
@@ -935,15 +940,14 @@ map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 static void
 intel_ntb_unmap_pci_bar(struct ntb_softc *ntb)
 {
-	struct ntb_pci_bar_info *current_bar;
+	struct ntb_pci_bar_info *bar;
 	int i;
 
 	for (i = 0; i < NTB_MAX_BARS; i++) {
-		current_bar = &ntb->bar_info[i];
-		if (current_bar->pci_resource != NULL)
+		bar = &ntb->bar_info[i];
+		if (bar->pci_resource != NULL)
 			bus_release_resource(ntb->device, SYS_RES_MEMORY,
-			    current_bar->pci_resource_id,
-			    current_bar->pci_resource);
+			    bar->pci_resource_id, bar->pci_resource);
 	}
 }
 
