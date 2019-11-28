@@ -112,20 +112,23 @@ static int
 rk_cru_reset_assert(device_t dev, intptr_t id, bool reset)
 {
 	struct rk_cru_softc *sc;
+	uint32_t reg;
+	int bit;
 	uint32_t val;
 
 	sc = device_get_softc(dev);
 
-	if (id >= sc->nresets || sc->resets[id].offset == 0)
-		return (0);
+	if (id > sc->reset_num)
+		return (ENXIO);
+
+	reg = sc->reset_offset + id / 16 * 4;
+	bit = id % 16;
 
 	mtx_lock(&sc->mtx);
-	val = CCU_READ4(sc, sc->resets[id].offset);
+	val = 0;
 	if (reset)
-		val &= ~(1 << sc->resets[id].shift);
-	else
-		val |= 1 << sc->resets[id].shift;
-	CCU_WRITE4(sc, sc->resets[id].offset, val);
+		val = (1 << bit);
+	CCU_WRITE4(sc, reg, val | ((1 << bit) << 16));
 	mtx_unlock(&sc->mtx);
 
 	return (0);
@@ -135,17 +138,24 @@ static int
 rk_cru_reset_is_asserted(device_t dev, intptr_t id, bool *reset)
 {
 	struct rk_cru_softc *sc;
+	uint32_t reg;
+	int bit;
 	uint32_t val;
 
 	sc = device_get_softc(dev);
 
-	if (id >= sc->nresets || sc->resets[id].offset == 0)
-		return (0);
+	if (id > sc->reset_num)
+		return (ENXIO);
+	reg = sc->reset_offset + id / 16 * 4;
+	bit = id % 16;
 
 	mtx_lock(&sc->mtx);
-	val = CCU_READ4(sc, sc->resets[id].offset);
-	*reset = (val & (1 << sc->resets[id].shift)) != 0 ? false : true;
+	val = CCU_READ4(sc, reg);
 	mtx_unlock(&sc->mtx);
+
+	*reset = true;
+	if (val & (1 << bit))
+		*reset = true;
 
 	return (0);
 }
@@ -254,8 +264,8 @@ rk_cru_attach(device_t dev)
 	clk_set_assigned(dev, node);
 
 	/* If we have resets, register our self as a reset provider */
-	if (sc->resets)
-		hwreset_register_ofw_provider(dev);
+	/* if (sc->resets) */
+	/* 	hwreset_register_ofw_provider(dev); */
 
 	return (0);
 }

@@ -34,11 +34,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 
+#include <sys/gpio.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/rman.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -53,9 +54,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/extres/syscon/syscon.h>
 
+#include "gpio_if.h"
 #include "syscon_if.h"
-
-#include "opt_soc.h"
 
 struct rk_pinctrl_pin_drive {
 	uint32_t	bank;
@@ -66,8 +66,8 @@ struct rk_pinctrl_pin_drive {
 };
 
 struct rk_pinctrl_bank {
-	uint32_t	bank_num;
-	uint32_t	subbank_num;
+	uint32_t	bank;
+	uint32_t	subbank;
 	uint32_t	offset;
 	uint32_t	nbits;
 };
@@ -81,6 +81,13 @@ struct rk_pinctrl_pin_fixup {
 	uint32_t	mask;
 };
 
+struct rk_pinctrl_gpio {
+	uint32_t	bank;
+	char		*gpio_name;
+	device_t	gpio_dev;
+};
+
+
 struct rk_pinctrl_softc;
 
 struct rk_pinctrl_conf {
@@ -90,8 +97,10 @@ struct rk_pinctrl_conf {
 	uint32_t			npin_fixup;
 	struct rk_pinctrl_pin_drive	*pin_drive;
 	uint32_t			npin_drive;
-	uint32_t			(*get_pd_offset)(struct rk_pinctrl_softc *, uint32_t);
-	struct syscon			*(*get_syscon)(struct rk_pinctrl_softc *, uint32_t);
+	struct rk_pinctrl_gpio		*gpio_bank;
+	uint32_t			ngpio_bank;
+	uint32_t	(*get_pd_offset)(struct rk_pinctrl_softc *, uint32_t);
+	struct syscon	*(*get_syscon)(struct rk_pinctrl_softc *, uint32_t);
 };
 
 struct rk_pinctrl_softc {
@@ -102,218 +111,395 @@ struct rk_pinctrl_softc {
 	struct rk_pinctrl_conf	*conf;
 };
 
+#define	RK_IOMUX(_bank, _subbank, _offset, _nbits)			\
+{									\
+	.bank = _bank,							\
+	.subbank = _subbank,						\
+	.offset = _offset,						\
+	.nbits = _nbits,						\
+}
+
+#define	RK_PINFIX(_bank, _pin, _reg, _bit, _mask)			\
+{									\
+	.bank = _bank,							\
+	.pin = _pin,							\
+	.reg = _reg,							\
+	.bit = _bit,							\
+	.mask = _mask,							\
+}
+
+#define	RK_PINDRIVE(_bank, _subbank, _offset, _value, _ma)		\
+{									\
+	.bank = _bank,							\
+	.subbank = _subbank,						\
+	.offset = _offset,						\
+	.value = _value,						\
+	.ma = _ma,							\
+}
+#define	RK_GPIO(_bank, _name)						\
+{									\
+	.bank = _bank,							\
+	.gpio_name = _name,						\
+}
+
+static struct rk_pinctrl_gpio rk3288_gpio_bank[] = {
+	RK_GPIO(0, "gpio0"),
+	RK_GPIO(1, "gpio1"),
+	RK_GPIO(2, "gpio2"),
+	RK_GPIO(3, "gpio3"),
+	RK_GPIO(4, "gpio4"),
+	RK_GPIO(5, "gpio5"),
+	RK_GPIO(6, "gpio6"),
+	RK_GPIO(7, "gpio7"),
+	RK_GPIO(8, "gpio8"),
+};
+
+static struct rk_pinctrl_bank rk3288_iomux_bank[] = {
+	/*    bank sub  offs   nbits */
+	/* PMU */
+	RK_IOMUX(0, 0, 0x0084, 2),
+	RK_IOMUX(0, 1, 0x0088, 2),
+	RK_IOMUX(0, 2, 0x008C, 2),
+	/* GFR */
+	RK_IOMUX(1, 3, 0x000C, 2),
+	RK_IOMUX(2, 0, 0x0010, 2),
+	RK_IOMUX(2, 1, 0x0014, 2),
+	RK_IOMUX(2, 2, 0x0018, 2),
+	RK_IOMUX(2, 3, 0x001C, 2),
+	RK_IOMUX(3, 0, 0x0020, 2),
+	RK_IOMUX(3, 1, 0x0024, 2),
+	RK_IOMUX(3, 2, 0x0028, 2),
+	RK_IOMUX(3, 3, 0x002C, 4),
+	RK_IOMUX(4, 0, 0x0034, 4),
+	RK_IOMUX(4, 1, 0x003C, 4),
+	RK_IOMUX(4, 2, 0x0044, 2),
+	RK_IOMUX(4, 3, 0x0048, 2),
+	/* 5,0 - Empty */
+	RK_IOMUX(5, 1, 0x0050, 2),
+	RK_IOMUX(5, 2, 0x0054, 2),
+	/* 5,3 - Empty */
+	RK_IOMUX(6, 0, 0x005C, 2),
+	RK_IOMUX(6, 1, 0x0060, 2),
+	RK_IOMUX(6, 2, 0x0064, 2),
+	/* 6,3 - Empty */
+	RK_IOMUX(7, 0, 0x006C, 2),
+	RK_IOMUX(7, 1, 0x0070, 2),
+	RK_IOMUX(7, 2, 0x0074, 4),
+	/* 7,3 - Empty */
+	RK_IOMUX(8, 0, 0x0080, 2),
+	RK_IOMUX(8, 1, 0x0084, 2),
+	/* 8,2 - Empty */
+	/* 8,3 - Empty */
+
+};
+
+static struct rk_pinctrl_pin_fixup rk3288_pin_fixup[] = {
+};
+
+static struct rk_pinctrl_pin_drive rk3288_pin_drive[] = {
+	/*       bank sub offs val ma */
+	/* GPIO0A (PMU)*/
+	RK_PINDRIVE(0, 0, 0x070, 0, 2),
+	RK_PINDRIVE(0, 0, 0x070, 1, 4),
+	RK_PINDRIVE(0, 0, 0x070, 2, 8),
+	RK_PINDRIVE(0, 0, 0x070, 3, 12),
+
+	/* GPIO0B (PMU)*/
+	RK_PINDRIVE(0, 1, 0x074, 0, 2),
+	RK_PINDRIVE(0, 1, 0x074, 1, 4),
+	RK_PINDRIVE(0, 1, 0x074, 2, 8),
+	RK_PINDRIVE(0, 1, 0x074, 3, 12),
+
+	/* GPIO0C (PMU)*/
+	RK_PINDRIVE(0, 2, 0x078, 0, 2),
+	RK_PINDRIVE(0, 2, 0x078, 1, 4),
+	RK_PINDRIVE(0, 2, 0x078, 2, 8),
+	RK_PINDRIVE(0, 2, 0x078, 3, 12),
+
+	/* GPIO1D */
+	RK_PINDRIVE(1, 3, 0x1CC, 0, 2),
+	RK_PINDRIVE(1, 3, 0x1CC, 1, 4),
+	RK_PINDRIVE(1, 3, 0x1CC, 2, 8),
+	RK_PINDRIVE(1, 3, 0x1CC, 3, 12),
+
+	/* GPIO2A */
+	RK_PINDRIVE(2, 0, 0x1D0, 0, 2),
+	RK_PINDRIVE(2, 0, 0x1D0, 1, 4),
+	RK_PINDRIVE(2, 0, 0x1D0, 2, 8),
+	RK_PINDRIVE(2, 0, 0x1D0, 3, 12),
+
+	/* GPIO2B */
+	RK_PINDRIVE(2, 1, 0x1D4, 0, 2),
+	RK_PINDRIVE(2, 1, 0x1D4, 1, 4),
+	RK_PINDRIVE(2, 1, 0x1D4, 2, 8),
+	RK_PINDRIVE(2, 1, 0x1D4, 3, 12),
+
+	/* GPIO2C */
+	RK_PINDRIVE(2, 2, 0x1D8, 0, 2),
+	RK_PINDRIVE(2, 2, 0x1D8, 1, 4),
+	RK_PINDRIVE(2, 2, 0x1D8, 2, 8),
+	RK_PINDRIVE(2, 2, 0x1D8, 3, 12),
+
+	/* GPIO2D */
+	RK_PINDRIVE(2, 3, 0x1DC, 0, 2),
+	RK_PINDRIVE(2, 3, 0x1DC, 1, 4),
+	RK_PINDRIVE(2, 3, 0x1DC, 2, 8),
+	RK_PINDRIVE(2, 3, 0x1DC, 3, 12),
+
+	/* GPIO3A */
+	RK_PINDRIVE(3, 0, 0x1E0, 0, 2),
+	RK_PINDRIVE(3, 0, 0x1E0, 1, 4),
+	RK_PINDRIVE(3, 0, 0x1E0, 2, 8),
+	RK_PINDRIVE(3, 0, 0x1E0, 3, 12),
+
+	/* GPIO3B */
+	RK_PINDRIVE(3, 1, 0x1E4, 0, 2),
+	RK_PINDRIVE(3, 1, 0x1E4, 1, 4),
+	RK_PINDRIVE(3, 1, 0x1E4, 2, 8),
+	RK_PINDRIVE(3, 1, 0x1E4, 3, 12),
+
+	/* GPIO3C */
+	RK_PINDRIVE(3, 2, 0x1E8, 0, 2),
+	RK_PINDRIVE(3, 2, 0x1E8, 1, 4),
+	RK_PINDRIVE(3, 2, 0x1E8, 2, 8),
+	RK_PINDRIVE(3, 2, 0x1E8, 3, 12),
+
+	/* GPIO3D */
+	RK_PINDRIVE(3, 3, 0x1EC, 0, 2),
+	RK_PINDRIVE(3, 3, 0x1EC, 1, 4),
+	RK_PINDRIVE(3, 3, 0x1EC, 2, 8),
+	RK_PINDRIVE(3, 3, 0x1EC, 3, 12),
+
+	/* GPIO4A */
+	RK_PINDRIVE(4, 0, 0x1F0, 0, 2),
+	RK_PINDRIVE(4, 0, 0x1F0, 1, 4),
+	RK_PINDRIVE(4, 0, 0x1F0, 2, 8),
+	RK_PINDRIVE(4, 0, 0x1F0, 3, 12),
+
+	/* GPIO4B */
+	RK_PINDRIVE(4, 1, 0x1F4, 0, 2),
+	RK_PINDRIVE(4, 1, 0x1F4, 1, 4),
+	RK_PINDRIVE(4, 1, 0x1F4, 2, 8),
+	RK_PINDRIVE(4, 1, 0x1F4, 3, 12),
+
+	/* GPIO4C */
+	RK_PINDRIVE(4, 2, 0x1F8, 0, 2),
+	RK_PINDRIVE(4, 2, 0x1F8, 1, 4),
+	RK_PINDRIVE(4, 2, 0x1F8, 2, 8),
+	RK_PINDRIVE(4, 2, 0x1F8, 3, 12),
+
+	/* GPIO4D */
+	RK_PINDRIVE(4, 3, 0x1FC, 0, 2),
+	RK_PINDRIVE(4, 3, 0x1FC, 1, 4),
+	RK_PINDRIVE(4, 3, 0x1FC, 2, 8),
+	RK_PINDRIVE(4, 3, 0x1FC, 3, 12),
+
+	/* GPIO5B */
+	RK_PINDRIVE(5, 1, 0x204, 0, 2),
+	RK_PINDRIVE(5, 1, 0x204, 1, 4),
+	RK_PINDRIVE(5, 1, 0x204, 2, 8),
+	RK_PINDRIVE(5, 1, 0x204, 3, 12),
+
+	/* GPIO5C */
+	RK_PINDRIVE(5, 2, 0x208, 0, 2),
+	RK_PINDRIVE(5, 2, 0x208, 1, 4),
+	RK_PINDRIVE(5, 2, 0x208, 2, 8),
+	RK_PINDRIVE(5, 2, 0x208, 3, 12),
+
+	/* GPIO6A */
+	RK_PINDRIVE(6, 0, 0x210, 0, 2),
+	RK_PINDRIVE(6, 0, 0x210, 1, 4),
+	RK_PINDRIVE(6, 0, 0x210, 2, 8),
+	RK_PINDRIVE(6, 0, 0x210, 3, 12),
+
+	/* GPIO6B */
+	RK_PINDRIVE(6, 1, 0x214, 0, 2),
+	RK_PINDRIVE(6, 1, 0x214, 1, 4),
+	RK_PINDRIVE(6, 1, 0x214, 2, 8),
+	RK_PINDRIVE(6, 1, 0x214, 3, 12),
+
+	/* GPIO6C */
+	RK_PINDRIVE(6, 2, 0x218, 0, 2),
+	RK_PINDRIVE(6, 2, 0x218, 1, 4),
+	RK_PINDRIVE(6, 2, 0x218, 2, 8),
+	RK_PINDRIVE(6, 2, 0x218, 3, 12),
+
+	/* GPIO7A */
+	RK_PINDRIVE(7, 0, 0x220, 0, 2),
+	RK_PINDRIVE(7, 0, 0x220, 1, 4),
+	RK_PINDRIVE(7, 0, 0x220, 2, 8),
+	RK_PINDRIVE(7, 0, 0x220, 3, 12),
+
+	/* GPIO7B */
+	RK_PINDRIVE(7, 1, 0x224, 0, 2),
+	RK_PINDRIVE(7, 1, 0x224, 1, 4),
+	RK_PINDRIVE(7, 1, 0x224, 2, 8),
+	RK_PINDRIVE(7, 1, 0x224, 3, 12),
+
+	/* GPIO7C */
+	RK_PINDRIVE(7, 2, 0x228, 0, 2),
+	RK_PINDRIVE(7, 2, 0x228, 1, 4),
+	RK_PINDRIVE(7, 2, 0x228, 2, 8),
+	RK_PINDRIVE(7, 2, 0x228, 3, 12),
+
+	/* GPIO8A */
+	RK_PINDRIVE(8, 0, 0x230, 0, 2),
+	RK_PINDRIVE(8, 0, 0x230, 1, 4),
+	RK_PINDRIVE(8, 0, 0x230, 2, 8),
+	RK_PINDRIVE(8, 0, 0x230, 3, 12),
+
+	/* GPIO8B */
+	RK_PINDRIVE(8, 1, 0x234, 0, 2),
+	RK_PINDRIVE(8, 1, 0x234, 1, 4),
+	RK_PINDRIVE(8, 1, 0x234, 2, 8),
+	RK_PINDRIVE(8, 1, 0x234, 3, 12),
+};
+
+static uint32_t
+rk3288_get_pd_offset(struct rk_pinctrl_softc *sc, uint32_t bank)
+{
+	if (bank == 0)
+		return (0x064);		/* PMU */
+	return (0x130);
+}
+
+static struct syscon *
+rk3288_get_syscon(struct rk_pinctrl_softc *sc, uint32_t bank)
+{
+	if (bank == 0)
+		return (sc->pmu);
+	return (sc->grf);
+}
+
+struct rk_pinctrl_conf rk3288_conf = {
+	.iomux_conf = rk3288_iomux_bank,
+	.iomux_nbanks = nitems(rk3288_iomux_bank),
+	.pin_fixup = rk3288_pin_fixup,
+	.npin_fixup = nitems(rk3288_pin_fixup),
+	.pin_drive = rk3288_pin_drive,
+	.npin_drive = nitems(rk3288_pin_drive),
+	.gpio_bank = rk3288_gpio_bank,
+	.ngpio_bank = nitems(rk3288_gpio_bank),
+	.get_pd_offset = rk3288_get_pd_offset,
+	.get_syscon = rk3288_get_syscon,
+};
+
+static struct rk_pinctrl_gpio rk3328_gpio_bank[] = {
+	RK_GPIO(0, "gpio0"),
+	RK_GPIO(1, "gpio1"),
+	RK_GPIO(2, "gpio2"),
+	RK_GPIO(3, "gpio3"),
+};
+
 static struct rk_pinctrl_bank rk3328_iomux_bank[] = {
-	{
-		.bank_num = 0,
-		.subbank_num = 0,
-		.offset = 0x00,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 0,
-		.subbank_num = 1,
-		.offset = 0x04,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 0,
-		.subbank_num = 2,
-		.offset = 0x08,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 0,
-		.subbank_num = 3,
-		.offset = 0xc,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 1,
-		.subbank_num = 0,
-		.offset = 0x10,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 1,
-		.subbank_num = 1,
-		.offset = 0x14,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 1,
-		.subbank_num = 2,
-		.offset = 0x18,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 1,
-		.subbank_num = 3,
-		.offset = 0x1C,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 2,
-		.subbank_num = 0,
-		.offset = 0x20,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 2,
-		.subbank_num = 1,
-		.offset = 0x24,
-		.nbits = 3,
-	},
-	{
-		.bank_num = 2,
-		.subbank_num = 2,
-		.offset = 0x2c,
-		.nbits = 3,
-	},
-	{
-		.bank_num = 2,
-		.subbank_num = 3,
-		.offset = 0x34,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 3,
-		.subbank_num = 0,
-		.offset = 0x38,
-		.nbits = 3,
-	},
-	{
-		.bank_num = 3,
-		.subbank_num = 1,
-		.offset = 0x40,
-		.nbits = 3,
-	},
-	{
-		.bank_num = 3,
-		.subbank_num = 2,
-		.offset = 0x48,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 3,
-		.subbank_num = 3,
-		.offset = 0x4c,
-		.nbits = 2,
-	},
+	/*    bank sub offs nbits */
+	RK_IOMUX(0, 0, 0x0000, 2),
+	RK_IOMUX(0, 1, 0x0004, 2),
+	RK_IOMUX(0, 2, 0x0008, 2),
+	RK_IOMUX(0, 3, 0x000C, 2),
+	RK_IOMUX(1, 0, 0x0010, 2),
+	RK_IOMUX(1, 1, 0x0014, 2),
+	RK_IOMUX(1, 2, 0x0018, 2),
+	RK_IOMUX(1, 3, 0x001C, 2),
+	RK_IOMUX(2, 0, 0x0020, 2),
+	RK_IOMUX(2, 1, 0x0024, 3),
+	RK_IOMUX(2, 2, 0x002c, 3),
+	RK_IOMUX(2, 3, 0x0034, 2),
+	RK_IOMUX(3, 0, 0x0038, 3),
+	RK_IOMUX(3, 1, 0x0040, 3),
+	RK_IOMUX(3, 2, 0x0048, 2),
+	RK_IOMUX(3, 3, 0x004c, 2),
 };
 
 static struct rk_pinctrl_pin_fixup rk3328_pin_fixup[] = {
-	{
-		.bank = 2,
-		.pin = 12,
-		.reg = 0x24,
-		.bit = 8,
-		.mask = 0x300,
-	},
-	{
-		.bank = 2,
-		.pin = 15,
-		.reg = 0x28,
-		.bit = 0,
-		.mask = 0x7,
-	},
-	{
-		.bank = 2,
-		.pin = 23,
-		.reg = 0x30,
-		.bit = 14,
-		.mask = 0x6000,
-	},
+	/*      bank  pin reg  bit  mask */
+	RK_PINFIX(2, 12, 0x24,  8, 0x300),
+	RK_PINFIX(2, 15, 0x28,  0, 0x7),
+	RK_PINFIX(2, 23, 0x30, 14, 0x6000),
 };
 
-#define	RK_PINDRIVE(_bank, _subbank, _offset, _value, _ma)	\
-	{	\
-		.bank = _bank,		\
-		.subbank = _subbank,	\
-		.offset = _offset,	\
-		.value = _value,	\
-		.ma = _ma,		\
-	},
 
 static struct rk_pinctrl_pin_drive rk3328_pin_drive[] = {
-	RK_PINDRIVE(0, 0, 0x200, 0, 2)
-	RK_PINDRIVE(0, 0, 0x200, 1, 4)
-	RK_PINDRIVE(0, 0, 0x200, 2, 8)
-	RK_PINDRIVE(0, 0, 0x200, 3, 12)
+	/*       bank sub  offs val ma */
+	RK_PINDRIVE(0, 0, 0x200, 0, 2),
+	RK_PINDRIVE(0, 0, 0x200, 1, 4),
+	RK_PINDRIVE(0, 0, 0x200, 2, 8),
+	RK_PINDRIVE(0, 0, 0x200, 3, 12),
 
-	RK_PINDRIVE(0, 1, 0x204, 0, 2)
-	RK_PINDRIVE(0, 1, 0x204, 1, 4)
-	RK_PINDRIVE(0, 1, 0x204, 2, 8)
-	RK_PINDRIVE(0, 1, 0x204, 3, 12)
+	RK_PINDRIVE(0, 1, 0x204, 0, 2),
+	RK_PINDRIVE(0, 1, 0x204, 1, 4),
+	RK_PINDRIVE(0, 1, 0x204, 2, 8),
+	RK_PINDRIVE(0, 1, 0x204, 3, 12),
 
-	RK_PINDRIVE(0, 2, 0x208, 0, 2)
-	RK_PINDRIVE(0, 2, 0x208, 1, 4)
-	RK_PINDRIVE(0, 2, 0x208, 2, 8)
-	RK_PINDRIVE(0, 2, 0x208, 3, 12)
+	RK_PINDRIVE(0, 2, 0x208, 0, 2),
+	RK_PINDRIVE(0, 2, 0x208, 1, 4),
+	RK_PINDRIVE(0, 2, 0x208, 2, 8),
+	RK_PINDRIVE(0, 2, 0x208, 3, 12),
 
-	RK_PINDRIVE(0, 3, 0x20C, 0, 2)
-	RK_PINDRIVE(0, 3, 0x20C, 1, 4)
-	RK_PINDRIVE(0, 3, 0x20C, 2, 8)
-	RK_PINDRIVE(0, 3, 0x20C, 3, 12)
+	RK_PINDRIVE(0, 3, 0x20C, 0, 2),
+	RK_PINDRIVE(0, 3, 0x20C, 1, 4),
+	RK_PINDRIVE(0, 3, 0x20C, 2, 8),
+	RK_PINDRIVE(0, 3, 0x20C, 3, 12),
 
-	RK_PINDRIVE(1, 0, 0x210, 0, 2)
-	RK_PINDRIVE(1, 0, 0x210, 1, 4)
-	RK_PINDRIVE(1, 0, 0x210, 2, 8)
-	RK_PINDRIVE(1, 0, 0x210, 3, 12)
+	RK_PINDRIVE(1, 0, 0x210, 0, 2),
+	RK_PINDRIVE(1, 0, 0x210, 1, 4),
+	RK_PINDRIVE(1, 0, 0x210, 2, 8),
+	RK_PINDRIVE(1, 0, 0x210, 3, 12),
 
-	RK_PINDRIVE(1, 1, 0x214, 0, 2)
-	RK_PINDRIVE(1, 1, 0x214, 1, 4)
-	RK_PINDRIVE(1, 1, 0x214, 2, 8)
-	RK_PINDRIVE(1, 1, 0x214, 3, 12)
+	RK_PINDRIVE(1, 1, 0x214, 0, 2),
+	RK_PINDRIVE(1, 1, 0x214, 1, 4),
+	RK_PINDRIVE(1, 1, 0x214, 2, 8),
+	RK_PINDRIVE(1, 1, 0x214, 3, 12),
 
-	RK_PINDRIVE(1, 2, 0x218, 0, 2)
-	RK_PINDRIVE(1, 2, 0x218, 1, 4)
-	RK_PINDRIVE(1, 2, 0x218, 2, 8)
-	RK_PINDRIVE(1, 2, 0x218, 3, 12)
+	RK_PINDRIVE(1, 2, 0x218, 0, 2),
+	RK_PINDRIVE(1, 2, 0x218, 1, 4),
+	RK_PINDRIVE(1, 2, 0x218, 2, 8),
+	RK_PINDRIVE(1, 2, 0x218, 3, 12),
 
-	RK_PINDRIVE(1, 3, 0x21C, 0, 2)
-	RK_PINDRIVE(1, 3, 0x21C, 1, 4)
-	RK_PINDRIVE(1, 3, 0x21C, 2, 8)
-	RK_PINDRIVE(1, 3, 0x21C, 3, 12)
+	RK_PINDRIVE(1, 3, 0x21C, 0, 2),
+	RK_PINDRIVE(1, 3, 0x21C, 1, 4),
+	RK_PINDRIVE(1, 3, 0x21C, 2, 8),
+	RK_PINDRIVE(1, 3, 0x21C, 3, 12),
 
-	RK_PINDRIVE(2, 0, 0x220, 0, 2)
-	RK_PINDRIVE(2, 0, 0x220, 1, 4)
-	RK_PINDRIVE(2, 0, 0x220, 2, 8)
-	RK_PINDRIVE(2, 0, 0x220, 3, 12)
+	RK_PINDRIVE(2, 0, 0x220, 0, 2),
+	RK_PINDRIVE(2, 0, 0x220, 1, 4),
+	RK_PINDRIVE(2, 0, 0x220, 2, 8),
+	RK_PINDRIVE(2, 0, 0x220, 3, 12),
 
-	RK_PINDRIVE(2, 1, 0x224, 0, 2)
-	RK_PINDRIVE(2, 1, 0x224, 1, 4)
-	RK_PINDRIVE(2, 1, 0x224, 2, 8)
-	RK_PINDRIVE(2, 1, 0x224, 3, 12)
+	RK_PINDRIVE(2, 1, 0x224, 0, 2),
+	RK_PINDRIVE(2, 1, 0x224, 1, 4),
+	RK_PINDRIVE(2, 1, 0x224, 2, 8),
+	RK_PINDRIVE(2, 1, 0x224, 3, 12),
 
-	RK_PINDRIVE(2, 2, 0x228, 0, 2)
-	RK_PINDRIVE(2, 2, 0x228, 1, 4)
-	RK_PINDRIVE(2, 2, 0x228, 2, 8)
-	RK_PINDRIVE(2, 2, 0x228, 3, 12)
+	RK_PINDRIVE(2, 2, 0x228, 0, 2),
+	RK_PINDRIVE(2, 2, 0x228, 1, 4),
+	RK_PINDRIVE(2, 2, 0x228, 2, 8),
+	RK_PINDRIVE(2, 2, 0x228, 3, 12),
 
-	RK_PINDRIVE(2, 3, 0x22C, 0, 2)
-	RK_PINDRIVE(2, 3, 0x22C, 1, 4)
-	RK_PINDRIVE(2, 3, 0x22C, 2, 8)
-	RK_PINDRIVE(2, 3, 0x22C, 3, 12)
+	RK_PINDRIVE(2, 3, 0x22C, 0, 2),
+	RK_PINDRIVE(2, 3, 0x22C, 1, 4),
+	RK_PINDRIVE(2, 3, 0x22C, 2, 8),
+	RK_PINDRIVE(2, 3, 0x22C, 3, 12),
 
-	RK_PINDRIVE(3, 0, 0x230, 0, 2)
-	RK_PINDRIVE(3, 0, 0x230, 1, 4)
-	RK_PINDRIVE(3, 0, 0x230, 2, 8)
-	RK_PINDRIVE(3, 0, 0x230, 3, 12)
+	RK_PINDRIVE(3, 0, 0x230, 0, 2),
+	RK_PINDRIVE(3, 0, 0x230, 1, 4),
+	RK_PINDRIVE(3, 0, 0x230, 2, 8),
+	RK_PINDRIVE(3, 0, 0x230, 3, 12),
 
-	RK_PINDRIVE(3, 1, 0x234, 0, 2)
-	RK_PINDRIVE(3, 1, 0x234, 1, 4)
-	RK_PINDRIVE(3, 1, 0x234, 2, 8)
-	RK_PINDRIVE(3, 1, 0x234, 3, 12)
+	RK_PINDRIVE(3, 1, 0x234, 0, 2),
+	RK_PINDRIVE(3, 1, 0x234, 1, 4),
+	RK_PINDRIVE(3, 1, 0x234, 2, 8),
+	RK_PINDRIVE(3, 1, 0x234, 3, 12),
 
-	RK_PINDRIVE(3, 2, 0x238, 0, 2)
-	RK_PINDRIVE(3, 2, 0x238, 1, 4)
-	RK_PINDRIVE(3, 2, 0x238, 2, 8)
-	RK_PINDRIVE(3, 2, 0x238, 3, 12)
+	RK_PINDRIVE(3, 2, 0x238, 0, 2),
+	RK_PINDRIVE(3, 2, 0x238, 1, 4),
+	RK_PINDRIVE(3, 2, 0x238, 2, 8),
+	RK_PINDRIVE(3, 2, 0x238, 3, 12),
 
-	RK_PINDRIVE(3, 3, 0x23C, 0, 2)
-	RK_PINDRIVE(3, 3, 0x23C, 1, 4)
-	RK_PINDRIVE(3, 3, 0x23C, 2, 8)
-	RK_PINDRIVE(3, 3, 0x23C, 3, 12)
+	RK_PINDRIVE(3, 3, 0x23C, 0, 2),
+	RK_PINDRIVE(3, 3, 0x23C, 1, 4),
+	RK_PINDRIVE(3, 3, 0x23C, 2, 8),
+	RK_PINDRIVE(3, 3, 0x23C, 3, 12),
 };
 
 static uint32_t
@@ -335,171 +521,83 @@ struct rk_pinctrl_conf rk3328_conf = {
 	.npin_fixup = nitems(rk3328_pin_fixup),
 	.pin_drive = rk3328_pin_drive,
 	.npin_drive = nitems(rk3328_pin_drive),
+	.gpio_bank = rk3328_gpio_bank,
+	.ngpio_bank = nitems(rk3328_gpio_bank),
 	.get_pd_offset = rk3328_get_pd_offset,
 	.get_syscon = rk3328_get_syscon,
 };
 
+static struct rk_pinctrl_gpio rk3399_gpio_bank[] = {
+	RK_GPIO(0, "gpio0"),
+	RK_GPIO(1, "gpio1"),
+	RK_GPIO(2, "gpio2"),
+	RK_GPIO(3, "gpio3"),
+	RK_GPIO(4, "gpio4"),
+};
+
 static struct rk_pinctrl_bank rk3399_iomux_bank[] = {
-	{
-		.bank_num = 0,
-		.subbank_num = 0,
-		.offset = 0x00,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 0,
-		.subbank_num = 1,
-		.offset = 0x04,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 0,
-		.subbank_num = 2,
-		.offset = 0x08,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 0,
-		.subbank_num = 3,
-		.offset = 0x0c,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 1,
-		.subbank_num = 0,
-		.offset = 0x10,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 1,
-		.subbank_num = 1,
-		.offset = 0x14,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 1,
-		.subbank_num = 2,
-		.offset = 0x18,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 1,
-		.subbank_num = 3,
-		.offset = 0x1c,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 2,
-		.subbank_num = 0,
-		.offset = 0xe000,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 2,
-		.subbank_num = 1,
-		.offset = 0xe004,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 2,
-		.subbank_num = 2,
-		.offset = 0xe008,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 2,
-		.subbank_num = 3,
-		.offset = 0xe00c,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 3,
-		.subbank_num = 0,
-		.offset = 0xe010,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 3,
-		.subbank_num = 1,
-		.offset = 0xe014,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 3,
-		.subbank_num = 2,
-		.offset = 0xe018,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 3,
-		.subbank_num = 3,
-		.offset = 0xe01c,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 4,
-		.subbank_num = 0,
-		.offset = 0xe020,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 4,
-		.subbank_num = 1,
-		.offset = 0xe024,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 4,
-		.subbank_num = 2,
-		.offset = 0xe028,
-		.nbits = 2,
-	},
-	{
-		.bank_num = 4,
-		.subbank_num = 3,
-		.offset = 0xe02c,
-		.nbits = 2,
-	},
+	/*    bank sub  offs   nbits */
+	RK_IOMUX(0, 0, 0x0000, 2),
+	RK_IOMUX(0, 1, 0x0004, 2),
+	RK_IOMUX(0, 2, 0x0008, 2),
+	RK_IOMUX(0, 3, 0x000C, 2),
+	RK_IOMUX(1, 0, 0x0010, 2),
+	RK_IOMUX(1, 1, 0x0014, 2),
+	RK_IOMUX(1, 2, 0x0018, 2),
+	RK_IOMUX(1, 3, 0x001C, 2),
+	RK_IOMUX(2, 0, 0xE000, 2),
+	RK_IOMUX(2, 1, 0xE004, 2),
+	RK_IOMUX(2, 2, 0xE008, 2),
+	RK_IOMUX(2, 3, 0xE00C, 2),
+	RK_IOMUX(3, 0, 0xE010, 2),
+	RK_IOMUX(3, 1, 0xE014, 2),
+	RK_IOMUX(3, 2, 0xE018, 2),
+	RK_IOMUX(3, 3, 0xE01C, 2),
+	RK_IOMUX(4, 0, 0xE020, 2),
+	RK_IOMUX(4, 1, 0xE024, 2),
+	RK_IOMUX(4, 2, 0xE028, 2),
+	RK_IOMUX(4, 3, 0xE02C, 2),
 };
 
 static struct rk_pinctrl_pin_fixup rk3399_pin_fixup[] = {};
 
 static struct rk_pinctrl_pin_drive rk3399_pin_drive[] = {
+	/*       bank sub offs val ma */
 	/* GPIO0A */
-	RK_PINDRIVE(0, 0, 0x80, 0, 5)
-	RK_PINDRIVE(0, 0, 0x80, 1, 10)
-	RK_PINDRIVE(0, 0, 0x80, 2, 15)
-	RK_PINDRIVE(0, 0, 0x80, 3, 20)
+	RK_PINDRIVE(0, 0, 0x80, 0, 5),
+	RK_PINDRIVE(0, 0, 0x80, 1, 10),
+	RK_PINDRIVE(0, 0, 0x80, 2, 15),
+	RK_PINDRIVE(0, 0, 0x80, 3, 20),
 
 	/* GPIOB */
-	RK_PINDRIVE(0, 1, 0x88, 0, 5)
-	RK_PINDRIVE(0, 1, 0x88, 1, 10)
-	RK_PINDRIVE(0, 1, 0x88, 2, 15)
-	RK_PINDRIVE(0, 1, 0x88, 3, 20)
+	RK_PINDRIVE(0, 1, 0x88, 0, 5),
+	RK_PINDRIVE(0, 1, 0x88, 1, 10),
+	RK_PINDRIVE(0, 1, 0x88, 2, 15),
+	RK_PINDRIVE(0, 1, 0x88, 3, 20),
 
 	/* GPIO1A */
-	RK_PINDRIVE(1, 0, 0xA0, 0, 3)
-	RK_PINDRIVE(1, 0, 0xA0, 1, 6)
-	RK_PINDRIVE(1, 0, 0xA0, 2, 9)
-	RK_PINDRIVE(1, 0, 0xA0, 3, 12)
+	RK_PINDRIVE(1, 0, 0xA0, 0, 3),
+	RK_PINDRIVE(1, 0, 0xA0, 1, 6),
+	RK_PINDRIVE(1, 0, 0xA0, 2, 9),
+	RK_PINDRIVE(1, 0, 0xA0, 3, 12),
 
 	/* GPIO1B */
-	RK_PINDRIVE(1, 1, 0xA8, 0, 3)
-	RK_PINDRIVE(1, 1, 0xA8, 1, 6)
-	RK_PINDRIVE(1, 1, 0xA8, 2, 9)
-	RK_PINDRIVE(1, 1, 0xA8, 3, 12)
+	RK_PINDRIVE(1, 1, 0xA8, 0, 3),
+	RK_PINDRIVE(1, 1, 0xA8, 1, 6),
+	RK_PINDRIVE(1, 1, 0xA8, 2, 9),
+	RK_PINDRIVE(1, 1, 0xA8, 3, 12),
 
 	/* GPIO1C */
-	RK_PINDRIVE(1, 2, 0xB0, 0, 3)
-	RK_PINDRIVE(1, 2, 0xB0, 1, 6)
-	RK_PINDRIVE(1, 2, 0xB0, 2, 9)
-	RK_PINDRIVE(1, 2, 0xB0, 3, 12)
+	RK_PINDRIVE(1, 2, 0xB0, 0, 3),
+	RK_PINDRIVE(1, 2, 0xB0, 1, 6),
+	RK_PINDRIVE(1, 2, 0xB0, 2, 9),
+	RK_PINDRIVE(1, 2, 0xB0, 3, 12),
 
 	/* GPIO1D */
-	RK_PINDRIVE(1, 3, 0xB8, 0, 3)
-	RK_PINDRIVE(1, 3, 0xB8, 1, 6)
-	RK_PINDRIVE(1, 3, 0xB8, 2, 9)
-	RK_PINDRIVE(1, 3, 0xB8, 3, 12)
+	RK_PINDRIVE(1, 3, 0xB8, 0, 3),
+	RK_PINDRIVE(1, 3, 0xB8, 1, 6),
+	RK_PINDRIVE(1, 3, 0xB8, 2, 9),
+	RK_PINDRIVE(1, 3, 0xB8, 3, 12),
 };
 
 static uint32_t
@@ -508,7 +606,7 @@ rk3399_get_pd_offset(struct rk_pinctrl_softc *sc, uint32_t bank)
 	if (bank < 2)
 		return (0x40);
 
-	return (0xe040);
+	return (0xE040);
 }
 
 static struct syscon *
@@ -527,17 +625,16 @@ struct rk_pinctrl_conf rk3399_conf = {
 	.npin_fixup = nitems(rk3399_pin_fixup),
 	.pin_drive = rk3399_pin_drive,
 	.npin_drive = nitems(rk3399_pin_drive),
+	.gpio_bank = rk3399_gpio_bank,
+	.ngpio_bank = nitems(rk3399_gpio_bank),
 	.get_pd_offset = rk3399_get_pd_offset,
 	.get_syscon = rk3399_get_syscon,
 };
 
 static struct ofw_compat_data compat_data[] = {
-#ifdef SOC_ROCKCHIP_RK3328
+	{"rockchip,rk3288-pinctrl", (uintptr_t)&rk3288_conf},
 	{"rockchip,rk3328-pinctrl", (uintptr_t)&rk3328_conf},
-#endif
-#ifdef SOC_ROCKCHIP_RK3399
 	{"rockchip,rk3399-pinctrl", (uintptr_t)&rk3399_conf},
-#endif
 	{NULL,             0}
 };
 
@@ -554,7 +651,8 @@ rk_pinctrl_parse_bias(phandle_t node)
 	return (-1);
 }
 
-static int rk_pinctrl_parse_drive(struct rk_pinctrl_softc *sc, phandle_t node,
+static int
+rk_pinctrl_parse_drive(struct rk_pinctrl_softc *sc, phandle_t node,
   uint32_t bank, uint32_t subbank, uint32_t *drive, uint32_t *offset)
 {
 	uint32_t value;
@@ -595,6 +693,91 @@ rk_pinctrl_get_fixup(struct rk_pinctrl_softc *sc, uint32_t bank, uint32_t pin,
 		}
 }
 
+static int
+rk_pinctrl_handle_io(struct rk_pinctrl_softc *sc, phandle_t node, uint32_t bank,
+uint32_t pin)
+{
+	bool have_cfg, have_direction, have_value;
+	uint32_t  direction_value, pin_value;
+	struct rk_pinctrl_gpio *gpio;
+	int i, rv;
+
+	have_cfg = false;
+	have_direction = false;
+	have_value = false;
+
+	/* Get (subset of) GPIO pin properties. */
+	if (OF_hasprop(node, "output-disable")) {
+		have_cfg = true;
+		have_direction = true;
+		direction_value = GPIO_PIN_INPUT;
+	}
+
+	if (OF_hasprop(node, "output-enable")) {
+		have_cfg = true;
+		have_direction = true;
+		direction_value = GPIO_PIN_OUTPUT;
+	}
+
+	if (OF_hasprop(node, "output-low")) {
+		have_cfg = true;
+		have_direction = true;
+		direction_value = GPIO_PIN_OUTPUT;
+		have_value = true;
+		pin_value = 0;
+	}
+
+	if (OF_hasprop(node, "output-high")) {
+		have_cfg = true;
+		have_direction = true;
+		direction_value = GPIO_PIN_OUTPUT;
+		have_value = true;
+		pin_value = 1;
+	}
+
+	if (!have_cfg)
+		return (0);
+
+	/* Find gpio */
+	gpio = NULL;
+	for(i = 0; i < sc->conf->ngpio_bank; i++) {
+		if (bank ==  sc->conf->gpio_bank[i].bank) {
+			gpio = sc->conf->gpio_bank + i;
+			break;
+		}
+	}
+	if (gpio == NULL) {
+		device_printf(sc->dev, "Cannot find GPIO bank %d\n", bank);
+		return (ENXIO);
+	}
+	if (gpio->gpio_dev == NULL) {
+		device_printf(sc->dev,
+		    "No GPIO subdevice found for bank %d\n", bank);
+		return (ENXIO);
+	}
+
+	rv = 0;
+	if (have_value) {
+		rv = GPIO_PIN_SET(gpio->gpio_dev, pin, pin_value);
+		if (rv != 0) {
+			device_printf(sc->dev, "Cannot set GPIO value: %d\n",
+			    rv);
+			return (rv);
+		}
+	}
+
+	if (have_direction) {
+		rv = GPIO_PIN_SETFLAGS(gpio->gpio_dev, pin, direction_value);
+		if (rv != 0) {
+			device_printf(sc->dev,
+			    "Cannot set GPIO direction: %d\n", rv);
+			return (rv);
+		}
+	}
+
+	return (0);
+}
+
 static void
 rk_pinctrl_configure_pin(struct rk_pinctrl_softc *sc, uint32_t *pindata)
 {
@@ -602,7 +785,7 @@ rk_pinctrl_configure_pin(struct rk_pinctrl_softc *sc, uint32_t *pindata)
 	struct syscon *syscon;
 	uint32_t bank, subbank, pin, function, bias;
 	uint32_t bit, mask, reg, drive;
-	int i;
+	int i, rv;
 
 	bank = pindata[0];
 	pin = pindata[1];
@@ -611,8 +794,8 @@ rk_pinctrl_configure_pin(struct rk_pinctrl_softc *sc, uint32_t *pindata)
 	subbank = pin / 8;
 
 	for (i = 0; i < sc->conf->iomux_nbanks; i++)
-		if (sc->conf->iomux_conf[i].bank_num == bank &&
-		    sc->conf->iomux_conf[i].subbank_num == subbank)
+		if (sc->conf->iomux_conf[i].bank == bank &&
+		    sc->conf->iomux_conf[i].subbank == subbank)
 			break;
 
 	if (i == sc->conf->iomux_nbanks) {
@@ -627,20 +810,37 @@ rk_pinctrl_configure_pin(struct rk_pinctrl_softc *sc, uint32_t *pindata)
 	/* Parse pin function */
 	reg = sc->conf->iomux_conf[i].offset;
 	switch (sc->conf->iomux_conf[i].nbits) {
+	case 4:
+		if ((pin % 8) >= 4)
+			reg += 0x4;
+		bit = (pin % 4) * 4;
+		mask = (0xF << bit);
+		break;
 	case 3:
 		if ((pin % 8) >= 5)
 			reg += 4;
 		bit = (pin % 8 % 5) * 3;
-		mask = (0x7 << bit) << 16;
+		mask = (0x7 << bit);
 		break;
 	case 2:
-	default:
 		bit = (pin % 8) * 2;
-		mask = (0x3 << bit) << 16;
+		mask = (0x3 << bit);
 		break;
+	default:
+		device_printf(sc->dev,
+		    "Unknown pin stride width %d in bank %d\n",
+		    sc->conf->iomux_conf[i].nbits, bank);
+		return;
 	}
 	rk_pinctrl_get_fixup(sc, bank, pin, &reg, &mask, &bit);
-	SYSCON_WRITE_4(syscon, reg, function << bit | mask);
+
+	/*
+	 * NOTE: not all syscon registers uses hi-word write mask, thus
+	 * register modify method should be used.
+	 * XXXX We should not pass write mask to syscon register 
+	 * without hi-word write mask.
+	 */
+	SYSCON_MODIFY_4(syscon, reg, mask, function << bit | (mask << 16));
 
 	/* Pull-Up/Down */
 	bias = rk_pinctrl_parse_bias(pin_conf);
@@ -650,15 +850,19 @@ rk_pinctrl_configure_pin(struct rk_pinctrl_softc *sc, uint32_t *pindata)
 		reg += bank * 0x10 + ((pin / 8) * 0x4);
 		bit = (pin % 8) * 2;
 		mask = (0x3 << bit) << 16;
-		SYSCON_WRITE_4(syscon, reg, bias << bit | mask);
+		SYSCON_MODIFY_4(syscon, reg, mask, bias << bit | (mask << 16));
 	}
 
 	/* Drive Strength */
-	if (rk_pinctrl_parse_drive(sc, pin_conf, bank, subbank, &drive, &reg) == 0) {
+	rv = rk_pinctrl_parse_drive(sc, pin_conf, bank, subbank, &drive, &reg);
+	if (rv == 0) {
 		bit = (pin % 8) * 2;
 		mask = (0x3 << bit) << 16;
-		SYSCON_WRITE_4(syscon, reg, bias << bit | mask);
+		SYSCON_MODIFY_4(syscon, reg, mask, drive << bit | (mask << 16));
 	}
+
+	/* Input/Outpot + default level */
+	rv = rk_pinctrl_handle_io(sc, pin_conf, bank, pin);
 }
 
 static int
@@ -683,6 +887,22 @@ rk_pinctrl_configure_pins(device_t dev, phandle_t cfgxref)
 	return (0);
 }
 
+
+static int
+rk_pinctrl_register_gpio(struct rk_pinctrl_softc *sc, char *gpio_name,
+    device_t gpio_dev)
+{
+	int i;
+
+	for(i = 0; i < sc->conf->ngpio_bank; i++) {
+		if (strcmp(gpio_name, sc->conf->gpio_bank[i].gpio_name) != 0)
+			continue;
+		sc->conf->gpio_bank[i].gpio_dev = gpio_dev;
+		return(0);
+	}
+	return (ENXIO);
+}
+
 static int
 rk_pinctrl_probe(device_t dev)
 {
@@ -703,6 +923,8 @@ rk_pinctrl_attach(device_t dev)
 	struct rk_pinctrl_softc *sc;
 	phandle_t node;
 	device_t cdev;
+	char *gpio_name, *eptr;
+	int rv;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -716,8 +938,9 @@ rk_pinctrl_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	// RK3399 has banks in PMU. RK3328 does not have a PMU.
-	if (ofw_bus_node_is_compatible(node, "rockchip,rk3399-pinctrl")) {
+	/* RK3399,RK3288 has banks in PMU. RK3328 does not have a PMU. */
+	if (ofw_bus_node_is_compatible(node, "rockchip,rk3399-pinctrl") ||
+	    ofw_bus_node_is_compatible(node, "rockchip,rk3288-pinctrl")) {
 		if (OF_hasprop(node, "rockchip,pmu") &&
 		    syscon_get_by_ofw_property(dev, node,
 		    "rockchip,pmu", &sc->pmu) != 0) {
@@ -730,7 +953,6 @@ rk_pinctrl_attach(device_t dev)
 	    compat_data)->ocd_data;
 
 	fdt_pinctrl_register(dev, "rockchip,pins");
-	fdt_pinctrl_configure_tree(dev);
 
 	simplebus_init(dev, node);
 
@@ -740,10 +962,51 @@ rk_pinctrl_attach(device_t dev)
 	for (node = OF_child(node); node > 0; node = OF_peer(node)) {
 		if (!ofw_bus_node_is_compatible(node, "rockchip,gpio-bank"))
 			continue;
+
+		rv = OF_getprop_alloc(node, "name", (void **)&gpio_name);
+		if (rv <= 0) {
+			device_printf(sc->dev, "Cannot GPIO subdevice name.\n");
+			continue;
+		}
+
 		cdev = simplebus_add_device(dev, node, 0, NULL, -1, NULL);
-		if (cdev != NULL)
-			device_probe_and_attach(cdev);
+		if (cdev == NULL) {
+			device_printf(dev, " Cannot add GPIO subdevice: %s\n",
+			    gpio_name);
+			OF_prop_free(gpio_name);
+			continue;
+		}
+
+		rv = device_probe_and_attach(cdev);
+		if (rv != 0) {
+			device_printf(sc->dev,
+			    "Cannot attach GPIO subdevice: %s\n", gpio_name);
+			OF_prop_free(gpio_name);
+			continue;
+		}
+
+		/* Grep device name from name property */
+		eptr = gpio_name;
+		strsep(&eptr, "@");
+		if (gpio_name == eptr) {
+			device_printf(sc->dev,
+			    "Unrecognized format of GPIO subdevice name: %s\n",
+			    gpio_name);
+			OF_prop_free(gpio_name);
+			continue;
+		}
+		rv =  rk_pinctrl_register_gpio(sc, gpio_name, cdev);
+		if (rv != 0) {
+			device_printf(sc->dev,
+			    "Cannot register GPIO subdevice %s: %d\n",
+			    gpio_name, rv);
+			OF_prop_free(gpio_name);
+			continue;
+		}
+		OF_prop_free(gpio_name);
 	}
+
+	fdt_pinctrl_configure_tree(dev);
 
 	return (bus_generic_attach(dev));
 }
@@ -757,12 +1020,12 @@ rk_pinctrl_detach(device_t dev)
 
 static device_method_t rk_pinctrl_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		rk_pinctrl_probe),
-	DEVMETHOD(device_attach,	rk_pinctrl_attach),
-	DEVMETHOD(device_detach,	rk_pinctrl_detach),
+	DEVMETHOD(device_probe,			rk_pinctrl_probe),
+	DEVMETHOD(device_attach,		rk_pinctrl_attach),
+	DEVMETHOD(device_detach,		rk_pinctrl_detach),
 
         /* fdt_pinctrl interface */
-	DEVMETHOD(fdt_pinctrl_configure,rk_pinctrl_configure_pins),
+	DEVMETHOD(fdt_pinctrl_configure,	rk_pinctrl_configure_pins),
 
 	DEVMETHOD_END
 };

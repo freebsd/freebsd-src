@@ -388,9 +388,9 @@ rk_gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent, int gcells,
     pcell_t *gpios, uint32_t *pin, uint32_t *flags)
 {
 
-	/* The gpios are mapped as <gpio-phandle pin flags> */
-	*pin = gpios[1];
-	*flags = gpios[2];
+	/* The gpios are mapped as <pin flags> */
+	*pin = gpios[0];
+	*flags = gpios[1];
 	return (0);
 }
 
