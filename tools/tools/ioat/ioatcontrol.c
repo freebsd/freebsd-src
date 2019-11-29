@@ -54,13 +54,16 @@ usage(void)
 	printf("       %s -r [-c period] [-vVwz] channel-number address [<bufsize>]\n\n",
 	    getprogname());
 	printf("           -c period - Enable interrupt coalescing (us) (default: 0)\n");
-	printf("           -E        - Test non-contiguous 8k copy.\n");
-	printf("           -f        - Test block fill (default: DMA copy).\n");
+	printf("           -E        - Test contiguous 8k copy.\n");
+	printf("           -e        - Test non-contiguous 8k copy.\n");
+	printf("           -f        - Test block fill.\n");
 	printf("           -m        - Test memcpy instead of DMA.\n");
 	printf("           -r        - Issue DMA to or from a specific address.\n");
 	printf("           -V        - Enable verification\n");
 	printf("           -v        - <address> is a kernel virtual address\n");
 	printf("           -w        - Write to the specified address\n");
+	printf("           -x        - Test DMA CRC.\n");
+	printf("           -X        - Test DMA CRC copy.\n");
 	printf("           -z        - Zero device stats before test\n");
 	exit(EX_USAGE);
 }
@@ -107,21 +110,25 @@ main(int argc, char **argv)
 {
 	struct ioat_test t;
 	int fd, ch;
-	bool fflag, rflag, Eflag, mflag;
+	bool fflag, rflag, Eflag, eflag, mflag, xflag, Xflag;
 	unsigned modeflags;
 
 	memset(&t, 0, sizeof(t));
 
-	fflag = rflag = Eflag = mflag = false;
+	fflag = rflag = Eflag = eflag = mflag = xflag = Xflag = false;
 	modeflags = 0;
 
-	while ((ch = getopt(argc, argv, "c:EfmrvVwz")) != -1) {
+	while ((ch = getopt(argc, argv, "c:EefmrvVwxXz")) != -1) {
 		switch (ch) {
 		case 'c':
 			t.coalesce_period = atoi(optarg);
 			break;
 		case 'E':
 			Eflag = true;
+			modeflags++;
+			break;
+		case 'e':
+			eflag = true;
 			modeflags++;
 			break;
 		case 'f':
@@ -144,6 +151,12 @@ main(int argc, char **argv)
 			break;
 		case 'w':
 			t.raw_write = true;
+			break;
+		case 'x':
+			xflag = true;
+			break;
+		case 'X':
+			Xflag = true;
 			break;
 		case 'z':
 			t.zero_stats = true;
@@ -171,11 +184,15 @@ main(int argc, char **argv)
 
 	if (fflag)
 		t.testkind = IOAT_TEST_FILL;
-	else if (Eflag) {
+	else if (Eflag || eflag) {
 		t.testkind = IOAT_TEST_DMA_8K;
 		t.buffer_size = 8 * 1024;
 	} else if (mflag)
 		t.testkind = IOAT_TEST_MEMCPY;
+	else if (xflag)
+		t.testkind = IOAT_TEST_DMA_CRC;
+	else if (xflag)
+		t.testkind = IOAT_TEST_DMA_CRC_COPY;
 
 	t.channel_index = atoi(argv[0]);
 	if (t.channel_index > 8) {

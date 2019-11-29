@@ -35,9 +35,12 @@
 .Nm
 .Op Fl c Ar period
 .Op Fl E
+.Op Fl e
 .Op Fl f
 .Op Fl m
 .Op Fl V
+.Op Fl x
+.Op Fl X
 .Op Fl z
 .Ar channel_number
 .Ar num_txns
@@ -65,6 +68,8 @@ The arguments are as follows:
 Configure the channel's interrupt coalescing period, in microseconds
 (defaults to 0).
 .It Fl E
+Test contiguous 8k copy.
+.It Fl e
 Test non-contiguous 8k copy.
 .It Fl f
 Test block fill (by default,
@@ -74,6 +79,10 @@ tests copy)
 Test memcpy instead of DMA.
 .It Fl V
 Verify copies/fills for accuracy
+.It Fl x
+Test DMA CRC.
+.It Fl X
+Test DMA copy with CRC.
 .It Fl z
 Zero device statistics before running test.
 .El
