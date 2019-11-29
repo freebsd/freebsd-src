@@ -65,6 +65,7 @@ struct test_transaction {
 	void			*buf[IOAT_MAX_BUFS];
 	uint32_t		length;
 	uint32_t		depth;
+	uint32_t		crc[IOAT_MAX_BUFS];
 	struct ioat_test	*test;
 	TAILQ_ENTRY(test_transaction)	entry;
 };
@@ -312,6 +313,28 @@ ioat_test_submit_1_tx(struct ioat_test *test, bus_dmaengine_t dma)
 
 			desc = ioat_copy_8k_aligned(dma, dest, dst2, src, src2,
 			    cb, tx, flags);
+		} else if (test->testkind == IOAT_TEST_DMA_8K_PB) {
+			bus_addr_t src2, dst2;
+
+			src2 = vtophys((vm_offset_t)tx->buf[2*i+1] + PAGE_SIZE);
+			dst2 = vtophys((vm_offset_t)tx->buf[2*i] + PAGE_SIZE);
+
+			desc = ioat_copy_8k_aligned(dma, dest, dst2, src, src2,
+			    cb, tx, flags);
+		} else if (test->testkind == IOAT_TEST_DMA_CRC) {
+			bus_addr_t crc;
+
+			tx->crc[i] = 0;
+			crc = vtophys((vm_offset_t)&tx->crc[i]);
+			desc = ioat_crc(dma, src, tx->length,
+			    NULL, crc, cb, tx, flags | DMA_CRC_STORE);
+		} else if (test->testkind == IOAT_TEST_DMA_CRC_COPY) {
+			bus_addr_t crc;
+
+			tx->crc[i] = 0;
+			crc = vtophys((vm_offset_t)&tx->crc[i]);
+			desc = ioat_copy_crc(dma, dest, src, tx->length,
+			    NULL, crc, cb, tx, flags | DMA_CRC_STORE);
 		}
 		if (desc == NULL)
 			break;
@@ -346,7 +369,8 @@ ioat_dma_test(void *arg)
 	test = arg;
 	memset(__DEVOLATILE(void *, test->status), 0, sizeof(test->status));
 
-	if (test->testkind == IOAT_TEST_DMA_8K &&
+	if ((test->testkind == IOAT_TEST_DMA_8K ||
+	    test->testkind == IOAT_TEST_DMA_8K_PB) &&
 	    test->buffer_size != 2 * PAGE_SIZE) {
 		ioat_test_log(0, "Asked for 8k test and buffer size isn't 8k\n");
 		test->status[IOAT_TEST_INVALID_INPUT]++;
