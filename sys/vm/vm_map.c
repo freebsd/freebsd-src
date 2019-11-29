@@ -2445,9 +2445,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 
 	if ((prot & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0 || object == NULL)
 		return;
-	VM_OBJECT_RLOCK(object);
 	if (object->type == OBJT_DEVICE || object->type == OBJT_SG) {
-		VM_OBJECT_RUNLOCK(object);
 		VM_OBJECT_WLOCK(object);
 		if (object->type == OBJT_DEVICE || object->type == OBJT_SG) {
 			pmap_object_init_pt(map->pmap, addr, object, pindex,
@@ -2456,7 +2454,8 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 			return;
 		}
 		VM_OBJECT_LOCK_DOWNGRADE(object);
-	}
+	} else
+		VM_OBJECT_RLOCK(object);
 
 	psize = atop(size);
 	if (psize + pindex > object->size) {
@@ -2623,6 +2622,8 @@ again:
 			continue;
 		}
 
+		if (obj->type != OBJT_DEFAULT && obj->type != OBJT_SWAP)
+			continue;
 		VM_OBJECT_WLOCK(obj);
 		if (obj->type != OBJT_DEFAULT && obj->type != OBJT_SWAP) {
 			VM_OBJECT_WUNLOCK(obj);
@@ -3809,14 +3810,14 @@ vm_map_check_protection(vm_map_t map, vm_offset_t start, vm_offset_t end,
 
 /*
  *
- *	vm_map_copy_anon_object:
+ *	vm_map_copy_swap_object:
  *
- *	Copies an anonymous object from an existing map entry to a
+ *	Copies a swap-backed object from an existing map entry to a
  *	new one.  Carries forward the swap charge.  May change the
  *	src object on return.
  */
 static void
-vm_map_copy_anon_object(vm_map_entry_t src_entry, vm_map_entry_t dst_entry,
+vm_map_copy_swap_object(vm_map_entry_t src_entry, vm_map_entry_t dst_entry,
     vm_offset_t size, vm_ooffset_t *fork_charge)
 {
 	vm_object_t src_object;
@@ -3898,8 +3899,9 @@ vm_map_copy_entry(
 		 */
 		size = src_entry->end - src_entry->start;
 		if ((src_object = src_entry->object.vm_object) != NULL) {
-			if ((src_object->flags & OBJ_ANON) != 0) {
-				vm_map_copy_anon_object(src_entry, dst_entry,
+			if (src_object->type == OBJT_DEFAULT ||
+			    src_object->type == OBJT_SWAP) {
+				vm_map_copy_swap_object(src_entry, dst_entry,
 				    size, fork_charge);
 				/* May have split/collapsed, reload obj. */
 				src_object = src_entry->object.vm_object;
