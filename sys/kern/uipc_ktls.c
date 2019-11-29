@@ -357,11 +357,7 @@ ktls_init(void *dummy __unused)
 
 	ktls_session_zone = uma_zcreate("ktls_session",
 	    sizeof(struct ktls_session),
-#ifdef INVARIANTS
-	    trash_ctor, trash_dtor, trash_init, trash_fini,
-#else
 	    NULL, NULL, NULL, NULL,
-#endif
 	    UMA_ALIGN_CACHE, 0);
 
 	/*
