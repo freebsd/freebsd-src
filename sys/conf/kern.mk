@@ -61,6 +61,9 @@ CWARNEXTRA+=	-Wno-error=misleading-indentation		\
 		-Wno-error=shift-overflow			\
 		-Wno-error=tautological-compare
 .endif
+.if ${COMPILER_VERSION} >= 70100
+CWARNEXTRA+=	-Wno-error=stringop-overflow
+.endif
 .if ${COMPILER_VERSION} >= 70200
 CWARNEXTRA+=	-Wno-error=memset-elt-size
 .endif
