@@ -312,6 +312,8 @@ nfs_lock(struct vop_lock1_args *ap)
 	if (error != 0 || vp->v_op != &newnfs_vnodeops)
 		return (error);
 	np = VTONFS(vp);
+	if (np == NULL)
+		return (0);
 	NFSLOCKNODE(np);
 	if ((np->n_flag & NVNSETSZSKIP) == 0 || (lktype != LK_SHARED &&
 	    lktype != LK_EXCLUSIVE && lktype != LK_UPGRADE &&
@@ -345,6 +347,9 @@ nfs_lock(struct vop_lock1_args *ap)
 		error = VOP_LOCK1_APV(&default_vnodeops, ap);
 		if (error != 0 || vp->v_op != &newnfs_vnodeops)
 			return (error);
+		if (vp->v_data == NULL)
+			goto downgrade;
+		MPASS(vp->v_data == np);
 		NFSLOCKNODE(np);
 		if ((np->n_flag & NVNSETSZSKIP) == 0) {
 			NFSUNLOCKNODE(np);
