@@ -149,10 +149,10 @@ static struct sx uma_reclaim_lock;
  * kmem soft limit, initialized by uma_set_limit().  Ensure that early
  * allocations don't trigger a wakeup of the reclaim thread.
  */
-static unsigned long uma_kmem_limit = LONG_MAX;
+unsigned long uma_kmem_limit = LONG_MAX;
 SYSCTL_ULONG(_vm, OID_AUTO, uma_kmem_limit, CTLFLAG_RD, &uma_kmem_limit, 0,
     "UMA kernel memory soft limit");
-static unsigned long uma_kmem_total;
+unsigned long uma_kmem_total;
 SYSCTL_ULONG(_vm, OID_AUTO, uma_kmem_total, CTLFLAG_RD, &uma_kmem_total, 0,
     "UMA kernel memory usage");
 
@@ -325,22 +325,6 @@ SYSCTL_PROC(_vm, OID_AUTO, zone_stats, CTLFLAG_RD|CTLTYPE_STRUCT,
 static int zone_warnings = 1;
 SYSCTL_INT(_vm, OID_AUTO, zone_warnings, CTLFLAG_RWTUN, &zone_warnings, 0,
     "Warn when UMA zones becomes full");
-
-/* Adjust bytes under management by UMA. */
-static inline void
-uma_total_dec(unsigned long size)
-{
-
-	atomic_subtract_long(&uma_kmem_total, size);
-}
-
-static inline void
-uma_total_inc(unsigned long size)
-{
-
-	if (atomic_fetchadd_long(&uma_kmem_total, size) > uma_kmem_limit)
-		uma_reclaim_wakeup();
-}
 
 /*
  * This routine checks to see whether or not it's safe to enable buckets.
@@ -4081,57 +4065,6 @@ int
 uma_zone_exhausted_nolock(uma_zone_t zone)
 {
 	return (zone->uz_sleepers > 0);
-}
-
-void *
-uma_large_malloc_domain(vm_size_t size, int domain, int wait)
-{
-	struct domainset *policy;
-	vm_offset_t addr;
-	uma_slab_t slab;
-
-	if (domain != UMA_ANYDOMAIN) {
-		/* avoid allocs targeting empty domains */
-		if (VM_DOMAIN_EMPTY(domain))
-			domain = UMA_ANYDOMAIN;
-	}
-	slab = zone_alloc_item(slabzone, NULL, domain, wait);
-	if (slab == NULL)
-		return (NULL);
-	policy = (domain == UMA_ANYDOMAIN) ? DOMAINSET_RR() :
-	    DOMAINSET_FIXED(domain);
-	addr = kmem_malloc_domainset(policy, size, wait);
-	if (addr != 0) {
-		vsetzoneslab(addr, NULL, slab);
-		slab->us_data = (void *)addr;
-		slab->us_flags = UMA_SLAB_KERNEL | UMA_SLAB_MALLOC;
-		slab->us_size = size;
-		slab->us_domain = vm_phys_domain(PHYS_TO_VM_PAGE(
-		    pmap_kextract(addr)));
-		uma_total_inc(size);
-	} else {
-		zone_free_item(slabzone, slab, NULL, SKIP_NONE);
-	}
-
-	return ((void *)addr);
-}
-
-void *
-uma_large_malloc(vm_size_t size, int wait)
-{
-
-	return uma_large_malloc_domain(size, UMA_ANYDOMAIN, wait);
-}
-
-void
-uma_large_free(uma_slab_t slab)
-{
-
-	KASSERT((slab->us_flags & UMA_SLAB_KERNEL) != 0,
-	    ("uma_large_free:  Memory not allocated with uma_large_malloc."));
-	kmem_free((vm_offset_t)slab->us_data, slab->us_size);
-	uma_total_dec(slab->us_size);
-	zone_free_item(slabzone, slab, NULL, SKIP_NONE);
 }
 
 static void

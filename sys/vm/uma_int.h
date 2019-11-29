@@ -281,10 +281,7 @@ BITSET_DEFINE(slabbits, SLAB_SETSIZE);
  * store and subdivides it into individually allocatable items.
  */
 struct uma_slab {
-	union {
-		LIST_ENTRY(uma_slab)	_us_link;	/* slabs in zone */
-		unsigned long	_us_size;	/* Size of allocation */
-	} us_type;
+	LIST_ENTRY(uma_slab)	us_link;	/* slabs in zone */
 	SLIST_ENTRY(uma_slab)	us_hlink;	/* Link for hash table */
 	uint8_t		*us_data;		/* First item */
 	struct slabbits	us_free;		/* Free bitmask. */
@@ -295,9 +292,6 @@ struct uma_slab {
 	uint8_t		us_flags;		/* Page flags see uma.h */
 	uint8_t		us_domain;		/* Backing NUMA domain. */
 };
-
-#define	us_link	us_type._us_link
-#define	us_size	us_type._us_size
 
 #if MAXMEMDOM >= 255
 #error "Slab domain type insufficient"
@@ -402,9 +396,6 @@ struct uma_zone {
 #ifdef _KERNEL
 /* Internal prototypes */
 static __inline uma_slab_t hash_sfind(struct uma_hash *hash, uint8_t *data);
-void *uma_large_malloc(vm_size_t size, int wait);
-void *uma_large_malloc_domain(vm_size_t size, int domain, int wait);
-void uma_large_free(uma_slab_t slab);
 
 /* Lock Macros */
 
@@ -498,6 +489,25 @@ vsetzoneslab(vm_offset_t va, uma_zone_t zone, uma_slab_t slab)
 	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
 	p->plinks.uma.slab = slab;
 	p->plinks.uma.zone = zone;
+}
+
+extern unsigned long uma_kmem_limit;
+extern unsigned long uma_kmem_total;
+
+/* Adjust bytes under management by UMA. */
+static inline void
+uma_total_dec(unsigned long size)
+{
+
+	atomic_subtract_long(&uma_kmem_total, size);
+}
+
+static inline void
+uma_total_inc(unsigned long size)
+{
+
+	if (atomic_fetchadd_long(&uma_kmem_total, size) > uma_kmem_limit)
+		uma_reclaim_wakeup();
 }
 
 /*
