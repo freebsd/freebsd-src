@@ -1180,6 +1180,7 @@ void
 tty_rel_gone(struct tty *tp)
 {
 
+	tty_lock_assert(tp, MA_OWNED);
 	MPASS(!tty_gone(tp));
 
 	/* Simulate carrier removal. */
