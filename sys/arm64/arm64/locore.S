@@ -34,6 +34,7 @@
 #include <machine/hypervisor.h>
 #include <machine/param.h>
 #include <machine/pte.h>
+#include <machine/vm.h>
 #include <machine/vmparam.h>
 
 #define	VIRT_BITS	48
@@ -41,10 +42,6 @@
 
 	.globl	kernbase
 	.set	kernbase, KERNBASE
-
-#define	DEVICE_MEM	0
-#define	NORMAL_UNCACHED	1
-#define	NORMAL_MEM	2
 
 /*
  * We assume:
@@ -396,7 +393,7 @@ create_pagetables:
 
 	/* Create the kernel space L2 table */
 	mov	x6, x26
-	mov	x7, #NORMAL_MEM
+	mov	x7, #VM_MEMATTR_WRITE_BACK
 	mov	x8, #(KERNBASE & L2_BLOCK_MASK)
 	mov	x9, x28
 	bl	build_l2_block_pagetable
@@ -433,15 +430,17 @@ create_pagetables:
 	mov	x6, x27		/* The initial page table */
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
 	/* Create a table for the UART */
-	mov	x7, #(ATTR_nG | ATTR_IDX(DEVICE_MEM))
+	mov	x7, #(ATTR_nG | ATTR_IDX(VM_MEMATTR_DEVICE))
 	mov	x8, #(SOCDEV_VA)	/* VA start */
 	mov	x9, #(SOCDEV_PA)	/* PA start */
 	mov	x10, #1
 	bl	build_l1_block_pagetable
 #endif
 
-	/* Create the VA = PA map */
-	mov	x7, #(ATTR_nG | ATTR_IDX(NORMAL_UNCACHED))
+	/*
+	 * Create the VA = PA map
+	 */
+	mov	x7, #(ATTR_nG | ATTR_IDX(VM_MEMATTR_UNCACHEABLE))
 	mov	x9, x27
 	mov	x8, x9		/* VA start (== PA start) */
 	mov	x10, #1
@@ -658,10 +657,10 @@ start_mmu:
 
 	.align 3
 mair:
-	.quad	MAIR_ATTR(MAIR_DEVICE_nGnRnE, 0) |	\
-		MAIR_ATTR(MAIR_NORMAL_NC, 1) |		\
-		MAIR_ATTR(MAIR_NORMAL_WB, 2) |		\
-		MAIR_ATTR(MAIR_NORMAL_WT, 3)
+	.quad	MAIR_ATTR(MAIR_DEVICE_nGnRnE, VM_MEMATTR_DEVICE)    |	\
+		MAIR_ATTR(MAIR_NORMAL_NC, VM_MEMATTR_UNCACHEABLE)   |	\
+		MAIR_ATTR(MAIR_NORMAL_WB, VM_MEMATTR_WRITE_BACK)    |	\
+		MAIR_ATTR(MAIR_NORMAL_WT, VM_MEMATTR_WRITE_THROUGH)
 tcr:
 	.quad (TCR_TxSZ(64 - VIRT_BITS) | TCR_TG1_4K | \
 	    TCR_CACHE_ATTRS | TCR_SMP_ATTRS)
