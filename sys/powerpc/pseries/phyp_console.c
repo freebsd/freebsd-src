@@ -287,6 +287,7 @@ uart_phyp_get(struct uart_phyp_softc *sc, void *buffer, size_t bufsize)
 {
 	int err;
 	int hdr = 0;
+	uint64_t i, j;
 
 	uart_lock(&sc->sc_mtx);
 	if (sc->inbuflen == 0) {
@@ -297,7 +298,7 @@ uart_phyp_get(struct uart_phyp_softc *sc, void *buffer, size_t bufsize)
 			uart_unlock(&sc->sc_mtx);
 			return (-1);
 		}
-		hdr = 1; 
+		hdr = 1;
 	}
 
 	if (sc->inbuflen == 0) {
@@ -305,15 +306,35 @@ uart_phyp_get(struct uart_phyp_softc *sc, void *buffer, size_t bufsize)
 		return (0);
 	}
 
-	if (bufsize > sc->inbuflen)
-		bufsize = sc->inbuflen;
-
 	if ((sc->protocol == HVTERMPROT) && (hdr == 1)) {
 		sc->inbuflen = sc->inbuflen - 4;
 		/* The VTERM protocol has a 4 byte header, skip it here. */
 		memmove(&sc->phyp_inbuf.str[0], &sc->phyp_inbuf.str[4],
 		    sc->inbuflen);
 	}
+
+	/*
+	 * Since version 2.11.0, QEMU became bug-compatible with
+	 * PowerVM's vty implementation, by inserting a \0 after
+	 * every \r going to the guest. Guests are expected to
+	 * workaround this issue by removing every \0 immediately
+	 * following a \r.
+	 */
+	if (hdr == 1) {
+		for (i = 0, j = 0; i < sc->inbuflen; i++, j++) {
+			if (i > j)
+				sc->phyp_inbuf.str[j] = sc->phyp_inbuf.str[i];
+
+			if (sc->phyp_inbuf.str[i] == '\r' &&
+			    i < sc->inbuflen - 1 &&
+			    sc->phyp_inbuf.str[i + 1] == '\0')
+				i++;
+		}
+		sc->inbuflen -= i - j;
+	}
+
+	if (bufsize > sc->inbuflen)
+		bufsize = sc->inbuflen;
 
 	memcpy(buffer, sc->phyp_inbuf.str, bufsize);
 	sc->inbuflen -= bufsize;
