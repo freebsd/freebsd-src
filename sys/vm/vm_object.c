@@ -520,15 +520,22 @@ static void
 vm_object_vndeallocate(vm_object_t object)
 {
 	struct vnode *vp = (struct vnode *) object->handle;
+	bool last;
 
 	KASSERT(object->type == OBJT_VNODE,
 	    ("vm_object_vndeallocate: not a vnode object"));
 	KASSERT(vp != NULL, ("vm_object_vndeallocate: missing vp"));
 
+	/* Object lock to protect handle lookup. */
+	last = refcount_release(&object->ref_count);
+	VM_OBJECT_RUNLOCK(object);
+
+	if (!last)
+		return;
+
 	if (!umtx_shm_vnobj_persistent)
 		umtx_shm_object_terminated(object);
 
-	VM_OBJECT_WUNLOCK(object);
 	/* vrele may need the vnode lock. */
 	vrele(vp);
 }
@@ -548,7 +555,7 @@ void
 vm_object_deallocate(vm_object_t object)
 {
 	vm_object_t robject, temp;
-	bool last, released;
+	bool released;
 
 	while (object != NULL) {
 		/*
@@ -565,18 +572,22 @@ vm_object_deallocate(vm_object_t object)
 		if (released)
 			return;
 
-		VM_OBJECT_WLOCK(object);
-		KASSERT(object->ref_count != 0,
-			("vm_object_deallocate: object deallocated too many times: %d", object->type));
-
-		last = refcount_release(&object->ref_count);
 		if (object->type == OBJT_VNODE) {
-			if (last)
+			VM_OBJECT_RLOCK(object);
+			if (object->type == OBJT_VNODE) {
 				vm_object_vndeallocate(object);
-			else
-				VM_OBJECT_WUNLOCK(object);
-			return;
+				return;
+			}
+			VM_OBJECT_RUNLOCK(object);
 		}
+
+		VM_OBJECT_WLOCK(object);
+		KASSERT(object->ref_count > 0,
+		    ("vm_object_deallocate: object deallocated too many times: %d",
+		    object->type));
+
+		if (refcount_release(&object->ref_count))
+			goto doterm;
 		if (object->ref_count > 1) {
 			VM_OBJECT_WUNLOCK(object);
 			return;
