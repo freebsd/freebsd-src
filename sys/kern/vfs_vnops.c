@@ -219,7 +219,8 @@ restart:
 			ndp->ni_cnd.cn_flags |= AUDITVNODE1;
 		if (vn_open_flags & VN_OPEN_NOCAPCHECK)
 			ndp->ni_cnd.cn_flags |= NOCAPCHECK;
-		bwillwrite();
+		if ((vn_open_flags & VN_OPEN_INVFS) == 0)
+			bwillwrite();
 		if ((error = namei(ndp)) != 0)
 			return (error);
 		if (ndp->ni_vp == NULL) {
