@@ -492,7 +492,7 @@ ofw_gpiobus_probe(device_t dev)
 		return (ENXIO);
 	device_set_desc(dev, "OFW GPIO bus");
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -511,6 +511,8 @@ ofw_gpiobus_attach(device_t dev)
 	 */
 	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
 	    child = OF_peer(child)) {
+		if (OF_hasprop(child, "gpio-hog"))
+			continue;
 		if (!OF_hasprop(child, "gpios"))
 			continue;
 		if (ofw_gpiobus_add_fdt_child(dev, NULL, child) == NULL)
