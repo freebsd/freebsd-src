@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/vmmeter.h>
 #include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
@@ -78,6 +79,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
+#include <vm/vm_phys.h>
+#include <vm/vm_pagequeue.h>
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 #include <vm/uma_dbg.h>
@@ -552,6 +555,52 @@ malloc_dbg(caddr_t *vap, size_t *sizep, struct malloc_type *mtp,
 #endif
 
 /*
+ * Handle large allocations and frees by using kmem_malloc directly.
+ */
+static inline bool
+malloc_large_slab(uma_slab_t slab)
+{
+	uintptr_t va;
+
+	va = (uintptr_t)slab;
+	return ((va & 1) != 0);
+}
+
+static inline size_t
+malloc_large_size(uma_slab_t slab)
+{
+	uintptr_t va;
+
+	va = (uintptr_t)slab;
+	return (va >> 1);
+}
+
+static caddr_t
+malloc_large(size_t *size, struct domainset *policy, int flags)
+{
+	vm_offset_t va;
+	size_t sz;
+
+	sz = roundup(*size, PAGE_SIZE);
+	va = kmem_malloc_domainset(policy, sz, flags);
+	if (va != 0) {
+		/* The low bit is unused for slab pointers. */
+		vsetzoneslab(va, NULL, (void *)((sz << 1) | 1));
+		uma_total_inc(sz);
+		*size = sz;
+	}
+	return ((caddr_t)va);
+}
+
+static void
+free_large(void *addr, size_t size)
+{
+
+	kmem_free((vm_offset_t)addr, size);
+	uma_total_dec(size);
+}
+
+/*
  *	malloc:
  *
  *	Allocate a block of memory.
@@ -588,9 +637,7 @@ void *
 			size = zone->uz_size;
 		malloc_type_zone_allocated(mtp, va == NULL ? 0 : size, indx);
 	} else {
-		size = roundup(size, PAGE_SIZE);
-		zone = NULL;
-		va = uma_large_malloc(size, flags);
+		va = malloc_large(&size, DOMAINSET_RR(), flags);
 		malloc_type_allocated(mtp, va == NULL ? 0 : size);
 	}
 	if (flags & M_WAITOK)
@@ -605,46 +652,27 @@ void *
 }
 
 static void *
-malloc_domain(size_t size, struct malloc_type *mtp, int domain, int flags)
+malloc_domain(size_t size, int *indxp, struct malloc_type *mtp, int domain,
+    int flags)
 {
 	int indx;
 	caddr_t va;
 	uma_zone_t zone;
-#if defined(DEBUG_REDZONE)
-	unsigned long osize = size;
-#endif
 
-#ifdef MALLOC_DEBUG
-	va = NULL;
-	if (malloc_dbg(&va, &size, mtp, flags) != 0)
-		return (va);
-#endif
-	if (size <= kmem_zmax && (flags & M_EXEC) == 0) {
-		if (size & KMEM_ZMASK)
-			size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
-		indx = kmemsize[size >> KMEM_ZSHIFT];
-		zone = kmemzones[indx].kz_zone[mtp_get_subzone(mtp)];
+	KASSERT(size <= kmem_zmax && (flags & M_EXEC) == 0,
+	    ("malloc_domain: Called with bad flag / size combination."));
+	if (size & KMEM_ZMASK)
+		size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
+	indx = kmemsize[size >> KMEM_ZSHIFT];
+	zone = kmemzones[indx].kz_zone[mtp_get_subzone(mtp)];
 #ifdef MALLOC_PROFILE
-		krequests[size >> KMEM_ZSHIFT]++;
+	krequests[size >> KMEM_ZSHIFT]++;
 #endif
-		va = uma_zalloc_domain(zone, NULL, domain, flags);
-		if (va != NULL)
-			size = zone->uz_size;
-		malloc_type_zone_allocated(mtp, va == NULL ? 0 : size, indx);
-	} else {
-		size = roundup(size, PAGE_SIZE);
-		zone = NULL;
-		va = uma_large_malloc_domain(size, domain, flags);
-		malloc_type_allocated(mtp, va == NULL ? 0 : size);
-	}
-	if (flags & M_WAITOK)
-		KASSERT(va != NULL, ("malloc(M_WAITOK) returned NULL"));
-	else if (va == NULL)
-		t_malloc_fail = time_uptime;
-#ifdef DEBUG_REDZONE
+	va = uma_zalloc_domain(zone, NULL, domain, flags);
 	if (va != NULL)
-		va = redzone_setup(va, osize);
-#endif
+		size = zone->uz_size;
+	*indxp = indx;
+
 	return ((void *) va);
 }
 
@@ -653,16 +681,39 @@ malloc_domainset(size_t size, struct malloc_type *mtp, struct domainset *ds,
     int flags)
 {
 	struct vm_domainset_iter di;
-	void *ret;
+	caddr_t ret;
 	int domain;
+	int indx;
 
-	vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
-	do {
-		ret = malloc_domain(size, mtp, domain, flags);
-		if (ret != NULL)
-			break;
-	} while (vm_domainset_iter_policy(&di, &domain) == 0);
+#if defined(DEBUG_REDZONE)
+	unsigned long osize = size;
+#endif
+#ifdef MALLOC_DEBUG
+	ret= NULL;
+	if (malloc_dbg(&ret, &size, mtp, flags) != 0)
+		return (ret);
+#endif
+	if (size <= kmem_zmax && (flags & M_EXEC) == 0) {
+		vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
+		do {
+			ret = malloc_domain(size, &indx, mtp, domain, flags);
+		} while (ret == NULL &&
+		    vm_domainset_iter_policy(&di, &domain) == 0);
+		malloc_type_zone_allocated(mtp, ret == NULL ? 0 : size, indx);
+	} else {
+		/* Policy is handled by kmem. */
+		ret = malloc_large(&size, ds, flags);
+		malloc_type_allocated(mtp, ret == NULL ? 0 : size);
+	}
 
+	if (flags & M_WAITOK)
+		KASSERT(ret != NULL, ("malloc(M_WAITOK) returned NULL"));
+	else if (ret == NULL)
+		t_malloc_fail = time_uptime;
+#ifdef DEBUG_REDZONE
+	if (ret != NULL)
+		ret = redzone_setup(ret, osize);
+#endif
 	return (ret);
 }
 
@@ -755,15 +806,15 @@ free(void *addr, struct malloc_type *mtp)
 		panic("free: address %p(%p) has not been allocated.\n",
 		    addr, (void *)((u_long)addr & (~UMA_SLAB_MASK)));
 
-	if (!(slab->us_flags & UMA_SLAB_MALLOC)) {
+	if (__predict_true(!malloc_large_slab(slab))) {
 		size = zone->uz_size;
 #ifdef INVARIANTS
 		free_save_type(addr, mtp, size);
 #endif
 		uma_zfree_arg(zone, addr, slab);
 	} else {
-		size = slab->us_size;
-		uma_large_free(slab);
+		size = malloc_large_size(slab);
+		free_large(addr, size);
 	}
 	malloc_type_freed(mtp, size);
 }
@@ -789,15 +840,15 @@ free_domain(void *addr, struct malloc_type *mtp)
 		panic("free_domain: address %p(%p) has not been allocated.\n",
 		    addr, (void *)((u_long)addr & (~UMA_SLAB_MASK)));
 
-	if (!(slab->us_flags & UMA_SLAB_MALLOC)) {
+	if (__predict_true(!malloc_large_slab(slab))) {
 		size = zone->uz_size;
 #ifdef INVARIANTS
 		free_save_type(addr, mtp, size);
 #endif
 		uma_zfree_domain(zone, addr, slab);
 	} else {
-		size = slab->us_size;
-		uma_large_free(slab);
+		size = malloc_large_size(slab);
+		free_large(addr, size);
 	}
 	malloc_type_freed(mtp, size);
 }
@@ -844,10 +895,10 @@ realloc(void *addr, size_t size, struct malloc_type *mtp, int flags)
 	    ("realloc: address %p out of range", (void *)addr));
 
 	/* Get the size of the original block */
-	if (!(slab->us_flags & UMA_SLAB_MALLOC))
+	if (!malloc_large_slab(slab))
 		alloc = zone->uz_size;
 	else
-		alloc = slab->us_size;
+		alloc = malloc_large_size(slab);
 
 	/* Reuse the original block if appropriate */
 	if (size <= alloc

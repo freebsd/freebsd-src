@@ -311,7 +311,7 @@ memguard_alloc(unsigned long req_size, int flags)
 	 * When we pass our memory limit, reject sub-page allocations.
 	 * Page-size and larger allocations will use the same amount
 	 * of physical memory whether we allocate or hand off to
-	 * uma_large_alloc(), so keep those.
+	 * malloc_large(), so keep those.
 	 */
 	if (vmem_size(memguard_arena, VMEM_ALLOC) >= memguard_physlimit &&
 	    req_size < PAGE_SIZE) {
