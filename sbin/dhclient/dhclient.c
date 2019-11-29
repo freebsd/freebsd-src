@@ -1782,7 +1782,7 @@ make_request(struct interface_info *ip, struct client_lease * lease)
 	}
 
 	/* set unique client identifier */
-	char client_ident[sizeof(struct hardware)];
+	char client_ident[sizeof(ip->hw_address.haddr) + 1];
 	if (!options[DHO_DHCP_CLIENT_IDENTIFIER]) {
 		int hwlen = (ip->hw_address.hlen < sizeof(client_ident)-1) ?
 				ip->hw_address.hlen : sizeof(client_ident)-1;
