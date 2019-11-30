@@ -929,6 +929,66 @@ quiesce_all_cpus(const char *wmesg, int prio)
 	return quiesce_cpus(all_cpus, wmesg, prio);
 }
 
+/*
+ * Observe all CPUs not executing in critical section.
+ * We are not in one so the check for us is safe. If the found
+ * thread changes to something else we know the section was
+ * exited as well.
+ */
+void
+quiesce_all_critical(void)
+{
+	struct thread *td, *newtd;
+	struct pcpu *pcpu;
+	int cpu;
+
+	MPASS(curthread->td_critnest == 0);
+
+	CPU_FOREACH(cpu) {
+		pcpu = cpuid_to_pcpu[cpu];
+		td = pcpu->pc_curthread;
+		for (;;) {
+			if (td->td_critnest == 0)
+				break;
+			cpu_spinwait();
+			newtd = (struct thread *)
+			    atomic_load_acq_ptr((u_long *)pcpu->pc_curthread);
+			if (td != newtd)
+				break;
+		}
+	}
+}
+
+static void
+cpus_fence_seq_cst_issue(void *arg __unused)
+{
+
+	atomic_thread_fence_seq_cst();
+}
+
+/*
+ * Send an IPI forcing a sequentially consistent fence.
+ *
+ * Allows replacement of an explicitly fence with a compiler barrier.
+ * Trades speed up during normal execution for a significant slowdown when
+ * the barrier is needed.
+ */
+void
+cpus_fence_seq_cst(void)
+{
+
+#ifdef SMP
+	smp_rendezvous(
+	    smp_no_rendezvous_barrier,
+	    cpus_fence_seq_cst_issue,
+	    smp_no_rendezvous_barrier,
+	    NULL
+	);
+#else
+	cpus_fence_seq_cst_issue(NULL);
+#endif
+}
+
 /* Extra care is taken with this sysctl because the data type is volatile */
 static int
 sysctl_kern_smp_active(SYSCTL_HANDLER_ARGS)
