@@ -103,7 +103,7 @@ struct vnode {
 	 * Fields which define the identity of the vnode.  These fields are
 	 * owned by the filesystem (XXX: and vgone() ?)
 	 */
-	const char *v_tag;			/* u type of underlying data */
+	enum	vtype v_type;			/* u vnode type */
 	struct	vop_vector *v_op;		/* u vnode operations vector */
 	void	*v_data;			/* u private data for fs */
 
@@ -173,7 +173,7 @@ struct vnode {
 	int	v_writecount;			/* I ref count of writers or
 						   (negative) text users */
 	u_int	v_hash;
-	enum	vtype v_type;			/* u vnode type */
+	const char *v_tag;			/* u type of underlying data */
 };
 
 #endif /* defined(_KERNEL) || defined(_KVM_VNODE) */
