@@ -40,7 +40,9 @@ ldconfig_start()
 		check_startmsgs && echo 'ELF ldconfig path:' ${_LDC}
 		${ldconfig} -elf ${_ins} ${_LDC}
 
-		case `sysctl -n hw.machine_arch` in
+		machine_arch=$(sysctl -n hw.machine_arch)
+
+		case ${machine_arch} in
 		amd64|mips64|powerpc64)
 			for i in ${ldconfig_local32_dirs}; do
 				if [ -d "${i}" ]; then
@@ -62,7 +64,7 @@ ldconfig_start()
 			;;
 		esac
 
-		case `sysctl -n hw.machine_arch` in
+		case ${machine_arch} in
 		armv[67])
 			for i in ${ldconfig_localsoft_dirs}; do
 				if [ -d "${i}" ]; then
@@ -85,7 +87,7 @@ ldconfig_start()
 		esac
 
 		# Legacy aout support for i386 only
-		case `sysctl -n hw.machine_arch` in
+		case ${machine_arch} in
 		i386)
 			# Default the a.out ldconfig path.
 			: ${ldconfig_paths_aout=${ldconfig_paths}}
