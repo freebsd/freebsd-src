@@ -44,9 +44,11 @@ __FBSDID("$FreeBSD$");
 
 static EFI_GUID blkio_guid = BLOCK_IO_PROTOCOL;
 
+typedef bool (*pd_test_cb_t)(pdinfo_t *, pdinfo_t *);
 static int efipart_initfd(void);
 static int efipart_initcd(void);
 static int efipart_inithd(void);
+static void efipart_cdinfo_add(pdinfo_t *);
 
 static int efipart_strategy(void *, int, daddr_t, size_t, char *, size_t *);
 static int efipart_realstrategy(void *, int, daddr_t, size_t, char *, size_t *);
@@ -209,6 +211,123 @@ efiblk_pdinfo_count(pdinfo_list_t *pdi)
 	return (i);
 }
 
+static pdinfo_t *
+efipart_find_parent(pdinfo_list_t *pdi, EFI_DEVICE_PATH *devpath)
+{
+	pdinfo_t *pd;
+	EFI_DEVICE_PATH *parent;
+
+	/* We want to find direct parent */
+	parent = efi_devpath_trim(devpath);
+	/* We should not get out of memory here but be careful. */
+	if (parent == NULL)
+		return (NULL);
+
+	STAILQ_FOREACH(pd, pdi, pd_link) {
+		/* We must have exact match. */
+		if (efi_devpath_match(pd->pd_devpath, parent))
+			break;
+	}
+	free(parent);
+	return (pd);
+}
+
+/*
+ * Return true when we should ignore this device.
+ */
+static bool
+efipart_ignore_device(EFI_HANDLE h, EFI_BLOCK_IO *blkio,
+    EFI_DEVICE_PATH *devpath)
+{
+	EFI_DEVICE_PATH *node, *parent;
+
+	/*
+	 * We assume the block size 512 or greater power of 2.
+	 * Also skip devices with block size > 64k (16 is max
+	 * ashift supported by zfs).
+	 * iPXE is known to insert stub BLOCK IO device with
+	 * BlockSize 1.
+	 */
+	if (blkio->Media->BlockSize < 512 ||
+	    blkio->Media->BlockSize > (1 << 16) ||
+	    !powerof2(blkio->Media->BlockSize)) {
+		efi_close_devpath(h);
+		return (true);
+	}
+
+	/* Allowed values are 0, 1 and power of 2. */
+	if (blkio->Media->IoAlign > 1 &&
+	    !powerof2(blkio->Media->IoAlign)) {
+		efi_close_devpath(h);
+		return (true);
+	}
+
+	/*
+	 * With device tree setup:
+	 * PciRoot(0x0)/Pci(0x14,0x0)/USB(0x5,0)/USB(0x2,0x0)
+	 * PciRoot(0x0)/Pci(0x14,0x0)/USB(0x5,0)/USB(0x2,0x0)/Unit(0x1)
+	 * PciRoot(0x0)/Pci(0x14,0x0)/USB(0x5,0)/USB(0x2,0x0)/Unit(0x2)
+	 * PciRoot(0x0)/Pci(0x14,0x0)/USB(0x5,0)/USB(0x2,0x0)/Unit(0x3)
+	 * PciRoot(0x0)/Pci(0x14,0x0)/USB(0x5,0)/USB(0x2,0x0)/Unit(0x3)/CDROM..
+	 * PciRoot(0x0)/Pci(0x14,0x0)/USB(0x5,0)/USB(0x2,0x0)/Unit(0x3)/CDROM..
+	 * PciRoot(0x0)/Pci(0x14,0x0)/USB(0x5,0)/USB(0x2,0x0)/Unit(0x4)
+	 * PciRoot(0x0)/Pci(0x14,0x0)/USB(0x5,0)/USB(0x2,0x0)/Unit(0x5)
+	 * PciRoot(0x0)/Pci(0x14,0x0)/USB(0x5,0)/USB(0x2,0x0)/Unit(0x6)
+	 * PciRoot(0x0)/Pci(0x14,0x0)/USB(0x5,0)/USB(0x2,0x0)/Unit(0x7)
+	 *
+	 * In above exmple only Unit(0x3) has media, all other nodes are
+	 * missing media and should not be used.
+	 *
+	 * No media does not always mean there is no device, but in above
+	 * case, we can not really assume there is any device.
+	 * Therefore, if this node is USB, or this node is Unit (LUN) and
+	 * direct parent is USB and we have no media, we will ignore this
+	 * device.
+	 */
+
+	/* Do not ignore device with media. */
+	if (blkio->Media->MediaPresent)
+		return (false);
+
+	node = efi_devpath_last_node(devpath);
+	if (node == NULL)
+		return (false);
+
+	/* USB without media present */
+	if (DevicePathType(node) == MESSAGING_DEVICE_PATH &&
+	    DevicePathSubType(node) == MSG_USB_DP) {
+		efi_close_devpath(h);
+		return (true);
+	}
+
+	parent = efi_devpath_trim(devpath);
+	if (parent != NULL) {
+		bool parent_is_usb = false;
+
+		node = efi_devpath_last_node(parent);
+		if (node == NULL) {
+			free(parent);
+			return (false);
+		}
+		if (DevicePathType(node) == MESSAGING_DEVICE_PATH &&
+		    DevicePathSubType(node) == MSG_USB_DP)
+			parent_is_usb = true;
+		free(parent);
+
+		/* no media, parent is USB and devicepath is lun. */
+		node = efi_devpath_last_node(devpath);
+		if (node == NULL)
+			return (false);
+		if (parent_is_usb &&
+		    DevicePathType(node) == MESSAGING_DEVICE_PATH &&
+	    	    DevicePathSubType(node) == MSG_DEVICE_LOGICAL_UNIT_DP) {
+			efi_close_devpath(h);
+			return (true);
+		}
+	}
+	return (false);
+}
+
 int
 efipart_inithandles(void)
 {
@@ -256,24 +375,8 @@ efipart_inithandles(void)
 			continue;
 		}
 
-		/*
-		 * We assume the block size 512 or greater power of 2.
-		 * Also skip devices with block size > 64k (16 is max
-		 * ashift supported by zfs).
-		 * iPXE is known to insert stub BLOCK IO device with
-		 * BlockSize 1.
-		 */
-		if (blkio->Media->BlockSize < 512 ||
-		    blkio->Media->BlockSize > (1 << 16) ||
-		    !powerof2(blkio->Media->BlockSize)) {
+		if (efipart_ignore_device(hin[i], blkio, devpath))
 			continue;
-		}
-
-		/* Allowed values are 0, 1 and power of 2. */
-		if (blkio->Media->IoAlign > 1 &&
-		    !powerof2(blkio->Media->IoAlign)) {
-			continue;
-		}
 
 		/* This is bad. */
 		if ((pd = calloc(1, sizeof(*pd))) == NULL) {
@@ -289,8 +392,30 @@ efipart_inithandles(void)
 		STAILQ_INSERT_TAIL(&pdinfo, pd, pd_link);
 	}
 
+	/*
+	 * Walk pdinfo and set parents based on device path.
+	 */
+	STAILQ_FOREACH(pd, &pdinfo, pd_link) {
+		pd->pd_parent = efipart_find_parent(&pdinfo, pd->pd_devpath);
+	}
 	free(hin);
 	return (0);
+}
+
+/*
+ * Get node identified by pd_test() from plist.
+ */
+static pdinfo_t *
+efipart_get_pd(pdinfo_list_t *plist, pd_test_cb_t pd_test, pdinfo_t *data)
+{
+	pdinfo_t *pd;
+
+	STAILQ_FOREACH(pd, plist, pd_link) {
+		if (pd_test(pd, data))
+			break;
+	}
+
+	return (pd);
 }
 
 static ACPI_HID_DEVICE_PATH *
@@ -310,19 +435,19 @@ efipart_floppy(EFI_DEVICE_PATH *node)
 	return (NULL);
 }
 
-static pdinfo_t *
-efipart_find_parent(pdinfo_list_t *pdi, EFI_DEVICE_PATH *devpath)
+static bool
+efipart_testfd(pdinfo_t *fd, pdinfo_t *data __unused)
 {
-	pdinfo_t *pd, *part;
+	EFI_DEVICE_PATH *node;
 
-	STAILQ_FOREACH(pd, pdi, pd_link) {
-		if (efi_devpath_is_prefix(pd->pd_devpath, devpath))
-			return (pd);
-		part = efipart_find_parent(&pd->pd_part, devpath);
-		if (part != NULL)
-			return (part);
-	}
-	return (NULL);
+	node = efi_devpath_last_node(fd->pd_devpath);
+	if (node == NULL)
+		return (false);
+
+	if (efipart_floppy(node) != NULL)
+		return (true);
+
+	return (false);
 }
 
 static int
@@ -332,8 +457,7 @@ efipart_initfd(void)
 	ACPI_HID_DEVICE_PATH *acpi;
 	pdinfo_t *parent, *fd;
 
-restart:
-	STAILQ_FOREACH(fd, &pdinfo, pd_link) {
+	while ((fd = efipart_get_pd(&pdinfo, efipart_testfd, NULL)) != NULL) {
 		if ((node = efi_devpath_last_node(fd->pd_devpath)) == NULL)
 			continue;
 
@@ -341,7 +465,7 @@ restart:
 			continue;
 
 		STAILQ_REMOVE(&pdinfo, fd, pdinfo, pd_link);
-		parent = efipart_find_parent(&pdinfo, fd->pd_devpath);
+		parent = fd->pd_parent;
 		if (parent != NULL) {
 			STAILQ_REMOVE(&pdinfo, parent, pdinfo, pd_link);
 			parent->pd_alias = fd->pd_handle;
@@ -353,7 +477,6 @@ restart:
 		}
 		fd->pd_devsw = &efipart_fddev;
 		STAILQ_INSERT_TAIL(&fdinfo, fd, pd_link);
-		goto restart;
 	}
 
 	bcache_add_dev(efiblk_pdinfo_count(&fdinfo));
@@ -366,20 +489,35 @@ restart:
 static void
 efipart_cdinfo_add(pdinfo_t *cd)
 {
-	pdinfo_t *pd, *last;
+	pdinfo_t *parent, *pd, *last;
 
-	STAILQ_FOREACH(pd, &cdinfo, pd_link) {
-		if (efi_devpath_is_prefix(pd->pd_devpath, cd->pd_devpath)) {
-			last = STAILQ_LAST(&pd->pd_part, pdinfo, pd_link);
-			if (last != NULL)
-				cd->pd_unit = last->pd_unit + 1;
-			else
-				cd->pd_unit = 0;
-			cd->pd_parent = pd;
-			cd->pd_devsw = &efipart_cddev;
-			STAILQ_INSERT_TAIL(&pd->pd_part, cd, pd_link);
-			return;
+	if (cd == NULL)
+		return;
+
+	parent = cd->pd_parent;
+	/* Make sure we have parent added */
+	efipart_cdinfo_add(parent);
+
+	STAILQ_FOREACH(pd, &pdinfo, pd_link) {
+		if (efi_devpath_match(pd->pd_devpath, cd->pd_devpath)) {
+			STAILQ_REMOVE(&pdinfo, cd, pdinfo, pd_link);
+			break;
 		}
+	}
+	if (pd == NULL) {
+		/* This device is already added. */
+		return;
+	}
+
+	if (parent != NULL) {
+		last = STAILQ_LAST(&parent->pd_part, pdinfo, pd_link);
+		if (last != NULL)
+			cd->pd_unit = last->pd_unit + 1;
+		else
+			cd->pd_unit = 0;
+		cd->pd_devsw = &efipart_cddev;
+		STAILQ_INSERT_TAIL(&parent->pd_part, cd, pd_link);
+		return;
 	}
 
 	last = STAILQ_LAST(&cdinfo, pdinfo, pd_link);
@@ -388,186 +526,99 @@ efipart_cdinfo_add(pdinfo_t *cd)
 	else
 		cd->pd_unit = 0;
 
-	cd->pd_parent = NULL;
 	cd->pd_devsw = &efipart_cddev;
 	STAILQ_INSERT_TAIL(&cdinfo, cd, pd_link);
 }
 
 static bool
-efipart_testcd(EFI_DEVICE_PATH *node, EFI_BLOCK_IO *blkio)
+efipart_testcd(pdinfo_t *cd, pdinfo_t *data __unused)
 {
+	EFI_DEVICE_PATH *node;
+
+	node = efi_devpath_last_node(cd->pd_devpath);
+	if (node == NULL)
+		return (false);
+
+	if (efipart_floppy(node) != NULL)
+		return (false);
+
 	if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
 	    DevicePathSubType(node) == MEDIA_CDROM_DP) {
 		return (true);
 	}
 
 	/* cd drive without the media. */
-	if (blkio->Media->RemovableMedia &&
-	    !blkio->Media->MediaPresent) {
+	if (cd->pd_blkio->Media->RemovableMedia &&
+	    !cd->pd_blkio->Media->MediaPresent) {
 		return (true);
 	}
 
 	return (false);
 }
 
-static void
-efipart_updatecd(void)
+/*
+ * Test if pd is parent for device.
+ */
+static bool
+efipart_testchild(pdinfo_t *dev, pdinfo_t *pd)
 {
-	EFI_DEVICE_PATH *devpath, *node;
-	EFI_STATUS status;
-	pdinfo_t *parent, *cd;
+	/* device with no parent. */
+	if (dev->pd_parent == NULL)
+		return (false);
 
-restart:
-	STAILQ_FOREACH(cd, &pdinfo, pd_link) {
-		if ((node = efi_devpath_last_node(cd->pd_devpath)) == NULL)
-			continue;
-
-		if (efipart_floppy(node) != NULL)
-			continue;
-
-		/* Is parent of this device already registered? */
-		parent = efipart_find_parent(&cdinfo, cd->pd_devpath);
-		if (parent != NULL) {
-			STAILQ_REMOVE(&pdinfo, cd, pdinfo, pd_link);
-			efipart_cdinfo_add(cd);
-			goto restart;
-		}
-
-		if (!efipart_testcd(node, cd->pd_blkio))
-			continue;
-
-		/* Find parent and unlink both parent and cd from pdinfo */
-		STAILQ_REMOVE(&pdinfo, cd, pdinfo, pd_link);
-		parent = efipart_find_parent(&pdinfo, cd->pd_devpath);
-		if (parent != NULL) {
-			STAILQ_REMOVE(&pdinfo, parent, pdinfo, pd_link);
-			efipart_cdinfo_add(parent);
-		}
-
-		if (parent == NULL)
-			parent = efipart_find_parent(&cdinfo, cd->pd_devpath);
-
-		/*
-		 * If we come across a logical partition of subtype CDROM
-		 * it doesn't refer to the CD filesystem itself, but rather
-		 * to any usable El Torito boot image on it. In this case
-		 * we try to find the parent device and add that instead as
-		 * that will be the CD filesystem.
-		 */
-		if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
-		    DevicePathSubType(node) == MEDIA_CDROM_DP &&
-		    parent == NULL) {
-			parent = calloc(1, sizeof(*parent));
-			if (parent == NULL) {
-				printf("efipart_updatecd: out of memory\n");
-				/* this device is lost but try again. */
-				free(cd);
-				goto restart;
-			}
-
-			devpath = efi_devpath_trim(cd->pd_devpath);
-			if (devpath == NULL) {
-				printf("efipart_updatecd: out of memory\n");
-				/* this device is lost but try again. */
-				free(parent);
-				free(cd);
-				goto restart;
-			}
-			parent->pd_devpath = devpath;
-			status = BS->LocateDevicePath(&blkio_guid,
-			    &parent->pd_devpath, &parent->pd_handle);
-			free(devpath);
-			if (EFI_ERROR(status)) {
-				printf("efipart_updatecd: error %lu\n",
-				    EFI_ERROR_CODE(status));
-				free(parent);
-				free(cd);
-				goto restart;
-			}
-			parent->pd_devpath =
-			    efi_lookup_devpath(parent->pd_handle);
-			efipart_cdinfo_add(parent);
-		}
-
-		efipart_cdinfo_add(cd);
-		goto restart;
+	if (efi_devpath_match(dev->pd_parent->pd_devpath, pd->pd_devpath)) {
+		return (true);
 	}
+	return (false);
 }
 
 static int
 efipart_initcd(void)
 {
-	efipart_updatecd();
+	pdinfo_t *cd;
 
+	while ((cd = efipart_get_pd(&pdinfo, efipart_testcd, NULL)) != NULL)
+		efipart_cdinfo_add(cd);
+
+	/* Find all children of CD devices we did add above. */
+	STAILQ_FOREACH(cd, &cdinfo, pd_link) {
+		pdinfo_t *child;
+
+		for (child = efipart_get_pd(&pdinfo, efipart_testchild, cd);
+		    child != NULL;
+		    child = efipart_get_pd(&pdinfo, efipart_testchild, cd))
+			efipart_cdinfo_add(child);
+	}
 	bcache_add_dev(efiblk_pdinfo_count(&cdinfo));
 	return (0);
 }
 
-static bool
+static void
 efipart_hdinfo_add_node(pdinfo_t *hd, EFI_DEVICE_PATH *node)
 {
-	pdinfo_t *pd, *ptr;
+	pdinfo_t *parent, *ptr;
 
 	if (node == NULL)
-		return (false);
+		return;
 
-	/* Find our disk device. */
-	STAILQ_FOREACH(pd, &hdinfo, pd_link) {
-		if (efi_devpath_is_prefix(pd->pd_devpath, hd->pd_devpath))
-			break;
-	}
-	if (pd == NULL)
-		return (false);
-
-	/* If the node is not MEDIA_HARDDRIVE_DP, it is sub-partition. */
+	parent = hd->pd_parent;
+	/*
+	 * If the node is not MEDIA_HARDDRIVE_DP, it is sub-partition.
+	 * This can happen with Vendor nodes, and since we do not know
+	 * the more about those nodes, we just count them.
+	 */
 	if (DevicePathSubType(node) != MEDIA_HARDDRIVE_DP) {
-		STAILQ_FOREACH(ptr, &pd->pd_part, pd_link) {
-			if (efi_devpath_is_prefix(ptr->pd_devpath,
-			    hd->pd_devpath))
-				break;
-		}
-		/*
-		 * ptr == NULL means we have handles in unexpected order
-		 * and we would need to re-order the partitions later.
-		 */
-		if (ptr != NULL)
-			pd = ptr;
-	}
-
-	/* Add the partition. */
-	if (DevicePathSubType(node) == MEDIA_HARDDRIVE_DP) {
-		hd->pd_unit = ((HARDDRIVE_DEVICE_PATH *)node)->PartitionNumber;
-	} else {
-		ptr = STAILQ_LAST(&pd->pd_part, pdinfo, pd_link);
+		ptr = STAILQ_LAST(&parent->pd_part, pdinfo, pd_link);
 		if (ptr != NULL)
 			hd->pd_unit = ptr->pd_unit + 1;
 		else
 			hd->pd_unit = 0;
+	} else {
+		hd->pd_unit = ((HARDDRIVE_DEVICE_PATH *)node)->PartitionNumber;
 	}
-	hd->pd_parent = pd;
+
 	hd->pd_devsw = &efipart_hddev;
-
-	STAILQ_INSERT_TAIL(&pd->pd_part, hd, pd_link);
-	return (true);
-}
-
-static void
-efipart_hdinfo_add(pdinfo_t *hd, EFI_DEVICE_PATH *node)
-{
-	pdinfo_t *last;
-
-	if (efipart_hdinfo_add_node(hd, node))
-		return;
-
-	last = STAILQ_LAST(&hdinfo, pdinfo, pd_link);
-	if (last != NULL)
-		hd->pd_unit = last->pd_unit + 1;
-	else
-		hd->pd_unit = 0;
-
-	/* Add the disk. */
-	hd->pd_devsw = &efipart_hddev;
-	STAILQ_INSERT_TAIL(&hdinfo, hd, pd_link);
+	STAILQ_INSERT_TAIL(&parent->pd_part, hd, pd_link);
 }
 
 /*
@@ -640,96 +691,75 @@ efipart_hdinfo_add_filepath(pdinfo_t *hd, FILEPATH_DEVICE_PATH *node)
 }
 
 static void
-efipart_updatehd(void)
+efipart_hdinfo_add(pdinfo_t *hd)
 {
-	EFI_DEVICE_PATH *devpath, *node;
-	EFI_STATUS status;
-	pdinfo_t *parent, *hd;
+	pdinfo_t *parent, *pd, *last;
+	EFI_DEVICE_PATH *node;
 
-restart:
-	STAILQ_FOREACH(hd, &pdinfo, pd_link) {
-		if ((node = efi_devpath_last_node(hd->pd_devpath)) == NULL)
-			continue;
+	if (hd == NULL)
+		return;
 
-		if (efipart_floppy(node) != NULL)
-			continue;
+	parent = hd->pd_parent;
+	/* Make sure we have parent added */
+	efipart_hdinfo_add(parent);
 
-		if (efipart_testcd(node, hd->pd_blkio))
-			continue;
-
-		if (DevicePathType(node) == HARDWARE_DEVICE_PATH &&
-		    (DevicePathSubType(node) == HW_PCI_DP ||
-		     DevicePathSubType(node) == HW_VENDOR_DP)) {
+	STAILQ_FOREACH(pd, &pdinfo, pd_link) {
+		if (efi_devpath_match(pd->pd_devpath, hd->pd_devpath)) {
 			STAILQ_REMOVE(&pdinfo, hd, pdinfo, pd_link);
-			efipart_hdinfo_add(hd, NULL);
-			goto restart;
+			break;
 		}
-
-		if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
-		    DevicePathSubType(node) == MEDIA_FILEPATH_DP) {
-			STAILQ_REMOVE(&pdinfo, hd, pdinfo, pd_link);
-			efipart_hdinfo_add_filepath(hd,
-			    (FILEPATH_DEVICE_PATH *)node);
-			goto restart;
-		}
-
-		STAILQ_REMOVE(&pdinfo, hd, pdinfo, pd_link);
-		parent = efipart_find_parent(&pdinfo, hd->pd_devpath);
-		if (parent != NULL) {
-			STAILQ_REMOVE(&pdinfo, parent, pdinfo, pd_link);
-			efipart_hdinfo_add(parent, NULL);
-		} else {
-			parent = efipart_find_parent(&hdinfo, hd->pd_devpath);
-		}
-
-		if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
-		    DevicePathSubType(node) == MEDIA_HARDDRIVE_DP &&
-		    parent == NULL) {
-			parent = calloc(1, sizeof(*parent));
-			if (parent == NULL) {
-				printf("efipart_updatehd: out of memory\n");
-				/* this device is lost but try again. */
-				free(hd);
-				goto restart;
-			}
-
-			devpath = efi_devpath_trim(hd->pd_devpath);
-			if (devpath == NULL) {
-				printf("efipart_updatehd: out of memory\n");
-				/* this device is lost but try again. */
-				free(parent);
-				free(hd);
-				goto restart;
-			}
-
-			parent->pd_devpath = devpath;
-			status = BS->LocateDevicePath(&blkio_guid,
-			    &parent->pd_devpath, &parent->pd_handle);
-			free(devpath);
-			if (EFI_ERROR(status)) {
-				printf("efipart_updatehd: error %lu\n",
-				    EFI_ERROR_CODE(status));
-				free(parent);
-				free(hd);
-				goto restart;
-			}
-
-			parent->pd_devpath =
-			    efi_lookup_devpath(&parent->pd_handle);
-
-			efipart_hdinfo_add(parent, NULL);
-		}
-
-		efipart_hdinfo_add(hd, node);
-		goto restart;
 	}
+	if (pd == NULL) {
+		/* This device is already added. */
+		return;
+	}
+
+	if ((node = efi_devpath_last_node(hd->pd_devpath)) == NULL)
+		return;
+
+	if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
+	    DevicePathSubType(node) == MEDIA_FILEPATH_DP) {
+		efipart_hdinfo_add_filepath(hd,
+		    (FILEPATH_DEVICE_PATH *)node);
+		return;
+	}
+
+	if (parent != NULL) {
+		efipart_hdinfo_add_node(hd, node);
+		return;
+	}
+
+	last = STAILQ_LAST(&hdinfo, pdinfo, pd_link);
+	if (last != NULL)
+		hd->pd_unit = last->pd_unit + 1;
+	else
+		hd->pd_unit = 0;
+
+	/* Add the disk. */
+	hd->pd_devsw = &efipart_hddev;
+	STAILQ_INSERT_TAIL(&hdinfo, hd, pd_link);
+}
+
+static bool
+efipart_testhd(pdinfo_t *hd, pdinfo_t *data __unused)
+{
+	if (efipart_testfd(hd, NULL))
+		return (false);
+
+	if (efipart_testcd(hd, NULL))
+		return (false);
+
+	/* Anything else must be HD. */
+	return (true);
 }
 
 static int
 efipart_inithd(void)
 {
+	pdinfo_t *hd;
 
-	efipart_updatehd();
+	while ((hd = efipart_get_pd(&pdinfo, efipart_testhd, NULL)) != NULL)
+		efipart_hdinfo_add(hd);
 
 	bcache_add_dev(efiblk_pdinfo_count(&hdinfo));
 	return (0);

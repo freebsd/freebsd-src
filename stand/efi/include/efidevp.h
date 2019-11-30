@@ -288,6 +288,14 @@ typedef struct _UART_DEVICE_PATH {
 #define DEVICE_PATH_MESSAGING_VT_UTF8 \
     { 0xad15a0d6, 0x8bec, 0x4acf, {0xa0, 0x73, 0xd0, 0x1d, 0xe7, 0x7e, 0x2d, 0x88} }
 
+/* Device Logical Unit SubType. */
+#define	MSG_DEVICE_LOGICAL_UNIT_DP	0x11
+typedef struct {
+	EFI_DEVICE_PATH			Header;
+	/* Logical Unit Number for the interface. */
+	UINT8				Lun;
+} DEVICE_LOGICAL_UNIT_DEVICE_PATH;
+
 #define MSG_SATA_DP			0x12
 typedef struct _SATA_DEVICE_PATH {
 	EFI_DEVICE_PATH			Header;
