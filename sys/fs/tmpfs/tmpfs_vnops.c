@@ -331,6 +331,12 @@ tmpfs_access(struct vop_access_args *v)
 
 	node = VP_TO_TMPFS_NODE(vp);
 
+	/*
+	 * Common case path lookup.
+	 */
+	if (__predict_true(accmode == VEXEC && (node->tn_mode & 0111) == 0111))
+		return (0);
+
 	switch (vp->v_type) {
 	case VDIR:
 		/* FALLTHROUGH */
