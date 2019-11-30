@@ -2785,6 +2785,7 @@ wr_can_update_eq(struct fw_eth_tx_pkts_wr *wr)
 	case FW_ULPTX_WR:
 	case FW_ETH_TX_PKT_WR:
 	case FW_ETH_TX_PKTS_WR:
+	case FW_ETH_TX_PKTS2_WR:
 	case FW_ETH_TX_PKT_VM_WR:
 		return (1);
 	default:
