@@ -3959,10 +3959,8 @@ retry:
 		    rc, cfg_file);
 		snprintf(cfg_file, sizeof(cfg_file), "%s", BUILTIN_CF);
 		bzero(&caps_allowed, sizeof(caps_allowed));
-		COPY_CAPS(nbm);
-		COPY_CAPS(link);
 		COPY_CAPS(switch);
-		COPY_CAPS(nic);
+		caps_allowed.niccaps = FW_CAPS_CONFIG_NIC;
 		fallback = false;
 		goto retry;
 	}
