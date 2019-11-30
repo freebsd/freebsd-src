@@ -497,7 +497,7 @@ print_flowset_parms(struct dn_fs *fs, char *prefix)
 		    fs->max_th,
 		    1.0 * fs->max_p / (double)(1 << SCALE_RED));
 		if (fs->flags & DN_IS_ECN)
-			strncat(red, " (ecn)", 6);
+			strlcat(red, " (ecn)", sizeof(red));
 #ifdef NEW_AQM
 	/* get AQM parameters */
 	} else if (fs->flags & DN_IS_AQM) {
