@@ -147,6 +147,11 @@
 #define X_FETCHBURSTMIN_64B		2
 #define X_FETCHBURSTMIN_128B		3
 
+/* T6 and later use a single-bit encoding for FetchBurstMin */
+#define X_FETCHBURSTMIN_SHIFT_T6	6
+#define X_FETCHBURSTMIN_64B_T6		0
+#define X_FETCHBURSTMIN_128B_T6		1
+
 #define X_FETCHBURSTMAX_SHIFT		6
 #define X_FETCHBURSTMAX_64B		0
 #define X_FETCHBURSTMAX_128B		1

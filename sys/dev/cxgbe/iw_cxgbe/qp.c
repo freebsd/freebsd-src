@@ -266,7 +266,8 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	res->u.sqrq.dcaen_to_eqsize = cpu_to_be32(
 		V_FW_RI_RES_WR_DCAEN(0) |
 		V_FW_RI_RES_WR_DCACPU(0) |
-		V_FW_RI_RES_WR_FBMIN(2) |
+		V_FW_RI_RES_WR_FBMIN(chip_id(sc) <= CHELSIO_T5 ?
+		    X_FETCHBURSTMIN_64B : X_FETCHBURSTMIN_64B_T6) |
 		V_FW_RI_RES_WR_FBMAX(3) |
 		V_FW_RI_RES_WR_CIDXFTHRESHO(0) |
 		V_FW_RI_RES_WR_CIDXFTHRESH(0) |
@@ -288,7 +289,8 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	res->u.sqrq.dcaen_to_eqsize = cpu_to_be32(
 		V_FW_RI_RES_WR_DCAEN(0) |
 		V_FW_RI_RES_WR_DCACPU(0) |
-		V_FW_RI_RES_WR_FBMIN(2) |
+		V_FW_RI_RES_WR_FBMIN(chip_id(sc) <= CHELSIO_T5 ?
+		    X_FETCHBURSTMIN_64B : X_FETCHBURSTMIN_64B_T6) |
 		V_FW_RI_RES_WR_FBMAX(3) |
 		V_FW_RI_RES_WR_CIDXFTHRESHO(0) |
 		V_FW_RI_RES_WR_CIDXFTHRESH(0) |
