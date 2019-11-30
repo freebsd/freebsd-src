@@ -35,6 +35,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <assert.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -114,7 +115,7 @@ newDosDirEntry(void)
 	struct dosDirEntry *de;
 
 	if (!(de = freede)) {
-		if (!(de = (struct dosDirEntry *)malloc(sizeof *de)))
+		if (!(de = malloc(sizeof *de)))
 			return 0;
 	} else
 		freede = de->next;
@@ -139,7 +140,7 @@ newDirTodo(void)
 	struct dirTodoNode *dt;
 
 	if (!(dt = freedt)) {
-		if (!(dt = (struct dirTodoNode *)malloc(sizeof *dt)))
+		if (!(dt = malloc(sizeof *dt)))
 			return 0;
 	} else
 		freedt = dt->next;
@@ -316,7 +317,8 @@ delete(int f, struct bootblock *boot, struct fatEntry *fat, cl_t startcl,
 				break;
 			e = delbuf + endoff;
 		}
-		off = startcl * boot->bpbSecPerClust + boot->ClusterOffset;
+		off = (startcl - CLUST_FIRST) * boot->bpbSecPerClust + boot->FirstCluster;
+
 		off *= boot->bpbBytesPerSec;
 		if (lseek(f, off, SEEK_SET) != off) {
 			perr("Unable to lseek to %" PRId64, off);
@@ -431,6 +433,75 @@ checksize(struct bootblock *boot, struct fatEntry *fat, u_char *p,
 	return FSOK;
 }
 
+static const u_char dot_name[11]    = ".          ";
+static const u_char dotdot_name[11] = "..         ";
+
+/*
+ * Basic sanity check if the subdirectory have good '.' and '..' entries,
+ * and they are directory entries.  Further sanity checks are performed
+ * when we traverse into it.
+ */
+static int
+check_subdirectory(int f, struct bootblock *boot, struct dosDirEntry *dir)
+{
+	u_char *buf, *cp;
+	off_t off;
+	cl_t cl;
+	int retval = FSOK;
+
+	cl = dir->head;
+	if (dir->parent && (cl < CLUST_FIRST || cl >= boot->NumClusters)) {
+		return FSERROR;
+	}
+
+	if (!(boot->flags & FAT32) && !dir->parent) {
+		off = boot->bpbResSectors + boot->bpbFATs *
+			boot->FATsecs;
+	} else {
+		off = (cl - CLUST_FIRST) * boot->bpbSecPerClust + boot->FirstCluster;
+	}
+
+	/*
+	 * We only need to check the first two entries of the directory,
+	 * which is found in the first sector of the directory entry,
+	 * so read in only the first sector.
+	 */
+	buf = malloc(boot->bpbBytesPerSec);
+	if (buf == NULL) {
+		perr("No space for directory buffer (%u)",
+		    boot->bpbBytesPerSec);
+		return FSFATAL;
+	}
+
+	off *= boot->bpbBytesPerSec;
+	if (lseek(f, off, SEEK_SET) != off ||
+	    read(f, buf, boot->bpbBytesPerSec) != (ssize_t)boot->bpbBytesPerSec) {
+		perr("Unable to read directory");
+		free(buf);
+		return FSFATAL;
+	}
+
+	/*
+	 * Both `.' and `..' must be present and be the first two entries
+	 * and be ATTR_DIRECTORY of a valid subdirectory.
+	 */
+	cp = buf;
+	if (memcmp(cp, dot_name, sizeof(dot_name)) != 0 ||
+	    (cp[11] & ATTR_DIRECTORY) != ATTR_DIRECTORY) {
+		pwarn("%s: Incorrect `.' for %s.\n", __func__, dir->name);
+		retval |= FSERROR;
+	}
+	cp += 32;
+	if (memcmp(cp, dotdot_name, sizeof(dotdot_name)) != 0 ||
+	    (cp[11] & ATTR_DIRECTORY) != ATTR_DIRECTORY) {
+		pwarn("%s: Incorrect `..' for %s. \n", __func__, dir->name);
+		retval |= FSERROR;
+	}
+
+	free(buf);
+	return retval;
+}
+
 /*
  * Read a directory and
  *   - resolve long name records
@@ -468,7 +539,7 @@ readDosDirSection(int f, struct bootblock *boot, struct fatEntry *fat,
 			    boot->FATsecs;
 		} else {
 			last = boot->bpbSecPerClust * boot->bpbBytesPerSec;
-			off = cl * boot->bpbSecPerClust + boot->ClusterOffset;
+			off = (cl - CLUST_FIRST) * boot->bpbSecPerClust + boot->FirstCluster;
 		}
 
 		off *= boot->bpbBytesPerSec;
@@ -478,9 +549,6 @@ readDosDirSection(int f, struct bootblock *boot, struct fatEntry *fat,
 			return FSFATAL;
 		}
 		last /= 32;
-		/*
-		 * Check `.' and `..' entries here?			XXX
-		 */
 		for (p = buffer, i = 0; i < last; i++, p += 32) {
 			if (dir->fsckflags & DIREMPWARN) {
 				*p = SLOT_EMPTY;
@@ -508,7 +576,8 @@ readDosDirSection(int f, struct bootblock *boot, struct fatEntry *fat,
 							   empcl, empty - buffer,
 							   cl, p - buffer, 1) == FSFATAL)
 							return FSFATAL;
-						q = empcl == cl ? empty : buffer;
+						q = ((empcl == cl) ? empty : buffer);
+						assert(q != NULL);
 						for (; q < p; q += 32)
 							*q = SLOT_DELETED;
 						mod |= THISMOD|FSDIRMOD;
@@ -549,6 +618,15 @@ readDosDirSection(int f, struct bootblock *boot, struct fatEntry *fat,
 					vallfn = NULL;
 				}
 				lidx = *p & LRNOMASK;
+				if (lidx == 0) {
+					pwarn("invalid long name\n");
+					if (!invlfn) {
+						invlfn = vallfn;
+						invcl = valcl;
+					}
+					vallfn = NULL;
+					continue;
+				}
 				t = longName + --lidx * 13;
 				for (k = 1; k < 11 && t < longName +
 				    sizeof(longName); k += 2) {
@@ -816,6 +894,36 @@ readDosDirSection(int f, struct bootblock *boot, struct fatEntry *fat,
 						}
 					}
 					continue;
+				} else {
+					/*
+					 * Only one directory entry can point
+					 * to dir->head, it's '.'.
+					 */
+					if (dirent.head == dir->head) {
+						pwarn("%s entry in %s has incorrect start cluster\n",
+								dirent.name, fullpath(dir));
+						if (ask(1, "Remove")) {
+							*p = SLOT_DELETED;
+							mod |= THISMOD|FSDIRMOD;
+						} else
+							mod |= FSERROR;
+						continue;
+					} else if ((check_subdirectory(f, boot,
+					    &dirent) & FSERROR) == FSERROR) {
+						/*
+						 * A subdirectory should have
+						 * a dot (.) entry and a dot-dot
+						 * (..) entry of ATTR_DIRECTORY,
+						 * we will inspect further when
+						 * traversing into it.
+						 */
+						if (ask(1, "Remove")) {
+							*p = SLOT_DELETED;
+							mod |= THISMOD|FSDIRMOD;
+						} else
+							mod |= FSERROR;
+						continue;
+					}
 				}
 
 				/* create directory tree node */
@@ -959,10 +1067,12 @@ reconnect(int dosfs, struct bootblock *boot, struct fatEntry *fat, cl_t head)
 		if (lfcl < CLUST_FIRST || lfcl >= boot->NumClusters) {
 			/* Extend LOSTDIR?				XXX */
 			pwarn("No space in %s\n", LOSTDIR);
+			lfcl = (lostDir->head < boot->NumClusters) ? lostDir->head : 0;
 			return FSERROR;
 		}
-		lfoff = lfcl * boot->ClusterSize
-		    + boot->ClusterOffset * boot->bpbBytesPerSec;
+		lfoff = (lfcl - CLUST_FIRST) * boot->ClusterSize
+		    + boot->FirstCluster * boot->bpbBytesPerSec;
+
 		if (lseek(dosfs, lfoff, SEEK_SET) != lfoff
 		    || (size_t)read(dosfs, lfbuf, boot->ClusterSize) != boot->ClusterSize) {
 			perr("could not read LOST.DIR");

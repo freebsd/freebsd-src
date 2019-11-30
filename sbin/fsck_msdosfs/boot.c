@@ -33,6 +33,9 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/param.h>
+
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -46,10 +49,8 @@ readboot(int dosfs, struct bootblock *boot)
 {
 	u_char block[DOSBOOTBLOCKSIZE];
 	u_char fsinfo[2 * DOSBOOTBLOCKSIZE];
-	u_char backup[DOSBOOTBLOCKSIZE];
 	int ret = FSOK;
-	int i;
-	
+
 	if ((size_t)read(dosfs, block, sizeof block) != sizeof block) {
 		perr("could not read boot block");
 		return FSFATAL;
@@ -64,61 +65,133 @@ readboot(int dosfs, struct bootblock *boot)
 	memset(boot, 0, sizeof *boot);
 	boot->ValidFat = -1;
 
-	/* decode bios parameter block */
+	/* Decode BIOS Parameter Block */
+
+	/* Bytes per sector: can only be  512, 1024, 2048 and 4096. */
 	boot->bpbBytesPerSec = block[11] + (block[12] << 8);
-	boot->bpbSecPerClust = block[13];
-	boot->bpbResSectors = block[14] + (block[15] << 8);
-	boot->bpbFATs = block[16];
-	boot->bpbRootDirEnts = block[17] + (block[18] << 8);
-	boot->bpbSectors = block[19] + (block[20] << 8);
-	boot->bpbMedia = block[21];
-	boot->bpbFATsmall = block[22] + (block[23] << 8);
-	boot->SecPerTrack = block[24] + (block[25] << 8);
-	boot->bpbHeads = block[26] + (block[27] << 8);
-	boot->bpbHiddenSecs = block[28] + (block[29] << 8) +
-	    (block[30] << 16) + (block[31] << 24);
-	boot->bpbHugeSectors = block[32] + (block[33] << 8) +
-	    (block[34] << 16) + (block[35] << 24);
-
-	boot->FATsecs = boot->bpbFATsmall;
-
-	if (boot->bpbBytesPerSec % DOSBOOTBLOCKSIZE_REAL != 0 ||
-	    boot->bpbBytesPerSec / DOSBOOTBLOCKSIZE_REAL == 0) {
+	if (boot->bpbBytesPerSec < DOSBOOTBLOCKSIZE_REAL ||
+	    boot->bpbBytesPerSec > DOSBOOTBLOCKSIZE ||
+	    !powerof2(boot->bpbBytesPerSec)) {
 		pfatal("Invalid sector size: %u", boot->bpbBytesPerSec);
 		return FSFATAL;
 	}
+
+	/* Sectors per cluster: can only be: 1, 2, 4, 8, 16, 32, 64, 128. */
+	boot->bpbSecPerClust = block[13];
+	if (boot->bpbSecPerClust == 0 || !powerof2(boot->bpbSecPerClust)) {
+		pfatal("Invalid cluster size: %u", boot->bpbSecPerClust);
+		return FSFATAL;
+	}
+
+	/* Reserved sectors: must be non-zero */
+	boot->bpbResSectors = block[14] + (block[15] << 8);
+	if (boot->bpbResSectors < 1) {
+		pfatal("Invalid reserved sectors: %u",
+		    boot->bpbResSectors);
+		return FSFATAL;
+	}
+
+	/* Number of FATs */
+	boot->bpbFATs = block[16];
 	if (boot->bpbFATs == 0) {
 		pfatal("Invalid number of FATs: %u", boot->bpbFATs);
 		return FSFATAL;
 	}
-	if (!boot->bpbRootDirEnts)
-		boot->flags |= FAT32;
-	if (boot->flags & FAT32) {
-		boot->FATsecs = block[36] + (block[37] << 8)
-				+ (block[38] << 16) + (block[39] << 24);
-		if (block[40] & 0x80)
-			boot->ValidFat = block[40] & 0x0f;
 
-		/* check version number: */
-		if (block[42] || block[43]) {
-			/* Correct?				XXX */
-			pfatal("Unknown file system version: %x.%x",
-			       block[43], block[42]);
+	/* Root directory entries for FAT12 and FAT16 */
+	boot->bpbRootDirEnts = block[17] + (block[18] << 8);
+	if (!boot->bpbRootDirEnts) {
+		/* bpbRootDirEnts = 0 suggests that we are FAT32 */
+		boot->flags |= FAT32;
+	}
+
+	/* Total sectors (16 bits) */
+	boot->bpbSectors = block[19] + (block[20] << 8);
+	if (boot->bpbSectors != 0 && (boot->flags & FAT32)) {
+		pfatal("Invalid 16-bit total sector count on FAT32: %u",
+		    boot->bpbSectors);
+		return FSFATAL;
+	}
+
+	/* Media type: ignored */
+	boot->bpbMedia = block[21];
+
+	/* FAT12/FAT16: 16-bit count of sectors per FAT */
+	boot->bpbFATsmall = block[22] + (block[23] << 8);
+	if (boot->bpbFATsmall != 0 && (boot->flags & FAT32)) {
+		pfatal("Invalid 16-bit FAT sector count on FAT32: %u",
+		    boot->bpbFATsmall);
+		return FSFATAL;
+	}
+
+	/* Legacy CHS geometry numbers: ignored */
+	boot->SecPerTrack = block[24] + (block[25] << 8);
+	boot->bpbHeads = block[26] + (block[27] << 8);
+
+	/* Hidden sectors: ignored */
+	boot->bpbHiddenSecs = block[28] + (block[29] << 8) +
+	    (block[30] << 16) + (block[31] << 24);
+
+	/* Total sectors (32 bits) */
+	boot->bpbHugeSectors = block[32] + (block[33] << 8) +
+	    (block[34] << 16) + (block[35] << 24);
+	if (boot->bpbHugeSectors == 0) {
+		if (boot->flags & FAT32) {
+			pfatal("FAT32 with sector count of zero");
+			return FSFATAL;
+		} else if (boot->bpbSectors == 0) {
+			pfatal("FAT with sector count of zero");
 			return FSFATAL;
 		}
-		boot->bpbRootClust = block[44] + (block[45] << 8)
-			       + (block[46] << 16) + (block[47] << 24);
-		boot->bpbFSInfo = block[48] + (block[49] << 8);
-		boot->bpbBackup = block[50] + (block[51] << 8);
+		boot->NumSectors = boot->bpbSectors;
+	} else {
+		if (boot->bpbSectors != 0) {
+			pfatal("Invalid FAT sector count");
+			return FSFATAL;
+		}
+		boot->NumSectors = boot->bpbHugeSectors;
+	}
 
+
+
+
+	if (boot->flags & FAT32) {
 		/* If the OEM Name field is EXFAT, it's not FAT32, so bail */
 		if (!memcmp(&block[3], "EXFAT   ", 8)) {
 			pfatal("exFAT filesystem is not supported.");
 			return FSFATAL;
 		}
 
-		/* check basic parameters */
-		if ((boot->bpbFSInfo == 0) || (boot->bpbSecPerClust == 0)) {
+		/* 32-bit count of sectors per FAT */
+		boot->FATsecs = block[36] + (block[37] << 8)
+				+ (block[38] << 16) + (block[39] << 24);
+
+		if (block[40] & 0x80)
+			boot->ValidFat = block[40] & 0x0f;
+
+		/* FAT32 version, bail out if not 0.0 */
+		if (block[42] || block[43]) {
+			pfatal("Unknown file system version: %x.%x",
+			       block[43], block[42]);
+			return FSFATAL;
+		}
+
+		/*
+		 * Cluster number of the first cluster of root directory.
+		 *
+		 * Should be 2 but do not require it.
+		 */
+		boot->bpbRootClust = block[44] + (block[45] << 8)
+			       + (block[46] << 16) + (block[47] << 24);
+
+		/* Sector number of the FSInfo structure, usually 1 */
+		boot->bpbFSInfo = block[48] + (block[49] << 8);
+
+		/* Sector number of the backup boot block, ignored */
+		boot->bpbBackup = block[50] + (block[51] << 8);
+
+		/* Check basic parameters */
+		if (boot->bpbFSInfo == 0) {
 			/*
 			 * Either the BIOS Parameter Block has been corrupted,
 			 * or this is not a FAT32 filesystem, most likely an
@@ -127,6 +200,8 @@ readboot(int dosfs, struct bootblock *boot)
 			pfatal("Invalid FAT32 Extended BIOS Parameter Block");
 			return FSFATAL;
 		}
+
+		/* Read in and verify the FSInfo block */
 		if (lseek(dosfs, boot->bpbFSInfo * boot->bpbBytesPerSec,
 		    SEEK_SET) != boot->bpbFSInfo * boot->bpbBytesPerSec
 		    || read(dosfs, fsinfo, sizeof fsinfo) != sizeof fsinfo) {
@@ -164,8 +239,8 @@ readboot(int dosfs, struct bootblock *boot)
 				ret = FSBOOTMOD;
 			} else
 				boot->bpbFSInfo = 0;
-		}
-		if (boot->bpbFSInfo) {
+		} else {
+			/* We appear to have a valid FSInfo block, decode */
 			boot->FSFree = fsinfo[0x1e8] + (fsinfo[0x1e9] << 8)
 				       + (fsinfo[0x1ea] << 16)
 				       + (fsinfo[0x1eb] << 24);
@@ -173,53 +248,31 @@ readboot(int dosfs, struct bootblock *boot)
 				       + (fsinfo[0x1ee] << 16)
 				       + (fsinfo[0x1ef] << 24);
 		}
-
-		if (lseek(dosfs, boot->bpbBackup * boot->bpbBytesPerSec,
-		    SEEK_SET)
-		    != boot->bpbBackup * boot->bpbBytesPerSec
-		    || read(dosfs, backup, sizeof backup) != sizeof  backup) {
-			perr("could not read backup bootblock");
-			return FSFATAL;
-		}
-		backup[65] = block[65];				/* XXX */
-		if (memcmp(block + 11, backup + 11, 79)) {
-			/*
-			 * XXX We require a reference that explains
-			 * that these bytes need to match, or should
-			 * drop the check.  gdt@NetBSD has observed
-			 * filesystems that work fine under Windows XP
-			 * and NetBSD that do not match, so the
-			 * requirement is suspect.  For now, just
-			 * print out useful information and continue.
-			 */
-			pwarn("backup (block %d) mismatch with primary bootblock:\n",
-			        boot->bpbBackup);
-			for (i = 11; i < 11 + 90; i++) {
-				if (block[i] != backup[i])
-					pwarn("\ti=%d\tprimary 0x%02x\tbackup 0x%02x\n",
-					       i, block[i], backup[i]);
-			}
-		}
-		/* Check backup bpbFSInfo?					XXX */
+	} else {
+		/* !FAT32: FAT12/FAT16 */
+		boot->FATsecs = boot->bpbFATsmall;
 	}
 
-	if (boot->bpbSecPerClust == 0) {
-		pfatal("Invalid cluster size: %u", boot->bpbSecPerClust);
+	if (boot->FATsecs > UINT32_MAX / boot->bpbFATs) {
+		pfatal("Invalid FATs(%u) with FATsecs(%zu)",
+			boot->bpbFATs, (size_t)boot->FATsecs);
 		return FSFATAL;
 	}
-	if (boot->bpbSectors) {
-		boot->bpbHugeSectors = 0;
-		boot->NumSectors = boot->bpbSectors;
-	} else
-		boot->NumSectors = boot->bpbHugeSectors;
-	boot->ClusterOffset = (boot->bpbRootDirEnts * 32 +
-	    boot->bpbBytesPerSec - 1) / boot->bpbBytesPerSec +
-	    boot->bpbResSectors + boot->bpbFATs * boot->FATsecs -
-	    CLUST_FIRST * boot->bpbSecPerClust;
-	boot->NumClusters = (boot->NumSectors - boot->ClusterOffset) /
-	    boot->bpbSecPerClust;
 
-	if (boot->flags&FAT32)
+	boot->FirstCluster = (boot->bpbRootDirEnts * 32 +
+	    boot->bpbBytesPerSec - 1) / boot->bpbBytesPerSec +
+	    boot->bpbResSectors + boot->bpbFATs * boot->FATsecs;
+
+	if (boot->FirstCluster + boot->bpbSecPerClust > boot->NumSectors) {
+		pfatal("Cluster offset too large (%u clusters)\n",
+		    boot->FirstCluster);
+		return FSFATAL;
+	}
+
+	boot->NumClusters = (boot->NumSectors - boot->FirstCluster) / boot->bpbSecPerClust +
+	    CLUST_FIRST;
+
+	if (boot->flags & FAT32)
 		boot->ClustMask = CLUST32_MASK;
 	else if (boot->NumClusters < (CLUST_RSRVD&CLUST12_MASK))
 		boot->ClustMask = CLUST12_MASK;
