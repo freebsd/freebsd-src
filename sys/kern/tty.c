@@ -1195,6 +1195,71 @@ tty_rel_gone(struct tty *tp)
 	tty_rel_free(tp);
 }
 
+static int
+tty_drop_ctty(struct tty *tp, struct proc *p)
+{
+	struct session *session;
+	struct vnode *vp;
+
+	/*
+	 * This looks terrible, but it's generally safe as long as the tty
+	 * hasn't gone away while we had the lock dropped.  All of our sanity
+	 * checking that this operation is OK happens after we've picked it back
+	 * up, so other state changes are generally not fatal and the potential
+	 * for this particular operation to happen out-of-order in a
+	 * multithreaded scenario is likely a non-issue.
+	 */
+	tty_unlock(tp);
+	sx_xlock(&proctree_lock);
+	tty_lock(tp);
+	if (tty_gone(tp)) {
+		sx_xunlock(&proctree_lock);
+		return (ENODEV);
+	}
+
+	/*
+	 * If the session doesn't have a controlling TTY, or if we weren't
+	 * invoked on the controlling TTY, we'll return ENOIOCTL as we've
+	 * historically done.
+	 */
+	session = p->p_session;
+	if (session->s_ttyp == NULL || session->s_ttyp != tp) {
+		sx_xunlock(&proctree_lock);
+		return (ENOTTY);
+	}
+
+	if (!SESS_LEADER(p)) {
+		sx_xunlock(&proctree_lock);
+		return (EPERM);
+	}
+
+	PROC_LOCK(p);
+	SESS_LOCK(session);
+	vp = session->s_ttyvp;
+	session->s_ttyp = NULL;
+	session->s_ttyvp = NULL;
+	session->s_ttydp = NULL;
+	SESS_UNLOCK(session);
+
+	tp->t_sessioncnt--;
+	p->p_flag &= ~P_CONTROLT;
+	PROC_UNLOCK(p);
+	sx_xunlock(&proctree_lock);
+
+	/*
+	 * If we did have a vnode, release our reference.  Ordinarily we manage
+	 * these at the devfs layer, but we can't necessarily know that we were
+	 * invoked on the vnode referenced in the session (i.e. the vnode we
+	 * hold a reference to).  We explicitly don't check VBAD/VI_DOOMED here
+	 * to avoid a vnode leak -- in circumstances elsewhere where we'd hit a
+	 * VI_DOOMED vnode, release has been deferred until the controlling TTY
+	 * is either changed or released.
+	 */
+	if (vp != NULL)
+		vrele(vp);
+	return (0);
+}
+
 /*
  * Exposing information about current TTY's through sysctl
  */
@@ -1709,6 +1774,8 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 		MPASS(tp->t_session);
 		*(int *)data = tp->t_session->s_sid;
 		return (0);
+	case TIOCNOTTY:
+		return (tty_drop_ctty(tp, td->td_proc));
 	case TIOCSCTTY: {
 		struct proc *p = td->td_proc;
 
