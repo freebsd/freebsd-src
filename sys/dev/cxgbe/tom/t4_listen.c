@@ -992,7 +992,7 @@ t4opt_to_tcpopt(const struct tcp_options *t4opt, struct tcpopt *to)
 		to->to_mss = be16toh(t4opt->mss);
 	}
 
-	if (t4opt->wsf) {
+	if (t4opt->wsf > 0 && t4opt->wsf < 15) {
 		to->to_flags |= TOF_SCALE;
 		to->to_wscale = t4opt->wsf;
 	}
