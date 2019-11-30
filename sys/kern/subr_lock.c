@@ -324,7 +324,13 @@ lock_prof_reset(void)
 	atomic_store_rel_int(&lock_prof_resetting, 1);
 	enabled = lock_prof_enable;
 	lock_prof_enable = 0;
-	quiesce_all_cpus("profreset", 0);
+	/*
+	 * This both publishes lock_prof_enable as disabled and makes sure
+	 * everyone else reads it if they are not far enough. We wait for the
+	 * rest down below.
+	 */
+	cpus_fence_seq_cst();
+	quiesce_all_critical();
 	/*
 	 * Some objects may have migrated between CPUs.  Clear all links
 	 * before we zero the structures.  Some items may still be linked
@@ -343,6 +349,9 @@ lock_prof_reset(void)
 		lock_prof_init_type(&lpc->lpc_types[0]);
 		lock_prof_init_type(&lpc->lpc_types[1]);
 	}
+	/*
+	 * Paired with the fence from cpus_fence_seq_cst()
+	 */
 	atomic_store_rel_int(&lock_prof_resetting, 0);
 	lock_prof_enable = enabled;
 }
@@ -433,12 +442,17 @@ dump_lock_prof_stats(SYSCTL_HANDLER_ARGS)
 	    "max", "wait_max", "total", "wait_total", "count", "avg", "wait_avg", "cnt_hold", "cnt_lock", "name");
 	enabled = lock_prof_enable;
 	lock_prof_enable = 0;
-	quiesce_all_cpus("profstat", 0);
+	/*
+	 * See the comment in lock_prof_reset
+	 */
+	cpus_fence_seq_cst();
+	quiesce_all_critical();
 	t = ticks;
 	CPU_FOREACH(cpu) {
 		lock_prof_type_stats(&LP_CPU(cpu)->lpc_types[0], sb, 0, t);
 		lock_prof_type_stats(&LP_CPU(cpu)->lpc_types[1], sb, 1, t);
 	}
+	atomic_thread_fence_rel();
 	lock_prof_enable = enabled;
 
 	error = sbuf_finish(sb);
@@ -591,6 +605,10 @@ lock_profile_obtain_lock_success(struct lock_object *lo, int contested,
 	else
 		l->lpo_waittime = 0;
 out:
+	/*
+	 * Paired with cpus_fence_seq_cst().
+	 */
+	atomic_thread_fence_rel();
 	critical_exit();
 }
 
@@ -677,6 +695,10 @@ release:
 	type = &LP_CPU_SELF->lpc_types[spin];
 	LIST_INSERT_HEAD(&type->lpt_lpoalloc, l, lpo_link);
 out:
+	/*
+	 * Paired with cpus_fence_seq_cst().
+	 */
+	atomic_thread_fence_rel();
 	critical_exit();
 }
 
