@@ -952,7 +952,7 @@ quiesce_all_critical(void)
 				break;
 			cpu_spinwait();
 			newtd = (struct thread *)
-			    atomic_load_acq_ptr((u_long *)pcpu->pc_curthread);
+			    atomic_load_acq_ptr((void *)pcpu->pc_curthread);
 			if (td != newtd)
 				break;
 		}
