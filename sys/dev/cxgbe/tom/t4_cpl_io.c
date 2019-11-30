@@ -572,7 +572,7 @@ t4_close_conn(struct adapter *sc, struct toepcb *toep)
 static inline int
 max_imm_payload(int tx_credits)
 {
-	const int n = 2;	/* Use only up to 2 desc for imm. data WR */
+	const int n = 1;	/* Use no more than one desc for imm. data WR */
 
 	KASSERT(tx_credits >= 0 &&
 		tx_credits <= MAX_OFLD_TX_CREDITS,
