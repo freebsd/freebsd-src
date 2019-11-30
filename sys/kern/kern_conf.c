@@ -186,16 +186,16 @@ dev_refthread(struct cdev *dev, int *ref)
 		*ref = 0;
 		return (dev->si_devsw);
 	}
-	dev_lock();
+	cdp = cdev2priv(dev);
+	mtx_lock(&cdp->cdp_threadlock);
 	csw = dev->si_devsw;
 	if (csw != NULL) {
-		cdp = cdev2priv(dev);
 		if ((cdp->cdp_flags & CDP_SCHED_DTR) == 0)
 			atomic_add_long(&dev->si_threadcount, 1);
 		else
 			csw = NULL;
 	}
-	dev_unlock();
+	mtx_unlock(&cdp->cdp_threadlock);
 	if (csw != NULL)
 		*ref = 1;
 	return (csw);
@@ -223,19 +223,21 @@ devvn_refthread(struct vnode *vp, struct cdev **devp, int *ref)
 	}
 
 	csw = NULL;
-	dev_lock();
+	VI_LOCK(vp);
 	dev = vp->v_rdev;
 	if (dev == NULL) {
-		dev_unlock();
+		VI_UNLOCK(vp);
 		return (NULL);
 	}
 	cdp = cdev2priv(dev);
+	mtx_lock(&cdp->cdp_threadlock);
 	if ((cdp->cdp_flags & CDP_SCHED_DTR) == 0) {
 		csw = dev->si_devsw;
 		if (csw != NULL)
 			atomic_add_long(&dev->si_threadcount, 1);
 	}
-	dev_unlock();
+	mtx_unlock(&cdp->cdp_threadlock);
+	VI_UNLOCK(vp);
 	if (csw != NULL) {
 		*devp = dev;
 		*ref = 1;
@@ -1136,20 +1138,26 @@ destroy_devl(struct cdev *dev)
 		dev->si_flags &= ~SI_CLONELIST;
 	}
 
+	mtx_lock(&cdp->cdp_threadlock);
 	csw = dev->si_devsw;
 	dev->si_devsw = NULL;	/* already NULL for SI_ALIAS */
 	while (csw != NULL && csw->d_purge != NULL && dev->si_threadcount) {
 		csw->d_purge(dev);
+		mtx_unlock(&cdp->cdp_threadlock);
 		msleep(csw, &devmtx, PRIBIO, "devprg", hz/10);
+		mtx_lock(&cdp->cdp_threadlock);
 		if (dev->si_threadcount)
 			printf("Still %lu threads in %s\n",
 			    dev->si_threadcount, devtoname(dev));
 	}
 	while (dev->si_threadcount != 0) {
 		/* Use unique dummy wait ident */
+		mtx_unlock(&cdp->cdp_threadlock);
 		msleep(&csw, &devmtx, PRIBIO, "devdrn", hz / 10);
+		mtx_lock(&cdp->cdp_threadlock);
 	}
 
+	mtx_unlock(&cdp->cdp_threadlock);
 	dev_unlock();
 	if ((cdp->cdp_flags & CDP_UNREF_DTR) == 0) {
 		/* avoid out of order notify events */
