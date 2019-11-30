@@ -97,16 +97,10 @@ struct {
 	{0x5812,  "Chelsio T560-CR VF"},	/* 1 x 40G, 2 x 10G */
 	{0x5814,  "Chelsio T580-LP-SO-CR VF"},	/* 2 x 40G, nomem */
 	{0x5815,  "Chelsio T502-BT VF"},	/* 2 x 1G */
-#ifdef notyet
-	{0x5804,  "Chelsio T520-BCH VF"},
-	{0x5805,  "Chelsio T540-BCH VF"},
-	{0x5806,  "Chelsio T540-CH VF"},
-	{0x5808,  "Chelsio T520-CX VF"},
-	{0x580b,  "Chelsio B520-SR VF"},
-	{0x580c,  "Chelsio B504-BT VF"},
-	{0x580f,  "Chelsio Amsterdam VF"},
-	{0x5813,  "Chelsio T580-CHR VF"},
-#endif
+	{0x5818,  "Chelsio T540-BT VF"},	/* 4 x 10GBaseT */
+	{0x5819,  "Chelsio T540-LP-BT VF"},	/* 4 x 10GBaseT */
+	{0x581a,  "Chelsio T540-SO-BT VF"},	/* 4 x 10GBaseT, nomem */
+	{0x581b,  "Chelsio T540-SO-CR VF"},	/* 4 x 10G, nomem */
 }, t6vf_pciids[] = {
 	{0x6800, "Chelsio T6-DBG-25 VF"},	/* 2 x 10/25G, debug */
 	{0x6801, "Chelsio T6225-CR VF"},	/* 2 x 10/25G */
@@ -127,6 +121,12 @@ struct {
 	/* Custom */
 	{0x6880, "Chelsio T6225 80 VF"},
 	{0x6881, "Chelsio T62100 81 VF"},
+	{0x6882, "Chelsio T6225-CR 82 VF"},
+	{0x6883, "Chelsio T62100-CR 83 VF"},
+	{0x6884, "Chelsio T64100-CR 84 VF"},
+	{0x6885, "Chelsio T6240-SO 85 VF"},
+	{0x6886, "Chelsio T6225-SO-CR 86 VF"},
+	{0x6887, "Chelsio T6225-CR 87 VF"},
 };
 
 static d_ioctl_t t4vf_ioctl;
