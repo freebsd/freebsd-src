@@ -1735,11 +1735,12 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		vm_object_reference(dst_object);
 	} else {
 		/*
-		 * Create the top-level object for the destination entry. (Doesn't
-		 * actually shadow anything - we copy the pages directly.)
+		 * Create the top-level object for the destination entry.
+		 * Doesn't actually shadow anything - we copy the pages
+		 * directly.
 		 */
-		dst_object = vm_object_allocate_anon(
-		    atop(dst_entry->end - dst_entry->start));
+		dst_object = vm_object_allocate_anon(atop(dst_entry->end -
+		    dst_entry->start), NULL, NULL, 0);
 #if VM_NRESERVLEVEL > 0
 		dst_object->flags |= OBJ_COLORED;
 		dst_object->pg_color = atop(dst_entry->start);

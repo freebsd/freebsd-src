@@ -507,8 +507,9 @@ _vm_map_lock(vm_map_t map, const char *file, int line)
 void
 vm_map_entry_set_vnode_text(vm_map_entry_t entry, bool add)
 {
-	vm_object_t object, object1;
+	vm_object_t object;
 	struct vnode *vp;
+	bool vp_held;
 
 	if ((entry->eflags & MAP_ENTRY_VN_EXEC) == 0)
 		return;
@@ -516,14 +517,21 @@ vm_map_entry_set_vnode_text(vm_map_entry_t entry, bool add)
 	    ("Submap with execs"));
 	object = entry->object.vm_object;
 	KASSERT(object != NULL, ("No object for text, entry %p", entry));
-	VM_OBJECT_RLOCK(object);
-	while ((object1 = object->backing_object) != NULL) {
-		VM_OBJECT_RLOCK(object1);
-		VM_OBJECT_RUNLOCK(object);
-		object = object1;
-	}
+	if ((object->flags & OBJ_ANON) != 0)
+		object = object->handle;
+	else
+		KASSERT(object->backing_object == NULL,
+		    ("non-anon object %p shadows", object));
+	KASSERT(object != NULL, ("No content object for text, entry %p obj %p",
+	    entry, entry->object.vm_object));
 
+	/*
+	 * Mostly, we do not lock the backing object.  It is
+	 * referenced by the entry we are processing, so it cannot go
+	 * away.
+	 */
 	vp = NULL;
+	vp_held = false;
 	if (object->type == OBJT_DEAD) {
 		/*
 		 * For OBJT_DEAD objects, v_writecount was handled in
@@ -540,8 +548,15 @@ vm_map_entry_set_vnode_text(vm_map_entry_t entry, bool add)
 		 * OBJ_TMPFS_NODE flag set, but not OBJ_TMPFS.  In
 		 * this case there is no v_writecount to adjust.
 		 */
-		if ((object->flags & OBJ_TMPFS) != 0)
+		VM_OBJECT_RLOCK(object);
+		if ((object->flags & OBJ_TMPFS) != 0) {
 			vp = object->un_pager.swp.swp_tmpfs;
+			if (vp != NULL) {
+				vhold(vp);
+				vp_held = true;
+			}
+		}
+		VM_OBJECT_RUNLOCK(object);
 	} else {
 		KASSERT(0,
 		    ("vm_map_entry_set_vnode_text: wrong object type, "
@@ -550,17 +565,13 @@ vm_map_entry_set_vnode_text(vm_map_entry_t entry, bool add)
 	if (vp != NULL) {
 		if (add) {
 			VOP_SET_TEXT_CHECKED(vp);
-			VM_OBJECT_RUNLOCK(object);
 		} else {
-			vhold(vp);
-			VM_OBJECT_RUNLOCK(object);
 			vn_lock(vp, LK_SHARED | LK_RETRY);
 			VOP_UNSET_TEXT_CHECKED(vp);
 			VOP_UNLOCK(vp, 0);
-			vdrop(vp);
 		}
-	} else {
-		VM_OBJECT_RUNLOCK(object);
+		if (vp_held)
+			vdrop(vp);
 	}
 }
 
@@ -2203,14 +2214,11 @@ vm_map_entry_back(vm_map_entry_t entry)
 	    ("map entry %p has backing object", entry));
 	KASSERT((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0,
 	    ("map entry %p is a submap", entry));
-	object = vm_object_allocate_anon(atop(entry->end - entry->start));
+	object = vm_object_allocate_anon(atop(entry->end - entry->start), NULL,
+	    entry->cred, entry->end - entry->start);
 	entry->object.vm_object = object;
 	entry->offset = 0;
-	if (entry->cred != NULL) {
-		object->cred = entry->cred;
-		object->charge = entry->end - entry->start;
-		entry->cred = NULL;
-	}
+	entry->cred = NULL;
 }
 
 /*
@@ -4073,9 +4081,12 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			if (old_entry->eflags & MAP_ENTRY_NEEDS_COPY) {
 				vm_object_shadow(&old_entry->object.vm_object,
 				    &old_entry->offset,
-				    old_entry->end - old_entry->start);
+				    old_entry->end - old_entry->start,
+				    old_entry->cred,
+				    /* Transfer the second reference too. */
+				    true);
 				old_entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
-				/* Transfer the second reference too. */
+				old_entry->cred = NULL;
 				vm_object_reference(
 				    old_entry->object.vm_object);
 
@@ -4086,32 +4097,37 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 				 */
 				vm_object_deallocate(object);
 				object = old_entry->object.vm_object;
-			}
-			VM_OBJECT_WLOCK(object);
-			vm_object_clear_flag(object, OBJ_ONEMAPPING);
-			if (old_entry->cred != NULL) {
-				KASSERT(object->cred == NULL, ("vmspace_fork both cred"));
-				object->cred = old_entry->cred;
-				object->charge = old_entry->end - old_entry->start;
-				old_entry->cred = NULL;
-			}
+			} else {
+				VM_OBJECT_WLOCK(object);
+				vm_object_clear_flag(object, OBJ_ONEMAPPING);
+				if (old_entry->cred != NULL) {
+					KASSERT(object->cred == NULL,
+					    ("vmspace_fork both cred"));
+					object->cred = old_entry->cred;
+					object->charge = old_entry->end -
+					    old_entry->start;
+					old_entry->cred = NULL;
+				}
 
-			/*
-			 * Assert the correct state of the vnode
-			 * v_writecount while the object is locked, to
-			 * not relock it later for the assertion
-			 * correctness.
-			 */
-			if (old_entry->eflags & MAP_ENTRY_WRITECNT &&
-			    object->type == OBJT_VNODE) {
-				KASSERT(((struct vnode *)object->handle)->
-				    v_writecount > 0,
-				    ("vmspace_fork: v_writecount %p", object));
-				KASSERT(object->un_pager.vnp.writemappings > 0,
-				    ("vmspace_fork: vnp.writecount %p",
-				    object));
+				/*
+				 * Assert the correct state of the vnode
+				 * v_writecount while the object is locked, to
+				 * not relock it later for the assertion
+				 * correctness.
+				 */
+				if (old_entry->eflags & MAP_ENTRY_WRITECNT &&
+				    object->type == OBJT_VNODE) {
+					KASSERT(((struct vnode *)object->
+					    handle)->v_writecount > 0,
+					    ("vmspace_fork: v_writecount %p",
+					    object));
+					KASSERT(object->un_pager.vnp.
+					    writemappings > 0,
+					    ("vmspace_fork: vnp.writecount %p",
+					    object));
+				}
+				VM_OBJECT_WUNLOCK(object);
 			}
-			VM_OBJECT_WUNLOCK(object);
 
 			/*
 			 * Clone the entry, referencing the shared object.
@@ -4739,6 +4755,7 @@ RetryLookupLocked:
 	if (*wired)
 		fault_type = entry->protection;
 	size = entry->end - entry->start;
+
 	/*
 	 * If the entry was copy-on-write, we either ...
 	 */
@@ -4775,24 +4792,18 @@ RetryLookupLocked:
 				}
 				entry->cred = cred;
 			}
-			vm_object_shadow(&entry->object.vm_object,
-			    &entry->offset, size);
-			entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 			eobject = entry->object.vm_object;
-			if (eobject->cred != NULL) {
+			vm_object_shadow(&entry->object.vm_object,
+			    &entry->offset, size, entry->cred, false);
+			if (eobject == entry->object.vm_object) {
 				/*
 				 * The object was not shadowed.
 				 */
 				swap_release_by_cred(size, entry->cred);
 				crfree(entry->cred);
-				entry->cred = NULL;
-			} else if (entry->cred != NULL) {
-				VM_OBJECT_WLOCK(eobject);
-				eobject->cred = entry->cred;
-				eobject->charge = size;
-				VM_OBJECT_WUNLOCK(eobject);
-				entry->cred = NULL;
 			}
+			entry->cred = NULL;
+			entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 
 			vm_map_lock_downgrade(map);
 		} else {
@@ -4807,19 +4818,13 @@ RetryLookupLocked:
 	/*
 	 * Create an object if necessary.
 	 */
-	if (entry->object.vm_object == NULL &&
-	    !map->system_map) {
+	if (entry->object.vm_object == NULL && !map->system_map) {
 		if (vm_map_lock_upgrade(map))
 			goto RetryLookup;
-		entry->object.vm_object = vm_object_allocate_anon(atop(size));
+		entry->object.vm_object = vm_object_allocate_anon(atop(size),
+		    NULL, entry->cred, entry->cred != NULL ? size : 0);
 		entry->offset = 0;
-		if (entry->cred != NULL) {
-			VM_OBJECT_WLOCK(entry->object.vm_object);
-			entry->object.vm_object->cred = entry->cred;
-			entry->object.vm_object->charge = size;
-			VM_OBJECT_WUNLOCK(entry->object.vm_object);
-			entry->cred = NULL;
-		}
+		entry->cred = NULL;
 		vm_map_lock_downgrade(map);
 	}
 

@@ -341,7 +341,8 @@ void umtx_shm_object_terminated(vm_object_t object);
 extern int umtx_shm_vnobj_persistent;
 
 vm_object_t vm_object_allocate (objtype_t, vm_pindex_t);
-vm_object_t vm_object_allocate_anon(vm_pindex_t);
+vm_object_t vm_object_allocate_anon(vm_pindex_t, vm_object_t, struct ucred *,
+   vm_size_t);
 boolean_t vm_object_coalesce(vm_object_t, vm_ooffset_t, vm_size_t, vm_size_t,
    boolean_t);
 void vm_object_collapse (vm_object_t);
@@ -363,7 +364,8 @@ void vm_object_print(long addr, boolean_t have_addr, long count, char *modif);
 void vm_object_reference (vm_object_t);
 void vm_object_reference_locked(vm_object_t);
 int  vm_object_set_memattr(vm_object_t object, vm_memattr_t memattr);
-void vm_object_shadow (vm_object_t *, vm_ooffset_t *, vm_size_t);
+void vm_object_shadow(vm_object_t *, vm_ooffset_t *, vm_size_t, struct ucred *,
+    bool);
 void vm_object_split(vm_map_entry_t);
 boolean_t vm_object_sync(vm_object_t, vm_ooffset_t, vm_size_t, boolean_t,
     boolean_t);
