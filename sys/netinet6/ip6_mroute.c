@@ -1745,10 +1745,12 @@ pim6_input(struct mbuf *m, int off, int proto, void *arg __unused)
 	 * Make sure that the IP6 and PIM headers in contiguous memory, and
 	 * possibly the PIM REGISTER header
 	 */
-	m = m_pullup(m, off + minlen);
-	if (m == NULL) {
-		IP6STAT_INC(ip6s_exthdrtoolong);
-		return (IPPROTO_DONE);
+	if (m->m_len < off + minlen) {
+		m = m_pullup(m, off + minlen);
+		if (m == NULL) {
+			IP6STAT_INC(ip6s_exthdrtoolong);
+			return (IPPROTO_DONE);
+		}
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 	pim = (struct pim *)((caddr_t)ip6 + off);

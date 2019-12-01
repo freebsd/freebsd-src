@@ -308,12 +308,14 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		goto bad;
 	}
 
-	m = m_pullup(m, skip + sizeof(*esp));
-	if (m == NULL) {
-		DPRINTF(("%s: cannot pullup header\n", __func__));
-		ESPSTAT_INC(esps_hdrops);	/*XXX*/
-		error = ENOBUFS;
-		goto bad;
+	if (m->m_len < skip + sizeof(*esp)) {
+		m = m_pullup(m, skip + sizeof(*esp));
+		if (m == NULL) {
+			DPRINTF(("%s: cannot pullup header\n", __func__));
+			ESPSTAT_INC(esps_hdrops);	/*XXX*/
+			error = ENOBUFS;
+			goto bad;
+		}
 	}
 	esp = (struct newesp *)(mtod(m, caddr_t) + skip);
 
