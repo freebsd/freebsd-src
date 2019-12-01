@@ -73,20 +73,24 @@ dest6_input(struct mbuf **mp, int *offp, int proto)
 	off = *offp;
 
 	/* Validation of the length of the header. */
-	m = m_pullup(m, off + sizeof(*dstopts));
-	if (m == NULL) {
-		IP6STAT_INC(ip6s_exthdrtoolong);
-		*mp = m;
-		return (IPPROTO_DONE);
+	if (m->m_len < off + sizeof(*dstopts)) {
+		m = m_pullup(m, off + sizeof(*dstopts));
+		if (m == NULL) {
+			IP6STAT_INC(ip6s_exthdrtoolong);
+			*mp = m;
+			return (IPPROTO_DONE);
+		}
 	}
 	dstopts = (struct ip6_dest *)(mtod(m, caddr_t) + off);
 	dstoptlen = (dstopts->ip6d_len + 1) << 3;
 
-	m = m_pullup(m, off + dstoptlen);
-	if (m == NULL) {
-		IP6STAT_INC(ip6s_exthdrtoolong);
-		*mp = m;
-		return (IPPROTO_DONE);
+	if (m->m_len < off + dstoptlen) {
+		m = m_pullup(m, off + dstoptlen);
+		if (m == NULL) {
+			IP6STAT_INC(ip6s_exthdrtoolong);
+			*mp = m;
+			return (IPPROTO_DONE);
+		}
 	}
 	dstopts = (struct ip6_dest *)(mtod(m, caddr_t) + off);
 	off += dstoptlen;

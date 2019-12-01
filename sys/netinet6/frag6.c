@@ -389,11 +389,13 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 
 	M_ASSERTPKTHDR(m);
 
-	m = m_pullup(m, offset + sizeof(struct ip6_frag));
-	if (m == NULL) {
-		IP6STAT_INC(ip6s_exthdrtoolong);
-		*mp = NULL;
-		return (IPPROTO_DONE);
+	if (m->m_len < offset + sizeof(struct ip6_frag)) {
+		m = m_pullup(m, offset + sizeof(struct ip6_frag));
+		if (m == NULL) {
+			IP6STAT_INC(ip6s_exthdrtoolong);
+			*mp = NULL;
+			return (IPPROTO_DONE);
+		}
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 

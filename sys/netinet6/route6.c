@@ -83,11 +83,13 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 	}
 #endif
 
-	m = m_pullup(m, off + sizeof(*rh));
-	if (m == NULL) {
-		IP6STAT_INC(ip6s_exthdrtoolong);
-		*mp = NULL;
-		return (IPPROTO_DONE);
+	if (m->m_len < off + sizeof(*rh)) {
+		m = m_pullup(m, off + sizeof(*rh));
+		if (m == NULL) {
+			IP6STAT_INC(ip6s_exthdrtoolong);
+			*mp = NULL;
+			return (IPPROTO_DONE);
+		}
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 	rh = (struct ip6_rthdr *)((caddr_t)ip6 + off);

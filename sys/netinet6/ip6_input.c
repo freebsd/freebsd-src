@@ -969,20 +969,24 @@ ip6_hopopts_input(u_int32_t *plenp, u_int32_t *rtalertp,
 	struct ip6_hbh *hbh;
 
 	/* validation of the length of the header */
-	m = m_pullup(m, off + sizeof(*hbh));
-	if (m == NULL) {
-		IP6STAT_INC(ip6s_exthdrtoolong);
-		*mp = NULL;
-		return (-1);
+	if (m->m_len < off + sizeof(*hbh)) {
+		m = m_pullup(m, off + sizeof(*hbh));
+		if (m == NULL) {
+			IP6STAT_INC(ip6s_exthdrtoolong);
+			*mp = NULL;
+			return (-1);
+		}
 	}
 	hbh = (struct ip6_hbh *)(mtod(m, caddr_t) + off);
 	hbhlen = (hbh->ip6h_len + 1) << 3;
 
-	m = m_pullup(m, off + hbhlen);
-	if (m == NULL) {
-		IP6STAT_INC(ip6s_exthdrtoolong);
-		*mp = NULL;
-		return (-1);
+	if (m->m_len < off + hbhlen) {
+		m = m_pullup(m, off + hbhlen);
+		if (m == NULL) {
+			IP6STAT_INC(ip6s_exthdrtoolong);
+			*mp = NULL;
+			return (-1);
+		}
 	}
 	hbh = (struct ip6_hbh *)(mtod(m, caddr_t) + off);
 	off += hbhlen;
