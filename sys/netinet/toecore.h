@@ -135,7 +135,7 @@ int toe_l2_resolve(struct toedev *, struct ifnet *, struct sockaddr *,
 void toe_connect_failed(struct toedev *, struct inpcb *, int);
 
 void toe_syncache_add(struct in_conninfo *, struct tcpopt *, struct tcphdr *,
-    struct inpcb *, void *, void *);
+    struct inpcb *, void *, void *, uint8_t);
 int  toe_syncache_expand(struct in_conninfo *, struct tcpopt *, struct tcphdr *,
     struct socket **);
 

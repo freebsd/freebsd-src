@@ -1282,7 +1282,7 @@ tfo_socket_result:
 #endif
 		TCP_PROBE3(debug__input, tp, th, m);
 		tcp_dooptions(&to, optp, optlen, TO_SYN);
-		if (syncache_add(&inc, &to, th, inp, &so, m, NULL, NULL))
+		if (syncache_add(&inc, &to, th, inp, &so, m, NULL, NULL, iptos))
 			goto tfo_socket_result;
 
 		/*
