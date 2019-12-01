@@ -89,10 +89,8 @@ gettable(const char *name, char *buf)
 					l = 2;
 				else
 					l = strlen(sp->value) + 1;
-				if ((p = malloc(l)) != NULL) {
-					strncpy(p, sp->value, l);
-					p[l-1] = '\0';
-				}
+				if ((p = malloc(l)) != NULL)
+					strlcpy(p, sp->value, l);
 				/*
 				 * replace, even if NULL, else we'll
 				 * have problems with free()ing static mem
