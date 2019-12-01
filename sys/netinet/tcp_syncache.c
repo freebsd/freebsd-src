@@ -1369,7 +1369,7 @@ syncache_tfo_expand(struct syncache *sc, struct socket **lsop, struct mbuf *m,
 int
 syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
     struct inpcb *inp, struct socket **lsop, struct mbuf *m, void *tod,
-    void *todctx)
+    void *todctx, uint8_t iptos)
 {
 	struct tcpcb *tp;
 	struct socket *so;
