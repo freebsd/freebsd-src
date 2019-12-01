@@ -45,7 +45,7 @@ int	 syncache_expand(struct in_conninfo *, struct tcpopt *,
 	     struct tcphdr *, struct socket **, struct mbuf *);
 int	 syncache_add(struct in_conninfo *, struct tcpopt *,
 	     struct tcphdr *, struct inpcb *, struct socket **, struct mbuf *,
-	     void *, void *);
+	     void *, void *, uint8_t);
 void	 syncache_chkrst(struct in_conninfo *, struct tcphdr *, struct mbuf *);
 void	 syncache_badack(struct in_conninfo *);
 int	 syncache_pcblist(struct sysctl_req *);
