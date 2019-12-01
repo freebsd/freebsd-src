@@ -150,7 +150,7 @@ _lockmgr_args_rw(struct lock *lk, u_int flags, struct rwlock *ilk,
 #define	LK_NOSHARE	0x000008
 #define	LK_NOWITNESS	0x000010
 #define	LK_QUIET	0x000020
-#define	LK_ADAPTIVE	0x000040
+#define	LK_UNUSED0	0x000040	/* Was LK_ADAPTIVE */
 #define	LK_IS_VNODE	0x000080	/* Tell WITNESS about a VNODE lock */
 #define	LK_NEW		0x000100
 

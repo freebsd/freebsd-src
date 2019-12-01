@@ -61,8 +61,6 @@ __FBSDID("$FreeBSD$");
 PMC_SOFT_DECLARE( , , lock, failed);
 #endif
 
-CTASSERT(((LK_ADAPTIVE | LK_NOSHARE) & LO_CLASSFLAGS) ==
-    (LK_ADAPTIVE | LK_NOSHARE));
 CTASSERT(LK_UNLOCKED == (LK_UNLOCKED &
     ~(LK_ALL_WAITERS | LK_EXCLUSIVE_SPINNERS)));
 
@@ -135,10 +133,6 @@ LK_CAN_SHARE(uintptr_t x, int flags, bool fp)
 	(((x) & LK_NOWITNESS) == 0 && !LK_TRYOP(x))
 #define	LK_TRYWIT(x)							\
 	(LK_TRYOP(x) ? LOP_TRYLOCK : 0)
-
-#define	LK_CAN_ADAPT(lk, f)						\
-	(((lk)->lock_object.lo_flags & LK_ADAPTIVE) != 0 &&		\
-	((f) & LK_SLEEPFAIL) == 0)
 
 #define	lockmgr_disowned(lk)						\
 	(((lk)->lk_lock & ~(LK_FLAGMASK & ~LK_SHARE)) == LK_KERNPROC)
@@ -453,7 +447,7 @@ lockinit(struct lock *lk, int pri, const char *wmesg, int timo, int flags)
 		iflags |= LO_IS_VNODE;
 	if (flags & LK_NEW)
 		iflags |= LO_NEW;
-	iflags |= flags & (LK_ADAPTIVE | LK_NOSHARE);
+	iflags |= flags & LK_NOSHARE;
 
 	lock_init(&lk->lock_object, &lock_class_lockmgr, wmesg, NULL, iflags);
 	lk->lk_lock = LK_UNLOCKED;
