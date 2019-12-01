@@ -557,6 +557,50 @@ DB_SHOW_COMMAND(spr, db_show_spr)
 	db_printf("SPR %d(%x): %lx\n", saved_sprno, saved_sprno,
 	    (unsigned long)spr);
 }
+
+DB_SHOW_COMMAND(frame, db_show_frame)
+{
+	struct trapframe *tf;
+	long reg;
+	int i;
+
+	tf = have_addr ? (struct trapframe *)addr : curthread->td_frame;
+
+	/*
+	 * Everything casts through long to simplify the printing.
+	 * 'long' is native register size anyway.
+	 */
+	db_printf("trap frame %p\n", tf);
+	for (i = 0; i < nitems(tf->fixreg); i++) {
+		reg = tf->fixreg[i];
+		db_printf("  r%d:\t%#lx (%ld)\n", i, reg, reg);
+	}
+	reg = tf->lr;
+	db_printf("  lr:\t%#lx\n", reg);
+	reg = tf->cr;
+	db_printf("  cr:\t%#lx\n", reg);
+	reg = tf->xer;
+	db_printf("  xer:\t%#lx\n", reg);
+	reg = tf->ctr;
+	db_printf("  ctr:\t%#lx (%ld)\n", reg, reg);
+	reg = tf->srr0;
+	db_printf("  srr0:\t%#lx\n", reg);
+	reg = tf->srr1;
+	db_printf("  srr1:\t%#lx\n", reg);
+	reg = tf->exc;
+	db_printf("  exc:\t%#lx\n", reg);
+	reg = tf->dar;
+	db_printf("  dar:\t%#lx\n", reg);
+#ifdef AIM
+	reg = tf->cpu.aim.dsisr;
+	db_printf("  dsisr:\t%#lx\n", reg);
+#else
+	reg = tf->cpu.booke.esr;
+	db_printf("  esr:\t%#lx\n", reg);
+	reg = tf->cpu.booke.dbcr0;
+	db_printf("  dbcr0:\t%#lx\n", reg);
+#endif
+}
 #endif
 
 #undef bzero
