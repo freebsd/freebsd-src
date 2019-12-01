@@ -42,7 +42,6 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/module.h>
-#include <sys/tty.h>
 #include <machine/bus.h>
 #include <sys/timepps.h>
 
