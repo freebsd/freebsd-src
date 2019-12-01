@@ -150,6 +150,11 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(drop_synfin), 0,
     "Drop TCP packets with SYN+FIN set");
 
+VNET_DEFINE(int, tcp_do_newcwv) = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, newcwv, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(tcp_do_newcwv), 0,
+    "Enable New Congestion Window Validation per RFC7661");
+
 VNET_DEFINE(int, tcp_do_rfc6675_pipe) = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc6675_pipe, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc6675_pipe), 0,
@@ -297,7 +302,9 @@ cc_ack_received(struct tcpcb *tp, struct tcphdr *th, uint16_t nsegs,
 
 	tp->ccv->nsegs = nsegs;
 	tp->ccv->bytes_this_ack = BYTES_THIS_ACK(tp, th);
-	if (tp->snd_cwnd <= tp->snd_wnd)
+	if ((!V_tcp_do_newcwv && (tp->snd_cwnd <= tp->snd_wnd)) ||
+	    (V_tcp_do_newcwv && (tp->snd_cwnd <= tp->snd_wnd) &&
+	     (tp->snd_cwnd < (tcp_compute_pipe(tp) * 2))))
 		tp->ccv->flags |= CCF_CWND_LIMITED;
 	else
 		tp->ccv->flags &= ~CCF_CWND_LIMITED;
