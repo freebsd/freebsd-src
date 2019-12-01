@@ -517,11 +517,13 @@ tcp6_input(struct mbuf **mp, int *offp, int proto)
 	struct ip6_hdr *ip6;
 
 	m = *mp;
-	m = m_pullup(m, *offp + sizeof(struct tcphdr));
-	if (m == NULL) {
-		*mp = m;
-		TCPSTAT_INC(tcps_rcvshort);
-		return (IPPROTO_DONE);
+	if (m->m_len < *offp + sizeof(struct tcphdr)) {
+		m = m_pullup(m, *offp + sizeof(struct tcphdr));
+		if (m == NULL) {
+			*mp = m;
+			TCPSTAT_INC(tcps_rcvshort);
+			return (IPPROTO_DONE);
+		}
 	}
 
 	/*
@@ -708,10 +710,12 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 	if (off > sizeof (struct tcphdr)) {
 #ifdef INET6
 		if (isipv6) {
-			m = m_pullup(m, off0 + off);
-			if (m == NULL) {
-				TCPSTAT_INC(tcps_rcvshort);
-				return (IPPROTO_DONE);
+			if (m->m_len < off0 + off) {
+				m = m_pullup(m, off0 + off);
+				if (m == NULL) {
+					TCPSTAT_INC(tcps_rcvshort);
+					return (IPPROTO_DONE);
+				}
 			}
 			ip6 = mtod(m, struct ip6_hdr *);
 			th = (struct tcphdr *)((caddr_t)ip6 + off0);
