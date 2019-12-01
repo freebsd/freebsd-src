@@ -1811,16 +1811,16 @@ rack_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type)
 			rack_log_to_prr(rack, 2);
 			rack->r_ctl.rc_prr_recovery_fs = tp->snd_max - tp->snd_una;
 			tp->snd_recover = tp->snd_max;
-			if (tp->t_flags & TF_ECN_PERMIT)
-				tp->t_flags |= TF_ECN_SND_CWR;
+			if (tp->t_flags2 & TF2_ECN_PERMIT)
+				tp->t_flags2 |= TF2_ECN_SND_CWR;
 		}
 		break;
 	case CC_ECN:
 		if (!IN_CONGRECOVERY(tp->t_flags)) {
 			TCPSTAT_INC(tcps_ecn_rcwnd);
 			tp->snd_recover = tp->snd_max;
-			if (tp->t_flags & TF_ECN_PERMIT)
-				tp->t_flags |= TF_ECN_SND_CWR;
+			if (tp->t_flags2 & TF2_ECN_PERMIT)
+				tp->t_flags2 |= TF2_ECN_SND_CWR;
 		}
 		break;
 	case CC_RTO:
@@ -6309,7 +6309,7 @@ rack_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 		if (((thflags & (TH_CWR | TH_ECE)) == TH_ECE) &&
 		    V_tcp_do_ecn) {
-			tp->t_flags |= TF_ECN_PERMIT;
+			tp->t_flags2 |= TF2_ECN_PERMIT;
 			TCPSTAT_INC(tcps_ecn_shs);
 		}
 		if (SEQ_GT(th->th_ack, tp->snd_una)) {
@@ -7710,12 +7710,12 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * TCP ECN processing. XXXJTL: If we ever use ECN, we need to move
 	 * this to occur after we've validated the segment.
 	 */
-	if (tp->t_flags & TF_ECN_PERMIT) {
+	if (tp->t_flags2 & TF2_ECN_PERMIT) {
 		if (thflags & TH_CWR)
-			tp->t_flags &= ~TF_ECN_SND_ECE;
+			tp->t_flags2 &= ~TF2_ECN_SND_ECE;
 		switch (iptos & IPTOS_ECN_MASK) {
 		case IPTOS_ECN_CE:
-			tp->t_flags |= TF_ECN_SND_ECE;
+			tp->t_flags2 |= TF2_ECN_SND_ECE;
 			TCPSTAT_INC(tcps_ecn_ce);
 			break;
 		case IPTOS_ECN_ECT0:
@@ -9472,7 +9472,7 @@ send:
 			flags |= TH_ECE | TH_CWR;
 	}
 	if (tp->t_state == TCPS_ESTABLISHED &&
-	    (tp->t_flags & TF_ECN_PERMIT)) {
+	    (tp->t_flags2 & TF2_ECN_PERMIT)) {
 		/*
 		 * If the peer has ECN, mark data packets with ECN capable
 		 * transmission (ECT). Ignore pure ack packets,
@@ -9491,11 +9491,11 @@ send:
 		/*
 		 * Reply with proper ECN notifications.
 		 */
-		if (tp->t_flags & TF_ECN_SND_CWR) {
+		if (tp->t_flags2 & TF2_ECN_SND_CWR) {
 			flags |= TH_CWR;
-			tp->t_flags &= ~TF_ECN_SND_CWR;
+			tp->t_flags2 &= ~TF2_ECN_SND_CWR;
 		}
-		if (tp->t_flags & TF_ECN_SND_ECE)
+		if (tp->t_flags2 & TF2_ECN_SND_ECE)
 			flags |= TH_ECE;
 	}
 	/*

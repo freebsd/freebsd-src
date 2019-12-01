@@ -1572,7 +1572,7 @@ tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
 		ti->tcpi_snd_wscale = tp->snd_scale;
 		ti->tcpi_rcv_wscale = tp->rcv_scale;
 	}
-	if (tp->t_flags & TF_ECN_PERMIT)
+	if (tp->t_flags2 & TF2_ECN_PERMIT)
 		ti->tcpi_options |= TCPI_OPT_ECN;
 
 	ti->tcpi_rto = tp->t_rxtcur * tick;
@@ -2610,15 +2610,24 @@ db_print_tflags(u_int t_flags)
 		db_printf("%sTF_TSO", comma ? ", " : "");
 		comma = 1;
 	}
-	if (t_flags & TF_ECN_PERMIT) {
-		db_printf("%sTF_ECN_PERMIT", comma ? ", " : "");
-		comma = 1;
-	}
 	if (t_flags & TF_FASTOPEN) {
 		db_printf("%sTF_FASTOPEN", comma ? ", " : "");
 		comma = 1;
 	}
 }
+
+static void
+db_print_tflags2(u_int t_flags2)
+{
+	int comma;
+
+	comma = 0;
+	if (t_flags2 & TF2_ECN_PERMIT) {
+		db_printf("%sTF2_ECN_PERMIT", comma ? ", " : "");
+		comma = 1;
+	}
+}
+
 
 static void
 db_print_toobflags(char t_oobflags)
@@ -2665,6 +2674,11 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	db_print_indent(indent);
 	db_printf("t_flags: 0x%x (", tp->t_flags);
 	db_print_tflags(tp->t_flags);
+	db_printf(")\n");
+
+	db_print_indent(indent);
+	db_printf("t_flags2: 0x%x (", tp->t_flags2);
+	db_print_tflags2(tp->t_flags2);
 	db_printf(")\n");
 
 	db_print_indent(indent);
