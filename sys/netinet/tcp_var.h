@@ -767,6 +767,7 @@ VNET_DECLARE(int, tcp_delack_enabled);
 VNET_DECLARE(int, tcp_do_autorcvbuf);
 VNET_DECLARE(int, tcp_do_autosndbuf);
 VNET_DECLARE(int, tcp_do_ecn);
+VNET_DECLARE(int, tcp_do_newcwv);
 VNET_DECLARE(int, tcp_do_rfc1323);
 VNET_DECLARE(int, tcp_do_rfc3042);
 VNET_DECLARE(int, tcp_do_rfc3390);
@@ -789,6 +790,7 @@ VNET_DECLARE(int, tcp_sendspace);
 VNET_DECLARE(struct inpcbhead, tcb);
 VNET_DECLARE(struct inpcbinfo, tcbinfo);
 
+#define	V_tcp_do_newcwv			VNET(tcp_do_newcwv)
 #define	V_drop_synfin			VNET(drop_synfin)
 #define	V_path_mtu_discovery		VNET(path_mtu_discovery)
 #define	V_tcb				VNET(tcb)
