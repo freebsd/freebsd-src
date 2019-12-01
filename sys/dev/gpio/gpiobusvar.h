@@ -141,7 +141,7 @@ int ofw_gpiobus_parse_gpios(device_t, char *, struct gpiobus_pin **);
 void ofw_gpiobus_register_provider(device_t);
 void ofw_gpiobus_unregister_provider(device_t);
 
-/* Consumers interface. */
+/* Acquire a pin by parsing FDT data. */
 int gpio_pin_get_by_ofw_name(device_t consumer, phandle_t node,
     char *name, gpio_pin_t *gpio);
 int gpio_pin_get_by_ofw_idx(device_t consumer, phandle_t node,
@@ -150,14 +150,29 @@ int gpio_pin_get_by_ofw_property(device_t consumer, phandle_t node,
     char *name, gpio_pin_t *gpio);
 int gpio_pin_get_by_ofw_propidx(device_t consumer, phandle_t node,
     char *name, int idx, gpio_pin_t *gpio);
+#endif /* FDT */
+
+/* Acquire a pin by bus and pin number. */
+int gpio_pin_get_by_bus_pinnum(device_t _bus, uint32_t _pinnum, gpio_pin_t *_gp);
+
+/* Acquire a pin by child and index (used by direct children of gpiobus). */
+int gpio_pin_get_by_child_index(device_t _child, uint32_t _idx, gpio_pin_t *_gp);
+
+/* Release a pin acquired via any gpio_pin_get_xxx() function. */
 void gpio_pin_release(gpio_pin_t gpio);
+
+/* Work with gpio pins acquired using the functions above. */
 int gpio_pin_getcaps(gpio_pin_t pin, uint32_t *caps);
 int gpio_pin_is_active(gpio_pin_t pin, bool *active);
 int gpio_pin_set_active(gpio_pin_t pin, bool active);
 int gpio_pin_setflags(gpio_pin_t pin, uint32_t flags);
-#endif
 struct resource *gpio_alloc_intr_resource(device_t consumer_dev, int *rid,
     u_int alloc_flags, gpio_pin_t pin, uint32_t intr_mode);
+
+/*
+ * Functions shared between gpiobus and other bus classes that derive from it;
+ * these should not be called directly by other drivers.
+ */
 int gpio_check_flags(uint32_t, uint32_t);
 device_t gpiobus_attach_bus(device_t);
 int gpiobus_detach_bus(device_t);
