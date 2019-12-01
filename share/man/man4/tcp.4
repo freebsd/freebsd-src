@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd August 26, 2019
+.Dd December 1, 2019
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -538,6 +538,9 @@ The value should be relative to the link capacity.
 Start with small values for lower-capacity links.
 Large bursts can cause buffer overruns and packet drops if routers have small
 buffers or the link is experiencing congestion.
+.It Va rfc6675_pipe
+Calculate the bytes in flight using the algorithm described in RFC 6675, and
+is also a prerequisite to enable Proportional Rate Reduction.
 .It Va rfc3042
 Enable the Limited Transmit algorithm as described in RFC 3042.
 It helps avoid timeouts on lossy links and also when the congestion window
