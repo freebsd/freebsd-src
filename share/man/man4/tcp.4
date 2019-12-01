@@ -538,6 +538,12 @@ The value should be relative to the link capacity.
 Start with small values for lower-capacity links.
 Large bursts can cause buffer overruns and packet drops if routers have small
 buffers or the link is experiencing congestion.
+.It Va newcwd
+Enable the New Congestion Window Validation mechanism as described in RFC 7661.
+This gently reduces the congestion window during periods, where TCP is
+application limited and the network bandwidth is not utilized completely.
+That prevents self-inflicted packet losses once the application starts to
+transmit data at a higher speed.
 .It Va rfc6675_pipe
 Calculate the bytes in flight using the algorithm described in RFC 6675, and
 is also a prerequisite to enable Proportional Rate Reduction.
