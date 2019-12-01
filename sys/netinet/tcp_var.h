@@ -312,32 +312,32 @@ TAILQ_HEAD(tcp_funchead, tcp_function);
 /*
  * Flags and utility macros for the t_flags field.
  */
-#define	TF_ACKNOW	0x000001	/* ack peer immediately */
-#define	TF_DELACK	0x000002	/* ack, but try to delay it */
-#define	TF_NODELAY	0x000004	/* don't delay packets to coalesce */
-#define	TF_NOOPT	0x000008	/* don't use tcp options */
-#define	TF_SENTFIN	0x000010	/* have sent FIN */
-#define	TF_REQ_SCALE	0x000020	/* have/will request window scaling */
-#define	TF_RCVD_SCALE	0x000040	/* other side has requested scaling */
-#define	TF_REQ_TSTMP	0x000080	/* have/will request timestamps */
-#define	TF_RCVD_TSTMP	0x000100	/* a timestamp was received in SYN */
-#define	TF_SACK_PERMIT	0x000200	/* other side said I could SACK */
-#define	TF_NEEDSYN	0x000400	/* send SYN (implicit state) */
-#define	TF_NEEDFIN	0x000800	/* send FIN (implicit state) */
-#define	TF_NOPUSH	0x001000	/* don't push */
-#define	TF_PREVVALID	0x002000	/* saved values for bad rxmit valid */
-#define	TF_MORETOCOME	0x010000	/* More data to be appended to sock */
-#define	TF_LQ_OVERFLOW	0x020000	/* listen queue overflow */
-#define	TF_LASTIDLE	0x040000	/* connection was previously idle */
-#define	TF_RXWIN0SENT	0x080000	/* sent a receiver win 0 in response */
-#define	TF_FASTRECOVERY	0x100000	/* in NewReno Fast Recovery */
-#define	TF_WASFRECOVERY	0x200000	/* was in NewReno Fast Recovery */
-#define	TF_SIGNATURE	0x400000	/* require MD5 digests (RFC2385) */
-#define	TF_FORCEDATA	0x800000	/* force out a byte */
-#define	TF_TSO		0x1000000	/* TSO enabled on this connection */
-#define	TF_TOE		0x2000000	/* this connection is offloaded */
-#define	TF_ECN_PERMIT	0x4000000	/* connection ECN-ready */
-#define	TF_ECN_SND_CWR	0x8000000	/* ECN CWR in queue */
+#define	TF_ACKNOW	0x00000001	/* ack peer immediately */
+#define	TF_DELACK	0x00000002	/* ack, but try to delay it */
+#define	TF_NODELAY	0x00000004	/* don't delay packets to coalesce */
+#define	TF_NOOPT	0x00000008	/* don't use tcp options */
+#define	TF_SENTFIN	0x00000010	/* have sent FIN */
+#define	TF_REQ_SCALE	0x00000020	/* have/will request window scaling */
+#define	TF_RCVD_SCALE	0x00000040	/* other side has requested scaling */
+#define	TF_REQ_TSTMP	0x00000080	/* have/will request timestamps */
+#define	TF_RCVD_TSTMP	0x00000100	/* a timestamp was received in SYN */
+#define	TF_SACK_PERMIT	0x00000200	/* other side said I could SACK */
+#define	TF_NEEDSYN	0x00000400	/* send SYN (implicit state) */
+#define	TF_NEEDFIN	0x00000800	/* send FIN (implicit state) */
+#define	TF_NOPUSH	0x00001000	/* don't push */
+#define	TF_PREVVALID	0x00002000	/* saved values for bad rxmit valid */
+#define	TF_MORETOCOME	0x00010000	/* More data to be appended to sock */
+#define	TF_LQ_OVERFLOW	0x00020000	/* listen queue overflow */
+#define	TF_LASTIDLE	0x00040000	/* connection was previously idle */
+#define	TF_RXWIN0SENT	0x00080000	/* sent a receiver win 0 in response */
+#define	TF_FASTRECOVERY	0x00100000	/* in NewReno Fast Recovery */
+#define	TF_WASFRECOVERY	0x00200000	/* was in NewReno Fast Recovery */
+#define	TF_SIGNATURE	0x00400000	/* require MD5 digests (RFC2385) */
+#define	TF_FORCEDATA	0x00800000	/* force out a byte */
+#define	TF_TSO		0x01000000	/* TSO enabled on this connection */
+#define	TF_TOE		0x02000000	/* this connection is offloaded */
+#define	TF_ECN_PERMIT	0x04000000	/* connection ECN-ready */
+#define	TF_ECN_SND_CWR	0x08000000	/* ECN CWR in queue */
 #define	TF_ECN_SND_ECE	0x10000000	/* ECN ECE in queue */
 #define	TF_CONGRECOVERY	0x20000000	/* congestion recovery mode */
 #define	TF_WASCRECOVERY	0x40000000	/* was in congestion recovery */
