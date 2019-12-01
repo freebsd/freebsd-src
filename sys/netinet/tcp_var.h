@@ -326,6 +326,8 @@ TAILQ_HEAD(tcp_funchead, tcp_function);
 #define	TF_NEEDFIN	0x00000800	/* send FIN (implicit state) */
 #define	TF_NOPUSH	0x00001000	/* don't push */
 #define	TF_PREVVALID	0x00002000	/* saved values for bad rxmit valid */
+#define	TF_UNUSED1	0x00004000	/* unused */
+#define	TF_UNUSED2	0x00008000	/* unused */
 #define	TF_MORETOCOME	0x00010000	/* More data to be appended to sock */
 #define	TF_LQ_OVERFLOW	0x00020000	/* listen queue overflow */
 #define	TF_LASTIDLE	0x00040000	/* connection was previously idle */
@@ -336,9 +338,9 @@ TAILQ_HEAD(tcp_funchead, tcp_function);
 #define	TF_FORCEDATA	0x00800000	/* force out a byte */
 #define	TF_TSO		0x01000000	/* TSO enabled on this connection */
 #define	TF_TOE		0x02000000	/* this connection is offloaded */
-#define	TF_ECN_PERMIT	0x04000000	/* connection ECN-ready */
-#define	TF_ECN_SND_CWR	0x08000000	/* ECN CWR in queue */
-#define	TF_ECN_SND_ECE	0x10000000	/* ECN ECE in queue */
+#define	TF_UNUSED3	0x04000000	/* unused */
+#define	TF_UNUSED4	0x08000000	/* unused */
+#define	TF_UNUSED5	0x10000000	/* unused */
 #define	TF_CONGRECOVERY	0x20000000	/* congestion recovery mode */
 #define	TF_WASCRECOVERY	0x40000000	/* was in congestion recovery */
 #define	TF_FASTOPEN	0x80000000	/* TCP Fast Open indication */
@@ -377,6 +379,10 @@ TAILQ_HEAD(tcp_funchead, tcp_function);
 #define	TF2_PLPMTU_MAXSEGSNT	0x00000004 /* Last seg sent was full seg. */
 #define	TF2_LOG_AUTO		0x00000008 /* Session is auto-logging. */
 #define TF2_DROP_AF_DATA 	0x00000010 /* Drop after all data ack'd */
+#define	TF2_ECN_PERMIT		0x00000020 /* connection ECN-ready */
+#define	TF2_ECN_SND_CWR		0x00000040 /* ECN CWR in queue */
+#define	TF2_ECN_SND_ECE		0x00000080 /* ECN ECE in queue */
+#define	TF2_ACE_PERMIT		0x00000100 /* Accurate ECN mode */
 
 /*
  * Structure to hold TCP options that are only used during segment
