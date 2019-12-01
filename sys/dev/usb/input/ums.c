@@ -79,7 +79,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/ioccom.h>
 #include <sys/filio.h>
-#include <sys/tty.h>
 #include <sys/mouse.h>
 
 #ifdef USB_DEBUG
