@@ -1463,7 +1463,7 @@ sched_setup(void *dummy)
 
 	/* Add thread0's load since it's running. */
 	TDQ_LOCK(tdq);
-	thread0.td_lock = TDQ_LOCKPTR(TDQ_SELF());
+	thread0.td_lock = TDQ_LOCKPTR(tdq);
 	tdq_load_add(tdq, &thread0);
 	tdq->tdq_lowpri = thread0.td_priority;
 	TDQ_UNLOCK(tdq);
@@ -2913,6 +2913,7 @@ sched_throw(struct thread *td)
 		spinlock_exit();
 		PCPU_SET(switchtime, cpu_ticks());
 		PCPU_SET(switchticks, ticks);
+		PCPU_GET(idlethread)->td_lock = TDQ_LOCKPTR(tdq);
 	} else {
 		tdq = TDQ_SELF();
 		MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
@@ -2943,8 +2944,6 @@ sched_fork_exit(struct thread *td)
 	 */
 	cpuid = PCPU_GET(cpuid);
 	tdq = TDQ_SELF();
-	if (TD_IS_IDLETHREAD(td))
-		td->td_lock = TDQ_LOCKPTR(tdq);
 	MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
 	td->td_oncpu = cpuid;
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED | MA_NOTRECURSED);
