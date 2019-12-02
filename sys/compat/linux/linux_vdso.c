@@ -83,9 +83,10 @@ __elfN(linux_shared_page_init)(char **mapping)
 	obj = vm_pager_allocate(OBJT_PHYS, 0, PAGE_SIZE,
 	    VM_PROT_DEFAULT, 0, NULL);
 	VM_OBJECT_WLOCK(obj);
-	m = vm_page_grab(obj, 0, VM_ALLOC_NOBUSY | VM_ALLOC_ZERO);
-	m->valid = VM_PAGE_BITS_ALL;
+	m = vm_page_grab(obj, 0, VM_ALLOC_ZERO);
 	VM_OBJECT_WUNLOCK(obj);
+	vm_page_valid(m);
+	vm_page_xunbusy(m);
 	addr = kva_alloc(PAGE_SIZE);
 	pmap_qenter(addr, &m, 1);
 	*mapping = (char *)addr;
