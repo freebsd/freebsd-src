@@ -246,10 +246,11 @@
 #define	BITSET_FSET(n)							\
 	[ 0 ... ((n) - 1) ] = (-1L)
 
+#define	BITSET_SIZE(_s)	(__bitset_words((_s)) * sizeof(long))
+
 /*
  * Dynamically allocate a bitset.
  */
-#define BITSET_ALLOC(_s, mt, mf)					\
-	malloc(__bitset_words(_s) * sizeof(long), mt, (mf))
+#define BITSET_ALLOC(_s, mt, mf)	malloc(BITSET_SIZE((_s)), mt, (mf))
 
 #endif /* !_SYS_BITSET_H_ */
