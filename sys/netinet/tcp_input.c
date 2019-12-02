@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
+#include <sys/arb.h>
 #include <sys/kernel.h>
 #ifdef TCP_HHOOK
 #include <sys/hhook.h>
@@ -66,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/proc.h>		/* for proc0 declaration */
 #include <sys/protosw.h>
+#include <sys/qmath.h>
 #include <sys/sdt.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
@@ -73,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
+#include <sys/stats.h>
 
 #include <machine/cpu.h>	/* before tcp_seq.h, for tcp_random18() */
 
@@ -298,6 +301,10 @@ void
 cc_ack_received(struct tcpcb *tp, struct tcphdr *th, uint16_t nsegs,
     uint16_t type)
 {
+#ifdef STATS
+	int32_t gput;
+#endif
+
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	tp->ccv->nsegs = nsegs;
@@ -310,6 +317,35 @@ cc_ack_received(struct tcpcb *tp, struct tcphdr *th, uint16_t nsegs,
 		tp->ccv->flags &= ~CCF_CWND_LIMITED;
 
 	if (type == CC_ACK) {
+#ifdef STATS
+		stats_voi_update_abs_s32(tp->t_stats, VOI_TCP_CALCFRWINDIFF,
+		    ((int32_t)tp->snd_cwnd) - tp->snd_wnd);
+		if (!IN_RECOVERY(tp->t_flags))
+			stats_voi_update_abs_u32(tp->t_stats, VOI_TCP_ACKLEN,
+			   tp->ccv->bytes_this_ack / (tcp_maxseg(tp) * nsegs));
+		if ((tp->t_flags & TF_GPUTINPROG) &&
+		    SEQ_GEQ(th->th_ack, tp->gput_ack)) {
+			/*
+			 * Compute goodput in bits per millisecond.
+			 */
+			gput = (((int64_t)(th->th_ack - tp->gput_seq)) << 3) /
+			    max(1, tcp_ts_getticks() - tp->gput_ts);
+			stats_voi_update_abs_u32(tp->t_stats, VOI_TCP_GPUT,
+			    gput);
+			/*
+			 * XXXLAS: This is a temporary hack, and should be
+			 * chained off VOI_TCP_GPUT when stats(9) grows an API
+			 * to deal with chained VOIs.
+			 */
+			if (tp->t_stats_gput_prev > 0)
+				stats_voi_update_abs_s32(tp->t_stats,
+				    VOI_TCP_GPUT_ND,
+				    ((gput - tp->t_stats_gput_prev) * 100) /
+				    tp->t_stats_gput_prev);
+			tp->t_flags &= ~TF_GPUTINPROG;
+			tp->t_stats_gput_prev = gput;
+		}
+#endif /* STATS */
 		if (tp->snd_cwnd > tp->snd_ssthresh) {
 			tp->t_bytes_acked += min(tp->ccv->bytes_this_ack,
 			     nsegs * V_tcp_abc_l_var * tcp_maxseg(tp));
@@ -328,6 +364,9 @@ cc_ack_received(struct tcpcb *tp, struct tcphdr *th, uint16_t nsegs,
 		tp->ccv->curack = th->th_ack;
 		CC_ALGO(tp)->ack_received(tp->ccv, type);
 	}
+#ifdef STATS
+	stats_voi_update_abs_ulong(tp->t_stats, VOI_TCP_LCWIN, tp->snd_cwnd);
+#endif
 }
 
 void 
@@ -392,6 +431,10 @@ cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type)
 	u_int maxseg;
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+#ifdef STATS
+	stats_voi_update_abs_u32(tp->t_stats, VOI_TCP_CSIG, type);
+#endif
 
 	switch(type) {
 	case CC_NDUPACK:
@@ -1496,6 +1539,9 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * For the SYN_SENT state the scale is zero.
 	 */
 	tiwin = th->th_win << tp->snd_scale;
+#ifdef STATS
+	stats_voi_update_abs_ulong(tp->t_stats, VOI_TCP_FRWIN, tiwin);
+#endif
 
 	/*
 	 * TCP ECN processing.
@@ -3359,6 +3405,10 @@ tcp_xmit_timer(struct tcpcb *tp, int rtt)
 
 	TCPSTAT_INC(tcps_rttupdated);
 	tp->t_rttupdated++;
+#ifdef STATS
+	stats_voi_update_abs_u32(tp->t_stats, VOI_TCP_RTT,
+	    imax(0, rtt * 1000 / hz));
+#endif
 	if ((tp->t_srtt != 0) && (tp->t_rxtshift <= TCP_RTT_INVALIDATE)) {
 		/*
 		 * srtt is stored as fixed point with 5 bits after the

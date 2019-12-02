@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2019
+.Dd December 2, 2019
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -291,6 +291,10 @@ This entry can only be specified on a per-host basis at this time.
 .Pp
 If an SADB entry cannot be found for the destination,
 the system does not send any outgoing segments and drops any inbound segments.
+.It Dv TCP_STATS
+Manage collection of connection level statistics using the
+.Xr stats 3
+framework.
 .Pp
 Each dropped segment is taken into account in the TCP protocol statistics.
 .It Dv TCP_TXTLS_ENABLE
@@ -664,6 +668,17 @@ Default is false.
 When initializing the TCP timestamps, use a per connection offset instead of a
 per host pair offset.
 Default is to use per connection offsets as recommended in RFC 7323.
+.It Va perconn_stats_enable
+Controls the default collection of statistics for all connections using the
+.Xr stats 3
+framework.
+0 disables, 1 enables, 2 enables random sampling across log id connection
+groups with all connections in a group receiving the same setting.
+.It Va perconn_stats_sample_rates
+A CSV list of template_spec=percent key-value pairs which controls the per
+template sampling rates when
+.Xr stats 3
+sampling is enabled.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
@@ -703,6 +718,7 @@ when trying to use a TCP function block that is not available;
 .Sh SEE ALSO
 .Xr getsockopt 2 ,
 .Xr socket 2 ,
+.Xr stats 3 ,
 .Xr sysctl 3 ,
 .Xr blackhole 4 ,
 .Xr inet 4 ,

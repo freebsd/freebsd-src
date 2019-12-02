@@ -49,11 +49,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/arb.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/refcount.h>
 #include <sys/kernel.h>
 #include <sys/ktls.h>
+#include <sys/qmath.h>
 #include <sys/sysctl.h>
 #include <sys/mbuf.h>
 #ifdef INET6
@@ -65,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/jail.h>
 #include <sys/syslog.h>
+#include <sys/stats.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -107,6 +110,13 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_offload.h>
 #endif
 #include <netipsec/ipsec_support.h>
+
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_map.h>
+#include <vm/vm_page.h>
 
 /*
  * TCP protocol interface to socket abstraction.
@@ -1816,6 +1826,9 @@ tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp
 #endif
 	struct cc_algo *algo;
 	char	*pbuf, buf[TCP_LOG_ID_LEN];
+#ifdef STATS
+	struct statsblob *sbp;
+#endif
 	size_t	len;
 
 	/*
@@ -1931,6 +1944,35 @@ unlock_and_done:
 		case TCP_INFO:
 			INP_WUNLOCK(inp);
 			error = EINVAL;
+			break;
+
+		case TCP_STATS:
+			INP_WUNLOCK(inp);
+#ifdef STATS
+			error = sooptcopyin(sopt, &optval, sizeof optval,
+			    sizeof optval);
+			if (error)
+				return (error);
+
+			if (optval > 0)
+				sbp = stats_blob_alloc(
+				    V_tcp_perconn_stats_dflt_tpl, 0);
+			else
+				sbp = NULL;
+
+			INP_WLOCK_RECHECK(inp);
+			if ((tp->t_stats != NULL && sbp == NULL) ||
+			    (tp->t_stats == NULL && sbp != NULL)) {
+				struct statsblob *t = tp->t_stats;
+				tp->t_stats = sbp;
+				sbp = t;
+			}
+			INP_WUNLOCK(inp);
+
+			stats_blob_destroy(sbp);
+#else
+			return (EOPNOTSUPP);
+#endif /* !STATS */
 			break;
 
 		case TCP_CONGESTION:
@@ -2217,6 +2259,55 @@ unlock_and_done:
 			INP_WUNLOCK(inp);
 			error = sooptcopyout(sopt, &ti, sizeof ti);
 			break;
+		case TCP_STATS:
+			{
+#ifdef STATS
+			int nheld;
+			TYPEOF_MEMBER(struct statsblob, flags) sbflags = 0;
+
+			error = 0;
+			socklen_t outsbsz = sopt->sopt_valsize;
+			if (tp->t_stats == NULL)
+				error = ENOENT;
+			else if (outsbsz >= tp->t_stats->cursz)
+				outsbsz = tp->t_stats->cursz;
+			else if (outsbsz >= sizeof(struct statsblob))
+				outsbsz = sizeof(struct statsblob);
+			else
+				error = EINVAL;
+			INP_WUNLOCK(inp);
+			if (error)
+				break;
+
+			sbp = sopt->sopt_val;
+			nheld = atop(round_page(((vm_offset_t)sbp) +
+			    (vm_size_t)outsbsz) - trunc_page((vm_offset_t)sbp));
+			vm_page_t ma[nheld];
+			if (vm_fault_quick_hold_pages(
+			    &curproc->p_vmspace->vm_map, (vm_offset_t)sbp,
+			    outsbsz, VM_PROT_READ | VM_PROT_WRITE, ma,
+			    nheld) < 0) {
+				error = EFAULT;
+				break;
+			}
+
+			if ((error = copyin_nofault(&(sbp->flags), &sbflags,
+			    SIZEOF_MEMBER(struct statsblob, flags))))
+				goto unhold;
+
+			INP_WLOCK_RECHECK(inp);
+			error = stats_blob_snapshot(&sbp, outsbsz, tp->t_stats,
+			    sbflags | SB_CLONE_USRDSTNOFAULT);
+			INP_WUNLOCK(inp);
+			sopt->sopt_valsize = outsbsz;
+unhold:
+			vm_page_unhold_pages(ma, nheld);
+#else
+			INP_WUNLOCK(inp);
+			error = EOPNOTSUPP;
+#endif /* !STATS */
+			break;
+			}
 		case TCP_CONGESTION:
 			len = strlcpy(buf, CC_ALGO(tp)->name, TCP_CA_NAME_MAX);
 			INP_WUNLOCK(inp);

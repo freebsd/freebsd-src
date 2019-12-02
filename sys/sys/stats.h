@@ -58,6 +58,9 @@
 #define _SYS_STATS_H_
 
 #include <sys/limits.h>
+#ifdef DIAGNOSTIC
+#include <sys/tree.h>
+#endif
 
 #ifndef _KERNEL
 /*
