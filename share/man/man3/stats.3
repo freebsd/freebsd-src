@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 7, 2019
+.Dd December 2, 2019
 .Dt STATS 3
 .Os
 .Sh NAME
@@ -960,3 +960,9 @@ The
 framework and this manual page were written by
 .An Lawrence Stewart Aq lstewart@FreeBSD.org
 and sponsored by Netflix, Inc.
+.Sh CAVEATS
+Granularity of timing-dependent network statistics, in particular TCP_RTT,
+depends on the
+.Dv HZ
+timer.
+To minimize the measurement error avoid using HZ lower than 1000.
