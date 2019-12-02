@@ -1278,10 +1278,89 @@ vm_reserv_reclaim_inactive(int domain)
 }
 
 /*
+ * Determine whether this reservation has free pages that satisfy the given
+ * request for contiguous physical memory.  Start searching from the lower
+ * bound, defined by low_index.
+ *
+ * The free page queue lock must be held.
+ */
+static bool
+vm_reserv_test_contig(vm_reserv_t rv, u_long npages, vm_paddr_t low,
+    vm_paddr_t high, u_long alignment, vm_paddr_t boundary)
+{
+	vm_paddr_t pa, size;
+	u_long changes;
+	int bitpos, bits_left, i, hi, lo, n;
+
+	vm_reserv_assert_locked(rv);
+	size = npages << PAGE_SHIFT;
+	pa = VM_PAGE_TO_PHYS(&rv->pages[0]);
+	lo = (pa < low) ?
+	    ((low + PAGE_MASK - pa) >> PAGE_SHIFT) : 0;
+	i = lo / NBPOPMAP;
+	changes = rv->popmap[i] | ((1UL << (lo % NBPOPMAP)) - 1);
+	hi = (pa + VM_LEVEL_0_SIZE > high) ?
+	    ((high + PAGE_MASK - pa) >> PAGE_SHIFT) : VM_LEVEL_0_NPAGES;
+	n = hi / NBPOPMAP;
+	bits_left = hi % NBPOPMAP;
+	hi = lo = -1;
+	for (;;) {
+		/*
+		 * "changes" is a bitmask that marks where a new sequence of
+		 * 0s or 1s begins in popmap[i], with last bit in popmap[i-1]
+		 * considered to be 1 if and only if lo == hi.  The bits of
+		 * popmap[-1] and popmap[NPOPMAP] are considered all 1s.
+		 */
+		changes ^= (changes << 1) | (lo == hi);
+		while (changes != 0) {
+			/*
+			 * If the next change marked begins a run of 0s, set
+			 * lo to mark that position.  Otherwise set hi and
+			 * look for a satisfactory first page from lo up to hi.
+			 */
+			bitpos = ffsl(changes) - 1;
+			changes ^= 1UL << bitpos;
+			if (lo == hi) {
+				lo = NBPOPMAP * i + bitpos;
+				continue;
+			}
+			hi = NBPOPMAP * i + bitpos;
+			pa = VM_PAGE_TO_PHYS(&rv->pages[lo]);
+			if ((pa & (alignment - 1)) != 0) {
+				/* Skip to next aligned page. */
+				lo += (((pa - 1) | (alignment - 1)) + 1) >>
+				    PAGE_SHIFT;
+				if (lo >= VM_LEVEL_0_NPAGES)
+					return (false);
+				pa = VM_PAGE_TO_PHYS(&rv->pages[lo]);
+			}
+			if (((pa ^ (pa + size - 1)) & ~(boundary - 1)) != 0) {
+				/* Skip to next boundary-matching page. */
+				lo += (((pa - 1) | (boundary - 1)) + 1) >>
+				    PAGE_SHIFT;
+				if (lo >= VM_LEVEL_0_NPAGES)
+					return (false);
+				pa = VM_PAGE_TO_PHYS(&rv->pages[lo]);
+			}
+			if (lo * PAGE_SIZE + size <= hi * PAGE_SIZE)
+				return (true);
+			lo = hi;
+		}
+		if (++i < n)
+			changes = rv->popmap[i];
+		else if (i == n)
+			changes = bits_left == 0 ? -1UL :
+			    (rv->popmap[n] | (-1UL << bits_left));
+		else
+			return (false);
+	}
+}
+
+/*
  * Searches the partially populated reservation queue for the least recently
  * changed reservation with free pages that satisfy the given request for
  * contiguous physical memory.  If a satisfactory reservation is found, it is
- * broken.  Returns TRUE if a reservation is broken and FALSE otherwise.
+ * broken.  Returns true if a reservation is broken and false otherwise.
  *
  * The free page queue lock must be held.
  */
@@ -1291,21 +1370,19 @@ vm_reserv_reclaim_contig(int domain, u_long npages, vm_paddr_t low,
 {
 	vm_paddr_t pa, size;
 	vm_reserv_t rv, rvn;
-	int hi, i, lo, low_index, next_free;
 
 	if (npages > VM_LEVEL_0_NPAGES - 1)
-		return (FALSE);
+		return (false);
 	size = npages << PAGE_SHIFT;
 	vm_reserv_domain_lock(domain);
 again:
 	for (rv = TAILQ_FIRST(&vm_rvq_partpop[domain]); rv != NULL; rv = rvn) {
 		rvn = TAILQ_NEXT(rv, partpopq);
-		pa = VM_PAGE_TO_PHYS(&rv->pages[VM_LEVEL_0_NPAGES - 1]);
-		if (pa + PAGE_SIZE - size < low) {
+		pa = VM_PAGE_TO_PHYS(&rv->pages[0]);
+		if (pa + VM_LEVEL_0_SIZE - size < low) {
 			/* This entire reservation is too low; go to next. */
 			continue;
 		}
-		pa = VM_PAGE_TO_PHYS(&rv->pages[0]);
 		if (pa + size > high) {
 			/* This entire reservation is too high; go to next. */
 			continue;
@@ -1321,73 +1398,19 @@ again:
 			}
 		} else
 			vm_reserv_domain_unlock(domain);
-		if (pa < low) {
-			/* Start the search for free pages at "low". */
-			low_index = (low + PAGE_MASK - pa) >> PAGE_SHIFT;
-			i = low_index / NBPOPMAP;
-			hi = low_index % NBPOPMAP;
-		} else
-			i = hi = 0;
-		do {
-			/* Find the next free page. */
-			lo = ffsl(~(((1UL << hi) - 1) | rv->popmap[i]));
-			while (lo == 0 && ++i < NPOPMAP)
-				lo = ffsl(~rv->popmap[i]);
-			if (i == NPOPMAP)
-				break;
-			/* Convert from ffsl() to ordinary bit numbering. */
-			lo--;
-			next_free = NBPOPMAP * i + lo;
-			pa = VM_PAGE_TO_PHYS(&rv->pages[next_free]);
-			KASSERT(pa >= low,
-			    ("vm_reserv_reclaim_contig: pa is too low"));
-			if (pa + size > high) {
-				/* The rest of this reservation is too high. */
-				break;
-			} else if ((pa & (alignment - 1)) != 0 ||
-			    ((pa ^ (pa + size - 1)) & ~(boundary - 1)) != 0) {
-				/*
-				 * The current page doesn't meet the alignment
-				 * and/or boundary requirements.  Continue
-				 * searching this reservation until the rest
-				 * of its free pages are either excluded or
-				 * exhausted.
-				 */
-				hi = lo + 1;
-				if (hi >= NBPOPMAP) {
-					hi = 0;
-					i++;
-				}
-				continue;
-			}
-			/* Find the next used page. */
-			hi = ffsl(rv->popmap[i] & ~((1UL << lo) - 1));
-			while (hi == 0 && ++i < NPOPMAP) {
-				if ((NBPOPMAP * i - next_free) * PAGE_SIZE >=
-				    size) {
-					vm_reserv_reclaim(rv);
-					vm_reserv_unlock(rv);
-					return (TRUE);
-				}
-				hi = ffsl(rv->popmap[i]);
-			}
-			/* Convert from ffsl() to ordinary bit numbering. */
-			if (i != NPOPMAP)
-				hi--;
-			if ((NBPOPMAP * i + hi - next_free) * PAGE_SIZE >=
-			    size) {
-				vm_reserv_reclaim(rv);
-				vm_reserv_unlock(rv);
-				return (TRUE);
-			}
-		} while (i < NPOPMAP);
+		if (vm_reserv_test_contig(rv, npages, low, high,
+		    alignment, boundary)) {
+			vm_reserv_reclaim(rv);
+			vm_reserv_unlock(rv);
+			return (true);
+		}
 		vm_reserv_unlock(rv);
 		vm_reserv_domain_lock(domain);
 		if (rvn != NULL && !rvn->inpartpopq)
 			goto again;
 	}
 	vm_reserv_domain_unlock(domain);
-	return (FALSE);
+	return (false);
 }
 
 /*
