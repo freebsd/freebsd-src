@@ -61,7 +61,7 @@ probe_handle(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath)
 	int preferred;
 
 	/* Figure out if we're dealing with an actual partition. */
-	status = BS->HandleProtocol(h, &DevicePathGUID, (void **)&devpath);
+	status = OpenProtocolByHandle(h, &DevicePathGUID, (void **)&devpath);
 	if (status == EFI_UNSUPPORTED)
 		return (0);
 
@@ -77,7 +77,7 @@ probe_handle(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath)
 		efi_free_devpath_name(text);
 	}
 #endif
-	status = BS->HandleProtocol(h, &BlockIoProtocolGUID, (void **)&blkio);
+	status = OpenProtocolByHandle(h, &BlockIoProtocolGUID, (void **)&blkio);
 	if (status == EFI_UNSUPPORTED)
 		return (0);
 
