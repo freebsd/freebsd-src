@@ -389,14 +389,16 @@ sgx_enclave_remove(struct sgx_softc *sc,
 	 * First remove all the pages except SECS,
 	 * then remove SECS page.
 	 */
-	p_secs = NULL;
+restart:
 	TAILQ_FOREACH_SAFE(p, &object->memq, listq, p_next) {
-		if (p->pindex == SGX_SECS_VM_OBJECT_INDEX) {
-			p_secs = p;
+		if (p->pindex == SGX_SECS_VM_OBJECT_INDEX)
 			continue;
-		}
+		if (vm_page_busy_acquire(p, VM_ALLOC_WAITFAIL) == 0)
+			goto restart;
 		sgx_page_remove(sc, p);
 	}
+	p_secs = vm_page_grab(object, SGX_SECS_VM_OBJECT_INDEX,
+	    VM_ALLOC_NOCREAT);
 	/* Now remove SECS page */
 	if (p_secs != NULL)
 		sgx_page_remove(sc, p_secs);
@@ -723,8 +725,9 @@ sgx_ioctl_create(struct sgx_softc *sc, struct sgx_enclave_create *param)
 	if ((sc->state & SGX_STATE_RUNNING) == 0) {
 		mtx_unlock(&sc->mtx);
 		/* Remove VA page that was just created for SECS page. */
-		p = vm_page_lookup(enclave->object,
-		    - SGX_VA_PAGES_OFFS - SGX_SECS_VM_OBJECT_INDEX);
+		p = vm_page_grab(enclave->object,
+		    - SGX_VA_PAGES_OFFS - SGX_SECS_VM_OBJECT_INDEX,
+		    VM_ALLOC_NOCREAT);
 		sgx_page_remove(sc, p);
 		VM_OBJECT_WUNLOCK(object);
 		goto error;
@@ -736,8 +739,9 @@ sgx_ioctl_create(struct sgx_softc *sc, struct sgx_enclave_create *param)
 		dprintf("%s: gp fault\n", __func__);
 		mtx_unlock(&sc->mtx);
 		/* Remove VA page that was just created for SECS page. */
-		p = vm_page_lookup(enclave->object,
-		    - SGX_VA_PAGES_OFFS - SGX_SECS_VM_OBJECT_INDEX);
+		p = vm_page_grab(enclave->object,
+		    - SGX_VA_PAGES_OFFS - SGX_SECS_VM_OBJECT_INDEX,
+		    VM_ALLOC_NOCREAT);
 		sgx_page_remove(sc, p);
 		VM_OBJECT_WUNLOCK(object);
 		goto error;

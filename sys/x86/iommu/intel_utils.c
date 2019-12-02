@@ -298,7 +298,7 @@ dmar_pgfree(vm_object_t obj, vm_pindex_t idx, int flags)
 
 	if ((flags & DMAR_PGF_OBJL) == 0)
 		VM_OBJECT_WLOCK(obj);
-	m = vm_page_lookup(obj, idx);
+	m = vm_page_grab(obj, idx, VM_ALLOC_NOCREAT);
 	if (m != NULL) {
 		vm_page_free(m);
 		atomic_subtract_int(&dmar_tbl_pagecnt, 1);
