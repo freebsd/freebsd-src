@@ -267,8 +267,8 @@ gpioiic_probe(device_t dev)
 
 	/*
 	 * By default we only bid to attach if specifically added by our parent
-         * (usually via hint.gpioiic.#.at=busname).  On FDT systems we bid as
-         * the default driver based on being configured in the FDT data.
+	 * (usually via hint.gpioiic.#.at=busname).  On FDT systems we bid as
+	 * the default driver based on being configured in the FDT data.
 	 */
 	rv = BUS_PROBE_NOWILDCARD;
 
