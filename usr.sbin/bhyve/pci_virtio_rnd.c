@@ -102,7 +102,7 @@ pci_vtrnd_reset(void *vsc)
 
 	sc = vsc;
 
-	DPRINTF(("vtrnd: device reset requested !\n"));
+	DPRINTF(("vtrnd: device reset requested !\n\r"));
 	vi_reset_dev(&sc->vrsc_vs);
 }
 
@@ -170,7 +170,7 @@ pci_vtrnd_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	 */
 	len = read(fd, &v, sizeof(v));
 	if (len <= 0) {
-		WPRINTF(("vtrnd: /dev/random not ready, read(): %d", len));
+		WPRINTF(("vtrnd: /dev/random not ready, read(): %d\n\r", len));
 		close(fd);
 		return (1);
 	}
