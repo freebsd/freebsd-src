@@ -3515,6 +3515,27 @@ zpool_reopen(zpool_handle_t *zhp)
 	return (zpool_standard_error(hdl, errno, msg));
 }
 
+/* call into libzfs_core to execute the sync IOCTL per pool */
+int
+zpool_sync_one(zpool_handle_t *zhp, void *data)
+{
+	int ret;
+	libzfs_handle_t *hdl = zpool_get_handle(zhp);
+	const char *pool_name = zpool_get_name(zhp);
+	boolean_t *force = data;
+	nvlist_t *innvl = fnvlist_alloc();
+
+	fnvlist_add_boolean_value(innvl, "force", *force);
+	if ((ret = lzc_sync(pool_name, innvl, NULL)) != 0) {
+		nvlist_free(innvl);
+		return (zpool_standard_error_fmt(hdl, ret,
+		    dgettext(TEXT_DOMAIN, "sync '%s' failed"), pool_name));
+	}
+	nvlist_free(innvl);
+
+	return (0);
+}
+
 /*
  * Convert from a devid string to a path.
  */

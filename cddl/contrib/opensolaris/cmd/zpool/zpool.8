@@ -193,6 +193,9 @@
 .Ar ...
 .Op Ar interval Op Ar count
 .Nm
+.Cm sync
+.Oo Ar pool Oc Ns ...
+.Nm
 .Cm upgrade
 .Op Fl v
 .Nm
@@ -1907,6 +1910,19 @@ unavailable.
 Warnings about pools not using the latest on-disk format, having non-native
 block size or disabled features will not be included.
 .El
+.It Xo
+.Nm
+.Cm sync
+.Oo Ar pool Oc Ns ...
+.Xc
+Forces all in-core dirty data to be written to the primary pool storage and
+not the ZIL.
+It will also update administrative information including quota reporting.
+Without arguments,
+.Nm zpool Cm sync
+will sync all pools on the system.
+Otherwise, it will only sync the specified
+.Ar pool .
 .It Xo
 .Nm
 .Cm upgrade
