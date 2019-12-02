@@ -140,19 +140,6 @@
 #define UMA_MAX_WASTE	10
 
 /*
- * Actual size of uma_slab when it is placed at an end of a page
- * with pointer sized alignment requirement.
- */
-#define	SIZEOF_UMA_SLAB	((sizeof(struct uma_slab) & UMA_ALIGN_PTR) ?	  \
-			    (sizeof(struct uma_slab) & ~UMA_ALIGN_PTR) +  \
-			    (UMA_ALIGN_PTR + 1) : sizeof(struct uma_slab))
-
-/*
- * Size of memory in a not offpage single page slab available for actual items.
- */
-#define	UMA_SLAB_SPACE	(PAGE_SIZE - SIZEOF_UMA_SLAB)
-
-/*
  * I doubt there will be many cases where this is exceeded. This is the initial
  * size of the hash table for uma_slabs that are managed off page. This hash
  * does expand by powers of two.  Currently it doesn't get smaller.
@@ -273,8 +260,10 @@ typedef struct uma_keg	* uma_keg_t;
 /*
  * Free bits per-slab.
  */
-#define	SLAB_SETSIZE	(PAGE_SIZE / UMA_SMALLEST_UNIT)
-BITSET_DEFINE(slabbits, SLAB_SETSIZE);
+#define	SLAB_MAX_SETSIZE	(PAGE_SIZE / UMA_SMALLEST_UNIT)
+#define	SLAB_MIN_SETSIZE	_BITSET_BITS
+BITSET_DEFINE(slabbits, SLAB_MAX_SETSIZE);
+BITSET_DEFINE(noslabbits, 0);
 
 /*
  * The slab structure manages a single contiguous allocation from backing
@@ -284,13 +273,13 @@ struct uma_slab {
 	LIST_ENTRY(uma_slab)	us_link;	/* slabs in zone */
 	SLIST_ENTRY(uma_slab)	us_hlink;	/* Link for hash table */
 	uint8_t		*us_data;		/* First item */
-	struct slabbits	us_free;		/* Free bitmask. */
-#ifdef INVARIANTS
-	struct slabbits	us_debugfree;		/* Debug bitmask. */
-#endif
 	uint16_t	us_freecount;		/* How many are free? */
 	uint8_t		us_flags;		/* Page flags see uma.h */
 	uint8_t		us_domain;		/* Backing NUMA domain. */
+#ifdef INVARIANTS
+	struct slabbits	us_debugfree;		/* Debug bitmask. */
+#endif
+	struct noslabbits us_free;		/* Free bitmask. */
 };
 
 #if MAXMEMDOM >= 255
@@ -298,6 +287,11 @@ struct uma_slab {
 #endif
 
 typedef struct uma_slab * uma_slab_t;
+
+/* These three functions are for embedded (!OFFPAGE) use only. */
+size_t slab_sizeof(int nitems);
+size_t slab_space(int nitems);
+int slab_ipers(size_t size, int align);
 
 TAILQ_HEAD(uma_bucketlist, uma_bucket);
 
