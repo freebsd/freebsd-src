@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/arb.h>
 #include <sys/domain.h>
 #ifdef TCP_HHOOK
 #include <sys/hhook.h>
@@ -54,10 +55,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/protosw.h>
+#include <sys/qmath.h>
 #include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <sys/stats.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -991,15 +994,31 @@ send:
 		struct sockbuf *msb;
 		u_int moff;
 
-		if ((tp->t_flags & TF_FORCEDATA) && len == 1)
+		if ((tp->t_flags & TF_FORCEDATA) && len == 1) {
 			TCPSTAT_INC(tcps_sndprobe);
-		else if (SEQ_LT(tp->snd_nxt, tp->snd_max) || sack_rxmit) {
+#ifdef STATS
+			if (SEQ_LT(tp->snd_nxt, tp->snd_max))
+				stats_voi_update_abs_u32(tp->t_stats,
+				VOI_TCP_RETXPB, len);
+			else
+				stats_voi_update_abs_u64(tp->t_stats,
+				    VOI_TCP_TXPB, len);
+#endif /* STATS */
+		} else if (SEQ_LT(tp->snd_nxt, tp->snd_max) || sack_rxmit) {
 			tp->t_sndrexmitpack++;
 			TCPSTAT_INC(tcps_sndrexmitpack);
 			TCPSTAT_ADD(tcps_sndrexmitbyte, len);
+#ifdef STATS
+			stats_voi_update_abs_u32(tp->t_stats, VOI_TCP_RETXPB,
+			    len);
+#endif /* STATS */
 		} else {
 			TCPSTAT_INC(tcps_sndpack);
 			TCPSTAT_ADD(tcps_sndbyte, len);
+#ifdef STATS
+			stats_voi_update_abs_u64(tp->t_stats, VOI_TCP_TXPB,
+			    len);
+#endif /* STATS */
 		}
 #ifdef INET6
 		if (MHLEN < hdrlen + max_linkhdr)
@@ -1472,6 +1491,15 @@ out:
 				tp->t_rtseq = startseq;
 				TCPSTAT_INC(tcps_segstimed);
 			}
+#ifdef STATS
+			if (!(tp->t_flags & TF_GPUTINPROG) && len) {
+				tp->t_flags |= TF_GPUTINPROG;
+				tp->gput_seq = startseq;
+				tp->gput_ack = startseq +
+				    ulmin(sbavail(&so->so_snd) - off, sendwin);
+				tp->gput_ts = tcp_ts_getticks();
+			}
+#endif /* STATS */
 		}
 
 		/*

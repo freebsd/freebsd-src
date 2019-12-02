@@ -51,9 +51,7 @@
 #ifndef _NETINET_CC_CC_H_
 #define _NETINET_CC_CC_H_
 
-#if !defined(_KERNEL)
-#error "no user-serviceable parts inside"
-#endif
+#ifdef _KERNEL
 
 /* Global CC vars. */
 extern STAILQ_HEAD(cc_head, cc_algo) cc_list;
@@ -108,6 +106,7 @@ struct cc_var {
 #define	CC_DUPACK	0x0002	/* Duplicate ACK. */
 #define	CC_PARTIALACK	0x0004	/* Not yet. */
 #define	CC_SACK		0x0008	/* Not yet. */
+#endif /* _KERNEL */
 
 /*
  * Congestion signal types passed to the cong_signal() hook. The highest order 8
@@ -121,6 +120,7 @@ struct cc_var {
 
 #define	CC_SIGPRIVMASK	0xFF000000	/* Mask to check if sig is private. */
 
+#ifdef _KERNEL
 /*
  * Structure to hold data and function pointers that together represent a
  * congestion control algorithm.
@@ -184,4 +184,5 @@ extern struct rwlock cc_list_lock;
 
 #define CC_ALGOOPT_LIMIT	2048
 
+#endif /* _KERNEL */
 #endif /* _NETINET_CC_CC_H_ */

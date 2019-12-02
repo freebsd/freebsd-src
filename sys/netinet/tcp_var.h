@@ -210,7 +210,12 @@ struct tcpcb {
 	struct tcp_log_id_node *t_lin;
 	struct tcp_log_id_bucket *t_lib;
 	const char *t_output_caller;	/* Function that called tcp_output */
+	struct statsblob *t_stats;	/* Per-connection stats */
 	uint32_t t_logsn;		/* Log "serial number" */
+	uint32_t gput_ts;		/* Time goodput measurement started */
+	tcp_seq gput_seq;		/* Outbound measurement seq */
+	tcp_seq gput_ack;		/* Inbound measurement ack */
+	int32_t t_stats_gput_prev;	/* XXXLAS: Prev gput measurement */
 	uint8_t t_tfo_client_cookie_len; /* TCP Fast Open client cookie length */
 	unsigned int *t_tfo_pending;	/* TCP Fast Open server pending counter */
 	union {
@@ -327,7 +332,7 @@ TAILQ_HEAD(tcp_funchead, tcp_function);
 #define	TF_NOPUSH	0x00001000	/* don't push */
 #define	TF_PREVVALID	0x00002000	/* saved values for bad rxmit valid */
 #define	TF_UNUSED1	0x00004000	/* unused */
-#define	TF_UNUSED2	0x00008000	/* unused */
+#define	TF_GPUTINPROG	0x00008000	/* Goodput measurement in progress */
 #define	TF_MORETOCOME	0x00010000	/* More data to be appended to sock */
 #define	TF_LQ_OVERFLOW	0x00020000	/* listen queue overflow */
 #define	TF_LASTIDLE	0x00040000	/* connection was previously idle */
@@ -787,6 +792,10 @@ VNET_DECLARE(int, tcp_insecure_rst);
 VNET_DECLARE(int, tcp_insecure_syn);
 VNET_DECLARE(int, tcp_minmss);
 VNET_DECLARE(int, tcp_mssdflt);
+#ifdef STATS
+VNET_DECLARE(int, tcp_perconn_stats_dflt_tpl);
+VNET_DECLARE(int, tcp_perconn_stats_enable);
+#endif /* STATS */
 VNET_DECLARE(int, tcp_recvspace);
 VNET_DECLARE(int, tcp_sack_globalholes);
 VNET_DECLARE(int, tcp_sack_globalmaxholes);
@@ -823,6 +832,10 @@ VNET_DECLARE(struct inpcbinfo, tcbinfo);
 #define	V_tcp_insecure_syn		VNET(tcp_insecure_syn)
 #define	V_tcp_minmss			VNET(tcp_minmss)
 #define	V_tcp_mssdflt			VNET(tcp_mssdflt)
+#ifdef STATS
+#define	V_tcp_perconn_stats_dflt_tpl	VNET(tcp_perconn_stats_dflt_tpl)
+#define	V_tcp_perconn_stats_enable	VNET(tcp_perconn_stats_enable)
+#endif /* STATS */
 #define	V_tcp_recvspace			VNET(tcp_recvspace)
 #define	V_tcp_sack_globalholes		VNET(tcp_sack_globalholes)
 #define	V_tcp_sack_globalmaxholes	VNET(tcp_sack_globalmaxholes)
@@ -966,10 +979,13 @@ int	 tcp_newreno(struct tcpcb *, struct tcphdr *);
 int	 tcp_compute_pipe(struct tcpcb *);
 uint32_t tcp_compute_initwnd(uint32_t);
 void	 tcp_sndbuf_autoscale(struct tcpcb *, struct socket *, uint32_t);
+int	 tcp_stats_sample_rollthedice(struct tcpcb *tp, void *seed_bytes,
+    size_t seed_len);
 struct mbuf *
 	 tcp_m_copym(struct mbuf *m, int32_t off0, int32_t *plen,
 	   int32_t seglimit, int32_t segsize, struct sockbuf *sb, bool hw_tls);
 
+int	tcp_stats_init(void);
 
 static inline void
 tcp_fields_to_host(struct tcphdr *th)
