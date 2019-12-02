@@ -37,6 +37,7 @@ CFLAGS.zfs_module.c+=	-I${ZFSSRC}
 CFLAGS.zfs_module.c+=	-I${SYSDIR}/cddl/boot/zfs
 CFLAGS.zfs_module.c+=	-I${SYSDIR}/crypto/skein
 CFLAGS.zfs_module.c+=	-I${SYSDIR}/cddl/contrib/opensolaris/uts/common
+CFLAGS.zfs_module.c+=	-I${SYSDIR}/cddl/contrib/opensolaris/common/lz4
 
 CFLAGS+=	-DEFI_ZFS_BOOT
 .endif

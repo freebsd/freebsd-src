@@ -18,6 +18,8 @@ SRCS+=	opensolaris_nvpair_alloc_fixed.c
 SRCS+=	opensolaris_fnvpair.c
 .PATH:	${SYSDIR}/cddl/contrib/opensolaris/common/unicode
 SRCS+=	u8_textprep.c
+.PATH:	${SUNW}/common/lz4
+SRCS+=	lz4.c
 
 .PATH:	${SYSDIR}/cddl/compat/opensolaris/kern
 SRCS+=	opensolaris_acl.c
@@ -93,6 +95,7 @@ CFLAGS+=-I${SUNW}/uts/common/zmod
 CFLAGS+=-I${SUNW}/uts/common
 CFLAGS+=-I${SYSDIR}
 CFLAGS+=-I${SUNW}/common/zfs
+CFLAGS+=-I${SUNW}/common/lz4
 CFLAGS+=-I${SUNW}/common
 CFLAGS+=-DBUILDING_ZFS
 CFLAGS.gcc+=-fms-extensions

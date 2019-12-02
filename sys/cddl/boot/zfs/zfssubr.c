@@ -26,6 +26,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <lz4.h>
+
 static uint64_t zfs_crc64_table[256];
 
 #define	ECKSUM	666
@@ -161,7 +163,6 @@ typedef struct zio_compress_info {
 
 #include "lzjb.c"
 #include "zle.c"
-#include "lz4.c"
 
 /*
  * Compression vectors.

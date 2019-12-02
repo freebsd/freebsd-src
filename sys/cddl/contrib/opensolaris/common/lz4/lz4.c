@@ -35,11 +35,29 @@
  * Copyright (c) 2016 by Delphix. All rights reserved.
  */
 
+#if defined(_KERNEL) || defined(_FAKE_KERNEL)
 #include <sys/zfs_context.h>
+#elif defined(_STANDALONE)
+#include <sys/cdefs.h>
+#include <stand.h>
+#include <sys/types.h>
+#include <sys/endian.h>
+#include <assert.h>
+
+#define	ASSERT	assert
+#else
+#include <string.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <assert.h>
+
+#define	ASSERT	assert
+#endif
+#include <lz4.h>
 
 static int real_LZ4_compress(const char *source, char *dest, int isize,
     int osize);
-static int LZ4_compressBound(int isize);
 static int LZ4_uncompress_unknownOutputSize(const char *source, char *dest,
     int isize, int maxOutputSize);
 static int LZ4_compressCtx(void *ctx, const char *source, char *dest,
@@ -47,11 +65,13 @@ static int LZ4_compressCtx(void *ctx, const char *source, char *dest,
 static int LZ4_compress64kCtx(void *ctx, const char *source, char *dest,
     int isize, int osize);
 
+#if defined(_KERNEL) || defined(_FAKE_KERNEL)
 static kmem_cache_t *lz4_ctx_cache;
+#endif
 
-/*ARGSUSED*/
 size_t
-lz4_compress(void *s_start, void *d_start, size_t s_len, size_t d_len, int n)
+lz4_compress(void *s_start, void *d_start, size_t s_len, size_t d_len,
+    int n __unused)
 {
 	uint32_t bufsiz;
 	char *dest = d_start;
@@ -71,17 +91,25 @@ lz4_compress(void *s_start, void *d_start, size_t s_len, size_t d_len, int n)
 	 * added to the compressed buffer and which, if unhandled, would
 	 * confuse the hell out of our decompression function.
 	 */
-	*(uint32_t *)dest = BE_32(bufsiz);
+#if defined(_KERNEL) || defined(_FAKE_KERNEL)
+	*(uint32_t *)(void *)dest = BE_32(bufsiz);
+#else
+	*(uint32_t *)(void *)dest = htonl(bufsiz);
+#endif
 
 	return (bufsiz + sizeof (bufsiz));
 }
 
-/*ARGSUSED*/
 int
-lz4_decompress(void *s_start, void *d_start, size_t s_len, size_t d_len, int n)
+lz4_decompress(void *s_start, void *d_start, size_t s_len, size_t d_len,
+    int n __unused)
 {
 	const char *src = s_start;
-	uint32_t bufsiz = BE_IN32(src);
+#if defined(_KERNEL) || defined(_FAKE_KERNEL)
+	uint32_t bufsiz = BE_IN32(s_start);
+#else
+	uint32_t bufsiz = htonl(*(uint32_t *)s_start);
+#endif
 
 	/* invalid compressed buffer size encoded at start */
 	if (bufsiz + sizeof (bufsiz) > s_len)
@@ -105,19 +133,9 @@ lz4_decompress(void *s_start, void *d_start, size_t s_len, size_t d_len, int n)
  *		 or 0 if the compression fails (if LZ4_COMPRESSMIN is set).
  * 	note : destination buffer must be already allocated.
  * 		destination buffer must be sized to handle worst cases
- * 		situations (input data not compressible) worst case size
- * 		evaluation is provided by function LZ4_compressBound().
+ * 		situations (input data not compressible).
  *
  * Advanced Functions
- *
- * LZ4_compressBound() :
- * 	Provides the maximum size that LZ4 may output in a "worst case"
- * 	scenario (input data not compressible) primarily useful for memory
- * 	allocation of output buffer.
- *
- * 	isize  : is the input size. Max supported value is ~1.9GB
- * 	return : maximum output size in a "worst case" scenario
- * 	note : this function is limited by "int" range (2^31-1)
  *
  * LZ4_uncompress_unknownOutputSize() :
  * 	isize  : is the input size, therefore the compressed size
@@ -292,9 +310,9 @@ typedef struct _U64_S {
 #pragma pack()
 #endif
 
-#define	A64(x) (((U64_S *)(x))->v)
-#define	A32(x) (((U32_S *)(x))->v)
-#define	A16(x) (((U16_S *)(x))->v)
+#define	A64(x) (((U64_S *)(__DECONST(void *, x)))->v)
+#define	A32(x) (((U32_S *)(__DECONST(void *, x)))->v)
+#define	A16(x) (((U16_S *)(__DECONST(void *, x)))->v)
 
 /*
  * Constants
@@ -456,14 +474,6 @@ LZ4_NbCommonBytes(register U32 val)
 
 #endif
 
-/* Public functions */
-
-static int
-LZ4_compressBound(int isize)
-{
-	return (isize + (isize / 255) + 16);
-}
-
 /* Compression functions */
 
 /*ARGSUSED*/
@@ -478,7 +488,7 @@ LZ4_compressCtx(void *ctx, const char *source, char *dest, int isize,
 	HTYPE HashTable[HASHTABLESIZE] = { 0 };
 #endif
 
-	const BYTE *ip = (BYTE *) source;
+	const BYTE *ip = (const BYTE *) source;
 	INITBASE(base);
 	const BYTE *anchor = ip;
 	const BYTE *const iend = ip + isize;
@@ -527,7 +537,7 @@ LZ4_compressCtx(void *ctx, const char *source, char *dest, int isize,
 		} while ((ref < ip - MAX_DISTANCE) || (A32(ref) != A32(ip)));
 
 		/* Catch up */
-		while ((ip > anchor) && (ref > (BYTE *) source) &&
+		while ((ip > anchor) && (ref > (const BYTE *) source) &&
 		    unlikely(ip[-1] == ref[-1])) {
 			ip--;
 			ref--;
@@ -673,7 +683,7 @@ LZ4_compress64kCtx(void *ctx, const char *source, char *dest, int isize,
 	U16 HashTable[HASH64KTABLESIZE] = { 0 };
 #endif
 
-	const BYTE *ip = (BYTE *) source;
+	const BYTE *ip = (const BYTE *) source;
 	const BYTE *anchor = ip;
 	const BYTE *const base = ip;
 	const BYTE *const iend = ip + isize;
@@ -720,7 +730,7 @@ LZ4_compress64kCtx(void *ctx, const char *source, char *dest, int isize,
 		} while (A32(ref) != A32(ip));
 
 		/* Catch up */
-		while ((ip > anchor) && (ref > (BYTE *) source) &&
+		while ((ip > anchor) && (ref > (const BYTE *) source) &&
 		    (ip[-1] == ref[-1])) {
 			ip--;
 			ref--;
@@ -847,7 +857,11 @@ static int
 real_LZ4_compress(const char *source, char *dest, int isize, int osize)
 {
 #if HEAPMODE
+#if defined(_KERNEL) || defined(_FAKE_KERNEL)
 	void *ctx = kmem_cache_alloc(lz4_ctx_cache, KM_NOSLEEP);
+#else
+	void *ctx = malloc(sizeof(struct refTables));
+#endif
 	int result;
 
 	/*
@@ -863,7 +877,11 @@ real_LZ4_compress(const char *source, char *dest, int isize, int osize)
 	else
 		result = LZ4_compressCtx(ctx, source, dest, isize, osize);
 
+#if defined(_KERNEL) || defined(_FAKE_KERNEL)
 	kmem_cache_free(lz4_ctx_cache, ctx);
+#else
+	free(ctx);
+#endif
 	return (result);
 #else
 	if (isize < (int)LZ4_64KLIMIT)
@@ -876,7 +894,7 @@ real_LZ4_compress(const char *source, char *dest, int isize, int osize)
 
 /*
  * Note: The decoding function LZ4_uncompress_unknownOutputSize() is safe
- *	against "buffer overflow" attack type. They will never write nor
+ *	against "buffer overflow" attack type. It will never write nor
  *	read outside of the provided output buffers.
  *	LZ4_uncompress_unknownOutputSize() also insures that it will never
  *	read outside of the input buffer.  A corrupted input will produce
@@ -1010,9 +1028,10 @@ LZ4_uncompress_unknownOutputSize(const char *source, char *dest, int isize,
 
 	/* write overflow error detected */
 	_output_error:
-	return (int)(-(((char *)ip) - source));
+	return (int)(-(((const char *)ip) - source));
 }
 
+#if defined(_KERNEL) || defined(_FAKE_KERNEL)
 extern void
 lz4_init(void)
 {
@@ -1031,3 +1050,4 @@ lz4_fini(void)
 	kmem_cache_destroy(lz4_ctx_cache);
 #endif
 }
+#endif /* _KERNEL || _FAKE_KERNEL */
