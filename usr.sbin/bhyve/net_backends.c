@@ -192,7 +192,7 @@ tap_init(struct net_backend *be, const char *devname,
 #endif
 
 	if (cb == NULL) {
-		WPRINTF(("TAP backend requires non-NULL callback\n"));
+		WPRINTF(("TAP backend requires non-NULL callback\n\r"));
 		return (-1);
 	}
 
@@ -201,7 +201,7 @@ tap_init(struct net_backend *be, const char *devname,
 
 	be->fd = open(tbuf, O_RDWR);
 	if (be->fd == -1) {
-		WPRINTF(("open of tap device %s failed\n", tbuf));
+		WPRINTF(("open of tap device %s failed\n\r", tbuf));
 		goto error;
 	}
 
@@ -210,7 +210,7 @@ tap_init(struct net_backend *be, const char *devname,
 	 * notifications with the event loop
 	 */
 	if (ioctl(be->fd, FIONBIO, &opt) < 0) {
-		WPRINTF(("tap device O_NONBLOCK failed\n"));
+		WPRINTF(("tap device O_NONBLOCK failed\n\r"));
 		goto error;
 	}
 
@@ -222,7 +222,7 @@ tap_init(struct net_backend *be, const char *devname,
 
 	priv->mevp = mevent_add_disabled(be->fd, EVF_READ, cb, param);
 	if (priv->mevp == NULL) {
-		WPRINTF(("Could not register event\n"));
+		WPRINTF(("Could not register event\n\r"));
 		goto error;
 	}
 
@@ -363,7 +363,7 @@ netmap_set_vnet_hdr_len(struct net_backend *be, int vnet_hdr_len)
 	req.nr_arg1 = vnet_hdr_len;
 	err = ioctl(be->fd, NIOCREGIF, &req);
 	if (err) {
-		WPRINTF(("Unable to set vnet header length %d\n",
+		WPRINTF(("Unable to set vnet header length %d\n\r",
 				vnet_hdr_len));
 		return (err);
 	}
@@ -420,7 +420,7 @@ netmap_init(struct net_backend *be, const char *devname,
 
 	priv->nmd = nm_open(priv->ifname, NULL, NETMAP_NO_TX_POLL, NULL);
 	if (priv->nmd == NULL) {
-		WPRINTF(("Unable to nm_open(): interface '%s', errno (%s)\n",
+		WPRINTF(("Unable to nm_open(): interface '%s', errno (%s)\n\r",
 			devname, strerror(errno)));
 		free(priv);
 		return (-1);
@@ -435,7 +435,7 @@ netmap_init(struct net_backend *be, const char *devname,
 
 	priv->mevp = mevent_add_disabled(be->fd, EVF_READ, cb, param);
 	if (priv->mevp == NULL) {
-		WPRINTF(("Could not register event\n"));
+		WPRINTF(("Could not register event\n\r"));
 		return (-1);
 	}
 
@@ -472,7 +472,7 @@ netmap_send(struct net_backend *be, struct iovec *iov,
 	ring = priv->tx;
 	head = ring->head;
 	if (head == ring->tail) {
-		WPRINTF(("No space, drop %zu bytes\n", count_iov(iov, iovcnt)));
+		WPRINTF(("No space, drop %zu bytes\n\r", count_iov(iov, iovcnt)));
 		goto txsync;
 	}
 	nm_buf = NETMAP_BUF(ring, ring->slot[head].buf_idx);
@@ -513,7 +513,7 @@ netmap_send(struct net_backend *be, struct iovec *iov,
 				 * We ran out of netmap slots while
 				 * splitting the iovec fragments.
 				 */
-				WPRINTF(("No space, drop %zu bytes\n",
+				WPRINTF(("No space, drop %zu bytes\n\r",
 				   count_iov(iov, iovcnt)));
 				goto txsync;
 			}
@@ -585,7 +585,7 @@ netmap_recv(struct net_backend *be, struct iovec *iov, int iovcnt)
 			iovcnt--;
 			if (iovcnt == 0) {
 				/* No space to receive. */
-				WPRINTF(("Short iov, drop %zd bytes\n",
+				WPRINTF(("Short iov, drop %zd bytes\n\r",
 				    totlen));
 				return (-ENOSPC);
 			}

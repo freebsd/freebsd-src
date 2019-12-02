@@ -533,7 +533,7 @@ e82545_eecd_strobe(struct e82545_softc *sc)
 				sc->nvm_data = 0;
 				break;
 			default:
-				DPRINTF("eeprom unknown op: 0x%x\r\r",
+				DPRINTF("eeprom unknown op: 0x%x\r\n",
 					sc->nvm_opaddr);
 				/* back to opcode mode */
 				sc->nvm_opaddr = 0;
@@ -616,7 +616,7 @@ e82545_ims_change(struct e82545_softc *sc, uint32_t bits)
 	} else if (sc->esc_mevpitr != NULL) {
 		DPRINTF("ims change: throttled %x, ims %x\r\n", new, sc->esc_IMS);
 	} else if (!sc->esc_irq_asserted) {
-		DPRINTF("ims change: lintr assert %x\n\r", new);
+		DPRINTF("ims change: lintr assert %x\r\n", new);
 		sc->esc_irq_asserted = 1;
 		pci_lintr_assert(sc->esc_pi);
 		if (sc->esc_ITR != 0) {
@@ -649,7 +649,7 @@ static void
 e82545_intr_write(struct e82545_softc *sc, uint32_t offset, uint32_t value)
 {
 
-	DPRINTF("intr_write: off %x, val %x\n\r", offset, value);
+	DPRINTF("intr_write: off %x, val %x\r\n", offset, value);
 	
 	switch (offset) {
 	case E1000_ICR:
@@ -683,7 +683,7 @@ e82545_intr_read(struct e82545_softc *sc, uint32_t offset)
 
 	retval = 0;
 
-	DPRINTF("intr_read: off %x\n\r", offset);
+	DPRINTF("intr_read: off %x\r\n", offset);
 	
 	switch (offset) {
 	case E1000_ICR:
@@ -717,7 +717,7 @@ e82545_devctl(struct e82545_softc *sc, uint32_t val)
 	sc->esc_CTRL = val & ~E1000_CTRL_RST;
 
 	if (val & E1000_CTRL_RST) {
-		DPRINTF("e1k: s/w reset, ctl %x\n", val);
+		DPRINTF("e1k: s/w reset, ctl %x\r\n", val);
 		e82545_reset(sc, 1);
 	}
 	/* XXX check for phy reset ? */
@@ -746,7 +746,7 @@ e82545_rx_ctl(struct e82545_softc *sc, uint32_t val)
 	/* Save RCTL after stripping reserved bits 31:27,24,21,14,11:10,0 */
 	sc->esc_RCTL = val & ~0xF9204c01;
 
-	DPRINTF("rx_ctl - %s RCTL %x, val %x\n",
+	DPRINTF("rx_ctl - %s RCTL %x, val %x\r\n",
 		on ? "on" : "off", sc->esc_RCTL, val);
 
 	/* state change requested */
@@ -873,7 +873,7 @@ e82545_rx_callback(int fd, enum ev_type type, void *param)
 		}
 		len = netbe_recv(sc->esc_be, vec, maxpktdesc);
 		if (len <= 0) {
-			DPRINTF("netbe_recv() returned %d\n", len);
+			DPRINTF("netbe_recv() returned %d\r\n", len);
 			goto done;
 		}
 

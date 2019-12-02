@@ -187,7 +187,7 @@ pci_vtcon_reset(void *vsc)
 
 	sc = vsc;
 
-	DPRINTF(("vtcon: device reset requested!\n"));
+	DPRINTF(("vtcon: device reset requested!\n\r"));
 	vi_reset_dev(&sc->vsc_vs);
 }
 
@@ -498,7 +498,7 @@ pci_vtcon_control_tx(struct pci_vtcon_port *port, void *arg, struct iovec *iov,
 
 	case VTCON_PORT_READY:
 		if (ctrl->id >= sc->vsc_nports) {
-			WPRINTF(("VTCON_PORT_READY event for unknown port %d\n",
+			WPRINTF(("VTCON_PORT_READY event for unknown port %d\n\r",
 			    ctrl->id));
 			return;
 		}
