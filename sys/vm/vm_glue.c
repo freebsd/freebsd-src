@@ -363,6 +363,7 @@ vm_thread_stack_dispose(vm_object_t ksobj, vm_offset_t ks, int pages)
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
 			panic("%s: kstack already missing?", __func__);
+		vm_page_busy_acquire(m, 0);
 		vm_page_unwire_noq(m);
 		vm_page_free(m);
 	}
