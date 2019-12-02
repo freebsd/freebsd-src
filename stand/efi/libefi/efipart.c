@@ -283,6 +283,16 @@ efipart_ignore_device(EFI_HANDLE h, EFI_BLOCK_IO *blkio,
 	 * Therefore, if this node is USB, or this node is Unit (LUN) and
 	 * direct parent is USB and we have no media, we will ignore this
 	 * device.
+	 *
+	 * Variation of the same situation, but with SCSI devices:
+	 * PciRoot(0x0)/Pci(0x1a,0x0)/USB(0x1,0)/USB(0x3,0x0)/SCSI(0x0,0x1)
+	 * PciRoot(0x0)/Pci(0x1a,0x0)/USB(0x1,0)/USB(0x3,0x0)/SCSI(0x0,0x2)
+	 * PciRoot(0x0)/Pci(0x1a,0x0)/USB(0x1,0)/USB(0x3,0x0)/SCSI(0x0,0x3)
+	 * PciRoot(0x0)/Pci(0x1a,0x0)/USB(0x1,0)/USB(0x3,0x0)/SCSI(0x0,0x3)/CD..
+	 * PciRoot(0x0)/Pci(0x1a,0x0)/USB(0x1,0)/USB(0x3,0x0)/SCSI(0x0,0x3)/CD..
+	 * PciRoot(0x0)/Pci(0x1a,0x0)/USB(0x1,0)/USB(0x3,0x0)/SCSI(0x0,0x4)
+	 *
+	 * Here above the SCSI luns 1,2 and 4 have no media.
 	 */
 
 	/* Do not ignore device with media. */
@@ -321,6 +331,13 @@ efipart_ignore_device(EFI_HANDLE h, EFI_BLOCK_IO *blkio,
 		if (parent_is_usb &&
 		    DevicePathType(node) == MESSAGING_DEVICE_PATH &&
 	    	    DevicePathSubType(node) == MSG_DEVICE_LOGICAL_UNIT_DP) {
+			efi_close_devpath(h);
+			return (true);
+		}
+		/* no media, parent is USB and devicepath is SCSI. */
+		if (parent_is_usb &&
+		    DevicePathType(node) == MESSAGING_DEVICE_PATH &&
+	    	    DevicePathSubType(node) == MSG_SCSI_DP) {
 			efi_close_devpath(h);
 			return (true);
 		}
