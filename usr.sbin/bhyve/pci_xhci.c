@@ -2554,10 +2554,10 @@ pci_xhci_init_port(struct pci_xhci_softc *sc, int portn)
 		               XHCI_PS_SPEED_SET(dev->dev_ue->ue_usbspeed);
 		}
 		
-		DPRINTF(("Init port %d 0x%x\n", portn, port->portsc));
+		DPRINTF(("Init port %d 0x%x\r\n", portn, port->portsc));
 	} else {
 		port->portsc = XHCI_PS_PLS_SET(UPS_PORT_LS_RX_DET) | XHCI_PS_PP;
-		DPRINTF(("Init empty port %d 0x%x\n", portn, port->portsc));
+		DPRINTF(("Init empty port %d 0x%x\r\n", portn, port->portsc));
 	}
 }
 

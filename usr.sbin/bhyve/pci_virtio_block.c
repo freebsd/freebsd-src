@@ -168,7 +168,7 @@ pci_vtblk_reset(void *vsc)
 {
 	struct pci_vtblk_softc *sc = vsc;
 
-	DPRINTF(("vtblk: device reset requested !\n"));
+	DPRINTF(("vtblk: device reset requested !\n\r"));
 	vi_reset_dev(&sc->vbsc_vs);
 }
 
@@ -303,7 +303,7 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	int i, sectsz, sts, sto;
 
 	if (opts == NULL) {
-		printf("virtio-block: backing device required\n");
+		WPRINTF(("virtio-block: backing device required\n\r"));
 		return (1);
 	}
 

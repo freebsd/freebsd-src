@@ -801,28 +801,28 @@ nvme_set_feature_queues(struct pci_nvme_softc* sc, struct nvme_command* command,
 
 	nqr = command->cdw11 & 0xFFFF;
 	if (nqr == 0xffff) {
-		WPRINTF(("%s: Illegal NSQR value %#x\n", __func__, nqr));
+		WPRINTF(("%s: Illegal NSQR value %#x\r\n", __func__, nqr));
 		pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
 		return (-1);
 	}
 
 	sc->num_squeues = ONE_BASED(nqr);
 	if (sc->num_squeues > sc->max_queues) {
-		DPRINTF(("NSQR=%u is greater than max %u\n", sc->num_squeues,
+		DPRINTF(("NSQR=%u is greater than max %u\r\n", sc->num_squeues,
 					sc->max_queues));
 		sc->num_squeues = sc->max_queues;
 	}
 
 	nqr = (command->cdw11 >> 16) & 0xFFFF;
 	if (nqr == 0xffff) {
-		WPRINTF(("%s: Illegal NCQR value %#x\n", __func__, nqr));
+		WPRINTF(("%s: Illegal NCQR value %#x\r\n", __func__, nqr));
 		pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
 		return (-1);
 	}
 
 	sc->num_cqueues = ONE_BASED(nqr);
 	if (sc->num_cqueues > sc->max_queues) {
-		DPRINTF(("NCQR=%u is greater than max %u\n", sc->num_cqueues,
+		DPRINTF(("NCQR=%u is greater than max %u\r\n", sc->num_cqueues,
 					sc->max_queues));
 		sc->num_cqueues = sc->max_queues;
 	}
@@ -1907,7 +1907,7 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 			sc->nvstore.type = NVME_STOR_BLOCKIF;
 			sc->nvstore.size = blockif_size(sc->nvstore.ctx);
 		} else {
-			fprintf(stderr, "Invalid option %s\n", xopts);
+			fprintf(stderr, "Invalid option %s\r\n", xopts);
 			free(uopt);
 			return (-1);
 		}
@@ -1917,7 +1917,7 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 	free(uopt);
 
 	if (sc->nvstore.ctx == NULL || sc->nvstore.size == 0) {
-		fprintf(stderr, "backing store not specified\n");
+		fprintf(stderr, "backing store not specified\r\n");
 		return (-1);
 	}
 	if (sectsz == 512 || sectsz == 4096 || sectsz == 8192)
@@ -1932,11 +1932,11 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 		sc->max_queues = NVME_QUEUES;
 
 	if (sc->max_qentries <= 0) {
-		fprintf(stderr, "Invalid qsz option\n");
+		fprintf(stderr, "Invalid qsz option\r\n");
 		return (-1);
 	}
 	if (sc->ioslots <= 0) {
-		fprintf(stderr, "Invalid ioslots option\n");
+		fprintf(stderr, "Invalid ioslots option\r\n");
 		return (-1);
 	}
 
