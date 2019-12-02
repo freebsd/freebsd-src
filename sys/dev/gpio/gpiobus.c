@@ -77,7 +77,17 @@ static int gpiobus_pin_set(device_t, device_t, uint32_t, unsigned int);
 static int gpiobus_pin_get(device_t, device_t, uint32_t, unsigned int*);
 static int gpiobus_pin_toggle(device_t, device_t, uint32_t);
 
-#define	GPIO_ACTIVE_LOW 1 /* XXX Note that nothing currently sets this flag */
+/*
+ * gpiobus_pin flags
+ *  The flags in struct gpiobus_pin are not related to the flags used by the
+ *  low-level controller driver in struct gpio_pin.  Currently, only pins
+ *  acquired via FDT data have gpiobus_pin.flags set, sourced from the flags in
+ *  the FDT properties.  In theory, these flags are defined per-platform.  In
+ *  practice they are always the flags from the dt-bindings/gpio/gpio.h file.
+ *  The only one of those flags we currently support is for handling active-low
+ *  pins, so we just define that flag here instead of including a GPL'd header.
+ */
+#define	GPIO_ACTIVE_LOW 1
 
 /*
  * XXX -> Move me to better place - gpio_subr.c?
@@ -151,7 +161,7 @@ gpio_pin_get_by_bus_pinnum(device_t busdev, uint32_t pinnum, gpio_pin_t *ppin)
 
 	pin->dev = device_get_parent(busdev);
 	pin->pin = pinnum;
-	GPIO_PIN_GETFLAGS(pin->dev, pin->pin, &pin->flags);
+	pin->flags = 0;
 
 	*ppin = pin;
 	return (0);
