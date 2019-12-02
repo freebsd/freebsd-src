@@ -560,7 +560,7 @@ f_sysrc_set()
 	#
 	if [ "$not_found" ]; then
 		# Add a newline if missing before appending to the file
-		awk 'BEGIN { wc = 0 } NR == 1 {
+		[ ! -e "$file" ] || awk 'BEGIN { wc = 0 } NR == 1 {
 			(cmd = "wc -l " FILENAME) | getline
 			close(cmd)
 			wc = $1
