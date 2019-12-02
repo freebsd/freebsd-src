@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/arb.h>
 #include <sys/callout.h>
 #include <sys/eventhandler.h>
 #ifdef TCP_HHOOK
@@ -54,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #ifdef KERN_TLS
 #include <sys/ktls.h>
 #endif
+#include <sys/qmath.h>
+#include <sys/stats.h>
 #include <sys/sysctl.h>
 #include <sys/jail.h>
 #include <sys/malloc.h>
@@ -1005,6 +1008,11 @@ tcp_init(void)
 	    &V_tcp_hhh[HHOOK_TCP_EST_OUT], HHOOK_NOWAIT|HHOOK_HEADISINVNET) != 0)
 		printf("%s: WARNING: unable to register helper hook\n", __func__);
 #endif
+#ifdef STATS
+	if (tcp_stats_init())
+		printf("%s: WARNING: unable to initialise TCP stats\n",
+		    __func__);
+#endif
 	hashsize = TCBHASHSIZE;
 	TUNABLE_INT_FETCH(tcbhash_tuneable, &hashsize);
 	if (hashsize == 0) {
@@ -1694,6 +1702,10 @@ tcp_newtcpcb(struct inpcb *inp)
 	if (tp->t_fb->tfb_tcp_fb_init) {
 		(*tp->t_fb->tfb_tcp_fb_init)(tp);
 	}
+#ifdef STATS
+	if (V_tcp_perconn_stats_enable == 1)
+		tp->t_stats = stats_blob_alloc(V_tcp_perconn_stats_dflt_tpl, 0);
+#endif
 	return (tp);		/* XXX */
 }
 
@@ -1911,6 +1923,9 @@ tcp_discardcb(struct tcpcb *tp)
 
 #ifdef TCP_HHOOK
 	khelp_destroy_osd(tp->osd);
+#endif
+#ifdef STATS
+	stats_blob_destroy(tp->t_stats);
 #endif
 
 	CC_ALGO(tp) = NULL;
