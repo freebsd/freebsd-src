@@ -42,8 +42,8 @@ extern Elf64_Brandinfo cloudabi64_brand;
 #define	TO_PTR(x)	((void *)(uintptr_t)(x))
 
 /* Stack initialization during process execution. */
-int	cloudabi64_copyout_strings(struct image_params *, register_t **);
-int	cloudabi64_fixup(register_t **, struct image_params *);
+int	cloudabi64_copyout_strings(struct image_params *, uintptr_t *);
+int	cloudabi64_fixup(uintptr_t *, struct image_params *);
 
 int	cloudabi64_thread_setregs(struct thread *,
     const cloudabi64_threadattr_t *, uint64_t);

@@ -46,7 +46,7 @@ extern char _binary_cloudabi32_vdso_o_start[];
 extern char _binary_cloudabi32_vdso_o_end[];
 
 int
-cloudabi32_copyout_strings(struct image_params *imgp, register_t **stack_base)
+cloudabi32_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 {
 	struct image_args *args;
 	uintptr_t begin;
@@ -56,12 +56,12 @@ cloudabi32_copyout_strings(struct image_params *imgp, register_t **stack_base)
 	args = imgp->args;
 	len = exec_args_get_begin_envv(args) - args->begin_argv;
 	begin = rounddown2(imgp->sysent->sv_usrstack - len, sizeof(register_t));
-	*stack_base = (register_t *)begin;
+	*stack_base = begin;
 	return (copyout(args->begin_argv, (void *)begin, len));
 }
 
 int
-cloudabi32_fixup(register_t **stack_base, struct image_params *imgp)
+cloudabi32_fixup(uintptr_t *stack_base, struct image_params *imgp)
 {
 	char canarybuf[64], pidbuf[16];
 	Elf32_Auxargs *args;
@@ -79,12 +79,12 @@ cloudabi32_fixup(register_t **stack_base, struct image_params *imgp)
 	td = curthread;
 	td->td_proc->p_osrel = __FreeBSD_version;
 
-	argdata = *stack_base;
+	argdata = (void *)*stack_base;
 
 	/* Store canary for stack smashing protection. */
 	arc4rand(canarybuf, sizeof(canarybuf), 0);
-	*stack_base -= howmany(sizeof(canarybuf), sizeof(register_t));
-	canary = *stack_base;
+	*stack_base -= roundup(sizeof(canarybuf), sizeof(register_t));
+	canary = (void *)*stack_base;
 	error = copyout(canarybuf, canary, sizeof(canarybuf));
 	if (error != 0)
 		return (error);
@@ -97,8 +97,8 @@ cloudabi32_fixup(register_t **stack_base, struct image_params *imgp)
 	arc4rand(pidbuf, sizeof(pidbuf), 0);
 	pidbuf[6] = (pidbuf[6] & 0x0f) | 0x40;
 	pidbuf[8] = (pidbuf[8] & 0x3f) | 0x80;
-	*stack_base -= howmany(sizeof(pidbuf), sizeof(register_t));
-	pid = *stack_base;
+	*stack_base -= roundup(sizeof(pidbuf), sizeof(register_t));
+	pid = (void *)*stack_base;
 	error = copyout(pidbuf, pid, sizeof(pidbuf));
 	if (error != 0)
 		return (error);
@@ -135,13 +135,13 @@ cloudabi32_fixup(register_t **stack_base, struct image_params *imgp)
 #undef PTR
 		{ .a_type = CLOUDABI_AT_NULL },
 	};
-	*stack_base -= howmany(sizeof(auxv), sizeof(register_t));
-	error = copyout(auxv, *stack_base, sizeof(auxv));
+	*stack_base -= roundup(sizeof(auxv), sizeof(register_t));
+	error = copyout(auxv, (void *)*stack_base, sizeof(auxv));
 	if (error != 0)
 		return (error);
 
 	/* Reserve space for storing the TCB. */
-	*stack_base -= howmany(sizeof(cloudabi32_tcb_t), sizeof(register_t));
+	*stack_base -= roundup(sizeof(cloudabi32_tcb_t), sizeof(register_t));
 	return (0);
 }
 

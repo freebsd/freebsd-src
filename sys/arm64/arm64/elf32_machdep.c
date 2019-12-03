@@ -232,7 +232,7 @@ freebsd32_set_syscall_retval(struct thread *td, int error)
 
 static void
 freebsd32_setregs(struct thread *td, struct image_params *imgp,
-   u_long stack)
+   uintptr_t stack)
 {
 	struct trapframe *tf = td->td_frame;
 

@@ -3120,12 +3120,12 @@ syscall32_helper_unregister(struct syscall_helper_data *sd)
 }
 
 int
-freebsd32_copyout_strings(struct image_params *imgp, register_t **stack_base)
+freebsd32_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 {
 	int argc, envc, i;
 	u_int32_t *vectp;
 	char *stringp;
-	uintptr_t destp;
+	uintptr_t destp, ustringp;
 	struct freebsd32_ps_strings *arginfo;
 	char canary[sizeof(long) * 8];
 	int32_t pagesizes32[MAXPAGESIZES];
@@ -3195,19 +3195,23 @@ freebsd32_copyout_strings(struct image_params *imgp, register_t **stack_base)
 		return (error);
 	imgp->pagesizeslen = sizeof(pagesizes32);
 
+	/*
+	 * Allocate room for the argument and environment strings.
+	 */
 	destp -= ARG_MAX - imgp->args->stringspace;
 	destp = rounddown2(destp, sizeof(uint32_t));
+	ustringp = destp;
 
-	vectp = (uint32_t *)destp;
 	if (imgp->sysent->sv_stackgap != NULL)
-		imgp->sysent->sv_stackgap(imgp, (u_long *)&vectp);
+		imgp->sysent->sv_stackgap(imgp, &destp);
 
 	if (imgp->auxargs) {
-		error = imgp->sysent->sv_copyout_auxargs(imgp,
-		    (u_long *)&vectp);
+		error = imgp->sysent->sv_copyout_auxargs(imgp, &destp);
 		if (error != 0)
 			return (error);
 	}
+
+	vectp = (uint32_t *)destp;
 
 	/*
 	 * Allocate room for the argv[] and env vectors including the
@@ -3218,7 +3222,7 @@ freebsd32_copyout_strings(struct image_params *imgp, register_t **stack_base)
 	/*
 	 * vectp also becomes our initial stack base
 	 */
-	*stack_base = (register_t *)vectp;
+	*stack_base = (uintptr_t)vectp;
 
 	stringp = imgp->args->begin_argv;
 	argc = imgp->args->argc;
@@ -3226,7 +3230,7 @@ freebsd32_copyout_strings(struct image_params *imgp, register_t **stack_base)
 	/*
 	 * Copy out strings - arguments and environment.
 	 */
-	error = copyout(stringp, (void *)destp,
+	error = copyout(stringp, (void *)ustringp,
 	    ARG_MAX - imgp->args->stringspace);
 	if (error != 0)
 		return (error);
@@ -3242,11 +3246,11 @@ freebsd32_copyout_strings(struct image_params *imgp, register_t **stack_base)
 	 * Fill in argument portion of vector table.
 	 */
 	for (; argc > 0; --argc) {
-		if (suword32(vectp++, (u_int32_t)(intptr_t)destp) != 0)
+		if (suword32(vectp++, ustringp) != 0)
 			return (EFAULT);
 		while (*stringp++ != 0)
-			destp++;
-		destp++;
+			ustringp++;
+		ustringp++;
 	}
 
 	/* a null vector table pointer separates the argp's from the envp's */
@@ -3261,11 +3265,11 @@ freebsd32_copyout_strings(struct image_params *imgp, register_t **stack_base)
 	 * Fill in environment portion of vector table.
 	 */
 	for (; envc > 0; --envc) {
-		if (suword32(vectp++, (u_int32_t)(intptr_t)destp) != 0)
+		if (suword32(vectp++, ustringp) != 0)
 			return (EFAULT);
 		while (*stringp++ != 0)
-			destp++;
-		destp++;
+			ustringp++;
+		ustringp++;
 	}
 
 	/* end of vector table is a null pointer */

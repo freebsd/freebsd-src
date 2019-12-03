@@ -206,7 +206,7 @@ extern int sz_ia32_osigcode;
 extern int sz_lcall_tramp;
 void ia32_sendsig(sig_t, struct ksiginfo *, sigset_t *);
 void ia32_setregs(struct thread *td, struct image_params *imgp,
-    u_long stack);
+    uintptr_t stack);
 int setup_lcall_gate(void);
 
 #endif

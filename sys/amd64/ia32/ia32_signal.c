@@ -936,7 +936,7 @@ freebsd32_sigreturn(td, uap)
  * Clear registers on exec
  */
 void
-ia32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
+ia32_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 {
 	struct trapframe *regs;
 	struct pcb *pcb;

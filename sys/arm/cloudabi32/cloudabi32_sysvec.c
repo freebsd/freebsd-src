@@ -49,7 +49,7 @@ extern struct sysent cloudabi32_sysent[];
 
 static void
 cloudabi32_proc_setregs(struct thread *td, struct image_params *imgp,
-    unsigned long stack)
+    uintptr_t stack)
 {
 	struct trapframe *regs;
 
