@@ -1126,10 +1126,11 @@ efi_readkey_ex(void)
 					kp->UnicodeChar++;
 				}
 			}
+			if (kp->ScanCode == 0 && kp->UnicodeChar == 0)
+				return (false);
+			keybuf_inschar(kp);
+			return (true);
 		}
-
-		keybuf_inschar(kp);
-		return (true);
 	}
 	return (false);
 }
