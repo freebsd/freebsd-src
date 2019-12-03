@@ -366,8 +366,10 @@ fetchname(const char *at, bool *exists, int strip_leading)
 		say("fetchname %s %d\n", at, strip_leading);
 #endif
 	/* So files can be created by diffing against /dev/null.  */
-	if (strnEQ(at, _PATH_DEVNULL, sizeof(_PATH_DEVNULL) - 1))
+	if (strnEQ(at, _PATH_DEVNULL, sizeof(_PATH_DEVNULL) - 1)) {
+		*exists = true;
 		return NULL;
+	}
 	name = fullname = t = savestr(at);
 
 	tab = strchr(t, '\t') != NULL;
