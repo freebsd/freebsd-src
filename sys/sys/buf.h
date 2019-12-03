@@ -520,15 +520,16 @@ int	buf_dirty_count_severe(void);
 void	bremfree(struct buf *);
 void	bremfreef(struct buf *);	/* XXX Force bremfree, only for nfs. */
 #define bread(vp, blkno, size, cred, bpp) \
-	    breadn_flags(vp, blkno, size, NULL, NULL, 0, cred, 0, NULL, bpp)
+	    breadn_flags(vp, blkno, blkno, size, NULL, NULL, 0, cred, 0, \
+		NULL, bpp)
 #define bread_gb(vp, blkno, size, cred, gbflags, bpp) \
-	    breadn_flags(vp, blkno, size, NULL, NULL, 0, cred, \
+	    breadn_flags(vp, blkno, blkno, size, NULL, NULL, 0, cred, \
 		gbflags, NULL, bpp)
 #define breadn(vp, blkno, size, rablkno, rabsize, cnt, cred, bpp) \
-	    breadn_flags(vp, blkno, size, rablkno, rabsize, cnt, cred, \
+	    breadn_flags(vp, blkno, blkno, size, rablkno, rabsize, cnt, cred, \
 		0, NULL, bpp)
-int	breadn_flags(struct vnode *, daddr_t, int, daddr_t *, int *, int,
-	    struct ucred *, int, void (*)(struct buf *), struct buf **);
+int	breadn_flags(struct vnode *, daddr_t, daddr_t, int, daddr_t *, int *, 
+	    int, struct ucred *, int, void (*)(struct buf *), struct buf **);
 void	bdwrite(struct buf *);
 void	bawrite(struct buf *);
 void	babarrierwrite(struct buf *);
@@ -544,8 +545,8 @@ void	vfs_busy_pages_release(struct buf *bp);
 struct buf *incore(struct bufobj *, daddr_t);
 struct buf *gbincore(struct bufobj *, daddr_t);
 struct buf *getblk(struct vnode *, daddr_t, int, int, int, int);
-int	getblkx(struct vnode *vp, daddr_t blkno, int size, int slpflag,
-	    int slptimeo, int flags, struct buf **bpp);
+int	getblkx(struct vnode *vp, daddr_t blkno, daddr_t dblkno, int size,
+	    int slpflag, int slptimeo, int flags, struct buf **bpp);
 struct buf *geteblk(int, int);
 int	bufwait(struct buf *);
 int	bufwrite(struct buf *);

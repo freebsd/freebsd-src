@@ -603,7 +603,7 @@ ffs_read(ap)
 			 * the 6th argument.
 			 */
 			u_int nextsize = blksize(fs, ip, nextlbn);
-			error = breadn_flags(vp, lbn, size, &nextlbn,
+			error = breadn_flags(vp, lbn, lbn, size, &nextlbn,
 			    &nextsize, 1, NOCRED, bflag, NULL, &bp);
 		} else {
 			/*
