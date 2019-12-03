@@ -450,7 +450,7 @@ buf_countdeps(struct buf *bp, int i)
 }
 
 static __inline void
-buf_track(struct buf *bp, const char *location)
+buf_track(struct buf *bp __unused, const char *location __unused)
 {
 
 #if defined(FULL_BUF_TRACKING)
