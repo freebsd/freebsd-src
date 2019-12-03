@@ -2955,16 +2955,19 @@ ffs_getcg(fs, devvp, cg, flags, bpp, cgpp)
 	struct buf *bp;
 	struct cg *cgp;
 	const struct statfs *sfs;
+	daddr_t blkno;
 	int error;
 
 	*bpp = NULL;
 	*cgpp = NULL;
 	if ((fs->fs_metackhash & CK_CYLGRP) != 0)
 		flags |= GB_CKHASH;
-	error = breadn_flags(devvp, devvp->v_type == VREG ?
-	    fragstoblks(fs, cgtod(fs, cg)) : fsbtodb(fs, cgtod(fs, cg)),
-	    (int)fs->fs_cgsize, NULL, NULL, 0, NOCRED, flags,
-	    ffs_ckhash_cg, &bp);
+	if (devvp->v_type == VREG)
+		blkno = fragstoblks(fs, cgtod(fs, cg));
+	else
+		blkno = fsbtodb(fs, cgtod(fs, cg));
+	error = breadn_flags(devvp, blkno, blkno, (int)fs->fs_cgsize, NULL,
+	    NULL, 0, NOCRED, flags, ffs_ckhash_cg, &bp);
 	if (error != 0)
 		return (error);
 	cgp = (struct cg *)bp->b_data;

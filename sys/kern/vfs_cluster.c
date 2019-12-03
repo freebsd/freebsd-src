@@ -131,7 +131,7 @@ cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
 	/*
 	 * get the requested block
 	 */
-	error = getblkx(vp, lblkno, size, 0, 0, gbflags, &bp);
+	error = getblkx(vp, lblkno, lblkno, size, 0, 0, gbflags, &bp);
 	if (error != 0) {
 		*bpp = NULL;
 		return (error);

@@ -678,34 +678,14 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	 * Get buffer of block pointers, zero those entries corresponding
 	 * to blocks to be free'd, and update on disk copy first.  Since
 	 * double(triple) indirect before single(double) indirect, calls
-	 * to bmap on these blocks will fail.  However, we already have
-	 * the on disk address, so we have to set the b_blkno field
-	 * explicitly instead of letting bread do everything for us.
+	 * to VOP_BMAP() on these blocks will fail.  However, we already
+	 * have the on-disk address, so we just pass it to bread() instead
+	 * of having bread() attempt to calculate it using VOP_BMAP().
 	 */
 	vp = ITOV(ip);
-	bp = getblk(vp, lbn, (int)fs->fs_bsize, 0, 0, 0);
-	if ((bp->b_flags & B_CACHE) == 0) {
-#ifdef RACCT
-		if (racct_enable) {
-			PROC_LOCK(curproc);
-			racct_add_buf(curproc, bp, 0);
-			PROC_UNLOCK(curproc);
-		}
-#endif /* RACCT */
-		curthread->td_ru.ru_inblock++;	/* pay for read */
-		bp->b_iocmd = BIO_READ;
-		bp->b_flags &= ~B_INVAL;
-		bp->b_ioflags &= ~BIO_ERROR;
-		if (bp->b_bcount > bp->b_bufsize)
-			panic("ffs_indirtrunc: bad buffer size");
-		bp->b_blkno = dbn;
-		vfs_busy_pages(bp, 0);
-		bp->b_iooffset = dbtob(bp->b_blkno);
-		bstrategy(bp);
-		error = bufwait(bp);
-	}
+	error = breadn_flags(vp, lbn, dbn, (int)fs->fs_bsize, NULL, NULL, 0,
+	    NOCRED, 0, NULL, &bp);
 	if (error) {
-		brelse(bp);
 		*countp = 0;
 		return (error);
 	}
