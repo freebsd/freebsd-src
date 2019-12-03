@@ -279,7 +279,7 @@ db_trace_self(void)
 {
 
 	db_backtrace(curthread,
-	    (struct frame *)__builtin_frame_address(1), -1);
+	    (struct frame *)__builtin_frame_address(0), -1);
 }
 
 int
