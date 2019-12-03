@@ -942,7 +942,7 @@ initarm(struct arm_boot_params *abp)
 	valloc_pages(irqstack, IRQ_STACK_SIZE * MAXCPU);
 	valloc_pages(abtstack, ABT_STACK_SIZE * MAXCPU);
 	valloc_pages(undstack, UND_STACK_SIZE * MAXCPU);
-	valloc_pages(kernelstack, kstack_pages * MAXCPU);
+	valloc_pages(kernelstack, kstack_pages);
 	valloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 
 	/*
@@ -1207,7 +1207,7 @@ initarm(struct arm_boot_params *abp)
 	irqstack    = pmap_preboot_get_vpages(IRQ_STACK_SIZE * MAXCPU);
 	abtstack    = pmap_preboot_get_vpages(ABT_STACK_SIZE * MAXCPU);
 	undstack    = pmap_preboot_get_vpages(UND_STACK_SIZE * MAXCPU );
-	kernelstack = pmap_preboot_get_vpages(kstack_pages * MAXCPU);
+	kernelstack = pmap_preboot_get_vpages(kstack_pages);
 
 	/* Allocate message buffer. */
 	msgbufp = (void *)pmap_preboot_get_vpages(
