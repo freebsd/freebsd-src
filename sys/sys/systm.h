@@ -503,9 +503,14 @@ int poll_no_poll(int events);
 void	DELAY(int usec);
 
 /* Root mount holdback API */
-struct root_hold_token;
+struct root_hold_token {
+	int				flags;
+	const char			*who;
+	TAILQ_ENTRY(root_hold_token)	list;
+};
 
 struct root_hold_token *root_mount_hold(const char *identifier);
+void root_mount_hold_token(const char *identifier, struct root_hold_token *h);
 void root_mount_rel(struct root_hold_token *h);
 int root_mounted(void);
 
