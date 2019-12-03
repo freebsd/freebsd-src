@@ -1428,6 +1428,14 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 			xpt_async(AC_INQ_CHANGED, done_ccb->ccb_h.path, NULL);
 	}
 
+	/* If we tried long wait and still failed, remember that. */
+	if ((periph->flags & CAM_PERIPH_RECOVERY_WAIT) &&
+	    (done_ccb->csio.cdb_io.cdb_bytes[0] == TEST_UNIT_READY)) {
+		periph->flags &= ~CAM_PERIPH_RECOVERY_WAIT;
+		if (error != 0 && done_ccb->ccb_h.retry_count == 0)
+			periph->flags |= CAM_PERIPH_RECOVERY_WAIT_FAILED;
+	}
+
 	/*
 	 * After recovery action(s) completed, return to the original CCB.
 	 * If the recovery CCB has failed, considering its own possible
@@ -1783,7 +1791,9 @@ camperiphscsisenseerror(union ccb *ccb, union ccb **orig,
 			 */
 			int retries;
 
-			if ((err_action & SSQ_MANY) != 0) {
+			if ((err_action & SSQ_MANY) != 0 && (periph->flags &
+			     CAM_PERIPH_RECOVERY_WAIT_FAILED) == 0) {
+				periph->flags |= CAM_PERIPH_RECOVERY_WAIT;
 				*action_string = "Polling device for readiness";
 				retries = 120;
 			} else {
