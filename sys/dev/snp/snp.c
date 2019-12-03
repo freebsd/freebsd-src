@@ -178,7 +178,7 @@ snp_read(struct cdev *dev, struct uio *uio, int flag)
 			error = EWOULDBLOCK;
 			break;
 		}
-		error = cv_wait_sig(&ss->snp_outwait, tp->t_mtx);
+		error = cv_wait_sig(&ss->snp_outwait, tty_getlock(tp));
 		if (error != 0)
 			break;
 		if (tty_gone(tp)) {
