@@ -2111,6 +2111,7 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 		 * NOTE: Refcount from in6_joingroup_locked()
 		 * is protecting membership.
 		 */
+		ip6_mfilter_insert(&imo->im6o_head, imf);
 	} else {
 		CTR1(KTR_MLD, "%s: merge inm state", __func__);
 		IN6_MULTI_LIST_LOCK();
@@ -2135,9 +2136,6 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 			goto out_in6p_locked;
 		}
 	}
-
-	if (is_new)
-		ip6_mfilter_insert(&imo->im6o_head, imf);
 
 	im6f_commit(imf);
 	imf = NULL;
