@@ -446,7 +446,7 @@ cpufreq_dt_attach(device_t dev)
 	struct cpufreq_dt_softc *sc;
 	phandle_t node;
 	phandle_t cnode, opp, copp;
-	int cpu, ncpu;
+	int cpu;
 	uint64_t freq;
 	int rv = 0;
 	enum opp_version version;
@@ -456,11 +456,9 @@ cpufreq_dt_attach(device_t dev)
 	node = ofw_bus_get_node(device_get_parent(dev));
 	cpu = device_get_unit(device_get_parent(dev));
 
-	if (TUNABLE_INT_FETCH("hw.ncpu", &ncpu)) {
-		if (cpu >= ncpu) {
-			device_printf(dev, "Not attaching as cpu is not present\n");
-			return (ENXIO);
-		}
+	if (cpu >= mp_ncpus) {
+		device_printf(dev, "Not attaching as cpu is not present\n");
+		return (ENXIO);
 	}
 
 	if (regulator_get_by_ofw_property(dev, node,
