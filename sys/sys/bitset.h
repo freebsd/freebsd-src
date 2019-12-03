@@ -34,12 +34,19 @@
 #ifndef _SYS_BITSET_H_
 #define	_SYS_BITSET_H_
 
+/*
+ * Whether expr is both constant and true.  Result is itself constant.
+ * Used to enable optimizations for sets with a known small size.
+ */
+#define	__constexpr_cond(expr)	(__builtin_constant_p((expr)) && (expr))
+
 #define	__bitset_mask(_s, n)						\
-	(1L << ((__bitset_words((_s)) == 1) ?				\
+	(1L << (__constexpr_cond(__bitset_words((_s)) == 1) ?		\
 	    (__size_t)(n) : ((n) % _BITSET_BITS)))
 
 #define	__bitset_word(_s, n)						\
-	((__bitset_words((_s)) == 1) ? 0 : ((n) / _BITSET_BITS))
+	(__constexpr_cond(__bitset_words((_s)) == 1) ?			\
+	 0 : ((n) / _BITSET_BITS))
 
 #define	BIT_CLR(_s, n, p)						\
 	((p)->__bits[__bitset_word(_s, n)] &= ~__bitset_mask((_s), (n)))
