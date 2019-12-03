@@ -1124,7 +1124,7 @@ setup_priv_lcall_gate(struct proc *p)
  * Reset registers to default values on exec.
  */
 void
-exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
+exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 {
 	struct trapframe *regs;
 	struct pcb *pcb;

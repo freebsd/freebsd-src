@@ -53,7 +53,7 @@
 #include <machine/md_var.h>
 
 static void exec_setregs_funcdesc(struct thread *td, struct image_params *imgp,
-    u_long stack);
+    uintptr_t stack);
 
 struct sysentvec elf64_freebsd_sysvec_v1 = {
 	.sv_size	= SYS_MAXSYSCALL,
@@ -207,7 +207,7 @@ ppc64_elfv2_header_match(struct image_params *params)
 
 static void  
 exec_setregs_funcdesc(struct thread *td, struct image_params *imgp,
-    u_long stack)
+    uintptr_t stack)
 {
 	struct trapframe *tf;
 	register_t entry_desc[3];
