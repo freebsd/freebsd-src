@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
-** $Id: luaconf.h,v 1.259 2016/12/22 13:08:50 roberto Exp $
+** $Id: luaconf.h,v 1.259.1.1 2017/04/19 17:29:57 roberto Exp $
 ** Configuration file for Lua
 ** See Copyright Notice in lua.h
 */
@@ -72,6 +72,10 @@
 #define LUA_USE_READLINE	/* needs an extra library: -lreadline */
 #endif
 
+/* Local modifications: need io.popen */
+#ifdef __FreeBSD__
+#define LUA_USE_POSIX
+#endif
 
 /*
 @@ LUA_C89_NUMBERS ensures that Lua uses the largest types available for
@@ -115,7 +119,6 @@
 #define LUA_FLOAT_FLOAT		1
 #define LUA_FLOAT_DOUBLE	2
 #define LUA_FLOAT_LONGDOUBLE	3
-#define LUA_FLOAT_INT64		4
 
 #if defined(LUA_32BITS)		/* { */
 /*
@@ -202,15 +205,13 @@
 
 #else			/* }{ */
 
-#define LUA_ROOT       LUA_PATH "/" LUA_VDIR "/"
-#define LUA_LDIR       LUA_ROOT "share/"
-#define LUA_CDIR       LUA_ROOT "lib/"
-#ifndef LUA_PATH_DEFAULT
+#define LUA_ROOT	"/usr/local/"
+#define LUA_LDIR	LUA_ROOT "share/lua/" LUA_VDIR "/"
+#define LUA_CDIR	LUA_ROOT "lib/lua/" LUA_VDIR "/"
 #define LUA_PATH_DEFAULT  \
 		LUA_LDIR"?.lua;"  LUA_LDIR"?/init.lua;" \
 		LUA_CDIR"?.lua;"  LUA_CDIR"?/init.lua;" \
 		"./?.lua;" "./?/init.lua"
-#endif
 #define LUA_CPATH_DEFAULT \
 		LUA_CDIR"?.so;" LUA_CDIR"loadall.so;" "./?.so"
 #endif			/* } */
@@ -405,7 +406,6 @@
 ** because this is not really an incompatibility.
 */
 /* #define LUA_COMPAT_FLOATSTRING */
-#define	LUA_COMPAT_FLOATSTRING
 
 /* }================================================================== */
 
@@ -450,7 +450,9 @@
 ** and therefore its conversion to float may have an ill-defined value.)
 */
 #define lua_numbertointeger(n,p) \
-      (*(p) = (LUA_INTEGER)(n), 1)
+  ((n) >= (LUA_NUMBER)(LUA_MININTEGER) && \
+   (n) < -(LUA_NUMBER)(LUA_MININTEGER) && \
+      (*(p) = (LUA_INTEGER)(n), 1))
 
 
 /* now the variable definitions */
@@ -469,6 +471,7 @@
 #define l_mathop(op)		op##f
 
 #define lua_str2number(s,p)	strtof((s), (p))
+
 
 #elif LUA_FLOAT_TYPE == LUA_FLOAT_LONGDOUBLE	/* }{ long double */
 
@@ -499,32 +502,6 @@
 #define l_mathop(op)		op
 
 #define lua_str2number(s,p)	strtod((s), (p))
-
-#elif LUA_FLOAT_TYPE == LUA_FLOAT_INT64	/* }{ int64 */
-
-#include "lstd.h"
-
-#include <machine/_inttypes.h>
-
-#define panic lua_panic
-/* Hack to use int64 as the LUA_NUMBER from ZFS code, kinda */
-
-#define LUA_NUMBER	int64_t
-
-#define l_mathlim(n)		(LUA_FLOAT_INT_HACK_##n)
-#define LUA_FLOAT_INT_HACK_MANT_DIG	32
-#define LUA_FLOAT_INT_HACK_MAX_10_EXP	32
-
-#define LUAI_UACNUMBER	int64_t
-
-#define LUA_NUMBER_FRMLEN	""
-#define LUA_NUMBER_FMT		"%" PRId64
-
-#define l_mathop(x)		(lstd_ ## x)
-
-#define lua_str2number(s,p)	strtoll((s), (p), 0)
-
-#define lua_getlocaledecpoint()		'.'
 
 #else						/* }{ */
 
@@ -815,3 +792,4 @@
 
 
 #endif
+
