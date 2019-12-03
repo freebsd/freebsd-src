@@ -2211,7 +2211,11 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
                             __func__);
 			goto out_inp_locked;
 		}
-		inm_acquire(imf->imf_inm);
+		/*
+		 * NOTE: Refcount from in_joingroup_locked()
+		 * is protecting membership.
+		 */
+		ip_mfilter_insert(&imo->imo_head, imf);
 	} else {
 		CTR1(KTR_IGMPV3, "%s: merge inm state", __func__);
 		IN_MULTI_LIST_LOCK();
@@ -2235,8 +2239,6 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 			goto out_inp_locked;
 		}
 	}
-	if (is_new)
-		ip_mfilter_insert(&imo->imo_head, imf);
 
 	imf_commit(imf);
 	imf = NULL;
