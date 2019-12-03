@@ -189,7 +189,7 @@ main(int argc, char *argv[])
 	    err(1, NULL);
     }
     dtype = *argv;
-    return !!mkfs_msdos(fname, dtype, &o);
+    exit(!!mkfs_msdos(fname, dtype, &o));
 }
 
 /*
