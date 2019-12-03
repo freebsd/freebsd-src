@@ -37,6 +37,8 @@ struct file_name {
 	bool exists;
 };
 
+extern char	*source_file;
+
 void		re_patch(void);
 void		open_patch_file(const char *);
 void		set_hunkmax(void);

@@ -692,6 +692,8 @@
         ..
         opensm
         ..
+        patch
+        ..
         pr
         ..
         printf
