@@ -1112,7 +1112,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x04, 0x08, SS_FATAL | EBUSY,
 	    "Logical unit not ready, long write in progress") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x04, 0x09, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x09, SS_FATAL | EBUSY,
 	    "Logical unit not ready, self-test in progress") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x04, 0x0A, SS_WAIT | ENXIO,
@@ -1130,37 +1130,37 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x04, 0x0E, SS_RDEF,	/* XXX TBD */
 	    "Logical unit not ready, security session in progress") },
 	/* DT  WROM  B    */
-	{ SST(0x04, 0x10, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x10, SS_FATAL | ENODEV,
 	    "Logical unit not ready, auxiliary memory not accessible") },
 	/* DT  WRO AEB VF */
-	{ SST(0x04, 0x11, SS_WAIT | EBUSY,
+	{ SST(0x04, 0x11, SS_WAIT | ENXIO,
 	    "Logical unit not ready, notify (enable spinup) required") },
 	/*        M    V  */
-	{ SST(0x04, 0x12, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x12, SS_FATAL | ENXIO,
 	    "Logical unit not ready, offline") },
 	/* DT   R MAEBKV  */
-	{ SST(0x04, 0x13, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x13, SS_WAIT | EBUSY,
 	    "Logical unit not ready, SA creation in progress") },
 	/* D         B    */
-	{ SST(0x04, 0x14, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x14, SS_WAIT | ENOSPC,
 	    "Logical unit not ready, space allocation in progress") },
 	/*        M       */
-	{ SST(0x04, 0x15, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x15, SS_FATAL | ENXIO,
 	    "Logical unit not ready, robotics disabled") },
 	/*        M       */
-	{ SST(0x04, 0x16, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x16, SS_FATAL | ENXIO,
 	    "Logical unit not ready, configuration required") },
 	/*        M       */
-	{ SST(0x04, 0x17, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x17, SS_FATAL | ENXIO,
 	    "Logical unit not ready, calibration required") },
 	/*        M       */
-	{ SST(0x04, 0x18, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x18, SS_FATAL | ENXIO,
 	    "Logical unit not ready, a door is open") },
 	/*        M       */
-	{ SST(0x04, 0x19, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x19, SS_FATAL | ENODEV,
 	    "Logical unit not ready, operating in sequential mode") },
 	/* DT        B    */
-	{ SST(0x04, 0x1A, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x1A, SS_WAIT | EBUSY,
 	    "Logical unit not ready, START/STOP UNIT command in progress") },
 	/* D         B    */
 	{ SST(0x04, 0x1B, SS_WAIT | EBUSY,
@@ -1169,7 +1169,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x04, 0x1C, SS_START | SSQ_DECREMENT_COUNT | ENXIO,
 	    "Logical unit not ready, additional power use not yet granted") },
 	/* D              */
-	{ SST(0x04, 0x1D, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x1D, SS_WAIT | EBUSY,
 	    "Logical unit not ready, configuration in progress") },
 	/* D              */
 	{ SST(0x04, 0x1E, SS_FATAL | ENXIO,
@@ -1178,14 +1178,20 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x04, 0x1F, SS_FATAL | ENXIO,
 	    "Logical unit not ready, microcode download required") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x04, 0x20, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x20, SS_FATAL | ENXIO,
 	    "Logical unit not ready, logical unit reset required") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x04, 0x21, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x21, SS_FATAL | ENXIO,
 	    "Logical unit not ready, hard reset required") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x04, 0x22, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x22, SS_FATAL | ENXIO,
 	    "Logical unit not ready, power cycle required") },
+	/* D              */
+	{ SST(0x04, 0x23, SS_FATAL | ENXIO,
+	    "Logical unit not ready, affiliation required") },
+	/* D              */
+	{ SST(0x04, 0x24, SS_FATAL | EBUSY,
+	    "Depopulation in progress") },
 	/* DTL WROMAEBKVF */
 	{ SST(0x05, 0x00, SS_RDEF,
 	    "Logical unit does not respond to selection") },
@@ -3384,7 +3390,7 @@ scsi_error_action(struct ccb_scsiio *csio, struct scsi_inquiry_data *inq_data,
 
 	if (!scsi_extract_sense_ccb((union ccb *)csio,
 	    &error_code, &sense_key, &asc, &ascq)) {
-		action = SS_RETRY | SSQ_DECREMENT_COUNT | SSQ_PRINT_SENSE | EIO;
+		action = SS_RDEF;
 	} else if ((error_code == SSD_DEFERRED_ERROR)
 	 || (error_code == SSD_DESC_DEFERRED_ERROR)) {
 		/*
