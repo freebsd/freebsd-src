@@ -203,6 +203,7 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 			frame_type = TRAP;
 		else if (strncmp(name, "Xatpic_intr", 11) == 0 ||
 		    strncmp(name, "Xapic_isr", 9) == 0 ||
+		    strcmp(name, "Xxen_intr_upcall") == 0 ||
 		    strcmp(name, "Xtimerint") == 0 ||
 		    strcmp(name, "Xipi_intr_bitmap_handler") == 0 ||
 		    strcmp(name, "Xcpustop") == 0 ||
