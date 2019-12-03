@@ -539,7 +539,7 @@ cleanup_power_extras(struct thread *td)
  * Set set up registers on exec.
  */
 void
-exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
+exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 {
 	struct trapframe	*tf;
 	register_t		argc;
@@ -585,7 +585,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 
 #ifdef COMPAT_FREEBSD32
 void
-ppc32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
+ppc32_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 {
 	struct trapframe	*tf;
 	uint32_t		argc;

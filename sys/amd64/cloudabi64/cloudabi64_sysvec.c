@@ -48,7 +48,7 @@ extern const char *cloudabi64_syscallnames[];
 extern struct sysent cloudabi64_sysent[];
 
 static int
-cloudabi64_fixup_tcb(register_t **stack_base, struct image_params *imgp)
+cloudabi64_fixup_tcb(uintptr_t *stack_base, struct image_params *imgp)
 {
 	int error;
 	register_t tcbptr;
@@ -64,12 +64,13 @@ cloudabi64_fixup_tcb(register_t **stack_base, struct image_params *imgp)
 	 * containing a pointer to the TCB. %fs base will point to this.
 	 */
 	tcbptr = (register_t)*stack_base;
-	return (copyout(&tcbptr, --*stack_base, sizeof(tcbptr)));
+	*stack_base -= sizeof(tcbptr);
+	return (copyout(&tcbptr, (void *)*stack_base, sizeof(tcbptr)));
 }
 
 static void
 cloudabi64_proc_setregs(struct thread *td, struct image_params *imgp,
-    unsigned long stack)
+    uintptr_t stack)
 {
 	struct trapframe *regs;
 

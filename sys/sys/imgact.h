@@ -110,10 +110,10 @@ int	exec_args_adjust_args(struct image_args *args, size_t consume,
 	    ssize_t extend);
 char	*exec_args_get_begin_envv(struct image_args *args);
 int	exec_check_permissions(struct image_params *);
-int	exec_copyout_strings(struct image_params *, register_t **);
+int	exec_copyout_strings(struct image_params *, uintptr_t *);
 void	exec_free_args(struct image_args *);
 int	exec_new_vmspace(struct image_params *, struct sysentvec *);
-void	exec_setregs(struct thread *, struct image_params *, u_long);
+void	exec_setregs(struct thread *, struct image_params *, uintptr_t);
 int	exec_shell_imgact(struct image_params *);
 int	exec_copyin_args(struct image_args *, const char *, enum uio_seg,
 	char **, char **);

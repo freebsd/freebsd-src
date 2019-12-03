@@ -68,7 +68,8 @@
 #include <compat/freebsd32/freebsd32_util.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
-static void freebsd32_exec_setregs(struct thread *, struct image_params *, u_long);
+static void freebsd32_exec_setregs(struct thread *, struct image_params *,
+    uintptr_t);
 static int get_mcontext32(struct thread *, mcontext32_t *, int);
 static int set_mcontext32(struct thread *, mcontext32_t *);
 static void freebsd32_sendsig(sig_t, ksiginfo_t *, sigset_t *);
@@ -126,7 +127,8 @@ SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_FIRST,
     &freebsd_brand_info);
 
 static void
-freebsd32_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
+freebsd32_exec_setregs(struct thread *td, struct image_params *imgp,
+    uintptr_t stack)
 {
 	exec_setregs(td, imgp, stack);
 
