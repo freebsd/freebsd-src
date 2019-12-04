@@ -78,6 +78,7 @@
 #define	NFS_FABLKSIZE	512	/* Size in bytes of a block wrt fa_blocks */
 #define	NFSV4_MINORVERSION	0	/* V4 Minor version */
 #define	NFSV41_MINORVERSION	1	/* V4 Minor version */
+#define	NFSV42_MINORVERSION	2	/* V4 Minor version */
 #define	NFSV4_CBVERS		1	/* V4 CB Version */
 #define	NFSV41_CBVERS		4	/* V4.1 CB Version */
 #define	NFSV4_SMALLSTR	50		/* Strings small enough for stack */
@@ -213,6 +214,22 @@
 #define	NFSERR_REJECTDELEG	10085
 #define	NFSERR_RETURNCONFLICT	10086
 #define	NFSERR_DELEGREVOKED	10087
+
+/* NFSv4.2 specific errors. */
+#define	NFSERR_PARTNERNOTSUPP	10088
+#define	NFSERR_PARTNERNOAUTH	10089
+#define	NFSERR_UNIONNOTSUPP	10090
+#define	NFSERR_OFFLOADDENIED	10091
+#define	NFSERR_WRONGLFS		10092
+#define	NFSERR_BADLABEL		10093
+#define	NFSERR_OFFLOADNOREQS	10094
+
+/* NFSv4.2 Extended Attribute errors. */
+#define	NFSERR_NOXATTR		10095
+#define	NFSERR_XATTR2BIG	10096
+
+/* Maximum value of all the NFS error values. */
+#define	NFSERR_MAXERRVAL	NFSERR_XATTR2BIG
 
 #define	NFSERR_STALEWRITEVERF	30001	/* Fake return for nfs_commit() */
 #define	NFSERR_DONTREPLY	30003	/* Don't process request */
@@ -363,6 +380,24 @@
  * Must be defined as one higher than the last NFSv4.1 Proc# above.
  */
 #define	NFSV41_NPROCS		56
+
+/* Additional procedures for NFSv4.2. */
+#define	NFSPROC_IOADVISE	56
+#define	NFSPROC_ALLOCATE	57
+#define	NFSPROC_COPY		58
+#define	NFSPROC_SEEK		59
+#define	NFSPROC_SEEKDS		60
+
+/* and the ones for the optional Extended attribute support (RFC-8276). */
+#define	NFSPROC_GETEXTATTR	61
+#define	NFSPROC_SETEXTATTR	62
+#define	NFSPROC_RMEXTATTR	63
+#define	NFSPROC_LISTEXTATTR	64
+
+/*
+ * Must be defined as one higher than the last NFSv4.2 Proc# above.
+ */
+#define	NFSV42_NPROCS		65
 
 #endif	/* NFS_V3NPROCS */
 
@@ -593,6 +628,11 @@
 #define	NFSACCESS_EXTEND		0x08
 #define	NFSACCESS_DELETE		0x10
 #define	NFSACCESS_EXECUTE		0x20
+
+/* Additional Extended Attribute access bits RFC-8276. */
+#define	NFSACCESS_XAREAD		0x40
+#define	NFSACCESS_XAWRITE		0x80
+#define	NFSACCESS_XALIST		0x100
 
 #define	NFSWRITE_UNSTABLE		0
 #define	NFSWRITE_DATASYNC		1
