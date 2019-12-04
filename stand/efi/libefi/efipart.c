@@ -324,22 +324,21 @@ efipart_ignore_device(EFI_HANDLE h, EFI_BLOCK_IO *blkio,
 			parent_is_usb = true;
 		free(parent);
 
-		/* no media, parent is USB and devicepath is lun. */
 		node = efi_devpath_last_node(devpath);
 		if (node == NULL)
 			return (false);
 		if (parent_is_usb &&
-		    DevicePathType(node) == MESSAGING_DEVICE_PATH &&
-	    	    DevicePathSubType(node) == MSG_DEVICE_LOGICAL_UNIT_DP) {
-			efi_close_devpath(h);
-			return (true);
-		}
-		/* no media, parent is USB and devicepath is SCSI. */
-		if (parent_is_usb &&
-		    DevicePathType(node) == MESSAGING_DEVICE_PATH &&
-	    	    DevicePathSubType(node) == MSG_SCSI_DP) {
-			efi_close_devpath(h);
-			return (true);
+		    DevicePathType(node) == MESSAGING_DEVICE_PATH) {
+			/*
+			 * no media, parent is USB and devicepath is
+			 * LUN or SCSI.
+			 */
+			if (DevicePathSubType(node) ==
+			    MSG_DEVICE_LOGICAL_UNIT_DP ||
+			    DevicePathSubType(node) == MSG_SCSI_DP) {
+				efi_close_devpath(h);
+				return (true);
+			}
 		}
 	}
 	return (false);
