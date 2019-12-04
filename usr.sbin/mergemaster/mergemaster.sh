@@ -508,6 +508,7 @@ SOURCEDIR=$(realpath "$SOURCEDIR")
 
 # Setup make to use system files from SOURCEDIR
 MM_MAKE="make ${ARCHSTRING} -m ${SOURCEDIR}/share/mk -DNO_FILEMON"
+MM_MAKE="${MM_MAKE} -j$(sysctl -n hw.ncpu)"
 
 # Check DESTDIR against the mergemaster mtree database to see what
 # files the user changed from the reference files.
