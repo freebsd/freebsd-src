@@ -241,3 +241,7 @@ SRCS+=		sync_synchronize.S
 SRCS+=		bswapdi2.c
 SRCS+=		bswapsi2.c
 .endif
+
+.if ${MACHINE_ARCH:Mriscv*sf}
+CFLAGS+=	-D__SOFT_FP__
+.endif
