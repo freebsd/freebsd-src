@@ -217,7 +217,7 @@ linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 {
 	char **vectp;
 	char *stringp;
-	uintptr_t *destp, *ustringp;
+	uintptr_t destp, ustringp;
 	struct ps_strings *arginfo;
 	char canary[LINUX_AT_RANDOM_LEN];
 	size_t execpath_len;
