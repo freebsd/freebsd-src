@@ -1622,8 +1622,8 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	/* Pre-round up to 1MB.  This wastes some space, but saves TLB entries */
 	data_end = roundup2(data_end, 1 << 20);
 	debugf(" data_end: 0x%"PRI0ptrX"\n", data_end);
-	debugf(" kernstart: %p\n", kernstart);
-	debugf(" kernsize: %lx\n", kernsize);
+	debugf(" kernstart: %#zx\n", kernstart);
+	debugf(" kernsize: %#zx\n", kernsize);
 
 	if (data_end - kernstart > kernsize) {
 		kernsize += tlb1_mapin_region(kernstart + kernsize,
