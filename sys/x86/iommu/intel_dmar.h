@@ -391,6 +391,7 @@ bool dmar_is_buswide_ctx(struct dmar_unit *unit, u_int busno);
 
 #define	DMAR_GM_CANWAIT	0x0001
 #define	DMAR_GM_CANSPLIT 0x0002
+#define	DMAR_GM_RMRR	0x0004
 
 #define	DMAR_PGF_WAITOK	0x0001
 #define	DMAR_PGF_ZERO	0x0002
