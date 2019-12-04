@@ -306,7 +306,7 @@ bit_ffs_area_at(bitstr_t *_bitstr, int _start, int _nbits, int _size,
 			while ((_test & (_test + 1)) != 0 && _b-- > 0)
 				_test |= _test >> (((_size - 1) >> _b) + 1) / 2;
 			/* Find the start of the first 0-area in _test. */
-			_offset = (~_test == 0) ? _BITSTR_BITS :
+			_offset = (~_test == 0) ? (int)_BITSTR_BITS :
 			    ffsl(~_test) - 1;
 			_value = (_curbitstr - _bitstr) * _BITSTR_BITS +
 			    _offset;
@@ -353,7 +353,7 @@ bit_ffc_area_at(bitstr_t *_bitstr, int _start, int _nbits, int _size,
 			while ((_test & (_test + 1)) != 0 && _b-- > 0)
 				_test |= _test >> (((_size - 1) >> _b) + 1) / 2;
 			/* Find the start of the first 0-area in _test. */
-			_offset = (~_test == 0) ? _BITSTR_BITS :
+			_offset = (~_test == 0) ? (int)_BITSTR_BITS :
 			    ffsl(~_test) - 1;
 			_value = (_curbitstr - _bitstr) * _BITSTR_BITS +
 			    _offset;
