@@ -2204,9 +2204,11 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 				error = SYSCTL_OUT(req, &xt, sizeof xt);
 				if (error)
 					break;
+				else
+					continue;
 			}
-		} else
-			INP_RUNLOCK(inp);
+		}
+		INP_RUNLOCK(inp);
 	}
 	NET_EPOCH_EXIT(et);
 
