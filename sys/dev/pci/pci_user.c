@@ -1,8 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
- * All rights reserved.
+ * Copyright 1997, Stefan Esser <se@freebsd.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
