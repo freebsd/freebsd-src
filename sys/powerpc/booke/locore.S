@@ -443,7 +443,7 @@ bp_trace:
 
 	.globl	bp_kernload
 bp_kernload:
-	ADDR(0)			/* Kern phys. load address. */
+	.llong 0		/* Kern phys. load address. */
 
 	.globl	bp_virtaddr
 bp_virtaddr:
@@ -548,14 +548,15 @@ bp_virtaddr:
 #else
 	clrrwi	%r3, %r3, PAGE_SHIFT	/* trunc_page(%r3) */
 #endif
-	LOAD	%r4, (bp_kernload - __boot_page)(%r3)
+	/* Load lower half of the kernel loadaddr. */
+	lwz	%r4, (bp_kernload - __boot_page + 4)(%r3)
 	LOAD	%r5, (bp_virtaddr - __boot_page)(%r3)
 
 	/* Set RPN and protection */
 	ori	%r4, %r4, (MAS3_SX | MAS3_SW | MAS3_SR)@l
 	mtspr	SPR_MAS3, %r4
 	isync
-	li	%r4, 0
+	lwz	%r4, (bp_kernload - __boot_page)(%r3)
 	mtspr	SPR_MAS7, %r4
 	isync
 	tlbwe
