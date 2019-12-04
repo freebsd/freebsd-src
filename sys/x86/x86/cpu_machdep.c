@@ -1332,6 +1332,7 @@ sysctl_taa_state_handler(SYSCTL_HANDLER_ARGS)
 		break;
 	case TAA_NOT_PRESENT:
 		state = "TSX not present";
+		break;
 	default:
 		state = "unknown";
 	}
