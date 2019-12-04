@@ -149,7 +149,7 @@ struct bufdomain {
 
 static struct buf *buf;		/* buffer header pool */
 extern struct buf *swbuf;	/* Swap buffer header pool. */
-caddr_t unmapped_buf;
+caddr_t __read_mostly unmapped_buf;
 
 /* Used below and for softdep flushing threads in ufs/ffs/ffs_softdep.c */
 struct proc *bufdaemonproc;

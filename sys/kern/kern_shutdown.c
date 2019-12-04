@@ -217,9 +217,9 @@ SYSCTL_INT(_kern, OID_AUTO, kerneldump_gzlevel, CTLFLAG_RWTUN,
  * Variable panicstr contains argument to first call to panic; used as flag
  * to indicate that the kernel has already called panic.
  */
-const char *panicstr;
+const char __read_mostly *panicstr;
 
-int dumping;				/* system is dumping */
+int __read_mostly dumping;		/* system is dumping */
 int rebooting;				/* system is rebooting */
 /*
  * Used to serialize between sysctl kern.shutdown.dumpdevname and list
