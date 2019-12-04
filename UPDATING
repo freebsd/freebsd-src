@@ -2120,7 +2120,7 @@ to fetch an UPDATING file from an older FreeBSD release.
 
 Copyright information:
 
-Copyright 1998-2009 M. Warner Losh.
+Copyright 1998-2009 M. Warner Losh <imp@FreeBSD.org>
 
 Redistribution, publication, translation and use, with or without
 modification, in full or in part, in any form or format of this

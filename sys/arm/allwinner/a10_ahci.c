@@ -1,7 +1,6 @@
 /*-
- * Copyright (c) 2014-2015 M. Warner Losh <imp@freebsd.org>
- * Copyright (c) 2015 Luiz Otavio O Souza <loos@freebsd.org>
- * All rights reserved.
+ * Copyright (c) 2015 Luiz Otavio O Souza <loos@freebsd.org> All rights reserved.
+ * Copyright (c) 2014-2015 M. Warner Losh <imp@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
