@@ -46,7 +46,7 @@ ENTRY(setjmp)
 	addi	a2, a0, (_JB_SIGMASK * 8)	/* oset */
 	li	a1, 0				/* set */
 	li	a0, 1				/* SIG_BLOCK */
-	jal	sigprocmask
+	call	_C_LABEL(sigprocmask)
 
 	ld	a0, 0(sp)
 	ld	ra, 8(sp)
@@ -109,7 +109,7 @@ ENTRY(longjmp)
 	li	a2, 0				/* oset */
 	addi	a1, a0, (_JB_SIGMASK * 8)	/* set */
 	li	a0, 3				/* SIG_BLOCK */
-	jal	sigprocmask
+	call	_C_LABEL(sigprocmask)
 
 	ld	a1, (2 * 8)(sp)
 	ld	ra, (1 * 8)(sp)
