@@ -279,8 +279,8 @@ static void *slab_alloc_item(uma_keg_t keg, uma_slab_t slab);
 static void slab_free_item(uma_zone_t zone, uma_slab_t slab, void *item);
 static uma_keg_t uma_kcreate(uma_zone_t zone, size_t size, uma_init uminit,
     uma_fini fini, int align, uint32_t flags);
-static int zone_import(uma_zone_t, void **, int, int, int);
-static void zone_release(uma_zone_t, void **, int);
+static int zone_import(void *, void **, int, int, int);
+static void zone_release(void *, void **, int);
 static void uma_zero_item(void *, uma_zone_t);
 static bool cache_alloc(uma_zone_t, uma_cache_t, void *, int);
 static bool cache_free(uma_zone_t, uma_cache_t, void *, void *, int);
@@ -2094,8 +2094,8 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	/*
 	 * Use the regular zone/keg/slab allocator.
 	 */
-	zone->uz_import = (uma_import)zone_import;
-	zone->uz_release = (uma_release)zone_release;
+	zone->uz_import = zone_import;
+	zone->uz_release = zone_release;
 	zone->uz_arg = zone; 
 	keg = arg->keg;
 
@@ -3112,8 +3112,9 @@ slab_alloc_item(uma_keg_t keg, uma_slab_t slab)
 }
 
 static int
-zone_import(uma_zone_t zone, void **bucket, int max, int domain, int flags)
+zone_import(void *arg, void **bucket, int max, int domain, int flags)
 {
+	uma_zone_t zone;
 	uma_slab_t slab;
 	uma_keg_t keg;
 #ifdef NUMA
@@ -3121,6 +3122,7 @@ zone_import(uma_zone_t zone, void **bucket, int max, int domain, int flags)
 #endif
 	int i;
 
+	zone = arg;
 	slab = NULL;
 	keg = zone->uz_keg;
 	KEG_LOCK(keg);
@@ -3616,14 +3618,16 @@ slab_free_item(uma_zone_t zone, uma_slab_t slab, void *item)
 }
 
 static void
-zone_release(uma_zone_t zone, void **bucket, int cnt)
+zone_release(void *arg, void **bucket, int cnt)
 {
+	uma_zone_t zone;
 	void *item;
 	uma_slab_t slab;
 	uma_keg_t keg;
 	uint8_t *mem;
 	int i;
 
+	zone = arg;
 	keg = zone->uz_keg;
 	KEG_LOCK(keg);
 	for (i = 0; i < cnt; i++) {
