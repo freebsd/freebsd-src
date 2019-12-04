@@ -83,9 +83,9 @@ static struct g_bioq g_bio_run_up;
  * pressures exist. See g_io_schedule_down() for more details
  * and limitations.
  */
-static volatile u_int pace;
+static volatile u_int __read_mostly pace;
 
-static uma_zone_t	biozone;
+static uma_zone_t __read_mostly biozone;
 
 /*
  * The head of the list of classifiers used in g_io_request.
@@ -93,8 +93,8 @@ static uma_zone_t	biozone;
  * to add/remove entries to the list.
  * Classifiers are invoked in registration order.
  */
-static TAILQ_HEAD(g_classifier_tailq, g_classifier_hook)
-    g_classifier_tailq = TAILQ_HEAD_INITIALIZER(g_classifier_tailq);
+static TAILQ_HEAD(, g_classifier_hook) g_classifier_tailq __read_mostly =
+    TAILQ_HEAD_INITIALIZER(g_classifier_tailq);
 
 #include <machine/atomic.h>
 
