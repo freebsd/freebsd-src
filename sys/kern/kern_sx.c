@@ -661,6 +661,12 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 		lda.spin_cnt++;
 #endif
 #ifdef ADAPTIVE_SX
+		if (x == (SX_LOCK_SHARED | SX_LOCK_WRITE_SPINNER)) {
+			if (atomic_fcmpset_acq_ptr(&sx->sx_lock, &x, tid))
+				break;
+			continue;
+		}
+
 		/*
 		 * If the lock is write locked and the owner is
 		 * running on another CPU, spin until the owner stops
