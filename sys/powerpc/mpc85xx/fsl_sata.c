@@ -70,7 +70,7 @@ static void fsl_sata_intr_main(struct fsl_sata_channel *ch, uint32_t istatus);
 static void fsl_sata_begin_transaction(struct fsl_sata_channel *ch, union ccb *ccb);
 static void fsl_sata_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int error);
 static void fsl_sata_execute_transaction(struct fsl_sata_slot *slot);
-static void fsl_sata_timeout(struct fsl_sata_slot *slot);
+static void fsl_sata_timeout(void *arg);
 static void fsl_sata_end_transaction(struct fsl_sata_slot *slot, enum fsl_sata_err_type et);
 static int fsl_sata_setup_fis(struct fsl_sata_channel *ch, struct fsl_sata_cmd_tab *ctp, union ccb *ccb, int tag);
 static void fsl_sata_dmainit(device_t dev);
@@ -1107,7 +1107,7 @@ fsl_sata_execute_transaction(struct fsl_sata_slot *slot)
 	}
 	/* Start command execution timeout */
 	callout_reset_sbt(&slot->timeout, SBT_1MS * ccb->ccb_h.timeout / 2,
-	    0, (timeout_t*)fsl_sata_timeout, slot, 0);
+	    0, fsl_sata_timeout, slot, 0);
 	return;
 }
 
@@ -1144,14 +1144,15 @@ fsl_sata_rearm_timeout(struct fsl_sata_channel *ch)
 			continue;
 		callout_reset_sbt(&slot->timeout,
  	    	    SBT_1MS * slot->ccb->ccb_h.timeout / 2, 0,
-		    (timeout_t*)fsl_sata_timeout, slot, 0);
+		    fsl_sata_timeout, slot, 0);
 	}
 }
 
 /* Locked by callout mechanism. */
 static void
-fsl_sata_timeout(struct fsl_sata_slot *slot)
+fsl_sata_timeout(void *arg)
 {
+	struct fsl_sata_slot *slot = arg;
 	struct fsl_sata_channel *ch = slot->ch;
 	device_t dev = ch->dev;
 	uint32_t sstatus;
@@ -1169,7 +1170,7 @@ fsl_sata_timeout(struct fsl_sata_slot *slot)
 
 		callout_reset_sbt(&slot->timeout,
 	    	    SBT_1MS * slot->ccb->ccb_h.timeout / 2, 0,
-		    (timeout_t*)fsl_sata_timeout, slot, 0);
+		    fsl_sata_timeout, slot, 0);
 		return;
 	}
 

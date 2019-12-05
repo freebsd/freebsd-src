@@ -72,7 +72,7 @@ static void siis_ch_led(void *priv, int onoff);
 static void siis_begin_transaction(device_t dev, union ccb *ccb);
 static void siis_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int error);
 static void siis_execute_transaction(struct siis_slot *slot);
-static void siis_timeout(struct siis_slot *slot);
+static void siis_timeout(void *arg);
 static void siis_end_transaction(struct siis_slot *slot, enum siis_err_type et);
 static int siis_setup_fis(device_t dev, struct siis_cmd *ctp, union ccb *ccb, int tag);
 static void siis_dmainit(device_t dev);
@@ -1123,7 +1123,7 @@ siis_execute_transaction(struct siis_slot *slot)
 	ATA_OUTL(ch->r_mem, SIIS_P_CACTH(slot->slot), prb_bus >> 32);
 	/* Start command execution timeout */
 	callout_reset_sbt(&slot->timeout, SBT_1MS * ccb->ccb_h.timeout, 0,
-	    (timeout_t*)siis_timeout, slot, 0);
+	    siis_timeout, slot, 0);
 	return;
 }
 
@@ -1166,14 +1166,15 @@ siis_rearm_timeout(device_t dev)
 			continue;
 		callout_reset_sbt(&slot->timeout,
 		    SBT_1MS * slot->ccb->ccb_h.timeout, 0,
-		    (timeout_t*)siis_timeout, slot, 0);
+		    siis_timeout, slot, 0);
 	}
 }
 
 /* Locked by callout mechanism. */
 static void
-siis_timeout(struct siis_slot *slot)
+siis_timeout(void *arg)
 {
+	struct siis_slot *slot = arg;
 	device_t dev = slot->dev;
 	struct siis_channel *ch = device_get_softc(dev);
 	union ccb *ccb = slot->ccb;

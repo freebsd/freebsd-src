@@ -477,7 +477,7 @@ const char *ata_mode2str(int mode);
 void ata_setmode(device_t dev);
 void ata_print_cable(device_t dev, u_int8_t *who);
 int ata_atapi(device_t dev, int target);
-void ata_timeout(struct ata_request *);
+void ata_timeout(void *);
 
 /* ata-lowlevel.c: */
 void ata_generic_hw(device_t dev);
