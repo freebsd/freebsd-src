@@ -1059,6 +1059,17 @@ struct mlx5e_tx_wqe {
 	struct mlx5_wqe_eth_seg eth;
 };
 
+struct mlx5e_tx_umr_wqe {
+	struct mlx5_wqe_ctrl_seg ctrl;
+	struct mlx5_wqe_umr_ctrl_seg umr;
+	uint8_t mkc[64];
+};
+
+struct mlx5e_tx_psv_wqe {
+	struct mlx5_wqe_ctrl_seg ctrl;
+	struct mlx5_seg_set_psv psv;
+};
+
 struct mlx5e_rx_wqe {
 	struct mlx5_wqe_srq_next_seg next;
 	struct mlx5_wqe_data_seg data[];
