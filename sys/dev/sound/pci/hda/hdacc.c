@@ -375,6 +375,7 @@ static const struct {
 	{ HDA_CODEC_INTELGMLK, 0,	"Intel Geminilake" },
 	{ HDA_CODEC_INTELGMLK1, 0,	"Intel Geminilake" },
 	{ HDA_CODEC_INTELICLK, 0,	"Intel Icelake" },
+	{ HDA_CODEC_INTELTGLK, 0,	"Intel Tigerlake" },
 	{ HDA_CODEC_SII1390, 0,		"Silicon Image SiI1390" },
 	{ HDA_CODEC_SII1392, 0,		"Silicon Image SiI1392" },
 	/* Unknown CODECs */
