@@ -1606,6 +1606,8 @@ static void shutdown_one(struct pci_dev *pdev)
 	/* enter polling mode */
 	mlx5_cmd_use_polling(dev);
 
+	set_bit(MLX5_INTERFACE_STATE_TEARDOWN, &dev->intf_state);
+
 	/* disable all interrupts */
 	mlx5_disable_interrupts(dev);
 

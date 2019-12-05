@@ -1038,9 +1038,10 @@ mlx5e_update_stats_work(struct work_struct *work)
 {
 	struct mlx5e_priv *priv;
 
-	priv  = container_of(work, struct mlx5e_priv, update_stats_work);
+	priv = container_of(work, struct mlx5e_priv, update_stats_work);
 	PRIV_LOCK(priv);
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state) != 0)
+	if (test_bit(MLX5E_STATE_OPENED, &priv->state) != 0 &&
+	    !test_bit(MLX5_INTERFACE_STATE_TEARDOWN, &priv->mdev->intf_state))
 		mlx5e_update_stats_locked(priv);
 	PRIV_UNLOCK(priv);
 }
