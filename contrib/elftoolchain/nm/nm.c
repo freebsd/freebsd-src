@@ -52,7 +52,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: nm.c 3504 2016-12-17 15:33:16Z kaiwang27 $");
+ELFTC_VCSID("$Id: nm.c 3722 2019-03-23 17:01:58Z jkoshy $");
 
 /* symbol information list */
 STAILQ_HEAD(sym_head, sym_entry);
@@ -1183,7 +1183,6 @@ read_elf(Elf *elf, const char *filename, Elf_Kind kind)
 	Elf_Arhdr *arhdr;
 	Elf_Scn *scn;
 	GElf_Shdr shdr;
-	GElf_Half i;
 	Dwarf_Line *lbuf;
 	Dwarf_Unsigned lineno;
 	Dwarf_Signed lcount, filecount;
@@ -1198,7 +1197,7 @@ read_elf(Elf *elf, const char *filename, Elf_Kind kind)
 	struct var_info_entry *var;
 	const char *shname, *objname;
 	char *type_table, **sec_table, *sfile, **src_files;
-	size_t shstrndx, shnum, dynndx, strndx;
+	size_t i, shstrndx, shnum, dynndx, strndx;
 	int ret, rtn, e_err;
 
 #define	OBJNAME	(objname == NULL ? filename : objname)

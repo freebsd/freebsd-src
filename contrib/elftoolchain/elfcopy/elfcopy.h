@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: elfcopy.h 3615 2018-05-17 04:12:24Z kaiwang27 $
+ * $Id: elfcopy.h 3757 2019-06-28 01:15:28Z emaste $
  */
 
 #include <sys/queue.h>

@@ -30,7 +30,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_convert.m4 3632 2018-10-10 21:12:43Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_convert.m4 3712 2019-03-16 22:23:34Z jkoshy $");
 
 /* WARNING: GENERATED FROM __file__. */
 
@@ -820,7 +820,7 @@ _libelf_cvt_GNUHASH64_tom(unsigned char *dst, size_t dsz, unsigned char *src,
 	if (dsz < srcsz)	/* Destination lacks space. */
 		return (0);
 
-	nchains = srcsz / sizeof(uint32_t);
+	nchains = (uint32_t) (srcsz / sizeof(uint32_t));
 	chains = (uint32_t *) (uintptr_t) dst;
 
 	for (n = 0; n < nchains; n++) {
@@ -901,7 +901,7 @@ _libelf_cvt_GNUHASH64_tof(unsigned char *dst, size_t dsz, unsigned char *src,
 	if (dsz < srcsz)
 		return (0);
 
-	nchains = srcsz / sizeof(uint32_t);
+	nchains = (uint32_t) (srcsz / sizeof(uint32_t));
 	for (n = 0; n < nchains; n++) {
 		t32 = *s32++;
 		if (byteswap)
@@ -1078,15 +1078,8 @@ _libelf_translator_function *
 _libelf_get_translator(Elf_Type t, int direction, int elfclass, int elfmachine)
 {
 	assert(elfclass == ELFCLASS32 || elfclass == ELFCLASS64);
-#if 0
-	assert(elfmachine >= EM_NONE && elfmachine < EM__LAST__);
-#endif
 	assert(direction == ELF_TOFILE || direction == ELF_TOMEMORY);
-
-	if (t >= ELF_T_NUM ||
-	    (elfclass != ELFCLASS32 && elfclass != ELFCLASS64) ||
-	    (direction != ELF_TOFILE && direction != ELF_TOMEMORY))
-		return (NULL);
+	assert(t >= ELF_T_FIRST && t <= ELF_T_LAST);
 
 	/* TODO: Handle MIPS64 REL{,A} sections (ticket #559). */
 	(void) elfmachine;
