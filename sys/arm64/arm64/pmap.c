@@ -5850,8 +5850,18 @@ pmap_activate_int(pmap_t pmap)
 
 	KASSERT(PCPU_GET(curpmap) != NULL, ("no active pmap"));
 	KASSERT(pmap != kernel_pmap, ("kernel pmap activation"));
-	if (pmap == PCPU_GET(curpmap))
+	if (pmap == PCPU_GET(curpmap)) {
+		/*
+		 * Handle the possibility that the old thread was preempted
+		 * after an "ic" or "tlbi" instruction but before it performed
+		 * a "dsb" instruction.  If the old thread migrates to a new
+		 * processor, its completion of a "dsb" instruction on that
+		 * new processor does not guarantee that the "ic" or "tlbi"
+		 * instructions performed on the old processor have completed.
+		 */
+		dsb(ish);
 		return (false);
+	}
 
 	/*
 	 * Ensure that the store to curpmap is globally visible before the
