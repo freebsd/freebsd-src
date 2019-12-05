@@ -528,8 +528,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	return (IPPROTO_DONE);
 
 badunlocked:
-	if (m)
-		m_freem(m);
+	m_freem(m);
 	*mp = NULL;
 	return (IPPROTO_DONE);
 }
