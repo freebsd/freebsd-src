@@ -113,6 +113,8 @@ null_hashget(mp, lowervp)
 	 * reference count (but NOT the lower vnode's VREF counter).
 	 */
 	hd = NULL_NHASH(lowervp);
+	if (LIST_EMPTY(hd))
+		return (NULLVP);
 	rw_rlock(&null_hash_lock);
 	LIST_FOREACH(a, hd, null_hash) {
 		if (a->null_lowervp == lowervp && NULLTOV(a)->v_mount == mp) {
