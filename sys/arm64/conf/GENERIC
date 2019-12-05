@@ -249,6 +249,7 @@ device		rk_gpio		# RockChip GPIO Controller
 device		rk_pinctrl	# RockChip Pinmux Controller
 
 # I2C
+device		a37x0_iic	# Armada 37x0 I2C controller
 device		aw_rsb		# Allwinner Reduced Serial Bus
 device		bcm2835_bsc	# Broadcom BCM283x I2C bus
 device		iicbus
