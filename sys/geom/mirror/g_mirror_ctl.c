@@ -853,7 +853,7 @@ g_mirror_ctl_resize(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	/* Deny shrinking of an opened provider */
-	if ((g_debugflags & 16) == 0 && sc->sc_provider_open > 0) {
+	if ((g_debugflags & G_F_FOOTSHOOTING) == 0 && sc->sc_provider_open > 0) {
 		if (sc->sc_mediasize > mediasize) {
 			gctl_error(req, "Device %s is busy.",
 			    sc->sc_provider->name);

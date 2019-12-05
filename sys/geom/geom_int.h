@@ -44,18 +44,6 @@ extern int g_collectstats;
 #define G_STATS_PROVIDERS	1	/* Collect I/O stats for providers */
 #define G_STATS_CONSUMERS	2	/* Collect I/O stats for consumers */
 
-extern int g_debugflags;
-/*
- * 1	G_T_TOPOLOGY
- * 2	G_T_BIO
- * 4	G_T_ACCESS
- * 8	(unused)
- * 16	Allow footshooting on rank#1 providers
- * 32	G_T_DETAILS
- */
-#define G_F_DISKIOCTL	64
-#define G_F_CTLDUMP	128
-
 /* geom_dump.c */
 void g_confxml(void *, int flag);
 void g_conf_specific(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
