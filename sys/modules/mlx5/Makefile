@@ -26,6 +26,7 @@ mlx5_port.c \
 mlx5_qp.c \
 mlx5_rl.c \
 mlx5_srq.c \
+mlx5_tls.c \
 mlx5_transobj.c \
 mlx5_uar.c \
 mlx5_vport.c \
