@@ -255,11 +255,15 @@ void g_dev_physpath_changed(void);
 struct g_provider *g_dev_getprovider(struct cdev *dev);
 
 /* geom_dump.c */
-void g_trace(int level, const char *, ...);
+void (g_trace)(int level, const char *, ...) __printflike(2, 3);
 #	define G_T_TOPOLOGY	1
 #	define G_T_BIO		2
 #	define G_T_ACCESS	4
-
+extern int g_debugflags;
+#define	g_trace(level, fmt, ...) do {				\
+	if (__predict_false(g_debugflags & (level)))		\
+		(g_trace)(level, fmt, ## __VA_ARGS__);		\
+} while (0)
 
 /* geom_event.c */
 typedef void g_event_t(void *, int flag);
