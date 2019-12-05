@@ -21,9 +21,9 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elf_update.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\" $Id: elf_update.3 3734 2019-04-22 14:10:49Z jkoshy $
 .\"
-.Dd August 14, 2011
+.Dd April 22, 2019
 .Dt ELF_UPDATE 3
 .Os
 .Sh NAME
@@ -345,6 +345,10 @@ operation was requested after a prior call to
 disassociated the ELF descriptor
 .Ar elf
 from its underlying file.
+.It Bq Er ELF_E_UNIMPL
+Argument
+.Ar elf
+contained a section with an unsupported ELF type.
 .It Bq Er ELF_E_VERSION
 Argument
 .Ar elf

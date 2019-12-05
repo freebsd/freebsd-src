@@ -27,7 +27,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: libdwarf_attr.c 3064 2014-06-06 19:35:55Z kaiwang27 $");
+ELFTC_VCSID("$Id: libdwarf_attr.c 3748 2019-06-28 01:11:13Z emaste $");
 
 int
 _dwarf_attr_alloc(Dwarf_Die die, Dwarf_Attribute *atp, Dwarf_Error *error)

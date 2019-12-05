@@ -36,7 +36,7 @@
 #include "libelftc.h"
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: elftc_string_table.c 2869 2013-01-06 13:29:18Z jkoshy $");
+ELFTC_VCSID("$Id: elftc_string_table.c 3750 2019-06-28 01:12:10Z emaste $");
 
 #define	ELFTC_STRING_TABLE_DEFAULT_SIZE			(4*1024)
 #define ELFTC_STRING_TABLE_EXPECTED_STRING_SIZE		16
