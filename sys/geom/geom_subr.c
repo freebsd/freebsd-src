@@ -983,7 +983,7 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 	    pp, pp->name);
 
 	/* If foot-shooting is enabled, any open on rank#1 is OK */
-	if ((g_debugflags & 16) && gp->rank == 1)
+	if ((g_debugflags & G_F_FOOTSHOOTING) && gp->rank == 1)
 		;
 	/* If we try exclusive but already write: fail */
 	else if (dce > 0 && pw > 0)
