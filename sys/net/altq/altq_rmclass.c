@@ -87,7 +87,7 @@ static mbuf_t	*_rmc_pollq(rm_class_t *);
 static int	rmc_under_limit(struct rm_class *, struct timeval *);
 static void	rmc_tl_satisfied(struct rm_ifdat *, struct timeval *);
 static void	rmc_drop_action(struct rm_class *);
-static void	rmc_restart(struct rm_class *);
+static void	rmc_restart(void *);
 static void	rmc_root_overlimit(struct rm_class *, struct rm_class *);
 
 #define	BORROW_OFFTIME
@@ -1530,8 +1530,7 @@ rmc_delay_action(struct rm_class *cl, struct rm_class *borrow)
 			t = hzto(&cl->undertime_);
 		} else
 			t = 2;
-		CALLOUT_RESET(&cl->callout_, t,
-			      (timeout_t *)rmc_restart, (caddr_t)cl);
+		CALLOUT_RESET(&cl->callout_, t, rmc_restart, cl);
 	}
 }
 
@@ -1553,8 +1552,9 @@ rmc_delay_action(struct rm_class *cl, struct rm_class *borrow)
  */
 
 static void
-rmc_restart(struct rm_class *cl)
+rmc_restart(void *arg)
 {
+	struct rm_class *cl = arg;
 	struct rm_ifdat	*ifd = cl->ifdat_;
 	int		 s;
 

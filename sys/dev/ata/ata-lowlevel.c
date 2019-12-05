@@ -237,7 +237,7 @@ begin_finished:
 
 begin_continue:
     callout_reset(&request->callout, request->timeout * hz,
-		  (timeout_t*)ata_timeout, request);
+		  ata_timeout, request);
     return ATA_OP_CONTINUES;
 }
 

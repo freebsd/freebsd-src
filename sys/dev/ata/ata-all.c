@@ -702,10 +702,12 @@ ata_atapi(device_t dev, int target)
 }
 
 void
-ata_timeout(struct ata_request *request)
+ata_timeout(void *arg)
 {
+	struct ata_request *request;
 	struct ata_channel *ch;
 
+	request = arg;
 	ch = device_get_softc(request->parent);
 	//request->flags |= ATA_R_DEBUG;
 	ATA_DEBUG_RQ(request, "timeout");

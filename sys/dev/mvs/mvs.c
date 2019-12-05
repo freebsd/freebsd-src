@@ -82,7 +82,7 @@ static void mvs_legacy_intr(device_t dev, int poll);
 static void mvs_crbq_intr(device_t dev);
 static void mvs_begin_transaction(device_t dev, union ccb *ccb);
 static void mvs_legacy_execute_transaction(struct mvs_slot *slot);
-static void mvs_timeout(struct mvs_slot *slot);
+static void mvs_timeout(void *arg);
 static void mvs_dmasetprd(void *arg,
 	bus_dma_segment_t *segs, int nsegs, int error);
 static void mvs_requeue_frozen(device_t dev);
@@ -1418,7 +1418,7 @@ mvs_legacy_execute_transaction(struct mvs_slot *slot)
 	}
 	/* Start command execution timeout */
 	callout_reset_sbt(&slot->timeout, SBT_1MS * ccb->ccb_h.timeout, 0,
-	    (timeout_t*)mvs_timeout, slot, 0);
+	    mvs_timeout, slot, 0);
 }
 
 /* Must be called with channel locked. */
@@ -1532,7 +1532,7 @@ mvs_execute_transaction(struct mvs_slot *slot)
 	    ch->dma.workrq_bus + MVS_CRQB_OFFSET + (MVS_CRQB_SIZE * ch->out_idx));
 	/* Start command execution timeout */
 	callout_reset_sbt(&slot->timeout, SBT_1MS * ccb->ccb_h.timeout, 0,
-	    (timeout_t*)mvs_timeout, slot, 0);
+	    mvs_timeout, slot, 0);
 	return;
 }
 
@@ -1571,14 +1571,15 @@ mvs_rearm_timeout(device_t dev)
 			continue;
 		callout_reset_sbt(&slot->timeout,
 		    SBT_1MS * slot->ccb->ccb_h.timeout / 2, 0,
-		    (timeout_t*)mvs_timeout, slot, 0);
+		    mvs_timeout, slot, 0);
 	}
 }
 
 /* Locked by callout mechanism. */
 static void
-mvs_timeout(struct mvs_slot *slot)
+mvs_timeout(void *arg)
 {
+	struct mvs_slot *slot = arg;
 	device_t dev = slot->dev;
 	struct mvs_channel *ch = device_get_softc(dev);
 

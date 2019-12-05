@@ -67,7 +67,7 @@ static void ahci_ch_intr_main(struct ahci_channel *ch, uint32_t istatus);
 static void ahci_begin_transaction(struct ahci_channel *ch, union ccb *ccb);
 static void ahci_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int error);
 static void ahci_execute_transaction(struct ahci_slot *slot);
-static void ahci_timeout(struct ahci_slot *slot);
+static void ahci_timeout(void *arg);
 static void ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et);
 static int ahci_setup_fis(struct ahci_channel *ch, struct ahci_cmd_tab *ctp, union ccb *ccb, int tag);
 static void ahci_dmainit(device_t dev);
@@ -1793,7 +1793,7 @@ ahci_execute_transaction(struct ahci_slot *slot)
 	}
 	/* Start command execution timeout */
 	callout_reset_sbt(&slot->timeout, SBT_1MS * ccb->ccb_h.timeout / 2,
-	    0, (timeout_t*)ahci_timeout, slot, 0);
+	    0, ahci_timeout, slot, 0);
 	return;
 }
 
@@ -1830,14 +1830,15 @@ ahci_rearm_timeout(struct ahci_channel *ch)
 			continue;
 		callout_reset_sbt(&slot->timeout,
     	    	    SBT_1MS * slot->ccb->ccb_h.timeout / 2, 0,
-		    (timeout_t*)ahci_timeout, slot, 0);
+		    ahci_timeout, slot, 0);
 	}
 }
 
 /* Locked by callout mechanism. */
 static void
-ahci_timeout(struct ahci_slot *slot)
+ahci_timeout(void *arg)
 {
+	struct ahci_slot *slot = arg;
 	struct ahci_channel *ch = slot->ch;
 	device_t dev = ch->dev;
 	uint32_t sstatus;
@@ -1864,7 +1865,7 @@ ahci_timeout(struct ahci_slot *slot)
 
 		callout_reset_sbt(&slot->timeout,
 	    	    SBT_1MS * slot->ccb->ccb_h.timeout / 2, 0,
-		    (timeout_t*)ahci_timeout, slot, 0);
+		    ahci_timeout, slot, 0);
 		return;
 	}
 
