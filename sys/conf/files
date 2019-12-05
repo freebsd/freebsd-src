@@ -4756,6 +4756,8 @@ dev/mlx5/mlx5_core/mlx5_rl.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_srq.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_tls.c			optional mlx5 pci	\
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_transobj.c		optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_uar.c			optional mlx5 pci	\
