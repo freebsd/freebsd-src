@@ -3154,7 +3154,6 @@ _vdrop(struct vnode *vp, bool locked)
 {
 	struct bufobj *bo;
 	struct mount *mp;
-	int active;
 
 	if (locked)
 		ASSERT_VI_LOCKED(vp, __func__);
@@ -3185,13 +3184,12 @@ _vdrop(struct vnode *vp, bool locked)
 		    ("vnode already free"));
 		VNASSERT(vp->v_holdcnt == 0, vp,
 		    ("vdropl: freeing when we shouldn't"));
-		active = vp->v_iflag & VI_ACTIVE;
 		if ((vp->v_iflag & VI_OWEINACT) == 0) {
-			vp->v_iflag &= ~VI_ACTIVE;
 			mp = vp->v_mount;
 			if (mp != NULL) {
 				mtx_lock(&mp->mnt_listmtx);
-				if (active) {
+				if (vp->v_iflag & VI_ACTIVE) {
+					vp->v_iflag &= ~VI_ACTIVE;
 					TAILQ_REMOVE(&mp->mnt_activevnodelist,
 					    vp, v_actfreelist);
 					mp->mnt_activevnodelistsize--;
@@ -3207,7 +3205,7 @@ _vdrop(struct vnode *vp, bool locked)
 					vnlru_return_batch_locked(mp);
 				mtx_unlock(&mp->mnt_listmtx);
 			} else {
-				VNASSERT(active == 0, vp,
+				VNASSERT((vp->v_iflag & VI_ACTIVE) == 0, vp,
 				    ("vdropl: active vnode not on per mount "
 				    "vnode list"));
 				mtx_lock(&vnode_free_list_mtx);
