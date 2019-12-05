@@ -42,7 +42,7 @@
 #include "uthash.h"
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: addr2line.c 3544 2017-06-05 14:51:44Z emaste $");
+ELFTC_VCSID("$Id: addr2line.c 3499 2016-11-25 16:06:29Z emaste $");
 
 struct Func {
 	char *name;

@@ -41,7 +41,7 @@
 #include <sys/mman.h>
 #endif
 
-ELFTC_VCSID("$Id: elf_update.c 3632 2018-10-10 21:12:43Z jkoshy $");
+ELFTC_VCSID("$Id: elf_update.c 3763 2019-06-28 21:43:27Z emaste $");
 
 /*
  * Layout strategy:
@@ -142,7 +142,7 @@ _libelf_compute_section_extents(Elf *e, Elf_Scn *s, off_t rc)
 	assert(sh_type != SHT_NULL && sh_type != SHT_NOBITS);
 
 	elftype = _libelf_xlate_shtype(sh_type);
-	if (elftype > ELF_T_LAST) {
+	if (elftype < ELF_T_FIRST || elftype > ELF_T_LAST) {
 		LIBELF_SET_ERROR(SECTION, 0);
 		return (0);
 	}
@@ -222,10 +222,16 @@ _libelf_compute_section_extents(Elf *e, Elf_Scn *s, off_t rc)
 		}
 
 		/*
+		 * The data buffer's ELF type, ELF class and ELF version
+		 * should be supported.
+		 */
+		if ((msz = _libelf_msize(d->d_type, ec, e->e_version)) == 0)
+			return (0);
+
+		/*
 		 * The buffer's size should be a multiple of the
 		 * memory size of the underlying type.
 		 */
-		msz = _libelf_msize(d->d_type, ec, e->e_version);
 		if (d->d_size % msz) {
 			LIBELF_SET_ERROR(DATA, 0);
 			return (0);
@@ -802,7 +808,8 @@ _libelf_write_scn(Elf *e, unsigned char *nf, struct _Elf_Extent *ex)
 
 		d = &ld->d_data;
 
-		msz = _libelf_msize(d->d_type, ec, e->e_version);
+		if ((msz = _libelf_msize(d->d_type, ec, e->e_version)) == 0)
+			return ((off_t) -1);
 
 		if ((uint64_t) rc < sh_off + d->d_off)
 			(void) memset(nf + rc,
@@ -813,8 +820,8 @@ _libelf_write_scn(Elf *e, unsigned char *nf, struct _Elf_Extent *ex)
 
 		assert(d->d_buf != NULL);
 		assert(d->d_version == e->e_version);
-		assert(msz != 0);
 		assert(d->d_size % msz == 0);
+		assert(msz != 0);
 
 		nobjects = (size_t) (d->d_size / msz);
 
@@ -854,7 +861,8 @@ _libelf_write_ehdr(Elf *e, unsigned char *nf, struct _Elf_Extent *ex)
 	assert(ehdr != NULL);
 
 	fsz = _libelf_fsize(ELF_T_EHDR, ec, e->e_version, (size_t) 1);
-	msz = _libelf_msize(ELF_T_EHDR, ec, e->e_version);
+	if ((msz = _libelf_msize(ELF_T_EHDR, ec, e->e_version)) == 0)
+		return ((off_t) -1);
 
 	em = _libelf_elfmachine(e);
 
@@ -888,15 +896,17 @@ _libelf_write_phdr(Elf *e, unsigned char *nf, struct _Elf_Extent *ex)
 	Elf32_Ehdr *eh32;
 	Elf64_Ehdr *eh64;
 	Elf_Data dst, src;
-	size_t fsz, phnum;
+	size_t fsz, msz, phnum;
 	uint64_t phoff;
 
 	assert(ex->ex_type == ELF_EXTENT_PHDR);
 
 	ec = e->e_class;
-	ehdr = _libelf_ehdr(e, ec, 0);
-	phnum = e->e_u.e_elf.e_nphdr;
 
+	ehdr = _libelf_ehdr(e, ec, 0);
+	assert(ehdr != NULL);
+
+	phnum = e->e_u.e_elf.e_nphdr;
 	assert(phnum > 0);
 
 	if (ec == ELFCLASS32) {
@@ -916,14 +926,15 @@ _libelf_write_phdr(Elf *e, unsigned char *nf, struct _Elf_Extent *ex)
 	(void) memset(&dst, 0, sizeof(dst));
 	(void) memset(&src, 0, sizeof(src));
 
+	if ((msz = _libelf_msize(ELF_T_PHDR, ec, e->e_version)) == 0)
+		return ((off_t) -1);
 	fsz = _libelf_fsize(ELF_T_PHDR, ec, e->e_version, phnum);
 	assert(fsz > 0);
 
 	src.d_buf = _libelf_getphdr(e, ec);
 	src.d_version = dst.d_version = e->e_version;
 	src.d_type = ELF_T_PHDR;
-	src.d_size = phnum * _libelf_msize(ELF_T_PHDR, ec,
-	    e->e_version);
+	src.d_size = phnum * msz;
 
 	dst.d_size = fsz;
 	dst.d_buf = nf + ex->ex_start;
@@ -948,13 +959,16 @@ _libelf_write_shdr(Elf *e, unsigned char *nf, struct _Elf_Extent *ex)
 	uint64_t shoff;
 	Elf32_Ehdr *eh32;
 	Elf64_Ehdr *eh64;
-	size_t fsz, nscn;
+	size_t fsz, msz, nscn;
 	Elf_Data dst, src;
 
 	assert(ex->ex_type == ELF_EXTENT_SHDR);
 
 	ec = e->e_class;
+
 	ehdr = _libelf_ehdr(e, ec, 0);
+	assert(ehdr != NULL);
+
 	nscn = e->e_u.e_elf.e_nscn;
 
 	if (ec == ELFCLASS32) {
@@ -974,8 +988,11 @@ _libelf_write_shdr(Elf *e, unsigned char *nf, struct _Elf_Extent *ex)
 	(void) memset(&dst, 0, sizeof(dst));
 	(void) memset(&src, 0, sizeof(src));
 
+	if ((msz = _libelf_msize(ELF_T_SHDR, ec, e->e_version)) == 0)
+		return ((off_t) -1);
+
 	src.d_type = ELF_T_SHDR;
-	src.d_size = _libelf_msize(ELF_T_SHDR, ec, e->e_version);
+	src.d_size = msz;
 	src.d_version = dst.d_version = e->e_version;
 
 	fsz = _libelf_fsize(ELF_T_SHDR, ec, e->e_version, (size_t) 1);
@@ -1087,7 +1104,7 @@ _libelf_write_elf(Elf *e, off_t newsize, struct _Elf_Extent_List *extents)
 		if (e->e_flags & LIBELF_F_RAWFILE_MMAP) {
 			assert(e->e_rawfile != NULL);
 			assert(e->e_cmd == ELF_C_RDWR);
-			if (munmap(e->e_rawfile, e->e_rawsize) < 0) {
+			if (munmap(e->e_rawfile, (size_t) e->e_rawsize) < 0) {
 				LIBELF_SET_ERROR(IO, errno);
 				goto error;
 			}
@@ -1112,12 +1129,14 @@ _libelf_write_elf(Elf *e, off_t newsize, struct _Elf_Extent_List *extents)
 		assert((e->e_flags & LIBELF_F_RAWFILE_MALLOC) ||
 		    (e->e_flags & LIBELF_F_RAWFILE_MMAP));
 		if (e->e_flags & LIBELF_F_RAWFILE_MALLOC) {
+			assert((e->e_flags & LIBELF_F_RAWFILE_MMAP) == 0);
 			free(e->e_rawfile);
 			e->e_rawfile = newfile;
 			newfile = NULL;
 		}
 #if	ELFTC_HAVE_MMAP
 		else if (e->e_flags & LIBELF_F_RAWFILE_MMAP) {
+			assert((e->e_flags & LIBELF_F_RAWFILE_MALLOC) == 0);
 			if ((e->e_rawfile = mmap(NULL, (size_t) newsize,
 			    PROT_READ, MAP_PRIVATE, e->e_fd, (off_t) 0)) ==
 			    MAP_FAILED) {
@@ -1128,7 +1147,7 @@ _libelf_write_elf(Elf *e, off_t newsize, struct _Elf_Extent_List *extents)
 #endif	/* ELFTC_HAVE_MMAP */
 
 		/* Record the new size of the file. */
-		e->e_rawsize = (size_t) newsize;
+		e->e_rawsize = newsize;
 	} else {
 		/* File opened in ELF_C_WRITE mode. */
 		assert(e->e_rawfile == NULL);

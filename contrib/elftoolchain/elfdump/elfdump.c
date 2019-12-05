@@ -50,7 +50,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: elfdump.c 3584 2017-11-05 20:51:43Z jkoshy $");
+ELFTC_VCSID("$Id: elfdump.c 3762 2019-06-28 21:06:24Z emaste $");
 
 #if defined(ELFTC_NEED_ELF_NOTE_DEFINITION)
 #include "native-elf-format.h"

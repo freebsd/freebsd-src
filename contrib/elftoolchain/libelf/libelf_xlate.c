@@ -29,7 +29,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_xlate.c 3632 2018-10-10 21:12:43Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_xlate.c 3732 2019-04-22 11:08:38Z jkoshy $");
 
 /*
  * Translate to/from the file representation of ELF objects.
@@ -83,9 +83,8 @@ _libelf_xlate(Elf_Data *dst, const Elf_Data *src, unsigned int encoding,
 	    (src->d_type, (size_t) 1, src->d_version)) == 0)
 		return (NULL);
 
-	msz = _libelf_msize(src->d_type, elfclass, src->d_version);
-
-	assert(msz > 0);
+	if ((msz = _libelf_msize(src->d_type, elfclass, src->d_version)) == 0)
+		return (NULL);
 
 	if (src->d_size % (direction == ELF_TOMEMORY ? fsz : msz)) {
 		LIBELF_SET_ERROR(DATA, 0);
