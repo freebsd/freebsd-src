@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm64/marvell/a37x0_iicreg.h>
+#include <arm/mv/a37x0_iicreg.h>
 
 #include "iicbus_if.h"
 
