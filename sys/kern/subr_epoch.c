@@ -169,6 +169,10 @@ RB_GENERATE_STATIC(stacktree, stackentry, se_node, stackentry_compare);
 static struct mtx epoch_stacks_lock;
 MTX_SYSINIT(epochstacks, &epoch_stacks_lock, "epoch_stacks", MTX_DEF);
 
+static bool epoch_trace_stack_print = true;
+SYSCTL_BOOL(_kern_epoch, OID_AUTO, trace_stack_print, CTLFLAG_RWTUN,
+    &epoch_trace_stack_print, 0, "Print stack traces on epoch reports");
+
 static void epoch_trace_report(const char *fmt, ...) __printflike(1, 2);
 static inline void
 epoch_trace_report(const char *fmt, ...)
@@ -197,7 +201,8 @@ epoch_trace_report(const char *fmt, ...)
 	va_start(ap, fmt);
 	(void)vprintf(fmt, ap);
 	va_end(ap);
-	stack_print_ddb(&se.se_stack);
+	if (epoch_trace_stack_print)
+		stack_print_ddb(&se.se_stack);
 }
 
 static inline void
@@ -209,8 +214,9 @@ epoch_trace_enter(struct thread *td, epoch_t epoch, epoch_tracker_t et,
 	SLIST_FOREACH(iet, &td->td_epochs, et_tlink)
 		if (iet->et_epoch == epoch)
 			epoch_trace_report("Recursively entering epoch %s "
-			    "previously entered at %s:%d\n",
-			    epoch->e_name, iet->et_file, iet->et_line);
+			    "at %s:%d, previously entered at %s:%d\n",
+			    epoch->e_name, file, line,
+			    iet->et_file, iet->et_line);
 	et->et_epoch = epoch;
 	et->et_file = file;
 	et->et_line = line;
@@ -223,9 +229,10 @@ epoch_trace_exit(struct thread *td, epoch_t epoch, epoch_tracker_t et,
 {
 
 	if (SLIST_FIRST(&td->td_epochs) != et) {
-		epoch_trace_report("Exiting epoch %s in a not nested order. "
-		    "Most recently entered %s at %s:%d\n",
+		epoch_trace_report("Exiting epoch %s in a not nested order "
+		    "at %s:%d. Most recently entered %s at %s:%d\n",
 		    epoch->e_name,
+		    file, line,
 		    SLIST_FIRST(&td->td_epochs)->et_epoch->e_name,
 		    SLIST_FIRST(&td->td_epochs)->et_file,
 		    SLIST_FIRST(&td->td_epochs)->et_line);
