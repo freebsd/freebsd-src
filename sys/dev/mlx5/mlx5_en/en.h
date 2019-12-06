@@ -53,6 +53,7 @@
 #include <net/pfil.h>
 #include <sys/buf_ring.h>
 #include <sys/kthread.h>
+#include <sys/counter.h>
 
 #include "opt_rss.h"
 
@@ -167,6 +168,7 @@ typedef void (mlx5e_cq_comp_t)(struct mlx5_core_cq *);
 
 #define	MLX5E_STATS_COUNT(a, ...) a
 #define	MLX5E_STATS_VAR(a, b, c, ...) b c;
+#define	MLX5E_STATS_COUNTER(a, b, c, ...) counter_##b##_t c;
 #define	MLX5E_STATS_DESC(a, b, c, d, e, ...) d, e,
 
 #define	MLX5E_VPORT_STATS(m)						\
@@ -724,6 +726,7 @@ struct mlx5e_params_ethtool {
 	u8	fec_avail_10x_25x[MLX5E_MAX_FEC_10X_25X];
 	u16	fec_avail_50x[MLX5E_MAX_FEC_50X];
 	u32	fec_mode_active;
+	u32	hw_mtu_msb;
 };
 
 struct mlx5e_cq {
@@ -775,6 +778,7 @@ struct mlx5e_rq {
 struct mlx5e_sq_mbuf {
 	bus_dmamap_t dma_map;
 	struct mbuf *mbuf;
+	volatile s32 *p_refcount;	/* in use refcount, if any */
 	u32	num_bytes;
 	u32	num_wqebbs;
 };
@@ -959,9 +963,14 @@ struct mlx5e_flow_tables {
 	struct mlx5e_flow_table inner_rss;
 };
 
-#ifdef RATELIMIT
+struct mlx5e_xmit_args {
+	volatile s32 *pref;
+	u32 tisn;
+	u16 ihs;
+};
+
 #include "en_rl.h"
-#endif
+#include "en_hw_tls.h"
 
 #define	MLX5E_TSTMP_PREC 10
 
@@ -1035,9 +1044,10 @@ struct mlx5e_priv {
 	int	media_active_last;
 
 	struct callout watchdog;
-#ifdef RATELIMIT
+
 	struct mlx5e_rl_priv_data rl;
-#endif
+
+	struct mlx5e_tls tls;
 
 	struct callout tstmp_clbr;
 	int	clbr_done;
@@ -1092,6 +1102,8 @@ struct mlx5e_eeprom {
 
 #define	MLX5E_FLD_MAX(typ, fld) ((1ULL << __mlx5_bit_sz(typ, fld)) - 1ULL)
 
+bool	mlx5e_do_send_cqe(struct mlx5e_sq *);
+int	mlx5e_get_full_header_size(struct mbuf *, struct tcphdr **);
 int	mlx5e_xmit(struct ifnet *, struct mbuf *);
 
 int	mlx5e_open_locked(struct ifnet *);
@@ -1163,7 +1175,12 @@ void	mlx5e_create_ethtool(struct mlx5e_priv *);
 void	mlx5e_create_stats(struct sysctl_ctx_list *,
     struct sysctl_oid_list *, const char *,
     const char **, unsigned, u64 *);
+void	mlx5e_create_counter_stats(struct sysctl_ctx_list *,
+    struct sysctl_oid_list *, const char *,
+    const char **, unsigned, counter_u64_t *);
 void	mlx5e_send_nop(struct mlx5e_sq *, u32);
+int	mlx5e_sq_dump_xmit(struct mlx5e_sq *, struct mlx5e_xmit_args *, struct mbuf **);
+int	mlx5e_sq_xmit(struct mlx5e_sq *, struct mbuf **);
 void	mlx5e_sq_cev_timeout(void *);
 int	mlx5e_refresh_channel_params(struct mlx5e_priv *);
 int	mlx5e_open_cq(struct mlx5e_priv *, struct mlx5e_cq_param *,
@@ -1182,5 +1199,10 @@ void	mlx5e_update_sq_inline(struct mlx5e_sq *sq);
 void	mlx5e_refresh_sq_inline(struct mlx5e_priv *priv);
 int	mlx5e_update_buf_lossy(struct mlx5e_priv *priv);
 int	mlx5e_fec_update(struct mlx5e_priv *priv);
+
+if_snd_tag_alloc_t mlx5e_ul_snd_tag_alloc;
+if_snd_tag_modify_t mlx5e_ul_snd_tag_modify;
+if_snd_tag_query_t mlx5e_ul_snd_tag_query;
+if_snd_tag_free_t mlx5e_ul_snd_tag_free;
 
 #endif					/* _MLX5_EN_H_ */
