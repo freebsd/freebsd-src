@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/linker.h>
 
+#include <machine/machdep.h>
 #include <machine/stack.h>
 
 #include "linker_if.h"
@@ -59,12 +60,6 @@ __FBSDID("$FreeBSD$");
 
 /* A special case when we are unable to unwind past this function */
 #define	EXIDX_CANTUNWIND	1
-
-/*
- * These are set in the linker script. Their addresses will be
- * either the start or end of the exception table or index.
- */
-extern int exidx_start, exidx_end;
 
 /*
  * Entry types.
@@ -154,9 +149,9 @@ find_index(uint32_t addr, int search_modules)
 	int32_t prel31_addr;
 	uint32_t func_addr;
 
-	start = (struct unwind_idx *)&exidx_start;
-	idx_start = (caddr_t)&exidx_start;
-	idx_end = (caddr_t)&exidx_end;
+	start = (struct unwind_idx *)&_exidx_start;
+	idx_start = (caddr_t)&_exidx_start;
+	idx_end = (caddr_t)&_exidx_end;
 
 	/* This may acquire a lock */
 	if (search_modules) {
