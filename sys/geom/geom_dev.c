@@ -524,12 +524,12 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 	i = IOCPARM_LEN(cmd);
 	switch (cmd) {
 	case DIOCGSECTORSIZE:
-		*(u_int *)data = cp->provider->sectorsize;
+		*(u_int *)data = pp->sectorsize;
 		if (*(u_int *)data == 0)
 			error = ENOENT;
 		break;
 	case DIOCGMEDIASIZE:
-		*(off_t *)data = cp->provider->mediasize;
+		*(off_t *)data = pp->mediasize;
 		if (*(off_t *)data == 0)
 			error = ENOENT;
 		break;
@@ -626,15 +626,14 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 	case DIOCGDELETE:
 		offset = ((off_t *)data)[0];
 		length = ((off_t *)data)[1];
-		if ((offset % cp->provider->sectorsize) != 0 ||
-		    (length % cp->provider->sectorsize) != 0 || length <= 0) {
+		if ((offset % pp->sectorsize) != 0 ||
+		    (length % pp->sectorsize) != 0 || length <= 0) {
 			printf("%s: offset=%jd length=%jd\n", __func__, offset,
 			    length);
 			error = EINVAL;
 			break;
 		}
-		if ((cp->provider->mediasize > 0) &&
-		    (offset >= cp->provider->mediasize)) {
+		if ((pp->mediasize > 0) && (offset >= pp->mediasize)) {
 			/*
 			 * Catch out-of-bounds requests here. The problem is
 			 * that due to historical GEOM I/O implementation
@@ -649,14 +648,12 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		}
 		while (length > 0) {
 			chunk = length;
-			if (g_dev_del_max_sectors != 0 && chunk >
-			    g_dev_del_max_sectors * cp->provider->sectorsize) {
-				chunk = g_dev_del_max_sectors *
-				    cp->provider->sectorsize;
-				if (cp->provider->stripesize > 0) {
+			if (g_dev_del_max_sectors != 0 &&
+			    chunk > g_dev_del_max_sectors * pp->sectorsize) {
+				chunk = g_dev_del_max_sectors * pp->sectorsize;
+				if (pp->stripesize > 0) {
 					odd = (offset + chunk +
-					    cp->provider->stripeoffset) %
-					    cp->provider->stripesize;
+					    pp->stripeoffset) % pp->stripesize;
 					if (chunk > odd)
 						chunk -= odd;
 				}
@@ -684,10 +681,10 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		strlcpy(data, pp->name, i);
 		break;
 	case DIOCGSTRIPESIZE:
-		*(off_t *)data = cp->provider->stripesize;
+		*(off_t *)data = pp->stripesize;
 		break;
 	case DIOCGSTRIPEOFFSET:
-		*(off_t *)data = cp->provider->stripeoffset;
+		*(off_t *)data = pp->stripeoffset;
 		break;
 	case DIOCGPHYSPATH:
 		error = g_io_getattr("GEOM::physpath", cp, &i, data);
@@ -739,8 +736,8 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		break;
 	}
 	default:
-		if (cp->provider->geom->ioctl != NULL) {
-			error = cp->provider->geom->ioctl(cp->provider, cmd, data, fflag, td);
+		if (pp->geom->ioctl != NULL) {
+			error = pp->geom->ioctl(pp, cmd, data, fflag, td);
 		} else {
 			error = ENOIOCTL;
 		}
