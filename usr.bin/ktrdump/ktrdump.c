@@ -132,8 +132,7 @@ main(int ac, char **av)
 			if ((in = open(optarg, O_RDONLY)) == -1)
 				err(1, "%s", optarg);
 			cap_rights_init(&rights, CAP_FSTAT, CAP_MMAP_R);
-			if (cap_rights_limit(in, &rights) < 0 &&
-			    errno != ENOSYS)
+			if (caph_rights_limit(in, &rights) < 0)
 				err(1, "unable to limit rights for %s",
 				    optarg);
 			break;

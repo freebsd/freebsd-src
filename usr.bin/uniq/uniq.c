@@ -143,14 +143,14 @@ main (int argc, char *argv[])
 	if (argc > 0 && strcmp(argv[0], "-") != 0)
 		ifp = file(ifn = argv[0], "r");
 	cap_rights_init(&rights, CAP_FSTAT, CAP_READ);
-	if (cap_rights_limit(fileno(ifp), &rights) < 0 && errno != ENOSYS)
+	if (caph_rights_limit(fileno(ifp), &rights) < 0)
 		err(1, "unable to limit rights for %s", ifn);
 	cap_rights_init(&rights, CAP_FSTAT, CAP_WRITE);
 	if (argc > 1)
 		ofp = file(argv[1], "w");
 	else
 		cap_rights_set(&rights, CAP_IOCTL);
-	if (cap_rights_limit(fileno(ofp), &rights) < 0 && errno != ENOSYS) {
+	if (caph_rights_limit(fileno(ofp), &rights) < 0) {
 		err(1, "unable to limit rights for %s",
 		    argc > 1 ? argv[1] : "stdout");
 	}
@@ -159,8 +159,7 @@ main (int argc, char *argv[])
 
 		cmd = TIOCGETA; /* required by isatty(3) in printf(3) */
 
-		if (cap_ioctls_limit(fileno(ofp), &cmd, 1) < 0 &&
-		    errno != ENOSYS) {
+		if (caph_ioctls_limit(fileno(ofp), &cmd, 1) < 0) {
 			err(1, "unable to limit ioctls for %s",
 			    argc > 1 ? argv[1] : "stdout");
 		}
