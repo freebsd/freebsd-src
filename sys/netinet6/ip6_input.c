@@ -897,24 +897,6 @@ passin:
 		return;
 	}
 
-	ip6 = mtod(m, struct ip6_hdr *);
-
-	/*
-	 * Malicious party may be able to use IPv4 mapped addr to confuse
-	 * tcp/udp stack and bypass security checks (act as if it was from
-	 * 127.0.0.1 by using IPv6 src ::ffff:127.0.0.1).  Be cautious.
-	 *
-	 * For SIIT end node behavior, you may want to disable the check.
-	 * However, you will  become vulnerable to attacks using IPv4 mapped
-	 * source.
-	 */
-	if (IN6_IS_ADDR_V4MAPPED(&ip6->ip6_src) ||
-	    IN6_IS_ADDR_V4MAPPED(&ip6->ip6_dst)) {
-		IP6STAT_INC(ip6s_badscope);
-		in6_ifstat_inc(rcvif, ifs6_in_addrerr);
-		goto bad;
-	}
-
 	/*
 	 * Tell launch routine the next header
 	 */
