@@ -999,6 +999,7 @@ main(int argc, CHAR16 *argv[])
 		printf(" %S", argv[i]);
 	printf("\n");
 
+	printf("   Image base: 0x%lx\n", (unsigned long)boot_img->ImageBase);
 	printf("   EFI version: %d.%02d\n", ST->Hdr.Revision >> 16,
 	    ST->Hdr.Revision & 0xffff);
 	printf("   EFI Firmware: %S (rev %d.%02d)\n", ST->FirmwareVendor,
