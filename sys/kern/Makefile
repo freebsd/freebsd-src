@@ -8,13 +8,19 @@
 
 .include <src.lua.mk>
 
+MAKESYSCALLS=	../tools/makesyscalls.lua
+SRCS=		capabilities.conf	\
+		syscalls.master
+GENERATED=	init_sysent.c		\
+		syscalls.c		\
+		../sys/syscall.h	\
+		../sys/syscall.mk	\
+		../sys/sysproto.h
+
 all:
 	@echo "make sysent only"
 
-sysent: init_sysent.c syscalls.c ../sys/syscall.h ../sys/syscall.mk \
-../sys/sysproto.h
+sysent: ${GENERATED}
 
-init_sysent.c syscalls.c systrace_args.c ../sys/syscall.h \
-../sys/syscall.mk ../sys/sysproto.h: ../tools/makesyscalls.lua syscalls.master \
-capabilities.conf
-	${LUA} ../tools/makesyscalls.lua syscalls.master
+${GENERATED}: ${MAKESYSCALLS} ${SRCS}
+	${LUA} ${MAKESYSCALLS} syscalls.master
