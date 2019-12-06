@@ -129,7 +129,7 @@ struct bwn_mac;
 		mac->mac_phy.phy_maskset(mac, offset, mask, 0);		\
 	} else								\
 		BWN_PHY_WRITE(mac, offset,				\
-		    BWN_PHY_READ(mac, offset) & mask);			\
+		    BWN_PHY_READ(mac, offset) & (mask));		\
 } while (0)
 #define	BWN_PHY_COPY(mac, dst, src)	do {				\
 	KASSERT(mac->mac_status < BWN_MAC_STATUS_INITED ||		\
