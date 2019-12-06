@@ -288,6 +288,7 @@ device		mv_thermal	# Marvell Thermal Sensor Controller
 
 # SPI
 device		spibus
+device		a37x0_spi	# Marvell Armada 37x0 SPI Controller
 device		bcm2835_spi	# Broadcom BCM283x SPI bus
 device		rk_spi		# RockChip SPI controller
 
