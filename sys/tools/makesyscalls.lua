@@ -208,8 +208,13 @@ end
 -- be fine to make various assumptions
 local function process_config(file)
 	local cfg = {}
-	local commentExpr = "#.*"
-	local lineExpr = "([%w%p]+)%s*=%s*([`\"]?[^\"`]+[`\"]?)"
+	local comment_line_expr = "^%s*#.*"
+	-- We capture any whitespace padding here so we can easily advance to
+	-- the end of the line as needed to check for any trailing bogus bits.
+	-- Alternatively, we could drop the whitespace and instead try to
+	-- use a pattern to strip out the meaty part of the line, but then we
+	-- would need to sanitize the line for potentially special characters.
+	local line_expr = "^([%w%p]+%s*)=(%s*[`\"]?[^\"`]+[`\"]?)"
 
 	if file == nil then
 		return nil, "No file given"
@@ -221,18 +226,36 @@ local function process_config(file)
 	end
 
 	for nextline in fh:lines() do
-		-- Strip any comments
-		nextline = nextline:gsub(commentExpr, "")
+		-- Strip any whole-line comments
+		nextline = nextline:gsub(comment_line_expr, "")
 		-- Parse it into key, value pairs
-		local key, value = nextline:match(lineExpr)
+		local key, value = nextline:match(line_expr)
 		if key ~= nil and value ~= nil then
-			if value:sub(1,1) == '`' then
+			local kvp = key .. "=" .. value
+			key = trim(key)
+			value = trim(value)
+			local delim = value:sub(1,1)
+			if delim == '`' or delim == '"' then
+				local trailing_context
+				-- Strip off the key/value part
+				trailing_context = nextline:sub(kvp:len() + 1)
+				-- Strip off any trailing comment
+				trailing_context = trailing_context:gsub("#.*$",
+				    "")
+				-- Strip off leading/trailing whitespace
+				trailing_context = trim(trailing_context)
+				if trailing_context ~= "" then
+					print(trailing_context)
+					abort(1, "Malformed line: " .. nextline)
+				end
+			end
+			if delim == '`' then
 				-- Command substition may use $1 and $2 to mean
 				-- the syscall definition file and itself
 				-- respectively.  We'll go ahead and replace
 				-- $[0-9] with respective arg in case we want to
 				-- expand this in the future easily...
-				value = trim(value, "`")
+				value = trim(value, delim)
 				for capture in value:gmatch("$([0-9]+)") do
 					capture = tonumber(capture)
 					if capture > #arg then
@@ -244,10 +267,24 @@ local function process_config(file)
 				end
 
 				value = exec(value)
+			elseif delim == '"' then
+				value = trim(value, delim)
 			else
-				value = trim(value, '"')
+				-- Strip off potential comments
+				value = value:gsub("#.*$", "")
+				-- Strip off any padding whitespace
+				value = trim(value)
+				if value:match("%s") then
+					abort(1, "Malformed config line: " ..
+					    nextline)
+				end
 			end
 			cfg[key] = value
+		elseif not nextline:match("^%s*$") then
+			-- Make sure format violations don't get overlooked
+			-- here, but ignore blank lines.  Comments are already
+			-- stripped above.
+			abort(1, "Malformed config line: " .. nextline)
 		end
 	end
 
