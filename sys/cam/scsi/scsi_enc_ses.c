@@ -110,7 +110,7 @@ typedef struct ses_addl_status {
 typedef struct ses_element {
 	uint8_t eip;			/* eip bit is set */
 	uint16_t descr_len;		/* length of the descriptor */
-	char *descr;			/* descriptor for this object */
+	const char *descr;		/* descriptor for this object */
 	struct ses_addl_status addl;	/* additional status info */
 } ses_element_t;
 
@@ -1977,6 +1977,35 @@ ses_publish_cache(enc_softc_t *enc, struct enc_fsm_state *state,
 	return (0);
 }
 
+/*
+ * \brief Sanitize an element descriptor
+ *
+ * The SES4r3 standard, sections 3.1.2 and 6.1.10, specifies that element
+ * descriptors may only contain ASCII characters in the range 0x20 to 0x7e.
+ * But some vendors violate that rule.  Ensure that we only expose compliant
+ * descriptors to userland.
+ *
+ * \param desc		SES element descriptor as reported by the hardware
+ * \param len		Length of desc in bytes, not necessarily including
+ * 			trailing NUL.  It will be modified if desc is invalid.
+ */
+static const char*
+ses_sanitize_elm_desc(const char *desc, uint16_t *len)
+{
+	const char *invalid = "<invalid>";
+	int i;
+
+	for (i = 0; i < *len; i++) {
+		if (desc[i] < 0x20 || desc[i] > 0x7e) {
+			*len = strlen(invalid);
+			return (invalid);
+		} else if (desc[i] == 0) {
+			break;
+		}
+	}
+	return (desc);
+}
+
 /**
  * \brief Parse the descriptors for each object.
  *
@@ -2061,7 +2090,8 @@ ses_process_elm_descs(enc_softc_t *enc, struct enc_fsm_state *state,
 		if (length > 0) {
 			elmpriv = element->elm_private;
 			elmpriv->descr_len = length;
-			elmpriv->descr = &buf[offset];
+			elmpriv->descr = ses_sanitize_elm_desc(&buf[offset],
+			    &elmpriv->descr_len);
 		}
 
 		/* skip over the descriptor itself */
