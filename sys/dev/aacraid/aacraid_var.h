@@ -33,9 +33,7 @@
  */
 
 #include <sys/bio.h>
-#if __FreeBSD_version >= 800000
 #include <sys/callout.h>
-#endif
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/taskqueue.h>
@@ -56,38 +54,17 @@
 # define AAC_DRIVER_BUILD 1
 #endif
 
-#if __FreeBSD_version <= 601000
-#define bus_get_dma_tag(x)	NULL
-#endif
-
 /* **************************** NewBUS interrupt Crock ************************/
-#if __FreeBSD_version < 700031
-#define	aac_bus_setup_intr(d, i, f, U, if, ifa, hp)	\
-	bus_setup_intr(d, i, f, if, ifa, hp)
-#else
 #define	aac_bus_setup_intr	bus_setup_intr
-#endif
 
 /* **************************** NewBUS CAM Support ****************************/
-#if __FreeBSD_version < 700049
-#define aac_xpt_bus_register(sim, parent, bus)	\
-	xpt_bus_register(sim, bus)
-#else
 #define aac_xpt_bus_register	xpt_bus_register
-#endif
 
 /**************************** Kernel Thread Support ***************************/
-#if __FreeBSD_version > 800001
 #define aac_kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
 	kproc_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg)
 #define	aac_kthread_exit(status)	\
 	kproc_exit(status)
-#else
-#define aac_kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
-	kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg)
-#define	aac_kthread_exit(status)	\
-	kthread_exit(status)
-#endif
 
 /*
  * Driver Parameter Definitions
@@ -362,11 +339,7 @@ struct aac_softc
 	void			*aac_intr[AAC_MAX_MSIX]; /* interrupt handle */
 	struct aac_msix_ctx	aac_msix[AAC_MAX_MSIX]; /* context */
 	eventhandler_tag	eh;
-#if __FreeBSD_version >= 800000
 	struct callout	aac_daemontime;		/* clock daemon callout */
-#else	
-	struct callout_handle	timeout_id;	/* timeout handle */
-#endif
 
 	/* controller features, limits and status */
 	int			aac_state;
