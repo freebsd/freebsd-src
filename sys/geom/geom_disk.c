@@ -108,7 +108,7 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 	    pp->name, r, w, e);
 	g_topology_assert();
 	sc = pp->private;
-	if (sc == NULL || (dp = sc->dp) == NULL || dp->d_destroyed) {
+	if ((dp = sc->dp) == NULL || dp->d_destroyed) {
 		/*
 		 * Allow decreasing access count even if disk is not
 		 * available anymore.
@@ -274,6 +274,8 @@ g_disk_ioctl(struct g_provider *pp, u_long cmd, void * data, int fflag, struct t
 
 	sc = pp->private;
 	dp = sc->dp;
+	KASSERT(dp != NULL && !dp->d_destroyed,
+	    ("g_disk_ioctl(%lx) on destroyed disk %s", cmd, pp->name));
 
 	if (dp->d_ioctl == NULL)
 		return (ENOIOCTL);
@@ -432,10 +434,9 @@ g_disk_start(struct bio *bp)
 	biotrack(bp, __func__);
 
 	sc = bp->bio_to->private;
-	if (sc == NULL || (dp = sc->dp) == NULL || dp->d_destroyed) {
-		g_io_deliver(bp, ENXIO);
-		return;
-	}
+	dp = sc->dp;
+	KASSERT(dp != NULL && !dp->d_destroyed,
+	    ("g_disk_start(%p) on destroyed disk %s", bp, bp->bio_to->name));
 	error = EJUSTRETURN;
 	switch(bp->bio_cmd) {
 	case BIO_DELETE:
@@ -896,8 +897,9 @@ void
 disk_destroy(struct disk *dp)
 {
 
-	g_cancel_event(dp);
+	disk_gone(dp);
 	dp->d_destroyed = 1;
+	g_cancel_event(dp);
 	if (dp->d_devstat != NULL)
 		devstat_remove_entry(dp->d_devstat);
 	g_post_event(g_disk_destroy, dp, M_WAITOK, NULL);
@@ -922,6 +924,16 @@ disk_gone(struct disk *dp)
 	struct g_provider *pp;
 
 	mtx_pool_lock(mtxpool_sleep, dp);
+
+	/*
+	 * Second wither call makes no sense, plus we can not access the list
+	 * of providers without topology lock after calling wither once.
+	 */
+	if (dp->d_goneflag != 0) {
+		mtx_pool_unlock(mtxpool_sleep, dp);
+		return;
+	}
+
 	dp->d_goneflag = 1;
 
 	/*
@@ -946,13 +958,11 @@ disk_gone(struct disk *dp)
 	mtx_pool_unlock(mtxpool_sleep, dp);
 
 	gp = dp->d_geom;
-	if (gp != NULL) {
-		pp = LIST_FIRST(&gp->provider);
-		if (pp != NULL) {
-			KASSERT(LIST_NEXT(pp, provider) == NULL,
-			    ("geom %p has more than one provider", gp));
-			g_wither_provider(pp, ENXIO);
-		}
+	pp = LIST_FIRST(&gp->provider);
+	if (pp != NULL) {
+		KASSERT(LIST_NEXT(pp, provider) == NULL,
+		    ("geom %p has more than one provider", gp));
+		g_wither_provider(pp, ENXIO);
 	}
 }
 
