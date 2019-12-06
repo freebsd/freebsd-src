@@ -716,6 +716,21 @@ gpiobus_add_child(device_t dev, u_int order, const char *name, int unit)
 	return (child);
 }
 
+static int
+gpiobus_rescan(device_t dev)
+{
+
+	/*
+	 * Re-scan is supposed to remove and add children, but if someone has
+	 * deleted the hints for a child we attached earlier, we have no easy
+	 * way to handle that.  So this just attaches new children for whom new
+	 * hints or drivers have arrived since we last tried.
+	 */
+	bus_enumerate_hinted_children(dev);
+	bus_generic_attach(dev);
+	return (0);
+}
+
 static void
 gpiobus_hinted_child(device_t bus, const char *dname, int dunit)
 {
@@ -724,6 +739,10 @@ gpiobus_hinted_child(device_t bus, const char *dname, int dunit)
 	device_t child;
 	const char *pins;
 	int irq, pinmask;
+
+	if (device_find_child(bus, dname, dunit) != NULL) {
+		return;
+	}
 
 	child = BUS_ADD_CHILD(bus, 0, dname, dunit);
 	devi = GPIOBUS_IVAR(child);
@@ -1077,6 +1096,7 @@ static device_method_t gpiobus_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
 	DEVMETHOD(bus_get_resource_list,	gpiobus_get_resource_list),
 	DEVMETHOD(bus_add_child,	gpiobus_add_child),
+	DEVMETHOD(bus_rescan,		gpiobus_rescan),
 	DEVMETHOD(bus_probe_nomatch,	gpiobus_probe_nomatch),
 	DEVMETHOD(bus_print_child,	gpiobus_print_child),
 	DEVMETHOD(bus_child_pnpinfo_str, gpiobus_child_pnpinfo_str),
