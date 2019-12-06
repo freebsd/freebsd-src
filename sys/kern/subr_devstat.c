@@ -349,11 +349,16 @@ devstat_end_transaction_bio_bt(struct devstat *ds, const struct bio *bp,
     const struct bintime *now)
 {
 	devstat_trans_flags flg;
+	devstat_tag_type tag;
 
 	/* sanity check */
 	if (ds == NULL)
 		return;
 
+	if (bp->bio_flags & BIO_ORDERED)
+		tag = DEVSTAT_TAG_ORDERED;
+	else
+		tag = DEVSTAT_TAG_SIMPLE;
 	if (bp->bio_cmd == BIO_DELETE)
 		flg = DEVSTAT_FREE;
 	else if ((bp->bio_cmd == BIO_READ)
@@ -366,7 +371,7 @@ devstat_end_transaction_bio_bt(struct devstat *ds, const struct bio *bp,
 		flg = DEVSTAT_NO_DATA;
 
 	devstat_end_transaction(ds, bp->bio_bcount - bp->bio_resid,
-				DEVSTAT_TAG_SIMPLE, flg, now, &bp->bio_t0);
+				tag, flg, now, &bp->bio_t0);
 	DTRACE_DEVSTAT_BIO_DONE();
 }
 
