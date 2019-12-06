@@ -754,6 +754,8 @@
                 ..
                 mirror
                 ..
+                multipath
+                ..
                 nop
                 ..
                 part
