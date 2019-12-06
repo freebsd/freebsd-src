@@ -135,6 +135,30 @@
   <sect1 xml:id="late-news">
     <title>Late-Breaking News</title>
 
-    <para>No news.</para>
+    <itemizedlist>
+      <listitem>
+	<para>[2019-12-06] An issue has been reported with the
+	  &os;&nbsp;11.3-RELEASE images on the Google Compute Engine
+	  platform which causes virtual machines to fail to start
+	  properly.</para>
+
+	<para>While we intend to investigate how to handle similar
+	  situations should they arise in the future, updated images
+	  will not be provided as of this time.</para>
+
+	<para>Users wanting to use &os; in Google Compute Engine are
+	  advised to use 12.0-RELEASE or 12.1-RELEASE, or for those
+	  who wish to track 11.<replaceable>X</replaceable>, the
+	  <literal>freebsd-11-3-stable-amd64-v20190801</literal>
+	  snapshot from <literal>stable/11</literal> has been
+	  <link
+	    xlink:href="https://github.com/cirruslabs/cirrus-ci-docs/issues/359#issuecomment-519314652">
+	    reported to work correctly</link>.</para>
+
+	<para>More details can be found in <link
+	    xlink:href="https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=242303">PR
+	    242303</link>.</para>
+      </listitem>
+    </itemizedlist>
   </sect1>
 </article>
