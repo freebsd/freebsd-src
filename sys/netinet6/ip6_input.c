@@ -677,11 +677,10 @@ ip6_input(struct mbuf *m)
 	 * and bypass security checks (act as if it was from 127.0.0.1 by using
 	 * IPv6 src ::ffff:127.0.0.1).  Be cautious.
 	 *
-	 * This check chokes if we are in an SIIT cloud.  As none of BSDs
-	 * support IPv4-less kernel compilation, we cannot support SIIT
-	 * environment at all.  So, it makes more sense for us to reject any
-	 * malicious packets for non-SIIT environment, than try to do a
-	 * partial support for SIIT environment.
+	 * We have supported IPv6-only kernels for a few years and this issue
+	 * has not come up.  The world seems to move mostly towards not using
+	 * v4mapped on the wire, so it makes sense for us to keep rejecting
+	 * any such packets.
 	 */
 	if (IN6_IS_ADDR_V4MAPPED(&ip6->ip6_src) ||
 	    IN6_IS_ADDR_V4MAPPED(&ip6->ip6_dst)) {
