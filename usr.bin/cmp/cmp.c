@@ -45,7 +45,6 @@ static char sccsid[] = "@(#)cmp.c	8.3 (Berkeley) 4/2/94";
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/capsicum.h>
 #include <sys/stat.h>
 
 #include <capsicum_helpers.h>
@@ -80,8 +79,6 @@ main(int argc, char *argv[])
 	off_t skip1, skip2;
 	int ch, fd1, fd2, oflag, special;
 	const char *file1, *file2;
-	cap_rights_t rights;
-	uint32_t fcntls;
 
 	oflag = O_RDONLY;
 	while ((ch = getopt_long(argc, argv, "+hlsxz", long_opts, NULL)) != -1)
@@ -116,14 +113,19 @@ main(int argc, char *argv[])
 	if (argc < 2 || argc > 4)
 		usage();
 
+	/* Don't limit rights on stdin since it may be one of the inputs. */
+	if (caph_limit_stream(STDOUT_FILENO, CAPH_WRITE | CAPH_IGNORE_EBADF))
+		err(ERR_EXIT, "unable to limit rights on stdout");
+	if (caph_limit_stream(STDERR_FILENO, CAPH_WRITE | CAPH_IGNORE_EBADF))
+		err(ERR_EXIT, "unable to limit rights on stderr");
+
 	/* Backward compatibility -- handle "-" meaning stdin. */
 	special = 0;
 	if (strcmp(file1 = argv[0], "-") == 0) {
 		special = 1;
-		fd1 = 0;
+		fd1 = STDIN_FILENO;
 		file1 = "stdin";
-	}
-	else if ((fd1 = open(file1, oflag, 0)) < 0 && errno != EMLINK) {
+	} else if ((fd1 = open(file1, oflag, 0)) < 0 && errno != EMLINK) {
 		if (!sflag)
 			err(ERR_EXIT, "%s", file1);
 		else
@@ -134,10 +136,9 @@ main(int argc, char *argv[])
 			errx(ERR_EXIT,
 				"standard input may only be specified once");
 		special = 1;
-		fd2 = 0;
+		fd2 = STDIN_FILENO;
 		file2 = "stdin";
-	}
-	else if ((fd2 = open(file2, oflag, 0)) < 0 && errno != EMLINK) {
+	} else if ((fd2 = open(file2, oflag, 0)) < 0 && errno != EMLINK) {
 		if (!sflag)
 			err(ERR_EXIT, "%s", file2);
 		else
@@ -162,33 +163,8 @@ main(int argc, char *argv[])
 			exit(ERR_EXIT);
 	}
 
-	cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_MMAP_R);
-	if (caph_rights_limit(fd1, &rights) < 0)
-		err(ERR_EXIT, "unable to limit rights for %s", file1);
-	if (caph_rights_limit(fd2, &rights) < 0)
-		err(ERR_EXIT, "unable to limit rights for %s", file2);
-
-	/* Required for fdopen(3). */
-	fcntls = CAP_FCNTL_GETFL;
-	if (caph_fcntls_limit(fd1, fcntls) < 0)
-		err(ERR_EXIT, "unable to limit fcntls for %s", file1);
-	if (caph_fcntls_limit(fd2, fcntls) < 0)
-		err(ERR_EXIT, "unable to limit fcntls for %s", file2);
-
-	if (!special) {
-		cap_rights_init(&rights);
-		if (caph_rights_limit(STDIN_FILENO, &rights) < 0) {
-			err(ERR_EXIT, "unable to limit stdio");
-		}
-	}
-
-	if (caph_limit_stdout() == -1 || caph_limit_stderr() == -1)
-		err(ERR_EXIT, "unable to limit stdio");
-
+	/* FD rights are limited in c_special() and c_regular(). */
 	caph_cache_catpages();
-
-	if (caph_enter() < 0)
-		err(ERR_EXIT, "unable to enter capability mode");
 
 	if (!special) {
 		if (fstat(fd1, &sb1)) {
