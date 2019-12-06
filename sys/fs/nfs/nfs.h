@@ -335,6 +335,7 @@ struct nfsreferral {
 #define	LCL_NFSV41		0x00020000
 #define	LCL_DONEBINDCONN	0x00040000
 #define	LCL_RECLAIMONEFS	0x00080000
+#define	LCL_NFSV42		0x00100000
 
 #define	LCL_GSS		LCL_KERBV	/* Or of all mechs */
 
@@ -431,6 +432,8 @@ typedef struct {
 		(b)->bits[1] &= ~NFSATTRBIT_NFSV41_1;			\
 		(b)->bits[2] &= ~NFSATTRBIT_NFSV41_2;			\
 	}								\
+	if (((n)->nd_flag & ND_NFSV42) == 0)				\
+		(b)->bits[2] &= ~NFSATTRBIT_NFSV42_2;			\
 } while (0)
 
 #define	NFSISSET_ATTRBIT(b, p)	((b)->bits[(p) / 32] & (1 << ((p) % 32)))
@@ -457,6 +460,8 @@ typedef struct {
 		(b)->bits[1] &= ~NFSATTRBIT_NFSV41_1;			\
 		(b)->bits[2] &= ~NFSATTRBIT_NFSV41_2;			\
 	}								\
+	if (((n)->nd_flag & ND_NFSV42) == 0)				\
+		(b)->bits[2] &= ~NFSATTRBIT_NFSV42_2;			\
 } while (0)
 
 #define	NFSCLRNOTSETABLE_ATTRBIT(b, n) do { 				\
@@ -465,6 +470,8 @@ typedef struct {
 	(b)->bits[2] &= NFSATTRBIT_SETABLE2;				\
 	if (((n)->nd_flag & ND_NFSV41) == 0)				\
 		(b)->bits[2] &= ~NFSATTRBIT_NFSV41_2;			\
+	if (((n)->nd_flag & ND_NFSV42) == 0)				\
+		(b)->bits[2] &= ~NFSATTRBIT_NFSV42_2;			\
 } while (0)
 
 #define	NFSNONZERO_ATTRBIT(b)	((b)->bits[0] || (b)->bits[1] || (b)->bits[2])
@@ -701,6 +708,7 @@ struct nfsrv_descript {
 #define	ND_CURSTATEID		0x80000000
 #define	ND_SAVEDCURSTATEID	0x100000000
 #define	ND_HASSLOTID		0x200000000
+#define	ND_NFSV42		0x400000000
 
 /*
  * ND_GSS should be the "or" of all GSS type authentications.
