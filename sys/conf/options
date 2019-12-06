@@ -346,6 +346,7 @@ CAM_DEBUG_LUN		opt_cam.h
 CAM_DEBUG_FLAGS		opt_cam.h
 CAM_BOOT_DELAY		opt_cam.h
 CAM_IOSCHED_DYNAMIC	opt_cam.h
+CAM_IO_STATS		opt_cam.h
 CAM_TEST_FAILURE	opt_cam.h
 SCSI_DELAY		opt_scsi.h
 SCSI_NO_SENSE_STRINGS	opt_scsi.h
