@@ -29,9 +29,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/rman.h>
 
 #include <machine/bus.h>
@@ -228,9 +228,11 @@ a37x0_spi_attach(device_t dev)
 static int
 a37x0_spi_detach(device_t dev)
 {
+	int err;
 	struct a37x0_spi_softc *sc;
 
-	bus_generic_detach(dev);
+	if ((err = device_delete_children(dev)) != 0)
+		return (err);
 	sc = device_get_softc(dev);
 	mtx_destroy(&sc->sc_mtx);
 	if (sc->sc_intrhand)
