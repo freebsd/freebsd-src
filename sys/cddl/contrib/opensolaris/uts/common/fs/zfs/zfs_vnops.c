@@ -550,7 +550,7 @@ mappedread_sf(vnode_t *vp, int nbytes, uio_t *uio)
 				vm_page_unlock(pp);
 			}
 			vm_page_sunbusy(pp);
-			if (error != 0 && !vm_page_wired(pp) == 0 &&
+			if (error != 0 && !vm_page_wired(pp) &&
 			    pp->valid == 0 && vm_page_tryxbusy(pp))
 				vm_page_free(pp);
 		} else {
