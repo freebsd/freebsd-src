@@ -497,12 +497,6 @@ g_dev_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 	return (error);
 }
 
-/*
- * XXX: Until we have unmessed the ioctl situation, there is a race against
- * XXX: a concurrent orphanization.  We cannot close it by holding topology
- * XXX: since that would prevent us from doing our job, and stalling events
- * XXX: will break (actually: stall) the BSD disklabel hacks.
- */
 static int
 g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
@@ -516,6 +510,12 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 
 	cp = dev->si_drv2;
 	pp = cp->provider;
+
+	/* If consumer or provider is dying, don't disturb. */
+	if (cp->flags & G_CF_ORPHAN)
+		return (ENXIO);
+	if (pp->error)
+		return (pp->error);
 
 	error = 0;
 	KASSERT(cp->acr || cp->acw,
@@ -676,8 +676,6 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		error = g_io_getattr("GEOM::ident", cp, &i, data);
 		break;
 	case DIOCGPROVIDERNAME:
-		if (pp == NULL)
-			return (ENOENT);
 		strlcpy(data, pp->name, i);
 		break;
 	case DIOCGSTRIPESIZE:
