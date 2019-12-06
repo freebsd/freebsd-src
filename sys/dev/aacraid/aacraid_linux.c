@@ -36,9 +36,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
-#if __FreeBSD_version >= 900000
 #include <sys/capsicum.h>
-#endif
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
@@ -82,16 +80,12 @@ static int
 aacraid_linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 {
 	struct file *fp;
-#if __FreeBSD_version >= 900000
 	cap_rights_t rights;
-#endif
 	u_long cmd;
 	int error;
 
 	if ((error = fget(td, args->fd,
-#if __FreeBSD_version >= 900000
 	    cap_rights_init(&rights, CAP_IOCTL),
-#endif
 	    &fp)) != 0) {
 		return (error);
 	}

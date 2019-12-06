@@ -188,11 +188,7 @@ static char	*aac_describe_code(struct aac_code_lookup *table,
 static d_open_t		aac_open;
 static d_ioctl_t	aac_ioctl;
 static d_poll_t		aac_poll;
-#if __FreeBSD_version >= 702000
 static void		aac_cdevpriv_dtor(void *arg);
-#else
-static d_close_t	aac_close;
-#endif
 static int	aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib);
 static int	aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg);
 static void	aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib);
@@ -220,9 +216,6 @@ static struct cdevsw aacraid_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	0,
 	.d_open =	aac_open,
-#if __FreeBSD_version < 702000
-	.d_close =	aac_close,
-#endif
 	.d_ioctl =	aac_ioctl,
 	.d_poll =	aac_poll,
 	.d_name =	"aacraid",
@@ -275,10 +268,9 @@ aacraid_attach(struct aac_softc *sc)
 	TAILQ_INIT(&sc->aac_container_tqh);
 	TAILQ_INIT(&sc->aac_ev_cmfree);
 
-#if __FreeBSD_version >= 800000
 	/* Initialize the clock daemon callout. */
 	callout_init_mtx(&sc->aac_daemontime, &sc->aac_io_lock, 0);
-#endif
+
 	/*
 	 * Initialize the adapter.
 	 */
@@ -351,18 +343,9 @@ aacraid_attach(struct aac_softc *sc)
 	/* enable interrupts now */
 	AAC_ACCESS_DEVREG(sc, AAC_ENABLE_INTERRUPT);
 
-#if __FreeBSD_version >= 800000
 	mtx_lock(&sc->aac_io_lock);
 	callout_reset(&sc->aac_daemontime, 60 * hz, aac_daemon, sc);
 	mtx_unlock(&sc->aac_io_lock);
-#else
-	{
-		struct timeval tv;
-		tv.tv_sec = 60;
-		tv.tv_usec = 0;
-		sc->timeout_id = timeout(aac_daemon, (void *)sc, tvtohz(&tv));
-	}
-#endif
 
 	return(0);
 }
@@ -378,14 +361,10 @@ aac_daemon(void *arg)
 	sc = arg;
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-#if __FreeBSD_version >= 800000
 	mtx_assert(&sc->aac_io_lock, MA_OWNED);
 	if (callout_pending(&sc->aac_daemontime) ||
 	    callout_active(&sc->aac_daemontime) == 0)
 		return;
-#else
-	mtx_lock(&sc->aac_io_lock);
-#endif
 	getmicrotime(&tv);
 
 	if (!aacraid_alloc_command(sc, &cm)) {
@@ -412,14 +391,7 @@ aac_daemon(void *arg)
 		aacraid_release_command(cm);
 	}
 
-#if __FreeBSD_version >= 800000
 	callout_schedule(&sc->aac_daemontime, 30 * 60 * hz);
-#else
-	mtx_unlock(&sc->aac_io_lock);
-	tv.tv_sec = 30 * 60;
-	tv.tv_usec = 0;
-	sc->timeout_id = timeout(aac_daemon, (void *)sc, tvtohz(&tv));
-#endif
 }
 
 void
@@ -762,11 +734,7 @@ aacraid_detach(device_t dev)
 	sc = device_get_softc(dev);
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-#if __FreeBSD_version >= 800000
 	callout_drain(&sc->aac_daemontime);
-#else
-	untimeout(aac_daemon, (void *)sc, sc->timeout_id);
-#endif
 	/* Remove the child containers */
 	while ((co = TAILQ_FIRST(&sc->aac_container_tqh)) != NULL) {
 		TAILQ_REMOVE(&sc->aac_container_tqh, co, co_link);
@@ -2591,10 +2559,8 @@ aac_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	sc = dev->si_drv1;
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
-#if __FreeBSD_version >= 702000
 	device_busy(sc->aac_dev);
 	devfs_set_cdevpriv(sc, aac_cdevpriv_dtor);
-#endif
 	return 0;
 }
 
@@ -3077,7 +3043,6 @@ aac_request_aif(struct aac_softc *sc)
 }
 
 
-#if __FreeBSD_version >= 702000
 /*
  * cdevpriv interface private destructor.
  */
@@ -3090,17 +3055,6 @@ aac_cdevpriv_dtor(void *arg)
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 	device_unbusy(sc->aac_dev);
 }
-#else
-static int
-aac_close(struct cdev *dev, int flags, int fmt, struct thread *td)
-{
-	struct aac_softc *sc;
-
-	sc = dev->si_drv1;
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
-	return 0;
-}
-#endif
 
 /*
  * Handle an AIF sent to us by the controller; queue it for later reference.
