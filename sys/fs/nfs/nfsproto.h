@@ -705,6 +705,7 @@
 /* Flags for File Layout. */
 #define	NFSFLAYUTIL_DENSE		0x1
 #define	NFSFLAYUTIL_COMMIT_THRU_MDS	0x2
+#define	NFSFLAYUTIL_IOADVISE_THRU_MDS	0x4
 #define	NFSFLAYUTIL_STRIPE_MASK		0xffffffc0
 
 /* Flags for Flex File Layout. */
@@ -874,6 +875,24 @@ struct nfsv3_sattr {
 	u_int32_t sa_mtimetype;
 	nfstime3  sa_mtime;
 };
+
+/*
+ * IO Advise hint bits for NFSv4.2.
+ * Since these go on the wire as a bitmap, the NFSATTRBIT macros are
+ * used to manipulate these bits.
+ */
+#define	NFSV4IOHINT_NORMAL		0
+#define	NFSV4IOHINT_SEQUENTIAL		1
+#define	NFSV4IOHINT_SEQUENTIALBACK	2
+#define	NFSV4IOHINT_RANDOM		3
+#define	NFSV4IOHINT_WILLNEED		4
+#define	NFSV4IOHINT_WILLNEEDOPTUN	5
+#define	NFSV4IOHINT_DONTNEED		6
+#define	NFSV4IOHINT_NOREUSE		7
+#define	NFSV4IOHINT_READ		8
+#define	NFSV4IOHINT_WRITE		9
+#define	NFSV4IOHINT_INITPROXIMITY	10
+
 #endif	/* _KERNEL */
 
 /*
@@ -960,6 +979,12 @@ struct nfsv3_sattr {
 #define	NFSATTRBIT_MODESETMASKED	74
 #define	NFSATTRBIT_SUPPATTREXCLCREAT	75
 #define	NFSATTRBIT_FSCHARSETCAP		76
+#define	NFSATTRBIT_CLONEBLKSIZE		77
+#define	NFSATTRBIT_SPACEFREED		78
+#define	NFSATTRBIT_CHANGEATTRTYPE	79
+#define	NFSATTRBIT_SECLABEL		80
+/* Not sure what attribute bit #81 is? */
+#define	NFSATTRBIT_XATTRSUPPORT		82
 
 #define	NFSATTRBM_SUPPORTEDATTRS	0x00000001
 #define	NFSATTRBM_TYPE			0x00000002
@@ -1038,6 +1063,12 @@ struct nfsv3_sattr {
 #define	NFSATTRBM_MODESETMASKED		0x00000400
 #define	NFSATTRBM_SUPPATTREXCLCREAT	0x00000800
 #define	NFSATTRBM_FSCHARSETCAP		0x00001000
+#define	NFSATTRBM_CLONEBLKSIZE		0x00002000
+#define	NFSATTRBM_SPACEFREED		0x00004000
+#define	NFSATTRBM_CHANGEATTRTYPE	0x00008000
+#define	NFSATTRBM_SECLABEL		0x00010000
+/* Not sure what attribute bit#81/0x00020000 is? */
+#define	NFSATTRBM_XATTRSUPPORT		0x00040000
 
 #define	NFSATTRBIT_MAX			77
 
@@ -1160,6 +1191,11 @@ struct nfsv3_sattr {
 	NFSATTRBM_LAYOUTALIGNMENT |					\
 	NFSATTRBM_MODESETMASKED |					\
 	NFSATTRBM_SUPPATTREXCLCREAT)
+
+/*
+ * NFSATTRBIT_NFSV42 - Attributes only supported by NFSv4.2.
+ */
+#define	NFSATTRBIT_NFSV42_2	NFSATTRBM_XATTRSUPPORT
 
 /*
  * Set of attributes that the getattr vnode op needs.
@@ -1462,5 +1498,14 @@ typedef struct nfsv4stateid nfsv4stateid_t;
 #define	NFSV4LAYOUTRET_FILE	1
 #define	NFSV4LAYOUTRET_FSID	2
 #define	NFSV4LAYOUTRET_ALL	3
+
+/* Seek Contents. */
+#define	NFSV4CONTENT_DATA	0
+#define	NFSV4CONTENT_HOLE	1
+
+/* Options for Set Extended attribute (RFC-8276). */
+#define	NFSV4SXATTR_EITHER	0
+#define	NFSV4SXATTR_CREATE	1
+#define	NFSV4SXATTR_REPLACE	2
 
 #endif	/* _NFS_NFSPROTO_H_ */
