@@ -1573,4 +1573,19 @@ mlx5e_rl_sysctl_add_stats_u64_oid(struct mlx5e_rl_priv_data *rl, unsigned x,
 	    CTLFLAG_RD, &rl->stats.arg[x], 0, desc);
 }
 
-#endif
+#else
+
+int
+mlx5e_rl_init(struct mlx5e_priv *priv)
+{
+
+	return (0);
+}
+
+void
+mlx5e_rl_cleanup(struct mlx5e_priv *priv)
+{
+	/* NOP */
+}
+
+#endif		/* RATELIMIT */

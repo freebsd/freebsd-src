@@ -25,6 +25,8 @@
  * $FreeBSD$
  */
 
+#include "opt_kern_tls.h"
+
 #include "en.h"
 
 #include <sys/eventhandler.h>
@@ -1502,6 +1504,10 @@ mlx5e_free_sq_db(struct mlx5e_sq *sq)
 	int x;
 
 	for (x = 0; x != wq_sz; x++) {
+		if (unlikely(sq->mbuf[x].p_refcount != NULL)) {
+			atomic_add_int(sq->mbuf[x].p_refcount, -1);
+			sq->mbuf[x].p_refcount = NULL;
+		}
 		if (sq->mbuf[x].mbuf != NULL) {
 			bus_dmamap_unload(sq->dma_tag, sq->mbuf[x].dma_map);
 			m_freem(sq->mbuf[x].mbuf);
@@ -3000,6 +3006,11 @@ mlx5e_set_dev_port_mtu(struct ifnet *ifp, int sw_mtu)
 	}
 	priv->params_ethtool.hw_mtu = hw_mtu;
 
+	/* compute MSB */
+	while (hw_mtu & (hw_mtu - 1))
+		hw_mtu &= (hw_mtu - 1);
+	priv->params_ethtool.hw_mtu_msb = hw_mtu;
+
 	return (err);
 }
 
@@ -3311,6 +3322,10 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 		if (mask & IFCAP_NOMAP)
 			ifp->if_capenable ^= IFCAP_NOMAP;
+		if (mask & IFCAP_TXTLS4)
+			ifp->if_capenable ^= IFCAP_TXTLS4;
+		if (mask & IFCAP_TXTLS6)
+			ifp->if_capenable ^= IFCAP_TXTLS6;
 		if (mask & IFCAP_RXCSUM)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
 		if (mask & IFCAP_RXCSUM_IPV6)
@@ -3596,6 +3611,7 @@ mlx5e_create_mkey(struct mlx5e_priv *priv, u32 pdn,
 
 	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
 	MLX5_SET(mkc, mkc, access_mode, MLX5_ACCESS_MODE_PA);
+	MLX5_SET(mkc, mkc, umr_en, 1);	/* used by HW TLS */
 	MLX5_SET(mkc, mkc, lw, 1);
 	MLX5_SET(mkc, mkc, lr, 1);
 
@@ -3991,7 +4007,7 @@ mlx5e_setup_pauseframes(struct mlx5e_priv *priv)
 	PRIV_UNLOCK(priv);
 }
 
-static int
+int
 mlx5e_ul_snd_tag_alloc(struct ifnet *ifp,
     union if_snd_tag_alloc_params *params,
     struct m_snd_tag **ppmt)
@@ -4033,7 +4049,7 @@ mlx5e_ul_snd_tag_alloc(struct ifnet *ifp,
 	}
 }
 
-static int
+int
 mlx5e_ul_snd_tag_query(struct m_snd_tag *pmt, union if_snd_tag_query_params *params)
 {
 	struct mlx5e_channel *pch =
@@ -4044,7 +4060,7 @@ mlx5e_ul_snd_tag_query(struct m_snd_tag *pmt, union if_snd_tag_query_params *par
 	return (0);
 }
 
-static void
+void
 mlx5e_ul_snd_tag_free(struct m_snd_tag *pmt)
 {
 	struct mlx5e_channel *pch =
@@ -4063,9 +4079,17 @@ mlx5e_snd_tag_alloc(struct ifnet *ifp,
 #ifdef RATELIMIT
 	case IF_SND_TAG_TYPE_RATE_LIMIT:
 		return (mlx5e_rl_snd_tag_alloc(ifp, params, ppmt));
+#if defined(KERN_TLS) && defined(IF_SND_TAG_TYPE_TLS_RATE_LIMIT)
+	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
+		return (mlx5e_tls_snd_tag_alloc(ifp, params, ppmt));
+#endif
 #endif
 	case IF_SND_TAG_TYPE_UNLIMITED:
 		return (mlx5e_ul_snd_tag_alloc(ifp, params, ppmt));
+#ifdef KERN_TLS
+	case IF_SND_TAG_TYPE_TLS:
+		return (mlx5e_tls_snd_tag_alloc(ifp, params, ppmt));
+#endif
 	default:
 		return (EOPNOTSUPP);
 	}
@@ -4081,8 +4105,15 @@ mlx5e_snd_tag_modify(struct m_snd_tag *pmt, union if_snd_tag_modify_params *para
 #ifdef RATELIMIT
 	case IF_SND_TAG_TYPE_RATE_LIMIT:
 		return (mlx5e_rl_snd_tag_modify(pmt, params));
+#if defined(KERN_TLS) && defined(IF_SND_TAG_TYPE_TLS_RATE_LIMIT)
+	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
+		return (mlx5e_tls_snd_tag_modify(pmt, params));
+#endif
 #endif
 	case IF_SND_TAG_TYPE_UNLIMITED:
+#ifdef KERN_TLS
+	case IF_SND_TAG_TYPE_TLS:
+#endif
 	default:
 		return (EOPNOTSUPP);
 	}
@@ -4098,9 +4129,17 @@ mlx5e_snd_tag_query(struct m_snd_tag *pmt, union if_snd_tag_query_params *params
 #ifdef RATELIMIT
 	case IF_SND_TAG_TYPE_RATE_LIMIT:
 		return (mlx5e_rl_snd_tag_query(pmt, params));
+#if defined(KERN_TLS) && defined(IF_SND_TAG_TYPE_TLS_RATE_LIMIT)
+	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
+		return (mlx5e_tls_snd_tag_query(pmt, params));
+#endif
 #endif
 	case IF_SND_TAG_TYPE_UNLIMITED:
 		return (mlx5e_ul_snd_tag_query(pmt, params));
+#ifdef KERN_TLS
+	case IF_SND_TAG_TYPE_TLS:
+		return (mlx5e_tls_snd_tag_query(pmt, params));
+#endif
 	default:
 		return (EOPNOTSUPP);
 	}
@@ -4161,10 +4200,20 @@ mlx5e_snd_tag_free(struct m_snd_tag *pmt)
 	case IF_SND_TAG_TYPE_RATE_LIMIT:
 		mlx5e_rl_snd_tag_free(pmt);
 		break;
+#if defined(KERN_TLS) && defined(IF_SND_TAG_TYPE_TLS_RATE_LIMIT)
+	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
+		mlx5e_tls_snd_tag_free(pmt);
+		break;
+#endif
 #endif
 	case IF_SND_TAG_TYPE_UNLIMITED:
 		mlx5e_ul_snd_tag_free(pmt);
 		break;
+#ifdef KERN_TLS
+	case IF_SND_TAG_TYPE_TLS:
+		mlx5e_tls_snd_tag_free(pmt);
+		break;
+#endif
 	default:
 		break;
 	}
@@ -4232,6 +4281,7 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	ifp->if_capabilities |= IFCAP_TSO | IFCAP_VLAN_HWTSO;
 	ifp->if_capabilities |= IFCAP_HWSTATS | IFCAP_HWRXTSTMP;
 	ifp->if_capabilities |= IFCAP_NOMAP;
+	ifp->if_capabilities |= IFCAP_TXTLS4 | IFCAP_TXTLS6;
 	ifp->if_capabilities |= IFCAP_TXRTLMT;
 	ifp->if_snd_tag_alloc = mlx5e_snd_tag_alloc;
 	ifp->if_snd_tag_free = mlx5e_snd_tag_free;
@@ -4317,13 +4367,18 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		random_ether_addr(dev_addr);
 		mlx5_en_err(ifp, "Assigned random MAC address\n");
 	}
-#ifdef RATELIMIT
+
 	err = mlx5e_rl_init(priv);
 	if (err) {
 		mlx5_en_err(ifp, "mlx5e_rl_init failed, %d\n", err);
 		goto err_create_mkey;
 	}
-#endif
+
+	err = mlx5e_tls_init(priv);
+	if (err) {
+		if_printf(ifp, "%s: mlx5e_tls_init failed\n", __func__);
+		goto err_rl_init;
+	}
 
 	/* set default MTU */
 	mlx5e_set_dev_port_mtu(ifp, ifp->if_mtu);
@@ -4424,10 +4479,12 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 
 	return (priv);
 
-#ifdef RATELIMIT
+err_rl_init:
+	mlx5e_rl_cleanup(priv);
+
 err_create_mkey:
 	mlx5_core_destroy_mkey(priv->mdev, &priv->mr);
-#endif
+
 err_dealloc_transport_domain:
 	mlx5_dealloc_transport_domain(mdev, priv->tdn);
 
@@ -4504,9 +4561,9 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	ifmedia_removeall(&priv->media);
 	ether_ifdetach(ifp);
 
-#ifdef RATELIMIT
+	mlx5e_tls_cleanup(priv);
 	mlx5e_rl_cleanup(priv);
-#endif
+
 	/* destroy all remaining sysctl nodes */
 	sysctl_ctx_free(&priv->stats.vport.ctx);
 	sysctl_ctx_free(&priv->stats.pport.ctx);

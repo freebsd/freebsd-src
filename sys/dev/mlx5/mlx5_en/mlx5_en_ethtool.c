@@ -48,6 +48,26 @@ mlx5e_create_stats(struct sysctl_ctx_list *ctx,
 	}
 }
 
+void
+mlx5e_create_counter_stats(struct sysctl_ctx_list *ctx,
+    struct sysctl_oid_list *parent, const char *buffer,
+    const char **desc, unsigned num, counter_u64_t *arg)
+{
+	struct sysctl_oid *node;
+	unsigned x;
+
+	sysctl_ctx_init(ctx);
+
+	node = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO,
+	    buffer, CTLFLAG_RD, NULL, "Statistics");
+	if (node == NULL)
+		return;
+	for (x = 0; x != num; x++) {
+		SYSCTL_ADD_COUNTER_U64(ctx, SYSCTL_CHILDREN(node), OID_AUTO,
+		    desc[2 * x], CTLFLAG_RD, arg + x, desc[2 * x + 1]);
+	}
+}
+
 static void
 mlx5e_ethtool_sync_tx_completion_fact(struct mlx5e_priv *priv)
 {
