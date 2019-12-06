@@ -34,6 +34,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/ucred.h>
 
+#include <sys/zfs_context.h>
+#include <sys/mntent.h>
+
 #include <ctype.h>
 #include <libgen.h>
 #include <libzfs_core.h>
@@ -67,7 +70,7 @@ static int
 be_locate_rootfs(libbe_handle_t *lbh)
 {
 	struct statfs sfs;
-	struct extmnttab entry;
+	struct mnttab entry;
 	zfs_handle_t *zfs;
 
 	/*
