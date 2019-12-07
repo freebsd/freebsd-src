@@ -43,8 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #include "gpiobus_if.h"
 
-#define	GPIO_ACTIVE_LOW		1
-
 static struct ofw_gpiobus_devinfo *ofw_gpiobus_setup_devinfo(device_t,
 	device_t, phandle_t);
 static void ofw_gpiobus_destroy_devinfo(device_t, struct ofw_gpiobus_devinfo *);
@@ -138,82 +136,6 @@ gpio_pin_get_by_ofw_name(device_t consumer, phandle_t node,
 	if (rv != 0)
 		return (rv);
 	return (gpio_pin_get_by_ofw_idx(consumer, node, idx, pin));
-}
-
-void
-gpio_pin_release(gpio_pin_t gpio)
-{
-	device_t busdev;
-
-	if (gpio == NULL)
-		return;
-
-	KASSERT(gpio->dev != NULL, ("invalid pin state"));
-
-	busdev = GPIO_GET_BUS(gpio->dev);
-	if (busdev != NULL)
-		gpiobus_release_pin(busdev, gpio->pin);
-
-	/* XXXX Unreserve pin. */
-	free(gpio, M_DEVBUF);
-}
-
-int
-gpio_pin_getcaps(gpio_pin_t pin, uint32_t *caps)
-{
-
-	KASSERT(pin != NULL, ("GPIO pin is NULL."));
-	KASSERT(pin->dev != NULL, ("GPIO pin device is NULL."));
-	return (GPIO_PIN_GETCAPS(pin->dev, pin->pin, caps));
-}
-
-int
-gpio_pin_is_active(gpio_pin_t pin, bool *active)
-{
-	int rv;
-	uint32_t tmp;
-
-	KASSERT(pin != NULL, ("GPIO pin is NULL."));
-	KASSERT(pin->dev != NULL, ("GPIO pin device is NULL."));
-	rv = GPIO_PIN_GET(pin->dev, pin->pin, &tmp);
-	if (rv  != 0) {
-		return (rv);
-	}
-
-	if (pin->flags & GPIO_ACTIVE_LOW)
-		*active = tmp == 0;
-	else
-		*active = tmp != 0;
-	return (0);
-}
-
-int
-gpio_pin_set_active(gpio_pin_t pin, bool active)
-{
-	int rv;
-	uint32_t tmp;
-
-	if (pin->flags & GPIO_ACTIVE_LOW)
-		tmp = active ? 0 : 1;
-	else
-		tmp = active ? 1 : 0;
-
-	KASSERT(pin != NULL, ("GPIO pin is NULL."));
-	KASSERT(pin->dev != NULL, ("GPIO pin device is NULL."));
-	rv = GPIO_PIN_SET(pin->dev, pin->pin, tmp);
-	return (rv);
-}
-
-int
-gpio_pin_setflags(gpio_pin_t pin, uint32_t flags)
-{
-	int rv;
-
-	KASSERT(pin != NULL, ("GPIO pin is NULL."));
-	KASSERT(pin->dev != NULL, ("GPIO pin device is NULL."));
-
-	rv = GPIO_PIN_SETFLAGS(pin->dev, pin->pin, flags);
-	return (rv);
 }
 
 /*
@@ -492,7 +414,7 @@ ofw_gpiobus_probe(device_t dev)
 		return (ENXIO);
 	device_set_desc(dev, "OFW GPIO bus");
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -511,6 +433,8 @@ ofw_gpiobus_attach(device_t dev)
 	 */
 	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
 	    child = OF_peer(child)) {
+		if (OF_hasprop(child, "gpio-hog"))
+			continue;
 		if (!OF_hasprop(child, "gpios"))
 			continue;
 		if (ofw_gpiobus_add_fdt_child(dev, NULL, child) == NULL)

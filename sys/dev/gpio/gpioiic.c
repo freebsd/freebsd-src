@@ -1,9 +1,9 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2009 Oleksandr Tymoshenko <gonzo@freebsd.org>
  * Copyright (c) 2010 Luiz Otavio O Souza
- * All rights reserved.
+ * Copyright (c) 2019 Ian Lepore <ian@freebsd.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,14 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 
-#ifdef FDT
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/ofw_bus.h>
-#endif
-
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/iicbus/iiconf.h>
-#include <dev/iicbus/iicbus.h>
 
 #include "gpiobus_if.h"
 #include "iicbb_if.h"
@@ -57,200 +51,281 @@ __FBSDID("$FreeBSD$");
 
 struct gpioiic_softc 
 {
-	device_t	sc_dev;
-	device_t	sc_busdev;
-	int		scl_pin;
-	int		sda_pin;
+	device_t	dev;
+	gpio_pin_t	sclpin;
+	gpio_pin_t	sdapin;
 };
 
-static int gpioiic_probe(device_t);
-static int gpioiic_attach(device_t);
-
-/* iicbb interface */
-static void gpioiic_reset_bus(device_t);
-static void gpioiic_setsda(device_t, int);
-static void gpioiic_setscl(device_t, int);
-static int gpioiic_getsda(device_t);
-static int gpioiic_getscl(device_t);
-static int gpioiic_reset(device_t, u_char, u_char, u_char *);
-
-static int
-gpioiic_probe(device_t dev)
-{
-	struct gpiobus_ivar *devi;
-
 #ifdef FDT
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-	if (!ofw_bus_is_compatible(dev, "gpioiic"))
-		return (ENXIO);
-#endif
-	devi = GPIOBUS_IVAR(dev);
-	if (devi->npins < GPIOIIC_MIN_PINS) {
-		device_printf(dev,
-		    "gpioiic needs at least %d GPIO pins (only %d given).\n",
-		    GPIOIIC_MIN_PINS, devi->npins);
-		return (ENXIO);
-	}
-	device_set_desc(dev, "GPIO I2C bit-banging driver");
 
-	return (BUS_PROBE_DEFAULT);
+#include <dev/ofw/ofw_bus.h>
+
+static struct ofw_compat_data compat_data[] = {
+	{"i2c-gpio",  true}, /* Standard devicetree compat string */
+	{"gpioiic",   true}, /* Deprecated old freebsd compat string */
+	{NULL,        false}
+};
+OFWBUS_PNP_INFO(compat_data);
+SIMPLEBUS_PNP_INFO(compat_data);
+
+static phandle_t
+gpioiic_get_node(device_t bus, device_t dev)
+{
+
+	/* Share our fdt node with iicbus so it can find its child nodes. */
+	return (ofw_bus_get_node(bus));
 }
 
 static int
-gpioiic_attach(device_t dev)
+gpioiic_setup_fdt_pins(struct gpioiic_softc *sc)
 {
-	device_t		bitbang;
-#ifdef FDT
-	phandle_t		node;
-	pcell_t			pin;
-#endif
-	struct gpiobus_ivar	*devi;
-	struct gpioiic_softc	*sc;
+	phandle_t node;
+	int err;
 
-	sc = device_get_softc(dev);
-	sc->sc_dev = dev;
-	sc->sc_busdev = device_get_parent(dev);
-	if (resource_int_value(device_get_name(dev),
-		device_get_unit(dev), "scl", &sc->scl_pin))
-		sc->scl_pin = GPIOIIC_SCL_DFLT;
-	if (resource_int_value(device_get_name(dev),
-		device_get_unit(dev), "sda", &sc->sda_pin))
-		sc->sda_pin = GPIOIIC_SDA_DFLT;
+	node = ofw_bus_get_node(sc->dev);
 
-#ifdef FDT
-	if ((node = ofw_bus_get_node(dev)) == -1)
-		return (ENXIO);
-	if (OF_getencprop(node, "scl", &pin, sizeof(pin)) > 0)
-		sc->scl_pin = (int)pin;
-	if (OF_getencprop(node, "sda", &pin, sizeof(pin)) > 0)
-		sc->sda_pin = (int)pin;
-#endif
-
-	if (sc->scl_pin < 0 || sc->scl_pin > 1)
-		sc->scl_pin = GPIOIIC_SCL_DFLT;
-	if (sc->sda_pin < 0 || sc->sda_pin > 1)
-		sc->sda_pin = GPIOIIC_SDA_DFLT;
-
-	devi = GPIOBUS_IVAR(dev);
-	device_printf(dev, "SCL pin: %d, SDA pin: %d\n",
-	    devi->pins[sc->scl_pin], devi->pins[sc->sda_pin]);
-
-	/* add generic bit-banging code */
-	bitbang = device_add_child(dev, "iicbb", -1);
-	device_probe_and_attach(bitbang);
-
-	return (0);
-}
-
-static int
-gpioiic_detach(device_t dev)
-{
-
-	bus_generic_detach(dev);
-	device_delete_children(dev);
-	return (0);
-}
-
-/*
- * Reset bus by setting SDA first and then SCL. 
- * Must always be called with gpio bus locked.
- */
-static void
-gpioiic_reset_bus(device_t dev)
-{
-	struct gpioiic_softc		*sc = device_get_softc(dev);
-
-	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, sc->sda_pin,
-	    GPIO_PIN_INPUT);
-	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, sc->scl_pin,
-	    GPIO_PIN_INPUT);
-}
-
-static void
-gpioiic_setpin(struct gpioiic_softc *sc, int pin, int val)
-{
-	int				err;
-
-	if (val == 0) {
-		err = GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, pin, 0);
-		GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, pin,
-		    GPIO_PIN_OUTPUT);
-
-		/*
-		 * Some controllers cannot set output value while a pin is in
-		 * input mode.
-		 */
-		if (err != 0)
-			GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, pin, 0);
+	/*
+	 * Historically, we used the first two array elements of the gpios
+	 * property.  The modern bindings specify separate scl-gpios and
+	 * sda-gpios properties.  We cope with whichever is present.
+	 */
+	if (OF_hasprop(node, "gpios")) {
+		if ((err = gpio_pin_get_by_ofw_idx(sc->dev, node,
+		    GPIOIIC_SCL_DFLT, &sc->sclpin)) != 0) {
+			device_printf(sc->dev, "invalid gpios property\n");
+			return (err);
+		}
+		if ((err = gpio_pin_get_by_ofw_idx(sc->dev, node,
+		    GPIOIIC_SDA_DFLT, &sc->sdapin)) != 0) {
+			device_printf(sc->dev, "ivalid gpios property\n");
+			return (err);
+		}
 	} else {
-		GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, pin,
-		    GPIO_PIN_INPUT);
+		if ((err = gpio_pin_get_by_ofw_property(sc->dev, node,
+		    "scl-gpios", &sc->sclpin)) != 0) {
+			device_printf(sc->dev, "missing scl-gpios property\n");
+			return (err);
+		}
+		if ((err = gpio_pin_get_by_ofw_property(sc->dev, node,
+		    "sda-gpios", &sc->sdapin)) != 0) {
+			device_printf(sc->dev, "missing sda-gpios property\n");
+			return (err);
+		}
 	}
+	return (0);
+}
+#endif /* FDT */
+
+static int
+gpioiic_setup_hinted_pins(struct gpioiic_softc *sc)
+{
+	device_t busdev;
+	const char *busname, *devname;
+	int err, numpins, sclnum, sdanum, unit;
+
+	devname = device_get_name(sc->dev);
+	unit = device_get_unit(sc->dev);
+	busdev = device_get_parent(sc->dev);
+
+	/*
+	 * If there is not an "at" hint naming our actual parent, then we
+	 * weren't instantiated as a child of gpiobus via hints, and we thus
+	 * can't access ivars that only exist for such children.
+	 */
+	if (resource_string_value(devname, unit, "at", &busname) != 0 ||
+	    (strcmp(busname, device_get_nameunit(busdev)) != 0 &&
+	     strcmp(busname, device_get_name(busdev)) != 0)) {
+		return (ENOENT);
+	}
+
+	/* Make sure there were hints for at least two pins. */
+	numpins = gpiobus_get_npins(sc->dev);
+	if (numpins < GPIOIIC_MIN_PINS) {
+#ifdef FDT
+		/*
+		 * Be silent when there are no hints on FDT systems; the FDT
+		 * data will provide the pin config (we'll whine if it doesn't).
+		 */
+		if (numpins == 0) {
+			return (ENOENT);
+		}
+#endif
+		device_printf(sc->dev, 
+		    "invalid pins hint; it must contain at least %d pins\n",
+		    GPIOIIC_MIN_PINS);
+		return (EINVAL);
+	}
+
+	/*
+	 * Our parent bus has already parsed the pins hint and it will use that
+	 * info when we call gpio_pin_get_by_child_index().  But we have to
+	 * handle the scl/sda index hints that tell us which of the two pins is
+	 * the clock and which is the data.  They're optional, but if present
+	 * they must be a valid index (0 <= index < numpins).
+	 */
+	if ((err = resource_int_value(devname, unit, "scl", &sclnum)) != 0)
+		sclnum = GPIOIIC_SCL_DFLT;
+	else if (sclnum < 0 || sclnum >= numpins) {
+		device_printf(sc->dev, "invalid scl hint %d\n", sclnum);
+		return (EINVAL);
+	}
+	if ((err = resource_int_value(devname, unit, "sda", &sdanum)) != 0)
+		sdanum = GPIOIIC_SDA_DFLT;
+	else if (sdanum < 0 || sdanum >= numpins) {
+		device_printf(sc->dev, "invalid sda hint %d\n", sdanum);
+		return (EINVAL);
+	}
+
+	/* Allocate gpiobus_pin structs for the pins we found above. */
+	if ((err = gpio_pin_get_by_child_index(sc->dev, sclnum,
+	    &sc->sclpin)) != 0)
+		return (err);
+	if ((err = gpio_pin_get_by_child_index(sc->dev, sdanum,
+	    &sc->sdapin)) != 0)
+		return (err);
+
+	return (0);
 }
 
 static void
 gpioiic_setsda(device_t dev, int val)
 {
-	struct gpioiic_softc		*sc = device_get_softc(dev);
+	struct gpioiic_softc *sc = device_get_softc(dev);
+	int err;
 
-	gpioiic_setpin(sc, sc->sda_pin, val);
+	/*
+	 * Some controllers cannot set an output value while a pin is in input
+	 * mode; in that case we set the pin again after changing mode.
+	 */
+	err = gpio_pin_set_active(sc->sdapin, val);
+	gpio_pin_setflags(sc->sdapin, GPIO_PIN_OUTPUT | GPIO_PIN_OPENDRAIN);
+	if (err != 0)
+		gpio_pin_set_active(sc->sdapin, val);
 }
 
 static void
 gpioiic_setscl(device_t dev, int val)
 {
-	struct gpioiic_softc		*sc = device_get_softc(dev);
+	struct gpioiic_softc *sc = device_get_softc(dev);
 
-	gpioiic_setpin(sc, sc->scl_pin, val);
-}
-
-static int
-gpioiic_getpin(struct gpioiic_softc *sc, int pin)
-{
-	unsigned int			val;
-
-	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, pin, GPIO_PIN_INPUT);
-	GPIOBUS_PIN_GET(sc->sc_busdev, sc->sc_dev, pin, &val);
-	return ((int)val);
+	gpio_pin_setflags(sc->sclpin, GPIO_PIN_OUTPUT | GPIO_PIN_OPENDRAIN);
+	gpio_pin_set_active(sc->sclpin, val);
 }
 
 static int
 gpioiic_getscl(device_t dev)
 {
-	struct gpioiic_softc		*sc = device_get_softc(dev);
+	struct gpioiic_softc *sc = device_get_softc(dev);
+	bool val;
 
-	return (gpioiic_getpin(sc, sc->scl_pin));
+	gpio_pin_setflags(sc->sclpin, GPIO_PIN_INPUT);
+	gpio_pin_is_active(sc->sclpin, &val);
+	return (val);
 }
 
 static int
 gpioiic_getsda(device_t dev)
 {
-	struct gpioiic_softc		*sc = device_get_softc(dev);
+	struct gpioiic_softc *sc = device_get_softc(dev);
+	bool val;
 
-	return (gpioiic_getpin(sc, sc->sda_pin));
+	gpio_pin_setflags(sc->sdapin, GPIO_PIN_INPUT);
+	gpio_pin_is_active(sc->sdapin, &val);
+	return (val);
 }
 
 static int
 gpioiic_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 {
-	struct gpioiic_softc		*sc;
+	struct gpioiic_softc *sc = device_get_softc(dev);
 
-	sc = device_get_softc(dev);
-	gpioiic_reset_bus(sc->sc_dev);
+	/* Stop driving the bus pins. */
+	gpio_pin_setflags(sc->sdapin, GPIO_PIN_INPUT);
+	gpio_pin_setflags(sc->sclpin, GPIO_PIN_INPUT);
 
+	/* Indicate that we have no slave address (master mode). */
 	return (IIC_ENOADDR);
 }
 
-#ifdef FDT
-static phandle_t
-gpioiic_get_node(device_t bus, device_t dev)
+static void
+gpioiic_cleanup(struct gpioiic_softc *sc)
 {
 
-	/* We only have one child, the iicbb, which needs our own node. */
-	return (ofw_bus_get_node(bus));
+	device_delete_children(sc->dev);
+
+	if (sc->sclpin != NULL)
+		gpio_pin_release(sc->sclpin);
+
+	if (sc->sdapin != NULL)
+		gpio_pin_release(sc->sdapin);
 }
+
+static int
+gpioiic_probe(device_t dev)
+{
+	int rv;
+
+	/*
+	 * By default we only bid to attach if specifically added by our parent
+	 * (usually via hint.gpioiic.#.at=busname).  On FDT systems we bid as
+	 * the default driver based on being configured in the FDT data.
+	 */
+	rv = BUS_PROBE_NOWILDCARD;
+
+#ifdef FDT
+	if (ofw_bus_status_okay(dev) &&
+	    ofw_bus_search_compatible(dev, compat_data)->ocd_data)
+                rv = BUS_PROBE_DEFAULT;
 #endif
+
+	device_set_desc(dev, "GPIO I2C");
+
+	return (rv);
+}
+
+static int
+gpioiic_attach(device_t dev)
+{
+	struct gpioiic_softc *sc = device_get_softc(dev);
+	int err;
+
+	sc->dev = dev;
+
+	/* Acquire our gpio pins. */
+	err = gpioiic_setup_hinted_pins(sc);
+#ifdef FDT
+	if (err != 0)
+		err = gpioiic_setup_fdt_pins(sc);
+#endif
+	if (err != 0) {
+		device_printf(sc->dev, "no pins configured\n");
+		gpioiic_cleanup(sc);
+		return (ENXIO);
+	}
+
+	/* Say what we came up with for pin config. */
+	device_printf(dev, "SCL pin: %s:%d, SDA pin: %s:%d\n",
+	    device_get_nameunit(GPIO_GET_BUS(sc->sclpin->dev)), sc->sclpin->pin,
+	    device_get_nameunit(GPIO_GET_BUS(sc->sdapin->dev)), sc->sdapin->pin);
+
+	/* Add the bitbang driver as our only child; it will add iicbus. */
+	device_add_child(sc->dev, "iicbb", -1);
+	return (bus_generic_attach(dev));
+}
+
+static int
+gpioiic_detach(device_t dev)
+{
+	struct gpioiic_softc *sc = device_get_softc(dev);
+	int err;
+
+	if ((err = bus_generic_detach(dev)) != 0)
+		return (err);
+
+	gpioiic_cleanup(sc);
+
+	return (0);
+}
 
 static devclass_t gpioiic_devclass;
 
@@ -282,6 +357,7 @@ static driver_t gpioiic_driver = {
 };
 
 DRIVER_MODULE(gpioiic, gpiobus, gpioiic_driver, gpioiic_devclass, 0, 0);
+DRIVER_MODULE(gpioiic, simplebus, gpioiic_driver, gpioiic_devclass, 0, 0);
 DRIVER_MODULE(iicbb, gpioiic, iicbb_driver, iicbb_devclass, 0, 0);
 MODULE_DEPEND(gpioiic, iicbb, IICBB_MINVER, IICBB_PREFVER, IICBB_MAXVER);
 MODULE_DEPEND(gpioiic, gpiobus, 1, 1, 1);

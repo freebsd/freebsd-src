@@ -78,6 +78,18 @@ static int gpiobus_pin_get(device_t, device_t, uint32_t, unsigned int*);
 static int gpiobus_pin_toggle(device_t, device_t, uint32_t);
 
 /*
+ * gpiobus_pin flags
+ *  The flags in struct gpiobus_pin are not related to the flags used by the
+ *  low-level controller driver in struct gpio_pin.  Currently, only pins
+ *  acquired via FDT data have gpiobus_pin.flags set, sourced from the flags in
+ *  the FDT properties.  In theory, these flags are defined per-platform.  In
+ *  practice they are always the flags from the dt-bindings/gpio/gpio.h file.
+ *  The only one of those flags we currently support is for handling active-low
+ *  pins, so we just define that flag here instead of including a GPL'd header.
+ */
+#define	GPIO_ACTIVE_LOW 1
+
+/*
  * XXX -> Move me to better place - gpio_subr.c?
  * Also, this function must be changed when interrupt configuration
  * data will be moved into struct resource.
@@ -133,6 +145,114 @@ gpio_check_flags(uint32_t caps, uint32_t flags)
 		return (EINVAL);
 
 	return (0);
+}
+
+int
+gpio_pin_get_by_bus_pinnum(device_t busdev, uint32_t pinnum, gpio_pin_t *ppin)
+{
+	gpio_pin_t pin;
+	int err;
+
+	err = gpiobus_acquire_pin(busdev, pinnum);
+	if (err != 0)
+		return (EBUSY);
+
+	pin = malloc(sizeof(*pin), M_DEVBUF, M_WAITOK | M_ZERO);
+
+	pin->dev = device_get_parent(busdev);
+	pin->pin = pinnum;
+	pin->flags = 0;
+
+	*ppin = pin;
+	return (0);
+}
+
+int
+gpio_pin_get_by_child_index(device_t childdev, uint32_t idx, gpio_pin_t *ppin)
+{
+	struct gpiobus_ivar *devi;
+
+	devi = GPIOBUS_IVAR(childdev);
+	if (idx >= devi->npins)
+		return (EINVAL);
+
+	return (gpio_pin_get_by_bus_pinnum(device_get_parent(childdev),
+	    devi->pins[idx], ppin));
+}
+
+int
+gpio_pin_getcaps(gpio_pin_t pin, uint32_t *caps)
+{
+
+	KASSERT(pin != NULL, ("GPIO pin is NULL."));
+	KASSERT(pin->dev != NULL, ("GPIO pin device is NULL."));
+	return (GPIO_PIN_GETCAPS(pin->dev, pin->pin, caps));
+}
+
+int
+gpio_pin_is_active(gpio_pin_t pin, bool *active)
+{
+	int rv;
+	uint32_t tmp;
+
+	KASSERT(pin != NULL, ("GPIO pin is NULL."));
+	KASSERT(pin->dev != NULL, ("GPIO pin device is NULL."));
+	rv = GPIO_PIN_GET(pin->dev, pin->pin, &tmp);
+	if (rv  != 0) {
+		return (rv);
+	}
+
+	if (pin->flags & GPIO_ACTIVE_LOW)
+		*active = tmp == 0;
+	else
+		*active = tmp != 0;
+	return (0);
+}
+
+void
+gpio_pin_release(gpio_pin_t gpio)
+{
+	device_t busdev;
+
+	if (gpio == NULL)
+		return;
+
+	KASSERT(gpio->dev != NULL, ("GPIO pin device is NULL."));
+
+	busdev = GPIO_GET_BUS(gpio->dev);
+	if (busdev != NULL)
+		gpiobus_release_pin(busdev, gpio->pin);
+
+	free(gpio, M_DEVBUF);
+}
+
+int
+gpio_pin_set_active(gpio_pin_t pin, bool active)
+{
+	int rv;
+	uint32_t tmp;
+
+	if (pin->flags & GPIO_ACTIVE_LOW)
+		tmp = active ? 0 : 1;
+	else
+		tmp = active ? 1 : 0;
+
+	KASSERT(pin != NULL, ("GPIO pin is NULL."));
+	KASSERT(pin->dev != NULL, ("GPIO pin device is NULL."));
+	rv = GPIO_PIN_SET(pin->dev, pin->pin, tmp);
+	return (rv);
+}
+
+int
+gpio_pin_setflags(gpio_pin_t pin, uint32_t flags)
+{
+	int rv;
+
+	KASSERT(pin != NULL, ("GPIO pin is NULL."));
+	KASSERT(pin->dev != NULL, ("GPIO pin device is NULL."));
+
+	rv = GPIO_PIN_SETFLAGS(pin->dev, pin->pin, flags);
+	return (rv);
 }
 
 static void
@@ -370,8 +490,6 @@ gpiobus_parse_pins(struct gpiobus_softc *sc, device_t child, int mask)
 		devi->pins[npins++] = i;
 	}
 
-	if (gpiobus_acquire_child_pins(sc->sc_busdev, child) != 0)
-		return (EINVAL);
 	return (0);
 }
 
@@ -425,8 +543,6 @@ gpiobus_parse_pin_list(struct gpiobus_softc *sc, device_t child,
 		p = endp + 1;
 	}
 
-	if (gpiobus_acquire_child_pins(sc->sc_busdev, child) != 0)
-		return (EINVAL);
 	return (0);
 }
 
