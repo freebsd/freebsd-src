@@ -1075,3 +1075,12 @@ METHOD int change_attr {
 	vm_memattr_t	_mode;
 } DEFAULT mmu_null_change_attr;
 
+/**
+ * @brief Initialize the page array.
+ *
+ * @param _pages	The number of pages to be accounted by the array.
+ */
+METHOD void page_array_startup {
+	mmu_t		_mmu;
+	long		_pages;
+};

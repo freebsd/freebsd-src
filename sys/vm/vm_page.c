@@ -559,7 +559,8 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_page_t m;
 	char *list, *listend;
 	vm_offset_t mapped;
-	vm_paddr_t end, high_avail, low_avail, new_end, page_range, size;
+	vm_paddr_t end, high_avail, low_avail, new_end, size;
+	vm_paddr_t page_range __unused;
 	vm_paddr_t last_pa, pa;
 	u_long pagecount;
 	int biggestone, i, segind;

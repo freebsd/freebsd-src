@@ -221,7 +221,10 @@ kernel_va_to_slbv(vm_offset_t va)
 
 		if (mem_valid(DMAP_TO_PHYS(va), 0) == 0)
 			slbv |= SLBV_L;
-	}
+	} else if (moea64_large_page_size != 0 &&
+	    va >= (vm_offset_t)vm_page_array &&
+	    va <= (uintptr_t)(&vm_page_array[vm_page_array_size]))
+		slbv |= SLBV_L;
 		
 	return (slbv);
 }
