@@ -540,25 +540,47 @@ iicdev_readfrom(device_t slavedev, uint8_t regaddr, void *buffer,
 int iicdev_writeto(device_t slavedev, uint8_t regaddr, void *buffer,
     uint16_t buflen, int waithow)
 {
-	struct iic_msg msgs[2];
-	uint8_t slaveaddr;
+	struct iic_msg msg;
+	uint8_t local_buffer[32];
+	uint8_t *bufptr;
+	size_t bufsize;
+	int error;
 
 	/*
-	 * Two transfers back to back with no stop or start between them; first
-	 * we write the address then we write the data to that address, all in a
-	 * single transfer from two scattered buffers.
+	 * Ideally, we would do two transfers back to back with no stop or start
+	 * between them using an array of 2 iic_msgs; first we'd write the
+	 * address byte using the IIC_M_NOSTOP flag, then we write the data
+	 * using IIC_M_NOSTART, all in a single transfer.  Unfortunately,
+	 * several i2c hardware drivers don't support that (perhaps because the
+	 * hardware itself can't support it).  So instead we gather the
+	 * scattered bytes into a single buffer here before writing them using a
+	 * single iic_msg.  This function is typically used to write a few bytes
+	 * at a time, so we try to use a small local buffer on the stack, but
+	 * fall back to allocating a temporary buffer when necessary.
 	 */
-	slaveaddr = iicbus_get_addr(slavedev);
 
-	msgs[0].slave = slaveaddr;
-	msgs[0].flags = IIC_M_WR | IIC_M_NOSTOP;
-	msgs[0].len   = 1;
-	msgs[0].buf   = &regaddr;
+	bufsize = buflen + 1;
+	if (bufsize <= sizeof(local_buffer)) {
+		bufptr = local_buffer;
+	} else {
+		bufptr = malloc(bufsize, M_DEVBUF,
+		    (waithow & IIC_WAIT) ? M_WAITOK : M_NOWAIT);
+		if (bufptr == NULL)
+			return (errno2iic(ENOMEM));
+	}
 
-	msgs[1].slave = slaveaddr;
-	msgs[1].flags = IIC_M_WR | IIC_M_NOSTART;
-	msgs[1].len   = buflen;
-	msgs[1].buf   = buffer;
+	bufptr[0] = regaddr;
+	memcpy(&bufptr[1], buffer, buflen);
 
-	return (iicbus_transfer_excl(slavedev, msgs, nitems(msgs), waithow));
+	msg.slave = iicbus_get_addr(slavedev);
+	msg.flags = IIC_M_WR;
+	msg.len   = bufsize;
+	msg.buf   = bufptr;
+
+	error = iicbus_transfer_excl(slavedev, &msg, 1, waithow);
+
+	if (bufptr != local_buffer)
+		free(bufptr, M_DEVBUF);
+
+	return (error);
 }
