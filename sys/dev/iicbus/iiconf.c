@@ -42,6 +42,18 @@ __FBSDID("$FreeBSD$");
 #include "iicbus_if.h"
 
 /*
+ * Encode a system errno value into the IIC_Exxxxx space by setting the
+ * IIC_ERRNO marker bit, so that iic2errno() can turn it back into a plain
+ * system errno value later.  This lets controller- and bus-layer code get
+ * important system errno values (such as EINTR/ERESTART) back to the caller.
+ */
+int
+errno2iic(int errno)
+{
+	return ((errno == 0) ? 0 : errno | IIC_ERRNO);
+}
+
+/*
  * Translate IIC_Exxxxx status values to vaguely-equivelent errno values.
  */
 int
@@ -59,7 +71,22 @@ iic2errno(int iic_status)
 	case IIC_ENOTSUPP:      return (EOPNOTSUPP);
 	case IIC_ENOADDR:       return (EADDRNOTAVAIL);
 	case IIC_ERESOURCE:     return (ENOMEM);
-	default:                return (EIO);
+	default:
+		/*
+		 * If the high bit is set, that means it's a system errno value
+		 * that was encoded into the IIC_Exxxxxx space by setting the
+		 * IIC_ERRNO marker bit.  If lots of high-order bits are set,
+		 * then it's one of the negative pseudo-errors such as ERESTART
+		 * and we return it as-is.  Otherwise it's a plain "small
+		 * positive integer" errno, so just remove the IIC_ERRNO marker
+		 * bit.  If it's some unknown number without the high bit set,
+		 * there isn't much we can do except call it an I/O error.
+		 */
+		if ((iic_status & IIC_ERRNO) == 0)
+			return (EIO);
+		if ((iic_status & 0xFFFF0000) != 0)
+			return (iic_status);
+		return (iic_status & ~IIC_ERRNO);
 	}
 }
 
@@ -97,7 +124,7 @@ iicbus_poll(struct iicbus_softc *sc, int how)
 		return (IIC_EBUSBSY);
 	}
 
-	return (error);
+	return (errno2iic(error));
 }
 
 /*
