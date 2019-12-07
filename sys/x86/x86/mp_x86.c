@@ -1262,10 +1262,28 @@ ipi_bitmap_handler(struct trapframe frame)
 	u_int ipi_bitmap;
 
 	td = curthread;
+	ipi_bitmap = atomic_readandclear_int(&cpuid_to_pcpu[cpu]->
+	    pc_ipi_bitmap);
+
+	/*
+	 * sched_preempt() must be called to clear the pending preempt
+	 * IPI to enable delivery of further preempts.  However, the
+	 * critical section will cause extra scheduler lock thrashing
+	 * when used unconditionally.  Only critical_enter() if
+	 * hardclock must also run, which requires the section entry.
+	 */
+	if (ipi_bitmap & (1 << IPI_HARDCLOCK))
+		critical_enter();
+
 	td->td_intr_nesting_level++;
 	oldframe = td->td_intr_frame;
 	td->td_intr_frame = &frame;
-	ipi_bitmap = atomic_readandclear_int(&cpuid_to_pcpu[cpu]->pc_ipi_bitmap);
+	if (ipi_bitmap & (1 << IPI_PREEMPT)) {
+#ifdef COUNT_IPIS
+		(*ipi_preempt_counts[cpu])++;
+#endif
+		sched_preempt(td);
+	}
 	if (ipi_bitmap & (1 << IPI_AST)) {
 #ifdef COUNT_IPIS
 		(*ipi_ast_counts[cpu])++;
@@ -1273,23 +1291,15 @@ ipi_bitmap_handler(struct trapframe frame)
 		/* Nothing to do for AST */
 	}
 	if (ipi_bitmap & (1 << IPI_HARDCLOCK)) {
-		critical_enter();
 #ifdef COUNT_IPIS
 		(*ipi_hardclock_counts[cpu])++;
 #endif
 		hardclockintr();
-		critical_exit();
-	}
-
-	/* Run preempt after clock handlers since it may switch. */
-	if (ipi_bitmap & (1 << IPI_PREEMPT)) {
-#ifdef COUNT_IPIS
-		(*ipi_preempt_counts[cpu])++;
-#endif
-		sched_preempt(td);
 	}
 	td->td_intr_frame = oldframe;
 	td->td_intr_nesting_level--;
+	if (ipi_bitmap & (1 << IPI_HARDCLOCK))
+		critical_exit();
 }
 
 /*
