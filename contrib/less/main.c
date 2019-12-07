@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2017  Mark Nudelman
+ * Copyright (C) 1984-2019  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -15,6 +15,7 @@
 
 #include "less.h"
 #if MSDOS_COMPILER==WIN32C
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #endif
 
@@ -54,13 +55,14 @@ extern int	jump_sline;
 static char consoleTitle[256];
 #endif
 
-public int  line_count;
+public int	one_screen;
 extern int	less_is_more;
 extern int	missing_cap;
 extern int	know_dumb;
 extern int	no_init;
 extern int	pr_type;
 extern int	quit_if_one_screen;
+extern int	no_init;
 
 
 /*
@@ -84,7 +86,7 @@ main(argc, argv)
 
 	secure = 0;
 	s = lgetenv("LESSSECURE");
-	if (s != NULL && *s != '\0')
+	if (!isnullenv(s))
 		secure = 1;
 
 #ifdef WIN32
@@ -114,6 +116,7 @@ main(argc, argv)
 	 * Command line arguments override environment arguments.
 	 */
 	is_tty = isatty(1);
+	init_mark();
 	init_cmds();
 	get_term();
 	expand_cmd_tables();
@@ -127,11 +130,7 @@ main(argc, argv)
 	 * If the name of the executable program is "more",
 	 * act like LESS_IS_MORE is set.
 	 */
-	for (s = progname + strlen(progname);  s > progname;  s--)
-	{
-		if (s[-1] == PATHNAME_SEP[0])
-			break;
-	}
+	s = last_component(progname);
 	if (strcmp(s, "more") == 0)
 		less_is_more = 1;
 
@@ -174,12 +173,12 @@ main(argc, argv)
 	if (editor == NULL || *editor == '\0')
 	{
 		editor = lgetenv("EDITOR");
-		if (editor == NULL || *editor == '\0')
+		if (isnullenv(editor))
 			editor = EDIT_PGM;
 	}
 	editproto = lgetenv("LESSEDIT");
-	if (editproto == NULL || *editproto == '\0')
-		editproto = "%E ?lm+%lm. %f";
+	if (isnullenv(editproto))
+		editproto = "%E ?lm+%lm. %g";
 #endif
 
 	/*
@@ -229,11 +228,7 @@ main(argc, argv)
 		 * Just copy the input file(s) to output.
 		 */
 		SET_BINARY(1);
-		if (nifile() == 0)
-		{
-			if (edit_stdin() == 0)
-				cat_file();
-		} else if (edit_first() == 0)
+		if (edit_first() == 0)
 		{
 			do {
 				cat_file();
@@ -244,7 +239,6 @@ main(argc, argv)
 
 	if (missing_cap && !know_dumb && !less_is_more)
 		error("WARNING: terminal is not fully functional", NULL_PARG);
-	init_mark();
 	open_getchr();
 	raw_mode(1);
 	init_signals(1);
@@ -279,22 +273,20 @@ main(argc, argv)
 		initial_scrpos.ln = jump_sline;
 	} else
 #endif
-	if (nifile() == 0)
 	{
-		if (edit_stdin())  /* Edit standard input */
+		if (edit_first())
 			quit(QUIT_ERROR);
-		if (quit_if_one_screen)
-			line_count = get_line_count();
-	} else 
-	{
-		if (edit_first())  /* Edit first valid file in cmd line */
-			quit(QUIT_ERROR);
+		/*
+		 * See if file fits on one screen to decide whether 
+		 * to send terminal init. But don't need this 
+		 * if -X (no_init) overrides this (see init()).
+		 */
 		if (quit_if_one_screen)
 		{
-			if (nifile() == 1)
-				line_count = get_line_count();
-			else /* If more than one file, -F can not be used */
+			if (nifile() > 1) /* If more than one file, -F cannot be used */
 				quit_if_one_screen = FALSE;
+			else if (!no_init)
+				one_screen = get_one_screen();
 		}
 	}
 

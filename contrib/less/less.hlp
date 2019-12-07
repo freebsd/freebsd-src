@@ -44,7 +44,7 @@
   ESC-u                Undo (toggle) search highlighting.
   &_p_a_t_t_e_r_n          *  Display only matching lines
         ---------------------------------------------------
-        A search pattern may be preceded by one or more of:
+        A search pattern may begin with one or more of:
         ^N or !  Search for NON-matching lines.
         ^E or *  Search multiple files (pass thru END OF FILE).
         ^F or @  Start search at FIRST file (for /) or last file (for ?).
@@ -153,7 +153,7 @@
                   Display a status column at left edge of screen.
   -k [_f_i_l_e]  .  --lesskey-file=[_f_i_l_e]
                   Use a lesskey file.
-  -K            --quit-on-intr
+  -K  ........  --quit-on-intr
                   Exit less in response to ctrl-C.
   -L  ........  --no-lessopen
                   Ignore the LESSOPEN environment variable.
@@ -203,12 +203,22 @@
                   Don't display tildes after end of file.
   -# [_N]  ....  --shift=[_N]
                   Horizontal scroll amount (0 = one half screen width)
-      ........  --no-keypad
-                  Don't send termcap keypad init/deinit strings.
-      ........  --follow-name
+                --follow-name
                   The F command changes files if the input file is renamed.
-      ........  --use-backslash
+                --mouse
+                  Enable mouse input.
+                --no-keypad
+                  Don't send termcap keypad init/deinit strings.
+                --no-histdups
+                  Remove duplicates from command history.
+                --rscroll=C
+                  Set the character used to mark truncated lines.
+                --save-marks
+                  Retain marks across invocations of less.
+                --use-backslash
                   Subsequent options use backslash as escape char.
+                --wheel-lines=N
+                  Each click of the mouse wheel moves N lines.
 
 
  ---------------------------------------------------------------------------

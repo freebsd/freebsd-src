@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2017  Mark Nudelman
+ * Copyright (C) 1984-2019  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -18,20 +18,25 @@
 #include "pckeys.h"
 #endif
 #if MSDOS_COMPILER==WIN32C
-#include "windows.h"
-extern char WIN32getch();
-static DWORD console_mode;
+#define WIN32_LEAN_AND_MEAN
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x400
 #endif
-
+#include <windows.h>
+static DWORD console_mode;
+public HANDLE tty;
+#else
 public int tty;
+#endif
 extern int sigs;
 extern int utf_mode;
+extern int wheel_lines;
 
 /*
  * Open keyboard for input.
  */
 	public void
-open_getchr()
+open_getchr(VOID_PARAM)
 {
 #if MSDOS_COMPILER==WIN32C
 	/* Need this to let child processes inherit our console handle */
@@ -39,12 +44,12 @@ open_getchr()
 	memset(&sa, 0, sizeof(SECURITY_ATTRIBUTES));
 	sa.nLength = sizeof(SECURITY_ATTRIBUTES);
 	sa.bInheritHandle = TRUE;
-	tty = (int) CreateFile("CONIN$", GENERIC_READ,
+	tty = CreateFile("CONIN$", GENERIC_READ | GENERIC_WRITE,
 			FILE_SHARE_READ, &sa, 
 			OPEN_EXISTING, 0L, NULL);
-	GetConsoleMode((HANDLE)tty, &console_mode);
+	GetConsoleMode(tty, &console_mode);
 	/* Make sure we get Ctrl+C events. */
-	SetConsoleMode((HANDLE)tty, ENABLE_PROCESSED_INPUT);
+	SetConsoleMode(tty, ENABLE_PROCESSED_INPUT | ENABLE_MOUSE_INPUT);
 #else
 #if MSDOS_COMPILER
 	extern int fd0;
@@ -85,19 +90,52 @@ open_getchr()
  * Close the keyboard.
  */
 	public void
-close_getchr()
+close_getchr(VOID_PARAM)
 {
 #if MSDOS_COMPILER==WIN32C
-	SetConsoleMode((HANDLE)tty, console_mode);
-	CloseHandle((HANDLE)tty);
+	SetConsoleMode(tty, console_mode);
+	CloseHandle(tty);
 #endif
+}
+
+#if MSDOS_COMPILER==WIN32C
+/*
+ * Close the pipe, restoring the keyboard (CMD resets it, losing the mouse).
+ */
+	int
+pclose(f)
+	FILE *f;
+{
+	int result;
+
+	result = _pclose(f);
+	SetConsoleMode(tty, ENABLE_PROCESSED_INPUT | ENABLE_MOUSE_INPUT);
+	return result;
+}
+#endif
+
+/*
+ * Get the number of lines to scroll when mouse wheel is moved.
+ */
+	public int
+default_wheel_lines(VOID_PARAM)
+{
+	int lines = 1;
+#if MSDOS_COMPILER==WIN32C
+	if (SystemParametersInfo(SPI_GETWHEELSCROLLLINES, 0, &lines, 0))
+	{
+		if (lines == WHEEL_PAGESCROLL)
+			lines = 3;
+	}
+#endif
+	return lines;
 }
 
 /*
  * Get a character from the keyboard.
  */
 	public int
-getchr()
+getchr(VOID_PARAM)
 {
 	char c;
 	int result;
@@ -112,7 +150,7 @@ getchr()
 #if MSDOS_COMPILER==WIN32C
 		if (ABORT_SIGS())
 			return (READ_INTR);
-		c = WIN32getch(tty);
+		c = WIN32getch();
 #else
 		c = getch();
 #endif
@@ -157,7 +195,7 @@ getchr()
 			else if (c >= 'A' && c <= 'F')
 				v = c - 'A' + 10;
 			else
-				hex_in = 0;
+				v = 0;
 			hex_value = (hex_value << 4) | v;
 			if (--hex_in > 0)
 			{
