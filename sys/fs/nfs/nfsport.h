@@ -257,9 +257,38 @@
 
 /*
  * Must be one more than last op#.
- * NFSv4.2 isn't implemented yet, but define the op# limit for it.
  */
 #define	NFSV41_NOPS		59
+
+/*
+ * Additional operations for NFSv4.2.
+ */
+#define	NFSV4OP_ALLOCATE	59
+#define	NFSV4OP_COPY		60
+#define	NFSV4OP_COPYNOTIFY	61
+#define	NFSV4OP_DEALLOCATE	62
+#define	NFSV4OP_IOADVISE	63
+#define	NFSV4OP_LAYOUTERROR	64
+#define	NFSV4OP_LAYOUTSTATS	65
+#define	NFSV4OP_OFFLOADCANCEL	66
+#define	NFSV4OP_OFFLOADSTATUS	67
+#define	NFSV4OP_READPLUS	68
+#define	NFSV4OP_SEEK		69
+#define	NFSV4OP_WRITESAME	70
+#define	NFSV4OP_CLONE		71
+
+/* One greater than the last Operation # defined in RFC-7862. */
+#define	NFSV42_PURENOPS		72
+
+/* and the optional Extended attribute operations (RFC-8276). */
+#define	NFSV4OP_GETXATTR	72
+#define	NFSV4OP_SETXATTR	73
+#define	NFSV4OP_LISTXATTRS	74
+#define	NFSV4OP_REMOVEXATTR	75
+
+/*
+ * Must be one more than the last NFSv4.2 op#.
+ */
 #define	NFSV42_NOPS		72
 
 /* Quirky case if the illegal op code */
@@ -309,6 +338,12 @@
 #define	NFSV4OP_CBNOTIFYDEVID	14
 
 #define	NFSV41_CBNOPS		15
+
+/*
+ * Additional callback operations for NFSv4.2.
+ */
+#define	NFSV4OP_CBOFFLOAD	15
+
 #define	NFSV42_CBNOPS		16
 
 /*
@@ -366,6 +401,24 @@
  * Must be defined as one higher than the last NFSv4.1 Proc# above.
  */
 #define	NFSV41_NPROCS		56
+
+/* Additional procedures for NFSv4.2. */
+#define	NFSPROC_IOADVISE	56
+#define	NFSPROC_ALLOCATE	57
+#define	NFSPROC_COPY		58
+#define	NFSPROC_SEEK		59
+#define	NFSPROC_SEEKDS		60
+
+/* and the ones for the optional Extended attribute support (RFC-8276). */
+#define	NFSPROC_GETEXTATTR	61
+#define	NFSPROC_SETEXTATTR	62
+#define	NFSPROC_RMEXTATTR	63
+#define	NFSPROC_LISTEXTATTR	64
+
+/*
+ * Must be defined as one higher than the last NFSv4.2 Proc# above.
+ */
+#define	NFSV42_NPROCS		65
 
 #endif	/* NFS_V3NPROCS */
 
