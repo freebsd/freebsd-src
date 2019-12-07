@@ -242,6 +242,21 @@ struct pmap_physseg {
 #endif
 #endif
 
+#if defined(__powerpc64__) || defined(BOOKE)
+/*
+ * powerpc64 and Book-E will provide their own page array allocators.
+ *
+ * On AIM, this will allocate a single virtual array, with pages from the
+ * correct memory domains.
+ * On Book-E this will let us put the array in TLB1, removing the need for TLB
+ * thrashing.
+ *
+ * VM_MIN_KERNEL_ADDRESS is just a dummy.  It will get set by the MMU driver.
+ */
+#define	PA_MIN_ADDRESS		VM_MIN_KERNEL_ADDRESS
+#define	PMAP_HAS_PAGE_ARRAY	1
+#endif
+
 #define	PMAP_HAS_DMAP	(hw_direct_map)
 #define PHYS_TO_DMAP(x) ({						\
 	KASSERT(hw_direct_map, ("Direct map not provided by PMAP"));	\

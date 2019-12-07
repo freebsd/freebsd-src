@@ -393,6 +393,7 @@ static int		mmu_booke_map_user_ptr(mmu_t mmu, pmap_t pm,
     volatile const void *uaddr, void **kaddr, size_t ulen, size_t *klen);
 static int		mmu_booke_decode_kernel_ptr(mmu_t mmu, vm_offset_t addr,
     int *is_user, vm_offset_t *decoded_addr);
+static void		mmu_booke_page_array_startup(mmu_t , long);
 
 
 static mmu_method_t mmu_booke_methods[] = {
@@ -434,6 +435,7 @@ static mmu_method_t mmu_booke_methods[] = {
 	MMUMETHOD(mmu_deactivate,	mmu_booke_deactivate),
 	MMUMETHOD(mmu_quick_enter_page, mmu_booke_quick_enter_page),
 	MMUMETHOD(mmu_quick_remove_page, mmu_booke_quick_remove_page),
+	MMUMETHOD(mmu_page_array_startup,	mmu_booke_page_array_startup),
 
 	/* Internal interfaces */
 	MMUMETHOD(mmu_bootstrap,	mmu_booke_bootstrap),
@@ -1619,8 +1621,30 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	debugf(" kernel pdir at 0x%"PRI0ptrX" end = 0x%"PRI0ptrX"\n",
 	    kernel_pdir, data_end);
 
+	/* Retrieve phys/avail mem regions */
+	mem_regions(&physmem_regions, &physmem_regions_sz,
+	    &availmem_regions, &availmem_regions_sz);
+
+	if (PHYS_AVAIL_ENTRIES < availmem_regions_sz)
+		panic("mmu_booke_bootstrap: phys_avail too small");
+
+	data_end = round_page(data_end);
+	vm_page_array = (vm_page_t)data_end;
+	/*
+	 * Get a rough idea (upper bound) on the size of the page array.  The
+	 * vm_page_array will not handle any more pages than we have in the
+	 * avail_regions array, and most likely much less.
+	 */
+	sz = 0;
+	for (mp = availmem_regions; mp->mr_size; mp++) {
+		sz += mp->mr_size;
+	}
+	sz = (round_page(sz) / (PAGE_SIZE + sizeof(struct vm_page)));
+	data_end += round_page(sz * sizeof(struct vm_page));
+
 	/* Pre-round up to 1MB.  This wastes some space, but saves TLB entries */
 	data_end = roundup2(data_end, 1 << 20);
+
 	debugf(" data_end: 0x%"PRI0ptrX"\n", data_end);
 	debugf(" kernstart: %#zx\n", kernstart);
 	debugf(" kernsize: %#zx\n", kernsize);
@@ -1689,13 +1713,6 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	 * align all regions.  Non-page aligned memory isn't very interesting
 	 * to us.  Also, sort the entries for ascending addresses.
 	 */
-
-	/* Retrieve phys/avail mem regions */
-	mem_regions(&physmem_regions, &physmem_regions_sz,
-	    &availmem_regions, &availmem_regions_sz);
-
-	if (PHYS_AVAIL_ENTRIES < availmem_regions_sz)
-		panic("mmu_booke_bootstrap: phys_avail too small");
 
 	sz = 0;
 	cnt = availmem_regions_sz;
@@ -3662,6 +3679,12 @@ mmu_booke_change_attr(mmu_t mmu, vm_offset_t addr, vm_size_t sz,
 	mtx_unlock_spin(&tlbivax_mutex);
 
 	return (0);
+}
+
+static void
+mmu_booke_page_array_startup(mmu_t mmu, long pages)
+{
+	vm_page_array_size = pages;
 }
 
 /**************************************************************************/
