@@ -273,12 +273,12 @@ static int kstack_domain_iter;
 static int
 sysctl_kstack_cache_size(SYSCTL_HANDLER_ARGS)
 {
-	int error, newsize;
+	int error, oldsize;
 
-	newsize = kstack_cache_size;
-	error = sysctl_handle_int(oidp, &newsize, 0, req);
-	if (error == 0 && req->newptr && newsize != kstack_cache_size)
-		uma_zone_set_maxcache(kstack_cache, newsize);
+	oldsize = kstack_cache_size;
+	error = sysctl_handle_int(oidp, arg1, arg2, req);
+	if (error == 0 && req->newptr && oldsize != kstack_cache_size)
+		uma_zone_set_maxcache(kstack_cache, kstack_cache_size);
 	return (error);
 }
 SYSCTL_PROC(_vm, OID_AUTO, kstack_cache_size, CTLTYPE_INT|CTLFLAG_RW,
