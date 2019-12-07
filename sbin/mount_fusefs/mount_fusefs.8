@@ -60,7 +60,7 @@ Basic usage is to start a fuse daemon on the given
 file.
 In practice, the daemon is assigned a
 .Ar special
-file automatically, which can then be indentified via
+file automatically, which can then be identified via
 .Xr fstat 1 .
 That special file can then be mounted by
 .Nm .
@@ -100,7 +100,7 @@ is an integer it will be interpreted as the number
 of the file descriptor of an already open fuse device
 (used when the Fuse library invokes
 .Nm .
-(See
+See
 .Sx DAEMON MOUNTS ) .
 .Pp
 The options are as follows:
@@ -181,7 +181,7 @@ are supported by the Fuse library.
 One can list these by passing
 .Fl h
 to a Fuse daemon.
-Most of these options only have affect on the behavior of the daemon (that is,
+Most of these options only have effect on the behavior of the daemon (that is,
 their scope is limited to userspace).
 However, there are some which do require in-kernel support.
 Currently the options supported by the kernel are:
@@ -209,7 +209,7 @@ has the same effect as
 This is the recommended usage when you want basic usage
 (eg, run the daemon at a low privilege level but mount it as root).
 .Sh STRICT ACCESS POLICY
-The strict access policy for Fuse filesystems lets one to use the filesystem
+The strict access policy for Fuse filesystems lets one use the filesystem
 only if the filesystem daemon has the same credentials (uid, real uid, gid,
 real gid) as the user.
 .Pp
@@ -222,7 +222,7 @@ This is to shield users from the daemon
 .Dq spying
 on their I/O activities.
 .Pp
-Users might opt to willingly relax strict access policy (as far they
+Users might opt to willingly relax strict access policy (as far as they
 are concerned) by doing their own secondary mount (See
 .Sx SHARED MOUNTS ) .
 .Sh SHARED MOUNTS
@@ -259,13 +259,13 @@ However, given that
 is capable of invoking an arbitrary program, one must be careful when doing this.
 .Nm
 is designed in a way such that it makes that easy.
-For this purpose, there are options which disable certain risky features (
-.Fl S
+For this purpose, there are options which disable certain risky features
+.Fl ( S
 and
 .Fl A ) ,
 and command line parsing is done in a flexible way: mixing options and
 non-options is allowed, but processing them stops at the third non-option
-argument (after the first two has been utilized as device and mountpoint).
+argument (after the first two have been utilized as device and mountpoint).
 The rest of the command line specifies the daemon and its arguments.
 (Alternatively, the daemon, the special and the mount path can be
 specified using the respective options.) Note that
