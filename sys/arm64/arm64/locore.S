@@ -43,6 +43,24 @@
 	.globl	kernbase
 	.set	kernbase, KERNBASE
 
+
+/* U-Boot booti related constants. */
+#if defined(LINUX_BOOT_ABI)
+#define FDT_MAGIC		0xEDFE0DD0	/* FDT blob Magic */
+
+#ifndef UBOOT_IMAGE_OFFSET
+#define	UBOOT_IMAGE_OFFSET	0		/* Image offset from start of */
+#endif						/*  2 MiB page */
+
+#ifndef UBOOT_IMAGE_SIZE			/* Total size of image */
+#define	UBOOT_IMAGE_SIZE	 _end - _start
+#endif
+
+#ifndef UBOOT_IMAGE_FLAGS
+#define	UBOOT_IMAGE_FLAGS	0		/* LE kernel, unspecified */
+#endif						/*  page size */
+#endif /* defined(LINUX_BOOT_ABI) */
+
 /*
  * We assume:
  *  MMU      on with an identity map, or off
@@ -54,6 +72,21 @@
 	.text
 	.globl _start
 _start:
+#if defined(LINUX_BOOT_ABI)
+	/* U-boot image header */
+	b	1f			/* code 0 */
+	.long	0			/* code 1 */
+	.quad	UBOOT_IMAGE_OFFSET	/* Image offset in 2 MiB page, LE */
+	.quad	UBOOT_IMAGE_SIZE	/* Image size, LE */
+	.quad	UBOOT_IMAGE_FLAGS	/* Flags for kernel. LE */
+	.quad 	0			/* Reserved */
+	.quad 	0			/* Reserved */
+	.quad 	0			/* Reserved */
+	.long 	0x644d5241		/* Magic  "ARM\x64", LE */
+	.long 	0			/* Reserved for PE COFF offset*/
+1:
+#endif /* defined(LINUX_BOOT_ABI) */
+
 	/* Drop to EL1 */
 	bl	drop_to_el1
 
@@ -350,11 +383,50 @@ create_pagetables:
 
 	/* Find the size of the kernel */
 	mov	x6, #(KERNBASE)
+
+#if defined(LINUX_BOOT_ABI)
+	/* X19 is used as 'map FDT data' flag */
+	mov	x19, xzr
+
+	/* No modules or FDT pointer ? */
+	cbz	x0, booti_no_fdt
+
+	/* Test if modulep points to modules descriptor or to FDT */
+	ldr	w8, [x0]
+	ldr	w7, =FDT_MAGIC
+	cmp	w7, w8
+	b.eq	booti_fdt
+#endif
+
+	/* Booted with modules pointer */
 	/* Find modulep - begin */
 	sub	x8, x0, x6
 	/* Add two 2MiB pages for the module data and round up */
 	ldr	x7, =(3 * L2_SIZE - 1)
 	add	x8, x8, x7
+	b	common
+
+#if defined(LINUX_BOOT_ABI)
+booti_fdt:
+	/* Booted by U-Boot booti with FDT data */
+	/* Set 'map FDT data' flag */
+	mov	x19, #1
+
+booti_no_fdt:
+	/* Booted by U-Boot booti without FTD data */
+	/* Find the end - begin */
+	ldr     x7, .Lend
+	sub     x8, x7, x6
+
+	/*
+	 * Add one 2MiB page for copy of FDT data (maximum FDT size),
+	 * one for metadata and round up
+	 */
+	ldr	x7, =(3 * L2_SIZE - 1)
+	add	x8, x8, x7
+#endif
+
+common:
 	/* Get the number of l2 pages to allocate, rounded down */
 	lsr	x10, x8, #(L2_SHIFT)
 
@@ -404,9 +476,21 @@ create_pagetables:
 	bl	build_l1_block_pagetable
 #endif
 
-	/*
-	 * Create the VA = PA map
-	 */
+#if defined(LINUX_BOOT_ABI)
+	/* Map FDT data ? */
+	cbz	x19, 1f
+
+	/* Create the identity mapping for FDT data (2 MiB max) */
+	mov	x7, #(ATTR_nG | ATTR_IDX(VM_MEMATTR_UNCACHEABLE))
+	mov	x9, x0
+	mov	x8, x0		/* VA start (== PA start) */
+	mov	x10, #1
+	bl	build_l1_block_pagetable
+
+1:
+#endif
+
+	/* Create the VA = PA map */
 	mov	x7, #(ATTR_nG | ATTR_IDX(VM_MEMATTR_UNCACHEABLE))
 	mov	x9, x27
 	mov	x8, x9		/* VA start (== PA start) */

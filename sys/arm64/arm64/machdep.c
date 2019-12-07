@@ -964,6 +964,15 @@ try_load_dtb(caddr_t kmdp)
 	vm_offset_t dtbp;
 
 	dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
+#if defined(FDT_DTB_STATIC)
+	/*
+	 * In case the device tree blob was not retrieved (from metadata) try
+	 * to use the statically embedded one.
+	 */
+	if (dtbp == 0)
+		dtbp = (vm_offset_t)&fdt_static_dtb;
+#endif
+
 	if (dtbp == (vm_offset_t)NULL) {
 		printf("ERROR loading DTB\n");
 		return;
@@ -974,6 +983,8 @@ try_load_dtb(caddr_t kmdp)
 
 	if (OF_init((void *)dtbp) != 0)
 		panic("OF_init failed with the found device tree");
+
+	parse_fdt_bootargs();
 }
 #endif
 
@@ -1082,26 +1093,18 @@ initarm(struct arm64_bootparams *abp)
 	caddr_t kmdp;
 	bool valid;
 
-	/* Set the module data location */
-	preload_metadata = (caddr_t)(uintptr_t)(abp->modulep);
+	/* Parse loader or FDT boot parametes. Determine last used address. */
+	lastaddr = parse_boot_param(abp);
 
 	/* Find the kernel address */
 	kmdp = preload_search_by_type("elf kernel");
 	if (kmdp == NULL)
 		kmdp = preload_search_by_type("elf64 kernel");
 
-	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	init_static_kenv(MD_FETCH(kmdp, MODINFOMD_ENVP, char *), 0);
 	link_elf_ireloc(kmdp);
-
-#ifdef FDT
 	try_load_dtb(kmdp);
-#endif
 
 	efi_systbl_phys = MD_FETCH(kmdp, MODINFOMD_FW_HANDLE, vm_paddr_t);
-
-	/* Find the address to start allocating from */
-	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
 
 	/* Load the physical memory ranges */
 	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
