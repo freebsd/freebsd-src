@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 25, 2019
+.Dd October 2, 2019
 .Dt DAEMON 8
 .Os
 .Sh NAME
@@ -63,6 +63,11 @@ Change the current working directory to the root
 .It Fl f
 Redirect standard input, standard output and standard error to
 .Pa /dev/null .
+When this option is used together with any of the options related to file
+or syslog output, the standard file descriptors are first redirected to
+.Pa /dev/null ,
+then stdout and/or stderr is redirected to a file or to syslog as
+specified by the other options.
 .It Fl S
 Enable syslog output.
 This is implicitly applied if other syslog parameters are provided.
