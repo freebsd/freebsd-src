@@ -3745,6 +3745,8 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VV_ETERNALDEV", sizeof(buf));
 	if (vp->v_vflag & VV_CACHEDLABEL)
 		strlcat(buf, "|VV_CACHEDLABEL", sizeof(buf));
+	if (vp->v_vflag & VV_VMSIZEVNLOCK)
+		strlcat(buf, "|VV_VMSIZEVNLOCK", sizeof(buf));
 	if (vp->v_vflag & VV_COPYONWRITE)
 		strlcat(buf, "|VV_COPYONWRITE", sizeof(buf));
 	if (vp->v_vflag & VV_SYSTEM)
@@ -3759,6 +3761,8 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VV_MD", sizeof(buf));
 	if (vp->v_vflag & VV_FORCEINSMQ)
 		strlcat(buf, "|VV_FORCEINSMQ", sizeof(buf));
+	if (vp->v_vflag & VV_READLINK)
+		strlcat(buf, "|VV_READLINK", sizeof(buf));
 	flags = vp->v_vflag & ~(VV_ROOT | VV_ISTTY | VV_NOSYNC | VV_ETERNALDEV |
 	    VV_CACHEDLABEL | VV_COPYONWRITE | VV_SYSTEM | VV_PROCDEP |
 	    VV_NOKNOTE | VV_DELETED | VV_MD | VV_FORCEINSMQ);
@@ -3766,6 +3770,8 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		snprintf(buf2, sizeof(buf2), "|VV(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
 	}
+	if (vp->v_iflag & VI_TEXT_REF)
+		strlcat(buf, "|VI_TEXT_REF", sizeof(buf));
 	if (vp->v_iflag & VI_MOUNT)
 		strlcat(buf, "|VI_MOUNT", sizeof(buf));
 	if (vp->v_iflag & VI_DOOMED)
@@ -3778,12 +3784,17 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VI_DOINGINACT", sizeof(buf));
 	if (vp->v_iflag & VI_OWEINACT)
 		strlcat(buf, "|VI_OWEINACT", sizeof(buf));
-	if (vp->v_iflag & VI_TEXT_REF)
-		strlcat(buf, "|VI_TEXT_REF", sizeof(buf));
-	flags = vp->v_iflag & ~(VI_MOUNT | VI_DOOMED | VI_FREE |
-	    VI_ACTIVE | VI_DOINGINACT | VI_OWEINACT | VI_TEXT_REF);
+	flags = vp->v_iflag & ~(VI_TEXT_REF | VI_MOUNT | VI_DOOMED | VI_FREE |
+	    VI_ACTIVE | VI_DOINGINACT | VI_OWEINACT);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VI(0x%lx)", flags);
+		strlcat(buf, buf2, sizeof(buf));
+	}
+	if (vp->v_mflag & VMP_TMPMNTFREELIST)
+		strlcat(buf, "|VMP_TMPMNTFREELIST", sizeof(buf));
+	flags = vp->v_mflag & ~(VMP_TMPMNTFREELIST);
+	if (flags != 0) {
+		snprintf(buf2, sizeof(buf2), "|VMP(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
 	}
 	printf("    flags (%s)\n", buf + 1);
