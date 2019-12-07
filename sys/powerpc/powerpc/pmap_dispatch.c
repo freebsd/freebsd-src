@@ -610,6 +610,13 @@ pmap_change_attr(vm_offset_t addr, vm_size_t size, vm_memattr_t mode)
 	return (MMU_CHANGE_ATTR(mmu_obj, addr, size, mode));
 }
 
+void
+pmap_page_array_startup(long pages)
+{
+	CTR2(KTR_PMAP, "%s(%ld)", __func__, pages);
+	MMU_PAGE_ARRAY_STARTUP(mmu_obj, pages);
+}
+
 /*
  * MMU install routines. Highest priority wins, equal priority also
  * overrides allowing last-set to win.
