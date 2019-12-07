@@ -27,9 +27,23 @@ S=	../../..
 
 INCLUDES+= -I$S/contrib/libfdt
 
+#SYSTEM_LD:= ${SYSTEM_LD:$S/conf/ldscript.$M=ldscript.$M}
+#SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/ldscript.$M=ldscript.$M}
+
 .if !empty(DDB_ENABLED)
 CFLAGS += -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .endif
+
+SYSTEM_LD_ = ${LD} -m ${LD_EMULATION} -Bdynamic -T ldscript.$M.noheader \
+	${_LDFLAGS} --no-warn-mismatch --warn-common --export-dynamic \
+	--dynamic-linker /red/herring \
+	-o ${FULLKERNEL}.noheader -X ${SYSTEM_OBJS} vers.o
+SYSTEM_LD_TAIL +=;sed s/" + SIZEOF_HEADERS"// $(LDSCRIPT)\
+		>ldscript.$M.noheader;\
+		${SYSTEM_LD_}; \
+		${OBJCOPY} -S -O binary ${FULLKERNEL}.noheader \
+		${KERNEL_KO}.bin; \
+		rm ${FULLKERNEL}.noheader
 
 %BEFORE_DEPEND
 
@@ -42,6 +56,7 @@ CFLAGS += -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 %FILES.m
 
 %CLEAN
+CLEAN+=	ldscript.$M ${KERNEL_KO}.bin ldscript.$M.noheader
 
 %RULES
 
