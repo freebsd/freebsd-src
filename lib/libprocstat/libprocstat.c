@@ -617,9 +617,9 @@ do_mmapped:
 		}
 		map = &vmspace.vm_map;
 
-		for (entryp = map->header.next;
+		for (entryp = vm_map_entry_first(map);
 		    entryp != &kp->ki_vmspace->vm_map.header;
-		    entryp = vmentry.next) {
+		    entryp = vm_map_entry_succ(vmentry)) {
 			if (!kvm_read_all(kd, (unsigned long)entryp, &vmentry,
 			    sizeof(vmentry))) {
 				warnx("can't read vm_map_entry at %p",
