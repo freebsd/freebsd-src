@@ -25,7 +25,7 @@
 # SUCH DAMAGE.
 #
 
-SUBDIR = gpiobus gpioiic gpioled gpiospi
+SUBDIR = gpiobus gpioiic gpioled gpiospi gpioths
 
 .if !empty(OPT_FDT)
 SUBDIR += gpiokeys gpiopps
