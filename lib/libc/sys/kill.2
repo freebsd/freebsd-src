@@ -28,7 +28,7 @@
 .\"     @(#)kill.2	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2017
+.Dd December 1, 2019
 .Dt KILL 2
 .Os
 .Sh NAME
@@ -105,12 +105,11 @@ process with ID 1
 .Xr init 8 ) ,
 and the process sending the signal.
 If the user is not the super user, the signal is sent to all processes
-with the same uid as the user excluding the process sending the signal.
+which the caller has permissions to, excluding the process sending the signal.
 No error is returned if any process could be signaled.
 .El
 .Pp
-For compatibility with System V,
-if the process number is negative but not -1,
+If the process number is negative but not -1,
 the signal is sent to all processes whose process group ID
 is equal to the absolute value of the process number.
 This is a variant of
@@ -134,7 +133,7 @@ No process or process group can be found corresponding to that specified by
 .It Bq Er EPERM
 The sending process does not have permission to send
 .Va sig
-to the receiving process.
+to any receiving process.
 .El
 .Sh SEE ALSO
 .Xr getpgrp 2 ,
