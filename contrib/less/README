@@ -7,9 +7,9 @@
 **************************************************************************
 **************************************************************************
 
-                            Less, version 530
+                            Less, version 551
 
-    This is the distribution of less, version 530, released 05 Dec 2017.
+    This is the distribution of less, version 551, released 11 Jun 2019.
     This program is part of the GNU project (http://www.gnu.org).
 
     This program is free software.  You may redistribute it and/or
@@ -56,6 +56,7 @@ INSTALLATION (Unix systems only):
      finds a regular expression library automatically.  Other values are:
         gnu            Use the GNU regex library.
         pcre           Use the PCRE library.
+        pcre2          Use the PCRE2 library.
         posix          Use the POSIX-compatible regcomp.
         regcmp         Use the regcmp library.
         re_comp        Use the re_comp library.
@@ -63,6 +64,7 @@ INSTALLATION (Unix systems only):
         regcomp-local  Use Henry Spencer's V8-compatible regcomp
                        (source is supplied with less).
         none           No regular expressions, only simple string matching.
+
    --with-secure
      Builds a "secure" version of less, with some features disabled
      to prevent users from viewing other files, accessing shell

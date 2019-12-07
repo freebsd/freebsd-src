@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2017  Mark Nudelman
+ * Copyright (C) 1984-2019  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -204,7 +204,7 @@ init_pattern(info)
  * Initialize search variables.
  */
 	public void
-init_search()
+init_search(VOID_PARAM)
 {
 	init_pattern(&search_info);
 	init_pattern(&filter_info);
@@ -214,7 +214,7 @@ init_search()
  * Determine which text conversions to perform before pattern matching.
  */
 	static int
-get_cvt_ops()
+get_cvt_ops(VOID_PARAM)
 {
 	int ops = 0;
 	if (is_caseless || bs_mode == BS_SPECIAL)
@@ -297,7 +297,7 @@ repaint_hilite(on)
  * Clear the attn hilite.
  */
 	public void
-clear_attn()
+clear_attn(VOID_PARAM)
 {
 	int sindex;
 	POSITION old_start_attnpos;
@@ -344,7 +344,7 @@ clear_attn()
  * Hide search string highlighting.
  */
 	public void
-undo_search()
+undo_search(VOID_PARAM)
 {
 	if (!prev_pattern(&search_info))
 	{
@@ -389,13 +389,13 @@ clr_hlist(anchor)
 }
 
 	public void
-clr_hilite()
+clr_hilite(VOID_PARAM)
 {
 	clr_hlist(&hilite_anchor);
 }
 
 	public void
-clr_filter()
+clr_filter(VOID_PARAM)
 {
 	clr_hlist(&filter_anchor);
 }
@@ -1031,7 +1031,7 @@ hilite_line(linepos, line, line_len, chpos, sp, ep, cvt_ops)
  * Find matching text which is currently on screen and highlight it.
  */
 	static void
-hilite_screen()
+hilite_screen(VOID_PARAM)
 {
 	struct scrpos scrpos;
 
@@ -1046,7 +1046,7 @@ hilite_screen()
  * Change highlighting parameters.
  */
 	public void
-chg_hilite()
+chg_hilite(VOID_PARAM)
 {
 	/*
 	 * Erase any highlights currently on screen.
@@ -1377,7 +1377,7 @@ hist_pattern(search_type)
  * Updates the internal search state to reflect a change in the -i flag.
  */
 	public void
-chg_caseless()
+chg_caseless(VOID_PARAM)
 {
 	if (!is_ucase_pattern)
 		/*
@@ -1730,7 +1730,7 @@ set_filter_pattern(pattern, search_type)
  * Is there a line filter in effect?
  */
 	public int
-is_filtering()
+is_filtering(VOID_PARAM)
 {
 	if (ch_getflags() & CH_HELPFILE)
 		return (0);

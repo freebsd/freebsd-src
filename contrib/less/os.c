@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2017  Mark Nudelman
+ * Copyright (C) 1984-2019  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -176,7 +176,7 @@ start:
  * Interrupt a pending iread().
  */
 	public void
-intread()
+intread(VOID_PARAM)
 {
 	LONG_JUMP(read_label, 1);
 }
@@ -186,7 +186,7 @@ intread()
  */
 #if HAVE_TIME
 	public time_type
-get_time()
+get_time(VOID_PARAM)
 {
 	time_type t;
 

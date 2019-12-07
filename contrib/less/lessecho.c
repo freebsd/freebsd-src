@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2017  Mark Nudelman
+ * Copyright (C) 1984-2019  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -38,14 +38,14 @@ static char metachars[64] = "";
 static int num_metachars = 0;
 
 	static void
-pr_usage()
+pr_usage(VOID_PARAM)
 {
 	fprintf(stderr,
 		"usage: lessecho [-ox] [-cx] [-pn] [-dn] [-mx] [-nn] [-ex] [-fn] [-a] file ...\n");
 }
 
 	static void
-pr_version()
+pr_version(VOID_PARAM)
 {
 	char *p;
 	char buf[10];
