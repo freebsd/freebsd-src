@@ -72,6 +72,7 @@ if [ -n "$rcshutdown_timeout" ]; then
 		_msg="$rcshutdown_timeout second watchdog"
 		_msg="$_msg timeout expired. Shutdown terminated."
 		logger -t rc.shutdown "$_msg"
+		echo
 		echo "$_msg"
 		date
 		kill -KILL $$ >/dev/null 2>&1
