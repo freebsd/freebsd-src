@@ -44,8 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <vm/vm_param.h>
 #include <vm/vm.h>
-#include <vm/pmap.h>
-#include <vm/vm_map.h>
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
@@ -64,7 +62,14 @@ __FBSDID("$FreeBSD$");
  * Code for generating ELF core dumps.
  */
 
-typedef void (*segment_callback)(vm_map_entry_t, void *);
+struct map_entry {
+	struct map_entry *next;
+	vm_offset_t start;
+	vm_offset_t end;
+	vm_prot_t protection;
+};
+
+typedef void (*segment_callback)(struct map_entry *, void *);
 
 /* Closure for cb_put_phdr(). */
 struct phdr_closure {
@@ -101,9 +106,9 @@ typedef struct ptrace_lwpinfo elfcore_lwpinfo_t;
 
 typedef void* (*notefunc_t)(void *, size_t *);
 
-static void cb_put_phdr(vm_map_entry_t, void *);
-static void cb_size_segment(vm_map_entry_t, void *);
-static void each_dumpable_segment(vm_map_entry_t, segment_callback,
+static void cb_put_phdr(struct map_entry *, void *);
+static void cb_size_segment(struct map_entry *, void *);
+static void each_dumpable_segment(struct map_entry *, segment_callback,
     void *closure);
 static void elf_detach(void);	/* atexit() handler. */
 static void *elf_note_fpregset(void *, size_t *);
@@ -130,12 +135,12 @@ static void *elf_note_procstat_psstrings(void *, size_t *);
 static void *elf_note_procstat_rlimit(void *, size_t *);
 static void *elf_note_procstat_umask(void *, size_t *);
 static void *elf_note_procstat_vmmap(void *, size_t *);
-static void elf_puthdr(int, pid_t, vm_map_entry_t, void *, size_t, size_t,
+static void elf_puthdr(int, pid_t, struct map_entry *, void *, size_t, size_t,
     size_t, int);
 static void elf_putnote(int, notefunc_t, void *, struct sbuf *);
 static void elf_putnotes(pid_t, struct sbuf *, size_t *);
-static void freemap(vm_map_entry_t);
-static vm_map_entry_t readmap(pid_t);
+static void freemap(struct map_entry *);
+static struct map_entry *readmap(pid_t);
 static void *procstat_sysctl(void *, int, size_t, size_t *sizep);
 
 static pid_t g_pid;		/* Pid being dumped, global for elf_detach */
@@ -193,7 +198,7 @@ elf_detach(void)
 static void
 elf_coredump(int efd, int fd, pid_t pid)
 {
-	vm_map_entry_t map;
+	struct map_entry *map;
 	struct sseg_closure seginfo;
 	struct sbuf *sb;
 	void *hdr;
@@ -294,7 +299,7 @@ elf_coredump(int efd, int fd, pid_t pid)
  * program header entry.
  */
 static void
-cb_put_phdr(vm_map_entry_t entry, void *closure)
+cb_put_phdr(struct map_entry *entry, void *closure)
 {
 	struct phdr_closure *phc = (struct phdr_closure *)closure;
 	Elf_Phdr *phdr = phc->phdr;
@@ -324,7 +329,7 @@ cb_put_phdr(vm_map_entry_t entry, void *closure)
  * the number of segments and their total size.
  */
 static void
-cb_size_segment(vm_map_entry_t entry, void *closure)
+cb_size_segment(struct map_entry *entry, void *closure)
 {
 	struct sseg_closure *ssc = (struct sseg_closure *)closure;
 
@@ -338,11 +343,12 @@ cb_size_segment(vm_map_entry_t entry, void *closure)
  * data.
  */
 static void
-each_dumpable_segment(vm_map_entry_t map, segment_callback func, void *closure)
+each_dumpable_segment(struct map_entry *map, segment_callback func,
+    void *closure)
 {
-	vm_map_entry_t entry;
+	struct map_entry *entry;
 
-	for (entry = map;  entry != NULL;  entry = entry->next)
+	for (entry = map; entry != NULL; entry = entry->next)
 		(*func)(entry, closure);
 }
 
@@ -440,7 +446,7 @@ elf_putnote(int type, notefunc_t notefunc, void *arg, struct sbuf *sb)
  * Generate the ELF coredump header.
  */
 static void
-elf_puthdr(int efd, pid_t pid, vm_map_entry_t map, void *hdr, size_t hdrsize,
+elf_puthdr(int efd, pid_t pid, struct map_entry *map, void *hdr, size_t hdrsize,
     size_t notesz, size_t segoff, int numsegs)
 {
 	Elf_Ehdr *ehdr, binhdr;
@@ -531,11 +537,12 @@ elf_puthdr(int efd, pid_t pid, vm_map_entry_t map, void *hdr, size_t hdrsize,
  * Free the memory map.
  */
 static void
-freemap(vm_map_entry_t map)
+freemap(struct map_entry *map)
 {
+	struct map_entry *next;
 
 	while (map != NULL) {
-		vm_map_entry_t next = map->next;
+		next = map->next;
 		free(map);
 		map = next;
 	}
@@ -547,10 +554,10 @@ freemap(vm_map_entry_t map)
  * returned.  The map entries in the list aren't fully filled in; only
  * the items we need are present.
  */
-static vm_map_entry_t
+static struct map_entry *
 readmap(pid_t pid)
 {
-	vm_map_entry_t ent, *linkp, map;
+	struct map_entry *ent, **linkp, *map;
 	struct kinfo_vmentry *vmentl, *kve;
 	int i, nitems;
 
