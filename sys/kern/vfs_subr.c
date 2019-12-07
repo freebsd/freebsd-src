@@ -1670,7 +1670,6 @@ static void
 delmntque(struct vnode *vp)
 {
 	struct mount *mp;
-	int active;
 
 	mp = vp->v_mount;
 	if (mp == NULL)
@@ -1680,9 +1679,8 @@ delmntque(struct vnode *vp)
 	KASSERT(mp->mnt_activevnodelistsize <= mp->mnt_nvnodelistsize,
 	    ("Active vnode list size %d > Vnode list size %d",
 	     mp->mnt_activevnodelistsize, mp->mnt_nvnodelistsize));
-	active = vp->v_iflag & VI_ACTIVE;
-	vp->v_iflag &= ~VI_ACTIVE;
-	if (active) {
+	if (vp->v_iflag & VI_ACTIVE) {
+		vp->v_iflag &= ~VI_ACTIVE;
 		mtx_lock(&mp->mnt_listmtx);
 		TAILQ_REMOVE(&mp->mnt_activevnodelist, vp, v_actfreelist);
 		mp->mnt_activevnodelistsize--;
