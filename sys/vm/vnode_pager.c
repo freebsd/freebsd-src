@@ -374,7 +374,7 @@ vnode_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before,
 	 * If no vp or vp is doomed or marked transparent to VM, we do not
 	 * have the page.
 	 */
-	if (vp == NULL || vp->v_iflag & VI_DOOMED)
+	if (vp == NULL || VN_IS_DOOMED(vp))
 		return FALSE;
 	/*
 	 * If the offset is beyond end of file we do
@@ -553,7 +553,7 @@ vnode_pager_addr(struct vnode *vp, vm_ooffset_t address, daddr_t *rtaddress,
 	if (address < 0)
 		return -1;
 
-	if (vp->v_iflag & VI_DOOMED)
+	if (VN_IS_DOOMED(vp))
 		return -1;
 
 	bsize = vp->v_mount->mnt_stat.f_iosize;
@@ -591,7 +591,7 @@ vnode_pager_input_smlfs(vm_object_t object, vm_page_t m)
 
 	error = 0;
 	vp = object->handle;
-	if (vp->v_iflag & VI_DOOMED)
+	if (VN_IS_DOOMED(vp))
 		return VM_PAGER_BAD;
 
 	bsize = vp->v_mount->mnt_stat.f_iosize;
@@ -815,7 +815,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 	KASSERT(vp->v_type != VCHR && vp->v_type != VBLK,
 	    ("%s does not support devices", __func__));
 
-	if (vp->v_iflag & VI_DOOMED)
+	if (VN_IS_DOOMED(vp))
 		return (VM_PAGER_BAD);
 
 	object = vp->v_object;

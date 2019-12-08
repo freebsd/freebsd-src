@@ -131,7 +131,7 @@ ffs_rawread_sync(struct vnode *vp)
 		
 		VI_LOCK(vp);
 		/* Check if vnode was reclaimed while unlocked. */
-		if ((vp->v_iflag & VI_DOOMED) != 0) {
+		if (VN_IS_DOOMED(vp)) {
 			VI_UNLOCK(vp);
 			if (upgraded != 0)
 				VOP_LOCK(vp, LK_DOWNGRADE);

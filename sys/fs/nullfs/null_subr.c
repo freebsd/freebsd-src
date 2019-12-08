@@ -225,7 +225,7 @@ null_nodeget(mp, lowervp, vpp)
 	 */
 	if (VOP_ISLOCKED(lowervp) != LK_EXCLUSIVE) {
 		vn_lock(lowervp, LK_UPGRADE | LK_RETRY);
-		if ((lowervp->v_iflag & VI_DOOMED) != 0) {
+		if (VN_IS_DOOMED(lowervp)) {
 			vput(lowervp);
 			return (ENOENT);
 		}

@@ -169,8 +169,8 @@ mounted:
 	sx_xunlock(&autofs_softc->sc_lock);
 	vn_lock(vp, lock_flags | LK_RETRY);
 	vunref(vp);
-	if ((vp->v_iflag & VI_DOOMED) != 0) {
-		AUTOFS_DEBUG("VI_DOOMED");
+	if (VN_IS_DOOMED(vp)) {
+		AUTOFS_DEBUG("VIRF_DOOMED");
 		return (ENOENT);
 	}
 
@@ -661,7 +661,7 @@ autofs_node_vn(struct autofs_node *anp, struct mount *mp, int flags,
 			sx_xunlock(&anp->an_vnode_lock);
 			return (error);
 		}
-		if (vp->v_iflag & VI_DOOMED) {
+		if (VN_IS_DOOMED(vp)) {
 			/*
 			 * We got forcibly unmounted.
 			 */
