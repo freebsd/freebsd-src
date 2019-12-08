@@ -918,7 +918,8 @@ tryagain:
 		 * Get rid of the tag, return count and SEQUENCE result for
 		 * NFSv4.
 		 */
-		if ((nd->nd_flag & ND_NFSV4) != 0) {
+		if ((nd->nd_flag & ND_NFSV4) != 0 && nd->nd_repstat !=
+		    NFSERR_MINORVERMISMATCH) {
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 			i = fxdr_unsigned(int, *tl);
 			error = nfsm_advance(nd, NFSM_RNDUP(i), -1);
