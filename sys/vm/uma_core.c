@@ -664,8 +664,7 @@ hash_alloc(struct uma_hash *hash, u_int size)
 	if (size > UMA_HASH_SIZE_INIT)  {
 		hash->uh_hashsize = size;
 		alloc = sizeof(hash->uh_slab_hash[0]) * hash->uh_hashsize;
-		hash->uh_slab_hash = (struct slabhead *)malloc(alloc,
-		    M_UMAHASH, M_NOWAIT);
+		hash->uh_slab_hash = malloc(alloc, M_UMAHASH, M_NOWAIT);
 	} else {
 		alloc = sizeof(hash->uh_slab_hash[0]) * UMA_HASH_SIZE_INIT;
 		hash->uh_slab_hash = zone_alloc_item(hashzone, NULL,
@@ -698,7 +697,7 @@ hash_alloc(struct uma_hash *hash, u_int size)
 static int
 hash_expand(struct uma_hash *oldhash, struct uma_hash *newhash)
 {
-	uma_slab_t slab;
+	uma_hash_slab_t slab;
 	u_int hval;
 	u_int idx;
 
@@ -714,12 +713,12 @@ hash_expand(struct uma_hash *oldhash, struct uma_hash *newhash)
 	 */
 
 	for (idx = 0; idx < oldhash->uh_hashsize; idx++)
-		while (!SLIST_EMPTY(&oldhash->uh_slab_hash[idx])) {
-			slab = SLIST_FIRST(&oldhash->uh_slab_hash[idx]);
-			SLIST_REMOVE_HEAD(&oldhash->uh_slab_hash[idx], us_hlink);
-			hval = UMA_HASH(newhash, slab->us_data);
-			SLIST_INSERT_HEAD(&newhash->uh_slab_hash[hval],
-			    slab, us_hlink);
+		while (!LIST_EMPTY(&oldhash->uh_slab_hash[idx])) {
+			slab = LIST_FIRST(&oldhash->uh_slab_hash[idx]);
+			LIST_REMOVE(slab, uhs_hlink);
+			hval = UMA_HASH(newhash, slab->uhs_data);
+			LIST_INSERT_HEAD(&newhash->uh_slab_hash[hval],
+			    slab, uhs_hlink);
 		}
 
 	return (1);
@@ -992,7 +991,7 @@ keg_free_slab(uma_keg_t keg, uma_slab_t slab, int start)
 	CTR4(KTR_UMA, "keg_free_slab keg %s(%p) slab %p, returning %d bytes",
 	    keg->uk_name, keg, slab, PAGE_SIZE * keg->uk_ppera);
 
-	mem = slab->us_data;
+	mem = slab_data(slab, keg);
 	flags = slab->us_flags;
 	i = start;
 	if (keg->uk_fini != NULL) {
@@ -1006,11 +1005,10 @@ keg_free_slab(uma_keg_t keg, uma_slab_t slab, int start)
 		 * albeit we don't make skip check for other init/fini
 		 * invocations.
 		 */
-		if (!uma_dbg_kskip(keg, slab->us_data + (keg->uk_rsize * i)) ||
+		if (!uma_dbg_kskip(keg, slab_item(slab, keg, i)) ||
 		    keg->uk_fini != trash_fini)
 #endif
-			keg->uk_fini(slab->us_data + (keg->uk_rsize * i),
-			    keg->uk_size);
+			keg->uk_fini(slab_item(slab, keg, i), keg->uk_size);
 	}
 	if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 		zone_free_item(keg->uk_slabzone, slab, NULL, SKIP_NONE);
@@ -1057,18 +1055,17 @@ keg_drain(uma_keg_t keg)
 			keg->uk_free -= keg->uk_ipers;
 
 			if (keg->uk_flags & UMA_ZONE_HASH)
-				UMA_HASH_REMOVE(&keg->uk_hash, slab,
-				    slab->us_data);
+				UMA_HASH_REMOVE(&keg->uk_hash, slab);
 
-			SLIST_INSERT_HEAD(&freeslabs, slab, us_hlink);
+			LIST_INSERT_HEAD(&freeslabs, slab, us_link);
 		}
 	}
 
 finished:
 	KEG_UNLOCK(keg);
 
-	while ((slab = SLIST_FIRST(&freeslabs)) != NULL) {
-		SLIST_REMOVE(&freeslabs, slab, uma_slab, us_hlink);
+	while ((slab = LIST_FIRST(&freeslabs)) != NULL) {
+		LIST_REMOVE(slab, us_link);
 		keg_free_slab(keg, slab, keg->uk_ipers);
 	}
 }
@@ -1190,13 +1187,14 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 	/* Point the slab into the allocated memory */
 	if (!(keg->uk_flags & UMA_ZONE_OFFPAGE))
 		slab = (uma_slab_t )(mem + keg->uk_pgoff);
+	else
+		((uma_hash_slab_t)slab)->uhs_data = mem;
 
 	if (keg->uk_flags & UMA_ZONE_VTOSLAB)
 		for (i = 0; i < keg->uk_ppera; i++)
 			vsetzoneslab((vm_offset_t)mem + (i * PAGE_SIZE),
 			    zone, slab);
 
-	slab->us_data = mem;
 	slab->us_freecount = keg->uk_ipers;
 	slab->us_flags = sflags;
 	slab->us_domain = domain;
@@ -1207,7 +1205,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 
 	if (keg->uk_init != NULL) {
 		for (i = 0; i < keg->uk_ipers; i++)
-			if (keg->uk_init(slab->us_data + (keg->uk_rsize * i),
+			if (keg->uk_init(slab_item(slab, keg, i),
 			    keg->uk_size, flags) != 0)
 				break;
 		if (i != keg->uk_ipers) {
@@ -2393,15 +2391,12 @@ uma_startup(void *mem, int npages)
 	zone_ctor(zones, zsize, &args, M_WAITOK);
 
 	/* Now make a zone for slab headers */
-	slabzone = uma_zcreate("UMA Slabs",
-				slab_sizeof(SLAB_MAX_SETSIZE),
-				NULL, NULL, NULL, NULL,
-				UMA_ALIGN_PTR, UMA_ZFLAG_INTERNAL);
+	slabzone = uma_zcreate("UMA Slabs", sizeof(struct uma_hash_slab),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZFLAG_INTERNAL);
 
 	hashzone = uma_zcreate("UMA Hash",
 	    sizeof(struct slabhead *) * UMA_HASH_SIZE_INIT,
-	    NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, UMA_ZFLAG_INTERNAL);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZFLAG_INTERNAL);
 
 	bucket_init();
 
@@ -3097,7 +3092,7 @@ slab_alloc_item(uma_keg_t keg, uma_slab_t slab)
 
 	freei = BIT_FFS(keg->uk_ipers, &slab->us_free) - 1;
 	BIT_CLR(keg->uk_ipers, freei, &slab->us_free);
-	item = slab->us_data + (keg->uk_rsize * freei);
+	item = slab_item(slab, keg, freei);
 	slab->us_freecount--;
 	keg->uk_free--;
 
@@ -3609,7 +3604,7 @@ slab_free_item(uma_zone_t zone, uma_slab_t slab, void *item)
 	}
 
 	/* Slab management. */
-	freei = ((uintptr_t)item - (uintptr_t)slab->us_data) / keg->uk_rsize;
+	freei = slab_item_index(slab, keg, item);
 	BIT_SET(keg->uk_ipers, freei, &slab->us_free);
 	slab->us_freecount++;
 
@@ -4491,7 +4486,7 @@ uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
 			    item, zone->uz_name);
 	}
 	keg = zone->uz_keg;
-	freei = ((uintptr_t)item - (uintptr_t)slab->us_data) / keg->uk_rsize;
+	freei = slab_item_index(slab, keg, item);
 
 	if (BIT_ISSET(SLAB_MAX_SETSIZE, freei, &slab->us_debugfree))
 		panic("Duplicate alloc of %p from zone %p(%s) slab %p(%d)\n",
@@ -4519,13 +4514,13 @@ uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 			    item, zone->uz_name);
 	}
 	keg = zone->uz_keg;
-	freei = ((uintptr_t)item - (uintptr_t)slab->us_data) / keg->uk_rsize;
+	freei = slab_item_index(slab, keg, item);
 
 	if (freei >= keg->uk_ipers)
 		panic("Invalid free of %p from zone %p(%s) slab %p(%d)\n",
 		    item, zone, zone->uz_name, slab, freei);
 
-	if (((freei * keg->uk_rsize) + slab->us_data) != item) 
+	if (slab_item(slab, keg, freei) != item)
 		panic("Unaligned free of %p from zone %p(%s) slab %p(%d)\n",
 		    item, zone, zone->uz_name, slab, freei);
 
