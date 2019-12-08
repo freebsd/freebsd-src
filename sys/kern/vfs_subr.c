@@ -1663,6 +1663,64 @@ alloc:
 	return (0);
 }
 
+static void
+freevnode(struct vnode *vp)
+{
+	struct bufobj *bo;
+
+	/*
+	 * The vnode has been marked for destruction, so free it.
+	 *
+	 * The vnode will be returned to the zone where it will
+	 * normally remain until it is needed for another vnode. We
+	 * need to cleanup (or verify that the cleanup has already
+	 * been done) any residual data left from its current use
+	 * so as not to contaminate the freshly allocated vnode.
+	 */
+	CTR2(KTR_VFS, "%s: destroying the vnode %p", __func__, vp);
+	atomic_subtract_long(&numvnodes, 1);
+	bo = &vp->v_bufobj;
+	VNASSERT((vp->v_iflag & VI_FREE) == 0, vp,
+	    ("cleaned vnode still on the free list."));
+	VNASSERT(vp->v_data == NULL, vp, ("cleaned vnode isn't"));
+	VNASSERT(vp->v_holdcnt == 0, vp, ("Non-zero hold count"));
+	VNASSERT(vp->v_usecount == 0, vp, ("Non-zero use count"));
+	VNASSERT(vp->v_writecount == 0, vp, ("Non-zero write count"));
+	VNASSERT(bo->bo_numoutput == 0, vp, ("Clean vnode has pending I/O's"));
+	VNASSERT(bo->bo_clean.bv_cnt == 0, vp, ("cleanbufcnt not 0"));
+	VNASSERT(pctrie_is_empty(&bo->bo_clean.bv_root), vp,
+	    ("clean blk trie not empty"));
+	VNASSERT(bo->bo_dirty.bv_cnt == 0, vp, ("dirtybufcnt not 0"));
+	VNASSERT(pctrie_is_empty(&bo->bo_dirty.bv_root), vp,
+	    ("dirty blk trie not empty"));
+	VNASSERT(TAILQ_EMPTY(&vp->v_cache_dst), vp, ("vp has namecache dst"));
+	VNASSERT(LIST_EMPTY(&vp->v_cache_src), vp, ("vp has namecache src"));
+	VNASSERT(vp->v_cache_dd == NULL, vp, ("vp has namecache for .."));
+	VNASSERT(TAILQ_EMPTY(&vp->v_rl.rl_waiters), vp,
+	    ("Dangling rangelock waiters"));
+	VI_UNLOCK(vp);
+#ifdef MAC
+	mac_vnode_destroy(vp);
+#endif
+	if (vp->v_pollinfo != NULL) {
+		destroy_vpollinfo(vp->v_pollinfo);
+		vp->v_pollinfo = NULL;
+	}
+#ifdef INVARIANTS
+	/* XXX Elsewhere we detect an already freed vnode via NULL v_op. */
+	vp->v_op = NULL;
+#endif
+	vp->v_mountedhere = NULL;
+	vp->v_unpcb = NULL;
+	vp->v_rdev = NULL;
+	vp->v_fifoinfo = NULL;
+	vp->v_lasta = vp->v_clen = vp->v_cstart = vp->v_lastw = 0;
+	vp->v_iflag = 0;
+	vp->v_vflag = 0;
+	bo->bo_flag = 0;
+	uma_zfree(vnode_zone, vp);
+}
+
 /*
  * Delete from old mount point vnode list, if on one.
  */
@@ -3150,7 +3208,6 @@ vholdnz(struct vnode *vp)
 void
 _vdrop(struct vnode *vp, bool locked)
 {
-	struct bufobj *bo;
 	struct mount *mp;
 
 	if (locked)
@@ -3220,57 +3277,7 @@ _vdrop(struct vnode *vp, bool locked)
 		}
 		return;
 	}
-	/*
-	 * The vnode has been marked for destruction, so free it.
-	 *
-	 * The vnode will be returned to the zone where it will
-	 * normally remain until it is needed for another vnode. We
-	 * need to cleanup (or verify that the cleanup has already
-	 * been done) any residual data left from its current use
-	 * so as not to contaminate the freshly allocated vnode.
-	 */
-	CTR2(KTR_VFS, "%s: destroying the vnode %p", __func__, vp);
-	atomic_subtract_long(&numvnodes, 1);
-	bo = &vp->v_bufobj;
-	VNASSERT((vp->v_iflag & VI_FREE) == 0, vp,
-	    ("cleaned vnode still on the free list."));
-	VNASSERT(vp->v_data == NULL, vp, ("cleaned vnode isn't"));
-	VNASSERT(vp->v_holdcnt == 0, vp, ("Non-zero hold count"));
-	VNASSERT(vp->v_usecount == 0, vp, ("Non-zero use count"));
-	VNASSERT(vp->v_writecount == 0, vp, ("Non-zero write count"));
-	VNASSERT(bo->bo_numoutput == 0, vp, ("Clean vnode has pending I/O's"));
-	VNASSERT(bo->bo_clean.bv_cnt == 0, vp, ("cleanbufcnt not 0"));
-	VNASSERT(pctrie_is_empty(&bo->bo_clean.bv_root), vp,
-	    ("clean blk trie not empty"));
-	VNASSERT(bo->bo_dirty.bv_cnt == 0, vp, ("dirtybufcnt not 0"));
-	VNASSERT(pctrie_is_empty(&bo->bo_dirty.bv_root), vp,
-	    ("dirty blk trie not empty"));
-	VNASSERT(TAILQ_EMPTY(&vp->v_cache_dst), vp, ("vp has namecache dst"));
-	VNASSERT(LIST_EMPTY(&vp->v_cache_src), vp, ("vp has namecache src"));
-	VNASSERT(vp->v_cache_dd == NULL, vp, ("vp has namecache for .."));
-	VNASSERT(TAILQ_EMPTY(&vp->v_rl.rl_waiters), vp,
-	    ("Dangling rangelock waiters"));
-	VI_UNLOCK(vp);
-#ifdef MAC
-	mac_vnode_destroy(vp);
-#endif
-	if (vp->v_pollinfo != NULL) {
-		destroy_vpollinfo(vp->v_pollinfo);
-		vp->v_pollinfo = NULL;
-	}
-#ifdef INVARIANTS
-	/* XXX Elsewhere we detect an already freed vnode via NULL v_op. */
-	vp->v_op = NULL;
-#endif
-	vp->v_mountedhere = NULL;
-	vp->v_unpcb = NULL;
-	vp->v_rdev = NULL;
-	vp->v_fifoinfo = NULL;
-	vp->v_lasta = vp->v_clen = vp->v_cstart = vp->v_lastw = 0;
-	vp->v_iflag = 0;
-	vp->v_vflag = 0;
-	bo->bo_flag = 0;
-	uma_zfree(vnode_zone, vp);
+	freevnode(vp);
 }
 
 /*
