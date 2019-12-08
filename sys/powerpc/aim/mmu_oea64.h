@@ -76,6 +76,13 @@ void		moea64_mid_bootstrap(mmu_t mmup, vm_offset_t kernelstart,
 void		moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart,
 		    vm_offset_t kernelend);
 
+static inline uint64_t
+moea64_pte_vpn_from_pvo_vpn(const struct pvo_entry *pvo)
+{
+	return ((pvo->pvo_vpn >> (ADDR_API_SHFT64 - ADDR_PIDX_SHFT)) &
+	    LPTE_AVPN_MASK);
+}
+
 /*
  * Statistics
  */

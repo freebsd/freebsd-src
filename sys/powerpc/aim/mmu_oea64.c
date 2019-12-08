@@ -435,8 +435,7 @@ void
 moea64_pte_from_pvo(const struct pvo_entry *pvo, struct lpte *lpte)
 {
 
-	lpte->pte_hi = (pvo->pvo_vpn >> (ADDR_API_SHFT64 - ADDR_PIDX_SHFT)) &
-	    LPTE_AVPN_MASK;
+	lpte->pte_hi = moea64_pte_vpn_from_pvo_vpn(pvo);
 	lpte->pte_hi |= LPTE_VALID;
 	
 	if (pvo->pvo_vaddr & PVO_LARGE)
