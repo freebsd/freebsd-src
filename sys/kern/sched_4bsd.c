@@ -706,8 +706,8 @@ sched_rr_interval(void)
  * favor processes which haven't run much recently, and to round-robin
  * among other processes.
  */
-void
-sched_clock(struct thread *td)
+static void
+sched_clock_tick(struct thread *td)
 {
 	struct pcpuidlestat *stat;
 	struct td_sched *ts;
@@ -734,6 +734,14 @@ sched_clock(struct thread *td)
 	stat = DPCPU_PTR(idlestat);
 	stat->oldidlecalls = stat->idlecalls;
 	stat->idlecalls = 0;
+}
+
+void
+sched_clock(struct thread *td, int cnt)
+{
+
+	for ( ; cnt > 0; cnt--)
+		sched_clock_tick(td);
 }
 
 /*
