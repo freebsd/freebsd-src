@@ -2421,7 +2421,7 @@ sched_userret_slowpath(struct thread *td)
  * threads.
  */
 void
-sched_clock(struct thread *td)
+sched_clock(struct thread *td, int cnt)
 {
 	struct tdq *tdq;
 	struct td_sched *ts;
@@ -2432,8 +2432,10 @@ sched_clock(struct thread *td)
 	/*
 	 * We run the long term load balancer infrequently on the first cpu.
 	 */
-	if (balance_tdq == tdq && smp_started != 0 && rebalance != 0) {
-		if (balance_ticks && --balance_ticks == 0)
+	if (balance_tdq == tdq && smp_started != 0 && rebalance != 0 &&
+	    balance_ticks != 0) {
+		balance_ticks -= cnt;
+		if (balance_ticks <= 0)
 			sched_balance();
 	}
 #endif
@@ -2455,14 +2457,15 @@ sched_clock(struct thread *td)
 	}
 	ts = td_get_sched(td);
 	sched_pctcpu_update(ts, 1);
-	if (td->td_pri_class & PRI_FIFO_BIT)
+	if ((td->td_pri_class & PRI_FIFO_BIT) || TD_IS_IDLETHREAD(td))
 		return;
+
 	if (PRI_BASE(td->td_pri_class) == PRI_TIMESHARE) {
 		/*
 		 * We used a tick; charge it to the thread so
 		 * that we can compute our interactivity.
 		 */
-		td_get_sched(td)->ts_runtime += tickincr;
+		td_get_sched(td)->ts_runtime += tickincr * cnt;
 		sched_interact_update(td);
 		sched_priority(td);
 	}
@@ -2471,7 +2474,8 @@ sched_clock(struct thread *td)
 	 * Force a context switch if the current thread has used up a full
 	 * time slice (default is 100ms).
 	 */
-	if (!TD_IS_IDLETHREAD(td) && ++ts->ts_slice >= tdq_slice(tdq)) {
+	ts->ts_slice += cnt;
+	if (ts->ts_slice >= tdq_slice(tdq)) {
 		ts->ts_slice = 0;
 		td->td_flags |= TDF_NEEDRESCHED | TDF_SLICEEND;
 	}
