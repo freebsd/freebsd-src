@@ -47,6 +47,14 @@ __FBSDID("$FreeBSD$");
  * This is driver for Temperature & Humidity sensor which provides digital
  * output over single-wire protocol from embedded 8-bit microcontroller.
  * 
+ * This driver supports the following chips:
+ *   DHT11:  Temp   0c to 50c +-2.0c, Humidity 20% to  90% +-5%
+ *   DHT12:  Temp -20c to 60c +-0.5c, Humidity 20% to  95% +-5%
+ *   DHT21:  Temp -40c to 80c +-0.3c, Humidity  0% to 100% +-3%
+ *   DHT22:  Temp -40c to 80c +-0.3c, Humidity  0% to 100% +-2%
+ *   AM2301: Same as DHT21, but also supports i2c interface.
+ *   AM2302: Same as DHT22, but also supports i2c interface.
+ *
  * Temp/Humidity sensor can't be discovered automatically, please specify hints
  * as part of loader or kernel configuration:
  *	hint.gpioths.0.at="gpiobus0"
@@ -59,8 +67,6 @@ __FBSDID("$FreeBSD$");
 #define	GPIOTHS_DHT_TIMEOUT	1000	/* 1ms = 1000us */
 #define	GPIOTHS_DHT_CYCLES	41
 #define	GPIOTHS_DHT_ONEBYTEMASK	0xFF
-#define	GPIOTHS_DHT_TEMP_SHIFT	8
-#define	GPIOTHS_DHT_HUM_SHIFT	24
 
 struct gpioths_softc {
 	device_t		 dev;
@@ -160,7 +166,7 @@ gpioths_dht_readbytes(device_t bus, device_t dev)
 	uint32_t		 intervals[GPIOTHS_DHT_CYCLES];
 	uint32_t		 err, avglen, value;
 	uint8_t			 crc, calc;
-	int			 i, offset, size;
+	int			 i, negmul, offset, size, tmphi, tmplo;
 
 	sc = device_get_softc(dev);
 
@@ -246,9 +252,46 @@ gpioths_dht_readbytes(device_t bus, device_t dev)
 		goto error;
 	}
 
+	/*
+	 * For DHT11/12, the values are split into 8 bits of integer and 8 bits
+	 * of fractional tenths.  On DHT11 the fraction bytes are always zero.
+	 * On DHT12 the sign bit is in the high bit of the fraction byte.
+	 *  - DHT11: 0HHHHHHH 00000000 00TTTTTT 00000000
+	 *  - DHT12: 0HHHHHHH 0000hhhh 00TTTTTT s000tttt
+	 *
+	 * For DHT21/21, the values are are encoded in 16 bits each, with the
+	 * temperature sign bit in the high bit.  The values are tenths of a
+	 * degree C and tenths of a percent RH.
+	 *  - DHT21: 000000HH HHHHHHHH s00000TT TTTTTTTT
+	 *  - DHT22: 000000HH HHHHHHHH s00000TT TTTTTTTT
+	 *
+	 * For all devices, some bits are always zero because of the range of
+	 * values supported by the device.
+	 *
+	 * We figure out how to decode things based on the high byte of the
+	 * humidity.  A DHT21/22 cannot report a value greater than 3 in
+	 * the upper bits of its 16-bit humidity.  A DHT11/12 should not report
+	 * a value lower than 20.  To allow for the possibility that a device
+	 * could report a value slightly out of its sensitivity range, we split
+	 * the difference and say if the value is greater than 10 it cannot be a
+	 * DHT22 (that would be a humidity over 256%).
+	 */
+#define	DK_OFFSET 2731 /* Offset between K and C, in decikelvins. */
+	if ((value >> 24) > 10) {
+		/* DHT11 or DHT12 */
+		tmphi = (value >> 8) & 0x3f;
+		tmplo = value & 0x0f;
+		negmul = (value & 0x80) ? -1 : 1;
+		sc->temp = DK_OFFSET + (negmul * (tmphi * 10 + tmplo));
+		sc->hum = (value >> 24) & 0x7f;
+	} else {
+                /* DHT21 or DHT22 */
+		negmul = (value & 0x8000) ? -1 : 1;
+		sc->temp = DK_OFFSET + (negmul * (value & 0x03ff));
+		sc->hum = ((value >> 16) & 0x03ff) / 10;
+	}
+
 	sc->fails = 0;
-	sc->temp = (value >> GPIOTHS_DHT_TEMP_SHIFT) & GPIOTHS_DHT_ONEBYTEMASK;
-	sc->hum = (value >> GPIOTHS_DHT_HUM_SHIFT) & GPIOTHS_DHT_ONEBYTEMASK;
 
 #ifdef GPIOTHS_DEBUG
 	/* Debug bits */
@@ -296,7 +339,7 @@ gpioths_attach(device_t dev)
 
 	sysctl_add_oid(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "temperature",				\
 	    CTLFLAG_RD | CTLTYPE_INT | CTLFLAG_MPSAFE,
-	    &sc->temp, 0, sysctl_handle_int, "I", "temperature", NULL);
+	    &sc->temp, 0, sysctl_handle_int, "IK", "temperature", NULL);
 
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "humidity",
 	    CTLFLAG_RD, &sc->hum, 0, "relative humidity(%)");
