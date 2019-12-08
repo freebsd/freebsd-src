@@ -67,9 +67,6 @@ struct gpioths_softc {
 	int			 temp;
 	int			 hum;
 	int			 fails;
-	struct sysctl_oid	*temp_oid;
-	struct sysctl_oid	*hum_oid;
-	struct sysctl_oid	*fails_oid;
 	struct callout		 callout;
 };
 
@@ -80,9 +77,6 @@ static int		gpioths_probe(device_t dev);
 static int		gpioths_attach(device_t dev);
 static int		gpioths_detach(device_t dev);
 static void		gpioths_poll(void *arg);
-static int		gpioths_temp_sysctl(SYSCTL_HANDLER_ARGS);
-static int		gpioths_hum_sysctl(SYSCTL_HANDLER_ARGS);
-static int		gpioths_fails_sysctl(SYSCTL_HANDLER_ARGS);
 
 /* DHT-specific methods */
 static int		gpioths_dht_initread(device_t bus, device_t dev);
@@ -282,43 +276,6 @@ gpioths_poll(void *arg)
 }
 
 static int
-gpioths_temp_sysctl(SYSCTL_HANDLER_ARGS)
-{
-	struct gpioths_softc	*sc;
-	int			 value;
-
-	sc = (struct gpioths_softc*)arg1;
-	value = sc->temp;
-
-	return (sysctl_handle_int(oidp, &value, 0, req));
-}
-
-static int
-gpioths_hum_sysctl(SYSCTL_HANDLER_ARGS)
-{
-	struct gpioths_softc	*sc;
-	int			 value;
-
-	sc = (struct gpioths_softc*)arg1;
-	value = sc->hum;
-
-	return (sysctl_handle_int(oidp, &value, 0, req));
-}
-
-
-static int
-gpioths_fails_sysctl(SYSCTL_HANDLER_ARGS)
-{
-	struct gpioths_softc	*sc;
-	int			 value;
-
-	sc = (struct gpioths_softc*)arg1;
-	value = sc->fails;
-
-	return (sysctl_handle_int(oidp, &value, 0, req));
-}
-
-static int
 gpioths_attach(device_t dev)
 {
 	struct gpioths_softc	*sc;
@@ -337,17 +294,16 @@ gpioths_attach(device_t dev)
 	 */
 	gpioths_dht_readbytes(device_get_parent(dev), dev);
 
-	sc->temp_oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "temperature", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
-	    gpioths_temp_sysctl, "I", "temperature(C)");
+	sysctl_add_oid(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "temperature",				\
+	    CTLFLAG_RD | CTLTYPE_INT | CTLFLAG_MPSAFE,
+	    &sc->temp, 0, sysctl_handle_int, "I", "temperature", NULL);
 
-	sc->hum_oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "humidity", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
-	    gpioths_hum_sysctl, "I", "humidity(%)");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "humidity",
+	    CTLFLAG_RD, &sc->hum, 0, "relative humidity(%)");
 
-	sc->fails_oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "fails", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
-	    gpioths_fails_sysctl, "I", "fails since last successful read");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "fails",
+	    CTLFLAG_RD, &sc->fails, 0,
+	    "failures since last successful read");
 
 	callout_init(&sc->callout, 1);
 	callout_reset(&sc->callout, GPIOTHS_POLLTIME * hz, gpioths_poll, dev);
@@ -366,41 +322,6 @@ gpioths_detach(device_t dev)
 
 	return (0);
 }
-
-/* DDB bits */
-#include "opt_ddb.h"
-#ifdef DDB
-#include <ddb/ddb.h>
-#include <ddb/db_lex.h>
-#include <sys/cons.h>
-
-static struct command_table db_gpioths_table = LIST_HEAD_INITIALIZER(db_t4_table);
-_DB_SET(_show, gpioths, NULL, db_show_table, 0, &db_gpioths_table);
-
-DB_FUNC(read, db_show_gpiothsread, db_gpioths_table, CS_OWN, NULL)
-{
-	device_t	dev;
-	int		t;
-	int		init;
-
-	init = 0;
-	t = db_read_token();
-	if (t == tIDENT) {
-		dev = device_lookup_by_name(db_tok_string);
-		init = 1;
-	}
-
-	db_skip_to_eol();
-
-	if (init)
-		db_printf("read: 0x%x\n",
-		    gpioths_dht_readbytes(dev, device_get_parent(dev)));
-	else
-		db_printf("usage: show gpioths read <gpiothsdevice>\n");
-
-return;
-}
-#endif /* DDB */
 
 /* Driver bits */
 static device_method_t gpioths_methods[] = {
