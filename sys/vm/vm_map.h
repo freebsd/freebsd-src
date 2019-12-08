@@ -402,6 +402,47 @@ long vmspace_resident_count(struct vmspace *vmspace);
 
 #define VM_MAP_WIRE_WRITE	4	/* Validate writable. */
 
+typedef int vm_map_entry_reader(void *token, vm_map_entry_t addr, 
+    vm_map_entry_t dest);
+
+#ifndef _KERNEL
+/*
+ * Find the successor of a map_entry, using a reader to dereference pointers.
+ * '*clone' is a copy of a vm_map entry.  'reader' is used to copy a map entry
+ * at some address into '*clone'.  Change *clone to a copy of the next map
+ * entry, and return the address of that entry, or NULL if copying has failed.
+ *
+ * This function is made available to user-space code that needs to traverse
+ * map entries.
+ */
+static inline vm_map_entry_t
+vm_map_entry_read_succ(void *token, struct vm_map_entry *const clone,
+    vm_map_entry_reader reader)
+{
+	vm_map_entry_t after, backup;
+	vm_offset_t start;
+
+	after = clone->right;
+	start = clone->start;
+	if (!reader(token, after, clone))
+		return (NULL);
+	backup = clone->left;
+	if (!reader(token, backup, clone))
+		return (NULL);
+	if (clone->start > start) {
+		do {
+			after = backup;
+			backup = clone->left;
+			if (!reader(token, backup, clone))
+				return (NULL);
+		} while (clone->start != start);
+	}
+	if (!reader(token, after, clone))
+		return (NULL);
+	return (after);
+}
+#endif				/* ! _KERNEL */
+
 static inline vm_map_entry_t
 vm_map_entry_first(vm_map_t map)
 {
