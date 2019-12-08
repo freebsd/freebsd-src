@@ -1720,8 +1720,6 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
 	mnew->pindex = pindex;
 	atomic_set_int(&mnew->ref_count, VPRC_OBJREF);
 	mold = vm_radix_replace(&object->rtree, mnew);
-	KASSERT(mold->queue == PQ_NONE,
-	    ("vm_page_replace: old page %p is on a paging queue", mold));
 
 	/* Keep the resident page list in sorted order. */
 	TAILQ_INSERT_AFTER(&object->memq, mold, mnew, listq);
