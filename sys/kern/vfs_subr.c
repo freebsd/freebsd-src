@@ -2968,9 +2968,7 @@ vrefcnt(struct vnode *vp)
 	return (vp->v_usecount);
 }
 
-#define	VPUTX_VRELE	1
-#define	VPUTX_VPUT	2
-#define	VPUTX_VUNREF	3
+enum vputx_op { VPUTX_VRELE, VPUTX_VPUT, VPUTX_VUNREF };
 
 /*
  * Decrement the use and hold counts for a vnode.
@@ -2978,35 +2976,18 @@ vrefcnt(struct vnode *vp)
  * See an explanation near vget() as to why atomic operation is safe.
  */
 static void
-vputx(struct vnode *vp, int func)
+vputx(struct vnode *vp, enum vputx_op func)
 {
 	int error;
 
 	KASSERT(vp != NULL, ("vputx: null vp"));
 	if (func == VPUTX_VUNREF)
 		ASSERT_VOP_LOCKED(vp, "vunref");
-	else if (func == VPUTX_VPUT)
-		ASSERT_VOP_LOCKED(vp, "vput");
-	else
-		KASSERT(func == VPUTX_VRELE, ("vputx: wrong func"));
 	ASSERT_VI_UNLOCKED(vp, __func__);
 	VNASSERT(vp->v_holdcnt > 0 && vp->v_usecount > 0, vp,
 	    ("%s: wrong ref counts", __func__));
 
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
-
-	/*
-	 * It is an invariant that all VOP_* calls operate on a held vnode.
-	 * We may be only having an implicit hold stemming from our usecount,
-	 * which we are about to release. If we unlock the vnode afterwards we
-	 * open a time window where someone else dropped the last usecount and
-	 * proceeded to free the vnode before our unlock finished. For this
-	 * reason we unlock the vnode early. This is a little bit wasteful as
-	 * it may be the vnode is exclusively locked and inactive processing is
-	 * needed, in which case we are adding work.
-	 */
-	if (func == VPUTX_VPUT)
-		VOP_UNLOCK(vp, 0);
 
 	/*
 	 * We want to hold the vnode until the inactive finishes to
@@ -3033,15 +3014,6 @@ vputx(struct vnode *vp, int func)
 		vdropl(vp);
 		return;
 	}
-
-	error = 0;
-
-	if (vp->v_usecount != 0) {
-		vn_printf(vp, "vputx: usecount not zero for vnode ");
-		panic("vputx: usecount not zero");
-	}
-
-	CTR2(KTR_VFS, "%s: return vnode %p to the freelist", __func__, vp);
 
 	/*
 	 * Check if the fs wants to perform inactive processing. Note we
@@ -3071,6 +3043,7 @@ vputx(struct vnode *vp, int func)
 		VI_LOCK(vp);
 		break;
 	case VPUTX_VUNREF:
+		error = 0;
 		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
 			error = VOP_LOCK(vp, LK_TRYUPGRADE | LK_INTERLOCK);
 			VI_LOCK(vp);
@@ -3103,11 +3076,21 @@ vrele(struct vnode *vp)
  * Release an already locked vnode.  This give the same effects as
  * unlock+vrele(), but takes less time and avoids releasing and
  * re-aquiring the lock (as vrele() acquires the lock internally.)
+ *
+ * It is an invariant that all VOP_* calls operate on a held vnode.
+ * We may be only having an implicit hold stemming from our usecount,
+ * which we are about to release. If we unlock the vnode afterwards we
+ * open a time window where someone else dropped the last usecount and
+ * proceeded to free the vnode before our unlock finished. For this
+ * reason we unlock the vnode early. This is a little bit wasteful as
+ * it may be the vnode is exclusively locked and inactive processing is
+ * needed, in which case we are adding work.
  */
 void
 vput(struct vnode *vp)
 {
 
+	VOP_UNLOCK(vp, 0);
 	vputx(vp, VPUTX_VPUT);
 }
 
