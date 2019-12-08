@@ -127,7 +127,8 @@ unionfs_get_cached_vnode(struct vnode *uvp, struct vnode *lvp,
 			VI_LOCK_FLAGS(vp, MTX_DUPOK);
 			VI_UNLOCK(dvp);
 			vp->v_iflag &= ~VI_OWEINACT;
-			if ((vp->v_iflag & (VI_DOOMED | VI_DOINGINACT)) != 0) {
+			if (VN_IS_DOOMED(vp) ||
+			    ((vp->v_iflag & VI_DOINGINACT) != 0)) {
 				VI_UNLOCK(vp);
 				vp = NULLVP;
 			} else
@@ -163,7 +164,8 @@ unionfs_ins_cached_vnode(struct unionfs_node *uncp,
 			vp = UNIONFSTOV(unp);
 			VI_LOCK_FLAGS(vp, MTX_DUPOK);
 			vp->v_iflag &= ~VI_OWEINACT;
-			if ((vp->v_iflag & (VI_DOOMED | VI_DOINGINACT)) != 0) {
+			if (VN_IS_DOOMED(vp) ||
+			    ((vp->v_iflag & VI_DOINGINACT) != 0)) {
 				LIST_INSERT_HEAD(hd, uncp, un_hash);
 				VI_UNLOCK(vp);
 				vp = NULLVP;

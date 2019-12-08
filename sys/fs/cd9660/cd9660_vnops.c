@@ -260,7 +260,7 @@ cd9660_ioctl(ap)
 
 	vp = ap->a_vp;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
-	if (vp->v_iflag & VI_DOOMED) {
+	if (VN_IS_DOOMED(vp)) {
 		VOP_UNLOCK(vp, 0);
 		return (EBADF);
 	}

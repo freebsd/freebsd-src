@@ -252,7 +252,7 @@ devfs_populate_vp(struct vnode *vp)
 		devfs_unmount_final(dmp);
 		return (ERESTART);
 	}
-	if ((vp->v_iflag & VI_DOOMED) != 0) {
+	if (VN_IS_DOOMED(vp)) {
 		sx_xunlock(&dmp->dm_lock);
 		return (ERESTART);
 	}
@@ -441,7 +441,7 @@ loop:
 			vput(vp);
 			return (ENOENT);
 		}
-		else if ((vp->v_iflag & VI_DOOMED) != 0) {
+		else if (VN_IS_DOOMED(vp)) {
 			mtx_lock(&devfs_de_interlock);
 			if (de->de_vnode == vp) {
 				de->de_vnode = NULL;
@@ -592,7 +592,7 @@ devfs_close(struct vop_close_args *ap)
 				SESS_LOCK(p->p_session);
 				VI_LOCK(vp);
 				if (vp->v_usecount == 2 && vcount(vp) == 1 &&
-				    (vp->v_iflag & VI_DOOMED) == 0) {
+				    !VN_IS_DOOMED(vp)) {
 					p->p_session->s_ttyvp = NULL;
 					p->p_session->s_ttydp = NULL;
 					oldvp = vp;
@@ -622,7 +622,7 @@ devfs_close(struct vop_close_args *ap)
 	VI_LOCK(vp);
 	if (vp->v_usecount == 1 && vcount(vp) == 1)
 		dflags |= FLASTCLOSE;
-	if (vp->v_iflag & VI_DOOMED) {
+	if (VN_IS_DOOMED(vp)) {
 		/* Forced close. */
 		dflags |= FREVOKE | FNONBLOCK;
 	} else if (dsw->d_flags & D_TRACKCLOSE) {
@@ -1562,7 +1562,7 @@ devfs_rioctl(struct vop_ioctl_args *ap)
 
 	vp = ap->a_vp;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
-	if (vp->v_iflag & VI_DOOMED) {
+	if (VN_IS_DOOMED(vp)) {
 		VOP_UNLOCK(vp, 0);
 		return (EBADF);
 	}

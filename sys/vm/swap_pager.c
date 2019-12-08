@@ -2917,7 +2917,7 @@ swapongeom(struct vnode *vp)
 	int error;
 
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	if (vp->v_type != VCHR || (vp->v_iflag & VI_DOOMED) != 0) {
+	if (vp->v_type != VCHR || VN_IS_DOOMED(vp)) {
 		error = ENOENT;
 	} else {
 		g_topology_lock();

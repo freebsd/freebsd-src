@@ -103,7 +103,8 @@ struct vnode {
 	 * Fields which define the identity of the vnode.  These fields are
 	 * owned by the filesystem (XXX: and vgone() ?)
 	 */
-	enum	vtype v_type;			/* u vnode type */
+	enum	vtype v_type:8;			/* u vnode type */
+	short	v_irflag;			/* i frequently read flags */
 	struct	vop_vector *v_op;		/* u vnode operations vector */
 	void	*v_data;			/* u private data for fs */
 
@@ -231,12 +232,13 @@ struct xvnode {
  *	VI flags are protected by interlock and live in v_iflag
  *	VV flags are protected by the vnode lock and live in v_vflag
  *
- *	VI_DOOMED is doubly protected by the interlock and vnode lock.  Both
+ *	VIRF_DOOMED is doubly protected by the interlock and vnode lock.  Both
  *	are required for writing but the status may be checked with either.
  */
+#define	VIRF_DOOMED	0x0001	/* This vnode is being recycled */
+
 #define	VI_TEXT_REF	0x0001	/* Text ref grabbed use ref */
 #define	VI_MOUNT	0x0020	/* Mount in progress */
-#define	VI_DOOMED	0x0080	/* This vnode is being recycled */
 #define	VI_FREE		0x0100	/* This vnode is on the freelist */
 #define	VI_ACTIVE	0x0200	/* This vnode is on the active list */
 #define	VI_DOINGINACT	0x0800	/* VOP_INACTIVE is in progress */
@@ -888,6 +890,8 @@ do {									\
 #define	VOP_SET_TEXT_CHECKED(vp)		VOP_SET_TEXT((vp))
 #define	VOP_UNSET_TEXT_CHECKED(vp)		VOP_UNSET_TEXT((vp))
 #endif
+
+#define	VN_IS_DOOMED(vp)	((vp)->v_irflag & VIRF_DOOMED)
 
 void	vput(struct vnode *vp);
 void	vrele(struct vnode *vp);

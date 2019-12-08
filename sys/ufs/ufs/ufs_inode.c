@@ -102,7 +102,7 @@ ufs_inactive(ap)
 	loop:
 		if (vn_start_secondary_write(vp, &mp, V_NOWAIT) != 0) {
 			/* Cannot delete file while file system is suspended */
-			if ((vp->v_iflag & VI_DOOMED) != 0) {
+			if (VN_IS_DOOMED(vp)) {
 				/* Cannot return before file is deleted */
 				(void) vn_start_secondary_write(vp, &mp,
 								V_WAIT);

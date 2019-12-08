@@ -1158,7 +1158,7 @@ cache_lookup_dot(struct vnode *dvp, struct vnode **vpp, struct componentname *cn
 	if (ltype != VOP_ISLOCKED(*vpp)) {
 		if (ltype == LK_EXCLUSIVE) {
 			vn_lock(*vpp, LK_UPGRADE | LK_RETRY);
-			if ((*vpp)->v_iflag & VI_DOOMED) {
+			if (VN_IS_DOOMED((*vpp))) {
 				/* forced unmount */
 				vrele(*vpp);
 				*vpp = NULL;
@@ -1401,7 +1401,7 @@ success:
 	error = vget_finish(*vpp, cnp->cn_lkflags, vs);
 	if (cnp->cn_flags & ISDOTDOT) {
 		vn_lock(dvp, ltype | LK_RETRY);
-		if (dvp->v_iflag & VI_DOOMED) {
+		if (VN_IS_DOOMED(dvp)) {
 			if (error == 0)
 				vput(*vpp);
 			*vpp = NULL;
@@ -1706,9 +1706,9 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	u_long lnumcache;
 
 	CTR3(KTR_VFS, "cache_enter(%p, %p, %s)", dvp, vp, cnp->cn_nameptr);
-	VNASSERT(vp == NULL || (vp->v_iflag & VI_DOOMED) == 0, vp,
+	VNASSERT(vp == NULL || !VN_IS_DOOMED(vp), vp,
 	    ("cache_enter: Adding a doomed vnode"));
-	VNASSERT(dvp == NULL || (dvp->v_iflag & VI_DOOMED) == 0, dvp,
+	VNASSERT(dvp == NULL || !VN_IS_DOOMED(dvp), dvp,
 	    ("cache_enter: Doomed vnode used as src"));
 
 #ifdef DEBUG_CACHE
@@ -2365,7 +2365,7 @@ vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, u_int *buflen)
 	}
 
 	*vp = dvp;
-	if (dvp->v_iflag & VI_DOOMED) {
+	if (VN_IS_DOOMED(dvp)) {
 		/* forced unmount */
 		vrele(dvp);
 		error = ENOENT;
@@ -2429,7 +2429,7 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			 * mnt_vnodecovered can be NULL only for the
 			 * case of unmount.
 			 */
-			if ((vp->v_iflag & VI_DOOMED) != 0 ||
+			if (VN_IS_DOOMED(vp) ||
 			    (vp1 = vp->v_mount->mnt_vnodecovered) == NULL ||
 			    vp1->v_mountedhere != vp->v_mount) {
 				vput(vp);

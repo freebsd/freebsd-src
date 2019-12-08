@@ -328,7 +328,7 @@ vn_open_vnode_advlock(struct vnode *vp, int fmode, struct file *fp)
 		fp->f_flag |= FHASLOCK;
 
 	vn_lock(vp, lock_flags | LK_RETRY);
-	if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0)
+	if (error == 0 && VN_IS_DOOMED(vp))
 		error = ENOENT;
 	return (error);
 }
@@ -1579,7 +1579,7 @@ retry:
 	    ("vn_lock: error %d incompatible with flags %#x", error, flags));
 
 	if ((flags & LK_RETRY) == 0) {
-		if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0) {
+		if (error == 0 && VN_IS_DOOMED(vp)) {
 			VOP_UNLOCK(vp, 0);
 			error = ENOENT;
 		}
@@ -2132,7 +2132,7 @@ vn_vget_ino_gen(struct vnode *vp, vn_get_ino_t alloc, void *alloc_arg,
 		vfs_rel(mp);
 		if (error != 0)
 			return (ENOENT);
-		if (vp->v_iflag & VI_DOOMED) {
+		if (VN_IS_DOOMED(vp)) {
 			vfs_unbusy(mp);
 			return (ENOENT);
 		}
@@ -2142,7 +2142,7 @@ vn_vget_ino_gen(struct vnode *vp, vn_get_ino_t alloc, void *alloc_arg,
 	vfs_unbusy(mp);
 	if (error != 0 || *rvp != vp)
 		vn_lock(vp, ltype | LK_RETRY);
-	if (vp->v_iflag & VI_DOOMED) {
+	if (VN_IS_DOOMED(vp)) {
 		if (error == 0) {
 			if (*rvp == vp)
 				vunref(vp);

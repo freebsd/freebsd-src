@@ -1116,7 +1116,7 @@ fuse_io_invalbuf(struct vnode *vp, struct thread *td)
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	int error = 0;
 
-	if (vp->v_iflag & VI_DOOMED)
+	if (VN_IS_DOOMED(vp))
 		return 0;
 
 	ASSERT_VOP_ELOCKED(vp, "fuse_io_invalbuf");

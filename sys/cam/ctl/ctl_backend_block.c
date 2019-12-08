@@ -843,7 +843,7 @@ ctl_be_block_getattr_file(struct ctl_be_block_lun *be_lun, const char *attrname)
 			val = vattr.va_bytes / be_lun->cbe_lun.blocksize;
 	}
 	if (strcmp(attrname, "blocksavail") == 0 &&
-	    (be_lun->vn->v_iflag & VI_DOOMED) == 0) {
+	    !VN_IS_DOOMED(be_lun->vn)) {
 		error = VFS_STATFS(be_lun->vn->v_mount, &statfs);
 		if (error == 0)
 			val = statfs.f_bavail * statfs.f_bsize /

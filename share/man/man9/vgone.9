@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2010
+.Dd December 8, 2019
 .Dt VGONE 9
 .Os
 .Sh NAME
@@ -47,7 +47,7 @@ the removal from its mount point vnode list.
 If the vnode has a
 .Va v_usecount
 of zero, and its
-.Dv VI_DOOMED
+.Dv VIRF_DOOMED
 flag is not set, it is moved to the head of the free list
 as in most cases the vnode
 is about to be reused, or its file system is being unmounted.

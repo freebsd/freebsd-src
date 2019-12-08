@@ -518,7 +518,7 @@ kern_reroot(void)
 			VOP_UNLOCK(vp, 0);
 			return (ENOENT);
 		}
-		if (vp->v_iflag & VI_DOOMED) {
+		if (VN_IS_DOOMED(vp)) {
 			VOP_UNLOCK(vp, 0);
 			vfs_unbusy(mp);
 			return (ENOENT);

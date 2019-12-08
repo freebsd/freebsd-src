@@ -605,7 +605,7 @@ zfsctl_relock_dot(vnode_t *dvp, int ltype)
 			vn_lock(dvp, LK_DOWNGRADE | LK_RETRY);
 
 		/* Relock for the "." case may left us with reclaimed vnode. */
-		if ((dvp->v_iflag & VI_DOOMED) != 0) {
+		if (VN_IS_DOOMED(dvp)) {
 			vrele(dvp);
 			return (SET_ERROR(ENOENT));
 		}

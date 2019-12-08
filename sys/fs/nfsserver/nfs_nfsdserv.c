@@ -3024,7 +3024,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		}
 		vp = dp;
 		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
-		if ((vp->v_iflag & VI_DOOMED) == 0)
+		if (!VN_IS_DOOMED(vp))
 			nd->nd_repstat = nfsrv_opencheck(clientid, &stateid,
 			    stp, vp, nd, p, nd->nd_repstat);
 		else

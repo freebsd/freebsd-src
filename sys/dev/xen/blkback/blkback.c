@@ -2627,7 +2627,7 @@ xbb_open_file(struct xbb_softc *xbb)
 	 */
 	if (VOP_ISLOCKED(xbb->vn) != LK_EXCLUSIVE) {
 		vn_lock(xbb->vn, LK_UPGRADE | LK_RETRY);
-		if (xbb->vn->v_iflag & VI_DOOMED) {
+		if (VN_IS_DOOMED(xbb->vn)) {
 			error = EBADF;
 			xenbus_dev_fatal(xbb->dev, error,
 					 "error locking file %s",

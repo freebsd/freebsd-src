@@ -149,13 +149,13 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 		 * get called on this vnode between when NFSVOPLOCK() drops
 		 * the VI_LOCK() and vget() acquires it again, so that it
 		 * hasn't yet had v_usecount incremented. If this were to
-		 * happen, the VI_DOOMED flag would be set, so check for
+		 * happen, the VIRF_DOOMED flag would be set, so check for
 		 * that here. Since we now have the v_usecount incremented,
-		 * we should be ok until we vrele() it, if the VI_DOOMED
+		 * we should be ok until we vrele() it, if the VIRF_DOOMED
 		 * flag isn't set now.
 		 */
 		VI_LOCK(nvp);
-		if ((nvp->v_iflag & VI_DOOMED)) {
+		if (VN_IS_DOOMED(nvp)) {
 			VI_UNLOCK(nvp);
 			vrele(nvp);
 			error = ENOENT;
@@ -350,7 +350,7 @@ nfscl_ngetreopen(struct mount *mntp, u_int8_t *fhp, int fhsize,
 			vfs_hash_ref(mntp, hash, td, &nvp, newnfs_vncmpf, nfhp);
 			if (nvp == NULL) {
 				error = ENOENT;
-			} else if ((nvp->v_iflag & VI_DOOMED) != 0) {
+			} else if (VN_IS_DOOMED(nvp)) {
 				error = ENOENT;
 				vrele(nvp);
 			} else {

@@ -1457,7 +1457,7 @@ nfsvno_link(struct nameidata *ndp, struct vnode *vp, struct ucred *cred,
 	}
 	if (!error) {
 		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
-		if ((vp->v_iflag & VI_DOOMED) == 0)
+		if (!VN_IS_DOOMED(vp))
 			error = VOP_LINK(ndp->ni_dvp, vp, &ndp->ni_cnd);
 		else
 			error = EPERM;
@@ -1738,7 +1738,7 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
  * Updates the file rev and sets the mtime and ctime
  * to the current clock time, returning the va_filerev and va_Xtime
  * values.
- * Return ESTALE to indicate the vnode is VI_DOOMED.
+ * Return ESTALE to indicate the vnode is VIRF_DOOMED.
  */
 int
 nfsvno_updfilerev(struct vnode *vp, struct nfsvattr *nvap,
@@ -1750,7 +1750,7 @@ nfsvno_updfilerev(struct vnode *vp, struct nfsvattr *nvap,
 	vfs_timestamp(&va.va_mtime);
 	if (NFSVOPISLOCKED(vp) != LK_EXCLUSIVE) {
 		NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
-		if ((vp->v_iflag & VI_DOOMED) != 0)
+		if (VN_IS_DOOMED(vp))
 			return (ESTALE);
 	}
 	(void) VOP_SETATTR(vp, &va, nd->nd_cred);
