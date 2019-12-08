@@ -198,9 +198,9 @@ gpioths_dht_readbytes(device_t bus, device_t dev)
 		}
 	}
 
-	err = GPIOBUS_PIN_SETFLAGS(bus, dev, 0, GPIO_PIN_OUTPUT);
+	err = GPIOBUS_PIN_SETFLAGS(bus, dev, 0, GPIO_PIN_INPUT);
 	if (err != 0) {
-		device_printf(dev, "err(FINAL_SETFLAGS, OUT) = %d\n", err);
+		device_printf(dev, "err(FINAL_SETFLAGS, IN) = %d\n", err);
 		goto error;
 	}
 	DELAY(1);
@@ -331,8 +331,11 @@ gpioths_attach(device_t dev)
 
 	sc->dev = dev;
 
-	callout_init(&sc->callout, 1);
-	callout_reset(&sc->callout, GPIOTHS_POLLTIME * hz, gpioths_poll, dev);
+	/* 
+	 * Do an initial read so we have correct values for reporting before
+	 * registering the sysctls that can access those values.
+	 */
+	gpioths_dht_readbytes(device_get_parent(dev), dev);
 
 	sc->temp_oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 	    "temperature", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
@@ -346,12 +349,20 @@ gpioths_attach(device_t dev)
 	    "fails", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
 	    gpioths_fails_sysctl, "I", "fails since last successful read");
 
+	callout_init(&sc->callout, 1);
+	callout_reset(&sc->callout, GPIOTHS_POLLTIME * hz, gpioths_poll, dev);
+
 	return (0);
 }
 
 static int
 gpioths_detach(device_t dev)
 {
+	struct gpioths_softc	*sc;
+
+	sc = device_get_softc(dev);
+
+	callout_drain(&sc->callout);
 
 	return (0);
 }
