@@ -76,8 +76,6 @@ struct gpioths_softc {
 	struct callout		 callout;
 };
 
-static devclass_t gpioths_devclass;
-
 /* Prototypes */
 static int		gpioths_probe(device_t dev);
 static int		gpioths_attach(device_t dev);
@@ -376,5 +374,8 @@ static device_method_t gpioths_methods[] = {
 	DEVMETHOD_END
 };
 
+static devclass_t gpioths_devclass;
+
 DEFINE_CLASS_0(gpioths, gpioths_driver, gpioths_methods, sizeof(struct gpioths_softc));
 DRIVER_MODULE(gpioths, gpiobus, gpioths_driver, gpioths_devclass, 0, 0);
+MODULE_DEPEND(gpioths, gpiobus, 1, 1, 1);
