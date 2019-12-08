@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <fdt_platform.h>
 
-#define _KERNEL
 #include <machine/cpufunc.h>
 #include "bootstrap.h"
 #include "host_syscall.h"
