@@ -3803,7 +3803,7 @@ vm_page_wire(vm_page_t m)
 
 	KASSERT(m->object != NULL,
 	    ("vm_page_wire: page %p does not belong to an object", m));
-	if (!vm_page_busied(m))
+	if (!vm_page_busied(m) && !vm_object_busied(m->object))
 		VM_OBJECT_ASSERT_LOCKED(m->object);
 	KASSERT((m->flags & PG_FICTITIOUS) == 0 ||
 	    VPRC_WIRE_COUNT(m->ref_count) >= 1,
