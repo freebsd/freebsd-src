@@ -1250,9 +1250,9 @@ tty_drop_ctty(struct tty *tp, struct proc *p)
 	 * If we did have a vnode, release our reference.  Ordinarily we manage
 	 * these at the devfs layer, but we can't necessarily know that we were
 	 * invoked on the vnode referenced in the session (i.e. the vnode we
-	 * hold a reference to).  We explicitly don't check VBAD/VI_DOOMED here
+	 * hold a reference to).  We explicitly don't check VBAD/VIRF_DOOMED here
 	 * to avoid a vnode leak -- in circumstances elsewhere where we'd hit a
-	 * VI_DOOMED vnode, release has been deferred until the controlling TTY
+	 * VIRF_DOOMED vnode, release has been deferred until the controlling TTY
 	 * is either changed or released.
 	 */
 	if (vp != NULL)

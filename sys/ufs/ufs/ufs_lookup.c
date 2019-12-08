@@ -728,7 +728,7 @@ found:
 			 * Relock for the "." case may left us with
 			 * reclaimed vnode.
 			 */
-			if (vdp->v_iflag & VI_DOOMED) {
+			if (VN_IS_DOOMED(vdp)) {
 				vrele(vdp);
 				return (ENOENT);
 			}

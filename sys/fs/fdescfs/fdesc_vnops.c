@@ -347,7 +347,7 @@ fdesc_lookup(struct vop_lookup_args *ap)
 		vn_lock(dvp, LK_RETRY | LK_EXCLUSIVE);
 		vdrop(dvp);
 		fvp = dvp;
-		if ((dvp->v_iflag & VI_DOOMED) != 0)
+		if (VN_IS_DOOMED(dvp))
 			error = ENOENT;
 	} else {
 		/*

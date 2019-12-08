@@ -1345,7 +1345,7 @@ smbfs_lookup(ap)
 				error = ENOENT;
 				goto out;
 			}
-			if ((dvp->v_iflag & VI_DOOMED) != 0) {
+			if (VN_IS_DOOMED(dvp)) {
 				vfs_unbusy(mp);
 				error = ENOENT;
 				goto out;
@@ -1355,7 +1355,7 @@ smbfs_lookup(ap)
 		error = smbfs_nget(mp, dvp, name, nmlen, NULL, &vp);
 		vfs_unbusy(mp);
 		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
-		if ((dvp->v_iflag & VI_DOOMED) != 0) {
+		if (VN_IS_DOOMED(dvp)) {
 			if (error == 0)
 				vput(vp);
 			error = ENOENT;

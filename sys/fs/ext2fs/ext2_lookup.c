@@ -665,7 +665,7 @@ found:
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
 		error = vn_vget_ino(pdp, ino, cnp->cn_lkflags, &tdp);
-		if (pdp->v_iflag & VI_DOOMED) {
+		if (VN_IS_DOOMED(pdp)) {
 			if (error == 0)
 				vput(tdp);
 			error = ENOENT;

@@ -1453,7 +1453,7 @@ mdcreate_vnode(struct md_s *sc, struct md_req *mdr, struct thread *td)
 		goto bad;
 	if (VOP_ISLOCKED(nd.ni_vp) != LK_EXCLUSIVE) {
 		vn_lock(nd.ni_vp, LK_UPGRADE | LK_RETRY);
-		if (nd.ni_vp->v_iflag & VI_DOOMED) {
+		if (VN_IS_DOOMED(nd.ni_vp)) {
 			/* Forced unmount. */
 			error = EBADF;
 			goto bad;

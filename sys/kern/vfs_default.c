@@ -594,7 +594,7 @@ vop_stdgetwritemount(ap)
 	 * Note that having a reference does not prevent forced unmount from
 	 * setting ->v_mount to NULL after the lock gets released. This is of
 	 * no consequence for typical consumers (most notably vn_start_write)
-	 * since in this case the vnode is VI_DOOMED. Unmount might have
+	 * since in this case the vnode is VIRF_DOOMED. Unmount might have
 	 * progressed far enough that its completion is only delayed by the
 	 * reference obtained here. The consumer only needs to concern itself
 	 * with releasing it.
@@ -1019,7 +1019,7 @@ vop_stdadvise(struct vop_advise_args *ap)
 	case POSIX_FADV_DONTNEED:
 		error = 0;
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-		if (vp->v_iflag & VI_DOOMED) {
+		if (VN_IS_DOOMED(vp)) {
 			VOP_UNLOCK(vp, 0);
 			break;
 		}

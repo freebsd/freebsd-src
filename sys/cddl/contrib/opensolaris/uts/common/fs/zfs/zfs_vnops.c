@@ -1413,7 +1413,7 @@ zfs_lookup_lock(vnode_t *dvp, vnode_t *vp, const char *name, int lkflags)
 			 * Relock for the "." case could leave us with
 			 * reclaimed vnode.
 			 */
-			if (dvp->v_iflag & VI_DOOMED) {
+			if (VN_IS_DOOMED(dvp)) {
 				vrele(dvp);
 				return (SET_ERROR(ENOENT));
 			}
@@ -5913,7 +5913,7 @@ zfs_vptocnp(struct vop_vptocnp_args *ap)
 		vput(covered_vp);
 	}
 	vn_lock(vp, ltype | LK_RETRY);
-	if ((vp->v_iflag & VI_DOOMED) != 0)
+	if (VN_IS_DOOMED(vp))
 		error = SET_ERROR(ENOENT);
 	return (error);
 }
@@ -5936,7 +5936,7 @@ zfs_lock(ap)
 	if (err == 0 && (ap->a_flags & LK_NOWAIT) == 0) {
 		vp = ap->a_vp;
 		zp = vp->v_data;
-		if (vp->v_mount != NULL && (vp->v_iflag & VI_DOOMED) == 0 &&
+		if (vp->v_mount != NULL && !VN_IS_DOOMED(vp) &&
 		    zp != NULL && (zp->z_pflags & ZFS_XATTR) == 0)
 			VERIFY(!RRM_LOCK_HELD(&zp->z_zfsvfs->z_teardown_lock));
 	}

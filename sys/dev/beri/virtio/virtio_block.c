@@ -258,7 +258,7 @@ open_file(struct beri_vtblk_softc *sc, struct thread *td)
 
 	if (VOP_ISLOCKED(nd.ni_vp) != LK_EXCLUSIVE) {
 		vn_lock(nd.ni_vp, LK_UPGRADE | LK_RETRY);
-		if (nd.ni_vp->v_iflag & VI_DOOMED) {
+		if (VN_IS_DOOMED(nd.ni_vp)) {
 			return (1);
 		}
 	}

@@ -137,7 +137,7 @@ static int	v_inval_buf_range_locked(struct vnode *vp, struct bufobj *bo,
 
 /*
  * Number of vnodes in existence.  Increased whenever getnewvnode()
- * allocates a new vnode, decreased in vdropl() for VI_DOOMED vnode.
+ * allocates a new vnode, decreased in vdropl() for VIRF_DOOMED vnode.
  */
 static unsigned long	numvnodes;
 
@@ -367,7 +367,7 @@ sysctl_try_reclaim_vnode(SYSCTL_HANDLER_ARGS)
 		goto out;
 	vp = nd.ni_vp;
 
-	if ((vp->v_iflag & VI_DOOMED) != 0) {
+	if (VN_IS_DOOMED(vp)) {
 		/*
 		 * This vnode is being recycled.  Return != 0 to let the caller
 		 * know that the sysctl had no effect.  Return EAGAIN because a
@@ -1033,7 +1033,7 @@ vlrureclaim(struct mount *mp, bool reclaim_nc_src, int trigger)
 		if (vp->v_usecount ||
 		    (!reclaim_nc_src && !LIST_EMPTY(&vp->v_cache_src)) ||
 		    ((vp->v_iflag & VI_FREE) != 0) ||
-		    (vp->v_iflag & VI_DOOMED) != 0 || (vp->v_object != NULL &&
+		    VN_IS_DOOMED(vp) || (vp->v_object != NULL &&
 		    vp->v_object->resident_page_count > trigger)) {
 			VI_UNLOCK(vp);
 			goto next_iter;
@@ -1049,7 +1049,7 @@ vlrureclaim(struct mount *mp, bool reclaim_nc_src, int trigger)
 		 * v_usecount may have been bumped after VOP_LOCK() dropped
 		 * the vnode interlock and before it was locked again.
 		 *
-		 * It is not necessary to recheck VI_DOOMED because it can
+		 * It is not necessary to recheck VIRF_DOOMED because it can
 		 * only be set by another thread that holds both the vnode
 		 * lock and vnode interlock.  If another thread has the
 		 * vnode lock before we get to VOP_LOCK() and obtains the
@@ -1066,8 +1066,8 @@ vlrureclaim(struct mount *mp, bool reclaim_nc_src, int trigger)
 			vdropl(vp);
 			goto next_iter_mntunlocked;
 		}
-		KASSERT((vp->v_iflag & VI_DOOMED) == 0,
-		    ("VI_DOOMED unexpectedly detected in vlrureclaim()"));
+		KASSERT(!VN_IS_DOOMED(vp),
+		    ("VIRF_DOOMED unexpectedly detected in vlrureclaim()"));
 		counter_u64_add(recycles_count, 1);
 		vgonel(vp);
 		VOP_UNLOCK(vp, 0);
@@ -1436,7 +1436,7 @@ vtryrecycle(struct vnode *vp)
 		    __func__, vp);
 		return (EBUSY);
 	}
-	if ((vp->v_iflag & VI_DOOMED) == 0) {
+	if (!VN_IS_DOOMED(vp)) {
 		counter_u64_add(recycles_count, 1);
 		vgonel(vp);
 	}
@@ -1715,6 +1715,7 @@ freevnode(struct vnode *vp)
 	vp->v_rdev = NULL;
 	vp->v_fifoinfo = NULL;
 	vp->v_lasta = vp->v_clen = vp->v_cstart = vp->v_lastw = 0;
+	vp->v_irflag = 0;
 	vp->v_iflag = 0;
 	vp->v_vflag = 0;
 	bo->bo_flag = 0;
@@ -2752,7 +2753,7 @@ v_decr_devcount(struct vnode *vp)
 
 /*
  * Grab a particular vnode from the free list, increment its
- * reference count and lock it.  VI_DOOMED is set if the vnode
+ * reference count and lock it.  VIRF_DOOMED is set if the vnode
  * is being destroyed.  Only callers who specify LK_RETRY will
  * see doomed vnodes.  If inactive processing was delayed in
  * vput try to do it here.
@@ -3022,7 +3023,7 @@ vputx(struct vnode *vp, enum vputx_op func)
 	 * Since vgone performs inactive on its own there is nothing to do
 	 * here but to drop our hold count.
 	 */
-	if (__predict_false(vp->v_iflag & VI_DOOMED) ||
+	if (__predict_false(VN_IS_DOOMED(vp)) ||
 	    VOP_NEED_INACTIVE(vp) == 0) {
 		vdropl(vp);
 		return;
@@ -3182,7 +3183,7 @@ vholdnz(struct vnode *vp)
 /*
  * Drop the hold count of the vnode.  If this is the last reference to
  * the vnode we place it on the free list unless it has been vgone'd
- * (marked VI_DOOMED) in which case we will free it.
+ * (marked VIRF_DOOMED) in which case we will free it.
  *
  * Because the vnode vm object keeps a hold reference on the vnode if
  * there is at least one resident non-cached page, the vnode cannot
@@ -3211,7 +3212,7 @@ _vdrop(struct vnode *vp, bool locked)
 		VI_UNLOCK(vp);
 		return;
 	}
-	if ((vp->v_iflag & VI_DOOMED) == 0) {
+	if (!VN_IS_DOOMED(vp)) {
 		/*
 		 * Mark a vnode as free: remove it from its active list
 		 * and put it up for recycling on the freelist.
@@ -3572,9 +3573,9 @@ vgonel(struct vnode *vp)
 	/*
 	 * Don't vgonel if we're already doomed.
 	 */
-	if (vp->v_iflag & VI_DOOMED)
+	if (vp->v_irflag & VIRF_DOOMED)
 		return;
-	vp->v_iflag |= VI_DOOMED;
+	vp->v_irflag |= VIRF_DOOMED;
 
 	/*
 	 * Check to see if the vnode is in use.  If so, we have to call
@@ -3723,6 +3724,13 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 	}
 	buf[0] = '\0';
 	buf[1] = '\0';
+	if (vp->v_irflag & VIRF_DOOMED)
+		strlcat(buf, "|VIRF_DOOMED", sizeof(buf));
+	flags = vp->v_irflag & ~(VIRF_DOOMED);
+	if (flags != 0) {
+		snprintf(buf2, sizeof(buf2), "|VIRF(0x%lx)", flags);
+		strlcat(buf, buf2, sizeof(buf));
+	}
 	if (vp->v_vflag & VV_ROOT)
 		strlcat(buf, "|VV_ROOT", sizeof(buf));
 	if (vp->v_vflag & VV_ISTTY)
@@ -3762,8 +3770,6 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VI_TEXT_REF", sizeof(buf));
 	if (vp->v_iflag & VI_MOUNT)
 		strlcat(buf, "|VI_MOUNT", sizeof(buf));
-	if (vp->v_iflag & VI_DOOMED)
-		strlcat(buf, "|VI_DOOMED", sizeof(buf));
 	if (vp->v_iflag & VI_FREE)
 		strlcat(buf, "|VI_FREE", sizeof(buf));
 	if (vp->v_iflag & VI_ACTIVE)
@@ -3772,8 +3778,8 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VI_DOINGINACT", sizeof(buf));
 	if (vp->v_iflag & VI_OWEINACT)
 		strlcat(buf, "|VI_OWEINACT", sizeof(buf));
-	flags = vp->v_iflag & ~(VI_TEXT_REF | VI_MOUNT | VI_DOOMED | VI_FREE |
-	    VI_ACTIVE | VI_DOINGINACT | VI_OWEINACT);
+	flags = vp->v_iflag & ~(VI_TEXT_REF | VI_MOUNT | VI_FREE | VI_ACTIVE |
+	    VI_DOINGINACT | VI_OWEINACT);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VI(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
@@ -5198,7 +5204,7 @@ vop_close_post(void *ap, int rc)
 	struct vop_close_args *a = ap;
 
 	if (!rc && (a->a_cred != NOCRED || /* filter out revokes */
-	    (a->a_vp->v_iflag & VI_DOOMED) == 0)) {
+	    !VN_IS_DOOMED(a->a_vp))) {
 		VFS_KNOTE_LOCKED(a->a_vp, (a->a_fflag & FWRITE) != 0 ?
 		    NOTE_CLOSE_WRITE : NOTE_CLOSE);
 	}
@@ -5667,7 +5673,7 @@ restart:
 		MNT_ILOCK(mp);
 		vp = mp->mnt_rootvnode;
 		if (vp != NULL) {
-			if ((vp->v_iflag & VI_DOOMED) == 0) {
+			if (!VN_IS_DOOMED(vp)) {
 				vrefact(vp);
 				MNT_IUNLOCK(mp);
 				error = vn_lock(vp, flags);
@@ -5707,7 +5713,7 @@ restart:
 			mp->mnt_rootvnode = *vpp;
 		} else {
 			if (mp->mnt_rootvnode != *vpp) {
-				if ((mp->mnt_rootvnode->v_iflag & VI_DOOMED) == 0) {
+				if (!VN_IS_DOOMED(mp->mnt_rootvnode)) {
 					panic("%s: mismatch between vnode returned "
 					    " by VFS_CACHEDROOT and the one cached "
 					    " (%p != %p)",
@@ -5729,7 +5735,7 @@ vfs_cache_root(struct mount *mp, int flags, struct vnode **vpp)
 	if (!vfs_op_thread_enter(mp))
 		return (vfs_cache_root_fallback(mp, flags, vpp));
 	vp = (struct vnode *)atomic_load_ptr(&mp->mnt_rootvnode);
-	if (vp == NULL || (vp->v_iflag & VI_DOOMED)) {
+	if (vp == NULL || VN_IS_DOOMED(vp)) {
 		vfs_op_thread_exit(mp);
 		return (vfs_cache_root_fallback(mp, flags, vpp));
 	}
@@ -5787,11 +5793,11 @@ __mnt_vnode_next_all(struct vnode **mvp, struct mount *mp)
 	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
 	for (vp = TAILQ_NEXT(*mvp, v_nmntvnodes); vp != NULL;
 	    vp = TAILQ_NEXT(vp, v_nmntvnodes)) {
-		/* Allow a racy peek at VI_DOOMED to save a lock acquisition. */
-		if (vp->v_type == VMARKER || (vp->v_iflag & VI_DOOMED) != 0)
+		/* Allow a racy peek at VIRF_DOOMED to save a lock acquisition. */
+		if (vp->v_type == VMARKER || VN_IS_DOOMED(vp))
 			continue;
 		VI_LOCK(vp);
-		if ((vp->v_iflag & VI_DOOMED) != 0) {
+		if (VN_IS_DOOMED(vp)) {
 			VI_UNLOCK(vp);
 			continue;
 		}
@@ -5821,11 +5827,11 @@ __mnt_vnode_first_all(struct vnode **mvp, struct mount *mp)
 	(*mvp)->v_type = VMARKER;
 
 	TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
-		/* Allow a racy peek at VI_DOOMED to save a lock acquisition. */
-		if (vp->v_type == VMARKER || (vp->v_iflag & VI_DOOMED) != 0)
+		/* Allow a racy peek at VIRF_DOOMED to save a lock acquisition. */
+		if (vp->v_type == VMARKER || VN_IS_DOOMED(vp))
 			continue;
 		VI_LOCK(vp);
-		if ((vp->v_iflag & VI_DOOMED) != 0) {
+		if (VN_IS_DOOMED(vp)) {
 			VI_UNLOCK(vp);
 			continue;
 		}
@@ -5982,7 +5988,7 @@ restart:
 		KASSERT(vp->v_type != VMARKER, ("locked marker %p", vp));
 		KASSERT(vp->v_mount == mp || vp->v_mount == NULL,
 		    ("alien vnode on the active list %p %p", vp, mp));
-		if (vp->v_mount == mp && (vp->v_iflag & VI_DOOMED) == 0)
+		if (vp->v_mount == mp && !VN_IS_DOOMED(vp))
 			break;
 		nvp = TAILQ_NEXT(vp, v_actfreelist);
 		VI_UNLOCK(vp);
