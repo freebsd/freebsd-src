@@ -1859,14 +1859,13 @@ zone_alloc_counters(uma_zone_t zone, void *unused)
 	zone->uz_fails = counter_u64_alloc(M_WAITOK);
 }
 
-#define	UMA_MAX_DUP	999
 static void
 zone_alloc_sysctl(uma_zone_t zone, void *unused)
 {
 	uma_zone_domain_t zdom;
 	uma_keg_t keg;
 	struct sysctl_oid *oid, *domainoid;
-	int domains, i;
+	int domains, i, cnt;
 	static const char *nokeg = "cache zone";
 	char *c;
 
@@ -1876,10 +1875,11 @@ zone_alloc_sysctl(uma_zone_t zone, void *unused)
 	 * an index.
 	 */
 	if (zone->uz_namecnt != 0) {
-		if (zone->uz_namecnt > UMA_MAX_DUP)
-			zone->uz_namecnt = UMA_MAX_DUP;
-		zone->uz_ctlname = malloc(strlen(zone->uz_name) +
-		    sizeof(__XSTRING(UMA_MAX_DUP)) + 1 , M_UMA, M_WAITOK);
+		/* Count the number of decimal digits and '_' separator. */
+		for (i = 1, cnt = zone->uz_namecnt; cnt != 0; i++)
+			cnt /= 10;
+		zone->uz_ctlname = malloc(strlen(zone->uz_name) + i + 1,
+		    M_UMA, M_WAITOK);
 		sprintf(zone->uz_ctlname, "%s_%d", zone->uz_name,
 		    zone->uz_namecnt);
 	} else
@@ -1912,7 +1912,7 @@ zone_alloc_sysctl(uma_zone_t zone, void *unused)
 	oid = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(zone->uz_oid), OID_AUTO,
 	    "keg", CTLFLAG_RD, NULL, "");
 	keg = zone->uz_keg;
-	if ((zone->uz_flags & UMA_ZFLAG_CACHEONLY) == 0) {
+	if ((zone->uz_flags & UMA_ZFLAG_CACHE) == 0) {
 		SYSCTL_ADD_CONST_STRING(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 		    "name", CTLFLAG_RD, keg->uk_name, "Keg name");
 		SYSCTL_ADD_U32(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
@@ -2018,8 +2018,14 @@ zone_count(uma_zone_t zone, void *arg)
 	struct uma_zone_count *cnt;
 
 	cnt = arg;
+	/*
+	 * Some zones are rapidly created with identical names and
+	 * destroyed out of order.  This can lead to gaps in the count.
+	 * Use one greater than the maximum observed for this name.
+	 */
 	if (strcmp(zone->uz_name, cnt->name) == 0)
-		cnt->count++;
+		cnt->count = MAX(cnt->count,
+		    zone->uz_namecnt + 1);
 }
 
 /*
