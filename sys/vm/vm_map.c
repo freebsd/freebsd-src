@@ -5034,17 +5034,17 @@ _vm_map_assert_consistent(vm_map_t map, int check)
 				cur = cur->left;
 				KASSERT(cur != lbound,
 				    ("map %p cannot find %jx",
-				    map, entry->start));
+				    map, (uintmax_t)entry->start));
 			} else if (cur->end <= entry->start) {
 				lbound = cur;
 				cur = cur->right;
 				KASSERT(cur != ubound,
 				    ("map %p cannot find %jx",
-				    map, entry->start));
+				    map, (uintmax_t)entry->start));
 			} else {
 				KASSERT(cur == entry,
 				    ("map %p cannot find %jx",
-				    map, entry->start));
+				    map, (uintmax_t)entry->start));
 				break;
 			}
 		}
