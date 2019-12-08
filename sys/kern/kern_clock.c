@@ -711,8 +711,7 @@ statclock(int cnt, int usermode)
 	td->td_incruntime += runtime;
 	PCPU_SET(switchtime, new_switchtime);
 
-	for ( ; cnt > 0; cnt--)
-		sched_clock(td);
+	sched_clock(td, cnt);
 	thread_unlock(td);
 #ifdef HWPMC_HOOKS
 	if (td->td_intr_frame != NULL)
