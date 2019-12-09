@@ -185,6 +185,7 @@ powerpc/powermac/vcoregpio.c	optional	powermac
 powerpc/powernv/opal.c		optional	powernv
 powerpc/powernv/opal_async.c	optional	powernv
 powerpc/powernv/opal_console.c	optional	powernv
+powerpc/powernv/opal_dbg.c	optional	powernv gdb
 powerpc/powernv/opal_dev.c	optional	powernv
 powerpc/powernv/opal_flash.c	optional	powernv opalflash
 powerpc/powernv/opal_hmi.c	optional	powernv

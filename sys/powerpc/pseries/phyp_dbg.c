@@ -60,7 +60,7 @@ uart_phyp_dbg_probe(void)
 	cell_t reg;
 	phandle_t vty;
 
-	if (!getenv_string("hw.uart_phyp.dbgport", buf, sizeof(buf)))
+	if (!getenv_string("hw.uart.dbgport", buf, sizeof(buf)))
 		return (-1);
 
 	if ((vty = OF_finddevice(buf)) == -1)
