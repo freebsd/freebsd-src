@@ -390,7 +390,8 @@ hdac_pin_patch(struct hdaa_widget *w)
 			break;
 		}
 	} else if (id == HDA_CODEC_ALC285 &&
-	    subid == LENOVO_X120KH_SUBVENDOR) {
+	    (subid == LENOVO_X120KH_SUBVENDOR ||
+	    subid == LENOVO_X120QD_SUBVENDOR)) {
 		switch (nid) {
 		case 33:
 			patch = "as=1 seq=15";
@@ -447,7 +448,8 @@ hdac_pin_patch(struct hdaa_widget *w)
 			config = 0x01a1913d;
 			break;
 		}
-	} else if (id == HDA_CODEC_ALC256 && subid == DELL_I7577_SUBVENDOR) {
+	} else if (id == HDA_CODEC_ALC256 && (subid == DELL_I7577_SUBVENDOR ||
+	    subid == DELL_L7480_SUBVENDOR)) {
 		switch (nid) {
 		case 20:
 			patch = "as=1 seq=0";
