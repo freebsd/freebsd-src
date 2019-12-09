@@ -223,7 +223,7 @@ freebsd_parse_boot_param(struct arm64_bootparams *abp)
 
 	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
 	loader_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
-	init_static_kenv(static_kenv, 0);
+	init_static_kenv(loader_envp, 0);
 	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
 #ifdef DDB
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
