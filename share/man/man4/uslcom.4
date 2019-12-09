@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 26, 2017
+.Dd December 9, 2019
 .Dt USLCOM 4
 .Os
 .Sh NAME
@@ -43,6 +43,11 @@ The
 .Nm
 driver supports Silicon Laboratories CP2101/CP2102/CP2103/CP2104/CP2105
 based USB serial adapters.
+.Pp
+The datasheets for the CP2101/CP2102/CP2103 list the maximum
+supported baud rate as 921,600.
+Empirical testing has shown that the rates 1,228,800 and 1,843,200 also work,
+at least on some hardware, so the driver allows setting those rates.
 .Sh HARDWARE
 The following devices should work with the
 .Nm
