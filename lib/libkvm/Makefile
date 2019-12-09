@@ -19,6 +19,7 @@ SRCS=	kvm.c kvm_cptime.c kvm_getloadavg.c \
 	kvm_minidump_mips.c \
 	kvm_powerpc.c kvm_powerpc64.c \
 	kvm_minidump_riscv.c \
+	kvm_minidump_powerpc64.c kvm_minidump_powerpc64_hpt.c \
 	kvm_sparc64.c
 INCS=	kvm.h
 
