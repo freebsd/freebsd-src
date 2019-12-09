@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 
 #include <dev/gpio/gpiobusvar.h>
 
@@ -90,7 +91,8 @@ struct gpioths_softc {
 	int			 temp;
 	int			 hum;
 	int			 fails;
-	struct callout		 callout;
+	struct timeout_task	 task;
+	bool			 detaching;
 };
 
 static int
@@ -148,7 +150,7 @@ gpioths_dht_initread(struct gpioths_softc *sc)
 	 */
 	gpio_pin_setflags(sc->pin, GPIO_PIN_OUTPUT);
 	gpio_pin_set_active(sc->pin, false);
-	DELAY(GPIOTHS_DHT_STARTCYCLE);
+	pause_sbt("gpioths", ustosbt(GPIOTHS_DHT_STARTCYCLE), C_PREL(2), 0);
 	gpio_pin_set_active(sc->pin, true);
 	gpio_pin_setflags(sc->pin, GPIO_PIN_INPUT);
 }
@@ -285,14 +287,16 @@ error:
 }
 
 static void
-gpioths_poll(void *arg)
+gpioths_poll(void *arg, int pending __unused)
 {
 	struct gpioths_softc	*sc;
 
 	sc = (struct gpioths_softc *)arg;
 
 	gpioths_dht_readbytes(sc);
-	callout_schedule(&sc->callout, GPIOTHS_POLLTIME * hz);
+	if (!sc->detaching)
+		taskqueue_enqueue_timeout_sbt(taskqueue_thread, &sc->task,
+		    GPIOTHS_POLLTIME * SBT_1S, 0, C_PREL(3));
 }
 
 static int
@@ -308,6 +312,8 @@ gpioths_attach(device_t dev)
 	tree = device_get_sysctl_tree(dev);
 
 	sc->dev = dev;
+
+	TIMEOUT_TASK_INIT(taskqueue_thread, &sc->task, 0, gpioths_poll, sc);
 
 #ifdef FDT
 	/* Try to configure our pin from fdt data on fdt-based systems. */
@@ -355,9 +361,11 @@ gpioths_attach(device_t dev)
 
 	/* 
 	 * Do an initial read so we have correct values for reporting before
-	 * registering the sysctls that can access those values.
+	 * registering the sysctls that can access those values.  This also
+	 * schedules the periodic polling the driver does every few seconds to
+	 * update the sysctl variables.
 	 */
-	gpioths_dht_readbytes(sc);
+	gpioths_poll(sc, 0);
 
 	sysctl_add_oid(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "temperature",				\
 	    CTLFLAG_RD | CTLTYPE_INT | CTLFLAG_MPSAFE,
@@ -370,9 +378,6 @@ gpioths_attach(device_t dev)
 	    CTLFLAG_RD, &sc->fails, 0,
 	    "failures since last successful read");
 
-	callout_init(&sc->callout, 1);
-	callout_reset(&sc->callout, GPIOTHS_POLLTIME * hz, gpioths_poll, sc);
-
 	return (0);
 }
 
@@ -383,7 +388,9 @@ gpioths_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 	gpio_pin_release(sc->pin);
-	callout_drain(&sc->callout);
+	sc->detaching = true;
+	while (taskqueue_cancel_timeout(taskqueue_thread, &sc->task, NULL) != 0)
+		taskqueue_drain_timeout(taskqueue_thread, &sc->task);
 
 	return (0);
 }
