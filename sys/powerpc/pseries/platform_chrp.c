@@ -133,6 +133,7 @@ chrp_probe(platform_t plat)
 static int
 chrp_attach(platform_t plat)
 {
+	int quiesce;
 #ifdef __powerpc64__
 	int i;
 
@@ -175,7 +176,10 @@ chrp_attach(platform_t plat)
 	chrp_cpuref_init();
 
 	/* Some systems (e.g. QEMU) need Open Firmware to stand down */
-	ofw_quiesce();
+	quiesce = 1;
+	TUNABLE_INT_FETCH("debug.quiesce_ofw", &quiesce);
+	if (quiesce)
+		ofw_quiesce();
 
 	return (0);
 }

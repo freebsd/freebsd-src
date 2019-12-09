@@ -90,9 +90,15 @@ VT_DRIVER_DECLARE(vt_ofwfb, vt_ofwfb_driver);
 static int
 ofwfb_probe(struct vt_device *vd)
 {
+	int disabled;
 	phandle_t chosen, node;
 	ihandle_t stdout;
 	char buf[64];
+
+	disabled = 0;
+	TUNABLE_INT_FETCH("hw.ofwfb.disable", &disabled);
+	if (disabled)
+		return (CN_DEAD);
 
 	chosen = OF_finddevice("/chosen");
 	if (chosen == -1)
