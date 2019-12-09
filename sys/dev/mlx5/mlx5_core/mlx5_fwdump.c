@@ -111,6 +111,10 @@ mlx5_fwdump_prep(struct mlx5_core_dev *mdev)
 			sz++;
 		addr = next_addr;
 	}
+	if (sz == 1) {
+		mlx5_core_warn(mdev, "no output from scan space\n");
+		goto unlock_vsc;
+	}
 	mdev->dump_rege = malloc(sz * sizeof(struct mlx5_crspace_regmap),
 	    M_MLX5_DUMP, M_WAITOK | M_ZERO);
 
