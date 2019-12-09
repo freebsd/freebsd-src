@@ -84,6 +84,7 @@ int efi_handle_update_dev(EFI_HANDLE, struct devsw *, int, uint64_t);
 
 EFI_DEVICE_PATH *efi_lookup_image_devpath(EFI_HANDLE);
 EFI_DEVICE_PATH *efi_lookup_devpath(EFI_HANDLE);
+void efi_close_devpath(EFI_HANDLE);
 EFI_HANDLE efi_devpath_handle(EFI_DEVICE_PATH *);
 EFI_DEVICE_PATH *efi_devpath_last_node(EFI_DEVICE_PATH *);
 EFI_DEVICE_PATH *efi_devpath_trim(EFI_DEVICE_PATH *);
