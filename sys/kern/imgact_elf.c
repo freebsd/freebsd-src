@@ -1324,11 +1324,10 @@ ret:
 #define	suword __CONCAT(suword, __ELF_WORD_SIZE)
 
 int
-__elfN(freebsd_copyout_auxargs)(struct image_params *imgp, uintptr_t *base)
+__elfN(freebsd_copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 {
 	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;
 	Elf_Auxinfo *argarray, *pos;
-	u_long auxlen;
 	int error;
 
 	argarray = pos = malloc(AT_COUNT * sizeof(*pos), M_TEMP,
@@ -1374,9 +1373,7 @@ __elfN(freebsd_copyout_auxargs)(struct image_params *imgp, uintptr_t *base)
 	imgp->auxargs = NULL;
 	KASSERT(pos - argarray <= AT_COUNT, ("Too many auxargs"));
 
-	auxlen = sizeof(*argarray) * (pos - argarray);
-	*base -= auxlen;
-	error = copyout(argarray, (void *)*base, auxlen);
+	error = copyout(argarray, (void *)base, sizeof(*argarray) * AT_COUNT);
 	free(argarray, M_TEMP);
 	return (error);
 }
