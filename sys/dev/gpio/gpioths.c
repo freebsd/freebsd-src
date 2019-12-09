@@ -1,6 +1,8 @@
 /*-
- * Copyright (c) 2016 Michael Zhilin <mizhka@freebsd.org>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2019 Ian Lepore <ian@freebsd.org>
+ * Copyright (c) 2016 Michael Zhilin <mizhka@freebsd.org> All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +31,7 @@
  *
  * This is driver for Temperature & Humidity sensor which provides digital
  * output over single-wire protocol from embedded 8-bit microcontroller.
- * Note that uses a custom single-wire protocol, it is not One-wire(tm).
+ * Note that it uses a custom single-wire protocol, it is not 1-wire(tm).
  * 
  * This driver supports the following chips:
  *   DHT11:  Temp   0c to 50c +-2.0c, Humidity 20% to  90% +-5%
