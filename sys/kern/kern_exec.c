@@ -1661,9 +1661,12 @@ exec_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 		imgp->sysent->sv_stackgap(imgp, &destp);
 
 	if (imgp->auxargs) {
-		error = imgp->sysent->sv_copyout_auxargs(imgp, &destp);
-		if (error != 0)
-			return (error);
+		/*
+		 * Allocate room on the stack for the ELF auxargs
+		 * array.  It has up to AT_COUNT entries.
+		 */
+		destp -= AT_COUNT * sizeof(Elf_Auxinfo);
+		destp = rounddown2(destp, sizeof(void *));
 	}
 
 	vectp = (char **)destp;
@@ -1731,6 +1734,14 @@ exec_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 	/* end of vector table is a null pointer */
 	if (suword(vectp, 0) != 0)
 		return (EFAULT);
+
+	if (imgp->auxargs) {
+		vectp++;
+		error = imgp->sysent->sv_copyout_auxargs(imgp,
+		    (uintptr_t)vectp);
+		if (error != 0)
+			return (error);
+	}
 
 	return (0);
 }

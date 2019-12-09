@@ -192,14 +192,13 @@ linux_fixup(uintptr_t *stack_base, struct image_params *imgp)
 }
 
 static int
-linux_copyout_auxargs(struct image_params *imgp, uintptr_t *base)
+linux_copyout_auxargs(struct image_params *imgp, uintptr_t base)
 {
 	struct proc *p;
 	Elf32_Auxargs *args;
 	Elf32_Auxinfo *argarray, *pos;
 	Elf32_Addr *uplatform;
 	struct ps_strings *arginfo;
-	u_long auxlen;
 	int error, issetugid;
 
 	p = imgp->proc;
@@ -249,9 +248,8 @@ linux_copyout_auxargs(struct image_params *imgp, uintptr_t *base)
 	imgp->auxargs = NULL;
 	KASSERT(pos - argarray <= LINUX_AT_COUNT, ("Too many auxargs"));
 
-	auxlen = sizeof(*argarray) * (pos - argarray);
-	*base -= auxlen;
-	error = copyout(argarray, (void *)*base, auxlen);
+	error = copyout(argarray, (void *)base,
+	    sizeof(*argarray) * LINUX_AT_COUNT);
 	free(argarray, M_TEMP);
 	return (error);
 }
@@ -323,9 +321,12 @@ linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 	ustringp = destp;
 
 	if (imgp->auxargs) {
-		error = imgp->sysent->sv_copyout_auxargs(imgp, &destp);
-		if (error != 0)
-			return (error);
+		/*
+		 * Allocate room on the stack for the ELF auxargs
+		 * array.  It has LINUX_AT_COUNT entries.
+		 */
+		destp -= LINUX_AT_COUNT * sizeof(Elf32_Auxinfo);
+		destp = rounddown2(destp, sizeof(void *));
 	}
 
 	vectp = (char **)destp;
@@ -383,6 +384,14 @@ linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 	/* The end of the vector table is a null pointer. */
 	if (suword(vectp, 0) != 0)
 		return (EFAULT);
+
+	if (imgp->auxargs) {
+		vectp++;
+		error = imgp->sysent->sv_copyout_auxargs(imgp,
+		    (uintptr_t)vectp);
+		if (error != 0)
+			return (error);
+	}
 
 	return (0);
 }
