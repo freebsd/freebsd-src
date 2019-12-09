@@ -51,6 +51,9 @@ __FBSDID("$FreeBSD$");
 #define MAX_DP_SANITY	4096		/* Biggest device path in bytes */
 #define MAX_DP_TEXT_LEN	4096		/* Longest string rep of dp */
 
+#define ValidLen(dp) (DevicePathNodeLength(dp) >= sizeof(EFI_DEVICE_PATH_PROTOCOL) && \
+	    DevicePathNodeLength(dp) < MAX_DP_SANITY)
+
 #define	G_PART	"PART"
 #define	G_LABEL "LABEL"
 #define G_DISK	"DISK"
@@ -142,6 +145,8 @@ efi_hd_to_unix(struct gmesh *mesh, const_efidp dp, char **dev, char **relpath, c
 	 * Now, we can either have a filepath node next, or the end.
 	 * Otherwise, it's an error.
 	 */
+	if (!ValidLen(walker))
+		return (EINVAL);
 	walker = (const_efidp)NextDevicePathNode(walker);
 	if ((uintptr_t)walker - (uintptr_t)dp > MAX_DP_SANITY)
 		return (EINVAL);
@@ -333,10 +338,14 @@ efivar_device_path_to_unix_path(const_efidp dp, char **dev, char **relpath, char
 	 * then we didn't find a media device path, so signal that error.
 	 */
 	walker = dp;
+	if (!ValidLen(walker))
+		return (EINVAL);
 	while (DevicePathType(walker) != MEDIA_DEVICE_PATH &&
 	    DevicePathType(walker) != END_DEVICE_PATH_TYPE) {
 		walker = (const_efidp)NextDevicePathNode(walker);
 		if ((uintptr_t)walker - (uintptr_t)dp > MAX_DP_SANITY)
+			return (EINVAL);
+		if (!ValidLen(walker))
 			return (EINVAL);
 	}
 	if (DevicePathType(walker) !=  MEDIA_DEVICE_PATH)
