@@ -741,7 +741,7 @@ linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 
 	if (execpath_len != 0) {
 		destp -= execpath_len;
-		destp = rounddown2(destp, sizeof(void *));
+		destp = rounddown2(destp, sizeof(uint32_t));
 		imgp->execpathp = destp;
 		error = copyout(imgp->execpath, (void *)destp, execpath_len);
 		if (error != 0)
@@ -750,7 +750,7 @@ linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 
 	/* Prepare the canary for SSP. */
 	arc4rand(canary, sizeof(canary), 0);
-	destp -= roundup(sizeof(canary), sizeof(void *));
+	destp -= roundup(sizeof(canary), sizeof(uint32_t));
 	imgp->canary = destp;
 	error = copyout(canary, (void *)destp, sizeof(canary));
 	if (error != 0)
@@ -758,7 +758,7 @@ linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 
 	/* Allocate room for the argument and environment strings. */
 	destp -= ARG_MAX - imgp->args->stringspace;
-	destp = rounddown2(destp, sizeof(void *));
+	destp = rounddown2(destp, sizeof(uint32_t));
 	ustringp = destp;
 
 	if (imgp->auxargs) {
@@ -767,7 +767,7 @@ linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 		 * array.  It has LINUX_AT_COUNT entries.
 		 */
 		destp -= LINUX_AT_COUNT * sizeof(Elf32_Auxinfo);
-		destp = rounddown2(destp, sizeof(void *));
+		destp = rounddown2(destp, sizeof(uint32_t));
 	}
 
 	vectp = (uint32_t *)destp;
