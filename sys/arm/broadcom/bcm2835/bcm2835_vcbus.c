@@ -67,7 +67,7 @@ struct bcm283x_memory_mapping {
 	vm_paddr_t	vcbus_start;
 };
 
-#if defined(SOC_BCM2835) || defined(SOC_BCM2836)
+#ifdef SOC_BCM2835
 static struct bcm283x_memory_mapping bcm2835_memmap[] = {
 	{
 		/* SDRAM */
@@ -80,6 +80,24 @@ static struct bcm283x_memory_mapping bcm2835_memmap[] = {
 		.armc_start = BCM2835_ARM_IO_BASE,
 		.armc_size  = BCM28XX_ARM_IO_SIZE,
 		.vcbus_start = BCM2835_VCBUS_IO_BASE,
+	},
+	{ 0, 0, 0 },
+};
+#endif
+
+#ifdef SOC_BCM2836
+static struct bcm283x_memory_mapping bcm2836_memmap[] = {
+	{
+		/* SDRAM */
+		.armc_start = 0x00000000,
+		.armc_size = BCM2836_ARM_IO_BASE,
+		.vcbus_start = BCM2836_VCBUS_SDRAM_BASE,
+	},
+	{
+		/* Peripherals */
+		.armc_start = BCM2836_ARM_IO_BASE,
+		.armc_size  = BCM28XX_ARM_IO_SIZE,
+		.vcbus_start = BCM2836_VCBUS_IO_BASE,
 	},
 	{ 0, 0, 0 },
 };
@@ -142,7 +160,7 @@ static struct bcm283x_memory_soc_cfg {
 #endif
 #ifdef SOC_BCM2836
 	{
-		.memmap = bcm2835_memmap,
+		.memmap = bcm2836_memmap,
 		.soc_compat = "brcm,bcm2836",
 		.busdma_lowaddr = BUS_SPACE_MAXADDR_32BIT,
 	},
