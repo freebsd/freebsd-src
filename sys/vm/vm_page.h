@@ -215,6 +215,15 @@ typedef uint32_t vm_page_bits_t;
 typedef uint64_t vm_page_bits_t;
 #endif
 
+typedef union vm_page_astate {
+	struct {
+		uint16_t flags;
+		uint8_t	queue;
+		uint8_t act_count;
+	};
+	uint32_t _bits;
+} vm_page_astate_t;
+
 struct vm_page {
 	union {
 		TAILQ_ENTRY(vm_page) q; /* page queue or free list (Q) */
@@ -237,9 +246,7 @@ struct vm_page {
 	struct md_page md;		/* machine dependent stuff */
 	u_int ref_count;		/* page references (A) */
 	volatile u_int busy_lock;	/* busy owners lock */
-	uint16_t aflags;		/* atomic flags (A) */
-	uint8_t queue;			/* page queue index (Q) */
-	uint8_t act_count;		/* page usage count (P) */
+	union vm_page_astate a;		/* state accessed atomically */
 	uint8_t order;			/* index of the buddy queue (F) */
 	uint8_t pool;			/* vm_phys freepool index (F) */
 	uint8_t flags;			/* page PG_* flags (P) */
@@ -755,19 +762,19 @@ void vm_page_assert_pga_writeable(vm_page_t m, uint16_t bits);
  * destinations.  In order that we can easily use a 32-bit operation, we
  * require that the aflags field be 32-bit aligned.
  */
-_Static_assert(offsetof(struct vm_page, aflags) % sizeof(uint32_t) == 0,
+_Static_assert(offsetof(struct vm_page, a.flags) % sizeof(uint32_t) == 0,
     "aflags field is not 32-bit aligned");
 
 /*
  * We want to be able to update the aflags and queue fields atomically in
  * the same operation.
  */
-_Static_assert(offsetof(struct vm_page, aflags) / sizeof(uint32_t) ==
-    offsetof(struct vm_page, queue) / sizeof(uint32_t),
+_Static_assert(offsetof(struct vm_page, a.flags) / sizeof(uint32_t) ==
+    offsetof(struct vm_page, a.queue) / sizeof(uint32_t),
     "aflags and queue fields do not belong to the same 32-bit word");
-_Static_assert(offsetof(struct vm_page, queue) % sizeof(uint32_t) == 2,
+_Static_assert(offsetof(struct vm_page, a.queue) % sizeof(uint32_t) == 2,
     "queue field is at an unexpected offset");
-_Static_assert(sizeof(((struct vm_page *)NULL)->queue) == 1,
+_Static_assert(sizeof(((struct vm_page *)NULL)->a.queue) == 1,
     "queue field has an unexpected size");
 
 #if BYTE_ORDER == LITTLE_ENDIAN
@@ -798,7 +805,7 @@ vm_page_aflag_clear(vm_page_t m, uint16_t bits)
 	 * atomic update.  Parallel non-atomic updates to the other fields
 	 * within this word are handled properly by the atomic update.
 	 */
-	addr = (void *)&m->aflags;
+	addr = (void *)&m->a.flags;
 	val = bits << VM_PAGE_AFLAG_SHIFT;
 	atomic_clear_32(addr, val);
 }
@@ -818,7 +825,7 @@ vm_page_aflag_set(vm_page_t m, uint16_t bits)
 	 * atomic update.  Parallel non-atomic updates to the other fields
 	 * within this word are handled properly by the atomic update.
 	 */
-	addr = (void *)&m->aflags;
+	addr = (void *)&m->a.flags;
 	val = bits << VM_PAGE_AFLAG_SHIFT;
 	atomic_set_32(addr, val);
 }
@@ -843,7 +850,7 @@ vm_page_pqstate_cmpset(vm_page_t m, uint32_t oldq, uint32_t newq,
 	qsmask = ((PGA_DEQUEUE | PGA_REQUEUE | PGA_REQUEUE_HEAD) <<
 	    VM_PAGE_AFLAG_SHIFT) | VM_PAGE_QUEUE_MASK;
 
-	addr = (void *)&m->aflags;
+	addr = (void *)&m->a.flags;
 	oval = atomic_load_32(addr);
 	do {
 		if ((oval & fflags) != 0)
@@ -918,10 +925,10 @@ vm_page_queue(vm_page_t m)
 
 	vm_page_assert_locked(m);
 
-	if ((m->aflags & PGA_DEQUEUE) != 0)
+	if ((m->a.flags & PGA_DEQUEUE) != 0)
 		return (PQ_NONE);
 	atomic_thread_fence_acq();
-	return (m->queue);
+	return (m->a.queue);
 }
 
 static inline bool

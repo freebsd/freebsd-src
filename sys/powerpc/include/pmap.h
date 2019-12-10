@@ -249,7 +249,7 @@ extern	struct pmap kernel_pmap_store;
 #define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
 
-#define	pmap_page_is_write_mapped(m)	(((m)->aflags & PGA_WRITEABLE) != 0)
+#define	pmap_page_is_write_mapped(m)	(((m)->a.flags & PGA_WRITEABLE) != 0)
 
 void		pmap_bootstrap(vm_offset_t, vm_offset_t);
 void		pmap_kenter(vm_offset_t va, vm_paddr_t pa);

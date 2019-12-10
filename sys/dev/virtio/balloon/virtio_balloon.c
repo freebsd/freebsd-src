@@ -332,7 +332,7 @@ vtballoon_inflate(struct vtballoon_softc *sc, int npages)
 		sc->vtballoon_page_frames[i] =
 		    VM_PAGE_TO_PHYS(m) >> VIRTIO_BALLOON_PFN_SHIFT;
 
-		KASSERT(m->queue == PQ_NONE,
+		KASSERT(m->a.queue == PQ_NONE,
 		    ("%s: allocated page %p on queue", __func__, m));
 		TAILQ_INSERT_TAIL(&sc->vtballoon_pages, m, plinks.q);
 	}

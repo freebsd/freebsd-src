@@ -2832,7 +2832,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			    ("pmap_enter: no PV entry for %#lx", va));
 			if ((new_l3 & PTE_SW_MANAGED) == 0)
 				free_pv_entry(pmap, pv);
-			if ((om->aflags & PGA_WRITEABLE) != 0 &&
+			if ((om->a.flags & PGA_WRITEABLE) != 0 &&
 			    TAILQ_EMPTY(&om->md.pv_list) &&
 			    ((om->flags & PG_FICTITIOUS) != 0 ||
 			    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
@@ -3586,7 +3586,7 @@ pmap_remove_pages_pv(pmap_t pmap, vm_page_t m, pv_entry_t pv,
 		if (TAILQ_EMPTY(&pvh->pv_list)) {
 			for (mt = m; mt < &m[Ln_ENTRIES]; mt++)
 				if (TAILQ_EMPTY(&mt->md.pv_list) &&
-				    (mt->aflags & PGA_WRITEABLE) != 0)
+				    (mt->a.flags & PGA_WRITEABLE) != 0)
 					vm_page_aflag_clear(mt, PGA_WRITEABLE);
 		}
 		mpte = pmap_remove_pt_page(pmap, pv->pv_va);
@@ -3604,7 +3604,7 @@ pmap_remove_pages_pv(pmap_t pmap, vm_page_t m, pv_entry_t pv,
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 		m->md.pv_gen++;
 		if (TAILQ_EMPTY(&m->md.pv_list) &&
-		    (m->aflags & PGA_WRITEABLE) != 0) {
+		    (m->a.flags & PGA_WRITEABLE) != 0) {
 			pvh = pa_to_pvh(m->phys_addr);
 			if (TAILQ_EMPTY(&pvh->pv_list))
 				vm_page_aflag_clear(m, PGA_WRITEABLE);
@@ -4138,7 +4138,7 @@ pmap_clear_modify(vm_page_t m)
 	 * If the object containing the page is locked and the page is not
 	 * exclusive busied, then PGA_WRITEABLE cannot be concurrently set.
 	 */
-	if ((m->aflags & PGA_WRITEABLE) == 0)
+	if ((m->a.flags & PGA_WRITEABLE) == 0)
 		return;
 	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy :
 	    pa_to_pvh(VM_PAGE_TO_PHYS(m));

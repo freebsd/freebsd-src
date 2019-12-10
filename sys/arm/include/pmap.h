@@ -47,7 +47,7 @@ extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
 void *pmap_kenter_temporary(vm_paddr_t, int);
-#define	pmap_page_is_write_mapped(m)	(((m)->aflags & PGA_WRITEABLE) != 0)
+#define	pmap_page_is_write_mapped(m)	(((m)->a.flags & PGA_WRITEABLE) != 0)
 void pmap_page_set_memattr(vm_page_t, vm_memattr_t);
 
 void *pmap_mapdev(vm_paddr_t, vm_size_t);
