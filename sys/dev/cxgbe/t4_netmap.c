@@ -573,7 +573,10 @@ ndesc_to_npkt(const int n)
 }
 #define MAX_NPKT_IN_TYPE1_WR	(ndesc_to_npkt(SGE_MAX_WR_NDESC))
 
-/* Space (in descriptors) needed for a type1 WR that carries n packets */
+/*
+ * Space (in descriptors) needed for a type1 WR (TX_PKTS or TX_PKTS2) that
+ * carries n packets
+ */
 static inline int
 npkt_to_ndesc(const int n)
 {
@@ -583,7 +586,10 @@ npkt_to_ndesc(const int n)
 	return ((n + 2) / 2);
 }
 
-/* Space (in 16B units) needed for a type1 WR that carries n packets */
+/*
+ * Space (in 16B units) needed for a type1 WR (TX_PKTS or TX_PKTS2) that
+ * carries n packets
+ */
 static inline int
 npkt_to_len16(const int n)
 {
@@ -670,7 +676,7 @@ cxgbe_nm_tx(struct adapter *sc, struct sge_nm_txq *nm_txq,
 		len = 0;
 
 		wr = (void *)&nm_txq->desc[nm_txq->pidx];
-		wr->op_pkd = htobe32(V_FW_WR_OP(FW_ETH_TX_PKTS_WR));
+		wr->op_pkd = nm_txq->op_pkd;
 		wr->equiq_to_len16 = htobe32(V_FW_WR_LEN16(npkt_to_len16(n)));
 		wr->npkt = n;
 		wr->r3 = 0;
@@ -778,7 +784,8 @@ reclaim_nm_tx_desc(struct sge_nm_txq *nm_txq)
 	while (nm_txq->cidx != hw_cidx) {
 		wr = (void *)&nm_txq->desc[nm_txq->cidx];
 
-		MPASS(wr->op_pkd == htobe32(V_FW_WR_OP(FW_ETH_TX_PKTS_WR)));
+		MPASS(wr->op_pkd == htobe32(V_FW_WR_OP(FW_ETH_TX_PKTS_WR)) ||
+		    wr->op_pkd == htobe32(V_FW_WR_OP(FW_ETH_TX_PKTS2_WR)));
 		MPASS(wr->type == 1);
 		MPASS(wr->npkt > 0 && wr->npkt <= MAX_NPKT_IN_TYPE1_WR);
 
