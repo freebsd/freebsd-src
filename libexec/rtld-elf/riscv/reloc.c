@@ -354,7 +354,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			}
 
 			*where = (def->st_value + rela->r_addend +
-			    defobj->tlsoffset - TLS_TP_OFFSET);
+			    defobj->tlsoffset - TLS_TP_OFFSET - TLS_TCB_SIZE);
 			break;
 		case R_RISCV_RELATIVE:
 			*where = (Elf_Addr)(obj->relocbase + rela->r_addend);
