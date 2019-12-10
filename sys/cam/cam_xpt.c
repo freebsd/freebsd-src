@@ -247,7 +247,7 @@ static union ccb *xpt_get_ccb_nowait(struct cam_periph *periph);
 static void	 xpt_run_allocq(struct cam_periph *periph, int sleep);
 static void	 xpt_run_allocq_task(void *context, int pending);
 static void	 xpt_run_devq(struct cam_devq *devq);
-static timeout_t xpt_release_devq_timeout;
+static callout_func_t xpt_release_devq_timeout;
 static void	 xpt_release_simq_timeout(void *arg) __unused;
 static void	 xpt_acquire_bus(struct cam_eb *bus);
 static void	 xpt_release_bus(struct cam_eb *bus);

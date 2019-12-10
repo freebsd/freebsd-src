@@ -522,7 +522,7 @@ void	ng_netflow_cache_flush(priv_p);
 int	ng_netflow_fib_init(priv_p priv, int fib);
 void	ng_netflow_copyinfo(priv_p, struct ng_netflow_info *);
 void	ng_netflow_copyv9info(priv_p, struct ng_netflow_v9info *);
-timeout_t ng_netflow_expire;
+callout_func_t ng_netflow_expire;
 int 	ng_netflow_flow_add(priv_p, fib_export_p, struct ip *, caddr_t,
 	uint8_t, uint8_t, unsigned int);
 int	ng_netflow_flow6_add(priv_p, fib_export_p, struct ip6_hdr *, caddr_t,

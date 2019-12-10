@@ -113,7 +113,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 static void mpt_poll(struct cam_sim *);
-static timeout_t mpt_timeout;
+static callout_func_t mpt_timeout;
 static void mpt_action(struct cam_sim *, union ccb *);
 static int
 mpt_get_spi_settings(struct mpt_softc *, struct ccb_trans_settings *);

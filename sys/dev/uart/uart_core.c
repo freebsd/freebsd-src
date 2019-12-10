@@ -447,7 +447,7 @@ uart_intr(void *arg)
 
 	if (sc->sc_polled) {
 		callout_reset(&sc->sc_timer, hz / uart_poll_freq,
-		    (timeout_t *)uart_intr, sc);
+		    (callout_func_t *)uart_intr, sc);
 	}
 
 	return ((cnt == 0) ? FILTER_STRAY :
@@ -712,7 +712,7 @@ uart_bus_attach(device_t dev)
 		sc->sc_polled = 1;
 		callout_init(&sc->sc_timer, 1);
 		callout_reset(&sc->sc_timer, hz / uart_poll_freq,
-		    (timeout_t *)uart_intr, sc);
+		    (callout_func_t *)uart_intr, sc);
 	}
 
 	if (bootverbose && (sc->sc_fastintr || sc->sc_polled)) {
