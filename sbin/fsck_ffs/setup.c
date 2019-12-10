@@ -474,11 +474,15 @@ calcsb(char *dev, int devfd, struct fs *fs)
 	if (fsrbuf == NULL)
 		errx(EEXIT, "calcsb: cannot allocate recovery buffer");
 	if (blread(devfd, fsrbuf,
-	    (SBLOCK_UFS2 - secsize) / dev_bsize, secsize) != 0)
+	    (SBLOCK_UFS2 - secsize) / dev_bsize, secsize) != 0) {
+		free(fsrbuf);
 		return (0);
+	}
 	fsr = (struct fsrecovery *)&fsrbuf[secsize - sizeof *fsr];
-	if (fsr->fsr_magic != FS_UFS2_MAGIC)
+	if (fsr->fsr_magic != FS_UFS2_MAGIC) {
+		free(fsrbuf);
 		return (0);
+	}
 	memset(fs, 0, sizeof(struct fs));
 	fs->fs_fpg = fsr->fsr_fpg;
 	fs->fs_fsbtodb = fsr->fsr_fsbtodb;
@@ -505,11 +509,14 @@ chkrecovery(int devfd)
 	 * Could not determine if backup material exists, so do not
 	 * offer to create it.
 	 */
+	fsrbuf = NULL;
 	if (ioctl(devfd, DIOCGSECTORSIZE, &secsize) == -1 ||
 	    (fsrbuf = Malloc(secsize)) == NULL ||
 	    blread(devfd, fsrbuf, (SBLOCK_UFS2 - secsize) / dev_bsize,
-	      secsize) != 0)
+	      secsize) != 0) {
+		free(fsrbuf);
 		return (1);
+	}
 	/*
 	 * Recovery material has already been created, so do not
 	 * need to create it again.
@@ -538,12 +545,14 @@ saverecovery(int readfd, int writefd)
 	char *fsrbuf;
 	u_int secsize;
 
+	fsrbuf = NULL;
 	if (sblock.fs_magic != FS_UFS2_MAGIC ||
 	    ioctl(readfd, DIOCGSECTORSIZE, &secsize) == -1 ||
 	    (fsrbuf = Malloc(secsize)) == NULL ||
 	    blread(readfd, fsrbuf, (SBLOCK_UFS2 - secsize) / dev_bsize,
 	      secsize) != 0) {
 		printf("RECOVERY DATA COULD NOT BE CREATED\n");
+		free(fsrbuf);
 		return;
 	}
 	fsr = (struct fsrecovery *)&fsrbuf[secsize - sizeof *fsr];
