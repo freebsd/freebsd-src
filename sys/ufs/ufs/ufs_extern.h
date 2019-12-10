@@ -79,6 +79,7 @@ int	 ufs_inactive(struct vop_inactive_args *);
 int	 ufs_init(struct vfsconf *);
 void	 ufs_itimes(struct vnode *vp);
 int	 ufs_lookup(struct vop_cachedlookup_args *);
+int	 ufs_need_inactive(struct vop_need_inactive_args *);
 int	 ufs_readdir(struct vop_readdir_args *);
 int	 ufs_reclaim(struct vop_reclaim_args *);
 void	 ffs_snapgone(struct inode *);

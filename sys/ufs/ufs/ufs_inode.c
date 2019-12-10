@@ -63,6 +63,40 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/gjournal.h>
 #endif
 
+int
+ufs_need_inactive(ap)
+	struct vop_need_inactive_args *ap;
+{
+	struct vnode *vp;
+	struct inode *ip;
+#ifdef QUOTA
+	int i;
+#endif
+
+	vp = ap->a_vp;
+	ip = VTOI(vp);
+	if (UFS_RDONLY(ip))
+		return (0);
+	if (ip->i_mode == 0 ||  ip->i_nlink <= 0 ||
+	    (ip->i_effnlink == 0 && DOINGSOFTDEP(vp)) ||
+	    (ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED |
+	    IN_UPDATE)) != 0 ||
+	    (ip->i_effnlink <= 0 && (ip->i_size != 0 || (I_IS_UFS2(ip) &&
+	    ip->i_din2->di_extsize != 0))))
+		return (1);
+#ifdef QUOTA
+	for (i = 0; i < MAXQUOTAS; i++) {
+		if (ip->i_dquot[i] != NULL)
+			return (1);
+	}
+#endif
+	/*
+	 * No need to check ufs_gjournal_close() condition since we
+	 * return 1 if only i_nlink <= 0.
+	 */
+	return (0);
+}
+
 /*
  * Last reference to an inode.  If necessary, write or delete it.
  */
