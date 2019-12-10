@@ -262,7 +262,7 @@ v2sizep(vm_offset_t va)
 	if (pa == 0)
 		panic("MemGuard detected double-free of %p", (void *)va);
 	p = PHYS_TO_VM_PAGE(pa);
-	KASSERT(vm_page_wired(p) && p->queue == PQ_NONE,
+	KASSERT(vm_page_wired(p) && p->a.queue == PQ_NONE,
 	    ("MEMGUARD: Expected wired page %p in vtomgfifo!", p));
 	return (&p->plinks.memguard.p);
 }
@@ -277,7 +277,7 @@ v2sizev(vm_offset_t va)
 	if (pa == 0)
 		panic("MemGuard detected double-free of %p", (void *)va);
 	p = PHYS_TO_VM_PAGE(pa);
-	KASSERT(vm_page_wired(p) && p->queue == PQ_NONE,
+	KASSERT(vm_page_wired(p) && p->a.queue == PQ_NONE,
 	    ("MEMGUARD: Expected wired page %p in vtomgfifo!", p));
 	return (&p->plinks.memguard.v);
 }

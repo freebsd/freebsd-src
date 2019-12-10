@@ -3783,7 +3783,7 @@ __CONCAT(PMTYPE, enter)(pmap_t pmap, vm_offset_t va, vm_page_t m,
 			    ("pmap_enter: no PV entry for %#x", va));
 			if ((newpte & PG_MANAGED) == 0)
 				free_pv_entry(pmap, pv);
-			if ((om->aflags & PGA_WRITEABLE) != 0 &&
+			if ((om->a.flags & PGA_WRITEABLE) != 0 &&
 			    TAILQ_EMPTY(&om->md.pv_list) &&
 			    ((om->flags & PG_FICTITIOUS) != 0 ||
 			    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))

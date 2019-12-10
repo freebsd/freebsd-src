@@ -1669,7 +1669,7 @@ swp_pager_force_dirty(vm_page_t m)
 	vm_page_dirty(m);
 #ifdef INVARIANTS
 	vm_page_lock(m);
-	if (!vm_page_wired(m) && m->queue == PQ_NONE)
+	if (!vm_page_wired(m) && m->a.queue == PQ_NONE)
 		panic("page %p is neither wired nor queued", m);
 	vm_page_unlock(m);
 #endif

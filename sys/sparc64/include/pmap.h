@@ -82,7 +82,7 @@ struct pmap {
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
 
 #define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
-#define	pmap_page_is_write_mapped(m)	(((m)->aflags & PGA_WRITEABLE) != 0)
+#define	pmap_page_is_write_mapped(m)	(((m)->a.flags & PGA_WRITEABLE) != 0)
 #define	pmap_page_set_memattr(m, ma)	(void)0
 
 void	pmap_bootstrap(u_int cpu_impl);

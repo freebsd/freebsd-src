@@ -931,9 +931,9 @@ retry:
 				 * and set PGA_REFERENCED before the call to
 				 * pmap_is_referenced(). 
 				 */
-				if ((m->aflags & PGA_REFERENCED) != 0 ||
+				if ((m->a.flags & PGA_REFERENCED) != 0 ||
 				    pmap_is_referenced(m) ||
-				    (m->aflags & PGA_REFERENCED) != 0)
+				    (m->a.flags & PGA_REFERENCED) != 0)
 					mincoreinfo |= MINCORE_REFERENCED_OTHER;
 			}
 			if (object != NULL)

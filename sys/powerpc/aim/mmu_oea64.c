@@ -1493,7 +1493,7 @@ out:
 	 * Flush the page from the instruction cache if this page is
 	 * mapped executable and cacheable.
 	 */
-	if (pmap != kernel_pmap && !(m->aflags & PGA_EXECUTABLE) &&
+	if (pmap != kernel_pmap && (m->a.flags & PGA_EXECUTABLE) == 0 &&
 	    (pte_lo & (LPTE_I | LPTE_G | LPTE_NOEXEC)) == 0) {
 		vm_page_aflag_set(m, PGA_EXECUTABLE);
 		moea64_syncicache(mmu, pmap, va, VM_PAGE_TO_PHYS(m), PAGE_SIZE);
@@ -2254,7 +2254,8 @@ moea64_pvo_protect(mmu_t mmu,  pmap_t pm, struct pvo_entry *pvo, vm_prot_t prot)
 	if (refchg < 0)
 		refchg = (oldprot & VM_PROT_WRITE) ? LPTE_CHG : 0;
 
-	if (pm != kernel_pmap && pg != NULL && !(pg->aflags & PGA_EXECUTABLE) &&
+	if (pm != kernel_pmap && pg != NULL &&
+	    (pg->a.flags & PGA_EXECUTABLE) == 0 &&
 	    (pvo->pvo_pte.pa & (LPTE_I | LPTE_G | LPTE_NOEXEC)) == 0) {
 		if ((pg->oflags & VPO_UNMANAGED) == 0)
 			vm_page_aflag_set(pg, PGA_EXECUTABLE);
@@ -2468,7 +2469,7 @@ moea64_remove_all(mmu_t mmu, vm_page_t m)
 		
 	}
 	KASSERT(!pmap_page_is_mapped(m), ("Page still has mappings"));
-	KASSERT(!(m->aflags & PGA_WRITEABLE), ("Page still writable"));
+	KASSERT((m->a.flags & PGA_WRITEABLE) == 0, ("Page still writable"));
 	PV_PAGE_UNLOCK(m);
 
 	/* Clean up UMA allocations */

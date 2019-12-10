@@ -218,7 +218,7 @@ vm_pageout_init_scan(struct scan_state *ss, struct vm_pagequeue *pq,
 {
 
 	vm_pagequeue_assert_locked(pq);
-	KASSERT((marker->aflags & PGA_ENQUEUED) == 0,
+	KASSERT((marker->a.flags & PGA_ENQUEUED) == 0,
 	    ("marker %p already enqueued", marker));
 
 	if (after == NULL)
@@ -242,7 +242,7 @@ vm_pageout_end_scan(struct scan_state *ss)
 
 	pq = ss->pq;
 	vm_pagequeue_assert_locked(pq);
-	KASSERT((ss->marker->aflags & PGA_ENQUEUED) != 0,
+	KASSERT((ss->marker->a.flags & PGA_ENQUEUED) != 0,
 	    ("marker %p not enqueued", ss->marker));
 
 	TAILQ_REMOVE(&pq->pq_pl, ss->marker, plinks.q);
@@ -271,7 +271,7 @@ vm_pageout_collect_batch(struct scan_state *ss, const bool dequeue)
 	marker = ss->marker;
 	pq = ss->pq;
 
-	KASSERT((marker->aflags & PGA_ENQUEUED) != 0,
+	KASSERT((marker->a.flags & PGA_ENQUEUED) != 0,
 	    ("marker %p not enqueued", ss->marker));
 
 	vm_pagequeue_lock(pq);
@@ -280,7 +280,7 @@ vm_pageout_collect_batch(struct scan_state *ss, const bool dequeue)
 	    m = n, ss->scanned++) {
 		n = TAILQ_NEXT(m, plinks.q);
 		if ((m->flags & PG_MARKER) == 0) {
-			KASSERT((m->aflags & PGA_ENQUEUED) != 0,
+			KASSERT((m->a.flags & PGA_ENQUEUED) != 0,
 			    ("page %p not enqueued", m));
 			KASSERT((m->flags & PG_FICTITIOUS) == 0,
 			    ("Fictitious page %p cannot be in page queue", m));
@@ -472,7 +472,7 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 		KASSERT(vm_page_all_valid(mc[i]),
 		    ("vm_pageout_flush: partially invalid page %p index %d/%d",
 			mc[i], i, count));
-		KASSERT((mc[i]->aflags & PGA_WRITEABLE) == 0,
+		KASSERT((mc[i]->a.flags & PGA_WRITEABLE) == 0,
 		    ("vm_pageout_flush: writeable page %p", mc[i]));
 		vm_page_busy_downgrade(mc[i]);
 	}
@@ -766,7 +766,7 @@ recheck:
 		 * A requeue was requested, so this page gets a second
 		 * chance.
 		 */
-		if ((m->aflags & PGA_REQUEUE) != 0) {
+		if ((m->a.flags & PGA_REQUEUE) != 0) {
 			vm_page_pqbatch_submit(m, queue);
 			continue;
 		}
@@ -848,7 +848,7 @@ recheck:
 			    ("page %p is mapped", m));
 			act_delta = 0;
 		}
-		if ((m->aflags & PGA_REFERENCED) != 0) {
+		if ((m->a.flags & PGA_REFERENCED) != 0) {
 			vm_page_aflag_clear(m, PGA_REFERENCED);
 			act_delta++;
 		}
@@ -865,7 +865,7 @@ recheck:
 				 * be returned prematurely to the inactive
 				 * queue.
  				 */
-				m->act_count += act_delta + ACT_ADVANCE;
+				m->a.act_count += act_delta + ACT_ADVANCE;
 
 				/*
 				 * If this was a background laundering, count
@@ -1302,7 +1302,7 @@ act_scan:
 			act_delta = pmap_ts_referenced(m);
 		else
 			act_delta = 0;
-		if ((m->aflags & PGA_REFERENCED) != 0) {
+		if ((m->a.flags & PGA_REFERENCED) != 0) {
 			vm_page_aflag_clear(m, PGA_REFERENCED);
 			act_delta++;
 		}
@@ -1311,13 +1311,13 @@ act_scan:
 		 * Advance or decay the act_count based on recent usage.
 		 */
 		if (act_delta != 0) {
-			m->act_count += ACT_ADVANCE + act_delta;
-			if (m->act_count > ACT_MAX)
-				m->act_count = ACT_MAX;
+			m->a.act_count += ACT_ADVANCE + act_delta;
+			if (m->a.act_count > ACT_MAX)
+				m->a.act_count = ACT_MAX;
 		} else
-			m->act_count -= min(m->act_count, ACT_DECLINE);
+			m->a.act_count -= min(m->a.act_count, ACT_DECLINE);
 
-		if (m->act_count == 0) {
+		if (m->a.act_count == 0) {
 			/*
 			 * When not short for inactive pages, let dirty pages go
 			 * through the inactive queue before moving to the
@@ -1372,14 +1372,14 @@ vm_pageout_reinsert_inactive_page(struct scan_state *ss, vm_page_t m)
 {
 	struct vm_domain *vmd;
 
-	if (m->queue != PQ_INACTIVE || (m->aflags & PGA_ENQUEUED) != 0)
+	if (m->a.queue != PQ_INACTIVE || (m->a.flags & PGA_ENQUEUED) != 0)
 		return (0);
 	vm_page_aflag_set(m, PGA_ENQUEUED);
-	if ((m->aflags & PGA_REQUEUE_HEAD) != 0) {
+	if ((m->a.flags & PGA_REQUEUE_HEAD) != 0) {
 		vmd = vm_pagequeue_domain(m);
 		TAILQ_INSERT_BEFORE(&vmd->vmd_inacthead, m, plinks.q);
 		vm_page_aflag_clear(m, PGA_REQUEUE | PGA_REQUEUE_HEAD);
-	} else if ((m->aflags & PGA_REQUEUE) != 0) {
+	} else if ((m->a.flags & PGA_REQUEUE) != 0) {
 		TAILQ_INSERT_TAIL(&ss->pq->pq_pl, m, plinks.q);
 		vm_page_aflag_clear(m, PGA_REQUEUE | PGA_REQUEUE_HEAD);
 	} else
@@ -1458,7 +1458,7 @@ vm_pageout_scan_inactive(struct vm_domain *vmd, int shortage,
 	/*
 	 * Start scanning the inactive queue for pages that we can free.  The
 	 * scan will stop when we reach the target or we have scanned the
-	 * entire queue.  (Note that m->act_count is not used to make
+	 * entire queue.  (Note that m->a.act_count is not used to make
 	 * decisions for the inactive queue, only for the active queue.)
 	 */
 	marker = &vmd->vmd_markers[PQ_INACTIVE];
@@ -1488,7 +1488,7 @@ recheck:
 		 * dropped, or a requeue was requested.  This page gets a second
 		 * chance.
 		 */
-		if ((m->aflags & (PGA_ENQUEUED | PGA_REQUEUE |
+		if ((m->a.flags & (PGA_ENQUEUED | PGA_REQUEUE |
 		    PGA_REQUEUE_HEAD)) != 0)
 			goto reinsert;
 
@@ -1579,7 +1579,7 @@ recheck:
 			    ("page %p is mapped", m));
 			act_delta = 0;
 		}
-		if ((m->aflags & PGA_REFERENCED) != 0) {
+		if ((m->a.flags & PGA_REFERENCED) != 0) {
 			vm_page_aflag_clear(m, PGA_REFERENCED);
 			act_delta++;
 		}
@@ -1596,7 +1596,7 @@ recheck:
 				 * be returned prematurely to the inactive
 				 * queue.
  				 */
-				m->act_count += act_delta + ACT_ADVANCE;
+				m->a.act_count += act_delta + ACT_ADVANCE;
 				continue;
 			} else if ((object->flags & OBJ_DEAD) == 0) {
 				vm_page_xunbusy(m);
@@ -1636,9 +1636,9 @@ free_page:
 			 * requests, we can safely disassociate the page
 			 * from the inactive queue.
 			 */
-			KASSERT((m->aflags & PGA_QUEUE_STATE_MASK) == 0,
+			KASSERT((m->a.flags & PGA_QUEUE_STATE_MASK) == 0,
 			    ("page %p has queue state", m));
-			m->queue = PQ_NONE;
+			m->a.queue = PQ_NONE;
 			vm_page_free(m);
 			page_shortage--;
 			continue;
