@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 27, 2016
+.Dd December 10, 2019
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -62,8 +62,10 @@
 .Nd execute a function after a specified length of time
 .Sh SYNOPSIS
 .In sys/types.h
+.In sys/callout.h
 .In sys/systm.h
 .Bd -literal
+typedef void callout_func_t (void *);
 typedef void timeout_t (void *);
 .Ed
 .Ft int
@@ -71,7 +73,7 @@ typedef void timeout_t (void *);
 .Ft void
 .Fn callout_deactivate "struct callout *c"
 .Ft int
-.Fn callout_async_drain "struct callout *c" "timeout_t *drain"
+.Fn callout_async_drain "struct callout *c" "callout_func_t *drain"
 .Ft int
 .Fn callout_drain "struct callout *c"
 .Ft void
@@ -90,19 +92,24 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle);
 .Ft int
 .Fn callout_pending "struct callout *c"
 .Ft int
-.Fn callout_reset "struct callout *c" "int ticks" "timeout_t *func" "void *arg"
+.Fo callout_reset
+.Fa "struct callout *c"
+.Fa "int ticks"
+.Fa "callout_func_t *func"
+.Fa "void *arg"
+.Fc
 .Ft int
 .Fo callout_reset_curcpu
 .Fa "struct callout *c"
 .Fa "int ticks"
-.Fa "timeout_t *func"
+.Fa "callout_func_t *func"
 .Fa "void *arg"
 .Fc
 .Ft int
 .Fo callout_reset_on
 .Fa "struct callout *c"
 .Fa "int ticks"
-.Fa "timeout_t *func"
+.Fa "callout_func_t *func"
 .Fa "void *arg"
 .Fa "int cpu"
 .Fc
@@ -111,7 +118,7 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle);
 .Fa "struct callout *c"
 .Fa "sbintime_t sbt"
 .Fa "sbintime_t pr"
-.Fa "timeout_t *func"
+.Fa "callout_func_t *func"
 .Fa "void *arg"
 .Fa "int flags"
 .Fc
@@ -120,7 +127,7 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle);
 .Fa "struct callout *c"
 .Fa "sbintime_t sbt"
 .Fa "sbintime_t pr"
-.Fa "timeout_t *func"
+.Fa "callout_func_t *func"
 .Fa "void *arg"
 .Fa "int flags"
 .Fc
@@ -129,7 +136,7 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle);
 .Fa "struct callout *c"
 .Fa "sbintime_t sbt"
 .Fa "sbintime_t pr"
-.Fa "timeout_t *func"
+.Fa "callout_func_t *func"
 .Fa "void *arg"
 .Fa "int cpu"
 .Fa "int flags"
