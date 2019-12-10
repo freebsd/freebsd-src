@@ -395,10 +395,21 @@ compile_delimited(char *p, char *d, int is_tr)
 			continue;
 		} else if (*p == '\\' && p[1] == '[') {
 			*d++ = *p++;
-		} else if (*p == '\\' && p[1] == c)
+		} else if (*p == '\\' && p[1] == c) {
 			p++;
-		else if (*p == '\\' && p[1] == 'n') {
-			*d++ = '\n';
+		} else if (*p == '\\' &&
+		    (p[1] == 'n' || p[1] == 'r' || p[1] == 't')) {
+			switch (p[1]) {
+			case 'n':
+				*d++ = '\n';
+				break;
+			case 'r':
+				*d++ = '\r';
+				break;
+			case 't':
+				*d++ = '\t';
+				break;
+			}
 			p += 2;
 			continue;
 		} else if (*p == '\\' && p[1] == '\\') {
@@ -428,13 +439,29 @@ compile_ccl(char **sp, char *t)
 		*t++ = *s++;
 	if (*s == ']')
 		*t++ = *s++;
-	for (; *s && (*t = *s) != ']'; s++, t++)
+	for (; *s && (*t = *s) != ']'; s++, t++) {
 		if (*s == '[' && ((d = *(s+1)) == '.' || d == ':' || d == '=')) {
 			*++t = *++s, t++, s++;
 			for (c = *s; (*t = *s) != ']' || c != d; s++, t++)
 				if ((c = *s) == '\0')
 					return NULL;
+		} else if (*s == '\\') {
+			switch (s[1]) {
+			case 'n':
+				*t = '\n';
+				s++;
+				break;
+			case 'r':
+				*t = '\r';
+				s++;
+				break;
+			case 't':
+				*t = '\t';
+				s++;
+				break;
+			}
 		}
+	}
 	return (*s == ']') ? *sp = ++s, ++t : NULL;
 }
 
@@ -521,8 +548,23 @@ compile_subst(char *p, struct s_subst *s)
 								linenum, fname, *p);
 					if (s->maxbref < ref)
 						s->maxbref = ref;
-				} else if (*p == '&' || *p == '\\')
-					*sp++ = '\\';
+				} else {
+					switch (*p) {
+					case '&':
+					case '\\':
+						*sp++ = '\\';
+						break;
+					case 'n':
+						*p = '\n';
+						break;
+					case 'r':
+						*p = '\r';
+						break;
+					case 't':
+						*p = '\t';
+						break;
+					}
+				}
 			} else if (*p == c) {
 				if (*++p == '\0' && more) {
 					if (cu_fgets(lbuf, sizeof(lbuf), &more))
