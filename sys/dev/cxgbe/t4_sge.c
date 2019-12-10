@@ -3754,6 +3754,10 @@ alloc_nm_txq(struct vi_info *vi, struct sge_nm_txq *nm_txq, int iqidx, int idx,
 	nm_txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |
 	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(sc->pf) |
 	    V_TXPKT_VF(vi->vin) | V_TXPKT_VF_VLD(vi->vfvld));
+	if (sc->params.fw_vers >= FW_VERSION32(1, 24, 11, 0))
+		nm_txq->op_pkd = htobe32(V_FW_WR_OP(FW_ETH_TX_PKTS2_WR));
+	else
+		nm_txq->op_pkd = htobe32(V_FW_WR_OP(FW_ETH_TX_PKTS_WR));
 	nm_txq->cntxt_id = INVALID_NM_TXQ_CNTXT_ID;
 
 	snprintf(name, sizeof(name), "%d", idx);
