@@ -177,8 +177,6 @@ static device_method_t ig4iic_acpi_methods[] = {
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_adjust_resource, bus_generic_adjust_resource),
-	DEVMETHOD(bus_set_resource, bus_generic_rl_set_resource),
-	DEVMETHOD(bus_get_resource, bus_generic_rl_get_resource),
 
 	/* iicbus interface */
 	DEVMETHOD(iicbus_transfer, ig4iic_transfer),
