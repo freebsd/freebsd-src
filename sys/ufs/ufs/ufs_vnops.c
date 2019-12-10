@@ -2742,6 +2742,7 @@ struct vop_vector ufs_vnodeops = {
 	.vop_markatime =	ufs_markatime,
 	.vop_mkdir =		ufs_mkdir,
 	.vop_mknod =		ufs_mknod,
+	.vop_need_inactive =	ufs_need_inactive,
 	.vop_open =		ufs_open,
 	.vop_pathconf =		ufs_pathconf,
 	.vop_poll =		vop_stdpoll,
