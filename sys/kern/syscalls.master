@@ -3199,7 +3199,7 @@
 		    size_t namelen,
 		    _Out_writes_bytes_opt_(*oldlenp) void *old,
 		    _Inout_opt_ size_t *oldlenp,
-		    _In_reads_bytes_opt_(newlen) void *new,
+		    _In_reads_bytes_opt_(newlen) void *newp,
 		    size_t newlen
 		);
 	}
