@@ -66,8 +66,8 @@
 #else
 #include <sys/pcpu.h>
 #include <sys/systm.h>
-#include <sys/tree.h>
 #endif
+#include <sys/tree.h>
 #include <sys/ucontext.h>
 #include <sys/ucred.h>
 #include <sys/types.h>
