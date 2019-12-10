@@ -6104,7 +6104,7 @@ retry:
 			    ("pmap_enter: no PV entry for %#lx", va));
 			if ((newpte & PG_MANAGED) == 0)
 				free_pv_entry(pmap, pv);
-			if ((om->aflags & PGA_WRITEABLE) != 0 &&
+			if ((om->a.flags & PGA_WRITEABLE) != 0 &&
 			    TAILQ_EMPTY(&om->md.pv_list) &&
 			    ((om->flags & PG_FICTITIOUS) != 0 ||
 			    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
@@ -7297,7 +7297,7 @@ pmap_remove_pages(pmap_t pmap)
 					pvh->pv_gen++;
 					if (TAILQ_EMPTY(&pvh->pv_list)) {
 						for (mt = m; mt < &m[NBPDR / PAGE_SIZE]; mt++)
-							if ((mt->aflags & PGA_WRITEABLE) != 0 &&
+							if ((mt->a.flags & PGA_WRITEABLE) != 0 &&
 							    TAILQ_EMPTY(&mt->md.pv_list))
 								vm_page_aflag_clear(mt, PGA_WRITEABLE);
 					}
@@ -7315,7 +7315,7 @@ pmap_remove_pages(pmap_t pmap)
 					pmap_resident_count_dec(pmap, 1);
 					TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 					m->md.pv_gen++;
-					if ((m->aflags & PGA_WRITEABLE) != 0 &&
+					if ((m->a.flags & PGA_WRITEABLE) != 0 &&
 					    TAILQ_EMPTY(&m->md.pv_list) &&
 					    (m->flags & PG_FICTITIOUS) == 0) {
 						pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));

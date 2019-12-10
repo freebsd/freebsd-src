@@ -1906,7 +1906,7 @@ moea_remove_all(mmu_t mmu, vm_page_t m)
 		moea_pvo_remove(pvo, -1);
 		PMAP_UNLOCK(pmap);
 	}
-	if ((m->aflags & PGA_WRITEABLE) && moea_query_bit(m, PTE_CHG)) {
+	if ((m->a.flags & PGA_WRITEABLE) && moea_query_bit(m, PTE_CHG)) {
 		moea_attr_clear(m, PTE_CHG);
 		vm_page_dirty(m);
 	}
