@@ -38,6 +38,7 @@
 #include <sys/malloc.h>
 #include <sys/kmem.h>
 #include <sys/smp.h>
+#include <sys/time.h>
 #include <sys/dtrace_impl.h>
 #include <sys/dtrace_bsd.h>
 #include <machine/clock.h>
@@ -273,9 +274,9 @@ dtrace_gethrtime_init_cpu(void *arg)
 	uintptr_t cpu = (uintptr_t) arg;
 
 	if (cpu == curcpu)
-		tgt_cpu_tsc = rdtsc();
+		tgt_cpu_tsc = sbinuptime();
 	else
-		hst_cpu_tsc = rdtsc();
+		hst_cpu_tsc = sbinuptime();
 }
 
 #ifdef EARLY_AP_STARTUP
@@ -377,24 +378,7 @@ SYSINIT(dtrace_gethrtime_init, SI_SUB_SMP, SI_ORDER_ANY, dtrace_gethrtime_init,
 uint64_t
 dtrace_gethrtime(void)
 {
-	uint64_t tsc;
-	uint32_t lo, hi;
-	register_t rflags;
-
-	/*
-	 * We split TSC value into lower and higher 32-bit halves and separately
-	 * scale them with nsec_scale, then we scale them down by 2^28
-	 * (see nsec_scale calculations) taking into account 32-bit shift of
-	 * the higher half and finally add.
-	 */
-	rflags = intr_disable();
-	tsc = rdtsc() - tsc_skew[curcpu];
-	intr_restore(rflags);
-
-	lo = tsc;
-	hi = tsc >> 32;
-	return (((lo * nsec_scale) >> SCALE_SHIFT) +
-	    ((hi * nsec_scale) << (32 - SCALE_SHIFT)));
+	return dtrace_gethrestime();
 }
 
 uint64_t
