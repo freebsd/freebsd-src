@@ -53,6 +53,7 @@ local config = {
 	switchname = "sysent",
 	namesname = "syscallnames",
 	systrace = "systrace_args.c",
+	ebpfprobe = "ebpf_syscall_probes.c",
 	capabilities_conf = "capabilities.conf",
 	capenabled = {},
 	mincompat = 0,
@@ -73,6 +74,7 @@ local output_files = {
 	"syssw",
 	"systrace",
 	"sysproto",
+	"ebpfprobe",
 }
 
 -- These ones we'll create temporary files for; generation purposes.
@@ -770,6 +772,8 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 		    config['syscallprefix'], funcalias, sysnum))
 		write_line("sysmk", string.format(" \\\n\t%s.o",
 		    funcalias))
+		write_line("ebpfprobe", string.format('\t[%s%s] = { .name = "%s_syscall_probe" },\n',
+		    config['syscallprefix'], funcalias, funcalias))
 	end
 end
 
@@ -1274,6 +1278,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	switch (sysnum) {
 ]])
 
+write_line("ebpfprobe",
+    "struct ebpf_probe ebpf_syscall_probe[] = {\n")
+
 -- Processing the sysfile will parse out the preprocessor bits and put them into
 -- the appropriate place.  Any syscall-looking lines get thrown into the sysfile
 -- buffer, one per line, for later processing once they're all glued together.
@@ -1338,6 +1345,8 @@ write_line("systraceret", [[
 		strlcpy(desc, p, descsz);
 }
 ]])
+
+write_line("ebpfprobe", "};\n")
 
 -- Finish up; output
 write_line("syssw", read_file("sysinc"))
