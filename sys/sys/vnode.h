@@ -653,17 +653,15 @@ int	vaccess_acl_posix1e(enum vtype type, uid_t file_uid,
 	    struct ucred *cred, int *privused);
 void	vattr_null(struct vattr *vap);
 int	vcount(struct vnode *vp);
-#define	vdrop(vp)	_vdrop((vp), 0)
-#define	vdropl(vp)	_vdrop((vp), 1)
-void	_vdrop(struct vnode *, bool);
+void	vdrop(struct vnode *);
+void	vdropl(struct vnode *);
 int	vflush(struct mount *mp, int rootrefs, int flags, struct thread *td);
 int	vget(struct vnode *vp, int flags, struct thread *td);
 enum vgetstate	vget_prep(struct vnode *vp);
 int	vget_finish(struct vnode *vp, int flags, enum vgetstate vs);
 void	vgone(struct vnode *vp);
-#define	vhold(vp)	_vhold((vp), 0)
-#define	vholdl(vp)	_vhold((vp), 1)
-void	_vhold(struct vnode *, bool);
+void	vhold(struct vnode *);
+void	vholdl(struct vnode *);
 void	vholdnz(struct vnode *);
 void	vinactive(struct vnode *, struct thread *);
 int	vinvalbuf(struct vnode *vp, int save, int slpflag, int slptimeo);
