@@ -45,7 +45,7 @@ static MALLOC_DEFINE(M_OCS, "OCS", "OneCore Storage data");
 
 #include <machine/bus.h>
 
-timeout_t	__ocs_callout;
+callout_func_t	__ocs_callout;
 
 uint32_t
 ocs_config_read32(ocs_os_handle_t os, uint32_t reg)

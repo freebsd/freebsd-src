@@ -185,7 +185,7 @@ typedef struct kbdmux_state	kbdmux_state_t;
  *****************************************************************************/
 
 static task_fn_t		kbdmux_kbd_intr;
-static timeout_t		kbdmux_kbd_intr_timo;
+static callout_func_t		kbdmux_kbd_intr_timo;
 static kbd_callback_func_t	kbdmux_kbd_event;
 
 static void

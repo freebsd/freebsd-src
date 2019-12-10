@@ -302,7 +302,7 @@ static	int		cdsendkey(struct cam_periph *periph,
 				  struct dvd_authinfo *authinfo);
 static	int		cdreaddvdstructure(struct cam_periph *periph,
 					   struct dvd_struct *dvdstruct);
-static timeout_t	cdmediapoll;
+static	callout_func_t	cdmediapoll;
 
 static struct periph_driver cddriver =
 {
