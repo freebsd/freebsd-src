@@ -111,18 +111,6 @@ cz.kbd:de:Tschechisch (QWERTZ, mit Akzenten)
 cz.kbd:fr:Tchèque (QWERTZ, avec accents)
 cz.kbd:es:Checo (QWERTZ, con acentos)
 
-cz.kbd.from-ce:en:Czech
-cz.kbd.from-ce:da:Tjekkisk
-cz.kbd.from-ce:de:Tschechisch
-cz.kbd.from-ce:fr:Tchèque
-cz.kbd.from-ce:es:Checo
-
-cz.qwerty.kbd.from-ce:en:Czech (QWERTY)
-cz.qwerty.kbd.from-ce:da:Tjekkisk (QWERTY)
-cz.qwerty.kbd.from-ce:de:Tschechisch (QWERTY)
-cz.qwerty.kbd.from-ce:fr:Tchèquey (QWERTY)
-cz.qwerty.kbd.from-ce:es:Checo (QWERTY)
-
 dk.kbd:en:Danish
 dk.kbd:da:Dansk
 dk.kbd:de:Dänisch
@@ -136,13 +124,6 @@ dk.acc.kbd:de:Dänisch (mit Akzenten)
 dk.acc.kbd:fr:Danois (avec accents)
 dk.acc.kbd:pt:Dinamarquês (com acentos)
 dk.acc.kbd:es:Danés (con acentos)
-
-dk.kbd.from-cp865:en:Danish
-dk.kbd.from-cp865:da:Dansk
-dk.kbd.from-cp865:de:Dänisch
-dk.kbd.from-cp865:fr:Danois
-dk.kbd.from-cp865:pt:Dinamarquês
-dk.kbd.from-cp865:es:Danés
 
 dk.macbook.kbd:en:Danish (MacBook)
 dk.macbook.kbd:da:Dansk (MacBook)
@@ -159,35 +140,17 @@ nordic.asus-eee.kbd:en:Nordic layout on Asus eeePC
 nordic.asus-eee.kbd:da:Nordisk layout på Asus eeePC
 nordic.asus-eee.kbd:fr:Norvégien phonétique sur Asus eeePC
 
-ee.kbd.from-iso1:en:Estonian
-ee.kbd.from-iso1:da:Estisk
-ee.kbd.from-iso1:de:Estnisch
-ee.kbd.from-iso1:fr:Estonien
-ee.kbd.from-iso1:es:Estonio
-
 ee.kbd:en:Estonian
 ee.kbd:da:Estisk
 ee.kbd:de:Estnisch
 ee.kbd:fr:Estonien
 ee.kbd:es:Estonio
 
-ee.kbd.from-cp850:en:Estonian
-ee.kbd.from-cp850:da:Estisk
-ee.kbd.from-cp850:de:Estnisch
-ee.kbd.from-cp850:fr:Estonien
-ee.kbd.from-cp850:es:Estonio
-
 fi.kbd:en:Finnish
 fi.kbd:da:Finsk
 fi.kbd:de:Finnisch
 fi.kbd:fr:Finlandais
 fi.kbd:es:Finlandés
-
-fi.kbd.from-cp850:en:Finnish
-fi.kbd.from-cp850:da:Finsk
-fi.kbd.from-cp850:de:Finnisch
-fi.kbd.from-cp850:fr:Finlandais
-fi.kbd.from-cp850:es:Finlandés
 
 fr.kbd:en:French
 fr.kbd:da:Fransk
@@ -262,14 +225,6 @@ de.noacc.kbd:fr:Allemand (sans accents)
 de.noacc.kbd:pt:Alemão (no accent keys)
 de.noacc.kbd:es:Alemán (no accent keys)
 de.noacc.kbd:uk:Німецька (no accent keys)
-
-de.kbd.from-cp850:en:German
-de.kbd.from-cp850:da:Tysk
-de.kbd.from-cp850:de:Deutsch
-de.kbd.from-cp850:fr:Allemand
-de.kbd.from-cp850:pt:Alemão
-de.kbd.from-cp850:es:Alemán
-de.kbd.from-cp850:uk:Німецька
 
 gr.kbd:en:Greek (104 keys)
 gr.kbd:da:Græsk (104 taster)
@@ -423,24 +378,6 @@ pt.acc.kbd:fr:Portugais (avec accents)
 pt.acc.kbd:pt:Português (com acentos)
 pt.acc.kbd:es:Portugués (con acentos)
 
-ru.kbd.from-cp866:en:Russian (alternative)
-ru.kbd.from-cp866:da:Russisk (alternativ)
-ru.kbd.from-cp866:de:Russisch (alternativ)
-ru.kbd.from-cp866:ru:Русский (alternative)
-ru.kbd.from-cp866:fr:Russe (alternative)
-ru.kbd.from-cp866:pt:Russo (alternativo)
-ru.kbd.from-cp866:es:Ruso (alternativo)
-ru.kbd.from-cp866:uk:Російська (альтернативна)
-
-ru.kbd.from-iso5:en:Russian
-ru.kbd.from-iso5:da:Russisk
-ru.kbd.from-iso5:de:Russisch
-ru.kbd.from-iso5:fr:Russe
-ru.kbd.from-iso5:ru:Русский
-ru.kbd.from-iso5:pt:Russo
-ru.kbd.from-iso5:es:Ruso
-ru.kbd.from-iso5:uk:Російський
-
 ru.kbd:en:Russian
 ru.kbd:da:Russisk
 ru.kbd:de:Russisch
@@ -475,13 +412,6 @@ es.dvorak.kbd:fr:Espagnol Dvorak
 es.dvorak.kbd:pt:Espanhol Dvorak
 es.dvorak.kbd:es:Español Dvorak
 
-es.kbd.from-iso1:en:Spanish
-es.kbd.from-iso1:da:Spansk
-es.kbd.from-iso1:de:Spanisch
-es.kbd.from-iso1:fr:Espagnol
-es.kbd.from-iso1:pt:Espanhol
-es.kbd.from-iso1:es:Español
-
 es.acc.kbd:en:Spanish (accent keys)
 es.acc.kbd:da:Spansk (accenttaster)
 es.acc.kbd:de:Spanisch (accent keys)
@@ -515,12 +445,6 @@ se.kbd:de:Schwedisch
 se.kbd:fr:Suédois
 se.kbd:pt,es:Sueco
 
-se.kbd.from-cp850:en:Swedish
-se.kbd.from-cp850:da:Svensk
-se.kbd.from-cp850:de:Schwedisch
-se.kbd.from-cp850:fr:Suédois
-se.kbd.from-cp850:pt,es:Sueco
-
 ch-fr.kbd:en:Swiss-French
 ch-fr.kbd:da:Schweizerfransk
 ch-fr.kbd:de:Schweiz-Französisch
@@ -532,12 +456,6 @@ ch-fr.acc.kbd:da:Schweizerfransk (accenttaster)
 ch-fr.acc.kbd:de:Schweiz-Französisch (mit Akzenten)
 ch-fr.acc.kbd:fr:Suisse-Français (avec accents)
 ch-fr.acc.kbd:es:Francosuizo (con acentos)
-
-ch-fr.kbd.from-cp850:en:Swiss-French
-ch-fr.kbd.from-cp850:da:Schweizerfransk
-ch-fr.kbd.from-cp850:de:Schweiz-Französisch
-ch-fr.kbd.from-cp850:fr:Suisse-Français
-ch-fr.kbd.from-cp850:es:Francosuizo
 
 ch.kbd:en:Swiss-German
 ch.kbd:da:Schweizertysk
@@ -552,13 +470,6 @@ ch.acc.kbd:de:Schweiz-Deutsch (mit Akzenten)
 ch.acc.kbd:fr:Suisse-Allemand (avec accents)
 ch.acc.kbd:pt:Suiço-Alemão (com acentos)
 ch.acc.kbd:es:Germanosuizo (con acentos)
-
-ch.kbd.from-cp850:en:Swiss-German
-ch.kbd.from-cp850:da:Schweizertysk
-ch.kbd.from-cp850:de:Schweiz-Deutsch
-ch.kbd.from-cp850:fr:Suisse-Allemand
-ch.kbd.from-cp850:pt:Suiço-Alemão
-ch.kbd.from-cp850:es:Germanosuizo
 
 ch.macbook.acc.kbd:en:Swiss-German (MacBook/MacBook Pro) (accent keys)
 ch.macbook.acc.kbd:da:Schweizertysk (MacBook/MacBook Pro) (accenttaster)
@@ -681,13 +592,6 @@ us.macbook.kbd:de:US-amerikanisch (MacBook/MacBook Pro) ISO-8859-1
 us.macbook.kbd:fr:États Unis d'Amérique (MacBook/MacBook Pro) ISO-8859-1
 us.macbook.kbd:pt:Estados Unidos da América (MacBook/MacBook Pro) ISO-8859-1
 us.macbook.kbd:es:Estadounidense (MacBook/MacBook Pro) ISO-8859-1
-
-ua.kbd.from-iso5:en:Ukrainian
-ua.kbd.from-iso5:da:Ukrainsk
-ua.kbd.from-iso5:de:Ukrainisch
-ua.kbd.from-iso5:fr:Ukrainien
-ua.kbd.from-iso5:ru:Украинский
-ua.kbd.from-iso5:uk:Українська
 
 ua.kbd:en:Ukrainian
 ua.kbd:da:Ukrainsk
