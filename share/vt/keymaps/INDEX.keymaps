@@ -1,6 +1,6 @@
 # $FreeBSD$
 #
-# database for kbdmap(8) 
+# database for kbdmap(8)
 #
 # Format <file>:<lang>:<description>
 #
@@ -9,7 +9,7 @@
 # lang: lang,lang
 #
 # If lang empty use 'en' (us-english) as default.
-# 
+#
 # Example:
 # 	german.iso.kbd:de:deutsch
 # 	german.iso.kbd:en:german
@@ -552,7 +552,7 @@ us.dvorakr.kbd:pt:Estados Unidos da América dvorakr
 us.dvorakr.kbd:es:Estadounidense dvorak diestro
 
 us.dvorakl.kbd:en:United States of America lefthand dvorak
-us.dvorakl.kbd:de:US-amerikanisch dvorak linke Hand 
+us.dvorakl.kbd:de:US-amerikanisch dvorak linke Hand
 us.dvorakl.kbd:fr:États Unis d'Amérique dvorakl
 us.dvorakl.kbd:pt:Estados Unidos da América dvorakl
 us.dvorakl.kbd:es:Estadounidense dvorak zurdo
