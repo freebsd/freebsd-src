@@ -2255,7 +2255,7 @@ sys___sysctlbyname(struct thread *td, struct __sysctlbyname_args *uap)
 	int error;
 
 	error = kern___sysctlbyname(td, uap->name, uap->namelen, uap->old,
-	    uap->oldlenp, uap->new, uap->newlen, &rv, 0, 0);
+	    uap->oldlenp, uap->newp, uap->newlen, &rv, 0, 0);
 	if (error != 0)
 		return (error);
 	if (uap->oldlenp != NULL)

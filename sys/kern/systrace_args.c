@@ -3325,7 +3325,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = p->namelen; /* size_t */
 		uarg[2] = (intptr_t) p->old; /* void * */
 		uarg[3] = (intptr_t) p->oldlenp; /* size_t * */
-		uarg[4] = (intptr_t) p->new; /* void * */
+		uarg[4] = (intptr_t) p->newp; /* void * */
 		uarg[5] = p->newlen; /* size_t */
 		*n_args = 6;
 		break;

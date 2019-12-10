@@ -1807,7 +1807,7 @@ struct __sysctlbyname_args {
 	char namelen_l_[PADL_(size_t)]; size_t namelen; char namelen_r_[PADR_(size_t)];
 	char old_l_[PADL_(void *)]; void * old; char old_r_[PADR_(void *)];
 	char oldlenp_l_[PADL_(size_t *)]; size_t * oldlenp; char oldlenp_r_[PADR_(size_t *)];
-	char new_l_[PADL_(void *)]; void * new; char new_r_[PADR_(void *)];
+	char newp_l_[PADL_(void *)]; void * newp; char newp_r_[PADR_(void *)];
 	char newlen_l_[PADL_(size_t)]; size_t newlen; char newlen_r_[PADR_(size_t)];
 };
 struct shm_open2_args {
