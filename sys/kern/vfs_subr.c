@@ -2766,7 +2766,7 @@ v_decr_devcount(struct vnode *vp)
  * usecount is permitted to transition 1->0 without the interlock because
  * vnode is kept live by holdcnt.
  */
-static enum vgetstate
+static enum vgetstate __always_inline
 _vget_prep(struct vnode *vp, bool interlock)
 {
 	enum vgetstate vs;
@@ -2774,7 +2774,10 @@ _vget_prep(struct vnode *vp, bool interlock)
 	if (refcount_acquire_if_not_zero(&vp->v_usecount)) {
 		vs = VGET_USECOUNT;
 	} else {
-		_vhold(vp, interlock);
+		if (interlock)
+			vholdl(vp);
+		else
+			vhold(vp);
 		vs = VGET_HOLDCNT;
 	}
 	return (vs);
@@ -3108,31 +3111,12 @@ vunref(struct vnode *vp)
 /*
  * Increase the hold count and activate if this is the first reference.
  */
-void
-_vhold(struct vnode *vp, bool locked)
+static void
+vhold_activate(struct vnode *vp)
 {
 	struct mount *mp;
 
-	if (locked)
-		ASSERT_VI_LOCKED(vp, __func__);
-	else
-		ASSERT_VI_UNLOCKED(vp, __func__);
-	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
-	if (!locked) {
-		if (refcount_acquire_if_not_zero(&vp->v_holdcnt)) {
-			VNODE_REFCOUNT_FENCE_ACQ();
-			VNASSERT((vp->v_iflag & VI_FREE) == 0, vp,
-			    ("_vhold: vnode with holdcnt is free"));
-			return;
-		}
-		VI_LOCK(vp);
-	}
-	if ((vp->v_iflag & VI_FREE) == 0) {
-		refcount_acquire(&vp->v_holdcnt);
-		if (!locked)
-			VI_UNLOCK(vp);
-		return;
-	}
+	ASSERT_VI_LOCKED(vp, __func__);
 	VNASSERT(vp->v_holdcnt == 0, vp,
 	    ("%s: wrong hold count", __func__));
 	VNASSERT(vp->v_op != NULL, vp,
@@ -3163,8 +3147,36 @@ _vhold(struct vnode *vp, bool locked)
 	mp->mnt_activevnodelistsize++;
 	mtx_unlock(&mp->mnt_listmtx);
 	refcount_acquire(&vp->v_holdcnt);
-	if (!locked)
-		VI_UNLOCK(vp);
+}
+
+void
+vhold(struct vnode *vp)
+{
+
+	ASSERT_VI_UNLOCKED(vp, __func__);
+	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+	if (refcount_acquire_if_not_zero(&vp->v_holdcnt)) {
+		VNODE_REFCOUNT_FENCE_ACQ();
+		VNASSERT((vp->v_iflag & VI_FREE) == 0, vp,
+		    ("vhold: vnode with holdcnt is free"));
+		return;
+	}
+	VI_LOCK(vp);
+	vholdl(vp);
+	VI_UNLOCK(vp);
+}
+
+void
+vholdl(struct vnode *vp)
+{
+
+	ASSERT_VI_LOCKED(vp, __func__);
+	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+	if ((vp->v_iflag & VI_FREE) == 0) {
+		refcount_acquire(&vp->v_holdcnt);
+		return;
+	}
+	vhold_activate(vp);
 }
 
 void
@@ -3189,79 +3201,96 @@ vholdnz(struct vnode *vp)
  * there is at least one resident non-cached page, the vnode cannot
  * leave the active list without the page cleanup done.
  */
-void
-_vdrop(struct vnode *vp, bool locked)
+static void
+vdrop_deactivate(struct vnode *vp)
 {
 	struct mount *mp;
 
-	if (locked)
-		ASSERT_VI_LOCKED(vp, __func__);
-	else
-		ASSERT_VI_UNLOCKED(vp, __func__);
+	ASSERT_VI_LOCKED(vp, __func__);
+	/*
+	 * Mark a vnode as free: remove it from its active list
+	 * and put it up for recycling on the freelist.
+	 */
+	VNASSERT(!VN_IS_DOOMED(vp), vp,
+	    ("vdrop: returning doomed vnode"));
+	VNASSERT(vp->v_op != NULL, vp,
+	    ("vdrop: vnode already reclaimed."));
+	VNASSERT((vp->v_iflag & VI_FREE) == 0, vp,
+	    ("vnode already free"));
+	VNASSERT(vp->v_holdcnt == 0, vp,
+	    ("vdrop: freeing when we shouldn't"));
+	if ((vp->v_iflag & VI_OWEINACT) == 0) {
+		mp = vp->v_mount;
+		if (mp != NULL) {
+			mtx_lock(&mp->mnt_listmtx);
+			if (vp->v_iflag & VI_ACTIVE) {
+				vp->v_iflag &= ~VI_ACTIVE;
+				TAILQ_REMOVE(&mp->mnt_activevnodelist,
+				    vp, v_actfreelist);
+				mp->mnt_activevnodelistsize--;
+			}
+			TAILQ_INSERT_TAIL(&mp->mnt_tmpfreevnodelist,
+			    vp, v_actfreelist);
+			mp->mnt_tmpfreevnodelistsize++;
+			vp->v_iflag |= VI_FREE;
+			vp->v_mflag |= VMP_TMPMNTFREELIST;
+			VI_UNLOCK(vp);
+			if (mp->mnt_tmpfreevnodelistsize >=
+			    mnt_free_list_batch)
+				vnlru_return_batch_locked(mp);
+			mtx_unlock(&mp->mnt_listmtx);
+		} else {
+			VNASSERT((vp->v_iflag & VI_ACTIVE) == 0, vp,
+			    ("vdrop: active vnode not on per mount vnode list"));
+			mtx_lock(&vnode_free_list_mtx);
+			TAILQ_INSERT_TAIL(&vnode_free_list, vp,
+			    v_actfreelist);
+			freevnodes++;
+			vp->v_iflag |= VI_FREE;
+			VI_UNLOCK(vp);
+			mtx_unlock(&vnode_free_list_mtx);
+		}
+	} else {
+		VI_UNLOCK(vp);
+		counter_u64_add(free_owe_inact, 1);
+	}
+}
+
+void
+vdrop(struct vnode *vp)
+{
+
+	ASSERT_VI_UNLOCKED(vp, __func__);
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
 	if (__predict_false((int)vp->v_holdcnt <= 0)) {
 		vn_printf(vp, "vdrop: holdcnt %d", vp->v_holdcnt);
 		panic("vdrop: wrong holdcnt");
 	}
-	if (!locked) {
-		if (refcount_release_if_not_last(&vp->v_holdcnt))
-			return;
-		VI_LOCK(vp);
+	if (refcount_release_if_not_last(&vp->v_holdcnt))
+		return;
+	VI_LOCK(vp);
+	vdropl(vp);
+}
+
+void
+vdropl(struct vnode *vp)
+{
+
+	ASSERT_VI_LOCKED(vp, __func__);
+	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+	if (__predict_false((int)vp->v_holdcnt <= 0)) {
+		vn_printf(vp, "vdrop: holdcnt %d", vp->v_holdcnt);
+		panic("vdrop: wrong holdcnt");
 	}
-	if (refcount_release(&vp->v_holdcnt) == 0) {
+	if (!refcount_release(&vp->v_holdcnt)) {
 		VI_UNLOCK(vp);
 		return;
 	}
-	if (!VN_IS_DOOMED(vp)) {
-		/*
-		 * Mark a vnode as free: remove it from its active list
-		 * and put it up for recycling on the freelist.
-		 */
-		VNASSERT(vp->v_op != NULL, vp,
-		    ("vdropl: vnode already reclaimed."));
-		VNASSERT((vp->v_iflag & VI_FREE) == 0, vp,
-		    ("vnode already free"));
-		VNASSERT(vp->v_holdcnt == 0, vp,
-		    ("vdropl: freeing when we shouldn't"));
-		if ((vp->v_iflag & VI_OWEINACT) == 0) {
-			mp = vp->v_mount;
-			if (mp != NULL) {
-				mtx_lock(&mp->mnt_listmtx);
-				if (vp->v_iflag & VI_ACTIVE) {
-					vp->v_iflag &= ~VI_ACTIVE;
-					TAILQ_REMOVE(&mp->mnt_activevnodelist,
-					    vp, v_actfreelist);
-					mp->mnt_activevnodelistsize--;
-				}
-				TAILQ_INSERT_TAIL(&mp->mnt_tmpfreevnodelist,
-				    vp, v_actfreelist);
-				mp->mnt_tmpfreevnodelistsize++;
-				vp->v_iflag |= VI_FREE;
-				vp->v_mflag |= VMP_TMPMNTFREELIST;
-				VI_UNLOCK(vp);
-				if (mp->mnt_tmpfreevnodelistsize >=
-				    mnt_free_list_batch)
-					vnlru_return_batch_locked(mp);
-				mtx_unlock(&mp->mnt_listmtx);
-			} else {
-				VNASSERT((vp->v_iflag & VI_ACTIVE) == 0, vp,
-				    ("vdropl: active vnode not on per mount "
-				    "vnode list"));
-				mtx_lock(&vnode_free_list_mtx);
-				TAILQ_INSERT_TAIL(&vnode_free_list, vp,
-				    v_actfreelist);
-				freevnodes++;
-				vp->v_iflag |= VI_FREE;
-				VI_UNLOCK(vp);
-				mtx_unlock(&vnode_free_list_mtx);
-			}
-		} else {
-			VI_UNLOCK(vp);
-			counter_u64_add(free_owe_inact, 1);
-		}
+	if (VN_IS_DOOMED(vp)) {
+		freevnode(vp);
 		return;
 	}
-	freevnode(vp);
+	vdrop_deactivate(vp);
 }
 
 /*
