@@ -122,7 +122,7 @@ static void	smc_task_rx(void *, int);
 static void	smc_task_tx(void *, int);
 
 static driver_filter_t	smc_intr;
-static timeout_t	smc_watchdog;
+static callout_func_t	smc_watchdog;
 #ifdef DEVICE_POLLING
 static poll_handler_t	smc_poll;
 #endif

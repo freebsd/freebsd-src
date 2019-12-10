@@ -112,7 +112,7 @@ typedef struct callout aic_timer_t;
 
 /****************************** Error Recovery ********************************/
 void		aic_set_recoveryscb(struct aic_softc *aic, struct scb *scb);
-timeout_t	aic_platform_timeout;
+callout_func_t	aic_platform_timeout;
 int		aic_spawn_recovery_thread(struct aic_softc *aic);
 void		aic_terminate_recovery_thread(struct aic_softc *aic);
 

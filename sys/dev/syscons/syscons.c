@@ -199,7 +199,7 @@ static void sc_puts(scr_stat *scp, u_char *buf, int len);
 static void sccnupdate(scr_stat *scp);
 static scr_stat *alloc_scp(sc_softc_t *sc, int vty);
 static void init_scp(sc_softc_t *sc, int vty, scr_stat *scp);
-static timeout_t scrn_timer;
+static callout_func_t scrn_timer;
 static int and_region(int *s1, int *e1, int s2, int e2);
 static void scrn_update(scr_stat *scp, int show_cursor);
 
@@ -232,7 +232,7 @@ static int save_kbd_state(scr_stat *scp);
 static int update_kbd_state(scr_stat *scp, int state, int mask);
 static int update_kbd_leds(scr_stat *scp, int which);
 static int sc_kattr(void);
-static timeout_t blink_screen;
+static callout_func_t blink_screen;
 static struct tty *sc_alloc_tty(int, int);
 
 static cn_probe_t sc_cnprobe;

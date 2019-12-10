@@ -116,7 +116,7 @@ static void	send_frame_header(struct sbni_softc *, u_int32_t *);
 static void	set_initial_values(struct sbni_softc *, struct sbni_flags);
 
 static u_int32_t	calc_crc32(u_int32_t, caddr_t, u_int);
-static timeout_t	sbni_timeout;
+static callout_func_t	sbni_timeout;
 
 static __inline u_char	sbni_inb(struct sbni_softc *, enum sbni_reg);
 static __inline void	sbni_outb(struct sbni_softc *, enum sbni_reg, u_char);

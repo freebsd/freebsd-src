@@ -107,7 +107,7 @@ static int mpt_raid_reply_frame_handler(struct mpt_softc *mpt, request_t *req,
 static int mpt_spawn_raid_thread(struct mpt_softc *mpt);
 static void mpt_terminate_raid_thread(struct mpt_softc *mpt);
 static void mpt_raid_thread(void *arg);
-static timeout_t mpt_raid_timer;
+static callout_func_t mpt_raid_timer;
 #if 0
 static void mpt_enable_vol(struct mpt_softc *mpt,
 			   struct mpt_raid_volume *mpt_vol, int enable);
