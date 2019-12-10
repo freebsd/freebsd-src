@@ -304,7 +304,6 @@ struct ebpf_probe ebpf_syscall_probe[] = {
 	[SYS_truncate] = { .name = "truncate_syscall_probe" },
 	[SYS_ftruncate] = { .name = "ftruncate_syscall_probe" },
 	[SYS_thr_kill2] = { .name = "thr_kill2_syscall_probe" },
-	[SYS_shm_open] = { .name = "shm_open_syscall_probe" },
 	[SYS_shm_unlink] = { .name = "shm_unlink_syscall_probe" },
 	[SYS_cpuset] = { .name = "cpuset_syscall_probe" },
 	[SYS_cpuset_setid] = { .name = "cpuset_setid_syscall_probe" },
@@ -387,4 +386,7 @@ struct ebpf_probe ebpf_syscall_probe[] = {
 	[SYS_fhreadlink] = { .name = "fhreadlink_syscall_probe" },
 	[SYS_funlinkat] = { .name = "funlinkat_syscall_probe" },
 	[SYS_copy_file_range] = { .name = "copy_file_range_syscall_probe" },
+	[SYS___sysctlbyname] = { .name = "__sysctlbyname_syscall_probe" },
+	[SYS_shm_open2] = { .name = "shm_open2_syscall_probe" },
+	[SYS_shm_rename] = { .name = "shm_rename_syscall_probe" },
 };
