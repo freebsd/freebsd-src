@@ -17,11 +17,7 @@ FIRMWS+=	${F}:${F:C/.txt//}:1.0.0.0
 .endif
 .endfor
 
-T4FW_VER=	1.23.0.0
-FIRMWS+=	t4fw.fw:t4fw:${T4FW_VER}
-CLEANFILES+=	t4fw.fw
-
-t4fw.fw: t4fw-${T4FW_VER}.bin.uu
-	uudecode -o ${.TARGET} ${.ALLSRC}
+T4FW_VER=	1.24.11.0
+FIRMWS+=	t4fw-${T4FW_VER}.bin:t4fw:${T4FW_VER}
 
 .include <bsd.kmod.mk>
