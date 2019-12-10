@@ -131,7 +131,7 @@ owc_gpiobus_attach(device_t dev)
 		free(kids, M_TEMP);
 	if (nkid == 0)
 		device_add_child(dev, "ow", -1);
-	bus_generic_attach(dev);
+	config_intrhook_oneshot((ich_func_t)bus_generic_attach, dev);
 
 	return (0);
 }
