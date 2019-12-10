@@ -48,7 +48,7 @@
   038   'l'    'L'    ff     ff     0x0141 nop    ff     ff      C
   039   0xe9   0xc9   nop    nop    '$'    nop    nop    nop     C
   040   0xe1   0xc1   nop    nop    0xdf   nop    nop    nop     C
-  041   '0'    0x15   nop    nop    nop    nop    nop    nop     O
+  041   '0'    nak    nop    nop    nop    nop    nop    nop     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
   043   0x0171 0x0170 fs     fs     0xa4   nop    fs     fs      C
   044   'y'    'Y'    em     em     '>'    '<'    em     em      C
