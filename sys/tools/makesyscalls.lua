@@ -1010,6 +1010,7 @@ process_syscall_def = function(line)
 			abort(1, "Not a signature? " .. line)
 		end
 		args = line:match("^[^(]+%((.+)%)[^)]*$")
+		args = trim(args, '[,%s]')
 	end
 
 	::skipalt::
