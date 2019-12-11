@@ -3,22 +3,21 @@
 
 DIRDEPS = \
 	cddl/lib/libavl \
-	cddl/lib/libnvpair \
 	cddl/lib/libumem \
 	cddl/lib/libuutil \
-	cddl/lib/libzfs \
-	cddl/lib/libzfs_core \
-	gnu/lib/csu \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
+	lib/libcapsicum \
+	lib/libcasper/libcasper \
 	lib/libcompiler_rt \
 	lib/libexpat \
 	lib/libgeom \
 	lib/libmd \
 	lib/libsbuf \
 	lib/libthr \
+	lib/libufs \
 	lib/libutil \
 	lib/libz \
 	lib/msun \
