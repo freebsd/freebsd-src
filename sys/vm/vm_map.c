@@ -2385,7 +2385,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 
 	psize = atop(size);
 	if (psize + pindex > object->size) {
-		if (object->size < pindex) {
+		if (pindex >= object->size) {
 			VM_OBJECT_RUNLOCK(object);
 			return;
 		}
