@@ -241,9 +241,9 @@ dev/hwpmc/hwpmc_arm64.c		optional	hwpmc
 dev/hwpmc/hwpmc_arm64_md.c	optional	hwpmc
 dev/mbox/mbox_if.m		optional	soc_brcm_bcm2837
 dev/mmc/host/dwmmc.c		optional	dwmmc fdt
-dev/mmc/host/dwmmc_altera.c	optional	dwmmc fdt dwmmc_altera
-dev/mmc/host/dwmmc_hisi.c	optional	dwmmc fdt soc_hisi_hi6220
-dev/mmc/host/dwmmc_rockchip.c	optional	dwmmc fdt soc_rockchip_rk3328
+dev/mmc/host/dwmmc_altera.c	optional	dwmmc dwmmc_altera fdt
+dev/mmc/host/dwmmc_hisi.c	optional	dwmmc dwmmc_hisi fdt
+dev/mmc/host/dwmmc_rockchip.c	optional	dwmmc rk_dwmmc fdt
 dev/neta/if_mvneta_fdt.c	optional	neta fdt
 dev/neta/if_mvneta.c		optional	neta mdio mii
 dev/ofw/ofw_cpu.c		optional	fdt
