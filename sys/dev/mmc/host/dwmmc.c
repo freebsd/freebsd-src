@@ -537,6 +537,22 @@ parse_fdt(struct dwmmc_softc *sc)
 		clk_get_freq(sc->ciu, &sc->bus_hz);
 	}
 
+	/* Enable regulators */
+	if (sc->vmmc != NULL) {
+		error = regulator_enable(sc->vmmc);
+		if (error != 0) {
+			device_printf(sc->dev, "Cannot enable vmmc regulator\n");
+			goto fail;
+		}
+	}
+	if (sc->vqmmc != NULL) {
+		error = regulator_enable(sc->vqmmc);
+		if (error != 0) {
+			device_printf(sc->dev, "Cannot enable vqmmc regulator\n");
+			goto fail;
+		}
+	}
+
 	/* Take dwmmc out of reset */
 	if (sc->hwreset != NULL) {
 		error = hwreset_deassert(sc->hwreset);
@@ -661,8 +677,51 @@ dwmmc_attach(device_t dev)
 	sc->host.caps |= MMC_CAP_HSPEED;
 	sc->host.caps |= MMC_CAP_SIGNALING_330;
 
-	device_add_child(dev, "mmc", -1);
+	sc->child = device_add_child(dev, "mmc", -1);
 	return (bus_generic_attach(dev));
+}
+
+int
+dwmmc_detach(device_t dev)
+{
+	struct dwmmc_softc *sc;
+	int ret;
+
+	sc = device_get_softc(dev);
+
+	ret = bus_generic_detach(dev);
+	if (ret != 0)
+		return (ret);
+
+	DWMMC_LOCK_DESTROY(sc);
+	if (sc->intr_cookie != NULL) {
+		ret = bus_teardown_intr(dev, sc->res[1], sc->intr_cookie);
+		if (ret != 0)
+			return (ret);
+	}
+	bus_release_resources(dev, dwmmc_spec, sc->res);
+
+	if (sc->child) {
+		ret = device_delete_child(dev, sc->child);
+		if (ret != 0)
+			return (ret);
+	}
+
+#ifdef EXT_RESOURCES
+	if (sc->hwreset != NULL && hwreset_deassert(sc->hwreset) != 0)
+		device_printf(sc->dev, "cannot deassert reset\n");
+	if (sc->biu != NULL && clk_disable(sc->biu) != 0)
+		device_printf(sc->dev, "cannot disable biu clock\n");
+	if (sc->ciu != NULL && clk_disable(sc->ciu) != 0)
+			device_printf(sc->dev, "cannot disable ciu clock\n");
+
+	if (sc->vmmc && regulator_disable(sc->vmmc) != 0)
+		device_printf(sc->dev, "Cannot disable vmmc regulator\n");
+	if (sc->vqmmc && regulator_disable(sc->vqmmc) != 0)
+		device_printf(sc->dev, "Cannot disable vqmmc regulator\n");
+#endif
+
+	return (0);
 }
 
 static int

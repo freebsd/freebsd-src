@@ -133,6 +133,7 @@ static device_method_t rockchip_dwmmc_methods[] = {
 	/* bus interface */
 	DEVMETHOD(device_probe, rockchip_dwmmc_probe),
 	DEVMETHOD(device_attach, rockchip_dwmmc_attach),
+	DEVMETHOD(device_detach, dwmmc_detach),
 
 	DEVMETHOD_END
 };
