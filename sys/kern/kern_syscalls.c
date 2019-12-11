@@ -120,11 +120,14 @@ kern_syscall_register(struct sysent *sysents, int *offset,
 		if (i == SYS_MAXSYSCALL)
 			return (ENFILE);
 		*offset = i;
-	} else if (*offset < 0 || *offset >= SYS_MAXSYSCALL)
+	} else if (*offset < 0 || *offset >= SYS_MAXSYSCALL) {
 		return (EINVAL);
-	else if (sysents[*offset].sy_call != (sy_call_t *)lkmnosys &&
-	    sysents[*offset].sy_call != (sy_call_t *)lkmressys)
+	} else if (sysents[*offset].sy_call != (sy_call_t *)lkmnosys &&
+	    sysents[*offset].sy_call != (sy_call_t *)lkmressys) {
+		KASSERT(sysents[*offset].sy_call != NULL,
+		    ("undefined syscall %d", *offset));
 		return (EEXIST);
+	}
 
 	KASSERT(sysents[*offset].sy_thrcnt == SY_THR_ABSENT,
 	    ("dynamic syscall is not protected"));
