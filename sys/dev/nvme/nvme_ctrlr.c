@@ -909,6 +909,25 @@ void
 nvme_ctrlr_start_config_hook(void *arg)
 {
 	struct nvme_controller *ctrlr = arg;
+	int status;
+
+	/*
+	 * Reset controller twice to ensure we do a transition from cc.en==1 to
+	 * cc.en==0.  This is because we don't really know what status the
+	 * controller was left in when boot handed off to OS.  Linux doesn't do
+	 * this, however. If we adopt that policy, see also nvme_ctrlr_resume().
+	 */
+	status = nvme_ctrlr_hw_reset(ctrlr);
+	if (status != 0) {
+		nvme_ctrlr_fail(ctrlr);
+		return;
+	}
+
+	status = nvme_ctrlr_hw_reset(ctrlr);
+	if (status != 0) {
+		nvme_ctrlr_fail(ctrlr);
+		return;
+	}
 
 	nvme_qpair_reset(&ctrlr->adminq);
 	nvme_admin_qpair_enable(&ctrlr->adminq);
