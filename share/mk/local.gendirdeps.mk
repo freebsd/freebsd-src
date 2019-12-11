@@ -10,6 +10,7 @@ GENDIRDEPS_FILTER+= \
 	Ngnu/lib/libssp/libssp_nonshared \
 	Ncddl/usr.bin/ctf* \
 	Nlib/libc_nonshared \
+	Ngnu/lib/csu \
 	Ngnu/lib/libgcc \
 	Nlib/libgcc_eh \
 	Nlib/libgcc_s \

@@ -148,7 +148,6 @@ _SRCS= ${SRCS} ${_PROGS_SRCS}
 
 # Has C files. The C_DIRDEPS are shared with C++ files as well.
 C_DIRDEPS= \
-	gnu/lib/csu \
 	include \
 	include/arpa \
 	include/protocols \
@@ -220,6 +219,11 @@ DIRDEPS+= ${_lib${_lib}reldir}
 .if ${DEP_RELDIR} != "targets/pseudo/stage"
 DIRDEPS += targets/pseudo/stage
 .endif
+.endif
+
+# this one is too pervasive
+.if ${MK_BSD_CRTBEGIN} == "no" && ${DEP_RELDIR} != "gnu/lib/csu"
+DIRDEPS+= gnu/lib/csu
 .endif
 
 DEP_MACHINE_ARCH = ${MACHINE_ARCH.${DEP_MACHINE}}
