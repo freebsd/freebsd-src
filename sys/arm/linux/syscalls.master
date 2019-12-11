@@ -1270,8 +1270,7 @@
 		    const char *msg_ptr,
 		    size_t msg_len,
 		    unsigned int msg_prio,
-		    const struct
-		    l_timespec *abs_timeout
+		    const struct l_timespec *abs_timeout
 		);
 	}
 277	AUE_NULL	STD	{
@@ -1280,8 +1279,7 @@
 		    char *msg_ptr,
 		    size_t msg_len,
 		    unsigned int msg_prio,
-		    const struct
-		    l_timespec *abs_timeout
+		    const struct l_timespec *abs_timeout
 		);
 	}
 278	AUE_NULL	STD	{
