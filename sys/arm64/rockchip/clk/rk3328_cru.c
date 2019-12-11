@@ -102,6 +102,8 @@ static struct rk_cru_gate rk3328_gates[] = {
 	CRU_GATE(HCLK_SDMMC, "hclk_sdmmc", "hclk_peri", 0x24C, 0)
 	CRU_GATE(HCLK_SDIO, "hclk_sdio", "hclk_peri", 0x24C, 1)
 	CRU_GATE(HCLK_EMMC, "hclk_emmc", "hclk_peri", 0x24C, 2)
+	CRU_GATE(0, "hclk_peri_niu", "hclk_peri", 0x24C, 12)
+	CRU_GATE(0, "pclk_peri_niu", "hclk_peri", 0x24C, 13)
 	CRU_GATE(HCLK_SDMMC_EXT, "hclk_sdmmc_ext", "hclk_peri", 0x24C, 15)
 };
 
