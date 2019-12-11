@@ -803,6 +803,19 @@ passthru_cfgread(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 	}
 #endif
 
+	/*
+	 * Emulate the command register.  If a single read reads both the
+	 * command and status registers, read the status register from the
+	 * device's config space.
+	 */
+	if (coff == PCIR_COMMAND) {
+		if (bytes <= 2)
+			return (-1);
+		*rv = pci_get_cfgdata16(pi, PCIR_COMMAND) << 16 |
+		    read_config(&sc->psc_sel, PCIR_STATUS, 2);
+		return (0);
+	}
+
 	/* Everything else just read from the device's config space */
 	*rv = read_config(&sc->psc_sel, coff, bytes);
 
