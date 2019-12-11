@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2019
+.Dd December 11, 2019
 .Dt SECURITY 7
 .Os
 .Sh NAME
@@ -944,6 +944,17 @@ information access more restricted.
 Some people consider this as improving system security, so the knobs are
 briefly listed there, together with controls which enable some mitigations
 of the hardware state leaks.
+.Pp
+Hardware mitigation sysctl knobs described below have been moved under
+.Pa machdep.mitigations ,
+with backwards-compatibility shims to accept the existing names.
+A future change will rationalize the sense of the individual sysctls
+(so that enabled / true always indicates that the mitigation is active).
+For that reason the previous names remain the canonical way to set the
+mitigations, and are documented here.
+Backwards compatibility shims for the interim sysctls under
+.Pa machdep.mitigations
+will not be added.
 .Bl -tag -width security.bsd.unprivileged_proc_debug
 .It Dv security.bsd.see_other_uids
 Controls visibility of processes owned by different uid.
