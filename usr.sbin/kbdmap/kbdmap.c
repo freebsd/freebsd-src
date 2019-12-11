@@ -57,6 +57,7 @@ static const char *sysconfig = DEFAULT_SYSCONFIG;
 static const char *font_current;
 static const char *dir;
 static const char *menu = "";
+static const char *title = "Keyboard Menu";
 
 static int x11;
 static int using_vt;
@@ -360,8 +361,8 @@ show_dialog(struct keymap **km_sorted, int num_keymaps)
 		    tmp_name);
 		exit(1);
 	}
-	asprintf(&dialog, "/usr/bin/dialog --clear --title \"Keyboard Menu\" "
-			  "--menu \"%s\" 0 0 0", menu);
+	asprintf(&dialog, "/usr/bin/dialog --clear --title \"%s\" "
+			  "--menu \"%s\" 0 0 0", title, menu);
 
 	/* start right font, assume that current font is equal
 	 * to default font in /etc/rc.conf
@@ -627,8 +628,9 @@ menu_read(void)
 			matches = sscanf(p, "%64[^:]:%64[^:]:%256[^:\n]", 
 			    keym, lng, desc);
 			if (matches == 3) {
-				if (strcmp(keym, "FONT")
-				    && strcmp(keym, "MENU")) {
+				if (strcmp(keym, "FONT") != 0 &&
+				    strcmp(keym, "MENU") != 0 &&
+				    strcmp(keym, "TITLE") != 0) {
 					/* Check file exists & is readable */
 					if (check_file(keym) == -1)
 						continue;
@@ -705,6 +707,10 @@ menu_read(void)
 		exit(0);
 	}
 
+	km = get_keymap("TITLE");
+	if (km)
+		/* Take note of dialog title */
+		title = strdup(km->desc);
 	km = get_keymap("MENU");
 	if (km)
 		/* Take note of menu title */
@@ -715,8 +721,9 @@ menu_read(void)
 		font = strdup(km->desc);
 
 	/* Remove unwanted items from list */
-	remove_keymap("MENU");
 	remove_keymap("FONT");
+	remove_keymap("MENU");
+	remove_keymap("TITLE");
 
 	/* Look for keymaps not in database */
 	dirp = opendir(dir);
