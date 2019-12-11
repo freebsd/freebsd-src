@@ -761,14 +761,14 @@ struct linux_mq_timedsend_args {
 	char msg_ptr_l_[PADL_(const char *)]; const char * msg_ptr; char msg_ptr_r_[PADR_(const char *)];
 	char msg_len_l_[PADL_(size_t)]; size_t msg_len; char msg_len_r_[PADR_(size_t)];
 	char msg_prio_l_[PADL_(unsigned int)]; unsigned int msg_prio; char msg_prio_r_[PADR_(unsigned int)];
-	char abs_timeout_l_[PADL_(const structl_timespec *)]; const structl_timespec * abs_timeout; char abs_timeout_r_[PADR_(const structl_timespec *)];
+	char abs_timeout_l_[PADL_(const struct l_timespec *)]; const struct l_timespec * abs_timeout; char abs_timeout_r_[PADR_(const struct l_timespec *)];
 };
 struct linux_mq_timedreceive_args {
 	char mqd_l_[PADL_(l_mqd_t)]; l_mqd_t mqd; char mqd_r_[PADR_(l_mqd_t)];
 	char msg_ptr_l_[PADL_(char *)]; char * msg_ptr; char msg_ptr_r_[PADR_(char *)];
 	char msg_len_l_[PADL_(size_t)]; size_t msg_len; char msg_len_r_[PADR_(size_t)];
 	char msg_prio_l_[PADL_(unsigned int)]; unsigned int msg_prio; char msg_prio_r_[PADR_(unsigned int)];
-	char abs_timeout_l_[PADL_(const structl_timespec *)]; const structl_timespec * abs_timeout; char abs_timeout_r_[PADR_(const structl_timespec *)];
+	char abs_timeout_l_[PADL_(const struct l_timespec *)]; const struct l_timespec * abs_timeout; char abs_timeout_r_[PADR_(const struct l_timespec *)];
 };
 struct linux_mq_notify_args {
 	char mqd_l_[PADL_(l_mqd_t)]; l_mqd_t mqd; char mqd_r_[PADR_(l_mqd_t)];

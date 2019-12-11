@@ -1684,7 +1684,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = (intptr_t) p->msg_ptr; /* const char * */
 		uarg[2] = p->msg_len; /* size_t */
 		uarg[3] = p->msg_prio; /* unsigned int */
-		uarg[4] = (intptr_t) p->abs_timeout; /* const structl_timespec * */
+		uarg[4] = (intptr_t) p->abs_timeout; /* const struct l_timespec * */
 		*n_args = 5;
 		break;
 	}
@@ -1695,7 +1695,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = (intptr_t) p->msg_ptr; /* char * */
 		uarg[2] = p->msg_len; /* size_t */
 		uarg[3] = p->msg_prio; /* unsigned int */
-		uarg[4] = (intptr_t) p->abs_timeout; /* const structl_timespec * */
+		uarg[4] = (intptr_t) p->abs_timeout; /* const struct l_timespec * */
 		*n_args = 5;
 		break;
 	}
@@ -5060,7 +5060,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "unsigned int";
 			break;
 		case 4:
-			p = "userland const structl_timespec *";
+			p = "userland const struct l_timespec *";
 			break;
 		default:
 			break;
@@ -5082,7 +5082,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "unsigned int";
 			break;
 		case 4:
-			p = "userland const structl_timespec *";
+			p = "userland const struct l_timespec *";
 			break;
 		default:
 			break;
