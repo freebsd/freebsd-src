@@ -420,6 +420,32 @@ struct uma_zone {
 #define	UMA_ZFLAG_INHERIT						\
     (UMA_ZFLAG_INTERNAL | UMA_ZFLAG_CACHEONLY | UMA_ZFLAG_BUCKET)
 
+#define	PRINT_UMA_ZFLAGS	"\20"	\
+    "\40CACHEONLY"			\
+    "\37TRASH"				\
+    "\36INTERNAL"			\
+    "\35BUCKET"				\
+    "\34RECLAIMING"			\
+    "\33CACHE"				\
+    "\22MINBUCKET"			\
+    "\21NUMA"				\
+    "\20PCPU"				\
+    "\17NODUMP"				\
+    "\16VTOSLAB"			\
+    "\15CACHESPREAD"			\
+    "\14MAXBUCKET"			\
+    "\13NOBUCKET"			\
+    "\12SECONDARY"			\
+    "\11HASH"				\
+    "\10VM"				\
+    "\7MTXCLASS"			\
+    "\6NOFREE"				\
+    "\5MALLOC"				\
+    "\4OFFPAGE"				\
+    "\3STATIC"				\
+    "\2ZINIT"				\
+    "\1PAGEABLE"
+
 #undef UMA_ALIGN
 
 #ifdef _KERNEL
