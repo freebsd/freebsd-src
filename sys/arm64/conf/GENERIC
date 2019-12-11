@@ -196,6 +196,8 @@ device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
 device		dwmmc
 device		dwmmc_altera
+device		dwmmc_hisi
+device		rk_dwmmc
 device		rk_emmcphy
 
 # Serial (COM) ports
