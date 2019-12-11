@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/module.h>
+#include <sys/queue.h>
+#include <sys/taskqueue.h>
 
 #include <machine/bus.h>
 

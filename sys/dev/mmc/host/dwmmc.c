@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
+#include <sys/queue.h>
+#include <sys/taskqueue.h>
 
 #include <dev/mmc/bridge.h>
 #include <dev/mmc/mmcbrvar.h>
@@ -127,6 +129,7 @@ static int dma_done(struct dwmmc_softc *, struct mmc_command *);
 static int dma_stop(struct dwmmc_softc *);
 static void pio_read(struct dwmmc_softc *, struct mmc_command *);
 static void pio_write(struct dwmmc_softc *, struct mmc_command *);
+static void dwmmc_handle_card_present(struct dwmmc_softc *sc, bool is_present);
 
 static struct resource_spec dwmmc_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
@@ -374,7 +377,8 @@ dwmmc_intr(void *arg)
 			sc->dto_rcvd = 1;
 
 		if (reg & SDMMC_INTMASK_CD) {
-			/* XXX: Handle card detect */
+			dwmmc_handle_card_present(sc,
+			    READ4(sc, SDMMC_CDETECT) == 0 ? true : false);
 		}
 	}
 
@@ -405,6 +409,56 @@ dwmmc_intr(void *arg)
 	dwmmc_tasklet(sc);
 
 	DWMMC_UNLOCK(sc);
+}
+
+static void
+dwmmc_handle_card_present(struct dwmmc_softc *sc, bool is_present)
+{
+	bool was_present;
+
+	was_present = sc->child != NULL;
+
+	if (!was_present && is_present) {
+		taskqueue_enqueue_timeout(taskqueue_swi_giant,
+		  &sc->card_delayed_task, -(hz / 2));
+	} else if (was_present && !is_present) {
+		taskqueue_enqueue(taskqueue_swi_giant, &sc->card_task);
+	}
+}
+
+static void
+dwmmc_card_task(void *arg, int pending __unused)
+{
+	struct dwmmc_softc *sc = arg;
+
+	DWMMC_LOCK(sc);
+
+	if (READ4(sc, SDMMC_CDETECT) == 0) {
+		if (sc->child == NULL) {
+			if (bootverbose)
+				device_printf(sc->dev, "Card inserted\n");
+
+			sc->child = device_add_child(sc->dev, "mmc", -1);
+			DWMMC_UNLOCK(sc);
+			if (sc->child) {
+				device_set_ivars(sc->child, sc);
+				(void)device_probe_and_attach(sc->child);
+			}
+		} else
+			DWMMC_UNLOCK(sc);
+		
+	} else {
+		/* Card isn't present, detach if necessary */
+		if (sc->child != NULL) {
+			if (bootverbose)
+				device_printf(sc->dev, "Card removed\n");
+
+			DWMMC_UNLOCK(sc);
+			device_delete_child(sc->dev, sc->child);
+			sc->child = NULL;
+		} else
+			DWMMC_UNLOCK(sc);
+	}
 }
 
 static int
@@ -677,8 +731,17 @@ dwmmc_attach(device_t dev)
 	sc->host.caps |= MMC_CAP_HSPEED;
 	sc->host.caps |= MMC_CAP_SIGNALING_330;
 
-	sc->child = device_add_child(dev, "mmc", -1);
-	return (bus_generic_attach(dev));
+	TASK_INIT(&sc->card_task, 0, dwmmc_card_task, sc);
+	TIMEOUT_TASK_INIT(taskqueue_swi_giant, &sc->card_delayed_task, 0,
+		dwmmc_card_task, sc);
+
+	/* 
+	 * Schedule a card detection as we won't get an interrupt
+	 * if the card is inserted when we attach
+	 */
+	dwmmc_card_task(sc, 0);
+
+	return (0);
 }
 
 int
@@ -693,7 +756,9 @@ dwmmc_detach(device_t dev)
 	if (ret != 0)
 		return (ret);
 
-	DWMMC_LOCK_DESTROY(sc);
+	taskqueue_drain(taskqueue_swi_giant, &sc->card_task);
+	taskqueue_drain_timeout(taskqueue_swi_giant, &sc->card_delayed_task);
+
 	if (sc->intr_cookie != NULL) {
 		ret = bus_teardown_intr(dev, sc->res[1], sc->intr_cookie);
 		if (ret != 0)
@@ -706,6 +771,8 @@ dwmmc_detach(device_t dev)
 		if (ret != 0)
 			return (ret);
 	}
+
+	DWMMC_LOCK_DESTROY(sc);
 
 #ifdef EXT_RESOURCES
 	if (sc->hwreset != NULL && hwreset_deassert(sc->hwreset) != 0)
