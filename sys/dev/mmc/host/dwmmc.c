@@ -752,7 +752,7 @@ dwmmc_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	ret = bus_generic_detach(dev);
+	ret = device_delete_children(dev);
 	if (ret != 0)
 		return (ret);
 
@@ -765,12 +765,6 @@ dwmmc_detach(device_t dev)
 			return (ret);
 	}
 	bus_release_resources(dev, dwmmc_spec, sc->res);
-
-	if (sc->child) {
-		ret = device_delete_child(dev, sc->child);
-		if (ret != 0)
-			return (ret);
-	}
 
 	DWMMC_LOCK_DESTROY(sc);
 
