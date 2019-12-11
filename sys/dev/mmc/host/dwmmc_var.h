@@ -62,6 +62,8 @@ struct dwmmc_softc {
 	uint32_t		pwren_inverted;
 	u_int			desc_count;
 	device_t		child;
+	struct task		card_task;	/* Card presence check task */
+	struct timeout_task	card_delayed_task;/* Card insert delayed task */
 
 	int			(*update_ios)(struct dwmmc_softc *sc, struct mmc_ios *ios);
 
