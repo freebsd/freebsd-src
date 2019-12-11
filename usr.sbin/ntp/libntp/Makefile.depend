@@ -5,7 +5,7 @@ DIRDEPS = \
 	include \
 	include/arpa \
 	include/xlocale \
-	lib/libedit/edit/readline \
+	lib/libedit/readline \
 	lib/msun \
 	secure/lib/libcrypto \
 
