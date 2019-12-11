@@ -82,7 +82,7 @@ struct mtx_pool {
 #define mtx_pool_shift	mtx_pool_header.mtxpool_shift
 #define mtx_pool_next	mtx_pool_header.mtxpool_next
 
-struct mtx_pool *mtxpool_sleep;
+struct mtx_pool __read_frequently *mtxpool_sleep;
 
 #if UINTPTR_MAX == UINT64_MAX	/* 64 bits */
 # define POINTER_BITS		64
