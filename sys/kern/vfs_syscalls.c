@@ -971,22 +971,18 @@ static __inline void
 flags_to_rights(int flags, cap_rights_t *rightsp)
 {
 
-	if (flags & O_EXEC) {
-		cap_rights_set_one(rightsp, CAP_FEXECVE);
-	} else {
-		switch ((flags & O_ACCMODE)) {
-		case O_RDONLY:
-			cap_rights_set_one(rightsp, CAP_READ);
-			break;
-		case O_RDWR:
-			cap_rights_set_one(rightsp, CAP_READ);
-			/* FALLTHROUGH */
-		case O_WRONLY:
-			cap_rights_set_one(rightsp, CAP_WRITE);
-			if (!(flags & (O_APPEND | O_TRUNC)))
-				cap_rights_set_one(rightsp, CAP_SEEK);
-			break;
-		}
+	switch ((flags & O_ACCMODE)) {
+	case O_RDONLY:
+		cap_rights_set_one(rightsp, CAP_READ);
+		break;
+	case O_RDWR:
+		cap_rights_set_one(rightsp, CAP_READ);
+		/* FALLTHROUGH */
+	case O_WRONLY:
+		cap_rights_set_one(rightsp, CAP_WRITE);
+		if (!(flags & (O_APPEND | O_TRUNC)))
+			cap_rights_set_one(rightsp, CAP_SEEK);
+		break;
 	}
 
 	if (flags & O_CREAT)
