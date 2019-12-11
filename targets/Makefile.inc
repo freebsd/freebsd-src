@@ -20,11 +20,12 @@ PKG_METHOD = no
 .endif
 .endif
 
+.MAIN: all
+
 # The makefile in subdirs should set this to something useful
 # the default should do nothing.
 PKG_METHOD ?= none
-
-.MAIN: all
+none:
 
 .if ${build-*:${M_L_TARGETS}} != ""
 # just build the bits, skip packaging

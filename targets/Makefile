@@ -38,74 +38,6 @@
 DIRDEPS_FILTER = Mtargets/*
 .endif
 
-# in theory, this is what we want
-target_dirs = targets targets/pseudo
-# these tweak how we do it
-target_prefix = pkg- build-
-DIRDEPS := ${.TARGETS:Nall:${target_prefix:@p@S,^$p,,@:ts:}:@t@${target_dirs:@d@$d/$t@}@:@d@${exists(${SRCTOP}/$d):?$d:}@}
-
-all_machine_list = ${ALL_MACHINE_LIST} host common
-
-.if ${DIRDEPS:Mtargets/pseudo/*} != ""
-# all bets are off
-PKG_MACHINE_LIST = ${all_machine_list}
-.endif
-
-.if make(check-commit)
-# a special case
-DIRDEPS = targets/pseudo/check-commit
-.if defined(ALL_MACHINES)
-CHECK_MACHINE_LIST = all
-.undef ALL_MACHINES
-.endif
-SHIPDIR = no
-
-.else
-
-.if defined(ALL_MACHINES)
-DIRDEPS := ${DIRDEPS:O:u:@d@${all_machine_list:O:u:@m@${exists(${SRCTOP}/$d/${.MAKE.DEPENDFILE_PREFIX:T}.$m):?$d.$m:}@}@}
-.undef ALL_MACHINES
-PKG_MACHINE_LIST ?= ${DIRDEPS:E:O:u}
-.elif empty(REQUESTED_MACHINE)
-# the above may be insufficient.
-# some packages only support one machine which may not be ${MACHINE}
-# some support multiple, in which case unless ALL_MACHINES is defined
-# we only want ${MACHINE}
-plain := ${DIRDEPS:@d@${exists(${SRCTOP}/$d/${.MAKE.DEPENDFILE_PREFIX:T}):?$d:}@}
-.if ${plain} != ${DIRDEPS}
-qual := ${DIRDEPS:${plain:${M_ListToSkip}}:@d@${all_machine_list:O:u:@m@${exists(${SRCTOP}/$d/${.MAKE.DEPENDFILE_PREFIX:T}.$m):?$d.$m:}@}@}
-DIRDEPS := ${plain} ${qual}
-PKG_MACHINE_LIST ?= ${MACHINE} ${qual:E:O:u}
-.endif
-.else
-# check that a .MAKE.DEPENDFILE exists
-DIRDEPS := ${.MAKE.DEPENDFILE_PREFERENCE:T:@m@${DIRDEPS:@d@${exists(${SRCTOP}/$d/$m):?$d:}@}@:O:u}
-.endif
-.if !empty(PKG_MACHINE_LIST)
-.if ${PKG_MACHINE_LIST:Mdepend} != ""
-PKG_MACHINE_LIST = ${ALL_MACHINE_LIST}
-.endif
-PKG_MACHINE_LIST := ${PKG_MACHINE_LIST}
-.endif
-.endif
-
-# we don't use DIRDEPS_FILTER, since we only want it to 
-# apply to this initial list
-.if !empty(REQUESTED_MACHINE) && !empty(DIRDEPS)
-# this is a variant of the logic above, we want plain
-# but need to filter the qualified DIRDEPS to REQUESTED_MACHINE
-plain := ${DIRDEPS:@d@${exists(${SRCTOP}/$d/${.MAKE.DEPENDFILE_PREFIX:T}):?$d:}@}
-.if !empty(plain) && ${plain} != ${DIRDEPS}
-qual := ${DIRDEPS:${plain:${M_ListToSkip}}:M*.${REQUESTED_MACHINE}}
-.if empty(qual)
-qual := ${DIRDEPS:@d@${exists(${SRCTOP}/$d/${.MAKE.DEPENDFILE:T}):?$d.${.MAKE.DEPENDFILE:E}:}@}
-.endif
-DIRDEPS := ${plain} ${qual}
-.endif
-.if empty(DIRDEPS)
-.error ${REQUESTED_MACHINE} is not appropriate for ${.TARGETS}
-.endif
-.endif
 
 .if !empty(build_options)
 build_options := ${build_options:O:u}
@@ -114,6 +46,9 @@ $v = yes
 .endfor
 .export ${build_options}
 .endif
+
+# this does the work
+.include <dirdeps-targets.mk>
 
 .if !empty(DIRDEPS)
 # This is printed as we read the makefile

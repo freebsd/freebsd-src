@@ -1,5 +1,5 @@
 # $FreeBSD$
-# $Id: meta.sys.mk,v 1.32 2017/06/11 03:24:04 sjg Exp $
+# $Id: meta.sys.mk,v 1.34 2019/01/24 19:36:25 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -62,13 +62,15 @@ META_MODE += silent=yes
 MACHINE = host
 .endif
 
-.if ${.MAKE.LEVEL} == 0
+.if !defined(MACHINE0)
 # it can be handy to know which MACHINE kicked off the build
 # for example, if using Makefild.depend for multiple machines,
 # allowing only MACHINE0 to update can keep things simple.
 MACHINE0 := ${MACHINE}
 .export MACHINE0
+.endif
 
+.if !defined(META2DEPS)
 .if defined(PYTHON) && exists(${PYTHON})
 # we prefer the python version of this - it is much faster
 META2DEPS ?= ${.PARSEDIR}/meta2deps.py
