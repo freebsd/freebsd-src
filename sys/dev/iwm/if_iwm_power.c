@@ -153,12 +153,12 @@ TUNABLE_INT("hw.iwm.power_scheme", &iwm_power_scheme);
 #define IWM_POWER_KEEP_ALIVE_PERIOD_SEC    25
 
 static int
-iwm_mvm_beacon_filter_send_cmd(struct iwm_softc *sc,
+iwm_beacon_filter_send_cmd(struct iwm_softc *sc,
 	struct iwm_beacon_filter_cmd *cmd)
 {
 	int ret;
 
-	ret = iwm_mvm_send_cmd_pdu(sc, IWM_REPLY_BEACON_FILTERING_CMD,
+	ret = iwm_send_cmd_pdu(sc, IWM_REPLY_BEACON_FILTERING_CMD,
 	    0, sizeof(struct iwm_beacon_filter_cmd), cmd);
 
 	if (!ret) {
@@ -200,14 +200,14 @@ iwm_mvm_beacon_filter_send_cmd(struct iwm_softc *sc,
 }
 
 static void
-iwm_mvm_beacon_filter_set_cqm_params(struct iwm_softc *sc,
+iwm_beacon_filter_set_cqm_params(struct iwm_softc *sc,
 	struct iwm_vap *ivp, struct iwm_beacon_filter_cmd *cmd)
 {
 	cmd->ba_enable_beacon_abort = htole32(sc->sc_bf.ba_enabled);
 }
 
 static void
-iwm_mvm_power_log(struct iwm_softc *sc, struct iwm_mac_power_cmd *cmd)
+iwm_power_log(struct iwm_softc *sc, struct iwm_mac_power_cmd *cmd)
 {
 	IWM_DPRINTF(sc, IWM_DEBUG_PWRSAVE | IWM_DEBUG_CMD,
 	    "Sending power table command on mac id 0x%X for "
@@ -232,7 +232,7 @@ iwm_mvm_power_log(struct iwm_softc *sc, struct iwm_mac_power_cmd *cmd)
 }
 
 static boolean_t
-iwm_mvm_power_is_radar(struct iwm_softc *sc)
+iwm_power_is_radar(struct iwm_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_channel *chan;
@@ -248,7 +248,7 @@ iwm_mvm_power_is_radar(struct iwm_softc *sc)
 }
 
 static void
-iwm_mvm_power_config_skip_dtim(struct iwm_softc *sc,
+iwm_power_config_skip_dtim(struct iwm_softc *sc,
 	struct iwm_mac_power_cmd *cmd)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -260,7 +260,7 @@ iwm_mvm_power_config_skip_dtim(struct iwm_softc *sc,
 	cmd->skip_dtim_periods = 0;
 	cmd->flags &= ~htole16(IWM_POWER_FLAGS_SKIP_OVER_DTIM_MSK);
 
-        if (iwm_mvm_power_is_radar(sc))
+        if (iwm_power_is_radar(sc))
                 return;
 
 	if (dtimper >= 10)
@@ -278,7 +278,7 @@ iwm_mvm_power_config_skip_dtim(struct iwm_softc *sc,
 }
 
 static void
-iwm_mvm_power_build_cmd(struct iwm_softc *sc, struct iwm_vap *ivp,
+iwm_power_build_cmd(struct iwm_softc *sc, struct iwm_vap *ivp,
 	struct iwm_mac_power_cmd *cmd)
 {
 	struct ieee80211vap *vap = &ivp->iv_vap;
@@ -317,34 +317,34 @@ iwm_mvm_power_build_cmd(struct iwm_softc *sc, struct iwm_vap *ivp,
 
 	cmd->flags |= htole16(IWM_POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK);
 
-	iwm_mvm_power_config_skip_dtim(sc, cmd);
+	iwm_power_config_skip_dtim(sc, cmd);
 
 	cmd->rx_data_timeout =
-		htole32(IWM_MVM_DEFAULT_PS_RX_DATA_TIMEOUT);
+		htole32(IWM_DEFAULT_PS_RX_DATA_TIMEOUT);
 	cmd->tx_data_timeout =
-		htole32(IWM_MVM_DEFAULT_PS_TX_DATA_TIMEOUT);
+		htole32(IWM_DEFAULT_PS_TX_DATA_TIMEOUT);
 }
 
 static int
-iwm_mvm_power_send_cmd(struct iwm_softc *sc, struct iwm_vap *ivp)
+iwm_power_send_cmd(struct iwm_softc *sc, struct iwm_vap *ivp)
 {
 	struct iwm_mac_power_cmd cmd = {};
 
-	iwm_mvm_power_build_cmd(sc, ivp, &cmd);
-	iwm_mvm_power_log(sc, &cmd);
+	iwm_power_build_cmd(sc, ivp, &cmd);
+	iwm_power_log(sc, &cmd);
 
-	return iwm_mvm_send_cmd_pdu(sc, IWM_MAC_PM_POWER_TABLE, 0,
+	return iwm_send_cmd_pdu(sc, IWM_MAC_PM_POWER_TABLE, 0,
 	    sizeof(cmd), &cmd);
 }
 
 static int
-_iwm_mvm_enable_beacon_filter(struct iwm_softc *sc, struct iwm_vap *ivp,
+_iwm_enable_beacon_filter(struct iwm_softc *sc, struct iwm_vap *ivp,
 	struct iwm_beacon_filter_cmd *cmd)
 {
 	int ret;
 
-	iwm_mvm_beacon_filter_set_cqm_params(sc, ivp, cmd);
-	ret = iwm_mvm_beacon_filter_send_cmd(sc, cmd);
+	iwm_beacon_filter_set_cqm_params(sc, ivp, cmd);
+	ret = iwm_beacon_filter_send_cmd(sc, cmd);
 
 	if (!ret)
 		sc->sc_bf.bf_enabled = 1;
@@ -353,23 +353,23 @@ _iwm_mvm_enable_beacon_filter(struct iwm_softc *sc, struct iwm_vap *ivp,
 }
 
 int
-iwm_mvm_enable_beacon_filter(struct iwm_softc *sc, struct iwm_vap *ivp)
+iwm_enable_beacon_filter(struct iwm_softc *sc, struct iwm_vap *ivp)
 {
 	struct iwm_beacon_filter_cmd cmd = {
 		IWM_BF_CMD_CONFIG_DEFAULTS,
 		.bf_enable_beacon_filter = htole32(1),
 	};
 
-	return _iwm_mvm_enable_beacon_filter(sc, ivp, &cmd);
+	return _iwm_enable_beacon_filter(sc, ivp, &cmd);
 }
 
 int
-iwm_mvm_disable_beacon_filter(struct iwm_softc *sc)
+iwm_disable_beacon_filter(struct iwm_softc *sc)
 {
 	struct iwm_beacon_filter_cmd cmd = {};
 	int ret;
 
-	ret = iwm_mvm_beacon_filter_send_cmd(sc, &cmd);
+	ret = iwm_beacon_filter_send_cmd(sc, &cmd);
 	if (ret == 0)
 		sc->sc_bf.bf_enabled = 0;
 
@@ -377,7 +377,7 @@ iwm_mvm_disable_beacon_filter(struct iwm_softc *sc)
 }
 
 static int
-iwm_mvm_power_set_ps(struct iwm_softc *sc)
+iwm_power_set_ps(struct iwm_softc *sc)
 {
 	struct ieee80211vap *vap;
 	boolean_t disable_ps;
@@ -397,7 +397,7 @@ iwm_mvm_power_set_ps(struct iwm_softc *sc)
 		boolean_t old_ps_disabled = sc->sc_ps_disabled;
 
 		sc->sc_ps_disabled = disable_ps;
-		ret = iwm_mvm_power_update_device(sc);
+		ret = iwm_power_update_device(sc);
 		if (ret) {
 			sc->sc_ps_disabled = old_ps_disabled;
 			return ret;
@@ -408,7 +408,7 @@ iwm_mvm_power_set_ps(struct iwm_softc *sc)
 }
 
 static int
-iwm_mvm_power_set_ba(struct iwm_softc *sc, struct iwm_vap *ivp)
+iwm_power_set_ba(struct iwm_softc *sc, struct iwm_vap *ivp)
 {
 	struct iwm_beacon_filter_cmd cmd = {
 		IWM_BF_CMD_CONFIG_DEFAULTS,
@@ -427,49 +427,49 @@ iwm_mvm_power_set_ba(struct iwm_softc *sc, struct iwm_vap *ivp)
 	}
 	sc->sc_bf.ba_enabled = !sc->sc_ps_disabled && bss_conf_ps;
 
-	return _iwm_mvm_enable_beacon_filter(sc, ivp, &cmd);
+	return _iwm_enable_beacon_filter(sc, ivp, &cmd);
 }
 
 int
-iwm_mvm_power_update_ps(struct iwm_softc *sc)
+iwm_power_update_ps(struct iwm_softc *sc)
 {
 	struct ieee80211vap *vap = TAILQ_FIRST(&sc->sc_ic.ic_vaps);
 	int ret;
 
-	ret = iwm_mvm_power_set_ps(sc);
+	ret = iwm_power_set_ps(sc);
 	if (ret)
 		return ret;
 
 	if (vap != NULL)
-		return iwm_mvm_power_set_ba(sc, IWM_VAP(vap));
+		return iwm_power_set_ba(sc, IWM_VAP(vap));
 
 	return 0;
 }
 
 int
-iwm_mvm_power_update_mac(struct iwm_softc *sc)
+iwm_power_update_mac(struct iwm_softc *sc)
 {
 	struct ieee80211vap *vap = TAILQ_FIRST(&sc->sc_ic.ic_vaps);
 	int ret;
 
-	ret = iwm_mvm_power_set_ps(sc);
+	ret = iwm_power_set_ps(sc);
 	if (ret)
 		return ret;
 
 	if (vap != NULL) {
-		ret = iwm_mvm_power_send_cmd(sc, IWM_VAP(vap));
+		ret = iwm_power_send_cmd(sc, IWM_VAP(vap));
 		if (ret)
 			return ret;
 	}
 
 	if (vap != NULL)
-		return iwm_mvm_power_set_ba(sc, IWM_VAP(vap));
+		return iwm_power_set_ba(sc, IWM_VAP(vap));
 
 	return 0;
 }
 
 int
-iwm_mvm_power_update_device(struct iwm_softc *sc)
+iwm_power_update_device(struct iwm_softc *sc)
 {
 	struct iwm_device_power_cmd cmd = {
 		.flags = 0,
@@ -484,6 +484,6 @@ iwm_mvm_power_update_device(struct iwm_softc *sc)
 	IWM_DPRINTF(sc, IWM_DEBUG_PWRSAVE | IWM_DEBUG_CMD,
 	    "Sending device power command with flags = 0x%X\n", cmd.flags);
 
-	return iwm_mvm_send_cmd_pdu(sc,
+	return iwm_send_cmd_pdu(sc,
 	    IWM_POWER_TABLE_CMD, 0, sizeof(cmd), &cmd);
 }

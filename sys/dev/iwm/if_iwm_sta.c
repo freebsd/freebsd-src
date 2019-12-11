@@ -136,19 +136,19 @@ __FBSDID("$FreeBSD$");
  * support both API versions.
  */
 static inline int
-iwm_mvm_add_sta_cmd_size(struct iwm_softc *sc)
+iwm_add_sta_cmd_size(struct iwm_softc *sc)
 {
-	return sc->cfg->mqrx_supported ? sizeof(struct iwm_mvm_add_sta_cmd) :
-	    sizeof(struct iwm_mvm_add_sta_cmd_v7);
+	return sc->cfg->mqrx_supported ? sizeof(struct iwm_add_sta_cmd) :
+	    sizeof(struct iwm_add_sta_cmd_v7);
 }
 
 /* send station add/update command to firmware */
 int
-iwm_mvm_sta_send_to_fw(struct iwm_softc *sc, struct iwm_node *in,
+iwm_sta_send_to_fw(struct iwm_softc *sc, struct iwm_node *in,
 	boolean_t update)
 {
 	struct iwm_vap *ivp = IWM_VAP(in->in_ni.ni_vap);
-	struct iwm_mvm_add_sta_cmd add_sta_cmd = {
+	struct iwm_add_sta_cmd add_sta_cmd = {
 		.sta_id = IWM_STATION_ID,
 		.mac_id_n_color =
 		    htole32(IWM_FW_CMD_ID_AND_COLOR(ivp->id, ivp->color)),
@@ -165,7 +165,7 @@ iwm_mvm_sta_send_to_fw(struct iwm_softc *sc, struct iwm_node *in,
 		int ac;
 		for (ac = 0; ac < WME_NUM_AC; ac++) {
 			add_sta_cmd.tfd_queue_msk |=
-			    htole32(1 << iwm_mvm_ac_to_tx_fifo[ac]);
+			    htole32(1 << iwm_ac_to_tx_fifo[ac]);
 		}
 		IEEE80211_ADDR_COPY(&add_sta_cmd.addr, in->in_ni.ni_bssid);
 	}
@@ -176,8 +176,8 @@ iwm_mvm_sta_send_to_fw(struct iwm_softc *sc, struct iwm_node *in,
 		htole32(mpdu_dens << IWM_STA_FLG_AGG_MPDU_DENS_SHIFT);
 
 	status = IWM_ADD_STA_SUCCESS;
-	ret = iwm_mvm_send_cmd_pdu_status(sc, IWM_ADD_STA,
-					  iwm_mvm_add_sta_cmd_size(sc),
+	ret = iwm_send_cmd_pdu_status(sc, IWM_ADD_STA,
+					  iwm_add_sta_cmd_size(sc),
 					  &add_sta_cmd, &status);
 	if (ret)
 		return ret;
@@ -196,21 +196,21 @@ iwm_mvm_sta_send_to_fw(struct iwm_softc *sc, struct iwm_node *in,
 }
 
 int
-iwm_mvm_add_sta(struct iwm_softc *sc, struct iwm_node *in)
+iwm_add_sta(struct iwm_softc *sc, struct iwm_node *in)
 {
-	return iwm_mvm_sta_send_to_fw(sc, in, FALSE);
+	return iwm_sta_send_to_fw(sc, in, FALSE);
 }
 
 int
-iwm_mvm_update_sta(struct iwm_softc *sc, struct iwm_node *in)
+iwm_update_sta(struct iwm_softc *sc, struct iwm_node *in)
 {
-	return iwm_mvm_sta_send_to_fw(sc, in, TRUE);
+	return iwm_sta_send_to_fw(sc, in, TRUE);
 }
 
 int
-iwm_mvm_drain_sta(struct iwm_softc *sc, struct iwm_vap *ivp, boolean_t drain)
+iwm_drain_sta(struct iwm_softc *sc, struct iwm_vap *ivp, boolean_t drain)
 {
-	struct iwm_mvm_add_sta_cmd cmd = {};
+	struct iwm_add_sta_cmd cmd = {};
 	int ret;
 	uint32_t status;
 
@@ -222,8 +222,8 @@ iwm_mvm_drain_sta(struct iwm_softc *sc, struct iwm_vap *ivp, boolean_t drain)
 	cmd.station_flags_msk = htole32(IWM_STA_FLG_DRAIN_FLOW);
 
 	status = IWM_ADD_STA_SUCCESS;
-	ret = iwm_mvm_send_cmd_pdu_status(sc, IWM_ADD_STA,
-					  iwm_mvm_add_sta_cmd_size(sc),
+	ret = iwm_send_cmd_pdu_status(sc, IWM_ADD_STA,
+					  iwm_add_sta_cmd_size(sc),
 					  &cmd, &status);
 	if (ret)
 		return ret;
@@ -249,14 +249,14 @@ iwm_mvm_drain_sta(struct iwm_softc *sc, struct iwm_vap *ivp, boolean_t drain)
  * only).
  */
 static int
-iwm_mvm_rm_sta_common(struct iwm_softc *sc)
+iwm_rm_sta_common(struct iwm_softc *sc)
 {
-	struct iwm_mvm_rm_sta_cmd rm_sta_cmd = {
+	struct iwm_rm_sta_cmd rm_sta_cmd = {
 		.sta_id = IWM_STATION_ID,
 	};
 	int ret;
 
-	ret = iwm_mvm_send_cmd_pdu(sc, IWM_REMOVE_STA, 0,
+	ret = iwm_send_cmd_pdu(sc, IWM_REMOVE_STA, 0,
 				   sizeof(rm_sta_cmd), &rm_sta_cmd);
 	if (ret) {
 		device_printf(sc->sc_dev,
@@ -268,20 +268,20 @@ iwm_mvm_rm_sta_common(struct iwm_softc *sc)
 }
 
 int
-iwm_mvm_rm_sta(struct iwm_softc *sc, struct ieee80211vap *vap,
+iwm_rm_sta(struct iwm_softc *sc, struct ieee80211vap *vap,
 	boolean_t is_assoc)
 {
 	uint32_t tfd_queue_msk = 0;
 	int ret;
 	int ac;
 
-	ret = iwm_mvm_drain_sta(sc, IWM_VAP(vap), TRUE);
+	ret = iwm_drain_sta(sc, IWM_VAP(vap), TRUE);
 	if (ret)
 		return ret;
 	for (ac = 0; ac < WME_NUM_AC; ac++) {
-		tfd_queue_msk |= htole32(1 << iwm_mvm_ac_to_tx_fifo[ac]);
+		tfd_queue_msk |= htole32(1 << iwm_ac_to_tx_fifo[ac]);
 	}
-	ret = iwm_mvm_flush_tx_path(sc, tfd_queue_msk, IWM_CMD_SYNC);
+	ret = iwm_flush_tx_path(sc, tfd_queue_msk, IWM_CMD_SYNC);
 	if (ret)
 		return ret;
 #ifdef notyet /* function not yet implemented */
@@ -290,7 +290,7 @@ iwm_mvm_rm_sta(struct iwm_softc *sc, struct ieee80211vap *vap,
 	if (ret)
 		return ret;
 #endif
-	ret = iwm_mvm_drain_sta(sc, IWM_VAP(vap), FALSE);
+	ret = iwm_drain_sta(sc, IWM_VAP(vap), FALSE);
 
 	/* if we are associated - we can't remove the AP STA now */
 	if (is_assoc)
@@ -298,24 +298,24 @@ iwm_mvm_rm_sta(struct iwm_softc *sc, struct ieee80211vap *vap,
 
 	/* XXX wait until STA is drained */
 
-	ret = iwm_mvm_rm_sta_common(sc);
+	ret = iwm_rm_sta_common(sc);
 
 	return ret;
 }
 
 int
-iwm_mvm_rm_sta_id(struct iwm_softc *sc, struct ieee80211vap *vap)
+iwm_rm_sta_id(struct iwm_softc *sc, struct ieee80211vap *vap)
 {
 	/* XXX wait until STA is drained */
 
-	return iwm_mvm_rm_sta_common(sc);
+	return iwm_rm_sta_common(sc);
 }
 
 static int
-iwm_mvm_add_int_sta_common(struct iwm_softc *sc, struct iwm_int_sta *sta,
+iwm_add_int_sta_common(struct iwm_softc *sc, struct iwm_int_sta *sta,
     const uint8_t *addr, uint16_t mac_id, uint16_t color)
 {
-	struct iwm_mvm_add_sta_cmd cmd;
+	struct iwm_add_sta_cmd cmd;
 	int ret;
 	uint32_t status;
 
@@ -331,8 +331,8 @@ iwm_mvm_add_int_sta_common(struct iwm_softc *sc, struct iwm_int_sta *sta,
 	if (addr)
 		IEEE80211_ADDR_COPY(cmd.addr, addr);
 
-	ret = iwm_mvm_send_cmd_pdu_status(sc, IWM_ADD_STA,
-					  iwm_mvm_add_sta_cmd_size(sc),
+	ret = iwm_send_cmd_pdu_status(sc, IWM_ADD_STA,
+					  iwm_add_sta_cmd_size(sc),
 					  &cmd, &status);
 	if (ret)
 		return ret;
@@ -351,31 +351,31 @@ iwm_mvm_add_int_sta_common(struct iwm_softc *sc, struct iwm_int_sta *sta,
 }
 
 int
-iwm_mvm_add_aux_sta(struct iwm_softc *sc)
+iwm_add_aux_sta(struct iwm_softc *sc)
 {
 	int ret;
 
 	sc->sc_aux_sta.sta_id = IWM_AUX_STA_ID;
-	sc->sc_aux_sta.tfd_queue_msk = (1 << IWM_MVM_AUX_QUEUE);
+	sc->sc_aux_sta.tfd_queue_msk = (1 << IWM_AUX_QUEUE);
 
 	/* Map Aux queue to fifo - needs to happen before adding Aux station */
-	ret = iwm_enable_txq(sc, IWM_AUX_STA_ID, IWM_MVM_AUX_QUEUE,
-	    IWM_MVM_TX_FIFO_MCAST);
+	ret = iwm_enable_txq(sc, IWM_AUX_STA_ID, IWM_AUX_QUEUE,
+	    IWM_TX_FIFO_MCAST);
 	if (ret)
 		return ret;
 
-	ret = iwm_mvm_add_int_sta_common(sc, &sc->sc_aux_sta, NULL,
+	ret = iwm_add_int_sta_common(sc, &sc->sc_aux_sta, NULL,
 					 IWM_MAC_INDEX_AUX, 0);
 
 	if (ret) {
 		memset(&sc->sc_aux_sta, 0, sizeof(sc->sc_aux_sta));
-		sc->sc_aux_sta.sta_id = IWM_MVM_STATION_COUNT;
+		sc->sc_aux_sta.sta_id = IWM_STATION_COUNT;
 	}
 	return ret;
 }
 
-void iwm_mvm_del_aux_sta(struct iwm_softc *sc)
+void iwm_del_aux_sta(struct iwm_softc *sc)
 {
 	memset(&sc->sc_aux_sta, 0, sizeof(sc->sc_aux_sta));
-	sc->sc_aux_sta.sta_id = IWM_MVM_STATION_COUNT;
+	sc->sc_aux_sta.sta_id = IWM_STATION_COUNT;
 }
