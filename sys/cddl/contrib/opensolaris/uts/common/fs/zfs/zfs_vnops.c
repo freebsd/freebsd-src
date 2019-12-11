@@ -5932,7 +5932,7 @@ zfs_lock(ap)
 	znode_t *zp;
 	int err;
 
-	err = vop_stdlock(ap);
+	err = vop_lock(ap);
 	if (err == 0 && (ap->a_flags & LK_NOWAIT) == 0) {
 		vp = ap->a_vp;
 		zp = vp->v_data;
@@ -5989,7 +5989,11 @@ struct vop_vector zfs_vnodeops = {
 	.vop_vptocnp =		zfs_vptocnp,
 #ifdef DIAGNOSTIC
 	.vop_lock1 =		zfs_lock,
+#else
+	.vop_lock1 =		vop_lock,
 #endif
+	.vop_unlock =		vop_unlock,
+	.vop_islocked =		vop_islocked,
 };
 
 struct vop_vector zfs_fifoops = {
