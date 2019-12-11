@@ -15,7 +15,7 @@ xmlwf \- Determines if an XML document is well-formed
 \fBxmlwf\fR \kx
 .if (\nx>(\n(.l/2)) .nr x (\n(.l/5)
 'in \n(.iu+\nxu
-[\fB-s\fR] [\fB-n\fR] [\fB-p\fR] [\fB-x\fR] [\fB-e \fIencoding\fB\fR] [\fB-w\fR] [\fB-d \fIoutput-dir\fB\fR] [\fB-c\fR] [\fB-m\fR] [\fB-r\fR] [\fB-t\fR] [\fB-v\fR] [file ...]
+[\fB-s\fR] [\fB-n\fR] [\fB-p\fR] [\fB-x\fR] [\fB-e \fIencoding\fB\fR] [\fB-w\fR] [\fB-d \fIoutput-dir\fB\fR] [\fB-c\fR] [\fB-m\fR] [\fB-r\fR] [\fB-t\fR] [\fB-N\fR] [\fB-v\fR] [file ...]
 'in \n(.iu-\nxu
 .ad b
 'hy
@@ -71,15 +71,15 @@ If the input file is well-formed and \fBxmlwf\fR
 doesn't encounter any errors, the input file is simply copied to
 the output directory unchanged.
 This implies no namespaces (turns off \*(T<\fB\-n\fR\*(T>) and
-requires \*(T<\fB\-d\fR\*(T> to specify an output file.
+requires \*(T<\fB\-d\fR\*(T> to specify an output directory.
 .TP 
 \*(T<\fB\-d output\-dir\fR\*(T>
 Specifies a directory to contain transformed
 representations of the input files.
 By default, \*(T<\fB\-d\fR\*(T> outputs a canonical representation
 (described below).
-You can select different output formats using \*(T<\fB\-c\fR\*(T>
-and \*(T<\fB\-m\fR\*(T>.
+You can select different output formats using \*(T<\fB\-c\fR\*(T>,
+\*(T<\fB\-m\fR\*(T> and \*(T<\fB\-N\fR\*(T>.
 
 The output filenames will
 be exactly the same as the input filenames or "STDIN" if the input is
@@ -114,6 +114,11 @@ Requires \*(T<\fB\-d\fR\*(T> to specify an output file.
 \*(T<\fB\-n\fR\*(T>
 Turns on namespace processing. (describe namespaces)
 \*(T<\fB\-c\fR\*(T> disables namespaces.
+.TP 
+\*(T<\fB\-N\fR\*(T>
+Adds a doctype and notation declarations to canonical XML output.
+This matches the example output used by the formal XML test cases.
+Requires \*(T<\fB\-d\fR\*(T> to specify an output file.
 .TP 
 \*(T<\fB\-p\fR\*(T>
 Tells xmlwf to process external DTDs and parameter
