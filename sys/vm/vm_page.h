@@ -766,7 +766,7 @@ vm_page_astate_load(vm_page_t m)
 {
 	vm_page_astate_t a;
 
-	a._bits = atomic_load_32(&m->a);
+	a._bits = atomic_load_32(&m->a._bits);
 	return (a);
 }
 
