@@ -3436,7 +3436,7 @@ fr_cksum(fin, ip, l4proto, l4hdr)
 		ip6 = (ip6_t *)ip;
 		off = ((caddr_t)ip6 - m->m_data) + sizeof(struct ip6_hdr);
 		int len = ntohs(ip6->ip6_plen) - (off - sizeof(*ip6));
-		return(ipf_pcksum6(fin, ip6, off, len));
+		return(ipf_pcksum6(m, ip6, off, len));
 	} else {
 		return 0xffff;
 	}
