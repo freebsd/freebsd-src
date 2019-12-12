@@ -7,7 +7,8 @@ INCS=	pmc.h pmclog.h pmcformat.h
 
 ALLOW_MIPS_SHARED_TEXTREL=
 
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_ARCH} == "aarch64" || ${MACHINE_ARCH} == "amd64" || \
+    ${MACHINE_ARCH} == "i386"
 
 .if ${MACHINE_ARCH} == "aarch64"
 EVENT_ARCH="arm64"
