@@ -668,6 +668,8 @@ struct nfsrv_descript {
 	uint32_t		*nd_sequence;	/* Sequence Op. ptr */
 	nfsv4stateid_t		nd_curstateid;	/* Current StateID */
 	nfsv4stateid_t		nd_savedcurstateid; /* Saved Current StateID */
+	uint32_t		nd_maxreq;	/* Max. request (session). */
+	uint32_t		nd_maxresp;	/* Max. reply (session). */
 };
 
 #define	nd_princlen	nd_gssnamelen
