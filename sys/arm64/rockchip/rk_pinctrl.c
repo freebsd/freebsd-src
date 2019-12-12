@@ -100,7 +100,7 @@ struct rk_pinctrl_conf {
 	uint32_t			ngpio_bank;
 	uint32_t	(*get_pd_offset)(struct rk_pinctrl_softc *, uint32_t);
 	struct syscon	*(*get_syscon)(struct rk_pinctrl_softc *, uint32_t);
-	int		(*parse_bias)(phandle_t node);
+	int		(*parse_bias)(phandle_t, int);
 };
 
 struct rk_pinctrl_softc {
@@ -372,7 +372,7 @@ rk3288_get_syscon(struct rk_pinctrl_softc *sc, uint32_t bank)
 }
 
 static int
-rk3288_parse_bias(phandle_t node)
+rk3288_parse_bias(phandle_t node, int bank)
 {
 	if (OF_hasprop(node, "bias-disable"))
 		return (0);
@@ -627,24 +627,38 @@ rk3399_get_pd_offset(struct rk_pinctrl_softc *sc, uint32_t bank)
 static struct syscon *
 rk3399_get_syscon(struct rk_pinctrl_softc *sc, uint32_t bank)
 {
-	if (bank < 2) {
-		device_printf(sc->dev, "%s: Using PMU GRF\n", __func__);
+	if (bank < 2)
 		return (sc->pmu);
-	}
 
-	device_printf(sc->dev, "%s: Using GRF\n", __func__);
 	return (sc->grf);
 }
 
 static int
-rk3399_parse_bias(phandle_t node)
+rk3399_parse_bias(phandle_t node, int bank)
 {
+	int pullup, pulldown;
+
 	if (OF_hasprop(node, "bias-disable"))
 		return (0);
+
+	switch (bank) {
+	case 0:
+	case 2:
+		pullup = 3;
+		pulldown = 1;
+		break;
+	case 1:
+	case 3:
+	case 4:
+		pullup = 1;
+		pulldown = 2;
+		break;
+	}
+
 	if (OF_hasprop(node, "bias-pull-up"))
-		return (3);
+		return (pullup);
 	if (OF_hasprop(node, "bias-pull-down"))
-		return (1);
+		return (pulldown);
 
 	return (-1);
 }
@@ -862,7 +876,7 @@ rk_pinctrl_configure_pin(struct rk_pinctrl_softc *sc, uint32_t *pindata)
 	SYSCON_MODIFY_4(syscon, reg, mask, function << bit | (mask << 16));
 
 	/* Pull-Up/Down */
-	bias = sc->conf->parse_bias(pin_conf);
+	bias = sc->conf->parse_bias(pin_conf, bank);
 	if (bias >= 0) {
 		reg = sc->conf->get_pd_offset(sc, bank);
 
