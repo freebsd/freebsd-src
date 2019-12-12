@@ -688,14 +688,23 @@ start_mmu:
 	 */
 	ldr	x2, tcr
 	mrs	x3, id_aa64mmfr0_el1
-	bfi	x2, x3, #32, #3
-	and	x3, x3, #0xF0
-	cmp	x3, #0x20
+
+	/* Copy the bottom 3 bits from id_aa64mmfr0_el1 into TCR.IPS */
+	bfi	x2, x3, #(TCR_IPS_SHIFT), #(TCR_IPS_WIDTH)
+	and	x3, x3, #(ID_AA64MMFR0_ASIDBits_MASK)
+
+	/* Check if the HW supports 16 bit ASIDS */
+	cmp	x3, #(ID_AA64MMFR0_ASIDBits_16)
+	/* If so x3 == 1, else x3 == 0 */
 	cset	x3, eq
-	bfi	x2, x3, #36, #1
+	/* Set TCR.AS with x3 */
+	bfi	x2, x3, #(TCR_ASID_SHIFT), #(TCR_ASID_WIDTH)
+
 	msr	tcr_el1, x2
 
-	/* Setup SCTLR */
+	/*
+	 * Setup SCTLR.
+	 */
 	ldr	x2, sctlr_set
 	ldr	x3, sctlr_clear
 	mrs	x1, sctlr_el1
