@@ -96,49 +96,6 @@ static const char *tmpfs_updateopts[] = {
 	"from", "export", "size", NULL
 };
 
-static int
-tmpfs_node_ctor(void *mem, int size, void *arg, int flags)
-{
-	struct tmpfs_node *node = (struct tmpfs_node *)mem;
-
-	node->tn_gen++;
-	node->tn_size = 0;
-	node->tn_status = 0;
-	node->tn_flags = 0;
-	node->tn_links = 0;
-	node->tn_vnode = NULL;
-	node->tn_vpstate = 0;
-
-	return (0);
-}
-
-static void
-tmpfs_node_dtor(void *mem, int size, void *arg)
-{
-	struct tmpfs_node *node = (struct tmpfs_node *)mem;
-	node->tn_type = VNON;
-}
-
-static int
-tmpfs_node_init(void *mem, int size, int flags)
-{
-	struct tmpfs_node *node = (struct tmpfs_node *)mem;
-	node->tn_id = 0;
-
-	mtx_init(&node->tn_interlock, "tmpfs node interlock", NULL, MTX_DEF);
-	node->tn_gen = arc4random();
-
-	return (0);
-}
-
-static void
-tmpfs_node_fini(void *mem, int size)
-{
-	struct tmpfs_node *node = (struct tmpfs_node *)mem;
-
-	mtx_destroy(&node->tn_interlock);
-}
-
 /*
  * Handle updates of time from writes to mmaped regions.  Use
  * MNT_VNODE_FOREACH_ALL instead of MNT_VNODE_FOREACH_ACTIVE, since
@@ -479,12 +436,6 @@ tmpfs_mount(struct mount *mp)
 	tmp->tm_pages_max = pages;
 	tmp->tm_pages_used = 0;
 	new_unrhdr64(&tmp->tm_ino_unr, 2);
-	tmp->tm_dirent_pool = uma_zcreate("TMPFS dirent",
-	    sizeof(struct tmpfs_dirent), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, 0);
-	tmp->tm_node_pool = uma_zcreate("TMPFS node",
-	    sizeof(struct tmpfs_node), tmpfs_node_ctor, tmpfs_node_dtor,
-	    tmpfs_node_init, tmpfs_node_fini, UMA_ALIGN_PTR, 0);
 	tmp->tm_ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	tmp->tm_nonc = nonc;
 
@@ -493,8 +444,6 @@ tmpfs_mount(struct mount *mp)
 	    root_mode & ALLPERMS, NULL, NULL, VNOVAL, &root);
 
 	if (error != 0 || root == NULL) {
-		uma_zdestroy(tmp->tm_node_pool);
-		uma_zdestroy(tmp->tm_dirent_pool);
 		free(tmp, M_TMPFSMNT);
 		return (error);
 	}
@@ -587,9 +536,6 @@ tmpfs_free_tmp(struct tmpfs_mount *tmp)
 		return;
 	}
 	TMPFS_UNLOCK(tmp);
-
-	uma_zdestroy(tmp->tm_dirent_pool);
-	uma_zdestroy(tmp->tm_node_pool);
 
 	mtx_destroy(&tmp->tm_allnode_lock);
 	MPASS(tmp->tm_pages_used == 0);
@@ -700,10 +646,23 @@ tmpfs_susp_clean(struct mount *mp __unused)
 {
 }
 
+static int
+tmpfs_init(struct vfsconf *conf)
+{
+	tmpfs_subr_init();
+	return (0);
+}
+
+static int
+tmpfs_uninit(struct vfsconf *conf)
+{
+	tmpfs_subr_uninit();
+	return (0);
+}
+
 /*
  * tmpfs vfs operations.
  */
-
 struct vfsops tmpfs_vfsops = {
 	.vfs_mount =			tmpfs_mount,
 	.vfs_unmount =			tmpfs_unmount,
@@ -712,5 +671,7 @@ struct vfsops tmpfs_vfsops = {
 	.vfs_fhtovp =			tmpfs_fhtovp,
 	.vfs_sync =			tmpfs_sync,
 	.vfs_susp_clean =		tmpfs_susp_clean,
+	.vfs_init =			tmpfs_init,
+	.vfs_uninit =			tmpfs_uninit,
 };
 VFS_SET(tmpfs_vfsops, tmpfs, VFCF_JAIL);
