@@ -64,6 +64,8 @@ struct nfsclsession {
 	uint64_t	nfsess_slots;
 	uint32_t	nfsess_sequenceid;
 	uint32_t	nfsess_maxcache;	/* Max size for cached reply. */
+	uint32_t	nfsess_maxreq;		/* Max request size. */
+	uint32_t	nfsess_maxresp;		/* Max reply size. */
 	uint16_t	nfsess_foreslots;
 	uint16_t	nfsess_backslots;
 	uint8_t		nfsess_sessionid[NFSX_V4SESSIONID];
@@ -72,7 +74,7 @@ struct nfsclsession {
 
 /*
  * This structure holds the session, clientid and related information
- * needed for an NFSv4.1 Meta Data Server (MDS) or Data Server (DS).
+ * needed for an NFSv4.1 or NFSv4.2 Meta Data Server (MDS) or Data Server (DS).
  * It is malloc'd to the correct length.
  */
 struct nfsclds {
@@ -95,6 +97,7 @@ struct nfsclds {
 #define	NFSCLDS_DS		0x0004
 #define	NFSCLDS_CLOSED		0x0008
 #define	NFSCLDS_SAMECONN	0x0010
+#define	NFSCLDS_MINORV2		0x0020
 
 struct nfsclclient {
 	LIST_ENTRY(nfsclclient) nfsc_list;

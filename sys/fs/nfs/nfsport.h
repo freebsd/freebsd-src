@@ -289,7 +289,7 @@
 /*
  * Must be one more than the last NFSv4.2 op#.
  */
-#define	NFSV42_NOPS		72
+#define	NFSV42_NOPS		76
 
 /* Quirky case if the illegal op code */
 #define	NFSV4OP_OPILLEGAL	10044
@@ -423,10 +423,10 @@
 #endif	/* NFS_V3NPROCS */
 
 /*
- * New stats structure.
+ * Newest stats structure.
  * The vers field will be set to NFSSTATS_V1 by the caller.
  */
-#define	NFSSTATS_V1	1
+#define	NFSSTATS_V1	2
 struct nfsstatsv1 {
 	int		vers;	/* Set to version requested by caller. */
 	uint64_t	attrcache_hits;
@@ -447,9 +447,74 @@ struct nfsstatsv1 {
 	uint64_t	readlink_bios;
 	uint64_t	biocache_readdirs;
 	uint64_t	readdir_bios;
-	uint64_t	rpccnt[NFSV41_NPROCS + 13];
+	uint64_t	rpccnt[NFSV42_NPROCS + 15];
 	uint64_t	rpcretries;
-	uint64_t	srvrpccnt[NFSV42_NOPS + NFSV4OP_FAKENOPS];
+	uint64_t	srvrpccnt[NFSV42_NOPS + NFSV4OP_FAKENOPS + 15];
+	uint64_t	srvrpc_errs;
+	uint64_t	srv_errs;
+	uint64_t	rpcrequests;
+	uint64_t	rpctimeouts;
+	uint64_t	rpcunexpected;
+	uint64_t	rpcinvalid;
+	uint64_t	srvcache_inproghits;
+	uint64_t	srvcache_idemdonehits;
+	uint64_t	srvcache_nonidemdonehits;
+	uint64_t	srvcache_misses;
+	uint64_t	srvcache_tcppeak;
+	int		srvcache_size;	/* Updated by atomic_xx_int(). */
+	uint64_t	srvclients;
+	uint64_t	srvopenowners;
+	uint64_t	srvopens;
+	uint64_t	srvlockowners;
+	uint64_t	srvlocks;
+	uint64_t	srvdelegates;
+	uint64_t	cbrpccnt[NFSV42_CBNOPS + 10];
+	uint64_t	clopenowners;
+	uint64_t	clopens;
+	uint64_t	cllockowners;
+	uint64_t	cllocks;
+	uint64_t	cldelegates;
+	uint64_t	cllocalopenowners;
+	uint64_t	cllocalopens;
+	uint64_t	cllocallockowners;
+	uint64_t	cllocallocks;
+	uint64_t	srvstartcnt;
+	uint64_t	srvdonecnt;
+	uint64_t	srvbytes[NFSV42_NOPS + NFSV4OP_FAKENOPS + 15];
+	uint64_t	srvops[NFSV42_NOPS + NFSV4OP_FAKENOPS + 15];
+	struct bintime	srvduration[NFSV42_NOPS + NFSV4OP_FAKENOPS + 15];
+	struct bintime	busyfrom;
+	struct bintime	busytime;
+};
+
+/*
+ * Newer stats structure.
+ * The vers field will be set to NFSSTATS_OV1 by the caller.
+ */
+#define	NFSSTATS_OV1	1
+struct nfsstatsov1 {
+	int		vers;	/* Set to version requested by caller. */
+	uint64_t	attrcache_hits;
+	uint64_t	attrcache_misses;
+	uint64_t	lookupcache_hits;
+	uint64_t	lookupcache_misses;
+	uint64_t	direofcache_hits;
+	uint64_t	direofcache_misses;
+	uint64_t	accesscache_hits;
+	uint64_t	accesscache_misses;
+	uint64_t	biocache_reads;
+	uint64_t	read_bios;
+	uint64_t	read_physios;
+	uint64_t	biocache_writes;
+	uint64_t	write_bios;
+	uint64_t	write_physios;
+	uint64_t	biocache_readlinks;
+	uint64_t	readlink_bios;
+	uint64_t	biocache_readdirs;
+	uint64_t	readdir_bios;
+	uint64_t	rpccnt[NFSV42_NPROCS + 4];
+	uint64_t	rpcretries;
+	uint64_t	srvrpccnt[NFSV42_PURENOPS + NFSV4OP_FAKENOPS];
 	uint64_t	srvrpc_errs;
 	uint64_t	srv_errs;
 	uint64_t	rpcrequests;
@@ -480,9 +545,9 @@ struct nfsstatsv1 {
 	uint64_t	cllocallocks;
 	uint64_t	srvstartcnt;
 	uint64_t	srvdonecnt;
-	uint64_t	srvbytes[NFSV42_NOPS + NFSV4OP_FAKENOPS];
-	uint64_t	srvops[NFSV42_NOPS + NFSV4OP_FAKENOPS];
-	struct bintime	srvduration[NFSV42_NOPS + NFSV4OP_FAKENOPS];
+	uint64_t	srvbytes[NFSV42_PURENOPS + NFSV4OP_FAKENOPS];
+	uint64_t	srvops[NFSV42_PURENOPS + NFSV4OP_FAKENOPS];
+	struct bintime	srvduration[NFSV42_PURENOPS + NFSV4OP_FAKENOPS];
 	struct bintime	busyfrom;
 	struct bintime	busytime;
 };

@@ -1544,7 +1544,7 @@ nfsrv_isannfserr(u_int32_t errval)
 
 	if (errval == NFSERR_OK)
 		return (errval);
-	if (errval >= NFSERR_BADHANDLE && errval <= NFSERR_DELEGREVOKED)
+	if (errval >= NFSERR_BADHANDLE && errval <= NFSERR_MAXERRVAL)
 		return (errval);
 	if (errval > 0 && errval <= NFSERR_REMOTE)
 		return (nfsrv_v2errmap[errval - 1]);
@@ -2121,6 +2121,8 @@ nfsd_getminorvers(struct nfsrv_descript *nd, u_char *tag, u_char **tagstrp,
 	*tagstrp = tagstr;
 	if (*minversp == NFSV41_MINORVERSION)
 		nd->nd_flag |= ND_NFSV41;
+	else if (*minversp == NFSV42_MINORVERSION)
+		nd->nd_flag |= (ND_NFSV41 | ND_NFSV42);
 nfsmout:
 	if (error != 0) {
 		if (tagstr != NULL && taglen > NFSV4_SMALLSTR)

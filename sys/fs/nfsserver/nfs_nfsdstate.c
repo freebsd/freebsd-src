@@ -215,7 +215,6 @@ static void nfsrv_freealllayouts(void);
 static void nfsrv_freedevid(struct nfsdevice *ds);
 static int nfsrv_setdsserver(char *dspathp, char *mdspathp, NFSPROC_T *p,
     struct nfsdevice **dsp);
-static int nfsrv_delds(char *devid, NFSPROC_T *p);
 static void nfsrv_deleteds(struct nfsdevice *fndds);
 static void nfsrv_allocdevid(struct nfsdevice *ds, char *addr, char *dnshost);
 static void nfsrv_freealldevids(void);
@@ -4455,6 +4454,8 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 		nd->nd_flag |= ND_KERBV;
 	if ((clp->lc_flags & LCL_NFSV41) != 0)
 		nd->nd_flag |= ND_NFSV41;
+	if ((clp->lc_flags & LCL_NFSV42) != 0)
+		nd->nd_flag |= ND_NFSV42;
 	nd->nd_repstat = 0;
 	cred->cr_uid = clp->lc_uid;
 	cred->cr_gid = clp->lc_gid;
@@ -4653,7 +4654,10 @@ nfsrv_cbcallargs(struct nfsrv_descript *nd, struct nfsclient *clp,
 	(void)nfsm_strtom(nd, optag, len);
 	NFSM_BUILD(tl, uint32_t *, 4 * NFSX_UNSIGNED);
 	if ((nd->nd_flag & ND_NFSV41) != 0) {
-		*tl++ = txdr_unsigned(NFSV41_MINORVERSION);
+		if ((nd->nd_flag & ND_NFSV42) != 0)
+			*tl++ = txdr_unsigned(NFSV42_MINORVERSION);
+		else
+			*tl++ = txdr_unsigned(NFSV41_MINORVERSION);
 		*tl++ = txdr_unsigned(callback);
 		*tl++ = txdr_unsigned(2);
 		*tl = txdr_unsigned(NFSV4OP_CBSEQUENCE);
@@ -5386,13 +5390,16 @@ out:
  * delegations.
  */
 APPLESTATIC int
-nfsrv_checkremove(vnode_t vp, int remove, NFSPROC_T *p)
+nfsrv_checkremove(vnode_t vp, int remove, struct nfsrv_descript *nd,
+    nfsquad_t clientid, NFSPROC_T *p)
 {
+	struct nfsclient *clp;
 	struct nfsstate *stp;
 	struct nfslockfile *lfp;
 	int error, haslock = 0;
 	fhandle_t nfh;
 
+	clp = NULL;
 	/*
 	 * First, get the lock file structure.
 	 * (A return of -1 means no associated state, so remove ok.)
@@ -5400,6 +5407,9 @@ nfsrv_checkremove(vnode_t vp, int remove, NFSPROC_T *p)
 	error = nfsrv_getlockfh(vp, NFSLCK_CHECK, NULL, &nfh, p);
 tryagain:
 	NFSLOCKSTATE();
+	if (error == 0 && clientid.qval != 0)
+		error = nfsrv_getclient(clientid, CLOPS_RENEW, &clp, NULL,
+		    (nfsquad_t)((u_quad_t)0), 0, nd, p);
 	if (!error)
 		error = nfsrv_getlockfile(NFSLCK_CHECK, NULL, &lfp, &nfh, 0);
 	if (error) {
@@ -5417,7 +5427,7 @@ tryagain:
 	/*
 	 * Now, we must Recall any delegations.
 	 */
-	error = nfsrv_cleandeleg(vp, lfp, NULL, &haslock, p);
+	error = nfsrv_cleandeleg(vp, lfp, clp, &haslock, p);
 	if (error) {
 		/*
 		 * nfsrv_cleandeleg() unlocks state for non-zero
@@ -5554,7 +5564,8 @@ nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 	starttime = NFSD_MONOSEC;
 	do {
 		if (NFSVOPLOCK(vp, LK_EXCLUSIVE) == 0) {
-			error = nfsrv_checkremove(vp, 0, p);
+			error = nfsrv_checkremove(vp, 0, NULL,
+			    (nfsquad_t)((u_quad_t)0), p);
 			NFSVOPUNLOCK(vp, 0);
 		} else
 			error = EPERM;
@@ -6199,6 +6210,10 @@ nfsrv_checksequence(struct nfsrv_descript *nd, uint32_t sequenceid,
 	sep->sess_clp->lc_expiry = nfsrv_leaseexpiry();
 	nd->nd_clientid.qval = sep->sess_clp->lc_clientid.qval;
 	nd->nd_flag |= ND_IMPLIEDCLID;
+
+	/* Save maximum request and reply sizes. */
+	nd->nd_maxreq = sep->sess_maxreq;
+	nd->nd_maxresp = sep->sess_maxresp;
 
 	/*
 	 * If this session handles the backchannel, save the nd_xprt for this
@@ -7747,7 +7762,7 @@ nfsrv_deldsnmp(int op, struct nfsmount *nmp, NFSPROC_T *p)
  * point.
  * Also, returns an error instead of the nfsdevice found.
  */
-static int
+APPLESTATIC int
 nfsrv_delds(char *devid, NFSPROC_T *p)
 {
 	struct nfsdevice *ds, *fndds;
@@ -7879,7 +7894,7 @@ nfsrv_allocdevid(struct nfsdevice *ds, char *addr, char *dnshost)
 	 * as defined for Flexible File Layout) in XDR.
 	 */
 	addrlen = NFSM_RNDUP(strlen(addr)) + NFSM_RNDUP(strlen(netprot)) +
-	    9 * NFSX_UNSIGNED;
+	    14 * NFSX_UNSIGNED;
 	ds->nfsdev_flexaddrlen = addrlen;
 	tl = malloc(addrlen, M_NFSDSTATE, M_WAITOK | M_ZERO);
 	ds->nfsdev_flexaddr = (char *)tl;
@@ -7891,7 +7906,12 @@ nfsrv_allocdevid(struct nfsdevice *ds, char *addr, char *dnshost)
 	*tl++ = txdr_unsigned(strlen(addr));
 	NFSBCOPY(addr, tl, strlen(addr));
 	tl += (NFSM_RNDUP(strlen(addr)) / NFSX_UNSIGNED);
-	*tl++ = txdr_unsigned(1);		/* One NFS Version. */
+	*tl++ = txdr_unsigned(2);		/* Two NFS Versions. */
+	*tl++ = txdr_unsigned(NFS_VER4);	/* NFSv4. */
+	*tl++ = txdr_unsigned(NFSV42_MINORVERSION); /* Minor version 2. */
+	*tl++ = txdr_unsigned(NFS_SRVMAXIO);	/* DS max rsize. */
+	*tl++ = txdr_unsigned(NFS_SRVMAXIO);	/* DS max wsize. */
+	*tl++ = newnfs_true;			/* Tightly coupled. */
 	*tl++ = txdr_unsigned(NFS_VER4);	/* NFSv4. */
 	*tl++ = txdr_unsigned(NFSV41_MINORVERSION); /* Minor version 1. */
 	*tl++ = txdr_unsigned(NFS_SRVMAXIO);	/* DS max rsize. */

@@ -1070,7 +1070,7 @@ struct nfsv3_sattr {
 /* Not sure what attribute bit#81/0x00020000 is? */
 #define	NFSATTRBM_XATTRSUPPORT		0x00040000
 
-#define	NFSATTRBIT_MAX			77
+#define	NFSATTRBIT_MAX			83
 
 /*
  * Sets of attributes that are supported, by words in the bitmap.
