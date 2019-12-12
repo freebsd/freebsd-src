@@ -309,7 +309,9 @@ static int moea64_decode_kernel_ptr(mmu_t mmu, vm_offset_t addr,
     int *is_user, vm_offset_t *decoded_addr);
 static size_t moea64_scan_pmap(mmu_t mmu);
 static void *moea64_dump_pmap_init(mmu_t mmu, unsigned blkpgs);
+#ifdef __powerpc64__
 static void moea64_page_array_startup(mmu_t, long);
+#endif
 
 
 static mmu_method_t moea64_methods[] = {
@@ -349,7 +351,9 @@ static mmu_method_t moea64_methods[] = {
 	MMUMETHOD(mmu_page_set_memattr,	moea64_page_set_memattr),
 	MMUMETHOD(mmu_quick_enter_page, moea64_quick_enter_page),
 	MMUMETHOD(mmu_quick_remove_page, moea64_quick_remove_page),
+#ifdef __powerpc64__
 	MMUMETHOD(mmu_page_array_startup,	moea64_page_array_startup),
+#endif
 
 	/* Internal interfaces */
 	MMUMETHOD(mmu_mapdev,		moea64_mapdev),
@@ -3026,6 +3030,7 @@ moea64_dump_pmap_init(mmu_t mmu, unsigned blkpgs)
 
 #endif
 
+#ifdef __powerpc64__
 static void
 moea64_map_range(mmu_t mmu, vm_offset_t va, vm_paddr_t pa, vm_size_t npages)
 {
@@ -3119,3 +3124,4 @@ moea64_page_array_startup(mmu_t mmu, long pages)
 	vm_page_array = (vm_page_t)vm_page_base;
 	vm_page_array_size = pages;
 }
+#endif
