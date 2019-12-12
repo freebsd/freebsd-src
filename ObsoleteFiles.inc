@@ -11,8 +11,6 @@
 # In case of a complete directory hierarchy the sorting is in depth first
 # order.
 #
-# The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
-#
 # Before you commit changes to this file please check if any entries in
 # tools/build/mk/OptionalObsoleteFiles.inc can be removed. The following
 # command tells which files are listed more than once regardless of some
@@ -5195,6 +5193,12 @@ OLD_FILES+=usr/share/man/man1/atf-version.1.gz
 OLD_FILES+=usr/share/man/man5/atf-formats.5.gz
 OLD_FILES+=usr/share/xml/atf/tests-results.dtd
 OLD_FILES+=usr/share/xsl/atf/tests-results.xsl
+OLD_DIRS+=etc/atf
+OLD_DIRS+=usr/share/examples/atf
+OLD_DIRS+=usr/share/xml/atf
+OLD_DIRS+=usr/share/xml
+OLD_DIRS+=usr/share/xsl/atf
+OLD_DIRS+=usr/share/xsl
 # 20131009: freebsd-version moved from /libexec to /bin
 OLD_FILES+=libexec/freebsd-version
 # 20131001: ar and ranlib from binutils not used
@@ -11133,6 +11137,9 @@ OLD_FILES+=usr/libdata/msdosfs/koi8u2dos
 #  - usr/share/tmac/mm/se_locale
 #  - var/yp/Makefile
 
+# Early entries split OLD_FILES, OLD_LIBS, and OLD_DIRS into separate sections
+# in this file, but this practice was abandoned in the mid-2000s.
+#
 # 20071120: shared library version bump
 OLD_LIBS+=usr/lib/libasn1.so.8
 OLD_LIBS+=usr/lib/libgssapi.so.8
@@ -11413,13 +11420,6 @@ OLD_LIBS+=usr/lib/libkse.so.1
 OLD_LIBS+=usr/lib/liblwres.so.3
 OLD_LIBS+=usr/lib/pam_ftp.so.2
 
-# 20131013: Removal of the ATF tools
-OLD_DIRS+=etc/atf
-OLD_DIRS+=usr/share/examples/atf
-OLD_DIRS+=usr/share/xml/atf
-OLD_DIRS+=usr/share/xml
-OLD_DIRS+=usr/share/xsl/atf
-OLD_DIRS+=usr/share/xsl
 # 20040925: bind9 import
 OLD_DIRS+=usr/share/doc/bind/html
 OLD_DIRS+=usr/share/doc/bind/misc
