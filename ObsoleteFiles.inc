@@ -1284,6 +1284,8 @@ OLD_FILES+=usr/share/nls/es_ES.ISO8859-1/grep.cat
 OLD_FILES+=usr/share/nls/ru_RU.KOI8-R/grep.cat
 OLD_FILES+=usr/share/nls/uk_UA.UTF-8/grep.cat
 OLD_FILES+=usr/share/nls/ja_JP.UTF-8/grep.cat
+# 20180528: libpcap update removed header file
+OLD_FILES+=usr/include/pcap/export-defs.h
 # 20180517: retire vxge
 OLD_FILES+=usr/share/man/man4/if_vxge.4.gz
 OLD_FILES+=usr/share/man/man4/vxge.4.gz
