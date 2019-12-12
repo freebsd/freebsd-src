@@ -209,7 +209,7 @@ map_object(int fd, const char *path, const struct stat *sb)
 	base_flags |= MAP_FIXED | MAP_EXCL;
 
     mapbase = mmap(base_addr, mapsize, PROT_NONE, base_flags, -1, 0);
-    if (mapbase == (caddr_t) -1) {
+    if (mapbase == MAP_FAILED) {
 	_rtld_error("%s: mmap of entire address space failed: %s",
 	  path, rtld_strerror(errno));
 	goto error;
@@ -266,7 +266,7 @@ map_object(int fd, const char *path, const struct stat *sb)
 	    bss_addr = mapbase +  (bss_vaddr - base_vaddr);
 	    if (bss_vlimit > bss_vaddr) {	/* There is something to do */
 		if (mmap(bss_addr, bss_vlimit - bss_vaddr, data_prot,
-		    data_flags | MAP_ANON, -1, 0) == (caddr_t)-1) {
+		    data_flags | MAP_ANON, -1, 0) == MAP_FAILED) {
 		    _rtld_error("%s: mmap of bss failed: %s", path,
 			rtld_strerror(errno));
 		    goto error1;
@@ -348,7 +348,7 @@ get_elf_header(int fd, const char *path, const struct stat *sbp)
 
 	hdr = mmap(NULL, PAGE_SIZE, PROT_READ, MAP_PRIVATE | MAP_PREFAULT_READ,
 	    fd, 0);
-	if (hdr == (Elf_Ehdr *)MAP_FAILED) {
+	if (hdr == MAP_FAILED) {
 		_rtld_error("%s: read error: %s", path, rtld_strerror(errno));
 		return (NULL);
 	}
