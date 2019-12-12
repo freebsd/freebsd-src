@@ -28,15 +28,18 @@
 .\"     @(#)sigsetops.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 16, 2004
+.Dd October 29, 2019
 .Dt SIGSETOPS 3
 .Os
 .Sh NAME
 .Nm sigemptyset ,
 .Nm sigfillset ,
 .Nm sigaddset ,
+.Nm sigandset ,
 .Nm sigdelset ,
-.Nm sigismember
+.Nm sigisemptyset ,
+.Nm sigismember ,
+.Nm sigorset
 .Nd manipulate signal sets
 .Sh LIBRARY
 .Lb libc
@@ -49,9 +52,15 @@
 .Ft int
 .Fn sigaddset "sigset_t *set" "int signo"
 .Ft int
+.Fn sigandset "sigset_t *set" "const sigset_t *left" "const sigset_t *right"
+.Ft int
 .Fn sigdelset "sigset_t *set" "int signo"
 .Ft int
+.Fn sigisemptyset "const sigset_t *set"
+.Ft int
 .Fn sigismember "const sigset_t *set" "int signo"
+.Ft int
+.Fn sigorset "sigset_t *set" "const sigset_t *left" "const sigset_t *right"
 .Sh DESCRIPTION
 These functions manipulate signal sets stored in a
 .Fa sigset_t .
@@ -78,22 +87,54 @@ function adds the specified signal
 to the signal set.
 .Pp
 The
+.Fn sigandset
+function sets the specified
+.Fa set
+to the logical AND of all signals from the
+.Fa left
+and
+.Fa right
+signal sets.
+.Pp
+The
 .Fn sigdelset
 function deletes the specified signal
 .Fa signo
 from the signal set.
 .Pp
 The
+.Fn sigisemptyset
+function returns whether the specified
+.Fa set
+is empty or not.
+.Pp
+The
 .Fn sigismember
 function returns whether a specified signal
 .Fa signo
 is contained in the signal set.
+.Pp
+The
+.Fn sigorset
+function sets the specified
+.Fa set
+to the logical OR of all signals from the
+.Fa left
+and
+.Fa right
+signal sets.
 .Sh RETURN VALUES
+The
+.Fn sigisemptyset
+function returns 1
+if the set is empty, 0 otherwise.
+.Pp
 The
 .Fn sigismember
 function returns 1
 if the signal is a member of the set,
 0 otherwise.
+.Pp
 The other functions return 0 upon success.
 A \-1 return value
 indicates an error occurred and the global variable
@@ -113,5 +154,13 @@ has an invalid value.
 .Xr sigprocmask 2 ,
 .Xr sigsuspend 2
 .Sh STANDARDS
-These functions are defined by
+The
+.Fn sigandset ,
+.Fn sigisemptyset ,
+and
+.Fn sigorset
+functions are FreeBSD extensions, compatible with functions of the same name
+provided by both musl libc and GNU libc.
+.Pp
+The rest of these functions are defined by
 .St -p1003.1-88 .
