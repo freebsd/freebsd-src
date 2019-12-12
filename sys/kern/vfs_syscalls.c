@@ -114,17 +114,8 @@ static int kern_readlink_vp(struct vnode *vp, char *buf, enum uio_seg bufseg,
 static int kern_linkat_vp(struct thread *td, struct vnode *vp, int fd,
     const char *path, enum uio_seg segflag);
 
-/*
- * Sync each mounted filesystem.
- */
-#ifndef _SYS_SYSPROTO_H_
-struct sync_args {
-	int     dummy;
-};
-#endif
-/* ARGSUSED */
 int
-sys_sync(struct thread *td, struct sync_args *uap)
+kern_sync(struct thread *td)
 {
 	struct mount *mp, *nmp;
 	int save;
@@ -149,6 +140,22 @@ sys_sync(struct thread *td, struct sync_args *uap)
 	}
 	mtx_unlock(&mountlist_mtx);
 	return (0);
+}
+
+/*
+ * Sync each mounted filesystem.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct sync_args {
+	int     dummy;
+};
+#endif
+/* ARGSUSED */
+int
+sys_sync(struct thread *td, struct sync_args *uap)
+{
+
+	return (kern_sync(td));
 }
 
 /*
