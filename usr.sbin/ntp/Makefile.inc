@@ -16,4 +16,6 @@ CFLAGS+= -DOPENSSL -DUSE_OPENSSL_CRYPTO_RAND -DAUTOKEY
 
 WARNS?=	0
 
+.export ECHO
+
 .include "../Makefile.inc"
