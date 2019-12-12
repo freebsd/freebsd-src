@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 
 #include <fs/nfs/nfsport.h>
 
+#include <sys/extattr.h>
+
 #include <security/mac/mac_framework.h>
 
 /*
@@ -91,6 +93,10 @@ int nfsrv_maxpnfsmirror = 1;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, pnfsmirror, CTLFLAG_RD,
     &nfsrv_maxpnfsmirror, 0, "Mirror level for pNFS service");
 
+int nfs_maxcopyrange = 10 * 1024 * 1024;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, maxcopyrange, CTLFLAG_RW,
+    &nfs_maxcopyrange, 0, "Max size of a Copy so RPC times reasonable");
+
 /*
  * This array of structures indicates, for V4:
  * retfh - which of 3 types of calling args are used
@@ -108,7 +114,7 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, pnfsmirror, CTLFLAG_RD,
  * non-idempotent Ops.
  * Define it here, since it is used by both the client and server.
  */
-struct nfsv4_opflag nfsv4_opflag[NFSV41_NOPS] = {
+struct nfsv4_opflag nfsv4_opflag[NFSV42_NOPS] = {
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* undef */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* undef */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* undef */
@@ -168,6 +174,23 @@ struct nfsv4_opflag nfsv4_opflag[NFSV41_NOPS] = {
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Want Delegation */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 0, 0 },		/* Destroy ClientID */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* Reclaim Complete */
+	{ 0, 1, 1, 1, LK_EXCLUSIVE, 1, 0 },		/* Allocate */
+	{ 2, 1, 1, 0, LK_SHARED, 1, 0 },		/* Copy */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Copy Notify */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Deallocate */
+	{ 0, 1, 0, 0, LK_SHARED, 1, 0 },		/* IO Advise */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* Layout Error */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* Layout Stats */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Offload Cancel */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Offload Status */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Read Plus */
+	{ 0, 1, 0, 0, LK_SHARED, 1, 0 },		/* Seek */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Write Same */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Clone */
+	{ 0, 1, 0, 0, LK_SHARED, 1, 1 },		/* Getxattr */
+	{ 0, 1, 1, 1, LK_EXCLUSIVE, 1, 1 },		/* Setxattr */
+	{ 0, 1, 0, 0, LK_SHARED, 1, 1 },		/* Listxattrs */
+	{ 0, 1, 1, 1, LK_EXCLUSIVE, 1, 1 },		/* Removexattr */
 };
 #endif	/* !APPLEKEXT */
 
@@ -192,9 +215,10 @@ static struct nfsrv_lughash	*nfsgroupnamehash;
  * marked 0 in this array, the code will still work, just not quite as
  * efficiently.)
  */
-static int nfs_bigreply[NFSV41_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
+static int nfs_bigreply[NFSV42_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 };
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 1 };
 
 /* local functions */
 static int nfsrv_skipace(struct nfsrv_descript *nd, int *acesizep);
@@ -211,7 +235,7 @@ static struct {
 	int	opcnt;
 	const u_char *tag;
 	int	taglen;
-} nfsv4_opmap[NFSV41_NPROCS] = {
+} nfsv4_opmap[NFSV42_NPROCS] = {
 	{ 0, 1, "Null", 4 },
 	{ NFSV4OP_GETATTR, 1, "Getattr", 7, },
 	{ NFSV4OP_SETATTR, 2, "Setattr", 7, },
@@ -268,15 +292,24 @@ static struct {
 	{ NFSV4OP_COMMIT, 1, "CommitDS", 8, },
 	{ NFSV4OP_OPEN, 3, "OpenLayoutGet", 13, },
 	{ NFSV4OP_OPEN, 8, "CreateLayGet", 12, },
+	{ NFSV4OP_IOADVISE, 1, "Advise", 6, },
+	{ NFSV4OP_ALLOCATE, 2, "Allocate", 8, },
+	{ NFSV4OP_SAVEFH, 5, "Copy", 4, },
+	{ NFSV4OP_SEEK, 2, "Seek", 4, },
+	{ NFSV4OP_SEEK, 1, "SeekDS", 6, },
+	{ NFSV4OP_GETXATTR, 2, "Getxattr", 8, },
+	{ NFSV4OP_SETXATTR, 2, "Setxattr", 8, },
+	{ NFSV4OP_REMOVEXATTR, 2, "Rmxattr", 7, },
+	{ NFSV4OP_LISTXATTRS, 2, "Listxattr", 9, },
 };
 
 /*
  * NFS RPCS that have large request message size.
  */
-static int nfs_bigrequest[NFSV41_NPROCS] = {
+static int nfs_bigrequest[NFSV42_NPROCS] = {
 	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0
+	0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0
 };
 
 /*
@@ -301,13 +334,17 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 		nd->nd_flag = ND_NFSV4 | ND_NFSCL;
 		if (minorvers == NFSV41_MINORVERSION)
 			nd->nd_flag |= ND_NFSV41;
+		else if (minorvers == NFSV42_MINORVERSION)
+			nd->nd_flag |= (ND_NFSV41 | ND_NFSV42);
 	} else if (vers == NFS_VER3)
 		nd->nd_flag = ND_NFSV3 | ND_NFSCL;
 	else {
 		if (NFSHASNFSV4(nmp)) {
 			nd->nd_flag = ND_NFSV4 | ND_NFSCL;
-			if (NFSHASNFSV4N(nmp))
+			if (nmp->nm_minorvers == 1)
 				nd->nd_flag |= ND_NFSV41;
+			else if (nmp->nm_minorvers == 2)
+				nd->nd_flag |= (ND_NFSV41 | ND_NFSV42);
 		} else if (NFSHASNFSV3(nmp))
 			nd->nd_flag = ND_NFSV3 | ND_NFSCL;
 		else
@@ -356,7 +393,9 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 		(void) nfsm_strtom(nd, nfsv4_opmap[procnum].tag,
 			nfsv4_opmap[procnum].taglen);
 		NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
-		if ((nd->nd_flag & ND_NFSV41) != 0)
+		if ((nd->nd_flag & ND_NFSV42) != 0)
+			*tl++ = txdr_unsigned(NFSV42_MINORVERSION);
+		else if ((nd->nd_flag & ND_NFSV41) != 0)
 			*tl++ = txdr_unsigned(NFSV41_MINORVERSION);
 		else
 			*tl++ = txdr_unsigned(NFSV4_MINORVERSION);
@@ -409,7 +448,7 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 	} else {
 		(void) nfsm_fhtom(nd, nfhp, fhlen, 0);
 	}
-	if (procnum < NFSV41_NPROCS)
+	if (procnum < NFSV42_NPROCS)
 		NFSINCRGLOBAL(nfsstatsv1.rpccnt[procnum]);
 }
 
@@ -2449,6 +2488,8 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 	struct nfsfsinfo fsinf;
 	struct timespec temptime;
 	NFSACL_T *aclp, *naclp = NULL;
+	size_t atsiz;
+	bool xattrsupp;
 #ifdef QUOTA
 	struct dqblk dqb;
 	uid_t savuid;
@@ -2523,6 +2564,18 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 		}
 	}
 
+	/* Check to see if Extended Attributes are supported. */
+	xattrsupp = false;
+	if (NFSISSET_ATTRBIT(retbitp, NFSATTRBIT_XATTRSUPPORT)) {
+		if (NFSVOPLOCK(vp, LK_SHARED) == 0) {
+			error = VOP_GETEXTATTR(vp, EXTATTR_NAMESPACE_USER,
+			    "xxx", NULL, &atsiz, cred, p);
+			NFSVOPUNLOCK(vp, 0);
+			if (error != EOPNOTSUPP)
+				xattrsupp = true;
+		}
+	}
+	
 	/*
 	 * Put out the attribute bitmap for the ones being filled in
 	 * and get the field for the number of attributes returned.
@@ -2970,6 +3023,14 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 		case NFSATTRBIT_LAYOUTBLKSIZE:
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 			*tl = txdr_unsigned(NFS_SRVMAXIO);
+			retnum += NFSX_UNSIGNED;
+			break;
+		case NFSATTRBIT_XATTRSUPPORT:
+			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+			if (xattrsupp)
+				*tl = newnfs_true;
+			else
+				*tl = newnfs_false;
 			retnum += NFSX_UNSIGNED;
 			break;
 		default:
@@ -4629,6 +4690,8 @@ nfsv4_setsequence(struct nfsmount *nmp, struct nfsrv_descript *nd,
 
 	error = nfsv4_sequencelookup(nmp, sep, &slotpos, &maxslot, &slotseq,
 	    sessionid);
+	nd->nd_maxreq = sep->nfsess_maxreq;
+	nd->nd_maxresp = sep->nfsess_maxresp;
 
 	/* Build the Sequence arguments. */
 	NFSM_BUILD(tl, uint32_t *, NFSX_V4SESSIONID + 4 * NFSX_UNSIGNED);
