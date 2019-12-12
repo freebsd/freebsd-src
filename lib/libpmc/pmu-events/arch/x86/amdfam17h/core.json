@@ -2,20 +2,20 @@
  {
  "EventName": "ex_ret_instr",
  "EventCode": "0xc0",
+ "SampleAfterValue": "2000003",
  "BriefDescription": "Retired Instructions."
-  "SampleAfterValue": "2000003",
  },
  {
  "EventName": "ex_ret_cops",
  "EventCode": "0xc1",
+ "SampleAfterValue": "2000003",
  "BriefDescription": "The number of uOps retired. This includes all processor activity (instructions, exceptions, interrupts, microcode assists, etc.). The number of events logged per cycle can vary from 0 to 4."
-  "SampleAfterValue": "2000003",
  },
  {
  "EventName": "ex_ret_brn",
  "EventCode": "0xc2",
+ "SampleAfterValue": "2000003",
  "BriefDescription": "The number of branch instructions retired. This includes all types of architectural control flow changes, including exceptions and interrupts."
-  "SampleAfterValue": "2000003",
  },
  {
  "EventName": "ex_ret_brn_misp",
