@@ -478,6 +478,9 @@ main(int argc, char *argv[])
 	if (rflag) {
 		xo_open_container("statistics");
 		if (sflag) {
+			if (live) {
+				kresolve_list(nl);
+			}
 			rt_stats();
 			flowtable_stats();
 		} else
