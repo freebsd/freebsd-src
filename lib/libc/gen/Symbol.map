@@ -422,6 +422,12 @@ FBSD_1.5 {
 	timespec_get;
 };
 
+FBSD_1.6 {
+	sigandset;
+	sigisemptyset;
+	sigorset;
+};
+
 FBSDprivate_1.0 {
 	/* needed by thread libraries */
 	__thr_jtable;
