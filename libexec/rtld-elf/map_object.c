@@ -228,11 +228,12 @@ map_object(int fd, const char *path, const struct stat *sb)
 	data_addr = mapbase + (data_vaddr - base_vaddr);
 	data_prot = convert_prot(segs[i]->p_flags);
 	data_flags = convert_flags(segs[i]->p_flags) | MAP_FIXED;
-	if (mmap(data_addr, data_vlimit - data_vaddr, data_prot,
-	  data_flags | MAP_PREFAULT_READ, fd, data_offset) == (caddr_t) -1) {
-	    _rtld_error("%s: mmap of data failed: %s", path,
-		rtld_strerror(errno));
-	    goto error1;
+	if (data_vlimit != data_vaddr &&
+	    mmap(data_addr, data_vlimit - data_vaddr, data_prot, 
+	    data_flags | MAP_PREFAULT_READ, fd, data_offset) == MAP_FAILED) {
+		_rtld_error("%s: mmap of data failed: %s", path,
+		    rtld_strerror(errno));
+		goto error1;
 	}
 
 	/* Do BSS setup */
