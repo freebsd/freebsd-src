@@ -47,7 +47,7 @@ fpsetround(fp_rnd_t rnd_dir)
 	__asm__ __volatile("mfspr %0, %1" : "=r"(fpscr) : "K"(SPR_SPEFSCR) );
 	old = (fp_rnd_t)(fpscr & 0x3);
 	fpscr = (fpscr & 0xfffffffc) | rnd_dir;
-	__asm__ __volatile("mtspr %1, %0" :: "r"(fpscr), "K"(SPR_SPEFSCR));
+	__asm__ __volatile("mtspr %1, %0;isync" :: "r"(fpscr), "K"(SPR_SPEFSCR));
 	return (old);
 }
 #endif
