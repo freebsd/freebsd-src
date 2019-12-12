@@ -1456,17 +1456,15 @@ ipf_pcksum(fin, hlen, sum)
 
 #ifdef	USE_INET6
 u_int
-ipf_pcksum6(fin, ip6, off, len)
-	fr_info_t *fin;
+ipf_pcksum6(m, ip6, off, len)
+	struct mbuf *m;
 	ip6_t *ip6;
 	u_int32_t off;
 	u_int32_t len;
 {
 #ifdef	_KERNEL
-	struct mbuf *m;
 	int sum;
 
-	m = fin->fin_m;
 	if (m->m_len < sizeof(struct ip6_hdr)) {
 		return 0xffff;
 	}
