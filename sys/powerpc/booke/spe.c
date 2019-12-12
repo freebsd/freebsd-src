@@ -134,7 +134,7 @@ enable_vec(struct thread *td)
 
 	/* Restore SPEFSCR and ACC.  Use %r0 as the scratch for ACC. */
 	mtspr(SPR_SPEFSCR, pcb->pcb_vec.vscr);
-	__asm __volatile("evldd 0, 0(%0); evmra 0,0\n"
+	__asm __volatile("isync;evldd 0, 0(%0); evmra 0,0\n"
 	    :: "b"(&pcb->pcb_vec.spare[0]));
 
 	/* 
