@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ipstealth.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/counter.h>
@@ -101,14 +103,39 @@ static const struct nat64_methods nat64_direct = {
 	.output = nat64_direct_output,
 	.output_one = nat64_direct_output_one
 };
-VNET_DEFINE_STATIC(const struct nat64_methods *, nat64out) = &nat64_netisr;
-#define	V_nat64out	VNET(nat64out)
+
+/* These variables should be initialized explicitly on module loading */
+VNET_DEFINE_STATIC(const struct nat64_methods *, nat64out);
+VNET_DEFINE_STATIC(const int *, nat64ipstealth);
+VNET_DEFINE_STATIC(const int *, nat64ip6stealth);
+#define	V_nat64out		VNET(nat64out)
+#define	V_nat64ipstealth	VNET(nat64ipstealth)
+#define	V_nat64ip6stealth	VNET(nat64ip6stealth)
+
+static const int stealth_on = 1;
+#ifndef IPSTEALTH
+static const int stealth_off = 0;
+#endif
 
 void
 nat64_set_output_method(int direct)
 {
 
-	V_nat64out = direct != 0 ? &nat64_direct: &nat64_netisr;
+	if (direct != 0) {
+		V_nat64out = &nat64_direct;
+#ifdef IPSTEALTH
+		/* Honor corresponding variables, if IPSTEALTH is defined */
+		V_nat64ipstealth = &V_ipstealth;
+		V_nat64ip6stealth = &V_ip6stealth;
+#else
+		/* otherwise we need to decrement HLIM/TTL for direct case */
+		V_nat64ipstealth = V_nat64ip6stealth = &stealth_off;
+#endif
+	} else {
+		V_nat64out = &nat64_netisr;
+		/* Leave TTL/HLIM decrementing to forwarding code */
+		V_nat64ipstealth = V_nat64ip6stealth = &stealth_on;
+	}
 }
 
 int
@@ -486,8 +513,7 @@ nat64_init_ip4hdr(const struct ip6_hdr *ip6, const struct ip6_frag *frag,
 	ip->ip_tos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
 	ip->ip_len = htons(sizeof(*ip) + plen);
 	ip->ip_ttl = ip6->ip6_hlim;
-	/* Forwarding code will decrement TTL for netisr based output. */
-	if (V_nat64out == &nat64_direct)
+	if (*V_nat64ip6stealth == 0)
 		ip->ip_ttl -= IPV6_HLIMDEC;
 	ip->ip_sum = 0;
 	ip->ip_p = (proto == IPPROTO_ICMPV6) ? IPPROTO_ICMP: proto;
@@ -623,18 +649,18 @@ nat64_icmp6_reflect(struct mbuf *m, uint8_t type, uint8_t code, uint32_t mtu,
 	struct icmp6_hdr *icmp6;
 	struct ip6_hdr *ip6, *oip6;
 	struct mbuf *n;
-	int len, plen;
+	int len, plen, proto;
 
 	len = 0;
-	plen = nat64_getlasthdr(m, &len);
-	if (plen < 0) {
+	proto = nat64_getlasthdr(m, &len);
+	if (proto < 0) {
 		DPRINTF(DP_DROPS, "mbuf isn't contigious");
 		goto freeit;
 	}
 	/*
 	 * Do not send ICMPv6 in reply to ICMPv6 errors.
 	 */
-	if (plen == IPPROTO_ICMPV6) {
+	if (proto == IPPROTO_ICMPV6) {
 		if (m->m_len < len + sizeof(*icmp6)) {
 			DPRINTF(DP_DROPS, "mbuf isn't contigious");
 			goto freeit;
@@ -645,6 +671,21 @@ nat64_icmp6_reflect(struct mbuf *m, uint8_t type, uint8_t code, uint32_t mtu,
 			DPRINTF(DP_DROPS, "do not send ICMPv6 in reply to "
 			    "ICMPv6 errors");
 			goto freeit;
+		}
+		/*
+		 * If there are extra headers between IPv6 and ICMPv6,
+		 * strip off them.
+		 */
+		if (len > sizeof(struct ip6_hdr)) {
+			/*
+			 * NOTE: ipfw_chk already did m_pullup() and it is
+			 * expected that data is contigious from the start
+			 * of IPv6 header up to the end of ICMPv6 header.
+			 */
+			bcopy(mtod(m, caddr_t),
+			    mtodo(m, len - sizeof(struct ip6_hdr)),
+			    sizeof(struct ip6_hdr));
+			m_adj(m, len - sizeof(struct ip6_hdr));
 		}
 	}
 	/*
@@ -687,7 +728,19 @@ nat64_icmp6_reflect(struct mbuf *m, uint8_t type, uint8_t code, uint32_t mtu,
 
 	n->m_len = n->m_pkthdr.len = sizeof(struct ip6_hdr) + plen;
 	oip6 = mtod(n, struct ip6_hdr *);
-	oip6->ip6_src = ip6->ip6_dst;
+	/*
+	 * Make IPv6 source address selection for reflected datagram.
+	 * nat64_check_ip6() doesn't allow scoped addresses, therefore
+	 * we use zero scopeid.
+	 */
+	if (in6_selectsrc_addr(M_GETFIB(n), &ip6->ip6_src, 0,
+	    n->m_pkthdr.rcvif, &oip6->ip6_src, NULL) != 0) {
+		/*
+		 * Failed to find proper source address, drop the packet.
+		 */
+		m_freem(n);
+		goto freeit;
+	}
 	oip6->ip6_dst = ip6->ip6_src;
 	oip6->ip6_nxt = IPPROTO_ICMPV6;
 	oip6->ip6_flow = 0;
@@ -1182,7 +1235,7 @@ nat64_do_handle_ip4(struct mbuf *m, struct in6_addr *saddr,
 
 	ip = mtod(m, struct ip*);
 
-	if (ip->ip_ttl <= IPTTLDEC) {
+	if (*V_nat64ipstealth == 0 && ip->ip_ttl <= IPTTLDEC) {
 		nat64_icmp_reflect(m, ICMP_TIMXCEED,
 		    ICMP_TIMXCEED_INTRANS, 0, &cfg->stats, logdata);
 		return (NAT64RETURN);
@@ -1229,8 +1282,7 @@ nat64_do_handle_ip4(struct mbuf *m, struct in6_addr *saddr,
 	ip6.ip6_flow = htonl(ip->ip_tos << 20);
 	ip6.ip6_vfc |= IPV6_VERSION;
 	ip6.ip6_hlim = ip->ip_ttl;
-	/* Forwarding code will decrement TTL for netisr based output. */
-	if (V_nat64out == &nat64_direct)
+	if (*V_nat64ipstealth == 0)
 		ip6.ip6_hlim -= IPTTLDEC;
 	ip6.ip6_plen = htons(plen);
 	ip6.ip6_nxt = (proto == IPPROTO_ICMP) ? IPPROTO_ICMPV6: proto;
@@ -1533,7 +1585,7 @@ nat64_do_handle_ip6(struct mbuf *m, uint32_t aaddr, uint16_t aport,
 		return (NAT64MFREE);
 	}
 
-	if (ip6->ip6_hlim <= IPV6_HLIMDEC) {
+	if (*V_nat64ip6stealth == 0 && ip6->ip6_hlim <= IPV6_HLIMDEC) {
 		nat64_icmp6_reflect(m, ICMP6_TIME_EXCEEDED,
 		    ICMP6_TIME_EXCEED_TRANSIT, 0, &cfg->stats, logdata);
 		return (NAT64RETURN);
