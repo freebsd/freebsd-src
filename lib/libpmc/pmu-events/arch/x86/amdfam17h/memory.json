@@ -220,7 +220,7 @@
  {
  "EventName": "ls_not_halted_cyc",
  "EventCode": "0x76",
- "BriefDescription": "Cycles not in Halt."
  "SampleAfterValue": "2000003",
+ "BriefDescription": "Cycles not in Halt."
  }
 ]
