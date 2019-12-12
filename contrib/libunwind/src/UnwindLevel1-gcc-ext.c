@@ -181,6 +181,10 @@ _Unwind_Backtrace(_Unwind_Trace_Fn callback, void *ref) {
     }
   }
 }
+#ifdef __arm__
+/* Preserve legacy libgcc ARM ABI mistake. */
+__sym_compat(_Unwind_Backtrace, _Unwind_Backtrace, GCC_4.3.0);
+#endif
 
 
 /// Find DWARF unwind info for an address 'pc' in some function.
