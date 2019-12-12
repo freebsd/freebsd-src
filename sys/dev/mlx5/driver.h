@@ -640,7 +640,8 @@ enum mlx5_device_state {
 };
 
 enum mlx5_interface_state {
-	MLX5_INTERFACE_STATE_UP,
+	MLX5_INTERFACE_STATE_UP = 0x1,
+	MLX5_INTERFACE_STATE_TEARDOWN = 0x2,
 };
 
 enum mlx5_pci_status {
