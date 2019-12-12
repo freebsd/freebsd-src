@@ -26,6 +26,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20191212:
+	r355677 has modified the internal interface used between the
+	NFS modules in the kernel. As such, they must all be upgraded
+	simultaneously. I will do a version bump for this.
+
 20191205:
 	The root certificates of the Mozilla CA Certificate Store have been
 	imported into the base system and can be managed with the certctl(8)
