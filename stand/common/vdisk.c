@@ -229,10 +229,10 @@ command_unmapvd(int argc, char *argv[])
 	}
 
 	STAILQ_REMOVE(&vdisk_list, vd, vdisk_info, vdisk_link);
-	close(vd->vdisk_fd);
+	(void) close(vd->vdisk_fd);
+	printf("%s (%s) unmapped\n", argv[1], vd->vdisk_path);
 	free(vd->vdisk_path);
 	free(vd);
-	printf("%s (%s) unmapped\n", argv[1], vd->vdisk_path);
 
 	return (CMD_OK);
 }
