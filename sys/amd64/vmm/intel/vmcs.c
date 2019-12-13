@@ -120,6 +120,8 @@ vmcs_field_encoding(int ident)
 		return (VMCS_GUEST_PDPTE2);
 	case VM_REG_GUEST_PDPTE3:
 		return (VMCS_GUEST_PDPTE3);
+	case VM_REG_GUEST_ENTRY_INST_LENGTH:
+		return (VMCS_ENTRY_INST_LENGTH);
 	default:
 		return (-1);
 	}

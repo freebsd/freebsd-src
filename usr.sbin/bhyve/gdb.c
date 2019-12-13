@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <machine/atomic.h>
 #include <machine/specialreg.h>
@@ -58,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <vmmapi.h>
 
 #include "bhyverun.h"
+#include "gdb.h"
 #include "mem.h"
 #include "mevent.h"
 
@@ -75,8 +77,7 @@ static struct mevent *read_event, *write_event;
 static cpuset_t vcpus_active, vcpus_suspended, vcpus_waiting;
 static pthread_mutex_t gdb_lock;
 static pthread_cond_t idle_vcpus;
-static bool stop_pending, first_stop;
-static int stepping_vcpu, stopped_vcpu;
+static bool first_stop, report_next_stop, swbreak_enabled;
 
 /*
  * An I/O buffer contains 'capacity' bytes of room at 'data'.  For a
@@ -92,11 +93,44 @@ struct io_buffer {
 	size_t len;
 };
 
+struct breakpoint {
+	uint64_t gpa;
+	uint8_t shadow_inst;
+	TAILQ_ENTRY(breakpoint) link;
+};
+
+/*
+ * When a vCPU stops to due to an event that should be reported to the
+ * debugger, information about the event is stored in this structure.
+ * The vCPU thread then sets 'stopped_vcpu' if it is not already set
+ * and stops other vCPUs so the event can be reported.  The
+ * report_stop() function reports the event for the 'stopped_vcpu'
+ * vCPU.  When the debugger resumes execution via continue or step,
+ * the event for 'stopped_vcpu' is cleared.  vCPUs will loop in their
+ * event handlers until the associated event is reported or disabled.
+ *
+ * An idle vCPU will have all of the boolean fields set to false.
+ *
+ * When a vCPU is stepped, 'stepping' is set to true when the vCPU is
+ * released to execute the stepped instruction.  When the vCPU reports
+ * the stepping trap, 'stepped' is set.
+ *
+ * When a vCPU hits a breakpoint set by the debug server,
+ * 'hit_swbreak' is set to true.
+ */
+struct vcpu_state {
+	bool stepping;
+	bool stepped;
+	bool hit_swbreak;
+};
+
 static struct io_buffer cur_comm, cur_resp;
 static uint8_t cur_csum;
-static int cur_vcpu;
 static struct vmctx *ctx;
 static int cur_fd = -1;
+static TAILQ_HEAD(, breakpoint) breakpoints;
+static struct vcpu_state *vcpu_state;
+static int cur_vcpu, stopped_vcpu;
 
 const int gdb_regset[] = {
 	VM_REG_GUEST_RAX,
@@ -182,6 +216,8 @@ debug(const char *fmt, ...)
 #else
 #define debug(...)
 #endif
+
+static void	remove_all_sw_breakpoints(void);
 
 static int
 guest_paging_info(int vcpu, struct vm_guest_paging *paging)
@@ -350,6 +386,11 @@ close_connection(void)
 	io_buffer_reset(&cur_comm);
 	io_buffer_reset(&cur_resp);
 	cur_fd = -1;
+
+	remove_all_sw_breakpoints();
+
+	/* Clear any pending events. */
+	memset(vcpu_state, 0, guest_ncpus * sizeof(*vcpu_state));
 
 	/* Resume any stopped vCPUs. */
 	gdb_resume_vcpus();
@@ -556,7 +597,7 @@ append_integer(unsigned int value)
 	if (value == 0)
 		append_char('0');
 	else
-		append_unsigned_be(value, fls(value) + 7 / 8);
+		append_unsigned_be(value, (fls(value) + 7) / 8);
 }
 
 static void
@@ -609,23 +650,60 @@ parse_threadid(const uint8_t *data, size_t len)
 	return (parse_integer(data, len));
 }
 
+/*
+ * Report the current stop event to the debugger.  If the stop is due
+ * to an event triggered on a specific vCPU such as a breakpoint or
+ * stepping trap, stopped_vcpu will be set to the vCPU triggering the
+ * stop.  If 'set_cur_vcpu' is true, then cur_vcpu will be updated to
+ * the reporting vCPU for vCPU events.
+ */
 static void
-report_stop(void)
+report_stop(bool set_cur_vcpu)
 {
+	struct vcpu_state *vs;
 
 	start_packet();
-	if (stopped_vcpu == -1)
+	if (stopped_vcpu == -1) {
 		append_char('S');
-	else
+		append_byte(GDB_SIGNAL_TRAP);
+	} else {
+		vs = &vcpu_state[stopped_vcpu];
+		if (set_cur_vcpu)
+			cur_vcpu = stopped_vcpu;
 		append_char('T');
-	append_byte(GDB_SIGNAL_TRAP);
-	if (stopped_vcpu != -1) {
+		append_byte(GDB_SIGNAL_TRAP);
 		append_string("thread:");
 		append_integer(stopped_vcpu + 1);
 		append_char(';');
+		if (vs->hit_swbreak) {
+			debug("$vCPU %d reporting swbreak\n", stopped_vcpu);
+			if (swbreak_enabled)
+				append_string("swbreak:;");
+		} else if (vs->stepped)
+			debug("$vCPU %d reporting step\n", stopped_vcpu);
+		else
+			debug("$vCPU %d reporting ???\n", stopped_vcpu);
 	}
-	stopped_vcpu = -1;
 	finish_packet();
+	report_next_stop = false;
+}
+
+/*
+ * If this stop is due to a vCPU event, clear that event to mark it as
+ * acknowledged.
+ */
+static void
+discard_stop(void)
+{
+	struct vcpu_state *vs;
+
+	if (stopped_vcpu != -1) {
+		vs = &vcpu_state[stopped_vcpu];
+		vs->hit_swbreak = false;
+		vs->stepped = false;
+		stopped_vcpu = -1;
+	}
+	report_next_stop = true;
 }
 
 static void
@@ -635,14 +713,18 @@ gdb_finish_suspend_vcpus(void)
 	if (first_stop) {
 		first_stop = false;
 		stopped_vcpu = -1;
-	} else if (response_pending())
-		stop_pending = true;
-	else {
-		report_stop();
+	} else if (report_next_stop) {
+		assert(!response_pending());
+		report_stop(true);
 		send_pending_data(cur_fd);
 	}
 }
 
+/*
+ * vCPU threads invoke this function whenever the vCPU enters the
+ * debug server to pause or report an event.  vCPU threads wait here
+ * as long as the debug server keeps them suspended.
+ */
 static void
 _gdb_cpu_suspend(int vcpu, bool report_stop)
 {
@@ -651,19 +733,28 @@ _gdb_cpu_suspend(int vcpu, bool report_stop)
 	CPU_SET(vcpu, &vcpus_waiting);
 	if (report_stop && CPU_CMP(&vcpus_waiting, &vcpus_suspended) == 0)
 		gdb_finish_suspend_vcpus();
-	while (CPU_ISSET(vcpu, &vcpus_suspended) && vcpu != stepping_vcpu)
+	while (CPU_ISSET(vcpu, &vcpus_suspended))
 		pthread_cond_wait(&idle_vcpus, &gdb_lock);
 	CPU_CLR(vcpu, &vcpus_waiting);
 	debug("$vCPU %d resuming\n", vcpu);
 }
 
+/*
+ * Invoked at the start of a vCPU thread's execution to inform the
+ * debug server about the new thread.
+ */
 void
 gdb_cpu_add(int vcpu)
 {
 
 	debug("$vCPU %d starting\n", vcpu);
 	pthread_mutex_lock(&gdb_lock);
+	assert(vcpu < guest_ncpus);
 	CPU_SET(vcpu, &vcpus_active);
+	if (!TAILQ_EMPTY(&breakpoints)) {
+		vm_set_capability(ctx, vcpu, VM_CAP_BPT_EXIT, 1);
+		debug("$vCPU %d enabled breakpoint exits\n", vcpu);
+	}
 
 	/*
 	 * If a vcpu is added while vcpus are stopped, suspend the new
@@ -677,29 +768,42 @@ gdb_cpu_add(int vcpu)
 	pthread_mutex_unlock(&gdb_lock);
 }
 
+/*
+ * Invoked by vCPU before resuming execution.  This enables stepping
+ * if the vCPU is marked as stepping.
+ */
+static void
+gdb_cpu_resume(int vcpu)
+{
+	struct vcpu_state *vs;
+	int error;
+
+	vs = &vcpu_state[vcpu];
+
+	/*
+	 * Any pending event should already be reported before
+	 * resuming.
+	 */
+	assert(vs->hit_swbreak == false);
+	assert(vs->stepped == false);
+	if (vs->stepping) {
+		error = vm_set_capability(ctx, vcpu, VM_CAP_MTRAP_EXIT, 1);
+		assert(error == 0);
+	}
+}
+
+/*
+ * Handler for VM_EXITCODE_DEBUG used to suspend a vCPU when the guest
+ * has been suspended due to an event on different vCPU or in response
+ * to a guest-wide suspend such as Ctrl-C or the stop on attach.
+ */
 void
 gdb_cpu_suspend(int vcpu)
 {
 
 	pthread_mutex_lock(&gdb_lock);
 	_gdb_cpu_suspend(vcpu, true);
-	pthread_mutex_unlock(&gdb_lock);
-}
-
-void
-gdb_cpu_mtrap(int vcpu)
-{
-
-	debug("$vCPU %d MTRAP\n", vcpu);
-	pthread_mutex_lock(&gdb_lock);
-	if (vcpu == stepping_vcpu) {
-		stepping_vcpu = -1;
-		vm_set_capability(ctx, vcpu, VM_CAP_MTRAP_EXIT, 0);
-		vm_suspend_cpu(ctx, vcpu);
-		assert(stopped_vcpu == -1);
-		stopped_vcpu = vcpu;
-		_gdb_cpu_suspend(vcpu, true);
-	}
+	gdb_cpu_resume(vcpu);
 	pthread_mutex_unlock(&gdb_lock);
 }
 
@@ -715,6 +819,98 @@ gdb_suspend_vcpus(void)
 		gdb_finish_suspend_vcpus();
 }
 
+/*
+ * Handler for VM_EXITCODE_MTRAP reported when a vCPU single-steps via
+ * the VT-x-specific MTRAP exit.
+ */
+void
+gdb_cpu_mtrap(int vcpu)
+{
+	struct vcpu_state *vs;
+
+	debug("$vCPU %d MTRAP\n", vcpu);
+	pthread_mutex_lock(&gdb_lock);
+	vs = &vcpu_state[vcpu];
+	if (vs->stepping) {
+		vs->stepping = false;
+		vs->stepped = true;
+		vm_set_capability(ctx, vcpu, VM_CAP_MTRAP_EXIT, 0);
+		while (vs->stepped) {
+			if (stopped_vcpu == -1) {
+				debug("$vCPU %d reporting step\n", vcpu);
+				stopped_vcpu = vcpu;
+				gdb_suspend_vcpus();
+			}
+			_gdb_cpu_suspend(vcpu, true);
+		}
+		gdb_cpu_resume(vcpu);
+	}
+	pthread_mutex_unlock(&gdb_lock);
+}
+
+static struct breakpoint *
+find_breakpoint(uint64_t gpa)
+{
+	struct breakpoint *bp;
+
+	TAILQ_FOREACH(bp, &breakpoints, link) {
+		if (bp->gpa == gpa)
+			return (bp);
+	}
+	return (NULL);
+}
+
+void
+gdb_cpu_breakpoint(int vcpu, struct vm_exit *vmexit)
+{
+	struct breakpoint *bp;
+	struct vcpu_state *vs;
+	uint64_t gpa;
+	int error;
+
+	pthread_mutex_lock(&gdb_lock);
+	error = guest_vaddr2paddr(vcpu, vmexit->rip, &gpa);
+	assert(error == 1);
+	bp = find_breakpoint(gpa);
+	if (bp != NULL) {
+		vs = &vcpu_state[vcpu];
+		assert(vs->stepping == false);
+		assert(vs->stepped == false);
+		assert(vs->hit_swbreak == false);
+		vs->hit_swbreak = true;
+		vm_set_register(ctx, vcpu, VM_REG_GUEST_RIP, vmexit->rip);
+		for (;;) {
+			if (stopped_vcpu == -1) {
+				debug("$vCPU %d reporting breakpoint at rip %#lx\n", vcpu,
+				    vmexit->rip);
+				stopped_vcpu = vcpu;
+				gdb_suspend_vcpus();
+			}
+			_gdb_cpu_suspend(vcpu, true);
+			if (!vs->hit_swbreak) {
+				/* Breakpoint reported. */
+				break;
+			}
+			bp = find_breakpoint(gpa);
+			if (bp == NULL) {
+				/* Breakpoint was removed. */
+				vs->hit_swbreak = false;
+				break;
+			}
+		}
+		gdb_cpu_resume(vcpu);
+	} else {
+		debug("$vCPU %d injecting breakpoint at rip %#lx\n", vcpu,
+		    vmexit->rip);
+		error = vm_set_register(ctx, vcpu,
+		    VM_REG_GUEST_ENTRY_INST_LENGTH, vmexit->u.bpt.inst_length);
+		assert(error == 0);
+		error = vm_inject_exception(ctx, vcpu, IDT_BP, 0, 0, 0);
+		assert(error == 0);
+	}
+	pthread_mutex_unlock(&gdb_lock);
+}
+
 static bool
 gdb_step_vcpu(int vcpu)
 {
@@ -724,9 +920,11 @@ gdb_step_vcpu(int vcpu)
 	error = vm_get_capability(ctx, vcpu, VM_CAP_MTRAP_EXIT, &val);
 	if (error < 0)
 		return (false);
-	error = vm_set_capability(ctx, vcpu, VM_CAP_MTRAP_EXIT, 1);
+
+	discard_stop();
+	vcpu_state[vcpu].stepping = true;
 	vm_resume_cpu(ctx, vcpu);
-	stepping_vcpu = vcpu;
+	CPU_CLR(vcpu, &vcpus_suspended);
 	pthread_cond_broadcast(&idle_vcpus);
 	return (true);
 }
@@ -981,6 +1179,174 @@ gdb_write_mem(const uint8_t *data, size_t len)
 }
 
 static bool
+set_breakpoint_caps(bool enable)
+{
+	cpuset_t mask;
+	int vcpu;
+
+	mask = vcpus_active;
+	while (!CPU_EMPTY(&mask)) {
+		vcpu = CPU_FFS(&mask) - 1;
+		CPU_CLR(vcpu, &mask);
+		if (vm_set_capability(ctx, vcpu, VM_CAP_BPT_EXIT,
+		    enable ? 1 : 0) < 0)
+			return (false);
+		debug("$vCPU %d %sabled breakpoint exits\n", vcpu,
+		    enable ? "en" : "dis");
+	}
+	return (true);
+}
+
+static void
+remove_all_sw_breakpoints(void)
+{
+	struct breakpoint *bp, *nbp;
+	uint8_t *cp;
+
+	if (TAILQ_EMPTY(&breakpoints))
+		return;
+
+	TAILQ_FOREACH_SAFE(bp, &breakpoints, link, nbp) {
+		debug("remove breakpoint at %#lx\n", bp->gpa);
+		cp = paddr_guest2host(ctx, bp->gpa, 1);
+		*cp = bp->shadow_inst;
+		TAILQ_REMOVE(&breakpoints, bp, link);
+		free(bp);
+	}
+	TAILQ_INIT(&breakpoints);
+	set_breakpoint_caps(false);
+}
+
+static void
+update_sw_breakpoint(uint64_t gva, int kind, bool insert)
+{
+	struct breakpoint *bp;
+	uint64_t gpa;
+	uint8_t *cp;
+	int error;
+
+	if (kind != 1) {
+		send_error(EINVAL);
+		return;
+	}
+
+	error = guest_vaddr2paddr(cur_vcpu, gva, &gpa);
+	if (error == -1) {
+		send_error(errno);
+		return;
+	}
+	if (error == 0) {
+		send_error(EFAULT);
+		return;
+	}
+
+	cp = paddr_guest2host(ctx, gpa, 1);
+
+	/* Only permit breakpoints in guest RAM. */
+	if (cp == NULL) {
+		send_error(EFAULT);
+		return;
+	}
+
+	/* Find any existing breakpoint. */
+	bp = find_breakpoint(gpa);
+
+	/*
+	 * Silently ignore duplicate commands since the protocol
+	 * requires these packets to be idempotent.
+	 */
+	if (insert) {
+		if (bp == NULL) {
+			if (TAILQ_EMPTY(&breakpoints) &&
+			    !set_breakpoint_caps(true)) {
+				send_empty_response();
+				return;
+			}
+			bp = malloc(sizeof(*bp));
+			bp->gpa = gpa;
+			bp->shadow_inst = *cp;
+			*cp = 0xcc;	/* INT 3 */
+			TAILQ_INSERT_TAIL(&breakpoints, bp, link);
+			debug("new breakpoint at %#lx\n", gpa);
+		}
+	} else {
+		if (bp != NULL) {
+			debug("remove breakpoint at %#lx\n", gpa);
+			*cp = bp->shadow_inst;
+			TAILQ_REMOVE(&breakpoints, bp, link);
+			free(bp);
+			if (TAILQ_EMPTY(&breakpoints))
+				set_breakpoint_caps(false);
+		}
+	}
+	send_ok();
+}
+
+static void
+parse_breakpoint(const uint8_t *data, size_t len)
+{
+	uint64_t gva;
+	uint8_t *cp;
+	bool insert;
+	int kind, type;
+
+	insert = data[0] == 'Z';
+
+	/* Skip 'Z/z' */
+	data += 1;
+	len -= 1;
+
+	/* Parse and consume type. */
+	cp = memchr(data, ',', len);
+	if (cp == NULL || cp == data) {
+		send_error(EINVAL);
+		return;
+	}
+	type = parse_integer(data, cp - data);
+	len -= (cp - data) + 1;
+	data += (cp - data) + 1;
+
+	/* Parse and consume address. */
+	cp = memchr(data, ',', len);
+	if (cp == NULL || cp == data) {
+		send_error(EINVAL);
+		return;
+	}
+	gva = parse_integer(data, cp - data);
+	len -= (cp - data) + 1;
+	data += (cp - data) + 1;
+
+	/* Parse and consume kind. */
+	cp = memchr(data, ';', len);
+	if (cp == data) {
+		send_error(EINVAL);
+		return;
+	}
+	if (cp != NULL) {
+		/*
+		 * We do not advertise support for either the
+		 * ConditionalBreakpoints or BreakpointCommands
+		 * features, so we should not be getting conditions or
+		 * commands from the remote end.
+		 */
+		send_empty_response();
+		return;
+	}
+	kind = parse_integer(data, len);
+	data += len;
+	len = 0;
+
+	switch (type) {
+	case 0:
+		update_sw_breakpoint(gva, kind, insert);
+		break;
+	default:
+		send_empty_response();
+		break;
+	}
+}
+
+static bool
 command_equals(const uint8_t *data, size_t len, const char *cmd)
 {
 
@@ -1038,7 +1404,8 @@ check_features(const uint8_t *data, size_t len)
 			value = NULL;
 		}
 
-		/* No currently supported features. */
+		if (strcmp(feature, "swbreak") == 0)
+			swbreak_enabled = supported;
 	}
 	free(str);
 
@@ -1046,6 +1413,7 @@ check_features(const uint8_t *data, size_t len)
 
 	/* This is an arbitrary limit. */
 	append_string("PacketSize=4096");
+	append_string(";swbreak+");
 	finish_packet();
 }
 
@@ -1139,7 +1507,7 @@ handle_command(const uint8_t *data, size_t len)
 			break;
 		}
 
-		/* Don't send a reply until a stop occurs. */
+		discard_stop();
 		gdb_resume_vcpus();
 		break;
 	case 'D':
@@ -1211,13 +1579,12 @@ handle_command(const uint8_t *data, size_t len)
 			break;
 		}
 		break;
+	case 'z':
+	case 'Z':
+		parse_breakpoint(data, len);
+		break;
 	case '?':
-		/* XXX: Only if stopped? */
-		/* For now, just report that we are always stopped. */
-		start_packet();
-		append_char('S');
-		append_byte(GDB_SIGNAL_TRAP);
-		finish_packet();
+		report_stop(false);
 		break;
 	case 'G': /* TODO */
 	case 'v':
@@ -1228,8 +1595,6 @@ handle_command(const uint8_t *data, size_t len)
 	case 'Q': /* TODO */
 	case 't': /* TODO */
 	case 'X': /* TODO */
-	case 'z': /* TODO */
-	case 'Z': /* TODO */
 	default:
 		send_empty_response();
 	}
@@ -1260,9 +1625,8 @@ check_command(int fd)
 			if (response_pending())
 				io_buffer_reset(&cur_resp);
 			io_buffer_consume(&cur_comm, 1);
-			if (stop_pending) {
-				stop_pending = false;
-				report_stop();
+			if (stopped_vcpu != -1 && report_next_stop) {
+				report_stop(true);
 				send_pending_data(fd);
 			}
 			break;
@@ -1416,12 +1780,11 @@ new_connection(int fd, enum ev_type event, void *arg)
 
 	cur_fd = s;
 	cur_vcpu = 0;
-	stepping_vcpu = -1;
 	stopped_vcpu = -1;
-	stop_pending = false;
 
 	/* Break on attach. */
 	first_stop = true;
+	report_next_stop = false;
 	gdb_suspend_vcpus();
 	pthread_mutex_unlock(&gdb_lock);
 }
@@ -1473,6 +1836,9 @@ init_gdb(struct vmctx *_ctx, int sport, bool wait)
 	if (listen(s, 1) < 0)
 		err(1, "gdb socket listen");
 
+	stopped_vcpu = -1;
+	TAILQ_INIT(&breakpoints);
+	vcpu_state = calloc(guest_ncpus, sizeof(*vcpu_state));
 	if (wait) {
 		/*
 		 * Set vcpu 0 in vcpus_suspended.  This will trigger the
@@ -1480,9 +1846,8 @@ init_gdb(struct vmctx *_ctx, int sport, bool wait)
 		 * it starts execution.  The vcpu will remain suspended
 		 * until a debugger connects.
 		 */
-		stepping_vcpu = -1;
-		stopped_vcpu = -1;
 		CPU_SET(0, &vcpus_suspended);
+		stopped_vcpu = 0;
 	}
 
 	flags = fcntl(s, F_GETFL);

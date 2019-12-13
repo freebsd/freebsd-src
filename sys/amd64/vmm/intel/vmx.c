@@ -1071,6 +1071,7 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 		vmx->cap[i].set = 0;
 		vmx->cap[i].proc_ctls = procbased_ctls;
 		vmx->cap[i].proc_ctls2 = procbased_ctls2;
+		vmx->cap[i].exc_bitmap = exc_bitmap;
 
 		vmx->state[i].nextrip = ~0;
 		vmx->state[i].lastcpu = NOCPU;
@@ -2547,6 +2548,18 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			return (1);
 		}
 
+		/*
+		 * If the hypervisor has requested user exits for
+		 * debug exceptions, bounce them out to userland.
+		 */
+		if (intr_type == VMCS_INTR_T_SWEXCEPTION && intr_vec == IDT_BP &&
+		    (vmx->cap[vcpu].set & (1 << VM_CAP_BPT_EXIT))) {
+			vmexit->exitcode = VM_EXITCODE_BPT;
+			vmexit->u.bpt.inst_length = vmexit->inst_length;
+			vmexit->inst_length = 0;
+			break;
+		}
+
 		if (intr_vec == IDT_PF) {
 			error = vmxctx_setreg(vmxctx, VM_REG_GUEST_CR2, qual);
 			KASSERT(error == 0, ("%s: vmxctx_setreg(cr2) error %d",
@@ -3296,6 +3309,9 @@ vmx_getcap(void *arg, int vcpu, int type, int *retval)
 		if (cap_invpcid)
 			ret = 0;
 		break;
+	case VM_CAP_BPT_EXIT:
+		ret = 0;
+		break;
 	default:
 		break;
 	}
@@ -3367,11 +3383,25 @@ vmx_setcap(void *arg, int vcpu, int type, int val)
 			reg = VMCS_SEC_PROC_BASED_CTLS;
 		}
 		break;
+	case VM_CAP_BPT_EXIT:
+		retval = 0;
+
+		/* Don't change the bitmap if we are tracing all exceptions. */
+		if (vmx->cap[vcpu].exc_bitmap != 0xffffffff) {
+			pptr = &vmx->cap[vcpu].exc_bitmap;
+			baseval = *pptr;
+			flag = (1 << IDT_BP);
+			reg = VMCS_EXCEPTION_BITMAP;
+		}
+		break;
 	default:
 		break;
 	}
 
-	if (retval == 0) {
+	if (retval)
+		return (retval);
+
+	if (pptr != NULL) {
 		if (val) {
 			baseval |= flag;
 		} else {
@@ -3381,26 +3411,23 @@ vmx_setcap(void *arg, int vcpu, int type, int val)
 		error = vmwrite(reg, baseval);
 		VMCLEAR(vmcs);
 
-		if (error) {
-			retval = error;
-		} else {
-			/*
-			 * Update optional stored flags, and record
-			 * setting
-			 */
-			if (pptr != NULL) {
-				*pptr = baseval;
-			}
+		if (error)
+			return (error);
 
-			if (val) {
-				vmx->cap[vcpu].set |= (1 << type);
-			} else {
-				vmx->cap[vcpu].set &= ~(1 << type);
-			}
-		}
+		/*
+		 * Update optional stored flags, and record
+		 * setting
+		 */
+		*pptr = baseval;
 	}
 
-	return (retval);
+	if (val) {
+		vmx->cap[vcpu].set |= (1 << type);
+	} else {
+		vmx->cap[vcpu].set &= ~(1 << type);
+	}
+
+	return (0);
 }
 
 struct vlapic_vtx {
