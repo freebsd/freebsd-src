@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2019 Ian Lepore.
  *
  * Redistribution and use in source and binary forms, with or without
