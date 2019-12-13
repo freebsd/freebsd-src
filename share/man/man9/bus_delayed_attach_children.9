@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2019
+.Dd December 13, 2019
 .Dt BUS_DELAYED_ATTACH_CHILDREN 9
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@ The
 function requests that the children of this device
 be attached when interrupts are running.
 If interrupts are currently running, this happens immediately.
-If interrupts aren't yet running, this happens after interrupts are enabled, but
+If interrupts are not yet running, this happens after interrupts are enabled, but
 before the system mounts root.
 .Sh RETURN VALUES
 A zero return value indicates success.
