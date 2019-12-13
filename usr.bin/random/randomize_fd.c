@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -175,7 +176,7 @@ randomize_fd(int fd, int type, int unique, double denom)
 			    (type == RANDOM_TYPE_WORDS && isspace(buf[i])) ||
 			    (eof && i == buflen - 1)) {
 make_token:
-				if (numnode == RANDOM_MAX_PLUS1) {
+				if (numnode == UINT32_MAX - 1) {
 					errno = EFBIG;
 					err(1, "too many delimiters");
 				}
@@ -210,15 +211,14 @@ make_token:
 	free(buf);
 
 	for (i = numnode; i > 0; i--) {
-		selected = random() % numnode;
+		selected = arc4random_uniform(numnode + 1);
 
 		for (j = 0, prev = n = rand_root; n != NULL; j++, prev = n, n = n->next) {
 			if (j == selected) {
 				if (n->cp == NULL)
 					break;
 
-				if ((int)(denom * random() /
-					RANDOM_MAX_PLUS1) == 0) {
+				if (arc4random_uniform(denom) == 0) {
 					ret = printf("%.*s",
 						(int)n->len - 1, n->cp);
 					if (ret < 0)

@@ -28,7 +28,7 @@
 .\"     @(#)random.6	8.2 (Berkeley) 3/31/94
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2003
+.Dd December 12, 2019
 .Dt RANDOM 6
 .Os
 .Sh NAME
@@ -62,9 +62,7 @@ space characters as determined by
 The default
 .Ar denominator
 for this mode of operation is 1, which gives each line a chance to be
-displayed, but in a
-.Xr random 3
-order.
+displayed, but in a random order.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -112,7 +110,6 @@ Randomize words separated by
 instead of newlines.
 .El
 .Sh SEE ALSO
-.Xr random 3 ,
 .Xr fortune 6
 .Sh HISTORY
 The
