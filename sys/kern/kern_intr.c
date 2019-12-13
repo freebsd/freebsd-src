@@ -84,7 +84,6 @@ struct	intr_entropy {
 	uintptr_t event;
 };
 
-struct	intr_event *clk_intr_event;
 struct	intr_event *tty_intr_event;
 void	*vm_ih;
 struct proc *intrproc;
