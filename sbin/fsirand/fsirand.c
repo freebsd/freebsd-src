@@ -83,8 +83,6 @@ main(int argc, char *argv[])
 	if (argc - optind < 1)
 		usage();
 
-	srandomdev();
-
 	/* Increase our data size to the max */
 	if (getrlimit(RLIMIT_DATA, &rl) == 0) {
 		rl.rlim_cur = rl.rlim_max;
@@ -167,7 +165,7 @@ fsirand(char *device)
 	if (!printonly) {
 		/* Randomize fs_id and write out new sblock and backups */
 		sblock->fs_id[0] = (u_int32_t)time(NULL);
-		sblock->fs_id[1] = random();
+		sblock->fs_id[1] = arc4random();
 		if (sbput(devfd, sblock, sblock->fs_ncg) != 0) {
 			warn("could not write updated superblock");
 			return (1);
