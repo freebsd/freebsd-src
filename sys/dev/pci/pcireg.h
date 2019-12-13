@@ -1049,6 +1049,13 @@
 #define	PCIR_SRIOV_BARS		0x24
 #define	PCIR_SRIOV_BAR(x)	(PCIR_SRIOV_BARS + (x) * 4)
 
+/* Extended Capability Vendor-Specific definitions */
+#define PCIR_VSEC_HEADER	0x04
+#define PCIR_VSEC_ID(hdr)	((hdr) & 0xffff)
+#define PCIR_VSEC_REV(hdr)	(((hdr) & 0xf0000) >> 16)
+#define PCIR_VSEC_LENGTH(hdr)	(((hdr) & 0xfff00000) >> 20)
+#define PCIR_VSEC_DATA		0x08
+
 /*
  * PCI Express Firmware Interface definitions
  */
