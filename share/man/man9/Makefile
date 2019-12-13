@@ -56,6 +56,7 @@ MAN=	accept_filter.9 \
 	BUS_SETUP_INTR.9 \
 	bus_space.9 \
 	byteorder.9 \
+	callout.9 \
 	casuword.9 \
 	cd.9 \
 	cnv.9 \
@@ -315,7 +316,6 @@ MAN=	accept_filter.9 \
 	tcp_functions.9 \
 	thread_exit.9 \
 	time.9 \
-	timeout.9 \
 	tvtohz.9 \
 	ucred.9 \
 	uidinfo.9 \
@@ -766,6 +766,30 @@ MLINKS+=byteorder.9 be16dec.9 \
 	byteorder.9 le64dec.9 \
 	byteorder.9 le64enc.9 \
 	byteorder.9 le64toh.9
+MLINKS+=callout.9 callout_active.9 \
+	callout.9 callout_async_drain.9 \
+	callout.9 callout_deactivate.9 \
+	callout.9 callout_drain.9 \
+	callout.9 callout_handle_init.9 \
+	callout.9 callout_init.9 \
+	callout.9 callout_init_mtx.9 \
+	callout.9 callout_init_rm.9 \
+	callout.9 callout_init_rw.9 \
+	callout.9 callout_pending.9 \
+	callout.9 callout_reset.9 \
+	callout.9 callout_reset_curcpu.9 \
+	callout.9 callout_reset_on.9 \
+	callout.9 callout_reset_sbt.9 \
+	callout.9 callout_reset_sbt_curcpu.9 \
+	callout.9 callout_reset_sbt_on.9 \
+	callout.9 callout_schedule.9 \
+	callout.9 callout_schedule_curcpu.9 \
+	callout.9 callout_schedule_on.9 \
+	callout.9 callout_schedule_sbt.9 \
+	callout.9 callout_schedule_sbt_curcpu.9 \
+	callout.9 callout_schedule_sbt_on.9 \
+	callout.9 callout_stop.9 \
+	callout.9 callout_when.9
 MLINKS+=cnv.9 cnvlist.9 \
 	cnv.9 cnvlist_free_binary.9 \
 	cnv.9 cnvlist_free_bool.9 \
@@ -2097,32 +2121,6 @@ MLINKS+=tcp_functions.9 register_tcp_functions.9 \
 MLINKS+=time.9 boottime.9 \
 	time.9 time_second.9 \
 	time.9 time_uptime.9
-MLINKS+=timeout.9 callout.9 \
-	timeout.9 callout_active.9 \
-	timeout.9 callout_async_drain.9 \
-	timeout.9 callout_deactivate.9 \
-	timeout.9 callout_drain.9 \
-	timeout.9 callout_handle_init.9 \
-	timeout.9 callout_init.9 \
-	timeout.9 callout_init_mtx.9 \
-	timeout.9 callout_init_rm.9 \
-	timeout.9 callout_init_rw.9 \
-	timeout.9 callout_pending.9 \
-	timeout.9 callout_reset.9 \
-	timeout.9 callout_reset_curcpu.9 \
-	timeout.9 callout_reset_on.9 \
-	timeout.9 callout_reset_sbt.9 \
-	timeout.9 callout_reset_sbt_curcpu.9 \
-	timeout.9 callout_reset_sbt_on.9 \
-	timeout.9 callout_schedule.9 \
-	timeout.9 callout_schedule_curcpu.9 \
-	timeout.9 callout_schedule_on.9 \
-	timeout.9 callout_schedule_sbt.9 \
-	timeout.9 callout_schedule_sbt_curcpu.9 \
-	timeout.9 callout_schedule_sbt_on.9 \
-	timeout.9 callout_stop.9 \
-	timeout.9 callout_when.9 \
-	timeout.9 untimeout.9
 MLINKS+=ucred.9 crcopy.9 \
 	ucred.9 crcopysafe.9 \
 	ucred.9 crdup.9 \

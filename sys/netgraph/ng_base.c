@@ -3801,7 +3801,7 @@ ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
 	return (0);
 }
 
-/* A special modified version of untimeout() */
+/* A special modified version of callout_stop() */
 int
 ng_uncallout(struct callout *c, node_p node)
 {
