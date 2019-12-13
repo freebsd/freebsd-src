@@ -31,6 +31,7 @@
 #include <sys/param.h>
 #include <sys/counter.h>
 #include <sys/cpuset.h>
+#include <sys/stddef.h>
 #include <sys/sysctl.h>
 
 #include <vm/uma.h>
