@@ -797,7 +797,7 @@ failed:
 	cst->tx_credits = sc->params.eo_wr_cred;
 	cst->tx_total = cst->tx_credits;
 	cst->plen = 0;
-	cst->ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |
+	cst->ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT_XT) |
 	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(sc->pf) |
 	    V_TXPKT_VF(vi->vin) | V_TXPKT_VF_VLD(vi->vfvld));
 
