@@ -3980,7 +3980,7 @@ static void
 nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
     NFSPROC_T *p)
 {
-	struct nfsrvdscreate *dsc, *tdsc;
+	struct nfsrvdscreate *dsc, *tdsc = NULL;
 	struct nfsdevice *ds, *tds, *fds;
 	struct mount *mp;
 	struct pnfsdsfile *pf, *tpf;
@@ -5890,7 +5890,7 @@ nfsrv_pnfssetfh(struct vnode *vp, struct pnfsdsfile *pf, char *devid,
     char *fnamep, struct vnode *nvp, NFSPROC_T *p)
 {
 	struct nfsnode *np;
-	int ret;
+	int ret = 0;
 
 	np = VTONFS(nvp);
 	NFSBCOPY(np->n_fhp->nfh_fh, &pf->dsf_fh, NFSX_MYFH);
@@ -6210,12 +6210,13 @@ nfsvno_setxattr(struct vnode *vp, char *name, int len, struct mbuf *m,
 	struct uio uio, *uiop = &uio;
 	int cnt, error;
 
+	error = 0;
 #ifdef MAC
 	error = mac_vnode_check_setextattr(cred, vp, EXTATTR_NAMESPACE_USER,
 	    name);
+#endif
 	if (error != 0)
 		goto out;
-#endif
 
 	uiop->uio_rw = UIO_WRITE;
 	uiop->uio_segflg = UIO_SYSSPACE;
@@ -6263,9 +6264,7 @@ nfsvno_rmxattr(struct nfsrv_descript *nd, struct vnode *vp, char *name,
 	if (error == EOPNOTSUPP)
 		error = VOP_SETEXTATTR(vp, EXTATTR_NAMESPACE_USER, name, NULL,
 		    cred, p);
-#ifdef MAC
 out:
-#endif
 	NFSEXITCODE(error);
 	return (error);
 }
