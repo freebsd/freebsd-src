@@ -5155,7 +5155,7 @@ nfsrv_writedsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
     NFSPROC_T *p, struct vnode *vp, struct nfsmount **nmpp, int mirrorcnt,
     struct mbuf **mpp, char *cp, int *failposp)
 {
-	struct nfsrvwritedsdorpc *drpc, *tdrpc;
+	struct nfsrvwritedsdorpc *drpc, *tdrpc = NULL;
 	struct nfsvattr na;
 	struct mbuf *m;
 	int error, i, offs, ret, timo;
@@ -5322,7 +5322,7 @@ nfsrv_allocatedsrpc(fhandle_t *fhp, off_t off, off_t len, struct ucred *cred,
     NFSPROC_T *p, struct vnode *vp, struct nfsmount **nmpp, int mirrorcnt,
     int *failposp)
 {
-	struct nfsrvallocatedsdorpc *drpc, *tdrpc;
+	struct nfsrvallocatedsdorpc *drpc, *tdrpc = NULL;
 	struct nfsvattr na;
 	int error, i, ret, timo;
 
@@ -5506,7 +5506,7 @@ nfsrv_setattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
     struct vnode *vp, struct nfsmount **nmpp, int mirrorcnt,
     struct nfsvattr *nap, int *failposp)
 {
-	struct nfsrvsetattrdsdorpc *drpc, *tdrpc;
+	struct nfsrvsetattrdsdorpc *drpc, *tdrpc = NULL;
 	struct nfsvattr na;
 	int error, i, ret, timo;
 
@@ -5655,7 +5655,7 @@ nfsrv_setacldsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
     struct vnode *vp, struct nfsmount **nmpp, int mirrorcnt, struct acl *aclp,
     int *failposp)
 {
-	struct nfsrvsetacldsdorpc *drpc, *tdrpc;
+	struct nfsrvsetacldsdorpc *drpc, *tdrpc = NULL;
 	int error, i, ret, timo;
 
 	NFSD_DEBUG(4, "in nfsrv_setacldsrpc\n");
