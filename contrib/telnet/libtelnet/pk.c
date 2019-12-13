@@ -142,12 +142,7 @@ common_key(char *xsecret, char *xpublic, IdeaData *ideakey, DesData *deskey)
 static void
 getseed(char *seed, int seedsize)
 {
-	int i;
-
-	srandomdev();
-	for (i = 0; i < seedsize; i++) {
-		seed[i] = random() & 0xff;
-	}
+	arc4random_buf(seed, seedsize);
 }
 
 /*
