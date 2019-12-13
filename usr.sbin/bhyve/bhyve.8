@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2019
+.Dd December 12, 2019
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -521,8 +521,7 @@ Each virtual CPU is exposed to the debugger as a thread.
 General purpose registers can be queried for each virtual CPU, but other
 registers such as floating-point and system registers cannot be queried.
 .Ss Memory
-Memory (including memory mapped I/O regions) can be read by the debugger,
-but not written.
+Memory (including memory mapped I/O regions) can be read and written by the debugger.
 Memory operations use virtual addresses that are resolved to physical addresses
 via the current virtual CPU's active address translation.
 .Ss Control
