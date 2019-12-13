@@ -48,7 +48,7 @@ CODE {
 	{
 		char buf[32];
 
-		sbuf_printf(sb, "%s%s", pfx,
+		sbuf_printf(sb, "%s%s%s", pfx, g_part_separator,
 		    G_PART_NAME(table, entry, buf, sizeof(buf)));
 	}
 

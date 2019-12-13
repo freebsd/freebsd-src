@@ -228,6 +228,8 @@ void g_part_geometry_heads(off_t, u_int, off_t *, u_int *);
 
 int g_part_modevent(module_t, int, struct g_part_scheme *);
 
+extern char g_part_separator[];
+
 #define	G_PART_SCHEME_DECLARE(name)				\
     static int name##_modevent(module_t mod, int tp, void *d)	\
     {								\
