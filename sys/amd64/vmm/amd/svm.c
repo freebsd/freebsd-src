@@ -2187,6 +2187,11 @@ svm_setreg(void *arg, int vcpu, int ident, uint64_t val)
 		return (0);
 	}
 
+	if (ident == VM_REG_GUEST_ENTRY_INST_LENGTH) {
+		/* Ignore. */
+		return (0);
+	}
+
 	/*
 	 * XXX deal with CR3 and invalidate TLB entries tagged with the
 	 * vcpu's ASID. This needs to be treated differently depending on

@@ -95,6 +95,7 @@ enum vm_reg_name {
 	VM_REG_GUEST_DR2,
 	VM_REG_GUEST_DR3,
 	VM_REG_GUEST_DR6,
+	VM_REG_GUEST_ENTRY_INST_LENGTH,
 	VM_REG_LAST
 };
 
@@ -455,6 +456,7 @@ enum vm_cap_type {
 	VM_CAP_PAUSE_EXIT,
 	VM_CAP_UNRESTRICTED_GUEST,
 	VM_CAP_ENABLE_INVPCID,
+	VM_CAP_BPT_EXIT,
 	VM_CAP_MAX
 };
 
@@ -580,6 +582,7 @@ enum vm_exitcode {
 	VM_EXITCODE_REQIDLE,
 	VM_EXITCODE_DEBUG,
 	VM_EXITCODE_VMINSN,
+	VM_EXITCODE_BPT,
 	VM_EXITCODE_MAX
 };
 
@@ -666,6 +669,9 @@ struct vm_exit {
 			uint64_t	exitinfo1;
 			uint64_t	exitinfo2;
 		} svm;
+		struct {
+			int		inst_length;
+		} bpt;
 		struct {
 			uint32_t	code;		/* ecx value */
 			uint64_t	wval;

@@ -31,6 +31,7 @@
 #define	__GDB_H__
 
 void	gdb_cpu_add(int vcpu);
+void	gdb_cpu_breakpoint(int vcpu, struct vm_exit *vmexit);
 void	gdb_cpu_mtrap(int vcpu);
 void	gdb_cpu_suspend(int vcpu);
 void	init_gdb(struct vmctx *ctx, int sport, bool wait);

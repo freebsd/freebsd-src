@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2019
+.Dd December 13, 2019
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -530,7 +530,10 @@ The running guest can be interrupted by the debugger at any time
 .Pp
 Single stepping is only supported on Intel CPUs supporting the MTRAP VM exit.
 .Pp
-Breakpoints are not supported.
+Breakpoints are supported on Intel CPUs that support single stepping.
+Note that continuing from a breakpoint while interrupts are enabled in the
+guest may not work as expected due to timer interrupts firing while single
+stepping over the breakpoint.
 .Sh SIGNAL HANDLING
 .Nm
 deals with the following signals:
