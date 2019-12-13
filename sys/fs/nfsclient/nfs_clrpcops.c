@@ -5001,6 +5001,8 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 	uint8_t stripeindex;
 	sa_family_t af, safilled;
 
+	ssin.sin_port = 0;		/* To shut up compiler. */
+	ssin.sin_addr.s_addr = 0;	/* ditto */
 	*ndip = NULL;
 	ndi = NULL;
 	gotdspp = NULL;
@@ -5436,7 +5438,7 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_in *sin,
 	struct nfsclds *dsp, *tdsp;
 	int error, firsttry;
 	enum nfsclds_state retv;
-	uint32_t sequenceid;
+	uint32_t sequenceid = 0;
 
 	KASSERT(nmp->nm_sockreq.nr_cred != NULL,
 	    ("nfsrpc_fillsa: NULL nr_cred"));

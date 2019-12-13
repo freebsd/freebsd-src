@@ -4670,7 +4670,7 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int *buflenp,
     char *devid, char *fnamep, struct vnode **nvpp, struct nfsmount **newnmpp,
     struct nfsmount *curnmp, int *ippos, int *dsdirp)
 {
-	struct vnode *dvp, *nvp, **tdvpp;
+	struct vnode *dvp, *nvp = NULL, **tdvpp;
 	struct mount *mp;
 	struct nfsmount *nmp, *newnmp;
 	struct sockaddr *sad;
