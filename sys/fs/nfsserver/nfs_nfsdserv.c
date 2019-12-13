@@ -4594,7 +4594,7 @@ nfsrvd_layoutcommit(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsv4stateid_t stateid;
 	int error = 0, hasnewoff, hasnewmtime, layouttype, maxcnt, reclaim;
 	int hasnewsize;
-	uint64_t offset, len, newoff, newsize;
+	uint64_t offset, len, newoff = 0, newsize;
 	struct timespec newmtime;
 	char *layp;
 	struct thread *p = curthread;

@@ -4056,10 +4056,10 @@ nfsrv_getclientipaddr(struct nfsrv_descript *nd, struct nfsclient *clp)
 	int i, j, maxalen = 0, minalen = 0;
 	sa_family_t af;
 #ifdef INET
-	struct sockaddr_in *rin, *sin;
+	struct sockaddr_in *rin = NULL, *sin;
 #endif
 #ifdef INET6
-	struct sockaddr_in6 *rin6, *sin6;
+	struct sockaddr_in6 *rin6 = NULL, *sin6;
 #endif
 	u_char *addr;
 	int error = 0, cantparse = 0;
@@ -7075,7 +7075,7 @@ nfsrv_recalloldlayout(NFSPROC_T *p)
 	nfsquad_t clientid;
 	nfsv4stateid_t stateid;
 	fhandle_t fh;
-	int error, laytype, ret;
+	int error, laytype = 0, ret;
 
 	lhyp = &nfslayouthash[arc4random() % nfsrv_layouthashsize];
 	NFSLOCKLAYOUT(lhyp);
