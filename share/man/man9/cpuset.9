@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 29, 2016
+.Dd December 12, 2019
 .Dt CPUSET 9
 .Os
 .Sh NAME
@@ -48,7 +48,7 @@
 .Nm CPU_CMP ,
 .Nm CPU_OR ,
 .Nm CPU_AND ,
-.Nm CPU_NAND ,
+.Nm CPU_ANDNOT ,
 .Nm CPU_CLR_ATOMIC ,
 .Nm CPU_SET_ATOMIC ,
 .Nm CPU_SET_ATOMIC_ACQ ,
@@ -88,7 +88,7 @@
 .Fn CPU_CMP "cpuset_t *cpuset1" "cpuset_t *cpuset2"
 .Fn CPU_OR "cpuset_t *dst" "cpuset_t *src"
 .Fn CPU_AND "cpuset_t *dst" "cpuset_t *src"
-.Fn CPU_NAND "cpuset_t *dst" "cpuset_t *src"
+.Fn CPU_ANDNOT "cpuset_t *dst" "cpuset_t *src"
 .\"
 .Fn CPU_CLR_ATOMIC "size_t cpu_idx" "cpuset_t *cpuset"
 .Fn CPU_SET_ATOMIC "size_t cpu_idx" "cpuset_t *cpuset"
@@ -303,7 +303,7 @@ is similar, with the same atomic semantics as
 .Fn CPU_OR_ATOMIC .
 .Pp
 The
-.Fn CPU_NAND
+.Fn CPU_ANDNOT
 macro removes CPUs in
 .Fa src
 from

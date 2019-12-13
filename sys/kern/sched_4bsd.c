@@ -1181,7 +1181,7 @@ forward_wakeup(int cpunum)
 
 	if (forward_wakeup_use_mask) {
 		map = idle_cpus_mask;
-		CPU_NAND(&map, &dontuse);
+		CPU_ANDNOT(&map, &dontuse);
 
 		/* If they are both on, compare and use loop if different. */
 		if (forward_wakeup_use_loop) {
@@ -1366,7 +1366,7 @@ sched_add(struct thread *td, int flags)
 	} else {
 		if (!single_cpu) {
 			tidlemsk = idle_cpus_mask;
-			CPU_NAND(&tidlemsk, &hlt_cpus_mask);
+			CPU_ANDNOT(&tidlemsk, &hlt_cpus_mask);
 			CPU_CLR(cpuid, &tidlemsk);
 
 			if (!CPU_ISSET(cpuid, &idle_cpus_mask) &&

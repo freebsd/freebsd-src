@@ -149,13 +149,13 @@
 		(d)->__bits[__i] = (s1)->__bits[__i] & (s2)->__bits[__i];\
 } while (0)
 
-#define	BIT_NAND(_s, d, s) do {						\
+#define	BIT_ANDNOT(_s, d, s) do {					\
 	__size_t __i;							\
 	for (__i = 0; __i < __bitset_words((_s)); __i++)		\
 		(d)->__bits[__i] &= ~(s)->__bits[__i];			\
 } while (0)
 
-#define	BIT_NAND2(_s, d, s1, s2) do {					\
+#define	BIT_ANDNOT2(_s, d, s1, s2) do {					\
 	__size_t __i;							\
 	for (__i = 0; __i < __bitset_words((_s)); __i++)		\
 		(d)->__bits[__i] = (s1)->__bits[__i] & ~(s2)->__bits[__i];\
