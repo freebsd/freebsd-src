@@ -52,6 +52,7 @@ devopen(struct open_file *f, const char *fname, const char **file)
 	result = dev->d_dev->dv_open(f, dev);
 	if (result != 0) {
 		f->f_devdata = NULL;
+		f->f_dev = NULL;
 		free(dev);
 		return (result);
 	}
@@ -74,8 +75,6 @@ int
 devclose(struct open_file *f)
 {
 
-	if (f->f_devdata != NULL) {
-		free(f->f_devdata);
-	}
+	free(f->f_devdata);
 	return (0);
 }
