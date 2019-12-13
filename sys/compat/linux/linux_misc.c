@@ -1599,14 +1599,11 @@ linux_getuid(struct thread *td, struct linux_getuid_args *args)
 	return (0);
 }
 
-
 int
 linux_getsid(struct thread *td, struct linux_getsid_args *args)
 {
-	struct getsid_args bsd;
 
-	bsd.pid = args->pid;
-	return (sys_getsid(td, &bsd));
+	return (kern_getsid(td, args->pid));
 }
 
 int
