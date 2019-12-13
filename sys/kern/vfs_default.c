@@ -87,7 +87,6 @@ static int vop_stdadd_writecount(struct vop_add_writecount_args *ap);
 static int vop_stdcopy_file_range(struct vop_copy_file_range_args *ap);
 static int vop_stdfdatasync(struct vop_fdatasync_args *ap);
 static int vop_stdgetpages_async(struct vop_getpages_async_args *ap);
-static int vop_stdioctl(struct vop_ioctl_args *ap);
 
 /*
  * This vnode table stores what we want to do if the filesystem doesn't
@@ -1249,7 +1248,7 @@ vop_stdneed_inactive(struct vop_need_inactive_args *ap)
 	return (1);
 }
 
-static int
+int
 vop_stdioctl(struct vop_ioctl_args *ap)
 {
 	struct vnode *vp;
