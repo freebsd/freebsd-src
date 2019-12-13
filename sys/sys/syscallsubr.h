@@ -140,6 +140,7 @@ int	kern_getppid(struct thread *);
 int	kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
 	    socklen_t *alen);
 int	kern_getrusage(struct thread *td, int who, struct rusage *rup);
+int	kern_getsid(struct thread *td, pid_t pid);
 int	kern_getsockname(struct thread *td, int fd, struct sockaddr **sa,
 	    socklen_t *alen);
 int	kern_getsockopt(struct thread *td, int s, int level, int name,

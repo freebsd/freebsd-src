@@ -190,14 +190,21 @@ struct getsid_args {
 int
 sys_getsid(struct thread *td, struct getsid_args *uap)
 {
+
+	return (kern_getsid(td, uap->pid));
+}
+
+int
+kern_getsid(struct thread *td, pid_t pid)
+{
 	struct proc *p;
 	int error;
 
-	if (uap->pid == 0) {
+	if (pid == 0) {
 		p = td->td_proc;
 		PROC_LOCK(p);
 	} else {
-		p = pfind(uap->pid);
+		p = pfind(pid);
 		if (p == NULL)
 			return (ESRCH);
 		error = p_cansee(td, p);
