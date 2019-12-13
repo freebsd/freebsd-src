@@ -3639,6 +3639,7 @@ nfs_copy_file_range(struct vop_copy_file_range_args *ap)
 	off_t inoff, outoff;
 	bool consecutive, must_commit, tryoutcred;
 
+	ret = ret2 = 0;
 	nmp = VFSTONFS(invp->v_mount);
 	mtx_lock(&nmp->nm_mtx);
 	/* NFSv4.2 Copy is not permitted for infile == outfile. */
