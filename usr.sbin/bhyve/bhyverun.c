@@ -984,7 +984,7 @@ do_open(const char *vmname)
 int
 main(int argc, char *argv[])
 {
-	int c, error, dbg_port, gdb_port, err, bvmcons;
+	int c, error, dbg_port, err, bvmcons;
 	int max_vcpus, mptgen, memflags;
 	int rtc_localtime;
 	bool gdb_stop;
@@ -996,7 +996,6 @@ main(int argc, char *argv[])
 	bvmcons = 0;
 	progname = basename(argv[0]);
 	dbg_port = 0;
-	gdb_port = 0;
 	gdb_stop = false;
 	guest_ncpus = 1;
 	sockets = cores = threads = 1;
