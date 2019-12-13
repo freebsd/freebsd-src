@@ -134,10 +134,11 @@ static int
 iicbus_detach(device_t dev)
 {
 	struct iicbus_softc *sc = IICBUS_SOFTC(dev);
+	int err;
 
+	if ((err = device_delete_children(dev)) != 0)
+		return (err);
 	iicbus_reset(dev, IIC_FASTEST, 0, NULL);
-	bus_generic_detach(dev);
-	device_delete_children(dev);
 	mtx_destroy(&sc->lock);
 	return (0);
 }
