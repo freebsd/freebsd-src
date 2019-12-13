@@ -2282,10 +2282,8 @@ fzap_lookup(const spa_t *spa, const dnode_phys_t *dnode, const char *name,
 		return (ENOENT);
 	zc = &ZAP_LEAF_CHUNK(&zl, h);
 	while (zc->l_entry.le_hash != hash) {
-		if (zc->l_entry.le_next == 0xffff) {
-			zc = NULL;
-			break;
-		}
+		if (zc->l_entry.le_next == 0xffff)
+			return (ENOENT);
 		zc = &ZAP_LEAF_CHUNK(&zl, zc->l_entry.le_next);
 	}
 	if (fzap_name_equal(&zl, zc, name)) {
