@@ -347,7 +347,7 @@ bcm_bsc_attach(device_t dev)
 	}
 
 	/* Probe and attach the iicbus when interrupts are available. */
-	config_intrhook_oneshot((ich_func_t)bus_generic_attach, dev);
+	bus_delayed_attach_children(dev);
 
 	return (0);
 }

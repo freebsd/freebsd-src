@@ -567,6 +567,7 @@ int	bus_child_present(device_t child);
 int	bus_child_pnpinfo_str(device_t child, char *buf, size_t buflen);
 int	bus_child_location_str(device_t child, char *buf, size_t buflen);
 void	bus_enumerate_hinted_children(device_t bus);
+int	bus_delayed_attach_children(device_t bus);
 
 static __inline struct resource *
 bus_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
