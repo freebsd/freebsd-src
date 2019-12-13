@@ -167,6 +167,7 @@ uint16_t cores, maxcpus, sockets, threads;
 
 char *guest_uuid_str;
 
+static int gdb_port = 0;
 static int guest_vmexit_on_hlt, guest_vmexit_on_pause;
 static int virtio_msix = 1;
 static int x2apic_mode = 0;	/* default is xAPIC */
@@ -416,7 +417,8 @@ fbsdrun_start_thread(void *param)
 	snprintf(tname, sizeof(tname), "vcpu %d", vcpu);
 	pthread_set_name_np(mtp->mt_thr, tname);
 
-	gdb_cpu_add(vcpu);
+	if (gdb_port != 0)
+		gdb_cpu_add(vcpu);
 
 	vm_loop(mtp->mt_ctx, vcpu, vmexit[vcpu].rip);
 
@@ -690,8 +692,11 @@ vmexit_mtrap(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 
 	stats.vmexit_mtrap++;
 
+	if (gdb_port == 0) {
+		fprintf(stderr, "vm_loop: unexpected VMEXIT_MTRAP\n");
+		exit(4);
+	}
 	gdb_cpu_mtrap(*pvcpu);
-
 	return (VMEXIT_CONTINUE);
 }
 
@@ -770,6 +775,10 @@ static int
 vmexit_debug(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
 
+	if (gdb_port == 0) {
+		fprintf(stderr, "vm_loop: unexpected VMEXIT_DEBUG\n");
+		exit(4);
+	}
 	gdb_cpu_suspend(*pvcpu);
 	return (VMEXIT_CONTINUE);
 }
