@@ -566,9 +566,7 @@ spi_attach(device_t dev)
 	 * their attach. We can't do IO until timers and interrupts are working.
 	 */
 	sc->spibus = device_add_child(dev, "spibus", -1);
-	config_intrhook_oneshot((ich_func_t)bus_generic_attach, dev);
-
-	return (0);
+	return (bus_delayed_attach_children(dev));
 }
 
 static int

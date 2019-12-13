@@ -220,7 +220,7 @@ a37x0_spi_attach(device_t dev)
 	device_add_child(dev, "spibus", -1);
 
 	/* Probe and attach the spibus when interrupts are available. */
-	config_intrhook_oneshot((ich_func_t)bus_generic_attach, dev);
+	bus_delayed_attach_children(dev);
 
 	return (0);
 }
