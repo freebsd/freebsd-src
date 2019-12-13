@@ -659,6 +659,9 @@ zio_create(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 
 	mutex_init(&zio->io_lock, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&zio->io_cv, NULL, CV_DEFAULT, NULL);
+#if defined(__FreeBSD__) && defined(_KERNEL)
+	callout_init(&zio->io_timer, 1);
+#endif
 
 	list_create(&zio->io_parent_list, sizeof (zio_link_t),
 	    offsetof(zio_link_t, zl_parent_node));
@@ -726,6 +729,10 @@ zio_create(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 static void
 zio_destroy(zio_t *zio)
 {
+#ifdef __FreeBSD__
+	KASSERT(!(callout_active(&zio->io_timer) ||
+	    callout_pending(&zio->io_timer)), ("zio_destroy: timer active"));
+#endif
 	metaslab_trace_fini(&zio->io_alloc_list);
 	list_destroy(&zio->io_parent_list);
 	list_destroy(&zio->io_child_list);
@@ -1710,8 +1717,13 @@ zio_delay_interrupt(zio_t *zio)
 			DTRACE_PROBE3(zio__delay__hit, zio_t *, zio,
 			    hrtime_t, now, hrtime_t, diff);
 
+#ifdef __FreeBSD__
+			callout_reset_sbt(&zio->io_timer, nstosbt(diff), 0,
+			    (void (*)(void *))zio_interrupt, zio, C_HARDCLOCK);
+#else
 			(void) timeout_generic(CALLOUT_NORMAL,
 			    (void (*)(void *))zio_interrupt, zio, diff, 1, 0);
+#endif
 		}
 
 		return;
