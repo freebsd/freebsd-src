@@ -856,8 +856,8 @@ typedef struct OS_SPECIFIC {
 	struct cam_path         *path;
 	struct task		event_task;
 	struct cdev             *cdev;
-	struct callout_handle   wellness_periodic;	/* periodic event handling */
-	struct callout_handle   heartbeat_timeout_id;	/* heart beat event handling */
+	struct callout          wellness_periodic;	/* periodic event handling */
+	struct callout          heartbeat_timeout_id;	/* heart beat event handling */
 	eventhandler_tag        eh;
 } OS_SPECIFIC_T;
 
