@@ -466,8 +466,7 @@ AcpiUtExecute_CID (
         {
             /* Copy the String CID from the returned object */
 
-            AcpiUtSafeStrcpy (NextIdString, CidObjects[i]->String.Length + 1,
-                CidObjects[i]->String.Pointer);
+            strcpy (NextIdString, CidObjects[i]->String.Pointer);
             Length = CidObjects[i]->String.Length + 1;
         }
 

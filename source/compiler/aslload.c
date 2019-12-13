@@ -357,7 +357,7 @@ LdLoadFieldElements (
                      * The name already exists in this scope
                      * But continue processing the elements
                      */
-                    AslDualParseOpError (ASL_WARNING, ASL_MSG_NAME_EXISTS, Child,
+                    AslDualParseOpError (ASL_ERROR, ASL_MSG_NAME_EXISTS, Child,
                         Child->Asl.Value.String, ASL_MSG_FOUND_HERE, Node->Op,
                         Node->Op->Asl.ExternalName);
                 }
@@ -986,12 +986,19 @@ FinishNode:
     Op->Asl.Node = Node;
     Node->Op = Op;
 
-    /* Set the actual data type if appropriate (EXTERNAL term only) */
-
+    /*
+     * Set the actual data type if appropriate (EXTERNAL term only)
+     * As of 11/19/2019, ASL External() does not support parameter
+     * counts. When an External method is loaded, the parameter count is
+     * unknown setting Node->Value to ASL_EXTERNAL_METHOD_UNKNOWN_PARAMS
+     * indicates that the parameter count for this method is unknown.
+     * This information is used in ASL cross reference to help determine the
+     * parameter count through method calls.
+     */
     if (ActualObjectType != ACPI_TYPE_ANY)
     {
         Node->Type = (UINT8) ActualObjectType;
-        Node->Value = ASL_EXTERNAL_METHOD;
+        Node->Value = ASL_EXTERNAL_METHOD_UNKNOWN_PARAMS;
     }
 
     if (Op->Asl.ParseOpcode == PARSEOP_METHOD)

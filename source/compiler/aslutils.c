@@ -567,11 +567,6 @@ UtDisplayOneSummary (
     /* Summary of main input and output files */
 
     FileNode = FlGetCurrentFileNode ();
-    if (!FileNode)
-    {
-        fprintf (stderr, "Summary could not be generated");
-        return;
-    }
 
     if (FileNode->ParserErrorDetected)
     {

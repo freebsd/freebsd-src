@@ -464,6 +464,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_RASF_PARAMETER_BLOCK",           SRC_TYPE_STRUCT},
     {"ACPI_RASF_PATROL_SCRUB_PARAMETER",    SRC_TYPE_STRUCT},
     {"ACPI_RASF_SHARED_MEMORY",             SRC_TYPE_STRUCT},
+    {"ACPI_REGION_WALK_INFO",               SRC_TYPE_STRUCT},
     {"ACPI_REPAIR_FUNCTION",                SRC_TYPE_SIMPLE},
     {"ACPI_REPAIR_INFO",                    SRC_TYPE_STRUCT},
     {"ACPI_REG_WALK_INFO",                  SRC_TYPE_STRUCT},

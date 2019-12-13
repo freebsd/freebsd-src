@@ -11,7 +11,7 @@
  * iasl badcode.asl
  *
  * Output:
- * Compilation complete. 45 Errors, 22 Warnings, 3 Remarks, 16 Optimizations
+ * Compilation complete. 45 Errors, 28 Warnings, 11 Remarks, 14 Optimizations
  *
  */
 DefinitionBlock ("badcode.aml", "DSDT", 1, "Intel", "Example", 0x00000001)
