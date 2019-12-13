@@ -415,10 +415,7 @@ linux_rt_sigtimedwait(struct thread *td,
 int
 linux_kill(struct thread *td, struct linux_kill_args *args)
 {
-	struct kill_args /* {
-	    int pid;
-	    int signum;
-	} */ tmp;
+	int l_signum;
 
 	/*
 	 * Allow signal 0 as a means to check for privileges
@@ -427,12 +424,11 @@ linux_kill(struct thread *td, struct linux_kill_args *args)
 		return (EINVAL);
 
 	if (args->signum > 0)
-		tmp.signum = linux_to_bsd_signal(args->signum);
+		l_signum = linux_to_bsd_signal(args->signum);
 	else
-		tmp.signum = 0;
+		l_signum = 0;
 
-	tmp.pid = args->pid;
-	return (sys_kill(td, &tmp));
+	return (kern_kill(td, args->pid, l_signum));
 }
 
 static int

@@ -1772,6 +1772,13 @@ struct kill_args {
 int
 sys_kill(struct thread *td, struct kill_args *uap)
 {
+
+	return (kern_kill(td, uap->pid, uap->signum));
+}
+
+int
+kern_kill(struct thread *td, pid_t pid, int signum)
+{
 	ksiginfo_t ksi;
 	struct proc *p;
 	int error;
@@ -1781,38 +1788,38 @@ sys_kill(struct thread *td, struct kill_args *uap)
 	 * The main rationale behind this is that abort(3) is implemented as
 	 * kill(getpid(), SIGABRT).
 	 */
-	if (IN_CAPABILITY_MODE(td) && uap->pid != td->td_proc->p_pid)
+	if (IN_CAPABILITY_MODE(td) && pid != td->td_proc->p_pid)
 		return (ECAPMODE);
 
-	AUDIT_ARG_SIGNUM(uap->signum);
-	AUDIT_ARG_PID(uap->pid);
-	if ((u_int)uap->signum > _SIG_MAXSIG)
+	AUDIT_ARG_SIGNUM(signum);
+	AUDIT_ARG_PID(pid);
+	if ((u_int)signum > _SIG_MAXSIG)
 		return (EINVAL);
 
 	ksiginfo_init(&ksi);
-	ksi.ksi_signo = uap->signum;
+	ksi.ksi_signo = signum;
 	ksi.ksi_code = SI_USER;
 	ksi.ksi_pid = td->td_proc->p_pid;
 	ksi.ksi_uid = td->td_ucred->cr_ruid;
 
-	if (uap->pid > 0) {
+	if (pid > 0) {
 		/* kill single process */
-		if ((p = pfind_any(uap->pid)) == NULL)
+		if ((p = pfind_any(pid)) == NULL)
 			return (ESRCH);
 		AUDIT_ARG_PROCESS(p);
-		error = p_cansignal(td, p, uap->signum);
-		if (error == 0 && uap->signum)
-			pksignal(p, uap->signum, &ksi);
+		error = p_cansignal(td, p, signum);
+		if (error == 0 && signum)
+			pksignal(p, signum, &ksi);
 		PROC_UNLOCK(p);
 		return (error);
 	}
-	switch (uap->pid) {
+	switch (pid) {
 	case -1:		/* broadcast signal */
-		return (killpg1(td, uap->signum, 0, 1, &ksi));
+		return (killpg1(td, signum, 0, 1, &ksi));
 	case 0:			/* signal own process group */
-		return (killpg1(td, uap->signum, 0, 0, &ksi));
+		return (killpg1(td, signum, 0, 0, &ksi));
 	default:		/* negative explicit process group */
-		return (killpg1(td, uap->signum, -uap->pid, 0, &ksi));
+		return (killpg1(td, signum, -pid, 0, &ksi));
 	}
 	/* NOTREACHED */
 }
