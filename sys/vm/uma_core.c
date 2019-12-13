@@ -2295,10 +2295,10 @@ zone_foreach(void (*zfunc)(uma_zone_t, void *arg), void *arg)
 /*
  * Count how many pages do we need to bootstrap.  VM supplies
  * its need in early zones in the argument, we add up our zones,
- * which consist of the UMA Slabs and UMA Hash zones. The
+ * which consist of the UMA Slabs, UMA Hash and 9 Bucket zones.  The
  * zone of zones and zone of kegs are accounted separately.
  */
-#define	UMA_BOOT_ZONES	2
+#define	UMA_BOOT_ZONES	11
 /* Zone of zones and zone of kegs have arbitrary alignment. */
 #define	UMA_BOOT_ALIGN	32
 static int zsize, ksize;
