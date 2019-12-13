@@ -429,10 +429,10 @@ gen_session_id(struct tac_msg *msg)
 {
 	int r;
 
-	r = random();
+	r = arc4random();
 	msg->session_id[0] = r >> 8;
 	msg->session_id[1] = r;
-	r = random();
+	r = arc4random();
 	msg->session_id[2] = r >> 8;
 	msg->session_id[3] = r;
 }
@@ -1051,7 +1051,6 @@ tac_open(void)
 		}
 		init_srvr_str(&h->srvr_msg);
 		init_srvr_str(&h->srvr_data);
-		srandomdev();
 	}
 	return h;
 }
