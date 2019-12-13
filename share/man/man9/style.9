@@ -1,6 +1,5 @@
 .\"-
-.\" Copyright (c) 1995-2005 The FreeBSD Project
-.\" All rights reserved.
+.\" Copyright (c) 1995-2019 The FreeBSD Project
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -26,7 +25,7 @@
 .\"	From: @(#)style	1.14 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd June 3, 2019
+.Dd December 13, 2019
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -84,8 +83,32 @@ comments.
 Comments starting in columns other than the first are never
 considered license statements.
 Use the appropriate SPDX-License-Identifier line before the copyright.
+If the copyright assertion contains the phrase
+.Dq Li "All Rights Reserved"
+that should be on the same line as the word
+.Dq Li "Copyright" .
+You should not insert a new copyright line between an old
+copyright line and this phrase.
+Instead, you should insert a new copyright phrase after
+a pre-existing
+.Dq Li "All Rights Reserved"
+line.
+When making changes, it is acceptable to fold an
+.Dq Li "All Rights Reserved"
+line with each of the
+.Dq Li "Copyright"
+lines.
+For files that have the
+.Dq Li "All Rights Reserved"
+line on the same line(s) as the word
+.Dq Li "Copyright" ,
+new copyright assertions should be added last.
+New
+.Dq Li "Copyright"
+lines should only be added when making substantial changes to the file,
+not for trivial changes.
 .Pp
-After any copyright header, there is a blank line, and the
+After any copyright and license comment, there is a blank line, and the
 .Li $\&FreeBSD$
 for non C/C++ language source files.
 Version control system ID tags should only exist once in a file
