@@ -705,7 +705,7 @@ cpu_search(const struct cpu_group *cg, struct cpu_search *low,
 		if (match & CPU_SEARCH_HIGHEST)
 			hgroup.cs_cpu = -1;
 		if (child) {			/* Handle child CPU group. */
-			CPU_NAND(&cpumask, &child->cg_mask);
+			CPU_ANDNOT(&cpumask, &child->cg_mask);
 			switch (match) {
 			case CPU_SEARCH_LOWEST:
 				load = cpu_search_lowest(child, &lgroup);

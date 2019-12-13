@@ -666,7 +666,7 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	if (!SCHEDULER_STOPPED()) {
 #ifdef SMP
 		other_cpus = all_cpus;
-		CPU_NAND(&other_cpus, &stopped_cpus);
+		CPU_ANDNOT(&other_cpus, &stopped_cpus);
 		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 		stop_cpus_hard(other_cpus);
 #endif

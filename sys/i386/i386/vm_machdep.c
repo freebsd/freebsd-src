@@ -598,7 +598,7 @@ sf_buf_shootdown(struct sf_buf *sf, int flags)
 	if ((flags & SFB_CPUPRIVATE) == 0) {
 		other_cpus = all_cpus;
 		CPU_CLR(cpuid, &other_cpus);
-		CPU_NAND(&other_cpus, &sf->cpumask);
+		CPU_ANDNOT(&other_cpus, &sf->cpumask);
 		if (!CPU_EMPTY(&other_cpus)) {
 			CPU_OR(&sf->cpumask, &other_cpus);
 			smp_masked_invlpg(other_cpus, sf->kva, kernel_pmap);

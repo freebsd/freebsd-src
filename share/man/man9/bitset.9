@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2017
+.Dd December 12, 2019
 .Dt BITSET 9
 .Os
 .Sh NAME
@@ -52,8 +52,8 @@
 .Nm BIT_OR2 ,
 .Nm BIT_AND ,
 .Nm BIT_AND2 ,
-.Nm BIT_NAND ,
-.Nm BIT_NAND2 ,
+.Nm BIT_ANDNOT ,
+.Nm BIT_ANDNOT2 ,
 .Nm BIT_XOR ,
 .Nm BIT_XOR2 ,
 .Nm BIT_CLR_ATOMIC ,
@@ -116,8 +116,8 @@
 .Fa "struct STRUCTNAME *src1"
 .Fa "struct STRUCTNAME *src2"
 .Fc
-.Fn BIT_NAND "const SETSIZE" "struct STRUCTNAME *dst" "struct STRUCTNAME *src"
-.Fo BIT_NAND2
+.Fn BIT_ANDNOT "const SETSIZE" "struct STRUCTNAME *dst" "struct STRUCTNAME *src"
+.Fo BIT_ANDNOT2
 .Fa "const SETSIZE"
 .Fa "struct STRUCTNAME *dst"
 .Fa "struct STRUCTNAME *src1"
@@ -412,7 +412,7 @@ equivalent of the scalar:
 .Fa src2 . )
 .Pp
 The
-.Fn BIT_NAND
+.Fn BIT_ANDNOT
 macro clears bits set in
 .Fa src
 from
@@ -425,7 +425,7 @@ equivalent of the scalar:
 .Fa ~ src . )
 .Pp
 The
-.Fn BIT_NAND2
+.Fn BIT_ANDNOT2
 macro computes
 .Fa src1
 bitwise and not

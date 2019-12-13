@@ -493,7 +493,7 @@ cpu_mp_shutdown(void)
 	if (CPU_CMP(&stopped_cpus, &cpus)) {
 
 		/* cpus is just a flat "on" mask without curcpu. */
-		CPU_NAND(&cpus, &stopped_cpus);
+		CPU_ANDNOT(&cpus, &stopped_cpus);
 		stop_cpus(cpus);
 	}
 	i = 0;

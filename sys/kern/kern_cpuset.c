@@ -510,7 +510,7 @@ domainset_empty_vm(struct domainset *domain)
 		return (true);
 
 	/* Remove empty domains from the set and recompute. */
-	DOMAINSET_NAND(&domain->ds_mask, &empty);
+	DOMAINSET_ANDNOT(&domain->ds_mask, &empty);
 	domain->ds_cnt = DOMAINSET_COUNT(&domain->ds_mask);
 	for (i = j = 0; i < DOMAINSET_FLS(&domain->ds_mask); i++)
 		if (DOMAINSET_ISSET(i, &domain->ds_mask))
