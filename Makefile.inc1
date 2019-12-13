@@ -458,7 +458,8 @@ SUBDIR+=etc
 .endif	# !empty(SUBDIR_OVERRIDE)
 
 .if defined(NOCLEAN)
-.error NOCLEAN option is deprecated. Use NO_CLEAN instead.
+.warning NOCLEAN option is deprecated. Use NO_CLEAN instead.
+NO_CLEAN=	${NOCLEAN}
 .endif
 .if defined(NO_CLEANDIR)
 CLEANDIR=	clean cleandepend
