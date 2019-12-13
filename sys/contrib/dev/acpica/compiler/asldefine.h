@@ -222,11 +222,11 @@
 
 /* Misc */
 
-#define ASL_EXTERNAL_METHOD         255
-#define ASL_ABORT                   TRUE
-#define ASL_NO_ABORT                FALSE
-#define ASL_EOF                     ACPI_UINT32_MAX
-#define ASL_IGNORE_LINE            (ACPI_UINT32_MAX -1)
+#define ASL_EXTERNAL_METHOD_UNKNOWN_PARAMS  255
+#define ASL_ABORT                           TRUE
+#define ASL_NO_ABORT                        FALSE
+#define ASL_EOF                             ACPI_UINT32_MAX
+#define ASL_IGNORE_LINE                     (ACPI_UINT32_MAX -1)
 
 
 /* Listings */
