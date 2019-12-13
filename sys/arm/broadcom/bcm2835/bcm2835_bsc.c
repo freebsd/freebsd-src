@@ -347,9 +347,7 @@ bcm_bsc_attach(device_t dev)
 	}
 
 	/* Probe and attach the iicbus when interrupts are available. */
-	bus_delayed_attach_children(dev);
-
-	return (0);
+	return (bus_delayed_attach_children(dev));
 }
 
 static int

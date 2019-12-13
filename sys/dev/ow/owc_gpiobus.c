@@ -131,9 +131,7 @@ owc_gpiobus_attach(device_t dev)
 		free(kids, M_TEMP);
 	if (nkid == 0)
 		device_add_child(dev, "ow", -1);
-	bus_delayed_attach_children(dev);
-
-	return (0);
+	return (bus_delayed_attach_children(dev));
 }
 
 static int
