@@ -10,6 +10,28 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r355677:
+	Adds support for NFSv4.2 (RFC-7862) and Extended Attributes
+	(RFC-8276) to the NFS client and server.
+	NFSv4.2 is comprised of several optional features that can be supported
+	in addition to NFSv4.1. This patch adds the following optional features:
+	- posix_fadvise(POSIX_FADV_WILLNEED/POSIX_FADV_DONTNEED)
+	- posix_fallocate()
+	- intra server file range copying via the copy_file_range(2) syscall
+	--> Avoiding data tranfer over the wire to/from the NFS client.
+	- lseek(SEEK_DATA/SEEK_HOLE)
+	- Extended attribute syscalls for "user" namespace attributes as defined
+	  by RFC-8276.
+	
+	For the client, NFSv4.2 is only used if the mount command line option
+	minorversion=2 is specified.
+	For the server, two new sysctls called vfs.nfsd.server_min_minorversion4
+ 	and vfs.nfsd.server_max_minorversion4 have been added that allow
+	sysadmins to limit the minor versions of NFSv4 supported by the nfsd
+	server.
+	Setting vfs.nfsd.server_max_minorversion4 to 0 or 1 will disable NFSv4.2
+	on the server.
+
 r354517:
 	iwm(4) now supports most Intel 9260, 9460 and 9560 Wi-Fi devices.
 
