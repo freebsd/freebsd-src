@@ -141,7 +141,7 @@ struct nvme_request {
 	} u;
 	uint32_t			type;
 	uint32_t			payload_size;
-	boolean_t			timeout;
+	bool				timeout;
 	nvme_cb_fn_t			cb_fn;
 	void				*cb_arg;
 	int32_t				retries;
@@ -214,7 +214,7 @@ struct nvme_qpair {
 
 	struct nvme_tracker	**act_tr;
 
-	boolean_t		is_enabled;
+	bool			is_enabled;
 
 	struct mtx		lock __aligned(CACHE_LINE_SIZE);
 
@@ -322,7 +322,7 @@ struct nvme_controller {
 	uint32_t			is_initialized;
 	uint32_t			notification_sent;
 
-	boolean_t			is_failed;
+	bool				is_failed;
 	STAILQ_HEAD(, nvme_request)	fail_req;
 };
 
@@ -487,7 +487,7 @@ _nvme_allocate_request(nvme_cb_fn_t cb_fn, void *cb_arg)
 	if (req != NULL) {
 		req->cb_fn = cb_fn;
 		req->cb_arg = cb_arg;
-		req->timeout = TRUE;
+		req->timeout = true;
 	}
 	return (req);
 }
