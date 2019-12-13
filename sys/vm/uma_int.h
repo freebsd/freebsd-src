@@ -271,25 +271,16 @@ struct uma_slab {
 	uint16_t	us_freecount;		/* How many are free? */
 	uint8_t		us_flags;		/* Page flags see uma.h */
 	uint8_t		us_domain;		/* Backing NUMA domain. */
-	struct noslabbits us_free;		/* Free bitmask, flexible. */
+#ifdef INVARIANTS
+	struct slabbits	us_debugfree;		/* Debug bitmask. */
+#endif
+	struct noslabbits us_free;		/* Free bitmask. */
 };
-_Static_assert(sizeof(struct uma_slab) == offsetof(struct uma_slab, us_free),
-    "us_free field must be last");
 #if MAXMEMDOM >= 255
 #error "Slab domain type insufficient"
 #endif
 
 typedef struct uma_slab * uma_slab_t;
-
-/*
- * On INVARIANTS builds, the slab contains a second bitset of the same size,
- * "dbg_bits", which is laid out immediately after us_free.
- */
-#ifdef INVARIANTS
-#define	SLAB_BITSETS	2
-#else
-#define	SLAB_BITSETS	1
-#endif
 
 /* These three functions are for embedded (!OFFPAGE) use only. */
 size_t slab_sizeof(int nitems);
@@ -302,10 +293,7 @@ int slab_ipers(size_t size, int align);
  */
 struct uma_hash_slab {
 	struct uma_slab		uhs_slab;	/* Must be first. */
-	struct slabbits		uhs_bits1;	/* Must be second. */
-#ifdef INVARIANTS
-	struct slabbits		uhs_bits2;	/* Must be third. */
-#endif
+	struct slabbits		uhs_bits;	/* Must be second. */
 	LIST_ENTRY(uma_hash_slab) uhs_hlink;	/* Link for hash table */
 	uint8_t			*uhs_data;	/* First item */
 };

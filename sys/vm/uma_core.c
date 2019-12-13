@@ -293,8 +293,6 @@ static int sysctl_handle_uma_zone_flags(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_uma_slab_efficiency(SYSCTL_HANDLER_ARGS);
 
 #ifdef INVARIANTS
-static inline struct noslabbits *slab_dbg_bits(uma_slab_t slab, uma_keg_t keg);
-
 static bool uma_dbg_kskip(uma_keg_t keg, void *mem);
 static bool uma_dbg_zskip(uma_zone_t zone, void *mem);
 static void uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item);
@@ -1206,7 +1204,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 	slab->us_domain = domain;
 	BIT_FILL(keg->uk_ipers, &slab->us_free);
 #ifdef INVARIANTS
-	BIT_ZERO(keg->uk_ipers, slab_dbg_bits(slab, keg));
+	BIT_ZERO(SLAB_MAX_SETSIZE, &slab->us_debugfree);
 #endif
 
 	if (keg->uk_init != NULL) {
@@ -1489,15 +1487,6 @@ zero_init(void *mem, int size, int flags)
 	return (0);
 }
 
-#ifdef INVARIANTS
-struct noslabbits *
-slab_dbg_bits(uma_slab_t slab, uma_keg_t keg)
-{
-
-	return ((void *)((char *)&slab->us_free + BITSET_SIZE(keg->uk_ipers)));
-}
-#endif
-
 /*
  * Actual size of embedded struct slab (!OFFPAGE).
  */
@@ -1506,7 +1495,7 @@ slab_sizeof(int nitems)
 {
 	size_t s;
 
-	s = sizeof(struct uma_slab) + BITSET_SIZE(nitems) * SLAB_BITSETS;
+	s = sizeof(struct uma_slab) + BITSET_SIZE(nitems);
 	return (roundup(s, UMA_ALIGN_PTR + 1));
 }
 
@@ -4552,10 +4541,12 @@ uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
 	keg = zone->uz_keg;
 	freei = slab_item_index(slab, keg, item);
 
-	if (BIT_ISSET(keg->uk_ipers, freei, slab_dbg_bits(slab, keg)))
+	if (BIT_ISSET(SLAB_MAX_SETSIZE, freei, &slab->us_debugfree))
 		panic("Duplicate alloc of %p from zone %p(%s) slab %p(%d)\n",
 		    item, zone, zone->uz_name, slab, freei);
-	BIT_SET_ATOMIC(keg->uk_ipers, freei, slab_dbg_bits(slab, keg));
+	BIT_SET_ATOMIC(SLAB_MAX_SETSIZE, freei, &slab->us_debugfree);
+
+	return;
 }
 
 /*
@@ -4586,11 +4577,11 @@ uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 		panic("Unaligned free of %p from zone %p(%s) slab %p(%d)\n",
 		    item, zone, zone->uz_name, slab, freei);
 
-	if (!BIT_ISSET(keg->uk_ipers, freei, slab_dbg_bits(slab, keg)))
+	if (!BIT_ISSET(SLAB_MAX_SETSIZE, freei, &slab->us_debugfree))
 		panic("Duplicate free of %p from zone %p(%s) slab %p(%d)\n",
 		    item, zone, zone->uz_name, slab, freei);
 
-	BIT_CLR_ATOMIC(keg->uk_ipers, freei, slab_dbg_bits(slab, keg));
+	BIT_CLR_ATOMIC(SLAB_MAX_SETSIZE, freei, &slab->us_debugfree);
 }
 #endif /* INVARIANTS */
 
