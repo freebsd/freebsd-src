@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <limits.h>
 #include <locale.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -135,8 +136,6 @@ main(int argc, char *argv[])
 		/* NOTREACHED */
 	}
 
-	srandomdev();
-
 	/*
 	 * Act as a filter, randomly choosing lines of the standard input
 	 * to write to the standard output.
@@ -158,7 +157,7 @@ main(int argc, char *argv[])
 
 	/* Compute a random exit status between 0 and denom - 1. */
 	if (random_exit)
-		return (int)(denom * random() / RANDOM_MAX_PLUS1);
+		return (arc4random_uniform(denom));
 
 	/*
 	 * Select whether to print the first line.  (Prime the pump.)
@@ -166,7 +165,7 @@ main(int argc, char *argv[])
 	 * 0 (which has a 1 / denom chance of being true), we select the
 	 * line.
 	 */
-	selected = (int)(denom * random() / RANDOM_MAX_PLUS1) == 0;
+	selected = (arc4random_uniform(denom) == 0);
 	while ((ch = getchar()) != EOF) {
 		if (selected)
 			(void)putchar(ch);
@@ -176,8 +175,7 @@ main(int argc, char *argv[])
 				err(2, "stdout");
 
 			/* Now see if the next line is to be printed. */
-			selected = (int)(denom * random() /
-				RANDOM_MAX_PLUS1) == 0;
+			selected = (arc4random_uniform(denom) == 0);
 		}
 	}
 	if (ferror(stdin))
