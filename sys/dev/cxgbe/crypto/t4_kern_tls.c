@@ -1394,15 +1394,10 @@ ktls_write_tcp_options(struct sge_txq *txq, void *dst, struct mbuf *m,
 
 	cpl = (void *)(wr + 1);
 
-	/* Checksum offload */
-	ctrl1 = 0;
-	txq->txcsum++;
-
 	/* CPL header */
 	cpl->ctrl0 = txq->cpl_ctrl0;
 	cpl->pack = 0;
 	cpl->len = htobe16(pktlen);
-	cpl->ctrl1 = htobe64(ctrl1);
 
 	out = (void *)(cpl + 1);
 
@@ -1419,13 +1414,21 @@ ktls_write_tcp_options(struct sge_txq *txq, void *dst, struct mbuf *m,
 		if (m->m_pkthdr.l3hlen > sizeof(*ip))
 			copy_to_txd(&txq->eq, (caddr_t)(ip + 1), &out,
 			    m->m_pkthdr.l3hlen - sizeof(*ip));
+		ctrl1 = V_TXPKT_CSUM_TYPE(TX_CSUM_TCPIP) |
+		    V_T6_TXPKT_ETHHDR_LEN(m->m_pkthdr.l2hlen - ETHER_HDR_LEN) |
+		    V_TXPKT_IPHDR_LEN(m->m_pkthdr.l3hlen);
 	} else {
 		ip6 = (void *)((char *)eh + m->m_pkthdr.l2hlen);
 		newip6 = *ip6;
 		newip6.ip6_plen = htons(pktlen - m->m_pkthdr.l2hlen);
 		copy_to_txd(&txq->eq, (caddr_t)&newip6, &out, sizeof(newip6));
 		MPASS(m->m_pkthdr.l3hlen == sizeof(*ip6));
+		ctrl1 = V_TXPKT_CSUM_TYPE(TX_CSUM_TCPIP6) |
+		    V_T6_TXPKT_ETHHDR_LEN(m->m_pkthdr.l2hlen - ETHER_HDR_LEN) |
+		    V_TXPKT_IPHDR_LEN(m->m_pkthdr.l3hlen);
 	}
+	cpl->ctrl1 = htobe64(ctrl1);
+	txq->txcsum++;
 
 	/* Clear PUSH and FIN in the TCP header if present. */
 	tcp = (void *)((char *)eh + m->m_pkthdr.l2hlen + m->m_pkthdr.l3hlen);
@@ -1493,15 +1496,10 @@ ktls_write_tunnel_packet(struct sge_txq *txq, void *dst, struct mbuf *m,
 
 	cpl = (void *)(wr + 1);
 
-	/* Checksum offload */
-	ctrl1 = 0;
-	txq->txcsum++;
-
 	/* CPL header */
 	cpl->ctrl0 = txq->cpl_ctrl0;
 	cpl->pack = 0;
 	cpl->len = htobe16(pktlen);
-	cpl->ctrl1 = htobe64(ctrl1);
 
 	out = (void *)(cpl + 1);
 
@@ -1518,13 +1516,21 @@ ktls_write_tunnel_packet(struct sge_txq *txq, void *dst, struct mbuf *m,
 		if (m->m_pkthdr.l3hlen > sizeof(*ip))
 			copy_to_txd(&txq->eq, (caddr_t)(ip + 1), &out,
 			    m->m_pkthdr.l3hlen - sizeof(*ip));
+		ctrl1 = V_TXPKT_CSUM_TYPE(TX_CSUM_TCPIP) |
+		    V_T6_TXPKT_ETHHDR_LEN(m->m_pkthdr.l2hlen - ETHER_HDR_LEN) |
+		    V_TXPKT_IPHDR_LEN(m->m_pkthdr.l3hlen);
 	} else {
 		ip6 = (void *)((char *)eh + m->m_pkthdr.l2hlen);
 		newip6 = *ip6;
 		newip6.ip6_plen = htons(pktlen - m->m_pkthdr.l2hlen);
 		copy_to_txd(&txq->eq, (caddr_t)&newip6, &out, sizeof(newip6));
 		MPASS(m->m_pkthdr.l3hlen == sizeof(*ip6));
+		ctrl1 = V_TXPKT_CSUM_TYPE(TX_CSUM_TCPIP6) |
+		    V_T6_TXPKT_ETHHDR_LEN(m->m_pkthdr.l2hlen - ETHER_HDR_LEN) |
+		    V_TXPKT_IPHDR_LEN(m->m_pkthdr.l3hlen);
 	}
+	cpl->ctrl1 = htobe64(ctrl1);
+	txq->txcsum++;
 
 	/* Set sequence number in TCP header. */
 	tcp = (void *)((char *)eh + m->m_pkthdr.l2hlen + m->m_pkthdr.l3hlen);
@@ -2134,15 +2140,10 @@ ktls_write_tcp_fin(struct sge_txq *txq, void *dst, struct mbuf *m,
 
 	cpl = (void *)(wr + 1);
 
-	/* Checksum offload */
-	ctrl1 = 0;
-	txq->txcsum++;
-
 	/* CPL header */
 	cpl->ctrl0 = txq->cpl_ctrl0;
 	cpl->pack = 0;
 	cpl->len = htobe16(pktlen);
-	cpl->ctrl1 = htobe64(ctrl1);
 
 	out = (void *)(cpl + 1);
 
@@ -2159,13 +2160,21 @@ ktls_write_tcp_fin(struct sge_txq *txq, void *dst, struct mbuf *m,
 		if (m->m_pkthdr.l3hlen > sizeof(*ip))
 			copy_to_txd(&txq->eq, (caddr_t)(ip + 1), &out,
 			    m->m_pkthdr.l3hlen - sizeof(*ip));
+		ctrl1 = V_TXPKT_CSUM_TYPE(TX_CSUM_TCPIP) |
+		    V_T6_TXPKT_ETHHDR_LEN(m->m_pkthdr.l2hlen - ETHER_HDR_LEN) |
+		    V_TXPKT_IPHDR_LEN(m->m_pkthdr.l3hlen);
 	} else {
 		ip6 = (void *)((char *)eh + m->m_pkthdr.l2hlen);
 		newip6 = *ip6;
 		newip6.ip6_plen = htons(pktlen - m->m_pkthdr.l2hlen);
 		copy_to_txd(&txq->eq, (caddr_t)&newip6, &out, sizeof(newip6));
 		MPASS(m->m_pkthdr.l3hlen == sizeof(*ip6));
+		ctrl1 = V_TXPKT_CSUM_TYPE(TX_CSUM_TCPIP6) |
+		    V_T6_TXPKT_ETHHDR_LEN(m->m_pkthdr.l2hlen - ETHER_HDR_LEN) |
+		    V_TXPKT_IPHDR_LEN(m->m_pkthdr.l3hlen);
 	}
+	cpl->ctrl1 = htobe64(ctrl1);
+	txq->txcsum++;
 
 	/* Set sequence number in TCP header. */
 	tcp = (void *)((char *)eh + m->m_pkthdr.l2hlen + m->m_pkthdr.l3hlen);
