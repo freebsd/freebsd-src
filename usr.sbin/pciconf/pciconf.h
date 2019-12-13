@@ -35,7 +35,7 @@
 #ifndef __PCICONF_H__
 #define	__PCICONF_H__
 
-void	list_caps(int fd, struct pci_conf *p);
+void	list_caps(int fd, struct pci_conf *p, int level);
 void	list_errors(int fd, struct pci_conf *p);
 uint8_t	pci_find_cap(int fd, struct pci_conf *p, uint8_t id);
 uint16_t pcie_find_cap(int fd, struct pci_conf *p, uint16_t id);
