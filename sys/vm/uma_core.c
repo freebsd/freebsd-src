@@ -335,6 +335,8 @@ SYSCTL_INT(_vm, OID_AUTO, zone_warnings, CTLFLAG_RWTUN, &zone_warnings, 0,
 static void
 bucket_enable(void)
 {
+
+	KASSERT(booted >= BOOT_BUCKETS, ("Bucket enable before init"));
 	bucketdisable = vm_page_count_min();
 }
 
@@ -2299,10 +2301,10 @@ zone_foreach(void (*zfunc)(uma_zone_t, void *arg), void *arg)
 /*
  * Count how many pages do we need to bootstrap.  VM supplies
  * its need in early zones in the argument, we add up our zones,
- * which consist of: UMA Slabs, UMA Hash and 9 Bucket zones. The
+ * which consist of the UMA Slabs and UMA Hash zones. The
  * zone of zones and zone of kegs are accounted separately.
  */
-#define	UMA_BOOT_ZONES	11
+#define	UMA_BOOT_ZONES	2
 /* Zone of zones and zone of kegs have arbitrary alignment. */
 #define	UMA_BOOT_ALIGN	32
 static int zsize, ksize;
@@ -2417,8 +2419,6 @@ uma_startup(void *mem, int npages)
 	    sizeof(struct slabhead *) * UMA_HASH_SIZE_INIT,
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZFLAG_INTERNAL);
 
-	bucket_init();
-
 	booted = BOOT_STRAPPED;
 }
 
@@ -2439,8 +2439,9 @@ uma_startup2(void)
 #ifdef DIAGNOSTIC
 	printf("Entering %s with %d boot pages left\n", __func__, boot_pages);
 #endif
-	booted = BOOT_BUCKETS;
 	sx_init(&uma_reclaim_lock, "umareclaim");
+	bucket_init();
+	booted = BOOT_BUCKETS;
 	bucket_enable();
 }
 
