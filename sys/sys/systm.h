@@ -466,15 +466,6 @@ void	usrinfoinit(void);
 void	kern_reboot(int) __dead2;
 void	shutdown_nice(int);
 
-/* Timeouts */
-typedef void timeout_t(void *);	/* timeout function type */
-#define CALLOUT_HANDLE_INITIALIZER(handle)	\
-	{ NULL }
-
-void	callout_handle_init(struct callout_handle *);
-struct	callout_handle timeout(timeout_t *, void *, int);
-void	untimeout(timeout_t *, void *, struct callout_handle);
-
 /* Stubs for obsolete functions that used to be for interrupt management */
 static __inline intrmask_t	splbio(void)		{ return 0; }
 static __inline intrmask_t	splcam(void)		{ return 0; }

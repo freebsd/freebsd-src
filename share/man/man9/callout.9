@@ -29,8 +29,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 10, 2019
-.Dt TIMEOUT 9
+.Dd December 13, 2019
+.Dt CALLOUT 9
 .Os
 .Sh NAME
 .Nm callout_active ,
@@ -56,17 +56,13 @@
 .Nm callout_schedule_sbt_curcpu ,
 .Nm callout_schedule_sbt_on ,
 .Nm callout_stop ,
-.Nm callout_when ,
-.Nm timeout ,
-.Nm untimeout
+.Nm callout_when
 .Nd execute a function after a specified length of time
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/callout.h
-.In sys/systm.h
 .Bd -literal
 typedef void callout_func_t (void *);
-typedef void timeout_t (void *);
 .Ed
 .Ft int
 .Fn callout_active "struct callout *c"
@@ -179,10 +175,6 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle);
 .Fa "sbintime_t *sbt_res"
 .Fa "sbintime_t *precision_res"
 .Fc
-.Ft struct callout_handle
-.Fn timeout "timeout_t *func" "void *arg" "int ticks"
-.Ft void
-.Fn untimeout "timeout_t *func" "void *arg" "struct callout_handle handle"
 .Sh DESCRIPTION
 The
 .Nm callout
@@ -808,99 +800,6 @@ should be used.
 In particular,
 a callout should always be drained prior to destroying its associated lock
 or releasing the storage for the callout structure.
-.Sh LEGACY API
-.Bf Sy
-The functions below are a legacy API that will be removed in a future release.
-New code should not use these routines.
-.Ef
-.Pp
-The function
-.Fn timeout
-schedules a call to the function given by the argument
-.Fa func
-to take place after
-.Fa ticks Ns No /hz
-seconds.
-Non-positive values of
-.Fa ticks
-are silently converted to the value
-.Sq 1 .
-.Fa func
-should be a pointer to a function that takes a
-.Fa void *
-argument.
-Upon invocation,
-.Fa func
-will receive
-.Fa arg
-as its only argument.
-The return value from
-.Fn timeout
-is a
-.Ft struct callout_handle
-which can be used in conjunction with the
-.Fn untimeout
-function to request that a scheduled timeout be canceled.
-.Pp
-The function
-.Fn callout_handle_init
-can be used to initialize a handle to a state which will cause
-any calls to
-.Fn untimeout
-with that handle to return with no side
-effects.
-.Pp
-Assigning a callout handle the value of
-.Fn CALLOUT_HANDLE_INITIALIZER
-performs the same function as
-.Fn callout_handle_init
-and is provided for use on statically declared or global callout handles.
-.Pp
-The function
-.Fn untimeout
-cancels the timeout associated with
-.Fa handle
-using the
-.Fa func
-and
-.Fa arg
-arguments to validate the handle.
-If the handle does not correspond to a timeout with
-the function
-.Fa func
-taking the argument
-.Fa arg
-no action is taken.
-.Fa handle
-must be initialized by a previous call to
-.Fn timeout ,
-.Fn callout_handle_init ,
-or assigned the value of
-.Fn CALLOUT_HANDLE_INITIALIZER "&handle"
-before being passed to
-.Fn untimeout .
-The behavior of calling
-.Fn untimeout
-with an uninitialized handle
-is undefined.
-.Pp
-As handles are recycled by the system, it is possible (although unlikely)
-that a handle from one invocation of
-.Fn timeout
-may match the handle of another invocation of
-.Fn timeout
-if both calls used the same function pointer and argument, and the first
-timeout is expired or canceled before the second call.
-The timeout facility offers O(1) running time for
-.Fn timeout
-and
-.Fn untimeout .
-Timeouts are executed from
-.Fn softclock
-with the
-.Va Giant
-lock held.
-Thus they are protected from re-entrancy.
 .Sh RETURN VALUES
 The
 .Fn callout_active
@@ -928,24 +827,28 @@ and
 functions return a value of one if the callout was still pending when it was
 called, a zero if the callout could not be stopped and a negative one is it
 was either not running or has already completed.
-The
-.Fn timeout
-function returns a
-.Ft struct callout_handle
-that can be passed to
-.Fn untimeout .
 .Sh HISTORY
-The current timeout and untimeout routines are based on the work of
+.Fx
+initially used the long standing
+.Bx
+linked list
+callout mechanism which offered O(n) insertion and removal running time
+but did not generate or require handles for untimeout operations.
+.Pp
+.Fx 3.0
+introduced a new set of timeout and untimeout routines from
+.Nx
+based on the work of
 .An Adam M. Costello
 and
 .An George Varghese ,
 published in a technical report entitled
 .%T "Redesigning the BSD Callout and Timer Facilities"
-and modified slightly for inclusion in
+and modified for inclusion in
 .Fx
 by
 .An Justin T. Gibbs .
-The original work on the data structures used in this implementation
+The original work on the data structures used in that implementation
 was published by
 .An G. Varghese
 and
@@ -954,8 +857,66 @@ in the paper
 .%T "Hashed and Hierarchical Timing Wheels: Data Structures for the Efficient Implementation of a Timer Facility"
 in the
 .%B "Proceedings of the 11th ACM Annual Symposium on Operating Systems Principles" .
-The current implementation replaces the long standing
-.Bx
-linked list
-callout mechanism which offered O(n) insertion and removal running time
-but did not generate or require handles for untimeout operations.
+.Pp
+.Fx 3.3
+introduced the first implementations of
+.Fn callout_init ,
+.Fn callout_reset ,
+and
+.Fn callout_stop
+which permitted callers to allocate dedicated storage for callouts.
+This ensured that a callout would always fire unlike
+.Fn timeout
+which would silently fail if it was unable to allocate a callout.
+.Pp
+.Fx 5.0
+permitted callout handlers to be tagged as MPSAFE via
+.Fn callout_init .
+.Pp
+.Fx 5.3
+introduced
+.Fn callout_drain .
+.Pp
+.Fx 6.0
+introduced
+.Fn callout_init_mtx .
+.Pp
+.Fx 8.0
+introduced per-CPU callout wheels,
+.Fn callout_init_rw ,
+and
+.Fn callout_schedule .
+.Pp
+.Fx 9.0
+changed the underlying timer interrupts used to drive callouts to prefer
+one-shot event timers instead of a periodic timer interrupt.
+.Pp
+.Fx 10.0
+switched the callout wheel to support tickless operation.
+These changes introduced
+.Vt sbintime_t
+and the
+.Fn callout_reset_sbt*
+family of functions.
+.Fx 10.0 also added
+.Dv C_DIRECT_EXEC
+and
+.Fn callout_init_rm .
+.Pp
+.Fx 10.2
+introduced the
+.Fn callout_schedule_sbt*
+family of functions.
+.Pp
+.Fx 11.0
+introduced
+.Fn callout_async_drain .
+.Fx 11.1
+introduced
+.Fn callout_when .
+.Fx 13.0
+removed
+.Vt timeout_t ,
+.Fn timeout ,
+and
+.Fn untimeout .

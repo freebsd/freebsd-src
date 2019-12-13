@@ -167,10 +167,8 @@ struct callout_cpu {
 	struct mtx_padalign	cc_lock;
 	struct cc_exec 		cc_exec_entity[2];
 	struct callout		*cc_next;
-	struct callout		*cc_callout;
 	struct callout_list	*cc_callwheel;
 	struct callout_tailq	cc_expireq;
-	struct callout_slist	cc_callfree;
 	sbintime_t		cc_firstevent;
 	sbintime_t		cc_lastscan;
 	void			*cc_cookie;
@@ -210,7 +208,7 @@ struct callout_cpu cc_cpu;
 #define	CC_UNLOCK(cc)	mtx_unlock_spin(&(cc)->cc_lock)
 #define	CC_LOCK_ASSERT(cc)	mtx_assert(&(cc)->cc_lock, MA_OWNED)
 
-static int __read_mostly timeout_cpu;
+static int __read_mostly cc_default_cpu;
 
 static void	callout_cpu_init(struct callout_cpu *cc, int cpu);
 static void	softclock_call_cc(struct callout *c, struct callout_cpu *cc,
@@ -279,6 +277,7 @@ static void
 callout_callwheel_init(void *dummy)
 {
 	struct callout_cpu *cc;
+	int cpu;
 
 	/*
 	 * Calculate the size of the callout wheel and the preallocated
@@ -304,16 +303,14 @@ callout_callwheel_init(void *dummy)
 	TUNABLE_INT_FETCH("kern.pin_pcpu_swi", &pin_pcpu_swi);
 
 	/*
-	 * Only BSP handles timeout(9) and receives a preallocation.
-	 *
-	 * XXX: Once all timeout(9) consumers are converted this can
-	 * be removed.
+	 * Initialize callout wheels.  The software interrupt threads
+	 * are created later.
 	 */
-	timeout_cpu = PCPU_GET(cpuid);
-	cc = CC_CPU(timeout_cpu);
-	cc->cc_callout = malloc(ncallout * sizeof(struct callout),
-	    M_CALLOUT, M_WAITOK);
-	callout_cpu_init(cc, timeout_cpu);
+	cc_default_cpu = PCPU_GET(cpuid);
+	CPU_FOREACH(cpu) {
+		cc = CC_CPU(cpu);
+		callout_cpu_init(cc, cpu);
+	}
 }
 SYSINIT(callwheel_init, SI_SUB_CPU, SI_ORDER_ANY, callout_callwheel_init, NULL);
 
@@ -323,11 +320,9 @@ SYSINIT(callwheel_init, SI_SUB_CPU, SI_ORDER_ANY, callout_callwheel_init, NULL);
 static void
 callout_cpu_init(struct callout_cpu *cc, int cpu)
 {
-	struct callout *c;
 	int i;
 
 	mtx_init(&cc->cc_lock, "callout", NULL, MTX_SPIN | MTX_RECURSE);
-	SLIST_INIT(&cc->cc_callfree);
 	cc->cc_inited = 1;
 	cc->cc_callwheel = malloc_domainset(sizeof(struct callout_list) *
 	    callwheelsize, M_CALLOUT,
@@ -342,14 +337,6 @@ callout_cpu_init(struct callout_cpu *cc, int cpu)
 	snprintf(cc->cc_ktr_event_name, sizeof(cc->cc_ktr_event_name),
 	    "callwheel cpu %d", cpu);
 #endif
-	if (cc->cc_callout == NULL)	/* Only BSP handles timeout(9) */
-		return;
-	for (i = 0; i < ncallout; i++) {
-		c = &cc->cc_callout[i];
-		callout_init(c, 0);
-		c->c_iflags = CALLOUT_LOCAL_ALLOC;
-		SLIST_INSERT_HEAD(&cc->cc_callfree, c, c_links.sle);
-	}
 }
 
 #ifdef SMP
@@ -383,50 +370,35 @@ callout_cpu_switch(struct callout *c, struct callout_cpu *cc, int new_cpu)
 #endif
 
 /*
- * Start standard softclock thread.
+ * Start softclock threads.
  */
 static void
 start_softclock(void *dummy)
 {
 	struct callout_cpu *cc;
 	char name[MAXCOMLEN];
-#ifdef SMP
 	int cpu;
+	bool pin_swi;
 	struct intr_event *ie;
-#endif
 
-	cc = CC_CPU(timeout_cpu);
-	snprintf(name, sizeof(name), "clock (%d)", timeout_cpu);
-	if (swi_add(&clk_intr_event, name, softclock, cc, SWI_CLOCK,
-	    INTR_MPSAFE, &cc->cc_cookie))
-		panic("died while creating standard software ithreads");
-	if (pin_default_swi &&
-	    (intr_event_bind(clk_intr_event, timeout_cpu) != 0)) {
-		printf("%s: timeout clock couldn't be pinned to cpu %d\n",
-		    __func__,
-		    timeout_cpu);
-	}
-
-#ifdef SMP
 	CPU_FOREACH(cpu) {
-		if (cpu == timeout_cpu)
-			continue;
 		cc = CC_CPU(cpu);
-		cc->cc_callout = NULL;	/* Only BSP handles timeout(9). */
-		callout_cpu_init(cc, cpu);
 		snprintf(name, sizeof(name), "clock (%d)", cpu);
 		ie = NULL;
 		if (swi_add(&ie, name, softclock, cc, SWI_CLOCK,
 		    INTR_MPSAFE, &cc->cc_cookie))
 			panic("died while creating standard software ithreads");
-		if (pin_pcpu_swi && (intr_event_bind(ie, cpu) != 0)) {
-			printf("%s: per-cpu clock couldn't be pinned to "
-			    "cpu %d\n",
+		if (cpu == cc_default_cpu)
+			pin_swi = pin_default_swi;
+		else
+			pin_swi = pin_pcpu_swi;
+		if (pin_swi && (intr_event_bind(ie, cpu) != 0)) {
+			printf("%s: %s clock couldn't be pinned to cpu %d\n",
 			    __func__,
+			    cpu == cc_default_cpu ? "default" : "per-cpu",
 			    cpu);
 		}
 	}
-#endif
 }
 SYSINIT(start_softclock, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softclock, NULL);
 
@@ -639,16 +611,6 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 }
 
 static void
-callout_cc_del(struct callout *c, struct callout_cpu *cc)
-{
-
-	if ((c->c_iflags & CALLOUT_LOCAL_ALLOC) == 0)
-		return;
-	c->c_func = NULL;
-	SLIST_INSERT_HEAD(&cc->cc_callfree, c, c_links.sle);
-}
-
-static void
 softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 #ifdef CALLOUT_PROFILING
     int *mpcalls, int *lockcalls, int *gcalls,
@@ -692,10 +654,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	c_func = c->c_func;
 	c_arg = c->c_arg;
 	c_iflags = c->c_iflags;
-	if (c->c_iflags & CALLOUT_LOCAL_ALLOC)
-		c->c_iflags = CALLOUT_LOCAL_ALLOC;
-	else
-		c->c_iflags &= ~CALLOUT_PENDING;
+	c->c_iflags &= ~CALLOUT_PENDING;
 	
 	cc_exec_curr(cc, direct) = c;
 	cc_exec_last_func(cc, direct) = c_func;
@@ -795,8 +754,6 @@ skip:
 		wakeup(&cc_exec_waiting(cc, direct));
 		CC_LOCK(cc);
 	} else if (cc_cce_migrating(cc, direct)) {
-		KASSERT((c_iflags & CALLOUT_LOCAL_ALLOC) == 0,
-		    ("Migrating legacy callout %p", c));
 #ifdef SMP
 		/*
 		 * If the callout was scheduled for
@@ -819,7 +776,6 @@ skip:
 			CTR3(KTR_CALLOUT,
 			     "deferred cancelled %p func %p arg %p",
 			     c, new_func, new_arg);
-			callout_cc_del(c, cc);
 			return;
 		}
 		c->c_iflags &= ~CALLOUT_DFRMIGRATION;
@@ -834,19 +790,6 @@ skip:
 		panic("migration should not happen");
 #endif
 	}
-	/*
-	 * If the current callout is locally allocated (from
-	 * timeout(9)) then put it on the freelist.
-	 *
-	 * Note: we need to check the cached copy of c_iflags because
-	 * if it was not local, then it's not safe to deref the
-	 * callout pointer.
-	 */
-	KASSERT((c_iflags & CALLOUT_LOCAL_ALLOC) == 0 ||
-	    c->c_iflags == CALLOUT_LOCAL_ALLOC,
-	    ("corrupted callout"));
-	if (c_iflags & CALLOUT_LOCAL_ALLOC)
-		callout_cc_del(c, cc);
 }
 
 /*
@@ -894,69 +837,6 @@ softclock(void *arg)
 	avg_gcalls += (gcalls * 1000 - avg_gcalls) >> 8;
 #endif
 	CC_UNLOCK(cc);
-}
-
-/*
- * timeout --
- *	Execute a function after a specified length of time.
- *
- * untimeout --
- *	Cancel previous timeout function call.
- *
- * callout_handle_init --
- *	Initialize a handle so that using it with untimeout is benign.
- *
- *	See AT&T BCI Driver Reference Manual for specification.  This
- *	implementation differs from that one in that although an
- *	identification value is returned from timeout, the original
- *	arguments to timeout as well as the identifier are used to
- *	identify entries for untimeout.
- */
-struct callout_handle
-timeout(timeout_t *ftn, void *arg, int to_ticks)
-{
-	struct callout_cpu *cc;
-	struct callout *new;
-	struct callout_handle handle;
-
-	cc = CC_CPU(timeout_cpu);
-	CC_LOCK(cc);
-	/* Fill in the next free callout structure. */
-	new = SLIST_FIRST(&cc->cc_callfree);
-	if (new == NULL)
-		/* XXX Attempt to malloc first */
-		panic("timeout table full");
-	SLIST_REMOVE_HEAD(&cc->cc_callfree, c_links.sle);
-	callout_reset(new, to_ticks, ftn, arg);
-	handle.callout = new;
-	CC_UNLOCK(cc);
-
-	return (handle);
-}
-
-void
-untimeout(timeout_t *ftn, void *arg, struct callout_handle handle)
-{
-	struct callout_cpu *cc;
-
-	/*
-	 * Check for a handle that was initialized
-	 * by callout_handle_init, but never used
-	 * for a real timeout.
-	 */
-	if (handle.callout == NULL)
-		return;
-
-	cc = callout_lock(handle.callout);
-	if (handle.callout->c_func == ftn && handle.callout->c_arg == arg)
-		callout_stop(handle.callout);
-	CC_UNLOCK(cc);
-}
-
-void
-callout_handle_init(struct callout_handle *handle)
-{
-	handle->callout = NULL;
 }
 
 void
@@ -1060,12 +940,9 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t prec,
 	    ("%s: direct callout %p has lock", __func__, c));
 	cc = callout_lock(c);
 	/*
-	 * Don't allow migration of pre-allocated callouts lest they
-	 * become unbalanced or handle the case where the user does
-	 * not care. 
+	 * Don't allow migration if the user does not care.
 	 */
-	if ((c->c_iflags & CALLOUT_LOCAL_ALLOC) ||
-	    ignore_cpu) {
+	if (ignore_cpu) {
 		cpu = c->c_cpu;
 	}
 
@@ -1435,7 +1312,6 @@ again:
 			TAILQ_REMOVE(&cc->cc_expireq, c, c_links.tqe);
 		}
 	}
-	callout_cc_del(c, cc);
 	CC_UNLOCK(cc);
 	return (cancelled);
 }
@@ -1451,7 +1327,7 @@ callout_init(struct callout *c, int mpsafe)
 		c->c_lock = &Giant.lock_object;
 		c->c_iflags = 0;
 	}
-	c->c_cpu = timeout_cpu;
+	c->c_cpu = cc_default_cpu;
 }
 
 void
@@ -1467,7 +1343,7 @@ _callout_init_lock(struct callout *c, struct lock_object *lock, int flags)
 	    (LC_SPINLOCK | LC_SLEEPABLE)), ("%s: invalid lock class",
 	    __func__));
 	c->c_iflags = flags & (CALLOUT_RETURNUNLOCKED | CALLOUT_SHAREDLOCK);
-	c->c_cpu = timeout_cpu;
+	c->c_cpu = cc_default_cpu;
 }
 
 #ifdef APM_FIXUP_CALLTODO
@@ -1559,9 +1435,7 @@ sysctl_kern_callout_stat(SYSCTL_HANDLER_ARGS)
 	sbintime_t maxpr, maxt, medpr, medt, now, spr, st, t;
 	int ct[64], cpr[64], ccpbk[32];
 	int error, val, i, count, tcum, pcum, maxc, c, medc;
-#ifdef SMP
 	int cpu;
-#endif
 
 	val = 0;
 	error = sysctl_handle_int(oidp, &val, 0, req);
@@ -1573,12 +1447,8 @@ sysctl_kern_callout_stat(SYSCTL_HANDLER_ARGS)
 	bzero(ct, sizeof(ct));
 	bzero(cpr, sizeof(cpr));
 	now = sbinuptime();
-#ifdef SMP
 	CPU_FOREACH(cpu) {
 		cc = CC_CPU(cpu);
-#else
-		cc = CC_CPU(timeout_cpu);
-#endif
 		CC_LOCK(cc);
 		for (i = 0; i < callwheelsize; i++) {
 			sc = &cc->cc_callwheel[i];
@@ -1603,9 +1473,7 @@ sysctl_kern_callout_stat(SYSCTL_HANDLER_ARGS)
 			count += c;
 		}
 		CC_UNLOCK(cc);
-#ifdef SMP
 	}
-#endif
 
 	for (i = 0, tcum = 0; i < 64 && tcum < count / 2; i++)
 		tcum += ct[i];
