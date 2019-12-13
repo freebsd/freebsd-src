@@ -1235,8 +1235,11 @@ found:
 		 * SYN must be directed to an IP6 address on this ifnet.  This
 		 * is more restrictive than in6_localip.
 		 */
-		if (!in6_ifhasaddr(ifp, &inc.inc6_laddr))
+		NET_EPOCH_ENTER(et);
+		if (!in6_ifhasaddr(ifp, &inc.inc6_laddr)) {
+			NET_EPOCH_EXIT(et);
 			REJECT_PASS_ACCEPT_REQ(true);
+		}
 
 		ntids = 2;
 	} else {
@@ -1249,23 +1252,26 @@ found:
 		 * SYN must be directed to an IP address on this ifnet.  This
 		 * is more restrictive than in_localip.
 		 */
-		if (!in_ifhasaddr(ifp, inc.inc_laddr))
+		NET_EPOCH_ENTER(et);
+		if (!in_ifhasaddr(ifp, inc.inc_laddr)) {
+			NET_EPOCH_EXIT(et);
 			REJECT_PASS_ACCEPT_REQ(true);
+		}
 
 		ntids = 1;
 	}
 
 	e = get_l2te_for_nexthop(pi, ifp, &inc);
-	if (e == NULL)
+	if (e == NULL) {
+		NET_EPOCH_EXIT(et);
 		REJECT_PASS_ACCEPT_REQ(true);
+	}
 
 	/* Don't offload if the 4-tuple is already in use */
-	NET_EPOCH_ENTER(et);	/* for 4-tuple check */
 	if (toe_4tuple_check(&inc, &th, ifp) != 0) {
 		NET_EPOCH_EXIT(et);
 		REJECT_PASS_ACCEPT_REQ(false);
 	}
-	NET_EPOCH_EXIT(et);
 
 	inp = lctx->inp;		/* listening socket, not owned by TOE */
 	INP_WLOCK(inp);
@@ -1273,6 +1279,7 @@ found:
 	/* Don't offload if the listening socket has closed */
 	if (__predict_false(inp->inp_flags & INP_DROPPED)) {
 		INP_WUNLOCK(inp);
+		NET_EPOCH_EXIT(et);
 		REJECT_PASS_ACCEPT_REQ(false);
 	}
 	so = inp->inp_socket;
@@ -1282,12 +1289,14 @@ found:
 	rw_runlock(&sc->policy_lock);
 	if (!settings.offload) {
 		INP_WUNLOCK(inp);
+		NET_EPOCH_EXIT(et);
 		REJECT_PASS_ACCEPT_REQ(true);	/* Rejected by COP. */
 	}
 
 	synqe = alloc_synqe(sc, lctx, M_NOWAIT);
 	if (synqe == NULL) {
 		INP_WUNLOCK(inp);
+		NET_EPOCH_EXIT(et);
 		REJECT_PASS_ACCEPT_REQ(true);
 	}
 	atomic_store_int(&synqe->ok_to_respond, 0);
@@ -1318,15 +1327,19 @@ found:
 			remove_tid(sc, tid, ntids);
 			m = synqe->syn;
 			synqe->syn = NULL;
+			NET_EPOCH_EXIT(et);
 			REJECT_PASS_ACCEPT_REQ(true);
 		}
 
 		CTR6(KTR_CXGBE,
 		    "%s: stid %u, tid %u, synqe %p, opt0 %#016lx, opt2 %#08x",
 		    __func__, stid, tid, synqe, be64toh(opt0), be32toh(opt2));
-	} else
+	} else {
+		NET_EPOCH_EXIT(et);
 		REJECT_PASS_ACCEPT_REQ(false);
+	}
 
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 	return (0);
 reject:
