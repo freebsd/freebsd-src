@@ -147,6 +147,10 @@ static u_int allow_nesting = 0;
 SYSCTL_UINT(_kern_geom_part, OID_AUTO, allow_nesting,
     CTLFLAG_RWTUN, &allow_nesting, 0,
     "Allow additional levels of nesting");
+char g_part_separator[MAXPATHLEN] = "";
+SYSCTL_STRING(_kern_geom_part, OID_AUTO, separator,
+    CTLFLAG_RDTUN, &g_part_separator, sizeof(g_part_separator),
+    "Partition name separator");
 
 /*
  * The GEOM partitioning class.

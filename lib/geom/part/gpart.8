@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 3, 2019
+.Dd December 13, 2019
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -1260,6 +1260,14 @@ If this variable is set to a non-zero value, the module will automatically
 recalculate the user-specified offset and size for alignment with the CHS
 geometry.
 Otherwise the values will be left unchanged.
+.It Va kern.geom.part.separator : No ""
+Specify an optional separator that will be inserted between the GEOM name
+and partition name.
+This variable is a
+.Xr loader 8
+tunable.
+Note that setting this variable may break software which assumes a particular
+naming scheme.
 .El
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.
