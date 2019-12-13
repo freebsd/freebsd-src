@@ -84,6 +84,8 @@ struct fail_point {
 	void (*fp_post_sleep_fn)(void *);
 	/**< Arg for fp_post_sleep_fn */
 	void *fp_post_sleep_arg;
+
+	struct callout *fp_callout;
 };
 
 #define	FAIL_POINT_DYNAMIC_NAME	0x01	/**< Must free name on destroy */
@@ -149,9 +151,12 @@ fail_point_sleep_set_post_arg(struct fail_point *fp, void *sleep_arg)
 {
 	fp->fp_post_sleep_arg = sleep_arg;
 }
+
+void fail_point_alloc_callout(struct fail_point *);
+
 /**
  * If the FAIL_POINT_USE_TIMEOUT flag is set on a failpoint, then
- * FAIL_POINT_SLEEP will result in a call to timeout instead of
+ * FAIL_POINT_SLEEP will result in a call to callout_reset instead of
  * msleep. Note that if you sleep while this flag is set, you must
  * set fp_post_sleep_fn or an error will occur upon waking.
  */
@@ -163,9 +168,10 @@ fail_point_use_timeout_path(struct fail_point *fp, bool use_timeout,
 	        (post_sleep_fn == NULL && fp->fp_post_sleep_fn != NULL),
 	        ("Setting fp to use timeout, but not setting post_sleep_fn\n"));
 
-	if (use_timeout)
+	if (use_timeout) {
+		fail_point_alloc_callout(fp);
 		fp->fp_flags |= FAIL_POINT_USE_TIMEOUT_PATH;
-	else
+	} else
 		fp->fp_flags &= ~FAIL_POINT_USE_TIMEOUT_PATH;
 
 	if (post_sleep_fn != NULL)

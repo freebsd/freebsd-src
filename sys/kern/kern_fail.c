@@ -403,6 +403,8 @@ fail_point_drain(struct fail_point *fp, int expected_ref)
 		wakeup(FP_PAUSE_CHANNEL(fp));
 		tsleep(&fp, PWAIT, "fail_point_drain", hz / 100);
 	}
+	if (fp->fp_callout)
+		callout_drain(fp->fp_callout);
 	fail_point_swap_settings(fp, entries);
 }
 
@@ -442,8 +444,8 @@ fail_point_sleep(struct fail_point *fp, int msecs,
 			if (fp->fp_pre_sleep_fn)
 				fp->fp_pre_sleep_fn(fp->fp_pre_sleep_arg);
 
-			timeout(fp->fp_post_sleep_fn, fp->fp_post_sleep_arg,
-			    timo);
+			callout_reset(fp->fp_callout, timo,
+			    fp->fp_post_sleep_fn, fp->fp_post_sleep_arg);
 			*pret = FAIL_POINT_RC_QUEUED;
 		}
 	}
@@ -493,6 +495,20 @@ fail_point_init(struct fail_point *fp, const char *fmt, ...)
 	fp->fp_post_sleep_arg = NULL;
 }
 
+void
+fail_point_alloc_callout(struct fail_point *fp)
+{
+
+	/**
+	 * This assumes that calls to fail_point_use_timeout_path()
+	 * will not race.
+	 */
+	if (fp->fp_callout != NULL)
+		return;
+	fp->fp_callout = fp_malloc(sizeof(*fp->fp_callout), M_WAITOK);
+	callout_init(fp->fp_callout, CALLOUT_MPSAFE);
+}
+
 /**
  * Free the resources held by a fail_point, and wake any paused threads.
  * Thou shalt not allow threads to hit this fail point after you enter this
@@ -510,6 +526,10 @@ fail_point_destroy(struct fail_point *fp)
 		fp->fp_name = NULL;
 	}
 	fp->fp_flags = 0;
+	if (fp->fp_callout) {
+		fp_free(fp->fp_callout);
+		fp->fp_callout = NULL;
+	}
 
 	sx_xlock(&sx_fp_set);
 	fail_point_garbage_collect();
