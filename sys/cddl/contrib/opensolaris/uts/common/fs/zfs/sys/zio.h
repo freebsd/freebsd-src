@@ -474,6 +474,9 @@ struct zio {
 
 #ifdef __FreeBSD__
 	struct bio	*io_bio;
+#ifdef _KERNEL
+	struct callout	io_timer;
+#endif
 #endif
 
 	/* Internal pipeline state */

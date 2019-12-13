@@ -42,9 +42,6 @@
 
 #define	delay(x)	pause("soldelay", (x))
 
-#define	timeout_generic(type, fn, arg, t, r, f)			\
-    timeout(fn, arg, t / (NANOSEC/hz) + 1)
-
 #endif	/* _KERNEL */
 
 #endif	/* _OPENSOLARIS_SYS_SYSTM_H_ */
