@@ -290,6 +290,7 @@ static int sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_uma_zone_allocs(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_uma_zone_frees(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_uma_zone_flags(SYSCTL_HANDLER_ARGS);
+static int sysctl_handle_uma_slab_efficiency(SYSCTL_HANDLER_ARGS);
 
 #ifdef INVARIANTS
 static inline struct noslabbits *slab_dbg_bits(uma_slab_t slab, uma_keg_t keg);
@@ -1948,6 +1949,10 @@ zone_alloc_sysctl(uma_zone_t zone, void *unused)
 		SYSCTL_ADD_U32(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 		    "free", CTLFLAG_RD, &keg->uk_free, 0,
 		    "items free in the slab layer");
+		SYSCTL_ADD_PROC(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+		    "efficiency", CTLFLAG_RD | CTLTYPE_INT | CTLFLAG_MPSAFE,
+		    keg, 0, sysctl_handle_uma_slab_efficiency, "I",
+		    "Slab utilization (100 - internal fragmentation %)");
 	} else
 		SYSCTL_ADD_CONST_STRING(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 		    "name", CTLFLAG_RD, nokeg, "Keg name");
@@ -4438,6 +4443,27 @@ sysctl_handle_uma_zone_flags(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(&sbuf);
 
 	return (error);
+}
+
+static int
+sysctl_handle_uma_slab_efficiency(SYSCTL_HANDLER_ARGS)
+{
+	uma_keg_t keg = arg1;
+	int avail, effpct, total;
+
+	total = keg->uk_ppera * PAGE_SIZE;
+	if ((keg->uk_flags & UMA_ZONE_OFFPAGE) != 0)
+		total += slab_sizeof(SLAB_MAX_SETSIZE);
+	/*
+	 * We consider the client's requested size and alignment here, not the
+	 * real size determination uk_rsize, because we also adjust the real
+	 * size for internal implementation reasons (max bitset size).
+	 */
+	avail = keg->uk_ipers * roundup2(keg->uk_size, keg->uk_align + 1);
+	if ((keg->uk_flags & UMA_ZONE_PCPU) != 0)
+		avail *= mp_maxid + 1;
+	effpct = 100 * avail / total;
+	return (sysctl_handle_int(oidp, &effpct, 0, req));
 }
 
 #ifdef INVARIANTS
