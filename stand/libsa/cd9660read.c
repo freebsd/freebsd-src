@@ -35,6 +35,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <fs/cd9660/iso.h>
 #include <fs/cd9660/cd9660_rrip.h>
 
@@ -220,7 +221,8 @@ dirmatch(const char *path, struct iso_directory_record *dp, int use_rrip,
 static uint64_t
 cd9660_lookup(const char *path)
 {
-	static char blkbuf[ISO_DEFAULT_BLOCK_SIZE];
+	static char blkbuf[MAX(ISO_DEFAULT_BLOCK_SIZE,
+	    sizeof(struct iso_primary_descriptor))];
 	struct iso_primary_descriptor *vd;
 	struct iso_directory_record rec;
 	struct iso_directory_record *dp = NULL;
