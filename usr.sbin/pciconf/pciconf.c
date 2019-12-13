@@ -131,7 +131,7 @@ main(int argc, char **argv)
 			break;
 
 		case 'c':
-			caps = 1;
+			caps++;
 			break;
 
 		case 'D':
@@ -282,7 +282,7 @@ list_devs(const char *name, int verbose, int bars, int bridge, int caps,
 			if (bridge)
 				list_bridge(fd, p);
 			if (caps)
-				list_caps(fd, p);
+				list_caps(fd, p, caps);
 			if (errors)
 				list_errors(fd, p);
 			if (vpd)
