@@ -524,7 +524,8 @@
 312	AUE_NULL	STD	{ int linux_get_robust_list(l_int pid, \
 				    struct linux_robust_list_head **head, l_size_t *len); }
 313	AUE_NULL	STD	{ int linux_splice(void); }
-314	AUE_NULL	STD	{ int linux_sync_file_range(void); }
+314	AUE_NULL	STD	{ int linux_sync_file_range(l_int fd, l_loff_t offset,
+				    l_loff_t nbytes, unsigned int flags); }
 315	AUE_NULL	STD	{ int linux_tee(void); }
 316	AUE_NULL	STD	{ int linux_vmsplice(void); }
 ; Linux 2.6.18:
