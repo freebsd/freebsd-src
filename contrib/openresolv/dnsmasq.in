@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2007-2016 Roy Marples
+# Copyright (c) 2007-2019 Roy Marples
 # All rights reserved
 
 # dnsmasq subscriber for resolvconf
@@ -28,7 +28,7 @@
 
 [ -f "@SYSCONFDIR@"/resolvconf.conf ] || exit 0
 . "@SYSCONFDIR@/resolvconf.conf" || exit 1
-[ -z "$dnsmasq_conf" -a -z "$dnsmasq_resolv" ] && exit 0
+[ -z "${dnsmasq_conf}${dnsmasq_resolv}" ] && exit 0
 [ -z "$RESOLVCONF" ] && eval "$(@SBINDIR@/resolvconf -v)"
 NL="
 "
@@ -98,7 +98,7 @@ for d in $DOMAINS; do
 				empty=false i=0
 				IFS=:
 				set -- $n
-				while [ -n "$1" -o -n "$2" ]; do
+				while [ -n "$1" ] || [ -n "$2" ]; do
 					addr="$1"
 					shift
 					if [ -z "$addr" ]; then
@@ -184,7 +184,7 @@ if $changed; then
 		eval $dnsmasq_restart
 	elif [ -n "$RESTARTCMD" ]; then
 		set -- ${dnsmasq_service}
-		eval $RESTARTCMD
+		eval "$RESTARTCMD"
 	else
 		@SBINDIR@/resolvconf -r ${dnsmasq_service}
 	fi
@@ -206,4 +206,6 @@ if $dbus; then
 	dbus-send --system --dest=uk.org.thekelleys.dnsmasq \
  		/uk/org/thekelleys/dnsmasq uk.org.thekelleys.$method \
   		$dbusdest
+	dbus-send --system --dest=uk.org.thekelleys.dnsmasq \
+		/uk/org/thekelleys/dnsmasq uk.org.thekelleys.ClearCache
 fi

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2007-2016 Roy Marples
+# Copyright (c) 2007-2019 Roy Marples
 # All rights reserved
 
 # Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 RESOLVCONF="$0"
-OPENRESOLV_VERSION="3.9.0"
+OPENRESOLV_VERSION="3.9.2"
 SYSCONFDIR=@SYSCONFDIR@
 LIBEXECDIR=@LIBEXECDIR@
 VARDIR=@VARDIR@
@@ -125,21 +125,22 @@ usage()
 # If you think otherwise, capture a DNS trace and you'll see libc
 # will strip it regardless.
 # This also solves setting up duplicate zones in our subscribers.
-strip_trailing_dots()
+# Also strip any comments denoted by #.
+resolv_strip()
 {
-	local n= d=
-
-	for n; do
-		printf "$d%s" "${n%.}"
-		d=" "
+	space=
+	for word; do
+		case "$word" in
+		\#*) break;;
+		esac
+		printf "%s%s" "$space${word%.}"
+		space=" "
 	done
 	printf "\n"
 }
 
 private_iface()
 {
-	local p
-
 	# Allow expansion
 	cd "$IFACEDIR"
 
@@ -168,12 +169,15 @@ private_iface()
 # for domain name servers, search name servers and global nameservers
 parse_resolv()
 {
-	local line= ns= ds= search= d= n= newns=
-	local new=true iface= private=false p= domain= l= islocal=
-
+	domain=
+	new=true
 	newns=
+	ns=
+	private=false
+	search=
 
 	while read -r line; do
+		stripped_line="$(resolv_strip ${line#* })"
 		case "$line" in
 		"# resolv.conf from "*)
 			if ${new}; then
@@ -189,29 +193,32 @@ parse_resolv()
 		"nameserver "*)
 			islocal=false
 			for l in $local_nameservers; do
-				case "${line#* }" in
+				case "$stripped_line" in
 				$l)
 					islocal=true
-					echo "LOCALNAMESERVERS=\"\$LOCALNAMESERVERS ${line#* }\""
 					break
 					;;
 				esac
 			done
-			$islocal || ns="$ns${line#* } "
+			if $islocal; then
+				echo "LOCALNAMESERVERS=\"\$LOCALNAMESERVERS $stripped_line\""
+			else
+				ns="$ns$stripped_line "
+			fi
 			;;
 		"domain "*)
-			search="$(strip_trailing_dots ${line#* })"
+			search="$stripped_line"
 			if [ -z "$domain" ]; then
 				domain="$search"
 				echo "DOMAIN=\"$domain\""
 			fi
 			;;
 		"search "*)
-			search="$(strip_trailing_dots ${line#* })"
+			search="$stripped_line"
 			;;
 		*)
 			[ -n "$line" ] && continue
-			if [ -n "$ns" -a -n "$search" ]; then
+			if [ -n "$ns" ] && [ -n "$search" ]; then
 				newns=
 				for n in $ns; do
 					newns="$newns${newns:+,}$n"
@@ -236,7 +243,7 @@ parse_resolv()
 
 uniqify()
 {
-	local result=
+	result=
 	while [ -n "$1" ]; do
 		case " $result " in
 		*" $1 "*);;
@@ -249,8 +256,8 @@ uniqify()
 
 dirname()
 {
-	local dir= OIFS="$IFS"
-	local IFS=/
+	OIFS="$IFS"
+	IFS=/
 	set -- $@
 	IFS="$OIFS"
 	if [ -n "$1" ]; then
@@ -267,7 +274,7 @@ dirname()
 
 config_mkdirs()
 {
-	local e=0 f d
+	e=0
 	for f; do
 		[ -n "$f" ] || continue
 		d="$(dirname "$f")"
@@ -295,66 +302,86 @@ detect_init()
 	# Detect the running init system.
 	# As systemd and OpenRC can be installed on top of legacy init
 	# systems we try to detect them first.
-	local status="@STATUSARG@"
+	status="@STATUSARG@"
 	: ${status:=status}
-	if [ -x /bin/systemctl -a -S /run/systemd/private ]; then
-		RESTARTCMD="if /bin/systemctl --quiet is-active \$1.service; then
-	/bin/systemctl restart \$1.service;
-fi"
-	elif [ -x /usr/bin/systemctl -a -S /run/systemd/private ]; then
-		RESTARTCMD="if /usr/bin/systemctl --quiet is-active \$1.service; then
-	/usr/bin/systemctl restart \$1.service;
-fi"
-	elif [ -x /sbin/rc-service -a \
-	    -s /libexec/rc/init.d/softlevel -o -s /run/openrc/softlevel ]
+	if [ -x /bin/systemctl ] && [ -S /run/systemd/private ]; then
+		RESTARTCMD='
+			if /bin/systemctl --quiet is-active $1.service
+			then
+				/bin/systemctl restart $1.service
+			fi'
+	elif [ -x /usr/bin/systemctl ] && [ -S /run/systemd/private ]; then
+		RESTARTCMD='
+			if /usr/bin/systemctl --quiet is-active $1.service
+			then
+				/usr/bin/systemctl restart $1.service
+			fi'
+	elif [ -x /sbin/rc-service ] &&
+	     { [ -s /libexec/rc/init.d/softlevel ] ||
+	     [ -s /run/openrc/softlevel ]; }
 	then
-		RESTARTCMD="/sbin/rc-service -i \$1 -- -Ds restart"
+		RESTARTCMD='/sbin/rc-service -i $1 -- -Ds restart'
 	elif [ -x /usr/sbin/invoke-rc.d ]; then
 		RCDIR=/etc/init.d
-		RESTARTCMD="if /usr/sbin/invoke-rc.d --quiet \$1 status 1>/dev/null 2>&1; then
-	/usr/sbin/invoke-rc.d \$1 restart;
-fi"
+		RESTARTCMD='
+		   if /usr/sbin/invoke-rc.d --quiet $1 status >/dev/null 2>&1
+		   then
+			/usr/sbin/invoke-rc.d $1 restart
+		   fi'
 	elif [ -x /sbin/service ]; then
 		# Old RedHat
 		RCDIR=/etc/init.d
-		RESTARTCMD="if /sbin/service \$1; then
-	/sbin/service \$1 restart;
-fi"
+		RESTARTCMD='
+			if /sbin/service $1; then
+				/sbin/service $1 restart
+			fi'
 	elif [ -x /usr/sbin/service ]; then
 		# Could be FreeBSD
-		RESTARTCMD="if /usr/sbin/service \$1 $status 1>/dev/null 2>&1; then
-	/usr/sbin/service \$1 restart;
-fi"
+		RESTARTCMD="
+			if /usr/sbin/service \$1 $status >/dev/null 2>&1
+			then
+				/usr/sbin/service \$1 restart
+			fi"
 	elif [ -x /bin/sv ]; then
-		RESTARTCMD="/bin/sv status \$1 >/dev/null 2>&1 && /bin/sv try-restart \$1"
+		RESTARTCMD='/bin/sv status $1 >/dev/null 2>&1 &&
+			    /bin/sv try-restart $1'
 	elif [ -x /usr/bin/sv ]; then
-		RESTARTCMD="/usr/bin/sv status \$1 >/dev/null 2>&1 && /usr/bin/sv try-restart \$1"
-	elif [ -e /etc/arch-release -a -d /etc/rc.d ]; then
+		RESTARTCMD='/usr/bin/sv status $1 >/dev/null 2>&1 &&
+			    /usr/bin/sv try-restart $1'
+	elif [ -e /etc/arch-release ] && [ -d /etc/rc.d ]; then
 		RCDIR=/etc/rc.d
-		RESTARTCMD="if [ -e /var/run/daemons/\$1 ]; then
-	/etc/rc.d/\$1 restart;
-fi"
-	elif [ -e /etc/slackware-version -a -d /etc/rc.d ]; then
-		RESTARTCMD="if /etc/rc.d/rc.\$1 status 1>/dev/null 2>&1; then
-	/etc/rc.d/rc.\$1 restart;
-fi"
-	elif [ -e /etc/rc.d/rc.subr -a -d /etc/rc.d ]; then
+		RESTARTCMD='
+			if [ -e /var/run/daemons/$1 ]
+			then
+				/etc/rc.d/$1 restart
+			fi'
+	elif [ -e /etc/slackware-version ] && [ -d /etc/rc.d ]; then
+		RESTARTCMD='
+			if /etc/rc.d/rc.$1 status >/dev/null 2>&1
+			then
+				/etc/rc.d/rc.$1 restart
+			fi'
+	elif [ -e /etc/rc.d/rc.subr ] && [ -d /etc/rc.d ]; then
 		# OpenBSD
-		RESTARTCMD="if /etc/rc.d/\$1 check 1>/dev/null 2>&1; then
-	/etc/rc.d/\$1 restart;
-fi"
+		RESTARTCMD='
+			if /etc/rc.d/$1 check >/dev/null 2>&1
+			then
+				/etc/rc.d/$1 restart
+			fi'
 	else
 		for x in /etc/init.d/rc.d /etc/rc.d /etc/init.d; do
 			[ -d $x ] || continue
-			RESTARTCMD="if $x/\$1 $status 1>/dev/null 2>&1; then
-	$x/\$1 restart;
-fi"
+			RESTARTCMD="
+				if $x/\$1 $status >/dev/null 2>&1
+				then
+					$x/\$1 restart
+				fi"
 			break
 		done
 	fi
 
 	if [ -z "$RESTARTCMD" ]; then
-		if [ "$NOINIT_WARNED" != true ]; then
+		if [ "$_NOINIT_WARNED" != true ]; then
 			warn "could not detect a useable init system"
 			_NOINIT_WARNED=true
 		fi
@@ -366,9 +393,9 @@ fi"
 
 echo_resolv()
 {
-	local line= OIFS="$IFS"
+	OIFS="$IFS"
 
-	[ -n "$1" -a -f "$IFACEDIR/$1" ] || return 1
+	[ -n "$1" ] && [ -f "$IFACEDIR/$1" ] || return 1
 	echo "# resolv.conf from $1"
 	# Our variable maker works of the fact each resolv.conf per interface
 	# is separated by blank lines.
@@ -388,11 +415,16 @@ list_resolv()
 {
 	[ -d "$IFACEDIR" ] || return 0
 
-	local report=false list= retval=0 cmd="$1" excl=
+	cmd="$1"
 	shift
+	excl=false
+	list=
+	report=false
+	retval=0
 
 	case "$IF_EXCLUSIVE" in
 	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+		excl=true
 		if [ -d "$EXCLUSIVEDIR" ]; then
 			cd "$EXCLUSIVEDIR"
 			for i in *; do
@@ -402,18 +434,14 @@ list_resolv()
 				fi
 			done
 		fi
-		excl=true
 		cd "$IFACEDIR"
 		for i in $inclusive_interfaces; do
-			if [ -f "$i" -a "$list" = "$i" ]; then
+			if [ -f "$i" ] && [ "$list" = "$i" ]; then
 				list=
 				excl=false
 				break
 			fi
 		done
-		;;
-	*)
-		excl=false
 		;;
 	esac
 
@@ -431,14 +459,21 @@ list_resolv()
 			done
 		done
 		for i in $dynamic_order; do
-			if [ -e "$i" -a ! -e "$METRICDIR/"*" $i" ]; then
+			if [ -e "$i" ] && ! [ -e "$METRICDIR/"*" $i" ]; then
 				list="$list $i"
 			fi
 			for ii in "$i":* "$i".*; do
-				if [ -f "$ii" -a ! -e "$METRICDIR/"*" $ii" ]; then
+				if [ -f "$ii" ] && ! [ -e "$METRICDIR/"*" $ii" ]
+				then
 					list="$list $ii"
 				fi
 			done
+		done
+		# Interfaces have an implicit metric of 0 if not specified.
+		for i in *; do
+			if [ -f "$i" ] && ! [ -e "$METRICDIR/"*" $i" ]; then
+				list="$list $i"
+			fi
 		done
 		if [ -d "$METRICDIR" ]; then
 			cd "$METRICDIR"
@@ -446,7 +481,6 @@ list_resolv()
 				[ -f "$i" ] && list="$list ${i#* }"
 			done
 		fi
-		list="$list *"
 	fi
 
 	cd "$IFACEDIR"
@@ -461,23 +495,24 @@ list_resolv()
 			continue
 		fi
 		
-		if [ "$cmd" = i -o "$cmd" = "-i" ]; then
+		if [ "$cmd" = i ] || [ "$cmd" = "-i" ]; then
 			printf %s "$i "
 		else
 			echo_resolv "$i" && echo
 		fi
-		[ $? = 0 -a "$retval" = 1 ] && retval=0
+		[ $? = 0 ] && [ "$retval" = 1 ] && retval=0
 	done
-	[ "$cmd" = i -o "$cmd" = "-i" ] && echo
+	[ "$cmd" = i ] || [ "$cmd" = "-i" ] && echo
 	return $retval
 }
 
-list_remove() {
-	local list= e= l= result= found= retval=0
-
+list_remove()
+{
 	[ -z "$2" ] && return 0
 	eval list=\"\$$1\"
 	shift
+	result=
+	retval=0
 
 	set -f
 	for e; do
@@ -525,8 +560,6 @@ echo_append()
 
 replace()
 {
-	local r= k= f= v= val= sub=
-
 	while read -r keyword value; do
 		for r in $replace; do
 			k="${r%%/*}"
@@ -566,8 +599,6 @@ replace()
 
 make_vars()
 {
-	local newdomains= d= dn= newns= ns=
-
 	# Clear variables
 	DOMAIN=
 	DOMAINS=
@@ -575,7 +606,7 @@ make_vars()
 	NAMESERVERS=
 	LOCALNAMESERVERS=
 	
-	if [ -n "$name_servers" -o -n "$search_domains" ]; then
+	if [ -n "${name_servers}${search_domains}" ]; then
 		eval "$(echo_prepend | parse_resolv)"
 	fi
 	if [ -z "$VFLAG" ]; then
@@ -583,11 +614,12 @@ make_vars()
 		list_resolv -i "$@" >/dev/null || IF_EXCLUSIVE=0
 		eval "$(list_resolv -l "$@" | replace | parse_resolv)"
 	fi
-	if [ -n "$name_servers_append" -o -n "$search_domains_append" ]; then
+	if [ -n "${name_servers_append}${search_domains_append}" ]; then
 		eval "$(echo_append | parse_resolv)"
 	fi
 
 	# Ensure that we only list each domain once
+	newdomains=
 	for d in $DOMAINS; do
 		dn="${d%%:*}"
 		list_remove domain_blacklist "$dn" >/dev/null || continue
@@ -667,36 +699,37 @@ if [ "$cmd" = D ]; then
 fi
 
 # -l lists our resolv files, optionally for a specific interface
-if [ "$cmd" = l -o "$cmd" = i ]; then
+if [ "$cmd" = l ] || [ "$cmd" = i ]; then
 	list_resolv "$cmd" "$args"
 	exit $?
 fi
 
 # Restart a service or echo the command to restart a service
-if [ "$cmd" = r -o "$cmd" = R ]; then
+if [ "$cmd" = r ] || [ "$cmd" = R ]; then
 	detect_init || exit 1
 	if [ "$cmd" = r ]; then
 		set -- $args
-		eval $RESTARTCMD
+		eval "$RESTARTCMD"
 	else
-		echo "$RESTARTCMD"
+		echo "$RESTARTCMD" |
+			sed -e '/^$/d' -e 's/^			//g'
 	fi
 	exit $?
 fi
 
 # Not normally needed, but subscribers should be able to run independently
-if [ "$cmd" = v -o -n "$VFLAG" ]; then
+if [ "$cmd" = v ] || [ -n "$VFLAG" ]; then
 	make_vars "$iface"
 	exit $?
 fi
 
 # Test that we have valid options
-if [ "$cmd" = a -o "$cmd" = d ]; then
+if [ "$cmd" = a ] || [ "$cmd" = d ]; then
 	if [ -z "$iface" ]; then
 		usage "Interface not specified"
 	fi
 elif [ "$cmd" != u ]; then
-	[ -n "$cmd" -a "$cmd" != h ] && usage "Unknown option $cmd"
+	[ -n "$cmd" ] && [ "$cmd" != h ] && usage "Unknown option $cmd"
 	usage
 fi
 
@@ -712,7 +745,7 @@ if [ "$cmd" = a ]; then
 			"$x not allowed at start of interface name";;
 		esac
 	done
-	[ "$cmd" = a -a -t 0 ] && error_exit "No file given via stdin"
+	[ "$cmd" = a ] && [ -t 0 ] && error_exit "No file given via stdin"
 fi
 
 if [ ! -d "$VARDIR" ]; then
@@ -808,8 +841,8 @@ a)
 		newmetric="$METRICDIR/$IF_METRIC $iface"
 	fi
 	rm -f "$METRICDIR/"*" $iface"
-	[ "$oldmetric" != "$newmetric" -a \
-	    "$oldmetric" != "$METRICDIR/* $iface" ] &&
+	[ "$oldmetric" != "$newmetric" ] &&
+	    [ "$oldmetric" != "$METRICDIR/* $iface" ] &&
 		changed=true
 	[ -n "$newmetric" ] && echo " " >"$newmetric"
 
