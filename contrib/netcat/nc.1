@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 26, 2015
+.Dd August 20, 2019
 .Dt NC 1
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Sh SYNOPSIS
 .Nm nc
 .Bk -words
-.Op Fl 46DdEFhklNnrStUuvz
+.Op Fl 46DdEFhklMNnrStUuvz
 .Op Fl e Ar IPsec_policy
 .Op Fl I Ar length
 .Op Fl i Ar interval
@@ -170,6 +170,12 @@ options.
 Additionally, any timeouts specified with the
 .Fl w
 option are ignored.
+.It Fl M
+Collect per-connection TCP statistics using the
+.Xr stats 3
+framework and print them in JSON format to
+.Xr stderr 4
+after the connection is closed.
 .It Fl N
 .Xr shutdown 2
 the network socket after EOF on the input.
