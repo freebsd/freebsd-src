@@ -908,6 +908,22 @@ linux_fdatasync(td, uap)
 }
 
 int
+linux_sync_file_range(td, uap)
+	struct thread *td;
+	struct linux_sync_file_range_args *uap;
+{
+
+	if (uap->offset < 0 || uap->nbytes < 0 ||
+	    (uap->flags & ~(LINUX_SYNC_FILE_RANGE_WAIT_BEFORE |
+	    LINUX_SYNC_FILE_RANGE_WRITE |
+	    LINUX_SYNC_FILE_RANGE_WAIT_AFTER)) != 0) {
+		return (EINVAL);
+	}
+
+	return (kern_fsync(td, uap->fd, false));
+}
+
+int
 linux_pread(struct thread *td, struct linux_pread_args *uap)
 {
 	struct vnode *vp;
