@@ -32,13 +32,12 @@
 .\"     @(#)rand.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2019
+.Dd December 14, 2019
 .Dt RAND 3
 .Os
 .Sh NAME
 .Nm rand ,
 .Nm srand ,
-.Nm sranddev ,
 .Nm rand_r
 .Nd bad random number generator
 .Sh LIBRARY
@@ -47,8 +46,6 @@
 .In stdlib.h
 .Ft void
 .Fn srand "unsigned seed"
-.Ft void
-.Fn sranddev void
 .Ft int
 .Fn rand void
 .Ft int
@@ -90,10 +87,6 @@ value is provided, the functions are automatically
 seeded with a value of 1.
 .Pp
 The
-.Fn sranddev
-function initializes a seed using pseudo-random numbers obtained from the kernel.
-.Pp
-The
 .Fn rand_r
 function
 provides the same functionality as
@@ -122,4 +115,5 @@ conform to
 .Pp
 The
 .Fn rand_r
-function is as proposed in the POSIX.4a Draft #6 document.
+function is marked as obsolescent in POSIX and may be removed in a future
+revision of the standard.
