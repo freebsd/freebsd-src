@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd April 13, 2017
+.Dd December 14, 2019
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -59,9 +59,11 @@ on to the file system tree at the point
 .Ar node .
 This command is normally executed by
 .Xr mount 8 .
-It implements the mount protocol as described in RFC 1094, Appendix A and
-.%T "NFS: Network File System Version 3 Protocol Specification" ,
-Appendix I.
+For NFSv2 and NFSv3,
+it implements the mount protocol as described in RFC 1094, Appendix A and
+RFC 1813, Appendix I.
+For NFSv4, it uses the NFSv4 protocol as described in RFC 7530, RFC 5661 and
+RFC 7862.
 .Pp
 By default,
 .Nm
@@ -197,20 +199,20 @@ This option will force the mount to use
 TCP transport.
 .It Cm minorversion Ns = Ns Aq Ar value
 Override the default of 0 for the minor version of the NFS Version 4 protocol.
-The only minor version currently supported is 1.
+The minor versions other than 0 currently supported are 1 and 2.
 This option is only meaningful when used with the
 .Cm nfsv4
 option.
 .It Cm oneopenown
-Make a minor version 1 of the NFS Version 4 protocol mount use a single OpenOwner
-for all Opens.
+Make a minor version 1 or 2 of the NFS Version 4 protocol mount use a single
+OpenOwner for all Opens.
 This may be useful for a server with a very low limit on OpenOwners, such as
 AmazonEFS.
-It can only be used with an NFSv4.1 mount.
+It ca only be used with an NFSv4.1 or NFSv4.2 mount.
 It may not work correctly when Delegations are being issued by a server,
 but note that the AmazonEFS server does not issued delegations at this time.
 .It Cm pnfs
-Enable support for parallel NFS (pNFS) for minor version 1 of the
+Enable support for parallel NFS (pNFS) for minor version 1 or 2 of the
 NFS Version 4 protocol.
 This option is only meaningful when used with the
 .Cm minorversion
@@ -250,9 +252,9 @@ Do
 .Em not
 forward
 .Xr fcntl 2
-locks over the wire.
+locks over the wire via the NLM protocol for NFSv3 mounts.
 All locks will be local and not seen by the server
-and likewise not seen by other NFS clients.
+and likewise not seen by other NFS clients for NFSv3 mounts.
 This removes the need to run the
 .Xr rpcbind 8
 service and the
@@ -263,6 +265,9 @@ servers on the client.
 Note that this option will only be honored when performing the
 initial mount, it will be silently ignored if used while updating
 the mount options.
+Also, note that NFSv4 mounts do not use these daemons and handle locks over the
+wire in the NFSv4 protocol.
+As such, this option is meaningless for NFSv4 mounts.
 .It Cm noncontigwr
 This mount option allows the NFS client to
 combine non-contiguous byte ranges being written
