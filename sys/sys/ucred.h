@@ -112,7 +112,7 @@ struct ucred	*crcopysafe(struct proc *p, struct ucred *cr);
 struct ucred	*crdup(struct ucred *cr);
 void	crextend(struct ucred *cr, int n);
 void	proc_set_cred_init(struct proc *p, struct ucred *cr);
-struct ucred	*proc_set_cred(struct proc *p, struct ucred *cr);
+void	proc_set_cred(struct proc *p, struct ucred *cr);
 void	crfree(struct ucred *cr);
 struct ucred	*crget(void);
 struct ucred	*crhold(struct ucred *cr);

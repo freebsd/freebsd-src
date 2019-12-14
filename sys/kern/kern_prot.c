@@ -1995,10 +1995,9 @@ proc_set_cred_init(struct proc *p, struct ucred *newcred)
  * only used when the process is about to be freed, at which point it should
  * not be visible anymore).
  */
-struct ucred *
+void
 proc_set_cred(struct proc *p, struct ucred *newcred)
 {
-	struct ucred *oldcred;
 
 	MPASS(p->p_ucred != NULL);
 	if (newcred == NULL)
@@ -2006,11 +2005,9 @@ proc_set_cred(struct proc *p, struct ucred *newcred)
 	else
 		PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	oldcred = p->p_ucred;
 	p->p_ucred = newcred;
 	if (newcred != NULL)
 		PROC_UPDATE_COW(p);
-	return (oldcred);
 }
 
 struct ucred *
