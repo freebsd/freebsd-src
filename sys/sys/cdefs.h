@@ -468,6 +468,14 @@
 #define	__hidden
 #endif
 
+#if __GNUC__ > 4 || defined(__clang__)
+#define	__deprecated(m)	__attribute__((__deprecated__(m)))
+#elif defined(__GNUC__)
+#define	__deprecated(m)	__attribute__((__deprecated__))
+#else
+#define	__deprecated(m)
+#endif
+
 /*
  * We define this here since <stddef.h>, <sys/queue.h>, and <sys/types.h>
  * require it.

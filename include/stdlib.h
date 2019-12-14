@@ -315,7 +315,7 @@ long long
 
 /* Deprecated interfaces, to be removed. */
 static inline void
-__attribute__((__deprecated__("sranddev to be removed in FreeBSD 13")))
+__deprecated("sranddev to be removed in FreeBSD 13")
 sranddev(void)
 {
 }
