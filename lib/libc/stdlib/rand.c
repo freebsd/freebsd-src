@@ -40,7 +40,9 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/sysctl.h>
+#include <stdbool.h>
 #include <stdlib.h>
+#include <syslog.h>
 #include "un-namespace.h"
 
 #ifdef TEST
@@ -102,25 +104,18 @@ srand(unsigned seed)
 }
 
 
-/*
- * sranddev:
- *
- * Many programs choose the seed value in a totally predictable manner.
- * This often causes problems.  We seed the generator using pseudo-random
- * data from the kernel.
- */
+void __sranddev_fbsd12(void);
 void
-sranddev(void)
+__sranddev_fbsd12(void)
 {
-	int mib[2];
-	size_t len;
+	static bool warned = false;
 
-	len = sizeof(next);
-
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_ARND;
-	sysctl(mib, 2, (void *)&next, &len, NULL, 0);
+	if (!warned) {
+		syslog(LOG_DEBUG, "Deprecated function sranddev() called");
+		warned = true;
+	}
 }
+__sym_compat(sranddev, __sranddev_fbsd12, FBSD_1.0);
 
 
 #ifdef TEST

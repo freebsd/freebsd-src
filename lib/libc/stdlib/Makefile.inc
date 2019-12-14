@@ -52,7 +52,7 @@ MLINKS+=insque.3 remque.3
 MLINKS+=lsearch.3 lfind.3
 MLINKS+=ptsname.3 grantpt.3 ptsname.3 unlockpt.3
 MLINKS+=qsort.3 heapsort.3 qsort.3 mergesort.3 qsort.3 qsort_r.3
-MLINKS+=rand.3 rand_r.3 rand.3 srand.3 rand.3 sranddev.3
+MLINKS+=rand.3 rand_r.3 rand.3 srand.3
 MLINKS+=random.3 initstate.3 random.3 setstate.3 random.3 srandom.3 \
 	random.3 srandomdev.3
 MLINKS+=radixsort.3 sradixsort.3

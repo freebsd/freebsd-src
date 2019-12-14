@@ -36,6 +36,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20191214: Removal of sranddev(3)
+OLD_FILES+=usr/share/man/man3/sranddev.3.gz
 # 20191213: remove timeout(9)
 OLD_FILES+=usr/share/man/man9/timeout.9.gz
 OLD_FILES+=usr/share/man/man9/untimeout.9.gz

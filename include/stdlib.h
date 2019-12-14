@@ -309,12 +309,17 @@ int	 rpmatch(const char *);
 void	 setprogname(const char *);
 int	 sradixsort(const unsigned char **, int, const unsigned char *,
 	    unsigned);
-void	 sranddev(void);
 void	 srandomdev(void);
 long long
 	strtonum(const char *, long long, long long, const char **);
 
 /* Deprecated interfaces, to be removed. */
+static inline void
+__attribute__((__deprecated__("sranddev to be removed in FreeBSD 13")))
+sranddev(void)
+{
+}
+
 __int64_t
 	 strtoq(const char *, char **, int);
 __uint64_t
