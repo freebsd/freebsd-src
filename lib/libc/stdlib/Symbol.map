@@ -56,7 +56,6 @@ FBSD_1.0 {
 	rand_r;
 	rand;
 	srand;
-	sranddev;
 	srandom;
 	srandomdev;
 	initstate;
