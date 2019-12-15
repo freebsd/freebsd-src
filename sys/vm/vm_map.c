@@ -3870,15 +3870,19 @@ vm_map_copy_swap_object(vm_map_entry_t src_entry, vm_map_entry_t dst_entry,
 	int charged;
 
 	src_object = src_entry->object.vm_object;
-	VM_OBJECT_WLOCK(src_object);
 	charged = ENTRY_CHARGED(src_entry);
-	vm_object_collapse(src_object);
-	if ((src_object->flags & OBJ_ONEMAPPING) != 0) {
-		vm_object_split(src_entry);
-		src_object = src_entry->object.vm_object;
-	}
-	vm_object_reference_locked(src_object);
-	vm_object_clear_flag(src_object, OBJ_ONEMAPPING);
+	if ((src_object->flags & OBJ_ANON) != 0) {
+		VM_OBJECT_WLOCK(src_object);
+		vm_object_collapse(src_object);
+		if ((src_object->flags & OBJ_ONEMAPPING) != 0) {
+			vm_object_split(src_entry);
+			src_object = src_entry->object.vm_object;
+		}
+		vm_object_reference_locked(src_object);
+		vm_object_clear_flag(src_object, OBJ_ONEMAPPING);
+		VM_OBJECT_WUNLOCK(src_object);
+	} else
+		vm_object_reference(src_object);
 	if (src_entry->cred != NULL &&
 	    !(src_entry->eflags & MAP_ENTRY_NEEDS_COPY)) {
 		KASSERT(src_object->cred == NULL,
@@ -3887,7 +3891,6 @@ vm_map_copy_swap_object(vm_map_entry_t src_entry, vm_map_entry_t dst_entry,
 		src_object->cred = src_entry->cred;
 		src_object->charge = size;
 	}
-	VM_OBJECT_WUNLOCK(src_object);
 	dst_entry->object.vm_object = src_object;
 	if (charged) {
 		cred = curthread->td_ucred;
