@@ -494,3 +494,14 @@ static void
 powernv_cpu_idle(sbintime_t sbt)
 {
 }
+
+/* Set up the Nest MMU on POWER9 relatively early, but after pmap is setup. */
+static void
+powernv_setup_nmmu(void *unused)
+{
+	if (opal_check() != 0)
+		return;
+	opal_call(OPAL_NMMU_SET_PTCR, -1, mfspr(SPR_PTCR));
+}
+
+SYSINIT(powernv_setup_nmmu, SI_SUB_CPU, SI_ORDER_ANY, powernv_setup_nmmu, NULL);
