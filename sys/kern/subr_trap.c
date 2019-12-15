@@ -280,8 +280,7 @@ ast(struct trapframe *framep)
 #endif
 		thread_lock(td);
 		sched_prio(td, td->td_user_pri);
-		mi_switch(SW_INVOL | SWT_NEEDRESCHED, NULL);
-		thread_unlock(td);
+		mi_switch(SW_INVOL | SWT_NEEDRESCHED);
 #ifdef KTRACE
 		if (KTRPOINT(td, KTR_CSW))
 			ktrcsw(0, 1, __func__);

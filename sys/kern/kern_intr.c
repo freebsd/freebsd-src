@@ -1251,13 +1251,14 @@ ithread_loop(void *arg)
 		    (ithd->it_flags & (IT_DEAD | IT_WAIT)) == 0) {
 			TD_SET_IWAIT(td);
 			ie->ie_count = 0;
-			mi_switch(SW_VOL | SWT_IWAIT, NULL);
+			mi_switch(SW_VOL | SWT_IWAIT);
+		} else {
+			if (ithd->it_flags & IT_WAIT) {
+				wake = 1;
+				ithd->it_flags &= ~IT_WAIT;
+			}
+			thread_unlock(td);
 		}
-		if (ithd->it_flags & IT_WAIT) {
-			wake = 1;
-			ithd->it_flags &= ~IT_WAIT;
-		}
-		thread_unlock(td);
 		if (wake) {
 			wakeup(ithd);
 			wake = 0;

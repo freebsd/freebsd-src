@@ -671,7 +671,7 @@ schedinit(void)
 	 */
 	thread0.td_lock = &sched_lock;
 	td_get_sched(&thread0)->ts_slice = sched_slice;
-	mtx_init(&sched_lock, "sched lock", NULL, MTX_SPIN | MTX_RECURSE);
+	mtx_init(&sched_lock, "sched lock", NULL, MTX_SPIN);
 }
 
 int
@@ -973,8 +973,9 @@ sched_sleep(struct thread *td, int pri)
 }
 
 void
-sched_switch(struct thread *td, struct thread *newtd, int flags)
+sched_switch(struct thread *td, int flags)
 {
+	struct thread *newtd;
 	struct mtx *tmtx;
 	struct td_sched *ts;
 	struct proc *p;
@@ -1027,25 +1028,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	if ((td->td_flags & TDF_NOLOAD) == 0)
 		sched_load_rem();
 
-	if (newtd) {
-		/*
-		 * The thread we are about to run needs to be counted
-		 * as if it had been added to the run queue and selected.
-		 * It came from:
-		 * * A preemption
-		 * * An upcall
-		 * * A followon
-		 */
-		KASSERT((newtd->td_inhibitors == 0),
-			("trying to run inhibited thread"));
-		newtd->td_flags |= TDF_DIDRUN;
-        	TD_SET_RUNNING(newtd);
-		if ((newtd->td_flags & TDF_NOLOAD) == 0)
-			sched_load_add();
-	} else {
-		newtd = choosethread();
-	}
-
+	newtd = choosethread();
 	MPASS(newtd->td_lock == &sched_lock);
 
 #if (KTR_COMPILE & KTR_SCHED) != 0
@@ -1117,7 +1100,8 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 #endif
 	sched_lock.mtx_lock = (uintptr_t)td;
 	td->td_oncpu = PCPU_GET(cpuid);
-	MPASS(td->td_lock == &sched_lock);
+	spinlock_enter();
+	mtx_unlock_spin(&sched_lock);
 }
 
 void
@@ -1517,12 +1501,12 @@ sched_preempt(struct thread *td)
 {
 
 	SDT_PROBE2(sched, , , surrender, td, td->td_proc);
-	thread_lock(td);
-	if (td->td_critnest > 1)
+	if (td->td_critnest > 1) {
 		td->td_owepreempt = 1;
-	else
-		mi_switch(SW_INVOL | SW_PREEMPT | SWT_PREEMPT, NULL);
-	thread_unlock(td);
+	} else {
+		thread_lock(td);
+		mi_switch(SW_INVOL | SW_PREEMPT | SWT_PREEMPT);
+	}
 }
 
 void
@@ -1551,7 +1535,8 @@ sched_bind(struct thread *td, int cpu)
 	if (PCPU_GET(cpuid) == cpu)
 		return;
 
-	mi_switch(SW_VOL, NULL);
+	mi_switch(SW_VOL);
+	thread_lock(td);
 #endif
 }
 
@@ -1574,8 +1559,7 @@ void
 sched_relinquish(struct thread *td)
 {
 	thread_lock(td);
-	mi_switch(SW_VOL | SWT_RELINQUISH, NULL);
-	thread_unlock(td);
+	mi_switch(SW_VOL | SWT_RELINQUISH);
 }
 
 int
@@ -1666,8 +1650,7 @@ sched_idletd(void *dummy)
 		}
 
 		mtx_lock_spin(&sched_lock);
-		mi_switch(SW_VOL | SWT_IDLE, NULL);
-		mtx_unlock_spin(&sched_lock);
+		mi_switch(SW_VOL | SWT_IDLE);
 	}
 }
 

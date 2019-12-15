@@ -813,12 +813,11 @@ turnstile_wait(struct turnstile *ts, struct thread *owner, int queue)
 	SDT_PROBE0(sched, , , sleep);
 
 	THREAD_LOCKPTR_ASSERT(td, &ts->ts_lock);
-	mi_switch(SW_VOL | SWT_TURNSTILE, NULL);
+	mi_switch(SW_VOL | SWT_TURNSTILE);
 
 	if (LOCK_LOG_TEST(lock, 0))
 		CTR4(KTR_LOCK, "%s: td %d free from blocked on [%p] %s",
 		    __func__, td->td_tid, lock, lock->lo_name);
-	thread_unlock(td);
 }
 
 /*
