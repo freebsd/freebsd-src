@@ -291,10 +291,11 @@ msgring_process_fast_intr(void *arg)
 		msgring_wakeup_sleep[cpu]++;
 		TD_CLR_IWAIT(td);
 		sched_add(td, SRQ_INTR);
-	} else
+	} else {
+		thread_unlock(td);
 		msgring_wakeup_nosleep[cpu]++;
+	}
 
-	thread_unlock(td);
 
 	return (FILTER_HANDLED);
 }
@@ -382,7 +383,6 @@ create_msgring_thread(int hwtid)
 	thread_lock(td);
 	sched_class(td, PRI_ITHD);
 	sched_add(td, SRQ_INTR);
-	thread_unlock(td);
 }
 
 int

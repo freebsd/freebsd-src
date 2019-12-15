@@ -960,10 +960,9 @@ thread_lock_block(struct thread *td)
 {
 	struct mtx *lock;
 
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	lock = td->td_lock;
+	mtx_assert(lock, MA_OWNED);
 	td->td_lock = &blocked_lock;
-	mtx_unlock_spin(lock);
 
 	return (lock);
 }
@@ -971,9 +970,23 @@ thread_lock_block(struct thread *td)
 void
 thread_lock_unblock(struct thread *td, struct mtx *new)
 {
+
 	mtx_assert(new, MA_OWNED);
-	MPASS(td->td_lock == &blocked_lock);
+	KASSERT(td->td_lock == &blocked_lock,
+	    ("thread %p lock %p not blocked_lock %p",
+	    td, td->td_lock, &blocked_lock));
 	atomic_store_rel_ptr((volatile void *)&td->td_lock, (uintptr_t)new);
+}
+
+void
+thread_lock_block_wait(struct thread *td)
+{
+
+	while (td->td_lock == &blocked_lock)
+		cpu_spinwait();
+
+	/* Acquire fence to be certain that all thread state is visible. */
+	atomic_thread_fence_acq();
 }
 
 void
@@ -982,8 +995,8 @@ thread_lock_set(struct thread *td, struct mtx *new)
 	struct mtx *lock;
 
 	mtx_assert(new, MA_OWNED);
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	lock = td->td_lock;
+	mtx_assert(lock, MA_OWNED);
 	td->td_lock = new;
 	mtx_unlock_spin(lock);
 }

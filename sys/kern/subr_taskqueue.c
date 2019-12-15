@@ -710,7 +710,6 @@ _taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 		thread_lock(td);
 		sched_prio(td, pri);
 		sched_add(td, SRQ_BORING);
-		thread_unlock(td);
 	}
 
 	return (0);
