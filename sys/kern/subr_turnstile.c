@@ -314,7 +314,7 @@ turnstile_adjust_thread(struct turnstile *ts, struct thread *td)
 	 * It needs to be moved if either its priority is lower than
 	 * the previous thread or higher than the next thread.
 	 */
-	THREAD_LOCKPTR_ASSERT(td, &ts->ts_lock);
+	THREAD_LOCKPTR_BLOCKED_ASSERT(td, &ts->ts_lock);
 	td1 = TAILQ_PREV(td, threadqueue, td_lockq);
 	td2 = TAILQ_NEXT(td, td_lockq);
 	if ((td1 != NULL && td->td_priority < td1->td_priority) ||
@@ -429,7 +429,7 @@ turnstile_adjust(struct thread *td, u_char oldpri)
 	 */
 	ts = td->td_blocked;
 	MPASS(ts != NULL);
-	THREAD_LOCKPTR_ASSERT(td, &ts->ts_lock);
+	THREAD_LOCKPTR_BLOCKED_ASSERT(td, &ts->ts_lock);
 	mtx_assert(&ts->ts_lock, MA_OWNED);
 
 	/* Resort the turnstile on the list. */
@@ -693,7 +693,7 @@ turnstile_claim(struct turnstile *ts)
 	td = turnstile_first_waiter(ts);
 	MPASS(td != NULL);
 	MPASS(td->td_proc->p_magic == P_MAGIC);
-	THREAD_LOCKPTR_ASSERT(td, &ts->ts_lock);
+	THREAD_LOCKPTR_BLOCKED_ASSERT(td, &ts->ts_lock);
 
 	/*
 	 * Update the priority of the new owner if needed.
@@ -979,7 +979,7 @@ turnstile_unpend(struct turnstile *ts)
 		td = TAILQ_FIRST(&pending_threads);
 		TAILQ_REMOVE(&pending_threads, td, td_lockq);
 		SDT_PROBE2(sched, , , wakeup, td, td->td_proc);
-		thread_lock(td);
+		thread_lock_block_wait(td);
 		THREAD_LOCKPTR_ASSERT(td, &ts->ts_lock);
 		MPASS(td->td_proc->p_magic == P_MAGIC);
 		MPASS(TD_ON_LOCK(td));
@@ -991,8 +991,7 @@ turnstile_unpend(struct turnstile *ts)
 #ifdef INVARIANTS
 		td->td_tsqueue = 0xff;
 #endif
-		sched_add(td, SRQ_BORING);
-		thread_unlock(td);
+		sched_add(td, SRQ_HOLD | SRQ_BORING);
 	}
 	mtx_unlock_spin(&ts->ts_lock);
 }

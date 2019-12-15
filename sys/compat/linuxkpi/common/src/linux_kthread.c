@@ -142,7 +142,6 @@ linux_kthread_setup_and_run(struct thread *td, linux_task_fn_t *task_fn, void *a
 	sched_prio(td, PI_SWI(SWI_NET));
 	/* put thread into run-queue */
 	sched_add(td, SRQ_BORING);
-	thread_unlock(td);
 
 	return (task);
 }

@@ -89,7 +89,6 @@ do_thread_create(caddr_t stk, size_t stksize, void (*proc)(void *), void *arg,
 		thread_lock(td);
 		sched_prio(td, pri);
 		sched_add(td, SRQ_BORING);
-		thread_unlock(td);
 	}
 	return (td);
 }

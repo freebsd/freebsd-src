@@ -853,6 +853,5 @@ kick_init(const void *udata __unused)
 	thread_lock(td);
 	TD_SET_CAN_RUN(td);
 	sched_add(td, SRQ_BORING);
-	thread_unlock(td);
 }
 SYSINIT(kickinit, SI_SUB_KTHREAD_INIT, SI_ORDER_MIDDLE, kick_init, NULL);

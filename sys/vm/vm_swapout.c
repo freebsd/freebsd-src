@@ -901,8 +901,8 @@ swapclear(struct proc *p)
 		td->td_flags |= TDF_INMEM;
 		td->td_flags &= ~TDF_SWAPINREQ;
 		TD_CLR_SWAPPED(td);
-		if (TD_CAN_RUN(td))
-			if (setrunnable(td)) {
+		if (TD_CAN_RUN(td)) {
+			if (setrunnable(td, 0)) {
 #ifdef INVARIANTS
 				/*
 				 * XXX: We just cleared TDI_SWAPPED
@@ -912,7 +912,8 @@ swapclear(struct proc *p)
 				panic("not waking up swapper");
 #endif
 			}
-		thread_unlock(td);
+		} else
+			thread_unlock(td);
 	}
 	p->p_flag &= ~(P_SWAPPINGIN | P_SWAPPINGOUT);
 	p->p_flag |= P_INMEM;
