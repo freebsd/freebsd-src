@@ -6667,6 +6667,25 @@ sanitize_wait_ata(struct cam_device *device, union ccb *ccb, int quiet,
 			return (retval);
 		}
 		if (status & ATA_STATUS_ERROR) {
+			if (error & ATA_ERROR_ABORT) {
+				switch (lba & 0xff) {
+				case 0x00:
+					warnx("Reason not reported or sanitize failed.");
+					return (1);
+				case 0x01:
+					warnx("Sanitize command unsuccessful.       ");
+					return (1);
+				case 0x02:
+					warnx("Unsupported sanitize device command. ");
+					return (1);
+				case 0x03:
+					warnx("Device is in sanitize frozen state.  ");
+					return (1);
+				case 0x04:
+					warnx("Sanitize antifreeze lock is enabled. ");
+					return (1);
+				}
+			}
 			warnx("SANITIZE STATUS EXT failed, "
 			    "sanitize may still run.");
 			return (1);
@@ -6683,9 +6702,6 @@ sanitize_wait_ata(struct cam_device *device, union ccb *ccb, int quiet,
 				fflush(stdout);
 			}
 			sleep(1);
-		} else if ((count & 0x8000) == 0) {
-			warnx("Sanitize complete with an error.     ");
-			return (1);
 		} else
 			break;
 	} while (1);
