@@ -100,7 +100,7 @@ void	sched_lend_user_prio_cond(struct thread *td, u_char pri);
 fixpt_t	sched_pctcpu(struct thread *td);
 void	sched_prio(struct thread *td, u_char prio);
 void	sched_sleep(struct thread *td, int prio);
-void	sched_switch(struct thread *td, struct thread *newtd, int flags);
+void	sched_switch(struct thread *td, int flags);
 void	sched_throw(struct thread *td);
 void	sched_unlend_prio(struct thread *td, u_char prio);
 void	sched_user_prio(struct thread *td, u_char prio);

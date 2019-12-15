@@ -577,15 +577,7 @@ epoch_block_handler_preempt(struct ck_epoch *global __unused,
 	 * so we have nothing to do except context switch away.
 	 */
 	counter_u64_add(switch_count, 1);
-	mi_switch(SW_VOL | SWT_RELINQUISH, NULL);
-
-	/*
-	 * Release the thread lock while yielding to
-	 * allow other threads to acquire the lock
-	 * pointed to by TDQ_LOCKPTR(td). Else a
-	 * deadlock like situation might happen. (HPS)
-	 */
-	thread_unlock(td);
+	mi_switch(SW_VOL | SWT_RELINQUISH);
 	thread_lock(td);
 }
 

@@ -1383,8 +1383,7 @@ bufshutdown(int show_busybufs)
 		 */
 		for (subiter = 0; subiter < 50 * iter; subiter++) {
 			thread_lock(curthread);
-			mi_switch(SW_VOL, NULL);
-			thread_unlock(curthread);
+			mi_switch(SW_VOL);
 			DELAY(1000);
 		}
 #endif

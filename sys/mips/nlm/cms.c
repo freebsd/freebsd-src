@@ -356,8 +356,7 @@ msgring_process(void * arg)
 			}
 			sched_class(td, PRI_ITHD);
 			TD_SET_IWAIT(td);
-			mi_switch(SW_VOL, NULL);
-			thread_unlock(td);
+			mi_switch(SW_VOL);
 		} else
 			pause("wmsg", 1);
 
