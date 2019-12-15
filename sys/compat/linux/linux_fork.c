@@ -92,7 +92,6 @@ linux_fork(struct thread *td, struct linux_fork_args *args)
 	thread_lock(td2);
 	TD_SET_CAN_RUN(td2);
 	sched_add(td2, SRQ_BORING);
-	thread_unlock(td2);
 
 	return (0);
 }
@@ -123,7 +122,6 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 	thread_lock(td2);
 	TD_SET_CAN_RUN(td2);
 	sched_add(td2, SRQ_BORING);
-	thread_unlock(td2);
 
 	return (0);
 }
@@ -228,7 +226,6 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 	thread_lock(td2);
 	TD_SET_CAN_RUN(td2);
 	sched_add(td2, SRQ_BORING);
-	thread_unlock(td2);
 
 	td->td_retval[0] = p2->p_pid;
 
@@ -343,7 +340,6 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 	thread_lock(newtd);
 	TD_SET_CAN_RUN(newtd);
 	sched_add(newtd, SRQ_BORING);
-	thread_unlock(newtd);
 
 	td->td_retval[0] = newtd->td_tid;
 

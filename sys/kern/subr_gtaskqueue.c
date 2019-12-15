@@ -492,7 +492,6 @@ _gtaskqueue_start_threads(struct gtaskqueue **tqp, int count, int pri,
 		thread_lock(td);
 		sched_prio(td, pri);
 		sched_add(td, SRQ_BORING);
-		thread_unlock(td);
 	}
 
 	return (0);

@@ -105,7 +105,6 @@ void	sched_throw(struct thread *td);
 void	sched_unlend_prio(struct thread *td, u_char prio);
 void	sched_user_prio(struct thread *td, u_char prio);
 void	sched_userret_slowpath(struct thread *td);
-void	sched_wakeup(struct thread *td);
 #ifdef	RACCT
 #ifdef	SCHED_4BSD
 fixpt_t	sched_pctcpu_delta(struct thread *td);
@@ -136,11 +135,13 @@ sched_userret(struct thread *td)
  */
 void	sched_add(struct thread *td, int flags);
 void	sched_clock(struct thread *td, int ticks);
-void	sched_preempt(struct thread *td);
-void	sched_rem(struct thread *td);
-void	sched_relinquish(struct thread *td);
 struct thread *sched_choose(void);
+void	sched_clock(struct thread *td, int cnt);
 void	sched_idletd(void *);
+void	sched_preempt(struct thread *td);
+void	sched_relinquish(struct thread *td);
+void	sched_rem(struct thread *td);
+void	sched_wakeup(struct thread *td, int srqflags);
 
 /*
  * Binding makes cpu affinity permanent while pinning is used to temporarily
@@ -190,6 +191,8 @@ sched_unpin(void)
 #define	SRQ_INTR	0x0004		/* It is probably urgent. */
 #define	SRQ_PREEMPTED	0x0008		/* has been preempted.. be kind */
 #define	SRQ_BORROWING	0x0010		/* Priority updated due to prio_lend */
+#define	SRQ_HOLD	0x0020		/* Return holding original td lock */
+#define	SRQ_HOLDTD	0x0040		/* Return holding td lock */
 
 /* Scheduler stats. */
 #ifdef SCHED_STATS

@@ -352,8 +352,9 @@ show_pcpu(struct pcpu *pc)
 	db_printf("curthread    = ");
 	td = pc->pc_curthread;
 	if (td != NULL)
-		db_printf("%p: pid %d tid %d \"%s\"\n", td, td->td_proc->p_pid,
-		    td->td_tid, td->td_name);
+		db_printf("%p: pid %d tid %d critnest %d \"%s\"\n", td,
+		    td->td_proc->p_pid, td->td_tid, td->td_critnest,
+		    td->td_name);
 	else
 		db_printf("none\n");
 	db_printf("curpcb       = %p\n", pc->pc_curpcb);

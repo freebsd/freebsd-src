@@ -659,6 +659,8 @@ ocs_thread_create(ocs_os_handle_t os, ocs_thread_t *thread, ocs_thread_fctn fctn
 
 int32_t ocs_thread_start(ocs_thread_t *thread)
 {
+
+	thread_lock(thread->tcb);
 	sched_add(thread->tcb, SRQ_BORING);
 	return 0;
 }

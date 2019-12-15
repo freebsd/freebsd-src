@@ -558,8 +558,8 @@ ithread_destroy(struct intr_thread *ithread)
 	if (TD_AWAITING_INTR(td)) {
 		TD_CLR_IWAIT(td);
 		sched_add(td, SRQ_INTR);
-	}
-	thread_unlock(td);
+	} else
+		thread_unlock(td);
 }
 
 int
@@ -985,8 +985,8 @@ intr_event_schedule_thread(struct intr_event *ie)
 	} else {
 		CTR5(KTR_INTR, "%s: pid %d (%s): it_need %d, state %d",
 		    __func__, td->td_proc->p_pid, td->td_name, it->it_need, td->td_state);
+		thread_unlock(td);
 	}
-	thread_unlock(td);
 
 	return (0);
 }

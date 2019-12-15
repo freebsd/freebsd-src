@@ -758,7 +758,6 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 		thread_lock(td2);
 		TD_SET_CAN_RUN(td2);
 		sched_add(td2, SRQ_BORING);
-		thread_unlock(td2);
 	} else {
 		*fr->fr_procp = p2;
 	}
