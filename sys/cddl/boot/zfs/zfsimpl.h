@@ -760,6 +760,7 @@ typedef enum {
 #define	ZPOOL_CONFIG_IS_LOG		"is_log"
 #define	ZPOOL_CONFIG_TIMESTAMP		"timestamp" /* not stored on disk */
 #define	ZPOOL_CONFIG_FEATURES_FOR_READ	"features_for_read"
+#define	ZPOOL_CONFIG_VDEV_CHILDREN	"vdev_children"
 
 /*
  * The persistent vdev state is stored as separate values rather than a single
@@ -1172,6 +1173,8 @@ typedef enum dmu_objset_type {
 	DMU_OST_ANY,			/* Be careful! */
 	DMU_OST_NUMTYPES
 } dmu_objset_type_t;
+
+#define	ZAP_MAXVALUELEN (1024 * 8)
 
 /*
  * header for all bonus and spill buffers.
@@ -1755,13 +1758,13 @@ typedef struct vdev {
 	int		v_ashift;	/* offset to block shift */
 	int		v_nparity;	/* # parity for raidz */
 	struct vdev	*v_top;		/* parent vdev */
-	int		v_nchildren;	/* # children */
+	size_t		v_nchildren;	/* # children */
 	vdev_state_t	v_state;	/* current state */
 	vdev_phys_read_t *v_phys_read;	/* read from raw leaf vdev */
 	vdev_read_t	*v_read;	/* read from vdev */
 	void		*v_read_priv;	/* private data for read function */
 	boolean_t	v_islog;
-	struct spa	*spa;		/* link to spa */
+	struct spa	*v_spa;		/* link to spa */
 	/*
 	 * Values stored in the config for an indirect or removing vdev.
 	 */
@@ -1780,11 +1783,10 @@ typedef struct spa {
 	uint64_t	spa_guid;	/* pool guid */
 	uint64_t	spa_txg;	/* most recent transaction */
 	struct uberblock spa_uberblock;	/* best uberblock so far */
-	vdev_list_t	spa_vdevs;	/* list of all toplevel vdevs */
+	vdev_t		*spa_root_vdev;	/* toplevel vdev container */
 	objset_phys_t	spa_mos;	/* MOS for this pool */
 	zio_cksum_salt_t spa_cksum_salt;	/* secret salt for cksum */
 	void		*spa_cksum_tmpls[ZIO_CHECKSUM_FUNCTIONS];
-	int		spa_inited;	/* initialized */
 	boolean_t	spa_with_log;	/* this pool has log */
 } spa_t;
 
