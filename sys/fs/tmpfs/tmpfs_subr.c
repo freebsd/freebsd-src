@@ -1505,9 +1505,8 @@ retry:
 			}
 			if (m != NULL) {
 				pmap_zero_page_area(m, base, PAGE_SIZE - base);
-				vm_page_dirty(m);
+				vm_page_set_dirty(m);
 				vm_page_xunbusy(m);
-				vm_pager_page_unswapped(m);
 			}
 		}
 

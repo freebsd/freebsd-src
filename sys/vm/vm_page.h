@@ -429,6 +429,10 @@ extern struct mtx_padalign pa_lock[];
  * PGA_REQUEUE_HEAD is a special flag for enqueuing pages near the head of
  * the inactive queue, thus bypassing LRU.  The page lock must be held to
  * set this flag, and the queue lock for the page must be held to clear it.
+ *
+ * PGA_SWAP_FREE is used to defer freeing swap space to the pageout daemon
+ * when the context that dirties the page does not have the object write lock
+ * held.
  */
 #define	PGA_WRITEABLE	0x0001		/* page may be mapped writeable */
 #define	PGA_REFERENCED	0x0002		/* page has been referenced */
@@ -438,6 +442,8 @@ extern struct mtx_padalign pa_lock[];
 #define	PGA_REQUEUE	0x0020		/* page is due to be requeued */
 #define	PGA_REQUEUE_HEAD 0x0040		/* page requeue should bypass LRU */
 #define	PGA_NOSYNC	0x0080		/* do not collect for syncer */
+#define	PGA_SWAP_FREE	0x0100		/* page with swap space was dirtied */
+#define	PGA_SWAP_SPACE	0x0200		/* page has allocated swap space */
 
 #define	PGA_QUEUE_OP_MASK	(PGA_DEQUEUE | PGA_REQUEUE | PGA_REQUEUE_HEAD)
 #define	PGA_QUEUE_STATE_MASK	(PGA_ENQUEUED | PGA_QUEUE_OP_MASK)
@@ -647,6 +653,7 @@ void vm_page_requeue(vm_page_t m);
 int vm_page_sbusied(vm_page_t m);
 vm_page_t vm_page_scan_contig(u_long npages, vm_page_t m_start,
     vm_page_t m_end, u_long alignment, vm_paddr_t boundary, int options);
+vm_page_bits_t vm_page_set_dirty(vm_page_t m);
 void vm_page_set_valid_range(vm_page_t m, int base, int size);
 int vm_page_sleep_if_busy(vm_page_t m, const char *msg);
 int vm_page_sleep_if_xbusy(vm_page_t m, const char *msg);

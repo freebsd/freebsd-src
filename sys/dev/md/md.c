@@ -1118,10 +1118,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 			}
 
 			vm_page_valid(m);
-			if (m->dirty != VM_PAGE_BITS_ALL) {
-				vm_page_dirty(m);
-				vm_pager_page_unswapped(m);
-			}
+			vm_page_set_dirty(m);
 		} else if (bp->bio_cmd == BIO_DELETE) {
 			if (len == PAGE_SIZE || vm_page_all_valid(m))
 				rv = VM_PAGER_OK;
@@ -1138,10 +1135,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 				/* Page is valid. */
 				if (len != PAGE_SIZE) {
 					pmap_zero_page_area(m, offs, len);
-					if (m->dirty != VM_PAGE_BITS_ALL) {
-						vm_page_dirty(m);
-						vm_pager_page_unswapped(m);
-					}
+					vm_page_set_dirty(m);
 				} else {
 					vm_pager_page_unswapped(m);
 					vm_page_free(m);
