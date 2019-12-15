@@ -253,7 +253,7 @@ struct fsl_sata_device {
 /* structure describing an ATA channel */
 struct fsl_sata_channel {
 	device_t		dev;		/* Device handle */
-	int			unit;		/* Physical channel */
+	int			 r_mid;		/* Physical channel RID */
 	struct resource		*r_mem;		/* Memory of this channel */
 	struct resource		*r_irq;		/* Interrupt of this channel */
 	void			*ih;		/* Interrupt handle */
@@ -307,34 +307,10 @@ enum fsl_sata_err_type {
 };
 
 /* macros to hide busspace uglyness */
-#define	ATA_INB(res, offset) \
-	bus_read_1((res), (offset))
-#define	ATA_INW(res, offset) \
-	bus_read_2((res), (offset))
 #define	ATA_INL(res, offset) \
 	bus_read_4((res), (offset))
-#define	ATA_INSW(res, offset, addr, count) \
-	bus_read_multi_2((res), (offset), (addr), (count))
-#define	ATA_INSW_STRM(res, offset, addr, count) \
-	bus_read_multi_stream_2((res), (offset), (addr), (count))
-#define	ATA_INSL(res, offset, addr, count) \
-	bus_read_multi_4((res), (offset), (addr), (count))
-#define	ATA_INSL_STRM(res, offset, addr, count) \
-	bus_read_multi_stream_4((res), (offset), (addr), (count))
-#define	ATA_OUTB(res, offset, value) \
-	bus_write_1((res), (offset), (value))
-#define	ATA_OUTW(res, offset, value) \
-	bus_write_2((res), (offset), (value))
 #define	ATA_OUTL(res, offset, value) \
 	bus_write_4((res), (offset), (value))
-#define	ATA_OUTSW(res, offset, addr, count) \
-	bus_write_multi_2((res), (offset), (addr), (count))
-#define	ATA_OUTSW_STRM(res, offset, addr, count) \
-	bus_write_multi_stream_2((res), (offset), (addr), (count))
-#define	ATA_OUTSL(res, offset, addr, count) \
-	bus_write_multi_4((res), (offset), (addr), (count))
-#define	ATA_OUTSL_STRM(res, offset, addr, count) \
-	bus_write_multi_stream_4((res), (offset), (addr), (count))
 
 static int
 fsl_sata_probe(device_t dev)
@@ -356,7 +332,6 @@ fsl_sata_attach(device_t dev)
 	int rid, error, i, sata_rev = 0;
 
 	ch->dev = dev;
-	ch->unit = (intptr_t)device_get_ivars(dev);
 	mtx_init(&ch->mtx, "FSL SATA channel lock", NULL, MTX_DEF);
 	ch->pm_level = 0;
 	resource_int_value(device_get_name(dev),
@@ -379,9 +354,9 @@ fsl_sata_attach(device_t dev)
 		}
 		ch->user[i].caps |= CTS_SATA_CAPS_H_AN;
 	}
-	rid = 0;
+	ch->r_mid = 0;
 	if (!(ch->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &rid, RF_ACTIVE)))
+	    &ch->r_mid, RF_ACTIVE)))
 		return (ENXIO);
 	rman_set_bustag(ch->r_mem, &bs_le_tag);
 	fsl_sata_dmainit(dev);
@@ -445,7 +420,7 @@ err1:
 	mtx_unlock(&ch->mtx);
 	bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
 err0:
-	bus_release_resource(dev, SYS_RES_MEMORY, ch->unit, ch->r_mem);
+	bus_release_resource(dev, SYS_RES_MEMORY, ch->r_mid, ch->r_mem);
 	mtx_destroy(&ch->mtx);
 	return (error);
 }
@@ -472,7 +447,7 @@ fsl_sata_detach(device_t dev)
 	fsl_sata_slotsfree(dev);
 	fsl_sata_dmafini(dev);
 
-	bus_release_resource(dev, SYS_RES_MEMORY, ch->unit, ch->r_mem);
+	bus_release_resource(dev, SYS_RES_MEMORY, ch->r_mid, ch->r_mem);
 	mtx_destroy(&ch->mtx);
 	return (0);
 }
