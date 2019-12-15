@@ -209,7 +209,9 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 	error = uiomove_fromphys(&m, offset, tlen, uio);
 	if (uio->uio_rw == UIO_WRITE && error == 0)
 		vm_page_set_dirty(m);
-	vm_page_aflag_set(m, PGA_REFERENCED);
+	vm_page_lock(m);
+	vm_page_activate(m);
+	vm_page_unlock(m);
 	vm_page_sunbusy(m);
 
 	return (error);
