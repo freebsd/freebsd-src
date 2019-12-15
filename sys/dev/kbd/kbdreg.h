@@ -163,50 +163,6 @@ typedef struct keyboard_switch {
 	kbd_diag_t	*diag;
 } keyboard_switch_t;
 
-/*
- * Keyboard disciplines: call actual handlers via kbdsw[].
- */
-#define kbdd_probe(kbd, unit, arg, flags)				\
-	(*kbdsw[(kbd)->kb_index]->probe)((unit), (arg), (flags))
-#define kbdd_init(kbd, unit, kbdpp, arg, flags)				\
-	(*kbdsw[(kbd)->kb_index]->init)((unit), (kbdpp), (arg), (flags))
-#define kbdd_term(kbd)							\
-	(*kbdsw[(kbd)->kb_index]->term)((kbd))
-#define kbdd_intr(kbd, arg)						\
-	(*kbdsw[(kbd)->kb_index]->intr)((kbd), (arg))
-#define kbdd_test_if(kbd)						\
-	(*kbdsw[(kbd)->kb_index]->test_if)((kbd))
-#define kbdd_enable(kbd)						\
-	(*kbdsw[(kbd)->kb_index]->enable)((kbd))
-#define kbdd_disable(kbd)						\
-	(*kbdsw[(kbd)->kb_index]->disable)((kbd))
-#define kbdd_read(kbd, wait)						\
-	(*kbdsw[(kbd)->kb_index]->read)((kbd), (wait))
-#define kbdd_check(kbd)							\
-	(*kbdsw[(kbd)->kb_index]->check)((kbd))
-#define kbdd_read_char(kbd, wait)					\
-	(*kbdsw[(kbd)->kb_index]->read_char)((kbd), (wait))
-#define kbdd_check_char(kbd)						\
-	(*kbdsw[(kbd)->kb_index]->check_char)((kbd))
-#define kbdd_ioctl(kbd, cmd, arg)					\
-	(((kbd) == NULL) ?						\
-	    ENODEV :							\
- 	    (*kbdsw[(kbd)->kb_index]->ioctl)((kbd), (cmd), (arg)))
-#define kbdd_lock(kbd, lockf)						\
-	(*kbdsw[(kbd)->kb_index]->lock)((kbd), (lockf))
-#define kbdd_clear_state(kbd)						\
-	(*kbdsw[(kbd)->kb_index]->clear_state)((kbd))
-#define kbdd_get_state(kbd, buf, len)					\
-	(*kbdsw[(kbd)->kb_index]->get_state)((kbd), (buf), (len))
-#define kbdd_set_state(kbd, buf, len)					\
-	(*kbdsw[(kbd)->kb_index]->set_state)((kbd), (buf), (len))
-#define kbdd_get_fkeystr(kbd, fkey, len)				\
-	(*kbdsw[(kbd)->kb_index]->get_fkeystr)((kbd), (fkey), (len))
-#define kbdd_poll(kbd, on)						\
-	(*kbdsw[(kbd)->kb_index]->poll)((kbd), (on))
-#define kbdd_diag(kbd, level)						\
-	(*kbdsw[(kbd)->kb_index]->diag)((kbd), (leve))
-
 /* keyboard driver */
 typedef struct keyboard_driver {
     SLIST_ENTRY(keyboard_driver) link;
@@ -215,14 +171,151 @@ typedef struct keyboard_driver {
     int			(*configure)(int); /* backdoor for the console driver */
 } keyboard_driver_t;
 
+extern keyboard_switch_t **kbdsw;
+
+/*
+ * Keyboard disciplines: call actual handlers via kbdsw[].
+ */
+static __inline int
+kbdd_probe(keyboard_t *kbd, int unit, void *arg, int flags)
+{
+
+	return ((*kbdsw[kbd->kb_index]->probe)(unit, arg, flags));
+}
+
+static __inline int
+kbdd_init(keyboard_t *kbd, int unit, keyboard_t **kbdpp, void *arg, int flags)
+{
+
+	return ((*kbdsw[kbd->kb_index]->init)(unit, kbdpp, arg, flags));
+}
+
+static __inline int
+kbdd_term(keyboard_t *kbd)
+{
+
+	return ((*kbdsw[kbd->kb_index]->term)(kbd));
+}
+
+static __inline int
+kbdd_intr(keyboard_t *kbd, void *arg)
+{
+
+	return ((*kbdsw[kbd->kb_index]->intr)(kbd, arg));
+}
+
+static __inline int
+kbdd_test_if(keyboard_t *kbd)
+{
+
+	return ((*kbdsw[kbd->kb_index]->test_if)(kbd));
+}
+
+static __inline int
+kbdd_enable(keyboard_t *kbd)
+{
+
+	return ((*kbdsw[kbd->kb_index]->enable)(kbd));
+}
+
+static __inline int
+kbdd_disable(keyboard_t *kbd)
+{
+
+	return ((*kbdsw[kbd->kb_index]->disable)(kbd));
+}
+
+static __inline int
+kbdd_read(keyboard_t *kbd, int wait)
+{
+
+	return ((*kbdsw[kbd->kb_index]->read)(kbd, wait));
+}
+
+static __inline int
+kbdd_check(keyboard_t *kbd)
+{
+
+	return ((*kbdsw[kbd->kb_index]->check)(kbd));
+}
+
+static __inline u_int
+kbdd_read_char(keyboard_t *kbd, int wait)
+{
+
+	return ((*kbdsw[kbd->kb_index]->read_char)(kbd, wait));
+}
+
+static __inline int
+kbdd_check_char(keyboard_t *kbd)
+{
+
+	return ((*kbdsw[kbd->kb_index]->check_char)(kbd));
+}
+
+static __inline int
+kbdd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t data)
+{
+
+	if (kbd == NULL)
+		return (ENODEV);
+	return ((*kbdsw[kbd->kb_index]->ioctl)(kbd, cmd, data));
+}
+
+static __inline int
+kbdd_lock(keyboard_t *kbd, int lock)
+{
+
+	return ((*kbdsw[kbd->kb_index]->lock)(kbd, lock));
+}
+
+static __inline void
+kbdd_clear_state(keyboard_t *kbd)
+{
+
+	(*kbdsw[kbd->kb_index]->clear_state)(kbd);
+}
+
+static __inline int
+kbdd_get_state(keyboard_t *kbd, void *buf, int len)
+{
+
+	return ((*kbdsw[kbd->kb_index]->get_state)(kbd, buf, len));
+}
+
+static __inline int
+kbdd_set_state(keyboard_t *kbd, void *buf, int len)
+{
+
+	return ((*kbdsw[kbd->kb_index]->set_state)(kbd, buf, len));
+}
+
+static __inline u_char *
+kbdd_get_fkeystr(keyboard_t *kbd, int fkey, size_t *len)
+{
+
+	return ((*kbdsw[kbd->kb_index]->get_fkeystr)(kbd, fkey, len));
+}
+
+static __inline int
+kbdd_poll(keyboard_t *kbd, int on)
+{
+
+	return ((*kbdsw[kbd->kb_index]->poll)(kbd, on));
+}
+
+static __inline void
+kbdd_diag(keyboard_t *kbd, int level)
+{
+
+	(*kbdsw[kbd->kb_index]->diag)(kbd, level);
+}
+
 #define KEYBOARD_DRIVER(name, sw, config)		\
 	static struct keyboard_driver name##_kbd_driver = { \
 		{ NULL }, #name, &sw, config		\
 	};						\
 	DATA_SET(kbddriver_set, name##_kbd_driver);
-
-/* global variables */
-extern keyboard_switch_t **kbdsw;
 
 /* functions for the keyboard driver */
 int			kbd_add_driver(keyboard_driver_t *driver);
