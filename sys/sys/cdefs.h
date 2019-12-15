@@ -468,7 +468,7 @@
 #define	__hidden
 #endif
 
-#if __GNUC__ > 4 || defined(__clang__)
+#if __GNUC_PREREQ__(4, 5) || defined(__clang__)
 #define	__deprecated(m)	__attribute__((__deprecated__(m)))
 #elif defined(__GNUC__)
 #define	__deprecated(m)	__attribute__((__deprecated__))
