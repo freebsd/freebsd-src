@@ -164,8 +164,8 @@ static uma_zone_t sleepq_zone;
  * Prototypes for non-exported routines.
  */
 static int	sleepq_catch_signals(void *wchan, int pri);
-static int	sleepq_check_signals(void);
-static int	sleepq_check_timeout(void);
+static inline int sleepq_check_signals(void);
+static inline int sleepq_check_timeout(void);
 #ifdef INVARIANTS
 static void	sleepq_dtor(void *mem, int size, void *arg);
 #endif
@@ -378,9 +378,10 @@ sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
 	td->td_wchan = wchan;
 	td->td_wmesg = wmesg;
 	if (flags & SLEEPQ_INTERRUPTIBLE) {
+		td->td_intrval = 0;
 		td->td_flags |= TDF_SINTR;
-		td->td_flags &= ~TDF_SLEEPABORT;
 	}
+	td->td_flags &= ~TDF_TIMEOUT;
 	thread_unlock(td);
 }
 
@@ -624,63 +625,35 @@ sleepq_switch(void *wchan, int pri)
 /*
  * Check to see if we timed out.
  */
-static int
+static inline int
 sleepq_check_timeout(void)
 {
 	struct thread *td;
 	int res;
 
-	td = curthread;
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
-
-	/*
-	 * If TDF_TIMEOUT is set, we timed out.  But recheck
-	 * td_sleeptimo anyway.
-	 */
 	res = 0;
+	td = curthread;
 	if (td->td_sleeptimo != 0) {
 		if (td->td_sleeptimo <= sbinuptime())
 			res = EWOULDBLOCK;
 		td->td_sleeptimo = 0;
 	}
-	if (td->td_flags & TDF_TIMEOUT)
-		td->td_flags &= ~TDF_TIMEOUT;
-	else
-		/*
-		 * We ignore the situation where timeout subsystem was
-		 * unable to stop our callout.  The struct thread is
-		 * type-stable, the callout will use the correct
-		 * memory when running.  The checks of the
-		 * td_sleeptimo value in this function and in
-		 * sleepq_timeout() ensure that the thread does not
-		 * get spurious wakeups, even if the callout was reset
-		 * or thread reused.
-		 */
-		callout_stop(&td->td_slpcallout);
 	return (res);
 }
 
 /*
  * Check to see if we were awoken by a signal.
  */
-static int
+static inline int
 sleepq_check_signals(void)
 {
 	struct thread *td;
 
 	td = curthread;
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	KASSERT((td->td_flags & TDF_SINTR) == 0,
+	    ("thread %p still in interruptible sleep?", td));
 
-	/* We are no longer in an interruptible sleep. */
-	if (td->td_flags & TDF_SINTR)
-		td->td_flags &= ~TDF_SINTR;
-
-	if (td->td_flags & TDF_SLEEPABORT) {
-		td->td_flags &= ~TDF_SLEEPABORT;
-		return (td->td_intrval);
-	}
-
-	return (0);
+	return (td->td_intrval);
 }
 
 /*
@@ -706,14 +679,12 @@ int
 sleepq_wait_sig(void *wchan, int pri)
 {
 	int rcatch;
-	int rval;
 
 	rcatch = sleepq_catch_signals(wchan, pri);
-	rval = sleepq_check_signals();
 	thread_unlock(curthread);
 	if (rcatch)
 		return (rcatch);
-	return (rval);
+	return (sleepq_check_signals());
 }
 
 /*
@@ -724,16 +695,14 @@ int
 sleepq_timedwait(void *wchan, int pri)
 {
 	struct thread *td;
-	int rval;
 
 	td = curthread;
 	MPASS(!(td->td_flags & TDF_SINTR));
 	thread_lock(td);
 	sleepq_switch(wchan, pri);
-	rval = sleepq_check_timeout();
 	thread_unlock(td);
 
-	return (rval);
+	return (sleepq_check_timeout());
 }
 
 /*
@@ -746,9 +715,11 @@ sleepq_timedwait_sig(void *wchan, int pri)
 	int rcatch, rvalt, rvals;
 
 	rcatch = sleepq_catch_signals(wchan, pri);
+	thread_unlock(curthread);
+
+	/* We must always call check_timeout() to clear sleeptimo. */
 	rvalt = sleepq_check_timeout();
 	rvals = sleepq_check_signals();
-	thread_unlock(curthread);
 	if (rcatch)
 		return (rcatch);
 	if (rvals)
@@ -877,9 +848,22 @@ sleepq_remove_thread(struct sleepqueue *sq, struct thread *td)
 		td->td_sleepqueue = LIST_FIRST(&sq->sq_free);
 	LIST_REMOVE(td->td_sleepqueue, sq_hash);
 
+	if ((td->td_flags & TDF_TIMEOUT) == 0 && td->td_sleeptimo != 0)
+		/*
+		 * We ignore the situation where timeout subsystem was
+		 * unable to stop our callout.  The struct thread is
+		 * type-stable, the callout will use the correct
+		 * memory when running.  The checks of the
+		 * td_sleeptimo value in this function and in
+		 * sleepq_timeout() ensure that the thread does not
+		 * get spurious wakeups, even if the callout was reset
+		 * or thread reused.
+		 */
+		callout_stop(&td->td_slpcallout);
+
 	td->td_wmesg = NULL;
 	td->td_wchan = NULL;
-	td->td_flags &= ~TDF_SINTR;
+	td->td_flags &= ~(TDF_SINTR | TDF_TIMEOUT);
 
 	CTR3(KTR_PROC, "sleepq_wakeup: thread %p (pid %ld, %s)",
 	    (void *)td, (long)td->td_proc->p_pid, td->td_name);
@@ -1047,7 +1031,7 @@ sleepq_timeout(void *arg)
 	    (void *)td, (long)td->td_proc->p_pid, (void *)td->td_name);
 
 	thread_lock(td);
-	if (td->td_sleeptimo > sbinuptime() || td->td_sleeptimo == 0) {
+	if (td->td_sleeptimo == 0 || td->td_sleeptimo > sbinuptime()) {
 		/*
 		 * The thread does not want a timeout (yet).
 		 */
@@ -1146,7 +1130,6 @@ sleepq_abort(struct thread *td, int intrval)
 	CTR3(KTR_PROC, "sleepq_abort: thread %p (pid %ld, %s)",
 	    (void *)td, (long)td->td_proc->p_pid, (void *)td->td_name);
 	td->td_intrval = intrval;
-	td->td_flags |= TDF_SLEEPABORT;
 
 	/*
 	 * If the thread has not slept yet it will find the signal in
