@@ -215,8 +215,6 @@ typedef struct keyboard_driver {
     int			(*configure)(int); /* backdoor for the console driver */
 } keyboard_driver_t;
 
-#ifdef _KERNEL
-
 #define KEYBOARD_DRIVER(name, sw, config)		\
 	static struct keyboard_driver name##_kbd_driver = { \
 		{ NULL }, #name, &sw, config		\
@@ -307,7 +305,5 @@ kbd_diag_t		genkbd_diag;
 int 	genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg);
 int 	genkbd_keyaction(keyboard_t *kbd, int keycode, int up,
 			 int *shiftstate, int *accents);
-
-#endif /* _KERNEL */
 
 #endif /* !_DEV_KBD_KBDREG_H_ */
