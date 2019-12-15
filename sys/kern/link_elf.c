@@ -773,6 +773,50 @@ preload_protect(elf_file_t ef, vm_prot_t prot)
 #endif
 }
 
+#ifdef __arm__
+/*
+ * Locate the ARM exception/unwind table info for DDB and stack(9) use by
+ * searching for the section header that describes it.  There may be no unwind
+ * info, for example in a module containing only data.
+ */
+static void
+link_elf_locate_exidx(linker_file_t lf, Elf_Shdr *shdr, int nhdr)
+{
+	int i;
+
+	for (i = 0; i < nhdr; i++) {
+		if (shdr[i].sh_type == SHT_ARM_EXIDX) {
+			lf->exidx_addr = shdr[i].sh_addr + lf->address;
+			lf->exidx_size = shdr[i].sh_size;
+			break;
+		}
+	}
+}
+
+/*
+ * Locate the section headers metadata in a preloaded module, then use it to
+ * locate the exception/unwind table in the module.  The size of the metadata
+ * block is stored in a uint32 word immediately before the data itself, and a
+ * comment in preload_search_info() says it is safe to rely on that.
+ */
+static void
+link_elf_locate_exidx_preload(struct linker_file *lf, caddr_t modptr)
+{
+	uint32_t *modinfo;
+	Elf_Shdr *shdr;
+	uint32_t  nhdr;
+
+	modinfo = (uint32_t *)preload_search_info(modptr,
+	    MODINFO_METADATA | MODINFOMD_SHDR);
+	if (modinfo != NULL) {
+		shdr = (Elf_Shdr *)modinfo;
+		nhdr = modinfo[-1] / sizeof(Elf_Shdr);
+		link_elf_locate_exidx(lf, shdr, nhdr);
+	}
+}
+
+#endif /* __arm__ */
+
 static int
 link_elf_link_preload(linker_class_t cls, const char *filename,
     linker_file_t *result)
@@ -827,6 +871,10 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 		lf->ctors_addr = ef->address + *ctors_addrp;
 		lf->ctors_size = *ctors_sizep;
 	}
+
+#ifdef __arm__
+	link_elf_locate_exidx_preload(lf, modptr);
+#endif
 
 	error = parse_dynamic(ef);
 	if (error == 0)
@@ -1225,6 +1273,11 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	ef->ddbstrtab = ef->strbase;
 
 nosyms:
+
+#ifdef __arm__
+	link_elf_locate_exidx(lf, shdr, hdr->e_shnum);
+#endif
+
 	error = link_elf_link_common_finish(lf);
 	if (error != 0)
 		goto out;

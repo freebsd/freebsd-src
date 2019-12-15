@@ -624,6 +624,10 @@ linker_make_file(const char *pathname, linker_class_t lc)
 	lf->ndeps = 0;
 	lf->deps = NULL;
 	lf->loadcnt = ++loadcnt;
+#ifdef __arm__
+	lf->exidx_addr = 0;
+	lf->exidx_size = 0;
+#endif
 	STAILQ_INIT(&lf->common);
 	TAILQ_INIT(&lf->modules);
 	TAILQ_INSERT_TAIL(&linker_files, lf, link);
