@@ -2616,11 +2616,13 @@ pmap_remove_l3_range(pmap_t pmap, pd_entry_t l2e, vm_offset_t sva,
 	struct rwlock *new_lock;
 	pt_entry_t *l3, old_l3;
 	vm_offset_t va;
-	vm_page_t m;
+	vm_page_t l3pg, m;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT(rounddown2(sva, L2_SIZE) + L2_SIZE == roundup2(eva, L2_SIZE),
 	    ("pmap_remove_l3_range: range crosses an L3 page table boundary"));
+	l3pg = sva < VM_MAXUSER_ADDRESS ? PHYS_TO_VM_PAGE(l2e & ~ATTR_MASK) :
+	    NULL;
 	va = eva;
 	for (l3 = pmap_l2_to_l3(&l2e, sva); sva != eva; l3++, sva += L3_SIZE) {
 		if (!pmap_l3_valid(pmap_load(l3))) {
@@ -2671,7 +2673,7 @@ pmap_remove_l3_range(pmap_t pmap, pd_entry_t l2e, vm_offset_t sva,
 		}
 		if (va == eva)
 			va = sva;
-		if (pmap_unuse_pt(pmap, sva, l2e, free)) {
+		if (l3pg != NULL && pmap_unwire_l3(pmap, sva, l3pg, free)) {
 			sva += L3_SIZE;
 			break;
 		}
