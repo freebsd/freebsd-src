@@ -105,7 +105,7 @@ typedef struct indirect_vsd {
  */
 static vdev_list_t zfs_vdevs;
 
- /*
+/*
  * List of ZFS features supported for read
  */
 static const char *features_for_read[] = {
@@ -142,7 +142,7 @@ static char *dnode_cache_buf;
 static char *zap_scratch;
 static char *zfs_temp_buf, *zfs_temp_end, *zfs_temp_ptr;
 
-#define TEMP_SIZE	(1024 * 1024)
+#define	TEMP_SIZE	(1024 * 1024)
 
 static int zio_read(const spa_t *spa, const blkptr_t *bp, void *buf);
 static int zfs_get_root(const spa_t *spa, uint64_t *objid);
@@ -225,13 +225,13 @@ xdr_uint64_t(const unsigned char **xdr, uint64_t *lp)
 
 	xdr_u_int(xdr, &hi);
 	xdr_u_int(xdr, &lo);
-	*lp = (((uint64_t) hi) << 32) | lo;
+	*lp = (((uint64_t)hi) << 32) | lo;
 	return (0);
 }
 
 static int
 nvlist_find(const unsigned char *nvlist, const char *name, int type,
-	    int *elementsp, void *valuep)
+    int *elementsp, void *valuep)
 {
 	const unsigned char *p, *pair;
 	int junk;
@@ -253,12 +253,12 @@ nvlist_find(const unsigned char *nvlist, const char *name, int type,
 		p += roundup(namelen, 4);
 		xdr_int(&p, &pairtype);
 
-		if (!memcmp(name, pairname, namelen) && type == pairtype) {
+		if (memcmp(name, pairname, namelen) == 0 && type == pairtype) {
 			xdr_int(&p, &elements);
 			if (elementsp)
 				*elementsp = elements;
 			if (type == DATA_TYPE_UINT64) {
-				xdr_uint64_t(&p, (uint64_t *) valuep);
+				xdr_uint64_t(&p, (uint64_t *)valuep);
 				return (0);
 			} else if (type == DATA_TYPE_STRING) {
 				int len;
@@ -275,7 +275,8 @@ nvlist_find(const unsigned char *nvlist, const char *name, int type,
 			}
 		} else {
 			/*
-			 * Not the pair we are looking for, skip to the next one.
+			 * Not the pair we are looking for, skip to the
+			 * next one.
 			 */
 			p = pair + encoded_size;
 		}
@@ -318,7 +319,8 @@ nvlist_check_features_for_read(const unsigned char *nvlist)
 		xdr_int(&p, &pairtype);
 
 		for (i = 0; features_for_read[i] != NULL; i++) {
-			if (!memcmp(pairname, features_for_read[i], namelen)) {
+			if (memcmp(pairname, features_for_read[i],
+			    namelen) == 0) {
 				found = 1;
 				break;
 			}
@@ -364,7 +366,7 @@ nvlist_next(const unsigned char *nvlist)
 		xdr_int(&p, &decoded_size);
 	}
 
-	return p;
+	return (p);
 }
 
 #ifdef TEST
@@ -372,7 +374,7 @@ nvlist_next(const unsigned char *nvlist)
 static const unsigned char *
 nvlist_print(const unsigned char *nvlist, unsigned int indent)
 {
-	static const char* typenames[] = {
+	static const char *typenames[] = {
 		"DATA_TYPE_UNKNOWN",
 		"DATA_TYPE_BOOLEAN",
 		"DATA_TYPE_BYTE",
@@ -455,7 +457,8 @@ nvlist_print(const unsigned char *nvlist, unsigned int indent)
 				if (j != elements - 1) {
 					for (i = 0; i < indent; i++)
 						printf(" ");
-					printf("%s %s", typenames[pairtype], pairname);
+					printf("%s %s", typenames[pairtype],
+					    pairname);
 				}
 			}
 			break;
@@ -471,7 +474,7 @@ nvlist_print(const unsigned char *nvlist, unsigned int indent)
 		xdr_int(&p, &decoded_size);
 	}
 
-	return p;
+	return (p);
 }
 
 #endif
@@ -492,7 +495,6 @@ vdev_read_phys(vdev_t *vdev, const blkptr_t *bp, void *buf,
 		psize = size;
 	}
 
-	/*printf("ZFS: reading %zu bytes at 0x%jx to %p\n", psize, (uintmax_t)offset, buf);*/
 	rc = vdev->v_phys_read(vdev, vdev->v_read_priv, offset, buf, psize);
 	if (rc == 0) {
 		if (bp != NULL)
@@ -856,7 +858,7 @@ vdev_indirect_remap(vdev_t *vd, uint64_t offset, uint64_t asize, void *arg)
 		printf("vdev_indirect_remap: out of memory.\n");
 		zio->io_error = ENOMEM;
 	}
-	for ( ; rs != NULL; rs = list_remove_head(&stack)) {
+	for (; rs != NULL; rs = list_remove_head(&stack)) {
 		vdev_t *v = rs->rs_vd;
 		uint64_t num_entries = 0;
 		/* vdev_indirect_mapping_t *vim = v->v_mapping; */
@@ -1027,7 +1029,7 @@ vdev_disk_read(vdev_t *vdev, const blkptr_t *bp, void *buf,
 {
 
 	return (vdev_read_phys(vdev, bp, buf,
-		offset + VDEV_LABEL_START_SIZE, bytes));
+	    offset + VDEV_LABEL_START_SIZE, bytes));
 }
 
 
@@ -1158,15 +1160,16 @@ vdev_init(uint64_t guid, const unsigned char *nvlist, vdev_t **vdevp)
 		return (ENOENT);
 	}
 
-	if (strcmp(type, VDEV_TYPE_MIRROR)
-	    && strcmp(type, VDEV_TYPE_DISK)
+	if (strcmp(type, VDEV_TYPE_MIRROR) != 0 &&
+	    strcmp(type, VDEV_TYPE_DISK) != 0 &&
 #ifdef ZFS_TEST
-	    && strcmp(type, VDEV_TYPE_FILE)
+	    strcmp(type, VDEV_TYPE_FILE) != 0 &&
 #endif
-	    && strcmp(type, VDEV_TYPE_RAIDZ)
-	    && strcmp(type, VDEV_TYPE_INDIRECT)
-	    && strcmp(type, VDEV_TYPE_REPLACING)) {
-		printf("ZFS: can only boot from disk, mirror, raidz1, raidz2 and raidz3 vdevs\n");
+	    strcmp(type, VDEV_TYPE_RAIDZ) != 0 &&
+	    strcmp(type, VDEV_TYPE_INDIRECT) != 0 &&
+	    strcmp(type, VDEV_TYPE_REPLACING) != 0) {
+		printf("ZFS: can only boot from disk, mirror, raidz1, "
+		    "raidz2 and raidz3 vdevs\n");
 		return (EIO);
 	}
 
@@ -1540,7 +1543,7 @@ spa_find_by_guid(uint64_t guid)
 		if (spa->spa_guid == guid)
 			return (spa);
 
-	return (0);
+	return (NULL);
 }
 
 static spa_t *
@@ -1549,10 +1552,10 @@ spa_find_by_name(const char *name)
 	spa_t *spa;
 
 	STAILQ_FOREACH(spa, &zfs_pools, spa_link)
-		if (!strcmp(spa->spa_name, name))
+		if (strcmp(spa->spa_name, name) == 0)
 			return (spa);
 
-	return (0);
+	return (NULL);
 }
 
 #ifdef BOOT2
@@ -1577,7 +1580,7 @@ spa_get_primary_vdev(const spa_t *spa)
 	if (vdev == NULL)
 		return (NULL);
 	for (kid = STAILQ_FIRST(&vdev->v_children); kid != NULL;
-	     kid = STAILQ_FIRST(&vdev->v_children))
+	    kid = STAILQ_FIRST(&vdev->v_children))
 		vdev = kid;
 	return (vdev);
 }
@@ -1610,7 +1613,7 @@ spa_create(uint64_t guid, const char *name)
 static const char *
 state_name(vdev_state_t state)
 {
-	static const char* names[] = {
+	static const char *names[] = {
 		"UNKNOWN",
 		"CLOSED",
 		"OFFLINE",
@@ -1620,7 +1623,7 @@ state_name(vdev_state_t state)
 		"DEGRADED",
 		"ONLINE"
 	};
-	return names[state];
+	return (names[state]);
 }
 
 #ifdef BOOT2
@@ -1643,7 +1646,7 @@ pager_printf(const char *fmt, ...)
 
 #endif
 
-#define STATUS_FORMAT	"        %s %s\n"
+#define	STATUS_FORMAT	"        %s %s\n"
 
 static int
 print_state(int indent, const char *name, vdev_state_t state)
@@ -1665,7 +1668,7 @@ vdev_status(vdev_t *vdev, int indent)
 	int ret;
 
 	if (vdev->v_islog) {
-		(void)pager_output("        logs\n");
+		(void) pager_output("        logs\n");
 		indent++;
 	}
 
@@ -1962,7 +1965,7 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 
 	if (!SPA_VERSION_IS_SUPPORTED(val)) {
 		printf("ZFS: unsupported ZFS version %u (should be %u)\n",
-		    (unsigned) val, (unsigned) SPA_VERSION);
+		    (unsigned)val, (unsigned)SPA_VERSION);
 		free(nvlist);
 		return (EIO);
 	}
@@ -2087,8 +2090,8 @@ ilog2(int n)
 
 	for (v = 0; v < 32; v++)
 		if (n == (1 << v))
-			return v;
-	return -1;
+			return (v);
+	return (-1);
 }
 
 static int
@@ -2159,8 +2162,8 @@ zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
 			zfs_free(pbuf, size);
 		}
 		if (error != 0)
-			printf("ZFS: i/o error - unable to decompress block pointer data, error %d\n",
-			    error);
+			printf("ZFS: i/o error - unable to decompress "
+			    "block pointer data, error %d\n", error);
 		return (error);
 	}
 
@@ -2219,7 +2222,8 @@ zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
 }
 
 static int
-dnode_read(const spa_t *spa, const dnode_phys_t *dnode, off_t offset, void *buf, size_t buflen)
+dnode_read(const spa_t *spa, const dnode_phys_t *dnode, off_t offset,
+    void *buf, size_t buflen)
 {
 	int ibshift = dnode->dn_indblkshift - SPA_BLKPTRSHIFT;
 	int bsize = dnode->dn_datablkszsec << SPA_MINBLOCKSHIFT;
@@ -2310,7 +2314,7 @@ mzap_lookup(const dnode_phys_t *dnode, const char *name, uint64_t *value)
 
 	for (i = 0; i < chunks; i++) {
 		mze = &mz->mz_chunk[i];
-		if (!strcmp(mze->mze_name, name)) {
+		if (strcmp(mze->mze_name, name) == 0) {
 			*value = mze->mze_value;
 			return (0);
 		}
@@ -2324,7 +2328,8 @@ mzap_lookup(const dnode_phys_t *dnode, const char *name, uint64_t *value)
  * matches.
  */
 static int
-fzap_name_equal(const zap_leaf_t *zl, const zap_leaf_chunk_t *zc, const char *name)
+fzap_name_equal(const zap_leaf_t *zl, const zap_leaf_chunk_t *zc,
+    const char *name)
 {
 	size_t namelen;
 	const zap_leaf_chunk_t *nc;
@@ -2336,6 +2341,7 @@ fzap_name_equal(const zap_leaf_t *zl, const zap_leaf_chunk_t *zc, const char *na
 	p = name;
 	while (namelen > 0) {
 		size_t len;
+
 		len = namelen;
 		if (len > ZAP_LEAF_ARRAY_BYTES)
 			len = ZAP_LEAF_ARRAY_BYTES;
@@ -2346,7 +2352,7 @@ fzap_name_equal(const zap_leaf_t *zl, const zap_leaf_chunk_t *zc, const char *na
 		nc = &ZAP_LEAF_CHUNK(zl, nc->l_array.la_next);
 	}
 
-	return 1;
+	return (1);
 }
 
 /*
@@ -2365,7 +2371,7 @@ fzap_leaf_value(const zap_leaf_t *zl, const zap_leaf_chunk_t *zc)
 		value = (value << 8) | p[i];
 	}
 
-	return value;
+	return (value);
 }
 
 static void
@@ -2457,7 +2463,7 @@ fzap_lookup(const spa_t *spa, const dnode_phys_t *dnode, const char *name,
     uint64_t integer_size, uint64_t num_integers, void *value)
 {
 	int bsize = dnode->dn_datablkszsec << SPA_MINBLOCKSHIFT;
-	zap_phys_t zh = *(zap_phys_t *) zap_scratch;
+	zap_phys_t zh = *(zap_phys_t *)zap_scratch;
 	fat_zap_t z;
 	uint64_t *ptrtbl;
 	uint64_t hash;
@@ -2470,17 +2476,17 @@ fzap_lookup(const spa_t *spa, const dnode_phys_t *dnode, const char *name,
 		return (rc);
 
 	z.zap_block_shift = ilog2(bsize);
-	z.zap_phys = (zap_phys_t *) zap_scratch;
+	z.zap_phys = (zap_phys_t *)zap_scratch;
 
 	/*
 	 * Figure out where the pointer table is and read it in if necessary.
 	 */
 	if (zh.zap_ptrtbl.zt_blk) {
 		rc = dnode_read(spa, dnode, zh.zap_ptrtbl.zt_blk * bsize,
-			       zap_scratch, bsize);
+		    zap_scratch, bsize);
 		if (rc)
 			return (rc);
-		ptrtbl = (uint64_t *) zap_scratch;
+		ptrtbl = (uint64_t *)zap_scratch;
 	} else {
 		ptrtbl = &ZAP_EMBEDDED_PTRTBL_ENT(&z, 0);
 	}
@@ -2497,20 +2503,21 @@ fzap_lookup(const spa_t *spa, const dnode_phys_t *dnode, const char *name,
 	if (rc)
 		return (rc);
 
-	zl.l_phys = (zap_leaf_phys_t *) zap_scratch;
+	zl.l_phys = (zap_leaf_phys_t *)zap_scratch;
 
 	/*
 	 * Make sure this chunk matches our hash.
 	 */
-	if (zl.l_phys->l_hdr.lh_prefix_len > 0
-	    && zl.l_phys->l_hdr.lh_prefix
-	    != hash >> (64 - zl.l_phys->l_hdr.lh_prefix_len))
+	if (zl.l_phys->l_hdr.lh_prefix_len > 0 &&
+	    zl.l_phys->l_hdr.lh_prefix !=
+	    hash >> (64 - zl.l_phys->l_hdr.lh_prefix_len))
 		return (ENOENT);
 
 	/*
 	 * Hash within the chunk to find our entry.
 	 */
-	int shift = (64 - ZAP_LEAF_HASH_SHIFT(&zl) - zl.l_phys->l_hdr.lh_prefix_len);
+	int shift = (64 - ZAP_LEAF_HASH_SHIFT(&zl) -
+	    zl.l_phys->l_hdr.lh_prefix_len);
 	int h = (hash >> shift) & ((1 << ZAP_LEAF_HASH_SHIFT(&zl)) - 1);
 	h = zl.l_phys->l_hash[h];
 	if (h == 0xffff)
@@ -2547,12 +2554,12 @@ zap_lookup(const spa_t *spa, const dnode_phys_t *dnode, const char *name,
 	if (rc)
 		return (rc);
 
-	zap_type = *(uint64_t *) zap_scratch;
+	zap_type = *(uint64_t *)zap_scratch;
 	if (zap_type == ZBT_MICRO)
-		return mzap_lookup(dnode, name, value);
+		return (mzap_lookup(dnode, name, value));
 	else if (zap_type == ZBT_HEADER) {
-		return fzap_lookup(spa, dnode, name, integer_size,
-		    num_integers, value);
+		return (fzap_lookup(spa, dnode, name, integer_size,
+		    num_integers, value));
 	}
 	printf("ZFS: invalid zap_type=%d\n", (int)zap_type);
 	return (EIO);
@@ -2595,10 +2602,11 @@ mzap_list(const dnode_phys_t *dnode, int (*callback)(const char *, uint64_t))
  * the directory header.
  */
 static int
-fzap_list(const spa_t *spa, const dnode_phys_t *dnode, int (*callback)(const char *, uint64_t))
+fzap_list(const spa_t *spa, const dnode_phys_t *dnode,
+    int (*callback)(const char *, uint64_t))
 {
 	int bsize = dnode->dn_datablkszsec << SPA_MINBLOCKSHIFT;
-	zap_phys_t zh = *(zap_phys_t *) zap_scratch;
+	zap_phys_t zh = *(zap_phys_t *)zap_scratch;
 	fat_zap_t z;
 	int i, j, rc;
 
@@ -2606,7 +2614,7 @@ fzap_list(const spa_t *spa, const dnode_phys_t *dnode, int (*callback)(const cha
 		return (EIO);
 
 	z.zap_block_shift = ilog2(bsize);
-	z.zap_phys = (zap_phys_t *) zap_scratch;
+	z.zap_phys = (zap_phys_t *)zap_scratch;
 
 	/*
 	 * This assumes that the leaf blocks start at block 1. The
@@ -2622,7 +2630,7 @@ fzap_list(const spa_t *spa, const dnode_phys_t *dnode, int (*callback)(const cha
 		if (dnode_read(spa, dnode, off, zap_scratch, bsize))
 			return (EIO);
 
-		zl.l_phys = (zap_leaf_phys_t *) zap_scratch;
+		zl.l_phys = (zap_leaf_phys_t *)zap_scratch;
 
 		for (j = 0; j < ZAP_LEAF_NUMCHUNKS(&zl); j++) {
 			zap_leaf_chunk_t *zc, *nc;
@@ -2657,7 +2665,7 @@ fzap_list(const spa_t *spa, const dnode_phys_t *dnode, int (*callback)(const cha
 			 */
 			value = fzap_leaf_value(&zl, zc);
 
-			//printf("%s 0x%jx\n", name, (uintmax_t)value);
+			/* printf("%s 0x%jx\n", name, (uintmax_t)value); */
 			rc = callback((const char *)name, value);
 			if (rc != 0)
 				return (rc);
@@ -2687,15 +2695,16 @@ zap_list(const spa_t *spa, const dnode_phys_t *dnode)
 	if (dnode_read(spa, dnode, 0, zap_scratch, size))
 		return (EIO);
 
-	zap_type = *(uint64_t *) zap_scratch;
+	zap_type = *(uint64_t *)zap_scratch;
 	if (zap_type == ZBT_MICRO)
-		return mzap_list(dnode, zfs_printf);
+		return (mzap_list(dnode, zfs_printf));
 	else
-		return fzap_list(spa, dnode, zfs_printf);
+		return (fzap_list(spa, dnode, zfs_printf));
 }
 
 static int
-objset_get_dnode(const spa_t *spa, const objset_phys_t *os, uint64_t objnum, dnode_phys_t *dnode)
+objset_get_dnode(const spa_t *spa, const objset_phys_t *os, uint64_t objnum,
+    dnode_phys_t *dnode)
 {
 	off_t offset;
 
@@ -2705,7 +2714,8 @@ objset_get_dnode(const spa_t *spa, const objset_phys_t *os, uint64_t objnum, dno
 }
 
 static int
-mzap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name, uint64_t value)
+mzap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name,
+    uint64_t value)
 {
 	const mzap_phys_t *mz;
 	const mzap_ent_phys_t *mze;
@@ -2718,7 +2728,7 @@ mzap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name, uint64_t v
 	 */
 	size = dnode->dn_datablkszsec * 512;
 
-	mz = (const mzap_phys_t *) zap_scratch;
+	mz = (const mzap_phys_t *)zap_scratch;
 	chunks = size / MZAP_ENT_LEN - 1;
 
 	for (i = 0; i < chunks; i++) {
@@ -2758,7 +2768,8 @@ fzap_name_copy(const zap_leaf_t *zl, const zap_leaf_chunk_t *zc, char *name)
 }
 
 static int
-fzap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name, uint64_t value)
+fzap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name,
+    uint64_t value)
 {
 	int bsize = dnode->dn_datablkszsec << SPA_MINBLOCKSHIFT;
 	zap_phys_t zh = *(zap_phys_t *)zap_scratch;
@@ -2769,7 +2780,7 @@ fzap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name, uint64_t v
 		return (EIO);
 
 	z.zap_block_shift = ilog2(bsize);
-	z.zap_phys = (zap_phys_t *) zap_scratch;
+	z.zap_phys = (zap_phys_t *)zap_scratch;
 
 	/*
 	 * This assumes that the leaf blocks start at block 1. The
@@ -2783,7 +2794,7 @@ fzap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name, uint64_t v
 		if (dnode_read(spa, dnode, off, zap_scratch, bsize))
 			return (EIO);
 
-		zl.l_phys = (zap_leaf_phys_t *) zap_scratch;
+		zl.l_phys = (zap_leaf_phys_t *)zap_scratch;
 
 		for (j = 0; j < ZAP_LEAF_NUMCHUNKS(&zl); j++) {
 			zap_leaf_chunk_t *zc;
@@ -2806,7 +2817,8 @@ fzap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name, uint64_t v
 }
 
 static int
-zap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name, uint64_t value)
+zap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name,
+    uint64_t value)
 {
 	int rc;
 	uint64_t zap_type;
@@ -2816,11 +2828,11 @@ zap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name, uint64_t va
 	if (rc)
 		return (rc);
 
-	zap_type = *(uint64_t *) zap_scratch;
+	zap_type = *(uint64_t *)zap_scratch;
 	if (zap_type == ZBT_MICRO)
-		return mzap_rlookup(spa, dnode, name, value);
+		return (mzap_rlookup(spa, dnode, name, value));
 	else
-		return fzap_rlookup(spa, dnode, name, value);
+		return (fzap_rlookup(spa, dnode, name, value));
 }
 
 static int
@@ -2851,15 +2863,17 @@ zfs_rlookup(const spa_t *spa, uint64_t objnum, char *result)
 		dd = (dsl_dir_phys_t *)&dir.dn_bonus;
 
 		/* Actual loop condition. */
-		parent_obj  = dd->dd_parent_obj;
+		parent_obj = dd->dd_parent_obj;
 		if (parent_obj == 0)
 			break;
 
-		if (objset_get_dnode(spa, &spa->spa_mos, parent_obj, &parent) != 0)
+		if (objset_get_dnode(spa, &spa->spa_mos, parent_obj,
+		    &parent) != 0)
 			return (EIO);
 		dd = (dsl_dir_phys_t *)&parent.dn_bonus;
 		child_dir_zapobj = dd->dd_child_dir_zapobj;
-		if (objset_get_dnode(spa, &spa->spa_mos, child_dir_zapobj, &child_dir_zap) != 0)
+		if (objset_get_dnode(spa, &spa->spa_mos, child_dir_zapobj,
+		    &child_dir_zap) != 0)
 			return (EIO);
 		if (zap_rlookup(spa, &child_dir_zap, component, dir_obj) != 0)
 			return (EIO);
@@ -2890,7 +2904,8 @@ zfs_lookup_dataset(const spa_t *spa, const char *name, uint64_t *objnum)
 	dsl_dir_phys_t *dd;
 	const char *p, *q;
 
-	if (objset_get_dnode(spa, &spa->spa_mos, DMU_POOL_DIRECTORY_OBJECT, &dir))
+	if (objset_get_dnode(spa, &spa->spa_mos,
+	    DMU_POOL_DIRECTORY_OBJECT, &dir))
 		return (EIO);
 	if (zap_lookup(spa, &dir, DMU_POOL_ROOT_DATASET, sizeof (dir_obj),
 	    1, &dir_obj))
@@ -2919,7 +2934,8 @@ zfs_lookup_dataset(const spa_t *spa, const char *name, uint64_t *objnum)
 		}
 
 		child_dir_zapobj = dd->dd_child_dir_zapobj;
-		if (objset_get_dnode(spa, &spa->spa_mos, child_dir_zapobj, &child_dir_zap) != 0)
+		if (objset_get_dnode(spa, &spa->spa_mos, child_dir_zapobj,
+		    &child_dir_zap) != 0)
 			return (EIO);
 
 		/* Actual loop condition #2. */
@@ -2945,7 +2961,7 @@ zfs_list_dataset(const spa_t *spa, uint64_t objnum/*, int pos, char *entry*/)
 		printf("ZFS: can't find dataset %ju\n", (uintmax_t)objnum);
 		return (EIO);
 	}
-	ds = (dsl_dataset_phys_t *) &dataset.dn_bonus;
+	ds = (dsl_dataset_phys_t *)&dataset.dn_bonus;
 	dir_obj = ds->ds_dir_obj;
 
 	if (objset_get_dnode(spa, &spa->spa_mos, dir_obj, &dir)) {
@@ -2955,7 +2971,8 @@ zfs_list_dataset(const spa_t *spa, uint64_t objnum/*, int pos, char *entry*/)
 	dd = (dsl_dir_phys_t *)&dir.dn_bonus;
 
 	child_dir_zapobj = dd->dd_child_dir_zapobj;
-	if (objset_get_dnode(spa, &spa->spa_mos, child_dir_zapobj, &child_dir_zap) != 0) {
+	if (objset_get_dnode(spa, &spa->spa_mos, child_dir_zapobj,
+	    &child_dir_zap) != 0) {
 		printf("ZFS: can't find child zap %ju\n", (uintmax_t)dir_obj);
 		return (EIO);
 	}
@@ -2964,7 +2981,8 @@ zfs_list_dataset(const spa_t *spa, uint64_t objnum/*, int pos, char *entry*/)
 }
 
 int
-zfs_callback_dataset(const spa_t *spa, uint64_t objnum, int (*callback)(const char *, uint64_t))
+zfs_callback_dataset(const spa_t *spa, uint64_t objnum,
+    int (*callback)(const char *, uint64_t))
 {
 	uint64_t dir_obj, child_dir_zapobj, zap_type;
 	dnode_phys_t child_dir_zap, dir, dataset;
@@ -2977,7 +2995,7 @@ zfs_callback_dataset(const spa_t *spa, uint64_t objnum, int (*callback)(const ch
 		printf("ZFS: can't find dataset %ju\n", (uintmax_t)objnum);
 		return (err);
 	}
-	ds = (dsl_dataset_phys_t *) &dataset.dn_bonus;
+	ds = (dsl_dataset_phys_t *)&dataset.dn_bonus;
 	dir_obj = ds->ds_dir_obj;
 
 	err = objset_get_dnode(spa, &spa->spa_mos, dir_obj, &dir);
@@ -2988,21 +3006,23 @@ zfs_callback_dataset(const spa_t *spa, uint64_t objnum, int (*callback)(const ch
 	dd = (dsl_dir_phys_t *)&dir.dn_bonus;
 
 	child_dir_zapobj = dd->dd_child_dir_zapobj;
-	err = objset_get_dnode(spa, &spa->spa_mos, child_dir_zapobj, &child_dir_zap);
+	err = objset_get_dnode(spa, &spa->spa_mos, child_dir_zapobj,
+	    &child_dir_zap);
 	if (err != 0) {
 		printf("ZFS: can't find child zap %ju\n", (uintmax_t)dir_obj);
 		return (err);
 	}
 
-	err = dnode_read(spa, &child_dir_zap, 0, zap_scratch, child_dir_zap.dn_datablkszsec * 512);
+	err = dnode_read(spa, &child_dir_zap, 0, zap_scratch,
+	    child_dir_zap.dn_datablkszsec * 512);
 	if (err != 0)
 		return (err);
 
-	zap_type = *(uint64_t *) zap_scratch;
+	zap_type = *(uint64_t *)zap_scratch;
 	if (zap_type == ZBT_MICRO)
-		return mzap_list(&child_dir_zap, callback);
+		return (mzap_list(&child_dir_zap, callback));
 	else
-		return fzap_list(spa, &child_dir_zap, callback);
+		return (fzap_list(spa, &child_dir_zap, callback));
 }
 #endif
 
@@ -3021,7 +3041,7 @@ zfs_mount_dataset(const spa_t *spa, uint64_t objnum, objset_phys_t *objset)
 		return (EIO);
 	}
 
-	ds = (dsl_dataset_phys_t *) &dataset.dn_bonus;
+	ds = (dsl_dataset_phys_t *)&dataset.dn_bonus;
 	if (zio_read(spa, &ds->ds_bp, objset)) {
 		printf("ZFS: can't read object set for dataset %ju\n",
 		    (uintmax_t)objnum);
@@ -3046,7 +3066,8 @@ zfs_get_root(const spa_t *spa, uint64_t *objid)
 	/*
 	 * Start with the MOS directory object.
 	 */
-	if (objset_get_dnode(spa, &spa->spa_mos, DMU_POOL_DIRECTORY_OBJECT, &dir)) {
+	if (objset_get_dnode(spa, &spa->spa_mos,
+	    DMU_POOL_DIRECTORY_OBJECT, &dir)) {
 		printf("ZFS: can't read MOS object directory\n");
 		return (EIO);
 	}
@@ -3065,8 +3086,9 @@ zfs_get_root(const spa_t *spa, uint64_t *objid)
 	/*
 	 * Lookup the root dataset directory
 	 */
-	if (zap_lookup(spa, &dir, DMU_POOL_ROOT_DATASET, sizeof (root), 1, &root)
-	    || objset_get_dnode(spa, &spa->spa_mos, root, &dir)) {
+	if (zap_lookup(spa, &dir, DMU_POOL_ROOT_DATASET,
+	    sizeof(root), 1, &root) ||
+	    objset_get_dnode(spa, &spa->spa_mos, root, &dir)) {
 		printf("ZFS: can't find root dsl_dir\n");
 		return (EIO);
 	}
@@ -3075,7 +3097,7 @@ zfs_get_root(const spa_t *spa, uint64_t *objid)
 	 * Use the information from the dataset directory's bonus buffer
 	 * to find the dataset object and from that the object set itself.
 	 */
-	dsl_dir_phys_t *dd = (dsl_dir_phys_t *) &dir.dn_bonus;
+	dsl_dir_phys_t *dd = (dsl_dir_phys_t *)&dir.dn_bonus;
 	*objid = dd->dd_head_dataset_obj;
 	return (0);
 }
@@ -3158,7 +3180,7 @@ check_mos_features(const spa_t *spa)
 	if (dnode_read(spa, &dir, 0, zap_scratch, size))
 		return (EIO);
 
-	zap_type = *(uint64_t *) zap_scratch;
+	zap_type = *(uint64_t *)zap_scratch;
 	if (zap_type == ZBT_MICRO)
 		rc = mzap_list(&dir, check_feature);
 	else
@@ -3395,7 +3417,7 @@ zfs_lookup(const struct zfsmount *mount, const char *upath, dnode_phys_t *dnode)
 		return (rc);
 	}
 
-	rc = zap_lookup(spa, &dn, ZFS_ROOT_OBJ, sizeof (objnum), 1, &objnum);
+	rc = zap_lookup(spa, &dn, ZFS_ROOT_OBJ, sizeof(objnum), 1, &objnum);
 	if (rc) {
 		free(entry);
 		return (rc);
