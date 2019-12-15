@@ -1477,6 +1477,18 @@ retry:
 			goto retry;
 		}
 
+		/*
+		 * The page was left invalid.  Likely placed there by
+		 * an incomplete fault.  Just remove and ignore.
+		 */
+		if (vm_page_none_valid(m)) {
+			if (vm_page_remove(m))
+				vm_page_free(m);
+			else
+				vm_page_xunbusy(m);
+			continue;
+		}
+
 		/* vm_page_rename() will dirty the page. */
 		if (vm_page_rename(m, new_object, idx)) {
 			vm_page_xunbusy(m);
@@ -1688,8 +1700,18 @@ vm_object_collapse_scan(vm_object_t object, int op)
 			continue;
 		}
 
-		KASSERT(pp == NULL || !vm_page_none_valid(pp),
-		    ("unbusy invalid page %p", pp));
+		if (pp != NULL && vm_page_none_valid(pp)) {
+			/*
+			 * The page was invalid in the parent.  Likely placed
+			 * there by an incomplete fault.  Just remove and
+			 * ignore.  p can replace it.
+			 */
+			if (vm_page_remove(pp))
+				vm_page_free(pp);
+			else
+				vm_page_xunbusy(pp);
+			pp = NULL;
+		}
 
 		if (pp != NULL || vm_pager_has_page(object, new_pindex, NULL,
 			NULL)) {
