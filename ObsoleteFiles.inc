@@ -620,6 +620,8 @@ OLD_FILES+=usr/include/c++/v1/__refstring
 OLD_FILES+=usr/include/c++/v1/__undef_min_max
 OLD_FILES+=usr/include/c++/v1/tr1/__refstring
 OLD_FILES+=usr/include/c++/v1/tr1/__undef_min_max
+# 20180528: libpcap update removed header file
+OLD_FILES+=usr/include/pcap/export-defs.h
 # 20180513: remove DTrace scripts made obsolete by dwatch(1)
 OLD_FILES+=usr/share/dtrace/watch_execve
 OLD_FILES+=usr/share/dtrace/watch_kill
