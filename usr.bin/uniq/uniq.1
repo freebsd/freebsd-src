@@ -31,7 +31,7 @@
 .\"     From: @(#)uniq.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd May 1, 2018
+.Dd December 15, 2019
 .Dt UNIQ 1
 .Os
 .Sh NAME
@@ -39,8 +39,7 @@
 .Nd report or filter out repeated lines in a file
 .Sh SYNOPSIS
 .Nm
-.Op Fl c
-.Op Fl d | Fl u
+.Op Fl c | Fl d | Fl D | Fl u
 .Op Fl i
 .Op Fl f Ar num
 .Op Fl s Ar chars
@@ -75,7 +74,24 @@ The following options are available:
 Precede each output line with the count of the number of times the line
 occurred in the input, followed by a single space.
 .It Fl d , Fl -repeated
-Only output lines that are repeated in the input.
+Output a single copy of each line that is repeated in the input.
+.It Fl D , Fl -all-repeated Op Ar septype
+Output all lines that are repeated (like
+.Fl d ,
+but each copy of the repeated line is written).
+The optional
+.Ar septype
+argument controls how to separate groups of repeated lines in the output;
+it must be one of the following values:
+.Pp
+.Bl -tag -compact -width separate
+.It none
+Do not separate groups of lines (this is the default).
+.It prepend
+Output an empty line before each group of lines.
+.It separate
+Output an empty line after each group of lines.
+.El
 .It Fl f Ar num , Fl -skip-fields Ar num
 Ignore the first
 .Ar num
