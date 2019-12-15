@@ -55,6 +55,14 @@ struct unwind_state {
 #define	LR	14
 #define	PC	15
 
+#ifdef _KERNEL
+
 int unwind_stack_one(struct unwind_state *, int);
+
+struct linker_file;
+void unwind_module_loaded(struct linker_file *);
+void unwind_module_unloaded(struct linker_file *);
+
+#endif
 
 #endif /* !_MACHINE_STACK_H_ */
