@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/stdint.h>
 #include <sys/list.h>
+#include <machine/_inttypes.h>
 
 #include "zfsimpl.h"
 #include "zfssubr.c"
@@ -247,7 +248,7 @@ nvlist_find(const unsigned char *nvlist, const char *name, int type,
 		const char *pairname;
 
 		xdr_int(&p, &namelen);
-		pairname = (const char*)p;
+		pairname = (const char *)p;
 		p += roundup(namelen, 4);
 		xdr_int(&p, &pairtype);
 
@@ -261,12 +262,12 @@ nvlist_find(const unsigned char *nvlist, const char *name, int type,
 			} else if (type == DATA_TYPE_STRING) {
 				int len;
 				xdr_int(&p, &len);
-				(*(const char**)valuep) = (const char*)p;
+				(*(const char **)valuep) = (const char *)p;
 				return (0);
 			} else if (type == DATA_TYPE_NVLIST ||
 			    type == DATA_TYPE_NVLIST_ARRAY) {
-				(*(const unsigned char**)valuep) =
-				    (const unsigned char*)p;
+				(*(const unsigned char **)valuep) =
+				    (const unsigned char *)p;
 				return (0);
 			} else {
 				return (EIO);
@@ -312,7 +313,7 @@ nvlist_check_features_for_read(const unsigned char *nvlist)
 		found = 0;
 
 		xdr_int(&p, &namelen);
-		pairname = (const char*)p;
+		pairname = (const char *)p;
 		p += roundup(namelen, 4);
 		xdr_int(&p, &pairtype);
 
@@ -419,7 +420,7 @@ nvlist_print(const unsigned char *nvlist, unsigned int indent)
 		const char *pairname;
 
 		xdr_int(&p, &namelen);
-		pairname = (const char*)p;
+		pairname = (const char *)p;
 		p += roundup(namelen, 4);
 		xdr_int(&p, &pairtype);
 
@@ -494,12 +495,12 @@ vdev_read_phys(vdev_t *vdev, const blkptr_t *bp, void *buf,
 	}
 
 	rc = vdev->v_phys_read(vdev, vdev->v_read_priv, offset, buf, psize);
-	if (rc)
-		return (rc);
-	if (bp != NULL)
-		return (zio_checksum_verify(vdev->spa, bp, buf));
+	if (rc == 0) {
+		if (bp != NULL)
+			rc = zio_checksum_verify(vdev->v_spa, bp, buf);
+	}
 
-	return (0);
+	return (rc);
 }
 
 typedef struct remap_segment {
@@ -567,6 +568,7 @@ vdev_indirect_mapping_open(spa_t *spa, objset_phys_t *os,
 
 	vim->vim_havecounts =
 	    (vim->vim_dn->dn_bonuslen > VDEV_INDIRECT_MAPPING_SIZE_V0);
+
 	return (vim);
 }
 
@@ -777,8 +779,10 @@ static vdev_t *
 vdev_lookup_top(spa_t *spa, uint64_t vdev)
 {
 	vdev_t *rvd;
+	vdev_list_t *vlist;
 
-	STAILQ_FOREACH(rvd, &spa->spa_vdevs, v_childlink)
+	vlist = &spa->spa_root_vdev->v_children;
+	STAILQ_FOREACH(rvd, vlist, v_childlink)
 		if (rvd->v_id == vdev)
 			break;
 
@@ -841,7 +845,7 @@ static void
 vdev_indirect_remap(vdev_t *vd, uint64_t offset, uint64_t asize, void *arg)
 {
 	list_t stack;
-	spa_t *spa = vd->spa;
+	spa_t *spa = vd->v_spa;
 	zio_t *zio = arg;
 	remap_segment_t *rs;
 
@@ -899,7 +903,6 @@ vdev_indirect_remap(vdev_t *vd, uint64_t offset, uint64_t asize, void *arg)
 			 */
 			if (zio->io_error != 0)
 				break;
-
 			rs->rs_offset += inner_size;
 			rs->rs_asize -= inner_size;
 			rs->rs_split_offset += inner_size;
@@ -935,19 +938,20 @@ static int
 vdev_indirect_read(vdev_t *vdev, const blkptr_t *bp, void *buf,
     off_t offset, size_t bytes)
 {
-	zio_t zio = { 0 };
-	spa_t *spa = vdev->spa;
-	indirect_vsd_t *iv = malloc(sizeof (*iv));
+	zio_t zio;
+	spa_t *spa = vdev->v_spa;
+	indirect_vsd_t *iv;
 	indirect_split_t *first;
 	int rc = EIO;
 
+	iv = calloc(1, sizeof(*iv));
 	if (iv == NULL)
 		return (ENOMEM);
-	bzero(iv, sizeof (*iv));
 
 	list_create(&iv->iv_splits,
 	    sizeof (indirect_split_t), offsetof(indirect_split_t, is_node));
 
+	bzero(&zio, sizeof(zio));
 	zio.io_spa = spa;
 	zio.io_bp = (blkptr_t *)bp;
 	zio.io_data = buf;
@@ -1086,40 +1090,72 @@ vdev_create(uint64_t guid, vdev_read_t *_read)
 	vdev_t *vdev;
 	vdev_indirect_config_t *vic;
 
-	vdev = malloc(sizeof(vdev_t));
-	memset(vdev, 0, sizeof(vdev_t));
-	STAILQ_INIT(&vdev->v_children);
-	vdev->v_guid = guid;
-	vdev->v_state = VDEV_STATE_OFFLINE;
-	vdev->v_read = _read;
+	vdev = calloc(1, sizeof(vdev_t));
+	if (vdev != NULL) {
+		STAILQ_INIT(&vdev->v_children);
+		vdev->v_guid = guid;
+		vdev->v_read = _read;
 
-	vic = &vdev->vdev_indirect_config;
-	vic->vic_prev_indirect_vdev = UINT64_MAX;
-	STAILQ_INSERT_TAIL(&zfs_vdevs, vdev, v_alllink);
+		/*
+		 * root vdev has no read function.
+		 * We only point root vdev from spa.
+		 */
+		if (_read != NULL) {
+			vic = &vdev->vdev_indirect_config;
+			vic->vic_prev_indirect_vdev = UINT64_MAX;
+			STAILQ_INSERT_TAIL(&zfs_vdevs, vdev, v_alllink);
+		}
+	}
 
 	return (vdev);
 }
 
-static int
-vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t *pvdev,
-    vdev_t **vdevp, int is_newer)
+static void
+vdev_set_initial_state(vdev_t *vdev, const unsigned char *nvlist)
 {
-	int rc;
-	uint64_t guid, id, ashift, asize, nparity;
-	const char *type;
-	const char *path;
-	vdev_t *vdev, *kid;
-	const unsigned char *kids;
-	int nkids, i, is_new;
 	uint64_t is_offline, is_faulted, is_degraded, is_removed, isnt_present;
 	uint64_t is_log;
 
-	if (nvlist_find(nvlist, ZPOOL_CONFIG_GUID, DATA_TYPE_UINT64,
-	    NULL, &guid)
-	    || nvlist_find(nvlist, ZPOOL_CONFIG_ID, DATA_TYPE_UINT64, NULL, &id)
-	    || nvlist_find(nvlist, ZPOOL_CONFIG_TYPE, DATA_TYPE_STRING,
+	is_offline = is_removed = is_faulted = is_degraded = isnt_present = 0;
+	is_log = 0;
+	(void) nvlist_find(nvlist, ZPOOL_CONFIG_OFFLINE, DATA_TYPE_UINT64, NULL,
+	    &is_offline);
+	(void) nvlist_find(nvlist, ZPOOL_CONFIG_REMOVED, DATA_TYPE_UINT64, NULL,
+	    &is_removed);
+	(void) nvlist_find(nvlist, ZPOOL_CONFIG_FAULTED, DATA_TYPE_UINT64, NULL,
+	    &is_faulted);
+	(void) nvlist_find(nvlist, ZPOOL_CONFIG_DEGRADED, DATA_TYPE_UINT64,
+	    NULL, &is_degraded);
+	(void) nvlist_find(nvlist, ZPOOL_CONFIG_NOT_PRESENT, DATA_TYPE_UINT64,
+	    NULL, &isnt_present);
+	(void) nvlist_find(nvlist, ZPOOL_CONFIG_IS_LOG, DATA_TYPE_UINT64, NULL,
+	    &is_log);
+
+	if (is_offline != 0)
+		vdev->v_state = VDEV_STATE_OFFLINE;
+	else if (is_removed != 0)
+		vdev->v_state = VDEV_STATE_REMOVED;
+	else if (is_faulted != 0)
+		vdev->v_state = VDEV_STATE_FAULTED;
+	else if (is_degraded != 0)
+		vdev->v_state = VDEV_STATE_DEGRADED;
+	else if (isnt_present != 0)
+		vdev->v_state = VDEV_STATE_CANT_OPEN;
+
+	vdev->v_islog = is_log == 1;
+}
+
+static int
+vdev_init(uint64_t guid, const unsigned char *nvlist, vdev_t **vdevp)
+{
+	uint64_t id, ashift, asize, nparity;
+	const char *path;
+	const char *type;
+	vdev_t *vdev;
+
+	if (nvlist_find(nvlist, ZPOOL_CONFIG_ID, DATA_TYPE_UINT64, NULL, &id) ||
+	    nvlist_find(nvlist, ZPOOL_CONFIG_TYPE, DATA_TYPE_STRING,
 	    NULL, &type)) {
-		printf("ZFS: can't find vdev details\n");
 		return (ENOENT);
 	}
 
@@ -1136,141 +1172,222 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t *pvdev,
 		return (EIO);
 	}
 
-	is_offline = is_removed = is_faulted = is_degraded = isnt_present = 0;
-	is_log = 0;
+	if (strcmp(type, VDEV_TYPE_MIRROR) == 0)
+		vdev = vdev_create(guid, vdev_mirror_read);
+	else if (strcmp(type, VDEV_TYPE_RAIDZ) == 0)
+		vdev = vdev_create(guid, vdev_raidz_read);
+	else if (strcmp(type, VDEV_TYPE_REPLACING) == 0)
+		vdev = vdev_create(guid, vdev_replacing_read);
+	else if (strcmp(type, VDEV_TYPE_INDIRECT) == 0) {
+		vdev_indirect_config_t *vic;
 
-	nvlist_find(nvlist, ZPOOL_CONFIG_OFFLINE, DATA_TYPE_UINT64, NULL,
-	    &is_offline);
-	nvlist_find(nvlist, ZPOOL_CONFIG_REMOVED, DATA_TYPE_UINT64, NULL,
-	    &is_removed);
-	nvlist_find(nvlist, ZPOOL_CONFIG_FAULTED, DATA_TYPE_UINT64, NULL,
-	    &is_faulted);
-	nvlist_find(nvlist, ZPOOL_CONFIG_DEGRADED, DATA_TYPE_UINT64, NULL,
-	    &is_degraded);
-	nvlist_find(nvlist, ZPOOL_CONFIG_NOT_PRESENT, DATA_TYPE_UINT64, NULL,
-	    &isnt_present);
-	nvlist_find(nvlist, ZPOOL_CONFIG_IS_LOG, DATA_TYPE_UINT64, NULL,
-	    &is_log);
-
-	vdev = vdev_find(guid);
-	if (!vdev) {
-		is_new = 1;
-
-		if (strcmp(type, VDEV_TYPE_MIRROR) == 0)
-			vdev = vdev_create(guid, vdev_mirror_read);
-		else if (strcmp(type, VDEV_TYPE_RAIDZ) == 0)
-			vdev = vdev_create(guid, vdev_raidz_read);
-		else if (strcmp(type, VDEV_TYPE_REPLACING) == 0)
-			vdev = vdev_create(guid, vdev_replacing_read);
-		else if (strcmp(type, VDEV_TYPE_INDIRECT) == 0) {
-			vdev_indirect_config_t *vic;
-
-			vdev = vdev_create(guid, vdev_indirect_read);
+		vdev = vdev_create(guid, vdev_indirect_read);
+		if (vdev != NULL) {
 			vdev->v_state = VDEV_STATE_HEALTHY;
 			vic = &vdev->vdev_indirect_config;
 
 			nvlist_find(nvlist,
-			    ZPOOL_CONFIG_INDIRECT_OBJECT, DATA_TYPE_UINT64,
+			    ZPOOL_CONFIG_INDIRECT_OBJECT,
+			    DATA_TYPE_UINT64,
 			    NULL, &vic->vic_mapping_object);
 			nvlist_find(nvlist,
-			    ZPOOL_CONFIG_INDIRECT_BIRTHS, DATA_TYPE_UINT64,
+			    ZPOOL_CONFIG_INDIRECT_BIRTHS,
+			    DATA_TYPE_UINT64,
 			    NULL, &vic->vic_births_object);
 			nvlist_find(nvlist,
-			    ZPOOL_CONFIG_PREV_INDIRECT_VDEV, DATA_TYPE_UINT64,
+			    ZPOOL_CONFIG_PREV_INDIRECT_VDEV,
+			    DATA_TYPE_UINT64,
 			    NULL, &vic->vic_prev_indirect_vdev);
-		} else
-			vdev = vdev_create(guid, vdev_disk_read);
-
-		vdev->v_id = id;
-		vdev->v_top = pvdev != NULL ? pvdev : vdev;
-		if (nvlist_find(nvlist, ZPOOL_CONFIG_ASHIFT,
-			DATA_TYPE_UINT64, NULL, &ashift) == 0) {
-			vdev->v_ashift = ashift;
-		} else {
-			vdev->v_ashift = 0;
 		}
-		if (nvlist_find(nvlist, ZPOOL_CONFIG_ASIZE,
-		    DATA_TYPE_UINT64, NULL, &asize) == 0) {
-			vdev->v_psize = asize +
-			    VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE;
-		}
-		if (nvlist_find(nvlist, ZPOOL_CONFIG_NPARITY,
-			DATA_TYPE_UINT64, NULL, &nparity) == 0) {
-			vdev->v_nparity = nparity;
-		} else {
-			vdev->v_nparity = 0;
-		}
-		if (nvlist_find(nvlist, ZPOOL_CONFIG_PATH,
-				DATA_TYPE_STRING, NULL, &path) == 0) {
-			if (strncmp(path, "/dev/", 5) == 0)
-				path += 5;
-			vdev->v_name = strdup(path);
-		} else {
-			char *name;
-
-			if (strcmp(type, "raidz") == 0) {
-				if (vdev->v_nparity < 1 ||
-				    vdev->v_nparity > 3) {
-					printf("ZFS: can only boot from disk, "
-					    "mirror, raidz1, raidz2 and raidz3 "
-					    "vdevs\n");
-					return (EIO);
-				}
-				rc = asprintf(&name, "%s%d-%jd", type,
-				    vdev->v_nparity, id);
-			} else {
-				rc = asprintf(&name, "%s-%jd", type, id);
-			}
-			if (rc < 0)
-				return (ENOMEM);
-			vdev->v_name = name;
-		}
-		vdev->v_islog = is_log == 1;
 	} else {
-		is_new = 0;
+		vdev = vdev_create(guid, vdev_disk_read);
 	}
 
-	if (is_new || is_newer) {
-		/*
-		 * This is either new vdev or we've already seen this vdev,
-		 * but from an older vdev label, so let's refresh its state
-		 * from the newer label.
-		 */
-		if (is_offline)
-			vdev->v_state = VDEV_STATE_OFFLINE;
-		else if (is_removed)
-			vdev->v_state = VDEV_STATE_REMOVED;
-		else if (is_faulted)
-			vdev->v_state = VDEV_STATE_FAULTED;
-		else if (is_degraded)
-			vdev->v_state = VDEV_STATE_DEGRADED;
-		else if (isnt_present)
-			vdev->v_state = VDEV_STATE_CANT_OPEN;
+	if (vdev == NULL)
+		return (ENOMEM);
+
+	vdev_set_initial_state(vdev, nvlist);
+	vdev->v_id = id;
+	if (nvlist_find(nvlist, ZPOOL_CONFIG_ASHIFT,
+	    DATA_TYPE_UINT64, NULL, &ashift) == 0)
+		vdev->v_ashift = ashift;
+
+	if (nvlist_find(nvlist, ZPOOL_CONFIG_ASIZE,
+	    DATA_TYPE_UINT64, NULL, &asize) == 0) {
+		vdev->v_psize = asize +
+		    VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE;
 	}
 
+	if (nvlist_find(nvlist, ZPOOL_CONFIG_NPARITY,
+	    DATA_TYPE_UINT64, NULL, &nparity) == 0)
+		vdev->v_nparity = nparity;
+
+	if (nvlist_find(nvlist, ZPOOL_CONFIG_PATH,
+	    DATA_TYPE_STRING, NULL, &path) == 0) {
+		if (strncmp(path, "/dev/", 5) == 0)
+			path += 5;
+		vdev->v_name = strdup(path);
+	} else {
+		char *name;
+
+		name = NULL;
+		if (strcmp(type, "raidz") == 0) {
+			if (vdev->v_nparity < 1 ||
+			    vdev->v_nparity > 3) {
+				printf("ZFS: can only boot from disk, "
+				    "mirror, raidz1, raidz2 and raidz3 "
+				    "vdevs\n");
+				return (EIO);
+			}
+			(void) asprintf(&name, "%s%d-%" PRIu64, type,
+			    vdev->v_nparity, id);
+		} else {
+			(void) asprintf(&name, "%s-%" PRIu64, type, id);
+		}
+		vdev->v_name = name;
+	}
+	*vdevp = vdev;
+	return (0);
+}
+
+/*
+ * Find slot for vdev. We return either NULL to signal to use
+ * STAILQ_INSERT_HEAD, or we return link element to be used with
+ * STAILQ_INSERT_AFTER.
+ */
+static vdev_t *
+vdev_find_previous(vdev_t *top_vdev, vdev_t *vdev)
+{
+	vdev_t *v, *previous;
+
+	if (STAILQ_EMPTY(&top_vdev->v_children))
+		return (NULL);
+
+	previous = NULL;
+	STAILQ_FOREACH(v, &top_vdev->v_children, v_childlink) {
+		if (v->v_id > vdev->v_id)
+			return (previous);
+
+		if (v->v_id == vdev->v_id)
+			return (v);
+
+		if (v->v_id < vdev->v_id)
+			previous = v;
+	}
+	return (previous);
+}
+
+static size_t
+vdev_child_count(vdev_t *vdev)
+{
+	vdev_t *v;
+	size_t count;
+
+	count = 0;
+	STAILQ_FOREACH(v, &vdev->v_children, v_childlink) {
+		count++;
+	}
+	return (count);
+}
+
+/*
+ * Insert vdev into top_vdev children list. List is ordered by v_id.
+ */
+static void
+vdev_insert(vdev_t *top_vdev, vdev_t *vdev)
+{
+	vdev_t *previous;
+	size_t count;
+
+	/*
+	 * The top level vdev can appear in random order, depending how
+	 * the firmware is presenting the disk devices.
+	 * However, we will insert vdev to create list ordered by v_id,
+	 * so we can use either STAILQ_INSERT_HEAD or STAILQ_INSERT_AFTER
+	 * as STAILQ does not have insert before.
+	 */
+	previous = vdev_find_previous(top_vdev, vdev);
+
+	if (previous == NULL) {
+		STAILQ_INSERT_HEAD(&top_vdev->v_children, vdev, v_childlink);
+		count = vdev_child_count(top_vdev);
+		if (top_vdev->v_nchildren < count)
+			top_vdev->v_nchildren = count;
+		return;
+	}
+
+	if (previous->v_id == vdev->v_id)
+		return;
+
+	STAILQ_INSERT_AFTER(&top_vdev->v_children, previous, vdev, v_childlink);
+	count = vdev_child_count(top_vdev);
+	if (top_vdev->v_nchildren < count)
+		top_vdev->v_nchildren = count;
+}
+
+static int
+vdev_from_nvlist(spa_t *spa, uint64_t top_guid, const unsigned char *nvlist)
+{
+	vdev_t *top_vdev, *vdev;
+	const unsigned char *kids;
+	int rc, nkids;
+
+	/* Get top vdev. */
+	top_vdev = vdev_find(top_guid);
+	if (top_vdev == NULL) {
+		rc = vdev_init(top_guid, nvlist, &top_vdev);
+		if (rc != 0)
+			return (rc);
+		top_vdev->v_spa = spa;
+		top_vdev->v_top = top_vdev;
+		vdev_insert(spa->spa_root_vdev, top_vdev);
+	}
+
+	/* Add children if there are any. */
 	rc = nvlist_find(nvlist, ZPOOL_CONFIG_CHILDREN, DATA_TYPE_NVLIST_ARRAY,
 	    &nkids, &kids);
-	/*
-	 * Its ok if we don't have any kids.
-	 */
 	if (rc == 0) {
-		vdev->v_nchildren = nkids;
-		for (i = 0; i < nkids; i++) {
-			rc = vdev_init_from_nvlist(kids, vdev, &kid, is_newer);
-			if (rc)
+		for (int i = 0; i < nkids; i++) {
+			uint64_t guid;
+
+			rc = nvlist_find(kids, ZPOOL_CONFIG_GUID,
+			    DATA_TYPE_UINT64, NULL, &guid);
+			if (rc != 0)
 				return (rc);
-			if (is_new)
-				STAILQ_INSERT_TAIL(&vdev->v_children, kid,
-				    v_childlink);
+			rc = vdev_init(guid, kids, &vdev);
+			if (rc != 0)
+				return (rc);
+
+			vdev->v_spa = spa;
+			vdev->v_top = top_vdev;
+			vdev_insert(top_vdev, vdev);
+
 			kids = nvlist_next(kids);
 		}
 	} else {
-		vdev->v_nchildren = 0;
+		rc = 0;
 	}
 
-	if (vdevp)
-		*vdevp = vdev;
-	return (0);
+	return (rc);
+}
+
+static int
+vdev_init_from_label(spa_t *spa, const unsigned char *nvlist)
+{
+	uint64_t pool_guid, top_guid;
+	const unsigned char *vdevs;
+
+	if (nvlist_find(nvlist, ZPOOL_CONFIG_POOL_GUID, DATA_TYPE_UINT64,
+	    NULL, &pool_guid) ||
+	    nvlist_find(nvlist, ZPOOL_CONFIG_TOP_GUID, DATA_TYPE_UINT64,
+	    NULL, &top_guid) ||
+	    nvlist_find(nvlist, ZPOOL_CONFIG_VDEV_TREE, DATA_TYPE_NVLIST,
+	    NULL, &vdevs)) {
+		printf("ZFS: can't find vdev details\n");
+		return (ENOENT);
+	}
+
+	return (vdev_from_nvlist(spa, top_guid, vdevs));
 }
 
 static void
@@ -1279,6 +1396,10 @@ vdev_set_state(vdev_t *vdev)
 	vdev_t *kid;
 	int good_kids;
 	int bad_kids;
+
+	STAILQ_FOREACH(kid, &vdev->v_children, v_childlink) {
+		vdev_set_state(kid);
+	}
 
 	/*
 	 * A mirror or raidz is healthy if all its kids are healthy. A
@@ -1312,6 +1433,104 @@ vdev_set_state(vdev_t *vdev)
 			}
 		}
 	}
+}
+
+static int
+vdev_update_from_nvlist(uint64_t top_guid, const unsigned char *nvlist)
+{
+	vdev_t *vdev;
+	const unsigned char *kids;
+	int rc, nkids;
+
+	/* Update top vdev. */
+	vdev = vdev_find(top_guid);
+	if (vdev != NULL)
+		vdev_set_initial_state(vdev, nvlist);
+
+	/* Update children if there are any. */
+	rc = nvlist_find(nvlist, ZPOOL_CONFIG_CHILDREN, DATA_TYPE_NVLIST_ARRAY,
+	    &nkids, &kids);
+	if (rc == 0) {
+		for (int i = 0; i < nkids; i++) {
+			uint64_t guid;
+
+			rc = nvlist_find(kids, ZPOOL_CONFIG_GUID,
+			    DATA_TYPE_UINT64, NULL, &guid);
+			if (rc != 0)
+				break;
+
+			vdev = vdev_find(guid);
+			if (vdev != NULL)
+				vdev_set_initial_state(vdev, kids);
+
+			kids = nvlist_next(kids);
+		}
+	} else {
+		rc = 0;
+	}
+
+	return (rc);
+}
+
+static int
+vdev_init_from_nvlist(spa_t *spa, const unsigned char *nvlist)
+{
+	uint64_t pool_guid, vdev_children;
+	const unsigned char *vdevs, *kids;
+	int rc, nkids;
+
+	if (nvlist_find(nvlist, ZPOOL_CONFIG_POOL_GUID, DATA_TYPE_UINT64,
+	    NULL, &pool_guid) ||
+	    nvlist_find(nvlist, ZPOOL_CONFIG_VDEV_CHILDREN, DATA_TYPE_UINT64,
+	    NULL, &vdev_children) ||
+	    nvlist_find(nvlist, ZPOOL_CONFIG_VDEV_TREE, DATA_TYPE_NVLIST,
+	    NULL, &vdevs)) {
+		printf("ZFS: can't find vdev details\n");
+		return (ENOENT);
+	}
+
+	/* Wrong guid?! */
+	if (spa->spa_guid != pool_guid)
+		return (EIO);
+
+	spa->spa_root_vdev->v_nchildren = vdev_children;
+
+	rc = nvlist_find(vdevs, ZPOOL_CONFIG_CHILDREN, DATA_TYPE_NVLIST_ARRAY,
+	    &nkids, &kids);
+
+	/*
+	 * MOS config has at least one child for root vdev.
+	 */
+	if (rc != 0)
+		return (EIO);
+
+	for (int i = 0; i < nkids; i++) {
+		uint64_t guid;
+		vdev_t *vdev;
+
+		rc = nvlist_find(kids, ZPOOL_CONFIG_GUID, DATA_TYPE_UINT64,
+		    NULL, &guid);
+		if (rc != 0)
+			break;
+		vdev = vdev_find(guid);
+		/*
+		 * Top level vdev is missing, create it.
+		 */
+		if (vdev == NULL)
+			rc = vdev_from_nvlist(spa, guid, kids);
+		else
+			rc = vdev_update_from_nvlist(guid, kids);
+		if (rc != 0)
+			break;
+		kids = nvlist_next(kids);
+	}
+
+	/*
+	 * Re-evaluate top-level vdev state.
+	 */
+	vdev_set_state(spa->spa_root_vdev);
+
+	return (rc);
 }
 
 static spa_t *
@@ -1356,7 +1575,7 @@ spa_get_primary_vdev(const spa_t *spa)
 		spa = spa_get_primary();
 	if (spa == NULL)
 		return (NULL);
-	vdev = STAILQ_FIRST(&spa->spa_vdevs);
+	vdev = spa->spa_root_vdev;
 	if (vdev == NULL)
 		return (NULL);
 	for (kid = STAILQ_FIRST(&vdev->v_children); kid != NULL;
@@ -1377,8 +1596,14 @@ spa_create(uint64_t guid, const char *name)
 		free(spa);
 		return (NULL);
 	}
-	STAILQ_INIT(&spa->spa_vdevs);
 	spa->spa_guid = guid;
+	spa->spa_root_vdev = vdev_create(guid, NULL);
+	if (spa->spa_root_vdev == NULL) {
+		free(spa->spa_name);
+		free(spa);
+		return (NULL);
+	}
+	spa->spa_root_vdev->v_name = strdup("root");
 	STAILQ_INSERT_TAIL(&zfs_pools, spa, spa_link);
 
 	return (spa);
@@ -1413,9 +1638,8 @@ pager_printf(const char *fmt, ...)
 	va_list args;
 
 	va_start(args, fmt);
-	vsprintf(line, fmt, args);
+	vsnprintf(line, sizeof(line), fmt, args);
 	va_end(args);
-
 	return (pager_output(line));
 }
 
@@ -1426,14 +1650,13 @@ pager_printf(const char *fmt, ...)
 static int
 print_state(int indent, const char *name, vdev_state_t state)
 {
-	char buf[512];
 	int i;
+	char buf[512];
 
 	buf[0] = 0;
 	for (i = 0; i < indent; i++)
 		strcat(buf, "  ");
 	strcat(buf, name);
-
 	return (pager_printf(STATUS_FORMAT, buf, state_name(state)));
 }
 
@@ -1465,6 +1688,7 @@ spa_status(spa_t *spa)
 {
 	static char bootfs[ZFS_MAXNAMELEN];
 	uint64_t rootid;
+	vdev_list_t *vlist;
 	vdev_t *vdev;
 	int good_kids, bad_kids, degraded_kids, ret;
 	vdev_state_t state;
@@ -1493,7 +1717,8 @@ spa_status(spa_t *spa)
 	good_kids = 0;
 	degraded_kids = 0;
 	bad_kids = 0;
-	STAILQ_FOREACH(vdev, &spa->spa_vdevs, v_childlink) {
+	vlist = &spa->spa_root_vdev->v_children;
+	STAILQ_FOREACH(vdev, vlist, v_childlink) {
 		if (vdev->v_state == VDEV_STATE_HEALTHY)
 			good_kids++;
 		else if (vdev->v_state == VDEV_STATE_DEGRADED)
@@ -1511,7 +1736,8 @@ spa_status(spa_t *spa)
 	ret = print_state(0, spa->spa_name, state);
 	if (ret != 0)
 		return (ret);
-	STAILQ_FOREACH(vdev, &spa->spa_vdevs, v_childlink) {
+
+	STAILQ_FOREACH(vdev, vlist, v_childlink) {
 		ret = vdev_status(vdev, 1);
 		if (ret != 0)
 			return (ret);
@@ -1703,15 +1929,14 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 {
 	vdev_t vtmp;
 	spa_t *spa;
-	vdev_t *vdev, *top_vdev, *pool_vdev;
+	vdev_t *vdev;
 	unsigned char *nvlist;
 	uint64_t val;
-	uint64_t guid;
+	uint64_t guid, vdev_children;
 	uint64_t pool_txg, pool_guid;
 	const char *pool_name;
-	const unsigned char *vdevs;
 	const unsigned char *features;
-	int rc, is_newer;
+	int rc;
 
 	/*
 	 * Load the vdev label and figure out which
@@ -1783,18 +2008,17 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 	 */
 	spa = spa_find_by_guid(pool_guid);
 	if (spa == NULL) {
+		nvlist_find(nvlist, ZPOOL_CONFIG_VDEV_CHILDREN,
+		    DATA_TYPE_UINT64, NULL, &vdev_children);
 		spa = spa_create(pool_guid, pool_name);
 		if (spa == NULL) {
 			free(nvlist);
 			return (ENOMEM);
 		}
+		spa->spa_root_vdev->v_nchildren = vdev_children;
 	}
-	if (pool_txg > spa->spa_txg) {
+	if (pool_txg > spa->spa_txg)
 		spa->spa_txg = pool_txg;
-		is_newer = 1;
-	} else {
-		is_newer = 0;
-	}
 
 	/*
 	 * Get the vdev tree and create our in-core copy of it.
@@ -1814,39 +2038,25 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 		return (EIO);
 	}
 
-	if (nvlist_find(nvlist, ZPOOL_CONFIG_VDEV_TREE, DATA_TYPE_NVLIST,
-	    NULL, &vdevs)) {
-		free(nvlist);
-		return (EIO);
-	}
-
-	rc = vdev_init_from_nvlist(vdevs, NULL, &top_vdev, is_newer);
+	rc = vdev_init_from_label(spa, nvlist);
 	free(nvlist);
 	if (rc != 0)
 		return (rc);
-
-	/*
-	 * Add the toplevel vdev to the pool if its not already there.
-	 */
-	STAILQ_FOREACH(pool_vdev, &spa->spa_vdevs, v_childlink)
-		if (top_vdev == pool_vdev)
-			break;
-
-	if (!pool_vdev && top_vdev) {
-		top_vdev->spa = spa;
-		STAILQ_INSERT_TAIL(&spa->spa_vdevs, top_vdev, v_childlink);
-	}
 
 	/*
 	 * We should already have created an incomplete vdev for this
 	 * vdev. Find it and initialise it with our read proc.
 	 */
 	vdev = vdev_find(guid);
-	if (vdev) {
+	if (vdev != NULL) {
 		vdev->v_phys_read = _read;
 		vdev->v_read_priv = read_priv;
-		vdev->v_state = VDEV_STATE_HEALTHY;
 		vdev->v_psize = vtmp.v_psize;
+		/*
+		 * If no other state is set, mark vdev healthy.
+		 */
+		if (vdev->v_state == VDEV_STATE_UNKNOWN)
+			vdev->v_state = VDEV_STATE_HEALTHY;
 	} else {
 		printf("ZFS: inconsistent nvlist contents\n");
 		return (EIO);
@@ -1858,7 +2068,7 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 	/*
 	 * Re-evaluate top-level vdev state.
 	 */
-	vdev_set_state(top_vdev);
+	vdev_set_state(vdev->v_top);
 
 	/*
 	 * Ok, we are happy with the pool so far. Lets find
@@ -1867,7 +2077,6 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 	 */
 	vdev_uberblock_load(vdev, &spa->spa_uberblock);
 
-	vdev->spa = spa;
 	if (spap != NULL)
 		*spap = spa;
 	return (0);
@@ -1962,7 +2171,8 @@ zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
 	for (i = 0; i < SPA_DVAS_PER_BP; i++) {
 		const dva_t *dva = &bp->blk_dva[i];
 		vdev_t *vdev;
-		int vdevid;
+		vdev_list_t *vlist;
+		uint64_t vdevid;
 		off_t offset;
 
 		if (!dva->dva_word[0] && !dva->dva_word[1])
@@ -1970,7 +2180,8 @@ zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
 
 		vdevid = DVA_GET_VDEV(dva);
 		offset = DVA_GET_OFFSET(dva);
-		STAILQ_FOREACH(vdev, &spa->spa_vdevs, v_childlink) {
+		vlist = &spa->spa_root_vdev->v_children;
+		STAILQ_FOREACH(vdev, vlist, v_childlink) {
 			if (vdev->v_id == vdevid)
 				break;
 		}
@@ -1979,7 +2190,7 @@ zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
 
 		size = BP_GET_PSIZE(bp);
 		if (vdev->v_read == vdev_raidz_read) {
-			align = 1ULL << vdev->v_top->v_ashift;
+			align = 1ULL << vdev->v_ashift;
 			if (P2PHASE(size, align) != 0)
 				size = P2ROUNDUP(size, align);
 		}
@@ -2067,11 +2278,11 @@ dnode_read(const spa_t *spa, const dnode_phys_t *dnode, off_t offset,
 		/*
 		 * The buffer contains our data block. Copy what we
 		 * need from it and loop.
-		 */ 
+		 */
 		i = bsize - boff;
 		if (i > buflen) i = buflen;
 		memcpy(buf, &dnode_cache_buf[boff], i);
-		buf = ((char*)buf) + i;
+		buf = ((char *)buf) + i;
 		offset += i;
 		buflen -= i;
 	}
@@ -2124,7 +2335,7 @@ fzap_name_equal(const zap_leaf_t *zl, const zap_leaf_chunk_t *zc,
 	const char *p;
 
 	namelen = zc->l_entry.le_name_numints;
-			
+
 	nc = &ZAP_LEAF_CHUNK(zl, zc->l_entry.le_name_chunk);
 	p = name;
 	while (namelen > 0) {
@@ -2222,6 +2433,26 @@ fzap_leaf_array(const zap_leaf_t *zl, const zap_leaf_chunk_t *zc,
 	}
 }
 
+static int
+fzap_check_size(uint64_t integer_size, uint64_t num_integers)
+{
+
+	switch (integer_size) {
+	case 1:
+	case 2:
+	case 4:
+	case 8:
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	if (integer_size * num_integers > ZAP_MAXVALUELEN)
+		return (E2BIG);
+
+	return (0);
+}
+
 /*
  * Lookup a value in a fatzap directory. Assumes that the zap scratch
  * buffer contains the directory header.
@@ -2239,6 +2470,9 @@ fzap_lookup(const spa_t *spa, const dnode_phys_t *dnode, const char *name,
 
 	if (zh.zap_magic != ZAP_MAGIC)
 		return (EIO);
+
+	if ((rc = fzap_check_size(integer_size, num_integers)) != 0)
+		return (rc);
 
 	z.zap_block_shift = ilog2(bsize);
 	z.zap_phys = (zap_phys_t *)zap_scratch;
@@ -2388,7 +2622,7 @@ fzap_list(const spa_t *spa, const dnode_phys_t *dnode,
 	zap_leaf_t zl;
 	zl.l_bs = z.zap_block_shift;
 	for (i = 0; i < zh.zap_num_leafs; i++) {
-		off_t off = (i + 1) << zl.l_bs;
+		off_t off = ((off_t)(i + 1)) << zl.l_bs;
 		char name[256], *p;
 		uint64_t value;
 
@@ -2537,7 +2771,7 @@ fzap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name,
     uint64_t value)
 {
 	int bsize = dnode->dn_datablkszsec << SPA_MINBLOCKSHIFT;
-	zap_phys_t zh = *(zap_phys_t *) zap_scratch;
+	zap_phys_t zh = *(zap_phys_t *)zap_scratch;
 	fat_zap_t z;
 	int i, j;
 
@@ -2554,7 +2788,7 @@ fzap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name,
 	zap_leaf_t zl;
 	zl.l_bs = z.zap_block_shift;
 	for (i = 0; i < zh.zap_num_leafs; i++) {
-		off_t off = (i + 1) << zl.l_bs;
+		off_t off = ((off_t)(i + 1)) << zl.l_bs;
 
 		if (dnode_read(spa, dnode, off, zap_scratch, bsize))
 			return (EIO);
@@ -2844,8 +3078,7 @@ zfs_get_root(const spa_t *spa, uint64_t *objid)
 	    sizeof(props), 1, &props) == 0 &&
 	    objset_get_dnode(spa, &spa->spa_mos, props, &propdir) == 0 &&
 	    zap_lookup(spa, &propdir, "bootfs",
-	    sizeof(bootfs), 1, &bootfs) == 0 &&
-	    bootfs != 0) {
+	    sizeof(bootfs), 1, &bootfs) == 0 && bootfs != 0) {
 		*objid = bootfs;
 		return (0);
 	}
@@ -2995,9 +3228,7 @@ zfs_spa_init(spa_t *spa)
 	dnode_phys_t dir;
 	uint64_t config_object;
 	unsigned char *nvlist;
-	char *type;
-	const unsigned char *nv;
-	int nkids, rc;
+	int rc;
 
 	if (zio_read(spa, &spa->spa_uberblock.ub_rootbp, &spa->spa_mos)) {
 		printf("ZFS: can't read MOS of pool %s\n", spa->spa_name);
@@ -3036,61 +3267,7 @@ zfs_spa_init(spa_t *spa)
 		return (rc);
 
 	/* Update vdevs from MOS config. */
-	if (nvlist_find(nvlist + 4, ZPOOL_CONFIG_VDEV_TREE, DATA_TYPE_NVLIST,
-	    NULL, &nv)) {
-		rc = EIO;
-		goto done;
-	}
-
-	if (nvlist_find(nv, ZPOOL_CONFIG_TYPE, DATA_TYPE_STRING, NULL, &type)) {
-		printf("ZFS: can't find vdev details\n");
-		rc = ENOENT;
-		goto done;
-	}
-	if (strcmp(type, VDEV_TYPE_ROOT) != 0) {
-		rc = ENOENT;
-		goto done;
-	}
-
-	rc = nvlist_find(nv, ZPOOL_CONFIG_CHILDREN, DATA_TYPE_NVLIST_ARRAY,
-            &nkids, &nv);
-	if (rc != 0)
-		goto done;
-
-	for (int i = 0; i < nkids; i++) {
-		vdev_t *vd, *prev, *kid = NULL;
-		rc = vdev_init_from_nvlist(nv, NULL, &kid, 0);
-		if (rc != 0) {
-			printf("vdev_init_from_nvlist: %d\n", rc);
-			break;
-		}
-		kid->spa = spa;
-		prev = NULL;
-		STAILQ_FOREACH(vd, &spa->spa_vdevs, v_childlink) {
-			/* Already present? */
-			if (kid->v_id == vd->v_id) {
-				kid = NULL;
-				break;
-			}
-			if (vd->v_id > kid->v_id) {
-				if (prev == NULL) {
-					STAILQ_INSERT_HEAD(&spa->spa_vdevs,
-					    kid, v_childlink);
-				} else {
-					STAILQ_INSERT_AFTER(&spa->spa_vdevs,
-					    prev, kid, v_childlink);
-				}
-				kid = NULL;
-				break;
-			}
-			prev = vd;
-		}
-		if (kid != NULL)
-			STAILQ_INSERT_TAIL(&spa->spa_vdevs, kid, v_childlink);
-		nv = nvlist_next(nv);
-	}
-	rc = 0;
-done:
+	rc = vdev_init_from_nvlist(spa, nvlist + 4);
 	free(nvlist);
 	return (rc);
 }
