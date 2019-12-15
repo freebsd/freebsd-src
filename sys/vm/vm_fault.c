@@ -151,19 +151,38 @@ SYSCTL_INT(_vm, OID_AUTO, pfault_oom_wait, CTLFLAG_RWTUN,
     "the page fault handler");
 
 static inline void
-release_page(struct faultstate *fs)
+fault_page_release(vm_page_t *mp)
 {
+	vm_page_t m;
 
-	if (fs->m != NULL) {
+	m = *mp;
+	if (m != NULL) {
 		/*
-		 * fs->m's object lock might not be held, so the page must be
-		 * kept busy until we are done with it.
+		 * We are likely to loop around again and attempt to busy
+		 * this page.  Deactivating it leaves it available for
+		 * pageout while optimizing fault restarts.
 		 */
-		vm_page_lock(fs->m);
-		vm_page_deactivate(fs->m);
-		vm_page_unlock(fs->m);
-		vm_page_xunbusy(fs->m);
-		fs->m = NULL;
+		vm_page_lock(m);
+		vm_page_deactivate(m);
+		vm_page_unlock(m);
+		vm_page_xunbusy(m);
+		*mp = NULL;
+	}
+}
+
+static inline void
+fault_page_free(vm_page_t *mp)
+{
+	vm_page_t m;
+
+	m = *mp;
+	if (m != NULL) {
+		VM_OBJECT_ASSERT_WLOCKED(m->object);
+		if (!vm_page_wired(m))
+			vm_page_free(m);
+		else
+			vm_page_xunbusy(m);
+		*mp = NULL;
 	}
 }
 
@@ -191,13 +210,13 @@ static void
 fault_deallocate(struct faultstate *fs)
 {
 
+	fault_page_release(&fs->m);
 	vm_object_pip_wakeup(fs->object);
 	if (fs->object != fs->first_object) {
 		VM_OBJECT_WLOCK(fs->first_object);
-		vm_page_free(fs->first_m);
-		vm_object_pip_wakeup(fs->first_object);
+		fault_page_free(&fs->first_m);
 		VM_OBJECT_WUNLOCK(fs->first_object);
-		fs->first_m = NULL;
+		vm_object_pip_wakeup(fs->first_object);
 	}
 	vm_object_deallocate(fs->first_object);
 	unlock_map(fs);
@@ -657,7 +676,6 @@ vm_fault_lock_vnode(struct faultstate *fs)
 	}
 
 	vhold(vp);
-	release_page(fs);
 	unlock_and_deallocate(fs);
 	error = vget(vp, locked | LK_RETRY | LK_CANRECURSE, curthread);
 	vdrop(vp);
@@ -774,7 +792,7 @@ RetryFault_oom:
 
 	fs.lookup_still_valid = true;
 
-	fs.first_m = NULL;
+	fs.m = fs.first_m = NULL;
 
 	/*
 	 * Search for the page at object/offset.
@@ -782,6 +800,8 @@ RetryFault_oom:
 	fs.object = fs.first_object;
 	fs.pindex = fs.first_pindex;
 	while (TRUE) {
+		KASSERT(fs.m == NULL,
+		    ("page still set %p at loop start", fs.m));
 		/*
 		 * If the object is marked for imminent termination,
 		 * we retry here, since the collapse pass has raced
@@ -826,23 +846,15 @@ RetryFault_oom:
 				 */
 				vm_page_aflag_set(fs.m, PGA_REFERENCED);
 				if (fs.object != fs.first_object) {
-					if (!VM_OBJECT_TRYWLOCK(
-					    fs.first_object)) {
-						VM_OBJECT_WUNLOCK(fs.object);
-						VM_OBJECT_WLOCK(fs.first_object);
-						VM_OBJECT_WLOCK(fs.object);
-					}
-					vm_page_free(fs.first_m);
+					fault_page_release(&fs.first_m);
 					vm_object_pip_wakeup(fs.first_object);
-					VM_OBJECT_WUNLOCK(fs.first_object);
-					fs.first_m = NULL;
 				}
 				unlock_map(&fs);
+				vm_object_pip_wakeup(fs.object);
 				if (fs.m == vm_page_lookup(fs.object,
 				    fs.pindex)) {
 					vm_page_sleep_if_busy(fs.m, "vmpfw");
 				}
-				vm_object_pip_wakeup(fs.object);
 				VM_OBJECT_WUNLOCK(fs.object);
 				VM_CNT_INC(v_intrans);
 				vm_object_deallocate(fs.first_object);
@@ -1091,40 +1103,28 @@ readrest:
 			 * an error.
 			 */
 			if (rv == VM_PAGER_ERROR || rv == VM_PAGER_BAD) {
-				if (!vm_page_wired(fs.m))
-					vm_page_free(fs.m);
-				else
-					vm_page_xunbusy(fs.m);
-				fs.m = NULL;
+				fault_page_free(&fs.m);
 				unlock_and_deallocate(&fs);
 				return (KERN_OUT_OF_BOUNDS);
 			}
 
-			/*
-			 * The requested page does not exist at this object/
-			 * offset.  Remove the invalid page from the object,
-			 * waking up anyone waiting for it, and continue on to
-			 * the next object.  However, if this is the top-level
-			 * object, we must leave the busy page in place to
-			 * prevent another process from rushing past us, and
-			 * inserting the page in that object at the same time
-			 * that we are.
-			 */
-			if (fs.object != fs.first_object) {
-				if (!vm_page_wired(fs.m))
-					vm_page_free(fs.m);
-				else
-					vm_page_xunbusy(fs.m);
-				fs.m = NULL;
-			}
 		}
 
 		/*
-		 * We get here if the object has default pager (or unwiring) 
-		 * or the pager doesn't have the page.
+		 * The requested page does not exist at this object/
+		 * offset.  Remove the invalid page from the object,
+		 * waking up anyone waiting for it, and continue on to
+		 * the next object.  However, if this is the top-level
+		 * object, we must leave the busy page in place to
+		 * prevent another process from rushing past us, and
+		 * inserting the page in that object at the same time
+		 * that we are.
 		 */
-		if (fs.object == fs.first_object)
+		if (fs.object == fs.first_object) {
 			fs.first_m = fs.m;
+			fs.m = NULL;
+		} else
+			fault_page_free(&fs.m);
 
 		/*
 		 * Move on to the next object.  Lock the next object before
@@ -1142,9 +1142,11 @@ readrest:
 
 				fs.object = fs.first_object;
 				fs.pindex = fs.first_pindex;
-				fs.m = fs.first_m;
 				VM_OBJECT_WLOCK(fs.object);
 			}
+			MPASS(fs.first_m != NULL);
+			MPASS(fs.m == NULL);
+			fs.m = fs.first_m;
 			fs.first_m = NULL;
 
 			/*
@@ -1161,6 +1163,7 @@ readrest:
 			faultcount = 1;
 			break;	/* break to PAGE HAS BEEN FOUND */
 		} else {
+			MPASS(fs.first_m != NULL);
 			KASSERT(fs.object != next_object,
 			    ("object loop %p", next_object));
 			VM_OBJECT_WLOCK(next_object);
@@ -1257,7 +1260,7 @@ readrest:
 				/*
 				 * We no longer need the old page or object.
 				 */
-				release_page(&fs);
+				fault_page_release(&fs.m);
 			}
 			/*
 			 * fs.object != fs.first_object due to above 
@@ -1295,7 +1298,6 @@ readrest:
 	 */
 	if (!fs.lookup_still_valid) {
 		if (!vm_map_trylock_read(fs.map)) {
-			release_page(&fs);
 			unlock_and_deallocate(&fs);
 			goto RetryFault;
 		}
@@ -1310,7 +1312,6 @@ readrest:
 			 * pageout will grab it eventually.
 			 */
 			if (result != KERN_SUCCESS) {
-				release_page(&fs);
 				unlock_and_deallocate(&fs);
 
 				/*
@@ -1323,7 +1324,6 @@ readrest:
 			}
 			if ((retry_object != fs.first_object) ||
 			    (retry_pindex != fs.first_pindex)) {
-				release_page(&fs);
 				unlock_and_deallocate(&fs);
 				goto RetryFault;
 			}
@@ -1339,7 +1339,6 @@ readrest:
 			prot &= retry_prot;
 			fault_type &= retry_prot;
 			if (prot == 0) {
-				release_page(&fs);
 				unlock_and_deallocate(&fs);
 				goto RetryFault;
 			}
@@ -1400,6 +1399,7 @@ readrest:
 		vm_page_wire(fs.m);
 	}
 	vm_page_xunbusy(fs.m);
+	fs.m = NULL;
 
 	/*
 	 * Unlock everything, and return
