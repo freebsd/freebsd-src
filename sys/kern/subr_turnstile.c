@@ -175,6 +175,22 @@ SDT_PROBE_DEFINE(sched, , , sleep);
 SDT_PROBE_DEFINE2(sched, , , wakeup, "struct thread *", 
     "struct proc *");
 
+static inline void
+propagate_unlock_ts(struct turnstile *top, struct turnstile *ts)
+{
+
+	if (ts != top)
+		mtx_unlock_spin(&ts->ts_lock);
+}
+
+static inline void
+propagate_unlock_td(struct turnstile *top, struct thread *td)
+{
+
+	if (td->td_lock != &top->ts_lock)
+		thread_unlock(td);
+}
+
 /*
  * Walks the chain of turnstiles and their owners to propagate the priority
  * of the thread being blocked to all the threads holding locks that have to
@@ -183,20 +199,19 @@ SDT_PROBE_DEFINE2(sched, , , wakeup, "struct thread *",
 static void
 propagate_priority(struct thread *td)
 {
-	struct turnstile *ts;
+	struct turnstile *ts, *top;
 	int pri;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	pri = td->td_priority;
-	ts = td->td_blocked;
+	top = ts = td->td_blocked;
 	THREAD_LOCKPTR_ASSERT(td, &ts->ts_lock);
+
 	/*
-	 * Grab a recursive lock on this turnstile chain so it stays locked
-	 * for the whole operation.  The caller expects us to return with
-	 * the original lock held.  We only ever lock down the chain so
-	 * the lock order is constant.
+	 * The original turnstile lock is held across the entire
+	 * operation.  We only ever lock down the chain so the lock
+	 * order is constant.
 	 */
-	mtx_lock_spin(&ts->ts_lock);
 	for (;;) {
 		td = ts->ts_owner;
 
@@ -205,12 +220,19 @@ propagate_priority(struct thread *td)
 			 * This might be a read lock with no owner.  There's
 			 * not much we can do, so just bail.
 			 */
-			mtx_unlock_spin(&ts->ts_lock);
+			propagate_unlock_ts(top, ts);
 			return;
 		}
 
-		thread_lock_flags(td, MTX_DUPOK);
-		mtx_unlock_spin(&ts->ts_lock);
+		/*
+		 * Wait for the thread lock to be stable and then only
+		 * acquire if it is not the turnstile lock.
+		 */
+		thread_lock_block_wait(td);
+		if (td->td_lock != &ts->ts_lock) {
+			thread_lock_flags(td, MTX_DUPOK);
+			propagate_unlock_ts(top, ts);
+		}
 		MPASS(td->td_proc != NULL);
 		MPASS(td->td_proc->p_magic == P_MAGIC);
 
@@ -233,7 +255,7 @@ propagate_priority(struct thread *td)
 		 * thread that is being blocked, we are finished.
 		 */
 		if (td->td_priority <= pri) {
-			thread_unlock(td);
+			propagate_unlock_td(top, td);
 			return;
 		}
 
@@ -248,7 +270,7 @@ propagate_priority(struct thread *td)
 		 */
 		if (TD_IS_RUNNING(td) || TD_ON_RUNQ(td)) {
 			MPASS(td->td_blocked == NULL);
-			thread_unlock(td);
+			propagate_unlock_td(top, td);
 			return;
 		}
 
@@ -276,7 +298,7 @@ propagate_priority(struct thread *td)
 		THREAD_LOCKPTR_ASSERT(td, &ts->ts_lock);
 		/* Resort td on the list if needed. */
 		if (!turnstile_adjust_thread(ts, td)) {
-			mtx_unlock_spin(&ts->ts_lock);
+			propagate_unlock_ts(top, ts);
 			return;
 		}
 		/* The thread lock is released as ts lock above. */
@@ -498,7 +520,7 @@ turnstile_init(void *mem, int size, int flags)
 	TAILQ_INIT(&ts->ts_blocked[TS_SHARED_QUEUE]);
 	TAILQ_INIT(&ts->ts_pending);
 	LIST_INIT(&ts->ts_free);
-	mtx_init(&ts->ts_lock, "turnstile lock", NULL, MTX_SPIN | MTX_RECURSE);
+	mtx_init(&ts->ts_lock, "turnstile lock", NULL, MTX_SPIN);
 	return (0);
 }
 
