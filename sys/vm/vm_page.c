@@ -4333,15 +4333,18 @@ out:
 
 /*
  * Grab a page and make it valid, paging in if necessary.  Pages missing from
- * their pager are zero filled and validated.
+ * their pager are zero filled and validated.  If a VM_ALLOC_COUNT is supplied
+ * and the page is not valid as many as VM_INITIAL_PAGEIN pages can be brought
+ * in simultaneously.  Additional pages will be left on a paging queue but
+ * will neither be wired nor busy regardless of allocflags.
  */
 int
 vm_page_grab_valid(vm_page_t *mp, vm_object_t object, vm_pindex_t pindex, int allocflags)
 {
 	vm_page_t m;
+	vm_page_t ma[VM_INITIAL_PAGEIN];
 	bool sleep, xbusy;
-	int pflags;
-	int rv;
+	int after, i, pflags, rv;
 
 	KASSERT((allocflags & VM_ALLOC_SBUSY) == 0 ||
 	    (allocflags & VM_ALLOC_IGN_SBUSY) != 0,
@@ -4400,15 +4403,40 @@ retrylookup:
 
 	vm_page_assert_xbusied(m);
 	MPASS(xbusy);
-	if (vm_pager_has_page(object, pindex, NULL, NULL)) {
-		rv = vm_pager_get_pages(object, &m, 1, NULL, NULL);
+	if (vm_pager_has_page(object, pindex, NULL, &after)) {
+		after = MIN(after, VM_INITIAL_PAGEIN);
+		after = MIN(after, allocflags >> VM_ALLOC_COUNT_SHIFT);
+		after = MAX(after, 1);
+		ma[0] = m;
+		for (i = 1; i < after; i++) {
+			if ((ma[i] = vm_page_next(ma[i - 1])) != NULL) {
+				if (ma[i]->valid || !vm_page_tryxbusy(ma[i]))
+					break;
+			} else {
+				ma[i] = vm_page_alloc(object, m->pindex + i,
+				    VM_ALLOC_NORMAL);
+				if (ma[i] == NULL)
+					break;
+			}
+		}
+		after = i;
+		rv = vm_pager_get_pages(object, ma, after, NULL, NULL);
+		/* Pager may have replaced a page. */
+		m = ma[0];
 		if (rv != VM_PAGER_OK) {
-			if (allocflags & VM_ALLOC_WIRED)
+			if ((allocflags & VM_ALLOC_WIRED) != 0)
 				vm_page_unwire_noq(m);
-			vm_page_free(m);
+			for (i = 0; i < after; i++) {
+				if (!vm_page_wired(ma[i]))
+					vm_page_free(ma[i]);
+				else
+					vm_page_xunbusy(ma[i]);
+			}
 			*mp = NULL;
 			return (rv);
 		}
+		for (i = 1; i < after; i++)
+			vm_page_readahead_finish(ma[i]);
 		MPASS(vm_page_all_valid(m));
 	} else {
 		vm_page_zero_invalid(m, TRUE);
