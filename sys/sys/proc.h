@@ -1075,7 +1075,7 @@ void	killjobc(void);
 int	leavepgrp(struct proc *p);
 int	maybe_preempt(struct thread *td);
 void	maybe_yield(void);
-void	mi_switch(int flags, struct thread *newtd);
+void	mi_switch(int flags);
 int	p_candebug(struct thread *td, struct proc *p);
 int	p_cansee(struct thread *td, struct proc *p);
 int	p_cansched(struct thread *td, struct proc *p);

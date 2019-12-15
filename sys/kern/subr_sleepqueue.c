@@ -546,8 +546,10 @@ out:
 		sq = sleepq_lookup(wchan);
 		sleepq_remove_thread(sq, td);
 	}
-	mtx_unlock_spin(&sc->sc_lock);
 	MPASS(td->td_lock != &sc->sc_lock);
+	mtx_unlock_spin(&sc->sc_lock);
+	thread_unlock(td);
+
 	return (ret);
 }
 
@@ -574,6 +576,7 @@ sleepq_switch(void *wchan, int pri)
 	 */
 	if (td->td_sleepqueue != NULL) {
 		mtx_unlock_spin(&sc->sc_lock);
+		thread_unlock(td);
 		return;
 	}
 
@@ -605,6 +608,7 @@ sleepq_switch(void *wchan, int pri)
 		sq = sleepq_lookup(wchan);
 		sleepq_remove_thread(sq, td);
 		mtx_unlock_spin(&sc->sc_lock);
+		thread_unlock(td);
 		return;
 	}
 #ifdef SLEEPQUEUE_PROFILING
@@ -616,7 +620,7 @@ sleepq_switch(void *wchan, int pri)
 	thread_lock_set(td, &sc->sc_lock);
 	SDT_PROBE0(sched, , , sleep);
 	TD_SET_SLEEPING(td);
-	mi_switch(SW_VOL | SWT_SLEEPQ, NULL);
+	mi_switch(SW_VOL | SWT_SLEEPQ);
 	KASSERT(TD_IS_RUNNING(td), ("running but not TDS_RUNNING"));
 	CTR3(KTR_PROC, "sleepq resume: thread %p (pid %ld, %s)",
 	    (void *)td, (long)td->td_proc->p_pid, (void *)td->td_name);
@@ -668,7 +672,6 @@ sleepq_wait(void *wchan, int pri)
 	MPASS(!(td->td_flags & TDF_SINTR));
 	thread_lock(td);
 	sleepq_switch(wchan, pri);
-	thread_unlock(td);
 }
 
 /*
@@ -681,7 +684,6 @@ sleepq_wait_sig(void *wchan, int pri)
 	int rcatch;
 
 	rcatch = sleepq_catch_signals(wchan, pri);
-	thread_unlock(curthread);
 	if (rcatch)
 		return (rcatch);
 	return (sleepq_check_signals());
@@ -698,9 +700,9 @@ sleepq_timedwait(void *wchan, int pri)
 
 	td = curthread;
 	MPASS(!(td->td_flags & TDF_SINTR));
+
 	thread_lock(td);
 	sleepq_switch(wchan, pri);
-	thread_unlock(td);
 
 	return (sleepq_check_timeout());
 }
@@ -715,8 +717,6 @@ sleepq_timedwait_sig(void *wchan, int pri)
 	int rcatch, rvalt, rvals;
 
 	rcatch = sleepq_catch_signals(wchan, pri);
-	thread_unlock(curthread);
-
 	/* We must always call check_timeout() to clear sleeptimo. */
 	rvalt = sleepq_check_timeout();
 	rvals = sleepq_check_signals();

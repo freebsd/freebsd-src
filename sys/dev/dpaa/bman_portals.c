@@ -142,8 +142,7 @@ bman_portal_setup(struct bman_softc *bsc)
 
 		/* Not inititialized and "owned" by another thread */
 		thread_lock(curthread);
-		mi_switch(SW_VOL, NULL);
-		thread_unlock(curthread);
+		mi_switch(SW_VOL);
 	}
 
 	/* Map portal registers */
