@@ -1307,6 +1307,14 @@ act_scan:
 			act_delta++;
 		}
 
+		/* Deferred free of swap space. */
+		if ((m->a.flags & PGA_SWAP_FREE) != 0 &&
+		    VM_OBJECT_TRYWLOCK(object)) {
+			if (m->object == object)
+				vm_pager_page_unswapped(m);
+			VM_OBJECT_WUNLOCK(object);
+		}
+
 		/*
 		 * Advance or decay the act_count based on recent usage.
 		 */
@@ -1541,6 +1549,10 @@ recheck:
 			addl_page_shortage++;
 			goto reinsert;
 		}
+
+		/* Deferred free of swap space. */
+		if ((m->a.flags & PGA_SWAP_FREE) != 0)
+			vm_pager_page_unswapped(m);
 
 		/*
 		 * Re-check for wirings now that we hold the object lock and
