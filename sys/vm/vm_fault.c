@@ -214,7 +214,7 @@ unlock_and_deallocate(struct faultstate *fs)
 
 static void
 vm_fault_dirty(vm_map_entry_t entry, vm_page_t m, vm_prot_t prot,
-    vm_prot_t fault_type, int fault_flags, bool excl)
+    vm_prot_t fault_type, int fault_flags)
 {
 	bool need_dirty;
 
@@ -223,7 +223,6 @@ vm_fault_dirty(vm_map_entry_t entry, vm_page_t m, vm_prot_t prot,
 	    (m->oflags & VPO_UNMANAGED) != 0)
 		return;
 
-	VM_OBJECT_ASSERT_LOCKED(m->object);
 	VM_PAGE_OBJECT_BUSY_ASSERT(m);
 
 	need_dirty = ((fault_type & VM_PROT_WRITE) != 0 &&
@@ -232,49 +231,29 @@ vm_fault_dirty(vm_map_entry_t entry, vm_page_t m, vm_prot_t prot,
 
 	vm_object_set_writeable_dirty(m->object);
 
-	if (!excl)
-		/*
-		 * If two callers of vm_fault_dirty() with excl ==
-		 * FALSE, one for the map entry with MAP_ENTRY_NOSYNC
-		 * flag set, other with flag clear, race, it is
-		 * possible for the no-NOSYNC thread to see m->dirty
-		 * != 0 and not clear PGA_NOSYNC.  Take vm_page lock
-		 * around manipulation of PGA_NOSYNC and
-		 * vm_page_dirty() call to avoid the race.
-		 */
-		vm_page_lock(m);
-
-	/*
-	 * If this is a NOSYNC mmap we do not want to set PGA_NOSYNC
-	 * if the page is already dirty to prevent data written with
-	 * the expectation of being synced from not being synced.
-	 * Likewise if this entry does not request NOSYNC then make
-	 * sure the page isn't marked NOSYNC.  Applications sharing
-	 * data should use the same flags to avoid ping ponging.
-	 */
-	if ((entry->eflags & MAP_ENTRY_NOSYNC) != 0) {
-		if (m->dirty == 0) {
-			vm_page_aflag_set(m, PGA_NOSYNC);
-		}
-	} else {
-		vm_page_aflag_clear(m, PGA_NOSYNC);
-	}
-
 	/*
 	 * If the fault is a write, we know that this page is being
 	 * written NOW so dirty it explicitly to save on
 	 * pmap_is_modified() calls later.
 	 *
 	 * Also, since the page is now dirty, we can possibly tell
-	 * the pager to release any swap backing the page.  Calling
-	 * the pager requires a write lock on the object.
+	 * the pager to release any swap backing the page.
 	 */
-	if (need_dirty)
-		vm_page_dirty(m);
-	if (!excl)
-		vm_page_unlock(m);
-	else if (need_dirty)
-		vm_pager_page_unswapped(m);
+	if (need_dirty && vm_page_set_dirty(m) == 0) {
+		/*
+		 * If this is a NOSYNC mmap we do not want to set PGA_NOSYNC
+		 * if the page is already dirty to prevent data written with
+		 * the expectation of being synced from not being synced.
+		 * Likewise if this entry does not request NOSYNC then make
+		 * sure the page isn't marked NOSYNC.  Applications sharing
+		 * data should use the same flags to avoid ping ponging.
+		 */
+		if ((entry->eflags & MAP_ENTRY_NOSYNC) != 0)
+			vm_page_aflag_set(m, PGA_NOSYNC);
+		else
+			vm_page_aflag_clear(m, PGA_NOSYNC);
+	}
+
 }
 
 /*
@@ -344,7 +323,7 @@ vm_fault_soft_fast(struct faultstate *fs, vm_offset_t vaddr, vm_prot_t prot,
 		*m_hold = m;
 		vm_page_wire(m);
 	}
-	vm_fault_dirty(fs->entry, m, prot, fault_type, fault_flags, false);
+	vm_fault_dirty(fs->entry, m, prot, fault_type, fault_flags);
 	if (psind == 0 && !wired)
 		vm_fault_prefault(fs, vaddr, PFBAK, PFFOR, true);
 	VM_OBJECT_RUNLOCK(fs->first_object);
@@ -502,7 +481,7 @@ vm_fault_populate(struct faultstate *fs, vm_prot_t prot, int fault_type,
 		for (i = 0; i < npages; i++) {
 			vm_fault_populate_check_page(&m[i]);
 			vm_fault_dirty(fs->entry, &m[i], prot, fault_type,
-			    fault_flags, true);
+			    fault_flags);
 		}
 		VM_OBJECT_WUNLOCK(fs->first_object);
 		rv = pmap_enter(fs->map->pmap, vaddr, m, prot, fault_type |
@@ -1381,7 +1360,7 @@ readrest:
 		fs.entry->next_read = vaddr + ptoa(ahead) + PAGE_SIZE;
 
 	vm_page_assert_xbusied(fs.m);
-	vm_fault_dirty(fs.entry, fs.m, prot, fault_type, fault_flags, true);
+	vm_fault_dirty(fs.entry, fs.m, prot, fault_type, fault_flags);
 
 	/*
 	 * Page must be completely valid or it is not fit to
