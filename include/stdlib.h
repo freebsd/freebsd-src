@@ -314,12 +314,6 @@ long long
 	strtonum(const char *, long long, long long, const char **);
 
 /* Deprecated interfaces, to be removed. */
-static inline void
-__deprecated("sranddev to be removed in FreeBSD 13")
-sranddev(void)
-{
-}
-
 __int64_t
 	 strtoq(const char *, char **, int);
 __uint64_t

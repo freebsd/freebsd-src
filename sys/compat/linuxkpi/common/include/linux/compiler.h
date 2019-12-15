@@ -50,6 +50,7 @@
 #define __cond_lock(x,c)		(c)
 #define	__bitwise
 #define __devinitdata
+#define	__deprecated
 #define __init
 #define	__initconst
 #define	__devinit
