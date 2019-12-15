@@ -6744,7 +6744,7 @@ ipf_checkl4sum(fin)
 #endif
 	DT3(l4sums, u_short, hdrsum, u_short, sum, fr_info_t *, fin);
 #ifdef USE_INET6
-	if (hdrsum == sum || (sum == 0 && fin->fin_p == IPPROTO_ICMPV6)) {
+	if (hdrsum == sum || (sum == 0 && IP_V(fin->fin_ip) == 6)) {
 #else
 	if (hdrsum == sum) {
 #endif
