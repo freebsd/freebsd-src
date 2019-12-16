@@ -1506,3 +1506,20 @@ kbd_ev_event(keyboard_t *kbd, uint16_t type, uint16_t code, int32_t value)
 		kbdd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
 	}
 }
+
+static void
+kbd_drv_init(void)
+{
+	const keyboard_driver_t **list;
+	const keyboard_driver_t *p;
+
+	SET_FOREACH(list, kbddriver_set) {
+		p = *list;
+		if (p->kbdsw->get_fkeystr == NULL)
+			p->kbdsw->get_fkeystr = genkbd_get_fkeystr;
+		if (p->kbdsw->diag == NULL)
+			p->kbdsw->diag = genkbd_diag;
+	}
+}
+
+SYSINIT(kbd_drv_init, SI_SUB_DRIVERS, SI_ORDER_FIRST, kbd_drv_init, NULL);
