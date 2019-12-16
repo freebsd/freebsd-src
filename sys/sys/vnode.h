@@ -961,8 +961,6 @@ void vn_fsid(struct vnode *vp, struct vattr *va);
 	SYSINIT(vfs_vector_##vnodeops##_f, SI_SUB_VFS, SI_ORDER_ANY, \
 	    vfs_vector_op_register, &vnodeops)
 
-void	vfs_vector_op_register(struct vop_vector *vop);
-
 #endif /* _KERNEL */
 
 #endif /* !_SYS_VNODE_H_ */
