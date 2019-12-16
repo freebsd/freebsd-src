@@ -134,7 +134,6 @@ static keyboard_switch_t sunkbdsw = {
 	.clear_state =	sunkbd_clear_state,
 	.get_state =	sunkbd_get_state,
 	.set_state =	sunkbd_set_state,
-	.get_fkeystr =	genkbd_get_fkeystr,
 	.poll =		sunkbd_poll_mode,
 	.diag =		sunkbd_diag
 };

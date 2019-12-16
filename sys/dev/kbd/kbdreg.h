@@ -392,9 +392,6 @@ int			kbd_detach(keyboard_t *kbd);
 #define LED_MASK	(LED_CAP | LED_NUM | LED_SCR)
 */
 
-kbd_get_fkeystr_t	genkbd_get_fkeystr;
-kbd_diag_t		genkbd_diag;
-
 int 	genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg);
 int 	genkbd_keyaction(keyboard_t *kbd, int keycode, int up,
 			 int *shiftstate, int *accents);

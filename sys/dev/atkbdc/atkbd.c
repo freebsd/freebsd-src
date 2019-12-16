@@ -247,9 +247,7 @@ static keyboard_switch_t atkbdsw = {
 	.clear_state =	atkbd_clear_state,
 	.get_state =	atkbd_get_state,
 	.set_state =	atkbd_set_state,
-	.get_fkeystr =	genkbd_get_fkeystr,
 	.poll =		atkbd_poll,
-	.diag =		genkbd_diag,
 };
 
 KEYBOARD_DRIVER(atkbd, atkbdsw, atkbd_configure);
