@@ -447,7 +447,7 @@ hdac_pin_patch(struct hdaa_widget *w)
 			config = 0x01a1913d;
 			break;
 		}
-	} else if (id == HDA_CODEC_ALC256 && subid == DELL_I7577_SUBVENDOR ) {
+	} else if (id == HDA_CODEC_ALC256 && subid == DELL_I7577_SUBVENDOR) {
 		switch (nid) {
 		case 20:
 			patch = "as=1 seq=0";
