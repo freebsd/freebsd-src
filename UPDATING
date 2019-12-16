@@ -1934,19 +1934,14 @@ COMMON ITEMS:
 
 	General Notes
 	-------------
-	Avoid using make -j when upgrading.  While generally safe, there are
-	sometimes problems using -j to upgrade.  If your upgrade fails with
-	-j, please try again without -j.  From time to time in the past there
-	have been problems using -j with buildworld and/or installworld.  This
-	is especially true when upgrading between "distant" versions (eg one
-	that cross a major release boundary or several minor releases, or when
-	several months have passed on the -current branch).
-
 	Sometimes, obscure build problems are the result of environment
 	poisoning.  This can happen because the make utility reads its
 	environment when searching for values for global variables.  To run
 	your build attempts in an "environmental clean room", prefix all make
 	commands with 'env -i '.  See the env(1) manual page for more details.
+	Occasionally a build failure will occur with "make -j" due to a race
+	condition.  If this happens try building again without -j, and please
+	report a bug if it happens consistently.
 
 	When upgrading from one major version to another it is generally best to
 	upgrade to the latest code in the currently installed branch first, then
