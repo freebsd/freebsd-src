@@ -18,6 +18,8 @@ SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 # Export ARM AEABI unwind routines needed by libc and libthr.
 .if exists(${.CURDIR}/${MACHINE_CPUARCH}/Symbol.map)
 SYMBOL_MAPS+=	${.CURDIR}/${MACHINE_CPUARCH}/Symbol.map
+.else
+SYMBOL_MAPS+=	${.CURDIR}/SymbolDefault.map
 .endif
 .endif
 
