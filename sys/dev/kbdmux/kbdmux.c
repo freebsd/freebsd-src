@@ -378,9 +378,7 @@ static keyboard_switch_t kbdmuxsw = {
 	.clear_state =	kbdmux_clear_state,
 	.get_state =	kbdmux_get_state,
 	.set_state =	kbdmux_set_state,
-	.get_fkeystr =	genkbd_get_fkeystr,
 	.poll =		kbdmux_poll,
-	.diag =		genkbd_diag,
 };
 
 #ifdef EVDEV_SUPPORT

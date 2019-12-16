@@ -64,6 +64,9 @@ typedef struct genkbd_softc {
 	unsigned int	gkb_q_length;
 } genkbd_softc_t;
 
+static u_char	*genkbd_get_fkeystr(keyboard_t *kbd, int fkey, size_t *len);
+static void	genkbd_diag(keyboard_t *kbd, int level);
+
 static	SLIST_HEAD(, keyboard_driver) keyboard_drivers =
 	SLIST_HEAD_INITIALIZER(keyboard_drivers);
 
@@ -176,6 +179,10 @@ kbd_add_driver(keyboard_driver_t *driver)
 {
 	if (SLIST_NEXT(driver, link))
 		return (EINVAL);
+	if (driver->kbdsw->get_fkeystr == NULL)
+		driver->kbdsw->get_fkeystr = genkbd_get_fkeystr;
+	if (driver->kbdsw->diag == NULL)
+		driver->kbdsw->diag = genkbd_diag;
 	SLIST_INSERT_HEAD(&keyboard_drivers, driver, link);
 	return (0);
 }
@@ -1121,7 +1128,7 @@ fkey_change_ok(fkeytab_t *oldkey, fkeyarg_t *newkey, struct thread *td)
 #endif
 
 /* get a pointer to the string associated with the given function key */
-u_char *
+static u_char *
 genkbd_get_fkeystr(keyboard_t *kbd, int fkey, size_t *len)
 {
 	if (kbd == NULL)
@@ -1154,7 +1161,7 @@ get_kbd_type_name(int type)
 	return ("unknown");
 }
 
-void
+static void
 genkbd_diag(keyboard_t *kbd, int level)
 {
 	if (level > 0) {

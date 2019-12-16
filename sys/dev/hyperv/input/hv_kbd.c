@@ -462,9 +462,7 @@ static keyboard_switch_t hvkbdsw = {
 	.clear_state =	hvkbd_clear_state,
 	.get_state =	hvkbd_get_state,	/* not used */
 	.set_state =	hvkbd_set_state,	/* not used */
-	.get_fkeystr =	genkbd_get_fkeystr,
 	.poll =		hvkbd_poll,
-	.diag =		genkbd_diag,
 };
 
 KEYBOARD_DRIVER(hvkbd, hvkbdsw, hvkbd_configure);
