@@ -983,6 +983,8 @@ KEYBOARD_DRIVER(gpiokeys, gpiokeyssw, gpiokeys_configure);
 static int
 gpiokeys_driver_load(module_t mod, int what, void *arg)
 {
+
+#ifdef KLD_MODULE
 	switch (what) {
 	case MOD_LOAD:
 		kbd_add_driver(&gpiokeys_kbd_driver);
@@ -991,6 +993,7 @@ gpiokeys_driver_load(module_t mod, int what, void *arg)
 		kbd_delete_driver(&gpiokeys_kbd_driver);
 		break;
 	}
+#endif
 	return (0);
 }
 
