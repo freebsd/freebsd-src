@@ -214,9 +214,7 @@ keyboard_switch_t akbdsw = {
         .clear_state =	akbd_clear_state,
         .get_state =	akbd_get_state,
         .set_state =	akbd_set_state,
-        .get_fkeystr =	genkbd_get_fkeystr,
         .poll =		akbd_poll,
-        .diag =		genkbd_diag,
 };
 
 KEYBOARD_DRIVER(akbd, akbdsw, akbd_configure);
