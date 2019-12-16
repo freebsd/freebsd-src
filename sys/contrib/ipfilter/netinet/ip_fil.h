@@ -1840,7 +1840,7 @@ extern	int		ipf_matchicmpqueryreply __P((int, icmpinfo_t *,
 extern	u_32_t		ipf_newisn __P((fr_info_t *));
 extern	u_int		ipf_pcksum __P((fr_info_t *, int, u_int));
 #ifdef	USE_INET6
-extern	u_int		ipf_pcksum6 __P((fr_info_t *, ip6_t *,
+extern	u_int		ipf_pcksum6 __P((struct mbuf *, ip6_t *,
 						u_int32_t, u_int32_t));
 #endif
 extern	void		ipf_rule_expire __P((ipf_main_softc_t *));
