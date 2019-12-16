@@ -1369,7 +1369,7 @@ ukbd_attach(device_t dev)
 	sc->sc_flags |= UKBD_FLAG_ATTACHED;
 
 	if (bootverbose) {
-		genkbd_diag(kbd, bootverbose);
+		kbdd_diag(kbd, bootverbose);
 	}
 
 #ifdef USB_DEBUG
