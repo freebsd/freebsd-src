@@ -62,4 +62,6 @@ int	linux_kernver(struct thread *td);
 
 #define	linux_use26(t)		(linux_kernver(t) >= LINUX_KERNVER_2006000)
 
+extern int linux_preserve_vstatus;
+
 #endif /* _LINUX_MIB_H_ */
