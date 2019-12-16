@@ -107,4 +107,7 @@ struct edd_params_v4 {
 
 #define	EDD_DEVICE_PATH_KEY	0xbedd
 
+#define	EDD_QUERY_MAGIC		0x55aa
+#define	EDD_INSTALLED		0xaa55
+
 #endif /* !_EDD_H_ */
