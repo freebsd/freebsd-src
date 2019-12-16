@@ -850,11 +850,15 @@ akbd_modevent(module_t mod, int type, void *data)
 {
 	switch (type) {
 	case MOD_LOAD:
+#ifdef KLD_MODULE
 		kbd_add_driver(&akbd_kbd_driver);
+#endif
 		break;
 
 	case MOD_UNLOAD:
+#ifdef KLD_MODULE
 		kbd_delete_driver(&akbd_kbd_driver);
+#endif
 		break;
 
 	default:
