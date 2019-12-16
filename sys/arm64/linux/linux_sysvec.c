@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
+#include <compat/linux/linux_util.h>
 #include <compat/linux/linux_vdso.h>
 
 MODULE_VERSION(linux64elf, 1);
@@ -494,7 +495,7 @@ static Elf64_Brandinfo linux_glibc2brand = {
 	.brand		= ELFOSABI_LINUX,
 	.machine	= EM_AARCH64,
 	.compat_3_brand	= "Linux",
-	.emul_path	= "/compat/linux",
+	.emul_path	= linux_emul_path,
 	.interp_path	= "/lib64/ld-linux-x86-64.so.2",
 	.sysvec		= &elf_linux_sysvec,
 	.interp_newpath	= NULL,
