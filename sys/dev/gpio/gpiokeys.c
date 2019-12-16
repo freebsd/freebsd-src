@@ -432,7 +432,7 @@ gpiokeys_attach(device_t dev)
 #endif
 
 	if (bootverbose) {
-		genkbd_diag(kbd, 1);
+		kbdd_diag(kbd, 1);
 	}
 
 	total_keys = 0;
