@@ -363,16 +363,20 @@ while ((getline < srcfile) > 0) {
 		printc("\tVNASSERT(a->a_gen.a_desc == &" name "_desc, a->a_" args[0]",");
 		printc("\t    (\"Wrong a_desc in " name "(%p, %p)\", a->a_" args[0]", a));");
 		printc("\tVNASSERT(vop != NULL, a->a_" args[0]", (\"No "name"(%p, %p)\", a->a_" args[0]", a));")
-		printc("\tSDT_PROBE2(vfs, vop, " name ", entry, a->a_" args[0] ", a);\n");
-		for (i = 0; i < numargs; ++i)
-			add_debug_code(name, args[i], "Entry", "\t");
 		printc("\tKTR_START" ctrstr);
 		add_pre(name);
-		printc("\tif (vop->"name" != NULL)")
+		for (i = 0; i < numargs; ++i)
+			add_debug_code(name, args[i], "Entry", "\t");
+		printc("\tif (__predict_true(!SDT_PROBES_ENABLED() && vop->"name" != NULL)) {");
 		printc("\t\trc = vop->"name"(a);")
-		printc("\telse")
-		printc("\t\trc = vop->vop_bypass(&a->a_gen);")
-		printc("\tSDT_PROBE3(vfs, vop, " name ", return, a->a_" args[0] ", a, rc);\n");
+		printc("\t} else {")
+		printc("\t\tSDT_PROBE2(vfs, vop, " name ", entry, a->a_" args[0] ", a);");
+		printc("\t\tif (vop->"name" != NULL)")
+		printc("\t\t\trc = vop->"name"(a);")
+		printc("\t\telse")
+		printc("\t\t\trc = vop->vop_bypass(&a->a_gen);")
+		printc("\t\tSDT_PROBE3(vfs, vop, " name ", return, a->a_" args[0] ", a, rc);");
+		printc("\t}")
 		printc("\tif (rc == 0) {");
 		for (i = 0; i < numargs; ++i)
 			add_debug_code(name, args[i], "OK", "\t\t");
