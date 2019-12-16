@@ -1565,6 +1565,9 @@ cbb_read_ivar(device_t brdev, device_t child, int which, uintptr_t *result)
 	case PCIB_IVAR_BUS:
 		*result = sc->bus.sec;
 		return (0);
+	case EXCA_IVAR_SLOT:
+		*result = 0;
+		return (0);
 	}
 	return (ENOENT);
 }
@@ -1577,6 +1580,8 @@ cbb_write_ivar(device_t brdev, device_t child, int which, uintptr_t value)
 	case PCIB_IVAR_DOMAIN:
 		return (EINVAL);
 	case PCIB_IVAR_BUS:
+		return (EINVAL);
+	case EXCA_IVAR_SLOT:
 		return (EINVAL);
 	}
 	return (ENOENT);

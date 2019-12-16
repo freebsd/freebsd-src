@@ -151,4 +151,17 @@ exca_clrb(struct exca_softc *sc, int reg, uint8_t mask)
 	exca_putb(sc, reg, exca_getb(sc, reg) & ~mask);
 }
 
+enum {
+	EXCA_IVAR_SLOT = 100,
+};
+
+#define EXCA_ACCESSOR(A, B, T)						\
+static inline int							\
+exca_get_ ## A(device_t dev, T *t)					\
+{									\
+	return BUS_READ_IVAR(device_get_parent(dev), dev,		\
+	    EXCA_IVAR_ ## B, (uintptr_t *) t);			\
+}
+
+EXCA_ACCESSOR(slot,		SLOT,			uint32_t)
 #endif /* !_SYS_DEV_EXCA_EXCAVAR_H */
