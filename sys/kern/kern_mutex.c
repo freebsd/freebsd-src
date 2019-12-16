@@ -797,10 +797,9 @@ thread_lock_validate(struct mtx *m, int opts, const char *file, int line)
 	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_spin,
 	    ("thread_lock() of sleep mutex %s @ %s:%d",
 	    m->lock_object.lo_name, file, line));
-	if (mtx_owned(m))
-		KASSERT((m->lock_object.lo_flags & LO_RECURSABLE) != 0,
-		    ("thread_lock: recursed on non-recursive mutex %s @ %s:%d\n",
-		    m->lock_object.lo_name, file, line));
+	KASSERT((m->lock_object.lo_flags & LO_RECURSABLE) == 0,
+	    ("thread_lock: got a recursive mutex %s @ %s:%d\n",
+	    m->lock_object.lo_name, file, line));
 	WITNESS_CHECKORDER(&m->lock_object,
 	    opts | LOP_NEWORDER | LOP_EXCLUSIVE, file, line, NULL);
 }
@@ -818,7 +817,7 @@ _thread_lock(struct thread *td)
 #endif
 {
 	struct mtx *m;
-	uintptr_t tid, v;
+	uintptr_t tid;
 
 	tid = (uintptr_t)curthread;
 
@@ -827,19 +826,14 @@ _thread_lock(struct thread *td)
 	spinlock_enter();
 	m = td->td_lock;
 	thread_lock_validate(m, 0, file, line);
-	v = MTX_READ_VALUE(m);
-	if (__predict_true(v == MTX_UNOWNED)) {
-		if (__predict_false(!_mtx_obtain_lock(m, tid)))
-			goto slowpath_unlocked;
-	} else if (v == tid) {
-		m->mtx_recurse++;
-	} else
+	if (__predict_false(m == &blocked_lock))
+		goto slowpath_unlocked;
+	if (__predict_false(!_mtx_obtain_lock(m, tid)))
 		goto slowpath_unlocked;
 	if (__predict_true(m == td->td_lock)) {
 		WITNESS_LOCK(&m->lock_object, LOP_EXCLUSIVE, file, line);
 		return;
 	}
-	MPASS(m->mtx_recurse == 0);
 	_mtx_release_lock_quick(m);
 slowpath_unlocked:
 	spinlock_exit();
@@ -907,11 +901,7 @@ retry:
 					break;
 				continue;
 			}
-			if (v == tid) {
-				m->mtx_recurse++;
-				MPASS(m == td->td_lock);
-				break;
-			}
+			MPASS(v != tid);
 			lock_profile_obtain_lock_failed(&m->lock_object,
 			    &contested, &waittime);
 			/* Give interrupts a chance while we spin. */
@@ -932,7 +922,6 @@ retry:
 		}
 		if (m == td->td_lock)
 			break;
-		MPASS(m->mtx_recurse == 0);
 		_mtx_release_lock_quick(m);
 	}
 	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
@@ -946,9 +935,8 @@ retry:
 #ifdef KDTRACE_HOOKS
 	spin_time += lockstat_nsecs(&m->lock_object);
 #endif
-	if (m->mtx_recurse == 0)
-		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire, m,
-		    contested, waittime, file, line);
+	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire, m, contested,
+	    waittime, file, line);
 #ifdef KDTRACE_HOOKS
 	if (lda.spin_cnt != 0)
 		LOCKSTAT_RECORD1(thread__spin, m, spin_time);
