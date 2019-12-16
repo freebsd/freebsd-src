@@ -1516,12 +1516,17 @@ static callout_func_t	damediapoll;
 #define	DA_DEFAULT_SEND_ORDERED	1
 #endif
 
+#ifndef	DA_DEFAULT_MAX_DELETE
+#define	DA_DEFAULT_MAX_DELETE	(1 * 1024 * 1024 * 1024)	/* 1GB max trim by default */
+#endif
+
 static int da_poll_period = DA_DEFAULT_POLL_PERIOD;
 static int da_retry_count = DA_DEFAULT_RETRY;
 static int da_default_timeout = DA_DEFAULT_TIMEOUT;
 static sbintime_t da_default_softtimeout = DA_DEFAULT_SOFTTIMEOUT;
 static int da_send_ordered = DA_DEFAULT_SEND_ORDERED;
 static int da_disable_wp_detection = 0;
+static int64_t da_default_max_delete = DA_DEFAULT_MAX_DELETE;
 
 static SYSCTL_NODE(_kern_cam, OID_AUTO, da, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
@@ -1536,6 +1541,9 @@ SYSCTL_INT(_kern_cam_da, OID_AUTO, send_ordered, CTLFLAG_RWTUN,
 SYSCTL_INT(_kern_cam_da, OID_AUTO, disable_wp_detection, CTLFLAG_RWTUN,
            &da_disable_wp_detection, 0,
 	   "Disable detection of write-protected disks");
+SYSCTL_INT64(_kern_cam_da, OID_AUTO, default_max_delete, CTLFLAG_RWTUN,
+    &da_default_max_delete, 0,
+    "Default system wide maximum delete");
 
 SYSCTL_PROC(_kern_cam_da, OID_AUTO, default_softtimeout,
     CTLTYPE_UINT | CTLFLAG_RW, NULL, 0, dasysctlsofttimeout, "I",
@@ -2500,8 +2508,8 @@ dadeletemaxsize(struct da_softc *softc, da_delete_methods delete_method)
 		return 0;
 	}
 
-	return (off_t)softc->params.secsize *
-	    omin(sectors, softc->params.sectors);
+	return (off_t)MIN(da_default_max_delete, softc->params.secsize *
+	    omin(sectors, softc->params.sectors));
 }
 
 static void
