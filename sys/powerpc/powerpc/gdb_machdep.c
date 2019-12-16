@@ -48,6 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <gdb/gdb.h>
 #include <gdb/gdb_int.h>
 
+extern vm_offset_t __startkernel;
+
 void *
 gdb_cpu_getreg(int regnum, size_t *regsz)
 {
@@ -100,4 +102,29 @@ gdb_cpu_signal(int vector, int dummy __unused)
 		return (vector);
 	else
 		return (SIGEMT);
+}
+
+void
+gdb_cpu_do_offsets(void)
+{
+	/*
+	 * On PowerPC, .text starts at KERNBASE + SIZEOF_HEADERS and
+	 * text segment at KERNBASE - SIZEOF_HEADERS.
+	 * On PowerPC64, .text starts at KERNBASE and text segment at
+	 * KERNBASE - 0x100.
+	 * In both cases, the text segment offset is aligned to 64KB.
+	 *
+	 * The __startkernel variable holds the relocated KERNBASE offset.
+	 * Thus, as long as SIZEOF_HEADERS doesn't get bigger than 0x100
+	 * (which would lead to other issues), aligning __startkernel to
+	 * 64KB gives the text segment offset.
+	 *
+	 * TODO: Add DataSeg to response. On PowerPC64 all sections reside
+	 * in a single LOAD segment, but on PowerPC modifiable data reside
+	 * in a separate segment, that GDB should also relocate.
+	 */
+	gdb_tx_begin(0);
+	gdb_tx_str("TextSeg=");
+	gdb_tx_varhex(__startkernel & ~0xffff);
+	gdb_tx_end();
 }
