@@ -317,6 +317,13 @@ cbb_pci_attach(device_t brdev)
 		    rman_get_start(sc->base_res)));
 	}
 
+	/* attach children */
+	sc->cbdev = device_add_child(brdev, "cardbus", -1);
+	if (sc->cbdev == NULL)
+		DEVPRINTF((brdev, "WARNING: cannot add cardbus bus.\n"));
+	else if (device_probe_and_attach(sc->cbdev) != 0)
+		DEVPRINTF((brdev, "WARNING: cannot attach cardbus bus!\n"));
+
 	sc->bst = rman_get_bustag(sc->base_res);
 	sc->bsh = rman_get_bushandle(sc->base_res);
 	exca_init(&sc->exca, brdev, sc->bst, sc->bsh, CBB_EXCA_OFFSET);
@@ -372,19 +379,6 @@ cbb_pci_attach(device_t brdev)
 		pci_write_config(brdev, PCIR_SUBBUS_2, sc->bus.sub, 1);
 	}
 #endif
-
-	/* attach children */
-	sc->cbdev = device_add_child(brdev, "cardbus", -1);
-	if (sc->cbdev == NULL)
-		DEVPRINTF((brdev, "WARNING: cannot add cardbus bus.\n"));
-	else if (device_probe_and_attach(sc->cbdev) != 0)
-		DEVPRINTF((brdev, "WARNING: cannot attach cardbus bus!\n"));
-
-	sc->exca.pccarddev = device_add_child(brdev, "pccard", -1);
-	if (sc->exca.pccarddev == NULL)
-		DEVPRINTF((brdev, "WARNING: cannot add pccard bus.\n"));
-	else if (device_probe_and_attach(sc->exca.pccarddev) != 0)
-		DEVPRINTF((brdev, "WARNING: cannot attach pccard bus.\n"));
 
 	/* Map and establish the interrupt. */
 	rid = 0;
