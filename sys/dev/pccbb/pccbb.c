@@ -59,9 +59,6 @@
 
 /*
  * Driver for PCI to CardBus Bridge chips
- * and PCI to PCMCIA Bridge chips
- * and ISA to PCMCIA host adapters
- * and C Bus to PCMCIA host adapters
  *
  * References:
  *  TI Datasheets:
@@ -273,6 +270,8 @@ cbb_enable_func_intr(struct cbb_softc *sc)
 
 	reg = (exca_getb(&sc->exca, EXCA_INTR) & ~EXCA_INTR_IRQ_MASK) | 
 	    EXCA_INTR_IRQ_NONE;
+	PCI_MASK_CONFIG(sc->dev, CBBR_BRIDGECTRL,
+	    & ~CBBM_BRIDGECTRL_INTR_IREQ_ISA_EN, 2);
 	exca_putb(&sc->exca, EXCA_INTR, reg);
 }
 
