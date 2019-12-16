@@ -858,6 +858,10 @@ static void		adaresume(void *arg);
 #define	ADA_DEFAULT_WRITE_CACHE	1
 #endif
 
+#ifndef	ADA_DEFAULT_MAX_DELETE
+#define	ADA_DEFAULT_MAX_DELETE	(1 * 1024 * 1024 * 1024)	/* 1GB max trim by default */
+#endif
+
 #define	ADA_RA	(softc->read_ahead >= 0 ? \
 		 softc->read_ahead : ada_read_ahead)
 #define	ADA_WC	(softc->write_cache >= 0 ? \
@@ -878,6 +882,7 @@ static int ada_spindown_shutdown = ADA_DEFAULT_SPINDOWN_SHUTDOWN;
 static int ada_spindown_suspend = ADA_DEFAULT_SPINDOWN_SUSPEND;
 static int ada_read_ahead = ADA_DEFAULT_READ_AHEAD;
 static int ada_write_cache = ADA_DEFAULT_WRITE_CACHE;
+static int64_t ada_default_max_delete = ADA_DEFAULT_MAX_DELETE;
 
 static SYSCTL_NODE(_kern_cam, OID_AUTO, ada, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
@@ -895,6 +900,9 @@ SYSCTL_INT(_kern_cam_ada, OID_AUTO, read_ahead, CTLFLAG_RWTUN,
            &ada_read_ahead, 0, "Enable disk read-ahead");
 SYSCTL_INT(_kern_cam_ada, OID_AUTO, write_cache, CTLFLAG_RWTUN,
            &ada_write_cache, 0, "Enable disk write cache");
+SYSCTL_QUAD(_kern_cam_ada, OID_AUTO, default_max_delete, CTLFLAG_RWTUN,
+    &ada_default_max_delete, 0,
+    "Default system wide maximum delete");
 
 /*
  * ADA_ORDEREDTAG_INTERVAL determines how often, relative
@@ -3392,6 +3400,8 @@ adasetgeom(struct ada_softc *softc, struct ccb_getdev *cgd)
 		softc->disk->d_delmaxsize = 256 * softc->params.secsize;
 	} else
 		softc->disk->d_delmaxsize = maxio;
+	if (softc->disk->d_delmaxsize > ada_default_max_delete)
+		softc->disk->d_delmaxsize = ada_default_max_delete;
 	if ((softc->cpi.hba_misc & PIM_UNMAPPED) != 0) {
 		d_flags |= DISKFLAG_UNMAPPED_BIO;
 		softc->unmappedio = 1;
