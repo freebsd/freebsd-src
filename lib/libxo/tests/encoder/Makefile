@@ -12,7 +12,7 @@ SYMLINKS+=	${LIBDIR}/${SHLIB_NAME} /usr/lib/libxo/encoder/test.enc
 
 SRCS=		enc_test.c
 
-CFLAGS+=	-I${LIBXOSRC}/libxo
+CFLAGS+=	-I${LIBXOSRC}/libxo -I${.CURDIR:H:H}/libxo
 
 LIBADD=		xo
 
