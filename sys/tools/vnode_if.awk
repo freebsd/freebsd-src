@@ -323,6 +323,7 @@ while ((getline < srcfile) > 0) {
 	}
 
 	if (cfile) {
+		funcarr[name] = 1;
 		# Print out the vop_F_vp_offsets structure.  This all depends
 		# on naming conventions and nothing else.
 		printc("static int " name "_vp_offsets[] = {");
@@ -361,9 +362,6 @@ while ((getline < srcfile) > 0) {
 		printc("");
 		printc("\tVNASSERT(a->a_gen.a_desc == &" name "_desc, a->a_" args[0]",");
 		printc("\t    (\"Wrong a_desc in " name "(%p, %p)\", a->a_" args[0]", a));");
-		printc("\twhile(vop != NULL && \\");
-		printc("\t    vop->"name" == NULL && vop->vop_bypass == NULL)")
-		printc("\t\tvop = vop->vop_default;")
 		printc("\tVNASSERT(vop != NULL, a->a_" args[0]", (\"No "name"(%p, %p)\", a->a_" args[0]", a));")
 		printc("\tSDT_PROBE2(vfs, vop, " name ", entry, a->a_" args[0] ", a);\n");
 		for (i = 0; i < numargs; ++i)
@@ -422,9 +420,44 @@ while ((getline < srcfile) > 0) {
 		printc("};\n");
 	}
 }
- 
-if (pfile)
+
+if (cfile) {
+	printc("void");
+	printc("vfs_vector_op_register(struct vop_vector *orig_vop)");
+	printc("{");
+	printc("\tstruct vop_vector *vop;");
+	printc("");
+	printc("\tif (orig_vop->registered)");
+	printc("\t\tpanic(\"%s: vop_vector %p already registered\",")
+	printc("\t\t    __func__, orig_vop);");
+	printc("");
+	for (name in funcarr) {
+		printc("\tvop = orig_vop;");
+		printc("\twhile (vop != NULL && \\");
+		printc("\t    vop->"name" == NULL && vop->vop_bypass == NULL)")
+		printc("\t\tvop = vop->vop_default;")
+		printc("\tif (vop != NULL)");
+		printc("\t\torig_vop->"name" = vop->"name";");
+		printc("");
+	}
+	printc("\tvop = orig_vop;");
+	printc("\twhile (vop != NULL && vop->vop_bypass == NULL)")
+	printc("\t\tvop = vop->vop_default;")
+	printc("\tif (vop != NULL)");
+	printc("\t\torig_vop->vop_bypass = vop->vop_bypass;");
+	printc("");
+	printc("\torig_vop->registered = true;");
+	printc("}")
+}
+
+if (hfile) {
+	printh("void vfs_vector_op_register(struct vop_vector *orig_vop);");
+}
+
+if (pfile) {
+	printp("\tbool\tregistered;")
 	printp("};")
+}
  
 if (hfile)
 	close(hfile);

@@ -140,6 +140,7 @@ struct vop_vector ffs_vnodeops1 = {
 	.vop_write =		ffs_write,
 	.vop_vptofh =		ffs_vptofh,
 };
+VFS_VOP_VECTOR_REGISTER(ffs_vnodeops1);
 
 struct vop_vector ffs_fifoops1 = {
 	.vop_default =		&ufs_fifoops,
@@ -148,6 +149,7 @@ struct vop_vector ffs_fifoops1 = {
 	.vop_lock1 =		ffs_lock,
 	.vop_vptofh =		ffs_vptofh,
 };
+VFS_VOP_VECTOR_REGISTER(ffs_fifoops1);
 
 /* Global vfs data structures for ufs. */
 struct vop_vector ffs_vnodeops2 = {
@@ -168,6 +170,7 @@ struct vop_vector ffs_vnodeops2 = {
 	.vop_setextattr =	ffs_setextattr,
 	.vop_vptofh =		ffs_vptofh,
 };
+VFS_VOP_VECTOR_REGISTER(ffs_vnodeops2);
 
 struct vop_vector ffs_fifoops2 = {
 	.vop_default =		&ufs_fifoops,
@@ -184,6 +187,7 @@ struct vop_vector ffs_fifoops2 = {
 	.vop_setextattr =	ffs_setextattr,
 	.vop_vptofh =		ffs_vptofh,
 };
+VFS_VOP_VECTOR_REGISTER(ffs_fifoops2);
 
 /*
  * Synch an open file.

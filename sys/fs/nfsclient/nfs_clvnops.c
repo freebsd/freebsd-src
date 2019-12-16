@@ -200,6 +200,7 @@ static struct vop_vector newnfs_vnodeops_nosig = {
 	.vop_listextattr =	nfs_listextattr,
 	.vop_deleteextattr =	nfs_deleteextattr,
 };
+VFS_VOP_VECTOR_REGISTER(newnfs_vnodeops_nosig);
 
 static int
 nfs_vnodeops_bypass(struct vop_generic_args *a)
@@ -212,6 +213,7 @@ struct vop_vector newnfs_vnodeops = {
 	.vop_default =		&default_vnodeops,
 	.vop_bypass =		nfs_vnodeops_bypass,
 };
+VFS_VOP_VECTOR_REGISTER(newnfs_vnodeops);
 
 static struct vop_vector newnfs_fifoops_nosig = {
 	.vop_default =		&fifo_specops,
@@ -227,6 +229,7 @@ static struct vop_vector newnfs_fifoops_nosig = {
 	.vop_setattr =		nfs_setattr,
 	.vop_write =		nfsfifo_write,
 };
+VFS_VOP_VECTOR_REGISTER(newnfs_fifoops_nosig);
 
 static int
 nfs_fifoops_bypass(struct vop_generic_args *a)
@@ -239,6 +242,7 @@ struct vop_vector newnfs_fifoops = {
 	.vop_default =		&default_vnodeops,
 	.vop_bypass =		nfs_fifoops_bypass,
 };
+VFS_VOP_VECTOR_REGISTER(newnfs_fifoops);
 
 static int nfs_mknodrpc(struct vnode *dvp, struct vnode **vpp,
     struct componentname *cnp, struct vattr *vap);

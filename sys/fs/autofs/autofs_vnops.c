@@ -554,6 +554,7 @@ struct vop_vector autofs_vnodeops = {
 	.vop_write =		VOP_EOPNOTSUPP,
 	.vop_reclaim =		autofs_reclaim,
 };
+VFS_VOP_VECTOR_REGISTER(autofs_vnodeops);
 
 int
 autofs_node_new(struct autofs_node *parent, struct autofs_mount *amp,

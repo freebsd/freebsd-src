@@ -1558,6 +1558,10 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	int error __unused;
 
 	CTR3(KTR_VFS, "%s: mp %p with tag %s", __func__, mp, tag);
+
+	KASSERT(vops->registered,
+	    ("%s: not registered vector op %p\n", __func__, vops));
+
 	vp = NULL;
 	td = curthread;
 	if (td->td_vp_reserv > 0) {
@@ -4502,6 +4506,7 @@ static struct vop_vector sync_vnodeops = {
 	.vop_unlock =	vop_stdunlock,	/* unlock */
 	.vop_islocked =	vop_stdislocked,	/* islocked */
 };
+VFS_VOP_VECTOR_REGISTER(sync_vnodeops);
 
 /*
  * Create a new filesystem syncer vnode for the specified mount point.

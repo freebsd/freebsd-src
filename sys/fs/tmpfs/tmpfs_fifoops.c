@@ -75,3 +75,4 @@ struct vop_vector tmpfs_fifoop_entries = {
 	.vop_pathconf =                 tmpfs_pathconf,
 	.vop_print =			tmpfs_print,
 };
+VFS_VOP_VECTOR_REGISTER(tmpfs_fifoop_entries);

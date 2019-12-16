@@ -102,6 +102,7 @@ struct vop_vector fifo_specops = {
 	.vop_symlink =		VOP_PANIC,
 	.vop_write =		VOP_PANIC,
 };
+VFS_VOP_VECTOR_REGISTER(fifo_specops);
 
 /*
  * Dispose of fifo resources.
