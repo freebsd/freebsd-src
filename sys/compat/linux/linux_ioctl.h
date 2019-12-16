@@ -435,6 +435,7 @@
 #define	LINUX_VWERASE		14
 #define	LINUX_VLNEXT		15
 #define	LINUX_VEOL2		16
+#define	LINUX_VSTATUS		18
 #define	LINUX_NCCS		19
 
 #define	LINUX_POSIX_VDISABLE	'\0'
