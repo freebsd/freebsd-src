@@ -240,7 +240,7 @@ PROGS+= test_09
 PROGS+= test_10
 PROGS+= test_11
 
-CFLAGS+=	-I${LIBXOSRC}/libxo -I${.CURDIR:H}
+CFLAGS+=	-I${LIBXOSRC}/libxo -I${.CURDIR:H}/libxo
 
 LIBADD=		xo util
 

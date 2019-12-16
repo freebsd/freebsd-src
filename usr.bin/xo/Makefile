@@ -14,7 +14,7 @@ MAN=	xo.1
 CFLAGS+=-I${LIBXOSRC}/libxo
 
 # XXX For xo_config.h
-CFLAGS+=-I${SRCTOP}/lib/libxo
+CFLAGS+=-I${SRCTOP}/lib/libxo/libxo
 
 LIBADD=	xo util
 
