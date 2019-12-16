@@ -1423,11 +1423,15 @@ kbdmux_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
+#ifdef KLD_MODULE
 		if ((error = kbd_add_driver(&kbdmux_kbd_driver)) != 0)
 			break;
+#endif
 
 		if ((sw = kbd_get_switch(KEYBOARD_NAME)) == NULL) {
+#ifdef KLD_MODULE
 			kbd_delete_driver(&kbdmux_kbd_driver);
+#endif
 			error = ENXIO;
 			break;
 		}
@@ -1436,14 +1440,18 @@ kbdmux_modevent(module_t mod, int type, void *data)
 
 		if ((error = (*sw->probe)(0, NULL, 0)) != 0 ||
 		    (error = (*sw->init)(0, &kbd, NULL, 0)) != 0) {
+#ifdef KLD_MODULE
 			kbd_delete_driver(&kbdmux_kbd_driver);
+#endif
 			break;
 		}
 
 #ifdef KBD_INSTALL_CDEV
 		if ((error = kbd_attach(kbd)) != 0) {
 			(*sw->term)(kbd);
+#ifdef KLD_MODULE
 			kbd_delete_driver(&kbdmux_kbd_driver);
+#endif
 			break;
 		}
 #endif
@@ -1454,7 +1462,9 @@ kbdmux_modevent(module_t mod, int type, void *data)
 			kbd_detach(kbd);
 #endif
 			(*sw->term)(kbd);
+#ifdef KLD_MODULE
 			kbd_delete_driver(&kbdmux_kbd_driver);
+#endif
 			break;
 		}
 		break;
@@ -1470,7 +1480,9 @@ kbdmux_modevent(module_t mod, int type, void *data)
 			kbd_detach(kbd);
 #endif
 			(*sw->term)(kbd);
+#ifdef KLD_MODULE
 			kbd_delete_driver(&kbdmux_kbd_driver);
+#endif
 		}
 		error = 0;
 		break;
