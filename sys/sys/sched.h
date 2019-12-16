@@ -134,7 +134,6 @@ sched_userret(struct thread *td)
  * Threads are moved on and off of run queues
  */
 void	sched_add(struct thread *td, int flags);
-void	sched_clock(struct thread *td, int ticks);
 struct thread *sched_choose(void);
 void	sched_clock(struct thread *td, int cnt);
 void	sched_idletd(void *);
