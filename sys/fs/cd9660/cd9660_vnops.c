@@ -906,6 +906,7 @@ struct vop_vector cd9660_vnodeops = {
 	.vop_vptofh =		cd9660_vptofh,
 	.vop_getpages =		cd9660_getpages,
 };
+VFS_VOP_VECTOR_REGISTER(cd9660_vnodeops);
 
 /*
  * Special device vnode ops
@@ -920,3 +921,4 @@ struct vop_vector cd9660_fifoops = {
 	.vop_setattr =		cd9660_setattr,
 	.vop_vptofh =		cd9660_vptofh,
 };
+VFS_VOP_VECTOR_REGISTER(cd9660_fifoops);

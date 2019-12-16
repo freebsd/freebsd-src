@@ -943,3 +943,4 @@ struct vop_vector null_vnodeops = {
 	.vop_vptofh =		null_vptofh,
 	.vop_add_writecount =	null_add_writecount,
 };
+VFS_VOP_VECTOR_REGISTER(null_vnodeops);

@@ -2690,6 +2690,7 @@ static struct vop_vector mqfs_vnodeops = {
 	.vop_mkdir		= VOP_EOPNOTSUPP,
 	.vop_rmdir		= VOP_EOPNOTSUPP
 };
+VFS_VOP_VECTOR_REGISTER(mqfs_vnodeops);
 
 static struct vfsops mqfs_vfsops = {
 	.vfs_init 		= mqfs_init,

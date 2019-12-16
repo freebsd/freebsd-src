@@ -174,6 +174,7 @@ struct vop_vector fuse_fifoops = {
 	.vop_write =		VOP_PANIC,
 	.vop_vptofh =		fuse_vnop_vptofh,
 };
+VFS_VOP_VECTOR_REGISTER(fuse_fifoops);
 
 struct vop_vector fuse_vnops = {
 	.vop_allocate =	VOP_EINVAL,
@@ -223,6 +224,7 @@ struct vop_vector fuse_vnops = {
 	.vop_print = fuse_vnop_print,
 	.vop_vptofh = fuse_vnop_vptofh,
 };
+VFS_VOP_VECTOR_REGISTER(fuse_vnops);
 
 uma_zone_t fuse_pbuf_zone;
 

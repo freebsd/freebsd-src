@@ -1962,3 +1962,4 @@ struct vop_vector msdosfs_vnodeops = {
 	.vop_write =		msdosfs_write,
 	.vop_vptofh =		msdosfs_vptofh,
 };
+VFS_VOP_VECTOR_REGISTER(msdosfs_vnodeops);

@@ -2556,3 +2556,4 @@ struct vop_vector unionfs_vnodeops = {
 	.vop_vptofh =		unionfs_vptofh,
 	.vop_add_writecount =	unionfs_add_writecount,
 };
+VFS_VOP_VECTOR_REGISTER(unionfs_vnodeops);

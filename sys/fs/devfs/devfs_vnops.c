@@ -1928,6 +1928,7 @@ static struct vop_vector devfs_vnodeops = {
 	.vop_symlink =		devfs_symlink,
 	.vop_vptocnp =		devfs_vptocnp,
 };
+VFS_VOP_VECTOR_REGISTER(devfs_vnodeops);
 
 /* Vops for VCHR vnodes in /dev. */
 static struct vop_vector devfs_specops = {
@@ -1965,6 +1966,7 @@ static struct vop_vector devfs_specops = {
 	.vop_vptocnp =		devfs_vptocnp,
 	.vop_write =		dead_write,
 };
+VFS_VOP_VECTOR_REGISTER(devfs_specops);
 
 /*
  * Our calling convention to the device drivers used to be that we passed
