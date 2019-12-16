@@ -516,9 +516,9 @@ spinlock_enter(void)
 		intr = intr_disable();
 		td->td_md.md_spinlock_count = 1;
 		td->td_md.md_saved_intr = intr;
+		critical_enter();
 	} else
 		td->td_md.md_spinlock_count++;
-	critical_enter();
 }
 
 void
@@ -528,11 +528,12 @@ spinlock_exit(void)
 	register_t intr;
 
 	td = curthread;
-	critical_exit();
 	intr = td->td_md.md_saved_intr;
 	td->td_md.md_spinlock_count--;
-	if (td->td_md.md_spinlock_count == 0)
+	if (td->td_md.md_spinlock_count == 0) {
+		critical_exit();
 		intr_restore(intr);
+	}
 }
 
 /*

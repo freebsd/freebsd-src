@@ -2679,9 +2679,9 @@ spinlock_enter(void)
 		flags = intr_disable();
 		td->td_md.md_spinlock_count = 1;
 		td->td_md.md_saved_flags = flags;
+		critical_enter();
 	} else
 		td->td_md.md_spinlock_count++;
-	critical_enter();
 }
 
 void
@@ -2691,11 +2691,12 @@ spinlock_exit(void)
 	register_t flags;
 
 	td = curthread;
-	critical_exit();
 	flags = td->td_md.md_saved_flags;
 	td->td_md.md_spinlock_count--;
-	if (td->td_md.md_spinlock_count == 0)
+	if (td->td_md.md_spinlock_count == 0) {
+		critical_exit();
 		intr_restore(flags);
+	}
 }
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
