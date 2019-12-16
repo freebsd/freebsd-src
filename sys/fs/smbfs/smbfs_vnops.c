@@ -114,6 +114,7 @@ struct vop_vector smbfs_vnodeops = {
 	.vop_symlink =		smbfs_symlink,
 	.vop_write =		smbfs_write,
 };
+VFS_VOP_VECTOR_REGISTER(smbfs_vnodeops);
 
 static int
 smbfs_access(ap)

@@ -5995,6 +5995,7 @@ struct vop_vector zfs_vnodeops = {
 	.vop_unlock =		vop_unlock,
 	.vop_islocked =		vop_islocked,
 };
+VFS_VOP_VECTOR_REGISTER(zfs_vnodeops);
 
 struct vop_vector zfs_fifoops = {
 	.vop_default =		&fifo_specops,
@@ -6012,6 +6013,7 @@ struct vop_vector zfs_fifoops = {
 	.vop_setacl =		zfs_freebsd_setacl,
 	.vop_aclcheck =		zfs_freebsd_aclcheck,
 };
+VFS_VOP_VECTOR_REGISTER(zfs_fifoops);
 
 /*
  * special share hidden files vnode operations template
@@ -6024,3 +6026,4 @@ struct vop_vector zfs_shareops = {
 	.vop_fid =		zfs_freebsd_fid,
 	.vop_pathconf =		zfs_freebsd_pathconf,
 };
+VFS_VOP_VECTOR_REGISTER(zfs_shareops);

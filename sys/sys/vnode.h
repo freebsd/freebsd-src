@@ -955,6 +955,14 @@ int vn_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 
 void vn_fsid(struct vnode *vp, struct vattr *va);
 
+#include <sys/kernel.h>
+
+#define VFS_VOP_VECTOR_REGISTER(vnodeops) \
+	SYSINIT(vfs_vector_##vnodeops##_f, SI_SUB_VFS, SI_ORDER_ANY, \
+	    vfs_vector_op_register, &vnodeops)
+
+void	vfs_vector_op_register(struct vop_vector *vop);
+
 #endif /* _KERNEL */
 
 #endif /* !_SYS_VNODE_H_ */
