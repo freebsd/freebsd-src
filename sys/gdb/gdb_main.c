@@ -769,6 +769,10 @@ gdb_trap(int type, int code)
 				do_qXfer();
 			} else if (gdb_rx_equal("Search:memory:")) {
 				gdb_do_mem_search();
+#ifdef __powerpc__
+			} else if (gdb_rx_equal("Offsets")) {
+				gdb_cpu_do_offsets();
+#endif
 			} else if (!gdb_cpu_query())
 				gdb_tx_empty();
 			break;
