@@ -500,6 +500,8 @@ bsd_to_linux_termios(struct termios *bios, struct linux_termios *lios)
 	lios->c_cc[LINUX_VDISCARD] = bios->c_cc[VDISCARD];
 	lios->c_cc[LINUX_VWERASE] = bios->c_cc[VWERASE];
 	lios->c_cc[LINUX_VLNEXT] = bios->c_cc[VLNEXT];
+	if (linux_preserve_vstatus)
+		lios->c_cc[LINUX_VSTATUS] = bios->c_cc[VSTATUS];
 
 	for (i=0; i<LINUX_NCCS; i++) {
 		if (i != LINUX_VMIN && i != LINUX_VTIME &&
@@ -614,6 +616,8 @@ linux_to_bsd_termios(struct linux_termios *lios, struct termios *bios)
 	bios->c_cc[VDISCARD] = lios->c_cc[LINUX_VDISCARD];
 	bios->c_cc[VWERASE] = lios->c_cc[LINUX_VWERASE];
 	bios->c_cc[VLNEXT] = lios->c_cc[LINUX_VLNEXT];
+	if (linux_preserve_vstatus)
+		bios->c_cc[VSTATUS] = lios->c_cc[LINUX_VSTATUS];
 
 	for (i=0; i<NCCS; i++) {
 		if (i != VMIN && i != VTIME &&
