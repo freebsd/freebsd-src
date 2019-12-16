@@ -53,11 +53,10 @@ struct cbb_reslist {
 };
 
 #define	CBB_AUTO_OPEN_SMALLHOLE 0x100
-#define CBB_NSLOTS		4
 
 struct cbb_softc {
 	device_t	dev;
-	struct exca_softc exca[CBB_NSLOTS];
+	struct exca_softc exca;
 	struct		resource *base_res;
 	struct		resource *irq_res;
 	void		*intrhand;

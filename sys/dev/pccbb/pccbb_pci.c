@@ -294,7 +294,6 @@ cbb_pci_attach(device_t brdev)
 	sc->chipset = cbb_chipset(pci_get_devid(brdev), NULL);
 	sc->dev = brdev;
 	sc->cbdev = NULL;
-	sc->exca[0].pccarddev = NULL;
 	sc->domain = pci_get_domain(brdev);
 	sc->pribus = pcib_get_bus(parent);
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
@@ -320,9 +319,9 @@ cbb_pci_attach(device_t brdev)
 
 	sc->bst = rman_get_bustag(sc->base_res);
 	sc->bsh = rman_get_bushandle(sc->base_res);
-	exca_init(&sc->exca[0], brdev, sc->bst, sc->bsh, CBB_EXCA_OFFSET);
-	sc->exca[0].flags |= EXCA_HAS_MEMREG_WIN;
-	sc->exca[0].chipset = EXCA_CARDBUS;
+	exca_init(&sc->exca, brdev, sc->bst, sc->bsh, CBB_EXCA_OFFSET);
+	sc->exca.flags |= EXCA_HAS_MEMREG_WIN;
+	sc->exca.chipset = EXCA_CARDBUS;
 	sc->chipinit = cbb_chipinit;
 	sc->chipinit(sc);
 
@@ -381,10 +380,10 @@ cbb_pci_attach(device_t brdev)
 	else if (device_probe_and_attach(sc->cbdev) != 0)
 		DEVPRINTF((brdev, "WARNING: cannot attach cardbus bus!\n"));
 
-	sc->exca[0].pccarddev = device_add_child(brdev, "pccard", -1);
-	if (sc->exca[0].pccarddev == NULL)
+	sc->exca.pccarddev = device_add_child(brdev, "pccard", -1);
+	if (sc->exca.pccarddev == NULL)
 		DEVPRINTF((brdev, "WARNING: cannot add pccard bus.\n"));
-	else if (device_probe_and_attach(sc->exca[0].pccarddev) != 0)
+	else if (device_probe_and_attach(sc->exca.pccarddev) != 0)
 		DEVPRINTF((brdev, "WARNING: cannot attach pccard bus.\n"));
 
 	/* Map and establish the interrupt. */
@@ -403,7 +402,7 @@ cbb_pci_attach(device_t brdev)
 	}
 
 	/* reset 16-bit pcmcia bus */
-	exca_clrb(&sc->exca[0], EXCA_INTR, EXCA_INTR_RESET);
+	exca_clrb(&sc->exca, EXCA_INTR, EXCA_INTR_RESET);
 
 	/* turn off power */
 	cbb_power(brdev, CARD_OFF);
@@ -580,10 +579,10 @@ cbb_chipinit(struct cbb_softc *sc)
 		 * still be correctly generated if NO ISA IRQ is
 		 * selected (ExCA regs 03h or 05h are cleared).
 		 */
-		reg = exca_getb(&sc->exca[0], EXCA_O2MICRO_CTRL_C);
+		reg = exca_getb(&sc->exca, EXCA_O2MICRO_CTRL_C);
 		reg = (reg & 0x0f) |
 		    EXCA_O2CC_IREQ_INTC | EXCA_O2CC_STSCHG_INTC;
-		exca_putb(&sc->exca[0], EXCA_O2MICRO_CTRL_C, reg);
+		exca_putb(&sc->exca, EXCA_O2MICRO_CTRL_C, reg);
 		break;
 	case CB_TOPIC97:
 		/*
@@ -601,7 +600,7 @@ cbb_chipinit(struct cbb_softc *sc)
 		 * ToPIC97, 100
 		 * Need to assert support for low voltage cards
 		 */
-		exca_setb(&sc->exca[0], EXCA_TOPIC97_CTRL,
+		exca_setb(&sc->exca, EXCA_TOPIC97_CTRL,
 		    EXCA_TOPIC97_CTRL_LV_MASK);
 		goto topic_common;
 	case CB_TOPIC95:
@@ -644,8 +643,8 @@ cbb_chipinit(struct cbb_softc *sc)
 	 * INTR_ENABLE and the other is to set CSC to 0.  Since both
 	 * methods are mutually compatible, we do both.
 	 */
-	exca_putb(&sc->exca[0], EXCA_INTR, EXCA_INTR_ENABLE);
-	exca_putb(&sc->exca[0], EXCA_CSC_INTR, 0);
+	exca_putb(&sc->exca, EXCA_INTR, EXCA_INTR_ENABLE);
+	exca_putb(&sc->exca, EXCA_CSC_INTR, 0);
 
 	cbb_disable_func_intr(sc);
 
@@ -684,7 +683,7 @@ cbb_pci_shutdown(device_t brdev)
 	 * down the socket.
 	 */
 	PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL, |CBBM_BRIDGECTRL_RESET, 2);
-	exca_clrb(&sc->exca[0], EXCA_INTR, EXCA_INTR_RESET);
+	exca_clrb(&sc->exca, EXCA_INTR, EXCA_INTR_RESET);
 	cbb_set(sc, CBB_SOCKET_MASK, 0);
 	cbb_set(sc, CBB_SOCKET_EVENT, 0xffffffff);
 	cbb_power(brdev, CARD_OFF);
@@ -693,7 +692,7 @@ cbb_pci_shutdown(device_t brdev)
 	 * For paranoia, turn off all address decoding.  Really not needed,
 	 * it seems, but it can't hurt
 	 */
-	exca_putb(&sc->exca[0], EXCA_ADDRWIN_ENABLE, 0);
+	exca_putb(&sc->exca, EXCA_ADDRWIN_ENABLE, 0);
 	pci_write_config(brdev, CBBR_MEMBASE0, 0, 4);
 	pci_write_config(brdev, CBBR_MEMLIMIT0, 0, 4);
 	pci_write_config(brdev, CBBR_MEMBASE1, 0, 4);
@@ -733,7 +732,7 @@ cbb_pci_filt(void *arg)
 	 * in one place and a double wakeup would be benign there.
 	 */
 	if (sc->flags & CBB_16BIT_CARD) {
-		csc = exca_getb(&sc->exca[0], EXCA_CSC);
+		csc = exca_getb(&sc->exca, EXCA_CSC);
 		if (csc & EXCA_CSC_READY) {
 			atomic_add_int(&sc->powerintr, 1);
 			wakeup((void *)&sc->powerintr);
