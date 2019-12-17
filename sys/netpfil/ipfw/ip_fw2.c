@@ -1443,7 +1443,15 @@ do {								\
 
 #define	PULLUP_LEN(_len, p, T)	_PULLUP_LOCKED(_len, p, T, )
 #define	PULLUP_LEN_LOCKED(_len, p, T)	\
-    _PULLUP_LOCKED(_len, p, T, IPFW_PF_RUNLOCK(chain))
+    _PULLUP_LOCKED(_len, p, T, IPFW_PF_RUNLOCK(chain));	\
+    UPDATE_POINTERS()
+/*
+ * In case pointers got stale after pullups, update them.
+ */
+#define	UPDATE_POINTERS()			\
+do {						\
+	ip = mtod(m, struct ip *);		\
+} while (0)
 
 	/*
 	 * if we have an ether header,
