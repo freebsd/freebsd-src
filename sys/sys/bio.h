@@ -53,6 +53,7 @@
 #define BIO_CMD1	0x07	/* Available for local hacks */
 #define BIO_CMD2	0x08	/* Available for local hacks */
 #define BIO_ZONE	0x09	/* Zone command */
+#define BIO_SPEEDUP	0x0a	/* Upper layers face shortage */
 
 /* bio_flags */
 #define BIO_ERROR	0x01	/* An error occurred processing this bio. */
@@ -69,6 +70,9 @@
 
 #define	PRINT_BIO_FLAGS "\20\7vlist\6transient_mapping\5unmapped" \
 	"\4ordered\3onqueue\2done\1error"
+
+#define BIO_SPEEDUP_WRITE	0x4000	/* Resource shortage at upper layers */
+#define BIO_SPEEDUP_TRIM	0x8000	/* Resource shortage at upper layers */
 
 #ifdef _KERNEL
 struct disk;
