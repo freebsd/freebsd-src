@@ -3343,8 +3343,7 @@ softdep_synchronize(bp, ump, caller1)
 	bp->bio_length = 0;
 	bp->bio_done = softdep_synchronize_completed;
 	bp->bio_caller1 = caller1;
-	g_io_request(bp,
-	    (struct g_consumer *)ump->um_devvp->v_bufobj.bo_private);
+	g_io_request(bp, ump->um_cp);
 }
 
 /*
@@ -13353,6 +13352,7 @@ softdep_request_cleanup(fs, vp, cred, resource)
 	struct ufsmount *ump;
 	struct mount *mp;
 	long starttime;
+	size_t resid;
 	ufs2_daddr_t needed;
 	int error, failed_vnode;
 
@@ -13428,6 +13428,10 @@ softdep_request_cleanup(fs, vp, cred, resource)
 	}
 	starttime = time_second;
 retry:
+	if (resource == FLUSH_BLOCKS_WAIT &&
+	    fs->fs_cstotal.cs_nbfree <= needed)
+		g_io_speedup(needed * fs->fs_bsize, BIO_SPEEDUP_TRIM, &resid,
+		    ump->um_cp);
 	if ((resource == FLUSH_BLOCKS_WAIT && ump->softdep_on_worklist > 0 &&
 	    fs->fs_cstotal.cs_nbfree <= needed) ||
 	    (resource == FLUSH_INODES_WAIT && fs->fs_pendinginodes > 0 &&
@@ -13740,6 +13744,15 @@ static void
 check_clear_deps(mp)
 	struct mount *mp;
 {
+	size_t resid;
+
+	/*
+	 * Tell the lower layers that any TRIM or WRITE transactions
+	 * that have been delayed for performance reasons should
+	 * proceed to help alleviate the shortage faster.
+	 */
+	g_io_speedup(0, BIO_SPEEDUP_TRIM | BIO_SPEEDUP_WRITE, &resid,
+	    VFSTOUFS(mp)->um_cp);
 
 	/*
 	 * If we are suspended, it may be because of our using
@@ -13747,6 +13760,7 @@ check_clear_deps(mp)
 	 */
 	if (MOUNTEDSUJ(mp) && VFSTOUFS(mp)->softdep_jblocks->jb_suspended)
 		clear_inodedeps(mp);
+
 	/*
 	 * General requests for cleanup of backed up dependencies
 	 */
