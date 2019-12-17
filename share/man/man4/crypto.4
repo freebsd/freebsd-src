@@ -78,7 +78,7 @@
 The
 .Nm
 driver gives user-mode applications access to hardware-accelerated
-cryptographic transforms, as implemented by the
+cryptographic transforms as implemented by the
 .Xr crypto 9
 in-kernel interface.
 .Pp
@@ -87,15 +87,15 @@ The
 special device provides an
 .Xr ioctl 2
 based interface.
-User-mode applications should open the special device,
+User-mode applications open the special device and
 then issue
 .Xr ioctl 2
 calls on the descriptor.
 User-mode access to
 .Pa /dev/crypto
-is controlled by three
+is controlled by two
 .Xr sysctl 8
-variables,
+variables:
 .Ic kern.userasymcrypto
 and
 .Ic kern.cryptodevallowsoft .
@@ -103,8 +103,8 @@ and
 The
 .Nm
 device provides two distinct modes of operation: one mode for
-symmetric-keyed cryptographic requests, and a second mode for
-both asymmetric-key (public-key/private-key) requests, and for
+symmetric-keyed cryptographic requests and digests, and a second mode for
+both asymmetric-key (public-key/private-key) requests and
 modular arithmetic (for Diffie-Hellman key exchange and other
 cryptographic protocols).
 The two modes are described separately below.
@@ -113,12 +113,22 @@ Regardless of whether symmetric-key or asymmetric-key operations are
 to be performed, use of the device requires a basic series of steps:
 .Bl -enum
 .It
-Open a file descriptor for the device.
-See
-.Xr open 2 .
+Open the
+.Pa /dev/crypto
+device.
 .It
-If any symmetric operation will be performed,
-create one session, with
+Create a new cryptography file descriptor via
+.Dv CRIOGET
+to use for all subsequent
+.Xr ioctl 2
+commands.
+.It
+Close the
+.Pa /dev/crypto
+device.
+.It
+If any symmetric-keyed cryptographic or digest operations will be performed,
+create a session with
 .Dv CIOCGSESSION .
 Most applications will require at least one symmetric session.
 Since cipher and MAC keys are tied to sessions, many
@@ -134,11 +144,13 @@ or
 .Dv CIOCKEY
 (asymmetric).
 .It
-Destroy one session with
+Optionally destroy a session with
 .Dv CIOCFSESSION .
 .It
-Close the device with
+Close the cryptography file descriptor with
 .Xr close 2 .
+This will automatically close any remaining sessions associated with the
+file desriptor.
 .El
 .Sh SYMMETRIC-KEY OPERATION
 The symmetric-key operation mode provides a context-based API
@@ -196,9 +208,9 @@ struct session_op {
     u_int32_t mac;	/* e.g. CRYPTO_MD5_HMAC */
 
     u_int32_t keylen;	/* cipher key */
-    void * key;
+    const void *key;
     int mackeylen;	/* mac key */
-    void * mackey;
+    const void *mackey;
 
     u_int32_t ses;	/* returns: ses # */
 };
@@ -241,12 +253,36 @@ and the key value in the octets addressed by
 .Fa sessp-\*[Gt]mackeylen .
 .\"
 .Pp
-Support for a specific combination of fused privacy  and
+Support for a specific combination of fused privacy and
 integrity-check algorithms depends on whether the underlying
 hardware supports that combination.
 Not all combinations are supported
 by all hardware, even if the hardware supports each operation as a
 stand-alone non-fused operation.
+.It Dv CIOCGSESSION2 Fa struct session2_op *sessp
+.Bd -literal
+struct session2_op {
+    u_int32_t cipher;	/* e.g. CRYPTO_DES_CBC */
+    u_int32_t mac;	/* e.g. CRYPTO_MD5_HMAC */
+
+    u_int32_t keylen;	/* cipher key */
+    const void *key;
+    int mackeylen;	/* mac key */
+    const void *mackey;
+
+    u_int32_t ses;	/* returns: ses # */
+    int	crid;		/* driver id + flags (rw) */
+    int	pad[4];		/* for future expansion */
+};
+
+.Ed
+This request is similar to CIOGSESSION except that
+.Fa sessp-\*[Gt]crid
+requests either a specific crypto device or a class of devices (software vs
+hardware).
+The
+.Fa sessp-\*[Gt]pad
+field must be initialized to zero.
 .It Dv CIOCCRYPT Fa struct crypt_op *cr_op
 .Bd -literal
 struct crypt_op {
@@ -261,9 +297,6 @@ struct crypt_op {
 
 .Ed
 Request a symmetric-key (or hash) operation.
-The file descriptor argument to
-.Xr ioctl 2
-must have been bound to a valid session.
 To encrypt, set
 .Fa cr_op-\*[Gt]op
 to
@@ -315,21 +348,8 @@ but provides additional data in
 .Fa cr_aead-\*[Gt]aad
 to include in the authentication mode.
 .It Dv CIOCFSESSION Fa u_int32_t ses_id
-Destroys the /dev/crypto session associated with the file-descriptor
-argument.
-.It Dv CIOCNFSESSION Fa struct crypt_sfop *sfop ;
-.Bd -literal
-struct crypt_sfop {
-    size_t count;
-    u_int32_t *sesid;
-};
-
-.Ed
-Destroys the
-.Fa sfop-\*[Gt]count
-sessions specified by the
-.Fa sfop
-array of session identifiers.
+Destroys the session identified by
+.Fa ses_id .
 .El
 .\"
 .Sh ASYMMETRIC-KEY OPERATION
@@ -435,8 +455,10 @@ algorithm, you must supply a suitably-sized buffer.
 .Pp
 The scheme for passing arguments for asymmetric requests is baroque.
 .Pp
-The naming inconsistency between
 .Dv CRIOGET
-and the various
+should not exist.
+It should be possible to use the
 .Dv CIOC Ns \&*
-names is an unfortunate historical artifact.
+commands directly on a
+.Pa /dev/crypto
+file descriptor.
