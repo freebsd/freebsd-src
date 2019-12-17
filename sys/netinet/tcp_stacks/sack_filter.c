@@ -25,11 +25,16 @@
  */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+#ifndef _KERNEL
+#define _WANT_TCPCB 1
+#endif
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
+#ifdef _KERNEL
 #include <sys/mbuf.h>
 #include <sys/sockopt.h>
+#endif
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_seq.h>

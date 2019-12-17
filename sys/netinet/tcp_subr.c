@@ -138,6 +138,58 @@ VNET_DEFINE(int, tcp_mssdflt) = TCP_MSS;
 VNET_DEFINE(int, tcp_v6mssdflt) = TCP6_MSS;
 #endif
 
+#ifdef NETFLIX_EXP_DETECTION
+/*  Sack attack detection thresholds and such */
+SYSCTL_NODE(_net_inet_tcp, OID_AUTO, sack_attack, CTLFLAG_RW, 0,
+    "Sack Attack detection thresholds");
+int32_t tcp_force_detection = 0;
+SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, force_detection,
+    CTLFLAG_RW,
+    &tcp_force_detection, 0,
+    "Do we force detection even if the INP has it off?");
+int32_t tcp_sack_to_ack_thresh = 700;	/* 70 % */
+SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, sack_to_ack_thresh,
+    CTLFLAG_RW,
+    &tcp_sack_to_ack_thresh, 700,
+    "Percentage of sacks to acks we must see above (10.1 percent is 101)?");
+int32_t tcp_sack_to_move_thresh = 600;	/* 60 % */
+SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, move_thresh,
+    CTLFLAG_RW,
+    &tcp_sack_to_move_thresh, 600,
+    "Percentage of sack moves we must see above (10.1 percent is 101)");
+int32_t tcp_restoral_thresh = 650;	/* 65 % (sack:2:ack -5%) */
+SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, restore_thresh,
+    CTLFLAG_RW,
+    &tcp_restoral_thresh, 550,
+    "Percentage of sack to ack percentage we must see below to restore(10.1 percent is 101)");
+int32_t tcp_sad_decay_val = 800;
+SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, decay_per,
+    CTLFLAG_RW,
+    &tcp_sad_decay_val, 800,
+    "The decay percentage (10.1 percent equals 101 )");
+int32_t tcp_map_minimum = 500;
+SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, nummaps,
+    CTLFLAG_RW,
+    &tcp_map_minimum, 500,
+    "Number of Map enteries before we start detection");
+int32_t tcp_attack_on_turns_on_logging = 0;
+SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, attacks_logged,
+    CTLFLAG_RW,
+    &tcp_attack_on_turns_on_logging, 0,
+   "When we have a positive hit on attack, do we turn on logging?");
+int32_t tcp_sad_pacing_interval = 2000;
+SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, sad_pacing_int,
+    CTLFLAG_RW,
+    &tcp_sad_pacing_interval, 2000,
+    "What is the minimum pacing interval for a classified attacker?");
+
+int32_t tcp_sad_low_pps = 100;
+SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, sad_low_pps,
+    CTLFLAG_RW,
+    &tcp_sad_low_pps, 100,
+    "What is the input pps that below which we do not decay?");
+#endif
+
 struct rwlock tcp_function_lock;
 
 static int
@@ -240,6 +292,34 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, soreceive_stream, CTLFLAG_RDTUN,
 
 VNET_DEFINE(uma_zone_t, sack_hole_zone);
 #define	V_sack_hole_zone		VNET(sack_hole_zone)
+VNET_DEFINE(uint32_t, tcp_map_entries_limit) = 0;	/* unlimited */
+static int
+sysctl_net_inet_tcp_map_limit_check(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	uint32_t new;
+
+	new = V_tcp_map_entries_limit;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error == 0 && req->newptr) {
+		/* only allow "0" and value > minimum */
+		if (new > 0 && new < TCP_MIN_MAP_ENTRIES_LIMIT)
+			error = EINVAL;
+		else
+			V_tcp_map_entries_limit = new;
+	}
+	return (error);
+}
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, map_limit,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
+    &VNET_NAME(tcp_map_entries_limit), 0,
+    &sysctl_net_inet_tcp_map_limit_check, "IU",
+    "Total sendmap entries limit");
+
+VNET_DEFINE(uint32_t, tcp_map_split_limit) = 0;	/* unlimited */
+SYSCTL_UINT(_net_inet_tcp, OID_AUTO, split_limit, CTLFLAG_VNET | CTLFLAG_RW,
+     &VNET_NAME(tcp_map_split_limit), 0,
+    "Total sendmap split entries limit");
 
 #ifdef TCP_HHOOK
 VNET_DEFINE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST+1]);

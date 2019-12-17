@@ -128,12 +128,6 @@ TAILQ_HEAD(bbr_head, bbr_sendmap);
 					 * an clear to start measuring */
 #define BBR_RED_BW_PE_NOEARLY_OUT 7	/* Set pkt epoch judged that we do not
 					 * get out of jail early */
-/* codes for just-return */
-#define BBR_JR_SENT_DATA    0
-#define BBR_JR_CWND_LIMITED 1
-#define BBR_JR_RWND_LIMITED 2
-#define BBR_JR_APP_LIMITED  3
-#define BBR_JR_ASSESSING 4
 /* For calculating a rate */
 #define BBR_CALC_BW 	1
 #define BBR_CALC_LOSS  	2
@@ -384,13 +378,6 @@ struct bbr_log_sysctl_out {
 #define BBR_REDUCE_AT_FR 5
 
 #define BBR_BIG_LOG_SIZE 300000
-
-/* Bits per second in bytes per second */
-#define FORTY_EIGHT_MBPS 6000000 /* 48 megabits in bytes */
-#define THIRTY_MBPS 3750000 /* 30 megabits in bytes */
-#define TWENTY_THREE_MBPS 2896000
-#define FIVETWELVE_MBPS 64000000 /* 512 megabits in bytes */
-#define ONE_POINT_TWO_MEG 150000 /* 1.2 megabits in bytes */
 
 struct bbr_stats {
 	uint64_t bbr_badfr;		/* 0 */

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016-2019
+ * Copyright (c) 2016-9
  *	Netflix Inc.
  *      All rights reserved.
  *
@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ratelimit.h"
 #include "opt_kern_tls.h"
 #include <sys/param.h>
+#include <sys/arb.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
 #ifdef TCP_HHOOK
@@ -57,9 +58,9 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#ifdef STATS
 #include <sys/qmath.h>
 #include <sys/tree.h>
-#ifdef NETFLIX_STATS
 #include <sys/stats.h> /* Must come after qmath.h and tree.h */
 #endif
 #include <sys/refcount.h>
@@ -161,8 +162,7 @@ static int32_t bbr_num_pktepo_for_del_limit = BBR_NUM_RTTS_FOR_DEL_LIMIT;
 static int32_t bbr_hardware_pacing_limit = 8000;
 static int32_t bbr_quanta = 3;	/* How much extra quanta do we get? */
 static int32_t bbr_no_retran = 0;
-static int32_t bbr_tcp_map_entries_limit = 1500;
-static int32_t bbr_tcp_map_split_limit = 256;
+
 
 static int32_t bbr_error_base_paceout = 10000; /* usec to pace */
 static int32_t bbr_max_net_error_cnt = 10;
@@ -3381,8 +3381,8 @@ bbr_alloc(struct tcp_bbr *bbr)
 static struct bbr_sendmap *
 bbr_alloc_full_limit(struct tcp_bbr *bbr)
 {
-	if ((bbr_tcp_map_entries_limit > 0) &&
-	    (bbr->r_ctl.rc_num_maps_alloced >= bbr_tcp_map_entries_limit)) {
+	if ((V_tcp_map_entries_limit > 0) &&
+	    (bbr->r_ctl.rc_num_maps_alloced >= V_tcp_map_entries_limit)) {
 		BBR_STAT_INC(bbr_alloc_limited);
 		if (!bbr->alloc_limit_reported) {
 			bbr->alloc_limit_reported = 1;
@@ -3402,8 +3402,8 @@ bbr_alloc_limit(struct tcp_bbr *bbr, uint8_t limit_type)
 
 	if (limit_type) {
 		/* currently there is only one limit type */
-		if (bbr_tcp_map_split_limit > 0 &&
-		    bbr->r_ctl.rc_num_split_allocs >= bbr_tcp_map_split_limit) {
+		if (V_tcp_map_split_limit > 0 &&
+		    bbr->r_ctl.rc_num_split_allocs >= V_tcp_map_split_limit) {
 			BBR_STAT_INC(bbr_split_limited);
 			if (!bbr->alloc_limit_reported) {
 				bbr->alloc_limit_reported = 1;
@@ -3685,7 +3685,7 @@ bbr_ack_received(struct tcpcb *tp, struct tcp_bbr *bbr, struct tcphdr *th, uint3
 	uint32_t cwnd, target_cwnd, saved_bytes, maxseg;
 	int32_t meth;
 
-#ifdef NETFLIX_STATS
+#ifdef STATS
 	if ((tp->t_flags & TF_GPUTINPROG) &&
 	    SEQ_GEQ(th->th_ack, tp->gput_ack)) {
 		/*
@@ -6510,7 +6510,7 @@ tcp_bbr_xmit_timer_commit(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts)
 	}
 	TCPSTAT_INC(tcps_rttupdated);
 	tp->t_rttupdated++;
-#ifdef NETFLIX_STATS
+#ifdef STATS
 	stats_voi_update_abs_u32(tp->t_stats, VOI_TCP_RTT, imax(0, rtt_ticks));
 #endif
 	/*
@@ -8490,6 +8490,7 @@ dodata:				/* XXX */
 					return (0);
 				}
 			}
+
 #endif
 			if (DELAY_ACK(tp, bbr, nsegs) || tfo_syn) {
 				bbr->bbr_segs_rcvd += max(1, nsegs);
@@ -8698,6 +8699,7 @@ bbr_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * reassembly queue and we have enough buffer space to take it.
 	 */
 	nsegs = max(1, m->m_pkthdr.lro_nsegs);
+
 #ifdef NETFLIX_SB_LIMITS
 	if (so->so_rcv.sb_shlim) {
 		mcnt = m_memcnt(m);
@@ -8746,6 +8748,7 @@ bbr_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			    newsize, so, NULL))
 				so->so_rcv.sb_flags &= ~SB_AUTOSIZE;
 		m_adj(m, drop_hdrlen);	/* delayed header drop */
+
 #ifdef NETFLIX_SB_LIMITS
 		appended =
 #endif
@@ -11561,7 +11564,7 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * the scale is zero.
 	 */
 	tiwin = th->th_win << tp->snd_scale;
-#ifdef NETFLIX_STATS
+#ifdef STATS
 	stats_voi_update_abs_ulong(tp->t_stats, VOI_TCP_FRWIN, tiwin);
 #endif
 	/*
@@ -11960,7 +11963,7 @@ bbr_do_send_accounting(struct tcpcb *tp, struct tcp_bbr *bbr, struct bbr_sendmap
 	if ((tp->t_flags & TF_FORCEDATA) && len == 1) {
 		/* Window probe */
 		TCPSTAT_INC(tcps_sndprobe);
-#ifdef NETFLIX_STATS
+#ifdef STATS
 		stats_voi_update_abs_u32(tp->t_stats,
 		    VOI_TCP_RETXPB, len);
 #endif
@@ -11981,7 +11984,7 @@ bbr_do_send_accounting(struct tcpcb *tp, struct tcp_bbr *bbr, struct bbr_sendmap
 			tp->t_sndrexmitpack++;
 			TCPSTAT_INC(tcps_sndrexmitpack);
 			TCPSTAT_ADD(tcps_sndrexmitbyte, len);
-#ifdef NETFLIX_STATS
+#ifdef STATS
 			stats_voi_update_abs_u32(tp->t_stats, VOI_TCP_RETXPB,
 			    len);
 #endif
@@ -12017,7 +12020,7 @@ bbr_do_send_accounting(struct tcpcb *tp, struct tcp_bbr *bbr, struct bbr_sendmap
 		/* Place in 17's the total sent */
 		counter_u64_add(bbr_state_resend[17], len);
 		counter_u64_add(bbr_state_lost[17], len);
-#ifdef NETFLIX_STATS
+#ifdef STATS
 		stats_voi_update_abs_u64(tp->t_stats, VOI_TCP_TXPB,
 		    len);
 #endif
@@ -12517,8 +12520,8 @@ recheck_resend:
 	 * as long as we are not retransmiting.
 	 */
 	if ((rsm == NULL) &&
-	    (bbr_tcp_map_entries_limit > 0) &&
-	    (bbr->r_ctl.rc_num_maps_alloced >= bbr_tcp_map_entries_limit)) {
+	    (V_tcp_map_entries_limit > 0) &&
+	    (bbr->r_ctl.rc_num_maps_alloced >= V_tcp_map_entries_limit)) {
 		BBR_STAT_INC(bbr_alloc_limited);
 		if (!bbr->alloc_limit_reported) {
 			bbr->alloc_limit_reported = 1;
@@ -13256,7 +13259,6 @@ send:
 			SOCKBUF_UNLOCK(&so->so_snd);
 			return (EHOSTUNREACH);
 		}
-
 		hdrlen += sizeof(struct udphdr);
 	}
 #endif
@@ -14276,7 +14278,7 @@ nomore:
 			bbr_start_hpts_timer(bbr, tp, cts, 11, slot, 0);
 			return (error);
 		}
-#ifdef NETFLIX_STATS
+#ifdef STATS
 	} else if (((tp->t_flags & TF_GPUTINPROG) == 0) &&
 		    len &&
 		    (rsm == NULL) &&
