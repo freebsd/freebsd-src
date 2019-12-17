@@ -84,6 +84,8 @@ __FBSDID("$FreeBSD$");
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
+#include <inttypes.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -132,7 +134,6 @@ static bool duplicate(struct range *, struct range *);
 static int edit(struct diff *, bool, int);
 static char *getchange(FILE *);
 static char *get_line(FILE *, size_t *);
-static int number(char **);
 static int readin(int fd, struct diff **);
 static int skip(int, int, const char *);
 static void change(int, struct range *, bool);
@@ -188,16 +189,16 @@ readin(int fd, struct diff **dd)
 	for (i=0; (p = getchange(f)); i++) {
 		if (i >= szchanges - 1)
 			increase();
-		a = b = number(&p);
+		a = b = (int)strtoimax(p, &p, 10);
 		if (*p == ',') {
 			p++;
-			b = number(&p);
+			b = (int)strtoimax(p, &p, 10);
 		}
 		kind = *p++;
-		c = d = number(&p);
+		c = d = (int)strtoimax(p, &p, 10);
 		if (*p==',') {
 			p++;
-			d = number(&p);
+			d = (int)strtoimax(p, &p, 10);
 		}
 		if (kind == 'a')
 			a++;
@@ -238,17 +239,6 @@ diffexec(const char *diffprog, char **diffargv, int fd[])
 	}
 	close(fd[1]);
 	return (pd);
-}
-
-static int
-number(char **lc)
-{
-	int nn;
-
-	nn = 0;
-	while (isdigit((unsigned char)(**lc)))
-		nn = nn*10 + *(*lc)++ - '0';
-	return (nn);
 }
 
 static char *
