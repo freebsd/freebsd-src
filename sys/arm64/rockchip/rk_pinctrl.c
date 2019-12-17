@@ -882,7 +882,7 @@ rk_pinctrl_configure_pin(struct rk_pinctrl_softc *sc, uint32_t *pindata)
 
 		reg += bank * 0x10 + ((pin / 8) * 0x4);
 		bit = (pin % 8) * 2;
-		mask = (0x3 << bit) << 16;
+		mask = (0x3 << bit);
 		SYSCON_MODIFY_4(syscon, reg, mask, bias << bit | (mask << 16));
 	}
 
@@ -890,7 +890,7 @@ rk_pinctrl_configure_pin(struct rk_pinctrl_softc *sc, uint32_t *pindata)
 	rv = rk_pinctrl_parse_drive(sc, pin_conf, bank, subbank, &drive, &reg);
 	if (rv == 0) {
 		bit = (pin % 8) * 2;
-		mask = (0x3 << bit) << 16;
+		mask = (0x3 << bit);
 		SYSCON_MODIFY_4(syscon, reg, mask, drive << bit | (mask << 16));
 	}
 
