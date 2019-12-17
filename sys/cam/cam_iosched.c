@@ -755,6 +755,19 @@ cam_iosched_has_io(struct cam_iosched_softc *isc)
 static inline bool
 cam_iosched_has_more_trim(struct cam_iosched_softc *isc)
 {
+	struct bio *bp;
+
+	bp = bioq_first(&isc->trim_queue);
+#ifdef CAM_IOSCHED_DYNAMIC
+	if (do_dynamic_iosched) {
+		/*
+		 * If we're limiting trims, then defer action on trims
+		 * for a bit.
+		 */
+		if (bp == NULL || cam_iosched_limiter_caniop(&isc->trim_stats, bp) != 0)
+			return false;
+	}
+#endif
 
 	/*
 	 * If we've set a trim_goal, then if we exceed that allow trims
@@ -771,8 +784,8 @@ cam_iosched_has_more_trim(struct cam_iosched_softc *isc)
 		return false;
 	}
 
-	return !(isc->flags & CAM_IOSCHED_FLAG_TRIM_ACTIVE) &&
-	    bioq_first(&isc->trim_queue);
+	/* NB: Should perhaps have a max trim active independent of I/O limiters */
+	return !(isc->flags & CAM_IOSCHED_FLAG_TRIM_ACTIVE) && bp != NULL;
 }
 
 #define cam_iosched_sort_queue(isc)	((isc)->sort_io_queue >= 0 ?	\
@@ -1389,10 +1402,17 @@ cam_iosched_next_trim(struct cam_iosched_softc *isc)
 struct bio *
 cam_iosched_get_trim(struct cam_iosched_softc *isc)
 {
+#ifdef CAM_IOSCHED_DYNAMIC
+	struct bio *bp;
+#endif
 
 	if (!cam_iosched_has_more_trim(isc))
 		return NULL;
 #ifdef CAM_IOSCHED_DYNAMIC
+	bp  = bioq_first(&isc->trim_queue);
+	if (bp == NULL)
+		return NULL;
+
 	/*
 	 * If pending read, prefer that based on current read bias setting. The
 	 * read bias is shared for both writes and TRIMs, but on TRIMs the bias
@@ -1414,6 +1434,26 @@ cam_iosched_get_trim(struct cam_iosched_softc *isc)
 		 */
 		isc->current_read_bias = isc->read_bias;
 	}
+
+	/*
+	 * See if our current limiter allows this I/O. Because we only call this
+	 * here, and not in next_trim, the 'bandwidth' limits for trims won't
+	 * work, while the iops or max queued limits will work. It's tricky
+	 * because we want the limits to be from the perspective of the
+	 * "commands sent to the device." To make iops work, we need to check
+	 * only here (since we want all the ops we combine to count as one). To
+	 * make bw limits work, we'd need to check in next_trim, but that would
+	 * have the effect of limiting the iops as seen from the upper layers.
+	 */
+	if (cam_iosched_limiter_iop(&isc->trim_stats, bp) != 0) {
+		if (iosched_debug)
+			printf("Can't trim because limiter says no.\n");
+		isc->trim_stats.state_flags |= IOP_RATE_LIMITED;
+		return NULL;
+	}
+	isc->current_read_bias = isc->read_bias;
+	isc->trim_stats.state_flags &= ~IOP_RATE_LIMITED;
+	/* cam_iosched_next_trim below keeps proper book */
 #endif
 	return cam_iosched_next_trim(isc);
 }
