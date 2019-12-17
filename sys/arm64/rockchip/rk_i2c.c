@@ -699,5 +699,4 @@ EARLY_DRIVER_MODULE(rk_i2c, simplebus, rk_i2c_driver, rk_i2c_devclass, 0, 0,
 EARLY_DRIVER_MODULE(ofw_iicbus, rk_i2c, ofw_iicbus_driver, ofw_iicbus_devclass,
     0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 MODULE_DEPEND(rk_i2c, iicbus, 1, 1, 1);
-MODULE_DEPEND(rk_i2c, ofw_iicbus, 1, 1, 1);
 MODULE_VERSION(rk_i2c, 1);
