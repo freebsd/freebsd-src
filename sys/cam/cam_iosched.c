@@ -1534,6 +1534,41 @@ cam_iosched_queue_work(struct cam_iosched_softc *isc, struct bio *bp)
 {
 
 	/*
+	 * A BIO_SPEEDUP from the uppper layers means that they have a block
+	 * shortage. At the present, this is only sent when we're trying to
+	 * allocate blocks, but have a shortage before giving up. bio_length is
+	 * the size of their shortage. We will complete just enough BIO_DELETEs
+	 * in the queue to satisfy the need. If bio_length is 0, we'll complete
+	 * them all. This allows the scheduler to delay BIO_DELETEs to improve
+	 * read/write performance without worrying about the upper layers. When
+	 * it's possibly a problem, we respond by pretending the BIO_DELETEs
+	 * just worked. We can't do anything about the BIO_DELETEs in the
+	 * hardware, though. We have to wait for them to complete.
+	 */
+	if (bp->bio_cmd == BIO_SPEEDUP) {
+		off_t len;
+		struct bio *nbp;
+
+		len = 0;
+		while (bioq_first(&isc->trim_queue) &&
+		    (bp->bio_length == 0 || len < bp->bio_length)) {
+			nbp = bioq_takefirst(&isc->trim_queue);
+			len += nbp->bio_length;
+			nbp->bio_error = 0;
+			biodone(nbp);
+		}
+		if (bp->bio_length > 0) {
+			if (bp->bio_length > len)
+				bp->bio_resid = bp->bio_length - len;
+			else
+				bp->bio_resid = 0;
+		}
+		bp->bio_error = 0;
+		biodone(bp);
+		return;
+	}
+
+	/*
 	 * If we get a BIO_FLUSH, and we're doing delayed BIO_DELETEs then we
 	 * set the last tick time to one less than the current ticks minus the
 	 * delay to force the BIO_DELETEs to be presented to the client driver.
@@ -1919,8 +1954,8 @@ DB_SHOW_COMMAND(iosched, cam_iosched_db_show)
 	db_printf("Trim Q len         %d\n", biolen(&isc->trim_queue));
 	db_printf("read_bias:         %d\n", isc->read_bias);
 	db_printf("current_read_bias: %d\n", isc->current_read_bias);
-	db_printf("Trims active       %d\n", isc->pend_trim);
-	db_printf("Max trims active   %d\n", isc->max_trim);
+	db_printf("Trims active       %d\n", isc->pend_trims);
+	db_printf("Max trims active   %d\n", isc->max_trims);
 }
 #endif
 #endif
