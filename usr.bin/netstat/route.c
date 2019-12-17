@@ -776,22 +776,22 @@ rt_stats(void)
 		xo_emit("{W:rttrash: symbol not in namelist}\n");
 		return;
 	}
-	kread(rtsaddr, (char *)&rtstat, sizeof (rtstat));
+	kread_counters(rtsaddr, (char *)&rtstat, sizeof (rtstat));
 	kread(rttaddr, (char *)&rttrash, sizeof (rttrash));
 	xo_emit("{T:routing}:\n");
 
 #define	p(f, m) if (rtstat.f || sflag <= 1) \
 	xo_emit(m, rtstat.f, plural(rtstat.f))
 
-	p(rts_badredirect, "\t{:bad-redirects/%hu} "
+	p(rts_badredirect, "\t{:bad-redirects/%ju} "
 	    "{N:/bad routing redirect%s}\n");
-	p(rts_dynamic, "\t{:dynamically-created/%hu} "
+	p(rts_dynamic, "\t{:dynamically-created/%ju} "
 	    "{N:/dynamically created route%s}\n");
-	p(rts_newgateway, "\t{:new-gateways/%hu} "
+	p(rts_newgateway, "\t{:new-gateways/%ju} "
 	    "{N:/new gateway%s due to redirects}\n");
-	p(rts_unreach, "\t{:unreachable-destination/%hu} "
+	p(rts_unreach, "\t{:unreachable-destination/%ju} "
 	    "{N:/destination%s found unreachable}\n");
-	p(rts_wildcard, "\t{:wildcard-uses/%hu} "
+	p(rts_wildcard, "\t{:wildcard-uses/%ju} "
 	    "{N:/use%s of a wildcard route}\n");
 #undef p
 
