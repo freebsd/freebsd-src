@@ -177,14 +177,6 @@ static int nda_max_trim_entries = NDA_MAX_TRIM_ENTRIES;
 SYSCTL_INT(_kern_cam_nda, OID_AUTO, max_trim, CTLFLAG_RDTUN,
     &nda_max_trim_entries, NDA_MAX_TRIM_ENTRIES,
     "Maximum number of BIO_DELETE to send down as a DSM TRIM.");
-static int nda_goal_trim_entries = NDA_MAX_TRIM_ENTRIES / 2;
-SYSCTL_INT(_kern_cam_nda, OID_AUTO, goal_trim, CTLFLAG_RDTUN,
-    &nda_goal_trim_entries, NDA_MAX_TRIM_ENTRIES / 2,
-    "Number of BIO_DELETE to try to accumulate before sending a DSM TRIM.");
-static int nda_trim_ticks = 50;	/* 50ms ~ 1000 Hz */
-SYSCTL_INT(_kern_cam_nda, OID_AUTO, trim_ticks, CTLFLAG_RDTUN,
-    &nda_trim_ticks, 50,
-    "Number of ticks to hold BIO_DELETEs before sending down a trim");
 
 /*
  * All NVMe media is non-rotational, so all nvme device instances
@@ -749,9 +741,6 @@ ndaregister(struct cam_periph *periph, void *arg)
 		free(softc, M_DEVBUF);
 		return(CAM_REQ_CMP_ERR);
 	}
-	/* Statically set these for the moment */
-	cam_iosched_set_trim_goal(softc->cam_iosched, nda_goal_trim_entries);
-	cam_iosched_set_trim_ticks(softc->cam_iosched, nda_trim_ticks);
 
 	/* ident_data parsing */
 
