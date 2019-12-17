@@ -50,5 +50,12 @@ options 	AR71XX_ATH_EEPROM
 device		firmware		# Used by the above
 options 	ATH_EEPROM_FIRMWARE
 
+options 	ATH_DEBUG_ALQ
+
 # Boot off of the rootfs, as defined in the geom_map setup.
 options 	ROOTDEVNAME=\"ufs:map/rootfs.uzip\"
+
+# This is required for the 2GHz LNAs on the AR9340 SoC.
+# Without this the 2GHz radio is Quite Deaf.
+device		gpio
+device		gpioled
