@@ -228,19 +228,15 @@ extern struct pcpu *cpuid_to_pcpu[];
 #define	curproc		(curthread->td_proc)
 
 /* Accessor to elements allocated via UMA_ZONE_PCPU zone. */
-static inline void *
-zpcpu_get(void *base)
-{
+#define zpcpu_get(base) ({								\
+	__typeof(base) _ptr = (void *)((char *)(base) + UMA_PCPU_ALLOC_SIZE * curcpu);	\
+	_ptr;										\
+})
 
-	return ((char *)(base) + UMA_PCPU_ALLOC_SIZE * curcpu);
-}
-
-static inline void *
-zpcpu_get_cpu(void *base, int cpu)
-{
-
-	return ((char *)(base) + UMA_PCPU_ALLOC_SIZE * cpu);
-}
+#define zpcpu_get_cpu(base, cpu) ({							\
+	__typeof(base) _ptr = (void *)((char *)(base) +	UMA_PCPU_ALLOC_SIZE * cpu);	\
+	_ptr;										\
+})
 
 /*
  * This operation is NOT atomic and does not post any barriers.
@@ -248,8 +244,14 @@ zpcpu_get_cpu(void *base, int cpu)
  * be modifying this variable.
  * If you need atomicity use xchg.
  * */
+#define zpcpu_replace(base, val) ({					\
+	__typeof(val) _old = *(__typeof(base))zpcpu_get(base);		\
+	*(__typeof(val) *)zpcpu_get(base) = val;			\
+	_old;								\
+})
+
 #define zpcpu_replace_cpu(base, val, cpu) ({				\
-	__typeof(val) _old = *(__typeof(val) *)zpcpu_get_cpu(base, cpu);\
+	__typeof(val) _old = *(__typeof(base))zpcpu_get_cpu(base, cpu);	\
 	*(__typeof(val) *)zpcpu_get_cpu(base, cpu) = val;		\
 	_old;								\
 })
