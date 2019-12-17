@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016-2018
+ * Copyright (c) 2016-9
  *	Netflix Inc.
  *      All rights reserved.
  *
@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ratelimit.h"
 #include "opt_kern_tls.h"
 #include <sys/param.h>
+#include <sys/arb.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
 #ifdef TCP_HHOOK
@@ -133,8 +134,6 @@ __FBSDID("$FreeBSD$");
  * Common TCP Functions - These are shared by borth
  * rack and BBR.
  */
-
-
 #ifdef KERN_TLS
 uint32_t
 ctf_get_opt_tls_size(struct socket *so, uint32_t rwnd)

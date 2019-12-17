@@ -137,7 +137,7 @@ struct rack_opts_stats {
 	uint64_t tcp_rack_min_pace_seg;
 	uint64_t tcp_rack_min_pace;
 	uint64_t tcp_rack_cheat;
-	uint64_t tcp_rack_no_sack;
+	uint64_t tcp_rack_do_detection;
 };
 
 #define TLP_USE_ID	1	/* Internet draft behavior */
