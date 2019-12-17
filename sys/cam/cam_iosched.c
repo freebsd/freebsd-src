@@ -1903,7 +1903,7 @@ DB_SHOW_COMMAND(iosched, cam_iosched_db_show)
 	db_printf("in_reads:          %d\n", isc->read_stats.in);
 	db_printf("out_reads:         %d\n", isc->read_stats.out);
 	db_printf("queued_reads:      %d\n", isc->read_stats.queued);
-	db_printf("Current Q len      %d\n", biolen(&isc->bio_queue));
+	db_printf("Read Q len         %d\n", biolen(&isc->bio_queue));
 	db_printf("pending_writes:    %d\n", isc->write_stats.pending);
 	db_printf("min_writes:        %d\n", isc->write_stats.min);
 	db_printf("max_writes:        %d\n", isc->write_stats.max);
@@ -1911,7 +1911,7 @@ DB_SHOW_COMMAND(iosched, cam_iosched_db_show)
 	db_printf("in_writes:         %d\n", isc->write_stats.in);
 	db_printf("out_writes:        %d\n", isc->write_stats.out);
 	db_printf("queued_writes:     %d\n", isc->write_stats.queued);
-	db_printf("Current Q len      %d\n", biolen(&isc->write_queue));
+	db_printf("Write Q len        %d\n", biolen(&isc->write_queue));
 	db_printf("pending_trims:     %d\n", isc->trim_stats.pending);
 	db_printf("min_trims:         %d\n", isc->trim_stats.min);
 	db_printf("max_trims:         %d\n", isc->trim_stats.max);
@@ -1919,7 +1919,7 @@ DB_SHOW_COMMAND(iosched, cam_iosched_db_show)
 	db_printf("in_trims:          %d\n", isc->trim_stats.in);
 	db_printf("out_trims:         %d\n", isc->trim_stats.out);
 	db_printf("queued_trims:      %d\n", isc->trim_stats.queued);
-	db_printf("Current Q len      %d\n", biolen(&isc->trim_queue));
+	db_printf("Trim Q len         %d\n", biolen(&isc->trim_queue));
 	db_printf("read_bias:         %d\n", isc->read_bias);
 	db_printf("current_read_bias: %d\n", isc->current_read_bias);
 	db_printf("Trim active?       %s\n",
