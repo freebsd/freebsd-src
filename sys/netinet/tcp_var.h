@@ -235,6 +235,9 @@ struct tcptemp {
 	struct	tcphdr tt_t;
 };
 
+/* Minimum map entries limit value, if set */
+#define TCP_MIN_MAP_ENTRIES_LIMIT	128
+
 /* 
  * TODO: We yet need to brave plowing in
  * to tcp_input() and the pru_usrreq() block.
@@ -790,6 +793,8 @@ VNET_DECLARE(int, tcp_ecn_maxretries);
 VNET_DECLARE(int, tcp_initcwnd_segments);
 VNET_DECLARE(int, tcp_insecure_rst);
 VNET_DECLARE(int, tcp_insecure_syn);
+VNET_DECLARE(uint32_t, tcp_map_entries_limit);
+VNET_DECLARE(uint32_t, tcp_map_split_limit);
 VNET_DECLARE(int, tcp_minmss);
 VNET_DECLARE(int, tcp_mssdflt);
 #ifdef STATS
@@ -830,6 +835,8 @@ VNET_DECLARE(struct inpcbinfo, tcbinfo);
 #define	V_tcp_initcwnd_segments		VNET(tcp_initcwnd_segments)
 #define	V_tcp_insecure_rst		VNET(tcp_insecure_rst)
 #define	V_tcp_insecure_syn		VNET(tcp_insecure_syn)
+#define	V_tcp_map_entries_limit		VNET(tcp_map_entries_limit)
+#define	V_tcp_map_split_limit		VNET(tcp_map_split_limit)
 #define	V_tcp_minmss			VNET(tcp_minmss)
 #define	V_tcp_mssdflt			VNET(tcp_mssdflt)
 #ifdef STATS
@@ -844,7 +851,6 @@ VNET_DECLARE(struct inpcbinfo, tcbinfo);
 #define	V_tcp_sendspace			VNET(tcp_sendspace)
 #define	V_tcp_udp_tunneling_overhead	VNET(tcp_udp_tunneling_overhead)
 #define	V_tcp_udp_tunneling_port	VNET(tcp_udp_tunneling_port)
-
 
 #ifdef TCP_HHOOK
 VNET_DECLARE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST + 1]);
@@ -914,6 +920,19 @@ extern counter_u64_t tcp_inp_lro_compressed;
 extern counter_u64_t tcp_inp_lro_single_push;
 extern counter_u64_t tcp_inp_lro_locks_taken;
 extern counter_u64_t tcp_inp_lro_sack_wake;
+
+#ifdef NETFLIX_EXP_DETECTION
+/* Various SACK attack thresholds */
+extern int32_t tcp_force_detection;
+extern int32_t tcp_sack_to_ack_thresh;
+extern int32_t tcp_sack_to_move_thresh;
+extern int32_t tcp_restoral_thresh;
+extern int32_t tcp_sad_decay_val;
+extern int32_t tcp_sad_pacing_interval;
+extern int32_t tcp_sad_low_pps;
+extern int32_t tcp_map_minimum;
+extern int32_t tcp_attack_on_turns_on_logging;
+#endif
 
 uint32_t tcp_maxmtu(struct in_conninfo *, struct tcp_ifcap *);
 uint32_t tcp_maxmtu6(struct in_conninfo *, struct tcp_ifcap *);
