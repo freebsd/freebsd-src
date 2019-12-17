@@ -108,8 +108,15 @@ VNET_DEFINE(u_int, rt_add_addr_allfibs) = 1;
 SYSCTL_UINT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RWTUN | CTLFLAG_VNET,
     &VNET_NAME(rt_add_addr_allfibs), 0, "");
 
-VNET_DEFINE(struct rtstat, rtstat);
-#define	V_rtstat	VNET(rtstat)
+VNET_PCPUSTAT_DEFINE_STATIC(struct rtstat, rtstat);
+#define	RTSTAT_ADD(name, val)	\
+	VNET_PCPUSTAT_ADD(struct rtstat, rtstat, name, (val))
+#define	RTSTAT_INC(name)	RTSTAT_ADD(name, 1)
+
+VNET_PCPUSTAT_SYSINIT(rtstat);
+#ifdef VIMAGE
+VNET_PCPUSTAT_SYSUNINIT(rtstat);
+#endif
 
 VNET_DEFINE(struct rib_head *, rt_tables);
 #define	V_rt_tables	VNET(rt_tables)
@@ -476,7 +483,7 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 	 * which basically means: "cannot get there from here".
 	 */
 miss:
-	V_rtstat.rts_unreach++;
+	RTSTAT_INC(rts_unreach);
 
 	if (report) {
 		/*
@@ -587,7 +594,6 @@ rtredirect_fib(struct sockaddr *dst,
 {
 	struct rtentry *rt;
 	int error = 0;
-	short *stat = NULL;
 	struct rt_addrinfo info;
 	struct ifaddr *ifa;
 	struct rib_head *rnh;
@@ -661,8 +667,8 @@ rtredirect_fib(struct sockaddr *dst,
 				RT_LOCK(rt);
 				flags = rt->rt_flags;
 			}
-			
-			stat = &V_rtstat.rts_dynamic;
+			if (error == 0)
+				RTSTAT_INC(rts_dynamic);
 		} else {
 
 			/*
@@ -673,7 +679,7 @@ rtredirect_fib(struct sockaddr *dst,
 				rt->rt_flags &= ~RTF_GATEWAY;
 			rt->rt_flags |= RTF_MODIFIED;
 			flags |= RTF_MODIFIED;
-			stat = &V_rtstat.rts_newgateway;
+			RTSTAT_INC(rts_newgateway);
 			/*
 			 * add the key and gateway (in one malloc'd chunk).
 			 */
@@ -690,9 +696,7 @@ done:
 		RTFREE_LOCKED(rt);
  out:
 	if (error)
-		V_rtstat.rts_badredirect++;
-	else if (stat != NULL)
-		(*stat)++;
+		RTSTAT_INC(rts_badredirect);
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_info[RTAX_DST] = dst;
 	info.rti_info[RTAX_GATEWAY] = gateway;
