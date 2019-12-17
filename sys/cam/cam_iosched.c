@@ -281,8 +281,6 @@ struct cam_iosched_softc {
 	int		trim_ticks;		/* Max ticks to hold trims */
 	int		last_trim_tick;		/* Last 'tick' time ld a trim */
 	int		queued_trims;		/* Number of trims in the queue */
-	int		max_trims;		/* Maximum number of trims pending at once */
-	int		pend_trims;		/* Number of pending trims now */
 #ifdef CAM_IOSCHED_DYNAMIC
 	int		read_bias;		/* Read bias setting */
 	int		current_read_bias;	/* Current read bias state */
@@ -709,6 +707,11 @@ cam_iosched_cl_maybe_steer(struct control_loop *clp)
 }
 #endif
 
+/*
+ * Trim or similar currently pending completion. Should only be set for
+ * those drivers wishing only one Trim active at a time.
+ */
+#define CAM_IOSCHED_FLAG_TRIM_ACTIVE	(1ul << 0)
 			/* Callout active, and needs to be torn down */
 #define CAM_IOSCHED_FLAG_CALLOUT_ACTIVE (1ul << 1)
 
@@ -781,7 +784,8 @@ cam_iosched_has_more_trim(struct cam_iosched_softc *isc)
 		return false;
 	}
 
-	return isc->pend_trims <= isc->max_trims && bp != NULL;
+	/* NB: Should perhaps have a max trim active independent of I/O limiters */
+	return !(isc->flags & CAM_IOSCHED_FLAG_TRIM_ACTIVE) && bp != NULL;
 }
 
 #define cam_iosched_sort_queue(isc)	((isc)->sort_io_queue >= 0 ?	\
@@ -1105,7 +1109,6 @@ cam_iosched_init(struct cam_iosched_softc **iscp, struct cam_periph *periph)
 	(*iscp)->sort_io_queue = -1;
 	bioq_init(&(*iscp)->bio_queue);
 	bioq_init(&(*iscp)->trim_queue);
-	(*iscp)->max_trims = 1;
 #ifdef CAM_IOSCHED_DYNAMIC
 	if (do_dynamic_iosched) {
 		bioq_init(&(*iscp)->write_queue);
@@ -1641,7 +1644,7 @@ void
 cam_iosched_trim_done(struct cam_iosched_softc *isc)
 {
 
-	isc->pend_trims--;
+	isc->flags &= ~CAM_IOSCHED_FLAG_TRIM_ACTIVE;
 }
 
 /*
@@ -1709,7 +1712,7 @@ void
 cam_iosched_submit_trim(struct cam_iosched_softc *isc)
 {
 
-	isc->pend_trims++;
+	isc->flags |= CAM_IOSCHED_FLAG_TRIM_ACTIVE;
 }
 
 /*
@@ -1954,8 +1957,8 @@ DB_SHOW_COMMAND(iosched, cam_iosched_db_show)
 	db_printf("Trim Q len         %d\n", biolen(&isc->trim_queue));
 	db_printf("read_bias:         %d\n", isc->read_bias);
 	db_printf("current_read_bias: %d\n", isc->current_read_bias);
-	db_printf("Trims active       %d\n", isc->pend_trims);
-	db_printf("Max trims active   %d\n", isc->max_trims);
+	db_printf("Trim active?       %s\n",
+	    (isc->flags & CAM_IOSCHED_FLAG_TRIM_ACTIVE) ? "yes" : "no");
 }
 #endif
 #endif
