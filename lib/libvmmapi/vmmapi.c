@@ -106,10 +106,8 @@ int
 vm_create(const char *name)
 {
 	/* Try to load vmm(4) module before creating a guest. */
-	if (modfind("vmm") < 0) {
-		if (modfind("vmm") < 0)
-			kldload("vmm");
-	}
+	if (modfind("vmm") < 0)
+		kldload("vmm");
 	return (CREATE((char *)name));
 }
 
