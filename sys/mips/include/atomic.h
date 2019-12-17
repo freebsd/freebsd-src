@@ -345,10 +345,16 @@ atomic_store_rel_##WIDTH(__volatile uint##WIDTH##_t *p, uint##WIDTH##_t v)\
 }
 
 ATOMIC_STORE_LOAD(32)
+#if defined(__mips_n64) || defined(__mips_n32)
 ATOMIC_STORE_LOAD(64)
+#endif
 #undef ATOMIC_STORE_LOAD
 
-#ifdef __mips_n32
+/*
+ * MIPS n32 is not a LP64 API, so atomic_load_64 isn't defined there. Define it
+ * here since n32 is an oddball !LP64 but that can do 64-bit atomics.
+ */
+#if defined(__mips_n32)
 #define	atomic_load_64	atomic_load_acq_64
 #endif
 
