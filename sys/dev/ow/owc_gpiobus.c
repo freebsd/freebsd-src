@@ -38,16 +38,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 
+#include <dev/gpio/gpiobusvar.h>
+#include <dev/ow/owll.h>
+
 #ifdef FDT
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#endif
 
-#include <dev/gpio/gpiobusvar.h>
-#include "gpiobus_if.h"
-
-#include <dev/ow/owll.h>
+static struct ofw_compat_data compat_data[] = {
+	{"w1-gpio",  true},
+	{NULL,       false}
+};
+OFWBUS_PNP_INFO(compat_data);
+SIMPLEBUS_PNP_INFO(compat_data);
+#endif /* FDT */
 
 #define	OW_PIN		0
 
@@ -61,7 +65,7 @@ __FBSDID("$FreeBSD$");
 struct owc_gpiobus_softc 
 {
 	device_t	sc_dev;
-	device_t	sc_busdev;
+	gpio_pin_t	sc_pin;
 	struct mtx	sc_mtx;
 };
 
@@ -69,68 +73,69 @@ static int owc_gpiobus_probe(device_t);
 static int owc_gpiobus_attach(device_t);
 static int owc_gpiobus_detach(device_t);
 
-#ifdef FDT
-static void
-owc_gpiobus_identify(driver_t *driver, device_t bus)
-{
-	phandle_t w1, root;
-
-	/*
-	 * Find all the 1-wire bus pseudo-nodes that are
-	 * at the top level of the FDT. Would be nice to
-	 * somehow preserve the node name of these busses,
-	 * but there's no good place to put it. The driver's
-	 * name is used for the device name, and the 1-wire
-	 * bus overwrites the description.
-	 */
-	root = OF_finddevice("/");
-	if (root == -1)
-		return;
-	for (w1 = OF_child(root); w1 != 0; w1 = OF_peer(w1)) {
-		if (!fdt_is_compatible_strict(w1, "w1-gpio"))
-			continue;
-		if (!OF_hasprop(w1, "gpios"))
-			continue;
-		ofw_gpiobus_add_fdt_child(bus, driver->name, w1);
-	}
-}
-#endif
-
 static int
 owc_gpiobus_probe(device_t dev)
 {
+	int rv;
+
+	/*
+	 * By default we only bid to attach if specifically added by our parent
+	 * (usually via hint.owc_gpiobus.#.at=busname).  On FDT systems we bid
+	 * as the default driver based on being configured in the FDT data.
+	 */
+	rv = BUS_PROBE_NOWILDCARD;
+
 #ifdef FDT
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (ofw_bus_is_compatible(dev, "w1-gpio")) {
-		device_set_desc(dev, "FDT GPIO attached one-wire bus");
-		return (BUS_PROBE_DEFAULT);
-	}
-
-	return (ENXIO);
-#else
-	device_set_desc(dev, "GPIO attached one-wire bus");
-	return 0;
+	if (ofw_bus_status_okay(dev) &&
+	    ofw_bus_search_compatible(dev, compat_data)->ocd_data)
+		rv = BUS_PROBE_DEFAULT;
 #endif
+
+	device_set_desc(dev, "GPIO one-wire bus");
+
+	return (rv);
 }
 
 static int
 owc_gpiobus_attach(device_t dev)
 {
 	struct owc_gpiobus_softc *sc;
-	device_t *kids;
-	int nkid;
+	int err;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
-	sc->sc_busdev = device_get_parent(dev);
+
+#ifdef FDT
+	/* Try to configure our pin from fdt data on fdt-based systems. */
+	err = gpio_pin_get_by_ofw_idx(dev, ofw_bus_get_node(dev), OW_PIN,
+	    &sc->sc_pin);
+#else
+	err = ENOENT;
+#endif
+	/*
+	 * If we didn't get configured by fdt data and our parent is gpiobus,
+	 * see if we can be configured by the bus (allows hinted attachment even
+	 * on fdt-based systems).
+	 */
+	if (err != 0 &&
+	    strcmp("gpiobus", device_get_name(device_get_parent(dev))) == 0)
+		err = gpio_pin_get_by_child_index(dev, OW_PIN, &sc->sc_pin);
+
+	/* If we didn't get configured by either method, whine and punt. */
+	if (err != 0) {
+		device_printf(sc->sc_dev,
+		    "cannot acquire gpio pin (config error)\n");
+		return (err);
+	}
+
 	OWC_GPIOBUS_LOCK_INIT(sc);
-	nkid = 0;
-	if (device_get_children(dev, &kids, &nkid) == 0)
-		free(kids, M_TEMP);
-	if (nkid == 0)
-		device_add_child(dev, "ow", -1);
+
+	/*
+	 * Add the ow bus as a child, but defer probing and attaching it until
+	 * interrupts work, because we can't do IO for them until we can read
+	 * the system timecounter (which initializes after device attachments).
+	 */
+	device_add_child(sc->sc_dev, "ow", -1);
 	return (bus_delayed_attach_children(dev));
 }
 
@@ -138,10 +143,16 @@ static int
 owc_gpiobus_detach(device_t dev)
 {
 	struct owc_gpiobus_softc *sc;
+	int err;
 
 	sc = device_get_softc(dev);
+
+	if ((err = device_delete_children(dev)) != 0)
+		return (err);
+
+	gpio_pin_release(sc->sc_pin);
 	OWC_GPIOBUS_LOCK_DESTROY(sc);
-	bus_generic_detach(dev);
+
 	return (0);
 }
 
@@ -154,18 +165,10 @@ owc_gpiobus_detach(device_t dev)
  * These macros let what why we're doing stuff shine in the code
  * below, and let the how be confined to here.
  */
-#define GETBUS(sc)	GPIOBUS_ACQUIRE_BUS((sc)->sc_busdev,	\
-			    (sc)->sc_dev, GPIOBUS_WAIT)
-#define RELBUS(sc)	GPIOBUS_RELEASE_BUS((sc)->sc_busdev,	\
-			    (sc)->sc_dev)
-#define OUTPIN(sc)	GPIOBUS_PIN_SETFLAGS((sc)->sc_busdev, \
-			    (sc)->sc_dev, OW_PIN, GPIO_PIN_OUTPUT)
-#define INPIN(sc)	GPIOBUS_PIN_SETFLAGS((sc)->sc_busdev, \
-			    (sc)->sc_dev, OW_PIN, GPIO_PIN_INPUT)
-#define GETPIN(sc, bit) GPIOBUS_PIN_GET((sc)->sc_busdev, \
-			    (sc)->sc_dev, OW_PIN, bit)
-#define LOW(sc)		GPIOBUS_PIN_SET((sc)->sc_busdev, \
-			    (sc)->sc_dev, OW_PIN, GPIO_PIN_LOW)
+#define OUTPIN(sc)	gpio_pin_setflags((sc)->sc_pin, GPIO_PIN_OUTPUT)
+#define INPIN(sc)	gpio_pin_setflags((sc)->sc_pin, GPIO_PIN_INPUT)
+#define GETPIN(sc, bp)	gpio_pin_is_active((sc)->sc_pin, (bp))
+#define LOW(sc)		gpio_pin_set_active((sc)->sc_pin, false)
 
 /*
  * WRITE-ONE (see owll_if.m for timings) From Figure 4-1 AN-937
@@ -183,12 +186,8 @@ static int
 owc_gpiobus_write_one(device_t dev, struct ow_timing *t)
 {
 	struct owc_gpiobus_softc *sc;
-	int error;
 
 	sc = device_get_softc(dev);
-	error = GETBUS(sc);
-	if (error != 0)
-		return (error);
 
 	critical_enter();
 
@@ -202,8 +201,6 @@ owc_gpiobus_write_one(device_t dev, struct ow_timing *t)
 	DELAY(t->t_slot - t->t_low1 + t->t_rec);
 
 	critical_exit();
-
-	RELBUS(sc);
 
 	return (0);
 }
@@ -224,12 +221,8 @@ static int
 owc_gpiobus_write_zero(device_t dev, struct ow_timing *t)
 {
 	struct owc_gpiobus_softc *sc;
-	int error;
 
 	sc = device_get_softc(dev);
-	error = GETBUS(sc);
-	if (error != 0)
-		return (error);
 
 	critical_enter();
 
@@ -243,8 +236,6 @@ owc_gpiobus_write_zero(device_t dev, struct ow_timing *t)
 	DELAY(t->t_slot - t->t_low0 + t->t_rec);
 
 	critical_exit();
-
-	RELBUS(sc);
 
 	return (0);
 }
@@ -268,13 +259,10 @@ static int
 owc_gpiobus_read_data(device_t dev, struct ow_timing *t, int *bit)
 {
 	struct owc_gpiobus_softc *sc;
-	int error, sample;
+	bool sample;
 	sbintime_t then, now;
 
 	sc = device_get_softc(dev);
-	error = GETBUS(sc);
-	if (error != 0)
-		return (error);
 
 	critical_enter();
 
@@ -293,7 +281,7 @@ owc_gpiobus_read_data(device_t dev, struct ow_timing *t, int *bit)
 	do {
 		now = sbinuptime();
 		GETPIN(sc, &sample);
-	} while (now - then < (t->t_rdv + 2) * SBT_1US && sample == 0);
+	} while (now - then < (t->t_rdv + 2) * SBT_1US && sample == false);
 	critical_exit();
 
 	if (now - then < t->t_rdv * SBT_1US)
@@ -306,9 +294,7 @@ owc_gpiobus_read_data(device_t dev, struct ow_timing *t, int *bit)
 		now = sbinuptime();
 	} while (now - then < (t->t_slot + t->t_rec) * SBT_1US);
 
-	RELBUS(sc);
-
-	return (error);
+	return (0);
 }
 
 /*
@@ -324,32 +310,31 @@ owc_gpiobus_read_data(device_t dev, struct ow_timing *t, int *bit)
  *				    |<tPDH>|
  *
  * Note: for Regular Speed operations, tRSTL + tR should be less than 960us to
- * avoid interferring with other devices on the bus
+ * avoid interfering with other devices on the bus.
+ *
+ * Return values in *bit:
+ *  -1 = Bus wiring error (stuck low).
+ *   0 = no presence pulse
+ *   1 = presence pulse detected
  */
 static int
 owc_gpiobus_reset_and_presence(device_t dev, struct ow_timing *t, int *bit)
 {
 	struct owc_gpiobus_softc *sc;
-	int error;
-	int buf = -1;
+	bool sample;
 
 	sc = device_get_softc(dev);
-	error = GETBUS(sc);
-	if (error != 0)
-		return (error);
 
 	/*
 	 * Read the current state of the bus. The steady state of an idle bus is
 	 * high. Badly wired buses that are missing the required pull up, or
 	 * that have a short circuit to ground cause all kinds of mischief when
-	 * we try to read them later. Return EIO and release the bus if the bus
-	 * is currently low.
+	 * we try to read them later. Return EIO if the bus is currently low.
 	 */
 	INPIN(sc);
-	GETPIN(sc, &buf);
-	if (buf == 0) {
+	GETPIN(sc, &sample);
+	if (sample == false) {
 		*bit = -1;
-		RELBUS(sc);
 		return (EIO);
 	}
 
@@ -365,8 +350,8 @@ owc_gpiobus_reset_and_presence(device_t dev, struct ow_timing *t, int *bit)
 	DELAY(t->t_pdh + t->t_pdl / 2);
 
 	/* Read presence pulse  */
-	GETPIN(sc, &buf);
-	*bit = !!buf;
+	GETPIN(sc, &sample);
+	*bit = sample;
 
 	critical_exit();
 
@@ -377,14 +362,11 @@ owc_gpiobus_reset_and_presence(device_t dev, struct ow_timing *t, int *bit)
 	 * window. It should return to high. If it is low, then we have some
 	 * problem and should abort the reset.
 	 */
-	GETPIN(sc, &buf);
-	if (buf == 0) {
+	GETPIN(sc, &sample);
+	if (sample == false) {
 		*bit = -1;
-		RELBUS(sc);
 		return (EIO);
 	}
-
-	RELBUS(sc);
 
 	return (0);
 }
@@ -393,9 +375,6 @@ static devclass_t owc_gpiobus_devclass;
 
 static device_method_t owc_gpiobus_methods[] = {
 	/* Device interface */
-#ifdef FDT
-	DEVMETHOD(device_identify,	owc_gpiobus_identify),
-#endif
 	DEVMETHOD(device_probe,		owc_gpiobus_probe),
 	DEVMETHOD(device_attach,	owc_gpiobus_attach),
 	DEVMETHOD(device_detach,	owc_gpiobus_detach),
@@ -412,6 +391,10 @@ static driver_t owc_gpiobus_driver = {
 	owc_gpiobus_methods,
 	sizeof(struct owc_gpiobus_softc),
 };
+
+#ifdef FDT
+DRIVER_MODULE(owc_gpiobus, simplebus, owc_gpiobus_driver, owc_gpiobus_devclass, 0, 0);
+#endif
 
 DRIVER_MODULE(owc_gpiobus, gpiobus, owc_gpiobus_driver, owc_gpiobus_devclass, 0, 0);
 MODULE_DEPEND(owc_gpiobus, ow, 1, 1, 1);
