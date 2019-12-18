@@ -2328,6 +2328,12 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	if (is_final) {
 		ip6_mfilter_remove(&imo->im6o_head, imf);
 		im6f_leave(imf);
+
+		/*
+		 * Give up the multicast address record to which
+		 * the membership points.
+		 */
+		(void)in6_leavegroup_locked(inm, imf);
 	} else {
 		if (imf->im6f_st[0] == MCAST_EXCLUDE) {
 			error = EADDRNOTAVAIL;
@@ -2384,14 +2390,8 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 out_in6p_locked:
 	INP_WUNLOCK(inp);
 
-	if (is_final && imf) {
-		/*
-		 * Give up the multicast address record to which
-		 * the membership points.
-		 */
-		(void)in6_leavegroup_locked(inm, imf);
+	if (is_final && imf)
 		ip6_mfilter_free(imf);
-	}
 
 	IN6_MULTI_UNLOCK();
 	return (error);
