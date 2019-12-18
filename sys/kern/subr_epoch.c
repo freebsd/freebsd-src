@@ -578,6 +578,13 @@ epoch_block_handler_preempt(struct ck_epoch *global __unused,
 	 */
 	counter_u64_add(switch_count, 1);
 	mi_switch(SW_VOL | SWT_RELINQUISH);
+	/*
+	 * It is important the thread lock is dropped while yielding
+	 * to allow other threads to acquire the lock pointed to by
+	 * TDQ_LOCKPTR(td). Currently mi_switch() will unlock the
+	 * thread lock before returning. Else a deadlock like
+	 * situation might happen.
+	 */
 	thread_lock(td);
 }
 
