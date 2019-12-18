@@ -153,64 +153,8 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_head *head,
 }
 
 /*
- * Age old PMTUs.
- */
-struct mtuex_arg {
-	struct rib_head *rnh;
-	time_t nextstop;
-};
-VNET_DEFINE_STATIC(struct callout, rtq_mtutimer);
-#define	V_rtq_mtutimer			VNET(rtq_mtutimer)
-
-static int
-in6_mtuexpire(struct rtentry *rt, void *rock)
-{
-	struct mtuex_arg *ap = rock;
-
-	if (rt->rt_expire && !(rt->rt_flags & RTF_PROBEMTU)) {
-		if (rt->rt_expire <= time_uptime) {
-			rt->rt_flags |= RTF_PROBEMTU;
-		} else {
-			ap->nextstop = lmin(ap->nextstop, rt->rt_expire);
-		}
-	}
-
-	return (0);
-}
-
-#define	MTUTIMO_DEFAULT	(60*1)
-
-static void
-in6_mtutimo_setwa(struct rib_head *rnh, uint32_t fibum, int af,
-    void *_arg)
-{
-	struct mtuex_arg *arg;
-
-	arg = (struct mtuex_arg *)_arg;
-
-	arg->rnh = rnh;
-}
-
-static void
-in6_mtutimo(void *rock)
-{
-	CURVNET_SET_QUIET((struct vnet *) rock);
-	struct timeval atv;
-	struct mtuex_arg arg;
-
-	rt_foreach_fib_walk(AF_INET6, in6_mtutimo_setwa, in6_mtuexpire, &arg);
-
-	atv.tv_sec = MTUTIMO_DEFAULT;
-	atv.tv_usec = 0;
-	callout_reset(&V_rtq_mtutimer, tvtohz(&atv), in6_mtutimo, rock);
-	CURVNET_RESTORE();
-}
-
-/*
  * Initialize our routing tree.
  */
-VNET_DEFINE_STATIC(int, _in6_rt_was_here);
-#define	V__in6_rt_was_here	VNET(_in6_rt_was_here)
 
 int
 in6_inithead(void **head, int off)
@@ -224,12 +168,6 @@ in6_inithead(void **head, int off)
 	rh->rnh_addaddr = in6_addroute;
 	*head = (void *)rh;
 
-	if (V__in6_rt_was_here == 0) {
-		callout_init(&V_rtq_mtutimer, 1);
-		in6_mtutimo(curvnet);	/* kick off timeout first time */
-		V__in6_rt_was_here = 1;
-	}
-
 	return (1);
 }
 
@@ -238,7 +176,6 @@ int
 in6_detachhead(void **head, int off)
 {
 
-	callout_drain(&V_rtq_mtutimer);
 	rt_table_destroy((struct rib_head *)(*head));
 
 	return (1);
