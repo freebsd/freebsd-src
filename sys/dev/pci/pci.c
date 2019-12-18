@@ -275,13 +275,6 @@ static const struct pci_quirk pci_quirks[] = {
 	{ 0x74501022, PCI_QUIRK_DISABLE_MSI,	0,	0 },
 
 	/*
-	 * MSI-X allocation doesn't work properly for devices passed through
-	 * by VMware up to at least ESXi 5.1.
-	 */
-	{ 0x079015ad, PCI_QUIRK_DISABLE_MSIX,	0,	0 }, /* PCI/PCI-X */
-	{ 0x07a015ad, PCI_QUIRK_DISABLE_MSIX,	0,	0 }, /* PCIe */
-
-	/*
 	 * Some virtualization environments emulate an older chipset
 	 * but support MSI just fine.  QEMU uses the Intel 82440.
 	 */
