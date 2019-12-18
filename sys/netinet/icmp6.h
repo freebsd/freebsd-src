@@ -687,8 +687,6 @@ void	kmod_icmp6stat_inc(int statnum);
 #define ICMPV6CTL_NODEINFO_OLDMCPREFIX	25
 #define ICMPV6CTL_MAXID		26
 
-#define RTF_PROBEMTU	RTF_PROTO1
-
 #ifdef _KERNEL
 # ifdef __STDC__
 struct	rtentry;
