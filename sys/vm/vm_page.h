@@ -763,7 +763,11 @@ void vm_page_assert_pga_writeable(vm_page_t m, uint16_t bits);
 #define	VM_PAGE_ASSERT_PGA_WRITEABLE(m, bits)	(void)0
 #endif
 
-#define	VM_PAGE_AFLAG_SHIFT	(__offsetof(vm_page_astate_t, flags) * NBBY)
+#if BYTE_ORDER == BIG_ENDIAN
+#define	VM_PAGE_AFLAG_SHIFT	16
+#else
+#define	VM_PAGE_AFLAG_SHIFT	0
+#endif
 
 /*
  *	Load a snapshot of a page's 32-bit atomic state.
