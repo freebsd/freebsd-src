@@ -593,27 +593,26 @@ oce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (rc)
 			break;
 
-		if (i2c.dev_addr != PAGE_NUM_A0 &&
-		    i2c.dev_addr != PAGE_NUM_A2) {
+		if (i2c.dev_addr == PAGE_NUM_A0) {
+			offset = i2c.offset;
+		} else if (i2c.dev_addr == PAGE_NUM_A2) {
+			offset = TRANSCEIVER_A0_SIZE + i2c.offset;
+		} else {
 			rc = EINVAL;
 			break;
 		}
 
-		if (i2c.len > sizeof(i2c.data)) {
+		if (i2c.len > sizeof(i2c.data) ||
+		    i2c.len + offset > sizeof(sfp_vpd_dump_buffer)) {
 			rc = EINVAL;
 			break;
 		}
 
 		rc = oce_mbox_read_transrecv_data(sc, i2c.dev_addr);
-		if(rc) {
+		if (rc) {
 			rc = -rc;
 			break;
 		}
-
-		if (i2c.dev_addr == PAGE_NUM_A0)
-			offset = i2c.offset;
-		else
-			offset = TRANSCEIVER_A0_SIZE + i2c.offset;
 
 		memcpy(&i2c.data[0], &sfp_vpd_dump_buffer[offset], i2c.len);
 
