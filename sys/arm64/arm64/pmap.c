@@ -331,6 +331,7 @@ static void	pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
 		    vm_offset_t va);
 
+static void pmap_abort_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mpte);
 static bool pmap_activate_int(pmap_t pmap);
 static void pmap_alloc_asid(pmap_t pmap);
 static int pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode);
@@ -1500,6 +1501,29 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde,
 	return (pmap_unwire_l3(pmap, va, mpte, free));
 }
 
+/*
+ * Release a page table page reference after a failed attempt to create a
+ * mapping.
+ */
+static void
+pmap_abort_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
+{
+	struct spglist free;
+
+	SLIST_INIT(&free);
+	if (pmap_unwire_l3(pmap, va, mpte, &free)) {
+		/*
+		 * Although "va" was never mapped, the TLB could nonetheless
+		 * have intermediate entries that refer to the freed page
+		 * table pages.  Invalidate those entries.
+		 *
+		 * XXX redundant invalidation (See _pmap_unwire_l3().)
+		 */
+		pmap_invalidate_page(pmap, va);
+		vm_page_free_pages_toq(&free, true);
+	}
+}
+
 void
 pmap_pinit0(pmap_t pmap)
 {
@@ -1677,27 +1701,41 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 	return (m);
 }
 
-static vm_page_t
-pmap_alloc_l2(pmap_t pmap, vm_offset_t va, struct rwlock **lockp)
+static pd_entry_t *
+pmap_alloc_l2(pmap_t pmap, vm_offset_t va, vm_page_t *l2pgp,
+    struct rwlock **lockp)
 {
-	pd_entry_t *l1;
+	pd_entry_t *l1, *l2;
 	vm_page_t l2pg;
 	vm_pindex_t l2pindex;
 
 retry:
 	l1 = pmap_l1(pmap, va);
 	if (l1 != NULL && (pmap_load(l1) & ATTR_DESCR_MASK) == L1_TABLE) {
-		/* Add a reference to the L2 page. */
-		l2pg = PHYS_TO_VM_PAGE(pmap_load(l1) & ~ATTR_MASK);
-		l2pg->ref_count++;
-	} else {
+		l2 = pmap_l1_to_l2(l1, va);
+		if (va < VM_MAXUSER_ADDRESS) {
+			/* Add a reference to the L2 page. */
+			l2pg = PHYS_TO_VM_PAGE(pmap_load(l1) & ~ATTR_MASK);
+			l2pg->ref_count++;
+		} else
+			l2pg = NULL;
+	} else if (va < VM_MAXUSER_ADDRESS) {
 		/* Allocate a L2 page. */
 		l2pindex = pmap_l2_pindex(va) >> Ln_ENTRIES_SHIFT;
 		l2pg = _pmap_alloc_l3(pmap, NUL2E + l2pindex, lockp);
-		if (l2pg == NULL && lockp != NULL)
-			goto retry;
-	}
-	return (l2pg);
+		if (l2pg == NULL) {
+			if (lockp != NULL)
+				goto retry;
+			else
+				return (NULL);
+		}
+		l2 = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(l2pg));
+		l2 = &l2[pmap_l2_index(va)];
+	} else
+		panic("pmap_alloc_l2: missing page table page for va %#lx",
+		    va);
+	*l2pgp = l2pg;
+	return (l2);
 }
 
 static vm_page_t
@@ -3553,6 +3591,24 @@ pmap_enter_2mpage(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 }
 
 /*
+ * Returns true if every page table entry in the specified page table is
+ * zero.
+ */
+static bool
+pmap_every_pte_zero(vm_paddr_t pa)
+{
+	pt_entry_t *pt_end, *pte;
+
+	KASSERT((pa & PAGE_MASK) == 0, ("pa is misaligned"));
+	pte = (pt_entry_t *)PHYS_TO_DMAP(pa);
+	for (pt_end = pte + Ln_ENTRIES; pte < pt_end; pte++) {
+		if (*pte != 0)
+			return (false);
+	}
+	return (true);
+}
+
+/*
  * Tries to create the specified 2MB page mapping.  Returns KERN_SUCCESS if
  * the mapping was created, and either KERN_FAILURE or KERN_RESOURCE_SHORTAGE
  * otherwise.  Returns KERN_FAILURE if PMAP_ENTER_NOREPLACE was specified and
@@ -3573,23 +3629,26 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
-	if ((l2pg = pmap_alloc_l2(pmap, va, (flags & PMAP_ENTER_NOSLEEP) != 0 ?
-	    NULL : lockp)) == NULL) {
+	if ((l2 = pmap_alloc_l2(pmap, va, &l2pg, (flags &
+	    PMAP_ENTER_NOSLEEP) != 0 ? NULL : lockp)) == NULL) {
 		CTR2(KTR_PMAP, "pmap_enter_l2: failure for va %#lx in pmap %p",
 		    va, pmap);
 		return (KERN_RESOURCE_SHORTAGE);
 	}
 
-	l2 = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(l2pg));
-	l2 = &l2[pmap_l2_index(va)];
+	/*
+	 * If there are existing mappings, either abort or remove them.
+	 */
 	if ((old_l2 = pmap_load(l2)) != 0) {
-		KASSERT(l2pg->ref_count > 1,
+		KASSERT(l2pg == NULL || l2pg->ref_count > 1,
 		    ("pmap_enter_l2: l2pg's ref count is too low"));
-		if ((flags & PMAP_ENTER_NOREPLACE) != 0) {
-			l2pg->ref_count--;
-			CTR2(KTR_PMAP,
-			    "pmap_enter_l2: failure for va %#lx in pmap %p",
-			    va, pmap);
+		if ((flags & PMAP_ENTER_NOREPLACE) != 0 && (va <
+		    VM_MAXUSER_ADDRESS || (old_l2 & ATTR_DESCR_MASK) ==
+		    L2_BLOCK || pmap_every_pte_zero(old_l2 & ~ATTR_MASK))) {
+			if (l2pg != NULL)
+				l2pg->ref_count--;
+			CTR2(KTR_PMAP, "pmap_enter_l2: failure for va %#lx"
+			    " in pmap %p", va, pmap);
 			return (KERN_FAILURE);
 		}
 		SLIST_INIT(&free);
@@ -3599,8 +3658,14 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 		else
 			pmap_remove_l3_range(pmap, old_l2, va, va + L2_SIZE,
 			    &free, lockp);
-		vm_page_free_pages_toq(&free, true);
-		if (va >= VM_MAXUSER_ADDRESS) {
+		if (va < VM_MAXUSER_ADDRESS) {
+			vm_page_free_pages_toq(&free, true);
+			KASSERT(pmap_load(l2) == 0,
+			    ("pmap_enter_l2: non-zero L2 entry %p", l2));
+		} else {
+			KASSERT(SLIST_EMPTY(&free),
+			    ("pmap_enter_l2: freed kernel page table page"));
+
 			/*
 			 * Both pmap_remove_l2() and pmap_remove_l3_range()
 			 * will leave the kernel page table page zero filled.
@@ -3612,9 +3677,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 				panic("pmap_enter_l2: trie insert failed");
 			pmap_clear(l2);
 			pmap_invalidate_page(pmap, va);
-		} else
-			KASSERT(pmap_load(l2) == 0,
-			    ("pmap_enter_l2: non-zero L2 entry %p", l2));
+		}
 	}
 
 	if ((new_l2 & ATTR_SW_MANAGED) != 0) {
@@ -3622,20 +3685,8 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 		 * Abort this mapping if its PV entry could not be created.
 		 */
 		if (!pmap_pv_insert_l2(pmap, va, new_l2, flags, lockp)) {
-			SLIST_INIT(&free);
-			if (pmap_unwire_l3(pmap, va, l2pg, &free)) {
-				/*
-				 * Although "va" is not mapped, the TLB could
-				 * nonetheless have intermediate entries that
-				 * refer to the freed page table pages.
-				 * Invalidate those entries.
-				 *
-				 * XXX redundant invalidation (See
-				 * _pmap_unwire_l3().)
-				 */
-				pmap_invalidate_page(pmap, va);
-				vm_page_free_pages_toq(&free, true);
-			}
+			if (l2pg != NULL)
+				pmap_abort_ptp(pmap, va, l2pg);
 			CTR2(KTR_PMAP,
 			    "pmap_enter_l2: failure for va %#lx in pmap %p",
 			    va, pmap);
@@ -3736,7 +3787,6 @@ static vm_page_t
 pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
     vm_prot_t prot, vm_page_t mpte, struct rwlock **lockp)
 {
-	struct spglist free;
 	pd_entry_t *pde;
 	pt_entry_t *l2, *l3, l3_val;
 	vm_paddr_t pa;
@@ -3810,11 +3860,9 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 * Abort if a mapping already exists.
 	 */
 	if (pmap_load(l3) != 0) {
-		if (mpte != NULL) {
+		if (mpte != NULL)
 			mpte->ref_count--;
-			mpte = NULL;
-		}
-		return (mpte);
+		return (NULL);
 	}
 
 	/*
@@ -3822,15 +3870,9 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 */
 	if ((m->oflags & VPO_UNMANAGED) == 0 &&
 	    !pmap_try_insert_pv_entry(pmap, va, m, lockp)) {
-		if (mpte != NULL) {
-			SLIST_INIT(&free);
-			if (pmap_unwire_l3(pmap, va, mpte, &free)) {
-				pmap_invalidate_page(pmap, va);
-				vm_page_free_pages_toq(&free, true);
-			}
-			mpte = NULL;
-		}
-		return (mpte);
+		if (mpte != NULL)
+			pmap_abort_ptp(pmap, va, mpte);
+		return (NULL);
 	}
 
 	/*
@@ -3984,7 +4026,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
     vm_offset_t src_addr)
 {
 	struct rwlock *lock;
-	struct spglist free;
 	pd_entry_t *l0, *l1, *l2, srcptepaddr;
 	pt_entry_t *dst_pte, mask, nbits, ptetemp, *src_pte;
 	vm_offset_t addr, end_addr, va_next;
@@ -4027,12 +4068,9 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			if ((addr & L2_OFFSET) != 0 ||
 			    addr + L2_SIZE > end_addr)
 				continue;
-			dst_l2pg = pmap_alloc_l2(dst_pmap, addr, NULL);
-			if (dst_l2pg == NULL)
+			l2 = pmap_alloc_l2(dst_pmap, addr, &dst_l2pg, NULL);
+			if (l2 == NULL)
 				break;
-			l2 = (pd_entry_t *)
-			    PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dst_l2pg));
-			l2 = &l2[pmap_l2_index(addr)];
 			if (pmap_load(l2) == 0 &&
 			    ((srcptepaddr & ATTR_SW_MANAGED) == 0 ||
 			    pmap_pv_insert_l2(dst_pmap, addr, srcptepaddr,
@@ -4046,7 +4084,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				    PAGE_SIZE);
 				atomic_add_long(&pmap_l2_mappings, 1);
 			} else
-				dst_l2pg->ref_count--;
+				pmap_abort_ptp(dst_pmap, addr, dst_l2pg);
 			continue;
 		}
 		KASSERT((srcptepaddr & ATTR_DESCR_MASK) == L2_TABLE,
@@ -4093,21 +4131,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				pmap_store(dst_pte, (ptetemp & ~mask) | nbits);
 				pmap_resident_count_inc(dst_pmap, 1);
 			} else {
-				SLIST_INIT(&free);
-				if (pmap_unwire_l3(dst_pmap, addr, dstmpte,
-				    &free)) {
-					/*
-					 * Although "addr" is not mapped,
-					 * the TLB could nonetheless have
-					 * intermediate entries that refer
-					 * to the freed page table pages.
-					 * Invalidate those entries.
-					 *
-					 * XXX redundant invalidation
-					 */
-					pmap_invalidate_page(dst_pmap, addr);
-					vm_page_free_pages_toq(&free, true);
-				}
+				pmap_abort_ptp(dst_pmap, addr, dstmpte);
 				goto out;
 			}
 			/* Have we copied all of the valid mappings? */ 
