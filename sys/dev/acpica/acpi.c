@@ -884,11 +884,14 @@ acpi_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
 	return (0);
     }
 
-    snprintf(buf, buflen, "_HID=%s _UID=%lu",
+    snprintf(buf, buflen, "_HID=%s _UID=%lu _CID=%s",
 	(adinfo->Valid & ACPI_VALID_HID) ?
 	adinfo->HardwareId.String : "none",
 	(adinfo->Valid & ACPI_VALID_UID) ?
-	strtoul(adinfo->UniqueId.String, NULL, 10) : 0UL);
+	strtoul(adinfo->UniqueId.String, NULL, 10) : 0UL,
+	((adinfo->Valid & ACPI_VALID_CID) &&
+	 adinfo->CompatibleIdList.Count > 0) ?
+	adinfo->CompatibleIdList.Ids[0].String : "none");
     AcpiOsFree(adinfo);
 
     return (0);
