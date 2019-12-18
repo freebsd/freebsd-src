@@ -13744,6 +13744,7 @@ static void
 check_clear_deps(mp)
 	struct mount *mp;
 {
+	struct ufsmount *ump;
 	size_t resid;
 
 	/*
@@ -13751,8 +13752,11 @@ check_clear_deps(mp)
 	 * that have been delayed for performance reasons should
 	 * proceed to help alleviate the shortage faster.
 	 */
-	g_io_speedup(0, BIO_SPEEDUP_TRIM | BIO_SPEEDUP_WRITE, &resid,
-	    VFSTOUFS(mp)->um_cp);
+	ump = VFSTOUFS(mp);
+	FREE_LOCK(ump);
+	g_io_speedup(0, BIO_SPEEDUP_TRIM | BIO_SPEEDUP_WRITE, &resid, ump->um_cp);
+	ACQUIRE_LOCK(ump);
+
 
 	/*
 	 * If we are suspended, it may be because of our using
