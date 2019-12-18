@@ -362,7 +362,7 @@ struct sctp_inpcb {
 	 */
 	union {
 		struct inpcb inp;
-		char align[(sizeof(struct in6pcb) + SCTP_ALIGNM1) &
+		char align[(sizeof(struct inpcb) + SCTP_ALIGNM1) &
 		    ~SCTP_ALIGNM1];
 	}     ip_inp;
 

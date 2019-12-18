@@ -518,7 +518,6 @@ sctp_must_try_again:
 static int
 sctp6_attach(struct socket *so, int proto SCTP_UNUSED, struct thread *p SCTP_UNUSED)
 {
-	struct in6pcb *inp6;
 	int error;
 	struct sctp_inpcb *inp;
 	uint32_t vrf_id = SCTP_DEFAULT_VRFID;
@@ -540,18 +539,17 @@ sctp6_attach(struct socket *so, int proto SCTP_UNUSED, struct thread *p SCTP_UNU
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	SCTP_INP_WLOCK(inp);
 	inp->sctp_flags |= SCTP_PCB_FLAGS_BOUND_V6;	/* I'm v6! */
-	inp6 = (struct in6pcb *)inp;
 
-	inp6->inp_vflag |= INP_IPV6;
-	inp6->in6p_hops = -1;	/* use kernel default */
-	inp6->in6p_cksum = -1;	/* just to be sure */
+	inp->ip_inp.inp.inp_vflag |= INP_IPV6;
+	inp->ip_inp.inp.in6p_hops = -1;	/* use kernel default */
+	inp->ip_inp.inp.in6p_cksum = -1;	/* just to be sure */
 #ifdef INET
 	/*
 	 * XXX: ugly!! IPv4 TTL initialization is necessary for an IPv6
 	 * socket as well, because the socket may be bound to an IPv6
 	 * wildcard address, which may match an IPv4-mapped IPv6 address.
 	 */
-	inp6->inp_ip_ttl = MODULE_GLOBAL(ip_defttl);
+	inp->ip_inp.inp.inp_ip_ttl = MODULE_GLOBAL(ip_defttl);
 #endif
 	SCTP_INP_WUNLOCK(inp);
 	return (0);
@@ -561,7 +559,6 @@ static int
 sctp6_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 {
 	struct sctp_inpcb *inp;
-	struct in6pcb *inp6;
 	int error;
 	u_char vflagsav;
 
@@ -594,17 +591,16 @@ sctp6_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 			return (EINVAL);
 		}
 	}
-	inp6 = (struct in6pcb *)inp;
-	vflagsav = inp6->inp_vflag;
-	inp6->inp_vflag &= ~INP_IPV4;
-	inp6->inp_vflag |= INP_IPV6;
-	if ((addr != NULL) && (SCTP_IPV6_V6ONLY(inp6) == 0)) {
+	vflagsav = inp->ip_inp.inp.inp_vflag;
+	inp->ip_inp.inp.inp_vflag &= ~INP_IPV4;
+	inp->ip_inp.inp.inp_vflag |= INP_IPV6;
+	if ((addr != NULL) && (SCTP_IPV6_V6ONLY(&inp->ip_inp.inp) == 0)) {
 		switch (addr->sa_family) {
 #ifdef INET
 		case AF_INET:
 			/* binding v4 addr to v6 socket, so reset flags */
-			inp6->inp_vflag |= INP_IPV4;
-			inp6->inp_vflag &= ~INP_IPV6;
+			inp->ip_inp.inp.inp_vflag |= INP_IPV4;
+			inp->ip_inp.inp.inp_vflag &= ~INP_IPV6;
 			break;
 #endif
 #ifdef INET6
@@ -615,15 +611,15 @@ sctp6_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 				sin6_p = (struct sockaddr_in6 *)addr;
 
 				if (IN6_IS_ADDR_UNSPECIFIED(&sin6_p->sin6_addr)) {
-					inp6->inp_vflag |= INP_IPV4;
+					inp->ip_inp.inp.inp_vflag |= INP_IPV4;
 				}
 #ifdef INET
 				if (IN6_IS_ADDR_V4MAPPED(&sin6_p->sin6_addr)) {
 					struct sockaddr_in sin;
 
 					in6_sin6_2_sin(&sin, sin6_p);
-					inp6->inp_vflag |= INP_IPV4;
-					inp6->inp_vflag &= ~INP_IPV6;
+					inp->ip_inp.inp.inp_vflag |= INP_IPV4;
+					inp->ip_inp.inp.inp_vflag &= ~INP_IPV6;
 					error = sctp_inpcb_bind(so, (struct sockaddr *)&sin, NULL, p);
 					goto out;
 				}
@@ -659,7 +655,7 @@ sctp6_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 	error = sctp_inpcb_bind(so, addr, NULL, p);
 out:
 	if (error != 0)
-		inp6->inp_vflag = vflagsav;
+		inp->ip_inp.inp.inp_vflag = vflagsav;
 	return (error);
 }
 
@@ -690,7 +686,6 @@ sctp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
     struct mbuf *control, struct thread *p)
 {
 	struct sctp_inpcb *inp;
-	struct in6pcb *inp6;
 
 #ifdef INET
 	struct sockaddr_in6 *sin6;
@@ -707,7 +702,6 @@ sctp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
 		return (EINVAL);
 	}
-	inp6 = (struct in6pcb *)inp;
 	/*
 	 * For the TCP model we may get a NULL addr, if we are a connected
 	 * socket thats ok.
@@ -727,7 +721,7 @@ sctp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	}
 #ifdef INET
 	sin6 = (struct sockaddr_in6 *)addr;
-	if (SCTP_IPV6_V6ONLY(inp6)) {
+	if (SCTP_IPV6_V6ONLY(inp)) {
 		/*
 		 * if IPV6_V6ONLY flag, we discard datagrams destined to a
 		 * v4 addr or v4-mapped addr
@@ -796,14 +790,10 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	struct sctp_inpcb *inp;
 	struct sctp_tcb *stcb;
 #ifdef INET
-	struct in6pcb *inp6;
 	struct sockaddr_in6 *sin6;
 	union sctp_sockstore store;
 #endif
 
-#ifdef INET
-	inp6 = (struct in6pcb *)so->so_pcb;
-#endif
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ECONNRESET);
@@ -861,7 +851,7 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	}
 #ifdef INET
 	sin6 = (struct sockaddr_in6 *)addr;
-	if (SCTP_IPV6_V6ONLY(inp6)) {
+	if (SCTP_IPV6_V6ONLY(inp)) {
 		/*
 		 * if IPV6_V6ONLY flag, ignore connections destined to a v4
 		 * addr or v4-mapped addr
@@ -1103,10 +1093,10 @@ sctp6_peeraddr(struct socket *so, struct sockaddr **addr)
 static int
 sctp6_in6getaddr(struct socket *so, struct sockaddr **nam)
 {
-	struct in6pcb *inp6 = sotoin6pcb(so);
+	struct inpcb *inp = sotoinpcb(so);
 	int error;
 
-	if (inp6 == NULL) {
+	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
 		return (EINVAL);
 	}
@@ -1139,10 +1129,10 @@ sctp6_in6getaddr(struct socket *so, struct sockaddr **nam)
 static int
 sctp6_getpeeraddr(struct socket *so, struct sockaddr **nam)
 {
-	struct in6pcb *inp6 = sotoin6pcb(so);
+	struct inpcb *inp = sotoinpcb(so);
 	int error;
 
-	if (inp6 == NULL) {
+	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
 		return (EINVAL);
 	}

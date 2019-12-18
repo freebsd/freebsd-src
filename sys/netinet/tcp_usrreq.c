@@ -344,18 +344,18 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
-	struct sockaddr_in6 *sin6p;
+	struct sockaddr_in6 *sin6;
 	u_char vflagsav;
 
-	sin6p = (struct sockaddr_in6 *)nam;
-	if (nam->sa_len != sizeof (*sin6p))
+	sin6 = (struct sockaddr_in6 *)nam;
+	if (nam->sa_len != sizeof (*sin6))
 		return (EINVAL);
 	/*
 	 * Must check for multicast addresses and disallow binding
 	 * to them.
 	 */
-	if (sin6p->sin6_family == AF_INET6 &&
-	    IN6_IS_ADDR_MULTICAST(&sin6p->sin6_addr))
+	if (sin6->sin6_family == AF_INET6 &&
+	    IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 		return (EAFNOSUPPORT);
 
 	TCPDEBUG0;
@@ -374,12 +374,12 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp->inp_vflag |= INP_IPV6;
 #ifdef INET
 	if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0) {
-		if (IN6_IS_ADDR_UNSPECIFIED(&sin6p->sin6_addr))
+		if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
 			inp->inp_vflag |= INP_IPV4;
-		else if (IN6_IS_ADDR_V4MAPPED(&sin6p->sin6_addr)) {
+		else if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
 			struct sockaddr_in sin;
 
-			in6_sin6_2_sin(&sin, sin6p);
+			in6_sin6_2_sin(&sin, sin6);
 			if (IN_MULTICAST(ntohl(sin.sin_addr.s_addr))) {
 				error = EAFNOSUPPORT;
 				INP_HASH_WUNLOCK(&V_tcbinfo);
@@ -575,20 +575,20 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
-	struct sockaddr_in6 *sin6p;
+	struct sockaddr_in6 *sin6;
 	u_int8_t incflagsav;
 	u_char vflagsav;
 
 	TCPDEBUG0;
 
-	sin6p = (struct sockaddr_in6 *)nam;
-	if (nam->sa_len != sizeof (*sin6p))
+	sin6 = (struct sockaddr_in6 *)nam;
+	if (nam->sa_len != sizeof (*sin6))
 		return (EINVAL);
 	/*
 	 * Must disallow TCP ``connections'' to multicast addresses.
 	 */
-	if (sin6p->sin6_family == AF_INET6
-	    && IN6_IS_ADDR_MULTICAST(&sin6p->sin6_addr))
+	if (sin6->sin6_family == AF_INET6
+	    && IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 		return (EAFNOSUPPORT);
 
 	inp = sotoinpcb(so);
@@ -612,7 +612,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	 * therefore probably require the hash lock, which isn't held here.
 	 * Is this a significant problem?
 	 */
-	if (IN6_IS_ADDR_V4MAPPED(&sin6p->sin6_addr)) {
+	if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
 		struct sockaddr_in sin;
 
 		if ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0) {
@@ -624,7 +624,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 			goto out;
 		}
 
-		in6_sin6_2_sin(&sin, sin6p);
+		in6_sin6_2_sin(&sin, sin6);
 		if (IN_MULTICAST(ntohl(sin.sin_addr.s_addr))) {
 			error = EAFNOSUPPORT;
 			goto out;
@@ -651,7 +651,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		}
 	}
 #endif
-	if ((error = prison_remote_ip6(td->td_ucred, &sin6p->sin6_addr)) != 0)
+	if ((error = prison_remote_ip6(td->td_ucred, &sin6->sin6_addr)) != 0)
 		goto out;
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
@@ -1000,22 +1000,22 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 #ifdef INET6
 		case AF_INET6:
 		{
-			struct sockaddr_in6 *sin6p;
+			struct sockaddr_in6 *sin6;
 
-			sin6p = (struct sockaddr_in6 *)nam;
-			if (sin6p->sin6_len != sizeof(struct sockaddr_in6)) {
+			sin6 = (struct sockaddr_in6 *)nam;
+			if (sin6->sin6_len != sizeof(*sin6)) {
 				if (m)
 					m_freem(m);
 				error = EINVAL;
 				goto out;
 			}
-			if (IN6_IS_ADDR_MULTICAST(&sin6p->sin6_addr)) {
+			if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
 				if (m)
 					m_freem(m);
 				error = EAFNOSUPPORT;
 				goto out;
 			}
-			if (IN6_IS_ADDR_V4MAPPED(&sin6p->sin6_addr)) {
+			if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
 #ifdef INET
 				if ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0) {
 					error = EINVAL;
@@ -1032,7 +1032,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 				restoreflags = true;
 				inp->inp_vflag &= ~INP_IPV6;
 				sinp = &sin;
-				in6_sin6_2_sin(sinp, sin6p);
+				in6_sin6_2_sin(sinp, sin6);
 				if (IN_MULTICAST(
 				    ntohl(sinp->sin_addr.s_addr))) {
 					error = EAFNOSUPPORT;
@@ -1064,7 +1064,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 				inp->inp_vflag &= ~INP_IPV4;
 				inp->inp_inc.inc_flags |= INC_ISIPV6;
 				if ((error = prison_remote_ip6(td->td_ucred,
-				    &sin6p->sin6_addr))) {
+				    &sin6->sin6_addr))) {
 					if (m)
 						m_freem(m);
 					goto out;
