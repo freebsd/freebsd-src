@@ -493,8 +493,6 @@ size_t tmpfs_pages_used(struct tmpfs_mount *tmp);
 void tmpfs_subr_init(void);
 void tmpfs_subr_uninit(void);
 
-#endif
-
 /*
  * Macros/functions to convert from generic data structures to tmpfs
  * specific ones.
@@ -536,5 +534,6 @@ tmpfs_use_nc(struct vnode *vp)
 
 	return (!(VFS_TO_TMPFS(vp->v_mount)->tm_nonc));
 }
+#endif /* _KERNEL */
 
 #endif /* _FS_TMPFS_TMPFS_H_ */
