@@ -69,9 +69,29 @@ inplace_command_q_body()
 	atf_check -s not-exit:0 stat -q '.!'*
 }
 
+atf_test_case escape_subst
+escape_subst_head()
+{
+	atf_set "descr" "Verify functional escaping of \\n, \\r, and \\t"
+}
+escape_subst_body()
+{
+	printf "a\nt\\\t\n\tb\n\t\tc\r\n" > a
+	tr -d '\r' < a > b
+	printf "a\tb c\rx\n" > c
+
+	atf_check -o 'inline:a\nt\\t\n' sed '/\t/d' a
+	atf_check -o 'inline:a\nt\\t\n    b\n        c\r\n' sed 's/\t/    /g' a
+	atf_check -o 'inline:a\nt\\t\n\t\tb\n\t\t\t\tc\r\n' sed 's/\t/\t\t/g' a
+	atf_check -o 'inline:a\nt\n\tb\n\t\tc\r\n' sed 's/\\t//g' a
+	atf_check -o file:b sed 's/\r//' a
+	atf_check -o 'inline:abcx\n' sed 's/[ \r\t]//g' c
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case inplace_command_q
 	atf_add_test_case inplace_hardlink_src
 	atf_add_test_case inplace_symlink_src
+	atf_add_test_case escape_subst
 }
