@@ -90,4 +90,16 @@
 	.inst	0xd500409f | (1 << 8);		/* Set PAN */		\
 	999:
 
+/*
+ * Some AArch64 CPUs speculate past an eret instruction. As the user may
+ * control the registers at this point add a speculation barrier usable on
+ * all AArch64 CPUs after the eret instruction.
+ * TODO: ARMv8.5 adds a specific instruction for this, we could use that
+ * if we know we are running on something that supports it.
+ */
+#define	ERET								\
+	eret;								\
+	dsb	sy;							\
+	isb
+
 #endif /* _MACHINE_ASM_H_ */

@@ -253,7 +253,7 @@ ENTRY(fork_trampoline)
 	 * No need for interrupts reenabling since PSR
 	 * will be set to the desired value anyway.
 	 */
-	eret
+	ERET
 	
 END(fork_trampoline)
 
