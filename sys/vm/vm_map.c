@@ -2439,11 +2439,11 @@ vm_map_submap(
 
 	VM_MAP_RANGE_CHECK(map, start, end);
 
-	if (vm_map_lookup_entry(map, start, &entry)) {
-		vm_map_clip_start(map, entry, start);
-	} else
-		entry = vm_map_entry_succ(entry);
+	if (vm_map_lookup_entry(map, start, &entry) == FALSE ||
+	    entry->end < end)
+		goto out;
 
+	vm_map_clip_start(map, entry, start);
 	vm_map_clip_end(map, entry, end);
 
 	if ((entry->start == start) && (entry->end == end) &&
@@ -2453,6 +2453,7 @@ vm_map_submap(
 		entry->eflags |= MAP_ENTRY_IS_SUB_MAP;
 		result = KERN_SUCCESS;
 	}
+out:
 	vm_map_unlock(map);
 
 	if (result != KERN_SUCCESS) {
