@@ -175,7 +175,7 @@ ENTRY(handle_el1h_sync)
 	mov	x1, sp
 	bl	do_el1h_sync
 	restore_registers 1
-	eret
+	ERET
 END(handle_el1h_sync)
 
 ENTRY(handle_el1h_irq)
@@ -183,7 +183,7 @@ ENTRY(handle_el1h_irq)
 	mov	x0, sp
 	bl	intr_irq_handler
 	restore_registers 1
-	eret
+	ERET
 END(handle_el1h_irq)
 
 ENTRY(handle_el0_sync)
@@ -194,7 +194,7 @@ ENTRY(handle_el0_sync)
 	bl	do_el0_sync
 	do_ast
 	restore_registers 0
-	eret
+	ERET
 END(handle_el0_sync)
 
 ENTRY(handle_el0_irq)
@@ -203,7 +203,7 @@ ENTRY(handle_el0_irq)
 	bl	intr_irq_handler
 	do_ast
 	restore_registers 0
-	eret
+	ERET
 END(handle_el0_irq)
 
 ENTRY(handle_serror)
