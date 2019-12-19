@@ -6,7 +6,6 @@ DIRDEPS = \
 	include/arpa \
 	include/xlocale \
 	secure/lib/libcrypto \
-	secure/lib/libssl \
 
 
 .include <dirdeps.mk>
