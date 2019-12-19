@@ -338,8 +338,9 @@ tty_info(struct tty *tp)
 	pctcpu = (sched_pctcpu(td) * 10000 + FSCALE / 2) >> FSHIFT;
 #ifdef STACK
 	if (tty_info_kstacks) {
-		stack_zero(&stack);
-		if (TD_IS_SWAPPED(td) || TD_IS_RUNNING(td))
+		if (TD_IS_SWAPPED(td))
+			sterr = ENOENT;
+		else if (TD_IS_RUNNING(td))
 			sterr = stack_save_td_running(&stack, td);
 		else {
 			stack_save_td(&stack, td);
