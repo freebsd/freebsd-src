@@ -96,7 +96,7 @@ TARGET_MACHINE= host
 OBJTOP := ${HOST_OBJTOP}
 .endif
 
-.if ${.MAKE.LEVEL} == 0
+.if ${.MAKE.LEVEL} == 0 || empty(PYTHON)
 PYTHON ?= /usr/local/bin/python
 .export PYTHON
 # this works best if share/mk is ready for it.
@@ -133,7 +133,9 @@ STAGE_TARGET_OBJTOP:= ${STAGE_ROOT}/${TARGET_OBJ_SPEC}
 STAGE_HOST_OBJTOP:= ${STAGE_ROOT}/${HOST_TARGET}
 # These are exported for hooking in out-of-tree builds.  They will always
 # be overridden in sub-makes above when building in-tree.
+.if ${.MAKE.LEVEL} > 0
 .export STAGE_OBJTOP STAGE_TARGET_OBJTOP STAGE_HOST_OBJTOP
+.endif
 
 # Use tools/install.sh which can avoid the need for xinstall for simple cases.
 INSTALL?=	sh ${SRCTOP}/tools/install.sh

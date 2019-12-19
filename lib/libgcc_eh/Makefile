@@ -10,4 +10,10 @@ WARNS?=	2
 
 .include "Makefile.inc"
 
+.if ${.MAKE.LEVEL} > 0
+# avoid circular dependencies
+GENDIRDEPS_FILTER+= Nlib/msun
+CFLAGS+= -I${SRCTOP}/lib/msun/src
+.endif
+
 .include <bsd.lib.mk>
