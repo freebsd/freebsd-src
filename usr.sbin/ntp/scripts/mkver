@@ -4,6 +4,8 @@
 #
 PROG=${1-UNKNOWN}
 
+: ${ECHO:=echo}
+
 ConfStr="$PROG"
 
 ConfStr="$ConfStr 4.2.8p12"
@@ -32,7 +34,7 @@ echo $RUN > .version
 
 ConfStr="$ConfStr (${RUN})"
 
-echo "Version <${ConfStr}>";
+${ECHO} "Version <${ConfStr}>";
 
 rm -f version.c
 cat > version.c << -EoF-
