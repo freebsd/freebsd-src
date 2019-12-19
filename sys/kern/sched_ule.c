@@ -2689,7 +2689,7 @@ sched_affinity(struct thread *td)
 		return;
 	if (TD_ON_RUNQ(td)) {
 		sched_rem(td);
-		sched_add(td, SRQ_BORING);
+		sched_add(td, SRQ_BORING | SRQ_HOLDTD);
 		return;
 	}
 	if (!TD_IS_RUNNING(td))
