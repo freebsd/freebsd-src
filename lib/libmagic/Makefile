@@ -37,7 +37,7 @@ MAGFILES=	${CONTRDIR}/magic/Header \
 magic: ${MAGFILES}
 	cat ${.ALLSRC:O} > ${.TARGET}
 
-magic.mgc: mkmagic magic
+magic.mgc: magic
 	${BTOOLSPATH:U.}/mkmagic magic
 
 .if ${MACHINE} == "host" || ${MK_DIRDEPS_BUILD} == "no"
@@ -51,6 +51,8 @@ mkmagic: apprentice.c cdf_time.c encoding.c funcs.c magic.c print.c ${INCS} ${BU
 .endif
 .if ${MK_DIRDEPS_BUILD} == "yes"
 BTOOLSPATH= ${HOST_OBJTOP}/${RELDIR}
+.else
+magic.mgc: mkmagic
 .endif
 
 FILEVER!= awk '$$1 == "\#define" && $$2 == "VERSION" { print $$3; exit }' \
