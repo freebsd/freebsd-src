@@ -1383,7 +1383,7 @@ g_part_ctl_resize(struct gctl_req *req, struct g_part_parms *gpp)
 	}
 
 	pp = entry->gpe_pp;
-	if ((g_debugflags & 16) == 0 &&
+	if ((g_debugflags & G_F_FOOTSHOOTING) == 0 &&
 	    (pp->acr > 0 || pp->acw > 0 || pp->ace > 0)) {
 		if (entry->gpe_end - entry->gpe_start + 1 > gpp->gpp_size) {
 			/* Deny shrinking of an opened partition. */

@@ -381,7 +381,7 @@ g_part_mbr_resize(struct g_part_table *basetable,
 		return (EINVAL);
 	/* XXX: prevent unexpected shrinking. */
 	pp = baseentry->gpe_pp;
-	if ((g_debugflags & 0x10) == 0 && size < gpp->gpp_size &&
+	if ((g_debugflags & G_F_FOOTSHOOTING) == 0 && size < gpp->gpp_size &&
 	    pp->mediasize / pp->sectorsize > size)
 		return (EBUSY);
 	entry = (struct g_part_mbr_entry *)baseentry;
