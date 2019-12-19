@@ -222,7 +222,7 @@ DIRDEPS += targets/pseudo/stage
 .endif
 
 # this one is too pervasive
-.if ${MK_BSD_CRTBEGIN} == "no" && ${DEP_RELDIR} != "gnu/lib/csu"
+.if ${MK_BSD_CRTBEGIN} == "no" && ${DEP_RELDIR:N.:Ngnu/lib/csu:Ninclude*:Ntargets/*} != ""
 DIRDEPS+= gnu/lib/csu
 .endif
 
