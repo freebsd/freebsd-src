@@ -424,6 +424,12 @@ FBSD_1.5 {
 	setproctitle_fast;
 };
 
+FBSD_1.6 {
+	sigandset;
+	sigisemptyset;
+	sigorset;
+};
+
 FBSDprivate_1.0 {
 	/* needed by thread libraries */
 	__thr_jtable;

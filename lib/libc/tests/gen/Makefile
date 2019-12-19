@@ -13,6 +13,7 @@ ATF_TESTS_C+=		ftw_test
 ATF_TESTS_C+=		popen_test
 ATF_TESTS_C+=		posix_spawn_test
 ATF_TESTS_C+=		realpath2_test
+ATF_TESTS_C+=		sigsetops_test
 ATF_TESTS_C+=		wordexp_test
 
 # TODO: t_closefrom, t_cpuset, t_fmtcheck, t_randomid,
