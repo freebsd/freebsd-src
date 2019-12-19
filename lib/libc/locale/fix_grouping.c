@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <stddef.h>
 
-static const char nogrouping[] = { CHAR_MAX, '\0' };
+static const char nogrouping[] = { '\0' };
 
 /*
  * Internal helper used to convert grouping sequences from string
