@@ -744,7 +744,7 @@ rfb_wr_thr(void *arg)
 void
 rfb_handle(struct rfb_softc *rc, int cfd)
 {
-	const char *vbuf = "RFB 003.008\n\r";
+	const char *vbuf = "RFB 003.008\n";
 	unsigned char buf[80];
 	unsigned char *message = NULL;
 
