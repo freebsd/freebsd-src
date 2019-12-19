@@ -81,6 +81,37 @@ sigfillset(sigset_t *set)
 }
 
 int
+sigorset(sigset_t *dest, const sigset_t *left, const sigset_t *right)
+{
+	int i;
+
+	for (i = 0; i < _SIG_WORDS; i++)
+		dest->__bits[i] = left->__bits[i] | right->__bits[i];
+	return (0);
+}
+
+int
+sigandset(sigset_t *dest, const sigset_t *left, const sigset_t *right)
+{
+	int i;
+
+	for (i = 0; i < _SIG_WORDS; i++)
+		dest->__bits[i] = left->__bits[i] & right->__bits[i];
+	return (0);
+}
+
+int
+sigisemptyset(const sigset_t *set)
+{
+	int i;
+
+	for (i = 0; i < _SIG_WORDS; i++)
+		if (set->__bits[i] != 0)
+			return (0);
+	return (1);
+}
+
+int
 sigismember(const sigset_t *set, int signo)
 {
 
