@@ -1597,6 +1597,7 @@ if_delgroups(struct ifnet *ifp)
 								ifgl->ifgl_group);
 			free(ifgl->ifgl_group, M_TEMP);
 		}
+		free(ifgl, M_TEMP);
 		EVENTHANDLER_INVOKE(group_change_event, groupname);
 
 		IFNET_WLOCK();
