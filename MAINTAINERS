@@ -38,14 +38,15 @@ subsystem	login	notes
 ath(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 contrib/atf		ngie,#test		Pre-commit review requested.
 contrib/capsicum-test	ngie,#capsicum,#test	Pre-commit review requested.
-contrib/compiler-rt	dim	Pre-commit review preferred.
 contrib/googletest	ngie,#test		Pre-commit review requested.
-contrib/ipfilter	cy	Pre-commit review requested.
-contrib/libc++		dim	Pre-commit review preferred.
-contrib/libcxxrt	dim	Pre-commit review preferred.
-contrib/libunwind	dim,emaste,jhb	Pre-commit review preferred.
-contrib/llvm		dim	Pre-commit review preferred.
-contrib/llvm/tools/lldb	dim,emaste	Pre-commit review preferred.
+contrib/ipfilter	cy			Pre-commit review requested.
+contrib/libcxxrt	dim,emaste		Pre-commit review preferred.
+contrib/llvm-project/compiler-rt	dim	Pre-commit review preferred.
+contrib/llvm-project/libcxx	dim		Pre-commit review preferred.
+contrib/llvm-project/libunwind	dim,emaste,jhb	Pre-commit review preferred.
+contrib/llvm-project/lldb	dim,emaste	Pre-commit review preferred.
+contrib/llvm-project/llvm	dim		Pre-commit review preferred.
+contrib/llvm-project/openmp	dim,emaste	Pre-commit review preferred.
 contrib/netbsd-tests	ngie,#test		Pre-commit review requested.
 contrib/pjdfstest	asomers,ngie,pjd,#test	Pre-commit review requested.
 *env(3)		secteam	Due to the problematic security history of this

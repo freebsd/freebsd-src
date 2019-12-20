@@ -3,7 +3,7 @@
 .include <src.opts.mk>
 
 PACKAGE=	clibs
-SRCDIR=		${SRCTOP}/contrib/libc++
+SRCDIR=		${SRCTOP}/contrib/llvm-project/libcxx
 
 LIB=		c++experimental
 NO_PIC=

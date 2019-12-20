@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SRCDIR=		${SRCTOP}/contrib/llvm/tools/clang
+SRCDIR=		${SRCTOP}/contrib/llvm-project/clang
 
 .PATH: ${SRCDIR}
 

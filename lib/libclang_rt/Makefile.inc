@@ -10,7 +10,7 @@ CRTARCH?=	armhf
 .else
 CRTARCH?=	${MACHINE_ARCH:C/amd64/x86_64/}
 .endif
-CRTSRC=		${SRCTOP}/contrib/compiler-rt
+CRTSRC=		${SRCTOP}/contrib/llvm-project/compiler-rt
 
 .PATH:		${CRTSRC}/lib
 

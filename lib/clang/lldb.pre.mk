@@ -2,4 +2,4 @@
 
 .include "clang.pre.mk"
 
-LLDB_SRCS=	${LLVM_SRCS}/tools/lldb
+LLDB_SRCS=	${LLVM_BASE}/lldb
