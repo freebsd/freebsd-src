@@ -14,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -33,23 +33,23 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/bus.h>
 #include <sys/rman.h>
 
 #include <machine/bus.h>
 
-#include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
-#include <dev/iicbus/iicoc.h>
+#include <dev/iicbus/iiconf.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
 #include "iicbus_if.h"
+#include "iicoc.h"
 
 static devclass_t iicoc_devclass;
 
@@ -64,24 +64,24 @@ static int iicoc_start(device_t dev, u_char slave, int timeout);
 static int iicoc_stop(device_t dev);
 static int iicoc_read(device_t dev, char *buf,
     int len, int *read, int last, int delay);
-static int iicoc_write(device_t dev, const char *buf, 
+static int iicoc_write(device_t dev, const char *buf,
     int len, int *sent, int timeout);
 static int iicoc_repeated_start(device_t dev, u_char slave, int timeout);
 
 struct iicoc_softc {
-	device_t 	dev;		/* Self */
+	device_t	dev;		/* Self */
 	u_int		reg_shift;	/* Chip specific */
 	u_int		clockfreq;
 	u_int		i2cfreq;
 	struct resource *mem_res;	/* Memory resource */
 	int		mem_rid;
-	int 		sc_started;
+	int		sc_started;
 	uint8_t		i2cdev_addr;
 	device_t	iicbus;
 	struct mtx	sc_mtx;
 };
 
-static void 
+static void
 iicoc_dev_write(device_t dev, int reg, int value)
 {
 	struct iicoc_softc *sc;
@@ -90,7 +90,7 @@ iicoc_dev_write(device_t dev, int reg, int value)
 	bus_write_1(sc->mem_res, reg<<sc->reg_shift, value);
 }
 
-static int 
+static int
 iicoc_dev_read(device_t dev, int reg)
 {
 	uint8_t val;
@@ -124,7 +124,7 @@ iicoc_rd_cmd(device_t dev, uint8_t cmd)
 		device_printf(dev, "read: Timeout waiting for TIP clear.\n");
 		return (-1);
 	}
-	data = iicoc_dev_read(dev, OC_I2C_DATA_REG); 
+	data = iicoc_dev_read(dev, OC_I2C_DATA_REG);
 	return (data);
 }
 
@@ -144,9 +144,10 @@ iicoc_wr_cmd(device_t dev, uint8_t data, uint8_t cmd)
 static int
 iicoc_wr_ack_cmd(device_t dev, uint8_t data, uint8_t cmd)
 {
-	if (iicoc_wr_cmd(dev, data, cmd) < 0) 
-		return (-1);	
-	
+
+	if (iicoc_wr_cmd(dev, data, cmd) < 0)
+		return (-1);
+
 	if (iicoc_dev_read(dev, OC_I2C_STATUS_REG) & OC_STATUS_NACK) {
 		device_printf(dev, "write: I2C command ACK Error.\n");
 		return (IIC_ENOACK);
@@ -154,7 +155,7 @@ iicoc_wr_ack_cmd(device_t dev, uint8_t data, uint8_t cmd)
 	return (0);
 }
 
-static int 
+static int
 iicoc_init(device_t dev)
 {
 	struct iicoc_softc *sc;
@@ -162,7 +163,7 @@ iicoc_init(device_t dev)
 
 	sc = device_get_softc(dev);
 	value = iicoc_dev_read(dev, OC_I2C_CTRL_REG);
-	iicoc_dev_write(dev, OC_I2C_CTRL_REG, 
+	iicoc_dev_write(dev, OC_I2C_CTRL_REG,
 	    value & ~(OC_CONTROL_EN | OC_CONTROL_IEN));
 	value = (sc->clockfreq/(5 * sc->i2cfreq)) - 1;
 	iicoc_dev_write(dev, OC_I2C_PRESCALE_LO_REG, value & 0xff);
@@ -179,7 +180,7 @@ static int
 iicoc_probe(device_t dev)
 {
 	struct iicoc_softc *sc;
-	
+
 	sc = device_get_softc(dev);
 	if ((pci_get_vendor(dev) == 0x184e) &&
 	    (pci_get_device(dev) == 0x1011)) {
@@ -230,13 +231,14 @@ iicoc_attach(device_t dev)
 static int
 iicoc_detach(device_t dev)
 {
+
 	bus_generic_detach(dev);
 	device_delete_children(dev);
 
 	return (0);
 }
 
-static int 
+static int
 iicoc_start(device_t dev, u_char slave, int timeout)
 {
 	int error = IIC_EBUSERR;
@@ -252,12 +254,12 @@ iicoc_start(device_t dev, u_char slave, int timeout)
 
 	/* Write Slave Address */
 	if (iicoc_wr_ack_cmd(dev, slave, OC_COMMAND_START)) {
-		device_printf(dev, 
+		device_printf(dev,
 		    "I2C write slave address [0x%x] failed.\n", slave);
 		error = IIC_ENOACK;
-		goto i2c_stx_error;	
+		goto i2c_stx_error;
 	}
-	
+
 	/* Verify Arbitration is not Lost */
 	if (iicoc_dev_read(dev, OC_I2C_STATUS_REG) & OC_STATUS_AL) {
 		device_printf(dev, "I2C Bus Arbitration Lost, Aborting.\n");
@@ -267,6 +269,7 @@ iicoc_start(device_t dev, u_char slave, int timeout)
 	error = IIC_NOERR;
 	mtx_unlock(&sc->sc_mtx);
 	return (error);
+
 i2c_stx_error:
 	iicoc_dev_write(dev, OC_I2C_CMD_REG, OC_COMMAND_STOP);
 	iicoc_wait_on_status(dev, OC_STATUS_BUSY);  /* wait for idle */
@@ -274,7 +277,7 @@ i2c_stx_error:
 	return (error);
 }
 
-static int 
+static int
 iicoc_stop(device_t dev)
 {
 	int error = 0;
@@ -286,12 +289,10 @@ iicoc_stop(device_t dev)
 	iicoc_wait_on_status(dev, OC_STATUS_BUSY);  /* wait for idle */
 	mtx_unlock(&sc->sc_mtx);
 	return (error);
-
 }
 
-static int 
-iicoc_write(device_t dev, const char *buf, int len,
-    int *sent, int timeout /* us */ )
+static int
+iicoc_write(device_t dev, const char *buf, int len, int *sent, int timeout)
 {
 	uint8_t value;
 	int i;
@@ -300,7 +301,7 @@ iicoc_write(device_t dev, const char *buf, int len,
 	/* Write Slave Offset */
 	if (iicoc_wr_ack_cmd(dev, value, OC_COMMAND_WRITE)) {
 		device_printf(dev, "I2C write slave offset failed.\n");
-		goto i2c_tx_error;	
+		goto i2c_tx_error;
 	}
 
 	for (i = 1; i < len; i++) {
@@ -309,7 +310,7 @@ iicoc_write(device_t dev, const char *buf, int len,
 		if (iicoc_wr_cmd(dev, value, OC_COMMAND_WRITE)) {
 			device_printf(dev, "I2C write data byte %d failed.\n",
 			    i);
-			goto i2c_tx_error;	
+			goto i2c_tx_error;
 		}
 	}
 	*sent = len;
@@ -319,9 +320,8 @@ i2c_tx_error:
 	return (IIC_EBUSERR);
 }
 
-static int 
-iicoc_read(device_t dev, char *buf, int len, int *read, int last,
-    int delay)
+static int
+iicoc_read(device_t dev, char *buf, int len, int *read, int last, int delay)
 {
 	int data, i;
 	uint8_t cmd;
@@ -331,17 +331,17 @@ iicoc_read(device_t dev, char *buf, int len, int *read, int last,
 		cmd = (i == len - 1) ? OC_COMMAND_RDNACK : OC_COMMAND_READ;
 		data = iicoc_rd_cmd(dev, cmd);
 		if (data < 0) {
-			device_printf(dev, 
+			device_printf(dev,
 			    "I2C read data byte %d failed.\n", i);
 			goto i2c_rx_error;
 		}
 		buf[i] = (uint8_t)data;
 	}
-	
+
 	*read = len;
 	return (IIC_NOERR);
 
-i2c_rx_error:	
+i2c_rx_error:
 	return (IIC_EBUSERR);
 }
 
@@ -361,6 +361,7 @@ iicoc_reset(device_t dev, u_char speed, u_char addr, u_char *oldadr)
 static int
 iicoc_repeated_start(device_t dev, u_char slave, int timeout)
 {
+
 	return 0;
 }
 
@@ -375,7 +376,7 @@ static device_method_t iicoc_methods[] = {
 	DEVMETHOD(iicbus_repeated_start, iicoc_repeated_start),
 	DEVMETHOD(iicbus_start, iicoc_start),
 	DEVMETHOD(iicbus_stop, iicoc_stop),
-	DEVMETHOD(iicbus_reset, iicoc_reset),	
+	DEVMETHOD(iicbus_reset, iicoc_reset),
 	DEVMETHOD(iicbus_write, iicoc_write),
 	DEVMETHOD(iicbus_read, iicoc_read),
 	DEVMETHOD(iicbus_transfer, iicbus_transfer_gen),
