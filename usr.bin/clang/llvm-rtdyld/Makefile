@@ -3,7 +3,7 @@
 PROG_CXX=	llvm-rtdyld
 MAN=
 
-SRCDIR=		tools/llvm-rtdyld
+SRCDIR=		llvm/tools/llvm-rtdyld
 SRCS+=		llvm-rtdyld.cpp
 
 LIBADD+=	z

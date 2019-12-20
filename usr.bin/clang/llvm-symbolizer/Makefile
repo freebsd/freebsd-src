@@ -2,7 +2,7 @@
 
 PROG_CXX=	llvm-symbolizer
 
-SRCDIR=		tools/llvm-symbolizer
+SRCDIR=		llvm/tools/llvm-symbolizer
 SRCS+=		llvm-symbolizer.cpp
 
 LIBADD+=	z
