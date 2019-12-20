@@ -6202,7 +6202,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 		if (offset + plen > limit) {
 			break;
 		}
-		if (plen == 0) {
+		if (plen < sizeof(struct sctp_paramhdr)) {
 			break;
 		}
 #ifdef INET
@@ -6427,6 +6427,9 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 			}
 			if (plen > sizeof(lstore)) {
 				return (-23);
+			}
+			if (plen < sizeof(struct sctp_asconf_addrv4_param)) {
+				return (-101);
 			}
 			phdr = sctp_get_next_param(m, offset,
 			    (struct sctp_paramhdr *)&lstore,
