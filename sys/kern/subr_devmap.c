@@ -73,7 +73,7 @@ devmap_dump_table(int (*prfunc)(const char *, ...))
 
 	prfunc("Static device mappings:\n");
 	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
-		prfunc("  0x%08x - 0x%08x mapped at VA 0x%08x\n",
+		prfunc("  0x%08jx - 0x%08jx mapped at VA 0x%08jx\n",
 		    pd->pd_pa, pd->pd_pa + pd->pd_size - 1, pd->pd_va);
 	}
 }
