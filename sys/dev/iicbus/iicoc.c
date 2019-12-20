@@ -45,41 +45,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
 
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
-
 #include "iicbus_if.h"
 #include "iicoc.h"
 
-static devclass_t iicoc_devclass;
+devclass_t iicoc_devclass;
 
-/*
- * Device methods
- */
-static int iicoc_probe(device_t);
-static int iicoc_attach(device_t);
-static int iicoc_detach(device_t);
-
-static int iicoc_start(device_t dev, u_char slave, int timeout);
-static int iicoc_stop(device_t dev);
-static int iicoc_read(device_t dev, char *buf,
-    int len, int *read, int last, int delay);
-static int iicoc_write(device_t dev, const char *buf,
-    int len, int *sent, int timeout);
-static int iicoc_repeated_start(device_t dev, u_char slave, int timeout);
-
-struct iicoc_softc {
-	device_t	dev;		/* Self */
-	u_int		reg_shift;	/* Chip specific */
-	u_int		clockfreq;
-	u_int		i2cfreq;
-	struct resource *mem_res;	/* Memory resource */
-	int		mem_rid;
-	int		sc_started;
-	uint8_t		i2cdev_addr;
-	device_t	iicbus;
-	struct mtx	sc_mtx;
-};
+DRIVER_MODULE(iicbus, iicoc, iicbus_driver, iicbus_devclass, 0, 0);
 
 static void
 iicoc_dev_write(device_t dev, int reg, int value)
@@ -155,7 +126,7 @@ iicoc_wr_ack_cmd(device_t dev, uint8_t data, uint8_t cmd)
 	return (0);
 }
 
-static int
+int
 iicoc_init(device_t dev)
 {
 	struct iicoc_softc *sc;
@@ -176,70 +147,8 @@ iicoc_init(device_t dev)
 	return ((value & OC_CONTROL_EN) == 0);
 }
 
-static int
-iicoc_probe(device_t dev)
-{
-	struct iicoc_softc *sc;
-
-	sc = device_get_softc(dev);
-	if ((pci_get_vendor(dev) == 0x184e) &&
-	    (pci_get_device(dev) == 0x1011)) {
-		sc->clockfreq = XLP_I2C_CLKFREQ;
-		sc->i2cfreq = XLP_I2C_FREQ;
-		sc->reg_shift = 2;
-		device_set_desc(dev, "Netlogic XLP I2C Controller");
-		return (BUS_PROBE_DEFAULT);
-	}
-	return (ENXIO);
-}
-
-
-/*
- * We add all the devices which we know about.
- * The generic attach routine will attach them if they are alive.
- */
-static int
-iicoc_attach(device_t dev)
-{
-	int bus;
-	struct iicoc_softc *sc;
-
-	sc = device_get_softc(dev);
-	bus = device_get_unit(dev);
-
-	sc->dev = dev;
-	mtx_init(&sc->sc_mtx, "iicoc", "iicoc", MTX_DEF);
-	sc->mem_rid = 0;
-	sc->mem_res = bus_alloc_resource_anywhere(dev,
-	    SYS_RES_MEMORY, &sc->mem_rid, 0x100, RF_ACTIVE);
-
-	if (sc->mem_res == NULL) {
-		device_printf(dev, "Could not allocate bus resource.\n");
-		return (-1);
-	}
-	iicoc_init(dev);
-	sc->iicbus = device_add_child(dev, "iicbus", -1);
-	if (sc->iicbus == NULL) {
-		device_printf(dev, "Could not allocate iicbus instance.\n");
-		return (-1);
-	}
-	bus_generic_attach(dev);
-
-	return (0);
-}
-
-static int
-iicoc_detach(device_t dev)
-{
-
-	bus_generic_detach(dev);
-	device_delete_children(dev);
-
-	return (0);
-}
-
-static int
-iicoc_start(device_t dev, u_char slave, int timeout)
+int
+iicoc_iicbus_start(device_t dev, u_char slave, int timeout)
 {
 	int error = IIC_EBUSERR;
 	struct iicoc_softc *sc;
@@ -277,8 +186,8 @@ i2c_stx_error:
 	return (error);
 }
 
-static int
-iicoc_stop(device_t dev)
+int
+iicoc_iicbus_stop(device_t dev)
 {
 	int error = 0;
 	struct iicoc_softc *sc;
@@ -291,8 +200,9 @@ iicoc_stop(device_t dev)
 	return (error);
 }
 
-static int
-iicoc_write(device_t dev, const char *buf, int len, int *sent, int timeout)
+int
+iicoc_iicbus_write(device_t dev, const char *buf, int len, int *sent,
+    int timeout)
 {
 	uint8_t value;
 	int i;
@@ -320,8 +230,9 @@ i2c_tx_error:
 	return (IIC_EBUSERR);
 }
 
-static int
-iicoc_read(device_t dev, char *buf, int len, int *read, int last, int delay)
+int
+iicoc_iicbus_read(device_t dev, char *buf, int len, int *read, int last,
+    int delay)
 {
 	int data, i;
 	uint8_t cmd;
@@ -345,8 +256,8 @@ i2c_rx_error:
 	return (IIC_EBUSERR);
 }
 
-static int
-iicoc_reset(device_t dev, u_char speed, u_char addr, u_char *oldadr)
+int
+iicoc_iicbus_reset(device_t dev, u_char speed, u_char addr, u_char *oldadr)
 {
 	int error;
 	struct iicoc_softc *sc;
@@ -358,37 +269,9 @@ iicoc_reset(device_t dev, u_char speed, u_char addr, u_char *oldadr)
 	return (error);
 }
 
-static int
-iicoc_repeated_start(device_t dev, u_char slave, int timeout)
+int
+iicoc_iicbus_repeated_start(device_t dev, u_char slave, int timeout)
 {
 
 	return 0;
 }
-
-static device_method_t iicoc_methods[] = {
-	/* device interface */
-	DEVMETHOD(device_probe, iicoc_probe),
-	DEVMETHOD(device_attach, iicoc_attach),
-	DEVMETHOD(device_detach, iicoc_detach),
-
-	/* iicbus interface */
-	DEVMETHOD(iicbus_callback, iicbus_null_callback),
-	DEVMETHOD(iicbus_repeated_start, iicoc_repeated_start),
-	DEVMETHOD(iicbus_start, iicoc_start),
-	DEVMETHOD(iicbus_stop, iicoc_stop),
-	DEVMETHOD(iicbus_reset, iicoc_reset),
-	DEVMETHOD(iicbus_write, iicoc_write),
-	DEVMETHOD(iicbus_read, iicoc_read),
-	DEVMETHOD(iicbus_transfer, iicbus_transfer_gen),
-
-	DEVMETHOD_END
-};
-
-static driver_t iicoc_driver = {
-	"iicoc",
-	iicoc_methods,
-	sizeof(struct iicoc_softc),
-};
-
-DRIVER_MODULE(iicoc, pci, iicoc_driver, iicoc_devclass, 0, 0);
-DRIVER_MODULE(iicbus, iicoc, iicbus_driver, iicbus_devclass, 0, 0);
