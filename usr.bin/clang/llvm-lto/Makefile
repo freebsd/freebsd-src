@@ -3,7 +3,7 @@
 PROG_CXX=	llvm-lto
 MAN=
 
-SRCDIR=		tools/llvm-lto
+SRCDIR=		llvm/tools/llvm-lto
 SRCS=		llvm-lto.cpp
 
 LIBADD+=	z

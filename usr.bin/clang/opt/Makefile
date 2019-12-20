@@ -2,7 +2,7 @@
 
 PROG_CXX=	opt
 
-SRCDIR=		tools/opt
+SRCDIR=		llvm/tools/opt
 SRCS+=		AnalysisWrappers.cpp
 SRCS+=		BreakpointPrinter.cpp
 SRCS+=		Debugify.cpp

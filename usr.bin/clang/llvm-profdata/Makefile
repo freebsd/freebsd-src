@@ -2,7 +2,7 @@
 
 PROG_CXX=	llvm-profdata
 
-SRCDIR=		tools/llvm-profdata
+SRCDIR=		llvm/tools/llvm-profdata
 SRCS+=		llvm-profdata.cpp
 
 LIBADD+=	z

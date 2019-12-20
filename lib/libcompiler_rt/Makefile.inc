@@ -2,7 +2,7 @@
 
 CRTARCH=	${MACHINE_CPUARCH:C/amd64/x86_64/}
 
-CRTSRC=		${SRCTOP}/contrib/compiler-rt/lib/builtins
+CRTSRC=		${SRCTOP}/contrib/llvm-project/compiler-rt/lib/builtins
 
 .PATH:		${CRTSRC}/${CRTARCH}
 .PATH:		${CRTSRC}
