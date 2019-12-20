@@ -23,19 +23,21 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 5, 2018
+.Dd December 20, 2019
 .Dt PNFS 4
 .Os
 .Sh NAME
 .Nm pNFS
-.Nd NFS Version 4.1 Parallel NFS Protocol
+.Nd NFS Version 4.1 and 4.2 Parallel NFS Protocol
 .Sh DESCRIPTION
-The NFSv4.1 client and server provides support for the
+The NFSv4.1 and NFSv4.2 client and server provides support for the
 .Tn pNFS
 specification; see
-.%T "Network File System (NFS) Version 4 Minor Version 1 Protocol RFC 5661" .
-A pNFS service separates Read/Write operations from all other NFSv4.1
-operations, which are referred to as Metadata operations.
+.%T "Network File System (NFS) Version 4 Minor Version 1 Protocol RFC 5661" ,
+.%T "Network File System (NFS) Version 4 Minor Version 2 Protocol RFC 7862" and
+.%T "Parallel NFS (pNFS) Flexible File Layout RFC 8435" .
+A pNFS service separates Read/Write operations from all other NFSv4.1 and
+NFSv4.2 operations, which are referred to as Metadata operations.
 The Read/Write operations are performed directly on the Data Server (DS)
 where the file's data resides, bypassing the NFS server.
 All other file operations are performed on the NFS server, which is referred to
@@ -45,8 +47,8 @@ NFS clients that do not support
 perform Read/Write operations on the MDS, which acts as a proxy for the
 appropriate DS(s).
 .Pp
-The NFSv4.1 protocol provides two pieces of information to pNFS aware
-clients that allow them to perform Read/Write operations directly on
+The NFSv4.1 and NFSv4.2 protocols provide two pieces of information to pNFS
+aware clients that allow them to perform Read/Write operations directly on
 the DS.
 .Pp
 The first is DeviceInfo, which is static information defining the DS
@@ -72,20 +74,21 @@ at least for certain layout types such as the Flexible File Layout.
 .Pp
 The FreeBSD client and server supports two layout types.
 .Pp
-The File Layout is described in RFC5661 and uses the NFSv4.1 protocol
+The File Layout is described in RFC5661 and uses the NFSv4.1 or NFSv4.2 protocol
 to perform I/O on the DS.
 It does not support client aware DS mirroring and, as such,
 the FreeBSD server only provides File Layout support for non-mirrored
 configurations.
 .Pp
-The Flexible File Layout allows the use of the NFSv3, NFSv4.0 or NFSv4.1
-protocol to perform I/O on the DS and does support client aware mirroring.
+The Flexible File Layout allows the use of the NFSv3, NFSv4.0, NFSv4.1 or
+NFSv4.2 protocol to perform I/O on the DS and does support client aware
+mirroring.
 As such, the FreeBSD server uses Flexible File Layout layouts for the
 mirrored DS configurations.
 The FreeBSD server supports the
 .Dq tightly coupled
-variant and all DSs use the
-NFSv4.1 protocol for I/O operations.
+variant and all DSs allow use of the
+NFSv4.2 or NFSv4.1 protocol for I/O operations.
 Clients that support the Flexible File Layout will do writes and commits
 to all DS mirrors in the mirror set.
 .Pp
@@ -107,6 +110,7 @@ A FreeBSD
 client must be running the
 .Xr nfscbd 8
 daemon and use the mount options
+.Dq nfsv4,minorversion=2,pnfs or
 .Dq nfsv4,minorversion=1,pnfs .
 .Pp
 When files are created, the MDS creates a file tree identical to what a
@@ -120,7 +124,7 @@ attribute name space:
 pnfsd.dsfile - This extended attrbute stores the information that the
     MDS needs to find the data file on a DS(s) for this file.
 pnfsd.dsattr - This extended attribute stores the Size, AccessTime,
-    ModifyTime and Change attributes for the file.
+    ModifyTime, Change and SpaceUsed attributes for the file.
 .Ed
 .Pp
 For each regular (VREG) file, the MDS creates a data file on one
@@ -142,7 +146,8 @@ or Flexible File Layout
 layouts and associated DeviceInfo.
 For non-pNFS aware NFS clients, the pNFS service appears just like a normal
 NFS service.
-For the non-pNFS aware client, the MDS will perform I/O operations on the appropriate DS(s), acting as
+For the non-pNFS aware client, the MDS will perform I/O operations on the
+appropriate DS(s), acting as
 a proxy for the non-pNFS aware client.
 This is also true for NFSv3 and NFSv4.0 mounts, since these are always non-pNFS
 aware.
@@ -182,16 +187,17 @@ For Linux 4.17-rc2 kernels, I have not seen client crashes during testing,
 but it only supports the
 .Dq loosely coupled
 variant.
-To make it work correctly when mounting the FreeBSD server, you must either
-patch the Flexible File Layout client driver with a patch like:
-.Bd -literal -offset indent
-http://people.freebsd.org/~rmacklem/flexfile.patch
-.Ed
-.sp
-or set the sysctl
+To make it work correctly when mounting the FreeBSD server, you must
+set the sysctl
 .Dq vfs.nfsd.flexlinuxhack
 to one so that it works around
 the Linux client driver's limitations.
+Wihout this sysctl being set, there will be access errors, since the Linux
+client will use the authenticator in the layout (uid=999, gid=999) and not
+the authenticator specified in the RPC header.
+.Pp
+Linux 5.n kernels appear to be patched so that it uses the authenticator
+in the RPC header and, as such, the above sysctl should not need to be set.
 .Pp
 Since the MDS cannot be mirrored, it is a single point of failure just
 as a non
