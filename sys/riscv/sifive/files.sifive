@@ -1,3 +1,4 @@
 # $FreeBSD$
 
 riscv/sifive/fu540_prci.c		standard
+riscv/sifive/fu540_spi.c		optional	fu540spi spibus
