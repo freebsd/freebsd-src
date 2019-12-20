@@ -28,7 +28,7 @@
 .\"	@(#)nfsd.8	8.4 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd February 14, 2019
+.Dd December 20, 2019
 .Dt NFSD 8
 .Os
 .Sh NAME
@@ -222,9 +222,15 @@ RFC1094,
 .%T "NFS: Network File System Version 3 Protocol Specification" ,
 RFC1813,
 .%T "Network File System (NFS) Version 4 Protocol" ,
-RFC3530 and
+RFC7530,
 .%T "Network File System (NFS) Version 4 Minor Version 1 Protocol" ,
-RFC5661.
+RFC5661,
+.%T "Network File System (NFS) Version 4 Minor Version 2 Protocol" ,
+RFC7862,
+.%T "File System Extended Attributes in NFSv4" ,
+RFC8276 and
+.%T "Parallel NFS (pNFS) Flexible File Layout" ,
+RFC8435.
 .Pp
 If
 .Nm
@@ -323,13 +329,13 @@ and then restart it, after the
 .Xr gssd 8
 is running.
 .Pp
-If mirroring is enabled via the
-.Fl m
-option and there are Linux clients doing NFSv4.1 mounts, those clients
-need to be patched to support the
-.Dq tightly coupled
-variant of
-the Flexible File layout or the
+For a Flexible File Layout pNFS server,
+if there are Linux clients doing NFSv4.1 or NFSv4.2 mounts, those
+clients might need the
 .Xr sysctl 8
 vfs.nfsd.flexlinuxhack
-must be set to one on the MDS as a workaround.
+to be set to one on the MDS as a workaround.
+.Pp
+Linux 5.n kernels appear to have been patched such that this
+.Xr sysctl 8
+does not need to be set.
