@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 19, 2017
+.Dd December 20, 2019
 .Dt NFSV4 4
 .Os
 .Sh NAME
@@ -34,8 +34,11 @@
 The NFS client and server provides support for the
 .Tn NFSv4
 specification; see
-.%T "Network File System (NFS) Version 4 Protocol RFC 7530" and
-.%T "Network File System (NFS) Version 4 Minor Version 1 Protocol RFC 5661" .
+.%T "Network File System (NFS) Version 4 Protocol RFC 7530" ,
+.%T "Network File System (NFS) Version 4 Minor Version 1 Protocol RFC 5661" ,
+.%T "Network File System (NFS) Version 4 Minor Version 2 Protocol RFC 7862" ,
+.%T "File System Extended Attributes in NFSv4 RFC 8276" and
+.%T "Parallel NFS (pNFS) Flexible File Layout RFC 8435" .
 The protocol is somewhat similar to NFS Version 3, but differs in significant
 ways.
 It uses a single compound RPC that concatenates operations to-gether.
@@ -76,6 +79,12 @@ It provides several optional features not present in NFS Version 3:
   (not yet implemented)
 - Delegations, which allow a client to operate on a file locally
 - pNFS, where I/O operations are separated from Metadata operations
+And for NFSv4.2 only
+- User namespace extended attributes
+- lseek(SEEK_DATA/SEEK_HOLE)
+- File copying done locally on the server for copy_file_range(2)
+- posix_fallocate(2)
+- posix_fadvise(POSIX_FADV_WILLNEED/POSIX_FADV_DONTNEED)
 .Ed
 .Pp
 The
@@ -306,7 +315,7 @@ N.N.N.N.N.N
 where the first 4 Ns are the host IP address and the last two are the
 port# in network byte order (all decimal #s in the range 0-255).
 .Pp
-For NFSv4.1, the callback path (called a backchannel) uses the same TCP connection as the mount,
+For NFSv4.1 and NFSv4.2, the callback path (called a backchannel) uses the same TCP connection as the mount,
 so none of the above applies and should work through gateways without
 any issues.
 .Pp
