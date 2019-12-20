@@ -68,18 +68,18 @@ CTASSERT(RANDOM_KEYSIZE == 2*RANDOM_BLOCKSIZE);
 _Static_assert(CHACHA_STATELEN == RANDOM_BLOCKSIZE, "");
 
 /*
- * Experimental Chacha20-based PRF for Fortuna keystream primitive.  For now,
- * disabled by default.  But we may enable it in the future.
+ * Knob to control use of Chacha20-based PRF for Fortuna keystream primitive.
  *
  * Benefits include somewhat faster keystream generation compared with
- * unaccelerated AES-ICM.
+ * unaccelerated AES-ICM; reseeding is much cheaper than computing AES key
+ * schedules.
  */
-bool random_chachamode __read_frequently = false;
+bool random_chachamode __read_frequently = true;
 #ifdef _KERNEL
 SYSCTL_BOOL(_kern_random, OID_AUTO, use_chacha20_cipher, CTLFLAG_RDTUN,
     &random_chachamode, 0,
-    "If non-zero, use the ChaCha20 cipher for randomdev PRF.  "
-    "If zero, use AES-ICM cipher for randomdev PRF (default).");
+    "If non-zero, use the ChaCha20 cipher for randomdev PRF (default). "
+    "If zero, use AES-ICM cipher for randomdev PRF (12.x default).");
 #endif
 
 /* Initialise the hash */
