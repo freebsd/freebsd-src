@@ -770,22 +770,3 @@ int am335x_lcd_syscons_setup(vm_offset_t vaddr, vm_paddr_t paddr,
 
 	return (0);
 }
-
-/*
- * Define a stub keyboard driver in case one hasn't been
- * compiled into the kernel
- */
-#include <sys/kbio.h>
-#include <dev/kbd/kbdreg.h>
-
-static int dummy_kbd_configure(int flags);
-
-keyboard_switch_t am335x_dummysw;
-
-static int
-dummy_kbd_configure(int flags)
-{
-
-	return (0);
-}
-KEYBOARD_DRIVER(am335x_dummy, am335x_dummysw, dummy_kbd_configure);
