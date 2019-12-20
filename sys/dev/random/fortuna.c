@@ -125,14 +125,14 @@ static struct fortuna_state {
 } fortuna_state;
 
 /*
- * This knob enables or disables Concurrent Reads.  The plan is to turn it on
- * by default sometime before 13.0 branches.
+ * This knob enables or disables the "Concurrent Reads" Fortuna feature.
  *
- * The benefit is improved concurrency in Fortuna.  That is reflected in two
- * related aspects:
+ * The benefit of Concurrent Reads is improved concurrency in Fortuna.  That is
+ * reflected in two related aspects:
  *
- * 1. Concurrent devrandom readers can achieve similar throughput to a single
- *    reader thread.
+ * 1. Concurrent full-rate devrandom readers can achieve similar throughput to
+ *    a single reader thread (at least up to a modest number of cores; the
+ *    non-concurrent design falls over at 2 readers).
  *
  * 2. The rand_harvestq process spends much less time spinning when one or more
  *    readers is processing a large request.  Partially this is due to
@@ -142,16 +142,20 @@ static struct fortuna_state {
  *    mutexes assume that a lock holder currently on CPU will release the lock
  *    quickly, and spin if the owning thread is currently running.
  *
+ *    (There is no reason rand_harvestq necessarily has to use the same lock as
+ *    the generator, or that it must necessarily drop and retake locks
+ *    repeatedly, but that is the current status quo.)
+ *
  * The concern is that the reduced lock scope might results in a less safe
  * random(4) design.  However, the reduced-lock scope design is still
  * fundamentally Fortuna.  This is discussed below.
  *
  * Fortuna Read() only needs mutual exclusion between readers to correctly
- * update the shared read-side state: just C, the 128-bit counter, and K, the
- * current cipher key.
+ * update the shared read-side state: C, the 128-bit counter; and K, the
+ * current cipher/PRF key.
  *
  * In the Fortuna design, the global counter C should provide an independent
- * range of values per generator (CTR-mode cipher or similar) invocation.
+ * range of values per request.
  *
  * Under lock, we can save a copy of C on the stack, and increment the global C
  * by the number of blocks a Read request will require.
@@ -159,7 +163,7 @@ static struct fortuna_state {
  * Still under lock, we can save a copy of the key K on the stack, and then
  * perform the usual key erasure K' <- Keystream(C, K, ...).  This does require
  * generating 256 bits (32 bytes) of cryptographic keystream output with the
- * global lock held, but that's all; none of the user keystream generation must
+ * global lock held, but that's all; none of the API keystream generation must
  * be performed under lock.
  *
  * At this point, we may unlock.
@@ -210,7 +214,7 @@ static struct fortuna_state {
  * 2:  <- GenBytes()
  * 2:Unlock()
  *
- * Just prior to unlock, shared state is still identical:
+ * Just prior to unlock, global state is identical:
  * ------------------------------------------------------
  *
  * C'''' == (C_0 + N + 1) + M + 1      C'''' == (C_0 + N + 1) + M + 1
@@ -243,7 +247,7 @@ static struct fortuna_state {
  *
  * (stack_C == C_0; stack_K == K_0; stack_C' == C''; stack_K' == K'.)
  */
-static bool fortuna_concurrent_read __read_frequently = false;
+static bool fortuna_concurrent_read __read_frequently = true;
 
 #ifdef _KERNEL
 static struct sysctl_ctx_list random_clist;
