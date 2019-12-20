@@ -3644,7 +3644,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 		    ("pmap_enter_l2: l2pg's ref count is too low"));
 		if ((flags & PMAP_ENTER_NOREPLACE) != 0 && (va <
 		    VM_MAXUSER_ADDRESS || (old_l2 & ATTR_DESCR_MASK) ==
-		    L2_BLOCK || pmap_every_pte_zero(old_l2 & ~ATTR_MASK))) {
+		    L2_BLOCK || !pmap_every_pte_zero(old_l2 & ~ATTR_MASK))) {
 			if (l2pg != NULL)
 				l2pg->ref_count--;
 			CTR2(KTR_PMAP, "pmap_enter_l2: failure for va %#lx"

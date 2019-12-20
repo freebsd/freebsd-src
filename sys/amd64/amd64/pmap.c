@@ -6336,7 +6336,7 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 		    ("pmap_enter_pde: pdpg's reference count is too low"));
 		if ((flags & PMAP_ENTER_NOREPLACE) != 0 && (va <
 		    VM_MAXUSER_ADDRESS || (oldpde & PG_PS) != 0 ||
-		    pmap_every_pte_zero(oldpde & PG_FRAME))) {
+		    !pmap_every_pte_zero(oldpde & PG_FRAME))) {
 			if (pdpg != NULL)
 				pdpg->ref_count--;
 			CTR2(KTR_PMAP, "pmap_enter_pde: failure for va %#lx"
