@@ -55,7 +55,7 @@ iicoc_detach(device_t dev)
 	sc = device_get_softc(dev);
 	device_delete_children(dev);
 	bus_generic_detach(dev);
-	bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, &sc->mem_res);
+	bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem_res);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -89,7 +89,7 @@ iicoc_attach(device_t dev)
 	if (sc->iicbus == NULL) {
 		device_printf(dev, "Could not allocate iicbus instance.\n");
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid,
-		    &sc->mem_res);
+		    sc->mem_res);
 		mtx_destroy(&sc->sc_mtx);
 		return (-1);
 	}
