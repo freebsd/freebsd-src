@@ -578,9 +578,7 @@ static keyboard_switch_t kmisw = {
 	.clear_state = &kmi_clear_state,
 	.get_state = &kmi_get_state,
 	.set_state = &kmi_set_state,
-	.get_fkeystr = &genkbd_get_fkeystr,
 	.poll = &kmi_poll,
-	.diag = &genkbd_diag,
 };
 
 KEYBOARD_DRIVER(kmi, kmisw, kmi_configure);
