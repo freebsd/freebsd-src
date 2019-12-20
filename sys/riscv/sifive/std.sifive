@@ -1,0 +1,3 @@
+# $FreeBSD$
+
+files		"../sifive/files.sifive"
