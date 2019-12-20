@@ -23,12 +23,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 8, 2018
+.Dd December 20, 2019
 .Dt PNFSSERVER 4
 .Os
 .Sh NAME
 .Nm pNFSserver
-.Nd NFS Version 4.1 Parallel NFS Protocol Server
+.Nd NFS Version 4.1 and 4.2 Parallel NFS Protocol Server
 .Sh DESCRIPTION
 A set of FreeBSD servers may be configured to provide a
 .Xr pnfs 4
@@ -37,13 +37,23 @@ One FreeBSD system needs to be configured as a MetaData Server (MDS) and
 at least one additional FreeBSD system needs to be configured as one or
 more Data Servers (DS)s.
 .Pp
-These FreeBSD systems are configured to be NFSv4.1 servers, see
+These FreeBSD systems are configured to be NFSv4.1 and NFSv4.2
+servers, see
 .Xr nfsd 8
 and
 .Xr exports 5
-if you are not familiar with configuring a NFSv4.1 server.
+if you are not familiar with configuring a NFSv4.n server.
+All DS(s) and the MDS should support NFSv4.2 as well as NFSv4.1.
+Mixing an MDS that supports NFSv4.2 with any DS(s) that do not support
+NFSv4.2 will not work correctly.
+As such, all DS(s) must be upgraded from
+.Fx 12
+to
+.Fx 13
+before upgrading the MDS.
 .Sh DS server configuration
-The DS(s) need to be configured as NFSv4.1 server(s), with a top level exported
+The DS(s) need to be configured as NFSv4.1 and NFSv4.2 server(s),
+with a top level exported
 directory used for storage of data files.
 This directory must be owned by
 .Dq root
@@ -89,8 +99,8 @@ DS system.
 .Sh MDS server configuration
 The MDS must be a separate FreeBSD system from the FreeBSD DS system(s) and
 NFS clients.
-It is configured as a NFSv4.1 server with file system(s) exported to
-clients.
+It is configured as a NFSv4.1 and NFSv4.2 server with
+file system(s) exported to clients.
 However, the
 .Dq -p
 command line argument for
@@ -99,7 +109,7 @@ is used to indicate that it is running as the MDS for a pNFS server.
 .Pp
 The DS(s) must all be mounted on the MDS using the following mount options:
 .Bd -literal -offset indent
-nfsv4,minorversion=1,soft,retrans=2
+nfsv4,minorversion=2,soft,retrans=2
 .Ed
 .sp
 so that they can be defined as DSs in the
@@ -112,10 +122,10 @@ For example, if there are four DSs named nfsv4-data[0-3], the
 .Xr fstab 5
 lines might look like:
 .Bd -literal -offset
-nfsv4-data0:/ /data0 nfs rw,nfsv4,minorversion=1,soft,retrans=2 0 0
-nfsv4-data1:/ /data1 nfs rw,nfsv4,minorversion=1,soft,retrans=2 0 0
-nfsv4-data2:/ /data2 nfs rw,nfsv4,minorversion=1,soft,retrans=2 0 0
-nfsv4-data3:/ /data3 nfs rw,nfsv4,minorversion=1,soft,retrans=2 0 0
+nfsv4-data0:/ /data0 nfs rw,nfsv4,minorversion=2,soft,retrans=2 0 0
+nfsv4-data1:/ /data1 nfs rw,nfsv4,minorversion=2,soft,retrans=2 0 0
+nfsv4-data2:/ /data2 nfs rw,nfsv4,minorversion=2,soft,retrans=2 0 0
+nfsv4-data3:/ /data3 nfs rw,nfsv4,minorversion=2,soft,retrans=2 0 0
 .Ed
 .sp
 The
@@ -201,7 +211,8 @@ For a service that will store a large number of files this sysctl should be
 set much larger, to avoid the number of entries in a subdirectory from
 getting too large.
 .Sh Client mounts
-Once operational, NFSv4.1 FreeBSD client mounts done with the
+Once operational, NFSv4.1 or NFSv4.2 FreeBSD client mounts
+done with the
 .Dq pnfs
 option should do I/O directly on the DSs.
 The clients mounting the MDS must be running the
@@ -325,7 +336,7 @@ directory for storage of data files just like it did when first set up.
 Mount it on the MDS exactly as you did before disabling it.
 For the nfsv4-data3 example, the command would be:
 .Bd -literal -offset
-# mount -t nfs -o nfsv4,minorversion=1,soft,retrans=2 nfsv4-data3:/ /data3
+# mount -t nfs -o nfsv4,minorversion=2,soft,retrans=2 nfsv4-data3:/ /data3
 .Ed
 .sp
 Then restart the nfsd to re-enable the DS.
@@ -403,7 +414,7 @@ http://people.freebsd.org/~rmacklem/pnfs-planb-setup.txt
 .Sh HISTORY
 The
 .Nm
-command first appeared in
+service first appeared in
 .Fx 12.0 .
 .Sh BUGS
 Since the MDS cannot be mirrored, it is a single point of failure just
