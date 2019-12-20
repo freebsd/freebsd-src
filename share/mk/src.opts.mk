@@ -464,11 +464,6 @@ MK_CASPER:=	no
 MK_LIBTHR:=	no
 .endif
 
-.if ${MK_LDNS} == "no"
-MK_LDNS_UTILS:=	no
-MK_UNBOUND:= no
-.endif
-
 .if ${MK_SOURCELESS} == "no"
 MK_SOURCELESS_HOST:=	no
 MK_SOURCELESS_UCODE:= no
@@ -514,6 +509,12 @@ MK_NLS_CATALOGS:= no
 .if ${MK_OPENSSL} == "no"
 MK_OPENSSH:=	no
 MK_KERBEROS:=	no
+MK_LDNS:=	no
+.endif
+
+.if ${MK_LDNS} == "no"
+MK_LDNS_UTILS:=	no
+MK_UNBOUND:= no
 .endif
 
 .if ${MK_PF} == "no"
