@@ -28,6 +28,9 @@ AC_LBL_C_INIT_BEFORE_CC(V_CCOPT, V_INCLS)
 # At minimum, we want C++/C99-style // comments.
 #
 AC_PROG_CC_C99
+if test "$ac_cv_prog_cc_c99" = "no"; then
+	AC_MSG_WARN([The C compiler does not support C99; there may be compiler errors])
+fi
 AC_LBL_C_INIT(V_CCOPT, V_INCLS)
 AC_LBL_SHLIBS_INIT
 AC_LBL_C_INLINE
@@ -83,13 +86,109 @@ esac
 
 AC_LBL_FIXINCLUDES
 
-AC_CHECK_FUNCS(strerror strerror_r strerror_s strlcpy strlcat)
+AC_CHECK_FUNCS(strerror)
+AC_CHECK_FUNC(strerror_r,
+    [
+	#
+	# We have strerror_r; if we define _GNU_SOURCE, is it a
+	# POSIX-compliant strerror_r() or a GNU strerror_r()?
+	#
+	AC_MSG_CHECKING(whether strerror_r is GNU-style)
+	AC_COMPILE_IFELSE(
+	    [
+		AC_LANG_SOURCE(
+#define _GNU_SOURCE
+#include <string.h>
 
+/* Define it GNU-style; that will cause an error if it's not GNU-style */
+extern char *strerror_r(int, char *, size_t);
+
+int
+main(void)
+{
+	return 0;
+}
+)
+	    ],
+	    [
+	        # GNU-style
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_GNU_STRERROR_R,,
+		    [Define to 1 if you have a GNU-style `strerror_r' function.])
+	    ],
+	    [
+		AC_MSG_RESULT(no)
+		AC_DEFINE(HAVE_POSIX_STRERROR_R,,
+		    [Define to 1 if you have a POSIX-style `strerror_r' function.])
+	    ])
+    ],
+    [
+	#
+	# We don't have strerror_r; do we have strerror_s?
+	#
+	AC_CHECK_FUNCS(strerror_s)
+    ])
+
+#
+# Thanks, IBM, for not providing vsyslog() in AIX!
+#
+AC_CHECK_FUNCS(vsyslog)
+
+#
+# Either:
+#
+#	we have snprintf() and vsnprintf(), and have asprintf() and
+#	vasprintf();
+#
+#	we have snprintf() and vsnprintf(), but don't have asprintf()
+#	or vasprintf();
+#
+#	we have neither snprintf() nor vsnprintf(), and don't have
+#	asprintf() or vasprintf(), either.
+#
+# We assume that if we have asprintf() we have vasprintf(), as well
+# as snprintf() and vsnprintf(), and that if we have snprintf() we
+# have vsnprintf().
+#
+# For the first case, we don't need any replacement routines.
+# For the second case, we need replacement asprintf()/vasprintf()
+# routines.
+# For the third case, we need replacement snprintf()/vsnprintf() and
+# asprintf()/vasprintf() routines.
+#
 needsnprintf=no
 AC_CHECK_FUNCS(vsnprintf snprintf,,
 	[needsnprintf=yes])
+needasprintf=no
+AC_CHECK_FUNCS(vasprintf asprintf,,
+	[needasprintf=yes])
 if test $needsnprintf = yes; then
+	#
+	# We assume we have none of them; missing/snprintf.c supplies
+	# all of them.
+	#
 	AC_LIBOBJ([snprintf])
+elif test $needasprintf = yes; then
+	#
+	# We assume we have snprintf()/vsnprintf() but lack
+	# asprintf()/vasprintf(); missing/asprintf.c supplies
+	# the latter (using vsnprintf()).
+	#
+	AC_LIBOBJ([asprintf])
+fi
+
+needstrlcat=no
+AC_CHECK_FUNCS(strlcat,,
+	[needstrlcat=yes])
+if test $needstrlcat = yes; then
+	AC_LIBOBJ([strlcat])
+fi
+
+needstrlcpy=no
+AC_CHECK_FUNCS(strlcpy,,
+	[needstrlcpy=yes])
+if test $needstrlcpy = yes; then
+	AC_LIBOBJ([strlcpy])
 fi
 
 needstrtok_r=no
@@ -550,6 +649,10 @@ else
 		#  requires that various BSD-style integer types
 		#  be defined;
 		#
+		#  sys/time.h, because AIX 5.2 and 5.3's net/bpf.h
+		#  doesn't include it but does use struct timeval
+		#  in ioctl definitions;
+		#
 		#  sys/ioctl.h and, if we have it, sys/ioccom.h,
 		#  because net/bpf.h defines ioctls;
 		#
@@ -568,6 +671,7 @@ else
 			AC_TRY_COMPILE(
 [
 #include <sys/types.h>
+#include <sys/time.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #ifdef HAVE_SYS_IOCCOM_H
@@ -1529,18 +1633,20 @@ AC_CACHE_CHECK([for capable yacc/bison], tcpdump_cv_capable_yacc,
 	fi)
 if test $tcpdump_cv_capable_yacc = insufficient ; then
 	AC_MSG_ERROR([$YACC is insufficient to compile libpcap.
- libpcap requires Bison, Berkeley YACC, or another YACC compatible with them.])
+ libpcap requires Bison, a newer version of Berkeley YACC with support
+ for reentrant parsers, or another YACC compatible with them.])
 fi
 
 #
 # Do various checks for various OSes and versions of those OSes.
 #
 # Assume, by default, no support for shared libraries and V7/BSD
-# convention for man pages (file formats in section 5, miscellaneous
-# info in section 7, administrative commands and daemons in section 8).
-# Individual cases can override this.
+# convention for man pages (devices in section 4, file formats in
+# section 5, miscellaneous info in section 7, administrative commands
+# and daemons in section 8).  Individual cases can override this.
 #
 DYEXT="none"
+MAN_DEVICES=4
 MAN_FILE_FORMATS=5
 MAN_MISC_INFO=7
 MAN_ADMIN_COMMANDS=8
@@ -1596,79 +1702,151 @@ darwin*)
 	if test "$enable_universal" != "no"; then
 		case "$host_os" in
 
-		darwin[0-7].*)
+		darwin[[0-7]].*)
 			#
 			# Pre-Tiger.  Build only for 32-bit PowerPC; no
 			# need for any special compiler or linker flags.
 			#
 			;;
 
-		darwin8.[0123]*)
+		darwin8.[[0123]]|darwin8.[[0123]].*)
 			#
-			# Tiger, prior to Intel support.  Build for 32-bit
-			# PowerPC and 64-bit PowerPC, with 32-bit PowerPC
-			# first.  (I'm guessing that's what Apple does.)
-			#
-			V_CCOPT="$V_CCOPT -arch ppc -arch ppc64"
-			LDFLAGS="$LDFLAGS -arch ppc -arch ppc64"
-			;;
-
-		darwin8.[456]*)
-			#
-			# Tiger, subsequent to Intel support but prior to
-			# x86-64 support.  Build for 32-bit PowerPC, 64-bit
-			# PowerPC, and x86, with 32-bit PowerPC first.
+			# Tiger, prior to Intel support.  Build
+			# libraries and executables for 32-bit PowerPC
+			# and 64-bit PowerPC, with 32-bit PowerPC first.
 			# (I'm guessing that's what Apple does.)
 			#
-			V_CCOPT="$V_CCOPT -arch ppc -arch ppc64 -arch i386"
-			LDFLAGS="$LDFLAGS -arch ppc -arch ppc64 -arch i386"
+			# (The double brackets are needed because
+			# autotools/m4 use brackets as a quoting
+			# character; the double brackets turn into
+			# single brackets in the generated configure
+			# file.)
+			#
+			V_LIB_CCOPT_FAT="-arch ppc -arch ppc64"
+			V_LIB_LDFLAGS_FAT="-arch ppc -arch ppc64"
+			V_PROG_CCOPT_FAT="-arch ppc -arch ppc64"
+			V_PROG_LDFLAGS_FAT="-arch ppc -arch ppc64"
+			;;
+
+		darwin8.[[456]]|darwin.[[456]].*)
+			#
+			# Tiger, subsequent to Intel support but prior
+			# to x86-64 support.  Build libraries and
+			# executables for 32-bit PowerPC, 64-bit
+			# PowerPC, and 32-bit x86, with 32-bit PowerPC
+			# first.  (I'm guessing that's what Apple does.)
+			#
+			# (The double brackets are needed because
+			# autotools/m4 use brackets as a quoting
+			# character; the double brackets turn into
+			# single brackets in the generated configure
+			# file.)
+			#
+			V_LIB_CCOPT_FAT="-arch ppc -arch ppc64 -arch i386"
+			V_LIB_LDFLAGS_FAT="-arch ppc -arch ppc64 -arch i386"
+			V_PROG_CCOPT_FAT="-arch ppc -arch ppc64 -arch i386"
+			V_PROG_LDFLAGS_FAT="-arch ppc -arch ppc64 -arch i386"
 			;;
 
 		darwin8.*)
 			#
 			# All other Tiger, so subsequent to x86-64
-			# support. Build for 32-bit PowerPC, 64-bit
-			# PowerPC, x86, and x86-64, and with 32-bit PowerPC
-			# first.  (I'm guessing that's what Apple does.)
+			# support.  Build libraries and executables for
+			# 32-bit PowerPC, 64-bit PowerPC, 32-bit x86,
+			# and x86-64, with 32-bit PowerPC first.  (I'm
+			# guessing that's what Apple does.)
 			#
-			V_CCOPT="$V_CCOPT -arch ppc -arch ppc64 -arch i386 -arch x86_64"
-			LDFLAGS="$LDFLAGS -arch ppc -arch ppc64 -arch i386 -arch x86_64"
+			V_LIB_CCOPT_FAT="-arch ppc -arch ppc64 -arch i386 -arch x86_64"
+			V_LIB_LDFLAGS_FAT="-arch ppc -arch ppc64 -arch i386 -arch x86_64"
+			V_PROG_CCOPT_FAT="-arch ppc -arch ppc64 -arch i386 -arch x86_64"
+			V_PROG_LDFLAGS_FAT="-arch ppc -arch ppc64 -arch i386 -arch x86_64"
 			;;
 
 		darwin9.*)
 			#
-			# Leopard.  Build for 32-bit PowerPC, 64-bit
-			# PowerPC, x86, and x86-64, with 32-bit PowerPC
-			# first.  (That's what Apple does.)
+			# Leopard.  Build libraries for 32-bit PowerPC,
+			# 64-bit PowerPC, 32-bit x86, and x86-64, with
+			# 32-bit PowerPC first, and build executables
+			# for 32-bit x86 and 32-bit PowerPC, with 32-bit
+			# x86 first.  (That's what Apple does.)
 			#
-			V_CCOPT="$V_CCOPT -arch ppc -arch ppc64 -arch i386 -arch x86_64"
-			LDFLAGS="$LDFLAGS -arch ppc -arch ppc64 -arch i386 -arch x86_64"
+			V_LIB_CCOPT_FAT="-arch ppc -arch ppc64 -arch i386 -arch x86_64"
+			V_LIB_LDFLAGS_FAT="-arch ppc -arch ppc64 -arch i386 -arch x86_64"
+			V_PROG_CCOPT_FAT="-arch i386 -arch ppc"
+			V_PROG_LDFLAGS_FAT="-arch i386 -arch ppc"
 			;;
 
 		darwin10.*)
 			#
-			# Snow Leopard.  Build for x86-64, x86, and
-			# 32-bit PowerPC, with x86-64 first.  (That's
-			# what Apple does, even though Snow Leopard
-			# doesn't run on PPC, so PPC libpcap runs under
-			# Rosetta, and Rosetta doesn't support BPF
-			# ioctls, so PPC programs can't do live
-			# captures.)
+			# Snow Leopard.  Build libraries for x86-64,
+			# 32-bit x86, and 32-bit PowerPC, with x86-64
+			# first, and build executables for x86-64 and
+			# 32-bit x86, with x86-64 first.  (That's what
+			# Apple does, even though Snow Leopard doesn't
+			# run on PPC, so PPC libpcap runs under Rosetta,
+			# and Rosetta doesn't support BPF ioctls, so PPC
+			# programs can't do live captures.)
 			#
-			V_CCOPT="$V_CCOPT -arch x86_64 -arch i386 -arch ppc"
-			LDFLAGS="$LDFLAGS -arch x86_64 -arch i386 -arch ppc"
+			V_LIB_CCOPT_FAT="-arch x86_64 -arch i386 -arch ppc"
+			V_LIB_LDFLAGS_FAT="-arch x86_64 -arch i386 -arch ppc"
+			V_PROG_CCOPT_FAT="-arch x86_64 -arch i386"
+			V_PROG_LDFLAGS_FAT="-arch x86_64 -arch i386"
 			;;
 
 		darwin*)
 			#
-			# Post-Snow Leopard.  Build for x86-64 and
-			# x86, with x86-64 first.  (That's probably what
-			# Apple does, given that Rosetta is gone.)
+			# Post-Snow Leopard.  Build libraries for x86-64
+			# and 32-bit x86, with x86-64 first, and build
+			# executables only for x86-64.  (That's what
+			# Apple does.)  This requires no special flags
+			# for programs.
 			# XXX - update if and when Apple drops support
-			# for 32-bit x86 code.
+			# for 32-bit x86 code and if and when Apple adds
+			# ARM-based Macs.  (You're on your own for iOS
+			# etc.)
 			#
-			V_CCOPT="$V_CCOPT -arch x86_64 -arch i386"
-			LDFLAGS="$LDFLAGS -arch x86_64 -arch i386"
+			# XXX - check whether we *can* build for
+			# i386 and, if not, suggest that the user
+			# install the /usr/include headers if they
+			# want to build fat.
+			#
+			AC_MSG_CHECKING(whether building for 32-bit x86 is supported)
+			save_CFLAGS="$CFLAGS"
+			CFLAGS="$CFLAGS -arch i386"
+			AC_TRY_COMPILE(
+			    [],
+			    [return 0;],
+			    [
+				AC_MSG_RESULT(yes)
+				V_LIB_CCOPT_FAT="-arch x86_64 -arch i386"
+				V_LIB_LDFLAGS_FAT="-arch x86_64 -arch i386"
+			    ],
+			    [
+				AC_MSG_RESULT(no)
+				V_LIB_CCOPT_FAT="-arch x86_64"
+				V_LIB_LDFLAGS_FAT="-arch x86_64"
+				case "$host_os" in
+
+				darwin18.*)
+					#
+					# Mojave; you need to install the
+					# /usr/include headers to get
+					# 32-bit x86 builds to work.
+					#
+					AC_MSG_WARN([Compiling for 32-bit x86 gives an error; try installing the command-line tools and, after that, installing the /usr/include headers from the /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg package])
+					;;
+
+				*)
+					#
+					# Pre-Mojave; the command-line
+					# tools should be sufficient to
+					# enable 32-bit x86 builds.
+					#
+					AC_MSG_WARN([Compiling for 32-bit x86 gives an error; try installing the command-line tools])
+					;;
+				esac
+			    ])
+			CFLAGS="$save_CFLAGS"
 			;;
 		esac
 	fi
@@ -1742,7 +1920,7 @@ irix*)
 	MAN_MISC_INFO=5
 	;;
 
-linux*|freebsd*|netbsd*|openbsd*|dragonfly*|kfreebsd*|gnu*)
+linux*|freebsd*|netbsd*|openbsd*|dragonfly*|kfreebsd*|gnu*|midipix*)
 	DYEXT="so"
 
 	#
@@ -1765,6 +1943,7 @@ osf*)
 	#
 	MAN_FILE_FORMATS=4
 	MAN_MISC_INFO=5
+	MAN_DEVICES=7
 	;;
 
 sinix*)
@@ -1808,6 +1987,7 @@ solaris*)
 		MAN_ADMIN_COMMANDS=1m
 		MAN_FILE_FORMATS=4
 		MAN_MISC_INFO=5
+		MAN_DEVICES=7D
 	esac
 	;;
 esac
@@ -1863,6 +2043,10 @@ AC_CHECK_MEMBERS([dl_hp_ppa_info_t.dl_module_id_1],,,
 AC_LBL_UNALIGNED_ACCESS
 
 AC_SUBST(V_CCOPT)
+AC_SUBST(V_LIB_CCOPT_FAT)
+AC_SUBST(V_LIB_LDFLAGS_FAT)
+AC_SUBST(V_PROG_CCOPT_FAT)
+AC_SUBST(V_PROG_LDFLAGS_FAT)
 AC_SUBST(V_DEFS)
 AC_SUBST(V_FINDALLDEVS)
 AC_SUBST(V_INCLS)
@@ -1878,6 +2062,7 @@ AC_SUBST(ADDLOBJS)
 AC_SUBST(ADDLARCHIVEOBJS)
 AC_SUBST(SSRC)
 AC_SUBST(DYEXT)
+AC_SUBST(MAN_DEVICES)
 AC_SUBST(MAN_FILE_FORMATS)
 AC_SUBST(MAN_MISC_INFO)
 AC_SUBST(MAN_ADMIN_COMMANDS)
@@ -2212,15 +2397,15 @@ fi
 AC_ARG_ENABLE([rdma],
 [AC_HELP_STRING([--enable-rdma],[enable RDMA capture support @<:@default=yes, if support available@:>@])],
     [],
-    [enable_rdmasniff=ifavailable])
+    [enable_rdma=ifavailable])
 
 if test "xxx_only" = yes; then
 	# User requested something-else-only pcap, so they don't
 	# want RDMA support.
-	enable_rdmasniff=no
+	enable_rdma=no
 fi
 
-if test "x$enable_rdmasniff" != "xno"; then
+if test "x$enable_rdma" != "xno"; then
 	AC_CHECK_LIB(ibverbs, ibv_get_device_list, [
 		AC_CHECK_HEADER(infiniband/verbs.h, [
 			#
@@ -2273,7 +2458,8 @@ AC_OUTPUT(Makefile pcap-filter.manmisc pcap-linktype.manmisc
 	pcap_compile.3pcap pcap_datalink.3pcap pcap_dump_open.3pcap
 	pcap_get_tstamp_precision.3pcap pcap_list_datalinks.3pcap
 	pcap_list_tstamp_types.3pcap pcap_open_dead.3pcap
-	pcap_open_offline.3pcap pcap_set_tstamp_precision.3pcap
-	pcap_set_tstamp_type.3pcap rpcapd/Makefile rpcapd/rpcapd.manadmin
+	pcap_open_offline.3pcap pcap_set_immediate_mode.3pcap
+	pcap_set_tstamp_precision.3pcap pcap_set_tstamp_type.3pcap
+	rpcapd/Makefile rpcapd/rpcapd.manadmin rpcapd/rpcapd-config.manfile
 	testprogs/Makefile)
 exit 0

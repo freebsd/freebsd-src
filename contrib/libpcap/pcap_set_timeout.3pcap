@@ -17,7 +17,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH PCAP_SET_TIMEOUT 3PCAP "20 January 2017"
+.TH PCAP_SET_TIMEOUT 3PCAP "6 December 2017"
 .SH NAME
 pcap_set_timeout \- set the packet buffer timeout for a
 not-yet-activated capture handle
@@ -49,5 +49,5 @@ returns 0 on success or
 .B PCAP_ERROR_ACTIVATED
 if called on a capture handle that has been activated.
 .SH SEE ALSO
-pcap(3PCAP), pcap_create(3PCAP), pcap_activate(3PCAP),
+pcap_create(3PCAP), pcap_activate(3PCAP),
 \%pcap_set_immediate_mode(3PCAP)
