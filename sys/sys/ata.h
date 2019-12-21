@@ -311,7 +311,7 @@ struct ata_params {
 /*223*/ u_int16_t       transport_minor;
 	u_int16_t       reserved224[31];
 /*255*/ u_int16_t       integrity;
-} __packed;
+} __packed __aligned(2);
 
 /* ATA Dataset Management */
 #define ATA_DSM_BLK_SIZE	512
