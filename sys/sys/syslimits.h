@@ -48,7 +48,11 @@
  * Do not add any new variables here.  (See the comment at the end of
  * the file for why.)
  */
-#define	ARG_MAX			262144	/* max bytes for an exec function */
+#ifndef __ILP32__
+#define	ARG_MAX	      (2 * 256 * 1024)	/* max bytes for an exec function */
+#else
+#define	ARG_MAX		  (256 * 1024)	/* max bytes for KVA-starved archs */
+#endif
 #ifndef CHILD_MAX
 #define	CHILD_MAX		   40	/* max simultaneous processes */
 #endif
