@@ -68,8 +68,8 @@ hncp_print(netdissect_options *ndo,
 #define HNCP_EXTERNAL_CONNECTION   33
 #define HNCP_DELEGATED_PREFIX      34
 #define HNCP_PREFIX_POLICY         43
-#define HNCP_DHCPV4_DATA           37
-#define HNCP_DHCPV6_DATA           38
+#define HNCP_DHCPV4_DATA           37 /* This is correct, see RFC 7788 Errata ID 5113. */
+#define HNCP_DHCPV6_DATA           38 /* idem */
 #define HNCP_ASSIGNED_PREFIX       35
 #define HNCP_NODE_ADDRESS          36
 #define HNCP_DNS_DELEGATED_ZONE    39
@@ -158,10 +158,10 @@ is_ipv4_mapped_address(const u_char *addr)
 static const char *
 format_nid(const u_char *data)
 {
-    static char buf[4][11+5];
+    static char buf[4][sizeof("01:01:01:01")];
     static int i = 0;
     i = (i + 1) % 4;
-    snprintf(buf[i], 16, "%02x:%02x:%02x:%02x",
+    snprintf(buf[i], sizeof(buf[i]), "%02x:%02x:%02x:%02x",
              data[0], data[1], data[2], data[3]);
     return buf[i];
 }
@@ -169,10 +169,10 @@ format_nid(const u_char *data)
 static const char *
 format_256(const u_char *data)
 {
-    static char buf[4][64+5];
+    static char buf[4][sizeof("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")];
     static int i = 0;
     i = (i + 1) % 4;
-    snprintf(buf[i], 28, "%016" PRIx64 "%016" PRIx64 "%016" PRIx64 "%016" PRIx64,
+    snprintf(buf[i], sizeof(buf[i]), "%016" PRIx64 "%016" PRIx64 "%016" PRIx64 "%016" PRIx64,
          EXTRACT_64BITS(data),
          EXTRACT_64BITS(data + 8),
          EXTRACT_64BITS(data + 16),
@@ -229,6 +229,8 @@ print_prefix(netdissect_options *ndo, const u_char *prefix, u_int max_length)
         plenbytes += 1 + IPV4_MAPPED_HEADING_LEN;
     } else {
         plenbytes = decode_prefix6(ndo, prefix, max_length, buf, sizeof(buf));
+        if (plenbytes < 0)
+            return plenbytes;
     }
 
     ND_PRINT((ndo, "%s", buf));

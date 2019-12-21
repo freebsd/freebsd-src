@@ -675,6 +675,7 @@ infodir
 docdir
 oldincludedir
 includedir
+runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -755,6 +756,7 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
+runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE}'
@@ -1007,6 +1009,15 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
+  -runstatedir | --runstatedir | --runstatedi | --runstated \
+  | --runstate | --runstat | --runsta | --runst | --runs \
+  | --run | --ru | --r)
+    ac_prev=runstatedir ;;
+  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
+  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
+  | --run=* | --ru=* | --r=*)
+    runstatedir=$ac_optarg ;;
+
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1144,7 +1155,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir
+		libdir localedir mandir runstatedir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -1297,6 +1308,7 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
+  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -1329,7 +1341,7 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --disable-universal     don't build universal on OS X
-  --enable-smb            enable possibly-buggy SMB printer default=yes
+  --enable-smb            enable possibly-buggy SMB printer default=no
   --disable-smb           disable possibly-buggy SMB printer
 
 Optional Packages:
@@ -4193,7 +4205,7 @@ fi
 done
 
 
-for ac_header in fcntl.h rpc/rpc.h rpc/rpcent.h netdnet/dnetdb.h
+for ac_header in fcntl.h rpc/rpc.h rpc/rpcent.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -4492,14 +4504,12 @@ $as_echo_n "checking whether to enable the possibly-buggy SMB printer... " >&6; 
 if test "${enable_smb+set}" = set; then :
   enableval=$enable_smb;
 else
-  enableval=yes
+  enableval=no
 fi
 
 case "$enableval" in
 yes)	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: The SMB printer may have exploitable buffer overflows!!!" >&5
-$as_echo "$as_me: WARNING: The SMB printer may have exploitable buffer overflows!!!" >&2;}
 
 $as_echo "#define ENABLE_SMB 1" >>confdefs.h
 
@@ -5059,33 +5069,6 @@ if test "$ipv6" = "yes" -a "$ipv6lib" != "none"; then
 	fi
 fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for dnet_htoa declaration in netdnet/dnetdb.h" >&5
-$as_echo_n "checking for dnet_htoa declaration in netdnet/dnetdb.h... " >&6; }
-if ${td_cv_decl_netdnet_dnetdb_h_dnet_htoa+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <netdnet/dnetdb.h>
-
-_ACEOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "dnet_htoa" >/dev/null 2>&1; then :
-  td_cv_decl_netdnet_dnetdb_h_dnet_htoa=yes
-else
-  td_cv_decl_netdnet_dnetdb_h_dnet_htoa=no
-fi
-rm -f conftest*
-
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $td_cv_decl_netdnet_dnetdb_h_dnet_htoa" >&5
-$as_echo "$td_cv_decl_netdnet_dnetdb_h_dnet_htoa" >&6; }
-if test "$td_cv_decl_netdnet_dnetdb_h_dnet_htoa" = yes; then
-
-$as_echo "#define HAVE_NETDNET_DNETDB_H_DNET_HTOA 1" >>confdefs.h
-
-fi
-
 ac_fn_c_check_func "$LINENO" "vfprintf" "ac_cv_func_vfprintf"
 if test "x$ac_cv_func_vfprintf" = xyes; then :
   $as_echo "#define HAVE_VFPRINTF 1" >>confdefs.h
@@ -5292,65 +5275,6 @@ done
 	    fi
 	    ;;
     esac
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing dnet_htoa" >&5
-$as_echo_n "checking for library containing dnet_htoa... " >&6; }
-if ${ac_cv_search_dnet_htoa+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_func_search_save_LIBS=$LIBS
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char dnet_htoa ();
-int
-main ()
-{
-return dnet_htoa ();
-  ;
-  return 0;
-}
-_ACEOF
-for ac_lib in '' dnet; do
-  if test -z "$ac_lib"; then
-    ac_res="none required"
-  else
-    ac_res=-l$ac_lib
-    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
-  fi
-  if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_search_dnet_htoa=$ac_res
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext
-  if ${ac_cv_search_dnet_htoa+:} false; then :
-  break
-fi
-done
-if ${ac_cv_search_dnet_htoa+:} false; then :
-
-else
-  ac_cv_search_dnet_htoa=no
-fi
-rm conftest.$ac_ext
-LIBS=$ac_func_search_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_dnet_htoa" >&5
-$as_echo "$ac_cv_search_dnet_htoa" >&6; }
-ac_res=$ac_cv_search_dnet_htoa
-if test "$ac_res" != no; then :
-  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-
-$as_echo "#define HAVE_DNET_HTOA 1" >>confdefs.h
-
-fi
-
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for main in -lrpc" >&5
 $as_echo_n "checking for main in -lrpc... " >&6; }
