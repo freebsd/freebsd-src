@@ -35,9 +35,13 @@
  * machine (if the file was written in little-end order).
  */
 #define	SWAPLONG(y) \
-((((y)&0xff)<<24) | (((y)&0xff00)<<8) | (((y)&0xff0000)>>8) | (((y)>>24)&0xff))
+    (((((u_int)(y))&0xff)<<24) | \
+     ((((u_int)(y))&0xff00)<<8) | \
+     ((((u_int)(y))&0xff0000)>>8) | \
+     ((((u_int)(y))>>24)&0xff))
 #define	SWAPSHORT(y) \
-	( (((y)&0xff)<<8) | ((u_short)((y)&0xff00)>>8) )
+     ((u_short)(((((u_int)(y))&0xff)<<8) | \
+                ((((u_int)(y))&0xff00)>>8)))
 
 extern int dlt_to_linktype(int dlt);
 

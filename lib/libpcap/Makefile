@@ -46,6 +46,7 @@ PCAPINCS= \
 	pcap/nflog.h \
 	pcap/pcap-inttypes.h \
 	pcap/pcap.h \
+	pcap/socket.h \
 	pcap/sll.h \
 	pcap/usb.h \
 	pcap/vlan.h
@@ -93,9 +94,7 @@ MAN=	pcap.3 \
 	pcap_open_offline.3 \
 	pcap_set_buffer_size.3 \
 	pcap_set_datalink.3 \
-	pcap_set_immediate_mode.3 \
 	pcap_set_promisc.3 \
-	pcap_set_protocol.3 \
 	pcap_set_rfmon.3 \
 	pcap_set_snaplen.3 \
 	pcap_set_timeout.3 \
