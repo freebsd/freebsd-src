@@ -37,11 +37,11 @@ specified by
 .IR p .
 .PP
 It must not be called on a pcap descriptor created by
-.B pcap_create()
+.B \%pcap_create(3PCAP)
 that has not yet been activated by
-.BR pcap_activate() .
+.BR \%pcap_activate(3PCAP) .
 .PP
-.I http://www.tcpdump.org/linktypes.html
+.I https://www.tcpdump.org/linktypes.html
 lists the values
 .B pcap_datalink()
 can return and describes the packet formats that

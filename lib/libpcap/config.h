@@ -4,6 +4,9 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Define to 1 if you have the `asprintf' function. */
+#define HAVE_ASPRINTF 1
+
 /* Define to 1 if you have the `ether_hostton' function. */
 #define HAVE_ETHER_HOSTTON 1
 
@@ -181,7 +184,7 @@
 #define PACKAGE_NAME "pcap"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "pcap 1.9.0"
+#define PACKAGE_STRING "pcap 1.9.1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "pcap"
@@ -190,7 +193,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.9.0"
+#define PACKAGE_VERSION "1.9.1"
 
 /* target host supports netmap */
 #define PCAP_SUPPORT_NETMAP 1
