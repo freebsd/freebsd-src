@@ -120,10 +120,21 @@ fn_print(netdissect_options *ndo,
 
 /*
  * Print out a null-terminated filename (or other ascii string) from
- * a fixed-length buffer.
- * If ep is NULL, assume no truncation check is needed.
+ * a fixed-length field in the packet buffer, or from what remains of
+ * the packet.
+ *
+ * n is the length of the fixed-length field, or the number of bytes
+ * remaining in the packet based on its on-the-network length.
+ *
+ * If ep is non-null, it should point just past the last captured byte
+ * of the packet, e.g. ndo->ndo_snapend.  If ep is NULL, we assume no
+ * truncation check, other than the checks of the field length/remaining
+ * packet data length, is needed.
+ *
  * Return the number of bytes of string processed, including the
- * terminating null, if not truncated.  Return 0 if truncated.
+ * terminating null, if not truncated; as the terminating null is
+ * included in the count, and as there must be a terminating null,
+ * this will always be non-zero.  Return 0 if truncated.
  */
 u_int
 fn_printztn(netdissect_options *ndo,
@@ -137,7 +148,8 @@ fn_printztn(netdissect_options *ndo,
 		if (n == 0 || (ep != NULL && s >= ep)) {
 			/*
 			 * Truncated.  This includes "no null before we
-			 * got to the end of the fixed-length buffer".
+			 * got to the end of the fixed-length buffer or
+			 * the end of the packet".
 			 *
 			 * XXX - BOOTP says "null-terminated", which
 			 * means the maximum length of the string, in

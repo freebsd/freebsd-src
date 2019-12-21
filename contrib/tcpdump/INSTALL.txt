@@ -63,7 +63,7 @@ config.guess	- autoconf support
 config.h.in	- autoconf input
 config.sub	- autoconf support
 configure	- configure script (run this first)
-configure.in	- configure script source
+configure.ac	- configure script source
 ether.h		- Ethernet definitions
 ethertype.h	- Ethernet type value definitions
 extract.h	- alignment definitions

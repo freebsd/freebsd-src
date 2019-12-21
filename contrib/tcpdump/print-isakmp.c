@@ -1769,6 +1769,7 @@ ikev1_n_print(netdissect_options *ndo, u_char tpay _U_,
 		    }
 		case IPSECDOI_NTYPE_REPLAY_STATUS:
 			ND_PRINT((ndo," status=("));
+			ND_TCHECK_32BITS(cp);
 			ND_PRINT((ndo,"replay detection %sabled",
 				  EXTRACT_32BITS(cp) ? "en" : "dis"));
 			ND_PRINT((ndo,")"));
