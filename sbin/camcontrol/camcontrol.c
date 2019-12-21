@@ -2355,7 +2355,7 @@ ataidentify(struct cam_device *device, int retry_count, int timeout)
 	if (arglist & CAM_ARG_VERBOSE) {
 		printf("%s%d: Raw identify data:\n",
 		    device->device_name, device->dev_unit_num);
-		dump_data((void*)ident_buf, sizeof(struct ata_params));
+		dump_data((uint16_t *)ident_buf, sizeof(struct ata_params));
 	}
 
 	if (ident_buf->support.command1 & ATA_SUPPORT_PROTECTED) {
