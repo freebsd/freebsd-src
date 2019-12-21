@@ -38,9 +38,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <limits.h>
-#ifdef illumos
-#include <alloca.h>
-#endif
 #include <errno.h>
 #include <fcntl.h>
 
@@ -162,26 +159,40 @@ dt_opt_cpp_path(dtrace_hdl_t *dtp, const char *arg, uintptr_t option)
 static int
 dt_opt_cpp_opts(dtrace_hdl_t *dtp, const char *arg, uintptr_t option)
 {
-	char *buf;
+	char *buf = NULL;
 	size_t len;
 	const char *opt = (const char *)option;
+	int ret;
 
-	if (opt == NULL || arg == NULL)
-		return (dt_set_errno(dtp, EDT_BADOPTVAL));
+	if (opt == NULL || arg == NULL) {
+		ret = dt_set_errno(dtp, EDT_BADOPTVAL);
+		goto out;
+	}
 
-	if (dtp->dt_pcb != NULL)
-		return (dt_set_errno(dtp, EDT_BADOPTCTX));
+	if (dtp->dt_pcb != NULL) {
+		ret = dt_set_errno(dtp, EDT_BADOPTCTX);
+		goto out;
+	}
 
 	len = strlen(opt) + strlen(arg) + 1;
-	buf = alloca(len);
+	if ((buf = dt_alloc(dtp, len)) == NULL) {
+		ret = dt_set_errno(dtp, EDT_NOMEM);
+		goto out;
+	}
 
 	(void) strcpy(buf, opt);
 	(void) strcat(buf, arg);
 
-	if (dt_cpp_add_arg(dtp, buf) == NULL)
-		return (dt_set_errno(dtp, EDT_NOMEM));
+	if (dt_cpp_add_arg(dtp, buf) == NULL) {
+		ret = dt_set_errno(dtp, EDT_NOMEM);
+		goto out;
+	}
 
-	return (0);
+	ret = 0;
+out:
+	if (buf != NULL)
+		dt_free(dtp, buf);
+	return (ret);
 }
 
 /*ARGSUSED*/
@@ -885,27 +896,35 @@ dt_options_load(dtrace_hdl_t *dtp)
 	dof_hdr_t hdr, *dof;
 	dof_sec_t *sec;
 	size_t offs;
-	int i;
+	int i, ret;
 
 	/*
 	 * To load the option values, we need to ask the kernel to provide its
 	 * DOF, which we'll sift through to look for OPTDESC sections.
 	 */
+	dof = &hdr;
 	bzero(&hdr, sizeof (dof_hdr_t));
 	hdr.dofh_loadsz = sizeof (dof_hdr_t);
 
 #ifdef illumos
-	if (dt_ioctl(dtp, DTRACEIOC_DOFGET, &hdr) == -1)
+	if (dt_ioctl(dtp, DTRACEIOC_DOFGET, dof) == -1)
 #else
-	dof = &hdr;
 	if (dt_ioctl(dtp, DTRACEIOC_DOFGET, &dof) == -1)
 #endif
-		return (dt_set_errno(dtp, errno));
+	{
+		ret = dt_set_errno(dtp, errno);
+		goto out;
+	}
 
-	if (hdr.dofh_loadsz < sizeof (dof_hdr_t))
-		return (dt_set_errno(dtp, EINVAL));
+	if (hdr.dofh_loadsz < sizeof (dof_hdr_t)) {
+		ret = dt_set_errno(dtp, EINVAL);
+		goto out;
+	}
 
-	dof = alloca(hdr.dofh_loadsz);
+	if ((dof = dt_alloc(dtp, hdr.dofh_loadsz)) == NULL) {
+		ret = dt_set_errno(dtp, EDT_NOMEM);
+		goto out;
+	}
 	bzero(dof, sizeof (dof_hdr_t));
 	dof->dofh_loadsz = hdr.dofh_loadsz;
 
@@ -917,7 +936,10 @@ dt_options_load(dtrace_hdl_t *dtp)
 #else
 	if (dt_ioctl(dtp, DTRACEIOC_DOFGET, &dof) == -1)
 #endif
-		return (dt_set_errno(dtp, errno));
+	{
+		ret = dt_set_errno(dtp, errno);
+		goto out;
+	}
 
 	for (i = 0; i < dof->dofh_secnum; i++) {
 		sec = (dof_sec_t *)(uintptr_t)((uintptr_t)dof +
@@ -942,7 +964,11 @@ dt_options_load(dtrace_hdl_t *dtp)
 		dtp->dt_options[opt->dofo_option] = opt->dofo_value;
 	}
 
-	return (0);
+	ret = 0;
+out:
+	if (dof != NULL && dof != &hdr)
+		dt_free(dtp, dof);
+	return (ret);
 }
 
 typedef struct dt_option {
