@@ -619,6 +619,9 @@ restart:
 	(*d_loadave)(system_info.last_pid,
 		     system_info.load_avg);
 
+	/* display the battery info (if any) */
+	i_battery(statics.nbatteries, system_info.battery);
+
 	/* display the current time */
 	/* this method of getting the time SHOULD be fairly portable */
 	time(&curr_time);

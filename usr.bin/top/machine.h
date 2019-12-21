@@ -30,6 +30,7 @@ struct statics
     const char * const *carc_names;
     const char * const *swap_names;
     const char * const *order_names;
+    int nbatteries;
     int ncpus;
 };
 
@@ -50,6 +51,7 @@ struct system_info
     int    *carc;
     int    *swap;
     struct timeval boottime;
+    int    battery;
     int    ncpus;
 };
 
