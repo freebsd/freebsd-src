@@ -873,8 +873,12 @@
 /* Function should not be analyzed. */
 #define	__no_lock_analysis	__lock_annotate(no_thread_safety_analysis)
 
-/* Function or variable should not be sanitized, ie. by AddressSanitizer */
-#if __has_attribute(no_sanitize)
+/*
+ * Function or variable should not be sanitized, i.e. by AddressSanitizer.
+ * GCC has the nosanitize attribute, but as a function attribute only, and
+ * warns on use as a variable attribute.
+ */
+#if __has_attribute(no_sanitize) && defined(__clang__)
 #define __nosanitizeaddress	__attribute__((no_sanitize("address")))
 #else
 #define __nosanitizeaddress
