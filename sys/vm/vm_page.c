@@ -1724,6 +1724,9 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
 	mnew->pindex = pindex;
 	atomic_set_int(&mnew->ref_count, VPRC_OBJREF);
 	mold = vm_radix_replace(&object->rtree, mnew);
+	KASSERT((mold->oflags & VPO_UNMANAGED) ==
+	    (mnew->oflags & VPO_UNMANAGED),
+	    ("vm_page_replace: mismatched VPO_UNMANAGED"));
 
 	/* Keep the resident page list in sorted order. */
 	TAILQ_INSERT_AFTER(&object->memq, mold, mnew, listq);
@@ -2684,8 +2687,7 @@ retry:
 				KASSERT(pmap_page_get_memattr(m) ==
 				    VM_MEMATTR_DEFAULT,
 				    ("page %p has an unexpected memattr", m));
-				KASSERT((m->oflags & (VPO_SWAPINPROG |
-				    VPO_SWAPSLEEP | VPO_UNMANAGED)) == 0,
+				KASSERT(m->oflags == 0,
 				    ("page %p has unexpected oflags", m));
 				/* Don't care: PGA_NOSYNC. */
 				if (!vm_page_none_valid(m)) {
@@ -2753,6 +2755,7 @@ retry:
 					    ~PGA_QUEUE_STATE_MASK;
 					KASSERT(m_new->oflags == VPO_UNMANAGED,
 					    ("page %p is managed", m_new));
+					m_new->oflags = 0;
 					pmap_copy_page(m, m_new);
 					m_new->valid = m->valid;
 					m_new->dirty = m->dirty;
@@ -3676,6 +3679,10 @@ vm_page_free_prep(vm_page_t m)
 		panic("vm_page_free_prep: freeing shared busy page %p", m);
 
 	if (m->object != NULL) {
+		KASSERT(((m->oflags & VPO_UNMANAGED) != 0) ==
+		    ((m->object->flags & OBJ_UNMANAGED) != 0),
+		    ("vm_page_free_prep: managed flag mismatch for page %p",
+		    m));
 		vm_page_object_remove(m);
 
 		/*
