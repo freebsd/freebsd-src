@@ -14,6 +14,7 @@ void	 i_header(const char *text);
 void	 display_header(int t);
 int		 display_init(struct statics *statics);
 void	 i_arc(int *stats);
+void	 i_battery(int nbat, int batt);
 void	 i_carc(int *stats);
 void	 i_cpustates(int *states);
 void	 i_loadave(int mpid, double *avenrun);

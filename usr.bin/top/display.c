@@ -1322,6 +1322,15 @@ i_uptime(struct timeval *bt, time_t *tod)
     }
 }
 
+void
+i_battery(int nbat, int batt)
+{
+
+	if (nbat > 0) {
+		printf("; battery: %d%%", batt);
+	}
+}
+
 #define SETUPBUFFER_MIN_SCREENWIDTH 80
 #define SETUPBUFFER_REQUIRED_ADDBUFSIZ 2
 
