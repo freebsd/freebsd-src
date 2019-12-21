@@ -70,6 +70,9 @@ CWARNEXTRA+=	-Wno-error=memset-elt-size
 .if ${COMPILER_VERSION} >= 80000
 CWARNEXTRA+=	-Wno-error=packed-not-aligned
 .endif
+.if ${COMPILER_VERSION} >= 90100
+CWARNEXTRA+=	-Wno-address-of-packed-member
+.endif
 .else
 # For gcc 4.2, eliminate the too-often-wrong warnings about uninitialized vars.
 CWARNEXTRA?=	-Wno-uninitialized
