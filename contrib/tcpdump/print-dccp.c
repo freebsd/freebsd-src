@@ -530,7 +530,8 @@ static const struct tok dccp_option_values[] = {
 	{ 0, NULL }
 };
 
-static int dccp_print_option(netdissect_options *ndo, const u_char *option, u_int hlen)
+static int
+dccp_print_option(netdissect_options *ndo, const u_char *option, u_int hlen)
 {
 	uint8_t optlen, i;
 
@@ -623,16 +624,54 @@ static int dccp_print_option(netdissect_options *ndo, const u_char *option, u_in
 			}
 			break;
 		case 41:
-			if (optlen == 4)
+		/*
+		 * 13.1.  Timestamp Option
+		 *
+		 *  +--------+--------+--------+--------+--------+--------+
+		 *  |00101001|00000110|          Timestamp Value          |
+		 *  +--------+--------+--------+--------+--------+--------+
+		 *   Type=41  Length=6
+		 */
+			if (optlen == 6)
 				ND_PRINT((ndo, " %u", EXTRACT_32BITS(option + 2)));
 			else
-				ND_PRINT((ndo, " optlen != 4"));
+				ND_PRINT((ndo, " [optlen != 6]"));
 			break;
 		case 42:
-			if (optlen == 4)
+		/*
+		 * 13.3.  Timestamp Echo Option
+		 *
+		 *  +--------+--------+--------+--------+--------+--------+
+		 *  |00101010|00000110|           Timestamp Echo          |
+		 *  +--------+--------+--------+--------+--------+--------+
+		 *   Type=42    Len=6
+		 *
+		 *  +--------+--------+------- ... -------+--------+--------+
+		 *  |00101010|00001000|  Timestamp Echo   |   Elapsed Time  |
+		 *  +--------+--------+------- ... -------+--------+--------+
+		 *   Type=42    Len=8       (4 bytes)
+		 *
+		 *  +--------+--------+------- ... -------+------- ... -------+
+		 *  |00101010|00001010|  Timestamp Echo   |    Elapsed Time   |
+		 *  +--------+--------+------- ... -------+------- ... -------+
+		 *   Type=42   Len=10       (4 bytes)           (4 bytes)
+		 */
+			switch (optlen) {
+			case 6:
 				ND_PRINT((ndo, " %u", EXTRACT_32BITS(option + 2)));
-			else
-				ND_PRINT((ndo, " optlen != 4"));
+				break;
+			case 8:
+				ND_PRINT((ndo, " %u", EXTRACT_32BITS(option + 2)));
+				ND_PRINT((ndo, " (elapsed time %u)", EXTRACT_16BITS(option + 6)));
+				break;
+			case 10:
+				ND_PRINT((ndo, " %u", EXTRACT_32BITS(option + 2)));
+				ND_PRINT((ndo, " (elapsed time %u)", EXTRACT_32BITS(option + 6)));
+				break;
+			default:
+				ND_PRINT((ndo, " [optlen != 6 or 8 or 10]"));
+				break;
+			}
 			break;
 		case 43:
 			if (optlen == 6)
@@ -640,7 +679,7 @@ static int dccp_print_option(netdissect_options *ndo, const u_char *option, u_in
 			else if (optlen == 4)
 				ND_PRINT((ndo, " %u", EXTRACT_16BITS(option + 2)));
 			else
-				ND_PRINT((ndo, " optlen != 4 or 6"));
+				ND_PRINT((ndo, " [optlen != 4 or 6]"));
 			break;
 		case 44:
 			if (optlen > 2) {

@@ -1,3 +1,36 @@
+Friday, September 20, 2019, by mcr@sandelman.ca
+  A huge thank you to Denis, Francois-Xavier and Guy who did much of the heavy lifting.
+  Summary for 4.9.3 tcpdump release
+    Fix buffer overflow/overread vulnerabilities:
+      CVE-2017-16808 (AoE)
+      CVE-2018-14468 (FrameRelay)
+      CVE-2018-14469 (IKEv1)
+      CVE-2018-14470 (BABEL)
+      CVE-2018-14466 (AFS/RX)
+      CVE-2018-14461 (LDP)
+      CVE-2018-14462 (ICMP)
+      CVE-2018-14465 (RSVP)
+      CVE-2018-14881 (BGP)
+      CVE-2018-14464 (LMP)
+      CVE-2018-14463 (VRRP)
+      CVE-2018-14467 (BGP)
+      CVE-2018-10103 (SMB - partially fixed, but SMB printing disabled)
+      CVE-2018-10105 (SMB - too unreliably reproduced, SMB printing disabled)
+      CVE-2018-14880 (OSPF6)
+      CVE-2018-16451 (SMB)
+      CVE-2018-14882 (RPL)
+      CVE-2018-16227 (802.11)
+      CVE-2018-16229 (DCCP)
+      CVE-2018-16301 (was fixed in libpcap)
+      CVE-2018-16230 (BGP)
+      CVE-2018-16452 (SMB)
+      CVE-2018-16300 (BGP)
+      CVE-2018-16228 (HNCP)
+      CVE-2019-15166 (LMP)
+      CVE-2019-15167 (VRRP)
+    Fix for cmdline argument/local issues:
+      CVE-2018-14879 (tcpdump -V)
+
 Sunday September 3, 2017 denis@ovsienko.info
   Summary for 4.9.2 tcpdump release
     Do not use getprotobynumber() for protocol name resolution.  Do not do

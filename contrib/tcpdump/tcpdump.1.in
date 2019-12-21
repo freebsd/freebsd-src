@@ -441,7 +441,7 @@ terminal rather than to a file or pipe.
 .PD
 Set the time stamp type for the capture to \fItstamp_type\fP.  The names
 to use for the time stamp types are given in
-.BR pcap-tstamp (@MAN_MISC_INFO@);
+.BR \%pcap-tstamp (@MAN_MISC_INFO@);
 not all the types listed there will necessarily be valid for any given
 interface.
 .TP
@@ -1878,8 +1878,8 @@ The `*' on the request
 indicates that XO (`exactly once') was \fInot\fP set.
 
 .SH "SEE ALSO"
-stty(1), pcap(3PCAP), bpf(4), nit(4P), pcap-savefile(@MAN_FILE_FORMATS@),
-pcap-filter(@MAN_MISC_INFO@), pcap-tstamp(@MAN_MISC_INFO@)
+stty(1), pcap(3PCAP), bpf(4), nit(4P), \%pcap-savefile(@MAN_FILE_FORMATS@),
+\%pcap-filter(@MAN_MISC_INFO@), \%pcap-tstamp(@MAN_MISC_INFO@)
 .LP
 .RS
 .I http://www.iana.org/assignments/media-types/application/vnd.tcpdump.pcap
@@ -1898,7 +1898,7 @@ It is currently being maintained by tcpdump.org.
 The current version is available via http:
 .LP
 .RS
-.I http://www.tcpdump.org/
+.I https://www.tcpdump.org/
 .RE
 .LP
 The original distribution is available via anonymous ftp:
