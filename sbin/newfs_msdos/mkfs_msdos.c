@@ -316,7 +316,8 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 	bpb.bpbHiddenSecs = o.hidden_sectors;
     if (!(o.floppy || (o.drive_heads && o.sectors_per_track &&
 	o.bytes_per_sector && o.size && o.hidden_sectors_set))) {
-	getdiskinfo(fd, fname, dtype, o.hidden_sectors_set, &bpb);
+	if (getdiskinfo(fd, fname, dtype, o.hidden_sectors_set, &bpb) == -1)
+		goto done;
 	bpb.bpbHugeSectors -= (o.offset / bpb.bpbBytesPerSec);
 	if (bpb.bpbSecPerClust == 0) {	/* set defaults */
 	    if (bpb.bpbHugeSectors <= 6000)	/* about 3MB -> 512 bytes */
@@ -421,10 +422,7 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 	bname = o.bootstrap;
 	if (!strchr(bname, '/')) {
 	    snprintf(buf, sizeof(buf), "/boot/%s", bname);
-	    if (!(bname = strdup(buf))) {
-		warn(NULL);
-		goto done;
-	    }
+	    bname = buf;
 	}
 	if ((fd1 = open(bname, O_RDONLY)) == -1 || fstat(fd1, &sb)) {
 	    warn("%s", bname);

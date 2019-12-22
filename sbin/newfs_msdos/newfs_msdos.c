@@ -185,11 +185,10 @@ main(int argc, char *argv[])
     fname = *argv++;
     if (!o.create_size && !strchr(fname, '/')) {
 	snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
-	if (!(fname = strdup(buf)))
-	    err(1, NULL);
+	fname = buf;
     }
     dtype = *argv;
-    return !!mkfs_msdos(fname, dtype, &o);
+    exit(!!mkfs_msdos(fname, dtype, &o));
 }
 
 /*
