@@ -207,12 +207,17 @@ typedef struct keyboard_switch {
 #define kbdd_diag(kbd, level)						\
 	(*kbdsw[(kbd)->kb_index]->diag)((kbd), (leve))
 
-/* keyboard driver */
+/*
+ * Keyboard driver definition.  Some of these be immutable after definition
+ * time, e.g. one shouldn't be able to rename a driver or use a different kbdsw
+ * entirely, but patching individual methods is acceptable.
+ */
 typedef struct keyboard_driver {
     SLIST_ENTRY(keyboard_driver) link;
-    char		*name;
-    keyboard_switch_t	*kbdsw;
-    int			(*configure)(int); /* backdoor for the console driver */
+    const char * const		name;
+    keyboard_switch_t * const	kbdsw;
+    /* backdoor for the console driver */
+    int				(* const configure)(int);
 } keyboard_driver_t;
 
 #ifdef _KERNEL
