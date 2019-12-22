@@ -180,6 +180,8 @@ fault_page_free(vm_page_t *mp)
 		VM_OBJECT_ASSERT_WLOCKED(m->object);
 		if (!vm_page_wired(m))
 			vm_page_free(m);
+		else
+			vm_page_xunbusy(m);
 		*mp = NULL;
 	}
 }
