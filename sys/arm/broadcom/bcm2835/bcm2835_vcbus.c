@@ -152,6 +152,13 @@ static struct bcm283x_memory_soc_cfg {
 	bus_addr_t			 busdma_lowaddr;
 } bcm283x_memory_configs[] = {
 #ifdef SOC_BCM2835
+	/* Legacy */
+	{
+		.memmap = bcm2835_memmap,
+		.soc_compat = "raspberrypi,model-b",
+		.busdma_lowaddr = BUS_SPACE_MAXADDR_32BIT,
+	},
+	/* Modern */
 	{
 		.memmap = bcm2835_memmap,
 		.soc_compat = "brcm,bcm2835",
@@ -159,6 +166,13 @@ static struct bcm283x_memory_soc_cfg {
 	},
 #endif
 #ifdef SOC_BCM2836
+	/* Legacy */
+	{
+		.memmap = bcm2836_memmap,
+		.soc_compat = "brcm,bcm2709",
+		.busdma_lowaddr = BUS_SPACE_MAXADDR_32BIT,
+	},
+	/* Modern */
 	{
 		.memmap = bcm2836_memmap,
 		.soc_compat = "brcm,bcm2836",
