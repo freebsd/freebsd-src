@@ -1022,12 +1022,10 @@ netmap_dev_pager_fault(vm_object_t object, vm_ooffset_t offset,
 	vm_paddr_t paddr;
 	vm_page_t page;
 	vm_memattr_t memattr;
-	vm_pindex_t pidx;
 
 	nm_prdis("object %p offset %jd prot %d mres %p",
 			object, (intmax_t)offset, prot, mres);
 	memattr = object->memattr;
-	pidx = OFF_TO_IDX(offset);
 	paddr = netmap_mem_ofstophys(na->nm_mem, offset);
 	if (paddr == 0)
 		return VM_PAGER_FAIL;
@@ -1052,9 +1050,8 @@ netmap_dev_pager_fault(vm_object_t object, vm_ooffset_t offset,
 		VM_OBJECT_WUNLOCK(object);
 		page = vm_page_getfake(paddr, memattr);
 		VM_OBJECT_WLOCK(object);
-		vm_page_free(*mres);
+		vm_page_replace(page, object, (*mres)->pindex, *mres);
 		*mres = page;
-		vm_page_insert(page, object, pidx);
 	}
 	vm_page_valid(page);
 	return (VM_PAGER_OK);

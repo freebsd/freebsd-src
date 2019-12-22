@@ -1484,8 +1484,6 @@ retry:
 		if (vm_page_none_valid(m)) {
 			if (vm_page_remove(m))
 				vm_page_free(m);
-			else
-				vm_page_xunbusy(m);
 			continue;
 		}
 
@@ -1675,8 +1673,6 @@ vm_object_collapse_scan(vm_object_t object, int op)
 			    ("freeing mapped page %p", p));
 			if (vm_page_remove(p))
 				vm_page_free(p);
-			else
-				vm_page_xunbusy(p);
 			continue;
 		}
 
@@ -1708,8 +1704,6 @@ vm_object_collapse_scan(vm_object_t object, int op)
 			 */
 			if (vm_page_remove(pp))
 				vm_page_free(pp);
-			else
-				vm_page_xunbusy(pp);
 			pp = NULL;
 		}
 
@@ -1728,8 +1722,6 @@ vm_object_collapse_scan(vm_object_t object, int op)
 			    ("freeing mapped page %p", p));
 			if (vm_page_remove(p))
 				vm_page_free(p);
-			else
-				vm_page_xunbusy(p);
 			if (pp != NULL)
 				vm_page_xunbusy(pp);
 			continue;

@@ -181,6 +181,8 @@ static void _vm_page_busy_sleep(vm_object_t obj, vm_page_t m,
 static void vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits);
 static void vm_page_dequeue_complete(vm_page_t m);
 static void vm_page_enqueue(vm_page_t m, uint8_t queue);
+static bool vm_page_free_prep(vm_page_t m);
+static void vm_page_free_toq(vm_page_t m);
 static void vm_page_init(void *dummy);
 static int vm_page_insert_after(vm_page_t m, vm_object_t object,
     vm_pindex_t pindex, vm_page_t mpred);
@@ -1290,8 +1292,7 @@ vm_page_putfake(vm_page_t m)
 	KASSERT((m->oflags & VPO_UNMANAGED) != 0, ("managed %p", m));
 	KASSERT((m->flags & PG_FICTITIOUS) != 0,
 	    ("vm_page_putfake: bad page %p", m));
-	if (vm_page_xbusied(m))
-		vm_page_xunbusy(m);
+	vm_page_xunbusy(m);
 	uma_zfree(fakepg_zone, m);
 }
 
@@ -1579,6 +1580,7 @@ vm_page_object_remove(vm_page_t m)
 	vm_object_t object;
 	vm_page_t mrem;
 
+	vm_page_assert_xbusied(m);
 	object = m->object;
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT((m->ref_count & VPRC_OBJREF) != 0,
@@ -1615,10 +1617,30 @@ vm_page_object_remove(vm_page_t m)
  *	invalidate any backing storage.  Returns true if the object's reference
  *	was the last reference to the page, and false otherwise.
  *
- *	The object must be locked.
+ *	The object must be locked and the page must be exclusively busied.
+ *	The exclusive busy will be released on return.  If this is not the
+ *	final ref and the caller does not hold a wire reference it may not
+ *	continue to access the page.
  */
 bool
 vm_page_remove(vm_page_t m)
+{
+	bool dropped;
+
+	dropped = vm_page_remove_xbusy(m);
+	vm_page_xunbusy(m);
+
+	return (dropped);
+}
+
+/*
+ *	vm_page_remove_xbusy
+ *
+ *	Removes the page but leaves the xbusy held.  Returns true if this
+ *	removed the final ref and false otherwise.
+ */
+bool
+vm_page_remove_xbusy(vm_page_t m)
 {
 
 	vm_page_object_remove(m);
@@ -1704,13 +1726,24 @@ vm_page_prev(vm_page_t m)
 /*
  * Uses the page mnew as a replacement for an existing page at index
  * pindex which must be already present in the object.
+ *
+ * Both pages must be exclusively busied on enter.  The old page is
+ * unbusied on exit.
+ *
+ * A return value of true means mold is now free.  If this is not the
+ * final ref and the caller does not hold a wire reference it may not
+ * continue to access the page.
  */
-vm_page_t
-vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
+static bool
+vm_page_replace_hold(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex,
+    vm_page_t mold)
 {
-	vm_page_t mold;
+	vm_page_t mret;
+	bool dropped;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
+	vm_page_assert_xbusied(mnew);
+	vm_page_assert_xbusied(mold);
 	KASSERT(mnew->object == NULL && (mnew->ref_count & VPRC_OBJREF) == 0,
 	    ("vm_page_replace: page %p already in object", mnew));
 
@@ -1723,7 +1756,9 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
 	mnew->object = object;
 	mnew->pindex = pindex;
 	atomic_set_int(&mnew->ref_count, VPRC_OBJREF);
-	mold = vm_radix_replace(&object->rtree, mnew);
+	mret = vm_radix_replace(&object->rtree, mnew);
+	KASSERT(mret == mold,
+	    ("invalid page replacement, mold=%p, mret=%p", mold, mret));
 	KASSERT((mold->oflags & VPO_UNMANAGED) ==
 	    (mnew->oflags & VPO_UNMANAGED),
 	    ("vm_page_replace: mismatched VPO_UNMANAGED"));
@@ -1731,10 +1766,7 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
 	/* Keep the resident page list in sorted order. */
 	TAILQ_INSERT_AFTER(&object->memq, mold, mnew, listq);
 	TAILQ_REMOVE(&object->memq, mold, listq);
-
 	mold->object = NULL;
-	atomic_clear_int(&mold->ref_count, VPRC_OBJREF);
-	vm_page_xunbusy(mold);
 
 	/*
 	 * The object's resident_page_count does not change because we have
@@ -1743,7 +1775,19 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
 	 */
 	if (pmap_page_is_write_mapped(mnew))
 		vm_object_set_writeable_dirty(object);
-	return (mold);
+	dropped = vm_page_drop(mold, VPRC_OBJREF) == VPRC_OBJREF;
+	vm_page_xunbusy(mold);
+
+	return (dropped);
+}
+
+void
+vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex,
+    vm_page_t mold)
+{
+
+	if (vm_page_replace_hold(mnew, object, pindex, mold))
+		vm_page_free(mold);
 }
 
 /*
@@ -2761,9 +2805,9 @@ retry:
 					m_new->dirty = m->dirty;
 					m->flags &= ~PG_ZERO;
 					vm_page_dequeue(m);
-					vm_page_replace_checked(m_new, object,
-					    m->pindex, m);
-					if (vm_page_free_prep(m))
+					if (vm_page_replace_hold(m_new, object,
+					    m->pindex, m) &&
+					    vm_page_free_prep(m))
 						SLIST_INSERT_HEAD(&free, m,
 						    plinks.s.ss);
 
@@ -3644,7 +3688,7 @@ vm_page_swapqueue(vm_page_t m, uint8_t oldq, uint8_t newq)
  *	The object must be locked.  The page must be locked if it is
  *	managed.
  */
-bool
+static bool
 vm_page_free_prep(vm_page_t m)
 {
 
@@ -3653,6 +3697,9 @@ vm_page_free_prep(vm_page_t m)
 	 * page.
 	 */
 	atomic_thread_fence_acq();
+
+	if (vm_page_sbusied(m))
+		panic("vm_page_free_prep: freeing shared busy page %p", m);
 
 #if defined(DIAGNOSTIC) && defined(PHYS_TO_DMAP)
 	if (PMAP_HAS_DMAP && (m->flags & PG_ZERO) != 0) {
@@ -3675,9 +3722,6 @@ vm_page_free_prep(vm_page_t m)
 	}
 	VM_CNT_INC(v_tfree);
 
-	if (vm_page_sbusied(m))
-		panic("vm_page_free_prep: freeing shared busy page %p", m);
-
 	if (m->object != NULL) {
 		KASSERT(((m->oflags & VPO_UNMANAGED) != 0) ==
 		    ((m->object->flags & OBJ_UNMANAGED) != 0),
@@ -3695,10 +3739,11 @@ vm_page_free_prep(vm_page_t m)
 		    m, m->ref_count));
 		m->object = NULL;
 		m->ref_count -= VPRC_OBJREF;
+		vm_page_xunbusy(m);
 	}
 
 	if (vm_page_xbusied(m))
-		vm_page_xunbusy(m);
+		panic("vm_page_free_prep: freeing exclusive busy page %p", m);
 
 	/*
 	 * If fictitious remove object association and
@@ -3754,7 +3799,7 @@ vm_page_free_prep(vm_page_t m)
  *	The object must be locked.  The page must be locked if it is
  *	managed.
  */
-void
+static void
 vm_page_free_toq(vm_page_t m)
 {
 	struct vm_domain *vmd;
@@ -4099,18 +4144,14 @@ vm_page_release(vm_page_t m, int flags)
 			if (object == NULL)
 				break;
 			/* Depends on type-stability. */
-			if (vm_page_busied(m) || !VM_OBJECT_TRYWLOCK(object)) {
-				object = NULL;
+			if (vm_page_busied(m) || !VM_OBJECT_TRYWLOCK(object))
 				break;
+			if (object == m->object) {
+				vm_page_release_locked(m, flags);
+				VM_OBJECT_WUNLOCK(object);
+				return;
 			}
-			if (object == m->object)
-				break;
 			VM_OBJECT_WUNLOCK(object);
-		}
-		if (__predict_true(object != NULL)) {
-			vm_page_release_locked(m, flags);
-			VM_OBJECT_WUNLOCK(object);
-			return;
 		}
 	}
 
@@ -4158,7 +4199,7 @@ vm_page_release_locked(vm_page_t m, int flags)
 	if (vm_page_unwire_noq(m)) {
 		if ((flags & VPR_TRYFREE) != 0 &&
 		    (m->object->ref_count == 0 || !pmap_page_is_mapped(m)) &&
-		    m->dirty == 0 && !vm_page_busied(m)) {
+		    m->dirty == 0 && vm_page_tryxbusy(m)) {
 			vm_page_free(m);
 		} else {
 			vm_page_lock(m);

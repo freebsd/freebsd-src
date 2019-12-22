@@ -129,6 +129,8 @@ sg_pager_dealloc(vm_object_t object)
 	 * Free up our fake pages.
 	 */
 	while ((m = TAILQ_FIRST(&object->un_pager.sgp.sgp_pglist)) != 0) {
+		if (vm_page_busy_acquire(m, VM_ALLOC_WAITFAIL) == 0)
+			continue;
 		TAILQ_REMOVE(&object->un_pager.sgp.sgp_pglist, m, plinks.q);
 		vm_page_putfake(m);
 	}
@@ -193,10 +195,7 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	page = vm_page_getfake(paddr, memattr);
 	VM_OBJECT_WLOCK(object);
 	TAILQ_INSERT_TAIL(&object->un_pager.sgp.sgp_pglist, page, plinks.q);
-	vm_page_replace_checked(page, object, offset, m[0]);
-	vm_page_lock(m[0]);
-	vm_page_free(m[0]);
-	vm_page_unlock(m[0]);
+	vm_page_replace(page, object, offset, m[0]);
 	m[0] = page;
 	vm_page_valid(page);
 

@@ -180,8 +180,6 @@ fault_page_free(vm_page_t *mp)
 		VM_OBJECT_ASSERT_WLOCKED(m->object);
 		if (!vm_page_wired(m))
 			vm_page_free(m);
-		else
-			vm_page_xunbusy(m);
 		*mp = NULL;
 	}
 }
@@ -1229,10 +1227,14 @@ readrest:
 				 */
 			    fs.object == fs.first_object->backing_object) {
 
-				(void)vm_page_remove(fs.m);
-				vm_page_replace_checked(fs.m, fs.first_object,
+				/*
+				 * Remove but keep xbusy for replace.  fs.m is
+				 * moved into fs.first_object and left busy
+				 * while fs.first_m is conditionally freed.
+				 */
+				vm_page_remove_xbusy(fs.m);
+				vm_page_replace(fs.m, fs.first_object,
 				    fs.first_pindex, fs.first_m);
-				vm_page_free(fs.first_m);
 				vm_page_dirty(fs.m);
 #if VM_NRESERVLEVEL > 0
 				/*
