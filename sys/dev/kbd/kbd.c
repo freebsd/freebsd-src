@@ -173,6 +173,10 @@ kbd_add_driver(keyboard_driver_t *driver)
 {
 	if (SLIST_NEXT(driver, link))
 		return (EINVAL);
+	if (driver->kbdsw->get_fkeystr == NULL)
+		driver->kbdsw->get_fkeystr = genkbd_get_fkeystr;
+	if (driver->kbdsw->diag == NULL)
+		driver->kbdsw->diag = genkbd_diag;
 	SLIST_INSERT_HEAD(&keyboard_drivers, driver, link);
 	return (0);
 }
@@ -1485,3 +1489,20 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 	}
 	/* NOT REACHED */
 }
+
+static void
+kbd_drv_init(void)
+{
+	const keyboard_driver_t **list;
+	const keyboard_driver_t *p;
+
+	SET_FOREACH(list, kbddriver_set) {
+		p = *list;
+		if (p->kbdsw->get_fkeystr == NULL)
+			p->kbdsw->get_fkeystr = genkbd_get_fkeystr;
+		if (p->kbdsw->diag == NULL)
+			p->kbdsw->diag = genkbd_diag;
+	}
+}
+
+SYSINIT(kbd_drv_init, SI_SUB_DRIVERS, SI_ORDER_FIRST, kbd_drv_init, NULL);
