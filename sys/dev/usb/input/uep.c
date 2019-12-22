@@ -49,7 +49,6 @@
 
 #include <sys/ioccom.h>
 #include <sys/fcntl.h>
-#include <sys/tty.h>
 
 #define USB_DEBUG_VAR uep_debug
 #include <dev/usb/usb_debug.h>

@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
-#include <sys/tty.h>
 #include <machine/bus.h>
 
 #include <dev/uart/uart.h>
