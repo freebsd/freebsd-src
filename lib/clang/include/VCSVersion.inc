@@ -1,14 +1,14 @@
 // $FreeBSD$
 
-#define LLVM_REVISION "372316"
-#define LLVM_REPOSITORY "https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_900/final"
+#define LLVM_REVISION "c1a0a213378a458fbea1a5c77b315c7dce08fd05"
+#define LLVM_REPOSITORY "git@github.com:llvm/llvm-project.git"
 
-#define CLANG_REVISION "372316"
-#define CLANG_REPOSITORY "https://llvm.org/svn/llvm-project/cfe/tags/RELEASE_900/final"
+#define CLANG_REVISION "c1a0a213378a458fbea1a5c77b315c7dce08fd05"
+#define CLANG_REPOSITORY "git@github.com:llvm/llvm-project.git"
 
 // <Upstream revision at import>-<Local identifier in __FreeBSD_version style>
-#define LLD_REVISION "372316-1300005"
+#define LLD_REVISION "c1a0a213378a458fbea1a5c77b315c7dce08fd05-1300006"
 #define LLD_REPOSITORY "FreeBSD"
 
-#define LLDB_REVISION "372316"
-#define LLDB_REPOSITORY "https://llvm.org/svn/llvm-project/lldb/tags/RELEASE_900/final"
+#define LLDB_REVISION "c1a0a213378a458fbea1a5c77b315c7dce08fd05"
+#define LLDB_REPOSITORY "git@github.com:llvm/llvm-project.git"
