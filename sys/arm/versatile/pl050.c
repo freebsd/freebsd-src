@@ -717,7 +717,7 @@ pl050_kmi_attach(device_t dev)
 #endif
 
 	if (bootverbose) {
-		genkbd_diag(kbd, bootverbose);
+		kbdd_diag(kbd, bootverbose);
 	}
 	kmi_attached = 1;
 	return (0);

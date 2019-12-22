@@ -535,7 +535,7 @@ hv_kbd_drv_attach(device_t dev)
 	}
 #endif
 	if (bootverbose) {
-		genkbd_diag(kbd, bootverbose);
+		kbdd_diag(kbd, bootverbose);
 	}
 	return (0);
 detach:
