@@ -806,7 +806,7 @@ gntdev_gmap_pg_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 {
 	struct gntdev_gmap *gmap = object->handle;
 	vm_pindex_t pidx, ridx;
-	vm_page_t page, oldm;
+	vm_page_t page;
 	vm_ooffset_t relative_offset;
 
 	if (gmap->map == NULL)
@@ -829,15 +829,12 @@ gntdev_gmap_pg_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 	KASSERT(vm_page_wired(page), ("page %p is not wired", page));
 	KASSERT(!vm_page_busied(page), ("page %p is busy", page));
 
-	if (*mres != NULL) {
-		oldm = *mres;
-		vm_page_free(oldm);
-		*mres = NULL;
-	}
-
 	vm_page_busy_acquire(page, 0);
 	vm_page_valid(page);
-	vm_page_insert(page, object, pidx);
+	if (*mres != NULL)
+		vm_page_replace(page, object, pidx, *mres);
+	else
+		vm_page_insert(page, object, pidx);
 	*mres = page;
 	return (VM_PAGER_OK);
 }

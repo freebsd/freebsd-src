@@ -154,7 +154,7 @@ privcmd_pg_fault(vm_object_t object, vm_ooffset_t offset,
 {
 	struct privcmd_map *map = object->handle;
 	vm_pindex_t pidx;
-	vm_page_t page, oldm;
+	vm_page_t page;
 
 	if (map->mapped != true)
 		return (VM_PAGER_FAIL);
@@ -172,15 +172,13 @@ privcmd_pg_fault(vm_object_t object, vm_ooffset_t offset,
 	KASSERT(vm_page_wired(page), ("page %p not wired", page));
 	KASSERT(!vm_page_busied(page), ("page %p is busy", page));
 
-	if (*mres != NULL) {
-		oldm = *mres;
-		vm_page_free(oldm);
-		*mres = NULL;
-	}
-
 	vm_page_busy_acquire(page, 0);
 	vm_page_valid(page);
-	vm_page_insert(page, object, pidx);
+
+	if (*mres != NULL)
+		vm_page_replace(page, object, pidx, *mres);
+	else
+		vm_page_insert(page, object, pidx);
 	*mres = page;
 	return (VM_PAGER_OK);
 }
