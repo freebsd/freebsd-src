@@ -5,6 +5,7 @@
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
     ${MACHINE_CPUARCH} == "i386"
 uart_bus_acpi=uart_bus_acpi.c
+uart_cpu_acpi=uart_cpu_acpi.c
 .endif
 
 .if ${MACHINE_CPUARCH} == "sparc64"
@@ -34,7 +35,7 @@ uart_dev_mu=uart_dev_mu.c
 KMOD=	uart
 SRCS=	${uart_bus_acpi} ${uart_bus_ebus} uart_bus_isa.c uart_bus_pccard.c \
 	uart_bus_pci.c uart_bus_puc.c uart_bus_scc.c \
-	uart_core.c ${uart_cpu_machine} uart_dbg.c \
+	uart_core.c ${uart_cpu_acpi} ${uart_cpu_machine} uart_dbg.c \
 	${uart_dev_mvebu} uart_dev_ns8250.c ${uart_dev_mu} \
 	uart_dev_quicc.c uart_dev_sab82532.c uart_dev_z8530.c \
 	uart_if.c uart_if.h uart_subr.c uart_tty.c
