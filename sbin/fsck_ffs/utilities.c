@@ -45,15 +45,11 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
 
-#include <err.h>
 #include <errno.h>
 #include <string.h>
-#include <ctype.h>
 #include <fstab.h>
 #include <paths.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
 
 #include "fsck.h"
 
