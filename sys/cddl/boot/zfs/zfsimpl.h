@@ -63,6 +63,14 @@
 
 #define _NOTE(s)
 
+/*
+ * AVL comparator helpers
+ */
+#define	AVL_ISIGN(a)	(((a) > 0) - ((a) < 0))
+#define	AVL_CMP(a, b)	(((a) > (b)) - ((a) < (b)))
+#define	AVL_PCMP(a, b)	\
+	(((uintptr_t)(a) > (uintptr_t)(b)) - ((uintptr_t)(a) < (uintptr_t)(b)))
+
 typedef enum { B_FALSE, B_TRUE } boolean_t;
 
 /* CRC64 table */
@@ -490,8 +498,16 @@ typedef struct zio_gbh {
 #define	VDEV_PHYS_SIZE		(112 << 10)
 #define	VDEV_UBERBLOCK_RING	(128 << 10)
 
+/*
+ * MMP blocks occupy the last MMP_BLOCKS_PER_LABEL slots in the uberblock
+ * ring when MMP is enabled.
+ */
+#define	MMP_BLOCKS_PER_LABEL	1
+
+/* The largest uberblock we support is 8k. */
+#define	MAX_UBERBLOCK_SHIFT	(13)
 #define	VDEV_UBERBLOCK_SHIFT(vd)	\
-	MAX((vd)->v_top->v_ashift, UBERBLOCK_SHIFT)
+	MIN(MAX((vd)->v_top->v_ashift, UBERBLOCK_SHIFT), MAX_UBERBLOCK_SHIFT)
 #define	VDEV_UBERBLOCK_COUNT(vd)	\
 	(VDEV_UBERBLOCK_RING >> VDEV_UBERBLOCK_SHIFT(vd))
 #define	VDEV_UBERBLOCK_OFFSET(vd, n)	\
@@ -744,6 +760,7 @@ typedef enum {
 #define	ZPOOL_CONFIG_IS_LOG		"is_log"
 #define	ZPOOL_CONFIG_TIMESTAMP		"timestamp" /* not stored on disk */
 #define	ZPOOL_CONFIG_FEATURES_FOR_READ	"features_for_read"
+#define	ZPOOL_CONFIG_VDEV_CHILDREN	"vdev_children"
 
 /*
  * The persistent vdev state is stored as separate values rather than a single
@@ -841,14 +858,88 @@ typedef enum pool_state {
 #define	UBERBLOCK_MAGIC		0x00bab10c		/* oo-ba-bloc!	*/
 #define	UBERBLOCK_SHIFT		10			/* up to 1K	*/
 
-struct uberblock {
+#define	MMP_MAGIC		0xa11cea11		/* all-see-all  */
+
+#define	MMP_INTERVAL_VALID_BIT	0x01
+#define	MMP_SEQ_VALID_BIT	0x02
+#define	MMP_FAIL_INT_VALID_BIT	0x04
+
+#define	MMP_VALID(ubp)		(ubp->ub_magic == UBERBLOCK_MAGIC && \
+				    ubp->ub_mmp_magic == MMP_MAGIC)
+#define	MMP_INTERVAL_VALID(ubp)	(MMP_VALID(ubp) && (ubp->ub_mmp_config & \
+				    MMP_INTERVAL_VALID_BIT))
+#define	MMP_SEQ_VALID(ubp)	(MMP_VALID(ubp) && (ubp->ub_mmp_config & \
+				    MMP_SEQ_VALID_BIT))
+#define	MMP_FAIL_INT_VALID(ubp)	(MMP_VALID(ubp) && (ubp->ub_mmp_config & \
+				    MMP_FAIL_INT_VALID_BIT))
+
+#define	MMP_INTERVAL(ubp)	((ubp->ub_mmp_config & 0x00000000FFFFFF00) \
+				    >> 8)
+#define	MMP_SEQ(ubp)		((ubp->ub_mmp_config & 0x0000FFFF00000000) \
+				    >> 32)
+#define	MMP_FAIL_INT(ubp)	((ubp->ub_mmp_config & 0xFFFF000000000000) \
+				    >> 48)
+
+typedef struct uberblock {
 	uint64_t	ub_magic;	/* UBERBLOCK_MAGIC		*/
 	uint64_t	ub_version;	/* SPA_VERSION			*/
 	uint64_t	ub_txg;		/* txg of last sync		*/
 	uint64_t	ub_guid_sum;	/* sum of all vdev guids	*/
 	uint64_t	ub_timestamp;	/* UTC time of last sync	*/
 	blkptr_t	ub_rootbp;	/* MOS objset_phys_t		*/
-};
+	/* highest SPA_VERSION supported by software that wrote this txg */
+	uint64_t	ub_software_version;
+	/* Maybe missing in uberblocks we read, but always written */
+	uint64_t	ub_mmp_magic;
+	/*
+	 * If ub_mmp_delay == 0 and ub_mmp_magic is valid, MMP is off.
+	 * Otherwise, nanosec since last MMP write.
+	 */
+	uint64_t	ub_mmp_delay;
+
+	/*
+	 * The ub_mmp_config contains the multihost write interval, multihost
+	 * fail intervals, sequence number for sub-second granularity, and
+	 * valid bit mask.  This layout is as follows:
+	 *
+	 *   64      56      48      40      32      24      16      8       0
+	 *   +-------+-------+-------+-------+-------+-------+-------+-------+
+	 * 0 | Fail Intervals|      Seq      |   Write Interval (ms) | VALID |
+	 *   +-------+-------+-------+-------+-------+-------+-------+-------+
+	 *
+	 * This allows a write_interval of (2^24/1000)s, over 4.5 hours
+	 *
+	 * VALID Bits:
+	 * - 0x01 - Write Interval (ms)
+	 * - 0x02 - Sequence number exists
+	 * - 0x04 - Fail Intervals
+	 * - 0xf8 - Reserved
+	 */
+	uint64_t	ub_mmp_config;
+
+	/*
+	 * ub_checkpoint_txg indicates two things about the current uberblock:
+	 *
+	 * 1] If it is not zero then this uberblock is a checkpoint. If it is
+	 *    zero, then this uberblock is not a checkpoint.
+	 *
+	 * 2] On checkpointed uberblocks, the value of ub_checkpoint_txg is
+	 *    the ub_txg that the uberblock had at the time we moved it to
+	 *    the MOS config.
+	 *
+	 * The field is set when we checkpoint the uberblock and continues to
+	 * hold that value even after we've rewound (unlike the ub_txg that
+	 * is reset to a higher value).
+	 *
+	 * Besides checks used to determine whether we are reopening the
+	 * pool from a checkpointed uberblock [see spa_ld_select_uberblock()],
+	 * the value of the field is used to determine which ZIL blocks have
+	 * been allocated according to the ms_sm when we are rewinding to a
+	 * checkpoint. Specifically, if blk_birth > ub_checkpoint_txg, then
+	 * the ZIL block is not allocated [see uses of spa_min_claim_txg()].
+	 */
+	uint64_t	ub_checkpoint_txg;
+} uberblock_t;
 
 /*
  * Flags.
@@ -1082,6 +1173,8 @@ typedef enum dmu_objset_type {
 	DMU_OST_ANY,			/* Be careful! */
 	DMU_OST_NUMTYPES
 } dmu_objset_type_t;
+
+#define	ZAP_MAXVALUELEN (1024 * 8)
 
 /*
  * header for all bonus and spill buffers.
@@ -1665,12 +1758,13 @@ typedef struct vdev {
 	int		v_ashift;	/* offset to block shift */
 	int		v_nparity;	/* # parity for raidz */
 	struct vdev	*v_top;		/* parent vdev */
-	int		v_nchildren;	/* # children */
+	size_t		v_nchildren;	/* # children */
 	vdev_state_t	v_state;	/* current state */
 	vdev_phys_read_t *v_phys_read;	/* read from raw leaf vdev */
 	vdev_read_t	*v_read;	/* read from vdev */
 	void		*v_read_priv;	/* private data for read function */
-	struct spa	*spa;		/* link to spa */
+	boolean_t	v_islog;
+	struct spa	*v_spa;		/* link to spa */
 	/*
 	 * Values stored in the config for an indirect or removing vdev.
 	 */
@@ -1689,11 +1783,11 @@ typedef struct spa {
 	uint64_t	spa_guid;	/* pool guid */
 	uint64_t	spa_txg;	/* most recent transaction */
 	struct uberblock spa_uberblock;	/* best uberblock so far */
-	vdev_list_t	spa_vdevs;	/* list of all toplevel vdevs */
+	vdev_t		*spa_root_vdev;	/* toplevel vdev container */
 	objset_phys_t	spa_mos;	/* MOS for this pool */
 	zio_cksum_salt_t spa_cksum_salt;	/* secret salt for cksum */
 	void		*spa_cksum_tmpls[ZIO_CHECKSUM_FUNCTIONS];
-	int		spa_inited;	/* initialized */
+	boolean_t	spa_with_log;	/* this pool has log */
 } spa_t;
 
 /* IO related arguments. */
