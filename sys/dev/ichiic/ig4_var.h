@@ -43,15 +43,35 @@
 #include "pci_if.h"
 #include "iicbus_if.h"
 
-#define IG4_RBUFSIZE	128
-#define IG4_RBUFMASK	(IG4_RBUFSIZE - 1)
+enum ig4_vers { IG4_HASWELL, IG4_ATOM, IG4_SKYLAKE, IG4_APL, IG4_CANNONLAKE };
+/* Controller has additional registers */
+#define	IG4_HAS_ADDREGS(vers)	((vers) == IG4_SKYLAKE || \
+	(vers) == IG4_APL || (vers) == IG4_CANNONLAKE)
 
-enum ig4_op { IG4_IDLE, IG4_READ, IG4_WRITE };
-enum ig4_vers { IG4_HASWELL, IG4_ATOM, IG4_SKYLAKE, IG4_APL };
+struct ig4_hw {
+	uint32_t	ic_clock_rate;	/* MHz */
+	uint32_t	sda_fall_time;	/* nsec */
+	uint32_t	scl_fall_time;	/* nsec */
+	uint32_t	sda_hold_time;	/* nsec */
+	int		txfifo_depth;
+	int		rxfifo_depth;
+};
+
+struct ig4_cfg {
+	uint32_t	version;
+	uint32_t	bus_speed;
+	uint16_t	ss_scl_hcnt;
+	uint16_t	ss_scl_lcnt;
+	uint16_t	ss_sda_hold;
+	uint16_t	fs_scl_hcnt;
+	uint16_t	fs_scl_lcnt;
+	uint16_t	fs_sda_hold;
+	int		txfifo_depth;
+	int		rxfifo_depth;
+};
 
 struct ig4iic_softc {
 	device_t	dev;
-	struct		intr_config_hook enum_hook;
 	device_t	iicbus;
 	struct resource	*regs_res;
 	int		regs_rid;
@@ -60,40 +80,25 @@ struct ig4iic_softc {
 	void		*intr_handle;
 	int		intr_type;
 	enum ig4_vers	version;
-	enum ig4_op	op;
-	int		cmd;
-	int		rnext;
-	int		rpos;
-	char		rbuf[IG4_RBUFSIZE];
-	int		error;
+	struct ig4_cfg	cfg;
+	uint32_t	intr_mask;
 	uint8_t		last_slave;
 	int		platform_attached : 1;
 	int		use_10bit : 1;
 	int		slave_valid : 1;
-	int		read_started : 1;
-	int		write_started : 1;
-	int		access_intr_mask : 1;
+	int		poll: 1;
 
 	/*
 	 * Locking semantics:
 	 *
 	 * Functions implementing the icbus interface that interact
 	 * with the controller acquire an exclusive lock on call_lock
-	 * to prevent interleaving of calls to the interface and a lock on
-	 * io_lock right afterwards, to synchronize controller I/O activity.
+	 * to prevent interleaving of calls to the interface.
 	 *
-	 * The interrupt handler can only read data while no iicbus call
-	 * is in progress or while io_lock is dropped during mtx_sleep in
-	 * wait_status and set_controller. It is safe to drop io_lock in those
-	 * places, because the interrupt handler only accesses those registers:
-	 *
-	 * - IG4_REG_I2C_STA  (I2C Status)
-	 * - IG4_REG_DATA_CMD (Data Buffer and Command)
-	 * - IG4_REG_CLR_INTR (Clear Interrupt)
-	 *
-	 * Locking outside of those places is required to make the content
-	 * of rpos/rnext predictable (e.g. whenever data_read is called and in
-	 * ig4iic_transfer).
+	 * io_lock is used as condition variable to synchronize active process
+	 * with the interrupt handler. It should not be used for tasks other
+	 * than waiting for interrupt and passing parameters to and from
+	 * it's handler.
 	 */
 	struct sx	call_lock;
 	struct mtx	io_lock;
@@ -101,12 +106,17 @@ struct ig4iic_softc {
 
 typedef struct ig4iic_softc ig4iic_softc_t;
 
+extern devclass_t ig4iic_devclass;
+
 /* Attach/Detach called from ig4iic_pci_*() */
 int ig4iic_attach(ig4iic_softc_t *sc);
 int ig4iic_detach(ig4iic_softc_t *sc);
+int ig4iic_suspend(ig4iic_softc_t *sc);
+int ig4iic_resume(ig4iic_softc_t *sc);
 
 /* iicbus methods */
 extern iicbus_transfer_t ig4iic_transfer;
 extern iicbus_reset_t   ig4iic_reset;
+extern iicbus_callback_t ig4iic_callback;
 
 #endif /* _ICHIIC_IG4_VAR_H_ */

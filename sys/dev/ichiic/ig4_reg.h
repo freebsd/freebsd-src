@@ -112,12 +112,12 @@
 #define IG4_REG_SDA_SETUP	0x0094	/* RW	SDA Setup */
 #define IG4_REG_ACK_GENERAL_CALL 0x0098	/* RW	I2C ACK General Call */
 #define IG4_REG_ENABLE_STATUS	0x009C	/* RO	Enable Status */
-/* Available at least on Atom SoCs and Haswell mobile. */
+/* Available at least on Atom SoCs, Haswell mobile and some Skylakes. */
 #define IG4_REG_COMP_PARAM1	0x00F4	/* RO	Component Parameter */
 #define IG4_REG_COMP_VER	0x00F8	/* RO	Component Version */
 /* Available at least on Atom SoCs */
 #define IG4_REG_COMP_TYPE	0x00FC	/* RO	Probe width/endian? (linux) */
-/* Available on Skylake-U/Y and Kaby Lake-U/Y */
+/* 0x200-0x2FF - Additional registers available on Skylake-U/Y and others */
 #define IG4_REG_RESETS_SKL	0x0204	/* RW	Reset Register */
 #define IG4_REG_ACTIVE_LTR_VALUE 0x0210	/* RW	Active LTR Value */
 #define IG4_REG_IDLE_LTR_VALUE	0x0214	/* RW	Idle LTR Value */
@@ -154,9 +154,12 @@
 #define IG4_CTL_SLAVE_DISABLE	0x0040	/* snarfed from linux */
 #define IG4_CTL_RESTARTEN	0x0020	/* Allow Restart when master */
 #define IG4_CTL_10BIT		0x0010	/* ctlr accepts 10-bit addresses */
+#define IG4_CTL_SPEED_MASK	0x0006	/* speed at which the I2C operates */
+#define IG4_CTL_MASTER		0x0001	/* snarfed from linux */
+
+#define IG4_CTL_SPEED_HIGH	0x0006	/* snarfed from linux */
 #define IG4_CTL_SPEED_FAST	0x0004	/* snarfed from linux */
 #define IG4_CTL_SPEED_STD	0x0002	/* snarfed from linux */
-#define IG4_CTL_MASTER		0x0001	/* snarfed from linux */
 
 /*
  * TAR_ADD - Target Address Register	22.2.2
@@ -325,6 +328,9 @@
 #define IG4_INTR_RX_OVER	0x0002
 #define IG4_INTR_RX_UNDER	0x0001
 
+#define IG4_INTR_ERR_MASK	(IG4_INTR_TX_ABRT | IG4_INTR_TX_OVER | \
+				 IG4_INTR_RX_OVER | IG4_INTR_RX_UNDER)
+
 /*
  * RX_TL	- (RW) Receive FIFO Threshold Register		22.2.11
  * TX_TL	- (RW) Transmit FIFO Threshold Register		22.2.12
@@ -377,7 +383,9 @@
  * I2C_EN	- (RW) I2C Enable Register			22.2.22
  *
  *	ABORT		Software can abort an I2C transfer by setting this
- *			bit.  Hardware will clear the bit once the STOP has
+ *			bit. In response, the controller issues the STOP
+ *			condition over the I2C bus, followed by TX FIFO flush.
+ *			Hardware will clear the bit once the STOP has
  *			been detected.  This bit can only be set while the
  *			I2C interface is enabled.
  *
@@ -406,14 +414,14 @@
  *	FIFOs.  Note that for some reason the mask is 9 bits instead of
  *	the 8 bits the fill level controls.
  */
-#define IG4_FIFOLVL_MASK	0x001F
+#define IG4_FIFOLVL_MASK	0x01FF
 
 /*
  * SDA_HOLD	- (RW) SDA Hold Time Length Register		22.2.26
  *
  *	Set the SDA hold time length register in I2C clocks.
  */
-#define IG4_SDA_HOLD_MASK	0x00FF
+#define IG4_SDA_TX_HOLD_MASK	0x0000FFFF
 
 /*
  * TX_ABRT_SOURCE- (RO) Transmit Abort Source Register		22.2.27
@@ -432,8 +440,8 @@
 #define IG4_ABRTSRC_NORESTART_10	0x00000400 /* RESTART disabled */
 #define IG4_ABRTSRC_NORESTART_START	0x00000200 /* RESTART disabled */
 #define IG4_ABRTSRC_ACKED_START		0x00000080 /* Improper acked START */
-#define IG4_ABRTSRC_GENCALL_NOACK	0x00000020 /* Improper GENCALL */
-#define IG4_ABRTSRC_GENCALL_READ	0x00000010 /* Nobody acked GENCALL */
+#define IG4_ABRTSRC_GENCALL_READ	0x00000020 /* Improper GENCALL */
+#define IG4_ABRTSRC_GENCALL_NOACK	0x00000010 /* Nobody acked GENCALL */
 #define IG4_ABRTSRC_TXNOACK_DATA	0x00000008 /* data phase no ACK */
 #define IG4_ABRTSRC_TXNOACK_ADDR10_2	0x00000004 /* addr10/1 phase no ACK */
 #define IG4_ABRTSRC_TXNOACK_ADDR10_1	0x00000002 /* addr10/2 phase no ACK */
@@ -530,8 +538,8 @@
  *
  *	DATAW		- Indicates the internal bus width in bits.
  */
-#define IG4_PARAM1_TXFIFO_DEPTH(v)	(((v) >> 16) & 0xFF)
-#define IG4_PARAM1_RXFIFO_DEPTH(v)	(((v) >> 8) & 0xFF)
+#define IG4_PARAM1_TXFIFO_DEPTH(v)	((((v) >> 16) & 0xFF) + 1)
+#define IG4_PARAM1_RXFIFO_DEPTH(v)	((((v) >> 8) & 0xFF) + 1)
 #define IG4_PARAM1_CONFIG_VALID		0x00000080
 #define IG4_PARAM1_CONFIG_HASDMA	0x00000040
 #define IG4_PARAM1_CONFIG_INTR_IO	0x00000020

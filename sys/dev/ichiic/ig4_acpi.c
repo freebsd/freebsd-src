@@ -69,19 +69,14 @@ static int
 ig4iic_acpi_probe(device_t dev)
 {
 	ig4iic_softc_t *sc;
-	char *hid;
 
 	sc = device_get_softc(dev);
 
 	if (acpi_disabled("ig4iic"))
 		return (ENXIO);
 
-	hid = ACPI_ID_PROBE(device_get_parent(dev), dev, ig4iic_ids);
-	if (hid == NULL)
+	if (ACPI_ID_PROBE(device_get_parent(dev), dev, ig4iic_ids) == NULL)
 		return (ENXIO);
-
-	if (strcmp("AMDI0010", hid) == 0)
-		sc->access_intr_mask = 1;
 
 	device_set_desc(dev, "Designware I2C Controller");
 	return (0);
@@ -150,30 +145,52 @@ ig4iic_acpi_detach(device_t dev)
 	return (0);
 }
 
+static int
+ig4iic_acpi_suspend(device_t dev)
+{
+	ig4iic_softc_t *sc = device_get_softc(dev);
+
+	return (ig4iic_suspend(sc));
+}
+
+static int
+ig4iic_acpi_resume(device_t dev)
+{
+	ig4iic_softc_t *sc  = device_get_softc(dev);
+
+	return (ig4iic_resume(sc));
+}
+
 static device_method_t ig4iic_acpi_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, ig4iic_acpi_probe),
 	DEVMETHOD(device_attach, ig4iic_acpi_attach),
 	DEVMETHOD(device_detach, ig4iic_acpi_detach),
+	DEVMETHOD(device_suspend, ig4iic_acpi_suspend),
+	DEVMETHOD(device_resume, ig4iic_acpi_resume),
+
+	/* Bus interface */
+	DEVMETHOD(bus_setup_intr, bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr, bus_generic_teardown_intr),
+	DEVMETHOD(bus_alloc_resource, bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource, bus_generic_adjust_resource),
 
 	/* iicbus interface */
 	DEVMETHOD(iicbus_transfer, ig4iic_transfer),
 	DEVMETHOD(iicbus_reset, ig4iic_reset),
-	DEVMETHOD(iicbus_callback, iicbus_null_callback),
+	DEVMETHOD(iicbus_callback, ig4iic_callback),
 
 	DEVMETHOD_END
 };
 
 static driver_t ig4iic_acpi_driver = {
-	"ig4iic_acpi",
+	"ig4iic",
 	ig4iic_acpi_methods,
 	sizeof(struct ig4iic_softc),
 };
 
-static devclass_t ig4iic_acpi_devclass;
-DRIVER_MODULE(ig4iic_acpi, acpi, ig4iic_acpi_driver, ig4iic_acpi_devclass, 0, 0);
-
-MODULE_DEPEND(ig4iic_acpi, acpi, 1, 1, 1);
-MODULE_DEPEND(ig4iic_acpi, pci, 1, 1, 1);
-MODULE_DEPEND(ig4iic_acpi, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
-MODULE_VERSION(ig4iic_acpi, 1);
+DRIVER_MODULE(ig4iic, acpi, ig4iic_acpi_driver, ig4iic_devclass, 0, 0);
+MODULE_DEPEND(ig4iic, acpi, 1, 1, 1);
