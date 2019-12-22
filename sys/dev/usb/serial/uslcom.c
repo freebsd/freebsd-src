@@ -624,7 +624,11 @@ uslcom_pre_param(struct ucom_softc *ucom, struct termios *t)
 	case USLCOM_PARTNUM_CP2102:
 	case USLCOM_PARTNUM_CP2103:
 	default:
-		maxspeed = 921600;
+		/*
+		 * Datasheet for cp2102 says 921600 max.  Testing shows that
+		 * 1228800 and 1843200 work fine.
+		 */
+		maxspeed = 1843200;
 		break;
 	}
 	if (t->c_ospeed <= 0 || t->c_ospeed > maxspeed)
