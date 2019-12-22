@@ -38,6 +38,10 @@ __FBSDID("$FreeBSD$");
 #include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
+#ifdef WITH_ICONV
+#include <iconv.h>
+#endif
+#include <locale.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -50,24 +54,27 @@ __FBSDID("$FreeBSD$");
 
 #define	LABEL_LEN	256
 
+bool show_label = false;
+
 typedef int (*fstyp_function)(FILE *, char *, size_t);
 
 static struct {
 	const char	*name;
 	fstyp_function	function;
 	bool		unmountable;
+	char		*precache_encoding;
 } fstypes[] = {
-	{ "cd9660", &fstyp_cd9660, false },
-	{ "exfat", &fstyp_exfat, false },
-	{ "ext2fs", &fstyp_ext2fs, false },
-	{ "geli", &fstyp_geli, true },
-	{ "msdosfs", &fstyp_msdosfs, false },
-	{ "ntfs", &fstyp_ntfs, false },
-	{ "ufs", &fstyp_ufs, false },
+	{ "cd9660", &fstyp_cd9660, false, NULL },
+	{ "exfat", &fstyp_exfat, false, EXFAT_ENC },
+	{ "ext2fs", &fstyp_ext2fs, false, NULL },
+	{ "geli", &fstyp_geli, true, NULL },
+	{ "msdosfs", &fstyp_msdosfs, false, NULL },
+	{ "ntfs", &fstyp_ntfs, false, NULL },
+	{ "ufs", &fstyp_ufs, false, NULL },
 #ifdef HAVE_ZFS
-	{ "zfs", &fstyp_zfs, true },
+	{ "zfs", &fstyp_zfs, true, NULL },
 #endif
-	{ NULL, NULL, NULL }
+	{ NULL, NULL, NULL, NULL }
 };
 
 void *
@@ -159,7 +166,7 @@ int
 main(int argc, char **argv)
 {
 	int ch, error, i, nbytes;
-	bool ignore_type = false, show_label = false, show_unmountable = false;
+	bool ignore_type = false, show_unmountable = false;
 	char label[LABEL_LEN + 1], strvised[LABEL_LEN * 4 + 1];
 	char *path;
 	FILE *fp;
@@ -187,6 +194,28 @@ main(int argc, char **argv)
 		usage();
 
 	path = argv[0];
+
+	if (setlocale(LC_CTYPE, "") == NULL)
+		err(1, "setlocale");
+	caph_cache_catpages();
+
+#ifdef WITH_ICONV
+	/* Cache iconv conversion data before entering capability mode. */
+	if (show_label) {
+		for (i = 0; i < nitems(fstypes); i++) {
+			iconv_t cd;
+
+			if (fstypes[i].precache_encoding == NULL)
+				continue;
+			cd = iconv_open("", fstypes[i].precache_encoding);
+			if (cd == (iconv_t)-1)
+				err(1, "%s: iconv_open %s", fstypes[i].name,
+				    fstypes[i].precache_encoding);
+			/* Iconv keeps a small cache of unused encodings. */
+			iconv_close(cd);
+		}
+	}
+#endif
 
 	fp = fopen(path, "r");
 	if (fp == NULL)

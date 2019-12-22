@@ -13,6 +13,10 @@ MAN=	fstyp.8
 
 WARNS?=	2
 
+.if ${MK_ICONV} == "yes"
+CFLAGS+=	-DWITH_ICONV
+.endif
+
 .include <bsd.endian.mk>
 
 .if ${TARGET_ENDIANNESS} == 1234
