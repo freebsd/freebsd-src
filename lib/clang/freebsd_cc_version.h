@@ -1,3 +1,3 @@
 /* $FreeBSD$ */
 
-#define	FREEBSD_CC_VERSION		1300005
+#define	FREEBSD_CC_VERSION		1300006
