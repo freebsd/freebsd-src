@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd August 26, 2019
+.Dd December 17, 2019
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -2567,6 +2567,9 @@ means
 .Dq enabled .
 .It Cm -lacp_strict
 Disable lacp strict compliance on the interface.
+.It Cm rr_limit Ar number
+Configure a stride for an interface in round-robin mode.
+The default stride is 1.
 .El
 .Pp
 The following parameters apply to IP tunnel interfaces,
