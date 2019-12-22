@@ -772,6 +772,31 @@ exp_intpr(int clientOnly, int serverOnly, int nfs41)
 			    (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_CREATELAYGET]);
 
 			xo_close_container("nfsv41");
+
+			xo_open_container("nfsv42");
+
+			xo_emit("{T:IOAdvise/%13.13s}{T:Allocate/%13.13s}"
+			    "{T:Copy/%13.13s}{T:Seek/%13.13s}"
+			    "{T:SeekDataS/%13.13s}{T:GetExtattr/%13.13s}\n");
+			xo_emit("{:ioadvise/%13ju}{:allocate/%13ju}"
+			    "{:copy/%13ju}{:seek/%13ju}"
+			    "{:seekdatas/%13ju}{:getextattr/%13ju}\n",
+			    (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_IOADVISE],
+			    (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_ALLOCATE],
+			    (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_COPY],
+			    (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_SEEK],
+			    (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_SEEKDS],
+			    (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_GETEXTATTR]);
+
+			xo_emit("{T:SetExtattr/%13.13s}{T:RmExtattr/%13.13s}"
+			    "{T:ListExtattr/%13.13s}\n");
+			xo_emit("{:setextattr/%13ju}{:rmextattr/%13ju}"
+			    "{:listextattr/%13ju}\n",
+			    (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_SETEXTATTR],
+			    (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_RMEXTATTR],
+			    (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_LISTEXTATTR]);
+
+			xo_close_container("nfsv42");
 		}
 		xo_close_container("operations");
 
@@ -993,6 +1018,48 @@ exp_intpr(int clientOnly, int serverOnly, int nfs41)
 			    (uintmax_t)ext_nfsstats.srvrpccnt[NFSV4OP_RECLAIMCOMPL]);
 
 			xo_close_container("nfsv41");
+
+			xo_open_container("nfsv42");
+
+			xo_emit("{T:Allocate/%13.13s}{T:Copy/%13.13s}"
+			    "{T:CopyNotify/%13.13s}{T:Deallocate/%13.13s}"
+			    "{T:IOAdvise/%13.13s}{T:LayoutError/%13.13s}\n");
+			xo_emit("{:allocate/%13ju}{:copy/%13ju}"
+			    "{:copynotify/%13ju}{:deallocate/%13ju}"
+			    "{:ioadvise/%13ju}{:layouterror/%13ju}\n",
+			    (uintmax_t)ext_nfsstats.srvrpccnt[NFSV4OP_ALLOCATE],
+			    (uintmax_t)ext_nfsstats.srvrpccnt[NFSV4OP_COPY],
+			    (uintmax_t)ext_nfsstats.srvrpccnt[NFSV4OP_COPYNOTIFY],
+			    (uintmax_t)ext_nfsstats.srvrpccnt[NFSV4OP_DEALLOCATE],
+			    (uintmax_t)ext_nfsstats.srvrpccnt[NFSV4OP_IOADVISE],
+			    (uintmax_t)ext_nfsstats.srvrpccnt[NFSV4OP_LAYOUTERROR]);
+
+			xo_emit("{T:LayoutStats/%13.13s}{T:OffloadCncl/%13.13s}"
+			    "{T:OffloadStat/%13.13s}{T:ReadPlus/%13.13s}"
+			    "{T:Seek/%13.13s}{T:WriteSame/%13.13s}\n");
+			xo_emit("{:layoutstats/%13ju}{:offloadcncl/%13ju}"
+			    "{:offloadstat/%13ju}{:readplus/%13ju}"
+			    "{:seek/%13ju}{:writesame/%13ju}\n",
+			    (uintmax_t)ext_nfsstats.srvrpccnt[NFSV4OP_LAYOUTSTATS],
+			    (uintmax_t)ext_nfsstats.srvrpccnt[NFSV4OP_OFFLOADCANCEL],
+			    (uintmax_t)ext_nfsstats.srvrpccnt[NFSV4OP_OFFLOADSTATUS],
+			    (uintmax_t)ext_nfsstats.srvrpccnt[NFSV4OP_READPLUS],
+			    (uintmax_t)ext_nfsstats.srvrpccnt[NFSV4OP_SEEK],
+			    (uintmax_t)ext_nfsstats.srvrpccnt[NFSV4OP_WRITESAME]);
+
+			xo_emit("{T:Clone/%13.13s}{T:GetExtattr/%13.13s}"
+			    "{T:SetExtattr/%13.13s}{T:ListExtattr/%13.13s}"
+			    "{T:RmExtattr/%13.13s}\n");
+			xo_emit("{:clone/%13ju}{:getextattr/%13ju}"
+			    "{:setextattr/%13ju}{:listextattr/%13ju}"
+			    "{:rmextattr/%13ju}\n",
+			    (uintmax_t)ext_nfsstats.srvrpccnt[NFSV4OP_CLONE],
+			    (uintmax_t)ext_nfsstats.srvrpccnt[NFSV4OP_GETXATTR],
+			    (uintmax_t)ext_nfsstats.srvrpccnt[NFSV4OP_SETXATTR],
+			    (uintmax_t)ext_nfsstats.srvrpccnt[NFSV4OP_LISTXATTRS],
+			    (uintmax_t)ext_nfsstats.srvrpccnt[NFSV4OP_REMOVEXATTR]);
+
+			xo_close_container("nfsv42");
 		}
 
 		xo_close_container("operations");
