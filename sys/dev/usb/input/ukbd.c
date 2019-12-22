@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/ioccom.h>
 #include <sys/filio.h>
-#include <sys/tty.h>
 #include <sys/kbio.h>
 
 #include <dev/kbd/kbdreg.h>
