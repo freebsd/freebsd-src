@@ -88,7 +88,7 @@ static int vm_phys_fictitious_cmp(struct vm_phys_fictitious_seg *,
     struct vm_phys_fictitious_seg *);
 
 RB_HEAD(fict_tree, vm_phys_fictitious_seg) vm_phys_fictitious_tree =
-    RB_INITIALIZER(_vm_phys_fictitious_tree);
+    RB_INITIALIZER(&vm_phys_fictitious_tree);
 
 struct vm_phys_fictitious_seg {
 	RB_ENTRY(vm_phys_fictitious_seg) node;
