@@ -203,7 +203,7 @@ typedef struct keyboard_switch {
 #define kbdd_poll(kbd, on)						\
 	(*kbdsw[(kbd)->kb_index]->poll)((kbd), (on))
 #define kbdd_diag(kbd, level)						\
-	(*kbdsw[(kbd)->kb_index]->diag)((kbd), (leve))
+	(*kbdsw[(kbd)->kb_index]->diag)((kbd), (level))
 
 /*
  * Keyboard driver definition.  Some of these be immutable after definition
