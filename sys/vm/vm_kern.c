@@ -586,6 +586,7 @@ _kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 #endif
 	for (; offset < end; offset += PAGE_SIZE, m = next) {
 		next = vm_page_next(m);
+		vm_page_busy_acquire(m, 0);
 		vm_page_unwire_noq(m);
 		vm_page_free(m);
 	}

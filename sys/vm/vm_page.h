@@ -622,7 +622,6 @@ void vm_page_deactivate_noreuse(vm_page_t);
 void vm_page_dequeue(vm_page_t m);
 void vm_page_dequeue_deferred(vm_page_t m);
 vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);
-bool vm_page_free_prep(vm_page_t m);
 vm_page_t vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_initfake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr);
 int vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
@@ -646,9 +645,10 @@ void vm_page_reference(vm_page_t m);
 void vm_page_release(vm_page_t m, int flags);
 void vm_page_release_locked(vm_page_t m, int flags);
 bool vm_page_remove(vm_page_t);
+bool vm_page_remove_xbusy(vm_page_t);
 int vm_page_rename(vm_page_t, vm_object_t, vm_pindex_t);
-vm_page_t vm_page_replace(vm_page_t mnew, vm_object_t object,
-    vm_pindex_t pindex);
+void vm_page_replace(vm_page_t mnew, vm_object_t object,
+    vm_pindex_t pindex, vm_page_t mold);
 void vm_page_requeue(vm_page_t m);
 int vm_page_sbusied(vm_page_t m);
 vm_page_t vm_page_scan_contig(u_long npages, vm_page_t m_start,
@@ -681,7 +681,6 @@ int vm_page_is_valid(vm_page_t, int, int);
 void vm_page_test_dirty(vm_page_t);
 vm_page_bits_t vm_page_bits(int base, int size);
 void vm_page_zero_invalid(vm_page_t m, boolean_t setvalid);
-void vm_page_free_toq(vm_page_t m);
 void vm_page_free_pages_toq(struct spglist *free, bool update_wire_count);
 
 void vm_page_dirty_KBI(vm_page_t m);
@@ -900,21 +899,6 @@ vm_page_undirty(vm_page_t m)
 
 	VM_PAGE_OBJECT_BUSY_ASSERT(m);
 	m->dirty = 0;
-}
-
-static inline void
-vm_page_replace_checked(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex,
-    vm_page_t mold)
-{
-	vm_page_t mret;
-
-	mret = vm_page_replace(mnew, object, pindex);
-	KASSERT(mret == mold,
-	    ("invalid page replacement, mold=%p, mret=%p", mold, mret));
-
-	/* Unused if !INVARIANTS. */
-	(void)mold;
-	(void)mret;
 }
 
 /*
