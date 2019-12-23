@@ -54,6 +54,7 @@ int	fstyp_cd9660(FILE *fp, char *label, size_t size);
 int	fstyp_exfat(FILE *fp, char *label, size_t size);
 int	fstyp_ext2fs(FILE *fp, char *label, size_t size);
 int	fstyp_geli(FILE *fp, char *label, size_t size);
+int	fstyp_hfsp(FILE *fp, char *label, size_t size);
 int	fstyp_msdosfs(FILE *fp, char *label, size_t size);
 int	fstyp_ntfs(FILE *fp, char *label, size_t size);
 int	fstyp_ufs(FILE *fp, char *label, size_t size);
