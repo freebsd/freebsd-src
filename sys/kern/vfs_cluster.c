@@ -865,8 +865,7 @@ cluster_wbuild(struct vnode *vp, long size, daddr_t start_lbn, int len,
 		  (tbp->b_bcount != tbp->b_bufsize) ||
 		  (tbp->b_bcount != size) ||
 		  (len == 1) ||
-		  ((bp = uma_zalloc(cluster_pbuf_zone,
-		  (vp->v_vflag & VV_MD) != 0 ? M_NOWAIT : M_WAITOK)) == NULL)) {
+		  ((bp = uma_zalloc(cluster_pbuf_zone, M_NOWAIT)) == NULL)) {
 			totalwritten += tbp->b_bufsize;
 			bawrite(tbp);
 			++start_lbn;
