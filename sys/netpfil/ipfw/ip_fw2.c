@@ -330,22 +330,27 @@ ipopts_match(struct ip *ip, ipfw_insn *cmd)
 	return (flags_match(cmd, bits));
 }
 
+/*
+ * Parse TCP options. The logic copied from tcp_dooptions().
+ */
 static int
-tcpopts_parse(struct tcphdr *tcp, uint16_t *mss)
+tcpopts_parse(const struct tcphdr *tcp, uint16_t *mss)
 {
-	u_char *cp = (u_char *)(tcp + 1);
+	const u_char *cp = (const u_char *)(tcp + 1);
 	int optlen, bits = 0;
-	int x = (tcp->th_off << 2) - sizeof(struct tcphdr);
+	int cnt = (tcp->th_off << 2) - sizeof(struct tcphdr);
 
-	for (; x > 0; x -= optlen, cp += optlen) {
+	for (; cnt > 0; cnt -= optlen, cp += optlen) {
 		int opt = cp[0];
 		if (opt == TCPOPT_EOL)
 			break;
 		if (opt == TCPOPT_NOP)
 			optlen = 1;
 		else {
+			if (cnt < 2)
+				break;
 			optlen = cp[1];
-			if (optlen <= 0)
+			if (optlen < 2 || optlen > cnt)
 				break;
 		}
 
@@ -354,22 +359,31 @@ tcpopts_parse(struct tcphdr *tcp, uint16_t *mss)
 			break;
 
 		case TCPOPT_MAXSEG:
+			if (optlen != TCPOLEN_MAXSEG)
+				break;
 			bits |= IP_FW_TCPOPT_MSS;
 			if (mss != NULL)
 				*mss = be16dec(cp + 2);
 			break;
 
 		case TCPOPT_WINDOW:
-			bits |= IP_FW_TCPOPT_WINDOW;
+			if (optlen == TCPOLEN_WINDOW)
+				bits |= IP_FW_TCPOPT_WINDOW;
 			break;
 
 		case TCPOPT_SACK_PERMITTED:
+			if (optlen == TCPOLEN_SACK_PERMITTED)
+				bits |= IP_FW_TCPOPT_SACK;
+			break;
+
 		case TCPOPT_SACK:
-			bits |= IP_FW_TCPOPT_SACK;
+			if (optlen > 2 && (optlen - 2) % TCPOLEN_SACK == 0)
+				bits |= IP_FW_TCPOPT_SACK;
 			break;
 
 		case TCPOPT_TIMESTAMP:
-			bits |= IP_FW_TCPOPT_TS;
+			if (optlen == TCPOLEN_TIMESTAMP)
+				bits |= IP_FW_TCPOPT_TS;
 			break;
 		}
 	}
