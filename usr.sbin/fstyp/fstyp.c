@@ -62,6 +62,7 @@ static struct {
 	bool		unmountable;
 	char		*precache_encoding;
 } fstypes[] = {
+	{ "apfs", &fstyp_apfs, true, NULL },
 	{ "cd9660", &fstyp_cd9660, false, NULL },
 	{ "exfat", &fstyp_exfat, false, EXFAT_ENC },
 	{ "ext2fs", &fstyp_ext2fs, false, NULL },
