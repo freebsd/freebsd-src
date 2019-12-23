@@ -38,7 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
+#ifdef WITH_ICONV
 #include <iconv.h>
+#endif
 #include <locale.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -199,6 +201,7 @@ main(int argc, char **argv)
 		err(1, "setlocale");
 	caph_cache_catpages();
 
+#ifdef WITH_ICONV
 	/* Cache iconv conversion data before entering capability mode. */
 	if (show_label) {
 		for (i = 0; i < nitems(fstypes); i++) {
@@ -214,6 +217,7 @@ main(int argc, char **argv)
 			iconv_close(cd);
 		}
 	}
+#endif
 
 	fp = fopen(path, "r");
 	if (fp == NULL)

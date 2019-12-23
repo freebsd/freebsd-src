@@ -33,7 +33,9 @@ __FBSDID("$FreeBSD$");
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
+#ifdef WITH_ICONV
 #include <iconv.h>
+#endif
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -184,6 +186,7 @@ exfat_compute_boot_chksum(FILE *fp, unsigned region, unsigned bytespersec,
 	return (0);
 }
 
+#ifdef WITH_ICONV
 static void
 convert_label(const uint16_t *ucs2label /* LE */, unsigned ucs2len, char
     *label_out, size_t label_sz)
@@ -316,6 +319,7 @@ exfat_find_label(FILE *fp, const struct exfat_vbr *ev, unsigned BPS,
 		free(declust);
 	}
 }
+#endif /* WITH_ICONV */
 
 int
 fstyp_exfat(FILE *fp, char *label, size_t size)
@@ -356,8 +360,10 @@ fstyp_exfat(FILE *fp, char *label, size_t size)
 		goto done;
 	}
 
+#ifdef WITH_ICONV
 	if (show_label)
 		exfat_find_label(fp, ev, bytespersec, label, size);
+#endif
 
 done:
 	free(cksect);
