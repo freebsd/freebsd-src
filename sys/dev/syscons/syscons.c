@@ -635,8 +635,8 @@ sc_attach_unit(int unit, int flags)
 		printf("%s%d:", SC_DRIVER_NAME, unit);
 		if (sc->adapter >= 0)
 			printf(" fb%d", sc->adapter);
-		if (sc->keyboard >= 0)
-			printf(", kbd%d", sc->keyboard);
+		if (sc->kbd != NULL)
+			printf(", kbd%d", sc->kbd->kb_index);
 		if (scp->tsw)
 			printf(", terminal emulator: %s (%s)",
 			    scp->tsw->te_name, scp->tsw->te_desc);
@@ -838,8 +838,7 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
 		break;
 	case KBDIO_UNLOADING:
 		sc->kbd = NULL;
-		sc->keyboard = -1;
-		kbd_release(thiskbd, (void *)&sc->keyboard);
+		kbd_release(thiskbd, (void *)&sc->kbd);
 		goto done;
 	default:
 		error = EINVAL;
@@ -1523,17 +1522,16 @@ sctty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 		error = 0;
 		if (sc->kbd != newkbd) {
 			i = kbd_allocate(newkbd->kb_name, newkbd->kb_unit,
-			    (void *)&sc->keyboard, sckbdevent, sc);
+			    (void *)&sc->kbd, sckbdevent, sc);
 			/* i == newkbd->kb_index */
 			if (i >= 0) {
 				if (sc->kbd != NULL) {
 					save_kbd_state(sc->cur_scp);
 					kbd_release(
-					    sc->kbd, (void *)&sc->keyboard);
+					    sc->kbd, (void *)&sc->kbd);
 				}
 				sc->kbd =
 				    kbd_get_keyboard(i); /* sc->kbd == newkbd */
-				sc->keyboard = i;
 				(void)kbdd_ioctl(sc->kbd, KDSKBMODE,
 				    (caddr_t)&sc->cur_scp->kbd_mode);
 				update_kbd_state(sc->cur_scp,
@@ -1551,11 +1549,9 @@ sctty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 		error = 0;
 		if (sc->kbd != NULL) {
 			save_kbd_state(sc->cur_scp);
-			error = kbd_release(sc->kbd, (void *)&sc->keyboard);
-			if (error == 0) {
+			error = kbd_release(sc->kbd, (void *)&sc->kbd);
+			if (error == 0)
 				sc->kbd = NULL;
-				sc->keyboard = -1;
-			}
 		}
 		splx(s);
 		return error;
@@ -2200,6 +2196,7 @@ scrn_timer(void *arg)
 	sc_softc_t *sc;
 	scr_stat *scp;
 	int again, rate;
+	int kbdidx;
 
 	again = (arg != NULL);
 	if (arg != NULL)
@@ -2220,9 +2217,9 @@ scrn_timer(void *arg)
 		/* try to allocate a keyboard automatically */
 		if (kbd_time_stamp != time_uptime) {
 			kbd_time_stamp = time_uptime;
-			sc->keyboard = sc_allocate_keyboard(sc, -1);
-			if (sc->keyboard >= 0) {
-				sc->kbd = kbd_get_keyboard(sc->keyboard);
+			kbdidx = sc_allocate_keyboard(sc, -1);
+			if (kbdidx >= 0) {
+				sc->kbd = kbd_get_keyboard(kbdidx);
 				(void)kbdd_ioctl(sc->kbd, KDSKBMODE,
 				    (caddr_t)&sc->cur_scp->kbd_mode);
 				update_kbd_state(sc->cur_scp,
@@ -3229,6 +3226,7 @@ scinit(int unit, int flags)
 	scr_stat *scp;
 	video_adapter_t *adp;
 	int col;
+	int kbdidx;
 	int row;
 	int i;
 
@@ -3256,9 +3254,10 @@ scinit(int unit, int flags)
 		adp = sc->adp;
 		sc->adp = NULL;
 	}
-	if (sc->keyboard >= 0) {
-		DPRINTF(5, ("sc%d: releasing kbd%d\n", unit, sc->keyboard));
-		i = kbd_release(sc->kbd, (void *)&sc->keyboard);
+	if (sc->kbd != NULL) {
+		DPRINTF(5, ("sc%d: releasing kbd%d\n", unit,
+		    sc->kbd->kb_index));
+		i = kbd_release(sc->kbd, (void *)&sc->kbd);
 		DPRINTF(5, ("sc%d: kbd_release returned %d\n", unit, i));
 		if (sc->kbd != NULL) {
 			DPRINTF(5,
@@ -3272,10 +3271,10 @@ scinit(int unit, int flags)
 	sc->adp = vid_get_adapter(sc->adapter);
 	/* assert((sc->adapter >= 0) && (sc->adp != NULL)) */
 
-	sc->keyboard = sc_allocate_keyboard(sc, unit);
-	DPRINTF(1, ("sc%d: keyboard %d\n", unit, sc->keyboard));
+	kbdidx = sc_allocate_keyboard(sc, unit);
+	DPRINTF(1, ("sc%d: keyboard %d\n", unit, kbdidx));
 
-	sc->kbd = kbd_get_keyboard(sc->keyboard);
+	sc->kbd = kbd_get_keyboard(kbdidx);
 	if (sc->kbd != NULL) {
 		DPRINTF(1,
 		    ("sc%d: kbd index:%d, unit:%d, flags:0x%x\n", unit,
@@ -3463,8 +3462,8 @@ scterm(int unit, int flags)
 #endif
 
 	/* release the keyboard and the video card */
-	if (sc->keyboard >= 0)
-		kbd_release(sc->kbd, &sc->keyboard);
+	if (sc->kbd != NULL)
+		kbd_release(sc->kbd, &sc->kbd);
 	if (sc->adapter >= 0)
 		vid_release(sc->adp, &sc->adapter);
 
@@ -3491,7 +3490,6 @@ scterm(int unit, int flags)
 		/* XXX vtb, history */
 	}
 	bzero(sc, sizeof(*sc));
-	sc->keyboard = -1;
 	sc->adapter = -1;
 }
 
@@ -4362,7 +4360,7 @@ sc_allocate_keyboard(sc_softc_t *sc, int unit)
 	keyboard_info_t ki;
 
 	idx0 =
-	    kbd_allocate("kbdmux", -1, (void *)&sc->keyboard, sckbdevent, sc);
+	    kbd_allocate("kbdmux", -1, (void *)&sc->kbd, sckbdevent, sc);
 	if (idx0 != -1) {
 		k0 = kbd_get_keyboard(idx0);
 
@@ -4381,7 +4379,7 @@ sc_allocate_keyboard(sc_softc_t *sc, int unit)
 		}
 	} else
 		idx0 = kbd_allocate(
-		    "*", unit, (void *)&sc->keyboard, sckbdevent, sc);
+		    "*", unit, (void *)&sc->kbd, sckbdevent, sc);
 
 	return (idx0);
 }
