@@ -406,22 +406,6 @@ terasic_mtl_vidsw_putm(video_adapter_t *adp, int x, int y,
 	return (ENODEV);
 }
 
-/*
- * XXXRW: For historical reasons, syscons can't register video consoles
- * without a keyboard implementation.  Provide a dummy.
- */
-static keyboard_switch_t	terasic_mtl_keyboard_switch;
-
-static int
-terasic_mtl_kbd_configure(int flags)
-{
-
-	return (0);
-}
-
-KEYBOARD_DRIVER(mtl_kbd, terasic_mtl_keyboard_switch,
-    terasic_mtl_kbd_configure);
-
 int
 terasic_mtl_syscons_attach(struct terasic_mtl_softc *sc)
 {
