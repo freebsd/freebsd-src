@@ -66,6 +66,7 @@ static struct {
 	{ "exfat", &fstyp_exfat, false, EXFAT_ENC },
 	{ "ext2fs", &fstyp_ext2fs, false, NULL },
 	{ "geli", &fstyp_geli, true, NULL },
+	{ "hfs+", &fstyp_hfsp, false, NULL },
 	{ "msdosfs", &fstyp_msdosfs, false, NULL },
 	{ "ntfs", &fstyp_ntfs, false, NTFS_ENC },
 	{ "ufs", &fstyp_ufs, false, NULL },
