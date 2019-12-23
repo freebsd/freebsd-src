@@ -67,7 +67,7 @@ static struct {
 	{ "ext2fs", &fstyp_ext2fs, false, NULL },
 	{ "geli", &fstyp_geli, true, NULL },
 	{ "msdosfs", &fstyp_msdosfs, false, NULL },
-	{ "ntfs", &fstyp_ntfs, false, NULL },
+	{ "ntfs", &fstyp_ntfs, false, NTFS_ENC },
 	{ "ufs", &fstyp_ufs, false, NULL },
 #ifdef HAVE_ZFS
 	{ "zfs", &fstyp_zfs, true, NULL },

@@ -31,6 +31,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <err.h>
+#include <iconv.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -92,6 +94,38 @@ struct ntfs_bootfile {
 	uint32_t	bf_volsn;
 } __packed;
 
+static void
+convert_label(const void *label /* LE */, size_t labellen, char *label_out,
+    size_t label_sz)
+{
+	char *label_out_orig;
+	iconv_t cd;
+	size_t rc;
+
+	/* dstname="" means convert to the current locale. */
+	cd = iconv_open("", NTFS_ENC);
+	if (cd == (iconv_t)-1) {
+		warn("ntfs: Could not open iconv");
+		return;
+	}
+
+	label_out_orig = label_out;
+
+	rc = iconv(cd, __DECONST(char **, &label), &labellen, &label_out,
+	    &label_sz);
+	if (rc == (size_t)-1) {
+		warn("ntfs: iconv()");
+		*label_out_orig = '\0';
+	} else {
+		/* NUL-terminate result (iconv advances label_out). */
+		if (label_sz == 0)
+			label_out--;
+		*label_out = '\0';
+	}
+
+	iconv_close(cd);
+}
+
 int
 fstyp_ntfs(FILE *fp, char *label, size_t size)
 {
@@ -101,14 +135,15 @@ fstyp_ntfs(FILE *fp, char *label, size_t size)
 	off_t voloff;
 	char *filerecp, *ap;
 	int8_t mftrecsz;
-	char vnchar;
-	int recsize, j;
+	int recsize;
 
 	filerecp = NULL;
 
 	bf = (struct ntfs_bootfile *)read_buf(fp, 0, 512);
 	if (bf == NULL || strncmp(bf->bf_sysid, "NTFS    ", 8) != 0)
 		goto fail;
+	if (!show_label)
+		goto ok;
 
 	mftrecsz = bf->bf_mftrecsz;
 	recsize = (mftrecsz > 0) ? (mftrecsz * bf->bf_bps * bf->bf_spc) : (1 << -mftrecsz);
@@ -127,29 +162,15 @@ fstyp_ntfs(FILE *fp, char *label, size_t size)
 	for (ap = filerecp + fr->fr_attroff;
 	    atr = (struct ntfs_attr *)ap, (int)atr->a_type != -1;
 	    ap += atr->reclen) {
-		if (atr->a_type == NTFS_A_VOLUMENAME) {
-			if(atr->a_datalen >= size *2){
-				goto fail;
-			}
-			/*
-			 *UNICODE to ASCII.
-			 * Should we need to use iconv(9)?
-			 */
-			for (j = 0; j < atr->a_datalen; j++) {
-				vnchar = *(ap + atr->a_dataoff + j);
-				if (j & 1) {
-					if (vnchar) {
-						goto fail;
-					}
-				} else {
-					label[j / 2] = vnchar;
-				}
-			}
-			label[j / 2] = 0;
-			break;
-		}
+		if (atr->a_type != NTFS_A_VOLUMENAME)
+			continue;
+
+		convert_label(ap + atr->a_dataoff,
+		    atr->a_datalen, label, size);
+		break;
 	}
 
+ok:
 	free(bf);
 	free(filerecp);
 
