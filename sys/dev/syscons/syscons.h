@@ -217,8 +217,7 @@ typedef struct sc_softc {
 #define	SC_INIT_DONE	(1 << 16)
 #define	SC_SPLASH_SCRN	(1 << 17)
 
-	int		keyboard;		/* -1 if unavailable */
-	struct keyboard	*kbd;
+	struct keyboard	*kbd;			/* NULL if unavailable. */
 
 	int		adapter;
 	struct video_adapter *adp;
