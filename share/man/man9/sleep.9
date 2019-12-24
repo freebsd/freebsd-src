@@ -47,14 +47,14 @@
 .In sys/systm.h
 .In sys/proc.h
 .Ft int
-.Fn msleep "void *chan" "struct mtx *mtx" "int priority" "const char *wmesg" "int timo"
+.Fn msleep "const void *chan" "struct mtx *mtx" "int priority" "const char *wmesg" "int timo"
 .Ft int
-.Fn msleep_sbt "void *chan" "struct mtx *mtx" "int priority" \
+.Fn msleep_sbt "const void *chan" "struct mtx *mtx" "int priority" \
 "const char *wmesg" "sbintime_t sbt" "sbintime_t pr" "int flags"
 .Ft int
-.Fn msleep_spin "void *chan" "struct mtx *mtx" "const char *wmesg" "int timo"
+.Fn msleep_spin "const void *chan" "struct mtx *mtx" "const char *wmesg" "int timo"
 .Ft int
-.Fn msleep_spin_sbt "void *chan" "struct mtx *mtx" "const char *wmesg" \
+.Fn msleep_spin_sbt "const void *chan" "struct mtx *mtx" "const char *wmesg" \
 "sbintime_t sbt" "sbintime_t pr" "int flags"
 .Ft int
 .Fn pause "const char *wmesg" "int timo"
@@ -64,16 +64,16 @@
 .Fn pause_sbt "const char *wmesg" "sbintime_t sbt" "sbintime_t pr" \
  "int flags"
 .Ft int
-.Fn tsleep "void *chan" "int priority" "const char *wmesg" "int timo"
+.Fn tsleep "const void *chan" "int priority" "const char *wmesg" "int timo"
 .Ft int
-.Fn tsleep_sbt "void *chan" "int priority" "const char *wmesg" \
+.Fn tsleep_sbt "const void *chan" "int priority" "const char *wmesg" \
 "sbintime_t sbt" "sbintime_t pr" "int flags"
 .Ft void
-.Fn wakeup "void *chan"
+.Fn wakeup "const void *chan"
 .Ft void
-.Fn wakeup_one "void *chan"
+.Fn wakeup_one "const void *chan"
 .Ft void
-.Fn wakeup_any "void *chan"
+.Fn wakeup_any "const void *chan"
 .Sh DESCRIPTION
 The functions
 .Fn tsleep ,

@@ -265,7 +265,7 @@ dumpthread(volatile struct proc *p, volatile struct thread *td, int all)
 {
 	char state[9], wprefix;
 	const char *wmesg;
-	void *wchan;
+	const void *wchan;
 	
 	if (all) {
 		db_printf("%6d                  ", td->td_tid);

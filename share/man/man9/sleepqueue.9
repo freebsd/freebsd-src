@@ -54,40 +54,40 @@
 .Ft int
 .Fn sleepq_abort "struct thread *td"
 .Ft void
-.Fn sleepq_add "void *wchan" "struct lock_object *lock" "const char *wmesg" "int flags" "int queue"
+.Fn sleepq_add "const void *wchan" "struct lock_object *lock" "const char *wmesg" "int flags" "int queue"
 .Ft struct sleepqueue *
 .Fn sleepq_alloc "void"
 .Ft int
-.Fn sleepq_broadcast "void *wchan" "int flags" "int pri" "int queue"
+.Fn sleepq_broadcast "const void *wchan" "int flags" "int pri" "int queue"
 .Ft void
 .Fn sleepq_free "struct sleepqueue *sq"
 .Ft struct sleepqueue *
-.Fn sleepq_lookup "void *wchan"
+.Fn sleepq_lookup "const void *wchan"
 .Ft void
-.Fn sleepq_lock "void *wchan"
+.Fn sleepq_lock "const void *wchan"
 .Ft void
-.Fn sleepq_release "void *wchan"
+.Fn sleepq_release "const void *wchan"
 .Ft void
-.Fn sleepq_remove "struct thread *td" "void *wchan"
+.Fn sleepq_remove "struct thread *td" "const void *wchan"
 .Ft int
-.Fn sleepq_signal "void *wchan" "int flags" "int pri" "int queue"
+.Fn sleepq_signal "const void *wchan" "int flags" "int pri" "int queue"
 .Ft void
-.Fn sleepq_set_timeout "void *wchan" "int timo"
+.Fn sleepq_set_timeout "const void *wchan" "int timo"
 .Ft void
-.Fn sleepq_set_timeout_sbt "void *wchan" "sbintime_t sbt" \
+.Fn sleepq_set_timeout_sbt "const void *wchan" "sbintime_t sbt" \
 "sbintime_t pr" "int flags"
 .Ft u_int
-.Fn sleepq_sleepcnt "void *wchan" "int queue"
+.Fn sleepq_sleepcnt "const void *wchan" "int queue"
 .Ft int
-.Fn sleepq_timedwait "void *wchan" "int pri"
+.Fn sleepq_timedwait "const void *wchan" "int pri"
 .Ft int
-.Fn sleepq_timedwait_sig "void *wchan" "int pri"
+.Fn sleepq_timedwait_sig "const void *wchan" "int pri"
 .Ft int
-.Fn sleepq_type "void *wchan"
+.Fn sleepq_type "const void *wchan"
 .Ft void
-.Fn sleepq_wait "void *wchan" "int pri"
+.Fn sleepq_wait "const void *wchan" "int pri"
 .Ft int
-.Fn sleepq_wait_sig "void *wchan" "int pri"
+.Fn sleepq_wait_sig "const void *wchan" "int pri"
 .Sh DESCRIPTION
 Sleep queues provide a mechanism for suspending execution of a thread until
 some condition is met.

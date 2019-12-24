@@ -212,7 +212,7 @@ deadlres_td_on_lock(struct proc *p, struct thread *td, int blkticks)
 static void
 deadlres_td_sleep_q(struct proc *p, struct thread *td, int slpticks)
 {
-	void *wchan;
+	const void *wchan;
 	int i, slptype, tticks;
 
 	sx_assert(&allproc_lock, SX_LOCKED);

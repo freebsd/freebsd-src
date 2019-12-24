@@ -1297,7 +1297,7 @@ pstats_free(struct pstats *ps)
  * it can be replaced by assignment of zero.
  */
 static inline uint32_t
-ptr32_trim(void *ptr)
+ptr32_trim(const void *ptr)
 {
 	uintptr_t uptr;
 
