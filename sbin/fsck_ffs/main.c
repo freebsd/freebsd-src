@@ -423,13 +423,11 @@ checkfilesys(char *filesys)
 	 */
 	if ((sblock.fs_flags & FS_SUJ) == FS_SUJ) {
 		if ((sblock.fs_flags & FS_NEEDSFSCK) != FS_NEEDSFSCK && skipclean) {
-			if (preen || reply("USE JOURNAL")) {
-				if (suj_check(filesys) == 0) {
-					printf("\n***** FILE SYSTEM MARKED CLEAN *****\n");
-					if (chkdoreload(mntp) == 0)
-						exit(0);
-					exit(4);
-				}
+			if (suj_check(filesys) == 0) {
+				printf("\n***** FILE SYSTEM MARKED CLEAN *****\n");
+				if (chkdoreload(mntp) == 0)
+					exit(0);
+				exit(4);
 			}
 			printf("** Skipping journal, falling through to full fsck\n\n");
 		}

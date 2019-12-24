@@ -2720,6 +2720,8 @@ suj_check(const char *filesys)
 	printf("** SU+J Recovering %s\n", filesys);
 	if (suj_verifyino(jip) != 0)
 		return (-1);
+	if (!preen && !reply("USE JOURNAL"))
+		return (-1);
 	/*
 	 * Build a list of journal blocks in jblocks before parsing the
 	 * available journal blocks in with suj_read().
