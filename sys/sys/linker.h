@@ -305,6 +305,10 @@ int	linker_ctf_get(linker_file_t, linker_ctf_t *);
 
 int elf_cpu_load_file(linker_file_t);
 int elf_cpu_unload_file(linker_file_t);
+/* amd64 and mips use objects instead of shared libraries */
+#if !defined(__amd64__) && !defined(__mips__)
+int elf_cpu_parse_dynamic(linker_file_t, Elf_Dyn *);
+#endif
 
 /* values for type */
 #define ELF_RELOC_REL	1
