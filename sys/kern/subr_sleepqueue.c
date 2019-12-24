@@ -130,7 +130,7 @@ struct sleepqueue {
 	u_int sq_blockedcnt[NR_SLEEPQS];	/* (c) N. of blocked threads. */
 	LIST_ENTRY(sleepqueue) sq_hash;		/* (c) Chain and free list. */
 	LIST_HEAD(, sleepqueue) sq_free;	/* (c) Free queues. */
-	void	*sq_wchan;			/* (c) Wait channel. */
+	const void	*sq_wchan;		/* (c) Wait channel. */
 	int	sq_type;			/* (c) Queue type. */
 #ifdef INVARIANTS
 	struct lock_object *sq_lock;		/* (c) Associated lock. */
@@ -163,7 +163,7 @@ static uma_zone_t sleepq_zone;
 /*
  * Prototypes for non-exported routines.
  */
-static int	sleepq_catch_signals(void *wchan, int pri);
+static int	sleepq_catch_signals(const void *wchan, int pri);
 static inline int sleepq_check_signals(void);
 static inline int sleepq_check_timeout(void);
 #ifdef INVARIANTS
@@ -173,7 +173,7 @@ static int	sleepq_init(void *mem, int size, int flags);
 static int	sleepq_resume_thread(struct sleepqueue *sq, struct thread *td,
 		    int pri, int srqflags);
 static void	sleepq_remove_thread(struct sleepqueue *sq, struct thread *td);
-static void	sleepq_switch(void *wchan, int pri);
+static void	sleepq_switch(const void *wchan, int pri);
 static void	sleepq_timeout(void *arg);
 
 SDT_PROBE_DECLARE(sched, , , sleep);
@@ -257,7 +257,7 @@ sleepq_free(struct sleepqueue *sq)
  * Lock the sleep queue chain associated with the specified wait channel.
  */
 void
-sleepq_lock(void *wchan)
+sleepq_lock(const void *wchan)
 {
 	struct sleepqueue_chain *sc;
 
@@ -271,7 +271,7 @@ sleepq_lock(void *wchan)
  * the table, NULL is returned.
  */
 struct sleepqueue *
-sleepq_lookup(void *wchan)
+sleepq_lookup(const void *wchan)
 {
 	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq;
@@ -289,7 +289,7 @@ sleepq_lookup(void *wchan)
  * Unlock the sleep queue chain associated with a given wait channel.
  */
 void
-sleepq_release(void *wchan)
+sleepq_release(const void *wchan)
 {
 	struct sleepqueue_chain *sc;
 
@@ -304,8 +304,8 @@ sleepq_release(void *wchan)
  * woken up.
  */
 void
-sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
-    int queue)
+sleepq_add(const void *wchan, struct lock_object *lock, const char *wmesg,
+    int flags, int queue)
 {
 	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq;
@@ -390,7 +390,7 @@ sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
  * sleep queue after timo ticks if the thread has not already been awakened.
  */
 void
-sleepq_set_timeout_sbt(void *wchan, sbintime_t sbt, sbintime_t pr,
+sleepq_set_timeout_sbt(const void *wchan, sbintime_t sbt, sbintime_t pr,
     int flags)
 {
 	struct sleepqueue_chain *sc __unused;
@@ -419,7 +419,7 @@ sleepq_set_timeout_sbt(void *wchan, sbintime_t sbt, sbintime_t pr,
  * Return the number of actual sleepers for the specified queue.
  */
 u_int
-sleepq_sleepcnt(void *wchan, int queue)
+sleepq_sleepcnt(const void *wchan, int queue)
 {
 	struct sleepqueue *sq;
 
@@ -438,7 +438,7 @@ sleepq_sleepcnt(void *wchan, int queue)
  * may have transitioned from the sleepq lock to a run lock.
  */
 static int
-sleepq_catch_signals(void *wchan, int pri)
+sleepq_catch_signals(const void *wchan, int pri)
 {
 	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq;
@@ -558,7 +558,7 @@ out:
  * Returns with thread lock.
  */
 static void
-sleepq_switch(void *wchan, int pri)
+sleepq_switch(const void *wchan, int pri)
 {
 	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq;
@@ -664,7 +664,7 @@ sleepq_check_signals(void)
  * Block the current thread until it is awakened from its sleep queue.
  */
 void
-sleepq_wait(void *wchan, int pri)
+sleepq_wait(const void *wchan, int pri)
 {
 	struct thread *td;
 
@@ -679,7 +679,7 @@ sleepq_wait(void *wchan, int pri)
  * or it is interrupted by a signal.
  */
 int
-sleepq_wait_sig(void *wchan, int pri)
+sleepq_wait_sig(const void *wchan, int pri)
 {
 	int rcatch;
 
@@ -694,7 +694,7 @@ sleepq_wait_sig(void *wchan, int pri)
  * or it times out while waiting.
  */
 int
-sleepq_timedwait(void *wchan, int pri)
+sleepq_timedwait(const void *wchan, int pri)
 {
 	struct thread *td;
 
@@ -712,7 +712,7 @@ sleepq_timedwait(void *wchan, int pri)
  * it is interrupted by a signal, or it times out waiting to be awakened.
  */
 int
-sleepq_timedwait_sig(void *wchan, int pri)
+sleepq_timedwait_sig(const void *wchan, int pri)
 {
 	int rcatch, rvalt, rvals;
 
@@ -731,7 +731,7 @@ sleepq_timedwait_sig(void *wchan, int pri)
  * Returns the type of sleepqueue given a waitchannel.
  */
 int
-sleepq_type(void *wchan)
+sleepq_type(const void *wchan)
 {
 	struct sleepqueue *sq;
 	int type;
@@ -910,7 +910,7 @@ sleepq_init(void *mem, int size, int flags)
  * Find thread sleeping on a wait channel and resume it.
  */
 int
-sleepq_signal(void *wchan, int flags, int pri, int queue)
+sleepq_signal(const void *wchan, int flags, int pri, int queue)
 {
 	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq;
@@ -971,7 +971,7 @@ match_any(struct thread *td __unused)
  * Resume all threads sleeping on a specified wait channel.
  */
 int
-sleepq_broadcast(void *wchan, int flags, int pri, int queue)
+sleepq_broadcast(const void *wchan, int flags, int pri, int queue)
 {
 	struct sleepqueue *sq;
 
@@ -1023,7 +1023,7 @@ sleepq_timeout(void *arg)
 	struct sleepqueue_chain *sc __unused;
 	struct sleepqueue *sq;
 	struct thread *td;
-	void *wchan;
+	const void *wchan;
 	int wakeup_swapper;
 
 	td = arg;
@@ -1067,7 +1067,7 @@ sleepq_timeout(void *arg)
  * wait channel if it is on that queue.
  */
 void
-sleepq_remove(struct thread *td, void *wchan)
+sleepq_remove(struct thread *td, const void *wchan)
 {
 	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq;
@@ -1111,7 +1111,7 @@ int
 sleepq_abort(struct thread *td, int intrval)
 {
 	struct sleepqueue *sq;
-	void *wchan;
+	const void *wchan;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	MPASS(TD_ON_SLEEPQ(td));
@@ -1183,7 +1183,7 @@ sleepq_chains_remove_matching(bool (*matches)(struct thread *))
  */
 #ifdef STACK
 int
-sleepq_sbuf_print_stacks(struct sbuf *sb, void *wchan, int queue,
+sleepq_sbuf_print_stacks(struct sbuf *sb, const void *wchan, int queue,
     int *count_stacks_printed)
 {
 	struct thread *td, *td_next;

@@ -1526,7 +1526,7 @@ db_show_sx(const struct lock_object *lock)
 int
 sx_chain(struct thread *td, struct thread **ownerp)
 {
-	struct sx *sx;
+	const struct sx *sx;
 
 	/*
 	 * Check to see if this thread is blocked on an sx lock.

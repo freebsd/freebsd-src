@@ -88,33 +88,33 @@ struct thread;
 
 void	init_sleepqueues(void);
 int	sleepq_abort(struct thread *td, int intrval);
-void	sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg,
-	    int flags, int queue);
+void	sleepq_add(const void *wchan, struct lock_object *lock,
+	    const char *wmesg, int flags, int queue);
 struct sleepqueue *sleepq_alloc(void);
-int	sleepq_broadcast(void *wchan, int flags, int pri, int queue);
+int	sleepq_broadcast(const void *wchan, int flags, int pri, int queue);
 void	sleepq_chains_remove_matching(bool (*matches)(struct thread *));
 void	sleepq_free(struct sleepqueue *sq);
-void	sleepq_lock(void *wchan);
-struct sleepqueue *sleepq_lookup(void *wchan);
-void	sleepq_release(void *wchan);
-void	sleepq_remove(struct thread *td, void *wchan);
+void	sleepq_lock(const void *wchan);
+struct sleepqueue *sleepq_lookup(const void *wchan);
+void	sleepq_release(const void *wchan);
+void	sleepq_remove(struct thread *td, const void *wchan);
 int	sleepq_remove_matching(struct sleepqueue *sq, int queue,
 	    bool (*matches)(struct thread *), int pri);
-int	sleepq_signal(void *wchan, int flags, int pri, int queue);
-void	sleepq_set_timeout_sbt(void *wchan, sbintime_t sbt,
+int	sleepq_signal(const void *wchan, int flags, int pri, int queue);
+void	sleepq_set_timeout_sbt(const void *wchan, sbintime_t sbt,
 	    sbintime_t pr, int flags);
 #define	sleepq_set_timeout(wchan, timo)					\
     sleepq_set_timeout_sbt((wchan), tick_sbt * (timo), 0, C_HARDCLOCK)
-u_int	sleepq_sleepcnt(void *wchan, int queue);
-int	sleepq_timedwait(void *wchan, int pri);
-int	sleepq_timedwait_sig(void *wchan, int pri);
-int	sleepq_type(void *wchan);
-void	sleepq_wait(void *wchan, int pri);
-int	sleepq_wait_sig(void *wchan, int pri);
+u_int	sleepq_sleepcnt(const void *wchan, int queue);
+int	sleepq_timedwait(const void *wchan, int pri);
+int	sleepq_timedwait_sig(const void *wchan, int pri);
+int	sleepq_type(const void *wchan);
+void	sleepq_wait(const void *wchan, int pri);
+int	sleepq_wait_sig(const void *wchan, int pri);
 
 #ifdef STACK
 struct sbuf;
-int sleepq_sbuf_print_stacks(struct sbuf *sb, void *wchan, int queue,
+int sleepq_sbuf_print_stacks(struct sbuf *sb, const void *wchan, int queue,
     int *count_stacks_printed);
 #endif
 
