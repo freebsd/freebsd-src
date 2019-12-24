@@ -176,7 +176,7 @@ SYSCTL_PROC(_vm, OID_AUTO, page_blacklist, CTLTYPE_STRING | CTLFLAG_RD |
 static uma_zone_t fakepg_zone;
 
 static void vm_page_alloc_check(vm_page_t m);
-static void _vm_page_busy_sleep(vm_object_t obj, vm_page_t m,
+static bool _vm_page_busy_sleep(vm_object_t obj, vm_page_t m,
     const char *wmesg, bool nonshared, bool locked);
 static void vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits);
 static void vm_page_dequeue_complete(vm_page_t m);
@@ -878,8 +878,13 @@ vm_page_acquire_flags(vm_page_t m, int allocflags)
 	return (locked);
 }
 
+/*
+ *	vm_page_busy_sleep_flags
+ *
+ *	Sleep for busy according to VM_ALLOC_ parameters.
+ */
 static bool
-vm_page_busy_sleep_flags(vm_object_t object, vm_page_t m, const char *wchan,
+vm_page_busy_sleep_flags(vm_object_t object, vm_page_t m, const char *wmesg,
     int allocflags)
 {
 
@@ -892,9 +897,9 @@ vm_page_busy_sleep_flags(vm_object_t object, vm_page_t m, const char *wchan,
 	 */
 	if ((allocflags & VM_ALLOC_NOCREAT) == 0)
 		vm_page_aflag_set(m, PGA_REFERENCED);
-	vm_page_busy_sleep(m, wchan, (allocflags &
-	    VM_ALLOC_IGN_SBUSY) != 0);
-	VM_OBJECT_WLOCK(object);
+	if (_vm_page_busy_sleep(object, m, wmesg, (allocflags &
+	    VM_ALLOC_IGN_SBUSY) != 0, true))
+		VM_OBJECT_WLOCK(object);
 	if ((allocflags & VM_ALLOC_WAITFAIL) != 0)
 		return (false);
 	return (true);
@@ -930,9 +935,8 @@ vm_page_busy_acquire(vm_page_t m, int allocflags)
 		else
 			locked = false;
 		MPASS(locked || vm_page_wired(m));
-		_vm_page_busy_sleep(obj, m, "vmpba",
-		    (allocflags & VM_ALLOC_SBUSY) != 0, locked);
-		if (locked)
+		if (_vm_page_busy_sleep(obj, m, "vmpba",
+		    (allocflags & VM_ALLOC_SBUSY) != 0, locked))
 			VM_OBJECT_WLOCK(obj);
 		if ((allocflags & VM_ALLOC_WAITFAIL) != 0)
 			return (false);
@@ -1055,10 +1059,16 @@ vm_page_busy_sleep(vm_page_t m, const char *wmesg, bool nonshared)
 	VM_OBJECT_ASSERT_LOCKED(obj);
 	vm_page_lock_assert(m, MA_NOTOWNED);
 
-	_vm_page_busy_sleep(obj, m, wmesg, nonshared, true);
+	if (!_vm_page_busy_sleep(obj, m, wmesg, nonshared, true))
+		VM_OBJECT_DROP(obj);
 }
 
-static void
+/*
+ *	_vm_page_busy_sleep:
+ *
+ *	Internal busy sleep function.
+ */
+static bool
 _vm_page_busy_sleep(vm_object_t obj, vm_page_t m, const char *wmesg,
     bool nonshared, bool locked)
 {
@@ -1072,17 +1082,15 @@ _vm_page_busy_sleep(vm_object_t obj, vm_page_t m, const char *wmesg,
 		if (locked)
 			VM_OBJECT_DROP(obj);
 		vm_object_busy_wait(obj, wmesg);
-		return;
+		return (locked);
 	}
 	sleepq_lock(m);
 	x = m->busy_lock;
 	if (x == VPB_UNBUSIED || (nonshared && (x & VPB_BIT_SHARED) != 0) ||
 	    ((x & VPB_BIT_WAITERS) == 0 &&
 	    !atomic_cmpset_int(&m->busy_lock, x, x | VPB_BIT_WAITERS))) {
-		if (locked)
-			VM_OBJECT_DROP(obj);
 		sleepq_release(m);
-		return;
+		return (false);
 	}
 	if (locked)
 		VM_OBJECT_DROP(obj);
@@ -1090,6 +1098,7 @@ _vm_page_busy_sleep(vm_object_t obj, vm_page_t m, const char *wmesg,
 	sleepq_add(m, NULL, wmesg, 0, 0);
 	sleepq_wait(m, PVM);
 	PICKUP_GIANT();
+	return (locked);
 }
 
 /*
