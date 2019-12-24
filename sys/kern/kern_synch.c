@@ -77,7 +77,7 @@ SYSINIT(synch_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, synch_setup,
     NULL);
 
 int	hogticks;
-static uint8_t pause_wchan[MAXCPU];
+static char pause_wchan[MAXCPU];
 
 static struct callout loadav_callout;
 
@@ -169,8 +169,8 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 
 	KASSERT(!TD_ON_SLEEPQ(td), ("recursive sleep"));
 
-	if ((uint8_t *)ident >= &pause_wchan[0] &&
-	    (uint8_t *)ident <= &pause_wchan[MAXCPU - 1])
+	if ((uintptr_t)ident >= (uintptr_t)&pause_wchan[0] &&
+	    (uintptr_t)ident <= (uintptr_t)&pause_wchan[MAXCPU - 1])
 		sleepq_flags = SLEEPQ_PAUSE;
 	else
 		sleepq_flags = SLEEPQ_SLEEP;
