@@ -60,6 +60,9 @@
 .Nm bus_dma ,
 .Nm bus_dma_tag_create ,
 .Nm bus_dma_tag_destroy ,
+.Nm bus_dma_template_init ,
+.Nm bus_dma_template_tag ,
+.Nm bus_dma_template_clone ,
 .Nm bus_dmamap_create ,
 .Nm bus_dmamap_destroy ,
 .Nm bus_dmamap_load ,
@@ -83,6 +86,21 @@
 "void *lockfuncarg" "bus_dma_tag_t *dmat"
 .Ft int
 .Fn bus_dma_tag_destroy "bus_dma_tag_t dmat"
+.Ft void
+.Fo bus_dma_template_init
+.Fa "bus_dma_template_t template"
+.Fa "bus_dma_tag_t parent"
+.Fc
+.Ft int
+.Fo bus_dma_template_tag
+.Fa "bus_dma_template_t template"
+.Fa "bus_dma_tag_t *dmat"
+.Fc
+.Ft void
+.Fo bus_dma_template_clone
+.Fa "bus_dma_template_t template"
+.Fa "bus_dma_tag_t dmat"
+.Fc
 .Ft int
 .Fn bus_dmamap_create "bus_dma_tag_t dmat" "int flags" "bus_dmamap_t *mapp"
 .Ft int
@@ -282,6 +300,34 @@ DMA tags are organized into a hierarchy, with each child
 tag inheriting the restrictions of its parent.
 This allows all devices along the path of DMA transactions
 to contribute to the constraints of those transactions.
+.It Vt bus_dma_template_t
+A template structure for creating a
+.Fa bus_dma_tag_t
+from a set of defaults.
+Once initialized with
+.Fn bus_dma_template_init ,
+a driver can over-ride individual fields to suit its needs.
+The following fields have the indicated values:
+.Bd -literal
+	alignment	1
+	boundary	0
+	lowaddr		BUS_SPACE_MAXADDR
+	highaddr	BUS_SPACE_MAXADDR
+	maxsize		BUS_SPACE_MAXSIZE
+	nsegments	BUS_SPACE_UNRESTRICTED
+	maxsegsize	BUS_SPACE_MAXSIZE
+	flags		0
+	lockfunc	NULL
+	lockfuncarg	NULL
+.Ed
+.Pp
+Descriptions of each field are documented with
+.Fn bus_dma_tag_create .
+Note that the
+.Fa filtfunc
+and
+.Fa filtfuncarg
+attributes of the DMA tag are not supported with templates.
 .It Vt bus_dma_filter_t
 Client specified address filter having the format:
 .Bl -tag -width indent
@@ -633,6 +679,25 @@ if any DMA maps remain associated with
 or
 .Ql 0
 on success.
+.It Fn bus_dma_template_init "*template" "parent"
+Initializes a
+.Fa bus_dma_template_t
+structure and associates it with an optional 
+.Fa parent .
+The
+.Fa parent
+argument may be NULL.
+.It Fn bus_dma_template_tag "*template" "*dmat"
+Unpacks a template into a tag, and returns the tag via the
+.Fa dmat .
+All return values are identical to
+.Fn bus_dma_tag_create .
+.It Fn bus_dma_template_clone "*template" "dmat"
+Clones the fields from a tag to a template.
+This is useful for cloning tags when paired with
+.Fn bus_dma_template_tag .
+A template that is filled in as a clone does not need to be initialized
+first.
 .It Fn bus_dmamap_create "dmat" "flags" "*mapp"
 Allocates and initializes a DMA map.
 Arguments are as follows:
