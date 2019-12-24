@@ -480,7 +480,7 @@ static __inline void		splx(intrmask_t ipl __unused)	{ return; }
  * Common `proc' functions are declared here so that proc.h can be included
  * less often.
  */
-int	_sleep(void * _Nonnull chan, struct lock_object *lock, int pri,
+int	_sleep(const void * _Nonnull chan, struct lock_object *lock, int pri,
 	   const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags);
 #define	msleep(chan, mtx, pri, wmesg, timo)				\
 	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg),		\
@@ -488,7 +488,7 @@ int	_sleep(void * _Nonnull chan, struct lock_object *lock, int pri,
 #define	msleep_sbt(chan, mtx, pri, wmesg, bt, pr, flags)		\
 	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg), (bt), (pr),	\
 	    (flags))
-int	msleep_spin_sbt(void * _Nonnull chan, struct mtx *mtx,
+int	msleep_spin_sbt(const void * _Nonnull chan, struct mtx *mtx,
 	    const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags);
 #define	msleep_spin(chan, mtx, wmesg, timo)				\
 	msleep_spin_sbt((chan), (mtx), (wmesg), tick_sbt * (timo),	\
@@ -504,9 +504,9 @@ int	pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr,
 	    0, C_HARDCLOCK)
 #define	tsleep_sbt(chan, pri, wmesg, bt, pr, flags)			\
 	_sleep((chan), NULL, (pri), (wmesg), (bt), (pr), (flags))
-void	wakeup(void * chan);
-void	wakeup_one(void * chan);
-void	wakeup_any(void * chan);
+void	wakeup(const void *chan);
+void	wakeup_one(const void *chan);
+void	wakeup_any(const void *chan);
 
 /*
  * Common `struct cdev *' stuff are declared here to avoid #include poisoning

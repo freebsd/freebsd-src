@@ -77,7 +77,7 @@ SYSINIT(synch_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, synch_setup,
     NULL);
 
 int	hogticks;
-static char pause_wchan[MAXCPU];
+static const char pause_wchan[MAXCPU];
 
 static struct callout loadav_callout;
 
@@ -131,7 +131,7 @@ SYSINIT(sleepinit, SI_SUB_KMEM, SI_ORDER_ANY, sleepinit, NULL);
  * flag the lock is not re-locked before returning.
  */
 int
-_sleep(void *ident, struct lock_object *lock, int priority,
+_sleep(const void *ident, struct lock_object *lock, int priority,
     const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 {
 	struct thread *td;
@@ -233,7 +233,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 }
 
 int
-msleep_spin_sbt(void *ident, struct mtx *mtx, const char *wmesg,
+msleep_spin_sbt(const void *ident, struct mtx *mtx, const char *wmesg,
     sbintime_t sbt, sbintime_t pr, int flags)
 {
 	struct thread *td;
@@ -409,7 +409,7 @@ refcount_sleep(volatile u_int *count, const char *wmesg, int pri)
  * Make all threads sleeping on the specified identifier runnable.
  */
 void
-wakeup(void *ident)
+wakeup(const void *ident)
 {
 	int wakeup_swapper;
 
@@ -429,7 +429,7 @@ wakeup(void *ident)
  * swapped out.
  */
 void
-wakeup_one(void *ident)
+wakeup_one(const void *ident)
 {
 	int wakeup_swapper;
 
@@ -441,7 +441,7 @@ wakeup_one(void *ident)
 }
 
 void
-wakeup_any(void *ident)
+wakeup_any(const void *ident)
 {
 	int wakeup_swapper;
 

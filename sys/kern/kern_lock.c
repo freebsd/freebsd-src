@@ -1733,7 +1733,7 @@ _lockmgr_assert(const struct lock *lk, int what, const char *file, int line)
 int
 lockmgr_chain(struct thread *td, struct thread **ownerp)
 {
-	struct lock *lk;
+	const struct lock *lk;
 
 	lk = td->td_wchan;
 
