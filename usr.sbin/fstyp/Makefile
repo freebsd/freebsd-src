@@ -3,7 +3,8 @@
 .include <src.opts.mk>
 
 PROG=	fstyp
-SRCS=	apfs.c cd9660.c exfat.c ext2fs.c fstyp.c geli.c hfsplus.c msdosfs.c ntfs.c ufs.c
+SRCS=	apfs.c cd9660.c exfat.c ext2fs.c fstyp.c geli.c hammer.c	\
+	hammer2.c hfsplus.c msdosfs.c ntfs.c ufs.c
 
 .if ${MK_ZFS} != "no"
 SRCS +=	zfs.c
