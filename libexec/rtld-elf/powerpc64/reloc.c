@@ -33,6 +33,7 @@
 
 #include <sys/param.h>
 #include <sys/mman.h>
+#include <sys/sysctl.h>
 
 #include <errno.h>
 #include <stdio.h>
@@ -160,83 +161,84 @@ static int
 reloc_nonplt_object(Obj_Entry *obj_rtld __unused, Obj_Entry *obj,
     const Elf_Rela *rela, SymCache *cache, int flags, RtldLockState *lockstate)
 {
-	Elf_Addr        *where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
-	const Elf_Sym   *def;
-	const Obj_Entry *defobj;
-	Elf_Addr         tmp;
+	const Elf_Sym	*def = NULL;
+	const Obj_Entry	*defobj;
+	Elf_Addr	*where, symval = 0;
 
+	/*
+	 * First, resolve symbol for relocations which
+	 * reference symbols.
+	 */
 	switch (ELF_R_TYPE(rela->r_info)) {
 
-	case R_PPC_NONE:
-		break;
-
-        case R_PPC64_UADDR64:    /* doubleword64 S + A */
-        case R_PPC64_ADDR64:
-        case R_PPC_GLOB_DAT:
+	case R_PPC64_UADDR64:    /* doubleword64 S + A */
+	case R_PPC64_ADDR64:
+	case R_PPC_GLOB_DAT:
+	case R_PPC64_DTPMOD64:
+	case R_PPC64_TPREL64:
+	case R_PPC64_DTPREL64:
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
 		    flags, cache, lockstate);
 		if (def == NULL) {
 			return (-1);
 		}
+		/*
+		 * If symbol is IFUNC, only perform relocation
+		 * when caller allowed it by passing
+		 * SYMLOOK_IFUNC flag.  Skip the relocations
+		 * otherwise.
+		 *
+		 * Also error out in case IFUNC relocations
+		 * are specified for TLS, which cannot be
+		 * usefully interpreted.
+		 */
+		if (ELF_ST_TYPE(def->st_info) == STT_GNU_IFUNC) {
+			switch (ELF_R_TYPE(rela->r_info)) {
+			case R_PPC64_UADDR64:
+			case R_PPC64_ADDR64:
+			case R_PPC_GLOB_DAT:
+				if ((flags & SYMLOOK_IFUNC) == 0) {
+					dbg("Non-PLT reference to IFUNC found!");
+					obj->non_plt_gnu_ifunc = true;
+					return (0);
+				}
+				symval = (Elf_Addr)rtld_resolve_ifunc(
+					defobj, def);
+				break;
+			default:
+				_rtld_error("%s: IFUNC for TLS reloc",
+					 obj->path);
+				return (-1);
+			}
+		} else {
+			if ((flags & SYMLOOK_IFUNC) != 0)
+				return (0);
+			symval = (Elf_Addr)defobj->relocbase +
+				def->st_value;
+		}
+		break;
+	default:
+		if ((flags & SYMLOOK_IFUNC) != 0)
+			return (0);
+	}
 
-                tmp = (Elf_Addr)(defobj->relocbase + def->st_value +
-                    rela->r_addend);
+	where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 
+	switch (ELF_R_TYPE(rela->r_info)) {
+	case R_PPC_NONE:
+		break;
+	case R_PPC64_UADDR64:
+	case R_PPC64_ADDR64:
+	case R_PPC_GLOB_DAT:
 		/* Don't issue write if unnecessary; avoid COW page fault */
-                if (*where != tmp) {
-                        *where = tmp;
-		}
-                break;
-
-        case R_PPC_RELATIVE:  /* doubleword64 B + A */
-		tmp = (Elf_Addr)(obj->relocbase + rela->r_addend);
-
-		/* As above, don't issue write unnecessarily */
-		if (*where != tmp) {
-			*where = tmp;
+		if (*where != symval + rela->r_addend) {
+			*where = symval + rela->r_addend;
 		}
 		break;
-
-	case R_PPC_COPY:
-		/*
-		 * These are deferred until all other relocations
-		 * have been done.  All we do here is make sure
-		 * that the COPY relocation is not in a shared
-		 * library.  They are allowed only in executable
-		 * files.
-		 */
-		if (!obj->mainprog) {
-			_rtld_error("%s: Unexpected R_COPY "
-				    " relocation in shared library",
-				    obj->path);
-			return (-1);
-		}
-		break;
-
-	case R_PPC_JMP_SLOT:
-		/*
-		 * These will be handled by the plt/jmpslot routines
-		 */
-		break;
-
 	case R_PPC64_DTPMOD64:
-		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		    flags, cache, lockstate);
-
-		if (def == NULL)
-			return (-1);
-
 		*where = (Elf_Addr) defobj->tlsindex;
-
 		break;
-
 	case R_PPC64_TPREL64:
-		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		    flags, cache, lockstate);
-
-		if (def == NULL)
-			return (-1);
-
 		/*
 		 * We lazily allocate offsets for static TLS as we
 		 * see the first relocation that references the
@@ -257,19 +259,44 @@ reloc_nonplt_object(Obj_Entry *obj_rtld __unused, Obj_Entry *obj,
 		*(Elf_Addr **)where = *where * sizeof(Elf_Addr)
 		    + (Elf_Addr *)(def->st_value + rela->r_addend
 		    + defobj->tlsoffset - TLS_TP_OFFSET - TLS_TCB_SIZE);
-
 		break;
-
 	case R_PPC64_DTPREL64:
-		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		    flags, cache, lockstate);
-
-		if (def == NULL)
-			return (-1);
-
 		*where += (Elf_Addr)(def->st_value + rela->r_addend
 		    - TLS_DTV_OFFSET);
+		break;
+	case R_PPC_RELATIVE:  /* doubleword64 B + A */
+		symval = (Elf_Addr)(obj->relocbase + rela->r_addend);
 
+		/* As above, don't issue write unnecessarily */
+		if (*where != symval) {
+			*where = symval;
+		}
+		break;
+	case R_PPC_COPY:
+		/*
+		 * These are deferred until all other relocations
+		 * have been done.  All we do here is make sure
+		 * that the COPY relocation is not in a shared
+		 * library.  They are allowed only in executable
+		 * files.
+		 */
+		if (!obj->mainprog) {
+			_rtld_error("%s: Unexpected R_COPY "
+				    " relocation in shared library",
+				    obj->path);
+			return (-1);
+		}
+		break;
+	case R_PPC_IRELATIVE:
+		/*
+		 * These will be handled by reloc_iresolve().
+		 */
+		obj->irelative = true;
+		break;
+	case R_PPC_JMP_SLOT:
+		/*
+		 * These will be handled by the plt/jmpslot routines
+		 */
 		break;
 
 	default:
@@ -277,7 +304,7 @@ reloc_nonplt_object(Obj_Entry *obj_rtld __unused, Obj_Entry *obj,
 			    " in non-PLT relocations\n", obj->path,
 			    ELF_R_TYPE(rela->r_info));
 		return (-1);
-        }
+	}
 	return (0);
 }
 
@@ -295,10 +322,6 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	SymCache *cache;
 	int bytes = obj->dynsymcount * sizeof(SymCache);
 	int r = -1;
-
-	if ((flags & SYMLOOK_IFUNC) != 0)
-		/* XXX not implemented */
-		return (0);
 
 	/*
 	 * The dynamic loader may be called from a thread, we have
@@ -365,12 +388,12 @@ reloc_plt_object(Obj_Entry *obj, const Elf_Rela *rela)
 	    8*((reloff < 0x8000) ? reloff : 0x8000) + 
 	    12*((reloff < 0x8000) ? 0 : (reloff - 0x8000));
 #else
+	/* 64-Bit ELF V2 ABI Specification, sec. 4.2.5.3. */
 	*where = (Elf_Addr)obj->glink + 4*reloff + 32;
 #endif
 
 	return (0);
 }
-
 
 /*
  * Process the PLT relocations.
@@ -385,6 +408,19 @@ reloc_plt(Obj_Entry *obj, int flags __unused, RtldLockState *lockstate __unused)
 		relalim = (const Elf_Rela *)((const char *)obj->pltrela +
 		    obj->pltrelasize);
 		for (rela = obj->pltrela;  rela < relalim;  rela++) {
+
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+			if (ELF_R_TYPE(rela->r_info) == R_PPC_IRELATIVE) {
+				dbg("ABI violation - found IRELATIVE in the PLT.");
+				obj->irelative = true;
+				continue;
+			}
+#endif
+			/*
+			 * PowerPC(64) .rela.plt is composed of an array of
+			 * R_PPC_JMP_SLOT relocations. Unlike other platforms,
+			 * this is the ONLY relocation type that is valid here.
+			 */
 			assert(ELF_R_TYPE(rela->r_info) == R_PPC_JMP_SLOT);
 
 			if (reloc_plt_object(obj, rela) < 0) {
@@ -395,7 +431,6 @@ reloc_plt(Obj_Entry *obj, int flags __unused, RtldLockState *lockstate __unused)
 
 	return (0);
 }
-
 
 /*
  * LD_BIND_NOW was set - force relocation for all jump slots
@@ -413,6 +448,9 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 	relalim = (const Elf_Rela *)((const char *)obj->pltrela +
 	    obj->pltrelasize);
 	for (rela = obj->pltrela; rela < relalim; rela++) {
+		/* This isn't actually a jump slot, ignore it. */
+		if (ELF_R_TYPE(rela->r_info) == R_PPC_IRELATIVE)
+			continue;
 		assert(ELF_R_TYPE(rela->r_info) == R_PPC_JMP_SLOT);
 		where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
@@ -432,6 +470,11 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 			*where = 0;
 #endif
 		} else {
+			if (ELF_ST_TYPE(def->st_info) == STT_GNU_IFUNC) {
+				/* LD_BIND_NOW, ifunc in shared lib.*/
+				obj->gnu_ifunc = true;
+				continue;
+			}
 			reloc_jmpslot(where, target, defobj, obj,
 			    (const Elf_Rel *) rela);
 		}
@@ -494,34 +537,119 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj __unuse
 		((struct funcdesc *)(wherep))->toc +=
 		    (Elf_Addr)defobj->relocbase;
 	}
-out:
 #else
 	dbg(" reloc_jmpslot: where=%p, target=%p", (void *)wherep,
 	    (void *)target);
 
-	if (!ld_bind_not)
+	assert(target >= (Elf_Addr)defobj->relocbase);
+
+	if (ld_bind_not)
+		goto out;
+
+	if (*wherep != target)
 		*wherep = target;
+
 #endif
+out:
 
 	return (target);
 }
 
 int
-reloc_iresolve(Obj_Entry *obj __unused,
-    struct Struct_RtldLockState *lockstate __unused)
+reloc_iresolve(Obj_Entry *obj,
+    struct Struct_RtldLockState *lockstate)
 {
-
+	/*
+	 * Since PLT slots on PowerPC64 are always R_PPC_JMP_SLOT,
+	 * R_PPC_IRELATIVE is in RELA.
+	 */
+#if !defined(_CALL_ELF) || _CALL_ELF == 1
+	(void)(obj);
+	(void)(lockstate);
 	/* XXX not implemented */
 	return (0);
+#else
+	const Elf_Rela *relalim;
+	const Elf_Rela *rela;
+	Elf_Addr *where, target, *ptr;
+
+	if (!obj->irelative)
+		return (0);
+
+	relalim = (const Elf_Rela *)((const char *)obj->rela + obj->relasize);
+	for (rela = obj->rela;  rela < relalim;  rela++) {
+		if (ELF_R_TYPE(rela->r_info) == R_PPC_IRELATIVE) {
+			ptr = (Elf_Addr *)(obj->relocbase + rela->r_addend);
+			where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
+
+			lock_release(rtld_bind_lock, lockstate);
+			target = call_ifunc_resolver(ptr);
+			wlock_acquire(rtld_bind_lock, lockstate);
+
+			*where = target;
+		}
+	}
+	/*
+	 * XXX Remove me when lld is fixed!
+	 * LLD currently makes illegal relocations in the PLT.
+	 */
+        relalim = (const Elf_Rela *)((const char *)obj->pltrela + obj->pltrelasize);
+        for (rela = obj->pltrela;  rela < relalim;  rela++) {
+                if (ELF_R_TYPE(rela->r_info) == R_PPC_IRELATIVE) {
+                        ptr = (Elf_Addr *)(obj->relocbase + rela->r_addend);
+                        where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
+
+                        lock_release(rtld_bind_lock, lockstate);
+                        target = call_ifunc_resolver(ptr);
+                        wlock_acquire(rtld_bind_lock, lockstate);
+
+                        *where = target;
+                }
+        }
+
+	obj->irelative = false;
+	return (0);
+#endif
 }
 
 int
 reloc_gnu_ifunc(Obj_Entry *obj __unused, int flags __unused,
     struct Struct_RtldLockState *lockstate __unused)
 {
-
+#if !defined(_CALL_ELF) || _CALL_ELF == 1
+	_rtld_error("reloc_gnu_ifunc(): Not implemented!");
 	/* XXX not implemented */
+	return (-1);
+#else
+
+	const Elf_Rela *relalim;
+	const Elf_Rela *rela;
+	Elf_Addr *where, target;
+	const Elf_Sym *def;
+	const Obj_Entry *defobj;
+
+	if (!obj->gnu_ifunc)
+		return (0);
+	relalim = (const Elf_Rela *)((const char *)obj->pltrela + obj->pltrelasize);
+	for (rela = obj->pltrela;  rela < relalim;  rela++) {
+		if (ELF_R_TYPE(rela->r_info) == R_PPC_JMP_SLOT) {
+			where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
+			def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
+			    SYMLOOK_IN_PLT | flags, NULL, lockstate);
+			if (def == NULL)
+				return (-1);
+			if (ELF_ST_TYPE(def->st_info) != STT_GNU_IFUNC)
+				continue;
+			lock_release(rtld_bind_lock, lockstate);
+			target = (Elf_Addr)rtld_resolve_ifunc(defobj, def);
+			wlock_acquire(rtld_bind_lock, lockstate);
+			reloc_jmpslot(where, target, defobj, obj,
+			    (const Elf_Rel *)rela);
+		}
+	}
+	obj->gnu_ifunc = false;
 	return (0);
+#endif
 }
 
 void
@@ -542,6 +670,27 @@ init_pltgot(Obj_Entry *obj)
 	memcpy(pltcall, _rtld_bind_start, sizeof(struct funcdesc));
 	pltcall[2] = (Elf_Addr)obj;
 #endif
+}
+
+/*
+ * Actual values are 32 bit.
+ */
+u_long cpu_features;
+u_long cpu_features2;
+
+void
+powerpc64_abi_variant_hook(Elf_Auxinfo** aux_info)
+{
+	/*
+	 * Since aux_info[] is easier to work with than aux, go ahead and
+	 * initialize cpu_features / cpu_features2.
+	 */
+	cpu_features = -1UL;
+	cpu_features2 = -1UL;
+	if (aux_info[AT_HWCAP] != NULL)
+		cpu_features = (uint32_t)aux_info[AT_HWCAP]->a_un.a_val;
+	if (aux_info[AT_HWCAP2] != NULL)
+		cpu_features2 = (uint32_t)aux_info[AT_HWCAP2]->a_un.a_val;
 }
 
 void
