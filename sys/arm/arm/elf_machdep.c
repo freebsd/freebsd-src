@@ -321,6 +321,13 @@ elf_cpu_load_file(linker_file_t lf)
 }
 
 int
+elf_cpu_parse_dynamic(linker_file_t lf __unused, Elf_Dyn *dynamic __unused)
+{
+
+	return (0);
+}
+
+int
 elf_cpu_unload_file(linker_file_t lf)
 {
 

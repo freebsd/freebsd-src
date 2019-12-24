@@ -611,7 +611,7 @@ parse_dynamic(elf_file_t ef)
 	ef->ddbstrtab = ef->strtab;
 	ef->ddbstrcnt = ef->strsz;
 
-	return (0);
+	return elf_cpu_parse_dynamic(&ef->lf, ef->dynamic);
 }
 
 #define	LS_PADDING	0x90909090

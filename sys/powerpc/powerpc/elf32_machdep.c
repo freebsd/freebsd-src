@@ -63,6 +63,7 @@
 
 extern const char *freebsd32_syscallnames[];
 static void ppc32_fixlimit(struct rlimit *rl, int which);
+static void ppc32_runtime_resolve(void);
 
 static SYSCTL_NODE(_compat, OID_AUTO, ppc32, CTLFLAG_RW, 0, "32-bit mode");
 
@@ -296,6 +297,20 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		*where = elf_relocaddr(lf, relocbase + addend);
 		break;
 
+	case R_PPC_JMP_SLOT: /* PLT jump slot entry */
+		/*
+		 * We currently only support Secure-PLT jump slots.
+		 * Given that we reject BSS-PLT modules during load, we
+		 * don't need to check again.
+		 * The method we are using here is equivilent to
+		 * LD_BIND_NOW.
+		 */
+		error = lookup(lf, symidx, 1, &addr);
+		if (error != 0)
+			return -1;
+		*where = elf_relocaddr(lf, addr + addend);
+		break;
+
 	default:
 		printf("kldload: unexpected relocation type %d\n",
 		    (int) rtype);
@@ -356,6 +371,7 @@ elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
 int
 elf_cpu_load_file(linker_file_t lf)
 {
+
 	/* Only sync the cache for non-kernel modules */
 	if (lf->id != 1)
 		__syncicache(lf->address, lf->size);
@@ -366,6 +382,47 @@ int
 elf_cpu_unload_file(linker_file_t lf __unused)
 {
 
+	return (0);
+}
+
+static void
+ppc32_runtime_resolve()
+{
+
+	/*
+	 * Since we don't support lazy binding, panic immediately if anyone
+	 * manages to call the runtime resolver.
+	 */
+	panic("kldload: Runtime resolver was called unexpectedly!");
+}
+
+int
+elf_cpu_parse_dynamic(linker_file_t lf, Elf_Dyn *dynamic)
+{
+	Elf_Dyn *dp;
+	bool has_plt = false;
+	bool secure_plt = false;
+	Elf_Addr *got;
+
+	for (dp = dynamic; dp->d_tag != DT_NULL; dp++) {
+		switch (dp->d_tag) {
+		case DT_PPC_GOT:
+			secure_plt = true;
+			got = (Elf_Addr *)(lf->address + dp->d_un.d_ptr);
+			/* Install runtime resolver canary. */
+			got[1] = (Elf_Addr)ppc32_runtime_resolve;
+			got[2] = (Elf_Addr)0;
+			break;
+		case DT_PLTGOT:
+			has_plt = true;
+			break;
+		}
+	}
+
+	if (has_plt && !secure_plt) {
+		printf("kldload: BSS-PLT modules are not supported.\n");
+		return (-1);
+	}
 	return (0);
 }
 #endif
