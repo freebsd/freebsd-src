@@ -179,6 +179,24 @@ int bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		       bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
 		       void *lockfuncarg, bus_dma_tag_t *dmat);
 
+/* Functions for creating and cloning tags via a template */
+typedef struct {
+	bus_dma_tag_t		parent;
+	bus_size_t		alignment;
+	bus_addr_t		boundary;
+	bus_addr_t		lowaddr;
+	bus_addr_t		highaddr;
+	bus_size_t		maxsize;
+	int			nsegments;
+	bus_size_t		maxsegsize;
+	int			flags;
+	bus_dma_lock_t		*lockfunc;
+	void			*lockfuncarg;
+} bus_dma_tag_template_t;
+void bus_dma_template_init(bus_dma_tag_template_t *t, bus_dma_tag_t parent);
+int bus_dma_template_tag(bus_dma_tag_template_t *t, bus_dma_tag_t *dmat);
+void bus_dma_template_clone(bus_dma_tag_template_t *t, bus_dma_tag_t dmat);
+
 /*
  * Set the memory domain to be used for allocations.
  *
