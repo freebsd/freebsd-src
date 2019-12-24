@@ -735,6 +735,7 @@ allocate_map(bus_dma_tag_t dmat, int mflags)
 		return (NULL);
 	}
 	map->segments = (bus_dma_segment_t *)((uintptr_t)map + mapsize);
+	STAILQ_INIT(&map->bpages);
 	return (map);
 }
 
