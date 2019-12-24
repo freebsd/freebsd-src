@@ -220,6 +220,7 @@ mpr_pci_probe(device_t dev)
 static int
 mpr_pci_attach(device_t dev)
 {
+	bus_dma_tag_template_t t;
 	struct mpr_softc *sc;
 	struct mpr_ident *m;
 	int error, i;
@@ -267,17 +268,8 @@ mpr_pci_attach(device_t dev)
 	sc->mpr_bhandle = rman_get_bushandle(sc->mpr_regs_resource);
 
 	/* Allocate the parent DMA tag */
-	if (bus_dma_tag_create( bus_get_dma_tag(dev),	/* parent */
-				1, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR,	/* lowaddr */
-				BUS_SPACE_MAXADDR,	/* highaddr */
-				NULL, NULL,		/* filter, filterarg */
-				BUS_SPACE_MAXSIZE_32BIT,/* maxsize */
-				BUS_SPACE_UNRESTRICTED,	/* nsegments */
-				BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
-				0,			/* flags */
-				NULL, NULL,		/* lockfunc, lockarg */
-				&sc->mpr_parent_dmat)) {
+	bus_dma_template_init(&t, bus_get_dma_tag(dev));
+	if (bus_dma_template_tag(&t, &sc->mpr_parent_dmat)) {
 		mpr_printf(sc, "Cannot allocate parent DMA tag\n");
 		mpr_pci_free(sc);
 		return (ENOMEM);
