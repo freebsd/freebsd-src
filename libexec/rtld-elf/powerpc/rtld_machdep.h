@@ -53,8 +53,13 @@ void reloc_non_plt_self(Elf_Dyn *dynp, Elf_Addr relocbase);
 #define call_init_pointer(obj, target) \
 	(((InitArrFunc)(target))(main_argc, main_argv, environ))
 
+extern u_long cpu_features; /* r3 */
+extern u_long cpu_features2; /* r4 */
+/* r5-10: ifunc resolver parameters reserved for future assignment. */
 #define	call_ifunc_resolver(ptr) \
-	(((Elf_Addr (*)(void))ptr)())
+	(((Elf_Addr (*)(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, \
+	    uint32_t, uint32_t, uint32_t))ptr)((uint32_t)cpu_features, \
+	    (uint32_t)cpu_features2, 0, 0, 0, 0, 0, 0))
 
 /*
  * PLT functions. Not really correct prototypes, but the
@@ -91,6 +96,7 @@ extern void *__tls_get_addr(tls_index* ti);
 #define	RTLD_DEFAULT_STACK_PF_EXEC	PF_X
 #define	RTLD_DEFAULT_STACK_EXEC		PROT_EXEC
 
-#define md_abi_variant_hook(x)
+extern void powerpc_abi_variant_hook(Elf_Auxinfo **);
+#define md_abi_variant_hook(x) powerpc_abi_variant_hook(x)
 
 #endif
