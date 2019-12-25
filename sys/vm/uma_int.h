@@ -218,6 +218,39 @@ typedef struct uma_cache * uma_cache_t;
 LIST_HEAD(slabhead, uma_slab);
 
 /*
+ * The cache structure pads perfectly into 64 bytes so we use spare
+ * bits from the embedded cache buckets to store information from the zone
+ * and keep all fast-path allocations accessing a single per-cpu line.
+ */
+static inline void
+cache_set_uz_flags(uma_cache_t cache, uint32_t flags)
+{
+
+	cache->uc_freebucket.ucb_spare = flags;
+}
+
+static inline void
+cache_set_uz_size(uma_cache_t cache, uint32_t size)
+{
+
+	cache->uc_allocbucket.ucb_spare = size;
+}
+
+static inline uint32_t
+cache_uz_flags(uma_cache_t cache)
+{
+
+	return (cache->uc_freebucket.ucb_spare);
+}
+ 
+static inline uint32_t
+cache_uz_size(uma_cache_t cache)
+{
+
+	return (cache->uc_allocbucket.ucb_spare);
+}
+ 
+/*
  * Per-domain slab lists.  Embedded in the kegs.
  */
 struct uma_domain {
@@ -442,6 +475,8 @@ struct uma_zone {
 /*
  * These flags must not overlap with the UMA_ZONE flags specified in uma.h.
  */
+#define	UMA_ZFLAG_CTORDTOR	0x01000000	/* Zone has ctor/dtor set. */
+#define	UMA_ZFLAG_LIMIT		0x02000000	/* Zone has limit set. */
 #define	UMA_ZFLAG_CACHE		0x04000000	/* uma_zcache_create()d it */
 #define	UMA_ZFLAG_RECLAIMING	0x08000000	/* Running zone_reclaim(). */
 #define	UMA_ZFLAG_BUCKET	0x10000000	/* Bucket zone. */
@@ -459,6 +494,8 @@ struct uma_zone {
     "\35BUCKET"				\
     "\34RECLAIMING"			\
     "\33CACHE"				\
+    "\32LIMIT"				\
+    "\31CTORDTOR"			\
     "\22MINBUCKET"			\
     "\21NUMA"				\
     "\20PCPU"				\
