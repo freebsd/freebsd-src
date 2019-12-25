@@ -3084,6 +3084,8 @@ restart:
 			return (slab);
 		}
 		KEG_LOCK(keg);
+		if (!rr && (flags & M_WAITOK) == 0)
+			break;
 		if (rr && vm_domainset_iter_policy(&di, &domain) != 0) {
 			if ((flags & M_WAITOK) != 0) {
 				KEG_UNLOCK(keg);
