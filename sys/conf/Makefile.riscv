@@ -28,10 +28,10 @@ S=	../../..
 
 INCLUDES+= -I$S/contrib/libfdt
 
-SYSTEM_LD= @${LD} -N -m ${LD_EMULATION} -Bdynamic -T ${LDSCRIPT} ${_LDFLAGS} \
-	--no-warn-mismatch --warn-common --export-dynamic \
-	--dynamic-linker /red/herring \
-	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
+# XXX Make text segments writable.  This has historically been set for
+# riscv, but some preliminary testing shows it may not be needed; this
+# can likely be removed after some more testing.
+LDFLAGS+= -N
 
 .if !empty(DDB_ENABLED)
 CFLAGS += -fno-omit-frame-pointer -fno-optimize-sibling-calls
