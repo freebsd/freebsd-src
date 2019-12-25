@@ -222,7 +222,7 @@ enum kbdc_device_ivar {
 	KBDC_IVAR_COMPATID, 
 };
 
-typedef caddr_t KBDC;
+typedef atkbdc_softc_t *KBDC;
 
 #define KBDC_RID_KBD	0
 #define KBDC_RID_AUX	1
