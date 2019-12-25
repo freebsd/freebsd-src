@@ -849,6 +849,8 @@ e6000sw_setport(device_t dev, etherswitch_port_t *p)
 	if (!e6000sw_is_portenabled(sc, p->es_port))
 		return (0);
 
+	E6000SW_LOCK(sc);
+
 	/* Port flags. */
 	reg = e6000sw_readreg(sc, REG_PORT(sc, p->es_port), PORT_CONTROL2);
 	if (p->es_flags & ETHERSWITCH_PORT_DROPTAGGED)
@@ -862,7 +864,6 @@ e6000sw_setport(device_t dev, etherswitch_port_t *p)
 	e6000sw_writereg(sc, REG_PORT(sc, p->es_port), PORT_CONTROL2, reg);
 
 	err = 0;
-	E6000SW_LOCK(sc);
 	if (p->es_pvid != 0)
 		e6000sw_set_pvid(sc, p->es_port, p->es_pvid);
 	if (e6000sw_is_phyport(sc, p->es_port)) {
