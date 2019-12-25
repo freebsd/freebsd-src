@@ -36,7 +36,7 @@
  * a library of one function for this, since it is only currently used by
  * mount_newnfs.c.
  */
-static const char *nfsv4_errstr[48] = {
+static const char *nfsv4_errstr[NFSERR_XATTR2BIG - 10000] = {
 	"Illegal filehandle",
 	"Undefined NFSv4 err",
 	"READDIR cookie is stale",
@@ -57,7 +57,7 @@ static const char *nfsv4_errstr[48] = {
 	"resource exhaustion",
 	"filesystem relocated",
 	"current FH is not set",
-	"minor vers not supp",
+	"minor version not supported",
 	"server has rebooted",
 	"server has rebooted",
 	"state is out of sync",
@@ -85,6 +85,54 @@ static const char *nfsv4_errstr[48] = {
 	"open file blocks op",
 	"lockowner state revoked",
 	"callback path down"
+	"Bad IO mode",
+	"Bad layout",
+	"Bad session digest",
+	"Bad session",
+	"Bad slot",
+	"Complete already",
+	"Not bound to session",
+	"Delegation already wanted",
+	"Back channel busy",
+	"Layout try later",
+	"Layout unavailable",
+	"No matching layout",
+	"Recall conflict",
+	"Unknown layout type",
+	"Sequence misordered",
+	"Sequence position",
+	"Request too big",
+	"Reply too big",
+	"Reply too big to cache",
+	"Retry uncached reply",
+	"Unsafe compound",
+	"Too many operations",
+	"Operation not in session",
+	"Hash algorithm unsupported",
+	"Unknown error",
+	"ClientID busy",
+	"pNFS IO hole",
+	"Sequence false retry",
+	"Bad high slot",
+	"Dead session",
+	"Encrypt algorithm unsupported",
+	"pNFS no layout",
+	"Not only operation",
+	"Wrong credential",
+	"Wrong type",
+	"Directory delegation unavailable",
+	"Reject delegation",
+	"Return conflict",
+	"Delegation revoked",
+	"Partner not supported",
+	"Partner no auth",
+	"Union not supported",
+	"Offload denied",
+	"Wrong LFS",
+	"Bad label",
+	"Offload no request",
+	"No extended attribute",
+	"Extended attribute too big",
 };
 
 /*
@@ -95,7 +143,7 @@ static const char *
 nfsv4_geterrstr(int errval)
 {
 
-	if (errval < NFSERR_BADHANDLE || errval > NFSERR_CBPATHDOWN)
+	if (errval < NFSERR_BADHANDLE || errval > NFSERR_XATTR2BIG)
 		return (NULL);
 	return (nfsv4_errstr[errval - NFSERR_BADHANDLE]);
 }
