@@ -171,13 +171,14 @@ struct uma_hash {
 #if defined(__amd64__) || defined(__powerpc64__)
 #define UMA_ALIGN	__aligned(128)
 #else
-#define UMA_ALIGN
+#define UMA_ALIGN	__aligned(CACHE_LINE_SIZE)
 #endif
 
 /*
- * Structures for per cpu queues.
+ * The uma_bucket structure is used to queue and manage buckets divorced
+ * from per-cpu caches.  They are loaded into uma_cache_bucket structures
+ * for use.
  */
-
 struct uma_bucket {
 	TAILQ_ENTRY(uma_bucket)	ub_link;	/* Link into the zone */
 	int16_t	ub_cnt;				/* Count of items in bucket. */
@@ -187,12 +188,29 @@ struct uma_bucket {
 
 typedef struct uma_bucket * uma_bucket_t;
 
+/*
+ * The uma_cache_bucket structure is statically allocated on each per-cpu
+ * cache.  Its use reduces branches and cache misses in the fast path.
+ */
+struct uma_cache_bucket {
+	uma_bucket_t	ucb_bucket;
+	int16_t		ucb_cnt;
+	int16_t		ucb_entries;
+	uint32_t	ucb_spare;
+};
+
+typedef struct uma_cache_bucket * uma_cache_bucket_t;
+
+/*
+ * The uma_cache structure is allocated for each cpu for every zone
+ * type.  This optimizes synchronization out of the allocator fast path.
+ */
 struct uma_cache {
-	uma_bucket_t	uc_freebucket;	/* Bucket we're freeing to */
-	uma_bucket_t	uc_allocbucket;	/* Bucket to allocate from */
-	uma_bucket_t	uc_crossbucket;	/* cross domain bucket */
-	uint64_t	uc_allocs;	/* Count of allocations */
-	uint64_t	uc_frees;	/* Count of frees */
+	struct uma_cache_bucket	uc_freebucket;	/* Bucket we're freeing to */
+	struct uma_cache_bucket	uc_allocbucket;	/* Bucket to allocate from */
+	struct uma_cache_bucket	uc_crossbucket;	/* cross domain bucket */
+	uint64_t		uc_allocs;	/* Count of allocations */
+	uint64_t		uc_frees;	/* Count of frees */
 } UMA_ALIGN;
 
 typedef struct uma_cache * uma_cache_t;
@@ -200,7 +218,7 @@ typedef struct uma_cache * uma_cache_t;
 LIST_HEAD(slabhead, uma_slab);
 
 /*
- * Per-domain memory list.  Embedded in the kegs.
+ * Per-domain slab lists.  Embedded in the kegs.
  */
 struct uma_domain {
 	struct slabhead	ud_part_slab;	/* partially allocated slabs */

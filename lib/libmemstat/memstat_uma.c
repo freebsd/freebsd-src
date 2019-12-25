@@ -438,28 +438,9 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 				mtp->mt_numallocs += ucp->uc_allocs;
 				mtp->mt_numfrees += ucp->uc_frees;
 
-				if (ucp->uc_allocbucket != NULL) {
-					ret = kread(kvm, ucp->uc_allocbucket,
-					    &ub, sizeof(ub), 0);
-					if (ret != 0) {
-						free(ucp_array);
-						_memstat_mtl_empty(list);
-						list->mtl_error = ret;
-						return (-1);
-					}
-					mtp->mt_free += ub.ub_cnt;
-				}
-				if (ucp->uc_freebucket != NULL) {
-					ret = kread(kvm, ucp->uc_freebucket,
-					    &ub, sizeof(ub), 0);
-					if (ret != 0) {
-						free(ucp_array);
-						_memstat_mtl_empty(list);
-						list->mtl_error = ret;
-						return (-1);
-					}
-					mtp->mt_free += ub.ub_cnt;
-				}
+				mtp->mt_free += ucp->uc_allocbucket.ucb_cnt;
+				mtp->mt_free += ucp->uc_freebucket.ucb_cnt;
+				mtp->mt_free += ucp->uc_crossbucket.ucb_cnt;
 			}
 skip_percpu:
 			mtp->mt_size = kz.uk_size;
