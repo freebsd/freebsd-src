@@ -34,21 +34,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/libkern.h>
-
-#define NSHUFF 50       /* to drop some "seed -> 1st value" linearity */
+#include <sys/systm.h>
 
 static u_long randseed = 937186357; /* after srandom(1), NSHUFF counted */
-
-void
-srandom(u_long seed)
-{
-	int i;
-
-	randseed = seed;
-	for (i = 0; i < NSHUFF; i++)
-		(void)random();
-}
 
 /*
  * Pseudo-random number generator for perturbing the profiling clock,
@@ -56,9 +46,18 @@ srandom(u_long seed)
  * [0, 2^31 - 1].
  */
 u_long
-random()
+random(void)
 {
+	static bool warned = false;
+
 	long x, hi, lo, t;
+
+	/* Warn only once, or it gets very spammy. */
+	if (!warned) {
+		gone_in(13,
+		    "random(9) is the obsolete Park-Miller LCG from 1988");
+		warned = true;
+	}
 
 	/*
 	 * Compute x[n + 1] = (7^5 * x[n]) mod (2^31 - 1).
