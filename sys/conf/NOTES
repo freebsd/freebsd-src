@@ -2322,10 +2322,10 @@ device		jedec_dimm
 # iicbb	generic I2C bit-banging code (needed by lpbb, bktr)
 #
 device		iicbus		# Bus support, required for ic/iic/iicsmb below.
-device		iicbb
+device		iicbb		# bitbang driver; implements i2c on a pair of gpio pins
 
 device		ic
-device		iic
+device		iic		# userland access to i2c slave devices via ioctl(8)
 device		iicsmb		# smb over i2c bridge
 device		iicoc		# OpenCores I2C controller support
 
