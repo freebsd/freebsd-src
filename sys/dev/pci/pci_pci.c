@@ -1174,6 +1174,7 @@ pcib_pcie_intr_hotplug(void *arg)
 
 	sc = arg;
 	dev = sc->dev;
+	PCIB_HP_LOCK(sc);
 	old_slot_sta = sc->pcie_slot_sta;
 	sc->pcie_slot_sta = pcie_read_config(dev, PCIER_SLOT_STA, 2);
 
@@ -1221,6 +1222,7 @@ pcib_pcie_intr_hotplug(void *arg)
 	}
 
 	pcib_pcie_hotplug_update(sc, 0, 0, true);
+	PCIB_HP_UNLOCK(sc);
 }
 
 static void
@@ -1230,7 +1232,7 @@ pcib_pcie_hotplug_task(void *context, int pending)
 	device_t dev;
 
 	sc = context;
-	mtx_lock(&Giant);
+	PCIB_HP_LOCK(sc);
 	dev = sc->dev;
 	if (pcib_hotplug_present(sc) != 0) {
 		if (sc->child == NULL) {
@@ -1243,7 +1245,7 @@ pcib_pcie_hotplug_task(void *context, int pending)
 				sc->child = NULL;
 		}
 	}
-	mtx_unlock(&Giant);
+	PCIB_HP_UNLOCK(sc);
 }
 
 static void
@@ -1252,7 +1254,7 @@ pcib_pcie_ab_timeout(void *arg)
 	struct pcib_softc *sc;
 
 	sc = arg;
-	mtx_assert(&Giant, MA_OWNED);
+	PCIB_HP_LOCK_ASSERT(sc);
 	if (sc->flags & PCIB_DETACH_PENDING) {
 		sc->flags |= PCIB_DETACHING;
 		sc->flags &= ~PCIB_DETACH_PENDING;
@@ -1269,7 +1271,7 @@ pcib_pcie_cc_timeout(void *arg)
 
 	sc = arg;
 	dev = sc->dev;
-	mtx_assert(&Giant, MA_OWNED);
+	PCIB_HP_LOCK_ASSERT(sc);
 	sta = pcie_read_config(dev, PCIER_SLOT_STA, 2);
 	if (!(sta & PCIEM_SLOT_STA_CC)) {
 		device_printf(dev, "HotPlug Command Timed Out\n");
@@ -1290,7 +1292,7 @@ pcib_pcie_dll_timeout(void *arg)
 
 	sc = arg;
 	dev = sc->dev;
-	mtx_assert(&Giant, MA_OWNED);
+	PCIB_HP_LOCK_ASSERT(sc);
 	sta = pcie_read_config(dev, PCIER_LINK_STA, 2);
 	if (!(sta & PCIEM_LINK_STA_DL_ACTIVE)) {
 		device_printf(dev,
@@ -1345,7 +1347,7 @@ pcib_alloc_pcie_irq(struct pcib_softc *sc)
 		return (ENXIO);
 	}
 
-	error = bus_setup_intr(dev, sc->pcie_irq, INTR_TYPE_MISC,
+	error = bus_setup_intr(dev, sc->pcie_irq, INTR_TYPE_MISC|INTR_MPSAFE,
 	    NULL, pcib_pcie_intr_hotplug, sc, &sc->pcie_ihand);
 	if (error) {
 		device_printf(dev, "Failed to setup PCI-e interrupt handler\n");
@@ -1384,6 +1386,7 @@ pcib_setup_hotplug(struct pcib_softc *sc)
 	callout_init(&sc->pcie_cc_timer, 0);
 	callout_init(&sc->pcie_dll_timer, 0);
 	TASK_INIT(&sc->pcie_hp_task, 0, pcib_pcie_hotplug_task, sc);
+	sc->pcie_hp_lock = &Giant;
 
 	/* Allocate IRQ. */
 	if (pcib_alloc_pcie_irq(sc) != 0)
