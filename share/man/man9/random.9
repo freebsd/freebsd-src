@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\" "
-.Dd April 16, 2019
+.Dd December 26, 2019
 .Dt RANDOM 9
 .Os
 .Sh NAME
@@ -36,8 +36,7 @@
 .Nm is_random_seeded ,
 .Nm random ,
 .Nm read_random ,
-.Nm read_random_uio ,
-.Nm srandom
+.Nm read_random_uio
 .Nd supply pseudo-random numbers
 .Sh SYNOPSIS
 .In sys/libkern.h
@@ -57,8 +56,6 @@
 .Fn read_random_uio "struct uio *uio" "bool nonblock"
 .Ss LEGACY ROUTINES
 .In sys/libkern.h
-.Ft void
-.Fn srandom "u_long seed"
 .Ft u_long
 .Fn random "void"
 .Sh DESCRIPTION
@@ -134,19 +131,16 @@ Otherwise, this function may block interruptibly until the random device is seed
 If the function is interrupted before the random device is seeded, no data is
 returned.
 .Pp
-The legacy
-.Fn random
-function will produce a sequence of numbers that can be duplicated by calling
-.Fn srandom
-with some constant as the
-.Fa seed .
-The legacy
-.Fn srandom
-function may be called with any
-.Fa seed
-value.
+The deprecated
+.Xr random 9
+function will produce a sequence of pseudorandom numbers using a similar weak
+linear congruential generator as
+.Xr rand 3
+(the 1988 Park-Miller LCG).
+It is obsolete and scheduled to be removed in
+.Fx 13.0 .
 It is strongly advised that the
-.Fn random
+.Xr random 9
 function not be used to generate random numbers.
 See
 .Sx SECURITY CONSIDERATIONS .
@@ -173,23 +167,6 @@ the number of bytes placed in
 .Fn read_random_uio
 returns zero when successful,
 otherwise an error code is returned.
-.Pp
-The legacy
-.Fn random
-function uses
-a non-linear additive feedback random number generator
-employing a default table
-of size 31
-containing long integers
-to return successive pseudo-random
-numbers in the range from 0 to
-.if t 2\u\s731\s10\d\(mi1.
-.if n (2**31)\(mi1.
-The period of this random number generator
-is very large,
-approximately
-.if t 16\(mu(2\u\s731\s10\d\(mi1).
-.if n 16*((2**31)\(mi1).
 .Sh ERRORS
 .Fn read_random_uio
 may fail if:
@@ -212,8 +189,6 @@ wrote
 .Sh SECURITY CONSIDERATIONS
 Do not use
 .Fn random
-or
-.Fn srandom
 in new code.
 .Pp
 It is important to remember that the

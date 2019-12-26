@@ -859,7 +859,6 @@ oce_config_nic_rss(POCE_SOFTC sc, uint32_t if_id, uint16_t enable_rss)
 
 	fwcmd->params.req.if_id = LE_32(if_id);
 
-	srandom(arc4random());	/* random entropy seed */
 	read_random(fwcmd->params.req.hash, sizeof(fwcmd->params.req.hash));
 	
 	rc = oce_rss_itbl_init(sc, fwcmd);
