@@ -490,8 +490,6 @@ hv_kbd_intr(hv_kbd_sc *sc)
 int
 hvkbd_driver_load(module_t mod, int what, void *arg)
 {
-
-#ifdef KLD_MODULE
 	switch (what) {
 	case MOD_LOAD:
 		kbd_add_driver(&hvkbd_kbd_driver);
@@ -500,7 +498,6 @@ hvkbd_driver_load(module_t mod, int what, void *arg)
 		kbd_delete_driver(&hvkbd_kbd_driver);
 		break;
 	}
-#endif
 	return (0);
 }
 
