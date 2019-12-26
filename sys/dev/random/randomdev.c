@@ -59,17 +59,17 @@ __FBSDID("$FreeBSD$");
 
 #define	RANDOM_UNIT	0
 
+/*
+ * In loadable random, the core randomdev.c / random(9) routines have static
+ * visibility and an alternative name to avoid conflicting with the function
+ * pointers of the real names in the core kernel.  random_alg_context_init
+ * installs pointers to the loadable static names into the core kernel's
+ * function pointers at SI_SUB_RANDOM:SI_ORDER_SECOND.
+ */
 #if defined(RANDOM_LOADABLE)
-#define READ_RANDOM_UIO	_read_random_uio
-#define READ_RANDOM	_read_random
-#define IS_RANDOM_SEEDED	_is_random_seeded
-static int READ_RANDOM_UIO(struct uio *, bool);
-static void READ_RANDOM(void *, u_int);
-static bool IS_RANDOM_SEEDED(void);
-#else
-#define READ_RANDOM_UIO	read_random_uio
-#define READ_RANDOM	read_random
-#define IS_RANDOM_SEEDED	is_random_seeded
+static int (read_random_uio)(struct uio *, bool);
+static void (read_random)(void *, u_int);
+static bool (is_random_seeded)(void);
 #endif
 
 static d_read_t randomdev_read;
@@ -89,30 +89,17 @@ static struct cdevsw random_cdevsw = {
 /* For use with make_dev(9)/destroy_dev(9). */
 static struct cdev *random_dev;
 
-static void
-random_alg_context_ra_init_alg(void *data)
-{
-
-	p_random_alg_context = &random_alg_context;
-	p_random_alg_context->ra_init_alg(data);
 #if defined(RANDOM_LOADABLE)
-	random_infra_init(READ_RANDOM_UIO, READ_RANDOM, IS_RANDOM_SEEDED);
-#endif
-}
-
 static void
-random_alg_context_ra_deinit_alg(void *data)
+random_alg_context_init(void *dummy __unused)
 {
-
-#if defined(RANDOM_LOADABLE)
-	random_infra_uninit();
-#endif
-	p_random_alg_context->ra_deinit_alg(data);
-	p_random_alg_context = NULL;
+	_read_random_uio = (read_random_uio);
+	_read_random = (read_random);
+	_is_random_seeded = (is_random_seeded);
 }
-
-SYSINIT(random_device, SI_SUB_RANDOM, SI_ORDER_THIRD, random_alg_context_ra_init_alg, NULL);
-SYSUNINIT(random_device, SI_SUB_RANDOM, SI_ORDER_THIRD, random_alg_context_ra_deinit_alg, NULL);
+SYSINIT(random_device, SI_SUB_RANDOM, SI_ORDER_SECOND, random_alg_context_init,
+    NULL);
+#endif
 
 static struct selinfo rsel;
 
@@ -124,7 +111,7 @@ static int
 randomdev_read(struct cdev *dev __unused, struct uio *uio, int flags)
 {
 
-	return (READ_RANDOM_UIO(uio, (flags & O_NONBLOCK) != 0));
+	return ((read_random_uio)(uio, (flags & O_NONBLOCK) != 0));
 }
 
 /*
@@ -154,7 +141,7 @@ randomdev_wait_until_seeded(bool interruptible)
 		if (spamcount == 0)
 			printf("random: %s unblock wait\n", __func__);
 		spamcount = (spamcount + 1) % 100;
-		error = tsleep(&random_alg_context, slpflags, "randseed",
+		error = tsleep(p_random_alg_context, slpflags, "randseed",
 		    hz / 10);
 		if (error == ERESTART || error == EINTR) {
 			KASSERT(interruptible,
@@ -170,7 +157,7 @@ randomdev_wait_until_seeded(bool interruptible)
 }
 
 int
-READ_RANDOM_UIO(struct uio *uio, bool nonblock)
+(read_random_uio)(struct uio *uio, bool nonblock)
 {
 	/* 16 MiB takes about 0.08 s CPU time on my 2017 AMD Zen CPU */
 #define SIGCHK_PERIOD (16 * 1024 * 1024)
@@ -238,7 +225,7 @@ READ_RANDOM_UIO(struct uio *uio, bool nonblock)
 		 */
 		if (error == 0 && uio->uio_resid != 0 &&
 		    total_read % sigchk_period == 0) {
-			error = tsleep_sbt(&random_alg_context, PCATCH,
+			error = tsleep_sbt(p_random_alg_context, PCATCH,
 			    "randrd", SBT_1NS, 0, C_HARDCLOCK);
 			/* Squash tsleep timeout condition */
 			if (error == EWOULDBLOCK)
@@ -271,7 +258,7 @@ READ_RANDOM_UIO(struct uio *uio, bool nonblock)
  * 'kern.random.initial_seeding.read_random_bypassed_before_seeding'.
  */
 void
-READ_RANDOM(void *random_buf, u_int len)
+(read_random)(void *random_buf, u_int len)
 {
 
 	KASSERT(random_buf != NULL, ("No suitable random buffer in %s", __func__));
@@ -305,7 +292,7 @@ READ_RANDOM(void *random_buf, u_int len)
 }
 
 bool
-IS_RANDOM_SEEDED(void)
+(is_random_seeded)(void)
 {
 	return (p_random_alg_context->ra_seeded());
 }
@@ -356,7 +343,7 @@ randomdev_write(struct cdev *dev __unused, struct uio *uio, int flags __unused)
 		if (error)
 			break;
 		randomdev_accumulate(random_buf, c);
-		tsleep(&random_alg_context, 0, "randwr", hz/10);
+		tsleep(p_random_alg_context, 0, "randwr", hz/10);
 	}
 	if (nbytes != uio->uio_resid && (error == ERESTART || error == EINTR))
 		/* Partial write, not error. */
@@ -385,7 +372,7 @@ randomdev_unblock(void)
 {
 
 	selwakeuppri(&rsel, PUSER);
-	wakeup(&random_alg_context);
+	wakeup(p_random_alg_context);
 	printf("random: unblocking device.\n");
 	/* Do random(9) a favour while we are about it. */
 	(void)atomic_cmpset_int(&arc4rand_iniseed_state, ARC4_ENTR_NONE, ARC4_ENTR_HAVE);
@@ -424,7 +411,7 @@ randomdev_modevent(module_t mod __unused, int type, void *data __unused)
 		make_dev_alias(random_dev, "urandom"); /* compatibility */
 		break;
 	case MOD_UNLOAD:
-		destroy_dev(random_dev);
+		error = EBUSY;
 		break;
 	case MOD_SHUTDOWN:
 		break;

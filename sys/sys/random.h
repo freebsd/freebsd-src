@@ -37,9 +37,35 @@
 
 struct uio;
 
+/*
+ * In the loadable random world, there are set of dangling pointers left in the
+ * core kernel:
+ *   * read_random, read_random_uio, is_random_seeded are function pointers,
+ *     rather than functions.
+ *   * p_random_alg_context is a true pointer in loadable random kernels.
+ *
+ * These are initialized at SI_SUB_RANDOM:SI_ORDER_SECOND during boot.  The
+ * read-type pointers are initialized by random_alg_context_init() in
+ * randomdev.c and p_random_alg_context in the algorithm, e.g., fortuna.c's
+ * random_fortuna_init_alg().  The nice thing about function pointers is they
+ * have a similar calling convention to ordinary functions.
+ *
+ * (In !loadable, the read_random, etc, routines are just plain functions;
+ * p_random_alg_context is a macro for the public visibility
+ * &random_alg_context.)
+ */
+#if defined(RANDOM_LOADABLE)
+extern void (*_read_random)(void *, u_int);
+extern int (*_read_random_uio)(struct uio *, bool);
+extern bool (*_is_random_seeded)(void);
+#define	read_random(a, b)	(*_read_random)(a, b)
+#define	read_random_uio(a, b)	(*_read_random_uio)(a, b)
+#define	is_random_seeded()	(*_is_random_seeded)()
+#else
 void read_random(void *, u_int);
 int read_random_uio(struct uio *, bool);
 bool is_random_seeded(void);
+#endif
 
 /*
  * Note: if you add or remove members of random_entropy_source, remember to

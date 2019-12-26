@@ -35,11 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/random.h>
 #include <sys/sysctl.h>
 
-#if defined(RANDOM_LOADABLE)
-#include <sys/lock.h>
-#include <sys/sx.h>
-#endif
-
 #include <dev/random/randomdev.h>
 
 /* Set up the sysctl root node for the entropy device */
@@ -102,107 +97,8 @@ SYSCTL_BOOL(_kern_random_initial_seeding, OID_AUTO,
 MALLOC_DEFINE(M_ENTROPY, "entropy", "Entropy harvesting buffers and data structures");
 
 #if defined(RANDOM_LOADABLE)
-struct random_algorithm *p_random_alg_context = NULL;
-#else /* !defined(RANDOM_LOADABLE) */
-struct random_algorithm *p_random_alg_context = &random_alg_context;
-#endif /* defined(RANDOM_LOADABLE) */
-
-#if defined(RANDOM_LOADABLE)
-
-static void
-null_read_random(void *dummy __unused, u_int dummy2 __unused)
-{
-	panic("%s: no random module is loaded", __func__);
-}
-
-static bool
-null_is_random_seeded(void)
-{
-	return (false);
-}
-
-struct random_readers {
-	int	(*read_random_uio)(struct uio *, bool);
-	void	(*read_random)(void *, u_int);
-	bool	(*is_random_seeded)(void);
-} random_reader_context = {
-	(int (*)(struct uio *, bool))nullop,
-	null_read_random,
-	null_is_random_seeded,
-};
-
-struct sx randomdev_config_lock;
-
-static void
-random_infra_sysinit(void *dummy __unused)
-{
-
-	RANDOM_CONFIG_INIT_LOCK();
-}
-SYSINIT(random_device_h_init, SI_SUB_RANDOM, SI_ORDER_FIRST, random_infra_sysinit, NULL);
-
-void
-random_infra_init(int (*p_random_read_uio)(struct uio *, bool),
-    void (*p_random_read)(void *, u_int),
-    bool (*p_is_random_seeded)(void))
-{
-
-	RANDOM_CONFIG_X_LOCK();
-	random_reader_context.read_random_uio = p_random_read_uio;
-	random_reader_context.read_random = p_random_read;
-	random_reader_context.is_random_seeded = p_is_random_seeded;
-	RANDOM_CONFIG_X_UNLOCK();
-}
-
-void
-random_infra_uninit(void)
-{
-
-	RANDOM_CONFIG_X_LOCK();
-	random_reader_context.read_random_uio = (int (*)(struct uio *, bool))nullop;
-	random_reader_context.read_random = null_read_random;
-	random_reader_context.is_random_seeded = null_is_random_seeded;
-	RANDOM_CONFIG_X_UNLOCK();
-}
-
-static void
-random_infra_sysuninit(void *dummy __unused)
-{
-
-	RANDOM_CONFIG_DEINIT_LOCK();
-}
-SYSUNINIT(random_device_h_init, SI_SUB_RANDOM, SI_ORDER_FIRST, random_infra_sysuninit, NULL);
-
-int
-read_random_uio(struct uio *uio, bool nonblock)
-{
-	int retval;
-
-	RANDOM_CONFIG_S_LOCK();
-	retval = random_reader_context.read_random_uio(uio, nonblock);
-	RANDOM_CONFIG_S_UNLOCK();
-	return (retval);
-}
-
-void
-read_random(void *buf, u_int len)
-{
-
-	RANDOM_CONFIG_S_LOCK();
-	random_reader_context.read_random(buf, len);
-	RANDOM_CONFIG_S_UNLOCK();
-}
-
-bool
-is_random_seeded(void)
-{
-	bool result;
-
-	RANDOM_CONFIG_S_LOCK();
-	result = random_reader_context.is_random_seeded();
-	RANDOM_CONFIG_S_UNLOCK();
-	return (result);
-}
-
-
+const struct random_algorithm *p_random_alg_context;
+void (*_read_random)(void *, u_int);
+int (*_read_random_uio)(struct uio *, bool);
+bool (*_is_random_seeded)(void);
 #endif /* defined(RANDOM_LOADABLE) */
