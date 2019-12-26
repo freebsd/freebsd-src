@@ -616,6 +616,9 @@ oce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	case SIOCGPRIVATE_0:
+		rc = priv_check(curthread, PRIV_DRIVER);
+		if (rc != 0)
+			break;
 		rc = oce_handle_passthrough(ifp, data);
 		break;
 	default:
