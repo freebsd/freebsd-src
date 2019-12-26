@@ -4952,7 +4952,12 @@ PrepareCall(SelectionDAG &DAG, SDValue &Callee, SDValue &InFlag, SDValue &Chain,
   if (auto *G = dyn_cast<GlobalAddressSDNode>(Callee))
     GV = G->getGlobal();
   bool Local = TM.shouldAssumeDSOLocal(*Mod, GV);
-  bool UsePlt = !Local && Subtarget.isTargetELF() && !isPPC64;
+  // The PLT is only used in 32-bit ELF PIC mode.  Attempting to use the PLT in
+  // a static relocation model causes some versions of GNU LD (2.17.50, at
+  // least) to force BSS-PLT, instead of secure-PLT, even if all objects are
+  // built with secure-PLT.
+  bool UsePlt = !Local && Subtarget.isTargetELF() && !isPPC64 &&
+    Subtarget.getTargetMachine().getRelocationModel() == Reloc::PIC_;
 
   // If the callee is a GlobalAddress/ExternalSymbol node (quite common,
   // every direct call is) turn it into a TargetGlobalAddress /
