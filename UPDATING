@@ -17,6 +17,10 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20220222:
+	Kernel-loadable random(4) modules are supported again, but are no
+	longer unloadable.
+
 20220214:
 	The following knobs have been added related to tradeoffs between
 	safe use of the random device and availability in the absence of
