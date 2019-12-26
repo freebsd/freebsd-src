@@ -1360,15 +1360,11 @@ vkbd_modevent(module_t mod, int type, void *data)
 			clone_cleanup(&vkbd_dev_clones);
 			return (ENOMEM);
 		}
-#ifdef KLD_MODULE
 		kbd_add_driver(&vkbd_kbd_driver);
-#endif
 		break;
 
 	case MOD_UNLOAD:
-#ifdef KLD_MODULE
 		kbd_delete_driver(&vkbd_kbd_driver);
-#endif
 		EVENTHANDLER_DEREGISTER(dev_clone, tag);
 		clone_cleanup(&vkbd_dev_clones);
 		break;
