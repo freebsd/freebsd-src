@@ -460,6 +460,8 @@ child_process(e, u)
 			_exit(ERROR_EXIT);
 		}
 
+		mail = NULL;
+
 		ch = getc(in);
 		if (ch != EOF) {
 			Debug(DPROC|DEXT,
@@ -531,7 +533,7 @@ child_process(e, u)
 
 			while (EOF != (ch = getc(in))) {
 				bytes++;
-				if (mailto)
+				if (mail)
 					putc(ch, mail);
 			}
 		}
@@ -555,12 +557,12 @@ child_process(e, u)
 		 */
 		if (WIFEXITED(waiter) && WEXITSTATUS(waiter) == 0
 		    && (e->flags & MAIL_WHEN_ERR) == MAIL_WHEN_ERR
-		    && mailto) {
+		    && mail) {
 			Debug(DPROC, ("[%d] %s executed successfully, mail suppressed\n",
 				getpid(), "grandchild command job"))
 			kill(mailpid, SIGKILL);
 			(void)fclose(mail);
-			mailto = NULL;
+			mail = NULL;
 		}
 
 
@@ -568,7 +570,7 @@ child_process(e, u)
 		 * mailing...
 		 */
 
-		if (mailto) {
+		if (mail) {
 			Debug(DPROC, ("[%d] closing pipe to mail\n",
 				getpid()))
 			/* Note: the pclose will probably see
