@@ -624,7 +624,6 @@ SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL);
 static void
 proc0_post(void *dummy __unused)
 {
-	struct timespec ts;
 	struct proc *p;
 	struct rusage ru;
 	struct thread *td;
@@ -656,27 +655,8 @@ proc0_post(void *dummy __unused)
 	sx_sunlock(&allproc_lock);
 	PCPU_SET(switchtime, cpu_ticks());
 	PCPU_SET(switchticks, ticks);
-
-	/*
-	 * Give the ``random'' number generator a thump.
-	 */
-	nanotime(&ts);
-	srandom(ts.tv_sec ^ ts.tv_nsec);
 }
 SYSINIT(p0post, SI_SUB_INTRINSIC_POST, SI_ORDER_FIRST, proc0_post, NULL);
-
-static void
-random_init(void *dummy __unused)
-{
-
-	/*
-	 * After CPU has been started we have some randomness on most
-	 * platforms via get_cyclecount().  For platforms that don't
-	 * we will reseed random(9) in proc0_post() as well.
-	 */
-	srandom(get_cyclecount());
-}
-SYSINIT(random, SI_SUB_RANDOM, SI_ORDER_FIRST, random_init, NULL);
 
 /*
  ***************************************************************************

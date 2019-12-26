@@ -3195,10 +3195,8 @@ rand(void)
 }
 
 static void
-srand(unsigned int seed)
+srand(unsigned int seed __unused)
 {
-
-	srandom(seed);
 }
 
 static uint8_t
