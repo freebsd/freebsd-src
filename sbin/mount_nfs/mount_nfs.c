@@ -61,7 +61,8 @@ __FBSDID("$FreeBSD$");
 #include <rpcsvc/nfs_prot.h>
 #include <rpcsvc/mount.h>
 
-#include <nfsclient/nfs.h>
+#include <fs/nfs/nfsproto.h>
+#include <fs/nfs/nfsv4_errstr.h>
 
 #include <arpa/inet.h>
 
@@ -155,7 +156,7 @@ main(int argc, char *argv[])
 	char *mntname, *p, *spec, *tmp;
 	char mntpath[MAXPATHLEN], errmsg[255];
 	char hostname[MAXHOSTNAMELEN + 1], gssn[MAXHOSTNAMELEN + 50];
-	const char *gssname;
+	const char *gssname, *nmount_errstr;
 
 	iov = NULL;
 	iovlen = 0;
@@ -462,9 +463,14 @@ main(int argc, char *argv[])
 	build_iovec(&iov, &iovlen, "fspath", mntpath, (size_t)-1);
 	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
 
-	if (nmount(iov, iovlen, 0))
-		err(1, "nmount: %s%s%s", mntpath, errmsg[0] ? ", " : "",
-		    errmsg);
+	if (nmount(iov, iovlen, 0)) {
+		nmount_errstr = nfsv4_geterrstr(errno);
+		if (mountmode == V4 && nmount_errstr != NULL)
+			errx(1, "nmount: %s, %s", mntpath, nmount_errstr);
+		else
+			err(1, "nmount: %s%s%s", mntpath, errmsg[0] ? ", " : "",
+			    errmsg);
+	}
 
 	exit(0);
 }
