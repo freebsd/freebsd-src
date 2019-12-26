@@ -110,6 +110,19 @@ static struct consdev cons_consdev;
 DATA_SET(cons_set, cons_consdev);
 SET_DECLARE(cons_set, struct consdev);
 
+/*
+ * Stub for configurations that don't actually have a keyboard driver. Inclusion
+ * of kbd.c is contingent on any number of keyboard/console drivers being
+ * present in the kernel; rather than trying to catch them all, we'll just
+ * maintain this weak kbdinit that will be overridden by the strong version in
+ * kbd.c if it's present.
+ */
+__weak_symbol void
+kbdinit(void)
+{
+
+}
+
 void
 cninit(void)
 {
