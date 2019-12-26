@@ -48,6 +48,7 @@
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/rman.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
