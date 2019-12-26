@@ -49,11 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 
-#if defined(RANDOM_LOADABLE)
-#include <sys/lock.h>
-#include <sys/sx.h>
-#endif
-
 #include <machine/atomic.h>
 #include <machine/cpu.h>
 
@@ -163,14 +158,7 @@ static struct kproc_desc random_proc_kp = {
 static __inline void
 random_harvestq_fast_process_event(struct harvest_event *event)
 {
-#if defined(RANDOM_LOADABLE)
-	RANDOM_CONFIG_S_LOCK();
-	if (p_random_alg_context)
-#endif
 	p_random_alg_context->ra_event_processor(event);
-#if defined(RANDOM_LOADABLE)
-	RANDOM_CONFIG_S_UNLOCK();
-#endif
 	explicit_bzero(event, sizeof(*event));
 }
 
@@ -230,11 +218,6 @@ random_sources_feed(void)
 	 * Step over all of live entropy sources, and feed their output
 	 * to the system-wide RNG.
 	 */
-#if defined(RANDOM_LOADABLE)
-	RANDOM_CONFIG_S_LOCK();
-	if (p_random_alg_context) {
-	/* It's an indenting error. Yeah, Yeah. */
-#endif
 	local_read_rate = atomic_readandclear_32(&read_rate);
 	/* Perform at least one read per round */
 	local_read_rate = MAX(local_read_rate, 1);
@@ -261,10 +244,6 @@ random_sources_feed(void)
 		}
 	}
 	explicit_bzero(entropy, sizeof(entropy));
-#if defined(RANDOM_LOADABLE)
-	}
-	RANDOM_CONFIG_S_UNLOCK();
-#endif
 }
 
 void
@@ -396,7 +375,7 @@ random_harvestq_init(void *unused __unused)
 	RANDOM_HARVEST_INIT_LOCK();
 	harvest_context.hc_entropy_ring.in = harvest_context.hc_entropy_ring.out = 0;
 }
-SYSINIT(random_device_h_init, SI_SUB_RANDOM, SI_ORDER_SECOND, random_harvestq_init, NULL);
+SYSINIT(random_device_h_init, SI_SUB_RANDOM, SI_ORDER_THIRD, random_harvestq_init, NULL);
 
 /*
  * Subroutine to slice up a contiguous chunk of 'entropy' and feed it into the
@@ -485,7 +464,7 @@ random_harvestq_deinit(void *unused __unused)
 	while (random_kthread_control >= 0)
 		tsleep(&harvest_context.hc_kthread_proc, 0, "harvqterm", hz/5);
 }
-SYSUNINIT(random_device_h_init, SI_SUB_RANDOM, SI_ORDER_SECOND, random_harvestq_deinit, NULL);
+SYSUNINIT(random_device_h_init, SI_SUB_RANDOM, SI_ORDER_THIRD, random_harvestq_deinit, NULL);
 
 /*-
  * Entropy harvesting queue routine.
