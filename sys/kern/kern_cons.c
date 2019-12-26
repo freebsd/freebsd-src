@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/fcntl.h>
+#include <sys/kbio.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -68,6 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <ddb/ddb.h>
+
+#include <dev/kbd/kbdreg.h>
 
 #include <machine/cpu.h>
 #include <machine/clock.h>
@@ -122,6 +125,14 @@ cninit(void)
 			|RB_SINGLE
 			|RB_VERBOSE
 			|RB_ASKNAME)) == RB_MUTE);
+
+	/*
+	 * Bring up the kbd layer just in time for cnprobe.  Console drivers
+	 * have a dependency on kbd being ready, so this fits nicely between the
+	 * machdep callers of cninit() and MI probing/initialization of consoles
+	 * here.
+	 */
+	kbdinit();
 
 	/*
 	 * Find the first console with the highest priority.

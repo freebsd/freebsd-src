@@ -107,7 +107,10 @@ typedef struct keyboard_driver {
     keyboard_switch_t * const	kbdsw;
     /* backdoor for the console driver */
     int				(* const configure)(int);
+    int				flags;
 } keyboard_driver_t;
+
+#define	KBDF_REGISTERED		0x0001
 
 /* keyboard */
 struct keyboard {
@@ -396,6 +399,9 @@ int			kbd_detach(keyboard_t *kbd);
 #define LED_SCR		(1 << 2)
 #define LED_MASK	(LED_CAP | LED_NUM | LED_SCR)
 */
+
+/* Initialization for the kbd layer, performed by cninit. */
+void	kbdinit(void);
 
 int 	genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg);
 int 	genkbd_keyaction(keyboard_t *kbd, int keycode, int up,
