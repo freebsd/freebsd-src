@@ -833,7 +833,7 @@ rtrequest_fib(int req,
  * to reflect size of the provided buffer. if no NHR_COPY is specified,
  * point dst,netmask and gw @info fields to appropriate @rt values.
  *
- * if @flags contains NHR_REF, do refcouting on rt_ifp.
+ * if @flags contains NHR_REF, do refcouting on rt_ifp and rt_ifa.
  *
  * Returns 0 on success.
  */
@@ -903,10 +903,9 @@ rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info, int flags)
 	info->rti_flags = rt->rt_flags;
 	info->rti_ifp = rt->rt_ifp;
 	info->rti_ifa = rt->rt_ifa;
-	ifa_ref(info->rti_ifa);
 	if (flags & NHR_REF) {
-		/* Do 'traditional' refcouting */
 		if_ref(info->rti_ifp);
+		ifa_ref(info->rti_ifa);
 	}
 
 	return (0);
@@ -916,8 +915,8 @@ rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info, int flags)
  * Lookups up route entry for @dst in RIB database for fib @fibnum.
  * Exports entry data to @info using rt_exportinfo().
  *
- * if @flags contains NHR_REF, refcouting is performed on rt_ifp.
- *   All references can be released later by calling rib_free_info()
+ * If @flags contains NHR_REF, refcouting is performed on rt_ifp and rt_ifa.
+ * All references can be released later by calling rib_free_info().
  *
  * Returns 0 on success.
  * Returns ENOENT for lookup failure, ENOMEM for export failure.
@@ -963,6 +962,7 @@ void
 rib_free_info(struct rt_addrinfo *info)
 {
 
+	ifa_free(info->rti_ifa);
 	if_rele(info->rti_ifp);
 }
 
@@ -1631,9 +1631,12 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 			error = rt_getifa_fib(info, fibnum);
 			if (error)
 				return (error);
+		} else {
+			ifa_ref(info->rti_ifa);
 		}
 		rt = uma_zalloc(V_rtzone, M_NOWAIT);
 		if (rt == NULL) {
+			ifa_free(info->rti_ifa);
 			return (ENOBUFS);
 		}
 		rt->rt_flags = RTF_UP | flags;
@@ -1642,6 +1645,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		 * Add the gateway. Possibly re-malloc-ing the storage for it.
 		 */
 		if ((error = rt_setgate(rt, dst, gateway)) != 0) {
+			ifa_free(info->rti_ifa);
 			uma_zfree(V_rtzone, rt);
 			return (error);
 		}
@@ -1665,7 +1669,6 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		 * examine the ifa and  ifa->ifa_ifp if it so desires.
 		 */
 		ifa = info->rti_ifa;
-		ifa_ref(ifa);
 		rt->rt_ifa = ifa;
 		rt->rt_ifp = ifa->ifa_ifp;
 		rt->rt_weight = 1;
@@ -2108,7 +2111,6 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 		 * Do the actual request
 		 */
 		bzero((caddr_t)&info, sizeof(info));
-		ifa_ref(ifa);
 		info.rti_ifa = ifa;
 		info.rti_flags = flags |
 		    (ifa->ifa_flags & ~IFA_RTSELF) | RTF_PINNED;
@@ -2122,7 +2124,6 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			info.rti_info[RTAX_GATEWAY] = ifa->ifa_addr;
 		info.rti_info[RTAX_NETMASK] = netmask;
 		error = rtrequest1_fib(cmd, &info, &rt, fibnum);
-
 		if (error == 0 && rt != NULL) {
 			/*
 			 * notify any listening routing agents of the change
