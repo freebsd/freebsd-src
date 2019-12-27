@@ -1064,7 +1064,8 @@ rms_wlock(struct rmslock *rms)
 	mtx_lock(&rms->mtx);
 	rms->writers++;
 	if (rms->writers > 1) {
-		msleep(&rms->writers, &rms->mtx, PUSER - 1 | PDROP, mtx_name(&rms->mtx), 0);
+		msleep(&rms->writers, &rms->mtx, (PUSER - 1) | PDROP,
+		    mtx_name(&rms->mtx), 0);
 		MPASS(rms->readers == 0);
 		return;
 	}
@@ -1072,7 +1073,8 @@ rms_wlock(struct rmslock *rms)
 	rms_wlock_switch(rms);
 
 	if (rms->readers > 0)
-		msleep(&rms->writers, &rms->mtx, PUSER - 1 | PDROP, mtx_name(&rms->mtx), 0);
+		msleep(&rms->writers, &rms->mtx, (PUSER - 1) | PDROP,
+		    mtx_name(&rms->mtx), 0);
 	else
 		mtx_unlock(&rms->mtx);
 	MPASS(rms->readers == 0);
