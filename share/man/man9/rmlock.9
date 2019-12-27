@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .\" Based on rwlock.9 man page
-.Dd November 11, 2017
+.Dd December 27, 2019
 .Dt RMLOCK 9
 .Os
 .Sh NAME
@@ -43,7 +43,13 @@
 .Nm rm_sleep ,
 .Nm rm_assert ,
 .Nm RM_SYSINIT ,
-.Nm RM_SYSINIT_FLAGS
+.Nm RM_SYSINIT_FLAGS ,
+.Nm rms_init ,
+.Nm rms_destroy ,
+.Nm rms_rlock ,
+.Nm rms_wlock ,
+.Nm rms_runlock ,
+.Nm rms_wunlock
 .Nd kernel reader/writer lock optimized for read-mostly access patterns
 .Sh SYNOPSIS
 .In sys/param.h
@@ -77,6 +83,18 @@
 .In sys/kernel.h
 .Fn RM_SYSINIT "name" "struct rmlock *rm" "const char *desc"
 .Fn RM_SYSINIT_FLAGS "name" "struct rmlock *rm" "const char *desc" "int flags"
+.Ft void
+.Fn rms_init "struct rmslock *rms" "const char *name"
+.Ft void
+.Fn rms_destroy "struct rmslock *rms"
+.Ft void
+.Fn rms_rlock "struct rmslock *rms"
+.Ft void
+.Fn rms_wlock "struct rmslock *rms"
+.Ft void
+.Fn rms_runlock "struct rmslock *rms"
+.Ft void
+.Fn rms_wunlock "struct rmslock *rms"
 .Sh DESCRIPTION
 Read-mostly locks allow shared access to protected data by multiple threads,
 or exclusive access by a single thread.
@@ -113,22 +131,22 @@ Readers can recurse if the lock is initialized with the
 option;
 however, writers are never allowed to recurse.
 .Pp
-Sleepable read-mostly locks are created by passing
+Sleeping for writers can be allowed by passing
 .Dv RM_SLEEPABLE
 to
 .Fn rm_init_flags .
-Unlike normal read-mostly locks,
-sleepable read-mostly locks follow the same lock ordering rules as
+It changes lock ordering rules to the same as for
 .Xr sx 9
 locks.
-Sleepable read-mostly locks do not propagate priority to writers,
-but they do propagate priority to readers.
-Writers are permitted to sleep while holding a read-mostly lock,
-but readers are not.
-Unlike other sleepable locks such as
+They do not propagate priority to writers, but they do propagate priority to
+readers. Note that readers are not permitted to sleep regardless of the flag.
+.Pp
+Sleepable read-mostly locks (created with
+.Fn rms_init )
+allow sleeping for both readers and writers, but don't do priority propagation
+for either. They follow
 .Xr sx 9
-locks,
-readers must use try operations on other sleepable locks to avoid sleeping.
+lock ordering.
 .Ss Macros and Functions
 .Bl -tag -width indent
 .It Fn rm_init "struct rmlock *rm" "const char *name"
@@ -286,6 +304,43 @@ Assert that the current thread does not hold a recursive lock of
 .Fa rm .
 .El
 .El
+.Bl -tag -width indent
+.It Fn rms_init "struct rmslock *rms" "const char *name"
+Initialize the sleepable read-mostly lock
+.Fa rms .
+The
+.Fa name
+description is used as
+.Fa wmesg
+parameter to the
+.Xr msleep 9
+routine.
+This function must be called before any other operations on the lock.
+.It Fn rms_rlock "struct rmlock *rm"
+Lock
+.Fa rms
+as a reader.
+If any thread holds this lock exclusively, the current thread blocks.
+.It Fn rms_wlock "struct rmslock *rms"
+Lock
+.Fa rms
+as a writer.
+If the lock is already taken, the current thread blocks.
+The
+.Fn rms_wlock
+function cannot be called recursively.
+.It Fn rms_runlock "struct rmslock *rms"
+This function releases a shared lock previously acquired by
+.Fn rms_rlock .
+.It Fn rms_wunlock "struct rmslock *rms"
+This function releases an exclusive lock previously acquired by
+.Fn rms_wlock .
+.It Fn rms_destroy "struct rmslock *rms"
+This functions destroys a lock previously initialized with
+.Fn rms_init .
+The
+.Fa rms
+lock must be unlocked.
 .Sh SEE ALSO
 .Xr locking 9 ,
 .Xr mutex 9 ,

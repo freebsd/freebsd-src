@@ -133,5 +133,12 @@ struct rm_args {
 #define	rm_assert(rm, what)
 #endif
 
+void	rms_init(struct rmslock *rms, const char *name);
+void	rms_destroy(struct rmslock *rms);
+void	rms_rlock(struct rmslock *rms);
+void	rms_runlock(struct rmslock *rms);
+void	rms_wlock(struct rmslock *rms);
+void	rms_wunlock(struct rmslock *rms);
+
 #endif /* _KERNEL */
 #endif /* !_SYS_RMLOCK_H_ */

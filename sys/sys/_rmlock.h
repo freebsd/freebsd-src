@@ -68,4 +68,14 @@ struct rm_priotracker {
 	LIST_ENTRY(rm_priotracker) rmp_qentry;
 };
 
+#include <sys/_mutex.h>
+
+struct rmslock {
+	struct mtx mtx;
+	int	writers;
+	int	readers;
+	int	*readers_pcpu;
+	int	*readers_influx;
+};
+
 #endif /* !_SYS__RMLOCK_H_ */
