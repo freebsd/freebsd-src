@@ -395,7 +395,7 @@ static __inline__ uint32_t BmBpidGet(t_Bm *p_Bm, bool force, uint32_t base)
                      size,
                      alignment,
                      "BM BPID MEM");
-    KASSERT(ans < UINT32_MAX, ("Oops, %lx > UINT32_MAX!\n", ans));
+    KASSERT(ans < UINT32_MAX, ("Oops, %jx > UINT32_MAX!\n", (uintmax_t)ans));
     return (uint32_t)ans;
 }
 
