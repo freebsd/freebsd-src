@@ -323,9 +323,9 @@ This table shows the default tool chain for each architecture.
 .It mips64el    Ta GCC 4.2.1 Ta GNU ld 2.17.50
 .It mips64elhf  Ta GCC 4.2.1 Ta GNU ld 2.17.50
 .It mips64hf    Ta GCC 4.2.1 Ta GNU ld 2.17.50
-.It powerpc     Ta GCC 4.2.1 Ta GNU ld 2.17.50
-.It powerpcspe  Ta GCC 4.2.1 Ta GNU ld 2.17.50
-.It powerpc64   Ta GCC 4.2.1 Ta GNU ld 2.17.50
+.It powerpc     Ta Clang     Ta GNU ld 2.17.50
+.It powerpcspe  Ta Clang     Ta GNU ld 2.17.50
+.It powerpc64   Ta Clang     Ta lld
 .It riscv64     Ta GCC(1)    Ta GNU ld(1)
 .It riscv64sf   Ta GCC(1)    Ta GNU ld(1)
 .It sparc64     Ta GCC 4.2.1 Ta GNU ld 2.17.50
@@ -339,7 +339,7 @@ Any CPU architectures not migrated by then
 may be removed from the tree after that date.
 Unless the make variable
 .Dv MAKE_OBSOLETE_GCC
-is defined, make universe will not build mips, powerpc, nor sparc64
+is defined, make universe will not build mips or sparc64
 architectures unless the xtoolchain binaries have been installed for
 the architecture.
 .Ss MACHINE_ARCH vs MACHINE_CPUARCH vs MACHINE
