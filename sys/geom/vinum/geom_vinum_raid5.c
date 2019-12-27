@@ -93,11 +93,13 @@ gv_raid5_start(struct gv_plex *p, struct bio *bp, caddr_t addr, off_t boff,
 		if (wp->waiting != NULL) {
 			if (wp->waiting->bio_cflags & GV_BIO_MALLOC)
 				g_free(wp->waiting->bio_data);
+			gv_drive_done(wp->waiting->bio_caller1);
 			g_destroy_bio(wp->waiting);
 		}
 		if (wp->parity != NULL) {
 			if (wp->parity->bio_cflags & GV_BIO_MALLOC)
 				g_free(wp->parity->bio_data);
+			gv_drive_done(wp->parity->bio_caller1);
 			g_destroy_bio(wp->parity);
 		}
 		g_free(wp);
@@ -118,6 +120,7 @@ gv_raid5_start(struct gv_plex *p, struct bio *bp, caddr_t addr, off_t boff,
 		while (cbp != NULL) {
 			if (cbp->bio_cflags & GV_BIO_MALLOC)
 				g_free(cbp->bio_data);
+			gv_drive_done(cbp->bio_caller1);
 			g_destroy_bio(cbp);
 			cbp = bioq_takefirst(p->bqueue);
 		}
@@ -657,6 +660,7 @@ gv_raid5_clone_bio(struct bio *bp, struct gv_sd *s, struct gv_raid5_packet *wp,
 	cbp->bio_length = wp->length;
 	cbp->bio_done = gv_done;
 	cbp->bio_caller1 = s;
+	s->drive_sc->active++;
 	if (use_wp)
 		cbp->bio_caller2 = wp;
 

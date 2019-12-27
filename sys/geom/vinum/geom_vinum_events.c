@@ -195,6 +195,20 @@ failed:
 }
 
 /*
+ * Count completed BIOs and handle orphanization when all are done.
+ */
+void
+gv_drive_done(struct gv_drive *d)
+{
+
+	KASSERT(d->active >= 0, ("Negative number of BIOs (%d)", d->active));
+	if (--d->active == 0 && (d->flags & GV_DRIVE_ORPHANED)) {
+		d->flags &= ~GV_DRIVE_ORPHANED;
+		gv_post_event(d->vinumconf, GV_EVENT_DRIVE_LOST, d, NULL, 0, 0);
+	}
+}
+
+/*
  * When losing a drive (e.g. hardware failure), we cut down the consumer
  * attached to the underlying device and bring the drive itself to a
  * "referenced" state so that normal tasting could bring it up cleanly if it
@@ -214,10 +228,10 @@ gv_drive_lost(struct gv_softc *sc, struct gv_drive *d)
 	cp = d->consumer;
 
 	if (cp != NULL) {
-		if (cp->nstart != cp->nend) {
-			G_VINUM_DEBUG(0, "dead drive '%s' has still active "
+		if (d->active > 0) {
+			G_VINUM_DEBUG(2, "dead drive '%s' has still active "
 			    "requests, unable to detach consumer", d->name);
-			gv_post_event(sc, GV_EVENT_DRIVE_LOST, d, NULL, 0, 0);
+			d->flags |= GV_DRIVE_ORPHANED;
 			return;
 		}
 		g_topology_lock();
