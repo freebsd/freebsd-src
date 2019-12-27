@@ -637,15 +637,15 @@ config::expand_one(const char *&src, string &dst)
 	// it through.
 	if (*src == '(') {
 		dst += '$';
-		count = 1;
+		count = 0;
 		/* If the string ends before ) is matched , return. */
-		while (count > 0 && *src) {
+		do {
 			if (*src == ')')
 				count--;
 			else if (*src == '(')
 				count++;
 			dst += *src++;
-		}
+		} while (count > 0 && *src);
 		return;
 	}
 
