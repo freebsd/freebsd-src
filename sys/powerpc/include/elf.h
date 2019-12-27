@@ -114,4 +114,32 @@ __ElfType(Auxinfo);
 
 #define	ET_DYN_LOAD_ADDR 0x01010000
 
+#define	AT_OLD_NULL		AT_NULL
+#define	AT_OLD_IGNORE		AT_IGNORE
+#define	AT_OLD_EXECFD		AT_EXECFD
+#define	AT_OLD_PHDR		AT_PHDR
+#define	AT_OLD_PHENT		AT_PHENT
+#define	AT_OLD_PHNUM		AT_PHNUM
+#define	AT_OLD_PAGESZ		AT_PAGESZ
+#define	AT_OLD_BASE		AT_BASE
+#define	AT_OLD_FLAGS		AT_FLAGS
+#define	AT_OLD_ENTRY		AT_ENTRY
+#define	AT_OLD_NOTELF		AT_NOTELF
+#define	AT_OLD_UID		AT_UID
+#define	AT_OLD_EUID		AT_EUID
+#define	AT_OLD_EXECPATH		13
+#define	AT_OLD_CANARY		14
+#define	AT_OLD_CANARYLEN	15
+#define	AT_OLD_OSRELDATE	16
+#define	AT_OLD_NCPUS		17
+#define	AT_OLD_PAGESIZES	18
+#define	AT_OLD_PAGESIZESLEN	19
+#define	AT_OLD_STACKPROT	21
+#define	AT_OLD_TIMEKEEP		AT_TIMEKEEP
+#define	AT_OLD_EHDRFLAGS	AT_EHDRFLAGS
+#define	AT_OLD_HWCAP		AT_HWCAP
+#define	AT_OLD_HWCAP2		AT_HWCAP2
+
+#define	AT_OLD_COUNT	27	/* Count of defined aux entry types. */
+
 #endif /* !_MACHINE_ELF_H_ */
