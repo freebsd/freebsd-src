@@ -1323,6 +1323,102 @@ ret:
 
 #define	suword __CONCAT(suword, __ELF_WORD_SIZE)
 
+#ifdef __powerpc__
+#define	OLD_AT_NULL		AT_NULL
+#define	OLD_AT_IGNORE		AT_IGNORE
+#define	OLD_AT_EXECFD		AT_EXECFD
+#define	OLD_AT_PHDR		AT_PHDR
+#define	OLD_AT_PHENT		AT_PHENT
+#define	OLD_AT_PHNUM		AT_PHNUM
+#define	OLD_AT_PAGESZ		AT_PAGESZ
+#define	OLD_AT_BASE		AT_BASE
+#define	OLD_AT_FLAGS		AT_FLAGS
+#define	OLD_AT_ENTRY		AT_ENTRY
+#define	OLD_AT_NOTELF		AT_NOTELF
+#define	OLD_AT_UID		AT_UID
+#define	OLD_AT_EUID		AT_EUID
+#define	OLD_AT_EXECPATH		13
+#define	OLD_AT_CANARY		14
+#define	OLD_AT_CANARYLEN	15
+#define	OLD_AT_OSRELDATE	16
+#define	OLD_AT_NCPUS		17
+#define	OLD_AT_PAGESIZES	18
+#define	OLD_AT_PAGESIZESLEN	19
+#define	OLD_AT_STACKPROT	21
+#define	OLD_AT_TIMEKEEP		AT_TIMEKEEP
+#define	OLD_AT_EHDRFLAGS	AT_EHDRFLAGS
+#define	OLD_AT_HWCAP		AT_HWCAP
+#define	OLD_AT_HWCAP2		AT_HWCAP2
+
+#define	OLD_AT_COUNT	27	/* Count of defined aux entry types. */
+
+static int
+__elfN(freebsd_fixup_old_auxargs)(register_t **stack_base,
+    struct image_params *imgp)
+{
+	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;
+	Elf_Auxinfo *argarray, *pos;
+	Elf_Addr *base, *auxbase;
+	int error;
+
+	base = (Elf_Addr *)*stack_base;
+	auxbase = base + imgp->args->argc + 1 + imgp->args->envc + 1;
+	argarray = pos = malloc(OLD_AT_COUNT * sizeof(*pos), M_TEMP,
+	    M_WAITOK | M_ZERO);
+
+	if (args->execfd != -1)
+		AUXARGS_ENTRY(pos, OLD_AT_EXECFD, args->execfd);
+	AUXARGS_ENTRY(pos, OLD_AT_PHDR, args->phdr);
+	AUXARGS_ENTRY(pos, OLD_AT_PHENT, args->phent);
+	AUXARGS_ENTRY(pos, OLD_AT_PHNUM, args->phnum);
+	AUXARGS_ENTRY(pos, OLD_AT_PAGESZ, args->pagesz);
+	AUXARGS_ENTRY(pos, OLD_AT_FLAGS, args->flags);
+	AUXARGS_ENTRY(pos, OLD_AT_ENTRY, args->entry);
+	AUXARGS_ENTRY(pos, OLD_AT_BASE, args->base);
+	AUXARGS_ENTRY(pos, OLD_AT_EHDRFLAGS, args->hdr_eflags);
+	if (imgp->execpathp != 0)
+		AUXARGS_ENTRY(pos, OLD_AT_EXECPATH, imgp->execpathp);
+	AUXARGS_ENTRY(pos, OLD_AT_OSRELDATE,
+	    imgp->proc->p_ucred->cr_prison->pr_osreldate);
+	if (imgp->canary != 0) {
+		AUXARGS_ENTRY(pos, OLD_AT_CANARY, imgp->canary);
+		AUXARGS_ENTRY(pos, OLD_AT_CANARYLEN, imgp->canarylen);
+	}
+	AUXARGS_ENTRY(pos, OLD_AT_NCPUS, mp_ncpus);
+	if (imgp->pagesizes != 0) {
+		AUXARGS_ENTRY(pos, OLD_AT_PAGESIZES, imgp->pagesizes);
+		AUXARGS_ENTRY(pos, OLD_AT_PAGESIZESLEN, imgp->pagesizeslen);
+	}
+	if (imgp->sysent->sv_timekeep_base != 0) {
+		AUXARGS_ENTRY(pos, OLD_AT_TIMEKEEP,
+		    imgp->sysent->sv_timekeep_base);
+	}
+	AUXARGS_ENTRY(pos, OLD_AT_STACKPROT, imgp->sysent->sv_shared_page_obj
+	    != NULL && imgp->stack_prot != 0 ? imgp->stack_prot :
+	    imgp->sysent->sv_stackprot);
+	if (imgp->sysent->sv_hwcap != NULL)
+		AUXARGS_ENTRY(pos, OLD_AT_HWCAP, *imgp->sysent->sv_hwcap);
+	if (imgp->sysent->sv_hwcap2 != NULL)
+		AUXARGS_ENTRY(pos, OLD_AT_HWCAP2, *imgp->sysent->sv_hwcap2);
+	AUXARGS_ENTRY(pos, OLD_AT_NULL, 0);
+
+	free(imgp->auxargs, M_TEMP);
+	imgp->auxargs = NULL;
+	KASSERT(pos - argarray <= OLD_AT_COUNT, ("Too many auxargs"));
+
+	error = copyout(argarray, auxbase, sizeof(*argarray) * OLD_AT_COUNT);
+	free(argarray, M_TEMP);
+	if (error != 0)
+		return (error);
+
+	base--;
+	if (suword(base, imgp->args->argc) == -1)
+		return (EFAULT);
+	*stack_base = (register_t *)base;
+	return (0);
+}
+#endif /* __powerpc__ */
+
 int
 __elfN(freebsd_copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 {
@@ -1382,6 +1478,11 @@ int
 __elfN(freebsd_fixup)(uintptr_t *stack_base, struct image_params *imgp)
 {
 	Elf_Addr *base;
+
+#ifdef __powerpc__
+	if (imgp->proc->p_osrel < P_OSREL_POWERPC_NEW_AUX_ARGS)
+		return (__elfN(freebsd_fixup_old_auxargs)(stack_base, imgp));
+#endif /* __powerpc__ */
 
 	base = (Elf_Addr *)*stack_base;
 	base--;
