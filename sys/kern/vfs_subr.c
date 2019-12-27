@@ -3225,35 +3225,20 @@ vdrop_deactivate(struct vnode *vp)
 	    ("vdrop: freeing when we shouldn't"));
 	if ((vp->v_iflag & VI_OWEINACT) == 0) {
 		mp = vp->v_mount;
-		if (mp != NULL) {
-			mtx_lock(&mp->mnt_listmtx);
-			if (vp->v_iflag & VI_ACTIVE) {
-				vp->v_iflag &= ~VI_ACTIVE;
-				TAILQ_REMOVE(&mp->mnt_activevnodelist,
-				    vp, v_actfreelist);
-				mp->mnt_activevnodelistsize--;
-			}
-			TAILQ_INSERT_TAIL(&mp->mnt_tmpfreevnodelist,
-			    vp, v_actfreelist);
-			mp->mnt_tmpfreevnodelistsize++;
-			vp->v_iflag |= VI_FREE;
-			vp->v_mflag |= VMP_TMPMNTFREELIST;
-			VI_UNLOCK(vp);
-			if (mp->mnt_tmpfreevnodelistsize >=
-			    mnt_free_list_batch)
-				vnlru_return_batch_locked(mp);
-			mtx_unlock(&mp->mnt_listmtx);
-		} else {
-			VNASSERT((vp->v_iflag & VI_ACTIVE) == 0, vp,
-			    ("vdrop: active vnode not on per mount vnode list"));
-			mtx_lock(&vnode_free_list_mtx);
-			TAILQ_INSERT_TAIL(&vnode_free_list, vp,
-			    v_actfreelist);
-			freevnodes++;
-			vp->v_iflag |= VI_FREE;
-			VI_UNLOCK(vp);
-			mtx_unlock(&vnode_free_list_mtx);
+		mtx_lock(&mp->mnt_listmtx);
+		if (vp->v_iflag & VI_ACTIVE) {
+			vp->v_iflag &= ~VI_ACTIVE;
+			TAILQ_REMOVE(&mp->mnt_activevnodelist, vp, v_actfreelist);
+			mp->mnt_activevnodelistsize--;
 		}
+		TAILQ_INSERT_TAIL(&mp->mnt_tmpfreevnodelist, vp, v_actfreelist);
+		mp->mnt_tmpfreevnodelistsize++;
+		vp->v_iflag |= VI_FREE;
+		vp->v_mflag |= VMP_TMPMNTFREELIST;
+		VI_UNLOCK(vp);
+		if (mp->mnt_tmpfreevnodelistsize >= mnt_free_list_batch)
+			vnlru_return_batch_locked(mp);
+		mtx_unlock(&mp->mnt_listmtx);
 	} else {
 		VI_UNLOCK(vp);
 		counter_u64_add(free_owe_inact, 1);
@@ -3266,10 +3251,6 @@ vdrop(struct vnode *vp)
 
 	ASSERT_VI_UNLOCKED(vp, __func__);
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
-	if (__predict_false((int)vp->v_holdcnt <= 0)) {
-		vn_printf(vp, "vdrop: holdcnt %d", vp->v_holdcnt);
-		panic("vdrop: wrong holdcnt");
-	}
 	if (refcount_release_if_not_last(&vp->v_holdcnt))
 		return;
 	VI_LOCK(vp);
@@ -3282,10 +3263,6 @@ vdropl(struct vnode *vp)
 
 	ASSERT_VI_LOCKED(vp, __func__);
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
-	if (__predict_false((int)vp->v_holdcnt <= 0)) {
-		vn_printf(vp, "vdrop: holdcnt %d", vp->v_holdcnt);
-		panic("vdrop: wrong holdcnt");
-	}
 	if (!refcount_release(&vp->v_holdcnt)) {
 		VI_UNLOCK(vp);
 		return;
