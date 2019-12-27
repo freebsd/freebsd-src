@@ -1049,25 +1049,6 @@ static devclass_t	sc_devclass;
 DRIVER_MODULE(ofwfb, nexus, ofwfb_sc_driver, sc_devclass, 0, 0);
 
 /*
- * Define a stub keyboard driver in case one hasn't been
- * compiled into the kernel
- */
-#include <sys/kbio.h>
-#include <dev/kbd/kbdreg.h>
-
-static int dummy_kbd_configure(int flags);
-
-keyboard_switch_t dummysw;
-
-static int
-dummy_kbd_configure(int flags)
-{
-
-	return (0);
-}
-KEYBOARD_DRIVER(dummy, dummysw, dummy_kbd_configure);
-
-/*
  * Utility routines from <dev/fb/fbreg.h>
  */
 void
