@@ -327,8 +327,8 @@ BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GCC GCC_BOOTSTRAP GDB
 .if ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=OFED
 .endif
-.if ${__T} == "aarch64" || ${__T} == "amd64" || ${__T} == "i386" || \
-    ${__TT} == "powerpc" || ${__T:Mriscv*} != "" || ${__TT} == "mips"
+.if ${__T} != "arm" && ${__T} != "armv6" && ${__T} != "armv7" && \
+    ${__T} != "sparc64"
 __DEFAULT_YES_OPTIONS+=LLVM_LIBUNWIND
 .else
 __DEFAULT_NO_OPTIONS+=LLVM_LIBUNWIND
