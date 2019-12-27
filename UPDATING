@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20191226:
+	Clang/LLVM is now the default compiler for all powerpc architectures.
+	LLD is now the default linker for powerpc64.  The change for powerpc64
+	also includes a change to the ELFv2 ABI, incompatible with the existing
+	ABI.
+
+20191226:
 	Kernel-loadable random(4) modules are no longer unloadable.
 
 20191222:
