@@ -2072,10 +2072,6 @@ found:
 	if ((req & VM_ALLOC_SBUSY) != 0)
 		m->busy_lock = VPB_SHARERS_WORD(1);
 	if (req & VM_ALLOC_WIRED) {
-		/*
-		 * The page lock is not required for wiring a page until that
-		 * page is inserted into the object.
-		 */
 		vm_wire_add(1);
 		m->ref_count = 1;
 	}
@@ -2404,10 +2400,6 @@ again:
 		flags = PG_ZERO;
 	m->flags &= flags;
 	if ((req & VM_ALLOC_WIRED) != 0) {
-		/*
-		 * The page lock is not required for wiring a page that does
-		 * not belong to an object.
-		 */
 		vm_wire_add(1);
 		m->ref_count = 1;
 	}
