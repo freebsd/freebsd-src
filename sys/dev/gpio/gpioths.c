@@ -220,10 +220,10 @@ gpioths_dht_readbytes(struct gpioths_softc *sc)
 #ifdef GPIOTHS_DEBUG
 	/* Debug bits */
 	for (i = 0; i < GPIOTHS_DHT_CYCLES; i++)
-		device_printf(dev, "%d: %d %d\n", i, calibrations[i],
+		device_printf(sc->dev, "%d: %d %d\n", i, calibrations[i],
 		    intervals[i]);
 
-	device_printf(dev, "len=%d, data=%x, crc=%x/%x\n", avglen, value, crc,
+	device_printf(sc->dev, "len=%d, data=%x, crc=%x/%x\n", avglen, value, crc,
 	    calc);
 #endif /* GPIOTHS_DEBUG */
 
