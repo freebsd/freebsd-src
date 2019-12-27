@@ -1751,7 +1751,6 @@ vm_page_replace_hold(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex,
 	bool dropped;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	vm_page_assert_xbusied(mnew);
 	vm_page_assert_xbusied(mold);
 	KASSERT(mnew->object == NULL && (mnew->ref_count & VPRC_OBJREF) == 0,
 	    ("vm_page_replace: page %p already in object", mnew));
@@ -1794,6 +1793,8 @@ void
 vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex,
     vm_page_t mold)
 {
+
+	vm_page_assert_xbusied(mnew);
 
 	if (vm_page_replace_hold(mnew, object, pindex, mold))
 		vm_page_free(mold);
@@ -2793,6 +2794,7 @@ retry:
 					 */
 					if (object->ref_count != 0 &&
 					    !vm_page_try_remove_all(m)) {
+						vm_page_xunbusy(m);
 						vm_page_free(m_new);
 						error = EBUSY;
 						goto unlock;
