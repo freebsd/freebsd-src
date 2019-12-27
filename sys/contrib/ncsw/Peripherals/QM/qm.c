@@ -560,7 +560,7 @@ uint32_t QmFqidGet(t_Qm *p_Qm, uint32_t size, uint32_t alignment, bool force, ui
                      "QM FQID MEM");
     XX_UnlockIntrSpinlock(p_Qm->lock, intFlags);
 
-    KASSERT(ans < UINT32_MAX, ("Oops, %lx > UINT32_MAX!\n", ans));
+    KASSERT(ans < UINT32_MAX, ("Oops, %jx > UINT32_MAX!\n", (uintmax_t)ans));
     return (uint32_t)ans;
 }
 

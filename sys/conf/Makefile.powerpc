@@ -37,7 +37,9 @@ INCLUDES+= -I$S/contrib/libfdt
 
 .if "${MACHINE_ARCH}" == "powerpcspe"
 # Force __SPE__, since the builtin will be removed later with -mno-spe
-CFLAGS+= -mabi=spe -D__SPE__
+CFLAGS.gcc+= -mabi=spe -D__SPE__
+CFLAGS.clang+= -mspe -D__SPE__ -m32
+HACK_EXTRA_FLAGS= -shared -m32 -mspe -D__SPE__
 .endif
 CFLAGS+= -msoft-float
 CFLAGS.gcc+= -Wa,-many
