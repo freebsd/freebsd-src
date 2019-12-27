@@ -1353,7 +1353,7 @@ ret:
 #define	OLD_AT_COUNT	27	/* Count of defined aux entry types. */
 
 static int
-__elfN(freebsd_fixup_old_auxargs)(register_t **stack_base,
+__elfN(freebsd_fixup_old_auxargs)(uintptr_t *stack_base,
     struct image_params *imgp)
 {
 	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;
@@ -1414,7 +1414,7 @@ __elfN(freebsd_fixup_old_auxargs)(register_t **stack_base,
 	base--;
 	if (suword(base, imgp->args->argc) == -1)
 		return (EFAULT);
-	*stack_base = (register_t *)base;
+	*stack_base = (uintptr_t)base;
 	return (0);
 }
 #endif /* __powerpc__ */
