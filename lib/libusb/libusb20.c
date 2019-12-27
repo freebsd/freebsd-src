@@ -78,6 +78,7 @@ dummy_callback(struct libusb20_transfer *xfer)
 #define	dummy_set_power_mode (void *)dummy_int
 #define	dummy_get_power_mode (void *)dummy_int
 #define	dummy_get_power_usage (void *)dummy_int
+#define	dummy_get_stats (void *)dummy_int
 #define	dummy_kernel_driver_active (void *)dummy_int
 #define	dummy_detach_kernel_driver (void *)dummy_int
 #define	dummy_do_request_sync (void *)dummy_int
@@ -1047,6 +1048,31 @@ uint8_t
 libusb20_dev_get_speed(struct libusb20_device *pdev)
 {
 	return (pdev->usb_speed);
+}
+
+int
+libusb20_dev_get_stats(struct libusb20_device *pdev, struct libusb20_device_stats *pstats)
+{
+	uint8_t do_close;
+	int error;
+
+	if (!pdev->is_opened) {
+		error = libusb20_dev_open(pdev, 0);
+		if (error == 0) {
+			do_close = 1;
+		} else {
+			do_close = 0;
+		}
+	} else {
+		do_close = 0;
+	}
+
+	error = pdev->methods->get_stats(pdev, pstats);
+
+	if (do_close)
+		(void) libusb20_dev_close(pdev);
+
+	return (error);
 }
 
 /* if this function returns an error, the device is gone */

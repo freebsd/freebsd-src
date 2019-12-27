@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2008 Hans Petter Selasky
+.\" Copyright (c) 2008-2019 Hans Petter Selasky
 .\"
 .\" All rights reserved.
 .\"
@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2013
+.Dd December 27, 2019
 .Dt LIBUSB20 3
 .Os
 .Sh NAME
@@ -121,6 +121,8 @@ USB access library (libusb -lusb)
 .Fn libusb20_dev_get_iface_desc "struct libusb20_device *pdev" "uint8_t iface_index" "char *buf" "uint8_t len"
 .Ft const char *
 .Fn libusb20_dev_get_desc "struct libusb20_device *pdev"
+.Ft int
+.Fn libusb20_dev_get_stats "struct libusb20_device *pdev" "struct libusb20_device_stats *pstats"
 .Ft int
 .Fn libusb20_dev_close "struct libusb20_device *pdev"
 .Ft int
@@ -594,6 +596,14 @@ This function returns zero on success else a LIBUSB20_ERROR value is returned.
 .Fn libusb20_dev_get_desc
 returns a zero terminated string describing the given USB device.
 The format of the string is: "drivername<unit>: <description>"
+.
+.Pp
+.
+.Fn libusb20_dev_get_stats
+retrieves the device statistics into the structure pointed to by the
+.Fa pstats
+argument.
+This function returns zero on success else a LIBUSB20_ERROR value is returned.
 .
 .Pp
 .
