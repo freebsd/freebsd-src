@@ -304,9 +304,8 @@ __DEFAULT_NO_OPTIONS+=LLVM_TARGET_BPF
 # This means that architectures that have GCC 4.2 as default can not
 # build Clang without using an external compiler.
 
-.if ${COMPILER_FEATURES:Mc++11} && (${__T} == "aarch64" || \
-    ${__T} == "amd64" || ${__TT} == "arm" || ${__T} == "i386" || \
-    ${__TT} == "powerpc")
+.if ${COMPILER_FEATURES:Mc++11} && (${__TT} != "mips" && \
+    ${__TT} != "riscv" && ${__TT} != "sparc64")
 # Clang is enabled, and will be installed as the default /usr/bin/cc.
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_IS_CC LLD
 __DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX GPL_DTC
