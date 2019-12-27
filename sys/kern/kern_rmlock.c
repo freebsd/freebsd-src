@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/turnstile.h>
 #include <sys/lock_profile.h>
 #include <machine/cpu.h>
+#include <vm/uma.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -853,3 +854,241 @@ db_show_rm(const struct lock_object *lock)
 	lc->lc_ddb_show(&rm->rm_wlock_object);
 }
 #endif
+
+/*
+ * Read-mostly sleepable locks.
+ *
+ * These primitives allow both readers and writers to sleep. However, neither
+ * readers nor writers are tracked and subsequently there is no priority
+ * propagation.
+ *
+ * They are intended to be only used when write-locking is almost never needed
+ * (e.g., they can guard against unloading a kernel module) while read-locking
+ * happens all the time.
+ *
+ * Concurrent writers take turns taking the lock while going off cpu. If this is
+ * of concern for your usecase, this is not the right primitive.
+ *
+ * Neither rms_rlock nor rms_runlock use fences. Instead compiler barriers are
+ * inserted to prevert reordering of generated code. Execution ordering is
+ * provided with the use of an IPI handler.
+ */
+
+void
+rms_init(struct rmslock *rms, const char *name)
+{
+
+	rms->writers = 0;
+	rms->readers = 0;
+	mtx_init(&rms->mtx, name, NULL, MTX_DEF | MTX_NEW);
+	rms->readers_pcpu = uma_zalloc_pcpu(pcpu_zone_int, M_WAITOK | M_ZERO);
+	rms->readers_influx = uma_zalloc_pcpu(pcpu_zone_int, M_WAITOK | M_ZERO);
+}
+
+void
+rms_destroy(struct rmslock *rms)
+{
+
+	MPASS(rms->writers == 0);
+	MPASS(rms->readers == 0);
+	mtx_destroy(&rms->mtx);
+	uma_zfree_pcpu(pcpu_zone_int, rms->readers_pcpu);
+	uma_zfree_pcpu(pcpu_zone_int, rms->readers_influx);
+}
+
+static void __noinline
+rms_rlock_fallback(struct rmslock *rms)
+{
+
+	(*zpcpu_get(rms->readers_influx)) = 0;
+	critical_exit();
+
+	mtx_lock(&rms->mtx);
+	MPASS(*zpcpu_get(rms->readers_pcpu) == 0);
+	while (rms->writers > 0)
+		msleep(&rms->readers, &rms->mtx, PUSER - 1, mtx_name(&rms->mtx), 0);
+	(*zpcpu_get(rms->readers_pcpu))++;
+	mtx_unlock(&rms->mtx);
+}
+
+void
+rms_rlock(struct rmslock *rms)
+{
+	int *influx;
+
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
+
+	critical_enter();
+	influx = zpcpu_get(rms->readers_influx);
+	__compiler_membar();
+	*influx = 1;
+	__compiler_membar();
+	if (__predict_false(rms->writers > 0)) {
+		rms_rlock_fallback(rms);
+		return;
+	}
+	__compiler_membar();
+	(*zpcpu_get(rms->readers_pcpu))++;
+	__compiler_membar();
+	*influx = 0;
+	critical_exit();
+}
+
+static void __noinline
+rms_runlock_fallback(struct rmslock *rms)
+{
+
+	(*zpcpu_get(rms->readers_influx)) = 0;
+	critical_exit();
+
+	mtx_lock(&rms->mtx);
+	MPASS(*zpcpu_get(rms->readers_pcpu) == 0);
+	MPASS(rms->writers > 0);
+	MPASS(rms->readers > 0);
+	rms->readers--;
+	if (rms->readers == 0)
+		wakeup_one(&rms->writers);
+	mtx_unlock(&rms->mtx);
+}
+
+void
+rms_runlock(struct rmslock *rms)
+{
+	int *influx;
+
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
+
+	critical_enter();
+	influx = zpcpu_get(rms->readers_influx);
+	__compiler_membar();
+	*influx = 1;
+	__compiler_membar();
+	if (__predict_false(rms->writers > 0)) {
+		rms_runlock_fallback(rms);
+		return;
+	}
+	__compiler_membar();
+	(*zpcpu_get(rms->readers_pcpu))--;
+	__compiler_membar();
+	*influx = 0;
+	critical_exit();
+}
+
+struct rmslock_ipi {
+	struct rmslock *rms;
+	cpuset_t signal;
+};
+
+static void
+rms_wlock_IPI(void *arg)
+{
+	struct rmslock_ipi *rmsipi;
+	struct rmslock *rms;
+	int readers;
+
+	rmsipi = arg;
+	rms = rmsipi->rms;
+
+	if (*zpcpu_get(rms->readers_influx))
+		return;
+	readers = zpcpu_replace(rms->readers_pcpu, 0);
+	if (readers != 0)
+		atomic_add_int(&rms->readers, readers);
+	CPU_CLR_ATOMIC(curcpu, &rmsipi->signal);
+}
+
+static void
+rms_wlock_switch(struct rmslock *rms)
+{
+	struct rmslock_ipi rmsipi;
+	int *in_op;
+	int cpu;
+
+	MPASS(rms->readers == 0);
+	MPASS(rms->writers == 1);
+
+	rmsipi.rms = rms;
+
+	/*
+	 * Publishes rms->writers. rlock and runlock will get this ordered
+	 * via IPI in the worst case.
+	 */
+	atomic_thread_fence_rel();
+
+	/*
+	 * Collect reader counts from all CPUs using an IPI. The handler can
+	 * find itself running while the interrupted CPU was doing either
+	 * rlock or runlock in which case it will fail.
+	 *
+	 * Successful attempts clear the cpu id in the bitmap.
+	 *
+	 * In case of failure we observe all failing CPUs not executing there to
+	 * determine when to make the next attempt. Note that threads having
+	 * the var set have preemption disabled.  Setting of readers_influx
+	 * only uses compiler barriers making these loads unreliable, which is
+	 * fine -- the IPI handler will always see the correct result.
+	 *
+	 * We retry until all counts are collected. Forward progress is
+	 * guaranteed by that fact that the total number of threads which can
+	 * be caught like this is finite and they all are going to block on
+	 * their own.
+	 */
+	CPU_COPY(&all_cpus, &rmsipi.signal);
+	for (;;) {
+		smp_rendezvous_cpus(
+		    rmsipi.signal,
+		    smp_no_rendezvous_barrier,
+		    rms_wlock_IPI,
+		    smp_no_rendezvous_barrier,
+		    &rmsipi);
+
+		if (CPU_EMPTY(&rmsipi.signal))
+			break;
+
+		CPU_FOREACH(cpu) {
+			if (!CPU_ISSET(cpu, &rmsipi.signal))
+				continue;
+			in_op = zpcpu_get_cpu(rms->readers_influx, cpu);
+			while (atomic_load_int(in_op))
+				cpu_spinwait();
+		}
+	}
+}
+
+void
+rms_wlock(struct rmslock *rms)
+{
+
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
+
+	mtx_lock(&rms->mtx);
+	rms->writers++;
+	if (rms->writers > 1) {
+		msleep(&rms->writers, &rms->mtx, PUSER - 1 | PDROP, mtx_name(&rms->mtx), 0);
+		MPASS(rms->readers == 0);
+		return;
+	}
+
+	rms_wlock_switch(rms);
+
+	if (rms->readers > 0)
+		msleep(&rms->writers, &rms->mtx, PUSER - 1 | PDROP, mtx_name(&rms->mtx), 0);
+	else
+		mtx_unlock(&rms->mtx);
+	MPASS(rms->readers == 0);
+}
+
+void
+rms_wunlock(struct rmslock *rms)
+{
+
+	mtx_lock(&rms->mtx);
+	MPASS(rms->writers >= 1);
+	MPASS(rms->readers == 0);
+	rms->writers--;
+	if (rms->writers > 0)
+		wakeup_one(&rms->writers);
+	else
+		wakeup(&rms->readers);
+	mtx_unlock(&rms->mtx);
+}
