@@ -1,16 +1,44 @@
-name: Ubuntu
+name: CI
 
 on: [push, pull_request]
 
 jobs:
-  Build-and-test:
-
-    runs-on: ubuntu-latest
-
+  MacOS:
+    runs-on: macos-latest
     strategy:
       matrix:
         bs: [autotools, cmake]
-    
+    steps:
+    - uses: actions/checkout@master
+    - name: Install dependencies
+      run: ./build/ci/github_actions/macos.sh prepare
+    - name: Autogen
+      run: ./build/ci/build.sh -a autogen
+      env:
+        BS: ${{ matrix.bs }}
+    - name: Configure
+      run: ./build/ci/build.sh -a configure
+      env:
+        BS: ${{ matrix.bs }}
+    - name: Build
+      run: ./build/ci/build.sh -a build
+      env:
+        BS: ${{ matrix.bs }}
+    - name: Test
+      run: ./build/ci/build.sh -a test
+      env:
+        BS: ${{ matrix.bs }}
+        SKIP_OPEN_FD_ERR_TEST: 1
+    - name: Install
+      run: ./build/ci/build.sh -a install
+      env:
+        BS: ${{ matrix.bs }}
+
+  Ubuntu:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        bs: [autotools, cmake]
     steps:
     - uses: actions/checkout@master
     - name: Install dependencies
@@ -31,7 +59,56 @@ jobs:
       run: ./build/ci/build.sh -a test
       env:
         BS: ${{ matrix.bs }}
+        SKIP_OPEN_FD_ERR_TEST: 1
     - name: Install
       run: ./build/ci/build.sh -a install
       env:
         BS: ${{ matrix.bs }}
+
+  Ubuntu-distcheck:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: Install dependencies
+      run: sudo apt-get install -y build-essential cmake libssl-dev libacl1-dev libbz2-dev liblzma-dev libzip-dev liblz4-dev libzstd-dev lzop groff ghostscript
+    - name: Autogen
+      run: ./build/ci/build.sh -a autogen
+    - name: Configure
+      run: ./build/ci/build.sh -a configure
+    - name: Distcheck
+      run: ./build/ci/build.sh -a distcheck
+      env:
+        SKIP_OPEN_FD_ERR_TEST: 1
+
+  Windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        be: [mingw-gcc, msvc]
+    steps:
+    - uses: actions/checkout@master
+    - name: Install dependencies
+      run: ./build/ci/github_actions/ci.cmd deplibs
+      shell: cmd
+      env:
+        BE: ${{ matrix.be }}
+    - name: Configure
+      run: ./build/ci/github_actions/ci.cmd configure
+      shell: cmd
+      env:
+        BE: ${{ matrix.be }}
+    - name: Build
+      run: ./build/ci/github_actions/ci.cmd build
+      shell: cmd
+      env:
+        BE: ${{ matrix.be }}
+    - name: Test
+      run: ./build/ci/github_actions/ci.cmd test
+      shell: cmd
+      env:
+        BE: ${{ matrix.be }}
+    - name: Install
+      run: ./build/ci/github_actions/ci.cmd install
+      shell: cmd
+      env:
+        BE: ${{ matrix.be }}

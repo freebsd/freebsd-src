@@ -172,11 +172,6 @@ static int
 archive_compressor_zstd_open(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
-	int ret;
-
-	ret = __archive_write_open_filter(f->next_filter);
-	if (ret != ARCHIVE_OK)
-		return (ret);
 
 	if (data->out.dst == NULL) {
 		size_t bs = ZSTD_CStreamOutSize(), bpb;
@@ -238,14 +233,9 @@ static int
 archive_compressor_zstd_close(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
-	int r1, r2;
 
 	/* Finish zstd frame */
-	r1 = drive_compressor(f, data, 1, NULL, 0);
-
-	r2 = __archive_write_close_filter(f->next_filter);
-
-	return r1 < r2 ? r1 : r2;
+	return drive_compressor(f, data, 1, NULL, 0);
 }
 
 /*

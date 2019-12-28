@@ -524,9 +524,6 @@ __LA_DECL int	 archive_entry_acl_reset(struct archive_entry *, int /* want_type 
 __LA_DECL int	 archive_entry_acl_next(struct archive_entry *, int /* want_type */,
 	    int * /* type */, int * /* permset */, int * /* tag */,
 	    int * /* qual */, const char ** /* name */);
-__LA_DECL int	 archive_entry_acl_next_w(struct archive_entry *, int /* want_type */,
-	    int * /* type */, int * /* permset */, int * /* tag */,
-	    int * /* qual */, const wchar_t ** /* name */);
 
 /*
  * Construct a text-format ACL.  The flags argument is a bitmask that

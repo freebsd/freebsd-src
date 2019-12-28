@@ -26,7 +26,7 @@ AC_CONFIG_AUX_DIR([build/autoconf])
 # M4 scripts
 AC_CONFIG_MACRO_DIR([build/autoconf])
 # Must follow AC_CONFIG macros above...
-AM_INIT_AUTOMAKE()
+AM_INIT_AUTOMAKE([1.11 dist-xz dist-zip])
 AM_MAINTAINER_MODE([enable])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 

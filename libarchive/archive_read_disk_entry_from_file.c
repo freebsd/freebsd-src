@@ -249,11 +249,11 @@ archive_read_disk_entry_from_file(struct archive *_a,
 
 #if defined(HAVE_READLINK) || defined(HAVE_READLINKAT)
 	if (S_ISLNK(st->st_mode)) {
-		size_t linkbuffer_len = st->st_size + 1;
+		size_t linkbuffer_len = st->st_size;
 		char *linkbuffer;
 		int lnklen;
 
-		linkbuffer = malloc(linkbuffer_len);
+		linkbuffer = malloc(linkbuffer_len + 1);
 		if (linkbuffer == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Couldn't read link data");
@@ -280,7 +280,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 			free(linkbuffer);
 			return (ARCHIVE_FAILED);
 		}
-		linkbuffer[lnklen] = 0;
+		linkbuffer[lnklen] = '\0';
 		archive_entry_set_symlink(entry, linkbuffer);
 		free(linkbuffer);
 	}

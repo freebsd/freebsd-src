@@ -398,6 +398,9 @@ extract(const char *filename, int do_extract, int flags)
 	}
 	archive_read_close(a);
 	archive_read_free(a);
+
+	archive_write_close(ext);
+  	archive_write_free(ext);
 	exit(0);
 }
 
