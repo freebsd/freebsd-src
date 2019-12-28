@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
+ * SPDX-License-Identifier: (BSD-4-Clause AND BSD-2-Clause-FreeBSD)
  *
  * Copyright (c) 1996, 1997
  *      HD Associates, Inc.  All rights reserved.
