@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 extern int nfscl_ticks;
-extern int nfsrv_nfsuserd;
+extern nfsuserd_state nfsrv_nfsuserd;
 extern struct nfssockreq nfsrv_nfsuserdsock;
 extern void (*nfsd_call_recall)(struct vnode *, int, struct ucred *,
     struct thread *);
@@ -713,7 +713,7 @@ nfscommon_modevent(module_t mod, int type, void *data)
 		break;
 
 	case MOD_UNLOAD:
-		if (newnfs_numnfsd != 0 || nfsrv_nfsuserd != 0 ||
+		if (newnfs_numnfsd != 0 || nfsrv_nfsuserd != NOTRUNNING ||
 		    nfs_numnfscbd != 0) {
 			error = EBUSY;
 			break;

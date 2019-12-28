@@ -62,7 +62,8 @@ struct timeval nfsboottime;	/* Copy boottime once, so it never changes */
 int nfscl_ticks;
 int nfsrv_useacl = 1;
 struct nfssockreq nfsrv_nfsuserdsock;
-int nfsrv_nfsuserd = 0;
+nfsuserd_state nfsrv_nfsuserd = NOTRUNNING;
+static int nfsrv_userdupcalls = 0;
 struct nfsreqhead nfsd_reqq;
 uid_t nfsrv_defaultuid = UID_NOBODY;
 gid_t nfsrv_defaultgid = GID_NOGROUP;
@@ -3105,18 +3106,22 @@ nfsrv_nfsuserdport(struct nfsuserd_args *nargs, NFSPROC_T *p)
 	int error;
 
 	NFSLOCKNAMEID();
-	if (nfsrv_nfsuserd) {
+	if (nfsrv_nfsuserd != NOTRUNNING) {
 		NFSUNLOCKNAMEID();
 		error = EPERM;
 		goto out;
 	}
-	nfsrv_nfsuserd = 1;
-	NFSUNLOCKNAMEID();
+	nfsrv_nfsuserd = STARTSTOP;
 	/*
 	 * Set up the socket record and connect.
+	 * Set nr_client NULL before unlocking, just to ensure that no other
+	 * process/thread/core will use a bogus old value.  This could only
+	 * occur if the use of the nameid lock to protect nfsrv_nfsuserd is
+	 * broken.
 	 */
 	rp = &nfsrv_nfsuserdsock;
 	rp->nr_client = NULL;
+	NFSUNLOCKNAMEID();
 	rp->nr_sotype = SOCK_DGRAM;
 	rp->nr_soproto = IPPROTO_UDP;
 	rp->nr_lock = (NFSR_RESERVEDPORT | NFSR_LOCALHOST);
@@ -3152,9 +3157,15 @@ nfsrv_nfsuserdport(struct nfsuserd_args *nargs, NFSPROC_T *p)
 	rp->nr_vers = RPCNFSUSERD_VERS;
 	if (error == 0)
 		error = newnfs_connect(NULL, rp, NFSPROCCRED(p), p, 0);
-	if (error) {
+	if (error == 0) {
+		NFSLOCKNAMEID();
+		nfsrv_nfsuserd = RUNNING;
+		NFSUNLOCKNAMEID();
+	} else {
 		free(rp->nr_nam, M_SONAME);
-		nfsrv_nfsuserd = 0;
+		NFSLOCKNAMEID();
+		nfsrv_nfsuserd = NOTRUNNING;
+		NFSUNLOCKNAMEID();
 	}
 out:
 	NFSEXITCODE(error);
@@ -3169,14 +3180,21 @@ nfsrv_nfsuserddelport(void)
 {
 
 	NFSLOCKNAMEID();
-	if (nfsrv_nfsuserd == 0) {
+	if (nfsrv_nfsuserd != RUNNING) {
 		NFSUNLOCKNAMEID();
 		return;
 	}
-	nfsrv_nfsuserd = 0;
+	nfsrv_nfsuserd = STARTSTOP;
+	/* Wait for all upcalls to complete. */
+	while (nfsrv_userdupcalls > 0)
+		msleep(&nfsrv_userdupcalls, NFSNAMEIDMUTEXPTR, PVFS,
+		    "nfsupcalls", 0);
 	NFSUNLOCKNAMEID();
 	newnfs_disconnect(&nfsrv_nfsuserdsock);
 	NFSSOCKADDRFREE(nfsrv_nfsuserdsock.nr_nam);
+	NFSLOCKNAMEID();
+	nfsrv_nfsuserd = NOTRUNNING;
+	NFSUNLOCKNAMEID();
 }
 
 /*
@@ -3195,12 +3213,19 @@ nfsrv_getuser(int procnum, uid_t uid, gid_t gid, char *name, NFSPROC_T *p)
 	int error;
 
 	NFSLOCKNAMEID();
-	if (nfsrv_nfsuserd == 0) {
+	if (nfsrv_nfsuserd != RUNNING) {
 		NFSUNLOCKNAMEID();
 		error = EPERM;
 		goto out;
 	}
+	/*
+	 * Maintain a count of upcalls in progress, so that nfsrv_X()
+	 * can wait until no upcalls are in progress.
+	 */
+	nfsrv_userdupcalls++;
 	NFSUNLOCKNAMEID();
+	KASSERT(nfsrv_userdupcalls > 0,
+	    ("nfsrv_getuser: non-positive upcalls"));
 	nd = &nfsd;
 	cred = newnfs_getcred();
 	nd->nd_flag = ND_GSSINITREPLY;
@@ -3219,6 +3244,10 @@ nfsrv_getuser(int procnum, uid_t uid, gid_t gid, char *name, NFSPROC_T *p)
 	}
 	error = newnfs_request(nd, NULL, NULL, &nfsrv_nfsuserdsock, NULL, NULL,
 		cred, RPCPROG_NFSUSERD, RPCNFSUSERD_VERS, NULL, 0, NULL, NULL);
+	NFSLOCKNAMEID();
+	if (--nfsrv_userdupcalls == 0 && nfsrv_nfsuserd == STARTSTOP)
+		wakeup(&nfsrv_userdupcalls);
+	NFSUNLOCKNAMEID();
 	NFSFREECRED(cred);
 	if (!error) {
 		mbuf_freem(nd->nd_mrep);
