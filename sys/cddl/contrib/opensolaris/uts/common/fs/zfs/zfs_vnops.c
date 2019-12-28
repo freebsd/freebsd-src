@@ -545,9 +545,7 @@ mappedread_sf(vnode_t *vp, int nbytes, uio_t *uio)
 			zfs_vmobject_wlock(obj);
 			if (error == 0) {
 				vm_page_valid(pp);
-				vm_page_lock(pp);
 				vm_page_activate(pp);
-				vm_page_unlock(pp);
 			}
 			vm_page_sunbusy(pp);
 			if (error != 0 && !vm_page_wired(pp) &&

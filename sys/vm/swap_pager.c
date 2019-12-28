@@ -1630,10 +1630,9 @@ swp_pager_async_iodone(struct buf *bp)
 				 * then finish the I/O.
 				 */
 				MPASS(m->dirty == VM_PAGE_BITS_ALL);
+
 				/* PQ_UNSWAPPABLE? */
-				vm_page_lock(m);
 				vm_page_activate(m);
-				vm_page_unlock(m);
 				vm_page_sunbusy(m);
 			}
 		} else if (bp->b_iocmd == BIO_READ) {
@@ -1668,9 +1667,7 @@ swp_pager_async_iodone(struct buf *bp)
 			    ("swp_pager_async_iodone: page %p is not write"
 			    " protected", m));
 			vm_page_undirty(m);
-			vm_page_lock(m);
 			vm_page_deactivate_noreuse(m);
-			vm_page_unlock(m);
 			vm_page_sunbusy(m);
 		}
 	}
@@ -1718,10 +1715,8 @@ swp_pager_force_dirty(vm_page_t m)
 
 	vm_page_dirty(m);
 #ifdef INVARIANTS
-	vm_page_lock(m);
 	if (!vm_page_wired(m) && m->a.queue == PQ_NONE)
 		panic("page %p is neither wired nor queued", m);
-	vm_page_unlock(m);
 #endif
 	vm_page_xunbusy(m);
 	swap_pager_unswapped(m);
@@ -1732,9 +1727,7 @@ swp_pager_force_launder(vm_page_t m)
 {
 
 	vm_page_dirty(m);
-	vm_page_lock(m);
 	vm_page_launder(m);
-	vm_page_unlock(m);
 	vm_page_xunbusy(m);
 	swap_pager_unswapped(m);
 }

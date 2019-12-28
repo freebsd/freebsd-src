@@ -1371,12 +1371,10 @@ vm_page_readahead_finish(vm_page_t m)
 	 * have shown that deactivating the page is usually the best choice,
 	 * unless the page is wanted by another thread.
 	 */
-	vm_page_lock(m);
 	if ((m->busy_lock & VPB_BIT_WAITERS) != 0)
 		vm_page_activate(m);
 	else
 		vm_page_deactivate(m);
-	vm_page_unlock(m);
 	vm_page_xunbusy_unchecked(m);
 }
 
@@ -3651,7 +3649,6 @@ static void
 vm_page_enqueue(vm_page_t m, uint8_t queue)
 {
 
-	vm_page_assert_locked(m);
 	KASSERT(m->a.queue == PQ_NONE &&
 	    (m->a.flags & PGA_QUEUE_STATE_MASK) == 0,
 	    ("%s: page %p is already enqueued", __func__, m));
@@ -4124,7 +4121,6 @@ void
 vm_page_unswappable(vm_page_t m)
 {
 
-	vm_page_assert_locked(m);
 	KASSERT(!vm_page_wired(m) && (m->oflags & VPO_UNMANAGED) == 0,
 	    ("page %p already unswappable", m));
 
@@ -4222,9 +4218,7 @@ vm_page_release_locked(vm_page_t m, int flags)
 		    m->dirty == 0 && vm_page_tryxbusy(m)) {
 			vm_page_free(m);
 		} else {
-			vm_page_lock(m);
 			vm_page_release_toq(m, PQ_INACTIVE, flags != 0);
-			vm_page_unlock(m);
 		}
 	}
 }
@@ -4293,7 +4287,6 @@ void
 vm_page_advise(vm_page_t m, int advice)
 {
 
-	vm_page_assert_locked(m);
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	if (advice == MADV_FREE)
 		/*
@@ -4309,14 +4302,14 @@ vm_page_advise(vm_page_t m, int advice)
 		return;
 	}
 
+	if (advice != MADV_FREE && m->dirty == 0 && pmap_is_modified(m))
+		vm_page_dirty(m);
+
 	/*
 	 * Clear any references to the page.  Otherwise, the page daemon will
 	 * immediately reactivate the page.
 	 */
 	vm_page_aflag_clear(m, PGA_REFERENCED);
-
-	if (advice != MADV_FREE && m->dirty == 0 && pmap_is_modified(m))
-		vm_page_dirty(m);
 
 	/*
 	 * Place clean pages near the head of the inactive queue rather than

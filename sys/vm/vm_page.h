@@ -808,12 +808,6 @@ vm_page_aflag_clear(vm_page_t m, uint16_t bits)
 	uint32_t *addr, val;
 
 	/*
-	 * The PGA_REFERENCED flag can only be cleared if the page is locked.
-	 */
-	if ((bits & PGA_REFERENCED) != 0)
-		vm_page_assert_locked(m);
-
-	/*
 	 * Access the whole 32-bit word containing the aflags field with an
 	 * atomic update.  Parallel non-atomic updates to the other fields
 	 * within this word are handled properly by the atomic update.
@@ -920,8 +914,6 @@ _vm_page_queue(vm_page_astate_t as)
 static inline uint8_t
 vm_page_queue(vm_page_t m)
 {
-
-	vm_page_assert_locked(m);
 
 	return (_vm_page_queue(vm_page_astate_load(m)));
 }
