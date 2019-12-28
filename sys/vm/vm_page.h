@@ -631,6 +631,8 @@ vm_page_t vm_page_lookup (vm_object_t, vm_pindex_t);
 vm_page_t vm_page_next(vm_page_t m);
 void vm_page_pqbatch_drain(void);
 void vm_page_pqbatch_submit(vm_page_t m, uint8_t queue);
+bool vm_page_pqstate_commit(vm_page_t m, vm_page_astate_t *old,
+    vm_page_astate_t new);
 vm_page_t vm_page_prev(vm_page_t m);
 bool vm_page_ps_test(vm_page_t m, int flags, vm_page_t skip_m);
 void vm_page_putfake(vm_page_t m);
@@ -901,11 +903,19 @@ vm_page_undirty(vm_page_t m)
 	m->dirty = 0;
 }
 
+static inline uint8_t
+_vm_page_queue(vm_page_astate_t as)
+{
+
+	if ((as.flags & PGA_DEQUEUE) != 0)
+		return (PQ_NONE);
+	return (as.queue);
+}
+
 /*
  *	vm_page_queue:
  *
- *	Return the index of the queue containing m.  This index is guaranteed
- *	not to change while the page lock is held.
+ *	Return the index of the queue containing m.
  */
 static inline uint8_t
 vm_page_queue(vm_page_t m)
@@ -913,10 +923,7 @@ vm_page_queue(vm_page_t m)
 
 	vm_page_assert_locked(m);
 
-	if ((m->a.flags & PGA_DEQUEUE) != 0)
-		return (PQ_NONE);
-	atomic_thread_fence_acq();
-	return (m->a.queue);
+	return (_vm_page_queue(vm_page_astate_load(m)));
 }
 
 static inline bool
