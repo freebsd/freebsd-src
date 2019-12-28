@@ -165,7 +165,7 @@ g_shsec_remove_disk(struct g_consumer *cp)
 	}
 
 	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
-		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
+		return;
 	g_detach(cp);
 	g_destroy_consumer(cp);
 }
@@ -191,7 +191,7 @@ g_shsec_orphan(struct g_consumer *cp)
 static int
 g_shsec_access(struct g_provider *pp, int dr, int dw, int de)
 {
-	struct g_consumer *cp1, *cp2;
+	struct g_consumer *cp1, *cp2, *tmp;
 	struct g_shsec_softc *sc;
 	struct g_geom *gp;
 	int error;
@@ -222,21 +222,25 @@ g_shsec_access(struct g_provider *pp, int dr, int dw, int de)
 		de--;
 
 	error = ENXIO;
-	LIST_FOREACH(cp1, &gp->consumer, consumer) {
+	LIST_FOREACH_SAFE(cp1, &gp->consumer, consumer, tmp) {
 		error = g_access(cp1, dr, dw, de);
-		if (error == 0)
-			continue;
-		/*
-		 * If we fail here, backout all previous changes.
-		 */
-		LIST_FOREACH(cp2, &gp->consumer, consumer) {
-			if (cp1 == cp2)
-				return (error);
-			g_access(cp2, -dr, -dw, -de);
+		if (error != 0)
+			goto fail;
+		if (cp1->acr == 0 && cp1->acw == 0 && cp1->ace == 0 &&
+		    cp1->flags & G_CF_ORPHAN) {
+			g_detach(cp1);
+			g_destroy_consumer(cp1);
 		}
-		/* NOTREACHED */
 	}
+	return (error);
 
+fail:
+	/* If we fail here, backout all previous changes. */
+	LIST_FOREACH(cp2, &gp->consumer, consumer) {
+		if (cp1 == cp2)
+			break;
+		g_access(cp2, -dr, -dw, -de);
+	}
 	return (error);
 }
 
