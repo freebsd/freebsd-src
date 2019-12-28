@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 28, 2019
+.Dd December 27, 2019
 .Dt EPOCH 9
 .Os
 .Sh NAME
@@ -37,34 +37,58 @@
 .Nm epoch_enter ,
 .Nm epoch_exit ,
 .Nm epoch_wait ,
+.Nm epoch_enter_preempt ,
+.Nm epoch_exit_preempt ,
+.Nm epoch_wait_preempt ,
 .Nm epoch_call ,
 .Nm epoch_drain_callbacks ,
 .Nm in_epoch ,
+.Nm in_epoch_verbose ,
 .Nd kernel epoch based reclamation
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/proc.h
 .In sys/epoch.h
+.\" Types
+.Bd -literal
+struct epoch;		/* Opaque */
+.Ed
+.Vt typedef "struct epoch *epoch_t" ;
+.Bd -literal
+struct epoch_context {
+	void	*data[2];
+};
+.Ed
+.Vt typedef "struct epoch_context *epoch_context_t" ;
+.Bd -literal
+struct epoch_tracker;	/* Opaque */
+.Ed
+.Vt typedef "struct epoch_tracker *epoch_tracker_t" ;
+.\" Declarations
 .Ft epoch_t
-.Fn epoch_alloc "int flags"
+.Fn epoch_alloc "const char *name" "int flags"
+.Ft void
+.Fn epoch_free "epoch_t epoch"
 .Ft void
 .Fn epoch_enter "epoch_t epoch"
 .Ft void
-.Fn epoch_enter_preempt "epoch_t epoch" "epoch_tracker_t et"
-.Ft void
 .Fn epoch_exit "epoch_t epoch"
-.Ft void
-.Fn epoch_exit_preempt "epoch_t epoch" "epoch_tracker_t et"
 .Ft void
 .Fn epoch_wait "epoch_t epoch"
 .Ft void
+.Fn epoch_enter_preempt "epoch_t epoch" "epoch_tracker_t et"
+.Ft void
+.Fn epoch_exit_preempt "epoch_t epoch" "epoch_tracker_t et"
+.Ft void
 .Fn epoch_wait_preempt "epoch_t epoch"
 .Ft void
-.Fn epoch_call "epoch_t epoch" "epoch_context_t ctx" "void (*callback) (epoch_context_t)"
+.Fn epoch_call "epoch_t epoch" "epoch_context_t ctx" "void (*callback)(epoch_context_t)"
 .Ft void
 .Fn epoch_drain_callbacks "epoch_t epoch"
 .Ft int
 .Fn in_epoch "epoch_t epoch"
+.Ft int
+.Fn in_epoch_verbose "epoch_t epoch" "int dump_onfail"
 .Sh DESCRIPTION
 Epochs are used to guarantee liveness and immutability of data by
 deferring reclamation and mutation until a grace period has elapsed.
@@ -72,57 +96,104 @@ Epochs do not have any lock ordering issues.
 Entering and leaving an epoch section will never block.
 .Pp
 Epochs are allocated with
-.Fn epoch_alloc
-and freed with
+.Fn epoch_alloc .
+The
+.Fa name
+argument is used for debugging convenience when the
+.Cd EPOCH_TRACE
+kernel option is configured.
+By default, epochs do not allow preemption during sections.
+By default mutexes cannot be held across
+.Fn epoch_wait_preempt .
+The
+.Fa flags
+specified are formed by
+.Em OR Ns 'ing
+the following values:
+.Bl -tag -offset indent -width Ds
+.It Dv EPOCH_LOCKED
+Permit holding mutexes across
+.Fn epoch_wait_preempt
+(requires
+.Dv EPOCH_PREEMPT ) .
+When doing this one must be cautious of creating a situation where a deadlock
+is possible.
+.It Dv EPOCH_PREEMPT
+The
+.Vt epoch
+will allow preemption during sections.
+Only non-sleepable locks may be acquired during a preemptible epoch.
+The functions
+.Fn epoch_enter_preempt ,
+.Fn epoch_exit_preempt ,
+and
+.Fn epoch_wait_preempt
+must be used in place of
+.Fn epoch_enter ,
+.Fn epoch_exit ,
+and
+.Fn epoch_wait ,
+respectively.
+.El
+.Pp
+.Vt epoch Ns s
+are freed with
 .Fn epoch_free .
-The flags passed to epoch_alloc determine whether preemption is
-allowed during a section or not (the default), as specified by
-EPOCH_PREEMPT.
+.Pp
 Threads indicate the start of an epoch critical section by calling
-.Fn epoch_enter .
-The end of a critical section is indicated by calling
-.Fn epoch_exit .
-The _preempt variants can be used around code which requires preemption.
-A thread can wait until a grace period has elapsed
-since any threads have entered
-the epoch by calling
-.Fn epoch_wait
-or
-.Fn epoch_wait_preempt ,
-depending on the epoch_type.
-The use of a default epoch type allows one to use
-.Fn epoch_wait
-which is guaranteed to have much shorter completion times since
-we know that none of the threads in an epoch section will be preempted
-before completing its section.
-If the thread can't sleep or is otherwise in a performance sensitive
-path it can ensure that a grace period has elapsed by calling
-.Fn epoch_call
-with a callback with any work that needs to wait for an epoch to elapse.
-Only non-sleepable locks can be acquired during a section protected by
+.Fn epoch_enter
+(or
+.Fn epoch_enter_preempt
+for preemptible epochs).
+Threads call
+.Fn epoch_exit
+(or
+.Fn epoch_exit_preempt
+for preemptible epochs)
+to indicate the end of a critical section.
+.Vt struct epoch_tracker Ns s
+are stack objects whose pointers are passed to
 .Fn epoch_enter_preempt
 and
-.Fn epoch_exit_preempt .
+.Fn epoch_exit_preempt
+(much like
+.Vt struct rm_priotracker ) .
+.Pp
+Threads can defer work until a grace period has expired since any thread has
+entered the epoch either synchronously or asynchronously.
+.Fn epoch_call
+defers work asynchronously by invoking the provided
+.Fa callback
+at a later time.
+.Fn epoch_wait
+(or
+.Fn epoch_wait_preempt )
+blocks the current thread until the grace period has expired and the work can be
+done safely.
+.Pp
+Default, non-preemptible epoch wait
+.Fn ( epoch_wait )
+is guaranteed to have much shorter completion times relative to
+preemptible epoch wait
+.Fn ( epoch_wait_preempt ) .
+(In the default type, none of the threads in an epoch section will be preempted
+before completing its section.)
+.Pp
 INVARIANTS can assert that a thread is in an epoch by using
 .Fn in_epoch .
+.Fn in_epoch "epoch"
+is equivalent to invoking
+.Fn in_epoch_verbose "epoch" "0" .
+If
+.Cd EPOCH_TRACE
+is enabled,
+.Fn in_epoch_verbose "epoch" "1"
+provides additional verbose debugging information.
 .Pp
 The epoch API currently does not support sleeping in epoch_preempt sections.
 A caller should never call
 .Fn epoch_wait
 in the middle of an epoch section for the same epoch as this will lead to a deadlock.
-.Pp
-By default mutexes cannot be held across
-.Fn epoch_wait_preempt .
-To permit this the epoch must be allocated with
-EPOCH_LOCKED.
-When doing this one must be cautious of creating a situation where a deadlock is
-possible. Note that epochs are not a straight replacement for read locks.
-Callers must use safe list and tailq traversal routines in an epoch (see ck_queue).
-When modifying a list referenced from an epoch section safe removal
-routines must be used and the caller can no longer modify a list entry
-in place.
-An item to be modified must be handled with copy on write
-and frees must be deferred until after a grace period has elapsed.
 .Pp
 The
 .Fn epoch_drain_callbacks
@@ -140,12 +211,18 @@ This function can sleep and is not optimized for performance.
 will return 1 if curthread is in curepoch, 0 otherwise.
 .Sh CAVEATS
 One must be cautious when using
-.Fn epoch_wait_preempt
-threads are pinned during epoch sections so if a thread in a section is then
-preempted by a higher priority compute bound thread on that CPU it can be
-prevented from leaving the section.
-Thus the wait time for the waiter is
-potentially unbounded.
+.Fn epoch_wait_preempt .
+Threads are pinned during epoch sections, so if a thread in a section is then
+preempted by a higher priority compute bound thread on that CPU, it can be
+prevented from leaving the section indefinitely.
+.Pp
+Epochs are not a straight replacement for read locks.
+Callers must use safe list and tailq traversal routines in an epoch (see ck_queue).
+When modifying a list referenced from an epoch section safe removal
+routines must be used and the caller can no longer modify a list entry
+in place.
+An item to be modified must be handled with copy on write
+and frees must be deferred until after a grace period has elapsed.
 .Sh EXAMPLES
 Async free example:
 Thread 1:
@@ -154,8 +231,8 @@ int
 in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_laddr *laddr,
     struct ucred *cred)
 {
-   /* ... */
-   epoch_enter(net_epoch);
+    /* ... */
+    epoch_enter(net_epoch);
     CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
         sa = ifa->ifa_addr;
 	if (sa->sa_family != AF_INET)
@@ -167,7 +244,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_laddr *laddr,
 	}
     }
     epoch_exit(net_epoch);
-   /* ... */
+    /* ... */
 }
 .Ed
 Thread 2:
@@ -198,8 +275,6 @@ and then defers deletion.
 More general mutation or a synchronous
 free would have to follow a call to
 .Fn epoch_wait .
-.Sh ERRORS
-None.
 .Sh NOTES
 The
 .Nm
