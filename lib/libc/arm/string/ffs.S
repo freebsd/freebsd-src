@@ -40,9 +40,6 @@ __FBSDID("$FreeBSD$");
  * 6 bits as an index into the table.  This algorithm should be a win
  * over the checking each bit in turn as per the C compiled version.
  *
- * under ARMv5 there's an instruction called CLZ (count leading Zero's) that
- * could be used
- *
  * This is the ffs algorithm devised by d.seal and posted to comp.sys.arm on
  * 16 Feb 1994.
  */
