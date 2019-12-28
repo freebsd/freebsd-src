@@ -331,6 +331,9 @@ device		regulator
 device		syscon
 device		aw_syscon
 
+# IO Domains
+device		rk_iodomain
+
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
 # Note that 'bpf' is required for DHCP.
