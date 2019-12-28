@@ -93,18 +93,9 @@ ar71xx_mac_addr_init(unsigned char *dst, const unsigned char *src,
  * Returns 0 on success, -1 on error.
  */
 int
-ar71xx_mac_addr_random_init(unsigned char *dst)
+ar71xx_mac_addr_random_init(struct ifnet *ifp, struct ether_addr *dst)
 {
-	uint32_t rnd;
 
-	rnd = arc4random();
-
-	dst[0] = 'b';
-	dst[1] = 's';
-	dst[2] = 'd';
-	dst[3] = (rnd >> 24) & 0xff;
-	dst[4] = (rnd >> 16) & 0xff;
-	dst[5] = (rnd >> 8) & 0xff;
-
+	ether_gen_addr(ifp, dst);
 	return (0);
 }
