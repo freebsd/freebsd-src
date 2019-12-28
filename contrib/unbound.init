@@ -54,10 +54,10 @@ start() {
 	[ -e ${rootdir}/dev/log ] || touch ${rootdir}/dev/log
 	mount --bind -n /dev/log ${rootdir}/dev/log >/dev/null 2>&1;
     fi;
-    if ! egrep -q '^/[^[:space:]]+[[:space:]]+'${rootdir}'/dev/random' /proc/mounts; then
+    if ! egrep -q '^/[^[:space:]]+[[:space:]]+'${rootdir}'/dev/urandom' /proc/mounts; then
 	[ -d ${rootdir}/dev ] || mkdir -p ${rootdir}/dev ;
-	[ -e ${rootdir}/dev/random ] || touch ${rootdir}/dev/random
-	mount --bind -n /dev/random ${rootdir}/dev/random >/dev/null 2>&1;
+	[ -e ${rootdir}/dev/urandom ] || touch ${rootdir}/dev/urandom
+	mount --bind -n /dev/urandom ${rootdir}/dev/urandom >/dev/null 2>&1;
     fi;
 
     # if not running, start it up here
@@ -78,8 +78,8 @@ stop() {
     if egrep -q '^/[^[:space:]]+[[:space:]]+'${rootdir}'/dev/log' /proc/mounts; then
 	umount ${rootdir}/dev/log >/dev/null 2>&1
     fi;
-    if egrep -q '^/[^[:space:]]+[[:space:]]+'${rootdir}'/dev/random' /proc/mounts; then
-	umount ${rootdir}/dev/random >/dev/null 2>&1
+    if egrep -q '^/[^[:space:]]+[[:space:]]+'${rootdir}'/dev/urandom' /proc/mounts; then
+	umount ${rootdir}/dev/urandom >/dev/null 2>&1
     fi;
     return $retval
 }

@@ -50,7 +50,9 @@ corner_cases(struct regional* r)
 	size_t s; /* shadow count of allocated memory */
 	void* a;
 	size_t minsize = sizeof(uint64_t);
+#ifndef UNBOUND_ALLOC_NONREGIONAL
 	size_t mysize;
+#endif
 	char* str;
 	unit_assert(r);
 	/* alloc cases:
@@ -75,6 +77,7 @@ corner_cases(struct regional* r)
 	s+=0;
 	unit_assert(r->available == r->first_size - s);
 
+#ifndef UNBOUND_ALLOC_NONREGIONAL
 	a = regional_alloc(r, 1);
 	unit_assert(a);
 	memset(a, 0x42, 1);
@@ -171,6 +174,7 @@ corner_cases(struct regional* r)
 	memset(a, 0x42, mysize);
 	unit_assert(a);
 	unit_assert(r->available == 8);
+#endif /* UNBOUND_ALLOC_NONREGIONAL */
 
 	/* test if really copied over */
 	str = "test12345";

@@ -4,6 +4,9 @@
 %begin %{
 /* store state of warning output, restored at later pop */
 #pragma GCC diagnostic push
+/* ignore warnings for pragma below, where for older GCC it can produce a
+   warning if the cast-function-type warning is absent. */
+#pragma GCC diagnostic ignored "-Wpragmas"
 /* ignore gcc8 METH_NOARGS function cast warnings for swig function pointers */
 #pragma GCC diagnostic ignored "-Wcast-function-type"
 %}
@@ -1011,7 +1014,7 @@ struct config_file {
    char* control_key_file;
    char* control_cert_file;
    int do_daemonize;
-   char* python_script;
+   struct config_strlist* python_script;
 };
 
 /* ************************************************************************************ *
@@ -1106,6 +1109,7 @@ struct delegpt {
 %rename ("MODULE_STATE_INITIAL") "module_state_initial";
 %rename ("MODULE_WAIT_REPLY") "module_wait_reply";
 %rename ("MODULE_WAIT_MODULE") "module_wait_module";
+%rename ("MODULE_RESTART_NEXT") "module_restart_next";
 %rename ("MODULE_WAIT_SUBQUERY") "module_wait_subquery";
 %rename ("MODULE_ERROR") "module_error";
 %rename ("MODULE_FINISHED") "module_finished";
@@ -1114,6 +1118,7 @@ enum module_ext_state {
    module_state_initial = 0,
    module_wait_reply,
    module_wait_module,
+   module_restart_next,
    module_wait_subquery,
    module_error,
    module_finished

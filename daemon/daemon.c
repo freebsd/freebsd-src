@@ -221,7 +221,9 @@ daemon_init(void)
 	(void)sldns_key_EVP_load_gost_id();
 #  endif
 #  if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_CRYPTO)
+#    ifndef S_SPLINT_S
 	OpenSSL_add_all_algorithms();
+#    endif
 #  else
 	OPENSSL_init_crypto(OPENSSL_INIT_ADD_ALL_CIPHERS
 		| OPENSSL_INIT_ADD_ALL_DIGESTS
@@ -248,8 +250,6 @@ daemon_init(void)
 	/* init timezone info while we are not chrooted yet */
 	tzset();
 #endif
-	/* open /dev/random if needed */
-	ub_systemseed((unsigned)time(NULL)^(unsigned)getpid()^0xe67);
 	daemon->need_to_exit = 0;
 	modstack_init(&daemon->mods);
 	if(!(daemon->env = (struct module_env*)calloc(1, 
@@ -427,9 +427,7 @@ daemon_create_workers(struct daemon* daemon)
 	int* shufport;
 	log_assert(daemon && daemon->cfg);
 	if(!daemon->rand) {
-		unsigned int seed = (unsigned int)time(NULL) ^ 
-			(unsigned int)getpid() ^ 0x438;
-		daemon->rand = ub_initstate(seed, NULL);
+		daemon->rand = ub_initstate(NULL);
 		if(!daemon->rand)
 			fatal_exit("could not init random generator");
 		hash_set_raninit((uint32_t)ub_random(daemon->rand));
@@ -575,6 +573,9 @@ void
 daemon_fork(struct daemon* daemon)
 {
 	int have_view_respip_cfg = 0;
+#ifdef HAVE_SYSTEMD
+	int ret;
+#endif
 
 	log_assert(daemon);
 	if(!(daemon->views = views_create()))
@@ -660,7 +661,12 @@ daemon_fork(struct daemon* daemon)
 
 	/* Start resolver service on main thread. */
 #ifdef HAVE_SYSTEMD
-	sd_notify(0, "READY=1");
+	ret = sd_notify(0, "READY=1");
+	if(ret <= 0 && getenv("NOTIFY_SOCKET"))
+		fatal_exit("sd_notify failed %s: %s. Make sure that unbound has "
+				"access/permission to use the socket presented by systemd.",
+				getenv("NOTIFY_SOCKET"),
+				(ret==0?"no $NOTIFY_SOCKET": strerror(-ret)));
 #endif
 	log_info("start of service (%s).", PACKAGE_STRING);
 	worker_work(daemon->workers[0]);

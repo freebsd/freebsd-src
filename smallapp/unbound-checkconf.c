@@ -146,6 +146,42 @@ check_mod(struct config_file* cfg, struct module_func_block* fb)
 	edns_known_options_delete(&env);
 }
 
+/** true if addr is a localhost address, 127.0.0.1 or ::1 (with maybe "@port"
+ * after it) */
+static int
+str_addr_is_localhost(const char* a)
+{
+	if(strncmp(a, "127.", 4) == 0) return 1;
+	if(strncmp(a, "::1", 3) == 0) return 1;
+	return 0;
+}
+
+/** check do-not-query-localhost */
+static void
+donotquerylocalhostcheck(struct config_file* cfg)
+{
+	if(cfg->donotquery_localhost) {
+		struct config_stub* p;
+		struct config_strlist* s;
+		for(p=cfg->forwards; p; p=p->next) {
+			for(s=p->addrs; s; s=s->next) {
+				if(str_addr_is_localhost(s->str)) {
+					fprintf(stderr, "unbound-checkconf: warning: forward-addr: '%s' is specified for forward-zone: '%s', but do-not-query-localhost: yes means that the address will not be used for lookups.\n",
+						s->str, p->name);
+				}
+			}
+		}
+		for(p=cfg->stubs; p; p=p->next) {
+			for(s=p->addrs; s; s=s->next) {
+				if(str_addr_is_localhost(s->str)) {
+					fprintf(stderr, "unbound-checkconf: warning: stub-addr: '%s' is specified for stub-zone: '%s', but do-not-query-localhost: yes means that the address will not be used for lookups.\n",
+						s->str, p->name);
+				}
+			}
+		}
+	}
+}
+
 /** check localzones */
 static void
 localzonechecks(struct config_file* cfg)
@@ -574,6 +610,10 @@ morechecks(struct config_file* cfg)
 		&& strcmp(cfg->module_conf, "ipsecmod python validator iterator") != 0
 		&& strcmp(cfg->module_conf, "ipsecmod validator python iterator") != 0
 #endif
+#ifdef USE_IPSET
+		&& strcmp(cfg->module_conf, "validator ipset iterator") != 0
+		&& strcmp(cfg->module_conf, "ipset iterator") != 0
+#endif
 		) {
 		fatal_exit("module conf '%s' is not known to work",
 			cfg->module_conf);
@@ -602,6 +642,7 @@ morechecks(struct config_file* cfg)
 				cfg->control_cert_file);
 	}
 
+	donotquerylocalhostcheck(cfg);
 	localzonechecks(cfg);
 	view_and_respipchecks(cfg);
 #ifdef CLIENT_SUBNET

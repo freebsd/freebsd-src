@@ -301,7 +301,7 @@ setup_ssl(int s, SSL_CTX* ctx)
 	SSL* ssl = SSL_new(ctx);
 	if(!ssl) return NULL;
 	SSL_set_accept_state(ssl);
-	(void)SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
+	(void)SSL_set_mode(ssl, (long)SSL_MODE_AUTO_RETRY);
 	if(!SSL_set_fd(ssl, s)) {
 		SSL_free(ssl);
 		return NULL;
@@ -657,7 +657,9 @@ int main(int argc, char* argv[])
 	ERR_load_SSL_strings();
 #endif
 #if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_CRYPTO)
+#  ifndef S_SPLINT_S
 	OpenSSL_add_all_algorithms();
+#  endif
 #else
 	OPENSSL_init_crypto(OPENSSL_INIT_ADD_ALL_CIPHERS
 		| OPENSSL_INIT_ADD_ALL_DIGESTS

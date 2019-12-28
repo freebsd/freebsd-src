@@ -721,8 +721,6 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 	if(encode_rep != rep)
 		secure = 0; /* if rewritten, it can't be considered "secure" */
 	if(!encode_rep || *alias_rrset) {
-		sldns_buffer_clear(repinfo->c->buffer);
-		sldns_buffer_flip(repinfo->c->buffer);
 		if(!encode_rep)
 			*need_drop = 1;
 		else {
@@ -762,17 +760,14 @@ bail_out:
 	return 0;
 }
 
-/** Reply to client and perform prefetch to keep cache up to date.
- * If the buffer for the reply is empty, it indicates that only prefetch is
- * necessary and the reply should be suppressed (because it's dropped or
- * being deferred). */
+/** Reply to client and perform prefetch to keep cache up to date. */
 static void
 reply_and_prefetch(struct worker* worker, struct query_info* qinfo, 
-	uint16_t flags, struct comm_reply* repinfo, time_t leeway)
+	uint16_t flags, struct comm_reply* repinfo, time_t leeway, int noreply)
 {
 	/* first send answer to client to keep its latency 
 	 * as small as a cachereply */
-	if(sldns_buffer_limit(repinfo->c->buffer) != 0) {
+	if(!noreply) {
 		if(repinfo->c->tcp_req_info) {
 			sldns_buffer_copy(
 				repinfo->c->tcp_req_info->spool_buffer,
@@ -1100,7 +1095,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	struct respip_client_info* cinfo = NULL, cinfo_tmp;
 	memset(&qinfo, 0, sizeof(qinfo));
 
-	if(error != NETEVENT_NOERROR) {
+	if(error != NETEVENT_NOERROR || !repinfo) {
 		/* some bad tcp query DNS formats give these error calls */
 		verbose(VERB_ALGO, "handle request called with err=%d", error);
 		return 0;
@@ -1484,7 +1479,8 @@ lookup_cache:
 					lock_rw_unlock(&e->lock);
 					reply_and_prefetch(worker, lookup_qinfo,
 						sldns_buffer_read_u16_at(c->buffer, 2),
-						repinfo, leeway);
+						repinfo, leeway,
+						(partial_rep || need_drop));
 					if(!partial_rep) {
 						rc = 0;
 						regional_free_all(worker->scratchpad);
@@ -1566,16 +1562,17 @@ send_reply_rc:
 #endif
 	if(worker->env.cfg->log_replies)
 	{
-		struct timeval tv = {0, 0};
+		struct timeval tv;
+		memset(&tv, 0, sizeof(tv));
 		if(qinfo.local_alias && qinfo.local_alias->rrset &&
 			qinfo.local_alias->rrset->rk.dname) {
 			/* log original qname, before the local alias was
 			 * used to resolve that CNAME to something else */
 			qinfo.qname = qinfo.local_alias->rrset->rk.dname;
-			log_reply_info(0, &qinfo, &repinfo->addr, repinfo->addrlen,
+			log_reply_info(NO_VERBOSE, &qinfo, &repinfo->addr, repinfo->addrlen,
 				tv, 1, c->buffer);
 		} else {
-			log_reply_info(0, &qinfo, &repinfo->addr, repinfo->addrlen,
+			log_reply_info(NO_VERBOSE, &qinfo, &repinfo->addr, repinfo->addrlen,
 				tv, 1, c->buffer);
 		}
 	}
@@ -1684,11 +1681,7 @@ worker_create(struct daemon* daemon, int id, int* ports, int n)
 		return NULL;
 	}
 	/* create random state here to avoid locking trouble in RAND_bytes */
-	seed = (unsigned int)time(NULL) ^ (unsigned int)getpid() ^
-		(((unsigned int)worker->thread_num)<<17);
-		/* shift thread_num so it does not match out pid bits */
-	if(!(worker->rndstate = ub_initstate(seed, daemon->rand))) {
-		explicit_bzero(&seed, sizeof(seed));
+	if(!(worker->rndstate = ub_initstate(daemon->rand))) {
 		log_err("could not init random numbers.");
 		tube_delete(worker->cmd);
 		free(worker->ports);

@@ -65,6 +65,23 @@
 /** config files (removed at exit) */
 static struct config_strlist* cfgfiles = NULL;
 
+#ifdef UNBOUND_ALLOC_STATS
+#  define strdup(s) unbound_stat_strdup_log(s, __FILE__, __LINE__, __func__)
+char* unbound_stat_strdup_log(char* s, const char* file, int line,
+	const char* func);
+char* unbound_stat_strdup_log(char* s, const char* file, int line,
+        const char* func) {
+	char* result;
+	size_t len;
+	if(!s) return NULL;
+	len = strlen(s);
+	log_info("%s:%d %s strdup(%u)", file, line, func, (unsigned)len+1);
+	result = unbound_stat_malloc(len+1);
+	memmove(result, s, len+1);
+	return result;
+}
+#endif /* UNBOUND_ALLOC_STATS */
+
 /** give commandline usage for testbound. */
 static void
 testbound_usage(void)
@@ -358,7 +375,7 @@ main(int argc, char* argv[])
 			testbound_selftest();
 			checklock_stop();
 			if(log_get_lock()) {
-				lock_quick_destroy((lock_quick_type*)log_get_lock());
+				lock_basic_destroy((lock_basic_type*)log_get_lock());
 			}
 			exit(0);
 		case '1':
@@ -463,8 +480,14 @@ main(int argc, char* argv[])
 		free(pass_argv[c]);
 	if(res == 0) {
 		log_info("Testbound Exit Success\n");
+		/* remove configfile from here, the atexit() is for when
+		 * there is a crash to remove the tmpdir file.
+		 * This one removes the file while alloc and log locks are
+		 * still valid, and can be logged (for memory calculation),
+		 * it leaves the ptr NULL so the atexit does nothing. */
+		remove_configfile();
 		if(log_get_lock()) {
-			lock_quick_destroy((lock_quick_type*)log_get_lock());
+			lock_basic_destroy((lock_basic_type*)log_get_lock());
 		}
 #ifdef HAVE_PTHREAD
 		/* dlopen frees its thread state (dlopen of gost engine) */

@@ -1,6 +1,7 @@
 *.lo
 *.o
 /.libs/
+/.source
 /Makefile
 /autom4te.cache/
 /config.h

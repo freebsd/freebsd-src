@@ -1,0 +1,125 @@
+; This is a comment.
+; config options go here.
+server:
+	; the snoop is to elicit a referral and check the additional
+	; is fine for that, not removed by minimal-responses.
+	access-control: 127.0.0.1 allow_snoop
+	minimal-responses: yes
+forward-zone: name: "." forward-addr: 216.0.0.1
+CONFIG_END
+
+SCENARIO_BEGIN Test minimal-responses
+RANGE_BEGIN 0 100
+	ENTRY_BEGIN
+	MATCH opcode qtype qname
+	ADJUST copy_id
+	REPLY QR RD RA NOERROR
+	SECTION QUESTION
+www.example.com. IN A
+	SECTION ANSWER
+www.example.com. IN A 10.20.30.40
+	SECTION AUTHORITY
+example.com. IN NS ns.example.com.
+	SECTION ADDITIONAL
+ns.example.com. IN A 10.20.30.50
+txt.example.com. IN TXT "foo"
+	ENTRY_END
+
+	ENTRY_BEGIN
+	MATCH opcode qtype qname
+	ADJUST copy_id
+	REPLY QR RD RA NOERROR
+	SECTION QUESTION
+a.example.com. IN A
+	SECTION ANSWER
+	SECTION AUTHORITY
+example.com. IN SOA host.example.com. ns.example.com. 1 2 3 4 5
+example.com. IN NS ns.example.com.
+	SECTION ADDITIONAL
+ns.example.com. IN A 10.20.30.50
+txt.example.com. IN TXT "foo"
+	ENTRY_END
+
+	ENTRY_BEGIN
+	MATCH opcode qtype qname
+	ADJUST copy_id
+	REPLY QR RD RA NXDOMAIN
+	SECTION QUESTION
+b.example.com. IN A
+	SECTION ANSWER
+	SECTION AUTHORITY
+example.com. IN SOA host.example.com. ns.example.com. 1 2 3 4 5
+	SECTION ADDITIONAL
+ns.example.com. IN A 10.20.30.50
+txt.example.com. IN TXT "foo"
+	ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+STEP 4 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH opcode qname qtype all
+REPLY QR RD RA
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A 10.20.30.40
+ENTRY_END
+
+STEP 11 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+a.example.com. IN A
+ENTRY_END
+STEP 14 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH opcode qname qtype all
+REPLY QR RD RA
+SECTION QUESTION
+a.example.com. IN A
+SECTION AUTHORITY
+example.com. IN SOA host.example.com. ns.example.com. 1 2 3 4 5
+ENTRY_END
+
+STEP 21 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+b.example.com. IN A
+ENTRY_END
+STEP 24 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH opcode qname qtype all
+REPLY QR RD RA NXDOMAIN
+SECTION QUESTION
+b.example.com. IN A
+SECTION AUTHORITY
+example.com. IN SOA host.example.com. ns.example.com. 1 2 3 4 5
+ENTRY_END
+
+; get a referral, the additional is not removed.
+STEP 31 QUERY
+ENTRY_BEGIN
+REPLY
+SECTION QUESTION
+c.example.com. IN A
+ENTRY_END
+STEP 34 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH opcode qname qtype all
+REPLY QR RA NOERROR
+SECTION QUESTION
+c.example.com. IN A
+SECTION AUTHORITY
+example.com. IN NS ns.example.com.
+	SECTION ADDITIONAL
+ns.example.com. IN A 10.20.30.50
+ENTRY_END
+
+SCENARIO_END

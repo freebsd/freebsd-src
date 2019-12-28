@@ -482,7 +482,9 @@ int main(int argc, char** argv)
 	ERR_load_SSL_strings();
 #endif
 #if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_CRYPTO)
+#  ifndef S_SPLINT_S
 	OpenSSL_add_all_algorithms();
+#  endif
 #else
 	OPENSSL_init_crypto(OPENSSL_INIT_ADD_ALL_CIPHERS
 		| OPENSSL_INIT_ADD_ALL_DIGESTS

@@ -179,7 +179,7 @@ perf_encode(struct query_info* qi, struct reply_info* rep, uint16_t id,
 	/* encode a couple times */
 	for(i=0; i<max; i++) {
 		ret = reply_info_encode(qi, rep, id, flags, out, timenow,
-			r2, 65535, (int)(edns->bits & EDNS_DO) );
+			r2, 65535, (int)(edns->bits & EDNS_DO), 0);
 		unit_assert(ret != 0); /* udp packets should fit */
 		attach_edns_record(out, edns);
 		regional_free_all(r2);
@@ -342,7 +342,7 @@ testpkt(sldns_buffer* pkt, struct alloc_cache* alloc, sldns_buffer* out,
 	} else if(!check_formerr_gone) {
 		const size_t lim = 512;
 		ret = reply_info_encode(&qi, rep, id, flags, out, timenow,
-			region, 65535, (int)(edns.bits & EDNS_DO) );
+			region, 65535, (int)(edns.bits & EDNS_DO), 0);
 		unit_assert(ret != 0); /* udp packets should fit */
 		attach_edns_record(out, &edns);
 		if(vbmp) printf("inlen %u outlen %u\n", 
@@ -357,7 +357,7 @@ testpkt(sldns_buffer* pkt, struct alloc_cache* alloc, sldns_buffer* out,
 			ret = reply_info_encode(&qi, rep, id, flags, out, 
 				timenow, region, 
 				lim - calc_edns_field_size(&edns),
-				(int)(edns.bits & EDNS_DO));
+				(int)(edns.bits & EDNS_DO), 0);
 			unit_assert(ret != 0); /* should fit, but with TC */
 			attach_edns_record(out, &edns);
 			if( LDNS_QDCOUNT(sldns_buffer_begin(out)) !=

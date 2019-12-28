@@ -119,7 +119,11 @@ fi
 # Copy
 echo "minitdir copy $1 to $dir"
 mkdir $dir
+if cp --help 2>&1 | grep -- "-a" >/dev/null; then
 cp -a $name.tdir/* $dir/
+else
+cp -R $name.tdir/* $dir/
+fi
 cd $dir
 
 # EXE

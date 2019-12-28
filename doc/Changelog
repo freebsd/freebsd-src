@@ -1,6 +1,352 @@
+6 December 2019: Wouter
+	- Fix ipsecmod compile.
+	- Fix Makefile.in for ipset module compile, from Adi Prasaja.
+
+5 December 2019: Wouter
+	- unbound-fuzzers.tar.bz2: three programs for fuzzing, that are 1:1
+	  replacements for unbound-fuzzme.c that gets created after applying
+	  the contrib/unbound-fuzzme.patch.  They are contributed by
+	  Eric Sesterhenn from X41 D-Sec.
+	- tag for 1.9.6rc1.
+
+4 December 2019: Wouter
+	- Fix lock type for memory purify log lock deletion.
+	- Fix testbound for alloccheck runs, memory purify and lock checks.
+	- update contrib/fastrpz.patch to apply more cleanly.
+	- Fix Make Test Fails when Configured With --enable-alloc-nonregional,
+	  reported by X41 D-Sec.
+
+3 December 2019: Wouter
+	- Merge pull request #124 from rmetrich: Changed log lock
+	  from 'quick' to 'basic' because this is an I/O lock.
+	- Fix text around serial arithmatic used for RRSIG times to refer
+	  to correct RFC number.
+	- Fix Assert Causing DoS in synth_cname(),
+	  reported by X41 D-Sec.
+	- Fix similar code in auth_zone synth cname to add the extra checks.
+	- Fix Assert Causing DoS in dname_pkt_copy(),
+	  reported by X41 D-Sec.
+	- Fix OOB Read in sldns_wire2str_dname_scan(),
+	  reported by X41 D-Sec.
+	- Fix Out of Bounds Write in sldns_str2wire_str_buf(),
+	  reported by X41 D-Sec.
+	- Fix Out of Bounds Write in sldns_b64_pton(),
+	  fixed by check in sldns_str2wire_int16_data_buf(),
+	  reported by X41 D-Sec.
+	- Fix Insufficient Handling of Compressed Names in dname_pkt_copy(),
+	  reported by X41 D-Sec.
+	- Fix Out of Bound Write Compressed Names in rdata_copy(),
+	  reported by X41 D-Sec.
+	- Fix Hang in sldns_wire2str_pkt_scan(),
+	  reported by X41 D-Sec.
+	  This further lowers the max to 256.
+	- Fix snprintf() supports the n-specifier,
+	  reported by X41 D-Sec.
+	- Fix Bad Indentation, in dnscrypt.c,
+	  reported by X41 D-Sec.
+	- Fix Client NONCE Generation used for Server NONCE,
+	  reported by X41 D-Sec.
+	- Fix compile error in dnscrypt.
+	- Fix _vfixed not Used, removed from sbuffer code,
+	  reported by X41 D-Sec.
+	- Fix Hardcoded Constant, reported by X41 D-Sec.
+	- make depend
+
+2 December 2019: Wouter
+	- Merge pull request #122 from he32: In tcp_callback_writer(),
+	  don't disable time-out when changing to read.
+
+22 November 2019: George
+	- Fix compiler warnings.
+
+22 November 2019: Wouter
+	- Fix dname loop maximum, reported by Eric Sesterhenn from X41 D-Sec.
+	- Add make distclean that removes everything configure produced,
+	  and make maintainer-clean that removes bison and flex output.
+
+20 November 2019: Wouter
+	- Fix Out of Bounds Read in rrinternal_get_owner(),
+	  reported by X41 D-Sec.
+	- Fix Race Condition in autr_tp_create(),
+	  reported by X41 D-Sec.
+	- Fix Shared Memory World Writeable,
+	  reported by X41 D-Sec.
+	- Adjust unbound-control to make stats_shm a read only operation.
+	- Fix Weak Entropy Used For Nettle,
+	  reported by X41 D-Sec.
+	- Fix Randomness Error not Handled Properly,
+	  reported by X41 D-Sec.
+	- Fix Out-of-Bounds Read in dname_valid(),
+	  reported by X41 D-Sec.
+	- Fix Config Injection in create_unbound_ad_servers.sh,
+	  reported by X41 D-Sec.
+	- Fix Local Memory Leak in cachedb_init(),
+	  reported by X41 D-Sec.
+	- Fix Integer Underflow in Regional Allocator,
+	  reported by X41 D-Sec.
+	- Upgrade compat/getentropy_linux.c to version 1.46 from OpenBSD.
+	- Synchronize compat/getentropy_win.c with version 1.5 from
+	  OpenBSD, no changes but makes the file, comments, identical.
+	- Upgrade compat/getentropy_solaris.c to version 1.13 from OpenBSD.
+	- Upgrade compat/getentropy_osx.c to version 1.12 from OpenBSD.
+	- Changes to compat/getentropy files for,
+	  no link to openssl if using nettle, and hence config.h for
+	  HAVE_NETTLE variable.
+	  compat definition of MAP_ANON, for older systems.
+	  ifdef stdint.h inclusion for older systems.
+	  ifdef sha2.h inclusion for older systems.
+	- Fixed Compat Code Diverging from Upstream, reported by X41 D-Sec.
+	- Fix compile with --enable-alloc-checks, reported by X41 D-Sec.
+	- Fix Terminating Quotes not Written, reported by X41 D-Sec.
+	- Fix Useless memset() in validator, reported by X41 D-Sec.
+	- Fix Unrequired Checks, reported by X41 D-Sec.
+	- Fix Enum Name not Used, reported by X41 D-Sec.
+	- Fix NULL Pointer Dereference via Control Port,
+	  reported by X41 D-Sec.
+	- Fix Bad Randomness in Seed, reported by X41 D-Sec.
+	- Fix python examples/calc.py for eval, reported by X41 D-Sec.
+	- Fix comments for doxygen in dns64.
+
+19 November 2019: Wouter
+	- Fix CVE-2019-18934, shell execution in ipsecmod.
+	- 1.9.5 is 1.9.4 with bugfix, trunk is 1.9.6 in development.
+	- Fix authzone printout buffer length check.
+	- Fixes to please lint checks.
+	- Fix Integer Overflow in Regional Allocator,
+	  reported by X41 D-Sec.
+	- Fix Unchecked NULL Pointer in dns64_inform_super()
+	  and ipsecmod_new(), reported by X41 D-Sec.
+	- Fix Out-of-bounds Read in rr_comment_dnskey(),
+	  reported by X41 D-Sec.
+	- Fix Integer Overflows in Size Calculations,
+	  reported by X41 D-Sec.
+	- Fix Integer Overflow to Buffer Overflow in
+	  sldns_str2wire_dname_buf_origin(), reported by X41 D-Sec.
+	- Fix Out of Bounds Read in sldns_str2wire_dname(),
+	  reported by X41 D-Sec.
+	- Fix Out of Bounds Write in sldns_bget_token_par(),
+	  reported by X41 D-Sec.
+
+18 November 2019: Wouter
+	- In unbound-host use separate variable for get_option to please
+	  code checkers.
+	- update to bison output of 3.4.1 in code repository.
+	- Provide a prototype for compat malloc to remove compile warning.
+	- Portable grep usage for reuseport configure test.
+	- Check return type of HMAC_Init_ex for openssl 0.9.8.
+	- gitignore .source tempfile used for compatible make.
+
+13 November 2019: Wouter
+	- iana portlist updated.
+	- contrib/fastrpz.patch updated to apply for current code.
+	- fixes for splint cleanliness, long vs int in SSL set_mode.
+
+11 November 2019: Wouter
+	- Fix #109: check number of arguments for stdin-pipes in
+	  unbound-control and fail if too many arguments.
+	- Merge #102 from jrtc27: Add getentropy emulation for FreeBSD.
+
+24 October 2019: Wouter
+	- Fix #99: Memory leak in ub_ctx (event_base will never be freed).
+
+23 October 2019: George
+	- Add new configure option `--enable-fully-static` to enable full static
+	  build if requested; in relation to #91.
+
+23 October 2019: Wouter
+	- Merge #97: manpage: Add missing word on unbound.conf,
+	  from Erethon.
+
+22 October 2019: Wouter
+	- drop-tld.diff: adds option drop-tld: yesno that drops 2 label
+	  queries, to stop random floods.  Apply with
+	  patch -p1 < contrib/drop-tld.diff and compile.
+	  From Saksham Manchanda (Secure64).  Please note that we think this
+	  will drop DNSKEY and DS lookups for tlds and hence break DNSSEC
+	  lookups for downstream clients.
+
+7 October 2019: Wouter
+	- Add doxygen comments to unbound-anchor source address code, in #86.
+
+3 October 2019: Wouter
+	- Merge #90 from vcunat: fix build with nettle-3.5.
+	- Merge 1.9.4 release with fix for vulnerability CVE-2019-16866.
+	- Continue with development of 1.9.5.
+	- Merge #86 from psquarejho: Added -b source address option to
+	  smallapp/unbound-anchor.c, from Lukas Wunner.
+
+26 September 2019: Wouter
+	- Merge #87 from hardfalcon: Fix contrib/unbound.service.in,
+	  Drop CAP_KILL, use + prefix for ExecReload= instead.
+
+25 September 2019: Wouter
+	- The unbound.conf includes are sorted ascending, for include
+	  statements with a '*' from glob.
+
+23 September 2019: Wouter
+	- Merge #85 for #84 from sam-lunt: Add kill capability to systemd
+	  service file to fix that systemctl reload fails.
+
+20 September 2019: Wouter
+	- Merge #82 from hardfalcon: Downgrade CAP_NET_ADMIN to CAP_NET_RAW
+	  in unbound.service.
+	- Merge #81 from Maryse47: Consistently use /dev/urandom instead
+	  of /dev/random in scripts and docs.
+	- Merge #83 from Maryse47: contrib/unbound.service.in: do not fork
+	  into the background.
+
+19 September 2019: Wouter
+	- Fix #78: Memory leak in outside_network.c.
+	- Merge pull request #76 from Maryse47: Improvements and fixes for
+	  systemd unbound.service.
+	- oss-fuzz badge on README.md.
+	- Fix fix for #78 to also free service callback struct.
+	- Fix for oss-fuzz build warning.
+	- Fix wrong response ttl for prepended short CNAME ttls, this would
+	  create a wrong zero_ttl response count with serve-expired enabled.
+	- Merge #80 from stasic: Improve wording in man page.
+
+11 September 2019: Wouter
+	- Use explicit bzero for wiping clear buffer of hash in cachedb,
+	  reported by Eric Sesterhenn from X41 D-Sec.
+
+9 September 2019: Wouter
+	- Fix #72: configure --with-syslog-facility=LOCAL0-7 with default
+	  LOG_DAEMON (as before) can set the syslog facility that the server
+	  uses to log messages.
+
+4 September 2019: Wouter
+	- Fix #71: fix openssl error squelch commit compilation error.
+
+3 September 2019: Wouter
+	- squelch DNS over TLS errors 'ssl handshake failed crypto error'
+	  on low verbosity, they show on verbosity 3 (query details), because
+	  there is a high volume and the operator cannot do anything for the
+	  remote failure.  Specifically filters the high volume errors.
+
+2 September 2019: Wouter
+	- ipset module #28: log that an address is added, when verbosity high.
+	- ipset: refactor long routine into three smaller ones.
+	- updated Makefile dependencies.
+
+23 August 2019: Wouter
+	- Fix contrib/fastrpz.patch asprintf return value checks.
+
+22 August 2019: Wouter
+	- Fix that pkg-config is setup before --enable-systemd needs it.
+	- 1.9.3rc2 release candidate tag.  And this became the 1.9.3 release.
+	  Master is 1.9.4 in development.
+
+21 August 2019: Wouter
+	- Fix log_dns_msg to log irrespective of minimal responses config.
+
+19 August 2019: Ralph
+	- Document limitation of pidfile removal outside of chroot directory.
+
+16 August 2019: Wouter
+	- Fix unittest valgrind false positive uninitialised value report,
+	  where if gcc 9.1.1 uses -O2 (but not -O1) then valgrind 3.15.0
+	  issues an uninitialised value for the token buffer at the str2wire.c
+	  rrinternal_get_owner() strcmp with the '@' value.  Rewritten to use
+	  straight character comparisons removes the false positive.  Also
+	  valgrinds --expensive-definedness-checks=yes can stop this false
+	  positive.
+	- Please doxygen's parser for "@" occurrence in doxygen comment.
+	- Fixup contrib/fastrpz.patch
+	- Remove warning about unknown cast-function-type warning pragma.
+
+15 August 2019: Wouter
+	- iana portlist updated.
+	- Fix autotrust temp file uniqueness windows compile.
+	- avoid warning about upcast on 32bit systems for autotrust.
+	- escape commandline contents for -V.
+	- Fix character buffer size in ub_ctx_hosts.
+	- 1.9.3rc1 release candidate tag.
+	- Option -V prints if TCP fastopen is available.
+
+14 August 2019: George
+	- Fix #59, when compiled with systemd support check that we can properly
+	  communicate with systemd through the `NOTIFY_SOCKET`.
+
+14 August 2019: Wouter
+	- Generate configlexer with newer flex.
+	- Fix warning for unused variable for compilation without systemd.
+
+12 August 2019: George
+	- Introduce `-V` option to print the version number and build options.
+	  Previously reported build options like linked libs and linked modules
+	  are now moved from `-h` to `-V` as well for consistency.
+	- PACKAGE_BUGREPORT now also includes link to GitHub issues.
+
+1 August 2019: Wouter
+	- For #52 #53, second context does not close logfile override.
+	- Fix #52 #53, fix for example fail program.
+	- Fix to return after failed auth zone http chunk write.
+	- Fix to remove unused test for task_probe existance.
+	- Fix to timeval_add for remaining second in microseconds.
+	- Check repinfo in worker_handle_request, if null, drop it.
+
+29 July 2019: Wouter
+	- Add verbose log message when auth zone file is written, at level 4.
+	- Add hex print of trust anchor pointer to trust anchor file temp
+	  name to make it unique, for libunbound created multiple contexts.
+
+23 July 2019: Wouter
+	- Fix question section mismatch in local zone redirect.
+
+19 July 2019: Wouter
+	- Fix #49: Set no renegotiation on the SSL context to stop client
+	  session renegotiation.
+
+12 July 2019: Wouter
+	- Fix #48: Unbound returns additional records on NODATA response,
+	  if minimal-responses is enabled, also the additional for negative
+	  responses is removed.
+
+9 July 2019: Ralph
+	- Fix in respip addrtree selection. Absence of addr_tree_init_parents()
+	  call made it impossible to go up the tree when the matching netmask is
+	  too specific.
+
+5 July 2019: Ralph
+	- Fix for possible assertion failure when answering respip CNAME from
+	  cache.
+
+25 June 2019: Wouter
+	- For #45, check that 127.0.0.1 and ::1 are not used in unbound.conf
+	  when do-not-query-localhost is turned on, or at default on,
+	  unbound-checkconf prints a warning if it is found in forward-addr or
+	  stub-addr statements.
+
+24 June 2019: Wouter
+	- Fix memleak in unit test, reported from the clang 8.0 static analyzer.
+
+18 June 2019: Wouter
+	- PR #28: IPSet module, by Kevin Chou.  Created a module to support
+	  the ipset that could add the domain's ip to a list easily.
+	  Needs libmnl, and --enable-ipset and config it, doc/README.ipset.md.
+	- Fix to omit RRSIGs from addition to the ipset.
+	- Fix to make unbound-control with ipset, remove unused variable,
+	  use unsigned type because of comparison, and assign null instead
+	  of compare with it.  Remade lex and yacc output.
+	- make depend
+	- Added documentation to the ipset files (for doxygen output).
+	- Merge PR #6: Python module: support multiple instances
+	- Merge PR #5: Python module: define constant MODULE_RESTART_NEXT
+	- Merge PR #4: Python module: assign something useful to the
+	  per-query data store 'qdata'
+	- Fix python dict reference and double free in config.
+
+17 June 2019: Wouter
+	- Master contains version 1.9.3 in development.
+	- Fix #39: In libunbound, leftover logfile is close()d unpredictably.
+	- Fix for #24: Fix abort due to scan of auth zone masters using old
+	  address from previous scan.
+
 12 June 2019: Wouter
 	- Fix another spoolbuf storage code point, in prefetch.
-	- 1.9.2rc3 release candidate tag.
+	- 1.9.2rc3 release candidate tag.  Which became the 1.9.2 release
+	  on 17 June 2019.
 
 11 June 2019: Wouter
 	- Fix that fixes the Fix that spoolbuf is not used to store tcp

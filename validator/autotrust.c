@@ -86,7 +86,6 @@ void autr_global_delete(struct autr_global_data* global)
 	if(!global)
 		return;
 	/* elements deleted by parent */
-	memset(global, 0, sizeof(*global));
 	free(global);
 }
 
@@ -370,10 +369,10 @@ autr_tp_create(struct val_anchors* anchors, uint8_t* own, size_t own_len,
 		free(tp);
 		return NULL;
 	}
-	lock_basic_unlock(&anchors->lock);
 	lock_basic_init(&tp->lock);
 	lock_protect(&tp->lock, tp, sizeof(*tp));
 	lock_protect(&tp->lock, tp->autr, sizeof(*tp->autr));
+	lock_basic_unlock(&anchors->lock);
 	return tp;
 }
 
@@ -1175,15 +1174,32 @@ void autr_write_file(struct module_env* env, struct trust_anchor* tp)
 {
 	FILE* out;
 	char* fname = tp->autr->file;
+#ifndef S_SPLINT_S
+	long long llvalue;
+#endif
 	char tempf[2048];
 	log_assert(tp->autr);
 	if(!env) {
 		log_err("autr_write_file: Module environment is NULL.");
 		return;
 	}
-	/* unique name with pid number and thread number */
-	snprintf(tempf, sizeof(tempf), "%s.%d-%d", fname, (int)getpid(),
-		env->worker?*(int*)env->worker:0);
+	/* unique name with pid number, thread number, and struct pointer
+	 * (the pointer uniquifies for multiple libunbound contexts) */
+#ifndef S_SPLINT_S
+#if defined(SIZE_MAX) && defined(UINT32_MAX) && (UINT32_MAX == SIZE_MAX || INT32_MAX == SIZE_MAX)
+	/* avoid warning about upcast on 32bit systems */
+	llvalue = (unsigned long)tp;
+#else
+	llvalue = (unsigned long long)tp;
+#endif
+#ifndef USE_WINSOCK
+	snprintf(tempf, sizeof(tempf), "%s.%d-%d-%llx", fname, (int)getpid(),
+		env->worker?*(int*)env->worker:0, llvalue);
+#else
+	snprintf(tempf, sizeof(tempf), "%s.%d-%d-%I64x", fname, (int)getpid(),
+		env->worker?*(int*)env->worker:0, llvalue);
+#endif
+#endif /* S_SPLINT_S */
 	verbose(VERB_ALGO, "autotrust: write to disk: %s", tempf);
 	out = fopen(tempf, "w");
 	if(!out) {
@@ -2245,7 +2261,7 @@ autr_debug_print_ta(struct autr_ta* ta)
 		log_info("out of memory in debug_print_ta");
 		return;
 	}
-	if(str && str[0]) str[strlen(str)-1]=0; /* remove newline */
+	if(str[0]) str[strlen(str)-1]=0; /* remove newline */
 	ctime_r(&ta->last_change, buf);
 	if(buf[0]) buf[strlen(buf)-1]=0; /* remove newline */
 	log_info("[%s] %s ;;state:%d ;;pending_count:%d%s%s last:%s",
@@ -2267,10 +2283,10 @@ autr_debug_print_tp(struct trust_anchor* tp)
 	log_info("assembled %d DS and %d DNSKEYs", 
 		(int)tp->numDS, (int)tp->numDNSKEY);
 	if(tp->ds_rrset) {
-		log_packed_rrset(0, "DS:", tp->ds_rrset);
+		log_packed_rrset(NO_VERBOSE, "DS:", tp->ds_rrset);
 	}
 	if(tp->dnskey_rrset) {
-		log_packed_rrset(0, "DNSKEY:", tp->dnskey_rrset);
+		log_packed_rrset(NO_VERBOSE, "DNSKEY:", tp->dnskey_rrset);
 	}
 	log_info("file %s", tp->autr->file);
 	ctime_r(&tp->autr->last_queried, buf);

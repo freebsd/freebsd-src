@@ -5,7 +5,12 @@
 #undef malloc
 #include <sys/types.h>
 
+#ifndef USE_WINSOCK
 void *malloc ();
+#else
+/* provide a prototype */
+void *malloc (size_t n);
+#endif
 
 /* Allocate an N-byte block of memory from the heap.
    If N is zero, allocate a 1-byte block.  */

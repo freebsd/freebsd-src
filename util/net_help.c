@@ -698,10 +698,19 @@ void
 log_crypto_err(const char* str)
 {
 #ifdef HAVE_SSL
+	log_crypto_err_code(str, ERR_get_error());
+#else
+	(void)str;
+#endif /* HAVE_SSL */
+}
+
+void log_crypto_err_code(const char* str, unsigned long err)
+{
+#ifdef HAVE_SSL
 	/* error:[error code]:[library name]:[function name]:[reason string] */
 	char buf[128];
 	unsigned long e;
-	ERR_error_string_n(ERR_get_error(), buf, sizeof(buf));
+	ERR_error_string_n(err, buf, sizeof(buf));
 	log_err("%s crypto %s", str, buf);
 	while( (e=ERR_get_error()) ) {
 		ERR_error_string_n(e, buf, sizeof(buf));
@@ -709,6 +718,7 @@ log_crypto_err(const char* str)
 	}
 #else
 	(void)str;
+	(void)err;
 #endif /* HAVE_SSL */
 }
 
@@ -741,6 +751,14 @@ listen_sslctx_setup(void* ctxt)
 	if((SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1_1) & SSL_OP_NO_TLSv1_1)
 		!= SSL_OP_NO_TLSv1_1){
 		log_crypto_err("could not set SSL_OP_NO_TLSv1_1");
+		return 0;
+	}
+#endif
+#if defined(SSL_OP_NO_RENEGOTIATION)
+	/* disable client renegotiation */
+	if((SSL_CTX_set_options(ctx, SSL_OP_NO_RENEGOTIATION) &
+		SSL_OP_NO_RENEGOTIATION) != SSL_OP_NO_RENEGOTIATION) {
+		log_crypto_err("could not set SSL_OP_NO_RENEGOTIATION");
 		return 0;
 	}
 #endif
@@ -962,6 +980,14 @@ void* connect_sslctx_create(char* key, char* pem, char* verifypem, int wincert)
 		SSL_CTX_free(ctx);
 		return NULL;
 	}
+#if defined(SSL_OP_NO_RENEGOTIATION)
+	/* disable client renegotiation */
+	if((SSL_CTX_set_options(ctx, SSL_OP_NO_RENEGOTIATION) &
+		SSL_OP_NO_RENEGOTIATION) != SSL_OP_NO_RENEGOTIATION) {
+		log_crypto_err("could not set SSL_OP_NO_RENEGOTIATION");
+		return 0;
+	}
+#endif
 	if(key && key[0]) {
 		if(!SSL_CTX_use_certificate_chain_file(ctx, pem)) {
 			log_err("error in client certificate %s", pem);
@@ -1019,7 +1045,7 @@ void* incoming_ssl_fd(void* sslctx, int fd)
 		return NULL;
 	}
 	SSL_set_accept_state(ssl);
-	(void)SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
+	(void)SSL_set_mode(ssl, (long)SSL_MODE_AUTO_RETRY);
 	if(!SSL_set_fd(ssl, fd)) {
 		log_crypto_err("could not SSL_set_fd");
 		SSL_free(ssl);
@@ -1041,7 +1067,7 @@ void* outgoing_ssl_fd(void* sslctx, int fd)
 		return NULL;
 	}
 	SSL_set_connect_state(ssl);
-	(void)SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
+	(void)SSL_set_mode(ssl, (long)SSL_MODE_AUTO_RETRY);
 	if(!SSL_set_fd(ssl, fd)) {
 		log_crypto_err("could not SSL_set_fd");
 		SSL_free(ssl);
@@ -1197,10 +1223,14 @@ int tls_session_ticket_key_cb(void *ATTR_UNUSED(sslctx), unsigned char* key_name
 			verbose(VERB_CLIENT, "EVP_EncryptInit_ex failed");
 			return -1;
 		}
+#ifndef HMAC_INIT_EX_RETURNS_VOID
 		if (HMAC_Init_ex(hmac_ctx, ticket_keys->hmac_key, 32, digest, NULL) != 1) {
 			verbose(VERB_CLIENT, "HMAC_Init_ex failed");
 			return -1;
 		}
+#else
+		HMAC_Init_ex(hmac_ctx, ticket_keys->hmac_key, 32, digest, NULL);
+#endif
 		return 1;
 	} else if (enc == 0) {
 		/* decrypt */
@@ -1217,10 +1247,14 @@ int tls_session_ticket_key_cb(void *ATTR_UNUSED(sslctx), unsigned char* key_name
 			return 0;
 		}
 
+#ifndef HMAC_INIT_EX_RETURNS_VOID
 		if (HMAC_Init_ex(hmac_ctx, key->hmac_key, 32, digest, NULL) != 1) {
 			verbose(VERB_CLIENT, "HMAC_Init_ex failed");
 			return -1;
 		}
+#else
+		HMAC_Init_ex(hmac_ctx, key->hmac_key, 32, digest, NULL);
+#endif
 		if (EVP_DecryptInit_ex(evp_sctx, cipher, NULL, key->aes_key, iv) != 1) {
 			log_err("EVP_DecryptInit_ex failed");
 			return -1;

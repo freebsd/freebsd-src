@@ -1636,7 +1636,7 @@ auth_rr_to_string(uint8_t* nm, size_t nmlen, uint16_t tp, uint16_t cl,
 	if(i >= data->count) tp = LDNS_RR_TYPE_RRSIG;
 	dat = nm;
 	datlen = nmlen;
-	w += sldns_wire2str_dname_scan(&dat, &datlen, &s, &slen, NULL, 0);
+	w += sldns_wire2str_dname_scan(&dat, &datlen, &s, &slen, NULL, 0, NULL);
 	w += sldns_str_print(&s, &slen, "\t");
 	w += sldns_str_print(&s, &slen, "%lu\t", (unsigned long)data->rr_ttl[i]);
 	w += sldns_wire2str_class_print(&s, &slen, cl);
@@ -1645,7 +1645,7 @@ auth_rr_to_string(uint8_t* nm, size_t nmlen, uint16_t tp, uint16_t cl,
 	w += sldns_str_print(&s, &slen, "\t");
 	datlen = data->rr_len[i]-2;
 	dat = data->rr_data[i]+2;
-	w += sldns_wire2str_rdata_scan(&dat, &datlen, &s, &slen, tp, NULL, 0);
+	w += sldns_wire2str_rdata_scan(&dat, &datlen, &s, &slen, tp, NULL, 0, NULL);
 
 	if(tp == LDNS_RR_TYPE_DNSKEY) {
 		w += sldns_str_print(&s, &slen, " ;{id = %u}",
@@ -1654,8 +1654,8 @@ auth_rr_to_string(uint8_t* nm, size_t nmlen, uint16_t tp, uint16_t cl,
 	}
 	w += sldns_str_print(&s, &slen, "\n");
 
-	if(w > (int)buflen) {
-		log_nametypeclass(0, "RR too long to print", nm, tp, cl);
+	if(w >= (int)buflen) {
+		log_nametypeclass(NO_VERBOSE, "RR too long to print", nm, tp, cl);
 		return 0;
 	}
 	return 1;
@@ -2380,6 +2380,10 @@ create_synth_cname(uint8_t* qname, size_t qname_len, struct regional* region,
 		return 0; /* rdatalen in DNAME rdata is malformed */
 	if(dname_valid(dtarg, dtarglen) != dtarglen)
 		return 0; /* DNAME RR has malformed rdata */
+	if(qname_len == 0)
+		return 0; /* too short */
+	if(qname_len <= node->namelen)
+		return 0; /* qname too short for dname removal */
 
 	/* synthesize a CNAME */
 	newlen = synth_cname_buf(qname, qname_len, node->namelen,
@@ -3698,6 +3702,7 @@ static void
 xfr_transfer_start_lookups(struct auth_xfer* xfr)
 {
 	/* delete all the looked up addresses in the list */
+	xfr->task_transfer->scan_addr = NULL;
 	xfr_masterlist_free_addrs(xfr->task_transfer->masters);
 
 	/* start lookup at the first master */
@@ -3728,6 +3733,7 @@ static void
 xfr_probe_start_lookups(struct auth_xfer* xfr)
 {
 	/* delete all the looked up addresses in the list */
+	xfr->task_probe->scan_addr = NULL;
 	xfr_masterlist_free_addrs(xfr->task_probe->masters);
 
 	/* start lookup at the first master */
@@ -4865,6 +4871,11 @@ xfr_write_after_update(struct auth_xfer* xfr, struct module_env* env)
 	if(cfg->chrootdir && cfg->chrootdir[0] && strncmp(zfilename,
 		cfg->chrootdir, strlen(cfg->chrootdir)) == 0)
 		zfilename += strlen(cfg->chrootdir);
+	if(verbosity >= VERB_ALGO) {
+		char nm[255+1];
+		dname_str(z->name, nm);
+		verbose(VERB_ALGO, "write zonefile %s for %s", zfilename, nm);
+	}
 
 	/* write to tempfile first */
 	if((size_t)strlen(zfilename) + 16 > sizeof(tmpfile)) {
@@ -4880,6 +4891,7 @@ xfr_write_after_update(struct auth_xfer* xfr, struct module_env* env)
 		if(!auth_zone_write_chunks(xfr, tmpfile)) {
 			unlink(tmpfile);
 			lock_rw_unlock(&z->lock);
+			return;
 		}
 	} else if(!auth_zone_write_file(z, tmpfile)) {
 		unlink(tmpfile);
@@ -5963,15 +5975,15 @@ xfr_probe_send_probe(struct auth_xfer* xfr, struct module_env* env,
 		}
 		if (auth_name != NULL) {
 			if (addr.ss_family == AF_INET
-			&&  ntohs(((struct sockaddr_in *)&addr)->sin_port)
+			&&  (int)ntohs(((struct sockaddr_in *)&addr)->sin_port)
 		            == env->cfg->ssl_port)
 				((struct sockaddr_in *)&addr)->sin_port
-					= htons(env->cfg->port);
+					= htons((uint16_t)env->cfg->port);
 			else if (addr.ss_family == AF_INET6
-			&&  ntohs(((struct sockaddr_in6 *)&addr)->sin6_port)
+			&&  (int)ntohs(((struct sockaddr_in6 *)&addr)->sin6_port)
 		            == env->cfg->ssl_port)
                         	((struct sockaddr_in6 *)&addr)->sin6_port
-					= htons(env->cfg->port);
+					= htons((uint16_t)env->cfg->port);
 		}
 	}
 
@@ -6561,7 +6573,7 @@ xfr_set_timeout(struct auth_xfer* xfr, struct module_env* env,
 		/* don't lookup_only, if lookup timeout is 0 anyway,
 		 * or if we don't have masters to lookup */
 		tv.tv_sec = 0;
-		if(xfr->task_probe && xfr->task_probe->worker == NULL)
+		if(xfr->task_probe->worker == NULL)
 			xfr->task_probe->only_lookup = 1;
 	}
 	if(verbosity >= VERB_ALGO) {
