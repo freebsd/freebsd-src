@@ -3662,52 +3662,6 @@ vm_page_enqueue(vm_page_t m, uint8_t queue)
 }
 
 /*
- *	vm_page_requeue:		[ internal use only ]
- *
- *	Schedule a requeue of the given page.
- *
- *	The page must be locked.
- */
-void
-vm_page_requeue(vm_page_t m)
-{
-
-	vm_page_assert_locked(m);
-	KASSERT(vm_page_queue(m) != PQ_NONE,
-	    ("%s: page %p is not logically enqueued", __func__, m));
-	KASSERT(m->ref_count > 0,
-	    ("%s: page %p does not carry any references", __func__, m));
-
-	if ((m->a.flags & PGA_REQUEUE) == 0)
-		vm_page_aflag_set(m, PGA_REQUEUE);
-	vm_page_pqbatch_submit(m, atomic_load_8(&m->a.queue));
-}
-
-/*
- *	vm_page_swapqueue:		[ internal use only ]
- *
- *	Move the page from one queue to another, or to the tail of its
- *	current queue, in the face of a possible concurrent free of the
- *	page.
- */
-void
-vm_page_swapqueue(vm_page_t m, uint8_t oldq, uint8_t newq)
-{
-	vm_page_astate_t new, old;
-
-	old = vm_page_astate_load(m);
-	do {
-		if (old.queue != oldq || (old.flags & PGA_DEQUEUE) != 0)
-			return;
-		new = old;
-		new.flags |= PGA_REQUEUE;
-		new.queue = newq;
-	} while (!vm_page_pqstate_commit_dequeue(m, &old, new));
-
-	vm_page_pqbatch_submit(m, newq);
-}
-
-/*
  *	vm_page_free_prep:
  *
  *	Prepares the given page to be put on the free list,
