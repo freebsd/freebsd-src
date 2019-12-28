@@ -1016,9 +1016,13 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 	    NULL);
 	if (error != 0)
 		goto out;
-	error = copyinstr(args->specialfile, mntfromname, MNAMELEN - 1, NULL);
-	if (error != 0)
-		goto out;
+	if (args->specialfile != NULL) {
+		error = copyinstr(args->specialfile, mntfromname, MNAMELEN - 1, NULL);
+		if (error != 0)
+			goto out;
+	} else {
+		mntfromname[0] = '\0';
+	}
 	error = copyinstr(args->dir, mntonname, MNAMELEN - 1, NULL);
 	if (error != 0)
 		goto out;
@@ -1033,20 +1037,18 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 
 	fsflags = 0;
 
-	if ((args->rwflag & 0xffff0000) == 0xc0ed0000) {
-		/*
-		 * Linux SYNC flag is not included; the closest equivalent
-		 * FreeBSD has is !ASYNC, which is our default.
-		 */
-		if (args->rwflag & LINUX_MS_RDONLY)
-			fsflags |= MNT_RDONLY;
-		if (args->rwflag & LINUX_MS_NOSUID)
-			fsflags |= MNT_NOSUID;
-		if (args->rwflag & LINUX_MS_NOEXEC)
-			fsflags |= MNT_NOEXEC;
-		if (args->rwflag & LINUX_MS_REMOUNT)
-			fsflags |= MNT_UPDATE;
-	}
+	/*
+	 * Linux SYNC flag is not included; the closest equivalent
+	 * FreeBSD has is !ASYNC, which is our default.
+	 */
+	if (args->rwflag & LINUX_MS_RDONLY)
+		fsflags |= MNT_RDONLY;
+	if (args->rwflag & LINUX_MS_NOSUID)
+		fsflags |= MNT_NOSUID;
+	if (args->rwflag & LINUX_MS_NOEXEC)
+		fsflags |= MNT_NOEXEC;
+	if (args->rwflag & LINUX_MS_REMOUNT)
+		fsflags |= MNT_UPDATE;
 
 	error = kernel_vmount(fsflags,
 	    "fstype", fstypename,
