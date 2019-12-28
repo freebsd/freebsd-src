@@ -3530,8 +3530,6 @@ vm_page_pqbatch_submit(vm_page_t m, uint8_t queue)
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("page %p is unmanaged", m));
-	KASSERT(mtx_owned(vm_page_lockptr(m)) || m->object == NULL,
-	    ("missing synchronization for page %p", m));
 	KASSERT(queue < PQ_COUNT, ("invalid queue %d", queue));
 
 	domain = vm_phys_domain(m);
@@ -3904,8 +3902,11 @@ vm_page_wire(vm_page_t m)
 	old = atomic_fetchadd_int(&m->ref_count, 1);
 	KASSERT(VPRC_WIRE_COUNT(old) != VPRC_WIRE_COUNT_MAX,
 	    ("vm_page_wire: counter overflow for page %p", m));
-	if (VPRC_WIRE_COUNT(old) == 0)
+	if (VPRC_WIRE_COUNT(old) == 0) {
+		if ((m->oflags & VPO_UNMANAGED) == 0)
+			vm_page_aflag_set(m, PGA_DEQUEUE);
 		vm_wire_add(1);
+	}
 }
 
 /*
@@ -3928,8 +3929,11 @@ vm_page_wire_mapped(vm_page_t m)
 			return (false);
 	} while (!atomic_fcmpset_int(&m->ref_count, &old, old + 1));
 
-	if (VPRC_WIRE_COUNT(old) == 0)
+	if (VPRC_WIRE_COUNT(old) == 0) {
+		if ((m->oflags & VPO_UNMANAGED) == 0)
+			vm_page_aflag_set(m, PGA_DEQUEUE);
 		vm_wire_add(1);
+	}
 	return (true);
 }
 
@@ -3942,36 +3946,42 @@ static void
 vm_page_unwire_managed(vm_page_t m, uint8_t nqueue, bool noreuse)
 {
 	u_int old;
-	bool locked;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("%s: page %p is unmanaged", __func__, m));
 
 	/*
 	 * Update LRU state before releasing the wiring reference.
-	 * We only need to do this once since we hold the page lock.
 	 * Use a release store when updating the reference count to
 	 * synchronize with vm_page_free_prep().
 	 */
 	old = m->ref_count;
-	locked = false;
 	do {
 		KASSERT(VPRC_WIRE_COUNT(old) > 0,
 		    ("vm_page_unwire: wire count underflow for page %p", m));
-		if (!locked && VPRC_WIRE_COUNT(old) == 1) {
-			vm_page_lock(m);
-			locked = true;
+
+		if (old > VPRC_OBJREF + 1) {
+			/*
+			 * The page has at least one other wiring reference.  An
+			 * earlier iteration of this loop may have called
+			 * vm_page_release_toq() and cleared PGA_DEQUEUE, so
+			 * re-set it if necessary.
+			 */
+			if ((vm_page_astate_load(m).flags & PGA_DEQUEUE) == 0)
+				vm_page_aflag_set(m, PGA_DEQUEUE);
+		} else if (old == VPRC_OBJREF + 1) {
+			/*
+			 * This is the last wiring.  Clear PGA_DEQUEUE and
+			 * update the page's queue state to reflect the
+			 * reference.  If the page does not belong to an object
+			 * (i.e., the VPRC_OBJREF bit is clear), we only need to
+			 * clear leftover queue state.
+			 */
 			vm_page_release_toq(m, nqueue, false);
+		} else if (old == 1) {
+			vm_page_aflag_clear(m, PGA_DEQUEUE);
 		}
 	} while (!atomic_fcmpset_rel_int(&m->ref_count, &old, old - 1));
-
-	/*
-	 * Release the lock only after the wiring is released, to ensure that
-	 * the page daemon does not encounter and dequeue the page while it is
-	 * still wired.
-	 */
-	if (locked)
-		vm_page_unlock(m);
 
 	if (VPRC_WIRE_COUNT(old) == 1) {
 		vm_wire_sub(1);
@@ -4026,6 +4036,8 @@ vm_page_unwire_noq(vm_page_t m)
 
 	if (VPRC_WIRE_COUNT(old) > 1)
 		return (false);
+	if ((m->oflags & VPO_UNMANAGED) == 0)
+		vm_page_aflag_clear(m, PGA_DEQUEUE);
 	vm_wire_sub(1);
 	return (true);
 }
@@ -4035,10 +4047,6 @@ vm_page_unwire_noq(vm_page_t m)
  * active or being moved to the active queue, ensure that its act_count is
  * at least ACT_INIT but do not otherwise mess with it.
  *
- * The page may be wired.  The caller should release its wiring reference
- * before releasing the page lock, otherwise the page daemon may immediately
- * dequeue the page.
- *
  * A managed page must be locked.
  */
 static __always_inline void
@@ -4046,16 +4054,18 @@ vm_page_mvqueue(vm_page_t m, const uint8_t nqueue, const uint16_t nflag)
 {
 	vm_page_astate_t old, new;
 
-	vm_page_assert_locked(m);
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("%s: page %p is unmanaged", __func__, m));
 	KASSERT(m->ref_count > 0,
 	    ("%s: page %p does not carry any references", __func__, m));
 	KASSERT(nflag == PGA_REQUEUE || nflag == PGA_REQUEUE_HEAD,
 	    ("%s: invalid flags %x", __func__, nflag));
 
+	if ((m->oflags & VPO_UNMANAGED) != 0)
+		return;
+
 	old = vm_page_astate_load(m);
 	do {
+		if ((old.flags & PGA_DEQUEUE) != 0)
+			break;
 		new = old;
 		if (nqueue == PQ_ACTIVE)
 			new.act_count = max(old.act_count, ACT_INIT);
@@ -4076,8 +4086,6 @@ void
 vm_page_activate(vm_page_t m)
 {
 
-	if ((m->oflags & VPO_UNMANAGED) != 0 || vm_page_wired(m))
-		return;
 	vm_page_mvqueue(m, PQ_ACTIVE, PGA_REQUEUE);
 }
 
@@ -4089,8 +4097,6 @@ void
 vm_page_deactivate(vm_page_t m)
 {
 
-	if ((m->oflags & VPO_UNMANAGED) != 0 || vm_page_wired(m))
-		return;
 	vm_page_mvqueue(m, PQ_INACTIVE, PGA_REQUEUE);
 }
 
@@ -4098,11 +4104,6 @@ void
 vm_page_deactivate_noreuse(vm_page_t m)
 {
 
-	KASSERT(m->object != NULL,
-	    ("vm_page_deactivate_noreuse: page %p has no object", m));
-
-	if ((m->oflags & VPO_UNMANAGED) != 0 || vm_page_wired(m))
-		return;
 	vm_page_mvqueue(m, PQ_INACTIVE, PGA_REQUEUE_HEAD);
 }
 
@@ -4113,8 +4114,6 @@ void
 vm_page_launder(vm_page_t m)
 {
 
-	if ((m->oflags & VPO_UNMANAGED) != 0 || vm_page_wired(m))
-		return;
 	vm_page_mvqueue(m, PQ_LAUNDRY, PGA_REQUEUE);
 }
 
@@ -4141,8 +4140,6 @@ vm_page_release_toq(vm_page_t m, uint8_t nqueue, const bool noreuse)
 {
 	vm_page_astate_t old, new;
 	uint16_t nflag;
-
-	vm_page_assert_locked(m);
 
 	/*
 	 * Use a check of the valid bits to determine whether we should

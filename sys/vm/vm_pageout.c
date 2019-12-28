@@ -318,6 +318,26 @@ vm_pageout_next(struct scan_state *ss, const bool dequeue)
 }
 
 /*
+ * Determine whether processing of a page should be deferred and ensure that any
+ * outstanding queue operations are processed.
+ */
+static __always_inline bool
+vm_pageout_defer(vm_page_t m, const uint8_t queue, const bool enqueued)
+{
+	vm_page_astate_t as;
+
+	as = vm_page_astate_load(m);
+	if (__predict_false(as.queue != queue ||
+	    ((as.flags & PGA_ENQUEUED) != 0) != enqueued))
+		return (true);
+	if ((as.flags & PGA_QUEUE_OP_MASK) != 0) {
+		vm_page_pqbatch_submit(m, queue);
+		return (true);
+	}
+	return (false);
+}
+
+/*
  * Scan for pages at adjacent offsets within the given page's object that are
  * eligible for laundering, form a cluster of these pages and the given page,
  * and launder that cluster.
@@ -755,34 +775,13 @@ scan:
 
 recheck:
 		/*
-		 * The page may have been disassociated from the queue
-		 * or even freed while locks were dropped.  We thus must be
-		 * careful whenever modifying page state.  Once the object lock
-		 * has been acquired, we have a stable reference to the page.
+		 * Don't touch a page that was removed from the queue after the
+		 * page queue lock was released.  Otherwise, ensure that any
+		 * pending queue operations, such as dequeues for wired pages,
+		 * are handled.
 		 */
-		if (vm_page_queue(m) != queue)
+		if (vm_pageout_defer(m, queue, true))
 			continue;
-
-		/*
-		 * A requeue was requested, so this page gets a second
-		 * chance.
-		 */
-		if ((m->a.flags & PGA_REQUEUE) != 0) {
-			vm_page_pqbatch_submit(m, queue);
-			continue;
-		}
-
-		/*
-		 * Wired pages may not be freed.  Complete their removal
-		 * from the queue now to avoid needless revisits during
-		 * future scans.  This check is racy and must be reverified once
-		 * we hold the object lock and have verified that the page
-		 * is not busy.
-		 */
-		if (vm_page_wired(m)) {
-			vm_page_dequeue_deferred(m);
-			continue;
-		}
 
 		if (object != m->object) {
 			if (object != NULL)
@@ -813,9 +812,9 @@ recheck:
 			continue;
 
 		/*
-		 * Re-check for wirings now that we hold the object lock and
-		 * have verified that the page is unbusied.  If the page is
-		 * mapped, it may still be wired by pmap lookups.  The call to
+		 * Check for wirings now that we hold the object lock and have
+		 * verified that the page is unbusied.  If the page is mapped,
+		 * it may still be wired by pmap lookups.  The call to
 		 * vm_page_try_remove_all() below atomically checks for such
 		 * wirings and removes mappings.  If the page is unmapped, the
 		 * wire count is guaranteed not to increase.
@@ -1259,21 +1258,13 @@ act_scan:
 		vm_page_change_lock(m, &mtx);
 
 		/*
-		 * The page may have been disassociated from the queue
-		 * or even freed while locks were dropped.  We thus must be
-		 * careful whenever modifying page state.  Once the object lock
-		 * has been acquired, we have a stable reference to the page.
+		 * Don't touch a page that was removed from the queue after the
+		 * page queue lock was released.  Otherwise, ensure that any
+		 * pending queue operations, such as dequeues for wired pages,
+		 * are handled.
 		 */
-		if (vm_page_queue(m) != PQ_ACTIVE)
+		if (vm_pageout_defer(m, PQ_ACTIVE, true))
 			continue;
-
-		/*
-		 * Wired pages are dequeued lazily.
-		 */
-		if (vm_page_wired(m)) {
-			vm_page_dequeue_deferred(m);
-			continue;
-		}
 
 		/*
 		 * A page's object pointer may be set to NULL before
@@ -1515,27 +1506,13 @@ vm_pageout_scan_inactive(struct vm_domain *vmd, int shortage,
 
 recheck:
 		/*
-		 * The page may have been disassociated from the queue
-		 * or even freed while locks were dropped.  We thus must be
-		 * careful whenever modifying page state.  Once the object lock
-		 * has been acquired, we have a stable reference to the page.
+		 * Don't touch a page that was removed from the queue after the
+		 * page queue lock was released.  Otherwise, ensure that any
+		 * pending queue operations, such as dequeues for wired pages,
+		 * are handled.
 		 */
-		old = vm_page_astate_load(m);
-		if (old.queue != PQ_INACTIVE ||
-		    (old.flags & PGA_QUEUE_STATE_MASK) != 0)
+		if (vm_pageout_defer(m, PQ_INACTIVE, false))
 			continue;
-
-		/*
-		 * Wired pages may not be freed.  Complete their removal
-		 * from the queue now to avoid needless revisits during
-		 * future scans.  This check is racy and must be reverified once
-		 * we hold the object lock and have verified that the page
-		 * is not busy.
-		 */
-		if (vm_page_wired(m)) {
-			vm_page_dequeue_deferred(m);
-			continue;
-		}
 
 		if (object != m->object) {
 			if (object != NULL)
