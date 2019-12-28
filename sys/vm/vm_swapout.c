@@ -173,51 +173,26 @@ static void vm_thread_swapout(struct thread *td);
 static void
 vm_swapout_object_deactivate_page(pmap_t pmap, vm_page_t m, bool unmap)
 {
-	int act_delta;
-
-	if (vm_page_tryxbusy(m) == 0)
-		return;
-	VM_CNT_INC(v_pdpages);
 
 	/*
-	 * The page may acquire a wiring after this check.
-	 * The page daemon handles wired pages, so there is
-	 * no harm done if a wiring appears while we are
-	 * attempting to deactivate the page.
+	 * Ignore unreclaimable wired pages.  Repeat the check after busying
+	 * since a busy holder may wire the page.
 	 */
+	if (vm_page_wired(m) || !vm_page_tryxbusy(m))
+		return;
+
 	if (vm_page_wired(m) || !pmap_page_exists_quick(pmap, m)) {
 		vm_page_xunbusy(m);
 		return;
 	}
-	act_delta = pmap_ts_referenced(m);
-	vm_page_lock(m);
-	if ((m->a.flags & PGA_REFERENCED) != 0) {
-		if (act_delta == 0)
-			act_delta = 1;
-		vm_page_aflag_clear(m, PGA_REFERENCED);
+	if (!pmap_is_referenced(m)) {
+		vm_page_lock(m);
+		if (!vm_page_active(m))
+			(void)vm_page_try_remove_all(m);
+		else if (unmap && vm_page_try_remove_all(m))
+			vm_page_deactivate(m);
+		vm_page_unlock(m);
 	}
-	if (!vm_page_active(m) && act_delta != 0) {
-		vm_page_activate(m);
-		m->a.act_count += act_delta;
-	} else if (vm_page_active(m)) {
-		/*
-		 * The page daemon does not requeue pages
-		 * after modifying their activation count.
-		 */
-		if (act_delta == 0) {
-			m->a.act_count -= min(m->a.act_count, ACT_DECLINE);
-			if (unmap && m->a.act_count == 0) {
-				(void)vm_page_try_remove_all(m);
-				vm_page_deactivate(m);
-			}
-		} else {
-			vm_page_activate(m);
-			if (m->a.act_count < ACT_MAX - ACT_ADVANCE)
-				m->a.act_count += ACT_ADVANCE;
-		}
-	} else if (vm_page_inactive(m))
-		(void)vm_page_try_remove_all(m);
-	vm_page_unlock(m);
 	vm_page_xunbusy(m);
 }
 
