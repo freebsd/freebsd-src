@@ -4127,8 +4127,6 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 				    true);
 				old_entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 				old_entry->cred = NULL;
-				vm_object_reference(
-				    old_entry->object.vm_object);
 
 				/*
 				 * As in vm_map_merged_neighbor_dispose(),
