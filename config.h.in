@@ -15,6 +15,9 @@
 /* Do sha512 definitions in config.h */
 #undef COMPAT_SHA512
 
+/* Command line arguments used with configure */
+#undef CONFCMDLINE
+
 /* Pathname to the Unbound configuration file */
 #undef CONFIGFILE
 
@@ -617,6 +620,9 @@
 /* Define to 1 if you have the `_beginthreadex' function. */
 #undef HAVE__BEGINTHREADEX
 
+/* If HMAC_Init_ex() returns void */
+#undef HMAC_INIT_EX_RETURNS_VOID
+
 /* if lex has yylex_destroy */
 #undef LEX_HAS_YYLEX_DESTROY
 
@@ -709,6 +715,9 @@
 /* Shared data */
 #undef SHARE_DIR
 
+/* The size of `size_t', as computed by sizeof. */
+#undef SIZEOF_SIZE_T
+
 /* The size of `time_t', as computed by sizeof. */
 #undef SIZEOF_TIME_T
 
@@ -726,6 +735,9 @@
 
 /* Use win32 resources and API */
 #undef UB_ON_WINDOWS
+
+/* the SYSLOG_FACILITY to use, default LOG_DAEMON */
+#undef UB_SYSLOG_FACILITY
 
 /* default username */
 #undef UB_USERNAME
@@ -774,6 +786,9 @@
 
 /* Define to 1 to use ipsecmod support. */
 #undef USE_IPSECMOD
+
+/* Define to 1 to use ipset support */
+#undef USE_IPSET
 
 /* Define if you want to use internal select based events */
 #undef USE_MINI_EVENT
@@ -1212,6 +1227,10 @@ struct tm;
 char *strptime(const char *s, const char *format, struct tm *tm);
 #endif
 
+#if !HAVE_DECL_REALLOCARRAY
+void *reallocarray(void *ptr, size_t nmemb, size_t size);
+#endif
+
 #ifdef HAVE_LIBRESSL
 #  if !HAVE_DECL_STRLCPY
 size_t strlcpy(char *dst, const char *src, size_t siz);
@@ -1224,9 +1243,6 @@ uint32_t arc4random(void);
 #  endif
 #  if !HAVE_DECL_ARC4RANDOM_UNIFORM && defined(HAVE_ARC4RANDOM_UNIFORM)
 uint32_t arc4random_uniform(uint32_t upper_bound);
-#  endif
-#  if !HAVE_DECL_REALLOCARRAY
-void *reallocarray(void *ptr, size_t nmemb, size_t size);
 #  endif
 #endif /* HAVE_LIBRESSL */
 #ifndef HAVE_ARC4RANDOM

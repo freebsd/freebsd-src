@@ -61,7 +61,7 @@
 #endif
 
 /* default verbosity */
-enum verbosity_value verbosity = 0;
+enum verbosity_value verbosity = NO_VERBOSE;
 /** the file logged to. */
 static FILE* logfile = 0;
 /** if key has been created */
@@ -70,7 +70,7 @@ static int key_created = 0;
 static ub_thread_key_type logkey;
 #ifndef THREADS_DISABLED
 /** pthread mutex to protect FILE* */
-static lock_quick_type log_lock;
+static lock_basic_type log_lock;
 #endif
 /** the identity of this executable/process */
 static const char* ident="unbound";
@@ -88,18 +88,18 @@ log_init(const char* filename, int use_syslog, const char* chrootdir)
 	if(!key_created) {
 		key_created = 1;
 		ub_thread_key_create(&logkey, NULL);
-		lock_quick_init(&log_lock);
+		lock_basic_init(&log_lock);
 	}
-	lock_quick_lock(&log_lock);
+	lock_basic_lock(&log_lock);
 	if(logfile 
 #if defined(HAVE_SYSLOG_H) || defined(UB_ON_WINDOWS)
 	|| logging_to_syslog
 #endif
 	) {
-		lock_quick_unlock(&log_lock); /* verbose() needs the lock */
+		lock_basic_unlock(&log_lock); /* verbose() needs the lock */
 		verbose(VERB_QUERY, "switching log to %s", 
 			use_syslog?"syslog":(filename&&filename[0]?filename:"stderr"));
-		lock_quick_lock(&log_lock);
+		lock_basic_lock(&log_lock);
 	}
 	if(logfile && logfile != stderr) {
 		FILE* cl = logfile;
@@ -115,9 +115,11 @@ log_init(const char* filename, int use_syslog, const char* chrootdir)
 	if(use_syslog) {
 		/* do not delay opening until first write, because we may
 		 * chroot and no longer be able to access dev/log and so on */
-		openlog(ident, LOG_NDELAY, LOG_DAEMON);
+		/* the facility is LOG_DAEMON by default, but
+		 * --with-syslog-facility=LOCAL[0-7] can override it */
+		openlog(ident, LOG_NDELAY, UB_SYSLOG_FACILITY);
 		logging_to_syslog = 1;
-		lock_quick_unlock(&log_lock);
+		lock_basic_unlock(&log_lock);
 		return;
 	}
 #elif defined(UB_ON_WINDOWS)
@@ -126,13 +128,13 @@ log_init(const char* filename, int use_syslog, const char* chrootdir)
 	}
 	if(use_syslog) {
 		logging_to_syslog = 1;
-		lock_quick_unlock(&log_lock);
+		lock_basic_unlock(&log_lock);
 		return;
 	}
 #endif /* HAVE_SYSLOG_H */
 	if(!filename || !filename[0]) {
 		logfile = stderr;
-		lock_quick_unlock(&log_lock);
+		lock_basic_unlock(&log_lock);
 		return;
 	}
 	/* open the file for logging */
@@ -141,7 +143,7 @@ log_init(const char* filename, int use_syslog, const char* chrootdir)
 		filename += strlen(chrootdir);
 	f = fopen(filename, "a");
 	if(!f) {
-		lock_quick_unlock(&log_lock);
+		lock_basic_unlock(&log_lock);
 		log_err("Could not open logfile %s: %s", filename, 
 			strerror(errno));
 		return;
@@ -151,14 +153,14 @@ log_init(const char* filename, int use_syslog, const char* chrootdir)
 	setvbuf(f, NULL, (int)_IOLBF, 0);
 #endif
 	logfile = f;
-	lock_quick_unlock(&log_lock);
+	lock_basic_unlock(&log_lock);
 }
 
 void log_file(FILE *f)
 {
-	lock_quick_lock(&log_lock);
+	lock_basic_lock(&log_lock);
 	logfile = f;
-	lock_quick_unlock(&log_lock);
+	lock_basic_unlock(&log_lock);
 }
 
 void log_thread_set(int* num)
@@ -243,9 +245,9 @@ log_vmsg(int pri, const char* type,
 		return;
 	}
 #endif /* HAVE_SYSLOG_H */
-	lock_quick_lock(&log_lock);
+	lock_basic_lock(&log_lock);
 	if(!logfile) {
-		lock_quick_unlock(&log_lock);
+		lock_basic_unlock(&log_lock);
 		return;
 	}
 	now = (time_t)time(NULL);
@@ -270,7 +272,7 @@ log_vmsg(int pri, const char* type,
 	/* line buffering does not work on windows */
 	fflush(logfile);
 #endif
-	lock_quick_unlock(&log_lock);
+	lock_basic_unlock(&log_lock);
 }
 
 /**

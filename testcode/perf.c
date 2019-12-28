@@ -177,7 +177,7 @@ perf_tv_add(struct timeval* t1, struct timeval* t2)
 #ifndef S_SPLINT_S
 	t1->tv_sec += t2->tv_sec;
 	t1->tv_usec += t2->tv_usec;
-	while(t1->tv_usec > 1000000) {
+	while(t1->tv_usec >= 1000000) {
 		t1->tv_usec -= 1000000;
 		t1->tv_sec++;
 	}

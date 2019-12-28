@@ -704,6 +704,7 @@ static sldns_rr_type get_qtype(uint8_t* pkt, size_t pktlen)
 	uint8_t* d;
 	size_t dl, sl=0;
 	char* snull = NULL;
+	int comprloop = 0;
 	if(pktlen < LDNS_HEADER_SIZE)
 		return 0;
 	if(LDNS_QDCOUNT(pkt) == 0)
@@ -711,7 +712,7 @@ static sldns_rr_type get_qtype(uint8_t* pkt, size_t pktlen)
 	/* skip over dname with dname-scan routine */
 	d = pkt+LDNS_HEADER_SIZE;
 	dl = pktlen-LDNS_HEADER_SIZE;
-	(void)sldns_wire2str_dname_scan(&d, &dl, &snull, &sl, pkt, pktlen);
+	(void)sldns_wire2str_dname_scan(&d, &dl, &snull, &sl, pkt, pktlen, &comprloop);
 	if(dl < 2)
 		return 0;
 	return sldns_read_uint16(d);
@@ -723,6 +724,7 @@ static size_t get_qname_len(uint8_t* pkt, size_t pktlen)
 	uint8_t* d;
 	size_t dl, sl=0;
 	char* snull = NULL;
+	int comprloop = 0;
 	if(pktlen < LDNS_HEADER_SIZE)
 		return 0;
 	if(LDNS_QDCOUNT(pkt) == 0)
@@ -730,7 +732,7 @@ static size_t get_qname_len(uint8_t* pkt, size_t pktlen)
 	/* skip over dname with dname-scan routine */
 	d = pkt+LDNS_HEADER_SIZE;
 	dl = pktlen-LDNS_HEADER_SIZE;
-	(void)sldns_wire2str_dname_scan(&d, &dl, &snull, &sl, pkt, pktlen);
+	(void)sldns_wire2str_dname_scan(&d, &dl, &snull, &sl, pkt, pktlen, &comprloop);
 	return pktlen-dl-LDNS_HEADER_SIZE;
 }
 
@@ -767,6 +769,7 @@ static uint32_t get_serial(uint8_t* p, size_t plen)
 	size_t walk_len = plen, sl=0;
 	char* snull = NULL;
 	uint16_t i;
+	int comprloop = 0;
 
 	if(walk_len < LDNS_HEADER_SIZE)
 		return 0;
@@ -776,10 +779,10 @@ static uint32_t get_serial(uint8_t* p, size_t plen)
 	/* skip other records with wire2str_scan */
 	for(i=0; i < LDNS_QDCOUNT(p); i++)
 		(void)sldns_wire2str_rrquestion_scan(&walk, &walk_len,
-			&snull, &sl, p, plen);
+			&snull, &sl, p, plen, &comprloop);
 	for(i=0; i < LDNS_ANCOUNT(p); i++)
 		(void)sldns_wire2str_rr_scan(&walk, &walk_len, &snull, &sl,
-			p, plen);
+			p, plen, &comprloop);
 
 	/* walk through authority section */
 	for(i=0; i < LDNS_NSCOUNT(p); i++) {
@@ -787,7 +790,7 @@ static uint32_t get_serial(uint8_t* p, size_t plen)
 		uint8_t* dstart = walk;
 		size_t dlen = walk_len;
 		(void)sldns_wire2str_dname_scan(&dstart, &dlen, &snull, &sl,
-			p, plen);
+			p, plen, &comprloop);
 		if(dlen >= 2 && sldns_read_uint16(dstart) == LDNS_RR_TYPE_SOA) {
 			/* skip type, class, TTL, rdatalen */
 			if(dlen < 10)
@@ -798,9 +801,9 @@ static uint32_t get_serial(uint8_t* p, size_t plen)
 			dlen -= 10;
 			/* check third rdf */
 			(void)sldns_wire2str_dname_scan(&dstart, &dlen, &snull,
-				&sl, p, plen);
+				&sl, p, plen, &comprloop);
 			(void)sldns_wire2str_dname_scan(&dstart, &dlen, &snull,
-				&sl, p, plen);
+				&sl, p, plen, &comprloop);
 			if(dlen < 4)
 				return 0;
 			verbose(3, "found serial %u in msg. ",
@@ -809,7 +812,7 @@ static uint32_t get_serial(uint8_t* p, size_t plen)
 		}
 		/* move to next RR */
 		(void)sldns_wire2str_rr_scan(&walk, &walk_len, &snull, &sl,
-			p, plen);
+			p, plen, &comprloop);
 	}
 	return 0;
 }
@@ -823,6 +826,7 @@ pkt_find_edns_opt(uint8_t** p, size_t* plen)
 	size_t wlen = *plen, sl=0;
 	char* snull = NULL;
 	uint16_t i;
+	int comprloop = 0;
 
 	if(wlen < LDNS_HEADER_SIZE)
 		return 0;
@@ -832,11 +836,11 @@ pkt_find_edns_opt(uint8_t** p, size_t* plen)
 	/* skip other records with wire2str_scan */
 	for(i=0; i < LDNS_QDCOUNT(*p); i++)
 		(void)sldns_wire2str_rrquestion_scan(&w, &wlen, &snull, &sl,
-			*p, *plen);
+			*p, *plen, &comprloop);
 	for(i=0; i < LDNS_ANCOUNT(*p); i++)
-		(void)sldns_wire2str_rr_scan(&w, &wlen, &snull, &sl, *p, *plen);
+		(void)sldns_wire2str_rr_scan(&w, &wlen, &snull, &sl, *p, *plen, &comprloop);
 	for(i=0; i < LDNS_NSCOUNT(*p); i++)
-		(void)sldns_wire2str_rr_scan(&w, &wlen, &snull, &sl, *p, *plen);
+		(void)sldns_wire2str_rr_scan(&w, &wlen, &snull, &sl, *p, *plen, &comprloop);
 
 	/* walk through additional section */
 	for(i=0; i < LDNS_ARCOUNT(*p); i++) {
@@ -844,14 +848,14 @@ pkt_find_edns_opt(uint8_t** p, size_t* plen)
 		uint8_t* dstart = w;
 		size_t dlen = wlen;
 		(void)sldns_wire2str_dname_scan(&dstart, &dlen, &snull, &sl,
-			*p, *plen);
+			*p, *plen, &comprloop);
 		if(dlen >= 2 && sldns_read_uint16(dstart) == LDNS_RR_TYPE_OPT) {
 			*p = dstart+2;
 			*plen = dlen-2;
 			return 1;
 		}
 		/* move to next RR */
-		(void)sldns_wire2str_rr_scan(&w, &wlen, &snull, &sl, *p, *plen);
+		(void)sldns_wire2str_rr_scan(&w, &wlen, &snull, &sl, *p, *plen, &comprloop);
 	}
 	return 0;
 }
@@ -889,25 +893,26 @@ zerottls(uint8_t* pkt, size_t pktlen)
 	char* snull = NULL;
 	uint16_t i;
 	uint16_t num = LDNS_ANCOUNT(pkt)+LDNS_NSCOUNT(pkt)+LDNS_ARCOUNT(pkt);
+	int comprloop = 0;
 	if(walk_len < LDNS_HEADER_SIZE)
 		return;
 	walk += LDNS_HEADER_SIZE;
 	walk_len -= LDNS_HEADER_SIZE;
 	for(i=0; i < LDNS_QDCOUNT(pkt); i++)
 		(void)sldns_wire2str_rrquestion_scan(&walk, &walk_len,
-			&snull, &sl, pkt, pktlen);
+			&snull, &sl, pkt, pktlen, &comprloop);
 	for(i=0; i < num; i++) {
 		/* wipe TTL */
 		uint8_t* dstart = walk;
 		size_t dlen = walk_len;
 		(void)sldns_wire2str_dname_scan(&dstart, &dlen, &snull, &sl,
-			pkt, pktlen);
+			pkt, pktlen, &comprloop);
 		if(dlen < 8)
 			return;
 		sldns_write_uint32(dstart+4, 0);
 		/* go to next RR */
 		(void)sldns_wire2str_rr_scan(&walk, &walk_len, &snull, &sl,
-			pkt, pktlen);
+			pkt, pktlen, &comprloop);
 	}
 }
 
@@ -1347,10 +1352,11 @@ static int equal_dname(uint8_t* q, size_t qlen, uint8_t* p, size_t plen)
 	char qs[512], ps[512];
 	size_t qslen = sizeof(qs), pslen = sizeof(ps);
 	char* qss = qs, *pss = ps;
+	int comprloop = 0;
 	if(!qn || !pn)
 		return 0;
-	(void)sldns_wire2str_dname_scan(&qn, &qlen, &qss, &qslen, q, qlen);
-	(void)sldns_wire2str_dname_scan(&pn, &plen, &pss, &pslen, p, plen);
+	(void)sldns_wire2str_dname_scan(&qn, &qlen, &qss, &qslen, q, qlen, &comprloop);
+	(void)sldns_wire2str_dname_scan(&pn, &plen, &pss, &pslen, p, plen, &comprloop);
 	return (strcmp(qs, ps) == 0);
 }
 
@@ -1364,11 +1370,12 @@ static int subdomain_dname(uint8_t* q, size_t qlen, uint8_t* p, size_t plen)
 	char qs[5120], ps[5120];
 	size_t qslen = sizeof(qs), pslen = sizeof(ps);
 	char* qss = qs, *pss = ps;
+	int comprloop = 0;
 	if(!qn || !pn)
 		return 0;
 	/* decompresses domain names */
-	(void)sldns_wire2str_dname_scan(&qn, &qlen, &qss, &qslen, q, qlen);
-	(void)sldns_wire2str_dname_scan(&pn, &plen, &pss, &pslen, p, plen);
+	(void)sldns_wire2str_dname_scan(&qn, &qlen, &qss, &qslen, q, qlen, &comprloop);
+	(void)sldns_wire2str_dname_scan(&pn, &plen, &pss, &pslen, p, plen, &comprloop);
 	/* same: false, (strict subdomain check)??? */
 	if(strcmp(qs, ps) == 0)
 		return 1;

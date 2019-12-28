@@ -65,6 +65,15 @@ typedef void* PyGILState_STATE;
 #endif
 
 /**
+ *  counter for python module instances
+ *  incremented by pythonmod_init(...)
+ */
+int py_mod_count = 0;
+
+/** Python main thread */
+PyThreadState* mainthr;
+
+/**
  * Global state for the module.
  */
 struct pythonmod_env {
@@ -72,8 +81,6 @@ struct pythonmod_env {
 	/** Python script filename. */
 	const char* fname;
 
-	/** Python main thread */
-	PyThreadState* mainthr;
 	/** Python module. */
 	PyObject* module;
 
@@ -242,14 +249,17 @@ cleanup:
 
 int pythonmod_init(struct module_env* env, int id)
 {
+   int py_mod_idx = py_mod_count++;
+    
    /* Initialize module */
    FILE* script_py = NULL;
    PyObject* py_init_arg, *res;
    PyGILState_STATE gil;
-   int init_standard = 1;
+   int init_standard = 1, i = 0;
 #if PY_MAJOR_VERSION < 3
    PyObject* PyFileObject = NULL;
 #endif
+   struct config_strlist* cfg_item = env->cfg->python_script;
 
    struct pythonmod_env* pe = (struct pythonmod_env*)calloc(1, sizeof(struct pythonmod_env));
    if (!pe)
@@ -261,14 +271,21 @@ int pythonmod_init(struct module_env* env, int id)
    env->modinfo[id] = (void*) pe;
 
    /* Initialize module */
-   pe->fname = env->cfg->python_script;
+   pe->fname=NULL; i = 0;
+   while (cfg_item!=NULL) {
+      if (py_mod_idx==i++) {
+         pe->fname=cfg_item->str;
+         break;
+      }
+      cfg_item = cfg_item->next;
+   }
    if(pe->fname==NULL || pe->fname[0]==0) {
-      log_err("pythonmod: no script given.");
+      log_err("pythonmod[%d]: no script given.", py_mod_idx);
       return 0;
    }
 
    /* Initialize Python libraries */
-   if (!Py_IsInitialized())
+   if (py_mod_count==1 && !Py_IsInitialized()) 
    {
 #if PY_MAJOR_VERSION >= 3
       wchar_t progname[8];
@@ -284,29 +301,31 @@ int pythonmod_init(struct module_env* env, int id)
       Py_Initialize();
       PyEval_InitThreads();
       SWIG_init();
-      pe->mainthr = PyEval_SaveThread();
+      mainthr = PyEval_SaveThread();
    }
 
    gil = PyGILState_Ensure();
 
-   /* Initialize Python */
-   PyRun_SimpleString("import sys \n");
-   PyRun_SimpleString("sys.path.append('.') \n");
-   if(env->cfg->directory && env->cfg->directory[0]) {
-      char wdir[1524];
-      snprintf(wdir, sizeof(wdir), "sys.path.append('%s') \n",
-      env->cfg->directory);
-      PyRun_SimpleString(wdir);
-   }
-   PyRun_SimpleString("sys.path.append('"RUN_DIR"') \n");
-   PyRun_SimpleString("sys.path.append('"SHARE_DIR"') \n");
-   PyRun_SimpleString("import distutils.sysconfig \n");
-   PyRun_SimpleString("sys.path.append(distutils.sysconfig.get_python_lib(1,0)) \n");
-   if (PyRun_SimpleString("from unboundmodule import *\n") < 0)
-   {
-      log_err("pythonmod: cannot initialize core module: unboundmodule.py");
-      PyGILState_Release(gil);
-      return 0;
+   if (py_mod_count==1) {
+      /* Initialize Python */
+      PyRun_SimpleString("import sys \n");
+      PyRun_SimpleString("sys.path.append('.') \n");
+      if(env->cfg->directory && env->cfg->directory[0]) {
+         char wdir[1524];
+         snprintf(wdir, sizeof(wdir), "sys.path.append('%s') \n",
+         env->cfg->directory);
+         PyRun_SimpleString(wdir);
+      }
+      PyRun_SimpleString("sys.path.append('"RUN_DIR"') \n");
+      PyRun_SimpleString("sys.path.append('"SHARE_DIR"') \n");
+      PyRun_SimpleString("import distutils.sysconfig \n");
+      PyRun_SimpleString("sys.path.append(distutils.sysconfig.get_python_lib(1,0)) \n");
+      if (PyRun_SimpleString("from unboundmodule import *\n") < 0)
+      {
+         log_err("pythonmod: cannot initialize core module: unboundmodule.py");
+         PyGILState_Release(gil);
+         return 0;
+      }
    }
 
    /* Check Python file load */
@@ -328,8 +347,8 @@ int pythonmod_init(struct module_env* env, int id)
    /* Load file */
    pe->module = PyImport_AddModule("__main__");
    pe->dict = PyModule_GetDict(pe->module);
-   pe->data = Py_None;
-   Py_INCREF(pe->data);
+   pe->data = PyDict_New();
+   Py_XINCREF(pe->data);
    PyModule_AddObject(pe->module, "mod_env", pe->data);
 
    /* TODO: deallocation of pe->... if an error occurs */
@@ -352,6 +371,7 @@ int pythonmod_init(struct module_env* env, int id)
       (void)PyParser_SimpleParseFile(script_py, pe->fname, Py_file_input);
       log_py_err();
       PyGILState_Release(gil);
+      fclose(script_py);
       return 0;
    }
 #if PY_MAJOR_VERSION < 3
@@ -440,9 +460,11 @@ void pythonmod_deinit(struct module_env* env, int id)
       Py_XDECREF(pe->data);
       PyGILState_Release(gil);
 
-      PyEval_RestoreThread(pe->mainthr);
-      Py_Finalize();
-      pe->mainthr = NULL;
+      if(--py_mod_count==0) {
+         PyEval_RestoreThread(mainthr);
+         Py_Finalize();
+         mainthr = NULL;
+      }
    }
    pe->fname = NULL;
    free(pe);
@@ -500,8 +522,7 @@ void pythonmod_operate(struct module_qstate* qstate, enum module_ev event,
       pq = qstate->minfo[id] = malloc(sizeof(struct pythonmod_qstate));
 
       /* Initialize per query data */
-      pq->data = Py_None;
-      Py_INCREF(pq->data);
+      pq->data = PyDict_New();
    }
 
    /* Call operate */

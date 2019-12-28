@@ -1121,7 +1121,7 @@ local_zone_out(struct local_zone* z)
 	struct local_rrset* p;
 	RBTREE_FOR(d, struct local_data*, &z->data) {
 		for(p = d->rrsets; p; p = p->next) {
-			log_nametypeclass(0, "rrset", d->name, 
+			log_nametypeclass(NO_VERBOSE, "rrset", d->name,
 				ntohs(p->rrset->rk.type),
 				ntohs(p->rrset->rk.rrset_class));
 		}
@@ -1138,7 +1138,7 @@ void local_zones_print(struct local_zones* zones)
 		lock_rw_rdlock(&z->lock);
 		snprintf(buf, sizeof(buf), "%s zone",
 			local_zone_type2str(z->type));
-		log_nametypeclass(0, buf, z->name, 0, z->dclass);
+		log_nametypeclass(NO_VERBOSE, buf, z->name, 0, z->dclass);
 		local_zone_out(z);
 		lock_rw_unlock(&z->lock);
 	}
@@ -1500,7 +1500,7 @@ lz_inform_print(struct local_zone* z, struct query_info* qinfo,
 	addr_to_str(&repinfo->addr, repinfo->addrlen, ip, sizeof(ip));
 	snprintf(txt, sizeof(txt), "%s %s %s@%u", zname, local_zone_type2str(z->type), ip,
 		(unsigned)port);
-	log_nametypeclass(0, txt, qinfo->qname, qinfo->qtype, qinfo->qclass);
+	log_nametypeclass(NO_VERBOSE, txt, qinfo->qname, qinfo->qtype, qinfo->qclass);
 }
 
 static enum localzone_type

@@ -325,8 +325,14 @@ sldns_bget_token_par(sldns_buffer *b, char *token, const char *delim,
 		if (c == '\n' && p != 0) {
 			/* in parentheses */
 			/* do not write ' ' if we want to skip spaces */
-			if(!(skipw && (strchr(skipw, c)||strchr(skipw, ' '))))
+			if(!(skipw && (strchr(skipw, c)||strchr(skipw, ' ')))) {
+				/* check for space for the space character */
+				if (limit > 0 && (i >= limit || (size_t)(t-token) >= limit)) {
+					*t = '\0';
+					return -1;
+				}
 				*t++ = ' ';
+			}
 			lc = c;
 			continue;
 		}

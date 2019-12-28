@@ -174,7 +174,7 @@ dl_tv_add(struct timeval* t1, const struct timeval* t2)
 #ifndef S_SPLINT_S
 	t1->tv_sec += t2->tv_sec;
 	t1->tv_usec += t2->tv_usec;
-	while(t1->tv_usec > 1000000) {
+	while(t1->tv_usec >= 1000000) {
 		t1->tv_usec -= 1000000;
 		t1->tv_sec++;
 	}
@@ -1042,7 +1042,7 @@ service(const char* bind_str, int bindport, const char* serv_str,
 	}
 	i=0;
 	if(bindport == 0) {
-		bindport = 1024 + arc4random()%64000;
+		bindport = 1024 + ((int)arc4random())%64000;
 		i = 100;
 	}
 	while(1) {
@@ -1058,7 +1058,7 @@ service(const char* bind_str, int bindport, const char* serv_str,
 #endif
 			if(i--==0)
 				fatal_exit("cannot bind any port");
-			bindport = 1024 + arc4random()%64000;
+			bindport = 1024 + ((int)arc4random())%64000;
 		} else break;
 	}
 	fd_set_nonblock(s);

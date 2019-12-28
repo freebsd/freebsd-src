@@ -2242,7 +2242,7 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 			!qstate->env->cfg->val_log_squelch) {
 			if(qstate->env->cfg->val_log_level < 2 &&
 				!qstate->env->cfg->log_servfail)
-				log_query_info(0, "validation failure",
+				log_query_info(NO_VERBOSE, "validation failure",
 					&qstate->qinfo);
 			else {
 				char* err = errinf_to_str_bogus(qstate);

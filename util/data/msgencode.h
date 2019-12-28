@@ -85,12 +85,14 @@ int reply_info_answer_encode(struct query_info* qinf, struct reply_info* rep,
  * @param region: to store temporary data in.
  * @param udpsize: size of the answer, 512, from EDNS, or 64k for TCP.
  * @param dnssec: if 0 DNSSEC records are omitted from the answer.
+ * @param minimise: if true, the answer is a minimal response, with
+ *   authority and additional removed if possible.
  * @return: nonzero is success, or 
  *	0 on error: malloc failure (no log_err has been done).
  */
 int reply_info_encode(struct query_info* qinfo, struct reply_info* rep, 
 	uint16_t id, uint16_t flags, struct sldns_buffer* buffer, time_t timenow, 
-	struct regional* region, uint16_t udpsize, int dnssec);
+	struct regional* region, uint16_t udpsize, int dnssec, int minimise);
 
 /**
  * Encode query packet. Assumes the buffer is large enough.

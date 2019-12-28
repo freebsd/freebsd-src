@@ -106,9 +106,16 @@ get_codeline(rbtree_type* tree, char* key, char* func)
 		cl = calloc(1, sizeof(*cl));
 		if(!cl) return 0;
 		cl->codeline = strdup(key);
-		if(!cl->codeline) return 0;
+		if(!cl->codeline) {
+			free(cl);
+			return 0;
+		}
 		cl->func = strdup(func);
-		if(!cl->func) return 0;
+		if(!cl->func) {
+			free(cl->codeline);
+			free(cl);
+			return 0;
+		}
 		cl->alloc = 0;
 		cl->node.key = cl->codeline;
 		(void)rbtree_insert(tree, &cl->node);

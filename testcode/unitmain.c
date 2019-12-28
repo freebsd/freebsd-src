@@ -538,10 +538,8 @@ rnd_test(void)
 	struct ub_randstate* r;
 	int num = 1000, i;
 	long int a[1000];
-	unsigned int seed = (unsigned)time(NULL);
 	unit_show_feature("ub_random");
-	printf("ub_random seed is %u\n", seed);
-	unit_assert( (r = ub_initstate(seed, NULL)) );
+	unit_assert( (r = ub_initstate(NULL)) );
 	for(i=0; i<num; i++) {
 		a[i] = ub_random(r);
 		unit_assert(a[i] >= 0);
@@ -907,7 +905,7 @@ main(int argc, char* argv[])
 	ecs_test();
 #endif /* CLIENT_SUBNET */
 	if(log_get_lock()) {
-		lock_quick_destroy((lock_quick_type*)log_get_lock());
+		lock_basic_destroy((lock_basic_type*)log_get_lock());
 	}
 	checklock_stop();
 	printf("%d checks ok.\n", testcount);

@@ -1,4 +1,4 @@
-README for Unbound 1.9.2
+README for Unbound 1.9.6
 Copyright 2007 NLnet Labs
 http://unbound.net
 
@@ -99,7 +99,7 @@ o If you are not receiving the correct source IP address on replies (e.g.
   the config file is an alternative. The interface-automatic option uses
   non portable socket options, Linux and FreeBSD should work fine.
 o The warning 'openssl has no entropy, seeding with time', with chroot 
-  enabled, may be solved with a symbolic link to /dev/random from <chrootdir>.
+  enabled, may be solved with a symbolic link to /dev/urandom from <chrootdir>.
 o On Solaris 5.10 some libtool packages from repositories do not work with
   gcc, showing errors gcc: unrecognized option `-KPIC'
   To solve this do ./configure libtool=./libtool [your options...].

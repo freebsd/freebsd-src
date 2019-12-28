@@ -45,9 +45,13 @@ def operate(id, event, qstate, qdata):
 
     if (event == MODULE_EVENT_NEW) or (event == MODULE_EVENT_PASS):
 
-        if qstate.qinfo.qname_str.endswith("._calc_.cz."):
+        if qstate.qinfo.qname_str.endswith("._calc_.cz.") and not ("__" in qstate.qinfo.qname_str):
             try:
-                res = eval(''.join(qstate.qinfo.qname_list[0:-3]))
+                # the second and third argument to eval attempt to restrict
+                # functions and variables available to stop code execution
+                # but it may not be safe either.  This is why __ substrings
+                # are excluded from evaluation.
+                res = eval(''.join(qstate.qinfo.qname_list[0:-3]),{"__builtins__":None},{})
             except:
                 res = "exception"
 

@@ -409,6 +409,8 @@ iter_prepend(struct iter_qstate* iq, struct dns_msg* msg,
 	num_an = 0;
 	for(p = iq->an_prepend_list; p; p = p->next) {
 		sets[num_an++] = p->rrset;
+		if(ub_packed_rrset_ttl(p->rrset) < msg->rep->ttl)
+			msg->rep->ttl = ub_packed_rrset_ttl(p->rrset);
 	}
 	memcpy(sets+num_an, msg->rep->rrsets, msg->rep->an_numrrsets *
 		sizeof(struct ub_packed_rrset_key*));
@@ -421,6 +423,8 @@ iter_prepend(struct iter_qstate* iq, struct dns_msg* msg,
 			msg->rep->ns_numrrsets, p->rrset))
 			continue;
 		sets[msg->rep->an_numrrsets + num_an + num_ns++] = p->rrset;
+		if(ub_packed_rrset_ttl(p->rrset) < msg->rep->ttl)
+			msg->rep->ttl = ub_packed_rrset_ttl(p->rrset);
 	}
 	memcpy(sets + num_an + msg->rep->an_numrrsets + num_ns, 
 		msg->rep->rrsets + msg->rep->an_numrrsets, 
