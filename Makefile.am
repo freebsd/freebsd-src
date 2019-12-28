@@ -429,6 +429,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_open_file.c \
 	libarchive/test/test_open_filename.c \
 	libarchive/test/test_pax_filename_encoding.c \
+	libarchive/test/test_pax_xattr_header.c \
 	libarchive/test/test_read_data_large.c \
 	libarchive/test/test_read_disk.c \
 	libarchive/test/test_read_disk_directory_traversals.c \
@@ -448,6 +449,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_7zip_encryption_partially.c \
 	libarchive/test/test_read_format_7zip_encryption_header.c \
 	libarchive/test/test_read_format_7zip_malformed.c \
+	libarchive/test/test_read_format_7zip_packinfo_digests.c \
 	libarchive/test/test_read_format_ar.c \
 	libarchive/test/test_read_format_cab.c \
 	libarchive/test/test_read_format_cab_filename.c \
@@ -488,6 +490,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_lha.c \
 	libarchive/test/test_read_format_lha_bugfix_0.c \
 	libarchive/test/test_read_format_lha_filename.c \
+	libarchive/test/test_read_format_lha_filename_utf16.c \
 	libarchive/test/test_read_format_mtree.c \
 	libarchive/test/test_read_format_mtree_crash747.c \
 	libarchive/test/test_read_format_pax_bz2.c \
@@ -701,6 +704,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_fuzz.lzh.uu \
 	libarchive/test/test_fuzz_1.iso.Z.uu \
 	libarchive/test/test_pax_filename_encoding.tar.uu \
+	libarchive/test/test_pax_xattr_header_all.tar.uu \
+	libarchive/test/test_pax_xattr_header_libarchive.tar.uu \
+	libarchive/test/test_pax_xattr_header_schily.tar.uu \
 	libarchive/test/test_rar_multivolume_multiple_files.part1.rar.uu \
 	libarchive/test/test_rar_multivolume_multiple_files.part2.rar.uu \
 	libarchive/test/test_rar_multivolume_multiple_files.part3.rar.uu \
@@ -757,6 +763,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_lzma2.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed2.7z.uu \
+	libarchive/test/test_read_format_7zip_packinfo_digests.7z.uu \
 	libarchive/test/test_read_format_7zip_ppmd.7z.uu \
 	libarchive/test/test_read_format_7zip_symbolic_name.7z.uu \
 	libarchive/test/test_read_format_ar.ar.uu \
@@ -798,6 +805,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_iso_zisofs.iso.Z.uu \
 	libarchive/test/test_read_format_lha_bugfix_0.lzh.uu \
 	libarchive/test/test_read_format_lha_filename_cp932.lzh.uu \
+	libarchive/test/test_read_format_lha_filename_utf16.lzh.uu \
 	libarchive/test/test_read_format_lha_header0.lzh.uu \
 	libarchive/test/test_read_format_lha_header1.lzh.uu \
 	libarchive/test/test_read_format_lha_header2.lzh.uu \
@@ -835,6 +843,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_blake2.rar.uu \
 	libarchive/test/test_read_format_rar5_compressed.rar.uu \
 	libarchive/test/test_read_format_rar5_different_window_size.rar.uu \
+	libarchive/test/test_read_format_rar5_different_solid_window_size.rar.uu \
 	libarchive/test/test_read_format_rar5_distance_overflow.rar.uu \
 	libarchive/test/test_read_format_rar5_extra_field_version.rar.uu \
 	libarchive/test/test_read_format_rar5_fileattr.rar.uu \
@@ -866,6 +875,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_truncated_huff.rar.uu \
 	libarchive/test/test_read_format_rar5_win32.rar.uu \
 	libarchive/test/test_read_format_rar5_arm_filter_on_window_boundary.rar.uu \
+	libarchive/test/test_read_format_rar5_different_winsize_on_merge.rar.uu \
 	libarchive/test/test_read_format_raw.bufr.uu \
 	libarchive/test/test_read_format_raw.data.gz.uu \
 	libarchive/test/test_read_format_raw.data.Z.uu \

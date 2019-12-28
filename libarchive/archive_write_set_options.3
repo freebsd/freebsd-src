@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 27, 2019
+.Dd December 3, 2019
 .Dt ARCHIVE_WRITE_OPTIONS 3
 .Os
 .Sh NAME
@@ -403,6 +403,32 @@ Specifies a filename that should not be compressed when using
 .Cm zisofs=direct .
 This option can be provided multiple times to suppress compression
 on many files.
+.El
+.It Format pax
+.Bl -tag -compact -width indent
+.It Cm hdrcharset
+This sets the character set used for filenames, uname and gname.
+The value is one of
+.Dq BINARY
+or
+.Dq UTF-8 .
+With
+.Dq BINARY
+there is no character conversion, with
+.Dq UTF-8
+names are converted to UTF-8.
+.It Cm xattrheader
+When storing extended attributes, this option configures which
+headers should be written. The value is one of
+.Dq all ,
+.Dq LIBARCHIVE ,
+or
+.Dq SCHILY .
+By default, both
+.Dq LIBARCHIVE.xattr
+and
+.Dq SCHILY.xattr
+headers are written.
 .El
 .It Format 7zip
 .Bl -tag -compact -width indent

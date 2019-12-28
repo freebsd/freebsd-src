@@ -212,6 +212,7 @@ __archive_write_allocate_filter(struct archive *_a)
 
 	f = calloc(1, sizeof(*f));
 	f->archive = _a;
+	f->state = ARCHIVE_WRITE_FILTER_STATE_NEW;
 	if (a->filter_first == NULL)
 		a->filter_first = f;
 	else
@@ -228,6 +229,9 @@ __archive_write_filter(struct archive_write_filter *f,
     const void *buff, size_t length)
 {
 	int r;
+	/* Never write to non-open filters */
+	if (f->state != ARCHIVE_WRITE_FILTER_STATE_OPEN)
+		return(ARCHIVE_FATAL);
 	if (length == 0)
 		return(ARCHIVE_OK);
 	if (f->write == NULL)
@@ -240,27 +244,70 @@ __archive_write_filter(struct archive_write_filter *f,
 }
 
 /*
- * Open a filter.
+ * Recursive function for opening the filter chain
+ * Last filter is opened first
  */
-int
+static int
 __archive_write_open_filter(struct archive_write_filter *f)
 {
-	if (f->open == NULL)
+	int ret;
+
+	ret = ARCHIVE_OK;
+	if (f->next_filter != NULL)
+		ret = __archive_write_open_filter(f->next_filter);
+	if (ret != ARCHIVE_OK)
+		return (ret);
+	if (f->state != ARCHIVE_WRITE_FILTER_STATE_NEW)
+		return (ARCHIVE_FATAL);
+	if (f->open == NULL) {
+		f->state = ARCHIVE_WRITE_FILTER_STATE_OPEN;
 		return (ARCHIVE_OK);
-	return (f->open)(f);
+	}
+	ret = (f->open)(f);
+	if (ret == ARCHIVE_OK)
+		f->state = ARCHIVE_WRITE_FILTER_STATE_OPEN;
+	else
+		f->state = ARCHIVE_WRITE_FILTER_STATE_FATAL;
+	return (ret);
 }
 
 /*
- * Close a filter.
+ * Open all filters
  */
-int
-__archive_write_close_filter(struct archive_write_filter *f)
+static int
+__archive_write_filters_open(struct archive_write *a)
 {
-	if (f->close != NULL)
-		return (f->close)(f);
-	if (f->next_filter != NULL)
-		return (__archive_write_close_filter(f->next_filter));
-	return (ARCHIVE_OK);
+	return (__archive_write_open_filter(a->filter_first));
+}
+
+/*
+ * Close all filtes
+ */
+static int
+__archive_write_filters_close(struct archive_write *a)
+{
+	struct archive_write_filter *f;
+	int ret, ret1;
+	ret = ARCHIVE_OK;
+	for (f = a->filter_first; f != NULL; f = f->next_filter) {
+		/* Do not close filters that are not open */
+		if (f->state == ARCHIVE_WRITE_FILTER_STATE_OPEN) {
+			if (f->close != NULL) {
+				ret1 = (f->close)(f);
+				if (ret1 < ret)
+					ret = ret1;
+				if (ret1 == ARCHIVE_OK) {
+					f->state =
+					    ARCHIVE_WRITE_FILTER_STATE_CLOSED;
+				} else {
+					f->state =
+					    ARCHIVE_WRITE_FILTER_STATE_FATAL;
+				}
+			} else
+				f->state = ARCHIVE_WRITE_FILTER_STATE_CLOSED;
+		}
+	}
+	return (ret);
 }
 
 int
@@ -440,7 +487,7 @@ archive_write_client_close(struct archive_write_filter *f)
 	free(state->buffer);
 	free(state);
 	/* Clear the close handler myself not to be called again. */
-	f->close = NULL;
+	f->state = ARCHIVE_WRITE_FILTER_STATE_CLOSED;
 	a->client_data = NULL;
 	/* Clear passphrase. */
 	if (a->passphrase != NULL) {
@@ -477,9 +524,10 @@ archive_write_open(struct archive *_a, void *client_data,
 	client_filter->write = archive_write_client_write;
 	client_filter->close = archive_write_client_close;
 
-	ret = __archive_write_open_filter(a->filter_first);
+	ret = __archive_write_filters_open(a);
 	if (ret < ARCHIVE_WARN) {
-		r1 = __archive_write_close_filter(a->filter_first);
+		r1 = __archive_write_filters_close(a);
+		__archive_write_filters_free(_a);
 		return (r1 < ret ? r1 : ret);
 	}
 
@@ -521,7 +569,7 @@ _archive_write_close(struct archive *_a)
 	}
 
 	/* Finish the compression and close the stream. */
-	r1 = __archive_write_close_filter(a->filter_first);
+	r1 = __archive_write_filters_close(a);
 	if (r1 < r)
 		r = r1;
 

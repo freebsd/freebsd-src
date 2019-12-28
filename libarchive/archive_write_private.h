@@ -38,6 +38,11 @@
 #include "archive_string.h"
 #include "archive_private.h"
 
+#define	ARCHIVE_WRITE_FILTER_STATE_NEW		1U
+#define	ARCHIVE_WRITE_FILTER_STATE_OPEN		2U
+#define	ARCHIVE_WRITE_FILTER_STATE_CLOSED	4U
+#define	ARCHIVE_WRITE_FILTER_STATE_FATAL	0x8000U
+
 struct archive_write;
 
 struct archive_write_filter {
@@ -55,6 +60,7 @@ struct archive_write_filter {
 	int	  code;
 	int	  bytes_per_block;
 	int	  bytes_in_last_block;
+	int	  state;
 };
 
 #if ARCHIVE_VERSION < 4000000
@@ -66,8 +72,6 @@ struct archive_write_filter *__archive_write_allocate_filter(struct archive *);
 int __archive_write_output(struct archive_write *, const void *, size_t);
 int __archive_write_nulls(struct archive_write *, size_t);
 int __archive_write_filter(struct archive_write_filter *, const void *, size_t);
-int __archive_write_open_filter(struct archive_write_filter *);
-int __archive_write_close_filter(struct archive_write_filter *);
 
 struct archive_write {
 	struct archive	archive;

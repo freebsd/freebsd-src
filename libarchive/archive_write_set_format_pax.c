@@ -199,6 +199,28 @@ archive_write_pax_options(struct archive_write *a, const char *key,
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "pax: invalid charset name");
 		return (ret);
+	} else if (strcmp(key, "xattrheader") == 0) {
+		if (val == NULL || val[0] == 0) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "pax: xattrheader requires a value");
+		} else if (strcmp(val, "ALL") == 0 ||
+		    strcmp(val, "all") == 0) {
+			pax->flags |= WRITE_LIBARCHIVE_XATTR | WRITE_SCHILY_XATTR;
+			ret = ARCHIVE_OK;
+		} else if (strcmp(val, "SCHILY") == 0 ||
+		    strcmp(val, "schily") == 0) {
+			pax->flags |= WRITE_SCHILY_XATTR;
+			pax->flags &= ~WRITE_LIBARCHIVE_XATTR;
+			ret = ARCHIVE_OK;
+		} else if (strcmp(val, "LIBARCHIVE") == 0 ||
+		    strcmp(val, "libarchive") == 0) {
+			pax->flags |= WRITE_LIBARCHIVE_XATTR;
+			pax->flags &= ~WRITE_SCHILY_XATTR;
+			ret = ARCHIVE_OK;
+		} else
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "pax: invalid xattr header name");
+		return (ret);
 	}
 
 	/* Note: The "warn" return is just to inform the options
