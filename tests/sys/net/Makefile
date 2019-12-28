@@ -10,6 +10,8 @@ ATF_TESTS_SH+=	if_clone_test
 ATF_TESTS_SH+=	if_tun_test
 ATF_TESTS_SH+=	if_vlan
 
+TESTS_SUBDIRS+=	routing
+
 # The tests are written to be run in parallel, but doing so leads to random
 # panics.  I think it's because the kernel's list of interfaces isn't properly
 # locked.
