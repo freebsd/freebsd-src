@@ -876,7 +876,11 @@ arge_attach(device_t dev)
 		if  (bootverbose)
 			device_printf(dev,
 			    "Generating random ethernet address.\n");
-		(void) ar71xx_mac_addr_random_init(sc->arge_eaddr);
+		if (ar71xx_mac_addr_random_init(ifp, (void *) sc->arge_eaddr) < 0) {
+			device_printf(dev, "Failed to choose random MAC address\n");
+			error = EINVAL;
+			goto fail;
+		}
 	}
 
 	if (arge_dma_alloc(sc) != 0) {
