@@ -186,12 +186,10 @@ vm_swapout_object_deactivate_page(pmap_t pmap, vm_page_t m, bool unmap)
 		return;
 	}
 	if (!pmap_is_referenced(m)) {
-		vm_page_lock(m);
 		if (!vm_page_active(m))
 			(void)vm_page_try_remove_all(m);
 		else if (unmap && vm_page_try_remove_all(m))
 			vm_page_deactivate(m);
-		vm_page_unlock(m);
 	}
 	vm_page_xunbusy(m);
 }
