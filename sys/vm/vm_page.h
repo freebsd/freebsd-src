@@ -649,7 +649,6 @@ bool vm_page_remove_xbusy(vm_page_t);
 int vm_page_rename(vm_page_t, vm_object_t, vm_pindex_t);
 void vm_page_replace(vm_page_t mnew, vm_object_t object,
     vm_pindex_t pindex, vm_page_t mold);
-void vm_page_requeue(vm_page_t m);
 int vm_page_sbusied(vm_page_t m);
 vm_page_t vm_page_scan_contig(u_long npages, vm_page_t m_start,
     vm_page_t m_end, u_long alignment, vm_paddr_t boundary, int options);
@@ -659,7 +658,6 @@ int vm_page_sleep_if_busy(vm_page_t m, const char *msg);
 int vm_page_sleep_if_xbusy(vm_page_t m, const char *msg);
 vm_offset_t vm_page_startup(vm_offset_t vaddr);
 void vm_page_sunbusy(vm_page_t m);
-void vm_page_swapqueue(vm_page_t m, uint8_t oldq, uint8_t newq);
 bool vm_page_try_remove_all(vm_page_t m);
 bool vm_page_try_remove_write(vm_page_t m);
 int vm_page_trysbusy(vm_page_t m);
@@ -833,31 +831,6 @@ vm_page_aflag_set(vm_page_t m, uint16_t bits)
 	addr = (void *)&m->a;
 	val = bits << VM_PAGE_AFLAG_SHIFT;
 	atomic_set_32(addr, val);
-}
-
-/*
- *	Atomically update the queue state of the page.  The operation fails if
- *	any of the queue flags in "fflags" are set or if the "queue" field of
- *	the page does not match the expected value; if the operation is
- *	successful, the flags in "nflags" are set and all other queue state
- *	flags are cleared.
- */
-static inline bool
-vm_page_pqstate_cmpset(vm_page_t m, uint32_t oldq, uint32_t newq,
-    uint32_t fflags, uint32_t nflags)
-{
-	vm_page_astate_t new, old;
-
-	old = vm_page_astate_load(m);
-	do {
-		if ((old.flags & fflags) != 0 || old.queue != oldq)
-			return (false);
-		new = old;
-		new.flags = (new.flags & ~PGA_QUEUE_OP_MASK) | nflags;
-		new.queue = newq;
-	} while (!vm_page_astate_fcmpset(m, &old, new));
-
-	return (true);
 }
 
 /*
