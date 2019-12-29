@@ -56,12 +56,13 @@ struct g_command class_commands[] = {
 		{ 'w', "wfailprob", "-1", G_TYPE_NUMBER },
 		{ 'x', "wdelayprob", "-1", G_TYPE_NUMBER },
 		{ 'z', "physpath", G_NOP_PHYSPATH_PASSTHROUGH, G_TYPE_STRING },
+		{ 'Z', "gnopname", G_VAL_OPTIONAL, G_TYPE_STRING },
 		G_OPT_SENTINEL
 	    },
 	    "[-v] [-c count_until_fail] [-d delaymsec] [-e error] [-o offset] "
 	    "[-p stripesize] [-P stripeoffset] [-q rdelayprob] [-r rfailprob] "
 	    "[-s size]  [-S secsize] [-w wfailprob] [-x wdelayprob] "
-	    "[-z physpath] dev ..."
+	    "[-z physpath] [-Z gnopname] dev ..."
 	},
 	{ "configure", G_FLAG_VERBOSE, NULL,
 	    {
