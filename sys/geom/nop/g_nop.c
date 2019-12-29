@@ -204,31 +204,35 @@ g_nop_start(struct bio *bp)
 	struct bio *cbp;
 	u_int failprob, delayprob, delaytime;
 
-	failprob = delayprob = 0;
+	failprob = delayprob = delaytime = 0;
 
 	gp = bp->bio_to->geom;
 	sc = gp->softc;
 
 	G_NOP_LOGREQ(bp, "Request received.");
 	mtx_lock(&sc->sc_lock);
-	if (sc->sc_count_until_fail != 0 && --sc->sc_count_until_fail == 0) {
-		sc->sc_rfailprob = 100;
-		sc->sc_wfailprob = 100;
-	}
 	switch (bp->bio_cmd) {
 	case BIO_READ:
 		sc->sc_reads++;
 		sc->sc_readbytes += bp->bio_length;
-		failprob = sc->sc_rfailprob;
-		delayprob = sc->sc_rdelayprob;
-		delaytime = sc->sc_delaymsec;
+		if (sc->sc_count_until_fail != 0) {
+			sc->sc_count_until_fail -= 1;
+		} else {
+			failprob = sc->sc_rfailprob;
+			delayprob = sc->sc_rdelayprob;
+			delaytime = sc->sc_delaymsec;
+		}
 		break;
 	case BIO_WRITE:
 		sc->sc_writes++;
 		sc->sc_wrotebytes += bp->bio_length;
-		failprob = sc->sc_wfailprob;
-		delayprob = sc->sc_wdelayprob;
-		delaytime = sc->sc_delaymsec;
+		if (sc->sc_count_until_fail != 0) {
+			sc->sc_count_until_fail -= 1;
+		} else {
+			failprob = sc->sc_wfailprob;
+			delayprob = sc->sc_wdelayprob;
+			delaytime = sc->sc_delaymsec;
+		}
 		break;
 	case BIO_DELETE:
 		sc->sc_deletes++;
@@ -262,6 +266,7 @@ g_nop_start(struct bio *bp)
 		break;
 	}
 	mtx_unlock(&sc->sc_lock);
+
 	if (failprob > 0) {
 		u_int rval;
 
