@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to neither build nor install httpd
+Set to neither build nor install simple_httpd
