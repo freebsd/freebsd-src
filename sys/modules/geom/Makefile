@@ -19,7 +19,6 @@ SUBDIR=	geom_bde \
 	geom_part \
 	geom_raid \
 	geom_raid3 \
-	geom_sched \
 	geom_shsec \
 	geom_stripe \
 	geom_uzip \
