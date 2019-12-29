@@ -1504,22 +1504,22 @@ linprocfs_dofilesystems(PFS_FILL_ARGS)
 	return(0);
 }
 
-#if 0
 /*
  * Filler function for proc/modules
  */
 static int
 linprocfs_domodules(PFS_FILL_ARGS)
 {
+#if 0
 	struct linker_file *lf;
 
 	TAILQ_FOREACH(lf, &linker_files, link) {
 		sbuf_printf(sb, "%-20s%8lu%4d\n", lf->filename,
 		    (unsigned long)lf->size, lf->refs);
 	}
+#endif
 	return (0);
 }
-#endif
 
 /*
  * Filler function for proc/pid/fd
@@ -1713,10 +1713,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(root, "meminfo", &linprocfs_domeminfo,
 	    NULL, NULL, NULL, PFS_RD);
-#if 0
 	pfs_create_file(root, "modules", &linprocfs_domodules,
 	    NULL, NULL, NULL, PFS_RD);
-#endif
 	pfs_create_file(root, "mounts", &linprocfs_domtab,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(root, "mtab", &linprocfs_domtab,
