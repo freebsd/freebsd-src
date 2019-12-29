@@ -134,12 +134,15 @@ int
 fstyp_ntfs(FILE *fp, char *label, size_t size)
 {
 	struct ntfs_bootfile *bf;
+	char *filerecp;
+#ifdef WITH_ICONV
 	struct ntfs_filerec *fr;
 	struct ntfs_attr *atr;
 	off_t voloff;
-	char *filerecp, *ap;
+	char *ap;
 	int8_t mftrecsz;
 	int recsize;
+#endif /* WITH_ICONV */
 
 	filerecp = NULL;
 
