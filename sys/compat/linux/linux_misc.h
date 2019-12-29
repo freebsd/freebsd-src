@@ -149,6 +149,9 @@ extern int stclohz;
 #define	LINUX_GRND_NONBLOCK	0x0001
 #define	LINUX_GRND_RANDOM	0x0002
 
+/* Linux syslog flags */
+#define	LINUX_SYSLOG_ACTION_READ_ALL	3
+
 #if defined(__amd64__) && !defined(COMPAT_LINUX32)
 int linux_ptrace_status(struct thread *td, int pid, int status);
 #endif
