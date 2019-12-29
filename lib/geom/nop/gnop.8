@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2019
+.Dd December 29, 2019
 .Dt GNOP 8
 .Os
 .Sh NAME
@@ -47,6 +47,7 @@
 .Op Fl w Ar wfailprob
 .Op Fl x Ar wdelayprob
 .Op Fl z Ar physpath
+.Op Fl Z Ar gnopname
 .Ar dev ...
 .Nm
 .Cm configure
@@ -153,6 +154,11 @@ Be more verbose.
 Specifies write delay probability in percent.
 .It Fl z Ar physpath
 Physical path of the transparent provider.
+.It Fl Z Ar gnopname
+The name of the new provider.
+The suffix
+.Dq .nop
+will be appended to the provider name.
 .El
 .Sh SYSCTL VARIABLES
 The following
