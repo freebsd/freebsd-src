@@ -87,15 +87,6 @@ static volatile u_int __read_mostly pace;
 
 static uma_zone_t __read_mostly biozone;
 
-/*
- * The head of the list of classifiers used in g_io_request.
- * Use g_register_classifier() and g_unregister_classifier()
- * to add/remove entries to the list.
- * Classifiers are invoked in registration order.
- */
-static TAILQ_HEAD(, g_classifier_hook) g_classifier_tailq __read_mostly =
-    TAILQ_HEAD_INITIALIZER(g_classifier_tailq);
-
 #include <machine/atomic.h>
 
 static void
@@ -224,9 +215,6 @@ g_clone_bio(struct bio *bp)
 		if (bp->bio_cmd == BIO_ZONE)
 			bcopy(&bp->bio_zone, &bp2->bio_zone,
 			    sizeof(bp->bio_zone));
-		/* Inherit classification info from the parent */
-		bp2->bio_classifier1 = bp->bio_classifier1;
-		bp2->bio_classifier2 = bp->bio_classifier2;
 #if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
 		bp2->bio_track_bp = bp->bio_track_bp;
 #endif
@@ -498,65 +486,6 @@ g_io_check(struct bio *bp)
 	return (EJUSTRETURN);
 }
 
-/*
- * bio classification support.
- *
- * g_register_classifier() and g_unregister_classifier()
- * are used to add/remove a classifier from the list.
- * The list is protected using the g_bio_run_down lock,
- * because the classifiers are called in this path.
- *
- * g_io_request() passes bio's that are not already classified
- * (i.e. those with bio_classifier1 == NULL) to g_run_classifiers().
- * Classifiers can store their result in the two fields
- * bio_classifier1 and bio_classifier2.
- * A classifier that updates one of the fields should
- * return a non-zero value.
- * If no classifier updates the field, g_run_classifiers() sets
- * bio_classifier1 = BIO_NOTCLASSIFIED to avoid further calls.
- */
-
-int
-g_register_classifier(struct g_classifier_hook *hook)
-{
-
-	g_bioq_lock(&g_bio_run_down);
-	TAILQ_INSERT_TAIL(&g_classifier_tailq, hook, link);
-	g_bioq_unlock(&g_bio_run_down);
-
-	return (0);
-}
-
-void
-g_unregister_classifier(struct g_classifier_hook *hook)
-{
-	struct g_classifier_hook *entry;
-
-	g_bioq_lock(&g_bio_run_down);
-	TAILQ_FOREACH(entry, &g_classifier_tailq, link) {
-		if (entry == hook) {
-			TAILQ_REMOVE(&g_classifier_tailq, hook, link);
-			break;
-		}
-	}
-	g_bioq_unlock(&g_bio_run_down);
-}
-
-static void
-g_run_classifiers(struct bio *bp)
-{
-	struct g_classifier_hook *hook;
-	int classified = 0;
-
-	biotrack(bp, __func__);
-
-	TAILQ_FOREACH(hook, &g_classifier_tailq, link)
-		classified |= hook->func(hook->arg, bp);
-
-	if (!classified)
-		bp->bio_classifier1 = BIO_NOTCLASSIFIED;
-}
-
 void
 g_io_request(struct bio *bp, struct g_consumer *cp)
 {
@@ -639,12 +568,6 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 #else
 	direct = 0;
 #endif
-
-	if (!TAILQ_EMPTY(&g_classifier_tailq) && !bp->bio_classifier1) {
-		g_bioq_lock(&g_bio_run_down);
-		g_run_classifiers(bp);
-		g_bioq_unlock(&g_bio_run_down);
-	}
 
 	/*
 	 * The statistics collection is lockless, as such, but we

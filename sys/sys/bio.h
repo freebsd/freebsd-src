@@ -79,9 +79,6 @@ struct disk;
 struct bio;
 struct vm_map;
 
-/* Empty classifier tag, to prevent further classification. */
-#define	BIO_NOTCLASSIFIED		(void *)(~0UL)
-
 typedef void bio_task_t(void *);
 
 /*
@@ -122,8 +119,8 @@ struct bio {
 	bio_task_t *bio_task;		/* Task_queue handler */
 	void	*bio_task_arg;		/* Argument to above */
 
-	void	*bio_classifier1;	/* Classifier tag. */
-	void	*bio_classifier2;	/* Classifier tag. */
+	void	*bio_spare1;
+	void	*bio_spare2;
 
 #ifdef DIAGNOSTIC
 	void	*_bio_caller1;

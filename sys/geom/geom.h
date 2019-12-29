@@ -231,17 +231,6 @@ struct g_provider {
 	u_int			index;
 };
 
-/*
- * Descriptor of a classifier. We can register a function and
- * an argument, which is called by g_io_request() on bio's
- * that are not previously classified.
- */
-struct g_classifier_hook {
-	TAILQ_ENTRY(g_classifier_hook) link;
-	int			(*func)(void *arg, struct bio *bp);
-	void			*arg;
-};
-
 /* BIO_GETATTR("GEOM::setstate") argument values. */
 #define G_STATE_FAILED		0
 #define G_STATE_REBUILD		1
@@ -344,8 +333,6 @@ int g_io_getattr(const char *attr, struct g_consumer *cp, int *len, void *ptr);
 int g_io_zonecmd(struct disk_zone_args *zone_args, struct g_consumer *cp);
 int g_io_flush(struct g_consumer *cp);
 int g_io_speedup(size_t shortage, u_int flags, size_t *resid, struct g_consumer *cp);
-int g_register_classifier(struct g_classifier_hook *hook);
-void g_unregister_classifier(struct g_classifier_hook *hook);
 void g_io_request(struct bio *bp, struct g_consumer *cp);
 struct bio *g_new_bio(void);
 struct bio *g_alloc_bio(void);
