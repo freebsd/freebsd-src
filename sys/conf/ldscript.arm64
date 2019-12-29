@@ -6,7 +6,7 @@ SEARCH_DIR(/usr/lib);
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
-  . = kernbase + SIZEOF_HEADERS;
+  . = text_start; /* This is set using --defsym= on the command line. */
   .text      :
   {
     *(.text)
