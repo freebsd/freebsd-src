@@ -909,7 +909,7 @@ remove_component(struct g_virstor_softc *sc, struct g_virstor_component *comp,
 	}
 
 	if (c->acr > 0 || c->acw > 0 || c->ace > 0)
-		g_access(c, -c->acr, -c->acw, -c->ace);
+		return;
 	if (delay) {
 		/* Destroy consumer after it's tasted */
 		g_post_event(delay_destroy_consumer, c, M_WAITOK, NULL);
@@ -1400,7 +1400,7 @@ g_virstor_orphan(struct g_consumer *cp)
 	KASSERT(comp != NULL, ("%s: No component in private part of consumer",
 	    __func__));
 	remove_component(sc, comp, FALSE);
-	if (virstor_valid_components(sc) == 0)
+	if (LIST_EMPTY(&gp->consumer))
 		virstor_geom_destroy(sc, TRUE, FALSE);
 }
 
@@ -1410,7 +1410,7 @@ g_virstor_orphan(struct g_consumer *cp)
 static int
 g_virstor_access(struct g_provider *pp, int dr, int dw, int de)
 {
-	struct g_consumer *c;
+	struct g_consumer *c, *c2, *tmp;
 	struct g_virstor_softc *sc;
 	struct g_geom *gp;
 	int error;
@@ -1420,46 +1420,40 @@ g_virstor_access(struct g_provider *pp, int dr, int dw, int de)
 	KASSERT(gp != NULL, ("%s: NULL geom", __func__));
 	sc = gp->softc;
 
-	if (sc == NULL) {
-		/* It seems that .access can be called with negative dr,dw,dx
-		 * in this case but I want to check for myself */
-		LOG_MSG(LVL_WARNING, "access(%d, %d, %d) for %s",
-		    dr, dw, de, pp->name);
-		/* This should only happen when geom is withered so
-		 * allow only negative requests */
-		KASSERT(dr <= 0 && dw <= 0 && de <= 0,
-		    ("%s: Positive access for %s", __func__, pp->name));
-		if (pp->acr + dr == 0 && pp->acw + dw == 0 && pp->ace + de == 0)
-			LOG_MSG(LVL_DEBUG, "Device %s definitely destroyed",
-			    pp->name);
-		return (0);
-	}
-
 	/* Grab an exclusive bit to propagate on our consumers on first open */
 	if (pp->acr == 0 && pp->acw == 0 && pp->ace == 0)
 		de++;
 	/* ... drop it on close */
 	if (pp->acr + dr == 0 && pp->acw + dw == 0 && pp->ace + de == 0) {
 		de--;
-		update_metadata(sc);	/* Writes statistical information */
+		if (sc != NULL)
+			update_metadata(sc);
 	}
 
 	error = ENXIO;
-	LIST_FOREACH(c, &gp->consumer, consumer) {
-		KASSERT(c != NULL, ("%s: consumer is NULL", __func__));
+	LIST_FOREACH_SAFE(c, &gp->consumer, consumer, tmp) {
 		error = g_access(c, dr, dw, de);
-		if (error != 0) {
-			struct g_consumer *c2;
-
-			/* Backout earlier changes */
-			LIST_FOREACH(c2, &gp->consumer, consumer) {
-				if (c2 == c) /* all eariler components fixed */
-					return (error);
-				g_access(c2, -dr, -dw, -de);
-			}
+		if (error != 0)
+			goto fail;
+		if (c->acr == 0 && c->acw == 0 && c->ace == 0 &&
+		    c->flags & G_CF_ORPHAN) {
+			g_detach(c);
+			g_destroy_consumer(c);
 		}
 	}
 
+	if (sc != NULL && LIST_EMPTY(&gp->consumer))
+		virstor_geom_destroy(sc, TRUE, FALSE);
+
+	return (error);
+
+fail:
+	/* Backout earlier changes */
+	LIST_FOREACH(c2, &gp->consumer, consumer) {
+		if (c2 == c)
+			break;
+		g_access(c2, -dr, -dw, -de);
+	}
 	return (error);
 }
 
