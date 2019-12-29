@@ -64,7 +64,6 @@ UNIMPLEMENTED(vserver);
 DUMMY(stime);
 DUMMY(fstat);
 DUMMY(olduname);
-DUMMY(syslog);
 DUMMY(uname);
 DUMMY(vhangup);
 DUMMY(vm86old);
