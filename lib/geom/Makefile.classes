@@ -20,7 +20,6 @@ GEOM_CLASSES+=	nop
 GEOM_CLASSES+=	part
 GEOM_CLASSES+=	raid
 GEOM_CLASSES+=	raid3
-GEOM_CLASSES+=	sched
 GEOM_CLASSES+=	shsec
 GEOM_CLASSES+=	stripe
 GEOM_CLASSES+=	virstor
