@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2019 Mariusz Zaborski <oshogbo@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/ctype.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -80,6 +82,20 @@ struct g_nop_delay {
 	struct bio			*dl_bio;
 	TAILQ_ENTRY(g_nop_delay)	 dl_next;
 };
+
+static bool
+g_nop_verify_nprefix(const char *name)
+{
+	int i;
+
+	for (i = 0; i < strlen(name); i++) {
+		if (isalpha(name[i]) == 0 && isdigit(name[i]) == 0) {
+			return (false);
+		}
+	}
+
+	return (true);
+}
 
 static void
 g_nop_orphan(struct g_consumer *cp)
@@ -312,17 +328,17 @@ g_nop_access(struct g_provider *pp, int dr, int dw, int de)
 
 static int
 g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
-    int ioerror, u_int count_until_fail, u_int rfailprob, u_int wfailprob,
-    u_int delaymsec, u_int rdelayprob, u_int wdelayprob, off_t offset,
-    off_t size, u_int secsize, off_t stripesize, off_t stripeoffset,
-    const char *physpath)
+    const char *gnopname, int ioerror, u_int count_until_fail,
+    u_int rfailprob, u_int wfailprob, u_int delaymsec, u_int rdelayprob,
+    u_int wdelayprob, off_t offset, off_t size, u_int secsize, off_t stripesize,
+    off_t stripeoffset, const char *physpath)
 {
 	struct g_nop_softc *sc;
 	struct g_geom *gp;
 	struct g_provider *newpp;
 	struct g_consumer *cp;
 	char name[64];
-	int error;
+	int error, n;
 	off_t explicitsize;
 
 	g_topology_assert();
@@ -373,7 +389,22 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 		gctl_error(req, "stripeoffset is too big.");
 		return (EINVAL);
 	}
-	snprintf(name, sizeof(name), "%s%s", pp->name, G_NOP_SUFFIX);
+	if (gnopname != NULL && !g_nop_verify_nprefix(gnopname)) {
+		gctl_error(req, "Name %s is invalid.", gnopname);
+		return (EINVAL);
+	}
+
+	if (gnopname != NULL) {
+		n = snprintf(name, sizeof(name), "%s%s", gnopname,
+		    G_NOP_SUFFIX);
+	} else {
+		n = snprintf(name, sizeof(name), "%s%s", pp->name,
+		    G_NOP_SUFFIX);
+	}
+	if (n <= 0 || n >= sizeof(name)) {
+		gctl_error(req, "Invalid provider name.");
+		return (EINVAL);
+	}
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		if (strcmp(gp->name, name) == 0) {
 			gctl_error(req, "Provider %s already exists.", name);
@@ -500,7 +531,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 	intmax_t *val, error, rfailprob, wfailprob, count_until_fail, offset,
 	    secsize, size, stripesize, stripeoffset, delaymsec,
 	    rdelayprob, wdelayprob;
-	const char *name, *physpath;
+	const char *name, *physpath, *gnopname;
 	char param[16];
 	int i, *nargs;
 
@@ -623,6 +654,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 		}
 	}
 	physpath = gctl_get_asciiparam(req, "physpath");
+	gnopname = gctl_get_asciiparam(req, "gnopname");
 
 	for (i = 0; i < *nargs; i++) {
 		snprintf(param, sizeof(param), "arg%d", i);
@@ -640,6 +672,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 			return;
 		}
 		if (g_nop_create(req, mp, pp,
+		    gnopname,
 		    error == -1 ? EIO : (int)error,
 		    count_until_fail == -1 ? 0 : (u_int)count_until_fail,
 		    rfailprob == -1 ? 0 : (u_int)rfailprob,
