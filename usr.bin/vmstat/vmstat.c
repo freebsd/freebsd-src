@@ -789,15 +789,14 @@ dovmstat(unsigned int interval, int reps)
 		xo_close_container("processes");
 		xo_open_container("memory");
 #define vmstat_pgtok(a) ((uintmax_t)(a) * (sum.v_page_size >> 10))
-#define	rate(x)	(((x) * rate_adj + halfuptime) / uptime)	/* round */
+#define	rate(x)	(unsigned long)(((x) * rate_adj + halfuptime) / uptime)
 		if (hflag) {
 			prthuman("available-memory",
 			    total.t_avm * (uint64_t)sum.v_page_size, 5, HN_B);
 			prthuman("free-memory",
 			    total.t_free * (uint64_t)sum.v_page_size, 5, HN_B);
 			prthuman("total-page-faults",
-			    (unsigned long)rate(sum.v_vm_faults -
-			    osum.v_vm_faults), 5, 0);
+			    rate(sum.v_vm_faults - osum.v_vm_faults), 5, 0);
 			xo_emit(" ");
 		} else {
 			xo_emit(" ");
@@ -808,55 +807,48 @@ dovmstat(unsigned int interval, int reps)
 			    vmstat_pgtok(total.t_free));
 			xo_emit(" ");
 			xo_emit("{:total-page-faults/%5lu} ",
-			    (unsigned long)rate(sum.v_vm_faults -
-			    osum.v_vm_faults));
+			    rate(sum.v_vm_faults - osum.v_vm_faults));
 		}
 		xo_close_container("memory");
 
 		xo_open_container("paging-rates");
 		xo_emit("{:page-reactivated/%3lu} ",
-		    (unsigned long)rate(sum.v_reactivated -
-		    osum.v_reactivated));
+		    rate(sum.v_reactivated - osum.v_reactivated));
 		xo_emit("{:paged-in/%3lu} ",
-		    (unsigned long)rate(sum.v_swapin + sum.v_vnodein -
+		    rate(sum.v_swapin + sum.v_vnodein -
 		    (osum.v_swapin + osum.v_vnodein)));
 		xo_emit("{:paged-out/%3lu}",
-		    (unsigned long)rate(sum.v_swapout + sum.v_vnodeout -
+		    rate(sum.v_swapout + sum.v_vnodeout -
 		    (osum.v_swapout + osum.v_vnodeout)));
 		if (hflag) {
 			prthuman("freed",
-			    (unsigned long)rate(sum.v_tfree - osum.v_tfree),
-			    5, 0);
+			    rate(sum.v_tfree - osum.v_tfree), 5, 0);
 			prthuman("scanned",
-			    (unsigned long)rate(sum.v_pdpages - osum.v_pdpages),
-			    5, 0);
+			    rate(sum.v_pdpages - osum.v_pdpages), 5, 0);
 			xo_emit(" ");
 		} else {
 			xo_emit(" ");
 			xo_emit("{:freed/%5lu} ",
-			    (unsigned long)rate(sum.v_tfree - osum.v_tfree));
+			    rate(sum.v_tfree - osum.v_tfree));
 			xo_emit("{:scanned/%4lu} ",
-			    (unsigned long)rate(sum.v_pdpages - osum.v_pdpages));
+			    rate(sum.v_pdpages - osum.v_pdpages));
 		}
 		xo_close_container("paging-rates");
 
 		devstats();
 		xo_open_container("fault-rates");
-		xo_emit("{:interrupts/%4lu}",
-		    (unsigned long)rate(sum.v_intr - osum.v_intr));
+		xo_emit("{:interrupts/%4lu}", rate(sum.v_intr - osum.v_intr));
 		if (hflag) {
 			prthuman("system-calls",
-			    (unsigned long)rate(sum.v_syscall - osum.v_syscall),
-			    5, 0);
+			    rate(sum.v_syscall - osum.v_syscall), 5, 0);
 			prthuman("context-switches",
-			    (unsigned long)rate(sum.v_swtch - osum.v_swtch),
-			    5, 0);
+			    rate(sum.v_swtch - osum.v_swtch), 5, 0);
 		} else {
 			xo_emit(" ");
 			xo_emit("{:system-calls/%5lu} "
 			    "{:context-switches/%5lu}",
-			    (unsigned long)rate(sum.v_syscall - osum.v_syscall),
-			    (unsigned long)rate(sum.v_swtch - osum.v_swtch));
+			    rate(sum.v_syscall - osum.v_syscall),
+			    rate(sum.v_swtch - osum.v_swtch));
 		}
 		xo_close_container("fault-rates");
 		if (Pflag)
