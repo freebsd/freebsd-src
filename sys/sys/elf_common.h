@@ -999,6 +999,10 @@ typedef struct {
 #define	R_AARCH64_PREL64	260	/* PC relative */
 #define	R_AARCH64_PREL32	261	/* PC relative, 32-bit overflow check */
 #define	R_AARCH64_PREL16	262	/* PC relative, 16-bit overflow check */
+#define	R_AARCH64_TSTBR14	279	/* TBZ/TBNZ immediate */
+#define	R_AARCH64_CONDBR19	280	/* Conditional branch immediate */
+#define	R_AARCH64_JUMP26	282	/* Branch immediate */
+#define	R_AARCH64_CALL26	283	/* Call immediate */
 #define	R_AARCH64_COPY		1024	/* Copy data from shared object */
 #define	R_AARCH64_GLOB_DAT	1025	/* Set GOT entry to data address */
 #define	R_AARCH64_JUMP_SLOT	1026	/* Set GOT entry to code address */
