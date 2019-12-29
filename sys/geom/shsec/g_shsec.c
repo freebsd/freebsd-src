@@ -184,7 +184,7 @@ g_shsec_orphan(struct g_consumer *cp)
 
 	g_shsec_remove_disk(cp);
 	/* If there are no valid disks anymore, remove device. */
-	if (g_shsec_nvalid(sc) == 0)
+	if (LIST_EMPTY(&gp->consumer))
 		g_shsec_destroy(sc, 1);
 }
 
@@ -198,21 +198,6 @@ g_shsec_access(struct g_provider *pp, int dr, int dw, int de)
 
 	gp = pp->geom;
 	sc = gp->softc;
-
-	if (sc == NULL) {
-		/*
-		 * It looks like geom is being withered.
-		 * In that case we allow only negative requests.
-		 */
-		KASSERT(dr <= 0 && dw <= 0 && de <= 0,
-		    ("Positive access request (device=%s).", pp->name));
-		if ((pp->acr + dr) == 0 && (pp->acw + dw) == 0 &&
-		    (pp->ace + de) == 0) {
-			G_SHSEC_DEBUG(0, "Device %s definitely destroyed.",
-			    gp->name);
-		}
-		return (0);
-	}
 
 	/* On first open, grab an extra "exclusive" bit */
 	if (pp->acr == 0 && pp->acw == 0 && pp->ace == 0)
@@ -232,6 +217,11 @@ g_shsec_access(struct g_provider *pp, int dr, int dw, int de)
 			g_destroy_consumer(cp1);
 		}
 	}
+
+	/* If there are no valid disks anymore, remove device. */
+	if (LIST_EMPTY(&gp->consumer))
+		g_shsec_destroy(sc, 1);
+
 	return (error);
 
 fail:
