@@ -27,23 +27,41 @@ S=	../../..
 
 INCLUDES+= -I$S/contrib/libfdt
 
-#SYSTEM_LD:= ${SYSTEM_LD:$S/conf/ldscript.$M=ldscript.$M}
-#SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/ldscript.$M=ldscript.$M}
+# Use a custom SYSTEM_LD command to generate the elf kernel, so we can
+# set the text segment start address, and also strip the "arm mapping
+# symbols" which have names like $a.0 and $d.2; see the document
+# "ELF for the ARM architecture" for more info on the mapping symbols.
+SYSTEM_LD= \
+	${SYSTEM_LD_BASECMD} \
+	    --defsym='text_start=kernbase + SIZEOF_HEADERS' \
+	    -o ${.TARGET} ${SYSTEM_OBJS} vers.o; \
+	$(OBJCOPY) \
+	    --wildcard \
+	    --strip-symbol='$$[adtx]*' \
+	    ${.TARGET}
+
+# Generate the .bin (no elf headers) kernel as an extra build output.
+# We must relink to generate the .bin kernel, because without headers the
+# location of everything changes.  We also strip the ARM marker symbols.
+KERNEL_EXTRA+= ${KERNEL_KO}.bin
+KERNEL_EXTRA_INSTALL+= ${KERNEL_KO}.bin
+
+${KERNEL_KO}.bin: ${SYSTEM_DEP} vers.o
+	@echo "linking ${.TARGET}"
+	@${SYSTEM_LD_BASECMD} \
+	    --defsym='text_start=kernbase' \
+	    -o ${.TARGET} ${SYSTEM_OBJS} vers.o
+	${SIZE} ${.TARGET}
+	@${OBJCOPY} \
+	    --wildcard \
+	    --strip-symbol='$$[adtx]*' \
+	    --output-target=binary \
+	    ${.TARGET}
+	@chmod 755 ${.TARGET}
 
 .if !empty(DDB_ENABLED)
 CFLAGS += -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .endif
-
-SYSTEM_LD_ = ${LD} -m ${LD_EMULATION} -Bdynamic -T ldscript.$M.noheader \
-	${_LDFLAGS} --no-warn-mismatch --warn-common --export-dynamic \
-	--dynamic-linker /red/herring \
-	-o ${FULLKERNEL}.noheader -X ${SYSTEM_OBJS} vers.o
-SYSTEM_LD_TAIL +=;sed s/" + SIZEOF_HEADERS"// $(LDSCRIPT)\
-		>ldscript.$M.noheader;\
-		${SYSTEM_LD_}; \
-		${OBJCOPY} -S -O binary ${FULLKERNEL}.noheader \
-		${KERNEL_KO}.bin; \
-		rm ${FULLKERNEL}.noheader
 
 %BEFORE_DEPEND
 
@@ -56,7 +74,7 @@ SYSTEM_LD_TAIL +=;sed s/" + SIZEOF_HEADERS"// $(LDSCRIPT)\
 %FILES.m
 
 %CLEAN
-CLEAN+=	ldscript.$M ${KERNEL_KO}.bin ldscript.$M.noheader
+CLEAN+=	${KERNEL_KO}.bin
 
 %RULES
 
