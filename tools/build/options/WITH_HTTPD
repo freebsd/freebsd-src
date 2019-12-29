@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to build and install httpd
+Set to build and install simple_httpd
