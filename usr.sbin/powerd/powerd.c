@@ -196,8 +196,10 @@ read_freqs(int *numfreqs, int **freqs, int **power, int minfreq, int maxfreq)
 		return (-1);
 	if ((freqstr = malloc(len)) == NULL)
 		return (-1);
-	if (sysctl(levels_mib, 4, freqstr, &len, NULL, 0))
+	if (sysctl(levels_mib, 4, freqstr, &len, NULL, 0)) {
+		free(freqstr);
 		return (-1);
+	}
 
 	*numfreqs = 1;
 	for (p = freqstr; *p != '\0'; p++)
