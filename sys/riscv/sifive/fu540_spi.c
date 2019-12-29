@@ -80,6 +80,7 @@ struct fuspi_softc {
 	void			*ih;
 
 	clk_t			clk;
+	uint64_t		freq;
 	uint32_t		cs_max;
 };
 
@@ -207,22 +208,14 @@ fuspi_setup(struct fuspi_softc *sc, uint32_t cs, uint32_t mode,
     uint32_t freq)
 {
 	uint32_t csmode, fmt, sckdiv, sckmode;
-	uint64_t clock;
-	int ret;
 
 	FUSPI_ASSERT_LOCKED(sc);
-
-	ret = clk_get_freq(sc->clk, &clock);
-	if (ret) {
-		device_printf(sc->dev, "Cannot get clock frequency: %d\n", ret);
-		return (ret);
-	}
 
 	/*
 	 * Fsck = Fin / 2 * (div + 1)
 	 * -> div = Fin / (2 * Fsck) - 1
 	 */
-	sckdiv = (howmany(clock >> 1, freq) - 1) & FUSPI_SCKDIV_MASK;
+	sckdiv = (howmany(sc->freq >> 1, freq) - 1) & FUSPI_SCKDIV_MASK;
 	FUSPI_WRITE(sc, FUSPI_REG_SCKDIV, sckdiv);
 
 	switch (mode) {
@@ -328,6 +321,12 @@ fuspi_attach(device_t dev)
 	error = clk_enable(sc->clk);
 	if (error) {
 		device_printf(dev, "Couldn't enable clock: %d\n", error);
+		goto fail;
+	}
+
+	error = clk_get_freq(sc->clk, &sc->freq);
+	if (error) {
+		device_printf(sc->dev, "Couldn't get frequency: %d\n", error);
 		goto fail;
 	}
 
