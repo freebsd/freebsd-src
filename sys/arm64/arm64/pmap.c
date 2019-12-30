@@ -3510,8 +3510,7 @@ validate:
 		KASSERT(opa == pa, ("pmap_enter: invalid update"));
 		if ((orig_l3 & ~ATTR_AF) != (new_l3 & ~ATTR_AF)) {
 			/* same PA, different attributes */
-			/* XXXMJ need to reload orig_l3 for hardware DBM. */
-			pmap_load_store(l3, new_l3);
+			orig_l3 = pmap_load_store(l3, new_l3);
 			pmap_invalidate_page(pmap, va);
 			if ((orig_l3 & ATTR_SW_MANAGED) != 0 &&
 			    pmap_pte_dirty(orig_l3))
