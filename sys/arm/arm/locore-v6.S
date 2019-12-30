@@ -59,6 +59,9 @@ __FBSDID("$FreeBSD$");
 	.text
 	.align	2
 
+	.globl kernbase
+	.set kernbase,KERNVIRTADDR
+
 #if __ARM_ARCH >= 7
 #define	HANDLE_HYP							\
 	/* Leave HYP mode */						;\
