@@ -176,14 +176,6 @@ vtrnd_detach(device_t dev)
 
 	random_source_deregister(&random_vtrnd);
 	atomic_store_explicit(&g_vtrnd_softc, NULL, memory_order_release);
-
-	/*
-	 * Unfortunately, deregister does not guarantee our source callback
-	 * will not be invoked after it returns.  Use a kludge to prevent some,
-	 * but not all, possible races.
-	 */
-	tsleep_sbt(&g_vtrnd_softc, 0, "vtrnddet", mstosbt(50), 0, C_HARDCLOCK);
-
 	return (0);
 }
 
