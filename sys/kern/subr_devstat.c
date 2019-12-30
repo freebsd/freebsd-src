@@ -227,8 +227,6 @@ void
 devstat_start_transaction(struct devstat *ds, const struct bintime *now)
 {
 
-	mtx_assert(&devstat_mutex, MA_NOTOWNED);
-
 	/* sanity check */
 	if (ds == NULL)
 		return;
@@ -239,13 +237,12 @@ devstat_start_transaction(struct devstat *ds, const struct bintime *now)
 	 * to busy.  The start time is really the start of the latest busy
 	 * period.
 	 */
-	if (ds->start_count == ds->end_count) {
+	if (atomic_fetchadd_int(&ds->start_count, 1) == ds->end_count) {
 		if (now != NULL)
 			ds->busy_from = *now;
 		else
 			binuptime(&ds->busy_from);
 	}
-	ds->start_count++;
 	atomic_add_rel_int(&ds->sequence0, 1);
 	DTRACE_DEVSTAT_START();
 }
@@ -253,8 +250,6 @@ devstat_start_transaction(struct devstat *ds, const struct bintime *now)
 void
 devstat_start_transaction_bio(struct devstat *ds, struct bio *bp)
 {
-
-	mtx_assert(&devstat_mutex, MA_NOTOWNED);
 
 	/* sanity check */
 	if (ds == NULL)
