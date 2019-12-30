@@ -34,7 +34,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ck.h>
 #include <sys/conf.h>
+#include <sys/epoch.h>
 #include <sys/eventhandler.h>
 #include <sys/hash.h>
 #include <sys/kernel.h>
@@ -76,6 +78,14 @@ static void random_sources_feed(void);
 static u_int read_rate;
 
 /*
+ * Random must initialize much earlier than epoch, but we can initialize the
+ * epoch code before SMP starts.  Prior to SMP, we can safely bypass
+ * concurrency primitives.
+ */
+static __read_mostly bool epoch_inited;
+static __read_mostly epoch_t rs_epoch;
+
+/*
  * How many events to queue up. We create this many items in
  * an 'empty' queue, then transfer them to the 'harvest' queue with
  * supplied junk. When used, they are transferred back to the
@@ -94,12 +104,12 @@ volatile int random_kthread_control;
 __read_frequently u_int hc_source_mask;
 
 struct random_sources {
-	LIST_ENTRY(random_sources)	 rrs_entries;
+	CK_LIST_ENTRY(random_sources)	 rrs_entries;
 	struct random_source		*rrs_source;
 };
 
-static LIST_HEAD(sources_head, random_sources) source_list =
-    LIST_HEAD_INITIALIZER(source_list);
+static CK_LIST_HEAD(sources_head, random_sources) source_list =
+    CK_LIST_HEAD_INITIALIZER(source_list);
 
 SYSCTL_NODE(_kern_random, OID_AUTO, harvest, CTLFLAG_RW, 0,
     "Entropy Device Parameters");
@@ -202,6 +212,14 @@ random_kthread(void)
 SYSINIT(random_device_h_proc, SI_SUB_KICK_SCHEDULER, SI_ORDER_ANY, kproc_start,
     &random_proc_kp);
 
+static void
+rs_epoch_init(void *dummy __unused)
+{
+	rs_epoch = epoch_alloc("Random Sources", EPOCH_PREEMPT);
+	epoch_inited = true;
+}
+SYSINIT(rs_epoch_init, SI_SUB_EPOCH, SI_ORDER_ANY, rs_epoch_init, NULL);
+
 /*
  * Run through all fast sources reading entropy for the given
  * number of rounds, which should be a multiple of the number
@@ -211,8 +229,12 @@ static void
 random_sources_feed(void)
 {
 	uint32_t entropy[HARVESTSIZE];
+	struct epoch_tracker et;
 	struct random_sources *rrs;
 	u_int i, n, local_read_rate;
+	bool rse_warm;
+
+	rse_warm = epoch_inited;
 
 	/*
 	 * Step over all of live entropy sources, and feed their output
@@ -223,7 +245,9 @@ random_sources_feed(void)
 	local_read_rate = MAX(local_read_rate, 1);
 	/* But not exceeding RANDOM_KEYSIZE_WORDS */
 	local_read_rate = MIN(local_read_rate, RANDOM_KEYSIZE_WORDS);
-	LIST_FOREACH(rrs, &source_list, rrs_entries) {
+	if (rse_warm)
+		epoch_enter_preempt(rs_epoch, &et);
+	CK_LIST_FOREACH(rrs, &source_list, rrs_entries) {
 		for (i = 0; i < p_random_alg_context->ra_poolcount*local_read_rate; i++) {
 			n = rrs->rrs_source->rs_read(entropy, sizeof(entropy));
 			KASSERT((n <= sizeof(entropy)), ("%s: rs_read returned too much data (%u > %zu)", __func__, n, sizeof(entropy)));
@@ -243,6 +267,8 @@ random_sources_feed(void)
 			random_harvest_direct(entropy, n, rrs->rrs_source->rs_source);
 		}
 	}
+	if (rse_warm)
+		epoch_exit_preempt(rs_epoch, &et);
 	explicit_bzero(entropy, sizeof(entropy));
 }
 
@@ -573,7 +599,10 @@ random_source_register(struct random_source *rsource)
 	random_harvest_register_source(rsource->rs_source);
 
 	printf("random: registering fast source %s\n", rsource->rs_ident);
-	LIST_INSERT_HEAD(&source_list, rrs, rrs_entries);
+
+	RANDOM_HARVEST_LOCK();
+	CK_LIST_INSERT_HEAD(&source_list, rrs, rrs_entries);
+	RANDOM_HARVEST_UNLOCK();
 }
 
 void
@@ -585,29 +614,40 @@ random_source_deregister(struct random_source *rsource)
 
 	random_harvest_deregister_source(rsource->rs_source);
 
-	LIST_FOREACH(rrs, &source_list, rrs_entries)
+	RANDOM_HARVEST_LOCK();
+	CK_LIST_FOREACH(rrs, &source_list, rrs_entries)
 		if (rrs->rrs_source == rsource) {
-			LIST_REMOVE(rrs, rrs_entries);
+			CK_LIST_REMOVE(rrs, rrs_entries);
 			break;
 		}
-	if (rrs != NULL)
-		free(rrs, M_ENTROPY);
+	RANDOM_HARVEST_UNLOCK();
+
+	if (rrs != NULL && epoch_inited)
+		epoch_wait_preempt(rs_epoch);
+	free(rrs, M_ENTROPY);
 }
 
 static int
 random_source_handler(SYSCTL_HANDLER_ARGS)
 {
+	struct epoch_tracker et;
 	struct random_sources *rrs;
 	struct sbuf sbuf;
 	int error, count;
 
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+
 	sbuf_new_for_sysctl(&sbuf, NULL, 64, req);
 	count = 0;
-	LIST_FOREACH(rrs, &source_list, rrs_entries) {
+	epoch_enter_preempt(rs_epoch, &et);
+	CK_LIST_FOREACH(rrs, &source_list, rrs_entries) {
 		sbuf_cat(&sbuf, (count++ ? ",'" : "'"));
 		sbuf_cat(&sbuf, rrs->rrs_source->rs_ident);
 		sbuf_cat(&sbuf, "'");
 	}
+	epoch_exit_preempt(rs_epoch, &et);
 	error = sbuf_finish(&sbuf);
 	sbuf_delete(&sbuf);
 	return (error);
