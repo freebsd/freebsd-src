@@ -35,7 +35,7 @@
 #define	_SYS_BITSET_H_
 
 #define	__bitset_mask(_s, n)						\
-	(1L << ((__bitset_words((_s)) == 1) ?				\
+	(1UL << ((__bitset_words((_s)) == 1) ?				\
 	    (__size_t)(n) : ((n) % _BITSET_BITS)))
 
 #define	__bitset_word(_s, n)						\
