@@ -186,7 +186,9 @@ va:
 	/* Initialize stack pointer */
 	la	s3, initstack_end
 	mv	sp, s3
-	addi	sp, sp, -PCB_SIZE
+
+	/* Allocate space for thread0 PCB and riscv_bootparams */
+	addi	sp, sp, -(PCB_SIZE + 40) & ~STACKALIGNBYTES
 
 	/* Clear BSS */
 	la	s0, _C_LABEL(__bss_start)
@@ -203,8 +205,6 @@ va:
 #endif
 
 	/* Fill riscv_bootparams */
-	addi	sp, sp, -40
-
 	la	t0, pagetable_l1
 	sd	t0, 0(sp) /* kern_l1pt */
 	sd	s9, 8(sp) /* kern_phys */
