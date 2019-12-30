@@ -188,7 +188,7 @@ va:
 	mv	sp, s3
 
 	/* Allocate space for thread0 PCB and riscv_bootparams */
-	addi	sp, sp, -(PCB_SIZE + 40) & ~STACKALIGNBYTES
+	addi	sp, sp, -(PCB_SIZE + RISCV_BOOTPARAMS_SIZE) & ~STACKALIGNBYTES
 
 	/* Clear BSS */
 	la	s0, _C_LABEL(__bss_start)
