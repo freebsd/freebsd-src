@@ -62,9 +62,11 @@ __FBSDID("$FreeBSD$");
  */
 	.text
 	.align	2
+
+	.globl kernbase
+	.set kernbase,KERNVIRTADDR
+
 #ifdef PHYSADDR
-.globl kernbase
-.set kernbase,KERNBASE
 .globl physaddr
 .set physaddr,PHYSADDR
 #endif
