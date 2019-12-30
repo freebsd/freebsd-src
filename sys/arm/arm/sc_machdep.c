@@ -69,7 +69,6 @@ sc_get_softc(int unit, int flags)
 	sc = &sc_softcs[unit];
 	sc->unit = unit;
 	if ((sc->flags & SC_INIT_DONE) == 0) {
-		sc->kbd = NULL;
 		sc->adapter = -1;
 		sc->cursor_char = SC_CURSOR_CHAR;
 		sc->mouse_char = SC_MOUSE_CHAR;
