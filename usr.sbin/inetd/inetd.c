@@ -1629,12 +1629,10 @@ more:
 			for (p = cp + 2; p && *p && isspace(*p); p++)
 				;
 			if (*p == '\0') {
-				if (policy)
-					free(policy);
+				free(policy);
 				policy = NULL;
 			} else if (ipsec_get_policylen(p) >= 0) {
-				if (policy)
-					free(policy);
+				free(policy);
 				policy = newstr(p);
 			} else {
 				syslog(LOG_ERR,
@@ -1969,6 +1967,7 @@ more:
 		LIST_INIT(&sep->se_conn[i]);
 #ifdef IPSEC
 	sep->se_policy = policy ? newstr(policy) : NULL;
+	free(policy);
 #endif
 	return (sep);
 }
