@@ -580,8 +580,9 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 		devstat_start_transaction(pp->stat, &bp->bio_t0);
 	if (g_collectstats & G_STATS_CONSUMERS)
 		devstat_start_transaction(cp->stat, &bp->bio_t0);
-	pp->nstart++;
+#ifdef INVARIANTS
 	cp->nstart++;
+#endif
 	mtx_unlock(mtxp);
 
 	if (direct) {
@@ -691,8 +692,9 @@ g_io_deliver(struct bio *bp, int error)
 		devstat_end_transaction_bio_bt(pp->stat, bp, &now);
 	if (g_collectstats & G_STATS_CONSUMERS)
 		devstat_end_transaction_bio_bt(cp->stat, bp, &now);
+#ifdef INVARIANTS
 	cp->nend++;
-	pp->nend++;
+#endif
 	mtx_unlock(mtxp);
 
 	if (error != ENOMEM) {

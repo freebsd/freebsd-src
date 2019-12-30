@@ -939,6 +939,9 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 	KASSERT(cp->acw + dcw >= 0, ("access resulting in negative acw"));
 	KASSERT(cp->ace + dce >= 0, ("access resulting in negative ace"));
 	KASSERT(dcr != 0 || dcw != 0 || dce != 0, ("NOP access request"));
+	KASSERT(cp->acr + dcr != 0 || cp->acw + dcw != 0 ||
+	    cp->ace + dce != 0 || cp->nstart == cp->nend,
+	    ("Last close with active requests"));
 	KASSERT(gp->access != NULL, ("NULL geom->access"));
 
 	/*
@@ -1426,8 +1429,10 @@ db_show_geom_consumer(int indent, struct g_consumer *cp)
 		}
 		gprintln("  access:   r%dw%de%d", cp->acr, cp->acw, cp->ace);
 		gprintln("  flags:    0x%04x", cp->flags);
+#ifdef INVARIANTS
 		gprintln("  nstart:   %u", cp->nstart);
 		gprintln("  nend:     %u", cp->nend);
+#endif
 	} else {
 		gprintf("consumer: %p (%s), access=r%dw%de%d", cp,
 		    cp->provider != NULL ? cp->provider->name : "none",
@@ -1459,8 +1464,6 @@ db_show_geom_provider(int indent, struct g_provider *pp)
 		    provider_flags_to_string(pp, flags, sizeof(flags)),
 		    pp->flags);
 		gprintln("  error:        %d", pp->error);
-		gprintln("  nstart:       %u", pp->nstart);
-		gprintln("  nend:         %u", pp->nend);
 		if (LIST_EMPTY(&pp->consumers))
 			gprintln("  consumers:    none");
 	} else {
