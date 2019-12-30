@@ -89,6 +89,8 @@ nfslock_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	int error;
 
+	printf("WARNING: uses Giant and will be removed before FreeBSD 13\n"
+	    "\tuse the kernel NFSLOCKD/nfslockd.ko\n");
 	error = priv_check(td, PRIV_NFS_LOCKD);
 	if (error)
 		return (error);
