@@ -61,7 +61,7 @@ KERNVIRTADDR= 0xc0000000
 # "ELF for the ARM architecture" for more info on the mapping symbols.
 SYSTEM_LD= \
 	${SYSTEM_LD_BASECMD} \
-	    --defsym='text_start=${KERNVIRTADDR} + SIZEOF_HEADERS' \
+	    --defsym='text_start=kernbase + SIZEOF_HEADERS' \
 	    -o ${.TARGET} ${SYSTEM_OBJS} vers.o; \
 	$(OBJCOPY) \
 	    --wildcard \
@@ -77,7 +77,7 @@ KERNEL_EXTRA_INSTALL+= ${KERNEL_KO}.bin
 ${KERNEL_KO}.bin: ${SYSTEM_DEP} vers.o
 	@echo "linking ${.TARGET}"
 	@${SYSTEM_LD_BASECMD} \
-	    --defsym='text_start=${KERNVIRTADDR}' \
+	    --defsym='text_start=kernbase' \
 	    -o ${.TARGET} ${SYSTEM_OBJS} vers.o
 	${SIZE} ${.TARGET}
 	@${OBJCOPY} \
