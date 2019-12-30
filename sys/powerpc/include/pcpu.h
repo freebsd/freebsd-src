@@ -68,7 +68,8 @@ struct pvo_entry;
 	uint8_t		slbstack[1024];				\
 	struct pvo_entry *qmap_pvo;					\
 	struct mtx	qmap_lock;					\
-	char		__pad[1345];
+	uint64_t	opal_hmi_flags;					\
+	char		__pad[1337];
 
 #ifdef __powerpc64__
 #define PCPU_MD_AIM_FIELDS	PCPU_MD_AIM64_FIELDS

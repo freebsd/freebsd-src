@@ -84,13 +84,17 @@ opal_hmi_event_handler(void *unused, struct opal_msg *msg)
 static int
 opal_hmi_handler2(struct trapframe *frame)
 {
-	uint64_t flags;
+	/*
+	 * Use DMAP preallocated pcpu memory to handle
+	 * the phys flags pointer.
+	 */
+	uint64_t *flags = PCPU_PTR(aim.opal_hmi_flags);
 	int err;
 
-	flags = 0;
-	err = opal_call(OPAL_HANDLE_HMI2, vtophys(&flags));
+	*flags = 0;
+	err = opal_call(OPAL_HANDLE_HMI2, DMAP_TO_PHYS((vm_offset_t)flags));
 
-	if (flags & OPAL_HMI_FLAGS_TOD_TB_FAIL)
+	if (*flags & OPAL_HMI_FLAGS_TOD_TB_FAIL)
 		panic("TOD/TB recovery failure");
 
 	if (err == OPAL_SUCCESS)
