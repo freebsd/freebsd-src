@@ -206,15 +206,15 @@ va:
 
 	/* Fill riscv_bootparams */
 	la	t0, pagetable_l1
-	sd	t0, 0(sp) /* kern_l1pt */
-	sd	s9, 8(sp) /* kern_phys */
+	sd	t0, RISCV_BOOTPARAMS_KERN_L1PT(sp)
+	sd	s9, RISCV_BOOTPARAMS_KERN_PHYS(sp)
 
 	la	t0, initstack
-	sd	t0, 16(sp) /* kern_stack */
+	sd	t0, RISCV_BOOTPARAMS_KERN_STACK(sp)
 
 	li	t0, (VM_MAX_KERNEL_ADDRESS - 2 * L2_SIZE)
-	sd	t0, 24(sp) /* dtbp_virt */
-	sd	a1, 32(sp) /* dtbp_phys */
+	sd	t0, RISCV_BOOTPARAMS_DTBP_VIRT(sp)
+	sd	a1, RISCV_BOOTPARAMS_DTBP_PHYS(sp)
 
 	mv	a0, sp
 	call	_C_LABEL(initriscv)	/* Off we go */
