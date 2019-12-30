@@ -490,7 +490,6 @@ void
 g_io_request(struct bio *bp, struct g_consumer *cp)
 {
 	struct g_provider *pp;
-	struct mtx *mtxp;
 	int direct, error, first;
 	uint8_t cmd;
 
@@ -545,11 +544,19 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 
 	KASSERT(!(bp->bio_flags & BIO_ONQUEUE),
 	    ("Bio already on queue bp=%p", bp));
+
 	if ((g_collectstats & G_STATS_CONSUMERS) != 0 ||
 	    ((g_collectstats & G_STATS_PROVIDERS) != 0 && pp->stat != NULL))
 		binuptime(&bp->bio_t0);
 	else
 		getbinuptime(&bp->bio_t0);
+	if (g_collectstats & G_STATS_CONSUMERS)
+		devstat_start_transaction(cp->stat, &bp->bio_t0);
+	if (g_collectstats & G_STATS_PROVIDERS)
+		devstat_start_transaction(pp->stat, &bp->bio_t0);
+#ifdef INVARIANTS
+	atomic_add_int(&cp->nstart, 1);
+#endif
 
 #ifdef GET_STACK_USAGE
 	direct = (cp->flags & G_CF_DIRECT_SEND) != 0 &&
@@ -568,22 +575,6 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 #else
 	direct = 0;
 #endif
-
-	/*
-	 * The statistics collection is lockless, as such, but we
-	 * can not update one instance of the statistics from more
-	 * than one thread at a time, so grab the lock first.
-	 */
-	mtxp = mtx_pool_find(mtxpool_sleep, pp);
-	mtx_lock(mtxp);
-	if (g_collectstats & G_STATS_PROVIDERS)
-		devstat_start_transaction(pp->stat, &bp->bio_t0);
-	if (g_collectstats & G_STATS_CONSUMERS)
-		devstat_start_transaction(cp->stat, &bp->bio_t0);
-#ifdef INVARIANTS
-	cp->nstart++;
-#endif
-	mtx_unlock(mtxp);
 
 	if (direct) {
 		error = g_io_check(bp);
