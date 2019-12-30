@@ -241,10 +241,7 @@ one_event(void)
 
 	g_topology_assert();
 	mtx_lock(&g_eventlock);
-	TAILQ_FOREACH(pp, &g_doorstep, orphan) {
-		if (pp->nstart == pp->nend)
-			break;
-	}
+	pp = TAILQ_FIRST(&g_doorstep);
 	if (pp != NULL) {
 		G_VALID_PROVIDER(pp);
 		TAILQ_REMOVE(&g_doorstep, pp, orphan);
@@ -299,7 +296,7 @@ g_run_events()
 		} else {
 			g_topology_unlock();
 			msleep(&g_wait_event, &g_eventlock, PRIBIO | PDROP,
-			    "-", TAILQ_EMPTY(&g_doorstep) ? 0 : hz / 10);
+			    "-", 0);
 		}
 	}
 	/* NOTREACHED */

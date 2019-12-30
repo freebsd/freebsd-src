@@ -218,7 +218,8 @@ struct g_provider {
 	off_t			stripesize;
 	off_t			stripeoffset;
 	struct devstat		*stat;
-	u_int			nstart, nend;
+	u_int			spare1;
+	u_int			spare2;
 	u_int			flags;
 #define G_PF_WITHER		0x2
 #define G_PF_ORPHAN		0x4
