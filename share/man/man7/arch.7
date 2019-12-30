@@ -139,6 +139,7 @@ and
 .Vt void *
 are 8 bytes.
 .El
+.Pp
 Compilers define the
 .Dv _LP64
 symbol when compiling for an
@@ -163,6 +164,7 @@ Examples are:
 .It Dv mips64*     Ta Dv mips*
 .It Dv aarch64     Ta Dv armv6/armv7
 .El
+.Pp
 .Dv aarch64
 will support execution of
 .Dv armv6
@@ -184,6 +186,7 @@ On all supported architectures:
 .It float Ta 4
 .It double Ta 8
 .El
+.Pp
 Integers are represented in two's complement.
 Alignment of integer and pointer types is natural, that is,
 the address of the variable must be congruent to zero modulo the type size.
@@ -421,8 +424,9 @@ Most of the externally settable variables are defined in the
 man page.
 These variables are not otherwise documented and are used extensively
 in the build system.
-.Bl -column -offset indent "Sy Variable" "Sy Meaning and usage"
-.It Dv MACHINE	Represent the hardware platform.
+.Bl -tag -width "MACHINE_CPUARCH"
+.It Dv MACHINE
+Represent the hardware platform.
 This is the same as the native platform's
 .Xr uname 1
 .Fl m
@@ -457,7 +461,8 @@ Generally,
 .Dv MACHINE
 should only be used in src/sys and src/stand or in system imagers or
 installers.
-.It Dv MACHINE_ARCH	Represents the CPU processor architecture.
+.It Dv MACHINE_ARCH
+Represents the CPU processor architecture.
 This is the same as the native platforms
 .Xr uname 1
 .Fl p
@@ -488,7 +493,8 @@ It is unfortunate that amd64 specifies the 64-bit evolution of the x86
 platform (it matches the 'first rule') as everybody else uses x86_64.
 There is no standard name for the processor: each OS selects its own
 conventions.
-.It Dv MACHINE_CPUARCH	Represents the source location for a given
+.It Dv MACHINE_CPUARCH
+Represents the source location for a given
 .Dv MACHINE_ARCH .
 It is generally the common prefix for all the MACHINE_ARCH that
 share the same implementation, though 'riscv' breaks this rule.
@@ -502,25 +508,29 @@ The FreeBSD source base supports amd64 and i386 with two
 distinct source bases living in subdirectories named amd64 and i386
 (though behind the scenes there's some sharing that fits into this
 framework).
-.It Dv CPUTYPE	Sets the flavor of
+.It Dv CPUTYPE
+Sets the flavor of
 .Dv MACHINE_ARCH
 to build.
 It is used to optimize the build for a specific CPU / core that the
 binaries run on.
 Generally, this does not change the ABI, though it can be a fine line
 between optimization for specific cases.
-.It Dv TARGET	Used to set
+.It Dv TARGET
+Used to set
 .Dv MACHINE
 in the top level Makefile for cross building.
 Unused outside of that scope.
 It is not passed down to the rest of the build.
 Makefiles outside of the top level should not use it at all (though
 some have their own private copy for hysterical raisons).
-.It Dv TARGET_ARCH	Used to set
+.It Dv TARGET_ARCH
+Used to set
 .Dv MACHINE_ARCH
 by the top level Makefile for cross building.
 Like
-.Dv TARGET , it is unused outside of that scope.
+.Dv TARGET ,
+it is unused outside of that scope.
 .El
 .Sh SEE ALSO
 .Xr src.conf 5 ,
