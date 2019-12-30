@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/pte.h>
 #include <machine/intr.h>
+#include <machine/machdep.h>
 
 ASSYM(KERNBASE, KERNBASE);
 ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
@@ -98,3 +99,5 @@ ASSYM(TF_SEPC, offsetof(struct trapframe, tf_sepc));
 ASSYM(TF_STVAL, offsetof(struct trapframe, tf_stval));
 ASSYM(TF_SCAUSE, offsetof(struct trapframe, tf_scause));
 ASSYM(TF_SSTATUS, offsetof(struct trapframe, tf_sstatus));
+
+ASSYM(RISCV_BOOTPARAMS_SIZE, sizeof(struct riscv_bootparams));
