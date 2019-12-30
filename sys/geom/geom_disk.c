@@ -64,13 +64,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 struct g_disk_softc {
-	struct mtx		 done_mtx;
 	struct disk		*dp;
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
 	char			led[64];
 	uint32_t		state;
-	struct mtx		 start_mtx;
+	struct mtx		 done_mtx;
 };
 
 static g_access_t g_disk_access;
@@ -473,9 +472,7 @@ g_disk_start(struct bio *bp)
 			bp2->bio_pblkno = bp2->bio_offset / dp->d_sectorsize;
 			bp2->bio_bcount = bp2->bio_length;
 			bp2->bio_disk = dp;
-			mtx_lock(&sc->start_mtx); 
 			devstat_start_transaction_bio(dp->d_devstat, bp2);
-			mtx_unlock(&sc->start_mtx); 
 			dp->d_strategy(bp2);
 
 			if (bp3 == NULL)
@@ -559,9 +556,7 @@ g_disk_start(struct bio *bp)
 		}
 		bp2->bio_done = g_disk_done;
 		bp2->bio_disk = dp;
-		mtx_lock(&sc->start_mtx);
 		devstat_start_transaction_bio(dp->d_devstat, bp2);
-		mtx_unlock(&sc->start_mtx);
 		dp->d_strategy(bp2);
 		break;
 	default:
@@ -709,7 +704,6 @@ g_disk_create(void *arg, int flag)
 	mtx_pool_unlock(mtxpool_sleep, dp);
 
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
-	mtx_init(&sc->start_mtx, "g_disk_start", NULL, MTX_DEF);
 	mtx_init(&sc->done_mtx, "g_disk_done", NULL, MTX_DEF);
 	sc->dp = dp;
 	gp = g_new_geomf(&g_disk_class, "%s%d", dp->d_name, dp->d_unit);
@@ -795,7 +789,6 @@ g_disk_providergone(struct g_provider *pp)
 	pp->private = NULL;
 	pp->geom->softc = NULL;
 	mtx_destroy(&sc->done_mtx);
-	mtx_destroy(&sc->start_mtx);
 	g_free(sc);
 }
 

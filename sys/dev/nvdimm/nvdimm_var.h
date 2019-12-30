@@ -129,7 +129,6 @@ struct g_spa {
 	struct g_provider	*spa_p;
 	struct bio_queue_head	spa_g_queue;
 	struct mtx		spa_g_mtx;
-	struct mtx		spa_g_stat_mtx;
 	struct devstat		*spa_g_devstat;
 	struct proc		*spa_g_proc;
 	bool			spa_g_proc_run;

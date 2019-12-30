@@ -413,9 +413,7 @@ nvdimm_spa_g_start(struct bio *bp)
 
 	sc = bp->bio_to->geom->softc;
 	if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
-		mtx_lock(&sc->spa_g_stat_mtx);
 		devstat_start_transaction_bio(sc->spa_g_devstat, bp);
-		mtx_unlock(&sc->spa_g_stat_mtx);
 	}
 	mtx_lock(&sc->spa_g_mtx);
 	bioq_disksort(&sc->spa_g_queue, bp);
@@ -544,14 +542,12 @@ nvdimm_spa_g_create(struct nvdimm_spa_dev *dev, const char *name)
 	sc->dev = dev;
 	bioq_init(&sc->spa_g_queue);
 	mtx_init(&sc->spa_g_mtx, "spag", NULL, MTX_DEF);
-	mtx_init(&sc->spa_g_stat_mtx, "spagst", NULL, MTX_DEF);
 	sc->spa_g_proc_run = true;
 	sc->spa_g_proc_exiting = false;
 	error = kproc_create(nvdimm_spa_g_thread, sc, &sc->spa_g_proc, 0, 0,
 	    "g_spa");
 	if (error != 0) {
 		mtx_destroy(&sc->spa_g_mtx);
-		mtx_destroy(&sc->spa_g_stat_mtx);
 		free(sc, M_NVDIMM);
 		printf("NVDIMM %s cannot create geom worker, error %d\n", name,
 		    error);
@@ -621,7 +617,6 @@ nvdimm_spa_g_destroy_geom(struct gctl_req *req, struct g_class *cp,
 		sc->spa_g_devstat = NULL;
 	}
 	mtx_destroy(&sc->spa_g_mtx);
-	mtx_destroy(&sc->spa_g_stat_mtx);
 	free(sc, M_NVDIMM);
 	return (0);
 }
