@@ -1506,7 +1506,7 @@ hn_vf_rss_fixup(struct hn_softc *sc, bool reconf)
 	strlcpy(ifrk.ifrk_name, vf_ifp->if_xname, sizeof(ifrk.ifrk_name));
 	error = vf_ifp->if_ioctl(vf_ifp, SIOCGIFRSSKEY, (caddr_t)&ifrk);
 	if (error) {
-		if_printf(ifp, "%s SIOCGRSSKEY failed: %d\n",
+		if_printf(ifp, "%s SIOCGIFRSSKEY failed: %d\n",
 		    vf_ifp->if_xname, error);
 		goto done;
 	}
