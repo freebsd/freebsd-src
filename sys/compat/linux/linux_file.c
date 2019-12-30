@@ -1565,3 +1565,44 @@ linux_fallocate(struct thread *td, struct linux_fallocate_args *args)
 	return (kern_posix_fallocate(td, args->fd, args->offset,
 	    args->len));
 }
+
+int
+linux_copy_file_range(struct thread *td, struct linux_copy_file_range_args
+    *args)
+{
+	l_loff_t inoff, outoff, *inoffp, *outoffp;
+	int error, flags;
+
+	/*
+	 * copy_file_range(2) on Linux doesn't define any flags (yet), so is
+	 * the native implementation.  Enforce it.
+	 */
+	if (args->flags != 0) {
+		linux_msg(td, "copy_file_range unsupported flags 0x%x",
+		    args->flags);
+		return (EINVAL);
+	}
+	flags = 0;
+	inoffp = outoffp = NULL;
+	if (args->off_in != NULL) {
+		error = copyin(args->off_in, &inoff, sizeof(l_loff_t));
+		if (error != 0)
+			return (error);
+		inoffp = &inoff;
+	}
+	if (args->off_out != NULL) {
+		error = copyin(args->off_out, &outoff, sizeof(l_loff_t));
+		if (error != 0)
+			return (error);
+		outoffp = &outoff;
+	}
+
+	error = kern_copy_file_range(td, args->fd_in, inoffp, args->fd_out,
+	    outoffp, args->len, flags);
+	if (error == 0 && args->off_in != NULL)
+		error = copyout(inoffp, args->off_in, sizeof(l_loff_t));
+	if (error == 0 && args->off_out != NULL)
+		error = copyout(outoffp, args->off_out, sizeof(l_loff_t));
+	return (error);
+}
+
