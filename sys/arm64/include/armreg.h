@@ -619,6 +619,11 @@
 #define	PSR_FLAGS	0xf0000000
 
 /* TCR_EL1 - Translation Control Register */
+#define	TCR_HD_SHIFT	40
+#define	TCR_HD		(0x1UL << TCR_HD_SHIFT)
+#define	TCR_HA_SHIFT	39
+#define	TCR_HA		(0x1UL << TCR_HA_SHIFT)
+
 #define	TCR_ASID_SHIFT	36
 #define	TCR_ASID_WIDTH	1
 #define	TCR_ASID_16	(0x1UL << TCR_ASID_SHIFT)
