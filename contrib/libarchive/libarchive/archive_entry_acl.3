@@ -34,7 +34,6 @@
 .Nm archive_entry_acl_from_text ,
 .Nm archive_entry_acl_from_text_w ,
 .Nm archive_entry_acl_next ,
-.Nm archive_entry_acl_next_w ,
 .Nm archive_entry_acl_reset ,
 .Nm archive_entry_acl_to_text ,
 .Nm archive_entry_acl_to_text_w ,
@@ -87,16 +86,6 @@ Streaming Archive Library (libarchive, -larchive)
 .Fa "int *ret_tag"
 .Fa "int *ret_qual"
 .Fa "const char **ret_name"
-.Fc
-.Ft int
-.Fo archive_entry_acl_next_w
-.Fa "struct archive_entry *a"
-.Fa "int type"
-.Fa "int *ret_type"
-.Fa "int *ret_permset"
-.Fa "int *ret_tag"
-.Fa "int *ret_qual"
-.Fa "const wchar_t **ret_name"
 .Fc
 .Ft int
 .Fn archive_entry_acl_reset "struct archive_entry *a" "int type"
@@ -349,8 +338,6 @@ character
 are skipped.
 .Pp
 .Fn archive_entry_acl_next
-and
-.Fn archive_entry_acl_next_w
 return the next entry of the ACL list.
 This functions may only be called after
 .Fn archive_entry_acl_reset
@@ -358,9 +345,7 @@ has indicated the presence of extended ACL entries.
 .Pp
 .Fn archive_entry_acl_reset
 prepare reading the list of ACL entries with
-.Fn archive_entry_acl_next
-or
-.Fn archive_entry_acl_next_w .
+.Fn archive_entry_acl_next .
 The function returns 0 if no non-extended ACLs are found.
 In this case, the access permissions should be obtained by
 .Xr archive_entry_mode 3
@@ -447,9 +432,7 @@ if all entries were successfully parsed and
 if one or more entries were invalid or non-parseable.
 .Pp
 .Fn archive_entry_acl_next
-and
-.Fn archive_entry_acl_next_w
-return
+returns
 .Dv ARCHIVE_OK
 on success,
 .Dv ARCHIVE_EOF

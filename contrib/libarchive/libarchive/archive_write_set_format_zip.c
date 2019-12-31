@@ -1402,18 +1402,17 @@ path_length(struct archive_entry *entry)
 {
 	mode_t type;
 	const char *path;
+	size_t len;
 
 	type = archive_entry_filetype(entry);
 	path = archive_entry_pathname(entry);
 
 	if (path == NULL)
 		return (0);
-	if (type == AE_IFDIR &&
-	    (path[0] == '\0' || path[strlen(path) - 1] != '/')) {
-		return strlen(path) + 1;
-	} else {
-		return strlen(path);
-	}
+	len = strlen(path);
+	if (type == AE_IFDIR && (path[0] == '\0' || path[len - 1] != '/'))
+		++len; /* Space for the trailing / */
+	return len;
 }
 
 static int
@@ -1461,10 +1460,8 @@ copy_path(struct archive_entry *entry, unsigned char *p)
 	memcpy(p, path, pathlen);
 
 	/* Folders are recognized by a trailing slash. */
-	if ((type == AE_IFDIR) & (path[pathlen - 1] != '/')) {
+	if ((type == AE_IFDIR) && (path[pathlen - 1] != '/'))
 		p[pathlen] = '/';
-		p[pathlen + 1] = '\0';
-	}
 }
 
 

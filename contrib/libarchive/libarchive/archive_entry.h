@@ -30,7 +30,7 @@
 #define	ARCHIVE_ENTRY_H_INCLUDED
 
 /* Note: Compiler will complain if this does not match archive.h! */
-#define	ARCHIVE_VERSION_NUMBER 3004000
+#define	ARCHIVE_VERSION_NUMBER 3004001
 
 /*
  * Note: archive_entry.h is for use outside of libarchive; the
@@ -524,9 +524,6 @@ __LA_DECL int	 archive_entry_acl_reset(struct archive_entry *, int /* want_type 
 __LA_DECL int	 archive_entry_acl_next(struct archive_entry *, int /* want_type */,
 	    int * /* type */, int * /* permset */, int * /* tag */,
 	    int * /* qual */, const char ** /* name */);
-__LA_DECL int	 archive_entry_acl_next_w(struct archive_entry *, int /* want_type */,
-	    int * /* type */, int * /* permset */, int * /* tag */,
-	    int * /* qual */, const wchar_t ** /* name */);
 
 /*
  * Construct a text-format ACL.  The flags argument is a bitmask that

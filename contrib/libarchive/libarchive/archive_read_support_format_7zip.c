@@ -1787,7 +1787,7 @@ read_PackInfo(struct archive_read *a, struct _7z_pack_info *pi)
 		return (0);
 	}
 
-	if (*p != kSize)
+	if (*p != kCRC)
 		return (-1);
 
 	if (read_Digests(a, &(pi->digest), (size_t)pi->numPackStreams) < 0)
