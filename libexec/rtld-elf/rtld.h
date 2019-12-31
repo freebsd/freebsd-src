@@ -37,6 +37,7 @@
 #include <elf-hints.h>
 #include <link.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <setjmp.h>
 #include <stddef.h>
 
@@ -45,11 +46,6 @@
 
 #define NEW(type)	((type *) xmalloc(sizeof(type)))
 #define CNEW(type)	((type *) xcalloc(1, sizeof(type)))
-
-/* We might as well do booleans like C++. */
-typedef unsigned char bool;
-#define false	0
-#define true	1
 
 extern size_t tls_last_offset;
 extern size_t tls_last_size;
