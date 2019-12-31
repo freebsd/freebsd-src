@@ -149,14 +149,12 @@ main(int argc, char **argv)
 	int serverOnly = -1;
 	int newStats = 0;
 	int ch;
-	char *memf, *nlistf;
 	int mntlen, i;
 	char buf[1024];
 	struct statfs *mntbuf;
 	struct nfscl_dumpmntopts dumpmntopts;
 
 	interval = 0;
-	memf = nlistf = NULL;
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
@@ -167,7 +165,7 @@ main(int argc, char **argv)
 	while ((ch = getopt(argc, argv, "cdEesWM:mN:w:zq")) != -1)
 		switch(ch) {
 		case 'M':
-			memf = optarg;
+			printf("*** -M option deprecated, ignored\n\n");
 			break;
 		case 'm':
 			/* Display mount options for NFS mount points. */
@@ -191,7 +189,7 @@ main(int argc, char **argv)
 			}
 			exit(0);
 		case 'N':
-			nlistf = optarg;
+			printf("*** -N option deprecated, ignored\n\n");
 			break;
 		case 'W':
 			widemode = 1;
@@ -239,14 +237,8 @@ main(int argc, char **argv)
 
 #define	BACKWARD_COMPATIBILITY
 #ifdef	BACKWARD_COMPATIBILITY
-	if (*argv) {
+	if (*argv)
 		interval = atoi(*argv);
-		if (*++argv) {
-			nlistf = *argv;
-			if (*++argv)
-				memf = *argv;
-		}
-	}
 #endif
 	if (modfind("nfscommon") < 0)
 		xo_err(1, "NFS client/server not loaded");
@@ -529,7 +521,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: nfsstat [-cdemszW] [-M core] [-N system] [-w wait]\n");
+	    "usage: nfsstat [-cdemszW] [-w wait]\n");
 	exit(1);
 }
 
