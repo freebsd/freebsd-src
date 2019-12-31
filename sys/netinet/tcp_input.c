@@ -538,15 +538,12 @@ cc_ecnpkt_handler(struct tcpcb *tp, struct tcphdr *th, uint8_t iptos)
 		else
 			tp->ccv->flags &= ~CCF_TCPHDR_CWR;
 
-		if (tp->t_flags & TF_DELACK)
-			tp->ccv->flags |= CCF_DELACK;
-		else
-			tp->ccv->flags &= ~CCF_DELACK;
-
 		CC_ALGO(tp)->ecnpkt_handler(tp->ccv);
 
-		if (tp->ccv->flags & CCF_ACKNOW)
+		if (tp->ccv->flags & CCF_ACKNOW) {
 			tcp_timer_activate(tp, TT_DELACK, tcp_delacktime);
+			tp->t_flags |= TF_ACKNOW;
+		}
 	}
 }
 
