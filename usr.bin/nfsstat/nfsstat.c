@@ -79,11 +79,9 @@ static const char rcsid[] =
 #include <sys/mount.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
-#include <nfs/nfsproto.h>
-#include <nfsclient/nfs.h>
-#include <nfsserver/nfs.h>
 #include <nfs/nfssvc.h>
 
+#include <fs/nfs/nfsproto.h>
 #include <fs/nfs/nfsport.h>
 
 #include <signal.h>
