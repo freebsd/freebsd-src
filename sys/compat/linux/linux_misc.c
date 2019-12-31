@@ -2353,3 +2353,19 @@ out:
 	td->td_retval[0] = dst - args->buf;
 	return (error);
 }
+
+int
+linux_getcpu(struct thread *td, struct linux_getcpu_args *args)
+{
+	int cpu, error, node;
+
+	cpu = td->td_oncpu; /* Make sure it doesn't change during copyout(9) */
+	error = 0;
+	node = 0; /* XXX: Fake NUMA node 0 for now */
+
+	if (args->cpu != NULL)
+		error = copyout(&cpu, args->cpu, sizeof(l_int));
+	if (args->node != NULL)
+		error = copyout(&node, args->node, sizeof(l_int));
+	return (error);
+}

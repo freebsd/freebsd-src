@@ -104,8 +104,6 @@ DUMMY(tee);
 DUMMY(vmsplice);
 /* Linux 2.6.18: */
 DUMMY(move_pages);
-/* Linux 2.6.19: */
-DUMMY(getcpu);
 /* Linux 2.6.27: */
 DUMMY(signalfd4);
 DUMMY(inotify_init1);
