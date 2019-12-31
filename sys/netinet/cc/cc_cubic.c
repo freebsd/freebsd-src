@@ -200,10 +200,11 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 			 * max_cwnd.
 			 */
 			if (cubic_data->num_cong_events == 0 &&
-			    cubic_data->max_cwnd < CCV(ccv, snd_cwnd))
+			    cubic_data->max_cwnd < CCV(ccv, snd_cwnd)) {
 				cubic_data->max_cwnd = CCV(ccv, snd_cwnd);
 				cubic_data->K = cubic_k(cubic_data->max_cwnd /
 				    CCV(ccv, t_maxseg));
+			}
 		}
 	}
 }
