@@ -789,7 +789,12 @@ ioat_process_events(struct ioat_softc *ioat, boolean_t intr)
 	uint32_t completed, chanerr;
 	int error;
 
-	mtx_lock(&ioat->cleanup_lock);
+	if (intr) {
+		mtx_lock(&ioat->cleanup_lock);
+	} else {
+		if (!mtx_trylock(&ioat->cleanup_lock))
+			return;
+	}
 
 	/*
 	 * Don't run while the hardware is being reset.  Reset is responsible
