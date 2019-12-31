@@ -1646,8 +1646,11 @@ more:
 			continue;
 		break;
 	}
-	if (cp == NULL)
-		return ((struct servtab *)0);
+	if (cp == NULL) {
+		free(policy);
+		return (NULL);
+	}
+
 	/*
 	 * clear the static buffer, since some fields (se_ctrladdr,
 	 * for example) don't get initialized here.
@@ -2206,7 +2209,7 @@ cpmip(const struct servtab *sep, int ctrl)
 	   (sep->se_family == AF_INET || sep->se_family == AF_INET6) &&
 	    getpeername(ctrl, (struct sockaddr *)&rss, &rssLen) == 0 ) {
 		time_t t = time(NULL);
-		int hv = 0xABC3D20F;
+		unsigned int hv = 0xABC3D20F;
 		int i;
 		int cnt = 0;
 		CHash *chBest = NULL;
@@ -2493,11 +2496,15 @@ resize_conn(struct servtab *sep, int maxpip)
 static void
 free_connlist(struct servtab *sep)
 {
-	struct conninfo *conn;
+	struct conninfo *conn, *conn_temp;
 	int i, j;
 
 	for (i = 0; i < PERIPSIZE; ++i) {
-		while ((conn = LIST_FIRST(&sep->se_conn[i])) != NULL) {
+		LIST_FOREACH_SAFE(conn, &sep->se_conn[i], co_link, conn_temp) {
+			if (conn == NULL) {
+				LIST_REMOVE(conn, co_link);
+				continue;
+			}
 			for (j = 0; j < conn->co_numchild; ++j)
 				free_proc(conn->co_proc[j]);
 			conn->co_numchild = 0;
@@ -2553,7 +2560,8 @@ free_proc(struct procinfo *proc)
 static int
 hashval(char *p, int len)
 {
-	int i, hv = 0xABC3D20F;
+	unsigned int hv = 0xABC3D20F;
+	int i;
 
 	for (i = 0; i < len; ++i, ++p)
 		hv = (hv << 5) ^ (hv >> 23) ^ *p;
