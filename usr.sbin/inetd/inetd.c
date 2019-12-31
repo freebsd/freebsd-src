@@ -1612,6 +1612,7 @@ getconfigent(void)
 	int v6bind;
 #endif
 	int i;
+	size_t unsz;
 
 #ifdef IPSEC
 	policy = NULL;
@@ -1832,16 +1833,18 @@ more:
 		break;
 #endif
 	case AF_UNIX:
-		if (strlen(sep->se_service) >= sizeof(sep->se_ctrladdr_un.sun_path)) {
-			syslog(LOG_ERR, 
+#define	SUN_PATH_MAXSIZE	sizeof(sep->se_ctrladdr_un.sun_path)
+		memset(&sep->se_ctrladdr, 0, sizeof(sep->se_ctrladdr));
+		sep->se_ctrladdr_un.sun_family = sep->se_family;
+		if ((unsz = strlcpy(sep->se_ctrladdr_un.sun_path,
+		    sep->se_service, SUN_PATH_MAXSIZE) >= SUN_PATH_MAXSIZE)) {
+			syslog(LOG_ERR,
 			    "domain socket pathname too long for service %s",
 			    sep->se_service);
 			goto more;
 		}
-		memset(&sep->se_ctrladdr, 0, sizeof(sep->se_ctrladdr));
-		sep->se_ctrladdr_un.sun_family = sep->se_family;
-		sep->se_ctrladdr_un.sun_len = strlen(sep->se_service);
-		strcpy(sep->se_ctrladdr_un.sun_path, sep->se_service);
+		sep->se_ctrladdr_un.sun_len = unsz;
+#undef SUN_PATH_MAXSIZE
 		sep->se_ctrladdr_size = SUN_LEN(&sep->se_ctrladdr_un);
 	}
 	arg = sskip(&cp);
