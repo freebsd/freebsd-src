@@ -85,7 +85,7 @@ timeval_add(struct timeval* d, const struct timeval* add)
 #ifndef S_SPLINT_S
 	d->tv_sec += add->tv_sec;
 	d->tv_usec += add->tv_usec;
-	if(d->tv_usec > 1000000 ) {
+	if(d->tv_usec >= 1000000 ) {
 		d->tv_usec -= 1000000;
 		d->tv_sec++;
 	}
@@ -1157,7 +1157,7 @@ mesh_send_reply(struct mesh_state* m, int rcode, struct reply_info* rep,
 	}
 	/* Log reply sent */
 	if(m->s.env->cfg->log_replies) {
-		log_reply_info(0, &m->s.qinfo, &r->query_reply.addr,
+		log_reply_info(NO_VERBOSE, &m->s.qinfo, &r->query_reply.addr,
 			r->query_reply.addrlen, duration, 0, r_buffer);
 	}
 }
@@ -1340,14 +1340,15 @@ int mesh_state_add_reply(struct mesh_state* s, struct edns_data* edns,
 		log_assert(!qinfo->local_alias->next && dsrc->count == 1 &&
 			qinfo->local_alias->rrset->rk.type ==
 			htons(LDNS_RR_TYPE_CNAME));
-		/* Technically, we should make a local copy for the owner
-		 * name of the RRset, but in the case of the first (and
-		 * currently only) local alias RRset, the owner name should
-		 * point to the qname of the corresponding query, which should
-		 * be valid throughout the lifetime of this mesh_reply.  So
-		 * we can skip copying. */
-		log_assert(qinfo->local_alias->rrset->rk.dname ==
-			sldns_buffer_at(rep->c->buffer, LDNS_HEADER_SIZE));
+		/* we should make a local copy for the owner name of
+		 * the RRset */
+		r->local_alias->rrset->rk.dname_len =
+			qinfo->local_alias->rrset->rk.dname_len;
+		r->local_alias->rrset->rk.dname = regional_alloc_init(
+			s->s.region, qinfo->local_alias->rrset->rk.dname,
+			qinfo->local_alias->rrset->rk.dname_len);
+		if(!r->local_alias->rrset->rk.dname)
+			return 0;
 
 		/* the rrset is not packed, like in the cache, but it is
 		 * individualy allocated with an allocator from localzone. */
@@ -1410,7 +1411,7 @@ mesh_continue(struct mesh_area* mesh, struct mesh_state* mstate,
 		/* module is looping. Stop it. */
 		log_err("internal error: looping module (%s) stopped",
 			mesh->mods.mod[mstate->s.curmod]->name);
-		log_query_info(0, "pass error for qstate",
+		log_query_info(NO_VERBOSE, "pass error for qstate",
 			&mstate->s.qinfo);
 		s = module_error;
 	}

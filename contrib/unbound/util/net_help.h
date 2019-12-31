@@ -379,6 +379,13 @@ void sock_list_merge(struct sock_list** list, struct regional* region,
 void log_crypto_err(const char* str);
 
 /**
+ * Log libcrypto error from errcode with descriptive string, calls log_err.
+ * @param str: what failed.
+ * @param err: error code from ERR_get_error.
+ */
+void log_crypto_err_code(const char* str, unsigned long err);
+
+/**
  * Set SSL_OP_NOxxx options on SSL context to disable bad crypto
  * @param ctxt: SSL_CTX*
  * @return false on failure.

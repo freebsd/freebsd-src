@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.9.2.
+# See unbound.conf(5) man page, version 1.9.6.
 #
 # this is a comment.
 
@@ -286,7 +286,7 @@ server:
 	# The pid file can be absolute and outside of the chroot, it is
 	# written just prior to performing the chroot and dropping permissions.
 	#
-	# Additionally, unbound may need to access /dev/random (for entropy).
+	# Additionally, unbound may need to access /dev/urandom (for entropy).
 	# How to do this is specific to your OS.
 	#
 	# If you give "" no chroot is performed. The path must not end in a /.
@@ -654,6 +654,9 @@ server:
 	# local-zone: "8.b.d.0.1.0.0.2.ip6.arpa." nodefault
 	# And for 64.100.in-addr.arpa. to 127.100.in-addr.arpa.
 
+	# Add example.com into ipset
+	# local-zone: "example.com" ipset
+
 	# If unbound is running service for the local host then it is useful
 	# to perform lan-wide lookups to the upstream, and unblock the
 	# long list of local-zones above.  If this unbound is a dns server
@@ -992,3 +995,14 @@ remote-control:
 #     redis-server-port: 6379
 #     # timeout (in ms) for communication with the redis server
 #     redis-timeout: 100
+
+# IPSet
+# Add specify domain into set via ipset.
+# Note: To enable ipset needs run unbound as root user.
+# ipset:
+#     # set name for ip v4 addresses
+#     name-v4: "list-v4"
+#     # set name for ip v6 addresses
+#     name-v6: "list-v6"
+#
+

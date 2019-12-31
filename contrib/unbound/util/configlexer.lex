@@ -113,8 +113,7 @@ static void config_start_include_glob(const char* filename)
 	/* check for wildcards */
 #ifdef HAVE_GLOB
 	glob_t g;
-	size_t i;
-	int r, flags;
+	int i, r, flags;
 	if(!(!strchr(filename, '*') && !strchr(filename, '?') && !strchr(filename, '[') &&
 		!strchr(filename, '{') && !strchr(filename, '~'))) {
 		flags = 0
@@ -145,7 +144,7 @@ static void config_start_include_glob(const char* filename)
 			return;
 		}
 		/* process files found, if any */
-		for(i=0; i<(size_t)g.gl_pathc; i++) {
+		for(i=(int)g.gl_pathc-1; i>=0; i--) {
 			config_start_include(g.gl_pathv[i]);
 		}
 		globfree(&g);
@@ -484,6 +483,9 @@ secret-seed{COLON}		{ YDVAR(1, VAR_CACHEDB_SECRETSEED) }
 redis-server-host{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISHOST) }
 redis-server-port{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISPORT) }
 redis-timeout{COLON}		{ YDVAR(1, VAR_CACHEDB_REDISTIMEOUT) }
+ipset{COLON}			{ YDVAR(0, VAR_IPSET) }
+name-v4{COLON}			{ YDVAR(1, VAR_IPSET_NAME_V4) }
+name-v6{COLON}			{ YDVAR(1, VAR_IPSET_NAME_V6) }
 udp-upstream-without-downstream{COLON} { YDVAR(1, VAR_UDP_UPSTREAM_WITHOUT_DOWNSTREAM) }
 tcp-connection-limit{COLON}	{ YDVAR(2, VAR_TCP_CONNECTION_LIMIT) }
 <INITIAL,val>{NEWLINE}		{ LEXOUT(("NL\n")); cfg_parser->line++; }

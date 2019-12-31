@@ -1,8 +1,8 @@
-/*	$OpenBSD: getentropy_win.c,v 1.5 2016/08/07 03:27:21 tb Exp $	*/
+/*	$OpenBSD: getentropy_freebsd.c,v 1.3 2016/08/07 03:27:21 tb Exp $	*/
 
 /*
- * Copyright (c) 2014, Theo de Raadt <deraadt@openbsd.org> 
- * Copyright (c) 2014, Bob Beck <beck@obtuse.com>
+ * Copyright (c) 2014 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2014 Brent Cook <bcook@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,40 +20,43 @@
  * http://man.openbsd.org/getentropy.2
  */
 
-#include <windows.h>
-#include <errno.h>
-#include <stdint.h>
 #include <sys/types.h>
-#include <wincrypt.h>
-#include <process.h>
+#include <sys/sysctl.h>
 
-int	getentropy(void *buf, size_t len);
+#include <errno.h>
+#include <stddef.h>
 
 /*
- * On Windows, CryptGenRandom is supposed to be a well-seeded
- * cryptographically strong random number generator.
+ * Derived from lib/libc/gen/arc4random.c from FreeBSD.
  */
+static size_t
+getentropy_sysctl(u_char *buf, size_t size)
+{
+	int mib[2];
+	size_t len, done;
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_ARND;
+	done = 0;
+
+	do {
+		len = size;
+		if (sysctl(mib, 2, buf, &len, NULL, 0) == -1)
+			return (done);
+		done += len;
+		buf += len;
+		size -= len;
+	} while (size > 0);
+
+	return (done);
+}
+
 int
 getentropy(void *buf, size_t len)
 {
-	HCRYPTPROV provider;
+	if (len <= 256 && getentropy_sysctl(buf, len) == len)
+		return (0);
 
-	if (len > 256) {
-		errno = EIO;
-		return (-1);
-	}
-
-	if (CryptAcquireContext(&provider, NULL, NULL, PROV_RSA_FULL,
-	    CRYPT_VERIFYCONTEXT) == 0)
-		goto fail;
-	if (CryptGenRandom(provider, len, buf) == 0) {
-		CryptReleaseContext(provider, 0);
-		goto fail;
-	}
-	CryptReleaseContext(provider, 0);
-	return (0);
-
-fail:
 	errno = EIO;
 	return (-1);
 }

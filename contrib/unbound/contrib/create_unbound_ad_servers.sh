@@ -9,12 +9,13 @@
 # Variables
 dst_dir="/etc/opt/csw/unbound"
 work_dir="/tmp"
-list_addr="http://pgl.yoyo.org/adservers/serverlist.php?hostformat=nohtml&showintro=1&startdate%5Bday%5D=&startdate%5Bmonth%5D=&startdate%5Byear%5D="
+list_addr="https://pgl.yoyo.org/adservers/serverlist.php?hostformat=nohtml&showintro=1&startdate%5Bday%5D=&startdate%5Bmonth%5D=&startdate%5Byear%5D="
 
 # OS commands
 CAT=`which cat`
 ECHO=`which echo`
 WGET=`which wget`
+TR=`which tr`
 
 # Check Wget installed
 if [ ! -f $WGET ]; then
@@ -22,8 +23,10 @@ if [ ! -f $WGET ]; then
  exit 1
 fi
 
+# remove special characters with tr to protect unbound.conf
 $WGET -O $work_dir/yoyo_ad_servers "$list_addr" && \
 $CAT $work_dir/yoyo_ad_servers | \
+$TR -d '";$\\' | \
 while read line ; \
  do \
    $ECHO "local-zone: \"$line\" redirect" ;\
