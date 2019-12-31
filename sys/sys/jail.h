@@ -414,7 +414,7 @@ int prison_restrict_ip6(struct prison *, struct in6_addr *);
 int prison_qcmp_v6(const void *, const void *);
 #endif
 int prison_check_af(struct ucred *cred, int af);
-int prison_if(struct ucred *cred, struct sockaddr *sa);
+int prison_if(struct ucred *cred, const struct sockaddr *sa);
 char *prison_name(struct prison *, struct prison *);
 int prison_priv_check(struct ucred *cred, int priv);
 int sysctl_jail_param(SYSCTL_HANDLER_ARGS);

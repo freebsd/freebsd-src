@@ -2782,13 +2782,13 @@ prison_check_af(struct ucred *cred, int af)
  * the jail doesn't allow the address family.  IPv4 Address passed in in NBO.
  */
 int
-prison_if(struct ucred *cred, struct sockaddr *sa)
+prison_if(struct ucred *cred, const struct sockaddr *sa)
 {
 #ifdef INET
-	struct sockaddr_in *sai;
+	const struct sockaddr_in *sai;
 #endif
 #ifdef INET6
-	struct sockaddr_in6 *sai6;
+	const struct sockaddr_in6 *sai6;
 #endif
 	int error;
 
@@ -2805,13 +2805,13 @@ prison_if(struct ucred *cred, struct sockaddr *sa)
 	{
 #ifdef INET
 	case AF_INET:
-		sai = (struct sockaddr_in *)sa;
+		sai = (const struct sockaddr_in *)sa;
 		error = prison_check_ip4(cred, &sai->sin_addr);
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		sai6 = (struct sockaddr_in6 *)sa;
+		sai6 = (const struct sockaddr_in6 *)sa;
 		error = prison_check_ip6(cred, &sai6->sin6_addr);
 		break;
 #endif

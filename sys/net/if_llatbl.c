@@ -663,8 +663,8 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	u_int laflags = 0;
 	int error;
 
-	KASSERT(dl != NULL && dl->sdl_family == AF_LINK,
-	    ("%s: invalid dl\n", __func__));
+	if (dl == NULL || dl->sdl_family != AF_LINK)
+		return (EINVAL);
 
 	ifp = ifnet_byindex(dl->sdl_index);
 	if (ifp == NULL) {
@@ -681,7 +681,8 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 			break;
 	}
 	LLTABLE_LIST_RUNLOCK();
-	KASSERT(llt != NULL, ("Yep, ugly hacks are bad\n"));
+	if (llt == NULL)
+		return (ESRCH);
 
 	error = 0;
 
