@@ -1711,7 +1711,11 @@
 	}
 ; linux 2.6.19:
 345	AUE_NULL	STD	{
-		int linux_getcpu(void);
+		int linux_getcpu(
+		    l_uint *cpu,
+		    l_uint *node,
+		    void *cache
+		);
 	}
 346	AUE_NULL	STD	{
 		int linux_epoll_pwait(
