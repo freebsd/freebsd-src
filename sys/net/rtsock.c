@@ -181,6 +181,15 @@ static void	rt_getmetrics(const struct rtentry *rt, struct rt_metrics *out);
 static void	rt_dispatch(struct mbuf *, sa_family_t);
 static struct sockaddr	*rtsock_fix_netmask(struct sockaddr *dst,
 			struct sockaddr *smask, struct sockaddr_storage *dmask);
+static int	handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
+			struct rt_msghdr *rtm, struct rtentry **ret_nrt);
+static int	update_rtm_from_rte(struct rt_addrinfo *info,
+			struct rt_msghdr **prtm, int alloc_len,
+			struct rtentry *rt);
+static void	send_rtm_reply(struct socket *so, struct rt_msghdr *rtm,
+			struct mbuf *m, sa_family_t saf, u_int fibnum,
+			int rtm_errno);
+static int	can_export_rte(struct ucred *td_ucred, const struct rtentry *rt);
 
 static struct netisr_handler rtsock_nh = {
 	.nh_name = "rtsock",
@@ -550,14 +559,287 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 	return (0);
 }
 
+/*
+ * Fills in @info based on userland-provided @rtm message.
+ *
+ * Returns 0 on success.
+ */
+static int
+fill_addrinfo(struct rt_msghdr *rtm, int len, u_int fibnum, struct rt_addrinfo *info)
+{
+	int error;
+	sa_family_t saf;
+
+	rtm->rtm_pid = curproc->p_pid;
+	info->rti_addrs = rtm->rtm_addrs;
+
+	info->rti_mflags = rtm->rtm_inits;
+	info->rti_rmx = &rtm->rtm_rmx;
+
+	/*
+	 * rt_xaddrs() performs s6_addr[2] := sin6_scope_id for AF_INET6
+	 * link-local address because rtrequest requires addresses with
+	 * embedded scope id.
+	 */
+	if (rt_xaddrs((caddr_t)(rtm + 1), len + (caddr_t)rtm, info))
+		return (EINVAL);
+
+	if (rtm->rtm_flags & RTF_RNH_LOCKED)
+		return (EINVAL);
+	info->rti_flags = rtm->rtm_flags;
+	if (info->rti_info[RTAX_DST] == NULL ||
+	    info->rti_info[RTAX_DST]->sa_family >= AF_MAX ||
+	    (info->rti_info[RTAX_GATEWAY] != NULL &&
+	     info->rti_info[RTAX_GATEWAY]->sa_family >= AF_MAX))
+		return (EINVAL);
+	saf = info->rti_info[RTAX_DST]->sa_family;
+	/*
+	 * Verify that the caller has the appropriate privilege; RTM_GET
+	 * is the only operation the non-superuser is allowed.
+	 */
+	if (rtm->rtm_type != RTM_GET) {
+		error = priv_check(curthread, PRIV_NET_ROUTE);
+		if (error != 0)
+			return (error);
+	}
+
+	/*
+	 * The given gateway address may be an interface address.
+	 * For example, issuing a "route change" command on a route
+	 * entry that was created from a tunnel, and the gateway
+	 * address given is the local end point. In this case the 
+	 * RTF_GATEWAY flag must be cleared or the destination will
+	 * not be reachable even though there is no error message.
+	 */
+	if (info->rti_info[RTAX_GATEWAY] != NULL &&
+	    info->rti_info[RTAX_GATEWAY]->sa_family != AF_LINK) {
+		struct rt_addrinfo ginfo;
+		struct sockaddr *gdst;
+		struct sockaddr_storage ss;
+
+		bzero(&ginfo, sizeof(ginfo));
+		bzero(&ss, sizeof(ss));
+		ss.ss_len = sizeof(ss);
+
+		ginfo.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&ss;
+		gdst = info->rti_info[RTAX_GATEWAY];
+
+		/* 
+		 * A host route through the loopback interface is 
+		 * installed for each interface adddress. In pre 8.0
+		 * releases the interface address of a PPP link type
+		 * is not reachable locally. This behavior is fixed as 
+		 * part of the new L2/L3 redesign and rewrite work. The
+		 * signature of this interface address route is the
+		 * AF_LINK sa_family type of the rt_gateway, and the
+		 * rt_ifp has the IFF_LOOPBACK flag set.
+		 */
+		if (rib_lookup_info(fibnum, gdst, NHR_REF, 0, &ginfo) == 0) {
+			if (ss.ss_family == AF_LINK &&
+			    ginfo.rti_ifp->if_flags & IFF_LOOPBACK) {
+				info->rti_flags &= ~RTF_GATEWAY;
+				info->rti_flags |= RTF_GWFLAG_COMPAT;
+			}
+			rib_free_info(&ginfo);
+		}
+	}
+
+	return (0);
+}
+
+/*
+ * Handles RTM_GET message from routing socket, returning matching rt.
+ *
+ * Returns:
+ * 0 on success, with locked and referenced matching rt in @rt_nrt
+ * errno of failure
+ */
+static int
+handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
+    struct rt_msghdr *rtm, struct rtentry **ret_nrt)
+{
+	RIB_RLOCK_TRACKER;
+	struct rtentry *rt;
+	struct rib_head *rnh;
+	sa_family_t saf;
+
+	saf = info->rti_info[RTAX_DST]->sa_family;
+
+	rnh = rt_tables_get_rnh(fibnum, saf);
+	if (rnh == NULL)
+		return (EAFNOSUPPORT);
+
+	RIB_RLOCK(rnh);
+
+	if (info->rti_info[RTAX_NETMASK] == NULL) {
+		/*
+		 * Provide longest prefix match for
+		 * address lookup (no mask).
+		 * 'route -n get addr'
+		 */
+		rt = (struct rtentry *) rnh->rnh_matchaddr(
+		    info->rti_info[RTAX_DST], &rnh->head);
+	} else
+		rt = (struct rtentry *) rnh->rnh_lookup(
+		    info->rti_info[RTAX_DST],
+		    info->rti_info[RTAX_NETMASK], &rnh->head);
+
+	if (rt == NULL) {
+		RIB_RUNLOCK(rnh);
+		return (ESRCH);
+	}
+#ifdef RADIX_MPATH
+	/*
+	 * for RTM_GET, gate is optional even with multipath.
+	 * if gate == NULL the first match is returned.
+	 * (no need to call rt_mpath_matchgate if gate == NULL)
+	 */
+	if (rt_mpath_capable(rnh) && info->rti_info[RTAX_GATEWAY]) {
+		rt = rt_mpath_matchgate(rt, info->rti_info[RTAX_GATEWAY]);
+		if (!rt) {
+			RIB_RUNLOCK(rnh);
+			return (ESRCH);
+		}
+	}
+#endif
+	/*
+	 * If performing proxied L2 entry insertion, and
+	 * the actual PPP host entry is found, perform
+	 * another search to retrieve the prefix route of
+	 * the local end point of the PPP link.
+	 */
+	if (rtm->rtm_flags & RTF_ANNOUNCE) {
+		struct sockaddr laddr;
+
+		if (rt->rt_ifp != NULL && 
+		    rt->rt_ifp->if_type == IFT_PROPVIRTUAL) {
+			struct epoch_tracker et;
+			struct ifaddr *ifa;
+
+			NET_EPOCH_ENTER(et);
+			ifa = ifa_ifwithnet(info->rti_info[RTAX_DST], 1,
+					RT_ALL_FIBS);
+			NET_EPOCH_EXIT(et);
+			if (ifa != NULL)
+				rt_maskedcopy(ifa->ifa_addr,
+					      &laddr,
+					      ifa->ifa_netmask);
+		} else
+			rt_maskedcopy(rt->rt_ifa->ifa_addr,
+				      &laddr,
+				      rt->rt_ifa->ifa_netmask);
+		/* 
+		 * refactor rt and no lock operation necessary
+		 */
+		rt = (struct rtentry *)rnh->rnh_matchaddr(&laddr,
+		    &rnh->head);
+		if (rt == NULL) {
+			RIB_RUNLOCK(rnh);
+			return (ESRCH);
+		}
+	} 
+	RT_LOCK(rt);
+	RT_ADDREF(rt);
+	RIB_RUNLOCK(rnh);
+
+	*ret_nrt = rt;
+
+	return (0);
+}
+
+/*
+ * Update sockaddrs, flags, etc in @prtm based on @rt data.
+ * Assumes @rt is locked.
+ * rtm can be reallocated.
+ *
+ * Returns 0 on success, along with pointer to (potentially reallocated)
+ *  rtm.
+ *
+ */
+static int
+update_rtm_from_rte(struct rt_addrinfo *info, struct rt_msghdr **prtm,
+    int alloc_len, struct rtentry *rt)
+{
+	struct sockaddr_storage netmask_ss;
+	struct walkarg w;
+	union sockaddr_union saun;
+	struct rt_msghdr *rtm, *orig_rtm = NULL;
+	struct ifnet *ifp;
+	int error, len;
+
+	RT_LOCK_ASSERT(rt);
+
+	rtm = *prtm;
+
+	info->rti_info[RTAX_DST] = rt_key(rt);
+	info->rti_info[RTAX_GATEWAY] = rt->rt_gateway;
+	info->rti_info[RTAX_NETMASK] = rtsock_fix_netmask(rt_key(rt),
+	    rt_mask(rt), &netmask_ss);
+	info->rti_info[RTAX_GENMASK] = 0;
+	ifp = rt->rt_ifp;
+	if (rtm->rtm_addrs & (RTA_IFP | RTA_IFA)) {
+		if (ifp) {
+			info->rti_info[RTAX_IFP] =
+			    ifp->if_addr->ifa_addr;
+			error = rtm_get_jailed(info, ifp, rt,
+			    &saun, curthread->td_ucred);
+			if (error != 0)
+				return (error);
+			if (ifp->if_flags & IFF_POINTOPOINT)
+				info->rti_info[RTAX_BRD] =
+				    rt->rt_ifa->ifa_dstaddr;
+			rtm->rtm_index = ifp->if_index;
+		} else {
+			info->rti_info[RTAX_IFP] = NULL;
+			info->rti_info[RTAX_IFA] = NULL;
+		}
+	} else if (ifp != NULL)
+		rtm->rtm_index = ifp->if_index;
+
+	/* Check if we need to realloc storage */
+	rtsock_msg_buffer(rtm->rtm_type, info, NULL, &len);
+	if (len > alloc_len) {
+		struct rt_msghdr *tmp_rtm;
+
+		tmp_rtm = malloc(len, M_TEMP, M_NOWAIT);
+		if (tmp_rtm == NULL)
+			return (ENOBUFS);
+		bcopy(rtm, tmp_rtm, rtm->rtm_msglen);
+		orig_rtm = rtm;
+		rtm = tmp_rtm;
+		alloc_len = len;
+
+		/*
+		 * Delay freeing original rtm as info contains
+		 * data referencing it.
+		 */
+	}
+
+	w.w_tmem = (caddr_t)rtm;
+	w.w_tmemsize = alloc_len;
+	rtsock_msg_buffer(rtm->rtm_type, info, &w, &len);
+
+	if (rt->rt_flags & RTF_GWFLAG_COMPAT)
+		rtm->rtm_flags = RTF_GATEWAY | 
+			(rt->rt_flags & ~RTF_GWFLAG_COMPAT);
+	else
+		rtm->rtm_flags = rt->rt_flags;
+	rt_getmetrics(rt, &rtm->rtm_rmx);
+	rtm->rtm_addrs = info->rti_addrs;
+
+	if (orig_rtm != NULL)
+		free(orig_rtm, M_TEMP);
+	*prtm = rtm;
+
+	return (0);
+}
+
 /*ARGSUSED*/
 static int
 route_output(struct mbuf *m, struct socket *so, ...)
 {
-	RIB_RLOCK_TRACKER;
 	struct rt_msghdr *rtm = NULL;
 	struct rtentry *rt = NULL;
-	struct rib_head *rnh;
 	struct rt_addrinfo info;
 	struct sockaddr_storage ss;
 	struct epoch_tracker et;
@@ -566,10 +848,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 	int i, rti_need_deembed = 0;
 #endif
 	int alloc_len = 0, len, error = 0, fibnum;
-	struct ifnet *ifp = NULL;
-	union sockaddr_union saun;
 	sa_family_t saf = AF_UNSPEC;
-	struct rawcb *rp = NULL;
 	struct walkarg w;
 
 	fibnum = so->so_fibnum;
@@ -612,77 +891,20 @@ route_output(struct mbuf *m, struct socket *so, ...)
 	 * caller PID and error value.
 	 */
 
-	rtm->rtm_pid = curproc->p_pid;
-	info.rti_addrs = rtm->rtm_addrs;
-
-	info.rti_mflags = rtm->rtm_inits;
-	info.rti_rmx = &rtm->rtm_rmx;
-
-	/*
-	 * rt_xaddrs() performs s6_addr[2] := sin6_scope_id for AF_INET6
-	 * link-local address because rtrequest requires addresses with
-	 * embedded scope id.
-	 */
-	if (rt_xaddrs((caddr_t)(rtm + 1), len + (caddr_t)rtm, &info))
-		senderr(EINVAL);
-
-	if (rtm->rtm_flags & RTF_RNH_LOCKED)
-		senderr(EINVAL);
-	info.rti_flags = rtm->rtm_flags;
-	if (info.rti_info[RTAX_DST] == NULL ||
-	    info.rti_info[RTAX_DST]->sa_family >= AF_MAX ||
-	    (info.rti_info[RTAX_GATEWAY] != NULL &&
-	     info.rti_info[RTAX_GATEWAY]->sa_family >= AF_MAX))
-		senderr(EINVAL);
-	saf = info.rti_info[RTAX_DST]->sa_family;
-	/*
-	 * Verify that the caller has the appropriate privilege; RTM_GET
-	 * is the only operation the non-superuser is allowed.
-	 */
-	if (rtm->rtm_type != RTM_GET) {
-		error = priv_check(curthread, PRIV_NET_ROUTE);
-		if (error)
-			senderr(error);
+	if ((error = fill_addrinfo(rtm, len, fibnum, &info)) != 0) {
+		senderr(error);
 	}
 
-	/*
-	 * The given gateway address may be an interface address.
-	 * For example, issuing a "route change" command on a route
-	 * entry that was created from a tunnel, and the gateway
-	 * address given is the local end point. In this case the 
-	 * RTF_GATEWAY flag must be cleared or the destination will
-	 * not be reachable even though there is no error message.
-	 */
-	if (info.rti_info[RTAX_GATEWAY] != NULL &&
-	    info.rti_info[RTAX_GATEWAY]->sa_family != AF_LINK) {
-		struct rt_addrinfo ginfo;
-		struct sockaddr *gdst;
+	saf = info.rti_info[RTAX_DST]->sa_family;
 
-		bzero(&ginfo, sizeof(ginfo));
-		bzero(&ss, sizeof(ss));
-		ss.ss_len = sizeof(ss);
-
-		ginfo.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&ss;
-		gdst = info.rti_info[RTAX_GATEWAY];
-
-		/* 
-		 * A host route through the loopback interface is 
-		 * installed for each interface adddress. In pre 8.0
-		 * releases the interface address of a PPP link type
-		 * is not reachable locally. This behavior is fixed as 
-		 * part of the new L2/L3 redesign and rewrite work. The
-		 * signature of this interface address route is the
-		 * AF_LINK sa_family type of the rt_gateway, and the
-		 * rt_ifp has the IFF_LOOPBACK flag set.
-		 */
-		if (rib_lookup_info(fibnum, gdst, NHR_REF, 0, &ginfo) == 0) {
-			if (ss.ss_family == AF_LINK &&
-			    ginfo.rti_ifp->if_flags & IFF_LOOPBACK) {
-				info.rti_flags &= ~RTF_GATEWAY;
-				info.rti_flags |= RTF_GWFLAG_COMPAT;
-			}
-			rib_free_info(&ginfo);
-		}
+	/* support for new ARP code */
+	if (rtm->rtm_flags & RTF_LLDATA) {
+		error = lla_rt_output(rtm, &info);
+#ifdef INET6
+		if (error == 0)
+			rti_need_deembed = (V_deembed_scopeid) ? 1 : 0;
+#endif
+		goto flush;
 	}
 
 	switch (rtm->rtm_type) {
@@ -695,18 +917,6 @@ route_output(struct mbuf *m, struct socket *so, ...)
 				senderr(EINVAL);
 		}
 		saved_nrt = NULL;
-
-		/* support for new ARP code */
-		if (info.rti_info[RTAX_GATEWAY] != NULL &&
-		    info.rti_info[RTAX_GATEWAY]->sa_family == AF_LINK &&
-		    (rtm->rtm_flags & RTF_LLDATA) != 0) {
-			error = lla_rt_output(rtm, &info);
-#ifdef INET6
-			if (error == 0)
-				rti_need_deembed = (V_deembed_scopeid) ? 1 : 0;
-#endif
-			break;
-		}
 		error = rtrequest1_fib(rtm->rtm_type, &info, &saved_nrt,
 		    fibnum);
 		if (error == 0 && saved_nrt != NULL) {
@@ -722,17 +932,6 @@ route_output(struct mbuf *m, struct socket *so, ...)
 
 	case RTM_DELETE:
 		saved_nrt = NULL;
-		/* support for new ARP code */
-		if (info.rti_info[RTAX_GATEWAY] && 
-		    (info.rti_info[RTAX_GATEWAY]->sa_family == AF_LINK) &&
-		    (rtm->rtm_flags & RTF_LLDATA) != 0) {
-			error = lla_rt_output(rtm, &info);
-#ifdef INET6
-			if (error == 0)
-				rti_need_deembed = (V_deembed_scopeid) ? 1 : 0;
-#endif
-			break;
-		}
 		error = rtrequest1_fib(RTM_DELETE, &info, &saved_nrt, fibnum);
 		if (error == 0) {
 			RT_LOCK(saved_nrt);
@@ -746,153 +945,33 @@ route_output(struct mbuf *m, struct socket *so, ...)
 		break;
 
 	case RTM_GET:
-		rnh = rt_tables_get_rnh(fibnum, saf);
-		if (rnh == NULL)
-			senderr(EAFNOSUPPORT);
-
-		RIB_RLOCK(rnh);
-
-		if (info.rti_info[RTAX_NETMASK] == NULL &&
-		    rtm->rtm_type == RTM_GET) {
-			/*
-			 * Provide longest prefix match for
-			 * address lookup (no mask).
-			 * 'route -n get addr'
-			 */
-			rt = (struct rtentry *) rnh->rnh_matchaddr(
-			    info.rti_info[RTAX_DST], &rnh->head);
-		} else
-			rt = (struct rtentry *) rnh->rnh_lookup(
-			    info.rti_info[RTAX_DST],
-			    info.rti_info[RTAX_NETMASK], &rnh->head);
-
-		if (rt == NULL) {
-			RIB_RUNLOCK(rnh);
-			senderr(ESRCH);
-		}
-#ifdef RADIX_MPATH
-		/*
-		 * for RTM_CHANGE/LOCK, if we got multipath routes,
-		 * we require users to specify a matching RTAX_GATEWAY.
-		 *
-		 * for RTM_GET, gate is optional even with multipath.
-		 * if gate == NULL the first match is returned.
-		 * (no need to call rt_mpath_matchgate if gate == NULL)
-		 */
-		if (rt_mpath_capable(rnh) &&
-		    (rtm->rtm_type != RTM_GET || info.rti_info[RTAX_GATEWAY])) {
-			rt = rt_mpath_matchgate(rt, info.rti_info[RTAX_GATEWAY]);
-			if (!rt) {
-				RIB_RUNLOCK(rnh);
-				senderr(ESRCH);
-			}
-		}
-#endif
-		/*
-		 * If performing proxied L2 entry insertion, and
-		 * the actual PPP host entry is found, perform
-		 * another search to retrieve the prefix route of
-		 * the local end point of the PPP link.
-		 */
-		if (rtm->rtm_flags & RTF_ANNOUNCE) {
-			struct sockaddr laddr;
-
-			if (rt->rt_ifp != NULL && 
-			    rt->rt_ifp->if_type == IFT_PROPVIRTUAL) {
-				struct epoch_tracker et;
-				struct ifaddr *ifa;
-
-				NET_EPOCH_ENTER(et);
-				ifa = ifa_ifwithnet(info.rti_info[RTAX_DST], 1,
-						RT_ALL_FIBS);
-				NET_EPOCH_EXIT(et);
-				if (ifa != NULL)
-					rt_maskedcopy(ifa->ifa_addr,
-						      &laddr,
-						      ifa->ifa_netmask);
-			} else
-				rt_maskedcopy(rt->rt_ifa->ifa_addr,
-					      &laddr,
-					      rt->rt_ifa->ifa_netmask);
-			/* 
-			 * refactor rt and no lock operation necessary
-			 */
-			rt = (struct rtentry *)rnh->rnh_matchaddr(&laddr,
-			    &rnh->head);
-			if (rt == NULL) {
-				RIB_RUNLOCK(rnh);
-				senderr(ESRCH);
-			}
-		} 
-		RT_LOCK(rt);
-		RT_ADDREF(rt);
-		RIB_RUNLOCK(rnh);
+		error = handle_rtm_get(&info, fibnum, rtm, &rt);
+		if (error != 0)
+			senderr(error);
 
 report:
 		RT_LOCK_ASSERT(rt);
-		if ((rt->rt_flags & RTF_HOST) == 0
-		    ? jailed_without_vnet(curthread->td_ucred)
-		    : prison_if(curthread->td_ucred,
-		    rt_key(rt)) != 0) {
+		if (!can_export_rte(curthread->td_ucred, rt)) {
 			RT_UNLOCK(rt);
 			senderr(ESRCH);
 		}
-		info.rti_info[RTAX_DST] = rt_key(rt);
-		info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
-		info.rti_info[RTAX_NETMASK] = rtsock_fix_netmask(rt_key(rt),
-		    rt_mask(rt), &ss);
-		info.rti_info[RTAX_GENMASK] = 0;
-		if (rtm->rtm_addrs & (RTA_IFP | RTA_IFA)) {
-			ifp = rt->rt_ifp;
-			if (ifp) {
-				info.rti_info[RTAX_IFP] =
-				    ifp->if_addr->ifa_addr;
-				error = rtm_get_jailed(&info, ifp, rt,
-				    &saun, curthread->td_ucred);
-				if (error != 0) {
-					RT_UNLOCK(rt);
-					senderr(error);
-				}
-				if (ifp->if_flags & IFF_POINTOPOINT)
-					info.rti_info[RTAX_BRD] =
-					    rt->rt_ifa->ifa_dstaddr;
-				rtm->rtm_index = ifp->if_index;
-			} else {
-				info.rti_info[RTAX_IFP] = NULL;
-				info.rti_info[RTAX_IFA] = NULL;
-			}
-		} else if ((ifp = rt->rt_ifp) != NULL) {
-			rtm->rtm_index = ifp->if_index;
-		}
+		error = update_rtm_from_rte(&info, &rtm, alloc_len, rt);
+		/*
+		 * Note that some sockaddr pointers may have changed to
+		 * point to memory outsize @rtm. Some may be pointing
+		 * to the on-stack variables.
+		 * Given that, any pointer in @info CANNOT BE USED.
+		 */
 
-		/* Check if we need to realloc storage */
-		rtsock_msg_buffer(rtm->rtm_type, &info, NULL, &len);
-		if (len > alloc_len) {
-			struct rt_msghdr *new_rtm;
-			new_rtm = malloc(len, M_TEMP, M_NOWAIT);
-			if (new_rtm == NULL) {
-				RT_UNLOCK(rt);
-				senderr(ENOBUFS);
-			}
-			bcopy(rtm, new_rtm, rtm->rtm_msglen);
-			free(rtm, M_TEMP);
-			rtm = new_rtm;
-			alloc_len = len;
-		}
-
-		w.w_tmem = (caddr_t)rtm;
-		w.w_tmemsize = alloc_len;
-		rtsock_msg_buffer(rtm->rtm_type, &info, &w, &len);
-
-		if (rt->rt_flags & RTF_GWFLAG_COMPAT)
-			rtm->rtm_flags = RTF_GATEWAY | 
-				(rt->rt_flags & ~RTF_GWFLAG_COMPAT);
-		else
-			rtm->rtm_flags = rt->rt_flags;
-		rt_getmetrics(rt, &rtm->rtm_rmx);
-		rtm->rtm_addrs = info.rti_addrs;
-
+		/*
+		 * scopeid deembedding has been performed while
+		 * writing updated rtm in rtsock_msg_buffer().
+		 * With that in mind, skip deembedding procedure below.
+		 */
+		rti_need_deembed = 0;
 		RT_UNLOCK(rt);
+		if (error != 0)
+			senderr(error);
 		break;
 
 	default:
@@ -903,22 +982,9 @@ flush:
 	NET_EPOCH_EXIT(et);
 	if (rt != NULL)
 		RTFREE(rt);
-	/*
-	 * Check to see if we don't want our own messages.
-	 */
-	if ((so->so_options & SO_USELOOPBACK) == 0) {
-		if (V_route_cb.any_count <= 1) {
-			if (rtm != NULL)
-				free(rtm, M_TEMP);
-			m_freem(m);
-			return (error);
-		}
-		/* There is another listener, so construct message */
-		rp = sotorawcb(so);
-	}
 
-	if (rtm != NULL) {
 #ifdef INET6
+	if (rtm != NULL) {
 		if (rti_need_deembed) {
 			/* sin6_scope_id is recovered before sending rtm. */
 			sin6 = (struct sockaddr_in6 *)&ss;
@@ -933,9 +999,41 @@ flush:
 						    sizeof(*sin6));
 			}
 		}
+	}
 #endif
-		if (error != 0)
-			rtm->rtm_errno = error;
+	send_rtm_reply(so, rtm, m, saf, fibnum, error);
+
+	return (error);
+}
+
+/*
+ * Sends the prepared reply message in @rtm to all rtsock clients.
+ * Frees @m and @rtm.
+ *
+ */
+static void
+send_rtm_reply(struct socket *so, struct rt_msghdr *rtm, struct mbuf *m,
+    sa_family_t saf, u_int fibnum, int rtm_errno)
+{
+	struct rawcb *rp = NULL;
+
+	/*
+	 * Check to see if we don't want our own messages.
+	 */
+	if ((so->so_options & SO_USELOOPBACK) == 0) {
+		if (V_route_cb.any_count <= 1) {
+			if (rtm != NULL)
+				free(rtm, M_TEMP);
+			m_freem(m);
+			return;
+		}
+		/* There is another listener, so construct message */
+		rp = sotorawcb(so);
+	}
+
+	if (rtm != NULL) {
+		if (rtm_errno!= 0)
+			rtm->rtm_errno = rtm_errno;
 		else
 			rtm->rtm_flags |= RTF_DONE;
 
@@ -963,9 +1061,8 @@ flush:
 		} else
 			rt_dispatch(m, saf);
 	}
-
-	return (error);
 }
+
 
 static void
 rt_getmetrics(const struct rtentry *rt, struct rt_metrics *out)
@@ -1563,6 +1660,22 @@ rt_dispatch(struct mbuf *m, sa_family_t saf)
 }
 
 /*
+ * Checks if rte can be exported v.r.t jails/vnets.
+ *
+ * Returns 1 if it can, 0 otherwise.
+ */
+static int
+can_export_rte(struct ucred *td_ucred, const struct rtentry *rt)
+{
+
+	if ((rt->rt_flags & RTF_HOST) == 0
+	    ? jailed_without_vnet(td_ucred)
+	    : prison_if(td_ucred, rt_key_const(rt)) != 0)
+		return (0);
+	return (1);
+}
+
+/*
  * This is used in dumping the kernel table via sysctl().
  */
 static int
@@ -1578,9 +1691,7 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 
 	if (w->w_op == NET_RT_FLAGS && !(rt->rt_flags & w->w_arg))
 		return 0;
-	if ((rt->rt_flags & RTF_HOST) == 0
-	    ? jailed_without_vnet(w->w_req->td->td_ucred)
-	    : prison_if(w->w_req->td->td_ucred, rt_key(rt)) != 0)
+	if (!can_export_rte(w->w_req->td->td_ucred, rt))
 		return (0);
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_info[RTAX_DST] = rt_key(rt);
