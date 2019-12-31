@@ -969,13 +969,12 @@ DEFINE_TEST(test_read_format_rar5_readtables_overflow)
 
 	PROLOGUE("test_read_format_rar5_readtables_overflow.rar");
 
-	assertA(0 == archive_read_next_header(a, &ae));
 	/* This archive is invalid. However, processing it shouldn't cause any
 	 * buffer overflow errors during reading rar5 tables. */
-	assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
 
-	/* This test only cares about not returning success here. */
-	assertA(ARCHIVE_OK != archive_read_next_header(a, &ae));
+	(void) archive_read_next_header(a, &ae);
+	(void) archive_read_data(a, buf, sizeof(buf));
+	(void) archive_read_next_header(a, &ae);
 
 	EPILOGUE();
 }
@@ -986,13 +985,12 @@ DEFINE_TEST(test_read_format_rar5_leftshift1)
 
 	PROLOGUE("test_read_format_rar5_leftshift1.rar");
 
-	assertA(0 == archive_read_next_header(a, &ae));
 	/* This archive is invalid. However, processing it shouldn't cause any
 	 * errors related to undefined operations when using -fsanitize. */
-	assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
 
-	/* This test only cares about not returning success here. */
-	assertA(ARCHIVE_OK != archive_read_next_header(a, &ae));
+	(void) archive_read_next_header(a, &ae);
+	(void) archive_read_data(a, buf, sizeof(buf));
+	(void) archive_read_next_header(a, &ae);
 
 	EPILOGUE();
 }
@@ -1003,14 +1001,12 @@ DEFINE_TEST(test_read_format_rar5_leftshift2)
 
 	PROLOGUE("test_read_format_rar5_leftshift2.rar");
 
-	assertA(0 == archive_read_next_header(a, &ae));
-
 	/* This archive is invalid. However, processing it shouldn't cause any
 	 * errors related to undefined operations when using -fsanitize. */
-	assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
 
-	/* This test only cares about not returning success here. */
-	assertA(ARCHIVE_OK != archive_read_next_header(a, &ae));
+	(void) archive_read_next_header(a, &ae);
+	(void) archive_read_data(a, buf, sizeof(buf));
+	(void) archive_read_next_header(a, &ae);
 
 	EPILOGUE();
 }
@@ -1021,14 +1017,12 @@ DEFINE_TEST(test_read_format_rar5_truncated_huff)
 
 	PROLOGUE("test_read_format_rar5_truncated_huff.rar");
 
-	assertA(0 == archive_read_next_header(a, &ae));
-
 	/* This archive is invalid. However, processing it shouldn't cause any
 	 * errors related to undefined operations when using -fsanitize. */
-	assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
 
-	/* This test only cares about not returning success here. */
-	assertA(ARCHIVE_OK != archive_read_next_header(a, &ae));
+	(void) archive_read_next_header(a, &ae);
+	(void) archive_read_data(a, buf, sizeof(buf));
+	(void) archive_read_next_header(a, &ae);
 
 	EPILOGUE();
 }
@@ -1058,14 +1052,12 @@ DEFINE_TEST(test_read_format_rar5_distance_overflow)
 
 	PROLOGUE("test_read_format_rar5_distance_overflow.rar");
 
-	assertA(0 == archive_read_next_header(a, &ae));
-
 	/* This archive is invalid. However, processing it shouldn't cause any
 	 * errors related to variable overflows when using -fsanitize. */
-	assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
 
-	/* This test only cares about not returning success here. */
-	assertA(ARCHIVE_OK != archive_read_next_header(a, &ae));
+	(void) archive_read_next_header(a, &ae);
+	(void) archive_read_data(a, buf, sizeof(buf));
+	(void) archive_read_next_header(a, &ae);
 
 	EPILOGUE();
 }
@@ -1076,14 +1068,12 @@ DEFINE_TEST(test_read_format_rar5_nonempty_dir_stream)
 
 	PROLOGUE("test_read_format_rar5_nonempty_dir_stream.rar");
 
-	assertA(0 == archive_read_next_header(a, &ae));
-
 	/* This archive is invalid. However, processing it shouldn't cause any
 	 * errors related to buffer overflows when using -fsanitize. */
-	assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
 
-	/* This test only cares about not returning success here. */
-	assertA(ARCHIVE_OK != archive_read_next_header(a, &ae));
+	(void) archive_read_next_header(a, &ae);
+	(void) archive_read_data(a, buf, sizeof(buf));
+	(void) archive_read_next_header(a, &ae);
 
 	EPILOGUE();
 }
@@ -1205,13 +1195,13 @@ DEFINE_TEST(test_read_format_rar5_different_window_size)
 	 * errors during processing. */
 
 	(void) archive_read_next_header(a, &ae);
-	while(0 != archive_read_data(a, buf, sizeof(buf))) {}
+	while(0 < archive_read_data(a, buf, sizeof(buf))) {}
 
 	(void) archive_read_next_header(a, &ae);
-	while(0 != archive_read_data(a, buf, sizeof(buf))) {}
+	while(0 < archive_read_data(a, buf, sizeof(buf))) {}
 
 	(void) archive_read_next_header(a, &ae);
-	while(0 != archive_read_data(a, buf, sizeof(buf))) {}
+	while(0 < archive_read_data(a, buf, sizeof(buf))) {}
 
 	EPILOGUE();
 }
@@ -1226,7 +1216,43 @@ DEFINE_TEST(test_read_format_rar5_arm_filter_on_window_boundary)
 	 * errors during processing. */
 
 	(void) archive_read_next_header(a, &ae);
-	while(0 != archive_read_data(a, buf, sizeof(buf))) {}
+	while(0 < archive_read_data(a, buf, sizeof(buf))) {}
+
+	EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_different_solid_window_size)
+{
+	char buf[4096];
+	PROLOGUE("test_read_format_rar5_different_solid_window_size.rar");
+
+	/* Return codes of those calls are ignored, because this sample file
+	 * is invalid. However, the unpacker shouldn't produce any SIGSEGV
+	 * errors during processing. */
+
+	(void) archive_read_next_header(a, &ae);
+	while(0 < archive_read_data(a, buf, sizeof(buf))) {}
+
+	(void) archive_read_next_header(a, &ae);
+	while(0 < archive_read_data(a, buf, sizeof(buf))) {}
+
+	(void) archive_read_next_header(a, &ae);
+	while(0 < archive_read_data(a, buf, sizeof(buf))) {}
+
+	EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_different_winsize_on_merge)
+{
+	char buf[4096];
+	PROLOGUE("test_read_format_rar5_different_winsize_on_merge.rar");
+
+	/* Return codes of those calls are ignored, because this sample file
+	 * is invalid. However, the unpacker shouldn't produce any SIGSEGV
+	 * errors during processing. */
+
+	(void) archive_read_next_header(a, &ae);
+	while(0 < archive_read_data(a, buf, sizeof(buf))) {}
 
 	EPILOGUE();
 }
