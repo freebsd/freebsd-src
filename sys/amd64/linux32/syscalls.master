@@ -531,7 +531,8 @@
 ; Linux 2.6.18:
 317	AUE_NULL	STD	{ int linux_move_pages(void); }
 ; Linux 2.6.19:
-318	AUE_NULL	STD	{ int linux_getcpu(void); }
+318	AUE_NULL	STD	{ int linux_getcpu(l_uint *cpu, l_uint *node,	\
+				    void *cache); }
 319	AUE_NULL	STD	{ int linux_epoll_pwait(l_int epfd, struct epoll_event *events, \
 				    l_int maxevents, l_int timeout, l_sigset_t *mask, \
 				    l_size_t sigsetsize); }
