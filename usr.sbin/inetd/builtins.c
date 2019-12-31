@@ -649,8 +649,14 @@ ident_stream(int s, struct servtab *sep)
 			goto fakeid_fail;
 		if (!Fflag) {
 			if (iflag) {
-				if (p[strspn(p, "0123456789")] == '\0' &&
-				    getpwuid(atoi(p)) != NULL)
+				const char *errstr;
+				uid_t uid;
+
+				uid = strtonum(p, 0, UID_MAX, &errstr);
+				if (errstr != NULL)
+					goto fakeid_fail;
+
+				if (getpwuid(uid) != NULL)
 					goto fakeid_fail;
 			} else {
 				if (getpwnam(p) != NULL)
