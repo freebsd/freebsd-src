@@ -458,7 +458,9 @@ void ub_comm_base_now(struct comm_base* cb)
 	if(gettimeofday(tv, NULL) < 0) {
 		log_err("gettimeofday: %s", strerror(errno));
 	}
+#ifndef S_SPLINT_S
 	*tt = tv->tv_sec;
+#endif
 #endif /* USE_MINI_EVENT */
 }
 

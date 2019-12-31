@@ -40,3 +40,12 @@ distribution but may be helpful.
   redis backend) redis Python modules.
 * unbound-fuzzme.patch: adds unbound-fuzzme program that parses a packet from
   stdin.  Used with fuzzers, patch from Jacob Hoffman-Andrews.
+* unbound-fuzzers.tar.bz2: three programs for fuzzing, that are 1:1
+  replacements for unbound-fuzzme.c that gets created after applying
+  the contrib/unbound-fuzzme.patch.  They are contributed by
+  Eric Sesterhenn from X41 D-Sec.
+* drop-tld.diff: adds option drop-tld: yesno that drops 2 label queries,
+  to stop random floods.  Apply with patch -p1 < contrib/drop-tld.diff and
+  compile.  From Saksham Manchanda (Secure64).  Please note that we think
+  this will drop DNSKEY and DS lookups for tlds and hence break DNSSEC
+  lookups for downstream clients.

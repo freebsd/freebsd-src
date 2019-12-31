@@ -499,7 +499,7 @@ int remote_accept_callback(struct comm_point* c, void* arg, int err,
 			goto close_exit;
 		}
 		SSL_set_accept_state(n->ssl);
-		(void)SSL_set_mode(n->ssl, SSL_MODE_AUTO_RETRY);
+		(void)SSL_set_mode(n->ssl, (long)SSL_MODE_AUTO_RETRY);
 		if(!SSL_set_fd(n->ssl, newfd)) {
 			log_crypto_err("could not SSL_set_fd");
 			SSL_free(n->ssl);
@@ -674,19 +674,19 @@ static void send_ok(RES* ssl)
 
 /** do the stop command */
 static void
-do_stop(RES* ssl, struct daemon_remote* rc)
+do_stop(RES* ssl, struct worker* worker)
 {
-	rc->worker->need_to_exit = 1;
-	comm_base_exit(rc->worker->base);
+	worker->need_to_exit = 1;
+	comm_base_exit(worker->base);
 	send_ok(ssl);
 }
 
 /** do the reload command */
 static void
-do_reload(RES* ssl, struct daemon_remote* rc)
+do_reload(RES* ssl, struct worker* worker)
 {
-	rc->worker->need_to_exit = 0;
-	comm_base_exit(rc->worker->base);
+	worker->need_to_exit = 0;
+	comm_base_exit(worker->base);
 	send_ok(ssl);
 }
 
@@ -1070,9 +1070,9 @@ print_ext(RES* ssl, struct ub_stats_info* s)
 
 /** do the stats command */
 static void
-do_stats(RES* ssl, struct daemon_remote* rc, int reset)
+do_stats(RES* ssl, struct worker* worker, int reset)
 {
-	struct daemon* daemon = rc->worker->daemon;
+	struct daemon* daemon = worker->daemon;
 	struct ub_stats_info total;
 	struct ub_stats_info s;
 	int i;
@@ -1080,7 +1080,7 @@ do_stats(RES* ssl, struct daemon_remote* rc, int reset)
 	log_assert(daemon->num > 0);
 	/* gather all thread statistics in one place */
 	for(i=0; i<daemon->num; i++) {
-		server_stats_obtain(rc->worker, daemon->workers[i], &s, reset);
+		server_stats_obtain(worker, daemon->workers[i], &s, reset);
 		if(!print_thread_stats(ssl, i, &s))
 			return;
 		if(i == 0)
@@ -1091,10 +1091,10 @@ do_stats(RES* ssl, struct daemon_remote* rc, int reset)
 	total.mesh_time_median /= (double)daemon->num;
 	if(!print_stats(ssl, "total", &total)) 
 		return;
-	if(!print_uptime(ssl, rc->worker, reset))
+	if(!print_uptime(ssl, worker, reset))
 		return;
 	if(daemon->cfg->stat_extended) {
-		if(!print_mem(ssl, rc->worker, daemon, &total)) 
+		if(!print_mem(ssl, worker, daemon, &total))
 			return;
 		if(!print_hist(ssl, &total))
 			return;
@@ -2851,16 +2851,16 @@ execute_cmd(struct daemon_remote* rc, RES* ssl, char* cmd,
 	char* p = skipwhite(cmd);
 	/* compare command */
 	if(cmdcmp(p, "stop", 4)) {
-		do_stop(ssl, rc);
+		do_stop(ssl, worker);
 		return;
 	} else if(cmdcmp(p, "reload", 6)) {
-		do_reload(ssl, rc);
+		do_reload(ssl, worker);
 		return;
 	} else if(cmdcmp(p, "stats_noreset", 13)) {
-		do_stats(ssl, rc, 0);
+		do_stats(ssl, worker, 0);
 		return;
 	} else if(cmdcmp(p, "stats", 5)) {
-		do_stats(ssl, rc, 1);
+		do_stats(ssl, worker, 1);
 		return;
 	} else if(cmdcmp(p, "status", 6)) {
 		do_status(ssl, worker);
@@ -3125,7 +3125,7 @@ remote_handshake_later(struct daemon_remote* rc, struct rc_state* s,
 	} else {
 		if(r == 0)
 			log_err("remote control connection closed prematurely");
-		log_addr(1, "failed connection from",
+		log_addr(VERB_OPS, "failed connection from",
 			&s->c->repinfo.addr, s->c->repinfo.addrlen);
 		log_crypto_err("remote control failed ssl");
 		clean_point(rc, s);

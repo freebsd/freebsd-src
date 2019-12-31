@@ -60,6 +60,9 @@
 #ifdef CLIENT_SUBNET
 #include "edns-subnet/subnetmod.h"
 #endif
+#ifdef USE_IPSET
+#include "ipset/ipset.h"
+#endif
 
 /** count number of modules (words) in the string */
 static int
@@ -146,6 +149,9 @@ module_list_avail(void)
 #ifdef CLIENT_SUBNET
 		"subnetcache",
 #endif
+#ifdef USE_IPSET
+                "ipset",
+#endif
 		"respip",
 		"validator",
 		"iterator",
@@ -173,6 +179,9 @@ module_funcs_avail(void)
 #endif
 #ifdef CLIENT_SUBNET
 		&subnetmod_get_funcblock,
+#endif
+#ifdef USE_IPSET
+		&ipset_get_funcblock,
 #endif
 		&respip_get_funcblock,
 		&val_get_funcblock,

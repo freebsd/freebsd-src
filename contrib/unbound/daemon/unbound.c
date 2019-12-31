@@ -88,31 +88,20 @@
 #  include "nss.h"
 #endif
 
-/** print usage. */
-static void usage(void)
+/** print build options. */
+static void
+print_build_options(void)
 {
 	const char** m;
 	const char *evnm="event", *evsys="", *evmethod="";
 	time_t t;
 	struct timeval now;
 	struct ub_event_base* base;
-	printf("usage:  local-unbound [options]\n");
-	printf("	start unbound daemon DNS resolver.\n");
-	printf("-h	this help\n");
-	printf("-c file	config file to read instead of %s\n", CONFIGFILE);
-	printf("	file format is described in unbound.conf(5).\n");
-	printf("-d	do not fork into the background.\n");
-	printf("-p	do not create a pidfile.\n");
-	printf("-v	verbose (more times to increase verbosity)\n");
-#ifdef UB_ON_WINDOWS
-	printf("-w opt	windows option: \n");
-	printf("   	install, remove - manage the services entry\n");
-	printf("   	service - used to start from services control panel\n");
-#endif
-	printf("Version %s\n", PACKAGE_VERSION);
+	printf("Version %s\n\n", PACKAGE_VERSION);
+	printf("Configure line: %s\n", CONFCMDLINE);
 	base = ub_default_event_base(0,&t,&now);
 	ub_get_event_sys(base, &evnm, &evsys, &evmethod);
-	printf("linked libs: %s %s (it uses %s), %s\n", 
+	printf("Linked libs: %s %s (it uses %s), %s\n",
 		evnm, evsys, evmethod,
 #ifdef HAVE_SSL
 #  ifdef SSLEAY_VERSION
@@ -126,16 +115,42 @@ static void usage(void)
 		"nettle"
 #endif
 		);
-	printf("linked modules:");
+	printf("Linked modules:");
 	for(m = module_list_avail(); *m; m++)
 		printf(" %s", *m);
 	printf("\n");
 #ifdef USE_DNSCRYPT
 	printf("DNSCrypt feature available\n");
 #endif
+#ifdef USE_TCP_FASTOPEN
+	printf("TCP Fastopen feature available\n");
+#endif
+	ub_event_base_free(base);
+	printf("\nBSD licensed, see LICENSE in source package for details.\n");
+	printf("Report bugs to %s\n", PACKAGE_BUGREPORT);
+}
+
+/** print usage. */
+static void
+usage(void)
+{
+	printf("usage:  unbound [options]\n");
+	printf("	start unbound daemon DNS resolver.\n");
+	printf("-h	this help.\n");
+	printf("-c file	config file to read instead of %s\n", CONFIGFILE);
+	printf("	file format is described in unbound.conf(5).\n");
+	printf("-d	do not fork into the background.\n");
+	printf("-p	do not create a pidfile.\n");
+	printf("-v	verbose (more times to increase verbosity).\n");
+	printf("-V	show version number and build options.\n");
+#ifdef UB_ON_WINDOWS
+	printf("-w opt	windows option: \n");
+	printf("   	install, remove - manage the services entry\n");
+	printf("   	service - used to start from services control panel\n");
+#endif
+	printf("\nVersion %s\n", PACKAGE_VERSION);
 	printf("BSD licensed, see LICENSE in source package for details.\n");
 	printf("Report bugs to %s\n", PACKAGE_BUGREPORT);
-	ub_event_base_free(base);
 }
 
 #ifndef unbound_testbound
@@ -720,7 +735,7 @@ main(int argc, char* argv[])
 	log_ident_default = strrchr(argv[0],'/')?strrchr(argv[0],'/')+1:argv[0];
 	log_ident_set(log_ident_default);
 	/* parse the options */
-	while( (c=getopt(argc, argv, "c:dhpvw:")) != -1) {
+	while( (c=getopt(argc, argv, "c:dhpvw:V")) != -1) {
 		switch(c) {
 		case 'c':
 			cfgfile = optarg;
@@ -741,6 +756,9 @@ main(int argc, char* argv[])
 		case 'w':
 			winopt = optarg;
 			break;
+		case 'V':
+			print_build_options();
+			return 0;
 		case '?':
 		case 'h':
 		default:
@@ -769,7 +787,7 @@ main(int argc, char* argv[])
 	log_init(NULL, 0, NULL); /* close logfile */
 #ifndef unbound_testbound
 	if(log_get_lock()) {
-		lock_quick_destroy((lock_quick_type*)log_get_lock());
+		lock_basic_destroy((lock_basic_type*)log_get_lock());
 	}
 #endif
 	return 0;

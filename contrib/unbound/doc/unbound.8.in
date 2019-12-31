@@ -1,4 +1,4 @@
-.TH "unbound" "8" "Jun 17, 2019" "NLnet Labs" "unbound 1.9.2"
+.TH "unbound" "8" "dec 12, 2019" "NLnet Labs" "unbound 1.9.6"
 .\"
 .\" unbound.8 -- unbound manual
 .\"
@@ -9,7 +9,7 @@
 .\"
 .SH "NAME"
 .B unbound
-\- Unbound DNS validating resolver 1.9.2.
+\- Unbound DNS validating resolver 1.9.6.
 .SH "SYNOPSIS"
 .B unbound
 .RB [ \-h ]
@@ -54,7 +54,7 @@ resolvers are using the same port number (53).
 The available options are:
 .TP
 .B \-h
-Show the version and commandline option help.
+Show the version number and commandline option help, and exit.
 .TP
 .B \-c\fI cfgfile
 Set the config file with settings for unbound to read instead of reading the
@@ -76,6 +76,9 @@ concurrently.
 .B \-v
 Increase verbosity. If given multiple times, more information is logged.
 This is in addition to the verbosity (if any) from the config file.
+.TP
+.B \-V
+Show the version number and build options, and exit.
 .SH "SEE ALSO"
 \fIunbound.conf\fR(5),
 \fIunbound\-checkconf\fR(8),

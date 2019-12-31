@@ -2,6 +2,7 @@
 
 [![Travis Build Status](https://travis-ci.org/NLnetLabs/unbound.svg?branch=master)](https://travis-ci.org/NLnetLabs/unbound)
 [![Packaging status](https://repology.org/badge/tiny-repos/unbound.svg)](https://repology.org/project/unbound/versions)
+[![Fuzzing Status](https://oss-fuzz-build-logs.storage.googleapis.com/badges/unbound.svg)](https://bugs.chromium.org/p/oss-fuzz/issues/list?sort=-opened&can=1&q=proj:unbound)
 
 Unbound is a validating, recursive, caching DNS resolver. It is designed to be
 fast and lean and incorporates modern features based on open standards. If you

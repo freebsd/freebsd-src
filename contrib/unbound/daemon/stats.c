@@ -77,7 +77,7 @@ stats_timeval_add(long long* d_sec, long long* d_usec, long long add_sec, long l
 #ifndef S_SPLINT_S
 	(*d_sec) += add_sec;
 	(*d_usec) += add_usec;
-	if((*d_usec) > 1000000) {
+	if((*d_usec) >= 1000000) {
 		(*d_usec) -= 1000000;
 		(*d_sec)++;
 	}
