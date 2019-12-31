@@ -16,6 +16,9 @@
 /* Do sha512 definitions in config.h */
 /* #undef COMPAT_SHA512 */
 
+/* Command line arguments used with configure */
+#define CONFCMDLINE "--with-ssl=/usr --with-libexpat=/usr --disable-dnscrypt --disable-dnstap --enable-ecdsa --disable-event-api --enable-gost --with-libevent --disable-subnet --disable-tfo-client --disable-tfo-server --with-pthreads--prefix=/usr --localstatedir=/var/unbound --mandir=/usr/share/man --build=freebsd"
+
 /* Pathname to the Unbound configuration file */
 #define CONFIGFILE "/var/unbound/unbound.conf"
 
@@ -117,7 +120,7 @@
 
 /* Define to 1 if you have the declaration of `reallocarray', and to 0 if you
    don't. */
-/* #undef HAVE_DECL_REALLOCARRAY */
+#define HAVE_DECL_REALLOCARRAY 1
 
 /* Define to 1 if you have the declaration of `redisConnect', and to 0 if you
    don't. */
@@ -618,6 +621,9 @@
 /* Define to 1 if you have the `_beginthreadex' function. */
 /* #undef HAVE__BEGINTHREADEX */
 
+/* If HMAC_Init_ex() returns void */
+/* #undef HMAC_INIT_EX_RETURNS_VOID */
+
 /* if lex has yylex_destroy */
 #define LEX_HAS_YYLEX_DESTROY 1
 
@@ -665,13 +671,13 @@
 /* #undef OMITTED__D__EXTENSIONS__ */
 
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "unbound-bugs@nlnetlabs.nl"
+#define PACKAGE_BUGREPORT "unbound-bugs@nlnetlabs.nl or https://github.com/NLnetLabs/unbound/issues"
 
 /* Define to the full name of this package. */
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.9.2"
+#define PACKAGE_STRING "unbound 1.9.6"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -680,7 +686,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.9.2"
+#define PACKAGE_VERSION "1.9.6"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -702,7 +708,7 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,9,2,0
+#define RSRC_PACKAGE_VERSION 1,9,6,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"
@@ -710,8 +716,19 @@
 /* Shared data */
 #define SHARE_DIR "/var/unbound"
 
+/* The size of `size_t'. */
+#ifdef  __LP64__
+#define SIZEOF_SIZE_T 8
+#else
+#define SIZEOF_SIZE_T 4
+#endif
+
 /* The size of `time_t', as computed by sizeof. */
+#ifdef  __i386__
+#define SIZEOF_TIME_T 4
+#else
 #define SIZEOF_TIME_T 8
+#endif
 
 /* define if (v)snprintf does not return length needed, (but length used) */
 /* #undef SNPRINTF_RET_BROKEN */
@@ -727,6 +744,9 @@
 
 /* Use win32 resources and API */
 /* #undef UB_ON_WINDOWS */
+
+/* the SYSLOG_FACILITY to use, default LOG_DAEMON */
+#define UB_SYSLOG_FACILITY LOG_DAEMON
 
 /* default username */
 #define UB_USERNAME "unbound"
@@ -775,6 +795,9 @@
 
 /* Define to 1 to use ipsecmod support. */
 /* #undef USE_IPSECMOD */
+
+/* Define to 1 to use ipset support */
+/* #undef USE_IPSET */
 
 /* Define if you want to use internal select based events */
 #define USE_MINI_EVENT 1
@@ -1213,6 +1236,10 @@ struct tm;
 char *strptime(const char *s, const char *format, struct tm *tm);
 #endif
 
+#if !HAVE_DECL_REALLOCARRAY
+void *reallocarray(void *ptr, size_t nmemb, size_t size);
+#endif
+
 #ifdef HAVE_LIBRESSL
 #  if !HAVE_DECL_STRLCPY
 size_t strlcpy(char *dst, const char *src, size_t siz);
@@ -1225,9 +1252,6 @@ uint32_t arc4random(void);
 #  endif
 #  if !HAVE_DECL_ARC4RANDOM_UNIFORM && defined(HAVE_ARC4RANDOM_UNIFORM)
 uint32_t arc4random_uniform(uint32_t upper_bound);
-#  endif
-#  if !HAVE_DECL_REALLOCARRAY
-void *reallocarray(void *ptr, size_t nmemb, size_t size);
 #  endif
 #endif /* HAVE_LIBRESSL */
 #ifndef HAVE_ARC4RANDOM

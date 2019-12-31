@@ -1001,7 +1001,7 @@ tcp_callback_writer(struct comm_point* c)
 		tcp_req_info_handle_writedone(c->tcp_req_info);
 	} else {
 		comm_point_stop_listening(c);
-		comm_point_start_listening(c, -1, -1);
+		comm_point_start_listening(c, -1, c->tcp_timeout_msec);
 	}
 }
 
@@ -1052,6 +1052,35 @@ log_cert(unsigned level, const char* str, X509* cert)
 }
 #endif /* HAVE_SSL */
 
+#ifdef HAVE_SSL
+/** true if the ssl handshake error has to be squelched from the logs */
+static int
+squelch_err_ssl_handshake(unsigned long err)
+{
+	if(verbosity >= VERB_QUERY)
+		return 0; /* only squelch on low verbosity */
+	/* this is very specific, we could filter on ERR_GET_REASON()
+	 * (the third element in ERR_PACK) */
+	if(err == ERR_PACK(ERR_LIB_SSL, SSL_F_SSL3_GET_RECORD, SSL_R_HTTPS_PROXY_REQUEST) ||
+		err == ERR_PACK(ERR_LIB_SSL, SSL_F_SSL3_GET_RECORD, SSL_R_HTTP_REQUEST) ||
+		err == ERR_PACK(ERR_LIB_SSL, SSL_F_SSL3_GET_RECORD, SSL_R_WRONG_VERSION_NUMBER) ||
+		err == ERR_PACK(ERR_LIB_SSL, SSL_F_SSL3_READ_BYTES, SSL_R_SSLV3_ALERT_BAD_CERTIFICATE)
+#ifdef SSL_F_TLS_POST_PROCESS_CLIENT_HELLO
+		|| err == ERR_PACK(ERR_LIB_SSL, SSL_F_TLS_POST_PROCESS_CLIENT_HELLO, SSL_R_NO_SHARED_CIPHER)
+#endif
+#ifdef SSL_F_TLS_EARLY_POST_PROCESS_CLIENT_HELLO
+		|| err == ERR_PACK(ERR_LIB_SSL, SSL_F_TLS_EARLY_POST_PROCESS_CLIENT_HELLO, SSL_R_UNKNOWN_PROTOCOL)
+		|| err == ERR_PACK(ERR_LIB_SSL, SSL_F_TLS_EARLY_POST_PROCESS_CLIENT_HELLO, SSL_R_UNSUPPORTED_PROTOCOL)
+#  ifdef SSL_R_VERSION_TOO_LOW
+		|| err == ERR_PACK(ERR_LIB_SSL, SSL_F_TLS_EARLY_POST_PROCESS_CLIENT_HELLO, SSL_R_VERSION_TOO_LOW)
+#  endif
+#endif
+		)
+		return 1;
+	return 0;
+}
+#endif /* HAVE_SSL */
+
 /** continue ssl handshake */
 #ifdef HAVE_SSL
 static int
@@ -1096,9 +1125,12 @@ ssl_handshake(struct comm_point* c)
 					strerror(errno));
 			return 0;
 		} else {
-			log_crypto_err("ssl handshake failed");
-			log_addr(1, "ssl handshake failed", &c->repinfo.addr,
-				c->repinfo.addrlen);
+			unsigned long err = ERR_get_error();
+			if(!squelch_err_ssl_handshake(err)) {
+				log_crypto_err_code("ssl handshake failed", err);
+				log_addr(VERB_OPS, "ssl handshake failed", &c->repinfo.addr,
+					c->repinfo.addrlen);
+			}
 			return 0;
 		}
 	}
@@ -1277,7 +1309,7 @@ ssl_handle_write(struct comm_point* c)
 			return 1;
 	}
 	/* ignore return, if fails we may simply block */
-	(void)SSL_set_mode(c->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE);
+	(void)SSL_set_mode(c->ssl, (long)SSL_MODE_ENABLE_PARTIAL_WRITE);
 	if(c->tcp_byte_count < sizeof(uint16_t)) {
 		uint16_t len = htons(sldns_buffer_limit(c->buffer));
 		ERR_clear_error();
@@ -3159,7 +3191,7 @@ comm_point_drop_reply(struct comm_reply* repinfo)
 {
 	if(!repinfo)
 		return;
-	log_assert(repinfo && repinfo->c);
+	log_assert(repinfo->c);
 	log_assert(repinfo->c->type != comm_tcp_accept);
 	if(repinfo->c->type == comm_udp)
 		return;

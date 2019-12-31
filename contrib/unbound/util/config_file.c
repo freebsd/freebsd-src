@@ -255,6 +255,9 @@ config_create(void)
 	cfg->neg_cache_size = 1 * 1024 * 1024;
 	cfg->local_zones = NULL;
 	cfg->local_zones_nodefault = NULL;
+#ifdef USE_IPSET
+	cfg->local_zones_ipset = NULL;
+#endif
 	cfg->local_zones_disable_default = 0;
 	cfg->local_data = NULL;
 	cfg->local_zone_overrides = NULL;
@@ -327,9 +330,13 @@ config_create(void)
 	cfg->cachedb_backend = NULL;
 	cfg->cachedb_secret = NULL;
 #endif
+#ifdef USE_IPSET
+	cfg->ipset_name_v4 = NULL;
+	cfg->ipset_name_v6 = NULL;
+#endif
 	return cfg;
 error_exit:
-	config_delete(cfg); 
+	config_delete(cfg);
 	return NULL;
 }
 
@@ -602,7 +609,7 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_STR("control-key-file:", control_key_file)
 	else S_STR("control-cert-file:", control_cert_file)
 	else S_STR("module-config:", module_conf)
-	else S_STR("python-script:", python_script)
+	else S_STRLIST("python-script:", python_script)
 	else S_YNO("disable-dnssec-lame-check:", disable_dnssec_lame_check)
 #ifdef CLIENT_SUBNET
 	/* Can't set max subnet prefix here, since that value is used when
@@ -1054,7 +1061,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_YNO(opt, "unblock-lan-zones", unblock_lan_zones)
 	else O_YNO(opt, "insecure-lan-zones", insecure_lan_zones)
 	else O_DEC(opt, "max-udp-size", max_udp_size)
-	else O_STR(opt, "python-script", python_script)
+	else O_LST(opt, "python-script", python_script)
 	else O_YNO(opt, "disable-dnssec-lame-check", disable_dnssec_lame_check)
 	else O_DEC(opt, "ip-ratelimit", ip_ratelimit)
 	else O_DEC(opt, "ratelimit", ratelimit)
@@ -1091,6 +1098,10 @@ config_get_option(struct config_file* cfg, const char* opt,
 #ifdef USE_CACHEDB
 	else O_STR(opt, "backend", cachedb_backend)
 	else O_STR(opt, "secret-seed", cachedb_secret)
+#endif
+#ifdef USE_IPSET
+	else O_STR(opt, "name-v4", ipset_name_v4)
+	else O_STR(opt, "name-v6", ipset_name_v6)
 #endif
 	/* not here:
 	 * outgoing-permit, outgoing-avoid - have list of ports
@@ -1310,6 +1321,9 @@ config_delview(struct config_view* p)
 	free(p->name);
 	config_deldblstrlist(p->local_zones);
 	config_delstrlist(p->local_zones_nodefault);
+#ifdef USE_IPSET
+	config_delstrlist(p->local_zones_ipset);
+#endif
 	config_delstrlist(p->local_data);
 	free(p);
 }
@@ -1384,7 +1398,6 @@ config_delete(struct config_file* cfg)
 	free(cfg->version);
 	free(cfg->module_conf);
 	free(cfg->outgoing_avail_ports);
-	free(cfg->python_script);
 	config_delstrlist(cfg->caps_whitelist);
 	config_delstrlist(cfg->private_address);
 	config_delstrlist(cfg->private_domain);
@@ -1400,6 +1413,9 @@ config_delete(struct config_file* cfg)
 	free(cfg->val_nsec3_key_iterations);
 	config_deldblstrlist(cfg->local_zones);
 	config_delstrlist(cfg->local_zones_nodefault);
+#ifdef USE_IPSET
+	config_delstrlist(cfg->local_zones_ipset);
+#endif
 	config_delstrlist(cfg->local_data);
 	config_deltrplstrlist(cfg->local_zone_overrides);
 	config_del_strarray(cfg->tagname, cfg->num_tags);
@@ -1420,6 +1436,7 @@ config_delete(struct config_file* cfg)
 	free(cfg->dnstap_version);
 	config_deldblstrlist(cfg->ratelimit_for_domain);
 	config_deldblstrlist(cfg->ratelimit_below_domain);
+	config_delstrlist(cfg->python_script);
 #ifdef USE_IPSECMOD
 	free(cfg->ipsecmod_hook);
 	config_delstrlist(cfg->ipsecmod_whitelist);
@@ -1427,6 +1444,10 @@ config_delete(struct config_file* cfg)
 #ifdef USE_CACHEDB
 	free(cfg->cachedb_backend);
 	free(cfg->cachedb_secret);
+#endif
+#ifdef USE_IPSET
+	free(cfg->ipset_name_v4);
+	free(cfg->ipset_name_v6);
 #endif
 	free(cfg);
 }
@@ -1628,6 +1649,31 @@ cfg_strlist_insert(struct config_strlist** head, char* item)
 	s->next = *head;
 	*head = s;
 	return 1;
+}
+
+int
+cfg_strlist_append_ex(struct config_strlist** head, char* item)
+{
+	struct config_strlist *s;
+	if(!item || !head)
+		return 0;
+	s = (struct config_strlist*)calloc(1, sizeof(struct config_strlist));
+	if(!s)
+		return 0;
+	s->str = item;
+	s->next = NULL;
+	
+	if (*head==NULL) {
+		*head = s;
+	} else {
+		struct config_strlist *last = *head;
+		while (last->next!=NULL) {
+		    last = last->next;
+		}
+		last->next = s;
+	}
+	
+	return 1;  
 }
 
 int 
@@ -2107,6 +2153,11 @@ cfg_parse_local_zone(struct config_file* cfg, const char* val)
 	if(strcmp(type, "nodefault")==0) {
 		return cfg_strlist_insert(&cfg->local_zones_nodefault, 
 			strdup(name));
+#ifdef USE_IPSET
+	} else if(strcmp(type, "ipset")==0) {
+		return cfg_strlist_insert(&cfg->local_zones_ipset, 
+			strdup(name));
+#endif
 	} else {
 		return cfg_str2list_insert(&cfg->local_zones, strdup(buf),
 			strdup(type));
@@ -2381,3 +2432,4 @@ int options_remote_is_address(struct config_file* cfg)
 	if(cfg->control_ifs.first->str[0] == 0) return 1;
 	return (cfg->control_ifs.first->str[0] != '/');
 }
+

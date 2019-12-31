@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Jun 17, 2019" "NLnet Labs" "unbound 1.9.2"
+.TH "unbound.conf" "5" "dec 12, 2019" "NLnet Labs" "unbound 1.9.6"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -50,7 +50,7 @@ server:
 	username: unbound
 	# make sure unbound can access entropy from inside the chroot.
 	# e.g. on linux the use these commands (on BSD, devfs(8) is used):
-	#      mount \-\-bind \-n /dev/random /etc/unbound/dev/random
+	#      mount \-\-bind \-n /dev/urandom /etc/unbound/dev/urandom
 	# and  mount \-\-bind \-n /dev/log /etc/unbound/dev/log
 	chroot: "/etc/unbound"
 	# logfile: "/etc/unbound/unbound.log"  #uncomment to use logfile.
@@ -629,9 +629,11 @@ In the last case the path is adjusted to remove the unused portion.
 The pidfile can be either a relative path to the working directory, or
 an absolute path relative to the original root. It is written just prior
 to chroot and dropping permissions. This allows the pidfile to be
-/var/run/unbound.pid and the chroot to be /var/unbound, for example.
+/var/run/unbound.pid and the chroot to be /var/unbound, for example. Note that
+Unbound is not able to remove the pidfile after termination when it is located
+outside of the chroot directory.
 .IP
-Additionally, unbound may need to access /dev/random (for entropy)
+Additionally, unbound may need to access /dev/urandom (for entropy)
 from inside the chroot.
 .IP
 If given a chroot is done to the given directory. By default chroot is
@@ -773,7 +775,7 @@ wise to send these, and could be necessary for operation if TSIG or EDNS
 payload is very large.
 .TP
 .B harden\-glue: \fI<yes or no>
-Will trust glue only if it is within the servers authority. Default is on.
+Will trust glue only if it is within the servers authority. Default is yes.
 .TP
 .B harden\-dnssec\-stripped: \fI<yes or no>
 Require DNSSEC data for trust\-anchored zones, if such data is absent,
@@ -783,7 +785,7 @@ this behaves like there is no trust anchor. You could turn this off if
 you are sometimes behind an intrusive firewall (of some sort) that
 removes DNSSEC data from packets, or a zone changes from signed to
 unsigned to badly signed often. If turned off you run the risk of a
-downgrade attack that disables security for a zone. Default is on.
+downgrade attack that disables security for a zone. Default is yes.
 .TP
 .B harden\-below\-nxdomain: \fI<yes or no>
 From RFC 8020 (with title "NXDOMAIN: There Really Is Nothing Underneath"),
@@ -793,7 +795,7 @@ noerror for empty nonterminals, hence this is possible.  Very old software
 might return nxdomain for empty nonterminals (that usually happen for reverse
 IP address lookups), and thus may be incompatible with this.  To try to avoid
 this only DNSSEC-secure nxdomains are used, because the old software does not
-have DNSSEC.  Default is on.
+have DNSSEC.  Default is yes.
 The nxdomain must be secure, this means nsec3 with optout is insufficient.
 .TP
 .B harden\-referral\-path: \fI<yes or no>
@@ -947,7 +949,7 @@ Default is "", or no trust anchor file.
 .TP
 .B auto\-trust\-anchor\-file: \fI<filename>
 File with trust anchor for one zone, which is tracked with RFC5011 probes.
-The probes are several times per month, thus the machine must be online
+The probes are run several times per month, thus the machine must be online
 frequently.  The initial file can be one with contents as described in
 \fBtrust\-anchor\-file\fR.  The file is written to when the anchor is updated,
 so the unbound user must have write permission.  Write permission to the file,
@@ -972,10 +974,10 @@ It is possible to use wildcards with this statement, the wildcard is
 expanded on start and on reload.
 .TP
 .B trust\-anchor\-signaling: \fI<yes or no>
-Send RFC8145 key tag query after trust anchor priming. Default is on.
+Send RFC8145 key tag query after trust anchor priming. Default is yes.
 .TP
 .B root\-key\-sentinel: \fI<yes or no>
-Root key trust anchor sentinel. Default is on.
+Root key trust anchor sentinel. Default is yes.
 .TP
 .B dlv\-anchor\-file: \fI<filename>
 This option was used during early days DNSSEC deployment when no parent-side
@@ -1768,7 +1770,8 @@ clause gives the settings for the \fIpython\fR(1) script module.  This module
 acts like the iterator and validator modules do, on queries and answers.
 To enable the script module it has to be compiled into the daemon,
 and the word "python" has to be put in the \fBmodule\-config:\fR option
-(usually first, or between the validator and iterator).
+(usually first, or between the validator and iterator). Multiple instances of
+the python module are supported by adding the word "python" more than once.
 .LP
 If the \fBchroot:\fR option is enabled, you should make sure Python's
 library directory structure is bind mounted in the new root environment, see
@@ -1777,7 +1780,8 @@ absolute path relative to the new root, or as a relative path to the working
 directory.
 .TP
 .B python\-script: \fI<python file>\fR
-The script file to load.
+The script file to load. Repeat this option for every python module instance
+added to the \fBmodule\-config:\fR option.
 .SS "DNS64 Module Options"
 .LP
 The dns64 module must be configured in the \fBmodule\-config:\fR "dns64

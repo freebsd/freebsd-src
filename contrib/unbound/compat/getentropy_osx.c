@@ -1,4 +1,4 @@
-/*	$OpenBSD: getentropy_osx.c,v 1.3 2014/07/12 14:48:00 deraadt Exp $	*/
+/*	$OpenBSD: getentropy_osx.c,v 1.12 2018/11/20 08:04:28 deraadt Exp $	*/
 
 /*
  * Copyright (c) 2014 Theo de Raadt <deraadt@openbsd.org>
@@ -15,9 +15,12 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ * Emulation of getentropy(2) as documented at:
+ * http://man.openbsd.org/getentropy.2
  */
-#include "config.h"
 
+#include <TargetConditionals.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
@@ -43,14 +46,18 @@
 #include <mach/mach_time.h>
 #include <mach/mach_host.h>
 #include <mach/host_info.h>
+#if TARGET_OS_OSX
 #include <sys/socketvar.h>
 #include <sys/vmmeter.h>
+#endif
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#if TARGET_OS_OSX
 #include <netinet/udp.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp_var.h>
 #include <netinet/udp_var.h>
+#endif
 #include <CommonCrypto/CommonDigest.h>
 #define SHA512_Update(a, b, c)	(CC_SHA512_Update((a), (b), (c)))
 #define SHA512_Init(xxx) (CC_SHA512_Init((xxx)))
@@ -75,10 +82,6 @@
 
 int	getentropy(void *buf, size_t len);
 
-#ifdef CAN_REFERENCE_MAIN
-extern int main(int, char *argv[]);
-#endif
-static int gotdata(char *buf, size_t len);
 static int getentropy_urandom(void *buf, size_t len);
 static int getentropy_fallback(void *buf, size_t len);
 
@@ -89,7 +92,7 @@ getentropy(void *buf, size_t len)
 
 	if (len > 256) {
 		errno = EIO;
-		return -1;
+		return (-1);
 	}
 
 	/*
@@ -138,22 +141,6 @@ getentropy(void *buf, size_t len)
 	return (ret);
 }
 
-/*
- * Basic sanity checking; wish we could do better.
- */
-static int
-gotdata(char *buf, size_t len)
-{
-	char	any_set = 0;
-	size_t	i;
-
-	for (i = 0; i < len; ++i)
-		any_set |= buf[i];
-	if (any_set == 0)
-		return -1;
-	return 0;
-}
-
 static int
 getentropy_urandom(void *buf, size_t len)
 {
@@ -188,7 +175,7 @@ start:
 	}
 	for (i = 0; i < len; ) {
 		size_t wanted = len - i;
-		ssize_t ret = read(fd, (char*)buf + i, wanted);
+		ssize_t ret = read(fd, (char *)buf + i, wanted);
 
 		if (ret == -1) {
 			if (errno == EAGAIN || errno == EINTR)
@@ -199,18 +186,18 @@ start:
 		i += ret;
 	}
 	close(fd);
-	if (gotdata(buf, len) == 0) {
-		errno = save_errno;
-		return 0;		/* satisfied */
-	}
+	errno = save_errno;
+	return (0);		/* satisfied */
 nodevrandom:
 	errno = EIO;
-	return -1;
+	return (-1);
 }
 
+#if TARGET_OS_OSX
 static int tcpmib[] = { CTL_NET, AF_INET, IPPROTO_TCP, TCPCTL_STATS };
 static int udpmib[] = { CTL_NET, AF_INET, IPPROTO_UDP, UDPCTL_STATS };
 static int ipmib[] = { CTL_NET, AF_INET, IPPROTO_IP, IPCTL_STATS };
+#endif
 static int kmib[] = { CTL_KERN, KERN_USRSTACK };
 static int hwmib[] = { CTL_HW, HW_USERMEM };
 
@@ -230,9 +217,11 @@ getentropy_fallback(void *buf, size_t len)
 	pid_t pid;
 	size_t i, ii, m;
 	char *p;
+#if TARGET_OS_OSX
 	struct tcpstat tcpstat;
 	struct udpstat udpstat;
 	struct ipstat ipstat;
+#endif
 	u_int64_t mach_time;
 	unsigned int idata;
 	void *addr;
@@ -267,6 +256,7 @@ getentropy_fallback(void *buf, size_t len)
 			HX(sysctl(hwmib, sizeof(hwmib) / sizeof(hwmib[0]),
 			    &idata, &ii, NULL, 0) == -1, idata);
 
+#if TARGET_OS_OSX
 			ii = sizeof(tcpstat);
 			HX(sysctl(tcpmib, sizeof(tcpmib) / sizeof(tcpmib[0]),
 			    &tcpstat, &ii, NULL, 0) == -1, tcpstat);
@@ -278,6 +268,7 @@ getentropy_fallback(void *buf, size_t len)
 			ii = sizeof(ipstat);
 			HX(sysctl(ipmib, sizeof(ipmib) / sizeof(ipmib[0]),
 			    &ipstat, &ii, NULL, 0) == -1, ipstat);
+#endif
 
 			HX((pid = getpid()) == -1, pid);
 			HX((pid = getsid(pid)) == -1, pid);
@@ -295,9 +286,6 @@ getentropy_fallback(void *buf, size_t len)
 			HX(sigprocmask(SIG_BLOCK, NULL, &sigset) == -1,
 			    sigset);
 
-#ifdef CAN_REFERENCE_MAIN
-			HF(main);		/* an addr in program */
-#endif
 			HF(getentropy);	/* an addr in this library */
 			HF(printf);		/* an addr in libc */
 			p = (char *)&p;
@@ -419,14 +407,11 @@ getentropy_fallback(void *buf, size_t len)
 		}
 
 		SHA512_Final(results, &ctx);
-		memcpy((char*)buf + i, results, min(sizeof(results), len - i));
+		memcpy((char *)buf + i, results, min(sizeof(results), len - i));
 		i += min(sizeof(results), len - i);
 	}
-	memset(results, 0, sizeof results);
-	if (gotdata(buf, len) == 0) {
-		errno = save_errno;
-		return 0;		/* satisfied */
-	}
-	errno = EIO;
-	return -1;
+	explicit_bzero(&ctx, sizeof ctx);
+	explicit_bzero(results, sizeof results);
+	errno = save_errno;
+	return (0);		/* satisfied */
 }

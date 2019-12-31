@@ -79,18 +79,21 @@
 #include <iphlpapi.h>
 #endif /* UB_ON_WINDOWS */
 
+/** store that the logfile has a debug override */
+int ctx_logfile_overridden = 0;
+
 /** create context functionality, but no pipes */
 static struct ub_ctx* ub_ctx_create_nopipe(void)
 {
 	struct ub_ctx* ctx;
-	unsigned int seed;
 #ifdef USE_WINSOCK
 	int r;
 	WSADATA wsa_data;
 #endif
 	
 	checklock_start();
-	log_init(NULL, 0, NULL); /* logs to stderr */
+	if(!ctx_logfile_overridden)
+		log_init(NULL, 0, NULL); /* logs to stderr */
 	log_ident_set("libunbound");
 #ifdef USE_WINSOCK
 	if((r = WSAStartup(MAKEWORD(2,2), &wsa_data)) != 0) {
@@ -99,7 +102,7 @@ static struct ub_ctx* ub_ctx_create_nopipe(void)
 		return NULL;
 	}
 #endif
-	verbosity = 0; /* errors only */
+	verbosity = NO_VERBOSE; /* errors only */
 	checklock_start();
 	ctx = (struct ub_ctx*)calloc(1, sizeof(*ctx));
 	if(!ctx) {
@@ -107,15 +110,12 @@ static struct ub_ctx* ub_ctx_create_nopipe(void)
 		return NULL;
 	}
 	alloc_init(&ctx->superalloc, NULL, 0);
-	seed = (unsigned int)time(NULL) ^ (unsigned int)getpid();
-	if(!(ctx->seed_rnd = ub_initstate(seed, NULL))) {
-		explicit_bzero(&seed, sizeof(seed));
+	if(!(ctx->seed_rnd = ub_initstate(NULL))) {
 		ub_randfree(ctx->seed_rnd);
 		free(ctx);
 		errno = ENOMEM;
 		return NULL;
 	}
-	explicit_bzero(&seed, sizeof(seed));
 	lock_basic_init(&ctx->qqpipe_lock);
 	lock_basic_init(&ctx->rrpipe_lock);
 	lock_basic_init(&ctx->cfglock);
@@ -222,6 +222,7 @@ ub_ctx_create_event(struct event_base* eb)
 		ub_ctx_delete(ctx);
 		return NULL;
 	}
+	ctx->event_base_malloced = 1;
 	return ctx;
 }
 	
@@ -328,6 +329,12 @@ ub_ctx_delete(struct ub_ctx* ctx)
 	ub_randfree(ctx->seed_rnd);
 	alloc_clear(&ctx->superalloc);
 	traverse_postorder(&ctx->queries, delq, NULL);
+	if(ctx_logfile_overridden) {
+		log_file(NULL);
+		ctx_logfile_overridden = 0;
+	}
+	if(ctx->event_base_malloced)
+		free(ctx->event_base);
 	free(ctx);
 #ifdef USE_WINSOCK
 	WSACleanup();
@@ -469,6 +476,7 @@ int ub_ctx_debugout(struct ub_ctx* ctx, void* out)
 {
 	lock_basic_lock(&ctx->cfglock);
 	log_file((FILE*)out);
+	ctx_logfile_overridden = 1;
 	ctx->logfile_override = 1;
 	ctx->log_out = out;
 	lock_basic_unlock(&ctx->cfglock);
@@ -1150,7 +1158,7 @@ int
 ub_ctx_hosts(struct ub_ctx* ctx, const char* fname)
 {
 	FILE* in;
-	char buf[1024], ldata[1024];
+	char buf[1024], ldata[2048];
 	char* parse, *addr, *name, *ins;
 	lock_basic_lock(&ctx->cfglock);
 	if(ctx->finalized) {

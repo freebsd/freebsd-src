@@ -84,6 +84,7 @@ struct regional*
 regional_create_custom(size_t size)
 {
 	struct regional* r = (struct regional*)malloc(size);
+	size = ALIGN_UP(size, ALIGNMENT);
 	log_assert(sizeof(struct regional) <= size);
 	if(!r) return NULL;
 	r->first_size = size;
@@ -120,8 +121,18 @@ regional_destroy(struct regional *r)
 void *
 regional_alloc(struct regional *r, size_t size)
 {
-	size_t a = ALIGN_UP(size, ALIGNMENT);
+	size_t a;
 	void *s;
+	if(
+#if SIZEOF_SIZE_T == 8
+		(unsigned long long)size >= 0xffffffffffffff00ULL
+#else
+		(unsigned)size >= (unsigned)0xffffff00UL
+#endif
+		)
+		return NULL; /* protect against integer overflow in
+			malloc and ALIGN_UP */
+	a = ALIGN_UP(size, ALIGNMENT);
 	/* large objects */
 	if(a > REGIONAL_LARGE_OBJECT_SIZE) {
 		s = malloc(ALIGNMENT + size);
