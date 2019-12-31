@@ -841,9 +841,9 @@ route_output(struct mbuf *m, struct socket *so, ...)
 	struct rt_msghdr *rtm = NULL;
 	struct rtentry *rt = NULL;
 	struct rt_addrinfo info;
-	struct sockaddr_storage ss;
 	struct epoch_tracker et;
 #ifdef INET6
+	struct sockaddr_storage ss;
 	struct sockaddr_in6 *sin6;
 	int i, rti_need_deembed = 0;
 #endif
@@ -968,7 +968,9 @@ report:
 		 * writing updated rtm in rtsock_msg_buffer().
 		 * With that in mind, skip deembedding procedure below.
 		 */
+#ifdef INET6
 		rti_need_deembed = 0;
+#endif
 		RT_UNLOCK(rt);
 		if (error != 0)
 			senderr(error);
