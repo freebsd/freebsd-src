@@ -1863,7 +1863,7 @@ is_symlink(const char *file, int line,
 		return (0);
 	if (contents == NULL)
 		return (1);
-	linklen = readlink(pathname, buff, sizeof(buff));
+	linklen = readlink(pathname, buff, sizeof(buff) - 1);
 	if (linklen < 0) {
 		failure_start(file, line, "Can't read symlink %s", pathname);
 		failure_finish(NULL);
