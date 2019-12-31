@@ -132,10 +132,10 @@ chargen_dg(int s, struct servtab *sep)
 	socklen_t size;
 	char text[LINESIZ+2];
 
-	if (endring == 0) {
+	if (endring == NULL)
 		initring();
+	if (rs == NULL)
 		rs = ring;
-	}
 
 	size = sizeof(ss);
 	if (recvfrom(s, text, sizeof(text), 0,
