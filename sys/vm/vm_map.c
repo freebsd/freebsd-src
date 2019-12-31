@@ -1028,9 +1028,11 @@ vm_size_max(vm_size_t a, vm_size_t b)
 	 */								\
 	y = root->left;							\
 	max_free = root->max_free;					\
-	KASSERT(max_free >= vm_map_entry_max_free_right(root, rlist),	\
+	KASSERT(max_free == vm_size_max(				\
+	    vm_map_entry_max_free_left(root, llist),			\
+	    vm_map_entry_max_free_right(root, rlist)),			\
 	    ("%s: max_free invariant fails", __func__));		\
-	if (y == llist ? max_free > 0 : max_free - 1 < y->max_free)	\
+	if (max_free - 1 < vm_map_entry_max_free_left(root, llist))	\
 		max_free = vm_map_entry_max_free_right(root, rlist);	\
 	if (y != llist && (test)) {					\
 		/* Rotate right and make y root. */			\
@@ -1067,9 +1069,11 @@ vm_size_max(vm_size_t a, vm_size_t b)
 	 */								\
 	y = root->right;						\
 	max_free = root->max_free;					\
-	KASSERT(max_free >= vm_map_entry_max_free_left(root, llist),	\
+	KASSERT(max_free == vm_size_max(				\
+	    vm_map_entry_max_free_left(root, llist),			\
+	    vm_map_entry_max_free_right(root, rlist)),			\
 	    ("%s: max_free invariant fails", __func__));		\
-	if (y == rlist ? max_free > 0 : max_free - 1 < y->max_free)	\
+	if (max_free - 1 < vm_map_entry_max_free_right(root, rlist))	\
 		max_free = vm_map_entry_max_free_left(root, llist);	\
 	if (y != rlist && (test)) {					\
 		/* Rotate left and make y root. */			\
@@ -1356,12 +1360,17 @@ vm_map_splay(vm_map_t map, vm_offset_t addr)
 /*
  *	vm_map_entry_{un,}link:
  *
- *	Insert/remove entries from maps.
+ *	Insert/remove entries from maps.  On linking, if new entry clips
+ *	existing entry, trim existing entry to avoid overlap, and manage
+ *	offsets.  On unlinking, merge disappearing entry with neighbor, if
+ *	called for, and manage offsets.  Callers should not modify fields in
+ *	entries already mapped.
  */
 static void
 vm_map_entry_link(vm_map_t map, vm_map_entry_t entry)
 {
 	vm_map_entry_t header, llist, rlist, root;
+	vm_size_t max_free_left, max_free_right;
 
 	CTR3(KTR_VM,
 	    "vm_map_entry_link: map %p, nentries %d, entry %p", map,
@@ -1370,13 +1379,48 @@ vm_map_entry_link(vm_map_t map, vm_map_entry_t entry)
 	map->nentries++;
 	header = &map->header;
 	root = vm_map_splay_split(map, entry->start, 0, &llist, &rlist);
-	KASSERT(root == NULL,
-	    ("vm_map_entry_link: link object already mapped"));
-	root = entry;
-	root->max_free = vm_size_max(
-	    vm_map_splay_merge_pred(header, root, llist),
-	    vm_map_splay_merge_succ(header, root, rlist));
-	map->root = root;
+	if (root == NULL) {
+		/*
+		 * The new entry does not overlap any existing entry in the
+		 * map, so it becomes the new root of the map tree.
+		 */
+		max_free_left = vm_map_splay_merge_pred(header, entry, llist);
+		max_free_right = vm_map_splay_merge_succ(header, entry, rlist);
+	} else if (entry->start == root->start) {
+		/*
+		 * The new entry is a clone of root, with only the end field
+		 * changed.  The root entry will be shrunk to abut the new
+		 * entry, and will be the right child of the new root entry in
+		 * the modified map.
+		 */
+		KASSERT(entry->end < root->end,
+		    ("%s: clip_start not within entry", __func__));
+		vm_map_splay_findprev(root, &llist);
+		root->offset += entry->end - root->start;
+		root->start = entry->end;
+		max_free_left = vm_map_splay_merge_pred(header, entry, llist);
+		max_free_right = root->max_free = vm_size_max(
+		    vm_map_splay_merge_pred(entry, root, entry),
+		    vm_map_splay_merge_right(header, root, rlist));
+	} else {
+		/*
+		 * The new entry is a clone of root, with only the start field
+		 * changed.  The root entry will be shrunk to abut the new
+		 * entry, and will be the left child of the new root entry in
+		 * the modified map.
+		 */
+		KASSERT(entry->end == root->end,
+		    ("%s: clip_start not within entry", __func__));
+		vm_map_splay_findnext(root, &rlist);
+		entry->offset += entry->start - root->start;
+		root->end = entry->start;
+		max_free_left = root->max_free = vm_size_max(
+		    vm_map_splay_merge_left(header, root, llist),
+		    vm_map_splay_merge_succ(entry, root, entry));
+		max_free_right = vm_map_splay_merge_succ(header, entry, rlist);
+	}
+	entry->max_free = vm_size_max(max_free_left, max_free_right);
+	map->root = entry;
 	VM_MAP_ASSERT_CONSISTENT(map);
 }
 
@@ -2359,8 +2403,6 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 	 * so that this entry has the specified starting address.
 	 */
 	new_entry->end = start;
-	entry->offset += (start - entry->start);
-	entry->start = start;
 	vm_map_entry_link(map, new_entry);
 }
 
@@ -2396,8 +2438,7 @@ _vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
 	 * Split off the back portion.  Insert the new entry AFTER this one,
 	 * so that this entry has the specified ending address.
 	 */
-	new_entry->start = entry->end = end;
-	new_entry->offset += (end - entry->start);
+	new_entry->start = end;
 	vm_map_entry_link(map, new_entry);
 }
 
