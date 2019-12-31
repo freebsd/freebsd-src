@@ -1541,10 +1541,8 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 			if (error)
 				(void) nfs_catnap(PZERO, error, "nfsgetdirp");
 		} while (error && --trycnt > 0);
-		if (error) {
-			error = nfscl_maperr(td, error, (uid_t)0, (gid_t)0);
+		if (error)
 			goto bad;
-		}
 	}
 
 	/*
