@@ -230,7 +230,7 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 			 * Arrange for vput() to just forget about it.
 			 */
 			ldep->de_Name[0] = SLOT_DELETED;
-
+			vgone(nvp);
 			vput(nvp);
 			*depp = NULL;
 			return (error);
