@@ -925,8 +925,10 @@ loop:
 		}
 		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, td);
 		if (error) {
-			if (error == ENOENT)
+			if (error == ENOENT) {
+				MNT_VNODE_FOREACH_ALL_ABORT(mp, nvp);
 				goto loop;
+			}
 			continue;
 		}
 		error = VOP_FSYNC(vp, waitfor, td);
