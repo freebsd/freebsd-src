@@ -898,7 +898,7 @@ again:
 		ip6 = mtod(m, struct ip6_hdr *);
 		break;
 	case PFIL_DROPPED:
-		error = EPERM;
+		error = EACCES;
 		/* FALLTHROUGH */
 	case PFIL_CONSUMED:
 		goto done;
