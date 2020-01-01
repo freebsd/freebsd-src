@@ -130,7 +130,7 @@ ip_output_pfil(struct mbuf **mp, struct ifnet *ifp, int flags,
 	odst.s_addr = ip->ip_dst.s_addr;
 	switch (pfil_run_hooks(V_inet_pfil_head, mp, ifp, pflags, inp)) {
 	case PFIL_DROPPED:
-		*error = EPERM;
+		*error = EACCES;
 		/* FALLTHROUGH */
 	case PFIL_CONSUMED:
 		return 1; /* Finished */
