@@ -124,6 +124,11 @@ struct	servtab {
 #define	se_nomapped		se_flags.se_nomapped
 #define	se_reset		se_flags.se_reset
 
+#define	SERVTAB_AT_LIMIT(sep)		\
+	((sep)->se_maxchild > 0 && (sep)->se_numchild == (sep)->se_maxchild)
+#define	SERVTAB_EXCEEDS_LIMIT(sep)	\
+	((sep)->se_maxchild > 0 && (sep)->se_numchild >= (sep)->se_maxchild)
+
 int		check_loop(const struct sockaddr *, const struct servtab *sep);
 void		inetd_setproctitle(const char *, int);
 struct servtab *tcpmux(int);
