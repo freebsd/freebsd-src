@@ -1059,7 +1059,6 @@ vlrureclaim(struct mount *mp, bool reclaim_nc_src, int trigger)
 		 */
 		if (vp->v_usecount ||
 		    (!reclaim_nc_src && !LIST_EMPTY(&vp->v_cache_src)) ||
-		    (vp->v_iflag & VI_FREE) != 0 ||
 		    (vp->v_object != NULL &&
 		    vp->v_object->resident_page_count > trigger)) {
 			VOP_UNLOCK(vp, 0);
