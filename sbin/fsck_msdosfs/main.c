@@ -48,7 +48,6 @@ int alwaysyes;		/* assume "yes" for all questions */
 int preen;		/* set when preening */
 int rdonly;		/* device is opened read only (supersedes above) */
 int skipclean;		/* skip clean file systems if preening */
-int allow_mmap;		/* Allow the use of mmap(), if possible */
 
 static void usage(void) __dead2;
 
@@ -69,8 +68,7 @@ main(int argc, char **argv)
 	int ch;
 
 	skipclean = 1;
-	allow_mmap = 1;
-	while ((ch = getopt(argc, argv, "CfFnpyM")) != -1) {
+	while ((ch = getopt(argc, argv, "CfFnpy")) != -1) {
 		switch (ch) {
 		case 'C': /* for fsck_ffs compatibility */
 			break;
@@ -98,10 +96,6 @@ main(int argc, char **argv)
 
 		case 'p':
 			preen = 1;
-			break;
-
-		case 'M':
-			allow_mmap = 0;
 			break;
 
 		default:
