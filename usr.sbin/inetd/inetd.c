@@ -922,8 +922,8 @@ flag_signal(int signo)
 static void
 addchild(struct servtab *sep, pid_t pid)
 {
-	if (sep->se_maxchild <= 0)
-		return;
+	struct stabchild *sc;
+
 #ifdef SANITY_CHECK
 	if (SERVTAB_EXCEEDS_LIMIT(sep)) {
 		syslog(LOG_ERR, "%s: %d >= %d",
@@ -931,7 +931,15 @@ addchild(struct servtab *sep, pid_t pid)
 		exit(EX_SOFTWARE);
 	}
 #endif
-	sep->se_pids[sep->se_numchild++] = pid;
+	sc = malloc(sizeof(*sc));
+	if (sc == NULL) {
+		syslog(LOG_ERR, "malloc: %m");
+		exit(EX_OSERR);
+	}
+	memset(sc, 0, sizeof(*sc));
+	sc->sc_pid = pid;
+	LIST_INSERT_HEAD(&sep->se_children, sc, sc_link);
+	++sep->se_numchild;
 	if (SERVTAB_AT_LIMIT(sep))
 		disable(sep);
 }
@@ -939,8 +947,9 @@ addchild(struct servtab *sep, pid_t pid)
 static void
 reapchild(void)
 {
-	int k, status;
+	int status;
 	pid_t pid;
+	struct stabchild *sc;
 	struct servtab *sep;
 
 	for (;;) {
@@ -953,14 +962,17 @@ reapchild(void)
 			    WIFEXITED(status) ? WEXITSTATUS(status)
 				: WTERMSIG(status));
 		for (sep = servtab; sep; sep = sep->se_next) {
-			for (k = 0; k < sep->se_numchild; k++)
-				if (sep->se_pids[k] == pid)
+			LIST_FOREACH(sc, &sep->se_children, sc_link) {
+				if (sc->sc_pid == pid)
 					break;
-			if (k == sep->se_numchild)
+			}
+			if (sc == NULL)
 				continue;
 			if (SERVTAB_AT_LIMIT(sep))
 				enable(sep);
-			sep->se_pids[k] = sep->se_pids[--sep->se_numchild];
+			LIST_REMOVE(sc, sc_link);
+			free(sc);
+			--sep->se_numchild;
 			if (WIFSIGNALED(status) || WEXITSTATUS(status))
 				syslog(LOG_WARNING,
 				    "%s[%d]: exited, %s %u",
@@ -1032,18 +1044,14 @@ config(void)
 					sep->se_nomapped = new->se_nomapped;
 				sep->se_reset = 1;
 			}
-			/* copy over outstanding child pids */
-			if (sep->se_maxchild > 0 && new->se_maxchild > 0) {
-				new->se_numchild = sep->se_numchild;
-				if (new->se_numchild > new->se_maxchild)
-					new->se_numchild = new->se_maxchild;
-				memcpy(new->se_pids, sep->se_pids,
-				    new->se_numchild * sizeof(*new->se_pids));
-			}
-			SWAP(pid_t *, sep->se_pids, new->se_pids);
-			sep->se_maxchild = new->se_maxchild;
-			sep->se_numchild = new->se_numchild;
+
+			/*
+			 * The children tracked remain; we want numchild to
+			 * still reflect how many jobs are running so we don't
+			 * throw off our accounting.
+			 */
 			sep->se_maxcpm = new->se_maxcpm;
+			sep->se_maxchild = new->se_maxchild;
 			resize_conn(sep, new->se_maxperip);
 			sep->se_maxperip = new->se_maxperip;
 			sep->se_bi = new->se_bi;
@@ -1949,13 +1957,7 @@ more:
 		else
 			sep->se_maxchild = 1;
 	}
-	if (sep->se_maxchild > 0) {
-		sep->se_pids = malloc(sep->se_maxchild * sizeof(*sep->se_pids));
-		if (sep->se_pids == NULL) {
-			syslog(LOG_ERR, "malloc: %m");
-			exit(EX_OSERR);
-		}
-	}
+	LIST_INIT(&sep->se_children);
 	argc = 0;
 	for (arg = skip(&cp); cp; arg = skip(&cp))
 		if (argc < MAXARGV) {
@@ -1980,6 +1982,7 @@ more:
 static void
 freeconfig(struct servtab *cp)
 {
+	struct stabchild *sc;
 	int i;
 
 	if (cp->se_service)
@@ -1996,8 +1999,11 @@ freeconfig(struct servtab *cp)
 #endif
 	if (cp->se_server)
 		free(cp->se_server);
-	if (cp->se_pids)
-		free(cp->se_pids);
+	while (!LIST_EMPTY(&cp->se_children)) {
+		sc = LIST_FIRST(&cp->se_children);
+		LIST_REMOVE(sc, sc_link);
+		free(sc);
+	}
 	for (i = 0; i < MAXARGV; i++)
 		if (cp->se_argv[i])
 			free(cp->se_argv[i]);
