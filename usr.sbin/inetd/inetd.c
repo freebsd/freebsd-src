@@ -925,14 +925,14 @@ addchild(struct servtab *sep, pid_t pid)
 	if (sep->se_maxchild <= 0)
 		return;
 #ifdef SANITY_CHECK
-	if (sep->se_numchild >= sep->se_maxchild) {
+	if (SERVTAB_EXCEEDS_LIMIT(sep)) {
 		syslog(LOG_ERR, "%s: %d >= %d",
 		    __func__, sep->se_numchild, sep->se_maxchild);
 		exit(EX_SOFTWARE);
 	}
 #endif
 	sep->se_pids[sep->se_numchild++] = pid;
-	if (sep->se_numchild == sep->se_maxchild)
+	if (SERVTAB_AT_LIMIT(sep))
 		disable(sep);
 }
 
@@ -958,7 +958,7 @@ reapchild(void)
 					break;
 			if (k == sep->se_numchild)
 				continue;
-			if (sep->se_numchild == sep->se_maxchild)
+			if (SERVTAB_AT_LIMIT(sep))
 				enable(sep);
 			sep->se_pids[k] = sep->se_pids[--sep->se_numchild];
 			if (WIFSIGNALED(status) || WEXITSTATUS(status))
@@ -1049,8 +1049,7 @@ config(void)
 			sep->se_bi = new->se_bi;
 			/* might need to turn on or off service now */
 			if (sep->se_fd >= 0) {
-			      if (sep->se_maxchild > 0
-				  && sep->se_numchild == sep->se_maxchild) {
+			      if (SERVTAB_EXCEEDS_LIMIT(sep)) {
 				      if (FD_ISSET(sep->se_fd, &allsock))
 					  disable(sep);
 			      } else {
