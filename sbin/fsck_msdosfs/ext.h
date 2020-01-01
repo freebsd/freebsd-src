@@ -32,6 +32,8 @@
 
 #include <sys/types.h>
 
+#include <stdbool.h>
+
 #include "dosfs.h"
 
 #define	LOSTDIR	"LOST.DIR"
@@ -44,6 +46,7 @@ extern int alwaysyes;	/* assume "yes" for all questions */
 extern int preen;	/* we are preening */
 extern int rdonly;	/* device is opened read only (supersedes above) */
 extern int skipclean;	/* skip clean file systems if preening */
+extern int allow_mmap;  /* allow the use of mmap() */
 
 /*
  * function declarations
@@ -72,7 +75,6 @@ int checkfilesys(const char *);
 #define	FSERROR		8		/* Some unrecovered error remains */
 #define	FSFATAL		16		/* Some unrecoverable error occurred */
 #define	FSDIRTY		32		/* File system is dirty */
-#define	FSFIXFAT	64		/* Fix file system FAT */
 
 /*
  * read a boot block in a machine independent fashion and translate
@@ -85,46 +87,53 @@ int readboot(int, struct bootblock *);
  */
 int writefsinfo(int, struct bootblock *);
 
-/*
- * Read one of the FAT copies and return a pointer to the new
- * allocated array holding our description of it.
- */
-int readfat(int, struct bootblock *, u_int, struct fatEntry **);
+/* Opaque type */
+struct fat_descriptor;
+
+void fat_clear_cl_head(struct fat_descriptor *, cl_t);
+bool fat_is_cl_head(struct fat_descriptor *, cl_t);
+
+cl_t fat_get_cl_next(struct fat_descriptor *, cl_t);
+
+int fat_set_cl_next(struct fat_descriptor *, cl_t, cl_t);
+
+cl_t fat_allocate_cluster(struct fat_descriptor *fat);
+
+struct bootblock* fat_get_boot(struct fat_descriptor *);
+int fat_get_fd(struct fat_descriptor *);
+bool fat_is_valid_cl(struct fat_descriptor *, cl_t);
 
 /*
- * Check two FAT copies for consistency and merge changes into the
- * first if necessary.
+ * Read the FAT 0 and return a pointer to the newly allocated
+ * descriptor of it.
  */
-int comparefat(struct bootblock *, struct fatEntry *, struct fatEntry *, u_int);
-
-/*
- * Check a FAT
- */
-int checkfat(struct bootblock *, struct fatEntry *);
+int readfat(int, struct bootblock *, struct fat_descriptor **);
 
 /*
  * Write back FAT entries
  */
-int writefat(int, struct bootblock *, struct fatEntry *, int);
+int writefat(struct fat_descriptor *);
 
 /*
  * Read a directory
  */
-int resetDosDirSection(struct bootblock *, struct fatEntry *);
+int resetDosDirSection(struct fat_descriptor *);
 void finishDosDirSection(void);
-int handleDirTree(int, struct bootblock *, struct fatEntry *);
+int handleDirTree(struct fat_descriptor *);
 
 /*
  * Cross-check routines run after everything is completely in memory
  */
+int checkchain(struct fat_descriptor *, cl_t, size_t *);
+
 /*
  * Check for lost cluster chains
  */
-int checklost(int, struct bootblock *, struct fatEntry *);
+int checklost(struct fat_descriptor *);
 /*
  * Try to reconnect a lost cluster chain
  */
-int reconnect(int, struct bootblock *, struct fatEntry *, cl_t);
+int reconnect(struct fat_descriptor *, cl_t, size_t);
 void finishlf(void);
 
 /*
@@ -138,6 +147,6 @@ const char *rsrvdcltype(cl_t);
 /*
  * Clear a cluster chain in a FAT
  */
-void clearchain(struct bootblock *, struct fatEntry *, cl_t);
+void clearchain(struct fat_descriptor *, cl_t);
 
 #endif
