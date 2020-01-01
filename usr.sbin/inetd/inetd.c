@@ -410,7 +410,7 @@ main(int argc, char **argv)
 	 */
 	servname = (hostname == NULL) ? "0" /* dummy */ : NULL;
 
-	bzero(&hints, sizeof(struct addrinfo));
+	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_flags = AI_PASSIVE;
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;	/* dummy */
@@ -2293,7 +2293,7 @@ cpmip(const struct servtab *sep, int ctrl)
 			if (chBest->ch_Service)
 				free(chBest->ch_Service);
 			chBest->ch_Service = strdup(sep->se_service);
-			bzero(chBest->ch_Times, sizeof(chBest->ch_Times));
+			memset(chBest->ch_Times, 0, sizeof(chBest->ch_Times));
 		} 
 #ifdef INET6
 		if ((rss.ss_family == AF_INET6 &&
@@ -2307,7 +2307,7 @@ cpmip(const struct servtab *sep, int ctrl)
 			if (chBest->ch_Service)
 				free(chBest->ch_Service);
 			chBest->ch_Service = strdup(sep->se_service);
-			bzero(chBest->ch_Times, sizeof(chBest->ch_Times));
+			memset(chBest->ch_Times, 0, sizeof(chBest->ch_Times));
 		}
 #endif
 		chBest->ch_LTime = t;
