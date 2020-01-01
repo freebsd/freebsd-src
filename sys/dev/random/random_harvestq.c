@@ -354,6 +354,7 @@ static const char *random_source_descr[ENTROPYSOURCE] = {
 	[RANDOM_PURE_CCP] = "PURE_CCP",
 	[RANDOM_PURE_DARN] = "PURE_DARN",
 	[RANDOM_PURE_TPM] = "PURE_TPM",
+	[RANDOM_PURE_VMGENID] = "VMGENID",
 	/* "ENTROPYSOURCE" */
 };
 

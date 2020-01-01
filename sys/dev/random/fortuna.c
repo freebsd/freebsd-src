@@ -359,6 +359,13 @@ random_fortuna_process_event(struct harvest_event *event)
 	 */
 	pl = event->he_destination % RANDOM_FORTUNA_NPOOLS;
 	/*
+	 * If a VM generation ID changes (clone and play or VM rewind), we want
+	 * to incorporate that as soon as possible.  Override destingation pool
+	 * for immediate next use.
+	 */
+	if (event->he_source == RANDOM_PURE_VMGENID)
+		pl = 0;
+	/*
 	 * We ignore low entropy static/counter fields towards the end of the
 	 * he_event structure in order to increase measurable entropy when
 	 * conducting SP800-90B entropy analysis measurements of seed material

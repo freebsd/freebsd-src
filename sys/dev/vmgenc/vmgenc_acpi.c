@@ -52,12 +52,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/random.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 
 #include <dev/acpica/acpivar.h>
+#include <dev/random/random_harvestq.h>
 #include <dev/vmgenc/vmgenc_acpi.h>
 
 #ifndef	ACPI_NOTIFY_STATUS_CHANGED
@@ -80,6 +82,20 @@ struct vmgenc_softc {
 };
 
 static void
+vmgenc_harvest_all(const void *p, size_t sz)
+{
+	size_t nbytes;
+
+	while (sz > 0) {
+		nbytes = MIN(sz,
+		    sizeof(((struct harvest_event *)0)->he_entropy));
+		random_harvest_direct(p, nbytes, RANDOM_PURE_VMGENID);
+		p = (const char *)p + nbytes;
+		sz -= nbytes;
+	}
+}
+
+static void
 vmgenc_status_changed(void *context)
 {
 	uint8_t guid[GUID_BYTES];
@@ -96,6 +112,8 @@ vmgenc_status_changed(void *context)
 
 	/* Update cache. */
 	memcpy(sc->vmg_cache_guid, guid, GUID_BYTES);
+
+	vmgenc_harvest_all(sc->vmg_cache_guid, sizeof(sc->vmg_cache_guid));
 
 	EVENTHANDLER_INVOKE(acpi_vmgenc_event);
 	acpi_UserNotify("VMGenerationCounter", acpi_get_handle(dev), 0);
@@ -219,6 +237,9 @@ vmgenc_attach(device_t dev)
 	memcpy(sc->vmg_cache_guid, __DEVOLATILE(void *, sc->vmg_pguid),
 	    sizeof(sc->vmg_cache_guid));
 
+	random_harvest_register_source(RANDOM_PURE_VMGENID);
+	vmgenc_harvest_all(sc->vmg_cache_guid, sizeof(sc->vmg_cache_guid));
+
 	AcpiInstallNotifyHandler(h, ACPI_DEVICE_NOTIFY, vmgenc_notify, dev);
 	return (0);
 }
@@ -238,3 +259,4 @@ static driver_t vmgenc_driver = {
 static devclass_t vmgenc_devclass;
 DRIVER_MODULE(vmgenc, acpi, vmgenc_driver, vmgenc_devclass, NULL, NULL);
 MODULE_DEPEND(vmgenc, acpi, 1, 1, 1);
+MODULE_DEPEND(vemgenc, random_harvestq, 1, 1, 1);
