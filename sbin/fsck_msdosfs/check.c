@@ -47,8 +47,9 @@ checkfilesys(const char *fname)
 {
 	int dosfs;
 	struct bootblock boot;
-	struct fat_descriptor *fat = NULL;
+	struct fatEntry *fat = NULL;
 	int finish_dosdirsection=0;
+	u_int i;
 	int mod = 0;
 	int ret = 8;
 
@@ -87,39 +88,65 @@ checkfilesys(const char *fname)
 	}
 
 	if (!preen)  {
-		printf("** Phase 1 - Read FAT and checking connectivity\n");
+		if (boot.ValidFat < 0)
+			printf("** Phase 1 - Read and Compare FATs\n");
+		else
+			printf("** Phase 1 - Read FAT\n");
 	}
 
-	mod |= readfat(dosfs, &boot, &fat);
+	mod |= readfat(dosfs, &boot, boot.ValidFat >= 0 ? boot.ValidFat : 0, &fat);
 	if (mod & FSFATAL) {
 		close(dosfs);
 		return 8;
 	}
 
-	if (!preen)
-		printf("** Phase 2 - Checking Directories\n");
+	if (boot.ValidFat < 0)
+		for (i = 1; i < boot.bpbFATs; i++) {
+			struct fatEntry *currentFat;
 
-	mod |= resetDosDirSection(fat);
+			mod |= readfat(dosfs, &boot, i, &currentFat);
+
+			if (mod & FSFATAL)
+				goto out;
+
+			mod |= comparefat(&boot, fat, currentFat, i);
+			free(currentFat);
+			if (mod & FSFATAL)
+				goto out;
+		}
+
+	if (!preen)
+		printf("** Phase 2 - Check Cluster Chains\n");
+
+	mod |= checkfat(&boot, fat);
+	if (mod & FSFATAL)
+		goto out;
+	/* delay writing FATs */
+
+	if (!preen)
+		printf("** Phase 3 - Checking Directories\n");
+
+	mod |= resetDosDirSection(&boot, fat);
 	finish_dosdirsection = 1;
 	if (mod & FSFATAL)
 		goto out;
 	/* delay writing FATs */
 
-	mod |= handleDirTree(fat);
+	mod |= handleDirTree(dosfs, &boot, fat);
 	if (mod & FSFATAL)
 		goto out;
 
 	if (!preen)
-		printf("** Phase 3 - Checking for Lost Files\n");
+		printf("** Phase 4 - Checking for Lost Files\n");
 
-	mod |= checklost(fat);
+	mod |= checklost(dosfs, &boot, fat);
 	if (mod & FSFATAL)
 		goto out;
 
 	/* now write the FATs */
-	if (mod & FSFATMOD) {
+	if (mod & (FSFATMOD|FSFIXFAT)) {
 		if (ask(1, "Update FATs")) {
-			mod |= writefat(fat);
+			mod |= writefat(dosfs, &boot, fat, mod & FSFIXFAT);
 			if (mod & FSFATAL)
 				goto out;
 		} else
@@ -143,7 +170,7 @@ checkfilesys(const char *fname)
 
 			if (mod & FSDIRTY) {
 				pwarn("MARKING FILE SYSTEM CLEAN\n");
-				mod |= writefat(fat);
+				mod |= writefat(dosfs, &boot, fat, 1);
 			} else {
 				pwarn("\n***** FILE SYSTEM IS LEFT MARKED AS DIRTY *****\n");
 				mod |= FSERROR; /* file system not clean */
