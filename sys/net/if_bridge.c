@@ -3191,7 +3191,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	    dir == PFIL_OUT && ifp != NULL) {
 		switch (pfil_run_hooks(V_link_pfil_head, mp, ifp, dir, NULL)) {
 		case PFIL_DROPPED:
-			return (EPERM);
+			return (EACCES);
 		case PFIL_CONSUMED:
 			return (0);
 		}
@@ -3312,7 +3312,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	case PFIL_CONSUMED:
 		return (0);
 	case PFIL_DROPPED:
-		return (EPERM);
+		return (EACCES);
 	default:
 		break;
 	}
