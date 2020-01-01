@@ -376,8 +376,11 @@ getpwd(void)
 		return curdir;
 
 	p = getpwd2();
-	if (p != NULL)
+	if (p != NULL) {
+		INTOFF;
 		curdir = savestr(p);
+		INTON;
+	}
 
 	return curdir;
 }
