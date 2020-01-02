@@ -708,6 +708,7 @@ static int iflib_altq_if_transmit(if_t ifp, struct mbuf *m);
 #endif
 static int iflib_register(if_ctx_t);
 static void iflib_deregister(if_ctx_t);
+static void iflib_unregister_vlan_handlers(if_ctx_t ctx);
 static void iflib_init_locked(if_ctx_t ctx);
 static void iflib_add_device_sysctl_pre(if_ctx_t ctx);
 static void iflib_add_device_sysctl_post(if_ctx_t ctx);
@@ -4951,6 +4952,9 @@ iflib_pseudo_deregister(if_ctx_t ctx)
 	struct taskqgroup *tqg;
 	iflib_fl_t fl;
 
+	/* Unregister VLAN event handlers early */
+	iflib_unregister_vlan_handlers(ctx);
+
 	ether_ifdetach(ifp);
 	/* XXX drain any dependent tasks */
 	tqg = qgroup_if_io_tqg;
@@ -5024,12 +5028,16 @@ iflib_device_deregister(if_ctx_t ctx)
 	ctx->ifc_flags |= IFC_IN_DETACH;
 	STATE_UNLOCK(ctx);
 
+	/* Unregister VLAN handlers before calling iflib_stop() */
+	iflib_unregister_vlan_handlers(ctx);
+
+	iflib_netmap_detach(ifp);
+	ether_ifdetach(ifp);
+
 	CTX_LOCK(ctx);
 	iflib_stop(ctx);
 	CTX_UNLOCK(ctx);
 
-	iflib_netmap_detach(ifp);
-	ether_ifdetach(ifp);
 	if (ctx->ifc_led_dev != NULL)
 		led_destroy(ctx->ifc_led_dev);
 	/* XXX drain any dependent tasks */
@@ -5316,13 +5324,8 @@ iflib_register(if_ctx_t ctx)
 }
 
 static void
-iflib_deregister(if_ctx_t ctx)
+iflib_unregister_vlan_handlers(if_ctx_t ctx)
 {
-	if_t ifp = ctx->ifc_ifp;
-
-	/* Remove all media */
-	ifmedia_removeall(&ctx->ifc_media);
-
 	/* Unregister VLAN events */
 	if (ctx->ifc_vlan_attach_event != NULL) {
 		EVENTHANDLER_DEREGISTER(vlan_config, ctx->ifc_vlan_attach_event);
@@ -5332,6 +5335,19 @@ iflib_deregister(if_ctx_t ctx)
 		EVENTHANDLER_DEREGISTER(vlan_unconfig, ctx->ifc_vlan_detach_event);
 		ctx->ifc_vlan_detach_event = NULL;
 	}
+
+}
+
+static void
+iflib_deregister(if_ctx_t ctx)
+{
+	if_t ifp = ctx->ifc_ifp;
+
+	/* Remove all media */
+	ifmedia_removeall(&ctx->ifc_media);
+
+	/* Ensure that VLAN event handlers are unregistered */
+	iflib_unregister_vlan_handlers(ctx);
 
 	/* Release kobject reference */
 	kobj_delete((kobj_t) ctx, NULL);
