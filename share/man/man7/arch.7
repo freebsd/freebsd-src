@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2019
+.Dd January 2, 2020
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -199,8 +199,8 @@ Machine-dependent type sizes:
 .It Sy Architecture Ta Sy void * Ta Sy long double Ta Sy time_t
 .It aarch64     Ta 8 Ta 16 Ta 8
 .It amd64       Ta 8 Ta 16 Ta 8
-.It arm         Ta 4 Ta  8 Ta 8
 .It armv6       Ta 4 Ta  8 Ta 8
+.It armv7       Ta 4 Ta  8 Ta 8
 .It i386        Ta 4 Ta 12 Ta 4
 .It mips        Ta 4 Ta  8 Ta 8
 .It mipsel      Ta 4 Ta  8 Ta 8
@@ -226,7 +226,6 @@ is 8 bytes on all supported architectures except i386.
 .It Sy Architecture Ta Sy Endianness Ta Sy char Signedness
 .It aarch64     Ta little Ta unsigned
 .It amd64       Ta little Ta   signed
-.It arm         Ta little Ta unsigned
 .It armv6       Ta little Ta unsigned
 .It armv7       Ta little Ta unsigned
 .It i386        Ta little Ta   signed
@@ -251,7 +250,6 @@ is 8 bytes on all supported architectures except i386.
 .It Sy Architecture Ta Sy Page Sizes
 .It aarch64     Ta 4K, 2M, 1G
 .It amd64       Ta 4K, 2M, 1G
-.It arm         Ta 4K
 .It armv6       Ta 4K, 1M
 .It armv7       Ta 4K, 1M
 .It i386        Ta 4K, 2M (PAE), 4M
@@ -276,7 +274,6 @@ is 8 bytes on all supported architectures except i386.
 .It Sy Architecture Ta Sy float, double Ta Sy long double
 .It aarch64     Ta hard Ta soft, quad precision
 .It amd64       Ta hard Ta hard, 80 bit
-.It arm         Ta soft Ta soft, double precision
 .It armv6       Ta hard Ta hard, double precision
 .It armv7       Ta hard Ta hard, double precision
 .It i386        Ta hard Ta hard, 80 bit
@@ -313,7 +310,6 @@ This table shows the default tool chain for each architecture.
 .It Sy Architecture Ta Sy Compiler Ta Sy Linker
 .It aarch64     Ta Clang     Ta lld
 .It amd64       Ta Clang     Ta lld
-.It arm         Ta Clang     Ta GNU ld 2.17.50
 .It armv6       Ta Clang     Ta lld
 .It armv7       Ta Clang     Ta lld
 .It i386        Ta Clang     Ta lld
@@ -360,7 +356,7 @@ or similar things like boot sequences.
 .It Dv MACHINE Ta Dv MACHINE_CPUARCH Ta Dv MACHINE_ARCH
 .It arm64 Ta aarch64 Ta aarch64
 .It amd64 Ta amd64 Ta amd64
-.It arm Ta arm Ta arm, armv6, armv7
+.It arm Ta arm Ta armv6, armv7
 .It i386 Ta i386 Ta i386
 .It mips Ta mips Ta mips, mipsel, mips64, mips64el, mipshf, mipselhf, mips64elhf, mipsn32
 .It powerpc Ta powerpc Ta powerpc, powerpcspe, powerpc64
@@ -394,7 +390,6 @@ Architecture-specific macros:
 .It Sy Architecture Ta Sy Predefined macros
 .It aarch64     Ta Dv __aarch64__
 .It amd64       Ta Dv __amd64__, Dv __x86_64__
-.It arm         Ta Dv __arm__
 .It armv6       Ta Dv __arm__, Dv __ARM_ARCH >= 6
 .It armv7       Ta Dv __arm__, Dv __ARM_ARCH >= 7
 .It i386        Ta Dv __i386__
@@ -484,7 +479,7 @@ combinations encoding pointer size, endian and hard versus soft float (for
 all these).
 Generally, the plain CPU name specifies the most common (or at least
 first) variant of the CPU.
-This is why mips and mips64 imply 'big endian' while 'arm' and 'armv7'
+This is why mips and mips64 imply 'big endian' while 'armv6' and 'armv7'
 imply little endian.
 If we ever were to support the so-called x32 ABI (using 32-bit
 pointers on the amd64 architecture), it would most likely be encoded
