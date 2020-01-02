@@ -2604,6 +2604,7 @@ ixl_update_stats_counters(struct ixl_pf *pf)
 	struct i40e_hw	*hw = &pf->hw;
 	struct ixl_vsi	*vsi = &pf->vsi;
 	struct ixl_vf	*vf;
+	u64 prev_link_xoff_rx = pf->stats.link_xoff_rx;
 
 	struct i40e_hw_port_stats *nsd = &pf->stats;
 	struct i40e_hw_port_stats *osd = &pf->stats_offsets;
@@ -2688,6 +2689,13 @@ ixl_update_stats_counters(struct ixl_pf *pf)
 	ixl_stat_update32(hw, I40E_GLPRT_LXOFFTXC(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->link_xoff_tx, &nsd->link_xoff_tx);
+
+	/*
+	 * For watchdog management we need to know if we have been paused
+	 * during the last interval, so capture that here.
+	 */
+	if (pf->stats.link_xoff_rx != prev_link_xoff_rx)
+		vsi->shared->isc_pause_frames = 1;
 
 	/* Packet size stats rx */
 	ixl_stat_update48(hw, I40E_GLPRT_PRC64H(hw->port),
