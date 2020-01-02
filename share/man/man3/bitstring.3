@@ -58,7 +58,7 @@
 .\"     @(#)bitstring.3	8.1 (Berkeley) 7/19/93
 .\" $FreeBSD$
 .\"
-.Dd May 23, 2016
+.Dd Nov 18, 2019
 .Dt BITSTRING 3
 .Os
 .Sh NAME
@@ -70,6 +70,10 @@
 .Nm bit_ffs ,
 .Nm bit_ffc_at ,
 .Nm bit_ffs_at ,
+.Nm bit_ffc_area ,
+.Nm bit_ffs_area ,
+.Nm bit_ffc_area_at ,
+.Nm bit_ffs_area_at ,
 .Nm bit_nclear ,
 .Nm bit_nset ,
 .Nm bit_set ,
@@ -94,6 +98,14 @@
 .Fn bit_ffc_at "bitstr_t *name" "int start" "int nbits" "int *value"
 .Ft void
 .Fn bit_ffs_at "bitstr_t *name" "int start" "int nbits" "int *value"
+.Ft void
+.Fn bit_ffc_area "bitstr_t *name" "int nbits" "int size" "int *value"
+.Ft void
+.Fn bit_ffs_area "bitstr_t *name" "int nbits" "int size" "int *value"
+.Ft void
+.Fn bit_ffc_area_at "bitstr_t *name" "int start" "int nbits" "int size" "int *value"
+.Ft void
+.Fn bit_ffs_area_at "bitstr_t *name" "int start" "int nbits" "int size" "int *value"
 .Ft void
 .Fn bit_nclear "bitstr_t *name" "int start" "int stop"
 .Ft void
@@ -223,6 +235,82 @@ bits referenced by
 at or after the zero-based bit index
 .Fa start .
 If no bits are set after
+.Fa start ,
+the location referenced by
+.Fa value
+is set to \-1.
+.Pp
+The
+.Fn bit_ffc_area
+function stores in the location referenced by
+.Fa value
+the zero-based number of the first bit beginning a sequence of unset bits of
+at least
+.Fa size
+unset bits in the array of
+.Fa nbits
+bits referenced by
+.Fa name .
+If no sequence of contiguous unset bits of the specified
+.Fa size
+can be found, the location referenced by
+.Fa value
+is set to \-1.
+.Pp
+The
+.Fn bit_ffs_area
+function stores in the location referenced by
+.Fa value
+the zero-based number of the first bit beginning a sequence of set bits of
+at least
+.Fa size
+set bits in the array of
+.Fa nbits
+bits referenced by
+.Fa name .
+If no sequence of contiguous set bits of the specified
+.Fa size
+can be found, the location referenced by
+.Fa value
+is set to \-1.
+.Pp
+The
+.Fn bit_ffc_area_at
+function stores in the location referenced by
+.Fa value
+the zero-based number of the first bit beginning a sequence of unset bits of
+at least
+.Fa size
+unset bits in the array of
+.Fa nbits
+bits referenced by
+.Fa name ,
+at or after the zero-based bit index
+.Fa start .
+If no sequence of contiguous unset bits of the specified
+.Fa size
+can be found at or after
+.Fa start ,
+the location referenced by
+.Fa value
+is set to \-1.
+.Pp
+The
+.Fn bit_ffs_area_at
+function stores in the location referenced by
+.Fa value
+the zero-based number of the first bit beginning a sequence of set bits of
+at least
+.Fa size
+set bits in the array of
+.Fa nbits
+bits referenced by
+.Fa name ,
+at or after the zero-based bit index
+.Fa start .
+If no sequence of contiguous set bits of the specified
+.Fa size
+can be found at or after
 .Fa start ,
 the location referenced by
 .Fa value

@@ -275,6 +275,114 @@ bit_ffc(bitstr_t *_bitstr, int _nbits, int *_result)
 	bit_ffc_at(_bitstr, /*start*/0, _nbits, _result);
 }
 
+/* Find contiguous sequence of at least size set bits at or after start */
+static inline void
+bit_ffs_area_at(bitstr_t *_bitstr, int _start, int _nbits, int _size,
+    int *_result)
+{
+	bitstr_t *_curbitstr;
+	bitstr_t _test;
+	int _value, _offset, _logsize, _b;
+
+	if (_start + _size > _nbits || _nbits <= 0) {
+		*_result = -1;
+		return;
+	}
+
+	_logsize = fls(_size - 1);
+	_value = _start;
+	_curbitstr = _bitstr + _bit_idx(_start);
+	_test = ~*_curbitstr;
+	if (_bit_offset(_start) != 0)
+		_test |= _bit_make_mask(0, _start - 1);
+	for (_offset = 0;; _offset -= _BITSTR_BITS, _test = ~*++_curbitstr) {
+		if (_test != 0) {
+			/* If leading 0s in _test can finish 0-area, stop. */
+			if (_offset + _size < (int)_BITSTR_BITS &&
+			    (_test & _bit_make_mask(0, _offset + _size)) == 0)
+				break;
+			/* Shrink-left every 0-area in _test by size-1 bits. */
+			_b = _logsize;
+			while ((_test & (_test + 1)) != 0 && _b-- > 0)
+				_test |= _test >> (((_size - 1) >> _b) + 1) / 2;
+			/* Find the start of the first 0-area in _test. */
+			_offset = (~_test == 0) ? (int)_BITSTR_BITS :
+			    ffsl(~_test) - 1;
+			_value = (_curbitstr - _bitstr) * _BITSTR_BITS +
+			    _offset;
+			/* If there's insufficient space left, give up. */
+			if (_value + _size > _nbits) {
+				_value = -1;
+				break;
+			}
+		}
+		if (_offset + _size <= (int)_BITSTR_BITS)
+			break;
+	}
+	*_result = _value;
+}
+
+/* Find contiguous sequence of at least size cleared bits at or after start */
+static inline void
+bit_ffc_area_at(bitstr_t *_bitstr, int _start, int _nbits, int _size,
+    int *_result)
+{
+	bitstr_t *_curbitstr;
+	bitstr_t _test;
+	int _value, _offset, _logsize, _b;
+
+	if (_start + _size > _nbits || _nbits <= 0) {
+		*_result = -1;
+		return;
+	}
+
+	_logsize = fls(_size - 1);
+	_value = _start;
+	_curbitstr = _bitstr + _bit_idx(_start);
+	_test = *_curbitstr;
+	if (_bit_offset(_start) != 0)
+		_test |= _bit_make_mask(0, _start - 1);
+	for (_offset = 0;; _offset -= _BITSTR_BITS, _test = *++_curbitstr) {
+		if (_test != 0) {
+			/* If leading 0s in _test can finish 0-area, stop. */
+			if (_offset + _size < (int)_BITSTR_BITS &&
+			    (_test & _bit_make_mask(0, _offset + _size)) == 0)
+				break;
+			/* Shrink-left every 0-area in _test by size-1 bits. */
+			_b = _logsize;
+			while ((_test & (_test + 1)) != 0 && _b-- > 0)
+				_test |= _test >> (((_size - 1) >> _b) + 1) / 2;
+			/* Find the start of the first 0-area in _test. */
+			_offset = (~_test == 0) ? (int)_BITSTR_BITS :
+			    ffsl(~_test) - 1;
+			_value = (_curbitstr - _bitstr) * _BITSTR_BITS +
+			    _offset;
+			/* If there's insufficient space left, give up. */
+			if (_value + _size > _nbits) {
+				_value = -1;
+				break;
+			}
+		}
+		if (_offset + _size <= (int)_BITSTR_BITS)
+			break;
+	}
+	*_result = _value;
+}
+
+/* Find contiguous sequence of at least size set bits in bit string */
+static inline void
+bit_ffs_area(bitstr_t *_bitstr, int _nbits, int _size, int *_result)
+{
+	bit_ffs_area_at(_bitstr, /*start*/0, _nbits, _size, _result);
+}
+
+/* Find contiguous sequence of at least size cleared bits in bit string */
+static inline void
+bit_ffc_area(bitstr_t *_bitstr, int _nbits, int _size, int *_result)
+{
+	bit_ffc_area_at(_bitstr, /*start*/0, _nbits, _size, _result);
+}
+
 /* Count the number of bits set in a bitstr of size _nbits at or after _start */
 static inline void
 bit_count(bitstr_t *_bitstr, int _start, int _nbits, int *_result)
