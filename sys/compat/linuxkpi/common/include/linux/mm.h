@@ -211,14 +211,6 @@ set_page_dirty(struct vm_page *page)
 }
 
 static inline void
-set_page_dirty_lock(struct vm_page *page)
-{
-	vm_page_lock(page);
-	vm_page_dirty(page);
-	vm_page_unlock(page);
-}
-
-static inline void
 mark_page_accessed(struct vm_page *page)
 {
 	vm_page_reference(page);
