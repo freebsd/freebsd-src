@@ -242,7 +242,7 @@ aw_spi_attach(device_t dev)
 
 	sc->spibus = device_add_child(dev, "spibus", -1);
 
-	return (0);
+	return (bus_generic_attach(dev));
 
 fail:
 	aw_spi_detach(dev);
