@@ -1243,13 +1243,17 @@ vcpu_require_state_locked(struct vm *vm, int vcpuid, enum vcpu_state newstate)
 			VM_CTR0(vm, fmt);				\
 	} while (0)
 
-static void
+static int
 vm_handle_rendezvous(struct vm *vm, int vcpuid)
 {
+	struct thread *td;
+	int error;
 
 	KASSERT(vcpuid == -1 || (vcpuid >= 0 && vcpuid < vm->maxcpus),
 	    ("vm_handle_rendezvous: invalid vcpuid %d", vcpuid));
 
+	error = 0;
+	td = curthread;
 	mtx_lock(&vm->rendezvous_mtx);
 	while (vm->rendezvous_func != NULL) {
 		/* 'rendezvous_req_cpus' must be a subset of 'active_cpus' */
@@ -1271,9 +1275,17 @@ vm_handle_rendezvous(struct vm *vm, int vcpuid)
 		}
 		RENDEZVOUS_CTR0(vm, vcpuid, "Wait for rendezvous completion");
 		mtx_sleep(&vm->rendezvous_func, &vm->rendezvous_mtx, 0,
-		    "vmrndv", 0);
+		    "vmrndv", hz);
+		if ((td->td_flags & TDF_NEEDSUSPCHK) != 0) {
+			mtx_unlock(&vm->rendezvous_mtx);
+			error = thread_check_susp(td, true);
+			if (error != 0)
+				return (error);
+			mtx_lock(&vm->rendezvous_mtx);
+		}
 	}
 	mtx_unlock(&vm->rendezvous_mtx);
+	return (0);
 }
 
 /*
@@ -1284,13 +1296,16 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 {
 	struct vcpu *vcpu;
 	const char *wmesg;
-	int t, vcpu_halted, vm_halted;
+	struct thread *td;
+	int error, t, vcpu_halted, vm_halted;
 
 	KASSERT(!CPU_ISSET(vcpuid, &vm->halted_cpus), ("vcpu already halted"));
 
 	vcpu = &vm->vcpu[vcpuid];
 	vcpu_halted = 0;
 	vm_halted = 0;
+	error = 0;
+	td = curthread;
 
 	vcpu_lock(vcpu);
 	while (1) {
@@ -1351,6 +1366,13 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 		msleep_spin(vcpu, &vcpu->mtx, wmesg, hz);
 		vcpu_require_state_locked(vm, vcpuid, VCPU_FROZEN);
 		vmm_stat_incr(vm, vcpuid, VCPU_IDLE_TICKS, ticks - t);
+		if ((td->td_flags & TDF_NEEDSUSPCHK) != 0) {
+			vcpu_unlock(vcpu);
+			error = thread_check_susp(td, false);
+			if (error != 0)
+				return (error);
+			vcpu_lock(vcpu);
+		}
 	}
 
 	if (vcpu_halted)
@@ -1487,11 +1509,13 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 static int
 vm_handle_suspend(struct vm *vm, int vcpuid, bool *retu)
 {
-	int i, done;
+	int error, i;
 	struct vcpu *vcpu;
+	struct thread *td;
 
-	done = 0;
+	error = 0;
 	vcpu = &vm->vcpu[vcpuid];
+	td = curthread;
 
 	CPU_SET_ATOMIC(vcpuid, &vm->suspended_cpus);
 
@@ -1503,7 +1527,7 @@ vm_handle_suspend(struct vm *vm, int vcpuid, bool *retu)
 	 * handler while we are waiting to prevent a deadlock.
 	 */
 	vcpu_lock(vcpu);
-	while (1) {
+	while (error == 0) {
 		if (CPU_CMP(&vm->suspended_cpus, &vm->active_cpus) == 0) {
 			VCPU_CTR0(vm, vcpuid, "All vcpus suspended");
 			break;
@@ -1514,10 +1538,15 @@ vm_handle_suspend(struct vm *vm, int vcpuid, bool *retu)
 			vcpu_require_state_locked(vm, vcpuid, VCPU_SLEEPING);
 			msleep_spin(vcpu, &vcpu->mtx, "vmsusp", hz);
 			vcpu_require_state_locked(vm, vcpuid, VCPU_FROZEN);
+			if ((td->td_flags & TDF_NEEDSUSPCHK) != 0) {
+				vcpu_unlock(vcpu);
+				error = thread_check_susp(td, false);
+				vcpu_lock(vcpu);
+			}
 		} else {
 			VCPU_CTR0(vm, vcpuid, "Rendezvous during suspend");
 			vcpu_unlock(vcpu);
-			vm_handle_rendezvous(vm, vcpuid);
+			error = vm_handle_rendezvous(vm, vcpuid);
 			vcpu_lock(vcpu);
 		}
 	}
@@ -1533,7 +1562,7 @@ vm_handle_suspend(struct vm *vm, int vcpuid, bool *retu)
 	}
 
 	*retu = true;
-	return (0);
+	return (error);
 }
 
 static int
@@ -1707,8 +1736,7 @@ restart:
 			    vme->u.ioapic_eoi.vector);
 			break;
 		case VM_EXITCODE_RENDEZVOUS:
-			vm_handle_rendezvous(vm, vcpuid);
-			error = 0;
+			error = vm_handle_rendezvous(vm, vcpuid);
 			break;
 		case VM_EXITCODE_HLT:
 			intr_disabled = ((vme->u.hlt.rflags & PSL_I) == 0);
@@ -2486,11 +2514,11 @@ vm_apicid2vcpuid(struct vm *vm, int apicid)
 	return (apicid);
 }
 
-void
+int
 vm_smp_rendezvous(struct vm *vm, int vcpuid, cpuset_t dest,
     vm_rendezvous_func_t func, void *arg)
 {
-	int i;
+	int error, i;
 
 	/*
 	 * Enforce that this function is called without any locks
@@ -2509,7 +2537,9 @@ restart:
 		 */
 		RENDEZVOUS_CTR0(vm, vcpuid, "Rendezvous already in progress");
 		mtx_unlock(&vm->rendezvous_mtx);
-		vm_handle_rendezvous(vm, vcpuid);
+		error = vm_handle_rendezvous(vm, vcpuid);
+		if (error != 0)
+			return (error);
 		goto restart;
 	}
 	KASSERT(vm->rendezvous_func == NULL, ("vm_smp_rendezvous: previous "
@@ -2531,7 +2561,7 @@ restart:
 			vcpu_notify_event(vm, i, false);
 	}
 
-	vm_handle_rendezvous(vm, vcpuid);
+	return (vm_handle_rendezvous(vm, vcpuid));
 }
 
 struct vatpic *
