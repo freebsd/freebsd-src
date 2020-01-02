@@ -2329,6 +2329,11 @@ device		iic		# userland access to i2c slave devices via ioctl(8)
 device		iicsmb		# smb over i2c bridge
 device		iicoc		# OpenCores I2C controller support
 
+# I2C bus multiplexer (mux) devices
+device		iicmux		# i2c mux core driver
+device		iic_gpiomux	# i2c mux hardware controlled via gpio pins
+device		ltc430x		# LTC4305 and LTC4306 i2c mux chips
+
 # I2C peripheral devices
 #
 device		ad7418		# Analog Devices temp and voltage sensor

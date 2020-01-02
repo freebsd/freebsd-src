@@ -204,8 +204,10 @@ MAN=	aac.4 \
 	ig4.4 \
 	igmp.4 \
 	iic.4 \
+	iic_gpiomux.4 \
 	iicbb.4 \
 	iicbus.4 \
+	iicmux.4 \
 	iicsmb.4 \
 	iir.4 \
 	${_imcsmb.4} \
@@ -258,6 +260,7 @@ MAN=	aac.4 \
 	lp.4 \
 	lpbb.4 \
 	lpt.4 \
+	ltc430x.4 \
 	mac.4 \
 	mac_biba.4 \
 	mac_bsdextended.4 \
