@@ -44,8 +44,8 @@ CFLAGS+=	-DRELOC=${RELOC} -g
 LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.powerpc
 
 # Open Firmware standalone support library
-LIBOFW=		${BOOTOBJ}/ofw/libofw/libofw.a
-CFLAGS+=	-I${BOOTSRC}/ofw/libofw
+LIBOFW=		${BOOTOBJ}/libofw/libofw.a
+CFLAGS+=	-I${BOOTSRC}/libofw
 
 DPADD=		${LDR_INTERP} ${LIBOFW} ${LIBFDT} ${LIBSA}
 LDADD=		${LDR_INTERP} ${LIBOFW} ${LIBFDT} ${LIBSA}
