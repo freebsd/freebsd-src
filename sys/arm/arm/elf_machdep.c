@@ -52,6 +52,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/vfp.h>
 #endif
 
+#include "opt_ddb.h"            /* for OPT_DDB */
+#include "opt_global.h"         /* for OPT_KDTRACE_HOOKS */
+#include "opt_stack.h"          /* for OPT_STACK */
+
 static boolean_t elf32_arm_abi_supported(struct image_params *);
 
 u_long elf_hwcap;
@@ -311,11 +315,13 @@ elf_cpu_load_file(linker_file_t lf)
 	cpu_icache_sync_range((vm_offset_t)lf->address, (vm_size_t)lf->size);
 #endif
 
+#if defined(DDB) || defined(KDTRACE_HOOKS) || defined(STACK)
 	/*
 	 * Inform the stack(9) code of the new module, so it can acquire its
 	 * per-module unwind data.
 	 */
 	unwind_module_loaded(lf);
+#endif
 
 	return (0);
 }
