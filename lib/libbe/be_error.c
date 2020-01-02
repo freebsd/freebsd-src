@@ -108,6 +108,9 @@ libbe_error_description(libbe_handle_t *lbh)
 	case BE_ERR_INVORIGIN:
 		return ("invalid origin");
 
+	case BE_ERR_HASCLONES:
+		return ("snapshot has clones");
+
 	default:
 		assert(lbh->error == BE_ERR_SUCCESS);
 		return ("no error");
