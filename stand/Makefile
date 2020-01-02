@@ -16,7 +16,7 @@ S.${MK_FORTH}+=		forth
 S.${MK_LOADER_LUA}+=	liblua
 S.${MK_LOADER_LUA}+=	lua
 S.${MK_FDT}+=		fdt
-S.${MK_LOADER_OFW}+=	ofw
+S.${MK_LOADER_OFW}+=	libofw
 S.yes+=			defaults
 S.yes+=			man
 
