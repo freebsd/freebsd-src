@@ -33,7 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/atomic.h>
 
 #if !defined(__LP64__) && !defined(__mips_n32) && \
-    !defined(ARM_HAVE_ATOMIC64) && !defined(I386_HAVE_ATOMIC64)
+    !defined(ARM_HAVE_ATOMIC64) && !defined(I386_HAVE_ATOMIC64) && \
+    !defined(HAS_EMULATED_ATOMIC64)
 
 #ifdef _KERNEL
 #include <sys/kernel.h>
