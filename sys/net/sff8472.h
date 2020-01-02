@@ -379,7 +379,7 @@ enum {
 
 /*
  * Table 3.2 Identifier values.
- * Identifier constants has taken from SFF-8024 rev 4.2 table 4.1
+ * Identifier constants has taken from SFF-8024 rev 4.6 table 4.1
  * (as referenced by table 3.2 footer)
  * */
 enum {
@@ -396,10 +396,10 @@ enum {
 	SFF_8024_ID_X2		= 0xA, /* X2 */
 	SFF_8024_ID_DWDM_SFP	= 0xB, /* DWDM-SFP */
 	SFF_8024_ID_QSFP	= 0xC, /* QSFP */
-	SFF_8024_ID_QSFPPLUS	= 0xD, /* QSFP+ */
+	SFF_8024_ID_QSFPPLUS	= 0xD, /* QSFP+ or later */
 	SFF_8024_ID_CXP		= 0xE, /* CXP */
-	SFF_8024_ID_HD4X	= 0xF, /* Shielded Mini Multilane HD 4X */ 
-	SFF_8024_ID_HD8X	= 0x10, /* Shielded Mini Multilane HD 8X */ 
+	SFF_8024_ID_HD4X	= 0xF, /* Shielded Mini Multilane HD 4X */
+	SFF_8024_ID_HD8X	= 0x10, /* Shielded Mini Multilane HD 8X */
 	SFF_8024_ID_QSFP28	= 0x11, /* QSFP28 or later */
 	SFF_8024_ID_CXP2	= 0x12, /* CXP2 (aka CXP28) */
 	SFF_8024_ID_CDFP	= 0x13, /* CDFP (Style 1/Style 2) */
@@ -408,34 +408,49 @@ enum {
 	SFF_8024_ID_CDFP3	= 0x16, /* CDFP (Style3) */
 	SFF_8024_ID_MICROQSFP	= 0x17, /* microQSFP */
 	SFF_8024_ID_QSFP_DD	= 0x18, /* QSFP-DD 8X Pluggable Transceiver */
-	SFF_8024_ID_LAST	= SFF_8024_ID_QSFP_DD
-	};
+	SFF_8024_ID_OSFP8X	= 0x19, /* OSFP 8X Pluggable Transceiver */
+	SFF_8024_ID_SFP_DD	= 0x1A, /* SFP-DD 2X Pluggable Transceiver */
+	SFF_8024_ID_DSFP	= 0x1B, /* DSFP Dual SFF Pluggable Transceiver */
+	SFF_8024_ID_X4ML	= 0x1C, /* x4 MiniLink/OcuLink */
+	SFF_8024_ID_X8ML	= 0x1D, /* x8 MiniLink */
+	SFF_8024_ID_QSFP_CMIS	= 0x1E, /* QSFP+ or later w/ Common Management
+					   Interface Specification */
+	SFF_8024_ID_LAST	= SFF_8024_ID_QSFP_CMIS
+};
 
-static const char *sff_8024_id[SFF_8024_ID_LAST + 1] = {"Unknown",
-					     "GBIC",
-					     "SFF",
-					     "SFP/SFP+/SFP28",
-					     "XBI",
-					     "Xenpak",
-					     "XFP",
-					     "XFF",
-					     "XFP-E",
-					     "XPAK",
-					     "X2",
-					     "DWDM-SFP/SFP+",
-					     "QSFP",
-					     "QSFP+",
-					     "CXP",
-					     "HD4X",
-					     "HD8X",
-					     "QSFP28",
-					     "CXP2",
-					     "CDFP",
-					     "SMM4",
-					     "SMM8",
-					     "CDFP3",
-					     "microQSFP",
-					     "QSFP-DD"};
+static const char *sff_8024_id[SFF_8024_ID_LAST + 1] = {
+	"Unknown",
+	"GBIC",
+	"SFF",
+	"SFP/SFP+/SFP28",
+	"XBI",
+	"Xenpak",
+	"XFP",
+	"XFF",
+	"XFP-E",
+	"XPAK",
+	"X2",
+	"DWDM-SFP/SFP+",
+	"QSFP",
+	"QSFP+",
+	"CXP",
+	"HD4X",
+	"HD8X",
+	"QSFP28",
+	"CXP2",
+	"CDFP",
+	"SMM4",
+	"SMM8",
+	"CDFP3",
+	"microQSFP",
+	"QSFP-DD",
+	"QSFP8X",
+	"SFP-DD",
+	"DSFP",
+	"x4MiniLink/OcuLink",
+	"x8MiniLink",
+	"QSFP+(CIMS)"
+};
 
 /* Keep compatibility with old definitions */
 #define	SFF_8472_ID_UNKNOWN	SFF_8024_ID_UNKNOWN
