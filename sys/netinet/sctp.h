@@ -1,3 +1,4 @@
+
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -585,8 +586,10 @@ struct sctp_error_auth_invalid_hmac {
 #define SCTP_MOBILITY_PRIM_DELETED       0x00000004
 
 
-#define SCTP_SMALLEST_PMTU 512	/* smallest pmtu allowed when disabling PMTU
-				 * discovery */
+/* Smallest PMTU allowed when disabling PMTU discovery */
+#define SCTP_SMALLEST_PMTU 512
+/* Largest PMTU allowed when disabling PMTU discovery */
+#define SCTP_LARGEST_PMTU  65536
 
 #undef SCTP_PACKED
 
