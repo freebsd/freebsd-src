@@ -38,6 +38,10 @@
 
 #include <sys/atomic_common.h>
 
+#if !defined(__mips_n64) && !defined(__mips_n32)
+#include <sys/_atomic64e.h>
+#endif
+
 /*
  * Note: All the 64-bit atomic operations are only atomic when running
  * in 64-bit mode.  It is assumed that code compiled for n32 and n64

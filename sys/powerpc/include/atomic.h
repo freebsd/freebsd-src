@@ -40,6 +40,10 @@
 
 #include <sys/atomic_common.h>
 
+#ifndef __powerpc64__
+#include <sys/_atomic64e.h>
+#endif
+
 /*
  * The __ATOMIC_REL/ACQ() macros provide memory barriers only in conjunction
  * with the atomic lXarx/stXcx. sequences below. They are not exposed outside
