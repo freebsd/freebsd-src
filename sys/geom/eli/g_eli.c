@@ -741,7 +741,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	struct g_provider *pp;
 	struct g_consumer *cp;
 	u_int i, threads;
-	int error;
+	int dcw, error;
 
 	G_ELI_DEBUG(1, "Creating device %s%s.", bpp->name, G_ELI_SUFFIX);
 
@@ -794,10 +794,8 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	 * We don't open provider for writing only when user requested read-only
 	 * access.
 	 */
-	if (sc->sc_flags & G_ELI_FLAG_RO)
-		error = g_access(cp, 1, 0, 1);
-	else
-		error = g_access(cp, 1, 1, 1);
+	dcw = (sc->sc_flags & G_ELI_FLAG_RO) ? 0 : 1;
+	error = g_access(cp, 1, dcw, 1);
 	if (error != 0) {
 		if (req != NULL) {
 			gctl_error(req, "Cannot access %s (error=%d).",
@@ -909,7 +907,7 @@ failed:
 	mtx_destroy(&sc->sc_queue_mtx);
 	if (cp->provider != NULL) {
 		if (cp->acr == 1)
-			g_access(cp, -1, -1, -1);
+			g_access(cp, -1, -dcw, -1);
 		g_detach(cp);
 	}
 	g_destroy_consumer(cp);
