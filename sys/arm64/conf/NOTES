@@ -189,6 +189,10 @@ device		regulator
 device		syscon
 device		aw_syscon
 
+# Misc devices.
+device		pl330		# ARM PL330 dma controller
+device		xdma		# xDMA framework for SoC on-chip dma controllers
+
 # Chip-specific errata
 options 	THUNDERX_PASS_1_1_ERRATA
 
