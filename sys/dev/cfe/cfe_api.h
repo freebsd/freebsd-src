@@ -63,6 +63,7 @@
  * CFE_API_* can be defined here as desired.
  */
 /* Begin customization. */
+#include <sys/types.h>
 #include <sys/stdint.h>		/* All of the typedefs.  */
 #include <sys/systm.h>		/* strlen() prototype.  */
 
