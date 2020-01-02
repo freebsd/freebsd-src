@@ -246,6 +246,17 @@ BITSTRING_TC_DEFINE(bit_ffs_at)
 			    nbits, memloc, i, found_set_bit);
 		}
 	}
+
+	/* Pass a start value beyond the size of the bit string */
+	bit_ffs_at(bitstr, nbits, nbits, &found_set_bit);
+	ATF_REQUIRE_MSG(found_set_bit == -1,
+			"bit_ffs_at_%d_%s: Failed with high start value of %d, Result %d",
+			nbits, memloc, nbits, found_set_bit);
+
+	bit_ffs_at(bitstr, nbits + 3, nbits, &found_set_bit);
+	ATF_REQUIRE_MSG(found_set_bit == -1,
+			"bit_ffs_at_%d_%s: Failed with high start value of %d, Result %d",
+			nbits, memloc, nbits + 3, found_set_bit);
 }
 
 BITSTRING_TC_DEFINE(bit_ffc_at)
@@ -297,6 +308,17 @@ BITSTRING_TC_DEFINE(bit_ffc_at)
 			    nbits, memloc, i, found_clear_bit);
 		}
 	}
+
+	/* Pass a start value beyond the size of the bit string */
+	bit_ffc_at(bitstr, nbits, nbits, &found_clear_bit);
+	ATF_REQUIRE_MSG(found_clear_bit == -1,
+			"bit_ffc_at_%d_%s: Failed with high start value, Result %d",
+			nbits, memloc, found_clear_bit);
+
+	bit_ffc_at(bitstr, nbits + 3, nbits, &found_clear_bit);
+	ATF_REQUIRE_MSG(found_clear_bit == -1,
+			"bit_ffc_at_%d_%s: Failed with high start value of %d, Result %d",
+			nbits, memloc, nbits + 3, found_clear_bit);
 }
 
 BITSTRING_TC_DEFINE(bit_nclear)
