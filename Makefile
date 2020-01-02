@@ -276,7 +276,7 @@ MK_META_MODE= no
 # exceptions.
 .if !defined(TARGET_ARCH) && defined(TARGET)
 # T->TA mapping is usually TARGET with arm64 the odd man out
-_TARGET_ARCH=	${TARGET:S/arm64/aarch64/:S/riscv/riscv64/}
+_TARGET_ARCH=	${TARGET:S/arm64/aarch64/:S/riscv/riscv64/:S/arm/armv7}
 .elif !defined(TARGET) && defined(TARGET_ARCH) && \
     ${TARGET_ARCH} != ${MACHINE_ARCH}
 # TA->T mapping is accidentally CPUARCH with aarch64 the odd man out
@@ -496,7 +496,6 @@ _OBSOLETE_GCC_TARGETS+=powerpc
 .endif
 TARGETS?=amd64 arm arm64 i386 riscv ${_OBSOLETE_GCC_TARGETS}
 _UNIVERSE_TARGETS=	${TARGETS}
-# arm (armv5) excluded due to broken buildworld
 TARGET_ARCHES_arm?=	armv6 armv7
 TARGET_ARCHES_arm64?=	aarch64
 TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32 mipselhf mipshf mips64elhf mips64hf

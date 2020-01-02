@@ -134,7 +134,6 @@ TARGET_ABI?=	unknown
 TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/[hs]f$//:S/mipsn32/mips64/}-${TARGET_ABI}-freebsd13.0
 KNOWN_ARCHES?=	aarch64/arm64 \
 		amd64 \
-		arm \
 		armv6/arm \
 		armv7/arm \
 		i386 \
