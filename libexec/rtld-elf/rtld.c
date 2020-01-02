@@ -134,7 +134,8 @@ static void objlist_push_head(Objlist *, Obj_Entry *);
 static void objlist_push_tail(Objlist *, Obj_Entry *);
 static void objlist_put_after(Objlist *, Obj_Entry *, Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
-static int open_binary_fd(const char *argv0, bool search_in_path);
+static int open_binary_fd(const char *argv0, bool search_in_path,
+    const char **binpath_res);
 static int parse_args(char* argv[], int argc, bool *use_pathp, int *fdp);
 static int parse_integer(const char *);
 static void *path_enumerate(const char *, path_enum_proc, const char *, void *);
@@ -378,7 +379,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     struct stat st;
     Elf_Addr *argcp;
     char **argv, **env, **envp, *kexecpath, *library_path_rpath;
-    const char *argv0;
+    const char *argv0, *binpath;
     caddr_t imgentry;
     char buf[MAXPATHLEN];
     int argc, fd, i, phnum, rtld_argc;
@@ -464,8 +465,9 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 		rtld_argc = parse_args(argv, argc, &search_in_path, &fd);
 		argv0 = argv[rtld_argc];
 		explicit_fd = (fd != -1);
+		binpath = NULL;
 		if (!explicit_fd)
-		    fd = open_binary_fd(argv0, search_in_path);
+		    fd = open_binary_fd(argv0, search_in_path, &binpath);
 		if (fstat(fd, &st) == -1) {
 		    _rtld_error("Failed to fstat FD %d (%s): %s", fd,
 		      explicit_fd ? "user-provided descriptor" : argv0,
@@ -518,6 +520,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 		} while (*envp != NULL);
 		aux = auxp = (Elf_Auxinfo *)envp;
 		auxpf = (Elf_Auxinfo *)(envp + rtld_argc);
+		/* XXXKIB insert place for AT_EXECPATH if not present */
 		for (;; auxp++, auxpf++) {
 		    *auxp = *auxpf;
 		    if (auxp->a_type == AT_NULL)
@@ -529,6 +532,18 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 		for (auxp = aux;  auxp->a_type != AT_NULL;  auxp++) {
 		    if (auxp->a_type < AT_COUNT)
 			aux_info[auxp->a_type] = auxp;
+		}
+
+		/* Point AT_EXECPATH auxv and aux_info to the binary path. */
+		if (binpath == NULL) {
+		    aux_info[AT_EXECPATH] = NULL;
+		} else {
+		    if (aux_info[AT_EXECPATH] == NULL) {
+			aux_info[AT_EXECPATH] = xmalloc(sizeof(Elf_Auxinfo));
+			aux_info[AT_EXECPATH]->a_type = AT_EXECPATH;
+		    }
+		    aux_info[AT_EXECPATH]->a_un.a_ptr = __DECONST(void *,
+		      binpath);
 		}
 	    } else {
 		_rtld_error("No binary");
@@ -5494,12 +5509,14 @@ symlook_init_from_req(SymLook *dst, const SymLook *src)
 }
 
 static int
-open_binary_fd(const char *argv0, bool search_in_path)
+open_binary_fd(const char *argv0, bool search_in_path,
+    const char **binpath_res)
 {
-	char *pathenv, *pe, binpath[PATH_MAX];
+	char *pathenv, *pe, *binpath;
 	int fd;
 
 	if (search_in_path && strchr(argv0, '/') == NULL) {
+		binpath = xmalloc(PATH_MAX);
 		pathenv = getenv("PATH");
 		if (pathenv == NULL) {
 			_rtld_error("-p and no PATH environment variable");
@@ -5524,13 +5541,17 @@ open_binary_fd(const char *argv0, bool search_in_path)
 			    sizeof(binpath))
 				continue;
 			fd = open(binpath, O_RDONLY | O_CLOEXEC | O_VERIFY);
-			if (fd != -1 || errno != ENOENT)
+			if (fd != -1 || errno != ENOENT) {
+				*binpath_res = binpath;
 				break;
+			}
 		}
 		free(pathenv);
 	} else {
 		fd = open(argv0, O_RDONLY | O_CLOEXEC | O_VERIFY);
+		*binpath_res = argv0;
 	}
+	/* XXXKIB Use getcwd() to resolve relative binpath to absolute. */
 
 	if (fd == -1) {
 		_rtld_error("Cannot open %s: %s", argv0, rtld_strerror(errno));
