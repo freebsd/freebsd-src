@@ -162,6 +162,51 @@ bectl_destroy_body()
 	atf_check bectl -r ${zpool}/ROOT create -e default default3
 	atf_check bectl -r ${zpool}/ROOT destroy -o default3
 	atf_check bectl -r ${zpool}/ROOT unmount default
+
+	# create two be from the same parent and destroy the parent
+	atf_check bectl -r ${zpool}/ROOT create -e default default2
+	atf_check bectl -r ${zpool}/ROOT create -e default default3
+	atf_check bectl -r ${zpool}/ROOT destroy default
+	atf_check bectl -r ${zpool}/ROOT destroy default2
+	atf_check bectl -r ${zpool}/ROOT rename default3 default
+
+	# Create a BE, have it be the parent for another and repeat, then start
+	# deleting environments.  Arbitrarily chose default3 as the first.
+	# Sleeps are required to prevent conflicting snapshots- libbe will
+	# use the time with a serial at the end as needed to prevent collisions,
+	# but as BEs get promoted the snapshot names will convert and conflict
+	# anyways.  libbe should perhaps consider adding something extra to the
+	# default name to prevent collisions like this, but the default name
+	# includes down to the second and creating BEs this rapidly is perhaps
+	# uncommon enough.
+	atf_check bectl -r ${zpool}/ROOT create -e default default2
+	sleep 1
+	atf_check bectl -r ${zpool}/ROOT create -e default2 default3
+	sleep 1
+	atf_check bectl -r ${zpool}/ROOT create -e default3 default4
+	atf_check bectl -r ${zpool}/ROOT destroy default3
+	atf_check bectl -r ${zpool}/ROOT destroy default2
+	atf_check bectl -r ${zpool}/ROOT destroy default4
+
+	# Create two BEs, then create an unrelated snapshot on the originating
+	# BE and destroy it.  We shouldn't have promoted the second BE, and it's
+	# only possible to tell if we promoted it by making sure we didn't
+	# demote the first BE at some point -- if we did, it's origin will no
+	# longer be empty.
+	atf_check bectl -r ${zpool}/ROOT create -e default default2
+	atf_check bectl -r ${zpool}/ROOT create default@test
+
+	atf_check bectl -r ${zpool}/ROOT destroy default@test
+	atf_check -o inline:"-\n" zfs get -Ho value origin ${zpool}/ROOT/default
+	atf_check bectl -r ${zpool}/ROOT destroy default2
+
+	# As observed by beadm, if we explicitly try to destroy a snapshot that
+	# leads to clones, we shouldn't have allowed it.
+	atf_check bectl -r ${zpool}/ROOT create default@test
+	atf_check bectl -r ${zpool}/ROOT create -e default@test default2
+
+	atf_check -e  not-empty -s not-exit:0 bectl -r ${zpool}/ROOT destroy \
+	    default@test
 }
 bectl_destroy_cleanup()
 {
