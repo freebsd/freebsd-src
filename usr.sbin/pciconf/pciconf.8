@@ -110,6 +110,19 @@ in revision 2.1 of the
 standard.
 Note that they will be 0 for older cards.
 .Pp
+Adding a second
+.Fl l
+option causes output to be in a compact columnar format, suitable for
+80 column output:
+.Bd -literal
+drv     selector        class   rev hdr vendor device subven subdev
+foo0@pci0:0:4:0:        010000  01  00  1000   000f   0000   0000
+bar0@pci0:0:5:0:        000100  00  00  88c1   5333   0000   0000
+none0@pci0:0:6:0:       020000  00  00  10ec   8029   0000   0000
+.Ed
+.Pp
+All fields retain the same definition as with the non-compact form.
+.Pp
 If the
 .Fl B
 option is supplied,
