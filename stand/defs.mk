@@ -28,6 +28,7 @@ FDTSRC=		${BOOTSRC}/fdt
 FICLSRC=	${BOOTSRC}/ficl
 LDRSRC=		${BOOTSRC}/common
 LIBLUASRC=	${BOOTSRC}/liblua
+LIBOFWSRC=	${BOOTSRC}/libofw
 LUASRC=		${SRCTOP}/contrib/lua/src
 SASRC=		${BOOTSRC}/libsa
 SYSDIR=		${SRCTOP}/sys

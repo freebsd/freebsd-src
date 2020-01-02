@@ -47,8 +47,8 @@ LINKS=		${BINDIR}/loader ${BINDIR}/zfsloader
 .endif
 
 # Open Firmware standalone support library
-LIBOFW=		${BOOTOBJ}/ofw/libofw/libofw.a
-CFLAGS+=	-I${BOOTSRC}/ofw/libofw/
+LIBOFW=		${BOOTOBJ}/libofw/libofw.a
+CFLAGS+=	-I${BOOTSRC}/libofw
 
 DPADD=		${LDR_INTERP} ${LIBOFW} ${LIBSA}
 LDADD=		${LDR_INTERP} ${LIBOFW} ${LIBSA}
