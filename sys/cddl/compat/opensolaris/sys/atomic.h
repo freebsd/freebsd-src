@@ -42,7 +42,8 @@
 #endif
 
 #if !defined(__LP64__) && !defined(__mips_n32) && \
-    !defined(ARM_HAVE_ATOMIC64) && !defined(I386_HAVE_ATOMIC64)
+    !defined(ARM_HAVE_ATOMIC64) && !defined(I386_HAVE_ATOMIC64) && \
+    !defined(HAS_EMULATED_ATOMIC64)
 extern void atomic_add_64(volatile uint64_t *target, int64_t delta);
 extern void atomic_dec_64(volatile uint64_t *target);
 extern uint64_t atomic_swap_64(volatile uint64_t *a, uint64_t value);
@@ -109,7 +110,8 @@ atomic_cas_32(volatile uint32_t *target, uint32_t cmp, uint32_t newval)
 #endif
 
 #if defined(__LP64__) || defined(__mips_n32) || \
-    defined(ARM_HAVE_ATOMIC64) || defined(I386_HAVE_ATOMIC64)
+    defined(ARM_HAVE_ATOMIC64) || defined(I386_HAVE_ATOMIC64) || \
+    defined(HAS_EMULATED_ATOMIC64)
 static __inline void
 atomic_dec_64(volatile uint64_t *target)
 {
