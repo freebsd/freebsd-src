@@ -52,6 +52,7 @@
 #include <sys/sockio.h>
 #include <sys/eventhandler.h>
 #include <sys/syslog.h>
+#include <sys/priv.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
