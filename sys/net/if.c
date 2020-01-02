@@ -1836,6 +1836,7 @@ ifa_maintain_loopback_route(int cmd, const char *otype, struct ifaddr *ifa,
 	struct rt_addrinfo info;
 	struct sockaddr_dl null_sdl;
 	struct ifnet *ifp;
+	struct ifaddr *rti_ifa = NULL;
 
 	ifp = ifa->ifa_ifp;
 
@@ -1846,9 +1847,10 @@ ifa_maintain_loopback_route(int cmd, const char *otype, struct ifaddr *ifa,
 		/* explicitly specify (loopback) ifa */
 		if (info.rti_ifp != NULL) {
 			NET_EPOCH_ENTER(et);
-			info.rti_ifa = ifaof_ifpforaddr(ifa->ifa_addr, info.rti_ifp);
-			if (info.rti_ifa != NULL)
-				ifa_ref(info.rti_ifa);
+			rti_ifa = ifaof_ifpforaddr(ifa->ifa_addr, info.rti_ifp);
+			if (rti_ifa != NULL)
+				ifa_ref(rti_ifa);
+			info.rti_ifa = rti_ifa;
 			NET_EPOCH_EXIT(et);
 		}
 	}
@@ -1858,6 +1860,9 @@ ifa_maintain_loopback_route(int cmd, const char *otype, struct ifaddr *ifa,
 	link_init_sdl(ifp, (struct sockaddr *)&null_sdl, ifp->if_type);
 
 	error = rtrequest1_fib(cmd, &info, NULL, ifp->if_fib);
+
+	if (rti_ifa != NULL)
+		ifa_free(rti_ifa);
 
 	if (error != 0 &&
 	    !(cmd == RTM_ADD && error == EEXIST) &&
