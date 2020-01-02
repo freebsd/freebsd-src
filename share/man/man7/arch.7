@@ -140,12 +140,6 @@ and
 are 8 bytes.
 .El
 .Pp
-Compilers define the
-.Dv _LP64
-symbol when compiling for an
-.Dv LP64
-ABI.
-.Pp
 Some machines support more than one
 .Fx
 ABI.
@@ -421,7 +415,7 @@ These variables are not otherwise documented and are used extensively
 in the build system.
 .Bl -tag -width "MACHINE_CPUARCH"
 .It Dv MACHINE
-Represent the hardware platform.
+Represents the hardware platform.
 This is the same as the native platform's
 .Xr uname 1
 .Fl m
