@@ -289,7 +289,7 @@ void vm_exit_reqidle(struct vm *vm, int vcpuid, uint64_t rip);
  * forward progress when the rendezvous is in progress.
  */
 typedef void (*vm_rendezvous_func_t)(struct vm *vm, int vcpuid, void *arg);
-void vm_smp_rendezvous(struct vm *vm, int vcpuid, cpuset_t dest,
+int vm_smp_rendezvous(struct vm *vm, int vcpuid, cpuset_t dest,
     vm_rendezvous_func_t func, void *arg);
 cpuset_t vm_active_cpus(struct vm *vm);
 cpuset_t vm_debug_cpus(struct vm *vm);
