@@ -1048,8 +1048,7 @@ g_eli_destroy(struct g_eli_softc *sc, boolean_t force)
 	bzero(sc, sizeof(*sc));
 	free(sc, M_ELI);
 
-	if (pp == NULL || (pp->acr == 0 && pp->acw == 0 && pp->ace == 0))
-		G_ELI_DEBUG(0, "Device %s destroyed.", gp->name);
+	G_ELI_DEBUG(0, "Device %s destroyed.", gp->name);
 	g_wither_geom_close(gp, ENXIO);
 
 	return (0);
