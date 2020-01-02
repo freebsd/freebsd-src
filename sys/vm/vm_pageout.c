@@ -834,6 +834,7 @@ scan:
 				if (new.act_count > ACT_MAX)
 					new.act_count = ACT_MAX;
 
+				new.flags &= ~PGA_QUEUE_OP_MASK;
 				new.flags |= PGA_REQUEUE;
 				new.queue = PQ_ACTIVE;
 				if (!vm_page_pqstate_commit(m, &old, new))
@@ -1313,8 +1314,9 @@ act_scan:
 				 */
 				ps_delta = 0;
 				if (old.queue != PQ_ACTIVE) {
-					old.queue = PQ_ACTIVE;
-					old.flags |= PGA_REQUEUE;
+					new.flags &= ~PGA_QUEUE_OP_MASK;
+					new.flags |= PGA_REQUEUE;
+					new.queue = PQ_ACTIVE;
 				}
 			} else {
 				/*
@@ -1350,6 +1352,7 @@ act_scan:
 					ps_delta = 1;
 				}
 
+				new.flags &= ~PGA_QUEUE_OP_MASK;
 				new.flags |= PGA_REQUEUE;
 				new.queue = nqueue;
 			}
@@ -1560,6 +1563,7 @@ vm_pageout_scan_inactive(struct vm_domain *vmd, int shortage,
 				if (new.act_count > ACT_MAX)
 					new.act_count = ACT_MAX;
 
+				new.flags &= ~PGA_QUEUE_OP_MASK;
 				new.flags |= PGA_REQUEUE;
 				new.queue = PQ_ACTIVE;
 				if (!vm_page_pqstate_commit(m, &old, new))
