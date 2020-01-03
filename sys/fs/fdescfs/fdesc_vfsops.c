@@ -110,7 +110,7 @@ fdesc_mount(struct mount *mp)
 	rvp->v_type = VDIR;
 	rvp->v_vflag |= VV_ROOT;
 	fmp->f_root = rvp;
-	VOP_UNLOCK(rvp, 0);
+	VOP_UNLOCK(rvp);
 	/* XXX -- don't mark as local to work around fts() problems */
 	/*mp->mnt_flag |= MNT_LOCAL;*/
 	vfs_getnewfsid(mp);

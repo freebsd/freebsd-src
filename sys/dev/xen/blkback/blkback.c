@@ -2282,7 +2282,7 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 
 		vn_lock(xbb->vn, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_FSYNC(xbb->vn, MNT_WAIT, curthread);
-		VOP_UNLOCK(xbb->vn, 0);
+		VOP_UNLOCK(xbb->vn);
 
 		vn_finished_write(mountpoint);
 
@@ -2401,7 +2401,7 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 		error = VOP_READ(xbb->vn, &xuio, (flags & BIO_ORDERED) ? 
 				 (IO_DIRECT|IO_SYNC) : 0, file_data->cred);
 
-		VOP_UNLOCK(xbb->vn, 0);
+		VOP_UNLOCK(xbb->vn);
 		break;
 	case BIO_WRITE: {
 		struct mount *mountpoint;
@@ -2434,7 +2434,7 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 		 */
 		error = VOP_WRITE(xbb->vn, &xuio, (flags & BIO_ORDERED) ?
 				  IO_SYNC : 0, file_data->cred);
-		VOP_UNLOCK(xbb->vn, 0);
+		VOP_UNLOCK(xbb->vn);
 
 		vn_finished_write(mountpoint);
 
@@ -2744,7 +2744,7 @@ xbb_open_backend(struct xbb_softc *xbb)
 		xenbus_dev_fatal(xbb->dev, error, "%s is not a disk "
 				 "or file", xbb->dev_name);
 	}
-	VOP_UNLOCK(xbb->vn, 0);
+	VOP_UNLOCK(xbb->vn);
 
 	if (error != 0) {
 		xbb_close_backend(xbb);

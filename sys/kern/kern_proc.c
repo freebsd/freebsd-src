@@ -871,7 +871,7 @@ killjobc(void)
 			sx_xunlock(&proctree_lock);
 			if (vn_lock(ttyvp, LK_EXCLUSIVE) == 0) {
 				VOP_REVOKE(ttyvp, REVOKEALL);
-				VOP_UNLOCK(ttyvp, 0);
+				VOP_UNLOCK(ttyvp);
 			}
 			vrele(ttyvp);
 			sx_xlock(&proctree_lock);

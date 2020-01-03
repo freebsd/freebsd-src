@@ -205,7 +205,7 @@ verifiedexecioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 			if (error != 0) {
 				mac_veriexec_set_fingerprint_status(nid.ni_vp,
 				    FINGERPRINT_INVALID);
-				VOP_UNLOCK(nid.ni_vp, 0);
+				VOP_UNLOCK(nid.ni_vp);
 				(void) vn_close(nid.ni_vp, FREAD, td->td_ucred,
 				    td);
 				return (error);
@@ -227,7 +227,7 @@ verifiedexecioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 			 */
 			mac_veriexec_set_fingerprint_status(nid.ni_vp,
 			    FINGERPRINT_INVALID);
-			VOP_UNLOCK(nid.ni_vp, 0);
+			VOP_UNLOCK(nid.ni_vp);
 			(void) vn_close(nid.ni_vp, FREAD, td->td_ucred, td);
 			if (params->flags & VERIEXEC_LABEL)
 				labellen = strnlen(lparams->label,

@@ -53,7 +53,7 @@ lookupnameat(char *dirname, enum uio_seg seg, enum symfollow follow,
 
 	vref(startvp);
 	ltype = VOP_ISLOCKED(startvp);
-	VOP_UNLOCK(startvp, 0);
+	VOP_UNLOCK(startvp);
 	NDINIT_ATVP(&nd, LOOKUP, LOCKLEAF | follow, seg, dirname,
 	    startvp, curthread);
 	error = namei(&nd);

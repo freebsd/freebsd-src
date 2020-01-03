@@ -396,7 +396,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	 * Lock no longer needed
 	 */
 	locked = false;
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 
 	/*
 	 * Check if file_offset page aligned. Currently we cannot handle
@@ -469,7 +469,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 cleanup:
 	if (opened) {
 		if (locked)
-			VOP_UNLOCK(vp, 0);
+			VOP_UNLOCK(vp);
 		locked = false;
 		VOP_CLOSE(vp, FREAD, td->td_ucred, td);
 	}
@@ -481,7 +481,7 @@ cleanup:
 		VOP_UNSET_TEXT_CHECKED(vp);
 	}
 	if (locked)
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 
 	/* Release the temporary mapping. */
 	if (a_out)

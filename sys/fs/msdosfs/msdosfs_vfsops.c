@@ -301,10 +301,10 @@ msdosfs_mount(struct mount *mp)
 			if (error)
 				error = priv_check(td, PRIV_VFS_MOUNT_PERM);
 			if (error) {
-				VOP_UNLOCK(devvp, 0);
+				VOP_UNLOCK(devvp);
 				return (error);
 			}
-			VOP_UNLOCK(devvp, 0);
+			VOP_UNLOCK(devvp);
 			g_topology_lock();
 			error = g_access(pmp->pm_cp, 0, 1, 0);
 			g_topology_unlock();
@@ -415,7 +415,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	dev = devvp->v_rdev;
 	if (atomic_cmpset_acq_ptr((uintptr_t *)&dev->si_mountpt, 0,
 	    (uintptr_t)mp) == 0) {
-		VOP_UNLOCK(devvp, 0);
+		VOP_UNLOCK(devvp);
 		return (EBUSY);
 	}
 	g_topology_lock();
@@ -423,12 +423,12 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	g_topology_unlock();
 	if (error != 0) {
 		atomic_store_rel_ptr((uintptr_t *)&dev->si_mountpt, 0);
-		VOP_UNLOCK(devvp, 0);
+		VOP_UNLOCK(devvp);
 		return (error);
 	}
 	dev_ref(dev);
 	bo = &devvp->v_bufobj;
-	VOP_UNLOCK(devvp, 0);
+	VOP_UNLOCK(devvp);
 	if (dev->si_iosize_max != 0)
 		mp->mnt_iosize_max = dev->si_iosize_max;
 	if (mp->mnt_iosize_max > MAXPHYS)
@@ -934,7 +934,7 @@ loop:
 		error = VOP_FSYNC(vp, waitfor, td);
 		if (error)
 			allerror = error;
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		vrele(vp);
 	}
 
@@ -946,7 +946,7 @@ loop:
 		error = VOP_FSYNC(pmp->pm_devvp, waitfor, td);
 		if (error)
 			allerror = error;
-		VOP_UNLOCK(pmp->pm_devvp, 0);
+		VOP_UNLOCK(pmp->pm_devvp);
 	}
 
 	error = msdosfs_fsiflush(pmp, waitfor);

@@ -674,9 +674,9 @@ tmpfs_rename_relock(struct vnode *fdvp, struct vnode **fvpp,
 	struct tmpfs_dirent *de;
 	int error, restarts = 0;
 
-	VOP_UNLOCK(tdvp, 0);
+	VOP_UNLOCK(tdvp);
 	if (*tvpp != NULL && *tvpp != tdvp)
-		VOP_UNLOCK(*tvpp, 0);
+		VOP_UNLOCK(*tvpp);
 	mp = fdvp->v_mount;
 
 relock:
@@ -685,11 +685,11 @@ relock:
 	if (error)
 		goto releout;
 	if (vn_lock(tdvp, LK_EXCLUSIVE | LK_NOWAIT) != 0) {
-		VOP_UNLOCK(fdvp, 0);
+		VOP_UNLOCK(fdvp);
 		error = vn_lock(tdvp, LK_EXCLUSIVE);
 		if (error)
 			goto releout;
-		VOP_UNLOCK(tdvp, 0);
+		VOP_UNLOCK(tdvp);
 		goto relock;
 	}
 	/*
@@ -698,8 +698,8 @@ relock:
 	 */
 	de = tmpfs_dir_lookup(VP_TO_TMPFS_DIR(fdvp), NULL, fcnp);
 	if (de == NULL) {
-		VOP_UNLOCK(fdvp, 0);
-		VOP_UNLOCK(tdvp, 0);
+		VOP_UNLOCK(fdvp);
+		VOP_UNLOCK(tdvp);
 		if ((fcnp->cn_flags & ISDOTDOT) != 0 ||
 		    (fcnp->cn_namelen == 1 && fcnp->cn_nameptr[0] == '.'))
 			error = EINVAL;
@@ -709,14 +709,14 @@ relock:
 	}
 	error = tmpfs_alloc_vp(mp, de->td_node, LK_EXCLUSIVE | LK_NOWAIT, &nvp);
 	if (error != 0) {
-		VOP_UNLOCK(fdvp, 0);
-		VOP_UNLOCK(tdvp, 0);
+		VOP_UNLOCK(fdvp);
+		VOP_UNLOCK(tdvp);
 		if (error != EBUSY)
 			goto releout;
 		error = tmpfs_alloc_vp(mp, de->td_node, LK_EXCLUSIVE, &nvp);
 		if (error != 0)
 			goto releout;
-		VOP_UNLOCK(nvp, 0);
+		VOP_UNLOCK(nvp);
 		/*
 		 * Concurrent rename race.
 		 */
@@ -731,7 +731,7 @@ relock:
 	}
 	vrele(*fvpp);
 	*fvpp = nvp;
-	VOP_UNLOCK(*fvpp, 0);
+	VOP_UNLOCK(*fvpp);
 	/*
 	 * Re-resolve tvp and acquire the vnode lock if present.
 	 */
@@ -755,15 +755,15 @@ relock:
 			vrele(*tvpp);
 		*tvpp = nvp;
 		if (error != 0) {
-			VOP_UNLOCK(fdvp, 0);
-			VOP_UNLOCK(tdvp, 0);
+			VOP_UNLOCK(fdvp);
+			VOP_UNLOCK(tdvp);
 			if (error != EBUSY)
 				goto releout;
 			error = tmpfs_alloc_vp(mp, de->td_node, LK_EXCLUSIVE,
 			    &nvp);
 			if (error != 0)
 				goto releout;
-			VOP_UNLOCK(nvp, 0);
+			VOP_UNLOCK(nvp);
 			/*
 			 * fdvp contains fvp, thus tvp (=fdvp) is not empty.
 			 */
@@ -1062,7 +1062,7 @@ tmpfs_rename(struct vop_rename_args *v)
 
 out_locked:
 	if (fdvp != tdvp && fdvp != tvp)
-		VOP_UNLOCK(fdvp, 0);
+		VOP_UNLOCK(fdvp);
 
 out:
 	/*
@@ -1513,7 +1513,7 @@ tmpfs_vptocnp_fill(struct vnode *vp, struct tmpfs_node *tn,
 	}
 	if (error == 0) {
 		if (vp != *dvp)
-			VOP_UNLOCK(*dvp, 0);
+			VOP_UNLOCK(*dvp);
 	} else {
 		if (vp != *dvp)
 			vput(*dvp);

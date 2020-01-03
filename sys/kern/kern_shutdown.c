@@ -510,21 +510,21 @@ kern_reroot(void)
 	error = vfs_busy(mp, MBF_NOWAIT);
 	if (error != 0) {
 		vfs_ref(mp);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		error = vfs_busy(mp, 0);
 		vn_lock(vp, LK_SHARED | LK_RETRY);
 		vfs_rel(mp);
 		if (error != 0) {
-			VOP_UNLOCK(vp, 0);
+			VOP_UNLOCK(vp);
 			return (ENOENT);
 		}
 		if (VN_IS_DOOMED(vp)) {
-			VOP_UNLOCK(vp, 0);
+			VOP_UNLOCK(vp);
 			vfs_unbusy(mp);
 			return (ENOENT);
 		}
 	}
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 
 	/*
 	 * Remove the filesystem containing currently-running executable

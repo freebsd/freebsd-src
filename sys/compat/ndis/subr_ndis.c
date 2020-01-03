@@ -2845,7 +2845,7 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 
 	/* Get the file size. */
 	VOP_GETATTR(nd.ni_vp, vap, td->td_ucred);
-	VOP_UNLOCK(nd.ni_vp, 0);
+	VOP_UNLOCK(nd.ni_vp);
 
 	fh->nf_vp = nd.ni_vp;
 	fh->nf_map = NULL;

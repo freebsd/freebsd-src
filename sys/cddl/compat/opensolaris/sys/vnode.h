@@ -185,7 +185,7 @@ vn_openat(char *pnamep, enum uio_seg seg, int filemode, int createmode,
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error == 0) {
 		/* We just unlock so we hold a reference. */
-		VOP_UNLOCK(nd.ni_vp, 0);
+		VOP_UNLOCK(nd.ni_vp);
 		*vpp = nd.ni_vp;
 	}
 	return (error);
@@ -241,7 +241,7 @@ zfs_vop_fsync(vnode_t *vp, int flag, cred_t *cr)
 		goto drop;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	error = VOP_FSYNC(vp, MNT_WAIT, curthread);
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 	vn_finished_write(mp);
 drop:
 	return (error);

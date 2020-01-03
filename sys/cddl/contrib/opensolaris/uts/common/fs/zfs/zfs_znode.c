@@ -1272,7 +1272,7 @@ again:
 		err = insmntque(vp, zfsvfs->z_vfs);
 		if (err == 0) {
 			vp->v_hash = obj_num;
-			VOP_UNLOCK(vp, 0);
+			VOP_UNLOCK(vp);
 		} else {
 			zp->z_vnode = NULL;
 			zfs_znode_dmu_fini(zp);

@@ -407,7 +407,7 @@ devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int flags)
 			VI_UNLOCK(vp);
 		vgone(vp);
 		if ((flags & DEVFS_DEL_VNLOCKED) == 0)
-			VOP_UNLOCK(vp, 0);
+			VOP_UNLOCK(vp);
 		vdrop(vp);
 		sx_xlock(&dm->dm_lock);
 	} else

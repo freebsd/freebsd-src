@@ -2485,7 +2485,7 @@ swapoff_one(struct swdevt *sp, struct ucred *cred)
 #ifdef MAC
 	(void) vn_lock(sp->sw_vp, LK_EXCLUSIVE | LK_RETRY);
 	error = mac_system_check_swapoff(cred, sp->sw_vp);
-	(void) VOP_UNLOCK(sp->sw_vp, 0);
+	(void) VOP_UNLOCK(sp->sw_vp);
 	if (error != 0)
 		return (error);
 #endif
@@ -2967,7 +2967,7 @@ swapongeom(struct vnode *vp)
 		error = swapongeom_locked(vp->v_rdev, vp);
 		g_topology_unlock();
 	}
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 	return (error);
 }
 
@@ -3033,7 +3033,7 @@ swaponvp(struct thread *td, struct vnode *vp, u_long nblks)
 	if (error == 0)
 #endif
 		error = VOP_OPEN(vp, FREAD | FWRITE, td->td_ucred, td, NULL);
-	(void) VOP_UNLOCK(vp, 0);
+	(void) VOP_UNLOCK(vp);
 	if (error)
 		return (error);
 

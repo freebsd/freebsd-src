@@ -1338,7 +1338,7 @@ smbfs_lookup(ap)
 		error = vfs_busy(mp, MBF_NOWAIT);
 		if (error != 0) {
 			vfs_ref(mp);
-			VOP_UNLOCK(dvp, 0);
+			VOP_UNLOCK(dvp);
 			error = vfs_busy(mp, 0);
 			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 			vfs_rel(mp);
@@ -1352,7 +1352,7 @@ smbfs_lookup(ap)
 				goto out;
 			}
 		}	
-		VOP_UNLOCK(dvp, 0);
+		VOP_UNLOCK(dvp);
 		error = smbfs_nget(mp, dvp, name, nmlen, NULL, &vp);
 		vfs_unbusy(mp);
 		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);

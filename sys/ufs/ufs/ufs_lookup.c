@@ -968,7 +968,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 			if (isrename)
 				return (0);
 			if (tvp != NULL)
-				VOP_UNLOCK(tvp, 0);
+				VOP_UNLOCK(tvp);
 			(void) VOP_FSYNC(dvp, MNT_WAIT, td);
 			if (tvp != NULL)
 				vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY);
@@ -1129,7 +1129,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 	if (isrename == 0 && error == 0 &&
 	    dp->i_endoff && dp->i_endoff < dp->i_size) {
 		if (tvp != NULL)
-			VOP_UNLOCK(tvp, 0);
+			VOP_UNLOCK(tvp);
 		error = UFS_TRUNCATE(dvp, (off_t)dp->i_endoff,
 		    IO_NORMAL | (DOINGASYNC(dvp) ? 0 : IO_SYNC), cr);
 		if (error != 0)

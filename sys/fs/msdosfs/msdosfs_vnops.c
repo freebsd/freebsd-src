@@ -852,7 +852,7 @@ msdosfs_fsync(struct vop_fsync_args *ap)
 		devvp = VTODE(ap->a_vp)->de_pmp->pm_devvp;
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 		allerror = VOP_FSYNC(devvp, MNT_WAIT, ap->a_td);
-		VOP_UNLOCK(devvp, 0);
+		VOP_UNLOCK(devvp);
 	} else
 		allerror = 0;
 
@@ -1009,7 +1009,7 @@ abortit:
 		    (fcnp->cn_flags & ISDOTDOT) ||
 		    (tcnp->cn_flags & ISDOTDOT) ||
 		    (ip->de_flag & DE_RENAME)) {
-			VOP_UNLOCK(fvp, 0);
+			VOP_UNLOCK(fvp);
 			error = EINVAL;
 			goto abortit;
 		}
@@ -1040,7 +1040,7 @@ abortit:
 	 * call to doscheckpath().
 	 */
 	error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, tcnp->cn_thread);
-	VOP_UNLOCK(fvp, 0);
+	VOP_UNLOCK(fvp);
 	if (VTODE(fdvp)->de_StartCluster != VTODE(tdvp)->de_StartCluster)
 		newparent = 1;
 	if (doingdirectory && newparent) {
@@ -1109,7 +1109,7 @@ abortit:
 	if ((fcnp->cn_flags & SAVESTART) == 0)
 		panic("msdosfs_rename: lost from startdir");
 	if (!newparent)
-		VOP_UNLOCK(tdvp, 0);
+		VOP_UNLOCK(tdvp);
 	if (relookup(fdvp, &fvp, fcnp) == 0)
 		vrele(fdvp);
 	if (fvp == NULL) {
@@ -1119,7 +1119,7 @@ abortit:
 		if (doingdirectory)
 			panic("rename: lost dir entry");
 		if (newparent)
-			VOP_UNLOCK(tdvp, 0);
+			VOP_UNLOCK(tdvp);
 		vrele(tdvp);
 		vrele(ap->a_fvp);
 		return 0;
@@ -1139,9 +1139,9 @@ abortit:
 	if (xp != ip) {
 		if (doingdirectory)
 			panic("rename: lost dir entry");
-		VOP_UNLOCK(fvp, 0);
+		VOP_UNLOCK(fvp);
 		if (newparent)
-			VOP_UNLOCK(fdvp, 0);
+			VOP_UNLOCK(fdvp);
 		vrele(ap->a_fvp);
 		xp = NULL;
 	} else {
@@ -1164,8 +1164,8 @@ abortit:
 		if (error) {
 			memcpy(ip->de_Name, oldname, 11);
 			if (newparent)
-				VOP_UNLOCK(fdvp, 0);
-			VOP_UNLOCK(fvp, 0);
+				VOP_UNLOCK(fdvp);
+			VOP_UNLOCK(fvp);
 			goto bad;
 		}
 		/*
@@ -1185,8 +1185,8 @@ abortit:
 		if (error) {
 			/* XXX should downgrade to ro here, fs is corrupt */
 			if (newparent)
-				VOP_UNLOCK(fdvp, 0);
-			VOP_UNLOCK(fvp, 0);
+				VOP_UNLOCK(fdvp);
+			VOP_UNLOCK(fvp);
 			goto bad;
 		}
 		if (!doingdirectory) {
@@ -1195,8 +1195,8 @@ abortit:
 			if (error) {
 				/* XXX should downgrade to ro here, fs is corrupt */
 				if (newparent)
-					VOP_UNLOCK(fdvp, 0);
-				VOP_UNLOCK(fvp, 0);
+					VOP_UNLOCK(fdvp);
+				VOP_UNLOCK(fvp);
 				goto bad;
 			}
 			if (ip->de_dirclust == MSDOSFSROOT)
@@ -1206,7 +1206,7 @@ abortit:
 		}
 		reinsert(ip);
 		if (newparent)
-			VOP_UNLOCK(fdvp, 0);
+			VOP_UNLOCK(fdvp);
 	}
 
 	/*
@@ -1224,7 +1224,7 @@ abortit:
 			      NOCRED, &bp);
 		if (error) {
 			/* XXX should downgrade to ro here, fs is corrupt */
-			VOP_UNLOCK(fvp, 0);
+			VOP_UNLOCK(fvp);
 			goto bad;
 		}
 		dotdotp = (struct direntry *)bp->b_data + 1;
@@ -1238,7 +1238,7 @@ abortit:
 			bdwrite(bp);
 		else if ((error = bwrite(bp)) != 0) {
 			/* XXX should downgrade to ro here, fs is corrupt */
-			VOP_UNLOCK(fvp, 0);
+			VOP_UNLOCK(fvp);
 			goto bad;
 		}
 	}
@@ -1251,7 +1251,7 @@ abortit:
 	 * namecache entries that were installed for this direntry.
 	 */
 	cache_purge(fvp);
-	VOP_UNLOCK(fvp, 0);
+	VOP_UNLOCK(fvp);
 bad:
 	if (xp)
 		vput(tvp);

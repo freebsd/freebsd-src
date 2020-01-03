@@ -1116,7 +1116,7 @@ void nfsd_mntinit(void);
  * later, for debugging or stats, etc.
  */
 #define	NFSVOPLOCK(v, f)	vn_lock((v), (f))
-#define	NFSVOPUNLOCK(v, f)	VOP_UNLOCK((v), (f))
+#define	NFSVOPUNLOCK(v)		VOP_UNLOCK((v))
 #define	NFSVOPISLOCKED(v)	VOP_ISLOCKED((v))
 
 /*
