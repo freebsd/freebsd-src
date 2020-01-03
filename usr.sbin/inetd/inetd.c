@@ -250,9 +250,11 @@ static char	*sskip(char **);
 static char	*newstr(const char *);
 static void	print_service(const char *, const struct servtab *);
 
+#ifdef LIBWRAP
 /* tcpd.h */
 int	allow_severity;
 int	deny_severity;
+#endif
 
 static int	wrap_ex = 0;
 static int	wrap_bi = 0;
