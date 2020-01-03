@@ -51,8 +51,8 @@
     ".set reorder		\n"					\
     ".cpsetup $ra, $v0, 1b	\n"					\
     ".local	" __STRING(func) "\n"					\
-    "jal	" __STRING(func)
-    "nop			\n"					\
+    "jal	" __STRING(func) "\n"					\
+    "nop			\n"
 #endif
 
 #endif
