@@ -526,7 +526,7 @@ extern int fop_getattr(vnode_t *vp, vattr_t *vap);
 #define	VN_RELE_ASYNC(vp, taskq)	vn_close(vp, 0, NULL, NULL)
 
 #define	vn_lock(vp, type)
-#define	VOP_UNLOCK(vp, type)
+#define	VOP_UNLOCK(vp)
 
 extern int vn_open(char *path, int x1, int oflags, int mode, vnode_t **vpp,
     int x2, int x3);
