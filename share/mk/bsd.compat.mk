@@ -79,10 +79,11 @@ LIB32CPUFLAGS=  -target mips-unknown-freebsd13.0
 .endif
 LIB32CPUFLAGS+= -mabi=32
 LIB32_MACHINE=	mips
-LIB32_MACHINE_ARCH=	mips
 .if ${COMPAT_ARCH:Mmips64el*} != ""
+LIB32_MACHINE_ARCH=	mipsel
 _EMULATION=	elf32ltsmip_fbsd
 .else
+LIB32_MACHINE_ARCH=	mips
 _EMULATION=	elf32btsmip_fbsd
 .endif
 LIB32WMAKEFLAGS= LD="${XLD} -m ${_EMULATION}"
