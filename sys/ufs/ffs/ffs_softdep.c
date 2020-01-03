@@ -1926,7 +1926,7 @@ softdep_flushworklist(oldmnt, countp, td)
 		*countp += count;
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_FSYNC(devvp, MNT_WAIT, td);
-		VOP_UNLOCK(devvp, 0);
+		VOP_UNLOCK(devvp);
 		if (error != 0)
 			break;
 	}
@@ -1956,7 +1956,7 @@ softdep_waitidle(struct mount *mp, int flags __unused)
 		    "softdeps", 10 * hz);
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_FSYNC(devvp, MNT_WAIT, td);
-		VOP_UNLOCK(devvp, 0);
+		VOP_UNLOCK(devvp);
 		ACQUIRE_LOCK(ump);
 		if (error != 0)
 			break;
@@ -12530,7 +12530,7 @@ restart:
 			 * Unmount cannot proceed after unlock because
 			 * caller must have called vn_start_write().
 			 */
-			VOP_UNLOCK(vp, 0);
+			VOP_UNLOCK(vp);
 			error = ffs_vgetf(mp, parentino, LK_EXCLUSIVE,
 			    &pvp, FFSV_FORCEINSMQ);
 			MPASS(VTOI(pvp)->i_mode != 0);
@@ -13535,7 +13535,7 @@ softdep_request_cleanup_flush(mp, ump)
 	lvp = ump->um_devvp;
 	if (vn_lock(lvp, LK_EXCLUSIVE | LK_NOWAIT) == 0) {
 		VOP_FSYNC(lvp, MNT_NOWAIT, td);
-		VOP_UNLOCK(lvp, 0);
+		VOP_UNLOCK(lvp);
 	}
 	return (failed_vnode);
 }

@@ -293,7 +293,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	lc->typlenp = &ef->typlen;
 
 out:
-	VOP_UNLOCK(nd.ni_vp, 0);
+	VOP_UNLOCK(nd.ni_vp);
 	vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
 
 	if (hdr != NULL)

@@ -152,7 +152,7 @@ autofs_trigger_vn(struct vnode *vp, const char *path, int pathlen,
 	 */
 	lock_flags = VOP_ISLOCKED(vp);
 	vref(vp);
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 
 	sx_xlock(&autofs_softc->sc_lock);
 

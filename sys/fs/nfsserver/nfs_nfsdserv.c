@@ -298,7 +298,7 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 				} else
 					at_root = 0;
 				vfs_ref(mp);
-				NFSVOPUNLOCK(vp, 0);
+				NFSVOPUNLOCK(vp);
 				if (at_root != 0) {
 					if ((nd->nd_repstat =
 					     NFSVOPLOCK(tvp, LK_SHARED)) == 0) {
@@ -1409,7 +1409,7 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 			nd->nd_repstat = nfsvno_getattr(vp, &nva, nd, p, 1,
 			    NULL);
 		if (vpp != NULL && nd->nd_repstat == 0) {
-			NFSVOPUNLOCK(vp, 0);
+			NFSVOPUNLOCK(vp);
 			*vpp = vp;
 		} else
 			vput(vp);
@@ -1584,14 +1584,14 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 		tdp = todp;
 		tnes = *toexp;
 		if (dp != tdp) {
-			NFSVOPUNLOCK(dp, 0);
+			NFSVOPUNLOCK(dp);
 			/* Might lock tdp. */
 			tdirfor_ret = nfsvno_getattr(tdp, &tdirfor, nd, p, 0,
 			    NULL);
 		} else {
 			tdirfor_ret = nfsvno_getattr(tdp, &tdirfor, nd, p, 1,
 			    NULL);
-			NFSVOPUNLOCK(dp, 0);
+			NFSVOPUNLOCK(dp);
 		}
 	} else {
 		tfh.nfsrvfh_len = 0;
@@ -1613,16 +1613,16 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 			tnes = *exp;
 			tdirfor_ret = nfsvno_getattr(tdp, &tdirfor, nd, p, 1,
 			    NULL);
-			NFSVOPUNLOCK(dp, 0);
+			NFSVOPUNLOCK(dp);
 		} else {
-			NFSVOPUNLOCK(dp, 0);
+			NFSVOPUNLOCK(dp);
 			nd->nd_cred->cr_uid = nd->nd_saveduid;
 			nfsd_fhtovp(nd, &tfh, LK_EXCLUSIVE, &tdp, &tnes, NULL,
 			    0);	/* Locks tdp. */
 			if (tdp) {
 				tdirfor_ret = nfsvno_getattr(tdp, &tdirfor, nd,
 				    p, 1, NULL);
-				NFSVOPUNLOCK(tdp, 0);
+				NFSVOPUNLOCK(tdp);
 			}
 		}
 	}
@@ -1729,7 +1729,7 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 		nfsrv_wcc(nd, dirfor_ret, &dirfor, diraft_ret, &diraft);
 		goto out;
 	}
-	NFSVOPUNLOCK(vp, 0);
+	NFSVOPUNLOCK(vp);
 	if (vnode_vtype(vp) == VDIR) {
 		if (nd->nd_flag & ND_NFSV4)
 			nd->nd_repstat = NFSERR_ISDIR;
@@ -1751,7 +1751,7 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 			}
 			nfsd_fhtovp(nd, &dfh, LK_EXCLUSIVE, &dp, &tnes, NULL, 0);
 			if (dp)
-				NFSVOPUNLOCK(dp, 0);
+				NFSVOPUNLOCK(dp);
 		}
 	}
 	NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, CREATE,
@@ -1908,7 +1908,7 @@ nfsrvd_symlinksub(struct nfsrv_descript *nd, struct nameidata *ndp,
 				    nvap, nd, p, 1, NULL);
 		}
 		if (vpp != NULL && nd->nd_repstat == 0) {
-			NFSVOPUNLOCK(ndp->ni_vp, 0);
+			NFSVOPUNLOCK(ndp->ni_vp);
 			*vpp = ndp->ni_vp;
 		} else
 			vput(ndp->ni_vp);
@@ -2041,7 +2041,7 @@ nfsrvd_mkdirsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 			nd->nd_repstat = nfsvno_getattr(vp, nvap, nd, p, 1,
 			    NULL);
 		if (vpp && !nd->nd_repstat) {
-			NFSVOPUNLOCK(vp, 0);
+			NFSVOPUNLOCK(vp);
 			*vpp = vp;
 		} else {
 			vput(vp);
@@ -3081,7 +3081,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	 * (ie: Leave the NFSVOPUNLOCK() about here.)
 	 */
 	if (vp)
-		NFSVOPUNLOCK(vp, 0);
+		NFSVOPUNLOCK(vp);
 	if (stp)
 		free(stp, M_NFSDSTATE);
 	if (!nd->nd_repstat && dirp)
@@ -4947,7 +4947,7 @@ nfsrvd_ioadvise(struct nfsrv_descript *nd, __unused int isdgram,
 	    !NFSISSET_ATTRBIT(&hints, NFSV4IOHINT_DONTNEED)) ||
 	    (NFSISSET_ATTRBIT(&hints, NFSV4IOHINT_DONTNEED) &&
 	    !NFSISSET_ATTRBIT(&hints, NFSV4IOHINT_WILLNEED))) {
-		NFSVOPUNLOCK(vp, 0);
+		NFSVOPUNLOCK(vp);
 		if (NFSISSET_ATTRBIT(&hints, NFSV4IOHINT_WILLNEED)) {
 			ret = VOP_ADVISE(vp, offset, len, POSIX_FADV_WILLNEED);
 			NFSZERO_ATTRBIT(&hints);
@@ -5294,7 +5294,7 @@ nfsrvd_copy_file_range(struct nfsrv_descript *nd, __unused int isdgram,
 	if (nd->nd_repstat == 0)
 		nd->nd_repstat = nfsrv_lockctrl(vp, &instp, &inlop, NULL,
 		    clientid, &stateid, exp, nd, curthread);
-	NFSVOPUNLOCK(vp, 0);
+	NFSVOPUNLOCK(vp);
 	if (nd->nd_repstat != 0)
 		goto out;
 
@@ -5316,7 +5316,7 @@ nfsrvd_copy_file_range(struct nfsrv_descript *nd, __unused int isdgram,
 	if (nd->nd_repstat == 0)
 		nd->nd_repstat = nfsrv_lockctrl(tovp, &outstp, &outlop, NULL,
 		    clientid, &stateid, toexp, nd, curthread);
-	NFSVOPUNLOCK(tovp, 0);
+	NFSVOPUNLOCK(tovp);
 
 	/* Range lock the byte ranges for both invp and outvp. */
 	if (nd->nd_repstat == 0) {
@@ -5372,7 +5372,7 @@ nfsrvd_copy_file_range(struct nfsrv_descript *nd, __unused int isdgram,
 					nd->nd_repstat = NFSERR_INVAL;
 				}
 			}
-			NFSVOPUNLOCK(vp, 0);
+			NFSVOPUNLOCK(vp);
 			if (ret != 0 && nd->nd_repstat == 0)
 				nd->nd_repstat = ret;
 		} else if (nd->nd_repstat == 0)

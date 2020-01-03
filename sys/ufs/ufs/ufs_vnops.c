@@ -913,7 +913,7 @@ ufs_remove(ap)
 		 * while holding the snapshot vnode locked, assuming
 		 * that the directory hasn't been unlinked too.
 		 */
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		(void) VOP_FSYNC(dvp, MNT_WAIT, td);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	}
@@ -1118,9 +1118,9 @@ ufs_rename(ap)
 #endif
 	endoff = 0;
 	mp = tdvp->v_mount;
-	VOP_UNLOCK(tdvp, 0);
+	VOP_UNLOCK(tdvp);
 	if (tvp && tvp != tdvp)
-		VOP_UNLOCK(tvp, 0);
+		VOP_UNLOCK(tvp);
 	/*
 	 * Check for cross-device rename.
 	 */
@@ -1146,11 +1146,11 @@ relock:
 	if (error)
 		goto releout;
 	if (vn_lock(tdvp, LK_EXCLUSIVE | LK_NOWAIT) != 0) {
-		VOP_UNLOCK(fdvp, 0);
+		VOP_UNLOCK(fdvp);
 		error = vn_lock(tdvp, LK_EXCLUSIVE);
 		if (error)
 			goto releout;
-		VOP_UNLOCK(tdvp, 0);
+		VOP_UNLOCK(tdvp);
 		atomic_add_int(&rename_restarts, 1);
 		goto relock;
 	}
@@ -1160,20 +1160,20 @@ relock:
 	 */
 	error = ufs_lookup_ino(fdvp, NULL, fcnp, &ino);
 	if (error) {
-		VOP_UNLOCK(fdvp, 0);
-		VOP_UNLOCK(tdvp, 0);
+		VOP_UNLOCK(fdvp);
+		VOP_UNLOCK(tdvp);
 		goto releout;
 	}
 	error = VFS_VGET(mp, ino, LK_EXCLUSIVE | LK_NOWAIT, &nvp);
 	if (error) {
-		VOP_UNLOCK(fdvp, 0);
-		VOP_UNLOCK(tdvp, 0);
+		VOP_UNLOCK(fdvp);
+		VOP_UNLOCK(tdvp);
 		if (error != EBUSY)
 			goto releout;
 		error = VFS_VGET(mp, ino, LK_EXCLUSIVE, &nvp);
 		if (error != 0)
 			goto releout;
-		VOP_UNLOCK(nvp, 0);
+		VOP_UNLOCK(nvp);
 		vrele(fvp);
 		fvp = nvp;
 		atomic_add_int(&rename_restarts, 1);
@@ -1186,9 +1186,9 @@ relock:
 	 */
 	error = ufs_lookup_ino(tdvp, NULL, tcnp, &ino);
 	if (error != 0 && error != EJUSTRETURN) {
-		VOP_UNLOCK(fdvp, 0);
-		VOP_UNLOCK(tdvp, 0);
-		VOP_UNLOCK(fvp, 0);
+		VOP_UNLOCK(fdvp);
+		VOP_UNLOCK(tdvp);
+		VOP_UNLOCK(fvp);
 		goto releout;
 	}
 	/*
@@ -1209,9 +1209,9 @@ relock:
 			vrele(tvp);
 		tvp = nvp;
 		if (error) {
-			VOP_UNLOCK(fdvp, 0);
-			VOP_UNLOCK(tdvp, 0);
-			VOP_UNLOCK(fvp, 0);
+			VOP_UNLOCK(fdvp);
+			VOP_UNLOCK(tdvp);
+			VOP_UNLOCK(fvp);
 			if (error != EBUSY)
 				goto releout;
 			error = VFS_VGET(mp, ino, LK_EXCLUSIVE, &nvp);
@@ -1294,11 +1294,11 @@ relock:
 		 * everything else and VGET before restarting.
 		 */
 		if (ino) {
-			VOP_UNLOCK(fdvp, 0);
-			VOP_UNLOCK(fvp, 0);
-			VOP_UNLOCK(tdvp, 0);
+			VOP_UNLOCK(fdvp);
+			VOP_UNLOCK(fvp);
+			VOP_UNLOCK(tdvp);
 			if (tvp)
-				VOP_UNLOCK(tvp, 0);
+				VOP_UNLOCK(tvp);
 			error = VFS_VGET(mp, ino, LK_SHARED, &nvp);
 			if (error == 0)
 				vput(nvp);
@@ -2710,7 +2710,7 @@ ufs_ioctl(struct vop_ioctl_args *ap)
 		error = vn_lock(vp, LK_SHARED);
 		if (error == 0) {
 			error = ufs_bmap_seekdata(vp, (off_t *)ap->a_data);
-			VOP_UNLOCK(vp, 0);
+			VOP_UNLOCK(vp);
 		} else
 			error = EBADF;
 		return (error);

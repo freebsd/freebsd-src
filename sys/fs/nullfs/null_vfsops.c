@@ -113,7 +113,7 @@ nullfs_mount(struct mount *mp)
 	 */
 	if (mp->mnt_vnodecovered->v_op == &null_vnodeops &&
 	    VOP_ISLOCKED(mp->mnt_vnodecovered) == LK_EXCLUSIVE) {
-		VOP_UNLOCK(mp->mnt_vnodecovered, 0);
+		VOP_UNLOCK(mp->mnt_vnodecovered);
 		isvnunlocked = true;
 	} else {
 		isvnunlocked = false;
@@ -186,7 +186,7 @@ nullfs_mount(struct mount *mp)
 	/*
 	 * Unlock the node (either the lower or the alias)
 	 */
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 
 	if (NULLVPTOLOWERVP(nullm_rootvp)->v_mount->mnt_flag & MNT_LOCAL) {
 		MNT_ILOCK(mp);
@@ -444,7 +444,7 @@ nullfs_unlink_lowervp(struct mount *mp, struct vnode *lowervp)
 		 */
 		KASSERT(VN_IS_DOOMED(vp),
 		    ("not reclaimed nullfs vnode %p", vp));
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 	} else {
 		/*
 		 * Otherwise, the nullfs vnode still shares the lock

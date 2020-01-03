@@ -291,7 +291,7 @@ read_manifest(char *path, unsigned char *digest)
 
 	data[bytes_read] = '\0';
 
-	VOP_UNLOCK(nid.ni_vp, 0);
+	VOP_UNLOCK(nid.ni_vp);
 	(void)vn_close(nid.ni_vp, FREAD, curthread->td_ucred, curthread);
 
 	/*
@@ -370,7 +370,7 @@ parse_entry(char *entry, char *prefix)
 	mtx_unlock(&ve_mutex);
 
 out:
-	VOP_UNLOCK(nid.ni_vp, 0);
+	VOP_UNLOCK(nid.ni_vp);
 	vn_close(nid.ni_vp, FREAD, curthread->td_ucred, curthread);
 	return (rc);
 }

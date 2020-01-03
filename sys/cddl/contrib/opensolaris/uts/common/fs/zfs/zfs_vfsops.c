@@ -1855,16 +1855,16 @@ zfs_mount(vfs_t *vfsp)
 
 			vn_lock(mvp, LK_SHARED | LK_RETRY);
 			if (VOP_GETATTR(mvp, &vattr, cr)) {
-				VOP_UNLOCK(mvp, 0);
+				VOP_UNLOCK(mvp);
 				goto out;
 			}
 
 			if (secpolicy_vnode_owner(mvp, cr, vattr.va_uid) != 0 &&
 			    VOP_ACCESS(mvp, VWRITE, cr, td) != 0) {
-				VOP_UNLOCK(mvp, 0);
+				VOP_UNLOCK(mvp);
 				goto out;
 			}
-			VOP_UNLOCK(mvp, 0);
+			VOP_UNLOCK(mvp);
 		}
 
 		secpolicy_fs_mount_clearopts(cr, vfsp);

@@ -199,7 +199,7 @@ ffs_susp_suspend(struct mount *mp)
 	vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY);
 	error = VOP_ACCESS(ump->um_devvp, VREAD | VWRITE,
 	    curthread->td_ucred, curthread);
-	VOP_UNLOCK(ump->um_devvp, 0);
+	VOP_UNLOCK(ump->um_devvp);
 	if (error != 0)
 		return (error);
 #ifdef MAC

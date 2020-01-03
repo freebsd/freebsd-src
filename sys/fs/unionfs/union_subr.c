@@ -361,9 +361,9 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 	VI_UNLOCK(vp);
 
 	if (lvp != NULLVP)
-		VOP_UNLOCK(lvp, 0);
+		VOP_UNLOCK(lvp);
 	if (uvp != NULLVP)
-		VOP_UNLOCK(uvp, 0);
+		VOP_UNLOCK(uvp);
 
 	if (dvp != NULLVP && unp->un_hash.le_prev != NULL)
 		unionfs_rem_cached_vnode(unp, dvp);
@@ -551,7 +551,7 @@ unionfs_relookup(struct vnode *dvp, struct vnode **vpp,
 		cn->cn_flags |= NOCACHE;
 
 	vref(dvp);
-	VOP_UNLOCK(dvp, 0);
+	VOP_UNLOCK(dvp);
 
 	if ((error = relookup(dvp, vpp, cn))) {
 		uma_zfree(namei_zone, cn->cn_pnbuf);
@@ -961,7 +961,7 @@ unionfs_vn_create_on_upper(struct vnode **vpp, struct vnode *udvp,
 	}
 
 unionfs_vn_create_on_upper_free_out1:
-	VOP_UNLOCK(udvp, 0);
+	VOP_UNLOCK(udvp);
 
 unionfs_vn_create_on_upper_free_out2:
 	if (cn.cn_flags & HASBUF) {

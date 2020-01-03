@@ -133,7 +133,7 @@ loop:
 		 * longer necessary and we can just return an error.
 		 */
 		vref(vp);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		pause("ffsupd", 1);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		vrele(vp);

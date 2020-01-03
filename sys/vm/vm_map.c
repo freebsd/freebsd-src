@@ -568,7 +568,7 @@ vm_map_entry_set_vnode_text(vm_map_entry_t entry, bool add)
 		} else {
 			vn_lock(vp, LK_SHARED | LK_RETRY);
 			VOP_UNSET_TEXT_CHECKED(vp);
-			VOP_UNLOCK(vp, 0);
+			VOP_UNLOCK(vp);
 		}
 		if (vp_held)
 			vdrop(vp);

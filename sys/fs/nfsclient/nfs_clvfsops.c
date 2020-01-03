@@ -1624,7 +1624,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		/*
 		 * Lose the lock but keep the ref.
 		 */
-		NFSVOPUNLOCK(*vpp, 0);
+		NFSVOPUNLOCK(*vpp);
 		vfs_cache_root_set(mp, *vpp);
 		return (0);
 	}
@@ -1826,7 +1826,7 @@ loop:
 		error = VOP_FSYNC(vp, waitfor, td);
 		if (error)
 			allerror = error;
-		NFSVOPUNLOCK(vp, 0);
+		NFSVOPUNLOCK(vp);
 		vrele(vp);
 	}
 	return (allerror);

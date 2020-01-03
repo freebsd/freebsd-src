@@ -291,7 +291,7 @@ pfs_purge_one(struct vnode *vnp)
 
 	VOP_LOCK(vnp, LK_EXCLUSIVE);
 	vgone(vnp);
-	VOP_UNLOCK(vnp, 0);
+	VOP_UNLOCK(vnp);
 	vdrop(vnp);
 }
 

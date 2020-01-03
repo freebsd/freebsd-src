@@ -691,7 +691,7 @@ mac_veriexec_syscall(struct thread *td, int call, void *arg)
 		    ((va.va_mode & (S_IXUSR|S_IXGRP|S_IXOTH)) == 0), td);
 check_done:
 		/* Release the lock we obtained earlier */
-		VOP_UNLOCK(img.vp, 0);
+		VOP_UNLOCK(img.vp);
 cleanup_file:
 		fdrop(fp, td);
 		break;

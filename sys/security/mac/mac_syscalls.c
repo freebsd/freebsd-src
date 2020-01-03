@@ -268,7 +268,7 @@ sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 		intlabel = mac_vnode_label_alloc();
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		mac_vnode_copy_label(vp->v_label, intlabel);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		error = mac_vnode_externalize_label(intlabel, elements,
 		    buffer, mac.m_buflen);
 		mac_vnode_label_free(intlabel);
@@ -436,7 +436,7 @@ sys___mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 		}
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = vn_setlabel(vp, intlabel, td->td_ucred);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		vn_finished_write(mp);
 		mac_vnode_label_free(intlabel);
 		break;

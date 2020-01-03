@@ -304,7 +304,7 @@ mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		result = vme->max_protection;
 		mac_vnode_check_mmap_downgrade(cred, vp, &result);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		/*
 		 * Find out what maximum protection we may be allowing now
 		 * but a policy needs to get removed.
@@ -339,7 +339,7 @@ mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
 				vm_object_page_clean(object, offset, offset +
 				    vme->end - vme->start, OBJPC_SYNC);
 				VM_OBJECT_WUNLOCK(object);
-				VOP_UNLOCK(vp, 0);
+				VOP_UNLOCK(vp);
 				vn_finished_write(mp);
 				vm_object_deallocate(object);
 				/*

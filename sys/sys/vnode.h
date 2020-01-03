@@ -964,7 +964,7 @@ void vn_fsid(struct vnode *vp, struct vattr *va);
 	    (flags & ~(LK_INTERLOCK | LK_RELEASE)) == 0 : 1);		\
         if ((_flags & ~(LK_INTERLOCK | LK_RELEASE)) != 0)		\
                 panic("%s: unsupported flags %x\n", __func__, flags);	\
-        _error = VOP_UNLOCK(_vp, 0);					\
+        _error = VOP_UNLOCK(_vp);					\
         if (_flags & LK_INTERLOCK)					\
                 VI_UNLOCK(_vp);						\
         _error;								\

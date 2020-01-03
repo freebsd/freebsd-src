@@ -314,7 +314,7 @@ nfsvno_getattr(struct vnode *vp, struct nfsvattr *nvap,
 
 	error = VOP_GETATTR(vp, &nvap->na_vattr, nd->nd_cred);
 	if (lockedit != 0)
-		NFSVOPUNLOCK(vp, 0);
+		NFSVOPUNLOCK(vp);
 
 	/*
 	 * If we got the Change, Size and Modify Time from the DS,
@@ -402,7 +402,7 @@ nfsvno_accchk(struct vnode *vp, accmode_t accmode, struct ucred *cred,
 	}
 	if (error != 0) {
 		if (vpislocked == 0)
-			NFSVOPUNLOCK(vp, 0);
+			NFSVOPUNLOCK(vp);
 		goto out;
 	}
 
@@ -442,7 +442,7 @@ nfsvno_accchk(struct vnode *vp, accmode_t accmode, struct ucred *cred,
 		}
 	}
 	if (vpislocked == 0)
-		NFSVOPUNLOCK(vp, 0);
+		NFSVOPUNLOCK(vp);
 
 out:
 	NFSEXITCODE(error);
@@ -531,7 +531,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 		goto out1;
 	}
 	if (islocked)
-		NFSVOPUNLOCK(dp, 0);
+		NFSVOPUNLOCK(dp);
 	VREF(dp);
 	*retdirp = dp;
 	if (NFSVNO_EXRDONLY(exp))
@@ -599,7 +599,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 			if ((cnp->cn_flags & (SAVENAME | SAVESTART)) == 0)
 				nfsvno_relpathbuf(ndp);
 			if (ndp->ni_vp && !lockleaf)
-				NFSVOPUNLOCK(ndp->ni_vp, 0);
+				NFSVOPUNLOCK(ndp->ni_vp);
 			break;
 		}
 
@@ -607,7 +607,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 		 * Validate symlink
 		 */
 		if ((cnp->cn_flags & LOCKPARENT) && ndp->ni_pathlen == 1)
-			NFSVOPUNLOCK(ndp->ni_dvp, 0);
+			NFSVOPUNLOCK(ndp->ni_dvp);
 		if (!(nd->nd_flag & ND_PUBLOOKUP)) {
 			error = EINVAL;
 			goto badlink2;
@@ -1429,7 +1429,7 @@ nfsvno_rename(struct nameidata *fromndp, struct nameidata *tondp,
 		if (NFSVOPLOCK(fvp, LK_EXCLUSIVE) == 0) {
 			error = nfsrv_checkremove(fvp, 0, NULL,
 			    (nfsquad_t)((u_quad_t)0), p);
-			NFSVOPUNLOCK(fvp, 0);
+			NFSVOPUNLOCK(fvp);
 		} else
 			error = EPERM;
 		if (tvp && !error)
@@ -1515,7 +1515,7 @@ nfsvno_link(struct nameidata *ndp, struct vnode *vp, struct ucred *cred,
 			vrele(ndp->ni_dvp);
 		else
 			vput(ndp->ni_dvp);
-		NFSVOPUNLOCK(vp, 0);
+		NFSVOPUNLOCK(vp);
 	} else {
 		if (ndp->ni_dvp == ndp->ni_vp)
 			vrele(ndp->ni_dvp);
@@ -2314,7 +2314,7 @@ again:
 	 */
 	mp = vp->v_mount;
 	vfs_ref(mp);
-	NFSVOPUNLOCK(vp, 0);
+	NFSVOPUNLOCK(vp);
 	nd->nd_repstat = vfs_busy(mp, 0);
 	vfs_rel(mp);
 	if (nd->nd_repstat != 0) {
@@ -2448,8 +2448,7 @@ again:
 							r = VOP_LOOKUP(vp, &nvp,
 							    &cn);
 							if (vp != nvp)
-								NFSVOPUNLOCK(vp,
-								    0);
+								NFSVOPUNLOCK(vp);
 						}
 					}
 
@@ -2563,7 +2562,7 @@ again:
 				if (nvp != NULL) {
 					supports_nfsv4acls =
 					    nfs_supportsnfsv4acls(nvp);
-					NFSVOPUNLOCK(nvp, 0);
+					NFSVOPUNLOCK(nvp);
 				} else
 					supports_nfsv4acls = 0;
 				if (refp != NULL) {
@@ -3622,7 +3621,7 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 					if (ret == 0) {
 						nfsrv_dsremove(curdvp, fname,
 						    td->td_ucred, td);
-						NFSVOPUNLOCK(curdvp, 0);
+						NFSVOPUNLOCK(curdvp);
 					}
 				}
 				NFSD_DEBUG(4, "nfsrv_copymr=%d\n", error);
@@ -3898,7 +3897,7 @@ nfsrv_dscreate(struct vnode *dvp, struct vattr *vap, struct vattr *nvap,
 	error = NFSVOPLOCK(dvp, LK_EXCLUSIVE);
 	if (error == 0) {
 		error = VOP_CREATE(dvp, &nvp, &named.ni_cnd, vap);
-		NFSVOPUNLOCK(dvp, 0);
+		NFSVOPUNLOCK(dvp);
 		if (error == 0) {
 			/* Set the ownership of the file. */
 			error = VOP_SETATTR(nvp, nvap, tcred);
@@ -4286,7 +4285,7 @@ nfsrv_dsremove(struct vnode *dvp, char *fname, struct ucred *tcred,
 		error = VOP_REMOVE(dvp, nvp, &named.ni_cnd);
 		vput(nvp);
 	}
-	NFSVOPUNLOCK(dvp, 0);
+	NFSVOPUNLOCK(dvp);
 	nfsvno_relpathbuf(&named);
 	if (error != 0)
 		printf("pNFS: nfsrv_pnfsremove failed=%d\n", error);
@@ -4641,7 +4640,7 @@ tryagain:
 			NFSUNLOCKMNT(failnmp);
 		}
 		for (i = 0; i < mirrorcnt; i++)
-			NFSVOPUNLOCK(dvp[i], 0);
+			NFSVOPUNLOCK(dvp[i]);
 		NFSD_DEBUG(4, "nfsrv_proxyds: aft RPC=%d trya=%d\n", error,
 		    trycnt);
 		/* Try the Read/Getattr again if a mirror was deleted. */
@@ -4826,7 +4825,7 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int *buflenp,
 								vput(nvp);
 						}
 						if (error != 0 || lktype == 0)
-							NFSVOPUNLOCK(dvp, 0);
+							NFSVOPUNLOCK(dvp);
 					}
 				}
 				if (error == 0) {
@@ -4867,7 +4866,7 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int *buflenp,
 			 * have locked dvp's that need to be unlocked.
 			 */
 			for (i = 0; i < gotone; i++) {
-				NFSVOPUNLOCK(*dvpp, 0);
+				NFSVOPUNLOCK(*dvpp);
 				*dvpp++ = NULL;
 			}
 		}
@@ -6085,7 +6084,7 @@ nfsvno_seek(struct nfsrv_descript *nd, struct vnode *vp, u_long cmd,
 	 * VOP_IOCTL() will return ENXIO.  However, the correct reply for
 	 * NFSv4.2 is *eofp == true and error == 0 for this case.
 	 */
-	NFSVOPUNLOCK(vp, 0);
+	NFSVOPUNLOCK(vp);
 	error = VOP_IOCTL(vp, cmd, offp, 0, cred, p);
 	*eofp = false;
 	if (error == ENXIO || (error == 0 && cmd == FIOSEEKHOLE)) {

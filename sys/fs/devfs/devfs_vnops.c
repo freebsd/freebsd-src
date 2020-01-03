@@ -241,7 +241,7 @@ devfs_populate_vp(struct vnode *vp)
 	DEVFS_DMP_HOLD(dmp);
 
 	/* Can't call devfs_populate() with the vnode lock held. */
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 	devfs_populate(dmp);
 
 	sx_xunlock(&dmp->dm_lock);
@@ -635,7 +635,7 @@ devfs_close(struct vop_close_args *ap)
 	vholdnz(vp);
 	VI_UNLOCK(vp);
 	vp_locked = VOP_ISLOCKED(vp);
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 	KASSERT(dev->si_refcount > 0,
 	    ("devfs_close() on un-referenced struct cdev *(%s)", devtoname(dev)));
 	error = dsw->d_close(dev, ap->a_fflag | dflags, S_IFCHR, td);
@@ -965,7 +965,7 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 		if (de == NULL)
 			return (ENOENT);
 		dvplocked = VOP_ISLOCKED(dvp);
-		VOP_UNLOCK(dvp, 0);
+		VOP_UNLOCK(dvp);
 		error = devfs_allocv(de, mp, cnp->cn_lkflags & LK_TYPE_MASK,
 		    vpp);
 		*dm_unlock = 0;
@@ -1153,7 +1153,7 @@ devfs_open(struct vop_open_args *ap)
 	}
 
 	vlocked = VOP_ISLOCKED(vp);
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 
 	fpop = td->td_fpop;
 	td->td_fpop = fp;
@@ -1464,9 +1464,9 @@ devfs_remove(struct vop_remove_args *ap)
 				de_covered->de_flags &= ~DE_COVERED;
 		}
 		/* We need to unlock dvp because devfs_delete() may lock it. */
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		if (dvp != vp)
-			VOP_UNLOCK(dvp, 0);
+			VOP_UNLOCK(dvp);
 		devfs_delete(dmp, de, 0);
 		sx_xunlock(&dmp->dm_lock);
 		if (dvp != vp)
@@ -1507,7 +1507,7 @@ devfs_revoke(struct vop_revoke_args *ap)
 	vgone(vp);
 	vdrop(vp);
 
-	VOP_UNLOCK(vp,0);
+	VOP_UNLOCK(vp);
  loop:
 	for (;;) {
 		mtx_lock(&devfs_de_interlock);
@@ -1563,12 +1563,12 @@ devfs_rioctl(struct vop_ioctl_args *ap)
 	vp = ap->a_vp;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	if (VN_IS_DOOMED(vp)) {
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		return (EBADF);
 	}
 	dmp = VFSTODEVFS(vp->v_mount);
 	sx_xlock(&dmp->dm_lock);
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 	DEVFS_DMP_HOLD(dmp);
 	devfs_populate(dmp);
 	if (DEVFS_DMP_DROP(dmp)) {

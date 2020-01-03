@@ -235,7 +235,7 @@ iso_mountfs(devvp, mp)
 	if (error == 0)
 		g_getattr("MNT::verified", cp, &isverified);
 	g_topology_unlock();
-	VOP_UNLOCK(devvp, 0);
+	VOP_UNLOCK(devvp);
 	if (error)
 		goto out;
 	if (devvp->v_rdev->si_iosize_max != 0)

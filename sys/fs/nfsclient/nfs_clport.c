@@ -336,7 +336,7 @@ nfscl_ngetreopen(struct mount *mntp, u_int8_t *fhp, int fhsize,
 	error = vfs_hash_get(mntp, hash, (LK_EXCLUSIVE | LK_NOWAIT), td, &nvp,
 	    newnfs_vncmpf, nfhp);
 	if (error == 0 && nvp != NULL) {
-		NFSVOPUNLOCK(nvp, 0);
+		NFSVOPUNLOCK(nvp);
 	} else if (error == EBUSY) {
 		/*
 		 * It is safe so long as a vflush() with

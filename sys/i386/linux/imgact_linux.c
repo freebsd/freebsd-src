@@ -115,7 +115,7 @@ exec_linux_imgact(struct image_params *imgp)
 	}
 	PROC_UNLOCK(imgp->proc);
 
-	VOP_UNLOCK(imgp->vp, 0);
+	VOP_UNLOCK(imgp->vp);
 
 	/*
 	 * Destroy old process VM and create a new one (with a new stack)

@@ -1589,7 +1589,7 @@ vnode_pager_release_writecount(vm_object_t object, vm_offset_t start,
 	 * vnode's v_writecount is decremented.
 	 */
 	vnode_pager_update_writecount(object, end, start);
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 	vdrop(vp);
 	if (mp != NULL)
 		vn_finished_write(mp);

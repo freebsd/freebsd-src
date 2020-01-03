@@ -195,7 +195,7 @@ fifo_open(ap)
 	if ((ap->a_mode & O_NONBLOCK) == 0) {
 		if ((ap->a_mode & FREAD) && fip->fi_writers == 0) {
 			gen = fip->fi_wgen;
-			VOP_UNLOCK(vp, 0);
+			VOP_UNLOCK(vp);
 			stops_deferred = sigdeferstop(SIGDEFERSTOP_OFF);
 			error = msleep(&fip->fi_readers, PIPE_MTX(fpipe),
 			    PDROP | PCATCH | PSOCK, "fifoor", 0);
@@ -222,7 +222,7 @@ fifo_open(ap)
 		}
 		if ((ap->a_mode & FWRITE) && fip->fi_readers == 0) {
 			gen = fip->fi_rgen;
-			VOP_UNLOCK(vp, 0);
+			VOP_UNLOCK(vp);
 			stops_deferred = sigdeferstop(SIGDEFERSTOP_OFF);
 			error = msleep(&fip->fi_writers, PIPE_MTX(fpipe),
 			    PDROP | PCATCH | PSOCK, "fifoow", 0);

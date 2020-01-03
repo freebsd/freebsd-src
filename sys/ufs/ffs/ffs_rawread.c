@@ -118,7 +118,7 @@ ffs_rawread_sync(struct vnode *vp)
 				upgraded = 1;
 			else
 				upgraded = 0;
-			VOP_UNLOCK(vp, 0);
+			VOP_UNLOCK(vp);
 			(void) vn_start_write(vp, &mp, V_WAIT);
 			VOP_LOCK(vp, LK_EXCLUSIVE);
 		} else if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {

@@ -124,7 +124,7 @@ sys_extattrctl(struct thread *td, struct extattrctl_args *uap)
 		mp = NULL;
 		goto out;
 	}
-	VOP_UNLOCK(nd.ni_vp, 0);
+	VOP_UNLOCK(nd.ni_vp);
 	error = vn_start_write(nd.ni_vp, &mp_writable, V_WAIT | PCATCH);
 	NDFREE(&nd, NDF_NO_VP_UNLOCK);
 	if (error)
@@ -213,7 +213,7 @@ extattr_set_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 #ifdef MAC
 done:
 #endif
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 	vn_finished_write(mp);
 	return (error);
 }
@@ -381,7 +381,7 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 #ifdef MAC
 done:
 #endif
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 	return (error);
 }
 
@@ -517,7 +517,7 @@ extattr_delete_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 #ifdef MAC
 done:
 #endif
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 	vn_finished_write(mp);
 	return (error);
 }
@@ -656,14 +656,14 @@ extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
 #ifdef MAC
 	error = mac_vnode_check_listextattr(td->td_ucred, vp, attrnamespace);
 	if (error) {
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		return (error);
 	}
 #endif
 
 	error = VOP_LISTEXTATTR(vp, attrnamespace, auiop, sizep,
 	    td->td_ucred, td);
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 
 	if (auiop != NULL) {
 		cnt -= auio.uio_resid;

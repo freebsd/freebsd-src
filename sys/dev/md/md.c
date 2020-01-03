@@ -915,7 +915,7 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		(void) vn_start_write(vp, &mp, V_WAIT);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_FSYNC(vp, MNT_WAIT, td);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		vn_finished_write(mp);
 		return (error);
 	}
@@ -986,13 +986,13 @@ unmapped_step:
 	if (auio.uio_rw == UIO_READ) {
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_READ(vp, &auio, 0, sc->cred);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 	} else {
 		(void) vn_start_write(vp, &mp, V_WAIT);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_WRITE(vp, &auio, sc->flags & MD_ASYNC ? 0 : IO_SYNC,
 		    sc->cred);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		vn_finished_write(mp);
 		if (error == 0)
 			sc->flags &= ~MD_VERIFY;
@@ -1405,7 +1405,7 @@ mdsetcred(struct md_s *sc, struct ucred *cred)
 		auio.uio_resid = aiov.iov_len;
 		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_READ(sc->vnode, &auio, 0, sc->cred);
-		VOP_UNLOCK(sc->vnode, 0);
+		VOP_UNLOCK(sc->vnode);
 		free(tmpbuf, M_TEMP);
 	}
 	return (error);
@@ -1456,7 +1456,7 @@ mdcreate_vnode(struct md_s *sc, struct md_req *mdr, struct thread *td)
 		}
 	}
 	nd.ni_vp->v_vflag |= VV_MD;
-	VOP_UNLOCK(nd.ni_vp, 0);
+	VOP_UNLOCK(nd.ni_vp);
 
 	if (mdr->md_fwsectors != 0)
 		sc->fwsectors = mdr->md_fwsectors;
@@ -1479,7 +1479,7 @@ mdcreate_vnode(struct md_s *sc, struct md_req *mdr, struct thread *td)
 	}
 	return (0);
 bad:
-	VOP_UNLOCK(nd.ni_vp, 0);
+	VOP_UNLOCK(nd.ni_vp);
 	(void)vn_close(nd.ni_vp, flags, td->td_ucred, td);
 	return (error);
 }
@@ -1523,7 +1523,7 @@ mddestroy(struct md_s *sc, struct thread *td)
 	if (sc->vnode != NULL) {
 		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY);
 		sc->vnode->v_vflag &= ~VV_MD;
-		VOP_UNLOCK(sc->vnode, 0);
+		VOP_UNLOCK(sc->vnode);
 		(void)vn_close(sc->vnode, sc->flags & MD_READONLY ?
 		    FREAD : (FREAD|FWRITE), sc->cred, td);
 	}

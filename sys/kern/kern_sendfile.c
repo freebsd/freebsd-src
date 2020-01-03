@@ -544,7 +544,7 @@ sendfile_getobj(struct thread *td, struct file *fp, vm_object_t *obj_res,
 
 out:
 	if (vp != NULL)
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 	return (error);
 }
 
@@ -764,7 +764,7 @@ retry_space:
 				goto done;
 			error = VOP_GETATTR(vp, &va, td->td_ucred);
 			if (error != 0 || off >= va.va_size) {
-				VOP_UNLOCK(vp, 0);
+				VOP_UNLOCK(vp);
 				goto done;
 			}
 			if (va.va_size != obj_size) {
@@ -830,7 +830,7 @@ retry_space:
 		    rhpages, flags);
 		if (error != 0) {
 			if (vp != NULL)
-				VOP_UNLOCK(vp, 0);
+				VOP_UNLOCK(vp);
 			sfio->m = NULL;
 			sendfile_iodone(sfio, NULL, 0, error);
 			goto done;
@@ -1011,7 +1011,7 @@ retry_space:
 		}
 
 		if (vp != NULL)
-			VOP_UNLOCK(vp, 0);
+			VOP_UNLOCK(vp);
 
 		/* Keep track of bytes processed. */
 		off += space;

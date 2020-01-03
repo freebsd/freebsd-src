@@ -305,7 +305,7 @@ zfs_sa_upgrade(sa_handle_t *hdl, dmu_tx_t *tx)
 
 	zp->z_is_sa = B_TRUE;
 done:
-	VOP_UNLOCK(ZTOV(zp), 0);
+	VOP_UNLOCK(ZTOV(zp));
 }
 
 void
