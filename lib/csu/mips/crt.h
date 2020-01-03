@@ -34,10 +34,14 @@
     "bal	1f		\n"					\
     "nop			\n"					\
     "1:				\n"					\
-    ".cpload $ra		\n"					\
+    ".cpload	$ra		\n"					\
+    "addu	$sp, $sp, -8	\n"					\
     ".set reorder		\n"					\
+    ".cprestore	4		\n"					\
     ".local	" __STRING(func) "\n"					\
-    "jal	" __STRING(func)
+    "jal	" __STRING(func) "\n"					\
+    "nop			\n"					\
+    "addu	$sp, $sp, 8	\n"
 #else
 #define	INIT_CALL_SEQ(func)						\
     ".set noreorder		\n"					\
@@ -48,6 +52,7 @@
     ".cpsetup $ra, $v0, 1b	\n"					\
     ".local	" __STRING(func) "\n"					\
     "jal	" __STRING(func)
+    "nop			\n"					\
 #endif
 
 #endif
