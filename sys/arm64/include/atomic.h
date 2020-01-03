@@ -448,6 +448,34 @@ atomic_swap_64(volatile uint64_t *p, uint64_t val)
 	return (ret);
 }
 
+static __inline uint8_t
+atomic_load_acq_8(volatile uint8_t *p)
+{
+	uint8_t ret;
+
+	__asm __volatile(
+	    "ldarb	%w0, [%1] \n"
+	    : "=&r" (ret)
+	    : "r" (p)
+	    : "memory");
+
+	return (ret);
+}
+
+static __inline uint16_t
+atomic_load_acq_16(volatile uint16_t *p)
+{
+	uint16_t ret;
+
+	__asm __volatile(
+	    "ldarh	%w0, [%1] \n"
+	    : "=&r" (ret)
+	    : "r" (p)
+	    : "memory");
+
+	return (ret);
+}
+
 static __inline uint32_t
 atomic_load_acq_32(volatile uint32_t *p)
 {
@@ -474,6 +502,28 @@ atomic_load_acq_64(volatile uint64_t *p)
 	    : "memory");
 
 	return (ret);
+}
+
+static __inline void
+atomic_store_rel_8(volatile uint8_t *p, uint8_t val)
+{
+
+	__asm __volatile(
+	    "stlrb	%w0, [%1] \n"
+	    :
+	    : "r" (val), "r" (p)
+	    : "memory");
+}
+
+static __inline void
+atomic_store_rel_16(volatile uint16_t *p, uint16_t val)
+{
+
+	__asm __volatile(
+	    "stlrh	%w0, [%1] \n"
+	    :
+	    : "r" (val), "r" (p)
+	    : "memory");
 }
 
 static __inline void
