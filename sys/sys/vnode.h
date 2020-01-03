@@ -955,6 +955,21 @@ int vn_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 
 void vn_fsid(struct vnode *vp, struct vattr *va);
 
+#define VOP_UNLOCK_FLAGS(vp, flags)	({				\
+	struct vnode *_vp = (vp);					\
+	int _flags = (flags);						\
+	int _error;							\
+									\
+	CTASSERT(__builtin_constant_p(flags) ? 				\
+	    (flags & ~(LK_INTERLOCK | LK_RELEASE)) == 0 : 1);		\
+        if ((_flags & ~(LK_INTERLOCK | LK_RELEASE)) != 0)		\
+                panic("%s: unsupported flags %x\n", __func__, flags);	\
+        _error = VOP_UNLOCK(_vp, 0);					\
+        if (_flags & LK_INTERLOCK)					\
+                VI_UNLOCK(_vp);						\
+        _error;								\
+})
+
 #include <sys/kernel.h>
 
 #define VFS_VOP_VECTOR_REGISTER(vnodeops) \
