@@ -167,7 +167,7 @@ unionfs_domount(struct mount *mp)
 		uid = va.va_uid;
 		gid = va.va_gid;
 	}
-	VOP_UNLOCK(mp->mnt_vnodecovered, LK_RELEASE);
+	VOP_UNLOCK(mp->mnt_vnodecovered, 0);
 	if (error)
 		return (error);
 
@@ -252,7 +252,7 @@ unionfs_domount(struct mount *mp)
 	 * Save reference
 	 */
 	if (below) {
-		VOP_UNLOCK(upperrootvp, LK_RELEASE);
+		VOP_UNLOCK(upperrootvp, 0);
 		vn_lock(lowerrootvp, LK_EXCLUSIVE | LK_RETRY);
 		ump->um_lowervp = upperrootvp;
 		ump->um_uppervp = lowerrootvp;
@@ -278,7 +278,7 @@ unionfs_domount(struct mount *mp)
 	/*
 	 * Unlock the node
 	 */
-	VOP_UNLOCK(ump->um_uppervp, LK_RELEASE);
+	VOP_UNLOCK(ump->um_uppervp, 0);
 
 	/*
 	 * Get the unionfs root vnode.
