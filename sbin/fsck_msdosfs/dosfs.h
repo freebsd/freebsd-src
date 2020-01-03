@@ -83,19 +83,13 @@ struct bootblock {
 	u_int	NumBad;			/* # of bad clusters */
 };
 
-struct fatEntry {
-	cl_t	next;			/* pointer to next cluster */
-	cl_t	head;			/* pointer to start of chain */
-	u_int32_t length;		/* number of clusters on chain */
-	int	flags;			/* see below */
-};
-
 #define	CLUST_FREE	0		/* 0 means cluster is free */
 #define	CLUST_FIRST	2		/* 2 is the minimum valid cluster number */
 #define	CLUST_RSRVD	0xfffffff6	/* start of reserved clusters */
 #define	CLUST_BAD	0xfffffff7	/* a cluster with a defect */
 #define	CLUST_EOFS	0xfffffff8	/* start of EOF indicators */
 #define	CLUST_EOF	0xffffffff	/* standard value for last cluster */
+#define	CLUST_DEAD	0xfdeadc0d	/* error encountered */
 
 /*
  * Masks for cluster values
@@ -103,8 +97,6 @@ struct fatEntry {
 #define	CLUST12_MASK	0xfff
 #define	CLUST16_MASK	0xffff
 #define	CLUST32_MASK	0xfffffff
-
-#define	FAT_USED	1		/* This fat chain is used in a file */
 
 #define	DOSLONGNAMELEN	256		/* long name maximal length */
 #define LRFIRST		0x40		/* first long name record */
