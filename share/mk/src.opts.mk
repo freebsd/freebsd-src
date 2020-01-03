@@ -329,8 +329,8 @@ __DEFAULT_YES_OPTIONS+=LLVM_LIBUNWIND
 .else
 __DEFAULT_NO_OPTIONS+=LLVM_LIBUNWIND
 .endif
-.if ${__T} == "aarch64" || ${__T} == "amd64" || ${__T} == "armv6" || \
-    ${__T} == "armv7" || ${__T} == "i386" || ${__T} == "powerpc64"
+.if ${__TT} != "mips" && ${__T} != "powerpc" && ${__T} != "powerpcspe" && \
+    ${__TT} != "riscv" && ${__T} != "sparc64"
 __DEFAULT_YES_OPTIONS+=LLD_BOOTSTRAP LLD_IS_LD
 .else
 __DEFAULT_NO_OPTIONS+=LLD_BOOTSTRAP LLD_IS_LD
