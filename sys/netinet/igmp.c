@@ -1981,7 +1981,7 @@ igmp_set_version(struct igmp_ifsoftc *igi, const int version)
 static void
 igmp_v3_cancel_link_timers(struct igmp_ifsoftc *igi)
 {
-	struct ifmultiaddr	*ifma;
+	struct ifmultiaddr	*ifma, *ifmatmp;
 	struct ifnet		*ifp;
 	struct in_multi		*inm;
 	struct in_multi_head inm_free_tmp;
@@ -2007,7 +2007,8 @@ igmp_v3_cancel_link_timers(struct igmp_ifsoftc *igi)
 	 * for all memberships scoped to this link.
 	 */
 	ifp = igi->igi_ifp;
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	IF_ADDR_WLOCK(ifp);
+	CK_STAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, ifmatmp) {
 		if (ifma->ifma_addr->sa_family != AF_INET ||
 		    ifma->ifma_protospec == NULL)
 			continue;
@@ -2051,6 +2052,7 @@ igmp_v3_cancel_link_timers(struct igmp_ifsoftc *igi)
 		inm->inm_timer = 0;
 		mbufq_drain(&inm->inm_scq);
 	}
+	IF_ADDR_WUNLOCK(ifp);
 
 	inm_release_list_deferred(&inm_free_tmp);
 }
