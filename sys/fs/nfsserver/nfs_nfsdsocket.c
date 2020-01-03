@@ -624,7 +624,7 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram, u_char *tag, int taglen,
 
 		if (nfs_retfh[nd->nd_procnum] == 1) {
 			if (vp)
-				NFSVOPUNLOCK(vp, 0);
+				NFSVOPUNLOCK(vp);
 			error = (*(nfsrv3_procs1[nd->nd_procnum]))(nd, isdgram,
 			    vp, NULL, (fhandle_t *)fh.nfsrvfh_data, &nes);
 		} else if (nfs_retfh[nd->nd_procnum] == 2) {
@@ -934,7 +934,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 					vrele(vp);
 				vp = nvp;
 				cur_fsid = vp->v_mount->mnt_stat.f_fsid;
-				NFSVOPUNLOCK(vp, 0);
+				NFSVOPUNLOCK(vp);
 				vpnes = nes;
 			}
 			break;
@@ -949,7 +949,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 					vrele(vp);
 				vp = nvp;
 				cur_fsid = vp->v_mount->mnt_stat.f_fsid;
-				NFSVOPUNLOCK(vp, 0);
+				NFSVOPUNLOCK(vp);
 				vpnes = nes;
 			}
 			break;
@@ -962,7 +962,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 						vrele(vp);
 					vp = nvp;
 					cur_fsid = vp->v_mount->mnt_stat.f_fsid;
-					NFSVOPUNLOCK(vp, 0);
+					NFSVOPUNLOCK(vp);
 					vpnes = nes;
 				}
 			} else
@@ -1079,7 +1079,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 				    }
 				}
 				/* Lookup ops return a locked vnode */
-				NFSVOPUNLOCK(nvp, 0);
+				NFSVOPUNLOCK(nvp);
 			    }
 			    if (!nd->nd_repstat) {
 				    vrele(vp);

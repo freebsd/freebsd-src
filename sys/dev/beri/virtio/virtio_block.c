@@ -133,12 +133,12 @@ vtblk_rdwr(struct beri_vtblk_softc *sc, struct iovec *iov,
 	if (operation == 0) {
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_READ(vp, &auio, IO_DIRECT, sc->cred);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 	} else {
 		(void) vn_start_write(vp, &mp, V_WAIT);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_WRITE(vp, &auio, IO_SYNC, sc->cred);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		vn_finished_write(mp);
 	}
 
@@ -218,7 +218,7 @@ close_file(struct beri_vtblk_softc *sc, struct thread *td)
 	if (sc->vnode != NULL) {
 		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY);
 		sc->vnode->v_vflag &= ~VV_MD;
-		VOP_UNLOCK(sc->vnode, 0);
+		VOP_UNLOCK(sc->vnode);
 		error = vn_close(sc->vnode, (FREAD|FWRITE),
 				sc->cred, td);
 		if (error != 0)
@@ -263,7 +263,7 @@ open_file(struct beri_vtblk_softc *sc, struct thread *td)
 		}
 	}
 	nd.ni_vp->v_vflag |= VV_MD;
-	VOP_UNLOCK(nd.ni_vp, 0);
+	VOP_UNLOCK(nd.ni_vp);
 
 	sc->vnode = nd.ni_vp;
 	sc->cred = crhold(td->td_ucred);

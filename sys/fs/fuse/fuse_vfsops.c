@@ -626,7 +626,7 @@ fuse_vfsop_root(struct mount *mp, int lkflags, struct vnode **vpp)
 				SDT_PROBE2(fusefs, , vfsops, trace, 1,
 					"root vnode race");
 				FUSE_UNLOCK();
-				VOP_UNLOCK(*vpp, 0);
+				VOP_UNLOCK(*vpp);
 				vrele(*vpp);
 				vrecycle(*vpp);
 				*vpp = data->vroot;

@@ -733,7 +733,7 @@ aio_fsync_vnode(struct thread *td, struct vnode *vp)
 	}
 	error = VOP_FSYNC(vp, MNT_WAIT, td);
 
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 	vn_finished_write(mp);
 drop:
 	return (error);

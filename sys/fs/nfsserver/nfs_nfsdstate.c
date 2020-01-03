@@ -1554,7 +1554,7 @@ nfsrv_freeallnfslocks(struct nfsstate *stp, vnode_t vp, int cansleep,
 				tvp = NULL;
 			else if (vp == NULL && cansleep != 0) {
 				tvp = nfsvno_getvp(&lfp->lf_fh);
-				NFSVOPUNLOCK(tvp, 0);
+				NFSVOPUNLOCK(tvp);
 			} else
 				tvp = vp;
 			gottvp = 1;
@@ -1780,7 +1780,7 @@ tryagain:
 			if (vnode_unlocked == 0) {
 				ASSERT_VOP_ELOCKED(vp, "nfsrv_lockctrl1");
 				vnode_unlocked = 1;
-				NFSVOPUNLOCK(vp, 0);
+				NFSVOPUNLOCK(vp);
 			}
 			reterr = nfsrv_locallock(vp, lfp,
 			    (new_lop->lo_flags & (NFSLCK_READ | NFSLCK_WRITE)),
@@ -1954,7 +1954,7 @@ tryagain:
 			if (vnode_unlocked == 0) {
 				ASSERT_VOP_ELOCKED(vp, "nfsrv_lockctrl2");
 				vnode_unlocked = 1;
-				NFSVOPUNLOCK(vp, 0);
+				NFSVOPUNLOCK(vp);
 			}
 			nfsrv_locallock_rollback(vp, lfp, p);
 			NFSLOCKSTATE();
@@ -2038,7 +2038,7 @@ tryagain:
 					ASSERT_VOP_ELOCKED(vp,
 					    "nfsrv_lockctrl3");
 					vnode_unlocked = 1;
-					NFSVOPUNLOCK(vp, 0);
+					NFSVOPUNLOCK(vp);
 				}
 				nfsrv_locallock_rollback(vp, lfp, p);
 				NFSLOCKSTATE();
@@ -2150,7 +2150,7 @@ tryagain:
 			NFSUNLOCKSTATE();
 			if (vnode_unlocked == 0) {
 				ASSERT_VOP_ELOCKED(vp, "nfsrv_lockctrl4");
-				NFSVOPUNLOCK(vp, 0);
+				NFSVOPUNLOCK(vp);
 			}
 			nfsrv_locallock_rollback(vp, lfp, p);
 			NFSLOCKSTATE();
@@ -2205,7 +2205,7 @@ tryagain:
 			if (vnode_unlocked == 0) {
 				ASSERT_VOP_ELOCKED(vp, "nfsrv_lockctrl5");
 				vnode_unlocked = 1;
-				NFSVOPUNLOCK(vp, 0);
+				NFSVOPUNLOCK(vp);
 			}
 			/* Update the local locks. */
 			nfsrv_localunlock(vp, lfp, first, end, p);
@@ -2247,7 +2247,7 @@ tryagain:
 		    if (filestruct_locked != 0) {
 			if (vnode_unlocked == 0) {
 				ASSERT_VOP_ELOCKED(vp, "nfsrv_lockctrl6");
-				NFSVOPUNLOCK(vp, 0);
+				NFSVOPUNLOCK(vp);
 			}
 			/* Roll back local locks. */
 			nfsrv_locallock_rollback(vp, lfp, p);
@@ -2296,7 +2296,7 @@ tryagain:
 			if (vnode_unlocked == 0) {
 				ASSERT_VOP_ELOCKED(vp, "nfsrv_lockctrl7");
 				vnode_unlocked = 1;
-				NFSVOPUNLOCK(vp, 0);
+				NFSVOPUNLOCK(vp);
 			}
 			nfsrv_locallock_rollback(vp, lfp, p);
 			NFSLOCKSTATE();
@@ -3525,7 +3525,7 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 			nfsrv_locklf(lfp);
 			NFSUNLOCKSTATE();
 			ASSERT_VOP_ELOCKED(vp, "nfsrv_openupdate");
-			NFSVOPUNLOCK(vp, 0);
+			NFSVOPUNLOCK(vp);
 			if (nfsrv_freeopen(stp, vp, 1, p) == 0) {
 				NFSLOCKSTATE();
 				nfsrv_unlocklf(lfp);
@@ -4979,7 +4979,7 @@ nfsrv_updatestable(NFSPROC_T *p)
 	if (NFSVOPLOCK(vp, LK_EXCLUSIVE) == 0) {
 		error = nfsvno_setattr(vp, &nva, NFSFPCRED(sf->nsf_fp), p,
 		    NULL);
-		NFSVOPUNLOCK(vp, 0);
+		NFSVOPUNLOCK(vp);
 	} else
 		error = EPERM;
 	vn_finished_write(mp);
@@ -5156,7 +5156,7 @@ nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, vnode_t vp,
 		NFSUNLOCKSTATE();
 		if (vp != NULL) {
 			lktype = NFSVOPISLOCKED(vp);
-			NFSVOPUNLOCK(vp, 0);
+			NFSVOPUNLOCK(vp);
 		}
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_relref(&nfsv4rootfs_lock);
@@ -5331,7 +5331,7 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 		NFSUNLOCKSTATE();
 		if (vp != NULL) {
 			lktype = NFSVOPISLOCKED(vp);
-			NFSVOPUNLOCK(vp, 0);
+			NFSVOPUNLOCK(vp);
 		}
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_relref(&nfsv4rootfs_lock);
@@ -5566,7 +5566,7 @@ nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 		if (NFSVOPLOCK(vp, LK_EXCLUSIVE) == 0) {
 			error = nfsrv_checkremove(vp, 0, NULL,
 			    (nfsquad_t)((u_quad_t)0), p);
-			NFSVOPUNLOCK(vp, 0);
+			NFSVOPUNLOCK(vp);
 		} else
 			error = EPERM;
 		if (error == NFSERR_DELAY) {
@@ -7600,7 +7600,7 @@ nfsrv_setdsserver(char *dspathp, char *mdspathp, NFSPROC_T *p,
 	    M_NFSDSTATE, M_WAITOK | M_ZERO);
 	ds->nfsdev_dvp = nd.ni_vp;
 	ds->nfsdev_nmp = VFSTONFS(nd.ni_vp->v_mount);
-	NFSVOPUNLOCK(nd.ni_vp, 0);
+	NFSVOPUNLOCK(nd.ni_vp);
 
 	dsdirsize = strlen(dspathp) + 16;
 	dsdirpath = malloc(dsdirsize, M_TEMP, M_WAITOK);
@@ -7626,7 +7626,7 @@ nfsrv_setdsserver(char *dspathp, char *mdspathp, NFSPROC_T *p,
 			break;
 		}
 		ds->nfsdev_dsdir[i] = nd.ni_vp;
-		NFSVOPUNLOCK(nd.ni_vp, 0);
+		NFSVOPUNLOCK(nd.ni_vp);
 	}
 	free(dsdirpath, M_TEMP);
 
@@ -8241,7 +8241,7 @@ nfsrv_copymr(vnode_t vp, vnode_t fvp, vnode_t dvp, struct nfsdevice *ds,
 	didprintf = 0;
 	TAILQ_INIT(&thl);
 	/* Unlock the MDS vp, so that a LayoutReturn can be done on it. */
-	NFSVOPUNLOCK(vp, 0);
+	NFSVOPUNLOCK(vp);
 	/* Now, do a recall for all layouts not yet recalled. */
 tryagain:
 	NFSDRECALLLOCK();

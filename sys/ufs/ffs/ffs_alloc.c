@@ -3407,7 +3407,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			vput(vp);
 			break;
 		}
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		pwd_chdir(td, vp);
 		break;
 
@@ -3634,7 +3634,7 @@ buffered_write(fp, uio, active_cred, flags, td)
 	}
 	error = bwrite(bp);
 out:
-	VOP_UNLOCK(devvp, 0);
+	VOP_UNLOCK(devvp);
 	foffset_unlock_uio(fp, uio, flags | FOF_NEXTOFF);
 	return (error);
 }

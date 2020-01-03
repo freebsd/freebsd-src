@@ -939,7 +939,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			vput(root);
 			goto done_free;
 		}
-		VOP_UNLOCK(root, 0);
+		VOP_UNLOCK(root);
 		if (fullpath_disabled) {
 			/* Leave room for a real-root full pathname. */
 			if (len + (path[0] == '/' && strcmp(mypr->pr_path, "/")
@@ -2393,7 +2393,7 @@ do_jail_attach(struct thread *td, struct prison *pr)
 	if ((error = mac_vnode_check_chroot(td->td_ucred, pr->pr_root)))
 		goto e_unlock;
 #endif
-	VOP_UNLOCK(pr->pr_root, 0);
+	VOP_UNLOCK(pr->pr_root);
 	if ((error = pwd_chroot(td, pr->pr_root)))
 		goto e_revert_osd;
 
@@ -2417,7 +2417,7 @@ do_jail_attach(struct thread *td, struct prison *pr)
 	return (0);
 
  e_unlock:
-	VOP_UNLOCK(pr->pr_root, 0);
+	VOP_UNLOCK(pr->pr_root);
  e_revert_osd:
 	/* Tell modules this thread is still in its old jail after all. */
 	(void)osd_jail_call(td->td_ucred->cr_prison, PR_METHOD_ATTACH, td);

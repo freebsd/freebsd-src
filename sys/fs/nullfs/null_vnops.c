@@ -410,7 +410,7 @@ null_lookup(struct vop_lookup_args *ap)
 		 * ldvp and locking dvp, which is also correct if the
 		 * locks are still shared.
 		 */
-		VOP_UNLOCK(ldvp, 0);
+		VOP_UNLOCK(ldvp);
 		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 	}
 	vdrop(ldvp);
@@ -690,7 +690,7 @@ null_lock(struct vop_lock1_args *ap)
 				panic("Unsupported lock request %d\n",
 				    ap->a_flags);
 			}
-			VOP_UNLOCK(lvp, 0);
+			VOP_UNLOCK(lvp);
 			error = vop_stdlock(ap);
 		}
 		vdrop(lvp);
@@ -718,7 +718,7 @@ null_unlock(struct vop_unlock_args *ap)
 	nn = VTONULL(vp);
 	if (nn != NULL && (lvp = NULLVPTOLOWERVP(vp)) != NULL) {
 		vholdnz(lvp);
-		error = VOP_UNLOCK(lvp, 0);
+		error = VOP_UNLOCK(lvp);
 		vdrop(lvp);
 	} else {
 		error = vop_stdunlock(ap);
@@ -884,7 +884,7 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 	vhold(lvp);
 	mp = vp->v_mount;
 	vfs_ref(mp);
-	VOP_UNLOCK(vp, 0); /* vp is held by vn_vptocnp_locked that called us */
+	VOP_UNLOCK(vp); /* vp is held by vn_vptocnp_locked that called us */
 	ldvp = lvp;
 	vref(lvp);
 	error = vn_vptocnp(&ldvp, cred, ap->a_buf, ap->a_buflen);
@@ -907,7 +907,7 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 #ifdef DIAGNOSTIC
 		NULLVPTOLOWERVP(*dvp);
 #endif
-		VOP_UNLOCK(*dvp, 0); /* keep reference on *dvp */
+		VOP_UNLOCK(*dvp); /* keep reference on *dvp */
 	}
 	vn_lock(vp, locked | LK_RETRY);
 	vfs_rel(mp);

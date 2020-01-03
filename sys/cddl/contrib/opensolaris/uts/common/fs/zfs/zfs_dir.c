@@ -923,7 +923,7 @@ top:
 		goto top;
 	}
 	if (error == 0)
-		VOP_UNLOCK(*xvpp, 0);
+		VOP_UNLOCK(*xvpp);
 
 	return (error);
 }

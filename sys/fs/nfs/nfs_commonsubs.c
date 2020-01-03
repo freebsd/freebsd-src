@@ -2550,7 +2550,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 				if (error == 0)
 					error = VOP_GETACL(vp, ACL_TYPE_NFS4,
 					    naclp, cred, p);
-				NFSVOPUNLOCK(vp, 0);
+				NFSVOPUNLOCK(vp);
 			} else
 				error = NFSERR_PERM;
 			if (error != 0) {
@@ -2570,7 +2570,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 		if (NFSVOPLOCK(vp, LK_SHARED) == 0) {
 			error = VOP_GETEXTATTR(vp, EXTATTR_NAMESPACE_USER,
 			    "xxx", NULL, &atsiz, cred, p);
-			NFSVOPUNLOCK(vp, 0);
+			NFSVOPUNLOCK(vp);
 			if (error != EOPNOTSUPP)
 				xattrsupp = true;
 		}

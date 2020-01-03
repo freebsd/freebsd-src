@@ -1135,7 +1135,7 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		goto out;
 
 	/* Pull in dependencies */
-	VOP_UNLOCK(nd->ni_vp, 0);
+	VOP_UNLOCK(nd->ni_vp);
 	error = linker_load_dependencies(lf);
 	vn_lock(nd->ni_vp, LK_EXCLUSIVE | LK_RETRY);
 	if (error)
@@ -1163,7 +1163,7 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	*result = lf;
 
 out:
-	VOP_UNLOCK(nd->ni_vp, 0);
+	VOP_UNLOCK(nd->ni_vp);
 	vn_close(nd->ni_vp, FREAD, td->td_ucred, td);
 	free(nd, M_TEMP);
 	if (error && lf)

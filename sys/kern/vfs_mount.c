@@ -951,7 +951,7 @@ vfs_domount_first(
 		vput(vp);
 		return (error);
 	}
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 
 	/* Allocate and initialize the filesystem. */
 	mp = vfs_mount_alloc(vp, vfsp, fspath, td->td_ucred);
@@ -983,7 +983,7 @@ vfs_domount_first(
 		vrele(vp);
 		return (error);
 	}
-	VOP_UNLOCK(newdp, 0);
+	VOP_UNLOCK(newdp);
 
 	if (mp->mnt_opt != NULL)
 		vfs_freeopts(mp->mnt_opt);
@@ -1015,9 +1015,9 @@ vfs_domount_first(
 	mtx_unlock(&mountlist_mtx);
 	vfs_event_signal(NULL, VQ_MOUNT, 0);
 	vn_lock(newdp, LK_EXCLUSIVE | LK_RETRY);
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 	EVENTHANDLER_DIRECT_INVOKE(vfs_mounted, mp, newdp, td);
-	VOP_UNLOCK(newdp, 0);
+	VOP_UNLOCK(newdp);
 	mountcheckdirs(vp, newdp);
 	vrele(newdp);
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
@@ -1090,7 +1090,7 @@ vfs_domount_update(
 	}
 	vp->v_iflag |= VI_MOUNT;
 	VI_UNLOCK(vp);
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 
 	vfs_op_enter(mp);
 
@@ -1415,7 +1415,7 @@ dounmount_cleanup(struct mount *mp, struct vnode *coveredvp, int mntkflags)
 	vfs_op_exit_locked(mp);
 	MNT_IUNLOCK(mp);
 	if (coveredvp != NULL) {
-		VOP_UNLOCK(coveredvp, 0);
+		VOP_UNLOCK(coveredvp);
 		vdrop(coveredvp);
 	}
 	vn_finished_write(mp);
@@ -1607,7 +1607,7 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 		 */
 		if (coveredvp->v_mountedhere != mp ||
 		    coveredvp->v_mountedhere->mnt_gen != mnt_gen_r) {
-			VOP_UNLOCK(coveredvp, 0);
+			VOP_UNLOCK(coveredvp);
 			vdrop(coveredvp);
 			vfs_rel(mp);
 			return (EBUSY);
@@ -1621,7 +1621,7 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	error = vfs_suser(mp, td);
 	if (error != 0) {
 		if (coveredvp != NULL) {
-			VOP_UNLOCK(coveredvp, 0);
+			VOP_UNLOCK(coveredvp);
 			vdrop(coveredvp);
 		}
 		vfs_rel(mp);
@@ -1729,7 +1729,7 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 		vfs_op_exit_locked(mp);
 		MNT_IUNLOCK(mp);
 		if (coveredvp)
-			VOP_UNLOCK(coveredvp, 0);
+			VOP_UNLOCK(coveredvp);
 		return (error);
 	}
 	mtx_lock(&mountlist_mtx);
@@ -1738,7 +1738,7 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	EVENTHANDLER_DIRECT_INVOKE(vfs_unmounted, mp, td);
 	if (coveredvp != NULL) {
 		coveredvp->v_mountedhere = NULL;
-		VOP_UNLOCK(coveredvp, 0);
+		VOP_UNLOCK(coveredvp);
 	}
 	vfs_event_signal(NULL, VQ_UNMOUNT, 0);
 	if (rootvnode != NULL && mp == rootvnode->v_mount) {

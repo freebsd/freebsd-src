@@ -812,7 +812,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		} else {
 			atomic_clear_int(&fp->f_flag, FRDAHEAD);
 		}
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		fdrop(fp, td);
 		break;
 
@@ -1483,7 +1483,7 @@ kern_fpathconf(struct thread *td, int fd, int name, long *valuep)
 	if (vp != NULL) {
 		vn_lock(vp, LK_SHARED | LK_RETRY);
 		error = VOP_PATHCONF(vp, name, valuep);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 	} else if (fp->f_type == DTYPE_PIPE || fp->f_type == DTYPE_SOCKET) {
 		if (name != _PC_PIPE_BUF) {
 			error = EINVAL;

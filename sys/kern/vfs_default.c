@@ -420,7 +420,7 @@ vop_stdadvlock(struct vop_advlock_args *ap)
 		 */
 		vn_lock(vp, LK_SHARED | LK_RETRY);
 		error = VOP_GETATTR(vp, &vattr, curthread->td_ucred);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		if (error)
 			return (error);
 	} else
@@ -441,7 +441,7 @@ vop_stdadvlockasync(struct vop_advlockasync_args *ap)
 		/* The size argument is only needed for SEEK_END. */
 		vn_lock(vp, LK_SHARED | LK_RETRY);
 		error = VOP_GETATTR(vp, &vattr, curthread->td_ucred);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		if (error)
 			return (error);
 	} else
@@ -522,15 +522,11 @@ int
 vop_stdunlock(ap)
 	struct vop_unlock_args /* {
 		struct vnode *a_vp;
-		int a_flags;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	struct mtx *ilk;
 
-	ilk = VI_MTX(vp);
-	return (lockmgr_unlock_fast_path(vp->v_vnlock, ap->a_flags,
-	    &ilk->lock_object));
+	return (lockmgr_unlock_fast_path(vp->v_vnlock, 0, NULL));
 }
 
 /* See above. */
@@ -585,13 +581,11 @@ int
 vop_unlock(ap)
 	struct vop_unlock_args /* {
 		struct vnode *a_vp;
-		int a_flags;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 
 	MPASS(vp->v_vnlock == &vp->v_lock);
-	MPASS(ap->a_flags == 0);
 
 	return (lockmgr_unlock(&vp->v_lock));
 }
@@ -835,7 +829,7 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 
 	VREF(vp);
 	locked = VOP_ISLOCKED(vp);
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 	NDINIT_ATVP(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF, UIO_SYSSPACE,
 	    "..", vp, td);
 	flags = FREAD;
@@ -853,7 +847,7 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 	    ((*dvp)->v_mount->mnt_flag & MNT_UNION)) {
 		*dvp = (*dvp)->v_mount->mnt_vnodecovered;
 		VREF(mvp);
-		VOP_UNLOCK(mvp, 0);
+		VOP_UNLOCK(mvp);
 		vn_close(mvp, FREAD, cred, td);
 		VREF(*dvp);
 		vn_lock(*dvp, LK_SHARED | LK_RETRY);
@@ -884,15 +878,15 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 		if ((dp->d_type != DT_WHT) &&
 		    (dp->d_fileno == fileno)) {
 			if (covered) {
-				VOP_UNLOCK(*dvp, 0);
+				VOP_UNLOCK(*dvp);
 				vn_lock(mvp, LK_SHARED | LK_RETRY);
 				if (dirent_exists(mvp, dp->d_name, td)) {
 					error = ENOENT;
-					VOP_UNLOCK(mvp, 0);
+					VOP_UNLOCK(mvp);
 					vn_lock(*dvp, LK_SHARED | LK_RETRY);
 					goto out;
 				}
-				VOP_UNLOCK(mvp, 0);
+				VOP_UNLOCK(mvp);
 				vn_lock(*dvp, LK_SHARED | LK_RETRY);
 			}
 			i -= dp->d_namlen;
@@ -922,7 +916,7 @@ out:
 		vput(*dvp);
 		vrele(mvp);
 	} else {
-		VOP_UNLOCK(mvp, 0);
+		VOP_UNLOCK(mvp);
 		vn_close(mvp, FREAD, cred, td);
 	}
 	vn_lock(vp, locked | LK_RETRY);
@@ -1085,7 +1079,7 @@ vop_stdadvise(struct vop_advise_args *ap)
 		error = 0;
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		if (VN_IS_DOOMED(vp)) {
-			VOP_UNLOCK(vp, 0);
+			VOP_UNLOCK(vp);
 			break;
 		}
 
@@ -1125,7 +1119,7 @@ vop_stdadvise(struct vop_advise_args *ap)
 		if (error == 0)
 			error = bnoreuselist(&bo->bo_dirty, bo, startn, endn);
 		BO_RUNLOCK(bo);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		break;
 	default:
 		error = EINVAL;
@@ -1275,7 +1269,7 @@ vop_stdioctl(struct vop_ioctl_args *ap)
 			else if (ap->a_command == FIOSEEKHOLE)
 				*offp = va.va_size;
 		}
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		break;
 	default:
 		error = ENOTTY;
@@ -1423,7 +1417,7 @@ vfs_stdextattrctl(mp, cmd, filename_vp, attrnamespace, attrname)
 {
 
 	if (filename_vp != NULL)
-		VOP_UNLOCK(filename_vp, 0);
+		VOP_UNLOCK(filename_vp);
 	return (EOPNOTSUPP);
 }
 

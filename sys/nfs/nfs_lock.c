@@ -257,7 +257,7 @@ nfs_dolock(struct vop_advlock_args *ap)
 
 	nmp->nm_getinfo(vp, msg.lm_fh, &msg.lm_fh_len, &msg.lm_addr,
 	    &msg.lm_nfsv3, NULL, NULL);
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 
 	/*
 	 * the NLM protocol doesn't allow the server to return an error

@@ -690,7 +690,7 @@ audit_arg_file(struct proc *p, struct file *fp)
 		vp = fp->f_vnode;
 		vn_lock(vp, LK_SHARED | LK_RETRY);
 		audit_arg_vnode1(vp);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		break;
 
 	case DTYPE_SOCKET:
@@ -978,6 +978,6 @@ audit_sysclose(struct thread *td, int fd)
 	vp = fp->f_vnode;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	audit_arg_vnode1(vp);
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 	fdrop(fp, td);
 }

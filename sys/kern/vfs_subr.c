@@ -413,7 +413,7 @@ sysctl_ftry_reclaim_vnode(SYSCTL_HANDLER_ARGS)
 
 	counter_u64_add(recycles_count, 1);
 	vgone(vp);
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 drop:
 	fdrop(fp, td);
 	return (error);
@@ -1061,7 +1061,7 @@ vlrureclaim(struct mount *mp, bool reclaim_nc_src, int trigger)
 		    (!reclaim_nc_src && !LIST_EMPTY(&vp->v_cache_src)) ||
 		    (vp->v_object != NULL &&
 		    vp->v_object->resident_page_count > trigger)) {
-			VOP_UNLOCK(vp, 0);
+			VOP_UNLOCK(vp);
 			vdropl(vp);
 			goto next_iter_mntunlocked;
 		}
@@ -1069,7 +1069,7 @@ vlrureclaim(struct mount *mp, bool reclaim_nc_src, int trigger)
 		    ("VIRF_DOOMED unexpectedly detected in vlrureclaim()"));
 		counter_u64_add(recycles_count, 1);
 		vgonel(vp);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		vdropl(vp);
 		done++;
 next_iter_mntunlocked:
@@ -1413,7 +1413,7 @@ vtryrecycle(struct vnode *vp)
 	 * Don't recycle if its filesystem is being suspended.
 	 */
 	if (vn_start_write(vp, &vnmp, V_NOWAIT) != 0) {
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		CTR2(KTR_VFS,
 		    "%s: impossible to recycle, cannot start the write for %p",
 		    __func__, vp);
@@ -1427,7 +1427,7 @@ vtryrecycle(struct vnode *vp)
 	 */
 	VI_LOCK(vp);
 	if (vp->v_usecount) {
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		VI_UNLOCK(vp);
 		vn_finished_write(vnmp);
 		CTR2(KTR_VFS,
@@ -1439,7 +1439,7 @@ vtryrecycle(struct vnode *vp)
 		counter_u64_add(recycles_count, 1);
 		vgonel(vp);
 	}
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 	VI_UNLOCK(vp);
 	vn_finished_write(vnmp);
 	return (0);
@@ -2408,7 +2408,7 @@ sync_vnode(struct synclist *slp, struct bufobj **bo, struct thread *td)
 	}
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	(void) VOP_FSYNC(vp, MNT_LAZY, td);
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 	vn_finished_write(mp);
 	BO_LOCK(*bo);
 	if (((*bo)->bo_flag & BO_ONWORKLST) != 0) {
@@ -3063,7 +3063,7 @@ vputx(struct vnode *vp, enum vputx_op func)
 		if (vp->v_iflag & VI_OWEINACT)
 			vinactive(vp, curthread);
 		if (func != VPUTX_VUNREF)
-			VOP_UNLOCK(vp, 0);
+			VOP_UNLOCK(vp);
 	}
 	vdropl(vp);
 }
@@ -3097,7 +3097,7 @@ void
 vput(struct vnode *vp)
 {
 
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 	vputx(vp, VPUTX_VPUT);
 }
 
@@ -3376,7 +3376,7 @@ loop:
 		 * Skip over a vnodes marked VV_SYSTEM.
 		 */
 		if ((flags & SKIPSYSTEM) && (vp->v_vflag & VV_SYSTEM)) {
-			VOP_UNLOCK(vp, 0);
+			VOP_UNLOCK(vp);
 			vdrop(vp);
 			continue;
 		}
@@ -3393,7 +3393,7 @@ loop:
 			}
 			error = VOP_FSYNC(vp, MNT_WAIT, td);
 			if (error != 0) {
-				VOP_UNLOCK(vp, 0);
+				VOP_UNLOCK(vp);
 				vdrop(vp);
 				MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 				return (error);
@@ -3404,7 +3404,7 @@ loop:
 			if ((vp->v_type == VNON ||
 			    (error == 0 && vattr.va_nlink > 0)) &&
 			    (vp->v_writecount <= 0 || vp->v_type != VREG)) {
-				VOP_UNLOCK(vp, 0);
+				VOP_UNLOCK(vp);
 				vdropl(vp);
 				continue;
 			}
@@ -3425,7 +3425,7 @@ loop:
 				vn_printf(vp, "vflush: busy vnode ");
 #endif
 		}
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		vdropl(vp);
 	}
 	if (rootrefs > 0 && (flags & FORCECLOSE) == 0) {
@@ -3441,7 +3441,7 @@ loop:
 		if (busy == 1 && rootvp->v_usecount == rootrefs) {
 			VOP_LOCK(rootvp, LK_EXCLUSIVE|LK_INTERLOCK);
 			vgone(rootvp);
-			VOP_UNLOCK(rootvp, 0);
+			VOP_UNLOCK(rootvp);
 			busy = 0;
 		} else
 			VI_UNLOCK(rootvp);
@@ -4506,7 +4506,7 @@ vfs_allocate_syncvnode(struct mount *mp)
 	if (error != 0)
 		panic("vfs_allocate_syncvnode: insmntque() failed");
 	vp->v_vflag &= ~VV_FORCEINSMQ;
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 	/*
 	 * Place the vnode onto the syncer worklist. We attempt to
 	 * scatter them about on the list so that they will go off
@@ -5025,18 +5025,13 @@ vop_unlock_pre(void *ap)
 {
 	struct vop_unlock_args *a = ap;
 
-	if (a->a_flags & LK_INTERLOCK)
-		ASSERT_VI_LOCKED(a->a_vp, "VOP_UNLOCK");
 	ASSERT_VOP_LOCKED(a->a_vp, "VOP_UNLOCK");
 }
 
 void
 vop_unlock_post(void *ap, int rc)
 {
-	struct vop_unlock_args *a = ap;
-
-	if (a->a_flags & LK_INTERLOCK)
-		ASSERT_VI_UNLOCKED(a->a_vp, "VOP_UNLOCK");
+	return;
 }
 
 void
@@ -5367,7 +5362,7 @@ vfs_knlunlock(void *arg)
 {
 	struct vnode *vp = arg;
 
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 }
 
 static void

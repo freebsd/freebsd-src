@@ -1797,7 +1797,7 @@ nlm_get_vfs_state(struct nlm_host *host, struct svc_req *rqstp,
 #if __FreeBSD_version < 800011
 	VOP_UNLOCK(vs->vs_vp, 0, curthread);
 #else
-	VOP_UNLOCK(vs->vs_vp, 0);
+	VOP_UNLOCK(vs->vs_vp);
 #endif
 	vs->vs_vnlocked = FALSE;
 

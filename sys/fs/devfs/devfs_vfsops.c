@@ -156,7 +156,7 @@ devfs_mount(struct mount *mp)
 		sx_xunlock(&fmp->dm_lock);
 	}
 
-	VOP_UNLOCK(rvp, 0);
+	VOP_UNLOCK(rvp);
 	vfs_cache_root_set(mp, rvp);
 
 	vfs_mountedfrom(mp, "devfs");

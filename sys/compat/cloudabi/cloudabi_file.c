@@ -291,7 +291,7 @@ cloudabi_sys_file_open(struct thread *td,
 		finit(fp, (fflags & FMASK) | (fp->f_flag & FHASLOCK),
 		    DTYPE_VNODE, vp, &vnops);
 	}
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp);
 
 	/* Truncate file. */
 	if (fflags & O_TRUNC) {
@@ -434,14 +434,14 @@ cloudabi_sys_file_readdir(struct thread *td,
 		/* Validate file type. */
 		vn_lock(vp, LK_SHARED | LK_RETRY);
 		if (vp->v_type != VDIR) {
-			VOP_UNLOCK(vp, 0);
+			VOP_UNLOCK(vp);
 			error = ENOTDIR;
 			goto done;
 		}
 #ifdef MAC
 		error = mac_vnode_check_readdir(td->td_ucred, vp);
 		if (error != 0) {
-			VOP_UNLOCK(vp, 0);
+			VOP_UNLOCK(vp);
 			goto done;
 		}
 #endif /* MAC */
@@ -451,7 +451,7 @@ cloudabi_sys_file_readdir(struct thread *td,
 		ncookies = 0;
 		error = VOP_READDIR(vp, &readuio, fp->f_cred, &eof,
 		    &ncookies, &cookies);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp);
 		if (error != 0)
 			goto done;
 

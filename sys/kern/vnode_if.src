@@ -390,7 +390,6 @@ vop_lock1 {
 
 vop_unlock {
 	IN struct vnode *vp;
-	IN int flags;
 };
 
 
