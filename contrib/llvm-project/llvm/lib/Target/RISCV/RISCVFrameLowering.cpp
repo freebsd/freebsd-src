@@ -205,7 +205,6 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
   MachineFrameInfo &MFI = MF.getFrameInfo();
   auto *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
   DebugLoc DL = MBBI->getDebugLoc();
-  const RISCVInstrInfo *TII = STI.getInstrInfo();
   unsigned FPReg = getFPReg(STI);
   unsigned SPReg = getSPReg(STI);
 
@@ -226,47 +225,8 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
               MachineInstr::FrameDestroy);
   }
 
-  if (hasFP(MF)) {
-    // To find the instruction restoring FP from stack.
-    for (auto &I = LastFrameDestroy; I != MBBI; ++I) {
-      if (I->mayLoad() && I->getOperand(0).isReg()) {
-        unsigned DestReg = I->getOperand(0).getReg();
-        if (DestReg == FPReg) {
-          // If there is frame pointer, after restoring $fp registers, we
-          // need adjust CFA to ($sp - FPOffset).
-          // Emit ".cfi_def_cfa $sp, -FPOffset"
-          unsigned CFIIndex = MF.addFrameInst(MCCFIInstruction::createDefCfa(
-              nullptr, RI->getDwarfRegNum(SPReg, true), -FPOffset));
-          BuildMI(MBB, std::next(I), DL,
-                  TII->get(TargetOpcode::CFI_INSTRUCTION))
-              .addCFIIndex(CFIIndex);
-          break;
-        }
-      }
-    }
-  }
-
-  // Add CFI directives for callee-saved registers.
-  const std::vector<CalleeSavedInfo> &CSI = MFI.getCalleeSavedInfo();
-  // Iterate over list of callee-saved registers and emit .cfi_restore
-  // directives.
-  for (const auto &Entry : CSI) {
-    unsigned Reg = Entry.getReg();
-    unsigned CFIIndex = MF.addFrameInst(MCCFIInstruction::createRestore(
-        nullptr, RI->getDwarfRegNum(Reg, true)));
-    BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
-        .addCFIIndex(CFIIndex);
-  }
-
   // Deallocate stack
   adjustReg(MBB, MBBI, DL, SPReg, SPReg, StackSize, MachineInstr::FrameDestroy);
-
-  // After restoring $sp, we need to adjust CFA to $(sp + 0)
-  // Emit ".cfi_def_cfa_offset 0"
-  unsigned CFIIndex =
-      MF.addFrameInst(MCCFIInstruction::createDefCfaOffset(nullptr, 0));
-  BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
-      .addCFIIndex(CFIIndex);
 }
 
 int RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF,
