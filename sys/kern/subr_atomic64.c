@@ -55,9 +55,12 @@ enum {
 };
 
 #ifdef _KERNEL
+#ifdef SMP
+
 #define	A64_POOL_SIZE	MAXCPU
 /* Estimated size of a cacheline */
 #define	CACHE_ALIGN	CACHE_LINE_SIZE
+static struct mtx a64_mtx_pool[A64_POOL_SIZE];
 
 #define GET_MUTEX(p) \
     (&a64_mtx_pool[(pmap_kextract((vm_offset_t)p) / CACHE_ALIGN) % (A64_POOL_SIZE)])
@@ -67,6 +70,13 @@ enum {
     if (smp_started) mtx_lock(_amtx)
 
 #define UNLOCK_A64()	if (smp_started) mtx_unlock(_amtx)
+
+#else	/* !SMP */
+
+#define	LOCK_A64()	{ register_t s = intr_disable()
+#define	UNLOCK_A64()	intr_restore(s); }
+
+#endif	/* SMP */
 
 #define ATOMIC64_EMU_UN(op, rt, block, ret) \
     rt \
@@ -85,8 +95,6 @@ enum {
 	block;							\
 	UNLOCK_A64();						\
 	ret; } struct hack
-
-static struct mtx a64_mtx_pool[A64_POOL_SIZE];
 
 ATOMIC64_EMU_BIN(add, void, (*p = *p + v), return);
 ATOMIC64_EMU_BIN(clear, void, *p &= ~v, return);
@@ -126,6 +134,7 @@ int atomic_fcmpset_64(volatile u_int64_t *p, u_int64_t *old, u_int64_t new)
 	return (tmp == tmp_old);
 }
 
+#ifdef SMP
 static void
 atomic64_mtxinit(void *x __unused)
 {
@@ -136,5 +145,6 @@ atomic64_mtxinit(void *x __unused)
 }
 
 SYSINIT(atomic64_mtxinit, SI_SUB_LOCK, SI_ORDER_MIDDLE, atomic64_mtxinit, NULL);
+#endif	/* SMP */
 
 #endif	/* _KERNEL */
