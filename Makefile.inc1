@@ -2800,7 +2800,6 @@ _startup_libs=	lib/csu
 .if ${MK_BSD_CRTBEGIN} == "no"
 _startup_libs+=	gnu/lib/csu
 .endif
-_startup_libs+=	lib/libcompiler_rt
 _startup_libs+=	lib/libc
 _startup_libs+=	lib/libc_nonshared
 .if ${MK_LIBCPLUSPLUS} != "no"
