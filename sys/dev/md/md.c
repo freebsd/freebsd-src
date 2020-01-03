@@ -1142,7 +1142,16 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		}
 		if (m != NULL) {
 			vm_page_xunbusy(m);
-			vm_page_reference(m);
+
+			/*
+			 * The page may be deactivated prior to setting
+			 * PGA_REFERENCED, but in this case it will be
+			 * reactivated by the page daemon.
+			 */
+			if (vm_page_active(m))
+				vm_page_reference(m);
+			else
+				vm_page_activate(m);
 		}
 
 		/* Actions on further pages start at offset 0 */
