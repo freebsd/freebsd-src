@@ -484,6 +484,10 @@ MK_TESTS:=	no
 MK_BSDINSTALL:=	no
 .endif
 
+.if ${MK_FILE} == "no"
+MK_SVNLITE:=	no
+.endif
+
 .if ${MK_MAIL} == "no"
 MK_MAILWRAPPER:= no
 MK_SENDMAIL:=	no
