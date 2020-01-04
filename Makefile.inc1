@@ -2788,7 +2788,7 @@ libraries: .MAKE .PHONY
 #
 _prereq_libs= lib/libcompiler_rt
 .if ${MK_SSP} != "no"
-_prereq_libs+= gnu/lib/libssp/libssp_nonshared
+_prereq_libs+= lib/libssp_nonshared
 .endif
 
 # These dependencies are not automatically generated:

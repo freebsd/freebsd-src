@@ -75,7 +75,7 @@ DIRDEPS_FILTER.xtras+= Nusr.bin/clang/clang.host
 .if ${DEP_RELDIR} == "lib/libc"
 DIRDEPS += lib/libc_nonshared
 .if ${MK_SSP:Uno} != "no" 
-DIRDEPS += gnu/lib/libssp/libssp_nonshared
+DIRDEPS += lib/libssp_nonshared
 .endif
 .else
 DIRDEPS_FILTER.xtras+= Nlib/libc_nonshared

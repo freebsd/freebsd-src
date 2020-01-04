@@ -1,0 +1,4 @@
+# $FreeBSD$
+
+LIBSSP_1.0 {
+};
