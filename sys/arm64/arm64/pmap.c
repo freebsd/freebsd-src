@@ -3449,8 +3449,10 @@ havel3:
 			 */
 			if (pmap_pte_dirty(orig_l3))
 				vm_page_dirty(om);
-			if ((orig_l3 & ATTR_AF) != 0)
+			if ((orig_l3 & ATTR_AF) != 0) {
+				pmap_invalidate_page(pmap, va);
 				vm_page_aflag_set(om, PGA_REFERENCED);
+			}
 			CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
 			pv = pmap_pvh_remove(&om->md, pmap, va);
 			if ((m->oflags & VPO_UNMANAGED) != 0)
@@ -3460,8 +3462,11 @@ havel3:
 			    ((om->flags & PG_FICTITIOUS) != 0 ||
 			    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
 				vm_page_aflag_clear(om, PGA_WRITEABLE);
+		} else {
+			KASSERT((orig_l3 & ATTR_AF) != 0,
+			    ("pmap_enter: unmanaged mapping lacks ATTR_AF"));
+			pmap_invalidate_page(pmap, va);
 		}
-		pmap_invalidate_page(pmap, va);
 		orig_l3 = 0;
 	} else {
 		/*

@@ -6131,8 +6131,10 @@ retry:
 			 */
 			if ((origpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
 				vm_page_dirty(om);
-			if ((origpte & PG_A) != 0)
+			if ((origpte & PG_A) != 0) {
+				pmap_invalidate_page(pmap, va);
 				vm_page_aflag_set(om, PGA_REFERENCED);
+			}
 			CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
 			pv = pmap_pvh_remove(&om->md, pmap, va);
 			KASSERT(pv != NULL,
@@ -6144,9 +6146,13 @@ retry:
 			    ((om->flags & PG_FICTITIOUS) != 0 ||
 			    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
 				vm_page_aflag_clear(om, PGA_WRITEABLE);
-		}
-		if ((origpte & PG_A) != 0)
+		} else {
+			/*
+			 * Since this mapping is unmanaged, assume that PG_A
+			 * is set.
+			 */
 			pmap_invalidate_page(pmap, va);
+		}
 		origpte = 0;
 	} else {
 		/*
