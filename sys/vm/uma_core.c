@@ -294,7 +294,10 @@ static int sysctl_handle_uma_zone_flags(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_uma_slab_efficiency(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_uma_zone_items(SYSCTL_HANDLER_ARGS);
 
+static uint64_t uma_zone_get_allocs(uma_zone_t zone);
+
 #ifdef INVARIANTS
+static uint64_t uma_keg_get_allocs(uma_keg_t zone);
 static inline struct noslabbits *slab_dbg_bits(uma_slab_t slab, uma_keg_t keg);
 
 static bool uma_dbg_kskip(uma_keg_t keg, void *mem);
@@ -4184,6 +4187,22 @@ uma_zone_get_frees(uma_zone_t zone)
 
 	return (nitems);
 }
+
+#ifdef INVARIANTS
+/* Used only for KEG_ASSERT_COLD(). */
+static uint64_t
+uma_keg_get_allocs(uma_keg_t keg)
+{
+	uma_zone_t z;
+	uint64_t nitems;
+
+	nitems = 0;
+	LIST_FOREACH(z, &keg->uk_zones, uz_link)
+		nitems += uma_zone_get_allocs(z);
+
+	return (nitems);
+}
+#endif
 
 /* See uma.h */
 void
