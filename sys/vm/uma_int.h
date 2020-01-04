@@ -254,9 +254,12 @@ cache_uz_size(uma_cache_t cache)
  * Per-domain slab lists.  Embedded in the kegs.
  */
 struct uma_domain {
+	struct mtx_padalign ud_lock;	/* Lock for the domain lists. */
 	struct slabhead	ud_part_slab;	/* partially allocated slabs */
 	struct slabhead	ud_free_slab;	/* completely unallocated slabs */
 	struct slabhead ud_full_slab;	/* fully allocated slabs */
+	uint32_t	ud_pages;	/* Total page count */
+	uint32_t	ud_free;	/* Count of items free in slabs */
 } __aligned(CACHE_LINE_SIZE);
 
 typedef struct uma_domain * uma_domain_t;
@@ -268,14 +271,11 @@ typedef struct uma_domain * uma_domain_t;
  *
  */
 struct uma_keg {
-	struct mtx	uk_lock;	/* Lock for the keg. */
 	struct uma_hash	uk_hash;
 	LIST_HEAD(,uma_zone)	uk_zones;	/* Keg's zones */
 
 	struct domainset_ref uk_dr;	/* Domain selection policy. */
 	uint32_t	uk_align;	/* Alignment mask */
-	uint32_t	uk_pages;	/* Total page count */
-	uint32_t	uk_free;	/* Count of items free in slabs */
 	uint32_t	uk_reserve;	/* Number of reserved items. */
 	uint32_t	uk_size;	/* Requested size of each item */
 	uint32_t	uk_rsize;	/* Real size of each item */
@@ -305,8 +305,8 @@ typedef struct uma_keg	* uma_keg_t;
 
 #ifdef _KERNEL
 #define	KEG_ASSERT_COLD(k)						\
-	KASSERT((k)->uk_pages == 0, ("keg %s initialization after use.",\
-	    (k)->uk_name))
+	KASSERT((k)->uk_domain[0].ud_pages == 0,			\
+	    ("keg %s initialization after use.", (k)->uk_name))
 
 /*
  * Free bits per-slab.
@@ -536,20 +536,22 @@ static __inline uma_slab_t hash_sfind(struct uma_hash *hash, uint8_t *data);
 
 /* Lock Macros */
 
-#define	KEG_LOCK_INIT(k, lc)					\
-	do {							\
-		if ((lc))					\
-			mtx_init(&(k)->uk_lock, (k)->uk_name,	\
-			    (k)->uk_name, MTX_DEF | MTX_DUPOK);	\
-		else						\
-			mtx_init(&(k)->uk_lock, (k)->uk_name,	\
-			    "UMA zone", MTX_DEF | MTX_DUPOK);	\
+#define	KEG_LOCKPTR(k, d)	(struct mtx *)&(k)->uk_domain[(d)].ud_lock
+#define	KEG_LOCK_INIT(k, d, lc)						\
+	do {								\
+		if ((lc))						\
+			mtx_init(KEG_LOCKPTR(k, d), (k)->uk_name,	\
+			    (k)->uk_name, MTX_DEF | MTX_DUPOK);		\
+		else							\
+			mtx_init(KEG_LOCKPTR(k, d), (k)->uk_name,	\
+			    "UMA zone", MTX_DEF | MTX_DUPOK);		\
 	} while (0)
 
-#define	KEG_LOCK_FINI(k)	mtx_destroy(&(k)->uk_lock)
-#define	KEG_LOCK(k)	mtx_lock(&(k)->uk_lock)
-#define	KEG_UNLOCK(k)	mtx_unlock(&(k)->uk_lock)
-#define	KEG_LOCK_ASSERT(k)	mtx_assert(&(k)->uk_lock, MA_OWNED)
+#define	KEG_LOCK_FINI(k, d)	mtx_destroy(KEG_LOCKPTR(k, d))
+#define	KEG_LOCK(k, d)							\
+	({ mtx_lock(KEG_LOCKPTR(k, d)); KEG_LOCKPTR(k, d); })
+#define	KEG_UNLOCK(k, d)	mtx_unlock(KEG_LOCKPTR(k, d))
+#define	KEG_LOCK_ASSERT(k, d)	mtx_assert(KEG_LOCKPTR(k, d), MA_OWNED)
 
 #define	KEG_GET(zone, keg) do {					\
 	(keg) = (zone)->uz_keg;					\
