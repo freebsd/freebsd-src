@@ -582,6 +582,13 @@ ns_print(netdissect_options *ndo,
 	register const u_char *cp;
 	uint16_t b2;
 
+	if(length < sizeof(*np)) {
+		ND_PRINT((ndo, "domain"));
+		ND_PRINT((ndo, " [length %u < %zu]", length, sizeof(*np)));
+		ND_PRINT((ndo, " (invalid)"));
+		return;
+	}
+
 	np = (const HEADER *)bp;
 	ND_TCHECK(*np);
 	/* get the byte-order right */

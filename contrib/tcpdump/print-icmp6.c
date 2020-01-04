@@ -41,6 +41,10 @@
 #include "udp.h"
 #include "ah.h"
 
+static const char icmp6_tstr[] = " [|icmp6]";
+static const char rpl_tstr[] = " [|rpl]";
+static const char mldv2_tstr[] = " [|mldv2]";
+
 /*	NetBSD: icmp6.h,v 1.13 2000/08/03 16:30:37 itojun Exp 	*/
 /*	$KAME: icmp6.h,v 1.22 2000/08/03 15:25:16 jinmei Exp $	*/
 
@@ -683,10 +687,11 @@ rpl_dio_printopt(netdissect_options *ndo,
                 }
                 opt = (const struct rpl_dio_genoption *)(((const char *)opt) + optlen);
                 length -= optlen;
+                ND_TCHECK(opt->rpl_dio_len);
         }
         return;
 trunc:
-	ND_PRINT((ndo," [|truncated]"));
+	ND_PRINT((ndo, "%s", rpl_tstr));
 	return;
 }
 
@@ -715,7 +720,7 @@ rpl_dio_print(netdissect_options *ndo,
         }
 	return;
 trunc:
-	ND_PRINT((ndo," [|truncated]"));
+	ND_PRINT((ndo, "%s", rpl_tstr));
 	return;
 }
 
@@ -756,7 +761,7 @@ rpl_dao_print(netdissect_options *ndo,
 	return;
 
 trunc:
-	ND_PRINT((ndo," [|truncated]"));
+	ND_PRINT((ndo, "%s", rpl_tstr));
 	return;
 
 tooshort:
@@ -800,7 +805,7 @@ rpl_daoack_print(netdissect_options *ndo,
 	return;
 
 trunc:
-	ND_PRINT((ndo," [|dao-truncated]"));
+	ND_PRINT((ndo, "%s", rpl_tstr));
 	return;
 
 tooshort:
@@ -859,7 +864,7 @@ rpl_print(netdissect_options *ndo,
 
 #if 0
 trunc:
-	ND_PRINT((ndo," [|truncated]"));
+	ND_PRINT((ndo, "%s", rpl_tstr));
 	return;
 #endif
 
@@ -1034,7 +1039,7 @@ icmp6_print(netdissect_options *ndo,
 			p = (const struct nd_router_advert *)dp;
 			ND_TCHECK(p->nd_ra_retransmit);
 			ND_PRINT((ndo,"\n\thop limit %u, Flags [%s]" \
-                                  ", pref %s, router lifetime %us, reachable time %us, retrans time %us",
+                                  ", pref %s, router lifetime %us, reachable time %ums, retrans timer %ums",
                                   (u_int)p->nd_ra_curhoplimit,
                                   bittok2str(icmp6_opt_ra_flag_values,"none",(p->nd_ra_flags_reserved)),
                                   get_rtpref(p->nd_ra_flags_reserved),
@@ -1157,7 +1162,7 @@ icmp6_print(netdissect_options *ndo,
                 ND_PRINT((ndo,", length %u", length));
 	return;
 trunc:
-	ND_PRINT((ndo, "[|icmp6]"));
+	ND_PRINT((ndo, "%s", icmp6_tstr));
 }
 
 static const struct udphdr *
@@ -1381,8 +1386,8 @@ icmp6_opt_print(netdissect_options *ndo, const u_char *bp, int resid)
 	}
 	return;
 
- trunc:
-	ND_PRINT((ndo, "[ndp opt]"));
+trunc:
+	ND_PRINT((ndo, "%s", icmp6_tstr));
 	return;
 #undef ECHECK
 }
@@ -1457,7 +1462,7 @@ mldv2_report_print(netdissect_options *ndo, const u_char *bp, u_int len)
     }
     return;
 trunc:
-    ND_PRINT((ndo,"[|icmp6]"));
+    ND_PRINT((ndo, "%s", mldv2_tstr));
     return;
 }
 
@@ -1523,7 +1528,7 @@ mldv2_query_print(netdissect_options *ndo, const u_char *bp, u_int len)
     ND_PRINT((ndo,"]"));
     return;
 trunc:
-    ND_PRINT((ndo,"[|icmp6]"));
+    ND_PRINT((ndo, "%s", mldv2_tstr));
     return;
 }
 
@@ -1810,7 +1815,7 @@ icmp6_nodeinfo_print(netdissect_options *ndo, u_int icmp6len, const u_char *bp, 
 	return;
 
 trunc:
-	ND_PRINT((ndo, "[|icmp6]"));
+	ND_PRINT((ndo, "%s", icmp6_tstr));
 }
 
 static void
@@ -1945,7 +1950,7 @@ icmp6_rrenum_print(netdissect_options *ndo, const u_char *bp, const u_char *ep)
 	return;
 
 trunc:
-	ND_PRINT((ndo,"[|icmp6]"));
+	ND_PRINT((ndo, "%s", icmp6_tstr));
 }
 
 /*

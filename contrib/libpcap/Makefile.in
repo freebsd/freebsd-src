@@ -69,7 +69,7 @@ INSTALL_RPCAPD=@INSTALL_RPCAPD@
 EXTRA_NETWORK_LIBS=@EXTRA_NETWORK_LIBS@
 
 # Standard CFLAGS for building members of a shared library
-FULL_CFLAGS = $(CCOPT) $(SHLIB_CCOPT) $(INCLS) $(DEFS) $(CFLAGS)
+FULL_CFLAGS = $(CCOPT) @V_LIB_CCOPT_FAT@ $(SHLIB_CCOPT) $(INCLS) $(DEFS) $(CFLAGS)
 
 INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -117,6 +117,7 @@ PUBHDR = \
 	pcap/nflog.h \
 	pcap/pcap.h \
 	pcap/sll.h \
+	pcap/socket.h \
 	pcap/vlan.h \
 	pcap/usb.h
 
@@ -168,6 +169,7 @@ MAN3PCAP_EXPAND = \
 	pcap_list_tstamp_types.3pcap.in \
 	pcap_open_dead.3pcap.in \
 	pcap_open_offline.3pcap.in \
+	pcap_set_immediate_mode.3pcap.in \
 	pcap_set_tstamp_precision.3pcap.in \
 	pcap_set_tstamp_type.3pcap.in
 
@@ -203,9 +205,8 @@ MAN3PCAP_NOEXPAND = \
 	pcap_open_live.3pcap \
 	pcap_set_buffer_size.3pcap \
 	pcap_set_datalink.3pcap \
-	pcap_set_immediate_mode.3pcap \
 	pcap_set_promisc.3pcap \
-	pcap_set_protocol.3pcap \
+	pcap_set_protocol_linux.3pcap \
 	pcap_set_rfmon.3pcap \
 	pcap_set_snaplen.3pcap \
 	pcap_set_timeout.3pcap \
@@ -235,21 +236,13 @@ EXTRA_DIST = \
 	ChmodBPF/StartupParameters.plist \
 	CREDITS \
 	CMakeLists.txt \
-	INSTALL.txt \
+	INSTALL.md \
 	LICENSE \
 	Makefile.in \
 	Makefile-devel-adds \
-	README \
-	README.aix \
-	README.dag \
-	README.hpux \
-	README.linux \
-	README.macos \
-	README.septel \
-	README.sita \
-	README.tru64 \
-	README.Win32 \
-	CONTRIBUTING \
+	README.md \
+	doc \
+	CONTRIBUTING.md \
 	TODO \
 	VERSION \
 	aclocal.m4 \
@@ -284,10 +277,14 @@ EXTRA_DIST = \
 	lbl/os-sunos4.h \
 	lbl/os-ultrix4.h \
 	libpcap.pc.in \
+	missing/asprintf.c \
 	missing/getopt.c \
 	missing/getopt.h \
 	missing/snprintf.c \
+	missing/strlcat.c \
+	missing/strlcpy.c \
 	missing/strtok_r.c \
+	missing/win_asprintf.c \
 	missing/win_snprintf.c \
 	mkdep \
 	msdos/bin2c.c \
@@ -355,16 +352,18 @@ EXTRA_DIST = \
 	rpcapd/fileconf.c \
 	rpcapd/fileconf.h \
 	rpcapd/log.h \
-	rpcapd/log-stderr.c \
+	rpcapd/log.c \
 	rpcapd/org.tcpdump.rpcapd.plist \
 	rpcapd/rpcapd.c \
 	rpcapd/rpcapd.h \
 	rpcapd/rpcapd.inetd.conf \
 	rpcapd/rpcapd.manadmin.in \
+	rpcapd/rpcapd-config.manfile.in \
 	rpcapd/rpcapd.rc \
 	rpcapd/rpcapd.socket \
 	rpcapd/rpcapd.xinetd.conf \
 	rpcapd/rpcapd@.service \
+	rpcapd/win32-svc.c \
 	rpcapd/win32-svc.h \
 	sockutils.c \
 	sockutils.h \
@@ -424,7 +423,7 @@ libpcap.dylib: $(OBJ)
 	MAJOR_VER=A; \
 	COMPAT_VER=1; \
 	CURRENT_VER=`sed 's/[^0-9.].*$$//' $(srcdir)/VERSION`; \
-	$(CC) -dynamiclib -undefined error $(LDFLAGS) \
+	$(CC) -dynamiclib -undefined error $(LDFLAGS) @V_LIB_LDFLAGS_FAT@ \
 	    -o libpcap.$$VER.dylib $(OBJ) $(ADDLOBJS) $(LIBS) \
 	    -install_name $(libdir)/libpcap.$$MAJOR_VER.dylib \
 	    -compatibility_version $$COMPAT_VER \
@@ -496,8 +495,17 @@ grammar.o: grammar.c scanner.h
 gencode.o: $(srcdir)/gencode.c grammar.h scanner.h
 	$(CC) $(FULL_CFLAGS) -c $(srcdir)/gencode.c
 
+asprintf.o: $(srcdir)/missing/asprintf.c
+	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/asprintf.c
+
 snprintf.o: $(srcdir)/missing/snprintf.c
 	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/snprintf.c
+
+strlcat.o: $(srcdir)/missing/strlcat.c
+	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/strlcat.c
+
+strlcpy.o: $(srcdir)/missing/strlcpy.c
+	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/strlcpy.c
 
 strtok_r.o: $(srcdir)/missing/strtok_r.c
 	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/strtok_r.c
@@ -582,6 +590,9 @@ install: install-shared install-archive libpcap.pc pcap-config @INSTALL_RPCAPD@
 	rm -f pcap_datalink_val_to_description.3pcap && \
 	$(LN_S) pcap_datalink_val_to_name.3pcap \
 		 pcap_datalink_val_to_description.3pcap && \
+	rm -f pcap_datalink_val_to_description_or_dlt.3pcap && \
+	$(LN_S) pcap_datalink_val_to_name.3pcap \
+		 pcap_datalink_val_to_description_or_dlt.3pcap && \
 	rm -f pcap_dump_fopen.3pcap && \
 	$(LN_S) pcap_dump_open.3pcap pcap_dump_fopen.3pcap && \
 	rm -f pcap_freealldevs.3pcap && \
@@ -751,7 +762,7 @@ tags: $(TAGFILES)
 releasetar:
 	@cwd=`pwd` ; dir=`basename $$cwd` ; name=$(PROG)-`cat VERSION` ; \
 	   mkdir $$name; \
-	   tar cf - $(CSRC) $(HDR) $(MAN1) $(MAN3PCAP_EXPAND) \
+	   tar -c --exclude='*~' -f - $(CSRC) $(HDR) $(MAN1) $(MAN3PCAP_EXPAND) \
 	      $(MAN3PCAP_NOEXPAND) $(MANFILE) $(MANMISC) $(EXTRA_DIST) | \
 	      (cd $$name; tar xf -); \
 	   tar -c -z -f $$name.tar.gz $$name; \

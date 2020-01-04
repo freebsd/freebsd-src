@@ -231,7 +231,22 @@ pcap_nametonetaddr(const char *name)
 	int h_errnoval;
 	int err;
 
-	err = getnetbyname_r(name, &result_buf, buf, sizeof buf, &np,
+	/*
+	 * Apparently, the man page at
+	 *
+	 *    http://man7.org/linux/man-pages/man3/getnetbyname_r.3.html
+	 *
+	 * lies when it says
+	 *
+	 *    If the function call successfully obtains a network record,
+	 *    then *result is set pointing to result_buf; otherwise, *result
+	 *    is set to NULL.
+	 *
+	 * and, in fact, at least in some versions of GNU libc, it does
+	 * *not* always get set if getnetbyname_r() succeeds.
+	 */
+	np = NULL;
+ 	err = getnetbyname_r(name, &result_buf, buf, sizeof buf, &np,
 	    &h_errnoval);
 	if (err != 0) {
 		/*
@@ -306,7 +321,8 @@ pcap_nametoport(const char *name, int *port, int *proto)
 	hints.ai_protocol = IPPROTO_TCP;
 	error = getaddrinfo(NULL, name, &hints, &res);
 	if (error != 0) {
-		if (error != EAI_NONAME) {
+		if (error != EAI_NONAME &&
+		    error != EAI_SERVICE) {
 			/*
 			 * This is a real error, not just "there's
 			 * no such service name".
@@ -349,7 +365,8 @@ pcap_nametoport(const char *name, int *port, int *proto)
 	hints.ai_protocol = IPPROTO_UDP;
 	error = getaddrinfo(NULL, name, &hints, &res);
 	if (error != 0) {
-		if (error != EAI_NONAME) {
+		if (error != EAI_NONAME &&
+		    error != EAI_SERVICE) {
 			/*
 			 * This is a real error, not just "there's
 			 * no such service name".
@@ -636,8 +653,15 @@ __pcap_atoin(const char *s, bpf_u_int32 *addr)
 	len = 0;
 	for (;;) {
 		n = 0;
-		while (*s && *s != '.')
+		while (*s && *s != '.') {
+			if (n > 25) {
+				/* The result will be > 255 */
+				return -1;
+			}
 			n = n * 10 + *s++ - '0';
+		}
+		if (n > 255)
+			return -1;
 		*addr <<= 8;
 		*addr |= n & 0xff;
 		len += 8;
