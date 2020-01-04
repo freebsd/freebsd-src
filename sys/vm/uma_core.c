@@ -922,7 +922,7 @@ bucket_drain(uma_zone_t zone, uma_bucket_t bucket)
 /*
  * Drains the per cpu caches for a zone.
  *
- * NOTE: This may only be called while the zone is being turn down, and not
+ * NOTE: This may only be called while the zone is being torn down, and not
  * during normal operation.  This is necessary in order that we do not have
  * to migrate CPUs to drain the per-CPU caches.
  *
@@ -1041,7 +1041,7 @@ pcpu_cache_drain_safe(uma_zone_t zone)
 	int cpu;
 
 	/*
-	 * Polite bucket sizes shrinking was not enouth, shrink aggressively.
+	 * Polite bucket sizes shrinking was not enough, shrink aggressively.
 	 */
 	if (zone)
 		cache_shrink(zone, NULL);
@@ -1222,7 +1222,7 @@ zone_reclaim(uma_zone_t zone, int waitok, bool drain)
 	while (zone->uz_flags & UMA_ZFLAG_RECLAIMING) {
 		if (waitok == M_NOWAIT)
 			goto out;
-		msleep(zone, zone->uz_lockptr, PVM, "zonedrain", 1);
+		msleep(zone, &zone->uz_lock, PVM, "zonedrain", 1);
 	}
 	zone->uz_flags |= UMA_ZFLAG_RECLAIMING;
 	bucket_cache_reclaim(zone, drain);
@@ -1258,8 +1258,8 @@ zone_trim(uma_zone_t zone, void *unused)
 
 /*
  * Allocate a new slab for a keg.  This does not insert the slab onto a list.
- * If the allocation was successful, the keg lock will be held upon return,
- * otherwise the keg will be left unlocked.
+ * The keg should be locked on entry and will be dropped and reacquired on
+ * return.
  *
  * Arguments:
  *	flags   Wait flags for the item initialization routine
@@ -1283,8 +1283,6 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 	KASSERT(domain >= 0 && domain < vm_ndomains,
 	    ("keg_alloc_slab: domain %d out of range", domain));
 	KEG_LOCK_ASSERT(keg);
-	MPASS(zone->uz_lockptr == &keg->uk_lock);
-
 	allocf = keg->uk_allocf;
 	KEG_UNLOCK(keg);
 
@@ -1293,7 +1291,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 	if (keg->uk_flags & UMA_ZONE_OFFPAGE) {
 		slab = zone_alloc_item(keg->uk_slabzone, NULL, domain, aflags);
 		if (slab == NULL)
-			goto out;
+			goto fail;
 	}
 
 	/*
@@ -1317,8 +1315,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 	if (mem == NULL) {
 		if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 			zone_free_item(keg->uk_slabzone, slab, NULL, SKIP_NONE);
-		slab = NULL;
-		goto out;
+		goto fail;
 	}
 	uma_total_inc(size);
 
@@ -1348,8 +1345,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 				break;
 		if (i != keg->uk_ipers) {
 			keg_free_slab(keg, slab, i);
-			slab = NULL;
-			goto out;
+			goto fail;
 		}
 	}
 	KEG_LOCK(keg);
@@ -1363,8 +1359,11 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 	keg->uk_pages += keg->uk_ppera;
 	keg->uk_free += keg->uk_ipers;
 
-out:
 	return (slab);
+
+fail:
+	KEG_LOCK(keg);
+	return (NULL);
 }
 
 /*
@@ -2237,6 +2236,7 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	cnt.count = 0;
 	zone_foreach(zone_count, &cnt);
 	zone->uz_namecnt = cnt.count;
+	ZONE_LOCK_INIT(zone, (arg->flags & UMA_ZONE_MTXCLASS));
 
 	for (i = 0; i < vm_ndomains; i++)
 		TAILQ_INIT(&zone->uz_domain[i].uzd_buckets);
@@ -2250,6 +2250,8 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	 * This is a pure cache zone, no kegs.
 	 */
 	if (arg->import) {
+		KASSERT((arg->flags & UMA_ZFLAG_CACHE) != 0,
+		    ("zone_ctor: Import specified for non-cache zone."));
 		if (arg->flags & UMA_ZONE_VM)
 			arg->flags |= UMA_ZFLAG_CACHEONLY;
 		zone->uz_flags = arg->flags;
@@ -2257,8 +2259,6 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 		zone->uz_import = arg->import;
 		zone->uz_release = arg->release;
 		zone->uz_arg = arg->arg;
-		zone->uz_lockptr = &zone->uz_lock;
-		ZONE_LOCK_INIT(zone, (arg->flags & UMA_ZONE_MTXCLASS));
 		rw_wlock(&uma_rwlock);
 		LIST_INSERT_HEAD(&uma_cachezones, zone, uz_link);
 		rw_wunlock(&uma_rwlock);
@@ -2279,7 +2279,6 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 		KASSERT(arg->keg != NULL, ("Secondary zone on zero'd keg"));
 		zone->uz_init = arg->uminit;
 		zone->uz_fini = arg->fini;
-		zone->uz_lockptr = &keg->uk_lock;
 		zone->uz_flags |= UMA_ZONE_SECONDARY;
 		rw_wlock(&uma_rwlock);
 		ZONE_LOCK(zone);
@@ -2419,8 +2418,7 @@ zone_dtor(void *arg, int size, void *udata)
 	counter_u64_free(zone->uz_frees);
 	counter_u64_free(zone->uz_fails);
 	free(zone->uz_ctlname, M_UMA);
-	if (zone->uz_lockptr == &zone->uz_lock)
-		ZONE_LOCK_FINI(zone);
+	ZONE_LOCK_FINI(zone);
 }
 
 /*
@@ -3223,7 +3221,6 @@ restart:
 			LIST_INSERT_HEAD(&dom->ud_part_slab, slab, us_link);
 			return (slab);
 		}
-		KEG_LOCK(keg);
 		if (!rr && (flags & M_WAITOK) == 0)
 			break;
 		if (rr && vm_domainset_iter_policy(&di, &domain) != 0) {
@@ -3869,7 +3866,6 @@ slab_free_item(uma_zone_t zone, uma_slab_t slab, void *item)
 	uint8_t freei;
 
 	keg = zone->uz_keg;
-	MPASS(zone->uz_lockptr == &keg->uk_lock);
 	KEG_LOCK_ASSERT(keg);
 
 	dom = &keg->uk_domain[slab->us_domain];
@@ -4012,9 +4008,7 @@ uma_zone_get_max(uma_zone_t zone)
 {
 	int nitems;
 
-	ZONE_LOCK(zone);
-	nitems = zone->uz_max_items;
-	ZONE_UNLOCK(zone);
+	nitems = atomic_load_64(&zone->uz_max_items);
 
 	return (nitems);
 }
@@ -4024,9 +4018,8 @@ void
 uma_zone_set_warning(uma_zone_t zone, const char *warning)
 {
 
-	ZONE_LOCK(zone);
+	ZONE_ASSERT_COLD(zone);
 	zone->uz_warning = warning;
-	ZONE_UNLOCK(zone);
 }
 
 /* See uma.h */
@@ -4034,9 +4027,8 @@ void
 uma_zone_set_maxaction(uma_zone_t zone, uma_maxaction_t maxaction)
 {
 
-	ZONE_LOCK(zone);
+	ZONE_ASSERT_COLD(zone);
 	TASK_INIT(&zone->uz_maxaction, 0, (task_fn_t *)maxaction, zone);
-	ZONE_UNLOCK(zone);
 }
 
 /* See uma.h */
@@ -4046,22 +4038,11 @@ uma_zone_get_cur(uma_zone_t zone)
 	int64_t nitems;
 	u_int i;
 
-	ZONE_LOCK(zone);
 	nitems = counter_u64_fetch(zone->uz_allocs) -
 	    counter_u64_fetch(zone->uz_frees);
-	if ((zone->uz_flags & UMA_ZFLAG_INTERNAL) == 0) {
-		CPU_FOREACH(i) {
-			/*
-			 * See the comment in uma_vm_zone_stats() regarding
-			 * the safety of accessing the per-cpu caches. With
-			 * the zone lock held, it is safe, but can potentially
-			 * result in stale data.
-			 */
-			nitems += zone->uz_cpu[i].uc_allocs -
-			    zone->uz_cpu[i].uc_frees;
-		}
-	}
-	ZONE_UNLOCK(zone);
+	CPU_FOREACH(i)
+		nitems += atomic_load_64(&zone->uz_cpu[i].uc_allocs) -
+		    atomic_load_64(&zone->uz_cpu[i].uc_frees);
 
 	return (nitems < 0 ? 0 : nitems);
 }
@@ -4072,20 +4053,9 @@ uma_zone_get_allocs(uma_zone_t zone)
 	uint64_t nitems;
 	u_int i;
 
-	ZONE_LOCK(zone);
 	nitems = counter_u64_fetch(zone->uz_allocs);
-	if ((zone->uz_flags & UMA_ZFLAG_INTERNAL) == 0) {
-		CPU_FOREACH(i) {
-			/*
-			 * See the comment in uma_vm_zone_stats() regarding
-			 * the safety of accessing the per-cpu caches. With
-			 * the zone lock held, it is safe, but can potentially
-			 * result in stale data.
-			 */
-			nitems += zone->uz_cpu[i].uc_allocs;
-		}
-	}
-	ZONE_UNLOCK(zone);
+	CPU_FOREACH(i)
+		nitems += atomic_load_64(&zone->uz_cpu[i].uc_allocs);
 
 	return (nitems);
 }
@@ -4096,20 +4066,9 @@ uma_zone_get_frees(uma_zone_t zone)
 	uint64_t nitems;
 	u_int i;
 
-	ZONE_LOCK(zone);
 	nitems = counter_u64_fetch(zone->uz_frees);
-	if ((zone->uz_flags & UMA_ZFLAG_INTERNAL) == 0) {
-		CPU_FOREACH(i) {
-			/*
-			 * See the comment in uma_vm_zone_stats() regarding
-			 * the safety of accessing the per-cpu caches. With
-			 * the zone lock held, it is safe, but can potentially
-			 * result in stale data.
-			 */
-			nitems += zone->uz_cpu[i].uc_frees;
-		}
-	}
-	ZONE_UNLOCK(zone);
+	CPU_FOREACH(i)
+		nitems += atomic_load_64(&zone->uz_cpu[i].uc_frees);
 
 	return (nitems);
 }
@@ -4121,11 +4080,8 @@ uma_zone_set_init(uma_zone_t zone, uma_init uminit)
 	uma_keg_t keg;
 
 	KEG_GET(zone, keg);
-	KEG_LOCK(keg);
-	KASSERT(keg->uk_pages == 0,
-	    ("uma_zone_set_init on non-empty keg"));
+	KEG_ASSERT_COLD(keg);
 	keg->uk_init = uminit;
-	KEG_UNLOCK(keg);
 }
 
 /* See uma.h */
@@ -4135,11 +4091,8 @@ uma_zone_set_fini(uma_zone_t zone, uma_fini fini)
 	uma_keg_t keg;
 
 	KEG_GET(zone, keg);
-	KEG_LOCK(keg);
-	KASSERT(keg->uk_pages == 0,
-	    ("uma_zone_set_fini on non-empty keg"));
+	KEG_ASSERT_COLD(keg);
 	keg->uk_fini = fini;
-	KEG_UNLOCK(keg);
 }
 
 /* See uma.h */
@@ -4147,11 +4100,8 @@ void
 uma_zone_set_zinit(uma_zone_t zone, uma_init zinit)
 {
 
-	ZONE_LOCK(zone);
-	KASSERT(zone->uz_keg->uk_pages == 0,
-	    ("uma_zone_set_zinit on non-empty keg"));
+	ZONE_ASSERT_COLD(zone);
 	zone->uz_init = zinit;
-	ZONE_UNLOCK(zone);
 }
 
 /* See uma.h */
@@ -4159,38 +4109,30 @@ void
 uma_zone_set_zfini(uma_zone_t zone, uma_fini zfini)
 {
 
-	ZONE_LOCK(zone);
-	KASSERT(zone->uz_keg->uk_pages == 0,
-	    ("uma_zone_set_zfini on non-empty keg"));
+	ZONE_ASSERT_COLD(zone);
 	zone->uz_fini = zfini;
-	ZONE_UNLOCK(zone);
 }
 
 /* See uma.h */
-/* XXX uk_freef is not actually used with the zone locked */
 void
 uma_zone_set_freef(uma_zone_t zone, uma_free freef)
 {
 	uma_keg_t keg;
 
 	KEG_GET(zone, keg);
-	KASSERT(keg != NULL, ("uma_zone_set_freef: Invalid zone type"));
-	KEG_LOCK(keg);
+	KEG_ASSERT_COLD(keg);
 	keg->uk_freef = freef;
-	KEG_UNLOCK(keg);
 }
 
 /* See uma.h */
-/* XXX uk_allocf is not actually used with the zone locked */
 void
 uma_zone_set_allocf(uma_zone_t zone, uma_alloc allocf)
 {
 	uma_keg_t keg;
 
 	KEG_GET(zone, keg);
-	KEG_LOCK(keg);
+	KEG_ASSERT_COLD(keg);
 	keg->uk_allocf = allocf;
-	KEG_UNLOCK(keg);
 }
 
 /* See uma.h */
@@ -4200,9 +4142,8 @@ uma_zone_reserve(uma_zone_t zone, int items)
 	uma_keg_t keg;
 
 	KEG_GET(zone, keg);
-	KEG_LOCK(keg);
+	KEG_ASSERT_COLD(keg);
 	keg->uk_reserve = items;
-	KEG_UNLOCK(keg);
 }
 
 /* See uma.h */
@@ -4214,6 +4155,8 @@ uma_zone_reserve_kva(uma_zone_t zone, int count)
 	u_int pages;
 
 	KEG_GET(zone, keg);
+	KEG_ASSERT_COLD(keg);
+	ZONE_ASSERT_COLD(zone);
 
 	pages = count / keg->uk_ipers;
 	if (pages * keg->uk_ipers < count)
@@ -4277,7 +4220,6 @@ uma_prealloc(uma_zone_t zone, int items)
 				    us_link);
 				break;
 			}
-			KEG_LOCK(keg);
 			if (vm_domainset_iter_policy(&di, &domain) != 0) {
 				KEG_UNLOCK(keg);
 				vm_wait_doms(&keg->uk_dr.dr_policy->ds_mask);
@@ -4376,18 +4318,8 @@ uma_zone_reclaim(uma_zone_t zone, int req)
 int
 uma_zone_exhausted(uma_zone_t zone)
 {
-	int full;
 
-	ZONE_LOCK(zone);
-	full = zone->uz_sleepers > 0;
-	ZONE_UNLOCK(zone);
-	return (full);	
-}
-
-int
-uma_zone_exhausted_nolock(uma_zone_t zone)
-{
-	return (zone->uz_sleepers > 0);
+	return (atomic_load_32(&zone->uz_sleepers) > 0);
 }
 
 unsigned long
@@ -4725,25 +4657,22 @@ uma_dbg_getslab(uma_zone_t zone, void *item)
 	uma_keg_t keg;
 	uint8_t *mem;
 
+	/*
+	 * It is safe to return the slab here even though the
+	 * zone is unlocked because the item's allocation state
+	 * essentially holds a reference.
+	 */
 	mem = (uint8_t *)((uintptr_t)item & (~UMA_SLAB_MASK));
-	if (zone->uz_flags & UMA_ZONE_VTOSLAB) {
-		slab = vtoslab((vm_offset_t)mem);
-	} else {
-		/*
-		 * It is safe to return the slab here even though the
-		 * zone is unlocked because the item's allocation state
-		 * essentially holds a reference.
-		 */
-		if (zone->uz_lockptr == &zone->uz_lock)
-			return (NULL);
-		ZONE_LOCK(zone);
-		keg = zone->uz_keg;
-		if (keg->uk_flags & UMA_ZONE_HASH)
-			slab = hash_sfind(&keg->uk_hash, mem);
-		else
-			slab = (uma_slab_t)(mem + keg->uk_pgoff);
-		ZONE_UNLOCK(zone);
-	}
+	if ((zone->uz_flags & UMA_ZFLAG_CACHE) != 0)
+		return (NULL);
+	if (zone->uz_flags & UMA_ZONE_VTOSLAB)
+		return (vtoslab((vm_offset_t)mem));
+	keg = zone->uz_keg;
+	if ((keg->uk_flags & UMA_ZONE_HASH) == 0)
+		return ((uma_slab_t)(mem + keg->uk_pgoff));
+	KEG_LOCK(keg);
+	slab = hash_sfind(&keg->uk_hash, mem);
+	KEG_UNLOCK(keg);
 
 	return (slab);
 }
@@ -4752,7 +4681,7 @@ static bool
 uma_dbg_zskip(uma_zone_t zone, void *mem)
 {
 
-	if (zone->uz_lockptr == &zone->uz_lock)
+	if ((zone->uz_flags & UMA_ZFLAG_CACHE) != 0)
 		return (true);
 
 	return (uma_dbg_kskip(zone->uz_keg, mem));

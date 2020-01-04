@@ -257,7 +257,7 @@ struct uma_domain {
 	struct slabhead	ud_part_slab;	/* partially allocated slabs */
 	struct slabhead	ud_free_slab;	/* completely unallocated slabs */
 	struct slabhead ud_full_slab;	/* fully allocated slabs */
-};
+} __aligned(CACHE_LINE_SIZE);
 
 typedef struct uma_domain * uma_domain_t;
 
@@ -268,9 +268,7 @@ typedef struct uma_domain * uma_domain_t;
  *
  */
 struct uma_keg {
-	struct mtx	uk_lock;	/* Lock for the keg must be first.
-					 * See shared uz_keg/uz_lockptr
-					 * member of struct uma_zone. */
+	struct mtx	uk_lock;	/* Lock for the keg. */
 	struct uma_hash	uk_hash;
 	LIST_HEAD(,uma_zone)	uk_zones;	/* Keg's zones */
 
@@ -306,6 +304,10 @@ struct uma_keg {
 typedef struct uma_keg	* uma_keg_t;
 
 #ifdef _KERNEL
+#define	KEG_ASSERT_COLD(k)						\
+	KASSERT((k)->uk_pages == 0, ("keg %s initialization after use.",\
+	    (k)->uk_name))
+
 /*
  * Free bits per-slab.
  */
@@ -401,7 +403,7 @@ struct uma_zone_domain {
 	long		uzd_imax;	/* maximum item count this period */
 	long		uzd_imin;	/* minimum item count this period */
 	long		uzd_wss;	/* working set size estimate */
-};
+} __aligned(CACHE_LINE_SIZE);
 
 typedef struct uma_zone_domain * uma_zone_domain_t;
 
@@ -410,10 +412,7 @@ typedef struct uma_zone_domain * uma_zone_domain_t;
  */
 struct uma_zone {
 	/* Offset 0, used in alloc/free fast/medium fast path and const. */
-	union {
-		uma_keg_t	uz_keg;		/* This zone's keg */
-		struct mtx 	*uz_lockptr;	/* To keg or to self */
-	};
+	uma_keg_t	uz_keg;		/* This zone's keg if !CACHE */
 	struct uma_zone_domain	*uz_domain;	/* per-domain buckets */
 	uint32_t	uz_flags;	/* Flags inherited from kegs */
 	uint32_t	uz_size;	/* Size inherited from kegs */
@@ -525,6 +524,10 @@ struct uma_zone {
 #define	UZ_ITEMS_SLEEPERS(x)	((x) >> UZ_ITEMS_SLEEPER_SHIFT)
 #define	UZ_ITEMS_SLEEPER	(1LL << UZ_ITEMS_SLEEPER_SHIFT)
 
+#define	ZONE_ASSERT_COLD(z)						\
+	KASSERT((z)->uz_bkt_count == 0,					\
+	    ("zone %s initialization after use.", (z)->uz_name))
+
 #undef UMA_ALIGN
 
 #ifdef _KERNEL
@@ -564,11 +567,11 @@ static __inline uma_slab_t hash_sfind(struct uma_hash *hash, uint8_t *data);
 			    "UMA zone", MTX_DEF | MTX_DUPOK);	\
 	} while (0)
 
-#define	ZONE_LOCK(z)	mtx_lock((z)->uz_lockptr)
-#define	ZONE_TRYLOCK(z)	mtx_trylock((z)->uz_lockptr)
-#define	ZONE_UNLOCK(z)	mtx_unlock((z)->uz_lockptr)
+#define	ZONE_LOCK(z)	mtx_lock(&(z)->uz_lock)
+#define	ZONE_TRYLOCK(z)	mtx_trylock(&(z)->uz_lock)
+#define	ZONE_UNLOCK(z)	mtx_unlock(&(z)->uz_lock)
 #define	ZONE_LOCK_FINI(z)	mtx_destroy(&(z)->uz_lock)
-#define	ZONE_LOCK_ASSERT(z)	mtx_assert((z)->uz_lockptr, MA_OWNED)
+#define	ZONE_LOCK_ASSERT(z)	mtx_assert(&(z)->uz_lock, MA_OWNED)
 
 /*
  * Find a slab within a hash table.  This is used for OFFPAGE zones to lookup
