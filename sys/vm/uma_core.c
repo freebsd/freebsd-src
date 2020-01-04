@@ -951,10 +951,6 @@ cache_drain(uma_zone_t zone)
 	 *
 	 * XXX: It would good to be able to assert that the zone is being
 	 * torn down to prevent improper use of cache_drain().
-	 *
-	 * XXX: We lock the zone before passing into bucket_cache_reclaim() as
-	 * it is used elsewhere.  Should the tear-down path be made special
-	 * there in some form?
 	 */
 	CPU_FOREACH(cpu) {
 		cache = &zone->uz_cpu[cpu];
@@ -974,9 +970,7 @@ cache_drain(uma_zone_t zone)
 			bucket_free(zone, bucket, NULL);
 		}
 	}
-	ZONE_LOCK(zone);
 	bucket_cache_reclaim(zone, true);
-	ZONE_UNLOCK(zone);
 }
 
 static void
@@ -1082,7 +1076,27 @@ bucket_cache_reclaim(uma_zone_t zone, bool drain)
 	int i;
 
 	for (i = 0; i < vm_ndomains; i++) {
+		/*
+		 * The cross bucket is partially filled and not part of
+		 * the item count.  Reclaim it individually here.
+		 */
 		zdom = &zone->uz_domain[i];
+		ZONE_CROSS_LOCK(zone);
+		bucket = zdom->uzd_cross;
+		zdom->uzd_cross = NULL;
+		ZONE_CROSS_UNLOCK(zone);
+		if (bucket != NULL) {
+			bucket_drain(zone, bucket);
+			bucket_free(zone, bucket, NULL);
+		}
+
+		/*
+		 * Shrink the zone bucket size to ensure that the per-CPU caches
+		 * don't grow too large.
+		 */
+		ZONE_LOCK(zone);
+		if (i == 0 && zone->uz_bucket_size > zone->uz_bucket_size_min)
+			zone->uz_bucket_size--;
 
 		/*
 		 * If we were asked to drain the zone, we are done only once
@@ -1114,14 +1128,8 @@ bucket_cache_reclaim(uma_zone_t zone, bool drain)
 			bucket_free(zone, bucket, NULL);
 			ZONE_LOCK(zone);
 		}
+		ZONE_UNLOCK(zone);
 	}
-
-	/*
-	 * Shrink the zone bucket size to ensure that the per-CPU caches
-	 * don't grow too large.
-	 */
-	if (zone->uz_bucket_size > zone->uz_bucket_size_min)
-		zone->uz_bucket_size--;
 }
 
 static void
@@ -1224,8 +1232,8 @@ zone_reclaim(uma_zone_t zone, int waitok, bool drain)
 		msleep(zone, &zone->uz_lock, PVM, "zonedrain", 1);
 	}
 	zone->uz_flags |= UMA_ZFLAG_RECLAIMING;
-	bucket_cache_reclaim(zone, drain);
 	ZONE_UNLOCK(zone);
+	bucket_cache_reclaim(zone, drain);
 
 	/*
 	 * The DRAINING flag protects us from being freed while
@@ -2263,6 +2271,7 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	zone_foreach(zone_count, &cnt);
 	zone->uz_namecnt = cnt.count;
 	ZONE_LOCK_INIT(zone, (arg->flags & UMA_ZONE_MTXCLASS));
+	ZONE_CROSS_LOCK_INIT(zone);
 
 	for (i = 0; i < vm_ndomains; i++)
 		TAILQ_INIT(&zone->uz_domain[i].uzd_buckets);
@@ -2448,6 +2457,7 @@ zone_dtor(void *arg, int size, void *udata)
 	counter_u64_free(zone->uz_fails);
 	free(zone->uz_ctlname, M_UMA);
 	ZONE_LOCK_FINI(zone);
+	ZONE_CROSS_LOCK_FINI(zone);
 }
 
 /*
@@ -3724,6 +3734,75 @@ zfree_item:
 	zone_free_item(zone, item, udata, SKIP_DTOR);
 }
 
+#ifdef UMA_XDOMAIN
+/*
+ * sort crossdomain free buckets to domain correct buckets and cache
+ * them.
+ */
+static void
+zone_free_cross(uma_zone_t zone, uma_bucket_t bucket, void *udata)
+{
+	struct uma_bucketlist fullbuckets;
+	uma_zone_domain_t zdom;
+	uma_bucket_t b;
+	void *item;
+	int domain;
+
+	CTR3(KTR_UMA,
+	    "uma_zfree: zone %s(%p) draining cross bucket %p",
+	    zone->uz_name, zone, bucket);
+
+	TAILQ_INIT(&fullbuckets);
+
+	/*
+	 * To avoid having ndomain * ndomain buckets for sorting we have a
+	 * lock on the current crossfree bucket.  A full matrix with
+	 * per-domain locking could be used if necessary.
+	 */
+	ZONE_CROSS_LOCK(zone);
+	while (bucket->ub_cnt > 0) {
+		item = bucket->ub_bucket[bucket->ub_cnt - 1];
+		domain = _vm_phys_domain(pmap_kextract((vm_offset_t)item));
+		zdom = &zone->uz_domain[domain];
+		if (zdom->uzd_cross == NULL) {
+			zdom->uzd_cross = bucket_alloc(zone, udata, M_NOWAIT);
+			if (zdom->uzd_cross == NULL)
+				break;
+		}
+		zdom->uzd_cross->ub_bucket[zdom->uzd_cross->ub_cnt++] = item;
+		if (zdom->uzd_cross->ub_cnt == zdom->uzd_cross->ub_entries) {
+			TAILQ_INSERT_HEAD(&fullbuckets, zdom->uzd_cross,
+			    ub_link);
+			zdom->uzd_cross = NULL;
+		}
+		bucket->ub_cnt--;
+	}
+	ZONE_CROSS_UNLOCK(zone);
+	if (!TAILQ_EMPTY(&fullbuckets)) {
+		ZONE_LOCK(zone);
+		while ((b = TAILQ_FIRST(&fullbuckets)) != NULL) {
+			TAILQ_REMOVE(&fullbuckets, b, ub_link);
+			if (zone->uz_bkt_count >= zone->uz_bkt_max) {
+				ZONE_UNLOCK(zone);
+				bucket_drain(zone, b);
+				bucket_free(zone, b, udata);
+				ZONE_LOCK(zone);
+			} else {
+				domain = _vm_phys_domain(
+				    pmap_kextract(
+				    (vm_offset_t)b->ub_bucket[0]));
+				zdom = &zone->uz_domain[domain];
+				zone_put_bucket(zone, zdom, b, true);
+			}
+		}
+		ZONE_UNLOCK(zone);
+	}
+	if (bucket->ub_cnt != 0)
+		bucket_drain(zone, bucket);
+	bucket_free(zone, bucket, udata);
+}
+#endif
+
 static void
 zone_free_bucket(uma_zone_t zone, uma_bucket_t bucket, void *udata,
     int domain, int itemdomain)
@@ -3735,17 +3814,14 @@ zone_free_bucket(uma_zone_t zone, uma_bucket_t bucket, void *udata,
 	 * Buckets coming from the wrong domain will be entirely for the
 	 * only other domain on two domain systems.  In this case we can
 	 * simply cache them.  Otherwise we need to sort them back to
-	 * correct domains by freeing the contents to the slab layer.
+	 * correct domains.
 	 */
 	if (domain != itemdomain && vm_ndomains > 2) {
-		CTR3(KTR_UMA,
-		    "uma_zfree: zone %s(%p) draining cross bucket %p",
-		    zone->uz_name, zone, bucket);
-		bucket_drain(zone, bucket);
-		bucket_free(zone, bucket, udata);
+		zone_free_cross(zone, bucket, udata);
 		return;
 	}
 #endif
+
 	/*
 	 * Attempt to save the bucket in the zone's domain bucket cache.
 	 *

@@ -399,6 +399,7 @@ TAILQ_HEAD(uma_bucketlist, uma_bucket);
 
 struct uma_zone_domain {
 	struct uma_bucketlist uzd_buckets; /* full buckets */
+	uma_bucket_t	uzd_cross;	/* Fills from cross buckets. */
 	long		uzd_nitems;	/* total item count */
 	long		uzd_imax;	/* maximum item count this period */
 	long		uzd_imin;	/* minimum item count this period */
@@ -448,6 +449,8 @@ struct uma_zone {
 	struct timeval	uz_ratecheck;	/* Warnings rate-limiting */
 	struct task	uz_maxaction;	/* Task to run when at limit */
 	uint16_t	uz_bucket_size_min; /* Min number of items in bucket */
+
+	struct mtx_padalign	uz_cross_lock;	/* Cross domain free lock */
 
 	/* Offset 256+, stats and misc. */
 	counter_u64_t	uz_allocs;	/* Total number of allocations */
@@ -574,6 +577,12 @@ static __inline uma_slab_t hash_sfind(struct uma_hash *hash, uint8_t *data);
 #define	ZONE_UNLOCK(z)	mtx_unlock(&(z)->uz_lock)
 #define	ZONE_LOCK_FINI(z)	mtx_destroy(&(z)->uz_lock)
 #define	ZONE_LOCK_ASSERT(z)	mtx_assert(&(z)->uz_lock, MA_OWNED)
+
+#define	ZONE_CROSS_LOCK_INIT(z)					\
+	mtx_init(&(z)->uz_cross_lock, "UMA Cross", NULL, MTX_DEF)
+#define	ZONE_CROSS_LOCK(z)	mtx_lock(&(z)->uz_cross_lock)
+#define	ZONE_CROSS_UNLOCK(z)	mtx_unlock(&(z)->uz_cross_lock)
+#define	ZONE_CROSS_LOCK_FINI(z)	mtx_destroy(&(z)->uz_cross_lock)
 
 /*
  * Find a slab within a hash table.  This is used for OFFPAGE zones to lookup
