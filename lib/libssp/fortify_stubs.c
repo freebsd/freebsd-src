@@ -38,15 +38,15 @@ void	*__memcpy_chk(void *dst, const void *src, size_t len,
     size_t dstlen);
 void	*__memset_chk(void *dst, int c, size_t len, size_t dstlen);
 int	__snprintf_chk(char *str, size_t maxlen, int flag, size_t strlen,
-    const char *fmt);
-int	__sprintf_chk(char *str, int flag, size_t strlen, const char *fmt);
+    const char *fmt, ...);
+int	__sprintf_chk(char *str, int flag, size_t strlen, const char *fmt, ...);
 char	*__stpcpy_chk(char *dst, const char *src, size_t dstlen);
 char	*__strcat_chk(char *dst, const char *src, size_t dstlen);
 char	*__strcpy_chk(char *dst, const char *src, size_t dstlen);
 char	*__strncat_chk(char *dst, const char *src, size_t len, size_t dstlen);
 char	*__strncpy_chk(char *dst, const char *src, size_t len, size_t dstlen);
-int	__vsnprintf_chk(char *str, size_t size, const char *format,
-    va_list ap);
+int	__vsnprintf_chk(char *str, size_t size, int flags, size_t len,
+    const char *format, va_list ap);
 int	__vsprintf_chk(char *str, int flag, size_t slen, const char *format,
     va_list ap);
 
@@ -69,14 +69,14 @@ __memset_chk(void *dst, int c, size_t len, size_t dstlen)
 
 int
 __snprintf_chk(char *str, size_t maxlen, int flag, size_t strlen,
-    const char *fmt)
+    const char *fmt, ...)
 {
 
 	ABORT();
 }
 
 int
-__sprintf_chk(char *str, int flag, size_t strlen, const char *fmt)
+__sprintf_chk(char *str, int flag, size_t strlen, const char *fmt, ...)
 {
 
 	ABORT();
@@ -118,8 +118,8 @@ __strncpy_chk(char *dst, const char *src, size_t len, size_t dstlen)
 }
 
 int
-__vsnprintf_chk(char *str, size_t size, const char *format,
-    va_list ap)
+__vsnprintf_chk(char *str, size_t size, int flags, size_t len,
+    const char *format, va_list ap)
 {
 
 	ABORT();
