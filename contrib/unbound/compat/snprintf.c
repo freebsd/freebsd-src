@@ -658,7 +658,7 @@ int vsnprintf(char* str, size_t size, const char* format, va_list arg)
 		 * are not their own functions. */
 
 		/* printout designation:
-		 * conversion specifier: x, d, u, s, c, n, m, p
+		 * conversion specifier: x, d, u, s, c, m, p
 		 * flags: # not supported
 		 *        0 zeropad (on the left)
 		 *	  - left adjust (right by default)
@@ -798,7 +798,10 @@ int vsnprintf(char* str, size_t size, const char* format, va_list arg)
 				minw, minus);
 			break;
 		case 'n':
-			*va_arg(arg, int*) = ret;
+			/* unsupported to harden against format string
+			 * exploitation,
+			 * handled like an unknown format specifier. */
+			/* *va_arg(arg, int*) = ret; */
 			break;
 		case 'm':
 			print_str(&at, &left, &ret, strerror(errno),

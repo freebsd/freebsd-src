@@ -47,6 +47,7 @@
 #include "util/data/msgreply.h"
 #include "util/regional.h"
 #include "util/alloc.h"
+#include "util/net_help.h"
 
 void
 rrset_markdel(void* key)
@@ -80,8 +81,8 @@ void rrset_cache_delete(struct rrset_cache* r)
 struct rrset_cache* rrset_cache_adjust(struct rrset_cache *r, 
 	struct config_file* cfg, struct alloc_cache* alloc)
 {
-	if(!r || !cfg || cfg->rrset_cache_slabs != r->table.size ||
-		cfg->rrset_cache_size != slabhash_get_size(&r->table))
+	if(!r || !cfg || !slabhash_is_size(&r->table, cfg->rrset_cache_size,
+		cfg->rrset_cache_slabs))
 	{
 		rrset_cache_delete(r);
 		r = rrset_cache_create(cfg, alloc);
@@ -91,7 +92,7 @@ struct rrset_cache* rrset_cache_adjust(struct rrset_cache *r,
 
 void 
 rrset_cache_touch(struct rrset_cache* r, struct ub_packed_rrset_key* key,
-        hashvalue_t hash, rrset_id_t id)
+        hashvalue_type hash, rrset_id_type id)
 {
 	struct lruhash* table = slabhash_gettable(&r->table, hash);
 	/* 
@@ -186,7 +187,7 @@ rrset_cache_update(struct rrset_cache* r, struct rrset_ref* ref,
 {
 	struct lruhash_entry* e;
 	struct ub_packed_rrset_key* k = ref->key;
-	hashvalue_t h = k->entry.hash;
+	hashvalue_type h = k->entry.hash;
 	uint16_t rrset_type = ntohs(k->rk.type);
 	int equal = 0;
 	log_assert(ref->id != 0 && k->id != 0);
@@ -235,6 +236,39 @@ rrset_cache_update(struct rrset_cache* r, struct rrset_ref* ref,
 		return 1;
 	}
 	return 0;
+}
+
+void rrset_cache_update_wildcard(struct rrset_cache* rrset_cache, 
+	struct ub_packed_rrset_key* rrset, uint8_t* ce, size_t ce_len,
+	struct alloc_cache* alloc, time_t timenow)
+{
+	struct rrset_ref ref;
+	uint8_t wc_dname[LDNS_MAX_DOMAINLEN+3];
+	rrset = packed_rrset_copy_alloc(rrset, alloc, timenow);
+	if(!rrset) {
+		log_err("malloc failure in rrset_cache_update_wildcard");
+		return;
+	}
+	/* ce has at least one label less then qname, we can therefore safely
+	 * add the wildcard label. */
+	wc_dname[0] = 1;
+	wc_dname[1] = (uint8_t)'*';
+	memmove(wc_dname+2, ce, ce_len);
+
+	free(rrset->rk.dname);
+	rrset->rk.dname_len = ce_len + 2;
+	rrset->rk.dname = (uint8_t*)memdup(wc_dname, rrset->rk.dname_len);
+	if(!rrset->rk.dname) {
+		alloc_special_release(alloc, rrset);
+		log_err("memdup failure in rrset_cache_update_wildcard");
+		return;
+	}
+
+	rrset->entry.hash = rrset_key_hash(&rrset->rk);
+	ref.key = rrset;
+	ref.id = rrset->id;
+	/* ignore ret: if it was in the cache, ref updated */
+	(void)rrset_cache_update(rrset_cache, &ref, alloc, timenow);
 }
 
 struct ub_packed_rrset_key* 
@@ -303,10 +337,10 @@ void
 rrset_array_unlock_touch(struct rrset_cache* r, struct regional* scratch,
 	struct rrset_ref* ref, size_t count)
 {
-	hashvalue_t* h;
+	hashvalue_type* h;
 	size_t i;
-	if(count > RR_COUNT_MAX || !(h = (hashvalue_t*)regional_alloc(scratch, 
-		sizeof(hashvalue_t)*count))) {
+	if(count > RR_COUNT_MAX || !(h = (hashvalue_type*)regional_alloc(
+		scratch, sizeof(hashvalue_type)*count))) {
 		log_warn("rrset LRU: memory allocation failed");
 		h = NULL;
 	} else 	/* store hash values */

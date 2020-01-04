@@ -89,7 +89,7 @@ key_cache_insert(struct key_cache* kcache, struct key_entry_key* kkey,
 	if(key_entry_isbad(k) && qstate->errinf &&
 		qstate->env->cfg->val_log_level >= 2) {
 		/* on malloc failure there is simply no reason string */
-		key_entry_set_reason(k, errinf_to_str(qstate));
+		key_entry_set_reason(k, errinf_to_str_bogus(qstate));
 	}
 	key_entry_hash(k);
 	slabhash_insert(kcache->slab, k->entry.hash, &k->entry, 

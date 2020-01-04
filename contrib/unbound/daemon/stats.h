@@ -50,143 +50,24 @@ struct comm_reply;
 struct edns_data;
 struct sldns_buffer;
 
-/** number of qtype that is stored for in array */
-#define STATS_QTYPE_NUM 256
-/** number of qclass that is stored for in array */
-#define STATS_QCLASS_NUM 256
-/** number of rcodes in stats */
-#define STATS_RCODE_NUM 16
-/** number of opcodes in stats */
-#define STATS_OPCODE_NUM 16
-
-/** per worker statistics */
-struct server_stats {
-	/** number of queries from clients received. */
-	size_t num_queries;
-	/** number of queries that had a cache-miss. */
-	size_t num_queries_missed_cache;
-	/** number of prefetch queries - cachehits with prefetch */
-	size_t num_queries_prefetch;
-
-	/**
-	 * Sum of the querylistsize of the worker for 
-	 * every query that missed cache. To calculate average.
-	 */
-	size_t sum_query_list_size;
-	/** max value of query list size reached. */
-	size_t max_query_list_size;
-
-	/** Extended stats below (bool) */
-	int extended;
-
-	/** qtype stats */
-	size_t qtype[STATS_QTYPE_NUM];
-	/** bigger qtype values not in array */
-	size_t qtype_big;
-	/** qclass stats */
-	size_t qclass[STATS_QCLASS_NUM];
-	/** bigger qclass values not in array */
-	size_t qclass_big;
-	/** query opcodes */
-	size_t qopcode[STATS_OPCODE_NUM];
-	/** number of queries over TCP */
-	size_t qtcp;
-	/** number of outgoing queries over TCP */
-	size_t qtcp_outgoing;
-	/** number of queries over IPv6 */
-	size_t qipv6;
-	/** number of queries with QR bit */
-	size_t qbit_QR;
-	/** number of queries with AA bit */
-	size_t qbit_AA;
-	/** number of queries with TC bit */
-	size_t qbit_TC;
-	/** number of queries with RD bit */
-	size_t qbit_RD;
-	/** number of queries with RA bit */
-	size_t qbit_RA;
-	/** number of queries with Z bit */
-	size_t qbit_Z;
-	/** number of queries with AD bit */
-	size_t qbit_AD;
-	/** number of queries with CD bit */
-	size_t qbit_CD;
-	/** number of queries with EDNS OPT record */
-	size_t qEDNS;
-	/** number of queries with EDNS with DO flag */
-	size_t qEDNS_DO;
-	/** answer rcodes */
-	size_t ans_rcode[STATS_RCODE_NUM];
-	/** answers with pseudo rcode 'nodata' */
-	size_t ans_rcode_nodata;
-	/** answers that were secure (AD) */
-	size_t ans_secure;
-	/** answers that were bogus (withheld as SERVFAIL) */
-	size_t ans_bogus;
-	/** rrsets marked bogus by validator */
-	size_t rrset_bogus;
-	/** unwanted traffic received on server-facing ports */
-	size_t unwanted_replies;
-	/** unwanted traffic received on client-facing ports */
-	size_t unwanted_queries;
-	/** usage of tcp accept list */
-	size_t tcp_accept_usage;
-
-	/** histogram data exported to array 
-	 * if the array is the same size, no data is lost, and
-	 * if all histograms are same size (is so by default) then
-	 * adding up works well. */
-	size_t hist[NUM_BUCKETS_HIST];
-	
-	/** number of message cache entries */
-	size_t msg_cache_count;
-	/** number of rrset cache entries */
-	size_t rrset_cache_count;
-	/** number of infra cache entries */
-	size_t infra_cache_count;
-	/** number of key cache entries */
-	size_t key_cache_count;
-};
-
-/** 
- * Statistics to send over the control pipe when asked
- * This struct is made to be memcpied, sent in binary.
- */
-struct stats_info {
-	/** the thread stats */
-	struct server_stats svr;
-
-	/** mesh stats: current number of states */
-	size_t mesh_num_states;
-	/** mesh stats: current number of reply (user) states */
-	size_t mesh_num_reply_states;
-	/** mesh stats: number of reply states overwritten with a new one */
-	size_t mesh_jostled;
-	/** mesh stats: number of incoming queries dropped */
-	size_t mesh_dropped;
-	/** mesh stats: replies sent */
-	size_t mesh_replies_sent;
-	/** mesh stats: sum of waiting times for the replies */
-	struct timeval mesh_replies_sum_wait;
-	/** mesh stats: median of waiting times for replies (in sec) */
-	double mesh_time_median;
-};
+/* stats struct */
+#include "libunbound/unbound.h"
 
 /** 
  * Initialize server stats to 0.
  * @param stats: what to init (this is alloced by the caller).
  * @param cfg: with extended statistics option.
  */
-void server_stats_init(struct server_stats* stats, struct config_file* cfg);
+void server_stats_init(struct ub_server_stats* stats, struct config_file* cfg);
 
 /** add query if it missed the cache */
-void server_stats_querymiss(struct server_stats* stats, struct worker* worker);
+void server_stats_querymiss(struct ub_server_stats* stats, struct worker* worker);
 
 /** add query if was cached and also resulted in a prefetch */
-void server_stats_prefetch(struct server_stats* stats, struct worker* worker);
+void server_stats_prefetch(struct ub_server_stats* stats, struct worker* worker);
 
 /** display the stats to the log */
-void server_stats_log(struct server_stats* stats, struct worker* worker,
+void server_stats_log(struct ub_server_stats* stats, struct worker* worker,
 	int threadnum);
 
 /**
@@ -197,7 +78,7 @@ void server_stats_log(struct server_stats* stats, struct worker* worker,
  * @param reset: if stats can be reset.
  */
 void server_stats_obtain(struct worker* worker, struct worker* who,
-	struct stats_info* s, int reset);
+	struct ub_stats_info* s, int reset);
 
 /**
  * Compile stats into structure for this thread worker.
@@ -207,7 +88,7 @@ void server_stats_obtain(struct worker* worker, struct worker* who,
  * @param reset: if true, depending on config stats are reset.
  * 	if false, statistics are not reset.
  */
-void server_stats_compile(struct worker* worker, struct stats_info* s, 
+void server_stats_compile(struct worker* worker, struct ub_stats_info* s, 
 	int reset);
 
 /**
@@ -223,7 +104,7 @@ void server_stats_reply(struct worker* worker, int reset);
  * @param total: sum of the two entries.
  * @param a: to add to it.
  */
-void server_stats_add(struct stats_info* total, struct stats_info* a);
+void server_stats_add(struct ub_stats_info* total, struct ub_stats_info* a);
 
 /**
  * Add stats for this query
@@ -234,7 +115,7 @@ void server_stats_add(struct stats_info* total, struct stats_info* a);
  * @param edns: edns record
  * @param repinfo: reply info with remote address
  */
-void server_stats_insquery(struct server_stats* stats, struct comm_point* c,
+void server_stats_insquery(struct ub_server_stats* stats, struct comm_point* c,
 	uint16_t qtype, uint16_t qclass, struct edns_data* edns, 
 	struct comm_reply* repinfo);
 
@@ -243,6 +124,6 @@ void server_stats_insquery(struct server_stats* stats, struct comm_point* c,
  * @param stats: the stats
  * @param buf: buffer with rcode. If buffer is length0: not counted.
  */
-void server_stats_insrcode(struct server_stats* stats, struct sldns_buffer* buf);
+void server_stats_insrcode(struct ub_server_stats* stats, struct sldns_buffer* buf);
 
 #endif /* DAEMON_STATS_H */

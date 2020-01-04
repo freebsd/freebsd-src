@@ -158,14 +158,14 @@ rrsetdata_equal(struct packed_rrset_data* d1, struct packed_rrset_data* d2)
 	return 1;
 }
 
-hashvalue_t 
+hashvalue_type
 rrset_key_hash(struct packed_rrset_key* key)
 {
 	/* type is hashed in host order */
 	uint16_t t = ntohs(key->type);
 	/* Note this MUST be identical to pkt_hash_rrset in msgparse.c */
 	/* this routine does not have a compressed name */
-	hashvalue_t h = 0xab;
+	hashvalue_type h = 0xab;
 	h = dname_query_hash(key->dname, h);
 	h = hashlittle(&t, sizeof(t), h);
 	h = hashlittle(&key->rrset_class, sizeof(uint16_t), h);
@@ -253,6 +253,7 @@ sec_status_to_string(enum sec_status s)
 	case sec_status_bogus: 		return "sec_status_bogus";
 	case sec_status_indeterminate: 	return "sec_status_indeterminate";
 	case sec_status_insecure: 	return "sec_status_insecure";
+	case sec_status_secure_sentinel_fail: 	return "sec_status_secure_sentinel_fail";
 	case sec_status_secure: 	return "sec_status_secure";
 	}
 	return "unknown_sec_status_value";

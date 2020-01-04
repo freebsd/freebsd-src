@@ -1,5 +1,5 @@
 /*
- * libunbound/worker.h - worker thread or process that resolves
+ * libunbound/libworker.h - worker thread or process that resolves
  *
  * Copyright (c) 2007, NLnet Labs. All rights reserved.
  *
@@ -59,6 +59,7 @@ struct regional;
 struct tube;
 struct sldns_buffer;
 struct ub_event_base;
+struct query_info;
 
 /** 
  * The library-worker status structure
@@ -74,6 +75,8 @@ struct libworker {
 	int is_bg;
 	/** is this a bg worker that is threaded (not forked)? */
 	int is_bg_thread;
+	/** want to quit, stop handling new content */
+	int want_quit;
 
 	/** copy of the module environment with worker local entries. */
 	struct module_env* env;

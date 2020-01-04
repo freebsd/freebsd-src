@@ -39,6 +39,10 @@
 #include "config.h"
 #include <string.h>
 #include <sys/time.h>
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
+#include <errno.h>
 #include "sldns/sbuffer.h"
 #include "util/config_file.h"
 #include "util/net_help.h"
@@ -118,10 +122,24 @@ dt_msg_init(const struct dt_env *env,
 	}
 }
 
+/* check that the socket file can be opened and exists, print error if not */
+static void
+check_socket_file(const char* socket_path)
+{
+	struct stat statbuf;
+	memset(&statbuf, 0, sizeof(statbuf));
+	if(stat(socket_path, &statbuf) < 0) {
+		log_warn("could not open dnstap-socket-path: %s, %s",
+			socket_path, strerror(errno));
+	}
+}
+
 struct dt_env *
 dt_create(const char *socket_path, unsigned num_workers)
 {
+#ifdef UNBOUND_DEBUG
 	fstrm_res res;
+#endif
 	struct dt_env *env;
 	struct fstrm_iothr_options *fopt;
 	struct fstrm_unix_writer_options *fuwopt;
@@ -132,13 +150,19 @@ dt_create(const char *socket_path, unsigned num_workers)
 		socket_path);
 	log_assert(socket_path != NULL);
 	log_assert(num_workers > 0);
+	check_socket_file(socket_path);
 
 	env = (struct dt_env *) calloc(1, sizeof(struct dt_env));
 	if (!env)
 		return NULL;
 
 	fwopt = fstrm_writer_options_init();
-	res = fstrm_writer_options_add_content_type(fwopt,
+#ifdef UNBOUND_DEBUG
+	res = 
+#else
+	(void)
+#endif
+	    fstrm_writer_options_add_content_type(fwopt,
 		DNSTAP_CONTENT_TYPE, sizeof(DNSTAP_CONTENT_TYPE) - 1);
 	log_assert(res == fstrm_res_success);
 

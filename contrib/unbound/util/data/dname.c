@@ -75,6 +75,8 @@ dname_valid(uint8_t* dname, size_t maxlen)
 {
 	size_t len = 0;
 	size_t labellen;
+	if(maxlen == 0)
+		return 0; /* too short, shortest is '0' root label */
 	labellen = *dname++;
 	while(labellen) {
 		if(labellen&0xc0)
@@ -270,8 +272,8 @@ dname_pkt_compare(sldns_buffer* pkt, uint8_t* d1, uint8_t* d2)
 	return 0;
 }
 
-hashvalue_t 
-dname_query_hash(uint8_t* dname, hashvalue_t h)
+hashvalue_type
+dname_query_hash(uint8_t* dname, hashvalue_type h)
 {
 	uint8_t labuf[LDNS_MAX_LABELLEN+1];
 	uint8_t lablen;
@@ -294,8 +296,8 @@ dname_query_hash(uint8_t* dname, hashvalue_t h)
 	return h;
 }
 
-hashvalue_t 
-dname_pkt_hash(sldns_buffer* pkt, uint8_t* dname, hashvalue_t h)
+hashvalue_type
+dname_pkt_hash(sldns_buffer* pkt, uint8_t* dname, hashvalue_type h)
 {
 	uint8_t labuf[LDNS_MAX_LABELLEN+1];
 	uint8_t lablen;
@@ -327,15 +329,25 @@ dname_pkt_hash(sldns_buffer* pkt, uint8_t* dname, hashvalue_t h)
 void dname_pkt_copy(sldns_buffer* pkt, uint8_t* to, uint8_t* dname)
 {
 	/* copy over the dname and decompress it at the same time */
+	size_t comprcount = 0;
 	size_t len = 0;
 	uint8_t lablen;
 	lablen = *dname++;
 	while(lablen) {
 		if(LABEL_IS_PTR(lablen)) {
+			if(comprcount++ > MAX_COMPRESS_PTRS) {
+				/* too many compression pointers */
+				*to = 0; /* end the result prematurely */
+				return;
+			}
 			/* follow pointer */
 			dname = sldns_buffer_at(pkt, PTR_OFFSET(lablen, *dname));
 			lablen = *dname++;
 			continue;
+		}
+		if(lablen > LDNS_MAX_LABELLEN) {
+			*to = 0; /* end the result prematurely */
+			return;
 		}
 		log_assert(lablen <= LDNS_MAX_LABELLEN);
 		len += (size_t)lablen+1;
@@ -521,6 +533,29 @@ dname_lab_cmp(uint8_t* d1, int labs1, uint8_t* d2, int labs2, int* mlabs)
 			return -1;
 	}
 	return lastdiff;
+}
+
+int
+dname_lab_startswith(uint8_t* label, char* prefix, char** endptr)
+{
+	size_t plen = strlen(prefix);
+	size_t orig_plen = plen;
+	size_t lablen = (size_t)*label;
+	if(plen > lablen)
+		return 0;
+	label++;
+	while(plen--) {
+		if(*prefix != tolower((unsigned char)*label)) {
+			return 0;
+		}
+		prefix++; label++;
+	}
+	if(orig_plen < lablen)
+		*endptr = (char *)label;
+	else
+		/* prefix length == label length */
+		*endptr = NULL;
+	return 1;
 }
 
 int 

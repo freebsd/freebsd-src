@@ -520,6 +520,10 @@ nsec3_hash_cmp(const void* c1, const void* c2)
 	}
 	(void)nsec3_get_salt(h1->nsec3, h1->rr, &s1, &s1len);
 	(void)nsec3_get_salt(h2->nsec3, h2->rr, &s2, &s2len);
+	if(s1len == 0 && s2len == 0)
+		return 0;
+	if(!s1) return -1;
+	if(!s2) return 1;
 	if(s1len != s2len) {
 		if(s1len < s2len)
 			return -1;
@@ -623,14 +627,14 @@ nsec3_calc_b32(struct regional* region, sldns_buffer* buf,
 }
 
 int
-nsec3_hash_name(rbtree_t* table, struct regional* region, sldns_buffer* buf,
+nsec3_hash_name(rbtree_type* table, struct regional* region, sldns_buffer* buf,
 	struct ub_packed_rrset_key* nsec3, int rr, uint8_t* dname, 
 	size_t dname_len, struct nsec3_cached_hash** hash)
 {
 	struct nsec3_cached_hash* c;
 	struct nsec3_cached_hash looki;
 #ifdef UNBOUND_DEBUG
-	rbnode_t* n;
+	rbnode_type* n;
 #endif
 	int r;
 	looki.node.key = &looki;
@@ -730,13 +734,13 @@ nsec3_hash_matches_owner(struct nsec3_filter* flt,
  */
 static int
 find_matching_nsec3(struct module_env* env, struct nsec3_filter* flt,
-	rbtree_t* ct, uint8_t* nm, size_t nmlen, 
+	rbtree_type* ct, uint8_t* nm, size_t nmlen, 
 	struct ub_packed_rrset_key** rrset, int* rr)
 {
 	size_t i_rs;
 	int i_rr;
 	struct ub_packed_rrset_key* s;
-	struct nsec3_cached_hash* hash;
+	struct nsec3_cached_hash* hash = NULL;
 	int r;
 
 	/* this loop skips other-zone and unknown NSEC3s, also non-NSEC3 RRs */
@@ -748,7 +752,7 @@ find_matching_nsec3(struct module_env* env, struct nsec3_filter* flt,
 		if(r == 0) {
 			log_err("nsec3: malloc failure");
 			break; /* alloc failure */
-		} else if(r < 0)
+		} else if(r != 1)
 			continue; /* malformed NSEC3 */
 		else if(nsec3_hash_matches_owner(flt, hash, s)) {
 			*rrset = s; /* rrset with this name */
@@ -823,13 +827,13 @@ nsec3_covers(uint8_t* zone, struct nsec3_cached_hash* hash,
  */
 static int
 find_covering_nsec3(struct module_env* env, struct nsec3_filter* flt,
-        rbtree_t* ct, uint8_t* nm, size_t nmlen, 
+        rbtree_type* ct, uint8_t* nm, size_t nmlen, 
 	struct ub_packed_rrset_key** rrset, int* rr)
 {
 	size_t i_rs;
 	int i_rr;
 	struct ub_packed_rrset_key* s;
-	struct nsec3_cached_hash* hash;
+	struct nsec3_cached_hash* hash = NULL;
 	int r;
 
 	/* this loop skips other-zone and unknown NSEC3s, also non-NSEC3 RRs */
@@ -841,7 +845,7 @@ find_covering_nsec3(struct module_env* env, struct nsec3_filter* flt,
 		if(r == 0) {
 			log_err("nsec3: malloc failure");
 			break; /* alloc failure */
-		} else if(r < 0)
+		} else if(r != 1)
 			continue; /* malformed NSEC3 */
 		else if(nsec3_covers(flt->zone, hash, s, i_rr, 
 			env->scratch_buffer)) {
@@ -869,7 +873,7 @@ find_covering_nsec3(struct module_env* env, struct nsec3_filter* flt,
  */
 static int
 nsec3_find_closest_encloser(struct module_env* env, struct nsec3_filter* flt, 
-	rbtree_t* ct, struct query_info* qinfo, struct ce_response* ce)
+	rbtree_type* ct, struct query_info* qinfo, struct ce_response* ce)
 {
 	uint8_t* nm = qinfo->qname;
 	size_t nmlen = qinfo->qname_len;
@@ -936,7 +940,7 @@ next_closer(uint8_t* qname, size_t qnamelen, uint8_t* ce,
  */
 static enum sec_status
 nsec3_prove_closest_encloser(struct module_env* env, struct nsec3_filter* flt, 
-	rbtree_t* ct, struct query_info* qinfo, int prove_does_not_exist,
+	rbtree_type* ct, struct query_info* qinfo, int prove_does_not_exist,
 	struct ce_response* ce)
 {
 	uint8_t* nc;
@@ -1016,7 +1020,7 @@ nsec3_ce_wildcard(struct regional* region, uint8_t* ce, size_t celen,
 /** Do the name error proof */
 static enum sec_status
 nsec3_do_prove_nameerror(struct module_env* env, struct nsec3_filter* flt, 
-	rbtree_t* ct, struct query_info* qinfo)
+	rbtree_type* ct, struct query_info* qinfo)
 {
 	struct ce_response ce;
 	uint8_t* wc;
@@ -1037,7 +1041,7 @@ nsec3_do_prove_nameerror(struct module_env* env, struct nsec3_filter* flt,
 				"nsec3 is an insecure delegation");
 		return sec;
 	}
-	log_nametypeclass(VERB_ALGO, "nsec3 namerror: proven ce=", ce.ce,0,0);
+	log_nametypeclass(VERB_ALGO, "nsec3 nameerror: proven ce=", ce.ce,0,0);
 
 	/* At this point, we know that qname does not exist. Now we need 
 	 * to prove that the wildcard does not exist. */
@@ -1062,7 +1066,7 @@ nsec3_prove_nameerror(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key** list, size_t num,
 	struct query_info* qinfo, struct key_entry_key* kkey)
 {
-	rbtree_t ct;
+	rbtree_type ct;
 	struct nsec3_filter flt;
 
 	if(!list || num == 0 || !kkey || !key_entry_isgood(kkey))
@@ -1086,7 +1090,7 @@ nsec3_prove_nameerror(struct module_env* env, struct val_env* ve,
 /** Do the nodata proof */
 static enum sec_status
 nsec3_do_prove_nodata(struct module_env* env, struct nsec3_filter* flt, 
-	rbtree_t* ct, struct query_info* qinfo)
+	rbtree_type* ct, struct query_info* qinfo)
 {
 	struct ce_response ce;
 	uint8_t* wc;
@@ -1180,7 +1184,7 @@ nsec3_do_prove_nodata(struct module_env* env, struct nsec3_filter* flt,
 			nsec3_has_type(rrset, rr, LDNS_RR_TYPE_NS) &&
 			!nsec3_has_type(rrset, rr, LDNS_RR_TYPE_SOA)) {
 			verbose(VERB_ALGO, "nsec3 nodata proof: matching "
-				"wilcard is a delegation, bogus");
+				"wildcard is a delegation, bogus");
 			return sec_status_bogus;
 		}
 		/* everything is peachy keen, except for optout spans */
@@ -1221,7 +1225,7 @@ nsec3_prove_nodata(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key** list, size_t num,
 	struct query_info* qinfo, struct key_entry_key* kkey)
 {
-	rbtree_t ct;
+	rbtree_type ct;
 	struct nsec3_filter flt;
 
 	if(!list || num == 0 || !kkey || !key_entry_isgood(kkey))
@@ -1240,7 +1244,7 @@ nsec3_prove_wildcard(struct module_env* env, struct val_env* ve,
         struct ub_packed_rrset_key** list, size_t num,
 	struct query_info* qinfo, struct key_entry_key* kkey, uint8_t* wc)
 {
-	rbtree_t ct;
+	rbtree_type ct;
 	struct nsec3_filter flt;
 	struct ce_response ce;
 	uint8_t* nc;
@@ -1285,7 +1289,7 @@ nsec3_prove_wildcard(struct module_env* env, struct val_env* ve,
 static int
 list_is_secure(struct module_env* env, struct val_env* ve, 
 	struct ub_packed_rrset_key** list, size_t num,
-	struct key_entry_key* kkey, char** reason)
+	struct key_entry_key* kkey, char** reason, struct module_qstate* qstate)
 {
 	struct packed_rrset_data* d;
 	size_t i;
@@ -1299,7 +1303,7 @@ list_is_secure(struct module_env* env, struct val_env* ve,
 		if(d->security == sec_status_secure)
 			continue;
 		d->security = val_verify_rrset_entry(env, ve, list[i], kkey,
-			reason);
+			reason, LDNS_SECTION_AUTHORITY, qstate);
 		if(d->security != sec_status_secure) {
 			verbose(VERB_ALGO, "NSEC3 did not verify");
 			return 0;
@@ -1312,9 +1316,10 @@ list_is_secure(struct module_env* env, struct val_env* ve,
 enum sec_status
 nsec3_prove_nods(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key** list, size_t num,
-	struct query_info* qinfo, struct key_entry_key* kkey, char** reason)
+	struct query_info* qinfo, struct key_entry_key* kkey, char** reason,
+	struct module_qstate* qstate)
 {
-	rbtree_t ct;
+	rbtree_type ct;
 	struct nsec3_filter flt;
 	struct ce_response ce;
 	struct ub_packed_rrset_key* rrset;
@@ -1325,7 +1330,7 @@ nsec3_prove_nods(struct module_env* env, struct val_env* ve,
 		*reason = "no valid NSEC3s";
 		return sec_status_bogus; /* no valid NSEC3s, bogus */
 	}
-	if(!list_is_secure(env, ve, list, num, kkey, reason))
+	if(!list_is_secure(env, ve, list, num, kkey, reason, qstate))
 		return sec_status_bogus; /* not all NSEC3 records secure */
 	rbtree_init(&ct, &nsec3_hash_cmp); /* init names-to-hash cache */
 	filter_init(&flt, list, num, qinfo); /* init RR iterator */
@@ -1403,7 +1408,7 @@ nsec3_prove_nxornodata(struct module_env* env, struct val_env* ve,
 	struct query_info* qinfo, struct key_entry_key* kkey, int* nodata)
 {
 	enum sec_status sec, secnx;
-	rbtree_t ct;
+	rbtree_type ct;
 	struct nsec3_filter flt;
 	*nodata = 0;
 

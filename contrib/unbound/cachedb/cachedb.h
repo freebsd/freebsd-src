@@ -87,6 +87,8 @@ struct cachedb_backend {
 		uint8_t*, size_t);
 };
 
+#define CACHEDB_HASHSIZE 256 /* bit hash */
+
 /** Init the cachedb module */
 int cachedb_init(struct module_env* env, int id);
 /** Deinit the cachedb module */

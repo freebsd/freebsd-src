@@ -33,6 +33,9 @@
  */
 #include "config.h"
 #define LOCKRET(func) func
+#ifdef ENABLE_LOCK_CHECKS
+#undef ENABLE_LOCK_CHECKS
+#endif
 #include "util/locks.h"
 
 void _ARC4_LOCK(void);
@@ -46,9 +49,13 @@ void _ARC4_LOCK(void)
 void _ARC4_UNLOCK(void)
 {
 }
+
+void _ARC4_LOCK_DESTROY(void)
+{
+}
 #else /* !THREADS_DISABLED */
 
-static lock_quick_t arc4lock;
+static lock_quick_type arc4lock;
 static int arc4lockinit = 0;
 
 void _ARC4_LOCK(void)
@@ -63,5 +70,13 @@ void _ARC4_LOCK(void)
 void _ARC4_UNLOCK(void)
 {
 	lock_quick_unlock(&arc4lock);
+}
+
+void _ARC4_LOCK_DESTROY(void)
+{
+	if(arc4lockinit) {
+		arc4lockinit = 0;
+		lock_quick_destroy(&arc4lock);
+	}
 }
 #endif /* THREADS_DISABLED */

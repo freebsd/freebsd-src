@@ -22,8 +22,7 @@ AC_DEFUN([AC_PYTHON_DEVEL],[
         # Check if you have distutils, else fail
         #
         AC_MSG_CHECKING([for the distutils Python package])
-        ac_distutils_result=`$PYTHON -c "import distutils" 2>&1`
-        if test -z "$ac_distutils_result"; then
+        if ac_distutils_result=`$PYTHON -c "import distutils" 2>&1`; then
                 AC_MSG_RESULT([yes])
         else
                 AC_MSG_RESULT([no])

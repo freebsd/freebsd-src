@@ -237,6 +237,8 @@ struct sldns_file_parse_state {
  * @param rr: this is malloced by the user and the result is stored here,
  * 	if an RR is read.  If no RR is read this is signalled with the
  * 	return len set to 0 (for ORIGIN, TTL directives).
+ * 	The read line is available in the rr_buf (zero terminated), for
+ * 	$DIRECTIVE style elements.
  * @param len: on input, the length of the rr buffer.  on output the rr len.
  * 	Buffer size of 64k should be enough.
  * @param dname_len: returns the length of the dname initial part of the rr.
@@ -418,6 +420,24 @@ int sldns_str2wire_time_buf(const char* str, uint8_t* rd, size_t* len);
 int sldns_str2wire_period_buf(const char* str, uint8_t* rd, size_t* len);
 
 /**
+ * Convert rdf of type LDNS_RDF_TYPE_TSIGTIME from string to wireformat.
+ * @param str: the text to convert for this rdata element.
+ * @param rd: rdata buffer for the wireformat.
+ * @param len: length of rd buffer on input, used length on output.
+ * @return 0 on success, error on failure.
+ */
+int sldns_str2wire_tsigtime_buf(const char* str, uint8_t* rd, size_t* len);
+
+/**
+ * Convert rdf of type LDNS_RDF_TYPE_TSIGERROR from string to wireformat.
+ * @param str: the text to convert for this rdata element.
+ * @param rd: rdata buffer for the wireformat.
+ * @param len: length of rd buffer on input, used length on output.
+ * @return 0 on success, error on failure.
+ */
+int sldns_str2wire_tsigerror_buf(const char* str, uint8_t* rd, size_t* len);
+
+/**
  * Convert rdf of type LDNS_RDF_TYPE_LOC from string to wireformat.
  * @param str: the text to convert for this rdata element.
  * @param rd: rdata buffer for the wireformat.
@@ -534,6 +554,12 @@ int sldns_str2wire_hip_buf(const char* str, uint8_t* rd, size_t* len);
  */
 int sldns_str2wire_int16_data_buf(const char* str, uint8_t* rd, size_t* len);
 
+/**
+ * Strip whitespace from the start and the end of line.
+ * @param line: modified with 0 to shorten it.
+ * @return new start with spaces skipped.
+ */
+char * sldns_strip_ws(char *line);
 #ifdef __cplusplus
 }
 #endif

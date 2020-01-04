@@ -1,10 +1,14 @@
 /*
+  May 2019(Wouter) patch to enable the valgrind clean implementation all the
+     time.  This enables better security audit and checks, which is better
+     than the speedup.  Git issue #30.  Renamed the define ARRAY_CLEAN_ACCESS.
   February 2013(Wouter) patch defines for BSD endianness, from Brad Smith.
   January 2012(Wouter) added randomised initial value, fallout from 28c3.
   March 2007(Wouter) adapted from lookup3.c original, add config.h include.
      added #ifdef VALGRIND to remove 298,384,660 'unused variable k8' warnings.
      added include of lookup3.h to check definitions match declarations.
      removed include of stdint - config.h takes care of platform independence.
+     added fallthrough comments for new gcc warning suppression.
   url http://burtleburtle.net/bob/hash/index.html.
 */
 /*
@@ -43,6 +47,7 @@ on 1 byte), but shoehorning those bytes into integers efficiently is messy.
 -------------------------------------------------------------------------------
 */
 /*#define SELF_TEST 1*/
+#define ARRAY_CLEAN_ACCESS 1
 
 #include "config.h"
 #include "util/storage/lookup3.h"
@@ -235,7 +240,9 @@ uint32_t        initval)         /* the previous hash, or an arbitrary value */
   switch(length)                     /* all the case statements fall through */
   { 
   case 3 : c+=k[2];
+  	/* fallthrough */
   case 2 : b+=k[1];
+  	/* fallthrough */
   case 1 : a+=k[0];
     final(a,b,c);
   case 0:     /* case 0: nothing left to add */
@@ -333,7 +340,7 @@ uint32_t hashlittle( const void *key, size_t length, uint32_t initval)
   u.ptr = key;
   if (HASH_LITTLE_ENDIAN && ((u.i & 0x3) == 0)) {
     const uint32_t *k = (const uint32_t *)key;         /* read 32-bit chunks */
-#ifdef VALGRIND
+#ifdef ARRAY_CLEAN_ACCESS
     const uint8_t  *k8;
 #endif
 
@@ -358,7 +365,7 @@ uint32_t hashlittle( const void *key, size_t length, uint32_t initval)
      * still catch it and complain.  The masking trick does make the hash
      * noticeably faster for short strings (like English words).
      */
-#ifndef VALGRIND
+#ifndef ARRAY_CLEAN_ACCESS
 
     switch(length)
     {
@@ -473,16 +480,27 @@ uint32_t hashlittle( const void *key, size_t length, uint32_t initval)
     switch(length)                   /* all the case statements fall through */
     {
     case 12: c+=((uint32_t)k[11])<<24;
+  	/* fallthrough */
     case 11: c+=((uint32_t)k[10])<<16;
+  	/* fallthrough */
     case 10: c+=((uint32_t)k[9])<<8;
+  	/* fallthrough */
     case 9 : c+=k[8];
+  	/* fallthrough */
     case 8 : b+=((uint32_t)k[7])<<24;
+  	/* fallthrough */
     case 7 : b+=((uint32_t)k[6])<<16;
+  	/* fallthrough */
     case 6 : b+=((uint32_t)k[5])<<8;
+  	/* fallthrough */
     case 5 : b+=k[4];
+  	/* fallthrough */
     case 4 : a+=((uint32_t)k[3])<<24;
+  	/* fallthrough */
     case 3 : a+=((uint32_t)k[2])<<16;
+  	/* fallthrough */
     case 2 : a+=((uint32_t)k[1])<<8;
+  	/* fallthrough */
     case 1 : a+=k[0];
              break;
     case 0 : return c;
