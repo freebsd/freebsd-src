@@ -8,7 +8,6 @@ SUBDIR.${MK_GCC}+=	libgcov
 .if ${MK_GCC} != "no" && ${MK_OPENMP} == "no"
 SUBDIR+=		libgomp
 .endif
-SUBDIR.${MK_SSP}+=	libssp
 SUBDIR.${MK_TESTS}+=	tests
 
 .if ${MK_BSD_CRTBEGIN} == "no"
