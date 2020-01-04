@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
     __attribute__((__constructor__, __used__));
 #endif
 
+extern long __stack_chk_guard[8];
 extern int __sysctl(const int *name, u_int namelen, void *oldp,
     size_t *oldlenp, void *newp, size_t newlen);
 
@@ -73,8 +74,8 @@ __guard_setup(void)
 {
 	static const int mib[2] = { CTL_KERN, KERN_ARND };
 	volatile long tmp_stack_chk_guard[nitems(__stack_chk_guard)];
-	size_t len;
-	int error, idx;
+	size_t idx, len;
+	int error;
 
 	if (__stack_chk_guard[0] != 0)
 		return;
@@ -84,7 +85,8 @@ __guard_setup(void)
 	 * data into a temporal array, then do manual volatile copy to
 	 * not allow optimizer to call memcpy() behind us.
 	 */
-	error = _elf_aux_info(AT_CANARY, (void *)tmp_stack_chk_guard,
+	error = _elf_aux_info(AT_CANARY,
+	    __DEQUALIFY(void *, tmp_stack_chk_guard),
 	    sizeof(tmp_stack_chk_guard));
 	if (error == 0 && tmp_stack_chk_guard[0] != 0) {
 		for (idx = 0; idx < nitems(__stack_chk_guard); idx++) {
