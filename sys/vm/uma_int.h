@@ -406,10 +406,7 @@ struct uma_zone_domain {
 typedef struct uma_zone_domain * uma_zone_domain_t;
 
 /*
- * Zone management structure 
- *
- * TODO: Optimize for cache line size
- *
+ * Zone structure - per memory type.
  */
 struct uma_zone {
 	/* Offset 0, used in alloc/free fast/medium fast path and const. */
@@ -422,9 +419,9 @@ struct uma_zone {
 	uint32_t	uz_size;	/* Size inherited from kegs */
 	uma_ctor	uz_ctor;	/* Constructor for each allocation */
 	uma_dtor	uz_dtor;	/* Destructor */
-	uint64_t	uz_items;	/* Total items count */
+	uint64_t	uz_spare0;
 	uint64_t	uz_max_items;	/* Maximum number of items to alloc */
-	uint32_t	uz_sleepers;	/* Number of sleepers on memory */
+	uint32_t	uz_sleepers;	/* Threads sleeping on limit */
 	uint16_t	uz_bucket_size;	/* Number of items in full bucket */
 	uint16_t	uz_bucket_size_max; /* Maximum number of bucket items */
 
@@ -434,7 +431,7 @@ struct uma_zone {
 	void		*uz_arg;	/* Import/release argument. */
 	uma_init	uz_init;	/* Initializer for each item */
 	uma_fini	uz_fini;	/* Finalizer for each item. */
-	void		*uz_spare;
+	void		*uz_spare1;
 	uint64_t	uz_bkt_count;    /* Items in bucket cache */
 	uint64_t	uz_bkt_max;	/* Maximum bucket cache size */
 
@@ -459,6 +456,8 @@ struct uma_zone {
 	counter_u64_t	uz_fails;	/* Total number of alloc failures */
 	uint64_t	uz_sleeps;	/* Total number of alloc sleeps */
 	uint64_t	uz_xdomain;	/* Total number of cross-domain frees */
+	volatile uint64_t uz_items;	/* Total items count & sleepers */
+
 	char		*uz_ctlname;	/* sysctl safe name string. */
 	struct sysctl_oid *uz_oid;	/* sysctl oid pointer. */
 	int		uz_namecnt;	/* duplicate name count. */
@@ -514,6 +513,17 @@ struct uma_zone {
     "\3STATIC"				\
     "\2ZINIT"				\
     "\1PAGEABLE"
+
+/*
+ * Macros for interpreting the uz_items field.  20 bits of sleeper count
+ * and 44 bit of item count.
+ */
+#define	UZ_ITEMS_SLEEPER_SHIFT	44LL
+#define	UZ_ITEMS_SLEEPERS_MAX	((1 << (64 - UZ_ITEMS_SLEEPER_SHIFT)) - 1)
+#define	UZ_ITEMS_COUNT_MASK	((1LL << UZ_ITEMS_SLEEPER_SHIFT) - 1)
+#define	UZ_ITEMS_COUNT(x)	((x) & UZ_ITEMS_COUNT_MASK)
+#define	UZ_ITEMS_SLEEPERS(x)	((x) >> UZ_ITEMS_SLEEPER_SHIFT)
+#define	UZ_ITEMS_SLEEPER	(1LL << UZ_ITEMS_SLEEPER_SHIFT)
 
 #undef UMA_ALIGN
 
