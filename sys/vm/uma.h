@@ -268,11 +268,9 @@ uma_zone_t uma_zcache_create(char *name, int size, uma_ctor ctor, uma_dtor dtor,
 #define	UMA_ZONE_PCPU		0x8000	/*
 					 * Allocates mp_maxid + 1 slabs of PAGE_SIZE
 					 */
-#define	UMA_ZONE_NUMA		0x10000	/*
-					 * NUMA aware Zone.  Implements a best
-					 * effort first-touch policy.
-					 */
-#define	UMA_ZONE_MINBUCKET	0x20000	/* Use smallest buckets. */
+#define	UMA_ZONE_MINBUCKET	0x10000	/* Use smallest buckets. */
+#define	UMA_ZONE_FIRSTTOUCH	0x20000	/* First touch NUMA policy */
+#define	UMA_ZONE_ROUNDROBIN	0x40000	/* Round-robin NUMA policy. */
 
 /*
  * These flags are shared between the keg and zone.  In zones wishing to add
@@ -281,7 +279,8 @@ uma_zone_t uma_zcache_create(char *name, int size, uma_ctor ctor, uma_dtor dtor,
  */
 #define	UMA_ZONE_INHERIT						\
     (UMA_ZONE_OFFPAGE | UMA_ZONE_MALLOC | UMA_ZONE_NOFREE |		\
-    UMA_ZONE_HASH | UMA_ZONE_VTOSLAB | UMA_ZONE_PCPU | UMA_ZONE_NUMA)
+    UMA_ZONE_HASH | UMA_ZONE_VTOSLAB | UMA_ZONE_PCPU |			\
+    UMA_ZONE_FIRSTTOUCH | UMA_ZONE_ROUNDROBIN)
 
 /* Definitions for align */
 #define UMA_ALIGN_PTR	(sizeof(void *) - 1)	/* Alignment fit for ptr */
