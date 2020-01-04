@@ -641,7 +641,6 @@ void uma_prealloc(uma_zone_t zone, int itemcnt);
  *	Non-zero if zone is exhausted.
  */
 int uma_zone_exhausted(uma_zone_t zone);
-int uma_zone_exhausted_nolock(uma_zone_t zone);
 
 /*
  * Common UMA_ZONE_PCPU zones.
