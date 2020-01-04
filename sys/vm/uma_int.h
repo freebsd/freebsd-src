@@ -305,7 +305,7 @@ typedef struct uma_keg	* uma_keg_t;
 
 #ifdef _KERNEL
 #define	KEG_ASSERT_COLD(k)						\
-	KASSERT((k)->uk_domain[0].ud_pages == 0,			\
+	KASSERT(uma_keg_get_allocs((k)) == 0,				\
 	    ("keg %s initialization after use.", (k)->uk_name))
 
 /*
@@ -529,7 +529,7 @@ struct uma_zone {
 #define	UZ_ITEMS_SLEEPER	(1LL << UZ_ITEMS_SLEEPER_SHIFT)
 
 #define	ZONE_ASSERT_COLD(z)						\
-	KASSERT((z)->uz_bkt_count == 0,					\
+	KASSERT(uma_zone_get_allocs((z)) == 0,				\
 	    ("zone %s initialization after use.", (z)->uz_name))
 
 #undef UMA_ALIGN
