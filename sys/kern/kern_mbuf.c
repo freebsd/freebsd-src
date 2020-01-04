@@ -715,7 +715,7 @@ mb_dtor_pack(void *mem, int size, void *arg)
 	 * is deliberate. We don't want to acquire the zone lock for every
 	 * mbuf free.
 	 */
-	if (uma_zone_exhausted_nolock(zone_clust))
+	if (uma_zone_exhausted(zone_clust))
 		uma_zone_reclaim(zone_pack, UMA_RECLAIM_DRAIN);
 }
 
