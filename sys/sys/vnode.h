@@ -960,8 +960,6 @@ void vn_fsid(struct vnode *vp, struct vattr *va);
 	int _flags = (flags);						\
 	int _error;							\
 									\
-	CTASSERT(__builtin_constant_p(flags) ? 				\
-	    (flags & ~(LK_INTERLOCK | LK_RELEASE)) == 0 : 1);		\
         if ((_flags & ~(LK_INTERLOCK | LK_RELEASE)) != 0)		\
                 panic("%s: unsupported flags %x\n", __func__, flags);	\
         _error = VOP_UNLOCK(_vp);					\
