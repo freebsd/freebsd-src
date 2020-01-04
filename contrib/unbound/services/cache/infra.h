@@ -366,12 +366,15 @@ long long infra_get_host_rto(struct infra_cache* infra,
  * @param name: zone name
  * @param namelen: zone name length
  * @param timenow: what time it is now.
+ * @param qinfo: for logging, query name.
+ * @param replylist: for logging, querier's address (if any).
  * @return 1 if it could be incremented. 0 if the increment overshot the
  * ratelimit or if in the previous second the ratelimit was exceeded.
  * Failures like alloc failures are not returned (probably as 1).
  */
 int infra_ratelimit_inc(struct infra_cache* infra, uint8_t* name,
-	size_t namelen, time_t timenow);
+	size_t namelen, time_t timenow, struct query_info* qinfo,
+	struct comm_reply* replylist);
 
 /**
  * Decrement the query rate counter for a delegation point.
@@ -410,10 +413,12 @@ int infra_find_ratelimit(struct infra_cache* infra, uint8_t* name,
  *  @param infra: infra cache
  *  @param repinfo: information about client
  *  @param timenow: what time it is now.
+ *  @param buffer: with query for logging.
  *  @return 1 if it could be incremented. 0 if the increment overshot the
  *  ratelimit and the query should be dropped. */
 int infra_ip_ratelimit_inc(struct infra_cache* infra,
-	struct comm_reply* repinfo, time_t timenow);
+	struct comm_reply* repinfo, time_t timenow,
+	struct sldns_buffer* buffer);
 
 /**
  * Get memory used by the infra cache.

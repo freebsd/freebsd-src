@@ -42,7 +42,7 @@ start() {
 	    cp -fp /etc/localtime ${rootdir}/etc/localtime
 	fi;
 	mount --bind -n /dev/log ${rootdir}/dev/log >/dev/null 2>&1;
-	mount --bind -n /dev/random ${rootdir}/dev/random >/dev/null 2>&1;
+	mount --bind -n /dev/urandom ${rootdir}/dev/urandom >/dev/null 2>&1;
 	mount --bind -n /var/run/unbound ${rootdir}/var/run/unbound >/dev/null 2>&1;
 
     # if not running, start it up here
@@ -58,7 +58,7 @@ stop() {
     killproc -p $pidfile unbound
     retval=$?
     [ $retval -eq 0 ] && rm -f $lockfile
-    for mountfile in /dev/log /dev/random /etc/localtime /etc/resolv.conf /var/run/unbound
+    for mountfile in /dev/log /dev/urandom /etc/localtime /etc/resolv.conf /var/run/unbound
     do
     if egrep -q '^/[^[:space:]]+[[:space:]]+'${rootdir}''${mountfile}'' /proc/mounts; then
 	umount ${rootdir}$mountfile >/dev/null 2>&1

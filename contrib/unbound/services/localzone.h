@@ -83,6 +83,8 @@ enum localzone_type {
 	local_zone_inform,
 	/** log client address, and block (drop) */
 	local_zone_inform_deny,
+	/** log client address, and direct */
+	local_zone_inform_redirect,
 	/** resolve normally, even when there is local data */	
 	local_zone_always_transparent,
 	/** answer with error, even when there is local data */	
@@ -491,6 +493,8 @@ enum respip_action {
 	respip_inform = local_zone_inform,
         /** log query source and don't answer query */
 	respip_inform_deny = local_zone_inform_deny,
+        /** log query source and redirect */
+	respip_inform_redirect = local_zone_inform_redirect,
         /** resolve normally, even when there is response-ip data */
 	respip_always_transparent = local_zone_always_transparent,
         /** answer with 'refused' response */

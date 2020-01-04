@@ -195,6 +195,8 @@ rdata_copy(sldns_buffer* pkt, struct packed_rrset_data* data, uint8_t* to,
 	}
 	if(*rr_ttl < MIN_TTL)
 		*rr_ttl = MIN_TTL;
+	if(*rr_ttl > MAX_TTL)
+		*rr_ttl = MAX_TTL;
 	if(*rr_ttl < data->ttl)
 		data->ttl = *rr_ttl;
 
@@ -241,10 +243,10 @@ rdata_copy(sldns_buffer* pkt, struct packed_rrset_data* data, uint8_t* to,
 				break;
 			}
 			if(len) {
+				log_assert(len <= pkt_len);
 				memmove(to, sldns_buffer_current(pkt), len);
 				to += len;
 				sldns_buffer_skip(pkt, (ssize_t)len);
-				log_assert(len <= pkt_len);
 				pkt_len -= len;
 			}
 			rdf++;
@@ -817,7 +819,7 @@ log_dns_msg(const char* str, struct query_info* qinfo, struct reply_info* rep)
 	sldns_buffer* buf = sldns_buffer_new(65535);
 	struct regional* region = regional_create();
 	if(!reply_info_encode(qinfo, rep, 0, rep->flags, buf, 0, 
-		region, 65535, 1)) {
+		region, 65535, 1, 0)) {
 		log_info("%s: log_dns_msg: out of memory", str);
 	} else {
 		char* s = sldns_wire2str_pkt(sldns_buffer_begin(buf),
@@ -853,7 +855,9 @@ log_reply_info(enum verbosity_value v, struct query_info *qinf,
 	addr_to_str(addr, addrlen, clientip_buf, sizeof(clientip_buf));
 	if(rcode == LDNS_RCODE_FORMERR)
 	{
-		log_info("%s - - - %s - - - ", clientip_buf, rcode_buf);
+		if(LOG_TAG_QUERYREPLY)
+			log_reply("%s - - - %s - - - ", clientip_buf, rcode_buf);
+		else	log_info("%s - - - %s - - - ", clientip_buf, rcode_buf);
 	} else {
 		if(qinf->qname)
 			dname_str(qinf->qname, qname_buf);
@@ -861,7 +865,11 @@ log_reply_info(enum verbosity_value v, struct query_info *qinf,
 		pktlen = sldns_buffer_limit(rmsg);
 		sldns_wire2str_type_buf(qinf->qtype, type_buf, sizeof(type_buf));
 		sldns_wire2str_class_buf(qinf->qclass, class_buf, sizeof(class_buf));
-		log_info("%s %s %s %s %s " ARG_LL "d.%6.6d %d %d",
+		if(LOG_TAG_QUERYREPLY)
+		     log_reply("%s %s %s %s %s " ARG_LL "d.%6.6d %d %d",
+			clientip_buf, qname_buf, type_buf, class_buf,
+			rcode_buf, (long long)dur.tv_sec, (int)dur.tv_usec, cached, (int)pktlen);
+		else log_info("%s %s %s %s %s " ARG_LL "d.%6.6d %d %d",
 			clientip_buf, qname_buf, type_buf, class_buf,
 			rcode_buf, (long long)dur.tv_sec, (int)dur.tv_usec, cached, (int)pktlen);
 	}

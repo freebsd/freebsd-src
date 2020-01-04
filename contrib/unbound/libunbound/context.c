@@ -57,9 +57,16 @@ context_finalize(struct ub_ctx* ctx)
 {
 	struct config_file* cfg = ctx->env->cfg;
 	verbosity = cfg->verbosity;
-	if(ctx->logfile_override)
+	if(ctx_logfile_overridden && !ctx->logfile_override) {
+		log_file(NULL); /* clear that override */
+		ctx_logfile_overridden = 0;
+	}
+	if(ctx->logfile_override) {
+		ctx_logfile_overridden = 1;
 		log_file(ctx->log_out);
-	else	log_init(cfg->logfile, cfg->use_syslog, NULL);
+	} else {
+		log_init(cfg->logfile, cfg->use_syslog, NULL);
+	}
 	config_apply(cfg);
 	if(!modstack_setup(&ctx->mods, cfg->module_conf, ctx->env))
 		return UB_INITFAIL;

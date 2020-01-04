@@ -29,7 +29,7 @@ o support OPT record placement on recv anywhere in the additional section.
 o add local-file: config with authority features.
 o (option) to make local-data answers be secure for libunbound (default=no)
 o (option) to make chroot: copy all needed files into jail (or make jail)
-	perhaps also print reminder to link /dev/random and sysloghack.
+	perhaps also print reminder to link /dev/urandom and sysloghack.
 o overhaul outside-network servicedquery to merge with udpwait and tcpwait,
   to make timers in servicedquery independent of udpwait queues.
 o check into rebinding ports for efficiency, configure time test.

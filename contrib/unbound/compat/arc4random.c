@@ -140,6 +140,7 @@ nodevrandom:
 static inline void
 _rs_init(u_char *buf, size_t n)
 {
+	assert(buf);
 	if (n < KEYSZ + IVSZ)
 		return;
 

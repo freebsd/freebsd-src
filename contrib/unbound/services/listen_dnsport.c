@@ -53,6 +53,9 @@
 #include "util/config_file.h"
 #include "util/net_help.h"
 #include "sldns/sbuffer.h"
+#include "services/mesh.h"
+#include "util/fptr_wlist.h"
+#include "util/locks.h"
 
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
@@ -69,6 +72,18 @@
 
 /** number of queued TCP connections for listen() */
 #define TCP_BACKLOG 256 
+
+/** number of simultaneous requests a client can have */
+#define TCP_MAX_REQ_SIMULTANEOUS 32
+
+#ifndef THREADS_DISABLED
+/** lock on the counter of stream buffer memory */
+static lock_basic_type stream_wait_count_lock;
+#endif
+/** size (in bytes) of stream wait buffers */
+static size_t stream_wait_count = 0;
+/** is the lock initialised for stream wait buffers */
+static int stream_wait_lock_inited = 0;
 
 /**
  * Debug print of the getaddrinfo returned address.
@@ -247,6 +262,26 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 		}
 #endif /* SO_REUSEADDR */
 #ifdef SO_REUSEPORT
+#  ifdef SO_REUSEPORT_LB
+		/* on FreeBSD 12 we have SO_REUSEPORT_LB that does loadbalance
+		 * like SO_REUSEPORT on Linux.  This is what the users want
+		 * with the config option in unbound.conf; if we actually
+		 * need local address and port reuse they'll also need to
+		 * have SO_REUSEPORT set for them, assume it was _LB they want.
+		 */
+		if (reuseport && *reuseport &&
+		    setsockopt(s, SOL_SOCKET, SO_REUSEPORT_LB, (void*)&on,
+			(socklen_t)sizeof(on)) < 0) {
+#ifdef ENOPROTOOPT
+			if(errno != ENOPROTOOPT || verbosity >= 3)
+				log_warn("setsockopt(.. SO_REUSEPORT_LB ..) failed: %s",
+					strerror(errno));
+#endif
+			/* this option is not essential, we can continue */
+			*reuseport = 0;
+		}
+#  else /* no SO_REUSEPORT_LB */
+
 		/* try to set SO_REUSEPORT so that incoming
 		 * queries are distributed evenly among the receiving threads.
 		 * Each thread must have its own socket bound to the same port,
@@ -263,6 +298,7 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 			/* this option is not essential, we can continue */
 			*reuseport = 0;
 		}
+#  endif /* SO_REUSEPORT_LB */
 #else
 		(void)reuseport;
 #endif /* defined(SO_REUSEPORT) */
@@ -565,7 +601,11 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 		if(family==AF_INET6 && errno==EINVAL)
 			*noproto = 1;
 		else if(errno != EADDRINUSE &&
-			!(errno == EACCES && verbosity < 4 && !listen)) {
+			!(errno == EACCES && verbosity < 4 && !listen)
+#ifdef EADDRNOTAVAIL
+			&& !(errno == EADDRNOTAVAIL && verbosity < 4 && !listen)
+#endif
+			) {
 			log_err_addr("can't bind socket", strerror(errno),
 				(struct sockaddr_storage*)addr, addrlen);
 		}
@@ -811,9 +851,16 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 #ifdef ENOPROTOOPT
 		/* squelch ENOPROTOOPT: freebsd server mode with kernel support
 		   disabled, except when verbosity enabled for debugging */
-		if(errno != ENOPROTOOPT || verbosity >= 3)
+		if(errno != ENOPROTOOPT || verbosity >= 3) {
 #endif
-		  log_err("Setting TCP Fast Open as server failed: %s", strerror(errno));
+		  if(errno == EPERM) {
+		  	log_warn("Setting TCP Fast Open as server failed: %s ; this could likely be because sysctl net.inet.tcp.fastopen.enabled, net.inet.tcp.fastopen.server_enable, or net.ipv4.tcp_fastopen is disabled", strerror(errno));
+		  } else {
+		  	log_err("Setting TCP Fast Open as server failed: %s", strerror(errno));
+		  }
+#ifdef ENOPROTOOPT
+		}
+#endif
 	}
 #endif
 	return s;
@@ -1235,6 +1282,10 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 		free(front);
 		return NULL;
 	}
+	if(!stream_wait_lock_inited) {
+		lock_basic_init(&stream_wait_count_lock);
+		stream_wait_lock_inited = 1;
+	}
 
 	/* create comm points as needed */
 	while(ports) {
@@ -1247,11 +1298,13 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 				ports->ftype == listen_type_tcp_dnscrypt)
 			cp = comm_point_create_tcp(base, ports->fd, 
 				tcp_accept_count, tcp_idle_timeout,
-				tcp_conn_limit, bufsize, cb, cb_arg);
+				tcp_conn_limit, bufsize, front->udp_buff,
+				cb, cb_arg);
 		else if(ports->ftype == listen_type_ssl) {
 			cp = comm_point_create_tcp(base, ports->fd, 
 				tcp_accept_count, tcp_idle_timeout,
-				tcp_conn_limit, bufsize, cb, cb_arg);
+				tcp_conn_limit, bufsize, front->udp_buff,
+				cb, cb_arg);
 			cp->ssl = sslctx;
 		} else if(ports->ftype == listen_type_udpancil ||
 				  ports->ftype == listen_type_udpancil_dnscrypt)
@@ -1322,6 +1375,10 @@ listen_delete(struct listen_dnsport* front)
 #endif
 	sldns_buffer_free(front->udp_buff);
 	free(front);
+	if(stream_wait_lock_inited) {
+		stream_wait_lock_inited = 0;
+		lock_basic_destroy(&stream_wait_count_lock);
+	}
 }
 
 struct listen_port* 
@@ -1479,3 +1536,373 @@ void listen_start_accept(struct listen_dnsport* listen)
 	}
 }
 
+struct tcp_req_info*
+tcp_req_info_create(struct sldns_buffer* spoolbuf)
+{
+	struct tcp_req_info* req = (struct tcp_req_info*)malloc(sizeof(*req));
+	if(!req) {
+		log_err("malloc failure for new stream outoforder processing structure");
+		return NULL;
+	}
+	memset(req, 0, sizeof(*req));
+	req->spool_buffer = spoolbuf;
+	return req;
+}
+
+void
+tcp_req_info_delete(struct tcp_req_info* req)
+{
+	if(!req) return;
+	tcp_req_info_clear(req);
+	/* cp is pointer back to commpoint that owns this struct and
+	 * called delete on us */
+	/* spool_buffer is shared udp buffer, not deleted here */
+	free(req);
+}
+
+void tcp_req_info_clear(struct tcp_req_info* req)
+{
+	struct tcp_req_open_item* open, *nopen;
+	struct tcp_req_done_item* item, *nitem;
+	if(!req) return;
+
+	/* free outstanding request mesh reply entries */
+	open = req->open_req_list;
+	while(open) {
+		nopen = open->next;
+		mesh_state_remove_reply(open->mesh, open->mesh_state, req->cp);
+		free(open);
+		open = nopen;
+	}
+	req->open_req_list = NULL;
+	req->num_open_req = 0;
+	
+	/* free pending writable result packets */
+	item = req->done_req_list;
+	while(item) {
+		nitem = item->next;
+		lock_basic_lock(&stream_wait_count_lock);
+		stream_wait_count -= (sizeof(struct tcp_req_done_item)
+			+item->len);
+		lock_basic_unlock(&stream_wait_count_lock);
+		free(item->buf);
+		free(item);
+		item = nitem;
+	}
+	req->done_req_list = NULL;
+	req->num_done_req = 0;
+	req->read_is_closed = 0;
+}
+
+void
+tcp_req_info_remove_mesh_state(struct tcp_req_info* req, struct mesh_state* m)
+{
+	struct tcp_req_open_item* open, *prev = NULL;
+	if(!req || !m) return;
+	open = req->open_req_list;
+	while(open) {
+		if(open->mesh_state == m) {
+			struct tcp_req_open_item* next;
+			if(prev) prev->next = open->next;
+			else req->open_req_list = open->next;
+			/* caller has to manage the mesh state reply entry */
+			next = open->next;
+			free(open);
+			req->num_open_req --;
+
+			/* prev = prev; */
+			open = next;
+			continue;
+		}
+		prev = open;
+		open = open->next;
+	}
+}
+
+/** setup listening for read or write */
+static void
+tcp_req_info_setup_listen(struct tcp_req_info* req)
+{
+	int wr = 0;
+	int rd = 0;
+
+	if(req->cp->tcp_byte_count != 0) {
+		/* cannot change, halfway through */
+		return;
+	}
+
+	if(!req->cp->tcp_is_reading)
+		wr = 1;
+	if(req->num_open_req + req->num_done_req < TCP_MAX_REQ_SIMULTANEOUS &&
+		!req->read_is_closed)
+		rd = 1;
+	
+	if(wr) {
+		req->cp->tcp_is_reading = 0;
+		comm_point_stop_listening(req->cp);
+		comm_point_start_listening(req->cp, -1,
+			req->cp->tcp_timeout_msec);
+	} else if(rd) {
+		req->cp->tcp_is_reading = 1;
+		comm_point_stop_listening(req->cp);
+		comm_point_start_listening(req->cp, -1,
+			req->cp->tcp_timeout_msec);
+		/* and also read it (from SSL stack buffers), so
+		 * no event read event is expected since the remainder of
+		 * the TLS frame is sitting in the buffers. */
+		req->read_again = 1;
+	} else {
+		comm_point_stop_listening(req->cp);
+		comm_point_start_listening(req->cp, -1,
+			req->cp->tcp_timeout_msec);
+		comm_point_listen_for_rw(req->cp, 0, 0);
+	}
+}
+
+/** remove first item from list of pending results */
+static struct tcp_req_done_item*
+tcp_req_info_pop_done(struct tcp_req_info* req)
+{
+	struct tcp_req_done_item* item;
+	log_assert(req->num_done_req > 0 && req->done_req_list);
+	item = req->done_req_list;
+	lock_basic_lock(&stream_wait_count_lock);
+	stream_wait_count -= (sizeof(struct tcp_req_done_item)+item->len);
+	lock_basic_unlock(&stream_wait_count_lock);
+	req->done_req_list = req->done_req_list->next;
+	req->num_done_req --;
+	return item;
+}
+
+/** Send given buffer and setup to write */
+static void
+tcp_req_info_start_write_buf(struct tcp_req_info* req, uint8_t* buf,
+	size_t len)
+{
+	sldns_buffer_clear(req->cp->buffer);
+	sldns_buffer_write(req->cp->buffer, buf, len);
+	sldns_buffer_flip(req->cp->buffer);
+
+	req->cp->tcp_is_reading = 0; /* we are now writing */
+}
+
+/** pick up the next result and start writing it to the channel */
+static void
+tcp_req_pickup_next_result(struct tcp_req_info* req)
+{
+	if(req->num_done_req > 0) {
+		/* unlist the done item from the list of pending results */
+		struct tcp_req_done_item* item = tcp_req_info_pop_done(req);
+		tcp_req_info_start_write_buf(req, item->buf, item->len);
+		free(item->buf);
+		free(item);
+	}
+}
+
+/** the read channel has closed */
+int
+tcp_req_info_handle_read_close(struct tcp_req_info* req)
+{
+	verbose(VERB_ALGO, "tcp channel read side closed %d", req->cp->fd);
+	/* reset byte count for (potential) partial read */
+	req->cp->tcp_byte_count = 0;
+	/* if we still have results to write, pick up next and write it */
+	if(req->num_done_req != 0) {
+		tcp_req_pickup_next_result(req);
+		tcp_req_info_setup_listen(req);
+		return 1;
+	}
+	/* if nothing to do, this closes the connection */
+	if(req->num_open_req == 0 && req->num_done_req == 0)
+		return 0;
+	/* otherwise, we must be waiting for dns resolve, wait with timeout */
+	req->read_is_closed = 1;
+	tcp_req_info_setup_listen(req);
+	return 1;
+}
+
+void
+tcp_req_info_handle_writedone(struct tcp_req_info* req)
+{
+	/* back to reading state, we finished this write event */
+	sldns_buffer_clear(req->cp->buffer);
+	if(req->num_done_req == 0 && req->read_is_closed) {
+		/* no more to write and nothing to read, close it */
+		comm_point_drop_reply(&req->cp->repinfo);
+		return;
+	}
+	req->cp->tcp_is_reading = 1;
+	/* see if another result needs writing */
+	tcp_req_pickup_next_result(req);
+
+	/* see if there is more to write, if not stop_listening for writing */
+	/* see if new requests are allowed, if so, start_listening
+	 * for reading */
+	tcp_req_info_setup_listen(req);
+}
+
+void
+tcp_req_info_handle_readdone(struct tcp_req_info* req)
+{
+	struct comm_point* c = req->cp;
+
+	/* we want to read up several requests, unless there are
+	 * pending answers */
+
+	req->is_drop = 0;
+	req->is_reply = 0;
+	req->in_worker_handle = 1;
+	sldns_buffer_set_limit(req->spool_buffer, 0);
+	/* handle the current request */
+	/* this calls the worker handle request routine that could give
+	 * a cache response, or localdata response, or drop the reply,
+	 * or schedule a mesh entry for later */
+	fptr_ok(fptr_whitelist_comm_point(c->callback));
+	if( (*c->callback)(c, c->cb_arg, NETEVENT_NOERROR, &c->repinfo) ) {
+		req->in_worker_handle = 0;
+		/* there is an answer, put it up.  It is already in the
+		 * c->buffer, just send it. */
+		/* since we were just reading a query, the channel is
+		 * clear to write to */
+	send_it:
+		c->tcp_is_reading = 0;
+		comm_point_stop_listening(c);
+		comm_point_start_listening(c, -1, c->tcp_timeout_msec);
+		return;
+	}
+	req->in_worker_handle = 0;
+	/* it should be waiting in the mesh for recursion.
+	 * If mesh failed to add a new entry and called commpoint_drop_reply. 
+	 * Then the mesh state has been cleared. */
+	if(req->is_drop) {
+		/* the reply has been dropped, stream has been closed. */
+		return;
+	}
+	/* If mesh failed(mallocfail) and called commpoint_send_reply with
+	 * something like servfail then we pick up that reply below. */
+	if(req->is_reply) {
+		goto send_it;
+	}
+
+	sldns_buffer_clear(c->buffer);
+	/* if pending answers, pick up an answer and start sending it */
+	tcp_req_pickup_next_result(req);
+
+	/* if answers pending, start sending answers */
+	/* read more requests if we can have more requests */
+	tcp_req_info_setup_listen(req);
+}
+
+int
+tcp_req_info_add_meshstate(struct tcp_req_info* req,
+	struct mesh_area* mesh, struct mesh_state* m)
+{
+	struct tcp_req_open_item* item;
+	log_assert(req && mesh && m);
+	item = (struct tcp_req_open_item*)malloc(sizeof(*item));
+	if(!item) return 0;
+	item->next = req->open_req_list;
+	item->mesh = mesh;
+	item->mesh_state = m;
+	req->open_req_list = item;
+	req->num_open_req++;
+	return 1;
+}
+
+/** Add a result to the result list.  At the end. */
+static int
+tcp_req_info_add_result(struct tcp_req_info* req, uint8_t* buf, size_t len)
+{
+	struct tcp_req_done_item* last = NULL;
+	struct tcp_req_done_item* item;
+	size_t space;
+
+	/* see if we have space */
+	space = sizeof(struct tcp_req_done_item) + len;
+	lock_basic_lock(&stream_wait_count_lock);
+	if(stream_wait_count + space > stream_wait_max) {
+		lock_basic_unlock(&stream_wait_count_lock);
+		verbose(VERB_ALGO, "drop stream reply, no space left, in stream-wait-size");
+		return 0;
+	}
+	stream_wait_count += space;
+	lock_basic_unlock(&stream_wait_count_lock);
+
+	/* find last element */
+	last = req->done_req_list;
+	while(last && last->next)
+		last = last->next;
+	
+	/* create new element */
+	item = (struct tcp_req_done_item*)malloc(sizeof(*item));
+	if(!item) {
+		log_err("malloc failure, for stream result list");
+		return 0;
+	}
+	item->next = NULL;
+	item->len = len;
+	item->buf = memdup(buf, len);
+	if(!item->buf) {
+		free(item);
+		log_err("malloc failure, adding reply to stream result list");
+		return 0;
+	}
+
+	/* link in */
+	if(last) last->next = item;
+	else req->done_req_list = item;
+	req->num_done_req++;
+	return 1;
+}
+
+void
+tcp_req_info_send_reply(struct tcp_req_info* req)
+{
+	if(req->in_worker_handle) {
+		/* reply from mesh is in the spool_buffer */
+		/* copy now, so that the spool buffer is free for other tasks
+		 * before the callback is done */
+		sldns_buffer_clear(req->cp->buffer);
+		sldns_buffer_write(req->cp->buffer,
+			sldns_buffer_begin(req->spool_buffer),
+			sldns_buffer_limit(req->spool_buffer));
+		sldns_buffer_flip(req->cp->buffer);
+		req->is_reply = 1;
+		return;
+	}
+	/* now that the query has been handled, that mesh_reply entry
+	 * should be removed, from the tcp_req_info list,
+	 * the mesh state cleanup removes then with region_cleanup and
+	 * replies_sent true. */
+	/* see if we can send it straight away (we are not doing
+	 * anything else).  If so, copy to buffer and start */
+	if(req->cp->tcp_is_reading && req->cp->tcp_byte_count == 0) {
+		/* buffer is free, and was ready to read new query into,
+		 * but we are now going to use it to send this answer */
+		tcp_req_info_start_write_buf(req,
+			sldns_buffer_begin(req->spool_buffer),
+			sldns_buffer_limit(req->spool_buffer));
+		/* switch to listen to write events */
+		comm_point_stop_listening(req->cp);
+		comm_point_start_listening(req->cp, -1,
+			req->cp->tcp_timeout_msec);
+		return;
+	}
+	/* queue up the answer behind the others already pending */
+	if(!tcp_req_info_add_result(req, sldns_buffer_begin(req->spool_buffer),
+		sldns_buffer_limit(req->spool_buffer))) {
+		/* drop the connection, we are out of resources */
+		comm_point_drop_reply(&req->cp->repinfo);
+	}
+}
+
+size_t tcp_req_info_get_stream_buffer_size(void)
+{
+	size_t s;
+	if(!stream_wait_lock_inited)
+		return stream_wait_count;
+	lock_basic_lock(&stream_wait_count_lock);
+	s = stream_wait_count;
+	lock_basic_unlock(&stream_wait_count_lock);
+	return s;
+}

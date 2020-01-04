@@ -183,6 +183,8 @@ respip_action_cfg(struct respip_set* set, const char* ipstr,
                 action = respip_inform;
         else if(strcmp(actnstr, "inform_deny") == 0)
                 action = respip_inform_deny;
+        else if(strcmp(actnstr, "inform_redirect") == 0)
+                action = respip_inform_redirect;
         else if(strcmp(actnstr, "always_transparent") == 0)
                 action = respip_always_transparent;
         else if(strcmp(actnstr, "always_refuse") == 0)
@@ -245,7 +247,8 @@ respip_enter_rr(struct regional* region, struct resp_addr* raddr,
 	struct packed_rrset_data* pd;
 	struct sockaddr* sa;
 	int ret;
-	if(raddr->action != respip_redirect) {
+	if(raddr->action != respip_redirect
+		&& raddr->action != respip_inform_redirect) {
 		log_err("cannot parse response-ip-data %s: response-ip "
 			"action for %s is not redirect", rrstr, netblock);
 		return 0;
@@ -358,6 +361,7 @@ respip_set_apply_cfg(struct respip_set* set, char* const* tagname, int num_tags,
 		free(pd);
 		pd = np;
 	}
+	addr_tree_init_parents(&set->ip_tree);
 
 	return 1;
 }
@@ -475,10 +479,16 @@ copy_rrset(const struct ub_packed_rrset_key* key, struct regional* region)
 	if(!ck->rk.dname)
 		return NULL;
 
+	if((unsigned)data->count >= 0xffff00U)
+		return NULL; /* guard against integer overflow in dsize */
 	dsize = sizeof(struct packed_rrset_data) + data->count *
 		(sizeof(size_t)+sizeof(uint8_t*)+sizeof(time_t));
-	for(i=0; i<data->count; i++)
+	for(i=0; i<data->count; i++) {
+		if((unsigned)dsize >= 0x0fffffffU ||
+			(unsigned)data->rr_len[i] >= 0x0fffffffU)
+			return NULL; /* guard against integer overflow */
 		dsize += data->rr_len[i];
+	}
 	d = regional_alloc(region, dsize);
 	if(!d)
 		return NULL;
@@ -750,7 +760,8 @@ respip_nodata_answer(uint16_t qtype, enum respip_action action,
 		*new_repp = new_rep;
 		return 1;
 	} else if(action == respip_static || action == respip_redirect ||
-		action == respip_always_nxdomain) {
+		action == respip_always_nxdomain ||
+		action == respip_inform_redirect) {
 		/* Since we don't know about other types of the owner name,
 		 * we generally return NOERROR/NODATA unless an NXDOMAIN action
 		 * is explicitly specified. */
@@ -1177,5 +1188,5 @@ respip_inform_print(struct respip_addr_info* respip_addr, uint8_t* qname,
 		respip, sizeof(respip));
 	snprintf(txt, sizeof(txt), "%s/%d inform %s@%u", respip,
 		respip_addr->net, srcip, port);
-	log_nametypeclass(0, txt, qname, qtype, qclass);
+	log_nametypeclass(NO_VERBOSE, txt, qname, qtype, qclass);
 }

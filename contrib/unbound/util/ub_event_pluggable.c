@@ -453,7 +453,7 @@ ub_get_event_sys(struct ub_event_base* ub_base, const char** n, const char** s,
 	 * ub_base is guaranteed to exist and to be the default
 	 * event base.
 	 */
-	assert(b);
+	assert(b != NULL);
 	*n = "pluggable-event";
 	*s = event_get_version();
 #  if defined(HAVE_EV_LOOP) || defined(HAVE_EV_DEFAULT_LOOP)
@@ -687,6 +687,8 @@ void ub_comm_base_now(struct comm_base* cb)
 	if(gettimeofday(tv, NULL) < 0) {
 		log_err("gettimeofday: %s", strerror(errno));
 	}
+#ifndef S_SPLINT_S
 	*tt = tv->tv_sec;
+#endif
 }
 

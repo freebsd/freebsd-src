@@ -9,11 +9,11 @@ Wants=nss-lookup.target
 WantedBy=multi-user.target
 
 [Service]
-ExecReload=/bin/kill -HUP $MAINPID
-ExecStart=@UNBOUND_SBIN_DIR@/unbound
+ExecReload=+/bin/kill -HUP $MAINPID
+ExecStart=@UNBOUND_SBIN_DIR@/unbound -d
 NotifyAccess=main
 Type=notify
-CapabilityBoundingSet=CAP_IPC_LOCK CAP_NET_BIND_SERVICE CAP_SETGID CAP_SETUID CAP_SYS_CHROOT CAP_SYS_RESOURCE
+CapabilityBoundingSet=CAP_IPC_LOCK CAP_NET_BIND_SERVICE CAP_SETGID CAP_SETUID CAP_SYS_CHROOT CAP_SYS_RESOURCE CAP_NET_RAW
 MemoryDenyWriteExecute=true
 NoNewPrivileges=true
 PrivateDevices=true
@@ -21,11 +21,18 @@ PrivateTmp=true
 ProtectHome=true
 ProtectControlGroups=true
 ProtectKernelModules=true
-ProtectKernelTunables=true
 ProtectSystem=strict
-ReadWritePaths=@UNBOUND_SYSCONF_DIR@ @UNBOUND_LOCALSTATE_DIR@ /run @UNBOUND_RUN_DIR@
+ReadWritePaths=/run @UNBOUND_RUN_DIR@ @UNBOUND_CHROOT_DIR@
+TemporaryFileSystem=@UNBOUND_CHROOT_DIR@/dev:ro
+TemporaryFileSystem=@UNBOUND_CHROOT_DIR@/run:ro
+BindReadOnlyPaths=-/run/systemd/notify:@UNBOUND_CHROOT_DIR@/run/systemd/notify
+BindPaths=-@UNBOUND_PIDFILE@:@UNBOUND_CHROOT_DIR@@UNBOUND_PIDFILE@
+BindReadOnlyPaths=-/dev/urandom:@UNBOUND_CHROOT_DIR@/dev/urandom
+BindPaths=-/dev/log:@UNBOUND_CHROOT_DIR@/dev/log
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 RestrictRealtime=true
 SystemCallArchitectures=native
 SystemCallFilter=~@clock @cpu-emulation @debug @keyring @module mount @obsolete @resources
-
+RestrictNamespaces=yes
+LockPersonality=yes
+RestrictSUIDSGID=yes

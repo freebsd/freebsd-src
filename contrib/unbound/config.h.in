@@ -15,6 +15,9 @@
 /* Do sha512 definitions in config.h */
 #undef COMPAT_SHA512
 
+/* Command line arguments used with configure */
+#undef CONFCMDLINE
+
 /* Pathname to the Unbound configuration file */
 #undef CONFIGFILE
 
@@ -69,6 +72,9 @@
 /* Define to 1 if you have the `CRYPTO_cleanup_all_ex_data' function. */
 #undef HAVE_CRYPTO_CLEANUP_ALL_EX_DATA
 
+/* Define to 1 if you have the `CRYPTO_THREADID_set_callback' function. */
+#undef HAVE_CRYPTO_THREADID_SET_CALLBACK
+
 /* Define to 1 if you have the `ctime_r' function. */
 #undef HAVE_CTIME_R
 
@@ -82,6 +88,10 @@
 /* Define to 1 if you have the declaration of `arc4random_uniform', and to 0
    if you don't. */
 #undef HAVE_DECL_ARC4RANDOM_UNIFORM
+
+/* Define to 1 if you have the declaration of `evsignal_assign', and to 0 if
+   you don't. */
+#undef HAVE_DECL_EVSIGNAL_ASSIGN
 
 /* Define to 1 if you have the declaration of `inet_ntop', and to 0 if you
    don't. */
@@ -163,6 +173,9 @@
 /* Define to 1 if you have the `ERR_load_crypto_strings' function. */
 #undef HAVE_ERR_LOAD_CRYPTO_STRINGS
 
+/* Define to 1 if you have the `event_assign' function. */
+#undef HAVE_EVENT_ASSIGN
+
 /* Define to 1 if you have the `event_base_free' function. */
 #undef HAVE_EVENT_BASE_FREE
 
@@ -178,6 +191,9 @@
 /* Define to 1 if you have the <event.h> header file. */
 #undef HAVE_EVENT_H
 
+/* Define to 1 if you have the `EVP_aes_256_cbc' function. */
+#undef HAVE_EVP_AES_256_CBC
+
 /* Define to 1 if you have the `EVP_cleanup' function. */
 #undef HAVE_EVP_CLEANUP
 
@@ -186,6 +202,9 @@
 
 /* Define to 1 if you have the `EVP_dss1' function. */
 #undef HAVE_EVP_DSS1
+
+/* Define to 1 if you have the `EVP_EncryptInit_ex' function. */
+#undef HAVE_EVP_ENCRYPTINIT_EX
 
 /* Define to 1 if you have the `EVP_MD_CTX_new' function. */
 #undef HAVE_EVP_MD_CTX_NEW
@@ -258,6 +277,9 @@
 
 /* Define to 1 if you have the <hiredis/hiredis.h> header file. */
 #undef HAVE_HIREDIS_HIREDIS_H
+
+/* Define to 1 if you have the `HMAC_Init_ex' function. */
+#undef HAVE_HMAC_INIT_EX
 
 /* If you have HMAC_Update */
 #undef HAVE_HMAC_UPDATE
@@ -394,7 +416,7 @@
 /* Define to 1 if you have the `RAND_cleanup' function. */
 #undef HAVE_RAND_CLEANUP
 
-/* Define to 1 if you have the `reallocarray' function. */
+/* If we have reallocarray(3) */
 #undef HAVE_REALLOCARRAY
 
 /* Define to 1 if you have the `recvmsg' function. */
@@ -451,8 +473,14 @@
 /* Define if you have the SSL libraries installed. */
 #undef HAVE_SSL
 
+/* Define to 1 if you have the `SSL_CTX_set_ciphersuites' function. */
+#undef HAVE_SSL_CTX_SET_CIPHERSUITES
+
 /* Define to 1 if you have the `SSL_CTX_set_security_level' function. */
 #undef HAVE_SSL_CTX_SET_SECURITY_LEVEL
+
+/* Define to 1 if you have the `SSL_CTX_set_tlsext_ticket_key_cb' function. */
+#undef HAVE_SSL_CTX_SET_TLSEXT_TICKET_KEY_CB
 
 /* Define to 1 if you have the `SSL_get0_peername' function. */
 #undef HAVE_SSL_GET0_PEERNAME
@@ -586,8 +614,14 @@
 /* Define to 1 if you have the <ws2tcpip.h> header file. */
 #undef HAVE_WS2TCPIP_H
 
+/* Define to 1 if you have the `X509_VERIFY_PARAM_set1_host' function. */
+#undef HAVE_X509_VERIFY_PARAM_SET1_HOST
+
 /* Define to 1 if you have the `_beginthreadex' function. */
 #undef HAVE__BEGINTHREADEX
+
+/* If HMAC_Init_ex() returns void */
+#undef HMAC_INIT_EX_RETURNS_VOID
 
 /* if lex has yylex_destroy */
 #undef LEX_HAS_YYLEX_DESTROY
@@ -681,6 +715,9 @@
 /* Shared data */
 #undef SHARE_DIR
 
+/* The size of `size_t', as computed by sizeof. */
+#undef SIZEOF_SIZE_T
+
 /* The size of `time_t', as computed by sizeof. */
 #undef SIZEOF_TIME_T
 
@@ -698,6 +735,9 @@
 
 /* Use win32 resources and API */
 #undef UB_ON_WINDOWS
+
+/* the SYSLOG_FACILITY to use, default LOG_DAEMON */
+#undef UB_SYSLOG_FACILITY
 
 /* default username */
 #undef UB_USERNAME
@@ -746,6 +786,9 @@
 
 /* Define to 1 to use ipsecmod support. */
 #undef USE_IPSECMOD
+
+/* Define to 1 to use ipset support */
+#undef USE_IPSET
 
 /* Define if you want to use internal select based events */
 #undef USE_MINI_EVENT
@@ -944,8 +987,14 @@
 
 
 
+#ifndef _OPENBSD_SOURCE
+#define _OPENBSD_SOURCE 1
+#endif
+
 #ifndef UNBOUND_DEBUG
+# ifndef NDEBUG
 #  define NDEBUG
+# endif
 #endif
 
 /** Use small-ldns codebase */
@@ -1178,6 +1227,10 @@ struct tm;
 char *strptime(const char *s, const char *format, struct tm *tm);
 #endif
 
+#if !HAVE_DECL_REALLOCARRAY
+void *reallocarray(void *ptr, size_t nmemb, size_t size);
+#endif
+
 #ifdef HAVE_LIBRESSL
 #  if !HAVE_DECL_STRLCPY
 size_t strlcpy(char *dst, const char *src, size_t siz);
@@ -1190,9 +1243,6 @@ uint32_t arc4random(void);
 #  endif
 #  if !HAVE_DECL_ARC4RANDOM_UNIFORM && defined(HAVE_ARC4RANDOM_UNIFORM)
 uint32_t arc4random_uniform(uint32_t upper_bound);
-#  endif
-#  if !HAVE_DECL_REALLOCARRAY
-void *reallocarray(void *ptr, size_t nmemb, size_t size);
 #  endif
 #endif /* HAVE_LIBRESSL */
 #ifndef HAVE_ARC4RANDOM

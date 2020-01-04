@@ -113,17 +113,15 @@ static void config_start_include_glob(const char* filename)
 	/* check for wildcards */
 #ifdef HAVE_GLOB
 	glob_t g;
-	size_t i;
-	int r, flags;
+	int i, r, flags;
 	if(!(!strchr(filename, '*') && !strchr(filename, '?') && !strchr(filename, '[') &&
 		!strchr(filename, '{') && !strchr(filename, '~'))) {
 		flags = 0
 #ifdef GLOB_ERR
 			| GLOB_ERR
 #endif
-#ifdef GLOB_NOSORT
-			| GLOB_NOSORT
-#endif
+			 /* do not set GLOB_NOSORT so the results are sorted
+			    and in a predictable order. */
 #ifdef GLOB_BRACE
 			| GLOB_BRACE
 #endif
@@ -146,7 +144,7 @@ static void config_start_include_glob(const char* filename)
 			return;
 		}
 		/* process files found, if any */
-		for(i=0; i<(size_t)g.gl_pathc; i++) {
+		for(i=(int)g.gl_pathc-1; i>=0; i--) {
 			config_start_include(g.gl_pathv[i]);
 		}
 		globfree(&g);
@@ -247,6 +245,9 @@ additional-ssl-port{COLON}	{ YDVAR(1, VAR_TLS_ADDITIONAL_PORT) }
 additional-tls-port{COLON}	{ YDVAR(1, VAR_TLS_ADDITIONAL_PORT) }
 tls-additional-ports{COLON}	{ YDVAR(1, VAR_TLS_ADDITIONAL_PORT) }
 tls-additional-port{COLON}	{ YDVAR(1, VAR_TLS_ADDITIONAL_PORT) }
+tls-session-ticket-keys{COLON}	{ YDVAR(1, VAR_TLS_SESSION_TICKET_KEYS) }
+tls-ciphers{COLON}		{ YDVAR(1, VAR_TLS_CIPHERS) }
+tls-ciphersuites{COLON}		{ YDVAR(1, VAR_TLS_CIPHERSUITES) }
 use-systemd{COLON}		{ YDVAR(1, VAR_USE_SYSTEMD) }
 do-daemonize{COLON}		{ YDVAR(1, VAR_DO_DAEMONIZE) }
 interface{COLON}		{ YDVAR(1, VAR_INTERFACE) }
@@ -264,6 +265,7 @@ directory{COLON}		{ YDVAR(1, VAR_DIRECTORY) }
 logfile{COLON}			{ YDVAR(1, VAR_LOGFILE) }
 pidfile{COLON}			{ YDVAR(1, VAR_PIDFILE) }
 root-hints{COLON}		{ YDVAR(1, VAR_ROOT_HINTS) }
+stream-wait-size{COLON}		{ YDVAR(1, VAR_STREAM_WAIT_SIZE) }
 edns-buffer-size{COLON}		{ YDVAR(1, VAR_EDNS_BUFFER_SIZE) }
 msg-buffer-size{COLON}		{ YDVAR(1, VAR_MSG_BUFFER_SIZE) }
 msg-cache-size{COLON}		{ YDVAR(1, VAR_MSG_CACHE_SIZE) }
@@ -297,6 +299,7 @@ private-address{COLON}		{ YDVAR(1, VAR_PRIVATE_ADDRESS) }
 private-domain{COLON}		{ YDVAR(1, VAR_PRIVATE_DOMAIN) }
 prefetch-key{COLON}		{ YDVAR(1, VAR_PREFETCH_KEY) }
 prefetch{COLON}			{ YDVAR(1, VAR_PREFETCH) }
+deny-any{COLON}			{ YDVAR(1, VAR_DENY_ANY) }
 stub-zone{COLON}		{ YDVAR(0, VAR_STUB_ZONE) }
 name{COLON}			{ YDVAR(1, VAR_NAME) }
 stub-addr{COLON}		{ YDVAR(1, VAR_STUB_ADDR) }
@@ -332,6 +335,10 @@ client-subnet-always-forward{COLON} { YDVAR(1, VAR_CLIENT_SUBNET_ALWAYS_FORWARD)
 client-subnet-opcode{COLON}	{ YDVAR(1, VAR_CLIENT_SUBNET_OPCODE) }
 max-client-subnet-ipv4{COLON}	{ YDVAR(1, VAR_MAX_CLIENT_SUBNET_IPV4) }
 max-client-subnet-ipv6{COLON}	{ YDVAR(1, VAR_MAX_CLIENT_SUBNET_IPV6) }
+min-client-subnet-ipv4{COLON}	{ YDVAR(1, VAR_MIN_CLIENT_SUBNET_IPV4) }
+min-client-subnet-ipv6{COLON}	{ YDVAR(1, VAR_MIN_CLIENT_SUBNET_IPV6) }
+max-ecs-tree-size-ipv4{COLON}	{ YDVAR(1, VAR_MAX_ECS_TREE_SIZE_IPV4) }
+max-ecs-tree-size-ipv6{COLON}	{ YDVAR(1, VAR_MAX_ECS_TREE_SIZE_IPV6) }
 hide-identity{COLON}		{ YDVAR(1, VAR_HIDE_IDENTITY) }
 hide-version{COLON}		{ YDVAR(1, VAR_HIDE_VERSION) }
 hide-trustanchor{COLON}		{ YDVAR(1, VAR_HIDE_TRUSTANCHOR) }
@@ -374,6 +381,7 @@ log-identity{COLON}		{ YDVAR(1, VAR_LOG_IDENTITY) }
 log-time-ascii{COLON}		{ YDVAR(1, VAR_LOG_TIME_ASCII) }
 log-queries{COLON}		{ YDVAR(1, VAR_LOG_QUERIES) }
 log-replies{COLON}		{ YDVAR(1, VAR_LOG_REPLIES) }
+log-tag-queryreply{COLON}	{ YDVAR(1, VAR_LOG_TAG_QUERYREPLY) }
 log-local-actions{COLON}       { YDVAR(1, VAR_LOG_LOCAL_ACTIONS) }
 log-servfail{COLON}		{ YDVAR(1, VAR_LOG_SERVFAIL) }
 local-zone{COLON}		{ YDVAR(2, VAR_LOCAL_ZONE) }
@@ -400,6 +408,7 @@ python{COLON}			{ YDVAR(0, VAR_PYTHON) }
 domain-insecure{COLON}		{ YDVAR(1, VAR_DOMAIN_INSECURE) }
 minimal-responses{COLON}	{ YDVAR(1, VAR_MINIMAL_RESPONSES) }
 rrset-roundrobin{COLON}		{ YDVAR(1, VAR_RRSET_ROUNDROBIN) }
+unknown-server-time-limit{COLON} { YDVAR(1, VAR_UNKNOWN_SERVER_TIME_LIMIT) }
 max-udp-size{COLON}		{ YDVAR(1, VAR_MAX_UDP_SIZE) }
 dns64-prefix{COLON}		{ YDVAR(1, VAR_DNS64_PREFIX) }
 dns64-synthall{COLON}		{ YDVAR(1, VAR_DNS64_SYNTHALL) }
@@ -442,8 +451,10 @@ ratelimit-below-domain{COLON}	{ YDVAR(2, VAR_RATELIMIT_BELOW_DOMAIN) }
 ip-ratelimit-factor{COLON}		{ YDVAR(1, VAR_IP_RATELIMIT_FACTOR) }
 ratelimit-factor{COLON}		{ YDVAR(1, VAR_RATELIMIT_FACTOR) }
 low-rtt{COLON}			{ YDVAR(1, VAR_LOW_RTT) }
-low-rtt-pct{COLON}		{ YDVAR(1, VAR_LOW_RTT_PERMIL) }
-low-rtt-permil{COLON}		{ YDVAR(1, VAR_LOW_RTT_PERMIL) }
+fast-server-num{COLON}		{ YDVAR(1, VAR_FAST_SERVER_NUM) }
+low-rtt-pct{COLON}		{ YDVAR(1, VAR_FAST_SERVER_PERMIL) }
+low-rtt-permil{COLON}		{ YDVAR(1, VAR_FAST_SERVER_PERMIL) }
+fast-server-permil{COLON}	{ YDVAR(1, VAR_FAST_SERVER_PERMIL) }
 response-ip-tag{COLON}		{ YDVAR(2, VAR_RESPONSE_IP_TAG) }
 response-ip{COLON}		{ YDVAR(2, VAR_RESPONSE_IP) }
 response-ip-data{COLON}		{ YDVAR(2, VAR_RESPONSE_IP_DATA) }
@@ -472,6 +483,9 @@ secret-seed{COLON}		{ YDVAR(1, VAR_CACHEDB_SECRETSEED) }
 redis-server-host{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISHOST) }
 redis-server-port{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISPORT) }
 redis-timeout{COLON}		{ YDVAR(1, VAR_CACHEDB_REDISTIMEOUT) }
+ipset{COLON}			{ YDVAR(0, VAR_IPSET) }
+name-v4{COLON}			{ YDVAR(1, VAR_IPSET_NAME_V4) }
+name-v6{COLON}			{ YDVAR(1, VAR_IPSET_NAME_V6) }
 udp-upstream-without-downstream{COLON} { YDVAR(1, VAR_UDP_UPSTREAM_WITHOUT_DOWNSTREAM) }
 tcp-connection-limit{COLON}	{ YDVAR(2, VAR_TCP_CONNECTION_LIMIT) }
 <INITIAL,val>{NEWLINE}		{ LEXOUT(("NL\n")); cfg_parser->line++; }

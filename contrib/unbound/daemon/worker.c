@@ -660,10 +660,7 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 		if(!reply_check_cname_chain(qinfo, rep)) {
 			/* cname chain invalid, redo iterator steps */
 			verbose(VERB_ALGO, "Cache reply: cname chain broken");
-		bail_out:
-			rrset_array_unlock_touch(worker->env.rrset_cache, 
-				worker->scratchpad, rep->ref, rep->rrset_count);
-			return 0;
+			goto bail_out;
 		}
 	}
 	/* check security status of the cached answer */
@@ -724,8 +721,6 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 	if(encode_rep != rep)
 		secure = 0; /* if rewritten, it can't be considered "secure" */
 	if(!encode_rep || *alias_rrset) {
-		sldns_buffer_clear(repinfo->c->buffer);
-		sldns_buffer_flip(repinfo->c->buffer);
 		if(!encode_rep)
 			*need_drop = 1;
 		else {
@@ -758,20 +753,28 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 	}
 	/* go and return this buffer to the client */
 	return 1;
+
+bail_out:
+	rrset_array_unlock_touch(worker->env.rrset_cache, 
+		worker->scratchpad, rep->ref, rep->rrset_count);
+	return 0;
 }
 
-/** Reply to client and perform prefetch to keep cache up to date.
- * If the buffer for the reply is empty, it indicates that only prefetch is
- * necessary and the reply should be suppressed (because it's dropped or
- * being deferred). */
+/** Reply to client and perform prefetch to keep cache up to date. */
 static void
 reply_and_prefetch(struct worker* worker, struct query_info* qinfo, 
-	uint16_t flags, struct comm_reply* repinfo, time_t leeway)
+	uint16_t flags, struct comm_reply* repinfo, time_t leeway, int noreply)
 {
 	/* first send answer to client to keep its latency 
 	 * as small as a cachereply */
-	if(sldns_buffer_limit(repinfo->c->buffer) != 0)
+	if(!noreply) {
+		if(repinfo->c->tcp_req_info) {
+			sldns_buffer_copy(
+				repinfo->c->tcp_req_info->spool_buffer,
+				repinfo->c->buffer);
+		}
 		comm_point_send_reply(repinfo);
+	}
 	server_stats_prefetch(&worker->stats, worker);
 	
 	/* create the prefetch in the mesh as a normal lookup without
@@ -1088,11 +1091,11 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	struct ub_packed_rrset_key* alias_rrset = NULL;
 	struct reply_info* partial_rep = NULL;
 	struct query_info* lookup_qinfo = &qinfo;
-	struct query_info qinfo_tmp; /* placeholdoer for lookup_qinfo */
+	struct query_info qinfo_tmp; /* placeholder for lookup_qinfo */
 	struct respip_client_info* cinfo = NULL, cinfo_tmp;
 	memset(&qinfo, 0, sizeof(qinfo));
 
-	if(error != NETEVENT_NOERROR) {
+	if(error != NETEVENT_NOERROR || !repinfo) {
 		/* some bad tcp query DNS formats give these error calls */
 		verbose(VERB_ALGO, "handle request called with err=%d", error);
 		return 0;
@@ -1171,11 +1174,11 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 
 	/* check if this query should be dropped based on source ip rate limiting */
 	if(!infra_ip_ratelimit_inc(worker->env.infra_cache, repinfo,
-			*worker->env.now)) {
+			*worker->env.now, c->buffer)) {
 		/* See if we are passed through with slip factor */
 		if(worker->env.cfg->ip_ratelimit_factor != 0 &&
 			ub_random_max(worker->env.rnd,
-						  worker->env.cfg->ip_ratelimit_factor) == 1) {
+						  worker->env.cfg->ip_ratelimit_factor) == 0) {
 
 			char addrbuf[128];
 			addr_to_str(&repinfo->addr, repinfo->addrlen,
@@ -1208,7 +1211,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	if(worker->env.cfg->log_queries) {
 		char ip[128];
 		addr_to_str(&repinfo->addr, repinfo->addrlen, ip, sizeof(ip));
-		log_nametypeclass(0, ip, qinfo.qname, qinfo.qtype, qinfo.qclass);
+		log_query_in(ip, qinfo.qname, qinfo.qtype, qinfo.qclass);
 	}
 	if(qinfo.qtype == LDNS_RR_TYPE_AXFR || 
 		qinfo.qtype == LDNS_RR_TYPE_IXFR) {
@@ -1476,7 +1479,8 @@ lookup_cache:
 					lock_rw_unlock(&e->lock);
 					reply_and_prefetch(worker, lookup_qinfo,
 						sldns_buffer_read_u16_at(c->buffer, 2),
-						repinfo, leeway);
+						repinfo, leeway,
+						(partial_rep || need_drop));
 					if(!partial_rep) {
 						rc = 0;
 						regional_free_all(worker->scratchpad);
@@ -1558,9 +1562,19 @@ send_reply_rc:
 #endif
 	if(worker->env.cfg->log_replies)
 	{
-		struct timeval tv = {0, 0};
-		log_reply_info(0, &qinfo, &repinfo->addr, repinfo->addrlen,
-			tv, 1, c->buffer);
+		struct timeval tv;
+		memset(&tv, 0, sizeof(tv));
+		if(qinfo.local_alias && qinfo.local_alias->rrset &&
+			qinfo.local_alias->rrset->rk.dname) {
+			/* log original qname, before the local alias was
+			 * used to resolve that CNAME to something else */
+			qinfo.qname = qinfo.local_alias->rrset->rk.dname;
+			log_reply_info(NO_VERBOSE, &qinfo, &repinfo->addr, repinfo->addrlen,
+				tv, 1, c->buffer);
+		} else {
+			log_reply_info(NO_VERBOSE, &qinfo, &repinfo->addr, repinfo->addrlen,
+				tv, 1, c->buffer);
+		}
 	}
 #ifdef USE_DNSCRYPT
 	if(!dnsc_handle_uncurved_request(repinfo)) {
@@ -1667,11 +1681,7 @@ worker_create(struct daemon* daemon, int id, int* ports, int n)
 		return NULL;
 	}
 	/* create random state here to avoid locking trouble in RAND_bytes */
-	seed = (unsigned int)time(NULL) ^ (unsigned int)getpid() ^
-		(((unsigned int)worker->thread_num)<<17);
-		/* shift thread_num so it does not match out pid bits */
-	if(!(worker->rndstate = ub_initstate(seed, daemon->rand))) {
-		explicit_bzero(&seed, sizeof(seed));
+	if(!(worker->rndstate = ub_initstate(daemon->rand))) {
 		log_err("could not init random numbers.");
 		tube_delete(worker->cmd);
 		free(worker->ports);
@@ -1802,8 +1812,6 @@ worker_init(struct worker* worker, struct config_file *cfg,
 	alloc_set_id_cleanup(&worker->alloc, &worker_alloc_cleanup, worker);
 	worker->env = *worker->daemon->env;
 	comm_base_timept(worker->base, &worker->env.now, &worker->env.now_tv);
-	if(worker->thread_num == 0)
-		log_set_time(worker->env.now);
 	worker->env.worker = worker;
 	worker->env.worker_base = worker->base;
 	worker->env.send_query = &worker_send_query;
@@ -1909,7 +1917,6 @@ worker_delete(struct worker* worker)
 	comm_timer_delete(worker->env.probe_timer);
 	free(worker->ports);
 	if(worker->thread_num == 0) {
-		log_set_time(NULL);
 #ifdef UB_ON_WINDOWS
 		wsvc_desetup_worker(worker);
 #endif /* UB_ON_WINDOWS */

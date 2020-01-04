@@ -67,6 +67,7 @@
 #ifdef HAVE_GRP_H
 #include <grp.h>
 #endif
+#include <openssl/ssl.h>
 
 #ifndef S_SPLINT_S
 /* splint chokes on this system header file */
@@ -87,31 +88,20 @@
 #  include "nss.h"
 #endif
 
-/** print usage. */
-static void usage(void)
+/** print build options. */
+static void
+print_build_options(void)
 {
 	const char** m;
 	const char *evnm="event", *evsys="", *evmethod="";
 	time_t t;
 	struct timeval now;
 	struct ub_event_base* base;
-	printf("usage:  local-unbound [options]\n");
-	printf("	start unbound daemon DNS resolver.\n");
-	printf("-h	this help\n");
-	printf("-c file	config file to read instead of %s\n", CONFIGFILE);
-	printf("	file format is described in unbound.conf(5).\n");
-	printf("-d	do not fork into the background.\n");
-	printf("-p	do not create a pidfile.\n");
-	printf("-v	verbose (more times to increase verbosity)\n");
-#ifdef UB_ON_WINDOWS
-	printf("-w opt	windows option: \n");
-	printf("   	install, remove - manage the services entry\n");
-	printf("   	service - used to start from services control panel\n");
-#endif
-	printf("Version %s\n", PACKAGE_VERSION);
+	printf("Version %s\n\n", PACKAGE_VERSION);
+	printf("Configure line: %s\n", CONFCMDLINE);
 	base = ub_default_event_base(0,&t,&now);
 	ub_get_event_sys(base, &evnm, &evsys, &evmethod);
-	printf("linked libs: %s %s (it uses %s), %s\n", 
+	printf("Linked libs: %s %s (it uses %s), %s\n",
 		evnm, evsys, evmethod,
 #ifdef HAVE_SSL
 #  ifdef SSLEAY_VERSION
@@ -125,16 +115,42 @@ static void usage(void)
 		"nettle"
 #endif
 		);
-	printf("linked modules:");
+	printf("Linked modules:");
 	for(m = module_list_avail(); *m; m++)
 		printf(" %s", *m);
 	printf("\n");
 #ifdef USE_DNSCRYPT
 	printf("DNSCrypt feature available\n");
 #endif
+#ifdef USE_TCP_FASTOPEN
+	printf("TCP Fastopen feature available\n");
+#endif
+	ub_event_base_free(base);
+	printf("\nBSD licensed, see LICENSE in source package for details.\n");
+	printf("Report bugs to %s\n", PACKAGE_BUGREPORT);
+}
+
+/** print usage. */
+static void
+usage(void)
+{
+	printf("usage:  unbound [options]\n");
+	printf("	start unbound daemon DNS resolver.\n");
+	printf("-h	this help.\n");
+	printf("-c file	config file to read instead of %s\n", CONFIGFILE);
+	printf("	file format is described in unbound.conf(5).\n");
+	printf("-d	do not fork into the background.\n");
+	printf("-p	do not create a pidfile.\n");
+	printf("-v	verbose (more times to increase verbosity).\n");
+	printf("-V	show version number and build options.\n");
+#ifdef UB_ON_WINDOWS
+	printf("-w opt	windows option: \n");
+	printf("   	install, remove - manage the services entry\n");
+	printf("   	service - used to start from services control panel\n");
+#endif
+	printf("\nVersion %s\n", PACKAGE_VERSION);
 	printf("BSD licensed, see LICENSE in source package for details.\n");
 	printf("Report bugs to %s\n", PACKAGE_BUGREPORT);
-	ub_event_base_free(base);
 }
 
 #ifndef unbound_testbound
@@ -430,6 +446,24 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 		if(!(daemon->listen_sslctx = listen_sslctx_create(
 			cfg->ssl_service_key, cfg->ssl_service_pem, NULL)))
 			fatal_exit("could not set up listen SSL_CTX");
+		if(cfg->tls_ciphers && cfg->tls_ciphers[0]) {
+			if (!SSL_CTX_set_cipher_list(daemon->listen_sslctx, cfg->tls_ciphers)) {
+				fatal_exit("failed to set tls-cipher %s", cfg->tls_ciphers);
+			}
+		}
+#ifdef HAVE_SSL_CTX_SET_CIPHERSUITES
+		if(cfg->tls_ciphersuites && cfg->tls_ciphersuites[0]) {
+			if (!SSL_CTX_set_ciphersuites(daemon->listen_sslctx, cfg->tls_ciphersuites)) {
+				fatal_exit("failed to set tls-ciphersuites %s", cfg->tls_ciphersuites);
+			}
+		}
+#endif
+		if(cfg->tls_session_ticket_keys.first &&
+			cfg->tls_session_ticket_keys.first->str[0] != 0) {
+			if(!listen_sslctx_setup_ticket_keys(daemon->listen_sslctx, cfg->tls_session_ticket_keys.first)) {
+				fatal_exit("could not set session ticket SSL_CTX");
+			}
+		}
 	}
 	if(!(daemon->connect_sslctx = connect_sslctx_create(NULL, NULL,
 		cfg->tls_cert_bundle, cfg->tls_win_cert)))
@@ -701,7 +735,7 @@ main(int argc, char* argv[])
 	log_ident_default = strrchr(argv[0],'/')?strrchr(argv[0],'/')+1:argv[0];
 	log_ident_set(log_ident_default);
 	/* parse the options */
-	while( (c=getopt(argc, argv, "c:dhpvw:")) != -1) {
+	while( (c=getopt(argc, argv, "c:dhpvw:V")) != -1) {
 		switch(c) {
 		case 'c':
 			cfgfile = optarg;
@@ -722,6 +756,9 @@ main(int argc, char* argv[])
 		case 'w':
 			winopt = optarg;
 			break;
+		case 'V':
+			print_build_options();
+			return 0;
 		case '?':
 		case 'h':
 		default:
@@ -750,7 +787,7 @@ main(int argc, char* argv[])
 	log_init(NULL, 0, NULL); /* close logfile */
 #ifndef unbound_testbound
 	if(log_get_lock()) {
-		lock_quick_destroy((lock_quick_type*)log_get_lock());
+		lock_basic_destroy((lock_basic_type*)log_get_lock());
 	}
 #endif
 	return 0;
