@@ -200,7 +200,7 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t len, int prot, int flags,
     int fd, off_t pos)
 {
 
-	return (kern_mmap_fpcheck(td, addr, len, prot, flags, fd, pos, NULL));
+	return (kern_mmap_fpcheck(td, addr0, len, prot, flags, fd, pos, NULL));
 }
 
 /*
