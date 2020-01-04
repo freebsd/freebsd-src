@@ -497,8 +497,9 @@ struct uma_zone {
     "\33CACHE"				\
     "\32LIMIT"				\
     "\31CTORDTOR"			\
-    "\22MINBUCKET"			\
-    "\21NUMA"				\
+    "\23ROUNDROBIN"			\
+    "\22FIRSTTOUCH"			\
+    "\21MINBUCKET"			\
     "\20PCPU"				\
     "\17NODUMP"				\
     "\16VTOSLAB"			\
