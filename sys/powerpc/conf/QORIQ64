@@ -103,7 +103,6 @@ device		pci
 device		scbus
 device		scc
 device  	sdhci
-device		sec
 device  	spibus
 device  	spigen
 device		tuntap
