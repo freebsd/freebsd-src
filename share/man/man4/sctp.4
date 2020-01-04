@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 10, 2018
+.Dd January 4, 2020
 .Dt SCTP 4
 .Os
 .Sh NAME
@@ -472,6 +472,8 @@ Enable SCTP blackholing.
 See
 .Xr blackhole 4
 for more details.
+.It Va sendall_limit
+Maximum message size (in bytes) that can be transmitted with SCTP_SENDALL flags set.
 .It Va buffer_splitting
 Enable send/receive buffer splitting.
 .It Va vtag_time_wait

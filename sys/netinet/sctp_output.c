@@ -6885,8 +6885,8 @@ sctp_sendall(struct sctp_inpcb *inp, struct uio *uio, struct mbuf *m,
 		/* There is another. */
 		return (EBUSY);
 	}
-	if (uio->uio_resid > SCTP_MAX_SENDALL_LIMIT) {
-		/* You must be less than the max! */
+	if (uio->uio_resid > SCTP_BASE_SYSCTL(sctp_sendall_limit)) {
+		/* You must not be larger than the limit! */
 		return (EMSGSIZE);
 	}
 	SCTP_MALLOC(ca, struct sctp_copy_all *, sizeof(struct sctp_copy_all),
