@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/sbuf.h>
 #include <sys/sched.h>
+#include <sys/sleepqueue.h>
 #include <sys/smp.h>
 #include <sys/taskqueue.h>
 #include <sys/vmmeter.h>
@@ -267,8 +268,9 @@ static void hash_free(struct uma_hash *hash);
 static void uma_timeout(void *);
 static void uma_startup3(void);
 static void *zone_alloc_item(uma_zone_t, void *, int, int);
-static void *zone_alloc_item_locked(uma_zone_t, void *, int, int);
 static void zone_free_item(uma_zone_t, void *, void *, enum zfreeskip);
+static int zone_alloc_limit(uma_zone_t zone, int count, int flags);
+static void zone_free_limit(uma_zone_t zone, int count);
 static void bucket_enable(void);
 static void bucket_init(void);
 static uma_bucket_t bucket_alloc(uma_zone_t zone, void *, int);
@@ -290,6 +292,7 @@ static int sysctl_handle_uma_zone_allocs(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_uma_zone_frees(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_uma_zone_flags(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_uma_slab_efficiency(SYSCTL_HANDLER_ARGS);
+static int sysctl_handle_uma_zone_items(SYSCTL_HANDLER_ARGS);
 
 #ifdef INVARIANTS
 static inline struct noslabbits *slab_dbg_bits(uma_slab_t slab, uma_keg_t keg);
@@ -893,7 +896,7 @@ hash_free(struct uma_hash *hash)
  *
  * Arguments:
  *	zone   The zone to free to, must be unlocked.
- *	bucket The free/alloc bucket with items, cpu queue must be locked.
+ *	bucket The free/alloc bucket with items.
  *
  * Returns:
  *	Nothing
@@ -904,20 +907,15 @@ bucket_drain(uma_zone_t zone, uma_bucket_t bucket)
 {
 	int i;
 
-	if (bucket == NULL)
+	if (bucket == NULL || bucket->ub_cnt == 0)
 		return;
 
 	if (zone->uz_fini)
 		for (i = 0; i < bucket->ub_cnt; i++) 
 			zone->uz_fini(bucket->ub_bucket[i], zone->uz_size);
 	zone->uz_release(zone->uz_arg, bucket->ub_bucket, bucket->ub_cnt);
-	if (zone->uz_max_items > 0) {
-		ZONE_LOCK(zone);
-		zone->uz_items -= bucket->ub_cnt;
-		if (zone->uz_sleepers && zone->uz_items < zone->uz_max_items)
-			wakeup_one(zone);
-		ZONE_UNLOCK(zone);
-	}
+	if (zone->uz_max_items > 0)
+		zone_free_limit(zone, bucket->ub_cnt);
 	bucket->ub_cnt = 0;
 }
 
@@ -2096,9 +2094,10 @@ zone_alloc_sysctl(uma_zone_t zone, void *unused)
 	 */
 	oid = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(zone->uz_oid), OID_AUTO,
 	    "limit", CTLFLAG_RD, NULL, "");
-	SYSCTL_ADD_U64(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
-	    "items", CTLFLAG_RD, &zone->uz_items, 0,
-	    "current number of cached items");
+	SYSCTL_ADD_PROC(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "items", CTLFLAG_RD | CTLTYPE_U64 | CTLFLAG_MPSAFE,
+	    zone, 0, sysctl_handle_uma_zone_items, "QU",
+	    "current number of allocated items if limit is set");
 	SYSCTL_ADD_U64(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "max_items", CTLFLAG_RD, &zone->uz_max_items, 0,
 	    "Maximum number of cached items");
@@ -2108,6 +2107,12 @@ zone_alloc_sysctl(uma_zone_t zone, void *unused)
 	SYSCTL_ADD_U64(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "sleeps", CTLFLAG_RD, &zone->uz_sleeps, 0,
 	    "Total zone limit sleeps");
+	SYSCTL_ADD_U64(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "bucket_max", CTLFLAG_RD, &zone->uz_bkt_max, 0,
+	    "Maximum number of items in the bucket cache");
+	SYSCTL_ADD_U64(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "bucket_cnt", CTLFLAG_RD, &zone->uz_bkt_count, 0,
+	    "Number of items in the bucket cache");
 
 	/*
 	 * Per-domain information.
@@ -2961,15 +2966,15 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 		domain = PCPU_GET(domain);
 	else
 		domain = UMA_ANYDOMAIN;
-	return (zone_alloc_item_locked(zone, udata, domain, flags));
+	return (zone_alloc_item(zone, udata, domain, flags));
 }
 
 /*
  * Replenish an alloc bucket and possibly restore an old one.  Called in
  * a critical section.  Returns in a critical section.
  *
- * A false return value indicates failure and returns with the zone lock
- * held.  A true return value indicates success and the caller should retry.
+ * A false return value indicates an allocation failure.
+ * A true return value indicates success and the caller should retry.
  */
 static __noinline bool
 cache_alloc(uma_zone_t zone, uma_cache_t cache, void *udata, int flags)
@@ -2998,6 +3003,12 @@ cache_alloc(uma_zone_t zone, uma_cache_t cache, void *udata, int flags)
 	if (bucket != NULL)
 		bucket_free(zone, bucket, udata);
 
+	/* Short-circuit for zones without buckets and low memory. */
+	if (zone->uz_bucket_size == 0 || bucketdisable) {
+		critical_enter();
+		return (false);
+	}
+
 	/*
 	 * Attempt to retrieve the item from the per-CPU cache has failed, so
 	 * we must go back to the zone.  This requires the zone lock, so we
@@ -3014,14 +3025,9 @@ cache_alloc(uma_zone_t zone, uma_cache_t cache, void *udata, int flags)
 		lockfail = 1;
 	}
 
-	critical_enter();
-	/* Short-circuit for zones without buckets and low memory. */
-	if (zone->uz_bucket_size == 0 || bucketdisable)
-		return (false);
-
-	cache = &zone->uz_cpu[curcpu];
-
 	/* See if we lost the race to fill the cache. */
+	critical_enter();
+	cache = &zone->uz_cpu[curcpu];
 	if (cache->uc_allocbucket.ucb_bucket != NULL) {
 		ZONE_UNLOCK(zone);
 		return (true);
@@ -3054,6 +3060,7 @@ cache_alloc(uma_zone_t zone, uma_cache_t cache, void *udata, int flags)
 	 */
 	if (lockfail && zone->uz_bucket_size < zone->uz_bucket_size_max)
 		zone->uz_bucket_size++;
+	ZONE_UNLOCK(zone);
 
 	/*
 	 * Fill a bucket and attempt to use it as the alloc bucket.
@@ -3061,15 +3068,18 @@ cache_alloc(uma_zone_t zone, uma_cache_t cache, void *udata, int flags)
 	bucket = zone_alloc_bucket(zone, udata, domain, flags);
 	CTR3(KTR_UMA, "uma_zalloc: zone %s(%p) bucket zone returned %p",
 	    zone->uz_name, zone, bucket);
-	critical_enter();
-	if (bucket == NULL)
+	if (bucket == NULL) {
+		critical_enter();
 		return (false);
+	}
 
 	/*
 	 * See if we lost the race or were migrated.  Cache the
 	 * initialized bucket to make this less likely or claim
 	 * the memory directly.
 	 */
+	ZONE_LOCK(zone);
+	critical_enter();
 	cache = &zone->uz_cpu[curcpu];
 	if (cache->uc_allocbucket.ucb_bucket == NULL &&
 	    ((zone->uz_flags & UMA_ZONE_NUMA) == 0 ||
@@ -3202,10 +3212,6 @@ restart:
 		if (flags & M_NOVM)
 			break;
 
-		KASSERT(zone->uz_max_items == 0 ||
-		    zone->uz_items <= zone->uz_max_items,
-		    ("%s: zone %p overflow", __func__, zone));
-
 		slab = keg_alloc_slab(keg, zone, domain, flags, aflags);
 		/*
 		 * If we got a slab here it's safe to mark it partially used
@@ -3316,6 +3322,159 @@ zone_import(void *arg, void **bucket, int max, int domain, int flags)
 	return i;
 }
 
+static int
+zone_alloc_limit_hard(uma_zone_t zone, int count, int flags)
+{
+	uint64_t old, new, total, max;
+
+	/*
+	 * The hard case.  We're going to sleep because there were existing
+	 * sleepers or because we ran out of items.  This routine enforces
+	 * fairness by keeping fifo order.
+	 *
+	 * First release our ill gotten gains and make some noise.
+	 */
+	for (;;) {
+		zone_free_limit(zone, count);
+		zone_log_warning(zone);
+		zone_maxaction(zone);
+		if (flags & M_NOWAIT)
+			return (0);
+
+		/*
+		 * We need to allocate an item or set ourself as a sleeper
+		 * while the sleepq lock is held to avoid wakeup races.  This
+		 * is essentially a home rolled semaphore.
+		 */
+		sleepq_lock(&zone->uz_max_items);
+		old = zone->uz_items;
+		do {
+			MPASS(UZ_ITEMS_SLEEPERS(old) < UZ_ITEMS_SLEEPERS_MAX);
+			/* Cache the max since we will evaluate twice. */
+			max = zone->uz_max_items;
+			if (UZ_ITEMS_SLEEPERS(old) != 0 ||
+			    UZ_ITEMS_COUNT(old) >= max)
+				new = old + UZ_ITEMS_SLEEPER;
+			else
+				new = old + MIN(count, max - old);
+		} while (atomic_fcmpset_64(&zone->uz_items, &old, new) == 0);
+
+		/* We may have successfully allocated under the sleepq lock. */
+		if (UZ_ITEMS_SLEEPERS(new) == 0) {
+			sleepq_release(&zone->uz_max_items);
+			return (new - old);
+		}
+
+		/*
+		 * This is in a different cacheline from uz_items so that we
+		 * don't constantly invalidate the fastpath cacheline when we
+		 * adjust item counts.  This could be limited to toggling on
+		 * transitions.
+		 */
+		atomic_add_32(&zone->uz_sleepers, 1);
+		atomic_add_64(&zone->uz_sleeps, 1);
+
+		/*
+		 * We have added ourselves as a sleeper.  The sleepq lock
+		 * protects us from wakeup races.  Sleep now and then retry.
+		 */
+		sleepq_add(&zone->uz_max_items, NULL, "zonelimit", 0, 0);
+		sleepq_wait(&zone->uz_max_items, PVM);
+
+		/*
+		 * After wakeup, remove ourselves as a sleeper and try
+		 * again.  We no longer have the sleepq lock for protection.
+		 *
+		 * Subract ourselves as a sleeper while attempting to add
+		 * our count.
+		 */
+		atomic_subtract_32(&zone->uz_sleepers, 1);
+		old = atomic_fetchadd_64(&zone->uz_items,
+		    -(UZ_ITEMS_SLEEPER - count));
+		/* We're no longer a sleeper. */
+		old -= UZ_ITEMS_SLEEPER;
+
+		/*
+		 * If we're still at the limit, restart.  Notably do not
+		 * block on other sleepers.  Cache the max value to protect
+		 * against changes via sysctl.
+		 */
+		total = UZ_ITEMS_COUNT(old);
+		max = zone->uz_max_items;
+		if (total >= max)
+			continue;
+		/* Truncate if necessary, otherwise wake other sleepers. */
+		if (total + count > max) {
+			zone_free_limit(zone, total + count - max);
+			count = max - total;
+		} else if (total + count < max && UZ_ITEMS_SLEEPERS(old) != 0)
+			wakeup_one(&zone->uz_max_items);
+
+		return (count);
+	}
+}
+
+/*
+ * Allocate 'count' items from our max_items limit.  Returns the number
+ * available.  If M_NOWAIT is not specified it will sleep until at least
+ * one item can be allocated.
+ */
+static int
+zone_alloc_limit(uma_zone_t zone, int count, int flags)
+{
+	uint64_t old;
+	uint64_t max;
+
+	max = zone->uz_max_items;
+	MPASS(max > 0);
+
+	/*
+	 * We expect normal allocations to succeed with a simple
+	 * fetchadd.
+	 */
+	old = atomic_fetchadd_64(&zone->uz_items, count);
+	if (__predict_true(old + count <= max))
+		return (count);
+
+	/*
+	 * If we had some items and no sleepers just return the
+	 * truncated value.  We have to release the excess space
+	 * though because that may wake sleepers who weren't woken
+	 * because we were temporarily over the limit.
+	 */
+	if (old < max) {
+		zone_free_limit(zone, (old + count) - max);
+		return (max - old);
+	}
+	return (zone_alloc_limit_hard(zone, count, flags));
+}
+
+/*
+ * Free a number of items back to the limit.
+ */
+static void
+zone_free_limit(uma_zone_t zone, int count)
+{
+	uint64_t old;
+
+	MPASS(count > 0);
+
+	/*
+	 * In the common case we either have no sleepers or
+	 * are still over the limit and can just return.
+	 */
+	old = atomic_fetchadd_64(&zone->uz_items, -count);
+	if (__predict_true(UZ_ITEMS_SLEEPERS(old) == 0 ||
+	   UZ_ITEMS_COUNT(old) - count >= zone->uz_max_items))
+		return;
+
+	/*
+	 * Moderate the rate of wakeups.  Sleepers will continue
+	 * to generate wakeups if necessary.
+	 */
+	wakeup_one(&zone->uz_max_items);
+}
+
 static uma_bucket_t
 zone_alloc_bucket(uma_zone_t zone, void *udata, int domain, int flags)
 {
@@ -3328,15 +3487,13 @@ zone_alloc_bucket(uma_zone_t zone, void *udata, int domain, int flags)
 	if (domain != UMA_ANYDOMAIN && VM_DOMAIN_EMPTY(domain))
 		domain = UMA_ANYDOMAIN;
 
-	if (zone->uz_max_items > 0) {
-		if (zone->uz_items >= zone->uz_max_items)
-			return (false);
-		maxbucket = MIN(zone->uz_bucket_size,
-		    zone->uz_max_items - zone->uz_items);
-		zone->uz_items += maxbucket;
-	} else
+	if (zone->uz_max_items > 0)
+		maxbucket = zone_alloc_limit(zone, zone->uz_bucket_size,
+		    M_NOWAIT);
+	else
 		maxbucket = zone->uz_bucket_size;
-	ZONE_UNLOCK(zone);
+	if (maxbucket == 0)
+		return (false);
 
 	/* Don't wait for buckets, preserve caller's NOVM setting. */
 	bucket = bucket_alloc(zone, udata, M_NOWAIT | (flags & M_NOVM));
@@ -3380,15 +3537,8 @@ zone_alloc_bucket(uma_zone_t zone, void *udata, int domain, int flags)
 		bucket = NULL;
 	}
 out:
-	ZONE_LOCK(zone);
-	if (zone->uz_max_items > 0 && cnt < maxbucket) {
-		MPASS(zone->uz_items >= maxbucket - cnt);
-		zone->uz_items -= maxbucket - cnt;
-		if (zone->uz_sleepers > 0 &&
-		    (cnt == 0 ? zone->uz_items + 1 : zone->uz_items) <
-		    zone->uz_max_items)
-			wakeup_one(zone);
-	}
+	if (zone->uz_max_items > 0 && cnt < maxbucket)
+		zone_free_limit(zone, maxbucket - cnt);
 
 	return (bucket);
 }
@@ -3410,42 +3560,10 @@ out:
 static void *
 zone_alloc_item(uma_zone_t zone, void *udata, int domain, int flags)
 {
-
-	ZONE_LOCK(zone);
-	return (zone_alloc_item_locked(zone, udata, domain, flags));
-}
-
-/*
- * Returns with zone unlocked.
- */
-static void *
-zone_alloc_item_locked(uma_zone_t zone, void *udata, int domain, int flags)
-{
 	void *item;
 
-	ZONE_LOCK_ASSERT(zone);
-
-	if (zone->uz_max_items > 0) {
-		if (zone->uz_items >= zone->uz_max_items) {
-			zone_log_warning(zone);
-			zone_maxaction(zone);
-			if (flags & M_NOWAIT) {
-				ZONE_UNLOCK(zone);
-				return (NULL);
-			}
-			zone->uz_sleeps++;
-			zone->uz_sleepers++;
-			while (zone->uz_items >= zone->uz_max_items)
-				mtx_sleep(zone, zone->uz_lockptr, PVM,
-				    "zonelimit", 0);
-			zone->uz_sleepers--;
-			if (zone->uz_sleepers > 0 &&
-			    zone->uz_items + 1 < zone->uz_max_items)
-				wakeup_one(zone);
-		}
-		zone->uz_items++;
-	}
-	ZONE_UNLOCK(zone);
+	if (zone->uz_max_items > 0 && zone_alloc_limit(zone, 1, flags) == 0)
+		return (NULL);
 
 	/* Avoid allocs targeting empty domains. */
 	if (domain != UMA_ANYDOMAIN && VM_DOMAIN_EMPTY(domain))
@@ -3479,14 +3597,11 @@ zone_alloc_item_locked(uma_zone_t zone, void *udata, int domain, int flags)
 fail_cnt:
 	counter_u64_add(zone->uz_fails, 1);
 fail:
-	if (zone->uz_max_items > 0) {
-		ZONE_LOCK(zone);
-		/* XXX Decrement without wakeup */
-		zone->uz_items--;
-		ZONE_UNLOCK(zone);
-	}
+	if (zone->uz_max_items > 0)
+		zone_free_limit(zone, 1);
 	CTR2(KTR_UMA, "zone_alloc_item failed from %s(%p)",
 	    zone->uz_name, zone);
+
 	return (NULL);
 }
 
@@ -3832,14 +3947,8 @@ zone_free_item(uma_zone_t zone, void *item, void *udata, enum zfreeskip skip)
 
 	counter_u64_add(zone->uz_frees, 1);
 
-	if (zone->uz_max_items > 0) {
-		ZONE_LOCK(zone);
-		zone->uz_items--;
-		if (zone->uz_sleepers > 0 &&
-		    zone->uz_items < zone->uz_max_items)
-			wakeup_one(zone);
-		ZONE_UNLOCK(zone);
-	}
+	if (zone->uz_max_items > 0)
+		zone_free_limit(zone, 1);
 }
 
 /* See uma.h */
@@ -3849,6 +3958,11 @@ uma_zone_set_max(uma_zone_t zone, int nitems)
 	struct uma_bucket_zone *ubz;
 	int count;
 
+	/*
+	 * XXX This can misbehave if the zone has any allocations with
+	 * no limit and a limit is imposed.  There is currently no
+	 * way to clear a limit.
+	 */
 	ZONE_LOCK(zone);
 	ubz = bucket_zone_max(zone, nitems);
 	count = ubz != NULL ? ubz->ubz_entries : 0;
@@ -3858,6 +3972,8 @@ uma_zone_set_max(uma_zone_t zone, int nitems)
 	zone->uz_max_items = nitems;
 	zone->uz_flags |= UMA_ZFLAG_LIMIT;
 	zone_update_caches(zone);
+	/* We may need to wake waiters. */
+	wakeup(&zone->uz_max_items);
 	ZONE_UNLOCK(zone);
 
 	return (nitems);
@@ -4416,6 +4532,7 @@ sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS)
 	struct sbuf sbuf;
 	uma_keg_t kz;
 	uma_zone_t z;
+	uint64_t items;
 	int count, error, i;
 
 	error = sysctl_wire_old_buffer(req, 0);
@@ -4452,10 +4569,11 @@ sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS)
 			uth.uth_align = kz->uk_align;
 			uth.uth_size = kz->uk_size;
 			uth.uth_rsize = kz->uk_rsize;
-			if (z->uz_max_items > 0)
-				uth.uth_pages = (z->uz_items / kz->uk_ipers) *
+			if (z->uz_max_items > 0) {
+				items = UZ_ITEMS_COUNT(z->uz_items);
+				uth.uth_pages = (items / kz->uk_ipers) *
 					kz->uk_ppera;
-			else
+			} else
 				uth.uth_pages = kz->uk_pages;
 			uth.uth_maxpages = (z->uz_max_items / kz->uk_ipers) *
 			    kz->uk_ppera;
@@ -4587,6 +4705,16 @@ sysctl_handle_uma_slab_efficiency(SYSCTL_HANDLER_ARGS)
 		avail *= mp_maxid + 1;
 	effpct = 100 * avail / total;
 	return (sysctl_handle_int(oidp, &effpct, 0, req));
+}
+
+static int
+sysctl_handle_uma_zone_items(SYSCTL_HANDLER_ARGS)
+{
+	uma_zone_t zone = arg1;
+	uint64_t cur;
+
+	cur = UZ_ITEMS_COUNT(atomic_load_64(&zone->uz_items));
+	return (sysctl_handle_64(oidp, &cur, 0, req));
 }
 
 #ifdef INVARIANTS
