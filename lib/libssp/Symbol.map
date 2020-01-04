@@ -1,0 +1,26 @@
+/*
+ * $FreeBSD$
+ */
+
+LIBSSP_1.0 {
+	__chk_fail;
+	__stack_chk_fail;
+	__stack_chk_guard;
+
+	/*
+	 * Currently unsupported: _FORTIFY_SOURCE symbols.  It is believed
+	 * that these have never been used on FreeBSD, as our headers lack the
+	 * support that would have generated references to them.
+	 */
+	__memcpy_chk;
+	__memset_chk;
+	__snprintf_chk;
+	__sprintf_chk;
+	__stpcpy_chk;
+	__strcat_chk;
+	__strcpy_chk;
+	__strncat_chk;
+	__strncpy_chk;
+	__vsnprintf_chk;
+	__vsprintf_chk;
+};
