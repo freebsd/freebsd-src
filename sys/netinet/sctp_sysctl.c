@@ -119,6 +119,7 @@ sctp_init_sysctls()
 	SCTP_BASE_SYSCTL(sctp_steady_step) = SCTPCTL_RTTVAR_STEADYS_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_use_dccc_ecn) = SCTPCTL_RTTVAR_DCCCECN_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_blackhole) = SCTPCTL_BLACKHOLE_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_sendall_limit) = SCTPCTL_SENDALL_LIMIT_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_diag_info_code) = SCTPCTL_DIAG_INFO_CODE_DEFAULT;
 #if defined(SCTP_LOCAL_TRACE_BUF)
 	memset(&SCTP_BASE_SYSCTL(sctp_log), 0, sizeof(struct sctp_log));
@@ -943,6 +944,7 @@ SCTP_UINT_SYSCTL(rttvar_eqret, sctp_rttvar_eqret, SCTPCTL_RTTVAR_EQRET)
 SCTP_UINT_SYSCTL(rttvar_steady_step, sctp_steady_step, SCTPCTL_RTTVAR_STEADYS)
 SCTP_UINT_SYSCTL(use_dcccecn, sctp_use_dccc_ecn, SCTPCTL_RTTVAR_DCCCECN)
 SCTP_UINT_SYSCTL(blackhole, sctp_blackhole, SCTPCTL_BLACKHOLE)
+SCTP_UINT_SYSCTL(sendall_limit, sctp_sendall_limit, SCTPCTL_SENDALL_LIMIT)
 SCTP_UINT_SYSCTL(diag_info_code, sctp_diag_info_code, SCTPCTL_DIAG_INFO_CODE)
 #ifdef SCTP_DEBUG
 SCTP_UINT_SYSCTL(debug, sctp_debug_on, SCTPCTL_DEBUG)
