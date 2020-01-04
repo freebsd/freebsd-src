@@ -15,7 +15,10 @@
 
 /* \summary: Bidirectional Forwarding Detection (BFD) printer */
 
-/* specification: RFC 5880 (for version 1) and RFC 5881 */
+/*
+ * specification: draft-ietf-bfd-base-01 for version 0,
+ * RFC 5880 for version 1, and RFC 5881
+ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -29,12 +32,12 @@
 #include "udp.h"
 
 /*
- * Control packet, BFDv0, draft-katz-ward-bfd-01.txt
+ * Control packet, BFDv0, draft-ietf-bfd-base-01
  *
  *     0                   1                   2                   3
  *     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *    |Vers |  Diag   |H|D|P|F| Rsvd  |  Detect Mult  |    Length     |
+ *    |Vers |  Diag   |H|D|P|F|C|A|Rsv|  Detect Mult  |    Length     |
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *    |                       My Discriminator                        |
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -126,12 +129,6 @@ enum auth_length {
 #define BFD_EXTRACT_VERSION(x) (((x)&0xe0)>>5)
 #define BFD_EXTRACT_DIAG(x)     ((x)&0x1f)
 
-static const struct tok bfd_port_values[] = {
-    { BFD_CONTROL_PORT, "Control" },
-    { BFD_ECHO_PORT,    "Echo" },
-    { 0, NULL }
-};
-
 static const struct tok bfd_diag_values[] = {
     { 0, "No Diagnostic" },
     { 1, "Control Detection Time Expired" },
@@ -145,19 +142,19 @@ static const struct tok bfd_diag_values[] = {
     { 0, NULL }
 };
 
+#define BFD_FLAG_AUTH 0x04
+
 static const struct tok bfd_v0_flag_values[] = {
     { 0x80, "I Hear You" },
     { 0x40, "Demand" },
     { 0x20, "Poll" },
     { 0x10, "Final" },
-    { 0x08, "Reserved" },
-    { 0x04, "Reserved" },
+    { 0x08, "Control Plane Independent" },
+    { BFD_FLAG_AUTH, "Authentication Present" },
     { 0x02, "Reserved" },
     { 0x01, "Reserved" },
     { 0, NULL }
 };
-
-#define BFD_FLAG_AUTH 0x04
 
 static const struct tok bfd_v1_flag_values[] = {
     { 0x20, "Poll" },
@@ -292,106 +289,124 @@ void
 bfd_print(netdissect_options *ndo, register const u_char *pptr,
           register u_int len, register u_int port)
 {
-        const struct bfd_header_t *bfd_header;
-        uint8_t version = 0;
-
-        bfd_header = (const struct bfd_header_t *)pptr;
         if (port == BFD_CONTROL_PORT) {
+            /*
+             * Control packet.
+             */
+            const struct bfd_header_t *bfd_header;
+            uint8_t version_diag;
+            uint8_t version = 0;
+            uint8_t flags;
+
+            bfd_header = (const struct bfd_header_t *)pptr;
             ND_TCHECK(*bfd_header);
-            version = BFD_EXTRACT_VERSION(bfd_header->version_diag);
+            version_diag = bfd_header->version_diag;
+            version = BFD_EXTRACT_VERSION(version_diag);
+            flags = bfd_header->flags;
+
+            switch (version) {
+
+                /* BFDv0 */
+            case 0:
+                if (ndo->ndo_vflag < 1)
+                {
+                    ND_PRINT((ndo, "BFDv0, Control, Flags: [%s], length: %u",
+                           bittok2str(bfd_v0_flag_values, "none", flags),
+                           len));
+                    return;
+                }
+
+                ND_PRINT((ndo, "BFDv0, length: %u\n\tControl, Flags: [%s], Diagnostic: %s (0x%02x)",
+                       len,
+                       bittok2str(bfd_v0_flag_values, "none", flags),
+                       tok2str(bfd_diag_values,"unknown",BFD_EXTRACT_DIAG(version_diag)),
+                       BFD_EXTRACT_DIAG(version_diag)));
+
+                ND_PRINT((ndo, "\n\tDetection Timer Multiplier: %u (%u ms Detection time), BFD Length: %u",
+                       bfd_header->detect_time_multiplier,
+                       bfd_header->detect_time_multiplier * EXTRACT_32BITS(bfd_header->desired_min_tx_interval)/1000,
+                       bfd_header->length));
+
+
+                ND_PRINT((ndo, "\n\tMy Discriminator: 0x%08x", EXTRACT_32BITS(bfd_header->my_discriminator)));
+                ND_PRINT((ndo, ", Your Discriminator: 0x%08x", EXTRACT_32BITS(bfd_header->your_discriminator)));
+                ND_PRINT((ndo, "\n\t  Desired min Tx Interval:    %4u ms", EXTRACT_32BITS(bfd_header->desired_min_tx_interval)/1000));
+                ND_PRINT((ndo, "\n\t  Required min Rx Interval:   %4u ms", EXTRACT_32BITS(bfd_header->required_min_rx_interval)/1000));
+                ND_PRINT((ndo, "\n\t  Required min Echo Interval: %4u ms", EXTRACT_32BITS(bfd_header->required_min_echo_interval)/1000));
+
+                if (flags & BFD_FLAG_AUTH) {
+                    if (auth_print(ndo, pptr))
+                        goto trunc;
+                }
+                break;
+
+                /* BFDv1 */
+            case 1:
+                if (ndo->ndo_vflag < 1)
+                {
+                    ND_PRINT((ndo, "BFDv1, Control, State %s, Flags: [%s], length: %u",
+                           tok2str(bfd_v1_state_values, "unknown (%u)", (flags & 0xc0) >> 6),
+                           bittok2str(bfd_v1_flag_values, "none", flags & 0x3f),
+                           len));
+                    return;
+                }
+
+                ND_PRINT((ndo, "BFDv1, length: %u\n\tControl, State %s, Flags: [%s], Diagnostic: %s (0x%02x)",
+                       len,
+                       tok2str(bfd_v1_state_values, "unknown (%u)", (flags & 0xc0) >> 6),
+                       bittok2str(bfd_v1_flag_values, "none", flags & 0x3f),
+                       tok2str(bfd_diag_values,"unknown",BFD_EXTRACT_DIAG(version_diag)),
+                       BFD_EXTRACT_DIAG(version_diag)));
+
+                ND_PRINT((ndo, "\n\tDetection Timer Multiplier: %u (%u ms Detection time), BFD Length: %u",
+                       bfd_header->detect_time_multiplier,
+                       bfd_header->detect_time_multiplier * EXTRACT_32BITS(bfd_header->desired_min_tx_interval)/1000,
+                       bfd_header->length));
+
+
+                ND_PRINT((ndo, "\n\tMy Discriminator: 0x%08x", EXTRACT_32BITS(bfd_header->my_discriminator)));
+                ND_PRINT((ndo, ", Your Discriminator: 0x%08x", EXTRACT_32BITS(bfd_header->your_discriminator)));
+                ND_PRINT((ndo, "\n\t  Desired min Tx Interval:    %4u ms", EXTRACT_32BITS(bfd_header->desired_min_tx_interval)/1000));
+                ND_PRINT((ndo, "\n\t  Required min Rx Interval:   %4u ms", EXTRACT_32BITS(bfd_header->required_min_rx_interval)/1000));
+                ND_PRINT((ndo, "\n\t  Required min Echo Interval: %4u ms", EXTRACT_32BITS(bfd_header->required_min_echo_interval)/1000));
+
+                if (flags & BFD_FLAG_AUTH) {
+                    if (auth_print(ndo, pptr))
+                        goto trunc;
+                }
+                break;
+
+            default:
+                ND_PRINT((ndo, "BFDv%u, Control, length: %u",
+                       version,
+                       len));
+                if (ndo->ndo_vflag >= 1) {
+                    if(!print_unknown_data(ndo, pptr,"\n\t",len))
+                        return;
+                }
+                break;
+            }
         } else if (port == BFD_ECHO_PORT) {
-            /* Echo is BFD v1 only */
-            version = 1;
-        }
-        switch ((port << 8) | version) {
-
-            /* BFDv0 */
-        case (BFD_CONTROL_PORT << 8):
-            if (ndo->ndo_vflag < 1)
-            {
-                ND_PRINT((ndo, "BFDv%u, %s, Flags: [%s], length: %u",
-                       version,
-                       tok2str(bfd_port_values, "unknown (%u)", port),
-                       bittok2str(bfd_v0_flag_values, "none", bfd_header->flags),
-                       len));
-                return;
+            /*
+             * Echo packet.
+             */
+            ND_PRINT((ndo, "BFD, Echo, length: %u",
+                   len));
+            if (ndo->ndo_vflag >= 1) {
+                if(!print_unknown_data(ndo, pptr,"\n\t",len))
+                    return;
             }
-
-            ND_PRINT((ndo, "BFDv%u, length: %u\n\t%s, Flags: [%s], Diagnostic: %s (0x%02x)",
-                   version,
-                   len,
-                   tok2str(bfd_port_values, "unknown (%u)", port),
-                   bittok2str(bfd_v0_flag_values, "none", bfd_header->flags),
-                   tok2str(bfd_diag_values,"unknown",BFD_EXTRACT_DIAG(bfd_header->version_diag)),
-                   BFD_EXTRACT_DIAG(bfd_header->version_diag)));
-
-            ND_PRINT((ndo, "\n\tDetection Timer Multiplier: %u (%u ms Detection time), BFD Length: %u",
-                   bfd_header->detect_time_multiplier,
-                   bfd_header->detect_time_multiplier * EXTRACT_32BITS(bfd_header->desired_min_tx_interval)/1000,
-                   bfd_header->length));
-
-
-            ND_PRINT((ndo, "\n\tMy Discriminator: 0x%08x", EXTRACT_32BITS(bfd_header->my_discriminator)));
-            ND_PRINT((ndo, ", Your Discriminator: 0x%08x", EXTRACT_32BITS(bfd_header->your_discriminator)));
-            ND_PRINT((ndo, "\n\t  Desired min Tx Interval:    %4u ms", EXTRACT_32BITS(bfd_header->desired_min_tx_interval)/1000));
-            ND_PRINT((ndo, "\n\t  Required min Rx Interval:   %4u ms", EXTRACT_32BITS(bfd_header->required_min_rx_interval)/1000));
-            ND_PRINT((ndo, "\n\t  Required min Echo Interval: %4u ms", EXTRACT_32BITS(bfd_header->required_min_echo_interval)/1000));
-            break;
-
-            /* BFDv1 */
-        case (BFD_CONTROL_PORT << 8 | 1):
-            if (ndo->ndo_vflag < 1)
-            {
-                ND_PRINT((ndo, "BFDv%u, %s, State %s, Flags: [%s], length: %u",
-                       version,
-                       tok2str(bfd_port_values, "unknown (%u)", port),
-                       tok2str(bfd_v1_state_values, "unknown (%u)", (bfd_header->flags & 0xc0) >> 6),
-                       bittok2str(bfd_v1_flag_values, "none", bfd_header->flags & 0x3f),
-                       len));
-                return;
-            }
-
-            ND_PRINT((ndo, "BFDv%u, length: %u\n\t%s, State %s, Flags: [%s], Diagnostic: %s (0x%02x)",
-                   version,
-                   len,
-                   tok2str(bfd_port_values, "unknown (%u)", port),
-                   tok2str(bfd_v1_state_values, "unknown (%u)", (bfd_header->flags & 0xc0) >> 6),
-                   bittok2str(bfd_v1_flag_values, "none", bfd_header->flags & 0x3f),
-                   tok2str(bfd_diag_values,"unknown",BFD_EXTRACT_DIAG(bfd_header->version_diag)),
-                   BFD_EXTRACT_DIAG(bfd_header->version_diag)));
-
-            ND_PRINT((ndo, "\n\tDetection Timer Multiplier: %u (%u ms Detection time), BFD Length: %u",
-                   bfd_header->detect_time_multiplier,
-                   bfd_header->detect_time_multiplier * EXTRACT_32BITS(bfd_header->desired_min_tx_interval)/1000,
-                   bfd_header->length));
-
-
-            ND_PRINT((ndo, "\n\tMy Discriminator: 0x%08x", EXTRACT_32BITS(bfd_header->my_discriminator)));
-            ND_PRINT((ndo, ", Your Discriminator: 0x%08x", EXTRACT_32BITS(bfd_header->your_discriminator)));
-            ND_PRINT((ndo, "\n\t  Desired min Tx Interval:    %4u ms", EXTRACT_32BITS(bfd_header->desired_min_tx_interval)/1000));
-            ND_PRINT((ndo, "\n\t  Required min Rx Interval:   %4u ms", EXTRACT_32BITS(bfd_header->required_min_rx_interval)/1000));
-            ND_PRINT((ndo, "\n\t  Required min Echo Interval: %4u ms", EXTRACT_32BITS(bfd_header->required_min_echo_interval)/1000));
-
-            if (bfd_header->flags & BFD_FLAG_AUTH) {
-                if (auth_print(ndo, pptr))
-                    goto trunc;
-            }
-            break;
-
-            /* BFDv0 */
-        case (BFD_ECHO_PORT << 8): /* not yet supported - fall through */
-            /* BFDv1 */
-        case (BFD_ECHO_PORT << 8 | 1):
-
-        default:
-            ND_PRINT((ndo, "BFD, %s, length: %u",
-                   tok2str(bfd_port_values, "unknown (%u)", port),
+        } else {
+            /*
+             * Unknown packet type.
+             */
+            ND_PRINT((ndo, "BFD, unknown (%u), length: %u",
+                   port,
                    len));
             if (ndo->ndo_vflag >= 1) {
                     if(!print_unknown_data(ndo, pptr,"\n\t",len))
                             return;
             }
-            break;
         }
         return;
 

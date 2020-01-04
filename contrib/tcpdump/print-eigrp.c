@@ -353,6 +353,7 @@ eigrp_print(netdissect_options *ndo, register const u_char *pptr, register u_int
             }
             byte_length = (bit_length + 7) / 8; /* variable length encoding */
             memset(prefix, 0, 4);
+            ND_TCHECK2(tlv_ptr.eigrp_tlv_ip_int->destination, byte_length);
             memcpy(prefix,&tlv_ptr.eigrp_tlv_ip_int->destination,byte_length);
 
             ND_PRINT((ndo, "\n\t    IPv4 prefix: %15s/%u, nexthop: ",
@@ -387,6 +388,7 @@ eigrp_print(netdissect_options *ndo, register const u_char *pptr, register u_int
             }
             byte_length = (bit_length + 7) / 8; /* variable length encoding */
             memset(prefix, 0, 4);
+            ND_TCHECK2(tlv_ptr.eigrp_tlv_ip_ext->destination, byte_length);
             memcpy(prefix,&tlv_ptr.eigrp_tlv_ip_ext->destination,byte_length);
 
             ND_PRINT((ndo, "\n\t    IPv4 prefix: %15s/%u, nexthop: ",

@@ -191,8 +191,8 @@ int esp_print_decrypt_buffer_by_ikev2(netdissect_options *ndo,
 	const u_char *iv;
 	unsigned int len;
 	EVP_CIPHER_CTX *ctx;
-	unsigned int block_size, output_buffer_size;
-	u_char *output_buffer;
+	unsigned int block_size, buffer_size;
+	u_char *input_buffer, *output_buffer;
 
 	/* initiator arg is any non-zero value */
 	if(initiator) initiator=1;
@@ -227,19 +227,39 @@ int esp_print_decrypt_buffer_by_ikev2(netdissect_options *ndo,
 		(*ndo->ndo_warning)(ndo, "espkey init failed");
 	set_cipher_parameters(ctx, NULL, NULL, iv, 0);
 	/*
-	 * Allocate a buffer for the decrypted data.
-	 * The output buffer must be separate from the input buffer, and
-	 * its size must be a multiple of the cipher block size.
+	 * Allocate buffers for the encrypted and decrypted data.
+	 * Both buffers' sizes must be a multiple of the cipher block
+	 * size, and the output buffer must be separate from the input
+	 * buffer.
 	 */
 	block_size = (unsigned int)EVP_CIPHER_CTX_block_size(ctx);
-	output_buffer_size = len + (block_size - len % block_size);
-	output_buffer = (u_char *)malloc(output_buffer_size);
-	if (output_buffer == NULL) {
-		(*ndo->ndo_warning)(ndo, "can't allocate memory for decryption buffer");
+	buffer_size = len + (block_size - len % block_size);
+
+	/*
+	 * Attempt to allocate the input buffer.
+	 */
+	input_buffer = (u_char *)malloc(buffer_size);
+	if (input_buffer == NULL) {
 		EVP_CIPHER_CTX_free(ctx);
-		return 0;
+		(*ndo->ndo_error)(ndo, "can't allocate memory for encrypted data buffer");
 	}
-	EVP_Cipher(ctx, output_buffer, buf, len);
+	/*
+	 * Copy the input data to the encrypted data buffer, and pad it
+	 * with zeroes.
+	 */
+	memcpy(input_buffer, buf, len);
+	memset(input_buffer + len, 0, buffer_size - len);
+
+	/*
+	 * Attempt to allocate the output buffer.
+	 */
+	output_buffer = (u_char *)malloc(buffer_size);
+	if (output_buffer == NULL) {
+		free(input_buffer);
+		EVP_CIPHER_CTX_free(ctx);
+		(*ndo->ndo_error)(ndo, "can't allocate memory for decryption buffer");
+	}
+	EVP_Cipher(ctx, output_buffer, input_buffer, len);
 	EVP_CIPHER_CTX_free(ctx);
 
 	/*
@@ -247,6 +267,7 @@ int esp_print_decrypt_buffer_by_ikev2(netdissect_options *ndo,
 	 * but changing this would require a more complicated fix.
 	 */
 	memcpy(__DECONST(u_char *, buf), output_buffer, len);
+	free(input_buffer);
 	free(output_buffer);
 
 	ndo->ndo_packetp = buf;
@@ -287,7 +308,6 @@ static u_int hexdigit(netdissect_options *ndo, char hex)
 		return (hex - 'a' + 10);
 	else {
 		(*ndo->ndo_error)(ndo, "invalid hex digit %c in espsecret\n", hex);
-		return 0;
 	}
 }
 
@@ -398,7 +418,7 @@ espprint_decode_encalgo(netdissect_options *ndo,
 USES_APPLE_RST
 
 /*
- * for the moment, ignore the auth algorith, just hard code the authenticator
+ * for the moment, ignore the auth algorithm, just hard code the authenticator
  * length. Need to research how openssl looks up HMAC stuff.
  */
 static int
@@ -521,7 +541,6 @@ static void esp_print_decode_onesecret(netdissect_options *ndo, char *line,
 		if (secretfile == NULL) {
 			(*ndo->ndo_error)(ndo, "print_esp: can't open %s: %s\n",
 			    filename, strerror(errno));
-			return;
 		}
 
 		while (fgets(fileline, sizeof(fileline)-1, secretfile) != NULL) {
@@ -551,6 +570,10 @@ static void esp_print_decode_onesecret(netdissect_options *ndo, char *line,
 		uint32_t spino;
 
 		spistr = strsep(&spikey, "@");
+		if (spistr == NULL) {
+			(*ndo->ndo_warning)(ndo, "print_esp: failed to find the @ token");
+			return;
+		}
 
 		spino = strtoul(spistr, &foo, 0);
 		if (spistr == foo || !spikey) {
@@ -660,8 +683,8 @@ esp_print(netdissect_options *ndo,
 	const u_char *ivoff;
 	const u_char *p;
 	EVP_CIPHER_CTX *ctx;
-	unsigned int block_size, output_buffer_size;
-	u_char *output_buffer;
+	unsigned int block_size, buffer_size;
+	u_char *input_buffer, *output_buffer;
 #endif
 
 	esp = (const struct newesp *)bp;
@@ -777,21 +800,41 @@ esp_print(netdissect_options *ndo,
 			len = ep - (p + ivlen);
 
 			/*
-			 * Allocate a buffer for the decrypted data.
-			 * The output buffer must be separate from the
-			 * input buffer, and its size must be a multiple
-			 * of the cipher block size.
+			 * Allocate buffers for the encrypted and decrypted
+			 * data.  Both buffers' sizes must be a multiple of
+			 * the cipher block size, and the output buffer must
+			 * be separate from the input buffer.
 			 */
 			block_size = (unsigned int)EVP_CIPHER_CTX_block_size(ctx);
-			output_buffer_size = len + (block_size - len % block_size);
-			output_buffer = (u_char *)malloc(output_buffer_size);
-			if (output_buffer == NULL) {
-				(*ndo->ndo_warning)(ndo, "can't allocate memory for decryption buffer");
+			buffer_size = len + (block_size - len % block_size);
+
+			/*
+			 * Attempt to allocate the input buffer.
+			 */
+			input_buffer = (u_char *)malloc(buffer_size);
+			if (input_buffer == NULL) {
 				EVP_CIPHER_CTX_free(ctx);
-				return -1;
+				(*ndo->ndo_error)(ndo, "can't allocate memory for encrypted data buffer");
+			}
+			/*
+			 * Copy the input data to the encrypted data buffer,
+			 * and pad it with zeroes.
+			 */
+			memcpy(input_buffer, p + ivlen, len);
+			memset(input_buffer + len, 0, buffer_size - len);
+
+			/*
+			 * Attempt to allocate the output buffer.
+			 */
+			output_buffer = (u_char *)malloc(buffer_size);
+			if (output_buffer == NULL) {
+				free(input_buffer);
+				EVP_CIPHER_CTX_free(ctx);
+				(*ndo->ndo_error)(ndo, "can't allocate memory for decryption buffer");
 			}
 
-			EVP_Cipher(ctx, output_buffer, p + ivlen, len);
+			EVP_Cipher(ctx, output_buffer, input_buffer, len);
+			free(input_buffer);
 			EVP_CIPHER_CTX_free(ctx);
 			/*
 			 * XXX - of course this is wrong, because buf is a

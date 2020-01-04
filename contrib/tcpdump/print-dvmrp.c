@@ -32,6 +32,8 @@
 #include "addrtoname.h"
 
 /*
+ * See: RFC 1075 and draft-ietf-idmr-dvmrp-v3
+ *
  * DVMRP message types and flag values shamelessly stolen from
  * mrouted/dvmrp.h.
  */
@@ -58,12 +60,10 @@
 static int print_probe(netdissect_options *, const u_char *, const u_char *, u_int);
 static int print_report(netdissect_options *, const u_char *, const u_char *, u_int);
 static int print_neighbors(netdissect_options *, const u_char *, const u_char *, u_int);
-static int print_neighbors2(netdissect_options *, const u_char *, const u_char *, u_int);
+static int print_neighbors2(netdissect_options *, const u_char *, const u_char *, u_int, uint8_t, uint8_t);
 static int print_prune(netdissect_options *, const u_char *);
 static int print_graft(netdissect_options *, const u_char *);
 static int print_graft_ack(netdissect_options *, const u_char *);
-
-static uint32_t target_level;
 
 void
 dvmrp_print(netdissect_options *ndo,
@@ -71,6 +71,7 @@ dvmrp_print(netdissect_options *ndo,
 {
 	register const u_char *ep;
 	register u_char type;
+	uint8_t major_version, minor_version;
 
 	ep = (const u_char *)ndo->ndo_snapend;
 	if (bp >= ep)
@@ -118,15 +119,15 @@ dvmrp_print(netdissect_options *ndo,
 	case DVMRP_NEIGHBORS2:
 		ND_PRINT((ndo, " Neighbors2"));
 		/*
-		 * extract version and capabilities from IGMP group
-		 * address field
+		 * extract version from IGMP group address field
 		 */
 		bp -= 4;
 		ND_TCHECK2(bp[0], 4);
-		target_level = (bp[0] << 24) | (bp[1] << 16) |
-		    (bp[2] << 8) | bp[3];
+		major_version = *(bp + 3);
+		minor_version = *(bp + 2);
 		bp += 4;
-		if (print_neighbors2(ndo, bp, ep, len) < 0)
+		if (print_neighbors2(ndo, bp, ep, len, major_version,
+		    minor_version) < 0)
 			goto trunc;
 		break;
 
@@ -230,7 +231,7 @@ print_probe(netdissect_options *ndo,
 		ND_PRINT((ndo, " [|}"));
 		return (0);
 	}
-	genid = (bp[0] << 24) | (bp[1] << 16) | (bp[2] << 8) | bp[3];
+	genid = EXTRACT_32BITS(bp);
 	bp += 4;
 	len -= 4;
 	ND_PRINT((ndo, ndo->ndo_vflag > 1 ? "\n\t" : " "));
@@ -283,15 +284,14 @@ trunc:
 static int
 print_neighbors2(netdissect_options *ndo,
                  register const u_char *bp, register const u_char *ep,
-                 register u_int len)
+                 register u_int len, uint8_t major_version,
+                 uint8_t minor_version)
 {
 	const u_char *laddr;
 	register u_char metric, thresh, flags;
 	register int ncount;
 
-	ND_PRINT((ndo, " (v %d.%d):",
-	       (int)target_level & 0xff,
-	       (int)(target_level >> 8) & 0xff));
+	ND_PRINT((ndo, " (v %d.%d):", major_version, minor_version));
 
 	while (len > 0 && bp < ep) {
 		ND_TCHECK2(bp[0], 8);

@@ -1,0 +1,233 @@
+.\"  rpcapd.8
+.\"
+.\"  Copyright (c) 2002-2005 NetGroup, Politecnico di Torino (Italy)
+.\"  Copyright (c) 2005-2009 CACE Technologies
+.\"  Copyright (c) 2018-     The TCPdump Group
+.\"  All rights reserved.
+.\"
+.\"  Redistribution and use in source and binary forms, with or without
+.\"  modification, are permitted provided that the following conditions
+.\"  are met:
+.\"
+.\"  1. Redistributions of source code must retain the above copyright
+.\"  notice, this list of conditions and the following disclaimer.
+.\"  2. Redistributions in binary form must reproduce the above copyright
+.\"  notice, this list of conditions and the following disclaimer in the
+.\"  documentation and/or other materials provided with the distribution.
+.\"  3. Neither the name of the Politecnico di Torino nor the names of its
+.\"  contributors may be used to endorse or promote products derived from
+.\"  this software without specific prior written permission.
+.\"
+.\"  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\"  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\"  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\"  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\"  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\"  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\"  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\"  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\"  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\"  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\"  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH RPCAPD @MAN_ADMIN_COMMANDS@ "April 20, 2018"
+.SH NAME
+rpcapd \- capture daemon to be controlled by a remote libpcap application
+.SH SYNOPSIS
+.na
+rpcapd
+[
+.B \-b
+.I address
+] [
+.B \-p
+.I port
+] [
+.B \-4
+] [
+.B \-l
+.I host_list
+]
+.br
+.ti +8
+[
+.B \-a
+.IR host , port
+] [
+.B \-n
+] [
+.B \-v
+] [
+.B \-d
+] [
+.B \-i
+]
+.br
+.ti +8
+[
+.B \-D
+] [
+.B \-s
+.I config_file
+] [
+.B \-f
+.I config_file
+]
+.br
+.ad
+.SH DESCRIPTION
+.LP
+\fIRpcapd\fP is a daemon (Unix) or service (Win32) that allows the capture
+and filter part of libpcap to be run on a remote system.
+.LP
+Rpcapd can run in two modes: passive mode (default) and active mode.
+.LP
+In passive mode, the client (e.g., a network sniffer) connects to
+.BR rpcapd .
+It then sends hem the appropriate commands to start the capture.
+.LP
+In active mode,
+.B rpcapd
+tries to establish a connection toward the client
+(e.g., a network sniffer). The client then sends the appropriate commands
+to rpcapd to start the capture.
+.LP
+Active mode is useful in case
+.B rpcapd
+is run behind a firewall and
+cannot receive connections from the external world. In this case,
+.B rpcapd
+can be configured to establish the connection to a given host,
+which has to be configured in order to wait for that connection. After
+establishing the connection, the protocol continues its job in almost
+the same way in both active and passive mode.
+.SH Configuration file
+.LP
+The user can create a configuration file in the same folder of the
+executable, and put the configuration commands in there. In order for
+rpcapd to execute the commands, you have to restart it on Win32, i.e.
+the initialization file is parsed only at the beginning). The UNIX
+version of rpcapd will reread the configuration file when receiving a
+HUP signel. In that case, all the existing connections remain in place,
+while the new connections will be created according to the new parameters.
+.LP
+In case a user does not want to create the configuration file manually,
+they can launch rpcapd with the requested parameters plus "-s filename".
+Rpcapd will parse all the parameters and save them into the specified
+configuration file.
+.SH Installing rpcapd on Win32
+.LP
+The remote daemon is installed automatically when installing WinPcap.
+The installation process places the rpcapd file into the WinPcap folder.
+This file can be executed either from the command line, or as a service.
+For instance, the installation process updates the list of available
+services list and it creates a new item (Remote Packet Capture Protocol
+v.0 (experimental) ).  To avoid security problems, the service is
+inactive and it has to be started manually (control panel -
+administrative tools - services - start).
+.LP
+The service has a set of "standard" parameters, i.e. it is launched
+with the
+.B \-d
+flag (in order to make it run as a service) and the
+.B "-f rpcapd.ini"
+flag.
+.SH Starting rpcapd on Win32
+.LP
+The rpcapd executable can be launched directly, i.e.  it can run in the
+foreground as well (not as a daemon/service).  The procedure is quite
+simple: you have to invoke the executable from the command line with all
+the requested parameters except for the
+.B \-d
+flag.  The capture server will
+start in the foreground.
+.SH Installing rpcapd on Unix-like systems
+TBD
+.SH Starting rpcapd on Unix-like systems
+.B rpcapd
+needs sufficient privileges to perform packet capture, e.g.
+run as root or be owned by root and have suid set. Most operating
+systems provide more elegant solutions when run as user than the
+above solutions, all of them different.
+.SH OPTIONS
+.TP
+.BI \-b " address"
+Bind to the IP address specified by
+.I address
+(either numeric or literal).
+By default,
+.B rpcapd
+binds to all local IPv4 and IPv6 addresses.
+.TP
+.BI \-p " port"
+Bind to the port specified by
+.IR port .
+By default,
+.B rpcapd
+binds to port 2002.
+.TP
+.B \-4
+Listen only on IPv4 addresses.
+By default,
+.B rpcapd
+listens on both IPv4 and IPv6 addresses.
+.TP
+.BI -l " host_list"
+Only allow hosts specified in the
+.I host_list
+argument to connect to this server.
+.I host_list
+is a list of host names or IP addresses, separated by commas.
+We suggest that you use use host names rather than literal IP addresses
+in order to avoid problems with different address families.
+.TP
+.B \-n
+Permit NULL authentication (usually used with
+.BR \-l ).
+.TP
+.BI \-a " host" , "port"
+Run in active mode, connecting to host
+.I host
+on port
+.IR port .
+In case
+.I port
+is omitted, the default port (2003) is used.
+.TP
+.B -v
+Run in active mode only; by default, if
+.B \-a
+is specified,
+.B rpcapd
+it accepts passive connections as well.
+.TP
+.B \-d
+Run in daemon mode (UNIX only) or as a service (Win32 only)
+Warning (Win32): this switch is provided automatically when
+the service is started from the control panel.
+.TP
+.B \-i
+Run in inetd mode (UNIX only).
+.TP
+.B \-D
+Log debugging messages.
+.TP
+.BI \-s " config_file"
+Save the current configuration to
+.I config_file
+in the format specified by
+.BR rpcapd-config (@MAN_FILE_FORMATS@).
+.TP
+.BI \-f " config_file"
+Load the current configuration from
+.I config_file
+in the format specified by
+.BR rpcapd-config (@MAN_FILE_FORMATS@);
+all switches specified from the command line are ignored.
+.TP
+.B \-h
+Print this help screen.
+.br
+.ad
+.SH "SEE ALSO"
+pcap(3PCAP), rpcapd-config(@MAN_FILE_FORMATS@)

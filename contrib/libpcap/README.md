@@ -2,14 +2,17 @@ To report a security issue please send an e-mail to security@tcpdump.org.
 
 To report bugs and other problems, contribute patches, request a
 feature, provide generic feedback etc please see the file
-CONTRIBUTING in the libpcap source tree root.
+[CONTRIBUTING](CONTRIBUTING.md) in the libpcap source tree root.
+
+The directory doc/ has README files about specific operating systems and
+options.
 
 LIBPCAP 1.x.y
 Now maintained by "The Tcpdump Group"
 https://www.tcpdump.org
 
 Anonymous Git is available via:
-	git clone git://bpf.tcpdump.org/libpcap
+        https://github.com/the-tcpdump-group/libpcap.git
 
 formerly from 	Lawrence Berkeley National Laboratory
 		Network Research Group <libpcap@ee.lbl.gov>
@@ -67,9 +70,10 @@ kernel source and/or object patches available in:
 
 	https://www.tcpdump.org/other/bpfext42.tar.Z
 
-Linux, in the 2.2 kernel and later kernels, has a "Socket Filter"
-mechanism that accepts BPF filters; see the README.linux file for
-information on configuring that option.
+Linux has a number of BPF based systems, and libpcap does not support
+any of the eBPF mechanisms as yet, although it supports many of the
+memory mapped receive mechanisms.
+See the [README.linux](doc/README.linux.md) file for more information.
 
 Note to Linux distributions and *BSD systems that include libpcap:
 

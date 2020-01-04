@@ -266,6 +266,14 @@ dnl Check whether the compiler option specified as the second argument
 dnl is supported by the compiler and, if so, add it to the macro
 dnl specified as the first argument
 dnl
+dnl If a third argument is supplied, treat it as C code to be compiled
+dnl with the flag in question, and the "treat warnings as errors" flag
+dnl set, and don't add the flag to the first argument if the compile
+dnl fails; this is for warning options cause problems that can't be
+dnl worked around.  If a third argument is supplied, a fourth argument
+dnl should also be supplied; it's a message desribing what the test
+dnl program is checking.
+dnl
 AC_DEFUN(AC_LBL_CHECK_COMPILER_OPT,
     [
 	AC_MSG_CHECKING([whether the compiler supports the $2 option])
@@ -287,8 +295,38 @@ AC_DEFUN(AC_LBL_CHECK_COMPILER_OPT,
 	    [return 0],
 	    [
 		AC_MSG_RESULT([yes])
+		can_add_to_cflags=yes
+		#
+		# The compile supports this; do we have some C code for
+		# which the warning should *not* appear?
+		# We test the fourth argument because the third argument
+		# could contain quotes, breaking the test.
+		#
+		if test "x$4" != "x"
+		then
+		    CFLAGS="$CFLAGS $ac_lbl_cc_force_warning_errors"
+		    AC_MSG_CHECKING(whether $2 $4)
+		    AC_COMPILE_IFELSE(
+		      [AC_LANG_SOURCE($3)],
+		      [
+			#
+			# Not a problem.
+			#
+			AC_MSG_RESULT(no)
+		      ],
+		      [
+			#
+			# A problem.
+			#
+			AC_MSG_RESULT(yes)
+			can_add_to_cflags=no
+		      ])
+		fi
 		CFLAGS="$save_CFLAGS"
-		$1="$$1 $2"
+		if test x"$can_add_to_cflags" = "xyes"
+		then
+		    $1="$$1 $2"
+		fi
 	    ],
 	    [
 		AC_MSG_RESULT([no])
@@ -446,7 +484,7 @@ AC_DEFUN(AC_LBL_SHLIBS_INIT,
 	    aix*)
 		    ;;
 
-	    freebsd*|netbsd*|openbsd*|dragonfly*|linux*|osf*)
+	    freebsd*|netbsd*|openbsd*|dragonfly*|linux*|osf*|midipix*)
 	    	    #
 		    # Platforms where the linker is the GNU linker
 		    # or accepts command-line arguments like
@@ -463,7 +501,7 @@ AC_DEFUN(AC_LBL_SHLIBS_INIT,
 		    sparc64*)
 			case "$host_os" in
 
-			freebsd*|openbsd*)
+			freebsd*|openbsd*|linux*)
 			    PIC_OPT=-fPIC
 			    ;;
 			esac
@@ -840,23 +878,58 @@ AC_DEFUN(AC_LBL_DEVEL,
 	    #
 	    if test "$ac_lbl_cc_dont_try_gcc_dashW" != yes; then
 		    AC_LBL_CHECK_UNKNOWN_WARNING_OPTION_ERROR()
+		    AC_LBL_CHECK_COMPILER_OPT($1, -W)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wall)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wsign-compare)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wmissing-prototypes)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wstrict-prototypes)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wshadow)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wdeclaration-after-statement)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wused-but-marked-unused)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wdocumentation)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wcomma)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wdeclaration-after-statement)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wdocumentation)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wformat-nonliteral)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wmissing-noreturn)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wmissing-prototypes)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wmissing-variable-declarations)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wshadow)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wsign-compare)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wstrict-prototypes)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wunused-parameter)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wused-but-marked-unused)
 		    # Warns about safeguards added in case the enums are
 		    # extended
 		    # AC_LBL_CHECK_COMPILER_OPT($1, -Wcovered-switch-default)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wmissing-variable-declarations)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wunused-parameter)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wformat-nonliteral)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wunreachable-code)
+		    #
+		    # This can cause problems with ntohs(), ntohl(),
+		    # htons(), and htonl() on some platforms, such
+		    # as OpenBSD 6.3 with Clang 5.0.1.  I guess the
+		    # problem is that the macro that ultimately does
+		    # the byte-swapping involves a conditional
+		    # expression that tests whether the value being
+		    # swapped is a compile-time constant or not,
+		    # using __builtin_constant_p(), and, depending
+		    # on whether it is, does a compile-time swap or
+		    # a run-time swap; perhaps the compiler always
+		    # considers one of the two results of the
+		    # conditional expressin is never evaluated,
+		    # because the conditional check is done at
+		    # compile time, and thus always says "that
+		    # expression is never executed".
+		    #
+		    # (Perhaps there should be a way of flagging
+		    # an expression that you *want* evaluated at
+		    # compile time, so that the compiler 1) warns
+		    # if it *can't* be evaluated at compile time
+		    # and 2) *doesn't* warn that the true or false
+		    # branch will never be reached.)
+		    #
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wunreachable-code,
+		      [
+#include <arpa/inet.h>
+
+unsigned short
+testme(unsigned short a)
+{
+	return ntohs(a);
+}
+		      ],
+		      [generates warnings from ntohs()])
 	    fi
 	    AC_LBL_CHECK_DEPENDENCY_GENERATION_OPT()
 	    #
