@@ -39,10 +39,11 @@ jobs:
     strategy:
       matrix:
         bs: [autotools, cmake]
+        crypto: [mbedtls, nettle, openssl]
     steps:
     - uses: actions/checkout@master
     - name: Install dependencies
-      run: sudo apt-get install -y build-essential cmake libssl-dev libacl1-dev libbz2-dev liblzma-dev libzip-dev liblz4-dev libzstd-dev lzop
+      run: sudo apt-get install -y build-essential cmake libssl-dev nettle-dev libmbedtls-dev libacl1-dev libbz2-dev liblzma-dev libzip-dev liblz4-dev libzstd-dev lzop
     - name: Autogen
       run: ./build/ci/build.sh -a autogen
       env:
@@ -51,6 +52,7 @@ jobs:
       run: ./build/ci/build.sh -a configure
       env:
         BS: ${{ matrix.bs }}
+        CRYPTO: ${{ matrix.crypto }}
     - name: Build
       run: ./build/ci/build.sh -a build
       env:

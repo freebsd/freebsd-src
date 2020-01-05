@@ -4,6 +4,7 @@
 *.la
 *.lo
 *.cmake
+!build/cmake/*.cmake
 .deps/
 .libs/
 .dirstamp

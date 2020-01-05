@@ -29,11 +29,14 @@ FreeBSD_task:
 Fedora_30_task:
   container:
     dockerfile: build/ci/cirrus_ci/Dockerfile.fc30
-  matrix:
-    env:
-      BS: autotools
-    env:
-      BS: cmake
+  env:
+    matrix:
+      - BS: autotools
+      - BS: cmake
+    matrix:
+      - CRYPTO: mbedtls
+      - CRYPTO: nettle
+      - CRYPTO: openssl
   configure_script:
   - ./build/ci/build.sh -a autogen
   - ./build/ci/build.sh -a configure

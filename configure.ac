@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.4.1])
-m4_define([LIBARCHIVE_VERSION_N],[3004001])
+m4_define([LIBARCHIVE_VERSION_S],[3.4.2dev])
+m4_define([LIBARCHIVE_VERSION_N],[3004002])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -421,8 +421,10 @@ fi
 AC_ARG_WITH([cng],
   AS_HELP_STRING([--without-cng], [Don't build support of CNG(Crypto Next Generation)]))
 
+AC_ARG_WITH([mbedtls],
+  AS_HELP_STRING([--with-mbedtls], [Build with crypto support from mbed TLS]))
 AC_ARG_WITH([nettle],
-  AS_HELP_STRING([--without-nettle], [Don't build with crypto support from Nettle]))
+  AS_HELP_STRING([--with-nettle], [Build with crypto support from Nettle]))
 AC_ARG_WITH([openssl],
   AS_HELP_STRING([--without-openssl], [Don't build support for mtree and xar hashes through openssl]))
 case "$host_os" in
@@ -1120,7 +1122,22 @@ if test "x$with_cng" != "xno"; then
     ]])
 fi
 
-if test "x$with_nettle" != "xno"; then
+if test "x$with_mbedtls" = "xyes"; then
+    AC_CHECK_HEADERS([mbedtls/aes.h mbedtls/md.h mbedtls/pkcs5.h])
+    saved_LIBS=$LIBS
+    AC_CHECK_LIB(mbedcrypto,mbedtls_sha1_init)
+    CRYPTO_CHECK(MD5, MBEDTLS, md5)
+    CRYPTO_CHECK(RMD160, MBEDTLS, rmd160)
+    CRYPTO_CHECK(SHA1, MBEDTLS, sha1)
+    CRYPTO_CHECK(SHA256, MBEDTLS, sha256)
+    CRYPTO_CHECK(SHA384, MBEDTLS, sha384)
+    CRYPTO_CHECK(SHA512, MBEDTLS, sha512)
+    if test "x$found_MBEDTLS" != "xyes"; then
+      LIBS=$saved_LIBS
+    fi
+fi
+
+if test "x$with_nettle" = "xyes"; then
     AC_CHECK_HEADERS([nettle/md5.h nettle/ripemd160.h nettle/sha.h])
     AC_CHECK_HEADERS([nettle/pbkdf2.h nettle/aes.h nettle/hmac.h])
     saved_LIBS=$LIBS

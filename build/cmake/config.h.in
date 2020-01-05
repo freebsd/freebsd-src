@@ -710,6 +710,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `lzo2' library (-llzo2). */
 #cmakedefine HAVE_LIBLZO2 1
 
+/* Define to 1 if you have the `mbedcrypto' library (-lmbedcrypto). */
+#cmakedefine HAVE_LIBMBEDCRYPTO 1
+
 /* Define to 1 if you have the `nettle' library (-lnettle). */
 #cmakedefine HAVE_LIBNETTLE 1
 

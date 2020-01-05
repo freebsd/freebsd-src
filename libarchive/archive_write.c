@@ -449,6 +449,30 @@ archive_write_client_write(struct archive_write_filter *f,
 }
 
 static int
+archive_write_client_free(struct archive_write_filter *f)
+{
+	struct archive_write *a = (struct archive_write *)f->archive;
+	struct archive_none *state = (struct archive_none *)f->data;
+
+	if (state != NULL) {
+		free(state->buffer);
+		free(state);
+		state = NULL;
+	}
+
+	a->client_data = NULL;
+	/* Clear passphrase. */
+	if (a->passphrase != NULL) {
+		memset(a->passphrase, 0, strlen(a->passphrase));
+		free(a->passphrase);
+		a->passphrase = NULL;
+	}
+
+	return (ARCHIVE_OK);
+}
+
+
+static int
 archive_write_client_close(struct archive_write_filter *f)
 {
 	struct archive_write *a = (struct archive_write *)f->archive;
@@ -484,17 +508,9 @@ archive_write_client_close(struct archive_write_filter *f)
 	}
 	if (a->client_closer)
 		(*a->client_closer)(&a->archive, a->client_data);
-	free(state->buffer);
-	free(state);
+
 	/* Clear the close handler myself not to be called again. */
 	f->state = ARCHIVE_WRITE_FILTER_STATE_CLOSED;
-	a->client_data = NULL;
-	/* Clear passphrase. */
-	if (a->passphrase != NULL) {
-		memset(a->passphrase, 0, strlen(a->passphrase));
-		free(a->passphrase);
-		a->passphrase = NULL;
-	}
 	return (ret);
 }
 
@@ -523,6 +539,7 @@ archive_write_open(struct archive *_a, void *client_data,
 	client_filter->open = archive_write_client_open;
 	client_filter->write = archive_write_client_write;
 	client_filter->close = archive_write_client_close;
+	client_filter->free = archive_write_client_free;
 
 	ret = __archive_write_filters_open(a);
 	if (ret < ARCHIVE_WARN) {

@@ -4,9 +4,11 @@
 #
 # Variables that can be passed via environment:
 # BS=			# build system (autotools or cmake)
+# CRYPTO=		# cryptography provider (openssl, nettle or mbedtls)
 # BUILDDIR=		# build directory
 # SRCDIR=		# source directory
 # CONFIGURE_ARGS=	# configure arguments
+# CMAKE_ARGS=		# cmake arguments
 # MAKE_ARGS=		# make arguments
 # DEBUG=		# set -g -fsanitize=address flags
 
@@ -23,14 +25,14 @@ SRCDIR="${SRCDIR:-`pwd`}"
 RET=0
 
 usage () {
-	echo "Usage: $0 [-b autotools|cmake] [-a autogen|configure|build|test|install|distcheck ] [ -a ... ] [ -d builddir ] [-s srcdir ]"
+	echo "Usage: $0 [-b autotools|cmake] [-a autogen|configure|build|test|install|distcheck ] [ -a ... ] [ -d builddir ] [-c openssl|nettle|mbedtls] [-s srcdir ]"
 }
 inputerror () {
 	echo $1
 	usage
 	exit 1
 }
-while getopts a:b:d:s: opt; do
+while getopts a:b:c:d:s: opt; do
 	case ${opt} in
 		a)
 			case "${OPTARG}" in
@@ -51,6 +53,14 @@ while getopts a:b:d:s: opt; do
 				*) inputerror "Invalid build system (-b)" ;;
 			esac
 		;;
+		c) CRYPTO="${OPTARG}"
+			case "${CRYPTO}" in
+				mbedtls) ;;
+				openssl) ;;
+				nettle) ;;
+				*) inputerror "Invalid crypto provider (-c)" ;;
+			esac
+		;;
 		d)
 			BUILDDIR="${OPTARG}"
 		;;
@@ -62,6 +72,16 @@ while getopts a:b:d:s: opt; do
 		;;
 	esac
 done
+case "${CRYPTO}" in
+	mbedtls)
+		CMAKE_ARGS="${CMAKE_ARGS} -DENABLE_OPENSSL=OFF -DENABLE_MBEDTLS=ON"
+		CONFIGURE_ARGS="${CONFIGURE_ARGS} --without-openssl --with-mbedtls"
+	;;
+	nettle)
+		CMAKE_ARGS="${CMAKE_ARGS} -DENABLE_OPENSSL=OFF -DENABLE_NETTLE=ON"
+		CONFIGURE_ARGS="${CONFIGURE_ARGS} --without-openssl --with-nettle"
+	;;
+esac
 if [ -z "${MAKE_ARGS}" ]; then
 	if [ "${BS}" = "autotools" ]; then
 		MAKE_ARGS="V=1"
@@ -76,7 +96,7 @@ if [ -n "${DEBUG}" ]; then
 		export CFLAGS="-g -fsanitize=address"
 	fi
 	if [ "${BS}" = "cmake" ]; then
-		CONFIGURE_ARGS="${CONFIGURE_ARGS} -DCMAKE_C_CFLAGS=-g -fsanitize=address"
+		CMAKE_ARGS="${CMAKE_ARGS} -DCMAKE_C_CFLAGS=-g -fsanitize=address"
 	fi
 fi
 if [ -z "${ACTIONS}" ]; then
@@ -104,7 +124,7 @@ for action in ${ACTIONS}; do
 		configure)
 			case "${BS}" in
 				autotools) "${SRCDIR}/configure" ${CONFIGURE_ARGS} ;;
-				cmake) ${CMAKE} ${CONFIGURE_ARGS} "${SRCDIR}" ;;
+				cmake) ${CMAKE} ${CMAKE_ARGS} "${SRCDIR}" ;;
 			esac
 			RET="$?"
 		;;
