@@ -250,9 +250,11 @@ static char	*sskip(char **);
 static char	*newstr(const char *);
 static void	print_service(const char *, const struct servtab *);
 
+#ifdef LIBWRAP
 /* tcpd.h */
 int	allow_severity;
 int	deny_severity;
+#endif
 
 static int	wrap_ex = 0;
 static int	wrap_bi = 0;
@@ -410,7 +412,7 @@ main(int argc, char **argv)
 	 */
 	servname = (hostname == NULL) ? "0" /* dummy */ : NULL;
 
-	bzero(&hints, sizeof(struct addrinfo));
+	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_flags = AI_PASSIVE;
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;	/* dummy */
@@ -564,10 +566,7 @@ main(int argc, char **argv)
 #ifdef SANITY_CHECK
 	nsock++;
 #endif
-	if (signalpipe[0] > maxsock)
-	    maxsock = signalpipe[0];
-	if (signalpipe[1] > maxsock)
-	    maxsock = signalpipe[1];
+	maxsock = MAX(MAX(maxsock, signalpipe[0]), signalpipe[1]);
 
 	for (;;) {
 	    int n, ctrl;
@@ -922,25 +921,33 @@ flag_signal(int signo)
 static void
 addchild(struct servtab *sep, pid_t pid)
 {
-	if (sep->se_maxchild <= 0)
-		return;
+	struct stabchild *sc;
+
 #ifdef SANITY_CHECK
-	if (sep->se_numchild >= sep->se_maxchild) {
+	if (SERVTAB_EXCEEDS_LIMIT(sep)) {
 		syslog(LOG_ERR, "%s: %d >= %d",
 		    __func__, sep->se_numchild, sep->se_maxchild);
 		exit(EX_SOFTWARE);
 	}
 #endif
-	sep->se_pids[sep->se_numchild++] = pid;
-	if (sep->se_numchild == sep->se_maxchild)
+	sc = calloc(1, sizeof(*sc));
+	if (sc == NULL) {
+		syslog(LOG_ERR, "calloc: %m");
+		exit(EX_OSERR);
+	}
+	sc->sc_pid = pid;
+	LIST_INSERT_HEAD(&sep->se_children, sc, sc_link);
+	++sep->se_numchild;
+	if (SERVTAB_AT_LIMIT(sep))
 		disable(sep);
 }
 
 static void
 reapchild(void)
 {
-	int k, status;
+	int status;
 	pid_t pid;
+	struct stabchild *sc;
 	struct servtab *sep;
 
 	for (;;) {
@@ -953,14 +960,17 @@ reapchild(void)
 			    WIFEXITED(status) ? WEXITSTATUS(status)
 				: WTERMSIG(status));
 		for (sep = servtab; sep; sep = sep->se_next) {
-			for (k = 0; k < sep->se_numchild; k++)
-				if (sep->se_pids[k] == pid)
+			LIST_FOREACH(sc, &sep->se_children, sc_link) {
+				if (sc->sc_pid == pid)
 					break;
-			if (k == sep->se_numchild)
+			}
+			if (sc == NULL)
 				continue;
-			if (sep->se_numchild == sep->se_maxchild)
+			if (SERVTAB_AT_LIMIT(sep))
 				enable(sep);
-			sep->se_pids[k] = sep->se_pids[--sep->se_numchild];
+			LIST_REMOVE(sc, sc_link);
+			free(sc);
+			--sep->se_numchild;
 			if (WIFSIGNALED(status) || WEXITSTATUS(status))
 				syslog(LOG_WARNING,
 				    "%s[%d]: exited, %s %u",
@@ -1032,25 +1042,20 @@ config(void)
 					sep->se_nomapped = new->se_nomapped;
 				sep->se_reset = 1;
 			}
-			/* copy over outstanding child pids */
-			if (sep->se_maxchild > 0 && new->se_maxchild > 0) {
-				new->se_numchild = sep->se_numchild;
-				if (new->se_numchild > new->se_maxchild)
-					new->se_numchild = new->se_maxchild;
-				memcpy(new->se_pids, sep->se_pids,
-				    new->se_numchild * sizeof(*new->se_pids));
-			}
-			SWAP(pid_t *, sep->se_pids, new->se_pids);
-			sep->se_maxchild = new->se_maxchild;
-			sep->se_numchild = new->se_numchild;
+
+			/*
+			 * The children tracked remain; we want numchild to
+			 * still reflect how many jobs are running so we don't
+			 * throw off our accounting.
+			 */
 			sep->se_maxcpm = new->se_maxcpm;
+			sep->se_maxchild = new->se_maxchild;
 			resize_conn(sep, new->se_maxperip);
 			sep->se_maxperip = new->se_maxperip;
 			sep->se_bi = new->se_bi;
 			/* might need to turn on or off service now */
 			if (sep->se_fd >= 0) {
-			      if (sep->se_maxchild > 0
-				  && sep->se_numchild == sep->se_maxchild) {
+			      if (SERVTAB_EXCEEDS_LIMIT(sep)) {
 				      if (FD_ISSET(sep->se_fd, &allsock))
 					  disable(sep);
 			      } else {
@@ -1494,8 +1499,8 @@ enter(struct servtab *cp)
 	struct servtab *sep;
 	long omask;
 
-	sep = (struct servtab *)malloc(sizeof (*sep));
-	if (sep == (struct servtab *)0) {
+	sep = malloc(sizeof(*sep));
+	if (sep == NULL) {
 		syslog(LOG_ERR, "malloc: %m");
 		exit(EX_OSERR);
 	}
@@ -1533,8 +1538,7 @@ enable(struct servtab *sep)
 	nsock++;
 #endif
 	FD_SET(sep->se_fd, &allsock);
-	if (sep->se_fd > maxsock)
-		maxsock = sep->se_fd;
+	maxsock = MAX(maxsock, sep->se_fd);
 }
 
 static void
@@ -1612,6 +1616,7 @@ getconfigent(void)
 	int v6bind;
 #endif
 	int i;
+	size_t unsz;
 
 #ifdef IPSEC
 	policy = NULL;
@@ -1629,12 +1634,10 @@ more:
 			for (p = cp + 2; p && *p && isspace(*p); p++)
 				;
 			if (*p == '\0') {
-				if (policy)
-					free(policy);
+				free(policy);
 				policy = NULL;
 			} else if (ipsec_get_policylen(p) >= 0) {
-				if (policy)
-					free(policy);
+				free(policy);
 				policy = newstr(p);
 			} else {
 				syslog(LOG_ERR,
@@ -1648,8 +1651,11 @@ more:
 			continue;
 		break;
 	}
-	if (cp == NULL)
-		return ((struct servtab *)0);
+	if (cp == NULL) {
+		free(policy);
+		return (NULL);
+	}
+
 	/*
 	 * clear the static buffer, since some fields (se_ctrladdr,
 	 * for example) don't get initialized here.
@@ -1831,16 +1837,18 @@ more:
 		break;
 #endif
 	case AF_UNIX:
-		if (strlen(sep->se_service) >= sizeof(sep->se_ctrladdr_un.sun_path)) {
-			syslog(LOG_ERR, 
+#define	SUN_PATH_MAXSIZE	sizeof(sep->se_ctrladdr_un.sun_path)
+		memset(&sep->se_ctrladdr, 0, sizeof(sep->se_ctrladdr));
+		sep->se_ctrladdr_un.sun_family = sep->se_family;
+		if ((unsz = strlcpy(sep->se_ctrladdr_un.sun_path,
+		    sep->se_service, SUN_PATH_MAXSIZE) >= SUN_PATH_MAXSIZE)) {
+			syslog(LOG_ERR,
 			    "domain socket pathname too long for service %s",
 			    sep->se_service);
 			goto more;
 		}
-		memset(&sep->se_ctrladdr, 0, sizeof(sep->se_ctrladdr));
-		sep->se_ctrladdr_un.sun_family = sep->se_family;
-		sep->se_ctrladdr_un.sun_len = strlen(sep->se_service);
-		strcpy(sep->se_ctrladdr_un.sun_path, sep->se_service);
+		sep->se_ctrladdr_un.sun_len = unsz;
+#undef SUN_PATH_MAXSIZE
 		sep->se_ctrladdr_size = SUN_LEN(&sep->se_ctrladdr_un);
 	}
 	arg = sskip(&cp);
@@ -1946,13 +1954,7 @@ more:
 		else
 			sep->se_maxchild = 1;
 	}
-	if (sep->se_maxchild > 0) {
-		sep->se_pids = malloc(sep->se_maxchild * sizeof(*sep->se_pids));
-		if (sep->se_pids == NULL) {
-			syslog(LOG_ERR, "malloc: %m");
-			exit(EX_OSERR);
-		}
-	}
+	LIST_INIT(&sep->se_children);
 	argc = 0;
 	for (arg = skip(&cp); cp; arg = skip(&cp))
 		if (argc < MAXARGV) {
@@ -1969,6 +1971,7 @@ more:
 		LIST_INIT(&sep->se_conn[i]);
 #ifdef IPSEC
 	sep->se_policy = policy ? newstr(policy) : NULL;
+	free(policy);
 #endif
 	return (sep);
 }
@@ -1976,31 +1979,28 @@ more:
 static void
 freeconfig(struct servtab *cp)
 {
+	struct stabchild *sc;
 	int i;
 
-	if (cp->se_service)
-		free(cp->se_service);
-	if (cp->se_proto)
-		free(cp->se_proto);
-	if (cp->se_user)
-		free(cp->se_user);
-	if (cp->se_group)
-		free(cp->se_group);
+	free(cp->se_service);
+	free(cp->se_proto);
+	free(cp->se_user);
+	free(cp->se_group);
 #ifdef LOGIN_CAP
-	if (cp->se_class)
-		free(cp->se_class);
+	free(cp->se_class);
 #endif
-	if (cp->se_server)
-		free(cp->se_server);
-	if (cp->se_pids)
-		free(cp->se_pids);
+	free(cp->se_server);
+	while (!LIST_EMPTY(&cp->se_children)) {
+		sc = LIST_FIRST(&cp->se_children);
+		LIST_REMOVE(sc, sc_link);
+		free(sc);
+	}
 	for (i = 0; i < MAXARGV; i++)
 		if (cp->se_argv[i])
 			free(cp->se_argv[i]);
 	free_connlist(cp);
 #ifdef IPSEC
-	if (cp->se_policy)
-		free(cp->se_policy);
+	free(cp->se_policy);
 #endif
 }
 
@@ -2207,7 +2207,7 @@ cpmip(const struct servtab *sep, int ctrl)
 	   (sep->se_family == AF_INET || sep->se_family == AF_INET6) &&
 	    getpeername(ctrl, (struct sockaddr *)&rss, &rssLen) == 0 ) {
 		time_t t = time(NULL);
-		int hv = 0xABC3D20F;
+		unsigned int hv = 0xABC3D20F;
 		int i;
 		int cnt = 0;
 		CHash *chBest = NULL;
@@ -2280,10 +2280,9 @@ cpmip(const struct servtab *sep, int ctrl)
 		    strcmp(sep->se_service, chBest->ch_Service) != 0) {
 			chBest->ch_Family = sin4->sin_family;
 			chBest->ch_Addr4 = sin4->sin_addr;
-			if (chBest->ch_Service)
-				free(chBest->ch_Service);
+			free(chBest->ch_Service);
 			chBest->ch_Service = strdup(sep->se_service);
-			bzero(chBest->ch_Times, sizeof(chBest->ch_Times));
+			memset(chBest->ch_Times, 0, sizeof(chBest->ch_Times));
 		} 
 #ifdef INET6
 		if ((rss.ss_family == AF_INET6 &&
@@ -2294,10 +2293,9 @@ cpmip(const struct servtab *sep, int ctrl)
 		    strcmp(sep->se_service, chBest->ch_Service) != 0) {
 			chBest->ch_Family = sin6->sin6_family;
 			chBest->ch_Addr6 = sin6->sin6_addr;
-			if (chBest->ch_Service)
-				free(chBest->ch_Service);
+			free(chBest->ch_Service);
 			chBest->ch_Service = strdup(sep->se_service);
-			bzero(chBest->ch_Times, sizeof(chBest->ch_Times));
+			memset(chBest->ch_Times, 0, sizeof(chBest->ch_Times));
 		}
 #endif
 		chBest->ch_LTime = t;
@@ -2388,9 +2386,10 @@ search_conn(struct servtab *sep, int ctrl)
 			syslog(LOG_ERR, "malloc: %m");
 			exit(EX_OSERR);
 		}
-		conn->co_proc = malloc(sep->se_maxperip * sizeof(*conn->co_proc));
+		conn->co_proc = reallocarray(NULL, sep->se_maxperip,
+		    sizeof(*conn->co_proc));
 		if (conn->co_proc == NULL) {
-			syslog(LOG_ERR, "malloc: %m");
+			syslog(LOG_ERR, "reallocarray: %m");
 			exit(EX_OSERR);
 		}
 		memcpy(&conn->co_addr, (struct sockaddr *)&ss, sslen);
@@ -2479,10 +2478,10 @@ resize_conn(struct servtab *sep, int maxpip)
 		LIST_FOREACH(conn, &sep->se_conn[i], co_link) {
 			for (j = maxpip; j < conn->co_numchild; ++j)
 				free_proc(conn->co_proc[j]);
-			conn->co_proc = realloc(conn->co_proc,
-			    maxpip * sizeof(*conn->co_proc));
+			conn->co_proc = reallocarray(conn->co_proc, maxpip,
+			    sizeof(*conn->co_proc));
 			if (conn->co_proc == NULL) {
-				syslog(LOG_ERR, "realloc: %m");
+				syslog(LOG_ERR, "reallocarray: %m");
 				exit(EX_OSERR);
 			}
 			if (conn->co_numchild > maxpip)
@@ -2494,11 +2493,15 @@ resize_conn(struct servtab *sep, int maxpip)
 static void
 free_connlist(struct servtab *sep)
 {
-	struct conninfo *conn;
+	struct conninfo *conn, *conn_temp;
 	int i, j;
 
 	for (i = 0; i < PERIPSIZE; ++i) {
-		while ((conn = LIST_FIRST(&sep->se_conn[i])) != NULL) {
+		LIST_FOREACH_SAFE(conn, &sep->se_conn[i], co_link, conn_temp) {
+			if (conn == NULL) {
+				LIST_REMOVE(conn, co_link);
+				continue;
+			}
 			for (j = 0; j < conn->co_numchild; ++j)
 				free_proc(conn->co_proc[j]);
 			conn->co_numchild = 0;
@@ -2554,7 +2557,8 @@ free_proc(struct procinfo *proc)
 static int
 hashval(char *p, int len)
 {
-	int i, hv = 0xABC3D20F;
+	unsigned int hv = 0xABC3D20F;
+	int i;
 
 	for (i = 0; i < len; ++i, ++p)
 		hv = (hv << 5) ^ (hv >> 23) ^ *p;
