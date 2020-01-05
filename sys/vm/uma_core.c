@@ -4153,8 +4153,10 @@ uma_zone_get_cur(uma_zone_t zone)
 	int64_t nitems;
 	u_int i;
 
-	nitems = counter_u64_fetch(zone->uz_allocs) -
-	    counter_u64_fetch(zone->uz_frees);
+	nitems = 0;
+	if (zone->uz_allocs != EARLY_COUNTER && zone->uz_frees != EARLY_COUNTER)
+		nitems = counter_u64_fetch(zone->uz_allocs) -
+		    counter_u64_fetch(zone->uz_frees);
 	CPU_FOREACH(i)
 		nitems += atomic_load_64(&zone->uz_cpu[i].uc_allocs) -
 		    atomic_load_64(&zone->uz_cpu[i].uc_frees);
@@ -4168,7 +4170,9 @@ uma_zone_get_allocs(uma_zone_t zone)
 	uint64_t nitems;
 	u_int i;
 
-	nitems = counter_u64_fetch(zone->uz_allocs);
+	nitems = 0;
+	if (zone->uz_allocs != EARLY_COUNTER)
+		nitems = counter_u64_fetch(zone->uz_allocs);
 	CPU_FOREACH(i)
 		nitems += atomic_load_64(&zone->uz_cpu[i].uc_allocs);
 
@@ -4181,7 +4185,9 @@ uma_zone_get_frees(uma_zone_t zone)
 	uint64_t nitems;
 	u_int i;
 
-	nitems = counter_u64_fetch(zone->uz_frees);
+	nitems = 0;
+	if (zone->uz_frees != EARLY_COUNTER)
+		nitems = counter_u64_fetch(zone->uz_frees);
 	CPU_FOREACH(i)
 		nitems += atomic_load_64(&zone->uz_cpu[i].uc_frees);
 
