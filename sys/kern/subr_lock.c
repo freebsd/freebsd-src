@@ -123,7 +123,7 @@ void
 lock_delay(struct lock_delay_arg *la)
 {
 	struct lock_delay_config *lc = la->config;
-	u_int i;
+	u_short i;
 
 	la->delay <<= 1;
 	if (__predict_false(la->delay > lc->max))
