@@ -1116,7 +1116,13 @@ shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
 	/* FREAD should always be set. */
 	if ((fp->f_flag & FREAD) != 0)
 		maxprot |= VM_PROT_EXECUTE | VM_PROT_READ;
-	if ((fp->f_flag & FWRITE) != 0)
+
+	/*
+	 * If FWRITE's set, we can allow VM_PROT_WRITE unless it's a shared
+	 * mapping with a write seal applied.
+	 */
+	if ((fp->f_flag & FWRITE) != 0 && ((flags & MAP_SHARED) == 0 ||
+	    (shmfd->shm_seals & F_SEAL_WRITE) == 0))
 		maxprot |= VM_PROT_WRITE;
 
 	writecnt = (flags & MAP_SHARED) != 0 && (prot & VM_PROT_WRITE) != 0;
