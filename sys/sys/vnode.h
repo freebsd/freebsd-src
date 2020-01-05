@@ -893,7 +893,7 @@ do {									\
 #define	VOP_UNSET_TEXT_CHECKED(vp)		VOP_UNSET_TEXT((vp))
 #endif
 
-#define	VN_IS_DOOMED(vp)	((vp)->v_irflag & VIRF_DOOMED)
+#define	VN_IS_DOOMED(vp)	__predict_false((vp)->v_irflag & VIRF_DOOMED)
 
 void	vput(struct vnode *vp);
 void	vrele(struct vnode *vp);
