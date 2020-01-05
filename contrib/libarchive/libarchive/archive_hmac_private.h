@@ -64,6 +64,11 @@ typedef struct {
 
 } archive_hmac_sha1_ctx;
 
+#elif defined(HAVE_LIBMBEDCRYPTO) && defined(HAVE_MBEDTLS_MD_H)
+#include <mbedtls/md.h>
+
+typedef mbedtls_md_context_t archive_hmac_sha1_ctx;
+
 #elif defined(HAVE_LIBNETTLE) && defined(HAVE_NETTLE_HMAC_H)
 #include <nettle/hmac.h>
 
