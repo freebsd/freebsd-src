@@ -763,8 +763,7 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, invl_max_qlen, CTLFLAG_RD,
     "");
 #endif
 
-static struct lock_delay_config __read_frequently di_delay;
-LOCK_DELAY_SYSINIT_DEFAULT(di_delay);
+#define di_delay	locks_delay
 
 static void
 pmap_delayed_invl_start_u(void)
