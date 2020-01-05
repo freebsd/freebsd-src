@@ -83,6 +83,23 @@ typedef struct {
 	unsigned	encr_pos;
 } archive_crypto_ctx;
 
+#elif defined(HAVE_LIBMBEDCRYPTO) && defined(HAVE_MBEDTLS_AES_H)
+#include <mbedtls/aes.h>
+#include <mbedtls/md.h>
+#include <mbedtls/pkcs5.h>
+
+#define AES_MAX_KEY_SIZE 32
+#define AES_BLOCK_SIZE 16
+
+typedef struct {
+	mbedtls_aes_context	ctx;
+	uint8_t		key[AES_MAX_KEY_SIZE];
+	unsigned	key_len;
+	uint8_t		nonce[AES_BLOCK_SIZE];
+	uint8_t		encr_buf[AES_BLOCK_SIZE];
+	unsigned	encr_pos;
+} archive_crypto_ctx;
+
 #elif defined(HAVE_LIBNETTLE) && defined(HAVE_NETTLE_AES_H)
 #if defined(HAVE_NETTLE_PBKDF2_H)
 #include <nettle/pbkdf2.h>
