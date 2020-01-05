@@ -731,8 +731,8 @@ shm_remove(char *path, Fnv32_t fnv, struct ucred *ucred)
 }
 
 int
-kern_shm_open(struct thread *td, const char *userpath, int flags, mode_t mode,
-    struct filecaps *fcaps, int initial_seals)
+kern_shm_open2(struct thread *td, const char *userpath, int flags, mode_t mode,
+    int shmflags, struct filecaps *fcaps, const char *name __unused)
 {
 	struct filedesc *fdp;
 	struct shmfd *shmfd;
@@ -741,7 +741,14 @@ kern_shm_open(struct thread *td, const char *userpath, int flags, mode_t mode,
 	void *rl_cookie;
 	Fnv32_t fnv;
 	mode_t cmode;
-	int fd, error;
+	int error, fd, initial_seals;
+
+	if ((shmflags & ~SHM_ALLOW_SEALING) != 0)
+		return (EINVAL);
+
+	initial_seals = F_SEAL_SEAL;
+	if ((shmflags & SHM_ALLOW_SEALING) != 0)
+		initial_seals &= ~F_SEAL_SEAL;
 
 #ifdef CAPABILITY_MODE
 	/*
@@ -923,8 +930,8 @@ int
 freebsd12_shm_open(struct thread *td, struct freebsd12_shm_open_args *uap)
 {
 
-	return (kern_shm_open(td, uap->path, uap->flags | O_CLOEXEC, uap->mode,
-	    NULL, F_SEAL_SEAL));
+	return (kern_shm_open(td, uap->path, uap->flags | O_CLOEXEC,
+	    uap->mode, NULL));
 }
 #endif
 
@@ -1476,18 +1483,11 @@ SYSCTL_PROC(_kern_ipc, OID_AUTO, posix_shm_list,
     "POSIX SHM list");
 
 int
-kern_shm_open2(struct thread *td, const char *path, int flags, mode_t mode,
-    int shmflags, const char *name __unused)
+kern_shm_open(struct thread *td, const char *path, int flags, mode_t mode,
+    struct filecaps *caps)
 {
-	int initial_seals;
 
-	if ((shmflags & ~SHM_ALLOW_SEALING) != 0)
-		return (EINVAL);
-
-	initial_seals = F_SEAL_SEAL;
-	if ((shmflags & SHM_ALLOW_SEALING) != 0)
-		initial_seals &= ~F_SEAL_SEAL;
-	return (kern_shm_open(td, path, flags, mode, NULL, initial_seals));
+	return (kern_shm_open2(td, path, flags, mode, 0, caps, NULL));
 }
 
 /*
@@ -1505,5 +1505,5 @@ sys_shm_open2(struct thread *td, struct shm_open2_args *uap)
 {
 
 	return (kern_shm_open2(td, uap->path, uap->flags, uap->mode,
-	    uap->shmflags, uap->name));
+	    uap->shmflags, NULL, uap->name));
 }
