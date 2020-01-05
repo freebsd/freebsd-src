@@ -64,6 +64,11 @@ struct conninfo {
 
 #define PERIPSIZE	256
 
+struct	stabchild {
+	LIST_ENTRY(stabchild)	sc_link;
+	pid_t			sc_pid;
+};
+
 struct	servtab {
 	char	*se_service;		/* name of service */
 	int	se_socktype;		/* type of socket to use */
@@ -72,7 +77,6 @@ struct	servtab {
 	int	se_maxchild;		/* max number of children */
 	int	se_maxcpm;		/* max connects per IP per minute */
 	int	se_numchild;		/* current number of children */
-	pid_t	*se_pids;		/* array of child pids */
 	char	*se_user;		/* user name to run as */
 	char    *se_group;              /* group name to run as */
 #ifdef  LOGIN_CAP
@@ -117,10 +121,16 @@ struct	servtab {
 	} se_flags;
 	int	se_maxperip;		/* max number of children per src */
 	LIST_HEAD(, conninfo) se_conn[PERIPSIZE];
+	LIST_HEAD(, stabchild) se_children;
 };
 
 #define	se_nomapped		se_flags.se_nomapped
 #define	se_reset		se_flags.se_reset
+
+#define	SERVTAB_AT_LIMIT(sep)		\
+	((sep)->se_maxchild > 0 && (sep)->se_numchild == (sep)->se_maxchild)
+#define	SERVTAB_EXCEEDS_LIMIT(sep)	\
+	((sep)->se_maxchild > 0 && (sep)->se_numchild >= (sep)->se_maxchild)
 
 int		check_loop(const struct sockaddr *, const struct servtab *sep);
 void		inetd_setproctitle(const char *, int);
