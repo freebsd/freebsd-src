@@ -143,6 +143,7 @@ struct lock_class lock_class_sx = {
 #endif
 
 #ifdef ADAPTIVE_SX
+#ifdef SX_CUSTOM_BACKOFF
 static u_short __read_frequently asx_retries;
 static u_short __read_frequently asx_loops;
 static SYSCTL_NODE(_debug, OID_AUTO, sx, CTLFLAG_RD, NULL, "sxlock debugging");
@@ -165,6 +166,11 @@ sx_lock_delay_init(void *arg __unused)
 	asx_loops = max(10000, sx_delay.max);
 }
 LOCK_DELAY_SYSINIT(sx_lock_delay_init);
+#else
+#define sx_delay	locks_delay
+#define asx_retries	locks_delay_retries
+#define asx_loops	locks_delay_loops
+#endif
 #endif
 
 void

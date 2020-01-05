@@ -161,6 +161,29 @@ lock_delay_default_init(struct lock_delay_config *lc)
 		lc->max = 32678;
 }
 
+struct lock_delay_config __read_frequently locks_delay;
+u_short __read_frequently locks_delay_retries;
+u_short __read_frequently locks_delay_loops;
+
+SYSCTL_U16(_debug_lock, OID_AUTO, delay_base, CTLFLAG_RW, &locks_delay.base,
+    0, "");
+SYSCTL_U16(_debug_lock, OID_AUTO, delay_max, CTLFLAG_RW, &locks_delay.max,
+    0, "");
+SYSCTL_U16(_debug_lock, OID_AUTO, delay_retries, CTLFLAG_RW, &locks_delay_retries,
+    0, "");
+SYSCTL_U16(_debug_lock, OID_AUTO, delay_loops, CTLFLAG_RW, &locks_delay_loops,
+    0, "");
+
+static void
+locks_delay_init(void *arg __unused)
+{
+
+	lock_delay_default_init(&locks_delay);
+	locks_delay_retries = 10;
+	locks_delay_loops = max(10000, locks_delay.max);
+}
+LOCK_DELAY_SYSINIT(locks_delay_init);
+
 #ifdef DDB
 DB_SHOW_COMMAND(lock, db_show_lock)
 {

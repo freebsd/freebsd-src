@@ -140,6 +140,7 @@ struct lock_class lock_class_mtx_spin = {
 };
 
 #ifdef ADAPTIVE_MUTEXES
+#ifdef MUTEX_CUSTOM_BACKOFF
 static SYSCTL_NODE(_debug, OID_AUTO, mtx, CTLFLAG_RD, NULL, "mtx debugging");
 
 static struct lock_delay_config __read_frequently mtx_delay;
@@ -150,8 +151,12 @@ SYSCTL_U16(_debug_mtx, OID_AUTO, delay_max, CTLFLAG_RW, &mtx_delay.max,
     0, "");
 
 LOCK_DELAY_SYSINIT_DEFAULT(mtx_delay);
+#else
+#define mtx_delay	locks_delay
+#endif
 #endif
 
+#ifdef MUTEX_SPIN_CUSTOM_BACKOFF
 static SYSCTL_NODE(_debug, OID_AUTO, mtx_spin, CTLFLAG_RD, NULL,
     "mtx spin debugging");
 
@@ -163,6 +168,9 @@ SYSCTL_INT(_debug_mtx_spin, OID_AUTO, delay_max, CTLFLAG_RW,
     &mtx_spin_delay.max, 0, "");
 
 LOCK_DELAY_SYSINIT_DEFAULT(mtx_spin_delay);
+#else
+#define mtx_spin_delay	locks_delay
+#endif
 
 /*
  * System-wide mutexes
