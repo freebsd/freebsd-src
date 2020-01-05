@@ -393,6 +393,72 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 	NGI_GET_MSG(item, msg);
 	switch (msg->header.typecookie) {
+#ifdef NGM_BRIDGE_TABLE_ABI
+	case NGM_BRIDGE_COOKIE_TBL:
+		switch (msg->header.cmd) {
+		case NGM_BRIDGE_GET_CONFIG:
+		    {
+			struct ng_bridge_config_tbl *conf;
+
+			NG_MKRESPONSE(resp, msg, sizeof(*conf),
+			    M_NOWAIT|M_ZERO);
+			if (resp == NULL) {
+				error = ENOMEM;
+				break;
+			}
+			conf = (struct ng_bridge_config_tbl *)resp->data;
+			conf->cfg = priv->conf;
+			break;
+		    }
+		case NGM_BRIDGE_SET_CONFIG:
+		    {
+			struct ng_bridge_config_tbl *conf;
+
+			if (msg->header.arglen != sizeof(*conf)) {
+				error = EINVAL;
+				break;
+			}
+			conf = (struct ng_bridge_config_tbl *)msg->data;
+			priv->conf = conf->cfg;
+			break;
+		    }
+		case NGM_BRIDGE_GET_TABLE:
+		    {
+			struct ng_bridge_host_tbl_ary *ary;
+			struct ng_bridge_hent *hent;
+			int i, bucket;
+
+			NG_MKRESPONSE(resp, msg, sizeof(*ary) +
+			    (priv->numHosts * sizeof(*ary->hosts)), M_NOWAIT);
+			if (resp == NULL) {
+				error = ENOMEM;
+				break;
+			}
+			ary = (struct ng_bridge_host_tbl_ary *)resp->data;
+			ary->numHosts = priv->numHosts;
+			i = 0;
+			for (bucket = 0; bucket < priv->numBuckets; bucket++) {
+				SLIST_FOREACH(hent, &priv->tab[bucket], next) {
+					memcpy(ary->hosts[i].addr,
+					    hent->host.addr,
+					    sizeof(ary->hosts[i].addr));
+					ary->hosts[i].age = hent->host.age;
+					ary->hosts[i].staleness =
+					     hent->host.staleness;
+				        ary->hosts[i].linkNum = strtol(
+					    NG_HOOK_NAME(hent->host.link->hook) +
+					    strlen(NG_BRIDGE_HOOK_LINK_PREFIX),
+					    NULL, 10);
+					i++;
+				}
+			}
+			break;
+		    }
+		}
+		/* If already handled break, otherwise use new ABI. */
+		if (resp != NULL || error != 0)
+		    break;
+#endif /* NGM_BRIDGE_TABLE_ABI */
 	case NGM_BRIDGE_COOKIE:
 		switch (msg->header.cmd) {
 		case NGM_BRIDGE_GET_CONFIG:
