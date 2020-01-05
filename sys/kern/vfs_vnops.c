@@ -1564,28 +1564,53 @@ vn_poll(struct file *fp, int events, struct ucred *active_cred,
  * Acquire the requested lock and then check for validity.  LK_RETRY
  * permits vn_lock to return doomed vnodes.
  */
+static int __noinline
+_vn_lock_fallback(struct vnode *vp, int flags, char *file, int line, int error)
+{
+
+	KASSERT((flags & LK_RETRY) == 0 || error == 0,
+	    ("vn_lock: error %d incompatible with flags %#x", error, flags));
+
+	if (error == 0)
+		VNASSERT(VN_IS_DOOMED(vp), vp, ("vnode not doomed"));
+
+	if ((flags & LK_RETRY) == 0) {
+		if (error == 0) {
+			VOP_UNLOCK(vp);
+			error = ENOENT;
+		}
+		return (error);
+	}
+
+	/*
+	 * LK_RETRY case.
+	 *
+	 * Nothing to do if we got the lock.
+	 */
+	if (error == 0)
+		return (0);
+
+	/*
+	 * Interlock was dropped by the call in _vn_lock.
+	 */
+	flags &= ~LK_INTERLOCK;
+	do {
+		error = VOP_LOCK1(vp, flags, file, line);
+	} while (error != 0);
+	return (0);
+}
+
 int
 _vn_lock(struct vnode *vp, int flags, char *file, int line)
 {
 	int error;
 
-	VNASSERT((flags & LK_TYPE_MASK) != 0, vp,
-	    ("vn_lock: no locktype"));
+	VNASSERT((flags & LK_TYPE_MASK) != 0, vp, ("vn_lock: no locktype"));
 	VNASSERT(vp->v_holdcnt != 0, vp, ("vn_lock: zero hold count"));
-retry:
 	error = VOP_LOCK1(vp, flags, file, line);
-	flags &= ~LK_INTERLOCK;	/* Interlock is always dropped. */
-	KASSERT((flags & LK_RETRY) == 0 || error == 0,
-	    ("vn_lock: error %d incompatible with flags %#x", error, flags));
-
-	if ((flags & LK_RETRY) == 0) {
-		if (error == 0 && VN_IS_DOOMED(vp)) {
-			VOP_UNLOCK(vp);
-			error = ENOENT;
-		}
-	} else if (error != 0)
-		goto retry;
-	return (error);
+	if (__predict_false(error != 0 || VN_IS_DOOMED(vp)))
+		return (_vn_lock_fallback(vp, flags, file, line, error));
+	return (0);
 }
 
 /*
