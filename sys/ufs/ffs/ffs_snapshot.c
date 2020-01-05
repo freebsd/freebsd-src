@@ -2552,10 +2552,8 @@ process_deferred_inactive(struct mount *mp)
 {
 	struct vnode *vp, *mvp;
 	struct inode *ip;
-	struct thread *td;
 	int error;
 
-	td = curthread;
 	(void) vn_start_secondary_write(NULL, &mp, V_WAIT);
  loop:
 	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
@@ -2591,7 +2589,7 @@ process_deferred_inactive(struct mount *mp)
 			vdrop(vp);
 			continue;
 		}
-		vinactive(vp, td);
+		vinactive(vp);
 		VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
 			 ("process_deferred_inactive: got VI_OWEINACT"));
 		VI_UNLOCK(vp);
