@@ -183,13 +183,13 @@ extern struct lock_class lock_class_lockmgr;
 extern struct lock_class *lock_classes[];
 
 struct lock_delay_config {
-	u_int base;
-	u_int max;
+	u_short base;
+	u_short max;
 };
 
 struct lock_delay_arg {
 	struct lock_delay_config *config;
-	u_int delay;
+	u_short delay;
 	u_int spin_cnt;
 };
 
