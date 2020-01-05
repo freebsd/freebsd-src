@@ -187,6 +187,10 @@ struct lock_delay_config {
 	u_short max;
 };
 
+extern struct lock_delay_config locks_delay;
+extern u_short locks_delay_retries;
+extern u_short locks_delay_loops;
+
 struct lock_delay_arg {
 	struct lock_delay_config *config;
 	u_short delay;
