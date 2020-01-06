@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 29, 2018
+.Dd August 16, 2019
 .Dt USBCONFIG 8
 .Os
 .Sh NAME
@@ -52,6 +52,9 @@ Should only be used in conjunction with the unit argument.
 .It Fl d Ar [ugen]<unit>.<addr>
 Limit device range to USB devices connected to the given unit and address.
 The unit and address coordinates may be prefixed by the lowercased word "ugen".
+.It Fl i Ar interface_index
+Specify interface index as indicated by the command description.
+If this argument is not specified a value of zero will be used for the interface index.
 .It Fl h
 Show help and available commands.
 .El
@@ -71,7 +74,7 @@ the interface drivers and reducing the power consumption to minimum,
 but without going into power saving mode or detaching from the bus.
 In some cases, it prevents the device from charging.
 .It Cm set_alt Ar alt_index
-Choose the alternate interface for the USB device.
+Choose the alternate interface for the selected interface and USB device.
 Alternative settings for the current configuration are available as the
 .Ar bAlternateSetting
 in
@@ -119,6 +122,8 @@ Display the list of interface drivers (such as
 or
 .Xr u3g 4 )
 currently attached to the device.
+.It Cm detach_kernel_driver
+Detach kernel driver for the selected interface and USB device.
 .It Cm suspend
 Force the device to suspend.
 .It Cm resume
