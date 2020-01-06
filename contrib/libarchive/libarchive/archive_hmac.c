@@ -151,6 +151,7 @@ __hmac_sha1_cleanup(archive_hmac_sha1_ctx *ctx)
 }
 
 #elif defined(HAVE_LIBMBEDCRYPTO) && defined(HAVE_MBEDTLS_MD_H)
+
 static int
 __hmac_sha1_init(archive_hmac_sha1_ctx *ctx, const uint8_t *key, size_t key_len)
 {

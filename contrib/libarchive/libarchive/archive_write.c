@@ -339,6 +339,7 @@ archive_write_client_open(struct archive_write_filter *f)
 	struct archive_none *state;
 	void *buffer;
 	size_t buffer_size;
+	int ret;
 
 	f->bytes_per_block = archive_write_get_bytes_per_block(f->archive);
 	f->bytes_in_last_block =
@@ -363,7 +364,13 @@ archive_write_client_open(struct archive_write_filter *f)
 
 	if (a->client_opener == NULL)
 		return (ARCHIVE_OK);
-	return (a->client_opener(f->archive, a->client_data));
+	ret = a->client_opener(f->archive, a->client_data);
+	if (ret != ARCHIVE_OK) {
+		free(state->buffer);
+		free(state);
+		f->data = NULL;
+	}
+	return (ret);
 }
 
 static int
@@ -449,30 +456,6 @@ archive_write_client_write(struct archive_write_filter *f,
 }
 
 static int
-archive_write_client_free(struct archive_write_filter *f)
-{
-	struct archive_write *a = (struct archive_write *)f->archive;
-	struct archive_none *state = (struct archive_none *)f->data;
-
-	if (state != NULL) {
-		free(state->buffer);
-		free(state);
-		state = NULL;
-	}
-
-	a->client_data = NULL;
-	/* Clear passphrase. */
-	if (a->passphrase != NULL) {
-		memset(a->passphrase, 0, strlen(a->passphrase));
-		free(a->passphrase);
-		a->passphrase = NULL;
-	}
-
-	return (ARCHIVE_OK);
-}
-
-
-static int
 archive_write_client_close(struct archive_write_filter *f)
 {
 	struct archive_write *a = (struct archive_write *)f->archive;
@@ -508,7 +491,15 @@ archive_write_client_close(struct archive_write_filter *f)
 	}
 	if (a->client_closer)
 		(*a->client_closer)(&a->archive, a->client_data);
-
+	free(state->buffer);
+	free(state);
+	a->client_data = NULL;
+	/* Clear passphrase. */
+	if (a->passphrase != NULL) {
+		memset(a->passphrase, 0, strlen(a->passphrase));
+		free(a->passphrase);
+		a->passphrase = NULL;
+	}
 	/* Clear the close handler myself not to be called again. */
 	f->state = ARCHIVE_WRITE_FILTER_STATE_CLOSED;
 	return (ret);
@@ -539,7 +530,6 @@ archive_write_open(struct archive *_a, void *client_data,
 	client_filter->open = archive_write_client_open;
 	client_filter->write = archive_write_client_write;
 	client_filter->close = archive_write_client_close;
-	client_filter->free = archive_write_client_free;
 
 	ret = __archive_write_filters_open(a);
 	if (ret < ARCHIVE_WARN) {

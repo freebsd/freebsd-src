@@ -299,6 +299,7 @@ aes_ctr_release(archive_crypto_ctx *ctx)
 }
 
 #elif defined(HAVE_LIBMBEDCRYPTO) && defined(HAVE_MBEDTLS_AES_H)
+
 static int
 aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key, size_t key_len)
 {
