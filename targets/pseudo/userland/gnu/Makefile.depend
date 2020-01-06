@@ -12,8 +12,6 @@ DIRDEPS = \
 	gnu/lib/libgcov \
 	gnu/lib/libgomp \
 	gnu/lib/libregex/doc \
-	gnu/lib/libssp \
-	gnu/lib/libssp/libssp_nonshared \
 	gnu/lib/libstdc++ \
 	gnu/lib/libsupc++ \
 	gnu/usr.bin/binutils/ar \
