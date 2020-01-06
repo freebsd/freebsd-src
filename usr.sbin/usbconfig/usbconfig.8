@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 17, 2018
+.Dd April 29, 2018
 .Dt USBCONFIG 8
 .Os
 .Sh NAME
@@ -146,33 +146,21 @@ See
 for more information.
 .El
 .Sh EXAMPLES
-Show information about the device on USB bus 1 at address 2:
+List all connected USB devices and their attached interface drivers:
 .Pp
-.Dl usbconfig -d ugen1.2 dump_info
+.Dl usbconfig show_ifdrv
+.Pp
+Dump device and configuration descriptors for device on USB bus 1 at address 2:
+.Pp
+.Dl usbconfig ugen1.2 dump_all_desc
 .Pp
 Dump HID descriptor for device on USB bus 1 at address 2:
 .Pp
-.Dl usbconfig -d ugen1.2 do_request 0x81 0x06 0x2200 0 0x100
+.Dl usbconfig ugen1.2 do_request 0x81 0x06 0x2200 0 0x100
 .Pp
-Dump string descriptor at index Z for device on USB bus 1 at address 2:
+Power off the device on USB bus 1 at address 2:
 .Pp
-.Dl usbconfig -d ugen1.2 dump_string Z
-.Pp
-Dump current configuration descriptor for device on USB bus 1 at address 2:
-.Pp
-.Dl usbconfig -d ugen1.2 dump_curr_config_desc
-.Pp
-Dump device descriptor for device on USB bus 1 at address 2:
-.Pp
-.Dl usbconfig -d ugen1.2 dump_device_desc
-.Pp
-Program the device on USB bus 1 at address 2 to suspend, resume, power off, go into power save, or power on:
-.Pp
-.Dl usbconfig -d ugen1.2 suspend
-.Dl usbconfig -d ugen1.2 resume
-.Dl usbconfig -d ugen1.2 power_off
-.Dl usbconfig -d ugen1.2 power_save
-.Dl usbconfig -d ugen1.2 power_on
+.Dl usbconfig ugen1.2 power_off
 .Sh SEE ALSO
 .Xr usb 4 ,
 .Xr usb_quirk 4 ,
