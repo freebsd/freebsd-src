@@ -2223,10 +2223,9 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		for (n = 0; n != 4; n++) {
 
 			u.stat->uds_requests_fail[n] =
-			    f->udev->bus->stats_err.uds_requests[n];
-
+			    f->udev->stats_err.uds_requests[n];
 			u.stat->uds_requests_ok[n] =
-			    f->udev->bus->stats_ok.uds_requests[n];
+			    f->udev->stats_ok.uds_requests[n];
 		}
 		break;
 
