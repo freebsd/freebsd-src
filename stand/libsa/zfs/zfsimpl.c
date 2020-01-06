@@ -1097,7 +1097,8 @@ vdev_create(uint64_t guid, vdev_read_t *_read)
 		vdev->v_read = _read;
 
 		/*
-		 * root vdev has no read function.
+		 * root vdev has no read function, we use this fact to
+		 * skip setting up data we do not need for root vdev.
 		 * We only point root vdev from spa.
 		 */
 		if (_read != NULL) {
@@ -1142,7 +1143,7 @@ vdev_set_initial_state(vdev_t *vdev, const unsigned char *nvlist)
 	else if (isnt_present != 0)
 		vdev->v_state = VDEV_STATE_CANT_OPEN;
 
-	vdev->v_islog = is_log == 1;
+	vdev->v_islog = is_log != 0;
 }
 
 static int
@@ -1234,9 +1235,8 @@ vdev_init(uint64_t guid, const unsigned char *nvlist, vdev_t **vdevp)
 		if (strcmp(type, "raidz") == 0) {
 			if (vdev->v_nparity < 1 ||
 			    vdev->v_nparity > 3) {
-				printf("ZFS: can only boot from disk, "
-				    "mirror, raidz1, raidz2 and raidz3 "
-				    "vdevs\n");
+				printf("ZFS: invalid raidz parity: %d\n",
+				    vdev->v_nparity);
 				return (EIO);
 			}
 			(void) asprintf(&name, "%s%d-%" PRIu64, type,
@@ -1310,16 +1310,17 @@ vdev_insert(vdev_t *top_vdev, vdev_t *vdev)
 
 	if (previous == NULL) {
 		STAILQ_INSERT_HEAD(&top_vdev->v_children, vdev, v_childlink);
-		count = vdev_child_count(top_vdev);
-		if (top_vdev->v_nchildren < count)
-			top_vdev->v_nchildren = count;
+	} else if (previous->v_id == vdev->v_id) {
+		/*
+		 * This vdev was configured from label config,
+		 * do not insert duplicate.
+		 */
 		return;
+	} else {
+		STAILQ_INSERT_AFTER(&top_vdev->v_children, previous, vdev,
+		    v_childlink);
 	}
 
-	if (previous->v_id == vdev->v_id)
-		return;
-
-	STAILQ_INSERT_AFTER(&top_vdev->v_children, previous, vdev, v_childlink);
 	count = vdev_child_count(top_vdev);
 	if (top_vdev->v_nchildren < count)
 		top_vdev->v_nchildren = count;
@@ -1365,6 +1366,10 @@ vdev_from_nvlist(spa_t *spa, uint64_t top_guid, const unsigned char *nvlist)
 			kids = nvlist_next(kids);
 		}
 	} else {
+		/*
+		 * When there are no children, nvlist_find() does return
+		 * error, reset it because leaf devices have no children.
+		 */
 		rc = 0;
 	}
 
@@ -1491,7 +1496,7 @@ vdev_init_from_nvlist(spa_t *spa, const unsigned char *nvlist)
 
 	/* Wrong guid?! */
 	if (spa->spa_guid != pool_guid)
-		return (EIO);
+		return (EINVAL);
 
 	spa->spa_root_vdev->v_nchildren = vdev_children;
 
@@ -1502,7 +1507,7 @@ vdev_init_from_nvlist(spa_t *spa, const unsigned char *nvlist)
 	 * MOS config has at least one child for root vdev.
 	 */
 	if (rc != 0)
-		return (EIO);
+		return (rc);
 
 	for (int i = 0; i < nkids; i++) {
 		uint64_t guid;
@@ -3266,7 +3271,10 @@ zfs_spa_init(spa_t *spa)
 	if (rc != 0)
 		return (rc);
 
-	/* Update vdevs from MOS config. */
+	/*
+	 * Update vdevs from MOS config. Note, we do skip encoding bytes
+	 * here. See also vdev_label_read_config().
+	 */
 	rc = vdev_init_from_nvlist(spa, nvlist + 4);
 	free(nvlist);
 	return (rc);
