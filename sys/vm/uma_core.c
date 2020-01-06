@@ -2508,27 +2508,28 @@ zone_foreach(void (*zfunc)(uma_zone_t, void *arg), void *arg)
  * zone of zones and zone of kegs are accounted separately.
  */
 #define	UMA_BOOT_ZONES	11
-/* Zone of zones and zone of kegs have arbitrary alignment. */
-#define	UMA_BOOT_ALIGN	32
 static int zsize, ksize;
 int
 uma_startup_count(int vm_zones)
 {
 	int zones, pages;
+	u_int zppera, zipers;
+	u_int kppera, kipers;
 	size_t space, size;
 
 	ksize = sizeof(struct uma_keg) +
 	    (sizeof(struct uma_domain) * vm_ndomains);
+	ksize = roundup(ksize, UMA_SUPER_ALIGN);
 	zsize = sizeof(struct uma_zone) +
 	    (sizeof(struct uma_cache) * (mp_maxid + 1)) +
 	    (sizeof(struct uma_zone_domain) * vm_ndomains);
+	zsize = roundup(zsize, UMA_SUPER_ALIGN);
 
 	/*
-	 * Memory for the zone of kegs and its keg,
-	 * and for zone of zones.
+	 * Memory for the zone of kegs and its keg, and for zone
+	 * of zones.  Allocated directly in uma_startup().
 	 */
-	pages = howmany(roundup(zsize, CACHE_LINE_SIZE) * 2 +
-	    roundup(ksize, CACHE_LINE_SIZE), PAGE_SIZE);
+	pages = howmany(zsize * 2 + ksize, PAGE_SIZE);
 
 #ifdef	UMA_MD_SMALL_ALLOC
 	zones = UMA_BOOT_ZONES;
@@ -2542,22 +2543,32 @@ uma_startup_count(int vm_zones)
 	/* Memory for the rest of startup zones, UMA and VM, ... */
 	if (zsize > space) {
 		/* See keg_large_init(). */
-		u_int ppera;
-
-		ppera = howmany(roundup2(zsize, UMA_BOOT_ALIGN), PAGE_SIZE);
-		if (PAGE_SIZE * ppera - roundup2(zsize, UMA_BOOT_ALIGN) < size)
-			ppera++;
-		pages += (zones + vm_zones) * ppera;
-	} else if (roundup2(zsize, UMA_BOOT_ALIGN) > space)
-		/* See keg_small_init() special case for uk_ppera = 1. */
-		pages += zones;
-	else
-		pages += howmany(zones,
-		    space / roundup2(zsize, UMA_BOOT_ALIGN));
+		zppera = howmany(zsize + slab_sizeof(1), PAGE_SIZE);
+		zipers = 1;
+		zones += vm_zones;
+	} else {
+		zppera = 1;
+		zipers = space / zsize;
+	}
+	pages += howmany(zones, zipers) * zppera;
 
 	/* ... and their kegs. Note that zone of zones allocates a keg! */
-	pages += howmany(zones + 1,
-	    space / roundup2(ksize, UMA_BOOT_ALIGN));
+	if (ksize > space) {
+		/* See keg_large_init(). */
+		kppera = howmany(ksize + slab_sizeof(1), PAGE_SIZE);
+		kipers = 1;
+	} else {
+		kppera = 1;
+		kipers = space / ksize;
+	}
+	pages += howmany(zones + 1, kipers) * kppera;
+
+	/*
+	 * Allocate an additional slab for zones and kegs on NUMA
+	 * systems.  The round-robin allocation policy will populate at
+	 * least one slab per-domain.
+	 */
+	pages += (vm_ndomains - 1) * (zppera + kppera);
 
 	return (pages);
 }
@@ -2578,11 +2589,11 @@ uma_startup(void *mem, int npages)
 	/* Use bootpages memory for the zone of zones and zone of kegs. */
 	m = (uintptr_t)mem;
 	zones = (uma_zone_t)m;
-	m += roundup(zsize, CACHE_LINE_SIZE);
+	m += zsize;
 	kegs = (uma_zone_t)m;
-	m += roundup(zsize, CACHE_LINE_SIZE);
+	m += zsize;
 	masterkeg = (uma_keg_t)m;
-	m += roundup(ksize, CACHE_LINE_SIZE);
+	m += ksize;
 	m = roundup(m, PAGE_SIZE);
 	npages -= (m - (uintptr_t)mem) / PAGE_SIZE;
 	mem = (void *)m;
@@ -2596,7 +2607,7 @@ uma_startup(void *mem, int npages)
 	args.uminit = zero_init;
 	args.fini = NULL;
 	args.keg = masterkeg;
-	args.align = UMA_BOOT_ALIGN - 1;
+	args.align = UMA_SUPER_ALIGN - 1;
 	args.flags = UMA_ZFLAG_INTERNAL;
 	zone_ctor(kegs, zsize, &args, M_WAITOK);
 
@@ -2610,7 +2621,7 @@ uma_startup(void *mem, int npages)
 	args.uminit = zero_init;
 	args.fini = NULL;
 	args.keg = NULL;
-	args.align = UMA_BOOT_ALIGN - 1;
+	args.align = UMA_SUPER_ALIGN - 1;
 	args.flags = UMA_ZFLAG_INTERNAL;
 	zone_ctor(zones, zsize, &args, M_WAITOK);
 
@@ -4295,10 +4306,7 @@ uma_zone_reserve_kva(uma_zone_t zone, int count)
 	KEG_ASSERT_COLD(keg);
 	ZONE_ASSERT_COLD(zone);
 
-	pages = count / keg->uk_ipers;
-	if (pages * keg->uk_ipers < count)
-		pages++;
-	pages *= keg->uk_ppera;
+	pages = howmany(count, keg->uk_ipers) * keg->uk_ppera;
 
 #ifdef UMA_MD_SMALL_ALLOC
 	if (keg->uk_ppera > 1) {
@@ -4340,9 +4348,7 @@ uma_prealloc(uma_zone_t zone, int items)
 	int aflags, domain, slabs;
 
 	KEG_GET(zone, keg);
-	slabs = items / keg->uk_ipers;
-	if (slabs * keg->uk_ipers < items)
-		slabs++;
+	slabs = howmany(items, keg->uk_ipers);
 	while (slabs-- > 0) {
 		aflags = M_NOWAIT;
 		vm_domainset_iter_policy_ref_init(&di, &keg->uk_dr, &domain,
