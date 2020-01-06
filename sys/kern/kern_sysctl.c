@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_capsicum.h"
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
+#include "opt_sysctl.h"
 
 #include <sys/param.h>
 #include <sys/fail.h>
@@ -404,8 +405,9 @@ sysctl_reuse_test(SYSCTL_HANDLER_ARGS)
 	SYSCTL_RUNLOCK(&tracker);
 	return (0);
 }
-SYSCTL_PROC(_sysctl, 0, reuse_test, CTLTYPE_STRING|CTLFLAG_RD|CTLFLAG_MPSAFE,
-	0, 0, sysctl_reuse_test, "-", "");
+SYSCTL_PROC(_sysctl, OID_AUTO, reuse_test,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, 0, 0, sysctl_reuse_test, "-",
+    "");
 #endif
 
 void
