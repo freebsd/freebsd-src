@@ -786,6 +786,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 	u_int8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
 	u_int32_t lengths[CAM_PERIPH_MAXMAPS];
 	u_int32_t dirs[CAM_PERIPH_MAXMAPS];
+	bool misaligned[CAM_PERIPH_MAXMAPS];
 
 	bzero(mapinfo, sizeof(*mapinfo));
 	if (maxmap == 0)
@@ -897,6 +898,12 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 	 * have to unmap any previously mapped buffers.
 	 */
 	for (i = 0; i < numbufs; i++) {
+		if (lengths[i] > maxmap) {
+			printf("cam_periph_mapmem: attempt to map %lu bytes, "
+			       "which is greater than %lu\n",
+			       (long)(lengths[i]), (u_long)maxmap);
+			return (E2BIG);
+		}
 
 		/*
 		 * The userland data pointer passed in may not be page
@@ -906,15 +913,8 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 		 * whatever extra space is necessary to make it to the page
 		 * boundary.
 		 */
-		if ((lengths[i] +
-		    (((vm_offset_t)(*data_ptrs[i])) & PAGE_MASK)) > maxmap){
-			printf("cam_periph_mapmem: attempt to map %lu bytes, "
-			       "which is greater than %lu\n",
-			       (long)(lengths[i] +
-			       (((vm_offset_t)(*data_ptrs[i])) & PAGE_MASK)),
-			       (u_long)maxmap);
-			return(E2BIG);
-		}
+		misaligned[i] = (lengths[i] +
+		    (((vm_offset_t)(*data_ptrs[i])) & PAGE_MASK) > MAXPHYS);
 	}
 
 	/*
@@ -938,7 +938,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 		 * small allocations malloc is backed by UMA, and so much
 		 * cheaper on SMP systems.
 		 */
-		if (lengths[i] <= periph_mapmem_thresh &&
+		if ((lengths[i] <= periph_mapmem_thresh || misaligned[i]) &&
 		    ccb->ccb_h.func_code != XPT_MMC_IO) {
 			*data_ptrs[i] = malloc(lengths[i], M_CAMPERIPH,
 			    M_WAITOK);
