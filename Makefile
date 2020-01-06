@@ -491,15 +491,13 @@ worlds: .PHONY
 # honor that most of all.
 #
 _OBSOLETE_GCC_TARGETS=mips sparc64
-.if defined(MAKE_OBSOLETE_GCC)
-_OBSOLETE_GCC_TARGETS+=powerpc
-.endif
-TARGETS?=amd64 arm arm64 i386 riscv ${_OBSOLETE_GCC_TARGETS}
+TARGETS?=amd64 arm arm64 i386 powerpc riscv ${_OBSOLETE_GCC_TARGETS}
 _UNIVERSE_TARGETS=	${TARGETS}
 TARGET_ARCHES_arm?=	armv6 armv7
 TARGET_ARCHES_arm64?=	aarch64
 TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32 mipselhf mipshf mips64elhf mips64hf
-TARGET_ARCHES_powerpc?=	powerpc powerpc64 powerpcspe
+# powerpcspe excluded until clang fixed
+TARGET_ARCHES_powerpc?=	powerpc powerpc64
 # riscv64sf excluded due to PR 232085
 TARGET_ARCHES_riscv?=	riscv64
 .for target in ${TARGETS}
@@ -510,12 +508,10 @@ MAKE_PARAMS_riscv?=	CROSS_TOOLCHAIN=riscv64-gcc
 .if !defined(MAKE_OBSOLETE_GCC)
 OBSOLETE_GCC_TARGETS=${_OBSOLETE_GCC_TARGETS}
 MAKE_PARAMS_mips?=	CROSS_TOOLCHAIN=mips-gcc6
-MAKE_PARAMS_powerpc?=	CROSS_TOOLCHAIN=powerpc64-gcc6
 MAKE_PARAMS_sparc64?=	CROSS_TOOLCHAIN=sparc64-gcc6
 .endif
 
 TOOLCHAINS_mips=	mips-gcc6
-TOOLCHAINS_powerpc=	powerpc64-gcc6
 TOOLCHAINS_riscv=	riscv64-gcc
 TOOLCHAINS_sparc64=	sparc64-gcc6
 
