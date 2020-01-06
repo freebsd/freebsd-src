@@ -220,6 +220,7 @@ MLINKS += libusb20.3 libusb20_dev_get_backend_name.3
 MLINKS += libusb20.3 libusb20_dev_get_info.3
 MLINKS += libusb20.3 libusb20_dev_get_iface_desc.3
 MLINKS += libusb20.3 libusb20_dev_get_desc.3
+MLINKS += libusb20.3 libusb20_dev_get_stats.3
 MLINKS += libusb20.3 libusb20_dev_close.3
 MLINKS += libusb20.3 libusb20_dev_detach_kernel_driver.3
 MLINKS += libusb20.3 libusb20_dev_set_config_index.3
