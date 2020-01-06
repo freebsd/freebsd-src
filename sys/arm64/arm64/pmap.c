@@ -1845,8 +1845,9 @@ kvm_size(SYSCTL_HANDLER_ARGS)
 
 	return sysctl_handle_long(oidp, &ksize, 0, req);
 }
-SYSCTL_PROC(_vm, OID_AUTO, kvm_size, CTLTYPE_LONG|CTLFLAG_RD,
-    0, 0, kvm_size, "LU", "Size of KVM");
+SYSCTL_PROC(_vm, OID_AUTO, kvm_size, CTLTYPE_LONG | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    0, 0, kvm_size, "LU",
+    "Size of KVM");
 
 static int
 kvm_free(SYSCTL_HANDLER_ARGS)
@@ -1855,8 +1856,9 @@ kvm_free(SYSCTL_HANDLER_ARGS)
 
 	return sysctl_handle_long(oidp, &kfree, 0, req);
 }
-SYSCTL_PROC(_vm, OID_AUTO, kvm_free, CTLTYPE_LONG|CTLFLAG_RD,
-    0, 0, kvm_free, "LU", "Amount of KVM free");
+SYSCTL_PROC(_vm, OID_AUTO, kvm_free, CTLTYPE_LONG | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    0, 0, kvm_free, "LU",
+    "Amount of KVM free");
 
 /*
  * grow the number of kernel page table entries, if needed
