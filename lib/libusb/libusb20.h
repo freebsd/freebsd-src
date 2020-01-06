@@ -195,6 +195,12 @@ struct libusb20_quirk {
 	char	quirkname[64 - 12];
 };
 
+struct libusb20_device_stats {
+	uint64_t xfer_ok[4];		/* sorted by USB transfer type, UE_XXX */
+	uint64_t xfer_fail[4];		/* sorted by USB transfer type, UE_XXX */
+	uint64_t xfer_reserved[24];	/* reserved */
+};
+
 #define	LIBUSB20_MAX_FRAME_PRE_SCALE	(1U << 31)
 
 /* USB transfer operations */
@@ -243,6 +249,7 @@ int	libusb20_dev_detach_kernel_driver(struct libusb20_device *pdev, uint8_t ifac
 int	libusb20_dev_set_config_index(struct libusb20_device *pdev, uint8_t configIndex);
 int	libusb20_dev_get_debug(struct libusb20_device *pdev);
 int	libusb20_dev_get_fd(struct libusb20_device *pdev);
+int	libusb20_dev_get_stats(struct libusb20_device *pdev, struct libusb20_device_stats *pstat);
 int	libusb20_dev_kernel_driver_active(struct libusb20_device *pdev, uint8_t iface_index);
 int	libusb20_dev_open(struct libusb20_device *pdev, uint16_t transfer_max);
 int	libusb20_dev_process(struct libusb20_device *pdev);

@@ -80,6 +80,7 @@ static libusb20_check_connected_t ugen20_check_connected;
 static libusb20_set_power_mode_t ugen20_set_power_mode;
 static libusb20_get_power_mode_t ugen20_get_power_mode;
 static libusb20_get_power_usage_t ugen20_get_power_usage;
+static libusb20_get_stats_t ugen20_get_stats;
 static libusb20_kernel_driver_active_t ugen20_kernel_driver_active;
 static libusb20_detach_kernel_driver_t ugen20_detach_kernel_driver;
 static libusb20_do_request_sync_t ugen20_do_request_sync;
@@ -666,6 +667,29 @@ ugen20_get_power_usage(struct libusb20_device *pdev, uint16_t *power_usage)
 		return (LIBUSB20_ERROR_OTHER);
 	}
 	*power_usage = temp;
+	return (0);			/* success */
+}
+
+static int
+ugen20_get_stats(struct libusb20_device *pdev, struct libusb20_device_stats *pstats)
+{
+	struct usb_device_stats st;
+
+	if (ioctl(pdev->file_ctrl, IOUSB(USB_DEVICESTATS), &st))
+		return (LIBUSB20_ERROR_OTHER);
+
+	memset(pstats, 0, sizeof(*pstats));
+
+	pstats->xfer_ok[0] = st.uds_requests_ok[0];
+	pstats->xfer_ok[1] = st.uds_requests_ok[1];
+	pstats->xfer_ok[2] = st.uds_requests_ok[2];
+	pstats->xfer_ok[3] = st.uds_requests_ok[3];
+
+	pstats->xfer_fail[0] = st.uds_requests_fail[0];
+	pstats->xfer_fail[1] = st.uds_requests_fail[1];
+	pstats->xfer_fail[2] = st.uds_requests_fail[2];
+	pstats->xfer_fail[3] = st.uds_requests_fail[3];
+
 	return (0);			/* success */
 }
 

@@ -108,9 +108,11 @@ typedef int (libusb20_reset_device_t)(struct libusb20_device *pdev);
 typedef int (libusb20_set_power_mode_t)(struct libusb20_device *pdev, uint8_t power_mode);
 typedef int (libusb20_get_power_mode_t)(struct libusb20_device *pdev, uint8_t *power_mode);
 typedef int (libusb20_get_power_usage_t)(struct libusb20_device *pdev, uint16_t *power_usage);
+typedef int (libusb20_get_stats_t)(struct libusb20_device *pdev, struct libusb20_device_stats *pstats);
 typedef int (libusb20_set_alt_index_t)(struct libusb20_device *pdev, uint8_t iface_index, uint8_t alt_index);
 typedef int (libusb20_set_config_index_t)(struct libusb20_device *pdev, uint8_t index);
 typedef int (libusb20_check_connected_t)(struct libusb20_device *pdev);
+
 
 /* USB transfer specific */
 typedef int (libusb20_tr_open_t)(struct libusb20_transfer *xfer, uint32_t MaxBufSize, uint32_t MaxFrameCount, uint8_t ep_no, uint16_t stream_id, uint8_t pre_scale);
@@ -131,6 +133,7 @@ typedef void (libusb20_tr_cancel_async_t)(struct libusb20_transfer *xfer);
   m(n, set_power_mode) \
   m(n, get_power_mode) \
   m(n, get_power_usage) \
+  m(n, get_stats) \
   m(n, set_alt_index) \
   m(n, set_config_index) \
   m(n, tr_cancel_async) \
