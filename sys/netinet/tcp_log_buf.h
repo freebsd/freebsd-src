@@ -31,7 +31,8 @@
 #define __tcp_log_buf_h__
 
 #define	TCP_LOG_REASON_LEN	32
-#define	TCP_LOG_BUF_VER		(6)
+#define	TCP_LOG_TAG_LEN		32
+#define	TCP_LOG_BUF_VER		(7)
 
 /*
  * Because the (struct tcp_log_buffer) includes 8-byte uint64_t's, it requires
@@ -263,6 +264,7 @@ struct tcp_log_header {
 	struct timeval		tlh_offset;	/* Uptime -> UTC offset */
 	char			tlh_id[TCP_LOG_ID_LEN];
 	char			tlh_reason[TCP_LOG_REASON_LEN];
+	char			tlh_tag[TCP_LOG_TAG_LEN];
 	uint8_t		tlh_af;
 	uint8_t		_pad[7];
 } ALIGN_TCP_LOG;
@@ -272,6 +274,7 @@ struct tcp_log_dev_log_queue {
 	struct tcp_log_dev_queue tldl_common;
 	char			tldl_id[TCP_LOG_ID_LEN];
 	char			tldl_reason[TCP_LOG_REASON_LEN];
+	char			tldl_tag[TCP_LOG_TAG_LEN];
 	struct in_endpoints	tldl_ie;
 	struct tcp_log_stailq	tldl_entries;
 	int			tldl_count;
@@ -349,10 +352,12 @@ struct tcp_log_buffer *tcp_log_event_(struct tcpcb *tp, struct tcphdr *th, struc
     union tcp_log_stackspecific *stackinfo, int th_hostorder,
     const char *output_caller, const char *func, int line, const struct timeval *tv);
 size_t tcp_log_get_id(struct tcpcb *tp, char *buf);
+size_t tcp_log_get_tag(struct tcpcb *tp, char *buf);
 u_int tcp_log_get_id_cnt(struct tcpcb *tp);
 int tcp_log_getlogbuf(struct sockopt *sopt, struct tcpcb *tp);
 void tcp_log_init(void);
 int tcp_log_set_id(struct tcpcb *tp, char *id);
+int tcp_log_set_tag(struct tcpcb *tp, char *tag);
 int tcp_log_state_change(struct tcpcb *tp, int state);
 void tcp_log_tcpcbinit(struct tcpcb *tp);
 void tcp_log_tcpcbfini(struct tcpcb *tp);
