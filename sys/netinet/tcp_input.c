@@ -514,7 +514,7 @@ cc_post_recovery(struct tcpcb *tp, struct tcphdr *th)
 	    (tlen <= tp->t_maxseg) &&					\
 	    (V_tcp_delack_enabled || (tp->t_flags & TF_NEEDSYN)))
 
-static void inline
+void inline
 cc_ecnpkt_handler(struct tcpcb *tp, struct tcphdr *th, uint8_t iptos)
 {
 	INP_WLOCK_ASSERT(tp->t_inpcb);
