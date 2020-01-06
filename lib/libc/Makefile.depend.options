@@ -3,6 +3,6 @@
 
 DIRDEPS_OPTIONS= SSP
 
-DIRDEPS.SSP.yes= gnu/lib/libssp/libssp_nonshared
+DIRDEPS.SSP.yes= lib/libssp_nonshared
 
 .include <dirdeps-options.mk>

@@ -7,7 +7,6 @@ DIRDEPS = \
 	gnu/lib/libdialog \
 	gnu/lib/libgomp \
 	gnu/lib/libregex \
-	gnu/lib/libssp \
 	gnu/lib/libstdc++ \
 	gnu/lib/libsupc++ \
 	include \
@@ -100,6 +99,7 @@ DIRDEPS = \
 	lib/libsdp \
 	lib/libsecureboot \
 	lib/libsqlite3 \
+	lib/libssp \
 	lib/libstand \
 	lib/libstdthreads \
 	lib/libtacplus \
