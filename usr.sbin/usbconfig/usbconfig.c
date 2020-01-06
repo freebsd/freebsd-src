@@ -80,6 +80,7 @@ struct options {
 	uint8_t	got_dump_curr_config:1;
 	uint8_t	got_dump_all_config:1;
 	uint8_t	got_dump_info:1;
+  	uint8_t	got_dump_stats:1;
 	uint8_t	got_show_iface_driver:1;
 	uint8_t	got_remove_device_quirk:1;
 	uint8_t	got_add_device_quirk:1;
@@ -119,6 +120,7 @@ enum {
 	T_DUMP_ALL_CONFIG_DESC,
 	T_DUMP_STRING,
 	T_DUMP_INFO,
+	T_DUMP_STATS,
 	T_SUSPEND,
 	T_RESUME,
 	T_POWER_OFF,
@@ -153,6 +155,7 @@ static const struct token token[] = {
 	{"dump_all_config_desc", T_DUMP_ALL_CONFIG_DESC, 0},
 	{"dump_string", T_DUMP_STRING, 1},
 	{"dump_info", T_DUMP_INFO, 0},
+	{"dump_stats", T_DUMP_STATS, 0},
 	{"show_ifdrv", T_SHOW_IFACE_DRIVER, 0},
 	{"suspend", T_SUSPEND, 0},
 	{"resume", T_RESUME, 0},
@@ -294,6 +297,7 @@ usage(void)
 	    "  dump_all_config_desc" "\n"
 	    "  dump_string <index>" "\n"
 	    "  dump_info" "\n"
+	    "  dump_stats" "\n"
 	    "  show_ifdrv" "\n"
 	    "  suspend" "\n"
 	    "  resume" "\n"
@@ -504,7 +508,8 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 		    opt->got_dump_device_desc ||
 		    opt->got_dump_curr_config ||
 		    opt->got_dump_all_config ||
-		    opt->got_dump_info);
+		    opt->got_dump_info ||
+		    opt->got_dump_stats);
 
 		if (opt->got_list || dump_any) {
 			dump_device_info(pdev,
@@ -524,6 +529,10 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 			printf("\n");
 			dump_device_desc(pdev);
 			dump_config(pdev, 1);
+		}
+		if (opt->got_dump_stats) {
+			printf("\n");
+			dump_device_stats(pdev);
 		}
 		if (dump_any) {
 			printf("\n");
@@ -747,6 +756,12 @@ main(int argc, char **argv)
 			if (opt->got_dump_info)
 				duplicate_option(argv[n]);
 			opt->got_dump_info = 1;
+			opt->got_any++;
+			break;
+		case T_DUMP_STATS:
+			if (opt->got_dump_stats)
+				duplicate_option(argv[n]);
+			opt->got_dump_stats = 1;
 			opt->got_any++;
 			break;
 		case T_DUMP_STRING:
