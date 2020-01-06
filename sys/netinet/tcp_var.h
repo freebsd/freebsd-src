@@ -103,7 +103,8 @@ struct tcpcb {
 		t_idle_reduce : 1,
 		t_delayed_ack: 7,	/* Delayed ack variable */
 		t_fin_is_rst: 1,	/* Are fin's treated as resets */
-		bits_spare : 3;
+		t_log_state_set: 1,
+		bits_spare : 2;
 	u_int	t_flags;
 	tcp_seq	snd_una;		/* sent but unacknowledged */
 	tcp_seq	snd_max;		/* highest sequence number sent;
@@ -206,6 +207,7 @@ struct tcpcb {
 	u_int	t_keepcnt;		/* number of keepalives before close */
 	int	t_dupacks;		/* consecutive dup acks recd */
 	int	t_lognum;		/* Number of log entries */
+	int	t_loglimit;		/* Maximum number of log entries */
 	struct tcp_log_stailq t_logs;	/* Log buffer */
 	struct tcp_log_id_node *t_lin;
 	struct tcp_log_id_bucket *t_lib;
