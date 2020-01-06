@@ -191,6 +191,7 @@ struct usb_device {
 	/* statistics */
 	struct usb_device_statistics stats_err;
 	struct usb_device_statistics stats_ok;
+  	struct usb_device_statistics stats_cancelled;
 
 	/* generic clear stall message */
 	struct usb_udev_msg cs_msg[2];
