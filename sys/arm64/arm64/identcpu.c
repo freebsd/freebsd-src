@@ -156,9 +156,14 @@ static const struct cpu_parts cpu_parts_arm[] = {
 	{ CPU_PART_CORTEX_A53, "Cortex-A53" },
 	{ CPU_PART_CORTEX_A55, "Cortex-A55" },
 	{ CPU_PART_CORTEX_A57, "Cortex-A57" },
+	{ CPU_PART_CORTEX_A65, "Cortex-A65" },
 	{ CPU_PART_CORTEX_A72, "Cortex-A72" },
 	{ CPU_PART_CORTEX_A73, "Cortex-A73" },
 	{ CPU_PART_CORTEX_A75, "Cortex-A75" },
+	{ CPU_PART_CORTEX_A76, "Cortex-A76" },
+	{ CPU_PART_CORTEX_A76AE, "Cortex-A76AE" },
+	{ CPU_PART_CORTEX_A77, "Cortex-A77" },
+	{ CPU_PART_NEOVERSE_N1, "Neoverse-N1" },
 	CPU_PART_NONE,
 };
 /* Cavium */
