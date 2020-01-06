@@ -724,7 +724,7 @@ TARGET_ARCH_${kernel}!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
 .if empty(TARGET_ARCH_${kernel})
 .error "Target architecture for ${TARGET}/conf/${kernel} unknown.  config(8) likely too old."
 .endif
-universe_kernconfs: universe_kernconf_${TARGET}_${kernel}
+universe_kernconfs_${TARGET_ARCH_${kernel}}: universe_kernconf_${TARGET}_${kernel}
 universe_kernconf_${TARGET}_${kernel}: .MAKE
 	@echo ">> ${TARGET}.${TARGET_ARCH_${kernel}} ${kernel} kernel started on `LC_ALL=C date`"
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
@@ -737,6 +737,9 @@ universe_kernconf_${TARGET}_${kernel}: .MAKE
 	    (echo "${TARGET} ${kernel} kernel failed," \
 	    "check _.${TARGET}.${kernel} for details"| ${MAKEFAIL}))
 	@echo ">> ${TARGET}.${TARGET_ARCH_${kernel}} ${kernel} kernel completed on `LC_ALL=C date`"
+.endfor
+.for target_arch in ${TARGET_ARCHES_${TARGET}}
+universe_kernconfs: universe_kernconfs_${target_arch} .PHONY
 .endfor
 .endif	# make(universe_kernels)
 universe: universe_epilogue
