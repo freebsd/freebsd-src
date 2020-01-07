@@ -36,11 +36,6 @@ failloop_head()
 }
 failloop_body()
 {
-	if [ "$(atf_config_get ci false)" = "true" ] && \
-		[ "$(uname -p)" = "i386" ]; then
-		atf_skip "https://bugs.freebsd.org/242689"
-	fi
-
 	sysctl -n kern.geom.notaste > kern.geom.notaste.txt
 	load_gnop
 	load_gmultipath
