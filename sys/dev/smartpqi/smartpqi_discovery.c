@@ -1213,7 +1213,7 @@ static int pqisrc_add_device(pqisrc_softstate_t *softs,
 	pqi_scsi_dev_t *device)
 {
 	DBG_FUNC("IN\n");
-	DBG_WARN("vendor: %s model: %s bus:%d target:%d lun:%d is_physical_device:0x%x expose_device:0x%x volume_offline 0x%x volume_status 0x%x \n",
+	DBG_DISC("vendor: %s model: %s bus:%d target:%d lun:%d is_physical_device:0x%x expose_device:0x%x volume_offline 0x%x volume_status 0x%x \n",
 		device->vendor, device->model, device->bus, device->target, device->lun, device->is_physical_device, device->expose_device, device->volume_offline, device->volume_status);
 
 	device->invalid = false;
