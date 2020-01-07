@@ -32,6 +32,7 @@
  * $FreeBSD$
  */
 
+#include "opt_bpf.h"
 #include "opt_inet6.h"
 #include "opt_inet.h"
 
@@ -1244,16 +1245,20 @@ static void
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
 	struct if_clone *ifc;
+#ifdef DEV_BPF
 	u_int bif_dlt, bif_hdrlen;
+#endif
 	void *old;
 	int rc;
 
+#ifdef DEV_BPF
  	/*
 	 * if_detach_internal() will call the eventhandler to notify
 	 * interface departure.  That will detach if_bpf.  We need to
 	 * safe the dlt and hdrlen so we can re-attach it later.
 	 */
 	bpf_get_bp_params(ifp->if_bpf, &bif_dlt, &bif_hdrlen);
+#endif
 
 	/*
 	 * Detach from current vnet, but preserve LLADDR info, do not
@@ -1300,8 +1305,10 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 
 	if_attach_internal(ifp, 1, ifc);
 
+#ifdef DEV_BPF
 	if (ifp->if_bpf == NULL)
 		bpfattach(ifp, bif_dlt, bif_hdrlen);
+#endif
 
 	CURVNET_RESTORE();
 }
