@@ -216,9 +216,6 @@ __FBSDID("$FreeBSD$");
     atomic_clear_int((u_int *)(pte), PG_W))
 #define pmap_pte_set_prot(pte, v) ((*(int *)pte &= ~PG_PROT), (*(int *)pte |= (v)))
 
-_Static_assert(sizeof(struct pmap) <= sizeof(struct pmap_KBI),
-    "pmap_KBI");
-
 static int pgeflag = 0;		/* PG_G or-in */
 static int pseflag = 0;		/* PG_PS or-in */
 
