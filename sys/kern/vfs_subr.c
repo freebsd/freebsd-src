@@ -1657,7 +1657,6 @@ alloc:
 	KASSERT(vp->v_lockf == NULL, ("stale v_lockf %p", vp));
 	KASSERT(vp->v_pollinfo == NULL, ("stale v_pollinfo %p", vp));
 	vp->v_type = VNON;
-	vp->v_tag = tag;
 	vp->v_op = vops;
 	v_init_counters(vp);
 	vp->v_bufobj.bo_ops = &buf_ops_bio;
@@ -3679,7 +3678,7 @@ vgonel(struct vnode *vp)
 	if (mp != NULL)
 		vn_finished_secondary_write(mp);
 	VNASSERT(vp->v_object == NULL, vp,
-	    ("vop_reclaim left v_object vp=%p, tag=%s", vp, vp->v_tag));
+	    ("vop_reclaim left v_object vp=%p", vp));
 	/*
 	 * Clear the advisory locks and wake up waiting threads.
 	 */
@@ -3697,7 +3696,6 @@ vgonel(struct vnode *vp)
 	VI_LOCK(vp);
 	vp->v_vnlock = &vp->v_lock;
 	vp->v_op = &dead_vnodeops;
-	vp->v_tag = "none";
 	vp->v_type = VBAD;
 }
 
@@ -3733,7 +3731,7 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 	vprintf(fmt, ap);
 	va_end(ap);
 	printf("%p: ", (void *)vp);
-	printf("tag %s, type %s\n", vp->v_tag, typename[vp->v_type]);
+	printf("type %s\n", typename[vp->v_type]);
 	printf("    usecount %d, writecount %d, refcount %d",
 	    vp->v_usecount, vp->v_writecount, vp->v_holdcnt);
 	switch (vp->v_type) {
