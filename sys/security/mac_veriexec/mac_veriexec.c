@@ -737,6 +737,22 @@ MAC_POLICY_SET(&mac_veriexec_ops, mac_veriexec, MAC_VERIEXEC_FULLNAME,
     MPC_LOADTIME_FLAG_NOTLATE, &mac_veriexec_slot);
 MODULE_VERSION(mac_veriexec, 1);
 
+static struct vnode *
+mac_veriexec_bottom_vnode(struct vnode *vp)
+{
+	struct vnode *ldvp = NULL;
+
+	/*
+	 * XXX This code is bogus. nullfs is not the only stacking
+	 * filesystem. Less bogus code would add a VOP to reach bottom
+	 * vnode and would not make assumptions how to get there.
+	 */
+	if (vp->v_mount != NULL &&
+	    strcmp(vp->v_mount->mnt_vfc->vfc_name, "nullfs") == 0)
+		ldvp = NULLVPTOLOWERVP(vp);
+	return (ldvp);
+}
+
 /**
  * @brief Get the fingerprint status set on a vnode.
  *
@@ -748,6 +764,7 @@ fingerprint_status_t
 mac_veriexec_get_fingerprint_status(struct vnode *vp)
 {
 	fingerprint_status_t fps;
+	struct vnode *ldvp;
 
 	fps = SLOT(vp->v_label);
 	switch (fps) {
@@ -757,12 +774,9 @@ mac_veriexec_get_fingerprint_status(struct vnode *vp)
 		break;
 	default:
 		/* we may need to recurse */
-		if (strcmp(vp->v_tag, "null") == 0) {
-			struct vnode *ldvp;
-
-			ldvp = NULLVPTOLOWERVP(vp);
+		ldvp = mac_veriexec_bottom_vnode(vp);
+		if (ldvp != NULL)
 			return mac_veriexec_get_fingerprint_status(ldvp);
-		}
 		break;
 	}
 	return fps;
@@ -808,12 +822,11 @@ void
 mac_veriexec_set_fingerprint_status(struct vnode *vp,
     fingerprint_status_t fp_status)
 {
+	struct vnode *ldvp;
 
 	/* recurse until we find the real storage */
-	if (strcmp(vp->v_tag, "null") == 0) {
-		struct vnode *ldvp;
-
-		ldvp = NULLVPTOLOWERVP(vp);
+	ldvp = mac_veriexec_bottom_vnode(vp);
+	if (ldvp != NULL) {
 		mac_veriexec_set_fingerprint_status(ldvp, fp_status);
 		return;
 	}
