@@ -1531,6 +1531,12 @@ struct nvme_get_nsid {
 	uint32_t	nsid;
 };
 
+struct nvme_hmb_desc {
+	uint64_t	addr;
+	uint32_t	size;
+	uint32_t	reserved;
+};
+
 #define nvme_completion_is_error(cpl)					\
 	(NVME_STATUS_GET_SC((cpl)->status) != 0 || NVME_STATUS_GET_SCT((cpl)->status) != 0)
 
@@ -1566,6 +1572,8 @@ int	nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 /* Admin functions */
 void	nvme_ctrlr_cmd_set_feature(struct nvme_controller *ctrlr,
 				   uint8_t feature, uint32_t cdw11,
+				   uint32_t cdw12, uint32_t cdw13,
+				   uint32_t cdw14, uint32_t cdw15,
 				   void *payload, uint32_t payload_size,
 				   nvme_cb_fn_t cb_fn, void *cb_arg);
 void	nvme_ctrlr_cmd_get_feature(struct nvme_controller *ctrlr,

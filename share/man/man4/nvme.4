@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2019
+.Dd January 6, 2020
 .Dt NVME 4
 .Os
 .Sh NAME
@@ -119,6 +119,14 @@ hw.nvme.force_intx=1
 .Ed
 .Pp
 Note that use of INTx implies disabling of per-CPU I/O queue pairs.
+.Pp
+To control maximum amount of system RAM in bytes to use as Host Memory
+Buffer for capable devices, set the following tunable:
+.Bd -literal -offset indent
+hw.nvme.hmb_max
+.Ed
+.Pp
+The default value is 1% of physical memory size per device.
 .Pp
 The
 .Xr nvd 4
