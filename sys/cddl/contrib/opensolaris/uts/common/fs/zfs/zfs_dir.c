@@ -829,6 +829,7 @@ zfs_make_xattrdir(znode_t *zp, vattr_t *vap, vnode_t **xvpp, cred_t *cr)
 	if (error) {
 		zfs_acl_ids_free(&acl_ids);
 		dmu_tx_abort(tx);
+		getnewvnode_drop_reserve();
 		return (error);
 	}
 	zfs_mknode(zp, vap, tx, cr, IS_XATTR, &xzp, &acl_ids);
