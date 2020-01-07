@@ -57,7 +57,6 @@
 #include <sys/mman.h>
 #endif
 #include <assert.h>
-#include <sys/ipc.h>
 
 #include <dt_impl.h>
 #include <dt_provider.h>
@@ -1249,13 +1248,32 @@ dt_link_error(dtrace_hdl_t *dtp, Elf *elf, int fd, dt_link_pair_t *bufs,
 	return (dt_set_errno(dtp, EDT_COMPILER));
 }
 
+/*
+ * Provide a unique identifier used when adding global symbols to an object.
+ * This is the FNV-1a hash of an absolute path for the file.
+ */
+static unsigned int
+hash_obj(const char *obj, int fd)
+{
+	char path[PATH_MAX];
+	unsigned int h;
+
+	if (realpath(obj, path) == NULL)
+		return (-1);
+
+	for (h = 2166136261u, obj = &path[0]; *obj != '\0'; obj++)
+		h = (h ^ *obj) * 16777619;
+	h &= 0x7fffffff;
+	return (h);
+}
+
 static int
 process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 {
 	static const char dt_prefix[] = "__dtrace";
 	static const char dt_enabled[] = "enabled";
 	static const char dt_symprefix[] = "$dtrace";
-	static const char dt_symfmt[] = "%s%ld.%s";
+	static const char dt_symfmt[] = "%s%u.%s";
 	static const char dt_weaksymfmt[] = "%s.%s";
 	char probename[DTRACE_NAMELEN];
 	int fd, i, ndx, eprobe, mod = 0;
@@ -1272,7 +1290,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 	dt_probe_t *prp;
 	uint32_t off, eclass, emachine1, emachine2;
 	size_t symsize, osym, nsym, isym, istr, len;
-	key_t objkey;
+	unsigned int objkey;
 	dt_link_pair_t *pair, *bufs = NULL;
 	dt_strtab_t *strtab;
 	void *tmp;
@@ -1350,10 +1368,9 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 	 * system in order to disambiguate potential conflicts between files of
 	 * the same name which contain identially named local symbols.
 	 */
-	if ((objkey = ftok(obj, 0)) == (key_t)-1) {
+	if ((objkey = hash_obj(obj, fd)) == (unsigned int)-1)
 		return (dt_link_error(dtp, elf, fd, bufs,
 		    "failed to generate unique key for object file: %s", obj));
-	}
 
 	scn_rel = NULL;
 	while ((scn_rel = elf_nextscn(elf, scn_rel)) != NULL) {
