@@ -1,9 +1,8 @@
 //===--- FreeBSD.cpp - FreeBSD ToolChain Implementations --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -197,6 +196,14 @@ void freebsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back("elf32ltsmipn32_fbsd");
     else
       CmdArgs.push_back("elf64ltsmip_fbsd");
+    break;
+  case llvm::Triple::riscv32:
+    CmdArgs.push_back("-m");
+    CmdArgs.push_back("elf32lriscv");
+    break;
+  case llvm::Triple::riscv64:
+    CmdArgs.push_back("-m");
+    CmdArgs.push_back("elf64lriscv");
     break;
   default:
     break;
@@ -410,6 +417,8 @@ llvm::ExceptionHandling FreeBSD::GetExceptionModel(const ArgList &Args) const {
 
 bool FreeBSD::HasNativeLLVMSupport() const { return true; }
 
+bool FreeBSD::IsUnwindTablesDefault(const ArgList &Args) const { return true; }
+
 bool FreeBSD::isPIEDefault() const { return getSanitizerArgs().requiresPIE(); }
 
 SanitizerMask FreeBSD::getSupportedSanitizers() const {
@@ -418,6 +427,8 @@ SanitizerMask FreeBSD::getSupportedSanitizers() const {
   const bool IsMIPS64 = getTriple().isMIPS64();
   SanitizerMask Res = ToolChain::getSupportedSanitizers();
   Res |= SanitizerKind::Address;
+  Res |= SanitizerKind::PointerCompare;
+  Res |= SanitizerKind::PointerSubtract;
   Res |= SanitizerKind::Vptr;
   if (IsX86_64 || IsMIPS64) {
     Res |= SanitizerKind::Leak;

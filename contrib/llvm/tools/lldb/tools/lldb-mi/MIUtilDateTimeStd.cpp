@@ -1,9 +1,8 @@
 //===-- MIUtilDateTimeStd.cpp -----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,7 +11,6 @@
 #include "MICmnResources.h"
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMIUtilDateTimeStd constructor.
 // Type:    Method.
 // Args:    None.
@@ -22,7 +20,6 @@
 CMIUtilDateTimeStd::CMIUtilDateTimeStd() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMIUtilDateTimeStd destructor.
 // Type:    Method.
 // Args:    None.
@@ -32,7 +29,6 @@ CMIUtilDateTimeStd::CMIUtilDateTimeStd() {}
 CMIUtilDateTimeStd::~CMIUtilDateTimeStd() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve system local current date. Format is MM/DD/YYYY.
 // Type:    Method.
 // Args:    None.
@@ -51,7 +47,6 @@ CMIUtilString CMIUtilDateTimeStd::GetDate() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve system local current time. Format is HH:MM:SS 24 hour
 // clock.
 // Type:    Method.
@@ -71,7 +66,6 @@ CMIUtilString CMIUtilDateTimeStd::GetTime() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve system local current date and time in yyyy-MM-dd--HH-mm-ss
 // format for log file names.
 // Type:    Method.

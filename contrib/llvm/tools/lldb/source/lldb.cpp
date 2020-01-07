@@ -1,9 +1,8 @@
 //===-- lldb.cpp ------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,12 +13,8 @@ using namespace lldb_private;
 
 #include "clang/Basic/Version.h"
 
-#ifdef HAVE_SVN_VERSION_INC
-#include "SVNVersion.inc"
-#endif
-
-#ifdef HAVE_APPLE_VERSION_INC
-#include "AppleVersion.inc"
+#ifdef HAVE_VCS_VERSION_INC
+#include "VCSVersion.inc"
 #endif
 
 static const char *GetLLDBRevision() {

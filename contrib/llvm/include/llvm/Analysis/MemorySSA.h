@@ -1,9 +1,8 @@
 //===- MemorySSA.h - Build Memory SSA ---------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -104,6 +103,9 @@
 #include <utility>
 
 namespace llvm {
+
+/// Enables memory ssa as a dependency for loop passes.
+extern cl::opt<bool> EnableMSSALoopDependency;
 
 class Function;
 class Instruction;
@@ -701,6 +703,11 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(MemoryPhi, MemoryAccess)
 class MemorySSA {
 public:
   MemorySSA(Function &, AliasAnalysis *, DominatorTree *);
+
+  // MemorySSA must remain where it's constructed; Walkers it creates store
+  // pointers to it.
+  MemorySSA(MemorySSA &&) = delete;
+
   ~MemorySSA();
 
   MemorySSAWalker *getWalker();
@@ -776,9 +783,6 @@ public:
   /// all uses, uses appear in the right places).  This is used by unit tests.
   void verifyMemorySSA() const;
 
-  /// Check clobber sanity for an access.
-  void checkClobberSanityAccess(const MemoryAccess *MA) const;
-
   /// Used in various insertion functions to specify whether we are talking
   /// about the beginning or end of a block.
   enum InsertionPlace { Beginning, End };
@@ -793,7 +797,6 @@ protected:
   void verifyDomination(Function &F) const;
   void verifyOrdering(Function &F) const;
   void verifyDominationNumbers(const Function &F) const;
-  void verifyClobberSanity(const Function &F) const;
 
   // This is used by the use optimizer and updater.
   AccessList *getWritableBlockAccesses(const BasicBlock *BB) const {
@@ -830,13 +833,13 @@ protected:
                                       const MemoryUseOrDef *Template = nullptr);
 
 private:
-  class ClobberWalkerBase;
-  class CachingWalker;
-  class SkipSelfWalker;
+  template <class AliasAnalysisType> class ClobberWalkerBase;
+  template <class AliasAnalysisType> class CachingWalker;
+  template <class AliasAnalysisType> class SkipSelfWalker;
   class OptimizeUses;
 
-  CachingWalker *getWalkerImpl();
-  void buildMemorySSA();
+  CachingWalker<AliasAnalysis> *getWalkerImpl();
+  void buildMemorySSA(BatchAAResults &BAA);
   void optimizeUses();
 
   void prepareForMoveTo(MemoryAccess *, BasicBlock *);
@@ -850,7 +853,8 @@ private:
   void markUnreachableAsLiveOnEntry(BasicBlock *BB);
   bool dominatesUse(const MemoryAccess *, const MemoryAccess *) const;
   MemoryPhi *createMemoryPhi(BasicBlock *BB);
-  MemoryUseOrDef *createNewAccess(Instruction *,
+  template <typename AliasAnalysisType>
+  MemoryUseOrDef *createNewAccess(Instruction *, AliasAnalysisType *,
                                   const MemoryUseOrDef *Template = nullptr);
   MemoryAccess *findDominatingDef(BasicBlock *, enum InsertionPlace);
   void placePHINodes(const SmallPtrSetImpl<BasicBlock *> &);
@@ -886,9 +890,9 @@ private:
   mutable DenseMap<const MemoryAccess *, unsigned long> BlockNumbering;
 
   // Memory SSA building info
-  std::unique_ptr<ClobberWalkerBase> WalkerBase;
-  std::unique_ptr<CachingWalker> Walker;
-  std::unique_ptr<SkipSelfWalker> SkipWalker;
+  std::unique_ptr<ClobberWalkerBase<AliasAnalysis>> WalkerBase;
+  std::unique_ptr<CachingWalker<AliasAnalysis>> Walker;
+  std::unique_ptr<SkipSelfWalker<AliasAnalysis>> SkipWalker;
   unsigned NextID;
 };
 
@@ -932,6 +936,9 @@ public:
     MemorySSA &getMSSA() { return *MSSA.get(); }
 
     std::unique_ptr<MemorySSA> MSSA;
+
+    bool invalidate(Function &F, const PreservedAnalyses &PA,
+                    FunctionAnalysisManager::Invalidator &Inv);
   };
 
   Result run(Function &F, FunctionAnalysisManager &AM);
@@ -1044,8 +1051,6 @@ public:
   /// the walker it uses or returns.
   virtual void invalidateInfo(MemoryAccess *) {}
 
-  virtual void verify(const MemorySSA *MSSA) { assert(MSSA == this->MSSA); }
-
 protected:
   friend class MemorySSA; // For updating MSSA pointer in MemorySSA move
                           // constructor.
@@ -1101,15 +1106,15 @@ public:
     assert(Access && "Tried to access past the end of our iterator");
     // Go to the first argument for phis, and the defining access for everything
     // else.
-    if (MemoryPhi *MP = dyn_cast<MemoryPhi>(Access))
+    if (const MemoryPhi *MP = dyn_cast<MemoryPhi>(Access))
       return MP->getIncomingValue(ArgNo);
     return cast<MemoryUseOrDef>(Access)->getDefiningAccess();
   }
 
   using BaseT::operator++;
-  memoryaccess_def_iterator &operator++() {
+  memoryaccess_def_iterator_base &operator++() {
     assert(Access && "Hit end of iterator");
-    if (MemoryPhi *MP = dyn_cast<MemoryPhi>(Access)) {
+    if (const MemoryPhi *MP = dyn_cast<MemoryPhi>(Access)) {
       if (++ArgNo >= MP->getNumIncomingValues()) {
         ArgNo = 0;
         Access = nullptr;

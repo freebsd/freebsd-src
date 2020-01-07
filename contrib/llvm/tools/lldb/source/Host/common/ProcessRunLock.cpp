@@ -1,9 +1,8 @@
 //===-- ProcessRunLock.cpp --------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,19 +12,13 @@
 namespace lldb_private {
 
 ProcessRunLock::ProcessRunLock() : m_running(false) {
-  int err = ::pthread_rwlock_init(&m_rwlock, NULL);
+  int err = ::pthread_rwlock_init(&m_rwlock, nullptr);
   (void)err;
-  //#if LLDB_CONFIGURATION_DEBUG
-  //        assert(err == 0);
-  //#endif
 }
 
 ProcessRunLock::~ProcessRunLock() {
   int err = ::pthread_rwlock_destroy(&m_rwlock);
   (void)err;
-  //#if LLDB_CONFIGURATION_DEBUG
-  //        assert(err == 0);
-  //#endif
 }
 
 bool ProcessRunLock::ReadTryLock() {

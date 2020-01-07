@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,11 +20,9 @@
 
 #include "kmp_i18n.h"
 
-#if OMP_50_ENABLED
 // For affinity format functions
 #include "kmp_io.h"
 #include "kmp_str.h"
-#endif
 
 #if OMPT_SUPPORT
 #include "ompt-specific.h"
@@ -350,7 +347,6 @@ int FTN_STDCALL KMP_EXPAND_NAME(FTN_GET_MAX_THREADS)(void) {
 #endif
 }
 
-#if OMP_50_ENABLED
 int FTN_STDCALL FTN_CONTROL_TOOL(int command, int modifier, void *arg) {
 #if defined(KMP_STUB) || !OMPT_SUPPORT
   return -2;
@@ -369,35 +365,36 @@ int FTN_STDCALL FTN_CONTROL_TOOL(int command, int modifier, void *arg) {
 }
 
 /* OpenMP 5.0 Memory Management support */
-void FTN_STDCALL FTN_SET_DEFAULT_ALLOCATOR(const omp_allocator_t *allocator) {
-#ifndef KMP_STUB
-  __kmpc_set_default_allocator(__kmp_entry_gtid(), allocator);
+omp_allocator_handle_t FTN_STDCALL
+FTN_INIT_ALLOCATOR(omp_memspace_handle_t KMP_DEREF m, int KMP_DEREF ntraits,
+                   omp_alloctrait_t tr[]) {
+#ifdef KMP_STUB
+  return NULL;
+#else
+  return __kmpc_init_allocator(__kmp_entry_gtid(), KMP_DEREF m,
+                               KMP_DEREF ntraits, tr);
 #endif
 }
-const omp_allocator_t *FTN_STDCALL FTN_GET_DEFAULT_ALLOCATOR(void) {
+
+void FTN_STDCALL FTN_DESTROY_ALLOCATOR(omp_allocator_handle_t al) {
+#ifndef KMP_STUB
+  __kmpc_destroy_allocator(__kmp_entry_gtid(), al);
+#endif
+}
+void FTN_STDCALL FTN_SET_DEFAULT_ALLOCATOR(omp_allocator_handle_t al) {
+#ifndef KMP_STUB
+  __kmpc_set_default_allocator(__kmp_entry_gtid(), al);
+#endif
+}
+omp_allocator_handle_t FTN_STDCALL FTN_GET_DEFAULT_ALLOCATOR(void) {
 #ifdef KMP_STUB
   return NULL;
 #else
   return __kmpc_get_default_allocator(__kmp_entry_gtid());
 #endif
 }
-void *FTN_STDCALL FTN_ALLOC(size_t size, const omp_allocator_t *allocator) {
-#ifdef KMP_STUB
-  return malloc(size);
-#else
-  return __kmpc_alloc(__kmp_entry_gtid(), size, allocator);
-#endif
-}
-void FTN_STDCALL FTN_FREE(void *ptr, const omp_allocator_t *allocator) {
-#ifdef KMP_STUB
-  free(ptr);
-#else
-  __kmpc_free(__kmp_entry_gtid(), ptr, allocator);
-#endif
-}
 
 /* OpenMP 5.0 affinity format support */
-
 #ifndef KMP_STUB
 static void __kmp_fortran_strncpy_truncate(char *buffer, size_t buf_size,
                                            char const *csrc, size_t csrc_size) {
@@ -526,7 +523,6 @@ size_t FTN_STDCALL FTN_CAPTURE_AFFINITY(char *buffer, char const *format,
   return num_required;
 #endif
 }
-#endif /* OMP_50_ENABLED */
 
 int FTN_STDCALL KMP_EXPAND_NAME(FTN_GET_THREAD_NUM)(void) {
 #ifdef KMP_STUB
@@ -596,6 +592,7 @@ int FTN_STDCALL KMP_EXPAND_NAME(FTN_GET_NUM_PROCS)(void) {
 }
 
 void FTN_STDCALL KMP_EXPAND_NAME(FTN_SET_NESTED)(int KMP_DEREF flag) {
+  KMP_INFORM(APIDeprecated, "omp_set_nested", "omp_set_max_active_levels");
 #ifdef KMP_STUB
   __kmps_set_nested(KMP_DEREF flag);
 #else
@@ -603,17 +600,22 @@ void FTN_STDCALL KMP_EXPAND_NAME(FTN_SET_NESTED)(int KMP_DEREF flag) {
   /* For the thread-private internal controls implementation */
   thread = __kmp_entry_thread();
   __kmp_save_internal_controls(thread);
-  set__nested(thread, ((KMP_DEREF flag) ? TRUE : FALSE));
+  // Somewhat arbitrarily decide where to get a value for max_active_levels
+  int max_active_levels = get__max_active_levels(thread);
+  if (max_active_levels == 1)
+    max_active_levels = KMP_MAX_ACTIVE_LEVELS_LIMIT;
+  set__max_active_levels(thread, (KMP_DEREF flag) ? max_active_levels : 1);
 #endif
 }
 
 int FTN_STDCALL KMP_EXPAND_NAME(FTN_GET_NESTED)(void) {
+  KMP_INFORM(APIDeprecated, "omp_get_nested", "omp_get_max_active_levels");
 #ifdef KMP_STUB
   return __kmps_get_nested();
 #else
   kmp_info_t *thread;
   thread = __kmp_entry_thread();
-  return get__nested(thread);
+  return get__max_active_levels(thread) > 1;
 #endif
 }
 
@@ -645,7 +647,6 @@ int FTN_STDCALL KMP_EXPAND_NAME(FTN_IN_PARALLEL)(void) {
   return 0;
 #else
   kmp_info_t *th = __kmp_entry_thread();
-#if OMP_40_ENABLED
   if (th->th.th_teams_microtask) {
     // AC: r_in_parallel does not work inside teams construct where real
     // parallel is inactive, but all threads have same root, so setting it in
@@ -653,7 +654,6 @@ int FTN_STDCALL KMP_EXPAND_NAME(FTN_IN_PARALLEL)(void) {
     // The solution is to use per-team nesting level
     return (th->th.th_team->t.t_active_level ? 1 : 0);
   } else
-#endif /* OMP_40_ENABLED */
     return (th->th.th_root->r.r_in_parallel ? FTN_TRUE : FTN_FALSE);
 #endif
 }
@@ -735,11 +735,15 @@ int FTN_STDCALL KMP_EXPAND_NAME(FTN_GET_THREAD_LIMIT)(void) {
 #ifdef KMP_STUB
   return 1; // TO DO: clarify whether it returns 1 or 0?
 #else
+  int gtid;
+  kmp_info_t *thread;
   if (!__kmp_init_serial) {
     __kmp_serial_initialize();
   }
-  /* global ICV */
-  return __kmp_cg_max_nth;
+
+  gtid = __kmp_entry_gtid();
+  thread = __kmp_threads[gtid];
+  return thread->th.th_current_task->td_icvs.thread_limit;
 #endif
 }
 
@@ -754,8 +758,6 @@ int FTN_STDCALL KMP_EXPAND_NAME(FTN_IN_FINAL)(void) {
 #endif
 }
 
-#if OMP_40_ENABLED
-
 kmp_proc_bind_t FTN_STDCALL KMP_EXPAND_NAME(FTN_GET_PROC_BIND)(void) {
 #ifdef KMP_STUB
   return __kmps_get_proc_bind();
@@ -764,7 +766,6 @@ kmp_proc_bind_t FTN_STDCALL KMP_EXPAND_NAME(FTN_GET_PROC_BIND)(void) {
 #endif
 }
 
-#if OMP_45_ENABLED
 int FTN_STDCALL KMP_EXPAND_NAME(FTN_GET_NUM_PLACES)(void) {
 #if defined(KMP_STUB) || !KMP_AFFINITY_SUPPORTED
   return 0;
@@ -902,7 +903,6 @@ void
   }
 #endif
 }
-#endif
 
 int FTN_STDCALL KMP_EXPAND_NAME(FTN_GET_NUM_TEAMS)(void) {
 #ifdef KMP_STUB
@@ -962,11 +962,6 @@ int FTN_STDCALL KMP_EXPAND_NAME(FTN_IS_INITIAL_DEVICE)(void) {
   return 1; // This is the host
 }
 
-#endif // OMP_40_ENABLED
-
-#if OMP_45_ENABLED
-// OpenMP 4.5 entries
-
 // libomptarget, if loaded, provides this function
 int FTN_STDCALL FTN_GET_INITIAL_DEVICE(void) KMP_WEAK_ATTRIBUTE;
 int FTN_STDCALL FTN_GET_INITIAL_DEVICE(void) {
@@ -1015,7 +1010,6 @@ int FTN_STDCALL FTN_TARGET_DISASSOCIATE_PTR(void *host_ptr, int device_num) {
   return -1;
 }
 #endif // defined(KMP_STUB)
-#endif // OMP_45_ENABLED
 
 #ifdef KMP_STUB
 typedef enum { UNINIT = -1, UNLOCKED, LOCKED } kmp_stub_lock_t;
@@ -1288,7 +1282,6 @@ void FTN_STDCALL FTN_SET_DEFAULTS(char const *str
 
 /* ------------------------------------------------------------------------ */
 
-#if OMP_40_ENABLED
 /* returns the status of cancellation */
 int FTN_STDCALL KMP_EXPAND_NAME(FTN_GET_CANCELLATION)(void) {
 #ifdef KMP_STUB
@@ -1310,9 +1303,6 @@ int FTN_STDCALL FTN_GET_CANCELLATION_STATUS(int cancel_kind) {
 #endif
 }
 
-#endif // OMP_40_ENABLED
-
-#if OMP_45_ENABLED
 /* returns the maximum allowed task priority */
 int FTN_STDCALL KMP_EXPAND_NAME(FTN_GET_MAX_TASK_PRIORITY)(void) {
 #ifdef KMP_STUB
@@ -1324,15 +1314,62 @@ int FTN_STDCALL KMP_EXPAND_NAME(FTN_GET_MAX_TASK_PRIORITY)(void) {
   return __kmp_max_task_priority;
 #endif
 }
-#endif
 
-#if OMP_50_ENABLED
 // This function will be defined in libomptarget. When libomptarget is not
 // loaded, we assume we are on the host and return KMP_HOST_DEVICE.
 // Compiler/libomptarget will handle this if called inside target.
 int FTN_STDCALL FTN_GET_DEVICE_NUM(void) KMP_WEAK_ATTRIBUTE;
 int FTN_STDCALL FTN_GET_DEVICE_NUM(void) { return KMP_HOST_DEVICE; }
-#endif // OMP_50_ENABLED
+
+// Compiler will ensure that this is only called from host in sequential region
+int FTN_STDCALL FTN_PAUSE_RESOURCE(kmp_pause_status_t kind, int device_num) {
+#ifdef KMP_STUB
+  return 1; // just fail
+#else
+  if (device_num == KMP_HOST_DEVICE)
+    return __kmpc_pause_resource(kind);
+  else {
+#if !KMP_OS_WINDOWS
+    int (*fptr)(kmp_pause_status_t, int);
+    if ((*(void **)(&fptr) = dlsym(RTLD_DEFAULT, "tgt_pause_resource")))
+      return (*fptr)(kind, device_num);
+    else
+#endif
+      return 1; // just fail if there is no libomptarget
+  }
+#endif
+}
+
+// Compiler will ensure that this is only called from host in sequential region
+int FTN_STDCALL FTN_PAUSE_RESOURCE_ALL(kmp_pause_status_t kind) {
+#ifdef KMP_STUB
+  return 1; // just fail
+#else
+  int fails = 0;
+#if !KMP_OS_WINDOWS
+  int (*fptr)(kmp_pause_status_t, int);
+  if ((*(void **)(&fptr) = dlsym(RTLD_DEFAULT, "tgt_pause_resource")))
+    fails = (*fptr)(kind, KMP_DEVICE_ALL); // pause devices
+#endif
+  fails += __kmpc_pause_resource(kind); // pause host
+  return fails;
+#endif
+}
+
+// Returns the maximum number of nesting levels supported by implementation
+int FTN_STDCALL FTN_GET_SUPPORTED_ACTIVE_LEVELS(void) {
+#ifdef KMP_STUB
+  return 1;
+#else
+  return KMP_MAX_ACTIVE_LEVELS_LIMIT;
+#endif
+}
+
+void FTN_STDCALL FTN_FULFILL_EVENT(kmp_event_t *event) {
+#ifndef KMP_STUB
+  __kmp_fulfill_event(event);
+#endif
+}
 
 // GCC compatibility (versioned symbols)
 #ifdef KMP_USE_VERSION_SYMBOLS
@@ -1408,7 +1445,6 @@ KMP_VERSION_SYMBOL(FTN_TEST_NEST_LOCK, 30, "OMP_3.0");
 // OMP_3.1 versioned symbol
 KMP_VERSION_SYMBOL(FTN_IN_FINAL, 31, "OMP_3.1");
 
-#if OMP_40_ENABLED
 // OMP_4.0 versioned symbols
 KMP_VERSION_SYMBOL(FTN_GET_PROC_BIND, 40, "OMP_4.0");
 KMP_VERSION_SYMBOL(FTN_GET_NUM_TEAMS, 40, "OMP_4.0");
@@ -1418,9 +1454,7 @@ KMP_VERSION_SYMBOL(FTN_GET_DEFAULT_DEVICE, 40, "OMP_4.0");
 KMP_VERSION_SYMBOL(FTN_SET_DEFAULT_DEVICE, 40, "OMP_4.0");
 KMP_VERSION_SYMBOL(FTN_IS_INITIAL_DEVICE, 40, "OMP_4.0");
 KMP_VERSION_SYMBOL(FTN_GET_NUM_DEVICES, 40, "OMP_4.0");
-#endif /* OMP_40_ENABLED */
 
-#if OMP_45_ENABLED
 // OMP_4.5 versioned symbols
 KMP_VERSION_SYMBOL(FTN_GET_MAX_TASK_PRIORITY, 45, "OMP_4.5");
 KMP_VERSION_SYMBOL(FTN_GET_NUM_PLACES, 45, "OMP_4.5");
@@ -1430,12 +1464,13 @@ KMP_VERSION_SYMBOL(FTN_GET_PLACE_NUM, 45, "OMP_4.5");
 KMP_VERSION_SYMBOL(FTN_GET_PARTITION_NUM_PLACES, 45, "OMP_4.5");
 KMP_VERSION_SYMBOL(FTN_GET_PARTITION_PLACE_NUMS, 45, "OMP_4.5");
 // KMP_VERSION_SYMBOL(FTN_GET_INITIAL_DEVICE, 45, "OMP_4.5");
-#endif
 
-#if OMP_50_ENABLED
 // OMP_5.0 versioned symbols
 // KMP_VERSION_SYMBOL(FTN_GET_DEVICE_NUM, 50, "OMP_5.0");
-#endif
+// KMP_VERSION_SYMBOL(FTN_PAUSE_RESOURCE, 50, "OMP_5.0");
+// KMP_VERSION_SYMBOL(FTN_PAUSE_RESOURCE_ALL, 50, "OMP_5.0");
+// KMP_VERSION_SYMBOL(FTN_GET_SUPPORTED_ACTIVE_LEVELS, 50, "OMP_5.0");
+// KMP_VERSION_SYMBOL(FTN_FULFILL_EVENT, 50, "OMP_5.0");
 
 #endif // KMP_USE_VERSION_SYMBOLS
 

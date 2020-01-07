@@ -1,21 +1,21 @@
 //=-- lsan_common_linux.cc ------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
 // This file is a part of LeakSanitizer.
-// Implementation of common leak checking functionality. Linux-specific code.
+// Implementation of common leak checking functionality. Linux/NetBSD-specific
+// code.
 //
 //===----------------------------------------------------------------------===//
 
 #include "sanitizer_common/sanitizer_platform.h"
 #include "lsan_common.h"
 
-#if CAN_SANITIZE_LEAKS && SANITIZER_LINUX
+#if CAN_SANITIZE_LEAKS && (SANITIZER_LINUX || SANITIZER_NETBSD)
 #include <link.h>
 
 #include "sanitizer_common/sanitizer_common.h"
@@ -137,4 +137,4 @@ void DoStopTheWorld(StopTheWorldCallback callback, void *argument) {
 
 } // namespace __lsan
 
-#endif // CAN_SANITIZE_LEAKS && SANITIZER_LINUX
+#endif

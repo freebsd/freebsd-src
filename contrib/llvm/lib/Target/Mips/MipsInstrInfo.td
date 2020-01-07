@@ -1,9 +1,8 @@
 //===- MipsInstrInfo.td - Target Description for Mips Target -*- tablegen -*-=//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -212,6 +211,10 @@ def HasCnMips    :    Predicate<"Subtarget->hasCnMips()">,
                       AssemblerPredicate<"FeatureCnMips">;
 def NotCnMips    :    Predicate<"!Subtarget->hasCnMips()">,
                       AssemblerPredicate<"!FeatureCnMips">;
+def HasCnMipsP   :    Predicate<"Subtarget->hasCnMipsP()">,
+                      AssemblerPredicate<"FeatureCnMipsP">;
+def NotCnMipsP   :    Predicate<"!Subtarget->hasCnMipsP()">,
+                      AssemblerPredicate<"!FeatureCnMipsP">;
 def IsSym32     :     Predicate<"Subtarget->HasSym32()">,
                       AssemblerPredicate<"FeatureSym32">;
 def IsSym64     :     Predicate<"!Subtarget->HasSym32()">,
@@ -221,6 +224,8 @@ def IsNotN64    :     Predicate<"!Subtarget->isABI_N64()">;
 def RelocNotPIC :     Predicate<"!TM.isPositionIndependent()">;
 def RelocPIC    :     Predicate<"TM.isPositionIndependent()">;
 def NoNaNsFPMath :    Predicate<"TM.Options.NoNaNsFPMath">;
+def UseAbs :          Predicate<"Subtarget->inAbs2008Mode() ||"
+                                "TM.Options.NoNaNsFPMath">;
 def HasStdEnc :       Predicate<"Subtarget->hasStandardEncoding()">,
                       AssemblerPredicate<"!FeatureMips16">;
 def NotDSP :          Predicate<"!Subtarget->hasDSP()">;
@@ -436,6 +441,14 @@ class ASE_CNMIPS {
 
 class NOT_ASE_CNMIPS {
   list<Predicate> ASEPredicate = [NotCnMips];
+}
+
+class ASE_CNMIPSP {
+  list<Predicate> ASEPredicate = [HasCnMipsP];
+}
+
+class NOT_ASE_CNMIPSP {
+  list<Predicate> ASEPredicate = [NotCnMipsP];
 }
 
 class ASE_MIPS64_CNMIPS {
@@ -1850,7 +1863,9 @@ class InsBase<string opstr, RegisterOperand RO, Operand PosOpnd,
 // Atomic instructions with 2 source operands (ATOMIC_SWAP & ATOMIC_LOAD_*).
 class Atomic2Ops<PatFrag Op, RegisterClass DRC> :
   PseudoSE<(outs DRC:$dst), (ins PtrRC:$ptr, DRC:$incr),
-           [(set DRC:$dst, (Op iPTR:$ptr, DRC:$incr))]>;
+           [(set DRC:$dst, (Op iPTR:$ptr, DRC:$incr))]> {
+  let hasNoSchedulingInfo = 1;
+}
 
 class Atomic2OpsPostRA<RegisterClass RC> :
   PseudoSE<(outs RC:$dst), (ins PtrRC:$ptr, RC:$incr), []> {
@@ -1867,7 +1882,9 @@ class Atomic2OpsSubwordPostRA<RegisterClass RC> :
 // during ISelLowering, which produces the PostRA version of this instruction.
 class AtomicCmpSwap<PatFrag Op, RegisterClass DRC> :
   PseudoSE<(outs DRC:$dst), (ins PtrRC:$ptr, DRC:$cmp, DRC:$swap),
-           [(set DRC:$dst, (Op iPTR:$ptr, DRC:$cmp, DRC:$swap))]>;
+           [(set DRC:$dst, (Op iPTR:$ptr, DRC:$cmp, DRC:$swap))]> {
+  let hasNoSchedulingInfo = 1;
+}
 
 class AtomicCmpSwapPostRA<RegisterClass RC> :
   PseudoSE<(outs RC:$dst), (ins PtrRC:$ptr, RC:$cmp, RC:$swap), []> {
@@ -1881,7 +1898,6 @@ class AtomicCmpSwapSubwordPostRA<RegisterClass RC> :
   let mayLoad = 1;
   let mayStore = 1;
 }
-
 
 class LLBase<string opstr, RegisterOperand RO, DAGOperand MO = mem> :
   InstSE<(outs RO:$rt), (ins MO:$addr), !strconcat(opstr, "\t$rt, $addr"),
@@ -1934,7 +1950,7 @@ let isReturn=1, isTerminator=1, isBarrier=1, hasCtrlDep=1, isCTI=1 in {
   def ERet : PseudoSE<(outs), (ins), [(MipsERet)]>;
 }
 
-let Defs = [SP], Uses = [SP], hasSideEffects = 1 in {
+let Defs = [SP], Uses = [SP], hasSideEffects = 1, hasNoSchedulingInfo = 1 in {
 def ADJCALLSTACKDOWN : MipsPseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
                                   [(callseq_start timm:$amt1, timm:$amt2)]>;
 def ADJCALLSTACKUP   : MipsPseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
@@ -2010,17 +2026,25 @@ let isPseudo = 1, isCodeGenOnly = 1, hasNoSchedulingInfo = 1 in {
 
 // Expands to: lui $dst, %highest/%higher/%hi/%lo($tgt - $baltgt)
 def LONG_BRANCH_LUi : PseudoSE<(outs GPR32Opnd:$dst),
-  (ins brtarget:$tgt, brtarget:$baltgt), []>;
+  (ins brtarget:$tgt, brtarget:$baltgt), []> {
+  bit hasNoSchedulingInfo = 1;
+}
 // Expands to: lui $dst, highest/%higher/%hi/%lo($tgt)
 def LONG_BRANCH_LUi2Op : PseudoSE<(outs GPR32Opnd:$dst),
-  (ins brtarget:$tgt), []>;
+  (ins brtarget:$tgt), []> {
+  bit hasNoSchedulingInfo = 1;
+}
 
 // Expands to: addiu $dst, $src, %highest/%higher/%hi/%lo($tgt - $baltgt)
 def LONG_BRANCH_ADDiu : PseudoSE<(outs GPR32Opnd:$dst),
-  (ins GPR32Opnd:$src, brtarget:$tgt, brtarget:$baltgt), []>;
+  (ins GPR32Opnd:$src, brtarget:$tgt, brtarget:$baltgt), []> {
+  bit hasNoSchedulingInfo = 1;
+}
 // Expands to: addiu $dst, $src, %highest/%higher/%hi/%lo($tgt)
 def LONG_BRANCH_ADDiu2Op : PseudoSE<(outs GPR32Opnd:$dst),
-  (ins GPR32Opnd:$src, brtarget:$tgt), []>;
+  (ins GPR32Opnd:$src, brtarget:$tgt), []> {
+  bit hasNoSchedulingInfo = 1;
+}
 
 //===----------------------------------------------------------------------===//
 // Instruction definition
@@ -2123,7 +2147,7 @@ let AdditionalPredicates = [NotInMicroMips] in {
             LW_FM<0x28>, ISA_MIPS1;
   def SH  : Store<"sh", GPR32Opnd, truncstorei16, II_SH>, MMRel, LW_FM<0x29>,
             ISA_MIPS1;
-  def SW  : Store<"sw", GPR32Opnd, store, II_SW>, MMRel, LW_FM<0x2b>, ISA_MIPS1;
+  def SW  : StdMMR6Rel, Store<"sw", GPR32Opnd, store, II_SW>, MMRel, LW_FM<0x2b>, ISA_MIPS1;
 }
 
 /// load/store left/right
@@ -2330,12 +2354,12 @@ def SDT_MipsEHRET : SDTypeProfile<0, 2, [SDTCisInt<0>, SDTCisPtrTy<1>]>;
 def MIPSehret : SDNode<"MipsISD::EH_RETURN", SDT_MipsEHRET,
                       [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
 
-let Uses = [V0, V1], isTerminator = 1, isReturn = 1, isBarrier = 1, isCTI = 1 in {
+let Uses = [V0, V1], isTerminator = 1, isReturn = 1,
+           isBarrier = 1, isCTI = 1, hasNoSchedulingInfo = 1 in {
   def MIPSeh_return32 : MipsPseudo<(outs), (ins GPR32:$spoff, GPR32:$dst),
-                                [(MIPSehret GPR32:$spoff, GPR32:$dst)]>;
-  def MIPSeh_return64 : MipsPseudo<(outs), (ins GPR64:$spoff,
-                                                GPR64:$dst),
-                                [(MIPSehret GPR64:$spoff, GPR64:$dst)]>;
+                                   [(MIPSehret GPR32:$spoff, GPR32:$dst)]>;
+  def MIPSeh_return64 : MipsPseudo<(outs), (ins GPR64:$spoff, GPR64:$dst),
+                                   [(MIPSehret GPR64:$spoff, GPR64:$dst)]>;
 }
 
 /// Multiply and Divide Instructions.
@@ -2681,18 +2705,64 @@ let AdditionalPredicates = [NotInMicroMips] in {
                       (SUBu GPR32Opnd:$rt, ZERO, GPR32Opnd:$rs), 1>, ISA_MIPS1;
   def : MipsInstAlias<"negu $rt",
                       (SUBu GPR32Opnd:$rt, ZERO, GPR32Opnd:$rt), 1>, ISA_MIPS1;
+
+  def SGE : MipsAsmPseudoInst<(outs GPR32Opnd:$rd),
+                              (ins GPR32Opnd:$rs, GPR32Opnd:$rt),
+                              "sge\t$rd, $rs, $rt">, ISA_MIPS1;
+  def : MipsInstAlias<"sge $rs, $rt",
+                      (SGE GPR32Opnd:$rs, GPR32Opnd:$rs, GPR32Opnd:$rt), 0>,
+        ISA_MIPS1;
+  def SGEImm : MipsAsmPseudoInst<(outs GPR32Opnd:$rd),
+                                 (ins GPR32Opnd:$rs, simm32:$imm),
+                                 "sge\t$rd, $rs, $imm">, GPR_32;
+  def : MipsInstAlias<"sge $rs, $imm", (SGEImm GPR32Opnd:$rs,
+                                               GPR32Opnd:$rs,
+                                               simm32:$imm), 0>,
+        GPR_32;
+
+  def SGEU : MipsAsmPseudoInst<(outs GPR32Opnd:$rd),
+                               (ins GPR32Opnd:$rs, GPR32Opnd:$rt),
+                               "sgeu\t$rd, $rs, $rt">, ISA_MIPS1;
+  def : MipsInstAlias<"sgeu $rs, $rt",
+                      (SGEU GPR32Opnd:$rs, GPR32Opnd:$rs, GPR32Opnd:$rt), 0>,
+        ISA_MIPS1;
+  def SGEUImm : MipsAsmPseudoInst<(outs GPR32Opnd:$rd),
+                                  (ins GPR32Opnd:$rs, uimm32_coerced:$imm),
+                                  "sgeu\t$rd, $rs, $imm">, GPR_32;
+  def : MipsInstAlias<"sgeu $rs, $imm", (SGEUImm GPR32Opnd:$rs,
+                                                 GPR32Opnd:$rs,
+                                                 uimm32_coerced:$imm), 0>,
+        GPR_32;
+
   def : MipsInstAlias<
           "sgt $rd, $rs, $rt",
           (SLT GPR32Opnd:$rd, GPR32Opnd:$rt, GPR32Opnd:$rs), 0>, ISA_MIPS1;
   def : MipsInstAlias<
           "sgt $rs, $rt",
           (SLT GPR32Opnd:$rs, GPR32Opnd:$rt, GPR32Opnd:$rs), 0>, ISA_MIPS1;
+
+  def SGTImm : MipsAsmPseudoInst<(outs GPR32Opnd:$rd),
+                                 (ins GPR32Opnd:$rs, simm32:$imm),
+                                 "sgt\t$rd, $rs, $imm">, GPR_32;
+  def : MipsInstAlias<"sgt $rs, $imm", (SGTImm GPR32Opnd:$rs,
+                                               GPR32Opnd:$rs,
+                                               simm32:$imm), 0>,
+        GPR_32;
   def : MipsInstAlias<
           "sgtu $rd, $rs, $rt",
           (SLTu GPR32Opnd:$rd, GPR32Opnd:$rt, GPR32Opnd:$rs), 0>, ISA_MIPS1;
   def : MipsInstAlias<
           "sgtu $$rs, $rt",
           (SLTu GPR32Opnd:$rs, GPR32Opnd:$rt, GPR32Opnd:$rs), 0>, ISA_MIPS1;
+
+  def SGTUImm : MipsAsmPseudoInst<(outs GPR32Opnd:$rd),
+                                  (ins GPR32Opnd:$rs, uimm32_coerced:$imm),
+                                  "sgtu\t$rd, $rs, $imm">, GPR_32;
+  def : MipsInstAlias<"sgtu $rs, $imm", (SGTUImm GPR32Opnd:$rs,
+                                                 GPR32Opnd:$rs,
+                                                 uimm32_coerced:$imm), 0>,
+        GPR_32;
+
   def : MipsInstAlias<
           "not $rt, $rs",
           (NOR GPR32Opnd:$rt, GPR32Opnd:$rs, ZERO), 0>, ISA_MIPS1;
@@ -2743,14 +2813,14 @@ let AdditionalPredicates = [NotInMicroMips] in {
   def : MipsInstAlias<"bnez $rs,$offset",
                       (BNE GPR32Opnd:$rs, ZERO, brtarget:$offset), 0>,
         ISA_MIPS1;
-  def : MipsInstAlias<"bnezl $rs,$offset",
-                      (BNEL GPR32Opnd:$rs, ZERO, brtarget:$offset), 0>,
+  def : MipsInstAlias<"bnezl $rs, $offset",
+                      (BNEL GPR32Opnd:$rs, ZERO, brtarget:$offset), 1>,
         ISA_MIPS2;
   def : MipsInstAlias<"beqz $rs,$offset",
                       (BEQ GPR32Opnd:$rs, ZERO, brtarget:$offset), 0>,
         ISA_MIPS1;
-  def : MipsInstAlias<"beqzl $rs,$offset",
-                      (BEQL GPR32Opnd:$rs, ZERO, brtarget:$offset), 0>,
+  def : MipsInstAlias<"beqzl $rs, $offset",
+                      (BEQL GPR32Opnd:$rs, ZERO, brtarget:$offset), 1>,
         ISA_MIPS2;
 
   def : MipsInstAlias<"syscall", (SYSCALL 0), 1>, ISA_MIPS1;

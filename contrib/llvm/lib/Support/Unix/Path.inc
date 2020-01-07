@@ -1,9 +1,8 @@
 //===- llvm/Support/Unix/Path.inc - Unix Path Implementation ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -38,6 +37,15 @@
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
 #include <sys/attr.h>
+#include <copyfile.h>
+#elif defined(__FreeBSD__)
+#include <osreldate.h>
+#if __FreeBSD_version >= 1300057
+#include <sys/auxv.h>
+#else
+#include <machine/elf.h>
+extern char **environ;
+#endif
 #elif defined(__DragonFly__)
 #include <sys/mount.h>
 #endif
@@ -56,7 +64,7 @@
 
 #include <sys/types.h>
 #if !defined(__APPLE__) && !defined(__OpenBSD__) && !defined(__FreeBSD__) &&   \
-    !defined(__linux__) && !defined(__FreeBSD_kernel__)
+    !defined(__linux__) && !defined(__FreeBSD_kernel__) && !defined(_AIX)
 #include <sys/statvfs.h>
 #define STATVFS statvfs
 #define FSTATVFS fstatvfs
@@ -77,6 +85,14 @@
 #endif
 #endif
 #include <sys/vfs.h>
+#elif defined(_AIX)
+#include <sys/statfs.h>
+
+// <sys/vmount.h> depends on `uint` to be a typedef from <sys/types.h> to
+// `uint_t`; however, <sys/types.h> does not always declare `uint`. We provide
+// the typedef prior to including <sys/vmount.h> to work around this issue.
+typedef uint_t uint;
+#include <sys/vmount.h>
 #else
 #include <sys/mount.h>
 #endif
@@ -108,7 +124,11 @@ test_dir(char ret[PATH_MAX], const char *dir, const char *bin)
   struct stat sb;
   char fullpath[PATH_MAX];
 
-  snprintf(fullpath, PATH_MAX, "%s/%s", dir, bin);
+  int chars = snprintf(fullpath, PATH_MAX, "%s/%s", dir, bin);
+  // We cannot write PATH_MAX characters because the string will be terminated
+  // with a null character. Fail if truncation happened.
+  if (chars >= PATH_MAX)
+    return 1;
   if (!realpath(fullpath, ret))
     return 1;
   if (stat(fullpath, &sb) != 0)
@@ -120,8 +140,6 @@ test_dir(char ret[PATH_MAX], const char *dir, const char *bin)
 static char *
 getprogpath(char ret[PATH_MAX], const char *bin)
 {
-  char *pv, *s, *t;
-
   /* First approach: absolute path. */
   if (bin[0] == '/') {
     if (test_dir(ret, "/", bin) == 0)
@@ -140,18 +158,21 @@ getprogpath(char ret[PATH_MAX], const char *bin)
   }
 
   /* Third approach: $PATH */
+  char *pv;
   if ((pv = getenv("PATH")) == nullptr)
     return nullptr;
-  s = pv = strdup(pv);
-  if (!pv)
+  char *s = strdup(pv);
+  if (!s)
     return nullptr;
-  while ((t = strsep(&s, ":")) != nullptr) {
+  char *state;
+  for (char *t = strtok_r(s, ":", &state); t != nullptr;
+       t = strtok_r(nullptr, ":", &state)) {
     if (test_dir(ret, t, bin) == 0) {
-      free(pv);
+      free(s);
       return ret;
     }
   }
-  free(pv);
+  free(s);
   return nullptr;
 }
 #endif // __FreeBSD__ || __NetBSD__ || __FreeBSD_kernel__
@@ -170,11 +191,51 @@ std::string getMainExecutable(const char *argv0, void *MainAddr) {
     if (realpath(exe_path, link_path))
       return link_path;
   }
-#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) ||   \
-    defined(__minix) || defined(__DragonFly__) ||                              \
-    defined(__FreeBSD_kernel__) || defined(_AIX)
+#elif defined(__FreeBSD__)
+  // On FreeBSD if the exec path specified in ELF auxiliary vectors is
+  // preferred, if available.  /proc/curproc/file and the KERN_PROC_PATHNAME
+  // sysctl may not return the desired path if there are multiple hardlinks
+  // to the file.
   char exe_path[PATH_MAX];
-
+#if __FreeBSD_version >= 1300057
+  if (elf_aux_info(AT_EXECPATH, exe_path, sizeof(exe_path)) == 0)
+    return exe_path;
+#else
+  // elf_aux_info(AT_EXECPATH, ... is not available on older FreeBSD.  Fall
+  // back to finding the ELF auxiliary vectors after the processes's
+  // environment.
+  char **p = ::environ;
+  while (*p++ != 0)
+    ;
+  // Iterate through auxiliary vectors for AT_EXECPATH.
+  for (;;) {
+    switch (*(uintptr_t *)p++) {
+    case AT_EXECPATH:
+      return *p;
+    case AT_NULL:
+      break;
+    }
+    p++;
+  }
+#endif
+  // Fall back to argv[0] if auxiliary vectors are not available.
+  if (getprogpath(exe_path, argv0) != NULL)
+    return exe_path;
+#elif defined(__NetBSD__) || defined(__OpenBSD__) || defined(__minix) || \
+    defined(__DragonFly__) || defined(__FreeBSD_kernel__) || defined(_AIX)
+  StringRef curproc("/proc/curproc/file");
+  char exe_path[PATH_MAX];
+  if (sys::fs::exists(curproc)) {
+    ssize_t len = readlink(curproc.str().c_str(), exe_path, sizeof(exe_path));
+    if (len > 0) {
+      // Null terminate the string for realpath. readlink never null
+      // terminates its output.
+      len = std::min(len, ssize_t(sizeof(exe_path) - 1));
+      exe_path[len] = '\0';
+      return exe_path;
+    }
+  }
+  // If we don't have procfs mounted, fall back to argv[0]
   if (getprogpath(exe_path, argv0) != NULL)
     return exe_path;
 #elif defined(__linux__) || defined(__CYGWIN__)
@@ -196,20 +257,20 @@ std::string getMainExecutable(const char *argv0, void *MainAddr) {
     // the program, and not the eventual binary file. Therefore, call realpath
     // so this behaves the same on all platforms.
 #if _POSIX_VERSION >= 200112 || defined(__GLIBC__)
-    char *real_path = realpath(exe_path, NULL);
-    std::string ret = std::string(real_path);
-    free(real_path);
-    return ret;
+    if (char *real_path = realpath(exe_path, NULL)) {
+      std::string ret = std::string(real_path);
+      free(real_path);
+      return ret;
+    }
 #else
     char real_path[MAXPATHLEN];
-    realpath(exe_path, real_path);
-    return std::string(real_path);
+    if (realpath(exe_path, real_path))
+      return std::string(real_path);
 #endif
-  } else {
-    // Fall back to the classical detection.
-    if (getprogpath(exe_path, argv0))
-      return exe_path;
   }
+  // Fall back to the classical detection.
+  if (getprogpath(exe_path, argv0))
+    return exe_path;
 #elif defined(HAVE_DLFCN_H) && defined(HAVE_DLADDR)
   // Use dladdr to get executable path if available.
   Dl_info DLInfo;
@@ -246,7 +307,7 @@ uint32_t file_status::getLinkCount() const {
 
 ErrorOr<space_info> disk_space(const Twine &Path) {
   struct STATVFS Vfs;
-  if (::STATVFS(Path.str().c_str(), &Vfs))
+  if (::STATVFS(const_cast<char *>(Path.str().c_str()), &Vfs))
     return std::error_code(errno, std::generic_category());
   auto FrSize = STATVFS_F_FRSIZE(Vfs);
   space_info SpaceInfo;
@@ -398,6 +459,9 @@ static bool is_local_impl(struct STATVFS &Vfs) {
 #elif defined(__Fuchsia__)
   // Fuchsia doesn't yet support remote filesystem mounts.
   return true;
+#elif defined(__EMSCRIPTEN__)
+  // Emscripten doesn't currently support remote filesystem mounts.
+  return true;
 #elif defined(__HAIKU__)
   // Haiku doesn't expose this information.
   return false;
@@ -406,6 +470,40 @@ static bool is_local_impl(struct STATVFS &Vfs) {
   StringRef fstype(Vfs.f_basetype);
   // NFS is the only non-local fstype??
   return !fstype.equals("nfs");
+#elif defined(_AIX)
+  // Call mntctl; try more than twice in case of timing issues with a concurrent
+  // mount.
+  int Ret;
+  size_t BufSize = 2048u;
+  std::unique_ptr<char[]> Buf;
+  int Tries = 3;
+  while (Tries--) {
+    Buf = llvm::make_unique<char[]>(BufSize);
+    Ret = mntctl(MCTL_QUERY, BufSize, Buf.get());
+    if (Ret != 0)
+      break;
+    BufSize = *reinterpret_cast<unsigned int *>(Buf.get());
+    Buf.reset();
+  }
+
+  if (Ret == -1)
+    // There was an error; "remote" is the conservative answer.
+    return false;
+
+  // Look for the correct vmount entry.
+  char *CurObjPtr = Buf.get();
+  while (Ret--) {
+    struct vmount *Vp = reinterpret_cast<struct vmount *>(CurObjPtr);
+    static_assert(sizeof(Vfs.f_fsid) == sizeof(Vp->vmt_fsid),
+                  "fsid length mismatch");
+    if (memcmp(&Vfs.f_fsid, &Vp->vmt_fsid, sizeof Vfs.f_fsid) == 0)
+      return (Vp->vmt_flags & MNT_REMOTE) == 0;
+
+    CurObjPtr += Vp->vmt_length;
+  }
+
+  // vmount entry not found; "remote" is the conservative answer.
+  return false;
 #else
   return !!(STATVFS_F_FLAG(Vfs) & MNT_LOCAL);
 #endif
@@ -413,7 +511,7 @@ static bool is_local_impl(struct STATVFS &Vfs) {
 
 std::error_code is_local(const Twine &Path, bool &Result) {
   struct STATVFS Vfs;
-  if (::STATVFS(Path.str().c_str(), &Vfs))
+  if (::STATVFS(const_cast<char *>(Path.str().c_str()), &Vfs))
     return std::error_code(errno, std::generic_category());
 
   Result = is_local_impl(Vfs);
@@ -447,7 +545,12 @@ std::error_code resize_file(int FD, uint64_t Size) {
   // If we have posix_fallocate use it. Unlike ftruncate it always allocates
   // space, so we get an error if the disk is full.
   if (int Err = ::posix_fallocate(FD, 0, Size)) {
-    if (Err != EINVAL && Err != EOPNOTSUPP)
+#ifdef _AIX
+    constexpr int NotSupportedError = ENOTSUP;
+#else
+    constexpr int NotSupportedError = EOPNOTSUPP;
+#endif
+    if (Err != EINVAL && Err != NotSupportedError)
       return std::error_code(Err, std::generic_category());
   }
 #endif
@@ -626,11 +729,25 @@ std::error_code status(int FD, file_status &Result) {
   return fillStatus(StatRet, Status, Result);
 }
 
+unsigned getUmask() {
+  // Chose arbitary new mask and reset the umask to the old mask.
+  // umask(2) never fails so ignore the return of the second call.
+  unsigned Mask = ::umask(0);
+  (void) ::umask(Mask);
+  return Mask;
+}
+
 std::error_code setPermissions(const Twine &Path, perms Permissions) {
   SmallString<128> PathStorage;
   StringRef P = Path.toNullTerminatedStringRef(PathStorage);
 
   if (::chmod(P.begin(), Permissions))
+    return std::error_code(errno, std::generic_category());
+  return std::error_code();
+}
+
+std::error_code setPermissions(int FD, perms Permissions) {
+  if (::fchmod(FD, Permissions))
     return std::error_code(errno, std::generic_category());
   return std::error_code();
 }
@@ -722,7 +839,7 @@ const char *mapped_file_region::const_data() const {
 }
 
 int mapped_file_region::alignment() {
-  return Process::getPageSize();
+  return Process::getPageSizeEstimate();
 }
 
 std::error_code detail::directory_iterator_construct(detail::DirIterState &it,
@@ -910,9 +1027,54 @@ Expected<file_t> openNativeFileForRead(const Twine &Name, OpenFlags Flags,
   return ResultFD;
 }
 
-void closeFile(file_t &F) {
-  ::close(F);
+file_t getStdinHandle() { return 0; }
+file_t getStdoutHandle() { return 1; }
+file_t getStderrHandle() { return 2; }
+
+std::error_code readNativeFile(file_t FD, MutableArrayRef<char> Buf,
+                               size_t *BytesRead) {
+  *BytesRead = sys::RetryAfterSignal(-1, ::read, FD, Buf.data(), Buf.size());
+  if (ssize_t(*BytesRead) == -1)
+    return std::error_code(errno, std::generic_category());
+  return std::error_code();
+}
+
+std::error_code readNativeFileSlice(file_t FD, MutableArrayRef<char> Buf,
+                                    size_t Offset) {
+  char *BufPtr = Buf.data();
+  size_t BytesLeft = Buf.size();
+
+#ifndef HAVE_PREAD
+  // If we don't have pread, seek to Offset.
+  if (lseek(FD, Offset, SEEK_SET) == -1)
+    return std::error_code(errno, std::generic_category());
+#endif
+
+  while (BytesLeft) {
+#ifdef HAVE_PREAD
+    ssize_t NumRead = sys::RetryAfterSignal(-1, ::pread, FD, BufPtr, BytesLeft,
+                                            Buf.size() - BytesLeft + Offset);
+#else
+    ssize_t NumRead = sys::RetryAfterSignal(-1, ::read, FD, BufPtr, BytesLeft);
+#endif
+    if (NumRead == -1) {
+      // Error while reading.
+      return std::error_code(errno, std::generic_category());
+    }
+    if (NumRead == 0) {
+      memset(BufPtr, 0, BytesLeft); // zero-initialize rest of the buffer.
+      break;
+    }
+    BytesLeft -= NumRead;
+    BufPtr += NumRead;
+  }
+  return std::error_code();
+}
+
+std::error_code closeFile(file_t &F) {
+  file_t TmpF = F;
   F = kInvalidFile;
+  return Process::SafelyCloseFileDescriptor(TmpF);
 }
 
 template <typename T>
@@ -1062,6 +1224,38 @@ void system_temp_directory(bool ErasedOnReboot, SmallVectorImpl<char> &Result) {
 }
 
 } // end namespace path
+
+namespace fs {
+
+#ifdef __APPLE__
+/// This implementation tries to perform an APFS CoW clone of the file,
+/// which can be much faster and uses less space.
+/// Unfortunately fcopyfile(3) does not support COPYFILE_CLONE, so the
+/// file descriptor variant of this function still uses the default
+/// implementation.
+std::error_code copy_file(const Twine &From, const Twine &To) {
+  uint32_t Flag = COPYFILE_DATA;
+#if __has_builtin(__builtin_available) && defined(COPYFILE_CLONE)
+  if (__builtin_available(macos 10.12, *)) {
+    bool IsSymlink;
+    if (std::error_code Error = is_symlink_file(From, IsSymlink))
+      return Error;
+    // COPYFILE_CLONE clones the symlink instead of following it
+    // and returns EEXISTS if the target file already exists.
+    if (!IsSymlink && !exists(To))
+      Flag = COPYFILE_CLONE;
+  }
+#endif
+  int Status =
+      copyfile(From.str().c_str(), To.str().c_str(), /* State */ NULL, Flag);
+
+  if (Status == 0)
+    return std::error_code();
+  return std::error_code(errno, std::generic_category());
+}
+#endif // __APPLE__
+
+} // end namespace fs
 
 } // end namespace sys
 } // end namespace llvm

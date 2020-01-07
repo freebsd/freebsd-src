@@ -1,9 +1,8 @@
 //===-- RegisterContextPOSIXCore_ppc64le.cpp --------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,33 +15,35 @@
 #include "Plugins/Process/Utility/lldb-ppc64le-register-enums.h"
 #include "Plugins/Process/elf-core/RegisterUtilities.h"
 
+#include <memory>
+
 using namespace lldb_private;
 
 RegisterContextCorePOSIX_ppc64le::RegisterContextCorePOSIX_ppc64le(
     Thread &thread, RegisterInfoInterface *register_info,
     const DataExtractor &gpregset, llvm::ArrayRef<CoreNote> notes)
     : RegisterContextPOSIX_ppc64le(thread, 0, register_info) {
-  m_gpr_buffer.reset(
-      new DataBufferHeap(gpregset.GetDataStart(), gpregset.GetByteSize()));
+  m_gpr_buffer = std::make_shared<DataBufferHeap>(gpregset.GetDataStart(),
+                                                  gpregset.GetByteSize());
   m_gpr.SetData(m_gpr_buffer);
   m_gpr.SetByteOrder(gpregset.GetByteOrder());
 
   ArchSpec arch = register_info->GetTargetArchitecture();
   DataExtractor fpregset = getRegset(notes, arch.GetTriple(), FPR_Desc);
-  m_fpr_buffer.reset(
-      new DataBufferHeap(fpregset.GetDataStart(), fpregset.GetByteSize()));
+  m_fpr_buffer = std::make_shared<DataBufferHeap>(fpregset.GetDataStart(),
+                                                  fpregset.GetByteSize());
   m_fpr.SetData(m_fpr_buffer);
   m_fpr.SetByteOrder(fpregset.GetByteOrder());
 
   DataExtractor vmxregset = getRegset(notes, arch.GetTriple(), PPC_VMX_Desc);
-  m_vmx_buffer.reset(
-      new DataBufferHeap(vmxregset.GetDataStart(), vmxregset.GetByteSize()));
+  m_vmx_buffer = std::make_shared<DataBufferHeap>(vmxregset.GetDataStart(),
+                                                  vmxregset.GetByteSize());
   m_vmx.SetData(m_vmx_buffer);
   m_vmx.SetByteOrder(vmxregset.GetByteOrder());
 
   DataExtractor vsxregset = getRegset(notes, arch.GetTriple(), PPC_VSX_Desc);
-  m_vsx_buffer.reset(
-      new DataBufferHeap(vsxregset.GetDataStart(), vsxregset.GetByteSize()));
+  m_vsx_buffer = std::make_shared<DataBufferHeap>(vsxregset.GetDataStart(),
+                                                  vsxregset.GetByteSize());
   m_vsx.SetData(m_vsx_buffer);
   m_vsx.SetByteOrder(vsxregset.GetByteOrder());
 }

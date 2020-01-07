@@ -1,10 +1,9 @@
 //===-- AppleObjCClassDescriptorV2.cpp -----------------------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -335,9 +334,9 @@ bool ClassDescriptorV2::Describe(
   std::unique_ptr<class_rw_t> class_rw;
 
   if (!Read_objc_class(process, objc_class))
-    return 0;
+    return false;
   if (!Read_class_row(process, *objc_class, class_ro, class_rw))
-    return 0;
+    return false;
 
   static ConstString NSObject_name("NSObject");
 

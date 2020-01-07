@@ -1,9 +1,8 @@
 //===- DWARFUnitIndex.cpp -------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -173,10 +172,9 @@ DWARFUnitIndex::getFromOffset(uint32_t Offset) const {
              E2->Contributions[InfoColumn].Offset;
     });
   }
-  auto I =
-      llvm::upper_bound(OffsetLookup, Offset, [&](uint32_t Offset, Entry *E2) {
-        return Offset < E2->Contributions[InfoColumn].Offset;
-      });
+  auto I = partition_point(OffsetLookup, [&](Entry *E2) {
+    return E2->Contributions[InfoColumn].Offset <= Offset;
+  });
   if (I == OffsetLookup.begin())
     return nullptr;
   --I;

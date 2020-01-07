@@ -1,9 +1,8 @@
 //===-- TypeSynthetic.h -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -48,7 +47,7 @@ public:
 
   virtual lldb::ValueObjectSP GetChildAtIndex(size_t idx) = 0;
 
-  virtual size_t GetIndexOfChildWithName(const ConstString &name) = 0;
+  virtual size_t GetIndexOfChildWithName(ConstString name) = 0;
 
   // this function is assumed to always succeed and it if fails, the front-end
   // should know to deal with it in the correct way (most probably, by refusing
@@ -111,7 +110,7 @@ public:
 
   lldb::ValueObjectSP GetChildAtIndex(size_t idx) override { return nullptr; }
 
-  size_t GetIndexOfChildWithName(const ConstString &name) override {
+  size_t GetIndexOfChildWithName(ConstString name) override {
     return UINT32_MAX;
   }
 
@@ -327,7 +326,7 @@ public:
 
     bool MightHaveChildren() override { return filter->GetCount() > 0; }
 
-    size_t GetIndexOfChildWithName(const ConstString &name) override;
+    size_t GetIndexOfChildWithName(ConstString name) override;
 
     typedef std::shared_ptr<SyntheticChildrenFrontEnd> SharedPointer;
 
@@ -376,8 +375,6 @@ private:
   DISALLOW_COPY_AND_ASSIGN(CXXSyntheticChildren);
 };
 
-#ifndef LLDB_DISABLE_PYTHON
-
 class ScriptedSyntheticChildren : public SyntheticChildren {
   std::string m_python_class;
   std::string m_python_code;
@@ -425,7 +422,7 @@ public:
 
     bool MightHaveChildren() override;
 
-    size_t GetIndexOfChildWithName(const ConstString &name) override;
+    size_t GetIndexOfChildWithName(ConstString name) override;
 
     lldb::ValueObjectSP GetSyntheticValue() override;
 
@@ -453,7 +450,6 @@ public:
 private:
   DISALLOW_COPY_AND_ASSIGN(ScriptedSyntheticChildren);
 };
-#endif
 } // namespace lldb_private
 
 #endif // lldb_TypeSynthetic_h_

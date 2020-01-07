@@ -1,9 +1,8 @@
 //-- SystemZMachineScheduler.cpp - SystemZ Scheduler Interface -*- C++ -*---==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -109,8 +108,8 @@ void SystemZPostRASchedStrategy::enterMBB(MachineBasicBlock *NextMBB) {
        I != SinglePredMBB->end(); I++) {
     LLVM_DEBUG(dbgs() << "** Emitting incoming branch: "; I->dump(););
     bool TakenBranch = (I->isBranch() &&
-      (TII->getBranchInfo(*I).Target->isReg() || // Relative branch
-       TII->getBranchInfo(*I).Target->getMBB() == MBB));
+                        (TII->getBranchInfo(*I).isIndirect() ||
+                         TII->getBranchInfo(*I).getMBBTarget() == MBB));
     HazardRec->emitInstruction(&*I, TakenBranch);
     if (TakenBranch)
       break;

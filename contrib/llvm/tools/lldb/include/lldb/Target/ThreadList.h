@@ -1,9 +1,8 @@
 //===-- ThreadList.h --------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -111,19 +110,17 @@ public:
 
   void RefreshStateAfterStop();
 
-  //------------------------------------------------------------------
   /// The thread list asks tells all the threads it is about to resume.
   /// If a thread can "resume" without having to resume the target, it
   /// will return false for WillResume, and then the process will not be
   /// restarted.
   ///
-  /// @return
+  /// \return
   ///    \b true instructs the process to resume normally,
   ///    \b false means start & stopped events will be generated, but
   ///    the process will not actually run.  The thread must then return
   ///    the correct StopInfo when asked.
   ///
-  //------------------------------------------------------------------
   bool WillResume();
 
   void DidResume();
@@ -145,9 +142,7 @@ protected:
 
   void NotifySelectedThreadChanged(lldb::tid_t tid);
 
-  //------------------------------------------------------------------
   // Classes that inherit from Process can see and modify these
-  //------------------------------------------------------------------
   Process *m_process; ///< The process that manages this thread list.
   uint32_t
       m_stop_id; ///< The process stop ID that this thread list is valid for.
@@ -156,7 +151,7 @@ protected:
   std::vector<lldb::tid_t> m_expression_tid_stack;
 
 private:
-  ThreadList();
+  ThreadList() = delete;
 };
 
 } // namespace lldb_private

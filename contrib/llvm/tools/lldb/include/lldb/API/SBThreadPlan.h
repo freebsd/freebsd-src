@@ -1,9 +1,8 @@
-//===-- SBThread.h ----------------------------------------------*- C++ -*-===//
+//===-- SBThreadPlan.h ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -31,6 +30,8 @@ public:
 
   ~SBThreadPlan();
 
+  explicit operator bool() const;
+
   bool IsValid() const;
 
   void Clear();
@@ -41,7 +42,6 @@ public:
   /// See also GetStopReasonDataAtIndex().
   size_t GetStopReasonDataCount();
 
-  //--------------------------------------------------------------------------
   /// Get information associated with a stop reason.
   ///
   /// Breakpoint stop reasons will have data that consists of pairs of
@@ -58,7 +58,6 @@ public:
   /// eStopReasonException     N     exception data
   /// eStopReasonExec          0
   /// eStopReasonPlanComplete  0
-  //--------------------------------------------------------------------------
   uint64_t GetStopReasonDataAtIndex(uint32_t idx);
 
   SBThread GetThread() const;
@@ -102,11 +101,7 @@ public:
   SBThreadPlan QueueThreadPlanForStepScripted(const char *script_class_name,
                                               SBError &error);
 
-#ifndef SWIG
-  lldb_private::ThreadPlan *get();
-#endif
-
-protected:
+private:
   friend class SBBreakpoint;
   friend class SBBreakpointLocation;
   friend class SBFrame;
@@ -116,11 +111,9 @@ protected:
   friend class lldb_private::QueueImpl;
   friend class SBQueueItem;
 
-#ifndef SWIG
+  lldb_private::ThreadPlan *get();
   void SetThreadPlan(const lldb::ThreadPlanSP &lldb_object_sp);
-#endif
 
-private:
   lldb::ThreadPlanSP m_opaque_sp;
 };
 

@@ -1,9 +1,8 @@
 //===-- BreakpointSiteList.cpp ----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -86,7 +85,7 @@ public:
   BreakpointSiteIDMatches(lldb::break_id_t break_id) : m_break_id(break_id) {}
 
   bool operator()(std::pair<lldb::addr_t, BreakpointSiteSP> val_pair) const {
-    return m_break_id == val_pair.second.get()->GetID();
+    return m_break_id == val_pair.second->GetID();
   }
 
 private:
@@ -158,7 +157,7 @@ void BreakpointSiteList::Dump(Stream *s) const {
   collection::const_iterator pos;
   collection::const_iterator end = m_bp_site_list.end();
   for (pos = m_bp_site_list.begin(); pos != end; ++pos)
-    pos->second.get()->Dump(s);
+    pos->second->Dump(s);
   s->IndentLess();
 }
 

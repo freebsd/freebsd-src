@@ -1,9 +1,8 @@
 //===- MCInstPrinter.cpp - Convert an MCInst to target assembly syntax ----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -22,10 +21,14 @@ using namespace llvm;
 
 void llvm::dumpBytes(ArrayRef<uint8_t> bytes, raw_ostream &OS) {
   static const char hex_rep[] = "0123456789abcdef";
+  bool First = true;
   for (char i: bytes) {
+    if (First)
+      First = false;
+    else
+      OS << ' ';
     OS << hex_rep[(i & 0xF0) >> 4];
     OS << hex_rep[i & 0xF];
-    OS << ' ';
   }
 }
 

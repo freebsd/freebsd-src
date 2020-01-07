@@ -1,9 +1,8 @@
 //===- OrcCBindingsStack.h - Orc JIT stack for C bindings -----*- C++ -*---===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -154,8 +153,8 @@ private:
       for (auto &S : Symbols) {
         if (auto Sym = findSymbol(*S)) {
           if (auto Addr = Sym.getAddress()) {
-            Query->resolve(S, JITEvaluatedSymbol(*Addr, Sym.getFlags()));
-            Query->notifySymbolReady();
+            Query->notifySymbolMetRequiredState(
+                S, JITEvaluatedSymbol(*Addr, Sym.getFlags()));
           } else {
             Stack.ES.legacyFailQuery(*Query, Addr.takeError());
             return orc::SymbolNameSet();
@@ -167,11 +166,8 @@ private:
           UnresolvedSymbols.insert(S);
       }
 
-      if (Query->isFullyResolved())
-        Query->handleFullyResolved();
-
-      if (Query->isFullyReady())
-        Query->handleFullyReady();
+      if (Query->isComplete())
+        Query->handleComplete();
 
       return UnresolvedSymbols;
     }
@@ -215,28 +211,31 @@ public:
                     IndirectStubsManagerBuilder IndirectStubsMgrBuilder)
       : CCMgr(createCompileCallbackManager(TM, ES)), DL(TM.createDataLayout()),
         IndirectStubsMgr(IndirectStubsMgrBuilder()),
-        ObjectLayer(ES,
-                    [this](orc::VModuleKey K) {
-                      auto ResolverI = Resolvers.find(K);
-                      assert(ResolverI != Resolvers.end() &&
-                             "No resolver for module K");
-                      auto Resolver = std::move(ResolverI->second);
-                      Resolvers.erase(ResolverI);
-                      return ObjLayerT::Resources{
-                          std::make_shared<SectionMemoryManager>(), Resolver};
-                    },
-                    nullptr,
-                    [this](orc::VModuleKey K, const object::ObjectFile &Obj,
-                           const RuntimeDyld::LoadedObjectInfo &LoadedObjInfo) {
-		      this->notifyFinalized(K, Obj, LoadedObjInfo);
-                    },
-                    [this](orc::VModuleKey K, const object::ObjectFile &Obj) {
-		      this->notifyFreed(K, Obj);
-                    }),
-        CompileLayer(ObjectLayer, orc::SimpleCompiler(TM)),
+        ObjectLayer(
+            AcknowledgeORCv1Deprecation, ES,
+            [this](orc::VModuleKey K) {
+              auto ResolverI = Resolvers.find(K);
+              assert(ResolverI != Resolvers.end() &&
+                     "No resolver for module K");
+              auto Resolver = std::move(ResolverI->second);
+              Resolvers.erase(ResolverI);
+              return ObjLayerT::Resources{
+                  std::make_shared<SectionMemoryManager>(), Resolver};
+            },
+            nullptr,
+            [this](orc::VModuleKey K, const object::ObjectFile &Obj,
+                   const RuntimeDyld::LoadedObjectInfo &LoadedObjInfo) {
+              this->notifyFinalized(K, Obj, LoadedObjInfo);
+            },
+            [this](orc::VModuleKey K, const object::ObjectFile &Obj) {
+              this->notifyFreed(K, Obj);
+            }),
+        CompileLayer(AcknowledgeORCv1Deprecation, ObjectLayer,
+                     orc::SimpleCompiler(TM)),
         CODLayer(createCODLayer(ES, CompileLayer, CCMgr.get(),
                                 std::move(IndirectStubsMgrBuilder), Resolvers)),
         CXXRuntimeOverrides(
+            AcknowledgeORCv1Deprecation,
             [this](const std::string &S) { return mangle(S); }) {}
 
   Error shutdown() {
@@ -312,7 +311,8 @@ public:
 
     // Run the static constructors, and save the static destructor runner for
     // execution when the JIT is torn down.
-    orc::LegacyCtorDtorRunner<OrcCBindingsStack> CtorRunner(std::move(CtorNames), K);
+    orc::LegacyCtorDtorRunner<OrcCBindingsStack> CtorRunner(
+        AcknowledgeORCv1Deprecation, std::move(CtorNames), K);
     if (auto Err = CtorRunner.runViaLayer(*this))
       return std::move(Err);
 
@@ -469,7 +469,7 @@ private:
       return nullptr;
 
     return llvm::make_unique<CODLayerT>(
-        ES, CompileLayer,
+        AcknowledgeORCv1Deprecation, ES, CompileLayer,
         [&Resolvers](orc::VModuleKey K) {
           auto ResolverI = Resolvers.find(K);
           assert(ResolverI != Resolvers.end() && "No resolver for module K");

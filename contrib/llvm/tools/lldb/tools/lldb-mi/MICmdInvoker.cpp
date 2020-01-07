@@ -1,9 +1,8 @@
 //===-- MICmdInvoker.cpp ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,7 +15,6 @@
 #include "MIDriver.h"
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdInvoker constructor.
 // Type:    Method.
 // Args:    None.
@@ -26,7 +24,6 @@
 CMICmdInvoker::CMICmdInvoker() : m_rStreamOut(CMICmnStreamStdout::Instance()) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdInvoker destructor.
 // Type:    Overridable.
 // Args:    None.
@@ -36,7 +33,6 @@ CMICmdInvoker::CMICmdInvoker() : m_rStreamOut(CMICmnStreamStdout::Instance()) {}
 CMICmdInvoker::~CMICmdInvoker() { Shutdown(); }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Initialize resources for *this Command Invoker.
 // Type:    Method.
 // Args:    None.
@@ -56,7 +52,6 @@ bool CMICmdInvoker::Initialize() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Release resources for *this Stdin stream.
 // Type:    Method.
 // Args:    None.
@@ -79,7 +74,6 @@ bool CMICmdInvoker::Shutdown() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Empty the map of invoked commands doing work. Command objects are
 // deleted too.
 // Type:    Method.
@@ -105,7 +99,6 @@ void CMICmdInvoker::CmdDeleteAll() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Remove from the map of invoked commands doing work a command that
 // has finished
 //          its work. The command object is deleted too.
@@ -139,7 +132,6 @@ bool CMICmdInvoker::CmdDelete(const MIuint vId,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Add to the map of invoked commands doing work a command that is
 // about to
 //          start to do work.
@@ -166,7 +158,6 @@ bool CMICmdInvoker::CmdAdd(const CMICmdBase &vCmd) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Having previously had the potential command validated and found
 // valid now
 //          get the command executed.
@@ -213,7 +204,6 @@ bool CMICmdInvoker::CmdExecute(CMICmdBase &vCmd) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Called when a command has finished its Execution() work either
 // synchronously
 //          because the command executed was the type a non event type or
@@ -270,7 +260,6 @@ bool CMICmdInvoker::CmdExecuteFinished(CMICmdBase &vCmd) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: If the MI Driver is not operating via a client i.e. Eclipse check
 // the command
 //          on failure suggests the application exits. A command can be such
@@ -291,7 +280,6 @@ void CMICmdInvoker::CmdCauseAppExit(const CMICmdBase &vCmd) const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Write to stdout and the Log file the command's MI formatted result.
 // Type:    vCmdData    - (R) A command's information.
 // Return:  MIstatus::success - Functionality succeeded.
@@ -313,7 +301,6 @@ bool CMICmdInvoker::CmdStdout(const SMICmdData &vCmdData) const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Required by the CMICmdMgr::ICmdDeleteCallback. *this object is
 // registered
 //          with the Command Manager to receive callbacks when a command is

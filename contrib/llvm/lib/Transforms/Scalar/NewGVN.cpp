@@ -1,9 +1,8 @@
 //===- NewGVN.cpp - Global Value Numbering Pass ---------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -1167,9 +1166,9 @@ const Expression *NewGVN::createExpression(Instruction *I) const {
         SimplifyBinOp(E->getOpcode(), E->getOperand(0), E->getOperand(1), SQ);
     if (const Expression *SimplifiedE = checkSimplificationResults(E, I, V))
       return SimplifiedE;
-  } else if (auto *BI = dyn_cast<BitCastInst>(I)) {
+  } else if (auto *CI = dyn_cast<CastInst>(I)) {
     Value *V =
-        SimplifyCastInst(BI->getOpcode(), BI->getOperand(0), BI->getType(), SQ);
+        SimplifyCastInst(CI->getOpcode(), E->getOperand(0), CI->getType(), SQ);
     if (const Expression *SimplifiedE = checkSimplificationResults(E, I, V))
       return SimplifiedE;
   } else if (isa<GetElementPtrInst>(I)) {
@@ -1815,39 +1814,13 @@ NewGVN::performSymbolicPHIEvaluation(ArrayRef<ValPair> PHIOps,
 const Expression *
 NewGVN::performSymbolicAggrValueEvaluation(Instruction *I) const {
   if (auto *EI = dyn_cast<ExtractValueInst>(I)) {
-    auto *II = dyn_cast<IntrinsicInst>(EI->getAggregateOperand());
-    if (II && EI->getNumIndices() == 1 && *EI->idx_begin() == 0) {
-      unsigned Opcode = 0;
-      // EI might be an extract from one of our recognised intrinsics. If it
-      // is we'll synthesize a semantically equivalent expression instead on
-      // an extract value expression.
-      switch (II->getIntrinsicID()) {
-      case Intrinsic::sadd_with_overflow:
-      case Intrinsic::uadd_with_overflow:
-        Opcode = Instruction::Add;
-        break;
-      case Intrinsic::ssub_with_overflow:
-      case Intrinsic::usub_with_overflow:
-        Opcode = Instruction::Sub;
-        break;
-      case Intrinsic::smul_with_overflow:
-      case Intrinsic::umul_with_overflow:
-        Opcode = Instruction::Mul;
-        break;
-      default:
-        break;
-      }
-
-      if (Opcode != 0) {
-        // Intrinsic recognized. Grab its args to finish building the
-        // expression.
-        assert(II->getNumArgOperands() == 2 &&
-               "Expect two args for recognised intrinsics.");
-        return createBinaryExpression(Opcode, EI->getType(),
-                                      II->getArgOperand(0),
-                                      II->getArgOperand(1), I);
-      }
-    }
+    auto *WO = dyn_cast<WithOverflowInst>(EI->getAggregateOperand());
+    if (WO && EI->getNumIndices() == 1 && *EI->idx_begin() == 0)
+      // EI is an extract from one of our with.overflow intrinsics. Synthesize
+      // a semantically equivalent expression instead of an extract value
+      // expression.
+      return createBinaryExpression(WO->getBinaryOp(), EI->getType(),
+                                    WO->getLHS(), WO->getRHS(), I);
   }
 
   return createAggregateValueExpression(I);
@@ -2011,12 +1984,14 @@ NewGVN::performSymbolicEvaluation(Value *V,
       E = performSymbolicLoadEvaluation(I);
       break;
     case Instruction::BitCast:
+    case Instruction::AddrSpaceCast:
       E = createExpression(I);
       break;
     case Instruction::ICmp:
     case Instruction::FCmp:
       E = performSymbolicCmpEvaluation(I);
       break;
+    case Instruction::FNeg:
     case Instruction::Add:
     case Instruction::FAdd:
     case Instruction::Sub:
@@ -2122,7 +2097,7 @@ void NewGVN::addPredicateUsers(const PredicateBase *PB, Instruction *I) const {
 
   if (auto *PBranch = dyn_cast<PredicateBranch>(PB))
     PredicateToUsers[PBranch->Condition].insert(I);
-  else if (auto *PAssume = dyn_cast<PredicateBranch>(PB))
+  else if (auto *PAssume = dyn_cast<PredicateAssume>(PB))
     PredicateToUsers[PAssume->Condition].insert(I);
 }
 
@@ -2524,9 +2499,6 @@ void NewGVN::processOutgoingEdges(Instruction *TI, BasicBlock *B) {
     // For switches, propagate the case values into the case
     // destinations.
 
-    // Remember how many outgoing edges there are to every successor.
-    SmallDenseMap<BasicBlock *, unsigned, 16> SwitchEdges;
-
     Value *SwitchCond = SI->getCondition();
     Value *CondEvaluated = findConditionEquivalence(SwitchCond);
     // See if we were able to turn this switch statement into a constant.
@@ -2547,7 +2519,6 @@ void NewGVN::processOutgoingEdges(Instruction *TI, BasicBlock *B) {
     } else {
       for (unsigned i = 0, e = SI->getNumSuccessors(); i != e; ++i) {
         BasicBlock *TargetBlock = SI->getSuccessor(i);
-        ++SwitchEdges[TargetBlock];
         updateReachableEdge(B, TargetBlock);
       }
     }
@@ -3503,7 +3474,7 @@ bool NewGVN::runGVN() {
            "BB containing ToErase deleted unexpectedly!");
     ToErase->eraseFromParent();
   }
-	Changed |= !InstructionsToErase.empty();
+  Changed |= !InstructionsToErase.empty();
 
   // Delete all unreachable blocks.
   auto UnreachableBlockPred = [&](const BasicBlock &BB) {

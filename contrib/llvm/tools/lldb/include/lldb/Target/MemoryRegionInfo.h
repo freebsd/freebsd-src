@@ -1,19 +1,18 @@
 //===-- MemoryRegionInfo.h ---------------------------------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef lldb_MemoryRegionInfo_h
 #define lldb_MemoryRegionInfo_h
 
-#include "lldb/Core/RangeMap.h"
-#include "llvm/Support/FormatProviders.h"
 #include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/RangeMap.h"
+#include "llvm/Support/FormatProviders.h"
 
 namespace lldb_private {
 class MemoryRegionInfo {
@@ -45,7 +44,7 @@ public:
 
   OptionalBool GetMapped() const { return m_mapped; }
 
-  const ConstString &GetName() const { return m_name; }
+  ConstString GetName() const { return m_name; }
 
   void SetReadable(OptionalBool val) { m_read = val; }
 
@@ -65,10 +64,8 @@ public:
 
   void SetBlocksize(lldb::offset_t blocksize) { m_blocksize = blocksize; }
 
-  //----------------------------------------------------------------------
   // Get permissions as a uint32_t that is a mask of one or more bits from the
   // lldb::Permissions
-  //----------------------------------------------------------------------
   uint32_t GetLLDBPermissions() const {
     uint32_t permissions = 0;
     if (m_read)
@@ -80,10 +77,8 @@ public:
     return permissions;
   }
 
-  //----------------------------------------------------------------------
   // Set permissions from a uint32_t that contains one or more bits from the
   // lldb::Permissions
-  //----------------------------------------------------------------------
   void SetLLDBPermissions(uint32_t permissions) {
     m_read = (permissions & lldb::ePermissionsReadable) ? eYes : eNo;
     m_write = (permissions & lldb::ePermissionsWritable) ? eYes : eNo;

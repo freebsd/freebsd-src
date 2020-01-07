@@ -1,9 +1,8 @@
 //===-- lib/CodeGen/GlobalISel/Combiner.cpp -------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -51,7 +50,7 @@ public:
   }
 
   void erasingInstr(MachineInstr &MI) override {
-    LLVM_DEBUG(dbgs() << "Erased: " << MI << "\n");
+    LLVM_DEBUG(dbgs() << "Erasing: " << MI << "\n");
     WorkList.remove(&MI);
   }
   void createdInstr(MachineInstr &MI) override {
@@ -130,9 +129,10 @@ bool Combiner::combineMachineInstrs(MachineFunction &MF,
           CurMI->eraseFromParentAndMarkDBGValuesForRemoval();
           continue;
         }
-        WorkList.insert(CurMI);
+        WorkList.deferred_insert(CurMI);
       }
     }
+    WorkList.finalize();
     // Main Loop. Process the instructions here.
     while (!WorkList.empty()) {
       MachineInstr *CurrInst = WorkList.pop_back_val();

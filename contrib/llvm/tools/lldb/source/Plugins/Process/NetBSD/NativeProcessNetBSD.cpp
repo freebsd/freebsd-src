@@ -1,9 +1,8 @@
 //===-- NativeProcessNetBSD.cpp ------------------------------- -*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -55,9 +54,7 @@ static Status EnsureFDFlags(int fd, int flags) {
   return error;
 }
 
-// -----------------------------------------------------------------------------
 // Public Static Methods
-// -----------------------------------------------------------------------------
 
 llvm::Expected<std::unique_ptr<NativeProcessProtocol>>
 NativeProcessNetBSD::Factory::Launch(ProcessLaunchInfo &launch_info,
@@ -137,9 +134,7 @@ NativeProcessNetBSD::Factory::Attach(
   return std::move(process_up);
 }
 
-// -----------------------------------------------------------------------------
 // Public Instance Methods
-// -----------------------------------------------------------------------------
 
 NativeProcessNetBSD::NativeProcessNetBSD(::pid_t pid, int terminal_fd,
                                          NativeDelegate &delegate,
@@ -243,12 +238,25 @@ void NativeProcessNetBSD::MonitorSIGTRAP(lldb::pid_t pid) {
     SetState(StateType::eStateStopped, true);
   } break;
   case TRAP_DBREG: {
+    // Find the thread.
+    NativeThreadNetBSD* thread = nullptr;
+    for (const auto &t : m_threads) {
+      if (t->GetID() == info.psi_lwpid) {
+        thread = static_cast<NativeThreadNetBSD *>(t.get());
+        break;
+      }
+    }
+    if (!thread) {
+      LLDB_LOG(log,
+               "thread not found in m_threads, pid = {0}, LWP = {1}",
+               GetID(), info.psi_lwpid);
+      break;
+    }
+
     // If a watchpoint was hit, report it
-    uint32_t wp_index;
-    Status error = static_cast<NativeThreadNetBSD &>(*m_threads[info.psi_lwpid])
-                       .GetRegisterContext()
-                       .GetWatchpointHitIndex(
-                           wp_index, (uintptr_t)info.psi_siginfo.si_addr);
+    uint32_t wp_index = LLDB_INVALID_INDEX32;
+    Status error = thread->GetRegisterContext().GetWatchpointHitIndex(
+        wp_index, (uintptr_t)info.psi_siginfo.si_addr);
     if (error.Fail())
       LLDB_LOG(log,
                "received error while checking for watchpoint hits, pid = "
@@ -263,11 +271,9 @@ void NativeProcessNetBSD::MonitorSIGTRAP(lldb::pid_t pid) {
     }
 
     // If a breakpoint was hit, report it
-    uint32_t bp_index;
-    error = static_cast<NativeThreadNetBSD &>(*m_threads[info.psi_lwpid])
-                .GetRegisterContext()
-                .GetHardwareBreakHitIndex(bp_index,
-                                           (uintptr_t)info.psi_siginfo.si_addr);
+    uint32_t bp_index = LLDB_INVALID_INDEX32;
+    error = thread->GetRegisterContext().GetHardwareBreakHitIndex(
+        bp_index, (uintptr_t)info.psi_siginfo.si_addr);
     if (error.Fail())
       LLDB_LOG(log,
                "received error while checking for hardware "
@@ -666,7 +672,8 @@ Status NativeProcessNetBSD::Attach() {
   int wstatus;
   // Need to use WALLSIG otherwise we receive an error with errno=ECHLD At this
   // point we should have a thread stopped if waitpid succeeds.
-  if ((wstatus = waitpid(m_pid, NULL, WALLSIG)) < 0)
+  if ((wstatus = llvm::sys::RetryAfterSignal(-1, waitpid,
+          m_pid, nullptr, WALLSIG)) < 0)
     return Status(errno, eErrorTypePOSIX);
 
   /* Initialize threads */
@@ -699,10 +706,10 @@ Status NativeProcessNetBSD::ReadMemory(lldb::addr_t addr, void *buf,
     io.piod_addr = dst + bytes_read;
 
     Status error = NativeProcessNetBSD::PtraceWrapper(PT_IO, GetID(), &io);
-    if (error.Fail())
+    if (error.Fail() || io.piod_len == 0)
       return error;
 
-    bytes_read = io.piod_len;
+    bytes_read += io.piod_len;
     io.piod_len = size - bytes_read;
   } while (bytes_read < size);
 
@@ -727,10 +734,10 @@ Status NativeProcessNetBSD::WriteMemory(lldb::addr_t addr, const void *buf,
     io.piod_offs = (void *)(addr + bytes_written);
 
     Status error = NativeProcessNetBSD::PtraceWrapper(PT_IO, GetID(), &io);
-    if (error.Fail())
+    if (error.Fail() || io.piod_len == 0)
       return error;
 
-    bytes_written = io.piod_len;
+    bytes_written += io.piod_len;
     io.piod_len = size - bytes_written;
   } while (bytes_written < size);
 

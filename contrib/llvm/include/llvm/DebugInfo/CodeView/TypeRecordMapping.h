@@ -1,9 +1,8 @@
 //===- TypeRecordMapping.h --------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -24,9 +23,11 @@ class TypeRecordMapping : public TypeVisitorCallbacks {
 public:
   explicit TypeRecordMapping(BinaryStreamReader &Reader) : IO(Reader) {}
   explicit TypeRecordMapping(BinaryStreamWriter &Writer) : IO(Writer) {}
+  explicit TypeRecordMapping(CodeViewRecordStreamer &Streamer) : IO(Streamer) {}
 
   using TypeVisitorCallbacks::visitTypeBegin;
   Error visitTypeBegin(CVType &Record) override;
+  Error visitTypeBegin(CVType &Record, TypeIndex Index) override;
   Error visitTypeEnd(CVType &Record) override;
 
   Error visitMemberBegin(CVMemberRecord &Record) override;

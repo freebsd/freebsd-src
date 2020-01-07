@@ -1,10 +1,9 @@
 //===-- Language.cpp -------------------------------------------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -274,6 +273,24 @@ bool Language::LanguageIsC(LanguageType language) {
   }
 }
 
+bool Language::LanguageIsCFamily(LanguageType language) {
+  switch (language) {
+  case eLanguageTypeC:
+  case eLanguageTypeC89:
+  case eLanguageTypeC99:
+  case eLanguageTypeC11:
+  case eLanguageTypeC_plus_plus:
+  case eLanguageTypeC_plus_plus_03:
+  case eLanguageTypeC_plus_plus_11:
+  case eLanguageTypeC_plus_plus_14:
+  case eLanguageTypeObjC_plus_plus:
+  case eLanguageTypeObjC:
+    return true;
+  default:
+    return false;
+  }
+}
+
 bool Language::LanguageIsPascal(LanguageType language) {
   switch (language) {
   case eLanguageTypePascal83:
@@ -329,6 +346,15 @@ LanguageType Language::GetPrimaryLanguage(LanguageType language) {
   default:
     return language;
   }
+}
+
+std::set<lldb::LanguageType> Language::GetSupportedLanguages() {
+  std::set<lldb::LanguageType> supported_languages;
+  ForEach([&](Language *lang) {
+    supported_languages.emplace(lang->GetLanguageType());
+    return true;
+  });
+  return supported_languages;
 }
 
 void Language::GetLanguagesSupportingTypeSystems(
@@ -391,7 +417,7 @@ bool Language::ImageListTypeScavenger::Find_Impl(
     images.FindTypes(nullptr, cs_key, false, UINT32_MAX, searched_sym_files,
                      matches);
     for (const auto &match : matches.Types()) {
-      if (match.get()) {
+      if (match) {
         CompilerType compiler_type(match->GetFullCompilerType());
         compiler_type = AdjustForInclusion(compiler_type);
         if (!compiler_type)
@@ -444,12 +470,8 @@ void Language::GetDefaultExceptionResolverDescription(bool catch_on,
   s.Printf("Exception breakpoint (catch: %s throw: %s)",
            catch_on ? "on" : "off", throw_on ? "on" : "off");
 }
-//----------------------------------------------------------------------
 // Constructor
-//----------------------------------------------------------------------
 Language::Language() {}
 
-//----------------------------------------------------------------------
 // Destructor
-//----------------------------------------------------------------------
 Language::~Language() {}

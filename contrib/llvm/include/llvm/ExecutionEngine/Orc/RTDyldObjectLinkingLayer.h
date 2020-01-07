@@ -1,9 +1,8 @@
 //===- RTDyldObjectLinkingLayer.h - RTDyld-based jit linking  ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -44,21 +43,33 @@ public:
                          const RuntimeDyld::LoadedObjectInfo &)>;
 
   /// Functor for receiving finalization notifications.
-  using NotifyEmittedFunction = std::function<void(VModuleKey)>;
+  using NotifyEmittedFunction =
+      std::function<void(VModuleKey, std::unique_ptr<MemoryBuffer>)>;
 
   using GetMemoryManagerFunction =
       std::function<std::unique_ptr<RuntimeDyld::MemoryManager>()>;
 
   /// Construct an ObjectLinkingLayer with the given NotifyLoaded,
   ///        and NotifyEmitted functors.
-  RTDyldObjectLinkingLayer(
-      ExecutionSession &ES, GetMemoryManagerFunction GetMemoryManager,
-      NotifyLoadedFunction NotifyLoaded = NotifyLoadedFunction(),
-      NotifyEmittedFunction NotifyEmitted = NotifyEmittedFunction());
+  RTDyldObjectLinkingLayer(ExecutionSession &ES,
+                           GetMemoryManagerFunction GetMemoryManager);
 
   /// Emit the object.
   void emit(MaterializationResponsibility R,
             std::unique_ptr<MemoryBuffer> O) override;
+
+  /// Set the NotifyLoaded callback.
+  RTDyldObjectLinkingLayer &setNotifyLoaded(NotifyLoadedFunction NotifyLoaded) {
+    this->NotifyLoaded = std::move(NotifyLoaded);
+    return *this;
+  }
+
+  /// Set the NotifyEmitted callback.
+  RTDyldObjectLinkingLayer &
+  setNotifyEmitted(NotifyEmittedFunction NotifyEmitted) {
+    this->NotifyEmitted = std::move(NotifyEmitted);
+    return *this;
+  }
 
   /// Set the 'ProcessAllSections' flag.
   ///
@@ -109,7 +120,8 @@ private:
                   std::map<StringRef, JITEvaluatedSymbol> Resolved,
                   std::set<StringRef> &InternalSymbols);
 
-  void onObjEmit(VModuleKey K, MaterializationResponsibility &R, Error Err);
+  void onObjEmit(VModuleKey K, std::unique_ptr<MemoryBuffer> ObjBuffer,
+                 MaterializationResponsibility &R, Error Err);
 
   mutable std::mutex RTDyldLayerMutex;
   GetMemoryManagerFunction GetMemoryManager;
@@ -341,17 +353,27 @@ public:
 
   /// Construct an ObjectLinkingLayer with the given NotifyLoaded,
   ///        and NotifyFinalized functors.
+  LLVM_ATTRIBUTE_DEPRECATED(
+      LegacyRTDyldObjectLinkingLayer(
+          ExecutionSession &ES, ResourcesGetter GetResources,
+          NotifyLoadedFtor NotifyLoaded = NotifyLoadedFtor(),
+          NotifyFinalizedFtor NotifyFinalized = NotifyFinalizedFtor(),
+          NotifyFreedFtor NotifyFreed = NotifyFreedFtor()),
+      "ORCv1 layers (layers with the 'Legacy' prefix) are deprecated. Please "
+      "use "
+      "ORCv2 (see docs/ORCv2.rst)");
+
+  // Legacy layer constructor with deprecation acknowledgement.
   LegacyRTDyldObjectLinkingLayer(
-      ExecutionSession &ES, ResourcesGetter GetResources,
+      ORCv1DeprecationAcknowledgement, ExecutionSession &ES,
+      ResourcesGetter GetResources,
       NotifyLoadedFtor NotifyLoaded = NotifyLoadedFtor(),
       NotifyFinalizedFtor NotifyFinalized = NotifyFinalizedFtor(),
       NotifyFreedFtor NotifyFreed = NotifyFreedFtor())
       : ES(ES), GetResources(std::move(GetResources)),
         NotifyLoaded(std::move(NotifyLoaded)),
         NotifyFinalized(std::move(NotifyFinalized)),
-        NotifyFreed(std::move(NotifyFreed)),
-        ProcessAllSections(false) {
-  }
+        NotifyFreed(std::move(NotifyFreed)), ProcessAllSections(false) {}
 
   /// Set the 'ProcessAllSections' flag.
   ///

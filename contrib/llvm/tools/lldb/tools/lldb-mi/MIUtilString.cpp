@@ -1,9 +1,8 @@
 //===-- MIUtilString.cpp ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,7 +20,6 @@
 #include "MIUtilString.h"
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMIUtilString constructor.
 // Type:    Method.
 // Args:    None.
@@ -31,17 +29,16 @@
 CMIUtilString::CMIUtilString() : std::string() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMIUtilString constructor.
 // Type:    Method.
 // Args:    vpData  - Pointer to UTF8 text data.
 // Return:  None.
 // Throws:  None.
 //--
-CMIUtilString::CMIUtilString(const char *vpData) : std::string(vpData) {}
+CMIUtilString::CMIUtilString(const char *vpData)
+  : std::string(WithNullAsEmpty(vpData)) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMIUtilString constructor.
 // Type:    Method.
 // Args:    vpStr  - Text data.
@@ -51,7 +48,6 @@ CMIUtilString::CMIUtilString(const char *vpData) : std::string(vpData) {}
 CMIUtilString::CMIUtilString(const std::string &vrStr) : std::string(vrStr) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMIUtilString assignment operator.
 // Type:    Method.
 // Args:    vpRhs   - Pointer to UTF8 text data.
@@ -59,12 +55,11 @@ CMIUtilString::CMIUtilString(const std::string &vrStr) : std::string(vrStr) {}
 // Throws:  None.
 //--
 CMIUtilString &CMIUtilString::operator=(const char *vpRhs) {
-  assign(vpRhs);
+  assign(WithNullAsEmpty(vpRhs));
   return *this;
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMIUtilString assignment operator.
 // Type:    Method.
 // Args:    vrRhs   - The other string to copy from.
@@ -77,7 +72,6 @@ CMIUtilString &CMIUtilString::operator=(const std::string &vrRhs) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMIUtilString destructor.
 // Type:    Method.
 // Args:    None.
@@ -87,7 +81,6 @@ CMIUtilString &CMIUtilString::operator=(const std::string &vrRhs) {
 CMIUtilString::~CMIUtilString() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Perform a snprintf format style on a string data. A new string
 // object is
 //          created and returned.
@@ -104,12 +97,10 @@ CMIUtilString CMIUtilString::FormatPriv(const CMIUtilString &vrFormat,
   MIint n = vrFormat.size();
 
   // IOR: mysterious crash in this function on some windows builds not able to
-  // duplicate
-  // but found article which may be related. Crash occurs in vsnprintf() or
-  // va_copy()
+  // duplicate but found article which may be related. Crash occurs in
+  // vsnprintf() or va_copy().
   // Duplicate vArgs va_list argument pointer to ensure that it can be safely
-  // used in
-  // a new frame
+  // used in a new frame.
   // http://julipedia.meroh.net/2011/09/using-vacopy-to-safely-pass-ap.html
   va_list argsDup;
   va_copy(argsDup, vArgs);
@@ -128,8 +119,8 @@ CMIUtilString CMIUtilString::FormatPriv(const CMIUtilString &vrFormat,
     pFormatted.reset(new char[n + 1]); // +1 for safety margin
     ::strncpy(&pFormatted[0], vrFormat.c_str(), n);
 
-    //  We need to restore the variable argument list pointer to the start again
-    //  before running vsnprintf() more then once
+    // We need to restore the variable argument list pointer to the start again
+    // before running vsnprintf() more then once
     va_copy(argsDup, argsCpy);
 
     nFinal = ::vsnprintf(&pFormatted[0], n, vrFormat.c_str(), argsDup);
@@ -148,7 +139,6 @@ CMIUtilString CMIUtilString::FormatPriv(const CMIUtilString &vrFormat,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Perform a snprintf format style on a string data. A new string
 // object is
 //          created and returned.
@@ -161,14 +151,14 @@ CMIUtilString CMIUtilString::FormatPriv(const CMIUtilString &vrFormat,
 CMIUtilString CMIUtilString::Format(const char *vFormating, ...) {
   va_list args;
   va_start(args, vFormating);
-  CMIUtilString strResult = CMIUtilString::FormatPriv(vFormating, args);
+  CMIUtilString strResult =
+      CMIUtilString::FormatPriv(WithNullAsEmpty(vFormating), args);
   va_end(args);
 
   return strResult;
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Perform a snprintf format style on a string data. A new string
 // object is
 //          created and returned.
@@ -184,7 +174,6 @@ CMIUtilString CMIUtilString::FormatValist(const CMIUtilString &vrFormating,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Splits string into array of strings using delimiter. If multiple
 // delimiter
 //          are found in sequence then they are not added to the list of splits.
@@ -228,7 +217,6 @@ size_t CMIUtilString::Split(const CMIUtilString &vDelimiter,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Splits string into array of strings using delimiter. However the
 // string is
 //          also considered for text surrounded by quotes. Text with quotes
@@ -287,7 +275,6 @@ size_t CMIUtilString::SplitConsiderQuotes(const CMIUtilString &vDelimiter,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Split string into lines using \n and return an array of strings.
 // Type:    Method.
 // Args:    vwVecSplits - (W) Container of splits found in string data.
@@ -299,7 +286,6 @@ size_t CMIUtilString::SplitLines(VecString_t &vwVecSplits) const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Remove '\n' from the end of string if found. It does not alter
 //          *this string.
 // Type:    Method.
@@ -318,7 +304,6 @@ CMIUtilString CMIUtilString::StripCREndOfLine() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Remove all '\n' from the string and replace with a space. It does
 // not alter
 //          *this string.
@@ -332,7 +317,6 @@ CMIUtilString CMIUtilString::StripCRAll() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Find and replace all matches of a sub string with another string. It
 // does not
 //          alter *this string.
@@ -363,7 +347,6 @@ CMIUtilString::FindAndReplace(const CMIUtilString &vFind,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Check if *this string is a decimal number.
 // Type:    Method.
 // Args:    None.
@@ -382,7 +365,6 @@ bool CMIUtilString::IsNumber() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Check if *this string is a hexadecimal number.
 // Type:    Method.
 // Args:    None.
@@ -400,7 +382,6 @@ bool CMIUtilString::IsHexadecimalNumber() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Extract the number from the string. The number can be either a
 // hexadecimal or
 //          natural number. It cannot contain other non-numeric characters.
@@ -423,7 +404,6 @@ bool CMIUtilString::ExtractNumber(MIint64 &vwrNumber) const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Extract the number from the hexadecimal string..
 // Type:    Method.
 // Args:    vwrNumber   - (W) Number extracted from the string.
@@ -448,7 +428,6 @@ bool CMIUtilString::ExtractNumberFromHexadecimal(MIint64 &vwrNumber) const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Determine if the text is all valid alpha numeric characters. Letters
 // can be
 //          either upper or lower case.
@@ -458,7 +437,7 @@ bool CMIUtilString::ExtractNumberFromHexadecimal(MIint64 &vwrNumber) const {
 // Throws:  None.
 //--
 bool CMIUtilString::IsAllValidAlphaAndNumeric(const char *vpText) {
-  const size_t len = ::strlen(vpText);
+  const size_t len = ::strlen(WithNullAsEmpty(vpText));
   if (len == 0)
     return false;
 
@@ -472,7 +451,6 @@ bool CMIUtilString::IsAllValidAlphaAndNumeric(const char *vpText) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Check if two strings share equal contents.
 // Type:    Method.
 // Args:    vrLhs   - (R) String A.
@@ -490,7 +468,6 @@ bool CMIUtilString::Compare(const CMIUtilString &vrLhs,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Remove from either end of *this string the following: " \t\n\v\f\r".
 // Type:    Method.
 // Args:    None.
@@ -513,7 +490,6 @@ CMIUtilString CMIUtilString::Trim() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Remove from either end of *this string the specified character.
 // Type:    Method.
 // Args:    None.
@@ -532,7 +508,6 @@ CMIUtilString CMIUtilString::Trim(const char vChar) const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Do a printf equivalent for printing a number in binary i.e. "b%llB".
 // Type:    Static method.
 // Args:    vnDecimal   - (R) The number to represent in binary.
@@ -565,7 +540,6 @@ CMIUtilString CMIUtilString::FormatBinary(const MIuint64 vnDecimal) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Remove from a string doubled up characters so only one set left.
 // Characters
 //          are only removed if the previous character is already a same
@@ -581,7 +555,6 @@ CMIUtilString CMIUtilString::RemoveRepeatedCharacters(const char vChar) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Recursively remove from a string doubled up characters so only one
 // set left.
 //          Characters are only removed if the previous character is already a
@@ -616,7 +589,6 @@ CMIUtilString CMIUtilString::RemoveRepeatedCharacters(size_t vnPos,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Is the text in *this string surrounded by quotes.
 // Type:    Method.
 // Args:    None.
@@ -634,7 +606,6 @@ bool CMIUtilString::IsQuoted() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Find first occurrence in *this string which matches the pattern.
 // Type:    Method.
 // Args:    vrPattern   - (R) The pattern to search for.
@@ -649,7 +620,6 @@ size_t CMIUtilString::FindFirst(const CMIUtilString &vrPattern,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Find first occurrence in *this string which matches the pattern and
 // isn't surrounded by quotes.
 // Type:    Method.
@@ -698,7 +668,6 @@ size_t CMIUtilString::FindFirst(const CMIUtilString &vrPattern,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Find first occurrence in *this string which doesn't match the
 // pattern.
 // Type:    Method.
@@ -725,7 +694,6 @@ size_t CMIUtilString::FindFirstNot(const CMIUtilString &vrPattern,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Find first occurrence of not escaped quotation mark in *this string.
 // Type:    Method.
 // Args:    vnPos   - Position of the first character in the string to be
@@ -756,7 +724,6 @@ size_t CMIUtilString::FindFirstQuote(size_t vnPos) const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Get escaped string from *this string.
 // Type:    Method.
 // Args:    None.
@@ -778,7 +745,6 @@ CMIUtilString CMIUtilString::Escape(bool vbEscapeQuotes /* = false */) const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Get string with backslashes in front of double quote '"' and
 // backslash '\\'
 //          characters.
@@ -814,7 +780,6 @@ CMIUtilString CMIUtilString::AddSlashes() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Remove backslashes added by CMIUtilString::AddSlashes.
 // Type:    Method.
 // Args:    None.

@@ -1,9 +1,8 @@
 //===- llvm/lib/Target/ARM/ARMCallLowering.h - Call lowering ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -34,10 +33,10 @@ public:
   ARMCallLowering(const ARMTargetLowering &TLI);
 
   bool lowerReturn(MachineIRBuilder &MIRBuilder, const Value *Val,
-                   ArrayRef<unsigned> VRegs) const override;
+                   ArrayRef<Register> VRegs) const override;
 
   bool lowerFormalArguments(MachineIRBuilder &MIRBuilder, const Function &F,
-                            ArrayRef<unsigned> VRegs) const override;
+                            ArrayRef<ArrayRef<Register>> VRegs) const override;
 
   bool lowerCall(MachineIRBuilder &MIRBuilder, CallingConv::ID CallConv,
                  const MachineOperand &Callee, const ArgInfo &OrigRet,
@@ -45,17 +44,14 @@ public:
 
 private:
   bool lowerReturnVal(MachineIRBuilder &MIRBuilder, const Value *Val,
-                      ArrayRef<unsigned> VRegs,
+                      ArrayRef<Register> VRegs,
                       MachineInstrBuilder &Ret) const;
 
-  using SplitArgTy = std::function<void(unsigned Reg, uint64_t Offset)>;
-
   /// Split an argument into one or more arguments that the CC lowering can cope
-  /// with (e.g. replace pointers with integers).
+  /// with.
   void splitToValueTypes(const ArgInfo &OrigArg,
                          SmallVectorImpl<ArgInfo> &SplitArgs,
-                         MachineFunction &MF,
-                         const SplitArgTy &PerformArgSplit) const;
+                         MachineFunction &MF) const;
 };
 
 } // end namespace llvm

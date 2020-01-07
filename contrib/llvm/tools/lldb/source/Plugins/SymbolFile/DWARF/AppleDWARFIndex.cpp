@@ -1,14 +1,12 @@
 //===-- AppleDWARFIndex.cpp ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "Plugins/SymbolFile/DWARF/AppleDWARFIndex.h"
-#include "Plugins/SymbolFile/DWARF/DWARFDebugInfo.h"
 #include "Plugins/SymbolFile/DWARF/DWARFDeclContext.h"
 #include "Plugins/SymbolFile/DWARF/DWARFUnit.h"
 #include "Plugins/SymbolFile/DWARF/LogChannelDWARF.h"
@@ -75,8 +73,8 @@ void AppleDWARFIndex::GetGlobalVariables(const DWARFUnit &cu,
     return;
 
   DWARFMappedHash::DIEInfoArray hash_data;
-  if (m_apple_names_up->AppendAllDIEsInRange(
-          cu.GetOffset(), cu.GetNextCompileUnitOffset(), hash_data))
+  if (m_apple_names_up->AppendAllDIEsInRange(cu.GetOffset(),
+                                             cu.GetNextUnitOffset(), hash_data))
     DWARFMappedHash::ExtractDIEArray(hash_data, offsets);
 }
 
@@ -134,14 +132,14 @@ void AppleDWARFIndex::GetNamespaces(ConstString name, DIEArray &offsets) {
     m_apple_namespaces_up->FindByName(name.GetStringRef(), offsets);
 }
 
-void AppleDWARFIndex::GetFunctions(ConstString name, DWARFDebugInfo &info,
+void AppleDWARFIndex::GetFunctions(ConstString name, SymbolFileDWARF &dwarf,
                                    const CompilerDeclContext &parent_decl_ctx,
                                    uint32_t name_type_mask,
                                    std::vector<DWARFDIE> &dies) {
   DIEArray offsets;
   m_apple_names_up->FindByName(name.GetStringRef(), offsets);
   for (const DIERef &die_ref : offsets) {
-    ProcessFunctionDIE(name.GetStringRef(), die_ref, info, parent_decl_ctx,
+    ProcessFunctionDIE(name.GetStringRef(), die_ref, dwarf, parent_decl_ctx,
                        name_type_mask, dies);
   }
 }
@@ -156,12 +154,12 @@ void AppleDWARFIndex::GetFunctions(const RegularExpression &regex,
     DWARFMappedHash::ExtractDIEArray(hash_data, offsets);
 }
 
-void AppleDWARFIndex::ReportInvalidDIEOffset(dw_offset_t offset,
-                                             llvm::StringRef name) {
+void AppleDWARFIndex::ReportInvalidDIERef(const DIERef &ref,
+                                          llvm::StringRef name) {
   m_module.ReportErrorIfModifyDetected(
       "the DWARF debug information has been modified (accelerator table had "
       "bad die 0x%8.8x for '%s')\n",
-      offset, name.str().c_str());
+      ref.die_offset(), name.str().c_str());
 }
 
 void AppleDWARFIndex::Dump(Stream &s) {

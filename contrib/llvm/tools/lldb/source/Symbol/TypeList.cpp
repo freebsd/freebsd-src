@@ -1,9 +1,8 @@
 //===-- TypeList.cpp --------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -22,9 +21,7 @@ using namespace lldb_private;
 
 TypeList::TypeList() : m_types() {}
 
-//----------------------------------------------------------------------
 // Destructor
-//----------------------------------------------------------------------
 TypeList::~TypeList() {}
 
 void TypeList::Insert(const TypeSP &type_sp) {
@@ -34,9 +31,7 @@ void TypeList::Insert(const TypeSP &type_sp) {
     m_types.push_back(type_sp);
 }
 
-//----------------------------------------------------------------------
 // Find a base type by its unique ID.
-//----------------------------------------------------------------------
 // TypeSP
 // TypeList::FindType(lldb::user_id_t uid)
 //{
@@ -46,11 +41,9 @@ void TypeList::Insert(const TypeSP &type_sp) {
 //    return TypeSP();
 //}
 
-//----------------------------------------------------------------------
 // Find a type by name.
-//----------------------------------------------------------------------
 // TypeList
-// TypeList::FindTypes (const ConstString &name)
+// TypeList::FindTypes (ConstString name)
 //{
 //    // Do we ever need to make a lookup by name map? Here we are doing
 //    // a linear search which isn't going to be fast.

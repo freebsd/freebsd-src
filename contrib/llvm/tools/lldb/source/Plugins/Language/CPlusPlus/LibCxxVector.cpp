@@ -1,9 +1,8 @@
 //===-- LibCxxVector.cpp ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -33,7 +32,7 @@ public:
 
   bool MightHaveChildren() override;
 
-  size_t GetIndexOfChildWithName(const ConstString &name) override;
+  size_t GetIndexOfChildWithName(ConstString name) override;
 
 private:
   ValueObject *m_start;
@@ -54,7 +53,7 @@ public:
 
   bool MightHaveChildren() override { return true; }
 
-  size_t GetIndexOfChildWithName(const ConstString &name) override;
+  size_t GetIndexOfChildWithName(ConstString name) override;
 
 private:
   CompilerType m_bool_type;
@@ -165,7 +164,7 @@ bool lldb_private::formatters::LibcxxStdVectorSyntheticFrontEnd::
 }
 
 size_t lldb_private::formatters::LibcxxStdVectorSyntheticFrontEnd::
-    GetIndexOfChildWithName(const ConstString &name) {
+    GetIndexOfChildWithName(ConstString name) {
   if (!m_start || !m_finish)
     return UINT32_MAX;
   return ExtractIndexFromString(name.GetCString());
@@ -272,7 +271,7 @@ bool lldb_private::formatters::LibcxxVectorBoolSyntheticFrontEnd::Update() {
 }
 
 size_t lldb_private::formatters::LibcxxVectorBoolSyntheticFrontEnd::
-    GetIndexOfChildWithName(const ConstString &name) {
+    GetIndexOfChildWithName(ConstString name) {
   if (!m_count || !m_base_data_address)
     return UINT32_MAX;
   const char *item_name = name.GetCString();
@@ -291,7 +290,7 @@ lldb_private::formatters::LibcxxStdVectorSyntheticFrontEndCreator(
   if (!type.IsValid() || type.GetNumTemplateArguments() == 0)
     return nullptr;
   CompilerType arg_type = type.GetTypeTemplateArgument(0);
-  if (arg_type.GetTypeName() == ConstString("bool"))
+  if (arg_type.GetTypeName() == "bool")
     return new LibcxxVectorBoolSyntheticFrontEnd(valobj_sp);
   return new LibcxxStdVectorSyntheticFrontEnd(valobj_sp);
 }

@@ -1,9 +1,8 @@
 //===-- File.cpp ------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -66,11 +65,11 @@ static const char *GetStreamOpenModeFromOptions(uint32_t options) {
   } else if (options & File::eOpenOptionWrite) {
     return "w";
   }
-  return NULL;
+  return nullptr;
 }
 
 int File::kInvalidDescriptor = -1;
-FILE *File::kInvalidStream = NULL;
+FILE *File::kInvalidStream = nullptr;
 
 File::~File() { Close(); }
 
@@ -179,7 +178,7 @@ Status File::Close() {
 
 void File::Clear() {
   m_stream = nullptr;
-  m_descriptor = -1;
+  m_descriptor = kInvalidDescriptor;
   m_options = 0;
   m_own_stream = false;
   m_is_interactive = m_supports_colors = m_is_real_terminal =
@@ -504,6 +503,7 @@ Status File::Read(void *buf, size_t &num_bytes, off_t &offset) {
     error.SetErrorString("invalid file handle");
   }
 #else
+  std::lock_guard<std::mutex> guard(offset_access_mutex);
   long cur = ::lseek(m_descriptor, 0, SEEK_CUR);
   SeekFromStart(offset);
   error = Read(buf, num_bytes);
@@ -528,18 +528,18 @@ Status File::Read(size_t &num_bytes, off_t &offset, bool null_terminate,
             num_bytes = bytes_left;
 
           size_t num_bytes_plus_nul_char = num_bytes + (null_terminate ? 1 : 0);
-          std::unique_ptr<DataBufferHeap> data_heap_ap;
-          data_heap_ap.reset(new DataBufferHeap());
-          data_heap_ap->SetByteSize(num_bytes_plus_nul_char);
+          std::unique_ptr<DataBufferHeap> data_heap_up;
+          data_heap_up.reset(new DataBufferHeap());
+          data_heap_up->SetByteSize(num_bytes_plus_nul_char);
 
-          if (data_heap_ap.get()) {
-            error = Read(data_heap_ap->GetBytes(), num_bytes, offset);
+          if (data_heap_up) {
+            error = Read(data_heap_up->GetBytes(), num_bytes, offset);
             if (error.Success()) {
               // Make sure we read exactly what we asked for and if we got
               // less, adjust the array
-              if (num_bytes_plus_nul_char < data_heap_ap->GetByteSize())
-                data_heap_ap->SetByteSize(num_bytes_plus_nul_char);
-              data_buffer_sp.reset(data_heap_ap.release());
+              if (num_bytes_plus_nul_char < data_heap_up->GetByteSize())
+                data_heap_up->SetByteSize(num_bytes_plus_nul_char);
+              data_buffer_sp.reset(data_heap_up.release());
               return error;
             }
           }
@@ -603,7 +603,9 @@ Status File::Write(const void *buf, size_t &num_bytes, off_t &offset) {
       num_bytes = bytes_written;
     }
 #else
+    std::lock_guard<std::mutex> guard(offset_access_mutex);
     long cur = ::lseek(m_descriptor, 0, SEEK_CUR);
+    SeekFromStart(offset);
     error = Write(buf, num_bytes);
     long after = ::lseek(m_descriptor, 0, SEEK_CUR);
 
@@ -619,9 +621,7 @@ Status File::Write(const void *buf, size_t &num_bytes, off_t &offset) {
   return error;
 }
 
-//------------------------------------------------------------------
 // Print some formatted output to the stream.
-//------------------------------------------------------------------
 size_t File::Printf(const char *format, ...) {
   va_list args;
   va_start(args, format);
@@ -630,15 +630,13 @@ size_t File::Printf(const char *format, ...) {
   return result;
 }
 
-//------------------------------------------------------------------
 // Print some formatted output to the stream.
-//------------------------------------------------------------------
 size_t File::PrintfVarArg(const char *format, va_list args) {
   size_t result = 0;
   if (DescriptorIsValid()) {
-    char *s = NULL;
+    char *s = nullptr;
     result = vasprintf(&s, format, args);
-    if (s != NULL) {
+    if (s != nullptr) {
       if (result > 0) {
         size_t s_len = result;
         Write(s, s_len);

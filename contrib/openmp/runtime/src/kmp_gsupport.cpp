@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -119,6 +118,7 @@ int KMP_EXPAND_NAME(KMP_API_NAME_GOMP_SINGLE_START)(void) {
 
   if (!TCR_4(__kmp_init_parallel))
     __kmp_parallel_initialize();
+  __kmp_resume_if_soft_paused();
 
   // 3rd parameter == FALSE prevents kmp_enter_single from pushing a
   // workshare when USE_CHECKS is defined.  We need to avoid the push,
@@ -167,6 +167,7 @@ void *KMP_EXPAND_NAME(KMP_API_NAME_GOMP_SINGLE_COPY_START)(void) {
 
   if (!TCR_4(__kmp_init_parallel))
     __kmp_parallel_initialize();
+  __kmp_resume_if_soft_paused();
 
   // If this is the first thread to enter, return NULL.  The generated code will
   // then call GOMP_single_copy_end() for this thread only, with the
@@ -588,14 +589,10 @@ void KMP_EXPAND_NAME(KMP_API_NAME_GOMP_PARALLEL_END)(void) {
     return status;                                                             \
   }
 
-#if OMP_45_ENABLED
 #define KMP_DOACROSS_FINI(status, gtid)                                        \
   if (!status && __kmp_threads[gtid]->th.th_dispatch->th_doacross_flags) {     \
     __kmpc_doacross_fini(NULL, gtid);                                          \
   }
-#else
-#define KMP_DOACROSS_FINI(status, gtid) /* Nothing */
-#endif
 
 #define LOOP_NEXT(func, fini_code)                                             \
   int func(long *p_lb, long *p_ub) {                                           \
@@ -651,7 +648,6 @@ LOOP_RUNTIME_START(
 LOOP_NEXT(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_ORDERED_RUNTIME_NEXT),
           { KMP_DISPATCH_FINI_CHUNK(&loc, gtid); })
 
-#if OMP_45_ENABLED
 #define LOOP_DOACROSS_START(func, schedule)                                    \
   bool func(unsigned ncounts, long *counts, long chunk_sz, long *p_lb,         \
             long *p_ub) {                                                      \
@@ -757,7 +753,6 @@ LOOP_DOACROSS_START(
 LOOP_DOACROSS_RUNTIME_START(
     KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_DOACROSS_RUNTIME_START),
     kmp_sch_runtime)
-#endif // OMP_45_ENABLED
 
 void KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_END)(void) {
   int gtid = __kmp_get_gtid();
@@ -920,7 +915,6 @@ LOOP_RUNTIME_START_ULL(
 LOOP_NEXT_ULL(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_ULL_ORDERED_RUNTIME_NEXT),
               { KMP_DISPATCH_FINI_CHUNK_ULL(&loc, gtid); })
 
-#if OMP_45_ENABLED
 #define LOOP_DOACROSS_START_ULL(func, schedule)                                \
   int func(unsigned ncounts, unsigned long long *counts,                       \
            unsigned long long chunk_sz, unsigned long long *p_lb,              \
@@ -1030,7 +1024,6 @@ LOOP_DOACROSS_START_ULL(
 LOOP_DOACROSS_RUNTIME_START_ULL(
     KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_ULL_DOACROSS_RUNTIME_START),
     kmp_sch_runtime)
-#endif
 
 // Combined parallel / loop worksharing constructs
 //
@@ -1113,12 +1106,8 @@ PARALLEL_LOOP_START(
 void KMP_EXPAND_NAME(KMP_API_NAME_GOMP_TASK)(void (*func)(void *), void *data,
                                              void (*copy_func)(void *, void *),
                                              long arg_size, long arg_align,
-                                             bool if_cond, unsigned gomp_flags
-#if OMP_40_ENABLED
-                                             ,
-                                             void **depend
-#endif
-                                             ) {
+                                             bool if_cond, unsigned gomp_flags,
+                                             void **depend) {
   MKLOC(loc, "GOMP_task");
   int gtid = __kmp_entry_gtid();
   kmp_int32 flags = 0;
@@ -1169,7 +1158,6 @@ void KMP_EXPAND_NAME(KMP_API_NAME_GOMP_TASK)(void (*func)(void *), void *data,
 #endif
 
   if (if_cond) {
-#if OMP_40_ENABLED
     if (gomp_flags & 8) {
       KMP_ASSERT(depend);
       const size_t ndeps = (kmp_intptr_t)depend[0];
@@ -1184,7 +1172,6 @@ void KMP_EXPAND_NAME(KMP_API_NAME_GOMP_TASK)(void (*func)(void *), void *data,
       }
       __kmpc_omp_task_with_deps(&loc, gtid, task, ndeps, dep_list, 0, NULL);
     } else {
-#endif
       __kmpc_omp_task(&loc, gtid, task);
     }
   } else {
@@ -1369,8 +1356,6 @@ void KMP_EXPAND_NAME(KMP_API_NAME_GOMP_TASKYIELD)(void) {
   return;
 }
 
-#if OMP_40_ENABLED // these are new GOMP_4.0 entry points
-
 void KMP_EXPAND_NAME(KMP_API_NAME_GOMP_PARALLEL)(void (*task)(void *),
                                                  void *data,
                                                  unsigned num_threads,
@@ -1537,11 +1522,7 @@ void KMP_EXPAND_NAME(KMP_API_NAME_GOMP_TASKGROUP_END)(void) {
   return;
 }
 
-#ifndef KMP_DEBUG
-static
-#endif /* KMP_DEBUG */
-    kmp_int32
-    __kmp_gomp_to_omp_cancellation_kind(int gomp_kind) {
+static kmp_int32 __kmp_gomp_to_omp_cancellation_kind(int gomp_kind) {
   kmp_int32 cncl_kind = 0;
   switch (gomp_kind) {
   case 1:
@@ -1560,71 +1541,49 @@ static
   return cncl_kind;
 }
 
+// Return true if cancellation should take place, false otherwise
 bool KMP_EXPAND_NAME(KMP_API_NAME_GOMP_CANCELLATION_POINT)(int which) {
-  if (__kmp_omp_cancellation) {
-    KMP_FATAL(NoGompCancellation);
-  }
   int gtid = __kmp_get_gtid();
   MKLOC(loc, "GOMP_cancellation_point");
-  KA_TRACE(20, ("GOMP_cancellation_point: T#%d\n", gtid));
-
+  KA_TRACE(20, ("GOMP_cancellation_point: T#%d which:%d\n", gtid, which));
   kmp_int32 cncl_kind = __kmp_gomp_to_omp_cancellation_kind(which);
-
   return __kmpc_cancellationpoint(&loc, gtid, cncl_kind);
 }
 
-bool KMP_EXPAND_NAME(KMP_API_NAME_GOMP_BARRIER_CANCEL)(void) {
-  if (__kmp_omp_cancellation) {
-    KMP_FATAL(NoGompCancellation);
-  }
-  KMP_FATAL(NoGompCancellation);
-  int gtid = __kmp_get_gtid();
-  MKLOC(loc, "GOMP_barrier_cancel");
-  KA_TRACE(20, ("GOMP_barrier_cancel: T#%d\n", gtid));
-
-  return __kmpc_cancel_barrier(&loc, gtid);
-}
-
+// Return true if cancellation should take place, false otherwise
 bool KMP_EXPAND_NAME(KMP_API_NAME_GOMP_CANCEL)(int which, bool do_cancel) {
-  if (__kmp_omp_cancellation) {
-    KMP_FATAL(NoGompCancellation);
-  } else {
-    return FALSE;
-  }
-
   int gtid = __kmp_get_gtid();
   MKLOC(loc, "GOMP_cancel");
-  KA_TRACE(20, ("GOMP_cancel: T#%d\n", gtid));
-
+  KA_TRACE(20, ("GOMP_cancel: T#%d which:%d do_cancel:%d\n", gtid, which,
+                (int)do_cancel));
   kmp_int32 cncl_kind = __kmp_gomp_to_omp_cancellation_kind(which);
 
   if (do_cancel == FALSE) {
-    return KMP_EXPAND_NAME(KMP_API_NAME_GOMP_CANCELLATION_POINT)(which);
+    return __kmpc_cancellationpoint(&loc, gtid, cncl_kind);
   } else {
     return __kmpc_cancel(&loc, gtid, cncl_kind);
   }
 }
 
-bool KMP_EXPAND_NAME(KMP_API_NAME_GOMP_SECTIONS_END_CANCEL)(void) {
-  if (__kmp_omp_cancellation) {
-    KMP_FATAL(NoGompCancellation);
-  }
+// Return true if cancellation should take place, false otherwise
+bool KMP_EXPAND_NAME(KMP_API_NAME_GOMP_BARRIER_CANCEL)(void) {
   int gtid = __kmp_get_gtid();
-  MKLOC(loc, "GOMP_sections_end_cancel");
-  KA_TRACE(20, ("GOMP_sections_end_cancel: T#%d\n", gtid));
-
-  return __kmpc_cancel_barrier(&loc, gtid);
+  KA_TRACE(20, ("GOMP_barrier_cancel: T#%d\n", gtid));
+  return __kmp_barrier_gomp_cancel(gtid);
 }
 
-bool KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_END_CANCEL)(void) {
-  if (__kmp_omp_cancellation) {
-    KMP_FATAL(NoGompCancellation);
-  }
+// Return true if cancellation should take place, false otherwise
+bool KMP_EXPAND_NAME(KMP_API_NAME_GOMP_SECTIONS_END_CANCEL)(void) {
   int gtid = __kmp_get_gtid();
-  MKLOC(loc, "GOMP_loop_end_cancel");
-  KA_TRACE(20, ("GOMP_loop_end_cancel: T#%d\n", gtid));
+  KA_TRACE(20, ("GOMP_sections_end_cancel: T#%d\n", gtid));
+  return __kmp_barrier_gomp_cancel(gtid);
+}
 
-  return __kmpc_cancel_barrier(&loc, gtid);
+// Return true if cancellation should take place, false otherwise
+bool KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_END_CANCEL)(void) {
+  int gtid = __kmp_get_gtid();
+  KA_TRACE(20, ("GOMP_loop_end_cancel: T#%d\n", gtid));
+  return __kmp_barrier_gomp_cancel(gtid);
 }
 
 // All target functions are empty as of 2014-05-29
@@ -1654,9 +1613,6 @@ void KMP_EXPAND_NAME(KMP_API_NAME_GOMP_TEAMS)(unsigned int num_teams,
                                               unsigned int thread_limit) {
   return;
 }
-#endif // OMP_40_ENABLED
-
-#if OMP_45_ENABLED
 
 // Task duplication function which copies src to dest (both are
 // preallocated task structures)
@@ -1857,8 +1813,6 @@ void KMP_EXPAND_NAME(KMP_API_NAME_GOMP_DOACROSS_ULL_WAIT)(
   va_end(args);
 }
 
-#endif // OMP_45_ENABLED
-
 /* The following sections of code create aliases for the GOMP_* functions, then
    create versioned symbols using the assembler directive .symver. This is only
    pertinent for ELF .so library. The KMP_VERSION_SYMBOL macro is defined in
@@ -1946,7 +1900,6 @@ KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_LOOP_ULL_STATIC_START, 20, "GOMP_2.0");
 KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_TASKYIELD, 30, "GOMP_3.0");
 
 // GOMP_4.0 versioned symbols
-#if OMP_40_ENABLED
 KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_PARALLEL, 40, "GOMP_4.0");
 KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_PARALLEL_SECTIONS, 40, "GOMP_4.0");
 KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_PARALLEL_LOOP_DYNAMIC, 40, "GOMP_4.0");
@@ -1965,10 +1918,8 @@ KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_TARGET_DATA, 40, "GOMP_4.0");
 KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_TARGET_END_DATA, 40, "GOMP_4.0");
 KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_TARGET_UPDATE, 40, "GOMP_4.0");
 KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_TEAMS, 40, "GOMP_4.0");
-#endif
 
 // GOMP_4.5 versioned symbols
-#if OMP_45_ENABLED
 KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_TASKLOOP, 45, "GOMP_4.5");
 KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_TASKLOOP_ULL, 45, "GOMP_4.5");
 KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_DOACROSS_POST, 45, "GOMP_4.5");
@@ -1991,7 +1942,6 @@ KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_LOOP_ULL_DOACROSS_GUIDED_START, 45,
                    "GOMP_4.5");
 KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_LOOP_ULL_DOACROSS_RUNTIME_START, 45,
                    "GOMP_4.5");
-#endif
 
 #endif // KMP_USE_VERSION_SYMBOLS
 

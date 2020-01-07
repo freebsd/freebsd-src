@@ -1,9 +1,8 @@
 //===- CVTypeVisitor.h ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,6 +11,7 @@
 
 #include "llvm/DebugInfo/CodeView/CVRecord.h"
 #include "llvm/DebugInfo/CodeView/TypeRecord.h"
+#include "llvm/DebugInfo/CodeView/TypeVisitorCallbackPipeline.h"
 #include "llvm/Support/Error.h"
 
 namespace llvm {
@@ -30,6 +30,9 @@ enum VisitorDataSource {
 
 Error visitTypeRecord(CVType &Record, TypeIndex Index,
                       TypeVisitorCallbacks &Callbacks,
+                      VisitorDataSource Source = VDS_BytesPresent);
+Error visitTypeRecord(CVType &Record, TypeIndex Index,
+                      TypeVisitorCallbackPipeline &Callbacks,
                       VisitorDataSource Source = VDS_BytesPresent);
 Error visitTypeRecord(CVType &Record, TypeVisitorCallbacks &Callbacks,
                       VisitorDataSource Source = VDS_BytesPresent);

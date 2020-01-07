@@ -1,9 +1,8 @@
 //===-- llvm/BinaryFormat/MachO.h - The MachO file format -------*- C++/-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -335,6 +334,7 @@ enum {
   N_WEAK_DEF = 0x0080u,
   N_SYMBOL_RESOLVER = 0x0100u,
   N_ALT_ENTRY = 0x0200u,
+  N_COLD_FUNC = 0x0400u,
   // For undefined symbols coming from libraries, see GET_LIBRARY_ORDINAL()
   // as these are in the top 8 bits.
   SELF_LIBRARY_ORDINAL = 0x0,
@@ -487,6 +487,7 @@ enum PlatformType {
   PLATFORM_TVOS = 3,
   PLATFORM_WATCHOS = 4,
   PLATFORM_BRIDGEOS = 5,
+  PLATFORM_MACCATALYST = 6,
   PLATFORM_IOSSIMULATOR = 7,
   PLATFORM_TVOSSIMULATOR = 8,
   PLATFORM_WATCHOSSIMULATOR = 9
@@ -942,8 +943,13 @@ struct fat_arch_64 {
 // Structs from <mach-o/reloc.h>
 struct relocation_info {
   int32_t r_address;
+#if defined(BYTE_ORDER) && defined(BIG_ENDIAN) && (BYTE_ORDER == BIG_ENDIAN)
+  uint32_t r_type : 4,  r_extern : 1, r_length : 2, r_pcrel : 1,
+      r_symbolnum : 24;
+#else
   uint32_t r_symbolnum : 24, r_pcrel : 1, r_length : 2, r_extern : 1,
       r_type : 4;
+#endif
 };
 
 struct scattered_relocation_info {
@@ -1396,7 +1402,8 @@ inline void SET_COMM_ALIGN(uint16_t &n_desc, uint8_t align) {
 enum : uint32_t {
   // Capability bits used in the definition of cpu_type.
   CPU_ARCH_MASK = 0xff000000, // Mask for architecture bits
-  CPU_ARCH_ABI64 = 0x01000000 // 64 bit ABI
+  CPU_ARCH_ABI64 = 0x01000000, // 64 bit ABI
+  CPU_ARCH_ABI64_32 = 0x02000000, // ILP32 ABI on 64-bit hardware
 };
 
 // Constants for the cputype field.
@@ -1409,6 +1416,7 @@ enum CPUType {
   CPU_TYPE_MC98000 = 10, // Old Motorola PowerPC
   CPU_TYPE_ARM = 12,
   CPU_TYPE_ARM64 = CPU_TYPE_ARM | CPU_ARCH_ABI64,
+  CPU_TYPE_ARM64_32 = CPU_TYPE_ARM | CPU_ARCH_ABI64_32,
   CPU_TYPE_SPARC = 14,
   CPU_TYPE_POWERPC = 18,
   CPU_TYPE_POWERPC64 = CPU_TYPE_POWERPC | CPU_ARCH_ABI64
@@ -1477,7 +1485,12 @@ enum CPUSubTypeARM {
   CPU_SUBTYPE_ARM_V7EM = 16
 };
 
-enum CPUSubTypeARM64 { CPU_SUBTYPE_ARM64_ALL = 0 };
+enum CPUSubTypeARM64 {
+  CPU_SUBTYPE_ARM64_ALL = 0,
+  CPU_SUBTYPE_ARM64E = 2,
+};
+
+enum CPUSubTypeARM64_32 { CPU_SUBTYPE_ARM64_32_V8 = 1 };
 
 enum CPUSubTypeSPARC { CPU_SUBTYPE_SPARC_ALL = 0 };
 

@@ -1,9 +1,8 @@
 //===- GVN.cpp - Eliminate redundant values and loads ---------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -30,6 +29,7 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/CFG.h"
+#include "llvm/Analysis/DomTreeUpdater.h"
 #include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopInfo.h"
@@ -46,8 +46,8 @@
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DebugLoc.h"
-#include "llvm/IR/DomTreeUpdater.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InstrTypes.h"
@@ -330,36 +330,15 @@ GVN::Expression GVN::ValueTable::createExtractvalueExpr(ExtractValueInst *EI) {
   e.type = EI->getType();
   e.opcode = 0;
 
-  IntrinsicInst *I = dyn_cast<IntrinsicInst>(EI->getAggregateOperand());
-  if (I != nullptr && EI->getNumIndices() == 1 && *EI->idx_begin() == 0 ) {
-    // EI might be an extract from one of our recognised intrinsics. If it
-    // is we'll synthesize a semantically equivalent expression instead on
-    // an extract value expression.
-    switch (I->getIntrinsicID()) {
-      case Intrinsic::sadd_with_overflow:
-      case Intrinsic::uadd_with_overflow:
-        e.opcode = Instruction::Add;
-        break;
-      case Intrinsic::ssub_with_overflow:
-      case Intrinsic::usub_with_overflow:
-        e.opcode = Instruction::Sub;
-        break;
-      case Intrinsic::smul_with_overflow:
-      case Intrinsic::umul_with_overflow:
-        e.opcode = Instruction::Mul;
-        break;
-      default:
-        break;
-    }
-
-    if (e.opcode != 0) {
-      // Intrinsic recognized. Grab its args to finish building the expression.
-      assert(I->getNumArgOperands() == 2 &&
-             "Expect two args for recognised intrinsics.");
-      e.varargs.push_back(lookupOrAdd(I->getArgOperand(0)));
-      e.varargs.push_back(lookupOrAdd(I->getArgOperand(1)));
-      return e;
-    }
+  WithOverflowInst *WO = dyn_cast<WithOverflowInst>(EI->getAggregateOperand());
+  if (WO != nullptr && EI->getNumIndices() == 1 && *EI->idx_begin() == 0) {
+    // EI is an extract from one of our with.overflow intrinsics. Synthesize
+    // a semantically equivalent expression instead of an extract value
+    // expression.
+    e.opcode = WO->getBinaryOp();
+    e.varargs.push_back(lookupOrAdd(WO->getLHS()));
+    e.varargs.push_back(lookupOrAdd(WO->getRHS()));
+    return e;
   }
 
   // Not a recognised intrinsic. Fall back to producing an extract value
@@ -513,6 +492,7 @@ uint32_t GVN::ValueTable::lookupOrAdd(Value *V) {
   switch (I->getOpcode()) {
     case Instruction::Call:
       return lookupOrAddCall(cast<CallInst>(I));
+    case Instruction::FNeg:
     case Instruction::Add:
     case Instruction::FAdd:
     case Instruction::Sub:
@@ -544,6 +524,7 @@ uint32_t GVN::ValueTable::lookupOrAdd(Value *V) {
     case Instruction::FPExt:
     case Instruction::PtrToInt:
     case Instruction::IntToPtr:
+    case Instruction::AddrSpaceCast:
     case Instruction::BitCast:
     case Instruction::Select:
     case Instruction::ExtractElement:
@@ -879,11 +860,12 @@ bool GVN::AnalyzeLoadAvailability(LoadInst *LI, MemDepResult DepInfo,
 
   const DataLayout &DL = LI->getModule()->getDataLayout();
 
+  Instruction *DepInst = DepInfo.getInst();
   if (DepInfo.isClobber()) {
     // If the dependence is to a store that writes to a superset of the bits
     // read by the load, we can extract the bits we need for the load from the
     // stored value.
-    if (StoreInst *DepSI = dyn_cast<StoreInst>(DepInfo.getInst())) {
+    if (StoreInst *DepSI = dyn_cast<StoreInst>(DepInst)) {
       // Can't forward from non-atomic to atomic without violating memory model.
       if (Address && LI->isAtomic() <= DepSI->isAtomic()) {
         int Offset =
@@ -899,7 +881,7 @@ bool GVN::AnalyzeLoadAvailability(LoadInst *LI, MemDepResult DepInfo,
     //    load i32* P
     //    load i8* (P+1)
     // if we have this, replace the later with an extraction from the former.
-    if (LoadInst *DepLI = dyn_cast<LoadInst>(DepInfo.getInst())) {
+    if (LoadInst *DepLI = dyn_cast<LoadInst>(DepInst)) {
       // If this is a clobber and L is the first instruction in its block, then
       // we have the first instruction in the entry block.
       // Can't forward from non-atomic to atomic without violating memory model.
@@ -916,7 +898,7 @@ bool GVN::AnalyzeLoadAvailability(LoadInst *LI, MemDepResult DepInfo,
 
     // If the clobbering value is a memset/memcpy/memmove, see if we can
     // forward a value on from it.
-    if (MemIntrinsic *DepMI = dyn_cast<MemIntrinsic>(DepInfo.getInst())) {
+    if (MemIntrinsic *DepMI = dyn_cast<MemIntrinsic>(DepInst)) {
       if (Address && !LI->isAtomic()) {
         int Offset = analyzeLoadFromClobberingMemInst(LI->getType(), Address,
                                                       DepMI, DL);
@@ -930,16 +912,13 @@ bool GVN::AnalyzeLoadAvailability(LoadInst *LI, MemDepResult DepInfo,
     LLVM_DEBUG(
         // fast print dep, using operator<< on instruction is too slow.
         dbgs() << "GVN: load "; LI->printAsOperand(dbgs());
-        Instruction *I = DepInfo.getInst();
-        dbgs() << " is clobbered by " << *I << '\n';);
+        dbgs() << " is clobbered by " << *DepInst << '\n';);
     if (ORE->allowExtraAnalysis(DEBUG_TYPE))
       reportMayClobberedLoad(LI, DepInfo, DT, ORE);
 
     return false;
   }
   assert(DepInfo.isDef() && "follows from above");
-
-  Instruction *DepInst = DepInfo.getInst();
 
   // Loading the allocation -> undef.
   if (isa<AllocaInst>(DepInst) || isMallocLikeFn(DepInst, TLI) ||
@@ -959,9 +938,8 @@ bool GVN::AnalyzeLoadAvailability(LoadInst *LI, MemDepResult DepInfo,
     // Reject loads and stores that are to the same address but are of
     // different types if we have to. If the stored value is larger or equal to
     // the loaded value, we can reuse it.
-    if (S->getValueOperand()->getType() != LI->getType() &&
-        !canCoerceMustAliasedValueToLoad(S->getValueOperand(),
-                                         LI->getType(), DL))
+    if (!canCoerceMustAliasedValueToLoad(S->getValueOperand(), LI->getType(),
+                                         DL))
       return false;
 
     // Can't forward from non-atomic to atomic without violating memory model.
@@ -976,8 +954,7 @@ bool GVN::AnalyzeLoadAvailability(LoadInst *LI, MemDepResult DepInfo,
     // If the types mismatch and we can't handle it, reject reuse of the load.
     // If the stored value is larger or equal to the loaded value, we can reuse
     // it.
-    if (LD->getType() != LI->getType() &&
-        !canCoerceMustAliasedValueToLoad(LD, LI->getType(), DL))
+    if (!canCoerceMustAliasedValueToLoad(LD, LI->getType(), DL))
       return false;
 
     // Can't forward from non-atomic to atomic without violating memory model.
@@ -1132,6 +1109,14 @@ bool GVN::PerformLoadPRE(LoadInst *LI, AvailValInBlkVect &ValuesPerBlock,
         return false;
       }
 
+      // FIXME: Can we support the fallthrough edge?
+      if (isa<CallBrInst>(Pred->getTerminator())) {
+        LLVM_DEBUG(
+            dbgs() << "COULD NOT PRE LOAD BECAUSE OF CALLBR CRITICAL EDGE '"
+                   << Pred->getName() << "': " << *LI << '\n');
+        return false;
+      }
+
       if (LoadBB->isEHPad()) {
         LLVM_DEBUG(
             dbgs() << "COULD NOT PRE LOAD BECAUSE OF AN EH PAD CRITICAL EDGE '"
@@ -1220,9 +1205,8 @@ bool GVN::PerformLoadPRE(LoadInst *LI, AvailValInBlkVect &ValuesPerBlock,
     // Instructions that have been inserted in predecessor(s) to materialize
     // the load address do not retain their original debug locations. Doing
     // so could lead to confusing (but correct) source attributions.
-    // FIXME: How do we retain source locations without causing poor debugging
-    // behavior?
-    I->setDebugLoc(DebugLoc());
+    if (const DebugLoc &DL = I->getDebugLoc())
+      I->setDebugLoc(DebugLoc::get(0, 0, DL.getScope(), DL.getInlinedAt()));
 
     // FIXME: We really _ought_ to insert these value numbers into their
     // parent's availability map.  However, in doing so, we risk getting into
@@ -1235,10 +1219,10 @@ bool GVN::PerformLoadPRE(LoadInst *LI, AvailValInBlkVect &ValuesPerBlock,
     BasicBlock *UnavailablePred = PredLoad.first;
     Value *LoadPtr = PredLoad.second;
 
-    auto *NewLoad = new LoadInst(LoadPtr, LI->getName()+".pre",
-                                 LI->isVolatile(), LI->getAlignment(),
-                                 LI->getOrdering(), LI->getSyncScopeID(),
-                                 UnavailablePred->getTerminator());
+    auto *NewLoad =
+        new LoadInst(LI->getType(), LoadPtr, LI->getName() + ".pre",
+                     LI->isVolatile(), LI->getAlignment(), LI->getOrdering(),
+                     LI->getSyncScopeID(), UnavailablePred->getTerminator());
     NewLoad->setDebugLoc(LI->getDebugLoc());
 
     // Transfer the old load's AA tags to the new load.
@@ -2168,8 +2152,8 @@ bool GVN::performScalarPRE(Instruction *CurInst) {
     return false;
 
   // We don't currently value number ANY inline asm calls.
-  if (CallInst *CallI = dyn_cast<CallInst>(CurInst))
-    if (CallI->isInlineAsm())
+  if (auto *CallB = dyn_cast<CallBase>(CurInst))
+    if (CallB->isInlineAsm())
       return false;
 
   uint32_t ValNo = VN.lookup(CurInst);
@@ -2250,6 +2234,11 @@ bool GVN::performScalarPRE(Instruction *CurInst) {
 
     // Don't do PRE across indirect branch.
     if (isa<IndirectBrInst>(PREPred->getTerminator()))
+      return false;
+
+    // Don't do PRE across callbr.
+    // FIXME: Can we do this across the fallthrough edge?
+    if (isa<CallBrInst>(PREPred->getTerminator()))
       return false;
 
     // We can't do PRE safely on a critical edge, so instead we schedule
@@ -2479,8 +2468,7 @@ void GVN::addDeadBlock(BasicBlock *BB) {
 
       for (BasicBlock::iterator II = B->begin(); isa<PHINode>(II); ++II) {
         PHINode &Phi = cast<PHINode>(*II);
-        Phi.setIncomingValue(Phi.getBasicBlockIndex(P),
-                             UndefValue::get(Phi.getType()));
+        Phi.setIncomingValueForBlock(P, UndefValue::get(Phi.getType()));
         if (MD)
           MD->invalidateCachedPointerInfo(&Phi);
       }

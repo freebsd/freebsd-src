@@ -1,9 +1,8 @@
 //===-- CodeGen/AsmPrinter/WinException.cpp - Dwarf Exception Impl ------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -110,6 +109,12 @@ void WinException::beginFunction(const MachineFunction *MF) {
   beginFunclet(MF->front(), Asm->CurrentFnSym);
 }
 
+void WinException::markFunctionEnd() {
+  if (isAArch64 && CurrentFuncletEntry &&
+      (shouldEmitMoves || shouldEmitPersonality))
+    Asm->OutStreamer->EmitWinCFIFuncletOrFuncEnd();
+}
+
 /// endFunction - Gather and emit post-function exception information.
 ///
 void WinException::endFunction(const MachineFunction *MF) {
@@ -129,7 +134,7 @@ void WinException::endFunction(const MachineFunction *MF) {
     NonConstMF->tidyLandingPads();
   }
 
-  endFunclet();
+  endFuncletImpl();
 
   // endFunclet will emit the necessary .xdata tables for x64 SEH.
   if (Per == EHPersonality::MSVC_Win64SEH && MF->hasEHFunclets())
@@ -232,6 +237,15 @@ void WinException::beginFunclet(const MachineBasicBlock &MBB,
 }
 
 void WinException::endFunclet() {
+  if (isAArch64 && CurrentFuncletEntry &&
+      (shouldEmitMoves || shouldEmitPersonality)) {
+    Asm->OutStreamer->SwitchSection(CurrentFuncletTextSection);
+    Asm->OutStreamer->EmitWinCFIFuncletOrFuncEnd();
+  }
+  endFuncletImpl();
+}
+
+void WinException::endFuncletImpl() {
   // No funclet to process?  Great, we have nothing to do.
   if (!CurrentFuncletEntry)
     return;
@@ -247,8 +261,6 @@ void WinException::endFunclet() {
     // to EmitWinEHHandlerData below can calculate the size of the funclet or
     // function.
     if (isAArch64) {
-      Asm->OutStreamer->SwitchSection(CurrentFuncletTextSection);
-      Asm->OutStreamer->EmitWinCFIFuncletOrFuncEnd();
       MCSection *XData = Asm->OutStreamer->getAssociatedXDataSection(
           Asm->OutStreamer->getCurrentSectionOnly());
       Asm->OutStreamer->SwitchSection(XData);
@@ -938,11 +950,7 @@ void WinException::emitEHRegistrationOffsetLabel(const WinEHFuncInfo &FuncInfo,
   int FI = FuncInfo.EHRegNodeFrameIndex;
   if (FI != INT_MAX) {
     const TargetFrameLowering *TFI = Asm->MF->getSubtarget().getFrameLowering();
-    unsigned UnusedReg;
-    // FIXME: getFrameIndexReference needs to match the behavior of
-    // AArch64RegisterInfo::hasBasePointer in which one of the scenarios where
-    // SP is used is if frame size >= 256.
-    Offset = TFI->getFrameIndexReference(*Asm->MF, FI, UnusedReg);
+    Offset = TFI->getNonLocalFrameIndexReference(*Asm->MF, FI);
   }
 
   MCContext &Ctx = Asm->OutContext;

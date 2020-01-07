@@ -1,9 +1,8 @@
 //===- lib/Transforms/Utils/FunctionImportUtils.cpp - Importing utilities -===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -130,7 +129,7 @@ FunctionImportGlobalProcessing::getLinkage(const GlobalValue *SGV,
     // definitions upon import, so that they are available for inlining
     // and/or optimization, but are turned into declarations later
     // during the EliminateAvailableExternally pass.
-    if (doImportAsDefinition(SGV) && !dyn_cast<GlobalAlias>(SGV))
+    if (doImportAsDefinition(SGV) && !isa<GlobalAlias>(SGV))
       return GlobalValue::AvailableExternallyLinkage;
     // An imported external declaration stays external.
     return SGV->getLinkage();
@@ -159,7 +158,7 @@ FunctionImportGlobalProcessing::getLinkage(const GlobalValue *SGV,
     // equivalent, so the issue described above for weak_any does not exist,
     // and the definition can be imported. It can be treated similarly
     // to an imported externally visible global value.
-    if (doImportAsDefinition(SGV) && !dyn_cast<GlobalAlias>(SGV))
+    if (doImportAsDefinition(SGV) && !isa<GlobalAlias>(SGV))
       return GlobalValue::AvailableExternallyLinkage;
     else
       return GlobalValue::ExternalLinkage;
@@ -177,7 +176,7 @@ FunctionImportGlobalProcessing::getLinkage(const GlobalValue *SGV,
     // If we are promoting the local to global scope, it is handled
     // similarly to a normal externally visible global.
     if (DoPromote) {
-      if (doImportAsDefinition(SGV) && !dyn_cast<GlobalAlias>(SGV))
+      if (doImportAsDefinition(SGV) && !isa<GlobalAlias>(SGV))
         return GlobalValue::AvailableExternallyLinkage;
       else
         return GlobalValue::ExternalLinkage;
@@ -230,11 +229,11 @@ void FunctionImportGlobalProcessing::processGlobalForThinLTO(GlobalValue &GV) {
     }
   }
 
-  // Mark read-only variables which can be imported with specific attribute.
-  // We can't internalize them now because IRMover will fail to link variable
-  // definitions to their external declarations during ThinLTO import. We'll
-  // internalize read-only variables later, after import is finished.
-  // See internalizeImmutableGVs.
+  // Mark read/write-only variables which can be imported with specific
+  // attribute. We can't internalize them now because IRMover will fail
+  // to link variable definitions to their external declarations during
+  // ThinLTO import. We'll internalize read-only variables later, after
+  // import is finished. See internalizeGVsAfterImport.
   //
   // If global value dead stripping is not enabled in summary then
   // propagateConstants hasn't been run. We can't internalize GV
@@ -242,7 +241,8 @@ void FunctionImportGlobalProcessing::processGlobalForThinLTO(GlobalValue &GV) {
   if (!GV.isDeclaration() && VI && ImportIndex.withGlobalValueDeadStripping()) {
     const auto &SL = VI.getSummaryList();
     auto *GVS = SL.empty() ? nullptr : dyn_cast<GlobalVarSummary>(SL[0].get());
-    if (GVS && GVS->isReadOnly())
+    // At this stage "maybe" is "definitely"
+    if (GVS && (GVS->maybeReadOnly() || GVS->maybeWriteOnly()))
       cast<GlobalVariable>(&GV)->addAttribute("thinlto-internalize");
   }
 

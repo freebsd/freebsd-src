@@ -1,9 +1,8 @@
 //===-- StringConvert.h -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,10 +17,8 @@ namespace lldb_private {
 
 namespace StringConvert {
 
-//----------------------------------------------------------------------
-/// @namespace StringConvert StringConvert.h "lldb/Host/StringConvert.h"
+/// \namespace StringConvert StringConvert.h "lldb/Host/StringConvert.h"
 /// Utility classes for converting strings into Integers
-//----------------------------------------------------------------------
 
 int32_t ToSInt32(const char *s, int32_t fail_value = 0, int base = 0,
                  bool *success_ptr = nullptr);

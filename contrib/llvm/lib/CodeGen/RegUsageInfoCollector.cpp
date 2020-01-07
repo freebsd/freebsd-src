@@ -1,9 +1,8 @@
 //===-- RegUsageInfoCollector.cpp - Register Usage Information Collector --===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -78,14 +77,48 @@ FunctionPass *llvm::createRegUsageInfoCollector() {
   return new RegUsageInfoCollector();
 }
 
+// TODO: Move to hook somwehere?
+
+// Return true if it is useful to track the used registers for IPRA / no CSR
+// optimizations. This is not useful for entry points, and computing the
+// register usage information is expensive.
+static bool isCallableFunction(const MachineFunction &MF) {
+  switch (MF.getFunction().getCallingConv()) {
+  case CallingConv::AMDGPU_VS:
+  case CallingConv::AMDGPU_GS:
+  case CallingConv::AMDGPU_PS:
+  case CallingConv::AMDGPU_CS:
+  case CallingConv::AMDGPU_HS:
+  case CallingConv::AMDGPU_ES:
+  case CallingConv::AMDGPU_LS:
+  case CallingConv::AMDGPU_KERNEL:
+    return false;
+  default:
+    return true;
+  }
+}
+
 bool RegUsageInfoCollector::runOnMachineFunction(MachineFunction &MF) {
   MachineRegisterInfo *MRI = &MF.getRegInfo();
   const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
   const LLVMTargetMachine &TM = MF.getTarget();
 
   LLVM_DEBUG(dbgs() << " -------------------- " << getPassName()
-                    << " -------------------- \n");
-  LLVM_DEBUG(dbgs() << "Function Name : " << MF.getName() << "\n");
+                    << " -------------------- \nFunction Name : "
+                    << MF.getName() << '\n');
+
+  // Analyzing the register usage may be expensive on some targets.
+  if (!isCallableFunction(MF)) {
+    LLVM_DEBUG(dbgs() << "Not analyzing non-callable function\n");
+    return false;
+  }
+
+  // If there are no callers, there's no point in computing more precise
+  // register usage here.
+  if (MF.getFunction().use_empty()) {
+    LLVM_DEBUG(dbgs() << "Not analyzing function with no callers\n");
+    return false;
+  }
 
   std::vector<uint32_t> RegMask;
 
@@ -111,6 +144,7 @@ bool RegUsageInfoCollector::runOnMachineFunction(MachineFunction &MF) {
   };
   // Scan all the physical registers. When a register is defined in the current
   // function set it and all the aliasing registers as defined in the regmask.
+  // FIXME: Rewrite to use regunits.
   for (unsigned PReg = 1, PRegE = TRI->getNumRegs(); PReg < PRegE; ++PReg) {
     // Don't count registers that are saved and restored.
     if (SavedRegs.test(PReg))
@@ -136,11 +170,14 @@ bool RegUsageInfoCollector::runOnMachineFunction(MachineFunction &MF) {
                       << " function optimized for not having CSR.\n");
   }
 
-  for (unsigned PReg = 1, PRegE = TRI->getNumRegs(); PReg < PRegE; ++PReg)
-    if (MachineOperand::clobbersPhysReg(&(RegMask[0]), PReg))
-      LLVM_DEBUG(dbgs() << printReg(PReg, TRI) << " ");
+  LLVM_DEBUG(
+    for (unsigned PReg = 1, PRegE = TRI->getNumRegs(); PReg < PRegE; ++PReg) {
+      if (MachineOperand::clobbersPhysReg(&(RegMask[0]), PReg))
+        dbgs() << printReg(PReg, TRI) << " ";
+    }
 
-  LLVM_DEBUG(dbgs() << " \n----------------------------------------\n");
+    dbgs() << " \n----------------------------------------\n";
+  );
 
   PRUI.storeUpdateRegUsageInfo(F, RegMask);
 
@@ -155,38 +192,17 @@ computeCalleeSavedRegs(BitVector &SavedRegs, MachineFunction &MF) {
   // Target will return the set of registers that it saves/restores as needed.
   SavedRegs.clear();
   TFI.determineCalleeSaves(MF, SavedRegs);
+  if (SavedRegs.none())
+    return;
 
   // Insert subregs.
   const MCPhysReg *CSRegs = TRI.getCalleeSavedRegs(&MF);
   for (unsigned i = 0; CSRegs[i]; ++i) {
-    unsigned Reg = CSRegs[i];
-    if (SavedRegs.test(Reg))
-      for (MCSubRegIterator SR(Reg, &TRI, false); SR.isValid(); ++SR)
+    MCPhysReg Reg = CSRegs[i];
+    if (SavedRegs.test(Reg)) {
+      // Save subregisters
+      for (MCSubRegIterator SR(Reg, &TRI); SR.isValid(); ++SR)
         SavedRegs.set(*SR);
-  }
-
-  // Insert any register fully saved via subregisters.
-  for (const TargetRegisterClass *RC : TRI.regclasses()) {
-    if (!RC->CoveredBySubRegs)
-       continue;
-
-    for (unsigned PReg = 1, PRegE = TRI.getNumRegs(); PReg < PRegE; ++PReg) {
-      if (SavedRegs.test(PReg))
-        continue;
-
-      // Check if PReg is fully covered by its subregs.
-      if (!RC->contains(PReg))
-        continue;
-
-      // Add PReg to SavedRegs if all subregs are saved.
-      bool AllSubRegsSaved = true;
-      for (MCSubRegIterator SR(PReg, &TRI, false); SR.isValid(); ++SR)
-        if (!SavedRegs.test(*SR)) {
-          AllSubRegsSaved = false;
-          break;
-        }
-      if (AllSubRegsSaved)
-        SavedRegs.set(PReg);
     }
   }
 }

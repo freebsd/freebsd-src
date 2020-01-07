@@ -1,9 +1,8 @@
 //===--- DiagnosticIDs.cpp - Diagnostic IDs Handling ----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -312,11 +311,9 @@ namespace clang {
 // Common Diagnostic implementation
 //===----------------------------------------------------------------------===//
 
-DiagnosticIDs::DiagnosticIDs() { CustomDiagInfo = nullptr; }
+DiagnosticIDs::DiagnosticIDs() {}
 
-DiagnosticIDs::~DiagnosticIDs() {
-  delete CustomDiagInfo;
-}
+DiagnosticIDs::~DiagnosticIDs() {}
 
 /// getCustomDiagID - Return an ID for a diagnostic with the specified message
 /// and level.  If this is the first request for this diagnostic, it is
@@ -326,7 +323,7 @@ DiagnosticIDs::~DiagnosticIDs() {
 /// mapped to a unique DiagID.
 unsigned DiagnosticIDs::getCustomDiagID(Level L, StringRef FormatString) {
   if (!CustomDiagInfo)
-    CustomDiagInfo = new diag::CustomDiagInfo();
+    CustomDiagInfo.reset(new diag::CustomDiagInfo());
   return CustomDiagInfo->getOrCreateDiagID(L, FormatString, *this);
 }
 
@@ -457,12 +454,17 @@ DiagnosticIDs::getDiagnosticSeverity(unsigned DiagID, SourceLocation Loc,
   if (Result == diag::Severity::Ignored)
     return Result;
 
-  // Honor -w, which is lower in priority than pedantic-errors, but higher than
-  // -Werror.
-  // FIXME: Under GCC, this also suppresses warnings that have been mapped to
-  // errors by -W flags and #pragma diagnostic.
-  if (Result == diag::Severity::Warning && State->IgnoreAllWarnings)
-    return diag::Severity::Ignored;
+  // Honor -w: this disables all messages which which are not Error/Fatal by
+  // default (disregarding attempts to upgrade severity from Warning to Error),
+  // as well as disabling all messages which are currently mapped to Warning
+  // (whether by default or downgraded from Error via e.g. -Wno-error or #pragma
+  // diagnostic.)
+  if (State->IgnoreAllWarnings) {
+    if (Result == diag::Severity::Warning ||
+        (Result >= diag::Severity::Error &&
+         !isDefaultMappingAsError((diag::kind)DiagID)))
+      return diag::Severity::Ignored;
+  }
 
   // If -Werror is enabled, map warnings to errors unless explicitly disabled.
   if (Result == diag::Severity::Warning) {
@@ -476,6 +478,11 @@ DiagnosticIDs::getDiagnosticSeverity(unsigned DiagID, SourceLocation Loc,
     if (State->ErrorsAsFatal && !Mapping.hasNoErrorAsFatal())
       Result = diag::Severity::Fatal;
   }
+
+  // If explicitly requested, map fatal errors to errors.
+  if (Result == diag::Severity::Fatal &&
+      Diag.CurDiagID != diag::fatal_too_many_errors && Diag.FatalsAsError)
+    Result = diag::Severity::Error;
 
   // Custom diagnostics always are emitted in system headers.
   bool ShowInSystemHeader =
@@ -571,11 +578,8 @@ static bool getDiagnosticsInGroup(diag::Flavor Flavor,
 bool
 DiagnosticIDs::getDiagnosticsInGroup(diag::Flavor Flavor, StringRef Group,
                                      SmallVectorImpl<diag::kind> &Diags) const {
-  auto Found = std::lower_bound(std::begin(OptionTable), std::end(OptionTable),
-                                Group,
-                                [](const WarningOption &LHS, StringRef RHS) {
-                                  return LHS.getName() < RHS;
-                                });
+  auto Found = llvm::partition_point(
+      OptionTable, [=](const WarningOption &O) { return O.getName() < Group; });
   if (Found == std::end(OptionTable) || Found->getName() != Group)
     return true; // Option not found.
 
@@ -656,7 +660,7 @@ bool DiagnosticIDs::ProcessDiag(DiagnosticsEngine &Diag) const {
 
   // If a fatal error has already been emitted, silence all subsequent
   // diagnostics.
-  if (Diag.FatalErrorOccurred && Diag.SuppressAfterFatalError) {
+  if (Diag.FatalErrorOccurred) {
     if (DiagLevel >= DiagnosticIDs::Error &&
         Diag.Client->IncludeInDiagnosticCounts()) {
       ++Diag.NumErrors;

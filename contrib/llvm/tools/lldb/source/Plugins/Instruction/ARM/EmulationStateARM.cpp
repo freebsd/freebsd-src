@@ -1,9 +1,8 @@
 //===-- EmulationStateARM.cpp -----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -285,14 +284,14 @@ bool EmulationStateARM::LoadStateFromDictionary(
 
   // Load memory, if present.
 
-  if (value_sp.get() != NULL) {
+  if (value_sp.get() != nullptr) {
     static ConstString address_key("address");
     static ConstString data_key("data");
     uint64_t start_address = 0;
 
     OptionValueDictionary *mem_dict = value_sp->GetAsDictionary();
     value_sp = mem_dict->GetValueForKey(address_key);
-    if (value_sp.get() == NULL)
+    if (value_sp.get() == nullptr)
       return false;
     else
       start_address = value_sp->GetUInt64Value();
@@ -307,7 +306,7 @@ bool EmulationStateARM::LoadStateFromDictionary(
 
     for (uint32_t i = 0; i < num_elts; ++i) {
       value_sp = mem_array->GetValueAtIndex(i);
-      if (value_sp.get() == NULL)
+      if (value_sp.get() == nullptr)
         return false;
       uint64_t value = value_sp->GetUInt64Value();
       StoreToPseudoAddress(address, value);
@@ -316,7 +315,7 @@ bool EmulationStateARM::LoadStateFromDictionary(
   }
 
   value_sp = test_data->GetValueForKey(registers_key);
-  if (value_sp.get() == NULL)
+  if (value_sp.get() == nullptr)
     return false;
 
   // Load General Registers
@@ -329,7 +328,7 @@ bool EmulationStateARM::LoadStateFromDictionary(
     sstr.Printf("r%d", i);
     ConstString reg_name(sstr.GetString());
     value_sp = reg_dict->GetValueForKey(reg_name);
-    if (value_sp.get() == NULL)
+    if (value_sp.get() == nullptr)
       return false;
     uint64_t reg_value = value_sp->GetUInt64Value();
     StorePseudoRegisterValue(dwarf_r0 + i, reg_value);
@@ -337,7 +336,7 @@ bool EmulationStateARM::LoadStateFromDictionary(
 
   static ConstString cpsr_name("cpsr");
   value_sp = reg_dict->GetValueForKey(cpsr_name);
-  if (value_sp.get() == NULL)
+  if (value_sp.get() == nullptr)
     return false;
   StorePseudoRegisterValue(dwarf_cpsr, value_sp->GetUInt64Value());
 
@@ -347,7 +346,7 @@ bool EmulationStateARM::LoadStateFromDictionary(
     sstr.Printf("s%d", i);
     ConstString reg_name(sstr.GetString());
     value_sp = reg_dict->GetValueForKey(reg_name);
-    if (value_sp.get() == NULL)
+    if (value_sp.get() == nullptr)
       return false;
     uint64_t reg_value = value_sp->GetUInt64Value();
     StorePseudoRegisterValue(dwarf_s0 + i, reg_value);

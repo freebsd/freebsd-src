@@ -1,9 +1,8 @@
 //===- CodeGenDAGPatterns.h - Read DAG patterns from .td file ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -191,6 +190,7 @@ private:
 
 struct TypeSetByHwMode : public InfoByHwMode<MachineValueTypeSet> {
   using SetType = MachineValueTypeSet;
+  std::vector<unsigned> AddrSpaces;
 
   TypeSetByHwMode() = default;
   TypeSetByHwMode(const TypeSetByHwMode &VTS) = default;
@@ -227,6 +227,15 @@ struct TypeSetByHwMode : public InfoByHwMode<MachineValueTypeSet> {
     return Map.size() == 1 && Map.begin()->first == DefaultMode;
   }
 
+  bool isPointer() const {
+    return getValueTypeByHwMode().isPointer();
+  }
+
+  unsigned getPtrAddrSpace() const {
+    assert(isPointer());
+    return getValueTypeByHwMode().PtrAddrSpace;
+  }
+
   bool insert(const ValueTypeByHwMode &VVT);
   bool constrain(const TypeSetByHwMode &VTS);
   template <typename Predicate> bool constrain(Predicate P);
@@ -243,6 +252,7 @@ struct TypeSetByHwMode : public InfoByHwMode<MachineValueTypeSet> {
   bool validate() const;
 
 private:
+  unsigned PtrAddrSpace = std::numeric_limits<unsigned>::max();
   /// Intersect two sets. Return true if anything has changed.
   bool intersect(SetType &Out, const SetType &In);
 };
@@ -582,6 +592,8 @@ public:
   /// predicate (checking only the scalar type) for load/store and returns the
   /// ValueType record for the memory VT.
   Record *getScalarMemoryVT() const;
+
+  ListInit *getAddressSpaces() const;
 
   // If true, indicates that GlobalISel-based C++ code was supplied.
   bool hasGISelPredicateCode() const;
@@ -1271,6 +1283,11 @@ public:
   bool hasTargetIntrinsics() { return !TgtIntrinsics.empty(); }
 
   unsigned allocateScope() { return ++NumScopes; }
+
+  bool operandHasDefault(Record *Op) const {
+    return Op->isSubClassOf("OperandWithDefaultOps") &&
+      !getDefaultOperand(Op).DefaultOps.empty();
+  }
 
 private:
   void ParseNodeInfo();

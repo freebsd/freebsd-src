@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,9 +16,7 @@
 void __kmp_reset_global_vars(void);
 void __kmp_env_initialize(char const *);
 void __kmp_env_print();
-#if OMP_40_ENABLED
 void __kmp_env_print_2();
-#endif // OMP_40_ENABLED
 
 int __kmp_initial_threads_capacity(int req_nproc);
 void __kmp_init_dflt_team_nth();

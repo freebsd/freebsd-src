@@ -39,6 +39,9 @@ libpmc_events.c: ${JEVENTS}
 SRCS+= libpmc_events.c
 .endif
 
+# Silence warnings about usage of deprecated std::auto_ptr
+CXXWARNFLAGS+=	-Wno-deprecated-declarations
+
 MAN=	pmc.3
 MAN+=	pmc_allocate.3
 MAN+=	pmc_attach.3

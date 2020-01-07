@@ -1,9 +1,8 @@
 //===--- WhitespaceManager.cpp - Format C++ code --------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -92,6 +91,7 @@ const tooling::Replacements &WhitespaceManager::generateReplacements() {
 
   llvm::sort(Changes, Change::IsBeforeInFile(SourceMgr));
   calculateLineBreakInformation();
+  alignConsecutiveMacros();
   alignConsecutiveDeclarations();
   alignConsecutiveAssignments();
   alignTrailingComments();
@@ -429,23 +429,148 @@ static unsigned AlignTokens(const FormatStyle &Style, F &&Matches,
   return i;
 }
 
+// Aligns a sequence of matching tokens, on the MinColumn column.
+//
+// Sequences start from the first matching token to align, and end at the
+// first token of the first line that doesn't need to be aligned.
+//
+// We need to adjust the StartOfTokenColumn of each Change that is on a line
+// containing any matching token to be aligned and located after such token.
+static void AlignMacroSequence(
+    unsigned &StartOfSequence, unsigned &EndOfSequence, unsigned &MinColumn,
+    unsigned &MaxColumn, bool &FoundMatchOnLine,
+    std::function<bool(const WhitespaceManager::Change &C)> AlignMacrosMatches,
+    SmallVector<WhitespaceManager::Change, 16> &Changes) {
+  if (StartOfSequence > 0 && StartOfSequence < EndOfSequence) {
+
+    FoundMatchOnLine = false;
+    int Shift = 0;
+
+    for (unsigned I = StartOfSequence; I != EndOfSequence; ++I) {
+      if (Changes[I].NewlinesBefore > 0) {
+        Shift = 0;
+        FoundMatchOnLine = false;
+      }
+
+      // If this is the first matching token to be aligned, remember by how many
+      // spaces it has to be shifted, so the rest of the changes on the line are
+      // shifted by the same amount
+      if (!FoundMatchOnLine && AlignMacrosMatches(Changes[I])) {
+        FoundMatchOnLine = true;
+        Shift = MinColumn - Changes[I].StartOfTokenColumn;
+        Changes[I].Spaces += Shift;
+      }
+
+      assert(Shift >= 0);
+      Changes[I].StartOfTokenColumn += Shift;
+      if (I + 1 != Changes.size())
+        Changes[I + 1].PreviousEndOfTokenColumn += Shift;
+    }
+  }
+
+  MinColumn = 0;
+  MaxColumn = UINT_MAX;
+  StartOfSequence = 0;
+  EndOfSequence = 0;
+}
+
+void WhitespaceManager::alignConsecutiveMacros() {
+  if (!Style.AlignConsecutiveMacros)
+    return;
+
+  auto AlignMacrosMatches = [](const Change &C) {
+    const FormatToken *Current = C.Tok;
+    unsigned SpacesRequiredBefore = 1;
+
+    if (Current->SpacesRequiredBefore == 0 || !Current->Previous)
+      return false;
+
+    Current = Current->Previous;
+
+    // If token is a ")", skip over the parameter list, to the
+    // token that precedes the "("
+    if (Current->is(tok::r_paren) && Current->MatchingParen) {
+      Current = Current->MatchingParen->Previous;
+      SpacesRequiredBefore = 0;
+    }
+
+    if (!Current || !Current->is(tok::identifier))
+      return false;
+
+    if (!Current->Previous || !Current->Previous->is(tok::pp_define))
+      return false;
+
+    // For a macro function, 0 spaces are required between the
+    // identifier and the lparen that opens the parameter list.
+    // For a simple macro, 1 space is required between the
+    // identifier and the first token of the defined value.
+    return Current->Next->SpacesRequiredBefore == SpacesRequiredBefore;
+  };
+
+  unsigned MinColumn = 0;
+  unsigned MaxColumn = UINT_MAX;
+
+  // Start and end of the token sequence we're processing.
+  unsigned StartOfSequence = 0;
+  unsigned EndOfSequence = 0;
+
+  // Whether a matching token has been found on the current line.
+  bool FoundMatchOnLine = false;
+
+  unsigned I = 0;
+  for (unsigned E = Changes.size(); I != E; ++I) {
+    if (Changes[I].NewlinesBefore != 0) {
+      EndOfSequence = I;
+      // If there is a blank line, or if the last line didn't contain any
+      // matching token, the sequence ends here.
+      if (Changes[I].NewlinesBefore > 1 || !FoundMatchOnLine)
+        AlignMacroSequence(StartOfSequence, EndOfSequence, MinColumn, MaxColumn,
+                           FoundMatchOnLine, AlignMacrosMatches, Changes);
+
+      FoundMatchOnLine = false;
+    }
+
+    if (!AlignMacrosMatches(Changes[I]))
+      continue;
+
+    FoundMatchOnLine = true;
+
+    if (StartOfSequence == 0)
+      StartOfSequence = I;
+
+    unsigned ChangeMinColumn = Changes[I].StartOfTokenColumn;
+    int LineLengthAfter = -Changes[I].Spaces;
+    for (unsigned j = I; j != E && Changes[j].NewlinesBefore == 0; ++j)
+      LineLengthAfter += Changes[j].Spaces + Changes[j].TokenLength;
+    unsigned ChangeMaxColumn = Style.ColumnLimit - LineLengthAfter;
+
+    MinColumn = std::max(MinColumn, ChangeMinColumn);
+    MaxColumn = std::min(MaxColumn, ChangeMaxColumn);
+  }
+
+  EndOfSequence = I;
+  AlignMacroSequence(StartOfSequence, EndOfSequence, MinColumn, MaxColumn,
+                     FoundMatchOnLine, AlignMacrosMatches, Changes);
+}
+
 void WhitespaceManager::alignConsecutiveAssignments() {
   if (!Style.AlignConsecutiveAssignments)
     return;
 
-  AlignTokens(Style,
-              [&](const Change &C) {
-                // Do not align on equal signs that are first on a line.
-                if (C.NewlinesBefore > 0)
-                  return false;
+  AlignTokens(
+      Style,
+      [&](const Change &C) {
+        // Do not align on equal signs that are first on a line.
+        if (C.NewlinesBefore > 0)
+          return false;
 
-                // Do not align on equal signs that are last on a line.
-                if (&C != &Changes.back() && (&C + 1)->NewlinesBefore > 0)
-                  return false;
+        // Do not align on equal signs that are last on a line.
+        if (&C != &Changes.back() && (&C + 1)->NewlinesBefore > 0)
+          return false;
 
-                return C.Tok->is(tok::equal);
-              },
-              Changes, /*StartAt=*/0);
+        return C.Tok->is(tok::equal);
+      },
+      Changes, /*StartAt=*/0);
 }
 
 void WhitespaceManager::alignConsecutiveDeclarations() {
@@ -458,15 +583,28 @@ void WhitespaceManager::alignConsecutiveDeclarations() {
   //   const char* const* v1;
   //   float const* v2;
   //   SomeVeryLongType const& v3;
-  AlignTokens(Style,
-              [](Change const &C) {
-                // tok::kw_operator is necessary for aligning operator overload
-                // definitions.
-                return C.Tok->is(TT_StartOfName) ||
-                       C.Tok->is(TT_FunctionDeclarationName) ||
-                       C.Tok->is(tok::kw_operator);
-              },
-              Changes, /*StartAt=*/0);
+  AlignTokens(
+      Style,
+      [](Change const &C) {
+        // tok::kw_operator is necessary for aligning operator overload
+        // definitions.
+        if (C.Tok->isOneOf(TT_FunctionDeclarationName, tok::kw_operator))
+          return true;
+        if (C.Tok->isNot(TT_StartOfName))
+          return false;
+        // Check if there is a subsequent name that starts the same declaration.
+        for (FormatToken *Next = C.Tok->Next; Next; Next = Next->Next) {
+          if (Next->is(tok::comment))
+            continue;
+          if (!Next->Tok.getIdentifierInfo())
+            break;
+          if (Next->isOneOf(TT_StartOfName, TT_FunctionDeclarationName,
+                            tok::kw_operator))
+            return false;
+        }
+        return true;
+      },
+      Changes, /*StartAt=*/0);
 }
 
 void WhitespaceManager::alignTrailingComments() {
@@ -542,11 +680,10 @@ void WhitespaceManager::alignTrailingComments() {
       MinColumn = std::max(MinColumn, ChangeMinColumn);
       MaxColumn = std::min(MaxColumn, ChangeMaxColumn);
     }
-    BreakBeforeNext =
-        (i == 0) || (Changes[i].NewlinesBefore > 1) ||
-        // Never start a sequence with a comment at the beginning of
-        // the line.
-        (Changes[i].NewlinesBefore == 1 && StartOfSequence == i);
+    BreakBeforeNext = (i == 0) || (Changes[i].NewlinesBefore > 1) ||
+                      // Never start a sequence with a comment at the beginning
+                      // of the line.
+                      (Changes[i].NewlinesBefore == 1 && StartOfSequence == i);
     Newlines = 0;
   }
   alignTrailingComments(StartOfSequence, Changes.size(), MinColumn);
@@ -680,11 +817,15 @@ void WhitespaceManager::appendIndentText(std::string &Text,
   case FormatStyle::UT_Always: {
     unsigned FirstTabWidth =
         Style.TabWidth - WhitespaceStartColumn % Style.TabWidth;
-    // Indent with tabs only when there's at least one full tab.
-    if (FirstTabWidth + Style.TabWidth <= Spaces) {
-      Spaces -= FirstTabWidth;
-      Text.append("\t");
+    // Insert only spaces when we want to end up before the next tab.
+    if (Spaces < FirstTabWidth || Spaces == 1) {
+      Text.append(Spaces, ' ');
+      break;
     }
+    // Align to the next tab.
+    Spaces -= FirstTabWidth;
+    Text.append("\t");
+
     Text.append(Spaces / Style.TabWidth, '\t');
     Text.append(Spaces % Style.TabWidth, ' ');
     break;

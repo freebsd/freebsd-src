@@ -1,9 +1,8 @@
 //===-- ASTStructExtractor.cpp ----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -30,9 +29,9 @@ using namespace lldb_private;
 ASTStructExtractor::ASTStructExtractor(ASTConsumer *passthrough,
                                        const char *struct_name,
                                        ClangFunctionCaller &function)
-    : m_ast_context(NULL), m_passthrough(passthrough), m_passthrough_sema(NULL),
-      m_sema(NULL), m_action(NULL), m_function(function),
-      m_struct_name(struct_name) {
+    : m_ast_context(nullptr), m_passthrough(passthrough),
+      m_passthrough_sema(nullptr), m_sema(nullptr), m_action(nullptr),
+      m_function(function), m_struct_name(struct_name) {
   if (!m_passthrough)
     return;
 
@@ -58,7 +57,7 @@ void ASTStructExtractor::ExtractFromFunctionDecl(FunctionDecl *F) {
   if (!body_compound_stmt)
     return; // do we have to handle this?
 
-  RecordDecl *struct_decl = NULL;
+  RecordDecl *struct_decl = nullptr;
 
   StringRef desired_name(m_struct_name);
 
@@ -178,8 +177,8 @@ void ASTStructExtractor::InitializeSema(Sema &S) {
 }
 
 void ASTStructExtractor::ForgetSema() {
-  m_sema = NULL;
-  m_action = NULL;
+  m_sema = nullptr;
+  m_action = nullptr;
 
   if (m_passthrough_sema)
     m_passthrough_sema->ForgetSema();

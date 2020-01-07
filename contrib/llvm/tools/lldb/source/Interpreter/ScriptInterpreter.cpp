@@ -1,9 +1,8 @@
 //===-- ScriptInterpreter.cpp -----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -22,15 +21,11 @@
 using namespace lldb;
 using namespace lldb_private;
 
-ScriptInterpreter::ScriptInterpreter(CommandInterpreter &interpreter,
+ScriptInterpreter::ScriptInterpreter(Debugger &debugger,
                                      lldb::ScriptLanguage script_lang)
-    : m_interpreter(interpreter), m_script_lang(script_lang) {}
+    : m_debugger(debugger), m_script_lang(script_lang) {}
 
 ScriptInterpreter::~ScriptInterpreter() {}
-
-CommandInterpreter &ScriptInterpreter::GetCommandInterpreter() {
-  return m_interpreter;
-}
 
 void ScriptInterpreter::CollectDataForBreakpointCommandCallback(
     std::vector<BreakpointOptions *> &bp_options_vec,

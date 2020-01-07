@@ -1,9 +1,8 @@
 //===- lli.cpp - LLVM Interpreter / Dynamic compiler ----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -84,18 +83,15 @@ namespace {
                                  cl::desc("Force interpretation: disable JIT"),
                                  cl::init(false));
 
-  cl::opt<JITKind> UseJITKind("jit-kind",
-                              cl::desc("Choose underlying JIT kind."),
-                              cl::init(JITKind::MCJIT),
-                              cl::values(
-                                clEnumValN(JITKind::MCJIT, "mcjit",
-                                           "MCJIT"),
-                                clEnumValN(JITKind::OrcMCJITReplacement,
-                                           "orc-mcjit",
-                                           "Orc-based MCJIT replacement"),
-                                clEnumValN(JITKind::OrcLazy,
-                                           "orc-lazy",
-                                           "Orc-based lazy JIT.")));
+  cl::opt<JITKind> UseJITKind(
+      "jit-kind", cl::desc("Choose underlying JIT kind."),
+      cl::init(JITKind::MCJIT),
+      cl::values(clEnumValN(JITKind::MCJIT, "mcjit", "MCJIT"),
+                 clEnumValN(JITKind::OrcMCJITReplacement, "orc-mcjit",
+                            "Orc-based MCJIT replacement "
+                            "(deprecated)"),
+                 clEnumValN(JITKind::OrcLazy, "orc-lazy",
+                            "Orc-based lazy JIT.")));
 
   cl::opt<unsigned>
   LazyJITCompileThreads("compile-threads",
@@ -173,7 +169,7 @@ namespace {
 
   cl::opt<bool>
   EnableCacheManager("enable-cache-manager",
-        cl::desc("Use cache manager to save/load mdoules"),
+        cl::desc("Use cache manager to save/load modules"),
         cl::init(false));
 
   cl::opt<std::string>
@@ -420,7 +416,8 @@ int main(int argc, char **argv, char * const *envp) {
   builder.setEngineKind(ForceInterpreter
                         ? EngineKind::Interpreter
                         : EngineKind::JIT);
-  builder.setUseOrcMCJITReplacement(UseJITKind == JITKind::OrcMCJITReplacement);
+  builder.setUseOrcMCJITReplacement(AcknowledgeORCv1Deprecation,
+                                    UseJITKind == JITKind::OrcMCJITReplacement);
 
   // If we are supposed to override the target triple, do so now.
   if (!TargetTriple.empty())
@@ -596,8 +593,8 @@ int main(int argc, char **argv, char * const *envp) {
   if (!RemoteMCJIT) {
     // If the program doesn't explicitly call exit, we will need the Exit
     // function later on to make an explicit call, so get the function now.
-    Constant *Exit = Mod->getOrInsertFunction("exit", Type::getVoidTy(Context),
-                                                      Type::getInt32Ty(Context));
+    FunctionCallee Exit = Mod->getOrInsertFunction(
+        "exit", Type::getVoidTy(Context), Type::getInt32Ty(Context));
 
     // Run static constructors.
     if (!ForceInterpreter) {
@@ -621,19 +618,21 @@ int main(int argc, char **argv, char * const *envp) {
 
     // If the program didn't call exit explicitly, we should call it now.
     // This ensures that any atexit handlers get called correctly.
-    if (Function *ExitF = dyn_cast<Function>(Exit)) {
-      std::vector<GenericValue> Args;
-      GenericValue ResultGV;
-      ResultGV.IntVal = APInt(32, Result);
-      Args.push_back(ResultGV);
-      EE->runFunction(ExitF, Args);
-      WithColor::error(errs(), argv[0]) << "exit(" << Result << ") returned!\n";
-      abort();
-    } else {
-      WithColor::error(errs(), argv[0])
-          << "exit defined with wrong prototype!\n";
-      abort();
+    if (Function *ExitF =
+            dyn_cast<Function>(Exit.getCallee()->stripPointerCasts())) {
+      if (ExitF->getFunctionType() == Exit.getFunctionType()) {
+        std::vector<GenericValue> Args;
+        GenericValue ResultGV;
+        ResultGV.IntVal = APInt(32, Result);
+        Args.push_back(ResultGV);
+        EE->runFunction(ExitF, Args);
+        WithColor::error(errs(), argv[0])
+            << "exit(" << Result << ") returned!\n";
+        abort();
+      }
     }
+    WithColor::error(errs(), argv[0]) << "exit defined with wrong prototype!\n";
+    abort();
   } else {
     // else == "if (RemoteMCJIT)"
 
@@ -664,6 +663,7 @@ int main(int argc, char **argv, char * const *envp) {
     // Forward MCJIT's symbol resolution calls to the remote.
     static_cast<ForwardingMemoryManager *>(RTDyldMM)->setResolver(
         orc::createLambdaResolver(
+            AcknowledgeORCv1Deprecation,
             [](const std::string &Name) { return nullptr; },
             [&](const std::string &Name) {
               if (auto Addr = ExitOnErr(R->getSymbolAddress(Name)))
@@ -762,14 +762,17 @@ int runOrcLazyJIT(const char *ProgName) {
     reportError(Err, ProgName);
 
   const auto &TT = MainModule.getModule()->getTargetTriple();
-  orc::JITTargetMachineBuilder JTMB =
+  orc::LLLazyJITBuilder Builder;
+
+  Builder.setJITTargetMachineBuilder(
       TT.empty() ? ExitOnErr(orc::JITTargetMachineBuilder::detectHost())
-                 : orc::JITTargetMachineBuilder(Triple(TT));
+                 : orc::JITTargetMachineBuilder(Triple(TT)));
 
   if (!MArch.empty())
-    JTMB.getTargetTriple().setArchName(MArch);
+    Builder.getJITTargetMachineBuilder()->getTargetTriple().setArchName(MArch);
 
-  JTMB.setCPU(getCPUStr())
+  Builder.getJITTargetMachineBuilder()
+      ->setCPU(getCPUStr())
       .addFeatures(getFeatureList())
       .setRelocationModel(RelocModel.getNumOccurrences()
                               ? Optional<Reloc::Model>(RelocModel)
@@ -778,12 +781,11 @@ int runOrcLazyJIT(const char *ProgName) {
                         ? Optional<CodeModel::Model>(CMModel)
                         : None);
 
-  DataLayout DL = ExitOnErr(JTMB.getDefaultDataLayoutForTarget());
+  Builder.setLazyCompileFailureAddr(
+      pointerToJITTargetAddress(exitOnLazyCallThroughFailure));
+  Builder.setNumCompileThreads(LazyJITCompileThreads);
 
-  auto J = ExitOnErr(orc::LLLazyJIT::Create(
-      std::move(JTMB), DL,
-      pointerToJITTargetAddress(exitOnLazyCallThroughFailure),
-      LazyJITCompileThreads));
+  auto J = ExitOnErr(Builder.create());
 
   if (PerModuleLazy)
     J->setPartitionFunction(orc::CompileOnDemandLayer::compileWholeModule);
@@ -799,9 +801,10 @@ int runOrcLazyJIT(const char *ProgName) {
     return Dump(std::move(TSM), R);
   });
   J->getMainJITDylib().setGenerator(
-      ExitOnErr(orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(DL)));
+      ExitOnErr(orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(
+          J->getDataLayout().getGlobalPrefix())));
 
-  orc::MangleAndInterner Mangle(J->getExecutionSession(), DL);
+  orc::MangleAndInterner Mangle(J->getExecutionSession(), J->getDataLayout());
   orc::LocalCXXRuntimeOverrides CXXRuntimeOverrides;
   ExitOnErr(CXXRuntimeOverrides.enable(J->getMainJITDylib(), Mangle));
 
@@ -817,8 +820,10 @@ int runOrcLazyJIT(const char *ProgName) {
     IdxToDylib[0] = &J->getMainJITDylib();
     for (auto JDItr = JITDylibs.begin(), JDEnd = JITDylibs.end();
          JDItr != JDEnd; ++JDItr) {
-      IdxToDylib[JITDylibs.getPosition(JDItr - JITDylibs.begin())] =
-          &J->createJITDylib(*JDItr);
+      orc::JITDylib *JD = J->getJITDylibByName(*JDItr);
+      if (!JD)
+        JD = &J->createJITDylib(*JDItr);
+      IdxToDylib[JITDylibs.getPosition(JDItr - JITDylibs.begin())] = JD;
     }
 
     for (auto EMItr = ExtraModules.begin(), EMEnd = ExtraModules.end();
@@ -860,8 +865,6 @@ int runOrcLazyJIT(const char *ProgName) {
       reinterpret_cast<EntryPointPtr>(static_cast<uintptr_t>(EntryPointSym.getAddress()));
     AltEntryThreads.push_back(std::thread([EntryPoint]() { EntryPoint(); }));
   }
-
-  J->getExecutionSession().dump(llvm::dbgs());
 
   // Run main.
   auto MainSym = ExitOnErr(J->lookup("main"));

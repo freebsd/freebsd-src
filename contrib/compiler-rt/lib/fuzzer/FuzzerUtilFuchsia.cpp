@@ -1,9 +1,8 @@
 //===- FuzzerUtilFuchsia.cpp - Misc utils for Fuchsia. --------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 // Misc utils implementation using Fuchsia/Zircon APIs.
@@ -14,6 +13,7 @@
 
 #include "FuzzerInternal.h"
 #include "FuzzerUtil.h"
+#include <cassert>
 #include <cerrno>
 #include <cinttypes>
 #include <cstdint>
@@ -30,7 +30,7 @@
 #include <zircon/syscalls.h>
 #include <zircon/syscalls/debug.h>
 #include <zircon/syscalls/exception.h>
-#include <zircon/syscalls/port.h>
+#include <zircon/syscalls/object.h>
 #include <zircon/types.h>
 
 namespace fuzzer {
@@ -48,10 +48,6 @@ namespace fuzzer {
 void CrashTrampolineAsm() __asm__("CrashTrampolineAsm");
 
 namespace {
-
-// A magic value for the Zircon exception port, chosen to spell 'FUZZING'
-// when interpreted as a byte sequence on little-endian platforms.
-const uint64_t kFuzzingCrash = 0x474e495a5a5546;
 
 // Helper function to handle Zircon syscall failures.
 void ExitOnErr(zx_status_t Status, const char *Syscall) {
@@ -218,75 +214,100 @@ void CrashHandler(zx_handle_t *Event) {
     zx_handle_t Handle = ZX_HANDLE_INVALID;
   };
 
-  // Create and bind the exception port.  We need to claim to be a "debugger" so
-  // the kernel will allow us to modify and resume dying threads (see below).
-  // Once the port is set, we can signal the main thread to continue and wait
+  // Create the exception channel.  We need to claim to be a "debugger" so the
+  // kernel will allow us to modify and resume dying threads (see below). Once
+  // the channel is set, we can signal the main thread to continue and wait
   // for the exception to arrive.
-  ScopedHandle Port;
-  ExitOnErr(_zx_port_create(0, &Port.Handle), "_zx_port_create");
+  ScopedHandle Channel;
   zx_handle_t Self = _zx_process_self();
-
-  ExitOnErr(_zx_task_bind_exception_port(Self, Port.Handle, kFuzzingCrash,
-                                         ZX_EXCEPTION_PORT_DEBUGGER),
-            "_zx_task_bind_exception_port");
+  ExitOnErr(_zx_task_create_exception_channel(
+                Self, ZX_EXCEPTION_CHANNEL_DEBUGGER, &Channel.Handle),
+            "_zx_task_create_exception_channel");
 
   ExitOnErr(_zx_object_signal(*Event, 0, ZX_USER_SIGNAL_0),
             "_zx_object_signal");
 
-  zx_port_packet_t Packet;
-  ExitOnErr(_zx_port_wait(Port.Handle, ZX_TIME_INFINITE, &Packet),
-            "_zx_port_wait");
+  // This thread lives as long as the process in order to keep handling
+  // crashes.  In practice, the first crashed thread to reach the end of the
+  // StaticCrashHandler will end the process.
+  while (true) {
+    ExitOnErr(_zx_object_wait_one(Channel.Handle, ZX_CHANNEL_READABLE,
+                                  ZX_TIME_INFINITE, nullptr),
+              "_zx_object_wait_one");
 
-  // At this point, we want to get the state of the crashing thread, but
-  // libFuzzer and the sanitizers assume this will happen from that same thread
-  // via a POSIX signal handler. "Resurrecting" the thread in the middle of the
-  // appropriate callback is as simple as forcibly setting the instruction
-  // pointer/program counter, provided we NEVER EVER return from that function
-  // (since otherwise our stack will not be valid).
-  ScopedHandle Thread;
-  ExitOnErr(_zx_object_get_child(Self, Packet.exception.tid,
-                                 ZX_RIGHT_SAME_RIGHTS, &Thread.Handle),
-            "_zx_object_get_child");
+    zx_exception_info_t ExceptionInfo;
+    ScopedHandle Exception;
+    ExitOnErr(_zx_channel_read(Channel.Handle, 0, &ExceptionInfo,
+                               &Exception.Handle, sizeof(ExceptionInfo), 1,
+                               nullptr, nullptr),
+              "_zx_channel_read");
 
-  zx_thread_state_general_regs_t GeneralRegisters;
-  ExitOnErr(_zx_thread_read_state(Thread.Handle, ZX_THREAD_STATE_GENERAL_REGS,
-                                  &GeneralRegisters, sizeof(GeneralRegisters)),
-            "_zx_thread_read_state");
+    // Ignore informational synthetic exceptions.
+    if (ZX_EXCP_THREAD_STARTING == ExceptionInfo.type ||
+        ZX_EXCP_THREAD_EXITING == ExceptionInfo.type ||
+        ZX_EXCP_PROCESS_STARTING == ExceptionInfo.type) {
+      continue;
+    }
 
-  // To unwind properly, we need to push the crashing thread's register state
-  // onto the stack and jump into a trampoline with CFI instructions on how
-  // to restore it.
+    // At this point, we want to get the state of the crashing thread, but
+    // libFuzzer and the sanitizers assume this will happen from that same
+    // thread via a POSIX signal handler. "Resurrecting" the thread in the
+    // middle of the appropriate callback is as simple as forcibly setting the
+    // instruction pointer/program counter, provided we NEVER EVER return from
+    // that function (since otherwise our stack will not be valid).
+    ScopedHandle Thread;
+    ExitOnErr(_zx_exception_get_thread(Exception.Handle, &Thread.Handle),
+              "_zx_exception_get_thread");
+
+    zx_thread_state_general_regs_t GeneralRegisters;
+    ExitOnErr(_zx_thread_read_state(Thread.Handle, ZX_THREAD_STATE_GENERAL_REGS,
+                                    &GeneralRegisters,
+                                    sizeof(GeneralRegisters)),
+              "_zx_thread_read_state");
+
+    // To unwind properly, we need to push the crashing thread's register state
+    // onto the stack and jump into a trampoline with CFI instructions on how
+    // to restore it.
 #if defined(__x86_64__)
-  uintptr_t StackPtr =
-      (GeneralRegisters.rsp - (128 + sizeof(GeneralRegisters))) &
-      -(uintptr_t)16;
-  __unsanitized_memcpy(reinterpret_cast<void *>(StackPtr), &GeneralRegisters,
-         sizeof(GeneralRegisters));
-  GeneralRegisters.rsp = StackPtr;
-  GeneralRegisters.rip = reinterpret_cast<zx_vaddr_t>(CrashTrampolineAsm);
+    uintptr_t StackPtr =
+        (GeneralRegisters.rsp - (128 + sizeof(GeneralRegisters))) &
+        -(uintptr_t)16;
+    __unsanitized_memcpy(reinterpret_cast<void *>(StackPtr), &GeneralRegisters,
+                         sizeof(GeneralRegisters));
+    GeneralRegisters.rsp = StackPtr;
+    GeneralRegisters.rip = reinterpret_cast<zx_vaddr_t>(CrashTrampolineAsm);
 
 #elif defined(__aarch64__)
-  uintptr_t StackPtr =
-      (GeneralRegisters.sp - sizeof(GeneralRegisters)) & -(uintptr_t)16;
-  __unsanitized_memcpy(reinterpret_cast<void *>(StackPtr), &GeneralRegisters,
-                       sizeof(GeneralRegisters));
-  GeneralRegisters.sp = StackPtr;
-  GeneralRegisters.pc = reinterpret_cast<zx_vaddr_t>(CrashTrampolineAsm);
+    uintptr_t StackPtr =
+        (GeneralRegisters.sp - sizeof(GeneralRegisters)) & -(uintptr_t)16;
+    __unsanitized_memcpy(reinterpret_cast<void *>(StackPtr), &GeneralRegisters,
+                         sizeof(GeneralRegisters));
+    GeneralRegisters.sp = StackPtr;
+    GeneralRegisters.pc = reinterpret_cast<zx_vaddr_t>(CrashTrampolineAsm);
 
 #else
 #error "Unsupported architecture for fuzzing on Fuchsia"
 #endif
 
-  // Now force the crashing thread's state.
-  ExitOnErr(_zx_thread_write_state(Thread.Handle, ZX_THREAD_STATE_GENERAL_REGS,
-                                   &GeneralRegisters, sizeof(GeneralRegisters)),
-            "_zx_thread_write_state");
+    // Now force the crashing thread's state.
+    ExitOnErr(
+        _zx_thread_write_state(Thread.Handle, ZX_THREAD_STATE_GENERAL_REGS,
+                               &GeneralRegisters, sizeof(GeneralRegisters)),
+        "_zx_thread_write_state");
 
-  ExitOnErr(_zx_task_resume_from_exception(Thread.Handle, Port.Handle, 0),
-            "_zx_task_resume_from_exception");
+    // Set the exception to HANDLED so it resumes the thread on close.
+    uint32_t ExceptionState = ZX_EXCEPTION_STATE_HANDLED;
+    ExitOnErr(_zx_object_set_property(Exception.Handle, ZX_PROP_EXCEPTION_STATE,
+                                      &ExceptionState, sizeof(ExceptionState)),
+              "zx_object_set_property");
+  }
 }
 
 } // namespace
+
+bool Mprotect(void *Ptr, size_t Size, bool AllowReadWrite) {
+  return false;  // UNIMPLEMENTED
+}
 
 // Platform specific functions.
 void SetSignalHandler(const FuzzingOptions &Options) {

@@ -1,9 +1,8 @@
 //===-- Declaration.cpp -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -82,6 +81,11 @@ int Declaration::Compare(const Declaration &a, const Declaration &b) {
     return 1;
 #endif
   return 0;
+}
+
+bool Declaration::FileAndLineEqual(const Declaration &declaration) const {
+  int file_compare = FileSpec::Compare(this->m_file, declaration.m_file, true);
+  return file_compare == 0 && this->m_line == declaration.m_line;
 }
 
 bool lldb_private::operator==(const Declaration &lhs, const Declaration &rhs) {

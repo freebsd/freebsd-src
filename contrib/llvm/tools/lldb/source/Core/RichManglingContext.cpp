@@ -1,9 +1,8 @@
 //===-- RichManglingContext.cpp ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,9 +18,7 @@
 using namespace lldb;
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
 // RichManglingContext
-//----------------------------------------------------------------------
 void RichManglingContext::ResetProvider(InfoProvider new_provider) {
   // If we want to support parsers for other languages some day, we need a
   // switch here to delete the correct parser type.
@@ -35,7 +32,7 @@ void RichManglingContext::ResetProvider(InfoProvider new_provider) {
   m_provider = new_provider;
 }
 
-bool RichManglingContext::FromItaniumName(const ConstString &mangled) {
+bool RichManglingContext::FromItaniumName(ConstString mangled) {
   bool err = m_ipd.partialDemangle(mangled.GetCString());
   if (!err) {
     ResetProvider(ItaniumPartialDemangler);
@@ -54,7 +51,7 @@ bool RichManglingContext::FromItaniumName(const ConstString &mangled) {
   return !err; // true == success
 }
 
-bool RichManglingContext::FromCxxMethodName(const ConstString &demangled) {
+bool RichManglingContext::FromCxxMethodName(ConstString demangled) {
   ResetProvider(PluginCxxLanguage);
   m_cxx_method_parser = new CPlusPlusLanguage::MethodName(demangled);
   return true;

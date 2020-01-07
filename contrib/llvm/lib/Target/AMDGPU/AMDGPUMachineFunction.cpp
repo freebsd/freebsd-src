@@ -1,9 +1,8 @@
 //===-- AMDGPUMachineFunctionInfo.cpp ---------------------------------------=//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -30,13 +29,13 @@ AMDGPUMachineFunction::AMDGPUMachineFunction(const MachineFunction &MF) :
   // except reserved size is not correctly aligned.
   const Function &F = MF.getFunction();
 
-  if (auto *Resolver = MF.getMMI().getResolver()) {
-    if (AMDGPUPerfHintAnalysis *PHA = static_cast<AMDGPUPerfHintAnalysis*>(
-          Resolver->getAnalysisIfAvailable(&AMDGPUPerfHintAnalysisID, true))) {
-      MemoryBound = PHA->isMemoryBound(&F);
-      WaveLimiter = PHA->needsWaveLimiter(&F);
-    }
-  }
+  Attribute MemBoundAttr = F.getFnAttribute("amdgpu-memory-bound");
+  MemoryBound = MemBoundAttr.isStringAttribute() &&
+                MemBoundAttr.getValueAsString() == "true";
+
+  Attribute WaveLimitAttr = F.getFnAttribute("amdgpu-wave-limiter");
+  WaveLimiter = WaveLimitAttr.isStringAttribute() &&
+                WaveLimitAttr.getValueAsString() == "true";
 
   CallingConv::ID CC = F.getCallingConv();
   if (CC == CallingConv::AMDGPU_KERNEL || CC == CallingConv::SPIR_KERNEL)

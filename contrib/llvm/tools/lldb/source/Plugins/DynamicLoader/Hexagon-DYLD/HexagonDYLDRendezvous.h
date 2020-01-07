@@ -1,9 +1,8 @@
 //===-- HexagonDYLDRendezvous.h ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -22,7 +21,7 @@ namespace lldb_private {
 class Process;
 }
 
-/// @class HexagonDYLDRendezvous
+/// \class HexagonDYLDRendezvous
 /// Interface to the runtime linker.
 ///
 /// A structure is present in a processes memory space which is updated by the
@@ -66,36 +65,36 @@ public:
   /// This method should be called once one start up, then once each time the
   /// runtime linker enters the function given by GetBreakAddress().
   ///
-  /// @returns true on success and false on failure.
+  /// \returns true on success and false on failure.
   ///
-  /// @see GetBreakAddress().
+  /// \see GetBreakAddress().
   bool Resolve();
 
-  /// @returns true if this rendezvous has been located in the inferiors
+  /// \returns true if this rendezvous has been located in the inferiors
   /// address space and false otherwise.
   bool IsValid();
 
-  /// @returns the address of the rendezvous structure in the inferiors
+  /// \returns the address of the rendezvous structure in the inferiors
   /// address space.
   lldb::addr_t GetRendezvousAddress() const { return m_rendezvous_addr; }
 
   /// Provide the dyld structure address
   void SetRendezvousAddress(lldb::addr_t);
 
-  /// @returns the version of the rendezvous protocol being used.
+  /// \returns the version of the rendezvous protocol being used.
   uint64_t GetVersion() const { return m_current.version; }
 
-  /// @returns address in the inferiors address space containing the linked
+  /// \returns address in the inferiors address space containing the linked
   /// list of shared object descriptors.
   lldb::addr_t GetLinkMapAddress() const { return m_current.map_addr; }
 
   /// A breakpoint should be set at this address and Resolve called on each
   /// hit.
   ///
-  /// @returns the address of a function called by the runtime linker each
+  /// \returns the address of a function called by the runtime linker each
   /// time a module is loaded/unloaded, or about to be loaded/unloaded.
   ///
-  /// @see Resolve()
+  /// \see Resolve()
   lldb::addr_t GetBreakAddress() const { return m_current.brk; }
 
   /// In hexagon it is possible that we can know the dyld breakpoint without
@@ -106,18 +105,18 @@ public:
   /// Returns the current state of the rendezvous structure.
   uint64_t GetState() const { return m_current.state; }
 
-  /// @returns the base address of the runtime linker in the inferiors address
+  /// \returns the base address of the runtime linker in the inferiors address
   /// space.
   lldb::addr_t GetLDBase() const { return m_current.ldbase; }
 
-  /// @returns the thread layout metadata from the inferiors thread library.
+  /// \returns the thread layout metadata from the inferiors thread library.
   const ThreadInfo &GetThreadInfo();
 
-  /// @returns true if modules have been loaded into the inferior since the
+  /// \returns true if modules have been loaded into the inferior since the
   /// last call to Resolve().
   bool ModulesDidLoad() const { return !m_added_soentries.empty(); }
 
-  /// @returns true if modules have been unloaded from the inferior since the
+  /// \returns true if modules have been unloaded from the inferior since the
   /// last call to Resolve().
   bool ModulesDidUnload() const { return !m_removed_soentries.empty(); }
 
@@ -125,7 +124,7 @@ public:
 
   /// Constants describing the state of the rendezvous.
   ///
-  /// @see GetState().
+  /// \see GetState().
   enum RendezvousState {
     eConsistent = 0,
     eAdd,
@@ -208,15 +207,15 @@ protected:
   /// Threading metadata read from the inferior.
   ThreadInfo m_thread_info;
 
-  /// Reads an unsigned integer of @p size bytes from the inferior's address
-  /// space starting at @p addr.
+  /// Reads an unsigned integer of \p size bytes from the inferior's address
+  /// space starting at \p addr.
   ///
-  /// @returns addr + size if the read was successful and false otherwise.
+  /// \returns addr + size if the read was successful and false otherwise.
   lldb::addr_t ReadWord(lldb::addr_t addr, uint64_t *dst, size_t size);
 
-  /// Reads an address from the inferior's address space starting at @p addr.
+  /// Reads an address from the inferior's address space starting at \p addr.
   ///
-  /// @returns addr + target address size if the read was successful and
+  /// \returns addr + target address size if the read was successful and
   /// 0 otherwise.
   lldb::addr_t ReadPointer(lldb::addr_t addr, lldb::addr_t *dst);
 
@@ -224,7 +223,7 @@ protected:
   /// addr.
   std::string ReadStringFromMemory(lldb::addr_t addr);
 
-  /// Reads an SOEntry starting at @p addr.
+  /// Reads an SOEntry starting at \p addr.
   bool ReadSOEntryFromMemory(lldb::addr_t addr, SOEntry &entry);
 
   /// Updates the current set of SOEntries, the set of added entries, and the

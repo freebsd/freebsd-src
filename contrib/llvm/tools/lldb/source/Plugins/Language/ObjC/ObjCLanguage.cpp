@@ -1,9 +1,8 @@
 //===-- ObjCLanguage.cpp ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,12 +16,13 @@
 #include "lldb/DataFormatters/FormattersHelpers.h"
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/CompilerType.h"
-#include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/StreamString.h"
 
 #include "llvm/Support/Threading.h"
+
+#include "Plugins/LanguageRuntime/ObjC/ObjCLanguageRuntime.h"
 
 #include "CF.h"
 #include "Cocoa.h"
@@ -49,9 +49,7 @@ lldb_private::ConstString ObjCLanguage::GetPluginNameStatic() {
   return g_name;
 }
 
-//------------------------------------------------------------------
 // PluginInterface protocol
-//------------------------------------------------------------------
 
 lldb_private::ConstString ObjCLanguage::GetPluginName() {
   return GetPluginNameStatic();
@@ -59,9 +57,7 @@ lldb_private::ConstString ObjCLanguage::GetPluginName() {
 
 uint32_t ObjCLanguage::GetPluginVersion() { return 1; }
 
-//------------------------------------------------------------------
 // Static Functions
-//------------------------------------------------------------------
 
 Language *ObjCLanguage::CreateInstance(lldb::LanguageType language) {
   switch (language) {
@@ -120,7 +116,7 @@ bool ObjCLanguage::MethodName::SetName(const char *name, bool strict) {
   return SetName(llvm::StringRef(name), strict);
 }
 
-const ConstString &ObjCLanguage::MethodName::GetClassName() {
+ConstString ObjCLanguage::MethodName::GetClassName() {
   if (!m_class) {
     if (IsValid(false)) {
       const char *full = m_full.GetCString();
@@ -146,7 +142,7 @@ const ConstString &ObjCLanguage::MethodName::GetClassName() {
   return m_class;
 }
 
-const ConstString &ObjCLanguage::MethodName::GetClassNameWithCategory() {
+ConstString ObjCLanguage::MethodName::GetClassNameWithCategory() {
   if (!m_class_category) {
     if (IsValid(false)) {
       const char *full = m_full.GetCString();
@@ -169,7 +165,7 @@ const ConstString &ObjCLanguage::MethodName::GetClassNameWithCategory() {
   return m_class_category;
 }
 
-const ConstString &ObjCLanguage::MethodName::GetSelector() {
+ConstString ObjCLanguage::MethodName::GetSelector() {
   if (!m_selector) {
     if (IsValid(false)) {
       const char *full = m_full.GetCString();
@@ -184,7 +180,7 @@ const ConstString &ObjCLanguage::MethodName::GetSelector() {
   return m_selector;
 }
 
-const ConstString &ObjCLanguage::MethodName::GetCategory() {
+ConstString ObjCLanguage::MethodName::GetCategory() {
   if (!m_category_is_valid && !m_category) {
     if (IsValid(false)) {
       m_category_is_valid = true;
@@ -225,43 +221,46 @@ ConstString ObjCLanguage::MethodName::GetFullNameWithoutCategory(
   return ConstString();
 }
 
-size_t ObjCLanguage::MethodName::GetFullNames(std::vector<ConstString> &names,
-                                              bool append) {
-  if (!append)
-    names.clear();
-  if (IsValid(false)) {
+std::vector<ConstString>
+ObjCLanguage::GetMethodNameVariants(ConstString method_name) const {
+  std::vector<ConstString> variant_names;
+  ObjCLanguage::MethodName objc_method(method_name.GetCString(), false);
+  if (!objc_method.IsValid(false)) {
+    return variant_names;
+  }
+
+  const bool is_class_method =
+      objc_method.GetType() == MethodName::eTypeClassMethod;
+  const bool is_instance_method =
+      objc_method.GetType() == MethodName::eTypeInstanceMethod;
+  ConstString name_sans_category =
+      objc_method.GetFullNameWithoutCategory(/*empty_if_no_category*/ true);
+
+  if (is_class_method || is_instance_method) {
+    if (name_sans_category)
+      variant_names.emplace_back(name_sans_category);
+  } else {
     StreamString strm;
-    const bool is_class_method = m_type == eTypeClassMethod;
-    const bool is_instance_method = m_type == eTypeInstanceMethod;
-    const ConstString &category = GetCategory();
-    if (is_class_method || is_instance_method) {
-      names.push_back(m_full);
-      if (category) {
-        strm.Printf("%c[%s %s]", is_class_method ? '+' : '-',
-                    GetClassName().GetCString(), GetSelector().GetCString());
-        names.emplace_back(strm.GetString());
-      }
-    } else {
-      const ConstString &class_name = GetClassName();
-      const ConstString &selector = GetSelector();
-      strm.Printf("+[%s %s]", class_name.GetCString(), selector.GetCString());
-      names.emplace_back(strm.GetString());
+
+    strm.Printf("+%s", objc_method.GetFullName().GetCString());
+    variant_names.emplace_back(strm.GetString());
+    strm.Clear();
+
+    strm.Printf("-%s", objc_method.GetFullName().GetCString());
+    variant_names.emplace_back(strm.GetString());
+    strm.Clear();
+
+    if (name_sans_category) {
+      strm.Printf("+%s", name_sans_category.GetCString());
+      variant_names.emplace_back(strm.GetString());
       strm.Clear();
-      strm.Printf("-[%s %s]", class_name.GetCString(), selector.GetCString());
-      names.emplace_back(strm.GetString());
-      strm.Clear();
-      if (category) {
-        strm.Printf("+[%s(%s) %s]", class_name.GetCString(),
-                    category.GetCString(), selector.GetCString());
-        names.emplace_back(strm.GetString());
-        strm.Clear();
-        strm.Printf("-[%s(%s) %s]", class_name.GetCString(),
-                    category.GetCString(), selector.GetCString());
-        names.emplace_back(strm.GetString());
-      }
+
+      strm.Printf("-%s", name_sans_category.GetCString());
+      variant_names.emplace_back(strm.GetString());
     }
   }
-  return names.size();
+
+  return variant_names;
 }
 
 static void LoadObjCFormatters(TypeCategoryImplSP objc_category_sp) {
@@ -286,7 +285,6 @@ static void LoadObjCFormatters(TypeCategoryImplSP objc_category_sp) {
   objc_category_sp->GetTypeSummariesContainer()->Add(ConstString("BOOL *"),
                                                      ObjC_BOOL_summary);
 
-#ifndef LLDB_DISABLE_PYTHON
   // we need to skip pointers here since we are special casing a SEL* when
   // retrieving its value
   objc_flags.SetSkipPointers(true);
@@ -318,7 +316,6 @@ static void LoadObjCFormatters(TypeCategoryImplSP objc_category_sp) {
                   lldb_private::formatters::ObjCClassSyntheticFrontEndCreator,
                   "Class synthetic children", ConstString("Class"),
                   class_synth_flags);
-#endif // LLDB_DISABLE_PYTHON
 
   objc_flags.SetSkipPointers(false);
   objc_flags.SetCascades(true);
@@ -384,7 +381,6 @@ static void LoadObjCFormatters(TypeCategoryImplSP objc_category_sp) {
 
   appkit_flags.SetDontShowChildren(false);
 
-#ifndef LLDB_DISABLE_PYTHON
   AddCXXSummary(
       objc_category_sp, lldb_private::formatters::NSArraySummaryProvider,
       "NSArray summary provider", ConstString("NSArray"), appkit_flags);
@@ -841,7 +837,6 @@ static void LoadObjCFormatters(TypeCategoryImplSP objc_category_sp) {
                 lldb_private::formatters::CFBitVectorSummaryProvider,
                 "CFBitVector summary provider",
                 ConstString("__CFMutableBitVector"), appkit_flags);
-#endif // LLDB_DISABLE_PYTHON
 }
 
 static void LoadCoreMediaFormatters(TypeCategoryImplSP objc_category_sp) {
@@ -857,11 +852,9 @@ static void LoadCoreMediaFormatters(TypeCategoryImplSP objc_category_sp) {
       .SetSkipPointers(false)
       .SetSkipReferences(false);
 
-#ifndef LLDB_DISABLE_PYTHON
   AddCXXSummary(objc_category_sp,
                 lldb_private::formatters::CMTimeSummaryProvider,
                 "CMTime summary provider", ConstString("CMTime"), cm_flags);
-#endif // LLDB_DISABLE_PYTHON
 }
 
 lldb::TypeCategoryImplSP ObjCLanguage::GetFormatters() {
@@ -898,7 +891,7 @@ ObjCLanguage::GetPossibleFormattersMatches(ValueObject &valobj,
       lldb::ProcessSP process_sp = valobj.GetProcessSP();
       if (!process_sp)
         break;
-      ObjCLanguageRuntime *runtime = process_sp->GetObjCLanguageRuntime();
+      ObjCLanguageRuntime *runtime = ObjCLanguageRuntime::Get(*process_sp);
       if (runtime == nullptr)
         break;
       ObjCLanguageRuntime::ClassDescriptorSP objc_class_sp(
@@ -940,26 +933,16 @@ std::unique_ptr<Language::TypeScavenger> ObjCLanguage::GetTypeScavenger() {
                    ResultSet &results) override {
       bool result = false;
 
-      Process *process = exe_scope->CalculateProcess().get();
-      if (process) {
-        const bool create_on_demand = false;
-        auto objc_runtime = process->GetObjCLanguageRuntime(create_on_demand);
-        if (objc_runtime) {
-          auto decl_vendor = objc_runtime->GetDeclVendor();
-          if (decl_vendor) {
-            std::vector<clang::NamedDecl *> decls;
+      if (auto *process = exe_scope->CalculateProcess().get()) {
+        if (auto *objc_runtime = ObjCLanguageRuntime::Get(*process)) {
+          if (auto *decl_vendor = objc_runtime->GetDeclVendor()) {
             ConstString name(key);
-            decl_vendor->FindDecls(name, true, UINT32_MAX, decls);
-            for (auto decl : decls) {
-              if (decl) {
-                if (CompilerType candidate =
-                        ClangASTContext::GetTypeForDecl(decl)) {
-                  result = true;
-                  std::unique_ptr<Language::TypeScavenger::Result> result(
-                      new ObjCScavengerResult(candidate));
-                  results.insert(std::move(result));
-                }
-              }
+            for (const CompilerType &type :
+                 decl_vendor->FindTypes(name, /*max_matches*/ UINT32_MAX)) {
+              result = true;
+              std::unique_ptr<Language::TypeScavenger::Result> result(
+                  new ObjCScavengerResult(type));
+              results.insert(std::move(result));
             }
           }
         }
@@ -977,21 +960,16 @@ std::unique_ptr<Language::TypeScavenger> ObjCLanguage::GetTypeScavenger() {
                    ResultSet &results) override {
       bool result = false;
 
-      Target *target = exe_scope->CalculateTarget().get();
-      if (target) {
-        if (auto clang_modules_decl_vendor =
+      if (auto *target = exe_scope->CalculateTarget().get()) {
+        if (auto *clang_modules_decl_vendor =
                 target->GetClangModulesDeclVendor()) {
-          std::vector<clang::NamedDecl *> decls;
           ConstString key_cs(key);
-
-          if (clang_modules_decl_vendor->FindDecls(key_cs, false, UINT32_MAX,
-                                                   decls) > 0 &&
-              !decls.empty()) {
-            CompilerType module_type =
-                ClangASTContext::GetTypeForDecl(decls.front());
+          auto types = clang_modules_decl_vendor->FindTypes(
+              key_cs, /*max_matches*/ UINT32_MAX);
+          if (!types.empty()) {
             result = true;
             std::unique_ptr<Language::TypeScavenger::Result> result(
-                new ObjCScavengerResult(module_type));
+                new ObjCScavengerResult(types.front()));
             results.insert(std::move(result));
           }
         }
@@ -1005,7 +983,7 @@ std::unique_ptr<Language::TypeScavenger> ObjCLanguage::GetTypeScavenger() {
   
   class ObjCDebugInfoScavenger : public Language::ImageListTypeScavenger {
   public:
-    virtual CompilerType AdjustForInclusion(CompilerType &candidate) override {
+    CompilerType AdjustForInclusion(CompilerType &candidate) override {
       LanguageType lang_type(candidate.GetMinimumLanguage());
       if (!Language::LanguageIsObjC(lang_type))
         return CompilerType();

@@ -1,9 +1,8 @@
 //===--- Driver.h - Clang GCC Compatible Driver -----------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -236,9 +235,6 @@ private:
   /// Certain options suppress the 'no input files' warning.
   unsigned SuppressMissingInputWarning : 1;
 
-  std::list<std::string> TempFiles;
-  std::list<std::string> ResultFiles;
-
   /// Cache of all the ToolChains in use by the driver.
   ///
   /// This maps from the string representation of a triple to a ToolChain
@@ -278,6 +274,12 @@ private:
                               SmallString<128> &CrashDiagDir);
 
 public:
+
+  /// Takes the path to a binary that's either in bin/ or lib/ and returns
+  /// the path to clang's resource directory.
+  static std::string GetResourcesPath(StringRef BinaryPath,
+                                      StringRef CustomResourceDir = "");
+
   Driver(StringRef ClangExecutable, StringRef TargetTriple,
          DiagnosticsEngine &Diags,
          IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS = nullptr);
@@ -388,6 +390,14 @@ public:
   /// \param TC - The default host tool chain.
   void BuildUniversalActions(Compilation &C, const ToolChain &TC,
                              const InputList &BAInputs) const;
+
+  /// Check that the file referenced by Value exists. If it doesn't,
+  /// issue a diagnostic and return false.
+  /// If TypoCorrect is true and the file does not exist, see if it looks
+  /// like a likely typo for a flag and if so print a "did you mean" blurb.
+  bool DiagnoseInputExistence(const llvm::opt::DerivedArgList &Args,
+                              StringRef Value, types::ID Ty,
+                              bool TypoCorrect) const;
 
   /// BuildJobs - Bind actions to concrete tools and translate
   /// arguments to form the list of jobs to run.

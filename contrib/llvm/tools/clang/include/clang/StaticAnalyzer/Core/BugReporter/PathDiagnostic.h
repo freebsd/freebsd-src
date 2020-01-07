@@ -1,9 +1,8 @@
 //===- PathDiagnostic.h - Path-Specific Diagnostic Handling -----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -314,6 +313,8 @@ public:
 
   bool hasRange() const { return K == StmtK || K == RangeK || K == DeclK; }
 
+  bool hasValidLocation() const { return asLocation().isValid(); }
+
   void invalidate() {
     *this = PathDiagnosticLocation();
   }
@@ -366,7 +367,7 @@ public:
 
 class PathDiagnosticPiece: public llvm::FoldingSetNode {
 public:
-  enum Kind { ControlFlow, Event, Macro, Call, Note };
+  enum Kind { ControlFlow, Event, Macro, Call, Note, PopUp };
   enum DisplayHint { Above, Below };
 
 private:
@@ -469,7 +470,7 @@ public:
                           PathDiagnosticPiece::Kind k,
                           bool addPosRange = true)
       : PathDiagnosticPiece(s, k), Pos(pos) {
-    assert(Pos.isValid() && Pos.asLocation().isValid() &&
+    assert(Pos.isValid() && Pos.hasValidLocation() &&
            "PathDiagnosticSpotPiece's must have a valid location.");
     if (addPosRange && Pos.hasRange()) addRange(Pos.asRange());
   }
@@ -481,7 +482,7 @@ public:
 
   static bool classof(const PathDiagnosticPiece *P) {
     return P->getKind() == Event || P->getKind() == Macro ||
-           P->getKind() == Note;
+           P->getKind() == Note || P->getKind() == PopUp;
   }
 };
 
@@ -745,12 +746,28 @@ public:
 class PathDiagnosticNotePiece: public PathDiagnosticSpotPiece {
 public:
   PathDiagnosticNotePiece(const PathDiagnosticLocation &Pos, StringRef S,
-                               bool AddPosRange = true)
+                          bool AddPosRange = true)
       : PathDiagnosticSpotPiece(Pos, S, Note, AddPosRange) {}
   ~PathDiagnosticNotePiece() override;
 
   static bool classof(const PathDiagnosticPiece *P) {
     return P->getKind() == Note;
+  }
+
+  void dump() const override;
+
+  void Profile(llvm::FoldingSetNodeID &ID) const override;
+};
+
+class PathDiagnosticPopUpPiece: public PathDiagnosticSpotPiece {
+public:
+  PathDiagnosticPopUpPiece(const PathDiagnosticLocation &Pos, StringRef S,
+                           bool AddPosRange = true)
+      : PathDiagnosticSpotPiece(Pos, S, PopUp, AddPosRange) {}
+  ~PathDiagnosticPopUpPiece() override;
+
+  static bool classof(const PathDiagnosticPiece *P) {
+    return P->getKind() == PopUp;
   }
 
   void dump() const override;

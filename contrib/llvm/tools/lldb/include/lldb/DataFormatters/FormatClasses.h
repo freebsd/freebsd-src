@@ -1,9 +1,8 @@
 //===-- FormatClasses.h -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -123,14 +122,14 @@ public:
   TypeNameSpecifierImpl(lldb::TypeSP type) : m_is_regex(false), m_type() {
     if (type) {
       m_type.m_type_name = type->GetName().GetStringRef();
-      m_type.m_type_pair.SetType(type);
+      m_type.m_compiler_type = type->GetForwardCompilerType();
     }
   }
 
   TypeNameSpecifierImpl(CompilerType type) : m_is_regex(false), m_type() {
     if (type.IsValid()) {
       m_type.m_type_name.assign(type.GetConstTypeName().GetCString());
-      m_type.m_type_pair.SetType(type);
+      m_type.m_compiler_type = type;
     }
   }
 
@@ -140,15 +139,9 @@ public:
     return nullptr;
   }
 
-  lldb::TypeSP GetTypeSP() {
-    if (m_type.m_type_pair.IsValid())
-      return m_type.m_type_pair.GetTypeSP();
-    return lldb::TypeSP();
-  }
-
   CompilerType GetCompilerType() {
-    if (m_type.m_type_pair.IsValid())
-      return m_type.m_type_pair.GetCompilerType();
+    if (m_type.m_compiler_type.IsValid())
+      return m_type.m_compiler_type;
     return CompilerType();
   }
 
@@ -156,11 +149,10 @@ public:
 
 private:
   bool m_is_regex;
-  // this works better than TypeAndOrName because the latter only wraps a
-  // TypeSP whereas TypePair can also be backed by a CompilerType
+  // TODO: Replace this with TypeAndOrName.
   struct TypeOrName {
     std::string m_type_name;
-    TypePair m_type_pair;
+    CompilerType m_compiler_type;
   };
   TypeOrName m_type;
 

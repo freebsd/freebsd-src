@@ -1,9 +1,8 @@
 //===-- MICmdMgr.cpp --------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,7 +18,6 @@
 #include "MIUtilSingletonHelper.h"
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdMgr constructor.
 // Type:    Method.
 // Args:    None.
@@ -32,7 +30,6 @@ CMICmdMgr::CMICmdMgr()
       m_invoker(CMICmdInvoker::Instance()) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdMgr destructor.
 // Type:    Overridable.
 // Args:    None.
@@ -42,7 +39,6 @@ CMICmdMgr::CMICmdMgr()
 CMICmdMgr::~CMICmdMgr() { Shutdown(); }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Initialize resources for *this Command Manager.
 // Type:    Method.
 // Args:    None.
@@ -91,7 +87,6 @@ bool CMICmdMgr::Initialize() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Release resources for *this Command Manager.
 // Type:    Method.
 // Args:    None.
@@ -148,7 +143,6 @@ bool CMICmdMgr::Shutdown() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Establish whether the text data is an MI format type command.
 // Type:    Method.
 // Args:    vTextLine               - (R) Text data to interpret.
@@ -168,7 +162,6 @@ bool CMICmdMgr::CmdInterpret(const CMIUtilString &vTextLine, bool &vwbYesValid,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Having previously had the potential command validated and found
 // valid now
 //          get the command executed.
@@ -210,7 +203,6 @@ bool CMICmdMgr::CmdExecute(const SMICmdData &vCmdData) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Iterate all interested clients and tell them a command is being
 // deleted.
 // Type:    Method.
@@ -229,7 +221,6 @@ bool CMICmdMgr::CmdDelete(SMICmdData vCmdData) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Register an object to be called when a command object is deleted.
 // Type:    Method.
 // Args:    vObject - (R) A new interested client.
@@ -243,7 +234,6 @@ bool CMICmdMgr::CmdRegisterForDeleteNotification(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Unregister an object from being called when a command object is
 // deleted.
 // Type:    Method.

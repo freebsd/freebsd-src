@@ -1,9 +1,8 @@
 //===- ContinuousRangeMap.h - Map with int range as key ---------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -74,7 +73,7 @@ public:
   }
 
   void insertOrReplace(const value_type &Val) {
-    iterator I = std::lower_bound(Rep.begin(), Rep.end(), Val, Compare());
+    iterator I = llvm::lower_bound(Rep, Val, Compare());
     if (I != Rep.end() && I->first == Val.first) {
       I->second = Val.second;
       return;
@@ -92,7 +91,7 @@ public:
   const_iterator end() const { return Rep.end(); }
 
   iterator find(Int K) {
-    iterator I = std::upper_bound(Rep.begin(), Rep.end(), K, Compare());
+    iterator I = llvm::upper_bound(Rep, K, Compare());
     // I points to the first entry with a key > K, which is the range that
     // follows the one containing K.
     if (I == Rep.begin())

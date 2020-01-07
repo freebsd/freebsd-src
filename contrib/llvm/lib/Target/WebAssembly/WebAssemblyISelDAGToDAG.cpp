@@ -1,9 +1,8 @@
 //- WebAssemblyISelDAGToDAG.cpp - A dag to dag inst selector for WebAssembly -//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -16,6 +15,7 @@
 #include "WebAssembly.h"
 #include "WebAssemblyTargetMachine.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
+#include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/Function.h" // To access function attributes.
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/KnownBits.h"
@@ -38,9 +38,9 @@ class WebAssemblyDAGToDAGISel final : public SelectionDAGISel {
   bool ForCodeSize;
 
 public:
-  WebAssemblyDAGToDAGISel(WebAssemblyTargetMachine &tm,
+  WebAssemblyDAGToDAGISel(WebAssemblyTargetMachine &TM,
                           CodeGenOpt::Level OptLevel)
-      : SelectionDAGISel(tm, OptLevel), Subtarget(nullptr), ForCodeSize(false) {
+      : SelectionDAGISel(TM, OptLevel), Subtarget(nullptr), ForCodeSize(false) {
   }
 
   StringRef getPassName() const override {
@@ -52,8 +52,7 @@ public:
                          "********** Function: "
                       << MF.getName() << '\n');
 
-    ForCodeSize = MF.getFunction().hasFnAttribute(Attribute::OptimizeForSize) ||
-                  MF.getFunction().hasFnAttribute(Attribute::MinSize);
+    ForCodeSize = MF.getFunction().hasOptSize();
     Subtarget = &MF.getSubtarget<WebAssemblySubtarget>();
     return SelectionDAGISel::runOnMachineFunction(MF);
   }
@@ -79,14 +78,159 @@ void WebAssemblyDAGToDAGISel::Select(SDNode *Node) {
     return;
   }
 
-  // Few custom selection stuff. If we need WebAssembly-specific selection,
-  // uncomment this block add corresponding case statements.
-  /*
+  // Few custom selection stuff.
+  SDLoc DL(Node);
+  MachineFunction &MF = CurDAG->getMachineFunction();
   switch (Node->getOpcode()) {
+  case ISD::ATOMIC_FENCE: {
+    if (!MF.getSubtarget<WebAssemblySubtarget>().hasAtomics())
+      break;
+
+    uint64_t SyncScopeID =
+        cast<ConstantSDNode>(Node->getOperand(2).getNode())->getZExtValue();
+    switch (SyncScopeID) {
+    case SyncScope::SingleThread: {
+      // We lower a single-thread fence to a pseudo compiler barrier instruction
+      // preventing instruction reordering. This will not be emitted in final
+      // binary.
+      MachineSDNode *Fence =
+          CurDAG->getMachineNode(WebAssembly::COMPILER_FENCE,
+                                 DL,                 // debug loc
+                                 MVT::Other,         // outchain type
+                                 Node->getOperand(0) // inchain
+          );
+      ReplaceNode(Node, Fence);
+      CurDAG->RemoveDeadNode(Node);
+      return;
+    }
+
+    case SyncScope::System: {
+      // For non-emscripten systems, we have not decided on what we should
+      // traslate fences to yet.
+      if (!Subtarget->getTargetTriple().isOSEmscripten())
+        report_fatal_error(
+            "ATOMIC_FENCE is not yet supported in non-emscripten OSes");
+
+      // Wasm does not have a fence instruction, but because all atomic
+      // instructions in wasm are sequentially consistent, we translate a
+      // fence to an idempotent atomic RMW instruction to a linear memory
+      // address. All atomic instructions in wasm are sequentially consistent,
+      // but this is to ensure a fence also prevents reordering of non-atomic
+      // instructions in the VM. Even though LLVM IR's fence instruction does
+      // not say anything about its relationship with non-atomic instructions,
+      // we think this is more user-friendly.
+      //
+      // While any address can work, here we use a value stored in
+      // __stack_pointer wasm global because there's high chance that area is
+      // in cache.
+      //
+      // So the selected instructions will be in the form of:
+      //   %addr = get_global $__stack_pointer
+      //   %0 = i32.const 0
+      //   i32.atomic.rmw.or %addr, %0
+      SDValue StackPtrSym = CurDAG->getTargetExternalSymbol(
+          "__stack_pointer", TLI->getPointerTy(CurDAG->getDataLayout()));
+      MachineSDNode *GetGlobal =
+          CurDAG->getMachineNode(WebAssembly::GLOBAL_GET_I32, // opcode
+                                 DL,                          // debug loc
+                                 MVT::i32,                    // result type
+                                 StackPtrSym // __stack_pointer symbol
+          );
+
+      SDValue Zero = CurDAG->getTargetConstant(0, DL, MVT::i32);
+      auto *MMO = MF.getMachineMemOperand(
+          MachinePointerInfo::getUnknownStack(MF),
+          // FIXME Volatile isn't really correct, but currently all LLVM
+          // atomic instructions are treated as volatiles in the backend, so
+          // we should be consistent.
+          MachineMemOperand::MOVolatile | MachineMemOperand::MOLoad |
+              MachineMemOperand::MOStore,
+          4, 4, AAMDNodes(), nullptr, SyncScope::System,
+          AtomicOrdering::SequentiallyConsistent);
+      MachineSDNode *Const0 =
+          CurDAG->getMachineNode(WebAssembly::CONST_I32, DL, MVT::i32, Zero);
+      MachineSDNode *AtomicRMW = CurDAG->getMachineNode(
+          WebAssembly::ATOMIC_RMW_OR_I32, // opcode
+          DL,                             // debug loc
+          MVT::i32,                       // result type
+          MVT::Other,                     // outchain type
+          {
+              Zero,                  // alignment
+              Zero,                  // offset
+              SDValue(GetGlobal, 0), // __stack_pointer
+              SDValue(Const0, 0),    // OR with 0 to make it idempotent
+              Node->getOperand(0)    // inchain
+          });
+
+      CurDAG->setNodeMemRefs(AtomicRMW, {MMO});
+      ReplaceUses(SDValue(Node, 0), SDValue(AtomicRMW, 1));
+      CurDAG->RemoveDeadNode(Node);
+      return;
+    }
+    default:
+      llvm_unreachable("Unknown scope!");
+    }
+  }
+
+  case ISD::GlobalTLSAddress: {
+    const auto *GA = cast<GlobalAddressSDNode>(Node);
+
+    if (!MF.getSubtarget<WebAssemblySubtarget>().hasBulkMemory())
+      report_fatal_error("cannot use thread-local storage without bulk memory",
+                         false);
+
+    // Currently Emscripten does not support dynamic linking with threads.
+    // Therefore, if we have thread-local storage, only the local-exec model
+    // is possible.
+    // TODO: remove this and implement proper TLS models once Emscripten
+    // supports dynamic linking with threads.
+    if (GA->getGlobal()->getThreadLocalMode() !=
+            GlobalValue::LocalExecTLSModel &&
+        !Subtarget->getTargetTriple().isOSEmscripten()) {
+      report_fatal_error("only -ftls-model=local-exec is supported for now on "
+                         "non-Emscripten OSes: variable " +
+                             GA->getGlobal()->getName(),
+                         false);
+    }
+
+    MVT PtrVT = TLI->getPointerTy(CurDAG->getDataLayout());
+    assert(PtrVT == MVT::i32 && "only wasm32 is supported for now");
+
+    SDValue TLSBaseSym = CurDAG->getTargetExternalSymbol("__tls_base", PtrVT);
+    SDValue TLSOffsetSym = CurDAG->getTargetGlobalAddress(
+        GA->getGlobal(), DL, PtrVT, GA->getOffset(), 0);
+
+    MachineSDNode *TLSBase = CurDAG->getMachineNode(WebAssembly::GLOBAL_GET_I32,
+                                                    DL, MVT::i32, TLSBaseSym);
+    MachineSDNode *TLSOffset = CurDAG->getMachineNode(
+        WebAssembly::CONST_I32, DL, MVT::i32, TLSOffsetSym);
+    MachineSDNode *TLSAddress =
+        CurDAG->getMachineNode(WebAssembly::ADD_I32, DL, MVT::i32,
+                               SDValue(TLSBase, 0), SDValue(TLSOffset, 0));
+    ReplaceNode(Node, TLSAddress);
+    return;
+  }
+
+  case ISD::INTRINSIC_WO_CHAIN: {
+    unsigned IntNo = cast<ConstantSDNode>(Node->getOperand(0))->getZExtValue();
+    switch (IntNo) {
+    case Intrinsic::wasm_tls_size: {
+      MVT PtrVT = TLI->getPointerTy(CurDAG->getDataLayout());
+      assert(PtrVT == MVT::i32 && "only wasm32 is supported for now");
+
+      MachineSDNode *TLSSize = CurDAG->getMachineNode(
+          WebAssembly::GLOBAL_GET_I32, DL, PtrVT,
+          CurDAG->getTargetExternalSymbol("__tls_size", MVT::i32));
+      ReplaceNode(Node, TLSSize);
+      return;
+    }
+    }
+    break;
+  }
+
   default:
     break;
   }
-  */
 
   // Select the default instruction.
   SelectCode(Node);

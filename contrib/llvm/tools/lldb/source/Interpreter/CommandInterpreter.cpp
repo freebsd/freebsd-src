@@ -1,12 +1,12 @@
 //===-- CommandInterpreter.cpp ----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
+#include <memory>
 #include <stdlib.h>
 #include <string>
 #include <vector>
@@ -81,6 +81,17 @@ static constexpr bool NoGlobalSetting = true;
 static constexpr uintptr_t DefaultValueTrue = true;
 static constexpr uintptr_t DefaultValueFalse = false;
 static constexpr const char *NoCStrDefault = nullptr;
+static constexpr const char *InitFileWarning =
+    "There is a .lldbinit file in the current directory which is not being "
+    "read.\n"
+    "To silence this warning without sourcing in the local .lldbinit,\n"
+    "add the following to the lldbinit file in your home directory:\n"
+    "    settings set target.load-cwd-lldbinit false\n"
+    "To allow lldb to source .lldbinit files in the current working "
+    "directory,\n"
+    "set the value of this variable to true.  Only do so if you understand "
+    "and\n"
+    "accept the security risk.";
 
 static constexpr PropertyDefinition g_properties[] = {
     {"expand-regex-aliases", OptionValue::eTypeBoolean, NoGlobalSetting,
@@ -122,7 +133,6 @@ ConstString &CommandInterpreter::GetStaticBroadcasterClass() {
 }
 
 CommandInterpreter::CommandInterpreter(Debugger &debugger,
-                                       ScriptLanguage script_language,
                                        bool synchronous_execution)
     : Broadcaster(debugger.GetBroadcasterManager(),
                   CommandInterpreter::GetStaticBroadcasterClass().AsCString()),
@@ -131,11 +141,10 @@ CommandInterpreter::CommandInterpreter(Debugger &debugger,
       IOHandlerDelegate(IOHandlerDelegate::Completion::LLDBCommand),
       m_debugger(debugger), m_synchronous_execution(synchronous_execution),
       m_skip_lldbinit_files(false), m_skip_app_init_files(false),
-      m_script_interpreter_sp(), m_command_io_handler_sp(), m_comment_char('#'),
+      m_command_io_handler_sp(), m_comment_char('#'),
       m_batch_command_mode(false), m_truncation_warning(eNoTruncation),
       m_command_source_depth(0), m_num_errors(0), m_quit_requested(false),
       m_stopped_for_crash(false) {
-  debugger.SetScriptLanguage(script_language);
   SetEventName(eBroadcastBitThreadShouldExit, "thread-should-exit");
   SetEventName(eBroadcastBitResetPrompt, "reset-prompt");
   SetEventName(eBroadcastBitQuitCommandReceived, "quit");
@@ -367,7 +376,7 @@ void CommandInterpreter::Initialize() {
   if (cmd_obj_sp)
     AddAlias("image", cmd_obj_sp);
 
-  alias_arguments_vector_sp.reset(new OptionArgVector);
+  alias_arguments_vector_sp = std::make_shared<OptionArgVector>();
 
   cmd_obj_sp = GetCommandSPExact("expression", false);
   if (cmd_obj_sp) {
@@ -393,7 +402,7 @@ void CommandInterpreter::Initialize() {
 
   cmd_obj_sp = GetCommandSPExact("process launch", false);
   if (cmd_obj_sp) {
-    alias_arguments_vector_sp.reset(new OptionArgVector);
+    alias_arguments_vector_sp = std::make_shared<OptionArgVector>();
 #if defined(__arm__) || defined(__arm64__) || defined(__aarch64__)
     AddAlias("r", cmd_obj_sp, "--");
     AddAlias("run", cmd_obj_sp, "--");
@@ -431,13 +440,15 @@ void CommandInterpreter::Initialize() {
     AddAlias("var", cmd_obj_sp);
     AddAlias("vo", cmd_obj_sp, "--object-description");
   }
+
+  cmd_obj_sp = GetCommandSPExact("register", false);
+  if (cmd_obj_sp) {
+    AddAlias("re", cmd_obj_sp);
+  }
 }
 
 void CommandInterpreter::Clear() {
   m_command_io_handler_sp.reset();
-
-  if (m_script_interpreter_sp)
-    m_script_interpreter_sp->Clear();
 }
 
 const char *CommandInterpreter::ProcessEmbeddedScriptCommands(const char *arg) {
@@ -522,7 +533,7 @@ void CommandInterpreter::LoadCommandDictionary() {
 
   size_t num_regexes = llvm::array_lengthof(break_regexes);
 
-  std::unique_ptr<CommandObjectRegexCommand> break_regex_cmd_ap(
+  std::unique_ptr<CommandObjectRegexCommand> break_regex_cmd_up(
       new CommandObjectRegexCommand(
           *this, "_regexp-break",
           "Set a breakpoint using one of several shorthand formats.",
@@ -550,28 +561,29 @@ void CommandInterpreter::LoadCommandDictionary() {
           "current file\n"
           "                                    // containing text 'break "
           "here'.\n",
-          2, CommandCompletions::eSymbolCompletion |
-                 CommandCompletions::eSourceFileCompletion,
+          2,
+          CommandCompletions::eSymbolCompletion |
+              CommandCompletions::eSourceFileCompletion,
           false));
 
-  if (break_regex_cmd_ap.get()) {
+  if (break_regex_cmd_up) {
     bool success = true;
     for (size_t i = 0; i < num_regexes; i++) {
-      success = break_regex_cmd_ap->AddRegexCommand(break_regexes[i][0],
+      success = break_regex_cmd_up->AddRegexCommand(break_regexes[i][0],
                                                     break_regexes[i][1]);
       if (!success)
         break;
     }
     success =
-        break_regex_cmd_ap->AddRegexCommand("^$", "breakpoint list --full");
+        break_regex_cmd_up->AddRegexCommand("^$", "breakpoint list --full");
 
     if (success) {
-      CommandObjectSP break_regex_cmd_sp(break_regex_cmd_ap.release());
+      CommandObjectSP break_regex_cmd_sp(break_regex_cmd_up.release());
       m_command_dict[break_regex_cmd_sp->GetCommandName()] = break_regex_cmd_sp;
     }
   }
 
-  std::unique_ptr<CommandObjectRegexCommand> tbreak_regex_cmd_ap(
+  std::unique_ptr<CommandObjectRegexCommand> tbreak_regex_cmd_up(
       new CommandObjectRegexCommand(
           *this, "_regexp-tbreak",
           "Set a one-shot breakpoint using one of several shorthand formats.",
@@ -599,11 +611,12 @@ void CommandInterpreter::LoadCommandDictionary() {
           "current file\n"
           "                                    // containing text 'break "
           "here'.\n",
-          2, CommandCompletions::eSymbolCompletion |
-                 CommandCompletions::eSourceFileCompletion,
+          2,
+          CommandCompletions::eSymbolCompletion |
+              CommandCompletions::eSourceFileCompletion,
           false));
 
-  if (tbreak_regex_cmd_ap.get()) {
+  if (tbreak_regex_cmd_up) {
     bool success = true;
     for (size_t i = 0; i < num_regexes; i++) {
       // If you add a resultant command string longer than 1024 characters be
@@ -614,155 +627,160 @@ void CommandInterpreter::LoadCommandDictionary() {
       lldbassert(num_printed < 1024);
       UNUSED_IF_ASSERT_DISABLED(num_printed);
       success =
-          tbreak_regex_cmd_ap->AddRegexCommand(break_regexes[i][0], buffer);
+          tbreak_regex_cmd_up->AddRegexCommand(break_regexes[i][0], buffer);
       if (!success)
         break;
     }
     success =
-        tbreak_regex_cmd_ap->AddRegexCommand("^$", "breakpoint list --full");
+        tbreak_regex_cmd_up->AddRegexCommand("^$", "breakpoint list --full");
 
     if (success) {
-      CommandObjectSP tbreak_regex_cmd_sp(tbreak_regex_cmd_ap.release());
+      CommandObjectSP tbreak_regex_cmd_sp(tbreak_regex_cmd_up.release());
       m_command_dict[tbreak_regex_cmd_sp->GetCommandName()] =
           tbreak_regex_cmd_sp;
     }
   }
 
-  std::unique_ptr<CommandObjectRegexCommand> attach_regex_cmd_ap(
+  std::unique_ptr<CommandObjectRegexCommand> attach_regex_cmd_up(
       new CommandObjectRegexCommand(
           *this, "_regexp-attach", "Attach to process by ID or name.",
           "_regexp-attach <pid> | <process-name>", 2, 0, false));
-  if (attach_regex_cmd_ap.get()) {
-    if (attach_regex_cmd_ap->AddRegexCommand("^([0-9]+)[[:space:]]*$",
+  if (attach_regex_cmd_up) {
+    if (attach_regex_cmd_up->AddRegexCommand("^([0-9]+)[[:space:]]*$",
                                              "process attach --pid %1") &&
-        attach_regex_cmd_ap->AddRegexCommand(
+        attach_regex_cmd_up->AddRegexCommand(
             "^(-.*|.* -.*)$", "process attach %1") && // Any options that are
                                                       // specified get passed to
                                                       // 'process attach'
-        attach_regex_cmd_ap->AddRegexCommand("^(.+)$",
+        attach_regex_cmd_up->AddRegexCommand("^(.+)$",
                                              "process attach --name '%1'") &&
-        attach_regex_cmd_ap->AddRegexCommand("^$", "process attach")) {
-      CommandObjectSP attach_regex_cmd_sp(attach_regex_cmd_ap.release());
+        attach_regex_cmd_up->AddRegexCommand("^$", "process attach")) {
+      CommandObjectSP attach_regex_cmd_sp(attach_regex_cmd_up.release());
       m_command_dict[attach_regex_cmd_sp->GetCommandName()] =
           attach_regex_cmd_sp;
     }
   }
 
-  std::unique_ptr<CommandObjectRegexCommand> down_regex_cmd_ap(
+  std::unique_ptr<CommandObjectRegexCommand> down_regex_cmd_up(
       new CommandObjectRegexCommand(*this, "_regexp-down",
                                     "Select a newer stack frame.  Defaults to "
                                     "moving one frame, a numeric argument can "
                                     "specify an arbitrary number.",
                                     "_regexp-down [<count>]", 2, 0, false));
-  if (down_regex_cmd_ap.get()) {
-    if (down_regex_cmd_ap->AddRegexCommand("^$", "frame select -r -1") &&
-        down_regex_cmd_ap->AddRegexCommand("^([0-9]+)$",
+  if (down_regex_cmd_up) {
+    if (down_regex_cmd_up->AddRegexCommand("^$", "frame select -r -1") &&
+        down_regex_cmd_up->AddRegexCommand("^([0-9]+)$",
                                            "frame select -r -%1")) {
-      CommandObjectSP down_regex_cmd_sp(down_regex_cmd_ap.release());
+      CommandObjectSP down_regex_cmd_sp(down_regex_cmd_up.release());
       m_command_dict[down_regex_cmd_sp->GetCommandName()] = down_regex_cmd_sp;
     }
   }
 
-  std::unique_ptr<CommandObjectRegexCommand> up_regex_cmd_ap(
+  std::unique_ptr<CommandObjectRegexCommand> up_regex_cmd_up(
       new CommandObjectRegexCommand(
           *this, "_regexp-up",
           "Select an older stack frame.  Defaults to moving one "
           "frame, a numeric argument can specify an arbitrary number.",
           "_regexp-up [<count>]", 2, 0, false));
-  if (up_regex_cmd_ap.get()) {
-    if (up_regex_cmd_ap->AddRegexCommand("^$", "frame select -r 1") &&
-        up_regex_cmd_ap->AddRegexCommand("^([0-9]+)$", "frame select -r %1")) {
-      CommandObjectSP up_regex_cmd_sp(up_regex_cmd_ap.release());
+  if (up_regex_cmd_up) {
+    if (up_regex_cmd_up->AddRegexCommand("^$", "frame select -r 1") &&
+        up_regex_cmd_up->AddRegexCommand("^([0-9]+)$", "frame select -r %1")) {
+      CommandObjectSP up_regex_cmd_sp(up_regex_cmd_up.release());
       m_command_dict[up_regex_cmd_sp->GetCommandName()] = up_regex_cmd_sp;
     }
   }
 
-  std::unique_ptr<CommandObjectRegexCommand> display_regex_cmd_ap(
+  std::unique_ptr<CommandObjectRegexCommand> display_regex_cmd_up(
       new CommandObjectRegexCommand(
           *this, "_regexp-display",
           "Evaluate an expression at every stop (see 'help target stop-hook'.)",
           "_regexp-display expression", 2, 0, false));
-  if (display_regex_cmd_ap.get()) {
-    if (display_regex_cmd_ap->AddRegexCommand(
+  if (display_regex_cmd_up) {
+    if (display_regex_cmd_up->AddRegexCommand(
             "^(.+)$", "target stop-hook add -o \"expr -- %1\"")) {
-      CommandObjectSP display_regex_cmd_sp(display_regex_cmd_ap.release());
+      CommandObjectSP display_regex_cmd_sp(display_regex_cmd_up.release());
       m_command_dict[display_regex_cmd_sp->GetCommandName()] =
           display_regex_cmd_sp;
     }
   }
 
-  std::unique_ptr<CommandObjectRegexCommand> undisplay_regex_cmd_ap(
-      new CommandObjectRegexCommand(
-          *this, "_regexp-undisplay", "Stop displaying expression at every "
-                                      "stop (specified by stop-hook index.)",
-          "_regexp-undisplay stop-hook-number", 2, 0, false));
-  if (undisplay_regex_cmd_ap.get()) {
-    if (undisplay_regex_cmd_ap->AddRegexCommand("^([0-9]+)$",
+  std::unique_ptr<CommandObjectRegexCommand> undisplay_regex_cmd_up(
+      new CommandObjectRegexCommand(*this, "_regexp-undisplay",
+                                    "Stop displaying expression at every "
+                                    "stop (specified by stop-hook index.)",
+                                    "_regexp-undisplay stop-hook-number", 2, 0,
+                                    false));
+  if (undisplay_regex_cmd_up) {
+    if (undisplay_regex_cmd_up->AddRegexCommand("^([0-9]+)$",
                                                 "target stop-hook delete %1")) {
-      CommandObjectSP undisplay_regex_cmd_sp(undisplay_regex_cmd_ap.release());
+      CommandObjectSP undisplay_regex_cmd_sp(undisplay_regex_cmd_up.release());
       m_command_dict[undisplay_regex_cmd_sp->GetCommandName()] =
           undisplay_regex_cmd_sp;
     }
   }
 
-  std::unique_ptr<CommandObjectRegexCommand> connect_gdb_remote_cmd_ap(
+  std::unique_ptr<CommandObjectRegexCommand> connect_gdb_remote_cmd_up(
       new CommandObjectRegexCommand(
-          *this, "gdb-remote", "Connect to a process via remote GDB server.  "
-                               "If no host is specifed, localhost is assumed.",
+          *this, "gdb-remote",
+          "Connect to a process via remote GDB server.  "
+          "If no host is specifed, localhost is assumed.",
           "gdb-remote [<hostname>:]<portnum>", 2, 0, false));
-  if (connect_gdb_remote_cmd_ap.get()) {
-    if (connect_gdb_remote_cmd_ap->AddRegexCommand(
+  if (connect_gdb_remote_cmd_up) {
+    if (connect_gdb_remote_cmd_up->AddRegexCommand(
             "^([^:]+|\\[[0-9a-fA-F:]+.*\\]):([0-9]+)$",
             "process connect --plugin gdb-remote connect://%1:%2") &&
-        connect_gdb_remote_cmd_ap->AddRegexCommand(
+        connect_gdb_remote_cmd_up->AddRegexCommand(
             "^([[:digit:]]+)$",
             "process connect --plugin gdb-remote connect://localhost:%1")) {
-      CommandObjectSP command_sp(connect_gdb_remote_cmd_ap.release());
+      CommandObjectSP command_sp(connect_gdb_remote_cmd_up.release());
       m_command_dict[command_sp->GetCommandName()] = command_sp;
     }
   }
 
-  std::unique_ptr<CommandObjectRegexCommand> connect_kdp_remote_cmd_ap(
+  std::unique_ptr<CommandObjectRegexCommand> connect_kdp_remote_cmd_up(
       new CommandObjectRegexCommand(
-          *this, "kdp-remote", "Connect to a process via remote KDP server.  "
-                               "If no UDP port is specified, port 41139 is "
-                               "assumed.",
+          *this, "kdp-remote",
+          "Connect to a process via remote KDP server.  "
+          "If no UDP port is specified, port 41139 is "
+          "assumed.",
           "kdp-remote <hostname>[:<portnum>]", 2, 0, false));
-  if (connect_kdp_remote_cmd_ap.get()) {
-    if (connect_kdp_remote_cmd_ap->AddRegexCommand(
+  if (connect_kdp_remote_cmd_up) {
+    if (connect_kdp_remote_cmd_up->AddRegexCommand(
             "^([^:]+:[[:digit:]]+)$",
             "process connect --plugin kdp-remote udp://%1") &&
-        connect_kdp_remote_cmd_ap->AddRegexCommand(
+        connect_kdp_remote_cmd_up->AddRegexCommand(
             "^(.+)$", "process connect --plugin kdp-remote udp://%1:41139")) {
-      CommandObjectSP command_sp(connect_kdp_remote_cmd_ap.release());
+      CommandObjectSP command_sp(connect_kdp_remote_cmd_up.release());
       m_command_dict[command_sp->GetCommandName()] = command_sp;
     }
   }
 
-  std::unique_ptr<CommandObjectRegexCommand> bt_regex_cmd_ap(
+  std::unique_ptr<CommandObjectRegexCommand> bt_regex_cmd_up(
       new CommandObjectRegexCommand(
           *this, "_regexp-bt",
           "Show the current thread's call stack.  Any numeric argument "
           "displays at most that many "
-          "frames.  The argument 'all' displays all threads.",
+          "frames.  The argument 'all' displays all threads.  Use 'settings"
+          " set frame-format' to customize the printing of individual frames "
+          "and 'settings set thread-format' to customize the thread header.",
           "bt [<digit> | all]", 2, 0, false));
-  if (bt_regex_cmd_ap.get()) {
+  if (bt_regex_cmd_up) {
     // accept but don't document "bt -c <number>" -- before bt was a regex
     // command if you wanted to backtrace three frames you would do "bt -c 3"
     // but the intention is to have this emulate the gdb "bt" command and so
     // now "bt 3" is the preferred form, in line with gdb.
-    if (bt_regex_cmd_ap->AddRegexCommand("^([[:digit:]]+)$",
+    if (bt_regex_cmd_up->AddRegexCommand("^([[:digit:]]+)[[:space:]]*$",
                                          "thread backtrace -c %1") &&
-        bt_regex_cmd_ap->AddRegexCommand("^-c ([[:digit:]]+)$",
+        bt_regex_cmd_up->AddRegexCommand("^-c ([[:digit:]]+)[[:space:]]*$",
                                          "thread backtrace -c %1") &&
-        bt_regex_cmd_ap->AddRegexCommand("^all$", "thread backtrace all") &&
-        bt_regex_cmd_ap->AddRegexCommand("^$", "thread backtrace")) {
-      CommandObjectSP command_sp(bt_regex_cmd_ap.release());
+        bt_regex_cmd_up->AddRegexCommand("^all[[:space:]]*$", "thread backtrace all") &&
+        bt_regex_cmd_up->AddRegexCommand("^[[:space:]]*$", "thread backtrace")) {
+      CommandObjectSP command_sp(bt_regex_cmd_up.release());
       m_command_dict[command_sp->GetCommandName()] = command_sp;
     }
   }
 
-  std::unique_ptr<CommandObjectRegexCommand> list_regex_cmd_ap(
+  std::unique_ptr<CommandObjectRegexCommand> list_regex_cmd_up(
       new CommandObjectRegexCommand(
           *this, "_regexp-list",
           "List relevant source code using one of several shorthand formats.",
@@ -775,48 +793,48 @@ void CommandInterpreter::LoadCommandDictionary() {
           "_regexp-list -[<count>]      // List previous <count> lines\n"
           "_regexp-list                 // List subsequent lines",
           2, CommandCompletions::eSourceFileCompletion, false));
-  if (list_regex_cmd_ap.get()) {
-    if (list_regex_cmd_ap->AddRegexCommand("^([0-9]+)[[:space:]]*$",
+  if (list_regex_cmd_up) {
+    if (list_regex_cmd_up->AddRegexCommand("^([0-9]+)[[:space:]]*$",
                                            "source list --line %1") &&
-        list_regex_cmd_ap->AddRegexCommand(
+        list_regex_cmd_up->AddRegexCommand(
             "^(.*[^[:space:]])[[:space:]]*:[[:space:]]*([[:digit:]]+)[[:space:]"
             "]*$",
             "source list --file '%1' --line %2") &&
-        list_regex_cmd_ap->AddRegexCommand(
+        list_regex_cmd_up->AddRegexCommand(
             "^\\*?(0x[[:xdigit:]]+)[[:space:]]*$",
             "source list --address %1") &&
-        list_regex_cmd_ap->AddRegexCommand("^-[[:space:]]*$",
+        list_regex_cmd_up->AddRegexCommand("^-[[:space:]]*$",
                                            "source list --reverse") &&
-        list_regex_cmd_ap->AddRegexCommand(
+        list_regex_cmd_up->AddRegexCommand(
             "^-([[:digit:]]+)[[:space:]]*$",
             "source list --reverse --count %1") &&
-        list_regex_cmd_ap->AddRegexCommand("^(.+)$",
+        list_regex_cmd_up->AddRegexCommand("^(.+)$",
                                            "source list --name \"%1\"") &&
-        list_regex_cmd_ap->AddRegexCommand("^$", "source list")) {
-      CommandObjectSP list_regex_cmd_sp(list_regex_cmd_ap.release());
+        list_regex_cmd_up->AddRegexCommand("^$", "source list")) {
+      CommandObjectSP list_regex_cmd_sp(list_regex_cmd_up.release());
       m_command_dict[list_regex_cmd_sp->GetCommandName()] = list_regex_cmd_sp;
     }
   }
 
-  std::unique_ptr<CommandObjectRegexCommand> env_regex_cmd_ap(
+  std::unique_ptr<CommandObjectRegexCommand> env_regex_cmd_up(
       new CommandObjectRegexCommand(
           *this, "_regexp-env",
           "Shorthand for viewing and setting environment variables.",
           "\n"
-          "_regexp-env                  // Show enrivonment\n"
+          "_regexp-env                  // Show environment\n"
           "_regexp-env <name>=<value>   // Set an environment variable",
           2, 0, false));
-  if (env_regex_cmd_ap.get()) {
-    if (env_regex_cmd_ap->AddRegexCommand("^$",
+  if (env_regex_cmd_up) {
+    if (env_regex_cmd_up->AddRegexCommand("^$",
                                           "settings show target.env-vars") &&
-        env_regex_cmd_ap->AddRegexCommand("^([A-Za-z_][A-Za-z_0-9]*=.*)$",
+        env_regex_cmd_up->AddRegexCommand("^([A-Za-z_][A-Za-z_0-9]*=.*)$",
                                           "settings set target.env-vars %1")) {
-      CommandObjectSP env_regex_cmd_sp(env_regex_cmd_ap.release());
+      CommandObjectSP env_regex_cmd_sp(env_regex_cmd_up.release());
       m_command_dict[env_regex_cmd_sp->GetCommandName()] = env_regex_cmd_sp;
     }
   }
 
-  std::unique_ptr<CommandObjectRegexCommand> jump_regex_cmd_ap(
+  std::unique_ptr<CommandObjectRegexCommand> jump_regex_cmd_up(
       new CommandObjectRegexCommand(
           *this, "_regexp-jump", "Set the program counter to a new address.",
           "\n"
@@ -825,16 +843,16 @@ void CommandInterpreter::LoadCommandDictionary() {
           "_regexp-jump <file>:<line>\n"
           "_regexp-jump *<addr>\n",
           2, 0, false));
-  if (jump_regex_cmd_ap.get()) {
-    if (jump_regex_cmd_ap->AddRegexCommand("^\\*(.*)$",
+  if (jump_regex_cmd_up) {
+    if (jump_regex_cmd_up->AddRegexCommand("^\\*(.*)$",
                                            "thread jump --addr %1") &&
-        jump_regex_cmd_ap->AddRegexCommand("^([0-9]+)$",
+        jump_regex_cmd_up->AddRegexCommand("^([0-9]+)$",
                                            "thread jump --line %1") &&
-        jump_regex_cmd_ap->AddRegexCommand("^([^:]+):([0-9]+)$",
+        jump_regex_cmd_up->AddRegexCommand("^([^:]+):([0-9]+)$",
                                            "thread jump --file %1 --line %2") &&
-        jump_regex_cmd_ap->AddRegexCommand("^([+\\-][0-9]+)$",
+        jump_regex_cmd_up->AddRegexCommand("^([+\\-][0-9]+)$",
                                            "thread jump --by %1")) {
-      CommandObjectSP jump_regex_cmd_sp(jump_regex_cmd_ap.release());
+      CommandObjectSP jump_regex_cmd_sp(jump_regex_cmd_up.release());
       m_command_dict[jump_regex_cmd_sp->GetCommandName()] = jump_regex_cmd_sp;
     }
   }
@@ -1721,7 +1739,7 @@ bool CommandInterpreter::HandleCommand(const char *command_line,
     log->Printf("HandleCommand, (revised) command_string: '%s'",
                 command_string.c_str());
     const bool wants_raw_input =
-        (cmd_obj != NULL) ? cmd_obj->WantsRawCommandString() : false;
+        (cmd_obj != nullptr) ? cmd_obj->WantsRawCommandString() : false;
     log->Printf("HandleCommand, wants_raw_input:'%s'",
                 wants_raw_input ? "True" : "False");
   }
@@ -2084,106 +2102,119 @@ int CommandInterpreter::GetOptionArgumentPosition(const char *in_string) {
   return position;
 }
 
-void CommandInterpreter::SourceInitFile(bool in_cwd,
+static void GetHomeInitFile(llvm::SmallVectorImpl<char> &init_file,
+                            llvm::StringRef suffix = {}) {
+  std::string init_file_name = ".lldbinit";
+  if (!suffix.empty()) {
+    init_file_name.append("-");
+    init_file_name.append(suffix.str());
+  }
+
+  llvm::sys::path::home_directory(init_file);
+  llvm::sys::path::append(init_file, init_file_name);
+
+  FileSystem::Instance().Resolve(init_file);
+}
+
+static void GetCwdInitFile(llvm::SmallVectorImpl<char> &init_file) {
+  llvm::StringRef s = ".lldbinit";
+  init_file.assign(s.begin(), s.end());
+  FileSystem::Instance().Resolve(init_file);
+}
+
+static LoadCWDlldbinitFile ShouldLoadCwdInitFile() {
+  lldb::TargetPropertiesSP properties = Target::GetGlobalProperties();
+  if (!properties)
+    return eLoadCWDlldbinitFalse;
+  return properties->GetLoadCWDlldbinitFile();
+}
+
+void CommandInterpreter::SourceInitFile(FileSpec file,
                                         CommandReturnObject &result) {
-  FileSpec init_file;
-  if (in_cwd) {
-    ExecutionContext exe_ctx(GetExecutionContext());
-    Target *target = exe_ctx.GetTargetPtr();
-    if (target) {
-      // In the current working directory we don't load any program specific
-      // .lldbinit files, we only look for a ".lldbinit" file.
-      if (m_skip_lldbinit_files)
-        return;
+  assert(!m_skip_lldbinit_files);
 
-      LoadCWDlldbinitFile should_load =
-          target->TargetProperties::GetLoadCWDlldbinitFile();
-      if (should_load == eLoadCWDlldbinitWarn) {
-        FileSpec dot_lldb(".lldbinit");
-        FileSystem::Instance().Resolve(dot_lldb);
-        llvm::SmallString<64> home_dir_path;
-        llvm::sys::path::home_directory(home_dir_path);
-        FileSpec homedir_dot_lldb(home_dir_path.c_str());
-        homedir_dot_lldb.AppendPathComponent(".lldbinit");
-        FileSystem::Instance().Resolve(homedir_dot_lldb);
-        if (FileSystem::Instance().Exists(dot_lldb) &&
-            dot_lldb.GetDirectory() != homedir_dot_lldb.GetDirectory()) {
-          result.AppendErrorWithFormat(
-              "There is a .lldbinit file in the current directory which is not "
-              "being read.\n"
-              "To silence this warning without sourcing in the local "
-              ".lldbinit,\n"
-              "add the following to the lldbinit file in your home directory:\n"
-              "    settings set target.load-cwd-lldbinit false\n"
-              "To allow lldb to source .lldbinit files in the current working "
-              "directory,\n"
-              "set the value of this variable to true.  Only do so if you "
-              "understand and\n"
-              "accept the security risk.");
-          result.SetStatus(eReturnStatusFailed);
-          return;
-        }
-      } else if (should_load == eLoadCWDlldbinitTrue) {
-        init_file.SetFile("./.lldbinit", FileSpec::Style::native);
-        FileSystem::Instance().Resolve(init_file);
-      }
-    }
-  } else {
-    // If we aren't looking in the current working directory we are looking in
-    // the home directory. We will first see if there is an application
-    // specific ".lldbinit" file whose name is "~/.lldbinit" followed by a "-"
-    // and the name of the program. If this file doesn't exist, we fall back to
-    // just the "~/.lldbinit" file. We also obey any requests to not load the
-    // init files.
-    llvm::SmallString<64> home_dir_path;
-    llvm::sys::path::home_directory(home_dir_path);
-    FileSpec profilePath(home_dir_path.c_str());
-    profilePath.AppendPathComponent(".lldbinit");
-    std::string init_file_path = profilePath.GetPath();
-
-    if (!m_skip_app_init_files) {
-      FileSpec program_file_spec(HostInfo::GetProgramFileSpec());
-      const char *program_name = program_file_spec.GetFilename().AsCString();
-
-      if (program_name) {
-        char program_init_file_name[PATH_MAX];
-        ::snprintf(program_init_file_name, sizeof(program_init_file_name),
-                   "%s-%s", init_file_path.c_str(), program_name);
-        init_file.SetFile(program_init_file_name, FileSpec::Style::native);
-        FileSystem::Instance().Resolve(init_file);
-        if (!FileSystem::Instance().Exists(init_file))
-          init_file.Clear();
-      }
-    }
-
-    if (!init_file && !m_skip_lldbinit_files)
-      init_file.SetFile(init_file_path, FileSpec::Style::native);
-  }
-
-  // If the file exists, tell HandleCommand to 'source' it; this will do the
-  // actual broadcasting of the commands back to any appropriate listener (see
-  // CommandObjectSource::Execute for more details).
-
-  if (FileSystem::Instance().Exists(init_file)) {
-    const bool saved_batch = SetBatchCommandMode(true);
-    CommandInterpreterRunOptions options;
-    options.SetSilent(true);
-    options.SetStopOnError(false);
-    options.SetStopOnContinue(true);
-
-    HandleCommandsFromFile(init_file,
-                           nullptr, // Execution context
-                           options, result);
-    SetBatchCommandMode(saved_batch);
-  } else {
-    // nothing to be done if the file doesn't exist
+  if (!FileSystem::Instance().Exists(file)) {
     result.SetStatus(eReturnStatusSuccessFinishNoResult);
+    return;
   }
+
+  // Use HandleCommand to 'source' the given file; this will do the actual
+  // broadcasting of the commands back to any appropriate listener (see
+  // CommandObjectSource::Execute for more details).
+  const bool saved_batch = SetBatchCommandMode(true);
+  ExecutionContext *ctx = nullptr;
+  CommandInterpreterRunOptions options;
+  options.SetSilent(true);
+  options.SetPrintErrors(true);
+  options.SetStopOnError(false);
+  options.SetStopOnContinue(true);
+  HandleCommandsFromFile(file, ctx, options, result);
+  SetBatchCommandMode(saved_batch);
+}
+
+void CommandInterpreter::SourceInitFileCwd(CommandReturnObject &result) {
+  if (m_skip_lldbinit_files) {
+    result.SetStatus(eReturnStatusSuccessFinishNoResult);
+    return;
+  }
+
+  llvm::SmallString<128> init_file;
+  GetCwdInitFile(init_file);
+  if (!FileSystem::Instance().Exists(init_file)) {
+    result.SetStatus(eReturnStatusSuccessFinishNoResult);
+    return;
+  }
+
+  LoadCWDlldbinitFile should_load = ShouldLoadCwdInitFile();
+
+  switch (should_load) {
+  case eLoadCWDlldbinitFalse:
+    result.SetStatus(eReturnStatusSuccessFinishNoResult);
+    break;
+  case eLoadCWDlldbinitTrue:
+    SourceInitFile(FileSpec(init_file.str()), result);
+    break;
+  case eLoadCWDlldbinitWarn: {
+    llvm::SmallString<128> home_init_file;
+    GetHomeInitFile(home_init_file);
+    if (llvm::sys::path::parent_path(init_file) ==
+        llvm::sys::path::parent_path(home_init_file)) {
+      result.SetStatus(eReturnStatusSuccessFinishNoResult);
+    } else {
+      result.AppendErrorWithFormat(InitFileWarning);
+      result.SetStatus(eReturnStatusFailed);
+    }
+  }
+  }
+}
+
+/// We will first see if there is an application specific ".lldbinit" file
+/// whose name is "~/.lldbinit" followed by a "-" and the name of the program.
+/// If this file doesn't exist, we fall back to just the "~/.lldbinit" file.
+void CommandInterpreter::SourceInitFileHome(CommandReturnObject &result) {
+  if (m_skip_lldbinit_files) {
+    result.SetStatus(eReturnStatusSuccessFinishNoResult);
+    return;
+  }
+
+  llvm::SmallString<128> init_file;
+  GetHomeInitFile(init_file);
+
+  if (!m_skip_app_init_files) {
+    llvm::StringRef program_name =
+        HostInfo::GetProgramFileSpec().GetFilename().GetStringRef();
+    llvm::SmallString<128> program_init_file;
+    GetHomeInitFile(program_init_file, program_name);
+    if (FileSystem::Instance().Exists(program_init_file))
+      init_file = program_init_file;
+  }
+
+  SourceInitFile(FileSpec(init_file.str()), result);
 }
 
 const char *CommandInterpreter::GetCommandPrefix() {
   const char *prefix = GetDebugger().GetIOHandlerCommandPrefix();
-  return prefix == NULL ? "" : prefix;
+  return prefix == nullptr ? "" : prefix;
 }
 
 PlatformSP CommandInterpreter::GetPlatform(bool prefer_target_platform) {
@@ -2359,156 +2390,152 @@ enum {
   eHandleCommandFlagEchoCommand = (1u << 2),
   eHandleCommandFlagEchoCommentCommand = (1u << 3),
   eHandleCommandFlagPrintResult = (1u << 4),
-  eHandleCommandFlagStopOnCrash = (1u << 5)
+  eHandleCommandFlagPrintErrors = (1u << 5),
+  eHandleCommandFlagStopOnCrash = (1u << 6)
 };
 
 void CommandInterpreter::HandleCommandsFromFile(
     FileSpec &cmd_file, ExecutionContext *context,
     CommandInterpreterRunOptions &options, CommandReturnObject &result) {
-  if (FileSystem::Instance().Exists(cmd_file)) {
-    StreamFileSP input_file_sp(new StreamFile());
-
-    std::string cmd_file_path = cmd_file.GetPath();
-    Status error = FileSystem::Instance().Open(input_file_sp->GetFile(),
-                                               cmd_file, File::eOpenOptionRead);
-    if (error.Success()) {
-      Debugger &debugger = GetDebugger();
-
-      uint32_t flags = 0;
-
-      if (options.m_stop_on_continue == eLazyBoolCalculate) {
-        if (m_command_source_flags.empty()) {
-          // Stop on continue by default
-          flags |= eHandleCommandFlagStopOnContinue;
-        } else if (m_command_source_flags.back() &
-                   eHandleCommandFlagStopOnContinue) {
-          flags |= eHandleCommandFlagStopOnContinue;
-        }
-      } else if (options.m_stop_on_continue == eLazyBoolYes) {
-        flags |= eHandleCommandFlagStopOnContinue;
-      }
-
-      if (options.m_stop_on_error == eLazyBoolCalculate) {
-        if (m_command_source_flags.empty()) {
-          if (GetStopCmdSourceOnError())
-            flags |= eHandleCommandFlagStopOnError;
-        } else if (m_command_source_flags.back() &
-                   eHandleCommandFlagStopOnError) {
-          flags |= eHandleCommandFlagStopOnError;
-        }
-      } else if (options.m_stop_on_error == eLazyBoolYes) {
-        flags |= eHandleCommandFlagStopOnError;
-      }
-
-      // stop-on-crash can only be set, if it is present in all levels of
-      // pushed flag sets.
-      if (options.GetStopOnCrash()) {
-        if (m_command_source_flags.empty()) {
-          flags |= eHandleCommandFlagStopOnCrash;
-        } else if (m_command_source_flags.back() &
-                   eHandleCommandFlagStopOnCrash) {
-          flags |= eHandleCommandFlagStopOnCrash;
-        }
-      }
-
-      if (options.m_echo_commands == eLazyBoolCalculate) {
-        if (m_command_source_flags.empty()) {
-          // Echo command by default
-          flags |= eHandleCommandFlagEchoCommand;
-        } else if (m_command_source_flags.back() &
-                   eHandleCommandFlagEchoCommand) {
-          flags |= eHandleCommandFlagEchoCommand;
-        }
-      } else if (options.m_echo_commands == eLazyBoolYes) {
-        flags |= eHandleCommandFlagEchoCommand;
-      }
-
-      // We will only ever ask for this flag, if we echo commands in general.
-      if (options.m_echo_comment_commands == eLazyBoolCalculate) {
-        if (m_command_source_flags.empty()) {
-          // Echo comments by default
-          flags |= eHandleCommandFlagEchoCommentCommand;
-        } else if (m_command_source_flags.back() &
-                   eHandleCommandFlagEchoCommentCommand) {
-          flags |= eHandleCommandFlagEchoCommentCommand;
-        }
-      } else if (options.m_echo_comment_commands == eLazyBoolYes) {
-        flags |= eHandleCommandFlagEchoCommentCommand;
-      }
-
-      if (options.m_print_results == eLazyBoolCalculate) {
-        if (m_command_source_flags.empty()) {
-          // Print output by default
-          flags |= eHandleCommandFlagPrintResult;
-        } else if (m_command_source_flags.back() &
-                   eHandleCommandFlagPrintResult) {
-          flags |= eHandleCommandFlagPrintResult;
-        }
-      } else if (options.m_print_results == eLazyBoolYes) {
-        flags |= eHandleCommandFlagPrintResult;
-      }
-
-      if (flags & eHandleCommandFlagPrintResult) {
-        debugger.GetOutputFile()->Printf("Executing commands in '%s'.\n",
-                                         cmd_file_path.c_str());
-      }
-
-      // Used for inheriting the right settings when "command source" might
-      // have nested "command source" commands
-      lldb::StreamFileSP empty_stream_sp;
-      m_command_source_flags.push_back(flags);
-      IOHandlerSP io_handler_sp(new IOHandlerEditline(
-          debugger, IOHandler::Type::CommandInterpreter, input_file_sp,
-          empty_stream_sp, // Pass in an empty stream so we inherit the top
-                           // input reader output stream
-          empty_stream_sp, // Pass in an empty stream so we inherit the top
-                           // input reader error stream
-          flags,
-          nullptr, // Pass in NULL for "editline_name" so no history is saved,
-                   // or written
-          debugger.GetPrompt(), llvm::StringRef(),
-          false, // Not multi-line
-          debugger.GetUseColor(), 0, *this));
-      const bool old_async_execution = debugger.GetAsyncExecution();
-
-      // Set synchronous execution if we are not stopping on continue
-      if ((flags & eHandleCommandFlagStopOnContinue) == 0)
-        debugger.SetAsyncExecution(false);
-
-      m_command_source_depth++;
-
-      debugger.RunIOHandler(io_handler_sp);
-      if (!m_command_source_flags.empty())
-        m_command_source_flags.pop_back();
-      m_command_source_depth--;
-      result.SetStatus(eReturnStatusSuccessFinishNoResult);
-      debugger.SetAsyncExecution(old_async_execution);
-    } else {
-      result.AppendErrorWithFormat(
-          "error: an error occurred read file '%s': %s\n",
-          cmd_file_path.c_str(), error.AsCString());
-      result.SetStatus(eReturnStatusFailed);
-    }
-
-  } else {
+  if (!FileSystem::Instance().Exists(cmd_file)) {
     result.AppendErrorWithFormat(
         "Error reading commands from file %s - file not found.\n",
         cmd_file.GetFilename().AsCString("<Unknown>"));
     result.SetStatus(eReturnStatusFailed);
     return;
   }
-}
 
-ScriptInterpreter *CommandInterpreter::GetScriptInterpreter(bool can_create) {
-  std::lock_guard<std::recursive_mutex> locker(m_script_interpreter_mutex);
-  if (!m_script_interpreter_sp) {
-    if (!can_create)
-      return nullptr;
-    lldb::ScriptLanguage script_lang = GetDebugger().GetScriptLanguage();
-    m_script_interpreter_sp =
-        PluginManager::GetScriptInterpreterForLanguage(script_lang, *this);
+  StreamFileSP input_file_sp(new StreamFile());
+  std::string cmd_file_path = cmd_file.GetPath();
+  Status error = FileSystem::Instance().Open(input_file_sp->GetFile(), cmd_file,
+                                             File::eOpenOptionRead);
+
+  if (error.Fail()) {
+    result.AppendErrorWithFormat(
+        "error: an error occurred read file '%s': %s\n", cmd_file_path.c_str(),
+        error.AsCString());
+    result.SetStatus(eReturnStatusFailed);
+    return;
   }
-  return m_script_interpreter_sp.get();
+
+  Debugger &debugger = GetDebugger();
+
+  uint32_t flags = 0;
+
+  if (options.m_stop_on_continue == eLazyBoolCalculate) {
+    if (m_command_source_flags.empty()) {
+      // Stop on continue by default
+      flags |= eHandleCommandFlagStopOnContinue;
+    } else if (m_command_source_flags.back() &
+               eHandleCommandFlagStopOnContinue) {
+      flags |= eHandleCommandFlagStopOnContinue;
+    }
+  } else if (options.m_stop_on_continue == eLazyBoolYes) {
+    flags |= eHandleCommandFlagStopOnContinue;
+  }
+
+  if (options.m_stop_on_error == eLazyBoolCalculate) {
+    if (m_command_source_flags.empty()) {
+      if (GetStopCmdSourceOnError())
+        flags |= eHandleCommandFlagStopOnError;
+    } else if (m_command_source_flags.back() & eHandleCommandFlagStopOnError) {
+      flags |= eHandleCommandFlagStopOnError;
+    }
+  } else if (options.m_stop_on_error == eLazyBoolYes) {
+    flags |= eHandleCommandFlagStopOnError;
+  }
+
+  // stop-on-crash can only be set, if it is present in all levels of
+  // pushed flag sets.
+  if (options.GetStopOnCrash()) {
+    if (m_command_source_flags.empty()) {
+      flags |= eHandleCommandFlagStopOnCrash;
+    } else if (m_command_source_flags.back() & eHandleCommandFlagStopOnCrash) {
+      flags |= eHandleCommandFlagStopOnCrash;
+    }
+  }
+
+  if (options.m_echo_commands == eLazyBoolCalculate) {
+    if (m_command_source_flags.empty()) {
+      // Echo command by default
+      flags |= eHandleCommandFlagEchoCommand;
+    } else if (m_command_source_flags.back() & eHandleCommandFlagEchoCommand) {
+      flags |= eHandleCommandFlagEchoCommand;
+    }
+  } else if (options.m_echo_commands == eLazyBoolYes) {
+    flags |= eHandleCommandFlagEchoCommand;
+  }
+
+  // We will only ever ask for this flag, if we echo commands in general.
+  if (options.m_echo_comment_commands == eLazyBoolCalculate) {
+    if (m_command_source_flags.empty()) {
+      // Echo comments by default
+      flags |= eHandleCommandFlagEchoCommentCommand;
+    } else if (m_command_source_flags.back() &
+               eHandleCommandFlagEchoCommentCommand) {
+      flags |= eHandleCommandFlagEchoCommentCommand;
+    }
+  } else if (options.m_echo_comment_commands == eLazyBoolYes) {
+    flags |= eHandleCommandFlagEchoCommentCommand;
+  }
+
+  if (options.m_print_results == eLazyBoolCalculate) {
+    if (m_command_source_flags.empty()) {
+      // Print output by default
+      flags |= eHandleCommandFlagPrintResult;
+    } else if (m_command_source_flags.back() & eHandleCommandFlagPrintResult) {
+      flags |= eHandleCommandFlagPrintResult;
+    }
+  } else if (options.m_print_results == eLazyBoolYes) {
+    flags |= eHandleCommandFlagPrintResult;
+  }
+
+  if (options.m_print_errors == eLazyBoolCalculate) {
+    if (m_command_source_flags.empty()) {
+      // Print output by default
+      flags |= eHandleCommandFlagPrintErrors;
+    } else if (m_command_source_flags.back() & eHandleCommandFlagPrintErrors) {
+      flags |= eHandleCommandFlagPrintErrors;
+    }
+  } else if (options.m_print_errors == eLazyBoolYes) {
+    flags |= eHandleCommandFlagPrintErrors;
+  }
+
+  if (flags & eHandleCommandFlagPrintResult) {
+    debugger.GetOutputFile()->Printf("Executing commands in '%s'.\n",
+                                     cmd_file_path.c_str());
+  }
+
+  // Used for inheriting the right settings when "command source" might
+  // have nested "command source" commands
+  lldb::StreamFileSP empty_stream_sp;
+  m_command_source_flags.push_back(flags);
+  IOHandlerSP io_handler_sp(new IOHandlerEditline(
+      debugger, IOHandler::Type::CommandInterpreter, input_file_sp,
+      empty_stream_sp, // Pass in an empty stream so we inherit the top
+                       // input reader output stream
+      empty_stream_sp, // Pass in an empty stream so we inherit the top
+                       // input reader error stream
+      flags,
+      nullptr, // Pass in NULL for "editline_name" so no history is saved,
+               // or written
+      debugger.GetPrompt(), llvm::StringRef(),
+      false, // Not multi-line
+      debugger.GetUseColor(), 0, *this, nullptr));
+  const bool old_async_execution = debugger.GetAsyncExecution();
+
+  // Set synchronous execution if we are not stopping on continue
+  if ((flags & eHandleCommandFlagStopOnContinue) == 0)
+    debugger.SetAsyncExecution(false);
+
+  m_command_source_depth++;
+
+  debugger.RunIOHandler(io_handler_sp);
+  if (!m_command_source_flags.empty())
+    m_command_source_flags.pop_back();
+  m_command_source_depth--;
+  result.SetStatus(eReturnStatusSuccessFinishNoResult);
+  debugger.SetAsyncExecution(old_async_execution);
 }
 
 bool CommandInterpreter::GetSynchronous() { return m_synchronous_execution; }
@@ -2588,7 +2615,7 @@ void CommandInterpreter::OutputHelpText(Stream &strm, llvm::StringRef word_text,
   uint32_t chars_left = max_columns;
 
   auto nextWordLength = [](llvm::StringRef S) {
-    size_t pos = S.find_first_of(' ');
+    size_t pos = S.find(' ');
     return pos == llvm::StringRef::npos ? S.size() : pos;
   };
 
@@ -2801,7 +2828,9 @@ void CommandInterpreter::IOHandlerInputComplete(IOHandler &io_handler,
   HandleCommand(line.c_str(), eLazyBoolCalculate, result);
 
   // Now emit the command output text from the command we just executed
-  if (io_handler.GetFlags().Test(eHandleCommandFlagPrintResult)) {
+  if ((result.Succeeded() &&
+       io_handler.GetFlags().Test(eHandleCommandFlagPrintResult)) ||
+      io_handler.GetFlags().Test(eHandleCommandFlagPrintErrors)) {
     // Display any STDOUT/STDERR _prior_ to emitting the command result text
     GetProcessOutput();
 
@@ -2885,7 +2914,8 @@ bool CommandInterpreter::IOHandlerInterrupt(IOHandler &io_handler) {
     }
   }
 
-  ScriptInterpreter *script_interpreter = GetScriptInterpreter(false);
+  ScriptInterpreter *script_interpreter =
+      m_debugger.GetScriptInterpreter(false);
   if (script_interpreter) {
     if (script_interpreter->Interrupt())
       return true;
@@ -2904,8 +2934,9 @@ void CommandInterpreter::GetLLDBCommandsFromIOHandler(
                             llvm::StringRef(), // Continuation prompt
                             true,              // Get multiple lines
                             debugger.GetUseColor(),
-                            0,          // Don't show line numbers
-                            delegate)); // IOHandlerDelegate
+                            0,         // Don't show line numbers
+                            delegate,  // IOHandlerDelegate
+                            nullptr)); // FileShadowCollector
 
   if (io_handler_sp) {
     io_handler_sp->SetUserData(baton);
@@ -2927,8 +2958,9 @@ void CommandInterpreter::GetPythonCommandsFromIOHandler(
                             llvm::StringRef(), // Continuation prompt
                             true,              // Get multiple lines
                             debugger.GetUseColor(),
-                            0,          // Don't show line numbers
-                            delegate)); // IOHandlerDelegate
+                            0,         // Don't show line numbers
+                            delegate,  // IOHandlerDelegate
+                            nullptr)); // FileShadowCollector
 
   if (io_handler_sp) {
     io_handler_sp->SetUserData(baton);
@@ -2968,19 +3000,23 @@ CommandInterpreter::GetIOHandler(bool force_create,
         flags |= eHandleCommandFlagEchoCommentCommand;
       if (options->m_print_results != eLazyBoolNo)
         flags |= eHandleCommandFlagPrintResult;
+      if (options->m_print_errors != eLazyBoolNo)
+        flags |= eHandleCommandFlagPrintErrors;
     } else {
-      flags = eHandleCommandFlagEchoCommand | eHandleCommandFlagPrintResult;
+      flags = eHandleCommandFlagEchoCommand | eHandleCommandFlagPrintResult |
+              eHandleCommandFlagPrintErrors;
     }
 
-    m_command_io_handler_sp.reset(new IOHandlerEditline(
+    m_command_io_handler_sp = std::make_shared<IOHandlerEditline>(
         m_debugger, IOHandler::Type::CommandInterpreter,
         m_debugger.GetInputFile(), m_debugger.GetOutputFile(),
         m_debugger.GetErrorFile(), flags, "lldb", m_debugger.GetPrompt(),
         llvm::StringRef(), // Continuation prompt
         false, // Don't enable multiple line input, just single line commands
         m_debugger.GetUseColor(),
-        0, // Don't show line numbers
-        *this));
+        0,     // Don't show line numbers
+        *this, // IOHandlerDelegate
+        GetDebugger().GetInputRecorder());
   }
   return m_command_io_handler_sp;
 }
@@ -3170,7 +3206,7 @@ CommandInterpreter::ResolveCommandImpl(std::string &command_line,
   if (!scratch_command.empty())
     revised_command_line.Printf(" %s", scratch_command.c_str());
 
-  if (cmd_obj != NULL)
+  if (cmd_obj != nullptr)
     command_line = revised_command_line.GetString();
 
   return cmd_obj;

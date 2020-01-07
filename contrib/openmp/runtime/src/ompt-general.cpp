@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -362,10 +361,11 @@ void ompt_post_init() {
           ompt_thread_initial, __ompt_get_thread_data_internal());
     }
     ompt_data_t *task_data;
-    __ompt_get_task_info_internal(0, NULL, &task_data, NULL, NULL, NULL);
-    if (ompt_enabled.ompt_callback_task_create) {
-      ompt_callbacks.ompt_callback(ompt_callback_task_create)(
-          NULL, NULL, task_data, ompt_task_initial, 0, NULL);
+    ompt_data_t *parallel_data;
+    __ompt_get_task_info_internal(0, NULL, &task_data, NULL, &parallel_data, NULL);
+    if (ompt_enabled.ompt_callback_implicit_task) {
+      ompt_callbacks.ompt_callback(ompt_callback_implicit_task)(
+          ompt_scope_begin, parallel_data, task_data, 1, 1, ompt_task_initial);
     }
 
     ompt_set_thread_state(root_thread, ompt_state_work_serial);
@@ -450,6 +450,9 @@ OMPT_API_ROUTINE ompt_set_result_t ompt_set_callback(ompt_callbacks_t which,
 
 OMPT_API_ROUTINE int ompt_get_callback(ompt_callbacks_t which,
                                        ompt_callback_t *callback) {
+  if (!ompt_enabled.enabled)
+    return ompt_get_callback_failure;
+
   switch (which) {
 
 #define ompt_event_macro(event_name, callback_type, event_id)                  \
@@ -457,7 +460,7 @@ OMPT_API_ROUTINE int ompt_get_callback(ompt_callbacks_t which,
     if (ompt_event_implementation_status(event_name)) {                        \
       ompt_callback_t mycb =                                                   \
           (ompt_callback_t)ompt_callbacks.ompt_callback(event_name);           \
-      if (mycb) {                                                              \
+      if (ompt_enabled.event_name && mycb) {                                   \
         *callback = mycb;                                                      \
         return ompt_get_callback_success;                                      \
       }                                                                        \
@@ -480,11 +483,15 @@ OMPT_API_ROUTINE int ompt_get_callback(ompt_callbacks_t which,
 OMPT_API_ROUTINE int ompt_get_parallel_info(int ancestor_level,
                                             ompt_data_t **parallel_data,
                                             int *team_size) {
+  if (!ompt_enabled.enabled)
+    return 0;
   return __ompt_get_parallel_info_internal(ancestor_level, parallel_data,
                                            team_size);
 }
 
 OMPT_API_ROUTINE int ompt_get_state(ompt_wait_id_t *wait_id) {
+  if (!ompt_enabled.enabled)
+    return ompt_state_work_serial;
   int thread_state = __ompt_get_state_internal(wait_id);
 
   if (thread_state == ompt_state_undefined) {
@@ -499,6 +506,8 @@ OMPT_API_ROUTINE int ompt_get_state(ompt_wait_id_t *wait_id) {
  ****************************************************************************/
 
 OMPT_API_ROUTINE ompt_data_t *ompt_get_thread_data(void) {
+  if (!ompt_enabled.enabled)
+    return NULL;
   return __ompt_get_thread_data_internal();
 }
 
@@ -507,14 +516,15 @@ OMPT_API_ROUTINE int ompt_get_task_info(int ancestor_level, int *type,
                                         ompt_frame_t **task_frame,
                                         ompt_data_t **parallel_data,
                                         int *thread_num) {
+  if (!ompt_enabled.enabled)
+    return 0;
   return __ompt_get_task_info_internal(ancestor_level, type, task_data,
                                        task_frame, parallel_data, thread_num);
 }
 
 OMPT_API_ROUTINE int ompt_get_task_memory(void **addr, size_t *size,
                                           int block) {
-  // stub
-  return 0;
+  return __ompt_get_task_memory_internal(addr, size, block);
 }
 
 /*****************************************************************************
@@ -581,7 +591,7 @@ OMPT_API_ROUTINE int ompt_get_place_num(void) {
 #if !KMP_AFFINITY_SUPPORTED
   return -1;
 #else
-  if (__kmp_get_gtid() < 0)
+  if (!ompt_enabled.enabled || __kmp_get_gtid() < 0)
     return -1;
 
   int gtid;
@@ -602,7 +612,7 @@ OMPT_API_ROUTINE int ompt_get_partition_place_nums(int place_nums_size,
 #if !KMP_AFFINITY_SUPPORTED
   return 0;
 #else
-  if (__kmp_get_gtid() < 0)
+  if (!ompt_enabled.enabled || __kmp_get_gtid() < 0)
     return 0;
 
   int i, gtid, place_num, first_place, last_place, start, end;
@@ -637,7 +647,7 @@ OMPT_API_ROUTINE int ompt_get_partition_place_nums(int place_nums_size,
  ****************************************************************************/
 
 OMPT_API_ROUTINE int ompt_get_proc_id(void) {
-  if (__kmp_get_gtid() < 0)
+  if (!ompt_enabled.enabled || __kmp_get_gtid() < 0)
     return -1;
 #if KMP_OS_LINUX
   return sched_getcpu();
@@ -689,9 +699,7 @@ OMPT_API_ROUTINE uint64_t ompt_get_unique_id(void) {
   return __ompt_get_unique_id_internal();
 }
 
-OMPT_API_ROUTINE void ompt_finalize_tool(void) {
-  // stub
-}
+OMPT_API_ROUTINE void ompt_finalize_tool(void) { __kmp_internal_end_atexit(); }
 
 /*****************************************************************************
  * Target

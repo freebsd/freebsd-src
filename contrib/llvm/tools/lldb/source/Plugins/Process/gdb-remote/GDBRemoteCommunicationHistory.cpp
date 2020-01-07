@@ -1,9 +1,8 @@
 //===-- GDBRemoteCommunicationHistory.cpp -----------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -46,7 +45,7 @@ void GDBRemoteCommunicationHistory::AddPacket(char packet_char, PacketType type,
   m_packets[idx].bytes_transmitted = bytes_transmitted;
   m_packets[idx].packet_idx = m_total_packet_count;
   m_packets[idx].tid = llvm::get_threadid();
-  if (m_stream && type == ePacketTypeRecv)
+  if (m_stream)
     m_packets[idx].Serialize(*m_stream);
 }
 
@@ -63,7 +62,7 @@ void GDBRemoteCommunicationHistory::AddPacket(const std::string &src,
   m_packets[idx].bytes_transmitted = bytes_transmitted;
   m_packets[idx].packet_idx = m_total_packet_count;
   m_packets[idx].tid = llvm::get_threadid();
-  if (m_stream && type == ePacketTypeRecv)
+  if (m_stream)
     m_packets[idx].Serialize(*m_stream);
 }
 

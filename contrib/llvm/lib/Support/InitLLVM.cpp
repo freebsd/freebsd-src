@@ -1,9 +1,8 @@
 //===-- InitLLVM.cpp -----------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -24,6 +23,7 @@ using namespace llvm::sys;
 
 InitLLVM::InitLLVM(int &Argc, const char **&Argv) : StackPrinter(Argc, Argv) {
   sys::PrintStackTraceOnErrorSignal(Argv[0]);
+  install_out_of_memory_new_handler();
 
 #ifdef _WIN32
   // We use UTF-8 as the internal character encoding. On Windows,

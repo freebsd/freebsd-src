@@ -1,9 +1,8 @@
 //===-- DWARFDeclContext.h --------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,18 +14,16 @@
 #include "lldb/Utility/ConstString.h"
 #include "DWARFDefines.h"
 
-//----------------------------------------------------------------------
 // DWARFDeclContext
 //
 // A class that represents a declaration context all the way down to a
 // DIE. This is useful when trying to find a DIE in one DWARF to a DIE
 // in another DWARF file.
-//----------------------------------------------------------------------
 
 class DWARFDeclContext {
 public:
   struct Entry {
-    Entry() : tag(0), name(NULL) {}
+    Entry() : tag(0), name(nullptr) {}
     Entry(dw_tag_t t, const char *n) : tag(t), name(n) {}
 
     bool NameMatches(const Entry &rhs) const {

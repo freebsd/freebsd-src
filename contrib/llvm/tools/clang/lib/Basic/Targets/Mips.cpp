@@ -1,9 +1,8 @@
 //===--- Mips.cpp - Implement Mips target feature support -----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -40,6 +39,7 @@ bool MipsTargetInfo::processorSupportsGPR64() const {
       .Case("mips64r5", true)
       .Case("mips64r6", true)
       .Case("octeon", true)
+      .Case("octeon+", true)
       .Default(false);
   return false;
 }
@@ -48,7 +48,7 @@ static constexpr llvm::StringLiteral ValidCPUNames[] = {
     {"mips1"},  {"mips2"},    {"mips3"},    {"mips4"},    {"mips5"},
     {"mips32"}, {"mips32r2"}, {"mips32r3"}, {"mips32r5"}, {"mips32r6"},
     {"mips64"}, {"mips64r2"}, {"mips64r3"}, {"mips64r5"}, {"mips64r6"},
-    {"octeon"}, {"p5600"}};
+    {"octeon"}, {"octeon+"}, {"p5600"}};
 
 bool MipsTargetInfo::isValidCPUName(StringRef Name) const {
   return llvm::find(ValidCPUNames, Name) != std::end(ValidCPUNames);
@@ -62,7 +62,7 @@ void MipsTargetInfo::fillValidCPUList(
 unsigned MipsTargetInfo::getISARev() const {
   return llvm::StringSwitch<unsigned>(getCPU())
              .Cases("mips32", "mips64", 1)
-             .Cases("mips32r2", "mips64r2", 2)
+             .Cases("mips32r2", "mips64r2", "octeon", "octeon+", 2)
              .Cases("mips32r3", "mips64r3", 3)
              .Cases("mips32r5", "mips64r5", 5)
              .Cases("mips32r6", "mips64r6", 6)
@@ -188,7 +188,13 @@ void MipsTargetInfo::getTargetDefines(const LangOptions &Opts,
   Builder.defineMacro("_MIPS_SZLONG", Twine(getLongWidth()));
 
   Builder.defineMacro("_MIPS_ARCH", "\"" + CPU + "\"");
-  Builder.defineMacro("_MIPS_ARCH_" + StringRef(CPU).upper());
+  if (CPU == "octeon+")
+    Builder.defineMacro("_MIPS_ARCH_OCTEONP");
+  else
+    Builder.defineMacro("_MIPS_ARCH_" + StringRef(CPU).upper());
+
+  if (StringRef(CPU).startswith("octeon"))
+    Builder.defineMacro("__OCTEON__");
 
   // These shouldn't be defined for MIPS-I but there's no need to check
   // for that since MIPS-I isn't supported.
@@ -214,6 +220,14 @@ bool MipsTargetInfo::hasFeature(StringRef Feature) const {
 ArrayRef<Builtin::Info> MipsTargetInfo::getTargetBuiltins() const {
   return llvm::makeArrayRef(BuiltinInfo, clang::Mips::LastTSBuiltin -
                                              Builtin::FirstTSBuiltin);
+}
+
+unsigned MipsTargetInfo::getUnwindWordWidth() const {
+  return llvm::StringSwitch<unsigned>(ABI)
+      .Case("o32", 32)
+      .Case("n32", 64)
+      .Case("n64", 64)
+      .Default(getPointerWidth(0));
 }
 
 bool MipsTargetInfo::validateTarget(DiagnosticsEngine &Diags) const {

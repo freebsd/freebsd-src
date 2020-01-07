@@ -1,9 +1,8 @@
 //=- llvm/CodeGen/GlobalISel/RegBankSelect.h - Reg Bank Selector --*- C++ -*-=//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -524,7 +523,7 @@ private:
   /// \p OnlyAssign == true means that \p Reg just needs to be assigned a
   /// register bank.  I.e., no repairing is necessary to have the
   /// assignment match.
-  bool assignmentMatch(unsigned Reg,
+  bool assignmentMatch(Register Reg,
                        const RegisterBankInfo::ValueMapping &ValMapping,
                        bool &OnlyAssign) const;
 
@@ -563,7 +562,7 @@ private:
   bool repairReg(MachineOperand &MO,
                  const RegisterBankInfo::ValueMapping &ValMapping,
                  RegBankSelect::RepairingPlacement &RepairPt,
-                 const iterator_range<SmallVectorImpl<unsigned>::const_iterator>
+                 const iterator_range<SmallVectorImpl<Register>::const_iterator>
                      &NewVRegs);
 
   /// Return the cost of the instruction needed to map \p MO to \p ValMapping.
@@ -632,6 +631,11 @@ public:
   MachineFunctionProperties getSetProperties() const override {
     return MachineFunctionProperties().set(
         MachineFunctionProperties::Property::RegBankSelected);
+  }
+
+  MachineFunctionProperties getClearedProperties() const override {
+    return MachineFunctionProperties()
+      .set(MachineFunctionProperties::Property::NoPHIs);
   }
 
   /// Walk through \p MF and assign a register bank to every virtual register

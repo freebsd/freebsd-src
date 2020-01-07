@@ -4,12 +4,24 @@ PACKAGE=	clibs
 SHLIB_NAME=	libgcc_s.so.1
 SHLIBDIR?=	/lib
 
+.include <bsd.opts.mk>
+
 MK_SSP=		no
 WARNS?=	2
 
 LDFLAGS+=	-nodefaultlibs
 LIBADD+=	c
-VERSION_MAP=	${.CURDIR}/Version.map
+
+.if ${MK_SYMVER} == "yes"
+VERSION_DEF=	${.CURDIR}/Versions.def
+SYMBOL_MAPS=	${.CURDIR}/Symbol.map
+# Export ARM AEABI unwind routines needed by libc and libthr.
+.if exists(${.CURDIR}/${MACHINE_CPUARCH}/Symbol.map)
+SYMBOL_MAPS+=	${.CURDIR}/${MACHINE_CPUARCH}/Symbol.map
+.else
+SYMBOL_MAPS+=	${.CURDIR}/SymbolDefault.map
+.endif
+.endif
 
 .include "../libcompiler_rt/Makefile.inc"
 .include "../libgcc_eh/Makefile.inc"

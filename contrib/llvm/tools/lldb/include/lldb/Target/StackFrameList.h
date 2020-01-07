@@ -1,9 +1,8 @@
 //===-- StackFrameList.h ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,9 +19,7 @@ namespace lldb_private {
 
 class StackFrameList {
 public:
-  //------------------------------------------------------------------
   // Constructors and Destructors
-  //------------------------------------------------------------------
   StackFrameList(Thread &thread, const lldb::StackFrameListSP &prev_frames_sp,
                  bool show_inline_frames);
 
@@ -92,7 +89,7 @@ protected:
 
   bool SetFrameAtIndex(uint32_t idx, lldb::StackFrameSP &frame_sp);
 
-  static void Merge(std::unique_ptr<StackFrameList> &curr_ap,
+  static void Merge(std::unique_ptr<StackFrameList> &curr_up,
                     lldb::StackFrameListSP &prev_sp);
 
   void GetFramesUpTo(uint32_t end_idx);

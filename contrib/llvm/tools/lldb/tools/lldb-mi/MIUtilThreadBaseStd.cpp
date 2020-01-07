@@ -1,9 +1,8 @@
 //===-- MIUtilThreadBaseStd.cpp ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,7 +14,6 @@
 #include "MIUtilThreadBaseStd.h"
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Constructor.
 // Type:    None.
 // Args:    None.
@@ -26,7 +24,6 @@ CMIUtilThreadActiveObjBase::CMIUtilThreadActiveObjBase()
     : m_references(0), m_bHasBeenKilled(false) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Destructor.
 // Type:    None.
 // Args:    None.
@@ -39,7 +36,6 @@ CMIUtilThreadActiveObjBase::~CMIUtilThreadActiveObjBase() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Check if an object is already running.
 // Type:    Method.
 // Args:    None.
@@ -53,7 +49,6 @@ bool CMIUtilThreadActiveObjBase::ThreadIsActive() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Set up *this thread.
 // Type:    Method.
 // Args:    None.
@@ -67,7 +62,6 @@ bool CMIUtilThreadActiveObjBase::ThreadExecute() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Acquire a reference to CMIUtilThreadActiveObjBase.
 // Type:    Method.
 // Args:    None.
@@ -86,7 +80,6 @@ bool CMIUtilThreadActiveObjBase::Acquire() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Release a reference to CMIUtilThreadActiveObjBase.
 // Type:    Method.
 // Args:    None.
@@ -105,7 +98,6 @@ bool CMIUtilThreadActiveObjBase::Release() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Force this thread to stop, regardless of references
 // Type:    Method.
 // Args:    None.
@@ -124,7 +116,6 @@ bool CMIUtilThreadActiveObjBase::ThreadKill() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Proxy to thread join.
 // Type:    Method.
 // Args:    None.
@@ -135,7 +126,6 @@ bool CMIUtilThreadActiveObjBase::ThreadKill() {
 bool CMIUtilThreadActiveObjBase::ThreadJoin() { return m_thread.Join(); }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: This function is the entry point of this object thread.
 //          It is a trampoline to an instances operation manager.
 // Type:    Static method.
@@ -159,7 +149,6 @@ MIuint CMIUtilThreadActiveObjBase::ThreadEntry(void *vpThisClass) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: This function forms a small management routine, to handle the
 // thread's running.
 // Type:    Method.
@@ -197,15 +186,11 @@ void CMIUtilThreadActiveObjBase::ThreadManage() {
   m_thread.Finish();
 }
 
-//---------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------
 
 //
 CMIUtilThread::CMIUtilThread() : m_pThread(nullptr), m_bIsActive(false) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMIUtilThread destructor.
 // Type:    Method.
 // Args:    None.
@@ -215,7 +200,6 @@ CMIUtilThread::CMIUtilThread() : m_pThread(nullptr), m_bIsActive(false) {}
 CMIUtilThread::~CMIUtilThread() { Join(); }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Wait for thread to stop.
 // Type:    Method.
 // Args:    None.
@@ -240,7 +224,6 @@ bool CMIUtilThread::Join() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Is the thread doing work.
 // Type:    Method.
 // Args:    None.
@@ -254,7 +237,6 @@ bool CMIUtilThread::IsActive() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Finish this thread
 // Type:    Method.
 // Args:    None.
@@ -268,7 +250,6 @@ void CMIUtilThread::Finish() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Set up *this thread.
 // Type:    Method.
 // Args:    vpFn    (R) - Function pointer to thread's main function.
@@ -291,12 +272,8 @@ bool CMIUtilThread::Start(FnThreadProc vpFn, void *vpArg) {
   return MIstatus::success;
 }
 
-//---------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Take resource.
 // Type:    Method.
 // Args:    None.
@@ -306,7 +283,6 @@ bool CMIUtilThread::Start(FnThreadProc vpFn, void *vpArg) {
 void CMIUtilThreadMutex::Lock() { m_mutex.lock(); }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Release resource.
 // Type:    Method.
 // Args:    None.
@@ -316,7 +292,6 @@ void CMIUtilThreadMutex::Lock() { m_mutex.lock(); }
 void CMIUtilThreadMutex::Unlock() { m_mutex.unlock(); }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Take resource if available. Immediately return in either case.
 // Type:    Method.
 // Args:    None.

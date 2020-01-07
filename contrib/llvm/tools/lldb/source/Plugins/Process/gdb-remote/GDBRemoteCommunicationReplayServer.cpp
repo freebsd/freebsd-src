@@ -1,9 +1,8 @@
 //===-- GDBRemoteCommunicationReplayServer.cpp ------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -31,12 +30,49 @@ using namespace lldb;
 using namespace lldb_private;
 using namespace lldb_private::process_gdb_remote;
 
+/// Check if the given expected packet matches the actual packet.
+static bool unexpected(llvm::StringRef expected, llvm::StringRef actual) {
+  // The 'expected' string contains the raw data, including the leading $ and
+  // trailing checksum. The 'actual' string contains only the packet's content.
+  if (expected.contains(actual))
+    return false;
+  // Contains a PID which might be different.
+  if (expected.contains("vAttach"))
+    return false;
+  // Contains a ascii-hex-path.
+  if (expected.contains("QSetSTD"))
+    return false;
+  // Contains environment values.
+  if (expected.contains("QEnvironment"))
+    return false;
+
+  return true;
+}
+
+/// Check if we should reply to the given packet.
+static bool skip(llvm::StringRef data) {
+  assert(!data.empty() && "Empty packet?");
+
+  // We've already acknowledge the '+' packet so we're done here.
+  if (data == "+")
+    return true;
+
+  /// Don't 't reply to ^C. We need this because of stop reply packets, which
+  /// are only returned when the target halts. Reproducers synchronize these
+  /// 'asynchronous' replies, by recording them as a regular replies to the
+  /// previous packet (e.g. vCont). As a result, we should ignore real
+  /// asynchronous requests.
+  if (data.data()[0] == 0x03)
+    return true;
+
+  return false;
+}
+
 GDBRemoteCommunicationReplayServer::GDBRemoteCommunicationReplayServer()
-    : GDBRemoteCommunication("gdb-remote.server",
-                             "gdb-remote.server.rx_packet"),
-      m_async_broadcaster(nullptr, "lldb.gdb-remote.server.async-broadcaster"),
+    : GDBRemoteCommunication("gdb-replay", "gdb-replay.rx_packet"),
+      m_async_broadcaster(nullptr, "lldb.gdb-replay.async-broadcaster"),
       m_async_listener_sp(
-          Listener::MakeListener("lldb.gdb-remote.server.async-listener")),
+          Listener::MakeListener("lldb.gdb-replay.async-listener")),
       m_async_thread_state_mutex(), m_skip_acks(false) {
   m_async_broadcaster.SetEventName(eBroadcastBitAsyncContinue,
                                    "async thread continue");
@@ -56,6 +92,8 @@ GDBRemoteCommunicationReplayServer::~GDBRemoteCommunicationReplayServer() {
 GDBRemoteCommunication::PacketResult
 GDBRemoteCommunicationReplayServer::GetPacketAndSendResponse(
     Timeout<std::micro> timeout, Status &error, bool &interrupt, bool &quit) {
+  std::lock_guard<std::recursive_mutex> guard(m_async_thread_state_mutex);
+
   StringExtractorGDBRemote packet;
   PacketResult packet_result = WaitForPacketNoLock(packet, timeout, false);
 
@@ -71,32 +109,65 @@ GDBRemoteCommunicationReplayServer::GetPacketAndSendResponse(
 
   m_async_broadcaster.BroadcastEvent(eBroadcastBitAsyncContinue);
 
-  if (m_skip_acks) {
-    const StringExtractorGDBRemote::ServerPacketType packet_type =
-        packet.GetServerPacketType();
-    switch (packet_type) {
-    case StringExtractorGDBRemote::eServerPacketType_nack:
-    case StringExtractorGDBRemote::eServerPacketType_ack:
-      return PacketResult::Success;
-    default:
-      break;
-    }
-  } else if (packet.GetStringRef() == "QStartNoAckMode") {
-    m_skip_acks = true;
-    m_send_acks = false;
-  }
+  // Check if we should reply to this packet.
+  if (skip(packet.GetStringRef()))
+    return PacketResult::Success;
 
+  // This completes the handshake. Since m_send_acks was true, we can unset it
+  // already.
+  if (packet.GetStringRef() == "QStartNoAckMode")
+    m_send_acks = false;
+
+  // A QEnvironment packet is sent for every environment variable. If the
+  // number of environment variables is different during replay, the replies
+  // become out of sync.
+  if (packet.GetStringRef().find("QEnvironment") == 0)
+    return SendRawPacketNoLock("$OK#9a");
+
+  Log *log(ProcessGDBRemoteLog::GetLogIfAllCategoriesSet(GDBR_LOG_PROCESS));
   while (!m_packet_history.empty()) {
     // Pop last packet from the history.
     GDBRemoteCommunicationHistory::Entry entry = m_packet_history.back();
     m_packet_history.pop_back();
 
-    // We only care about what we received from the server. Skip everything
-    // the client sent.
-    if (entry.type != GDBRemoteCommunicationHistory::ePacketTypeRecv)
+    // We've handled the handshake implicitly before. Skip the packet and move
+    // on.
+    if (entry.packet.data == "+")
       continue;
 
-    return SendRawPacketNoLock(entry.packet.data, true);
+    if (entry.type == GDBRemoteCommunicationHistory::ePacketTypeSend) {
+      if (unexpected(entry.packet.data, packet.GetStringRef())) {
+        LLDB_LOG(log,
+                 "GDBRemoteCommunicationReplayServer expected packet: '{0}'",
+                 entry.packet.data);
+        LLDB_LOG(log, "GDBRemoteCommunicationReplayServer actual packet: '{0}'",
+                 packet.GetStringRef());
+        assert(false && "Encountered unexpected packet during replay");
+        return PacketResult::ErrorSendFailed;
+      }
+
+      // Ignore QEnvironment packets as they're handled earlier.
+      if (entry.packet.data.find("QEnvironment") == 1) {
+        assert(m_packet_history.back().type ==
+               GDBRemoteCommunicationHistory::ePacketTypeRecv);
+        m_packet_history.pop_back();
+      }
+
+      continue;
+    }
+
+    if (entry.type == GDBRemoteCommunicationHistory::ePacketTypeInvalid) {
+      LLDB_LOG(
+          log,
+          "GDBRemoteCommunicationReplayServer skipped invalid packet: '{0}'",
+          packet.GetStringRef());
+      continue;
+    }
+
+    LLDB_LOG(log,
+             "GDBRemoteCommunicationReplayServer replied to '{0}' with '{1}'",
+             packet.GetStringRef(), entry.packet.data);
+    return SendRawPacketNoLock(entry.packet.data);
   }
 
   quit = true;
@@ -132,9 +203,16 @@ bool GDBRemoteCommunicationReplayServer::StartAsyncThread() {
   if (!m_async_thread.IsJoinable()) {
     // Create a thread that watches our internal state and controls which
     // events make it to clients (into the DCProcess event queue).
-    m_async_thread = ThreadLauncher::LaunchThread(
-        "<lldb.gdb-remote.server.async>",
-        GDBRemoteCommunicationReplayServer::AsyncThread, this, nullptr);
+    llvm::Expected<HostThread> async_thread = ThreadLauncher::LaunchThread(
+        "<lldb.gdb-replay.async>",
+        GDBRemoteCommunicationReplayServer::AsyncThread, this);
+    if (!async_thread) {
+      LLDB_LOG(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_HOST),
+               "failed to launch host thread: {}",
+               llvm::toString(async_thread.takeError()));
+      return false;
+    }
+    m_async_thread = *async_thread;
   }
 
   // Wait for handshake.

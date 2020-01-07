@@ -1,9 +1,8 @@
 //===--- AArch64Subtarget.h - Define Subtarget for the AArch64 -*- C++ -*--===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -46,6 +45,7 @@ public:
     CortexA72,
     CortexA73,
     CortexA75,
+    CortexA76,
     Cyclone,
     ExynosM1,
     ExynosM3,
@@ -93,6 +93,12 @@ protected:
   bool HasPAN_RWV = false;
   bool HasCCPP = false;
 
+  // Armv8.2 Crypto extensions
+  bool HasSM4 = false;
+  bool HasSHA3 = false;
+  bool HasSHA2 = false;
+  bool HasAES = false;
+
   // ARMv8.3 extensions
   bool HasPA = false;
   bool HasJS = false;
@@ -110,15 +116,10 @@ protected:
   bool HasTLB_RMI = false;
   bool HasFMI = false;
   bool HasRCPC_IMMO = false;
-  // ARMv8.4 Crypto extensions
-  bool HasSM4 = true;
-  bool HasSHA3 = true;
-
-  bool HasSHA2 = true;
-  bool HasAES = true;
 
   bool HasLSLFast = false;
   bool HasSVE = false;
+  bool HasSVE2 = false;
   bool HasRCPC = false;
   bool HasAggressiveFMA = false;
 
@@ -133,6 +134,12 @@ protected:
   bool HasBTI = false;
   bool HasRandGen = false;
   bool HasMTE = false;
+
+  // Arm SVE2 extensions
+  bool HasSVE2AES = false;
+  bool HasSVE2SM4 = false;
+  bool HasSVE2SHA3 = false;
+  bool HasSVE2BitPerm = false;
 
   // HasZeroCycleRegMove - Has zero-cycle register mov instructions.
   bool HasZeroCycleRegMove = false;
@@ -173,6 +180,9 @@ protected:
   bool DisableLatencySchedHeuristic = false;
   bool UseRSqrt = false;
   bool Force32BitJumpTables = false;
+  bool UseEL1ForTP = false;
+  bool UseEL2ForTP = false;
+  bool UseEL3ForTP = false;
   uint8_t MaxInterleaveFactor = 2;
   uint8_t VectorInsertExtractBaseCost = 3;
   uint16_t CacheLineSize = 0;
@@ -324,6 +334,10 @@ public:
            hasFuseCCSelect() || hasFuseLiterals();
   }
 
+  bool useEL1ForTP() const { return UseEL1ForTP; }
+  bool useEL2ForTP() const { return UseEL2ForTP; }
+  bool useEL3ForTP() const { return UseEL3ForTP; }
+
   bool useRSqrt() const { return UseRSqrt; }
   bool force32BitJumpTables() const { return Force32BitJumpTables; }
   unsigned getMaxInterleaveFactor() const { return MaxInterleaveFactor; }
@@ -353,6 +367,7 @@ public:
   bool hasSPE() const { return HasSPE; }
   bool hasLSLFast() const { return HasLSLFast; }
   bool hasSVE() const { return HasSVE; }
+  bool hasSVE2() const { return HasSVE2; }
   bool hasRCPC() const { return HasRCPC; }
   bool hasAggressiveFMA() const { return HasAggressiveFMA; }
   bool hasAlternativeNZCV() const { return HasAlternativeNZCV; }
@@ -365,6 +380,11 @@ public:
   bool hasBTI() const { return HasBTI; }
   bool hasRandGen() const { return HasRandGen; }
   bool hasMTE() const { return HasMTE; }
+  // Arm SVE2 extensions
+  bool hasSVE2AES() const { return HasSVE2AES; }
+  bool hasSVE2SM4() const { return HasSVE2SM4; }
+  bool hasSVE2SHA3() const { return HasSVE2SHA3; }
+  bool hasSVE2BitPerm() const { return HasSVE2BitPerm; }
 
   bool isLittleEndian() const { return IsLittle; }
 

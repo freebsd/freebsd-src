@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -159,6 +158,10 @@ void __kmp_win32_mutex_lock(kmp_win32_mutex_t *mx) {
   EnterCriticalSection(&mx->cs);
 }
 
+int __kmp_win32_mutex_trylock(kmp_win32_mutex_t *mx) {
+  return TryEnterCriticalSection(&mx->cs);
+}
+
 void __kmp_win32_mutex_unlock(kmp_win32_mutex_t *mx) {
   LeaveCriticalSection(&mx->cs);
 }
@@ -190,8 +193,9 @@ void __kmp_win32_cond_destroy(kmp_win32_cond_t *cv) {
 /* TODO associate cv with a team instead of a thread so as to optimize
    the case where we wake up a whole team */
 
-void __kmp_win32_cond_wait(kmp_win32_cond_t *cv, kmp_win32_mutex_t *mx,
-                           kmp_info_t *th, int need_decrease_load) {
+template <class C>
+static void __kmp_win32_cond_wait(kmp_win32_cond_t *cv, kmp_win32_mutex_t *mx,
+                                  kmp_info_t *th, C *flag) {
   int my_generation;
   int last_waiter;
 
@@ -208,21 +212,46 @@ void __kmp_win32_cond_wait(kmp_win32_cond_t *cv, kmp_win32_mutex_t *mx,
   __kmp_win32_mutex_unlock(mx);
 
   for (;;) {
-    int wait_done;
-
+    int wait_done = 0;
+    DWORD res, timeout = 5000; // just tried to quess an appropriate number
     /* Wait until the event is signaled */
-    WaitForSingleObject(cv->event_, INFINITE);
+    res = WaitForSingleObject(cv->event_, timeout);
 
-    __kmp_win32_mutex_lock(&cv->waiters_count_lock_);
+    if (res == WAIT_OBJECT_0) {
+      // event signaled
+      __kmp_win32_mutex_lock(&cv->waiters_count_lock_);
+      /* Exit the loop when the <cv->event_> is signaled and there are still
+         waiting threads from this <wait_generation> that haven't been released
+         from this wait yet. */
+      wait_done = (cv->release_count_ > 0) &&
+                  (cv->wait_generation_count_ != my_generation);
+      __kmp_win32_mutex_unlock(&cv->waiters_count_lock_);
+    } else if (res == WAIT_TIMEOUT || res == WAIT_FAILED) {
+      // check if the flag and cv counters are in consistent state
+      // as MS sent us debug dump whith inconsistent state of data
+      __kmp_win32_mutex_lock(mx);
+      typename C::flag_t old_f = flag->set_sleeping();
+      if (!flag->done_check_val(old_f & ~KMP_BARRIER_SLEEP_STATE)) {
+        __kmp_win32_mutex_unlock(mx);
+        continue;
+      }
+      // condition fulfilled, exiting
+      old_f = flag->unset_sleeping();
+      KMP_DEBUG_ASSERT(old_f & KMP_BARRIER_SLEEP_STATE);
+      TCW_PTR(th->th.th_sleep_loc, NULL);
+      KF_TRACE(50, ("__kmp_win32_cond_wait: exiting, condition "
+                    "fulfilled: flag's loc(%p): %u => %u\n",
+                    flag->get(), old_f, *(flag->get())));
 
-    /* Exit the loop when the <cv->event_> is signaled and there are still
-       waiting threads from this <wait_generation> that haven't been released
-       from this wait yet. */
-    wait_done = (cv->release_count_ > 0) &&
-                (cv->wait_generation_count_ != my_generation);
+      __kmp_win32_mutex_lock(&cv->waiters_count_lock_);
+      KMP_DEBUG_ASSERT(cv->waiters_count_ > 0);
+      cv->release_count_ = cv->waiters_count_;
+      cv->wait_generation_count_++;
+      wait_done = 1;
+      __kmp_win32_mutex_unlock(&cv->waiters_count_lock_);
 
-    __kmp_win32_mutex_unlock(&cv->waiters_count_lock_);
-
+      __kmp_win32_mutex_unlock(mx);
+    }
     /* there used to be a semicolon after the if statement, it looked like a
        bug, so i removed it */
     if (wait_done)
@@ -280,24 +309,46 @@ void __kmp_disable(int *old_state) {
 void __kmp_suspend_initialize(void) { /* do nothing */
 }
 
-static void __kmp_suspend_initialize_thread(kmp_info_t *th) {
-  if (!TCR_4(th->th.th_suspend_init)) {
-    /* this means we haven't initialized the suspension pthread objects for this
-       thread in this instance of the process */
+void __kmp_suspend_initialize_thread(kmp_info_t *th) {
+  int old_value = KMP_ATOMIC_LD_RLX(&th->th.th_suspend_init);
+  int new_value = TRUE;
+  // Return if already initialized
+  if (old_value == new_value)
+    return;
+  // Wait, then return if being initialized
+  if (old_value == -1 ||
+      !__kmp_atomic_compare_store(&th->th.th_suspend_init, old_value, -1)) {
+    while (KMP_ATOMIC_LD_ACQ(&th->th.th_suspend_init) != new_value) {
+      KMP_CPU_PAUSE();
+    }
+  } else {
+    // Claim to be the initializer and do initializations
     __kmp_win32_cond_init(&th->th.th_suspend_cv);
     __kmp_win32_mutex_init(&th->th.th_suspend_mx);
-    TCW_4(th->th.th_suspend_init, TRUE);
+    KMP_ATOMIC_ST_REL(&th->th.th_suspend_init, new_value);
   }
 }
 
 void __kmp_suspend_uninitialize_thread(kmp_info_t *th) {
-  if (TCR_4(th->th.th_suspend_init)) {
+  if (KMP_ATOMIC_LD_ACQ(&th->th.th_suspend_init)) {
     /* this means we have initialize the suspension pthread objects for this
        thread in this instance of the process */
     __kmp_win32_cond_destroy(&th->th.th_suspend_cv);
     __kmp_win32_mutex_destroy(&th->th.th_suspend_mx);
-    TCW_4(th->th.th_suspend_init, FALSE);
+    KMP_ATOMIC_ST_REL(&th->th.th_suspend_init, FALSE);
   }
+}
+
+int __kmp_try_suspend_mx(kmp_info_t *th) {
+  return __kmp_win32_mutex_trylock(&th->th.th_suspend_mx);
+}
+
+void __kmp_lock_suspend_mx(kmp_info_t *th) {
+  __kmp_win32_mutex_lock(&th->th.th_suspend_mx);
+}
+
+void __kmp_unlock_suspend_mx(kmp_info_t *th) {
+  __kmp_win32_mutex_unlock(&th->th.th_suspend_mx);
 }
 
 /* This routine puts the calling thread to sleep after setting the
@@ -321,6 +372,12 @@ static inline void __kmp_suspend_template(int th_gtid, C *flag) {
   /* TODO: shouldn't this use release semantics to ensure that
      __kmp_suspend_initialize_thread gets called first? */
   old_spin = flag->set_sleeping();
+  if (__kmp_dflt_blocktime == KMP_MAX_BLOCKTIME &&
+      __kmp_pause_status != kmp_soft_paused) {
+    flag->unset_sleeping();
+    __kmp_win32_mutex_unlock(&th->th.th_suspend_mx);
+    return;
+  }
 
   KF_TRACE(5, ("__kmp_suspend_template: T#%d set sleep bit for flag's"
                " loc(%p)==%d\n",
@@ -354,12 +411,11 @@ static inline void __kmp_suspend_template(int th_gtid, C *flag) {
           KMP_DEBUG_ASSERT(TCR_4(__kmp_thread_pool_active_nth) >= 0);
         }
         deactivated = TRUE;
-
-        __kmp_win32_cond_wait(&th->th.th_suspend_cv, &th->th.th_suspend_mx, 0,
-                              0);
+        __kmp_win32_cond_wait(&th->th.th_suspend_cv, &th->th.th_suspend_mx, th,
+                              flag);
       } else {
-        __kmp_win32_cond_wait(&th->th.th_suspend_cv, &th->th.th_suspend_mx, 0,
-                              0);
+        __kmp_win32_cond_wait(&th->th.th_suspend_cv, &th->th.th_suspend_mx, th,
+                              flag);
       }
 
 #ifdef KMP_DEBUG
@@ -460,10 +516,7 @@ void __kmp_resume_oncore(int target_gtid, kmp_flag_oncore *flag) {
   __kmp_resume_template(target_gtid, flag);
 }
 
-void __kmp_yield(int cond) {
-  if (cond)
-    Sleep(0);
-}
+void __kmp_yield() { Sleep(0); }
 
 void __kmp_gtid_set_specific(int gtid) {
   if (__kmp_init_gtid) {
@@ -1222,8 +1275,8 @@ static void __kmp_reap_common(kmp_info_t *th) {
      Right solution seems to be waiting for *either* thread termination *or*
      ds_alive resetting. */
   {
-    // TODO: This code is very similar to KMP_WAIT_YIELD. Need to generalize
-    // KMP_WAIT_YIELD to cover this usage also.
+    // TODO: This code is very similar to KMP_WAIT. Need to generalize
+    // KMP_WAIT to cover this usage also.
     void *obj = NULL;
     kmp_uint32 spins;
 #if USE_ITT_BUILD
@@ -1235,8 +1288,7 @@ static void __kmp_reap_common(kmp_info_t *th) {
       KMP_FSYNC_SPIN_PREPARE(obj);
 #endif /* USE_ITT_BUILD */
       __kmp_is_thread_alive(th, &exit_val);
-      KMP_YIELD(TCR_4(__kmp_nth) > __kmp_avail_proc);
-      KMP_YIELD_SPIN(spins);
+      KMP_YIELD_OVERSUB_ELSE_SPIN(spins);
     } while (exit_val == STILL_ACTIVE && TCR_4(th->th.th_info.ds.ds_alive));
 #if USE_ITT_BUILD
     if (exit_val == STILL_ACTIVE) {

@@ -1,9 +1,8 @@
 //===--- PrecompiledPreamble.cpp - Build precompiled preambles --*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,6 +18,7 @@
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Frontend/FrontendOptions.h"
 #include "clang/Lex/Lexer.h"
+#include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Serialization/ASTWriter.h"
 #include "llvm/ADT/StringExtras.h"
@@ -157,9 +157,12 @@ private:
 class PrecompilePreambleConsumer : public PCHGenerator {
 public:
   PrecompilePreambleConsumer(PrecompilePreambleAction &Action,
-                             const Preprocessor &PP, StringRef isysroot,
+                             const Preprocessor &PP,
+                             InMemoryModuleCache &ModuleCache,
+                             StringRef isysroot,
                              std::unique_ptr<raw_ostream> Out)
-      : PCHGenerator(PP, "", isysroot, std::make_shared<PCHBuffer>(),
+      : PCHGenerator(PP, ModuleCache, "", isysroot,
+                     std::make_shared<PCHBuffer>(),
                      ArrayRef<std::shared_ptr<ModuleFileExtension>>(),
                      /*AllowASTWithErrors=*/true),
         Action(Action), Out(std::move(Out)) {}
@@ -211,7 +214,7 @@ PrecompilePreambleAction::CreateASTConsumer(CompilerInstance &CI,
     Sysroot.clear();
 
   return llvm::make_unique<PrecompilePreambleConsumer>(
-      *this, CI.getPreprocessor(), Sysroot, std::move(OS));
+      *this, CI.getPreprocessor(), CI.getModuleCache(), Sysroot, std::move(OS));
 }
 
 template <class T> bool moveOnNoError(llvm::ErrorOr<T> Val, T &Output) {
@@ -296,14 +299,13 @@ llvm::ErrorOr<PrecompiledPreamble> PrecompiledPreamble::Build(
   // created. This complexity should be lifted elsewhere.
   Clang->getTarget().adjust(Clang->getLangOpts());
 
-  assert(Clang->getFrontendOpts().Inputs.size() == 1 &&
-         "Invocation must have exactly one source file!");
-  assert(Clang->getFrontendOpts().Inputs[0].getKind().getFormat() ==
-             InputKind::Source &&
-         "FIXME: AST inputs not yet supported here!");
-  assert(Clang->getFrontendOpts().Inputs[0].getKind().getLanguage() !=
-             InputKind::LLVM_IR &&
-         "IR inputs not support here!");
+  if (Clang->getFrontendOpts().Inputs.size() != 1 ||
+      Clang->getFrontendOpts().Inputs[0].getKind().getFormat() !=
+          InputKind::Source ||
+      Clang->getFrontendOpts().Inputs[0].getKind().getLanguage() ==
+          InputKind::LLVM_IR) {
+    return BuildPreambleError::BadInputs;
+  }
 
   // Clear out old caches and data.
   Diagnostics.Reset();
@@ -347,8 +349,11 @@ llvm::ErrorOr<PrecompiledPreamble> PrecompiledPreamble::Build(
       Callbacks.createPPCallbacks();
   if (DelegatedPPCallbacks)
     Clang->getPreprocessor().addPPCallbacks(std::move(DelegatedPPCallbacks));
+  if (auto CommentHandler = Callbacks.getCommentHandler())
+    Clang->getPreprocessor().addCommentHandler(CommentHandler);
 
-  Act->Execute();
+  if (llvm::Error Err = Act->Execute())
+    return errorToErrorCode(std::move(Err));
 
   // Run the callbacks.
   Callbacks.AfterExecute(*Clang);
@@ -372,7 +377,7 @@ llvm::ErrorOr<PrecompiledPreamble> PrecompiledPreamble::Build(
           PrecompiledPreamble::PreambleFileHash::createForFile(File->getSize(),
                                                                ModTime);
     } else {
-      llvm::MemoryBuffer *Buffer = SourceMgr.getMemoryBufferForFile(File);
+      const llvm::MemoryBuffer *Buffer = SourceMgr.getMemoryBufferForFile(File);
       FilesInPreamble[File->getName()] =
           PrecompiledPreamble::PreambleFileHash::createForMemoryBuffer(Buffer);
     }
@@ -449,20 +454,33 @@ bool PrecompiledPreamble::CanReuse(const CompilerInvocation &Invocation,
         Status.getSize(), llvm::sys::toTimeT(Status.getLastModificationTime()));
   }
 
+  // OverridenFileBuffers tracks only the files not found in VFS.
+  llvm::StringMap<PreambleFileHash> OverridenFileBuffers;
   for (const auto &RB : PreprocessorOpts.RemappedFileBuffers) {
-    llvm::vfs::Status Status;
-    if (!moveOnNoError(VFS->status(RB.first), Status))
-      return false;
-
-    OverriddenFiles[Status.getUniqueID()] =
+    const PrecompiledPreamble::PreambleFileHash PreambleHash =
         PreambleFileHash::createForMemoryBuffer(RB.second);
+    llvm::vfs::Status Status;
+    if (moveOnNoError(VFS->status(RB.first), Status))
+      OverriddenFiles[Status.getUniqueID()] = PreambleHash;
+    else
+      OverridenFileBuffers[RB.first] = PreambleHash;
   }
 
   // Check whether anything has changed.
   for (const auto &F : FilesInPreamble) {
+    auto OverridenFileBuffer = OverridenFileBuffers.find(F.first());
+    if (OverridenFileBuffer != OverridenFileBuffers.end()) {
+      // The file's buffer was remapped and the file was not found in VFS.
+      // Check whether it matches up with the previous mapping.
+      if (OverridenFileBuffer->second != F.second)
+        return false;
+      continue;
+    }
+
     llvm::vfs::Status Status;
     if (!moveOnNoError(VFS->status(F.first()), Status)) {
-      // If we can't stat the file, assume that something horrible happened.
+      // If the file's buffer is not remapped and we can't stat it,
+      // assume that something horrible happened.
       return false;
     }
 
@@ -476,7 +494,8 @@ bool PrecompiledPreamble::CanReuse(const CompilerInvocation &Invocation,
       continue;
     }
 
-    // The file was not remapped; check whether it has changed on disk.
+    // Neither the file's buffer nor the file itself was remapped;
+    // check whether it has changed on disk.
     if (Status.getSize() != uint64_t(F.second.Size) ||
         llvm::sys::toTimeT(Status.getLastModificationTime()) !=
             F.second.ModTime)
@@ -743,6 +762,7 @@ void PreambleCallbacks::HandleTopLevelDecl(DeclGroupRef DG) {}
 std::unique_ptr<PPCallbacks> PreambleCallbacks::createPPCallbacks() {
   return nullptr;
 }
+CommentHandler *PreambleCallbacks::getCommentHandler() { return nullptr; }
 
 static llvm::ManagedStatic<BuildPreambleErrorCategory> BuildPreambleErrCategory;
 
@@ -764,6 +784,8 @@ std::string BuildPreambleErrorCategory::message(int condition) const {
     return "BeginSourceFile() return an error";
   case BuildPreambleError::CouldntEmitPCH:
     return "Could not emit PCH";
+  case BuildPreambleError::BadInputs:
+    return "Command line arguments must contain exactly one source file";
   }
   llvm_unreachable("unexpected BuildPreambleError");
 }

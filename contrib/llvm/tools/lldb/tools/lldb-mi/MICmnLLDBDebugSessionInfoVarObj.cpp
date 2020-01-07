@@ -1,9 +1,8 @@
 //===-- MICmnLLDBDebugSessionInfoVarObj.cpp ---------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -29,7 +28,6 @@ CMICmnLLDBDebugSessionInfoVarObj::varFormat_e
     CMICmnLLDBDebugSessionInfoVarObj::ms_eDefaultFormat = eVarFormat_Natural;
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnLLDBDebugSessionInfoVarObj constructor.
 // Type:    Method.
 // Args:    None.
@@ -42,7 +40,6 @@ CMICmnLLDBDebugSessionInfoVarObj::CMICmnLLDBDebugSessionInfoVarObj()
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnLLDBDebugSessionInfoVarObj constructor.
 // Type:    Method.
 // Args:    vrStrNameReal   - (R) The actual name of the variable, the
@@ -62,7 +59,6 @@ CMICmnLLDBDebugSessionInfoVarObj::CMICmnLLDBDebugSessionInfoVarObj(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnLLDBDebugSessionInfoVarObj constructor.
 // Type:    Method.
 // Args:    vrStrNameReal           - (R) The actual name of the variable, the
@@ -85,7 +81,6 @@ CMICmnLLDBDebugSessionInfoVarObj::CMICmnLLDBDebugSessionInfoVarObj(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnLLDBDebugSessionInfoVarObj copy constructor.
 // Type:    Method.
 // Args:    vrOther - (R) The object to copy from.
@@ -98,7 +93,6 @@ CMICmnLLDBDebugSessionInfoVarObj::CMICmnLLDBDebugSessionInfoVarObj(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnLLDBDebugSessionInfoVarObj copy constructor.
 // Type:    Method.
 // Args:    vrOther - (R) The object to copy from.
@@ -111,7 +105,6 @@ CMICmnLLDBDebugSessionInfoVarObj::CMICmnLLDBDebugSessionInfoVarObj(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnLLDBDebugSessionInfoVarObj move constructor.
 // Type:    Method.
 // Args:    vrwOther    - (R) The object to copy from.
@@ -124,7 +117,6 @@ CMICmnLLDBDebugSessionInfoVarObj::CMICmnLLDBDebugSessionInfoVarObj(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnLLDBDebugSessionInfoVarObj assignment operator.
 // Type:    Method.
 // Args:    vrOther - (R) The object to copy from.
@@ -139,7 +131,6 @@ operator=(const CMICmnLLDBDebugSessionInfoVarObj &vrOther) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnLLDBDebugSessionInfoVarObj assignment operator.
 // Type:    Method.
 // Args:    vrwOther    - (R) The object to copy from.
@@ -154,7 +145,6 @@ operator=(CMICmnLLDBDebugSessionInfoVarObj &&vrwOther) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Copy the other instance of that object to *this object.
 // Type:    Method.
 // Args:    vrOther - (R) The object to copy from.
@@ -180,7 +170,6 @@ bool CMICmnLLDBDebugSessionInfoVarObj::CopyOther(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Move that object to *this object.
 // Type:    Method.
 // Args:    vrwOther    - (RW) The object to copy from.
@@ -207,7 +196,6 @@ bool CMICmnLLDBDebugSessionInfoVarObj::MoveOther(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnLLDBDebugSessionInfoVarObj destructor.
 // Type:    Overridden.
 // Args:    None.
@@ -217,7 +205,6 @@ bool CMICmnLLDBDebugSessionInfoVarObj::MoveOther(
 CMICmnLLDBDebugSessionInfoVarObj::~CMICmnLLDBDebugSessionInfoVarObj() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the var format enumeration for the specified string.
 // Type:    Static method.
 // Args:    vrStrFormat - (R) Text description of the var format.
@@ -239,7 +226,6 @@ CMICmnLLDBDebugSessionInfoVarObj::GetVarFormatForString(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the var format enumeration for the specified character.
 // Type:    Static method.
 // Args:    vcFormat    - Character representing the var format.
@@ -263,7 +249,6 @@ CMICmnLLDBDebugSessionInfoVarObj::GetVarFormatForChar(char vcFormat) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Return the equivalent var value formatted string for the given value
 // type,
 //          which was prepared for printing (i.e. value was escaped and now it's
@@ -298,7 +283,6 @@ CMIUtilString CMICmnLLDBDebugSessionInfoVarObj::GetValueStringFormatted(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Return number formatted string according to the given value type.
 // Type:    Static method.
 // Args:    vnValue             - (R) The number value to get formatted.
@@ -341,7 +325,6 @@ CMIUtilString CMICmnLLDBDebugSessionInfoVarObj::GetStringFormatted(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Delete internal container contents.
 // Type:    Static method.
 // Args:    None.
@@ -353,7 +336,6 @@ void CMICmnLLDBDebugSessionInfoVarObj::VarObjClear() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Add a var object to the internal container.
 // Type:    Static method.
 // Args:    vrVarObj    - (R) The var value object.
@@ -368,7 +350,6 @@ void CMICmnLLDBDebugSessionInfoVarObj::VarObjAdd(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Delete the var object from the internal container matching the
 // specified name.
 // Type:    Static method.
@@ -386,7 +367,6 @@ void CMICmnLLDBDebugSessionInfoVarObj::VarObjDelete(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Update an existing var object in the internal container.
 // Type:    Static method.
 // Args:    vrVarObj    - (R) The var value object.
@@ -399,7 +379,6 @@ void CMICmnLLDBDebugSessionInfoVarObj::VarObjUpdate(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the var object matching the specified name.
 // Type:    Static method.
 // Args:    vrVarName   - (R) The var value name.
@@ -422,7 +401,6 @@ bool CMICmnLLDBDebugSessionInfoVarObj::VarObjGet(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: A count is kept of the number of var value objects created. This is
 // count is
 //          used to ID the var value object. Reset the count to 0.
@@ -436,7 +414,6 @@ void CMICmnLLDBDebugSessionInfoVarObj::VarObjIdResetToZero() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Default format is globally used as the data format when "natural" is
 // in effect, that is, this overrides the default
 // Type:    Static method.
@@ -450,7 +427,6 @@ void CMICmnLLDBDebugSessionInfoVarObj::VarObjSetFormat(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: A count is kept of the number of var value objects created. This is
 // count is
 //          used to ID the var value object. Increment the count by 1.
@@ -462,7 +438,6 @@ void CMICmnLLDBDebugSessionInfoVarObj::VarObjSetFormat(
 void CMICmnLLDBDebugSessionInfoVarObj::VarObjIdInc() { ms_nVarUniqueId++; }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: A count is kept of the number of var value objects created. This is
 // count is
 //          used to ID the var value object. Retrieve ID.
@@ -476,7 +451,6 @@ MIuint CMICmnLLDBDebugSessionInfoVarObj::VarObjIdGet() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the value formatted object's name.
 // Type:    Method.
 // Args:    None.
@@ -488,7 +462,6 @@ const CMIUtilString &CMICmnLLDBDebugSessionInfoVarObj::GetName() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the value formatted object's variable name as given in the
 // MI command
 //          to create the var object.
@@ -502,7 +475,6 @@ const CMIUtilString &CMICmnLLDBDebugSessionInfoVarObj::GetNameReal() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the value formatted string.
 // Type:    Method.
 // Args:    None.
@@ -515,7 +487,6 @@ CMICmnLLDBDebugSessionInfoVarObj::GetValueFormatted() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the LLDB Value object.
 // Type:    Method.
 // Args:    None.
@@ -527,7 +498,6 @@ lldb::SBValue &CMICmnLLDBDebugSessionInfoVarObj::GetValue() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the LLDB Value object.
 // Type:    Method.
 // Args:    None.
@@ -539,7 +509,6 @@ const lldb::SBValue &CMICmnLLDBDebugSessionInfoVarObj::GetValue() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Set the var format type for *this object and update the formatting.
 // Type:    Method.
 // Args:    None.
@@ -558,7 +527,6 @@ bool CMICmnLLDBDebugSessionInfoVarObj::SetVarFormat(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Update *this var obj. Update it's value and type.
 // Type:    Method.
 // Args:    None.
@@ -577,7 +545,6 @@ void CMICmnLLDBDebugSessionInfoVarObj::UpdateValue() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the enumeration type of the var object.
 // Type:    Method.
 // Args:    None.
@@ -590,7 +557,6 @@ CMICmnLLDBDebugSessionInfoVarObj::GetType() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the parent var object's name, the parent var object  to
 // *this var
 //          object (if assigned). The parent is equivalent to LLDB SBValue

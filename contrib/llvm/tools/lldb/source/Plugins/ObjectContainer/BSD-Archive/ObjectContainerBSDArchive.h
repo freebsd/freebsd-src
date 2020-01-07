@@ -1,9 +1,8 @@
 //===-- ObjectContainerBSDArchive.h -----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -32,9 +31,7 @@ public:
 
   ~ObjectContainerBSDArchive() override;
 
-  //------------------------------------------------------------------
   // Static Functions
-  //------------------------------------------------------------------
   static void Initialize();
 
   static void Terminate();
@@ -57,9 +54,7 @@ public:
 
   static bool MagicBytesMatch(const lldb_private::DataExtractor &data);
 
-  //------------------------------------------------------------------
   // Member Functions
-  //------------------------------------------------------------------
   bool ParseHeader() override;
 
   size_t GetNumObjects() const override {
@@ -72,9 +67,7 @@ public:
 
   lldb::ObjectFileSP GetObjectFile(const lldb_private::FileSpec *file) override;
 
-  //------------------------------------------------------------------
   // PluginInterface protocol
-  //------------------------------------------------------------------
   lldb_private::ConstString GetPluginName() override;
 
   uint32_t GetPluginVersion() override;
@@ -87,20 +80,29 @@ protected:
 
     lldb::offset_t Extract(const lldb_private::DataExtractor &data,
                            lldb::offset_t offset);
+    /// Object name in the archive.
+    lldb_private::ConstString ar_name;
 
-    lldb_private::ConstString ar_name; // name
-    uint32_t ar_date;                  // modification time
-    uint16_t ar_uid;                   // user id
-    uint16_t ar_gid;                   // group id
-    uint16_t ar_mode;                  // octal file permissions
-    uint32_t ar_size;                  // size in bytes
-    lldb::offset_t ar_file_offset; // file offset in bytes from the beginning of
-                                   // the file of the object data
-    lldb::offset_t ar_file_size;   // length of the object data
+    /// Object modification time in the archive.
+    uint32_t modification_time;
 
-    typedef std::vector<Object> collection;
-    typedef collection::iterator iterator;
-    typedef collection::const_iterator const_iterator;
+    /// Object user id in the archive.
+    uint16_t uid;
+
+    /// Object group id in the archive.
+    uint16_t gid;
+
+    /// Object octal file permissions in the archive.
+    uint16_t mode;
+
+    /// Object size in bytes in the archive.
+    uint32_t size;
+
+    /// File offset in bytes from the beginning of the file of the object data.
+    lldb::offset_t file_offset;
+
+    /// Length of the object data.
+    lldb::offset_t file_size;
   };
 
   class Archive {
@@ -132,17 +134,19 @@ protected:
     const Object *GetObjectAtIndex(size_t idx) {
       if (idx < m_objects.size())
         return &m_objects[idx];
-      return NULL;
+      return nullptr;
     }
 
     size_t ParseObjects();
 
-    Object *FindObject(const lldb_private::ConstString &object_name,
+    Object *FindObject(lldb_private::ConstString object_name,
                        const llvm::sys::TimePoint<> &object_mod_time);
 
     lldb::offset_t GetFileOffset() const { return m_file_offset; }
 
-    const llvm::sys::TimePoint<> &GetModificationTime() { return m_time; }
+    const llvm::sys::TimePoint<> &GetModificationTime() {
+      return m_modification_time;
+    }
 
     const lldb_private::ArchSpec &GetArchitecture() const { return m_arch; }
 
@@ -154,13 +158,11 @@ protected:
 
   protected:
     typedef lldb_private::UniqueCStringMap<uint32_t> ObjectNameToIndexMap;
-    //----------------------------------------------------------------------
     // Member Variables
-    //----------------------------------------------------------------------
     lldb_private::ArchSpec m_arch;
-    llvm::sys::TimePoint<> m_time;
+    llvm::sys::TimePoint<> m_modification_time;
     lldb::offset_t m_file_offset;
-    Object::collection m_objects;
+    std::vector<Object> m_objects;
     ObjectNameToIndexMap m_object_name_to_index_map;
     lldb_private::DataExtractor m_data; ///< The data for this object container
                                         ///so we don't lose data if the .a files

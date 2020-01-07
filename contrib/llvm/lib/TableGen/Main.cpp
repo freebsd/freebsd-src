@@ -1,9 +1,8 @@
 //===- Main.cpp - Top-Level TableGen implementation -----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -49,6 +48,9 @@ IncludeDirs("I", cl::desc("Directory of include files"),
 static cl::list<std::string>
 MacroNames("D", cl::desc("Name of the macro to be defined"),
             cl::value_desc("macro name"), cl::Prefix);
+
+static cl::opt<bool>
+WriteIfChanged("write-if-changed", cl::desc("Only write output if it changed"));
 
 static int reportError(const char *ProgName, Twine Msg) {
   errs() << ProgName << ": " << Msg;
@@ -115,12 +117,14 @@ int llvm::TableGenMain(char *argv0, TableGenMainFn *MainFn) {
       return Ret;
   }
 
-  // Only updates the real output file if there are any differences.
-  // This prevents recompilation of all the files depending on it if there
-  // aren't any.
-  if (auto ExistingOrErr = MemoryBuffer::getFile(OutputFilename))
-    if (std::move(ExistingOrErr.get())->getBuffer() == Out.str())
-      return 0;
+  if (WriteIfChanged) {
+    // Only updates the real output file if there are any differences.
+    // This prevents recompilation of all the files depending on it if there
+    // aren't any.
+    if (auto ExistingOrErr = MemoryBuffer::getFile(OutputFilename))
+      if (std::move(ExistingOrErr.get())->getBuffer() == Out.str())
+        return 0;
+  }
 
   std::error_code EC;
   ToolOutputFile OutFile(OutputFilename, EC, sys::fs::F_Text);

@@ -1,9 +1,8 @@
 //===-- lldb-forward.h ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,14 +13,11 @@
 
 #include "lldb/Utility/SharingPtr.h"
 
-//----------------------------------------------------------------------
 // lldb forward declarations
-//----------------------------------------------------------------------
 namespace lldb_private {
 
 class ABI;
 class Address;
-class AddressImpl;
 class AddressRange;
 class AddressResolver;
 class ArchSpec;
@@ -41,13 +37,13 @@ class BreakpointLocationList;
 class BreakpointName;
 class BreakpointOptionGroup;
 class BreakpointOptions;
+class BreakpointPrecondition;
 class BreakpointResolver;
 class BreakpointSite;
 class BreakpointSiteList;
 class BroadcastEventSpec;
 class Broadcaster;
 class BroadcasterManager;
-class CPPLanguageRuntime;
 class ClangASTContext;
 class ClangASTImporter;
 class ClangASTMetadata;
@@ -55,7 +51,6 @@ class ClangASTSource;
 class ClangExpressionDeclMap;
 class ClangExpressionParser;
 class ClangExpressionVariable;
-class ClangExpressionVariables;
 class ClangModulesDeclVendor;
 class ClangPersistentVariables;
 class CommandInterpreter;
@@ -70,7 +65,6 @@ class CompilerDecl;
 class CompilerDeclContext;
 class CompilerType;
 class CompileUnit;
-class Condition;
 class Connection;
 class ConnectionFileDescriptor;
 class ConstString;
@@ -97,7 +91,6 @@ class EventData;
 class EventDataStructuredData;
 class ExecutionContext;
 class ExecutionContextRef;
-class ExecutionContextRefLocker;
 class ExecutionContextScope;
 class Expression;
 class ExpressionVariable;
@@ -137,10 +130,7 @@ class Module;
 class ModuleList;
 class ModuleSpec;
 class ModuleSpecList;
-class Mutex;
 struct NameSearchContext;
-class ObjCLanguageRuntime;
-class ObjCRuntimeSyntheticProvider;
 class ObjectContainer;
 class OptionGroup;
 class OptionGroupOptions;
@@ -169,7 +159,6 @@ class OptionValueSInt64;
 class OptionValueString;
 class OptionValueUInt64;
 class OptionValueUUID;
-class NamedOption;
 class PathMappingList;
 class FunctionCaller;
 class PersistentExpressionState;
@@ -187,8 +176,6 @@ struct PropertyDefinition;
 class RecognizedStackFrame;
 class RegisterCheckpoint;
 class RegisterContext;
-class RegisterLocation;
-class RegisterLocationList;
 class RegisterValue;
 class RegularExpression;
 class REPL;
@@ -199,7 +186,6 @@ class ScriptInterpreterLocker;
 struct ScriptSummaryFormat;
 class SearchFilter;
 class Section;
-class SectionImpl;
 class SectionList;
 class SectionLoadHistory;
 class SectionLoadList;
@@ -207,7 +193,6 @@ class Settings;
 class SourceManager;
 class SourceManagerImpl;
 class StackFrame;
-class StackFrameImpl;
 class StackFrameList;
 class StackFrameRecognizer;
 class StackFrameRecognizerManager;
@@ -240,9 +225,7 @@ class SyntheticChildren;
 class SyntheticChildrenFrontEnd;
 class TypeFilterImpl;
 class TypeSystem;
-#ifndef LLDB_DISABLE_PYTHON
 class ScriptedSyntheticChildren;
-#endif
 class Queue;
 class QueueItem;
 class QueueImpl;
@@ -276,7 +259,6 @@ class TypeEnumMemberImpl;
 class TypeEnumMemberListImpl;
 class TypeFormatImpl;
 class TypeNameSpecifierImpl;
-class TypePair;
 class TypeValidatorImpl;
 class UUID;
 class UnixSignals;
@@ -305,9 +287,7 @@ struct LineEntry;
 
 } // namespace lldb_private
 
-//----------------------------------------------------------------------
 // lldb forward declarations
-//----------------------------------------------------------------------
 namespace lldb {
 
 typedef std::shared_ptr<lldb_private::ABI> ABISP;
@@ -319,6 +299,7 @@ typedef std::shared_ptr<lldb_private::BreakpointSite> BreakpointSiteSP;
 typedef std::weak_ptr<lldb_private::BreakpointSite> BreakpointSiteWP;
 typedef std::shared_ptr<lldb_private::BreakpointLocation> BreakpointLocationSP;
 typedef std::weak_ptr<lldb_private::BreakpointLocation> BreakpointLocationWP;
+typedef std::shared_ptr<lldb_private::BreakpointPrecondition> BreakpointPreconditionSP;
 typedef std::shared_ptr<lldb_private::BreakpointResolver> BreakpointResolverSP;
 typedef std::shared_ptr<lldb_private::Broadcaster> BroadcasterSP;
 typedef std::shared_ptr<lldb_private::BroadcasterManager> BroadcasterManagerSP;
@@ -479,10 +460,8 @@ typedef std::shared_ptr<lldb_private::TypeNameSpecifierImpl>
 typedef std::shared_ptr<lldb_private::TypeSummaryImpl> TypeSummaryImplSP;
 typedef std::shared_ptr<lldb_private::TypeSummaryOptions> TypeSummaryOptionsSP;
 typedef std::shared_ptr<lldb_private::TypeValidatorImpl> TypeValidatorImplSP;
-#ifndef LLDB_DISABLE_PYTHON
 typedef std::shared_ptr<lldb_private::ScriptedSyntheticChildren>
     ScriptedSyntheticChildrenSP;
-#endif
 typedef std::shared_ptr<lldb_private::UnixSignals> UnixSignalsSP;
 typedef std::weak_ptr<lldb_private::UnixSignals> UnixSignalsWP;
 typedef std::shared_ptr<lldb_private::UnwindAssembly> UnwindAssemblySP;
@@ -498,9 +477,7 @@ typedef std::shared_ptr<lldb_private::Watchpoint> WatchpointSP;
 
 } // namespace lldb
 
-//----------------------------------------------------------------------
 // llvm forward declarations
-//----------------------------------------------------------------------
 namespace llvm {
 
 struct ItaniumPartialDemangler;

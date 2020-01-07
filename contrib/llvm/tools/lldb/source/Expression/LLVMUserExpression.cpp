@@ -1,9 +1,8 @@
 //===-- LLVMUserExpression.cpp ----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,7 +12,6 @@
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/Expression/DiagnosticManager.h"
-#include "lldb/Expression/ExpressionSourceCode.h"
 #include "lldb/Expression/IRExecutionUnit.h"
 #include "lldb/Expression/IRInterpreter.h"
 #include "lldb/Expression/Materializer.h"
@@ -43,18 +41,17 @@ LLVMUserExpression::LLVMUserExpression(ExecutionContextScope &exe_scope,
                                        llvm::StringRef prefix,
                                        lldb::LanguageType language,
                                        ResultType desired_type,
-                                       const EvaluateExpressionOptions &options)
-    : UserExpression(exe_scope, expr, prefix, language, desired_type, options),
+                                       const EvaluateExpressionOptions &options,
+                                       ExpressionKind kind)
+    : UserExpression(exe_scope, expr, prefix, language, desired_type, options,
+                     kind),
       m_stack_frame_bottom(LLDB_INVALID_ADDRESS),
-      m_stack_frame_top(LLDB_INVALID_ADDRESS),
-      m_allow_cxx(false),
-      m_allow_objc(false),
-      m_transformed_text(),
-      m_execution_unit_sp(), m_materializer_ap(), m_jit_module_wp(),
-      m_enforce_valid_object(true), m_in_cplusplus_method(false),
-      m_in_objectivec_method(false), m_in_static_method(false),
-      m_needs_object_ptr(false), m_target(NULL), m_can_interpret(false),
-      m_materialized_address(LLDB_INVALID_ADDRESS) {}
+      m_stack_frame_top(LLDB_INVALID_ADDRESS), m_allow_cxx(false),
+      m_allow_objc(false), m_transformed_text(), m_execution_unit_sp(),
+      m_materializer_up(), m_jit_module_wp(), m_enforce_valid_object(true),
+      m_in_cplusplus_method(false), m_in_objectivec_method(false),
+      m_in_static_method(false), m_needs_object_ptr(false), m_target(nullptr),
+      m_can_interpret(false), m_materialized_address(LLDB_INVALID_ADDRESS) {}
 
 LLVMUserExpression::~LLVMUserExpression() {
   if (m_target) {
@@ -116,10 +113,9 @@ LLVMUserExpression::DoExecute(DiagnosticManager &diagnostic_manager,
       function_stack_bottom = m_stack_frame_bottom;
       function_stack_top = m_stack_frame_top;
 
-      IRInterpreter::Interpret(*module, *function, args,
-                               *m_execution_unit_sp.get(), interpreter_error,
-                               function_stack_bottom, function_stack_top,
-                               exe_ctx);
+      IRInterpreter::Interpret(*module, *function, args, *m_execution_unit_sp,
+                               interpreter_error, function_stack_bottom,
+                               function_stack_top, exe_ctx);
 
       if (!interpreter_error.Success()) {
         diagnostic_manager.Printf(eDiagnosticSeverityError,
@@ -185,7 +181,7 @@ LLVMUserExpression::DoExecute(DiagnosticManager &diagnostic_manager,
 
       if (execution_result == lldb::eExpressionInterrupted ||
           execution_result == lldb::eExpressionHitBreakpoint) {
-        const char *error_desc = NULL;
+        const char *error_desc = nullptr;
 
         if (call_plan_sp) {
           lldb::StopInfoSP real_stop_info_sp = call_plan_sp->GetRealStopInfo();
@@ -314,8 +310,8 @@ bool LLVMUserExpression::PrepareToExecuteJITExpression(
       const bool zero_memory = false;
 
       m_materialized_address = m_execution_unit_sp->Malloc(
-          m_materializer_ap->GetStructByteSize(),
-          m_materializer_ap->GetStructAlignment(),
+          m_materializer_up->GetStructByteSize(),
+          m_materializer_up->GetStructAlignment(),
           lldb::ePermissionsReadable | lldb::ePermissionsWritable, policy,
           zero_memory, alloc_error);
 
@@ -355,7 +351,7 @@ bool LLVMUserExpression::PrepareToExecuteJITExpression(
 
     Status materialize_error;
 
-    m_dematerializer_sp = m_materializer_ap->Materialize(
+    m_dematerializer_sp = m_materializer_up->Materialize(
         frame, *m_execution_unit_sp, struct_address, materialize_error);
 
     if (!materialize_error.Success()) {

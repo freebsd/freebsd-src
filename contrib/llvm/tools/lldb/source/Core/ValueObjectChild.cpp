@@ -1,9 +1,8 @@
 //===-- ValueObjectChild.cpp ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -29,7 +28,7 @@ using namespace lldb_private;
 
 ValueObjectChild::ValueObjectChild(
     ValueObject &parent, const CompilerType &compiler_type,
-    const ConstString &name, uint64_t byte_size, int32_t byte_offset,
+    ConstString name, uint64_t byte_size, int32_t byte_offset,
     uint32_t bitfield_bit_size, uint32_t bitfield_bit_offset,
     bool is_base_class, bool is_deref_of_parent,
     AddressType child_ptr_or_ref_addr_type, uint64_t language_flags)

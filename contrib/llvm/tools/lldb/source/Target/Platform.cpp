@@ -1,15 +1,15 @@
 //===-- Platform.cpp --------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include <algorithm>
 #include <csignal>
 #include <fstream>
+#include <memory>
 #include <vector>
 
 #include "llvm/Support/FileSystem.h"
@@ -79,7 +79,7 @@ ConstString PlatformProperties::GetSettingName() {
 }
 
 PlatformProperties::PlatformProperties() {
-  m_collection_sp.reset(new OptionValueProperties(GetSettingName()));
+  m_collection_sp = std::make_shared<OptionValueProperties>(GetSettingName());
   m_collection_sp->Initialize(g_properties);
 
   auto module_cache_dir = GetModuleCacheDirectory();
@@ -117,7 +117,6 @@ bool PlatformProperties::SetModuleCacheDirectory(const FileSpec &dir_spec) {
       nullptr, ePropertyModuleCacheDirectory, dir_spec);
 }
 
-//------------------------------------------------------------------
 /// Get the native host platform plug-in.
 ///
 /// There should only be one of these for each host that LLDB runs
@@ -126,7 +125,6 @@ bool PlatformProperties::SetModuleCacheDirectory(const FileSpec &dir_spec) {
 ///
 /// This platform will be used as the default platform when launching
 /// or attaching to processes unless another platform is specified.
-//------------------------------------------------------------------
 PlatformSP Platform::GetHostPlatform() { return GetHostPlatformSP(); }
 
 static std::vector<PlatformSP> &GetPlatformList() {
@@ -180,7 +178,7 @@ Platform::LocateExecutableScriptingResources(Target *target, Module &module,
 }
 
 // PlatformSP
-// Platform::FindPlugin (Process *process, const ConstString &plugin_name)
+// Platform::FindPlugin (Process *process, ConstString plugin_name)
 //{
 //    PlatformCreateInstance create_callback = nullptr;
 //    if (plugin_name)
@@ -267,7 +265,7 @@ bool Platform::GetModuleSpec(const FileSpec &module_file_spec,
                                              module_spec);
 }
 
-PlatformSP Platform::Find(const ConstString &name) {
+PlatformSP Platform::Find(ConstString name) {
   if (name) {
     static ConstString g_host_platform_name("host");
     if (name == g_host_platform_name)
@@ -282,7 +280,7 @@ PlatformSP Platform::Find(const ConstString &name) {
   return PlatformSP();
 }
 
-PlatformSP Platform::Create(const ConstString &name, Status &error) {
+PlatformSP Platform::Create(ConstString name, Status &error) {
   PlatformCreateInstance create_callback = nullptr;
   lldb::PlatformSP platform_sp;
   if (name) {
@@ -377,29 +375,25 @@ ArchSpec Platform::GetAugmentedArchSpec(Platform *platform, llvm::StringRef trip
   return HostInfo::GetAugmentedArchSpec(triple);
 }
 
-//------------------------------------------------------------------
 /// Default Constructor
-//------------------------------------------------------------------
 Platform::Platform(bool is_host)
     : m_is_host(is_host), m_os_version_set_while_connected(false),
       m_system_arch_set_while_connected(false), m_sdk_sysroot(), m_sdk_build(),
       m_working_dir(), m_remote_url(), m_name(), m_system_arch(), m_mutex(),
-      m_uid_map(), m_gid_map(), m_max_uid_name_len(0), m_max_gid_name_len(0),
-      m_supports_rsync(false), m_rsync_opts(), m_rsync_prefix(),
-      m_supports_ssh(false), m_ssh_opts(), m_ignores_remote_hostname(false),
-      m_trap_handlers(), m_calculated_trap_handlers(false),
+      m_max_uid_name_len(0), m_max_gid_name_len(0), m_supports_rsync(false),
+      m_rsync_opts(), m_rsync_prefix(), m_supports_ssh(false), m_ssh_opts(),
+      m_ignores_remote_hostname(false), m_trap_handlers(),
+      m_calculated_trap_handlers(false),
       m_module_cache(llvm::make_unique<ModuleCache>()) {
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_OBJECT));
   if (log)
     log->Printf("%p Platform::Platform()", static_cast<void *>(this));
 }
 
-//------------------------------------------------------------------
 /// Destructor.
 ///
 /// The destructor is virtual since this class is designed to be
 /// inherited from by the plug-in instance.
-//------------------------------------------------------------------
 Platform::~Platform() {
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_OBJECT));
   if (log)
@@ -834,34 +828,6 @@ bool Platform::SetRemoteWorkingDirectory(const FileSpec &working_dir) {
   return true;
 }
 
-const char *Platform::GetUserName(uint32_t uid) {
-#if !defined(LLDB_DISABLE_POSIX)
-  const char *user_name = GetCachedUserName(uid);
-  if (user_name)
-    return user_name;
-  if (IsHost()) {
-    std::string name;
-    if (HostInfo::LookupUserName(uid, name))
-      return SetCachedUserName(uid, name.c_str(), name.size());
-  }
-#endif
-  return nullptr;
-}
-
-const char *Platform::GetGroupName(uint32_t gid) {
-#if !defined(LLDB_DISABLE_POSIX)
-  const char *group_name = GetCachedGroupName(gid);
-  if (group_name)
-    return group_name;
-  if (IsHost()) {
-    std::string name;
-    if (HostInfo::LookupGroupName(gid, name))
-      return SetCachedGroupName(gid, name.c_str(), name.size());
-  }
-#endif
-  return nullptr;
-}
-
 bool Platform::SetOSVersion(llvm::VersionTuple version) {
   if (IsHost()) {
     // We don't need anyone setting the OS version for the host platform, we
@@ -1060,11 +1026,11 @@ Status Platform::LaunchProcess(ProcessLaunchInfo &launch_info) {
       uint32_t num_resumes = GetResumeCountForLaunchInfo(launch_info);
       if (log) {
         const FileSpec &shell = launch_info.GetShell();
-        const char *shell_str = (shell) ? shell.GetPath().c_str() : "<null>";
+        std::string shell_str = (shell) ? shell.GetPath() : "<null>";
         log->Printf(
             "Platform::%s GetResumeCountForLaunchInfo() returned %" PRIu32
             ", shell is '%s'",
-            __FUNCTION__, num_resumes, shell_str);
+            __FUNCTION__, num_resumes, shell_str.c_str());
       }
 
       if (!launch_info.ConvertArgumentsForLaunchingInShell(
@@ -1226,10 +1192,8 @@ Platform::GetPlatformForArchitecture(const ArchSpec &arch,
   return platform_sp;
 }
 
-//------------------------------------------------------------------
 /// Lets a platform answer if it is compatible with a given
 /// architecture and the target triple contained within.
-//------------------------------------------------------------------
 bool Platform::IsCompatibleArchitecture(const ArchSpec &arch,
                                         bool exact_arch_match,
                                         ArchSpec *compatible_arch_ptr) {
@@ -1740,9 +1704,9 @@ const UnixSignalsSP &Platform::GetRemoteUnixSignals() {
   return s_default_unix_signals_sp;
 }
 
-const UnixSignalsSP &Platform::GetUnixSignals() {
+UnixSignalsSP Platform::GetUnixSignals() {
   if (IsHost())
-    return Host::GetUnixSignals();
+    return UnixSignals::CreateForHost();
   return GetRemoteUnixSignals();
 }
 

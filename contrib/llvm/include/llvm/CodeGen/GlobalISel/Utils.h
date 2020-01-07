@@ -1,9 +1,8 @@
 //==-- llvm/CodeGen/GlobalISel/Utils.h ---------------------------*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,6 +15,7 @@
 #define LLVM_CODEGEN_GLOBALISEL_UTILS_H
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/CodeGen/Register.h"
 
 namespace llvm {
 
@@ -37,21 +37,37 @@ class ConstantFP;
 class APFloat;
 
 /// Try to constrain Reg to the specified register class. If this fails,
-/// create a new virtual register in the correct class and insert a COPY before
-/// \p InsertPt. The debug location of \p InsertPt is used for the new copy.
+/// create a new virtual register in the correct class.
 ///
 /// \return The virtual register constrained to the right register class.
 unsigned constrainRegToClass(MachineRegisterInfo &MRI,
                              const TargetInstrInfo &TII,
-                             const RegisterBankInfo &RBI,
-                             MachineInstr &InsertPt, unsigned Reg,
+                             const RegisterBankInfo &RBI, unsigned Reg,
                              const TargetRegisterClass &RegClass);
+
+/// Constrain the Register operand OpIdx, so that it is now constrained to the
+/// TargetRegisterClass passed as an argument (RegClass).
+/// If this fails, create a new virtual register in the correct class and
+/// insert a COPY before \p InsertPt if it is a use or after if it is a
+/// definition. The debug location of \p InsertPt is used for the new copy.
+///
+/// \return The virtual register constrained to the right register class.
+unsigned constrainOperandRegClass(const MachineFunction &MF,
+                                  const TargetRegisterInfo &TRI,
+                                  MachineRegisterInfo &MRI,
+                                  const TargetInstrInfo &TII,
+                                  const RegisterBankInfo &RBI,
+                                  MachineInstr &InsertPt,
+                                  const TargetRegisterClass &RegClass,
+                                  const MachineOperand &RegMO, unsigned OpIdx);
 
 /// Try to constrain Reg so that it is usable by argument OpIdx of the
 /// provided MCInstrDesc \p II. If this fails, create a new virtual
-/// register in the correct class and insert a COPY before \p InsertPt.
-/// This is equivalent to constrainRegToClass() with RegClass obtained from the
-/// MCInstrDesc. The debug location of \p InsertPt is used for the new copy.
+/// register in the correct class and insert a COPY before \p InsertPt
+/// if it is a use or after if it is a definition.
+/// This is equivalent to constrainOperandRegClass(..., RegClass, ...)
+/// with RegClass obtained from the MCInstrDesc. The debug location of \p
+/// InsertPt is used for the new copy.
 ///
 /// \return The virtual register constrained to the right register class.
 unsigned constrainOperandRegClass(const MachineFunction &MF,
@@ -90,16 +106,39 @@ void reportGISelFailure(MachineFunction &MF, const TargetPassConfig &TPC,
                         const char *PassName, StringRef Msg,
                         const MachineInstr &MI);
 
+/// If \p VReg is defined by a G_CONSTANT fits in int64_t
+/// returns it.
 Optional<int64_t> getConstantVRegVal(unsigned VReg,
                                      const MachineRegisterInfo &MRI);
+/// Simple struct used to hold a constant integer value and a virtual
+/// register.
+struct ValueAndVReg {
+  int64_t Value;
+  unsigned VReg;
+};
+/// If \p VReg is defined by a statically evaluable chain of
+/// instructions rooted on a G_CONSTANT (\p LookThroughInstrs == true)
+/// and that constant fits in int64_t, returns its value as well as
+/// the virtual register defined by this G_CONSTANT.
+/// When \p LookThroughInstrs == false, this function behaves like
+/// getConstantVRegVal.
+Optional<ValueAndVReg>
+getConstantVRegValWithLookThrough(unsigned VReg, const MachineRegisterInfo &MRI,
+                                  bool LookThroughInstrs = true);
 const ConstantFP* getConstantFPVRegVal(unsigned VReg,
                                        const MachineRegisterInfo &MRI);
 
 /// See if Reg is defined by an single def instruction that is
 /// Opcode. Also try to do trivial folding if it's a COPY with
 /// same types. Returns null otherwise.
-MachineInstr *getOpcodeDef(unsigned Opcode, unsigned Reg,
+MachineInstr *getOpcodeDef(unsigned Opcode, Register Reg,
                            const MachineRegisterInfo &MRI);
+
+/// Find the def instruction for \p Reg, folding away any trivial copies. Note
+/// it may still return a COPY, if it changes the type. May return nullptr if \p
+/// Reg is not a generic virtual register.
+MachineInstr *getDefIgnoringCopies(Register Reg,
+                                   const MachineRegisterInfo &MRI);
 
 /// Returns an APFloat from Val converted to the appropriate size.
 APFloat getAPFloatFromSize(double Val, unsigned Size);
@@ -111,5 +150,16 @@ void getSelectionDAGFallbackAnalysisUsage(AnalysisUsage &AU);
 Optional<APInt> ConstantFoldBinOp(unsigned Opcode, const unsigned Op1,
                                   const unsigned Op2,
                                   const MachineRegisterInfo &MRI);
+
+/// Returns true if \p Val can be assumed to never be a NaN. If \p SNaN is true,
+/// this returns if \p Val can be assumed to never be a signaling NaN.
+bool isKnownNeverNaN(Register Val, const MachineRegisterInfo &MRI,
+                     bool SNaN = false);
+
+/// Returns true if \p Val can be assumed to never be a signaling NaN.
+inline bool isKnownNeverSNaN(Register Val, const MachineRegisterInfo &MRI) {
+  return isKnownNeverNaN(Val, MRI, true);
+}
+
 } // End namespace llvm.
 #endif

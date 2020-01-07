@@ -1,9 +1,8 @@
 //===- StmtOpenMP.h - Classes for OpenMP directives  ------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file
@@ -88,6 +87,63 @@ protected:
   }
 
 public:
+  /// Iterates over expressions/statements used in the construct.
+  class used_clauses_child_iterator
+      : public llvm::iterator_adaptor_base<
+            used_clauses_child_iterator, ArrayRef<OMPClause *>::iterator,
+            std::forward_iterator_tag, Stmt *, ptrdiff_t, Stmt *, Stmt *> {
+    ArrayRef<OMPClause *>::iterator End;
+    OMPClause::child_iterator ChildI, ChildEnd;
+
+    void MoveToNext() {
+      if (ChildI != ChildEnd)
+        return;
+      while (this->I != End) {
+        ++this->I;
+        if (this->I != End) {
+          ChildI = (*this->I)->used_children().begin();
+          ChildEnd = (*this->I)->used_children().end();
+          if (ChildI != ChildEnd)
+            return;
+        }
+      }
+    }
+
+  public:
+    explicit used_clauses_child_iterator(ArrayRef<OMPClause *> Clauses)
+        : used_clauses_child_iterator::iterator_adaptor_base(Clauses.begin()),
+          End(Clauses.end()) {
+      if (this->I != End) {
+        ChildI = (*this->I)->used_children().begin();
+        ChildEnd = (*this->I)->used_children().end();
+        MoveToNext();
+      }
+    }
+    Stmt *operator*() const { return *ChildI; }
+    Stmt *operator->() const { return **this; }
+
+    used_clauses_child_iterator &operator++() {
+      ++ChildI;
+      if (ChildI != ChildEnd)
+        return *this;
+      if (this->I != End) {
+        ++this->I;
+        if (this->I != End) {
+          ChildI = (*this->I)->used_children().begin();
+          ChildEnd = (*this->I)->used_children().end();
+        }
+      }
+      MoveToNext();
+      return *this;
+    }
+  };
+
+  static llvm::iterator_range<used_clauses_child_iterator>
+  used_clauses_children(ArrayRef<OMPClause *> Clauses) {
+    return {used_clauses_child_iterator(Clauses),
+            used_clauses_child_iterator(llvm::makeArrayRef(Clauses.end(), 0))};
+  }
+
   /// Iterates over a filtered subrange of clauses applied to a
   /// directive.
   ///
@@ -257,10 +313,34 @@ public:
     return child_range(ChildStorage, ChildStorage + 1);
   }
 
+  const_child_range children() const {
+    if (!hasAssociatedStmt())
+      return const_child_range(const_child_iterator(), const_child_iterator());
+    Stmt **ChildStorage = reinterpret_cast<Stmt **>(
+        const_cast<OMPExecutableDirective *>(this)->getClauses().end());
+    return const_child_range(ChildStorage, ChildStorage + 1);
+  }
+
   ArrayRef<OMPClause *> clauses() { return getClauses(); }
 
   ArrayRef<OMPClause *> clauses() const {
     return const_cast<OMPExecutableDirective *>(this)->getClauses();
+  }
+
+  /// Returns whether or not this is a Standalone directive.
+  ///
+  /// Stand-alone directives are executable directives
+  /// that have no associated user code.
+  bool isStandaloneDirective() const;
+
+  /// Returns the AST node representing OpenMP structured-block of this
+  /// OpenMP executable directive,
+  /// Prerequisite: Executable Directive must not be Standalone directive.
+  const Stmt *getStructuredBlock() const;
+
+  Stmt *getStructuredBlock() {
+    return const_cast<Stmt *>(
+        const_cast<const OMPExecutableDirective *>(this)->getStructuredBlock());
   }
 };
 

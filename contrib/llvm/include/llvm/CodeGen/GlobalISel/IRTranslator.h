@@ -1,9 +1,8 @@
 //===- llvm/CodeGen/GlobalISel/IRTranslator.h - IRTranslator ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file
@@ -23,7 +22,9 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/GlobalISel/CSEMIRBuilder.h"
 #include "llvm/CodeGen/GlobalISel/Types.h"
+#include "llvm/CodeGen/SwiftErrorValueTracking.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/SwitchLoweringUtils.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/Support/Allocator.h"
 #include <memory>
@@ -37,6 +38,7 @@ class CallInst;
 class CallLowering;
 class Constant;
 class DataLayout;
+class FunctionLoweringInfo;
 class Instruction;
 class MachineBasicBlock;
 class MachineFunction;
@@ -69,7 +71,7 @@ private:
   public:
     ValueToVRegInfo() = default;
 
-    using VRegListT = SmallVector<unsigned, 1>;
+    using VRegListT = SmallVector<Register, 1>;
     using OffsetListT = SmallVector<uint64_t, 1>;
 
     using const_vreg_iterator =
@@ -164,6 +166,8 @@ private:
   /// this function.
   DenseMap<const AllocaInst *, int> FrameIndices;
 
+  SwiftErrorValueTracking SwiftError;
+
   /// \name Methods for translating form LLVM IR to MachineInstr.
   /// \see ::translate for general information on the translate methods.
   /// @{
@@ -196,7 +200,7 @@ private:
   /// the function.
   ///
   /// \return true if the materialization succeeded.
-  bool translate(const Constant &C, unsigned Reg);
+  bool translate(const Constant &C, Register Reg);
 
   /// Translate an LLVM bitcast into generic IR. Either a COPY or a G_BITCAST is
   /// emitted.
@@ -212,23 +216,26 @@ private:
   bool translateMemfunc(const CallInst &CI, MachineIRBuilder &MIRBuilder,
                         unsigned ID);
 
-  void getStackGuard(unsigned DstReg, MachineIRBuilder &MIRBuilder);
+  void getStackGuard(Register DstReg, MachineIRBuilder &MIRBuilder);
 
   bool translateOverflowIntrinsic(const CallInst &CI, unsigned Op,
                                   MachineIRBuilder &MIRBuilder);
+
+  /// Helper function for translateSimpleIntrinsic.
+  /// \return The generic opcode for \p IntrinsicID if \p IntrinsicID is a
+  /// simple intrinsic (ceil, fabs, etc.). Otherwise, returns
+  /// Intrinsic::not_intrinsic.
+  unsigned getSimpleIntrinsicOpcode(Intrinsic::ID ID);
+
+  /// Translates the intrinsics defined in getSimpleIntrinsicOpcode.
+  /// \return true if the translation succeeded.
+  bool translateSimpleIntrinsic(const CallInst &CI, Intrinsic::ID ID,
+                                MachineIRBuilder &MIRBuilder);
 
   bool translateKnownIntrinsic(const CallInst &CI, Intrinsic::ID ID,
                                MachineIRBuilder &MIRBuilder);
 
   bool translateInlineAsm(const CallInst &CI, MachineIRBuilder &MIRBuilder);
-
-  // FIXME: temporary function to expose previous interface to call lowering
-  // until it is refactored.
-  /// Combines all component registers of \p V into a single scalar with size
-  /// "max(Offsets) + last size".
-  unsigned packRegs(const Value &V, MachineIRBuilder &MIRBuilder);
-
-  void unpackRegs(const Value &V, unsigned Src, MachineIRBuilder &MIRBuilder);
 
   /// Returns true if the value should be split into multiple LLTs.
   /// If \p Offsets is given then the split type's offsets will be stored in it.
@@ -241,6 +248,8 @@ private:
   bool translateCall(const User &U, MachineIRBuilder &MIRBuilder);
 
   bool translateInvoke(const User &U, MachineIRBuilder &MIRBuilder);
+
+  bool translateCallBr(const User &U, MachineIRBuilder &MIRBuilder);
 
   bool translateLandingPad(const User &U, MachineIRBuilder &MIRBuilder);
 
@@ -278,7 +287,42 @@ private:
   /// \pre \p U is a branch instruction.
   bool translateBr(const User &U, MachineIRBuilder &MIRBuilder);
 
+  // Begin switch lowering functions.
+  bool emitJumpTableHeader(SwitchCG::JumpTable &JT,
+                           SwitchCG::JumpTableHeader &JTH,
+                           MachineBasicBlock *HeaderBB);
+  void emitJumpTable(SwitchCG::JumpTable &JT, MachineBasicBlock *MBB);
+
+  void emitSwitchCase(SwitchCG::CaseBlock &CB, MachineBasicBlock *SwitchBB,
+                      MachineIRBuilder &MIB);
+
+  bool lowerJumpTableWorkItem(SwitchCG::SwitchWorkListItem W,
+                              MachineBasicBlock *SwitchMBB,
+                              MachineBasicBlock *CurMBB,
+                              MachineBasicBlock *DefaultMBB,
+                              MachineIRBuilder &MIB,
+                              MachineFunction::iterator BBI,
+                              BranchProbability UnhandledProbs,
+                              SwitchCG::CaseClusterIt I,
+                              MachineBasicBlock *Fallthrough,
+                              bool FallthroughUnreachable);
+
+  bool lowerSwitchRangeWorkItem(SwitchCG::CaseClusterIt I,
+                                Value *Cond,
+                                MachineBasicBlock *Fallthrough,
+                                bool FallthroughUnreachable,
+                                BranchProbability UnhandledProbs,
+                                MachineBasicBlock *CurMBB,
+                                MachineIRBuilder &MIB,
+                                MachineBasicBlock *SwitchMBB);
+
+  bool lowerSwitchWorkItem(SwitchCG::SwitchWorkListItem W, Value *Cond,
+                           MachineBasicBlock *SwitchMBB,
+                           MachineBasicBlock *DefaultMBB,
+                           MachineIRBuilder &MIB);
+
   bool translateSwitch(const User &U, MachineIRBuilder &MIRBuilder);
+  // End switch lowering section.
 
   bool translateIndirectBr(const User &U, MachineIRBuilder &MIRBuilder);
 
@@ -404,6 +448,7 @@ private:
 
   bool translateAtomicCmpXchg(const User &U, MachineIRBuilder &MIRBuilder);
   bool translateAtomicRMW(const User &U, MachineIRBuilder &MIRBuilder);
+  bool translateFence(const User &U, MachineIRBuilder &MIRBuilder);
 
   // Stubs to keep the compiler happy while we implement the rest of the
   // translation.
@@ -417,9 +462,6 @@ private:
     return false;
   }
   bool translateCatchSwitch(const User &U, MachineIRBuilder &MIRBuilder) {
-    return false;
-  }
-  bool translateFence(const User &U, MachineIRBuilder &MIRBuilder) {
     return false;
   }
   bool translateAddrSpaceCast(const User &U, MachineIRBuilder &MIRBuilder) {
@@ -466,19 +508,50 @@ private:
   /// Current optimization remark emitter. Used to report failures.
   std::unique_ptr<OptimizationRemarkEmitter> ORE;
 
+  FunctionLoweringInfo FuncInfo;
+
+  // True when either the Target Machine specifies no optimizations or the
+  // function has the optnone attribute.
+  bool EnableOpts = false;
+
+  /// Switch analysis and optimization.
+  class GISelSwitchLowering : public SwitchCG::SwitchLowering {
+  public:
+    GISelSwitchLowering(IRTranslator *irt, FunctionLoweringInfo &funcinfo)
+        : SwitchLowering(funcinfo), IRT(irt) {
+      assert(irt && "irt is null!");
+    }
+
+    virtual void addSuccessorWithProb(
+        MachineBasicBlock *Src, MachineBasicBlock *Dst,
+        BranchProbability Prob = BranchProbability::getUnknown()) override {
+      IRT->addSuccessorWithProb(Src, Dst, Prob);
+    }
+
+    virtual ~GISelSwitchLowering() = default;
+
+  private:
+    IRTranslator *IRT;
+  };
+
+  std::unique_ptr<GISelSwitchLowering> SL;
+
   // * Insert all the code needed to materialize the constants
   // at the proper place. E.g., Entry block or dominator block
   // of each constant depending on how fancy we want to be.
   // * Clear the different maps.
   void finalizeFunction();
 
+  // Handle emitting jump tables for each basic block.
+  void finalizeBasicBlock();
+
   /// Get the VRegs that represent \p Val.
   /// Non-aggregate types have just one corresponding VReg and the list can be
   /// used as a single "unsigned". Aggregates get flattened. If such VRegs do
   /// not exist, they are created.
-  ArrayRef<unsigned> getOrCreateVRegs(const Value &Val);
+  ArrayRef<Register> getOrCreateVRegs(const Value &Val);
 
-  unsigned getOrCreateVReg(const Value &Val) {
+  Register getOrCreateVReg(const Value &Val) {
     auto Regs = getOrCreateVRegs(Val);
     if (Regs.empty())
       return 0;
@@ -521,6 +594,14 @@ private:
       return RemappedEdge->second;
     return SmallVector<MachineBasicBlock *, 4>(1, &getMBB(*Edge.first));
   }
+
+  /// Return branch probability calculated by BranchProbabilityInfo for IR
+  /// blocks.
+  BranchProbability getEdgeProbability(const MachineBasicBlock *Src,
+                                       const MachineBasicBlock *Dst) const;
+
+  void addSuccessorWithProb(MachineBasicBlock *Src, MachineBasicBlock *Dst,
+                            BranchProbability Prob);
 
 public:
   // Ctor, nothing fancy.

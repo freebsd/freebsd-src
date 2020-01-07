@@ -1,9 +1,8 @@
 //===- ModuleMap.cpp - Describe the layout of modules ---------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -807,12 +806,22 @@ std::pair<Module *, bool> ModuleMap::findOrCreateModule(StringRef Name,
   return std::make_pair(Result, true);
 }
 
-Module *ModuleMap::createGlobalModuleForInterfaceUnit(SourceLocation Loc) {
+Module *ModuleMap::createGlobalModuleFragmentForModuleUnit(SourceLocation Loc) {
   PendingSubmodules.emplace_back(
       new Module("<global>", Loc, nullptr, /*IsFramework*/ false,
                  /*IsExplicit*/ true, NumCreatedModules++));
   PendingSubmodules.back()->Kind = Module::GlobalModuleFragment;
   return PendingSubmodules.back().get();
+}
+
+Module *
+ModuleMap::createPrivateModuleFragmentForInterfaceUnit(Module *Parent,
+                                                       SourceLocation Loc) {
+  auto *Result =
+      new Module("<private>", Loc, Parent, /*IsFramework*/ false,
+                 /*IsExplicit*/ true, NumCreatedModules++);
+  Result->Kind = Module::PrivateModuleFragment;
+  return Result;
 }
 
 Module *ModuleMap::createModuleForInterfaceUnit(SourceLocation Loc,
@@ -1022,7 +1031,7 @@ Module *ModuleMap::inferFrameworkModule(const DirectoryEntry *FrameworkDir,
     = StringRef(FrameworkDir->getName());
   llvm::sys::path::append(SubframeworksDirName, "Frameworks");
   llvm::sys::path::native(SubframeworksDirName);
-  llvm::vfs::FileSystem &FS = *FileMgr.getVirtualFileSystem();
+  llvm::vfs::FileSystem &FS = FileMgr.getVirtualFileSystem();
   for (llvm::vfs::directory_iterator
            Dir = FS.dir_begin(SubframeworksDirName, EC),
            DirEnd;
@@ -2398,7 +2407,7 @@ void ModuleMapParser::parseUmbrellaDirDecl(SourceLocation UmbrellaLoc) {
     std::error_code EC;
     SmallVector<Module::Header, 6> Headers;
     llvm::vfs::FileSystem &FS =
-        *SourceMgr.getFileManager().getVirtualFileSystem();
+        SourceMgr.getFileManager().getVirtualFileSystem();
     for (llvm::vfs::recursive_directory_iterator I(FS, Dir->getName(), EC), E;
          I != E && !EC; I.increment(EC)) {
       if (const FileEntry *FE = SourceMgr.getFileManager().getFile(I->path())) {

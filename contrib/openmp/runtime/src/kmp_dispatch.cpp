@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -69,6 +68,20 @@ void __kmp_dispatch_dxo_error(int *gtid_ref, int *cid_ref, ident_t *loc_ref) {
   }
 }
 
+// Returns either SCHEDULE_MONOTONIC or SCHEDULE_NONMONOTONIC
+static inline int __kmp_get_monotonicity(enum sched_type schedule,
+                                         bool use_hier = false) {
+  // Pick up the nonmonotonic/monotonic bits from the scheduling type
+  int monotonicity;
+  // default to monotonic
+  monotonicity = SCHEDULE_MONOTONIC;
+  if (SCHEDULE_HAS_NONMONOTONIC(schedule))
+    monotonicity = SCHEDULE_NONMONOTONIC;
+  else if (SCHEDULE_HAS_MONOTONIC(schedule))
+    monotonicity = SCHEDULE_MONOTONIC;
+  return monotonicity;
+}
+
 // Initialize a dispatch_private_info_template<T> buffer for a particular
 // type of schedule,chunk.  The loop description is found in lb (lower bound),
 // ub (upper bound), and st (stride).  nproc is the number of threads relevant
@@ -96,6 +109,8 @@ void __kmp_dispatch_init_algorithm(ident_t *loc, int gtid,
   T tc;
   kmp_info_t *th;
   kmp_team_t *team;
+  int monotonicity;
+  bool use_hier;
 
 #ifdef KMP_DEBUG
   typedef typename traits_t<T>::signed_t ST;
@@ -118,21 +133,21 @@ void __kmp_dispatch_init_algorithm(ident_t *loc, int gtid,
   active = !team->t.t_serialized;
 
 #if USE_ITT_BUILD
-  int itt_need_metadata_reporting = __itt_metadata_add_ptr &&
-                                    __kmp_forkjoin_frames_mode == 3 &&
-                                    KMP_MASTER_GTID(gtid) &&
-#if OMP_40_ENABLED
-                                    th->th.th_teams_microtask == NULL &&
+  int itt_need_metadata_reporting =
+      __itt_metadata_add_ptr && __kmp_forkjoin_frames_mode == 3 &&
+      KMP_MASTER_GTID(gtid) && th->th.th_teams_microtask == NULL &&
+      team->t.t_active_level == 1;
 #endif
-                                    team->t.t_active_level == 1;
+
+#if KMP_USE_HIER_SCHED
+  use_hier = pr->flags.use_hier;
+#else
+  use_hier = false;
 #endif
-#if (KMP_STATIC_STEAL_ENABLED)
-  if (SCHEDULE_HAS_NONMONOTONIC(schedule))
-    // AC: we now have only one implementation of stealing, so use it
-    schedule = kmp_sch_static_steal;
-  else
-#endif
-    schedule = SCHEDULE_WITHOUT_MODIFIERS(schedule);
+
+  /* Pick up the nonmonotonic/monotonic bits from the scheduling type */
+  monotonicity = __kmp_get_monotonicity(schedule, use_hier);
+  schedule = SCHEDULE_WITHOUT_MODIFIERS(schedule);
 
   /* Pick up the nomerge/ordered bits from the scheduling type */
   if ((schedule >= kmp_nm_lower) && (schedule < kmp_nm_upper)) {
@@ -150,6 +165,10 @@ void __kmp_dispatch_init_algorithm(ident_t *loc, int gtid,
   } else {
     pr->flags.ordered = FALSE;
   }
+  // Ordered overrides nonmonotonic
+  if (pr->flags.ordered) {
+    monotonicity = SCHEDULE_MONOTONIC;
+  }
 
   if (schedule == kmp_sch_static) {
     schedule = __kmp_static;
@@ -158,6 +177,8 @@ void __kmp_dispatch_init_algorithm(ident_t *loc, int gtid,
       // Use the scheduling specified by OMP_SCHEDULE (or __kmp_sch_default if
       // not specified)
       schedule = team->t.t_sched.r_sched_type;
+      monotonicity = __kmp_get_monotonicity(schedule, use_hier);
+      schedule = SCHEDULE_WITHOUT_MODIFIERS(schedule);
       // Detail the schedule if needed (global controls are differentiated
       // appropriately)
       if (schedule == kmp_sch_guided_chunked) {
@@ -208,16 +229,23 @@ void __kmp_dispatch_init_algorithm(ident_t *loc, int gtid,
       }
 #endif
     }
-
+#if KMP_STATIC_STEAL_ENABLED
+    // map nonmonotonic:dynamic to static steal
+    if (schedule == kmp_sch_dynamic_chunked) {
+      if (monotonicity == SCHEDULE_NONMONOTONIC)
+        schedule = kmp_sch_static_steal;
+    }
+#endif
     /* guided analytical not safe for too many threads */
     if (schedule == kmp_sch_guided_analytical_chunked && nproc > 1 << 20) {
       schedule = kmp_sch_guided_iterative_chunked;
       KMP_WARNING(DispatchManyThreads);
     }
-#if OMP_45_ENABLED
     if (schedule == kmp_sch_runtime_simd) {
       // compiler provides simd_width in the chunk parameter
       schedule = team->t.t_sched.r_sched_type;
+      monotonicity = __kmp_get_monotonicity(schedule, use_hier);
+      schedule = SCHEDULE_WITHOUT_MODIFIERS(schedule);
       // Detail the schedule if needed (global controls are differentiated
       // appropriately)
       if (schedule == kmp_sch_static || schedule == kmp_sch_auto ||
@@ -237,15 +265,15 @@ void __kmp_dispatch_init_algorithm(ident_t *loc, int gtid,
       {
         char *buff;
         // create format specifiers before the debug output
-        buff = __kmp_str_format("__kmp_dispatch_init: T#%%d new: schedule:%%d"
-                                " chunk:%%%s\n",
-                                traits_t<ST>::spec);
+        buff = __kmp_str_format(
+            "__kmp_dispatch_init_algorithm: T#%%d new: schedule:%%d"
+            " chunk:%%%s\n",
+            traits_t<ST>::spec);
         KD_TRACE(10, (buff, gtid, schedule, chunk));
         __kmp_str_free(&buff);
       }
 #endif
     }
-#endif // OMP_45_ENABLED
     pr->u.p.parm1 = chunk;
   }
   KMP_ASSERT2((kmp_sch_lower < schedule && schedule < kmp_sch_upper),
@@ -283,6 +311,12 @@ void __kmp_dispatch_init_algorithm(ident_t *loc, int gtid,
       tc = 0; // zero-trip
     }
   }
+
+#if KMP_STATS_ENABLED
+  if (KMP_MASTER_GTID(gtid)) {
+    KMP_COUNT_VALUE(OMP_loop_dynamic_total_iterations, tc);
+  }
+#endif
 
   pr->u.p.lb = lb;
   pr->u.p.ub = ub;
@@ -326,7 +360,10 @@ void __kmp_dispatch_init_algorithm(ident_t *loc, int gtid,
       pr->u.p.ub = init + small_chunk + (id < extras ? 1 : 0);
 
       pr->u.p.parm2 = lb;
-      // pr->pfields.parm3 = 0; // it's not used in static_steal
+      // parm3 is the number of times to attempt stealing which is
+      // proportional to the number of chunks per thread up until
+      // the maximum value of nproc.
+      pr->u.p.parm3 = KMP_MIN(small_chunk + extras, nproc);
       pr->u.p.parm4 = (id + 1) % nproc; // remember neighbour tid
       pr->u.p.st = st;
       if (traits_t<T>::type_size > 4) {
@@ -349,6 +386,7 @@ void __kmp_dispatch_init_algorithm(ident_t *loc, int gtid,
       /* too few iterations: fall-through to kmp_sch_static_balanced */
     } // if
     /* FALL-THROUGH to static balanced */
+    KMP_FALLTHROUGH();
   } // case
 #endif
   case kmp_sch_static_balanced: {
@@ -418,7 +456,6 @@ void __kmp_dispatch_init_algorithm(ident_t *loc, int gtid,
     }
     break;
   } // case
-#if OMP_45_ENABLED
   case kmp_sch_static_balanced_chunked: {
     // similar to balanced, but chunk adjusted to multiple of simd width
     T nth = nproc;
@@ -433,7 +470,6 @@ void __kmp_dispatch_init_algorithm(ident_t *loc, int gtid,
     break;
   } // case
   case kmp_sch_guided_simd:
-#endif // OMP_45_ENABLED
   case kmp_sch_guided_iterative_chunked: {
     KD_TRACE(
         100,
@@ -740,6 +776,8 @@ __kmp_dispatch_init(ident_t *loc, int gtid, enum sched_type schedule, T lb,
   if (!TCR_4(__kmp_init_parallel))
     __kmp_parallel_initialize();
 
+  __kmp_resume_if_soft_paused();
+
 #if INCLUDE_SSC_MARKS
   SSC_MARK_DISPATCH_INIT();
 #endif
@@ -804,13 +842,10 @@ __kmp_dispatch_init(ident_t *loc, int gtid, enum sched_type schedule, T lb,
 
 #if USE_ITT_BUILD
   kmp_uint64 cur_chunk = chunk;
-  int itt_need_metadata_reporting = __itt_metadata_add_ptr &&
-                                    __kmp_forkjoin_frames_mode == 3 &&
-                                    KMP_MASTER_GTID(gtid) &&
-#if OMP_40_ENABLED
-                                    th->th.th_teams_microtask == NULL &&
-#endif
-                                    team->t.t_active_level == 1;
+  int itt_need_metadata_reporting =
+      __itt_metadata_add_ptr && __kmp_forkjoin_frames_mode == 3 &&
+      KMP_MASTER_GTID(gtid) && th->th.th_teams_microtask == NULL &&
+      team->t.t_active_level == 1;
 #endif
   if (!active) {
     pr = reinterpret_cast<dispatch_private_info_template<T> *>(
@@ -854,9 +889,9 @@ __kmp_dispatch_init(ident_t *loc, int gtid, enum sched_type schedule, T lb,
     KD_TRACE(100, ("__kmp_dispatch_init: T#%d before wait: my_buffer_index:%d "
                    "sh->buffer_index:%d\n",
                    gtid, my_buffer_index, sh->buffer_index));
-    __kmp_wait_yield<kmp_uint32>(&sh->buffer_index, my_buffer_index,
-                                 __kmp_eq<kmp_uint32> USE_ITT_BUILD_ARG(NULL));
-    // Note: KMP_WAIT_YIELD() cannot be used there: buffer index and
+    __kmp_wait<kmp_uint32>(&sh->buffer_index, my_buffer_index,
+                           __kmp_eq<kmp_uint32> USE_ITT_BUILD_ARG(NULL));
+    // Note: KMP_WAIT() cannot be used there: buffer index and
     // my_buffer_index are *always* 32-bit integers.
     KMP_MB(); /* is this necessary? */
     KD_TRACE(100, ("__kmp_dispatch_init: T#%d after wait: my_buffer_index:%d "
@@ -886,9 +921,7 @@ __kmp_dispatch_init(ident_t *loc, int gtid, enum sched_type schedule, T lb,
         break;
       case kmp_sch_guided_iterative_chunked:
       case kmp_sch_guided_analytical_chunked:
-#if OMP_45_ENABLED
       case kmp_sch_guided_simd:
-#endif
         schedtype = 2;
         break;
       default:
@@ -1000,8 +1033,8 @@ static void __kmp_dispatch_finish(int gtid, ident_t *loc) {
       }
 #endif
 
-      __kmp_wait_yield<UT>(&sh->u.s.ordered_iteration, lower,
-                           __kmp_ge<UT> USE_ITT_BUILD_ARG(NULL));
+      __kmp_wait<UT>(&sh->u.s.ordered_iteration, lower,
+                     __kmp_ge<UT> USE_ITT_BUILD_ARG(NULL));
       KMP_MB(); /* is this necessary? */
 #ifdef KMP_DEBUG
       {
@@ -1069,8 +1102,8 @@ static void __kmp_dispatch_finish_chunk(int gtid, ident_t *loc) {
       }
 #endif
 
-      __kmp_wait_yield<UT>(&sh->u.s.ordered_iteration, lower,
-                           __kmp_ge<UT> USE_ITT_BUILD_ARG(NULL));
+      __kmp_wait<UT>(&sh->u.s.ordered_iteration, lower,
+                     __kmp_ge<UT> USE_ITT_BUILD_ARG(NULL));
 
       KMP_MB(); /* is this necessary? */
       KD_TRACE(1000, ("__kmp_dispatch_finish_chunk: T#%d resetting "
@@ -1174,7 +1207,7 @@ int __kmp_dispatch_next_algorithm(int gtid,
       }
       if (!status) { // try to steal
         kmp_info_t **other_threads = team->t.t_threads;
-        int while_limit = nproc; // nproc attempts to find a victim
+        int while_limit = pr->u.p.parm3;
         int while_index = 0;
         // TODO: algorithm of searching for a victim
         // should be cleaned up and measured
@@ -1272,7 +1305,7 @@ int __kmp_dispatch_next_algorithm(int gtid,
 
       if (!status) {
         kmp_info_t **other_threads = team->t.t_threads;
-        int while_limit = nproc; // nproc attempts to find a victim
+        int while_limit = pr->u.p.parm3;
         int while_index = 0;
 
         // TODO: algorithm of searching for a victim
@@ -1547,7 +1580,6 @@ int __kmp_dispatch_next_algorithm(int gtid,
   } // case
   break;
 
-#if OMP_45_ENABLED
   case kmp_sch_guided_simd: {
     // same as iterative but curr-chunk adjusted to be multiple of given
     // chunk
@@ -1620,7 +1652,6 @@ int __kmp_dispatch_next_algorithm(int gtid,
     } // if
   } // case
   break;
-#endif // OMP_45_ENABLED
 
   case kmp_sch_guided_analytical_chunked: {
     T chunkspec = pr->u.p.parm1;
@@ -2156,10 +2187,8 @@ static void __kmp_dist_get_bounds(ident_t *loc, kmp_int32 gtid,
   }
   th = __kmp_threads[gtid];
   team = th->th.th_team;
-#if OMP_40_ENABLED
   KMP_DEBUG_ASSERT(th->th.th_teams_microtask); // we are in the teams construct
   nteams = th->th.th_teams_size.nteams;
-#endif
   team_id = team->t.t_master_tid;
   KMP_DEBUG_ASSERT(nteams == (kmp_uint32)team->t.t_parent->t.t_nproc);
 
@@ -2485,10 +2514,10 @@ kmp_uint32 __kmp_le_4(kmp_uint32 value, kmp_uint32 checker) {
 }
 
 kmp_uint32
-__kmp_wait_yield_4(volatile kmp_uint32 *spinner, kmp_uint32 checker,
-                   kmp_uint32 (*pred)(kmp_uint32, kmp_uint32),
-                   void *obj // Higher-level synchronization object, or NULL.
-                   ) {
+__kmp_wait_4(volatile kmp_uint32 *spinner, kmp_uint32 checker,
+             kmp_uint32 (*pred)(kmp_uint32, kmp_uint32),
+             void *obj // Higher-level synchronization object, or NULL.
+             ) {
   // note: we may not belong to a team at this point
   volatile kmp_uint32 *spin = spinner;
   kmp_uint32 check = checker;
@@ -2505,20 +2534,16 @@ __kmp_wait_yield_4(volatile kmp_uint32 *spinner, kmp_uint32 checker,
        split. It causes problems with infinite recursion because of exit lock */
     /* if ( TCR_4(__kmp_global.g.g_done) && __kmp_global.g.g_abort)
         __kmp_abort_thread(); */
-
-    /* if we have waited a bit, or are oversubscribed, yield */
-    /* pause is in the following code */
-    KMP_YIELD(TCR_4(__kmp_nth) > __kmp_avail_proc);
-    KMP_YIELD_SPIN(spins);
+    KMP_YIELD_OVERSUB_ELSE_SPIN(spins);
   }
   KMP_FSYNC_SPIN_ACQUIRED(obj);
   return r;
 }
 
-void __kmp_wait_yield_4_ptr(
-    void *spinner, kmp_uint32 checker, kmp_uint32 (*pred)(void *, kmp_uint32),
-    void *obj // Higher-level synchronization object, or NULL.
-    ) {
+void __kmp_wait_4_ptr(void *spinner, kmp_uint32 checker,
+                      kmp_uint32 (*pred)(void *, kmp_uint32),
+                      void *obj // Higher-level synchronization object, or NULL.
+                      ) {
   // note: we may not belong to a team at this point
   void *spin = spinner;
   kmp_uint32 check = checker;
@@ -2530,10 +2555,9 @@ void __kmp_wait_yield_4_ptr(
   // main wait spin loop
   while (!f(spin, check)) {
     KMP_FSYNC_SPIN_PREPARE(obj);
-    /* if we have waited a bit, or are oversubscribed, yield */
+    /* if we have waited a bit, or are noversubscribed, yield */
     /* pause is in the following code */
-    KMP_YIELD(TCR_4(__kmp_nth) > __kmp_avail_proc);
-    KMP_YIELD_SPIN(spins);
+    KMP_YIELD_OVERSUB_ELSE_SPIN(spins);
   }
   KMP_FSYNC_SPIN_ACQUIRED(obj);
 }

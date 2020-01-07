@@ -1,9 +1,8 @@
 //===-- WebAssemblySubtarget.cpp - WebAssembly Subtarget Information ------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -44,6 +43,11 @@ WebAssemblySubtarget::WebAssemblySubtarget(const Triple &TT,
       TargetTriple(TT), FrameLowering(),
       InstrInfo(initializeSubtargetDependencies(FS)), TSInfo(),
       TLInfo(TM, *this) {}
+
+bool WebAssemblySubtarget::enableAtomicExpand() const {
+  // If atomics are disabled, atomic ops are lowered instead of expanded
+  return hasAtomics();
+}
 
 bool WebAssemblySubtarget::enableMachineScheduler() const {
   // Disable the MachineScheduler for now. Even with ShouldTrackPressure set and

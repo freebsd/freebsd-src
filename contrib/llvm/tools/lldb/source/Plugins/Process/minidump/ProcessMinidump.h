@@ -1,9 +1,8 @@
 //===-- ProcessMinidump.h ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -42,7 +41,7 @@ public:
   static const char *GetPluginDescriptionStatic();
 
   ProcessMinidump(lldb::TargetSP target_sp, lldb::ListenerSP listener_sp,
-                  const FileSpec &core_file, MinidumpParser minidump_parser);
+                  const FileSpec &core_file, lldb::DataBufferSP code_data);
 
   ~ProcessMinidump() override;
 
@@ -93,7 +92,7 @@ public:
     return error;
   }
 
-  MinidumpParser m_minidump_parser;
+  llvm::Optional<MinidumpParser> m_minidump_parser;
 
 protected:
   void Clear();
@@ -107,7 +106,8 @@ protected:
 
 private:
   FileSpec m_core_file;
-  llvm::ArrayRef<MinidumpThread> m_thread_list;
+  lldb::DataBufferSP m_core_data;
+  llvm::ArrayRef<minidump::Thread> m_thread_list;
   const MinidumpExceptionStream *m_active_exception;
   lldb::CommandObjectSP m_command_sp;
   bool m_is_wow64;

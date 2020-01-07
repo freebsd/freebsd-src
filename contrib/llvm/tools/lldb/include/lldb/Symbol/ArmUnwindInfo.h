@@ -1,21 +1,19 @@
 //===-- ArmUnwindInfo.h -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef liblldb_ArmUnwindInfo_h_
 #define liblldb_ArmUnwindInfo_h_
 
-#include <vector>
-
-#include "lldb/Core/RangeMap.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/RangeMap.h"
 #include "lldb/lldb-private.h"
+#include <vector>
 
 /*
  * Unwind information reader and parser for the ARM exception handling ABI

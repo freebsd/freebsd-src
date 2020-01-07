@@ -4,10 +4,9 @@
  */
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 #ifndef KMP_CONFIG_H
@@ -66,11 +65,6 @@
 #define KMP_LIBRARY_FILE "libomp.so"
 #define KMP_VERSION_MAJOR 5
 #define KMP_VERSION_MINOR 0
-#define LIBOMP_OMP_VERSION 50
-#define OMP_50_ENABLED (LIBOMP_OMP_VERSION >= 50)
-#define OMP_45_ENABLED (LIBOMP_OMP_VERSION >= 45)
-#define OMP_40_ENABLED (LIBOMP_OMP_VERSION >= 40)
-#define OMP_30_ENABLED (LIBOMP_OMP_VERSION >= 30)
 #define LIBOMP_TSAN_SUPPORT 0
 #if LIBOMP_TSAN_SUPPORT
 #define TSAN_SUPPORT

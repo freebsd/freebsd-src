@@ -1,9 +1,8 @@
 //===------- Targets.h - Declare target feature support ---------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -38,10 +37,6 @@ void DefineStd(clang::MacroBuilder &Builder, llvm::StringRef MacroName,
 LLVM_LIBRARY_VISIBILITY
 void defineCPUMacros(clang::MacroBuilder &Builder, llvm::StringRef CPUName,
                      bool Tuning = true);
-
-LLVM_LIBRARY_VISIBILITY
-void addMinGWDefines(const llvm::Triple &Triple, const clang::LangOptions &Opts,
-                     clang::MacroBuilder &Builder);
 
 LLVM_LIBRARY_VISIBILITY
 void addCygMingDefines(const clang::LangOptions &Opts,

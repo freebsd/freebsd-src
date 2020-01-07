@@ -1,9 +1,8 @@
 //===-- EmulateInstruction.cpp ----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -72,14 +71,7 @@ EmulateInstruction::FindPlugin(const ArchSpec &arch,
   return nullptr;
 }
 
-EmulateInstruction::EmulateInstruction(const ArchSpec &arch)
-    : m_arch(arch), m_baton(nullptr), m_read_mem_callback(&ReadMemoryDefault),
-      m_write_mem_callback(&WriteMemoryDefault),
-      m_read_reg_callback(&ReadRegisterDefault),
-      m_write_reg_callback(&WriteRegisterDefault),
-      m_addr(LLDB_INVALID_ADDRESS) {
-  ::memset(&m_opcode, 0, sizeof(m_opcode));
-}
+EmulateInstruction::EmulateInstruction(const ArchSpec &arch) : m_arch(arch) {}
 
 bool EmulateInstruction::ReadRegister(const RegisterInfo *reg_info,
                                       RegisterValue &reg_value) {

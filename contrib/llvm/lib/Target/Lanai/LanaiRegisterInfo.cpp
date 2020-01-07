@@ -1,9 +1,8 @@
 //===-- LanaiRegisterInfo.cpp - Lanai Register Information ------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,8 +11,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "LanaiRegisterInfo.h"
-#include "Lanai.h"
-#include "LanaiSubtarget.h"
+#include "LanaiAluCode.h"
+#include "LanaiCondCode.h"
+#include "LanaiFrameLowering.h"
+#include "LanaiInstrInfo.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -257,12 +258,12 @@ bool LanaiRegisterInfo::hasBasePointer(const MachineFunction &MF) const {
 
 unsigned LanaiRegisterInfo::getRARegister() const { return Lanai::RCA; }
 
-unsigned
+Register
 LanaiRegisterInfo::getFrameRegister(const MachineFunction & /*MF*/) const {
   return Lanai::FP;
 }
 
-unsigned LanaiRegisterInfo::getBaseRegister() const { return Lanai::R14; }
+Register LanaiRegisterInfo::getBaseRegister() const { return Lanai::R14; }
 
 const uint32_t *
 LanaiRegisterInfo::getCallPreservedMask(const MachineFunction & /*MF*/,

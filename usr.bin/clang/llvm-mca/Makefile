@@ -6,6 +6,7 @@ SRCDIR=		tools/llvm-mca
 SRCS+=		CodeRegion.cpp
 SRCS+=		CodeRegionGenerator.cpp
 SRCS+=		PipelinePrinter.cpp
+SRCS+=		Views/BottleneckAnalysis.cpp
 SRCS+=		Views/DispatchStatistics.cpp
 SRCS+=		Views/InstructionInfoView.cpp
 SRCS+=		Views/RegisterFileStatistics.cpp

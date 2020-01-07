@@ -1,9 +1,8 @@
 //===- Mips64InstrInfo.td - Mips64 Instruction Information -*- tablegen -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -250,7 +249,7 @@ def SC64 : SCBase<"sc", GPR32Opnd>, LW_FM<0x38>, PTR_64,
 def JR64   : IndirectBranch<"jr", GPR64Opnd>, MTLO_FM<8>, PTR_64;
 }
 
-def JALR64 : JumpLinkReg<"jalr", GPR64Opnd>, JALR_FM;
+def JALR64 : JumpLinkReg<"jalr", GPR64Opnd>, JALR_FM, PTR_64;
 
 /// Jump and Branch Instructions
 let isCodeGenOnly = 1 in {
@@ -267,14 +266,15 @@ let isCodeGenOnly = 1 in {
   def BLTZ64 : CBranchZero<"bltz", brtarget, setlt, GPR64Opnd>, BGEZ_FM<1, 0>,
                GPR_64;
   let AdditionalPredicates = [NoIndirectJumpGuards] in
-    def JALR64Pseudo : JumpLinkRegPseudo<GPR64Opnd, JALR, RA, GPR32Opnd>;
+    def JALR64Pseudo : JumpLinkRegPseudo<GPR64Opnd, JALR, RA, GPR32Opnd>,
+                       PTR_64;
 }
 let AdditionalPredicates = [NotInMicroMips],
     DecoderNamespace = "Mips64" in {
-  def JR_HB64 : JR_HB_DESC<GPR64Opnd>, JR_HB_ENC, ISA_MIPS32_NOT_32R6_64R6;
-  def JALR_HB64 : JALR_HB_DESC<GPR64Opnd>, JALR_HB_ENC, ISA_MIPS32R2;
+  def JR_HB64 : JR_HB_DESC<GPR64Opnd>, JR_HB_ENC, ISA_MIPS64_NOT_64R6;
+  def JALR_HB64 : JALR_HB_DESC<GPR64Opnd>, JALR_HB_ENC, ISA_MIPS64R2;
 }
-def PseudoReturn64 : PseudoReturnBase<GPR64Opnd>;
+def PseudoReturn64 : PseudoReturnBase<GPR64Opnd>, GPR_64;
 
 let AdditionalPredicates = [NotInMips16Mode, NotInMicroMips,
                             NoIndirectJumpGuards] in {
@@ -290,7 +290,7 @@ let AdditionalPredicates = [NotInMips16Mode, NotInMicroMips,
                         ISA_MIPS32R2_NOT_32R6_64R6, PTR_64;
   def PseudoIndirectHazardBranch64 : PseudoIndirectBranchBase<JR_HB64,
                                                               GPR64Opnd>,
-                                     ISA_MIPS32R2_NOT_32R6_64R6;
+                                     ISA_MIPS32R2_NOT_32R6_64R6, PTR_64;
 }
 
 /// Multiply and Divide Instructions.
@@ -332,17 +332,17 @@ def PseudoMTLOHI64 : PseudoMTLOHI<ACC128, GPR64>, ISA_MIPS3_NOT_32R6_64R6;
 
 /// Sign Ext In Register Instructions.
 def SEB64 : SignExtInReg<"seb", i8, GPR64Opnd, II_SEB>, SEB_FM<0x10, 0x20>,
-            ISA_MIPS32R2;
+            ISA_MIPS32R2, GPR_64;
 def SEH64 : SignExtInReg<"seh", i16, GPR64Opnd, II_SEH>, SEB_FM<0x18, 0x20>,
-            ISA_MIPS32R2;
+            ISA_MIPS32R2, GPR_64;
 }
 
 /// Count Leading
 let AdditionalPredicates = [NotInMicroMips] in {
   def DCLZ : CountLeading0<"dclz", GPR64Opnd, II_DCLZ>, CLO_FM<0x24>,
-             ISA_MIPS64_NOT_64R6;
+             ISA_MIPS64_NOT_64R6, GPR_64;
   def DCLO : CountLeading1<"dclo", GPR64Opnd, II_DCLO>, CLO_FM<0x25>,
-             ISA_MIPS64_NOT_64R6;
+             ISA_MIPS64_NOT_64R6, GPR_64;
 
 /// Double Word Swap Bytes/HalfWords
   def DSBH : SubwordSwap<"dsbh", GPR64Opnd, II_DSBH>, SEB_FM<2, 0x24>,
@@ -417,17 +417,25 @@ let isCodeGenOnly = 1, rs = 0, shamt = 0 in {
 // explanation.
 
 // Expands to: lui $dst, %highest/%higher/%hi/%lo($tgt)
-def LONG_BRANCH_LUi2Op_64 : PseudoSE<(outs GPR64Opnd:$dst),
-  (ins brtarget:$tgt), []>, GPR_64;
+def LONG_BRANCH_LUi2Op_64 :
+    PseudoSE<(outs GPR64Opnd:$dst), (ins brtarget:$tgt), []>, GPR_64 {
+  bit hasNoSchedulingInfo = 1;
+}
 // Expands to: addiu $dst, %highest/%higher/%hi/%lo($tgt)
-def LONG_BRANCH_DADDiu2Op : PseudoSE<(outs GPR64Opnd:$dst),
-  (ins GPR64Opnd:$src, brtarget:$tgt), []>, GPR_64;
-
+def LONG_BRANCH_DADDiu2Op :
+    PseudoSE<(outs GPR64Opnd:$dst), (ins GPR64Opnd:$src, brtarget:$tgt), []>,
+    GPR_64 {
+  bit hasNoSchedulingInfo = 1;
+}
 // Expands to: daddiu $dst, $src, %PART($tgt - $baltgt)
 // where %PART may be %hi or %lo, depending on the relocation kind
 // that $tgt is annotated with.
-def LONG_BRANCH_DADDiu : PseudoSE<(outs GPR64Opnd:$dst),
-  (ins GPR64Opnd:$src, brtarget:$tgt, brtarget:$baltgt), []>, GPR_64;
+def LONG_BRANCH_DADDiu :
+    PseudoSE<(outs GPR64Opnd:$dst),
+             (ins GPR64Opnd:$src, brtarget:$tgt, brtarget:$baltgt), []>,
+    GPR_64 {
+  bit hasNoSchedulingInfo = 1;
+}
 
 // Cavium Octeon cnMIPS instructions
 let DecoderNamespace = "CnMips",
@@ -577,18 +585,36 @@ def DMTC2_OCTEON : MFC2OP<"dmtc2", GPR64Opnd, II_DMTC2>, MFC2OP_FM<0x12, 5>,
                    ASE_CNMIPS;
 }
 
+// Cavium Octeon+ cnMIPS instructions
+let DecoderNamespace = "CnMipsP",
+    // FIXME: The lack of HasStdEnc is probably a bug
+    EncodingPredicates = []<Predicate> in {
+
+class Saa<string opstr>:
+  InstSE<(outs), (ins GPR64Opnd:$rt, GPR64Opnd:$rs),
+         !strconcat(opstr, "\t$rt, (${rs})"), [], NoItinerary, FrmR, opstr>;
+
+def SAA  : Saa<"saa">,  SAA_FM<0x18>, ASE_CNMIPSP;
+def SAAD : Saa<"saad">, SAA_FM<0x19>, ASE_CNMIPSP;
+
+def SaaAddr  : MipsAsmPseudoInst<(outs), (ins GPR64Opnd:$rt, mem:$addr),
+                                 "saa\t$rt, $addr">, ASE_CNMIPSP;
+def SaadAddr : MipsAsmPseudoInst<(outs), (ins GPR64Opnd:$rt, mem:$addr),
+                                 "saad\t$rt, $addr">, ASE_CNMIPSP;
+}
+
 }
 
 /// Move between CPU and coprocessor registers
-let DecoderNamespace = "Mips64", Predicates = [HasMips64] in {
+let DecoderNamespace = "Mips64" in {
 def DMFC0 : MFC3OP<"dmfc0", GPR64Opnd, COP0Opnd, II_DMFC0>,
-            MFC3OP_FM<0x10, 1, 0>, ISA_MIPS3;
+            MFC3OP_FM<0x10, 1, 0>, ISA_MIPS3, GPR_64;
 def DMTC0 : MTC3OP<"dmtc0", COP0Opnd, GPR64Opnd, II_DMTC0>,
-            MFC3OP_FM<0x10, 5, 0>, ISA_MIPS3;
+            MFC3OP_FM<0x10, 5, 0>, ISA_MIPS3, GPR_64;
 def DMFC2 : MFC3OP<"dmfc2", GPR64Opnd, COP2Opnd, II_DMFC2>,
-            MFC3OP_FM<0x12, 1, 0>, ISA_MIPS3;
+            MFC3OP_FM<0x12, 1, 0>, ISA_MIPS3, GPR_64;
 def DMTC2 : MTC3OP<"dmtc2", COP2Opnd, GPR64Opnd, II_DMTC2>,
-            MFC3OP_FM<0x12, 5, 0>, ISA_MIPS3;
+            MFC3OP_FM<0x12, 5, 0>, ISA_MIPS3, GPR_64;
 }
 
 /// Move between CPU and guest coprocessor registers (Virtualization ASE)
@@ -600,7 +626,7 @@ let DecoderNamespace = "Mips64" in {
 }
 
 let AdditionalPredicates = [UseIndirectJumpsHazard] in
-  def JALRHB64Pseudo : JumpLinkRegPseudo<GPR64Opnd, JALR_HB64, RA_64>;
+  def JALRHB64Pseudo : JumpLinkRegPseudo<GPR64Opnd, JALR_HB64, RA_64>, PTR_64;
 
 //===----------------------------------------------------------------------===//
 //  Arbitrary patterns that map to one or more instructions
@@ -845,7 +871,7 @@ def : MipsPat<(i64 (sext (i32 (sub GPR32:$src, GPR32:$src2)))),
               (SUBu GPR32:$src, GPR32:$src2), sub_32)>;
 def : MipsPat<(i64 (sext (i32 (mul GPR32:$src, GPR32:$src2)))),
               (INSERT_SUBREG (i64 (IMPLICIT_DEF)),
-              (MUL GPR32:$src, GPR32:$src2), sub_32)>, ISA_MIPS3_NOT_32R6_64R6;
+              (MUL GPR32:$src, GPR32:$src2), sub_32)>, ISA_MIPS32_NOT_32R6_64R6;
 def : MipsPat<(i64 (sext (i32 (MipsMFHI ACC64:$src)))),
               (INSERT_SUBREG (i64 (IMPLICIT_DEF)),
               (PseudoMFHI ACC64:$src), sub_32)>;
@@ -1146,6 +1172,34 @@ def SLTUImm64 : MipsAsmPseudoInst<(outs GPR64Opnd:$rs),
                                   "sltu\t$rs, $rt, $imm">, GPR_64;
 def : MipsInstAlias<"sltu\t$rs, $imm", (SLTUImm64 GPR64Opnd:$rs, GPR64Opnd:$rs,
                                                   imm64:$imm)>, GPR_64;
+
+def SGEImm64 : MipsAsmPseudoInst<(outs GPR64Opnd:$rd),
+                                 (ins GPR64Opnd:$rs, imm64:$imm),
+                                 "sge\t$rd, $rs, $imm">, GPR_64;
+def : MipsInstAlias<"sge $rs, $imm", (SGEImm64 GPR64Opnd:$rs,
+                                               GPR64Opnd:$rs,
+                                               imm64:$imm), 0>, GPR_64;
+
+def SGEUImm64 : MipsAsmPseudoInst<(outs GPR64Opnd:$rd),
+                                  (ins GPR64Opnd:$rs, imm64:$imm),
+                                  "sgeu\t$rd, $rs, $imm">, GPR_64;
+def : MipsInstAlias<"sgeu $rs, $imm", (SGEUImm64 GPR64Opnd:$rs,
+                                                 GPR64Opnd:$rs,
+                                                 imm64:$imm), 0>, GPR_64;
+
+def SGTImm64 : MipsAsmPseudoInst<(outs GPR64Opnd:$rd),
+                                 (ins GPR64Opnd:$rs, imm64:$imm),
+                                 "sgt\t$rd, $rs, $imm">, GPR_64;
+def : MipsInstAlias<"sgt $rs, $imm", (SGTImm64 GPR64Opnd:$rs,
+                                               GPR64Opnd:$rs,
+                                               imm64:$imm), 0>, GPR_64;
+
+def SGTUImm64 : MipsAsmPseudoInst<(outs GPR64Opnd:$rd),
+                                  (ins GPR64Opnd:$rs, imm64:$imm),
+                                  "sgtu\t$rd, $rs, $imm">, GPR_64;
+def : MipsInstAlias<"sgtu $rs, $imm", (SGTUImm64 GPR64Opnd:$rs,
+                                                 GPR64Opnd:$rs,
+                                                 imm64:$imm), 0>, GPR_64;
 
 def : MipsInstAlias<"rdhwr $rt, $rs",
                     (RDHWR64 GPR64Opnd:$rt, HWRegsOpnd:$rs, 0), 1>, GPR_64;

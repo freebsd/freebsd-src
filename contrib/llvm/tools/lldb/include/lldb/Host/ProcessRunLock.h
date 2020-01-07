@@ -1,9 +1,8 @@
 //===-- ProcessRunLock.h ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,17 +14,13 @@
 
 #include "lldb/lldb-defines.h"
 
-//----------------------------------------------------------------------
 /// Enumerations for broadcasting.
-//----------------------------------------------------------------------
 namespace lldb_private {
 
-//----------------------------------------------------------------------
-/// @class ProcessRunLock ProcessRunLock.h "lldb/Host/ProcessRunLock.h"
+/// \class ProcessRunLock ProcessRunLock.h "lldb/Host/ProcessRunLock.h"
 /// A class used to prevent the process from starting while other
 /// threads are accessing its data, and prevent access to its data while it is
 /// running.
-//----------------------------------------------------------------------
 
 class ProcessRunLock {
 public:

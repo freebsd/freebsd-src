@@ -1,9 +1,8 @@
 //===- Rewriter.cpp - Code rewriting interface ----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -171,7 +170,7 @@ int Rewriter::getRangeSize(SourceRange Range, RewriteOptions opts) const {
 /// in different buffers, this returns an empty string.
 ///
 /// Note that this method is not particularly efficient.
-std::string Rewriter::getRewrittenText(SourceRange Range) const {
+std::string Rewriter::getRewrittenText(CharSourceRange Range) const {
   if (!isRewritable(Range.getBegin()) ||
       !isRewritable(Range.getEnd()))
     return {};
@@ -194,7 +193,9 @@ std::string Rewriter::getRewrittenText(SourceRange Range) const {
 
     // Adjust the end offset to the end of the last token, instead of being the
     // start of the last token.
-    EndOff += Lexer::MeasureTokenLength(Range.getEnd(), *SourceMgr, *LangOpts);
+    if (Range.isTokenRange())
+      EndOff +=
+          Lexer::MeasureTokenLength(Range.getEnd(), *SourceMgr, *LangOpts);
     return std::string(Ptr, Ptr+EndOff-StartOff);
   }
 
@@ -204,7 +205,8 @@ std::string Rewriter::getRewrittenText(SourceRange Range) const {
 
   // Adjust the end offset to the end of the last token, instead of being the
   // start of the last token.
-  EndOff += Lexer::MeasureTokenLength(Range.getEnd(), *SourceMgr, *LangOpts);
+  if (Range.isTokenRange())
+    EndOff += Lexer::MeasureTokenLength(Range.getEnd(), *SourceMgr, *LangOpts);
 
   // Advance the iterators to the right spot, yay for linear time algorithms.
   RewriteBuffer::iterator Start = RB.begin();

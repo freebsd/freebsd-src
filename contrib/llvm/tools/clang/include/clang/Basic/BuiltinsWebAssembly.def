@@ -1,9 +1,8 @@
 // BuiltinsWebAssembly.def - WebAssembly builtin function database -*- C++ -*-//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -26,6 +25,13 @@
 BUILTIN(__builtin_wasm_memory_size, "zIi", "n")
 BUILTIN(__builtin_wasm_memory_grow, "zIiz", "n")
 
+// Bulk memory builtins
+TARGET_BUILTIN(__builtin_wasm_memory_init, "vIUiIUiv*UiUi", "", "bulk-memory")
+TARGET_BUILTIN(__builtin_wasm_data_drop, "vIUi", "", "bulk-memory")
+
+// Thread-local storage
+TARGET_BUILTIN(__builtin_wasm_tls_size, "z", "nc", "bulk-memory")
+
 // Floating point min/max
 BUILTIN(__builtin_wasm_min_f32, "fff", "nc")
 BUILTIN(__builtin_wasm_max_f32, "fff", "nc")
@@ -33,8 +39,8 @@ BUILTIN(__builtin_wasm_min_f64, "ddd", "nc")
 BUILTIN(__builtin_wasm_max_f64, "ddd", "nc")
 
 // Exception handling builtins.
-TARGET_BUILTIN(__builtin_wasm_throw, "vUiv*", "r", "exception-handling")
-TARGET_BUILTIN(__builtin_wasm_rethrow, "v", "r", "exception-handling")
+TARGET_BUILTIN(__builtin_wasm_throw, "vIUiv*", "r", "exception-handling")
+TARGET_BUILTIN(__builtin_wasm_rethrow_in_catch, "v", "r", "exception-handling")
 
 // Atomic wait and notify.
 BUILTIN(__builtin_wasm_atomic_wait_i32, "ii*iLLi", "n")

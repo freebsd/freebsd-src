@@ -1,25 +1,27 @@
 //===-- DWARFDebugRanges.h --------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef SymbolFileDWARF_DWARFDebugRanges_h_
 #define SymbolFileDWARF_DWARFDebugRanges_h_
 
-#include "DWARFDIE.h"
-#include "SymbolFileDWARF.h"
-
+#include "lldb/Core/dwarf.h"
 #include <map>
+
+class DWARFUnit;
+namespace lldb_private {
+class DWARFContext;
+}
 
 class DWARFDebugRangesBase {
 public:
   virtual ~DWARFDebugRangesBase(){};
 
-  virtual void Extract(SymbolFileDWARF *dwarf2Data) = 0;
+  virtual void Extract(lldb_private::DWARFContext &context) = 0;
   virtual bool FindRanges(const DWARFUnit *cu, dw_offset_t debug_ranges_offset,
                           DWARFRangeList &range_list) const = 0;
   virtual uint64_t GetOffset(size_t Index) const = 0;
@@ -29,7 +31,7 @@ class DWARFDebugRanges final : public DWARFDebugRangesBase {
 public:
   DWARFDebugRanges();
 
-  void Extract(SymbolFileDWARF *dwarf2Data) override;
+  void Extract(lldb_private::DWARFContext &context) override;
   bool FindRanges(const DWARFUnit *cu, dw_offset_t debug_ranges_offset,
                   DWARFRangeList &range_list) const override;
   uint64_t GetOffset(size_t Index) const override;
@@ -39,7 +41,7 @@ public:
                    lldb::offset_t *offset_ptr, dw_addr_t cu_base_addr);
 
 protected:
-  bool Extract(SymbolFileDWARF *dwarf2Data, lldb::offset_t *offset_ptr,
+  bool Extract(lldb_private::DWARFContext &context, lldb::offset_t *offset_ptr,
                DWARFRangeList &range_list);
 
   typedef std::map<dw_offset_t, DWARFRangeList> range_map;
@@ -57,7 +59,7 @@ class DWARFDebugRngLists final : public DWARFDebugRangesBase {
   };
 
 public:
-  void Extract(SymbolFileDWARF *dwarf2Data) override;
+  void Extract(lldb_private::DWARFContext &context) override;
   bool FindRanges(const DWARFUnit *cu, dw_offset_t debug_ranges_offset,
                   DWARFRangeList &range_list) const override;
   uint64_t GetOffset(size_t Index) const override;
