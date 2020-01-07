@@ -284,7 +284,7 @@ AcpiDbDisplayHistory (
     {
         if (AcpiGbl_HistoryBuffer[HistoryIndex].Command)
         {
-            AcpiOsPrintf ("%3ld  %s\n",
+            AcpiOsPrintf ("%3u  %s\n",
                 AcpiGbl_HistoryBuffer[HistoryIndex].CmdNum,
                 AcpiGbl_HistoryBuffer[HistoryIndex].Command);
         }

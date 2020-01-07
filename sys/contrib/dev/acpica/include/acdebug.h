@@ -392,6 +392,10 @@ void
 AcpiDbGetBusInfo (
     void);
 
+ACPI_STATUS
+AcpiDbDisplayFields (
+    UINT32                  AddressSpaceId);
+
 
 /*
  * dbdisply - debug display commands

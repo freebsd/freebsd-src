@@ -833,8 +833,12 @@ AcpiGetTagPathname (
 
     /* Internalize the namepath to AML format */
 
-    AcpiNsInternalizeName (Pathname, &InternalPath);
+    Status = AcpiNsInternalizeName (Pathname, &InternalPath);
     ACPI_FREE (Pathname);
+    if (ACPI_FAILURE (Status))
+    {
+        return (NULL);
+    }
 
     /* Update the Op with the symbol */
 

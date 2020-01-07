@@ -1,7 +1,7 @@
 %{
 /******************************************************************************
  *
- * Module Name: dtparser.l - Flex input file for table compiler lexer
+ * Module Name: dtcompilerparser.y - Bison input file for table compiler parser
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -151,89 +151,135 @@
  *****************************************************************************/
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include "dtparser.y.h"
 
-#define YY_NO_INPUT     /* No file input, we use strings only */
 
-#define _COMPONENT          ACPI_COMPILER
-        ACPI_MODULE_NAME    ("dtscanner")
+#define _COMPONENT          DT_COMPILER
+        ACPI_MODULE_NAME    ("dtcompilerparser")
+
+void *                      AslLocalAllocate (unsigned int Size);
+
+/* Bison/yacc configuration */
+
+#undef alloca
+#define alloca              AslLocalAllocate
+
+int                         DtCompilerParserlex (void);
+int                         DtCompilerParserparse (void);
+void                        DtCompilerParsererror (char const *msg);
+extern char                 *DtCompilerParsertext;
+extern DT_FIELD             *AslGbl_CurrentField;
+
+extern int                  DtLabelByteOffset;
+extern UINT64               DtCompilerParserResult; /* Expression return value */
+extern UINT64               DtCompilerParserlineno; /* Current line number */
+
+extern UINT32               DtTokenFirstLine;
+extern UINT32               DtTokenFirstColumn;
+
+/* Bison/yacc configuration */
+
+#define yytname             DtCompilerParsername
+#define YYDEBUG             1               /* Enable debug output */
+#define YYERROR_VERBOSE     1               /* Verbose error messages */
+#define YYFLAG              -32768
+
+/* Define YYMALLOC/YYFREE to prevent redefinition errors  */
+
+#define YYMALLOC            malloc
+#define YYFREE              free
+
 %}
 
-%option noyywrap
-%option nounput
 
-Number          [0-9a-fA-F]+
-HexNumber       0[xX][0-9a-fA-F]+
-DecimalNumber   0[dD][0-9]+
-LabelRef        $[a-zA-Z][0-9a-zA-Z]*
-WhiteSpace      [ \t\v\r]+
-NewLine         [\n]
+%union {
+    char                *s;
+    DT_FIELD            *f;
+    DT_TABLE_UNIT       *u;
+}
+
+
+%type  <f> Table
+%token <u> DT_PARSEOP_DATA
+%token <u> DT_PARSEOP_LABEL
+%token <u> DT_PARSEOP_STRING_DATA
+%token <u> DT_PARSEOP_LINE_CONTINUATION
+%type  <u> Data
+%type  <u> Datum
+%type  <u> MultiLineData
+%type  <u> MultiLineDataList
+
+
+%%
+
+Table
+    :
+    FieldList { }
+    ;
+
+FieldList
+    : Field FieldList
+    | Field
+    ;
+
+Field
+    : DT_PARSEOP_LABEL ':' Data { DtCreateField ($1, $3, DtLabelByteOffset); }
+    ;
+
+Data
+    : MultiLineDataList        { $$ = $1; }
+    | Datum                    { $$ = $1; }
+    | Datum MultiLineDataList  { $$ = $1; } /* combine the string with strcat */
+    ;
+
+MultiLineDataList
+    : MultiLineDataList MultiLineData { $$ = DtCreateTableUnit (AcpiUtStrcat(AcpiUtStrcat($1->Value, " "), $2->Value), $1->Line, $1->Column); } /* combine the strings with strcat */
+    | MultiLineData                   { $$ = $1; }
+    ;
+
+MultiLineData
+    : DT_PARSEOP_LINE_CONTINUATION Datum { DbgPrint (ASL_PARSE_OUTPUT, "line continuation detected\n"); $$ = $2; }
+    ;
+
+Datum
+    : DT_PARSEOP_DATA        {
+                                 DbgPrint (ASL_PARSE_OUTPUT, "parser        data: [%s]\n", DtCompilerParserlval.s);
+                                 $$ = DtCreateTableUnit (AcpiUtStrdup(DtCompilerParserlval.s), DtTokenFirstLine, DtTokenFirstColumn);
+                             }
+    | DT_PARSEOP_STRING_DATA {
+                                 DbgPrint (ASL_PARSE_OUTPUT, "parser string data: [%s]\n", DtCompilerParserlval.s);
+                                 $$ = DtCreateTableUnit (AcpiUtStrdup(DtCompilerParserlval.s), DtTokenFirstLine, DtTokenFirstColumn);
+                             }
+    ;
+
 
 %%
 
-\(              return (OP_EXP_PAREN_OPEN);
-\)              return (OP_EXP_PAREN_CLOSE);
-\~              return (OP_EXP_ONES_COMPLIMENT);
-\!              return (OP_EXP_LOGICAL_NOT);
-\*              return (OP_EXP_MULTIPLY);
-\/              return (OP_EXP_DIVIDE);
-\%              return (OP_EXP_MODULO);
-\+              return (OP_EXP_ADD);
-\-              return (OP_EXP_SUBTRACT);
-">>"            return (OP_EXP_SHIFT_RIGHT);
-"<<"            return (OP_EXP_SHIFT_LEFT);
-\<              return (OP_EXP_LESS);
-\>              return (OP_EXP_GREATER);
-"<="            return (OP_EXP_LESS_EQUAL);
-">="            return (OP_EXP_GREATER_EQUAL);
-"=="            return (OP_EXP_EQUAL);
-"!="            return (OP_EXP_NOT_EQUAL);
-\&              return (OP_EXP_AND);
-\^              return (OP_EXP_XOR);
-\|              return (OP_EXP_OR);
-"&&"            return (OP_EXP_LOGICAL_AND);
-"||"            return (OP_EXP_LOGICAL_OR);
-<<EOF>>         return (OP_EXP_EOF); /* null end-of-string */
-
-{LabelRef}      return (OP_EXP_LABEL);
-{Number}        return (OP_EXP_NUMBER);
-{HexNumber}     return (OP_EXP_HEX_NUMBER);
-{NewLine}       return (OP_EXP_NEW_LINE);
-{WhiteSpace}    /* Ignore */
-
-.               return (OP_EXP_EOF);
-
-%%
 
 /*
- * Local support functions
+ * Local support functions, including parser entry point
  */
-YY_BUFFER_STATE         LexBuffer;
-
 /******************************************************************************
  *
- * FUNCTION:    DtInitLexer, DtTerminateLexer
+ * FUNCTION:    DtCompilerParsererror
  *
- * PARAMETERS:  String              - Input string to be parsed
+ * PARAMETERS:  Message             - Parser-generated error message
  *
  * RETURN:      None
  *
- * DESCRIPTION: Initialization and termination routines for lexer. Lexer needs
- *              a buffer to handle strings instead of a file.
+ * DESCRIPTION: Handler for parser errors
  *
  *****************************************************************************/
 
-int
-DtInitLexer (
-    char                    *String)
+void
+DtCompilerParsererror (
+    char const              *Message)
 {
-    LexBuffer = yy_scan_string (String);
-    return (LexBuffer == NULL);
+    DtError (ASL_ERROR, ASL_MSG_SYNTAX,
+        AslGbl_CurrentField, (char *) Message);
 }
 
-void
-DtTerminateLexer (
-    void)
+int
+DtCompilerParserwrap(void)
 {
-    yy_delete_buffer (LexBuffer);
+  return (1);
 }

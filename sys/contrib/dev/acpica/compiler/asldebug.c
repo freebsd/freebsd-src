@@ -239,7 +239,7 @@ UtDumpIntegerOp (
     case 8: /* Dword */
 
         DbgPrint (ASL_TREE_OUTPUT,
-            "%*.*X", IntegerLength, IntegerLength, Op->Asl.Value.Integer);
+            "%*.*X", IntegerLength, IntegerLength, (UINT32) Op->Asl.Value.Integer);
         break;
 
     case 16: /* Qword and Integer */

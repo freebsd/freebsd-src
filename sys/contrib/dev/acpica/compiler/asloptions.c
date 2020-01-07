@@ -219,7 +219,7 @@ AslCommandLine (
         {
             exit (-1);
         }
-        exit (1);
+        exit (0);
     }
 
     /* Next parameter must be the input filename */
@@ -835,6 +835,11 @@ AslDoOptions (
         case 'c':
 
             AslGbl_HexOutputFlag = HEX_OUTPUT_C;
+            break;
+
+    case 'p': /* data table flex/bison prototype */
+
+            AslGbl_DtLexBisonPrototype = TRUE;
             break;
 
         case 's':

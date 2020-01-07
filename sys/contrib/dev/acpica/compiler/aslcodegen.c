@@ -618,8 +618,8 @@ CgWriteTableHeader (
         Op->Asl.AmlSubtreeLength +=
             strlen (AslGbl_ParseTreeRoot->Asl.Filename) + 3;
 
-        CvDbgPrint ("     Length: %lu\n",
-            strlen (AslGbl_ParseTreeRoot->Asl.Filename) + 3);
+        CvDbgPrint ("     Length: %u\n",
+            (UINT32) strlen (AslGbl_ParseTreeRoot->Asl.Filename) + 3);
 
         if (Op->Asl.CommentList)
         {

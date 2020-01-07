@@ -474,7 +474,6 @@ AcpiDmDumpCsrt (
                 {
                     return;
                 }
-                SubSubOffset += InfoLength;
             }
 
             /* Point to next sub-subtable */
@@ -1401,7 +1400,6 @@ AcpiDmDumpHmat (
     while (Offset < Table->Length)
     {
         AcpiOsPrintf ("\n");
-        SubtableOffset = 0;
 
         /* Dump HMAT structure header */
 
@@ -1484,6 +1482,11 @@ AcpiDmDumpHmat (
                 Status = AcpiDmDumpTable (Table->Length, Offset + SubtableOffset,
                     ACPI_ADD_PTR (ACPI_HMAT_STRUCTURE, HmatStruct, SubtableOffset),
                     4, AcpiDmTableInfoHmat1a);
+                if (ACPI_FAILURE (Status))
+                {
+                    return;
+                }
+
                 SubtableOffset += 4;
             }
 
@@ -1500,6 +1503,11 @@ AcpiDmDumpHmat (
                 Status = AcpiDmDumpTable (Table->Length, Offset + SubtableOffset,
                     ACPI_ADD_PTR (ACPI_HMAT_STRUCTURE, HmatStruct, SubtableOffset),
                     4, AcpiDmTableInfoHmat1b);
+                if (ACPI_FAILURE (Status))
+                {
+                    return;
+                }
+
                 SubtableOffset += 4;
             }
 
@@ -1519,6 +1527,11 @@ AcpiDmDumpHmat (
                     Status = AcpiDmDumpTable (Table->Length, Offset + SubtableOffset,
                         ACPI_ADD_PTR (ACPI_HMAT_STRUCTURE, HmatStruct, SubtableOffset),
                         2, AcpiDmTableInfoHmat1c);
+                    if (ACPI_FAILURE(Status))
+                    {
+                        return;
+                    }
+
                     SubtableOffset += 2;
                 }
             }
@@ -1542,6 +1555,11 @@ AcpiDmDumpHmat (
                 Status = AcpiDmDumpTable (Table->Length, Offset + SubtableOffset,
                     ACPI_ADD_PTR (ACPI_HMAT_STRUCTURE, HmatStruct, SubtableOffset),
                     2, AcpiDmTableInfoHmat2a);
+                if (ACPI_FAILURE (Status))
+                {
+                    return;
+                }
+
                 SubtableOffset += 2;
             }
             break;

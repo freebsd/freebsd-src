@@ -222,11 +222,11 @@
 
 /* Misc */
 
-#define ASL_EXTERNAL_METHOD         255
-#define ASL_ABORT                   TRUE
-#define ASL_NO_ABORT                FALSE
-#define ASL_EOF                     ACPI_UINT32_MAX
-#define ASL_IGNORE_LINE            (ACPI_UINT32_MAX -1)
+#define ASL_EXTERNAL_METHOD_UNKNOWN_PARAMS  255
+#define ASL_ABORT                           TRUE
+#define ASL_NO_ABORT                        FALSE
+#define ASL_EOF                             ACPI_UINT32_MAX
+#define ASL_IGNORE_LINE                     (ACPI_UINT32_MAX -1)
 
 
 /* Listings */
@@ -290,7 +290,7 @@
 
 #define ASL_PARSE_TREE_DEBUG2 \
     " %08X %04X %04X %01X     %04X  %04X %05X  %05X   "\
-    "%08X %08X %08X %08X %08X %08X %04X  %02d  %5d %5d %5d %5d"
+    "%8p %8p %8p %8p %08X %08X %04X  %02d  %5d %5d %5d %5d"
 
 /*
  * Macros for ASL/ASL+ converter

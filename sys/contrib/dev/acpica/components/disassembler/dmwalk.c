@@ -957,7 +957,6 @@ AcpiDmDescendingOp (
                  * the buffer size Op. Open up a new block
                  */
                 NextOp->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
-                NextOp = NextOp->Common.Next;
                 ASL_CV_CLOSE_PAREN (Op, Level);
 
                 /* Emit description comment for Name() with a predefined ACPI name */

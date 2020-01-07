@@ -199,6 +199,8 @@ MtMethodAnalysisWalkBegin (
     ACPI_PARSE_OBJECT       *NextType;
     ACPI_PARSE_OBJECT       *NextParamType;
     UINT8                   ActualArgs = 0;
+    BOOLEAN                 HidExists;
+    BOOLEAN                 AdrExists;
 
 
     /* Build cross-reference output file if requested */
@@ -535,11 +537,25 @@ MtMethodAnalysisWalkBegin (
 
     case PARSEOP_DEVICE:
 
-        if (!ApFindNameInDeviceTree (METHOD_NAME__HID, Op) &&
-            !ApFindNameInDeviceTree (METHOD_NAME__ADR, Op))
+        /* Check usage of _HID and _ADR objects */
+
+        HidExists = ApFindNameInDeviceTree (METHOD_NAME__HID, Op);
+        AdrExists = ApFindNameInDeviceTree (METHOD_NAME__ADR, Op);
+
+        if (!HidExists && !AdrExists)
         {
             AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
                 "Device object requires a _HID or _ADR in same scope");
+        }
+        else if (HidExists && AdrExists)
+        {
+            /*
+             * According to the ACPI spec, "A device object must contain
+             * either an _HID object or an _ADR object, but should not contain
+             * both".
+             */
+            AslError (ASL_WARNING, ASL_MSG_MULTIPLE_TYPES, Op,
+                "Device object requires either a _HID or _ADR, but not both");
         }
         break;
 
@@ -570,7 +586,7 @@ MtMethodAnalysisWalkBegin (
 
         /* Special typechecking for _HID */
 
-        if (!strcmp (METHOD_NAME__HID, Op->Asl.NameSeg))
+        if (ACPI_COMPARE_NAMESEG (METHOD_NAME__HID, Op->Asl.NameSeg))
         {
             Next = Op->Asl.Child->Asl.Next;
             AnCheckId (Next, ASL_TYPE_HID);
@@ -578,7 +594,7 @@ MtMethodAnalysisWalkBegin (
 
         /* Special typechecking for _CID */
 
-        else if (!strcmp (METHOD_NAME__CID, Op->Asl.NameSeg))
+        else if (ACPI_COMPARE_NAMESEG (METHOD_NAME__CID, Op->Asl.NameSeg))
         {
             Next = Op->Asl.Child->Asl.Next;
 

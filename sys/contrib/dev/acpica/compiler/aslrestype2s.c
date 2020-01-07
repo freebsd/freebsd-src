@@ -674,7 +674,6 @@ RsDoGpioIoDescriptor (
     ResSourceLength = RsGetStringDataLength (InitializerOp);
     VendorLength = RsGetBufferDataLength (InitializerOp);
     InterruptLength = RsGetInterruptDataLength (InitializerOp, 10);
-    PinList = InterruptList;
 
     DescriptorSize = ACPI_AML_SIZE_LARGE (AML_RESOURCE_GPIO) +
         ResSourceLength + VendorLength + InterruptLength;

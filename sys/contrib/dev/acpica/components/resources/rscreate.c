@@ -481,6 +481,10 @@ AcpiRsCreatePciRoutingTable (
 
                 Status = AcpiNsHandleToPathname (
                     (ACPI_HANDLE) Node, &PathBuffer, FALSE);
+                if (ACPI_FAILURE (Status))
+                {
+                    return_ACPI_STATUS (Status);
+                }
 
                 /* +1 to include null terminator */
 

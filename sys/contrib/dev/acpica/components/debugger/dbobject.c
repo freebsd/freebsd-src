@@ -567,7 +567,6 @@ AcpiDbDecodeLocals (
 
 
     Node = WalkState->MethodNode;
-    ObjDesc = WalkState->MethodDesc;
 
     /* There are no locals for the module-level code case */
 
@@ -650,7 +649,6 @@ AcpiDbDecodeArguments (
 
 
     Node = WalkState->MethodNode;
-    ObjDesc = WalkState->MethodDesc;
 
     /* There are no arguments for the module-level code case */
 
