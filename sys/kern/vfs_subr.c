@@ -204,6 +204,10 @@ static counter_u64_t recycles_count;
 SYSCTL_COUNTER_U64(_vfs, OID_AUTO, recycles, CTLFLAG_RD, &recycles_count,
     "Number of vnodes recycled to meet vnode cache targets");
 
+static counter_u64_t recycles_free_count;
+SYSCTL_COUNTER_U64(_vfs, OID_AUTO, recycles_free, CTLFLAG_RD, &recycles_free_count,
+    "Number of free vnodes recycled to meet vnode cache targets");
+
 /*
  * Various variables used for debugging the new implementation of
  * reassignbuf().
@@ -603,6 +607,7 @@ vntblinit(void *dummy __unused)
 
 	vnodes_created = counter_u64_alloc(M_WAITOK);
 	recycles_count = counter_u64_alloc(M_WAITOK);
+	recycles_free_count = counter_u64_alloc(M_WAITOK);
 	free_owe_inact = counter_u64_alloc(M_WAITOK);
 
 	/*
@@ -1466,7 +1471,7 @@ vtryrecycle(struct vnode *vp)
 		return (EBUSY);
 	}
 	if (!VN_IS_DOOMED(vp)) {
-		counter_u64_add(recycles_count, 1);
+		counter_u64_add(recycles_free_count, 1);
 		vgonel(vp);
 	}
 	VOP_UNLOCK(vp);
