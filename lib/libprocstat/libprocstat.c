@@ -1278,10 +1278,10 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 	vn->vn_type = vntype2psfsttype(vnode.v_type);
 	if (vnode.v_type == VNON || vnode.v_type == VBAD)
 		return (0);
-	error = kvm_read_all(kd, (unsigned long)vnode.v_tag, tagstr,
-	    sizeof(tagstr));
+	error = kvm_read_all(kd, (unsigned long)vnode.v_lock.lock_object.lo_name,
+	    tagstr, sizeof(tagstr));
 	if (error == 0) {
-		warnx("can't read v_tag at %p", (void *)vp);
+		warnx("can't read lo_name at %p", (void *)vp);
 		goto fail;
 	}
 	tagstr[sizeof(tagstr) - 1] = '\0';
