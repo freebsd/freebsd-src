@@ -2700,7 +2700,7 @@ restart:
 			    V_FW_ETH_TX_EO_WR_TSOFF(sizeof(*tcp) / 2 + 1));
 		} else
 			set_mbuf_eo_tsclk_tsoff(m0, 0);
-	} else if (needs_udp_csum(m)) {
+	} else if (needs_udp_csum(m0)) {
 		m0->m_pkthdr.l4hlen = sizeof(struct udphdr);
 #endif
 	}
