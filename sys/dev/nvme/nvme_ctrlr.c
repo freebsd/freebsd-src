@@ -886,7 +886,7 @@ nvme_ctrlr_hmb_alloc(struct nvme_controller *ctrlr)
 	TUNABLE_UINT64_FETCH("hw.nvme.hmb_max", &max);
 
 	min = (long long unsigned)ctrlr->cdata.hmmin * 4096;
-	if (max < min)
+	if (max == 0 || max < min)
 		return;
 	pref = MIN((long long unsigned)ctrlr->cdata.hmpre * 4096, max);
 	minc = MAX(ctrlr->cdata.hmminds * 4096, PAGE_SIZE);
