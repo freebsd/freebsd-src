@@ -52,7 +52,7 @@ extern void __ipsec_set_strerror(const char *);
 #define EIPSEC_INVAL_KEYLEN	14	/*invalid key length*/
 #define EIPSEC_INVAL_FAMILY	15	/*invalid address family*/
 #define EIPSEC_INVAL_PREFIXLEN	16	/*SPI range violation*/
-#define EIPSEC_INVAL_DIR	17	/*Invalid direciton*/
+#define EIPSEC_INVAL_DIR	17	/*Invalid direction*/
 #define EIPSEC_INVAL_SPI	18	/*invalid prefixlen*/
 #define EIPSEC_NO_PROTO		19	/*no protocol specified*/
 #define EIPSEC_NO_ALGS		20	/*No algorithm specified*/
