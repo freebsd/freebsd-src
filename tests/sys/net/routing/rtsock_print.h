@@ -40,7 +40,15 @@
 #define	RTSOCK_ATF_REQUIRE_MSG(_rtm, _cond, _fmt, ...)	 do {	\
 	if (!(_cond)) {						\
 		printf("-- CONDITION FAILED, rtm dump  --\n\n");\
-		rtsock_print_rtm(_rtm);				\
+		rtsock_print_message(_rtm);				\
+	}							\
+	ATF_REQUIRE_MSG(_cond, _fmt, ##__VA_ARGS__);		\
+} while (0);
+
+#define	RTSOCKHD_ATF_REQUIRE_MSG(_rtm, _cond, _fmt, ...) do {	\
+	if (!(_cond)) {						\
+		printf("-- CONDITION FAILED, rtm hexdump--\n\n");\
+		rtsock_print_message_hd(_rtm);				\
 	}							\
 	ATF_REQUIRE_MSG(_cond, _fmt, ##__VA_ARGS__);		\
 } while (0);
@@ -145,7 +153,7 @@ sa_print_hd(char *buf, int buflen, const char *data, int len)
 	unsigned char v;
 	int repeat_count = 0;
 	for (int i = 0; i < len; i++) {
-		if (last_char && *last_char == data[i]) {
+		if (last_char && *last_char == data[i] && data[i] == 0x00) {
 			repeat_count++;
 			continue;
 		}
@@ -157,9 +165,9 @@ sa_print_hd(char *buf, int buflen, const char *data, int len)
 
 		v = ((const unsigned char *)data)[i];
 		if (last_char == NULL)
-			_PRINTX("%02X", v);
+			_PRINTX("x%02X", v);
 		else
-			_PRINTX(", %02X", v);
+			_PRINTX(", x%02X", v);
 
 		last_char = &data[i];
 		repeat_count = 1;
@@ -259,6 +267,19 @@ rtsock_print_rtm(struct rt_msghdr *rtm)
 	printf("%s: len %hu, pid: %d, seq %d, errno %d, flags: %s\n", msgtypes[rtm->rtm_type],
 		rtm->rtm_msglen, rtm->rtm_pid, rtm->rtm_seq, rtm->rtm_errno, flags_buf);
 
+	if (rtm->rtm_inits > 0) {
+		_printb(flags_buf, sizeof(flags_buf), rtm->rtm_inits, metricnames);
+		printf("metrics: %s\n", flags_buf);
+		if (rtm->rtm_inits & RTV_MTU)
+			printf("mtu: %lu\n", rtm->rtm_rmx.rmx_mtu);
+		if (rtm->rtm_inits & RTV_EXPIRE) {
+			struct timeval tv;
+			gettimeofday(&tv, NULL);
+			printf("expire: %d (%lu raw)\n",
+			    (int)(rtm->rtm_rmx.rmx_expire - tv.tv_sec), rtm->rtm_rmx.rmx_expire);
+		}
+	}
+
 	_printb(flags_buf, sizeof(flags_buf), rtm->rtm_addrs, addrnames);
 	printf("sockaddrs: 0x%X %s\n", rtm->rtm_addrs, flags_buf);
 
@@ -275,6 +296,81 @@ rtsock_print_rtm(struct rt_msghdr *rtm)
 
 	printf("\n");
 
+}
+
+void
+rtsock_print_ifa(struct ifa_msghdr *ifam)
+{
+	struct timeval tv;
+	struct tm tm_res;
+	char buf[64];
+
+	gettimeofday(&tv, NULL);
+	localtime_r(&tv.tv_sec, &tm_res); 
+	strftime(buf, sizeof(buf), "%F %T", &tm_res);
+	printf("Got message of size %hu on %s\n", ifam->ifam_msglen, buf);
+
+	char flags_buf[256];
+	_printb(flags_buf, sizeof(flags_buf), ifam->ifam_flags, routeflags);
+
+	printf("%s: len %hu, ifindex: %d, flags: %s\n", msgtypes[ifam->ifam_type],
+		ifam->ifam_msglen, ifam->ifam_index, flags_buf);
+
+	_printb(flags_buf, sizeof(flags_buf), ifam->ifam_addrs, addrnames);
+	printf("sockaddrs: 0x%X %s\n", ifam->ifam_addrs, flags_buf);
+
+	char *ptr = (char *)(ifam + 1);
+	for (int i = 0; i < RTAX_MAX; i++) {
+		if (ifam->ifam_addrs & (1 << i)) {
+			struct sockaddr *sa = (struct sockaddr *)ptr;
+			sa_print(sa, 1);
+
+			/* add */
+			ptr += ALIGN(((struct sockaddr *)ptr)->sa_len);
+		}
+	}
+
+	printf("\n");
+
+}
+
+void
+rtsock_print_message_hd(struct rt_msghdr *rtm)
+{
+	struct timeval tv;
+	struct tm tm_res;
+	char buf[64];
+	char dumpbuf[2048];
+
+	gettimeofday(&tv, NULL);
+	localtime_r(&tv.tv_sec, &tm_res); 
+	strftime(buf, sizeof(buf), "%F %T", &tm_res);
+	printf("Got message type %s of size %hu on %s\n",
+	    rtsock_print_cmdtype(rtm->rtm_type),
+	    rtm->rtm_msglen, buf);
+
+	sa_print_hd(dumpbuf, sizeof(dumpbuf), (char *)rtm, rtm->rtm_msglen);
+	printf(" %s\n", dumpbuf);
+}
+
+void
+rtsock_print_message(struct rt_msghdr *rtm)
+{
+
+	switch (rtm->rtm_type) {
+	case RTM_GET:
+	case RTM_ADD:
+	case RTM_DELETE:
+	case RTM_CHANGE:
+		rtsock_print_rtm(rtm);
+		break;
+	case RTM_DELADDR:
+	case RTM_NEWADDR:
+		rtsock_print_ifa((struct ifa_msghdr *)rtm);
+		break;
+	default:
+		printf("unknown rt message type %X\n", rtm->rtm_type);
+	}
 }
 
 #endif
