@@ -514,12 +514,13 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 		    argv[i] = argv[i + rtld_argc];
 		*argcp -= rtld_argc;
 		environ = env = envp = argv + main_argc + 1;
+		dbg("move env from %p to %p", envp + rtld_argc, envp);
 		do {
 		    *envp = *(envp + rtld_argc);
-		    envp++;
-		} while (*envp != NULL);
+		}  while (*envp++ != NULL);
 		aux = auxp = (Elf_Auxinfo *)envp;
 		auxpf = (Elf_Auxinfo *)(envp + rtld_argc);
+		dbg("move aux from %p to %p", auxpf, aux);
 		/* XXXKIB insert place for AT_EXECPATH if not present */
 		for (;; auxp++, auxpf++) {
 		    *auxp = *auxpf;
