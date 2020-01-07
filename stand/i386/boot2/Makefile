@@ -79,7 +79,7 @@ boot2.bin: boot2.out
 	${OBJCOPY} -S -O binary boot2.out ${.TARGET}
 
 # For __ashldi3
-.PATH: ${SRCTOP}/contrib/compiler-rt/lib/builtins
+.PATH: ${SRCTOP}/contrib/llvm-project/compiler-rt/lib/builtins
 CFLAGS.ashldi3.c=	-Wno-missing-prototypes -Wno-missing-declarations
 CLEANFILES+=	ashldi3.o
 

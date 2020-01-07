@@ -2,7 +2,7 @@
 
 PROG_CXX=	lli
 
-SRCDIR=		tools/lli
+SRCDIR=		llvm/tools/lli
 SRCS+=		lli.cpp
 
 LIBADD+=	z

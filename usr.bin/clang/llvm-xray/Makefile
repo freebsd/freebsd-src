@@ -3,7 +3,7 @@
 PROG_CXX=	llvm-xray
 MAN=
 
-SRCDIR=		tools/llvm-xray
+SRCDIR=		llvm/tools/llvm-xray
 SRCS+=		func-id-helper.cpp
 SRCS+=		llvm-xray.cpp
 SRCS+=		xray-account.cpp

@@ -53,7 +53,7 @@ CFLAGS.clang+=	-mno-movt
 .endif
 CFLAGS.clang+=	-mfpu=none
 
-.PATH: ${SRCTOP}/contrib/compiler-rt/lib/builtins/arm/
+.PATH: ${SRCTOP}/contrib/llvm-project/compiler-rt/lib/builtins/arm/
 SRCS+=	aeabi_idivmod.S aeabi_ldivmod.S aeabi_uidivmod.S aeabi_uldivmod.S
 SRCS+=	aeabi_memcmp.S aeabi_memcpy.S aeabi_memmove.S aeabi_memset.S
 .endif
@@ -63,7 +63,7 @@ SRCS+=	aeabi_memcmp.S aeabi_memcpy.S aeabi_memmove.S aeabi_memset.S
 .endif
 
 # Compiler support functions
-.PATH: ${SRCTOP}/contrib/compiler-rt/lib/builtins/
+.PATH: ${SRCTOP}/contrib/llvm-project/compiler-rt/lib/builtins/
 # __clzsi2 and ctzsi2 for various builtin functions
 SRCS+=	clzsi2.c ctzsi2.c
 # Divide and modulus functions called by the compiler

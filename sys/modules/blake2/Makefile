@@ -3,7 +3,7 @@
 .PATH:	${SRCTOP}/sys/contrib/libb2
 .PATH:	${SRCTOP}/sys/crypto/blake2
 .PATH:	${SRCTOP}/sys/opencrypto
-.PATH:	${SRCTOP}/contrib/llvm/tools/clang/lib/Headers
+.PATH:	${SRCTOP}/contrib/llvm-project/clang/lib/Headers
 
 KMOD	= blake2
 

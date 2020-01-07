@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 .PATH: ${SRCTOP}/sys/crypto/aesni
-.PATH: ${SRCTOP}/contrib/llvm/tools/clang/lib/Headers
+.PATH: ${SRCTOP}/contrib/llvm-project/clang/lib/Headers
 
 KMOD=	aesni
 SRCS=	aesni.c

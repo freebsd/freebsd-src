@@ -2,7 +2,7 @@
 
 PROG_CXX=	llvm-tblgen
 
-SRCDIR=		utils/TableGen
+SRCDIR=		llvm/utils/TableGen
 SRCS+=		AsmMatcherEmitter.cpp
 SRCS+=		AsmWriterEmitter.cpp
 SRCS+=		AsmWriterInst.cpp

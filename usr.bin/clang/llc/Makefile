@@ -2,7 +2,7 @@
 
 PROG_CXX=	llc
 
-SRCDIR=		tools/llc
+SRCDIR=		llvm/tools/llc
 SRCS+=		llc.cpp
 
 LIBADD+=	z

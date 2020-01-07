@@ -21,7 +21,7 @@ SRCS+=	aeabi_vfp_double.S	\
 # libc. This causes issues when other parts of libc call these functions.
 # We work around this by including these functions in libc but mark them as
 # hidden so users of libc will not pick up these versions.
-.PATH: ${SRCTOP}/contrib/compiler-rt/lib/builtins/arm
+.PATH: ${SRCTOP}/contrib/llvm-project/compiler-rt/lib/builtins/arm
 
 SRCS+=	aeabi_memcmp.S		\
 	aeabi_memcpy.S		\

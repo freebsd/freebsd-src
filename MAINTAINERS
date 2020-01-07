@@ -37,14 +37,13 @@ subsystem	login	notes
 -----------------------------
 atf			freebsd-testing,jmmv,ngie	Pre-commit review requested.
 ath(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
-contrib/compiler-rt	dim	Pre-commit review preferred.
-contrib/libc++		dim	Pre-commit review preferred.
-contrib/libcxxrt	dim	Pre-commit review preferred.
-contrib/llvm		dim	Pre-commit review preferred.
-contrib/llvm/tools/lldb	emaste	Pre-commit review preferred.
-contrib/netbsd-tests	freebsd-testing,ngie	Pre-commit review requested.
-contrib/pjdfstest	freebsd-testing,asomers,ngie,pjd	Pre-commit review requested.
-dev/usb/wlan	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
+contrib/libcxxrt	dim,emaste		Pre-commit review preferred.
+contrib/llvm-project/compiler-rt	dim	Pre-commit review preferred.
+contrib/llvm-project/libcxx	dim		Pre-commit review preferred.
+contrib/llvm-project/libunwind	dim,emaste,jhb	Pre-commit review preferred.
+contrib/llvm-project/lldb	dim,emaste	Pre-commit review preferred.
+contrib/llvm-project/llvm	dim		Pre-commit review preferred.
+contrib/llvm-project/openmp	dim,emaste	Pre-commit review preferred.
 *env(3)		secteam	Due to the problematic security history of this
 			code, please have patches reviewed by secteam.
 etc/mail	gshapiro	Pre-commit review requested.  Keep in sync with -STABLE.

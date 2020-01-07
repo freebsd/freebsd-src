@@ -4,8 +4,8 @@
 
 PACKAGE=	clibs
 _LIBCXXRTDIR=	${SRCTOP}/contrib/libcxxrt
-HDRDIR=		${SRCTOP}/contrib/libc++/include
-SRCDIR=		${SRCTOP}/contrib/libc++/src
+HDRDIR=		${SRCTOP}/contrib/llvm-project/libcxx/include
+SRCDIR=		${SRCTOP}/contrib/llvm-project/libcxx/src
 CXXINCLUDEDIR=	${INCLUDEDIR}/c++/v${SHLIB_MAJOR}
 .if ${MACHINE_CPUARCH} == "arm"
 STATIC_CXXFLAGS+= -mlong-calls

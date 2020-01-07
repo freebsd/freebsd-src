@@ -4,7 +4,7 @@
 
 SHLIB_NAME=	libomp.so
 
-OMPSRC=		${SRCTOP}/contrib/openmp/runtime/src
+OMPSRC=		${SRCTOP}/contrib/llvm-project/openmp/runtime/src
 ITTSRC=		${OMPSRC}/thirdparty/ittnotify
 .PATH:		${OMPSRC}
 .PATH:		${ITTSRC}
