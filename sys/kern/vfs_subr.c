@@ -139,7 +139,7 @@ static int	v_inval_buf_range_locked(struct vnode *vp, struct bufobj *bo,
  * Number of vnodes in existence.  Increased whenever getnewvnode()
  * allocates a new vnode, decreased in vdropl() for VIRF_DOOMED vnode.
  */
-static unsigned long	numvnodes;
+static u_long __exclusive_cache_line numvnodes;
 
 SYSCTL_ULONG(_vfs, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0,
     "Number of vnodes in existence");
@@ -227,7 +227,7 @@ static struct mtx mntid_mtx;
  *	numvnodes
  *	freevnodes
  */
-static struct mtx vnode_free_list_mtx;
+static struct mtx __exclusive_cache_line vnode_free_list_mtx;
 
 /* Publicly exported FS */
 struct nfs_public nfs_pub;
