@@ -99,8 +99,8 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 	int writable;
 
 	/* check invalid arguments. */
-	if (m == NULL)
-		panic("m == NULL in m_pulldown()");
+	KASSERT(m != NULL, ("%s: fix caller: m is NULL off %d len %d offp %p\n",
+	    __func__, off, len, offp));
 	if (len > MCLBYTES) {
 		m_freem(m);
 		return NULL;	/* impossible */
