@@ -453,7 +453,7 @@ int pqisrc_process_config_table(pqisrc_softstate_t *softs)
 		ret = PQI_STATUS_SUCCESS;
 		break;
 		default:
-		DBG_ERR("unrecognized PQI config table section ID: 0x%x\n",
+		DBG_INFO("unrecognized PQI config table section ID: 0x%x\n",
 					LE_16(section_hdr->section_id));
 		break;
 		}
