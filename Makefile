@@ -728,6 +728,7 @@ universe_kernconf_${TARGET}_${kernel}: .MAKE
 .endfor
 .for target_arch in ${TARGET_ARCHES_${TARGET}}
 universe_kernconfs: universe_kernconfs_${target_arch} .PHONY
+universe_kernconfs_${target_arch}:
 .endfor
 .endif	# make(universe_kernels)
 universe: universe_epilogue
