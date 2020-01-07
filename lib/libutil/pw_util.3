@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 02, 2015
+.Dd July 26, 2018
 .Dt PW_UTIL 3
 .Os
 .Sh NAME
@@ -59,6 +59,8 @@
 .Fn pw_fini "void"
 .Ft int
 .Fn pw_init "const char *dir" const char *master"
+.Ft void
+.Fn pw_initpwd "struct passwd *pw"
 .Ft "char *"
 .Fn pw_make "const struct passwd *pw"
 .Ft "char *"
@@ -179,7 +181,7 @@ if any.
 .Pp
 The
 .Fn pw_init
-initialize the static variable representing the path a password file.
+initializes the static variable representing the path to a password file.
 .Fa dir
 is the directory where the password file is located.
 If set to
@@ -192,6 +194,18 @@ If set to
 .Dv NULL?
 it will default to
 .Pa master.passwd
+.Pp
+The
+.Fn pw_initpwd
+function initializes the
+.Vt passwd
+struct to canonical values.
+The entire structure is zeroed, then
+.Va pw_uid
+and
+.Va pw_gid
+are set to -1, and all string pointers are set to point at
+an internally-defined zero-length string.
 .Pp
 The
 .Fn pw_make
