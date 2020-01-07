@@ -3018,8 +3018,10 @@ vdefer_inactive(struct vnode *vp)
 	ASSERT_VI_LOCKED(vp, __func__);
 	VNASSERT(vp->v_iflag & VI_OWEINACT, vp,
 	    ("%s: vnode without VI_OWEINACT", __func__));
-	VNASSERT(!VN_IS_DOOMED(vp), vp,
-	    ("%s: doomed vnode", __func__));
+	if (VN_IS_DOOMED(vp)) {
+		vdropl(vp);
+		return;
+	}
 	if (vp->v_iflag & VI_DEFINACT) {
 		VNASSERT(vp->v_holdcnt > 1, vp, ("lost hold count"));
 		vdropl(vp);
@@ -3036,8 +3038,7 @@ vdefer_inactive_cond(struct vnode *vp)
 
 	VI_LOCK(vp);
 	VNASSERT(vp->v_holdcnt > 0, vp, ("vnode without hold count"));
-	if (VN_IS_DOOMED(vp) ||
-	    (vp->v_iflag & VI_OWEINACT) == 0) {
+	if ((vp->v_iflag & VI_OWEINACT) == 0) {
 		vdropl(vp);
 		return;
 	}
