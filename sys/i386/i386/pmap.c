@@ -342,12 +342,10 @@ static void pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t sva,
     struct spglist *free);
 static vm_page_t pmap_remove_pt_page(pmap_t pmap, vm_offset_t va);
-static void pmap_remove_page(struct pmap *pmap, vm_offset_t va,
-    struct spglist *free);
+static void pmap_remove_page(pmap_t pmap, vm_offset_t va, struct spglist *free);
 static bool	pmap_remove_ptes(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 		    struct spglist *free);
-static void pmap_remove_entry(struct pmap *pmap, vm_page_t m,
-					vm_offset_t va);
+static void pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va);
 static void pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
 static boolean_t pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va,
     vm_page_t m);
