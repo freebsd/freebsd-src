@@ -448,10 +448,10 @@ void	 rt_ifannouncemsg(struct ifnet *, int);
 void	 rt_ifmsg(struct ifnet *);
 void	 rt_missmsg(int, struct rt_addrinfo *, int, int);
 void	 rt_missmsg_fib(int, struct rt_addrinfo *, int, int, int);
-void	 rt_newaddrmsg(int, struct ifaddr *, int, struct rtentry *);
-void	 rt_newaddrmsg_fib(int, struct ifaddr *, int, struct rtentry *, int);
+void	 rt_newaddrmsg_fib(int, struct ifaddr *, struct rtentry *, int);
 int	 rt_addrmsg(int, struct ifaddr *, int);
-int	 rt_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
+int	 rt_routemsg(int, struct rtentry *, struct ifnet *ifp, int, int);
+int	 rt_routemsg_info(int, struct rt_addrinfo *, int);
 void	 rt_newmaddrmsg(int, struct ifmultiaddr *);
 int	 rt_setgate(struct rtentry *, struct sockaddr *, struct sockaddr *);
 void 	 rt_maskedcopy(struct sockaddr *, struct sockaddr *, struct sockaddr *);
@@ -460,7 +460,8 @@ void	rt_table_destroy(struct rib_head *);
 u_int	rt_tables_get_gen(int table, int fam);
 
 int	rtsock_addrmsg(int, struct ifaddr *, int);
-int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
+int	rtsock_routemsg(int, struct rtentry *, struct ifnet *ifp, int, int);
+int	rtsock_routemsg_info(int, struct rt_addrinfo *, int);
 
 /*
  * Note the following locking behavior:

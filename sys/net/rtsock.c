@@ -1450,7 +1450,7 @@ rtsock_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
 	info.rti_info[RTAX_IFA] = sa = ifa->ifa_addr;
 	info.rti_info[RTAX_IFP] = ifp->if_addr->ifa_addr;
 	info.rti_info[RTAX_NETMASK] = rtsock_fix_netmask(
-	    info.rti_info[RTAX_IFP], ifa->ifa_netmask, &ss);
+	    info.rti_info[RTAX_IFA], ifa->ifa_netmask, &ss);
 	info.rti_info[RTAX_BRD] = ifa->ifa_dstaddr;
 	if ((m = rtsock_msg_mbuf(ncmd, &info)) == NULL)
 		return (ENOBUFS);
@@ -1471,46 +1471,69 @@ rtsock_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
 }
 
 /*
- * Announce route addition/removal.
- * Please do not call directly, use rt_routemsg().
- * Note that @rt data MAY be inconsistent/invalid:
- * if some userland app sends us "invalid" route message (invalid mask,
- * no dst, wrong address families, etc...) we need to pass it back
- * to app (and any other rtsock consumers) with rtm_errno field set to
- * non-zero value.
+ * Announce route addition/removal to rtsock based on @rt data.
+ * Callers are advives to use rt_routemsg() instead of using this
+ *  function directly.
+ * Assume @rt data is consistent.
  *
  * Returns 0 on success.
  */
 int
-rtsock_routemsg(int cmd, struct ifnet *ifp, int error, struct rtentry *rt,
+rtsock_routemsg(int cmd, struct rtentry *rt, struct ifnet *ifp, int rti_addrs,
     int fibnum)
 {
-	struct rt_addrinfo info;
-	struct sockaddr *sa;
-	struct mbuf *m;
-	struct rt_msghdr *rtm;
 	struct sockaddr_storage ss;
+	struct rt_addrinfo info;
 
 	if (V_route_cb.any_count == 0)
 		return (0);
 
 	bzero((caddr_t)&info, sizeof(info));
-	info.rti_info[RTAX_DST] = sa = rt_key(rt);
-	info.rti_info[RTAX_NETMASK] = rtsock_fix_netmask(sa, rt_mask(rt), &ss);
+	info.rti_info[RTAX_DST] = rt_key(rt);
+	info.rti_info[RTAX_NETMASK] = rtsock_fix_netmask(rt_key(rt), rt_mask(rt), &ss);
 	info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
-	if ((m = rtsock_msg_mbuf(cmd, &info)) == NULL)
+	info.rti_flags = rt->rt_flags;
+	info.rti_ifp = ifp;
+
+	return (rtsock_routemsg_info(cmd, &info, fibnum));
+}
+
+int
+rtsock_routemsg_info(int cmd, struct rt_addrinfo *info, int fibnum)
+{
+	struct rt_msghdr *rtm;
+	struct sockaddr *sa;
+	struct mbuf *m;
+
+	if (V_route_cb.any_count == 0)
+		return (0);
+
+	if (info->rti_flags & RTF_HOST)
+		info->rti_info[RTAX_NETMASK] = NULL;
+
+	m = rtsock_msg_mbuf(cmd, info);
+	if (m == NULL)
 		return (ENOBUFS);
-	rtm = mtod(m, struct rt_msghdr *);
-	rtm->rtm_index = ifp->if_index;
-	rtm->rtm_flags |= rt->rt_flags;
-	rtm->rtm_errno = error;
-	rtm->rtm_addrs = info.rti_addrs;
 
 	if (fibnum != RT_ALL_FIBS) {
+		KASSERT(fibnum >= 0 && fibnum < rt_numfibs, ("%s: fibnum out "
+		    "of range 0 <= %d < %d", __func__, fibnum, rt_numfibs));
 		M_SETFIB(m, fibnum);
 		m->m_flags |= RTS_FILTER_FIB;
 	}
 
+	rtm = mtod(m, struct rt_msghdr *);
+	rtm->rtm_addrs = info->rti_addrs;
+	if (info->rti_ifp != NULL)
+		rtm->rtm_index = info->rti_ifp->if_index;
+	/* Add RTF_DONE to indicate command 'completion' required by API */
+	info->rti_flags |= RTF_DONE;
+	/* Reported routes has to be up */
+	if (cmd == RTM_ADD || cmd == RTM_CHANGE)
+		info->rti_flags |= RTF_UP;
+	rtm->rtm_flags = info->rti_flags;
+
+	sa = info->rti_info[RTAX_DST];
 	rt_dispatch(m, sa ? sa->sa_family : AF_UNSPEC);
 
 	return (0);

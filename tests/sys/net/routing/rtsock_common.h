@@ -37,6 +37,7 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include <poll.h>
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -594,6 +595,17 @@ struct rt_msghdr *
 rtsock_read_rtm(int fd, char *buffer, size_t buflen)
 {
 	ssize_t len;
+	struct pollfd pfd;
+	int poll_delay = 5 * 1000; /* 5 seconds */
+
+	/* Check for the data available to read first */
+	memset(&pfd, 0, sizeof(pfd));
+	pfd.fd = fd;
+	pfd.events = POLLIN;
+
+	if (poll(&pfd, 1, poll_delay) == 0)
+		ATF_REQUIRE_MSG(1 == 0, "rtsock read timed out (%d seconds passed)",
+		    poll_delay / 1000);
 
 	len = read(fd, buffer, buflen);
 	int my_errno = errno;
@@ -706,35 +718,36 @@ rtsock_update_rtm_len(struct rt_msghdr *rtm)
 }
 
 static void
-_validate_route_message(struct rt_msghdr *rtm)
+_validate_message_sockaddrs(char *buffer, int rtm_len, size_t offset, int rtm_addrs)
 {
 	struct sockaddr *sa;
-	size_t parsed_len = sizeof(struct rt_msghdr);
-	int len = rtm->rtm_msglen;
+	size_t parsed_len = offset;
 
-	sa = (struct sockaddr *)(rtm + 1);
+	/* Offset denotes initial header size */
+	sa = (struct sockaddr *)(buffer + offset);
 
 	for (int i = 0; i < RTAX_MAX; i++) {
-		if ((rtm->rtm_addrs & (1 << i)) == 0)
+		if ((rtm_addrs & (1 << i)) == 0)
 			continue;
 		parsed_len += SA_SIZE(sa);
-		RTSOCK_ATF_REQUIRE_MSG(rtm, parsed_len <= len,
-		    "SA %d: len %d exceeds msg size %d", i, (int)sa->sa_len, len);
+		RTSOCK_ATF_REQUIRE_MSG((struct rt_msghdr *)buffer, parsed_len <= rtm_len,
+		    "SA %d: len %d exceeds msg size %d", i, (int)sa->sa_len, rtm_len);
 		if (sa->sa_family == AF_LINK) {
 			struct sockaddr_dl *sdl = (struct sockaddr_dl *)sa;
 			int data_len = sdl->sdl_nlen + sdl->sdl_alen;
 			data_len += offsetof(struct sockaddr_dl, sdl_data);
 
-			RTSOCK_ATF_REQUIRE_MSG(rtm, data_len <= len,
-			    "AF_LINK data size exceeds total len: %u vs %u",
-			    data_len, len);
+			RTSOCK_ATF_REQUIRE_MSG((struct rt_msghdr *)buffer,
+			    data_len <= rtm_len,
+			    "AF_LINK data size exceeds total len: %u vs %u, nlen=%d alen=%d",
+			    data_len, rtm_len, sdl->sdl_nlen, sdl->sdl_alen);
 		}
 		sa = (struct sockaddr *)((char *)sa + SA_SIZE(sa));
 	}
 
-	RTSOCK_ATF_REQUIRE_MSG(rtm, parsed_len == rtm->rtm_msglen,
+	RTSOCK_ATF_REQUIRE_MSG((struct rt_msghdr *)buffer, parsed_len == rtm_len,
 	    "message len != parsed len: expected %d parsed %d",
-	    rtm->rtm_msglen, (int)parsed_len);
+	    rtm_len, (int)parsed_len);
 }
 
 /*
@@ -758,9 +771,36 @@ rtsock_validate_message(char *buffer, ssize_t len)
 	case RTM_ADD:
 	case RTM_DELETE:
 	case RTM_CHANGE:
-		_validate_route_message(rtm);
+		_validate_message_sockaddrs(buffer, rtm->rtm_msglen,
+		    sizeof(struct rt_msghdr), rtm->rtm_addrs);
+		break;
+	case RTM_DELADDR:
+	case RTM_NEWADDR:
+		_validate_message_sockaddrs(buffer, rtm->rtm_msglen,
+		    sizeof(struct ifa_msghdr), ((struct ifa_msghdr *)buffer)->ifam_addrs);
 		break;
 	}
+}
+
+void
+rtsock_validate_pid_ours(struct rt_msghdr *rtm)
+{
+	RTSOCK_ATF_REQUIRE_MSG(rtm, rtm->rtm_pid == getpid(), "expected pid %d, got %d",
+	    getpid(), rtm->rtm_pid);
+}
+
+void
+rtsock_validate_pid_user(struct rt_msghdr *rtm)
+{
+	RTSOCK_ATF_REQUIRE_MSG(rtm, rtm->rtm_pid > 0, "expected non-zero pid, got %d",
+	    rtm->rtm_pid);
+}
+
+void
+rtsock_validate_pid_kernel(struct rt_msghdr *rtm)
+{
+	RTSOCK_ATF_REQUIRE_MSG(rtm, rtm->rtm_pid == 0, "expected zero pid, got %d",
+	    rtm->rtm_pid);
 }
 
 #endif
