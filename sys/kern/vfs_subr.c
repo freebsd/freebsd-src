@@ -4390,36 +4390,39 @@ vfs_msync(struct mount *mp, int flags)
 {
 	struct vnode *vp, *mvp;
 	struct vm_object *obj;
+	struct thread *td;
+	int lkflags, objflags;
 
 	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
 
 	if ((mp->mnt_kern_flag & MNTK_NOMSYNC) != 0)
 		return;
 
+	td = curthread;
+
+	lkflags = LK_EXCLUSIVE | LK_INTERLOCK;
+	if (flags != MNT_WAIT) {
+		lkflags |= LK_NOWAIT;
+		objflags = OBJPC_NOSYNC;
+	} else {
+		objflags = OBJPC_SYNC;
+	}
+
 	MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) {
 		obj = vp->v_object;
-		if (obj != NULL && vm_object_mightbedirty(obj) &&
-		    (flags == MNT_WAIT || VOP_ISLOCKED(vp) == 0)) {
-			if (!vget(vp,
-			    LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK,
-			    curthread)) {
-				if (vp->v_vflag & VV_NOSYNC) {	/* unlinked */
-					vput(vp);
-					continue;
-				}
-
-				obj = vp->v_object;
-				if (obj != NULL) {
-					VM_OBJECT_WLOCK(obj);
-					vm_object_page_clean(obj, 0, 0,
-					    flags == MNT_WAIT ?
-					    OBJPC_SYNC : OBJPC_NOSYNC);
-					VM_OBJECT_WUNLOCK(obj);
-				}
-				vput(vp);
-			}
-		} else
+		if (obj == NULL || !vm_object_mightbedirty(obj)) {
 			VI_UNLOCK(vp);
+			continue;
+		}
+		if (vget(vp, lkflags, td) == 0) {
+			obj = vp->v_object;
+			if (obj != NULL && (vp->v_vflag & VV_NOSYNC) == 0) {
+				VM_OBJECT_WLOCK(obj);
+				vm_object_page_clean(obj, 0, 0, objflags);
+				VM_OBJECT_WUNLOCK(obj);
+			}
+			vput(vp);
+		}
 	}
 }
 
