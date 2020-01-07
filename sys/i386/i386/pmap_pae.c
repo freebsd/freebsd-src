@@ -43,7 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #define	PMTYPE	pmap_pae_
+#define	pm_pdir	pm_pdir_pae
+#define	pm_pdpt	pm_pdpt_pae
 #include <machine/pmap_pae.h>
 #include <vm/pmap.h>
-_Static_assert(sizeof(struct pmap_KBI) >= sizeof(struct pmap), "pmap KBI");
 #include "pmap.c"
