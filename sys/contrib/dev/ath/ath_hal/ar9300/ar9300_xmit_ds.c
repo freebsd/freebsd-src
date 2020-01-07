@@ -26,8 +26,10 @@
 #include "ar9300/ar9300phy.h"
 #include "ah_devid.h"
 
+#if 0
 #if AH_BYTE_ORDER == AH_BIG_ENDIAN
 static void ar9300_swap_tx_desc(void *ds);
+#endif
 #endif
 
 void
@@ -174,6 +176,7 @@ ar9300_clear_dest_mask(struct ath_hal *ah, void *ds)
 }
 #endif
 
+#if 0
 #if AH_BYTE_ORDER == AH_BIG_ENDIAN
 /* XXX what words need swapping */
 /* Swap transmit descriptor */
@@ -192,6 +195,7 @@ ar9300_swap_tx_desc(void *dsp)
     ds->status7 = __bswap32(ds->status7);
     ds->status8 = __bswap32(ds->status8);
 }
+#endif
 #endif
 
 
