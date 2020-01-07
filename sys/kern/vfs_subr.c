@@ -459,6 +459,28 @@ PCTRIE_DEFINE(BUF, buf, b_lblkno, buf_trie_alloc, buf_trie_free);
 #define	MAXVNODES_MAX	(512 * 1024 * 1024 / 64)	/* 8M */
 #endif
 
+static MALLOC_DEFINE(M_VNODE_MARKER, "vnodemarker", "vnode marker");
+
+static struct vnode *
+vn_alloc_marker(struct mount *mp)
+{
+	struct vnode *vp;
+
+	vp = malloc(sizeof(struct vnode), M_VNODE_MARKER, M_WAITOK | M_ZERO);
+	vp->v_type = VMARKER;
+	vp->v_mount = mp;
+
+	return (vp);
+}
+
+static void
+vn_free_marker(struct vnode *vp)
+{
+
+	MPASS(vp->v_type == VMARKER);
+	free(vp, M_VNODE_MARKER);
+}
+
 /*
  * Initialize a vnode as it first enters the zone.
  */
@@ -5785,7 +5807,6 @@ vfs_cache_root_set(struct mount *mp, struct vnode *vp)
  * This interface replaces MNT_VNODE_FOREACH.
  */
 
-MALLOC_DEFINE(M_VNODE_MARKER, "vnodemarker", "vnode marker");
 
 struct vnode *
 __mnt_vnode_next_all(struct vnode **mvp, struct mount *mp)
@@ -5825,11 +5846,9 @@ __mnt_vnode_first_all(struct vnode **mvp, struct mount *mp)
 {
 	struct vnode *vp;
 
-	*mvp = malloc(sizeof(struct vnode), M_VNODE_MARKER, M_WAITOK | M_ZERO);
+	*mvp = vn_alloc_marker(mp);
 	MNT_ILOCK(mp);
 	MNT_REF(mp);
-	(*mvp)->v_mount = mp;
-	(*mvp)->v_type = VMARKER;
 
 	TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
 		/* Allow a racy peek at VIRF_DOOMED to save a lock acquisition. */
@@ -5845,7 +5864,7 @@ __mnt_vnode_first_all(struct vnode **mvp, struct mount *mp)
 	if (vp == NULL) {
 		MNT_REL(mp);
 		MNT_IUNLOCK(mp);
-		free(*mvp, M_VNODE_MARKER);
+		vn_free_marker(*mvp);
 		*mvp = NULL;
 		return (NULL);
 	}
@@ -5869,7 +5888,7 @@ __mnt_vnode_markerfree_all(struct vnode **mvp, struct mount *mp)
 	TAILQ_REMOVE(&mp->mnt_nvnodelist, *mvp, v_nmntvnodes);
 	MNT_REL(mp);
 	MNT_IUNLOCK(mp);
-	free(*mvp, M_VNODE_MARKER);
+	vn_free_marker(*mvp);
 	*mvp = NULL;
 }
 
@@ -5886,7 +5905,7 @@ mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *mp)
 	MNT_ILOCK(mp);
 	MNT_REL(mp);
 	MNT_IUNLOCK(mp);
-	free(*mvp, M_VNODE_MARKER);
+	vn_free_marker(*mvp);
 	*mvp = NULL;
 }
 
@@ -6029,12 +6048,10 @@ __mnt_vnode_first_active(struct vnode **mvp, struct mount *mp)
 {
 	struct vnode *vp;
 
-	*mvp = malloc(sizeof(struct vnode), M_VNODE_MARKER, M_WAITOK | M_ZERO);
+	*mvp = vn_alloc_marker(mp);
 	MNT_ILOCK(mp);
 	MNT_REF(mp);
 	MNT_IUNLOCK(mp);
-	(*mvp)->v_type = VMARKER;
-	(*mvp)->v_mount = mp;
 
 	mtx_lock(&mp->mnt_listmtx);
 	vp = TAILQ_FIRST(&mp->mnt_activevnodelist);
