@@ -1692,7 +1692,7 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	if (coveredvp != NULL)
 		vdrop(coveredvp);
 
-	vfs_msync(mp, MNT_WAIT);
+	vfs_periodic(mp, MNT_WAIT);
 	MNT_ILOCK(mp);
 	async_flag = mp->mnt_flag & MNT_ASYNC;
 	mp->mnt_flag &= ~MNT_ASYNC;

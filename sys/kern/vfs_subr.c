@@ -217,10 +217,9 @@ static int reassignbufcalls;
 SYSCTL_INT(_vfs, OID_AUTO, reassignbufcalls, CTLFLAG_RW | CTLFLAG_STATS,
     &reassignbufcalls, 0, "Number of calls to reassignbuf");
 
-static counter_u64_t free_owe_inact;
-SYSCTL_COUNTER_U64(_vfs, OID_AUTO, free_owe_inact, CTLFLAG_RD, &free_owe_inact,
-    "Number of times free vnodes kept on active list due to VFS "
-    "owing inactivation");
+static counter_u64_t deferred_inact;
+SYSCTL_COUNTER_U64(_vfs, OID_AUTO, deferred_inact, CTLFLAG_RD, &deferred_inact,
+    "Number of times inactive processing was deferred");
 
 /* To keep more than one thread at a time from running vfs_getnewfsid */
 static struct mtx mntid_mtx;
@@ -608,7 +607,7 @@ vntblinit(void *dummy __unused)
 	vnodes_created = counter_u64_alloc(M_WAITOK);
 	recycles_count = counter_u64_alloc(M_WAITOK);
 	recycles_free_count = counter_u64_alloc(M_WAITOK);
-	free_owe_inact = counter_u64_alloc(M_WAITOK);
+	deferred_inact = counter_u64_alloc(M_WAITOK);
 
 	/*
 	 * Initialize the filesystem syncer.
@@ -3012,6 +3011,39 @@ vrefcnt(struct vnode *vp)
 	return (vp->v_usecount);
 }
 
+static void
+vdefer_inactive(struct vnode *vp)
+{
+
+	ASSERT_VI_LOCKED(vp, __func__);
+	VNASSERT(vp->v_iflag & VI_OWEINACT, vp,
+	    ("%s: vnode without VI_OWEINACT", __func__));
+	VNASSERT(!VN_IS_DOOMED(vp), vp,
+	    ("%s: doomed vnode", __func__));
+	if (vp->v_iflag & VI_DEFINACT) {
+		VNASSERT(vp->v_holdcnt > 1, vp, ("lost hold count"));
+		vdropl(vp);
+		return;
+	}
+	vp->v_iflag |= VI_DEFINACT;
+	VI_UNLOCK(vp);
+	counter_u64_add(deferred_inact, 1);
+}
+
+static void
+vdefer_inactive_cond(struct vnode *vp)
+{
+
+	VI_LOCK(vp);
+	VNASSERT(vp->v_holdcnt > 0, vp, ("vnode without hold count"));
+	if (VN_IS_DOOMED(vp) ||
+	    (vp->v_iflag & VI_OWEINACT) == 0) {
+		vdropl(vp);
+		return;
+	}
+	vdefer_inactive(vp);
+}
+
 enum vputx_op { VPUTX_VRELE, VPUTX_VPUT, VPUTX_VUNREF };
 
 /*
@@ -3101,8 +3133,12 @@ vputx(struct vnode *vp, enum vputx_op func)
 			vinactive(vp);
 		if (func != VPUTX_VUNREF)
 			VOP_UNLOCK(vp);
+		vdropl(vp);
+	} else if (vp->v_iflag & VI_OWEINACT) {
+		vdefer_inactive(vp);
+	} else {
+		vdropl(vp);
 	}
-	vdropl(vp);
 }
 
 /*
@@ -3257,28 +3293,27 @@ vdrop_deactivate(struct vnode *vp)
 	    ("vdrop: vnode already reclaimed."));
 	VNASSERT((vp->v_iflag & VI_FREE) == 0, vp,
 	    ("vnode already free"));
+	VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
+	    ("vnode with VI_OWEINACT set"));
+	VNASSERT((vp->v_iflag & VI_DEFINACT) == 0, vp,
+	    ("vnode with VI_DEFINACT set"));
 	VNASSERT(vp->v_holdcnt == 0, vp,
 	    ("vdrop: freeing when we shouldn't"));
-	if ((vp->v_iflag & VI_OWEINACT) == 0) {
-		mp = vp->v_mount;
-		mtx_lock(&mp->mnt_listmtx);
-		if (vp->v_iflag & VI_ACTIVE) {
-			vp->v_iflag &= ~VI_ACTIVE;
-			TAILQ_REMOVE(&mp->mnt_activevnodelist, vp, v_actfreelist);
-			mp->mnt_activevnodelistsize--;
-		}
-		TAILQ_INSERT_TAIL(&mp->mnt_tmpfreevnodelist, vp, v_actfreelist);
-		mp->mnt_tmpfreevnodelistsize++;
-		vp->v_iflag |= VI_FREE;
-		vp->v_mflag |= VMP_TMPMNTFREELIST;
-		VI_UNLOCK(vp);
-		if (mp->mnt_tmpfreevnodelistsize >= mnt_free_list_batch)
-			vnlru_return_batch_locked(mp);
-		mtx_unlock(&mp->mnt_listmtx);
-	} else {
-		VI_UNLOCK(vp);
-		counter_u64_add(free_owe_inact, 1);
+	mp = vp->v_mount;
+	mtx_lock(&mp->mnt_listmtx);
+	if (vp->v_iflag & VI_ACTIVE) {
+		vp->v_iflag &= ~VI_ACTIVE;
+		TAILQ_REMOVE(&mp->mnt_activevnodelist, vp, v_actfreelist);
+		mp->mnt_activevnodelistsize--;
 	}
+	TAILQ_INSERT_TAIL(&mp->mnt_tmpfreevnodelist, vp, v_actfreelist);
+	mp->mnt_tmpfreevnodelistsize++;
+	vp->v_iflag |= VI_FREE;
+	vp->v_mflag |= VMP_TMPMNTFREELIST;
+	VI_UNLOCK(vp);
+	if (mp->mnt_tmpfreevnodelistsize >= mnt_free_list_batch)
+		vnlru_return_batch_locked(mp);
+	mtx_unlock(&mp->mnt_listmtx);
 }
 
 void
@@ -3629,7 +3664,17 @@ vgonel(struct vnode *vp)
 	 */
 	active = vp->v_usecount > 0;
 	oweinact = (vp->v_iflag & VI_OWEINACT) != 0;
-	VI_UNLOCK(vp);
+	/*
+	 * If we need to do inactive VI_OWEINACT will be set.
+	 */
+	if (vp->v_iflag & VI_DEFINACT) {
+		VNASSERT(vp->v_holdcnt > 1, vp, ("lost hold count"));
+		vp->v_iflag &= ~VI_DEFINACT;
+		vdropl(vp);
+	} else {
+		VNASSERT(vp->v_holdcnt > 0, vp, ("vnode without hold count"));
+		VI_UNLOCK(vp);
+	}
 	vfs_notify_upper(vp, VFS_NOTIFY_UPPER_RECLAIM);
 
 	/*
@@ -3823,8 +3868,10 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VI_DOINGINACT", sizeof(buf));
 	if (vp->v_iflag & VI_OWEINACT)
 		strlcat(buf, "|VI_OWEINACT", sizeof(buf));
+	if (vp->v_iflag & VI_DEFINACT)
+		strlcat(buf, "|VI_DEFINACT", sizeof(buf));
 	flags = vp->v_iflag & ~(VI_TEXT_REF | VI_MOUNT | VI_FREE | VI_ACTIVE |
-	    VI_DOINGINACT | VI_OWEINACT);
+	    VI_DOINGINACT | VI_OWEINACT | VI_DEFINACT);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VI(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
@@ -4381,22 +4428,66 @@ vfs_unmountall(void)
 		unmount_or_warn(rootdevmp);
 }
 
-/*
- * perform msync on all vnodes under a mount point
- * the mount point must be locked.
- */
-void
-vfs_msync(struct mount *mp, int flags)
+static void
+vfs_deferred_inactive(struct vnode *vp, int lkflags)
+{
+
+	ASSERT_VI_LOCKED(vp, __func__);
+	VNASSERT((vp->v_iflag & VI_DEFINACT) == 0, vp, ("VI_DEFINACT still set"));
+	if ((vp->v_iflag & VI_OWEINACT) == 0) {
+		vdropl(vp);
+		return;
+	}
+	if (vn_lock(vp, lkflags) == 0) {
+		VI_LOCK(vp);
+		if ((vp->v_iflag & (VI_OWEINACT | VI_DOINGINACT)) == VI_OWEINACT)
+			vinactive(vp);
+		VOP_UNLOCK(vp);
+		vdropl(vp);
+		return;
+	}
+	vdefer_inactive_cond(vp);
+}
+
+static void __noinline
+vfs_periodic_inactive(struct mount *mp, int flags)
+{
+	struct vnode *vp, *mvp;
+	int lkflags;
+
+	lkflags = LK_EXCLUSIVE | LK_INTERLOCK;
+	if (flags != MNT_WAIT)
+		lkflags |= LK_NOWAIT;
+
+	MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) {
+		if ((vp->v_iflag & VI_DEFINACT) == 0) {
+			VI_UNLOCK(vp);
+			continue;
+		}
+		vp->v_iflag &= ~VI_DEFINACT;
+		vfs_deferred_inactive(vp, lkflags);
+	}
+}
+
+static inline bool
+vfs_want_msync(struct vnode *vp)
+{
+	struct vm_object *obj;
+
+	if (vp->v_vflag & VV_NOSYNC)
+		return (false);
+	obj = vp->v_object;
+	return (obj != NULL && vm_object_mightbedirty(obj));
+}
+
+static void __noinline
+vfs_periodic_msync_inactive(struct mount *mp, int flags)
 {
 	struct vnode *vp, *mvp;
 	struct vm_object *obj;
 	struct thread *td;
 	int lkflags, objflags;
-
-	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
-
-	if ((mp->mnt_kern_flag & MNTK_NOMSYNC) != 0)
-		return;
+	bool seen_defer;
 
 	td = curthread;
 
@@ -4409,9 +4500,16 @@ vfs_msync(struct mount *mp, int flags)
 	}
 
 	MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) {
-		obj = vp->v_object;
-		if (obj == NULL || !vm_object_mightbedirty(obj)) {
-			VI_UNLOCK(vp);
+		seen_defer = false;
+		if (vp->v_iflag & VI_DEFINACT) {
+			vp->v_iflag &= ~VI_DEFINACT;
+			seen_defer = true;
+		}
+		if (!vfs_want_msync(vp)) {
+			if (seen_defer)
+				vfs_deferred_inactive(vp, lkflags);
+			else
+				VI_UNLOCK(vp);
 			continue;
 		}
 		if (vget(vp, lkflags, td) == 0) {
@@ -4422,8 +4520,25 @@ vfs_msync(struct mount *mp, int flags)
 				VM_OBJECT_WUNLOCK(obj);
 			}
 			vput(vp);
+			if (seen_defer)
+				vdrop(vp);
+		} else {
+			if (seen_defer)
+				vdefer_inactive_cond(vp);
 		}
 	}
+}
+
+void
+vfs_periodic(struct mount *mp, int flags)
+{
+
+	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
+
+	if ((mp->mnt_kern_flag & MNTK_NOMSYNC) != 0)
+		vfs_periodic_inactive(mp, flags);
+	else
+		vfs_periodic_msync_inactive(mp, flags);
 }
 
 static void
@@ -4636,7 +4751,7 @@ sync_fsync(struct vop_fsync_args *ap)
 	 * batch.  Return them instead of letting them stay there indefinitely.
 	 */
 	vnlru_return_batch(mp);
-	vfs_msync(mp, MNT_NOWAIT);
+	vfs_periodic(mp, MNT_NOWAIT);
 	error = VFS_SYNC(mp, MNT_LAZY);
 	curthread_pflags_restore(save);
 	vn_finished_write(mp);

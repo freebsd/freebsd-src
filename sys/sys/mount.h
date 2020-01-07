@@ -396,7 +396,7 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 #define MNTK_UNMOUNTF	0x00000001	/* forced unmount in progress */
 #define MNTK_ASYNC	0x00000002	/* filtered async flag */
 #define MNTK_SOFTDEP	0x00000004	/* async disabled by softdep */
-#define MNTK_NOMSYNC	0x00000008	/* don't do vfs_msync */
+#define MNTK_NOMSYNC	0x00000008	/* don't do msync */
 #define	MNTK_DRAINING	0x00000010	/* lock draining is happening */
 #define	MNTK_REFEXPIRE	0x00000020	/* refcount expiring is happening */
 #define MNTK_EXTENDED_SHARED	0x00000040 /* Allow shared locking for more ops */
@@ -903,7 +903,7 @@ int	vfs_setopts(struct vfsoptlist *opts, const char *name,
 	    const char *value);
 int	vfs_setpublicfs			    /* set publicly exported fs */
 	    (struct mount *, struct netexport *, struct export_args *);
-void	vfs_msync(struct mount *, int);
+void	vfs_periodic(struct mount *, int);
 int	vfs_busy(struct mount *, int);
 int	vfs_export			 /* process mount export info */
 	    (struct mount *, struct export_args *);
