@@ -841,6 +841,169 @@ nvme_ctrlr_configure_int_coalescing(struct nvme_controller *ctrlr)
 }
 
 static void
+nvme_ctrlr_hmb_free(struct nvme_controller *ctrlr)
+{
+	struct nvme_hmb_chunk *hmbc;
+	int i;
+
+	if (ctrlr->hmb_desc_paddr) {
+		bus_dmamap_unload(ctrlr->hmb_desc_tag, ctrlr->hmb_desc_map);
+		bus_dmamem_free(ctrlr->hmb_desc_tag, ctrlr->hmb_desc_vaddr,
+		    ctrlr->hmb_desc_map);
+		ctrlr->hmb_desc_paddr = 0;
+	}
+	if (ctrlr->hmb_desc_tag) {
+		bus_dma_tag_destroy(ctrlr->hmb_desc_tag);
+		ctrlr->hmb_tag = NULL;
+	}
+	for (i = 0; i < ctrlr->hmb_nchunks; i++) {
+		hmbc = &ctrlr->hmb_chunks[i];
+		bus_dmamap_unload(ctrlr->hmb_tag, hmbc->hmbc_map);
+		bus_dmamem_free(ctrlr->hmb_tag, hmbc->hmbc_vaddr,
+		    hmbc->hmbc_map);
+	}
+	ctrlr->hmb_nchunks = 0;
+	if (ctrlr->hmb_tag) {
+		bus_dma_tag_destroy(ctrlr->hmb_tag);
+		ctrlr->hmb_tag = NULL;
+	}
+	if (ctrlr->hmb_chunks) {
+		free(ctrlr->hmb_chunks, M_NVME);
+		ctrlr->hmb_chunks = NULL;
+	}
+}
+
+static void
+nvme_ctrlr_hmb_alloc(struct nvme_controller *ctrlr)
+{
+	struct nvme_hmb_chunk *hmbc;
+	size_t pref, min, minc, size;
+	int err, i;
+	uint64_t max;
+
+	/* Limit HMB to 1% of RAM size per device by default. */
+	max = (uint64_t)physmem * PAGE_SIZE / 100;
+	TUNABLE_UINT64_FETCH("hw.nvme.hmb_max", &max);
+
+	min = (long long unsigned)ctrlr->cdata.hmmin * 4096;
+	if (max < min)
+		return;
+	pref = MIN((long long unsigned)ctrlr->cdata.hmpre * 4096, max);
+	minc = MAX(ctrlr->cdata.hmminds * 4096, PAGE_SIZE);
+	if (min > 0 && ctrlr->cdata.hmmaxd > 0)
+		minc = MAX(minc, min / ctrlr->cdata.hmmaxd);
+	ctrlr->hmb_chunk = pref;
+
+again:
+	ctrlr->hmb_chunk = roundup2(ctrlr->hmb_chunk, PAGE_SIZE);
+	ctrlr->hmb_nchunks = howmany(pref, ctrlr->hmb_chunk);
+	if (ctrlr->cdata.hmmaxd > 0 && ctrlr->hmb_nchunks > ctrlr->cdata.hmmaxd)
+		ctrlr->hmb_nchunks = ctrlr->cdata.hmmaxd;
+	ctrlr->hmb_chunks = malloc(sizeof(struct nvme_hmb_chunk) *
+	    ctrlr->hmb_nchunks, M_NVME, M_WAITOK);
+	err = bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev),
+	    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+	    ctrlr->hmb_chunk, 1, ctrlr->hmb_chunk, 0, NULL, NULL, &ctrlr->hmb_tag);
+	if (err != 0) {
+		nvme_printf(ctrlr, "HMB tag create failed %d\n", err);
+		nvme_ctrlr_hmb_free(ctrlr);
+		return;
+	}
+
+	for (i = 0; i < ctrlr->hmb_nchunks; i++) {
+		hmbc = &ctrlr->hmb_chunks[i];
+		if (bus_dmamem_alloc(ctrlr->hmb_tag,
+		    (void **)&hmbc->hmbc_vaddr, BUS_DMA_NOWAIT,
+		    &hmbc->hmbc_map)) {
+			nvme_printf(ctrlr, "failed to alloc HMB\n");
+			break;
+		}
+		if (bus_dmamap_load(ctrlr->hmb_tag, hmbc->hmbc_map,
+		    hmbc->hmbc_vaddr, ctrlr->hmb_chunk, nvme_single_map,
+		    &hmbc->hmbc_paddr, BUS_DMA_NOWAIT) != 0) {
+			bus_dmamem_free(ctrlr->hmb_tag, hmbc->hmbc_vaddr,
+			    hmbc->hmbc_map);
+			nvme_printf(ctrlr, "failed to load HMB\n");
+			break;
+		}
+		bus_dmamap_sync(ctrlr->hmb_tag, hmbc->hmbc_map,
+		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	}
+
+	if (i < ctrlr->hmb_nchunks && i * ctrlr->hmb_chunk < min &&
+	    ctrlr->hmb_chunk / 2 >= minc) {
+		ctrlr->hmb_nchunks = i;
+		nvme_ctrlr_hmb_free(ctrlr);
+		ctrlr->hmb_chunk /= 2;
+		goto again;
+	}
+	ctrlr->hmb_nchunks = i;
+	if (ctrlr->hmb_nchunks * ctrlr->hmb_chunk < min) {
+		nvme_ctrlr_hmb_free(ctrlr);
+		return;
+	}
+
+	size = sizeof(struct nvme_hmb_desc) * ctrlr->hmb_nchunks;
+	err = bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev),
+	    16, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+	    size, 1, size, 0, NULL, NULL, &ctrlr->hmb_desc_tag);
+	if (err != 0) {
+		nvme_printf(ctrlr, "HMB desc tag create failed %d\n", err);
+		nvme_ctrlr_hmb_free(ctrlr);
+		return;
+	}
+	if (bus_dmamem_alloc(ctrlr->hmb_desc_tag,
+	    (void **)&ctrlr->hmb_desc_vaddr, BUS_DMA_WAITOK,
+	    &ctrlr->hmb_desc_map)) {
+		nvme_printf(ctrlr, "failed to alloc HMB desc\n");
+		nvme_ctrlr_hmb_free(ctrlr);
+		return;
+	}
+	if (bus_dmamap_load(ctrlr->hmb_desc_tag, ctrlr->hmb_desc_map,
+	    ctrlr->hmb_desc_vaddr, size, nvme_single_map,
+	    &ctrlr->hmb_desc_paddr, BUS_DMA_NOWAIT) != 0) {
+		bus_dmamem_free(ctrlr->hmb_desc_tag, ctrlr->hmb_desc_vaddr,
+		    ctrlr->hmb_desc_map);
+		nvme_printf(ctrlr, "failed to load HMB desc\n");
+		nvme_ctrlr_hmb_free(ctrlr);
+		return;
+	}
+
+	for (i = 0; i < ctrlr->hmb_nchunks; i++) {
+		ctrlr->hmb_desc_vaddr[i].addr =
+		    htole64(ctrlr->hmb_chunks[i].hmbc_paddr);
+		ctrlr->hmb_desc_vaddr[i].size = htole32(ctrlr->hmb_chunk / 4096);
+	}
+	bus_dmamap_sync(ctrlr->hmb_desc_tag, ctrlr->hmb_desc_map,
+	    BUS_DMASYNC_PREWRITE);
+
+	nvme_printf(ctrlr, "Allocated %lluMB host memory buffer\n",
+	    (long long unsigned)ctrlr->hmb_nchunks * ctrlr->hmb_chunk
+	    / 1024 / 1024);
+}
+
+static void
+nvme_ctrlr_hmb_enable(struct nvme_controller *ctrlr, bool enable, bool memret)
+{
+	struct nvme_completion_poll_status	status;
+	uint32_t cdw11;
+
+	cdw11 = 0;
+	if (enable)
+		cdw11 |= 1;
+	if (memret)
+		cdw11 |= 2;
+	status.done = 0;
+	nvme_ctrlr_cmd_set_feature(ctrlr, NVME_FEAT_HOST_MEMORY_BUFFER, cdw11,
+	    ctrlr->hmb_nchunks * ctrlr->hmb_chunk / 4096, ctrlr->hmb_desc_paddr,
+	    ctrlr->hmb_desc_paddr >> 32, ctrlr->hmb_nchunks, NULL, 0,
+	    nvme_completion_poll_cb, &status);
+	nvme_completion_poll(&status);
+	if (nvme_completion_is_error(&status.cpl))
+		nvme_printf(ctrlr, "nvme_ctrlr_hmb_enable failed!\n");
+}
+
+static void
 nvme_ctrlr_start(void *ctrlr_arg, bool resetting)
 {
 	struct nvme_controller *ctrlr = ctrlr_arg;
@@ -887,6 +1050,13 @@ nvme_ctrlr_start(void *ctrlr_arg, bool resetting)
 			      old_num_io_queues, ctrlr->num_io_queues);
 		}
 	}
+
+	if (ctrlr->cdata.hmpre > 0 && ctrlr->hmb_nchunks == 0) {
+		nvme_ctrlr_hmb_alloc(ctrlr);
+		if (ctrlr->hmb_nchunks > 0)
+			nvme_ctrlr_hmb_enable(ctrlr, true, false);
+	} else if (ctrlr->hmb_nchunks > 0)
+		nvme_ctrlr_hmb_enable(ctrlr, true, true);
 
 	if (nvme_ctrlr_create_qpairs(ctrlr) != 0) {
 		nvme_ctrlr_fail(ctrlr);
@@ -1240,11 +1410,15 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 		destroy_dev(ctrlr->cdev);
 
 	if (ctrlr->is_initialized) {
-		if (!gone)
+		if (!gone) {
+			if (ctrlr->hmb_nchunks > 0)
+				nvme_ctrlr_hmb_enable(ctrlr, false, false);
 			nvme_ctrlr_delete_qpairs(ctrlr);
+		}
 		for (i = 0; i < ctrlr->num_io_queues; i++)
 			nvme_io_qpair_destroy(&ctrlr->ioq[i]);
 		free(ctrlr->ioq, M_NVME);
+		nvme_ctrlr_hmb_free(ctrlr);
 		nvme_admin_qpair_destroy(&ctrlr->adminq);
 	}
 
@@ -1367,6 +1541,9 @@ nvme_ctrlr_suspend(struct nvme_controller *ctrlr)
 		    "Competing reset task didn't finish. Try again later.\n");
 		return (EWOULDBLOCK);
 	}
+
+	if (ctrlr->hmb_nchunks > 0)
+		nvme_ctrlr_hmb_enable(ctrlr, false, false);
 
 	/*
 	 * Per Section 7.6.2 of NVMe spec 1.4, to properly suspend, we need to

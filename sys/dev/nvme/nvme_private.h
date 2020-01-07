@@ -279,9 +279,6 @@ struct nvme_controller {
 	struct resource		*res;
 	void			*tag;
 
-	bus_dma_tag_t		hw_desc_tag;
-	bus_dmamap_t		hw_desc_map;
-
 	/** maximum i/o size in bytes */
 	uint32_t		max_xfer_size;
 
@@ -324,6 +321,20 @@ struct nvme_controller {
 
 	bool				is_failed;
 	STAILQ_HEAD(, nvme_request)	fail_req;
+
+	/* Host Memory Buffer */
+	int				hmb_nchunks;
+	size_t				hmb_chunk;
+	bus_dma_tag_t			hmb_tag;
+	struct nvme_hmb_chunk {
+		bus_dmamap_t		hmbc_map;
+		void			*hmbc_vaddr;
+		uint64_t		hmbc_paddr;
+	} *hmb_chunks;
+	bus_dma_tag_t			hmb_desc_tag;
+	bus_dmamap_t			hmb_desc_map;
+	struct nvme_hmb_desc		*hmb_desc_vaddr;
+	uint64_t			hmb_desc_paddr;
 };
 
 #define nvme_mmio_offsetof(reg)						       \
