@@ -881,8 +881,8 @@ nvme_ctrlr_hmb_alloc(struct nvme_controller *ctrlr)
 	int err, i;
 	uint64_t max;
 
-	/* Limit HMB to 1% of RAM size per device by default. */
-	max = (uint64_t)physmem * PAGE_SIZE / 100;
+	/* Limit HMB to 5% of RAM size per device by default. */
+	max = (uint64_t)physmem * PAGE_SIZE / 20;
 	TUNABLE_UINT64_FETCH("hw.nvme.hmb_max", &max);
 
 	min = (long long unsigned)ctrlr->cdata.hmmin * 4096;
