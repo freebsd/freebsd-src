@@ -337,7 +337,9 @@ int
 elf_cpu_unload_file(linker_file_t lf)
 {
 
+#if defined(DDB) || defined(KDTRACE_HOOKS) || defined(STACK)
 	/* Inform the stack(9) code that this module is gone. */
 	unwind_module_unloaded(lf);
+#endif
 	return (0);
 }
