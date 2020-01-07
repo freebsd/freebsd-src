@@ -1211,16 +1211,19 @@ vnlru_free(int count, struct vfsops *mnt_op)
 static int
 vspace(void)
 {
+	u_long rnumvnodes, rfreevnodes;
 	int space;
 
 	gapvnodes = imax(desiredvnodes - wantfreevnodes, 100);
 	vhiwat = gapvnodes / 11; /* 9% -- just under the 10% in vlrureclaim() */
 	vlowat = vhiwat / 2;
-	if (numvnodes > desiredvnodes)
+	rnumvnodes = atomic_load_long(&numvnodes);
+	rfreevnodes = atomic_load_long(&freevnodes);
+	if (rnumvnodes > desiredvnodes)
 		return (0);
-	space = desiredvnodes - numvnodes;
+	space = desiredvnodes - rnumvnodes;
 	if (freevnodes > wantfreevnodes)
-		space += freevnodes - wantfreevnodes;
+		space += rfreevnodes - wantfreevnodes;
 	return (space);
 }
 
@@ -1292,6 +1295,7 @@ static int vnlruproc_sig;
 static void
 vnlru_proc(void)
 {
+	u_long rnumvnodes, rfreevnodes;
 	struct mount *mp, *nmp;
 	unsigned long onumvnodes;
 	int done, force, trigger, usevnodes, vsp;
@@ -1304,13 +1308,14 @@ vnlru_proc(void)
 	for (;;) {
 		kproc_suspend_check(vnlruproc);
 		mtx_lock(&vnode_free_list_mtx);
+		rnumvnodes = atomic_load_long(&numvnodes);
 		/*
 		 * If numvnodes is too large (due to desiredvnodes being
 		 * adjusted using its sysctl, or emergency growth), first
 		 * try to reduce it by discarding from the free list.
 		 */
-		if (numvnodes > desiredvnodes)
-			vnlru_free_locked(numvnodes - desiredvnodes, NULL);
+		if (rnumvnodes > desiredvnodes)
+			vnlru_free_locked(rnumvnodes - desiredvnodes, NULL);
 		/*
 		 * Sleep if the vnode cache is in a good state.  This is
 		 * when it is not over-full and has space for about a 4%
@@ -1332,7 +1337,10 @@ vnlru_proc(void)
 		}
 		mtx_unlock(&vnode_free_list_mtx);
 		done = 0;
-		onumvnodes = numvnodes;
+		rnumvnodes = atomic_load_long(&numvnodes);
+		rfreevnodes = atomic_load_long(&freevnodes);
+
+		onumvnodes = rnumvnodes;
 		/*
 		 * Calculate parameters for recycling.  These are the same
 		 * throughout the loop to give some semblance of fairness.
@@ -1340,10 +1348,10 @@ vnlru_proc(void)
 		 * of resident pages.  We aren't trying to free memory; we
 		 * are trying to recycle or at least free vnodes.
 		 */
-		if (numvnodes <= desiredvnodes)
-			usevnodes = numvnodes - freevnodes;
+		if (rnumvnodes <= desiredvnodes)
+			usevnodes = rnumvnodes - rfreevnodes;
 		else
-			usevnodes = numvnodes;
+			usevnodes = rnumvnodes;
 		if (usevnodes <= 0)
 			usevnodes = 1;
 		/*
@@ -1516,14 +1524,17 @@ getnewvnode_wait(int suspended)
 void
 getnewvnode_reserve(u_int count)
 {
+	u_long rnumvnodes, rfreevnodes;
 	struct thread *td;
 
 	/* Pre-adjust like the pre-adjust in getnewvnode(), with any count. */
 	/* XXX no longer so quick, but this part is not racy. */
 	mtx_lock(&vnode_free_list_mtx);
-	if (numvnodes + count > desiredvnodes && freevnodes > wantfreevnodes)
-		vnlru_free_locked(ulmin(numvnodes + count - desiredvnodes,
-		    freevnodes - wantfreevnodes), NULL);
+	rnumvnodes = atomic_load_long(&numvnodes);
+	rfreevnodes = atomic_load_long(&freevnodes);
+	if (rnumvnodes + count > desiredvnodes && rfreevnodes > wantfreevnodes)
+		vnlru_free_locked(ulmin(rnumvnodes + count - desiredvnodes,
+		    rfreevnodes - wantfreevnodes), NULL);
 	mtx_unlock(&vnode_free_list_mtx);
 
 	td = curthread;
