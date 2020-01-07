@@ -2874,7 +2874,7 @@ g_journal_do_switch(struct g_class *classp)
 		save = curthread_pflags_set(TDP_SYNCIO);
 
 		GJ_TIMER_START(1, &bt);
-		vfs_msync(mp, MNT_NOWAIT);
+		vfs_periodic(mp, MNT_NOWAIT);
 		GJ_TIMER_STOP(1, &bt, "Msync time of %s", mountpoint);
 
 		GJ_TIMER_START(1, &bt);
