@@ -129,7 +129,7 @@ kern_sync(struct thread *td)
 		if ((mp->mnt_flag & MNT_RDONLY) == 0 &&
 		    vn_start_write(NULL, &mp, V_NOWAIT) == 0) {
 			save = curthread_pflags_set(TDP_SYNCIO);
-			vfs_msync(mp, MNT_NOWAIT);
+			vfs_periodic(mp, MNT_NOWAIT);
 			VFS_SYNC(mp, MNT_NOWAIT);
 			curthread_pflags_restore(save);
 			vn_finished_write(mp);
