@@ -84,14 +84,20 @@ multiclass VFPver<string name, string query, string description,
         !cast<SubtargetFeature>(NAME # "_SP")]>;
 }
 
-def FeatureVFP2_SP        : SubtargetFeature<"vfp2sp", "HasVFPv2SP", "true",
+def FeatureVFP2_D16_SP     : SubtargetFeature<"vfp2d16sp", "HasVFPv2D16SP", "true",
                                              "Enable VFP2 instructions with "
                                              "no double precision",
                                              [FeatureFPRegs]>;
-
+def FeatureVFP2_SP        : SubtargetFeature<"vfp2sp", "HasVFPv2SP", "true",
+                                             "Enable VFP2 instructions with "
+                                             "no double precision",
+                                             [FeatureVFP2_D16_SP]>;
+def FeatureVFP2_D16       : SubtargetFeature<"vfp2d16", "HasVFPv2D16", "true",
+                                             "Enable VFP2 instructions",
+                                             [FeatureFP64, FeatureVFP2_D16_SP]>;
 def FeatureVFP2           : SubtargetFeature<"vfp2", "HasVFPv2", "true",
                                              "Enable VFP2 instructions",
-                                             [FeatureFP64, FeatureVFP2_SP]>;
+                                             [FeatureVFP2_D16, FeatureVFP2_SP]>;
 
 defm FeatureVFP3: VFPver<"vfp3", "HasVFPv3", "Enable VFP3 instructions",
                          [], [], [FeatureVFP2]>;
