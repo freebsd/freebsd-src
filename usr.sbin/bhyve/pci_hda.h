@@ -50,7 +50,7 @@
 #if DEBUG_HDA == 1
 extern FILE *dbg;
 #define DPRINTF(fmt, arg...)						\
-do {fprintf(dbg, "%s-%d: " fmt, __func__, __LINE__, ##arg);		\
+do {fprintf(dbg, "%s-%d: " fmt "\n", __func__, __LINE__, ##arg);		\
 fflush(dbg); } while (0)
 #else
 #define DPRINTF(fmt, arg...)

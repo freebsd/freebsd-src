@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
+#include "debug.h"
 #include "xmsr.h"
 
 static int cpu_vendor_intel, cpu_vendor_amd;
@@ -227,7 +228,7 @@ init_msr(void)
 	} else if (strcmp(cpu_vendor, "GenuineIntel") == 0) {
 		cpu_vendor_intel = 1;
 	} else {
-		fprintf(stderr, "Unknown cpu vendor \"%s\"\n", cpu_vendor);
+		EPRINTLN("Unknown cpu vendor \"%s\"", cpu_vendor);
 		error = -1;
 	}
 	return (error);

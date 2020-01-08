@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <pthread_np.h>
 
 #include "bhyverun.h"
+#include "debug.h"
 #include "pci_emul.h"
 #include "mevent.h"
 #include "virtio.h"
@@ -91,8 +92,8 @@ struct virtio_net_config {
  * Debug printf
  */
 static int pci_vtnet_debug;
-#define DPRINTF(params) if (pci_vtnet_debug) printf params
-#define WPRINTF(params) printf params
+#define DPRINTF(params) if (pci_vtnet_debug) PRINTLN params
+#define WPRINTF(params) PRINTLN params
 
 /*
  * Per-device softc
@@ -143,7 +144,7 @@ pci_vtnet_reset(void *vsc)
 {
 	struct pci_vtnet_softc *sc = vsc;
 
-	DPRINTF(("vtnet: device reset requested !\n\r"));
+	DPRINTF(("vtnet: device reset requested !"));
 
 	/* Acquire the RX lock to block RX processing. */
 	pthread_mutex_lock(&sc->rx_mtx);
@@ -427,7 +428,7 @@ static void
 pci_vtnet_ping_ctlq(void *vsc, struct vqueue_info *vq)
 {
 
-	DPRINTF(("vtnet: control qnotify!\n\r"));
+	DPRINTF(("vtnet: control qnotify!"));
 }
 #endif
 
@@ -552,7 +553,7 @@ pci_vtnet_cfgwrite(void *vsc, int offset, int size, uint32_t value)
 		memcpy(ptr, &value, size);
 	} else {
 		/* silently ignore other writes */
-		DPRINTF(("vtnet: write to readonly reg %d\n\r", offset));
+		DPRINTF(("vtnet: write to readonly reg %d", offset));
 	}
 
 	return (0);

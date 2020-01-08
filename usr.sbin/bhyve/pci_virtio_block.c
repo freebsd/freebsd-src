@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <md5.h>
 
 #include "bhyverun.h"
+#include "debug.h"
 #include "pci_emul.h"
 #include "virtio.h"
 #include "block_if.h"
@@ -123,8 +124,8 @@ struct virtio_blk_hdr {
  * Debug printf
  */
 static int pci_vtblk_debug;
-#define DPRINTF(params) if (pci_vtblk_debug) printf params
-#define WPRINTF(params) printf params
+#define DPRINTF(params) if (pci_vtblk_debug) PRINTLN params
+#define WPRINTF(params) PRINTLN params
 
 struct pci_vtblk_ioreq {
 	struct blockif_req		io_req;
@@ -168,7 +169,7 @@ pci_vtblk_reset(void *vsc)
 {
 	struct pci_vtblk_softc *sc = vsc;
 
-	DPRINTF(("vtblk: device reset requested !\n\r"));
+	DPRINTF(("vtblk: device reset requested !"));
 	vi_reset_dev(&sc->vbsc_vs);
 }
 
@@ -252,7 +253,7 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 	}
 	io->io_req.br_resid = iolen;
 
-	DPRINTF(("virtio-block: %s op, %zd bytes, %d segs, offset %ld\n\r",
+	DPRINTF(("virtio-block: %s op, %zd bytes, %d segs, offset %ld",
 		 writeop ? "write" : "read/ident", iolen, i - 1,
 		 io->io_req.br_offset));
 
@@ -303,7 +304,7 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	int i, sectsz, sts, sto;
 
 	if (opts == NULL) {
-		WPRINTF(("virtio-block: backing device required\n\r"));
+		WPRINTF(("virtio-block: backing device required"));
 		return (1);
 	}
 
@@ -399,7 +400,7 @@ static int
 pci_vtblk_cfgwrite(void *vsc, int offset, int size, uint32_t value)
 {
 
-	DPRINTF(("vtblk: write to readonly reg %d\n\r", offset));
+	DPRINTF(("vtblk: write to readonly reg %d", offset));
 	return (1);
 }
 

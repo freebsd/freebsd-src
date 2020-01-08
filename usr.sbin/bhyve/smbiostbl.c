@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <vmmapi.h>
 
 #include "bhyverun.h"
+#include "debug.h"
 #include "smbiostbl.h"
 
 #define	MB			(1024*1024)
@@ -796,7 +797,7 @@ smbios_build(struct vmctx *ctx)
 
 	startaddr = paddr_guest2host(ctx, SMBIOS_BASE, SMBIOS_MAX_LENGTH);
 	if (startaddr == NULL) {
-		fprintf(stderr, "smbios table requires mapped mem\n");
+		EPRINTLN("smbios table requires mapped mem");
 		return (ENOMEM);
 	}
 
