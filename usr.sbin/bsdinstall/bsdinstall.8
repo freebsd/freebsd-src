@@ -336,8 +336,8 @@ Default:
 The type of pool to be created for the base system.
 This variable can take one of this values: stripe (No redundacy),
 mirror (n-Way mirroring), raid10 (RAID 1+0 - n x 2-Way Mirrors),
-raidz1 (RAID-Z1 - Single Redundacy RAID), raidz2 (RAID-Z2 - Double Redundacy RAID)
-or raidz3 (RAID-Z3 Triple Redundacy RAID).
+raidz1 (RAID-Z1 - Single Redundancy RAID), raidz2 (RAID-Z2 - Double Redundancy RAID)
+or raidz3 (RAID-Z3 Triple Redundancy RAID).
 Default:
 .Dq stripe
 .It Ev ZFSBOOT_FORCE_4K_SECTORS
@@ -505,7 +505,7 @@ ZFSBOOT_DISKS="ada0 ada1"
 ZFSBOOT_VDEV_TYPE=mirror
 .Ed
 .Pp
-Remenber to export all the variables for the
+Remember to export all the variables for the
 .Cm zfsboot
 command, otherwise it will not get set.
 .Ss SETUP SCRIPT
