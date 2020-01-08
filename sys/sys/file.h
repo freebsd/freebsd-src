@@ -125,6 +125,8 @@ typedef int fo_mmap_t(struct file *fp, vm_map_t map, vm_offset_t *addr,
 typedef int fo_aio_queue_t(struct file *fp, struct kaiocb *job);
 typedef int fo_add_seals_t(struct file *fp, int flags);
 typedef int fo_get_seals_t(struct file *fp, int *flags);
+typedef int fo_fallocate_t(struct file *fp, off_t offset, off_t len,
+		    struct thread *td);
 typedef	int fo_flags_t;
 
 struct fileops {
@@ -145,6 +147,7 @@ struct fileops {
 	fo_aio_queue_t	*fo_aio_queue;
 	fo_add_seals_t	*fo_add_seals;
 	fo_get_seals_t	*fo_get_seals;
+	fo_fallocate_t	*fo_fallocate;
 	fo_flags_t	fo_flags;	/* DFLAG_* below */
 };
 
@@ -444,6 +447,15 @@ fo_get_seals(struct file *fp, int *seals)
 	if (fp->f_ops->fo_get_seals == NULL)
 		return (EINVAL);
 	return ((*fp->f_ops->fo_get_seals)(fp, seals));
+}
+
+static __inline int
+fo_fallocate(struct file *fp, off_t offset, off_t len, struct thread *td)
+{
+
+	if (fp->f_ops->fo_fallocate == NULL)
+		return (ENODEV);
+	return ((*fp->f_ops->fo_fallocate)(fp, offset, len, td));
 }
 
 #endif /* _KERNEL */
