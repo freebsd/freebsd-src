@@ -26,19 +26,24 @@
 # SUCH DAMAGE.
 #
 
-. $(atf_get_srcdir)/../../common/vnet.subr
+. $(atf_get_srcdir)/../common/vnet.subr
 
-frag6_head()
-{
-	atf_set descr 'Test IPv6 fragmentation code'
+atf_test_case "scapyi386" "cleanup"
+scapyi386_head() {
+
+	atf_set descr 'Test for correct Ethernet Destination MAC address'
 	atf_set require.user root
 	atf_set require.progs scapy
 }
 
-frag6_body()
-{
-	ids=${1:="65533"}
-	shift
+scapyi386_body() {
+
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "i386" ]; then
+		atf_skip "https://bugs.freebsd.org/239380"
+	fi
+
+	ids=65533
 	id=`printf "%x" ${ids}`
 	if [ $$ -gt 65535 ]; then
 		xl=`printf "%x" $(($$ - 65535))`
@@ -50,8 +55,8 @@ frag6_body()
 
 	vnet_init
 
-	ip6a="2001:db8:6666:6666:${yl}:${id}:1:${xl}"
-	ip6b="2001:db8:6666:6666:${yl}:${id}:2:${xl}"
+	ip6a="2001:db8:6666:0000:${yl}:${id}:1:${xl}"
+	ip6b="2001:db8:6666:0000:${yl}:${id}:2:${xl}"
 
 	epair=$(vnet_mkepair)
 	ifconfig ${epair}a up
@@ -67,56 +72,23 @@ frag6_body()
 	#ping6 -q -c 1 ${ip6b}
 	sleep 3
 
-	# We need to try to make sure all expiry happened, otherwise there might
-	# be global fragments queued.  (This still does not rule out that there
-	# are no other fragments queued anywhere else in the system).
-	i=0
-	while test $i -lt 60; do
-		nf=`sysctl -n net.inet6.ip6.frag6_nfrags`
-		case ${nf} in
-		0)	break ;;
-		esac
-		sleep 1
-		i=$((i + 1))
-	done
-	case ${nf} in
-	0)	;;
-	*)	atf_fail "Global frag6_nfrags count is not zero but ${nf}" ;;
-	esac
-
-	pretestf=$2
-	case "${pretestf}" in
-	"")	;;
-	[A-Za-z0-9_]*)
-		eval ${pretestf} "${jname}" "${epair}b"
-		;;
-	esac
-
-	# Clear statistics.
-	jexec ${jname} netstat -z -s > /dev/null
-
-	# Run fragment tests.
 	pyname=$(atf_get ident)
 	pyname=${pyname%*_[0-9]}
-	atf_check -s exit:0 $(atf_get_srcdir)/${pyname}.py \
-		--sendif ${epair}a \
-		--recvif ${epair}a \
-		--src ${ip6a} \
-		--to  ${ip6b}
 
-	checkf=$1
-	case "${checkf}" in
-	"")	;;
-	[A-Za-z0-9_]*)
-		eval ${checkf} "${jname}" "${epair}b"
-		;;
-	esac
+	atf_check -s exit:0 $(atf_get_srcdir)/${pyname}.py \
+		--sendif ${epair}a --recvif ${epair}a \
+		--src ${ip6a} --to  ${ip6b}
 }
 
-frag6_cleanup()
-{
+scapyi386_cleanup() {
 
 	vnet_cleanup
+}
+
+atf_init_test_cases()
+{
+
+	atf_add_test_case "scapyi386"
 }
 
 # end

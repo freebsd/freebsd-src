@@ -98,6 +98,7 @@ def main():
 	sp.sendp(ip6f01, iface=args.sendif[0], verbose=False)
 
 	sleep(0.10)
+	sniffer.setEnd()
 	sniffer.join()
 	if not sniffer.foundCorrectPacket:
 		sys.exit(1)

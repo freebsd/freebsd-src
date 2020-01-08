@@ -32,31 +32,10 @@ import argparse
 import scapy.all as sp
 import socket
 import sys
-from sniffer import Sniffer
-from time import sleep
-
-def check_icmp6_error(args, packet):
-	ip6 = packet.getlayer(sp.IPv6)
-	if not ip6:
-		return False
-	oip6 = sp.IPv6(src=args.src[0], dst=args.to[0])
-	if ip6.dst != oip6.src:
-		return False
-	icmp6 = packet.getlayer(sp.ICMPv6ParamProblem)
-	if not icmp6:
-		return False
-	# ICMP6_PARAMPROB_HEADER 0
-	if icmp6.code != 0:
-		return False
-	# Should we check the payload as well?
-	# We are running in a very isolated environment and nothing else
-	# should trigger an ICMPv6 Param Prob so leave it.
-	#icmp6.display()
-	return True
 
 def main():
-	parser = argparse.ArgumentParser("frag6.py",
-		description="IPv6 fragementation test tool")
+	parser = argparse.ArgumentParser("scapyi386.py",
+		description="IPv6 Ethernet Dest MAC test")
 	parser.add_argument('--sendif', nargs=1,
 		required=True,
 		help='The interface through which the packet will be sent')
@@ -75,29 +54,29 @@ def main():
 
 	args = parser.parse_args()
 
-
-	# Start sniffing on recvif
-	sniffer = Sniffer(args, check_icmp6_error)
-
-
 	########################################################################
 	#
-	# 0-byte first fragment.
+	# A test case to check that IPv6 packets are sent with a proper
+	# (resolved) Ethernet Destination MAC address instead of the BCAST one.
+	# This was needed as test cases did not work properly on i386 due to a
+	# scapy BPF parsing bug. (See PR 239380 and duplicates).
 	#
-	# A:  0-byte fragment payload not allowed. Discarded.
-	# R:  ICMPv6 param prob, paramprob header.
-	#
-	ip6f01 = sp.Ether() / \
+	bcmac = sp.Ether(dst="ff:ff:ff:ff:ff:ff").dst
+	data = "6" * 88
+	pkt = sp.Ether() / \
 		sp.IPv6(src=args.src[0], dst=args.to[0]) / \
-		sp.IPv6ExtHdrFragment(offset=0, m=1, id=4)
-	if args.debug :
-		ip6f01.display()
-	sp.sendp(ip6f01, iface=args.sendif[0], verbose=False)
+		sp.UDP(dport=3456, sport=6543) / \
+		data
+	sp.sendp(pkt, iface=args.sendif[0], verbose=False)
 
-	sleep(0.10)
-	sniffer.setEnd()
-	sniffer.join()
-	if not sniffer.foundCorrectPacket:
+	eth = pkt.getlayer(sp.Ether)
+	if eth is None:
+		print("No Ether in packet")
+		pkt.display()
+		sys.exit(1)
+	if eth.dst == bcmac:
+		print("Broadcast dMAC on packet")
+		eth.display()
 		sys.exit(1)
 
 	sys.exit(0)
