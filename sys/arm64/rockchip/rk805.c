@@ -204,6 +204,7 @@ static struct rk805_regdef rk808_regdefs[] = {
 		.voltage_nstep = 64,
 	},
 	{
+		/* BUCK3 voltage is calculated based on external resistor */
 		.id = RK805_DCDC3,
 		.name = "DCDC_REG3",
 		.enable_reg = RK805_DCDC_EN,
@@ -322,12 +323,16 @@ static struct rk805_regdef rk808_regdefs[] = {
 		.name = "SWITCH_REG1",
 		.enable_reg = RK805_DCDC_EN,
 		.enable_mask = 0x20,
+		.voltage_min = 3000000,
+		.voltage_max = 3000000,
 	},
 	{
 		.id = RK808_SWITCH2,
 		.name = "SWITCH_REG2",
 		.enable_reg = RK805_DCDC_EN,
 		.enable_mask = 0x40,
+		.voltage_min = 3000000,
+		.voltage_max = 3000000,
 	},
 };
 
@@ -449,6 +454,11 @@ rk805_regnode_get_voltage(struct regnode *regnode, int *uvolt)
 	uint8_t val;
 
 	sc = regnode_get_softc(regnode);
+
+	if (sc->def->voltage_min ==  sc->def->voltage_max) {
+		*uvolt = sc->def->voltage_min;
+		return (0);
+	}
 
 	if (!sc->def->voltage_step)
 		return (ENXIO);
