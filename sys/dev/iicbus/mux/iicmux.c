@@ -153,7 +153,7 @@ iicmux_intr(device_t dev, int event, char *buf)
 	/* XXX iicbus_intr() in iiconf.c should return status. */
 
 	iicbus_intr(sc->busdev, event, buf);
-	return (0); 
+	return (0);
 }
 
 static int
@@ -213,7 +213,7 @@ iicmux_write(device_t dev, const char *buf, int len, int *bytes, int timeout)
 }
 
 /*------------------------------------------------------------------------------
- * iicmux helper functions, called by hardware-specific drivers.                
+ * iicmux helper functions, called by hardware-specific drivers.
  * All these functions return a standard errno value.
  *----------------------------------------------------------------------------*/
 
@@ -324,7 +324,7 @@ iicmux_attach(device_t dev, device_t busdev, int numbuses)
 	if ((err = iicmux_attach_children(sc)) != 0)
 		return (err);
 
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev), 
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO,
 	    "debugmux", CTLFLAG_RWTUN, &sc->debugmux, 0, "debug mux operations");
 
