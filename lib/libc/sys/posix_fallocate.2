@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd November 4, 2017
+.Dd January 5, 2020
 .Dt POSIX_FALLOCATE 2
 .Os
 .Sh NAME
@@ -115,7 +115,8 @@ An I/O error occurred while reading from or writing to a file system.
 .It Bq Er ENODEV
 The
 .Fa fd
-argument does not refer to a regular file.
+argument does not refer to a file that supports
+.Nm .
 .It Bq Er ENOSPC
 There is insufficient free space remaining on the file system storage
 media.
