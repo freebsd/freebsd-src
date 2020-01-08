@@ -2450,7 +2450,7 @@ rack_start_hpts_timer(struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 	 */
 	if ((hpts_timeout == 0) &&
 	    (slot == 0)) {
-		if ((tcp_always_keepalive || inp->inp_socket->so_options & SO_KEEPALIVE) &&
+		if ((V_tcp_always_keepalive || inp->inp_socket->so_options & SO_KEEPALIVE) &&
 		    (tp->t_state <= TCPS_CLOSING)) {
 			/*
 			 * Ok we have no timer (persists, rack, tlp, rxt  or
@@ -3022,7 +3022,7 @@ rack_timeout_keepalive(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	TCPSTAT_INC(tcps_keeptimeo);
 	if (tp->t_state < TCPS_ESTABLISHED)
 		goto dropit;
-	if ((tcp_always_keepalive || inp->inp_socket->so_options & SO_KEEPALIVE) &&
+	if ((V_tcp_always_keepalive || inp->inp_socket->so_options & SO_KEEPALIVE) &&
 	    tp->t_state <= TCPS_CLOSING) {
 		if (ticks - tp->t_rcvtime >= TP_KEEPIDLE(tp) + TP_MAXIDLE(tp))
 			goto dropit;
@@ -7576,7 +7576,7 @@ rack_timer_audit(struct tcpcb *tp, struct tcp_rack *rack, struct sockbuf *sb)
 			 * of nothing outstanding and the RXT up (and the hptsi timer).
 			 */
 			return;
-		} else if (((tcp_always_keepalive ||
+		} else if (((V_tcp_always_keepalive ||
 			     rack->rc_inp->inp_socket->so_options & SO_KEEPALIVE) &&
 			    (tp->t_state <= TCPS_CLOSING)) &&
 			   (tmr_up == PACE_TMR_KEEP) &&
@@ -7867,7 +7867,7 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		    ((rack->r_ctl.rc_hpts_flags & PACE_TMR_MASK) == 0) &&
 		    (SEQ_GT(tp->snd_max, tp->snd_una) ||
 		     (tp->t_flags & TF_DELACK) ||
-		     ((tcp_always_keepalive || rack->rc_inp->inp_socket->so_options & SO_KEEPALIVE) &&
+		     ((V_tcp_always_keepalive || rack->rc_inp->inp_socket->so_options & SO_KEEPALIVE) &&
 		      (tp->t_state <= TCPS_CLOSING)))) {
 			/* We could not send (probably in the hpts but stopped the timer earlier)? */
 			if ((tp->snd_max == tp->snd_una) &&
