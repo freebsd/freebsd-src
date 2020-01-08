@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #include "acpi.h"
+#include "debug.h"
 #include "bhyverun.h"
 #include "mptbl.h"
 #include "pci_emul.h"
@@ -312,7 +313,7 @@ mptable_build(struct vmctx *ctx, int ncpu)
 
 	startaddr = paddr_guest2host(ctx, MPTABLE_BASE, MPTABLE_MAX_LENGTH);
 	if (startaddr == NULL) {
-		fprintf(stderr, "mptable requires mapped mem\n");
+		EPRINTLN("mptable requires mapped mem");
 		return (ENOMEM);
 	}
 
@@ -323,10 +324,10 @@ mptable_build(struct vmctx *ctx, int ncpu)
 	 */
 	for (bus = 1; bus <= PCI_BUSMAX; bus++) {
 		if (pci_bus_configured(bus)) {
-			fprintf(stderr, "MPtable is incompatible with "
-			    "multiple PCI hierarchies.\r\n");
-			fprintf(stderr, "MPtable generation can be disabled "
-			    "by passing the -Y option to bhyve(8).\r\n");
+			EPRINTLN("MPtable is incompatible with "
+			    "multiple PCI hierarchies.");
+			EPRINTLN("MPtable generation can be disabled "
+			    "by passing the -Y option to bhyve(8).");
 			return (EINVAL);
 		}
 	}
