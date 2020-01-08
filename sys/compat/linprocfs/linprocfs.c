@@ -1146,7 +1146,7 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 	vm_map_entry_t entry, tmp_entry;
 	vm_object_t obj, tobj, lobj;
 	vm_offset_t e_start, e_end;
-	vm_ooffset_t off = 0;
+	vm_ooffset_t off;
 	vm_prot_t e_prot;
 	unsigned int last_timestamp;
 	char *name = "", *freename = NULL;
@@ -1156,6 +1156,7 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 	int error;
 	struct vnode *vp;
 	struct vattr vat;
+	bool private;
 
 	PROC_LOCK(p);
 	error = p_candebug(td, p);
@@ -1186,17 +1187,20 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		e_start = entry->start;
 		e_end = entry->end;
 		obj = entry->object.vm_object;
-		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
+		off = entry->offset;
+		for (lobj = tobj = obj; tobj != NULL;
+		    lobj = tobj, tobj = tobj->backing_object) {
 			VM_OBJECT_RLOCK(tobj);
+			off += lobj->backing_object_offset;
 			if (lobj != obj)
 				VM_OBJECT_RUNLOCK(lobj);
-			lobj = tobj;
 		}
+		private = (entry->eflags & MAP_ENTRY_COW) != 0 || obj == NULL ||
+		    (obj->flags & OBJ_ANON) != 0;
 		last_timestamp = map->timestamp;
 		vm_map_unlock_read(map);
 		ino = 0;
 		if (lobj) {
-			off = IDX_TO_OFF(lobj->size);
 			vp = vm_object_vnode(lobj);
 			if (vp != NULL)
 				vref(vp);
@@ -1233,7 +1237,7 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		    (e_prot & VM_PROT_READ)?"r":"-",
 		    (e_prot & VM_PROT_WRITE)?"w":"-",
 		    (e_prot & VM_PROT_EXECUTE)?"x":"-",
-		    "p",
+		    private ? "p" : "s",
 		    (u_long)off,
 		    0,
 		    0,
