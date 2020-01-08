@@ -5531,15 +5531,12 @@ open_binary_fd(const char *argv0, bool search_in_path,
 		fd = -1;
 		errno = ENOENT;
 		while ((pe = strsep(&pathenv, ":")) != NULL) {
-			if (strlcpy(binpath, pe, sizeof(binpath)) >=
-			    sizeof(binpath))
+			if (strlcpy(binpath, pe, PATH_MAX) >= PATH_MAX)
 				continue;
 			if (binpath[0] != '\0' &&
-			    strlcat(binpath, "/", sizeof(binpath)) >=
-			    sizeof(binpath))
+			    strlcat(binpath, "/", PATH_MAX) >= PATH_MAX)
 				continue;
-			if (strlcat(binpath, argv0, sizeof(binpath)) >=
-			    sizeof(binpath))
+			if (strlcat(binpath, argv0, PATH_MAX) >= PATH_MAX)
 				continue;
 			fd = open(binpath, O_RDONLY | O_CLOEXEC | O_VERIFY);
 			if (fd != -1 || errno != ENOENT) {
