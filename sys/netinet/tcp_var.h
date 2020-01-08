@@ -767,7 +767,8 @@ SYSCTL_DECL(_net_inet_tcp_sack);
 MALLOC_DECLARE(M_TCPLOG);
 #endif
 
-extern	int tcp_log_in_vain;
+VNET_DECLARE(int, tcp_log_in_vain);
+#define	V_tcp_log_in_vain		VNET(tcp_log_in_vain)
 
 /*
  * Global TCP tunables shared between different stacks.

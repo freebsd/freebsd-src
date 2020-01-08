@@ -3283,7 +3283,7 @@ tcp_log_vain(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
 {
 
 	/* Is logging enabled? */
-	if (tcp_log_in_vain == 0)
+	if (V_tcp_log_in_vain == 0)
 		return (NULL);
 
 	return (tcp_log_addr(inc, th, ip4hdr, ip6hdr));

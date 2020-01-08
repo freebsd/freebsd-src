@@ -1146,7 +1146,7 @@ init_conn_params(struct vi_info *vi , struct offload_settings *s,
 		cp->nagle = tp->t_flags & TF_NODELAY ? 0 : 1;
 
 	/* TCP Keepalive. */
-	if (tcp_always_keepalive || so_options_get(so) & SO_KEEPALIVE)
+	if (V_tcp_always_keepalive || so_options_get(so) & SO_KEEPALIVE)
 		cp->keepalive = 1;
 	else
 		cp->keepalive = 0;

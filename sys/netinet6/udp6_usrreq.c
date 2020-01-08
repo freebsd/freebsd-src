@@ -481,7 +481,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		    INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB,
 		    m->m_pkthdr.rcvif, m);
 	if (inp == NULL) {
-		if (udp_log_in_vain) {
+		if (V_udp_log_in_vain) {
 			char ip6bufs[INET6_ADDRSTRLEN];
 			char ip6bufd[INET6_ADDRSTRLEN];
 
