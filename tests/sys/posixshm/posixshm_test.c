@@ -918,6 +918,44 @@ ATF_TC_BODY(mode, tc)
 	umask(restore_mask);
 }
 
+ATF_TC_WITHOUT_HEAD(fallocate);
+ATF_TC_BODY(fallocate, tc)
+{
+	struct stat st;
+	int error, fd, sz;
+
+	/*
+	 * Primitive test case for posix_fallocate with shmd.  Effectively
+	 * expected to work like a smarter ftruncate that will grow the region
+	 * as needed in a race-free way.
+	 */
+	fd = shm_open(SHM_ANON, O_RDWR, 0666);
+	ATF_REQUIRE_MSG(fd >= 0, "shm_open failed; errno=%d", errno);
+	/* Set the initial size. */
+	sz = 32;
+	ATF_REQUIRE(ftruncate(fd, sz) == 0);
+
+	/* Now grow it. */
+	error = 0;
+	sz *= 2;
+	ATF_REQUIRE_MSG((error = posix_fallocate(fd, 0, sz)) == 0,
+	    "posix_fallocate failed; error=%d", error);
+	ATF_REQUIRE(fstat(fd, &st) == 0);
+	ATF_REQUIRE(st.st_size == sz);
+	/* Attempt to shrink it; should succeed, but not change the size. */
+	ATF_REQUIRE_MSG((error = posix_fallocate(fd, 0, sz / 2)) == 0,
+	    "posix_fallocate failed; error=%d", error);
+	ATF_REQUIRE(fstat(fd, &st) == 0);
+	ATF_REQUIRE(st.st_size == sz);
+	/* Grow it using an offset of sz and len of sz. */
+	ATF_REQUIRE_MSG((error = posix_fallocate(fd, sz, sz)) == 0,
+	    "posix_fallocate failed; error=%d", error);
+	ATF_REQUIRE(fstat(fd, &st) == 0);
+	ATF_REQUIRE(st.st_size == (sz * 2));
+
+	close(fd);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -951,6 +989,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, object_resize);
 	ATF_TP_ADD_TC(tp, cloexec);
 	ATF_TP_ADD_TC(tp, mode);
+	ATF_TP_ADD_TC(tp, fallocate);
 
 	return (atf_no_error());
 }
