@@ -326,7 +326,6 @@ static struct fileops cryptofops = {
 
 static struct csession *csefind(struct fcrypt *, u_int);
 static bool csedelete(struct fcrypt *, u_int);
-static void cseadd(struct fcrypt *, struct csession *);
 static struct csession *csecreate(struct fcrypt *, crypto_session_t, caddr_t,
     u_int64_t, caddr_t, u_int64_t, u_int32_t, u_int32_t, struct enc_xform *,
     struct auth_hash *);
