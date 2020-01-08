@@ -26,6 +26,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20200108:
+	Clang/LLVM is now the default compiler and LLD the default
+	linker for riscv64.
+
+20200107:
+	make universe no longer uses GCC 4.2.1 on any architectures.
+	Architectures not supported by in-tree Clang/LLVM require an
+	external toolchain package.
+
 20200104:
 	GCC 4.2.1 is now not built by default, as part of the GCC 4.2.1
 	retirement plan.  Specifically, the GCC, GCC_BOOTSTRAP, and GNUCXX
