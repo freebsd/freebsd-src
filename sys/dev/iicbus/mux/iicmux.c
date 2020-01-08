@@ -249,6 +249,7 @@ iicmux_attach(device_t dev, device_t busdev, int numbuses)
 
 	sc->dev = dev;
 	sc->busdev = busdev;
+	sc->maxbus = -1;
 	sc->numbuses = numbuses;
 
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev), 
@@ -262,7 +263,8 @@ iicmux_attach(device_t dev, device_t busdev, int numbuses)
 
 #ifdef FDT
 	phandle_t child, node, parent;
-	pcell_t idx;
+	pcell_t reg;
+	int idx;
 
 	/*
 	 * Find our FDT node.  Child nodes within our node will become our
@@ -285,11 +287,12 @@ iicmux_attach(device_t dev, device_t busdev, int numbuses)
 	 * Attach the children represented in the device tree.
 	 */
 	for (child = OF_child(parent); child != 0; child = OF_peer(child)) {
-		if (OF_getencprop(child, "reg", &idx, sizeof(idx)) == -1) {
+		if (OF_getencprop(child, "reg", &reg, sizeof(reg)) == -1) {
 			device_printf(dev,
 			    "child bus missing required 'reg' property\n");
 			continue;
 		}
+		idx = (int)reg;
 		if (idx >= sc->numbuses) {
 			device_printf(dev,
 			    "child bus 'reg' property %d exceeds the number "
@@ -314,9 +317,8 @@ iicmux_attach(device_t dev, device_t busdev, int numbuses)
 
 	for (i = 0; i < sc->numbuses; ++i) {
 		sc->childdevs[i] = device_add_child(sc->dev, "iicbus", -1);
-		if (sc->maxbus < i)
-			sc->maxbus = i;
 	}
+	sc->maxbus = sc->numbuses - 1;
 
 	return (0);
 }
