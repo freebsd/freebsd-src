@@ -309,11 +309,11 @@ basl_fwrite_madt(FILE *fp)
 	/* Local APIC NMI is connected to LINT 1 on all CPUs */
 	EFPRINTF(fp, "[0001]\t\tSubtable Type : 04\n");
 	EFPRINTF(fp, "[0001]\t\tLength : 06\n");
-	EFPRINTF(fp, "[0001]\t\tProcessorId : FF\n");
+	EFPRINTF(fp, "[0001]\t\tProcessor ID : FF\n");
 	EFPRINTF(fp, "[0002]\t\tFlags (decoded below) : 0005\n");
 	EFPRINTF(fp, "\t\t\tPolarity : 1\n");
 	EFPRINTF(fp, "\t\t\tTrigger Mode : 1\n");
-	EFPRINTF(fp, "[0001]\t\tInterrupt : 01\n");
+	EFPRINTF(fp, "[0001]\t\tInterrupt Input LINT : 01\n");
 	EFPRINTF(fp, "\n");
 
 	EFFLUSH(fp);
@@ -560,7 +560,7 @@ basl_fwrite_hpet(FILE *fp)
 	EFPRINTF(fp, "[0004]\t\tAsl Compiler Revision : 00000000\n");
 	EFPRINTF(fp, "\n");
 
-	EFPRINTF(fp, "[0004]\t\tTimer Block ID : %08X\n", hpet_capabilities);
+	EFPRINTF(fp, "[0004]\t\tHardware Block ID : %08X\n", hpet_capabilities);
 	EFPRINTF(fp,
 	    "[0012]\t\tTimer Block Register : [Generic Address Structure]\n");
 	EFPRINTF(fp, "[0001]\t\tSpace ID : 00 [SystemMemory]\n");
@@ -571,7 +571,7 @@ basl_fwrite_hpet(FILE *fp)
 	EFPRINTF(fp, "[0008]\t\tAddress : 00000000FED00000\n");
 	EFPRINTF(fp, "\n");
 
-	EFPRINTF(fp, "[0001]\t\tHPET Number : 00\n");
+	EFPRINTF(fp, "[0001]\t\tSequence Number : 00\n");
 	EFPRINTF(fp, "[0002]\t\tMinimum Clock Ticks : 0000\n");
 	EFPRINTF(fp, "[0004]\t\tFlags (decoded below) : 00000001\n");
 	EFPRINTF(fp, "\t\t\t4K Page Protect : 1\n");
@@ -607,9 +607,9 @@ basl_fwrite_mcfg(FILE *fp)
 	EFPRINTF(fp, "\n");
 
 	EFPRINTF(fp, "[0008]\t\tBase Address : %016lX\n", pci_ecfg_base());
-	EFPRINTF(fp, "[0002]\t\tSegment Group: 0000\n");
-	EFPRINTF(fp, "[0001]\t\tStart Bus: 00\n");
-	EFPRINTF(fp, "[0001]\t\tEnd Bus: FF\n");
+	EFPRINTF(fp, "[0002]\t\tSegment Group Number : 0000\n");
+	EFPRINTF(fp, "[0001]\t\tStart Bus Number : 00\n");
+	EFPRINTF(fp, "[0001]\t\tEnd Bus Number : FF\n");
 	EFPRINTF(fp, "[0004]\t\tReserved : 0\n");
 	EFFLUSH(fp);
 	return (0);
