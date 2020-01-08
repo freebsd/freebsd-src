@@ -119,6 +119,15 @@ gpiomux_probe(device_t dev)
 	return (rv);
 }
 
+static void
+gpiomux_release_pins(struct gpiomux_softc *sc)
+{
+	int i;
+
+	for (i = 0; i < sc->numpins; ++i)
+		gpio_pin_release(sc->pins[i]);
+}
+
 static int
 gpiomux_attach(device_t dev)
 {
@@ -145,13 +154,16 @@ gpiomux_attach(device_t dev)
 	sc->numpins = i;
 	if (sc->numpins == 0) {
 		device_printf(dev, "cannot acquire pins listed in mux-gpios\n");
-		return ((err == 0) ? ENXIO : err);
+		if (err == 0)
+			err = ENXIO;
+		goto errexit;
 	}
 	numchannels = 1u << sc->numpins;
 	if (numchannels > IICMUX_MAX_BUSES) {
 		device_printf(dev, "too many mux-gpios pins for max %d buses\n",
 		    IICMUX_MAX_BUSES);
-		return (EINVAL);
+		err = EINVAL;
+		goto errexit;
 	}
 
 	/*
@@ -163,13 +175,15 @@ gpiomux_attach(device_t dev)
 	len = OF_getencprop(node, "i2c-parent", &propval, sizeof(propval));
 	if (len != sizeof(propval)) {
 		device_printf(dev, "cannot obtain i2c-parent property\n");
-		return (ENXIO);
+		err = ENXIO;
+		goto errexit;
 	}
 	busdev = OF_device_from_xref((phandle_t)propval);
 	if (busdev == NULL) {
 		device_printf(dev,
 		    "cannot find device referenced by i2c-parent property\n");
-		return (ENXIO);
+		err = ENXIO;
+		goto errexit;
 	}
 	device_printf(dev, "upstream bus is %s\n", device_get_nameunit(busdev));
 
@@ -202,6 +216,11 @@ gpiomux_attach(device_t dev)
 	if ((err = iicmux_attach(dev, busdev, numchannels)) == 0)
 		bus_generic_attach(dev);
 
+errexit:
+
+	if (err != 0)
+		gpiomux_release_pins(sc);
+
 	return (err);
 }
 
@@ -209,13 +228,12 @@ static int
 gpiomux_detach(device_t dev)
 {
 	struct gpiomux_softc *sc = device_get_softc(dev);
-	int err, i;
+	int err;
 
 	if ((err = iicmux_detach(dev)) != 0)
 		return (err);
 
-	for (i = 0; i < sc->numpins; ++i)
-		gpio_pin_release(sc->pins[i]);
+	gpiomux_release_pins(sc);
 
 	return (0);
 }
