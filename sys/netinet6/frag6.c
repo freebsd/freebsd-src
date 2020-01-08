@@ -234,7 +234,7 @@ frag6_freef(struct ip6q *q6, uint32_t bucket)
 		 * Return ICMP time exceeded error for the 1st fragment.
 		 * Just free other fragments.
 		 */
-		if (af6->ip6af_off == 0) {
+		if (af6->ip6af_off == 0 && m->m_pkthdr.rcvif != NULL) {
 
 			/* Adjust pointer. */
 			ip6 = mtod(m, struct ip6_hdr *);
@@ -258,6 +258,43 @@ frag6_freef(struct ip6q *q6, uint32_t bucket)
 	free(q6, M_FRAG6);
 	atomic_subtract_int(&V_frag6_nfragpackets, 1);
 }
+
+/*
+ * Drain off all datagram fragments belonging to
+ * the given network interface.
+ */
+static void
+frag6_cleanup(void *arg __unused, struct ifnet *ifp)
+{
+	struct ip6q *q6, *q6n, *head;
+	struct ip6asfrag *af6;
+	struct mbuf *m;
+	int i;
+
+	KASSERT(ifp != NULL, ("%s: ifp is NULL", __func__));
+
+	CURVNET_SET_QUIET(ifp->if_vnet);
+	for (i = 0; i < IP6REASS_NHASH; i++) {
+		IP6QB_LOCK(i);
+		head = IP6QB_HEAD(i);
+		/* Scan fragment list. */
+		for (q6 = head->ip6q_next; q6 != head; q6 = q6n) {
+			q6n = q6->ip6q_next;
+
+			for (af6 = q6->ip6q_down; af6 != (struct ip6asfrag *)q6;
+			     af6 = af6->ip6af_down) {
+				m = IP6_REASS_MBUF(af6);
+
+				/* clear no longer valid rcvif pointer */
+				if (m->m_pkthdr.rcvif == ifp)
+					m->m_pkthdr.rcvif = NULL;
+			}
+		}
+		IP6QB_UNLOCK(i);
+	}
+	CURVNET_RESTORE();
+}
+EVENTHANDLER_DEFINE(ifnet_departure_event, frag6_cleanup, NULL, 0);
 
 /*
  * Like in RFC2460, in RFC8200, fragment and reassembly rules do not agree with
@@ -295,6 +332,7 @@ int
 frag6_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct ifnet *dstifp;
+	struct ifnet *srcifp;
 	struct in6_ifaddr *ia6;
 	struct ip6_hdr *ip6;
 	struct ip6_frag *ip6f;
@@ -325,6 +363,11 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	if (ip6f == NULL)
 		return (IPPROTO_DONE);
 #endif
+
+	/*
+	 * Store receive network interface pointer for later.
+	 */
+	srcifp = m->m_pkthdr.rcvif;
 
 	dstifp = NULL;
 	/* Find the destination interface of the packet. */
@@ -523,6 +566,9 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 				frag6_deq(af6, bucket);
 				free(af6, M_FRAG6);
 
+				/* Set a valid receive interface pointer. */
+				merr->m_pkthdr.rcvif = srcifp;
+				
 				/* Adjust pointer. */
 				ip6err = mtod(merr, struct ip6_hdr *);
 
@@ -709,6 +755,8 @@ insert:
 		for (t = m; t; t = t->m_next)
 			plen += t->m_len;
 		m->m_pkthdr.len = plen;
+		/* Set a valid receive interface pointer. */
+		m->m_pkthdr.rcvif = srcifp;
 	}
 
 #ifdef RSS
