@@ -129,6 +129,7 @@ __DEFAULT_YES_OPTIONS = \
     LIBPTHREAD \
     LIBTHR \
     LLVM_COV \
+    LLVM_LIBUNWIND \
     LLVM_TARGET_ALL \
     LOADER_GELI \
     LOADER_LUA \
@@ -315,11 +316,6 @@ BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GCC GCC_BOOTSTRAP GDB
 .endif
 .if ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=OFED
-.endif
-.if ${__T} != "sparc64"
-__DEFAULT_YES_OPTIONS+=LLVM_LIBUNWIND
-.else
-__DEFAULT_NO_OPTIONS+=LLVM_LIBUNWIND
 .endif
 .if ${__TT} != "mips" && ${__T} != "powerpc" && ${__T} != "powerpcspe" && \
     ${__T} != "sparc64"
