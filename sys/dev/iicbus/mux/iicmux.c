@@ -222,10 +222,16 @@ iicmux_add_child(device_t dev, device_t child, int busidx)
 {
 	struct iicmux_softc *sc = device_get_softc(dev);
 
-	KASSERT(busidx < sc->numbuses,
-	    ("iicmux_add_child: bus idx %d too big", busidx));
-	KASSERT(sc->childdevs[busidx] == NULL,
-	    ("iicmux_add_child: bus idx %d already added", busidx));
+	if (busidx >= sc->numbuses) {
+		device_printf(dev,
+		    "iicmux_add_child: bus idx %d too big", busidx);
+		return (EINVAL);
+	}
+	if (sc->childdevs[busidx] != NULL) {
+		device_printf(dev, "iicmux_add_child: bus idx %d already added",
+		    busidx);
+		return (EINVAL);
+	}
 
 	sc->childdevs[busidx] = child;
 	if (sc->maxbus < busidx)
@@ -240,12 +246,11 @@ iicmux_attach(device_t dev, device_t busdev, int numbuses)
 	struct iicmux_softc *sc = device_get_softc(dev);
 	int i, numadded;
 
-        /*
-         * Init the softc...
-         */
-	KASSERT(numbuses <= IICMUX_MAX_BUSES,
-		("iicmux_attach: numbuses %d exceeds max %d\n",
-		numbuses, IICMUX_MAX_BUSES));
+	if (numbuses >= IICMUX_MAX_BUSES) {
+		device_printf(dev, "iicmux_attach: numbuses %d > max %d\n",
+		    numbuses, IICMUX_MAX_BUSES);
+		return (EINVAL);
+	}
 
 	sc->dev = dev;
 	sc->busdev = busdev;
