@@ -337,10 +337,21 @@ vtnet_modevent(module_t mod, int type, void *unused)
 
 	switch (type) {
 	case MOD_LOAD:
-		if (loaded++ == 0)
+		if (loaded++ == 0) {
 			vtnet_tx_header_zone = uma_zcreate("vtnet_tx_hdr",
 				sizeof(struct vtnet_tx_header),
 				NULL, NULL, NULL, NULL, 0, 0);
+#ifdef DEBUGNET
+			/*
+			 * We need to allocate from this zone in the transmit path, so ensure
+			 * that we have at least one item per header available.
+			 * XXX add a separate zone like we do for mbufs? otherwise we may alloc
+			 * buckets
+			 */
+			uma_zone_reserve(vtnet_tx_header_zone, DEBUGNET_MAX_IN_FLIGHT * 2);
+			uma_prealloc(vtnet_tx_header_zone, DEBUGNET_MAX_IN_FLIGHT * 2);
+#endif
+		}
 		break;
 	case MOD_QUIESCE:
 		if (uma_zone_get_cur(vtnet_tx_header_zone) > 0)
@@ -3982,15 +3993,6 @@ vtnet_debugnet_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
 	*ncl = DEBUGNET_MAX_IN_FLIGHT;
 	*clsize = sc->vtnet_rx_clsize;
 	VTNET_CORE_UNLOCK(sc);
-
-	/*
-	 * We need to allocate from this zone in the transmit path, so ensure
-	 * that we have at least one item per header available.
-	 * XXX add a separate zone like we do for mbufs? otherwise we may alloc
-	 * buckets
-	 */
-	uma_zone_reserve(vtnet_tx_header_zone, DEBUGNET_MAX_IN_FLIGHT * 2);
-	uma_prealloc(vtnet_tx_header_zone, DEBUGNET_MAX_IN_FLIGHT * 2);
 }
 
 static void
