@@ -375,10 +375,6 @@ CFLAGS += -march=rv64imac -mabi=lp64
 .else
 CFLAGS += -march=rv64imafdc -mabi=lp64d
 .endif
-
-.if ${LINKER_FEATURES:U:Mriscv-relaxations} == ""
-CFLAGS += -mno-relax
-.endif
 .endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk
