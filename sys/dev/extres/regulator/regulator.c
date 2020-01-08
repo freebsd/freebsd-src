@@ -275,8 +275,9 @@ static int
 regnode_method_get_voltage(struct regnode *regnode, int *uvolt)
 {
 
-	return (regnode->std_param.min_uvolt +
-	    (regnode->std_param.max_uvolt - regnode->std_param.min_uvolt) / 2);
+	*uvolt = regnode->std_param.min_uvolt +
+	    (regnode->std_param.max_uvolt - regnode->std_param.min_uvolt) / 2;
+	return (0);
 }
 
 int
