@@ -240,36 +240,13 @@ iicmux_add_child(device_t dev, device_t child, int busidx)
 	return (0);
 }
 
-int
-iicmux_attach(device_t dev, device_t busdev, int numbuses)
+static int
+iicmux_attach_children(struct iicmux_softc *sc)
 {
-	struct iicmux_softc *sc = device_get_softc(dev);
-	int i, numadded;
-
-	if (numbuses >= IICMUX_MAX_BUSES) {
-		device_printf(dev, "iicmux_attach: numbuses %d > max %d\n",
-		    numbuses, IICMUX_MAX_BUSES);
-		return (EINVAL);
-	}
-
-	sc->dev = dev;
-	sc->busdev = busdev;
-	sc->maxbus = -1;
-	sc->numbuses = numbuses;
-
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev), 
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO,
-	    "debugmux", CTLFLAG_RWTUN, &sc->debugmux, 0, "debug mux operations");
-
-        /*
-         * Add children...
-         */
-	numadded = 0;
-
+	int i;
 #ifdef FDT
 	phandle_t child, node, parent;
-	pcell_t reg;
-	int idx;
+	pcell_t idx;
 
 	/*
 	 * Find our FDT node.  Child nodes within our node will become our
@@ -292,14 +269,13 @@ iicmux_attach(device_t dev, device_t busdev, int numbuses)
 	 * Attach the children represented in the device tree.
 	 */
 	for (child = OF_child(parent); child != 0; child = OF_peer(child)) {
-		if (OF_getencprop(child, "reg", &reg, sizeof(reg)) == -1) {
-			device_printf(dev,
+		if (OF_getencprop(child, "reg", &idx, sizeof(idx)) == -1) {
+			device_printf(sc->dev,
 			    "child bus missing required 'reg' property\n");
 			continue;
 		}
-		idx = (int)reg;
 		if (idx >= sc->numbuses) {
-			device_printf(dev,
+			device_printf(sc->dev,
 			    "child bus 'reg' property %d exceeds the number "
 			    "of buses supported by the device (%d)\n",
 			    idx, sc->numbuses);
@@ -309,21 +285,48 @@ iicmux_attach(device_t dev, device_t busdev, int numbuses)
 		sc->childnodes[idx] = child;
 		if (sc->maxbus < idx)
 			sc->maxbus = idx;
-		++numadded;
 	}
+
+	/* If we configured anything using FDT data, we're done. */
+	if (sc->maxbus >= 0)
+		return (0);
 #endif /* FDT */
 
 	/*
-	 * If we configured anything using FDT data, we're done.  Otherwise add
-	 * an iicbus child for every downstream bus supported by the mux chip.
+	 * If we make it to here, we didn't add any children based on FDT data.
+	 * Add an iicbus child for every downstream bus supported by the mux.
 	 */
-	if (numadded > 0)
-		return (0);
-
 	for (i = 0; i < sc->numbuses; ++i) {
 		sc->childdevs[i] = device_add_child(sc->dev, "iicbus", -1);
+		sc->maxbus = i;
 	}
-	sc->maxbus = sc->numbuses - 1;
+
+	return (0);
+}
+
+int
+iicmux_attach(device_t dev, device_t busdev, int numbuses)
+{
+	struct iicmux_softc *sc = device_get_softc(dev);
+	int err;
+
+	if (numbuses >= IICMUX_MAX_BUSES) {
+		device_printf(dev, "iicmux_attach: numbuses %d > max %d\n",
+		    numbuses, IICMUX_MAX_BUSES);
+		return (EINVAL);
+	}
+
+	sc->dev = dev;
+	sc->busdev = busdev;
+	sc->maxbus = -1;
+	sc->numbuses = numbuses;
+
+	if ((err = iicmux_attach_children(sc)) != 0)
+		return (err);
+
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev), 
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO,
+	    "debugmux", CTLFLAG_RWTUN, &sc->debugmux, 0, "debug mux operations");
 
 	return (0);
 }
