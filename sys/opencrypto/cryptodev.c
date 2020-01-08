@@ -1473,24 +1473,6 @@ csefree(struct csession *cse)
 }
 
 static int
-cryptoopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
-{
-	return (0);
-}
-
-static int
-cryptoread(struct cdev *dev, struct uio *uio, int ioflag)
-{
-	return (EIO);
-}
-
-static int
-cryptowrite(struct cdev *dev, struct uio *uio, int ioflag)
-{
-	return (EIO);
-}
-
-static int
 cryptoioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct file *f;
@@ -1531,10 +1513,6 @@ cryptoioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread 
 
 static struct cdevsw crypto_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
-	.d_open =	cryptoopen,
-	.d_read =	cryptoread,
-	.d_write =	cryptowrite,
 	.d_ioctl =	cryptoioctl,
 	.d_name =	"crypto",
 };
