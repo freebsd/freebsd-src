@@ -203,10 +203,11 @@ extern int tcp_backoff[];
 extern int tcp_totbackoff;
 extern int tcp_rexmit_drop_options;
 
-extern int tcp_always_keepalive;
 extern int tcp_finwait2_timeout;
 extern int tcp_fast_finwait2_recycle;
 
+VNET_DECLARE(int, tcp_always_keepalive);
+#define	V_tcp_always_keepalive		VNET(tcp_always_keepalive)
 VNET_DECLARE(int, tcp_pmtud_blackhole_detect);
 #define V_tcp_pmtud_blackhole_detect	VNET(tcp_pmtud_blackhole_detect)
 VNET_DECLARE(int, tcp_pmtud_blackhole_mss);
