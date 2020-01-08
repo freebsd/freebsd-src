@@ -266,6 +266,7 @@ crypt_kop_to_32(const struct crypt_kop *from, struct crypt_kop32 *to)
 struct csession {
 	TAILQ_ENTRY(csession) next;
 	crypto_session_t cses;
+	volatile u_int	refs;
 	u_int32_t	ses;
 	struct mtx	lock;		/* for op submission */
 
@@ -292,6 +293,7 @@ struct cryptop_data {
 struct fcrypt {
 	TAILQ_HEAD(csessionlist, csession) csessions;
 	int		sesn;
+	struct mtx	lock;
 };
 
 static struct timeval warninterval = { .tv_sec = 60, .tv_usec = 0 };
@@ -323,8 +325,8 @@ static struct fileops cryptofops = {
 };
 
 static struct csession *csefind(struct fcrypt *, u_int);
-static int csedelete(struct fcrypt *, struct csession *);
-static struct csession *cseadd(struct fcrypt *, struct csession *);
+static bool csedelete(struct fcrypt *, u_int);
+static void cseadd(struct fcrypt *, struct csession *);
 static struct csession *csecreate(struct fcrypt *, crypto_session_t, caddr_t,
     u_int64_t, caddr_t, u_int64_t, u_int32_t, u_int32_t, struct enc_xform *,
     struct auth_hash *);
@@ -668,13 +670,10 @@ bail:
 		break;
 	case CIOCFSESSION:
 		ses = *(u_int32_t *)data;
-		cse = csefind(fcr, ses);
-		if (cse == NULL) {
+		if (!csedelete(fcr, ses)) {
 			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
 			return (EINVAL);
 		}
-		csedelete(fcr, cse);
-		csefree(cse);
 		break;
 	case CIOCCRYPT:
 #ifdef COMPAT_FREEBSD32
@@ -691,6 +690,7 @@ bail:
 			return (EINVAL);
 		}
 		error = cryptodev_op(cse, cop, active_cred, td);
+		csefree(cse);
 #ifdef COMPAT_FREEBSD32
 		if (error == 0 && cmd == CIOCCRYPT32)
 			crypt_op_to_32(cop, data);
@@ -757,6 +757,7 @@ bail:
 			return (EINVAL);
 		}
 		error = cryptodev_aead(cse, caead, active_cred, td);
+		csefree(cse);
 		break;
 	default:
 		error = EINVAL;
@@ -1375,6 +1376,9 @@ cryptof_close(struct file *fp, struct thread *td)
 
 	while ((cse = TAILQ_FIRST(&fcr->csessions))) {
 		TAILQ_REMOVE(&fcr->csessions, cse, next);
+		KASSERT(cse->refs == 1,
+		    ("%s: crypto session %p with %d refs", __func__, cse,
+		    cse->refs));
 		csefree(cse);
 	}
 	free(fcr, M_XDATA);
@@ -1395,34 +1399,36 @@ csefind(struct fcrypt *fcr, u_int ses)
 {
 	struct csession *cse;
 
-	TAILQ_FOREACH(cse, &fcr->csessions, next)
-		if (cse->ses == ses)
+	mtx_lock(&fcr->lock);
+	TAILQ_FOREACH(cse, &fcr->csessions, next) {
+		if (cse->ses == ses) {
+			refcount_acquire(&cse->refs);
+			mtx_unlock(&fcr->lock);
 			return (cse);
+		}
+	}
+	mtx_unlock(&fcr->lock);
 	return (NULL);
 }
 
-static int
-csedelete(struct fcrypt *fcr, struct csession *cse_del)
+static bool
+csedelete(struct fcrypt *fcr, u_int ses)
 {
 	struct csession *cse;
 
+	mtx_lock(&fcr->lock);
 	TAILQ_FOREACH(cse, &fcr->csessions, next) {
-		if (cse == cse_del) {
+		if (cse->ses == ses) {
 			TAILQ_REMOVE(&fcr->csessions, cse, next);
-			return (1);
+			mtx_unlock(&fcr->lock);
+			csefree(cse);
+			return (true);
 		}
 	}
-	return (0);
+	mtx_unlock(&fcr->lock);
+	return (false);
 }
 	
-static struct csession *
-cseadd(struct fcrypt *fcr, struct csession *cse)
-{
-	TAILQ_INSERT_TAIL(&fcr->csessions, cse, next);
-	cse->ses = fcr->sesn++;
-	return (cse);
-}
-
 struct csession *
 csecreate(struct fcrypt *fcr, crypto_session_t cses, caddr_t key, u_int64_t keylen,
     caddr_t mackey, u_int64_t mackeylen, u_int32_t cipher, u_int32_t mac,
@@ -1434,6 +1440,7 @@ csecreate(struct fcrypt *fcr, crypto_session_t cses, caddr_t key, u_int64_t keyl
 	if (cse == NULL)
 		return NULL;
 	mtx_init(&cse->lock, "cryptodev", "crypto session lock", MTX_DEF);
+	refcount_init(&cse->refs, 1);
 	cse->key = key;
 	cse->keylen = keylen/8;
 	cse->mackey = mackey;
@@ -1443,7 +1450,10 @@ csecreate(struct fcrypt *fcr, crypto_session_t cses, caddr_t key, u_int64_t keyl
 	cse->mac = mac;
 	cse->txform = txform;
 	cse->thash = thash;
-	cseadd(fcr, cse);
+	mtx_lock(&fcr->lock);
+	TAILQ_INSERT_TAIL(&fcr->csessions, cse, next);
+	cse->ses = fcr->sesn++;
+	mtx_unlock(&fcr->lock);
 	return (cse);
 }
 
@@ -1451,6 +1461,8 @@ static void
 csefree(struct csession *cse)
 {
 
+	if (!refcount_release(&cse->refs))
+		return;
 	crypto_freesession(cse->cses);
 	mtx_destroy(&cse->lock);
 	if (cse->key)
@@ -1487,13 +1499,14 @@ cryptoioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread 
 
 	switch (cmd) {
 	case CRIOGET:
-		fcr = malloc(sizeof(struct fcrypt), M_XDATA, M_WAITOK);
+		fcr = malloc(sizeof(struct fcrypt), M_XDATA, M_WAITOK | M_ZERO);
 		TAILQ_INIT(&fcr->csessions);
-		fcr->sesn = 0;
+		mtx_init(&fcr->lock, "fcrypt", NULL, MTX_DEF);
 
 		error = falloc(td, &f, &fd, 0);
 
 		if (error) {
+			mtx_destroy(&fcr->lock);
 			free(fcr, M_XDATA);
 			return (error);
 		}
