@@ -672,7 +672,7 @@ insert:
 	     af6 = af6->ip6af_down) {
 		if (af6->ip6af_off != plen) {
 			if (q6->ip6q_nfrag > V_ip6_maxfragsperpacket) {
-				IP6STAT_INC(ip6s_fragdropped);
+				IP6STAT_ADD(ip6s_fragdropped, q6->ip6q_nfrag);
 				frag6_freef(q6, bucket);
 			}
 			IP6QB_UNLOCK(bucket);
@@ -682,7 +682,7 @@ insert:
 	}
 	if (af6->ip6af_up->ip6af_mff) {
 		if (q6->ip6q_nfrag > V_ip6_maxfragsperpacket) {
-			IP6STAT_INC(ip6s_fragdropped);
+			IP6STAT_ADD(ip6s_fragdropped, q6->ip6q_nfrag);
 			frag6_freef(q6, bucket);
 		}
 		IP6QB_UNLOCK(bucket);
@@ -826,7 +826,8 @@ frag6_slowtimo(void)
 				--q6->ip6q_ttl;
 				q6 = q6->ip6q_next;
 				if (q6->ip6q_prev->ip6q_ttl == 0) {
-					IP6STAT_INC(ip6s_fragtimeout);
+					IP6STAT_ADD(ip6s_fragtimeout,
+						q6->ip6q_prev->ip6q_nfrag);
 					/* XXX in6_ifstat_inc(ifp, ifs6_reass_fail) */
 					frag6_freef(q6->ip6q_prev, bucket);
 				}
@@ -844,7 +845,8 @@ frag6_slowtimo(void)
 			    (V_ip6_maxfragpackets > 0 &&
 			    V_ip6qb[bucket].count > V_ip6_maxfragbucketsize)) &&
 			    head->ip6q_prev != head) {
-				IP6STAT_INC(ip6s_fragoverflow);
+				IP6STAT_ADD(ip6s_fragoverflow,
+					q6->ip6q_prev->ip6q_nfrag);
 				/* XXX in6_ifstat_inc(ifp, ifs6_reass_fail) */
 				frag6_freef(head->ip6q_prev, bucket);
 			}
@@ -861,7 +863,8 @@ frag6_slowtimo(void)
 			IP6QB_LOCK(bucket);
 			head = IP6QB_HEAD(bucket);
 			if (head->ip6q_prev != head) {
-				IP6STAT_INC(ip6s_fragoverflow);
+				IP6STAT_ADD(ip6s_fragoverflow,
+					q6->ip6q_prev->ip6q_nfrag);
 				/* XXX in6_ifstat_inc(ifp, ifs6_reass_fail) */
 				frag6_freef(head->ip6q_prev, bucket);
 			}
