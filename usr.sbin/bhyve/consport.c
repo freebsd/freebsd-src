@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include "inout.h"
 #include "pci_lpc.h"
+#include "debug.h"
 
 #define	BVM_CONSOLE_PORT	0x220
 #define	BVM_CONS_SIG		('b' << 8 | 'v')
@@ -70,6 +71,7 @@ ttyopen(void)
 
 	cfmakeraw(&tio_new);
 	tcsetattr(STDIN_FILENO, TCSANOW, &tio_new);	
+	raw_stdio = 1;
 
 	atexit(ttyclose);
 }

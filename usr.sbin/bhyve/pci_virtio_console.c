@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 
 #include "bhyverun.h"
+#include "debug.h"
 #include "pci_emul.h"
 #include "virtio.h"
 #include "mevent.h"
@@ -85,8 +86,8 @@ __FBSDID("$FreeBSD$");
     (VTCON_F_SIZE | VTCON_F_MULTIPORT | VTCON_F_EMERG_WRITE)
 
 static int pci_vtcon_debug;
-#define DPRINTF(params) if (pci_vtcon_debug) printf params
-#define WPRINTF(params) printf params
+#define DPRINTF(params) if (pci_vtcon_debug) PRINTLN params
+#define WPRINTF(params) PRINTLN params
 
 struct pci_vtcon_softc;
 struct pci_vtcon_port;
@@ -187,7 +188,7 @@ pci_vtcon_reset(void *vsc)
 
 	sc = vsc;
 
-	DPRINTF(("vtcon: device reset requested!\n\r"));
+	DPRINTF(("vtcon: device reset requested!"));
 	vi_reset_dev(&sc->vsc_vs);
 }
 
@@ -498,7 +499,7 @@ pci_vtcon_control_tx(struct pci_vtcon_port *port, void *arg, struct iovec *iov,
 
 	case VTCON_PORT_READY:
 		if (ctrl->id >= sc->vsc_nports) {
-			WPRINTF(("VTCON_PORT_READY event for unknown port %d\n\r",
+			WPRINTF(("VTCON_PORT_READY event for unknown port %d",
 			    ctrl->id));
 			return;
 		}
@@ -663,7 +664,7 @@ pci_vtcon_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 
 		/* create port */
 		if (pci_vtcon_sock_add(sc, portname, portpath) < 0) {
-			fprintf(stderr, "cannot create port %s: %s\n",
+			EPRINTLN("cannot create port %s: %s",
 			    portname, strerror(errno));
 			return (1);
 		}

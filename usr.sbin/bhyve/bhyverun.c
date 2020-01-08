@@ -167,6 +167,8 @@ uint16_t cores, maxcpus, sockets, threads;
 
 char *guest_uuid_str;
 
+int raw_stdio = 0;
+
 static int gdb_port = 0;
 static int guest_vmexit_on_hlt, guest_vmexit_on_pause;
 static int virtio_msix = 1;

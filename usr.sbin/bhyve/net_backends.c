@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <assert.h>
 
 
+#include "debug.h"
 #include "iov.h"
 #include "mevent.h"
 #include "net_backends.h"
@@ -156,7 +157,7 @@ SET_DECLARE(net_backend_set, struct net_backend);
 
 #define VNET_HDR_LEN	sizeof(struct virtio_net_rxhdr)
 
-#define WPRINTF(params) printf params
+#define WPRINTF(params) PRINTLN params
 
 /*
  * The tap backend
@@ -192,7 +193,7 @@ tap_init(struct net_backend *be, const char *devname,
 #endif
 
 	if (cb == NULL) {
-		WPRINTF(("TAP backend requires non-NULL callback\n\r"));
+		WPRINTF(("TAP backend requires non-NULL callback"));
 		return (-1);
 	}
 
@@ -201,7 +202,7 @@ tap_init(struct net_backend *be, const char *devname,
 
 	be->fd = open(tbuf, O_RDWR);
 	if (be->fd == -1) {
-		WPRINTF(("open of tap device %s failed\n\r", tbuf));
+		WPRINTF(("open of tap device %s failed", tbuf));
 		goto error;
 	}
 
@@ -210,7 +211,7 @@ tap_init(struct net_backend *be, const char *devname,
 	 * notifications with the event loop
 	 */
 	if (ioctl(be->fd, FIONBIO, &opt) < 0) {
-		WPRINTF(("tap device O_NONBLOCK failed\n\r"));
+		WPRINTF(("tap device O_NONBLOCK failed"));
 		goto error;
 	}
 
@@ -222,7 +223,7 @@ tap_init(struct net_backend *be, const char *devname,
 
 	priv->mevp = mevent_add_disabled(be->fd, EVF_READ, cb, param);
 	if (priv->mevp == NULL) {
-		WPRINTF(("Could not register event\n\r"));
+		WPRINTF(("Could not register event"));
 		goto error;
 	}
 
@@ -363,7 +364,7 @@ netmap_set_vnet_hdr_len(struct net_backend *be, int vnet_hdr_len)
 	req.nr_arg1 = vnet_hdr_len;
 	err = ioctl(be->fd, NIOCREGIF, &req);
 	if (err) {
-		WPRINTF(("Unable to set vnet header length %d\n\r",
+		WPRINTF(("Unable to set vnet header length %d",
 				vnet_hdr_len));
 		return (err);
 	}
@@ -420,7 +421,7 @@ netmap_init(struct net_backend *be, const char *devname,
 
 	priv->nmd = nm_open(priv->ifname, NULL, NETMAP_NO_TX_POLL, NULL);
 	if (priv->nmd == NULL) {
-		WPRINTF(("Unable to nm_open(): interface '%s', errno (%s)\n\r",
+		WPRINTF(("Unable to nm_open(): interface '%s', errno (%s)",
 			devname, strerror(errno)));
 		free(priv);
 		return (-1);
@@ -435,7 +436,7 @@ netmap_init(struct net_backend *be, const char *devname,
 
 	priv->mevp = mevent_add_disabled(be->fd, EVF_READ, cb, param);
 	if (priv->mevp == NULL) {
-		WPRINTF(("Could not register event\n\r"));
+		WPRINTF(("Could not register event"));
 		return (-1);
 	}
 
@@ -472,7 +473,7 @@ netmap_send(struct net_backend *be, struct iovec *iov,
 	ring = priv->tx;
 	head = ring->head;
 	if (head == ring->tail) {
-		WPRINTF(("No space, drop %zu bytes\n\r", count_iov(iov, iovcnt)));
+		WPRINTF(("No space, drop %zu bytes", count_iov(iov, iovcnt)));
 		goto txsync;
 	}
 	nm_buf = NETMAP_BUF(ring, ring->slot[head].buf_idx);
@@ -513,7 +514,7 @@ netmap_send(struct net_backend *be, struct iovec *iov,
 				 * We ran out of netmap slots while
 				 * splitting the iovec fragments.
 				 */
-				WPRINTF(("No space, drop %zu bytes\n\r",
+				WPRINTF(("No space, drop %zu bytes",
 				   count_iov(iov, iovcnt)));
 				goto txsync;
 			}
@@ -585,7 +586,7 @@ netmap_recv(struct net_backend *be, struct iovec *iov, int iovcnt)
 			iovcnt--;
 			if (iovcnt == 0) {
 				/* No space to receive. */
-				WPRINTF(("Short iov, drop %zd bytes\n\r",
+				WPRINTF(("Short iov, drop %zd bytes",
 				    totlen));
 				return (-ENOSPC);
 			}

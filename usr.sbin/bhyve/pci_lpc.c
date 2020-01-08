@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <vmmapi.h>
 
 #include "acpi.h"
+#include "debug.h"
 #include "bootrom.h"
 #include "inout.h"
 #include "pci_emul.h"
@@ -202,8 +203,8 @@ lpc_init(struct vmctx *ctx)
 		name = lpc_uart_names[unit];
 
 		if (uart_legacy_alloc(unit, &sc->iobase, &sc->irq) != 0) {
-			fprintf(stderr, "Unable to allocate resources for "
-			    "LPC device %s\n", name);
+			EPRINTLN("Unable to allocate resources for "
+			    "LPC device %s", name);
 			return (-1);
 		}
 		pci_irq_reserve(sc->irq);
@@ -212,8 +213,8 @@ lpc_init(struct vmctx *ctx)
 				    lpc_uart_intr_deassert, sc);
 
 		if (uart_set_backend(sc->uart_softc, sc->opts) != 0) {
-			fprintf(stderr, "Unable to initialize backend '%s' "
-			    "for LPC device %s\n", sc->opts, name);
+			EPRINTLN("Unable to initialize backend '%s' "
+			    "for LPC device %s", sc->opts, name);
 			return (-1);
 		}
 
@@ -398,7 +399,7 @@ pci_lpc_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	 * Do not allow more than one LPC bridge to be configured.
 	 */
 	if (lpc_bridge != NULL) {
-		fprintf(stderr, "Only one LPC bridge is allowed.\n");
+		EPRINTLN("Only one LPC bridge is allowed.");
 		return (-1);
 	}
 
@@ -408,7 +409,7 @@ pci_lpc_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	 * all legacy i/o ports behind bus 0.
 	 */
 	if (pi->pi_bus != 0) {
-		fprintf(stderr, "LPC bridge can be present only on bus 0.\n");
+		EPRINTLN("LPC bridge can be present only on bus 0.");
 		return (-1);
 	}
 
