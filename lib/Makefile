@@ -158,7 +158,8 @@ SUBDIR.${MK_LDNS}+=	libldns
 # built for certain architectures.
 .if ${MK_CLANG} != "no" && ${COMPILER_TYPE} == "clang" && \
     (${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
-    ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "i386")
+    ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "i386" || \
+    ${MACHINE_CPUARCH} == "powerpc")
 _libclang_rt=	libclang_rt
 .endif
 

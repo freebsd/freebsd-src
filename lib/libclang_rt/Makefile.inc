@@ -8,7 +8,7 @@
     (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "")
 CRTARCH?=	armhf
 .else
-CRTARCH?=	${MACHINE_CPUARCH:C/amd64/x86_64/}
+CRTARCH?=	${MACHINE_ARCH:C/amd64/x86_64/}
 .endif
 CRTSRC=		${SRCTOP}/contrib/llvm-project/compiler-rt
 
