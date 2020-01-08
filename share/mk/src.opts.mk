@@ -295,8 +295,7 @@ __DEFAULT_NO_OPTIONS+=LLVM_TARGET_BPF
 # If the compiler is not C++11 capable, disable Clang.  External toolchain will
 # be required.
 
-.if ${COMPILER_FEATURES:Mc++11} && (${__TT} != "mips" && \
-    ${__TT} != "riscv" && ${__TT} != "sparc64")
+.if ${COMPILER_FEATURES:Mc++11} && (${__TT} != "mips" && ${__TT} != "sparc64")
 # Clang is enabled, and will be installed as the default /usr/bin/cc.
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_IS_CC LLD
 .elif ${COMPILER_FEATURES:Mc++11} && ${__T} != "sparc64"
@@ -323,7 +322,7 @@ __DEFAULT_YES_OPTIONS+=LLVM_LIBUNWIND
 __DEFAULT_NO_OPTIONS+=LLVM_LIBUNWIND
 .endif
 .if ${__TT} != "mips" && ${__T} != "powerpc" && ${__T} != "powerpcspe" && \
-    ${__TT} != "riscv" && ${__T} != "sparc64"
+    ${__T} != "sparc64"
 __DEFAULT_YES_OPTIONS+=LLD_BOOTSTRAP LLD_IS_LD
 .else
 __DEFAULT_NO_OPTIONS+=LLD_BOOTSTRAP LLD_IS_LD

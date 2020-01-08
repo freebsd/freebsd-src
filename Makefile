@@ -495,23 +495,20 @@ TARGET_ARCHES_arm64?=	aarch64
 TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32 mipselhf mipshf mips64elhf mips64hf
 # powerpcspe excluded until clang fixed
 TARGET_ARCHES_powerpc?=	powerpc powerpc64
-# riscv64sf excluded due to PR 232085
-TARGET_ARCHES_riscv?=	riscv64
+TARGET_ARCHES_riscv?=	riscv64 riscv64sf
 .for target in ${TARGETS}
 TARGET_ARCHES_${target}?= ${target}
 .endfor
 
-MAKE_PARAMS_riscv?=	CROSS_TOOLCHAIN=riscv64-gcc
 MAKE_PARAMS_mips?=	CROSS_TOOLCHAIN=mips-gcc6
 MAKE_PARAMS_sparc64?=	CROSS_TOOLCHAIN=sparc64-gcc6
 
 TOOLCHAINS_mips=	mips-gcc6
-TOOLCHAINS_riscv=	riscv64-gcc
 TOOLCHAINS_sparc64=	sparc64-gcc6
 
 # Remove architectures only supported by external toolchain from
 # universe if required toolchain packages are missing.
-.for target in mips riscv sparc64
+.for target in mips sparc64
 .if ${_UNIVERSE_TARGETS:M${target}}
 .for toolchain in ${TOOLCHAINS_${target}}
 .if !exists(/usr/local/share/toolchains/${toolchain}.mk)
