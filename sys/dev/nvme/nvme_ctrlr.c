@@ -854,7 +854,7 @@ nvme_ctrlr_hmb_free(struct nvme_controller *ctrlr)
 	}
 	if (ctrlr->hmb_desc_tag) {
 		bus_dma_tag_destroy(ctrlr->hmb_desc_tag);
-		ctrlr->hmb_tag = NULL;
+		ctrlr->hmb_desc_tag = NULL;
 	}
 	for (i = 0; i < ctrlr->hmb_nchunks; i++) {
 		hmbc = &ctrlr->hmb_chunks[i];
