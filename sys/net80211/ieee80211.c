@@ -1386,6 +1386,8 @@ getflags(const uint8_t bands[], uint32_t flags[], int ht40, int vht80)
 
 /*
  * Add one 20 MHz channel into specified channel list.
+ * You MUST NOT mix bands when calling this.  It will not add 5ghz
+ * channels if you have any B/G/N band bit set.
  */
 /* XXX VHT */
 int
