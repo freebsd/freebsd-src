@@ -631,14 +631,17 @@ ipreass_cleanup(void *arg __unused, struct ifnet *ifp)
 
 	KASSERT(ifp != NULL, ("%s: ifp is NULL", __func__));
 
+	CURVNET_SET_QUIET(ifp->if_vnet);
+
 	/*
 	 * Skip processing if IPv4 reassembly is not initialised or
 	 * torn down by ipreass_destroy().
 	 */ 
-	if (V_ipq_zone == NULL)
+	if (V_ipq_zone == NULL) {
+		CURVNET_RESTORE();
 		return;
+	}
 
-	CURVNET_SET_QUIET(ifp->if_vnet);
 	for (i = 0; i < IPREASS_NHASH; i++) {
 		IPQ_LOCK(i);
 		/* Scan fragment list. */
