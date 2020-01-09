@@ -1257,21 +1257,18 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		/*
 		 * The stride option was added without defining a corresponding
-		 * LAGG_OPT flag, so we must handle it before processing any
-		 * remaining options.
+		 * LAGG_OPT flag, so handle a non-zero value before checking
+		 * anything else to preserve compatibility.
 		 */
 		LAGG_XLOCK(sc);
-		if (ro->ro_bkt != 0) {
+		if (ro->ro_opts == 0 && ro->ro_bkt != 0) {
 			if (sc->sc_proto != LAGG_PROTO_ROUNDROBIN) {
 				LAGG_XUNLOCK(sc);
 				error = EINVAL;
 				break;
 			}
 			sc->sc_stride = ro->ro_bkt;
-		} else {
-			sc->sc_stride = 0;
 		}
-
 		if (ro->ro_opts == 0) {
 			LAGG_XUNLOCK(sc);
 			break;
@@ -1289,6 +1286,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		case LAGG_OPT_USE_NUMA:
 		case -LAGG_OPT_USE_NUMA:
 		case LAGG_OPT_FLOWIDSHIFT:
+		case LAGG_OPT_RR_LIMIT:
 			valid = 1;
 			lacp = 0;
 			break;
@@ -1314,14 +1312,23 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			LAGG_XUNLOCK(sc);
 			break;	/* Return from SIOCSLAGGOPTS. */ 
 		}
+
 		/*
 		 * Store new options into sc->sc_opts except for
-		 * FLOWIDSHIFT and LACP options.
+		 * FLOWIDSHIFT, RR and LACP options.
 		 */
 		if (lacp == 0) {
 			if (ro->ro_opts == LAGG_OPT_FLOWIDSHIFT)
 				sc->flowid_shift = ro->ro_flowid_shift;
-			else if (ro->ro_opts > 0)
+			else if (ro->ro_opts == LAGG_OPT_RR_LIMIT) {
+				if (sc->sc_proto != LAGG_PROTO_ROUNDROBIN ||
+				    ro->ro_bkt == 0) {
+					error = EINVAL;
+					LAGG_XUNLOCK(sc);
+					break;
+				}
+				sc->sc_stride = ro->ro_bkt;
+			} else if (ro->ro_opts > 0)
 				sc->sc_opts |= ro->ro_opts;
 			else
 				sc->sc_opts &= ~ro->ro_opts;
@@ -2046,6 +2053,7 @@ static void
 lagg_rr_attach(struct lagg_softc *sc)
 {
 	sc->sc_seq = 0;
+	sc->sc_stride = 1;
 }
 
 static int
@@ -2055,9 +2063,7 @@ lagg_rr_start(struct lagg_softc *sc, struct mbuf *m)
 	uint32_t p;
 
 	p = atomic_fetchadd_32(&sc->sc_seq, 1);
-	if (sc->sc_stride > 0)
-		p /= sc->sc_stride;
-
+	p /= sc->sc_stride;
 	p %= sc->sc_count;
 	lp = CK_SLIST_FIRST(&sc->sc_ports);
 
