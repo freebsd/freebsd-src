@@ -585,8 +585,8 @@ cryptof_ioctl(
 		if (thash) {
 			cria.cri_alg = thash->type;
 			cria.cri_klen = sop->mackeylen * 8;
-			if (thash->keysize != 0 &&
-			    sop->mackeylen > thash->keysize) {
+			if (sop->mackeylen > thash->keysize ||
+			    sop->mackeylen < 0) {
 				CRYPTDEB("invalid mac key length");
 				error = EINVAL;
 				SDT_PROBE1(opencrypto, dev, ioctl, error,
