@@ -7,7 +7,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 26, 2017
+.Dd January 8, 2020
 .Dt MD 4
 .Os
 .Sh NAME
@@ -46,7 +46,7 @@ system.
 The exact value can be determined with
 .Xr vmstat 8 .
 .It Cm preload
-A file loaded by
+A module loaded by
 .Xr loader 8
 with type
 .Sq md_image
@@ -54,6 +54,12 @@ is used for backing store.
 For backwards compatibility the type
 .Sq mfs_root
 is also recognized.
+See the description of module loading directives in
+.Xr loader.conf 5
+and note that the module name will either be an absolute path to the image file
+or the name of a file in the
+.Va module_path .
+.Pp
 If the kernel is created with option
 .Dv MD_ROOT
 the first preloaded image found will become the root file system.
