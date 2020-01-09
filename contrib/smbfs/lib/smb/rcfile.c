@@ -156,11 +156,19 @@ static struct rcsection *
 rc_addsect(struct rcfile *rcp, const char *sectname)
 {
 	struct rcsection *p;
+	const char* sectletter = sectname;
 
 	p = rc_findsect(rcp, sectname);
 	if (p) return p;
 	p = malloc(sizeof(*p));
 	if (!p) return NULL;
+	for(sectletter = sectname; *sectletter; sectletter++) {
+		if (islower(*sectletter)) {
+			if (strcmp(sectname, "default"))
+				dprintf(STDERR_FILENO, "warning: section name [%s] contains lower-case letters\n", sectname);
+			break;
+		}
+	}
 	p->rs_name = strdup(sectname);
 	SLIST_INIT(&p->rs_keys);
 	SLIST_INSERT_HEAD(&rcp->rf_sect, p, rs_next);
