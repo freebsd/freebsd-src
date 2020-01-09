@@ -1219,23 +1219,38 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			CK_SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
 				ro->ro_active += LAGG_PORTACTIVE(lp);
 		}
-		ro->ro_bkt = sc->sc_bkt;
+		ro->ro_bkt = sc->sc_stride;
 		ro->ro_flapping = sc->sc_flapping;
 		ro->ro_flowid_shift = sc->flowid_shift;
 		LAGG_XUNLOCK(sc);
 		break;
 	case SIOCSLAGGOPTS:
-		if (sc->sc_proto == LAGG_PROTO_ROUNDROBIN) {
-			if (ro->ro_bkt == 0)
-				sc->sc_bkt = 1; // Minimum 1 packet per iface.
-			else
-				sc->sc_bkt = ro->ro_bkt;
-		}
 		error = priv_check(td, PRIV_NET_LAGG);
 		if (error)
 			break;
-		if (ro->ro_opts == 0)
+
+		/*
+		 * The stride option was added without defining a corresponding
+		 * LAGG_OPT flag, so we must handle it before processing any
+		 * remaining options.
+		 */
+		LAGG_XLOCK(sc);
+		if (ro->ro_bkt != 0) {
+			if (sc->sc_proto != LAGG_PROTO_ROUNDROBIN) {
+				LAGG_XUNLOCK(sc);
+				error = EINVAL;
+				break;
+			}
+			sc->sc_stride = ro->ro_bkt;
+		} else {
+			sc->sc_stride = 0;
+		}
+
+		if (ro->ro_opts == 0) {
+			LAGG_XUNLOCK(sc);
 			break;
+		}
+
 		/*
 		 * Set options.  LACP options are stored in sc->sc_psc,
 		 * not in sc_opts.
@@ -1263,8 +1278,6 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			valid = lacp = 0;
 			break;
 		}
-
-		LAGG_XLOCK(sc);
 
 		if (valid == 0 ||
 		    (lacp == 1 && sc->sc_proto != LAGG_PROTO_LACP)) {
@@ -1902,7 +1915,6 @@ static void
 lagg_rr_attach(struct lagg_softc *sc)
 {
 	sc->sc_seq = 0;
-	sc->sc_bkt_count = sc->sc_bkt;
 }
 
 static int
@@ -1911,17 +1923,9 @@ lagg_rr_start(struct lagg_softc *sc, struct mbuf *m)
 	struct lagg_port *lp;
 	uint32_t p;
 
-	if (sc->sc_bkt_count == 0 && sc->sc_bkt > 0)
-		sc->sc_bkt_count = sc->sc_bkt;
-
-	if (sc->sc_bkt > 0) {
-		atomic_subtract_int(&sc->sc_bkt_count, 1);
-	if (atomic_cmpset_int(&sc->sc_bkt_count, 0, sc->sc_bkt))
-		p = atomic_fetchadd_32(&sc->sc_seq, 1);
-	else
-		p = sc->sc_seq; 
-	} else
-		p = atomic_fetchadd_32(&sc->sc_seq, 1);
+	p = atomic_fetchadd_32(&sc->sc_seq, 1);
+	if (sc->sc_stride > 0)
+		p /= sc->sc_stride;
 
 	p %= sc->sc_count;
 	lp = CK_SLIST_FIRST(&sc->sc_ports);
