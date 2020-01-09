@@ -290,17 +290,17 @@ rtalloc_mpath_fib(struct route *ro, uint32_t hash, u_int fibnum)
 	RT_UNLOCK(ro->ro_rt);
 }
 
-extern int	in6_inithead(void **head, int off);
-extern int	in_inithead(void **head, int off);
+extern int	in6_inithead(void **head, int off, u_int fibnum);
+extern int	in_inithead(void **head, int off, u_int fibnum);
 
 #ifdef INET
 int
-rn4_mpath_inithead(void **head, int off)
+rn4_mpath_inithead(void **head, int off, u_int fibnum)
 {
 	struct rib_head *rnh;
 
 	hashjitter = arc4random();
-	if (in_inithead(head, off) == 1) {
+	if (in_inithead(head, off, fibnum) == 1) {
 		rnh = (struct rib_head *)*head;
 		rnh->rnh_multipath = 1;
 		return 1;
@@ -311,12 +311,12 @@ rn4_mpath_inithead(void **head, int off)
 
 #ifdef INET6
 int
-rn6_mpath_inithead(void **head, int off)
+rn6_mpath_inithead(void **head, int off, u_int fibnum)
 {
 	struct rib_head *rnh;
 
 	hashjitter = arc4random();
-	if (in6_inithead(head, off) == 1) {
+	if (in6_inithead(head, off, fibnum) == 1) {
 		rnh = (struct rib_head *)*head;
 		rnh->rnh_multipath = 1;
 		return 1;

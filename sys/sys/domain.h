@@ -60,7 +60,7 @@ struct domain {
 	struct	protosw *dom_protosw, *dom_protoswNPROTOSW;
 	struct	domain *dom_next;
 	int	(*dom_rtattach)		/* initialize routing table */
-		(void **, int);
+		(void **, int, u_int);
 	int	(*dom_rtdetach)		/* clean up routing table */
 		(void **, int);
 	void	*(*dom_ifattach)(struct ifnet *);

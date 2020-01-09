@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_var.h>
 
-extern int	in_inithead(void **head, int off);
+extern int	in_inithead(void **head, int off, u_int fibnum);
 #ifdef VIMAGE
 extern int	in_detachhead(void **head, int off);
 #endif
@@ -116,11 +116,11 @@ static int _in_rt_was_here;
  * Initialize our routing tree.
  */
 int
-in_inithead(void **head, int off)
+in_inithead(void **head, int off, u_int fibnum)
 {
 	struct rib_head *rh;
 
-	rh = rt_table_init(32);
+	rh = rt_table_init(32, AF_INET, fibnum);
 	if (rh == NULL)
 		return (0);
 

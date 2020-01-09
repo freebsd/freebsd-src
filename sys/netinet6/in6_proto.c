@@ -336,7 +336,7 @@ IP6PROTOSPACER,
 },
 };
 
-extern int in6_inithead(void **, int);
+extern int in6_inithead(void **, int, u_int);
 #ifdef VIMAGE
 extern int in6_detachhead(void **, int);
 #endif

@@ -46,6 +46,9 @@ struct rib_head {
 	struct radix_node	rnh_nodes[3];	/* empty tree for common case */
 	struct rmlock		rib_lock;	/* config/data path lock */
 	struct radix_mask_head	rmhead;		/* masks radix head */
+	struct vnet		*rib_vnet;	/* vnet pointer */
+	int			rib_family;	/* AF of the rtable */
+	u_int			rib_fibnum;	/* fib number */
 };
 
 #define	RIB_RLOCK_TRACKER	struct rm_priotracker _rib_tracker
