@@ -396,7 +396,8 @@ bc_add(int biosdev)
 		return (-1);
 
 	bd->bd_flags = BD_CDROM;
-        bd->bd_unit = biosdev;
+	bd->bd_unit = biosdev;
+	bd->bd_sectorsize = 2048;
 
 	/*
 	 * Ignore result from bd_int13probe(), we will use local
@@ -564,7 +565,8 @@ bd_int13probe(bdinfo_t *bd)
 		bd->bd_flags |= BD_MODEEDD3;
 
 	/* Default sector size */
-	bd->bd_sectorsize = BIOSDISK_SECSIZE;
+	if (bd->bd_sectorsize == 0)
+		bd->bd_sectorsize = BIOSDISK_SECSIZE;
 
 	/*
 	 * Test if the floppy device is present, so we can avoid receiving
