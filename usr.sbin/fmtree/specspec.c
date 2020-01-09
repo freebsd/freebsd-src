@@ -132,7 +132,7 @@ compare_nodes(NODE *n1, NODE *n2, char const *path)
 		return (1);
 	}
 	if (n1->type != n2->type) {
-		differs = 0;
+		differs = F_TYPE;
 		mismatch(n1, n2, differs, path);
 		return (1);
 	}
