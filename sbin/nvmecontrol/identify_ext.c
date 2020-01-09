@@ -192,6 +192,10 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 		    uint128_to_str(to128(cdata->untncap.unvmcap),
 		    cbuf, sizeof(cbuf)));
 	}
+	printf("Host Buffer Preferred Size:  %llu bytes\n",
+	    (long long unsigned)cdata->hmpre * 4096);
+	printf("Host Buffer Minimum Size:    %llu bytes\n",
+	    (long long unsigned)cdata->hmmin * 4096);
 
 	printf("\n");
 	printf("NVM Command Set Attributes\n");
