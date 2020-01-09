@@ -2142,7 +2142,7 @@ struct ata_pass_32 {
 #define	CHANGE_ALIASES				0x0B
 #define	SET_PRIORITY				0x0E
 #define	SET_TIMESTAMP				0x0F
-#define	MANGAEMENT_PROTOCOL_OUT			0x10
+#define	MANAGEMENT_PROTOCOL_OUT			0x10
 
 /*
  * Device Types
