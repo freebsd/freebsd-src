@@ -13,6 +13,7 @@ SRCS=		capabilities.conf	\
 		syscalls.master
 GENERATED=	init_sysent.c		\
 		syscalls.c		\
+		systrace_args.c		\
 		../sys/syscall.h	\
 		../sys/syscall.mk	\
 		../sys/sysproto.h
