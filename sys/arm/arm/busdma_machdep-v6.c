@@ -244,7 +244,7 @@ busdma_init(void *dummy)
 	 * atomic ops on uma_slab_t fields and safety of this
 	 * operation is not guaranteed for write-back caches
 	 */
-	uma_flags = UMA_ZONE_OFFPAGE;
+	uma_flags = UMA_ZONE_NOTOUCH;
 #endif
 	/*
 	 * Create a cache of buffers in uncacheable memory, to implement the

@@ -139,6 +139,64 @@
 /* Max waste percentage before going to off page slab management */
 #define UMA_MAX_WASTE	10
 
+/*
+ * These flags must not overlap with the UMA_ZONE flags specified in uma.h.
+ */
+#define	UMA_ZFLAG_OFFPAGE	0x00200000	/*
+						 * Force the slab structure
+						 * allocation off of the real
+						 * memory.
+						 */
+#define	UMA_ZFLAG_HASH		0x00400000	/*
+						 * Use a hash table instead of
+						 * caching information in the
+						 * vm_page.
+						 */
+#define	UMA_ZFLAG_VTOSLAB	0x00800000	/*
+						 * Zone uses vtoslab for
+						 * lookup.
+						 */
+#define	UMA_ZFLAG_CTORDTOR	0x01000000	/* Zone has ctor/dtor set. */
+#define	UMA_ZFLAG_LIMIT		0x02000000	/* Zone has limit set. */
+#define	UMA_ZFLAG_CACHE		0x04000000	/* uma_zcache_create()d it */
+#define	UMA_ZFLAG_RECLAIMING	0x08000000	/* Running zone_reclaim(). */
+#define	UMA_ZFLAG_BUCKET	0x10000000	/* Bucket zone. */
+#define	UMA_ZFLAG_INTERNAL	0x20000000	/* No offpage no PCPU. */
+#define	UMA_ZFLAG_TRASH		0x40000000	/* Add trash ctor/dtor. */
+#define	UMA_ZFLAG_CACHEONLY	0x80000000	/* Don't ask VM for buckets. */
+
+#define	UMA_ZFLAG_INHERIT						\
+    (UMA_ZFLAG_OFFPAGE | UMA_ZFLAG_HASH | UMA_ZFLAG_VTOSLAB |		\
+     UMA_ZFLAG_BUCKET | UMA_ZFLAG_INTERNAL | UMA_ZFLAG_CACHEONLY)
+
+#define	PRINT_UMA_ZFLAGS	"\20"	\
+    "\40CACHEONLY"			\
+    "\37TRASH"				\
+    "\36INTERNAL"			\
+    "\35BUCKET"				\
+    "\34RECLAIMING"			\
+    "\33CACHE"				\
+    "\32LIMIT"				\
+    "\31CTORDTOR"			\
+    "\30VTOSLAB"			\
+    "\27HASH"				\
+    "\26OFFPAGE"			\
+    "\22ROUNDROBIN"			\
+    "\21FIRSTTOUCH"			\
+    "\20PCPU"				\
+    "\17NODUMP"				\
+    "\16CACHESPREAD"			\
+    "\15MINBUCKET"			\
+    "\14MAXBUCKET"			\
+    "\13NOBUCKET"			\
+    "\12SECONDARY"			\
+    "\11NOTPAGE"			\
+    "\10VM"				\
+    "\7MTXCLASS"			\
+    "\6NOFREE"				\
+    "\5MALLOC"				\
+    "\4NOTOUCH"				\
+    "\2ZINIT"
 
 /*
  * Hash table for freed address -> slab translation.
@@ -373,7 +431,7 @@ static inline void *
 slab_data(uma_slab_t slab, uma_keg_t keg)
 {
 
-	if ((keg->uk_flags & UMA_ZONE_OFFPAGE) == 0)
+	if ((keg->uk_flags & UMA_ZFLAG_OFFPAGE) == 0)
 		return ((void *)((uintptr_t)slab - keg->uk_pgoff));
 	else
 		return (((uma_hash_slab_t)slab)->uhs_data);
@@ -475,50 +533,6 @@ struct uma_zone {
 
 	/* uz_domain follows here. */
 };
-
-/*
- * These flags must not overlap with the UMA_ZONE flags specified in uma.h.
- */
-#define	UMA_ZFLAG_CTORDTOR	0x01000000	/* Zone has ctor/dtor set. */
-#define	UMA_ZFLAG_LIMIT		0x02000000	/* Zone has limit set. */
-#define	UMA_ZFLAG_CACHE		0x04000000	/* uma_zcache_create()d it */
-#define	UMA_ZFLAG_RECLAIMING	0x08000000	/* Running zone_reclaim(). */
-#define	UMA_ZFLAG_BUCKET	0x10000000	/* Bucket zone. */
-#define UMA_ZFLAG_INTERNAL	0x20000000	/* No offpage no PCPU. */
-#define UMA_ZFLAG_TRASH		0x40000000	/* Add trash ctor/dtor. */
-#define UMA_ZFLAG_CACHEONLY	0x80000000	/* Don't ask VM for buckets. */
-
-#define	UMA_ZFLAG_INHERIT						\
-    (UMA_ZFLAG_INTERNAL | UMA_ZFLAG_CACHEONLY | UMA_ZFLAG_BUCKET)
-
-#define	PRINT_UMA_ZFLAGS	"\20"	\
-    "\40CACHEONLY"			\
-    "\37TRASH"				\
-    "\36INTERNAL"			\
-    "\35BUCKET"				\
-    "\34RECLAIMING"			\
-    "\33CACHE"				\
-    "\32LIMIT"				\
-    "\31CTORDTOR"			\
-    "\23ROUNDROBIN"			\
-    "\22FIRSTTOUCH"			\
-    "\21MINBUCKET"			\
-    "\20PCPU"				\
-    "\17NODUMP"				\
-    "\16VTOSLAB"			\
-    "\15CACHESPREAD"			\
-    "\14MAXBUCKET"			\
-    "\13NOBUCKET"			\
-    "\12SECONDARY"			\
-    "\11HASH"				\
-    "\10VM"				\
-    "\7MTXCLASS"			\
-    "\6NOFREE"				\
-    "\5MALLOC"				\
-    "\4OFFPAGE"				\
-    "\3STATIC"				\
-    "\2ZINIT"				\
-    "\1PAGEABLE"
 
 /*
  * Macros for interpreting the uz_items field.  20 bits of sleeper count
