@@ -652,13 +652,15 @@ void *
 }
 
 static void *
-malloc_domain(size_t size, int *indxp, struct malloc_type *mtp, int domain,
+malloc_domain(size_t *sizep, int *indxp, struct malloc_type *mtp, int domain,
     int flags)
 {
-	int indx;
-	caddr_t va;
 	uma_zone_t zone;
+	caddr_t va;
+	size_t size;
+	int indx;
 
+	size = *sizep;
 	KASSERT(size <= kmem_zmax && (flags & M_EXEC) == 0,
 	    ("malloc_domain: Called with bad flag / size combination."));
 	if (size & KMEM_ZMASK)
@@ -670,10 +672,9 @@ malloc_domain(size_t size, int *indxp, struct malloc_type *mtp, int domain,
 #endif
 	va = uma_zalloc_domain(zone, NULL, domain, flags);
 	if (va != NULL)
-		size = zone->uz_size;
+		*sizep = zone->uz_size;
 	*indxp = indx;
-
-	return ((void *) va);
+	return ((void *)va);
 }
 
 void *
@@ -696,7 +697,7 @@ malloc_domainset(size_t size, struct malloc_type *mtp, struct domainset *ds,
 	if (size <= kmem_zmax && (flags & M_EXEC) == 0) {
 		vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
 		do {
-			ret = malloc_domain(size, &indx, mtp, domain, flags);
+			ret = malloc_domain(&size, &indx, mtp, domain, flags);
 		} while (ret == NULL &&
 		    vm_domainset_iter_policy(&di, &domain) == 0);
 		malloc_type_zone_allocated(mtp, ret == NULL ? 0 : size, indx);
