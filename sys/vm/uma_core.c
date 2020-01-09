@@ -744,7 +744,7 @@ zone_timeout(uma_zone_t zone, void *unused)
 	uma_keg_t keg;
 	u_int slabs, pages;
 
-	if ((zone->uz_flags & UMA_ZONE_HASH) == 0)
+	if ((zone->uz_flags & UMA_ZFLAG_HASH) == 0)
 		goto update_wss;
 
 	keg = zone->uz_keg;
@@ -1163,7 +1163,7 @@ keg_free_slab(uma_keg_t keg, uma_slab_t slab, int start)
 #endif
 			keg->uk_fini(slab_item(slab, keg, i), keg->uk_size);
 	}
-	if (keg->uk_flags & UMA_ZONE_OFFPAGE)
+	if (keg->uk_flags & UMA_ZFLAG_OFFPAGE)
 		zone_free_item(keg->uk_slabzone, slab, NULL, SKIP_NONE);
 	keg->uk_freef(mem, PAGE_SIZE * keg->uk_ppera, flags);
 	uma_total_dec(PAGE_SIZE * keg->uk_ppera);
@@ -1200,7 +1200,7 @@ keg_drain(uma_keg_t keg)
 			/* We have nowhere to free these to. */
 			if (slab->us_flags & UMA_SLAB_BOOT)
 				continue;
-			if (keg->uk_flags & UMA_ZONE_HASH)
+			if (keg->uk_flags & UMA_ZFLAG_HASH)
 				UMA_HASH_REMOVE(&keg->uk_hash, slab);
 			n++;
 			LIST_REMOVE(slab, us_link);
@@ -1296,7 +1296,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 	allocf = keg->uk_allocf;
 	slab = NULL;
 	mem = NULL;
-	if (keg->uk_flags & UMA_ZONE_OFFPAGE) {
+	if (keg->uk_flags & UMA_ZFLAG_OFFPAGE) {
 		slab = zone_alloc_item(keg->uk_slabzone, NULL, domain, aflags);
 		if (slab == NULL)
 			goto fail;
@@ -1321,23 +1321,23 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 	size = keg->uk_ppera * PAGE_SIZE;
 	mem = allocf(zone, size, domain, &sflags, aflags);
 	if (mem == NULL) {
-		if (keg->uk_flags & UMA_ZONE_OFFPAGE)
+		if (keg->uk_flags & UMA_ZFLAG_OFFPAGE)
 			zone_free_item(keg->uk_slabzone, slab, NULL, SKIP_NONE);
 		goto fail;
 	}
 	uma_total_inc(size);
 
 	/* For HASH zones all pages go to the same uma_domain. */
-	if ((keg->uk_flags & UMA_ZONE_HASH) != 0)
+	if ((keg->uk_flags & UMA_ZFLAG_HASH) != 0)
 		domain = 0;
 
 	/* Point the slab into the allocated memory */
-	if (!(keg->uk_flags & UMA_ZONE_OFFPAGE))
+	if (!(keg->uk_flags & UMA_ZFLAG_OFFPAGE))
 		slab = (uma_slab_t )(mem + keg->uk_pgoff);
 	else
 		((uma_hash_slab_t)slab)->uhs_data = mem;
 
-	if (keg->uk_flags & UMA_ZONE_VTOSLAB)
+	if (keg->uk_flags & UMA_ZFLAG_VTOSLAB)
 		for (i = 0; i < keg->uk_ppera; i++)
 			vsetzoneslab((vm_offset_t)mem + (i * PAGE_SIZE),
 			    zone, slab);
@@ -1366,7 +1366,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 	CTR3(KTR_UMA, "keg_alloc_slab: allocated slab %p for %s(%p)",
 	    slab, keg->uk_name, keg);
 
-	if (keg->uk_flags & UMA_ZONE_HASH)
+	if (keg->uk_flags & UMA_ZFLAG_HASH)
 		UMA_HASH_INSERT(&keg->uk_hash, slab, mem);
 
 	/*
@@ -1737,9 +1737,10 @@ keg_small_init(uma_keg_t keg)
 	 * squeeze one more item in for very particular sizes if we were
 	 * to loop and reduce the bitsize if there is waste.
 	 */
-	if (keg->uk_flags & UMA_ZONE_OFFPAGE)
+	if (keg->uk_flags & (UMA_ZONE_NOTOUCH | UMA_ZONE_PCPU)) {
+		keg->uk_flags |= UMA_ZFLAG_OFFPAGE;
 		shsize = 0;
-	else 
+	} else
 		shsize = slab_sizeof(slabsize / rsize);
 
 	if (rsize <= slabsize - shsize)
@@ -1765,8 +1766,12 @@ keg_small_init(uma_keg_t keg)
 	 * of UMA_ZONE_VM, which clearly forbids it.
 	 */
 	if ((keg->uk_flags & UMA_ZFLAG_INTERNAL) ||
-	    (keg->uk_flags & UMA_ZFLAG_CACHEONLY))
+	    (keg->uk_flags & UMA_ZFLAG_CACHEONLY)) {
+		KASSERT((keg->uk_flags & UMA_ZFLAG_OFFPAGE) == 0,
+		    ("%s: incompatible flags 0x%b", __func__, keg->uk_flags,
+		     PRINT_UMA_ZFLAGS));
 		return;
+	}
 
 	/*
 	 * See if using an OFFPAGE slab will limit our waste.  Only do
@@ -1794,13 +1799,15 @@ keg_small_init(uma_keg_t keg)
 		 * hash to find slabs.  If the zone was explicitly created
 		 * OFFPAGE we can't necessarily touch the memory.
 		 */
-		if ((keg->uk_flags & UMA_ZONE_OFFPAGE) == 0)
-			keg->uk_flags |= UMA_ZONE_OFFPAGE | UMA_ZONE_VTOSLAB;
+		keg->uk_flags |= UMA_ZFLAG_OFFPAGE;
 	}
 
-	if ((keg->uk_flags & UMA_ZONE_OFFPAGE) &&
-	    (keg->uk_flags & UMA_ZONE_VTOSLAB) == 0)
-		keg->uk_flags |= UMA_ZONE_HASH;
+	if ((keg->uk_flags & UMA_ZFLAG_OFFPAGE) != 0) {
+		if ((keg->uk_flags & UMA_ZONE_NOTPAGE) != 0)
+			keg->uk_flags |= UMA_ZFLAG_HASH;
+		else
+			keg->uk_flags |= UMA_ZFLAG_VTOSLAB;
+	}
 }
 
 /*
@@ -1827,7 +1834,7 @@ keg_large_init(uma_keg_t keg)
 	keg->uk_rsize = keg->uk_size;
 
 	/* Check whether we have enough space to not do OFFPAGE. */
-	if ((keg->uk_flags & UMA_ZONE_OFFPAGE) == 0 &&
+	if ((keg->uk_flags & UMA_ZONE_NOTOUCH) == 0 &&
 	    PAGE_SIZE * keg->uk_ppera - keg->uk_rsize <
 	    slab_sizeof(SLAB_MIN_SETSIZE)) {
 		/*
@@ -1836,14 +1843,17 @@ keg_large_init(uma_keg_t keg)
 		 * slab header.
 		 */
 		if ((keg->uk_flags & UMA_ZFLAG_INTERNAL) == 0)
-			keg->uk_flags |= UMA_ZONE_OFFPAGE | UMA_ZONE_VTOSLAB;
+			keg->uk_flags |= UMA_ZFLAG_OFFPAGE;
 		else
 			keg->uk_ppera++;
 	}
 
-	if ((keg->uk_flags & UMA_ZONE_OFFPAGE) &&
-	    (keg->uk_flags & UMA_ZONE_VTOSLAB) == 0)
-		keg->uk_flags |= UMA_ZONE_HASH;
+	if ((keg->uk_flags & UMA_ZFLAG_OFFPAGE) != 0) {
+		if ((keg->uk_flags & UMA_ZONE_NOTPAGE) != 0)
+			keg->uk_flags |= UMA_ZFLAG_HASH;
+		else
+			keg->uk_flags |= UMA_ZFLAG_VTOSLAB;
+	}
 }
 
 static void
@@ -1875,7 +1885,7 @@ keg_cachespread_init(uma_keg_t keg)
 	keg->uk_rsize = rsize;
 	keg->uk_ppera = pages;
 	keg->uk_ipers = ((pages * PAGE_SIZE) + trailer) / rsize;
-	keg->uk_flags |= UMA_ZONE_OFFPAGE | UMA_ZONE_VTOSLAB;
+	keg->uk_flags |= UMA_ZFLAG_OFFPAGE | UMA_ZFLAG_VTOSLAB;
 	KASSERT(keg->uk_ipers <= SLAB_MAX_SETSIZE,
 	    ("%s: keg->uk_ipers too high(%d) increase max_ipers", __func__,
 	    keg->uk_ipers));
@@ -1926,13 +1936,10 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 		keg->uk_init = zero_init;
 
 	if (arg->flags & UMA_ZONE_MALLOC)
-		keg->uk_flags |= UMA_ZONE_VTOSLAB;
+		keg->uk_flags |= UMA_ZFLAG_VTOSLAB;
 
-	if (arg->flags & UMA_ZONE_PCPU)
-#ifdef SMP
-		keg->uk_flags |= UMA_ZONE_OFFPAGE;
-#else
-		keg->uk_flags &= ~UMA_ZONE_PCPU;
+#ifndef SMP
+	keg->uk_flags &= ~UMA_ZONE_PCPU;
 #endif
 
 	if (keg->uk_flags & UMA_ZONE_CACHESPREAD) {
@@ -1953,13 +1960,13 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	 */
 #ifdef NUMA
 	if ((keg->uk_flags &
-	    (UMA_ZONE_HASH | UMA_ZONE_VM | UMA_ZONE_ROUNDROBIN)) == 0)
+	    (UMA_ZFLAG_HASH | UMA_ZONE_VM | UMA_ZONE_ROUNDROBIN)) == 0)
 		keg->uk_flags |= UMA_ZONE_FIRSTTOUCH;
 	else if ((keg->uk_flags & UMA_ZONE_FIRSTTOUCH) == 0)
 		keg->uk_flags |= UMA_ZONE_ROUNDROBIN;
 #endif
 
-	if (keg->uk_flags & UMA_ZONE_OFFPAGE)
+	if (keg->uk_flags & UMA_ZFLAG_OFFPAGE)
 		keg->uk_slabzone = slabzone;
 
 	/*
@@ -1997,7 +2004,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	 * figure out where in each page it goes.  See slab_sizeof
 	 * definition.
 	 */
-	if (!(keg->uk_flags & UMA_ZONE_OFFPAGE)) {
+	if (!(keg->uk_flags & UMA_ZFLAG_OFFPAGE)) {
 		size_t shsize;
 
 		shsize = slab_sizeof(keg->uk_ipers);
@@ -2014,7 +2021,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 		    zone->uz_name, keg->uk_ipers, keg->uk_rsize, keg->uk_size));
 	}
 
-	if (keg->uk_flags & UMA_ZONE_HASH)
+	if (keg->uk_flags & UMA_ZFLAG_HASH)
 		hash_alloc(&keg->uk_hash, 0);
 
 	CTR3(KTR_UMA, "keg_ctor %p zone %s(%p)\n", keg, zone->uz_name, zone);
@@ -2088,7 +2095,7 @@ zone_alloc_sysctl(uma_zone_t zone, void *unused)
 	/*
 	 * keg if present.
 	 */
-	if ((zone->uz_flags & UMA_ZONE_HASH) == 0)
+	if ((zone->uz_flags & UMA_ZFLAG_HASH) == 0)
 		domains = vm_ndomains;
 	else
 		domains = 1;
@@ -2733,11 +2740,9 @@ uma_zcreate(const char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 	 * or fini procedures, no dependency on the initial value of the
 	 * memory, and no (legitimate) use of the memory after free.  Note,
 	 * the ctor and dtor do not need to be empty.
-	 *
-	 * XXX UMA_ZONE_OFFPAGE.
 	 */
-	if ((!(flags & (UMA_ZONE_ZINIT | UMA_ZONE_NOFREE))) &&
-	    uminit == NULL && fini == NULL) {
+	if ((!(flags & (UMA_ZONE_ZINIT | UMA_ZONE_NOTOUCH |
+	    UMA_ZONE_NOFREE))) && uminit == NULL && fini == NULL) {
 		args.uminit = trash_init;
 		args.fini = trash_fini;
 	}
@@ -3220,7 +3225,7 @@ keg_fetch_free_slab(uma_keg_t keg, int domain, bool rr, int flags)
 	uint32_t reserve;
 
 	/* HASH has a single free list. */
-	if ((keg->uk_flags & UMA_ZONE_HASH) != 0)
+	if ((keg->uk_flags & UMA_ZFLAG_HASH) != 0)
 		domain = 0;
 
 	KEG_LOCK(keg, domain);
@@ -4022,15 +4027,15 @@ zone_release(void *arg, void **bucket, int cnt)
 	zone = arg;
 	keg = zone->uz_keg;
 	lock = NULL;
-	if (__predict_false((zone->uz_flags & UMA_ZONE_HASH) != 0))
+	if (__predict_false((zone->uz_flags & UMA_ZFLAG_HASH) != 0))
 		lock = KEG_LOCK(keg, 0);
 	for (i = 0; i < cnt; i++) {
 		item = bucket[i];
-		if (__predict_true((zone->uz_flags & UMA_ZONE_VTOSLAB) != 0)) {
+		if (__predict_true((zone->uz_flags & UMA_ZFLAG_VTOSLAB) != 0)) {
 			slab = vtoslab((vm_offset_t)item);
 		} else {
 			mem = (uint8_t *)((uintptr_t)item & (~UMA_SLAB_MASK));
-			if ((zone->uz_flags & UMA_ZONE_HASH) != 0)
+			if ((zone->uz_flags & UMA_ZFLAG_HASH) != 0)
 				slab = hash_sfind(&keg->uk_hash, mem);
 			else
 				slab = (uma_slab_t)(mem + keg->uk_pgoff);
@@ -4771,7 +4776,7 @@ sysctl_handle_uma_slab_efficiency(SYSCTL_HANDLER_ARGS)
 	int avail, effpct, total;
 
 	total = keg->uk_ppera * PAGE_SIZE;
-	if ((keg->uk_flags & UMA_ZONE_OFFPAGE) != 0)
+	if ((keg->uk_flags & UMA_ZFLAG_OFFPAGE) != 0)
 		total += slab_sizeof(SLAB_MAX_SETSIZE);
 	/*
 	 * We consider the client's requested size and alignment here, not the
@@ -4811,10 +4816,10 @@ uma_dbg_getslab(uma_zone_t zone, void *item)
 	mem = (uint8_t *)((uintptr_t)item & (~UMA_SLAB_MASK));
 	if ((zone->uz_flags & UMA_ZFLAG_CACHE) != 0)
 		return (NULL);
-	if (zone->uz_flags & UMA_ZONE_VTOSLAB)
+	if (zone->uz_flags & UMA_ZFLAG_VTOSLAB)
 		return (vtoslab((vm_offset_t)mem));
 	keg = zone->uz_keg;
-	if ((keg->uk_flags & UMA_ZONE_HASH) == 0)
+	if ((keg->uk_flags & UMA_ZFLAG_HASH) == 0)
 		return ((uma_slab_t)(mem + keg->uk_pgoff));
 	KEG_LOCK(keg, 0);
 	slab = hash_sfind(&keg->uk_hash, mem);

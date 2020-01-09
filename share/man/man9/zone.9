@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2019
+.Dd January 8, 2020
 .Dt UMA 9
 .Os
 .Sh NAME
@@ -292,18 +292,12 @@ To obtain zeroed memory from a PCPU zone, use the
 .Fn uma_zalloc_pcpu
 function and its variants instead, and pass
 .Dv M_ZERO .
-.It Dv UMA_ZONE_OFFPAGE
-By default book-keeping of items within a slab is done in the slab page itself.
-This flag explicitly tells subsystem that book-keeping structure should be
-allocated separately from special internal zone.
-This flag requires either
-.Dv UMA_ZONE_VTOSLAB
-or
-.Dv UMA_ZONE_HASH ,
-since subsystem requires a mechanism to find a book-keeping structure
-to an item being freed.
-The subsystem may choose to prefer offpage book-keeping for certain zones
-implicitly.
+.It Dv UMA_ZONE_NOTOUCH
+The UMA subsystem may not directly touch (i.e. read or write) the slab memory.
+Otherwise, by default, book-keeping of items within a slab may be done in the
+slab page itself, and
+.Dv INVARIANTS
+kernels may also do use-after-free checking by accessing the slab memory.
 .It Dv UMA_ZONE_ZINIT
 The zone will have its
 .Ft uma_init
@@ -317,13 +311,11 @@ A zone with
 .Dv UMA_ZONE_ZINIT
 flag would not return zeroed memory on every
 .Fn uma_zalloc .
-.It Dv UMA_ZONE_HASH
-The zone should use an internal hash table to find slab book-keeping
-structure where an allocation being freed belongs to.
-.It Dv UMA_ZONE_VTOSLAB
-The zone should use special field of
-.Vt vm_page_t
-to find slab book-keeping structure where an allocation being freed belongs to.
+.It Dv UMA_ZONE_NOTPAGE
+An allocator function will be supplied with
+.Fn uma_zone_set_allocf
+and the memory that it returns may not be kernel virtual memory backed by VM
+pages in the page array.
 .It Dv UMA_ZONE_MALLOC
 The zone is for the
 .Xr malloc 9
