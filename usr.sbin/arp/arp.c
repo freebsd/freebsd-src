@@ -627,8 +627,7 @@ print_entry(struct sockaddr_dl *sdl,
 	} else
 		xo_emit("{d:/(incomplete)}{en:incomplete/true}");
 
-	for (p = ifnameindex; p && ifnameindex->if_index &&
-	    ifnameindex->if_name; p++) {
+	for (p = ifnameindex; p && p->if_index && p->if_name; p++) {
 		if (p->if_index == sdl->sdl_index) {
 			xo_emit(" on {:interface/%s}", p->if_name);
 			break;
