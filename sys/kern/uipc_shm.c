@@ -1451,7 +1451,17 @@ shm_fallocate(struct file *fp, off_t offset, off_t len, struct thread *td)
 	error = 0;
 	shmfd = fp->f_data;
 	size = offset + len;
-	rl_cookie = rangelock_wlock(&shmfd->shm_rl, 0, OFF_MAX,
+
+	/*
+	 * Just grab the rangelock for the range that we may be attempting to
+	 * grow, rather than blocking read/write for regions we won't be
+	 * touching while this (potential) resize is in progress.  Other
+	 * attempts to resize the shmfd will have to take a write lock from 0 to
+	 * OFF_MAX, so this being potentially beyond the current usable range of
+	 * the shmfd is not necessarily a concern.  If other mechanisms are
+	 * added to grow a shmfd, this may need to be re-evaluated.
+	 */
+	rl_cookie = rangelock_wlock(&shmfd->shm_rl, offset, size,
 	    &shmfd->shm_mtx);
 	if (size > shmfd->shm_size) {
 		VM_OBJECT_WLOCK(shmfd->shm_object);
