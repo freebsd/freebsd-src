@@ -297,7 +297,7 @@ IPPROTOSPACER,
 },
 };
 
-extern int in_inithead(void **, int);
+extern int in_inithead(void **, int, u_int);
 extern int in_detachhead(void **, int);
 
 struct domain inetdomain = {

@@ -304,7 +304,7 @@ vnet_route_init(const void *unused __unused)
 			rnh = rt_tables_get_rnh_ptr(table, fam);
 			if (rnh == NULL)
 				panic("%s: rnh NULL", __func__);
-			dom->dom_rtattach((void **)rnh, 0);
+			dom->dom_rtattach((void **)rnh, 0, table);
 		}
 	}
 }
@@ -345,7 +345,7 @@ VNET_SYSUNINIT(vnet_route_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST,
 #endif
 
 struct rib_head *
-rt_table_init(int offset)
+rt_table_init(int offset, int family, u_int fibnum)
 {
 	struct rib_head *rh;
 
@@ -356,6 +356,13 @@ rt_table_init(int offset)
 	rn_inithead_internal(&rh->head, rh->rnh_nodes, offset);
 	rn_inithead_internal(&rh->rmhead.head, rh->rmhead.mask_nodes, 0);
 	rh->head.rnh_masks = &rh->rmhead;
+
+	/* Save metadata associated with this routing table. */
+	rh->rib_family = family;
+	rh->rib_fibnum = fibnum;
+#ifdef VIMAGE
+	rh->rib_vnet = curvnet;
+#endif
 
 	/* Init locks */
 	RIB_LOCK_INIT(rh);
