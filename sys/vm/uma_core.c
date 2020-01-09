@@ -158,8 +158,14 @@ SYSCTL_ULONG(_vm, OID_AUTO, uma_kmem_total, CTLFLAG_RD, &uma_kmem_total, 0,
     "UMA kernel memory usage");
 
 /* Is the VM done starting up? */
-static enum { BOOT_COLD = 0, BOOT_STRAPPED, BOOT_PAGEALLOC, BOOT_BUCKETS,
-    BOOT_RUNNING } booted = BOOT_COLD;
+static enum {
+	BOOT_COLD,
+	BOOT_STRAPPED,
+	BOOT_PAGEALLOC,
+	BOOT_BUCKETS,
+	BOOT_RUNNING,
+	BOOT_SHUTDOWN,
+} booted = BOOT_COLD;
 
 /*
  * This is the handle used to schedule events that need to happen
@@ -265,6 +271,7 @@ static int hash_expand(struct uma_hash *, struct uma_hash *);
 static void hash_free(struct uma_hash *hash);
 static void uma_timeout(void *);
 static void uma_startup3(void);
+static void uma_shutdown(void);
 static void *zone_alloc_item(uma_zone_t, void *, int, int);
 static void zone_free_item(uma_zone_t, void *, void *, enum zfreeskip);
 static int zone_alloc_limit(uma_zone_t zone, int count, int flags);
@@ -1408,8 +1415,7 @@ startup_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 		case BOOT_PAGEALLOC:
 			if (keg->uk_ppera > 1)
 				break;
-		case BOOT_BUCKETS:
-		case BOOT_RUNNING:
+		default:
 #ifdef UMA_MD_SMALL_ALLOC
 			keg->uk_allocf = (keg->uk_ppera > 1) ?
 			    page_alloc : uma_small_alloc;
@@ -2337,7 +2343,7 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	    (UMA_ZONE_INHERIT | UMA_ZFLAG_INHERIT));
 
 out:
-	if (__predict_true(booted == BOOT_RUNNING)) {
+	if (__predict_true(booted >= BOOT_RUNNING)) {
 		zone_alloc_counters(zone, NULL);
 		zone_alloc_sysctl(zone, NULL);
 	} else {
@@ -2465,7 +2471,7 @@ zone_foreach(void (*zfunc)(uma_zone_t, void *arg), void *arg)
 	 * threaded, so locking isn't needed. Startup functions
 	 * are allowed to use M_WAITOK.
 	 */
-	if (__predict_true(booted == BOOT_RUNNING))
+	if (__predict_true(booted >= BOOT_RUNNING))
 		rw_rlock(&uma_rwlock);
 	LIST_FOREACH(keg, &uma_kegs, uk_link) {
 		LIST_FOREACH(zone, &keg->uk_zones, uz_link)
@@ -2473,7 +2479,7 @@ zone_foreach(void (*zfunc)(uma_zone_t, void *arg), void *arg)
 	}
 	LIST_FOREACH(zone, &uma_cachezones, uz_link)
 		zfunc(zone, arg);
-	if (__predict_true(booted == BOOT_RUNNING))
+	if (__predict_true(booted >= BOOT_RUNNING))
 		rw_runlock(&uma_rwlock);
 }
 
@@ -2635,10 +2641,6 @@ uma_startup2(void)
 	bucket_enable();
 }
 
-/*
- * Initialize our callout handle
- *
- */
 static void
 uma_startup3(void)
 {
@@ -2653,6 +2655,16 @@ uma_startup3(void)
 	callout_init(&uma_callout, 1);
 	callout_reset(&uma_callout, UMA_TIMEOUT * hz, uma_timeout, NULL);
 	booted = BOOT_RUNNING;
+
+	EVENTHANDLER_REGISTER(shutdown_post_sync, uma_shutdown, NULL,
+	    EVENTHANDLER_PRI_FIRST);
+}
+
+static void
+uma_shutdown(void)
+{
+
+	booted = BOOT_SHUTDOWN;
 }
 
 static uma_keg_t
@@ -2796,6 +2808,13 @@ void
 uma_zdestroy(uma_zone_t zone)
 {
 
+	/*
+	 * Large slabs are expensive to reclaim, so don't bother doing
+	 * unnecessary work if we're shutting down.
+	 */
+	if (booted == BOOT_SHUTDOWN &&
+	    zone->uz_fini == NULL && zone->uz_release == zone_release)
+		return;
 	sx_slock(&uma_reclaim_lock);
 	zone_free_item(zones, zone, NULL, SKIP_NONE);
 	sx_sunlock(&uma_reclaim_lock);
