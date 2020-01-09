@@ -355,7 +355,11 @@ MACHINE_CPU += softfp
 # to force that.
 .if ${MACHINE_ARCH:Marmv[67]*} && defined(CPUTYPE) && ${CPUTYPE:M*soft*} != ""
 # Needs to be CFLAGS not _CPUCFLAGS because it's needed for the ABI
-# not a nice optimization.
+# not a nice optimization. Please note: softfp ABI uses hardware floating
+# instructions, but passes arguments to function calls in integer regsiters.
+# -mfloat-abi=soft is full software floating point, but is not currently
+# supported. softfp support in FreeBSD may disappear in FreeBSD 13.0 since
+# it was a transition tool from FreeBSD 10 to 11 and is a bit of an odd duck.
 CFLAGS += -mfloat-abi=softfp
 .endif
 .endif
