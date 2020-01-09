@@ -139,6 +139,9 @@
 /* Max waste percentage before going to off page slab management */
 #define UMA_MAX_WASTE	10
 
+/* Max size of a CACHESPREAD slab. */
+#define	UMA_CACHESPREAD_MAX_SIZE	(128 * 1024)
+
 /*
  * These flags must not overlap with the UMA_ZONE flags specified in uma.h.
  */
