@@ -5513,9 +5513,12 @@ static int
 open_binary_fd(const char *argv0, bool search_in_path,
     const char **binpath_res)
 {
-	char *pathenv, *pe, *binpath;
+	char *abspath, *absres, *binpath, *pathenv, *pe, *res1;
+	const char *res;
 	int fd;
 
+	binpath = NULL;
+	res = NULL;
 	if (search_in_path && strchr(argv0, '/') == NULL) {
 		binpath = xmalloc(PATH_MAX);
 		pathenv = getenv("PATH");
@@ -5540,20 +5543,45 @@ open_binary_fd(const char *argv0, bool search_in_path,
 				continue;
 			fd = open(binpath, O_RDONLY | O_CLOEXEC | O_VERIFY);
 			if (fd != -1 || errno != ENOENT) {
-				*binpath_res = binpath;
+				res = binpath;
 				break;
 			}
 		}
 		free(pathenv);
 	} else {
 		fd = open(argv0, O_RDONLY | O_CLOEXEC | O_VERIFY);
-		*binpath_res = argv0;
+		res = argv0;
 	}
-	/* XXXKIB Use getcwd() to resolve relative binpath to absolute. */
 
 	if (fd == -1) {
 		_rtld_error("Cannot open %s: %s", argv0, rtld_strerror(errno));
 		rtld_die();
+	}
+	if (res != NULL && res[0] != '/') {
+		abspath = getcwd(NULL, 0);
+		if (abspath != NULL) {
+			res1 = xmalloc(PATH_MAX);
+			if (realpath(res, res1) != NULL) {
+				if (res != argv0)
+					free(__DECONST(char *, res));
+				res = res1;
+			} else {
+				free(res1);
+			}
+			absres = xmalloc(strlen(abspath) +
+			    strlen(res) + 2);
+			strcpy(absres, abspath);
+			strcat(absres, "/");
+			strcat(absres, res);
+			free(abspath);
+			if (res != argv0)
+				free(__DECONST(char *, res));
+			*binpath_res = absres;
+		} else {
+			*binpath_res = res;
+		}
+	} else {
+		*binpath_res = res;
 	}
 	return (fd);
 }
