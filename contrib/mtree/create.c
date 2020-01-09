@@ -117,7 +117,7 @@ cwalk(FILE *fp)
 	host[sizeof(host) - 1] = '\0';
 	if ((user = getlogin()) == NULL) {
 		struct passwd *pw;
-		user = (pw = getpwuid(getuid())) == NULL ? pw->pw_name :
+		user = (pw = getpwuid(getuid())) != NULL ? pw->pw_name :
 		    "<unknown>";
 	}
 
