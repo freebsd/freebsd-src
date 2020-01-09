@@ -689,8 +689,8 @@ static void build_tpte_memreg(struct fw_ri_fr_nsmr_tpte_wr *fr,
 	fr->tpte.nosnoop_pbladdr = cpu_to_be32(V_FW_RI_TPTE_PBLADDR(
 			      PBL_OFF(&mhp->rhp->rdev, mhp->attr.pbl_addr)>>3));
 	fr->tpte.dca_mwbcnt_pstag = cpu_to_be32(0);
-	fr->tpte.len_hi = cpu_to_be32(0);
-	fr->tpte.len_lo = cpu_to_be32(mhp->ibmr.length);
+	fr->tpte.len_hi = cpu_to_be32(mhp->ibmr.length >> 32);
+	fr->tpte.len_lo = cpu_to_be32(mhp->ibmr.length & 0xffffffff);
 	fr->tpte.va_hi = cpu_to_be32(mhp->ibmr.iova >> 32);
 	fr->tpte.va_lo_fbo = cpu_to_be32(mhp->ibmr.iova & 0xffffffff);
 
@@ -717,12 +717,11 @@ static int build_memreg(struct t4_sq *sq, union t4_wr *wqe,
 	wqe->fr.pgsz_shift = ilog2(wr->mr->page_size) - 12;
 	wqe->fr.addr_type = FW_RI_VA_BASED_TO;
 	wqe->fr.mem_perms = c4iw_ib_to_tpt_access(wr->access);
-	wqe->fr.len_hi = 0;
-	wqe->fr.len_lo = cpu_to_be32(mhp->ibmr.length);
+	wqe->fr.len_hi = cpu_to_be32(mhp->ibmr.length >> 32);
+	wqe->fr.len_lo = cpu_to_be32(mhp->ibmr.length & 0xffffffff);
 	wqe->fr.stag = cpu_to_be32(wr->key);
 	wqe->fr.va_hi = cpu_to_be32(mhp->ibmr.iova >> 32);
-	wqe->fr.va_lo_fbo = cpu_to_be32(mhp->ibmr.iova &
-			0xffffffff);
+	wqe->fr.va_lo_fbo = cpu_to_be32(mhp->ibmr.iova & 0xffffffff);
 
 	if (dsgl_supported && use_dsgl && (pbllen > max_fr_immd)) {
 		struct fw_ri_dsgl *sglp;
