@@ -353,7 +353,7 @@ vioapic_write(struct vioapic *vioapic, int vcpuid, uint32_t addr, uint32_t data)
 			    "vlapic trigger-mode register", pin);
 			VIOAPIC_UNLOCK(vioapic);
 			allvcpus = vm_active_cpus(vioapic->vm);
-			vm_smp_rendezvous(vioapic->vm, vcpuid, allvcpus,
+			(void)vm_smp_rendezvous(vioapic->vm, vcpuid, allvcpus,
 			    vioapic_update_tmr, NULL);
 			VIOAPIC_LOCK(vioapic);
 		}
