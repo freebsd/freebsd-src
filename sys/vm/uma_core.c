@@ -258,8 +258,6 @@ static void keg_dtor(void *, int, void *);
 static int zone_ctor(void *, int, void *, int);
 static void zone_dtor(void *, int, void *);
 static int zero_init(void *, int, int);
-static void keg_small_init(uma_keg_t keg);
-static void keg_large_init(uma_keg_t keg);
 static void zone_foreach(void (*zfunc)(uma_zone_t, void *), void *);
 static void zone_timeout(uma_zone_t zone, void *);
 static int hash_alloc(struct uma_hash *, u_int);
@@ -1669,27 +1667,61 @@ slab_space(int nitems)
 	return (UMA_SLAB_SIZE - slab_sizeof(nitems));
 }
 
+#define	UMA_FIXPT_SHIFT	31
+#define	UMA_FRAC_FIXPT(n, d)						\
+	((uint32_t)(((uint64_t)(n) << UMA_FIXPT_SHIFT) / (d)))
+#define	UMA_FIXPT_PCT(f)						\
+	((u_int)(((uint64_t)100 * (f)) >> UMA_FIXPT_SHIFT))
+#define	UMA_PCT_FIXPT(pct)	UMA_FRAC_FIXPT((pct), 100)
+#define	UMA_MIN_EFF	UMA_PCT_FIXPT(100 - UMA_MAX_WASTE)
+
 /*
- * Compute the number of items that will fit in an embedded (!OFFPAGE) slab
- * with a given size and alignment.
+ * Compute the number of items that will fit in a slab.  If hdr is true, the
+ * item count may be limited to provide space in the slab for an inline slab
+ * header.  Otherwise, all slab space will be provided for item storage.
+ */
+static u_int
+slab_ipers_hdr(u_int size, u_int rsize, u_int slabsize, bool hdr)
+{
+	u_int ipers;
+	u_int padpi;
+
+	/* The padding between items is not needed after the last item. */
+	padpi = rsize - size;
+
+	if (hdr) {
+		/*
+		 * Start with the maximum item count and remove items until
+		 * the slab header first alongside the allocatable memory.
+		 */
+		for (ipers = MIN(SLAB_MAX_SETSIZE,
+		    (slabsize + padpi - slab_sizeof(1)) / rsize);
+		    ipers > 0 &&
+		    ipers * rsize - padpi + slab_sizeof(ipers) > slabsize;
+		    ipers--)
+			continue;
+	} else {
+		ipers = MIN((slabsize + padpi) / rsize, SLAB_MAX_SETSIZE);
+	}
+
+	return (ipers);
+}
+
+/*
+ * Compute the number of items that will fit in a slab for a startup zone.
  */
 int
 slab_ipers(size_t size, int align)
 {
 	int rsize;
-	int nitems;
 
-        /*
-         * Compute the ideal number of items that will fit in a page and
-         * then compute the actual number based on a bitset nitems wide.
-         */
-	rsize = roundup(size, align + 1);
-        nitems = UMA_SLAB_SIZE / rsize;
-	return (slab_space(nitems) / rsize);
+	rsize = roundup(size, align + 1); /* Assume no CACHESPREAD */
+	return (slab_ipers_hdr(size, rsize, UMA_SLAB_SIZE, true));
 }
 
 /*
- * Finish creating a small uma keg.  This calculates ipers, and the keg size.
+ * Determine the format of a uma keg.  This determines where the slab header
+ * will be placed (inline or offpage) and calculates ipers, rsize, and ppera.
  *
  * Arguments
  *	keg  The zone we should initialize
@@ -1698,65 +1730,76 @@ slab_ipers(size_t size, int align)
  *	Nothing
  */
 static void
-keg_small_init(uma_keg_t keg)
+keg_layout(uma_keg_t keg)
 {
+	u_int alignsize;
+	u_int eff;
+	u_int eff_offpage;
+	u_int format;
+	u_int ipers;
+	u_int ipers_offpage;
+	u_int pages;
 	u_int rsize;
-	u_int memused;
-	u_int wastedspace;
-	u_int shsize;
 	u_int slabsize;
 
-	if (keg->uk_flags & UMA_ZONE_PCPU) {
-		u_int ncpus = (mp_maxid + 1) ? (mp_maxid + 1) : MAXCPU;
+	KASSERT((keg->uk_flags & UMA_ZONE_PCPU) == 0 ||
+	    (keg->uk_size <= UMA_PCPU_ALLOC_SIZE &&
+	     (keg->uk_flags & UMA_ZONE_CACHESPREAD) == 0),
+	    ("%s: cannot configure for PCPU: keg=%s, size=%u, flags=0x%b",
+	     __func__, keg->uk_name, keg->uk_size, keg->uk_flags,
+	     PRINT_UMA_ZFLAGS));
+	KASSERT((keg->uk_flags &
+	    (UMA_ZFLAG_INTERNAL | UMA_ZFLAG_CACHEONLY)) == 0 ||
+	    (keg->uk_flags & (UMA_ZONE_NOTOUCH | UMA_ZONE_PCPU)) == 0,
+	    ("%s: incompatible flags 0x%b", __func__, keg->uk_flags,
+	     PRINT_UMA_ZFLAGS));
 
-		slabsize = UMA_PCPU_ALLOC_SIZE;
-		keg->uk_ppera = ncpus;
-	} else {
-		slabsize = UMA_SLAB_SIZE;
-		keg->uk_ppera = 1;
-	}
+	alignsize = keg->uk_align + 1;
+	format = 0;
+	ipers = 0;
 
 	/*
 	 * Calculate the size of each allocation (rsize) according to
 	 * alignment.  If the requested size is smaller than we have
 	 * allocation bits for we round it up.
 	 */
-	rsize = keg->uk_size;
-	if (rsize < slabsize / SLAB_MAX_SETSIZE)
-		rsize = slabsize / SLAB_MAX_SETSIZE;
-	if (rsize & keg->uk_align)
-		rsize = roundup(rsize, keg->uk_align + 1);
-	keg->uk_rsize = rsize;
+	rsize = MAX(keg->uk_size, UMA_SLAB_SIZE / SLAB_MAX_SETSIZE);
+	rsize = roundup2(rsize, alignsize);
 
-	KASSERT((keg->uk_flags & UMA_ZONE_PCPU) == 0 ||
-	    keg->uk_rsize < UMA_PCPU_ALLOC_SIZE,
-	    ("%s: size %u too large", __func__, keg->uk_rsize));
-
-	/*
-	 * Use a pessimistic bit count for shsize.  It may be possible to
-	 * squeeze one more item in for very particular sizes if we were
-	 * to loop and reduce the bitsize if there is waste.
-	 */
-	if (keg->uk_flags & (UMA_ZONE_NOTOUCH | UMA_ZONE_PCPU)) {
-		keg->uk_flags |= UMA_ZFLAG_OFFPAGE;
-		shsize = 0;
-	} else
-		shsize = slab_sizeof(slabsize / rsize);
-
-	if (rsize <= slabsize - shsize)
-		keg->uk_ipers = (slabsize - shsize) / rsize;
-	else {
-		/* Handle special case when we have 1 item per slab, so
-		 * alignment requirement can be relaxed. */
-		KASSERT(keg->uk_size <= slabsize - shsize,
-		    ("%s: size %u greater than slab", __func__, keg->uk_size));
-		keg->uk_ipers = 1;
+	if ((keg->uk_flags & UMA_ZONE_PCPU) != 0) {
+		slabsize = UMA_PCPU_ALLOC_SIZE;
+		pages = mp_maxid + 1;
+	} else if ((keg->uk_flags & UMA_ZONE_CACHESPREAD) != 0) {
+		/*
+		 * We want one item to start on every align boundary in a page.
+		 * To do this we will span pages.  We will also extend the item
+		 * by the size of align if it is an even multiple of align.
+		 * Otherwise, it would fall on the same boundary every time.
+		 */
+		if ((rsize & alignsize) == 0)
+			rsize += alignsize;
+		slabsize = rsize * (PAGE_SIZE / alignsize);
+		slabsize = MIN(slabsize, rsize * SLAB_MAX_SETSIZE);
+		slabsize = MIN(slabsize, UMA_CACHESPREAD_MAX_SIZE);
+		pages = howmany(slabsize, PAGE_SIZE);
+		slabsize = ptoa(pages);
+	} else {
+		/*
+		 * Choose a slab size of as many pages as it takes to represent
+		 * a single item.  We will then try to fit as many additional
+		 * items into the slab as possible.  At some point, we may want
+		 * to increase the slab size for awkward item sizes in order to
+		 * increase efficiency.
+		 */
+		pages = howmany(keg->uk_size, PAGE_SIZE);
+		slabsize = ptoa(pages);
 	}
-	KASSERT(keg->uk_ipers > 0 && keg->uk_ipers <= SLAB_MAX_SETSIZE,
-	    ("%s: keg->uk_ipers %u", __func__, keg->uk_ipers));
 
-	memused = keg->uk_ipers * rsize + shsize;
-	wastedspace = slabsize - memused;
+	/* Evaluate an inline slab layout. */
+	if ((keg->uk_flags & (UMA_ZONE_NOTOUCH | UMA_ZONE_PCPU)) == 0)
+		ipers = slab_ipers_hdr(keg->uk_size, rsize, slabsize, true);
+
+	/* TODO: vm_page-embedded slab. */
 
 	/*
 	 * We can't do OFFPAGE if we're internal or if we've been
@@ -1765,130 +1808,63 @@ keg_small_init(uma_keg_t keg)
 	 * want to do if we're UMA_ZFLAG_CACHEONLY as a result
 	 * of UMA_ZONE_VM, which clearly forbids it.
 	 */
-	if ((keg->uk_flags & UMA_ZFLAG_INTERNAL) ||
-	    (keg->uk_flags & UMA_ZFLAG_CACHEONLY)) {
-		KASSERT((keg->uk_flags & UMA_ZFLAG_OFFPAGE) == 0,
-		    ("%s: incompatible flags 0x%b", __func__, keg->uk_flags,
-		     PRINT_UMA_ZFLAGS));
-		return;
+	if ((keg->uk_flags &
+	    (UMA_ZFLAG_INTERNAL | UMA_ZFLAG_CACHEONLY)) != 0) {
+		if (ipers == 0) {
+			/* We need an extra page for the slab header. */
+			pages++;
+			slabsize = ptoa(pages);
+			ipers = slab_ipers_hdr(keg->uk_size, rsize, slabsize,
+			    true);
+		}
+		goto out;
 	}
 
 	/*
-	 * See if using an OFFPAGE slab will limit our waste.  Only do
-	 * this if it permits more items per-slab.
+	 * See if using an OFFPAGE slab will improve our efficiency.
+	 * Only do this if we are below our efficiency threshold.
 	 *
 	 * XXX We could try growing slabsize to limit max waste as well.
 	 * Historically this was not done because the VM could not
 	 * efficiently handle contiguous allocations.
 	 */
-	if ((wastedspace >= slabsize / UMA_MAX_WASTE) &&
-	    (keg->uk_ipers < (slabsize / keg->uk_rsize))) {
-		keg->uk_ipers = slabsize / keg->uk_rsize;
-		KASSERT(keg->uk_ipers > 0 && keg->uk_ipers <= SLAB_MAX_SETSIZE,
-		    ("%s: keg->uk_ipers %u", __func__, keg->uk_ipers));
-		CTR6(KTR_UMA, "UMA decided we need offpage slab headers for "
-		    "keg: %s(%p), calculated wastedspace = %d, "
-		    "maximum wasted space allowed = %d, "
-		    "calculated ipers = %d, "
-		    "new wasted space = %d\n", keg->uk_name, keg, wastedspace,
-		    slabsize / UMA_MAX_WASTE, keg->uk_ipers,
-		    slabsize - keg->uk_ipers * keg->uk_rsize);
-		/*
-		 * If we had access to memory to embed a slab header we
-		 * also have a page structure to use vtoslab() instead of
-		 * hash to find slabs.  If the zone was explicitly created
-		 * OFFPAGE we can't necessarily touch the memory.
-		 */
-		keg->uk_flags |= UMA_ZFLAG_OFFPAGE;
+	eff = UMA_FRAC_FIXPT(ipers * rsize, slabsize);
+	ipers_offpage = slab_ipers_hdr(keg->uk_size, rsize, slabsize, false);
+	eff_offpage = UMA_FRAC_FIXPT(ipers_offpage * rsize,
+	    slabsize + slab_sizeof(SLAB_MAX_SETSIZE));
+	if (ipers == 0 || (eff < UMA_MIN_EFF && eff < eff_offpage)) {
+		CTR5(KTR_UMA, "UMA decided we need offpage slab headers for "
+		    "keg: %s(%p), minimum efficiency allowed = %u%%, "
+		    "old efficiency = %u%%, offpage efficiency = %u%%\n",
+		    keg->uk_name, keg, UMA_FIXPT_PCT(UMA_MIN_EFF),
+		    UMA_FIXPT_PCT(eff), UMA_FIXPT_PCT(eff_offpage));
+		format = UMA_ZFLAG_OFFPAGE;
+		ipers = ipers_offpage;
 	}
 
-	if ((keg->uk_flags & UMA_ZFLAG_OFFPAGE) != 0) {
-		if ((keg->uk_flags & UMA_ZONE_NOTPAGE) != 0)
-			keg->uk_flags |= UMA_ZFLAG_HASH;
-		else
-			keg->uk_flags |= UMA_ZFLAG_VTOSLAB;
-	}
-}
-
-/*
- * Finish creating a large (> UMA_SLAB_SIZE) uma kegs.  Just give in and do
- * OFFPAGE for now.  When I can allow for more dynamic slab sizes this will be
- * more complicated.
- *
- * Arguments
- *	keg  The keg we should initialize
- *
- * Returns
- *	Nothing
- */
-static void
-keg_large_init(uma_keg_t keg)
-{
-
-	KASSERT(keg != NULL, ("Keg is null in keg_large_init"));
-	KASSERT((keg->uk_flags & UMA_ZONE_PCPU) == 0,
-	    ("%s: Cannot large-init a UMA_ZONE_PCPU keg", __func__));
-
-	keg->uk_ppera = howmany(keg->uk_size, PAGE_SIZE);
-	keg->uk_ipers = 1;
-	keg->uk_rsize = keg->uk_size;
-
-	/* Check whether we have enough space to not do OFFPAGE. */
-	if ((keg->uk_flags & UMA_ZONE_NOTOUCH) == 0 &&
-	    PAGE_SIZE * keg->uk_ppera - keg->uk_rsize <
-	    slab_sizeof(SLAB_MIN_SETSIZE)) {
-		/*
-		 * We can't do OFFPAGE if we're internal, in which case
-		 * we need an extra page per allocation to contain the
-		 * slab header.
-		 */
-		if ((keg->uk_flags & UMA_ZFLAG_INTERNAL) == 0)
-			keg->uk_flags |= UMA_ZFLAG_OFFPAGE;
-		else
-			keg->uk_ppera++;
-	}
-
-	if ((keg->uk_flags & UMA_ZFLAG_OFFPAGE) != 0) {
-		if ((keg->uk_flags & UMA_ZONE_NOTPAGE) != 0)
-			keg->uk_flags |= UMA_ZFLAG_HASH;
-		else
-			keg->uk_flags |= UMA_ZFLAG_VTOSLAB;
-	}
-}
-
-static void
-keg_cachespread_init(uma_keg_t keg)
-{
-	int alignsize;
-	int trailer;
-	int pages;
-	int rsize;
-
-	KASSERT((keg->uk_flags & UMA_ZONE_PCPU) == 0,
-	    ("%s: Cannot cachespread-init a UMA_ZONE_PCPU keg", __func__));
-
-	alignsize = keg->uk_align + 1;
-	rsize = keg->uk_size;
+out:
 	/*
-	 * We want one item to start on every align boundary in a page.  To
-	 * do this we will span pages.  We will also extend the item by the
-	 * size of align if it is an even multiple of align.  Otherwise, it
-	 * would fall on the same boundary every time.
+	 * How do we find the slab header if it is offpage or if not all item
+	 * start addresses are in the same page?  We could solve the latter
+	 * case with vaddr alignment, but we don't.
 	 */
-	if (rsize & keg->uk_align)
-		rsize = (rsize & ~keg->uk_align) + alignsize;
-	if ((rsize & alignsize) == 0)
-		rsize += alignsize;
-	trailer = rsize - keg->uk_size;
-	pages = (rsize * (PAGE_SIZE / alignsize)) / PAGE_SIZE;
-	pages = MIN(pages, (128 * 1024) / PAGE_SIZE);
+	if ((format & UMA_ZFLAG_OFFPAGE) != 0 ||
+	    (ipers - 1) * rsize >= PAGE_SIZE) {
+		if ((keg->uk_flags & UMA_ZONE_NOTPAGE) != 0)
+			format |= UMA_ZFLAG_HASH;
+		else
+			format |= UMA_ZFLAG_VTOSLAB;
+	}
+	keg->uk_ipers = ipers;
 	keg->uk_rsize = rsize;
+	keg->uk_flags |= format;
 	keg->uk_ppera = pages;
-	keg->uk_ipers = ((pages * PAGE_SIZE) + trailer) / rsize;
-	keg->uk_flags |= UMA_ZFLAG_OFFPAGE | UMA_ZFLAG_VTOSLAB;
-	KASSERT(keg->uk_ipers <= SLAB_MAX_SETSIZE,
-	    ("%s: keg->uk_ipers too high(%d) increase max_ipers", __func__,
-	    keg->uk_ipers));
+	CTR6(KTR_UMA, "%s: keg=%s, flags=%#x, rsize=%u, ipers=%u, ppera=%u\n",
+	    __func__, keg->uk_name, keg->uk_flags, rsize, ipers, pages);
+	KASSERT(keg->uk_ipers > 0 && keg->uk_ipers <= SLAB_MAX_SETSIZE,
+	    ("%s: keg=%s, flags=0x%b, rsize=%u, ipers=%u, ppera=%u", __func__,
+	     keg->uk_name, keg->uk_flags, PRINT_UMA_ZFLAGS, rsize, ipers,
+	     pages));
 }
 
 /*
@@ -1942,14 +1918,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	keg->uk_flags &= ~UMA_ZONE_PCPU;
 #endif
 
-	if (keg->uk_flags & UMA_ZONE_CACHESPREAD) {
-		keg_cachespread_init(keg);
-	} else {
-		if (keg->uk_size > slab_space(SLAB_MIN_SETSIZE))
-			keg_large_init(keg);
-		else
-			keg_small_init(keg);
-	}
+	keg_layout(keg);
 
 	/*
 	 * Use a first-touch NUMA policy for all kegs that pmap_extract()
