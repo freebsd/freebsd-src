@@ -455,7 +455,7 @@ int	 rt_routemsg_info(int, struct rt_addrinfo *, int);
 void	 rt_newmaddrmsg(int, struct ifmultiaddr *);
 int	 rt_setgate(struct rtentry *, struct sockaddr *, struct sockaddr *);
 void 	 rt_maskedcopy(struct sockaddr *, struct sockaddr *, struct sockaddr *);
-struct rib_head *rt_table_init(int);
+struct rib_head *rt_table_init(int, int, u_int);
 void	rt_table_destroy(struct rib_head *);
 u_int	rt_tables_get_gen(int table, int fam);
 

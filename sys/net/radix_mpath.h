@@ -57,8 +57,8 @@ int rt_mpath_conflict(struct rib_head *, struct rtentry *,
 void rtalloc_mpath_fib(struct route *, u_int32_t, u_int);
 struct rtentry *rt_mpath_select(struct rtentry *, uint32_t);
 int rt_mpath_deldup(struct rtentry *, struct rtentry *);
-int	rn4_mpath_inithead(void **, int);
-int	rn6_mpath_inithead(void **, int);
+int	rn4_mpath_inithead(void **, int, u_int);
+int	rn6_mpath_inithead(void **, int, u_int);
 
 #endif
 
