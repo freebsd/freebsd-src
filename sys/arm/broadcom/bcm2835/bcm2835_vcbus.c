@@ -219,8 +219,9 @@ bcm283x_get_current_memcfg(void)
 	root = OF_finddevice("/");
 	for (i = 0; i < nitems(bcm283x_memory_configs); ++i) {
 		booted_soc_memcfg = &bcm283x_memory_configs[i];
-		printf("Checking root against %s\n",
-		booted_soc_memcfg->soc_compat);
+		if (bootverbose)
+			printf("Checking root against %s\n",
+			    booted_soc_memcfg->soc_compat);
 		if (ofw_bus_node_is_compatible(root,
 		    booted_soc_memcfg->soc_compat))
 			return (booted_soc_memcfg);
