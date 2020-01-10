@@ -228,7 +228,8 @@ vm_page_init_cache_zones(void *dummy __unused)
 	int cache, domain, maxcache, pool;
 
 	maxcache = 0;
-	TUNABLE_INT_FETCH("vm.pgcache_zone_max", &maxcache);
+	TUNABLE_INT_FETCH("vm.pgcache_zone_max_pcpu", &maxcache);
+	maxcache *= mp_ncpus;
 	for (domain = 0; domain < vm_ndomains; domain++) {
 		vmd = VM_DOMAIN(domain);
 		for (pool = 0; pool < VM_NFREEPOOL; pool++) {
