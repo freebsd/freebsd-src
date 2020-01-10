@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ahci/ahci.h>
 #include <dev/extres/clk/clk.h>
+#include <dev/extres/regulator/regulator.h>
 
 /*
  * Allwinner a1x/a2x/a8x SATA attachment.  This is just the AHCI register
@@ -117,6 +118,11 @@ __FBSDID("$FreeBSD$");
 #define	AHCI_P0PHYSR	0x007C
 
 #define	PLL_FREQ	100000000
+
+struct ahci_a10_softc {
+	struct ahci_controller	ahci_ctlr;
+	regulator_t		ahci_reg;
+};
 
 static void inline
 ahci_set(struct resource *m, bus_size_t off, uint32_t set)
@@ -295,10 +301,12 @@ static int
 ahci_a10_attach(device_t dev)
 {
 	int error;
+	struct ahci_a10_softc *sc;
 	struct ahci_controller *ctlr;
 	clk_t clk_pll, clk_gate;
 
-	ctlr = device_get_softc(dev);
+	sc = device_get_softc(dev);
+	ctlr = &sc->ahci_ctlr;
 	clk_pll = clk_gate = NULL;
 
 	ctlr->quirks = AHCI_Q_NOPMP;
@@ -310,6 +318,19 @@ ahci_a10_attach(device_t dev)
 	if (!(ctlr->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &ctlr->r_rid, RF_ACTIVE)))
 		return (ENXIO);
+
+	/* Enable the regulator */
+	error = regulator_get_by_ofw_property(dev, 0, "target-supply",
+	    &sc->ahci_reg);
+	if (error != 0) {
+		device_printf(dev, "Cannot get regulator\n");
+		goto fail;
+	}
+	error = regulator_enable(sc->ahci_reg);
+	if (error != 0) {
+		device_printf(dev, "Could not enable regulator\n");
+		goto fail;
+	}
 
 	/* Enable clocks */
 	error = clk_get_by_ofw_index(dev, 0, 0, &clk_gate);
@@ -357,6 +378,8 @@ ahci_a10_attach(device_t dev)
 	return (ahci_attach(dev));
 
 fail:
+	if (sc->ahci_reg != 0)
+		regulator_disable(sc->ahci_reg);
 	if (clk_gate != NULL)
 		clk_release(clk_gate);
 	if (clk_pll != NULL)
@@ -388,7 +411,7 @@ static device_method_t ahci_ata_methods[] = {
 static driver_t ahci_ata_driver = {
         "ahci",
         ahci_ata_methods,
-        sizeof(struct ahci_controller)
+        sizeof(struct ahci_a10_softc)
 };
 
 DRIVER_MODULE(a10_ahci, simplebus, ahci_ata_driver, ahci_devclass, 0, 0);
