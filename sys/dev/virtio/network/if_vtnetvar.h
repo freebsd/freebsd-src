@@ -136,6 +136,7 @@ struct vtnet_softc {
 	struct ifnet		*vtnet_ifp;
 	struct vtnet_rxq	*vtnet_rxqs;
 	struct vtnet_txq	*vtnet_txqs;
+	pfil_head_t		 vtnet_pfil;
 
 	uint32_t		 vtnet_flags;
 #define VTNET_FLAG_SUSPENDED	 0x0001
