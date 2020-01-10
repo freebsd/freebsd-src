@@ -259,10 +259,10 @@ register_t	lpcr = LPCR_LPES;
 #endif
 
 /* Provide some user-friendly aliases for bits in cpu_features */
-SYSCTL_PROC(_hw, OID_AUTO, floatingpoint, CTLTYPE_INT | CTLFLAG_RD,
-    0, PPC_FEATURE_HAS_FPU, cpu_feature_bit, "I",
-    "Floating point instructions executed in hardware");
-SYSCTL_PROC(_hw, OID_AUTO, altivec, CTLTYPE_INT | CTLFLAG_RD,
+SYSCTL_PROC(_hw, OID_AUTO, floatingpoint,
+    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, 0, PPC_FEATURE_HAS_FPU,
+    cpu_feature_bit, "I", "Floating point instructions executed in hardware");
+SYSCTL_PROC(_hw, OID_AUTO, altivec, CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
     0, PPC_FEATURE_HAS_ALTIVEC, cpu_feature_bit, "I", "CPU supports Altivec");
 
 /*
