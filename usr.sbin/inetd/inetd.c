@@ -1360,6 +1360,15 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 				sock.sin_port = sep->se_ctrladdr6.sin6_port;
 			}
 		}
+#else
+		else {
+			syslog(LOG_ERR,
+			    "%s/%s: inetd compiled without inet6 support\n",
+			    sep->se_service, sep->se_proto);
+			(void) close(sep->se_fd);
+			sep->se_fd = -1;
+			return;
+		}
 #endif
                 if (debug)
                         print_service("REG ", sep);
@@ -1611,8 +1620,8 @@ getconfigent(void)
 #ifdef IPSEC
 	char *policy;
 #endif
-	int v4bind;
 #ifdef INET6
+	int v4bind;
 	int v6bind;
 #endif
 	int i;
@@ -1622,8 +1631,8 @@ getconfigent(void)
 	policy = NULL;
 #endif
 more:
-	v4bind = 0;
 #ifdef INET6
+	v4bind = 0;
 	v6bind = 0;
 #endif
 	while ((cp = nextline(fconfig)) != NULL) {
@@ -1787,7 +1796,9 @@ more:
 #endif
 			if (sep->se_proto[strlen(sep->se_proto) - 1] == '4') {
 				sep->se_proto[strlen(sep->se_proto) - 1] = '\0';
+#ifdef INET6
 				v4bind = 1;
+#endif
 				continue;
 			}
 			/* illegal version num */
