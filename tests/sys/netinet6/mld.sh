@@ -28,15 +28,15 @@
 
 . $(atf_get_srcdir)/../common/vnet.subr
 
-atf_test_case "exthdr" "cleanup"
-exthdr_head() {
+atf_test_case "mldraw01" "cleanup"
+mldraw01_head() {
 
-	atf_set descr 'Test IPv6 extension header code paths'
+	atf_set descr 'Test for correct Ethernet Destination MAC address'
 	atf_set require.user root
 	atf_set require.progs scapy
 }
 
-exthdr_body() {
+mldraw01_body() {
 
 	ids=65533
 	id=`printf "%x" ${ids}`
@@ -67,52 +67,15 @@ exthdr_body() {
 	#ping6 -q -c 1 ${ip6b}
 	sleep 3
 
-	# Clear statistics.
-	jexec ${jname} netstat -z -s > /dev/null
-
-	# Run extension header tests.
 	pyname=$(atf_get ident)
-	pyname=${pyname%*_[0-9]}
 
-	atf_check -o ignore -s exit:0 ping6 -c 3 -q -o ${ip6b}
-
-	atf_check -s exit:0 $(atf_get_srcdir)/${pyname}.py \
-		--sendif ${epair}a --recvif ${epair}a \
-		--src ${ip6a} --to  ${ip6b}
-
-	atf_check -s exit:0 $(atf_get_srcdir)/${pyname}.py \
+	atf_check -s exit:0 $(atf_get_srcdir)/mld.py \
 		--sendif ${epair}a --recvif ${epair}a \
 		--src ${ip6a} --to  ${ip6b} \
-		--hbh
-
-	atf_check -s exit:0 $(atf_get_srcdir)/${pyname}.py \
-		--sendif ${epair}a --recvif ${epair}a \
-		--src ${ip6a} --to  ${ip6b} \
-		--rh
-
-	atf_check -s exit:0 $(atf_get_srcdir)/${pyname}.py \
-		--sendif ${epair}a --recvif ${epair}a \
-		--src ${ip6a} --to  ${ip6b} \
-		--frag6
-
-	atf_check -s exit:0 $(atf_get_srcdir)/${pyname}.py \
-		--sendif ${epair}a --recvif ${epair}a \
-		--src ${ip6a} --to  ${ip6b} \
-		--dest
-
-	atf_check -s exit:0 $(atf_get_srcdir)/${pyname}.py \
-		--sendif ${epair}a --recvif ${epair}a \
-		--src ${ip6a} --to  ${ip6b} \
-		--hbh --dest
-
-	atf_check -s exit:1 $(atf_get_srcdir)/${pyname}.py \
-		--sendif ${epair}a --recvif ${epair}a \
-		--src ${ip6a} --to  ${ip6b} \
-		--dest --hbhbad
-
+		--${pyname}
 }
 
-exthdr_cleanup() {
+mldraw01_cleanup() {
 
 	vnet_cleanup
 }
@@ -120,7 +83,7 @@ exthdr_cleanup() {
 atf_init_test_cases()
 {
 
-	atf_add_test_case "exthdr"
+	atf_add_test_case "mldraw01"
 }
 
 # end

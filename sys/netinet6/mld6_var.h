@@ -167,7 +167,7 @@ struct mld_ifsoftc *
 void	mld_domifdetach(struct ifnet *);
 void	mld_fasttimo(void);
 void	mld_ifdetach(struct ifnet *, struct in6_multi_head *);
-int	mld_input(struct mbuf *, int, int);
+int	mld_input(struct mbuf **, int, int);
 void	mld_slowtimo(void);
 
 #ifdef SYSCTL_DECL

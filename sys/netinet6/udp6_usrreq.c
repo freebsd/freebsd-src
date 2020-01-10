@@ -222,16 +222,16 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 
 	ifp = m->m_pkthdr.rcvif;
 
-#ifndef PULLDOWN_TEST
-	IP6_EXTHDR_CHECK(m, off, sizeof(struct udphdr), IPPROTO_DONE);
+	if (m->m_len < off + sizeof(struct udphdr)) {
+		m = m_pullup(m, off + sizeof(struct udphdr));
+		if (m == NULL) {
+			IP6STAT_INC(ip6s_exthdrtoolong);
+			*mp = NULL;
+			return (IPPROTO_DONE);
+		}
+	}
 	ip6 = mtod(m, struct ip6_hdr *);
 	uh = (struct udphdr *)((caddr_t)ip6 + off);
-#else
-	IP6_EXTHDR_GET(uh, struct udphdr *, m, off, sizeof(*uh));
-	if (!uh)
-		return (IPPROTO_DONE);
-	ip6 = mtod(m, struct ip6_hdr *);
-#endif
 
 	UDPSTAT_INC(udps_ipackets);
 
@@ -394,8 +394,11 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 						else
 							UDP_PROBE(receive, NULL, last,
 							    ip6, last, uh);
-						if (udp6_append(last, n, off, fromsa))
+						if (udp6_append(last, n, off, fromsa)) {
+							/* XXX-BZ do we leak m here? */
+							*mp = NULL;
 							goto inp_lost;
+						}
 					}
 					INP_RUNLOCK(last);
 				}
@@ -436,6 +439,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			INP_RUNLOCK(last);
 	inp_lost:
 		INP_INFO_RUNLOCK_ET(pcbinfo, et);
+		*mp = NULL;
 		return (IPPROTO_DONE);
 	}
 	/*
@@ -503,6 +507,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		if (V_udp_blackhole)
 			goto badunlocked;
 		icmp6_error(m, ICMP6_DST_UNREACH, ICMP6_DST_UNREACH_NOPORT, 0);
+		*mp = NULL;
 		return (IPPROTO_DONE);
 	}
 	INP_RLOCK_ASSERT(inp);
@@ -511,6 +516,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		if (up->u_rxcslen == 0 || up->u_rxcslen > ulen) {
 			INP_RUNLOCK(inp);
 			m_freem(m);
+			*mp = NULL;
 			return (IPPROTO_DONE);
 		}
 	}
@@ -520,6 +526,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		UDP_PROBE(receive, NULL, inp, ip6, inp, uh);
 	if (udp6_append(inp, m, off, fromsa) == 0)
 		INP_RUNLOCK(inp);
+	*mp = NULL;
 	return (IPPROTO_DONE);
 
 badheadlocked:
@@ -527,6 +534,7 @@ badheadlocked:
 badunlocked:
 	if (m)
 		m_freem(m);
+	*mp = NULL;
 	return (IPPROTO_DONE);
 }
 

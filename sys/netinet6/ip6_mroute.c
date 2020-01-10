@@ -1720,12 +1720,10 @@ pim6_input(struct mbuf *m, int off, int proto, void *arg __unused)
 
 	PIM6STAT_INC(pim6s_rcv_total);
 
-	ip6 = mtod(m, struct ip6_hdr *);
-	pimlen = m->m_pkthdr.len - off;
-
 	/*
 	 * Validate lengths
 	 */
+	pimlen = m->m_pkthdr.len - off;
 	if (pimlen < PIM_MINLEN) {
 		PIM6STAT_INC(pim6s_rcv_tooshort);
 		MRT6_DLOG(DEBUG_PIM, "PIM packet too short");
@@ -1747,20 +1745,15 @@ pim6_input(struct mbuf *m, int off, int proto, void *arg __unused)
 	 * Make sure that the IP6 and PIM headers in contiguous memory, and
 	 * possibly the PIM REGISTER header
 	 */
-#ifndef PULLDOWN_TEST
-	IP6_EXTHDR_CHECK(m, off, minlen, IPPROTO_DONE);
-	/* adjust pointer */
-	ip6 = mtod(m, struct ip6_hdr *);
-
-	/* adjust mbuf to point to the PIM header */
-	pim = (struct pim *)((caddr_t)ip6 + off);
-#else
-	IP6_EXTHDR_GET(pim, struct pim *, m, off, minlen);
-	if (pim == NULL) {
-		PIM6STAT_INC(pim6s_rcv_tooshort);
-		return (IPPROTO_DONE);
+	if (m->m_len < off + minlen) {
+		m = m_pullup(m, off + minlen);
+		if (m == NULL) {
+			IP6STAT_INC(ip6s_exthdrtoolong);
+			return (IPPROTO_DONE);
+		}
 	}
-#endif
+	ip6 = mtod(m, struct ip6_hdr *);
+	pim = (struct pim *)((caddr_t)ip6 + off);
 
 #define PIM6_CHECKSUM
 #ifdef PIM6_CHECKSUM

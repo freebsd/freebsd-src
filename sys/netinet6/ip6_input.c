@@ -203,9 +203,6 @@ struct rmlock in6_ifaddr_lock;
 RM_SYSINIT(in6_ifaddr_lock, &in6_ifaddr_lock, "in6_ifaddr_lock");
 
 static int ip6_hopopts_input(u_int32_t *, u_int32_t *, struct mbuf **, int *);
-#ifdef PULLDOWN_TEST
-static struct mbuf *ip6_pullexthdr(struct mbuf *, size_t, int);
-#endif
 
 /*
  * IP6 initialization: fill in IP6 protocol switch table.
@@ -442,17 +439,8 @@ ip6_input_hbh(struct mbuf **mp, uint32_t *plen, uint32_t *rtalert, int *off,
 			    (caddr_t)&ip6->ip6_plen - (caddr_t)ip6);
 		goto out;
 	}
-#ifndef PULLDOWN_TEST
 	/* ip6_hopopts_input() ensures that mbuf is contiguous */
 	hbh = (struct ip6_hbh *)(ip6 + 1);
-#else
-	IP6_EXTHDR_GET(hbh, struct ip6_hbh *, m, sizeof(struct ip6_hdr),
-		sizeof(struct ip6_hbh));
-	if (hbh == NULL) {
-		IP6STAT_INC(ip6s_tooshort);
-		goto out;
-	}
-#endif
 	*nxt = hbh->ip6h_nxt;
 
 	/*
@@ -603,7 +591,6 @@ ip6_input(struct mbuf *m)
 	in6_ifstat_inc(rcvif, ifs6_in_receive);
 	IP6STAT_INC(ip6s_total);
 
-#ifndef PULLDOWN_TEST
 	/*
 	 * L2 bridge code and some other code can return mbuf chain
 	 * that does not conform to KAME requirement.  too bad.
@@ -625,9 +612,6 @@ ip6_input(struct mbuf *m)
 		m_freem(m);
 		m = n;
 	}
-	IP6_EXTHDR_CHECK(m, 0, sizeof(struct ip6_hdr), /* nothing */);
-#endif
-
 	if (m->m_len < sizeof(struct ip6_hdr)) {
 		if ((m = m_pullup(m, sizeof(struct ip6_hdr))) == NULL) {
 			IP6STAT_INC(ip6s_toosmall);
@@ -694,11 +678,10 @@ ip6_input(struct mbuf *m)
 	 * and bypass security checks (act as if it was from 127.0.0.1 by using
 	 * IPv6 src ::ffff:127.0.0.1).  Be cautious.
 	 *
-	 * This check chokes if we are in an SIIT cloud.  As none of BSDs
-	 * support IPv4-less kernel compilation, we cannot support SIIT
-	 * environment at all.  So, it makes more sense for us to reject any
-	 * malicious packets for non-SIIT environment, than try to do a
-	 * partial support for SIIT environment.
+	 * We have supported IPv6-only kernels for a few years and this issue
+	 * has not come up.  The world seems to move mostly towards not using
+	 * v4mapped on the wire, so it makes sense for us to keep rejecting
+	 * any such packets.
 	 */
 	if (IN6_IS_ADDR_V4MAPPED(&ip6->ip6_src) ||
 	    IN6_IS_ADDR_V4MAPPED(&ip6->ip6_dst)) {
@@ -916,24 +899,6 @@ passin:
 		return;
 	}
 
-	ip6 = mtod(m, struct ip6_hdr *);
-
-	/*
-	 * Malicious party may be able to use IPv4 mapped addr to confuse
-	 * tcp/udp stack and bypass security checks (act as if it was from
-	 * 127.0.0.1 by using IPv6 src ::ffff:127.0.0.1).  Be cautious.
-	 *
-	 * For SIIT end node behavior, you may want to disable the check.
-	 * However, you will  become vulnerable to attacks using IPv4 mapped
-	 * source.
-	 */
-	if (IN6_IS_ADDR_V4MAPPED(&ip6->ip6_src) ||
-	    IN6_IS_ADDR_V4MAPPED(&ip6->ip6_dst)) {
-		IP6STAT_INC(ip6s_badscope);
-		in6_ifstat_inc(rcvif, ifs6_in_addrerr);
-		goto bad;
-	}
-
 	/*
 	 * Tell launch routine the next header
 	 */
@@ -988,33 +953,33 @@ ip6_hopopts_input(u_int32_t *plenp, u_int32_t *rtalertp,
 	struct ip6_hbh *hbh;
 
 	/* validation of the length of the header */
-#ifndef PULLDOWN_TEST
-	IP6_EXTHDR_CHECK(m, off, sizeof(*hbh), -1);
+	if (m->m_len < off + sizeof(*hbh)) {
+		m = m_pullup(m, off + sizeof(*hbh));
+		if (m == NULL) {
+			IP6STAT_INC(ip6s_exthdrtoolong);
+			*mp = NULL;
+			return (-1);
+		}
+	}
 	hbh = (struct ip6_hbh *)(mtod(m, caddr_t) + off);
 	hbhlen = (hbh->ip6h_len + 1) << 3;
 
-	IP6_EXTHDR_CHECK(m, off, hbhlen, -1);
+	if (m->m_len < off + hbhlen) {
+		m = m_pullup(m, off + hbhlen);
+		if (m == NULL) {
+			IP6STAT_INC(ip6s_exthdrtoolong);
+			*mp = NULL;
+			return (-1);
+		}
+	}
 	hbh = (struct ip6_hbh *)(mtod(m, caddr_t) + off);
-#else
-	IP6_EXTHDR_GET(hbh, struct ip6_hbh *, m,
-		sizeof(struct ip6_hdr), sizeof(struct ip6_hbh));
-	if (hbh == NULL) {
-		IP6STAT_INC(ip6s_tooshort);
-		return -1;
-	}
-	hbhlen = (hbh->ip6h_len + 1) << 3;
-	IP6_EXTHDR_GET(hbh, struct ip6_hbh *, m, sizeof(struct ip6_hdr),
-		hbhlen);
-	if (hbh == NULL) {
-		IP6STAT_INC(ip6s_tooshort);
-		return -1;
-	}
-#endif
 	off += hbhlen;
 	hbhlen -= sizeof(struct ip6_hbh);
 	if (ip6_process_hopopts(m, (u_int8_t *)hbh + sizeof(struct ip6_hbh),
-				hbhlen, rtalertp, plenp) < 0)
+				hbhlen, rtalertp, plenp) < 0) {
+		*mp = NULL;
 		return (-1);
+	}
 
 	*offp = off;
 	*mp = m;
@@ -1199,10 +1164,9 @@ ip6_unknown_opt(u_int8_t *optp, struct mbuf *m, int off)
  * Create the "control" list for this pcb.
  * These functions will not modify mbuf chain at all.
  *
- * With KAME mbuf chain restriction:
  * The routine will be called from upper layer handlers like tcp6_input().
  * Thus the routine assumes that the caller (tcp6_input) have already
- * called IP6_EXTHDR_CHECK() and all the extension headers are located in the
+ * called m_pullup() and all the extension headers are located in the
  * very first mbuf on the mbuf chain.
  *
  * ip6_savecontrol_v4 will handle those options that are possible to be
@@ -1412,13 +1376,14 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 void
 ip6_savecontrol(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 {
-	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
+	struct ip6_hdr *ip6;
 	int v4only = 0;
 
 	mp = ip6_savecontrol_v4(inp, m, mp, &v4only);
 	if (v4only)
 		return;
 
+	ip6 = mtod(m, struct ip6_hdr *);
 	/*
 	 * IPV6_HOPOPTS socket option.  Recall that we required super-user
 	 * privilege for the option (see ip6_ctloutput), but it might be too
@@ -1436,29 +1401,10 @@ ip6_savecontrol(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 		 */
 		if (ip6->ip6_nxt == IPPROTO_HOPOPTS) {
 			struct ip6_hbh *hbh;
-			int hbhlen = 0;
-#ifdef PULLDOWN_TEST
-			struct mbuf *ext;
-#endif
+			int hbhlen;
 
-#ifndef PULLDOWN_TEST
 			hbh = (struct ip6_hbh *)(ip6 + 1);
 			hbhlen = (hbh->ip6h_len + 1) << 3;
-#else
-			ext = ip6_pullexthdr(m, sizeof(struct ip6_hdr),
-			    ip6->ip6_nxt);
-			if (ext == NULL) {
-				IP6STAT_INC(ip6s_tooshort);
-				return;
-			}
-			hbh = mtod(ext, struct ip6_hbh *);
-			hbhlen = (hbh->ip6h_len + 1) << 3;
-			if (hbhlen != ext->m_len) {
-				m_freem(ext);
-				IP6STAT_INC(ip6s_tooshort);
-				return;
-			}
-#endif
 
 			/*
 			 * XXX: We copy the whole header even if a
@@ -1472,9 +1418,6 @@ ip6_savecontrol(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 			    IPPROTO_IPV6);
 			if (*mp)
 				mp = &(*mp)->m_next;
-#ifdef PULLDOWN_TEST
-			m_freem(ext);
-#endif
 		}
 	}
 
@@ -1491,9 +1434,6 @@ ip6_savecontrol(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 		while (1) {	/* is explicit loop prevention necessary? */
 			struct ip6_ext *ip6e = NULL;
 			int elen;
-#ifdef PULLDOWN_TEST
-			struct mbuf *ext = NULL;
-#endif
 
 			/*
 			 * if it is not an extension header, don't try to
@@ -1509,7 +1449,6 @@ ip6_savecontrol(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 				goto loopend;
 			}
 
-#ifndef PULLDOWN_TEST
 			if (off + sizeof(*ip6e) > m->m_len)
 				goto loopend;
 			ip6e = (struct ip6_ext *)(mtod(m, caddr_t) + off);
@@ -1519,23 +1458,6 @@ ip6_savecontrol(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 				elen = (ip6e->ip6e_len + 1) << 3;
 			if (off + elen > m->m_len)
 				goto loopend;
-#else
-			ext = ip6_pullexthdr(m, off, nxt);
-			if (ext == NULL) {
-				IP6STAT_INC(ip6s_tooshort);
-				return;
-			}
-			ip6e = mtod(ext, struct ip6_ext *);
-			if (nxt == IPPROTO_AH)
-				elen = (ip6e->ip6e_len + 2) << 2;
-			else
-				elen = (ip6e->ip6e_len + 1) << 3;
-			if (elen != ext->m_len) {
-				m_freem(ext);
-				IP6STAT_INC(ip6s_tooshort);
-				return;
-			}
-#endif
 
 			switch (nxt) {
 			case IPPROTO_DSTOPTS:
@@ -1570,9 +1492,6 @@ ip6_savecontrol(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 				 * the code just in case (nxt overwritten or
 				 * other cases).
 				 */
-#ifdef PULLDOWN_TEST
-				m_freem(ext);
-#endif
 				goto loopend;
 
 			}
@@ -1581,10 +1500,6 @@ ip6_savecontrol(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 			off += elen;
 			nxt = ip6e->ip6e_nxt;
 			ip6e = NULL;
-#ifdef PULLDOWN_TEST
-			m_freem(ext);
-			ext = NULL;
-#endif
 		}
 	  loopend:
 		;
@@ -1669,49 +1584,6 @@ ip6_notify_pmtu(struct inpcb *inp, struct sockaddr_in6 *dst, u_int32_t mtu)
 	} else
 		sorwakeup(so);
 }
-
-#ifdef PULLDOWN_TEST
-/*
- * pull single extension header from mbuf chain.  returns single mbuf that
- * contains the result, or NULL on error.
- */
-static struct mbuf *
-ip6_pullexthdr(struct mbuf *m, size_t off, int nxt)
-{
-	struct ip6_ext ip6e;
-	size_t elen;
-	struct mbuf *n;
-
-#ifdef DIAGNOSTIC
-	switch (nxt) {
-	case IPPROTO_DSTOPTS:
-	case IPPROTO_ROUTING:
-	case IPPROTO_HOPOPTS:
-	case IPPROTO_AH: /* is it possible? */
-		break;
-	default:
-		printf("ip6_pullexthdr: invalid nxt=%d\n", nxt);
-	}
-#endif
-
-	m_copydata(m, off, sizeof(ip6e), (caddr_t)&ip6e);
-	if (nxt == IPPROTO_AH)
-		elen = (ip6e.ip6e_len + 2) << 2;
-	else
-		elen = (ip6e.ip6e_len + 1) << 3;
-
-	if (elen > MLEN)
-		n = m_getcl(M_NOWAIT, MT_DATA, 0);
-	else
-		n = m_get(M_NOWAIT, MT_DATA);
-	if (n == NULL)
-		return NULL;
-
-	m_copydata(m, off, elen, mtod(n, caddr_t));
-	n->m_len = elen;
-	return n;
-}
-#endif
 
 /*
  * Get pointer to the previous header followed by the header

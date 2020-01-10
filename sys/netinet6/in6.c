@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/rmlock.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
@@ -2022,8 +2023,6 @@ in6_if2idlen(struct ifnet *ifp)
 		return (64);
 	}
 }
-
-#include <sys/sysctl.h>
 
 struct in6_llentry {
 	struct llentry		base;

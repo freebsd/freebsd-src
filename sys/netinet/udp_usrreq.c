@@ -421,14 +421,13 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	/*
 	 * Get IP and UDP header together in first mbuf.
 	 */
-	ip = mtod(m, struct ip *);
 	if (m->m_len < iphlen + sizeof(struct udphdr)) {
 		if ((m = m_pullup(m, iphlen + sizeof(struct udphdr))) == NULL) {
 			UDPSTAT_INC(udps_hdrops);
 			return (IPPROTO_DONE);
 		}
-		ip = mtod(m, struct ip *);
 	}
+	ip = mtod(m, struct ip *);
 	uh = (struct udphdr *)((caddr_t)ip + iphlen);
 	cscov_partial = (proto == IPPROTO_UDPLITE) ? 1 : 0;
 

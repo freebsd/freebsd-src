@@ -1252,20 +1252,27 @@ out_locked:
  * Return IPPROTO_DONE if we freed m. Otherwise, return 0.
  */
 int
-mld_input(struct mbuf *m, int off, int icmp6len)
+mld_input(struct mbuf **mp, int off, int icmp6len)
 {
 	struct ifnet	*ifp;
 	struct ip6_hdr	*ip6;
+	struct mbuf	*m;
 	struct mld_hdr	*mld;
 	int		 mldlen;
 
+	m = *mp;
 	CTR3(KTR_MLD, "%s: called w/mbuf (%p,%d)", __func__, m, off);
 
 	ifp = m->m_pkthdr.rcvif;
 
-	ip6 = mtod(m, struct ip6_hdr *);
-
 	/* Pullup to appropriate size. */
+	if (m->m_len < off + sizeof(*mld)) {
+		m = m_pullup(m, off + sizeof(*mld));
+		if (m == NULL) {
+			ICMP6STAT_INC(icp6s_badlen);
+			return (IPPROTO_DONE);
+		}
+	}
 	mld = (struct mld_hdr *)(mtod(m, uint8_t *) + off);
 	if (mld->mld_type == MLD_LISTENER_QUERY &&
 	    icmp6len >= sizeof(struct mldv2_query)) {
@@ -1273,11 +1280,16 @@ mld_input(struct mbuf *m, int off, int icmp6len)
 	} else {
 		mldlen = sizeof(struct mld_hdr);
 	}
-	IP6_EXTHDR_GET(mld, struct mld_hdr *, m, off, mldlen);
-	if (mld == NULL) {
-		ICMP6STAT_INC(icp6s_badlen);
-		return (IPPROTO_DONE);
+	if (m->m_len < off + mldlen) {
+		m = m_pullup(m, off + mldlen);
+		if (m == NULL) {
+			ICMP6STAT_INC(icp6s_badlen);
+			return (IPPROTO_DONE);
+		}
 	}
+	*mp = m;
+	ip6 = mtod(m, struct ip6_hdr *);
+	mld = (struct mld_hdr *)(mtod(m, uint8_t *) + off);
 
 	/*
 	 * Userland needs to see all of this traffic for implementing

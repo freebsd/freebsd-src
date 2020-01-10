@@ -534,11 +534,19 @@ cc_ecnpkt_handler(struct tcpcb *tp, struct tcphdr *th, uint8_t iptos)
 int
 tcp6_input(struct mbuf **mp, int *offp, int proto)
 {
-	struct mbuf *m = *mp;
+	struct mbuf *m;
 	struct in6_ifaddr *ia6;
 	struct ip6_hdr *ip6;
 
-	IP6_EXTHDR_CHECK(m, *offp, sizeof(struct tcphdr), IPPROTO_DONE);
+	m = *mp;
+	if (m->m_len < *offp + sizeof(struct tcphdr)) {
+		m = m_pullup(m, *offp + sizeof(struct tcphdr));
+		if (m == NULL) {
+			*mp = m;
+			TCPSTAT_INC(tcps_rcvshort);
+			return (IPPROTO_DONE);
+		}
+	}
 
 	/*
 	 * draft-itojun-ipv6-tcp-to-anycast
@@ -547,17 +555,17 @@ tcp6_input(struct mbuf **mp, int *offp, int proto)
 	ip6 = mtod(m, struct ip6_hdr *);
 	ia6 = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */);
 	if (ia6 && (ia6->ia6_flags & IN6_IFF_ANYCAST)) {
-		struct ip6_hdr *ip6;
 
 		ifa_free(&ia6->ia_ifa);
-		ip6 = mtod(m, struct ip6_hdr *);
 		icmp6_error(m, ICMP6_DST_UNREACH, ICMP6_DST_UNREACH_ADDR,
 			    (caddr_t)&ip6->ip6_dst - (caddr_t)ip6);
+		*mp = NULL;
 		return (IPPROTO_DONE);
 	}
 	if (ia6)
 		ifa_free(&ia6->ia_ifa);
 
+	*mp = m;
 	return (tcp_input(mp, offp, proto));
 }
 #endif /* INET6 */
@@ -616,15 +624,6 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 
 #ifdef INET6
 	if (isipv6) {
-		/* IP6_EXTHDR_CHECK() is already done at tcp6_input(). */
-
-		if (m->m_len < (sizeof(*ip6) + sizeof(*th))) {
-			m = m_pullup(m, sizeof(*ip6) + sizeof(*th));
-			if (m == NULL) {
-				TCPSTAT_INC(tcps_rcvshort);
-				return (IPPROTO_DONE);
-			}
-		}
 
 		ip6 = mtod(m, struct ip6_hdr *);
 		th = (struct tcphdr *)((caddr_t)ip6 + off0);
@@ -733,7 +732,13 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 	if (off > sizeof (struct tcphdr)) {
 #ifdef INET6
 		if (isipv6) {
-			IP6_EXTHDR_CHECK(m, off0, off, IPPROTO_DONE);
+			if (m->m_len < off0 + off) {
+				m = m_pullup(m, off0 + off);
+				if (m == NULL) {
+					TCPSTAT_INC(tcps_rcvshort);
+					return (IPPROTO_DONE);
+				}
+			}
 			ip6 = mtod(m, struct ip6_hdr *);
 			th = (struct tcphdr *)((caddr_t)ip6 + off0);
 		}
