@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <ctype.h>
 #include <errno.h>
+#define _WITH_DPRINTF
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
