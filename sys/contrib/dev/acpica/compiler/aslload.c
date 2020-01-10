@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -273,15 +273,15 @@ LdLoadFieldElements (
     ACPI_PARSE_OBJECT       *SourceRegion;
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_STATUS             Status;
+    char                    *ExternalPath;
 
 
     SourceRegion = UtGetArg (Op, 0);
     if (SourceRegion)
     {
         Status = AcpiNsLookup (WalkState->ScopeInfo,
-            SourceRegion->Asl.Value.String,
-            AmlType, ACPI_IMODE_EXECUTE,
-            ACPI_NS_DONT_OPEN_SCOPE, NULL, &Node);
+            SourceRegion->Asl.Value.String, AmlType, ACPI_IMODE_EXECUTE,
+            ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE, NULL, &Node);
         if (Status == AE_NOT_FOUND)
         {
             /*
@@ -357,9 +357,16 @@ LdLoadFieldElements (
                      * The name already exists in this scope
                      * But continue processing the elements
                      */
+                    ExternalPath = AcpiNsGetNormalizedPathname (Node, TRUE);
+
                     AslDualParseOpError (ASL_ERROR, ASL_MSG_NAME_EXISTS, Child,
-                        Child->Asl.Value.String, ASL_MSG_FOUND_HERE, Node->Op,
-                        Node->Op->Asl.ExternalName);
+                        ExternalPath, ASL_MSG_FOUND_HERE, Node->Op,
+                        ExternalPath);
+
+                    if (ExternalPath)
+                    {
+                        ACPI_FREE (ExternalPath);
+                    }
                 }
             }
             else
@@ -403,6 +410,7 @@ LdLoadResourceElements (
     ACPI_PARSE_OBJECT       *InitializerOp = NULL;
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_STATUS             Status;
+    char                    *ExternalPath;
 
 
     /*
@@ -419,10 +427,17 @@ LdLoadResourceElements (
         {
             /* Actual node causing the error was saved in ParentMethod */
 
+            ExternalPath = AcpiNsGetNormalizedPathname (Node, TRUE);
+
             AslDualParseOpError (ASL_ERROR, ASL_MSG_NAME_EXISTS,
                 (ACPI_PARSE_OBJECT *) Op->Asl.ParentMethod,
-                Op->Asl.Namepath, ASL_MSG_FOUND_HERE, Node->Op,
-                Node->Op->Asl.ExternalName);
+                ExternalPath, ASL_MSG_FOUND_HERE, Node->Op,
+                ExternalPath);
+
+            if (ExternalPath)
+            {
+                ACPI_FREE (ExternalPath);
+            }
             return (AE_OK);
         }
         return (Status);
@@ -499,6 +514,7 @@ LdNamespace1Begin (
     BOOLEAN                 ForceNewScope = FALSE;
     const ACPI_OPCODE_INFO  *OpInfo;
     ACPI_PARSE_OBJECT       *ParentOp;
+    char                    *ExternalPath;
 
 
     ACPI_FUNCTION_NAME (LdNamespace1Begin);
@@ -939,9 +955,16 @@ LdNamespace1Begin (
             {
                 /* Valid error, object already exists */
 
+                ExternalPath = AcpiNsGetNormalizedPathname (Node, TRUE);
+
                 AslDualParseOpError (ASL_ERROR, ASL_MSG_NAME_EXISTS, Op,
-                    Op->Asl.ExternalName, ASL_MSG_FOUND_HERE, Node->Op,
-                    Node->Op->Asl.ExternalName);
+                    ExternalPath, ASL_MSG_FOUND_HERE, Node->Op,
+                    ExternalPath);
+
+                if (ExternalPath)
+                {
+                    ACPI_FREE (ExternalPath);
+                }
                 return_ACPI_STATUS (AE_OK);
             }
         }

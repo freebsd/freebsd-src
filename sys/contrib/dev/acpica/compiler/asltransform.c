@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -1109,6 +1109,40 @@ NextCase:
     }
 }
 
+/*******************************************************************************
+ *
+ * FUNCTION:    TrBufferIsAllZero
+ *
+ * PARAMETERS:  Op          - Parse node for first opcode in buffer initializer
+ *                            list
+ *
+ * RETURN:      TRUE if buffer contains all zeros or a DEFAULT_ARG
+ *
+ * DESCRIPTION: Check for duplicate Buffer case values.
+ *
+ ******************************************************************************/
+
+static BOOLEAN
+TrBufferIsAllZero (
+    ACPI_PARSE_OBJECT       *Op)
+{
+    while (Op)
+    {
+        if (Op->Asl.ParseOpcode == PARSEOP_DEFAULT_ARG)
+        {
+            return (TRUE);
+        }
+        else if (Op->Asl.Value.Integer != 0)
+        {
+            return (FALSE);
+        }
+
+        Op = Op->Asl.Next;
+    }
+
+    return (TRUE);
+}
+
 
 /*******************************************************************************
  *
@@ -1130,10 +1164,37 @@ TrCheckForBufferMatch (
     ACPI_PARSE_OBJECT       *NextOp1,
     ACPI_PARSE_OBJECT       *NextOp2)
 {
-
-    if (NextOp1->Asl.Value.Integer != NextOp2->Asl.Value.Integer)
+    /*
+     * The buffer length can be a DEFAULT_ARG or INTEGER. If any of the nodes
+     * are DEFAULT_ARG, it means that the length has yet to be computed.
+     * However, the initializer list can be compared to determine if these two
+     * buffers match.
+     */
+    if ((NextOp1->Asl.ParseOpcode == PARSEOP_INTEGER &&
+        NextOp2->Asl.ParseOpcode == PARSEOP_INTEGER) &&
+        NextOp1->Asl.Value.Integer != NextOp2->Asl.Value.Integer)
     {
         return (FALSE);
+    }
+
+    /*
+     * Buffers that have explicit lengths but no initializer lists are
+     * filled with zeros at runtime. This is equivalent to buffers that have the
+     * same length that are filled with zeros.
+     *
+     * In other words, the following buffers are equivalent:
+     *
+     * Buffer(0x4) {}
+     * Buffer() {0x0, 0x0, 0x0, 0x0}
+     *
+     * This statement checks for matches where one buffer does not have an
+     * initializer list and another buffer contains all zeros.
+     */
+    if (NextOp1->Asl.ParseOpcode != NextOp2->Asl.ParseOpcode &&
+        TrBufferIsAllZero (NextOp1->Asl.Next) &&
+        TrBufferIsAllZero (NextOp2->Asl.Next))
+    {
+        return (TRUE);
     }
 
     /* Start at the BYTECONST initializer node list */
