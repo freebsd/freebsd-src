@@ -196,8 +196,18 @@ verify_route_message_extra(struct rt_msghdr *rtm, int ifindex, int rtm_flags)
 	RTSOCK_ATF_REQUIRE_MSG(rtm, rtm->rtm_index == ifindex,
 	    "expected ifindex %d, got %d", ifindex, rtm->rtm_index);
 
-	RTSOCK_ATF_REQUIRE_MSG(rtm, rtm->rtm_flags == rtm_flags,
-	    "expected flags: 0x%X, got 0x%X", rtm_flags, rtm->rtm_flags);
+	if (rtm->rtm_flags != rtm_flags) {
+		char got_flags[64], expected_flags[64];
+		rtsock_print_rtm_flags(got_flags, sizeof(got_flags),
+		    rtm->rtm_flags);
+		rtsock_print_rtm_flags(expected_flags, sizeof(expected_flags),
+		    rtm_flags);
+
+		RTSOCK_ATF_REQUIRE_MSG(rtm, rtm->rtm_flags == rtm_flags,
+		    "expected flags: 0x%X %s, got 0x%X %s",
+		    rtm_flags, expected_flags,
+		    rtm->rtm_flags, got_flags);
+	}
 }
 
 static void

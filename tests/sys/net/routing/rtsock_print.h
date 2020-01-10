@@ -132,6 +132,14 @@ rtsock_print_cmdtype(int cmd)
 	return (msgtypes[cmd]);
 }
 
+char *
+rtsock_print_rtm_flags(char *buf, int buflen, int rtm_flags)
+{
+
+	_printb(buf, buflen, rtm_flags, routeflags);
+	return (buf);
+}
+
 
 #define	_PRINTX(fmt, ...)	do {				\
 	one_len = snprintf(ptr, rem_len, fmt, __VA_ARGS__);	\
@@ -262,7 +270,7 @@ rtsock_print_rtm(struct rt_msghdr *rtm)
 	printf("Got message of size %hu on %s\n", rtm->rtm_msglen, buf);
 
 	char flags_buf[256];
-	_printb(flags_buf, sizeof(flags_buf), rtm->rtm_flags, routeflags);
+	rtsock_print_rtm_flags(flags_buf, sizeof(flags_buf), rtm->rtm_flags);
 
 	printf("%s: len %hu, pid: %d, seq %d, errno %d, flags: %s\n", msgtypes[rtm->rtm_type],
 		rtm->rtm_msglen, rtm->rtm_pid, rtm->rtm_seq, rtm->rtm_errno, flags_buf);
