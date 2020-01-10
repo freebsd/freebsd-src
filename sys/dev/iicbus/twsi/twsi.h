@@ -57,7 +57,9 @@ struct twsi_softc {
 	void *			intrhand;
 	bool			have_intr;
 
-	struct iic_msg		*msg;
+	struct iic_msg		*msgs;
+	uint32_t		nmsgs;
+	uint32_t		msg_idx;
 	uint16_t		sent_bytes;
 	uint16_t		recv_bytes;
 	int			transfer;
