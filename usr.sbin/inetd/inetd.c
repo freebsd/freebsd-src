@@ -29,10 +29,12 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1983, 1991, 1993, 1994\n\
-	The Regents of the University of California.  All rights reserved.\n";
+__COPYRIGHT("@(#) Copyright (c) 1983, 1991, 1993, 1994\n\
+	The Regents of the University of California.  All rights reserved.\n");
 #endif /* not lint */
 
 #ifndef lint
@@ -40,9 +42,6 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 #endif /* not lint */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 /*
  * Inetd - Internet super-server
@@ -1661,7 +1660,9 @@ more:
 		break;
 	}
 	if (cp == NULL) {
+#ifdef IPSEC
 		free(policy);
+#endif
 		return (NULL);
 	}
 
