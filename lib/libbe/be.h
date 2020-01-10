@@ -60,6 +60,7 @@ typedef enum be_error {
 	BE_ERR_NOMEM,		/* insufficient memory */
 	BE_ERR_UNKNOWN,         /* unknown error */
 	BE_ERR_INVORIGIN,       /* invalid origin */
+	BE_ERR_HASCLONES,	/* snapshot has clones */
 } be_error_t;
 
 

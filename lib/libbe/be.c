@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/ucred.h>
-
+#include <sys/queue.h>
 #include <sys/zfs_context.h>
 #include <sys/mntent.h>
 
@@ -48,9 +48,16 @@ __FBSDID("$FreeBSD$");
 #include "be.h"
 #include "be_impl.h"
 
+struct promote_entry {
+	char				name[BE_MAXPATHLEN];
+	SLIST_ENTRY(promote_entry)	link;
+};
+
 struct be_destroy_data {
-	libbe_handle_t		*lbh;
-	char			*snapname;
+	libbe_handle_t			*lbh;
+	char				target_name[BE_MAXPATHLEN];
+	char				*snapname;
+	SLIST_HEAD(, promote_entry)	promotelist;
 };
 
 #if SOON
@@ -194,6 +201,152 @@ be_nicenum(uint64_t num, char *buf, size_t buflen)
 	zfs_nicenum(num, buf, buflen);
 }
 
+static bool
+be_should_promote_clones(zfs_handle_t *zfs_hdl, struct be_destroy_data *bdd)
+{
+	char *atpos;
+
+	if (zfs_get_type(zfs_hdl) != ZFS_TYPE_SNAPSHOT)
+		return (false);
+
+	/*
+	 * If we're deleting a snapshot, we need to make sure we only promote
+	 * clones that are derived from one of the snapshots we're deleting,
+	 * rather than that of a snapshot we're not touching.  This keeps stuff
+	 * in a consistent state, making sure that we don't error out unless
+	 * we really need to.
+	 */
+	if (bdd->snapname == NULL)
+		return (true);
+
+	atpos = strchr(zfs_get_name(zfs_hdl), '@');
+	return (strcmp(atpos + 1, bdd->snapname) == 0);
+}
+
+/*
+ * This is executed from be_promote_dependent_clones via zfs_iter_dependents,
+ * It checks if the dependent type is a snapshot then attempts to find any
+ * clones associated with it. Any clones not related to the destroy target are
+ * added to the promote list.
+ */
+static int
+be_dependent_clone_cb(zfs_handle_t *zfs_hdl, void *data)
+{
+	int err;
+	bool found;
+	char *name;
+	struct nvlist *nvl;
+	struct nvpair *nvp;
+	struct be_destroy_data *bdd;
+	struct promote_entry *entry, *newentry;
+
+	nvp = NULL;
+	err = 0;
+	bdd = (struct be_destroy_data *)data;
+
+	if (be_should_promote_clones(zfs_hdl, bdd) &&
+	    (nvl = zfs_get_clones_nvl(zfs_hdl)) != NULL) {
+		while ((nvp = nvlist_next_nvpair(nvl, nvp)) != NULL) {
+			name = nvpair_name(nvp);
+
+			/*
+			 * Skip if the clone is equal to, or a child of, the
+			 * destroy target.
+			 */
+			if (strncmp(name, bdd->target_name,
+			    strlen(bdd->target_name)) == 0 ||
+			    strstr(name, bdd->target_name) == name) {
+				continue;
+			}
+
+			found = false;
+			SLIST_FOREACH(entry, &bdd->promotelist, link) {
+				if (strcmp(entry->name, name) == 0) {
+					found = true;
+					break;
+				}
+			}
+
+			if (found)
+				continue;
+
+			newentry = malloc(sizeof(struct promote_entry));
+			if (newentry == NULL) {
+				err = ENOMEM;
+				break;
+			}
+
+#define	BE_COPY_NAME(entry, src)	\
+	strlcpy((entry)->name, (src), sizeof((entry)->name))
+			if (BE_COPY_NAME(newentry, name) >=
+			    sizeof(newentry->name)) {
+				/* Shouldn't happen. */
+				free(newentry);
+				err = ENAMETOOLONG;
+				break;
+			}
+#undef BE_COPY_NAME
+
+			/*
+			 * We're building up a SLIST here to make sure both that
+			 * we get the order right and so that we don't
+			 * inadvertently observe the wrong state by promoting
+			 * datasets while we're still walking the tree.  The
+			 * latter can lead to situations where we promote a BE
+			 * then effectively demote it again.
+			 */
+			SLIST_INSERT_HEAD(&bdd->promotelist, newentry, link);
+		}
+		nvlist_free(nvl);
+	}
+	zfs_close(zfs_hdl);
+	return (err);
+}
+
+/*
+ * This is called before a destroy, so that any datasets(environments) that are
+ * dependent on this one get promoted before destroying the target.
+ */
+static int
+be_promote_dependent_clones(zfs_handle_t *zfs_hdl, struct be_destroy_data *bdd)
+{
+	int err;
+	zfs_handle_t *clone;
+	struct promote_entry *entry;
+
+	snprintf(bdd->target_name, BE_MAXPATHLEN, "%s/", zfs_get_name(zfs_hdl));
+	err = zfs_iter_dependents(zfs_hdl, true, be_dependent_clone_cb, bdd);
+
+	/*
+	 * Drain the list and walk away from it if we're only deleting a
+	 * snapshot.
+	 */
+	if (bdd->snapname != NULL && !SLIST_EMPTY(&bdd->promotelist))
+		err = BE_ERR_HASCLONES;
+	while (!SLIST_EMPTY(&bdd->promotelist)) {
+		entry = SLIST_FIRST(&bdd->promotelist);
+		SLIST_REMOVE_HEAD(&bdd->promotelist, link);
+
+#define	ZFS_GRAB_CLONE()	\
+	zfs_open(bdd->lbh->lzh, entry->name, ZFS_TYPE_FILESYSTEM)
+		/*
+		 * Just skip this part on error, we still want to clean up the
+		 * promotion list after the first error.  We'll then preserve it
+		 * all the way back.
+		 */
+		if (err == 0 && (clone = ZFS_GRAB_CLONE()) != NULL) {
+			err = zfs_promote(clone);
+			if (err != 0)
+				err = BE_ERR_DESTROYMNT;
+			zfs_close(clone);
+		}
+#undef ZFS_GRAB_CLONE
+		free(entry);
+	}
+
+	return (err);
+}
+
 static int
 be_destroy_cb(zfs_handle_t *zfs_hdl, void *data)
 {
@@ -239,8 +392,9 @@ be_destroy_cb(zfs_handle_t *zfs_hdl, void *data)
  * BE_DESTROY_FORCE : forces operation on mounted datasets
  * BE_DESTROY_ORIGIN: destroy the origin snapshot as well
  */
-int
-be_destroy(libbe_handle_t *lbh, const char *name, int options)
+static int
+be_destroy_internal(libbe_handle_t *lbh, const char *name, int options,
+    bool odestroyer)
 {
 	struct be_destroy_data bdd;
 	char origin[BE_MAXPATHLEN], path[BE_MAXPATHLEN];
@@ -251,6 +405,7 @@ be_destroy(libbe_handle_t *lbh, const char *name, int options)
 
 	bdd.lbh = lbh;
 	bdd.snapname = NULL;
+	SLIST_INIT(&bdd.promotelist);
 	force = options & BE_DESTROY_FORCE;
 	*origin = '\0';
 
@@ -268,25 +423,6 @@ be_destroy(libbe_handle_t *lbh, const char *name, int options)
 		if (fs == NULL)
 			return (set_error(lbh, BE_ERR_ZFSOPEN));
 
-		if ((options & BE_DESTROY_WANTORIGIN) != 0 &&
-		    zfs_prop_get(fs, ZFS_PROP_ORIGIN, origin, sizeof(origin),
-		    NULL, NULL, 0, 1) != 0 &&
-		    (options & BE_DESTROY_ORIGIN) != 0)
-			return (set_error(lbh, BE_ERR_NOORIGIN));
-
-		/*
-		 * If the caller wants auto-origin destruction and the origin
-		 * name matches one of our automatically created snapshot names
-		 * (i.e. strftime("%F-%T") with a serial at the end), then
-		 * we'll set the DESTROY_ORIGIN flag and nuke it
-		 * be_is_auto_snapshot_name is exported from libbe(3) so that
-		 * the caller can determine if it needs to warn about the origin
-		 * not being destroyed or not.
-		 */
-		if ((options & BE_DESTROY_AUTOORIGIN) != 0 && *origin != '\0' &&
-		    be_is_auto_snapshot_name(lbh, origin))
-			options |= BE_DESTROY_ORIGIN;
-
 		/* Don't destroy a mounted dataset unless force is specified */
 		if ((mounted = zfs_is_mounted(fs, NULL)) != 0) {
 			if (force) {
@@ -297,6 +433,14 @@ be_destroy(libbe_handle_t *lbh, const char *name, int options)
 			}
 		}
 	} else {
+		/*
+		 * If we're initially destroying a snapshot, origin options do
+		 * not make sense.  If we're destroying the origin snapshot of
+		 * a BE, we want to maintain the options in case we need to
+		 * fake success after failing to promote.
+		 */
+		if (!odestroyer)
+			options &= ~BE_DESTROY_WANTORIGIN;
 		if (!zfs_dataset_exists(lbh->lzh, path, ZFS_TYPE_SNAPSHOT))
 			return (set_error(lbh, BE_ERR_NOENT));
 
@@ -310,6 +454,49 @@ be_destroy(libbe_handle_t *lbh, const char *name, int options)
 			return (set_error(lbh, BE_ERR_ZFSOPEN));
 		}
 	}
+
+	/*
+	 * Whether we're destroying a BE or a single snapshot, we need to walk
+	 * the tree of what we're going to destroy and promote everything in our
+	 * path so that we can make it happen.
+	 */
+	if ((err = be_promote_dependent_clones(fs, &bdd)) != 0) {
+		free(bdd.snapname);
+
+		/*
+		 * If we're just destroying the origin of some other dataset
+		 * we were invoked to destroy, then we just ignore
+		 * BE_ERR_HASCLONES and return success unless the caller wanted
+		 * to force the issue.
+		 */
+		if (odestroyer && err == BE_ERR_HASCLONES &&
+		    (options & BE_DESTROY_AUTOORIGIN) != 0)
+			return (0);
+		return (set_error(lbh, err));
+	}
+
+	/*
+	 * This was deferred until after we promote all of the derivatives so
+	 * that we grab the new origin after everything's settled down.
+	 */
+	if ((options & BE_DESTROY_WANTORIGIN) != 0 &&
+	    zfs_prop_get(fs, ZFS_PROP_ORIGIN, origin, sizeof(origin),
+	    NULL, NULL, 0, 1) != 0 &&
+	    (options & BE_DESTROY_ORIGIN) != 0)
+		return (set_error(lbh, BE_ERR_NOORIGIN));
+
+	/*
+	 * If the caller wants auto-origin destruction and the origin
+	 * name matches one of our automatically created snapshot names
+	 * (i.e. strftime("%F-%T") with a serial at the end), then
+	 * we'll set the DESTROY_ORIGIN flag and nuke it
+	 * be_is_auto_snapshot_name is exported from libbe(3) so that
+	 * the caller can determine if it needs to warn about the origin
+	 * not being destroyed or not.
+	 */
+	if ((options & BE_DESTROY_AUTOORIGIN) != 0 && *origin != '\0' &&
+	    be_is_auto_snapshot_name(lbh, origin))
+		options |= BE_DESTROY_ORIGIN;
 
 	err = be_destroy_cb(fs, &bdd);
 	zfs_close(fs);
@@ -337,8 +524,23 @@ be_destroy(libbe_handle_t *lbh, const char *name, int options)
 	if (strncmp(origin, lbh->root, rootlen) != 0 || origin[rootlen] != '/')
 		return (0);
 
-	return (be_destroy(lbh, origin + rootlen + 1,
-	    options & ~BE_DESTROY_ORIGIN));
+	return (be_destroy_internal(lbh, origin + rootlen + 1,
+	    options & ~BE_DESTROY_ORIGIN, true));
+}
+
+int
+be_destroy(libbe_handle_t *lbh, const char *name, int options)
+{
+
+	/*
+	 * The consumer must not set both BE_DESTROY_AUTOORIGIN and
+	 * BE_DESTROY_ORIGIN.  Internally, we'll set the latter from the former.
+	 * The latter should imply that we must succeed at destroying the
+	 * origin, or complain otherwise.
+	 */
+	if ((options & BE_DESTROY_WANTORIGIN) == BE_DESTROY_WANTORIGIN)
+		return (set_error(lbh, BE_ERR_UNKNOWN));
+	return (be_destroy_internal(lbh, name, options, false));
 }
 
 static void
