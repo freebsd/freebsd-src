@@ -1598,10 +1598,26 @@ static usb_error_t
 xhci_cmd_stop_ep(struct xhci_softc *sc, uint8_t suspend,
     uint8_t ep_id, uint8_t slot_id)
 {
+	struct usb_page_search buf_dev;
+	struct xhci_dev_ctx *pdev;
 	struct xhci_trb trb;
 	uint32_t temp;
 
 	DPRINTF("\n");
+
+	usbd_get_page(&sc->sc_hw.devs[slot_id].device_pc, 0, &buf_dev);
+	pdev = buf_dev.buffer;
+	usb_pc_cpu_invalidate(&sc->sc_hw.devs[slot_id].device_pc);
+
+	switch (XHCI_EPCTX_0_EPSTATE_GET(pdev->ctx_ep[ep_id - 1].dwEpCtx0)) {
+	case XHCI_EPCTX_0_EPSTATE_DISABLED:
+	case XHCI_EPCTX_0_EPSTATE_STOPPED:
+		DPRINTF("Endpoint %u on slot %u is already stopped\n",
+		    ep_id, slot_id);
+		return (USB_ERR_NORMAL_COMPLETION);
+	default:
+		break;
+	}
 
 	trb.qwTrb0 = 0;
 	trb.dwTrb2 = 0;
