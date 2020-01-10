@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
+#include <machine/cpufunc.h>
 #include <machine/intr.h>
 #include <machine/asm.h>
 #include <machine/trap.h>
@@ -91,11 +92,8 @@ static struct timecounter riscv_timer_timecount = {
 static inline uint64_t
 get_cycles(void)
 {
-	uint64_t cycles;
 
-	__asm __volatile("rdtime %0" : "=r" (cycles));
-
-	return (cycles);
+	return (rdtime());
 }
 
 static long
