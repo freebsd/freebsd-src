@@ -1,22 +1,61 @@
 ----------------------------------------
+10 January 2020. Summary of changes for version 20200110:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Updated all copyrights to 2020. This affects all ACPICA source code 
+modules.
+
+
+2) iASL Compiler/Disassembler and ACPICA tools:
+
+ASL test suite (ASLTS): Updated all copyrights to 2020.
+
+Tools and utilities: Updated all signon copyrights to 2020.
+
+iASL: fix forward reference analysis for field declarations. Fixes 
+forward reference analysis for field declarations by searching the 
+parent scope for the named object when the object is not present in 
+the current scope.
+
+iASL: Improved the error output for ALREADY_EXISTS errors. Now, the 
+full pathname of the name that already exists is printed.
+
+iASL: Enhance duplicate Case() detection for buffers. Add check for 
+buffers with no initializer list (these buffers will be filled with 
+zeros at runtime.)
+
+
+----------------------------------------
 13 December 2019. Summary of changes for version 20191213:
 
 
 1) ACPICA kernel-resident subsystem:
 
-Return a Buffer object for all fields created via the CreateField operator. Previously, an Integer would be returned if the size of the field was less than or equal to the current size of an Integer. Although this goes against the ACPI specification, it provides compatibility with other ACPI implementations. Also updated the ASLTS test suite to reflect this new behavior.
+Return a Buffer object for all fields created via the CreateField
+operator. Previously, an Integer would be returned if the size of
+the field was less than or equal to the current size of an Integer.
+Although this goes against the ACPI specification, it provides
+compatibility with other ACPI implementations. Also updated the
+ASLTS test suite to reflect this new behavior.
 
 2) iASL Compiler/Disassembler and ACPICA tools:
 
-iASL: Implemented detection of (and throw an error for) duplicate values for Case statements within a single Switch statement. Duplicate Integers, Strings, and Buffers are supported.
+iASL: Implemented detection of (and throw an error for) duplicate
+values for Case statements within a single Switch statement. Duplicate
+Integers, Strings, and Buffers are supported.
 
-iASL: Fix error logging issue during multiple file compilation -- Switch to the correct input file during error node creation.
+iASL: Fix error logging issue during multiple file compilation --
+Switch to the correct input file during error node creation.
 
-iASL: For duplicate named object creation, now emit an error instead of a warning - since this will cause a runtime error.
+iASL: For duplicate named object creation, now emit an error instead
+of a warning - since this will cause a runtime error.
 
 AcpiSrc: Add unix line-ending support for non-Windows builds.
 
-iASL: Add an error condition for an attempt to create a NameString with > 255 NameSegs (the max allowable via the AML definition).
+iASL: Add an error condition for an attempt to create a NameString
+with > 255 NameSegs (the max allowable via the AML definition).
 
 
 ----------------------------------------

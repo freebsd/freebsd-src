@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -751,7 +751,14 @@ AePrintSubError (
 
     MainMessage = AeDecodeMessageId (Enode->MessageId);
 
-    fprintf (OutputFile, "    %s%s", MainMessage, "\n    ");
+    fprintf (OutputFile, "    %s", MainMessage);
+
+    if (Enode->Message)
+    {
+        fprintf (OutputFile, "(%s)", Enode->Message);
+    }
+
+    fprintf (OutputFile, "\n    ");
     (void) AePrintErrorSourceLine (OutputFile, Enode, &PrematureEOF, &Total);
     fprintf (OutputFile, "\n");
 }
