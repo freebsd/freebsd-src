@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/debugnet.h>
 #include <net/ethernet.h>
+#include <net/pfil.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_arp.h>
@@ -935,6 +936,7 @@ static int
 vtnet_setup_interface(struct vtnet_softc *sc)
 {
 	device_t dev;
+	struct pfil_head_args pa;
 	struct ifnet *ifp;
 
 	dev = sc->vtnet_dev;
@@ -1037,6 +1039,12 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	vtnet_set_tx_intr_threshold(sc);
 
 	DEBUGNET_SET(ifp, vtnet);
+
+	pa.pa_version = PFIL_VERSION;
+	pa.pa_flags = PFIL_IN;
+	pa.pa_type = PFIL_TYPE_ETHERNET;
+	pa.pa_headname = ifp->if_xname;
+	sc->vtnet_pfil = pfil_head_register(&pa);
 
 	return (0);
 }
@@ -1773,9 +1781,11 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 	struct vtnet_softc *sc;
 	struct ifnet *ifp;
 	struct virtqueue *vq;
-	struct mbuf *m;
+	struct mbuf *m, *mr;
 	struct virtio_net_hdr_mrg_rxbuf *mhdr;
 	int len, deq, nbufs, adjsz, count;
+	pfil_return_t pfil;
+	bool pfil_done;
 
 	sc = rxq->vtnrx_sc;
 	vq = rxq->vtnrx_vq;
@@ -1812,6 +1822,35 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 			adjsz = sizeof(struct virtio_net_hdr_mrg_rxbuf);
 		}
 
+		/*
+		 * If we have enough data in first mbuf, run it through
+		 * pfil as a memory buffer before dequeueing the rest.
+		 */
+		if (PFIL_HOOKED_IN(sc->vtnet_pfil) &&
+		    len - adjsz >= ETHER_HDR_LEN + max_protohdr) {
+			pfil = pfil_run_hooks(sc->vtnet_pfil,
+			    m->m_data + adjsz, ifp,
+			    len - adjsz | PFIL_MEMPTR | PFIL_IN, NULL);
+			switch (pfil) {
+			case PFIL_REALLOCED:
+				mr = pfil_mem2mbuf(m->m_data + adjsz);
+				vtnet_rxq_input(rxq, mr, hdr);
+				/* FALLTHROUGH */
+			case PFIL_DROPPED:
+			case PFIL_CONSUMED:
+				vtnet_rxq_discard_buf(rxq, m);
+				if (nbufs > 1)
+					vtnet_rxq_discard_merged_bufs(rxq,
+					    nbufs);
+				continue;
+			default:
+				KASSERT(pfil == PFIL_PASS,
+				    ("Filter returned %d!\n", pfil));
+			};
+			pfil_done = true;
+		} else
+			pfil_done = false;
+
 		if (vtnet_rxq_replace_buf(rxq, m, len) != 0) {
 			rxq->vtnrx_stats.vrxs_iqdrops++;
 			vtnet_rxq_discard_buf(rxq, m);
@@ -1841,6 +1880,19 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 		 */
 		memcpy(hdr, mtod(m, void *), sizeof(struct virtio_net_hdr));
 		m_adj(m, adjsz);
+
+		if (PFIL_HOOKED_IN(sc->vtnet_pfil) && pfil_done == false) {
+			pfil = pfil_run_hooks(sc->vtnet_pfil, &m, ifp, PFIL_IN,
+			    NULL);
+			switch (pfil) {
+			case PFIL_DROPPED:
+			case PFIL_CONSUMED:
+				continue;
+			default:
+				KASSERT(pfil == PFIL_PASS,
+				    ("Filter returned %d!\n", pfil));
+			}
+		}
 
 		vtnet_rxq_input(rxq, m, hdr);
 
