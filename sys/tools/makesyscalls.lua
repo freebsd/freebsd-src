@@ -66,13 +66,13 @@ local config_modified = {}
 local cleantmp = true
 local tmpspace = "/tmp/sysent." .. unistd.getpid() .. "/"
 
--- These ones we'll open in place
-local config_files_needed = {
+local output_files = {
 	"sysnames",
 	"syshdr",
 	"sysmk",
 	"syssw",
 	"systrace",
+	"sysproto",
 }
 
 -- These ones we'll create temporary files for; generation purposes.
@@ -1158,9 +1158,9 @@ for _, v in ipairs(temp_files) do
 	files[v] = io.open(tmpname, "w+")
 end
 
-
-for _, v in ipairs(config_files_needed) do
-	files[v] = io.open(config[v], "w+")
+for _, v in ipairs(output_files) do
+	local tmpname = tmpspace .. v
+	files[v] = io.open(tmpname, "w+")
 end
 
 -- Write out all of the preamble bits
@@ -1343,18 +1343,28 @@ write_line("systraceret", [[
 write_line("syssw", read_file("sysinc"))
 write_line("syssw", read_file("sysent"))
 
-local fh = io.open(config["sysproto"], "w+")
-fh:write(read_file("sysarg"))
-fh:write(read_file("sysdcl"))
+write_line("sysproto", read_file("sysarg"))
+write_line("sysproto", read_file("sysdcl"))
 for _, v in pairs(compat_options) do
-	fh:write(read_file(v["tmp"]))
-	fh:write(read_file(v["dcltmp"]))
+	write_line("sysproto", read_file(v["tmp"]))
+	write_line("sysproto", read_file(v["dcltmp"]))
 end
-fh:write(read_file("sysaue"))
-fh:write(read_file("sysprotoend"))
-fh:close()
+write_line("sysproto", read_file("sysaue"))
+write_line("sysproto", read_file("sysprotoend"))
 
 write_line("systrace", read_file("systracetmp"))
 write_line("systrace", read_file("systraceret"))
+
+for _, v in ipairs(output_files) do
+	local target = config[v]
+	if target ~= "/dev/null" then
+		local fh = io.open(target, "w+")
+		if fh == nil then
+			abort(1, "Failed to open '" .. target .. "'")
+		end
+		fh:write(read_file(v))
+		fh:close()
+	end
+end
 
 cleanup()
