@@ -163,6 +163,7 @@ krion [label="Kirill Ponomarew\nkrion@FreeBSD.org\n2003/07/20"]
 kwm [label="Koop Mast\nkwm@FreeBSD.org\n2004/09/14"]
 laszlof [label="Frank Laszlo\nlaszlof@FreeBSD.org\n2006/11/07"]
 lawrance [label="Sam Lawrance\nlawrance@FreeBSD.org\n2005/04/11\n2007/02/21"]
+lbartoletti [label="Loïc Bartoletti\nlbartoletti@FreeBSD.org\n2020/01/02"]
 lbr [label="Lars Balker Rasmussen\nlbr@FreeBSD.org\n2006/04/30"]
 leeym [label="Yen-Ming Lee\nleeym@FreeBSD.org\n2002/08/14"]
 ler [label="Larry Rosenman\nler@FreeBSD.org\n2017/01/09"]
@@ -697,6 +698,7 @@ swills -> feld
 swills -> jmd
 swills -> jrm
 swills -> jsm
+swills -> lbartoletti
 swills -> mfechner
 swills -> milki
 swills -> pclin
@@ -724,13 +726,14 @@ tabthorpe -> zi
 tabthorpe -> gblach
 
 tcberner -> adridg
-tcberner -> joneum
-tcberner -> yuri
-tcberner -> fernape
 tcberner -> arrowd
-tcberner -> rigoletto
+tcberner -> fernape
+tcberner -> joneum
 tcberner -> kai
+tcberner -> lbartoletti
 tcberner -> pkubaj
+tcberner -> rigoletto
+tcberner -> yuri
 
 thierry -> jadawin
 thierry -> riggs
