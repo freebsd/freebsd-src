@@ -275,6 +275,7 @@ gv_plex_normal_request(struct gv_plex *p, struct bio *bp, off_t boff,
 	cbp->bio_data = addr;
 	cbp->bio_done = gv_done;
 	cbp->bio_caller1 = s;
+	s->drive_sc->active++;
 
 	/* Store the sub-requests now and let others issue them. */
 	bioq_insert_tail(p->bqueue, cbp); 
@@ -577,10 +578,10 @@ gv_sync_request(struct gv_plex *from, struct gv_plex *to, off_t offset,
 		return (ENOMEM);
 	}
 	bp->bio_length = length;
-	bp->bio_done = gv_done;
+	bp->bio_done = NULL;
 	bp->bio_pflags |= GV_BIO_SYNCREQ;
 	bp->bio_offset = offset;
-	bp->bio_caller1 = from;		
+	bp->bio_caller1 = from;
 	bp->bio_caller2 = to;
 	bp->bio_cmd = type;
 	if (data == NULL)
@@ -691,7 +692,7 @@ gv_grow_request(struct gv_plex *p, off_t offset, off_t length, int type,
 	}
 
 	bp->bio_cmd = type;
-	bp->bio_done = gv_done;
+	bp->bio_done = NULL;
 	bp->bio_error = 0;
 	bp->bio_caller1 = p;
 	bp->bio_offset = offset;
@@ -799,7 +800,7 @@ gv_init_request(struct gv_sd *s, off_t start, caddr_t data, off_t length)
 	}
 	bp->bio_cmd = BIO_WRITE;
 	bp->bio_data = data;
-	bp->bio_done = gv_done;
+	bp->bio_done = NULL;
 	bp->bio_error = 0;
 	bp->bio_length = length;
 	bp->bio_pflags |= GV_BIO_INIT;
@@ -816,6 +817,7 @@ gv_init_request(struct gv_sd *s, off_t start, caddr_t data, off_t length)
 	}
 	cbp->bio_done = gv_done;
 	cbp->bio_caller1 = s;
+	d->active++;
 	/* Send it off to the consumer. */
 	g_io_request(cbp, cp);
 }
@@ -902,7 +904,7 @@ gv_parity_request(struct gv_plex *p, int flags, off_t offset)
 	}
 
 	bp->bio_cmd = BIO_WRITE;
-	bp->bio_done = gv_done;
+	bp->bio_done = NULL;
 	bp->bio_error = 0;
 	bp->bio_length = p->stripesize;
 	bp->bio_caller1 = p;
