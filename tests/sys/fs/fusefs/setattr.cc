@@ -586,11 +586,11 @@ TEST_F(Setattr, utimensat) {
 				in.body.setattr.valid == valid &&
 				(time_t)in.body.setattr.atime ==
 					newtimes[0].tv_sec &&
-				in.body.setattr.atimensec ==
+				(long)in.body.setattr.atimensec ==
 					newtimes[0].tv_nsec &&
 				(time_t)in.body.setattr.mtime ==
 					newtimes[1].tv_sec &&
-				in.body.setattr.mtimensec ==
+				(long)in.body.setattr.mtimensec ==
 					newtimes[1].tv_nsec);
 		}, Eq(true)),
 		_)
@@ -641,7 +641,7 @@ TEST_F(Setattr, utimensat_mtime_only) {
 				in.body.setattr.valid == valid &&
 				(time_t)in.body.setattr.mtime ==
 					newtimes[1].tv_sec &&
-				in.body.setattr.mtimensec ==
+				(long)in.body.setattr.mtimensec ==
 					newtimes[1].tv_nsec);
 		}, Eq(true)),
 		_)
