@@ -1830,7 +1830,7 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 		    len - adjsz >= ETHER_HDR_LEN + max_protohdr) {
 			pfil = pfil_run_hooks(sc->vtnet_pfil,
 			    m->m_data + adjsz, ifp,
-			    len - adjsz | PFIL_MEMPTR | PFIL_IN, NULL);
+			    (len - adjsz) | PFIL_MEMPTR | PFIL_IN, NULL);
 			switch (pfil) {
 			case PFIL_REALLOCED:
 				mr = pfil_mem2mbuf(m->m_data + adjsz);
