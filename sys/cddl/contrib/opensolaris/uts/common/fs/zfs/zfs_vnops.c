@@ -1800,7 +1800,7 @@ zfs_create(vnode_t *dvp, char *name, vattr_t *vap, int excl, int mode,
 		goto out;
 	}
 
-	getnewvnode_reserve(1);
+	getnewvnode_reserve();
 
 	tx = dmu_tx_create(os);
 
@@ -2092,7 +2092,7 @@ zfs_mkdir(vnode_t *dvp, char *dirname, vattr_t *vap, vnode_t **vpp, cred_t *cr)
 	/*
 	 * Add a new entry to the directory.
 	 */
-	getnewvnode_reserve(1);
+	getnewvnode_reserve();
 	tx = dmu_tx_create(zfsvfs->z_os);
 	dmu_tx_hold_zap(tx, dzp->z_id, TRUE, dirname);
 	dmu_tx_hold_zap(tx, DMU_NEW_OBJECT, FALSE, NULL);
@@ -4003,7 +4003,7 @@ zfs_symlink(vnode_t *dvp, vnode_t **vpp, char *name, vattr_t *vap, char *link,
 		return (SET_ERROR(EDQUOT));
 	}
 
-	getnewvnode_reserve(1);
+	getnewvnode_reserve();
 	tx = dmu_tx_create(zfsvfs->z_os);
 	fuid_dirtied = zfsvfs->z_fuid_dirty;
 	dmu_tx_hold_write(tx, DMU_NEW_OBJECT, 0, MAX(1, len));

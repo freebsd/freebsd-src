@@ -815,7 +815,7 @@ zfs_make_xattrdir(znode_t *zp, vattr_t *vap, vnode_t **xvpp, cred_t *cr)
 		return (SET_ERROR(EDQUOT));
 	}
 
-	getnewvnode_reserve(1);
+	getnewvnode_reserve();
 
 	tx = dmu_tx_create(zfsvfs->z_os);
 	dmu_tx_hold_sa_create(tx, acl_ids.z_aclp->z_acl_bytes +
