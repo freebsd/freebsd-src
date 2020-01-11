@@ -121,8 +121,6 @@ MTX_SYSINIT(in6_multi_free_mtx, &in6_multi_free_mtx, "in6_multi_free_mtx", MTX_D
 struct sx in6_multi_sx;
 SX_SYSINIT(in6_multi_sx, &in6_multi_sx, "in6_multi_sx");
 
-
-
 static void	im6f_commit(struct in6_mfilter *);
 static int	im6f_get_source(struct in6_mfilter *imf,
 		    const struct sockaddr_in6 *psin,
@@ -144,6 +142,8 @@ static void	im6s_merge(struct ip6_msource *ims,
 		    const struct in6_msource *lims, const int rollback);
 static int	in6_getmulti(struct ifnet *, const struct in6_addr *,
 		    struct in6_multi **);
+static int	in6_joingroup_locked(struct ifnet *, const struct in6_addr *,
+		    struct in6_mfilter *, struct in6_multi **, int);
 static int	in6m_get_source(struct in6_multi *inm,
 		    const struct in6_addr *addr, const int noalloc,
 		    struct ip6_msource **pims);
@@ -1197,7 +1197,7 @@ in6_joingroup(struct ifnet *ifp, const struct in6_addr *mcaddr,
  * If the MLD downcall fails, the group is not joined, and an error
  * code is returned.
  */
-int
+static int
 in6_joingroup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr,
     /*const*/ struct in6_mfilter *imf, struct in6_multi **pinm,
     const int delay)
