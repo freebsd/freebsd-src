@@ -310,20 +310,21 @@ static enum { SYNCER_RUNNING, SYNCER_SHUTTING_DOWN, SYNCER_FINAL_DELAY }
     syncer_state;
 
 /* Target for maximum number of vnodes. */
-int desiredvnodes;
-static int gapvnodes;		/* gap between wanted and desired */
-static int vhiwat;		/* enough extras after expansion */
-static int vlowat;		/* minimal extras before expansion */
-static int vstir;		/* nonzero to stir non-free vnodes */
+u_long desiredvnodes;
+static u_long gapvnodes;		/* gap between wanted and desired */
+static u_long vhiwat;		/* enough extras after expansion */
+static u_long vlowat;		/* minimal extras before expansion */
+static u_long vstir;		/* nonzero to stir non-free vnodes */
 static volatile int vsmalltrigger = 8;	/* pref to keep if > this many pages */
 
 static int
 sysctl_update_desiredvnodes(SYSCTL_HANDLER_ARGS)
 {
-	int error, old_desiredvnodes;
+	u_long old_desiredvnodes;
+	int error;
 
 	old_desiredvnodes = desiredvnodes;
-	if ((error = sysctl_handle_int(oidp, arg1, arg2, req)) != 0)
+	if ((error = sysctl_handle_long(oidp, arg1, arg2, req)) != 0)
 		return (error);
 	if (old_desiredvnodes != desiredvnodes) {
 		wantfreevnodes = desiredvnodes / 4;
@@ -336,7 +337,7 @@ sysctl_update_desiredvnodes(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_kern, KERN_MAXVNODES, maxvnodes,
     CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, &desiredvnodes, 0,
-    sysctl_update_desiredvnodes, "I", "Target for maximum number of vnodes");
+    sysctl_update_desiredvnodes, "UL", "Target for maximum number of vnodes");
 SYSCTL_ULONG(_kern, OID_AUTO, minvnodes, CTLFLAG_RW,
     &wantfreevnodes, 0, "Old name for vfs.wantfreevnodes (legacy)");
 static int vnlru_nowhere;
@@ -459,7 +460,7 @@ PCTRIE_DEFINE(BUF, buf, b_lblkno, buf_trie_alloc, buf_trie_free);
  * grows, the ratio of the memory size in KB to vnodes approaches 64:1.
  */
 #ifndef	MAXVNODES_MAX
-#define	MAXVNODES_MAX	(512 * 1024 * 1024 / 64)	/* 8M */
+#define	MAXVNODES_MAX	(512UL * 1024 * 1024 / 64)	/* 8M */
 #endif
 
 static MALLOC_DEFINE(M_VNODE_MARKER, "vnodemarker", "vnode marker");
@@ -582,7 +583,7 @@ vntblinit(void *dummy __unused)
 	desiredvnodes = min(physvnodes, virtvnodes);
 	if (desiredvnodes > MAXVNODES_MAX) {
 		if (bootverbose)
-			printf("Reducing kern.maxvnodes %d -> %d\n",
+			printf("Reducing kern.maxvnodes %lu -> %lu\n",
 			    desiredvnodes, MAXVNODES_MAX);
 		desiredvnodes = MAXVNODES_MAX;
 	}

@@ -1979,13 +1979,13 @@ nchinit(void *dummy __unused)
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nchinit, NULL);
 
 void
-cache_changesize(int newmaxvnodes)
+cache_changesize(u_long newmaxvnodes)
 {
 	struct nchashhead *new_nchashtbl, *old_nchashtbl;
 	u_long new_nchash, old_nchash;
 	struct namecache *ncp;
 	uint32_t hash;
-	int newncsize;
+	u_long newncsize;
 	int i;
 
 	newncsize = newmaxvnodes * ncsizefactor;
