@@ -1496,7 +1496,7 @@ vcheckspace(void)
  * Wait if necessary for space for a new vnode.
  */
 static int
-getnewvnode_wait(int suspended)
+vn_alloc_wait(int suspended)
 {
 
 	mtx_assert(&vnode_free_list_mtx, MA_OWNED);
@@ -1522,81 +1522,12 @@ getnewvnode_wait(int suspended)
 	return (numvnodes >= desiredvnodes ? ENFILE : 0);
 }
 
-/*
- * This hack is fragile, and probably not needed any more now that the
- * watermark handling works.
- */
-void
-getnewvnode_reserve(void)
+static struct vnode *
+vn_alloc(struct mount *mp)
 {
-	u_long rnumvnodes, rfreevnodes;
-	struct thread *td;
-
-	td = curthread;
-	MPASS(td->td_vp_reserved == NULL);
-
-	mtx_lock(&vnode_free_list_mtx);
-	rnumvnodes = atomic_load_long(&numvnodes);
-	rfreevnodes = atomic_load_long(&freevnodes);
-	if (rnumvnodes + 1 > desiredvnodes && rfreevnodes > wantfreevnodes)
-		vnlru_free_locked(ulmin(rnumvnodes + 1 - desiredvnodes,
-		    rfreevnodes - wantfreevnodes), NULL);
-	if (rnumvnodes + 1 > desiredvnodes) {
-		while (getnewvnode_wait(0) != 0)
-			continue;
-	}
-	vcheckspace();
-	atomic_add_long(&numvnodes, 1);
-	mtx_unlock(&vnode_free_list_mtx);
-
-	td->td_vp_reserved = uma_zalloc(vnode_zone, M_WAITOK);
-}
-
-/*
- * This hack is fragile, especially if desiredvnodes or wantvnodes are
- * misconfgured or changed significantly.  Reducing desiredvnodes below
- * the reserved amount should cause bizarre behaviour like reducing it
- * below the number of active vnodes -- the system will try to reduce
- * numvnodes to match, but should fail, so the subtraction below should
- * not overflow.
- */
-void
-getnewvnode_drop_reserve(void)
-{
-	struct thread *td;
-
-	td = curthread;
-	if (td->td_vp_reserved != NULL) {
-		atomic_subtract_long(&numvnodes, 1);
-		uma_zfree(vnode_zone, td->td_vp_reserved);
-		td->td_vp_reserved = NULL;
-	}
-}
-
-/*
- * Return the next vnode from the free list.
- */
-int
-getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
-    struct vnode **vpp)
-{
-	struct vnode *vp;
-	struct thread *td;
-	struct lock_object *lo;
 	static int cyclecount;
 	int error __unused;
 
-	CTR3(KTR_VFS, "%s: mp %p with tag %s", __func__, mp, tag);
-
-	KASSERT(vops->registered,
-	    ("%s: not registered vector op %p\n", __func__, vops));
-
-	td = curthread;
-	if (td->td_vp_reserved != NULL) {
-		vp = td->td_vp_reserved;
-		td->td_vp_reserved = NULL;
-		goto init;
-	}
 	mtx_lock(&vnode_free_list_mtx);
 	if (numvnodes < desiredvnodes)
 		cyclecount = 0;
@@ -1619,7 +1550,7 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	else if (freevnodes > 0)
 		vnlru_free_locked(1, NULL);
 	else {
-		error = getnewvnode_wait(mp != NULL && (mp->mnt_kern_flag &
+		error = vn_alloc_wait(mp != NULL && (mp->mnt_kern_flag &
 		    MNTK_SUSPEND));
 #if 0	/* XXX Not all VFS_VGET/ffs_vget callers check returns. */
 		if (error != 0) {
@@ -1631,8 +1562,40 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	vcheckspace();
 	atomic_add_long(&numvnodes, 1);
 	mtx_unlock(&vnode_free_list_mtx);
-	vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK);
-init:
+	return (uma_zalloc(vnode_zone, M_WAITOK));
+}
+
+static void
+vn_free(struct vnode *vp)
+{
+
+	atomic_subtract_long(&numvnodes, 1);
+	uma_zfree(vnode_zone, vp);
+}
+
+/*
+ * Return the next vnode from the free list.
+ */
+int
+getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
+    struct vnode **vpp)
+{
+	struct vnode *vp;
+	struct thread *td;
+	struct lock_object *lo;
+
+	CTR3(KTR_VFS, "%s: mp %p with tag %s", __func__, mp, tag);
+
+	KASSERT(vops->registered,
+	    ("%s: not registered vector op %p\n", __func__, vops));
+
+	td = curthread;
+	if (td->td_vp_reserved != NULL) {
+		vp = td->td_vp_reserved;
+		td->td_vp_reserved = NULL;
+	} else {
+		vp = vn_alloc(mp);
+	}
 	counter_u64_add(vnodes_created, 1);
 	/*
 	 * Locks are given the generic name "vnode" when created.
@@ -1695,6 +1658,28 @@ init:
 	return (0);
 }
 
+void
+getnewvnode_reserve(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	MPASS(td->td_vp_reserved == NULL);
+	td->td_vp_reserved = vn_alloc(NULL);
+}
+
+void
+getnewvnode_drop_reserve(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	if (td->td_vp_reserved != NULL) {
+		vn_free(td->td_vp_reserved);
+		td->td_vp_reserved = NULL;
+	}
+}
+
 static void
 freevnode(struct vnode *vp)
 {
@@ -1710,7 +1695,6 @@ freevnode(struct vnode *vp)
 	 * so as not to contaminate the freshly allocated vnode.
 	 */
 	CTR2(KTR_VFS, "%s: destroying the vnode %p", __func__, vp);
-	atomic_subtract_long(&numvnodes, 1);
 	bo = &vp->v_bufobj;
 	VNASSERT((vp->v_iflag & VI_FREE) == 0, vp,
 	    ("cleaned vnode still on the free list."));
@@ -1751,7 +1735,7 @@ freevnode(struct vnode *vp)
 	vp->v_iflag = 0;
 	vp->v_vflag = 0;
 	bo->bo_flag = 0;
-	uma_zfree(vnode_zone, vp);
+	vn_free(vp);
 }
 
 /*
