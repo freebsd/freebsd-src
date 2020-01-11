@@ -391,13 +391,13 @@ fdt_lbc_reg_decode(phandle_t node, struct lbc_softc *sc,
 
 		/* Get address/size. */
 		start = count = 0;
-		for (j = 0; j < addr_cells; j++) {
+		for (j = 0; j < addr_cells - 1; j++) {
 			start <<= 32;
 			start |= reg[j];
 		}
 		for (j = 0; j < size_cells; j++) {
 			count <<= 32;
-			count |= reg[addr_cells + j - 1];
+			count |= reg[addr_cells + j];
 		}
 		reg += addr_cells - 1 + size_cells;
 
