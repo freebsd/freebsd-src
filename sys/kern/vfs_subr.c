@@ -118,6 +118,7 @@ static void	vnlru_return_batches(struct vfsops *mnt_op);
 static void	destroy_vpollinfo(struct vpollinfo *vi);
 static int	v_inval_buf_range_locked(struct vnode *vp, struct bufobj *bo,
 		    daddr_t startlbn, daddr_t endlbn);
+static void	vnlru_recalc(void);
 
 /*
  * These fences are intended for cases where some synchronization is
@@ -194,8 +195,6 @@ static TAILQ_HEAD(freelst, vnode) vnode_free_list;
  * whenever vnlru_proc() becomes active.
  */
 static u_long wantfreevnodes;
-SYSCTL_ULONG(_vfs, OID_AUTO, wantfreevnodes, CTLFLAG_RW,
-    &wantfreevnodes, 0, "Target for minimum number of \"free\" vnodes");
 static u_long freevnodes;
 SYSCTL_ULONG(_vfs, OID_AUTO, freevnodes, CTLFLAG_RD,
     &freevnodes, 0, "Number of \"free\" vnodes");
@@ -317,27 +316,65 @@ static u_long vlowat;		/* minimal extras before expansion */
 static u_long vstir;		/* nonzero to stir non-free vnodes */
 static volatile int vsmalltrigger = 8;	/* pref to keep if > this many pages */
 
+/*
+ * Note that no attempt is made to sanitize these parameters.
+ */
 static int
-sysctl_update_desiredvnodes(SYSCTL_HANDLER_ARGS)
+sysctl_maxvnodes(SYSCTL_HANDLER_ARGS)
 {
-	u_long old_desiredvnodes;
+	u_long val;
 	int error;
 
-	old_desiredvnodes = desiredvnodes;
-	if ((error = sysctl_handle_long(oidp, arg1, arg2, req)) != 0)
+	val = desiredvnodes;
+	error = sysctl_handle_long(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
 		return (error);
-	if (old_desiredvnodes != desiredvnodes) {
-		wantfreevnodes = desiredvnodes / 4;
-		/* XXX locking seems to be incomplete. */
-		vfs_hash_changesize(desiredvnodes);
-		cache_changesize(desiredvnodes);
-	}
+
+	if (val == desiredvnodes)
+		return (0);
+	mtx_lock(&vnode_free_list_mtx);
+	desiredvnodes = val;
+	wantfreevnodes = desiredvnodes / 4;
+	vnlru_recalc();
+	mtx_unlock(&vnode_free_list_mtx);
+	/*
+	 * XXX There is no protection against multiple threads changing
+	 * desiredvnodes at the same time. Locking above only helps vnlru and
+	 * getnewvnode.
+	 */
+	vfs_hash_changesize(desiredvnodes);
+	cache_changesize(desiredvnodes);
 	return (0);
 }
 
 SYSCTL_PROC(_kern, KERN_MAXVNODES, maxvnodes,
-    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, &desiredvnodes, 0,
-    sysctl_update_desiredvnodes, "UL", "Target for maximum number of vnodes");
+    CTLTYPE_ULONG | CTLFLAG_MPSAFE | CTLFLAG_RW, NULL, 0, sysctl_maxvnodes,
+    "UL", "Target for maximum number of vnodes");
+
+static int
+sysctl_wantfreevnodes(SYSCTL_HANDLER_ARGS)
+{
+	u_long val;
+	int error;
+
+	val = wantfreevnodes;
+	error = sysctl_handle_long(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	if (val == wantfreevnodes)
+		return (0);
+	mtx_lock(&vnode_free_list_mtx);
+	wantfreevnodes = val;
+	vnlru_recalc();
+	mtx_unlock(&vnode_free_list_mtx);
+	return (0);
+}
+
+SYSCTL_PROC(_vfs, OID_AUTO, wantfreevnodes,
+    CTLTYPE_ULONG | CTLFLAG_MPSAFE | CTLFLAG_RW, NULL, 0, sysctl_wantfreevnodes,
+    "UL", "Target for minimum number of \"free\" vnodes");
+
 SYSCTL_ULONG(_kern, OID_AUTO, minvnodes, CTLFLAG_RW,
     &wantfreevnodes, 0, "Old name for vfs.wantfreevnodes (legacy)");
 static int vnlru_nowhere;
@@ -591,6 +628,12 @@ vntblinit(void *dummy __unused)
 	mtx_init(&mntid_mtx, "mntid", NULL, MTX_DEF);
 	TAILQ_INIT(&vnode_free_list);
 	mtx_init(&vnode_free_list_mtx, "vnode_free_list", NULL, MTX_DEF);
+	/*
+	 * The lock is taken to appease WITNESS.
+	 */
+	mtx_lock(&vnode_free_list_mtx);
+	vnlru_recalc();
+	mtx_unlock(&vnode_free_list_mtx);
 	vnode_zone = uma_zcreate("VNODE", sizeof (struct vnode), NULL, NULL,
 	    vnode_init, vnode_fini, UMA_ALIGN_PTR, 0);
 	vnodepoll_zone = uma_zcreate("VNODEPOLL", sizeof (struct vpollinfo),
@@ -1211,6 +1254,15 @@ vnlru_free(int count, struct vfsops *mnt_op)
 	mtx_unlock(&vnode_free_list_mtx);
 }
 
+static void
+vnlru_recalc(void)
+{
+
+	mtx_assert(&vnode_free_list_mtx, MA_OWNED);
+	gapvnodes = imax(desiredvnodes - wantfreevnodes, 100);
+	vhiwat = gapvnodes / 11; /* 9% -- just under the 10% in vlrureclaim() */
+	vlowat = vhiwat / 2;
+}
 
 /* XXX some names and initialization are bad for limits and watermarks. */
 static int
@@ -1219,9 +1271,6 @@ vspace(void)
 	u_long rnumvnodes, rfreevnodes;
 	int space;
 
-	gapvnodes = imax(desiredvnodes - wantfreevnodes, 100);
-	vhiwat = gapvnodes / 11; /* 9% -- just under the 10% in vlrureclaim() */
-	vlowat = vhiwat / 2;
 	rnumvnodes = atomic_load_long(&numvnodes);
 	rfreevnodes = atomic_load_long(&freevnodes);
 	if (rnumvnodes > desiredvnodes)
