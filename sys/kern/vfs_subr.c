@@ -1527,40 +1527,29 @@ getnewvnode_wait(int suspended)
  * watermark handling works.
  */
 void
-getnewvnode_reserve(u_int count)
+getnewvnode_reserve(void)
 {
 	u_long rnumvnodes, rfreevnodes;
 	struct thread *td;
 
-	/* Pre-adjust like the pre-adjust in getnewvnode(), with any count. */
-	/* XXX no longer so quick, but this part is not racy. */
+	td = curthread;
+	MPASS(td->td_vp_reserved == NULL);
+
 	mtx_lock(&vnode_free_list_mtx);
 	rnumvnodes = atomic_load_long(&numvnodes);
 	rfreevnodes = atomic_load_long(&freevnodes);
-	if (rnumvnodes + count > desiredvnodes && rfreevnodes > wantfreevnodes)
-		vnlru_free_locked(ulmin(rnumvnodes + count - desiredvnodes,
+	if (rnumvnodes + 1 > desiredvnodes && rfreevnodes > wantfreevnodes)
+		vnlru_free_locked(ulmin(rnumvnodes + 1 - desiredvnodes,
 		    rfreevnodes - wantfreevnodes), NULL);
-	mtx_unlock(&vnode_free_list_mtx);
-
-	td = curthread;
-	/* First try to be quick and racy. */
-	if (atomic_fetchadd_long(&numvnodes, count) + count <= desiredvnodes) {
-		td->td_vp_reserv += count;
-		vcheckspace();	/* XXX no longer so quick, but more racy */
-		return;
-	} else
-		atomic_subtract_long(&numvnodes, count);
-
-	mtx_lock(&vnode_free_list_mtx);
-	while (count > 0) {
-		if (getnewvnode_wait(0) == 0) {
-			count--;
-			td->td_vp_reserv++;
-			atomic_add_long(&numvnodes, 1);
-		}
+	if (rnumvnodes + 1 > desiredvnodes) {
+		while (getnewvnode_wait(0) != 0)
+			continue;
 	}
 	vcheckspace();
+	atomic_add_long(&numvnodes, 1);
 	mtx_unlock(&vnode_free_list_mtx);
+
+	td->td_vp_reserved = uma_zalloc(vnode_zone, M_WAITOK);
 }
 
 /*
@@ -1577,8 +1566,11 @@ getnewvnode_drop_reserve(void)
 	struct thread *td;
 
 	td = curthread;
-	atomic_subtract_long(&numvnodes, td->td_vp_reserv);
-	td->td_vp_reserv = 0;
+	if (td->td_vp_reserved != NULL) {
+		atomic_subtract_long(&numvnodes, 1);
+		uma_zfree(vnode_zone, td->td_vp_reserved);
+		td->td_vp_reserved = NULL;
+	}
 }
 
 /*
@@ -1599,11 +1591,11 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	KASSERT(vops->registered,
 	    ("%s: not registered vector op %p\n", __func__, vops));
 
-	vp = NULL;
 	td = curthread;
-	if (td->td_vp_reserv > 0) {
-		td->td_vp_reserv -= 1;
-		goto alloc;
+	if (td->td_vp_reserved != NULL) {
+		vp = td->td_vp_reserved;
+		td->td_vp_reserved = NULL;
+		goto init;
 	}
 	mtx_lock(&vnode_free_list_mtx);
 	if (numvnodes < desiredvnodes)
@@ -1639,9 +1631,9 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	vcheckspace();
 	atomic_add_long(&numvnodes, 1);
 	mtx_unlock(&vnode_free_list_mtx);
-alloc:
-	counter_u64_add(vnodes_created, 1);
 	vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK);
+init:
+	counter_u64_add(vnodes_created, 1);
 	/*
 	 * Locks are given the generic name "vnode" when created.
 	 * Follow the historic practice of using the filesystem
