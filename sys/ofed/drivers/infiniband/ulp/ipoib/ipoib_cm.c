@@ -1268,6 +1268,8 @@ static void ipoib_cm_mb_reap(struct work_struct *work)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
+	CURVNET_SET_QUIET(priv->dev->if_vnet);
+
 	for (;;) {
 		IF_DEQUEUE(&priv->cm.mb_queue, mb);
 		if (mb == NULL)
@@ -1293,6 +1295,8 @@ static void ipoib_cm_mb_reap(struct work_struct *work)
 
 		spin_lock_irqsave(&priv->lock, flags);
 	}
+
+	CURVNET_RESTORE();
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
