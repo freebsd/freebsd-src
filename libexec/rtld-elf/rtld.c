@@ -5524,7 +5524,7 @@ static int
 open_binary_fd(const char *argv0, bool search_in_path,
     const char **binpath_res)
 {
-	char *abspath, *absres, *binpath, *pathenv, *pe, *res1;
+	char *binpath, *pathenv, *pe, *res1;
 	const char *res;
 	int fd;
 
@@ -5569,31 +5569,16 @@ open_binary_fd(const char *argv0, bool search_in_path,
 		rtld_die();
 	}
 	if (res != NULL && res[0] != '/') {
-		abspath = getcwd(NULL, 0);
-		if (abspath != NULL) {
-			res1 = xmalloc(PATH_MAX);
-			if (realpath(res, res1) != NULL) {
-				if (res != argv0)
-					free(__DECONST(char *, res));
-				res = res1;
-			} else {
-				free(res1);
-			}
-			absres = xmalloc(strlen(abspath) +
-			    strlen(res) + 2);
-			strcpy(absres, abspath);
-			strcat(absres, "/");
-			strcat(absres, res);
-			free(abspath);
+		res1 = xmalloc(PATH_MAX);
+		if (realpath(res, res1) != NULL) {
 			if (res != argv0)
 				free(__DECONST(char *, res));
-			*binpath_res = absres;
+			res = res1;
 		} else {
-			*binpath_res = res;
+			free(res1);
 		}
-	} else {
-		*binpath_res = res;
 	}
+	*binpath_res = res;
 	return (fd);
 }
 
