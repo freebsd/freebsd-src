@@ -861,6 +861,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 	/* deliver the packet to appropriate sockets */
 	icmp6_rip6_input(&m, *offp);
 
+	*mp = m;
 	return IPPROTO_DONE;
 
  freeit:

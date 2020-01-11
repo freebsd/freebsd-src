@@ -558,6 +558,7 @@ tcp6_input(struct mbuf **mp, int *offp, int proto)
 	if (ia6)
 		ifa_free(&ia6->ia_ifa);
 
+	*mp = m;
 	return (tcp_input(mp, offp, proto));
 }
 #endif /* INET6 */

@@ -116,6 +116,7 @@ dest6_input(struct mbuf **mp, int *offp, int proto)
 	}
 
 	*offp = off;
+	*mp = m;
 	return (dstopts->ip6d_nxt);
 
   bad:

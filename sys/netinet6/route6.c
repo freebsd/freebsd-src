@@ -108,5 +108,6 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 	}
 
 	*offp += rhlen;
+	*mp = m;
 	return (rh->ip6r_nxt);
 }
