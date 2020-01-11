@@ -60,6 +60,8 @@ struct thr_param;
 struct sched_param;
 struct __wrusage;
 
+typedef int (*mmap_check_fp_fn)(struct file *, int, int, int);
+
 int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
 	    u_int buflen, u_int path_max);
 int	kern_accept(struct thread *td, int s, struct sockaddr **name,
@@ -165,6 +167,9 @@ int	kern_mlock(struct proc *proc, struct ucred *cred, uintptr_t addr,
 	    size_t len);
 int	kern_mmap(struct thread *td, uintptr_t addr, size_t size, int prot,
 	    int flags, int fd, off_t pos);
+int	kern_mmap_fpcheck(struct thread *td, uintptr_t addr, size_t len,
+	    int prot, int flags, int fd, off_t pos,
+	    mmap_check_fp_fn check_fp_fn);
 int	kern_mprotect(struct thread *td, uintptr_t addr, size_t size, int prot);
 int	kern_msgctl(struct thread *, int, int, struct msqid_ds *);
 int	kern_msgrcv(struct thread *, int, void *, size_t, long, int, long *);

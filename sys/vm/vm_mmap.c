@@ -184,6 +184,18 @@ int
 kern_mmap(struct thread *td, uintptr_t addr0, size_t size, int prot, int flags,
     int fd, off_t pos)
 {
+
+	return (kern_mmap_fpcheck(td, addr0, size, prot, flags, fd, pos, NULL));
+}
+
+/*
+ * When mmap'ing a file, check_fp_fn may be used for the caller to do any
+ * last-minute validation based on the referenced file in a non-racy way.
+ */
+int
+kern_mmap_fpcheck(struct thread *td, uintptr_t addr0, size_t size, int prot,
+    int flags, int fd, off_t pos, mmap_check_fp_fn check_fp_fn)
+{
 	struct vmspace *vms;
 	struct file *fp;
 	vm_offset_t addr;
@@ -356,7 +368,11 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t size, int prot, int flags,
 			error = EINVAL;
 			goto done;
 		}
-
+		if (check_fp_fn != NULL) {
+			error = check_fp_fn(fp, prot, cap_maxprot, flags);
+			if (error != 0)
+				goto done;
+		}
 		/* This relies on VM_PROT_* matching PROT_*. */
 		error = fo_mmap(fp, &vms->vm_map, &addr, size, prot,
 		    cap_maxprot, flags, pos, td);
