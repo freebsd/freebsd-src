@@ -2404,7 +2404,8 @@ sysctl_vfs_worklist_len(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_vfs, OID_AUTO, worklist_len, CTLTYPE_INT | CTLFLAG_RD, NULL, 0,
+SYSCTL_PROC(_vfs, OID_AUTO, worklist_len,
+    CTLTYPE_INT | CTLFLAG_MPSAFE| CTLFLAG_RD, NULL, 0,
     sysctl_vfs_worklist_len, "I", "Syncer thread worklist length");
 
 static struct proc *updateproc;
@@ -5467,7 +5468,7 @@ sysctl_vfs_ctl(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_vfs, OID_AUTO, ctl, CTLTYPE_OPAQUE | CTLFLAG_WR,
+SYSCTL_PROC(_vfs, OID_AUTO, ctl, CTLTYPE_OPAQUE | CTLFLAG_MPSAFE | CTLFLAG_WR,
     NULL, 0, sysctl_vfs_ctl, "",
     "Sysctl by fsid");
 
