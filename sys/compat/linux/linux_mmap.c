@@ -82,7 +82,6 @@ linux_mmap_common(struct thread *td, uintptr_t addr, size_t len, int prot,
 	int bsd_flags, error;
 	struct file *fp;
 
-	cap_rights_t rights;
 	LINUX_CTR6(mmap2, "0x%lx, %ld, %ld, 0x%08lx, %ld, 0x%lx",
 	    addr, len, prot, flags, fd, pos);
 
