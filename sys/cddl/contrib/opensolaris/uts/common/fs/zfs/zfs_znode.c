@@ -644,8 +644,8 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 
 	zp = kmem_cache_alloc(znode_cache, KM_SLEEP);
 
-	KASSERT(curthread->td_vp_reserv > 0,
-	    ("zfs_znode_alloc: getnewvnode without any vnodes reserved"));
+	KASSERT(curthread->td_vp_reserved != NULL,
+	    ("zfs_znode_alloc: getnewvnode without preallocated vnode"));
 	error = getnewvnode("zfs", zfsvfs->z_parent->z_vfs, &zfs_vnodeops, &vp);
 	if (error != 0) {
 		kmem_cache_free(znode_cache, zp);
@@ -1157,7 +1157,7 @@ zfs_zget(zfsvfs_t *zfsvfs, uint64_t obj_num, znode_t **zpp)
 	int err;
 
 	td = curthread;
-	getnewvnode_reserve(1);
+	getnewvnode_reserve();
 again:
 	*zpp = NULL;
 	ZFS_OBJ_HOLD_ENTER(zfsvfs, obj_num);
