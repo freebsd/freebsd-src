@@ -250,7 +250,7 @@ readboot(int dosfs, struct bootblock *boot)
 		boot->FATsecs = boot->bpbFATsmall;
 	}
 
-	if (boot->FATsecs > UINT32_MAX / boot->bpbFATs) {
+	if (boot->FATsecs < 1 || boot->FATsecs > UINT32_MAX / boot->bpbFATs) {
 		pfatal("Invalid FATs(%u) with FATsecs(%zu)",
 			boot->bpbFATs, (size_t)boot->FATsecs);
 		return FSFATAL;
