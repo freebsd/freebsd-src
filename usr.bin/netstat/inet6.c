@@ -391,6 +391,8 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	    "{N:/fragment%s dropped after timeout}\n");
 	p(ip6s_fragoverflow, "\t{:dropped-fragments-overflow/%ju} "
 	    "{N:/fragment%s that exceeded limit}\n");
+	p(ip6s_atomicfrags, "\t{:atomic-fragments/%ju} "
+	    "{N:/atomic fragment%s}\n");
 	p(ip6s_reassembled, "\t{:reassembled-packets/%ju} "
 	    "{N:/packet%s reassembled ok}\n");
 	p(ip6s_delivered, "\t{:received-local-packets/%ju} "

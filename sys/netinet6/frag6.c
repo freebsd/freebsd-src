@@ -441,8 +441,7 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	 * See RFC 6946 and section 4.5 of RFC 8200.
 	 */
 	if ((ip6f->ip6f_offlg & ~IP6F_RESERVED_MASK) == 0) {
-		/* XXX-BZ we want dedicated counters for this. */
-		IP6STAT_INC(ip6s_reassembled);
+		IP6STAT_INC(ip6s_atomicfrags);
 		nxt = ip6f->ip6f_nxt;
 		/*
 		 * Set nxt(-hdr field value) to the original value.
