@@ -863,8 +863,6 @@ int	im6o_mc_filter(const struct ip6_moptions *, const struct ifnet *,
 	    const struct sockaddr *, const struct sockaddr *);
 int in6_joingroup(struct ifnet *, const struct in6_addr *,
 	    struct in6_mfilter *, struct in6_multi **, int);
-int	in6_joingroup_locked(struct ifnet *, const struct in6_addr *,
-	    struct in6_mfilter *, struct in6_multi **, int);
 int	in6_leavegroup(struct in6_multi *, struct in6_mfilter *);
 int	in6_leavegroup_locked(struct in6_multi *, struct in6_mfilter *);
 void	in6m_clear_recorded(struct in6_multi *);
