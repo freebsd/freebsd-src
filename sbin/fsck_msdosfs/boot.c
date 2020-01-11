@@ -266,8 +266,11 @@ readboot(int dosfs, struct bootblock *boot)
 		return FSFATAL;
 	}
 
-	boot->NumClusters = (boot->NumSectors - boot->FirstCluster) / boot->bpbSecPerClust +
-	    CLUST_FIRST;
+	/*
+	 * The number of clusters is derived from available data sectors, divided
+	 * by sectors per cluster.
+	 */
+	boot->NumClusters = (boot->NumSectors - boot->FirstCluster) / boot->bpbSecPerClust;
 
 	if (boot->flags & FAT32) {
 		if (boot->NumClusters > (CLUST_RSRVD & CLUST32_MASK)) {
@@ -310,11 +313,19 @@ readboot(int dosfs, struct bootblock *boot)
 		break;
 	}
 
-	if (boot->NumFatEntries < boot->NumClusters - CLUST_FIRST) {
+	if (boot->NumFatEntries < boot->NumClusters) {
 		pfatal("FAT size too small, %u entries won't fit into %u sectors\n",
 		       boot->NumClusters, boot->FATsecs);
 		return FSFATAL;
 	}
+
+	/*
+	 * There are two reserved clusters.  To avoid adding CLUST_FIRST every time
+	 * when we perform boundary checks, we increment the NumClusters by 2,
+	 * which is CLUST_FIRST to denote the first out-of-range cluster number.
+	 */
+	boot->NumClusters += CLUST_FIRST;
+
 	boot->ClusterSize = boot->bpbBytesPerSec * boot->bpbSecPerClust;
 
 	boot->NumFiles = 1;
