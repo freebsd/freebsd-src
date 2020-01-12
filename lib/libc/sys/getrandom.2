@@ -1,5 +1,4 @@
-.\" Copyright (c) 2018 Conrad Meyer <cem@FreeBSD.org>
-.\" All rights reserved.
+.\" Copyright 2020, 2018 Conrad Meyer <cem@FreeBSD.org>.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 24, 2018
+.Dd January 12, 2020
 .Dt GETRANDOM 2
 .Os
 .Sh NAME
@@ -64,13 +63,16 @@ This flag does nothing on
 and
 .Pa /dev/urandom
 are identical.
+.It Ql GRND_INSECURE
+This flag is treated as an alternative name for
+.Dv GRND_NONBLOCK .
+It is provided solely for API compatibility with Linux.
 .El
 .Pp
 If the
 .Xr random 4
 device has been seeded, reads of up to 256 bytes will always return as many
 bytes as requested and will not be interrupted by signals.
-.Pp
 .Sh RETURN VALUES
 Upon successful completion, the number of bytes which were actually read is
 returned.
@@ -87,6 +89,8 @@ operation returns the following errors:
 .It Bq Er EAGAIN
 The
 .Ql GRND_NONBLOCK
+(or
+.Ql GRND_INSECURE )
 flag was set and the
 .Xr random 4
 device was not yet seeded.
@@ -111,7 +115,7 @@ was larger than
 .Xr getentropy 3 ,
 .Xr random 4
 .Sh STANDARDS
-.Fn getentropy
+.Fn getrandom
 is non-standard.
 It is present in Linux.
 .Sh HISTORY
@@ -119,3 +123,11 @@ The
 .Fn getrandom
 system call first appeared in
 .Fx 12.0 .
+.Sh CAVEATS
+Unlike Linux, the
+.Dv GRND_INSECURE
+flag on
+.Fx
+does not produce any output before the
+.Xr random 4
+device is seeded.
