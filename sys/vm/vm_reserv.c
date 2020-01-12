@@ -273,8 +273,8 @@ SYSCTL_COUNTER_U64(_vm_reserv, OID_AUTO, freed, CTLFLAG_RD,
 
 static int sysctl_vm_reserv_fullpop(SYSCTL_HANDLER_ARGS);
 
-SYSCTL_PROC(_vm_reserv, OID_AUTO, fullpop, CTLTYPE_INT | CTLFLAG_RD, NULL, 0,
-    sysctl_vm_reserv_fullpop, "I", "Current number of full reservations");
+SYSCTL_PROC(_vm_reserv, OID_AUTO, fullpop, CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RD,
+    NULL, 0, sysctl_vm_reserv_fullpop, "I", "Current number of full reservations");
 
 static int sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS);
 

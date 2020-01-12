@@ -119,9 +119,9 @@ struct pagerops vnodepagerops = {
 
 static struct domainset *vnode_domainset = NULL;
 
-SYSCTL_PROC(_debug, OID_AUTO, vnode_domainset, CTLTYPE_STRING | CTLFLAG_RW,
-    &vnode_domainset, 0, sysctl_handle_domainset, "A",
-    "Default vnode NUMA policy");
+SYSCTL_PROC(_debug, OID_AUTO, vnode_domainset,
+    CTLTYPE_STRING | CTLFLAG_MPSAFE | CTLFLAG_RW, &vnode_domainset, 0,
+    sysctl_handle_domainset, "A", "Default vnode NUMA policy");
 
 static int nvnpbufs;
 SYSCTL_INT(_vm, OID_AUTO, vnode_pbufs, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
