@@ -237,7 +237,7 @@ memguard_sysinit(void)
 	    CTLFLAG_RD, &memguard_mapsize,
 	    "MemGuard KVA size");
 	SYSCTL_ADD_PROC(NULL, parent, OID_AUTO, "mapused",
-	    CTLFLAG_RD | CTLTYPE_ULONG, NULL, 0, memguard_sysctl_mapused, "LU",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE | CTLTYPE_ULONG, NULL, 0, memguard_sysctl_mapused, "LU",
 	    "MemGuard KVA used");
 }
 SYSINIT(memguard, SI_SUB_KLD, SI_ORDER_ANY, memguard_sysinit, NULL);
