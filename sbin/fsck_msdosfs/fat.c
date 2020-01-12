@@ -935,17 +935,16 @@ readfat(int fs, struct bootblock *boot, struct fat_descriptor **fp)
 				fat_clear_cl_head(fat, cl);
 			}
 			boot->NumBad++;
-		} else if (!valid_cl(fat, nextcl) && nextcl < CLUST_EOFS) {
-			pwarn("Cluster %u continues with %s "
+		} else if (!valid_cl(fat, nextcl) && nextcl < CLUST_RSRVD) {
+			pwarn("Cluster %u continues with out of range "
 			    "cluster number %u\n",
-			    cl, (nextcl < CLUST_RSRVD) ?
-				"out of range" : "reserved",
+			    cl,
 			    nextcl & boot->ClustMask);
 			if (ask(0, "Truncate")) {
 				ret |= fat_set_cl_next(fat, cl, CLUST_EOF);
 				ret |= FSFATMOD;
 			}
-		} else if (nextcl < boot->NumClusters) {
+		} else if (valid_cl(fat, nextcl)) {
 			if (fat_is_cl_head(fat, nextcl)) {
 				fat_clear_cl_head(fat, nextcl);
 			} else {
@@ -985,29 +984,13 @@ rsrvdcltype(cl_t cl)
 }
 
 /*
- * Offer to truncate a chain at the specified CL, called by checkchain().
- */
-static inline int
-truncate_at(struct fat_descriptor *fat, cl_t current_cl, size_t *chainsize)
-{
-	int ret = 0;
-
-	if (ask(0, "Truncate")) {
-		ret = fat_set_cl_next(fat, current_cl, CLUST_EOF);
-		(*chainsize)++;
-		return (ret | FSFATMOD);
-	} else {
-		return FSERROR;
-	}
-}
-
-/*
  * Examine a cluster chain for errors and count its size.
  */
 int
 checkchain(struct fat_descriptor *fat, cl_t head, size_t *chainsize)
 {
-	cl_t current_cl, next_cl;
+	cl_t prev_cl, current_cl, next_cl;
+	const char *op;
 
 	/*
 	 * We expect that the caller to give us a real, unvisited 'head'
@@ -1038,10 +1021,10 @@ checkchain(struct fat_descriptor *fat, cl_t head, size_t *chainsize)
 	 * it as EOF) when the next node violates that.
 	 */
 	*chainsize = 0;
-	current_cl = head;
+	prev_cl = current_cl = head;
 	for (next_cl = fat_get_cl_next(fat, current_cl);
 	    valid_cl(fat, next_cl);
-	    current_cl = next_cl, next_cl = fat_get_cl_next(fat, current_cl))
+	    prev_cl = current_cl, current_cl = next_cl, next_cl = fat_get_cl_next(fat, current_cl))
 		(*chainsize)++;
 
 	/* A natural end */
@@ -1050,12 +1033,40 @@ checkchain(struct fat_descriptor *fat, cl_t head, size_t *chainsize)
 		return FSOK;
 	}
 
-	/* The chain ended with an out-of-range cluster number. */
-	pwarn("Cluster %u continues with %s cluster number %u\n",
-	    current_cl,
-	    next_cl < CLUST_RSRVD ? "out of range" : "reserved",
-	    next_cl & boot_of_(fat)->ClustMask);
-	return (truncate_at(fat, current_cl, chainsize));
+	/*
+	 * The chain ended with an out-of-range cluster number.
+	 *
+	 * If the current node is e.g. CLUST_FREE, CLUST_BAD, etc.,
+	 * it should not be present in a chain and we has to truncate
+	 * at the previous node.
+	 *
+	 * If the current cluster points to an invalid cluster, the
+	 * current cluster might have useful data and we truncate at
+	 * the current cluster instead.
+	 */
+	if (next_cl == CLUST_FREE || next_cl >= CLUST_RSRVD) {
+		pwarn("Cluster chain starting at %u ends with cluster marked %s\n",
+		    head, rsrvdcltype(next_cl));
+		current_cl = prev_cl;
+	} else {
+		pwarn("Cluster chain starting at %u ends with cluster out of range (%u)\n",
+		    head,
+		    next_cl & boot_of_(fat)->ClustMask);
+		(*chainsize)++;
+	}
+
+	if (*chainsize > 0) {
+		op = "Truncate";
+		next_cl = CLUST_EOF;
+	} else {
+		op = "Clear";
+		next_cl = CLUST_FREE;
+	}
+	if (ask(0, "%s", op)) {
+		return (fat_set_cl_next(fat, current_cl, next_cl) | FSFATMOD);
+	} else {
+		return (FSERROR);
+	}
 }
 
 /*
@@ -1070,7 +1081,7 @@ clearchain(struct fat_descriptor *fat, cl_t head)
 	current_cl = head;
 
 	while (valid_cl(fat, current_cl)) {
-		next_cl = fat_get_cl_next(fat, head);
+		next_cl = fat_get_cl_next(fat, current_cl);
 		(void)fat_set_cl_next(fat, current_cl, CLUST_FREE);
 		boot->NumFree++;
 		current_cl = next_cl;
@@ -1218,7 +1229,7 @@ checklost(struct fat_descriptor *fat)
 		}
 		if (fat_is_cl_head(fat, head)) {
 			ret = checkchain(fat, head, &chainlength);
-			if (ret != FSERROR) {
+			if (ret != FSERROR && chainlength > 0) {
 				pwarn("Lost cluster chain at cluster %u\n"
 				    "%zd Cluster(s) lost\n",
 				    head, chainlength);
