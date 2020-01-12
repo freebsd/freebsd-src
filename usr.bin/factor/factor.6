@@ -36,7 +36,7 @@
 .\"
 .\"   chongo <for a good prime call: 391581 * 2^216193 - 1> /\oo/\
 .\"
-.Dd October 10, 2002
+.Dd January 12, 2020
 .Dt FACTOR 6
 .Os
 .Sh NAME
@@ -67,11 +67,22 @@ When
 .Nm
 is invoked with no arguments,
 .Nm
-reads numbers, one per line, from standard input, until end of file or error.
+reads numbers, one per line, from standard input until end of file or 0
+is entered or an error occurs.
 Leading white-space and empty lines are ignored.
+.Pp
 Numbers may be preceded by a single
 .Ql + .
+Numbers can be either decimal or hexadecimal strings where the longest
+leading substring is used.
 Numbers are terminated by a non-digit character (such as a newline).
+If the string contains only decimal digits, it is treated as a
+decimal representation for a number.
+A hexadecimal string can contain an optional
+.Em 0x
+or
+.Em 0X
+prefix.
 After a number is read, it is factored.
 .Pp
 The
@@ -89,7 +100,7 @@ The
 value must not be greater than the maximum.
 The default and maximum value of
 .Ar stop
-is 3825123056546413050.
+is 18446744073709551615.
 .Pp
 When the
 .Nm primes
