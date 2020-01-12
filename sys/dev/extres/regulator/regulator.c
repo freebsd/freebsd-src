@@ -191,16 +191,36 @@ regulator_shutdown(void *dummy)
 	int status, ret;
 	int disable = 1;
 
-	REG_TOPO_SLOCK();
 	TUNABLE_INT_FETCH("hw.regulator.disable_unused", &disable);
+	if (!disable)
+		return;
+	REG_TOPO_SLOCK();
+
+	if (bootverbose)
+		printf("regulator: shutting down unused regulators\n");
 	TAILQ_FOREACH(entry, &regnode_list, reglist_link) {
-		if (!entry->std_param.always_on && disable) {
-			if (bootverbose)
-				printf("regulator: shutting down %s\n",
-				    entry->name);
+		if (!entry->std_param.always_on) {
 			ret = regnode_status(entry, &status);
-			if (ret == 0 && status == REGULATOR_STATUS_ENABLED)
-				regnode_stop(entry, 0);
+			if (ret == 0 && status == REGULATOR_STATUS_ENABLED) {
+				if (bootverbose)
+					printf("regulator: shutting down %s... ",
+					    entry->name);
+				ret = regnode_stop(entry, 0);
+				if (bootverbose) {
+					/*
+					 * Call out busy in particular, here,
+					 * because it's not unexpected to fail
+					 * shutdown if the regulator is simply
+					 * in-use.
+					 */
+					if (ret == EBUSY)
+						printf("busy\n");
+					else if (ret != 0)
+						printf("error (%d)\n", ret);
+					else
+						printf("ok\n");
+				}
+			}
 		}
 	}
 	REG_TOPO_UNLOCK();
