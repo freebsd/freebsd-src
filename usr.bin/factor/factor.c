@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -97,15 +98,16 @@ typedef u_long	BN_ULONG;
 #define BN_is_one(v)		(*(v) == 1)
 #define BN_mod_word(a, b)	(*(a) % (b))
 
-static int	BN_dec2bn(BIGNUM **a, const char *str);
-static int	BN_hex2bn(BIGNUM **a, const char *str);
+static int	BN_dec2bn(BIGNUM **, const char *);
+static int	BN_hex2bn(BIGNUM **, const char *);
 static BN_ULONG BN_div_word(BIGNUM *, BN_ULONG);
 static void	BN_print_fp(FILE *, const BIGNUM *);
 
 #endif
 
 static void	BN_print_dec_fp(FILE *, const BIGNUM *);
-
+static void	convert_str2bn(BIGNUM **, char *);
+static bool	is_hex_str(char *);
 static void	pr_fact(BIGNUM *);	/* print factors of a value */
 static void	pr_print(BIGNUM *);	/* print a prime */
 static void	usage(void);
@@ -148,21 +150,13 @@ main(int argc, char *argv[])
 			for (p = buf; isblank(*p); ++p);
 			if (*p == '\n' || *p == '\0')
 				continue;
-			if (*p == '-')
-				errx(1, "negative numbers aren't permitted.");
-			if (BN_dec2bn(&val, buf) == 0 &&
-			    BN_hex2bn(&val, buf) == 0)
-				errx(1, "%s: illegal numeric format.", buf);
+			convert_str2bn(&val, p);
 			pr_fact(val);
 		}
 	/* Factor the arguments. */
 	else
-		for (; *argv != NULL; ++argv) {
-			if (argv[0][0] == '-')
-				errx(1, "negative numbers aren't permitted.");
-			if (BN_dec2bn(&val, argv[0]) == 0 &&
-			    BN_hex2bn(&val, argv[0]) == 0)
-				errx(1, "%s: illegal numeric format.", argv[0]);
+		for (p = *argv; p != NULL; p = *++argv) {
+			convert_str2bn(&val, p);
 			pr_fact(val);
 		}
 	exit(0);
@@ -346,7 +340,7 @@ BN_dec2bn(BIGNUM **a, const char *str)
 
 	errno = 0;
 	**a = strtoul(str, &p, 10);
-	return (errno == 0 && (*p == '\n' || *p == '\0'));
+	return (errno == 0 ? 1 : 0);	/* OpenSSL returns 0 on error! */
 }
 
 static int
@@ -356,7 +350,7 @@ BN_hex2bn(BIGNUM **a, const char *str)
 
 	errno = 0;
 	**a = strtoul(str, &p, 16);
-	return (errno == 0 && (*p == '\n' || *p == '\0'));
+	return (errno == 0 ? 1 : 0);	/* OpenSSL returns 0 on error! */
 }
 
 static BN_ULONG
@@ -370,3 +364,46 @@ BN_div_word(BIGNUM *a, BN_ULONG b)
 }
 
 #endif
+
+/*
+ * Scan the string from left-to-right to see if the longest substring
+ * is a valid hexadecimal number.
+ */
+static bool
+is_hex_str(char *str)
+{
+	char c, *p;
+	bool saw_hex = false;
+
+	for (p = str; *p; p++) {
+		if (isdigit(*p))
+			continue;
+		c = tolower(*p);
+		if (c >= 'a' && c <= 'f') {
+			saw_hex = true;
+			continue;
+		}
+		break;	/* Not a hexadecimal digit. */
+	}
+	return saw_hex;
+}
+
+/* Convert string pointed to by *str to a bignum.  */
+static void
+convert_str2bn(BIGNUM **val, char *p)
+{
+	int n = 0;
+
+	if (*p == '+') p++;
+	if (*p == '-')
+		errx(1, "negative numbers aren't permitted.");
+	if (*p == '0') {
+		p++;
+		if (*p == 'x' || *p == 'X')
+			n = BN_hex2bn(val, ++p);
+	} else {
+		n = is_hex_str(p) ? BN_hex2bn(val, p) : BN_dec2bn(val, p);
+	}
+	if (n == 0)
+		errx(1, "%s: illegal numeric format.", p);
+}
