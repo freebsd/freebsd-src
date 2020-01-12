@@ -1459,7 +1459,7 @@ cpustop_handler(void)
 		 * again, and might as well save power / release resources
 		 * (e.g., overprovisioned VM infrastructure).
 		 */
-		while (__predict_false(!IS_BSP() && panicstr != NULL))
+		while (__predict_false(!IS_BSP() && KERNEL_PANICKED()))
 			halt();
 	}
 
@@ -1672,7 +1672,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
 	int cpu;
 
 	/* It is not necessary to signal other CPUs while in the debugger. */
-	if (kdb_active || panicstr != NULL)
+	if (kdb_active || KERNEL_PANICKED())
 		return;
 
 	/*

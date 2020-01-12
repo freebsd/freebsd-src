@@ -611,7 +611,7 @@ spitfire_ipi_single(u_int cpu, u_long d0, u_long d1, u_long d2)
 		if ((ids & (IDR_BUSY | IDR_NACK)) == 0)
 			return;
 	}
-	if (kdb_active != 0 || panicstr != NULL)
+	if (kdb_active != 0 || KERNEL_PANICKED())
 		printf("%s: couldn't send IPI to module 0x%u\n",
 		    __func__, mid);
 	else
@@ -650,7 +650,7 @@ cheetah_ipi_single(u_int cpu, u_long d0, u_long d1, u_long d2)
 		if ((ids & (IDR_BUSY | IDR_NACK)) == 0)
 			return;
 	}
-	if (kdb_active != 0 || panicstr != NULL)
+	if (kdb_active != 0 || KERNEL_PANICKED())
 		printf("%s: couldn't send IPI to module 0x%u\n",
 		    __func__, mid);
 	else
@@ -709,7 +709,7 @@ cheetah_ipi_selected(cpuset_t cpus, u_long d0, u_long d1, u_long d2)
 		if (CPU_EMPTY(&cpus))
 			return;
 	}
-	if (kdb_active != 0 || panicstr != NULL)
+	if (kdb_active != 0 || KERNEL_PANICKED())
 		printf("%s: couldn't send IPI (cpus=%s ids=0x%lu)\n",
 		    __func__, cpusetobj_strprint(ipi_pbuf, &cpus), ids);
 	else
@@ -750,7 +750,7 @@ jalapeno_ipi_single(u_int cpu, u_long d0, u_long d1, u_long d2)
 		if ((ids & busynack) == 0)
 			return;
 	}
-	if (kdb_active != 0 || panicstr != NULL)
+	if (kdb_active != 0 || KERNEL_PANICKED())
 		printf("%s: couldn't send IPI to module 0x%u\n",
 		    __func__, mid);
 	else
@@ -801,7 +801,7 @@ jalapeno_ipi_selected(cpuset_t cpus, u_long d0, u_long d1, u_long d2)
 				    (2 * cpuid_to_mid[cpu]))) == 0)
 					CPU_CLR(cpu, &cpus);
 	}
-	if (kdb_active != 0 || panicstr != NULL)
+	if (kdb_active != 0 || KERNEL_PANICKED())
 		printf("%s: couldn't send IPI (cpus=%s ids=0x%lu)\n",
 		    __func__, cpusetobj_strprint(ipi_pbuf, &cpus), ids);
 	else

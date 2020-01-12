@@ -293,7 +293,7 @@ zfs_sync(vfs_t *vfsp, int waitfor)
 	 * Data integrity is job one.  We don't want a compromised kernel
 	 * writing to the storage pool, so we never sync during panic.
 	 */
-	if (panicstr)
+	if (KERNEL_PANICKED())
 		return (0);
 
 	/*

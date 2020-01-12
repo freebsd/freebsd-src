@@ -2166,7 +2166,7 @@ acpi_shutdown_final(void *arg, int howto)
 	} else if (status != AE_NOT_EXIST)
 	    device_printf(sc->acpi_dev, "reset failed - %s\n",
 		AcpiFormatException(status));
-    } else if (sc->acpi_do_disable && panicstr == NULL) {
+    } else if (sc->acpi_do_disable && !KERNEL_PANICKED()) {
 	/*
 	 * Only disable ACPI if the user requested.  On some systems, writing
 	 * the disable value to SMI_CMD hangs the system.

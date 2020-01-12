@@ -195,7 +195,7 @@ forward_signal(struct thread *td)
 
 	CTR1(KTR_SMP, "forward_signal(%p)", td->td_proc);
 
-	if (!smp_started || cold || panicstr)
+	if (!smp_started || cold || KERNEL_PANICKED())
 		return;
 	if (!forward_signal_enabled)
 		return;

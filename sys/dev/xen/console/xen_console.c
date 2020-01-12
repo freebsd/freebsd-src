@@ -199,7 +199,7 @@ xc_printf(const char *fmt, ...)
 static inline void xencons_lock(struct xencons_priv *cons)
 {
 
-	if (panicstr == NULL)
+	if (!KERNEL_PANICKED())
 		mtx_lock_spin(&cons->mtx);
 
 }
@@ -207,7 +207,7 @@ static inline void xencons_lock(struct xencons_priv *cons)
 static inline void xencons_unlock(struct xencons_priv *cons)
 {
 
-	if (panicstr == NULL)
+	if (!KERNEL_PANICKED())
 		mtx_unlock_spin(&cons->mtx);
 }
 

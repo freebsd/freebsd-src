@@ -3481,7 +3481,7 @@ g_mirror_shutdown_post_sync(void *arg, int howto)
 	struct g_mirror_softc *sc;
 	int error;
 
-	if (panicstr != NULL)
+	if (KERNEL_PANICKED())
 		return;
 
 	mp = arg;

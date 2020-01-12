@@ -1190,7 +1190,7 @@ mrsas_shutdown(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->remove_in_progress = 1;
-	if (panicstr == NULL) {
+	if (!KERNEL_PANICKED()) {
 		if (sc->ocr_thread_active)
 			wakeup(&sc->ocr_chan);
 		i = 0;

@@ -53,6 +53,7 @@ extern int cold;		/* nonzero if we are doing a cold boot */
 extern int suspend_blocked;	/* block suspend due to pending shutdown */
 extern int rebooting;		/* kern_reboot() has been called. */
 extern const char *panicstr;	/* panic message */
+#define	KERNEL_PANICKED()	__predict_false(panicstr != NULL)
 extern char version[];		/* system version */
 extern char compiler_version[];	/* compiler version */
 extern char copyright[];	/* system copyright */

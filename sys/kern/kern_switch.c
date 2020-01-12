@@ -181,7 +181,7 @@ choosethread(void)
 
 	td = sched_choose();
 
-	if (__predict_false(panicstr != NULL))
+	if (KERNEL_PANICKED())
 		return (choosethread_panic(td));
 
 	TD_SET_RUNNING(td);

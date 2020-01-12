@@ -324,7 +324,7 @@ ktr_tracepoint(uint64_t mask, const char *file, int line, const char *format,
 #endif
 	int cpu;
 
-	if (panicstr || kdb_active)
+	if (KERNEL_PANICKED() || kdb_active)
 		return;
 	if ((ktr_mask & mask) == 0 || ktr_buf == NULL)
 		return;

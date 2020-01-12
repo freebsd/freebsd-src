@@ -2076,7 +2076,7 @@ native_lapic_ipi_vectored(u_int vector, int dest)
 
 	/* Wait for an earlier IPI to finish. */
 	if (!lapic_ipi_wait(BEFORE_SPIN)) {
-		if (panicstr != NULL)
+		if (KERNEL_PANICKED())
 			return;
 		else
 			panic("APIC: Previous IPI is stuck");

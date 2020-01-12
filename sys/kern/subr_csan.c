@@ -153,7 +153,7 @@ kcsan_access(uintptr_t addr, size_t size, bool write, bool atomic, uintptr_t pc)
 		return;
 	if (__predict_false(kcsan_md_unsupported((vm_offset_t)addr)))
 		return;
-	if (__predict_false(panicstr != NULL))
+	if (KERNEL_PANICKED())
 		return;
 
 	new.addr = addr;

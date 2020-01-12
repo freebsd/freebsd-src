@@ -7296,7 +7296,7 @@ zfs_shutdown(void *arg __unused, int howto __unused)
 	/*
 	 * ZFS fini routines can not properly work in a panic-ed system.
 	 */
-	if (panicstr == NULL)
+	if (!KERNEL_PANICKED())
 		(void)zfs__fini();
 }
 
