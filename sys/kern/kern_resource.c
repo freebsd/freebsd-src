@@ -92,19 +92,26 @@ struct getpriority_args {
 int
 sys_getpriority(struct thread *td, struct getpriority_args *uap)
 {
+
+	return (kern_getpriority(td, uap->which, uap->who));
+}
+
+int
+kern_getpriority(struct thread *td, int which, int who)
+{
 	struct proc *p;
 	struct pgrp *pg;
 	int error, low;
 
 	error = 0;
 	low = PRIO_MAX + 1;
-	switch (uap->which) {
+	switch (which) {
 
 	case PRIO_PROCESS:
-		if (uap->who == 0)
+		if (who == 0)
 			low = td->td_proc->p_nice;
 		else {
-			p = pfind(uap->who);
+			p = pfind(who);
 			if (p == NULL)
 				break;
 			if (p_cansee(td, p) == 0)
@@ -115,11 +122,11 @@ sys_getpriority(struct thread *td, struct getpriority_args *uap)
 
 	case PRIO_PGRP:
 		sx_slock(&proctree_lock);
-		if (uap->who == 0) {
+		if (who == 0) {
 			pg = td->td_proc->p_pgrp;
 			PGRP_LOCK(pg);
 		} else {
-			pg = pgfind(uap->who);
+			pg = pgfind(who);
 			if (pg == NULL) {
 				sx_sunlock(&proctree_lock);
 				break;
@@ -139,14 +146,14 @@ sys_getpriority(struct thread *td, struct getpriority_args *uap)
 		break;
 
 	case PRIO_USER:
-		if (uap->who == 0)
-			uap->who = td->td_ucred->cr_uid;
+		if (who == 0)
+			who = td->td_ucred->cr_uid;
 		sx_slock(&allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
 			if (p->p_state == PRS_NORMAL &&
 			    p_cansee(td, p) == 0 &&
-			    p->p_ucred->cr_uid == uap->who) {
+			    p->p_ucred->cr_uid == who) {
 				if (p->p_nice < low)
 					low = p->p_nice;
 			}

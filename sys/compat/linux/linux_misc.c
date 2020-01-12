@@ -1613,12 +1613,9 @@ linux_nosys(struct thread *td, struct nosys_args *ignore)
 int
 linux_getpriority(struct thread *td, struct linux_getpriority_args *args)
 {
-	struct getpriority_args bsd_args;
 	int error;
 
-	bsd_args.which = args->which;
-	bsd_args.who = args->who;
-	error = sys_getpriority(td, &bsd_args);
+	error = kern_getpriority(td, args->which, args->who);
 	td->td_retval[0] = 20 - td->td_retval[0];
 	return (error);
 }
