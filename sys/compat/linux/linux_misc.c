@@ -1207,12 +1207,8 @@ linux_getitimer(struct thread *td, struct linux_getitimer_args *uap)
 int
 linux_nice(struct thread *td, struct linux_nice_args *args)
 {
-	struct setpriority_args bsd_args;
 
-	bsd_args.which = PRIO_PROCESS;
-	bsd_args.who = 0;		/* current process */
-	bsd_args.prio = args->inc;
-	return (sys_setpriority(td, &bsd_args));
+	return (kern_setpriority(td, PRIO_PROCESS, 0, args->inc));
 }
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
