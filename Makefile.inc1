@@ -590,7 +590,7 @@ BUILD_ARCH!=	uname -p
 .endif
 .endif
 WORLDTMP?=	${OBJTOP}/tmp
-BPATH=		${CCACHE_WRAPPER_PATH_PFX}${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/bin
+BPATH=		${CCACHE_WRAPPER_PATH_PFX}${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/bin:${WORLDTMP}/legacy/usr/libexec
 XPATH=		${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin
 
 # When building we want to find the cross tools before the host tools in ${BPATH}.
@@ -1500,11 +1500,11 @@ makeman: .PHONY
 	${_+_}cd ${.CURDIR}/tools/build/options; sh makeman > \
 	    ${.CURDIR}/share/man/man5/src.conf.5
 
-.if make(sysent)
-.include <src.lua.mk>
-.endif
-
-_sysent_PATH=	${WORLDTMP}/legacy/usr/libexec:/usr/libexec:${PATH}
+# We can't assume here that ${TMPPATH} will include ${PATH} or /usr/libexec
+# because we may be building with a STRICTTMPPATH, so we explicitly include
+# /usr/libexec here for flua.  ${TMPPATH} still usefully includes anything else
+# we may need to function.
+_sysent_PATH=	${TMPPATH}:/usr/libexec
 _sysent_dirs=	sys/kern
 _sysent_dirs+=	sys/compat/freebsd32
 _sysent_dirs+=	sys/compat/cloudabi32	\
@@ -1517,8 +1517,7 @@ _sysent_dirs+=	sys/amd64/linux		\
 sysent: .PHONY
 .for _dir in ${_sysent_dirs}
 	@echo "${MAKE} -C ${.CURDIR}/${_dir} sysent"
-	${_+_}@env PATH=${_sysent_PATH} LUA=${LUA_CMD} \
-	    ${MAKE} -C ${.CURDIR}/${_dir} sysent
+	${_+_}@env PATH=${_sysent_PATH} ${MAKE} -C ${.CURDIR}/${_dir} sysent
 .endfor
 
 #

@@ -116,6 +116,9 @@ host-symlinks:
 		ln -sfnv "$${source_path}" "$${target_path}"; \
 	fi
 .endfor
+.if exists(/usr/libexec/flua)
+	ln -sf /usr/libexec/flua ${DESTDIR}/usr/libexec/flua
+.endif
 
 # Create all the directories that are needed during the legacy, bootstrap-tools
 # and cross-tools stages. We do this here using mkdir since mtree may not exist
