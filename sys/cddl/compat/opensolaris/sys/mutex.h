@@ -42,7 +42,7 @@ typedef enum {
 } kmutex_type_t;
 
 #define	MUTEX_HELD(x)		(mutex_owned(x))
-#define	MUTEX_NOT_HELD(x)	(!mutex_owned(x) || panicstr)
+#define	MUTEX_NOT_HELD(x)	(!mutex_owned(x) || KERNEL_PANICKED())
 
 typedef struct sx	kmutex_t;
 

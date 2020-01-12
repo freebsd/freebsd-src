@@ -340,7 +340,7 @@ DB_FUNC(netgdb, db_netgdb_cmd, db_cmd_table, CS_OWN, NULL)
 	struct debugnet_pcb *pcb;
 	int error;
 
-	if (panicstr == NULL) {
+	if (!KERNEL_PANICKED()) {
 		/* TODO: This limitation should be removed in future work. */
 		printf("%s: netgdb is currently limited to use only after a "
 		    "panic.  Sorry.\n", __func__);

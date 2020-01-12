@@ -409,7 +409,7 @@ vprintf(const char *fmt, va_list ap)
 
 	retval = _vprintf(-1, TOCONS | TOLOG, fmt, ap);
 
-	if (!panicstr)
+	if (!KERNEL_PANICKED())
 		msgbuftrigger = 1;
 
 	return (retval);
@@ -423,7 +423,7 @@ prf_putbuf(char *bufr, int flags, int pri)
 		msglogstr(bufr, pri, /*filter_cr*/1);
 
 	if (flags & TOCONS) {
-		if ((panicstr == NULL) && (constty != NULL))
+		if ((!KERNEL_PANICKED()) && (constty != NULL))
 			msgbuf_addstr(&consmsgbuf, -1,
 			    bufr, /*filter_cr*/ 0);
 
@@ -492,7 +492,7 @@ putchar(int c, void *arg)
 		return;
 	}
 
-	if ((flags & TOTTY) && tp != NULL && panicstr == NULL)
+	if ((flags & TOTTY) && tp != NULL && !KERNEL_PANICKED())
 		tty_putchar(tp, c);
 
 	if ((flags & (TOCONS | TOLOG)) && c != '\0')

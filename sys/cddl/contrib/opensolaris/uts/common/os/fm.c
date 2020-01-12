@@ -119,7 +119,7 @@ fm_drain(void *private, void *data, errorq_elem_t *eep)
 {
 	nvlist_t *nvl = errorq_elem_nvl(ereport_errorq, eep);
 
-	if (!panicstr)
+	if (!KERNEL_PANICKED())
 		(void) fm_ereport_post(nvl, EVCH_TRYHARD);
 	else
 		fm_nvprint(nvl);
@@ -420,7 +420,7 @@ fm_banner(void)
 	if (!fm_panicstr)
 		return; /* panic was not initiated by fm_panic(); do nothing */
 
-	if (panicstr) {
+	if (KERNEL_PANICKED()) {
 		tod = panic_hrestime;
 		now = panic_hrtime;
 	} else {
@@ -472,7 +472,7 @@ fm_ereport_dump(void)
 	char *buf;
 	size_t len;
 
-	if (panicstr) {
+	if (KERNEL_PANICKED()) {
 		tod = panic_hrestime;
 		now = panic_hrtime;
 	} else {
@@ -486,7 +486,7 @@ fm_ereport_dump(void)
 	 * In the panic case, sysevent_evc_walk_init() will return NULL.
 	 */
 	if ((chq = sysevent_evc_walk_init(ereport_chan, NULL)) == NULL &&
-	    !panicstr)
+	    !KERNEL_PANICKED())
 		return; /* event channel isn't initialized yet */
 
 	while ((sep = sysevent_evc_walk_step(chq)) != NULL) {

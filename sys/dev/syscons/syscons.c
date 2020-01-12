@@ -2163,7 +2163,7 @@ sccnupdate(scr_stat *scp)
 	if (suspend_in_progress || scp->sc->font_loading_in_progress)
 		return;
 
-	if (kdb_active || panicstr || shutdown_in_progress) {
+	if (kdb_active || KERNEL_PANICKED() || shutdown_in_progress) {
 		sc_touch_scrn_saver();
 	} else if (scp != scp->sc->cur_scp) {
 		return;
@@ -2229,7 +2229,7 @@ scrn_timer(void *arg)
 	}
 
 	/* should we stop the screen saver? */
-	if (kdb_active || panicstr || shutdown_in_progress)
+	if (kdb_active || KERNEL_PANICKED() || shutdown_in_progress)
 		sc_touch_scrn_saver();
 	if (run_scrn_saver) {
 		if (time_uptime > sc->scrn_time_stamp + scrn_blank_time)

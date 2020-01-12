@@ -480,8 +480,8 @@ mi_switch(int flags)
 	if (!TD_ON_LOCK(td) && !TD_IS_RUNNING(td))
 		mtx_assert(&Giant, MA_NOTOWNED);
 #endif
-	KASSERT(td->td_critnest == 1 || panicstr,
-	    ("mi_switch: switch in a critical section"));
+	KASSERT(td->td_critnest == 1 || KERNEL_PANICKED(),
+		("mi_switch: switch in a critical section"));
 	KASSERT((flags & (SW_INVOL | SW_VOL)) != 0,
 	    ("mi_switch: switch must be voluntary or involuntary"));
 
