@@ -435,11 +435,14 @@ TUNABLE_INT("vfs.zfs.arc_shrink_shift", &zfs_arc_shrink_shift);
 TUNABLE_INT("vfs.zfs.arc_grow_retry", &zfs_arc_grow_retry);
 TUNABLE_INT("vfs.zfs.arc_no_grow_shift", &zfs_arc_no_grow_shift);
 SYSCTL_DECL(_vfs_zfs);
-SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_max, CTLTYPE_U64 | CTLFLAG_RWTUN,
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_max,
+    CTLTYPE_U64 | CTLFLAG_MPSAFE | CTLFLAG_RWTUN,
     0, sizeof(uint64_t), sysctl_vfs_zfs_arc_max, "QU", "Maximum ARC size");
-SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_min, CTLTYPE_U64 | CTLFLAG_RWTUN,
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_min,
+    CTLTYPE_U64 | CTLFLAG_MPSAFE | CTLFLAG_RWTUN,
     0, sizeof(uint64_t), sysctl_vfs_zfs_arc_min, "QU", "Minimum ARC size");
-SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_no_grow_shift, CTLTYPE_U32 | CTLFLAG_RWTUN,
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_no_grow_shift,
+    CTLTYPE_U32 | CTLFLAG_MPSAFE | CTLFLAG_RWTUN,
     0, sizeof(uint32_t), sysctl_vfs_zfs_arc_no_grow_shift, "U",
     "log2(fraction of ARC which must be free to allow growing)");
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_average_blocksize, CTLFLAG_RDTUN,
