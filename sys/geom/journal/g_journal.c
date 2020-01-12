@@ -2653,7 +2653,7 @@ g_journal_shutdown(void *arg, int howto __unused)
 	struct g_class *mp;
 	struct g_geom *gp, *gp2;
 
-	if (panicstr != NULL)
+	if (KERNEL_PANICKED())
 		return;
 	mp = arg;
 	g_topology_lock();

@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
  */
 #define	KMI_CTX_LOCK_ASSERT()			 	\
 	do {						\
-		if (!kdb_active && panicstr == NULL)	\
+		if (!kdb_active && !KERNEL_PANICKED())	\
 			mtx_assert(&Giant, MA_OWNED);	\
 	} while (0)
 #else

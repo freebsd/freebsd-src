@@ -2533,7 +2533,7 @@ sched_setpreempt(struct thread *td)
 	cpri = ctd->td_priority;
 	if (pri < cpri)
 		ctd->td_flags |= TDF_NEEDRESCHED;
-	if (panicstr != NULL || pri >= cpri || cold || TD_IS_INHIBITED(ctd))
+	if (KERNEL_PANICKED() || pri >= cpri || cold || TD_IS_INHIBITED(ctd))
 		return;
 	if (!sched_shouldpreempt(pri, cpri, 0))
 		return;

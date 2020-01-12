@@ -1431,7 +1431,7 @@ bufshutdown(int show_busybufs)
 		/*
 		 * Unmount filesystems
 		 */
-		if (panicstr == NULL)
+		if (!KERNEL_PANICKED())
 			vfs_unmountall();
 	}
 	swapoff_all();

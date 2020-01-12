@@ -5023,7 +5023,7 @@ extattr_check_cred(struct vnode *vp, int attrnamespace, struct ucred *cred,
  * This only exists to suppress warnings from unlocked specfs accesses.  It is
  * no longer ok to have an unlocked VFS.
  */
-#define	IGNORE_LOCK(vp) (panicstr != NULL || (vp) == NULL ||		\
+#define	IGNORE_LOCK(vp) (KERNEL_PANICKED() || (vp) == NULL ||		\
 	(vp)->v_type == VCHR ||	(vp)->v_type == VBAD)
 
 int vfs_badlock_ddb = 1;	/* Drop into debugger on violation. */
@@ -5172,7 +5172,7 @@ vop_strategy_pre(void *ap)
 	if ((bp->b_flags & B_CLUSTER) != 0)
 		return;
 
-	if (panicstr == NULL && !BUF_ISLOCKED(bp)) {
+	if (!KERNEL_PANICKED() && !BUF_ISLOCKED(bp)) {
 		if (vfs_badlock_print)
 			printf(
 			    "VOP_STRATEGY: bp is not locked but should be\n");

@@ -479,7 +479,7 @@ textdump_dumpsys(struct dumperinfo *di)
 #endif
 	if (textdump_do_msgbuf)
 		textdump_dump_msgbuf(di);
-	if (textdump_do_panic && panicstr != NULL)
+	if (textdump_do_panic && KERNEL_PANICKED())
 		textdump_dump_panic(di);
 	if (textdump_do_version)
 		textdump_dump_version(di);

@@ -558,7 +558,7 @@ lockmgr_slock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 	int contested = 0;
 #endif
 
-	if (__predict_false(panicstr != NULL))
+	if (KERNEL_PANICKED())
 		goto out;
 
 	tid = (uintptr_t)curthread;
@@ -700,7 +700,7 @@ lockmgr_xlock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 	int contested = 0;
 #endif
 
-	if (__predict_false(panicstr != NULL))
+	if (KERNEL_PANICKED())
 		goto out;
 
 	tid = (uintptr_t)curthread;
@@ -882,7 +882,7 @@ lockmgr_upgrade(struct lock *lk, u_int flags, struct lock_object *ilk,
 	int wakeup_swapper = 0;
 	int op;
 
-	if (__predict_false(panicstr != NULL))
+	if (KERNEL_PANICKED())
 		goto out;
 
 	tid = (uintptr_t)curthread;
@@ -941,7 +941,7 @@ lockmgr_lock_fast_path(struct lock *lk, u_int flags, struct lock_object *ilk,
 	u_int op;
 	bool locked;
 
-	if (__predict_false(panicstr != NULL))
+	if (KERNEL_PANICKED())
 		return (0);
 
 	op = flags & LK_TYPE_MASK;
@@ -1003,7 +1003,7 @@ lockmgr_sunlock_hard(struct lock *lk, uintptr_t x, u_int flags, struct lock_obje
 {
 	int wakeup_swapper = 0;
 
-	if (__predict_false(panicstr != NULL))
+	if (KERNEL_PANICKED())
 		goto out;
 
 	wakeup_swapper = wakeupshlk(lk, file, line);
@@ -1022,7 +1022,7 @@ lockmgr_xunlock_hard(struct lock *lk, uintptr_t x, u_int flags, struct lock_obje
 	u_int realexslp;
 	int queue;
 
-	if (__predict_false(panicstr != NULL))
+	if (KERNEL_PANICKED())
 		goto out;
 
 	tid = (uintptr_t)curthread;
@@ -1126,7 +1126,7 @@ lockmgr_unlock_fast_path(struct lock *lk, u_int flags, struct lock_object *ilk)
 	const char *file;
 	int line;
 
-	if (__predict_false(panicstr != NULL))
+	if (KERNEL_PANICKED())
 		return (0);
 
 	file = __FILE__;
@@ -1254,7 +1254,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	int contested = 0;
 #endif
 
-	if (panicstr != NULL)
+	if (KERNEL_PANICKED())
 		return (0);
 
 	error = 0;
@@ -1662,7 +1662,7 @@ _lockmgr_assert(const struct lock *lk, int what, const char *file, int line)
 {
 	int slocked = 0;
 
-	if (panicstr != NULL)
+	if (KERNEL_PANICKED())
 		return;
 	switch (what) {
 	case KA_SLOCKED:

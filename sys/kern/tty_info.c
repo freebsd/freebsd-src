@@ -229,7 +229,7 @@ sbuf_tty_drain(void *a, const char *d, int len)
 		cnputsn(d, len);
 		return (len);
 	}
-	if (tp != NULL && panicstr == NULL) {
+	if (tp != NULL && !KERNEL_PANICKED()) {
 		rc = tty_putstrn(tp, d, len);
 		if (rc != 0)
 			return (-ENXIO);
