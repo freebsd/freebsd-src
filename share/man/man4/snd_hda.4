@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 1, 2018
+.Dd July 16, 2019
 .Dt SND_HDA 4
 .Os
 .Sh NAME
@@ -153,6 +153,12 @@ The
 and
 .Dq Li ovref Ns Ar X
 options control the voltage used to power external microphones.
+.It Va dev.hdaa.%d.init_clear
+Zero out the pin widget config setup by the system.
+Some systems seem to have unuseable audio devices if the pin widgit
+configuration is cleared.
+Set this value to 0 to accept the default configuration values setup by the
+BIOS.
 .It Va hint.hdaa.%d.gpio_config
 Overrides audio function GPIO pins configuration set by BIOS.
 May be specified as a set of space-separated
