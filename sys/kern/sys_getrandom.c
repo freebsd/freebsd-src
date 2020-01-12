@@ -69,7 +69,7 @@ kern_getrandom(struct thread *td, void *user_buf, size_t buflen,
 	 * blocking, when the Linux API does not block.
 	 *
 	 * 2. Alternatively, we could treat GRND_INSECURE requests as requests
-	 * for GRND_NONBLOCk.  Here, the surprising result for Linux programs
+	 * for GRND_NONBLOCK.  Here, the surprising result for Linux programs
 	 * is that invocations with unseeded random(4) will produce EAGAIN,
 	 * rather than garbage.
 	 *
