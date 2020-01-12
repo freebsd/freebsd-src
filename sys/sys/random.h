@@ -159,6 +159,7 @@ void random_harvest_deregister_source(enum random_entropy_source);
 
 #define GRND_NONBLOCK	0x1
 #define GRND_RANDOM	0x2
+#define GRND_INSECURE	0x4
 
 __BEGIN_DECLS
 ssize_t getrandom(void *buf, size_t buflen, unsigned int flags);
