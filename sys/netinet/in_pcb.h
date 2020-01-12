@@ -832,7 +832,7 @@ int	in_pcbbind_setup(struct inpcb *, struct sockaddr *, in_addr_t *,
 	    u_short *, struct ucred *);
 int	in_pcbconnect(struct inpcb *, struct sockaddr *, struct ucred *);
 int	in_pcbconnect_mbuf(struct inpcb *, struct sockaddr *, struct ucred *,
-	    struct mbuf *);
+	    struct mbuf *, bool);
 int	in_pcbconnect_setup(struct inpcb *, struct sockaddr *, in_addr_t *,
 	    u_short *, in_addr_t *, u_short *, struct inpcb **,
 	    struct ucred *);
@@ -841,7 +841,7 @@ void	in_pcbdisconnect(struct inpcb *);
 void	in_pcbdrop(struct inpcb *);
 void	in_pcbfree(struct inpcb *);
 int	in_pcbinshash(struct inpcb *);
-int	in_pcbinshash_nopcbgroup(struct inpcb *);
+int	in_pcbinshash_mbuf(struct inpcb *, struct mbuf *);
 int	in_pcbladdr(struct inpcb *, struct in_addr *, struct in_addr *,
 	    struct ucred *);
 struct inpcb *
