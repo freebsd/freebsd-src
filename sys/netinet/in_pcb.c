@@ -972,7 +972,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
  */
 int
 in_pcbconnect_mbuf(struct inpcb *inp, struct sockaddr *nam,
-    struct ucred *cred, struct mbuf *m)
+    struct ucred *cred, struct mbuf *m, bool rehash)
 {
 	u_short lport, fport;
 	in_addr_t laddr, faddr;
@@ -991,6 +991,8 @@ in_pcbconnect_mbuf(struct inpcb *inp, struct sockaddr *nam,
 
 	/* Do the initial binding of the local address if required. */
 	if (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0) {
+		KASSERT(rehash == true,
+		    ("Rehashing required for unbound inps"));
 		inp->inp_lport = lport;
 		inp->inp_laddr.s_addr = laddr;
 		if (in_pcbinshash(inp) != 0) {
@@ -1005,7 +1007,11 @@ in_pcbconnect_mbuf(struct inpcb *inp, struct sockaddr *nam,
 	inp->inp_laddr.s_addr = laddr;
 	inp->inp_faddr.s_addr = faddr;
 	inp->inp_fport = fport;
-	in_pcbrehash_mbuf(inp, m);
+	if (rehash) {
+		in_pcbrehash_mbuf(inp, m);
+	} else {
+		in_pcbinshash_mbuf(inp, m);
+	}
 
 	if (anonport)
 		inp->inp_flags |= INP_ANONPORT;
@@ -1016,7 +1022,7 @@ int
 in_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 {
 
-	return (in_pcbconnect_mbuf(inp, nam, cred, NULL));
+	return (in_pcbconnect_mbuf(inp, nam, cred, NULL, true));
 }
 
 /*
@@ -2500,7 +2506,7 @@ in_pcblookup_mbuf(struct inpcbinfo *pcbinfo, struct in_addr faddr,
  * Insert PCB onto various hash lists.
  */
 static int
-in_pcbinshash_internal(struct inpcb *inp, int do_pcbgroup_update)
+in_pcbinshash_internal(struct inpcb *inp, struct mbuf *m)
 {
 	struct inpcbhead *pcbhash;
 	struct inpcbporthead *pcbporthash;
@@ -2566,35 +2572,27 @@ in_pcbinshash_internal(struct inpcb *inp, int do_pcbgroup_update)
 	CK_LIST_INSERT_HEAD(pcbhash, inp, inp_hash);
 	inp->inp_flags |= INP_INHASHLIST;
 #ifdef PCBGROUP
-	if (do_pcbgroup_update)
+	if (m != NULL) {
+		in_pcbgroup_update_mbuf(inp, m);
+	} else {
 		in_pcbgroup_update(inp);
+	}
 #endif
 	return (0);
 }
 
-/*
- * For now, there are two public interfaces to insert an inpcb into the hash
- * lists -- one that does update pcbgroups, and one that doesn't.  The latter
- * is used only in the TCP syncache, where in_pcbinshash is called before the
- * full 4-tuple is set for the inpcb, and we don't want to install in the
- * pcbgroup until later.
- *
- * XXXRW: This seems like a misfeature.  in_pcbinshash should always update
- * connection groups, and partially initialised inpcbs should not be exposed
- * to either reservation hash tables or pcbgroups.
- */
 int
 in_pcbinshash(struct inpcb *inp)
 {
 
-	return (in_pcbinshash_internal(inp, 1));
+	return (in_pcbinshash_internal(inp, NULL));
 }
 
 int
-in_pcbinshash_nopcbgroup(struct inpcb *inp)
+in_pcbinshash_mbuf(struct inpcb *inp, struct mbuf *m)
 {
 
-	return (in_pcbinshash_internal(inp, 0));
+	return (in_pcbinshash_internal(inp, m));
 }
 
 /*
