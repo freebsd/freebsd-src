@@ -357,7 +357,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 
 /* Oid for a constant '\0' terminated string. */
 #define	SYSCTL_CONST_STRING(parent, nbr, name, access, arg, descr)	\
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_STRING|(access),		\
+	SYSCTL_OID(parent, nbr, name, CTLTYPE_STRING | CTLFLAG_MPSAFE | (access),\
 	    __DECONST(char *, arg), 0, sysctl_handle_string, "A", descr); \
 	CTASSERT(!(access & CTLFLAG_WR));				\
 	CTASSERT(((access) & CTLTYPE) == 0 ||				\
@@ -369,9 +369,9 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	CTASSERT(!(access & CTLFLAG_WR));				\
 	CTASSERT(((access) & CTLTYPE) == 0 ||				\
 	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_STRING);	\
-	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_STRING|(access),	\
-	    __arg, 0, sysctl_handle_string, "A", __DESCR(descr),	\
-	    NULL); \
+	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_STRING | 	\
+	    CTLFLAG_MPSAFE | (access), __arg, 0, sysctl_handle_string, "A",\
+	    __DESCR(descr), NULL); 					\
 })
 
 /* Oid for a bool.  If ptr is NULL, val is returned. */
