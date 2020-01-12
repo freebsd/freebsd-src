@@ -80,6 +80,20 @@ dwc_otg_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
+static int
+dwc_otg_irq_index(device_t dev, int *rid)
+{
+	int idx, rv;
+	phandle_t node;
+
+	node = ofw_bus_get_node(dev);
+	rv = ofw_bus_find_string_index(node, "interrupt-names", "usb", &idx);
+	if (rv != 0)
+		return (rv);
+	*rid = idx;
+	return (0);
+}
+
 int
 dwc_otg_attach(device_t dev)
 {
@@ -130,10 +144,16 @@ dwc_otg_attach(device_t dev)
 
 
 	/*
-	 * brcm,bcm2708-usb FDT provides two interrupts,
-	 * we need only second one (VC_USB)
+	 * brcm,bcm2708-usb FDT provides two interrupts, we need only the USB
+	 * interrupt (VC_USB).  The latest FDT for it provides an
+	 * interrupt-names property and swapped them around, while older ones
+	 * did not have interrupt-names and put the usb interrupt in the second
+	 * position.  We'll attempt to use interrupt-names first with a fallback
+	 * to the old method of assuming the index based on the compatible
+	 * string.
 	 */
-	rid = ofw_bus_is_compatible(dev, "brcm,bcm2708-usb") ? 1 : 0;
+	if (dwc_otg_irq_index(dev, &rid) != 0)
+		rid = ofw_bus_is_compatible(dev, "brcm,bcm2708-usb") ? 1 : 0;
 	sc->sc_otg.sc_irq_res =
 	    bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->sc_otg.sc_irq_res == NULL)
