@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 static struct nd_defrouter *defrtrlist_update(struct nd_defrouter *);
 static int prelist_update(struct nd_prefixctl *, struct nd_defrouter *,
     struct mbuf *, int);
+static int nd6_prefix_onlink(struct nd_prefix *);
 
 TAILQ_HEAD(nd6_drhead, nd_defrouter);
 VNET_DEFINE_STATIC(struct nd6_drhead, nd6_defrouter);
@@ -2088,7 +2089,7 @@ nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 	return (a_failure);
 }
 
-int
+static int
 nd6_prefix_onlink(struct nd_prefix *pr)
 {
 	struct epoch_tracker et;
