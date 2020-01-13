@@ -147,7 +147,7 @@ struct vnode {
 	/*
 	 * The machinery of being a vnode
 	 */
-	TAILQ_ENTRY(vnode) v_actfreelist;	/* l vnode active/free lists */
+	TAILQ_ENTRY(vnode) v_vnodelist;		/* l vnode lists */
 	TAILQ_ENTRY(vnode) v_lazylist;		/* l vnode lazy list */
 	struct bufobj	v_bufobj;		/* * Buffer cache object */
 
@@ -239,8 +239,6 @@ struct xvnode {
 
 #define	VI_TEXT_REF	0x0001	/* Text ref grabbed use ref */
 #define	VI_MOUNT	0x0020	/* Mount in progress */
-#define	VI_FREE		0x0100	/* This vnode is on the freelist */
-#define	VI_ACTIVE	0x0200	/* This vnode is on the active list */
 #define	VI_DOINGINACT	0x0800	/* VOP_INACTIVE is in progress */
 #define	VI_OWEINACT	0x1000	/* Need to call inactive */
 #define	VI_DEFINACT	0x2000	/* deferred inactive */
@@ -260,8 +258,7 @@ struct xvnode {
 #define	VV_FORCEINSMQ	0x1000	/* force the insmntque to succeed */
 #define	VV_READLINK	0x2000	/* fdescfs linux vnode */
 
-#define	VMP_TMPMNTFREELIST	0x0001	/* Vnode is on mnt's tmp free list */
-#define	VMP_LAZYLIST		0x0002	/* Vnode is on mnt's lazy list */
+#define	VMP_LAZYLIST	0x0001	/* Vnode is on mnt's lazy list */
 
 /*
  * Vnode attributes.  A field value of VNOVAL represents a field whose value
