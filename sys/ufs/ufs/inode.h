@@ -140,6 +140,12 @@ struct inode {
 
 #define UFS_INODE_FLAG_LAZY_MASK	\
 	(IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE | IN_LAZYMOD | IN_LAZYACCESS)
+/*
+ * Some flags can persist a vnode transitioning to 0 hold count and being tkaen
+ * off the list.
+ */
+#define UFS_INODE_FLAG_LAZY_MASK_ASSERTABLE \
+	(UFS_INODE_FLAG_LAZY_MASK & ~(IN_LAZYMOD | IN_LAZYACCESS))
 
 #define UFS_INODE_SET_FLAG(ip, flags) do {			\
 	struct inode *_ip = (ip);				\
