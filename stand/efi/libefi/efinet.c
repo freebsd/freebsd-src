@@ -178,7 +178,7 @@ efinet_get(struct iodesc *desc, void **pkt, time_t timeout)
 		return (ret);
 
 	bufsz = net->Mode->MaxPacketSize + ETHER_HDR_LEN + ETHER_CRC_LEN;
-	buf = malloc(bufsz + ETHER_ALIGN);
+	buf = memalign(4, bufsz + ETHER_ALIGN);
 	if (buf == NULL)
 		return (ret);
 	ptr = buf + ETHER_ALIGN;
