@@ -87,11 +87,6 @@ __read_label(FILE *fp, char *label, size_t size)
 			best = broot;
 		}
 	}
-	if (best_i == -1) {
-		warnx("Failed to find volume header from zones");
-		error = 1;
-		goto done;
-	}
 
 	bref = &vols[best_i]->voldata.sroot_blockset.blockref[0];
 	if (bref->type != HAMMER2_BREF_TYPE_INODE) {
