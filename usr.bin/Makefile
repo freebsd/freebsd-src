@@ -261,7 +261,7 @@ SUBDIR.${MK_TOOLCHAIN}+=	objcopy
 SUBDIR.${MK_TOOLCHAIN}+=	file2c
 # ARM64TODO gprof does not build
 # RISCVTODO gprof does not build
-.if ${MACHINE_ARCH} != "aarch64" && ${MACHINE_CPUARCH} != "riscv"
+.if ${MACHINE_ARCH} != "aarch64"
 SUBDIR.${MK_TOOLCHAIN}+=	gprof
 .endif
 SUBDIR.${MK_TOOLCHAIN}+=	indent

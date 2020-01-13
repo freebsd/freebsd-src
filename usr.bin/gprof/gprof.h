@@ -57,6 +57,9 @@
 #if __sparc64__
 #   include "sparc64.h"
 #endif
+#if __riscv
+#    include "riscv.h"
+#endif
 
     /*
      * booleans
