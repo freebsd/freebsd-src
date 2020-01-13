@@ -420,6 +420,7 @@ FBSD_1.4 {
 };
 
 FBSD_1.5 {
+	elf_aux_info;
 	sem_clockwait_np;
 	setproctitle_fast;
 };
