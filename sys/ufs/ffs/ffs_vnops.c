@@ -485,7 +485,7 @@ ffs_unlock_debug(struct vop_unlock_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
 
-	if (ip->i_flag & UFS_INODE_FLAG_LAZY_MASK) {
+	if (ip->i_flag & UFS_INODE_FLAG_LAZY_MASK_ASSERTABLE) {
 		if ((vp->v_mflag & VMP_LAZYLIST) == 0) {
 			VI_LOCK(vp);
 			VNASSERT((vp->v_mflag & VMP_LAZYLIST), vp,
