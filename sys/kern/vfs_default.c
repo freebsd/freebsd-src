@@ -1230,6 +1230,8 @@ vop_stdadd_writecount(struct vop_add_writecount_args *ap)
 		VNASSERT(vp->v_writecount + ap->a_inc >= 0, vp,
 		    ("neg writecount increment %d", ap->a_inc));
 		vp->v_writecount += ap->a_inc;
+		if (vp->v_writecount > 0 && vp->v_mount != NULL)
+			vlazy(vp);
 		error = 0;
 	}
 	VI_UNLOCK(vp);
