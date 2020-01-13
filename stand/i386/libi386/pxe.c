@@ -501,7 +501,7 @@ pxe_netif_receive_isr(t_PXENV_UNDI_ISR *isr, void **pkt, ssize_t *retsize)
 			 * multiple GET_NEXT calls.
 			 */
 			size = isr->FrameLength;
-			buf = memalign(4, size + ETHER_ALIGN);
+			buf = malloc(size + ETHER_ALIGN);
 			if (buf == NULL)
 				return (ENOMEM);
 
