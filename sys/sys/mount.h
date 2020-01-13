@@ -219,10 +219,6 @@ struct mount {
 #define	mnt_endzero	mnt_gjprovider
 	char		*mnt_gjprovider;	/* gjournal provider name */
 	struct mtx	mnt_listmtx;
-	struct vnodelst	mnt_activevnodelist;	/* (l) list of active vnodes */
-	int		mnt_activevnodelistsize;/* (l) # of active vnodes */
-	struct vnodelst	mnt_tmpfreevnodelist;	/* (l) list of free vnodes */
-	int		mnt_tmpfreevnodelistsize;/* (l) # of free vnodes */
 	struct vnodelst	mnt_lazyvnodelist;	/* (l) list of lazy vnodes */
 	int		mnt_lazyvnodelistsize;	/* (l) # of lazy vnodes */
 	struct lock	mnt_explock;		/* vfs_export walkers lock */
@@ -254,20 +250,6 @@ void          __mnt_vnode_markerfree_all(struct vnode **mvp, struct mount *mp);
 		/* MNT_IUNLOCK(mp); -- done in above function */	\
 		mtx_assert(MNT_MTX(mp), MA_NOTOWNED);			\
 	} while (0)
-
-/*
- * Definitions for MNT_VNODE_FOREACH_ACTIVE.
- */
-struct vnode *__mnt_vnode_next_active(struct vnode **mvp, struct mount *mp);
-struct vnode *__mnt_vnode_first_active(struct vnode **mvp, struct mount *mp);
-void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
-
-#define MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) 				\
-	for (vp = __mnt_vnode_first_active(&(mvp), (mp)); 		\
-		(vp) != NULL; vp = __mnt_vnode_next_active(&(mvp), (mp)))
-
-#define MNT_VNODE_FOREACH_ACTIVE_ABORT(mp, mvp)				\
-	__mnt_vnode_markerfree_active(&(mvp), (mp))
 
 /*
  * Definitions for MNT_VNODE_FOREACH_LAZY.

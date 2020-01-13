@@ -101,7 +101,7 @@ static const char *tmpfs_updateopts[] = {
 
 /*
  * Handle updates of time from writes to mmaped regions.  Use
- * MNT_VNODE_FOREACH_ALL instead of MNT_VNODE_FOREACH_ACTIVE, since
+ * MNT_VNODE_FOREACH_ALL instead of MNT_VNODE_FOREACH_LAZY, since
  * unmap of the tmpfs-backed vnode does not call vinactive(), due to
  * vm object type is OBJT_SWAP.
  * If lazy, only handle delayed update of mtime due to the writes to
