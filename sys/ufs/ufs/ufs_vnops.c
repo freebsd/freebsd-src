@@ -686,12 +686,9 @@ ufs_markatime(ap)
 		struct vnode *a_vp;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
-	struct inode *ip = VTOI(vp);
+	struct inode *ip = VTOI(ap->a_vp);
 
-	VI_LOCK(vp);
-	UFS_INODE_SET_FLAG(ip, IN_ACCESS);
-	VI_UNLOCK(vp);
+	UFS_INODE_SET_FLAG_SHARED(ip, IN_ACCESS);
 	/*
 	 * XXXKIB No UFS_UPDATE(ap->a_vp, 0) there.
 	 */
