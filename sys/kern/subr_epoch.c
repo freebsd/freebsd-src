@@ -610,8 +610,8 @@ epoch_wait_preempt(epoch_t epoch)
 	KASSERT(!in_epoch(epoch), ("epoch_wait_preempt() called in the middle "
 	    "of an epoch section of the same epoch"));
 #endif
-	thread_lock(td);
 	DROP_GIANT();
+	thread_lock(td);
 
 	old_cpu = PCPU_GET(cpuid);
 	old_pinned = td->td_pinned;
