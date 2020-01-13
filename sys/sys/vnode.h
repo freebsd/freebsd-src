@@ -171,7 +171,8 @@ struct vnode {
 	u_int	v_usecount;			/* I ref count of users */
 	u_int	v_iflag;			/* i vnode flags (see below) */
 	u_int	v_vflag;			/* v vnode flags */
-	u_int	v_mflag;			/* l mnt-specific vnode flags */
+	u_short	v_mflag;			/* l mnt-specific vnode flags */
+	short	v_dbatchcpu;			/* i LRU requeue deferral batch */
 	int	v_writecount;			/* I ref count of writers or
 						   (negative) text users */
 	u_int	v_hash;
