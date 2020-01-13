@@ -84,7 +84,7 @@ static const char *nfsv4_errstr[NFSERR_XATTR2BIG - 10000] = {
 	"file locking deadlock",
 	"open file blocks op",
 	"lockowner state revoked",
-	"callback path down"
+	"callback path down",
 	"bad IO mode",
 	"bad layout",
 	"bad session digest",
