@@ -223,6 +223,8 @@ struct mount {
 	int		mnt_activevnodelistsize;/* (l) # of active vnodes */
 	struct vnodelst	mnt_tmpfreevnodelist;	/* (l) list of free vnodes */
 	int		mnt_tmpfreevnodelistsize;/* (l) # of free vnodes */
+	struct vnodelst	mnt_lazyvnodelist;	/* (l) list of lazy vnodes */
+	int		mnt_lazyvnodelistsize;	/* (l) # of lazy vnodes */
 	struct lock	mnt_explock;		/* vfs_export walkers lock */
 	TAILQ_ENTRY(mount) mnt_upper_link;	/* (m) we in the all uppers */
 	TAILQ_HEAD(, mount) mnt_uppers;		/* (m) upper mounts over us*/
@@ -266,6 +268,24 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 
 #define MNT_VNODE_FOREACH_ACTIVE_ABORT(mp, mvp)				\
 	__mnt_vnode_markerfree_active(&(mvp), (mp))
+
+/*
+ * Definitions for MNT_VNODE_FOREACH_LAZY.
+ */
+typedef int mnt_lazy_cb_t(struct vnode *, void *);
+struct vnode *__mnt_vnode_next_lazy(struct vnode **mvp, struct mount *mp,
+    mnt_lazy_cb_t *cb, void *cbarg);
+struct vnode *__mnt_vnode_first_lazy(struct vnode **mvp, struct mount *mp,
+    mnt_lazy_cb_t *cb, void *cbarg);
+void          __mnt_vnode_markerfree_lazy(struct vnode **mvp, struct mount *mp);
+
+#define MNT_VNODE_FOREACH_LAZY(vp, mp, mvp, cb, cbarg)			\
+	for (vp = __mnt_vnode_first_lazy(&(mvp), (mp), (cb), (cbarg));	\
+		(vp) != NULL; 						\
+		vp = __mnt_vnode_next_lazy(&(mvp), (mp), (cb), (cbarg)))
+
+#define MNT_VNODE_FOREACH_LAZY_ABORT(mp, mvp)				\
+	__mnt_vnode_markerfree_lazy(&(mvp), (mp))
 
 #define	MNT_ILOCK(mp)	mtx_lock(&(mp)->mnt_mtx)
 #define	MNT_ITRYLOCK(mp) mtx_trylock(&(mp)->mnt_mtx)

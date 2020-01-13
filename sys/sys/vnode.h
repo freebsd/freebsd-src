@@ -148,6 +148,7 @@ struct vnode {
 	 * The machinery of being a vnode
 	 */
 	TAILQ_ENTRY(vnode) v_actfreelist;	/* l vnode active/free lists */
+	TAILQ_ENTRY(vnode) v_lazylist;		/* l vnode lazy list */
 	struct bufobj	v_bufobj;		/* * Buffer cache object */
 
 	/*
@@ -260,6 +261,7 @@ struct xvnode {
 #define	VV_READLINK	0x2000	/* fdescfs linux vnode */
 
 #define	VMP_TMPMNTFREELIST	0x0001	/* Vnode is on mnt's tmp free list */
+#define	VMP_LAZYLIST		0x0002	/* Vnode is on mnt's lazy list */
 
 /*
  * Vnode attributes.  A field value of VNOVAL represents a field whose value
@@ -653,6 +655,7 @@ int	vaccess_acl_posix1e(enum vtype type, uid_t file_uid,
 	    struct ucred *cred, int *privused);
 void	vattr_null(struct vattr *vap);
 int	vcount(struct vnode *vp);
+void	vlazy(struct vnode *);
 void	vdrop(struct vnode *);
 void	vdropl(struct vnode *);
 int	vflush(struct mount *mp, int rootrefs, int flags, struct thread *td);
