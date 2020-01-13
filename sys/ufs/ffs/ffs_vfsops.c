@@ -1446,6 +1446,23 @@ sync_doupdate(struct inode *ip)
 	    IN_UPDATE)) != 0);
 }
 
+static int
+ffs_sync_lazy_filter(struct vnode *vp, void *arg __unused)
+{
+	struct inode *ip;
+
+	/*
+	 * Flags are safe to access because ->v_data invalidation
+	 * is held off by listmtx.
+	 */
+	if (vp->v_type == VNON)
+		return (false);
+	ip = VTOI(vp);
+	if (!sync_doupdate(ip) && (vp->v_iflag & VI_OWEINACT) == 0)
+		return (false);
+	return (true);
+}
+
 /*
  * For a lazy sync, we only care about access times, quotas and the
  * superblock.  Other filesystem changes are already converted to
@@ -1465,7 +1482,7 @@ ffs_sync_lazy(mp)
 	td = curthread;
 	if ((mp->mnt_flag & MNT_NOATIME) != 0)
 		goto qupdate;
-	MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) {
+	MNT_VNODE_FOREACH_LAZY(vp, mp, mvp, ffs_sync_lazy_filter, NULL) {
 		if (vp->v_type == VNON) {
 			VI_UNLOCK(vp);
 			continue;
