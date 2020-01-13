@@ -1706,7 +1706,7 @@ unionfs_getwritemount(struct vop_getwritemount_args *ap)
 		error = VOP_GETWRITEMOUNT(uvp, ap->a_mpp);
 	else {
 		VI_LOCK(vp);
-		if (vp->v_iflag & VI_FREE)
+		if (vp->v_holdcnt == 0)
 			error = EOPNOTSUPP;
 		else
 			error = EACCES;
