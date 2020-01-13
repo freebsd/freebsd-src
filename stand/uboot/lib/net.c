@@ -302,7 +302,7 @@ net_get(struct iodesc *desc, void **pkt, time_t timeout)
 #endif
 
 	if (rlen > 0) {
-		buf = memalign(4, rlen + ETHER_ALIGN);
+		buf = malloc(rlen + ETHER_ALIGN);
 		if (buf == NULL)
 			return (-1);
 		memcpy(buf + ETHER_ALIGN, sc->sc_rxbuf, rlen);
