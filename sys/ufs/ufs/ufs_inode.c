@@ -183,7 +183,7 @@ ufs_inactive(ap)
 		mode = ip->i_mode;
 		ip->i_mode = 0;
 		DIP_SET(ip, i_mode, 0);
-		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE);
 		if (DOINGSOFTDEP(vp))
 			softdep_change_linkcnt(ip);
 		UFS_VFREE(vp, ip->i_number, mode);
@@ -241,7 +241,7 @@ ufs_reclaim(ap)
 #endif
 
 	if (ip->i_flag & IN_LAZYMOD)
-		ip->i_flag |= IN_MODIFIED;
+		UFS_INODE_SET_FLAG(ip, IN_MODIFIED);
 	UFS_UPDATE(vp, 0);
 	/*
 	 * Remove the inode from its hash chain.

@@ -668,7 +668,7 @@ ffs_read(ap)
 	    (vp->v_mount->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0 &&
 	    (ip->i_flag & IN_ACCESS) == 0) {
 		VI_LOCK(vp);
-		ip->i_flag |= IN_ACCESS;
+		UFS_INODE_SET_FLAG(ip, IN_ACCESS);
 		VI_UNLOCK(vp);
 	}
 	return (error);
@@ -853,7 +853,7 @@ ffs_write(ap)
 		}
 		if (error || xfersize == 0)
 			break;
-		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE);
 	}
 	/*
 	 * If we successfully wrote any data, and we are not the superuser
@@ -1096,7 +1096,7 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 			bdwrite(bp);
 		if (error || xfersize == 0)
 			break;
-		ip->i_flag |= IN_CHANGE;
+		UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 	}
 	/*
 	 * If we successfully wrote any data, and we are not the superuser
@@ -1203,11 +1203,11 @@ ffs_lock_ea(struct vnode *vp)
 	ip = VTOI(vp);
 	VI_LOCK(vp);
 	while (ip->i_flag & IN_EA_LOCKED) {
-		ip->i_flag |= IN_EA_LOCKWAIT;
+		UFS_INODE_SET_FLAG(ip, IN_EA_LOCKWAIT);
 		msleep(&ip->i_ea_refs, &vp->v_interlock, PINOD + 2, "ufs_ea",
 		    0);
 	}
-	ip->i_flag |= IN_EA_LOCKED;
+	UFS_INODE_SET_FLAG(ip, IN_EA_LOCKED);
 	VI_UNLOCK(vp);
 }
 

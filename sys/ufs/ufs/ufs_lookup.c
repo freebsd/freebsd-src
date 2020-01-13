@@ -556,7 +556,7 @@ found:
 		ufs_dirbad(dp, i_offset, "i_size too small");
 		dp->i_size = i_offset + DIRSIZ(OFSFMT(vdp), ep);
 		DIP_SET(dp, i_size, dp->i_size);
-		dp->i_flag |= IN_CHANGE | IN_UPDATE;
+		UFS_INODE_SET_FLAG(dp, IN_CHANGE | IN_UPDATE);
 	}
 	brelse(bp);
 
@@ -918,7 +918,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 		dp->i_size = dp->i_offset + DIRBLKSIZ;
 		DIP_SET(dp, i_size, dp->i_size);
 		dp->i_endoff = dp->i_size;
-		dp->i_flag |= IN_CHANGE | IN_UPDATE;
+		UFS_INODE_SET_FLAG(dp, IN_CHANGE | IN_UPDATE);
 		dirp->d_reclen = DIRBLKSIZ;
 		blkoff = dp->i_offset &
 		    (VFSTOUFS(dvp->v_mount)->um_mountp->mnt_stat.f_iosize - 1);
@@ -946,7 +946,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 			}
 			if (softdep_setup_directory_add(bp, dp, dp->i_offset,
 			    dirp->d_ino, newdirbp, 1))
-				dp->i_flag |= IN_NEEDSYNC;
+				UFS_INODE_SET_FLAG(dp, IN_NEEDSYNC);
 			if (newdirbp)
 				bdwrite(newdirbp);
 			bdwrite(bp);
@@ -1118,7 +1118,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 			error = bwrite(bp);
 		}
 	}
-	dp->i_flag |= IN_CHANGE | IN_UPDATE;
+	UFS_INODE_SET_FLAG(dp, IN_CHANGE | IN_UPDATE);
 	/*
 	 * If all went well, and the directory can be shortened, proceed
 	 * with the truncation. Note that we have to unlock the inode for
@@ -1179,13 +1179,13 @@ ufs_dirremove(dvp, ip, flags, isrmdir)
 	 */
 	if (ip) {
 		ip->i_effnlink--;
-		ip->i_flag |= IN_CHANGE;
+		UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 		if (DOINGSOFTDEP(dvp)) {
 			softdep_setup_unlink(dp, ip);
 		} else {
 			ip->i_nlink--;
 			DIP_SET(ip, i_nlink, ip->i_nlink);
-			ip->i_flag |= IN_CHANGE;
+			UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 		}
 	}
 	if (flags & DOWHITEOUT)
@@ -1195,13 +1195,13 @@ ufs_dirremove(dvp, ip, flags, isrmdir)
 	if ((error = UFS_BLKATOFF(dvp, offset, (char **)&ep, &bp)) != 0) {
 		if (ip) {
 			ip->i_effnlink++;
-			ip->i_flag |= IN_CHANGE;
+			UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 			if (DOINGSOFTDEP(dvp)) {
 				softdep_change_linkcnt(ip);
 			} else {
 				ip->i_nlink++;
 				DIP_SET(ip, i_nlink, ip->i_nlink);
-				ip->i_flag |= IN_CHANGE;
+				UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 			}
 		}
 		return (error);
@@ -1269,7 +1269,7 @@ out:
 		else
 			error = bwrite(bp);
 	}
-	dp->i_flag |= IN_CHANGE | IN_UPDATE;
+	UFS_INODE_SET_FLAG(dp, IN_CHANGE | IN_UPDATE);
 	/*
 	 * If the last named reference to a snapshot goes away,
 	 * drop its snapshot reference so that it will be reclaimed
@@ -1303,13 +1303,13 @@ ufs_dirrewrite(dp, oip, newinum, newtype, isrmdir)
 	 * necessary.
 	 */
 	oip->i_effnlink--;
-	oip->i_flag |= IN_CHANGE;
+	UFS_INODE_SET_FLAG(oip, IN_CHANGE);
 	if (DOINGSOFTDEP(vdp)) {
 		softdep_setup_unlink(dp, oip);
 	} else {
 		oip->i_nlink--;
 		DIP_SET(oip, i_nlink, oip->i_nlink);
-		oip->i_flag |= IN_CHANGE;
+		UFS_INODE_SET_FLAG(oip, IN_CHANGE);
 	}
 
 	error = UFS_BLKATOFF(vdp, (off_t)dp->i_offset, (char **)&ep, &bp);
@@ -1320,13 +1320,13 @@ ufs_dirrewrite(dp, oip, newinum, newtype, isrmdir)
 	}
 	if (error) {
 		oip->i_effnlink++;
-		oip->i_flag |= IN_CHANGE;
+		UFS_INODE_SET_FLAG(oip, IN_CHANGE);
 		if (DOINGSOFTDEP(vdp)) {
 			softdep_change_linkcnt(oip);
 		} else {
 			oip->i_nlink++;
 			DIP_SET(oip, i_nlink, oip->i_nlink);
-			oip->i_flag |= IN_CHANGE;
+			UFS_INODE_SET_FLAG(oip, IN_CHANGE);
 		}
 		return (error);
 	}
@@ -1344,7 +1344,7 @@ ufs_dirrewrite(dp, oip, newinum, newtype, isrmdir)
 			error = bwrite(bp);
 		}
 	}
-	dp->i_flag |= IN_CHANGE | IN_UPDATE;
+	UFS_INODE_SET_FLAG(dp, IN_CHANGE | IN_UPDATE);
 	/*
 	 * If the last named reference to a snapshot goes away,
 	 * drop its snapshot reference so that it will be reclaimed
