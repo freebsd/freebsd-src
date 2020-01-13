@@ -349,6 +349,11 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 		goto closem;
 	}
 
+	if (diff_format == D_BRIEF) {
+		rval = D_DIFFER;
+		status |= 1;
+		goto closem;
+	}
 	if ((flags & D_FORCEASCII) == 0 &&
 	    (!asciifile(f1) || !asciifile(f2))) {
 		rval = D_BINARY;
