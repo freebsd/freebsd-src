@@ -1320,7 +1320,7 @@ vmxnet3_isc_txd_encap(void *vsc, if_pkt_info_t pi)
 	hdrlen = pi->ipi_ehdrlen + pi->ipi_ip_hlen;
 	if (pi->ipi_csum_flags & CSUM_TSO) {
 		sop->offload_mode = VMXNET3_OM_TSO;
-		sop->hlen = hdrlen;
+		sop->hlen = hdrlen + pi->ipi_tcp_hlen;
 		sop->offload_pos = pi->ipi_tso_segsz;
 	} else if (pi->ipi_csum_flags & (VMXNET3_CSUM_OFFLOAD |
 	    VMXNET3_CSUM_OFFLOAD_IPV6)) {
