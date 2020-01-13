@@ -506,6 +506,8 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp, const char *fspath,
 	mp->mnt_activevnodelistsize = 0;
 	TAILQ_INIT(&mp->mnt_tmpfreevnodelist);
 	mp->mnt_tmpfreevnodelistsize = 0;
+	TAILQ_INIT(&mp->mnt_lazyvnodelist);
+	mp->mnt_lazyvnodelistsize = 0;
 	if (mp->mnt_ref != 0 || mp->mnt_lockref != 0 ||
 	    mp->mnt_writeopcount != 0)
 		panic("%s: non-zero counters on new mp %p\n", __func__, mp);
@@ -575,6 +577,8 @@ vfs_mount_destroy(struct mount *mp)
 		panic("vfs_mount_destroy: nonzero activevnodelistsize");
 	if (mp->mnt_tmpfreevnodelistsize != 0)
 		panic("vfs_mount_destroy: nonzero tmpfreevnodelistsize");
+	if (mp->mnt_lazyvnodelistsize != 0)
+		panic("vfs_mount_destroy: nonzero lazyvnodelistsize");
 	if (mp->mnt_lockref != 0)
 		panic("vfs_mount_destroy: nonzero lock refcount");
 	MNT_IUNLOCK(mp);
