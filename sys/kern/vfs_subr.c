@@ -295,6 +295,16 @@ static int stat_rush_requests;	/* number of times I/O speeded up */
 SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &stat_rush_requests, 0,
     "Number of times I/O speeded up (rush requests)");
 
+#define	VDBATCH_SIZE 8
+struct vdbatch {
+	u_int index;
+	struct mtx lock;
+	struct vnode *tab[VDBATCH_SIZE];
+};
+DPCPU_DEFINE_STATIC(struct vdbatch, vd);
+
+static void	vdbatch_dequeue(struct vnode *vp);
+
 /*
  * When shutting down the syncer, run it at four times normal speed.
  */
@@ -552,6 +562,8 @@ vnode_init(void *mem, int size, int flags)
 	 */
 	rangelock_init(&vp->v_rl);
 
+	vp->v_dbatchcpu = NOCPU;
+
 	mtx_lock(&vnode_list_mtx);
 	TAILQ_INSERT_BEFORE(vnode_list_free_marker, vp, v_vnodelist);
 	mtx_unlock(&vnode_list_mtx);
@@ -568,6 +580,7 @@ vnode_fini(void *mem, int size)
 	struct bufobj *bo;
 
 	vp = mem;
+	vdbatch_dequeue(vp);
 	mtx_lock(&vnode_list_mtx);
 	TAILQ_REMOVE(&vnode_list, vp, v_vnodelist);
 	mtx_unlock(&vnode_list_mtx);
@@ -602,8 +615,9 @@ vnode_fini(void *mem, int size)
 static void
 vntblinit(void *dummy __unused)
 {
+	struct vdbatch *vd;
+	int cpu, physvnodes, virtvnodes;
 	u_int i;
-	int physvnodes, virtvnodes;
 
 	/*
 	 * Desiredvnodes is a function of the physical memory size and the
@@ -669,6 +683,12 @@ vntblinit(void *dummy __unused)
 	for (i = 1; i <= sizeof(struct vnode); i <<= 1)
 		vnsz2log++;
 	vnsz2log--;
+
+	CPU_FOREACH(cpu) {
+		vd = DPCPU_ID_PTR((cpu), vd);
+		bzero(vd, sizeof(*vd));
+		mtx_init(&vd->lock, "vdbatch", NULL, MTX_DEF);
+	}
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vntblinit, NULL);
 
@@ -3199,6 +3219,98 @@ vholdnz(struct vnode *vp)
 #endif
 }
 
+static void __noinline
+vdbatch_process(struct vdbatch *vd)
+{
+	struct vnode *vp;
+	int i;
+
+	mtx_assert(&vd->lock, MA_OWNED);
+	MPASS(vd->index == VDBATCH_SIZE);
+
+	mtx_lock(&vnode_list_mtx);
+	for (i = 0; i < VDBATCH_SIZE; i++) {
+		vp = vd->tab[i];
+		TAILQ_REMOVE(&vnode_list, vp, v_vnodelist);
+		TAILQ_INSERT_TAIL(&vnode_list, vp, v_vnodelist);
+		MPASS(vp->v_dbatchcpu != NOCPU);
+		vp->v_dbatchcpu = NOCPU;
+	}
+	bzero(vd->tab, sizeof(vd->tab));
+	vd->index = 0;
+	mtx_unlock(&vnode_list_mtx);
+}
+
+static void
+vdbatch_enqueue(struct vnode *vp)
+{
+	struct vdbatch *vd;
+
+	ASSERT_VI_LOCKED(vp, __func__);
+	VNASSERT(!VN_IS_DOOMED(vp), vp,
+	    ("%s: deferring requeue of a doomed vnode", __func__));
+
+	if (vp->v_dbatchcpu != NOCPU) {
+		VI_UNLOCK(vp);
+		return;
+	}
+
+	/*
+	 * A hack: pin us to the current CPU so that we know what to put in
+	 * ->v_dbatchcpu.
+	 */
+	sched_pin();
+	vd = DPCPU_PTR(vd);
+	mtx_lock(&vd->lock);
+	MPASS(vd->index < VDBATCH_SIZE);
+	MPASS(vd->tab[vd->index] == NULL);
+	vp->v_dbatchcpu = curcpu;
+	vd->tab[vd->index] = vp;
+	vd->index++;
+	VI_UNLOCK(vp);
+	if (vd->index == VDBATCH_SIZE)
+		vdbatch_process(vd);
+	mtx_unlock(&vd->lock);
+	sched_unpin();
+}
+
+/*
+ * This routine must only be called for vnodes which are about to be
+ * deallocated. Supporting dequeue for arbitrary vndoes would require
+ * validating that the locked batch matches.
+ */
+static void
+vdbatch_dequeue(struct vnode *vp)
+{
+	struct vdbatch *vd;
+	int i;
+	short cpu;
+
+	VNASSERT(vp->v_type == VBAD || vp->v_type == VNON, vp,
+	    ("%s: called for a used vnode\n", __func__));
+
+	cpu = vp->v_dbatchcpu;
+	if (cpu == NOCPU)
+		return;
+
+	vd = DPCPU_ID_PTR(cpu, vd);
+	mtx_lock(&vd->lock);
+	for (i = 0; i < vd->index; i++) {
+		if (vd->tab[i] != vp)
+			continue;
+		vp->v_dbatchcpu = NOCPU;
+		vd->index--;
+		vd->tab[i] = vd->tab[vd->index];
+		vd->tab[vd->index] = NULL;
+		break;
+	}
+	mtx_unlock(&vd->lock);
+	/*
+	 * Either we dequeued the vnode above or the target CPU beat us to it.
+	 */
+	MPASS(vp->v_dbatchcpu == NOCPU);
+}
+
 /*
  * Drop the hold count of the vnode.  If this is the last reference to
  * the vnode we place it on the free list unless it has been vgone'd
@@ -3236,12 +3348,8 @@ vdrop_deactivate(struct vnode *vp)
 		mp->mnt_lazyvnodelistsize--;
 		mtx_unlock(&mp->mnt_listmtx);
 	}
-	mtx_lock(&vnode_list_mtx);
-	TAILQ_REMOVE(&vnode_list, vp, v_vnodelist);
-	TAILQ_INSERT_TAIL(&vnode_list, vp, v_vnodelist);
-	mtx_unlock(&vnode_list_mtx);
 	atomic_add_long(&freevnodes, 1);
-	VI_UNLOCK(vp);
+	vdbatch_enqueue(vp);
 }
 
 void
