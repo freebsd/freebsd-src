@@ -116,7 +116,7 @@ static struct Info {
 	long	nchcount;
 	long	*intrcnt;
 	long	bufspace;
-	u_long	desiredvnodes;
+	u_long	maxvnodes;
 	long	numvnodes;
 	long	freevnodes;
 	int	numdirtybuffers;
@@ -349,7 +349,7 @@ labelkre(void)
 		"|    |    |    |    |    |    |    |    |    |    |");
 
 	mvprintw(VNSTATROW, VNSTATCOL + 8, "dtbuf");
-	mvprintw(VNSTATROW + 1, VNSTATCOL + 8, "desvn");
+	mvprintw(VNSTATROW + 1, VNSTATCOL + 8, "maxvn");
 	mvprintw(VNSTATROW + 2, VNSTATCOL + 8, "numvn");
 	mvprintw(VNSTATROW + 3, VNSTATCOL + 8, "frevn");
 
@@ -520,7 +520,7 @@ showkre(void)
 		break;
 	}
 	putint(s.numdirtybuffers, VNSTATROW, VNSTATCOL, 7);
-	putint(s.desiredvnodes, VNSTATROW + 1, VNSTATCOL, 7);
+	putint(s.maxvnodes, VNSTATROW + 1, VNSTATCOL, 7);
 	putint(s.numvnodes, VNSTATROW + 2, VNSTATCOL, 7);
 	putint(s.freevnodes, VNSTATROW + 3, VNSTATCOL, 7);
 	putint(s.nchcount, NAMEIROW + 2, NAMEICOL, 8);
@@ -780,7 +780,7 @@ getinfo(struct Info *ls)
 	GETSYSCTL("vm.stats.vm.v_inactive_count", ls->v_inactive_count);
 	GETSYSCTL("vm.stats.vm.v_laundry_count", ls->v_laundry_count);
 	GETSYSCTL("vfs.bufspace", ls->bufspace);
-	GETSYSCTL("kern.maxvnodes", ls->desiredvnodes);
+	GETSYSCTL("kern.maxvnodes", ls->maxvnodes);
 	GETSYSCTL("vfs.numvnodes", ls->numvnodes);
 	GETSYSCTL("vfs.freevnodes", ls->freevnodes);
 	GETSYSCTL("vfs.cache.nchstats", ls->nchstats);
