@@ -142,7 +142,7 @@ ofwn_get(struct iodesc *desc, void **pkt, time_t timeout)
 	 * a small shortcut here.
 	 */
 	len = ETHER_MAX_LEN;
-	buf = malloc(len + ETHER_ALIGN);
+	buf = memalign(4, len + ETHER_ALIGN);
 	if (buf == NULL)
 		return (-1);
 	ptr = buf + ETHER_ALIGN;
