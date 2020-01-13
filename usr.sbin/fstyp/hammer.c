@@ -76,7 +76,7 @@ __test_ondisk(const hammer_volume_ondisk_t ondisk)
 		assert(count != 0);
 		memcpy(&fsid, &ondisk->vol_fsid, sizeof(fsid));
 		memcpy(&fstype, &ondisk->vol_fstype, sizeof(fstype));
-		strncpy(label, ondisk->vol_label, sizeof(label));
+		strlcpy(label, ondisk->vol_label, sizeof(label));
 	} else {
 		if (ondisk->vol_count != count)
 			return (5);
@@ -84,7 +84,7 @@ __test_ondisk(const hammer_volume_ondisk_t ondisk)
 			return (6);
 		if (memcmp(&ondisk->vol_fstype, &fstype, sizeof(fstype)))
 			return (7);
-		if (strncmp(ondisk->vol_label, label, sizeof(label)))
+		if (strcmp(ondisk->vol_label, label))
 			return (8);
 	}
 
