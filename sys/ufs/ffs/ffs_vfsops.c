@@ -1816,7 +1816,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 		while (ip->i_gen == 0)
 			ip->i_gen = arc4random();
 		if ((vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
-			ip->i_flag |= IN_MODIFIED;
+			UFS_INODE_SET_FLAG(ip, IN_MODIFIED);
 			DIP_SET(ip, i_gen, ip->i_gen);
 		}
 	}

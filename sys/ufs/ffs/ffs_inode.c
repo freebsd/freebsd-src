@@ -275,7 +275,7 @@ ffs_truncate(vp, length, flags, cred)
 				oldblks[i] = ip->i_din2->di_extb[i];
 				ip->i_din2->di_extb[i] = 0;
 			}
-			ip->i_flag |= IN_CHANGE;
+			UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 			if ((error = ffs_update(vp, waitforupdate)))
 				return (error);
 			for (i = 0; i < UFS_NXADDR; i++) {
@@ -299,13 +299,13 @@ ffs_truncate(vp, length, flags, cred)
 		bzero(SHORTLINK(ip), (u_int)ip->i_size);
 		ip->i_size = 0;
 		DIP_SET(ip, i_size, 0);
-		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE);
 		if (needextclean)
 			goto extclean;
 		return (ffs_update(vp, waitforupdate));
 	}
 	if (ip->i_size == length) {
-		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE);
 		if (needextclean)
 			goto extclean;
 		return (ffs_update(vp, 0));
@@ -339,7 +339,7 @@ ffs_truncate(vp, length, flags, cred)
 			bdwrite(bp);
 		else
 			bawrite(bp);
-		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE);
 		return (ffs_update(vp, waitforupdate));
 	}
 	/*
@@ -405,7 +405,7 @@ ffs_truncate(vp, length, flags, cred)
 				softdep_setup_freeblocks(ip, length, flags);
 			ASSERT_VOP_LOCKED(vp, "ffs_truncate1");
 			if (journaltrunc == 0) {
-				ip->i_flag |= IN_CHANGE | IN_UPDATE;
+				UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE);
 				error = ffs_update(vp, 0);
 			}
 			return (error);
@@ -489,7 +489,7 @@ ffs_truncate(vp, length, flags, cred)
 		if (i > lastblock)
 			DIP_SET(ip, i_db[i], 0);
 	}
-	ip->i_flag |= IN_CHANGE | IN_UPDATE;
+	UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE);
 	allerror = ffs_update(vp, waitforupdate);
 	
 	/*
@@ -619,7 +619,7 @@ done:
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) - blocksreleased);
 	else	/* sanity */
 		DIP_SET(ip, i_blocks, 0);
-	ip->i_flag |= IN_CHANGE;
+	UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 #ifdef QUOTA
 	(void) chkdq(ip, -blocksreleased, NOCRED, FORCE);
 #endif

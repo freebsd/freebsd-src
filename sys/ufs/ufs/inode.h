@@ -138,6 +138,13 @@ struct inode {
 	"\14b12\13is_ufs2\12truncated\11ea_lockwait\10ea_locked" \
 	"\7lazyaccess\6lazymod\5needsync\4modified\3update\2change\1access"
 
+#define UFS_INODE_SET_FLAG(ip, flags) do {			\
+	struct inode *_ip = (ip);				\
+	int _flags = (flags);					\
+								\
+	_ip->i_flag |= _flags;					\
+} while (0)
+
 #define	i_dirhash i_un.dirhash
 #define	i_snapblklist i_un.snapblklist
 #define	i_din1 dinode_u.din1

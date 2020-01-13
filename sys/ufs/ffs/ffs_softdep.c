@@ -6656,7 +6656,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 		 * journaling.
 		 */
 		if (length != 0 && lastlbn >= UFS_NDADDR) {
-			ip->i_flag |= IN_TRUNCATED;
+			UFS_INODE_SET_FLAG(ip, IN_TRUNCATED);
 			newjtrunc(freeblks, length, 0);
 		}
 		ip->i_size = length;
@@ -6780,7 +6780,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 		}
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);
-		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE);
 		allocbuf(bp, frags);
 		ffs_update(vp, 0);
 		bawrite(bp);
@@ -7647,7 +7647,7 @@ softdep_freefile(pvp, ino, mode)
 	WORKLIST_INSERT(&inodedep->id_inowait, &freefile->fx_list);
 	FREE_LOCK(ump);
 	if (ip->i_number == ino)
-		ip->i_flag |= IN_MODIFIED;
+		UFS_INODE_SET_FLAG(ip, IN_MODIFIED);
 }
 
 /*
@@ -8056,7 +8056,7 @@ handle_complete_freeblocks(freeblks, flags)
 			vgone(vp);
 		} else if (DIP(ip, i_modrev) == freeblks->fb_modrev) {
 			DIP_SET(ip, i_blocks, DIP(ip, i_blocks) - spare);
-			ip->i_flag |= IN_CHANGE;
+			UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 			/*
 			 * We must wait so this happens before the
 			 * journal is reclaimed.
@@ -9873,7 +9873,7 @@ handle_workitem_remove(dirrem, flags)
 		    "%ju negative i_nlink %d", (intmax_t)ip->i_number,
 		    ip->i_nlink));
 		DIP_SET(ip, i_nlink, ip->i_nlink);
-		ip->i_flag |= IN_CHANGE;
+		UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 		if (ip->i_nlink < ip->i_effnlink)
 			panic("handle_workitem_remove: bad file delta");
 		if (ip->i_nlink == 0) 
@@ -9896,7 +9896,7 @@ handle_workitem_remove(dirrem, flags)
 	KASSERT(ip->i_nlink >= 0, ("handle_workitem_remove: directory ino "
 	    "%ju negative i_nlink %d", (intmax_t)ip->i_number, ip->i_nlink));
 	DIP_SET(ip, i_nlink, ip->i_nlink);
-	ip->i_flag |= IN_CHANGE;
+	UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 	if (ip->i_nlink < ip->i_effnlink)
 		panic("handle_workitem_remove: bad dir delta");
 	if (ip->i_nlink == 0)
@@ -9938,7 +9938,7 @@ handle_workitem_remove(dirrem, flags)
 	}
 	WORKLIST_INSERT(&inodedep->id_inowait, &dirrem->dm_list);
 	FREE_LOCK(ump);
-	ip->i_flag |= IN_CHANGE;
+	UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 out:
 	ffs_update(vp, 0);
 	vput(vp);

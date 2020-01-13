@@ -421,7 +421,7 @@ ufs_setacl_nfs4_internal(struct vnode *vp, struct acl *aclp, struct thread *td)
 	ip->i_mode &= ACL_PRESERVE_MASK;
 	ip->i_mode |= mode;
 	DIP_SET(ip, i_mode, ip->i_mode);
-	ip->i_flag |= IN_CHANGE;
+	UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 
 	VN_KNOTE_UNLOCKED(vp, NOTE_ATTRIB);
 
@@ -594,7 +594,7 @@ ufs_setacl_posix1e(struct vop_setacl_args *ap)
 		 * inode and mark it as changed.
 		 */
 		ufs_sync_inode_from_acl(ap->a_aclp, ip);
-		ip->i_flag |= IN_CHANGE;
+		UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 		error = UFS_UPDATE(ap->a_vp, 0);
 	}
 

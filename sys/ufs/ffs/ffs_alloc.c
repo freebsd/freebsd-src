@@ -202,9 +202,9 @@ retry:
 		delta = btodb(size);
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
 		if (flags & IO_EXT)
-			ip->i_flag |= IN_CHANGE;
+			UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 		else
-			ip->i_flag |= IN_CHANGE | IN_UPDATE;
+			UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE);
 		*bnp = bno;
 		return (0);
 	}
@@ -329,9 +329,9 @@ retry:
 		delta = btodb(nsize - osize);
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
 		if (flags & IO_EXT)
-			ip->i_flag |= IN_CHANGE;
+			UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 		else
-			ip->i_flag |= IN_CHANGE | IN_UPDATE;
+			UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE);
 		allocbuf(bp, nsize);
 		bp->b_flags |= B_DONE;
 		vfs_bio_bzero_buf(bp, osize, nsize - osize);
@@ -413,9 +413,9 @@ retry:
 		delta = btodb(nsize - osize);
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
 		if (flags & IO_EXT)
-			ip->i_flag |= IN_CHANGE;
+			UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 		else
-			ip->i_flag |= IN_CHANGE | IN_UPDATE;
+			UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE);
 		allocbuf(bp, nsize);
 		bp->b_flags |= B_DONE;
 		vfs_bio_bzero_buf(bp, osize, nsize - osize);
@@ -743,7 +743,7 @@ ffs_reallocblks_ufs1(ap)
 		else
 			bwrite(sbp);
 	} else {
-		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE);
 		if (!doasyncfree)
 			ffs_update(vp, 1);
 	}
@@ -1007,7 +1007,7 @@ ffs_reallocblks_ufs2(ap)
 		else
 			bwrite(sbp);
 	} else {
-		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE);
 		if (!doasyncfree)
 			ffs_update(vp, 1);
 	}
@@ -1150,7 +1150,7 @@ retry:
 			ip = VTOI(*vpp);
 			if (ip->i_mode)
 				goto dup_alloc;
-			ip->i_flag |= IN_MODIFIED;
+			UFS_INODE_SET_FLAG(ip, IN_MODIFIED);
 			vput(*vpp);
 		}
 		return (error);
@@ -1185,7 +1185,7 @@ dup_alloc:
 	(*vpp)->v_type = VNON;
 	if (fs->fs_magic == FS_UFS2_MAGIC) {
 		(*vpp)->v_op = &ffs_vnodeops2;
-		ip->i_flag |= IN_UFS2;
+		UFS_INODE_SET_FLAG(ip, IN_UFS2);
 	} else {
 		(*vpp)->v_op = &ffs_vnodeops1;
 	}
@@ -3238,7 +3238,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		ip->i_nlink += cmd.size;
 		DIP_SET(ip, i_nlink, ip->i_nlink);
 		ip->i_effnlink += cmd.size;
-		ip->i_flag |= IN_CHANGE | IN_MODIFIED;
+		UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_MODIFIED);
 		error = ffs_update(vp, 1);
 		if (DOINGSOFTDEP(vp))
 			softdep_change_linkcnt(ip);
@@ -3257,7 +3257,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			break;
 		ip = VTOI(vp);
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + cmd.size);
-		ip->i_flag |= IN_CHANGE | IN_MODIFIED;
+		UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_MODIFIED);
 		error = ffs_update(vp, 1);
 		vput(vp);
 		break;
@@ -3274,7 +3274,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			break;
 		ip = VTOI(vp);
 		DIP_SET(ip, i_size, cmd.size);
-		ip->i_flag |= IN_CHANGE | IN_MODIFIED;
+		UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_MODIFIED);
 		error = ffs_update(vp, 1);
 		vput(vp);
 		break;
@@ -3494,7 +3494,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			vput(vp);
 			break;
 		}
-		ip->i_flag |= IN_CHANGE | IN_MODIFIED;
+		UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_MODIFIED);
 		error = ffs_update(vp, 1);
 		vput(vp);
 		break;
