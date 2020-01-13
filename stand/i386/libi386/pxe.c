@@ -484,7 +484,7 @@ pxe_netif_receive(void **pkt)
 	}
 
 	size = isr->FrameLength;
-	buf = malloc(size + ETHER_ALIGN);
+	buf = memalign(4, size + ETHER_ALIGN);
 	if (buf == NULL) {
 		bio_free(isr, sizeof(*isr));
 		return (-1);
