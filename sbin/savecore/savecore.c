@@ -157,6 +157,8 @@ printheader(xo_handle_t *xo, const struct kerneldumpheader *h,
 {
 	uint64_t dumplen;
 	time_t t;
+	struct tm tm;
+	char time_str[64];
 	const char *stat_str;
 	const char *comp_str;
 
@@ -189,7 +191,10 @@ printheader(xo_handle_t *xo, const struct kerneldumpheader *h,
 	}
 	xo_emit_h(xo, "{P:  }{Lwc:Compression}{:compression/%s}\n", comp_str);
 	t = dtoh64(h->dumptime);
-	xo_emit_h(xo, "{P:  }{Lwc:Dumptime}{:dumptime/%s}", ctime(&t));
+	localtime_r(&t, &tm);
+	if (strftime(time_str, sizeof(time_str), "%F %T %z", &tm) == 0)
+		time_str[0] = '\0';
+	xo_emit_h(xo, "{P:  }{Lwc:Dumptime}{:dumptime/%s}\n", time_str);
 	xo_emit_h(xo, "{P:  }{Lwc:Hostname}{:hostname/%s}\n", h->hostname);
 	xo_emit_h(xo, "{P:  }{Lwc:Magic}{:magic/%s}\n", h->magic);
 	xo_emit_h(xo, "{P:  }{Lwc:Version String}{:version_string/%s}",
