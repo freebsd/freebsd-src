@@ -2054,7 +2054,7 @@ crextend(struct ucred *cr, int n)
 	 */
 	if ( n < PAGE_SIZE / sizeof(gid_t) ) {
 		if (cr->cr_agroups == 0)
-			cnt = MINALLOCSIZE / sizeof(gid_t);
+			cnt = MAX(1, MINALLOCSIZE / sizeof(gid_t));
 		else
 			cnt = cr->cr_agroups * 2;
 
