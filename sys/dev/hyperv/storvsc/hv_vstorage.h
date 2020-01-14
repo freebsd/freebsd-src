@@ -245,7 +245,8 @@ struct vstor_packet {
 #define SRB_STATUS_SUCCESS		0x01
 #define SRB_STATUS_ABORTED		0x02
 #define SRB_STATUS_ERROR 		0x04
-#define SRB_STATUS_INVALID_LUN          0x20
+#define SRB_STATUS_DATA_OVERRUN		0x12
+#define SRB_STATUS_INVALID_LUN		0x20
 /**
  * SRB Status Masks (can be combined with above status codes)
  */
