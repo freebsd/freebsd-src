@@ -6,8 +6,6 @@ UNWINDSRCDIR=	${SRCTOP}/contrib/llvm-project/libunwind/src
 
 STATIC_CFLAGS+=${PICFLAG} -fvisibility=hidden -DVISIBILITY_HIDDEN
 
-ALLOW_MIPS_SHARED_TEXTREL=
-
 .PATH: ${COMPILERRTDIR}/lib/builtins
 .PATH: ${UNWINDSRCDIR}
 SRCS_EXC+=	gcc_personality_v0.c
