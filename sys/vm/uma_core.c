@@ -107,8 +107,21 @@ __FBSDID("$FreeBSD$");
 static uma_zone_t kegs;
 static uma_zone_t zones;
 
-/* This is the zone from which all offpage uma_slab_ts are allocated. */
-static uma_zone_t slabzone;
+/*
+ * These are the two zones from which all offpage uma_slab_ts are allocated.
+ *
+ * One zone is for slab headers that can represent a larger number of items,
+ * making the slabs themselves more efficient, and the other zone is for
+ * headers that are smaller and represent fewer items, making the headers more
+ * efficient.
+ */
+#define	SLABZONE_SIZE(setsize)					\
+    (sizeof(struct uma_hash_slab) + BITSET_SIZE(setsize) * SLAB_BITSETS)
+#define	SLABZONE0_SETSIZE	(PAGE_SIZE / 16)
+#define	SLABZONE1_SETSIZE	SLAB_MAX_SETSIZE
+#define	SLABZONE0_SIZE	SLABZONE_SIZE(SLABZONE0_SETSIZE)
+#define	SLABZONE1_SIZE	SLABZONE_SIZE(SLABZONE1_SETSIZE)
+static uma_zone_t slabzones[2];
 
 /*
  * The initial hash tables come out of this zone so they can be allocated
@@ -339,6 +352,16 @@ SYSCTL_PROC(_vm, OID_AUTO, zone_stats, CTLFLAG_RD|CTLFLAG_MPSAFE|CTLTYPE_STRUCT,
 static int zone_warnings = 1;
 SYSCTL_INT(_vm, OID_AUTO, zone_warnings, CTLFLAG_RWTUN, &zone_warnings, 0,
     "Warn when UMA zones becomes full");
+
+/*
+ * Select the slab zone for an offpage slab with the given maximum item count.
+ */
+static inline uma_zone_t
+slabzone(int ipers)
+{
+
+	return (slabzones[ipers > SLABZONE0_SETSIZE]);
+}
 
 /*
  * This routine checks to see whether or not it's safe to enable buckets.
@@ -1169,7 +1192,8 @@ keg_free_slab(uma_keg_t keg, uma_slab_t slab, int start)
 			keg->uk_fini(slab_item(slab, keg, i), keg->uk_size);
 	}
 	if (keg->uk_flags & UMA_ZFLAG_OFFPAGE)
-		zone_free_item(keg->uk_slabzone, slab, NULL, SKIP_NONE);
+		zone_free_item(slabzone(keg->uk_ipers), slab_tohashslab(slab),
+		    NULL, SKIP_NONE);
 	keg->uk_freef(mem, PAGE_SIZE * keg->uk_ppera, flags);
 	uma_total_dec(PAGE_SIZE * keg->uk_ppera);
 }
@@ -1302,9 +1326,12 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 	slab = NULL;
 	mem = NULL;
 	if (keg->uk_flags & UMA_ZFLAG_OFFPAGE) {
-		slab = zone_alloc_item(keg->uk_slabzone, NULL, domain, aflags);
-		if (slab == NULL)
+		uma_hash_slab_t hslab;
+		hslab = zone_alloc_item(slabzone(keg->uk_ipers), NULL,
+		    domain, aflags);
+		if (hslab == NULL)
 			goto fail;
+		slab = &hslab->uhs_slab;
 	}
 
 	/*
@@ -1327,7 +1354,8 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 	mem = allocf(zone, size, domain, &sflags, aflags);
 	if (mem == NULL) {
 		if (keg->uk_flags & UMA_ZFLAG_OFFPAGE)
-			zone_free_item(keg->uk_slabzone, slab, NULL, SKIP_NONE);
+			zone_free_item(slabzone(keg->uk_ipers),
+			    slab_tohashslab(slab), NULL, SKIP_NONE);
 		goto fail;
 	}
 	uma_total_inc(size);
@@ -1340,7 +1368,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 	if (!(keg->uk_flags & UMA_ZFLAG_OFFPAGE))
 		slab = (uma_slab_t )(mem + keg->uk_pgoff);
 	else
-		((uma_hash_slab_t)slab)->uhs_data = mem;
+		slab_tohashslab(slab)->uhs_data = mem;
 
 	if (keg->uk_flags & UMA_ZFLAG_VTOSLAB)
 		for (i = 0; i < keg->uk_ppera; i++)
@@ -1769,7 +1797,7 @@ keg_layout(uma_keg_t keg)
 	 * alignment.  If the requested size is smaller than we have
 	 * allocation bits for we round it up.
 	 */
-	rsize = MAX(keg->uk_size, UMA_SLAB_SIZE / SLAB_MAX_SETSIZE);
+	rsize = MAX(keg->uk_size, UMA_SMALLEST_UNIT);
 	rsize = roundup2(rsize, alignsize);
 
 	if ((keg->uk_flags & UMA_ZONE_PCPU) != 0) {
@@ -1837,7 +1865,7 @@ keg_layout(uma_keg_t keg)
 	eff = UMA_FRAC_FIXPT(ipers * rsize, slabsize);
 	ipers_offpage = slab_ipers_hdr(keg->uk_size, rsize, slabsize, false);
 	eff_offpage = UMA_FRAC_FIXPT(ipers_offpage * rsize,
-	    slabsize + slab_sizeof(SLAB_MAX_SETSIZE));
+	    slabsize + slabzone(ipers_offpage)->uz_keg->uk_rsize);
 	if (ipers == 0 || (eff < UMA_MIN_EFF && eff < eff_offpage)) {
 		CTR5(KTR_UMA, "UMA decided we need offpage slab headers for "
 		    "keg: %s(%p), minimum efficiency allowed = %u%%, "
@@ -1895,7 +1923,6 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	keg->uk_align = arg->align;
 	keg->uk_reserve = 0;
 	keg->uk_flags = arg->flags;
-	keg->uk_slabzone = NULL;
 
 	/*
 	 * We use a global round-robin policy by default.  Zones with
@@ -1940,9 +1967,6 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	else if ((keg->uk_flags & UMA_ZONE_FIRSTTOUCH) == 0)
 		keg->uk_flags |= UMA_ZONE_ROUNDROBIN;
 #endif
-
-	if (keg->uk_flags & UMA_ZFLAG_OFFPAGE)
-		keg->uk_slabzone = slabzone;
 
 	/*
 	 * If we haven't booted yet we need allocations to go through the
@@ -2489,7 +2513,7 @@ zone_foreach(void (*zfunc)(uma_zone_t, void *arg), void *arg)
  * which consist of the UMA Slabs, UMA Hash and 9 Bucket zones.  The
  * zone of zones and zone of kegs are accounted separately.
  */
-#define	UMA_BOOT_ZONES	11
+#define	UMA_BOOT_ZONES	12
 static int zsize, ksize;
 int
 uma_startup_count(int vm_zones)
@@ -2607,8 +2631,10 @@ uma_startup(void *mem, int npages)
 	args.flags = UMA_ZFLAG_INTERNAL;
 	zone_ctor(zones, zsize, &args, M_WAITOK);
 
-	/* Now make a zone for slab headers */
-	slabzone = uma_zcreate("UMA Slabs", sizeof(struct uma_hash_slab),
+	/* Now make zones for slab headers */
+	slabzones[0] = uma_zcreate("UMA Slabs 0", SLABZONE0_SIZE,
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZFLAG_INTERNAL);
+	slabzones[1] = uma_zcreate("UMA Slabs 1", SLABZONE1_SIZE,
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZFLAG_INTERNAL);
 
 	hashzone = uma_zcreate("UMA Hash",
@@ -3293,7 +3319,7 @@ slab_alloc_item(uma_keg_t keg, uma_slab_t slab)
 {
 	uma_domain_t dom;
 	void *item;
-	uint8_t freei;
+	int freei;
 
 	KEG_LOCK_ASSERT(keg, slab->us_domain);
 
@@ -3975,7 +4001,7 @@ slab_free_item(uma_zone_t zone, uma_slab_t slab, void *item)
 {
 	uma_keg_t keg;
 	uma_domain_t dom;
-	uint8_t freei;
+	int freei;
 
 	keg = zone->uz_keg;
 	KEG_LOCK_ASSERT(keg, slab->us_domain);
@@ -4391,7 +4417,8 @@ uma_reclaim(int req)
 	 * we visit again so that we can free pages that are empty once other
 	 * zones are drained.  We have to do the same for buckets.
 	 */
-	zone_drain(slabzone, NULL);
+	zone_drain(slabzones[0], NULL);
+	zone_drain(slabzones[1], NULL);
 	bucket_zone_drain();
 	sx_xunlock(&uma_reclaim_lock);
 }
@@ -4763,7 +4790,7 @@ sysctl_handle_uma_slab_efficiency(SYSCTL_HANDLER_ARGS)
 
 	total = keg->uk_ppera * PAGE_SIZE;
 	if ((keg->uk_flags & UMA_ZFLAG_OFFPAGE) != 0)
-		total += slab_sizeof(SLAB_MAX_SETSIZE);
+		total += slabzone(keg->uk_ipers)->uz_keg->uk_rsize;
 	/*
 	 * We consider the client's requested size and alignment here, not the
 	 * real size determination uk_rsize, because we also adjust the real
