@@ -42,7 +42,7 @@
 #include <sys/malloc.h>		/* For M_* */
 
 /* User visible parameters */
-#define UMA_SMALLEST_UNIT       (PAGE_SIZE / 256) /* Smallest item allocated */
+#define	UMA_SMALLEST_UNIT	8 /* Smallest item allocated */
 
 /* Types and type defs */
 
