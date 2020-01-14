@@ -213,10 +213,10 @@
 
 #define UMA_HASH_INSERT(h, s, mem)					\
 	LIST_INSERT_HEAD(&(h)->uh_slab_hash[UMA_HASH((h),		\
-	    (mem))], (uma_hash_slab_t)(s), uhs_hlink)
+	    (mem))], slab_tohashslab(s), uhs_hlink)
 
 #define UMA_HASH_REMOVE(h, s)						\
-	LIST_REMOVE((uma_hash_slab_t)(s), uhs_hlink)
+	LIST_REMOVE(slab_tohashslab(s), uhs_hlink)
 
 LIST_HEAD(slabhashhead, uma_hash_slab);
 
@@ -351,7 +351,6 @@ struct uma_keg {
 
 	u_long		uk_offset;	/* Next free offset from base KVA */
 	vm_offset_t	uk_kva;		/* Zone base KVA */
-	uma_zone_t	uk_slabzone;	/* Slab zone backing us, if OFFPAGE */
 
 	uint32_t	uk_pgoff;	/* Offset to uma_slab struct */
 	uint16_t	uk_ppera;	/* pages per allocation from backend */
@@ -377,7 +376,6 @@ typedef struct uma_keg	* uma_keg_t;
  */
 #define	SLAB_MAX_SETSIZE	(PAGE_SIZE / UMA_SMALLEST_UNIT)
 #define	SLAB_MIN_SETSIZE	_BITSET_BITS
-BITSET_DEFINE(slabbits, SLAB_MAX_SETSIZE);
 BITSET_DEFINE(noslabbits, 0);
 
 /*
@@ -419,16 +417,19 @@ int slab_ipers(size_t size, int align);
  * HASH and OFFPAGE zones.
  */
 struct uma_hash_slab {
-	struct uma_slab		uhs_slab;	/* Must be first. */
-	struct slabbits		uhs_bits1;	/* Must be second. */
-#ifdef INVARIANTS
-	struct slabbits		uhs_bits2;	/* Must be third. */
-#endif
 	LIST_ENTRY(uma_hash_slab) uhs_hlink;	/* Link for hash table */
 	uint8_t			*uhs_data;	/* First item */
+	struct uma_slab		uhs_slab;	/* Must be last. */
 };
 
 typedef struct uma_hash_slab * uma_hash_slab_t;
+
+static inline uma_hash_slab_t
+slab_tohashslab(uma_slab_t slab)
+{
+
+	return (__containerof(slab, struct uma_hash_slab, uhs_slab));
+}
 
 static inline void *
 slab_data(uma_slab_t slab, uma_keg_t keg)
@@ -437,7 +438,7 @@ slab_data(uma_slab_t slab, uma_keg_t keg)
 	if ((keg->uk_flags & UMA_ZFLAG_OFFPAGE) == 0)
 		return ((void *)((uintptr_t)slab - keg->uk_pgoff));
 	else
-		return (((uma_hash_slab_t)slab)->uhs_data);
+		return (slab_tohashslab(slab)->uhs_data);
 }
 
 static inline void *
