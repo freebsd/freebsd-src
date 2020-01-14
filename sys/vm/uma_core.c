@@ -1841,7 +1841,7 @@ keg_layout(uma_keg_t keg)
 	if (ipers == 0 || (eff < UMA_MIN_EFF && eff < eff_offpage)) {
 		CTR5(KTR_UMA, "UMA decided we need offpage slab headers for "
 		    "keg: %s(%p), minimum efficiency allowed = %u%%, "
-		    "old efficiency = %u%%, offpage efficiency = %u%%\n",
+		    "old efficiency = %u%%, offpage efficiency = %u%%",
 		    keg->uk_name, keg, UMA_FIXPT_PCT(UMA_MIN_EFF),
 		    UMA_FIXPT_PCT(eff), UMA_FIXPT_PCT(eff_offpage));
 		format = UMA_ZFLAG_OFFPAGE;
@@ -1865,7 +1865,7 @@ out:
 	keg->uk_rsize = rsize;
 	keg->uk_flags |= format;
 	keg->uk_ppera = pages;
-	CTR6(KTR_UMA, "%s: keg=%s, flags=%#x, rsize=%u, ipers=%u, ppera=%u\n",
+	CTR6(KTR_UMA, "%s: keg=%s, flags=%#x, rsize=%u, ipers=%u, ppera=%u",
 	    __func__, keg->uk_name, keg->uk_flags, rsize, ipers, pages);
 	KASSERT(keg->uk_ipers > 0 && keg->uk_ipers <= SLAB_MAX_SETSIZE,
 	    ("%s: keg=%s, flags=0x%b, rsize=%u, ipers=%u, ppera=%u", __func__,
@@ -1999,7 +1999,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	if (keg->uk_flags & UMA_ZFLAG_HASH)
 		hash_alloc(&keg->uk_hash, 0);
 
-	CTR3(KTR_UMA, "keg_ctor %p zone %s(%p)\n", keg, zone->uz_name, zone);
+	CTR3(KTR_UMA, "keg_ctor %p zone %s(%p)", keg, zone->uz_name, zone);
 
 	LIST_INSERT_HEAD(&keg->uk_zones, zone, uz_link);
 
@@ -2935,8 +2935,8 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	random_harvest_fast_uma(&zone, sizeof(zone), RANDOM_UMA);
 
 	/* This is the fast path allocation */
-	CTR4(KTR_UMA, "uma_zalloc_arg thread %x zone %s(%p) flags %d",
-	    curthread, zone->uz_name, zone, flags);
+	CTR3(KTR_UMA, "uma_zalloc_arg zone %s(%p) flags %d", zone->uz_name,
+	    zone, flags);
 
 #ifdef WITNESS
 	if (flags & M_WAITOK) {
@@ -3151,9 +3151,8 @@ uma_zalloc_domain(uma_zone_t zone, void *udata, int domain, int flags)
 	random_harvest_fast_uma(&zone, sizeof(zone), RANDOM_UMA);
 
 	/* This is the fast path allocation */
-	CTR5(KTR_UMA,
-	    "uma_zalloc_domain thread %x zone %s(%p) domain %d flags %d",
-	    curthread, zone->uz_name, zone, domain, flags);
+	CTR4(KTR_UMA, "uma_zalloc_domain zone %s(%p) domain %d flags %d",
+	    zone->uz_name, zone, domain, flags);
 
 	if (flags & M_WAITOK) {
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
@@ -3523,7 +3522,8 @@ zone_alloc_bucket(uma_zone_t zone, void *udata, int domain, int flags)
 	uma_bucket_t bucket;
 	int maxbucket, cnt;
 
-	CTR1(KTR_UMA, "zone_alloc:_bucket domain %d)", domain);
+	CTR3(KTR_UMA, "zone_alloc_bucket zone %s(%p) domain %d", zone->uz_name,
+	    zone, domain);
 
 	/* Avoid allocs targeting empty domains. */
 	if (domain != UMA_ANYDOMAIN && VM_DOMAIN_EMPTY(domain))
@@ -3658,8 +3658,7 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	/* Enable entropy collection for RANDOM_ENABLE_UMA kernel option */
 	random_harvest_fast_uma(&zone, sizeof(zone), RANDOM_UMA);
 
-	CTR2(KTR_UMA, "uma_zfree_arg thread %x zone %s", curthread,
-	    zone->uz_name);
+	CTR2(KTR_UMA, "uma_zfree_arg zone %s(%p)", zone->uz_name, zone);
 
 	KASSERT(curthread->td_critnest == 0 || SCHEDULER_STOPPED(),
 	    ("uma_zfree_arg: called with spinlock or critical section held"));
@@ -3960,8 +3959,7 @@ uma_zfree_domain(uma_zone_t zone, void *item, void *udata)
 	/* Enable entropy collection for RANDOM_ENABLE_UMA kernel option */
 	random_harvest_fast_uma(&zone, sizeof(zone), RANDOM_UMA);
 
-	CTR2(KTR_UMA, "uma_zfree_domain thread %x zone %s", curthread,
-	    zone->uz_name);
+	CTR2(KTR_UMA, "uma_zfree_domain zone %s(%p)", zone->uz_name, zone);
 
 	KASSERT(curthread->td_critnest == 0 || SCHEDULER_STOPPED(),
 	    ("uma_zfree_domain: called with spinlock or critical section held"));
