@@ -182,7 +182,7 @@ processing at process startup rather than on demand.
 Set to not build or install GNU
 .Xr as 1 ,
 .Xr objdump 1 ,
-and for some CPU architectures
+and, on powerpc,
 .Xr ld.bfd 1
 as part
 of the normal system build.
@@ -194,7 +194,7 @@ arm64/aarch64, riscv/riscv64 and riscv/riscv64sf.
 Set to build and install GNU
 .Xr as 1 ,
 .Xr objdump 1 ,
-and for some CPU architectures
+and, on powerpc,
 .Xr ld.bfd 1
 as part
 of the normal system build.
@@ -202,7 +202,7 @@ of the normal system build.
 This is a default setting on
 amd64/amd64, arm/armv6, arm/armv7, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf, powerpc/powerpc, powerpc/powerpc64 and sparc64/sparc64.
 .It Va WITHOUT_BINUTILS_BOOTSTRAP
-Set to not build binutils (as, ld, and objdump)
+Set to not build binutils (as, objdump, and on powerpc ld)
 as part of the bootstrap process.
 .Bf -symbolic
 The option does not work for build targets unless some alternative
@@ -212,7 +212,7 @@ toolchain is provided.
 This is a default setting on
 arm64/aarch64, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf, riscv/riscv64, riscv/riscv64sf and sparc64/sparc64.
 .It Va WITH_BINUTILS_BOOTSTRAP
-Set build binutils (as, ld, and objdump)
+Set build binutils (as, objdump, and on powerpc ld)
 as part of the bootstrap process.
 .Pp
 This is a default setting on
