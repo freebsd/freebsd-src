@@ -1974,6 +1974,7 @@ vm_pageout_lowmem(void)
 		 */
 		uma_reclaim(UMA_RECLAIM_TRIM);
 		ret = true;
+		break;
 	}
 
 	/*
