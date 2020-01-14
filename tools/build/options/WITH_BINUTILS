@@ -2,7 +2,7 @@
 Set to build and install GNU
 .Xr as 1 ,
 .Xr objdump 1 ,
-and for some CPU architectures
+and, on powerpc,
 .Xr ld.bfd 1
 as part
 of the normal system build.
