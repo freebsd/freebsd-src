@@ -1232,14 +1232,15 @@ carp_forus(struct ifnet *ifp, u_char *dhost)
 
 	CIF_LOCK(ifp->if_carp);
 	IFNET_FOREACH_CARP(ifp, sc) {
-		CARP_LOCK(sc);
+		/*
+		 * CARP_LOCK() is not here, since would protect nothing, but
+		 * cause deadlock with if_bridge, calling this under its lock.
+		 */
 		if (sc->sc_state == MASTER && !bcmp(dhost, LLADDR(&sc->sc_addr),
 		    ETHER_ADDR_LEN)) {
-			CARP_UNLOCK(sc);
 			CIF_UNLOCK(ifp->if_carp);
 			return (1);
 		}
-		CARP_UNLOCK(sc);
 	}
 	CIF_UNLOCK(ifp->if_carp);
 
