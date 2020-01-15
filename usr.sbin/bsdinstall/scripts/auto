@@ -289,7 +289,7 @@ Shell \"Open a shell and partition by hand\""
 CURARCH=$( uname -m )
 case $CURARCH in
 	amd64|arm64|i386)	# Booting ZFS Supported
-		PMODES="$PMODES \"Auto (ZFS)\" \"Guided Root-on-ZFS\""
+		PMODES="\"Auto (ZFS)\" \"Guided Root-on-ZFS\" $PMODES"
 		;;
 	*)		# Booting ZFS Unspported
 		;;
@@ -303,6 +303,10 @@ PARTMODE=`echo $PMODES | xargs dialog --backtitle "FreeBSD Installer" \
 exec 3>&-
 
 case "$PARTMODE" in
+"Auto (ZFS)")	# ZFS
+	bsdinstall zfsboot || error "ZFS setup failed"
+	bsdinstall mount || error "Failed to mount filesystem"
+	;;
 "Auto (UFS)")	# Guided
 	bsdinstall autopart || error "Partitioning error"
 	bsdinstall mount || error "Failed to mount filesystem"
@@ -319,10 +323,6 @@ case "$PARTMODE" in
 	else
 		bsdinstall partedit || error "Partitioning error"
 	fi
-	bsdinstall mount || error "Failed to mount filesystem"
-	;;
-"Auto (ZFS)")	# ZFS
-	bsdinstall zfsboot || error "ZFS setup failed"
 	bsdinstall mount || error "Failed to mount filesystem"
 	;;
 *)
