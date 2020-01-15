@@ -1171,7 +1171,7 @@ zfs_create_boot()
 			f_dprintf "$funcname: For encrypted root disk..."
 
 		# Create parent directory for boot pool
-		f_eval_catch -d $funcname umount "$UMOUNT" /mnt
+		f_eval_catch -d $funcname umount "$UMOUNT" "$BSDINSTALL_CHROOT"
 		f_eval_catch $funcname mount "$MOUNT_TYPE" tmpfs none \
 		             $BSDINSTALL_CHROOT || return $FAILURE
 
@@ -1273,7 +1273,8 @@ zfs_create_boot()
 		# Clean up
 		f_eval_catch $funcname zfs "$ZFS_UNMOUNT" "$bootpool_name" ||
 			return $FAILURE
-		f_eval_catch -d $funcname umount "$UMOUNT" /mnt # tmpfs
+		# tmpfs
+		f_eval_catch -d $funcname umount "$UMOUNT" "$BSDINSTALL_CHROOT"
 	fi
 
 	#
@@ -1657,7 +1658,7 @@ while :; do
 		                "$vdev_type" $ZFSBOOT_DISKS || continue
 
 		# To be reused by bootconfig
-		echo "$ZFSBOOT_DISKS" > /tmp/bsdinstall-zfsboot
+		echo "$ZFSBOOT_DISKS" > ${TMPDIR:-"/tmp"}/bsdinstall-zfsboot
 
 		break # to success
 		;;

@@ -26,7 +26,7 @@
 #
 # $FreeBSD$
 
-TMP_FSTAB=/tmp/bsdinstall-tmp-fstab
+TMP_FSTAB=${TMPDIR:-"/tmp"}/bsdinstall-tmp-fstab
 
 cat $PATH_FSTAB | awk -v BSDINSTALL_CHROOT=$BSDINSTALL_CHROOT '{
 	if ($2 ~ "^/.*") {

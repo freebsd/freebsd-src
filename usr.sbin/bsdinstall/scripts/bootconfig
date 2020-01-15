@@ -30,6 +30,8 @@
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 
+: ${TMPDIR:="/tmp"}
+
 die() {
 	echo $*
 	exit 1
@@ -50,8 +52,8 @@ if [ "$(uname -m)" = "amd64" ] || [ "$(uname -m)" = "i386" ]; then
 fi
 
 if [ "$(uname -m)" = "arm64" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
-	UFSBOOT_ESPS=$(cat /tmp/bsdinstall-esps 2>/dev/null)
-	ZFSBOOT_DISKS=$(cat /tmp/bsdinstall-zfsboot 2>/dev/null)
+	UFSBOOT_ESPS=$(cat $TMPDIR/bsdinstall-esps 2>/dev/null)
+	ZFSBOOT_DISKS=$(cat $TMPDIR/bsdinstall-zfsboot 2>/dev/null)
 	num_esps=0
 
 	if [ -n "$ZFSBOOT_DISKS" ]; then
@@ -99,7 +101,7 @@ if [ "$(uname -m)" = "arm64" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
 					continue
 				fi
 
-				mntpt=$(mktemp -d /tmp/stand-test.XXXXXX)
+				mntpt=$(mktemp -d $TMPDIR/stand-test.XXXXXX)
 				if [ -e "/dev/${geom}p${index}" ]; then
 					dev=${geom}p${index}
 				elif [ -e "/dev/${geom}s${index}" ]; then
@@ -129,7 +131,7 @@ if [ "$(uname -m)" = "arm64" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
 			die "Failed to format ESP $esp as FAT32"
 		fi
 
-		mntpt=$(mktemp -d /tmp/stand-test.XXXXXX)
+		mntpt=$(mktemp -d $TMPDIR/stand-test.XXXXXX)
 		f_dprintf "Mounting ESP /dev/${esp}"
 		mount -t msdosfs "/dev/${esp}" "${mntpt}"
 		if [ $? -ne 0 ]; then

@@ -32,17 +32,20 @@
 
 #include <dialog.h>
 #include <dlg_keys.h>
+#include <err.h>
 #include <errno.h>
 #include <fstab.h>
 #include <inttypes.h>
 #include <libgeom.h>
 #include <libutil.h>
 #include <stdlib.h>
+#include <sysexits.h>
 
 #include "diskeditor.h"
 #include "partedit.h"
 
 struct pmetadata_head part_metadata;
+int tmpdfd;
 static int sade_mode = 0;
 
 static int apply_changes(struct gmesh *mesh);
@@ -66,6 +69,8 @@ sigint_handler(int sig)
 
 	end_dialog();
 
+	close(tmpdfd);
+
 	exit(1);
 }
 
@@ -73,7 +78,7 @@ int
 main(int argc, const char **argv)
 {
 	struct partition_metadata *md;
-	const char *progname, *prompt;
+	const char *progname, *prompt, *tmpdir;
 	struct partedit_item *items = NULL;
 	struct gmesh mesh;
 	int i, op, nitems, nscroll;
@@ -84,6 +89,14 @@ main(int argc, const char **argv)
 		sade_mode = 1;
 
 	TAILQ_INIT(&part_metadata);
+
+	tmpdir = getenv("TMPDIR");
+	if (tmpdir == NULL)
+		tmpdir = "/tmp";
+	tmpdfd = open(tmpdir, O_RDWR | O_DIRECTORY);
+	if (tmpdfd < 0)
+		err(EX_OSERR, "%s", tmpdir);
+	unlinkat(tmpdfd, "bsdinstall-esps", 0);
 
 	init_fstab_metadata();
 
@@ -220,6 +233,7 @@ main(int argc, const char **argv)
 	geom_deletetree(&mesh);
 	free(items);
 	end_dialog();
+	close(tmpdfd);
 
 	return (error);
 }

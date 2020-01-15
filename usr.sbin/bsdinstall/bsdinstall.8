@@ -259,6 +259,10 @@ for most installation scenarios.
 Others are set by various interactive user prompts, and can be usefully
 overridden when making scripted or customized installers.
 .Bl -tag -width ".Ev BSDINSTALL_DISTSITE"
+.It Ev TMPDIR
+The directory to use for temporary files.
+Default:
+.Dq Pa /tmp
 .It Ev DISTRIBUTIONS
 The set of distributions to install, e.g., "base.txz kernel.txz ports.txz".
 Default: unset
@@ -291,7 +295,7 @@ Default:
 .It Ev BSDINSTALL_LOG
 Path to a log file for the installation.
 Default:
-.Dq Pa /tmp/bsdinstall_log
+.Dq Pa $TMPDIR/bsdinstall_log
 .It Ev BSDINSTALL_TMPETC
 Directory where files destined for the new system's
 .Pa /etc
@@ -300,7 +304,7 @@ will be stored until the
 target is executed.
 If this directory does not already exist, it will be created.
 Default:
-.Dq Pa /tmp/bsdinstall_etc
+.Dq Pa $TMPDIR/bsdinstall_etc
 .It Ev BSDINSTALL_TMPBOOT
 Directory where files destined for the new system's
 .Pa /boot
@@ -309,7 +313,7 @@ will be stored until the
 target is executed.
 If this directory does not already exist, it will be created.
 Default:
-.Dq Pa /tmp/bsdinstall_boot
+.Dq Pa $TMPDIR/bsdinstall_boot
 .It Ev ZFSBOOT_POOL_NAME
 Name for the pool containing the base system.
 Default:
