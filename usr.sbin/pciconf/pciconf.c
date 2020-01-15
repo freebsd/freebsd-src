@@ -261,12 +261,13 @@ list_devs(const char *name, int verbose, int bars, int bridge, int caps,
 			return;
 		}
 		if (listmode == 2)
-			printf("drv\tselector\tclass   rev hdr vendor device "
-			    "subven subdev\n");
+			printf("drv\tselector\tclass    rev  hdr  "
+			    "vendor device subven subdev\n");
 		for (p = conf; p < &conf[pc.num_matches]; p++) {
 			if (listmode == 2)
 				printf("%s%d@pci%d:%d:%d:%d:"
-				    "\t%06x  %02x  %02x  %04x  %04x   %04x   %04x\n",
+				    "\t%06x   %02x   %02x   "
+				    "%04x   %04x   %04x   %04x\n",
 				    *p->pd_name ? p->pd_name : "none",
 				    *p->pd_name ? (int)p->pd_unit :
 				    none_count++, p->pc_sel.pc_domain,
