@@ -284,7 +284,7 @@ rs_defer_destroy(struct tcp_rate_set *rs)
 
 	/* Set flag to only defer once. */
 	rs->rs_flags |= RS_FUNERAL_SCHD;
-	epoch_call(net_epoch, &rs->rs_epoch_ctx, rs_destroy);
+	epoch_call(net_epoch_preempt, &rs->rs_epoch_ctx, rs_destroy);
 }
 
 #ifdef INET
