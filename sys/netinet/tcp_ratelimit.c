@@ -49,9 +49,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/mutex.h>
 #include <sys/ck.h>
-#define TCPSTATES		/* for logging */
+#include <net/if.h>
+#include <net/if_var.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
+#define TCPSTATES		/* for logging */
 #include <netinet/tcp_var.h>
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
