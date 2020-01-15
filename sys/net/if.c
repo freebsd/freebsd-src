@@ -108,7 +108,6 @@ _Static_assert(sizeof(((struct ifreq *)0)->ifr_name) ==
     offsetof(struct ifreq, ifr_ifru), "gap between ifr_name and ifr_ifru");
 
 __read_mostly epoch_t net_epoch_preempt;
-__read_mostly epoch_t net_epoch;
 #ifdef COMPAT_FREEBSD32
 #include <sys/mount.h>
 #include <compat/freebsd32/freebsd32.h>
@@ -932,7 +931,6 @@ if_epochalloc(void *dummy __unused)
 {
 
 	net_epoch_preempt = epoch_alloc("Net preemptible", EPOCH_PREEMPT);
-	net_epoch = epoch_alloc("Net", 0);
 }
 SYSINIT(ifepochalloc, SI_SUB_EPOCH, SI_ORDER_ANY, if_epochalloc, NULL);
 
