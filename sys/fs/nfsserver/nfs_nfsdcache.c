@@ -187,9 +187,9 @@ sysctl_tcphighwater(SYSCTL_HANDLER_ARGS)
 	nfsrc_tcphighwater = newhighwater;
 	return (0);
 }
-SYSCTL_PROC(_vfs_nfsd, OID_AUTO, tcphighwater, CTLTYPE_UINT | CTLFLAG_RW, 0,
-    sizeof(nfsrc_tcphighwater), sysctl_tcphighwater, "IU",
-    "High water mark for TCP cache entries");
+SYSCTL_PROC(_vfs_nfsd, OID_AUTO, tcphighwater,
+    CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(nfsrc_tcphighwater),
+    sysctl_tcphighwater, "IU", "High water mark for TCP cache entries");
 
 static u_int	nfsrc_udphighwater = NFSRVCACHE_UDPHIGHWATER;
 SYSCTL_UINT(_vfs_nfsd, OID_AUTO, udphighwater, CTLFLAG_RW,
