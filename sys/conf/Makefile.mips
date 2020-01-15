@@ -81,6 +81,7 @@ ${KERNEL_KO}.tramp.bin: ${KERNEL_KO} $S/$M/$M/elf_trampoline.c \
 	${CC} -O -nostdlib -I. -I$S ${TRAMP_EXTRA_FLAGS} ${TRAMP_LDFLAGS} -Xlinker \
 		-T -Xlinker ${LDSCRIPT_NAME}.tramp.noheader \
 		-DKERNNAME="\"${KERNEL_KO}.tmp\"" -DELFSIZE=${TRAMP_ELFSIZE} \
+		-fno-asynchronous-unwind-tables \
 		$S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c \
 		-o ${KERNEL_KO}.tramp.elf
 	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.elf \
