@@ -269,8 +269,7 @@ in_pcblbgroup_free(struct inpcblbgroup *grp)
 {
 
 	CK_LIST_REMOVE(grp, il_list);
-	epoch_call(net_epoch_preempt, &grp->il_epoch_ctx,
-	    in_pcblbgroup_free_deferred);
+	NET_EPOCH_CALL(in_pcblbgroup_free_deferred, &grp->il_epoch_ctx);
 }
 
 static struct inpcblbgroup *
@@ -1663,7 +1662,7 @@ in_pcbfree(struct inpcb *inp)
 	/* mark as destruction in progress */
 	inp->inp_flags2 |= INP_FREED;
 	INP_WUNLOCK(inp);
-	epoch_call(net_epoch_preempt, &inp->inp_epoch_ctx, in_pcbfree_deferred);
+	NET_EPOCH_CALL(in_pcbfree_deferred, &inp->inp_epoch_ctx);
 }
 
 /*
@@ -1704,7 +1703,7 @@ in_pcbdrop(struct inpcb *inp)
 		CK_LIST_REMOVE(inp, inp_portlist);
 		if (CK_LIST_FIRST(&phd->phd_pcblist) == NULL) {
 			CK_LIST_REMOVE(phd, phd_hash);
-			epoch_call(net_epoch_preempt, &phd->phd_epoch_ctx, inpcbport_free);
+			NET_EPOCH_CALL(inpcbport_free, &phd->phd_epoch_ctx);
 		}
 		INP_HASH_WUNLOCK(inp->inp_pcbinfo);
 		inp->inp_flags &= ~INP_INHASHLIST;
@@ -2674,7 +2673,7 @@ in_pcbremlists(struct inpcb *inp)
 		CK_LIST_REMOVE(inp, inp_portlist);
 		if (CK_LIST_FIRST(&phd->phd_pcblist) == NULL) {
 			CK_LIST_REMOVE(phd, phd_hash);
-			epoch_call(net_epoch_preempt, &phd->phd_epoch_ctx, inpcbport_free);
+			NET_EPOCH_CALL(inpcbport_free, &phd->phd_epoch_ctx);
 		}
 		INP_HASH_WUNLOCK(pcbinfo);
 		inp->inp_flags &= ~INP_INHASHLIST;

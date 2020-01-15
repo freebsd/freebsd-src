@@ -228,7 +228,7 @@ in6_gre_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 	 * If socket was closed before we have entered NET_EPOCH section,
 	 * INP_FREED flag should be set. Otherwise it should be safe to
 	 * make access to ctx data, because gre_so will be freed by
-	 * gre_sofree() via epoch_call().
+	 * gre_sofree() via NET_EPOCH_CALL().
 	 */
 	if (__predict_false(inp->inp_flags2 & INP_FREED)) {
 		NET_EPOCH_EXIT(et);
@@ -280,8 +280,7 @@ in6_gre_setup_socket(struct gre_softc *sc)
 			if (CK_LIST_EMPTY(&gs->list)) {
 				CK_LIST_REMOVE(gs, chain);
 				soclose(gs->so);
-				epoch_call(net_epoch_preempt, &gs->epoch_ctx,
-				    gre_sofree);
+				NET_EPOCH_CALL(gre_sofree, &gs->epoch_ctx);
 			}
 			gs = sc->gre_so = NULL;
 		}

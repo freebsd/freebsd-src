@@ -584,7 +584,7 @@ vlan_setmulti(struct ifnet *ifp)
 	while ((mc = CK_SLIST_FIRST(&sc->vlan_mc_listhead)) != NULL) {
 		CK_SLIST_REMOVE_HEAD(&sc->vlan_mc_listhead, mc_entries);
 		(void)if_delmulti(ifp_p, (struct sockaddr *)&mc->mc_addr);
-		epoch_call(net_epoch_preempt, &mc->mc_epoch_ctx, vlan_mc_free);
+		NET_EPOCH_CALL(vlan_mc_free, &mc->mc_epoch_ctx);
 	}
 
 	/* Now program new ones. */
@@ -1543,7 +1543,7 @@ vlan_unconfig_locked(struct ifnet *ifp, int departing)
 					    error);
 			}
 			CK_SLIST_REMOVE_HEAD(&ifv->vlan_mc_listhead, mc_entries);
-			epoch_call(net_epoch_preempt, &mc->mc_epoch_ctx, vlan_mc_free);
+			NET_EPOCH_CALL(vlan_mc_free, &mc->mc_epoch_ctx);
 		}
 
 		vlan_setflags(ifp, 0); /* clear special flags on parent */

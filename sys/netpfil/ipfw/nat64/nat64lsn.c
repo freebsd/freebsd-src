@@ -75,7 +75,7 @@ MALLOC_DEFINE(M_NAT64LSN, "NAT64LSN", "NAT64LSN");
 #define	NAT64LSN_EPOCH_ENTER(et)  NET_EPOCH_ENTER(et)
 #define	NAT64LSN_EPOCH_EXIT(et)   NET_EPOCH_EXIT(et)
 #define	NAT64LSN_EPOCH_ASSERT()   NET_EPOCH_ASSERT()
-#define	NAT64LSN_EPOCH_CALL(c, f) epoch_call(net_epoch_preempt, (c), (f))
+#define	NAT64LSN_EPOCH_CALL(c, f) NET_EPOCH_CALL((f), (c))
 
 static uma_zone_t nat64lsn_host_zone;
 static uma_zone_t nat64lsn_pgchunk_zone;
