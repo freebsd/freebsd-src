@@ -153,7 +153,7 @@ in6_gre_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	if (V_ipv6_hashtbl == NULL)
 		return (0);
 
-	MPASS(in_epoch(net_epoch_preempt));
+	NET_EPOCH_ASSERT();
 	ip6 = mtod(m, const struct ip6_hdr *);
 	CK_LIST_FOREACH(sc, &GRE_HASH(&ip6->ip6_dst, &ip6->ip6_src), chain) {
 		/*
@@ -202,7 +202,7 @@ in6_gre_srcaddr(void *arg __unused, const struct sockaddr *sa,
 	if (V_ipv6_hashtbl == NULL)
 		return;
 
-	MPASS(in_epoch(net_epoch_preempt));
+	NET_EPOCH_ASSERT();
 	sin = (const struct sockaddr_in6 *)sa;
 	CK_LIST_FOREACH(sc, &GRE_SRCHASH(&sin->sin6_addr), srchash) {
 		if (IN6_ARE_ADDR_EQUAL(&sc->gre_oip6.ip6_src,

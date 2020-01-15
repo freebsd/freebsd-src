@@ -162,7 +162,7 @@ in_gre_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	if (V_ipv4_hashtbl == NULL)
 		return (0);
 
-	MPASS(in_epoch(net_epoch_preempt));
+	NET_EPOCH_ASSERT();
 	ip = mtod(m, const struct ip *);
 	CK_LIST_FOREACH(sc, &GRE_HASH(ip->ip_dst.s_addr,
 	    ip->ip_src.s_addr), chain) {
@@ -210,7 +210,7 @@ in_gre_srcaddr(void *arg __unused, const struct sockaddr *sa,
 	if (V_ipv4_hashtbl == NULL)
 		return;
 
-	MPASS(in_epoch(net_epoch_preempt));
+	NET_EPOCH_ASSERT();
 	sin = (const struct sockaddr_in *)sa;
 	CK_LIST_FOREACH(sc, &GRE_SRCHASH(sin->sin_addr.s_addr), srchash) {
 		if (sc->gre_oip.ip_src.s_addr != sin->sin_addr.s_addr)
