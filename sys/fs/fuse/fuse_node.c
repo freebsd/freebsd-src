@@ -124,7 +124,8 @@ int	fuse_data_cache_mode = FUSE_CACHE_WT;
  * The sysctl is retained primarily for use by jails supporting older FUSE
  * protocols.  It may be removed entirely once FreeBSD 11.3 and 12.0 are EOL.
  */
-SYSCTL_PROC(_vfs_fusefs, OID_AUTO, data_cache_mode, CTLTYPE_INT|CTLFLAG_RW,
+SYSCTL_PROC(_vfs_fusefs, OID_AUTO, data_cache_mode,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW,
     &fuse_data_cache_mode, 0, sysctl_fuse_cache_mode, "I",
     "Zero: disable caching of FUSE file data; One: write-through caching "
     "(default); Two: write-back caching (generally unsafe)");
