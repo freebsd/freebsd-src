@@ -29,7 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Driver for extra ACPI-controlled gadgets found on IBM ThinkPad laptops.
+ * Driver for extra ACPI-controlled gadgets found on ThinkPad laptops.
  * Inspired by the ibm-acpi and tpb projects which implement these features
  * on Linux.
  *
@@ -302,7 +302,7 @@ struct acpi_ibm_models {
 	}
 };
 
-ACPI_SERIAL_DECL(ibm, "ACPI IBM extras");
+ACPI_SERIAL_DECL(ibm, "ThinkPad ACPI Extras");
 
 static int	acpi_ibm_probe(device_t dev);
 static int	acpi_ibm_attach(device_t dev);
@@ -419,7 +419,7 @@ acpi_ibm_probe(device_t dev)
 	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, ibm_ids, NULL);
 
 	if (rv <= 0) 
-		device_set_desc(dev, "IBM ThinkPad ACPI Extras");
+		device_set_desc(dev, "ThinkPad ACPI Extras");
 	
 	return (rv);
 }
