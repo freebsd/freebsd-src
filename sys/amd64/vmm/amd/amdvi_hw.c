@@ -66,7 +66,7 @@ SYSCTL_NODE(_hw_vmm, OID_AUTO, amdvi, CTLFLAG_RW, NULL, NULL);
 /* Print RID or device ID in PCI string format. */
 #define RID2PCI_STR(d) PCI_RID2BUS(d), PCI_RID2SLOT(d), PCI_RID2FUNC(d)
 
-static void amdvi_dump_cmds(struct amdvi_softc *softc);
+static void amdvi_dump_cmds(struct amdvi_softc *softc, int count);
 static void amdvi_print_dev_cap(struct amdvi_softc *softc);
 
 MALLOC_DEFINE(M_AMDVI, "amdvi", "amdvi");
@@ -321,9 +321,7 @@ amdvi_cmd_cmp(struct amdvi_softc *softc, const uint64_t data)
 
 	pa = vtophys(&softc->cmp_data);
 	cmd->opcode = AMDVI_CMP_WAIT_OPCODE;
-	cmd->word0 = (pa & 0xFFFFFFF8) |
-	    (AMDVI_CMP_WAIT_STORE);
-	//(AMDVI_CMP_WAIT_FLUSH | AMDVI_CMP_WAIT_STORE);
+	cmd->word0 = (pa & 0xFFFFFFF8) | AMDVI_CMP_WAIT_STORE;
 	cmd->word1 = (pa >> 32) & 0xFFFFF;
 	cmd->addr = data;
 
@@ -492,26 +490,26 @@ amdvi_wait(struct amdvi_softc *softc)
 	device_printf(softc->dev, "Error: completion failed"
 		      " tail:0x%x, head:0x%x.\n",
 		      ctrl->cmd_tail, ctrl->cmd_head);
-	amdvi_dump_cmds(softc);
+	/* Dump the last command. */
+	amdvi_dump_cmds(softc, 1);
 }
 
 static void
-amdvi_dump_cmds(struct amdvi_softc *softc)
+amdvi_dump_cmds(struct amdvi_softc *softc, int count)
 {
 	struct amdvi_ctrl *ctrl;
 	struct amdvi_cmd *cmd;
 	int off, i;
 
 	ctrl = softc->ctrl;
-	device_printf(softc->dev, "Dump all the commands:\n");
+	device_printf(softc->dev, "Dump last %d command(s):\n", count);
 	/*
 	 * If h/w is stuck in completion, it is the previous command,
 	 * start dumping from previous command onward.
 	 */
 	off = MOD_DEC(ctrl->cmd_head, sizeof(struct amdvi_cmd),
 	    softc->cmd_max);
-	for (i = 0; off != ctrl->cmd_tail &&
-	    i < softc->cmd_max; i++) {
+	for (i = 0; off != ctrl->cmd_tail && i < count; i++) {
 		cmd = (struct amdvi_cmd *)((uint8_t *)softc->cmd + off);
 		printf("  [CMD%d, off:0x%x] opcode= 0x%x 0x%x"
 		    " 0x%x 0x%lx\n", i, off, cmd->opcode,
