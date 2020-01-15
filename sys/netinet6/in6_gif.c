@@ -157,7 +157,7 @@ in6_gif_srcaddr(void *arg __unused, const struct sockaddr *sa, int event)
 	if (V_ipv6_hashtbl == NULL)
 		return;
 
-	MPASS(in_epoch(net_epoch_preempt));
+	NET_EPOCH_ASSERT();
 	sin = (const struct sockaddr_in6 *)sa;
 	CK_LIST_FOREACH(sc, &GIF_SRCHASH(&sin->sin6_addr), srchash) {
 		if (IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_src,
@@ -293,7 +293,7 @@ in6_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
 	int len;
 
 	/* prepend new IP header */
-	MPASS(in_epoch(net_epoch_preempt));
+	NET_EPOCH_ASSERT();
 	len = sizeof(struct ip6_hdr);
 #ifndef __NO_STRICT_ALIGNMENT
 	if (proto == IPPROTO_ETHERIP)
@@ -335,7 +335,7 @@ in6_gif_input(struct mbuf *m, int off, int proto, void *arg)
 	struct ip6_hdr *ip6;
 	uint8_t ecn;
 
-	MPASS(in_epoch(net_epoch_preempt));
+	NET_EPOCH_ASSERT();
 	if (sc == NULL) {
 		m_freem(m);
 		IP6STAT_INC(ip6s_nogif);
@@ -364,7 +364,7 @@ in6_gif_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	if (V_ipv6_hashtbl == NULL)
 		return (0);
 
-	MPASS(in_epoch(net_epoch_preempt));
+	NET_EPOCH_ASSERT();
 	/*
 	 * NOTE: it is safe to iterate without any locking here, because softc
 	 * can be reclaimed only when we are not within net_epoch_preempt

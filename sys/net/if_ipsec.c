@@ -796,7 +796,7 @@ ipsec_srcaddr(void *arg __unused, const struct sockaddr *sa,
 	if (V_ipsec_idhtbl == NULL)
 		return;
 
-	MPASS(in_epoch(net_epoch_preempt));
+	NET_EPOCH_ASSERT();
 	CK_LIST_FOREACH(sc, ipsec_srchash(sa), srchash) {
 		if (sc->family == 0)
 			continue;
