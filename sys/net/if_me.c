@@ -326,7 +326,7 @@ me_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	if (V_me_hashtbl == NULL)
 		return (0);
 
-	MPASS(in_epoch(net_epoch_preempt));
+	NET_EPOCH_ASSERT();
 	ip = mtod(m, const struct ip *);
 	CK_LIST_FOREACH(sc, &ME_HASH(ip->ip_dst.s_addr,
 	    ip->ip_src.s_addr), chain) {
@@ -370,7 +370,7 @@ me_srcaddr(void *arg __unused, const struct sockaddr *sa,
 	if (V_me_hashtbl == NULL)
 		return;
 
-	MPASS(in_epoch(net_epoch_preempt));
+	NET_EPOCH_ASSERT();
 	sin = (const struct sockaddr_in *)sa;
 	CK_LIST_FOREACH(sc, &ME_SRCHASH(sin->sin_addr.s_addr), srchash) {
 		if (sc->me_src.s_addr != sin->sin_addr.s_addr)
