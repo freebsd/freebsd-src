@@ -188,9 +188,9 @@ sysctl_dsdirsize(SYSCTL_HANDLER_ARGS)
 	nfsrv_dsdirsize = newdsdirsize;
 	return (0);
 }
-SYSCTL_PROC(_vfs_nfsd, OID_AUTO, dsdirsize, CTLTYPE_UINT | CTLFLAG_RW, 0,
-    sizeof(nfsrv_dsdirsize), sysctl_dsdirsize, "IU",
-    "Number of dsN subdirs on the DS servers");
+SYSCTL_PROC(_vfs_nfsd, OID_AUTO, dsdirsize,
+    CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(nfsrv_dsdirsize),
+    sysctl_dsdirsize, "IU", "Number of dsN subdirs on the DS servers");
 
 #define	MAX_REORDERED_RPC	16
 #define	NUM_HEURISTIC		1031
