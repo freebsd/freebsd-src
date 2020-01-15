@@ -274,10 +274,10 @@ static struct filterops bpfread_filtops = {
  *
  * 2. An userland application uses ioctl() call to bpf_d descriptor.
  * All such call are serialized with global lock. BPF filters can be
- * changed, but pointer to old filter will be freed using epoch_call().
+ * changed, but pointer to old filter will be freed using NET_EPOCH_CALL().
  * Thus it should be safe for bpf_tap/bpf_mtap* code to do access to
  * filter pointers, even if change will happen during bpf_tap execution.
- * Destroying of bpf_d descriptor also is doing using epoch_call().
+ * Destroying of bpf_d descriptor also is doing using NET_EPOCH_CALL().
  *
  * 3. An userland application can write packets into bpf_d descriptor.
  * There we need to be sure, that ifnet won't disappear during bpfwrite().
@@ -288,7 +288,7 @@ static struct filterops bpfread_filtops = {
  *
  * 5. The kernel invokes bpfdetach() on interface destroying. All lists
  * are modified with global lock held and actual free() is done using
- * epoch_call().
+ * NET_EPOCH_CALL().
  */
 
 static void
@@ -314,7 +314,7 @@ bpfif_rele(struct bpf_if *bp)
 
 	if (!refcount_release(&bp->bif_refcnt))
 		return;
-	epoch_call(net_epoch_preempt, &bp->epoch_ctx, bpfif_free);
+	NET_EPOCH_CALL(bpfif_free, &bp->epoch_ctx);
 }
 
 static void
@@ -330,7 +330,7 @@ bpfd_rele(struct bpf_d *d)
 
 	if (!refcount_release(&d->bd_refcnt))
 		return;
-	epoch_call(net_epoch_preempt, &d->epoch_ctx, bpfd_free);
+	NET_EPOCH_CALL(bpfd_free, &d->epoch_ctx);
 }
 
 static struct bpf_program_buffer*
@@ -2036,8 +2036,7 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 	BPFD_UNLOCK(d);
 
 	if (fcode != NULL)
-		epoch_call(net_epoch_preempt, &fcode->epoch_ctx,
-		    bpf_program_buffer_free);
+		NET_EPOCH_CALL(bpf_program_buffer_free, &fcode->epoch_ctx);
 
 	if (track_event)
 		EVENTHANDLER_INVOKE(bpf_track,
