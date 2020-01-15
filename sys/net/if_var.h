@@ -107,8 +107,6 @@ VNET_DECLARE(struct hhook_head *, ipsec_hhh_in[HHOOK_IPSEC_COUNT]);
 VNET_DECLARE(struct hhook_head *, ipsec_hhh_out[HHOOK_IPSEC_COUNT]);
 #define	V_ipsec_hhh_in	VNET(ipsec_hhh_in)
 #define	V_ipsec_hhh_out	VNET(ipsec_hhh_out)
-extern epoch_t net_epoch_preempt;
-extern epoch_t net_epoch;
 #endif /* _KERNEL */
 
 typedef enum {
@@ -445,10 +443,6 @@ struct ifnet {
 #define	IF_ADDR_WUNLOCK(if)	mtx_unlock(&(if)->if_addr_lock)
 #define	IF_ADDR_LOCK_ASSERT(if)	MPASS(in_epoch(net_epoch_preempt) || mtx_owned(&(if)->if_addr_lock))
 #define	IF_ADDR_WLOCK_ASSERT(if) mtx_assert(&(if)->if_addr_lock, MA_OWNED)
-#define	NET_EPOCH_ENTER(et)	epoch_enter_preempt(net_epoch_preempt, &(et))
-#define	NET_EPOCH_EXIT(et)	epoch_exit_preempt(net_epoch_preempt, &(et))
-#define	NET_EPOCH_WAIT()	epoch_wait_preempt(net_epoch_preempt)
-#define	NET_EPOCH_ASSERT()	MPASS(in_epoch(net_epoch_preempt))
 
 #ifdef _KERNEL
 /* interface link layer address change event */
