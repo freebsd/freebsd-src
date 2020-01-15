@@ -711,10 +711,11 @@ set_default_part_metadata(const char *name, const char *scheme,
 	if (strcmp(type, bootpart_type(scheme, &default_bootmount)) == 0) {
 		if (default_bootmount == NULL) {
 
-			int fd = open("/tmp/bsdinstall-esps", O_CREAT | O_WRONLY | O_APPEND,
-						  0600);
+			int fd = openat(tmpdfd, "bsdinstall-esps",
+			    O_CREAT | O_WRONLY | O_APPEND, 0600);
 			if (fd > 0) {
 				write(fd, md->name, strlen(md->name));
+				write(fd, "\n", 1);
 				close(fd);
 			}
 
