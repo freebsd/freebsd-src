@@ -51,8 +51,6 @@
 #include <sys/lock.h>
 #include <sys/rwlock.h>
 #include <net/vnet.h>
-#include <net/if.h>
-#include <net/if_var.h>
 #include <vm/uma.h>
 #endif
 #include <sys/ck.h>
