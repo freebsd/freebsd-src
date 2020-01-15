@@ -93,5 +93,15 @@ void epoch_trace_list(struct thread *);
 void epoch_enter(epoch_t epoch);
 void epoch_exit(epoch_t epoch);
 
+/*
+ * Globally recognized epochs in the FreeBSD kernel.
+ */
+/* Network preemptible epoch, declared in sys/net/if.c. */
+extern epoch_t net_epoch_preempt;
+#define	NET_EPOCH_ENTER(et)	epoch_enter_preempt(net_epoch_preempt, &(et))
+#define	NET_EPOCH_EXIT(et)	epoch_exit_preempt(net_epoch_preempt, &(et))
+#define	NET_EPOCH_WAIT()	epoch_wait_preempt(net_epoch_preempt)
+#define	NET_EPOCH_ASSERT()	MPASS(in_epoch(net_epoch_preempt))
+
 #endif	/* _KERNEL */
 #endif	/* _SYS_EPOCH_H_ */

@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/domain.h>
 #include <sys/eventhandler.h>
+#include <sys/epoch.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -47,8 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <net/vnet.h>
-#include <net/if.h>		/* XXXGL: net_epoch should move out there */
-#include <net/if_var.h>		/* XXXGL: net_epoch should move out there */
 
 /*
  * System initialization
