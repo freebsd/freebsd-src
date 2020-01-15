@@ -55,6 +55,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
+#include <sys/epoch.h>
 #include <sys/queue.h>
 #include <sys/refcount.h>
 #include <sys/rwlock.h>
@@ -3398,6 +3399,7 @@ static void
 ngthread(void *arg)
 {
 	for (;;) {
+		struct epoch_tracker et;
 		node_p  node;
 
 		/* Get node from the worklist. */
@@ -3418,6 +3420,7 @@ ngthread(void *arg)
 		 * that lets us be sure that the node still exists.
 		 * Let the reference go at the last minute.
 		 */
+		NET_EPOCH_ENTER(et);
 		for (;;) {
 			item_p item;
 			int rw;
@@ -3435,6 +3438,7 @@ ngthread(void *arg)
 				NG_NODE_UNREF(node);
 			}
 		}
+		NET_EPOCH_EXIT(et);
 		NG_NODE_UNREF(node);
 		CURVNET_RESTORE();
 	}
