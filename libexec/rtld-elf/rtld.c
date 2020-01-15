@@ -5729,28 +5729,6 @@ rtld_strerror(int errnum)
 	return (sys_errlist[errnum]);
 }
 
-/*
- * No ifunc relocations.
- */
-void *
-memset(void *dest, int c, size_t len)
-{
-	size_t i;
-
-	for (i = 0; i < len; i++)
-		((char *)dest)[i] = c;
-	return (dest);
-}
-
-void
-bzero(void *dest, size_t len)
-{
-	size_t i;
-
-	for (i = 0; i < len; i++)
-		((char *)dest)[i] = 0;
-}
-
 /* malloc */
 void *
 malloc(size_t nbytes)
