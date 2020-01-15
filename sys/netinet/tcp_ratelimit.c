@@ -913,7 +913,7 @@ use_real_interface:
 		 */
 		if (rs->rs_disable && error)
 			*error = ENODEV;
-		epoch_exit_preempt(net_epoch_preempt, &et);
+		NET_EPOCH_EXIT(et);
 		return (NULL);
 	}
 
