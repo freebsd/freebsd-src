@@ -160,8 +160,9 @@ sysctl_mem_reserved(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-SYSCTL_PROC(_vfs_tmpfs, OID_AUTO, memory_reserved, CTLTYPE_LONG|CTLFLAG_RW,
-    &tmpfs_pages_reserved, 0, sysctl_mem_reserved, "L",
+SYSCTL_PROC(_vfs_tmpfs, OID_AUTO, memory_reserved,
+    CTLTYPE_LONG|CTLFLAG_MPSAFE|CTLFLAG_RW, &tmpfs_pages_reserved, 0,
+    sysctl_mem_reserved, "L",
     "Amount of available memory and swap below which tmpfs growth stops");
 
 static __inline int tmpfs_dirtree_cmp(struct tmpfs_dirent *a,
