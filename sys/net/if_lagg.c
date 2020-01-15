@@ -910,7 +910,7 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 	 * free port and release it's ifnet reference after a grace period has
 	 * elapsed.
 	 */
-	epoch_call(net_epoch_preempt, &lp->lp_epoch_ctx, lagg_port_destroy_cb);
+	NET_EPOCH_CALL(lagg_port_destroy_cb, &lp->lp_epoch_ctx);
 	/* Update lagg capabilities */
 	lagg_capabilities(sc);
 	lagg_linkstate(sc);
