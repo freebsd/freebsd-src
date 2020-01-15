@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #endif
 #include <machine/vmparam.h>
+#include <net/if.h>
+#include <net/if_var.h>
 #ifdef RSS
 #include <net/netisr.h>
 #include <net/rss_config.h>
