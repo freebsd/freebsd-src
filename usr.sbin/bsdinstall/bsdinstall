@@ -40,13 +40,15 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 
 ############################################################ GLOBALS
 
-: ${BSDINSTALL_TMPETC="/tmp/bsdinstall_etc"}; export BSDINSTALL_TMPETC
-: ${BSDINSTALL_TMPBOOT="/tmp/bsdinstall_boot"}; export BSDINSTALL_TMPBOOT
+: ${TMPDIR:="/tmp"}; export TMPDIR
+
+: ${BSDINSTALL_TMPETC="${TMPDIR}/bsdinstall_etc"}; export BSDINSTALL_TMPETC
+: ${BSDINSTALL_TMPBOOT="${TMPDIR}/bsdinstall_boot"}; export BSDINSTALL_TMPBOOT
 : ${PATH_FSTAB="$BSDINSTALL_TMPETC/fstab"}; export PATH_FSTAB
 : ${BSDINSTALL_DISTDIR="/usr/freebsd-dist"}; export BSDINSTALL_DISTDIR
 : ${BSDINSTALL_CHROOT="/mnt"}; export BSDINSTALL_CHROOT
 
-export debugFile="${debugFile-${BSDINSTALL_LOG-/tmp/bsdinstall_log}}"
+export debugFile="${debugFile-${BSDINSTALL_LOG-${TMPDIR}/bsdinstall_log}}"
 
 ############################################################ MAIN
 

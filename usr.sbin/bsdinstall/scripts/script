@@ -49,6 +49,8 @@ f_include $BSDCFG_SHARE/variable.subr
 
 ############################################################ GLOBALS
 
+: ${TMPDIR:="/tmp"}
+
 #
 # Strings that should be moved to an i18n file and loaded with f_include_lang()
 #
@@ -88,9 +90,9 @@ f_dprintf "Began Installation at %s" "$( date )"
 rm -rf $BSDINSTALL_TMPETC
 mkdir $BSDINSTALL_TMPETC
 
-split -a 2 -p '^#!.*' "$SCRIPT" /tmp/bsdinstall-installscript-
+split -a 2 -p '^#!.*' "$SCRIPT" $TMPDIR/bsdinstall-installscript-
 
-. /tmp/bsdinstall-installscript-aa
+. $TMPDIR/bsdinstall-installscript-aa
 : ${DISTRIBUTIONS="kernel.txz base.txz"}; export DISTRIBUTIONS
 export BSDINSTALL_DISTDIR
 
@@ -135,8 +137,8 @@ if [ ! -f $BSDINSTALL_CHROOT/etc/resolv.conf -a -f /etc/resolv.conf ]; then
 fi
 
 # Run post-install script
-if [ -f /tmp/bsdinstall-installscript-ab ]; then
-	cp /tmp/bsdinstall-installscript-ab $BSDINSTALL_CHROOT/tmp/installscript
+if [ -f $TMPDIR/bsdinstall-installscript-ab ]; then
+	cp $TMPDIR/bsdinstall-installscript-ab $BSDINSTALL_CHROOT/tmp/installscript
 	chmod a+x $BSDINSTALL_CHROOT/tmp/installscript
 	mount -t devfs devfs "$BSDINSTALL_CHROOT/dev"
 	chroot $BSDINSTALL_CHROOT /tmp/installscript $@ 2>&1
