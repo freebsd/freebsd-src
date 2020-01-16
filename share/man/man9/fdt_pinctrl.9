@@ -125,6 +125,36 @@ foo_configure_pins(device_t dev, phandle_t cfgxref)
 }
 
 static int
+foo_is_gpio(device_t dev, device_t gpiodev, bool *is_gpio)
+{
+	return (foo_is_pin_func_gpio(is_gpio));
+}
+
+static int
+foo_set_flags(device_t dev, device_t gpiodev, uint32_t pin, uint32_t flags)
+{
+	int rv;
+
+	rv = foo_is_pin_func_gpio(is_gpio);
+	if (rv != 0)
+		return (rv);
+	foo_set_flags(pin, flags);
+	return (0);
+}
+
+static int
+foo_get_flags(device_t dev, device_t gpiodev, uint32_t pin, uint32_t *flags)
+{
+	int rv;
+
+	rv = foo_is_pin_func_gpio(is_gpio);
+	if (rv != 0)
+		return (rv);
+	foo_get_flags(pin, flags);
+	return (0);
+}
+
+static int
 foo_attach(device_t dev)
 {
 	...
@@ -144,6 +174,9 @@ static device_method_t foo_methods[] = {
 
 	/* fdt_pinctrl interface */
 	DEVMETHOD(fdt_pinctrl_configure, foo_configure_pins),
+	DEVMETHOD(fdt_pinctrl_is_gpio, foo_is_gpio),
+	DEVMETHOD(fdt_pinctrl_set_flags, foo_set_flags),
+	DEVMETHOD(fdt_pinctrl_get_flags, foo_get_flags),
 
 	/* Terminate method list */
 	DEVMETHOD_END
