@@ -87,6 +87,8 @@
 #include <dev/netmap/netmap_mem2.h>
 #include <dev/virtio/network/virtio_net.h>
 
+#ifdef WITH_PTNETMAP
+
 #ifndef INET
 #error "INET not defined, cannot support offloadings"
 #endif
@@ -2291,3 +2293,4 @@ ptnet_poll(if_t ifp, enum poll_cmd cmd, int budget)
 	return count;
 }
 #endif /* DEVICE_POLLING */
+#endif /* WITH_PTNETMAP */
