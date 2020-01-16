@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #define	PCLK_I2C0_PMU		27
 #define	PCLK_I2C4_PMU		28
 #define	PCLK_I2C8_PMU		29
+#define	PCLK_RKPWM_PMU		30
 
 static struct rk_cru_gate rk3399_pmu_gates[] = {
 	/* PMUCRU_CLKGATE_CON1 */
@@ -67,8 +68,8 @@ static struct rk_cru_gate rk3399_pmu_gates[] = {
 	CRU_GATE(PCLK_I2C0_PMU, "pclk_i2c0_pmu", "pclk_pmu_src", 0x104, 7)
 	CRU_GATE(PCLK_I2C4_PMU, "pclk_i2c4_pmu", "pclk_pmu_src", 0x104, 8)
 	CRU_GATE(PCLK_I2C8_PMU, "pclk_i2c8_pmu", "pclk_pmu_src", 0x104, 9)
+	CRU_GATE(PCLK_RKPWM_PMU, "pclk_rkpwm_pmu", "pclk_pmu_src", 0x104, 10)
 };
-
 
 /*
  * PLLs
