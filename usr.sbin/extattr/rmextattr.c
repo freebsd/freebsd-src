@@ -104,7 +104,7 @@ mkbuf(char **buf, int *oldlen, int newlen)
 int
 main(int argc, char *argv[])
 {
-#define STDIN_BUF_SZ 1024
+#define STDIN_BUF_SZ 4096
 	char	 stdin_data[STDIN_BUF_SZ];
 	char	*p;
 
