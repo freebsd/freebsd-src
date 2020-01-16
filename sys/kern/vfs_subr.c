@@ -1497,21 +1497,22 @@ vtryrecycle(struct vnode *vp)
  * The routine can try to free a vnode or stall for up to 1 second waiting for
  * vnlru to clear things up, but ultimately always performs a M_WAITOK allocation.
  */
-static struct vnode *
-vn_alloc(struct mount *mp)
+static u_long vn_alloc_cyclecount;
+
+static struct vnode * __noinline
+vn_alloc_hard(struct mount *mp)
 {
 	u_long rnumvnodes, rfreevnodes;
-	static u_long cyclecount;
 
 	mtx_lock(&vnode_list_mtx);
 	rnumvnodes = atomic_load_long(&numvnodes);
 	if (rnumvnodes + 1 < desiredvnodes) {
-		cyclecount = 0;
+		vn_alloc_cyclecount = 0;
 		goto alloc;
 	}
 	rfreevnodes = atomic_load_long(&freevnodes);
-	if (cyclecount++ >= rfreevnodes) {
-		cyclecount = 0;
+	if (vn_alloc_cyclecount++ >= rfreevnodes) {
+		vn_alloc_cyclecount = 0;
 		vstir = 1;
 	}
 	/*
@@ -1543,6 +1544,22 @@ alloc:
 	if (vnlru_under(rnumvnodes, vlowat))
 		vnlru_kick();
 	mtx_unlock(&vnode_list_mtx);
+	return (uma_zalloc(vnode_zone, M_WAITOK));
+}
+
+static struct vnode *
+vn_alloc(struct mount *mp)
+{
+	u_long rnumvnodes;
+
+	if (__predict_false(vn_alloc_cyclecount != 0))
+		return (vn_alloc_hard(mp));
+	rnumvnodes = atomic_fetchadd_long(&numvnodes, 1) + 1;
+	if (__predict_false(vnlru_under(rnumvnodes, vlowat))) {
+		atomic_subtract_long(&numvnodes, 1);
+		return (vn_alloc_hard(mp));
+	}
+
 	return (uma_zalloc(vnode_zone, M_WAITOK));
 }
 
