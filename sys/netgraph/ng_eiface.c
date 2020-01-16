@@ -385,7 +385,7 @@ ng_eiface_constructor(node_p node)
 {
 	struct ifnet *ifp;
 	priv_p priv;
-	u_char eaddr[6] = {0,0,0,0,0,0};
+	struct ether_addr eaddr;
 
 	/* Allocate node and interface private structures */
 	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
@@ -435,7 +435,8 @@ ng_eiface_constructor(node_p node)
 		    ifp->if_xname);
 
 	/* Attach the interface */
-	ether_ifattach(ifp, eaddr);
+	ether_gen_addr(ifp, &eaddr);
+	ether_ifattach(ifp, eaddr.octet);
 	ifp->if_baudrate = ifmedia_baudrate(IFM_ETHER | IFM_1000_T);
 
 	/* Done */
