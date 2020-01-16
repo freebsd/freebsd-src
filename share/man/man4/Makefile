@@ -758,7 +758,9 @@ MLINKS+=stf.4 if_stf.4
 MLINKS+=stge.4 if_stge.4
 MLINKS+=syncache.4 syncookies.4
 MLINKS+=syscons.4 sc.4
-MLINKS+=tap.4 if_tap.4
+MLINKS+=tap.4 if_tap.4 \
+	tap.4 vmnet.4 \
+	tap.4 if_vmnet.4
 MLINKS+=tdfx.4 tdfx_linux.4
 MLINKS+=ti.4 if_ti.4
 MLINKS+=tl.4 if_tl.4

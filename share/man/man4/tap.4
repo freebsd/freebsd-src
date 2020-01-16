@@ -1,11 +1,12 @@
 .\" $FreeBSD$
 .\" Based on PR#2411
 .\"
-.Dd November 29, 2017
+.Dd January 15, 2020
 .Dt TAP 4
 .Os
 .Sh NAME
-.Nm tap
+.Nm tap ,
+.Nm vmnet
 .Nd Ethernet tunnel software network interface
 .Sh SYNOPSIS
 .Cd device tap
@@ -280,6 +281,7 @@ On the last close of the data device, the interface is
 brought down
 (as if with
 .Dq ifconfig tap Ns Sy N No down )
+and has all of its configured addresses deleted
 unless the device is a
 .Em VMnet
 device, or has
