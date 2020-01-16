@@ -408,6 +408,8 @@ struct xhci_hw_dev {
 
 	struct xhci_endpoint_ext endp[XHCI_MAX_ENDPOINTS];
 
+	uint32_t		ep_configured;
+
 	uint8_t			state;
 	uint8_t			nports;
 	uint8_t			tt;
