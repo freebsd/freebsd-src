@@ -425,7 +425,10 @@ fdt_check_overlay_compatible(void *base_fdt, void *overlay_fdt)
 	return (1);
 }
 
-void
+/*
+ * Returns the number of overlays successfully applied
+ */
+int
 fdt_apply_overlays()
 {
 	struct preloaded_file *fp;
@@ -434,10 +437,10 @@ fdt_apply_overlays()
 	void *current_fdtp;
 	void *next_fdtp;
 	void *overlay;
-	int rv;
+	int overlays_applied, rv;
 
 	if ((fdtp == NULL) || (fdtp_size == 0))
-		return;
+		return (0);
 
 	max_overlay_size = 0;
 	for (fp = file_findfile(NULL, "dtbo"); fp != NULL; fp = fp->f_next) {
@@ -447,15 +450,16 @@ fdt_apply_overlays()
 
 	/* Nothing to apply */
 	if (max_overlay_size == 0)
-		return;
+		return (0);
 
 	overlay = malloc(max_overlay_size);
 	if (overlay == NULL) {
 		printf("failed to allocate memory for DTB blob with overlays\n");
-		return;
+		return (0);
 	}
 	current_fdtp = fdtp;
 	current_fdtp_size = fdtp_size;
+	overlays_applied = 0;
 	for (fp = file_findfile(NULL, "dtbo"); fp != NULL; fp = fp->f_next) {
 		COPYOUT(fp->f_addr, overlay, fp->f_size);
 		/* Check compatible first to avoid unnecessary allocation */
@@ -488,7 +492,9 @@ fdt_apply_overlays()
 			if (current_fdtp != fdtp)
 				free(current_fdtp);
 			current_fdtp = next_fdtp;
-			current_fdtp_size = next_fdtp_size;
+			fdt_pack(current_fdtp);
+			current_fdtp_size = fdt_totalsize(current_fdtp);
+			overlays_applied++;
 		} else {
 			/*
 			 * Assume here that the base we tried to apply on is
@@ -507,6 +513,26 @@ fdt_apply_overlays()
 		fdtp_size = current_fdtp_size;
 	}
 	free(overlay);
+	return (overlays_applied);
+}
+
+int
+fdt_pad_dtb(size_t padding)
+{
+	void *padded_fdtp;
+	size_t padded_fdtp_size;
+
+	padded_fdtp_size = fdtp_size + padding;
+	padded_fdtp = malloc(padded_fdtp_size);
+	if (padded_fdtp == NULL)
+		return (1);
+	if (fdt_open_into(fdtp, padded_fdtp, padded_fdtp_size) != 0) {
+		free(padded_fdtp);
+		return (1);
+	}
+	fdtp = padded_fdtp;
+	fdtp_size = padded_fdtp_size;
+	return (0);
 }
 
 int
