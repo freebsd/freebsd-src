@@ -38,6 +38,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200115: gcc libssp removed
+OLD_FILES+=usr/include/ssp/ssp.h
+OLD_FILES+=usr/include/ssp/stdio.h
+OLD_FILES+=usr/include/ssp/string.h
+OLD_FILES+=usr/include/ssp/unistd.h
+OLD_DIRS+=usr/include/ssp
+
 # 20190723: new clang import which bumps version from 8.0.0 to 8.0.1.
 OLD_FILES+=usr/lib/clang/8.0.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/8.0.0/include/sanitizer/asan_interface.h

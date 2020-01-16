@@ -10,10 +10,6 @@ SUBDIR+=		libgcc
 SUBDIR+= libgcov libgomp
 .endif
 
-.if ${MK_SSP} != "no"
-SUBDIR+= libssp
-.endif
-
 .if ${MK_TESTS} != "no"
 SUBDIR+= tests
 .endif
