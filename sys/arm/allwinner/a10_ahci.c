@@ -122,6 +122,8 @@ __FBSDID("$FreeBSD$");
 struct ahci_a10_softc {
 	struct ahci_controller	ahci_ctlr;
 	regulator_t		ahci_reg;
+	clk_t			clk_pll;
+	clk_t			clk_gate;
 };
 
 static void inline
@@ -303,11 +305,9 @@ ahci_a10_attach(device_t dev)
 	int error;
 	struct ahci_a10_softc *sc;
 	struct ahci_controller *ctlr;
-	clk_t clk_pll, clk_gate;
 
 	sc = device_get_softc(dev);
 	ctlr = &sc->ahci_ctlr;
-	clk_pll = clk_gate = NULL;
 
 	ctlr->quirks = AHCI_Q_NOPMP;
 	ctlr->vendorid = 0;
@@ -319,41 +319,38 @@ ahci_a10_attach(device_t dev)
 	    &ctlr->r_rid, RF_ACTIVE)))
 		return (ENXIO);
 
-	/* Enable the regulator */
-	error = regulator_get_by_ofw_property(dev, 0, "target-supply",
-	    &sc->ahci_reg);
-	if (error != 0) {
-		device_printf(dev, "Cannot get regulator\n");
-		goto fail;
-	}
-	error = regulator_enable(sc->ahci_reg);
-	if (error != 0) {
-		device_printf(dev, "Could not enable regulator\n");
-		goto fail;
+	/* Enable the (optional) regulator */
+	if (regulator_get_by_ofw_property(dev, 0, "target-supply",
+	    &sc->ahci_reg)  == 0) {
+		error = regulator_enable(sc->ahci_reg);
+		if (error != 0) {
+			device_printf(dev, "Could not enable regulator\n");
+			goto fail;
+		}
 	}
 
 	/* Enable clocks */
-	error = clk_get_by_ofw_index(dev, 0, 0, &clk_gate);
+	error = clk_get_by_ofw_index(dev, 0, 0, &sc->clk_gate);
 	if (error != 0) {
 		device_printf(dev, "Cannot get gate clock\n");
 		goto fail;
 	}
-	error = clk_get_by_ofw_index(dev, 0, 1, &clk_pll);
+	error = clk_get_by_ofw_index(dev, 0, 1, &sc->clk_pll);
 	if (error != 0) {
 		device_printf(dev, "Cannot get PLL clock\n");
 		goto fail;
 	}
-	error = clk_set_freq(clk_pll, PLL_FREQ, CLK_SET_ROUND_DOWN);
+	error = clk_set_freq(sc->clk_pll, PLL_FREQ, CLK_SET_ROUND_DOWN);
 	if (error != 0) {
 		device_printf(dev, "Cannot set PLL frequency\n");
 		goto fail;
 	}
-	error = clk_enable(clk_pll);
+	error = clk_enable(sc->clk_pll);
 	if (error != 0) {
 		device_printf(dev, "Cannot enable PLL\n");
 		goto fail;
 	}
-	error = clk_enable(clk_gate);
+	error = clk_enable(sc->clk_gate);
 	if (error != 0) {
 		device_printf(dev, "Cannot enable clk gate\n");
 		goto fail;
@@ -378,12 +375,12 @@ ahci_a10_attach(device_t dev)
 	return (ahci_attach(dev));
 
 fail:
-	if (sc->ahci_reg != 0)
+	if (sc->ahci_reg != NULL)
 		regulator_disable(sc->ahci_reg);
-	if (clk_gate != NULL)
-		clk_release(clk_gate);
-	if (clk_pll != NULL)
-		clk_release(clk_pll);
+	if (sc->clk_gate != NULL)
+		clk_release(sc->clk_gate);
+	if (sc->clk_pll != NULL)
+		clk_release(sc->clk_pll);
 	bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid, ctlr->r_mem);
 	return (error);
 }
@@ -391,7 +388,19 @@ fail:
 static int
 ahci_a10_detach(device_t dev)
 {
+	struct ahci_a10_softc *sc;
+	struct ahci_controller *ctlr;
 
+	sc = device_get_softc(dev);
+	ctlr = &sc->ahci_ctlr;
+
+	if (sc->ahci_reg != NULL)
+		regulator_disable(sc->ahci_reg);
+	if (sc->clk_gate != NULL)
+		clk_release(sc->clk_gate);
+	if (sc->clk_pll != NULL)
+		clk_release(sc->clk_pll);
+	bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid, ctlr->r_mem);
 	return (ahci_detach(dev));
 }
 
