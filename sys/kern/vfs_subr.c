@@ -166,6 +166,7 @@ int vttoif_tab[10] = {
  */
 static TAILQ_HEAD(freelst, vnode) vnode_list;
 static struct vnode *vnode_list_free_marker;
+static struct vnode *vnode_list_reclaim_marker;
 
 /*
  * "Free" vnode target.  Free vnodes are rarely completely free, but are
@@ -653,6 +654,8 @@ vntblinit(void *dummy __unused)
 	mtx_unlock(&vnode_list_mtx);
 	vnode_list_free_marker = vn_alloc_marker(NULL);
 	TAILQ_INSERT_HEAD(&vnode_list, vnode_list_free_marker, v_vnodelist);
+	vnode_list_reclaim_marker = vn_alloc_marker(NULL);
+	TAILQ_INSERT_HEAD(&vnode_list, vnode_list_reclaim_marker, v_vnodelist);
 	vnode_zone = uma_zcreate("VNODE", sizeof (struct vnode), NULL, NULL,
 	    vnode_init, vnode_fini, UMA_ALIGN_PTR, 0);
 	vnodepoll_zone = uma_zcreate("VNODEPOLL", sizeof (struct vpollinfo),
@@ -1057,6 +1060,17 @@ vattr_null(struct vattr *vap)
 }
 
 /*
+ * Try to reduce the total number of vnodes.
+ *
+ * This routine (and its user) are buggy in at least the following ways:
+ * - all parameters were picked years ago when RAM sizes were significantly
+ *   smaller
+ * - it can pick vnodes based on pages used by the vm object, but filesystems
+ *   like ZFS don't use it making the pick broken
+ * - since ZFS has its own aging policy it gets partially combated by this one
+ * - a dedicated method should be provided for filesystems to let them decide
+ *   whether the vnode should be recycled
+ *
  * This routine is called when we have too many vnodes.  It attempts
  * to free <count> vnodes and will potentially free vnodes that still
  * have VM backing store (VM backing store is typically the cause
@@ -1071,118 +1085,116 @@ vattr_null(struct vattr *vap)
  * number of vnodes to reach some minimum value regardless of what
  * you set kern.maxvnodes to.  Do not set kern.maxvnodes too low.
  *
- * @param mp		 Try to reclaim vnodes from this mountpoint
  * @param reclaim_nc_src Only reclaim directories with outgoing namecache
  * 			 entries if this argument is strue
  * @param trigger	 Only reclaim vnodes with fewer than this many resident
  *			 pages.
+ * @param target	 How many vnodes to reclaim.
  * @return		 The number of vnodes that were reclaimed.
  */
 static int
-vlrureclaim(struct mount *mp, bool reclaim_nc_src, int trigger)
+vlrureclaim(bool reclaim_nc_src, int trigger, u_long target)
 {
-	struct vnode *vp;
-	int count, done, target;
+	struct vnode *vp, *mvp;
+	struct mount *mp;
+	u_long done;
+	bool retried;
 
+	mtx_assert(&vnode_list_mtx, MA_OWNED);
+
+	retried = false;
 	done = 0;
-	vn_start_write(NULL, &mp, V_WAIT);
-	MNT_ILOCK(mp);
-	count = mp->mnt_nvnodelistsize;
-	target = count * (int64_t)gapvnodes / imax(desiredvnodes, 1);
-	target = target / 10 + 1;
-	while (count != 0 && done < target) {
-		vp = TAILQ_FIRST(&mp->mnt_nvnodelist);
-		while (vp != NULL && vp->v_type == VMARKER)
-			vp = TAILQ_NEXT(vp, v_nmntvnodes);
-		if (vp == NULL)
+
+	mvp = vnode_list_reclaim_marker;
+restart:
+	vp = mvp;
+	while (done < target) {
+		vp = TAILQ_NEXT(vp, v_vnodelist);
+		if (__predict_false(vp == NULL))
 			break;
-		/*
-		 * XXX LRU is completely broken for non-free vnodes.  First
-		 * by calling here in mountpoint order, then by moving
-		 * unselected vnodes to the end here, and most grossly by
-		 * removing the vlruvp() function that was supposed to
-		 * maintain the order.  (This function was born broken
-		 * since syncer problems prevented it doing anything.)  The
-		 * order is closer to LRC (C = Created).
-		 *
-		 * LRU reclaiming of vnodes seems to have last worked in
-		 * FreeBSD-3 where LRU wasn't mentioned under any spelling.
-		 * Then there was no hold count, and inactive vnodes were
-		 * simply put on the free list in LRU order.  The separate
-		 * lists also break LRU.  We prefer to reclaim from the
-		 * free list for technical reasons.  This tends to thrash
-		 * the free list to keep very unrecently used held vnodes.
-		 * The problem is mitigated by keeping the free list large.
-		 */
-		TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
-		TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
-		--count;
-		if (!VI_TRYLOCK(vp))
-			goto next_iter;
+
+		if (__predict_false(vp->v_type == VMARKER))
+			continue;
+
 		/*
 		 * If it's been deconstructed already, it's still
 		 * referenced, or it exceeds the trigger, skip it.
 		 * Also skip free vnodes.  We are trying to make space
 		 * to expand the free list, not reduce it.
 		 */
-		if (vp->v_usecount ||
+		if (vp->v_usecount > 0 || vp->v_holdcnt == 0 ||
+		    (!reclaim_nc_src && !LIST_EMPTY(&vp->v_cache_src)))
+			goto next_iter;
+
+		if (vp->v_type == VBAD || vp->v_type == VNON)
+			goto next_iter;
+
+		if (!VI_TRYLOCK(vp))
+			goto next_iter;
+
+		if (vp->v_usecount > 0 || vp->v_holdcnt == 0 ||
 		    (!reclaim_nc_src && !LIST_EMPTY(&vp->v_cache_src)) ||
-		    vp->v_holdcnt == 0 ||
-		    VN_IS_DOOMED(vp) || (vp->v_object != NULL &&
+		    vp->v_type == VBAD || vp->v_type == VNON ||
+		    (vp->v_object != NULL &&
 		    vp->v_object->resident_page_count > trigger)) {
 			VI_UNLOCK(vp);
 			goto next_iter;
 		}
-		MNT_IUNLOCK(mp);
 		vholdl(vp);
-		if (VOP_LOCK(vp, LK_INTERLOCK|LK_EXCLUSIVE|LK_NOWAIT)) {
+		VI_UNLOCK(vp);
+		TAILQ_REMOVE(&vnode_list, mvp, v_vnodelist);
+		TAILQ_INSERT_AFTER(&vnode_list, vp, mvp, v_vnodelist);
+		mtx_unlock(&vnode_list_mtx);
+
+		if (vn_start_write(vp, &mp, V_NOWAIT) != 0) {
 			vdrop(vp);
-			goto next_iter_mntunlocked;
+			goto next_iter_unlocked;
 		}
+		if (VOP_LOCK(vp, LK_EXCLUSIVE|LK_NOWAIT) != 0) {
+			vdrop(vp);
+			vn_finished_write(mp);
+			goto next_iter_unlocked;
+		}
+
 		VI_LOCK(vp);
-		/*
-		 * v_usecount may have been bumped after VOP_LOCK() dropped
-		 * the vnode interlock and before it was locked again.
-		 *
-		 * It is not necessary to recheck VIRF_DOOMED because it can
-		 * only be set by another thread that holds both the vnode
-		 * lock and vnode interlock.  If another thread has the
-		 * vnode lock before we get to VOP_LOCK() and obtains the
-		 * vnode interlock after VOP_LOCK() drops the vnode
-		 * interlock, the other thread will be unable to drop the
-		 * vnode lock before our VOP_LOCK() call fails.
-		 */
-		if (vp->v_usecount ||
+		if (vp->v_usecount > 0 ||
 		    (!reclaim_nc_src && !LIST_EMPTY(&vp->v_cache_src)) ||
 		    (vp->v_object != NULL &&
 		    vp->v_object->resident_page_count > trigger)) {
 			VOP_UNLOCK(vp);
 			vdropl(vp);
-			goto next_iter_mntunlocked;
+			vn_finished_write(mp);
+			goto next_iter_unlocked;
 		}
-		KASSERT(!VN_IS_DOOMED(vp),
-		    ("VIRF_DOOMED unexpectedly detected in vlrureclaim()"));
 		counter_u64_add(recycles_count, 1);
 		vgonel(vp);
 		VOP_UNLOCK(vp);
 		vdropl(vp);
+		vn_finished_write(mp);
 		done++;
-next_iter_mntunlocked:
-		if (!should_yield())
-			goto relock_mnt;
-		goto yield;
+next_iter_unlocked:
+		if (should_yield())
+			kern_yield(PRI_USER);
+		mtx_lock(&vnode_list_mtx);
+		goto restart;
 next_iter:
+		MPASS(vp->v_type != VMARKER);
 		if (!should_yield())
 			continue;
-		MNT_IUNLOCK(mp);
-yield:
+		TAILQ_REMOVE(&vnode_list, mvp, v_vnodelist);
+		TAILQ_INSERT_AFTER(&vnode_list, vp, mvp, v_vnodelist);
+		mtx_unlock(&vnode_list_mtx);
 		kern_yield(PRI_USER);
-relock_mnt:
-		MNT_ILOCK(mp);
+		mtx_lock(&vnode_list_mtx);
+		goto restart;
 	}
-	MNT_IUNLOCK(mp);
-	vn_finished_write(mp);
-	return done;
+	if (done == 0 && !retried) {
+		TAILQ_REMOVE(&vnode_list, mvp, v_vnodelist);
+		TAILQ_INSERT_HEAD(&vnode_list, mvp, v_vnodelist);
+		retried = true;
+		goto restart;
+	}
+	return (done);
 }
 
 static int max_vnlru_free = 10000; /* limit on vnode free requests per call */
@@ -1291,8 +1303,7 @@ static int vnlruproc_sig;
 static void
 vnlru_proc(void)
 {
-	u_long rnumvnodes, rfreevnodes;
-	struct mount *mp, *nmp;
+	u_long rnumvnodes, rfreevnodes, target;
 	unsigned long onumvnodes;
 	int done, force, trigger, usevnodes, vsp;
 	bool reclaim_nc_src;
@@ -1331,9 +1342,6 @@ vnlru_proc(void)
 			    PVFS|PDROP, "vlruwt", hz);
 			continue;
 		}
-		mtx_unlock(&vnode_list_mtx);
-		done = 0;
-		rnumvnodes = atomic_load_long(&numvnodes);
 		rfreevnodes = atomic_load_long(&freevnodes);
 
 		onumvnodes = rnumvnodes;
@@ -1362,18 +1370,10 @@ vnlru_proc(void)
 		if (force < 2)
 			trigger = vsmalltrigger;
 		reclaim_nc_src = force >= 3;
-		mtx_lock(&mountlist_mtx);
-		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
-			if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK)) {
-				nmp = TAILQ_NEXT(mp, mnt_list);
-				continue;
-			}
-			done += vlrureclaim(mp, reclaim_nc_src, trigger);
-			mtx_lock(&mountlist_mtx);
-			nmp = TAILQ_NEXT(mp, mnt_list);
-			vfs_unbusy(mp);
-		}
-		mtx_unlock(&mountlist_mtx);
+		target = rnumvnodes * (int64_t)gapvnodes / imax(desiredvnodes, 1);
+		target = target / 10 + 1;
+		done = vlrureclaim(reclaim_nc_src, trigger, target);
+		mtx_unlock(&vnode_list_mtx);
 		if (onumvnodes > desiredvnodes && numvnodes <= desiredvnodes)
 			uma_reclaim(UMA_RECLAIM_DRAIN);
 		if (done == 0) {
