@@ -29,6 +29,8 @@
 #ifndef _MKIMG_IMAGE_H_
 #define	_MKIMG_IMAGE_H_
 
+#include <stdint.h>
+
 typedef int64_t lba_t;
 
 int image_copyin(lba_t blk, int fd, uint64_t *sizep);
