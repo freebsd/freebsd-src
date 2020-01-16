@@ -96,6 +96,20 @@ static int udom_open(const char *path, int flags);
  */
 #define	BUFSIZE_SMALL (MAXPHYS)
 
+
+/*
+ * For the bootstrapped cat binary (needed for locked appending to METALOG), we
+ * disable all flags except -l and -u to avoid non-portable function calls.
+ * In the future we may instead want to write a small portable bootstrap tool
+ * that locks the output file before writing to it. However, for now
+ * bootstrapping cat without multibyte support is the simpler solution.
+ */
+#ifdef BOOTSTRAP_CAT
+#define SUPPORTED_FLAGS "lu"
+#else
+#define SUPPORTED_FLAGS "belnstuv"
+#endif
+
 int
 main(int argc, char *argv[])
 {
@@ -104,7 +118,7 @@ main(int argc, char *argv[])
 
 	setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc, argv, "belnstuv")) != -1)
+	while ((ch = getopt(argc, argv, SUPPORTED_FLAGS)) != -1)
 		switch (ch) {
 		case 'b':
 			bflag = nflag = 1;	/* -b implies -n */
@@ -158,7 +172,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: cat [-belnstuv] [file ...]\n");
+	fprintf(stderr, "usage: cat [-" SUPPORTED_FLAGS "] [file ...]\n");
 	exit(1);
 	/* NOTREACHED */
 }
@@ -187,6 +201,7 @@ scanfiles(char *argv[], int cooked)
 		if (fd < 0) {
 			warn("%s", path);
 			rval = 1;
+#ifndef BOOTSTRAP_CAT
 		} else if (cooked) {
 			if (fd == STDIN_FILENO)
 				cook_cat(stdin);
@@ -195,6 +210,7 @@ scanfiles(char *argv[], int cooked)
 				cook_cat(fp);
 				fclose(fp);
 			}
+#endif
 		} else {
 			raw_cat(fd);
 			if (fd != STDIN_FILENO)
@@ -206,6 +222,7 @@ scanfiles(char *argv[], int cooked)
 	}
 }
 
+#ifndef BOOTSTRAP_CAT
 static void
 cook_cat(FILE *fp)
 {
@@ -295,6 +312,7 @@ ilseq:
 	if (ferror(stdout))
 		err(1, "stdout");
 }
+#endif /* BOOTSTRAP_CAT */
 
 static void
 raw_cat(int rfd)
