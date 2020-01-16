@@ -94,7 +94,7 @@ _Read_RuneMagi(const char *fname)
 
 	fdata = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	(void) _close(fd);
-	if (fdata == NULL) {
+	if (fdata == MAP_FAILED) {
 		errno = EINVAL;
 		return (NULL);
 	}
