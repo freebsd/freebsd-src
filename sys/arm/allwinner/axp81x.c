@@ -710,6 +710,8 @@ struct axp8xx_softc {
 
 #define	AXP_LOCK(sc)	mtx_lock(&(sc)->mtx)
 #define	AXP_UNLOCK(sc)	mtx_unlock(&(sc)->mtx)
+static int axp8xx_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
+    int max_uvolt, int *udelay);
 
 static int
 axp8xx_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
@@ -751,6 +753,31 @@ axp8xx_write(device_t dev, uint8_t reg, uint8_t val)
 	msg[1].buf = &val;
 
 	return (iicbus_transfer(dev, msg, 2));
+}
+
+static int
+axp8xx_regnode_init(struct regnode *regnode)
+{
+	struct axp8xx_reg_sc *sc;
+	struct regnode_std_param *param;
+	int rv, udelay;
+
+	sc = regnode_get_softc(regnode);
+	param = regnode_get_stdparam(regnode);
+	if (param->min_uvolt == 0)
+		return (0);
+
+	/* 
+	 * Set the regulator at the correct voltage
+	 * Do not enable it, this is will be done either by a
+	 * consumer or by regnode_set_constraint if boot_on is true
+	 */
+	rv = axp8xx_regnode_set_voltage(regnode, param->min_uvolt,
+	    param->max_uvolt, &udelay);
+	if (rv != 0)
+		DELAY(udelay);
+
+	return (rv);
 }
 
 static int
@@ -870,6 +897,7 @@ axp8xx_regnode_get_voltage(struct regnode *regnode, int *uvolt)
 
 static regnode_method_t axp8xx_regnode_methods[] = {
 	/* Regulator interface */
+	REGNODEMETHOD(regnode_init,		axp8xx_regnode_init),
 	REGNODEMETHOD(regnode_enable,		axp8xx_regnode_enable),
 	REGNODEMETHOD(regnode_set_voltage,	axp8xx_regnode_set_voltage),
 	REGNODEMETHOD(regnode_get_voltage,	axp8xx_regnode_get_voltage),
