@@ -73,6 +73,7 @@ static int regnode_fixed_enable(struct regnode *regnode, bool enable,
     int *udelay);
 static int regnode_fixed_status(struct regnode *regnode, int *status);
 static int regnode_fixed_stop(struct regnode *regnode, int *udelay);
+static int regnode_fixed_get_voltage(struct regnode *regnode, int *uvolt);
 
 static regnode_method_t regnode_fixed_methods[] = {
 	/* Regulator interface */
@@ -80,6 +81,7 @@ static regnode_method_t regnode_fixed_methods[] = {
 	REGNODEMETHOD(regnode_enable,		regnode_fixed_enable),
 	REGNODEMETHOD(regnode_status,		regnode_fixed_status),
 	REGNODEMETHOD(regnode_stop,		regnode_fixed_stop),
+	REGNODEMETHOD(regnode_get_voltage,	regnode_fixed_get_voltage),
 	REGNODEMETHOD(regnode_check_voltage,	regnode_method_check_voltage),
 	REGNODEMETHOD_END
 };
@@ -280,6 +282,16 @@ regnode_fixed_status(struct regnode *regnode, int *status)
 	return (rv);
 }
 
+static int
+regnode_fixed_get_voltage(struct regnode *regnode, int *uvolt)
+{
+	struct regnode_fixed_sc *sc;
+
+	sc = regnode_get_softc(regnode);
+	*uvolt = sc->param->min_uvolt;
+	return (0);
+}
+
 int
 regnode_fixed_register(device_t dev, struct regnode_fixed_init_def *init_def)
 {
@@ -382,6 +394,10 @@ regfix_parse_fdt(struct regfix_softc * sc)
 		return(rv);
 	}
 
+	if (init_def->std_param.min_uvolt != init_def->std_param.max_uvolt) {
+		device_printf(sc->dev, "min_uvolt != max_uvolt\n");
+		return (ENXIO);
+	}
 	/* Fixed regulator uses 'startup-delay-us' property for enable_delay */
 	rv = OF_getencprop(node, "startup-delay-us",
 	   &init_def->std_param.enable_delay,
