@@ -74,7 +74,6 @@
 #define WITH_PIPES
 #define WITH_MONITOR
 #define WITH_GENERIC
-#define WITH_PTNETMAP	/* ptnetmap guest support */
 #define WITH_EXTMEM
 #define WITH_NMNULL
 #endif
