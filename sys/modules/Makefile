@@ -761,6 +761,7 @@ _nvd=		nvd
 _nvme=		nvme
 _pccard=	pccard
 _wi=		wi
+_virtio=	virtio
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc64"
