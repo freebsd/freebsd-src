@@ -39,6 +39,12 @@ VAGRANT-VMWARE_FORMAT=	vmdk
 VAGRANT-VMWARE_DESC=	Vagrant Image for VMWare
 VAGRANT-VMWARE_DISK=	${OSRELEASE}.vmware.${VAGRANT_FORMAT}
 
+.for _V in TYPE BRANCH REVISION
+. if !defined(${_V}) || empty(${_V})
+${_V}!=	eval $$(awk '/^${_V}=/{print}' ${.CURDIR}/../sys/conf/newvers.sh); echo $$${_V}
+. endif
+.endfor
+
 emulator-portinstall:
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
 .if ( ${TARGET_ARCH} != "i386" ) || ( ${MACHINE_ARCH} != "amd64" )
