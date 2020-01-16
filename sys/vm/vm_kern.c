@@ -129,6 +129,8 @@ SYSCTL_ULONG(_vm, OID_AUTO, max_kernel_address, CTLFLAG_RD,
 #endif
 #define	KVA_QUANTUM		(1 << KVA_QUANTUM_SHIFT)
 
+extern void     uma_startup2(void);
+
 /*
  *	kva_alloc:
  *
@@ -814,6 +816,13 @@ kmem_init(vm_offset_t start, vm_offset_t end)
 		    kernel_arena, KVA_QUANTUM);
 #endif
 	}
+
+	/*
+	 * This must be the very first call so that the virtual address
+	 * space used for early allocations is properly marked used in
+	 * the map.
+	 */
+	uma_startup2();
 }
 
 /*
