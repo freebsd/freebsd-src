@@ -113,10 +113,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/md_var.h>
 
-extern int	uma_startup_count(int);
-extern void	uma_startup(void *, int);
-extern int	vmem_startup_count(void);
-
 struct vm_domain vm_dom[MAXMEMDOM];
 
 DPCPU_DEFINE_STATIC(struct vm_batchqueue, pqbatch[MAXMEMDOM][PQ_COUNT]);
@@ -168,11 +164,6 @@ vm_page_t bogus_page;
 vm_page_t vm_page_array;
 long vm_page_array_size;
 long first_page;
-
-static int boot_pages;
-SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
-    &boot_pages, 0,
-    "number of pages allocated for bootstrapping the VM system");
 
 static TAILQ_HEAD(, vm_page) blacklist_head;
 static int sysctl_vm_page_blacklist(SYSCTL_HANDLER_ARGS);
@@ -568,13 +559,13 @@ vm_page_startup(vm_offset_t vaddr)
 	struct vm_phys_seg *seg;
 	vm_page_t m;
 	char *list, *listend;
-	vm_offset_t mapped;
 	vm_paddr_t end, high_avail, low_avail, new_end, size;
 	vm_paddr_t page_range __unused;
 	vm_paddr_t last_pa, pa;
 	u_long pagecount;
 	int biggestone, i, segind;
 #ifdef WITNESS
+	vm_offset_t mapped;
 	int witness_size;
 #endif
 #if defined(__i386__) && defined(VM_PHYSSEG_DENSE)
@@ -596,48 +587,7 @@ vm_page_startup(vm_offset_t vaddr)
 	for (i = 0; i < vm_ndomains; i++)
 		vm_page_domain_init(i);
 
-	/*
-	 * Allocate memory for use when boot strapping the kernel memory
-	 * allocator.  Tell UMA how many zones we are going to create
-	 * before going fully functional.  UMA will add its zones.
-	 *
-	 * VM startup zones: vmem, vmem_btag, VM OBJECT, RADIX NODE, MAP,
-	 * KMAP ENTRY, MAP ENTRY, VMSPACE.
-	 */
-	boot_pages = uma_startup_count(8);
-
-#ifndef UMA_MD_SMALL_ALLOC
-	/* vmem_startup() calls uma_prealloc(). */
-	boot_pages += vmem_startup_count();
-	/* vm_map_startup() calls uma_prealloc(). */
-	boot_pages += howmany(MAX_KMAP,
-	    slab_ipers(sizeof(struct vm_map), UMA_ALIGN_PTR));
-
-	/*
-	 * Before we are fully boot strapped we need to account for the
-	 * following allocations:
-	 *
-	 * "KMAP ENTRY" from kmem_init()
-	 * "vmem btag" from vmem_startup()
-	 * "vmem" from vmem_create()
-	 * "KMAP" from vm_map_startup()
-	 *
-	 * Each needs at least one page per-domain.
-	 */
-	boot_pages += 4 * vm_ndomains;
-#endif
-	/*
-	 * CTFLAG_RDTUN doesn't work during the early boot process, so we must
-	 * manually fetch the value.
-	 */
-	TUNABLE_INT_FETCH("vm.boot_pages", &boot_pages);
-	new_end = end - (boot_pages * UMA_SLAB_SIZE);
-	new_end = trunc_page(new_end);
-	mapped = pmap_map(&vaddr, new_end, end,
-	    VM_PROT_READ | VM_PROT_WRITE);
-	bzero((void *)mapped, end - new_end);
-	uma_startup((void *)mapped, boot_pages);
-
+	new_end = end;
 #ifdef WITNESS
 	witness_size = round_page(witness_startup_count());
 	new_end -= witness_size;
