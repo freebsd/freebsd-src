@@ -46,7 +46,7 @@ then
 	TMP=`mktemp -t security`
 	for _a in "" $(pfctl -a "blacklistd" -sA 2>/dev/null)
 	do
-		pfctl -a ${_a} -sr -v -z 2>/dev/null | \
+		pfctl -a "${_a}" -sr -v -z 2>/dev/null | \
 		nawk '{if (/^block/) {buf=$0; getline; gsub(" +"," ",$0); if ($5 > 0) print buf$0;} }' >> ${TMP}
 	done
 	if [ -s ${TMP} ]; then
