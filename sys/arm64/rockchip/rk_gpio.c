@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 
 #include "gpio_if.h"
 
+#include "fdt_pinctrl_if.h"
+
 #define	RK_GPIO_SWPORTA_DR	0x00	/* Data register */
 #define	RK_GPIO_SWPORTA_DDR	0x04	/* Data direction register */
 
@@ -68,6 +70,9 @@ __FBSDID("$FreeBSD$");
 
 #define	RK_GPIO_LS_SYNC		0x60	/* Level sensitive syncronization enable register */
 
+#define	RK_GPIO_DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |	\
+    GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN)
+
 struct rk_gpio_softc {
 	device_t		sc_dev;
 	device_t		sc_busdev;
@@ -76,6 +81,7 @@ struct rk_gpio_softc {
 	bus_space_tag_t		sc_bst;
 	bus_space_handle_t	sc_bsh;
 	clk_t			clk;
+	device_t		pinctrl;
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -123,6 +129,7 @@ rk_gpio_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
+	sc->pinctrl = device_get_parent(dev);
 
 	node = ofw_bus_get_node(sc->sc_dev);
 	if (!OF_hasprop(node, "gpio-controller"))
@@ -220,18 +227,30 @@ rk_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 {
 	struct rk_gpio_softc *sc;
 	uint32_t reg;
+	int rv;
+	bool is_gpio;
 
 	sc = device_get_softc(dev);
 
-	/* XXX Combine this with parent (pinctrl) */
+	rv = FDT_PINCTRL_IS_GPIO(sc->pinctrl, dev, pin, &is_gpio);
+	if (rv != 0)
+		return (rv);
+	if (!is_gpio)
+		return (EINVAL);
+
+	*flags = 0;
+	rv = FDT_PINCTRL_GET_FLAGS(sc->pinctrl, dev, pin, flags);
+	if (rv != 0)
+		return (rv);
+
 	RK_GPIO_LOCK(sc);
 	reg = RK_GPIO_READ(sc, RK_GPIO_SWPORTA_DDR);
 	RK_GPIO_UNLOCK(sc);
 
 	if (reg & (1 << pin))
-		*flags = GPIO_PIN_OUTPUT;
+		*flags |= GPIO_PIN_OUTPUT;
 	else
-		*flags = GPIO_PIN_INPUT;
+		*flags |= GPIO_PIN_INPUT;
 
 	return (0);
 }
@@ -240,9 +259,7 @@ static int
 rk_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 {
 
-	/* Caps are managed by the pinctrl device */
-	/* XXX Pass this to parent (pinctrl) */
-	*caps = 0;
+	*caps = RK_GPIO_DEFAULT_CAPS;
 	return (0);
 }
 
@@ -251,10 +268,21 @@ rk_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 {
 	struct rk_gpio_softc *sc;
 	uint32_t reg;
+	int rv;
+	bool is_gpio;
 
 	sc = device_get_softc(dev);
 
-	/* XXX Combine this with parent (pinctrl) */
+	rv = FDT_PINCTRL_IS_GPIO(sc->pinctrl, dev, pin, &is_gpio);
+	if (rv != 0)
+		return (rv);
+	if (!is_gpio)
+		return (EINVAL);
+
+	rv = FDT_PINCTRL_SET_FLAGS(sc->pinctrl, dev, pin, flags);
+	if (rv != 0)
+		return (rv);
+
 	RK_GPIO_LOCK(sc);
 
 	reg = RK_GPIO_READ(sc, RK_GPIO_SWPORTA_DDR);
