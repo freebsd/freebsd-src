@@ -484,8 +484,8 @@ parse_fdt(struct dwmmc_softc *sc)
 		sc->host.caps |= MMC_CAP_8_BIT_DATA;
 
 	/* max-frequency */
-	if (OF_getencprop(node, "max-frequency", &sc->max_hz, sizeof(uint32_t)) <= 0)
-		sc->max_hz = 200000000;
+	if (OF_getencprop(node, "max-frequency", &sc->host.f_max, sizeof(uint32_t)) <= 0)
+		sc->host.f_max = 200000000;
 
 	/* fifo-depth */
 	if ((len = OF_getproplen(node, "fifo-depth")) > 0) {
@@ -726,7 +726,6 @@ dwmmc_attach(device_t dev)
 	WRITE4(sc, SDMMC_CTRL, SDMMC_CTRL_INT_ENABLE);
 
 	sc->host.f_min = 400000;
-	sc->host.f_max = sc->max_hz;
 	sc->host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
 	sc->host.caps |= MMC_CAP_HSPEED;
 	sc->host.caps |= MMC_CAP_SIGNALING_330;
