@@ -114,10 +114,13 @@ setlaggrr_limit(const char *val, int d, int s, const struct afswtch *afp)
 	
 	bzero(&ro, sizeof(ro));
 	strlcpy(ro.ro_ifname, name, sizeof(ro.ro_ifname));
-	ro.ro_bkt = (int)strtol(val, NULL, 10);
+	ro.ro_opts = LAGG_OPT_RR_LIMIT;
+	ro.ro_bkt = (uint32_t)strtoul(val, NULL, 10);
+	if (ro.ro_bkt == 0)
+		errx(1, "Invalid round-robin stride: %s", val);
 
 	if (ioctl(s, SIOCSLAGGOPTS, &ro) != 0)
-		err(1, "SIOCSLAGG");
+		err(1, "SIOCSLAGGOPTS");
 }
 
 static void
