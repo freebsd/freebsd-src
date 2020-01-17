@@ -28,7 +28,7 @@
 .\"     @(#)fcntl.2	8.2 (Berkeley) 1/12/94
 .\" $FreeBSD$
 .\"
-.Dd September 4, 2019
+.Dd January 17, 2020
 .Dt FCNTL 2
 .Os
 .Sh NAME
@@ -185,6 +185,11 @@ Add seals to the file as described below, if the underlying filesystem supports
 seals.
 .It Dv F_GET_SEALS
 Get seals associated with the file, if the underlying filesystem supports seals.
+.It Dv F_ISUNIONSTACK
+Check if the vnode is part of a union stack (either the "union" flag from
+.Xr mount 2
+or unionfs).
+This is a hack not intended to be used outside of libc.
 .El
 .Pp
 The flags for the
