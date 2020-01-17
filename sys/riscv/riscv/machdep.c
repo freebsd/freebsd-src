@@ -367,6 +367,14 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 
 	tf = td->td_frame;
 
+	/*
+	 * Make sure the processor mode has not been tampered with and
+	 * interrupts have not been disabled.
+	 * Supervisor interrupts in user mode are always enabled.
+	 */
+	if ((mcp->mc_gpregs.gp_sstatus & SSTATUS_SPP) != 0)
+		return (EINVAL);
+
 	memcpy(tf->tf_t, mcp->mc_gpregs.gp_t, sizeof(tf->tf_t));
 	memcpy(tf->tf_s, mcp->mc_gpregs.gp_s, sizeof(tf->tf_s));
 	memcpy(tf->tf_a, mcp->mc_gpregs.gp_a, sizeof(tf->tf_a));
@@ -523,21 +531,11 @@ struct sigreturn_args {
 int
 sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
-	uint64_t sstatus;
 	ucontext_t uc;
 	int error;
 
 	if (copyin(uap->sigcntxp, &uc, sizeof(uc)))
 		return (EFAULT);
-
-	/*
-	 * Make sure the processor mode has not been tampered with and
-	 * interrupts have not been disabled.
-	 * Supervisor interrupts in user mode are always enabled.
-	 */
-	sstatus = uc.uc_mcontext.mc_gpregs.gp_sstatus;
-	if ((sstatus & SSTATUS_SPP) != 0)
-		return (EINVAL);
 
 	error = set_mcontext(td, &uc.uc_mcontext);
 	if (error != 0)
