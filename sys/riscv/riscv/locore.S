@@ -53,6 +53,12 @@
 	.text
 	.globl _start
 _start:
+	/* Set the global pointer */
+.option push
+.option norelax
+	lla	gp, __global_pointer$
+.option pop
+
 	/* Get the physical address kernel loaded to */
 	lla	t0, virt_map
 	ld	t1, 0(t0)
@@ -168,6 +174,11 @@ _start:
 
 	.align 2
 va:
+	/* Set the global pointer again, this time with the virtual address. */
+.option push
+.option norelax
+	lla	gp, __global_pointer$
+.option pop
 
 	/* Setup supervisor trap vector */
 	la	t0, cpu_exception_handler
@@ -176,12 +187,6 @@ va:
 	/* Ensure sscratch is zero */
 	li	t0, 0
 	csrw	sscratch, t0
-
-	/* Set the global pointer */
-.option push
-.option norelax
-	la	gp, __global_pointer$
-.option pop
 
 	/* Initialize stack pointer */
 	la	s3, initstack_end
@@ -322,6 +327,12 @@ ENTRY(mpentry)
 
 	.align 2
 mpva:
+	/* Set the global pointer again, this time with the virtual address. */
+.option push
+.option norelax
+	lla	gp, __global_pointer$
+.option pop
+
 	/* Setup supervisor trap vector */
 	la	t0, cpu_exception_handler
 	csrw	stvec, t0
@@ -329,12 +340,6 @@ mpva:
 	/* Ensure sscratch is zero */
 	li	t0, 0
 	csrw	sscratch, t0
-
-	/* Set the global pointer */
-.option push
-.option norelax
-	la	gp, __global_pointer$
-.option pop
 
 	call	init_secondary
 END(mpentry)
