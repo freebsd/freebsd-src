@@ -1249,6 +1249,8 @@ mdinit(struct md_s *sc)
 	gp = g_new_geomf(&g_md_class, "md%d", sc->unit);
 	gp->softc = sc;
 	pp = g_new_providerf(gp, "md%d", sc->unit);
+	devstat_remove_entry(pp->stat);
+	pp->stat = NULL;
 	pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
 	pp->mediasize = sc->mediasize;
 	pp->sectorsize = sc->sectorsize;
@@ -1264,10 +1266,11 @@ mdinit(struct md_s *sc)
 	}
 	sc->gp = gp;
 	sc->pp = pp;
-	g_error_provider(pp, 0);
-	g_topology_unlock();
 	sc->devstat = devstat_new_entry("md", sc->unit, sc->sectorsize,
 	    DEVSTAT_ALL_SUPPORTED, DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
+	sc->devstat->id = pp;
+	g_error_provider(pp, 0);
+	g_topology_unlock();
 }
 
 static int
