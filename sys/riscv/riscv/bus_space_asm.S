@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2016-2020 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -38,13 +38,13 @@ __FBSDID("$FreeBSD$");
 
 ENTRY(generic_bs_r_1)
 	add	a3, a1, a2
-	lb	a0, 0(a3)
+	lbu	a0, 0(a3)
 	ret
 END(generic_bs_r_1)
 
 ENTRY(generic_bs_r_2)
 	add	a3, a1, a2
-	lh	a0, 0(a3)
+	lhu	a0, 0(a3)
 	ret
 END(generic_bs_r_2)
 
