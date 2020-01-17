@@ -560,6 +560,17 @@ g_disk_start(struct bio *bp)
 		devstat_start_transaction_bio(dp->d_devstat, bp2);
 		dp->d_strategy(bp2);
 		break;
+	case BIO_SPEEDUP:
+		bp2 = g_clone_bio(bp);
+		if (bp2 == NULL) {
+			g_io_deliver(bp, ENOMEM);
+			return;
+		}
+		bp2->bio_done = g_disk_done;
+		bp2->bio_caller1 = sc;
+		bp2->bio_disk = dp;
+		dp->d_strategy(bp2);
+		break;
 	default:
 		error = EOPNOTSUPP;
 		break;

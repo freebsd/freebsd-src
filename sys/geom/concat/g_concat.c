@@ -279,8 +279,11 @@ g_concat_done(struct bio *bp)
 	g_destroy_bio(bp);
 }
 
+/*
+ * Called for both BIO_FLUSH and BIO_SPEEDUP. Just pass the call down
+ */
 static void
-g_concat_flush(struct g_concat_softc *sc, struct bio *bp)
+g_concat_passdown(struct g_concat_softc *sc, struct bio *bp)
 {
 	struct bio_queue_head queue;
 	struct g_consumer *cp;
@@ -340,8 +343,9 @@ g_concat_start(struct bio *bp)
 	case BIO_WRITE:
 	case BIO_DELETE:
 		break;
+	case BIO_SPEEDUP:
 	case BIO_FLUSH:
-		g_concat_flush(sc, bp);
+		g_concat_passdown(sc, bp);
 		return;
 	case BIO_GETATTR:
 		if (strcmp("GEOM::kerneldump", bp->bio_attribute) == 0) {

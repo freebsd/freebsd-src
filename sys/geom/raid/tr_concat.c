@@ -224,7 +224,7 @@ g_raid_tr_iostart_concat(struct g_raid_tr_object *tr, struct bio *bp)
 		g_raid_iodone(bp, EIO);
 		return;
 	}
-	if (bp->bio_cmd == BIO_FLUSH) {
+	if (bp->bio_cmd == BIO_FLUSH || bp->bio_cmd == BIO_SPEEDUP) {
 		g_raid_tr_flush_common(tr, bp);
 		return;
 	}

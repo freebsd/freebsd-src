@@ -1446,6 +1446,7 @@ g_raid3_start(struct bio *bp)
 	case BIO_WRITE:
 	case BIO_DELETE:
 		break;
+	case BIO_SPEEDUP:
 	case BIO_FLUSH:
 		g_raid3_flush(sc, bp);
 		return;

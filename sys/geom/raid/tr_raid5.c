@@ -357,6 +357,7 @@ g_raid_tr_iostart_raid5(struct g_raid_tr_object *tr, struct bio *bp)
 	case BIO_WRITE:
 	case BIO_DELETE:
 	case BIO_FLUSH:
+	case BIO_SPEEDUP:
 		g_raid_iodone(bp, ENODEV);
 		break;
 	default:

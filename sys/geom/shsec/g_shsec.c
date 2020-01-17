@@ -316,6 +316,7 @@ g_shsec_start(struct bio *bp)
 	case BIO_READ:
 	case BIO_WRITE:
 	case BIO_FLUSH:
+	case BIO_SPEEDUP:
 		/*
 		 * Only those requests are supported.
 		 */

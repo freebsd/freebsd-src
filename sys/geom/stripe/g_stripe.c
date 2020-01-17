@@ -535,7 +535,7 @@ failure:
 }
 
 static void
-g_stripe_flush(struct g_stripe_softc *sc, struct bio *bp)
+g_stripe_pushdown(struct g_stripe_softc *sc, struct bio *bp)
 {
 	struct bio_queue_head queue;
 	struct g_consumer *cp;
@@ -594,8 +594,9 @@ g_stripe_start(struct bio *bp)
 	case BIO_WRITE:
 	case BIO_DELETE:
 		break;
+	case BIO_SPEEDUP:
 	case BIO_FLUSH:
-		g_stripe_flush(sc, bp);
+		g_stripe_pushdown(sc, bp);
 		return;
 	case BIO_GETATTR:
 		/* To which provider it should be delivered? */
