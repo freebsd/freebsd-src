@@ -3243,9 +3243,9 @@ vdbatch_process(struct vdbatch *vd)
 		MPASS(vp->v_dbatchcpu != NOCPU);
 		vp->v_dbatchcpu = NOCPU;
 	}
+	mtx_unlock(&vnode_list_mtx);
 	bzero(vd->tab, sizeof(vd->tab));
 	vd->index = 0;
-	mtx_unlock(&vnode_list_mtx);
 }
 
 static void
