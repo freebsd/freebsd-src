@@ -191,6 +191,8 @@ g_vfs_strategy(struct bufobj *bo, struct buf *bp)
 		bip->bio_flags |= BIO_ORDERED;
 		bp->b_flags &= ~B_BARRIER;
 	}
+	if (bp->b_iocmd == BIO_SPEEDUP)
+		bip->bio_flags |= bp->b_ioflags;
 	bip->bio_done = g_vfs_done;
 	bip->bio_caller2 = bp;
 #if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)

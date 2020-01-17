@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 
 #include <geom/geom.h>
+#include <geom/geom_vfs.h>
 
 #include <ddb/ddb.h>
 
@@ -1450,6 +1451,20 @@ worklist_speedup(mp)
 	if ((ump->softdep_flags & (FLUSH_CLEANUP | FLUSH_EXIT)) == 0)
 		ump->softdep_flags |= FLUSH_CLEANUP;
 	wakeup(&ump->softdep_flushtd);
+}
+
+static void
+softdep_send_speedup(struct ufsmount *ump, size_t shortage, u_int flags)
+{
+	struct buf *bp;
+
+	bp = malloc(sizeof(*bp), M_TRIM, M_WAITOK | M_ZERO);
+	bp->b_iocmd = BIO_SPEEDUP;
+	bp->b_ioflags = flags;
+	bp->b_bcount = shortage;
+	g_vfs_strategy(ump->um_bo, bp);
+	bufwait(bp);
+	free(bp, M_TRIM);
 }
 
 static int
@@ -13364,7 +13379,6 @@ softdep_request_cleanup(fs, vp, cred, resource)
 	struct ufsmount *ump;
 	struct mount *mp;
 	long starttime;
-	size_t resid;
 	ufs2_daddr_t needed;
 	int error, failed_vnode;
 
@@ -13442,8 +13456,8 @@ softdep_request_cleanup(fs, vp, cred, resource)
 retry:
 	if (resource == FLUSH_BLOCKS_WAIT &&
 	    fs->fs_cstotal.cs_nbfree <= needed)
-		g_io_speedup(needed * fs->fs_bsize, BIO_SPEEDUP_TRIM, &resid,
-		    ump->um_cp);
+		softdep_send_speedup(ump, needed * fs->fs_bsize,
+		    BIO_SPEEDUP_TRIM);
 	if ((resource == FLUSH_BLOCKS_WAIT && ump->softdep_on_worklist > 0 &&
 	    fs->fs_cstotal.cs_nbfree <= needed) ||
 	    (resource == FLUSH_INODES_WAIT && fs->fs_pendinginodes > 0 &&
@@ -13757,7 +13771,6 @@ check_clear_deps(mp)
 	struct mount *mp;
 {
 	struct ufsmount *ump;
-	size_t resid;
 
 	/*
 	 * Tell the lower layers that any TRIM or WRITE transactions
@@ -13766,7 +13779,7 @@ check_clear_deps(mp)
 	 */
 	ump = VFSTOUFS(mp);
 	FREE_LOCK(ump);
-	g_io_speedup(0, BIO_SPEEDUP_TRIM | BIO_SPEEDUP_WRITE, &resid, ump->um_cp);
+	softdep_send_speedup(ump, 0, BIO_SPEEDUP_TRIM | BIO_SPEEDUP_WRITE);
 	ACQUIRE_LOCK(ump);
 
 
