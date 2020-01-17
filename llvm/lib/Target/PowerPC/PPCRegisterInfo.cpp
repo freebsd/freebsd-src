@@ -380,7 +380,7 @@ bool PPCRegisterInfo::requiresFrameIndexScavenging(const MachineFunction &MF) co
     // This is eiher:
     // 1) A fixed frame index object which we know are aligned so
     // as long as we have a valid DForm/DSForm/DQForm (non XForm) we don't
-    // need to consider the alignement here.
+    // need to consider the alignment here.
     // 2) A not fixed object but in that case we now know that the min required
     // alignment is no more than 1 based on the previous check.
     if (InstrInfo->isXFormMemOp(Opcode))
@@ -747,12 +747,18 @@ void PPCRegisterInfo::lowerCRBitSpilling(MachineBasicBlock::iterator II,
   Register SrcReg = MI.getOperand(0).getReg();
 
   // Search up the BB to find the definition of the CR bit.
-  MachineBasicBlock::reverse_iterator Ins;
+  MachineBasicBlock::reverse_iterator Ins = MI;
+  MachineBasicBlock::reverse_iterator Rend = MBB.rend();
+  ++Ins;
   unsigned CRBitSpillDistance = 0;
-  for (Ins = MI; Ins != MBB.rend(); Ins++) {
+  bool SeenUse = false;
+  for (; Ins != Rend; ++Ins) {
     // Definition found.
     if (Ins->modifiesRegister(SrcReg, TRI))
       break;
+    // Use found.
+    if (Ins->readsRegister(SrcReg, TRI))
+      SeenUse = true;
     // Unable to find CR bit definition within maximum search distance.
     if (CRBitSpillDistance == MaxCRBitSpillDist) {
       Ins = MI;
@@ -767,17 +773,35 @@ void PPCRegisterInfo::lowerCRBitSpilling(MachineBasicBlock::iterator II,
   if (Ins == MBB.rend())
     Ins = MI;
 
+  bool SpillsKnownBit = false;
   // There is no need to extract the CR bit if its value is already known.
   switch (Ins->getOpcode()) {
   case PPC::CRUNSET:
     BuildMI(MBB, II, dl, TII.get(LP64 ? PPC::LI8 : PPC::LI), Reg)
       .addImm(0);
+    SpillsKnownBit = true;
     break;
   case PPC::CRSET:
     BuildMI(MBB, II, dl, TII.get(LP64 ? PPC::LIS8 : PPC::LIS), Reg)
       .addImm(-32768);
+    SpillsKnownBit = true;
     break;
   default:
+    // On Power9, we can use SETB to extract the LT bit. This only works for
+    // the LT bit since SETB produces -1/1/0 for LT/GT/<neither>. So the value
+    // of the bit we care about (32-bit sign bit) will be set to the value of
+    // the LT bit (regardless of the other bits in the CR field).
+    if (Subtarget.isISA3_0()) {
+      if (SrcReg == PPC::CR0LT || SrcReg == PPC::CR1LT ||
+          SrcReg == PPC::CR2LT || SrcReg == PPC::CR3LT ||
+          SrcReg == PPC::CR4LT || SrcReg == PPC::CR5LT ||
+          SrcReg == PPC::CR6LT || SrcReg == PPC::CR7LT) {
+        BuildMI(MBB, II, dl, TII.get(LP64 ? PPC::SETB8 : PPC::SETB), Reg)
+          .addReg(getCRFromCRBit(SrcReg), RegState::Undef);
+        break;
+      }
+    }
+
     // We need to move the CR field that contains the CR bit we are spilling.
     // The super register may not be explicitly defined (i.e. it can be defined
     // by a CR-logical that only defines the subreg) so we state that the CR
@@ -803,8 +827,13 @@ void PPCRegisterInfo::lowerCRBitSpilling(MachineBasicBlock::iterator II,
                     .addReg(Reg, RegState::Kill),
                     FrameIndex);
 
+  bool KillsCRBit = MI.killsRegister(SrcReg, TRI);
   // Discard the pseudo instruction.
   MBB.erase(II);
+  if (SpillsKnownBit && KillsCRBit && !SeenUse) {
+    Ins->setDesc(TII.get(PPC::UNENCODED_NOP));
+    Ins->RemoveOperand(0);
+  }
 }
 
 void PPCRegisterInfo::lowerCRBitRestore(MachineBasicBlock::iterator II,

@@ -54,6 +54,7 @@
 #include "llvm/IR/Use.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Casting.h"
@@ -1810,7 +1811,7 @@ bool LowerTypeTestsModule::lower() {
   // reference them. This is used to partition the set of type identifiers in
   // the module into disjoint sets.
   using GlobalClassesTy = EquivalenceClasses<
-      PointerUnion3<GlobalTypeMember *, Metadata *, ICallBranchFunnel *>>;
+      PointerUnion<GlobalTypeMember *, Metadata *, ICallBranchFunnel *>>;
   GlobalClassesTy GlobalClasses;
 
   // Verify the type metadata and build a few data structures to let us

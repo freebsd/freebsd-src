@@ -15,6 +15,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Register.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
@@ -554,7 +555,7 @@ namespace {
   LLVM_ATTRIBUTE_UNUSED
   raw_ostream &operator<< (raw_ostream &OS, const PrintIMap &P) {
     OS << "{\n";
-    for (const std::pair<HCE::ExtenderInit,HCE::IndexList> &Q : P.IMap) {
+    for (const std::pair<const HCE::ExtenderInit, HCE::IndexList> &Q : P.IMap) {
       OS << "  " << PrintInit(Q.first, P.HRI) << " -> {";
       for (unsigned I : Q.second)
         OS << ' ' << I;
@@ -1638,7 +1639,7 @@ bool HCE::replaceInstrExact(const ExtDesc &ED, Register ExtR) {
     return true;
   }
 
-  if ((MI.mayLoad() || MI.mayStore()) && !isStoreImmediate(ExtOpc)) {
+  if (MI.mayLoadOrStore() && !isStoreImmediate(ExtOpc)) {
     // For memory instructions, there is an asymmetry in the addressing
     // modes. Addressing modes allowing extenders can be replaced with
     // addressing modes that use registers, but the order of operands
@@ -1793,7 +1794,7 @@ bool HCE::replaceInstrExpr(const ExtDesc &ED, const ExtenderInit &ExtI,
     return true;
   }
 
-  if (MI.mayLoad() || MI.mayStore()) {
+  if (MI.mayLoadOrStore()) {
     unsigned IdxOpc = getRegOffOpcode(ExtOpc);
     assert(IdxOpc && "Expecting indexed opcode");
     MachineInstrBuilder MIB = BuildMI(MBB, At, dl, HII->get(IdxOpc));
@@ -1843,7 +1844,7 @@ bool HCE::replaceInstr(unsigned Idx, Register ExtR, const ExtenderInit &ExtI) {
   // These two addressing modes must be converted into indexed forms
   // regardless of what the initializer looks like.
   bool IsAbs = false, IsAbsSet = false;
-  if (MI.mayLoad() || MI.mayStore()) {
+  if (MI.mayLoadOrStore()) {
     unsigned AM = HII->getAddrMode(MI);
     IsAbs = AM == HexagonII::Absolute;
     IsAbsSet = AM == HexagonII::AbsoluteSet;
@@ -1894,7 +1895,7 @@ bool HCE::replaceExtenders(const AssignmentMap &IMap) {
   LocDefList Defs;
   bool Changed = false;
 
-  for (const std::pair<ExtenderInit,IndexList> &P : IMap) {
+  for (const std::pair<const ExtenderInit, IndexList> &P : IMap) {
     const IndexList &Idxs = P.second;
     if (Idxs.size() < CountThreshold)
       continue;

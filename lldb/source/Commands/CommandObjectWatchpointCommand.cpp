@@ -18,8 +18,6 @@
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Interpreter/OptionArgParser.h"
 #include "lldb/Target/Target.h"
-#include "lldb/Target/Thread.h"
-#include "lldb/Utility/State.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -36,6 +34,11 @@ static constexpr OptionEnumValueElement g_script_option_enumeration[] = {
     {
         eScriptLanguagePython,
         "python",
+        "Commands are in the Python language.",
+    },
+    {
+        eScriptLanguageLua,
+        "lua",
         "Commands are in the Python language.",
     },
     {
@@ -240,7 +243,6 @@ are no syntax errors may indicate that a function was declared but never called.
     m_interpreter.GetLLDBCommandsFromIOHandler(
         "> ",        // Prompt
         *this,       // IOHandlerDelegate
-        true,        // Run IOHandler in async mode
         wp_options); // Baton for the "io_handler" that will be passed back into
                      // our IOHandlerDelegate functions
   }
@@ -333,8 +335,16 @@ are no syntax errors may indicate that a function was declared but never called.
             option_arg, GetDefinitions()[option_idx].enum_values,
             eScriptLanguageNone, error);
 
-        m_use_script_language = (m_script_language == eScriptLanguagePython ||
-                                 m_script_language == eScriptLanguageDefault);
+        switch (m_script_language) {
+        case eScriptLanguagePython:
+        case eScriptLanguageLua:
+          m_use_script_language = true;
+          break;
+        case eScriptLanguageNone:
+        case eScriptLanguageUnknown:
+          m_use_script_language = false;
+          break;
+        }
         break;
 
       case 'e': {
@@ -349,7 +359,6 @@ are no syntax errors may indicate that a function was declared but never called.
 
       case 'F':
         m_use_one_liner = false;
-        m_use_script_language = true;
         m_function_name.assign(option_arg);
         break;
 
@@ -400,12 +409,11 @@ protected:
       return false;
     }
 
-    if (!m_options.m_use_script_language &&
-        !m_options.m_function_name.empty()) {
-      result.AppendError("need to enable scripting to have a function run as a "
-                         "watchpoint command");
-      result.SetStatus(eReturnStatusFailed);
-      return false;
+    if (!m_options.m_function_name.empty()) {
+      if (!m_options.m_use_script_language) {
+        m_options.m_script_language = GetDebugger().GetScriptLanguage();
+        m_options.m_use_script_language = true;
+      }
     }
 
     std::vector<uint32_t> valid_wp_ids;
@@ -435,9 +443,11 @@ protected:
         // to set or collect command callback.  Otherwise, call the methods
         // associated with this object.
         if (m_options.m_use_script_language) {
+          ScriptInterpreter *script_interp = GetDebugger().GetScriptInterpreter(
+              /*can_create=*/true, m_options.m_script_language);
           // Special handling for one-liner specified inline.
           if (m_options.m_use_one_liner) {
-            GetDebugger().GetScriptInterpreter()->SetWatchpointCommandCallback(
+            script_interp->SetWatchpointCommandCallback(
                 wp_options, m_options.m_one_liner.c_str());
           }
           // Special handling for using a Python function by name instead of
@@ -447,12 +457,11 @@ protected:
           else if (!m_options.m_function_name.empty()) {
             std::string oneliner(m_options.m_function_name);
             oneliner += "(frame, wp, internal_dict)";
-            GetDebugger().GetScriptInterpreter()->SetWatchpointCommandCallback(
+            script_interp->SetWatchpointCommandCallback(
                 wp_options, oneliner.c_str());
           } else {
-            GetDebugger()
-                .GetScriptInterpreter()
-                ->CollectDataForWatchpointCommandCallback(wp_options, result);
+            script_interp->CollectDataForWatchpointCommandCallback(wp_options,
+                                                                   result);
           }
         } else {
           // Special handling for one-liner specified inline.
@@ -611,10 +620,10 @@ protected:
             const Baton *baton = wp_options->GetBaton();
             if (baton) {
               result.GetOutputStream().Printf("Watchpoint %u:\n", cur_wp_id);
-              result.GetOutputStream().IndentMore();
-              baton->GetDescription(&result.GetOutputStream(),
-                                    eDescriptionLevelFull);
-              result.GetOutputStream().IndentLess();
+              baton->GetDescription(result.GetOutputStream().AsRawOstream(),
+                                    eDescriptionLevelFull,
+                                    result.GetOutputStream().GetIndentLevel() +
+                                        2);
             } else {
               result.AppendMessageWithFormat(
                   "Watchpoint %u does not have an associated command.\n",

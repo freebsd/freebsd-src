@@ -250,7 +250,13 @@ enum CondCode {  // Meaning (integer)          Meaning (floating-point)
   AL = 0xe,      // Always (unconditional)     Always (unconditional)
   NV = 0xf,      // Always (unconditional)     Always (unconditional)
   // Note the NV exists purely to disassemble 0b1111. Execution is "always".
-  Invalid
+  Invalid,
+
+  // Common aliases used for SVE.
+  ANY_ACTIVE   = NE, // (!Z)
+  FIRST_ACTIVE = MI, // ( N)
+  LAST_ACTIVE  = LO, // (!C)
+  NONE_ACTIVE  = EQ  // ( Z)
 };
 
 inline static const char *getCondCodeName(CondCode Code) {
@@ -643,6 +649,17 @@ namespace AArch64II {
   };
 } // end namespace AArch64II
 
+namespace AArch64 {
+// The number of bits in a SVE register is architecturally defined
+// to be a multiple of this value.  If <M x t> has this number of bits,
+// a <n x M x t> vector can be stored in a SVE register without any
+// redundant bits.  If <M x t> has this number of bits divided by P,
+// a <n x M x t> vector is stored in a SVE register by placing index i
+// in index i*P of a <n x (M*P) x t> vector.  The other elements of the
+// <n x (M*P) x t> vector (such as index 1) are undefined.
+static constexpr unsigned SVEBitsPerBlock = 128;
+const unsigned NeonBitsPerVector = 128;
+} // end namespace AArch64
 } // end namespace llvm
 
 #endif

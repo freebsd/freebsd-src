@@ -169,9 +169,7 @@ void DAGTypeLegalizer::ExpandRes_BITCAST(SDNode *N, SDValue &Lo, SDValue &Hi) {
 
   // Increment the pointer to the other half.
   unsigned IncrementSize = NOutVT.getSizeInBits() / 8;
-  StackPtr = DAG.getNode(ISD::ADD, dl, StackPtr.getValueType(), StackPtr,
-                         DAG.getConstant(IncrementSize, dl,
-                                         StackPtr.getValueType()));
+  StackPtr = DAG.getMemBasePlusOffset(StackPtr, IncrementSize, dl);
 
   // Load the second half from the stack slot.
   Hi = DAG.getLoad(NOutVT, dl, Store, StackPtr,
@@ -248,6 +246,7 @@ void DAGTypeLegalizer::ExpandRes_NormalLoad(SDNode *N, SDValue &Lo,
   SDLoc dl(N);
 
   LoadSDNode *LD = cast<LoadSDNode>(N);
+  assert(!LD->isAtomic() && "Atomics can not be split");
   EVT ValueVT = LD->getValueType(0);
   EVT NVT = TLI.getTypeToTransformTo(*DAG.getContext(), ValueVT);
   SDValue Chain = LD->getChain();
@@ -262,8 +261,7 @@ void DAGTypeLegalizer::ExpandRes_NormalLoad(SDNode *N, SDValue &Lo,
 
   // Increment the pointer to the other half.
   unsigned IncrementSize = NVT.getSizeInBits() / 8;
-  Ptr = DAG.getNode(ISD::ADD, dl, Ptr.getValueType(), Ptr,
-                    DAG.getConstant(IncrementSize, dl, Ptr.getValueType()));
+  Ptr = DAG.getMemBasePlusOffset(Ptr, IncrementSize, dl);
   Hi = DAG.getLoad(NVT, dl, Chain, Ptr,
                    LD->getPointerInfo().getWithOffset(IncrementSize),
                    MinAlign(Alignment, IncrementSize),
@@ -459,6 +457,7 @@ SDValue DAGTypeLegalizer::ExpandOp_NormalStore(SDNode *N, unsigned OpNo) {
   SDLoc dl(N);
 
   StoreSDNode *St = cast<StoreSDNode>(N);
+  assert(!St->isAtomic() && "Atomics can not be split");
   EVT ValueVT = St->getValue().getValueType();
   EVT NVT = TLI.getTypeToTransformTo(*DAG.getContext(), ValueVT);
   SDValue Chain = St->getChain();

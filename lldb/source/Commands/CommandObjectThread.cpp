@@ -8,9 +8,7 @@
 
 #include "CommandObjectThread.h"
 
-#include "lldb/Core/SourceManager.h"
 #include "lldb/Core/ValueObject.h"
-#include "lldb/Host/Host.h"
 #include "lldb/Host/OptionParser.h"
 #include "lldb/Host/StringConvert.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
@@ -29,11 +27,7 @@
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadPlan.h"
 #include "lldb/Target/ThreadPlanStepInRange.h"
-#include "lldb/Target/ThreadPlanStepInstruction.h"
-#include "lldb/Target/ThreadPlanStepOut.h"
-#include "lldb/Target/ThreadPlanStepRange.h"
 #include "lldb/Utility/State.h"
-#include "lldb/lldb-private.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -339,8 +333,7 @@ protected:
           const bool stop_format = false;
           if (ext_thread_sp->GetStatus(strm, m_options.m_start,
                                        m_options.m_count,
-                                       num_frames_with_source,
-                                       stop_format)) {
+                                       num_frames_with_source, stop_format)) {
             DoExtendedBacktrace(ext_thread_sp.get(), result);
           }
         }
@@ -393,7 +386,7 @@ static constexpr OptionEnumValueElement g_tri_running_mode[] = {
     {eOnlyThisThread, "this-thread", "Run only this thread"},
     {eAllThreads, "all-threads", "Run all threads"},
     {eOnlyDuringStepping, "while-stepping",
-     "Run only this thread while stepping"} };
+     "Run only this thread while stepping"}};
 
 static constexpr OptionEnumValues TriRunningModes() {
   return OptionEnumValues(g_tri_running_mode);
@@ -419,8 +412,8 @@ public:
   Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_arg,
                         ExecutionContext *execution_context) override {
     Status error;
-    const int short_option 
-        = g_thread_step_scope_options[option_idx].short_option;
+    const int short_option =
+        g_thread_step_scope_options[option_idx].short_option;
 
     switch (short_option) {
     case 'a': {
@@ -428,11 +421,10 @@ public:
       bool avoid_no_debug =
           OptionArgParser::ToBoolean(option_arg, true, &success);
       if (!success)
-        error.SetErrorStringWithFormat(
-            "invalid boolean value for option '%c'", short_option);
+        error.SetErrorStringWithFormat("invalid boolean value for option '%c'",
+                                       short_option);
       else {
-        m_step_in_avoid_no_debug =
-            avoid_no_debug ? eLazyBoolYes : eLazyBoolNo;
+        m_step_in_avoid_no_debug = avoid_no_debug ? eLazyBoolYes : eLazyBoolNo;
       }
     } break;
 
@@ -441,11 +433,10 @@ public:
       bool avoid_no_debug =
           OptionArgParser::ToBoolean(option_arg, true, &success);
       if (!success)
-        error.SetErrorStringWithFormat(
-            "invalid boolean value for option '%c'", short_option);
+        error.SetErrorStringWithFormat("invalid boolean value for option '%c'",
+                                       short_option);
       else {
-        m_step_out_avoid_no_debug =
-            avoid_no_debug ? eLazyBoolYes : eLazyBoolNo;
+        m_step_out_avoid_no_debug = avoid_no_debug ? eLazyBoolYes : eLazyBoolNo;
       }
     } break;
 
@@ -518,7 +509,6 @@ public:
 
 class CommandObjectThreadStepWithTypeAndScope : public CommandObjectParsed {
 public:
-
   CommandObjectThreadStepWithTypeAndScope(CommandInterpreter &interpreter,
                                           const char *name, const char *help,
                                           const char *syntax,
@@ -530,7 +520,7 @@ public:
                                 eCommandProcessMustBeLaunched |
                                 eCommandProcessMustBePaused),
         m_step_type(step_type), m_step_scope(step_scope), m_options(),
-        m_class_options("scripted step", 'C') {
+        m_class_options("scripted step") {
     CommandArgumentEntry arg;
     CommandArgumentData thread_id_arg;
 
@@ -544,9 +534,10 @@ public:
 
     // Push the data for the first argument into the m_arguments vector.
     m_arguments.push_back(arg);
-    
+
     if (step_type == eStepTypeScripted) {
-      m_all_options.Append(&m_class_options, LLDB_OPT_SET_1, LLDB_OPT_SET_1);
+      m_all_options.Append(&m_class_options, LLDB_OPT_SET_1 | LLDB_OPT_SET_2,
+                           LLDB_OPT_SET_1);
     }
     m_all_options.Append(&m_options);
     m_all_options.Finalize();
@@ -554,9 +545,7 @@ public:
 
   ~CommandObjectThreadStepWithTypeAndScope() override = default;
 
-  Options *GetOptions() override { 
-      return &m_all_options;
-  }
+  Options *GetOptions() override { return &m_all_options; }
 
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
@@ -596,15 +585,15 @@ protected:
     }
 
     if (m_step_type == eStepTypeScripted) {
-      if (m_class_options.GetClassName().empty()) {
+      if (m_class_options.GetName().empty()) {
         result.AppendErrorWithFormat("empty class name for scripted step.");
         result.SetStatus(eReturnStatusFailed);
         return false;
       } else if (!GetDebugger().GetScriptInterpreter()->CheckObjectExists(
-                     m_class_options.GetClassName().c_str())) {
+                     m_class_options.GetName().c_str())) {
         result.AppendErrorWithFormat(
             "class for scripted step: \"%s\" does not exist.",
-            m_class_options.GetClassName().c_str());
+            m_class_options.GetName().c_str());
         result.SetStatus(eReturnStatusFailed);
         return false;
       }
@@ -720,9 +709,9 @@ protected:
           m_options.m_step_out_avoid_no_debug);
     } else if (m_step_type == eStepTypeScripted) {
       new_plan_sp = thread->QueueThreadPlanForStepScripted(
-          abort_other_plans, m_class_options.GetClassName().c_str(), 
-          m_class_options.GetStructuredData(),
-          bool_stop_other_threads, new_plan_status);
+          abort_other_plans, m_class_options.GetName().c_str(),
+          m_class_options.GetStructuredData(), bool_stop_other_threads,
+          new_plan_status);
     } else {
       result.AppendError("step type is not supported");
       result.SetStatus(eReturnStatusFailed);
@@ -969,7 +958,7 @@ public:
 
 static constexpr OptionEnumValueElement g_duo_running_mode[] = {
     {eOnlyThisThread, "this-thread", "Run only this thread"},
-    {eAllThreads, "all-threads", "Run all threads"} };
+    {eAllThreads, "all-threads", "Run all threads"}};
 
 static constexpr OptionEnumValues DuoRunningModes() {
   return OptionEnumValues(g_duo_running_mode);
@@ -1063,7 +1052,8 @@ public:
             "Continue until a line number or address is reached by the "
             "current or specified thread.  Stops when returning from "
             "the current function as a safety measure.  "
-            "The target line number(s) are given as arguments, and if more than one"
+            "The target line number(s) are given as arguments, and if more "
+            "than one"
             " is provided, stepping will stop when the first one is hit.",
             nullptr,
             eCommandRequiresThread | eCommandTryTargetAPILock |
@@ -1197,7 +1187,7 @@ protected:
             LineEntry line_entry;
             const bool exact = false;
             start_idx_ptr = sc.comp_unit->FindLineEntry(
-                start_idx_ptr, line_number, sc.comp_unit, exact, &line_entry);
+                start_idx_ptr, line_number, nullptr, exact, &line_entry);
             if (start_idx_ptr == UINT32_MAX)
               break;
 
@@ -1430,9 +1420,10 @@ public:
 
   CommandObjectThreadInfo(CommandInterpreter &interpreter)
       : CommandObjectIterateOverThreads(
-            interpreter, "thread info", "Show an extended summary of one or "
-                                        "more threads.  Defaults to the "
-                                        "current thread.",
+            interpreter, "thread info",
+            "Show an extended summary of one or "
+            "more threads.  Defaults to the "
+            "current thread.",
             "thread info",
             eCommandRequiresProcess | eCommandTryTargetAPILock |
                 eCommandProcessMustBeLaunched | eCommandProcessMustBePaused),
@@ -1474,7 +1465,7 @@ public:
 // CommandObjectThreadException
 
 class CommandObjectThreadException : public CommandObjectIterateOverThreads {
- public:
+public:
   CommandObjectThreadException(CommandInterpreter &interpreter)
       : CommandObjectIterateOverThreads(
             interpreter, "thread exception",
@@ -2006,9 +1997,10 @@ public:
 
 CommandObjectMultiwordThread::CommandObjectMultiwordThread(
     CommandInterpreter &interpreter)
-    : CommandObjectMultiword(interpreter, "thread", "Commands for operating on "
-                                                    "one or more threads in "
-                                                    "the current process.",
+    : CommandObjectMultiword(interpreter, "thread",
+                             "Commands for operating on "
+                             "one or more threads in "
+                             "the current process.",
                              "thread <subcommand> [<subcommand-options>]") {
   LoadSubCommand("backtrace", CommandObjectSP(new CommandObjectThreadBacktrace(
                                   interpreter)));
@@ -2026,9 +2018,8 @@ CommandObjectMultiwordThread::CommandObjectMultiwordThread(
                  CommandObjectSP(new CommandObjectThreadUntil(interpreter)));
   LoadSubCommand("info",
                  CommandObjectSP(new CommandObjectThreadInfo(interpreter)));
-  LoadSubCommand(
-      "exception",
-      CommandObjectSP(new CommandObjectThreadException(interpreter)));
+  LoadSubCommand("exception", CommandObjectSP(new CommandObjectThreadException(
+                                  interpreter)));
   LoadSubCommand("step-in",
                  CommandObjectSP(new CommandObjectThreadStepWithTypeAndScope(
                      interpreter, "thread step-in",

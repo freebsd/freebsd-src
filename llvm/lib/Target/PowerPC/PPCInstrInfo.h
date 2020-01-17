@@ -280,7 +280,7 @@ public:
                     unsigned FalseReg) const override;
 
   void copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
-                   const DebugLoc &DL, unsigned DestReg, unsigned SrcReg,
+                   const DebugLoc &DL, MCRegister DestReg, MCRegister SrcReg,
                    bool KillSrc) const override;
 
   void storeRegToStackSlot(MachineBasicBlock &MBB,
@@ -345,8 +345,6 @@ public:
 
   bool DefinesPredicate(MachineInstr &MI,
                         std::vector<MachineOperand> &Pred) const override;
-
-  bool isPredicable(const MachineInstr &MI) const override;
 
   // Comparison optimization.
 
@@ -422,6 +420,16 @@ public:
 
   bool convertToImmediateForm(MachineInstr &MI,
                               MachineInstr **KilledDef = nullptr) const;
+  bool foldFrameOffset(MachineInstr &MI) const;
+  bool isADDIInstrEligibleForFolding(MachineInstr &ADDIMI, int64_t &Imm) const;
+  bool isADDInstrEligibleForFolding(MachineInstr &ADDMI) const;
+  bool isImmInstrEligibleForFolding(MachineInstr &MI, unsigned &BaseReg,
+                                    unsigned &XFormOpcode,
+                                    int64_t &OffsetOfImmInstr,
+                                    ImmInstrInfo &III) const;
+  bool isValidToBeChangedReg(MachineInstr *ADDMI, unsigned Index,
+                             MachineInstr *&ADDIMI, int64_t &OffsetAddi,
+                             int64_t OffsetImm) const;
 
   /// Fixup killed/dead flag for register \p RegNo between instructions [\p
   /// StartMI, \p EndMI]. Some PostRA transformations may violate register

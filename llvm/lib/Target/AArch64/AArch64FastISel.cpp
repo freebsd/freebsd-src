@@ -348,6 +348,8 @@ CCAssignFn *AArch64FastISel::CCAssignFnForCall(CallingConv::ID CC) const {
     return CC_AArch64_WebKit_JS;
   if (CC == CallingConv::GHC)
     return CC_AArch64_GHC;
+  if (CC == CallingConv::CFGuard_Check)
+    return CC_AArch64_Win64_CFGuard_Check;
   return Subtarget->isTargetDarwin() ? CC_AArch64_DarwinPCS : CC_AArch64_AAPCS;
 }
 
@@ -3251,6 +3253,13 @@ bool AArch64FastISel::fastLowerCall(CallLoweringInfo &CLI) {
   if (Callee && !computeCallAddress(Callee, Addr))
     return false;
 
+  // The weak function target may be zero; in that case we must use indirect
+  // addressing via a stub on windows as it may be out of range for a
+  // PC-relative jump.
+  if (Subtarget->isTargetWindows() && Addr.getGlobalValue() &&
+      Addr.getGlobalValue()->hasExternalWeakLinkage())
+    return false;
+
   // Handle the arguments now that we've gotten them.
   unsigned NumBytes;
   if (!processCallArgs(CLI, OutVTs, NumBytes))
@@ -3836,11 +3845,6 @@ bool AArch64FastISel::selectRet(const Instruction *I) {
   if (!FuncInfo.CanLowerReturn)
     return false;
 
-  // FIXME: in principle it could. Mostly just a case of zero extending outgoing
-  // pointers.
-  if (Subtarget->isTargetILP32())
-    return false;
-
   if (F.isVarArg())
     return false;
 
@@ -3919,6 +3923,11 @@ bool AArch64FastISel::selectRet(const Instruction *I) {
       if (SrcReg == 0)
         return false;
     }
+
+    // "Callee" (i.e. value producer) zero extends pointers at function
+    // boundary.
+    if (Subtarget->isTargetILP32() && RV->getType()->isPointerTy())
+      SrcReg = emitAnd_ri(MVT::i64, SrcReg, false, 0xffffffff);
 
     // Make the copy.
     BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc,
@@ -5009,6 +5018,9 @@ std::pair<unsigned, bool> AArch64FastISel::getRegForGEPIndex(const Value *Idx) {
 /// simple cases. This is because the standard fastEmit functions don't cover
 /// MUL at all and ADD is lowered very inefficientily.
 bool AArch64FastISel::selectGetElementPtr(const Instruction *I) {
+  if (Subtarget->isTargetILP32())
+    return false;
+
   unsigned N = getRegForValue(I->getOperand(0));
   if (!N)
     return false;

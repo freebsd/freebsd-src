@@ -451,9 +451,6 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(const TargetMachine &TM,
   for (int I = 0; I < RTLIB::UNKNOWN_LIBCALL; ++I)
     setLibcallName(static_cast<RTLIB::Libcall>(I), nullptr);
 
-  setBooleanContents(ZeroOrNegativeOneBooleanContent);
-  setBooleanVectorContents(ZeroOrNegativeOneBooleanContent);
-
   setSchedulingPreference(Sched::RegPressure);
   setJumpIsExpensive(true);
 
@@ -1399,16 +1396,19 @@ SDValue AMDGPUTargetLowering::SplitVectorLoad(const SDValue Op,
                                               SelectionDAG &DAG) const {
   LoadSDNode *Load = cast<LoadSDNode>(Op);
   EVT VT = Op.getValueType();
+  SDLoc SL(Op);
 
 
   // If this is a 2 element vector, we really want to scalarize and not create
   // weird 1 element vectors.
-  if (VT.getVectorNumElements() == 2)
-    return scalarizeVectorLoad(Load, DAG);
+  if (VT.getVectorNumElements() == 2) {
+    SDValue Ops[2];
+    std::tie(Ops[0], Ops[1]) = scalarizeVectorLoad(Load, DAG);
+    return DAG.getMergeValues(Ops, SL);
+  }
 
   SDValue BasePtr = Load->getBasePtr();
   EVT MemVT = Load->getMemoryVT();
-  SDLoc SL(Op);
 
   const MachinePointerInfo &SrcValue = Load->getMemOperand()->getPointerInfo();
 
@@ -1584,8 +1584,11 @@ SDValue AMDGPUTargetLowering::LowerDIVREM24(SDValue Op, SelectionDAG &DAG,
   // float fqneg = -fq;
   SDValue fqneg = DAG.getNode(ISD::FNEG, DL, FltVT, fq);
 
+  MachineFunction &MF = DAG.getMachineFunction();
+  const AMDGPUMachineFunction *MFI = MF.getInfo<AMDGPUMachineFunction>();
+
   // float fr = mad(fqneg, fb, fa);
-  unsigned OpCode = Subtarget->hasFP32Denormals() ?
+  unsigned OpCode = MFI->getMode().FP32Denormals ?
                     (unsigned)AMDGPUISD::FMAD_FTZ :
                     (unsigned)ISD::FMAD;
   SDValue fr = DAG.getNode(OpCode, DL, FltVT, fqneg, fb, fa);
@@ -1666,8 +1669,11 @@ void AMDGPUTargetLowering::LowerUDIVREM64(SDValue Op,
   }
 
   if (isTypeLegal(MVT::i64)) {
+    MachineFunction &MF = DAG.getMachineFunction();
+    const SIMachineFunctionInfo *MFI = MF.getInfo<SIMachineFunctionInfo>();
+
     // Compute denominator reciprocal.
-    unsigned FMAD = Subtarget->hasFP32Denormals() ?
+    unsigned FMAD = MFI->getMode().FP32Denormals ?
                     (unsigned)AMDGPUISD::FMAD_FTZ :
                     (unsigned)ISD::FMAD;
 
@@ -2158,7 +2164,8 @@ SDValue AMDGPUTargetLowering::LowerFNEARBYINT(SDValue Op, SelectionDAG &DAG) con
 // Don't handle v2f16. The extra instructions to scalarize and repack around the
 // compare and vselect end up producing worse code than scalarizing the whole
 // operation.
-SDValue AMDGPUTargetLowering::LowerFROUND32_16(SDValue Op, SelectionDAG &DAG) const {
+SDValue AMDGPUTargetLowering::LowerFROUND_LegalFTRUNC(SDValue Op,
+                                                      SelectionDAG &DAG) const {
   SDLoc SL(Op);
   SDValue X = Op.getOperand(0);
   EVT VT = Op.getValueType();
@@ -2247,8 +2254,8 @@ SDValue AMDGPUTargetLowering::LowerFROUND64(SDValue Op, SelectionDAG &DAG) const
 SDValue AMDGPUTargetLowering::LowerFROUND(SDValue Op, SelectionDAG &DAG) const {
   EVT VT = Op.getValueType();
 
-  if (VT == MVT::f32 || VT == MVT::f16)
-    return LowerFROUND32_16(Op, DAG);
+  if (isOperationLegal(ISD::FTRUNC, VT))
+    return LowerFROUND_LegalFTRUNC(Op, DAG);
 
   if (VT == MVT::f64)
     return LowerFROUND64(Op, DAG);
@@ -2496,15 +2503,25 @@ SDValue AMDGPUTargetLowering::LowerINT_TO_FP64(SDValue Op, SelectionDAG &DAG,
 
 SDValue AMDGPUTargetLowering::LowerUINT_TO_FP(SDValue Op,
                                                SelectionDAG &DAG) const {
-  assert(Op.getOperand(0).getValueType() == MVT::i64 &&
-         "operation should be legal");
-
   // TODO: Factor out code common with LowerSINT_TO_FP.
-
   EVT DestVT = Op.getValueType();
+  SDValue Src = Op.getOperand(0);
+  EVT SrcVT = Src.getValueType();
+
+  if (SrcVT == MVT::i16) {
+    if (DestVT == MVT::f16)
+      return Op;
+    SDLoc DL(Op);
+
+    // Promote src to i32
+    SDValue Ext = DAG.getNode(ISD::ZERO_EXTEND, DL, MVT::i32, Src);
+    return DAG.getNode(ISD::UINT_TO_FP, DL, DestVT, Ext);
+  }
+
+  assert(SrcVT == MVT::i64 && "operation should be legal");
+
   if (Subtarget->has16BitInsts() && DestVT == MVT::f16) {
     SDLoc DL(Op);
-    SDValue Src = Op.getOperand(0);
 
     SDValue IntToFp32 = DAG.getNode(Op.getOpcode(), DL, MVT::f32, Src);
     SDValue FPRoundFlag = DAG.getIntPtrConstant(0, SDLoc(Op));
@@ -2523,12 +2540,25 @@ SDValue AMDGPUTargetLowering::LowerUINT_TO_FP(SDValue Op,
 
 SDValue AMDGPUTargetLowering::LowerSINT_TO_FP(SDValue Op,
                                               SelectionDAG &DAG) const {
-  assert(Op.getOperand(0).getValueType() == MVT::i64 &&
-         "operation should be legal");
+  EVT DestVT = Op.getValueType();
+
+  SDValue Src = Op.getOperand(0);
+  EVT SrcVT = Src.getValueType();
+
+  if (SrcVT == MVT::i16) {
+    if (DestVT == MVT::f16)
+      return Op;
+
+    SDLoc DL(Op);
+    // Promote src to i32
+    SDValue Ext = DAG.getNode(ISD::SIGN_EXTEND, DL, MVT::i32, Src);
+    return DAG.getNode(ISD::SINT_TO_FP, DL, DestVT, Ext);
+  }
+
+  assert(SrcVT == MVT::i64 && "operation should be legal");
 
   // TODO: Factor out code common with LowerUINT_TO_FP.
 
-  EVT DestVT = Op.getValueType();
   if (Subtarget->has16BitInsts() && DestVT == MVT::f16) {
     SDLoc DL(Op);
     SDValue Src = Op.getOperand(0);
@@ -2865,11 +2895,13 @@ SDValue AMDGPUTargetLowering::performLoadCombine(SDNode *N,
     // the bytes again are not eliminated in the case of an unaligned copy.
     if (!allowsMisalignedMemoryAccesses(
             VT, AS, Align, LN->getMemOperand()->getFlags(), &IsFast)) {
-      if (VT.isVector())
-        return scalarizeVectorLoad(LN, DAG);
-
       SDValue Ops[2];
-      std::tie(Ops[0], Ops[1]) = expandUnalignedLoad(LN, DAG);
+
+      if (VT.isVector())
+        std::tie(Ops[0], Ops[1]) = scalarizeVectorLoad(LN, DAG);
+      else
+        std::tie(Ops[0], Ops[1]) = expandUnalignedLoad(LN, DAG);
+
       return DAG.getMergeValues(Ops, SDLoc(N));
     }
 
@@ -3565,8 +3597,8 @@ SDValue AMDGPUTargetLowering::performSelectCombine(SDNode *N,
       // select (setcc x, y), k, x -> select (setccinv x, y), x, k
 
       SDLoc SL(N);
-      ISD::CondCode NewCC = getSetCCInverse(cast<CondCodeSDNode>(CC)->get(),
-                                            LHS.getValueType().isInteger());
+      ISD::CondCode NewCC =
+          getSetCCInverse(cast<CondCodeSDNode>(CC)->get(), LHS.getValueType());
 
       SDValue NewCond = DAG.getSetCC(SL, Cond.getValueType(), LHS, RHS, NewCC);
       return DAG.getNode(ISD::SELECT, SL, VT, NewCond, False, True);
@@ -4343,7 +4375,6 @@ const char* AMDGPUTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(BUFFER_ATOMIC_CMPSWAP)
   NODE_NAME_CASE(BUFFER_ATOMIC_FADD)
   NODE_NAME_CASE(BUFFER_ATOMIC_PK_FADD)
-  NODE_NAME_CASE(ATOMIC_FADD)
   NODE_NAME_CASE(ATOMIC_PK_FADD)
 
   case AMDGPUISD::LAST_AMDGPU_ISD_NUMBER: break;
@@ -4435,12 +4466,14 @@ void AMDGPUTargetLowering::computeKnownBitsForTargetNode(
     unsigned TrailZ = LHSKnown.countMinTrailingZeros() +
                       RHSKnown.countMinTrailingZeros();
     Known.Zero.setLowBits(std::min(TrailZ, 32u));
+    // Skip extra check if all bits are known zeros.
+    if (TrailZ >= 32)
+      break;
 
     // Truncate to 24 bits.
     LHSKnown = LHSKnown.trunc(24);
     RHSKnown = RHSKnown.trunc(24);
 
-    bool Negative = false;
     if (Opc == AMDGPUISD::MUL_I24) {
       unsigned LHSValBits = 24 - LHSKnown.countMinSignBits();
       unsigned RHSValBits = 24 - RHSKnown.countMinSignBits();
@@ -4448,16 +4481,16 @@ void AMDGPUTargetLowering::computeKnownBitsForTargetNode(
       if (MaxValBits >= 32)
         break;
       bool LHSNegative = LHSKnown.isNegative();
-      bool LHSPositive = LHSKnown.isNonNegative();
+      bool LHSNonNegative = LHSKnown.isNonNegative();
+      bool LHSPositive = LHSKnown.isStrictlyPositive();
       bool RHSNegative = RHSKnown.isNegative();
-      bool RHSPositive = RHSKnown.isNonNegative();
-      if ((!LHSNegative && !LHSPositive) || (!RHSNegative && !RHSPositive))
-        break;
-      Negative = (LHSNegative && RHSPositive) || (LHSPositive && RHSNegative);
-      if (Negative)
-        Known.One.setHighBits(32 - MaxValBits);
-      else
+      bool RHSNonNegative = RHSKnown.isNonNegative();
+      bool RHSPositive = RHSKnown.isStrictlyPositive();
+
+      if ((LHSNonNegative && RHSNonNegative) || (LHSNegative && RHSNegative))
         Known.Zero.setHighBits(32 - MaxValBits);
+      else if ((LHSNegative && RHSPositive) || (LHSPositive && RHSNegative))
+        Known.One.setHighBits(32 - MaxValBits);
     } else {
       unsigned LHSValBits = 24 - LHSKnown.countMinLeadingZeros();
       unsigned RHSValBits = 24 - RHSKnown.countMinLeadingZeros();

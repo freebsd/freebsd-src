@@ -10,9 +10,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/GlobalISel/Localizer.h"
-#include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/Debug.h"
 
 #define DEBUG_TYPE "localizer"
@@ -28,7 +29,11 @@ INITIALIZE_PASS_END(Localizer, DEBUG_TYPE,
                     "Move/duplicate certain instructions close to their use",
                     false, false)
 
-Localizer::Localizer() : MachineFunctionPass(ID) { }
+Localizer::Localizer(std::function<bool(const MachineFunction &)> F)
+    : MachineFunctionPass(ID), DoNotRunPass(F) {}
+
+Localizer::Localizer()
+    : Localizer([](const MachineFunction &) { return false; }) {}
 
 void Localizer::init(MachineFunction &MF) {
   MRI = &MF.getRegInfo();
@@ -209,6 +214,10 @@ bool Localizer::runOnMachineFunction(MachineFunction &MF) {
   // If the ISel pipeline failed, do not bother running that pass.
   if (MF.getProperties().hasProperty(
           MachineFunctionProperties::Property::FailedISel))
+    return false;
+
+  // Don't run the pass if the target asked so.
+  if (DoNotRunPass(MF))
     return false;
 
   LLVM_DEBUG(dbgs() << "Localize instructions for: " << MF.getName() << '\n');

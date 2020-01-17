@@ -228,6 +228,7 @@ public:
 
   uint64_t getRVA() { return va - config->imageBase; }
   void setVA(uint64_t v) { va = v; }
+  uint64_t getVA() const { return va; }
 
   // Section index relocations against absolute symbols resolve to
   // this 16 bit number, and it is the largest valid section index

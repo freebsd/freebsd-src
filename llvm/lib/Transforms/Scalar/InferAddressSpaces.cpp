@@ -141,11 +141,11 @@ using ValueToAddrSpaceMapTy = DenseMap<const Value *, unsigned>;
 
 /// InferAddressSpaces
 class InferAddressSpaces : public FunctionPass {
-  const TargetTransformInfo *TTI;
+  const TargetTransformInfo *TTI = nullptr;
 
   /// Target specific address space which uses of should be replaced if
   /// possible.
-  unsigned FlatAddrSpace;
+  unsigned FlatAddrSpace = 0;
 
 public:
   static char ID;
@@ -791,8 +791,8 @@ static bool handleMemIntrinsicPtrUse(MemIntrinsic *MI, Value *OldV,
   MDNode *NoAliasMD = MI->getMetadata(LLVMContext::MD_noalias);
 
   if (auto *MSI = dyn_cast<MemSetInst>(MI)) {
-    B.CreateMemSet(NewV, MSI->getValue(),
-                   MSI->getLength(), MSI->getDestAlignment(),
+    B.CreateMemSet(NewV, MSI->getValue(), MSI->getLength(),
+                   MaybeAlign(MSI->getDestAlignment()),
                    false, // isVolatile
                    TBAA, ScopeMD, NoAliasMD);
   } else if (auto *MTI = dyn_cast<MemTransferInst>(MI)) {
@@ -808,15 +808,13 @@ static bool handleMemIntrinsicPtrUse(MemIntrinsic *MI, Value *OldV,
 
     if (isa<MemCpyInst>(MTI)) {
       MDNode *TBAAStruct = MTI->getMetadata(LLVMContext::MD_tbaa_struct);
-      B.CreateMemCpy(Dest, MTI->getDestAlignment(),
-                     Src, MTI->getSourceAlignment(),
+      B.CreateMemCpy(Dest, MTI->getDestAlign(), Src, MTI->getSourceAlign(),
                      MTI->getLength(),
                      false, // isVolatile
                      TBAA, TBAAStruct, ScopeMD, NoAliasMD);
     } else {
       assert(isa<MemMoveInst>(MTI));
-      B.CreateMemMove(Dest, MTI->getDestAlignment(),
-                      Src, MTI->getSourceAlignment(),
+      B.CreateMemMove(Dest, MTI->getDestAlign(), Src, MTI->getSourceAlign(),
                       MTI->getLength(),
                       false, // isVolatile
                       TBAA, ScopeMD, NoAliasMD);

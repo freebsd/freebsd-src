@@ -751,7 +751,7 @@ public:
 ///
 class UnOpInit : public OpInit, public FoldingSetNode {
 public:
-  enum UnaryOp : uint8_t { CAST, HEAD, TAIL, SIZE, EMPTY };
+  enum UnaryOp : uint8_t { CAST, HEAD, TAIL, SIZE, EMPTY, GETOP };
 
 private:
   Init *LHS;
@@ -802,7 +802,7 @@ class BinOpInit : public OpInit, public FoldingSetNode {
 public:
   enum BinaryOp : uint8_t { ADD, MUL, AND, OR, SHL, SRA, SRL, LISTCONCAT,
                             LISTSPLAT, STRCONCAT, CONCAT, EQ, NE, LE, LT, GE,
-                            GT };
+                            GT, SETOP };
 
 private:
   Init *LHS, *RHS;
@@ -1662,6 +1662,12 @@ public:
   /// value as a Record, throwing an exception if the field does not exist or if
   /// the value is not the right type.
   Record *getValueAsDef(StringRef FieldName) const;
+
+  /// This method looks up the specified field and returns its value as a
+  /// Record, returning null if the field exists but is "uninitialized"
+  /// (i.e. set to `?`), and throwing an exception if the field does not
+  /// exist or if its value is not the right type.
+  Record *getValueAsOptionalDef(StringRef FieldName) const;
 
   /// This method looks up the specified field and returns its
   /// value as a bit, throwing an exception if the field does not exist or if

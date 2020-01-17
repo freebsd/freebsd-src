@@ -18,6 +18,8 @@
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/ProfileSummary.h"
+#include "llvm/InitializePasses.h"
+#include "llvm/Support/CommandLine.h"
 using namespace llvm;
 
 // The following two parameters determine the threshold for a count to be

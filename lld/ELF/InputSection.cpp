@@ -72,7 +72,7 @@ InputSectionBase::InputSectionBase(InputFile *file, uint64_t flags,
   areRelocsRela = false;
 
   // The ELF spec states that a value of 0 means the section has
-  // no alignment constraits.
+  // no alignment constraints.
   uint32_t v = std::max<uint32_t>(alignment, 1);
   if (!isPowerOf2_64(v))
     fatal(toString(this) + ": sh_addralign is not a power of 2");
@@ -421,7 +421,7 @@ void InputSection::copyRelocations(uint8_t *buf, ArrayRef<RelTy> rels) {
       p->r_addend = getAddend<ELFT>(rel);
 
     // Output section VA is zero for -r, so r_offset is an offset within the
-    // section, but for --emit-relocs it is an virtual address.
+    // section, but for --emit-relocs it is a virtual address.
     p->r_offset = sec->getVA(rel.r_offset);
     p->setSymbolAndType(in.symTab->getSymbolIndex(&sym), type,
                         config->isMips64EL);
@@ -469,7 +469,7 @@ void InputSection::copyRelocations(uint8_t *buf, ArrayRef<RelTy> rels) {
           target->getRelExpr(type, sym, bufLoc) == R_MIPS_GOTREL) {
         // Some MIPS relocations depend on "gp" value. By default,
         // this value has 0x7ff0 offset from a .got section. But
-        // relocatable files produced by a complier or a linker
+        // relocatable files produced by a compiler or a linker
         // might redefine this default value and we must use it
         // for a calculation of the relocation result. When we
         // generate EXE or DSO it's trivial. Generating a relocatable
@@ -636,6 +636,7 @@ static int64_t getTlsTpOffset(const Symbol &s) {
     return s.getVA(0) + (tls->p_vaddr & (tls->p_align - 1));
 
     // Variant 2.
+  case EM_HEXAGON:
   case EM_386:
   case EM_X86_64:
     return s.getVA(0) - tls->p_memsz -
@@ -757,7 +758,7 @@ static uint64_t getRelocTargetVA(const InputFile *file, RelType type, int64_t a,
   case R_PPC32_PLTREL:
     // R_PPC_PLTREL24 uses the addend (usually 0 or 0x8000) to indicate r30
     // stores _GLOBAL_OFFSET_TABLE_ or .got2+0x8000. The addend is ignored for
-    // target VA compuation.
+    // target VA computation.
     return sym.getPltVA() - p;
   case R_PPC64_CALL: {
     uint64_t symVA = sym.getVA(a);
@@ -825,7 +826,7 @@ static uint64_t getRelocTargetVA(const InputFile *file, RelType type, int64_t a,
 // Such sections are never mapped to memory at runtime. Debug sections are
 // an example. Relocations in non-alloc sections are much easier to
 // handle than in allocated sections because it will never need complex
-// treatement such as GOT or PLT (because at runtime no one refers them).
+// treatment such as GOT or PLT (because at runtime no one refers them).
 // So, we handle relocations for non-alloc sections directly in this
 // function as a performance optimization.
 template <class ELFT, class RelTy>
@@ -971,8 +972,16 @@ void InputSectionBase::relocateAlloc(uint8_t *buf, uint8_t *bufEnd) {
 
       // Patch a nop (0x60000000) to a ld.
       if (rel.sym->needsTocRestore) {
-        if (bufLoc + 8 > bufEnd || read32(bufLoc + 4) != 0x60000000) {
-          error(getErrorLocation(bufLoc) + "call lacks nop, can't restore toc");
+        // gcc/gfortran 5.4, 6.3 and earlier versions do not add nop for
+        // recursive calls even if the function is preemptible. This is not
+        // wrong in the common case where the function is not preempted at
+        // runtime. Just ignore.
+        if ((bufLoc + 8 > bufEnd || read32(bufLoc + 4) != 0x60000000) &&
+            rel.sym->file != file) {
+          // Use substr(6) to remove the "__plt_" prefix.
+          errorOrWarn(getErrorLocation(bufLoc) + "call to " +
+                      lld::toString(*rel.sym).substr(6) +
+                      " lacks nop, can't restore toc");
           break;
         }
         write32(bufLoc + 4, 0xe8410018); // ld %r2, 24(%r1)

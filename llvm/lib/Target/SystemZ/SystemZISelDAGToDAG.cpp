@@ -347,9 +347,12 @@ public:
 
   bool runOnMachineFunction(MachineFunction &MF) override {
     const Function &F = MF.getFunction();
-    if (F.getFnAttribute("mnop-mcount").getValueAsString() == "true" &&
-        F.getFnAttribute("fentry-call").getValueAsString() != "true")
-      report_fatal_error("mnop-mcount only supported with fentry-call");
+    if (F.getFnAttribute("fentry-call").getValueAsString() != "true") {
+      if (F.hasFnAttribute("mnop-mcount"))
+        report_fatal_error("mnop-mcount only supported with fentry-call");
+      if (F.hasFnAttribute("mrecord-mcount"))
+        report_fatal_error("mrecord-mcount only supported with fentry-call");
+    }
 
     Subtarget = &MF.getSubtarget<SystemZSubtarget>();
     return SelectionDAGISel::runOnMachineFunction(MF);
@@ -1494,8 +1497,9 @@ void SystemZDAGToDAGISel::Select(SDNode *Node) {
             if (ChildOpcode == ISD::AND || ChildOpcode == ISD::OR ||
                 ChildOpcode == ISD::XOR)
               break;
-          // Check whether this expression matches OR-with-complement.
-          if (Opcode == ISD::OR && ChildOpcode == ISD::XOR) {
+          // Check whether this expression matches OR-with-complement
+          // (or matches an alternate pattern for NXOR).
+          if (ChildOpcode == ISD::XOR) {
             auto Op0 = Node->getOperand(0);
             if (auto *Op0Op1 = dyn_cast<ConstantSDNode>(Op0->getOperand(1)))
               if (Op0Op1->getZExtValue() == (uint64_t)-1)

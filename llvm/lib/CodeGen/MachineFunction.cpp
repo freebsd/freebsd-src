@@ -270,6 +270,21 @@ getOrCreateJumpTableInfo(unsigned EntryKind) {
   return JumpTableInfo;
 }
 
+DenormalMode MachineFunction::getDenormalMode(const fltSemantics &FPType) const {
+  // TODO: Should probably avoid the connection to the IR and store directly
+  // in the MachineFunction.
+  Attribute Attr = F.getFnAttribute("denormal-fp-math");
+
+  // FIXME: This should assume IEEE behavior on an unspecified
+  // attribute. However, the one current user incorrectly assumes a non-IEEE
+  // target by default.
+  StringRef Val = Attr.getValueAsString();
+  if (Val.empty())
+    return DenormalMode::Invalid;
+
+  return parseDenormalFPAttribute(Val);
+}
+
 /// Should we be emitting segmented stack stuff for the function
 bool MachineFunction::shouldSplitStack() const {
   return getFunction().hasFnAttribute("split-stack");
@@ -447,12 +462,11 @@ MachineFunction::getMachineMemOperand(const MachineMemOperand *MMO,
       MMO->getOrdering(), MMO->getFailureOrdering());
 }
 
-MachineInstr::ExtraInfo *
-MachineFunction::createMIExtraInfo(ArrayRef<MachineMemOperand *> MMOs,
-                                   MCSymbol *PreInstrSymbol,
-                                   MCSymbol *PostInstrSymbol) {
+MachineInstr::ExtraInfo *MachineFunction::createMIExtraInfo(
+    ArrayRef<MachineMemOperand *> MMOs, MCSymbol *PreInstrSymbol,
+    MCSymbol *PostInstrSymbol, MDNode *HeapAllocMarker) {
   return MachineInstr::ExtraInfo::create(Allocator, MMOs, PreInstrSymbol,
-                                         PostInstrSymbol);
+                                         PostInstrSymbol, HeapAllocMarker);
 }
 
 const char *MachineFunction::createExternalSymbolName(StringRef Name) {
@@ -468,6 +482,12 @@ uint32_t *MachineFunction::allocateRegMask() {
   uint32_t *Mask = Allocator.Allocate<uint32_t>(Size);
   memset(Mask, 0, Size * sizeof(Mask[0]));
   return Mask;
+}
+
+ArrayRef<int> MachineFunction::allocateShuffleMask(ArrayRef<int> Mask) {
+  int* AllocMask = Allocator.Allocate<int>(Mask.size());
+  copy(Mask, AllocMask);
+  return {AllocMask, Mask.size()};
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
@@ -519,6 +539,13 @@ void MachineFunction::print(raw_ostream &OS, const SlotIndexes *Indexes) const {
   }
 
   OS << "\n# End machine code for function " << getName() << ".\n\n";
+}
+
+/// True if this function needs frame moves for debug or exceptions.
+bool MachineFunction::needsFrameMoves() const {
+  return getMMI().hasDebugInfo() ||
+         getTarget().Options.ForceDwarfFrameSection ||
+         F.needsUnwindTableEntry();
 }
 
 namespace llvm {
@@ -824,15 +851,13 @@ try_next:;
   return FilterID;
 }
 
-void MachineFunction::addCodeViewHeapAllocSite(MachineInstr *I,
-                                               const MDNode *MD) {
-  MCSymbol *BeginLabel = Ctx.createTempSymbol("heapallocsite", true);
-  MCSymbol *EndLabel = Ctx.createTempSymbol("heapallocsite", true);
-  I->setPreInstrSymbol(*this, BeginLabel);
-  I->setPostInstrSymbol(*this, EndLabel);
+MachineFunction::CallSiteInfoMap::iterator
+MachineFunction::getCallSiteInfo(const MachineInstr *MI) {
+  assert(MI->isCall() && "Call site info refers only to call instructions!");
 
-  const DIType *DI = dyn_cast<DIType>(MD);
-  CodeViewHeapAllocSites.push_back(std::make_tuple(BeginLabel, EndLabel, DI));
+  if (!Target.Options.EnableDebugEntryValues)
+    return CallSitesInfo.end();
+  return CallSitesInfo.find(MI);
 }
 
 void MachineFunction::moveCallSiteInfo(const MachineInstr *Old,

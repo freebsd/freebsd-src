@@ -65,7 +65,8 @@ class Driver {
     GCCMode,
     GXXMode,
     CPPMode,
-    CLMode
+    CLMode,
+    FlangMode
   } Mode;
 
   enum SaveTempsMode {
@@ -180,6 +181,10 @@ public:
   /// Whether the driver should follow cl.exe like behavior.
   bool IsCLMode() const { return Mode == CLMode; }
 
+  /// Whether the driver should invoke flang for fortran inputs.
+  /// Other modes fall back to calling gcc which in turn calls gfortran.
+  bool IsFlangMode() const { return Mode == FlangMode; }
+
   /// Only print tool bindings, don't build any jobs.
   unsigned CCCPrintBindings : 1;
 
@@ -198,6 +203,13 @@ public:
 
   /// Whether the driver is generating diagnostics for debugging purposes.
   unsigned CCGenDiagnostics : 1;
+
+  /// Pointer to the ExecuteCC1Tool function, if available.
+  /// When the clangDriver lib is used through clang.exe, this provides a
+  /// shortcut for executing the -cc1 command-line directly, in the same
+  /// process.
+  typedef int (*CC1ToolFunc)(ArrayRef<const char *> argv);
+  CC1ToolFunc CC1Main = nullptr;
 
 private:
   /// Raw target triple.
@@ -534,6 +546,10 @@ public:
   /// handle this action.
   bool ShouldUseClangCompiler(const JobAction &JA) const;
 
+  /// ShouldUseFlangCompiler - Should the flang compiler be used to
+  /// handle this action.
+  bool ShouldUseFlangCompiler(const JobAction &JA) const;
+
   /// Returns true if we are performing any kind of LTO.
   bool isUsingLTO() const { return LTOMode != LTOK_None; }
 
@@ -610,6 +626,9 @@ public:
 /// \return True if the last defined optimization level is -Ofast.
 /// And False otherwise.
 bool isOptimizationLevelFast(const llvm::opt::ArgList &Args);
+
+/// \return True if the argument combination will end up generating remarks.
+bool willEmitRemarks(const llvm::opt::ArgList &Args);
 
 } // end namespace driver
 } // end namespace clang

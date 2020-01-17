@@ -12,10 +12,6 @@
 
 using namespace lldb_private;
 
-bool CompilerDecl::IsClang() const {
-  return IsValid() && m_type_system->getKind() == TypeSystem::eKindClang;
-}
-
 ConstString CompilerDecl::GetName() const {
   return m_type_system->DeclGetName(m_opaque_decl);
 }

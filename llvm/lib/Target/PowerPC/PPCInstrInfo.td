@@ -61,10 +61,6 @@ def SDT_PPCVecInsert : SDTypeProfile<1, 3, [ SDTCisVec<0>,
   SDTCisVec<1>, SDTCisVec<2>, SDTCisInt<3>
 ]>;
 
-def SDT_PPCVecReverse: SDTypeProfile<1, 1, [ SDTCisVec<0>,
-  SDTCisVec<1>
-]>;
-
 def SDT_PPCxxpermdi: SDTypeProfile<1, 3, [ SDTCisVec<0>,
   SDTCisVec<1>, SDTCisVec<2>, SDTCisInt<3>
 ]>;
@@ -117,6 +113,10 @@ def SDT_PPCextswsli : SDTypeProfile<1, 2, [  // extswsli
   SDTCisInt<0>, SDTCisInt<1>, SDTCisOpSmallerThanOp<1, 0>, SDTCisInt<2>
 ]>;
 
+def SDT_PPCFPMinMax : SDTypeProfile<1, 2, [
+  SDTCisSameAs<0, 1>, SDTCisSameAs<0, 2>, SDTCisFP<0>
+]>;
+
 //===----------------------------------------------------------------------===//
 // PowerPC specific DAG Nodes.
 //
@@ -165,7 +165,8 @@ def PPCfsel   : SDNode<"PPCISD::FSEL",
    // Type constraint for fsel.
    SDTypeProfile<1, 3, [SDTCisSameAs<0, 2>, SDTCisSameAs<0, 3>, 
                         SDTCisFP<0>, SDTCisVT<1, f64>]>, []>;
-
+def PPCxsmaxc : SDNode<"PPCISD::XSMAXCDP", SDT_PPCFPMinMax, []>;
+def PPCxsminc : SDNode<"PPCISD::XSMINCDP", SDT_PPCFPMinMax, []>;
 def PPChi       : SDNode<"PPCISD::Hi", SDTIntBinOp, []>;
 def PPClo       : SDNode<"PPCISD::Lo", SDTIntBinOp, []>;
 def PPCtoc_entry: SDNode<"PPCISD::TOC_ENTRY", SDTIntBinOp,
@@ -199,7 +200,6 @@ def PPCaddiDtprelL   : SDNode<"PPCISD::ADDI_DTPREL_L", SDTIntBinOp>;
 def PPCvperm     : SDNode<"PPCISD::VPERM", SDT_PPCvperm, []>;
 def PPCxxsplt    : SDNode<"PPCISD::XXSPLT", SDT_PPCVecSplat, []>;
 def PPCvecinsert : SDNode<"PPCISD::VECINSERT", SDT_PPCVecInsert, []>;
-def PPCxxreverse : SDNode<"PPCISD::XXREVERSE", SDT_PPCVecReverse, []>;
 def PPCxxpermdi  : SDNode<"PPCISD::XXPERMDI", SDT_PPCxxpermdi, []>;
 def PPCvecshl    : SDNode<"PPCISD::VECSHL", SDT_PPCVecShift, []>;
 
@@ -486,7 +486,7 @@ def mul_without_simm16 : BinOpWithoutSImm16Operand<mul>;
 // PowerPC Flag Definitions.
 
 class isPPC64 { bit PPC64 = 1; }
-class isDOT   { bit RC = 1; }
+class isRecordForm   { bit RC = 1; }
 
 class RegConstraint<string C> {
   string Constraints = C;
@@ -961,9 +961,9 @@ multiclass XForm_6r<bits<6> opcode, bits<10> xo, dag OOL, dag IOL,
                        !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
                        pattern>, RecFormRel;
     let Defs = [CR0] in
-    def o    : XForm_6<opcode, xo, OOL, IOL,
+    def _rec    : XForm_6<opcode, xo, OOL, IOL,
                        !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
-                       []>, isDOT, RecFormRel;
+                       []>, isRecordForm, RecFormRel;
   }
 }
 
@@ -976,9 +976,9 @@ multiclass XForm_6rc<bits<6> opcode, bits<10> xo, dag OOL, dag IOL,
                        !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
                        pattern>, RecFormRel;
     let Defs = [CARRY, CR0] in
-    def o    : XForm_6<opcode, xo, OOL, IOL,
+    def _rec    : XForm_6<opcode, xo, OOL, IOL,
                        !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
-                       []>, isDOT, RecFormRel;
+                       []>, isRecordForm, RecFormRel;
   }
 }
 
@@ -991,9 +991,9 @@ multiclass XForm_10rc<bits<6> opcode, bits<10> xo, dag OOL, dag IOL,
                        !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
                        pattern>, RecFormRel;
     let Defs = [CARRY, CR0] in
-    def o    : XForm_10<opcode, xo, OOL, IOL,
+    def _rec    : XForm_10<opcode, xo, OOL, IOL,
                        !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
-                       []>, isDOT, RecFormRel;
+                       []>, isRecordForm, RecFormRel;
   }
 }
 
@@ -1005,9 +1005,9 @@ multiclass XForm_11r<bits<6> opcode, bits<10> xo, dag OOL, dag IOL,
                        !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
                        pattern>, RecFormRel;
     let Defs = [CR0] in
-    def o    : XForm_11<opcode, xo, OOL, IOL,
+    def _rec    : XForm_11<opcode, xo, OOL, IOL,
                        !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
-                       []>, isDOT, RecFormRel;
+                       []>, isRecordForm, RecFormRel;
   }
 }
 
@@ -1019,9 +1019,35 @@ multiclass XOForm_1r<bits<6> opcode, bits<9> xo, bit oe, dag OOL, dag IOL,
                        !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
                        pattern>, RecFormRel;
     let Defs = [CR0] in
-    def o    : XOForm_1<opcode, xo, oe, OOL, IOL,
+    def _rec    : XOForm_1<opcode, xo, oe, OOL, IOL,
                        !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
-                       []>, isDOT, RecFormRel;
+                       []>, isRecordForm, RecFormRel;
+  }
+}
+
+// Multiclass for instructions which have a record overflow form as well
+// as a record form but no carry (i.e. mulld, mulldo, subf, subfo, etc.)
+multiclass XOForm_1rx<bits<6> opcode, bits<9> xo, bit oe, dag OOL, dag IOL,
+                      string asmbase, string asmstr, InstrItinClass itin,
+                      list<dag> pattern> {
+  let BaseName = asmbase in {
+    def NAME : XOForm_1<opcode, xo, 0, OOL, IOL,
+                        !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
+                        pattern>, RecFormRel;
+    let Defs = [CR0] in
+    def _rec    : XOForm_1<opcode, xo, 0, OOL, IOL,
+                        !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
+                        []>, isRecordForm, RecFormRel;
+  }
+  let BaseName = !strconcat(asmbase, "O") in {
+    let Defs = [XER] in
+    def O    : XOForm_1<opcode, xo, 1, OOL, IOL,
+                        !strconcat(asmbase, !strconcat("o ", asmstr)), itin,
+                        []>, RecFormRel;
+    let Defs = [XER, CR0] in
+    def O_rec    : XOForm_1<opcode, xo, 1, OOL, IOL,
+                         !strconcat(asmbase, !strconcat("o. ", asmstr)), itin,
+                         []>, isRecordForm, RecFormRel;
   }
 }
 
@@ -1035,10 +1061,20 @@ multiclass XOForm_1rcr<bits<6> opcode, bits<9> xo, bit oe, dag OOL, dag IOL,
                        !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
                        pattern>, RecFormRel;
     let Defs = [CR0] in
-    def o    : XOForm_1<opcode, xo, oe, OOL, IOL,
+    def _rec    : XOForm_1<opcode, xo, oe, OOL, IOL,
                        !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
-                       []>, isDOT, RecFormRel, PPC970_DGroup_First,
+                       []>, isRecordForm, RecFormRel, PPC970_DGroup_First,
                        PPC970_DGroup_Cracked;
+  }
+  let BaseName = !strconcat(asmbase, "O") in {
+    let Defs = [XER] in
+    def O    : XOForm_1<opcode, xo, 1, OOL, IOL,
+                        !strconcat(asmbase, !strconcat("o ", asmstr)), itin,
+                        []>, RecFormRel;
+    let Defs = [XER, CR0] in
+    def O_rec   : XOForm_1<opcode, xo, 1, OOL, IOL,
+                        !strconcat(asmbase, !strconcat("o. ", asmstr)), itin,
+                        []>, isRecordForm, RecFormRel;
   }
 }
 
@@ -1051,9 +1087,19 @@ multiclass XOForm_1rc<bits<6> opcode, bits<9> xo, bit oe, dag OOL, dag IOL,
                        !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
                        pattern>, RecFormRel;
     let Defs = [CARRY, CR0] in
-    def o    : XOForm_1<opcode, xo, oe, OOL, IOL,
+    def _rec    : XOForm_1<opcode, xo, oe, OOL, IOL,
                        !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
-                       []>, isDOT, RecFormRel;
+                       []>, isRecordForm, RecFormRel;
+  }
+  let BaseName = !strconcat(asmbase, "O") in {
+    let Defs = [CARRY, XER] in
+    def O    : XOForm_1<opcode, xo, 1, OOL, IOL,
+                        !strconcat(asmbase, !strconcat("o ", asmstr)), itin,
+                        []>, RecFormRel;
+    let Defs = [CARRY, XER, CR0] in
+    def O_rec   : XOForm_1<opcode, xo, 1, OOL, IOL,
+                        !strconcat(asmbase, !strconcat("o. ", asmstr)), itin,
+                        []>, isRecordForm, RecFormRel;
   }
 }
 
@@ -1065,9 +1111,19 @@ multiclass XOForm_3r<bits<6> opcode, bits<9> xo, bit oe, dag OOL, dag IOL,
                        !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
                        pattern>, RecFormRel;
     let Defs = [CR0] in
-    def o    : XOForm_3<opcode, xo, oe, OOL, IOL,
+    def _rec    : XOForm_3<opcode, xo, oe, OOL, IOL,
                        !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
-                       []>, isDOT, RecFormRel;
+                       []>, isRecordForm, RecFormRel;
+  }
+  let BaseName = !strconcat(asmbase, "O") in {
+    let Defs = [XER] in
+    def O    : XOForm_3<opcode, xo, 1, OOL, IOL,
+                        !strconcat(asmbase, !strconcat("o ", asmstr)), itin,
+                        []>, RecFormRel;
+    let Defs = [XER, CR0] in
+    def O_rec   : XOForm_3<opcode, xo, 1, OOL, IOL,
+                        !strconcat(asmbase, !strconcat("o. ", asmstr)), itin,
+                        []>, isRecordForm, RecFormRel;
   }
 }
 
@@ -1080,9 +1136,19 @@ multiclass XOForm_3rc<bits<6> opcode, bits<9> xo, bit oe, dag OOL, dag IOL,
                        !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
                        pattern>, RecFormRel;
     let Defs = [CARRY, CR0] in
-    def o    : XOForm_3<opcode, xo, oe, OOL, IOL,
+    def _rec    : XOForm_3<opcode, xo, oe, OOL, IOL,
                        !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
-                       []>, isDOT, RecFormRel;
+                       []>, isRecordForm, RecFormRel;
+  }
+  let BaseName = !strconcat(asmbase, "O") in {
+    let Defs = [CARRY, XER] in
+    def O    : XOForm_3<opcode, xo, 1, OOL, IOL,
+                        !strconcat(asmbase, !strconcat("o ", asmstr)), itin,
+                        []>, RecFormRel;
+    let Defs = [CARRY, XER, CR0] in
+    def O_rec   : XOForm_3<opcode, xo, 1, OOL, IOL,
+                        !strconcat(asmbase, !strconcat("o. ", asmstr)), itin,
+                        []>, isRecordForm, RecFormRel;
   }
 }
 
@@ -1094,9 +1160,9 @@ multiclass MForm_2r<bits<6> opcode, dag OOL, dag IOL,
                        !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
                        pattern>, RecFormRel;
     let Defs = [CR0] in
-    def o    : MForm_2<opcode, OOL, IOL,
+    def _rec    : MForm_2<opcode, OOL, IOL,
                        !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
-                       []>, isDOT, RecFormRel;
+                       []>, isRecordForm, RecFormRel;
   }
 }
 
@@ -1108,9 +1174,9 @@ multiclass MDForm_1r<bits<6> opcode, bits<3> xo, dag OOL, dag IOL,
                        !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
                        pattern>, RecFormRel;
     let Defs = [CR0] in
-    def o    : MDForm_1<opcode, xo, OOL, IOL,
+    def _rec    : MDForm_1<opcode, xo, OOL, IOL,
                        !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
-                       []>, isDOT, RecFormRel;
+                       []>, isRecordForm, RecFormRel;
   }
 }
 
@@ -1122,9 +1188,9 @@ multiclass MDSForm_1r<bits<6> opcode, bits<4> xo, dag OOL, dag IOL,
                         !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
                         pattern>, RecFormRel;
     let Defs = [CR0] in
-    def o    : MDSForm_1<opcode, xo, OOL, IOL,
+    def _rec    : MDSForm_1<opcode, xo, OOL, IOL,
                         !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
-                        []>, isDOT, RecFormRel;
+                        []>, isRecordForm, RecFormRel;
   }
 }
 
@@ -1137,9 +1203,9 @@ multiclass XSForm_1rc<bits<6> opcode, bits<9> xo, dag OOL, dag IOL,
                        !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
                        pattern>, RecFormRel;
     let Defs = [CARRY, CR0] in
-    def o    : XSForm_1<opcode, xo, OOL, IOL,
+    def _rec    : XSForm_1<opcode, xo, OOL, IOL,
                        !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
-                       []>, isDOT, RecFormRel;
+                       []>, isRecordForm, RecFormRel;
   }
 }
 
@@ -1151,9 +1217,9 @@ multiclass XSForm_1r<bits<6> opcode, bits<9> xo, dag OOL, dag IOL,
                        !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
                        pattern>, RecFormRel;
     let Defs = [CR0] in
-    def o    : XSForm_1<opcode, xo, OOL, IOL,
+    def _rec    : XSForm_1<opcode, xo, OOL, IOL,
                        !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
-                       []>, isDOT, RecFormRel;
+                       []>, isRecordForm, RecFormRel;
   }
 }
 
@@ -1165,9 +1231,9 @@ multiclass XForm_26r<bits<6> opcode, bits<10> xo, dag OOL, dag IOL,
                        !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
                        pattern>, RecFormRel;
     let Defs = [CR1] in
-    def o    : XForm_26<opcode, xo, OOL, IOL,
+    def _rec    : XForm_26<opcode, xo, OOL, IOL,
                        !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
-                       []>, isDOT, RecFormRel;
+                       []>, isRecordForm, RecFormRel;
   }
 }
 
@@ -1179,9 +1245,9 @@ multiclass XForm_28r<bits<6> opcode, bits<10> xo, dag OOL, dag IOL,
                        !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
                        pattern>, RecFormRel;
     let Defs = [CR1] in
-    def o    : XForm_28<opcode, xo, OOL, IOL,
+    def _rec    : XForm_28<opcode, xo, OOL, IOL,
                        !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
-                       []>, isDOT, RecFormRel;
+                       []>, isRecordForm, RecFormRel;
   }
 }
 
@@ -1193,9 +1259,9 @@ multiclass AForm_1r<bits<6> opcode, bits<5> xo, dag OOL, dag IOL,
                        !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
                        pattern>, RecFormRel;
     let Defs = [CR1] in
-    def o    : AForm_1<opcode, xo, OOL, IOL,
+    def _rec    : AForm_1<opcode, xo, OOL, IOL,
                        !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
-                       []>, isDOT, RecFormRel;
+                       []>, isRecordForm, RecFormRel;
   }
 }
 
@@ -1207,9 +1273,9 @@ multiclass AForm_2r<bits<6> opcode, bits<5> xo, dag OOL, dag IOL,
                        !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
                        pattern>, RecFormRel;
     let Defs = [CR1] in
-    def o    : AForm_2<opcode, xo, OOL, IOL,
+    def _rec    : AForm_2<opcode, xo, OOL, IOL,
                        !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
-                       []>, isDOT, RecFormRel;
+                       []>, isRecordForm, RecFormRel;
   }
 }
 
@@ -1221,9 +1287,9 @@ multiclass AForm_3r<bits<6> opcode, bits<5> xo, dag OOL, dag IOL,
                        !strconcat(asmbase, !strconcat(" ", asmstr)), itin,
                        pattern>, RecFormRel;
     let Defs = [CR1] in
-    def o    : AForm_3<opcode, xo, OOL, IOL,
+    def _rec    : AForm_3<opcode, xo, OOL, IOL,
                        !strconcat(asmbase, !strconcat(". ", asmstr)), itin,
-                       []>, isDOT, RecFormRel;
+                       []>, isRecordForm, RecFormRel;
   }
 }
 
@@ -1324,12 +1390,13 @@ def RESTORE_CRBIT : PPCEmitTimePseudo<(outs crbitrc:$cond), (ins memri:$F),
 }
 
 let isTerminator = 1, isBarrier = 1, PPC970_Unit = 7 in {
-  let isReturn = 1, Uses = [LR, RM] in
+  let isPredicable = 1, isReturn = 1, Uses = [LR, RM] in
     def BLR : XLForm_2_ext<19, 16, 20, 0, 0, (outs), (ins), "blr", IIC_BrB,
                            [(retflag)]>, Requires<[In32BitMode]>;
   let isBranch = 1, isIndirectBranch = 1, Uses = [CTR] in {
-    def BCTR : XLForm_2_ext<19, 528, 20, 0, 0, (outs), (ins), "bctr", IIC_BrB,
-                            []>;
+    let isPredicable = 1 in
+      def BCTR : XLForm_2_ext<19, 528, 20, 0, 0, (outs), (ins), "bctr", IIC_BrB,
+                              []>;
 
     let isCodeGenOnly = 1 in {
       def BCCCTR : XLForm_2_br<19, 528, 0, (outs), (ins pred:$cond),
@@ -1362,9 +1429,10 @@ let Defs = [LR] in
 
 let isBranch = 1, isTerminator = 1, hasCtrlDep = 1, PPC970_Unit = 7 in {
   let isBarrier = 1 in {
-  def B   : IForm<18, 0, 0, (outs), (ins directbrtarget:$dst),
-                  "b $dst", IIC_BrB,
-                  [(br bb:$dst)]>;
+    let isPredicable = 1 in
+      def B : IForm<18, 0, 0, (outs), (ins directbrtarget:$dst),
+                    "b $dst", IIC_BrB,
+                    [(br bb:$dst)]>;
   def BA  : IForm<18, 1, 0, (outs), (ins absdirectbrtarget:$dst),
                   "ba $dst", IIC_BrB, []>;
   }
@@ -1485,9 +1553,10 @@ let isCall = 1, PPC970_Unit = 7, Defs = [LR] in {
     }
   }
   let Uses = [CTR, RM] in {
-    def BCTRL : XLForm_2_ext<19, 528, 20, 0, 1, (outs), (ins),
-                             "bctrl", IIC_BrB, [(PPCbctrl)]>,
-                Requires<[In32BitMode]>;
+    let isPredicable = 1 in
+      def BCTRL : XLForm_2_ext<19, 528, 20, 0, 1, (outs), (ins),
+                              "bctrl", IIC_BrB, [(PPCbctrl)]>,
+                  Requires<[In32BitMode]>;
 
     let isCodeGenOnly = 1 in {
       def BCCCTRL : XLForm_2_br<19, 528, 1, (outs), (ins pred:$cond),
@@ -1573,6 +1642,15 @@ let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1, Uses = [RM] in
 def TCRETURNri : PPCEmitTimePseudo<(outs), (ins CTRRC:$dst, i32imm:$offset),
                  "#TC_RETURNr $dst $offset",
                  []>;
+
+let isCall = 1, PPC970_Unit = 7, isCodeGenOnly = 1,
+    Defs = [LR, R2], Uses = [CTR, RM], RST = 2 in {
+  def BCTRL_LWZinto_toc:
+    XLForm_2_ext_and_DForm_1<19, 528, 20, 0, 1, 32, (outs),
+     (ins memri:$src), "bctrl\n\tlwz 2, $src", IIC_BrB,
+     [(PPCbctrl_load_toc iaddr:$src)]>, Requires<[In32BitMode]>;
+
+}
 
 
 let isCodeGenOnly = 1 in {
@@ -1839,15 +1917,15 @@ def LWARX : XForm_1_memOp<31,  20, (outs gprc:$rD), (ins memrr:$src),
 // Instructions to support lock versions of atomics
 // (EH=1 - see Power ISA 2.07 Book II 4.4.2)
 def LBARXL : XForm_1_memOp<31,  52, (outs gprc:$rD), (ins memrr:$src),
-                     "lbarx $rD, $src, 1", IIC_LdStLWARX, []>, isDOT,
+                     "lbarx $rD, $src, 1", IIC_LdStLWARX, []>, isRecordForm,
                      Requires<[HasPartwordAtomics]>;
 
 def LHARXL : XForm_1_memOp<31,  116, (outs gprc:$rD), (ins memrr:$src),
-                     "lharx $rD, $src, 1", IIC_LdStLWARX, []>, isDOT,
+                     "lharx $rD, $src, 1", IIC_LdStLWARX, []>, isRecordForm,
                      Requires<[HasPartwordAtomics]>;
 
 def LWARXL : XForm_1_memOp<31,  20, (outs gprc:$rD), (ins memrr:$src),
-                     "lwarx $rD, $src, 1", IIC_LdStLWARX, []>, isDOT;
+                     "lwarx $rD, $src, 1", IIC_LdStLWARX, []>, isRecordForm;
 
 // The atomic instructions use the destination register as well as the next one
 // or two registers in order (modulo 31).
@@ -1860,14 +1938,14 @@ def LWAT : X_RD5_RS5_IM5<31, 582, (outs gprc:$rD), (ins gprc:$rA, u5imm:$FC),
 let Defs = [CR0], mayStore = 1, mayLoad = 0, hasSideEffects = 0 in {
 def STBCX : XForm_1_memOp<31, 694, (outs), (ins gprc:$rS, memrr:$dst),
                     "stbcx. $rS, $dst", IIC_LdStSTWCX, []>,
-                    isDOT, Requires<[HasPartwordAtomics]>;
+                    isRecordForm, Requires<[HasPartwordAtomics]>;
 
 def STHCX : XForm_1_memOp<31, 726, (outs), (ins gprc:$rS, memrr:$dst),
                     "sthcx. $rS, $dst", IIC_LdStSTWCX, []>,
-                    isDOT, Requires<[HasPartwordAtomics]>;
+                    isRecordForm, Requires<[HasPartwordAtomics]>;
 
 def STWCX : XForm_1_memOp<31, 150, (outs), (ins gprc:$rS, memrr:$dst),
-                    "stwcx. $rS, $dst", IIC_LdStSTWCX, []>, isDOT;
+                    "stwcx. $rS, $dst", IIC_LdStSTWCX, []>, isRecordForm;
 }
 
 let mayStore = 1, mayLoad = 0, hasSideEffects = 0 in
@@ -2034,6 +2112,7 @@ def LFIWZX : XForm_25_memOp<31, 887, (outs f8rc:$frD), (ins memrr:$src),
 }
 
 // Load Multiple
+let mayLoad = 1, mayStore = 0, hasSideEffects = 0 in 
 def LMW : DForm_1<46, (outs gprc:$rD), (ins memri:$src),
                   "lmw $rD, $src", IIC_LdStLMW, []>;
 
@@ -2188,6 +2267,7 @@ def : Pat<(pre_store f64:$rS, iPTR:$ptrreg, iPTR:$ptroff),
 }
 
 // Store Multiple
+let mayStore = 1, mayLoad = 0, hasSideEffects = 0 in
 def STMW : DForm_1<47, (outs), (ins gprc:$rS, memri:$dst),
                    "stmw $rS, $dst", IIC_LdStLMW, []>;
 
@@ -2221,9 +2301,9 @@ def ADDIC  : DForm_2<12, (outs gprc:$rD), (ins gprc:$rA, s16imm:$imm),
                      [(set i32:$rD, (addc i32:$rA, imm32SExt16:$imm))]>,
                      RecFormRel, PPC970_DGroup_Cracked;
 let Defs = [CARRY, CR0] in
-def ADDICo : DForm_2<13, (outs gprc:$rD), (ins gprc:$rA, s16imm:$imm),
+def ADDIC_rec : DForm_2<13, (outs gprc:$rD), (ins gprc:$rA, s16imm:$imm),
                      "addic. $rD, $rA, $imm", IIC_IntGeneral,
-                     []>, isDOT, RecFormRel;
+                     []>, isRecordForm, RecFormRel;
 }
 def ADDIS  : DForm_2<15, (outs gprc:$rD), (ins gprc_nor0:$rA, s17imm:$imm),
                      "addis $rD, $rA, $imm", IIC_IntSimple,
@@ -2253,14 +2333,14 @@ let isReMaterializable = 1, isAsCheapAsAMove = 1, isMoveImm = 1 in {
 
 let PPC970_Unit = 1 in {  // FXU Operations.
 let Defs = [CR0] in {
-def ANDIo : DForm_4<28, (outs gprc:$dst), (ins gprc:$src1, u16imm:$src2),
+def ANDI_rec : DForm_4<28, (outs gprc:$dst), (ins gprc:$src1, u16imm:$src2),
                     "andi. $dst, $src1, $src2", IIC_IntGeneral,
                     [(set i32:$dst, (and i32:$src1, immZExt16:$src2))]>,
-                    isDOT;
-def ANDISo : DForm_4<29, (outs gprc:$dst), (ins gprc:$src1, u16imm:$src2),
+                    isRecordForm;
+def ANDIS_rec : DForm_4<29, (outs gprc:$dst), (ins gprc:$src1, u16imm:$src2),
                     "andis. $dst, $src1, $src2", IIC_IntGeneral,
                     [(set i32:$dst, (and i32:$src1, imm16ShiftedZExt:$src2))]>,
-                    isDOT;
+                    isRecordForm;
 }
 def ORI   : DForm_4<24, (outs gprc:$dst), (ins gprc:$src1, u16imm:$src2),
                     "ori $dst, $src1, $src2", IIC_IntSimple,
@@ -2621,6 +2701,7 @@ def MTCTRloop : XFXForm_7_ext<31, 467, 9, (outs), (ins gprc:$rS),
                 PPC970_DGroup_First, PPC970_Unit_FXU;
 }
 
+let hasSideEffects = 0 in {
 let Defs = [LR] in {
 def MTLR  : XFXForm_7_ext<31, 467, 8, (outs), (ins gprc:$rS),
                           "mtlr $rS", IIC_SprMTSPR>,
@@ -2630,6 +2711,7 @@ let Uses = [LR] in {
 def MFLR  : XFXForm_1_ext<31, 339, 8, (outs gprc:$rT), (ins),
                           "mflr $rT", IIC_SprMFSPR>,
             PPC970_DGroup_First, PPC970_Unit_FXU;
+}
 }
 
 let isCodeGenOnly = 1 in {
@@ -2732,8 +2814,8 @@ let Uses = [RM] in {
                PPC970_DGroup_Single, PPC970_Unit_FPU;
 
   let Defs = [CR1] in
-  def MFFSo : XForm_42<63, 583, (outs f8rc:$rT), (ins),
-                      "mffs. $rT", IIC_IntMFFS, []>, isDOT;
+  def MFFS_rec : XForm_42<63, 583, (outs f8rc:$rT), (ins),
+                      "mffs. $rT", IIC_IntMFFS, []>, isRecordForm;
 
   def MFFSCE : X_FRT5_XO2_XO3_XO10<63, 0, 1, 583, (outs f8rc:$rT), (ins),
                                   "mffsce $rT", IIC_IntMFFS, []>,
@@ -2778,9 +2860,9 @@ def MODUW : XForm_8<31, 267, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
 let PPC970_Unit = 1, hasSideEffects = 0 in {  // FXU Operations.
 // XO-Form instructions.  Arithmetic instructions that can set overflow bit
 let isCommutable = 1 in
-defm ADD4  : XOForm_1r<31, 266, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
-                       "add", "$rT, $rA, $rB", IIC_IntSimple,
-                       [(set i32:$rT, (add i32:$rA, i32:$rB))]>;
+defm ADD4  : XOForm_1rx<31, 266, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
+                        "add", "$rT, $rA, $rB", IIC_IntSimple,
+                        [(set i32:$rT, (add i32:$rA, i32:$rB))]>;
 let isCodeGenOnly = 1 in
 def ADD4TLS  : XOForm_1<31, 266, 0, (outs gprc:$rT), (ins gprc:$rA, tlsreg32:$rB),
                        "add $rT, $rA, $rB", IIC_IntSimple,
@@ -2797,24 +2879,14 @@ defm DIVW  : XOForm_1rcr<31, 491, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
 defm DIVWU : XOForm_1rcr<31, 459, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
                           "divwu", "$rT, $rA, $rB", IIC_IntDivW,
                           [(set i32:$rT, (udiv i32:$rA, i32:$rB))]>;
-def DIVWE : XOForm_1<31, 427, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
-                     "divwe $rT, $rA, $rB", IIC_IntDivW,
-                     [(set i32:$rT, (int_ppc_divwe gprc:$rA, gprc:$rB))]>,
-                     Requires<[HasExtDiv]>;
-let Defs = [CR0] in
-def DIVWEo : XOForm_1<31, 427, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
-                      "divwe. $rT, $rA, $rB", IIC_IntDivW,
-                      []>, isDOT, PPC970_DGroup_Cracked, PPC970_DGroup_First,
-                      Requires<[HasExtDiv]>;
-def DIVWEU : XOForm_1<31, 395, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
-                      "divweu $rT, $rA, $rB", IIC_IntDivW,
-                      [(set i32:$rT, (int_ppc_divweu gprc:$rA, gprc:$rB))]>,
-                      Requires<[HasExtDiv]>;
-let Defs = [CR0] in
-def DIVWEUo : XOForm_1<31, 395, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
-                       "divweu. $rT, $rA, $rB", IIC_IntDivW,
-                       []>, isDOT, PPC970_DGroup_Cracked, PPC970_DGroup_First,
-                       Requires<[HasExtDiv]>;
+defm DIVWE : XOForm_1rcr<31, 427, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
+                         "divwe", "$rT, $rA, $rB", IIC_IntDivW,
+                         [(set i32:$rT, (int_ppc_divwe gprc:$rA, gprc:$rB))]>,
+                         Requires<[HasExtDiv]>;
+defm DIVWEU : XOForm_1rcr<31, 395, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
+                          "divweu", "$rT, $rA, $rB", IIC_IntDivW,
+                          [(set i32:$rT, (int_ppc_divweu gprc:$rA, gprc:$rB))]>,
+                          Requires<[HasExtDiv]>;
 let isCommutable = 1 in {
 defm MULHW : XOForm_1r<31, 75, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
                        "mulhw", "$rT, $rA, $rB", IIC_IntMulHW,
@@ -2822,13 +2894,13 @@ defm MULHW : XOForm_1r<31, 75, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
 defm MULHWU : XOForm_1r<31, 11, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
                        "mulhwu", "$rT, $rA, $rB", IIC_IntMulHWU,
                        [(set i32:$rT, (mulhu i32:$rA, i32:$rB))]>;
-defm MULLW : XOForm_1r<31, 235, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
-                       "mullw", "$rT, $rA, $rB", IIC_IntMulHW,
-                       [(set i32:$rT, (mul i32:$rA, i32:$rB))]>;
+defm MULLW : XOForm_1rx<31, 235, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
+                        "mullw", "$rT, $rA, $rB", IIC_IntMulHW,
+                        [(set i32:$rT, (mul i32:$rA, i32:$rB))]>;
 } // isCommutable
-defm SUBF  : XOForm_1r<31, 40, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
-                       "subf", "$rT, $rA, $rB", IIC_IntGeneral,
-                       [(set i32:$rT, (sub i32:$rB, i32:$rA))]>;
+defm SUBF  : XOForm_1rx<31, 40, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
+                        "subf", "$rT, $rA, $rB", IIC_IntGeneral,
+                        [(set i32:$rT, (sub i32:$rB, i32:$rA))]>;
 defm SUBFC : XOForm_1rc<31, 8, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
                         "subfc", "$rT, $rA, $rB", IIC_IntGeneral,
                         [(set i32:$rT, (subc i32:$rB, i32:$rA))]>,
@@ -2984,10 +3056,10 @@ def RLWINM : MForm_2<21,
                      "rlwinm $rA, $rS, $SH, $MB, $ME", IIC_IntGeneral,
                      []>, RecFormRel;
 let Defs = [CR0] in
-def RLWINMo : MForm_2<21,
+def RLWINM_rec : MForm_2<21,
                       (outs gprc:$rA), (ins gprc:$rS, u5imm:$SH, u5imm:$MB, u5imm:$ME),
                       "rlwinm. $rA, $rS, $SH, $MB, $ME", IIC_IntGeneral,
-                      []>, isDOT, RecFormRel, PPC970_DGroup_Cracked;
+                      []>, isRecordForm, RecFormRel, PPC970_DGroup_Cracked;
 }
 defm RLWNM  : MForm_2r<23, (outs gprc:$rA),
                        (ins gprc:$rS, gprc:$rB, u5imm:$MB, u5imm:$ME),
@@ -3177,6 +3249,11 @@ def ADDIStocHA : PPCEmitTimePseudo<(outs gprc:$rD), (ins gprc_nor0:$reg, tocentr
 // the function label.
 def UpdateGBR : PPCEmitTimePseudo<(outs gprc:$rD, gprc:$rT), (ins gprc:$rI), "#UpdateGBR", []>;
 
+// Pseudo-instruction marked for deletion. When deleting the instruction would
+// cause iterator invalidation in MIR transformation passes, this pseudo can be
+// used instead. It will be removed unconditionally at pre-emit time (prior to
+// branch selection).
+def UNENCODED_NOP: PPCEmitTimePseudo<(outs), (ins), "#UNENCODED_NOP", []>;
 
 // Standard shifts.  These are represented separately from the real shifts above
 // so that we can distinguish between shifts that allow 5-bit and 6-bit shift
@@ -3219,10 +3296,10 @@ def : Pat<(f64 (fpextend f32:$src)),
 // source: http://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
 // The rule for seq_cst is duplicated to work with both 64 bits and 32 bits
 // versions of Power.
-def : Pat<(atomic_fence (i64 7), (imm)), (SYNC 0)>, Requires<[HasSYNC]>;
-def : Pat<(atomic_fence (i32 7), (imm)), (SYNC 0)>, Requires<[HasSYNC]>;
-def : Pat<(atomic_fence (imm),   (imm)), (SYNC 1)>, Requires<[HasSYNC]>;
-def : Pat<(atomic_fence (imm), (imm)), (MSYNC)>, Requires<[HasOnlyMSYNC]>;
+def : Pat<(atomic_fence (i64 7), (timm)), (SYNC 0)>, Requires<[HasSYNC]>;
+def : Pat<(atomic_fence (i32 7), (timm)), (SYNC 0)>, Requires<[HasSYNC]>;
+def : Pat<(atomic_fence (timm), (timm)), (SYNC 1)>, Requires<[HasSYNC]>;
+def : Pat<(atomic_fence (timm), (timm)), (MSYNC)>, Requires<[HasOnlyMSYNC]>;
 
 let Predicates = [HasFPU] in {
 // Additional FNMSUB patterns: -a*c + b == -(a*c - b)
@@ -4010,24 +4087,24 @@ def : Pat<(v4i32 (selectcc i1:$lhs, i1:$rhs, v4i32:$tval, v4i32:$fval, SETUGT)),
 def : Pat<(v4i32 (selectcc i1:$lhs, i1:$rhs, v4i32:$tval, v4i32:$fval, SETNE)),
           (SELECT_VRRC (CRXOR $lhs, $rhs), $tval, $fval)>;
 
-def ANDIo_1_EQ_BIT : PPCCustomInserterPseudo<(outs crbitrc:$dst), (ins gprc:$in),
-                             "#ANDIo_1_EQ_BIT",
+def ANDI_rec_1_EQ_BIT : PPCCustomInserterPseudo<(outs crbitrc:$dst), (ins gprc:$in),
+                             "#ANDI_rec_1_EQ_BIT",
                              [(set i1:$dst, (trunc (not i32:$in)))]>;
-def ANDIo_1_GT_BIT : PPCCustomInserterPseudo<(outs crbitrc:$dst), (ins gprc:$in),
-                             "#ANDIo_1_GT_BIT",
+def ANDI_rec_1_GT_BIT : PPCCustomInserterPseudo<(outs crbitrc:$dst), (ins gprc:$in),
+                             "#ANDI_rec_1_GT_BIT",
                              [(set i1:$dst, (trunc i32:$in))]>;
 
-def ANDIo_1_EQ_BIT8 : PPCCustomInserterPseudo<(outs crbitrc:$dst), (ins g8rc:$in),
-                              "#ANDIo_1_EQ_BIT8",
+def ANDI_rec_1_EQ_BIT8 : PPCCustomInserterPseudo<(outs crbitrc:$dst), (ins g8rc:$in),
+                              "#ANDI_rec_1_EQ_BIT8",
                               [(set i1:$dst, (trunc (not i64:$in)))]>;
-def ANDIo_1_GT_BIT8 : PPCCustomInserterPseudo<(outs crbitrc:$dst), (ins g8rc:$in),
-                              "#ANDIo_1_GT_BIT8",
+def ANDI_rec_1_GT_BIT8 : PPCCustomInserterPseudo<(outs crbitrc:$dst), (ins g8rc:$in),
+                              "#ANDI_rec_1_GT_BIT8",
                               [(set i1:$dst, (trunc i64:$in))]>;
 
 def : Pat<(i1 (not (trunc i32:$in))),
-           (ANDIo_1_EQ_BIT $in)>;
+           (ANDI_rec_1_EQ_BIT $in)>;
 def : Pat<(i1 (not (trunc i64:$in))),
-           (ANDIo_1_EQ_BIT8 $in)>;
+           (ANDI_rec_1_EQ_BIT8 $in)>;
 
 //===----------------------------------------------------------------------===//
 // PowerPC Instructions used for assembler/disassembler only
@@ -4111,22 +4188,22 @@ def MCRFS : XLForm_3<63, 64, (outs crrc:$BF), (ins crrc:$BFA),
 def MTFSFI : XLForm_4<63, 134, (outs crrc:$BF), (ins i32imm:$U, i32imm:$W),
                       "mtfsfi $BF, $U, $W", IIC_IntMFFS>;
 
-def MTFSFIo : XLForm_4<63, 134, (outs crrc:$BF), (ins i32imm:$U, i32imm:$W),
-                       "mtfsfi. $BF, $U, $W", IIC_IntMFFS>, isDOT;
+def MTFSFI_rec : XLForm_4<63, 134, (outs crrc:$BF), (ins i32imm:$U, i32imm:$W),
+                       "mtfsfi. $BF, $U, $W", IIC_IntMFFS>, isRecordForm;
 
 def : InstAlias<"mtfsfi $BF, $U", (MTFSFI crrc:$BF, i32imm:$U, 0)>;
-def : InstAlias<"mtfsfi. $BF, $U", (MTFSFIo crrc:$BF, i32imm:$U, 0)>;
+def : InstAlias<"mtfsfi. $BF, $U", (MTFSFI_rec crrc:$BF, i32imm:$U, 0)>;
 
 let Predicates = [HasFPU] in {
 def MTFSF : XFLForm_1<63, 711, (outs),
                       (ins i32imm:$FLM, f8rc:$FRB, i32imm:$L, i32imm:$W),
                       "mtfsf $FLM, $FRB, $L, $W", IIC_IntMFFS, []>;
-def MTFSFo : XFLForm_1<63, 711, (outs),
+def MTFSF_rec : XFLForm_1<63, 711, (outs),
                        (ins i32imm:$FLM, f8rc:$FRB, i32imm:$L, i32imm:$W),
-                       "mtfsf. $FLM, $FRB, $L, $W", IIC_IntMFFS, []>, isDOT;
+                       "mtfsf. $FLM, $FRB, $L, $W", IIC_IntMFFS, []>, isRecordForm;
 
 def : InstAlias<"mtfsf $FLM, $FRB", (MTFSF i32imm:$FLM, f8rc:$FRB, 0, 0)>;
-def : InstAlias<"mtfsf. $FLM, $FRB", (MTFSFo i32imm:$FLM, f8rc:$FRB, 0, 0)>;
+def : InstAlias<"mtfsf. $FLM, $FRB", (MTFSF_rec i32imm:$FLM, f8rc:$FRB, 0, 0)>;
 }
 
 def SLBIE : XForm_16b<31, 434, (outs), (ins gprc:$RB),
@@ -4144,8 +4221,8 @@ def SLBMFEV : XLForm_1_gen<31, 851, (outs gprc:$RT), (ins gprc:$RB),
 def SLBIA : XForm_0<31, 498, (outs), (ins), "slbia", IIC_SprSLBIA, []>;
 
 let Defs = [CR0] in
-def SLBFEEo : XForm_26<31, 979, (outs gprc:$RT), (ins gprc:$RB),
-                         "slbfee. $RT, $RB", IIC_SprSLBFEE, []>, isDOT;
+def SLBFEE_rec : XForm_26<31, 979, (outs gprc:$RT), (ins gprc:$RB),
+                         "slbfee. $RT, $RB", IIC_SprSLBFEE, []>, isRecordForm;
 
 def TLBIA : XForm_0<31, 370, (outs), (ins),
                         "tlbia", IIC_SprTLBIA, []>;
@@ -4188,7 +4265,7 @@ def TLBSX2 : XForm_base_r3xo<31, 914, (outs), (ins gprc:$RST, gprc:$A, gprc:$B),
 def TLBSX2D : XForm_base_r3xo<31, 914, (outs),
                               (ins gprc:$RST, gprc:$A, gprc:$B),
                               "tlbsx. $RST, $A, $B", IIC_LdStLoad, []>,
-                              Requires<[IsPPC4xx]>, isDOT;
+                              Requires<[IsPPC4xx]>, isRecordForm;
 
 def RFID : XForm_0<19, 18, (outs), (ins), "rfid", IIC_IntRFID, []>;
 
@@ -4406,10 +4483,10 @@ def : InstAlias<"mttbhi $Rx", (MTSPR 988, gprc:$Rx)>, Requires<[IsPPC4xx]>;
 def : InstAlias<"xnop", (XORI R0, R0, 0)>;
 
 def : InstAlias<"mr $rA, $rB", (OR8 g8rc:$rA, g8rc:$rB, g8rc:$rB)>;
-def : InstAlias<"mr. $rA, $rB", (OR8o g8rc:$rA, g8rc:$rB, g8rc:$rB)>;
+def : InstAlias<"mr. $rA, $rB", (OR8_rec g8rc:$rA, g8rc:$rB, g8rc:$rB)>;
 
 def : InstAlias<"not $rA, $rB", (NOR8 g8rc:$rA, g8rc:$rB, g8rc:$rB)>;
-def : InstAlias<"not. $rA, $rB", (NOR8o g8rc:$rA, g8rc:$rB, g8rc:$rB)>;
+def : InstAlias<"not. $rA, $rB", (NOR8_rec g8rc:$rA, g8rc:$rB, g8rc:$rB)>;
 
 def : InstAlias<"mtcr $rA", (MTCRF8 255, g8rc:$rA)>;
 
@@ -4475,13 +4552,13 @@ def SUBIS : PPCAsmPseudo<"subis $rA, $rB, $imm",
                          (ins gprc:$rA, gprc:$rB, s16imm:$imm)>;
 def SUBIC : PPCAsmPseudo<"subic $rA, $rB, $imm",
                          (ins gprc:$rA, gprc:$rB, s16imm:$imm)>;
-def SUBICo : PPCAsmPseudo<"subic. $rA, $rB, $imm",
+def SUBIC_rec : PPCAsmPseudo<"subic. $rA, $rB, $imm",
                           (ins gprc:$rA, gprc:$rB, s16imm:$imm)>;
 
 def : InstAlias<"sub $rA, $rB, $rC", (SUBF8 g8rc:$rA, g8rc:$rC, g8rc:$rB)>;
-def : InstAlias<"sub. $rA, $rB, $rC", (SUBF8o g8rc:$rA, g8rc:$rC, g8rc:$rB)>;
+def : InstAlias<"sub. $rA, $rB, $rC", (SUBF8_rec g8rc:$rA, g8rc:$rC, g8rc:$rB)>;
 def : InstAlias<"subc $rA, $rB, $rC", (SUBFC8 g8rc:$rA, g8rc:$rC, g8rc:$rB)>;
-def : InstAlias<"subc. $rA, $rB, $rC", (SUBFC8o g8rc:$rA, g8rc:$rC, g8rc:$rB)>;
+def : InstAlias<"subc. $rA, $rB, $rC", (SUBFC8_rec g8rc:$rA, g8rc:$rC, g8rc:$rB)>;
 
 def : InstAlias<"mtmsrd $RS", (MTMSRD gprc:$RS, 0)>;
 def : InstAlias<"mtmsr $RS", (MTMSR gprc:$RS, 0)>;
@@ -4534,109 +4611,109 @@ def : InstAlias<"tlbwelo $RS, $A", (TLBWE2 gprc:$RS, gprc:$A, 1)>,
 
 def EXTLWI : PPCAsmPseudo<"extlwi $rA, $rS, $n, $b",
                           (ins gprc:$rA, gprc:$rS, u5imm:$n, u5imm:$b)>;
-def EXTLWIo : PPCAsmPseudo<"extlwi. $rA, $rS, $n, $b",
+def EXTLWI_rec : PPCAsmPseudo<"extlwi. $rA, $rS, $n, $b",
                            (ins gprc:$rA, gprc:$rS, u5imm:$n, u5imm:$b)>;
 def EXTRWI : PPCAsmPseudo<"extrwi $rA, $rS, $n, $b",
                           (ins gprc:$rA, gprc:$rS, u5imm:$n, u5imm:$b)>;
-def EXTRWIo : PPCAsmPseudo<"extrwi. $rA, $rS, $n, $b",
+def EXTRWI_rec : PPCAsmPseudo<"extrwi. $rA, $rS, $n, $b",
                            (ins gprc:$rA, gprc:$rS, u5imm:$n, u5imm:$b)>;
 def INSLWI : PPCAsmPseudo<"inslwi $rA, $rS, $n, $b",
                           (ins gprc:$rA, gprc:$rS, u5imm:$n, u5imm:$b)>;
-def INSLWIo : PPCAsmPseudo<"inslwi. $rA, $rS, $n, $b",
+def INSLWI_rec : PPCAsmPseudo<"inslwi. $rA, $rS, $n, $b",
                            (ins gprc:$rA, gprc:$rS, u5imm:$n, u5imm:$b)>;
 def INSRWI : PPCAsmPseudo<"insrwi $rA, $rS, $n, $b",
                           (ins gprc:$rA, gprc:$rS, u5imm:$n, u5imm:$b)>;
-def INSRWIo : PPCAsmPseudo<"insrwi. $rA, $rS, $n, $b",
+def INSRWI_rec : PPCAsmPseudo<"insrwi. $rA, $rS, $n, $b",
                            (ins gprc:$rA, gprc:$rS, u5imm:$n, u5imm:$b)>;
 def ROTRWI : PPCAsmPseudo<"rotrwi $rA, $rS, $n",
                           (ins gprc:$rA, gprc:$rS, u5imm:$n)>;
-def ROTRWIo : PPCAsmPseudo<"rotrwi. $rA, $rS, $n",
+def ROTRWI_rec : PPCAsmPseudo<"rotrwi. $rA, $rS, $n",
                            (ins gprc:$rA, gprc:$rS, u5imm:$n)>;
 def SLWI : PPCAsmPseudo<"slwi $rA, $rS, $n",
                         (ins gprc:$rA, gprc:$rS, u5imm:$n)>;
-def SLWIo : PPCAsmPseudo<"slwi. $rA, $rS, $n",
+def SLWI_rec : PPCAsmPseudo<"slwi. $rA, $rS, $n",
                          (ins gprc:$rA, gprc:$rS, u5imm:$n)>;
 def SRWI : PPCAsmPseudo<"srwi $rA, $rS, $n",
                         (ins gprc:$rA, gprc:$rS, u5imm:$n)>;
-def SRWIo : PPCAsmPseudo<"srwi. $rA, $rS, $n",
+def SRWI_rec : PPCAsmPseudo<"srwi. $rA, $rS, $n",
                          (ins gprc:$rA, gprc:$rS, u5imm:$n)>;
 def CLRRWI : PPCAsmPseudo<"clrrwi $rA, $rS, $n",
                           (ins gprc:$rA, gprc:$rS, u5imm:$n)>;
-def CLRRWIo : PPCAsmPseudo<"clrrwi. $rA, $rS, $n",
+def CLRRWI_rec : PPCAsmPseudo<"clrrwi. $rA, $rS, $n",
                            (ins gprc:$rA, gprc:$rS, u5imm:$n)>;
 def CLRLSLWI : PPCAsmPseudo<"clrlslwi $rA, $rS, $b, $n",
                             (ins gprc:$rA, gprc:$rS, u5imm:$b, u5imm:$n)>;
-def CLRLSLWIo : PPCAsmPseudo<"clrlslwi. $rA, $rS, $b, $n",
+def CLRLSLWI_rec : PPCAsmPseudo<"clrlslwi. $rA, $rS, $b, $n",
                              (ins gprc:$rA, gprc:$rS, u5imm:$b, u5imm:$n)>;
 
 def : InstAlias<"rotlwi $rA, $rS, $n", (RLWINM gprc:$rA, gprc:$rS, u5imm:$n, 0, 31)>;
-def : InstAlias<"rotlwi. $rA, $rS, $n", (RLWINMo gprc:$rA, gprc:$rS, u5imm:$n, 0, 31)>;
+def : InstAlias<"rotlwi. $rA, $rS, $n", (RLWINM_rec gprc:$rA, gprc:$rS, u5imm:$n, 0, 31)>;
 def : InstAlias<"rotlw $rA, $rS, $rB", (RLWNM gprc:$rA, gprc:$rS, gprc:$rB, 0, 31)>;
-def : InstAlias<"rotlw. $rA, $rS, $rB", (RLWNMo gprc:$rA, gprc:$rS, gprc:$rB, 0, 31)>;
+def : InstAlias<"rotlw. $rA, $rS, $rB", (RLWNM_rec gprc:$rA, gprc:$rS, gprc:$rB, 0, 31)>;
 def : InstAlias<"clrlwi $rA, $rS, $n", (RLWINM gprc:$rA, gprc:$rS, 0, u5imm:$n, 31)>;
-def : InstAlias<"clrlwi. $rA, $rS, $n", (RLWINMo gprc:$rA, gprc:$rS, 0, u5imm:$n, 31)>;
+def : InstAlias<"clrlwi. $rA, $rS, $n", (RLWINM_rec gprc:$rA, gprc:$rS, 0, u5imm:$n, 31)>;
 
 def : InstAlias<"cntlzw $rA, $rS", (CNTLZW gprc:$rA, gprc:$rS)>;
-def : InstAlias<"cntlzw. $rA, $rS", (CNTLZWo gprc:$rA, gprc:$rS)>;
+def : InstAlias<"cntlzw. $rA, $rS", (CNTLZW_rec gprc:$rA, gprc:$rS)>;
 // The POWER variant
 def : MnemonicAlias<"cntlz",  "cntlzw">;
 def : MnemonicAlias<"cntlz.", "cntlzw.">;
 
 def EXTLDI : PPCAsmPseudo<"extldi $rA, $rS, $n, $b",
                           (ins g8rc:$rA, g8rc:$rS, u6imm:$n, u6imm:$b)>;
-def EXTLDIo : PPCAsmPseudo<"extldi. $rA, $rS, $n, $b",
+def EXTLDI_rec : PPCAsmPseudo<"extldi. $rA, $rS, $n, $b",
                            (ins g8rc:$rA, g8rc:$rS, u6imm:$n, u6imm:$b)>;
 def EXTRDI : PPCAsmPseudo<"extrdi $rA, $rS, $n, $b",
                           (ins g8rc:$rA, g8rc:$rS, u6imm:$n, u6imm:$b)>;
-def EXTRDIo : PPCAsmPseudo<"extrdi. $rA, $rS, $n, $b",
+def EXTRDI_rec : PPCAsmPseudo<"extrdi. $rA, $rS, $n, $b",
                            (ins g8rc:$rA, g8rc:$rS, u6imm:$n, u6imm:$b)>;
 def INSRDI : PPCAsmPseudo<"insrdi $rA, $rS, $n, $b",
                           (ins g8rc:$rA, g8rc:$rS, u6imm:$n, u6imm:$b)>;
-def INSRDIo : PPCAsmPseudo<"insrdi. $rA, $rS, $n, $b",
+def INSRDI_rec : PPCAsmPseudo<"insrdi. $rA, $rS, $n, $b",
                            (ins g8rc:$rA, g8rc:$rS, u6imm:$n, u6imm:$b)>;
 def ROTRDI : PPCAsmPseudo<"rotrdi $rA, $rS, $n",
                           (ins g8rc:$rA, g8rc:$rS, u6imm:$n)>;
-def ROTRDIo : PPCAsmPseudo<"rotrdi. $rA, $rS, $n",
+def ROTRDI_rec : PPCAsmPseudo<"rotrdi. $rA, $rS, $n",
                            (ins g8rc:$rA, g8rc:$rS, u6imm:$n)>;
 def SLDI : PPCAsmPseudo<"sldi $rA, $rS, $n",
                         (ins g8rc:$rA, g8rc:$rS, u6imm:$n)>;
-def SLDIo : PPCAsmPseudo<"sldi. $rA, $rS, $n",
+def SLDI_rec : PPCAsmPseudo<"sldi. $rA, $rS, $n",
                          (ins g8rc:$rA, g8rc:$rS, u6imm:$n)>;
 def SRDI : PPCAsmPseudo<"srdi $rA, $rS, $n",
                         (ins g8rc:$rA, g8rc:$rS, u6imm:$n)>;
-def SRDIo : PPCAsmPseudo<"srdi. $rA, $rS, $n",
+def SRDI_rec : PPCAsmPseudo<"srdi. $rA, $rS, $n",
                          (ins g8rc:$rA, g8rc:$rS, u6imm:$n)>;
 def CLRRDI : PPCAsmPseudo<"clrrdi $rA, $rS, $n",
                           (ins g8rc:$rA, g8rc:$rS, u6imm:$n)>;
-def CLRRDIo : PPCAsmPseudo<"clrrdi. $rA, $rS, $n",
+def CLRRDI_rec : PPCAsmPseudo<"clrrdi. $rA, $rS, $n",
                            (ins g8rc:$rA, g8rc:$rS, u6imm:$n)>;
 def CLRLSLDI : PPCAsmPseudo<"clrlsldi $rA, $rS, $b, $n",
                             (ins g8rc:$rA, g8rc:$rS, u6imm:$b, u6imm:$n)>;
-def CLRLSLDIo : PPCAsmPseudo<"clrlsldi. $rA, $rS, $b, $n",
+def CLRLSLDI_rec : PPCAsmPseudo<"clrlsldi. $rA, $rS, $b, $n",
                              (ins g8rc:$rA, g8rc:$rS, u6imm:$b, u6imm:$n)>;
 def SUBPCIS : PPCAsmPseudo<"subpcis $RT, $D", (ins g8rc:$RT, s16imm:$D)>;
 
 def : InstAlias<"rotldi $rA, $rS, $n", (RLDICL g8rc:$rA, g8rc:$rS, u6imm:$n, 0)>;
-def : InstAlias<"rotldi. $rA, $rS, $n", (RLDICLo g8rc:$rA, g8rc:$rS, u6imm:$n, 0)>;
+def : InstAlias<"rotldi. $rA, $rS, $n", (RLDICL_rec g8rc:$rA, g8rc:$rS, u6imm:$n, 0)>;
 def : InstAlias<"rotld $rA, $rS, $rB", (RLDCL g8rc:$rA, g8rc:$rS, gprc:$rB, 0)>;
-def : InstAlias<"rotld. $rA, $rS, $rB", (RLDCLo g8rc:$rA, g8rc:$rS, gprc:$rB, 0)>;
+def : InstAlias<"rotld. $rA, $rS, $rB", (RLDCL_rec g8rc:$rA, g8rc:$rS, gprc:$rB, 0)>;
 def : InstAlias<"clrldi $rA, $rS, $n", (RLDICL g8rc:$rA, g8rc:$rS, 0, u6imm:$n)>;
 def : InstAlias<"clrldi $rA, $rS, $n",
                 (RLDICL_32_64 g8rc:$rA, gprc:$rS, 0, u6imm:$n)>;
-def : InstAlias<"clrldi. $rA, $rS, $n", (RLDICLo g8rc:$rA, g8rc:$rS, 0, u6imm:$n)>;
+def : InstAlias<"clrldi. $rA, $rS, $n", (RLDICL_rec g8rc:$rA, g8rc:$rS, 0, u6imm:$n)>;
 def : InstAlias<"lnia $RT", (ADDPCIS g8rc:$RT, 0)>;
 
 def RLWINMbm : PPCAsmPseudo<"rlwinm $rA, $rS, $n, $b",
                             (ins g8rc:$rA, g8rc:$rS, u5imm:$n, i32imm:$b)>;
-def RLWINMobm : PPCAsmPseudo<"rlwinm. $rA, $rS, $n, $b",
+def RLWINMbm_rec : PPCAsmPseudo<"rlwinm. $rA, $rS, $n, $b",
                             (ins g8rc:$rA, g8rc:$rS, u5imm:$n, i32imm:$b)>;
 def RLWIMIbm : PPCAsmPseudo<"rlwimi $rA, $rS, $n, $b",
                            (ins g8rc:$rA, g8rc:$rS, u5imm:$n, i32imm:$b)>;
-def RLWIMIobm : PPCAsmPseudo<"rlwimi. $rA, $rS, $n, $b",
+def RLWIMIbm_rec : PPCAsmPseudo<"rlwimi. $rA, $rS, $n, $b",
                             (ins g8rc:$rA, g8rc:$rS, u5imm:$n, i32imm:$b)>;
 def RLWNMbm : PPCAsmPseudo<"rlwnm $rA, $rS, $n, $b",
                           (ins g8rc:$rA, g8rc:$rS, u5imm:$n, i32imm:$b)>;
-def RLWNMobm : PPCAsmPseudo<"rlwnm. $rA, $rS, $n, $b",
+def RLWNMbm_rec : PPCAsmPseudo<"rlwnm. $rA, $rS, $n, $b",
                            (ins g8rc:$rA, g8rc:$rS, u5imm:$n, i32imm:$b)>;
 
 // These generic branch instruction forms are used for the assembler parser only.
@@ -4865,7 +4942,7 @@ let mayStore = 1 in
 def CP_PASTE  : X_L1_RA5_RB5<31, 902, "paste" , gprc, IIC_LdStPASTE, []>;
 
 let mayStore = 1, Defs = [CR0] in
-def CP_PASTEo : X_L1_RA5_RB5<31, 902, "paste.", gprc, IIC_LdStPASTE, []>, isDOT;
+def CP_PASTE_rec : X_L1_RA5_RB5<31, 902, "paste.", gprc, IIC_LdStPASTE, []>, isRecordForm;
 
 def CP_COPYx  : PPCAsmPseudo<"copy $rA, $rB" , (ins gprc:$rA, gprc:$rB)>;
 def CP_PASTEx : PPCAsmPseudo<"paste $rA, $rB", (ins gprc:$rA, gprc:$rB)>;

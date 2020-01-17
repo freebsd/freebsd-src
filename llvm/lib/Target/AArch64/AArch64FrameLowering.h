@@ -44,7 +44,7 @@ public:
                                          unsigned &FrameReg, bool PreferFP,
                                          bool ForSimm) const;
   StackOffset resolveFrameOffsetReference(const MachineFunction &MF,
-                                          int ObjectOffset, bool isFixed,
+                                          int64_t ObjectOffset, bool isFixed,
                                           bool isSVE, unsigned &FrameReg,
                                           bool PreferFP, bool ForSimm) const;
   bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
@@ -72,6 +72,7 @@ public:
   }
 
   bool enableStackSlotScavenging(const MachineFunction &MF) const override;
+  TargetStackID::Value getStackIDForScalableVectors() const override;
 
   void processFunctionBeforeFrameFinalized(MachineFunction &MF,
                                              RegScavenger *RS) const override;
@@ -100,8 +101,12 @@ public:
 
 private:
   bool shouldCombineCSRLocalStackBump(MachineFunction &MF,
-                                      unsigned StackBumpBytes) const;
-  int64_t determineSVEStackSize(MachineFrameInfo &MF, unsigned &MaxAlign) const;
+                                      uint64_t StackBumpBytes) const;
+
+  int64_t estimateSVEStackObjectOffsets(MachineFrameInfo &MF) const;
+  int64_t assignSVEStackObjectOffsets(MachineFrameInfo &MF,
+                                      int &MinCSFrameIndex,
+                                      int &MaxCSFrameIndex) const;
 };
 
 } // End llvm namespace

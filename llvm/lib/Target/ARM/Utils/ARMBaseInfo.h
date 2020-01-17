@@ -64,6 +64,25 @@ inline static CondCodes getOppositeCondition(CondCodes CC) {
   case LE: return GT;
   }
 }
+
+/// getSwappedCondition - assume the flags are set by MI(a,b), return
+/// the condition code if we modify the instructions such that flags are
+/// set by MI(b,a).
+inline static ARMCC::CondCodes getSwappedCondition(ARMCC::CondCodes CC) {
+  switch (CC) {
+  default: return ARMCC::AL;
+  case ARMCC::EQ: return ARMCC::EQ;
+  case ARMCC::NE: return ARMCC::NE;
+  case ARMCC::HS: return ARMCC::LS;
+  case ARMCC::LO: return ARMCC::HI;
+  case ARMCC::HI: return ARMCC::LO;
+  case ARMCC::LS: return ARMCC::HS;
+  case ARMCC::GE: return ARMCC::LE;
+  case ARMCC::LT: return ARMCC::GT;
+  case ARMCC::GT: return ARMCC::LT;
+  case ARMCC::LE: return ARMCC::GE;
+  }
+}
 } // end namespace ARMCC
 
 namespace ARMVCC {
@@ -72,6 +91,40 @@ namespace ARMVCC {
     Then,
     Else
   };
+
+  enum VPTMaskValue {
+    T     =  8, // 0b1000
+    TT    =  4, // 0b0100
+    TE    = 12, // 0b1100
+    TTT   =  2, // 0b0010
+    TTE   =  6, // 0b0110
+    TEE   = 10, // 0b1010
+    TET   = 14, // 0b1110
+    TTTT  =  1, // 0b0001
+    TTTE  =  3, // 0b0011
+    TTEE  =  5, // 0b0101
+    TTET  =  7, // 0b0111
+    TEEE  =  9, // 0b1001
+    TEET  = 11, // 0b1011
+    TETT  = 13, // 0b1101
+    TETE  = 15  // 0b1111
+  };
+}
+
+inline static unsigned getARMVPTBlockMask(unsigned NumInsts) {
+  switch (NumInsts) {
+  case 1:
+    return ARMVCC::T;
+  case 2:
+    return ARMVCC::TT;
+  case 3:
+    return ARMVCC::TTT;
+  case 4:
+    return ARMVCC::TTTT;
+  default:
+    break;
+  };
+  llvm_unreachable("Unexpected number of instruction in a VPT block");
 }
 
 inline static const char *ARMVPTPredToString(ARMVCC::VPTCodes CC) {

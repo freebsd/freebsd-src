@@ -84,6 +84,7 @@ public:
     return MCInstLowering.lowerOperand(MO, MCOp);
   }
 
+  void EmitStartOfAsmFile(Module &M) override;
   void EmitJumpTableInfo() override;
   void emitJumpTableEntry(const MachineJumpTableInfo *MJTI,
                           const MachineBasicBlock *MBB, unsigned JTI);
@@ -181,8 +182,79 @@ private:
 
 } // end anonymous namespace
 
+void AArch64AsmPrinter::EmitStartOfAsmFile(Module &M) {
+  if (!TM.getTargetTriple().isOSBinFormatELF())
+    return;
+
+  // Assemble feature flags that may require creation of a note section.
+  unsigned Flags = ELF::GNU_PROPERTY_AARCH64_FEATURE_1_BTI |
+                   ELF::GNU_PROPERTY_AARCH64_FEATURE_1_PAC;
+
+  if (any_of(M, [](const Function &F) {
+        return !F.isDeclaration() &&
+               !F.hasFnAttribute("branch-target-enforcement");
+      })) {
+    Flags &= ~ELF::GNU_PROPERTY_AARCH64_FEATURE_1_BTI;
+  }
+
+  if ((Flags & ELF::GNU_PROPERTY_AARCH64_FEATURE_1_BTI) == 0 &&
+      any_of(M, [](const Function &F) {
+        return F.hasFnAttribute("branch-target-enforcement");
+      })) {
+    errs() << "warning: some functions compiled with BTI and some compiled "
+              "without BTI\n"
+           << "warning: not setting BTI in feature flags\n";
+  }
+
+  if (any_of(M, [](const Function &F) {
+        if (F.isDeclaration())
+          return false;
+        Attribute A = F.getFnAttribute("sign-return-address");
+        return !A.isStringAttribute() || A.getValueAsString() == "none";
+      })) {
+    Flags &= ~ELF::GNU_PROPERTY_AARCH64_FEATURE_1_PAC;
+  }
+
+  if (Flags == 0)
+    return;
+
+  // Emit a .note.gnu.property section with the flags.
+  MCSection *Cur = OutStreamer->getCurrentSectionOnly();
+  MCSection *Nt = MMI->getContext().getELFSection(
+      ".note.gnu.property", ELF::SHT_NOTE, ELF::SHF_ALLOC);
+  OutStreamer->SwitchSection(Nt);
+
+  // Emit the note header.
+  EmitAlignment(Align(8));
+  OutStreamer->EmitIntValue(4, 4);     // data size for "GNU\0"
+  OutStreamer->EmitIntValue(4 * 4, 4); // Elf_Prop size
+  OutStreamer->EmitIntValue(ELF::NT_GNU_PROPERTY_TYPE_0, 4);
+  OutStreamer->EmitBytes(StringRef("GNU", 4)); // note name
+
+  // Emit the PAC/BTI properties.
+  OutStreamer->EmitIntValue(ELF::GNU_PROPERTY_AARCH64_FEATURE_1_AND, 4);
+  OutStreamer->EmitIntValue(4, 4);     // data size
+  OutStreamer->EmitIntValue(Flags, 4); // data
+  OutStreamer->EmitIntValue(0, 4);     // pad
+
+  OutStreamer->endSection(Nt);
+  OutStreamer->SwitchSection(Cur);
+}
+
 void AArch64AsmPrinter::LowerPATCHABLE_FUNCTION_ENTER(const MachineInstr &MI)
 {
+  const Function &F = MF->getFunction();
+  if (F.hasFnAttribute("patchable-function-entry")) {
+    unsigned Num;
+    if (F.getFnAttribute("patchable-function-entry")
+            .getValueAsString()
+            .getAsInteger(10, Num))
+      return;
+    for (; Num; --Num)
+      EmitToStreamer(*OutStreamer, MCInstBuilder(AArch64::HINT).addImm(0));
+    return;
+  }
+
   EmitSled(MI, SledKind::FUNCTION_ENTER);
 }
 
@@ -458,8 +530,8 @@ void AArch64AsmPrinter::EmitEndOfAsmFile(Module &M) {
     // linker can safely perform dead code stripping.  Since LLVM never
     // generates code that does this, it is always safe to set.
     OutStreamer->EmitAssemblerFlag(MCAF_SubsectionsViaSymbols);
-    emitStackMaps(SM);
   }
+  emitStackMaps(SM);
 }
 
 void AArch64AsmPrinter::EmitLOHs() {
@@ -794,7 +866,11 @@ void AArch64AsmPrinter::LowerSTACKMAP(MCStreamer &OutStreamer, StackMaps &SM,
                                       const MachineInstr &MI) {
   unsigned NumNOPBytes = StackMapOpers(&MI).getNumPatchBytes();
 
-  SM.recordStackMap(MI);
+  auto &Ctx = OutStreamer.getContext();
+  MCSymbol *MILabel = Ctx.createTempSymbol();
+  OutStreamer.EmitLabel(MILabel);
+
+  SM.recordStackMap(*MILabel, MI);
   assert(NumNOPBytes % 4 == 0 && "Invalid number of NOP bytes requested!");
 
   // Scan ahead to trim the shadow.
@@ -820,7 +896,10 @@ void AArch64AsmPrinter::LowerSTACKMAP(MCStreamer &OutStreamer, StackMaps &SM,
 // [<def>], <id>, <numBytes>, <target>, <numArgs>
 void AArch64AsmPrinter::LowerPATCHPOINT(MCStreamer &OutStreamer, StackMaps &SM,
                                         const MachineInstr &MI) {
-  SM.recordPatchPoint(MI);
+  auto &Ctx = OutStreamer.getContext();
+  MCSymbol *MILabel = Ctx.createTempSymbol();
+  OutStreamer.EmitLabel(MILabel);
+  SM.recordPatchPoint(*MILabel, MI);
 
   PatchPointOpers Opers(&MI);
 
@@ -1219,7 +1298,7 @@ void AArch64AsmPrinter::EmitInstruction(const MachineInstr *MI) {
 }
 
 // Force static initialization.
-extern "C" void LLVMInitializeAArch64AsmPrinter() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeAArch64AsmPrinter() {
   RegisterAsmPrinter<AArch64AsmPrinter> X(getTheAArch64leTarget());
   RegisterAsmPrinter<AArch64AsmPrinter> Y(getTheAArch64beTarget());
   RegisterAsmPrinter<AArch64AsmPrinter> Z(getTheARM64Target());

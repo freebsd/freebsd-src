@@ -66,12 +66,12 @@ public:
     return 4 * TTI::TCC_Basic;
   }
 
-  int getIntImmCost(unsigned Opc, unsigned Idx, const APInt &Imm, Type *Ty) {
+  int getIntImmCostInst(unsigned Opc, unsigned Idx, const APInt &Imm, Type *Ty) {
     return getIntImmCost(Imm, Ty);
   }
 
-  int getIntImmCost(Intrinsic::ID IID, unsigned Idx, const APInt &Imm,
-                    Type *Ty) {
+  int getIntImmCostIntrin(Intrinsic::ID IID, unsigned Idx, const APInt &Imm,
+                          Type *Ty) {
     return getIntImmCost(Imm, Ty);
   }
 
@@ -81,7 +81,8 @@ public:
       TTI::OperandValueKind Opd2Info = TTI::OK_AnyValue,
       TTI::OperandValueProperties Opd1PropInfo = TTI::OP_None,
       TTI::OperandValueProperties Opd2PropInfo = TTI::OP_None,
-      ArrayRef<const Value *> Args = ArrayRef<const Value *>()) {
+      ArrayRef<const Value *> Args = ArrayRef<const Value *>(),
+      const Instruction *CxtI = nullptr) {
     int ISD = TLI->InstructionOpcodeToISD(Opcode);
 
     switch (ISD) {

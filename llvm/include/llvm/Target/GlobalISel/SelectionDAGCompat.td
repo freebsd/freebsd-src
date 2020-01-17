@@ -100,6 +100,7 @@ def : GINodeEquiv<G_CTTZ_ZERO_UNDEF, cttz_zero_undef>;
 def : GINodeEquiv<G_CTPOP, ctpop>;
 def : GINodeEquiv<G_EXTRACT_VECTOR_ELT, vector_extract>;
 def : GINodeEquiv<G_CONCAT_VECTORS, concat_vectors>;
+def : GINodeEquiv<G_BUILD_VECTOR, build_vector>;
 def : GINodeEquiv<G_FCEIL, fceil>;
 def : GINodeEquiv<G_FCOS, fcos>;
 def : GINodeEquiv<G_FSIN, fsin>;
@@ -108,6 +109,8 @@ def : GINodeEquiv<G_FSQRT, fsqrt>;
 def : GINodeEquiv<G_FFLOOR, ffloor>;
 def : GINodeEquiv<G_FRINT, frint>;
 def : GINodeEquiv<G_FNEARBYINT, fnearbyint>;
+def : GINodeEquiv<G_INTRINSIC_TRUNC, ftrunc>;
+def : GINodeEquiv<G_INTRINSIC_ROUND, fround>;
 def : GINodeEquiv<G_FCOPYSIGN, fcopysign>;
 def : GINodeEquiv<G_SMIN, smin>;
 def : GINodeEquiv<G_SMAX, smax>;
@@ -117,6 +120,7 @@ def : GINodeEquiv<G_FMINNUM, fminnum>;
 def : GINodeEquiv<G_FMAXNUM, fmaxnum>;
 def : GINodeEquiv<G_FMINNUM_IEEE, fminnum_ieee>;
 def : GINodeEquiv<G_FMAXNUM_IEEE, fmaxnum_ieee>;
+def : GINodeEquiv<G_READCYCLECOUNTER, readcyclecounter>;
 
 // Broadly speaking G_LOAD is equivalent to ISD::LOAD but there are some
 // complications that tablegen must take care of. For example, Predicates such

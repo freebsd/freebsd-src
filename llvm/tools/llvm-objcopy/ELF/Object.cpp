@@ -815,7 +815,8 @@ Error RelocationSection::removeSectionReferences(
   }
 
   for (const Relocation &R : Relocations) {
-    if (!R.RelocSymbol->DefinedIn || !ToRemove(R.RelocSymbol->DefinedIn))
+    if (!R.RelocSymbol || !R.RelocSymbol->DefinedIn ||
+        !ToRemove(R.RelocSymbol->DefinedIn))
       continue;
     return createStringError(llvm::errc::invalid_argument,
                              "section '%s' cannot be removed: (%s+0x%" PRIx64
@@ -868,7 +869,8 @@ static void writeRel(const RelRange &Relocations, T *Buf) {
   for (const auto &Reloc : Relocations) {
     Buf->r_offset = Reloc.Offset;
     setAddend(*Buf, Reloc.Addend);
-    Buf->setSymbolAndType(Reloc.RelocSymbol->Index, Reloc.Type, false);
+    Buf->setSymbolAndType(Reloc.RelocSymbol ? Reloc.RelocSymbol->Index : 0,
+                          Reloc.Type, false);
     ++Buf;
   }
 }
@@ -893,7 +895,7 @@ void RelocationSection::accept(MutableSectionVisitor &Visitor) {
 Error RelocationSection::removeSymbols(
     function_ref<bool(const Symbol &)> ToRemove) {
   for (const Relocation &Reloc : Relocations)
-    if (ToRemove(*Reloc.RelocSymbol))
+    if (Reloc.RelocSymbol && ToRemove(*Reloc.RelocSymbol))
       return createStringError(
           llvm::errc::invalid_argument,
           "not stripping symbol '%s' because it is named in a relocation",
@@ -903,7 +905,8 @@ Error RelocationSection::removeSymbols(
 
 void RelocationSection::markSymbols() {
   for (const Relocation &Reloc : Relocations)
-    Reloc.RelocSymbol->Referenced = true;
+    if (Reloc.RelocSymbol)
+      Reloc.RelocSymbol->Referenced = true;
 }
 
 void RelocationSection::replaceSectionReferences(
@@ -1006,7 +1009,7 @@ void GnuDebugLinkSection::init(StringRef File) {
   Size = alignTo(FileName.size() + 1, 4) + 4;
   // The CRC32 will only be aligned if we align the whole section.
   Align = 4;
-  Type = ELF::SHT_PROGBITS;
+  Type = OriginalType = ELF::SHT_PROGBITS;
   Name = ".gnu_debuglink";
   // For sections not found in segments, OriginalOffset is only used to
   // establish the order that sections should go in. By using the maximum
@@ -1418,7 +1421,15 @@ static void initRelocations(RelocationSection *Relocs,
     ToAdd.Offset = Rel.r_offset;
     getAddend(ToAdd.Addend, Rel);
     ToAdd.Type = Rel.getType(false);
-    ToAdd.RelocSymbol = SymbolTable->getSymbolByIndex(Rel.getSymbol(false));
+
+    if (uint32_t Sym = Rel.getSymbol(false)) {
+      if (!SymbolTable)
+        error("'" + Relocs->Name +
+              "': relocation references symbol with index " + Twine(Sym) +
+              ", but there is no symbol table");
+      ToAdd.RelocSymbol = SymbolTable->getSymbolByIndex(Sym);
+    }
+
     Relocs->addRelocation(ToAdd);
   }
 }
@@ -1510,8 +1521,8 @@ template <class ELFT> void ELFBuilder<ELFT>::readSectionHeaders() {
     }
     auto &Sec = makeSection(Shdr);
     Sec.Name = unwrapOrError(ElfFile.getSectionName(&Shdr));
-    Sec.Type = Shdr.sh_type;
-    Sec.Flags = Shdr.sh_flags;
+    Sec.Type = Sec.OriginalType = Shdr.sh_type;
+    Sec.Flags = Sec.OriginalFlags = Shdr.sh_flags;
     Sec.Addr = Shdr.sh_addr;
     Sec.Offset = Shdr.sh_offset;
     Sec.OriginalOffset = Shdr.sh_offset;
@@ -1528,6 +1539,21 @@ template <class ELFT> void ELFBuilder<ELFT>::readSectionHeaders() {
 }
 
 template <class ELFT> void ELFBuilder<ELFT>::readSections(bool EnsureSymtab) {
+  uint32_t ShstrIndex = ElfFile.getHeader()->e_shstrndx;
+  if (ShstrIndex == SHN_XINDEX)
+    ShstrIndex = unwrapOrError(ElfFile.getSection(0))->sh_link;
+
+  if (ShstrIndex == SHN_UNDEF)
+    Obj.HadShdrs = false;
+  else
+    Obj.SectionNames =
+        Obj.sections().template getSectionOfType<StringTableSection>(
+            ShstrIndex,
+            "e_shstrndx field value " + Twine(ShstrIndex) + " in elf header " +
+                " is invalid",
+            "e_shstrndx field value " + Twine(ShstrIndex) + " in elf header " +
+                " does not reference a string table");
+
   // If a section index table exists we'll need to initialize it before we
   // initialize the symbol table because the symbol table might need to
   // reference it.
@@ -1541,13 +1567,14 @@ template <class ELFT> void ELFBuilder<ELFT>::readSections(bool EnsureSymtab) {
     Obj.SymbolTable->initialize(Obj.sections());
     initSymbolTable(Obj.SymbolTable);
   } else if (EnsureSymtab) {
-    // Reuse the existing SHT_STRTAB section if exists.
+    // Reuse an existing SHT_STRTAB section if it exists.
     StringTableSection *StrTab = nullptr;
     for (auto &Sec : Obj.sections()) {
       if (Sec.Type == ELF::SHT_STRTAB && !(Sec.Flags & SHF_ALLOC)) {
         StrTab = static_cast<StringTableSection *>(&Sec);
 
-        // Prefer .strtab to .shstrtab.
+        // Prefer a string table that is not the section header string table, if
+        // such a table exists.
         if (Obj.SectionNames != &Sec)
           break;
       }
@@ -1582,21 +1609,6 @@ template <class ELFT> void ELFBuilder<ELFT>::readSections(bool EnsureSymtab) {
       initGroupSection(GroupSec);
     }
   }
-
-  uint32_t ShstrIndex = ElfFile.getHeader()->e_shstrndx;
-  if (ShstrIndex == SHN_XINDEX)
-    ShstrIndex = unwrapOrError(ElfFile.getSection(0))->sh_link;
-
-  if (ShstrIndex == SHN_UNDEF)
-    Obj.HadShdrs = false;
-  else
-    Obj.SectionNames =
-        Obj.sections().template getSectionOfType<StringTableSection>(
-            ShstrIndex,
-            "e_shstrndx field value " + Twine(ShstrIndex) + " in elf header " +
-                " is invalid",
-            "e_shstrndx field value " + Twine(ShstrIndex) + " in elf header " +
-                " is not a string table");
 }
 
 template <class ELFT> void ELFBuilder<ELFT>::build(bool EnsureSymtab) {
@@ -1785,10 +1797,9 @@ template <class ELFT> void ELFWriter<ELFT>::writeSectionData() {
 
 template <class ELFT> void ELFWriter<ELFT>::writeSegmentData() {
   for (Segment &Seg : Obj.segments()) {
-    uint8_t *B = Buf.getBufferStart() + Seg.Offset;
-    assert(Seg.FileSize == Seg.getContents().size() &&
-           "Segment size must match contents size");
-    std::memcpy(B, Seg.getContents().data(), Seg.FileSize);
+    size_t Size = std::min<size_t>(Seg.FileSize, Seg.getContents().size());
+    std::memcpy(Buf.getBufferStart() + Seg.Offset, Seg.getContents().data(),
+                Size);
   }
 
   // Iterate over removed sections and overwrite their old data with zeroes.
@@ -1803,8 +1814,10 @@ template <class ELFT> void ELFWriter<ELFT>::writeSegmentData() {
 }
 
 template <class ELFT>
-ELFWriter<ELFT>::ELFWriter(Object &Obj, Buffer &Buf, bool WSH)
-    : Writer(Obj, Buf), WriteSectionHeaders(WSH && Obj.HadShdrs) {}
+ELFWriter<ELFT>::ELFWriter(Object &Obj, Buffer &Buf, bool WSH,
+                           bool OnlyKeepDebug)
+    : Writer(Obj, Buf), WriteSectionHeaders(WSH && Obj.HadShdrs),
+      OnlyKeepDebug(OnlyKeepDebug) {}
 
 Error Object::removeSections(bool AllowBrokenLinks,
     std::function<bool(const SectionBase &)> ToRemove) {
@@ -1945,6 +1958,78 @@ static uint64_t layoutSections(Range Sections, uint64_t Offset) {
   return Offset;
 }
 
+// Rewrite sh_offset after some sections are changed to SHT_NOBITS and thus
+// occupy no space in the file.
+static uint64_t layoutSectionsForOnlyKeepDebug(Object &Obj, uint64_t Off) {
+  uint32_t Index = 1;
+  for (auto &Sec : Obj.sections()) {
+    Sec.Index = Index++;
+
+    auto *FirstSec = Sec.ParentSegment && Sec.ParentSegment->Type == PT_LOAD
+                         ? Sec.ParentSegment->firstSection()
+                         : nullptr;
+
+    // The first section in a PT_LOAD has to have congruent offset and address
+    // modulo the alignment, which usually equals the maximum page size.
+    if (FirstSec && FirstSec == &Sec)
+      Off = alignTo(Off, Sec.ParentSegment->Align, Sec.Addr);
+
+    // sh_offset is not significant for SHT_NOBITS sections, but the congruence
+    // rule must be followed if it is the first section in a PT_LOAD. Do not
+    // advance Off.
+    if (Sec.Type == SHT_NOBITS) {
+      Sec.Offset = Off;
+      continue;
+    }
+
+    if (!FirstSec) {
+      // FirstSec being nullptr generally means that Sec does not have the
+      // SHF_ALLOC flag.
+      Off = Sec.Align ? alignTo(Off, Sec.Align) : Off;
+    } else if (FirstSec != &Sec) {
+      // The offset is relative to the first section in the PT_LOAD segment. Use
+      // sh_offset for non-SHF_ALLOC sections.
+      Off = Sec.OriginalOffset - FirstSec->OriginalOffset + FirstSec->Offset;
+    }
+    Sec.Offset = Off;
+    Off += Sec.Size;
+  }
+  return Off;
+}
+
+// Rewrite p_offset and p_filesz of non-empty non-PT_PHDR segments after
+// sh_offset values have been updated.
+static uint64_t layoutSegmentsForOnlyKeepDebug(std::vector<Segment *> &Segments,
+                                               uint64_t HdrEnd) {
+  uint64_t MaxOffset = 0;
+  for (Segment *Seg : Segments) {
+    const SectionBase *FirstSec = Seg->firstSection();
+    if (Seg->Type == PT_PHDR || !FirstSec)
+      continue;
+
+    uint64_t Offset = FirstSec->Offset;
+    uint64_t FileSize = 0;
+    for (const SectionBase *Sec : Seg->Sections) {
+      uint64_t Size = Sec->Type == SHT_NOBITS ? 0 : Sec->Size;
+      if (Sec->Offset + Size > Offset)
+        FileSize = std::max(FileSize, Sec->Offset + Size - Offset);
+    }
+
+    // If the segment includes EHDR and program headers, don't make it smaller
+    // than the headers.
+    if (Seg->Offset < HdrEnd && HdrEnd <= Seg->Offset + Seg->FileSize) {
+      FileSize += Offset - Seg->Offset;
+      Offset = Seg->Offset;
+      FileSize = std::max(FileSize, HdrEnd - Offset);
+    }
+
+    Seg->Offset = Offset;
+    Seg->FileSize = FileSize;
+    MaxOffset = std::max(MaxOffset, Offset + FileSize);
+  }
+  return MaxOffset;
+}
+
 template <class ELFT> void ELFWriter<ELFT>::initEhdrSegment() {
   Segment &ElfHdr = Obj.ElfHdrSegment;
   ElfHdr.Type = PT_PHDR;
@@ -1965,12 +2050,24 @@ template <class ELFT> void ELFWriter<ELFT>::assignOffsets() {
   OrderedSegments.push_back(&Obj.ElfHdrSegment);
   OrderedSegments.push_back(&Obj.ProgramHdrSegment);
   orderSegments(OrderedSegments);
-  // Offset is used as the start offset of the first segment to be laid out.
-  // Since the ELF Header (ElfHdrSegment) must be at the start of the file,
-  // we start at offset 0.
-  uint64_t Offset = 0;
-  Offset = layoutSegments(OrderedSegments, Offset);
-  Offset = layoutSections(Obj.sections(), Offset);
+
+  uint64_t Offset;
+  if (OnlyKeepDebug) {
+    // For --only-keep-debug, the sections that did not preserve contents were
+    // changed to SHT_NOBITS. We now rewrite sh_offset fields of sections, and
+    // then rewrite p_offset/p_filesz of program headers.
+    uint64_t HdrEnd =
+        sizeof(Elf_Ehdr) + llvm::size(Obj.segments()) * sizeof(Elf_Phdr);
+    Offset = layoutSectionsForOnlyKeepDebug(Obj, HdrEnd);
+    Offset = std::max(Offset,
+                      layoutSegmentsForOnlyKeepDebug(OrderedSegments, HdrEnd));
+  } else {
+    // Offset is used as the start offset of the first segment to be laid out.
+    // Since the ELF Header (ElfHdrSegment) must be at the start of the file,
+    // we start at offset 0.
+    Offset = layoutSegments(OrderedSegments, 0);
+    Offset = layoutSections(Obj.sections(), Offset);
+  }
   // If we need to write the section header table out then we need to align the
   // Offset so that SHOffset is valid.
   if (WriteSectionHeaders)
@@ -2156,38 +2253,28 @@ Error BinaryWriter::finalize() {
       std::unique(std::begin(OrderedSegments), std::end(OrderedSegments));
   OrderedSegments.erase(End, std::end(OrderedSegments));
 
-  uint64_t Offset = 0;
-
-  // Modify the first segment so that there is no gap at the start. This allows
-  // our layout algorithm to proceed as expected while not writing out the gap
-  // at the start.
-  if (!OrderedSegments.empty()) {
-    Segment *Seg = OrderedSegments[0];
-    const SectionBase *Sec = Seg->firstSection();
-    auto Diff = Sec->OriginalOffset - Seg->OriginalOffset;
-    Seg->OriginalOffset += Diff;
-    // The size needs to be shrunk as well.
-    Seg->FileSize -= Diff;
-    // The PAddr needs to be increased to remove the gap before the first
-    // section.
-    Seg->PAddr += Diff;
-    uint64_t LowestPAddr = Seg->PAddr;
-    for (Segment *Segment : OrderedSegments) {
-      Segment->Offset = Segment->PAddr - LowestPAddr;
-      Offset = std::max(Offset, Segment->Offset + Segment->FileSize);
-    }
+  // Compute the section LMA based on its sh_offset and the containing segment's
+  // p_offset and p_paddr. Also compute the minimum LMA of all sections as
+  // MinAddr. In the output, the contents between address 0 and MinAddr will be
+  // skipped.
+  uint64_t MinAddr = UINT64_MAX;
+  for (SectionBase &Sec : Obj.allocSections()) {
+    if (Sec.ParentSegment != nullptr)
+      Sec.Addr =
+          Sec.Offset - Sec.ParentSegment->Offset + Sec.ParentSegment->PAddr;
+    MinAddr = std::min(MinAddr, Sec.Addr);
   }
-
-  layoutSections(Obj.allocSections(), Offset);
 
   // Now that every section has been laid out we just need to compute the total
   // file size. This might not be the same as the offset returned by
   // layoutSections, because we want to truncate the last segment to the end of
   // its last section, to match GNU objcopy's behaviour.
   TotalSize = 0;
-  for (const SectionBase &Sec : Obj.allocSections())
+  for (SectionBase &Sec : Obj.allocSections()) {
+    Sec.Offset = Sec.Addr - MinAddr;
     if (Sec.Type != SHT_NOBITS)
       TotalSize = std::max(TotalSize, Sec.Offset + Sec.Size);
+  }
 
   if (Error E = Buf.allocate(TotalSize))
     return E;

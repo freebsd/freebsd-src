@@ -17,7 +17,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <type_traits>
 #include <utility>
 
 #include <assert.h>
@@ -317,9 +316,6 @@ bool BroadcastEventSpec::operator<(const BroadcastEventSpec &rhs) const {
   }
   return GetBroadcasterClass() < rhs.GetBroadcasterClass();
 }
-
-BroadcastEventSpec &BroadcastEventSpec::
-operator=(const BroadcastEventSpec &rhs) = default;
 
 BroadcasterManager::BroadcasterManager() : m_manager_mutex() {}
 

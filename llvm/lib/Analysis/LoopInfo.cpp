@@ -34,6 +34,7 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/PassManager.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -105,7 +106,8 @@ bool Loop::makeLoopInvariant(Instruction *I, bool &Changed,
   I->moveBefore(InsertPt);
   if (MSSAU)
     if (auto *MUD = MSSAU->getMemorySSA()->getMemoryAccess(I))
-      MSSAU->moveToPlace(MUD, InsertPt->getParent(), MemorySSA::End);
+      MSSAU->moveToPlace(MUD, InsertPt->getParent(),
+                         MemorySSA::BeforeTerminator);
 
   // There is possibility of hoisting this instruction above some arbitrary
   // condition. Any metadata defined on it can be control dependent on this
@@ -364,12 +366,11 @@ BranchInst *Loop::getLoopGuardBranch() const {
     return nullptr;
 
   BasicBlock *Preheader = getLoopPreheader();
-  BasicBlock *Latch = getLoopLatch();
-  assert(Preheader && Latch &&
+  assert(Preheader && getLoopLatch() &&
          "Expecting a loop with valid preheader and latch");
 
   // Loop should be in rotate form.
-  if (!isLoopExiting(Latch))
+  if (!isRotatedForm())
     return nullptr;
 
   // Disallow loops with more than one unique exit block, as we do not verify
@@ -1050,6 +1051,10 @@ MDNode *llvm::makePostTransformationMetadata(LLVMContext &Context,
 //===----------------------------------------------------------------------===//
 // LoopInfo implementation
 //
+
+LoopInfoWrapperPass::LoopInfoWrapperPass() : FunctionPass(ID) {
+  initializeLoopInfoWrapperPassPass(*PassRegistry::getPassRegistry());
+}
 
 char LoopInfoWrapperPass::ID = 0;
 INITIALIZE_PASS_BEGIN(LoopInfoWrapperPass, "loops", "Natural Loop Information",

@@ -37,6 +37,7 @@
 #include "llvm/MC/MCObjectFileInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MC/MCTargetOptions.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/COFF.h"
 #include "llvm/Object/COFFImportFile.h"
@@ -707,7 +708,7 @@ public:
     OS.indent(Column < TabStop - 1 ? TabStop - 1 - Column : 7 - Column % 8);
 
     if (MI)
-      IP.printInst(MI, OS, "", STI);
+      IP.printInst(MI, Address.Address, "", STI, OS);
     else
       OS << "\t<unknown>";
   }
@@ -743,7 +744,7 @@ public:
     std::string Buffer;
     {
       raw_string_ostream TempStream(Buffer);
-      IP.printInst(MI, TempStream, "", STI);
+      IP.printInst(MI, Address.Address, "", STI, TempStream);
     }
     StringRef Contents(Buffer);
     // Split off bundle attributes
@@ -810,7 +811,7 @@ public:
       SmallString<40> InstStr;
       raw_svector_ostream IS(InstStr);
 
-      IP.printInst(MI, IS, "", STI);
+      IP.printInst(MI, Address.Address, "", STI, IS);
 
       OS << left_justify(IS.str(), 60);
     } else {
@@ -864,7 +865,7 @@ public:
       dumpBytes(Bytes, OS);
     }
     if (MI)
-      IP.printInst(MI, OS, "", STI);
+      IP.printInst(MI, Address.Address, "", STI, OS);
     else
       OS << "\t<unknown>";
   }
@@ -1133,6 +1134,7 @@ static void disassembleObject(const Target *TheTarget, const ObjectFile *Obj,
   std::map<SectionRef, SectionSymbolsTy> AllSymbols;
   SectionSymbolsTy AbsoluteSymbols;
   const StringRef FileName = Obj->getFileName();
+  const MachOObjectFile *MachO = dyn_cast<const MachOObjectFile>(Obj);
   for (const SymbolRef &Symbol : Obj->symbols()) {
     uint64_t Address = unwrapOrError(Symbol.getAddress(), FileName);
 
@@ -1144,6 +1146,18 @@ static void disassembleObject(const Target *TheTarget, const ObjectFile *Obj,
     if (Obj->isELF()) {
       SymbolType = getElfSymbolType(Obj, Symbol);
       if (SymbolType == ELF::STT_SECTION)
+        continue;
+    }
+
+    // Don't ask a Mach-O STAB symbol for its section unless you know that 
+    // STAB symbol's section field refers to a valid section index. Otherwise
+    // the symbol may error trying to load a section that does not exist.
+    if (MachO) {
+      DataRefImpl SymDRI = Symbol.getRawDataRefImpl();
+      uint8_t NType = (MachO->is64Bit() ?
+                       MachO->getSymbol64TableEntry(SymDRI).n_type:
+                       MachO->getSymbolTableEntry(SymDRI).n_type);
+      if (NType & MachO::N_STAB)
         continue;
     }
 
@@ -1243,7 +1257,7 @@ static void disassembleObject(const Target *TheTarget, const ObjectFile *Obj,
     }
 
     StringRef SegmentName = "";
-    if (const MachOObjectFile *MachO = dyn_cast<const MachOObjectFile>(Obj)) {
+    if (MachO) {
       DataRefImpl DR = Section.getRawDataRefImpl();
       SegmentName = MachO->getSectionFinalSegmentName(DR);
     }
@@ -1339,16 +1353,10 @@ static void disassembleObject(const Target *TheTarget, const ObjectFile *Obj,
         continue;
       }
 
-#ifndef NDEBUG
-      raw_ostream &DebugOut = DebugFlag ? dbgs() : nulls();
-#else
-      raw_ostream &DebugOut = nulls();
-#endif
-
       // Some targets (like WebAssembly) have a special prelude at the start
       // of each symbol.
       DisAsm->onSymbolStart(SymbolName, Size, Bytes.slice(Start, End - Start),
-                            SectionAddr + Start, DebugOut, CommentStream);
+                            SectionAddr + Start, CommentStream);
       Start += Size;
 
       Index = Start;
@@ -1412,8 +1420,7 @@ static void disassembleObject(const Target *TheTarget, const ObjectFile *Obj,
         // provided
         MCInst Inst;
         bool Disassembled = DisAsm->getInstruction(
-            Inst, Size, Bytes.slice(Index), SectionAddr + Index, DebugOut,
-            CommentStream);
+            Inst, Size, Bytes.slice(Index), SectionAddr + Index, CommentStream);
         if (Size == 0)
           Size = 1;
 
@@ -1539,8 +1546,9 @@ static void disassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
                 "no register info for target " + TripleName);
 
   // Set up disassembler.
+  MCTargetOptions MCOptions;
   std::unique_ptr<const MCAsmInfo> AsmInfo(
-      TheTarget->createMCAsmInfo(*MRI, TripleName));
+      TheTarget->createMCAsmInfo(*MRI, TripleName, MCOptions));
   if (!AsmInfo)
     reportError(Obj->getFileName(),
                 "no assembly info for target " + TripleName);
@@ -1802,6 +1810,7 @@ void printSymbolTable(const ObjectFile *O, StringRef ArchiveName,
   }
 
   const StringRef FileName = O->getFileName();
+  const MachOObjectFile *MachO = dyn_cast<const MachOObjectFile>(O);
   for (auto I = O->symbol_begin(), E = O->symbol_end(); I != E; ++I) {
     const SymbolRef &Symbol = *I;
     uint64_t Address = unwrapOrError(Symbol.getAddress(), FileName, ArchiveName,
@@ -1811,8 +1820,23 @@ void printSymbolTable(const ObjectFile *O, StringRef ArchiveName,
     SymbolRef::Type Type = unwrapOrError(Symbol.getType(), FileName,
                                          ArchiveName, ArchitectureName);
     uint32_t Flags = Symbol.getFlags();
-    section_iterator Section = unwrapOrError(Symbol.getSection(), FileName,
+
+    // Don't ask a Mach-O STAB symbol for its section unless you know that 
+    // STAB symbol's section field refers to a valid section index. Otherwise
+    // the symbol may error trying to load a section that does not exist.
+    bool isSTAB = false;
+    if (MachO) {
+      DataRefImpl SymDRI = Symbol.getRawDataRefImpl();
+      uint8_t NType = (MachO->is64Bit() ?
+                       MachO->getSymbol64TableEntry(SymDRI).n_type:
+                       MachO->getSymbolTableEntry(SymDRI).n_type);
+      if (NType & MachO::N_STAB)
+        isSTAB = true;
+    }
+    section_iterator Section = isSTAB ? O->section_end() :
+                               unwrapOrError(Symbol.getSection(), FileName,
                                              ArchiveName, ArchitectureName);
+
     StringRef Name;
     if (Type == SymbolRef::ST_Debug && Section != O->section_end()) {
       if (Expected<StringRef> NameOrErr = Section->getName())

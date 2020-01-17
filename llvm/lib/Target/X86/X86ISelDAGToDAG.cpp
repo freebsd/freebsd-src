@@ -25,6 +25,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsX86.h"
 #include "llvm/IR/Type.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -335,7 +336,7 @@ namespace {
       // Do not want to hoist if we're not optimizing for size.
       // TODO: We'd like to remove this restriction.
       // See the comment in X86InstrInfo.td for more info.
-      if (!OptForSize)
+      if (!CurDAG->shouldOptForSize())
         return false;
 
       // Walk all the users of the immediate.
@@ -536,12 +537,17 @@ namespace {
 // type.
 static bool isLegalMaskCompare(SDNode *N, const X86Subtarget *Subtarget) {
   unsigned Opcode = N->getOpcode();
-  if (Opcode == X86ISD::CMPM || Opcode == ISD::SETCC ||
-      Opcode == X86ISD::CMPM_SAE || Opcode == X86ISD::VFPCLASS) {
+  if (Opcode == X86ISD::CMPM || Opcode == X86ISD::STRICT_CMPM ||
+      Opcode == ISD::SETCC || Opcode == X86ISD::CMPM_SAE ||
+      Opcode == X86ISD::VFPCLASS) {
     // We can get 256-bit 8 element types here without VLX being enabled. When
     // this happens we will use 512-bit operations and the mask will not be
     // zero extended.
     EVT OpVT = N->getOperand(0).getValueType();
+    // The first operand of X86ISD::STRICT_CMPM is chain, so we need to get the
+    // second operand.
+    if (Opcode == X86ISD::STRICT_CMPM)
+      OpVT = N->getOperand(1).getValueType();
     if (OpVT.is256BitVector() || OpVT.is128BitVector())
       return Subtarget->hasVLX();
 
@@ -573,6 +579,12 @@ X86DAGToDAGISel::IsProfitableToFold(SDValue N, SDNode *U, SDNode *Root) const {
   if (OptLevel == CodeGenOpt::None) return false;
 
   if (!N.hasOneUse())
+    return false;
+
+  // FIXME: Temporary hack to prevent strict floating point nodes from
+  // folding into masked operations illegally.
+  if (U == Root && Root->getOpcode() == ISD::VSELECT &&
+      N.getOpcode() != ISD::LOAD && N.getOpcode() != X86ISD::VBROADCAST_LOAD)
     return false;
 
   if (N.getOpcode() != ISD::LOAD)
@@ -804,8 +816,12 @@ void X86DAGToDAGISel::PreprocessISelDAG() {
     }
 
     switch (N->getOpcode()) {
+    case ISD::FP_ROUND:
+    case ISD::STRICT_FP_ROUND:
     case ISD::FP_TO_SINT:
-    case ISD::FP_TO_UINT: {
+    case ISD::FP_TO_UINT:
+    case ISD::STRICT_FP_TO_SINT:
+    case ISD::STRICT_FP_TO_UINT: {
       // Replace vector fp_to_s/uint with their X86 specific equivalent so we
       // don't need 2 sets of patterns.
       if (!N->getSimpleValueType(0).isVector())
@@ -814,13 +830,24 @@ void X86DAGToDAGISel::PreprocessISelDAG() {
       unsigned NewOpc;
       switch (N->getOpcode()) {
       default: llvm_unreachable("Unexpected opcode!");
-      case ISD::FP_TO_SINT: NewOpc = X86ISD::CVTTP2SI; break;
-      case ISD::FP_TO_UINT: NewOpc = X86ISD::CVTTP2UI; break;
+      case ISD::FP_ROUND:          NewOpc = X86ISD::VFPROUND;        break;
+      case ISD::STRICT_FP_ROUND:   NewOpc = X86ISD::STRICT_VFPROUND; break;
+      case ISD::STRICT_FP_TO_SINT: NewOpc = X86ISD::STRICT_CVTTP2SI; break;
+      case ISD::FP_TO_SINT:        NewOpc = X86ISD::CVTTP2SI;        break;
+      case ISD::STRICT_FP_TO_UINT: NewOpc = X86ISD::STRICT_CVTTP2UI; break;
+      case ISD::FP_TO_UINT:        NewOpc = X86ISD::CVTTP2UI;        break;
       }
-      SDValue Res = CurDAG->getNode(NewOpc, SDLoc(N), N->getValueType(0),
-                                    N->getOperand(0));
+      SDValue Res;
+      if (N->isStrictFPOpcode())
+        Res =
+            CurDAG->getNode(NewOpc, SDLoc(N), {N->getValueType(0), MVT::Other},
+                            {N->getOperand(0), N->getOperand(1)});
+      else
+        Res =
+            CurDAG->getNode(NewOpc, SDLoc(N), N->getValueType(0),
+                            N->getOperand(0));
       --I;
-      CurDAG->ReplaceAllUsesOfValueWith(SDValue(N, 0), Res);
+      CurDAG->ReplaceAllUsesWith(N, Res.getNode());
       ++I;
       CurDAG->DeleteNode(N);
       continue;
@@ -869,27 +896,45 @@ void X86DAGToDAGISel::PreprocessISelDAG() {
       continue;
     }
     case ISD::FCEIL:
+    case ISD::STRICT_FCEIL:
     case ISD::FFLOOR:
+    case ISD::STRICT_FFLOOR:
     case ISD::FTRUNC:
+    case ISD::STRICT_FTRUNC:
     case ISD::FNEARBYINT:
-    case ISD::FRINT: {
+    case ISD::STRICT_FNEARBYINT:
+    case ISD::FRINT:
+    case ISD::STRICT_FRINT: {
       // Replace fp rounding with their X86 specific equivalent so we don't
       // need 2 sets of patterns.
       unsigned Imm;
       switch (N->getOpcode()) {
       default: llvm_unreachable("Unexpected opcode!");
+      case ISD::STRICT_FCEIL:
       case ISD::FCEIL:      Imm = 0xA; break;
+      case ISD::STRICT_FFLOOR:
       case ISD::FFLOOR:     Imm = 0x9; break;
+      case ISD::STRICT_FTRUNC:
       case ISD::FTRUNC:     Imm = 0xB; break;
+      case ISD::STRICT_FNEARBYINT:
       case ISD::FNEARBYINT: Imm = 0xC; break;
+      case ISD::STRICT_FRINT:
       case ISD::FRINT:      Imm = 0x4; break;
       }
       SDLoc dl(N);
-      SDValue Res = CurDAG->getNode(
-          X86ISD::VRNDSCALE, dl, N->getValueType(0), N->getOperand(0),
-          CurDAG->getTargetConstant(Imm, dl, MVT::i8));
+      bool IsStrict = N->isStrictFPOpcode();
+      SDValue Res;
+      if (IsStrict)
+        Res = CurDAG->getNode(X86ISD::STRICT_VRNDSCALE, dl,
+                              {N->getValueType(0), MVT::Other},
+                              {N->getOperand(0), N->getOperand(1),
+                               CurDAG->getTargetConstant(Imm, dl, MVT::i8)});
+      else
+        Res = CurDAG->getNode(X86ISD::VRNDSCALE, dl, N->getValueType(0),
+                              N->getOperand(0),
+                              CurDAG->getTargetConstant(Imm, dl, MVT::i8));
       --I;
-      CurDAG->ReplaceAllUsesOfValueWith(SDValue(N, 0), Res);
+      CurDAG->ReplaceAllUsesWith(N, Res.getNode());
       ++I;
       CurDAG->DeleteNode(N);
       continue;
@@ -1017,12 +1062,7 @@ void X86DAGToDAGISel::PreprocessISelDAG() {
       // Here we could have an FP stack truncation or an FPStack <-> SSE convert.
       // FPStack has extload and truncstore.  SSE can fold direct loads into other
       // operations.  Based on this, decide what we want to do.
-      MVT MemVT;
-      if (N->getOpcode() == ISD::FP_ROUND)
-        MemVT = DstVT;  // FP_ROUND must use DstVT, we can't do a 'trunc load'.
-      else
-        MemVT = SrcIsSSE ? SrcVT : DstVT;
-
+      MVT MemVT = (N->getOpcode() == ISD::FP_ROUND) ? DstVT : SrcVT;
       SDValue MemTmp = CurDAG->CreateStackTemporary(MemVT);
       SDLoc dl(N);
 
@@ -1075,22 +1115,47 @@ void X86DAGToDAGISel::PreprocessISelDAG() {
       // Here we could have an FP stack truncation or an FPStack <-> SSE convert.
       // FPStack has extload and truncstore.  SSE can fold direct loads into other
       // operations.  Based on this, decide what we want to do.
-      MVT MemVT;
-      if (N->getOpcode() == ISD::STRICT_FP_ROUND)
-        MemVT = DstVT;  // FP_ROUND must use DstVT, we can't do a 'trunc load'.
-      else
-        MemVT = SrcIsSSE ? SrcVT : DstVT;
-
+      MVT MemVT = (N->getOpcode() == ISD::STRICT_FP_ROUND) ? DstVT : SrcVT;
       SDValue MemTmp = CurDAG->CreateStackTemporary(MemVT);
       SDLoc dl(N);
 
       // FIXME: optimize the case where the src/dest is a load or store?
 
       //Since the operation is StrictFP, use the preexisting chain.
-      SDValue Store = CurDAG->getTruncStore(N->getOperand(0), dl, N->getOperand(1),
-                                MemTmp, MachinePointerInfo(), MemVT);
-      SDValue Result = CurDAG->getExtLoad(ISD::EXTLOAD, dl, DstVT, Store, MemTmp,
-                                          MachinePointerInfo(), MemVT);
+      SDValue Store, Result;
+      if (!SrcIsSSE) {
+        SDVTList VTs = CurDAG->getVTList(MVT::Other);
+        SDValue Ops[] = {N->getOperand(0), N->getOperand(1), MemTmp};
+        Store = CurDAG->getMemIntrinsicNode(X86ISD::FST, dl, VTs, Ops, MemVT,
+                                            MachinePointerInfo(), 0,
+                                            MachineMemOperand::MOStore);
+        if (N->getFlags().hasNoFPExcept()) {
+          SDNodeFlags Flags = Store->getFlags();
+          Flags.setNoFPExcept(true);
+          Store->setFlags(Flags);
+        }
+      } else {
+        assert(SrcVT == MemVT && "Unexpected VT!");
+        Store = CurDAG->getStore(N->getOperand(0), dl, N->getOperand(1), MemTmp,
+                                 MachinePointerInfo());
+      }
+
+      if (!DstIsSSE) {
+        SDVTList VTs = CurDAG->getVTList(DstVT, MVT::Other);
+        SDValue Ops[] = {Store, MemTmp};
+        Result = CurDAG->getMemIntrinsicNode(X86ISD::FLD, dl, VTs, Ops, MemVT,
+                                             MachinePointerInfo(), 0,
+                                             MachineMemOperand::MOLoad);
+        if (N->getFlags().hasNoFPExcept()) {
+          SDNodeFlags Flags = Result->getFlags();
+          Flags.setNoFPExcept(true);
+          Result->setFlags(Flags);
+        }
+      } else {
+        assert(DstVT == MemVT && "Unexpected VT!");
+        Result =
+            CurDAG->getLoad(DstVT, dl, Store, MemTmp, MachinePointerInfo());
+      }
 
       // We're about to replace all uses of the FP_ROUND/FP_EXTEND with the
       // extload we created.  This will cause general havok on the dag because
@@ -2224,12 +2289,11 @@ bool X86DAGToDAGISel::selectVectorAddr(SDNode *Parent, SDValue N, SDValue &Base,
   AM.Scale = cast<ConstantSDNode>(Mgs->getScale())->getZExtValue();
 
   unsigned AddrSpace = cast<MemSDNode>(Parent)->getPointerInfo().getAddrSpace();
-  // AddrSpace 256 -> GS, 257 -> FS, 258 -> SS.
-  if (AddrSpace == 256)
+  if (AddrSpace == X86AS::GS)
     AM.Segment = CurDAG->getRegister(X86::GS, MVT::i16);
-  if (AddrSpace == 257)
+  if (AddrSpace == X86AS::FS)
     AM.Segment = CurDAG->getRegister(X86::FS, MVT::i16);
-  if (AddrSpace == 258)
+  if (AddrSpace == X86AS::SS)
     AM.Segment = CurDAG->getRegister(X86::SS, MVT::i16);
 
   SDLoc DL(N);
@@ -3019,7 +3083,7 @@ bool X86DAGToDAGISel::foldLoadStoreIntoMemOperand(SDNode *Node) {
    LLVM_FALLTHROUGH;
   case X86ISD::ADD:
     // Try to match inc/dec.
-    if (!Subtarget->slowIncDec() || OptForSize) {
+    if (!Subtarget->slowIncDec() || CurDAG->shouldOptForSize()) {
       bool IsOne = isOneConstant(StoredVal.getOperand(1));
       bool IsNegOne = isAllOnesConstant(StoredVal.getOperand(1));
       // ADD/SUB with 1/-1 and carry flag isn't used can use inc/dec.
@@ -4410,6 +4474,8 @@ void X86DAGToDAGISel::Select(SDNode *Node) {
         ReplaceNode(Node, CNode);
         return;
       }
+
+      break;
     }
     }
 
@@ -5094,6 +5160,17 @@ void X86DAGToDAGISel::Select(SDNode *Node) {
       MachineSDNode *NewNode;
       SDValue Tmp0, Tmp1, Tmp2, Tmp3, Tmp4;
       if (tryFoldLoad(Node, N0.getNode(), Reg, Tmp0, Tmp1, Tmp2, Tmp3, Tmp4)) {
+        if (auto *LoadN = dyn_cast<LoadSDNode>(N0.getOperand(0).getNode())) {
+          if (!LoadN->isSimple()) {
+            unsigned NumVolBits = LoadN->getValueType(0).getSizeInBits();
+            if (MOpc == X86::TEST8mi && NumVolBits != 8)
+              break;
+            else if (MOpc == X86::TEST16mi && NumVolBits != 16)
+              break;
+            else if (MOpc == X86::TEST32mi && NumVolBits != 32)
+              break;
+          }
+        }
         SDValue Ops[] = { Tmp0, Tmp1, Tmp2, Tmp3, Tmp4, Imm,
                           Reg.getOperand(0) };
         NewNode = CurDAG->getMachineNode(MOpc, dl, MVT::i32, MVT::Other, Ops);
@@ -5190,34 +5267,6 @@ void X86DAGToDAGISel::Select(SDNode *Node) {
     if (foldLoadStoreIntoMemOperand(Node))
       return;
     break;
-  case ISD::FCEIL:
-  case ISD::FFLOOR:
-  case ISD::FTRUNC:
-  case ISD::FNEARBYINT:
-  case ISD::FRINT: {
-    // Replace fp rounding with their X86 specific equivalent so we don't
-    // need 2 sets of patterns.
-    // FIXME: This can only happen when the nodes started as STRICT_* and have
-    // been mutated into their non-STRICT equivalents. Eventually this
-    // mutation will be removed and we should switch the STRICT_ nodes to a
-    // strict version of RNDSCALE in PreProcessISelDAG.
-    unsigned Imm;
-    switch (Node->getOpcode()) {
-    default: llvm_unreachable("Unexpected opcode!");
-    case ISD::FCEIL:      Imm = 0xA; break;
-    case ISD::FFLOOR:     Imm = 0x9; break;
-    case ISD::FTRUNC:     Imm = 0xB; break;
-    case ISD::FNEARBYINT: Imm = 0xC; break;
-    case ISD::FRINT:      Imm = 0x4; break;
-    }
-    SDLoc dl(Node);
-    SDValue Res = CurDAG->getNode(X86ISD::VRNDSCALE, dl, Node->getValueType(0),
-                                  Node->getOperand(0),
-                                  CurDAG->getTargetConstant(Imm, dl, MVT::i8));
-    ReplaceNode(Node, Res.getNode());
-    SelectCode(Res.getNode());
-    return;
-  }
   }
 
   SelectCode(Node);
@@ -5230,10 +5279,6 @@ SelectInlineAsmMemoryOperand(const SDValue &Op, unsigned ConstraintID,
   switch (ConstraintID) {
   default:
     llvm_unreachable("Unexpected asm memory constraint");
-  case InlineAsm::Constraint_i:
-    // FIXME: It seems strange that 'i' is needed here since it's supposed to
-    //        be an immediate and not a memory constraint.
-    LLVM_FALLTHROUGH;
   case InlineAsm::Constraint_o: // offsetable        ??
   case InlineAsm::Constraint_v: // not offsetable    ??
   case InlineAsm::Constraint_m: // memory

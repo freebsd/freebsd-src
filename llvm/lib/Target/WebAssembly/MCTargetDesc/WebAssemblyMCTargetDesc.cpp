@@ -35,8 +35,9 @@ using namespace llvm;
 #include "WebAssemblyGenRegisterInfo.inc"
 
 static MCAsmInfo *createMCAsmInfo(const MCRegisterInfo & /*MRI*/,
-                                  const Triple &TT) {
-  return new WebAssemblyMCAsmInfo(TT);
+                                  const Triple &TT,
+                                  const MCTargetOptions &Options) {
+  return new WebAssemblyMCAsmInfo(TT, Options);
 }
 
 static MCInstrInfo *createMCInstrInfo() {
@@ -95,7 +96,7 @@ static MCTargetStreamer *createNullTargetStreamer(MCStreamer &S) {
 }
 
 // Force static initialization.
-extern "C" void LLVMInitializeWebAssemblyTargetMC() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeWebAssemblyTargetMC() {
   for (Target *T :
        {&getTheWebAssemblyTarget32(), &getTheWebAssemblyTarget64()}) {
     // Register the MC asm info.

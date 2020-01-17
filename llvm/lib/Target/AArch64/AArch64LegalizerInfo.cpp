@@ -59,7 +59,7 @@ AArch64LegalizerInfo::AArch64LegalizerInfo(const AArch64Subtarget &ST) {
   }
 
   getActionDefinitionsBuilder(G_IMPLICIT_DEF)
-    .legalFor({p0, s1, s8, s16, s32, s64, v4s32, v2s64})
+    .legalFor({p0, s1, s8, s16, s32, s64, v2s32, v4s32, v2s64})
     .clampScalar(0, s1, s64)
     .widenScalarToNextPow2(0, 8)
     .fewerElementsIf(
@@ -104,7 +104,7 @@ AArch64LegalizerInfo::AArch64LegalizerInfo(const AArch64Subtarget &ST) {
     .moreElementsToNextPow2(0)
     .minScalarSameAs(1, 0);
 
-  getActionDefinitionsBuilder(G_GEP)
+  getActionDefinitionsBuilder(G_PTR_ADD)
       .legalFor({{p0, s64}})
       .clampScalar(1, s64, s64);
 
@@ -143,7 +143,8 @@ AArch64LegalizerInfo::AArch64LegalizerInfo(const AArch64Subtarget &ST) {
   getActionDefinitionsBuilder({G_SMULH, G_UMULH}).legalFor({s32, s64});
 
   getActionDefinitionsBuilder({G_UADDE, G_USUBE, G_SADDO, G_SSUBO, G_UADDO})
-      .legalFor({{s32, s1}, {s64, s1}});
+      .legalFor({{s32, s1}, {s64, s1}})
+      .minScalar(0, s32);
 
   getActionDefinitionsBuilder({G_FADD, G_FSUB, G_FMUL, G_FDIV, G_FNEG})
     .legalFor({s32, s64, v2s64, v4s32, v2s32});
@@ -743,7 +744,7 @@ bool AArch64LegalizerInfo::legalizeVaArg(MachineInstr &MI,
     // Realign the list to the actual required alignment.
     auto AlignMinus1 = MIRBuilder.buildConstant(IntPtrTy, Align - 1);
 
-    auto ListTmp = MIRBuilder.buildGEP(PtrTy, List, AlignMinus1.getReg(0));
+    auto ListTmp = MIRBuilder.buildPtrAdd(PtrTy, List, AlignMinus1.getReg(0));
 
     DstPtr = MRI.createGenericVirtualRegister(PtrTy);
     MIRBuilder.buildPtrMask(DstPtr, ListTmp, Log2_64(Align));
@@ -758,7 +759,7 @@ bool AArch64LegalizerInfo::legalizeVaArg(MachineInstr &MI,
 
   auto Size = MIRBuilder.buildConstant(IntPtrTy, alignTo(ValSize, PtrSize));
 
-  auto NewList = MIRBuilder.buildGEP(PtrTy, DstPtr, Size.getReg(0));
+  auto NewList = MIRBuilder.buildPtrAdd(PtrTy, DstPtr, Size.getReg(0));
 
   MIRBuilder.buildStore(
       NewList, ListPtr,

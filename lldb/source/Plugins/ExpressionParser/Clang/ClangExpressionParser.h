@@ -42,7 +42,7 @@ public:
   ///
   /// Initializes class variables.
   ///
-  /// \param[in] exe_scope,
+  /// \param[in] exe_scope
   ///     If non-NULL, an execution context scope that can help to
   ///     correctly create an expression with a valid process for
   ///     optional tuning Objective-C runtime support. Can be NULL.
@@ -77,7 +77,7 @@ public:
   /// \return
   ///     The number of errors encountered during parsing.  0 means
   ///     success.
-  unsigned Parse(DiagnosticManager &diagnostic_manager) override;
+  unsigned Parse(DiagnosticManager &diagnostic_manager);
 
   bool RewriteExpression(DiagnosticManager &diagnostic_manager) override;
 
@@ -98,15 +98,6 @@ public:
   ///
   /// \param[in] exe_ctx
   ///     The execution context to write the function into.
-  ///
-  /// \param[out] evaluated_statically
-  ///     Set to true if the expression could be interpreted statically;
-  ///     untouched otherwise.
-  ///
-  /// \param[out] const_result
-  ///     If the result of the expression is constant, and the
-  ///     expression has no side effects, this is set to the result of the
-  ///     expression.
   ///
   /// \param[in] execution_policy
   ///     Determines whether the expression must be JIT-compiled, must be

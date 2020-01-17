@@ -308,10 +308,11 @@ void BTFTypeFuncProto::emitType(MCStreamer &OS) {
   }
 }
 
-BTFTypeFunc::BTFTypeFunc(StringRef FuncName, uint32_t ProtoTypeId)
+BTFTypeFunc::BTFTypeFunc(StringRef FuncName, uint32_t ProtoTypeId,
+    uint32_t Scope)
     : Name(FuncName) {
   Kind = BTF::BTF_KIND_FUNC;
-  BTFType.Info = Kind << 24;
+  BTFType.Info = (Kind << 24) | Scope;
   BTFType.Type = ProtoTypeId;
 }
 
@@ -897,8 +898,9 @@ void BTFDebug::beginFunctionImpl(const MachineFunction *MF) {
   visitSubroutineType(SP->getType(), true, FuncArgNames, ProtoTypeId);
 
   // Construct subprogram func type
+  uint8_t Scope = SP->isLocalToUnit() ? BTF::FUNC_STATIC : BTF::FUNC_GLOBAL;
   auto FuncTypeEntry =
-      std::make_unique<BTFTypeFunc>(SP->getName(), ProtoTypeId);
+      std::make_unique<BTFTypeFunc>(SP->getName(), ProtoTypeId, Scope);
   uint32_t FuncTypeId = addType(std::move(FuncTypeEntry));
 
   for (const auto &TypeEntry : TypeEntries)
@@ -937,9 +939,8 @@ unsigned BTFDebug::populateStructType(const DIType *Ty) {
 }
 
 /// Generate a struct member field relocation.
-void BTFDebug::generateFieldReloc(const MachineInstr *MI,
-                                   const MCSymbol *ORSym, DIType *RootTy,
-                                   StringRef AccessPattern) {
+void BTFDebug::generateFieldReloc(const MCSymbol *ORSym, DIType *RootTy,
+                                  StringRef AccessPattern) {
   unsigned RootId = populateStructType(RootTy);
   size_t FirstDollar = AccessPattern.find_first_of('$');
   size_t FirstColon = AccessPattern.find_first_of(':');
@@ -959,33 +960,8 @@ void BTFDebug::generateFieldReloc(const MachineInstr *MI,
   FieldRelocTable[SecNameOff].push_back(FieldReloc);
 }
 
-void BTFDebug::processLDimm64(const MachineInstr *MI) {
-  // If the insn is an LD_imm64, the following two cases
-  // will generate an .BTF.ext record.
-  //
-  // If the insn is "r2 = LD_imm64 @__BTF_...",
-  // add this insn into the .BTF.ext FieldReloc subsection.
-  // Relocation looks like:
-  //  . SecName:
-  //    . InstOffset
-  //    . TypeID
-  //    . OffSetNameOff
-  // Later, the insn is replaced with "r2 = <offset>"
-  // where "<offset>" equals to the offset based on current
-  // type definitions.
-  //
-  // If the insn is "r2 = LD_imm64 @VAR" and VAR is
-  // a patchable external global, add this insn into the .BTF.ext
-  // ExternReloc subsection.
-  // Relocation looks like:
-  //  . SecName:
-  //    . InstOffset
-  //    . ExternNameOff
-  // Later, the insn is replaced with "r2 = <value>" or
-  // "LD_imm64 r2, <value>" where "<value>" = 0.
-
+void BTFDebug::processReloc(const MachineOperand &MO) {
   // check whether this is a candidate or not
-  const MachineOperand &MO = MI->getOperand(1);
   if (MO.isGlobal()) {
     const GlobalValue *GVal = MO.getGlobal();
     auto *GVar = dyn_cast<GlobalVariable>(GVal);
@@ -995,7 +971,7 @@ void BTFDebug::processLDimm64(const MachineInstr *MI) {
 
       MDNode *MDN = GVar->getMetadata(LLVMContext::MD_preserve_access_index);
       DIType *Ty = dyn_cast<DIType>(MDN);
-      generateFieldReloc(MI, ORSym, Ty, GVar->getName());
+      generateFieldReloc(ORSym, Ty, GVar->getName());
     }
   }
 }
@@ -1020,8 +996,31 @@ void BTFDebug::beginInstruction(const MachineInstr *MI) {
       return;
   }
 
-  if (MI->getOpcode() == BPF::LD_imm64)
-    processLDimm64(MI);
+  if (MI->getOpcode() == BPF::LD_imm64) {
+    // If the insn is "r2 = LD_imm64 @<an AmaAttr global>",
+    // add this insn into the .BTF.ext FieldReloc subsection.
+    // Relocation looks like:
+    //  . SecName:
+    //    . InstOffset
+    //    . TypeID
+    //    . OffSetNameOff
+    //    . RelocType
+    // Later, the insn is replaced with "r2 = <offset>"
+    // where "<offset>" equals to the offset based on current
+    // type definitions.
+    processReloc(MI->getOperand(1));
+  } else if (MI->getOpcode() == BPF::CORE_MEM ||
+             MI->getOpcode() == BPF::CORE_ALU32_MEM ||
+             MI->getOpcode() == BPF::CORE_SHIFT) {
+    // relocation insn is a load, store or shift insn.
+    processReloc(MI->getOperand(3));
+  } else if (MI->getOpcode() == BPF::JAL) {
+    // check extern function references
+    const MachineOperand &MO = MI->getOperand(0);
+    if (MO.isGlobal()) {
+      processFuncPrototypes(dyn_cast<Function>(MO.getGlobal()));
+    }
+  }
 
   // Skip this instruction if no DebugLoc or the DebugLoc
   // is the same as the previous instruction.
@@ -1055,20 +1054,20 @@ void BTFDebug::processGlobals(bool ProcessingMapDef) {
   // Collect all types referenced by globals.
   const Module *M = MMI->getModule();
   for (const GlobalVariable &Global : M->globals()) {
-    // Ignore external globals for now.
-    if (!Global.hasInitializer() && Global.hasExternalLinkage())
-      continue;
-
     // Decide the section name.
     StringRef SecName;
     if (Global.hasSection()) {
       SecName = Global.getSection();
-    } else {
+    } else if (Global.hasInitializer()) {
       // data, bss, or readonly sections
       if (Global.isConstant())
         SecName = ".rodata";
       else
         SecName = Global.getInitializer()->isZeroValue() ? ".bss" : ".data";
+    } else {
+      // extern variables without explicit section,
+      // put them into ".extern" section.
+      SecName = ".extern";
     }
 
     if (ProcessingMapDef != SecName.startswith(".maps"))
@@ -1076,6 +1075,11 @@ void BTFDebug::processGlobals(bool ProcessingMapDef) {
 
     SmallVector<DIGlobalVariableExpression *, 1> GVs;
     Global.getDebugInfo(GVs);
+
+    // No type information, mostly internal, skip it.
+    if (GVs.size() == 0)
+      continue;
+
     uint32_t GVTypeId = 0;
     for (auto *GVE : GVs) {
       if (SecName.startswith(".maps"))
@@ -1087,24 +1091,32 @@ void BTFDebug::processGlobals(bool ProcessingMapDef) {
 
     // Only support the following globals:
     //  . static variables
-    //  . non-static global variables with section attributes
-    // Essentially means:
-    //  . .bcc/.data/.rodata DataSec entities only contain static data
-    //  . Other DataSec entities contain static or initialized global data.
-    //    Initialized global data are mostly used for finding map key/value type
-    //    id's. Whether DataSec is readonly or not can be found from
-    //    corresponding ELF section flags.
+    //  . non-static weak or non-weak global variables
+    //  . weak or non-weak extern global variables
+    // Whether DataSec is readonly or not can be found from corresponding ELF
+    // section flags. Whether a BTF_KIND_VAR is a weak symbol or not
+    // can be found from the corresponding ELF symbol table.
     auto Linkage = Global.getLinkage();
     if (Linkage != GlobalValue::InternalLinkage &&
-        (Linkage != GlobalValue::ExternalLinkage || !Global.hasSection()))
+        Linkage != GlobalValue::ExternalLinkage &&
+        Linkage != GlobalValue::WeakAnyLinkage &&
+        Linkage != GlobalValue::ExternalWeakLinkage)
       continue;
 
-    uint32_t GVarInfo = Linkage == GlobalValue::ExternalLinkage
-                            ? BTF::VAR_GLOBAL_ALLOCATED
-                            : BTF::VAR_STATIC;
+    uint32_t GVarInfo;
+    if (Linkage == GlobalValue::InternalLinkage) {
+      GVarInfo = BTF::VAR_STATIC;
+    } else if (Global.hasInitializer()) {
+      GVarInfo = BTF::VAR_GLOBAL_ALLOCATED;
+    } else {
+      GVarInfo = BTF::VAR_GLOBAL_EXTERNAL;
+    }
+
     auto VarEntry =
         std::make_unique<BTFKindVar>(Global.getName(), GVTypeId, GVarInfo);
     uint32_t VarId = addType(std::move(VarEntry));
+
+    assert(!SecName.empty());
 
     // Find or create a DataSec
     if (DataSecEntries.find(SecName) == DataSecEntries.end()) {
@@ -1135,8 +1147,50 @@ bool BTFDebug::InstLower(const MachineInstr *MI, MCInst &OutMI) {
         return true;
       }
     }
+  } else if (MI->getOpcode() == BPF::CORE_MEM ||
+             MI->getOpcode() == BPF::CORE_ALU32_MEM ||
+             MI->getOpcode() == BPF::CORE_SHIFT) {
+    const MachineOperand &MO = MI->getOperand(3);
+    if (MO.isGlobal()) {
+      const GlobalValue *GVal = MO.getGlobal();
+      auto *GVar = dyn_cast<GlobalVariable>(GVal);
+      if (GVar && GVar->hasAttribute(BPFCoreSharedInfo::AmaAttr)) {
+        uint32_t Imm = PatchImms[GVar->getName().str()];
+        OutMI.setOpcode(MI->getOperand(1).getImm());
+        if (MI->getOperand(0).isImm())
+          OutMI.addOperand(MCOperand::createImm(MI->getOperand(0).getImm()));
+        else
+          OutMI.addOperand(MCOperand::createReg(MI->getOperand(0).getReg()));
+        OutMI.addOperand(MCOperand::createReg(MI->getOperand(2).getReg()));
+        OutMI.addOperand(MCOperand::createImm(Imm));
+        return true;
+      }
+    }
   }
   return false;
+}
+
+void BTFDebug::processFuncPrototypes(const Function *F) {
+  if (!F)
+    return;
+
+  const DISubprogram *SP = F->getSubprogram();
+  if (!SP || SP->isDefinition())
+    return;
+
+  // Do not emit again if already emitted.
+  if (ProtoFunctions.find(F) != ProtoFunctions.end())
+    return;
+  ProtoFunctions.insert(F);
+
+  uint32_t ProtoTypeId;
+  const std::unordered_map<uint32_t, StringRef> FuncArgNames;
+  visitSubroutineType(SP->getType(), false, FuncArgNames, ProtoTypeId);
+
+  uint8_t Scope = BTF::FUNC_EXTERN;
+  auto FuncTypeEntry =
+      std::make_unique<BTFTypeFunc>(SP->getName(), ProtoTypeId, Scope);
+  addType(std::move(FuncTypeEntry));
 }
 
 void BTFDebug::endModule() {
@@ -1148,6 +1202,7 @@ void BTFDebug::endModule() {
 
   // Collect global types/variables except MapDef globals.
   processGlobals(false);
+
   for (auto &DataSec : DataSecEntries)
     addType(std::move(DataSec.second));
 

@@ -404,8 +404,8 @@ Target::CreateAddressInModuleBreakpoint(lldb::addr_t file_addr, bool internal,
                                         bool request_hardware) {
   SearchFilterSP filter_sp(
       new SearchFilterForUnconstrainedSearches(shared_from_this()));
-  BreakpointResolverSP resolver_sp(
-      new BreakpointResolverAddress(nullptr, file_addr, file_spec));
+  BreakpointResolverSP resolver_sp(new BreakpointResolverAddress(
+      nullptr, file_addr, file_spec ? *file_spec : FileSpec()));
   return CreateBreakpoint(filter_sp, resolver_sp, internal, request_hardware,
                           false);
 }
@@ -728,11 +728,17 @@ void Target::ConfigureBreakpointName(
 }
 
 void Target::ApplyNameToBreakpoints(BreakpointName &bp_name) {
-  BreakpointList bkpts_with_name(false);
-  m_breakpoint_list.FindBreakpointsByName(bp_name.GetName().AsCString(),
-                                          bkpts_with_name);
+  llvm::Expected<std::vector<BreakpointSP>> expected_vector =
+      m_breakpoint_list.FindBreakpointsByName(bp_name.GetName().AsCString());
 
-  for (auto bp_sp : bkpts_with_name.Breakpoints())
+  if (!expected_vector) {
+    LLDB_LOG(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_BREAKPOINTS),
+             "invalid breakpoint name: {}",
+             llvm::toString(expected_vector.takeError()));
+    return;
+  }
+
+  for (auto bp_sp : *expected_vector)
     bp_name.ConfigureBreakpoint(bp_sp);
 }
 
@@ -1425,8 +1431,7 @@ void Target::SetExecutableModule(ModuleSP &executable_sp,
       ModuleList added_modules;
       executable_objfile->GetDependentModules(dependent_files);
       for (uint32_t i = 0; i < dependent_files.GetSize(); i++) {
-        FileSpec dependent_file_spec(
-            dependent_files.GetFileSpecPointerAtIndex(i));
+        FileSpec dependent_file_spec(dependent_files.GetFileSpecAtIndex(i));
         FileSpec platform_dependent_file_spec;
         if (m_platform_sp)
           m_platform_sp->GetFileWithUUID(dependent_file_spec, nullptr,
@@ -2251,20 +2256,6 @@ Target::GetUtilityFunctionForLanguage(const char *text,
         Language::GetNameForLanguageType(language));
 
   return utility_fn;
-}
-
-ClangASTContext *Target::GetScratchClangASTContext(bool create_on_demand) {
-  if (!m_valid)
-    return nullptr;
-
-  auto type_system_or_err =
-          GetScratchTypeSystemForLanguage(eLanguageTypeC, create_on_demand);
-  if (auto err = type_system_or_err.takeError()) {
-    LLDB_LOG_ERROR(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_TARGET),
-                   std::move(err), "Couldn't get scratch ClangASTContext");
-    return nullptr;
-  }
-  return llvm::dyn_cast<ClangASTContext>(&type_system_or_err.get());
 }
 
 ClangASTImporterSP Target::GetClangASTImporter() {
@@ -3177,7 +3168,7 @@ void Target::StopHook::SetThreadSpecifier(ThreadSpec *specifier) {
 
 void Target::StopHook::GetDescription(Stream *s,
                                       lldb::DescriptionLevel level) const {
-  int indent_level = s->GetIndentLevel();
+  unsigned indent_level = s->GetIndentLevel();
 
   s->SetIndentLevel(indent_level + 2);
 
@@ -3470,29 +3461,24 @@ TargetProperties::TargetProperties(Target *target)
     // Set callbacks to update launch_info whenever "settins set" updated any
     // of these properties
     m_collection_sp->SetValueChangedCallback(
-        ePropertyArg0, TargetProperties::Arg0ValueChangedCallback, this);
+        ePropertyArg0, [this] { Arg0ValueChangedCallback(); });
     m_collection_sp->SetValueChangedCallback(
-        ePropertyRunArgs, TargetProperties::RunArgsValueChangedCallback, this);
+        ePropertyRunArgs, [this] { RunArgsValueChangedCallback(); });
     m_collection_sp->SetValueChangedCallback(
-        ePropertyEnvVars, TargetProperties::EnvVarsValueChangedCallback, this);
+        ePropertyEnvVars, [this] { EnvVarsValueChangedCallback(); });
     m_collection_sp->SetValueChangedCallback(
-        ePropertyInputPath, TargetProperties::InputPathValueChangedCallback,
-        this);
+        ePropertyInputPath, [this] { InputPathValueChangedCallback(); });
     m_collection_sp->SetValueChangedCallback(
-        ePropertyOutputPath, TargetProperties::OutputPathValueChangedCallback,
-        this);
+        ePropertyOutputPath, [this] { OutputPathValueChangedCallback(); });
     m_collection_sp->SetValueChangedCallback(
-        ePropertyErrorPath, TargetProperties::ErrorPathValueChangedCallback,
-        this);
+        ePropertyErrorPath, [this] { ErrorPathValueChangedCallback(); });
+    m_collection_sp->SetValueChangedCallback(ePropertyDetachOnError, [this] {
+      DetachOnErrorValueChangedCallback();
+    });
     m_collection_sp->SetValueChangedCallback(
-        ePropertyDetachOnError,
-        TargetProperties::DetachOnErrorValueChangedCallback, this);
+        ePropertyDisableASLR, [this] { DisableASLRValueChangedCallback(); });
     m_collection_sp->SetValueChangedCallback(
-        ePropertyDisableASLR, TargetProperties::DisableASLRValueChangedCallback,
-        this);
-    m_collection_sp->SetValueChangedCallback(
-        ePropertyDisableSTDIO,
-        TargetProperties::DisableSTDIOValueChangedCallback, this);
+        ePropertyDisableSTDIO, [this] { DisableSTDIOValueChangedCallback(); });
 
     m_experimental_properties_up.reset(new TargetExperimentalProperties());
     m_collection_sp->AppendProperty(
@@ -3502,16 +3488,16 @@ TargetProperties::TargetProperties(Target *target)
         true, m_experimental_properties_up->GetValueProperties());
 
     // Update m_launch_info once it was created
-    Arg0ValueChangedCallback(this, nullptr);
-    RunArgsValueChangedCallback(this, nullptr);
-    // EnvVarsValueChangedCallback(this, nullptr); // FIXME: cause segfault in
+    Arg0ValueChangedCallback();
+    RunArgsValueChangedCallback();
+    // EnvVarsValueChangedCallback(); // FIXME: cause segfault in
     // Target::GetPlatform()
-    InputPathValueChangedCallback(this, nullptr);
-    OutputPathValueChangedCallback(this, nullptr);
-    ErrorPathValueChangedCallback(this, nullptr);
-    DetachOnErrorValueChangedCallback(this, nullptr);
-    DisableASLRValueChangedCallback(this, nullptr);
-    DisableSTDIOValueChangedCallback(this, nullptr);
+    InputPathValueChangedCallback();
+    OutputPathValueChangedCallback();
+    ErrorPathValueChangedCallback();
+    DetachOnErrorValueChangedCallback();
+    DisableASLRValueChangedCallback();
+    DisableSTDIOValueChangedCallback();
   } else {
     m_collection_sp =
         std::make_shared<TargetOptionValueProperties>(ConstString("target"));
@@ -3552,18 +3538,6 @@ void TargetProperties::SetInjectLocalVariables(ExecutionContext *exe_ctx,
   if (exp_values)
     exp_values->SetPropertyAtIndexAsBoolean(exe_ctx, ePropertyInjectLocalVars,
                                             true);
-}
-
-bool TargetProperties::GetUseModernTypeLookup() const {
-  const Property *exp_property = m_collection_sp->GetPropertyAtIndex(
-      nullptr, false, ePropertyExperimental);
-  OptionValueProperties *exp_values =
-      exp_property->GetValue()->GetAsProperties();
-  if (exp_values)
-    return exp_values->GetPropertyAtIndexAsBoolean(
-        nullptr, ePropertyUseModernTypeLookup, true);
-  else
-    return true;
 }
 
 ArchSpec TargetProperties::GetDefaultArchitecture() const {
@@ -3996,81 +3970,54 @@ void TargetProperties::SetRequireHardwareBreakpoints(bool b) {
   m_collection_sp->SetPropertyAtIndexAsBoolean(nullptr, idx, b);
 }
 
-void TargetProperties::Arg0ValueChangedCallback(void *target_property_ptr,
-                                                OptionValue *) {
-  TargetProperties *this_ =
-      reinterpret_cast<TargetProperties *>(target_property_ptr);
-  this_->m_launch_info.SetArg0(this_->GetArg0());
+void TargetProperties::Arg0ValueChangedCallback() {
+  m_launch_info.SetArg0(GetArg0());
 }
 
-void TargetProperties::RunArgsValueChangedCallback(void *target_property_ptr,
-                                                   OptionValue *) {
-  TargetProperties *this_ =
-      reinterpret_cast<TargetProperties *>(target_property_ptr);
+void TargetProperties::RunArgsValueChangedCallback() {
   Args args;
-  if (this_->GetRunArguments(args))
-    this_->m_launch_info.GetArguments() = args;
+  if (GetRunArguments(args))
+    m_launch_info.GetArguments() = args;
 }
 
-void TargetProperties::EnvVarsValueChangedCallback(void *target_property_ptr,
-                                                   OptionValue *) {
-  TargetProperties *this_ =
-      reinterpret_cast<TargetProperties *>(target_property_ptr);
-  this_->m_launch_info.GetEnvironment() = this_->GetEnvironment();
+void TargetProperties::EnvVarsValueChangedCallback() {
+  m_launch_info.GetEnvironment() = GetEnvironment();
 }
 
-void TargetProperties::InputPathValueChangedCallback(void *target_property_ptr,
-                                                     OptionValue *) {
-  TargetProperties *this_ =
-      reinterpret_cast<TargetProperties *>(target_property_ptr);
-  this_->m_launch_info.AppendOpenFileAction(
-      STDIN_FILENO, this_->GetStandardInputPath(), true, false);
+void TargetProperties::InputPathValueChangedCallback() {
+  m_launch_info.AppendOpenFileAction(STDIN_FILENO, GetStandardInputPath(), true,
+                                     false);
 }
 
-void TargetProperties::OutputPathValueChangedCallback(void *target_property_ptr,
-                                                      OptionValue *) {
-  TargetProperties *this_ =
-      reinterpret_cast<TargetProperties *>(target_property_ptr);
-  this_->m_launch_info.AppendOpenFileAction(
-      STDOUT_FILENO, this_->GetStandardOutputPath(), false, true);
+void TargetProperties::OutputPathValueChangedCallback() {
+  m_launch_info.AppendOpenFileAction(STDOUT_FILENO, GetStandardOutputPath(),
+                                     false, true);
 }
 
-void TargetProperties::ErrorPathValueChangedCallback(void *target_property_ptr,
-                                                     OptionValue *) {
-  TargetProperties *this_ =
-      reinterpret_cast<TargetProperties *>(target_property_ptr);
-  this_->m_launch_info.AppendOpenFileAction(
-      STDERR_FILENO, this_->GetStandardErrorPath(), false, true);
+void TargetProperties::ErrorPathValueChangedCallback() {
+  m_launch_info.AppendOpenFileAction(STDERR_FILENO, GetStandardErrorPath(),
+                                     false, true);
 }
 
-void TargetProperties::DetachOnErrorValueChangedCallback(
-    void *target_property_ptr, OptionValue *) {
-  TargetProperties *this_ =
-      reinterpret_cast<TargetProperties *>(target_property_ptr);
-  if (this_->GetDetachOnError())
-    this_->m_launch_info.GetFlags().Set(lldb::eLaunchFlagDetachOnError);
+void TargetProperties::DetachOnErrorValueChangedCallback() {
+  if (GetDetachOnError())
+    m_launch_info.GetFlags().Set(lldb::eLaunchFlagDetachOnError);
   else
-    this_->m_launch_info.GetFlags().Clear(lldb::eLaunchFlagDetachOnError);
+    m_launch_info.GetFlags().Clear(lldb::eLaunchFlagDetachOnError);
 }
 
-void TargetProperties::DisableASLRValueChangedCallback(
-    void *target_property_ptr, OptionValue *) {
-  TargetProperties *this_ =
-      reinterpret_cast<TargetProperties *>(target_property_ptr);
-  if (this_->GetDisableASLR())
-    this_->m_launch_info.GetFlags().Set(lldb::eLaunchFlagDisableASLR);
+void TargetProperties::DisableASLRValueChangedCallback() {
+  if (GetDisableASLR())
+    m_launch_info.GetFlags().Set(lldb::eLaunchFlagDisableASLR);
   else
-    this_->m_launch_info.GetFlags().Clear(lldb::eLaunchFlagDisableASLR);
+    m_launch_info.GetFlags().Clear(lldb::eLaunchFlagDisableASLR);
 }
 
-void TargetProperties::DisableSTDIOValueChangedCallback(
-    void *target_property_ptr, OptionValue *) {
-  TargetProperties *this_ =
-      reinterpret_cast<TargetProperties *>(target_property_ptr);
-  if (this_->GetDisableSTDIO())
-    this_->m_launch_info.GetFlags().Set(lldb::eLaunchFlagDisableSTDIO);
+void TargetProperties::DisableSTDIOValueChangedCallback() {
+  if (GetDisableSTDIO())
+    m_launch_info.GetFlags().Set(lldb::eLaunchFlagDisableSTDIO);
   else
-    this_->m_launch_info.GetFlags().Clear(lldb::eLaunchFlagDisableSTDIO);
+    m_launch_info.GetFlags().Clear(lldb::eLaunchFlagDisableSTDIO);
 }
 
 // Target::TargetEventData
@@ -4094,7 +4041,7 @@ void Target::TargetEventData::Dump(Stream *s) const {
     if (i != 0)
       *s << ", ";
     m_module_list.GetModuleAtIndex(i)->GetDescription(
-        s, lldb::eDescriptionLevelBrief);
+        s->AsRawOstream(), lldb::eDescriptionLevelBrief);
   }
 }
 

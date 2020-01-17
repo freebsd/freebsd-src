@@ -49,6 +49,7 @@
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -488,7 +489,7 @@ public:
     // Filter the candidates further.
     SmallVector<StoreToLoadForwardingCandidate, 4> Candidates;
     unsigned NumForwarding = 0;
-    for (const StoreToLoadForwardingCandidate Cand : StoreToLoadDependences) {
+    for (const StoreToLoadForwardingCandidate &Cand : StoreToLoadDependences) {
       LLVM_DEBUG(dbgs() << "Candidate " << Cand);
 
       // Make sure that the stored values is available everywhere in the loop in
@@ -544,7 +545,8 @@ public:
       auto *HeaderBB = L->getHeader();
       auto *F = HeaderBB->getParent();
       bool OptForSize = F->hasOptSize() ||
-                        llvm::shouldOptimizeForSize(HeaderBB, PSI, BFI);
+                        llvm::shouldOptimizeForSize(HeaderBB, PSI, BFI,
+                                                    PGSOQueryType::IRPass);
       if (OptForSize) {
         LLVM_DEBUG(
             dbgs() << "Versioning is needed but not allowed when optimizing "

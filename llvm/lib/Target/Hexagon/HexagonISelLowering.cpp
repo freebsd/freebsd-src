@@ -39,8 +39,9 @@
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsHexagon.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
@@ -232,19 +233,76 @@ HexagonTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
 
 bool HexagonTargetLowering::mayBeEmittedAsTailCall(const CallInst *CI) const {
   // If either no tail call or told not to tail call at all, don't.
-  auto Attr =
-      CI->getParent()->getParent()->getFnAttribute("disable-tail-calls");
-  if (!CI->isTailCall() || Attr.getValueAsString() == "true")
-    return false;
-
-  return true;
+  return CI->isTailCall();
 }
 
-Register HexagonTargetLowering::getRegisterByName(const char* RegName, EVT VT,
-                                                  const MachineFunction &) const {
+Register HexagonTargetLowering::getRegisterByName(
+      const char* RegName, LLT VT, const MachineFunction &) const {
   // Just support r19, the linux kernel uses it.
   Register Reg = StringSwitch<Register>(RegName)
+                     .Case("r0", Hexagon::R0)
+                     .Case("r1", Hexagon::R1)
+                     .Case("r2", Hexagon::R2)
+                     .Case("r3", Hexagon::R3)
+                     .Case("r4", Hexagon::R4)
+                     .Case("r5", Hexagon::R5)
+                     .Case("r6", Hexagon::R6)
+                     .Case("r7", Hexagon::R7)
+                     .Case("r8", Hexagon::R8)
+                     .Case("r9", Hexagon::R9)
+                     .Case("r10", Hexagon::R10)
+                     .Case("r11", Hexagon::R11)
+                     .Case("r12", Hexagon::R12)
+                     .Case("r13", Hexagon::R13)
+                     .Case("r14", Hexagon::R14)
+                     .Case("r15", Hexagon::R15)
+                     .Case("r16", Hexagon::R16)
+                     .Case("r17", Hexagon::R17)
+                     .Case("r18", Hexagon::R18)
                      .Case("r19", Hexagon::R19)
+                     .Case("r20", Hexagon::R20)
+                     .Case("r21", Hexagon::R21)
+                     .Case("r22", Hexagon::R22)
+                     .Case("r23", Hexagon::R23)
+                     .Case("r24", Hexagon::R24)
+                     .Case("r25", Hexagon::R25)
+                     .Case("r26", Hexagon::R26)
+                     .Case("r27", Hexagon::R27)
+                     .Case("r28", Hexagon::R28)
+                     .Case("r29", Hexagon::R29)
+                     .Case("r30", Hexagon::R30)
+                     .Case("r31", Hexagon::R31)
+                     .Case("r1:0", Hexagon::D0)
+                     .Case("r3:2", Hexagon::D1)
+                     .Case("r5:4", Hexagon::D2)
+                     .Case("r7:6", Hexagon::D3)
+                     .Case("r9:8", Hexagon::D4)
+                     .Case("r11:10", Hexagon::D5)
+                     .Case("r13:12", Hexagon::D6)
+                     .Case("r15:14", Hexagon::D7)
+                     .Case("r17:16", Hexagon::D8)
+                     .Case("r19:18", Hexagon::D9)
+                     .Case("r21:20", Hexagon::D10)
+                     .Case("r23:22", Hexagon::D11)
+                     .Case("r25:24", Hexagon::D12)
+                     .Case("r27:26", Hexagon::D13)
+                     .Case("r29:28", Hexagon::D14)
+                     .Case("r31:30", Hexagon::D15)
+                     .Case("sp", Hexagon::R29)
+                     .Case("fp", Hexagon::R30)
+                     .Case("lr", Hexagon::R31)
+                     .Case("p0", Hexagon::P0)
+                     .Case("p1", Hexagon::P1)
+                     .Case("p2", Hexagon::P2)
+                     .Case("p3", Hexagon::P3)
+                     .Case("sa0", Hexagon::SA0)
+                     .Case("lc0", Hexagon::LC0)
+                     .Case("sa1", Hexagon::SA1)
+                     .Case("lc1", Hexagon::LC1)
+                     .Case("m0", Hexagon::M0)
+                     .Case("m1", Hexagon::M1)
+                     .Case("usr", Hexagon::USR)
+                     .Case("ugp", Hexagon::UGP)
                      .Default(Register());
   if (Reg)
     return Reg;
@@ -345,10 +403,6 @@ HexagonTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   else
     CCInfo.AnalyzeCallOperands(Outs, CC_Hexagon);
 
-  auto Attr = MF.getFunction().getFnAttribute("disable-tail-calls");
-  if (Attr.getValueAsString() == "true")
-    CLI.IsTailCall = false;
-
   if (CLI.IsTailCall) {
     bool StructAttrFlag = MF.getFunction().hasStructRetAttr();
     CLI.IsTailCall = IsEligibleForTailCallOptimization(Callee, CallConv,
@@ -413,7 +467,7 @@ HexagonTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
       MemAddr = DAG.getNode(ISD::ADD, dl, MVT::i32, StackPtr, MemAddr);
       if (ArgAlign)
         LargestAlignSeen = std::max(LargestAlignSeen,
-                                    VA.getLocVT().getStoreSizeInBits() >> 3);
+                             (unsigned)VA.getLocVT().getStoreSizeInBits() >> 3);
       if (Flags.isByVal()) {
         // The argument is a struct passed by value. According to LLVM, "Arg"
         // is a pointer.
@@ -1473,6 +1527,10 @@ HexagonTargetLowering::HexagonTargetLowering(const TargetMachine &TM,
   setLoadExtAction(ISD::ZEXTLOAD, MVT::v4i16, MVT::v4i8, Legal);
   setLoadExtAction(ISD::SEXTLOAD, MVT::v4i16, MVT::v4i8, Legal);
 
+  setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::v2i8,  Legal);
+  setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::v2i16, Legal);
+  setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::v2i32, Legal);
+
   // Types natively supported:
   for (MVT NativeVT : {MVT::v8i1, MVT::v4i1, MVT::v2i1, MVT::v4i8,
                        MVT::v8i8, MVT::v2i16, MVT::v4i16, MVT::v2i32}) {
@@ -1847,7 +1905,8 @@ bool HexagonTargetLowering::isTruncateFree(EVT VT1, EVT VT2) const {
   return VT1.getSimpleVT() == MVT::i64 && VT2.getSimpleVT() == MVT::i32;
 }
 
-bool HexagonTargetLowering::isFMAFasterThanFMulAndFAdd(EVT VT) const {
+bool HexagonTargetLowering::isFMAFasterThanFMulAndFAdd(
+    const MachineFunction &MF, EVT VT) const {
   return isOperationLegalOrCustom(ISD::FMA, VT);
 }
 

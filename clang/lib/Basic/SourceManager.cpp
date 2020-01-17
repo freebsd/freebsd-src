@@ -95,6 +95,29 @@ void ContentCache::replaceBuffer(const llvm::MemoryBuffer *B, bool DoNotFree) {
   Buffer.setInt((B && DoNotFree) ? DoNotFreeFlag : 0);
 }
 
+const char *ContentCache::getInvalidBOM(StringRef BufStr) {
+  // If the buffer is valid, check to see if it has a UTF Byte Order Mark
+  // (BOM).  We only support UTF-8 with and without a BOM right now.  See
+  // http://en.wikipedia.org/wiki/Byte_order_mark for more information.
+  const char *InvalidBOM =
+      llvm::StringSwitch<const char *>(BufStr)
+          .StartsWith(llvm::StringLiteral::withInnerNUL("\x00\x00\xFE\xFF"),
+                      "UTF-32 (BE)")
+          .StartsWith(llvm::StringLiteral::withInnerNUL("\xFF\xFE\x00\x00"),
+                      "UTF-32 (LE)")
+          .StartsWith("\xFE\xFF", "UTF-16 (BE)")
+          .StartsWith("\xFF\xFE", "UTF-16 (LE)")
+          .StartsWith("\x2B\x2F\x76", "UTF-7")
+          .StartsWith("\xF7\x64\x4C", "UTF-1")
+          .StartsWith("\xDD\x73\x66\x73", "UTF-EBCDIC")
+          .StartsWith("\x0E\xFE\xFF", "SCSU")
+          .StartsWith("\xFB\xEE\x28", "BOCU-1")
+          .StartsWith("\x84\x31\x95\x33", "GB-18030")
+          .Default(nullptr);
+
+  return InvalidBOM;
+}
+
 const llvm::MemoryBuffer *ContentCache::getBuffer(DiagnosticsEngine &Diag,
                                                   FileManager &FM,
                                                   SourceLocation Loc,
@@ -190,20 +213,7 @@ const llvm::MemoryBuffer *ContentCache::getBuffer(DiagnosticsEngine &Diag,
   // (BOM).  We only support UTF-8 with and without a BOM right now.  See
   // http://en.wikipedia.org/wiki/Byte_order_mark for more information.
   StringRef BufStr = Buffer.getPointer()->getBuffer();
-  const char *InvalidBOM = llvm::StringSwitch<const char *>(BufStr)
-    .StartsWith(llvm::StringLiteral::withInnerNUL("\x00\x00\xFE\xFF"),
-                                                  "UTF-32 (BE)")
-    .StartsWith(llvm::StringLiteral::withInnerNUL("\xFF\xFE\x00\x00"),
-                                                  "UTF-32 (LE)")
-    .StartsWith("\xFE\xFF", "UTF-16 (BE)")
-    .StartsWith("\xFF\xFE", "UTF-16 (LE)")
-    .StartsWith("\x2B\x2F\x76", "UTF-7")
-    .StartsWith("\xF7\x64\x4C", "UTF-1")
-    .StartsWith("\xDD\x73\x66\x73", "UTF-EBCDIC")
-    .StartsWith("\x0E\xFE\xFF", "SCSU")
-    .StartsWith("\xFB\xEE\x28", "BOCU-1")
-    .StartsWith("\x84\x31\x95\x33", "GB-18030")
-    .Default(nullptr);
+  const char *InvalidBOM = getInvalidBOM(BufStr);
 
   if (InvalidBOM) {
     Diag.Report(Loc, diag::err_unsupported_bom)
@@ -1240,23 +1250,18 @@ static void ComputeLineNumbers(DiagnosticsEngine &Diag, ContentCache *FI,
 
   const unsigned char *Buf = (const unsigned char *)Buffer->getBufferStart();
   const unsigned char *End = (const unsigned char *)Buffer->getBufferEnd();
+  const std::size_t BufLen = End - Buf;
   unsigned I = 0;
-  while (true) {
-    // Skip over the contents of the line.
-    while (Buf[I] != '\n' && Buf[I] != '\r' && Buf[I] != '\0')
-      ++I;
-
-    if (Buf[I] == '\n' || Buf[I] == '\r') {
+  while (I < BufLen) {
+    if (Buf[I] == '\n') {
+      LineOffsets.push_back(I + 1);
+    } else if (Buf[I] == '\r') {
       // If this is \r\n, skip both characters.
-      if (Buf[I] == '\r' && Buf[I+1] == '\n')
+      if (I + 1 < BufLen && Buf[I + 1] == '\n')
         ++I;
-      ++I;
-      LineOffsets.push_back(I);
-    } else {
-      // Otherwise, this is a NUL. If end of file, exit.
-      if (Buf+I == End) break;
-      ++I;
+      LineOffsets.push_back(I + 1);
     }
+    ++I;
   }
 
   // Copy the offsets into the FileInfo structure.

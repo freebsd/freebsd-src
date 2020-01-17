@@ -30,6 +30,7 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils.h"
@@ -395,9 +396,9 @@ CloneLoopBlocks(Loop *L, Value *NewIter, const bool CreateRemainderLoop,
     }
   }
   if (CreateRemainderLoop) {
-    Loop *NewLoop = NewLoops[L];
-    MDNode *LoopID = NewLoop->getLoopID();
+    Loop *NewLoop = NewLoops[L];  
     assert(NewLoop && "L should have been cloned");
+    MDNode *LoopID = NewLoop->getLoopID();
 
     // Only add loop metadata if the loop is not going to be completely
     // unrolled.

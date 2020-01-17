@@ -24,7 +24,6 @@
 #include "llvm/Analysis/MustExecute.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
-#include "llvm/Analysis/ScalarEvolutionExpander.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
@@ -35,6 +34,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PatternMatch.h"
 #include "llvm/IR/ValueHandle.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/KnownBits.h"
@@ -672,7 +672,19 @@ void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT = nullptr,
       LI->removeBlock(BB);
 
     // The last step is to update LoopInfo now that we've eliminated this loop.
-    LI->erase(L);
+    // Note: LoopInfo::erase remove the given loop and relink its subloops with
+    // its parent. While removeLoop/removeChildLoop remove the given loop but
+    // not relink its subloops, which is what we want.
+    if (Loop *ParentLoop = L->getParentLoop()) {
+      Loop::iterator I = find(ParentLoop->begin(), ParentLoop->end(), L);
+      assert(I != ParentLoop->end() && "Couldn't find loop");
+      ParentLoop->removeChildLoop(I);
+    } else {
+      Loop::iterator I = find(LI->begin(), LI->end(), L);
+      assert(I != LI->end() && "Couldn't find loop");
+      LI->removeLoop(I);
+    }
+    LI->destroy(L);
   }
 }
 
@@ -702,19 +714,19 @@ Optional<unsigned> llvm::getLoopEstimatedTripCount(Loop *L) {
   // To estimate the number of times the loop body was executed, we want to
   // know the number of times the backedge was taken, vs. the number of times
   // we exited the loop.
-  uint64_t TrueVal, FalseVal;
-  if (!LatchBR->extractProfMetadata(TrueVal, FalseVal))
+  uint64_t BackedgeTakenWeight, LatchExitWeight;
+  if (!LatchBR->extractProfMetadata(BackedgeTakenWeight, LatchExitWeight))
     return None;
 
-  if (!TrueVal || !FalseVal)
+  if (LatchBR->getSuccessor(0) != L->getHeader())
+    std::swap(BackedgeTakenWeight, LatchExitWeight);
+
+  if (!BackedgeTakenWeight || !LatchExitWeight)
     return 0;
 
   // Divide the count of the backedge by the count of the edge exiting the loop,
   // rounding to nearest.
-  if (LatchBR->getSuccessor(0) == L->getHeader())
-    return (TrueVal + (FalseVal / 2)) / FalseVal;
-  else
-    return (FalseVal + (TrueVal / 2)) / TrueVal;
+  return llvm::divideNearest(BackedgeTakenWeight, LatchExitWeight);
 }
 
 bool llvm::hasIterationCountInvariantInParent(Loop *InnerLoop,

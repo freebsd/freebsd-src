@@ -61,7 +61,7 @@ PPCSubtarget::PPCSubtarget(const Triple &TT, const std::string &CPU,
 
 void PPCSubtarget::initializeEnvironment() {
   StackAlignment = Align(16);
-  DarwinDirective = PPC::DIR_NONE;
+  CPUDirective = PPC::DIR_NONE;
   HasMFOCRF = false;
   Has64BitSupport = false;
   Use64BitRegs = false;
@@ -100,6 +100,7 @@ void PPCSubtarget::initializeEnvironment() {
   IsPPC6xx = false;
   IsE500 = false;
   FeatureMFTB = false;
+  AllowsUnalignedFPAccess = false;
   DeprecatedDST = false;
   HasLazyResolverStubs = false;
   HasICBT = false;
@@ -126,6 +127,8 @@ void PPCSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
     // If cross-compiling with -march=ppc64le without -mcpu
     if (TargetTriple.getArch() == Triple::ppc64le)
       CPUName = "ppc64le";
+    else if (TargetTriple.getSubArch() == Triple::PPCSubArch_spe)
+      CPUName = "e500";
     else
       CPUName = "generic";
   }
@@ -190,7 +193,7 @@ bool PPCSubtarget::hasLazyResolverStub(const GlobalValue *GV) const {
 bool PPCSubtarget::enableMachineScheduler() const { return true; }
 
 bool PPCSubtarget::enableMachinePipeliner() const {
-  return (DarwinDirective == PPC::DIR_PWR9) && EnableMachinePipeliner;
+  return (CPUDirective == PPC::DIR_PWR9) && EnableMachinePipeliner;
 }
 
 bool PPCSubtarget::useDFAforSMS() const { return false; }

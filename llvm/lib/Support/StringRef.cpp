@@ -12,6 +12,7 @@
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/edit_distance.h"
+#include "llvm/Support/Error.h"
 #include <bitset>
 
 using namespace llvm;
@@ -372,11 +373,16 @@ void StringRef::split(SmallVectorImpl<StringRef> &A, char Separator,
 size_t StringRef::count(StringRef Str) const {
   size_t Count = 0;
   size_t N = Str.size();
-  if (N > Length)
+  if (!N || N > Length)
     return 0;
-  for (size_t i = 0, e = Length - N + 1; i != e; ++i)
-    if (substr(i, N).equals(Str))
+  for (size_t i = 0, e = Length - N + 1; i < e;) {
+    if (substr(i, N).equals(Str)) {
       ++Count;
+      i += N;
+    }
+    else
+      ++i;
+  }
   return Count;
 }
 
@@ -582,8 +588,11 @@ bool StringRef::getAsInteger(unsigned Radix, APInt &Result) const {
 
 bool StringRef::getAsDouble(double &Result, bool AllowInexact) const {
   APFloat F(0.0);
-  APFloat::opStatus Status =
-      F.convertFromString(*this, APFloat::rmNearestTiesToEven);
+  auto StatusOrErr = F.convertFromString(*this, APFloat::rmNearestTiesToEven);
+  if (errorToBool(StatusOrErr.takeError()))
+    return true;
+
+  APFloat::opStatus Status = *StatusOrErr;
   if (Status != APFloat::opOK) {
     if (!AllowInexact || !(Status & APFloat::opInexact))
       return true;

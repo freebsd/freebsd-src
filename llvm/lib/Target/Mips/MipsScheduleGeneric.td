@@ -720,10 +720,15 @@ def : InstRW<[GenericWriteALU], (instrs BADDu, BBIT0, BBIT032, BBIT1, BBIT132,
                                  CINS, CINS32, CINS64_32, CINS_i32,
                                  DMFC2_OCTEON, DMTC2_OCTEON, DPOP, EXTS,
                                  EXTS32, MTM0, MTM1, MTM2, MTP0, MTP1, MTP2,
-                                 POP, SEQ, SEQi, SNE, SNEi, V3MULU, VMM0,
-                                 VMULU)>;
+                                 POP, SEQ, SEQi, SNE, SNEi,
+                                 V3MULU, VMM0, VMULU)>;
 
 def : InstRW<[GenericWriteMDUtoGPR], (instrs DMUL)>;
+
+// Cavium Networks MIPS (cnMIPSP) - Octeon+, HasCnMipsP
+// =================================================
+
+def : InstRW<[GenericWriteALU], (instrs SAA, SAAD)>;
 
 // FPU Pipelines
 // =============
@@ -1610,5 +1615,6 @@ def : InstRW<[GenericWriteAtomic],
 def : InstRW<[GenericWriteAtomic],
     (instregex "^ATOMIC_CMP_SWAP_I(8|16|32|64)_POSTRA$")>;
 def : InstRW<[GenericWriteAtomic],
-    (instregex "^ATOMIC_LOAD_(ADD|SUB|AND|OR|XOR|NAND)_I(8|16|32|64)_POSTRA$")>;
+    (instregex "^ATOMIC_LOAD_(ADD|SUB|AND|OR|XOR|NAND|MIN|MAX|UMIN|UMAX)"
+               "_I(8|16|32|64)_POSTRA$")>;
 }

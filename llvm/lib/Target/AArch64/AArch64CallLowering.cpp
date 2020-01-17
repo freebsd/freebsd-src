@@ -160,7 +160,7 @@ struct OutgoingArgHandler : public CallLowering::ValueHandler {
     MIRBuilder.buildConstant(OffsetReg, Offset);
 
     Register AddrReg = MRI.createGenericVirtualRegister(p0);
-    MIRBuilder.buildGEP(AddrReg, SPReg, OffsetReg);
+    MIRBuilder.buildPtrAdd(AddrReg, SPReg, OffsetReg);
 
     MPO = MachinePointerInfo::getStack(MF, Offset);
     return AddrReg;
@@ -815,7 +815,7 @@ bool AArch64CallLowering::lowerTailCall(
 
   // Tell the call which registers are clobbered.
   auto TRI = MF.getSubtarget<AArch64Subtarget>().getRegisterInfo();
-  const uint32_t *Mask = TRI->getCallPreservedMask(MF, F.getCallingConv());
+  const uint32_t *Mask = TRI->getCallPreservedMask(MF, CalleeCC);
   if (MF.getSubtarget<AArch64Subtarget>().hasCustomCallingConv())
     TRI->UpdateCustomCallPreservedMask(MF, &Mask);
   MIB.addRegMask(Mask);
@@ -972,7 +972,7 @@ bool AArch64CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
 
   // Tell the call which registers are clobbered.
   auto TRI = MF.getSubtarget<AArch64Subtarget>().getRegisterInfo();
-  const uint32_t *Mask = TRI->getCallPreservedMask(MF, F.getCallingConv());
+  const uint32_t *Mask = TRI->getCallPreservedMask(MF, Info.CallConv);
   if (MF.getSubtarget<AArch64Subtarget>().hasCustomCallingConv())
     TRI->UpdateCustomCallPreservedMask(MF, &Mask);
   MIB.addRegMask(Mask);
@@ -1000,10 +1000,10 @@ bool AArch64CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
         0));
 
   // Finally we can copy the returned value back into its virtual-register. In
-  // symmetry with the arugments, the physical register must be an
+  // symmetry with the arguments, the physical register must be an
   // implicit-define of the call instruction.
   if (!Info.OrigRet.Ty->isVoidTy()) {
-    CCAssignFn *RetAssignFn = TLI.CCAssignFnForReturn(F.getCallingConv());
+    CCAssignFn *RetAssignFn = TLI.CCAssignFnForReturn(Info.CallConv);
     CallReturnHandler Handler(MIRBuilder, MRI, MIB, RetAssignFn);
     if (!handleAssignments(MIRBuilder, InArgs, Handler))
       return false;

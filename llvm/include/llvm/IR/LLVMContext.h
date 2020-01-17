@@ -17,7 +17,6 @@
 #include "llvm-c/Types.h"
 #include "llvm/IR/DiagnosticHandler.h"
 #include "llvm/Support/CBindingWrapping.h"
-#include "llvm/Support/Options.h"
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -85,6 +84,7 @@ public:
     OB_deopt = 0,         // "deopt"
     OB_funclet = 1,       // "funclet"
     OB_gc_transition = 2, // "gc-transition"
+    OB_cfguardtarget = 3, // "cfguardtarget"
   };
 
   /// getMDKindID - Return a unique non-zero ID for the specified metadata kind.
@@ -286,14 +286,6 @@ public:
   void emitError(unsigned LocCookie, const Twine &ErrorStr);
   void emitError(const Instruction *I, const Twine &ErrorStr);
   void emitError(const Twine &ErrorStr);
-
-  /// Query for a debug option's value.
-  ///
-  /// This function returns typed data populated from command line parsing.
-  template <typename ValT, typename Base, ValT(Base::*Mem)>
-  ValT getOption() const {
-    return OptionRegistry::instance().template get<ValT, Base, Mem>();
-  }
 
   /// Access the object which can disable optional passes and individual
   /// optimizations at compile time.

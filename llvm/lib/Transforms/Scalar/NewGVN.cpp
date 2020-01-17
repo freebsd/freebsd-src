@@ -76,7 +76,6 @@
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/MemorySSA.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constant.h"
@@ -94,6 +93,7 @@
 #include "llvm/IR/Use.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/ArrayRecycler.h"
@@ -106,6 +106,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVNExpression.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/PredicateInfo.h"
 #include "llvm/Transforms/Utils/VNCoercion.h"
 #include <algorithm>
@@ -489,11 +490,11 @@ namespace {
 
 class NewGVN {
   Function &F;
-  DominatorTree *DT;
-  const TargetLibraryInfo *TLI;
-  AliasAnalysis *AA;
-  MemorySSA *MSSA;
-  MemorySSAWalker *MSSAWalker;
+  DominatorTree *DT = nullptr;
+  const TargetLibraryInfo *TLI = nullptr;
+  AliasAnalysis *AA = nullptr;
+  MemorySSA *MSSA = nullptr;
+  MemorySSAWalker *MSSAWalker = nullptr;
   const DataLayout &DL;
   std::unique_ptr<PredicateInfo> PredInfo;
 
@@ -505,7 +506,7 @@ class NewGVN {
   const SimplifyQuery SQ;
 
   // Number of function arguments, used by ranking
-  unsigned int NumFuncArgs;
+  unsigned int NumFuncArgs = 0;
 
   // RPOOrdering of basic blocks
   DenseMap<const DomTreeNode *, unsigned> RPOOrdering;
@@ -516,9 +517,9 @@ class NewGVN {
   // startsout in, and represents any value. Being an optimistic analysis,
   // anything in the TOP class has the value TOP, which is indeterminate and
   // equivalent to everything.
-  CongruenceClass *TOPClass;
+  CongruenceClass *TOPClass = nullptr;
   std::vector<CongruenceClass *> CongruenceClasses;
-  unsigned NextCongruenceNum;
+  unsigned NextCongruenceNum = 0;
 
   // Value Mappings.
   DenseMap<Value *, CongruenceClass *> ValueToClass;
@@ -862,7 +863,7 @@ private:
 
   // Debug counter info.  When verifying, we have to reset the value numbering
   // debug counter to the same state it started in to get the same results.
-  int64_t StartingVNCounter;
+  int64_t StartingVNCounter = 0;
 };
 
 } // end anonymous namespace

@@ -46,13 +46,14 @@
 
 using namespace lldb_private;
 
+char UserExpression::ID;
+
 UserExpression::UserExpression(ExecutionContextScope &exe_scope,
                                llvm::StringRef expr, llvm::StringRef prefix,
                                lldb::LanguageType language,
                                ResultType desired_type,
-                               const EvaluateExpressionOptions &options,
-                               ExpressionKind kind)
-    : Expression(exe_scope, kind), m_expr_text(expr), m_expr_prefix(prefix),
+                               const EvaluateExpressionOptions &options)
+    : Expression(exe_scope), m_expr_text(expr), m_expr_prefix(prefix),
       m_language(language), m_desired_type(desired_type), m_options(options) {}
 
 UserExpression::~UserExpression() {}
@@ -83,10 +84,9 @@ bool UserExpression::LockAndCheckContext(ExecutionContext &exe_ctx,
   if (m_address.IsValid()) {
     if (!frame_sp)
       return false;
-    else
-      return (0 == Address::CompareLoadAddress(m_address,
-                                               frame_sp->GetFrameCodeAddress(),
-                                               target_sp.get()));
+    return (Address::CompareLoadAddress(m_address,
+                                        frame_sp->GetFrameCodeAddress(),
+                                        target_sp.get()) == 0);
   }
 
   return true;
@@ -396,8 +396,9 @@ UserExpression::Execute(DiagnosticManager &diagnostic_manager,
       diagnostic_manager, exe_ctx, options, shared_ptr_to_me, result_var);
   Target *target = exe_ctx.GetTargetPtr();
   if (options.GetResultIsInternal() && result_var && target) {
-    target->GetPersistentExpressionStateForLanguage(m_language)
-        ->RemovePersistentVariable(result_var);
+    if (auto *persistent_state =
+            target->GetPersistentExpressionStateForLanguage(m_language))
+      persistent_state->RemovePersistentVariable(result_var);
   }
   return expr_result;
 }

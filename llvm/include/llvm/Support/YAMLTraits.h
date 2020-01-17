@@ -1531,7 +1531,7 @@ private:
   document_iterator                   DocIterator;
   std::vector<bool>                   BitValuesUsed;
   HNode *CurrentNode = nullptr;
-  bool                                ScalarMatchFound;
+  bool                                ScalarMatchFound = false;
 };
 
 ///
@@ -2034,5 +2034,10 @@ template <typename T> struct StdMapStringCustomMappingTraitsImpl {
       : public StdMapStringCustomMappingTraitsImpl<_type> {};                  \
   }                                                                            \
   }
+
+LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(llvm::yaml::Hex64)
+LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(llvm::yaml::Hex32)
+LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(llvm::yaml::Hex16)
+LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(llvm::yaml::Hex8)
 
 #endif // LLVM_SUPPORT_YAMLTRAITS_H

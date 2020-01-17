@@ -46,7 +46,8 @@ enum {
   CompareZeroCCMaskShift = 14,
   CCMaskFirst            = (1 << 18),
   CCMaskLast             = (1 << 19),
-  IsLogical              = (1 << 20)
+  IsLogical              = (1 << 20),
+  CCIfNoSignedWrap       = (1 << 21)
 };
 
 static inline unsigned getAccessSize(unsigned int Flags) {
@@ -242,7 +243,7 @@ public:
   bool PredicateInstruction(MachineInstr &MI,
                             ArrayRef<MachineOperand> Pred) const override;
   void copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI,
-                   const DebugLoc &DL, unsigned DestReg, unsigned SrcReg,
+                   const DebugLoc &DL, MCRegister DestReg, MCRegister SrcReg,
                    bool KillSrc) const override;
   void storeRegToStackSlot(MachineBasicBlock &MBB,
                            MachineBasicBlock::iterator MBBI,
@@ -321,6 +322,10 @@ public:
   void loadImmediate(MachineBasicBlock &MBB,
                      MachineBasicBlock::iterator MBBI,
                      unsigned Reg, uint64_t Value) const;
+
+  // Perform target specific instruction verification.
+  bool verifyInstruction(const MachineInstr &MI,
+                         StringRef &ErrInfo) const override;
 
   // Sometimes, it is possible for the target to tell, even without
   // aliasing information, that two MIs access different memory

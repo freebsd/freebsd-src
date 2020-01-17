@@ -1,4 +1,4 @@
-//===-- AMDGPUAsmPrinter.cpp - AMDGPU assembly printer  -------------------===//
+//===-- AMDGPUAsmPrinter.cpp - AMDGPU assembly printer --------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -69,15 +69,14 @@ using namespace llvm::AMDGPU::HSAMD;
 // We want to use these instructions, and using fp32 denormals also causes
 // instructions to run at the double precision rate for the device so it's
 // probably best to just report no single precision denormals.
-static uint32_t getFPMode(const MachineFunction &F) {
-  const GCNSubtarget& ST = F.getSubtarget<GCNSubtarget>();
-  // TODO: Is there any real use for the flush in only / flush out only modes?
+static uint32_t getFPMode(AMDGPU::SIModeRegisterDefaults Mode) {
 
+  // TODO: Is there any real use for the flush in only / flush out only modes?
   uint32_t FP32Denormals =
-    ST.hasFP32Denormals() ? FP_DENORM_FLUSH_NONE : FP_DENORM_FLUSH_IN_FLUSH_OUT;
+    Mode.FP32Denormals ? FP_DENORM_FLUSH_NONE : FP_DENORM_FLUSH_IN_FLUSH_OUT;
 
   uint32_t FP64Denormals =
-    ST.hasFP64Denormals() ? FP_DENORM_FLUSH_NONE : FP_DENORM_FLUSH_IN_FLUSH_OUT;
+    Mode.FP64FP16Denormals ? FP_DENORM_FLUSH_NONE : FP_DENORM_FLUSH_IN_FLUSH_OUT;
 
   return FP_ROUND_MODE_SP(FP_ROUND_ROUND_TO_NEAREST) |
          FP_ROUND_MODE_DP(FP_ROUND_ROUND_TO_NEAREST) |
@@ -91,7 +90,7 @@ createAMDGPUAsmPrinterPass(TargetMachine &tm,
   return new AMDGPUAsmPrinter(tm, std::move(Streamer));
 }
 
-extern "C" void LLVMInitializeAMDGPUAsmPrinter() {
+extern "C" void LLVM_EXTERNAL_VISIBILITY LLVMInitializeAMDGPUAsmPrinter() {
   TargetRegistry::RegisterAsmPrinter(getTheAMDGPUTarget(),
                                      llvm::createR600AsmPrinterPass);
   TargetRegistry::RegisterAsmPrinter(getTheGCNTarget(),
@@ -793,6 +792,7 @@ AMDGPUAsmPrinter::SIFunctionResourceInfo AMDGPUAsmPrinter::analyzeResourceUsage(
           IsSGPR = false;
           Width = 3;
         } else if (AMDGPU::SReg_96RegClass.contains(Reg)) {
+          IsSGPR = true;
           Width = 3;
         } else if (AMDGPU::SReg_128RegClass.contains(Reg)) {
           assert(!AMDGPU::TTMP_128RegClass.contains(Reg) &&
@@ -806,6 +806,12 @@ AMDGPUAsmPrinter::SIFunctionResourceInfo AMDGPUAsmPrinter::analyzeResourceUsage(
           IsSGPR = false;
           IsAGPR = true;
           Width = 4;
+        } else if (AMDGPU::VReg_160RegClass.contains(Reg)) {
+          IsSGPR = false;
+          Width = 5;
+        } else if (AMDGPU::SReg_160RegClass.contains(Reg)) {
+          IsSGPR = true;
+          Width = 5;
         } else if (AMDGPU::SReg_256RegClass.contains(Reg)) {
           assert(!AMDGPU::TTMP_256RegClass.contains(Reg) &&
             "trap handler registers should not be used");
@@ -1026,11 +1032,12 @@ void AMDGPUAsmPrinter::getSIProgramInfo(SIProgramInfo &ProgInfo,
   ProgInfo.VGPRBlocks = IsaInfo::getNumVGPRBlocks(
       &STM, ProgInfo.NumVGPRsForWavesPerEU);
 
+  const SIModeRegisterDefaults Mode = MFI->getMode();
+
   // Set the value to initialize FP_ROUND and FP_DENORM parts of the mode
   // register.
-  ProgInfo.FloatMode = getFPMode(MF);
+  ProgInfo.FloatMode = getFPMode(Mode);
 
-  const SIModeRegisterDefaults Mode = MFI->getMode();
   ProgInfo.IEEEMode = Mode.IEEE;
 
   // Make clamp modifier on NaN input returns 0.

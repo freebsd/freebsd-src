@@ -217,7 +217,7 @@ namespace {
     MachineDominatorTree *MDT = nullptr;
     MachineLoopInfo *MLI = nullptr;
     BlockSetType Deleted;
-    const MachineBranchProbabilityInfo *MBPI;
+    const MachineBranchProbabilityInfo *MBPI = nullptr;
   };
 
 } // end anonymous namespace
@@ -282,6 +282,7 @@ bool HexagonEarlyIfConversion::matchFlowPattern(MachineBasicBlock *B,
   // can fall through into the other, in other words, it will be executed
   // in both cases. We only want to predicate the block that is executed
   // conditionally.
+  assert(TB && FB && "Failed to find triangle control flow blocks");
   unsigned TNP = TB->pred_size(), FNP = FB->pred_size();
   unsigned TNS = TB->succ_size(), FNS = FB->succ_size();
 
@@ -682,7 +683,7 @@ bool HexagonEarlyIfConversion::isPredicableStore(const MachineInstr *MI)
 
 bool HexagonEarlyIfConversion::isSafeToSpeculate(const MachineInstr *MI)
       const {
-  if (MI->mayLoad() || MI->mayStore())
+  if (MI->mayLoadOrStore())
     return false;
   if (MI->isCall() || MI->isBarrier() || MI->isBranch())
     return false;

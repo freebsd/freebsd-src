@@ -467,9 +467,9 @@ defm V_SUB_F32 : VOP2Inst <"v_sub_f32", VOP_F32_F32_F32, fsub>;
 defm V_SUBREV_F32 : VOP2Inst <"v_subrev_f32", VOP_F32_F32_F32, null_frag, "v_sub_f32">;
 defm V_MUL_LEGACY_F32 : VOP2Inst <"v_mul_legacy_f32", VOP_F32_F32_F32, AMDGPUfmul_legacy>;
 defm V_MUL_F32 : VOP2Inst <"v_mul_f32", VOP_F32_F32_F32, fmul>;
-defm V_MUL_I32_I24 : VOP2Inst <"v_mul_i32_i24", VOP_PAT_GEN<VOP_I32_I32_I32, 2>, AMDGPUmul_i24>;
+defm V_MUL_I32_I24 : VOP2Inst <"v_mul_i32_i24", VOP_I32_I32_I32, AMDGPUmul_i24>;
 defm V_MUL_HI_I32_I24 : VOP2Inst <"v_mul_hi_i32_i24", VOP_PAT_GEN<VOP_I32_I32_I32, 2>, AMDGPUmulhi_i24>;
-defm V_MUL_U32_U24 : VOP2Inst <"v_mul_u32_u24", VOP_PAT_GEN<VOP_I32_I32_I32, 2>, AMDGPUmul_u24>;
+defm V_MUL_U32_U24 : VOP2Inst <"v_mul_u32_u24", VOP_I32_I32_I32, AMDGPUmul_u24>;
 defm V_MUL_HI_U32_U24 : VOP2Inst <"v_mul_hi_u32_u24", VOP_PAT_GEN<VOP_I32_I32_I32, 2>, AMDGPUmulhi_u24>;
 defm V_MIN_F32 : VOP2Inst <"v_min_f32", VOP_F32_F32_F32, fminnum_like>;
 defm V_MAX_F32 : VOP2Inst <"v_max_f32", VOP_F32_F32_F32, fmaxnum_like>;
@@ -729,7 +729,7 @@ multiclass Arithmetic_i16_0Hi_Pats <SDPatternOperator op, Instruction inst> {
 
 def : GCNPat<
   (i32 (zext (op i16:$src0, i16:$src1))),
-  (inst $src0, $src1)
+  (inst VSrc_b16:$src0, VSrc_b16:$src1)
 >;
 
 def : GCNPat<
@@ -766,7 +766,22 @@ def : GCNPat <
 
 let Predicates = [Has16BitInsts] in {
 
+// Undo sub x, c -> add x, -c canonicalization since c is more likely
+// an inline immediate than -c.
+// TODO: Also do for 64-bit.
+def : GCNPat<
+  (add i16:$src0, (i16 NegSubInlineConst16:$src1)),
+  (V_SUB_U16_e64 VSrc_b16:$src0, NegSubInlineConst16:$src1)
+>;
+
+
 let Predicates = [Has16BitInsts, isGFX7GFX8GFX9] in {
+
+def : GCNPat<
+  (i32 (zext (add i16:$src0, (i16 NegSubInlineConst16:$src1)))),
+  (V_SUB_U16_e64 VSrc_b16:$src0, NegSubInlineConst16:$src1)
+>;
+
 defm : Arithmetic_i16_0Hi_Pats<add, V_ADD_U16_e64>;
 defm : Arithmetic_i16_0Hi_Pats<mul, V_MUL_LO_U16_e64>;
 defm : Arithmetic_i16_0Hi_Pats<sub, V_SUB_U16_e64>;
@@ -777,7 +792,7 @@ defm : Arithmetic_i16_0Hi_Pats<umax, V_MAX_U16_e64>;
 defm : Arithmetic_i16_0Hi_Pats<lshl_rev, V_LSHLREV_B16_e64>;
 defm : Arithmetic_i16_0Hi_Pats<lshr_rev, V_LSHRREV_B16_e64>;
 defm : Arithmetic_i16_0Hi_Pats<ashr_rev, V_ASHRREV_I16_e64>;
-}
+}  // End Predicates = [Has16BitInsts, isGFX7GFX8GFX9]
 
 def : ZExt_i16_i1_Pat<zext>;
 def : ZExt_i16_i1_Pat<anyext>;
@@ -788,15 +803,7 @@ def : GCNPat <
                      /*src1mod*/(i32 0), /*src1*/(i32 -1), $src)
 >;
 
-// Undo sub x, c -> add x, -c canonicalization since c is more likely
-// an inline immediate than -c.
-// TODO: Also do for 64-bit.
-def : GCNPat<
-  (add i16:$src0, (i16 NegSubInlineConst16:$src1)),
-  (V_SUB_U16_e64 $src0, NegSubInlineConst16:$src1)
->;
-
-} // End Predicates = [Has16BitInsts, isGFX7GFX8GFX9]
+} // End Predicates = [Has16BitInsts]
 
 
 //===----------------------------------------------------------------------===//
@@ -1282,7 +1289,7 @@ defm V_MADAK_F32          : VOP2Only_Real_MADK_gfx6_gfx7_gfx10<0x021>;
 // GFX8, GFX9 (VI).
 //===----------------------------------------------------------------------===//
 
-let AssemblerPredicates = [isGFX8GFX9], DecoderNamespace = "GFX8" in {
+let AssemblerPredicate = isGFX8GFX9, DecoderNamespace = "GFX8" in {
 
 multiclass VOP2_Real_MADK_vi <bits<6> op> {
   def _vi : VOP2_Real<!cast<VOP2_Pseudo>(NAME), SIEncodingFamily.VI>,
@@ -1316,7 +1323,7 @@ multiclass Base_VOP2_Real_e32e64_vi <bits<6> op> :
   VOP2_Real_e32_vi<op>,
   VOP2_Real_e64_vi<{0, 1, 0, 0, op{5-0}}>;
 
-} // End AssemblerPredicates = [isGFX8GFX9], DecoderNamespace = "GFX8"
+} // End AssemblerPredicate = isGFX8GFX9, DecoderNamespace = "GFX8"
 
 multiclass VOP2_SDWA_Real <bits<6> op> {
   foreach _ = BoolToList<!cast<VOP2_Pseudo>(NAME#"_e32").Pfl.HasExtSDWA>.ret in
@@ -1332,7 +1339,7 @@ multiclass VOP2_SDWA9_Real <bits<6> op> {
     VOP2_SDWA9Ae <op{5-0}, !cast<VOP2_SDWA_Pseudo>(NAME#"_sdwa").Pfl>;
 }
 
-let AssemblerPredicates = [isGFX8Only] in {
+let AssemblerPredicate = isGFX8Only in {
 
 multiclass VOP2be_Real_e32e64_vi_only <bits<6> op, string OpName, string AsmName> {
   def _e32_vi :
@@ -1366,7 +1373,7 @@ multiclass VOP2be_Real_e32e64_vi_only <bits<6> op, string OpName, string AsmName
 }
 }
 
-let AssemblerPredicates = [isGFX9Only] in {
+let AssemblerPredicate = isGFX9Only in {
 
 multiclass VOP2be_Real_e32e64_gfx9 <bits<6> op, string OpName, string AsmName> {
   def _e32_gfx9 :
@@ -1424,7 +1431,7 @@ multiclass VOP2_Real_e32e64_gfx9 <bits<6> op> {
       }
 }
 
-} // AssemblerPredicates = [isGFX9Only]
+} // AssemblerPredicate = isGFX9Only
 
 multiclass VOP2_Real_e32e64_vi <bits<6> op> :
   Base_VOP2_Real_e32e64_vi<op>, VOP2_SDWA_Real<op>, VOP2_SDWA9_Real<op> {

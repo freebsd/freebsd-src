@@ -31,6 +31,7 @@
 #include <algorithm>
 
 using namespace llvm;
+using namespace PatternMatch;
 
 //===----------------------------------------------------------------------===//
 //                              Constant Class
@@ -149,6 +150,30 @@ bool Constant::isOneValue() const {
   return false;
 }
 
+bool Constant::isNotOneValue() const {
+  // Check for 1 integers
+  if (const ConstantInt *CI = dyn_cast<ConstantInt>(this))
+    return !CI->isOneValue();
+
+  // Check for FP which are bitcasted from 1 integers
+  if (const ConstantFP *CFP = dyn_cast<ConstantFP>(this))
+    return !CFP->getValueAPF().bitcastToAPInt().isOneValue();
+
+  // Check that vectors don't contain 1
+  if (this->getType()->isVectorTy()) {
+    unsigned NumElts = this->getType()->getVectorNumElements();
+    for (unsigned i = 0; i != NumElts; ++i) {
+      Constant *Elt = this->getAggregateElement(i);
+      if (!Elt || !Elt->isNotOneValue())
+        return false;
+    }
+    return true;
+  }
+
+  // It *may* contain 1, we can't tell.
+  return false;
+}
+
 bool Constant::isMinSignedValue() const {
   // Check for INT_MIN integers
   if (const ConstantInt *CI = dyn_cast<ConstantInt>(this))
@@ -255,14 +280,18 @@ bool Constant::isElementWiseEqual(Value *Y) const {
   // Are they fully identical?
   if (this == Y)
     return true;
-  // They may still be identical element-wise (if they have `undef`s).
-  auto *Cy = dyn_cast<Constant>(Y);
-  if (!Cy)
+
+  // The input value must be a vector constant with the same type.
+  Type *Ty = getType();
+  if (!isa<Constant>(Y) || !Ty->isVectorTy() || Ty != Y->getType())
     return false;
-  return PatternMatch::match(ConstantExpr::getICmp(ICmpInst::Predicate::ICMP_EQ,
-                                                   const_cast<Constant *>(this),
-                                                   Cy),
-                             PatternMatch::m_One());
+
+  // They may still be identical element-wise (if they have `undef`s).
+  // FIXME: This crashes on FP vector constants.
+  return match(ConstantExpr::getICmp(ICmpInst::Predicate::ICMP_EQ,
+                                     const_cast<Constant *>(this),
+                                     cast<Constant>(Y)),
+               m_One());
 }
 
 bool Constant::containsUndefElement() const {
@@ -595,6 +624,28 @@ void Constant::removeDeadConstantUsers() const {
   }
 }
 
+Constant *Constant::replaceUndefsWith(Constant *C, Constant *Replacement) {
+  assert(C && Replacement && "Expected non-nullptr constant arguments");
+  Type *Ty = C->getType();
+  if (match(C, m_Undef())) {
+    assert(Ty == Replacement->getType() && "Expected matching types");
+    return Replacement;
+  }
+
+  // Don't know how to deal with this constant.
+  if (!Ty->isVectorTy())
+    return C;
+
+  unsigned NumElts = Ty->getVectorNumElements();
+  SmallVector<Constant *, 32> NewC(NumElts);
+  for (unsigned i = 0; i != NumElts; ++i) {
+    Constant *EltC = C->getAggregateElement(i);
+    assert((!EltC || EltC->getType() == Replacement->getType()) &&
+           "Expected matching types");
+    NewC[i] = EltC && match(EltC, m_Undef()) ? Replacement : EltC;
+  }
+  return ConstantVector::get(NewC);
+}
 
 
 //===----------------------------------------------------------------------===//
@@ -1396,24 +1447,41 @@ void ConstantVector::destroyConstantImpl() {
   getType()->getContext().pImpl->VectorConstants.remove(this);
 }
 
-Constant *Constant::getSplatValue() const {
+Constant *Constant::getSplatValue(bool AllowUndefs) const {
   assert(this->getType()->isVectorTy() && "Only valid for vectors!");
   if (isa<ConstantAggregateZero>(this))
     return getNullValue(this->getType()->getVectorElementType());
   if (const ConstantDataVector *CV = dyn_cast<ConstantDataVector>(this))
     return CV->getSplatValue();
   if (const ConstantVector *CV = dyn_cast<ConstantVector>(this))
-    return CV->getSplatValue();
+    return CV->getSplatValue(AllowUndefs);
   return nullptr;
 }
 
-Constant *ConstantVector::getSplatValue() const {
+Constant *ConstantVector::getSplatValue(bool AllowUndefs) const {
   // Check out first element.
   Constant *Elt = getOperand(0);
   // Then make sure all remaining elements point to the same value.
-  for (unsigned I = 1, E = getNumOperands(); I < E; ++I)
-    if (getOperand(I) != Elt)
+  for (unsigned I = 1, E = getNumOperands(); I < E; ++I) {
+    Constant *OpC = getOperand(I);
+    if (OpC == Elt)
+      continue;
+
+    // Strict mode: any mismatch is not a splat.
+    if (!AllowUndefs)
       return nullptr;
+
+    // Allow undefs mode: ignore undefined elements.
+    if (isa<UndefValue>(OpC))
+      continue;
+
+    // If we do not have a defined element yet, use the current operand.
+    if (isa<UndefValue>(Elt))
+      Elt = OpC;
+
+    if (OpC != Elt)
+      return nullptr;
+  }
   return Elt;
 }
 
@@ -2165,7 +2233,7 @@ Constant *ConstantExpr::getShuffleVector(Constant *V1, Constant *V2,
   if (Constant *FC = ConstantFoldShuffleVectorInstruction(V1, V2, Mask))
     return FC;          // Fold a few common cases.
 
-  unsigned NElts = Mask->getType()->getVectorNumElements();
+  ElementCount NElts = Mask->getType()->getVectorElementCount();
   Type *EltTy = V1->getType()->getVectorElementType();
   Type *ShufTy = VectorType::get(EltTy, NElts);
 
@@ -2982,7 +3050,7 @@ Value *ConstantExpr::handleOperandChangeImpl(Value *From, Value *ToV) {
       NewOps, this, From, To, NumUpdated, OperandNo);
 }
 
-Instruction *ConstantExpr::getAsInstruction() {
+Instruction *ConstantExpr::getAsInstruction() const {
   SmallVector<Value *, 4> ValueOperands(op_begin(), op_end());
   ArrayRef<Value*> Ops(ValueOperands);
 

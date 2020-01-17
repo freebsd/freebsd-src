@@ -537,7 +537,10 @@ ValueObjectSP ItaniumABILanguageRuntime::GetExceptionObjectForThread(
     return {};
 
   ClangASTContext *clang_ast_context =
-      m_process->GetTarget().GetScratchClangASTContext();
+      ClangASTContext::GetScratch(m_process->GetTarget());
+  if (!clang_ast_context)
+    return {};
+
   CompilerType voidstar =
       clang_ast_context->GetBasicType(eBasicTypeVoid).GetPointerType();
 
@@ -559,6 +562,9 @@ ValueObjectSP ItaniumABILanguageRuntime::GetExceptionObjectForThread(
   modules.FindSymbolsWithNameAndType(
       ConstString("__cxa_current_exception_type"), eSymbolTypeCode, contexts);
   contexts.GetContextAtIndex(0, context);
+  if (!context.symbol) {
+    return {};
+  }
   Address addr = context.symbol->GetAddress();
 
   Status error;

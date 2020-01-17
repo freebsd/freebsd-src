@@ -18,6 +18,7 @@
 #include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/InitializePasses.h"
 
 using namespace llvm;
 
@@ -54,6 +55,15 @@ static bool doesNotGeneratecode(const MachineInstr &MI) {
 }
 
 bool PatchableFunction::runOnMachineFunction(MachineFunction &MF) {
+  if (MF.getFunction().hasFnAttribute("patchable-function-entry")) {
+    MachineBasicBlock &FirstMBB = *MF.begin();
+    MachineInstr &FirstMI = *FirstMBB.begin();
+    const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
+    BuildMI(FirstMBB, FirstMI, FirstMI.getDebugLoc(),
+            TII->get(TargetOpcode::PATCHABLE_FUNCTION_ENTER));
+    return true;
+  }
+
   if (!MF.getFunction().hasFnAttribute("patchable-function"))
     return false;
 

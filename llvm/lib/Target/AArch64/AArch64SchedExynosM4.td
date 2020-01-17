@@ -156,8 +156,10 @@ def M4WriteAU : SchedWriteVariant<[SchedVar<IsCopyIdiomPred,   [M4WriteZ0]>,
                                    SchedVar<ExynosArithPred,   [M4WriteA1]>,
                                    SchedVar<ExynosLogicExPred, [M4WriteA1]>,
                                    SchedVar<NoSchedPred,       [M4WriteAA]>]>;
-def M4WriteAV : SchedWriteVariant<[SchedVar<ExynosResetPred, [M4WriteZ0]>,
-                                   SchedVar<NoSchedPred,     [M4WriteAA]>]>;
+def M4WriteAV : SchedWriteVariant<[SchedVar<ExynosResetPred,   [M4WriteZ0]>,
+                                   SchedVar<ExynosArithPred,   [M4WriteA1]>,
+                                   SchedVar<ExynosLogicExPred, [M4WriteA1]>,
+                                   SchedVar<NoSchedPred,       [M4WriteAA]>]>;
 def M4WriteAX : SchedWriteVariant<[SchedVar<ExynosArithPred,   [M4WriteA1]>,
                                    SchedVar<ExynosLogicExPred, [M4WriteA1]>,
                                    SchedVar<NoSchedPred,       [M4WriteAA]>]>;
@@ -173,8 +175,10 @@ def M4WriteC3 : SchedWriteRes<[M4UnitC]> { let Latency = 3; }
 def M4WriteCA : SchedWriteRes<[M4UnitC]> { let Latency = 4;
                                            let ResourceCycles = [2]; }
 
-def M4WriteD12 : SchedWriteRes<[M4UnitD]> { let Latency = 12; }
-def M4WriteD21 : SchedWriteRes<[M4UnitD]> { let Latency = 21; }
+def M4WriteD12 : SchedWriteRes<[M4UnitD]> { let Latency = 12;
+                                            let ResourceCycles = [12]; }
+def M4WriteD21 : SchedWriteRes<[M4UnitD]> { let Latency = 21;
+                                            let ResourceCycles = [21]; }
 
 def M4WriteE2 : SchedWriteRes<[M4UnitE]> { let Latency = 2; }
 
@@ -198,8 +202,10 @@ def M4WriteLE : SchedWriteRes<[M4UnitA,
                                            let NumMicroOps = 2; }
 def M4WriteLH : SchedWriteRes<[]>        { let Latency = 5;
                                            let NumMicroOps = 0; }
-def M4WriteLX : SchedWriteVariant<[SchedVar<ScaledIdxPred, [M4WriteL5]>,
-                                   SchedVar<NoSchedPred,   [M4WriteL4]>]>;
+def M4WriteLX : SchedWriteVariant<[SchedVar<ExynosScaledIdxPred, [M4WriteL5]>,
+                                   SchedVar<NoSchedPred,         [M4WriteL4]>]>;
+def M4WriteLY : SchedWriteVariant<[SchedVar<ExynosScaledIdxPred, [M4WriteLE]>,
+                                   SchedVar<NoSchedPred,         [M4WriteL5]>]>;
 
 def M4WriteS1 : SchedWriteRes<[M4UnitS]>  { let Latency = 1; }
 def M4WriteSA : SchedWriteRes<[M4UnitS0]> { let Latency = 3; }
@@ -458,6 +464,8 @@ def M4WriteVSTI    : SchedWriteRes<[M4UnitNSHF,
                                                     let ResourceCycles = [1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1]; }
 def M4WriteVSTJ    : SchedWriteRes<[M4UnitA,
                                     M4UnitS,
+                                    M4UnitFST,
+                                    M4UnitS,
                                     M4UnitFST]>   { let Latency = 1;
                                                     let NumMicroOps = 2; }
 def M4WriteVSTK    : SchedWriteRes<[M4UnitA,
@@ -472,6 +480,8 @@ def M4WriteVSTL    : SchedWriteRes<[M4UnitNSHF,
                                     M4UnitFST]>   { let Latency = 4;
                                                     let NumMicroOps = 4;
                                                     let ResourceCycles = [1, 1, 2, 1, 2, 1]; }
+def M4WriteVSTY    : SchedWriteVariant<[SchedVar<ExynosScaledIdxPred, [M4WriteVSTK]>,
+                                        SchedVar<NoSchedPred,         [WriteVST]>]>;
 
 // Special cases.
 def M4WriteCOPY    : SchedWriteVariant<[SchedVar<ExynosFPPred, [M4WriteNALU1]>,
@@ -537,7 +547,7 @@ def : SchedAlias<WriteFMul, M4WriteFMAC3>;
 // FP miscellaneous instructions.
 def : SchedAlias<WriteFCvt,  M4WriteFCVT2>;
 def : SchedAlias<WriteFImm,  M4WriteNALU1>;
-def : SchedAlias<WriteFCopy, M4WriteCOPY>;
+def : SchedAlias<WriteFCopy, M4WriteNALU1>;
 
 // FP load instructions.
 def : SchedAlias<WriteVLD, M4WriteL5>;
@@ -672,7 +682,7 @@ def : InstRW<[M4WriteLE,
               ReadAdrBase], (instregex "^LDR[BHSDQ]roW")>;
 def : InstRW<[WriteVLD,
               ReadAdrBase], (instregex "^LDR[BHSD]roX")>;
-def : InstRW<[M4WriteLE,
+def : InstRW<[M4WriteLY,
               ReadAdrBase], (instrs LDRQroX)>;
 def : InstRW<[WriteVLD,
               M4WriteLH],   (instregex "^LDN?P[SD]i")>;
@@ -696,16 +706,16 @@ def : InstRW<[WriteVST],    (instregex "^STUR[BHSDQ]i")>;
 def : InstRW<[WriteVST,
               WriteAdr],    (instregex "^STR[BHSDQ](post|pre)")>;
 def : InstRW<[WriteVST],    (instregex "^STR[BHSDQ]ui")>;
-def : InstRW<[M4WriteVSTJ,
+def : InstRW<[M4WriteVSTK,
               ReadAdrBase], (instregex "^STR[BHSD]roW")>;
 def : InstRW<[M4WriteVSTK,
               ReadAdrBase], (instrs STRQroW)>;
 def : InstRW<[WriteVST,
               ReadAdrBase], (instregex "^STR[BHSD]roX")>;
-def : InstRW<[M4WriteVSTK,
+def : InstRW<[M4WriteVSTY,
               ReadAdrBase], (instrs STRQroX)>;
 def : InstRW<[WriteVST],    (instregex "^STN?P[SD]i")>;
-def : InstRW<[M4WriteVSTA], (instregex "^STN?PQi")>;
+def : InstRW<[M4WriteVSTJ], (instregex "^STN?PQi")>;
 def : InstRW<[WriteVST,
               WriteAdr],    (instregex "^STP[SD](post|pre)")>;
 def : InstRW<[M4WriteVSTJ,

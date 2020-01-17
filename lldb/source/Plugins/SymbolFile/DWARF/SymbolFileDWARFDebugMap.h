@@ -23,7 +23,18 @@ class DWARFDebugAranges;
 class DWARFDeclContext;
 
 class SymbolFileDWARFDebugMap : public lldb_private::SymbolFile {
+  /// LLVM RTTI support.
+  static char ID;
+
 public:
+  /// LLVM RTTI support.
+  /// \{
+  bool isA(const void *ClassID) const override {
+    return ClassID == &ID || SymbolFile::isA(ClassID);
+  }
+  static bool classof(const SymbolFile *obj) { return obj->isA(&ID); }
+  /// \}
+
   // Static Functions
   static void Initialize();
 
@@ -53,9 +64,9 @@ public:
 
   bool ParseDebugMacros(lldb_private::CompileUnit &comp_unit) override;
 
-  void
-  ForEachExternalModule(lldb_private::CompileUnit &comp_unit,
-                        llvm::function_ref<void(lldb::ModuleSP)> f) override;
+  bool ForEachExternalModule(
+      lldb_private::CompileUnit &, llvm::DenseSet<lldb_private::SymbolFile *> &,
+      llvm::function_ref<bool(lldb_private::Module &)>) override;
 
   bool ParseSupportFiles(lldb_private::CompileUnit &comp_unit,
                          lldb_private::FileSpecList &support_files) override;
@@ -114,13 +125,18 @@ public:
             uint32_t max_matches,
             llvm::DenseSet<lldb_private::SymbolFile *> &searched_symbol_files,
             lldb_private::TypeMap &types) override;
+  void
+  FindTypes(llvm::ArrayRef<lldb_private::CompilerContext> context,
+            lldb_private::LanguageSet languages,
+            llvm::DenseSet<lldb_private::SymbolFile *> &searched_symbol_files,
+            lldb_private::TypeMap &types) override;
   lldb_private::CompilerDeclContext FindNamespace(
       lldb_private::ConstString name,
       const lldb_private::CompilerDeclContext *parent_decl_ctx) override;
   void GetTypes(lldb_private::SymbolContextScope *sc_scope,
                 lldb::TypeClass type_mask,
                 lldb_private::TypeList &type_list) override;
-  std::vector<lldb_private::CallEdge>
+  std::vector<std::unique_ptr<lldb_private::CallEdge>>
   ParseCallEdgesInFunction(lldb_private::UserID func_id) override;
 
   void DumpClangAST(lldb_private::Stream &s) override;
@@ -348,8 +364,8 @@ protected:
   /// \param[in] oso_symfile
   ///     The DWARF symbol file that produced the \a line_table
   ///
-  /// \param[in] addr
-  ///     A section offset address from a .o file
+  /// \param[in] line_table
+  ///     A pointer to the line table.
   ///
   /// \return
   ///     Returns a valid line table full of linked addresses, or NULL

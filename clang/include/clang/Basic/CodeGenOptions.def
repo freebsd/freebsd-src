@@ -37,6 +37,7 @@ CODEGENOPT(AssumeSaneOperatorNew , 1, 1) ///< implicit __attribute__((malloc)) o
 CODEGENOPT(Autolink          , 1, 1) ///< -fno-autolink
 CODEGENOPT(ObjCAutoRefCountExceptions , 1, 0) ///< Whether ARC should be EH-safe.
 CODEGENOPT(Backchain         , 1, 0) ///< -mbackchain
+CODEGENOPT(ControlFlowGuardNoChecks  , 1, 0) ///< -cfguard-no-checks
 CODEGENOPT(ControlFlowGuard  , 1, 0) ///< -cfguard
 CODEGENOPT(CoverageExtraChecksum, 1, 0) ///< Whether we need a second checksum for functions in GCNO files.
 CODEGENOPT(CoverageNoFunctionNamesInData, 1, 0) ///< Do not include function names in GCDA files.
@@ -96,6 +97,8 @@ CODEGENOPT(CFProtectionBranch , 1, 0) ///< if -fcf-protection is
 CODEGENOPT(XRayInstrumentFunctions , 1, 0) ///< Set when -fxray-instrument is
                                            ///< enabled.
 CODEGENOPT(StackSizeSection  , 1, 0) ///< Set when -fstack-size-section is enabled.
+CODEGENOPT(ForceDwarfFrameSection , 1, 0) ///< Set when -fforce-dwarf-frame is
+                                          ///< enabled.
 
 ///< Set when -fxray-always-emit-customevents is enabled.
 CODEGENOPT(XRayAlwaysEmitCustomEvents , 1, 0)
@@ -107,8 +110,13 @@ CODEGENOPT(XRayAlwaysEmitTypedEvents , 1, 0)
 ///< XRay instrumentation.
 VALUE_CODEGENOPT(XRayInstructionThreshold , 32, 200)
 
+VALUE_CODEGENOPT(PatchableFunctionEntryCount , 32, 0) ///< Number of NOPs at function entry
+
 CODEGENOPT(InstrumentForProfiling , 1, 0) ///< Set when -pg is enabled.
 CODEGENOPT(CallFEntry , 1, 0) ///< Set when -mfentry is enabled.
+CODEGENOPT(MNopMCount , 1, 0) ///< Set when -mnop-mcount is enabled.
+CODEGENOPT(RecordMCount , 1, 0) ///< Set when -mrecord-mcount is enabled.
+CODEGENOPT(PackedStack , 1, 0) ///< Set when -mpacked-stack is enabled.
 CODEGENOPT(LessPreciseFPMAD  , 1, 0) ///< Enable less precise MAD instructions to
                                      ///< be generated.
 CODEGENOPT(PrepareForLTO     , 1, 0) ///< Set when -flto is enabled on the
@@ -135,6 +143,8 @@ CODEGENOPT(FatalWarnings     , 1, 0) ///< Set when -Wa,--fatal-warnings is
                                      ///< enabled.
 CODEGENOPT(NoWarn            , 1, 0) ///< Set when -Wa,--no-warn is enabled.
 CODEGENOPT(EnableSegmentedStacks , 1, 0) ///< Set when -fsplit-stack is enabled.
+CODEGENOPT(NoInlineLineTables, 1, 0) ///< Whether debug info should contain
+                                     ///< inline line tables.
 CODEGENOPT(NoImplicitFloat   , 1, 0) ///< Set when -mno-implicit-float is enabled.
 CODEGENOPT(NoInfsFPMath      , 1, 0) ///< Assume FP arguments, results not +-Inf.
 CODEGENOPT(NoSignedZeros     , 1, 0) ///< Allow ignoring the signedness of FP zero
@@ -323,6 +333,9 @@ ENUM_CODEGENOPT(VecLib, VectorLibrary, 2, NoLibrary)
 /// The default TLS model to use.
 ENUM_CODEGENOPT(DefaultTLSModel, TLSModel, 2, GeneralDynamicTLSModel)
 
+/// Bit size of immediate TLS offsets (0 == use the default).
+VALUE_CODEGENOPT(TLSSize, 8, 0)
+
 /// Number of path components to strip when emitting checks. (0 == full
 /// filename)
 VALUE_CODEGENOPT(EmitCheckPathComponentsToStrip, 32, 0)
@@ -364,8 +377,8 @@ CODEGENOPT(ForceEmitVTables, 1, 0)
 /// Whether to emit an address-significance table into the object file.
 CODEGENOPT(Addrsig, 1, 0)
 
-ENUM_CODEGENOPT(SignReturnAddress, SignReturnAddressScope, 2, None)
-ENUM_CODEGENOPT(SignReturnAddressKey, SignReturnAddressKeyValue, 1, AKey)
+ENUM_CODEGENOPT(SignReturnAddress, SignReturnAddressScope, 2, SignReturnAddressScope::None)
+ENUM_CODEGENOPT(SignReturnAddressKey, SignReturnAddressKeyValue, 1, SignReturnAddressKeyValue::AKey)
 CODEGENOPT(BranchTargetEnforcement, 1, 0)
 
 /// Whether to emit unused static constants.

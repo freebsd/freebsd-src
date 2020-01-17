@@ -45,7 +45,7 @@
 #include "llvm/Support/AMDHSAKernelDescriptor.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compiler.h"
-#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/MachineValueType.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/SMLoc.h"
@@ -1320,6 +1320,7 @@ private:
   bool validateIntClampSupported(const MCInst &Inst);
   bool validateMIMGAtomicDMask(const MCInst &Inst);
   bool validateMIMGGatherDMask(const MCInst &Inst);
+  bool validateMovrels(const MCInst &Inst);
   bool validateMIMGDataSize(const MCInst &Inst);
   bool validateMIMGAddrSize(const MCInst &Inst);
   bool validateMIMGD16(const MCInst &Inst);
@@ -2362,7 +2363,7 @@ AMDGPUAsmParser::parseImm(OperandVector &Operands, bool HasSP3AbsModifier) {
 
     APFloat RealVal(APFloat::IEEEdouble());
     auto roundMode = APFloat::rmNearestTiesToEven;
-    if (RealVal.convertFromString(Num, roundMode) == APFloat::opInvalidOp) {
+    if (errorToBool(RealVal.convertFromString(Num, roundMode).takeError())) {
       return MatchOperand_ParseFail;
     }
     if (Negate)
@@ -3049,6 +3050,41 @@ bool AMDGPUAsmParser::validateMIMGGatherDMask(const MCInst &Inst) {
   return DMask == 0x1 || DMask == 0x2 || DMask == 0x4 || DMask == 0x8;
 }
 
+static bool IsMovrelsSDWAOpcode(const unsigned Opcode)
+{
+  switch (Opcode) {
+  case AMDGPU::V_MOVRELS_B32_sdwa_gfx10:
+  case AMDGPU::V_MOVRELSD_B32_sdwa_gfx10:
+  case AMDGPU::V_MOVRELSD_2_B32_sdwa_gfx10:
+    return true;
+  default:
+    return false;
+  }
+}
+
+// movrels* opcodes should only allow VGPRS as src0.
+// This is specified in .td description for vop1/vop3,
+// but sdwa is handled differently. See isSDWAOperand.
+bool AMDGPUAsmParser::validateMovrels(const MCInst &Inst) {
+
+  const unsigned Opc = Inst.getOpcode();
+  const MCInstrDesc &Desc = MII.get(Opc);
+
+  if ((Desc.TSFlags & SIInstrFlags::SDWA) == 0 || !IsMovrelsSDWAOpcode(Opc))
+    return true;
+
+  const int Src0Idx = AMDGPU::getNamedOperandIdx(Opc, AMDGPU::OpName::src0);
+  assert(Src0Idx != -1);
+
+  const MCOperand &Src0 = Inst.getOperand(Src0Idx);
+  if (!Src0.isReg())
+    return false;
+
+  auto Reg = Src0.getReg();
+  const MCRegisterInfo *TRI = getContext().getRegisterInfo();
+  return !isSGPR(mc2PseudoReg(Reg), TRI);
+}
+
 bool AMDGPUAsmParser::validateMIMGD16(const MCInst &Inst) {
 
   const unsigned Opc = Inst.getOpcode();
@@ -3467,6 +3503,10 @@ bool AMDGPUAsmParser::validateInstruction(const MCInst &Inst,
   if (!validateMIMGGatherDMask(Inst)) {
     Error(IDLoc,
       "invalid image_gather dmask: only one bit must be set");
+    return false;
+  }
+  if (!validateMovrels(Inst)) {
+    Error(IDLoc, "source operand must be a VGPR");
     return false;
   }
   if (!validateFlatOffset(Inst, Operands)) {
@@ -6940,7 +6980,7 @@ AMDGPUOperand::Ptr AMDGPUAsmParser::defaultABID() const {
 }
 
 /// Force static initialization.
-extern "C" void LLVMInitializeAMDGPUAsmParser() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeAMDGPUAsmParser() {
   RegisterMCAsmParser<AMDGPUAsmParser> A(getTheAMDGPUTarget());
   RegisterMCAsmParser<AMDGPUAsmParser> B(getTheGCNTarget());
 }

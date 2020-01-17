@@ -24,6 +24,7 @@
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/EHPersonalities.h"
+#include "llvm/Analysis/GuardUtils.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/MemorySSA.h"
 #include "llvm/Analysis/MemorySSAUpdater.h"
@@ -1403,10 +1404,16 @@ HoistTerminator:
       // These values do not agree.  Insert a select instruction before NT
       // that determines the right value.
       SelectInst *&SI = InsertedSelects[std::make_pair(BB1V, BB2V)];
-      if (!SI)
+      if (!SI) {
+        // Propagate fast-math-flags from phi node to its replacement select.
+        IRBuilder<>::FastMathFlagGuard FMFGuard(Builder);
+        if (isa<FPMathOperator>(PN))
+          Builder.setFastMathFlags(PN.getFastMathFlags());
+
         SI = cast<SelectInst>(
             Builder.CreateSelect(BI->getCondition(), BB1V, BB2V,
                                  BB1V->getName() + "." + BB2V->getName(), BI));
+      }
 
       // Make the PHI node use the select for all incoming values for BB1/BB2
       for (unsigned i = 0, e = PN.getNumIncomingValues(); i != e; ++i)
@@ -2262,14 +2269,14 @@ static bool FoldCondBranchOnPHI(BranchInst *BI, const DataLayout &DL,
         if (!BBI->use_empty())
           TranslateMap[&*BBI] = N;
       }
-      // Insert the new instruction into its new home.
-      if (N)
+      if (N) {
+        // Insert the new instruction into its new home.
         EdgeBB->getInstList().insert(InsertPt, N);
 
-      // Register the new instruction with the assumption cache if necessary.
-      if (auto *II = dyn_cast_or_null<IntrinsicInst>(N))
-        if (II->getIntrinsicID() == Intrinsic::assume)
-          AC->registerAssumption(II);
+        // Register the new instruction with the assumption cache if necessary.
+        if (AC && match(N, m_Intrinsic<Intrinsic::assume>()))
+          AC->registerAssumption(cast<IntrinsicInst>(N));
+      }
     }
 
     // Loop over all of the edges from PredBB to BB, changing them to branch
@@ -2418,7 +2425,12 @@ static bool FoldTwoEntryPHINode(PHINode *PN, const TargetTransformInfo &TTI,
   if (IfBlock2)
     hoistAllInstructionsInto(DomBlock, InsertPt, IfBlock2);
 
+  // Propagate fast-math-flags from phi nodes to replacement selects.
+  IRBuilder<>::FastMathFlagGuard FMFGuard(Builder);
   while (PHINode *PN = dyn_cast<PHINode>(BB->begin())) {
+    if (isa<FPMathOperator>(PN))
+      Builder.setFastMathFlags(PN->getFastMathFlags());
+
     // Change the PHI node into a select instruction.
     Value *TrueVal = PN->getIncomingValue(PN->getIncomingBlock(0) == IfFalse);
     Value *FalseVal = PN->getIncomingValue(PN->getIncomingBlock(0) == IfTrue);
@@ -3212,6 +3224,47 @@ static bool mergeConditionalStores(BranchInst *PBI, BranchInst *QBI,
   return Changed;
 }
 
+
+/// If the previous block ended with a widenable branch, determine if reusing
+/// the target block is profitable and legal.  This will have the effect of
+/// "widening" PBI, but doesn't require us to reason about hosting safety.
+static bool tryWidenCondBranchToCondBranch(BranchInst *PBI, BranchInst *BI) {
+  // TODO: This can be generalized in two important ways:
+  // 1) We can allow phi nodes in IfFalseBB and simply reuse all the input
+  //    values from the PBI edge.
+  // 2) We can sink side effecting instructions into BI's fallthrough
+  //    successor provided they doesn't contribute to computation of
+  //    BI's condition.
+  Value *CondWB, *WC;
+  BasicBlock *IfTrueBB, *IfFalseBB;
+  if (!parseWidenableBranch(PBI, CondWB, WC, IfTrueBB, IfFalseBB) ||
+      IfTrueBB != BI->getParent() || !BI->getParent()->getSinglePredecessor())
+    return false;
+  if (!IfFalseBB->phis().empty())
+    return false; // TODO
+  // Use lambda to lazily compute expensive condition after cheap ones.
+  auto NoSideEffects = [](BasicBlock &BB) {
+    return !llvm::any_of(BB, [](const Instruction &I) {
+        return I.mayWriteToMemory() || I.mayHaveSideEffects();
+      });
+  };
+  if (BI->getSuccessor(1) != IfFalseBB && // no inf looping
+      BI->getSuccessor(1)->getTerminatingDeoptimizeCall() && // profitability
+      NoSideEffects(*BI->getParent())) {
+    BI->getSuccessor(1)->removePredecessor(BI->getParent());
+    BI->setSuccessor(1, IfFalseBB);
+    return true;
+  }
+  if (BI->getSuccessor(0) != IfFalseBB && // no inf looping
+      BI->getSuccessor(0)->getTerminatingDeoptimizeCall() && // profitability
+      NoSideEffects(*BI->getParent())) {
+    BI->getSuccessor(0)->removePredecessor(BI->getParent());
+    BI->setSuccessor(0, IfFalseBB);
+    return true;
+  }
+  return false;
+}
+
 /// If we have a conditional branch as a predecessor of another block,
 /// this function tries to simplify it.  We know
 /// that PBI and BI are both conditional branches, and BI is in one of the
@@ -3266,6 +3319,12 @@ static bool SimplifyCondBranchToCondBranch(BranchInst *PBI, BranchInst *BI,
       return true;
     }
   }
+
+  // If the previous block ended with a widenable branch, determine if reusing
+  // the target block is profitable and legal.  This will have the effect of
+  // "widening" PBI, but doesn't require us to reason about hosting safety.
+  if (tryWidenCondBranchToCondBranch(PBI, BI))
+    return true;
 
   if (auto *CE = dyn_cast<ConstantExpr>(BI->getCondition()))
     if (CE->canTrap())

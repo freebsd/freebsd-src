@@ -56,9 +56,9 @@ void AArch64InstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
   OS << getRegisterName(RegNo);
 }
 
-void AArch64InstPrinter::printInst(const MCInst *MI, raw_ostream &O,
-                                   StringRef Annot,
-                                   const MCSubtargetInfo &STI) {
+void AArch64InstPrinter::printInst(const MCInst *MI, uint64_t Address,
+                                   StringRef Annot, const MCSubtargetInfo &STI,
+                                   raw_ostream &O) {
   // Check for special encodings and print the canonical alias instead.
 
   unsigned Opcode = MI->getOpcode();
@@ -282,6 +282,12 @@ void AArch64InstPrinter::printInst(const MCInst *MI, raw_ostream &O,
     return;
   }
 
+  if (Opcode == AArch64::SPACE) {
+    O << '\t' << MAI.getCommentString() << " SPACE";
+    printAnnotation(O, Annot);
+    return;
+  }
+
   // Instruction TSB is specified as a one operand instruction, but 'csync' is
   // not encoded, so for printing it is treated as a special case here:
   if (Opcode == AArch64::TSB) {
@@ -290,7 +296,7 @@ void AArch64InstPrinter::printInst(const MCInst *MI, raw_ostream &O,
   }
 
   if (!printAliasInstr(MI, STI, O))
-    printInstruction(MI, STI, O);
+    printInstruction(MI, Address, STI, O);
 
   printAnnotation(O, Annot);
 
@@ -698,9 +704,10 @@ static const LdStNInstrDesc *getLdStNInstrDesc(unsigned Opcode) {
   return nullptr;
 }
 
-void AArch64AppleInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
+void AArch64AppleInstPrinter::printInst(const MCInst *MI, uint64_t Address,
                                         StringRef Annot,
-                                        const MCSubtargetInfo &STI) {
+                                        const MCSubtargetInfo &STI,
+                                        raw_ostream &O) {
   unsigned Opcode = MI->getOpcode();
   StringRef Layout;
 
@@ -748,7 +755,7 @@ void AArch64AppleInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
     return;
   }
 
-  AArch64InstPrinter::printInst(MI, O, Annot, STI);
+  AArch64InstPrinter::printInst(MI, Address, Annot, STI, O);
 }
 
 bool AArch64InstPrinter::printSysAlias(const MCInst *MI,

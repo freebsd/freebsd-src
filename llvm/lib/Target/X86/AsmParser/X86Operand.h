@@ -36,6 +36,7 @@ struct X86Operand final : public MCParsedAsmOperand {
   StringRef SymName;
   void *OpDecl;
   bool AddressOf;
+  bool CallOperand;
 
   struct TokOp {
     const char *Data;
@@ -52,6 +53,7 @@ struct X86Operand final : public MCParsedAsmOperand {
 
   struct ImmOp {
     const MCExpr *Val;
+    bool LocalRef;
   };
 
   struct MemOp {
@@ -77,7 +79,7 @@ struct X86Operand final : public MCParsedAsmOperand {
   };
 
   X86Operand(KindTy K, SMLoc Start, SMLoc End)
-      : Kind(K), StartLoc(Start), EndLoc(End) {}
+      : Kind(K), StartLoc(Start), EndLoc(End), CallOperand(false) {}
 
   StringRef getSymName() override { return SymName; }
   void *getOpDecl() override { return OpDecl; }
@@ -104,8 +106,8 @@ struct X86Operand final : public MCParsedAsmOperand {
       } else if (Val->getKind() == MCExpr::SymbolRef) {
         if (auto *SRE = dyn_cast<MCSymbolRefExpr>(Val)) {
           const MCSymbol &Sym = SRE->getSymbol();
-          if (auto SymName = Sym.getName().data())
-            OS << VName << SymName;
+          if (const char *SymNameStr = Sym.getName().data())
+            OS << VName << SymNameStr;
         }
       }
     };
@@ -278,13 +280,9 @@ struct X86Operand final : public MCParsedAsmOperand {
     return isImmUnsignedi8Value(CE->getValue());
   }
 
-  bool isOffsetOf() const override {
-    return OffsetOfLoc.getPointer();
-  }
+  bool isOffsetOfLocal() const override { return isImm() && Imm.LocalRef; }
 
-  bool needAddressOf() const override {
-    return AddressOf;
-  }
+  bool needAddressOf() const override { return AddressOf; }
 
   bool isMem() const override { return Kind == Memory; }
   bool isMemUnsized() const {
@@ -613,9 +611,16 @@ struct X86Operand final : public MCParsedAsmOperand {
   }
 
   static std::unique_ptr<X86Operand> CreateImm(const MCExpr *Val,
-                                               SMLoc StartLoc, SMLoc EndLoc) {
+                                               SMLoc StartLoc, SMLoc EndLoc,
+                                               StringRef SymName = StringRef(),
+                                               void *OpDecl = nullptr,
+                                               bool GlobalRef = true) {
     auto Res = std::make_unique<X86Operand>(Immediate, StartLoc, EndLoc);
-    Res->Imm.Val = Val;
+    Res->Imm.Val      = Val;
+    Res->Imm.LocalRef = !GlobalRef;
+    Res->SymName      = SymName;
+    Res->OpDecl       = OpDecl;
+    Res->AddressOf    = true;
     return Res;
   }
 

@@ -371,12 +371,13 @@ static void PrintTagInfoAroundAddr(tag_t *tag_ptr, uptr num_rows,
   InternalScopedString s(GetPageSizeCached() * 8);
   for (tag_t *row = beg_row; row < end_row; row += row_len) {
     s.append("%s", row == center_row_beg ? "=>" : "  ");
+    s.append("%p:", row);
     for (uptr i = 0; i < row_len; i++) {
       s.append("%s", row + i == tag_ptr ? "[" : " ");
       print_tag(s, &row[i]);
       s.append("%s", row + i == tag_ptr ? "]" : " ");
     }
-    s.append("%s\n", row == center_row_beg ? "<=" : "  ");
+    s.append("\n");
   }
   Printf("%s", s.data());
 }
@@ -442,7 +443,7 @@ void ReportTailOverwritten(StackTrace *stack, uptr tagged_addr, uptr orig_size,
   Decorator d;
   uptr untagged_addr = UntagAddr(tagged_addr);
   Printf("%s", d.Error());
-  const char *bug_type = "alocation-tail-overwritten";
+  const char *bug_type = "allocation-tail-overwritten";
   Report("ERROR: %s: %s; heap object [%p,%p) of size %zd\n", SanitizerToolName,
          bug_type, untagged_addr, untagged_addr + orig_size, orig_size);
   Printf("\n%s", d.Default());

@@ -226,7 +226,7 @@ public:
   /// option. Don't override this method, override HandleArgumentCompletion
   /// instead unless you have special reasons.
   ///
-  /// \param[in/out] request
+  /// \param[in,out] request
   ///    The completion request that needs to be answered.
   virtual void HandleCompletion(CompletionRequest &request);
 
@@ -235,7 +235,7 @@ public:
   /// We've constructed the map of options and their arguments as well if that
   /// is helpful for the completion.
   ///
-  /// \param[in/out] request
+  /// \param[in,out] request
   ///    The completion request that needs to be answered.
   virtual void
   HandleArgumentCompletion(CompletionRequest &request,
@@ -261,8 +261,8 @@ public:
 
   /// Get the command that appropriate for a "repeat" of the current command.
   ///
-  /// \param[in] current_command_line
-  ///    The complete current command line.
+  /// \param[in] current_command_args
+  ///    The command arguments.
   ///
   /// \return
   ///     nullptr if there is no special repeat command - it will use the

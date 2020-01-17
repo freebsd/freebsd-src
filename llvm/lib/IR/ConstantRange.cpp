@@ -64,11 +64,11 @@ ConstantRange ConstantRange::fromKnownBits(const KnownBits &Known,
   // For unsigned ranges, or signed ranges with known sign bit, create a simple
   // range between the smallest and largest possible value.
   if (!IsSigned || Known.isNegative() || Known.isNonNegative())
-    return ConstantRange(Known.One, ~Known.Zero + 1);
+    return ConstantRange(Known.getMinValue(), Known.getMaxValue() + 1);
 
   // If we don't know the sign bit, pick the lower bound as a negative number
   // and the upper bound as a non-negative one.
-  APInt Lower = Known.One, Upper = ~Known.Zero;
+  APInt Lower = Known.getMinValue(), Upper = Known.getMaxValue();
   Lower.setSignBit();
   Upper.clearSignBit();
   return ConstantRange(Lower, Upper + 1);
@@ -641,7 +641,7 @@ ConstantRange ConstantRange::castOp(Instruction::CastOps CastOp,
     if (getBitWidth() == ResultBitWidth)
       return *this;
     else
-      return getFull();
+      return getFull(ResultBitWidth);
   case Instruction::UIToFP: {
     // TODO: use input range if available
     auto BW = getBitWidth();
@@ -662,7 +662,7 @@ ConstantRange ConstantRange::castOp(Instruction::CastOps CastOp,
   case Instruction::PtrToInt:
   case Instruction::AddrSpaceCast:
     // Conservatively return getFull set.
-    return getFull();
+    return getFull(ResultBitWidth);
   };
 }
 
@@ -816,6 +816,23 @@ ConstantRange ConstantRange::binaryOp(Instruction::BinaryOps BinOp,
   }
 }
 
+ConstantRange ConstantRange::overflowingBinaryOp(Instruction::BinaryOps BinOp,
+                                                 const ConstantRange &Other,
+                                                 unsigned NoWrapKind) const {
+  assert(Instruction::isBinaryOp(BinOp) && "Binary operators only!");
+
+  switch (BinOp) {
+  case Instruction::Add:
+    return addWithNoWrap(Other, NoWrapKind);
+  case Instruction::Sub:
+    return subWithNoWrap(Other, NoWrapKind);
+  default:
+    // Don't know about this Overflowing Binary Operation.
+    // Conservatively fallback to plain binop handling.
+    return binaryOp(BinOp, Other);
+  }
+}
+
 ConstantRange
 ConstantRange::add(const ConstantRange &Other) const {
   if (isEmptySet() || Other.isEmptySet())
@@ -849,41 +866,17 @@ ConstantRange ConstantRange::addWithNoWrap(const ConstantRange &Other,
   using OBO = OverflowingBinaryOperator;
   ConstantRange Result = add(Other);
 
-  auto addWithNoUnsignedWrap = [this](const ConstantRange &Other) {
-    APInt LMin = getUnsignedMin(), LMax = getUnsignedMax();
-    APInt RMin = Other.getUnsignedMin(), RMax = Other.getUnsignedMax();
-    bool Overflow;
-    APInt NewMin = LMin.uadd_ov(RMin, Overflow);
-    if (Overflow)
-      return getEmpty();
-    APInt NewMax = LMax.uadd_sat(RMax);
-    return getNonEmpty(std::move(NewMin), std::move(NewMax) + 1);
-  };
-
-  auto addWithNoSignedWrap = [this](const ConstantRange &Other) {
-    APInt LMin = getSignedMin(), LMax = getSignedMax();
-    APInt RMin = Other.getSignedMin(), RMax = Other.getSignedMax();
-    if (LMin.isNonNegative()) {
-      bool Overflow;
-      APInt Temp = LMin.sadd_ov(RMin, Overflow);
-      if (Overflow)
-        return getEmpty();
-    }
-    if (LMax.isNegative()) {
-      bool Overflow;
-      APInt Temp = LMax.sadd_ov(RMax, Overflow);
-      if (Overflow)
-        return getEmpty();
-    }
-    APInt NewMin = LMin.sadd_sat(RMin);
-    APInt NewMax = LMax.sadd_sat(RMax);
-    return getNonEmpty(std::move(NewMin), std::move(NewMax) + 1);
-  };
+  // If an overflow happens for every value pair in these two constant ranges,
+  // we must return Empty set. In this case, we get that for free, because we
+  // get lucky that intersection of add() with uadd_sat()/sadd_sat() results
+  // in an empty set.
 
   if (NoWrapKind & OBO::NoSignedWrap)
-    Result = Result.intersectWith(addWithNoSignedWrap(Other), RangeType);
+    Result = Result.intersectWith(sadd_sat(Other), RangeType);
+
   if (NoWrapKind & OBO::NoUnsignedWrap)
-    Result = Result.intersectWith(addWithNoUnsignedWrap(Other), RangeType);
+    Result = Result.intersectWith(uadd_sat(Other), RangeType);
+
   return Result;
 }
 
@@ -905,6 +898,36 @@ ConstantRange::sub(const ConstantRange &Other) const {
     // We've wrapped, therefore, full set.
     return getFull();
   return X;
+}
+
+ConstantRange ConstantRange::subWithNoWrap(const ConstantRange &Other,
+                                           unsigned NoWrapKind,
+                                           PreferredRangeType RangeType) const {
+  // Calculate the range for "X - Y" which is guaranteed not to wrap(overflow).
+  // (X is from this, and Y is from Other)
+  if (isEmptySet() || Other.isEmptySet())
+    return getEmpty();
+  if (isFullSet() && Other.isFullSet())
+    return getFull();
+
+  using OBO = OverflowingBinaryOperator;
+  ConstantRange Result = sub(Other);
+
+  // If an overflow happens for every value pair in these two constant ranges,
+  // we must return Empty set. In signed case, we get that for free, because we
+  // get lucky that intersection of sub() with ssub_sat() results in an
+  // empty set. But for unsigned we must perform the overflow check manually.
+
+  if (NoWrapKind & OBO::NoSignedWrap)
+    Result = Result.intersectWith(ssub_sat(Other), RangeType);
+
+  if (NoWrapKind & OBO::NoUnsignedWrap) {
+    if (getUnsignedMax().ult(Other.getUnsignedMin()))
+      return getEmpty(); // Always overflows.
+    Result = Result.intersectWith(usub_sat(Other), RangeType);
+  }
+
+  return Result;
 }
 
 ConstantRange
@@ -1307,6 +1330,61 @@ ConstantRange ConstantRange::ssub_sat(const ConstantRange &Other) const {
 
   APInt NewL = getSignedMin().ssub_sat(Other.getSignedMax());
   APInt NewU = getSignedMax().ssub_sat(Other.getSignedMin()) + 1;
+  return getNonEmpty(std::move(NewL), std::move(NewU));
+}
+
+ConstantRange ConstantRange::umul_sat(const ConstantRange &Other) const {
+  if (isEmptySet() || Other.isEmptySet())
+    return getEmpty();
+
+  APInt NewL = getUnsignedMin().umul_sat(Other.getUnsignedMin());
+  APInt NewU = getUnsignedMax().umul_sat(Other.getUnsignedMax()) + 1;
+  return getNonEmpty(std::move(NewL), std::move(NewU));
+}
+
+ConstantRange ConstantRange::smul_sat(const ConstantRange &Other) const {
+  if (isEmptySet() || Other.isEmptySet())
+    return getEmpty();
+
+  // Because we could be dealing with negative numbers here, the lower bound is
+  // the smallest of the cartesian product of the lower and upper ranges;
+  // for example:
+  //   [-1,4) * [-2,3) = min(-1*-2, -1*2, 3*-2, 3*2) = -6.
+  // Similarly for the upper bound, swapping min for max.
+
+  APInt this_min = getSignedMin().sext(getBitWidth() * 2);
+  APInt this_max = getSignedMax().sext(getBitWidth() * 2);
+  APInt Other_min = Other.getSignedMin().sext(getBitWidth() * 2);
+  APInt Other_max = Other.getSignedMax().sext(getBitWidth() * 2);
+
+  auto L = {this_min * Other_min, this_min * Other_max, this_max * Other_min,
+            this_max * Other_max};
+  auto Compare = [](const APInt &A, const APInt &B) { return A.slt(B); };
+
+  // Note that we wanted to perform signed saturating multiplication,
+  // so since we performed plain multiplication in twice the bitwidth,
+  // we need to perform signed saturating truncation.
+  return getNonEmpty(std::min(L, Compare).truncSSat(getBitWidth()),
+                     std::max(L, Compare).truncSSat(getBitWidth()) + 1);
+}
+
+ConstantRange ConstantRange::ushl_sat(const ConstantRange &Other) const {
+  if (isEmptySet() || Other.isEmptySet())
+    return getEmpty();
+
+  APInt NewL = getUnsignedMin().ushl_sat(Other.getUnsignedMin());
+  APInt NewU = getUnsignedMax().ushl_sat(Other.getUnsignedMax()) + 1;
+  return getNonEmpty(std::move(NewL), std::move(NewU));
+}
+
+ConstantRange ConstantRange::sshl_sat(const ConstantRange &Other) const {
+  if (isEmptySet() || Other.isEmptySet())
+    return getEmpty();
+
+  APInt Min = getSignedMin(), Max = getSignedMax();
+  APInt ShAmtMin = Other.getUnsignedMin(), ShAmtMax = Other.getUnsignedMax();
+  APInt NewL = Min.sshl_sat(Min.isNonNegative() ? ShAmtMin : ShAmtMax);
+  APInt NewU = Max.sshl_sat(Max.isNegative() ? ShAmtMin : ShAmtMax) + 1;
   return getNonEmpty(std::move(NewL), std::move(NewU));
 }
 

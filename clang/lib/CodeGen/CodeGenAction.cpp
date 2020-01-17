@@ -82,6 +82,24 @@ namespace clang {
     BackendConsumer *BackendCon;
   };
 
+  static void reportOptRecordError(Error E, DiagnosticsEngine &Diags,
+                                   const CodeGenOptions CodeGenOpts) {
+    handleAllErrors(
+        std::move(E),
+      [&](const RemarkSetupFileError &E) {
+          Diags.Report(diag::err_cannot_open_file)
+              << CodeGenOpts.OptRecordFile << E.message();
+        },
+      [&](const RemarkSetupPatternError &E) {
+          Diags.Report(diag::err_drv_optimization_remark_pattern)
+              << E.message() << CodeGenOpts.OptRecordPasses;
+        },
+      [&](const RemarkSetupFormatError &E) {
+          Diags.Report(diag::err_drv_optimization_remark_format)
+              << CodeGenOpts.OptRecordFormat;
+        });
+    }
+
   class BackendConsumer : public ASTConsumer {
     using LinkModule = CodeGenAction::LinkModule;
 
@@ -128,6 +146,29 @@ namespace clang {
           LLVMIRGeneration("irgen", "LLVM IR Generation Time"),
           LLVMIRGenerationRefCount(0),
           Gen(CreateLLVMCodeGen(Diags, InFile, HeaderSearchOpts, PPOpts,
+                                CodeGenOpts, C, CoverageInfo)),
+          LinkModules(std::move(LinkModules)) {
+      FrontendTimesIsEnabled = TimePasses;
+      llvm::TimePassesIsEnabled = TimePasses;
+    }
+
+    // This constructor is used in installing an empty BackendConsumer
+    // to use the clang diagnostic handler for IR input files. It avoids
+    // initializing the OS field.
+    BackendConsumer(BackendAction Action, DiagnosticsEngine &Diags,
+                    const HeaderSearchOptions &HeaderSearchOpts,
+                    const PreprocessorOptions &PPOpts,
+                    const CodeGenOptions &CodeGenOpts,
+                    const TargetOptions &TargetOpts,
+                    const LangOptions &LangOpts, bool TimePasses,
+                    SmallVector<LinkModule, 4> LinkModules, LLVMContext &C,
+                    CoverageSourceInfo *CoverageInfo = nullptr)
+        : Diags(Diags), Action(Action), HeaderSearchOpts(HeaderSearchOpts),
+          CodeGenOpts(CodeGenOpts), TargetOpts(TargetOpts), LangOpts(LangOpts),
+          Context(nullptr),
+          LLVMIRGeneration("irgen", "LLVM IR Generation Time"),
+          LLVMIRGenerationRefCount(0),
+          Gen(CreateLLVMCodeGen(Diags, "", HeaderSearchOpts, PPOpts,
                                 CodeGenOpts, C, CoverageInfo)),
           LinkModules(std::move(LinkModules)) {
       FrontendTimesIsEnabled = TimePasses;
@@ -231,7 +272,7 @@ namespace clang {
 
     void HandleTranslationUnit(ASTContext &C) override {
       {
-        llvm::TimeTraceScope TimeScope("Frontend", StringRef(""));
+        llvm::TimeTraceScope TimeScope("Frontend");
         PrettyStackTraceString CrashInfo("Per-file LLVM IR generation");
         if (FrontendTimesIsEnabled) {
           LLVMIRGenerationRefCount += 1;
@@ -268,29 +309,16 @@ namespace clang {
         CodeGenOpts, this));
 
       Expected<std::unique_ptr<llvm::ToolOutputFile>> OptRecordFileOrErr =
-          setupOptimizationRemarks(Ctx, CodeGenOpts.OptRecordFile,
-                                   CodeGenOpts.OptRecordPasses,
-                                   CodeGenOpts.OptRecordFormat,
-                                   CodeGenOpts.DiagnosticsWithHotness,
-                                   CodeGenOpts.DiagnosticsHotnessThreshold);
+          setupOptimizationRemarks(
+              Ctx, CodeGenOpts.OptRecordFile, CodeGenOpts.OptRecordPasses,
+              CodeGenOpts.OptRecordFormat, CodeGenOpts.DiagnosticsWithHotness,
+              CodeGenOpts.DiagnosticsHotnessThreshold);
 
       if (Error E = OptRecordFileOrErr.takeError()) {
-        handleAllErrors(
-            std::move(E),
-            [&](const RemarkSetupFileError &E) {
-              Diags.Report(diag::err_cannot_open_file)
-                  << CodeGenOpts.OptRecordFile << E.message();
-            },
-            [&](const RemarkSetupPatternError &E) {
-              Diags.Report(diag::err_drv_optimization_remark_pattern)
-                  << E.message() << CodeGenOpts.OptRecordPasses;
-            },
-            [&](const RemarkSetupFormatError &E) {
-              Diags.Report(diag::err_drv_optimization_remark_format)
-                  << CodeGenOpts.OptRecordFormat;
-            });
+        reportOptRecordError(std::move(E), Diags, CodeGenOpts);
         return;
       }
+
       std::unique_ptr<llvm::ToolOutputFile> OptRecordFile =
           std::move(*OptRecordFileOrErr);
 
@@ -329,6 +357,10 @@ namespace clang {
 
     void CompleteTentativeDefinition(VarDecl *D) override {
       Gen->CompleteTentativeDefinition(D);
+    }
+
+    void CompleteExternalDeclaration(VarDecl *D) override {
+      Gen->CompleteExternalDeclaration(D);
     }
 
     void AssignInheritanceModel(CXXRecordDecl *RD) override {
@@ -607,10 +639,20 @@ void BackendConsumer::UnsupportedDiagHandler(
   StringRef Filename;
   unsigned Line, Column;
   bool BadDebugInfo = false;
-  FullSourceLoc Loc =
-      getBestLocationFromDebugLoc(D, BadDebugInfo, Filename, Line, Column);
+  FullSourceLoc Loc;
+  std::string Msg;
+  raw_string_ostream MsgStream(Msg);
 
-  Diags.Report(Loc, diag::err_fe_backend_unsupported) << D.getMessage().str();
+  // Context will be nullptr for IR input files, we will construct the diag
+  // message from llvm::DiagnosticInfoUnsupported.
+  if (Context != nullptr) {
+    Loc = getBestLocationFromDebugLoc(D, BadDebugInfo, Filename, Line, Column);
+    MsgStream << D.getMessage();
+  } else {
+    DiagnosticPrinterRawOStream DP(MsgStream);
+    D.print(DP);
+  }
+  Diags.Report(Loc, diag::err_fe_backend_unsupported) << MsgStream.str();
 
   if (BadDebugInfo)
     // If we were not able to translate the file:line:col information
@@ -626,10 +668,21 @@ void BackendConsumer::MisExpectDiagHandler(
   StringRef Filename;
   unsigned Line, Column;
   bool BadDebugInfo = false;
-  FullSourceLoc Loc =
-      getBestLocationFromDebugLoc(D, BadDebugInfo, Filename, Line, Column);
+  FullSourceLoc Loc;
+  std::string Msg;
+  raw_string_ostream MsgStream(Msg);
+  DiagnosticPrinterRawOStream DP(MsgStream);
 
-  Diags.Report(Loc, diag::warn_profile_data_misexpect) << D.getMsg().str();
+  // Context will be nullptr for IR input files, we will construct the diag
+  // message from llvm::DiagnosticInfoMisExpect.
+  if (Context != nullptr) {
+    Loc = getBestLocationFromDebugLoc(D, BadDebugInfo, Filename, Line, Column);
+    MsgStream << D.getMsg();
+  } else {
+    DiagnosticPrinterRawOStream DP(MsgStream);
+    D.print(DP);
+  }
+  Diags.Report(Loc, diag::warn_profile_data_misexpect) << MsgStream.str();
 
   if (BadDebugInfo)
     // If we were not able to translate the file:line:col information
@@ -649,12 +702,19 @@ void BackendConsumer::EmitOptimizationMessage(
   StringRef Filename;
   unsigned Line, Column;
   bool BadDebugInfo = false;
-  FullSourceLoc Loc =
-      getBestLocationFromDebugLoc(D, BadDebugInfo, Filename, Line, Column);
-
+  FullSourceLoc Loc;
   std::string Msg;
   raw_string_ostream MsgStream(Msg);
-  MsgStream << D.getMsg();
+
+  // Context will be nullptr for IR input files, we will construct the remark
+  // message from llvm::DiagnosticInfoOptimizationBase.
+  if (Context != nullptr) {
+    Loc = getBestLocationFromDebugLoc(D, BadDebugInfo, Filename, Line, Column);
+    MsgStream << D.getMsg();
+  } else {
+    DiagnosticPrinterRawOStream DP(MsgStream);
+    D.print(DP);
+  }
 
   if (D.getHotness())
     MsgStream << " (hotness: " << *D.getHotness() << ")";
@@ -1046,6 +1106,8 @@ void CodeGenAction::ExecuteAction() {
   if (getCurrentFileKind().getLanguage() == Language::LLVM_IR) {
     BackendAction BA = static_cast<BackendAction>(Act);
     CompilerInstance &CI = getCompilerInstance();
+    auto &CodeGenOpts = CI.getCodeGenOpts();
+    auto &Diagnostics = CI.getDiagnostics();
     std::unique_ptr<raw_pwrite_stream> OS =
         GetOutputStream(CI, getCurrentFile(), BA);
     if (BA != Backend_EmitNothing && !OS)
@@ -1064,23 +1126,49 @@ void CodeGenAction::ExecuteAction() {
 
     const TargetOptions &TargetOpts = CI.getTargetOpts();
     if (TheModule->getTargetTriple() != TargetOpts.Triple) {
-      CI.getDiagnostics().Report(SourceLocation(),
-                                 diag::warn_fe_override_module)
+      Diagnostics.Report(SourceLocation(),
+                         diag::warn_fe_override_module)
           << TargetOpts.Triple;
       TheModule->setTargetTriple(TargetOpts.Triple);
     }
 
-    EmbedBitcode(TheModule.get(), CI.getCodeGenOpts(),
+    EmbedBitcode(TheModule.get(), CodeGenOpts,
                  MainFile->getMemBufferRef());
 
     LLVMContext &Ctx = TheModule->getContext();
     Ctx.setInlineAsmDiagnosticHandler(BitcodeInlineAsmDiagHandler,
-                                      &CI.getDiagnostics());
+                                      &Diagnostics);
 
-    EmitBackendOutput(CI.getDiagnostics(), CI.getHeaderSearchOpts(),
-                      CI.getCodeGenOpts(), TargetOpts, CI.getLangOpts(),
+    // Set clang diagnostic handler. To do this we need to create a fake
+    // BackendConsumer.
+    BackendConsumer Result(BA, CI.getDiagnostics(), CI.getHeaderSearchOpts(),
+                           CI.getPreprocessorOpts(), CI.getCodeGenOpts(),
+                           CI.getTargetOpts(), CI.getLangOpts(),
+                           CI.getFrontendOpts().ShowTimers,
+                           std::move(LinkModules), *VMContext, nullptr);
+    Ctx.setDiagnosticHandler(
+        std::make_unique<ClangDiagnosticHandler>(CodeGenOpts, &Result));
+
+    Expected<std::unique_ptr<llvm::ToolOutputFile>> OptRecordFileOrErr =
+        setupOptimizationRemarks(
+            Ctx, CodeGenOpts.OptRecordFile, CodeGenOpts.OptRecordPasses,
+            CodeGenOpts.OptRecordFormat, CodeGenOpts.DiagnosticsWithHotness,
+            CodeGenOpts.DiagnosticsHotnessThreshold);
+
+    if (Error E = OptRecordFileOrErr.takeError()) {
+      reportOptRecordError(std::move(E), Diagnostics, CodeGenOpts);
+      return;
+    }
+    std::unique_ptr<llvm::ToolOutputFile> OptRecordFile =
+        std::move(*OptRecordFileOrErr);
+
+    EmitBackendOutput(Diagnostics, CI.getHeaderSearchOpts(), CodeGenOpts,
+                      TargetOpts, CI.getLangOpts(),
                       CI.getTarget().getDataLayout(), TheModule.get(), BA,
                       std::move(OS));
+
+    if (OptRecordFile)
+      OptRecordFile->keep();
     return;
   }
 

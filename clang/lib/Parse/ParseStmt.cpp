@@ -1191,6 +1191,99 @@ bool Parser::ParseParenExprOrCondition(StmtResult *InitStmt,
   return false;
 }
 
+namespace {
+
+enum MisleadingStatementKind { MSK_if, MSK_else, MSK_for, MSK_while };
+
+struct MisleadingIndentationChecker {
+  Parser &P;
+  SourceLocation StmtLoc;
+  SourceLocation PrevLoc;
+  unsigned NumDirectives;
+  MisleadingStatementKind Kind;
+  bool ShouldSkip;
+  MisleadingIndentationChecker(Parser &P, MisleadingStatementKind K,
+                               SourceLocation SL)
+      : P(P), StmtLoc(SL), PrevLoc(P.getCurToken().getLocation()),
+        NumDirectives(P.getPreprocessor().getNumDirectives()), Kind(K),
+        ShouldSkip(P.getCurToken().is(tok::l_brace)) {
+    if (!P.MisleadingIndentationElseLoc.isInvalid()) {
+      StmtLoc = P.MisleadingIndentationElseLoc;
+      P.MisleadingIndentationElseLoc = SourceLocation();
+    }
+    if (Kind == MSK_else && !ShouldSkip)
+      P.MisleadingIndentationElseLoc = SL;
+  }
+
+  /// Compute the column number will aligning tabs on TabStop (-ftabstop), this
+  /// gives the visual indentation of the SourceLocation.
+  static unsigned getVisualIndentation(SourceManager &SM, SourceLocation Loc) {
+    unsigned TabStop = SM.getDiagnostics().getDiagnosticOptions().TabStop;
+
+    unsigned ColNo = SM.getSpellingColumnNumber(Loc);
+    if (ColNo == 0 || TabStop == 1)
+      return ColNo;
+
+    std::pair<FileID, unsigned> FIDAndOffset = SM.getDecomposedLoc(Loc);
+
+    bool Invalid;
+    StringRef BufData = SM.getBufferData(FIDAndOffset.first, &Invalid);
+    if (Invalid)
+      return 0;
+
+    const char *EndPos = BufData.data() + FIDAndOffset.second;
+    // FileOffset are 0-based and Column numbers are 1-based
+    assert(FIDAndOffset.second + 1 >= ColNo &&
+           "Column number smaller than file offset?");
+
+    unsigned VisualColumn = 0; // Stored as 0-based column, here.
+    // Loop from beginning of line up to Loc's file position, counting columns,
+    // expanding tabs.
+    for (const char *CurPos = EndPos - (ColNo - 1); CurPos != EndPos;
+         ++CurPos) {
+      if (*CurPos == '\t')
+        // Advance visual column to next tabstop.
+        VisualColumn += (TabStop - VisualColumn % TabStop);
+      else
+        VisualColumn++;
+    }
+    return VisualColumn + 1;
+  }
+
+  void Check() {
+    Token Tok = P.getCurToken();
+    if (P.getActions().getDiagnostics().isIgnored(
+            diag::warn_misleading_indentation, Tok.getLocation()) ||
+        ShouldSkip || NumDirectives != P.getPreprocessor().getNumDirectives() ||
+        Tok.isOneOf(tok::semi, tok::r_brace) || Tok.isAnnotation() ||
+        Tok.getLocation().isMacroID() || PrevLoc.isMacroID() ||
+        StmtLoc.isMacroID() ||
+        (Kind == MSK_else && P.MisleadingIndentationElseLoc.isInvalid())) {
+      P.MisleadingIndentationElseLoc = SourceLocation();
+      return;
+    }
+    if (Kind == MSK_else)
+      P.MisleadingIndentationElseLoc = SourceLocation();
+
+    SourceManager &SM = P.getPreprocessor().getSourceManager();
+    unsigned PrevColNum = getVisualIndentation(SM, PrevLoc);
+    unsigned CurColNum = getVisualIndentation(SM, Tok.getLocation());
+    unsigned StmtColNum = getVisualIndentation(SM, StmtLoc);
+
+    if (PrevColNum != 0 && CurColNum != 0 && StmtColNum != 0 &&
+        ((PrevColNum > StmtColNum && PrevColNum == CurColNum) ||
+         !Tok.isAtStartOfLine()) &&
+        SM.getPresumedLineNumber(StmtLoc) !=
+            SM.getPresumedLineNumber(Tok.getLocation()) &&
+        (Tok.isNot(tok::identifier) ||
+         P.getPreprocessor().LookAhead(0).isNot(tok::colon))) {
+      P.Diag(Tok.getLocation(), diag::warn_misleading_indentation) << Kind;
+      P.Diag(StmtLoc, diag::note_previous_statement);
+    }
+  }
+};
+
+}
 
 /// ParseIfStatement
 ///       if-statement: [C99 6.8.4.1]
@@ -1265,6 +1358,8 @@ StmtResult Parser::ParseIfStatement(SourceLocation *TrailingElseLoc) {
   //
   ParseScope InnerScope(this, Scope::DeclScope, C99orCXX, Tok.is(tok::l_brace));
 
+  MisleadingIndentationChecker MIChecker(*this, MSK_if, IfLoc);
+
   // Read the 'then' stmt.
   SourceLocation ThenStmtLoc = Tok.getLocation();
 
@@ -1277,6 +1372,9 @@ StmtResult Parser::ParseIfStatement(SourceLocation *TrailingElseLoc) {
         /*ShouldEnter=*/ConstexprCondition && !*ConstexprCondition);
     ThenStmt = ParseStatement(&InnerStatementTrailingElseLoc);
   }
+
+  if (Tok.isNot(tok::kw_else))
+    MIChecker.Check();
 
   // Pop the 'if' scope if needed.
   InnerScope.Exit();
@@ -1305,11 +1403,16 @@ StmtResult Parser::ParseIfStatement(SourceLocation *TrailingElseLoc) {
     ParseScope InnerScope(this, Scope::DeclScope, C99orCXX,
                           Tok.is(tok::l_brace));
 
+    MisleadingIndentationChecker MIChecker(*this, MSK_else, ElseLoc);
+
     EnterExpressionEvaluationContext PotentiallyDiscarded(
         Actions, Sema::ExpressionEvaluationContext::DiscardedStatement, nullptr,
         Sema::ExpressionEvaluationContextRecord::EK_Other,
         /*ShouldEnter=*/ConstexprCondition && *ConstexprCondition);
     ElseStmt = ParseStatement();
+
+    if (ElseStmt.isUsable())
+      MIChecker.Check();
 
     // Pop the 'else' scope if needed.
     InnerScope.Exit();
@@ -1484,9 +1587,13 @@ StmtResult Parser::ParseWhileStatement(SourceLocation *TrailingElseLoc) {
   //
   ParseScope InnerScope(this, Scope::DeclScope, C99orCXX, Tok.is(tok::l_brace));
 
+  MisleadingIndentationChecker MIChecker(*this, MSK_while, WhileLoc);
+
   // Read the body statement.
   StmtResult Body(ParseStatement(TrailingElseLoc));
 
+  if (Body.isUsable())
+    MIChecker.Check();
   // Pop the body scope if needed.
   InnerScope.Exit();
   WhileScope.Exit();
@@ -1918,8 +2025,13 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
   if (C99orCXXorObjC)
     getCurScope()->decrementMSManglingNumber();
 
+  MisleadingIndentationChecker MIChecker(*this, MSK_for, ForLoc);
+
   // Read the body statement.
   StmtResult Body(ParseStatement(TrailingElseLoc));
+
+  if (Body.isUsable())
+    MIChecker.Check();
 
   // Pop the body scope if needed.
   InnerScope.Exit();

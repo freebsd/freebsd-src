@@ -103,8 +103,9 @@ public:
   // Allow a target to add behavior to the emitAssignment of MCStreamer.
   virtual void emitAssignment(MCSymbol *Symbol, const MCExpr *Value);
 
-  virtual void prettyPrintAsm(MCInstPrinter &InstPrinter, raw_ostream &OS,
-                              const MCInst &Inst, const MCSubtargetInfo &STI);
+  virtual void prettyPrintAsm(MCInstPrinter &InstPrinter, uint64_t Address,
+                              const MCInst &Inst, const MCSubtargetInfo &STI,
+                              raw_ostream &OS);
 
   virtual void emitDwarfFileDirective(StringRef Directive);
 
@@ -222,6 +223,13 @@ class MCStreamer {
 
   bool UseAssemblerInfoForParsing;
 
+  /// Is the assembler allowed to insert padding automatically?  For
+  /// correctness reasons, we sometimes need to ensure instructions aren't
+  /// seperated in unexpected ways.  At the moment, this feature is only
+  /// useable from an integrated assembler, but assembly syntax is under
+  /// discussion for future inclusion.
+  bool AllowAutoPadding = false;
+
 protected:
   MCStreamer(MCContext &Ctx);
 
@@ -265,6 +273,9 @@ public:
   MCTargetStreamer *getTargetStreamer() {
     return TargetStreamer.get();
   }
+
+  void setAllowAutoPadding(bool v) { AllowAutoPadding = v; }
+  bool getAllowAutoPadding() const { return AllowAutoPadding; }
 
   /// When emitting an object file, create and emit a real label. When emitting
   /// textual assembly, this should do nothing to avoid polluting our output.
@@ -546,11 +557,13 @@ public:
 
   /// Emits an lcomm directive with XCOFF csect information.
   ///
-  /// \param Symbol - The symbol we are emiting.
+  /// \param LabelSym - Label on the block of storage.
   /// \param Size - The size of the block of storage.
-  /// \param ByteAlignment - The alignment of the symbol in bytes. Must be a power
-  /// of 2.
-  virtual void EmitXCOFFLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+  /// \param CsectSym - Csect name for the block of storage.
+  /// \param ByteAlignment - The alignment of the symbol in bytes. Must be a
+  /// power of 2.
+  virtual void EmitXCOFFLocalCommonSymbol(MCSymbol *LabelSym, uint64_t Size,
+                                          MCSymbol *CsectSym,
                                           unsigned ByteAlignment);
 
   /// Emit an ELF .size directive.
