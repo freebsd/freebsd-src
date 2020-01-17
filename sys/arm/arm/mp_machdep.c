@@ -106,8 +106,6 @@ check_ap(void)
 	return (-2);
 }
 
-extern unsigned char _end[];
-
 /* Initialize and fire up non-boot processors */
 void
 cpu_mp_start(void)

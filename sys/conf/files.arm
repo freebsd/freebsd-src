@@ -85,7 +85,7 @@ arm/arm/trap-v4.c		optional	!armv7 !armv6
 arm/arm/trap-v6.c		optional	armv7 | armv6
 arm/arm/uio_machdep.c		standard
 arm/arm/undefined.c		standard
-arm/arm/unwind.c		optional	ddb | kdtrace_hooks
+arm/arm/unwind.c		optional	ddb | kdtrace_hooks | stack
 arm/arm/vm_machdep.c		standard
 arm/arm/vfp.c			standard
 arm/cloudabi32/cloudabi32_sysvec.c	optional compat_cloudabi32

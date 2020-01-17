@@ -34,6 +34,7 @@ options 	GEOM_LABEL		# Provides labelization
 options 	COMPAT_43		# Compatible with BSD 4.3 [KEEP THIS!]
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support
+options 	STACK			# stack(9) support
 options 	SYSVSHM			# SYSV-style shared memory
 options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores

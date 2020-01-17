@@ -61,4 +61,24 @@ void arm_add_efi_map_entries(struct efi_map_header *efihdr,
     struct mem_region *mr, int *mrcnt);
 #endif
 
+/*
+ * Symbols created by ldscript.arm which are accessible in the kernel as global
+ * symbols. They have uint8 type because they mark the byte location where the
+ * corresponding data starts or ends (in the end case, it's the next byte
+ * following the data, so the data size is end-start).  These are listed below
+ * in the order they occur within the kernel (i.e., the address of each variable
+ * should be greater than any of the ones before it).
+ */
+extern uint8_t _start;		/* Kernel entry point in locore.S */
+extern uint8_t _etext;		/* text segment end */
+extern uint8_t _extab_start;	/* unwind table start */
+extern uint8_t _exidx_start;	/* unwind index start */
+extern uint8_t _exidx_end;	/* unwind index end */
+extern uint8_t _start_ctors;	/* ctors data start */
+extern uint8_t _stop_ctors;	/* ctors data end */
+extern uint8_t _edata;		/* data segment end */
+extern uint8_t __bss_start;	/* bss segment start */
+extern uint8_t _ebss;		/* bss segment end */
+extern uint8_t _end;		/* End of kernel (text+ctors+unwind+data+bss) */
+
 #endif /* !_MACHINE_MACHDEP_H_ */
