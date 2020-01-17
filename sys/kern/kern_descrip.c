@@ -489,6 +489,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	struct filedescent *fde;
 	struct proc *p;
 	struct vnode *vp;
+	struct mount *mp;
 	int error, flg, seals, tmp;
 	uint64_t bsize;
 	off_t foffset;
@@ -813,6 +814,49 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			atomic_clear_int(&fp->f_flag, FRDAHEAD);
 		}
 		VOP_UNLOCK(vp);
+		fdrop(fp, td);
+		break;
+
+	case F_ISUNIONSTACK:
+		/*
+		 * Check if the vnode is part of a union stack (either the
+		 * "union" flag from mount(2) or unionfs).
+		 *
+		 * Prior to introduction of this op libc's readdir would call
+		 * fstatfs(2), in effect unnecessarily copying kilobytes of
+		 * data just to check fs name and a mount flag.
+		 *
+		 * Fixing the code to handle everything in the kernel instead
+		 * is a non-trivial endeavor and has low priority, thus this
+		 * horrible kludge facilitates the current behavior in a much
+		 * cheaper manner until someone(tm) sorts this out.
+		 */
+		error = fget_unlocked(fdp, fd, &cap_no_rights, &fp, NULL);
+		if (error != 0)
+			break;
+		if (fp->f_type != DTYPE_VNODE) {
+			fdrop(fp, td);
+			error = EBADF;
+			break;
+		}
+		vp = fp->f_vnode;
+		/*
+		 * Since we don't prevent dooming the vnode even non-null mp
+		 * found can become immediately stale. This is tolerable since
+		 * mount points are type-stable (providing safe memory access)
+		 * and any vfs op on this vnode going forward will return an
+		 * error (meaning return value in this case is meaningless).
+		 */
+		mp = (struct mount *)atomic_load_ptr(&vp->v_mount);
+		if (__predict_false(mp == NULL)) {
+			fdrop(fp, td);
+			error = EBADF;
+			break;
+		}
+		td->td_retval[0] = 0;
+		if (mp->mnt_kern_flag & MNTK_UNIONFS ||
+		    mp->mnt_flag & MNT_UNION)
+			td->td_retval[0] = 1;
 		fdrop(fp, td);
 		break;
 

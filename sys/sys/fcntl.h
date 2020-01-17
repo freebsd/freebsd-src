@@ -250,6 +250,7 @@ typedef	__pid_t		pid_t;
 #define	F_DUP2FD_CLOEXEC 18		/* Like F_DUP2FD, but FD_CLOEXEC is set */
 #define	F_ADD_SEALS	19
 #define	F_GET_SEALS	20
+#define	F_ISUNIONSTACK	21		/* Kludge for libc, don't use it. */
 
 /* Seals (F_ADD_SEALS, F_GET_SEALS). */
 #define	F_SEAL_SEAL	0x0001		/* Prevent adding sealings */
