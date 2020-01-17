@@ -664,7 +664,7 @@ epoch_wait(epoch_t epoch)
 }
 
 void
-epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t))
+epoch_call(epoch_t epoch, epoch_callback_t callback, epoch_context_t ctx)
 {
 	epoch_record_t er;
 	ck_epoch_entry_t *cb;
@@ -819,7 +819,7 @@ epoch_drain_callbacks(epoch_t epoch)
 	CPU_FOREACH(cpu) {
 		er = zpcpu_get_cpu(epoch->e_pcpu_record, cpu);
 		sched_bind(td, cpu);
-		epoch_call(epoch, &er->er_drain_ctx, &epoch_drain_cb);
+		epoch_call(epoch, &epoch_drain_cb, &er->er_drain_ctx);
 	}
 
 	/* restore CPU binding, if any */

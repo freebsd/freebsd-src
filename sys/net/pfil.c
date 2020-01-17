@@ -313,9 +313,9 @@ pfil_unlink(struct pfil_link_args *pa, pfil_head_t head, pfil_hook_t hook)
 	PFIL_UNLOCK();
 
 	if (in != NULL)
-		epoch_call(PFIL_EPOCH, &in->link_epoch_ctx, pfil_link_free);
+		epoch_call(PFIL_EPOCH, pfil_link_free, &in->link_epoch_ctx);
 	if (out != NULL)
-		epoch_call(PFIL_EPOCH, &out->link_epoch_ctx, pfil_link_free);
+		epoch_call(PFIL_EPOCH, pfil_link_free, &out->link_epoch_ctx);
 
 	if (in == NULL && out == NULL)
 		return (ENOENT);
@@ -443,15 +443,15 @@ retry:
 		if (in != NULL) {
 			head->head_nhooksin--;
 			hook->hook_links--;
-			epoch_call(PFIL_EPOCH, &in->link_epoch_ctx,
-			    pfil_link_free);
+			epoch_call(PFIL_EPOCH, pfil_link_free,
+			    &in->link_epoch_ctx);
 		}
 		out = pfil_link_remove(&head->head_out, hook);
 		if (out != NULL) {
 			head->head_nhooksout--;
 			hook->hook_links--;
-			epoch_call(PFIL_EPOCH, &out->link_epoch_ctx,
-			    pfil_link_free);
+			epoch_call(PFIL_EPOCH, pfil_link_free,
+			    &out->link_epoch_ctx);
 		}
 		if (in != NULL || out != NULL)
 			/* What if some stupid admin put same filter twice? */
