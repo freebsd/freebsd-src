@@ -61,8 +61,9 @@ MAKEOBJDIRPREFIX:=	${_saveMAKEOBJDIRPREFIX}
 .include <bsd.mkopt.mk>
 
 # Top-level installs should not use meta mode as it may prevent installing
-# based on cookies.
-.if make(*install*) && ${.MAKE.LEVEL} == 0
+# based on cookies. It's fine with filemon though.
+.if !empty(META_MODE:Mnofilemon) && \
+  make(*install*) && ${.MAKE.LEVEL} == 0
 META_MODE=	normal
 MK_META_MODE=	no
 .export MK_META_MODE
