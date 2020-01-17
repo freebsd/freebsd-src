@@ -1605,6 +1605,14 @@ vm_object_scan_all_shadowed(vm_object_t object)
 			break;
 
 		/*
+		 * If the backing object page is busy a grandparent or older
+		 * page may still be undergoing CoW.  It is not safe to
+		 * collapse the backing object until it is quiesced.
+		 */
+		if (p != NULL && vm_page_busied(p))
+			return (false);
+
+		/*
 		 * See if the parent has the page or if the parent's object
 		 * pager has the page.  If the parent has the page but the page
 		 * is not valid, the parent's object pager must have the page.
@@ -1907,8 +1915,7 @@ vm_object_collapse(vm_object_t object)
 			 * If we do not entirely shadow the backing object,
 			 * there is nothing we can do so we give up.
 			 */
-			if (object->resident_page_count != object->size &&
-			    !vm_object_scan_all_shadowed(object)) {
+			if (!vm_object_scan_all_shadowed(object)) {
 				VM_OBJECT_WUNLOCK(backing_object);
 				break;
 			}
