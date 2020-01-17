@@ -1864,6 +1864,10 @@ dev/iicbus/iicsmb.c		optional iicsmb				\
 dev/iicbus/iicoc.c		optional iicoc
 dev/iicbus/isl12xx.c		optional isl12xx
 dev/iicbus/lm75.c		optional lm75
+dev/iicbus/mux/iicmux.c		optional iicmux
+dev/iicbus/mux/iicmux_if.m	optional iicmux
+dev/iicbus/mux/iic_gpiomux.c	optional iic_gpiomux fdt
+dev/iicbus/mux/ltc430x.c	optional ltc430x
 dev/iicbus/nxprtc.c		optional nxprtc | pcf8563
 dev/iicbus/ofw_iicbus.c		optional fdt iicbus
 dev/iicbus/rtc8583.c		optional rtc8583

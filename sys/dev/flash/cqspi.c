@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 #include <geom/geom_disk.h>
 
 #include <machine/bus.h>

@@ -1,0 +1,148 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2019 Ian Lepore <ian@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 1, 2020
+.Dt IICMUX 4
+.Os
+.Sh NAME
+.Nm iicmux
+.Nd I2C bus mulitiplexer framework
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device iicmux"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+iicmux_load="YES"
+.Ed
+.Pp
+Note that it is usually not necessary to explicitly load the
+driver module, as it will be loaded automatically along with
+the driver for the specific mux hardware in use.
+.Sh DESCRIPTION
+The
+.Nm
+framework provides support code to help implement drivers for various
+I2C bus multiplexer (mux) hardware.
+.Nm
+is not a standalone driver,
+it is a collection of support functions and driver methods which are
+used by individual mux hardware drivers.
+It will be loaded automatically when needed by a mux hardware driver.
+This manual page provides an overview of the I2C mux framework and its
+behavior.
+.Pp
+Generally speaking, an I2C mux is connected to an upstream I2C bus, and to
+one or more downstream I2C buses, and it can be commanded to connect
+any one of the downstream buses to the upstream bus.
+Some hardware may be able to connect multiple downstream buses at the
+same time, but that concept is not supported by
+.Nm .
+.Pp
+The
+.Nm
+framework operates automatically when I2C slave devices initiate I/O.
+It does not require (or even allow for) any external control to select
+the active downstream bus.
+.Pp
+When there is no I/O in progress, the mux is said to be in the
+.Dq idle
+state.
+Some mux hardware has the ability to disconnect all downstream buses
+when in an idle state.
+Other hardware must always have one of the downstream buses connected.
+Individual mux hardware drivers typically provide a way to select which
+downstream bus (if any) should be connected while in the idle state.
+In the absence of such configuration, whichever downstream bus was
+last used remains connected to the upstream bus.
+.Pp
+When an I2C slave device on a bus downstream of a mux initiates I/O,
+it first requests exclusive use of the bus by calling
+.Fn iicbus_request_bus .
+This request is communicated to the bus's parent, which is the
+.Nm
+framework
+mux driver.
+Once exclusive bus ownership is obtained, the mux driver
+connects the upstream I2C bus to the downstream bus which hosts the
+slave device that requested bus ownership.
+The mux hardware maintains that upstream-to-downstream connection until
+the slave device calls
+.Fn iicbus_release_bus .
+Before releasing ownership, the mux driver returns the mux hardware to
+the idle state.
+.Sh FDT CONFIGURATION
+On an
+.Xr fdt 4
+based system, an I2C mux device node is defined as a child node of its
+upstream I2C bus when the mux device is an I2C slave itself.
+It may be defined as a child node of any other bus or device in the
+system when it is not an I2C slave, in which case the
+.Va i2c-parent
+property indicates which upstream bus the mux is attached to.
+In either case, the children of the mux node are additional I2C buses, which
+will have one or more I2C slave devices described in their child nodes.
+.Pp
+Drivers using the
+.Nm
+framework conform to the standard
+.Bk -words
+.Li i2c/i2c-mux.txt
+.Ek
+bindings document.
+.Sh HINTS CONFIGURATION
+On a
+.Xr device.hints 5
+based system, these values are configurable for
+.Nm
+framework drivers :
+.Bl -tag -width indent
+.It Va hint.<driver>.<unit>.at
+The upstream
+.Xr iicbus 4
+the
+.Nm
+instance is attached to.
+.El
+.Pp
+When configured via hints, the driver automatically adds an iicbus
+instance for every downstream bus supported by the chip.
+There is currently no way to indicate used versus unused downstream buses.
+.Sh SEE ALSO
+.Xr iicbus 4 ,
+.Sh HISTORY
+The
+.Nm
+framework first appeared in
+.Fx 13.0 .

@@ -137,6 +137,7 @@ iicbus_poll(struct iicbus_softc *sc, int how)
 int
 iicbus_request_bus(device_t bus, device_t dev, int how)
 {
+	struct iic_reqbus_data reqdata;
 	struct iicbus_softc *sc = (struct iicbus_softc *)device_get_softc(bus);
 	int error = 0;
 
@@ -175,8 +176,11 @@ iicbus_request_bus(device_t bus, device_t dev, int how)
 			 */
 			IICBUS_UNLOCK(sc);
 			/* Ask the underlying layers if the request is ok */
+			reqdata.dev = dev;
+			reqdata.bus = bus;
+			reqdata.flags = how | IIC_REQBUS_DEV;
 			error = IICBUS_CALLBACK(device_get_parent(bus),
-			    IIC_REQUEST_BUS, (caddr_t)&how);
+			    IIC_REQUEST_BUS, (caddr_t)&reqdata);
 			IICBUS_LOCK(sc);
 	
 			if (error != 0) {
@@ -201,6 +205,7 @@ iicbus_request_bus(device_t bus, device_t dev, int how)
 int
 iicbus_release_bus(device_t bus, device_t dev)
 {
+	struct iic_reqbus_data reqdata;
 	struct iicbus_softc *sc = (struct iicbus_softc *)device_get_softc(bus);
 
 	IICBUS_LOCK(sc);
@@ -213,7 +218,11 @@ iicbus_release_bus(device_t bus, device_t dev)
 	if (--sc->owncount == 0) {
 		/* Drop the lock while informing the low-level driver. */
 		IICBUS_UNLOCK(sc);
-		IICBUS_CALLBACK(device_get_parent(bus), IIC_RELEASE_BUS, NULL);
+		reqdata.dev = dev;
+		reqdata.bus = bus;
+		reqdata.flags = IIC_REQBUS_DEV;
+		IICBUS_CALLBACK(device_get_parent(bus), IIC_RELEASE_BUS,
+		    (caddr_t)&reqdata);
 		IICBUS_LOCK(sc);
 		sc->owner = NULL;
 		wakeup_one(sc);
