@@ -2272,6 +2272,7 @@ g_part_start(struct bio *bp)
 		bp2->bio_offset += entry->gpe_offset;
 		g_io_request(bp2, cp);
 		return;
+	case BIO_SPEEDUP:
 	case BIO_FLUSH:
 		break;
 	case BIO_GETATTR:

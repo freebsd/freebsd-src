@@ -215,6 +215,10 @@ g_llvm_start(struct bio *bp)
 	/* XXX BIO_GETATTR allowed? */
 		break;
 	default:
+		/*
+		 * BIO_SPEEDUP and BIO_FLUSH should pass through to all sg
+		 * elements, but aren't.
+		 */
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;
 	}

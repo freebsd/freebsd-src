@@ -746,6 +746,7 @@ g_journal_start(struct bio *bp)
 			return;
 		}
 		/* FALLTHROUGH */
+	case BIO_SPEEDUP:
 	case BIO_DELETE:
 	default:
 		g_io_deliver(bp, EOPNOTSUPP);

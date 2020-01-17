@@ -869,6 +869,7 @@ g_raid_tr_iostart_raid1e(struct g_raid_tr_object *tr, struct bio *bp)
 	case BIO_DELETE:
 		g_raid_tr_iostart_raid1e_write(tr, bp);
 		break;
+	case BIO_SPEEDUP:
 	case BIO_FLUSH:
 		g_raid_tr_flush_common(tr, bp);
 		break;
