@@ -13771,23 +13771,28 @@ check_clear_deps(mp)
 	struct mount *mp;
 {
 	struct ufsmount *ump;
+	bool suj_susp;
 
 	/*
-	 * Tell the lower layers that any TRIM or WRITE transactions
-	 * that have been delayed for performance reasons should
-	 * proceed to help alleviate the shortage faster.
+	 * Tell the lower layers that any TRIM or WRITE transactions that have
+	 * been delayed for performance reasons should proceed to help alleviate
+	 * the shortage faster. The race between checking req_* and the softdep
+	 * mutex (lk) is fine since this is an advisory operation that at most
+	 * causes deferred work to be done sooner.
 	 */
 	ump = VFSTOUFS(mp);
-	FREE_LOCK(ump);
-	softdep_send_speedup(ump, 0, BIO_SPEEDUP_TRIM | BIO_SPEEDUP_WRITE);
-	ACQUIRE_LOCK(ump);
-
+	suj_susp = MOUNTEDSUJ(mp) && ump->softdep_jblocks->jb_suspended;
+	if (req_clear_remove || req_clear_inodedeps || suj_susp) {
+		FREE_LOCK(ump);
+		softdep_send_speedup(ump, 0, BIO_SPEEDUP_TRIM | BIO_SPEEDUP_WRITE);
+		ACQUIRE_LOCK(ump);
+	}
 
 	/*
 	 * If we are suspended, it may be because of our using
 	 * too many inodedeps, so help clear them out.
 	 */
-	if (MOUNTEDSUJ(mp) && VFSTOUFS(mp)->softdep_jblocks->jb_suspended)
+	if (suj_susp)
 		clear_inodedeps(mp);
 
 	/*
