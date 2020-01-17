@@ -35,6 +35,7 @@ struct epoch_context {
 } __aligned(sizeof(void *));
 
 typedef struct epoch_context *epoch_context_t;
+typedef	void epoch_callback_t(epoch_context_t);
 
 #ifdef _KERNEL
 #include <sys/lock.h>
@@ -68,7 +69,7 @@ void	epoch_free(epoch_t epoch);
 void	epoch_wait(epoch_t epoch);
 void	epoch_wait_preempt(epoch_t epoch);
 void	epoch_drain_callbacks(epoch_t epoch);
-void	epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t));
+void	epoch_call(epoch_t epoch, epoch_callback_t cb, epoch_context_t ctx);
 int	in_epoch(epoch_t epoch);
 int in_epoch_verbose(epoch_t epoch, int dump_onfail);
 DPCPU_DECLARE(int, epoch_cb_count);
@@ -101,7 +102,7 @@ extern epoch_t net_epoch_preempt;
 #define	NET_EPOCH_ENTER(et)	epoch_enter_preempt(net_epoch_preempt, &(et))
 #define	NET_EPOCH_EXIT(et)	epoch_exit_preempt(net_epoch_preempt, &(et))
 #define	NET_EPOCH_WAIT()	epoch_wait_preempt(net_epoch_preempt)
-#define	NET_EPOCH_CALL(f, c)	epoch_call(net_epoch_preempt, (c), (f))
+#define	NET_EPOCH_CALL(f, c)	epoch_call(net_epoch_preempt, (f), (c))
 #define	NET_EPOCH_ASSERT()	MPASS(in_epoch(net_epoch_preempt))
 
 #endif	/* _KERNEL */
