@@ -429,6 +429,7 @@ g_eli_start(struct bio *bp)
 	case BIO_GETATTR:
 	case BIO_FLUSH:
 	case BIO_ZONE:
+	case BIO_SPEEDUP:
 		break;
 	case BIO_DELETE:
 		/*
@@ -468,6 +469,7 @@ g_eli_start(struct bio *bp)
 	case BIO_GETATTR:
 	case BIO_FLUSH:
 	case BIO_DELETE:
+	case BIO_SPEEDUP:
 	case BIO_ZONE:
 		if (bp->bio_cmd == BIO_GETATTR)
 			cbp->bio_done = g_eli_getattr_done;

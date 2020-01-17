@@ -71,6 +71,7 @@ struct g_nop_softc {
 	uintmax_t		 sc_cmd0s;
 	uintmax_t		 sc_cmd1s;
 	uintmax_t		 sc_cmd2s;
+	uintmax_t		 sc_speedups;
 	uintmax_t		 sc_readbytes;
 	uintmax_t		 sc_wrotebytes;
 	char			*sc_physpath;

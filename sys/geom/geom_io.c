@@ -407,6 +407,7 @@ g_io_check(struct bio *bp)
 		break;
 	case BIO_WRITE:
 	case BIO_DELETE:
+	case BIO_SPEEDUP:
 	case BIO_FLUSH:
 		if (cp->acw == 0)
 			return (EPERM);

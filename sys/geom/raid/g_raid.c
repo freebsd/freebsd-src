@@ -1111,6 +1111,7 @@ g_raid_start(struct bio *bp)
 	case BIO_WRITE:
 	case BIO_DELETE:
 	case BIO_FLUSH:
+	case BIO_SPEEDUP:
 		break;
 	case BIO_GETATTR:
 		if (!strcmp(bp->bio_attribute, "GEOM::candelete"))
