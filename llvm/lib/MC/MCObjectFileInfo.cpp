@@ -40,8 +40,7 @@ static bool useCompactUnwind(const Triple &T) {
     return true;
 
   // And the iOS simulator.
-  if (T.isiOS() &&
-      (T.getArch() == Triple::x86_64 || T.getArch() == Triple::x86))
+  if (T.isiOS() && T.isX86())
     return true;
 
   return false;
@@ -192,7 +191,7 @@ void MCObjectFileInfo::initMachOMCObjectFileInfo(const Triple &T) {
         Ctx->getMachOSection("__LD", "__compact_unwind", MachO::S_ATTR_DEBUG,
                              SectionKind::getReadOnly());
 
-    if (T.getArch() == Triple::x86_64 || T.getArch() == Triple::x86)
+    if (T.isX86())
       CompactUnwindDwarfEHFrameOnly = 0x04000000;  // UNWIND_X86_64_MODE_DWARF
     else if (T.getArch() == Triple::aarch64 || T.getArch() == Triple::aarch64_32)
       CompactUnwindDwarfEHFrameOnly = 0x03000000;  // UNWIND_ARM64_MODE_DWARF
@@ -304,9 +303,14 @@ void MCObjectFileInfo::initELFMCObjectFileInfo(const Triple &T, bool Large) {
   case Triple::mipsel:
   case Triple::mips64:
   case Triple::mips64el:
-    FDECFIEncoding = Ctx->getAsmInfo()->getCodePointerSize() == 4
-                         ? dwarf::DW_EH_PE_sdata4
-                         : dwarf::DW_EH_PE_sdata8;
+    // We cannot use DW_EH_PE_sdata8 for the large PositionIndependent case
+    // since there is no R_MIPS_PC64 relocation (only a 32-bit version).
+    if (PositionIndependent && !Large)
+      FDECFIEncoding = dwarf::DW_EH_PE_pcrel | dwarf::DW_EH_PE_sdata4;
+    else
+      FDECFIEncoding = Ctx->getAsmInfo()->getCodePointerSize() == 4
+                           ? dwarf::DW_EH_PE_sdata4
+                           : dwarf::DW_EH_PE_sdata8;
     break;
   case Triple::ppc64:
   case Triple::ppc64le:
@@ -463,6 +467,11 @@ void MCObjectFileInfo::initELFMCObjectFileInfo(const Triple &T, bool Large) {
                                              DebugSecType, ELF::SHF_EXCLUDE);
   DwarfRnglistsDWOSection =
       Ctx->getELFSection(".debug_rnglists.dwo", DebugSecType, ELF::SHF_EXCLUDE);
+  DwarfMacinfoDWOSection =
+      Ctx->getELFSection(".debug_macinfo.dwo", DebugSecType, ELF::SHF_EXCLUDE);
+
+  DwarfLoclistsDWOSection =
+      Ctx->getELFSection(".debug_loclists.dwo", DebugSecType, ELF::SHF_EXCLUDE);
 
   // DWP Sections
   DwarfCUIndexSection =
@@ -480,9 +489,6 @@ void MCObjectFileInfo::initELFMCObjectFileInfo(const Triple &T, bool Large) {
       Ctx->getELFSection(".eh_frame", EHSectionType, EHSectionFlags);
 
   StackSizesSection = Ctx->getELFSection(".stack_sizes", ELF::SHT_PROGBITS, 0);
-
-  RemarksSection =
-      Ctx->getELFSection(".remarks", ELF::SHT_PROGBITS, ELF::SHF_EXCLUDE);
 }
 
 void MCObjectFileInfo::initCOFFMCObjectFileInfo(const Triple &T) {
@@ -619,6 +625,11 @@ void MCObjectFileInfo::initCOFFMCObjectFileInfo(const Triple &T) {
       COFF::IMAGE_SCN_MEM_DISCARDABLE | COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
           COFF::IMAGE_SCN_MEM_READ,
       SectionKind::getMetadata(), "debug_macinfo");
+  DwarfMacinfoDWOSection = Ctx->getCOFFSection(
+      ".debug_macinfo.dwo",
+      COFF::IMAGE_SCN_MEM_DISCARDABLE | COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
+          COFF::IMAGE_SCN_MEM_READ,
+      SectionKind::getMetadata(), "debug_macinfo.dwo");
   DwarfInfoDWOSection = Ctx->getCOFFSection(
       ".debug_info.dwo",
       COFF::IMAGE_SCN_MEM_DISCARDABLE | COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
@@ -715,6 +726,11 @@ void MCObjectFileInfo::initCOFFMCObjectFileInfo(const Triple &T) {
                                          COFF::IMAGE_SCN_MEM_READ,
                                      SectionKind::getMetadata());
 
+  GLJMPSection = Ctx->getCOFFSection(".gljmp$y",
+                                     COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
+                                         COFF::IMAGE_SCN_MEM_READ,
+                                     SectionKind::getMetadata());
+
   TLSDataSection = Ctx->getCOFFSection(
       ".tls$", COFF::IMAGE_SCN_CNT_INITIALIZED_DATA | COFF::IMAGE_SCN_MEM_READ |
                    COFF::IMAGE_SCN_MEM_WRITE,
@@ -775,6 +791,10 @@ void MCObjectFileInfo::initXCOFFMCObjectFileInfo(const Triple &T) {
   DataSection = Ctx->getXCOFFSection(
       ".data", XCOFF::StorageMappingClass::XMC_RW, XCOFF::XTY_SD,
       XCOFF::C_HIDEXT, SectionKind::getData());
+
+  ReadOnlySection = Ctx->getXCOFFSection(
+      ".rodata", XCOFF::StorageMappingClass::XMC_RO, XCOFF::XTY_SD,
+      XCOFF::C_HIDEXT, SectionKind::getReadOnly());
 }
 
 void MCObjectFileInfo::InitMCObjectFileInfo(const Triple &TheTriple, bool PIC,

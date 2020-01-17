@@ -14,6 +14,7 @@
 #include "CXXABI.h"
 #include "Interp/Context.h"
 #include "clang/AST/APValue.h"
+#include "clang/AST/ASTConcept.h"
 #include "clang/AST/ASTMutationListener.h"
 #include "clang/AST/ASTTypeTraits.h"
 #include "clang/AST/Attr.h"
@@ -98,6 +99,32 @@ using namespace clang;
 enum FloatingRank {
   Float16Rank, HalfRank, FloatRank, DoubleRank, LongDoubleRank, Float128Rank
 };
+const Expr *ASTContext::traverseIgnored(const Expr *E) const {
+  return traverseIgnored(const_cast<Expr *>(E));
+}
+
+Expr *ASTContext::traverseIgnored(Expr *E) const {
+  if (!E)
+    return nullptr;
+
+  switch (Traversal) {
+  case ast_type_traits::TK_AsIs:
+    return E;
+  case ast_type_traits::TK_IgnoreImplicitCastsAndParentheses:
+    return E->IgnoreParenImpCasts();
+  case ast_type_traits::TK_IgnoreUnlessSpelledInSource:
+    return E->IgnoreUnlessSpelledInSource();
+  }
+  llvm_unreachable("Invalid Traversal type!");
+}
+
+ast_type_traits::DynTypedNode
+ASTContext::traverseIgnored(const ast_type_traits::DynTypedNode &N) const {
+  if (const auto *E = N.get<Expr>()) {
+    return ast_type_traits::DynTypedNode::create(*traverseIgnored(E));
+  }
+  return N;
+}
 
 /// \returns location that is relevant when searching for Doc comments related
 /// to \p D.
@@ -163,7 +190,9 @@ static SourceLocation getDeclLocForCommentSearch(const Decl *D,
   if (isa<ObjCMethodDecl>(D) || isa<ObjCContainerDecl>(D) ||
       isa<ObjCPropertyDecl>(D) ||
       isa<RedeclarableTemplateDecl>(D) ||
-      isa<ClassTemplateSpecializationDecl>(D))
+      isa<ClassTemplateSpecializationDecl>(D) ||
+      // Allow association with Y across {} in `typedef struct X {} Y`.
+      isa<TypedefDecl>(D))
     return D->getBeginLoc();
   else {
     const SourceLocation DeclLoc = D->getLocation();
@@ -632,8 +661,9 @@ comments::FullComment *ASTContext::getCommentForDecl(
   return FC;
 }
 
-void
+void 
 ASTContext::CanonicalTemplateTemplateParm::Profile(llvm::FoldingSetNodeID &ID,
+                                                   const ASTContext &C,
                                                TemplateTemplateParmDecl *Parm) {
   ID.AddInteger(Parm->getDepth());
   ID.AddInteger(Parm->getPosition());
@@ -647,6 +677,16 @@ ASTContext::CanonicalTemplateTemplateParm::Profile(llvm::FoldingSetNodeID &ID,
     if (const auto *TTP = dyn_cast<TemplateTypeParmDecl>(*P)) {
       ID.AddInteger(0);
       ID.AddBoolean(TTP->isParameterPack());
+      const TypeConstraint *TC = TTP->getTypeConstraint();
+      ID.AddBoolean(TC != nullptr);
+      if (TC)
+        TC->getImmediatelyDeclaredConstraint()->Profile(ID, C,
+                                                        /*Canonical=*/true);
+      if (TTP->isExpandedParameterPack()) {
+        ID.AddBoolean(true);
+        ID.AddInteger(TTP->getNumExpansionParameters());
+      } else
+        ID.AddBoolean(false);
       continue;
     }
 
@@ -668,8 +708,12 @@ ASTContext::CanonicalTemplateTemplateParm::Profile(llvm::FoldingSetNodeID &ID,
 
     auto *TTP = cast<TemplateTemplateParmDecl>(*P);
     ID.AddInteger(2);
-    Profile(ID, TTP);
+    Profile(ID, C, TTP);
   }
+  Expr *RequiresClause = Parm->getTemplateParameters()->getRequiresClause();
+  ID.AddBoolean(RequiresClause != nullptr);
+  if (RequiresClause)
+    RequiresClause->Profile(ID, C, /*Canonical=*/true);
 }
 
 TemplateTemplateParmDecl *
@@ -677,7 +721,7 @@ ASTContext::getCanonicalTemplateTemplateParmDecl(
                                           TemplateTemplateParmDecl *TTP) const {
   // Check if we already have a canonical template template parameter.
   llvm::FoldingSetNodeID ID;
-  CanonicalTemplateTemplateParm::Profile(ID, TTP);
+  CanonicalTemplateTemplateParm::Profile(ID, *this, TTP);
   void *InsertPos = nullptr;
   CanonicalTemplateTemplateParm *Canonical
     = CanonTemplateTemplateParms.FindNodeOrInsertPos(ID, InsertPos);
@@ -691,15 +735,79 @@ ASTContext::getCanonicalTemplateTemplateParmDecl(
   for (TemplateParameterList::const_iterator P = Params->begin(),
                                           PEnd = Params->end();
        P != PEnd; ++P) {
-    if (const auto *TTP = dyn_cast<TemplateTypeParmDecl>(*P))
-      CanonParams.push_back(
-                  TemplateTypeParmDecl::Create(*this, getTranslationUnitDecl(),
-                                               SourceLocation(),
-                                               SourceLocation(),
-                                               TTP->getDepth(),
-                                               TTP->getIndex(), nullptr, false,
-                                               TTP->isParameterPack()));
-    else if (const auto *NTTP = dyn_cast<NonTypeTemplateParmDecl>(*P)) {
+    if (const auto *TTP = dyn_cast<TemplateTypeParmDecl>(*P)) {
+      TemplateTypeParmDecl *NewTTP = TemplateTypeParmDecl::Create(*this,
+          getTranslationUnitDecl(), SourceLocation(), SourceLocation(),
+          TTP->getDepth(), TTP->getIndex(), nullptr, false,
+          TTP->isParameterPack(), TTP->hasTypeConstraint(),
+          TTP->isExpandedParameterPack() ?
+          llvm::Optional<unsigned>(TTP->getNumExpansionParameters()) : None);
+      if (const auto *TC = TTP->getTypeConstraint()) {
+        // This is a bit ugly - we need to form a new immediately-declared
+        // constraint that references the new parameter; this would ideally
+        // require semantic analysis (e.g. template<C T> struct S {}; - the
+        // converted arguments of C<T> could be an argument pack if C is
+        // declared as template<typename... T> concept C = ...).
+        // We don't have semantic analysis here so we dig deep into the
+        // ready-made constraint expr and change the thing manually.
+        Expr *IDC = TC->getImmediatelyDeclaredConstraint();
+        ConceptSpecializationExpr *CSE;
+        if (const auto *Fold = dyn_cast<CXXFoldExpr>(IDC))
+          CSE = cast<ConceptSpecializationExpr>(Fold->getLHS());
+        else
+          CSE = cast<ConceptSpecializationExpr>(IDC);
+        ArrayRef<TemplateArgument> OldConverted = CSE->getTemplateArguments();
+        SmallVector<TemplateArgument, 3> NewConverted;
+        NewConverted.reserve(OldConverted.size());
+
+        QualType ParamAsArgument(NewTTP->getTypeForDecl(), 0);
+        if (OldConverted.front().getKind() == TemplateArgument::Pack) {
+          // The case:
+          // template<typename... T> concept C = true;
+          // template<C<int> T> struct S; -> constraint is C<{T, int}>
+          NewConverted.push_back(ParamAsArgument);
+          for (auto &Arg : OldConverted.front().pack_elements().drop_front(1))
+            NewConverted.push_back(Arg);
+          TemplateArgument NewPack(NewConverted);
+
+          NewConverted.clear();
+          NewConverted.push_back(NewPack);
+          assert(OldConverted.size() == 1 &&
+                 "Template parameter pack should be the last parameter");
+        } else {
+          assert(OldConverted.front().getKind() == TemplateArgument::Type &&
+                 "Unexpected first argument kind for immediately-declared "
+                 "constraint");
+          NewConverted.push_back(ParamAsArgument);
+          for (auto &Arg : OldConverted.drop_front(1))
+            NewConverted.push_back(Arg);
+        }
+        Expr *NewIDC = ConceptSpecializationExpr::Create(*this,
+            NestedNameSpecifierLoc(), /*TemplateKWLoc=*/SourceLocation(),
+            CSE->getConceptNameInfo(), /*FoundDecl=*/CSE->getNamedConcept(),
+            CSE->getNamedConcept(),
+            // Actually canonicalizing a TemplateArgumentLoc is difficult so we
+            // simply omit the ArgsAsWritten
+            /*ArgsAsWritten=*/nullptr, NewConverted, nullptr);
+
+        if (auto *OrigFold = dyn_cast<CXXFoldExpr>(IDC))
+          NewIDC = new (*this) CXXFoldExpr(OrigFold->getType(),
+                                           SourceLocation(), NewIDC,
+                                           BinaryOperatorKind::BO_LAnd,
+                                           SourceLocation(), /*RHS=*/nullptr,
+                                           SourceLocation(),
+                                           /*NumExpansions=*/None);
+
+        NewTTP->setTypeConstraint(
+            NestedNameSpecifierLoc(),
+            DeclarationNameInfo(TC->getNamedConcept()->getDeclName(),
+                                SourceLocation()), /*FoundDecl=*/nullptr,
+            // Actually canonicalizing a TemplateArgumentLoc is difficult so we
+            // simply omit the ArgsAsWritten
+            CSE->getNamedConcept(), /*ArgsAsWritten=*/nullptr, NewIDC);
+      }
+      CanonParams.push_back(NewTTP);
+    } else if (const auto *NTTP = dyn_cast<NonTypeTemplateParmDecl>(*P)) {
       QualType T = getCanonicalType(NTTP->getType());
       TypeSourceInfo *TInfo = getTrivialTypeSourceInfo(T);
       NonTypeTemplateParmDecl *Param;
@@ -738,9 +846,9 @@ ASTContext::getCanonicalTemplateTemplateParmDecl(
                                            cast<TemplateTemplateParmDecl>(*P)));
   }
 
-  assert(!TTP->getTemplateParameters()->getRequiresClause() &&
-         "Unexpected requires-clause on template template-parameter");
-  Expr *const CanonRequiresClause = nullptr;
+  Expr *CanonRequiresClause = nullptr;
+  if (Expr *RequiresClause = TTP->getTemplateParameters()->getRequiresClause())
+    CanonRequiresClause = RequiresClause;
 
   TemplateTemplateParmDecl *CanonTTP
     = TemplateTemplateParmDecl::Create(*this, getTranslationUnitDecl(),
@@ -769,6 +877,7 @@ CXXABI *ASTContext::createCXXABI(const TargetInfo &T) {
   if (!LangOpts.CPlusPlus) return nullptr;
 
   switch (T.getCXXABI().getKind()) {
+  case TargetCXXABI::Fuchsia:
   case TargetCXXABI::GenericARM: // Same as Itanium at this level
   case TargetCXXABI::iOS:
   case TargetCXXABI::iOS64:
@@ -797,15 +906,18 @@ static const LangASMap *getAddressSpaceMap(const TargetInfo &T,
     // The fake address space map must have a distinct entry for each
     // language-specific address space.
     static const unsigned FakeAddrSpaceMap[] = {
-      0, // Default
-      1, // opencl_global
-      3, // opencl_local
-      2, // opencl_constant
-      0, // opencl_private
-      4, // opencl_generic
-      5, // cuda_device
-      6, // cuda_constant
-      7  // cuda_shared
+        0, // Default
+        1, // opencl_global
+        3, // opencl_local
+        2, // opencl_constant
+        0, // opencl_private
+        4, // opencl_generic
+        5, // cuda_device
+        6, // cuda_constant
+        7, // cuda_shared
+        8, // ptr32_sptr
+        9, // ptr32_uptr
+        10 // ptr64
     };
     return &FakeAddrSpaceMap;
   } else {
@@ -832,7 +944,8 @@ ASTContext::ASTContext(LangOptions &LOpts, SourceManager &SM,
     : ConstantArrayTypes(this_()), FunctionProtoTypes(this_()),
       TemplateSpecializationTypes(this_()),
       DependentTemplateSpecializationTypes(this_()),
-      SubstTemplateTemplateParmPacks(this_()), SourceMgr(SM), LangOpts(LOpts),
+      SubstTemplateTemplateParmPacks(this_()),
+      CanonTemplateTemplateParms(this_()), SourceMgr(SM), LangOpts(LOpts),
       SanitizerBL(new SanitizerBlacklist(LangOpts.SanitizerBlacklistFiles, SM)),
       XRayFilter(new XRayFunctionFilter(LangOpts.XRayAlwaysInstrumentFiles,
                                         LangOpts.XRayNeverInstrumentFiles,
@@ -875,10 +988,6 @@ ASTContext::~ASTContext() {
        A != AEnd; ++A)
     A->second->~AttrVec();
 
-  for (std::pair<const MaterializeTemporaryExpr *, APValue *> &MTVPair :
-       MaterializedTemporaryValues)
-    MTVPair.second->~APValue();
-
   for (const auto &Value : ModuleInitializers)
     Value.second->~PerModuleInitializers();
 
@@ -895,15 +1004,15 @@ class ASTContext::ParentMap {
   /// only storing a unique pointer to them.
   using ParentMapPointers = llvm::DenseMap<
       const void *,
-      llvm::PointerUnion4<const Decl *, const Stmt *,
-                          ast_type_traits::DynTypedNode *, ParentVector *>>;
+      llvm::PointerUnion<const Decl *, const Stmt *,
+                         ast_type_traits::DynTypedNode *, ParentVector *>>;
 
   /// Parent map for nodes without pointer identity. We store a full
   /// DynTypedNode for all keys.
   using ParentMapOtherNodes = llvm::DenseMap<
       ast_type_traits::DynTypedNode,
-      llvm::PointerUnion4<const Decl *, const Stmt *,
-                          ast_type_traits::DynTypedNode *, ParentVector *>>;
+      llvm::PointerUnion<const Decl *, const Stmt *,
+                         ast_type_traits::DynTypedNode *, ParentVector *>>;
 
   ParentMapPointers PointerParents;
   ParentMapOtherNodes OtherParents;
@@ -959,7 +1068,7 @@ public:
 
 void ASTContext::setTraversalScope(const std::vector<Decl *> &TopLevelDecls) {
   TraversalScope = TopLevelDecls;
-  Parents.reset();
+  Parents.clear();
 }
 
 void ASTContext::AddDeallocation(void (*Callback)(void *), void *Data) const {
@@ -2438,7 +2547,7 @@ structHasUniqueObjectRepresentations(const ASTContext &Context,
       return llvm::None;
 
     SmallVector<std::pair<QualType, int64_t>, 4> Bases;
-    for (const auto Base : ClassDecl->bases()) {
+    for (const auto &Base : ClassDecl->bases()) {
       // Empty types can be inherited from, and non-empty types can potentially
       // have tail padding, so just make sure there isn't an error.
       if (!isStructEmpty(Base.getType())) {
@@ -2456,7 +2565,7 @@ structHasUniqueObjectRepresentations(const ASTContext &Context,
              Layout.getBaseClassOffset(R.first->getAsCXXRecordDecl());
     });
 
-    for (const auto Base : Bases) {
+    for (const auto &Base : Bases) {
       int64_t BaseOffset = Context.toBits(
           Layout.getBaseClassOffset(Base.first->getAsCXXRecordDecl()));
       int64_t BaseSize = Base.second;
@@ -2654,8 +2763,7 @@ const ObjCInterfaceDecl *ASTContext::getObjContainingInterface(
 
 /// Get the copy initialization expression of VarDecl, or nullptr if
 /// none exists.
-ASTContext::BlockVarCopyInit
-ASTContext::getBlockVarCopyInit(const VarDecl*VD) const {
+BlockVarCopyInit ASTContext::getBlockVarCopyInit(const VarDecl *VD) const {
   assert(VD && "Passed null params");
   assert(VD->hasAttr<BlocksAttr>() &&
          "getBlockVarCopyInits - not __block var");
@@ -2809,6 +2917,16 @@ QualType ASTContext::getObjCGCQualType(QualType T,
   return getExtQualType(TypeNode, Quals);
 }
 
+QualType ASTContext::removePtrSizeAddrSpace(QualType T) const {
+  if (const PointerType *Ptr = T->getAs<PointerType>()) {
+    QualType Pointee = Ptr->getPointeeType();
+    if (isPtrSizeAddressSpace(Pointee.getAddressSpace())) {
+      return getPointerType(removeAddrSpaceQualType(Pointee));
+    }
+  }
+  return T;
+}
+
 const FunctionType *ASTContext::adjustFunctionType(const FunctionType *T,
                                                    FunctionType::ExtInfo Info) {
   if (T->getExtInfo() == Info)
@@ -2881,6 +2999,29 @@ bool ASTContext::hasSameFunctionTypeIgnoringExceptionSpec(QualType T,
          (getLangOpts().CPlusPlus17 &&
           hasSameType(getFunctionTypeWithExceptionSpec(T, EST_None),
                       getFunctionTypeWithExceptionSpec(U, EST_None)));
+}
+
+QualType ASTContext::getFunctionTypeWithoutPtrSizes(QualType T) {
+  if (const auto *Proto = T->getAs<FunctionProtoType>()) {
+    QualType RetTy = removePtrSizeAddrSpace(Proto->getReturnType());
+    SmallVector<QualType, 16> Args(Proto->param_types());
+    for (unsigned i = 0, n = Args.size(); i != n; ++i)
+      Args[i] = removePtrSizeAddrSpace(Args[i]);
+    return getFunctionType(RetTy, Args, Proto->getExtProtoInfo());
+  }
+
+  if (const FunctionNoProtoType *Proto = T->getAs<FunctionNoProtoType>()) {
+    QualType RetTy = removePtrSizeAddrSpace(Proto->getReturnType());
+    return getFunctionNoProtoType(RetTy, Proto->getExtInfo());
+  }
+
+  return T;
+}
+
+bool ASTContext::hasSameFunctionTypeIgnoringPtrSizes(QualType T, QualType U) {
+  return hasSameType(T, U) ||
+         hasSameType(getFunctionTypeWithoutPtrSizes(T),
+                     getFunctionTypeWithoutPtrSizes(U));
 }
 
 void ASTContext::adjustExceptionSpec(
@@ -3547,10 +3688,10 @@ ASTContext::getDependentVectorType(QualType VecType, Expr *SizeExpr,
       (void)CanonCheck;
       DependentVectorTypes.InsertNode(New, InsertPos);
     } else {
-      QualType Canon = getDependentSizedExtVectorType(CanonVecTy, SizeExpr,
-                                                      SourceLocation());
+      QualType CanonExtTy = getDependentSizedExtVectorType(CanonVecTy, SizeExpr,
+                                                           SourceLocation());
       New = new (*this, TypeAlignment) DependentVectorType(
-          *this, VecType, Canon, SizeExpr, AttrLoc, VecKind);
+          *this, VecType, CanonExtTy, SizeExpr, AttrLoc, VecKind);
     }
   }
 
@@ -3620,10 +3761,10 @@ ASTContext::getDependentSizedExtVectorType(QualType vecType,
       (void)CanonCheck;
       DependentSizedExtVectorTypes.InsertNode(New, InsertPos);
     } else {
-      QualType Canon = getDependentSizedExtVectorType(CanonVecTy, SizeExpr,
-                                                      SourceLocation());
-      New = new (*this, TypeAlignment)
-        DependentSizedExtVectorType(*this, vecType, Canon, SizeExpr, AttrLoc);
+      QualType CanonExtTy = getDependentSizedExtVectorType(CanonVecTy, SizeExpr,
+                                                           SourceLocation());
+      New = new (*this, TypeAlignment) DependentSizedExtVectorType(
+          *this, vecType, CanonExtTy, SizeExpr, AttrLoc);
     }
   }
 
@@ -3877,10 +4018,11 @@ QualType ASTContext::getFunctionTypeInternal(
   auto ESH = FunctionProtoType::getExceptionSpecSize(
       EPI.ExceptionSpec.Type, EPI.ExceptionSpec.Exceptions.size());
   size_t Size = FunctionProtoType::totalSizeToAlloc<
-      QualType, FunctionType::FunctionTypeExtraBitfields,
+      QualType, SourceLocation, FunctionType::FunctionTypeExtraBitfields,
       FunctionType::ExceptionType, Expr *, FunctionDecl *,
       FunctionProtoType::ExtParameterInfo, Qualifiers>(
-      NumArgs, FunctionProtoType::hasExtraBitfields(EPI.ExceptionSpec.Type),
+      NumArgs, EPI.Variadic,
+      FunctionProtoType::hasExtraBitfields(EPI.ExceptionSpec.Type),
       ESH.NumExceptionType, ESH.NumExprPtr, ESH.NumFunctionDeclPtr,
       EPI.ExtParameterInfos ? NumArgs : 0,
       EPI.TypeQuals.hasNonFastQualifiers() ? 1 : 0);
@@ -6813,21 +6955,19 @@ void ASTContext::getObjCEncodingForTypeImpl(QualType T, std::string &S,
       S += ObjCEncodingForEnumType(this, cast<EnumType>(CT));
     return;
 
-  case Type::Complex: {
-    const auto *CT = T->castAs<ComplexType>();
+  case Type::Complex:
     S += 'j';
-    getObjCEncodingForTypeImpl(CT->getElementType(), S, ObjCEncOptions(),
+    getObjCEncodingForTypeImpl(T->castAs<ComplexType>()->getElementType(), S,
+                               ObjCEncOptions(),
                                /*Field=*/nullptr);
     return;
-  }
 
-  case Type::Atomic: {
-    const auto *AT = T->castAs<AtomicType>();
+  case Type::Atomic:
     S += 'A';
-    getObjCEncodingForTypeImpl(AT->getValueType(), S, ObjCEncOptions(),
+    getObjCEncodingForTypeImpl(T->castAs<AtomicType>()->getValueType(), S,
+                               ObjCEncOptions(),
                                /*Field=*/nullptr);
     return;
-  }
 
   // encoding for pointer or reference types.
   case Type::Pointer:
@@ -8645,8 +8785,8 @@ QualType ASTContext::mergeFunctionParameterTypes(QualType lhs, QualType rhs,
 QualType ASTContext::mergeFunctionTypes(QualType lhs, QualType rhs,
                                         bool OfBlockPointer,
                                         bool Unqualified) {
-  const auto *lbase = lhs->getAs<FunctionType>();
-  const auto *rbase = rhs->getAs<FunctionType>();
+  const auto *lbase = lhs->castAs<FunctionType>();
+  const auto *rbase = rhs->castAs<FunctionType>();
   const auto *lproto = dyn_cast<FunctionProtoType>(lbase);
   const auto *rproto = dyn_cast<FunctionProtoType>(rbase);
   bool allLTypes = true;
@@ -10170,6 +10310,7 @@ MangleContext *ASTContext::createMangleContext(const TargetInfo *T) {
   if (!T)
     T = Target;
   switch (T->getCXXABI().getKind()) {
+  case TargetCXXABI::Fuchsia:
   case TargetCXXABI::GenericAArch64:
   case TargetCXXABI::GenericItanium:
   case TargetCXXABI::GenericARM:
@@ -10324,21 +10465,6 @@ unsigned ASTContext::getParameterIndex(const ParmVarDecl *D) const {
   return I->second;
 }
 
-APValue *
-ASTContext::getMaterializedTemporaryValue(const MaterializeTemporaryExpr *E,
-                                          bool MayCreate) {
-  assert(E && E->getStorageDuration() == SD_Static &&
-         "don't need to cache the computed value for this temporary");
-  if (MayCreate) {
-    APValue *&MTVI = MaterializedTemporaryValues[E];
-    if (!MTVI)
-      MTVI = new (*this) APValue;
-    return MTVI;
-  }
-
-  return MaterializedTemporaryValues.lookup(E);
-}
-
 QualType ASTContext::getStringLiteralArrayType(QualType EltTy,
                                                unsigned Length) const {
   // A C++ string literal has a const-qualified element type (C++ 2.13.4p1).
@@ -10410,7 +10536,8 @@ createDynTypedNode(const NestedNameSpecifierLoc &Node) {
 class ASTContext::ParentMap::ASTVisitor
     : public RecursiveASTVisitor<ASTVisitor> {
 public:
-  ASTVisitor(ParentMap &Map) : Map(Map) {}
+  ASTVisitor(ParentMap &Map, ASTContext &Context)
+      : Map(Map), Context(Context) {}
 
 private:
   friend class RecursiveASTVisitor<ASTVisitor>;
@@ -10480,9 +10607,12 @@ private:
   }
 
   bool TraverseStmt(Stmt *StmtNode) {
-    return TraverseNode(
-        StmtNode, StmtNode, [&] { return VisitorBase::TraverseStmt(StmtNode); },
-        &Map.PointerParents);
+    Stmt *FilteredNode = StmtNode;
+    if (auto *ExprNode = dyn_cast_or_null<Expr>(FilteredNode))
+      FilteredNode = Context.traverseIgnored(ExprNode);
+    return TraverseNode(FilteredNode, FilteredNode,
+                        [&] { return VisitorBase::TraverseStmt(FilteredNode); },
+                        &Map.PointerParents);
   }
 
   bool TraverseTypeLoc(TypeLoc TypeLocNode) {
@@ -10500,20 +10630,22 @@ private:
   }
 
   ParentMap &Map;
+  ASTContext &Context;
   llvm::SmallVector<ast_type_traits::DynTypedNode, 16> ParentStack;
 };
 
 ASTContext::ParentMap::ParentMap(ASTContext &Ctx) {
-  ASTVisitor(*this).TraverseAST(Ctx);
+  ASTVisitor(*this, Ctx).TraverseAST(Ctx);
 }
 
 ASTContext::DynTypedNodeList
 ASTContext::getParents(const ast_type_traits::DynTypedNode &Node) {
-  if (!Parents)
+  std::unique_ptr<ParentMap> &P = Parents[Traversal];
+  if (!P)
     // We build the parent map for the traversal scope (usually whole TU), as
     // hasAncestor can escape any subtree.
-    Parents = std::make_unique<ParentMap>(*this);
-  return Parents->getParents(Node);
+    P = std::make_unique<ParentMap>(*this);
+  return P->getParents(Node);
 }
 
 bool
@@ -10761,5 +10893,68 @@ QualType ASTContext::getCorrespondingSignedFixedPointType(QualType Ty) const {
     return SatLongFractTy;
   default:
     llvm_unreachable("Unexpected unsigned fixed point type");
+  }
+}
+
+ParsedTargetAttr
+ASTContext::filterFunctionTargetAttrs(const TargetAttr *TD) const {
+  assert(TD != nullptr);
+  ParsedTargetAttr ParsedAttr = TD->parse();
+
+  ParsedAttr.Features.erase(
+      llvm::remove_if(ParsedAttr.Features,
+                      [&](const std::string &Feat) {
+                        return !Target->isValidFeatureName(
+                            StringRef{Feat}.substr(1));
+                      }),
+      ParsedAttr.Features.end());
+  return ParsedAttr;
+}
+
+void ASTContext::getFunctionFeatureMap(llvm::StringMap<bool> &FeatureMap,
+                                       const FunctionDecl *FD) const {
+  if (FD)
+    getFunctionFeatureMap(FeatureMap, GlobalDecl().getWithDecl(FD));
+  else
+    Target->initFeatureMap(FeatureMap, getDiagnostics(),
+                           Target->getTargetOpts().CPU,
+                           Target->getTargetOpts().Features);
+}
+
+// Fills in the supplied string map with the set of target features for the
+// passed in function.
+void ASTContext::getFunctionFeatureMap(llvm::StringMap<bool> &FeatureMap,
+                                       GlobalDecl GD) const {
+  StringRef TargetCPU = Target->getTargetOpts().CPU;
+  const FunctionDecl *FD = GD.getDecl()->getAsFunction();
+  if (const auto *TD = FD->getAttr<TargetAttr>()) {
+    ParsedTargetAttr ParsedAttr = filterFunctionTargetAttrs(TD);
+
+    // Make a copy of the features as passed on the command line into the
+    // beginning of the additional features from the function to override.
+    ParsedAttr.Features.insert(
+        ParsedAttr.Features.begin(),
+        Target->getTargetOpts().FeaturesAsWritten.begin(),
+        Target->getTargetOpts().FeaturesAsWritten.end());
+
+    if (ParsedAttr.Architecture != "" &&
+        Target->isValidCPUName(ParsedAttr.Architecture))
+      TargetCPU = ParsedAttr.Architecture;
+
+    // Now populate the feature map, first with the TargetCPU which is either
+    // the default or a new one from the target attribute string. Then we'll use
+    // the passed in features (FeaturesAsWritten) along with the new ones from
+    // the attribute.
+    Target->initFeatureMap(FeatureMap, getDiagnostics(), TargetCPU,
+                           ParsedAttr.Features);
+  } else if (const auto *SD = FD->getAttr<CPUSpecificAttr>()) {
+    llvm::SmallVector<StringRef, 32> FeaturesTmp;
+    Target->getCPUSpecificCPUDispatchFeatures(
+        SD->getCPUName(GD.getMultiVersionIndex())->getName(), FeaturesTmp);
+    std::vector<std::string> Features(FeaturesTmp.begin(), FeaturesTmp.end());
+    Target->initFeatureMap(FeatureMap, getDiagnostics(), TargetCPU, Features);
+  } else {
+    Target->initFeatureMap(FeatureMap, getDiagnostics(), TargetCPU,
+                           Target->getTargetOpts().Features);
   }
 }

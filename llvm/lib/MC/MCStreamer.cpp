@@ -977,9 +977,10 @@ void MCStreamer::EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) {
 }
 
 void MCTargetStreamer::prettyPrintAsm(MCInstPrinter &InstPrinter,
-                                      raw_ostream &OS, const MCInst &Inst,
-                                      const MCSubtargetInfo &STI) {
-  InstPrinter.printInst(&Inst, OS, "", STI);
+                                      uint64_t Address, const MCInst &Inst,
+                                      const MCSubtargetInfo &STI,
+                                      raw_ostream &OS) {
+  InstPrinter.printInst(&Inst, Address, "", STI, OS);
 }
 
 void MCStreamer::visitUsedSymbol(const MCSymbol &Sym) {
@@ -1063,7 +1064,8 @@ void MCStreamer::EmitCOFFSymbolStorageClass(int StorageClass) {
 void MCStreamer::EmitCOFFSymbolType(int Type) {
   llvm_unreachable("this directive only supported on COFF targets");
 }
-void MCStreamer::EmitXCOFFLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+void MCStreamer::EmitXCOFFLocalCommonSymbol(MCSymbol *LabelSym, uint64_t Size,
+                                            MCSymbol *CsectSym,
                                             unsigned ByteAlign) {
   llvm_unreachable("this directive only supported on XCOFF targets");
 }

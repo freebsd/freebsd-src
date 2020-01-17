@@ -13,6 +13,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Transforms/Scalar/Scalarizer.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Twine.h"
@@ -21,6 +22,7 @@
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
@@ -33,12 +35,12 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/MathExtras.h"
-#include "llvm/Support/Options.h"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/Transforms/Scalar/Scalarizer.h"
 #include <cassert>
 #include <cstdint>
 #include <iterator>
@@ -173,8 +175,8 @@ struct VectorLayout {
 
 class ScalarizerVisitor : public InstVisitor<ScalarizerVisitor, bool> {
 public:
-  ScalarizerVisitor(unsigned ParallelLoopAccessMDKind)
-    : ParallelLoopAccessMDKind(ParallelLoopAccessMDKind) {
+  ScalarizerVisitor(unsigned ParallelLoopAccessMDKind, DominatorTree *DT)
+    : ParallelLoopAccessMDKind(ParallelLoopAccessMDKind), DT(DT) {
   }
 
   bool visit(Function &F);
@@ -214,6 +216,8 @@ private:
   GatherList Gathered;
 
   unsigned ParallelLoopAccessMDKind;
+
+  DominatorTree *DT;
 };
 
 class ScalarizerLegacyPass : public FunctionPass {
@@ -225,6 +229,11 @@ public:
   }
 
   bool runOnFunction(Function &F) override;
+
+  void getAnalysisUsage(AnalysisUsage& AU) const override {
+    AU.addRequired<DominatorTreeWrapperPass>();
+    AU.addPreserved<DominatorTreeWrapperPass>();
+  }
 };
 
 } // end anonymous namespace
@@ -232,6 +241,7 @@ public:
 char ScalarizerLegacyPass::ID = 0;
 INITIALIZE_PASS_BEGIN(ScalarizerLegacyPass, "scalarizer",
                       "Scalarize vector operations", false, false)
+INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_END(ScalarizerLegacyPass, "scalarizer",
                     "Scalarize vector operations", false, false)
 
@@ -303,7 +313,8 @@ bool ScalarizerLegacyPass::runOnFunction(Function &F) {
   Module &M = *F.getParent();
   unsigned ParallelLoopAccessMDKind =
       M.getContext().getMDKindID("llvm.mem.parallel_loop_access");
-  ScalarizerVisitor Impl(ParallelLoopAccessMDKind);
+  DominatorTree *DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
+  ScalarizerVisitor Impl(ParallelLoopAccessMDKind, DT);
   return Impl.visit(F);
 }
 
@@ -340,6 +351,15 @@ Scatterer ScalarizerVisitor::scatter(Instruction *Point, Value *V) {
     return Scatterer(BB, BB->begin(), V, &Scattered[V]);
   }
   if (Instruction *VOp = dyn_cast<Instruction>(V)) {
+    // When scalarizing PHI nodes we might try to examine/rewrite InsertElement
+    // nodes in predecessors. If those predecessors are unreachable from entry,
+    // then the IR in those blocks could have unexpected properties resulting in
+    // infinite loops in Scatterer::operator[]. By simply treating values
+    // originating from instructions in unreachable blocks as undef we do not
+    // need to analyse them further.
+    if (!DT->isReachableFromEntry(VOp->getParent()))
+      return Scatterer(Point->getParent(), Point->getIterator(),
+                       UndefValue::get(V->getType()));
     // Put the scattered form of an instruction directly after the
     // instruction.
     BasicBlock *BB = VOp->getParent();
@@ -856,7 +876,10 @@ PreservedAnalyses ScalarizerPass::run(Function &F, FunctionAnalysisManager &AM) 
   Module &M = *F.getParent();
   unsigned ParallelLoopAccessMDKind =
       M.getContext().getMDKindID("llvm.mem.parallel_loop_access");
-  ScalarizerVisitor Impl(ParallelLoopAccessMDKind);
+  DominatorTree *DT = &AM.getResult<DominatorTreeAnalysis>(F);
+  ScalarizerVisitor Impl(ParallelLoopAccessMDKind, DT);
   bool Changed = Impl.visit(F);
-  return Changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
+  PreservedAnalyses PA;
+  PA.preserve<DominatorTreeAnalysis>();
+  return Changed ? PA : PreservedAnalyses::all();
 }

@@ -449,8 +449,8 @@ static bool isSupportedAtomicType(Type *Ty) {
 ///
 /// Note that this will create all of the instructions with whatever insert
 /// point the \c InstCombiner currently is using.
-static LoadInst *combineLoadToNewType(InstCombiner &IC, LoadInst &LI, Type *NewTy,
-                                      const Twine &Suffix = "") {
+LoadInst *InstCombiner::combineLoadToNewType(LoadInst &LI, Type *NewTy,
+                                             const Twine &Suffix) {
   assert((!LI.isAtomic() || isSupportedAtomicType(NewTy)) &&
          "can't fold an atomic load to requested type");
 
@@ -460,10 +460,17 @@ static LoadInst *combineLoadToNewType(InstCombiner &IC, LoadInst &LI, Type *NewT
   if (!(match(Ptr, m_BitCast(m_Value(NewPtr))) &&
         NewPtr->getType()->getPointerElementType() == NewTy &&
         NewPtr->getType()->getPointerAddressSpace() == AS))
-    NewPtr = IC.Builder.CreateBitCast(Ptr, NewTy->getPointerTo(AS));
+    NewPtr = Builder.CreateBitCast(Ptr, NewTy->getPointerTo(AS));
 
-  LoadInst *NewLoad = IC.Builder.CreateAlignedLoad(
-      NewTy, NewPtr, LI.getAlignment(), LI.isVolatile(), LI.getName() + Suffix);
+  unsigned Align = LI.getAlignment();
+  if (!Align)
+    // If old load did not have an explicit alignment specified,
+    // manually preserve the implied (ABI) alignment of the load.
+    // Else we may inadvertently incorrectly over-promise alignment.
+    Align = getDataLayout().getABITypeAlignment(LI.getType());
+
+  LoadInst *NewLoad = Builder.CreateAlignedLoad(
+      NewTy, NewPtr, Align, LI.isVolatile(), LI.getName() + Suffix);
   NewLoad->setAtomic(LI.getOrdering(), LI.getSyncScopeID());
   copyMetadataForLoad(*NewLoad, LI);
   return NewLoad;
@@ -526,7 +533,7 @@ static StoreInst *combineStoreToNewValue(InstCombiner &IC, StoreInst &SI, Value 
 
 /// Returns true if instruction represent minmax pattern like:
 ///   select ((cmp load V1, load V2), V1, V2).
-static bool isMinMaxWithLoads(Value *V) {
+static bool isMinMaxWithLoads(Value *V, Type *&LoadTy) {
   assert(V->getType()->isPointerTy() && "Expected pointer type.");
   // Ignore possible ty* to ixx* bitcast.
   V = peekThroughBitcast(V);
@@ -540,6 +547,7 @@ static bool isMinMaxWithLoads(Value *V) {
   if (!match(V, m_Select(m_Cmp(Pred, m_Instruction(L1), m_Instruction(L2)),
                          m_Value(LHS), m_Value(RHS))))
     return false;
+  LoadTy = L1->getType();
   return (match(L1, m_Load(m_Specific(LHS))) &&
           match(L2, m_Load(m_Specific(RHS)))) ||
          (match(L1, m_Load(m_Specific(RHS))) &&
@@ -585,20 +593,22 @@ static Instruction *combineLoadToOperationType(InstCombiner &IC, LoadInst &LI) {
   // size is a legal integer type.
   // Do not perform canonicalization if minmax pattern is found (to avoid
   // infinite loop).
+  Type *Dummy;
   if (!Ty->isIntegerTy() && Ty->isSized() &&
+      !(Ty->isVectorTy() && Ty->getVectorIsScalable()) &&
       DL.isLegalInteger(DL.getTypeStoreSizeInBits(Ty)) &&
       DL.typeSizeEqualsStoreSize(Ty) &&
       !DL.isNonIntegralPointerType(Ty) &&
       !isMinMaxWithLoads(
-          peekThroughBitcast(LI.getPointerOperand(), /*OneUseOnly=*/true))) {
+          peekThroughBitcast(LI.getPointerOperand(), /*OneUseOnly=*/true),
+          Dummy)) {
     if (all_of(LI.users(), [&LI](User *U) {
           auto *SI = dyn_cast<StoreInst>(U);
           return SI && SI->getPointerOperand() != &LI &&
                  !SI->getPointerOperand()->isSwiftError();
         })) {
-      LoadInst *NewLoad = combineLoadToNewType(
-          IC, LI,
-          Type::getIntNTy(LI.getContext(), DL.getTypeStoreSizeInBits(Ty)));
+      LoadInst *NewLoad = IC.combineLoadToNewType(
+          LI, Type::getIntNTy(LI.getContext(), DL.getTypeStoreSizeInBits(Ty)));
       // Replace all the stores with stores of the newly loaded value.
       for (auto UI = LI.user_begin(), UE = LI.user_end(); UI != UE;) {
         auto *SI = cast<StoreInst>(*UI++);
@@ -620,7 +630,7 @@ static Instruction *combineLoadToOperationType(InstCombiner &IC, LoadInst &LI) {
     if (auto* CI = dyn_cast<CastInst>(LI.user_back()))
       if (CI->isNoopCast(DL))
         if (!LI.isAtomic() || isSupportedAtomicType(CI->getDestTy())) {
-          LoadInst *NewLoad = combineLoadToNewType(IC, LI, CI->getDestTy());
+          LoadInst *NewLoad = IC.combineLoadToNewType(LI, CI->getDestTy());
           CI->replaceAllUsesWith(NewLoad);
           IC.eraseInstFromFunction(*CI);
           return &LI;
@@ -648,8 +658,8 @@ static Instruction *unpackLoadToAggregate(InstCombiner &IC, LoadInst &LI) {
     // If the struct only have one element, we unpack.
     auto NumElements = ST->getNumElements();
     if (NumElements == 1) {
-      LoadInst *NewLoad = combineLoadToNewType(IC, LI, ST->getTypeAtIndex(0U),
-                                               ".unpack");
+      LoadInst *NewLoad = IC.combineLoadToNewType(LI, ST->getTypeAtIndex(0U),
+                                                  ".unpack");
       AAMDNodes AAMD;
       LI.getAAMetadata(AAMD);
       NewLoad->setAAMetadata(AAMD);
@@ -698,7 +708,7 @@ static Instruction *unpackLoadToAggregate(InstCombiner &IC, LoadInst &LI) {
     auto *ET = AT->getElementType();
     auto NumElements = AT->getNumElements();
     if (NumElements == 1) {
-      LoadInst *NewLoad = combineLoadToNewType(IC, LI, ET, ".unpack");
+      LoadInst *NewLoad = IC.combineLoadToNewType(LI, ET, ".unpack");
       AAMDNodes AAMD;
       LI.getAAMetadata(AAMD);
       NewLoad->setAAMetadata(AAMD);
@@ -1322,7 +1332,14 @@ static bool removeBitcastsFromLoadStoreOnMinMax(InstCombiner &IC,
   auto *LI = cast<LoadInst>(SI.getValueOperand());
   if (!LI->getType()->isIntegerTy())
     return false;
-  if (!isMinMaxWithLoads(LoadAddr))
+  Type *CmpLoadTy;
+  if (!isMinMaxWithLoads(LoadAddr, CmpLoadTy))
+    return false;
+
+  // Make sure we're not changing the size of the load/store.
+  const auto &DL = IC.getDataLayout();
+  if (DL.getTypeStoreSizeInBits(LI->getType()) !=
+      DL.getTypeStoreSizeInBits(CmpLoadTy))
     return false;
 
   if (!all_of(LI->users(), [LI, LoadAddr](User *U) {
@@ -1334,8 +1351,7 @@ static bool removeBitcastsFromLoadStoreOnMinMax(InstCombiner &IC,
     return false;
 
   IC.Builder.SetInsertPoint(LI);
-  LoadInst *NewLI = combineLoadToNewType(
-      IC, *LI, LoadAddr->getType()->getPointerElementType());
+  LoadInst *NewLI = IC.combineLoadToNewType(*LI, CmpLoadTy);
   // Replace all the stores with stores of the newly loaded value.
   for (auto *UI : LI->users()) {
     auto *USI = cast<StoreInst>(UI);

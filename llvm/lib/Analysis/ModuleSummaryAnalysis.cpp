@@ -44,6 +44,7 @@
 #include "llvm/IR/ModuleSummaryIndex.h"
 #include "llvm/IR/Use.h"
 #include "llvm/IR/User.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Object/ModuleSymbolTable.h"
 #include "llvm/Object/SymbolicFile.h"
 #include "llvm/Pass.h"
@@ -466,7 +467,8 @@ static void computeFunctionSummary(ModuleSummaryIndex &Index, const Module &M,
       F.hasFnAttribute(Attribute::NoRecurse), F.returnDoesNotAlias(),
       // FIXME: refactor this to use the same code that inliner is using.
       // Don't try to import functions with noinline attribute.
-      F.getAttributes().hasFnAttribute(Attribute::NoInline)};
+      F.getAttributes().hasFnAttribute(Attribute::NoInline),
+      F.hasFnAttribute(Attribute::AlwaysInline)};
   auto FuncSummary = std::make_unique<FunctionSummary>(
       Flags, NumInsts, FunFlags, /*EntryCount=*/0, std::move(Refs),
       CallGraphEdges.takeVector(), TypeTests.takeVector(),
@@ -703,7 +705,8 @@ ModuleSummaryIndex llvm::buildModuleSummaryIndex(
                         F->hasFnAttribute(Attribute::ReadOnly),
                         F->hasFnAttribute(Attribute::NoRecurse),
                         F->returnDoesNotAlias(),
-                        /* NoInline = */ false},
+                        /* NoInline = */ false,
+                        F->hasFnAttribute(Attribute::AlwaysInline)},
                     /*EntryCount=*/0, ArrayRef<ValueInfo>{},
                     ArrayRef<FunctionSummary::EdgeTy>{},
                     ArrayRef<GlobalValue::GUID>{},
@@ -817,7 +820,7 @@ ModuleSummaryIndex llvm::buildModuleSummaryIndex(
     if (EC)
       report_fatal_error(Twine("Failed to open dot file ") +
                          ModuleSummaryDotFile + ": " + EC.message() + "\n");
-    Index.exportToDot(OSDot);
+    Index.exportToDot(OSDot, {});
   }
 
   return Index;

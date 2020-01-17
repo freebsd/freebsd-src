@@ -98,6 +98,9 @@ const unsigned struct_kernel_stat64_sz = 144;
 const unsigned struct___old_kernel_stat_sz = 0;
 const unsigned struct_kernel_stat_sz = 64;
 const unsigned struct_kernel_stat64_sz = 104;
+#elif defined(__riscv) && __riscv_xlen == 64
+const unsigned struct_kernel_stat_sz = 128;
+const unsigned struct_kernel_stat64_sz = 104;
 #endif
 struct __sanitizer_perf_event_attr {
   unsigned type;
@@ -204,26 +207,13 @@ struct __sanitizer_ipc_perm {
   u64 __unused1;
   u64 __unused2;
 #elif defined(__sparc__)
-#if defined(__arch64__)
   unsigned mode;
-  unsigned short __pad1;
-#else
-  unsigned short __pad1;
-  unsigned short mode;
   unsigned short __pad2;
-#endif
   unsigned short __seq;
   unsigned long long __unused1;
   unsigned long long __unused2;
-#elif defined(__mips__) || defined(__aarch64__) || defined(__s390x__)
-  unsigned int mode;
-  unsigned short __seq;
-  unsigned short __pad1;
-  unsigned long __unused1;
-  unsigned long __unused2;
 #else
-  unsigned short mode;
-  unsigned short __pad1;
+  unsigned int mode;
   unsigned short __seq;
   unsigned short __pad2;
 #if defined(__x86_64__) && !defined(_LP64)

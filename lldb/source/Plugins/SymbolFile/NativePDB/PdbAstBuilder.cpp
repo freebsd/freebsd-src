@@ -17,7 +17,7 @@
 #include "Plugins/Language/CPlusPlus/MSVCUndecoratedNameParser.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Symbol/ClangASTContext.h"
-#include "lldb/Symbol/ClangExternalASTSourceCommon.h"
+#include "lldb/Symbol/ClangASTMetadata.h"
 #include "lldb/Symbol/ClangUtil.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Utility/LLDBAssert.h"
@@ -655,7 +655,7 @@ bool PdbAstBuilder::CompleteTagDecl(clang::TagDecl &tag) {
 
   lldbassert(IsTagRecord(type_id, m_index.tpi()));
 
-  clang::QualType tag_qt = m_clang.getASTContext()->getTypeDeclType(&tag);
+  clang::QualType tag_qt = m_clang.getASTContext().getTypeDeclType(&tag);
   ClangASTContext::SetHasExternalStorage(tag_qt.getAsOpaquePtr(), false);
 
   TypeIndex tag_ti = type_id.index;
@@ -700,7 +700,7 @@ clang::QualType PdbAstBuilder::CreateSimpleType(TypeIndex ti) {
 
   if (ti.getSimpleMode() != SimpleTypeMode::Direct) {
     clang::QualType direct_type = GetOrCreateType(ti.makeDirect());
-    return m_clang.getASTContext()->getPointerType(direct_type);
+    return m_clang.getASTContext().getPointerType(direct_type);
   }
 
   if (ti.getSimpleKind() == SimpleTypeKind::NotTranslated)
@@ -725,19 +725,17 @@ clang::QualType PdbAstBuilder::CreatePointerType(const PointerRecord &pointer) {
     MemberPointerInfo mpi = pointer.getMemberInfo();
     clang::QualType class_type = GetOrCreateType(mpi.ContainingType);
 
-    return m_clang.getASTContext()->getMemberPointerType(
+    return m_clang.getASTContext().getMemberPointerType(
         pointee_type, class_type.getTypePtr());
   }
 
   clang::QualType pointer_type;
   if (pointer.getMode() == PointerMode::LValueReference)
-    pointer_type =
-        m_clang.getASTContext()->getLValueReferenceType(pointee_type);
+    pointer_type = m_clang.getASTContext().getLValueReferenceType(pointee_type);
   else if (pointer.getMode() == PointerMode::RValueReference)
-    pointer_type =
-        m_clang.getASTContext()->getRValueReferenceType(pointee_type);
+    pointer_type = m_clang.getASTContext().getRValueReferenceType(pointee_type);
   else
-    pointer_type = m_clang.getASTContext()->getPointerType(pointee_type);
+    pointer_type = m_clang.getASTContext().getPointerType(pointee_type);
 
   if ((pointer.getOptions() & PointerOptions::Const) != PointerOptions::None)
     pointer_type.addConst();
@@ -778,9 +776,8 @@ clang::QualType PdbAstBuilder::CreateRecordType(PdbTypeSymId id,
   metadata.SetUserID(toOpaqueUid(id));
   metadata.SetIsDynamicCXXType(false);
 
-  CompilerType ct =
-      m_clang.CreateRecordType(context, access, uname.c_str(), ttk,
-                               lldb::eLanguageTypeC_plus_plus, &metadata);
+  CompilerType ct = m_clang.CreateRecordType(
+      context, access, uname, ttk, lldb::eLanguageTypeC_plus_plus, &metadata);
 
   lldbassert(ct.IsValid());
 
@@ -1081,7 +1078,7 @@ void PdbAstBuilder::CreateFunctionParameters(PdbCompilandSymId func_id,
     PdbCompilandSymId param_uid(func_id.modi, record_offset);
     clang::QualType qt = GetOrCreateType(param_type);
 
-    CompilerType param_type_ct(&m_clang, qt.getAsOpaquePtr());
+    CompilerType param_type_ct = m_clang.GetType(qt);
     clang::ParmVarDecl *param = m_clang.CreateParameterDeclaration(
         &function_decl, param_name.str().c_str(), param_type_ct,
         clang::SC_None, true);
@@ -1346,7 +1343,7 @@ CompilerType PdbAstBuilder::ToCompilerType(clang::QualType qt) {
 
 CompilerDeclContext
 PdbAstBuilder::ToCompilerDeclContext(clang::DeclContext &context) {
-  return {&m_clang, &context};
+  return m_clang.CreateDeclContext(&context);
 }
 
 clang::Decl * PdbAstBuilder::FromCompilerDecl(CompilerDecl decl) {

@@ -22,8 +22,9 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/TargetOpcodes.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/LowLevelTypeImpl.h"
+#include "llvm/Support/raw_ostream.h"
 #include <cassert>
 #include <cstdint>
 #include <tuple>
@@ -660,6 +661,7 @@ public:
 
   /// The instruction is unsupported.
   LegalizeRuleSet &unsupported() {
+    markAllIdxsAsCovered();
     return actionIf(LegalizeAction::Unsupported, always);
   }
   LegalizeRuleSet &unsupportedIf(LegalityPredicate Predicate) {
@@ -1156,6 +1158,12 @@ public:
   virtual bool legalizeIntrinsic(MachineInstr &MI, MachineRegisterInfo &MRI,
                                  MachineIRBuilder &MIRBuilder) const;
 
+  /// Return the opcode (SEXT/ZEXT/ANYEXT) that should be performed while
+  /// widening a constant of type SmallTy which targets can override.
+  /// For eg, the DAG does (SmallTy.isByteSized() ? G_SEXT : G_ZEXT) which
+  /// will be the default.
+  virtual unsigned getExtOpcodeForWideningConstant(LLT SmallTy) const;
+
 private:
   /// Determine what action should be taken to legalize the given generic
   /// instruction opcode, type-index and type. Requires computeTables to have
@@ -1178,7 +1186,7 @@ private:
   ///            {65, NarrowScalar} // bit sizes [65, +inf[
   ///           });
   /// It may be that only 64-bit pointers are supported on your target:
-  /// setPointerAction(G_GEP, 0, LLT:pointer(1),
+  /// setPointerAction(G_PTR_ADD, 0, LLT:pointer(1),
   ///           {{1, Unsupported},  // bit sizes [ 1, 63[
   ///            {64, Legal},       // bit sizes [64, 65[
   ///            {65, Unsupported}, // bit sizes [65, +inf[

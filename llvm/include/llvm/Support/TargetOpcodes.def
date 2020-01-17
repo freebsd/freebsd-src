@@ -285,6 +285,9 @@ HANDLE_TARGET_OPCODE(G_INTRINSIC_TRUNC)
 /// INTRINSIC round intrinsic.
 HANDLE_TARGET_OPCODE(G_INTRINSIC_ROUND)
 
+/// INTRINSIC readcyclecounter
+HANDLE_TARGET_OPCODE(G_READCYCLECOUNTER)
+
 /// Generic load (including anyext load)
 HANDLE_TARGET_OPCODE(G_LOAD)
 
@@ -524,7 +527,7 @@ HANDLE_TARGET_OPCODE(G_FMINIMUM)
 HANDLE_TARGET_OPCODE(G_FMAXIMUM)
 
 /// Generic pointer offset
-HANDLE_TARGET_OPCODE(G_GEP)
+HANDLE_TARGET_OPCODE(G_PTR_ADD)
 
 /// Clear the specified number of low bits in a pointer. This rounds the value
 /// *down* to the given alignment.
@@ -611,12 +614,16 @@ HANDLE_TARGET_OPCODE(G_JUMP_TABLE)
 /// Generic dynamic stack allocation.
 HANDLE_TARGET_OPCODE(G_DYN_STACKALLOC)
 
-// TODO: Add more generic opcodes as we move along.
+/// read_register intrinsic
+HANDLE_TARGET_OPCODE(G_READ_REGISTER)
+
+/// write_register intrinsic
+HANDLE_TARGET_OPCODE(G_WRITE_REGISTER)
 
 /// Marker for the end of the generic opcode.
 /// This is used to check if an opcode is in the range of the
 /// generic opcodes.
-HANDLE_TARGET_OPCODE_MARKER(PRE_ISEL_GENERIC_OPCODE_END, G_DYN_STACKALLOC)
+HANDLE_TARGET_OPCODE_MARKER(PRE_ISEL_GENERIC_OPCODE_END, G_WRITE_REGISTER)
 
 /// BUILTIN_OP_END - This must be the last enum value in this list.
 /// The target-specific post-isel opcode values start here.

@@ -282,6 +282,11 @@ public:
     return getFrameIndexReference(MF, FI, FrameReg);
   }
 
+  /// Returns the callee-saved registers as computed by determineCalleeSaves
+  /// in the BitVector \p SavedRegs.
+  virtual void getCalleeSaves(const MachineFunction &MF,
+                                  BitVector &SavedRegs) const;
+
   /// This method determines which of the registers reported by
   /// TargetRegisterInfo::getCalleeSavedRegs() should actually get saved.
   /// The default implementation checks populates the \p SavedRegs bitset with
@@ -289,6 +294,9 @@ public:
   /// this function to save additional registers.
   /// This method also sets up the register scavenger ensuring there is a free
   /// register or a frameindex available.
+  /// This method should not be called by any passes outside of PEI, because
+  /// it may change state passed in by \p MF and \p RS. The preferred
+  /// interface outside PEI is getCalleeSaves.
   virtual void determineCalleeSaves(MachineFunction &MF, BitVector &SavedRegs,
                                     RegScavenger *RS = nullptr) const;
 
@@ -353,6 +361,11 @@ public:
   /// epilogue.
   virtual bool canUseAsEpilogue(const MachineBasicBlock &MBB) const {
     return true;
+  }
+
+  /// Returns the StackID that scalable vectors should be associated with.
+  virtual TargetStackID::Value getStackIDForScalableVectors() const {
+    return TargetStackID::Default;
   }
 
   virtual bool isSupportedStackID(TargetStackID::Value ID) const {

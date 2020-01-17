@@ -257,6 +257,10 @@ void MipsAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     if (emitPseudoExpansionLowering(*OutStreamer, &*I))
       continue;
 
+    // Skip the BUNDLE pseudo instruction and lower the contents
+    if (I->isBundle())
+      continue;
+
     if (I->getOpcode() == Mips::PseudoReturn ||
         I->getOpcode() == Mips::PseudoReturn64 ||
         I->getOpcode() == Mips::PseudoIndirectBranch ||
@@ -623,8 +627,10 @@ bool MipsAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
   assert(OpNum + 1 < MI->getNumOperands() && "Insufficient operands");
   const MachineOperand &BaseMO = MI->getOperand(OpNum);
   const MachineOperand &OffsetMO = MI->getOperand(OpNum + 1);
-  assert(BaseMO.isReg() && "Unexpected base pointer for inline asm memory operand.");
-  assert(OffsetMO.isImm() && "Unexpected offset for inline asm memory operand.");
+  assert(BaseMO.isReg() &&
+         "Unexpected base pointer for inline asm memory operand.");
+  assert(OffsetMO.isImm() &&
+         "Unexpected offset for inline asm memory operand.");
   int Offset = OffsetMO.getImm();
 
   // Currently we are expecting either no ExtraCode or 'D','M','L'.
@@ -1300,7 +1306,7 @@ bool MipsAsmPrinter::isLongBranchPseudo(int Opcode) const {
 }
 
 // Force static initialization.
-extern "C" void LLVMInitializeMipsAsmPrinter() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeMipsAsmPrinter() {
   RegisterAsmPrinter<MipsAsmPrinter> X(getTheMipsTarget());
   RegisterAsmPrinter<MipsAsmPrinter> Y(getTheMipselTarget());
   RegisterAsmPrinter<MipsAsmPrinter> A(getTheMips64Target());

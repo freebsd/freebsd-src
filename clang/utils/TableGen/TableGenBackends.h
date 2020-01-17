@@ -27,8 +27,11 @@ namespace clang {
 void EmitClangDeclContext(llvm::RecordKeeper &RK, llvm::raw_ostream &OS);
 void EmitClangASTNodes(llvm::RecordKeeper &RK, llvm::raw_ostream &OS,
                        const std::string &N, const std::string &S);
+void EmitClangBasicReader(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
+void EmitClangBasicWriter(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
 void EmitClangTypeNodes(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
-
+void EmitClangTypeReader(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
+void EmitClangTypeWriter(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
 void EmitClangAttrParserStringSwitches(llvm::RecordKeeper &Records,
                                        llvm::raw_ostream &OS);
 void EmitClangAttrSubjectMatchRulesParserStringSwitches(
@@ -87,6 +90,12 @@ void EmitNeonTest(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
 void EmitNeon2(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
 void EmitNeonSema2(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
 void EmitNeonTest2(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
+
+void EmitMveHeader(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
+void EmitMveBuiltinDef(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
+void EmitMveBuiltinSema(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
+void EmitMveBuiltinCG(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
+void EmitMveBuiltinAliases(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
 
 void EmitClangAttrDocs(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
 void EmitClangDiagDocs(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);

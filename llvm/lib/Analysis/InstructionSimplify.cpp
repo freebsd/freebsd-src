@@ -137,6 +137,71 @@ static bool isSameCompare(Value *V, CmpInst::Predicate Pred, Value *LHS,
     CRHS == LHS;
 }
 
+/// Simplify comparison with true or false branch of select:
+///  %sel = select i1 %cond, i32 %tv, i32 %fv
+///  %cmp = icmp sle i32 %sel, %rhs
+/// Compose new comparison by substituting %sel with either %tv or %fv
+/// and see if it simplifies.
+static Value *simplifyCmpSelCase(CmpInst::Predicate Pred, Value *LHS,
+                                 Value *RHS, Value *Cond,
+                                 const SimplifyQuery &Q, unsigned MaxRecurse,
+                                 Constant *TrueOrFalse) {
+  Value *SimplifiedCmp = SimplifyCmpInst(Pred, LHS, RHS, Q, MaxRecurse);
+  if (SimplifiedCmp == Cond) {
+    // %cmp simplified to the select condition (%cond).
+    return TrueOrFalse;
+  } else if (!SimplifiedCmp && isSameCompare(Cond, Pred, LHS, RHS)) {
+    // It didn't simplify. However, if composed comparison is equivalent
+    // to the select condition (%cond) then we can replace it.
+    return TrueOrFalse;
+  }
+  return SimplifiedCmp;
+}
+
+/// Simplify comparison with true branch of select
+static Value *simplifyCmpSelTrueCase(CmpInst::Predicate Pred, Value *LHS,
+                                     Value *RHS, Value *Cond,
+                                     const SimplifyQuery &Q,
+                                     unsigned MaxRecurse) {
+  return simplifyCmpSelCase(Pred, LHS, RHS, Cond, Q, MaxRecurse,
+                            getTrue(Cond->getType()));
+}
+
+/// Simplify comparison with false branch of select
+static Value *simplifyCmpSelFalseCase(CmpInst::Predicate Pred, Value *LHS,
+                                      Value *RHS, Value *Cond,
+                                      const SimplifyQuery &Q,
+                                      unsigned MaxRecurse) {
+  return simplifyCmpSelCase(Pred, LHS, RHS, Cond, Q, MaxRecurse,
+                            getFalse(Cond->getType()));
+}
+
+/// We know comparison with both branches of select can be simplified, but they
+/// are not equal. This routine handles some logical simplifications.
+static Value *handleOtherCmpSelSimplifications(Value *TCmp, Value *FCmp,
+                                               Value *Cond,
+                                               const SimplifyQuery &Q,
+                                               unsigned MaxRecurse) {
+  // If the false value simplified to false, then the result of the compare
+  // is equal to "Cond && TCmp".  This also catches the case when the false
+  // value simplified to false and the true value to true, returning "Cond".
+  if (match(FCmp, m_Zero()))
+    if (Value *V = SimplifyAndInst(Cond, TCmp, Q, MaxRecurse))
+      return V;
+  // If the true value simplified to true, then the result of the compare
+  // is equal to "Cond || FCmp".
+  if (match(TCmp, m_One()))
+    if (Value *V = SimplifyOrInst(Cond, FCmp, Q, MaxRecurse))
+      return V;
+  // Finally, if the false value simplified to true and the true value to
+  // false, then the result of the compare is equal to "!Cond".
+  if (match(FCmp, m_One()) && match(TCmp, m_Zero()))
+    if (Value *V = SimplifyXorInst(
+            Cond, Constant::getAllOnesValue(Cond->getType()), Q, MaxRecurse))
+      return V;
+  return nullptr;
+}
+
 /// Does the given value dominate the specified phi node?
 static bool valueDominatesPHI(Value *V, PHINode *P, const DominatorTree *DT) {
   Instruction *I = dyn_cast<Instruction>(V);
@@ -398,6 +463,12 @@ static Value *ThreadBinOpOverSelect(Instruction::BinaryOps Opcode, Value *LHS,
 /// In the case of a comparison with a select instruction, try to simplify the
 /// comparison by seeing whether both branches of the select result in the same
 /// value. Returns the common value if so, otherwise returns null.
+/// For example, if we have:
+///  %tmp = select i1 %cmp, i32 1, i32 2
+///  %cmp1 = icmp sle i32 %tmp, 3
+/// We can simplify %cmp1 to true, because both branches of select are
+/// less than 3. We compose new comparison by substituting %tmp with both
+/// branches of select and see if it can be simplified.
 static Value *ThreadCmpOverSelect(CmpInst::Predicate Pred, Value *LHS,
                                   Value *RHS, const SimplifyQuery &Q,
                                   unsigned MaxRecurse) {
@@ -418,32 +489,14 @@ static Value *ThreadCmpOverSelect(CmpInst::Predicate Pred, Value *LHS,
 
   // Now that we have "cmp select(Cond, TV, FV), RHS", analyse it.
   // Does "cmp TV, RHS" simplify?
-  Value *TCmp = SimplifyCmpInst(Pred, TV, RHS, Q, MaxRecurse);
-  if (TCmp == Cond) {
-    // It not only simplified, it simplified to the select condition.  Replace
-    // it with 'true'.
-    TCmp = getTrue(Cond->getType());
-  } else if (!TCmp) {
-    // It didn't simplify.  However if "cmp TV, RHS" is equal to the select
-    // condition then we can replace it with 'true'.  Otherwise give up.
-    if (!isSameCompare(Cond, Pred, TV, RHS))
-      return nullptr;
-    TCmp = getTrue(Cond->getType());
-  }
+  Value *TCmp = simplifyCmpSelTrueCase(Pred, TV, RHS, Cond, Q, MaxRecurse);
+  if (!TCmp)
+    return nullptr;
 
   // Does "cmp FV, RHS" simplify?
-  Value *FCmp = SimplifyCmpInst(Pred, FV, RHS, Q, MaxRecurse);
-  if (FCmp == Cond) {
-    // It not only simplified, it simplified to the select condition.  Replace
-    // it with 'false'.
-    FCmp = getFalse(Cond->getType());
-  } else if (!FCmp) {
-    // It didn't simplify.  However if "cmp FV, RHS" is equal to the select
-    // condition then we can replace it with 'false'.  Otherwise give up.
-    if (!isSameCompare(Cond, Pred, FV, RHS))
-      return nullptr;
-    FCmp = getFalse(Cond->getType());
-  }
+  Value *FCmp = simplifyCmpSelFalseCase(Pred, FV, RHS, Cond, Q, MaxRecurse);
+  if (!FCmp)
+    return nullptr;
 
   // If both sides simplified to the same value, then use it as the result of
   // the original comparison.
@@ -452,26 +505,8 @@ static Value *ThreadCmpOverSelect(CmpInst::Predicate Pred, Value *LHS,
 
   // The remaining cases only make sense if the select condition has the same
   // type as the result of the comparison, so bail out if this is not so.
-  if (Cond->getType()->isVectorTy() != RHS->getType()->isVectorTy())
-    return nullptr;
-  // If the false value simplified to false, then the result of the compare
-  // is equal to "Cond && TCmp".  This also catches the case when the false
-  // value simplified to false and the true value to true, returning "Cond".
-  if (match(FCmp, m_Zero()))
-    if (Value *V = SimplifyAndInst(Cond, TCmp, Q, MaxRecurse))
-      return V;
-  // If the true value simplified to true, then the result of the compare
-  // is equal to "Cond || FCmp".
-  if (match(TCmp, m_One()))
-    if (Value *V = SimplifyOrInst(Cond, FCmp, Q, MaxRecurse))
-      return V;
-  // Finally, if the false value simplified to true and the true value to
-  // false, then the result of the compare is equal to "!Cond".
-  if (match(FCmp, m_One()) && match(TCmp, m_Zero()))
-    if (Value *V =
-        SimplifyXorInst(Cond, Constant::getAllOnesValue(Cond->getType()),
-                        Q, MaxRecurse))
-      return V;
+  if (Cond->getType()->isVectorTy() == RHS->getType()->isVectorTy())
+    return handleOtherCmpSelSimplifications(TCmp, FCmp, Cond, Q, MaxRecurse);
 
   return nullptr;
 }
@@ -543,10 +578,16 @@ static Value *ThreadCmpOverPHI(CmpInst::Predicate Pred, Value *LHS, Value *RHS,
 
   // Evaluate the BinOp on the incoming phi values.
   Value *CommonValue = nullptr;
-  for (Value *Incoming : PI->incoming_values()) {
+  for (unsigned u = 0, e = PI->getNumIncomingValues(); u < e; ++u) {
+    Value *Incoming = PI->getIncomingValue(u);
+    Instruction *InTI = PI->getIncomingBlock(u)->getTerminator();
     // If the incoming value is the phi node itself, it can safely be skipped.
     if (Incoming == PI) continue;
-    Value *V = SimplifyCmpInst(Pred, Incoming, RHS, Q, MaxRecurse);
+    // Change the context instruction to the "edge" that flows into the phi.
+    // This is important because that is where incoming is actually "evaluated"
+    // even though it is used later somewhere else.
+    Value *V = SimplifyCmpInst(Pred, Incoming, RHS, Q.getWithInstruction(InTI),
+                               MaxRecurse);
     // If the operation failed to simplify, or simplified to a different value
     // to previously, then give up.
     if (!V || (CommonValue && V != CommonValue))
@@ -656,16 +697,16 @@ static Constant *stripAndComputeConstantOffsets(const DataLayout &DL, Value *&V,
                                                 bool AllowNonInbounds = false) {
   assert(V->getType()->isPtrOrPtrVectorTy());
 
-  Type *IntPtrTy = DL.getIntPtrType(V->getType())->getScalarType();
-  APInt Offset = APInt::getNullValue(IntPtrTy->getIntegerBitWidth());
+  Type *IntIdxTy = DL.getIndexType(V->getType())->getScalarType();
+  APInt Offset = APInt::getNullValue(IntIdxTy->getIntegerBitWidth());
 
   V = V->stripAndAccumulateConstantOffsets(DL, Offset, AllowNonInbounds);
   // As that strip may trace through `addrspacecast`, need to sext or trunc
   // the offset calculated.
-  IntPtrTy = DL.getIntPtrType(V->getType())->getScalarType();
-  Offset = Offset.sextOrTrunc(IntPtrTy->getIntegerBitWidth());
+  IntIdxTy = DL.getIndexType(V->getType())->getScalarType();
+  Offset = Offset.sextOrTrunc(IntIdxTy->getIntegerBitWidth());
 
-  Constant *OffsetIntPtr = ConstantInt::get(IntPtrTy, Offset);
+  Constant *OffsetIntPtr = ConstantInt::get(IntIdxTy, Offset);
   if (V->getType()->isVectorTy())
     return ConstantVector::getSplat(V->getType()->getVectorNumElements(),
                                     OffsetIntPtr);
@@ -3903,18 +3944,21 @@ static Value *simplifySelectWithICmpCond(Value *CondVal, Value *TrueVal,
 
 /// Try to simplify a select instruction when its condition operand is a
 /// floating-point comparison.
-static Value *simplifySelectWithFCmp(Value *Cond, Value *T, Value *F) {
+static Value *simplifySelectWithFCmp(Value *Cond, Value *T, Value *F,
+                                     const SimplifyQuery &Q) {
   FCmpInst::Predicate Pred;
   if (!match(Cond, m_FCmp(Pred, m_Specific(T), m_Specific(F))) &&
       !match(Cond, m_FCmp(Pred, m_Specific(F), m_Specific(T))))
     return nullptr;
 
-  // TODO: The transform may not be valid with -0.0. An incomplete way of
-  // testing for that possibility is to check if at least one operand is a
-  // non-zero constant.
+  // This transform is safe if we do not have (do not care about) -0.0 or if
+  // at least one operand is known to not be -0.0. Otherwise, the select can
+  // change the sign of a zero operand.
+  bool HasNoSignedZeros = Q.CxtI && isa<FPMathOperator>(Q.CxtI) &&
+                          Q.CxtI->hasNoSignedZeros();
   const APFloat *C;
-  if ((match(T, m_APFloat(C)) && C->isNonZero()) ||
-      (match(F, m_APFloat(C)) && C->isNonZero())) {
+  if (HasNoSignedZeros || (match(T, m_APFloat(C)) && C->isNonZero()) ||
+                          (match(F, m_APFloat(C)) && C->isNonZero())) {
     // (T == F) ? T : F --> F
     // (F == T) ? T : F --> F
     if (Pred == FCmpInst::FCMP_OEQ)
@@ -3952,6 +3996,15 @@ static Value *SimplifySelectInst(Value *Cond, Value *TrueVal, Value *FalseVal,
       return FalseVal;
   }
 
+  // select i1 Cond, i1 true, i1 false --> i1 Cond
+  assert(Cond->getType()->isIntOrIntVectorTy(1) &&
+         "Select must have bool or bool vector condition");
+  assert(TrueVal->getType() == FalseVal->getType() &&
+         "Select must have same types for true/false ops");
+  if (Cond->getType() == TrueVal->getType() &&
+      match(TrueVal, m_One()) && match(FalseVal, m_ZeroInt()))
+    return Cond;
+
   // select ?, X, X -> X
   if (TrueVal == FalseVal)
     return TrueVal;
@@ -3965,7 +4018,7 @@ static Value *SimplifySelectInst(Value *Cond, Value *TrueVal, Value *FalseVal,
           simplifySelectWithICmpCond(Cond, TrueVal, FalseVal, Q, MaxRecurse))
     return V;
 
-  if (Value *V = simplifySelectWithFCmp(Cond, TrueVal, FalseVal))
+  if (Value *V = simplifySelectWithFCmp(Cond, TrueVal, FalseVal, Q))
     return V;
 
   if (Value *V = foldSelectWithBinaryOp(Cond, TrueVal, FalseVal))
@@ -4023,7 +4076,7 @@ static Value *SimplifyGEPInst(Type *SrcTy, ArrayRef<Value *> Ops,
       // The following transforms are only safe if the ptrtoint cast
       // doesn't truncate the pointers.
       if (Ops[1]->getType()->getScalarSizeInBits() ==
-          Q.DL.getIndexSizeInBits(AS)) {
+          Q.DL.getPointerSizeInBits(AS)) {
         auto PtrToIntOrZero = [GEPTy](Value *P) -> Value * {
           if (match(P, m_Zero()))
             return Constant::getNullValue(GEPTy);
@@ -4406,6 +4459,30 @@ static Value *SimplifyShuffleVectorInst(Value *Op0, Value *Op1, Constant *Mask,
   if (Op0Const && !Op1Const) {
     std::swap(Op0, Op1);
     ShuffleVectorInst::commuteShuffleMask(Indices, InVecNumElts);
+  }
+
+  // A splat of an inserted scalar constant becomes a vector constant:
+  // shuf (inselt ?, C, IndexC), undef, <IndexC, IndexC...> --> <C, C...>
+  // NOTE: We may have commuted above, so analyze the updated Indices, not the
+  //       original mask constant.
+  Constant *C;
+  ConstantInt *IndexC;
+  if (match(Op0, m_InsertElement(m_Value(), m_Constant(C),
+                                 m_ConstantInt(IndexC)))) {
+    // Match a splat shuffle mask of the insert index allowing undef elements.
+    int InsertIndex = IndexC->getZExtValue();
+    if (all_of(Indices, [InsertIndex](int MaskElt) {
+          return MaskElt == InsertIndex || MaskElt == -1;
+        })) {
+      assert(isa<UndefValue>(Op1) && "Expected undef operand 1 for splat");
+
+      // Shuffle mask undefs become undefined constant result elements.
+      SmallVector<Constant *, 16> VecC(MaskNumElts, C);
+      for (unsigned i = 0; i != MaskNumElts; ++i)
+        if (Indices[i] == -1)
+          VecC[i] = UndefValue::get(C->getType());
+      return ConstantVector::get(VecC);
+    }
   }
 
   // A shuffle of a splat is always the splat itself. Legal if the shuffle's
@@ -5083,6 +5160,16 @@ static Value *simplifyBinaryIntrinsic(Function *F, Value *Op0, Value *Op1,
         return Op0;
     }
     break;
+  case Intrinsic::copysign:
+    // copysign X, X --> X
+    if (Op0 == Op1)
+      return Op0;
+    // copysign -X, X --> X
+    // copysign X, -X --> -X
+    if (match(Op0, m_FNeg(m_Specific(Op1))) ||
+        match(Op1, m_FNeg(m_Specific(Op0))))
+      return Op1;
+    break;
   case Intrinsic::maxnum:
   case Intrinsic::minnum:
   case Intrinsic::maximum:
@@ -5232,6 +5319,19 @@ Value *llvm::SimplifyCall(CallBase *Call, const SimplifyQuery &Q) {
   return ConstantFoldCall(Call, F, ConstantArgs, Q.TLI);
 }
 
+/// Given operands for a Freeze, see if we can fold the result.
+static Value *SimplifyFreezeInst(Value *Op0) {
+  // Use a utility function defined in ValueTracking.
+  if (llvm::isGuaranteedNotToBeUndefOrPoison(Op0))
+    return Op0;
+  // We have room for improvement.
+  return nullptr;
+}
+
+Value *llvm::SimplifyFreezeInst(Value *Op0, const SimplifyQuery &Q) {
+  return ::SimplifyFreezeInst(Op0);
+}
+
 /// See if we can compute a simplified version of this instruction.
 /// If not, this returns null.
 
@@ -5374,6 +5474,9 @@ Value *llvm::SimplifyInstruction(Instruction *I, const SimplifyQuery &SQ,
     Result = SimplifyCall(cast<CallInst>(I), Q);
     break;
   }
+  case Instruction::Freeze:
+    Result = SimplifyFreezeInst(I->getOperand(0), Q);
+    break;
 #define HANDLE_CAST_INST(num, opc, clas) case Instruction::opc:
 #include "llvm/IR/Instruction.def"
 #undef HANDLE_CAST_INST

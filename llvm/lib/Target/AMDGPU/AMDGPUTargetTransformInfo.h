@@ -46,7 +46,7 @@ class AMDGPUTTIImpl final : public BasicTTIImplBase<AMDGPUTTIImpl> {
 
   Triple TargetTriple;
 
-  const TargetSubtargetInfo *ST;
+  const GCNSubtarget *ST;
   const TargetLoweringBase *TLI;
 
   const TargetSubtargetInfo *getST() const { return ST; }
@@ -73,6 +73,7 @@ class GCNTTIImpl final : public BasicTTIImplBase<GCNTTIImpl> {
   const AMDGPUTargetLowering *TLI;
   AMDGPUTTIImpl CommonTTI;
   bool IsGraphicsShader;
+  bool HasFP32Denormals;
 
   const FeatureBitset InlineFeatureIgnoreList = {
     // Codegen control options which don't matter.
@@ -131,7 +132,8 @@ public:
       ST(static_cast<const GCNSubtarget*>(TM->getSubtargetImpl(F))),
       TLI(ST->getTargetLowering()),
       CommonTTI(TM, F),
-      IsGraphicsShader(AMDGPU::isShader(F.getCallingConv())) {}
+      IsGraphicsShader(AMDGPU::isShader(F.getCallingConv())),
+      HasFP32Denormals(ST->hasFP32Denormals(F)) { }
 
   bool hasBranchDivergence() { return true; }
 
@@ -170,12 +172,13 @@ public:
   bool getTgtMemIntrinsic(IntrinsicInst *Inst, MemIntrinsicInfo &Info) const;
 
   int getArithmeticInstrCost(
-    unsigned Opcode, Type *Ty,
-    TTI::OperandValueKind Opd1Info = TTI::OK_AnyValue,
-    TTI::OperandValueKind Opd2Info = TTI::OK_AnyValue,
-    TTI::OperandValueProperties Opd1PropInfo = TTI::OP_None,
-    TTI::OperandValueProperties Opd2PropInfo = TTI::OP_None,
-    ArrayRef<const Value *> Args = ArrayRef<const Value *>());
+      unsigned Opcode, Type *Ty,
+      TTI::OperandValueKind Opd1Info = TTI::OK_AnyValue,
+      TTI::OperandValueKind Opd2Info = TTI::OK_AnyValue,
+      TTI::OperandValueProperties Opd1PropInfo = TTI::OP_None,
+      TTI::OperandValueProperties Opd2PropInfo = TTI::OP_None,
+      ArrayRef<const Value *> Args = ArrayRef<const Value *>(),
+      const Instruction *CxtI = nullptr);
 
   unsigned getCFInstrCost(unsigned Opcode);
 
@@ -204,13 +207,23 @@ public:
   bool areInlineCompatible(const Function *Caller,
                            const Function *Callee) const;
 
-  unsigned getInliningThresholdMultiplier() { return 9; }
+  unsigned getInliningThresholdMultiplier() { return 11; }
 
   int getInlinerVectorBonusPercent() { return 0; }
 
   int getArithmeticReductionCost(unsigned Opcode,
                                  Type *Ty,
                                  bool IsPairwise);
+  template <typename T>
+  int getIntrinsicInstrCost(Intrinsic::ID IID, Type *RetTy,
+                            ArrayRef<T *> Args, FastMathFlags FMF,
+                            unsigned VF);
+  int getIntrinsicInstrCost(Intrinsic::ID IID, Type *RetTy,
+                            ArrayRef<Type *> Tys, FastMathFlags FMF,
+                            unsigned ScalarizationCostPassed = UINT_MAX);
+  int getIntrinsicInstrCost(Intrinsic::ID IID, Type *RetTy,
+                            ArrayRef<Value *> Args, FastMathFlags FMF,
+                            unsigned VF = 1);
   int getMinMaxReductionCost(Type *Ty, Type *CondTy,
                              bool IsPairwiseForm,
                              bool IsUnsigned);

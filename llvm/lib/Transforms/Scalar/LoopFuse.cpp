@@ -55,12 +55,15 @@
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/CodeMoverUtils.h"
 
 using namespace llvm;
 
@@ -88,6 +91,7 @@ STATISTIC(FusionNotBeneficial, "Fusion is not beneficial");
 STATISTIC(NonIdenticalGuards, "Candidates have different guards");
 STATISTIC(NonEmptyExitBlock, "Candidate has a non-empty exit block");
 STATISTIC(NonEmptyGuardBlock, "Candidate has a non-empty guard block");
+STATISTIC(NotRotated, "Candidate is not rotated");
 
 enum FusionDependenceAnalysisChoice {
   FUSION_DEPENDENCE_ANALYSIS_SCEV,
@@ -163,14 +167,8 @@ struct FusionCandidate {
                   const PostDominatorTree *PDT, OptimizationRemarkEmitter &ORE)
       : Preheader(L->getLoopPreheader()), Header(L->getHeader()),
         ExitingBlock(L->getExitingBlock()), ExitBlock(L->getExitBlock()),
-        Latch(L->getLoopLatch()), L(L), Valid(true), GuardBranch(nullptr),
-        DT(DT), PDT(PDT), ORE(ORE) {
-
-    // TODO: This is temporary while we fuse both rotated and non-rotated
-    // loops. Once we switch to only fusing rotated loops, the initialization of
-    // GuardBranch can be moved into the initialization list above.
-    if (isRotated())
-      GuardBranch = L->getLoopGuardBranch();
+        Latch(L->getLoopLatch()), L(L), Valid(true),
+        GuardBranch(L->getLoopGuardBranch()), DT(DT), PDT(PDT), ORE(ORE) {
 
     // Walk over all blocks in the loop and check for conditions that may
     // prevent fusion. For each block, walk over all instructions and collect
@@ -257,15 +255,14 @@ struct FusionCandidate {
                : GuardBranch->getSuccessor(0);
   }
 
-  bool isRotated() const {
-    assert(L && "Expecting loop to be valid.");
-    assert(Latch && "Expecting latch to be valid.");
-    return L->isLoopExiting(Latch);
-  }
-
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   LLVM_DUMP_METHOD void dump() const {
-    dbgs() << "\tGuardBranch: "
+    dbgs() << "\tGuardBranch: ";
+    if (GuardBranch)
+      dbgs() << *GuardBranch;
+    else
+      dbgs() << "nullptr";
+    dbgs() << "\n"
            << (GuardBranch ? GuardBranch->getName() : "nullptr") << "\n"
            << "\tPreheader: " << (Preheader ? Preheader->getName() : "nullptr")
            << "\n"
@@ -314,6 +311,11 @@ struct FusionCandidate {
       LLVM_DEBUG(dbgs() << "Loop " << L->getName()
                         << " is not in simplified form!\n");
       return reportInvalidCandidate(NotSimplifiedForm);
+    }
+
+    if (!L->isRotatedForm()) {
+      LLVM_DEBUG(dbgs() << "Loop " << L->getName() << " is not rotated!\n");
+      return reportInvalidCandidate(NotRotated);
     }
 
     return true;
@@ -591,16 +593,8 @@ private:
                                const FusionCandidate &FC1) const {
     assert(FC0.Preheader && FC1.Preheader && "Expecting valid preheaders");
 
-    BasicBlock *FC0EntryBlock = FC0.getEntryBlock();
-    BasicBlock *FC1EntryBlock = FC1.getEntryBlock();
-
-    if (DT.dominates(FC0EntryBlock, FC1EntryBlock))
-      return PDT.dominates(FC1EntryBlock, FC0EntryBlock);
-
-    if (DT.dominates(FC1EntryBlock, FC0EntryBlock))
-      return PDT.dominates(FC0EntryBlock, FC1EntryBlock);
-
-    return false;
+    return ::isControlFlowEquivalent(*FC0.getEntryBlock(), *FC1.getEntryBlock(),
+                                     DT, PDT);
   }
 
   /// Iterate over all loops in the given loop set and identify the loops that
@@ -1113,6 +1107,29 @@ private:
     return FC.ExitBlock->size() == 1;
   }
 
+  /// Simplify the condition of the latch branch of \p FC to true, when both of
+  /// its successors are the same.
+  void simplifyLatchBranch(const FusionCandidate &FC) const {
+    BranchInst *FCLatchBranch = dyn_cast<BranchInst>(FC.Latch->getTerminator());
+    if (FCLatchBranch) {
+      assert(FCLatchBranch->isConditional() &&
+             FCLatchBranch->getSuccessor(0) == FCLatchBranch->getSuccessor(1) &&
+             "Expecting the two successors of FCLatchBranch to be the same");
+      FCLatchBranch->setCondition(
+          llvm::ConstantInt::getTrue(FCLatchBranch->getCondition()->getType()));
+    }
+  }
+
+  /// Move instructions from FC0.Latch to FC1.Latch. If FC0.Latch has an unique
+  /// successor, then merge FC0.Latch with its unique successor.
+  void mergeLatch(const FusionCandidate &FC0, const FusionCandidate &FC1) {
+    moveInstsBottomUp(*FC0.Latch, *FC1.Latch, DT, PDT, DI);
+    if (BasicBlock *Succ = FC0.Latch->getUniqueSuccessor()) {
+      MergeBlockIntoPredecessor(Succ, &DTU, &LI);
+      DTU.flush();
+    }
+  }
+
   /// Fuse two fusion candidates, creating a new fused loop.
   ///
   /// This method contains the mechanics of fusing two loops, represented by \p
@@ -1246,6 +1263,10 @@ private:
     FC0.Latch->getTerminator()->replaceUsesOfWith(FC0.Header, FC1.Header);
     FC1.Latch->getTerminator()->replaceUsesOfWith(FC1.Header, FC0.Header);
 
+    // Change the condition of FC0 latch branch to true, as both successors of
+    // the branch are the same.
+    simplifyLatchBranch(FC0);
+
     // If FC0.Latch and FC0.ExitingBlock are the same then we have already
     // performed the updates above.
     if (FC0.Latch != FC0.ExitingBlock)
@@ -1268,8 +1289,14 @@ private:
 
     // Is there a way to keep SE up-to-date so we don't need to forget the loops
     // and rebuild the information in subsequent passes of fusion?
+    // Note: Need to forget the loops before merging the loop latches, as
+    // mergeLatch may remove the only block in FC1.
     SE.forgetLoop(FC1.L);
     SE.forgetLoop(FC0.L);
+
+    // Move instructions from FC0.Latch to FC1.Latch.
+    // Note: mergeLatch requires an updated DT.
+    mergeLatch(FC0, FC1);
 
     // Merge the loops.
     SmallVector<BasicBlock *, 8> Blocks(FC1.L->block_begin(),
@@ -1490,6 +1517,10 @@ private:
     FC0.Latch->getTerminator()->replaceUsesOfWith(FC0.Header, FC1.Header);
     FC1.Latch->getTerminator()->replaceUsesOfWith(FC1.Header, FC0.Header);
 
+    // Change the condition of FC0 latch branch to true, as both successors of
+    // the branch are the same.
+    simplifyLatchBranch(FC0);
+
     // If FC0.Latch and FC0.ExitingBlock are the same then we have already
     // performed the updates above.
     if (FC0.Latch != FC0.ExitingBlock)
@@ -1521,8 +1552,14 @@ private:
 
     // Is there a way to keep SE up-to-date so we don't need to forget the loops
     // and rebuild the information in subsequent passes of fusion?
+    // Note: Need to forget the loops before merging the loop latches, as
+    // mergeLatch may remove the only block in FC1.
     SE.forgetLoop(FC1.L);
     SE.forgetLoop(FC0.L);
+
+    // Move instructions from FC0.Latch to FC1.Latch.
+    // Note: mergeLatch requires an updated DT.
+    mergeLatch(FC0, FC1);
 
     // Merge the loops.
     SmallVector<BasicBlock *, 8> Blocks(FC1.L->block_begin(),

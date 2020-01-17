@@ -101,7 +101,10 @@ JITTargetAddress JITCompileCallbackManager::executeCompileCallback(
       Name = I->second;
   }
 
-  if (auto Sym = ES.lookup(JITDylibSearchList({{&CallbacksJD, true}}), Name))
+  if (auto Sym =
+          ES.lookup(makeJITDylibSearchOrder(
+                        &CallbacksJD, JITDylibLookupFlags::MatchAllSymbols),
+                    Name))
     return Sym->getAddress();
   else {
     llvm::dbgs() << "Didn't find callback.\n";
@@ -199,7 +202,7 @@ createLocalIndirectStubsManagerBuilder(const Triple &T) {
           return std::make_unique<
                       orc::LocalIndirectStubsManager<orc::OrcMips64>>();
       };
-      
+
     case Triple::x86_64:
       if (T.getOS() == Triple::OSType::Win32) {
         return [](){

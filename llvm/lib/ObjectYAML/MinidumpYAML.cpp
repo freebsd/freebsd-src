@@ -337,6 +337,7 @@ static void streamMapping(yaml::IO &IO, SystemInfoStream &Stream) {
     break;
   case ProcessorArchitecture::ARM:
   case ProcessorArchitecture::ARM64:
+  case ProcessorArchitecture::BP_ARM64:
     IO.mapOptional("CPU", Info.CPU.Arm);
     break;
   default:

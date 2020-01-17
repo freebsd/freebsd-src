@@ -131,13 +131,6 @@ bool X86TargetInfo::initFeatureMap(
   case CK_Lakemont:
     break;
 
-  case CK_PentiumMMX:
-  case CK_Pentium2:
-  case CK_K6:
-  case CK_WinChipC6:
-    setFeatureEnabledImpl(Features, "mmx", true);
-    break;
-
   case CK_Cooperlake:
     // CPX inherits all CLX features plus AVX512BF16
     setFeatureEnabledImpl(Features, "avx512bf16", true);
@@ -253,7 +246,14 @@ SkylakeCommon:
   case CK_Pentium3:
   case CK_C3_2:
     setFeatureEnabledImpl(Features, "sse", true);
+    LLVM_FALLTHROUGH;
+  case CK_Pentium2:
     setFeatureEnabledImpl(Features, "fxsr", true);
+    LLVM_FALLTHROUGH;
+  case CK_PentiumMMX:
+  case CK_K6:
+  case CK_WinChipC6:
+    setFeatureEnabledImpl(Features, "mmx", true);
     break;
 
   case CK_Tremont:
@@ -291,6 +291,7 @@ SkylakeCommon:
     setFeatureEnabledImpl(Features, "fxsr", true);
     setFeatureEnabledImpl(Features, "cx16", true);
     setFeatureEnabledImpl(Features, "sahf", true);
+    setFeatureEnabledImpl(Features, "mmx", true);
     break;
 
   case CK_KNM:
@@ -321,6 +322,7 @@ SkylakeCommon:
     setFeatureEnabledImpl(Features, "xsave", true);
     setFeatureEnabledImpl(Features, "movbe", true);
     setFeatureEnabledImpl(Features, "sahf", true);
+    setFeatureEnabledImpl(Features, "mmx", true);
     break;
 
   case CK_K6_2:
@@ -369,6 +371,7 @@ SkylakeCommon:
     setFeatureEnabledImpl(Features, "cx16", true);
     setFeatureEnabledImpl(Features, "fxsr", true);
     setFeatureEnabledImpl(Features, "sahf", true);
+    setFeatureEnabledImpl(Features, "mmx", true);
     break;
 
   case CK_ZNVER2:
@@ -390,6 +393,7 @@ SkylakeCommon:
     setFeatureEnabledImpl(Features, "fsgsbase", true);
     setFeatureEnabledImpl(Features, "fxsr", true);
     setFeatureEnabledImpl(Features, "lzcnt", true);
+    setFeatureEnabledImpl(Features, "mmx", true);
     setFeatureEnabledImpl(Features, "mwaitx", true);
     setFeatureEnabledImpl(Features, "movbe", true);
     setFeatureEnabledImpl(Features, "pclmul", true);
@@ -433,6 +437,7 @@ SkylakeCommon:
     setFeatureEnabledImpl(Features, "fxsr", true);
     setFeatureEnabledImpl(Features, "xsave", true);
     setFeatureEnabledImpl(Features, "sahf", true);
+    setFeatureEnabledImpl(Features, "mmx", true);
     break;
   }
   if (!TargetInfo::initFeatureMap(Features, Diags, CPU, FeaturesVec))
@@ -1726,21 +1731,24 @@ bool X86TargetInfo::validateAsmConstraint(
   }
 }
 
-bool X86TargetInfo::validateOutputSize(StringRef Constraint,
+bool X86TargetInfo::validateOutputSize(const llvm::StringMap<bool> &FeatureMap,
+                                       StringRef Constraint,
                                        unsigned Size) const {
   // Strip off constraint modifiers.
   while (Constraint[0] == '=' || Constraint[0] == '+' || Constraint[0] == '&')
     Constraint = Constraint.substr(1);
 
-  return validateOperandSize(Constraint, Size);
+  return validateOperandSize(FeatureMap, Constraint, Size);
 }
 
-bool X86TargetInfo::validateInputSize(StringRef Constraint,
+bool X86TargetInfo::validateInputSize(const llvm::StringMap<bool> &FeatureMap,
+                                      StringRef Constraint,
                                       unsigned Size) const {
-  return validateOperandSize(Constraint, Size);
+  return validateOperandSize(FeatureMap, Constraint, Size);
 }
 
-bool X86TargetInfo::validateOperandSize(StringRef Constraint,
+bool X86TargetInfo::validateOperandSize(const llvm::StringMap<bool> &FeatureMap,
+                                        StringRef Constraint,
                                         unsigned Size) const {
   switch (Constraint[0]) {
   default:
@@ -1765,7 +1773,7 @@ bool X86TargetInfo::validateOperandSize(StringRef Constraint,
     case 'z':
     case '0':
       // XMM0
-      if (SSELevel >= SSE1)
+      if (FeatureMap.lookup("sse"))
         return Size <= 128U;
       return false;
     case 'i':
@@ -1779,10 +1787,10 @@ bool X86TargetInfo::validateOperandSize(StringRef Constraint,
     LLVM_FALLTHROUGH;
   case 'v':
   case 'x':
-    if (SSELevel >= AVX512F)
+    if (FeatureMap.lookup("avx512f"))
       // 512-bit zmm registers can be used if target supports AVX512F.
       return Size <= 512U;
-    else if (SSELevel >= AVX)
+    else if (FeatureMap.lookup("avx"))
       // 256-bit ymm registers can be used if target supports AVX.
       return Size <= 256U;
     return Size <= 128U;

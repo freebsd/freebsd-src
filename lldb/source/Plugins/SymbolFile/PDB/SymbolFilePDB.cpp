@@ -58,6 +58,8 @@ using namespace lldb;
 using namespace lldb_private;
 using namespace llvm::pdb;
 
+char SymbolFilePDB::ID;
+
 namespace {
 lldb::LanguageType TranslateLanguage(PDB_Lang lang) {
   switch (lang) {
@@ -369,10 +371,6 @@ bool SymbolFilePDB::ParseSupportFiles(
     support_files.AppendIfUnique(spec);
   }
 
-  // LLDB uses the DWARF-like file numeration (one based),
-  // the zeroth file is the compile unit itself
-  support_files.Insert(0, comp_unit);
-
   return true;
 }
 
@@ -668,7 +666,7 @@ SymbolFilePDB::GetDeclContextForUID(lldb::user_id_t uid) {
   if (!decl_context)
     return GetDeclContextContainingUID(uid);
 
-  return CompilerDeclContext(clang_ast_ctx, decl_context);
+  return clang_ast_ctx->CreateDeclContext(decl_context);
 }
 
 lldb_private::CompilerDeclContext
@@ -697,7 +695,7 @@ SymbolFilePDB::GetDeclContextContainingUID(lldb::user_id_t uid) {
   auto decl_context = pdb->GetDeclContextContainingSymbol(*symbol);
   assert(decl_context);
 
-  return CompilerDeclContext(clang_ast_ctx, decl_context);
+  return clang_ast_ctx->CreateDeclContext(decl_context);
 }
 
 void SymbolFilePDB::ParseDeclsForContext(
@@ -1562,9 +1560,10 @@ void SymbolFilePDB::FindTypesByName(
   }
 }
 
-void SymbolFilePDB::FindTypes(llvm::ArrayRef<CompilerContext> pattern,
-                              LanguageSet languages,
-                              lldb_private::TypeMap &types) {}
+void SymbolFilePDB::FindTypes(
+    llvm::ArrayRef<CompilerContext> pattern, LanguageSet languages,
+    llvm::DenseSet<SymbolFile *> &searched_symbol_files,
+    lldb_private::TypeMap &types) {}
 
 void SymbolFilePDB::GetTypesForPDBSymbol(const llvm::pdb::PDBSymbol &pdb_symbol,
                                          uint32_t type_mask,
@@ -1704,8 +1703,7 @@ lldb_private::CompilerDeclContext SymbolFilePDB::FindNamespace(
   if (!namespace_decl)
     return CompilerDeclContext();
 
-  return CompilerDeclContext(clang_type_system,
-                             static_cast<clang::DeclContext *>(namespace_decl));
+  return clang_type_system->CreateDeclContext(namespace_decl);
 }
 
 lldb_private::ConstString SymbolFilePDB::GetPluginName() {
@@ -1777,7 +1775,6 @@ bool SymbolFilePDB::ParseCompileUnitLineTable(CompileUnit &comp_unit,
   auto line_table = std::make_unique<LineTable>(&comp_unit);
 
   // Find contributions to `compiland` from all source and header files.
-  std::string path = comp_unit.GetPath();
   auto files = m_session_up->getSourceFilesForCompiland(*compiland_up);
   if (!files)
     return false;
@@ -1879,9 +1876,7 @@ void SymbolFilePDB::BuildSupportFileIdToSupportFileIndexMap(
   if (!source_files)
     return;
 
-  // LLDB uses the DWARF-like file numeration (one based)
-  int index = 1;
-
+  int index = 0;
   while (auto file = source_files->getNext()) {
     uint32_t source_id = file->getUniqueId();
     index_map[source_id] = index++;

@@ -34,6 +34,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -1167,7 +1168,7 @@ bool InterleavedLoadCombineImpl::combine(std::list<VectorInfo> &InterleavedLoad,
 
     // If there are users outside the set to be eliminated, we abort the
     // transformation. No gain can be expected.
-    for (const auto &U : I->users()) {
+    for (auto *U : I->users()) {
       if (Is.find(dyn_cast<Instruction>(U)) == Is.end())
         return false;
     }

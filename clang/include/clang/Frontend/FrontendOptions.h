@@ -294,6 +294,9 @@ public:
   /// Whether timestamps should be written to the produced PCH file.
   unsigned IncludeTimestamps : 1;
 
+  /// Should a temporary file be used during compilation.
+  unsigned UseTemporary : 1;
+
   CodeCompleteOptions CodeCompleteOpts;
 
   /// Specifies the output format of the AST.
@@ -366,7 +369,7 @@ public:
   std::string ARCMTMigrateReportOut;
 
   /// The input files and their types.
-  std::vector<FrontendInputFile> Inputs;
+  SmallVector<FrontendInputFile, 0> Inputs;
 
   /// When the input is a module map, the original module map file from which
   /// that map was inferred, if any (for umbrella modules).
@@ -442,7 +445,7 @@ public:
         UseGlobalModuleIndex(true), GenerateGlobalModuleIndex(true),
         ASTDumpDecls(false), ASTDumpLookups(false),
         BuildingImplicitModule(false), ModulesEmbedAllFiles(false),
-        IncludeTimestamps(true), TimeTraceGranularity(500) {}
+        IncludeTimestamps(true), UseTemporary(true), TimeTraceGranularity(500) {}
 
   /// getInputKindForExtension - Return the appropriate input kind for a file
   /// extension. For example, "c" would return Language::C.

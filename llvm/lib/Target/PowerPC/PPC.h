@@ -28,12 +28,13 @@ namespace llvm {
   class AsmPrinter;
   class MCInst;
   class MCOperand;
-
+  class ModulePass;
+  
   FunctionPass *createPPCCTRLoops();
 #ifndef NDEBUG
   FunctionPass *createPPCCTRLoopsVerify();
 #endif
-  FunctionPass *createPPCLoopPreIncPrepPass(PPCTargetMachine &TM);
+  FunctionPass *createPPCLoopInstrFormPrepPass(PPCTargetMachine &TM);
   FunctionPass *createPPCTOCRegDepsPass();
   FunctionPass *createPPCEarlyReturnPass();
   FunctionPass *createPPCVSXCopyPass();
@@ -59,7 +60,7 @@ namespace llvm {
 #ifndef NDEBUG
   void initializePPCCTRLoopsVerifyPass(PassRegistry&);
 #endif
-  void initializePPCLoopPreIncPrepPass(PassRegistry&);
+  void initializePPCLoopInstrFormPrepPass(PassRegistry&);
   void initializePPCTOCRegDepsPass(PassRegistry&);
   void initializePPCEarlyReturnPass(PassRegistry&);
   void initializePPCVSXCopyPass(PassRegistry&);
@@ -77,6 +78,10 @@ namespace llvm {
 
   extern char &PPCVSXFMAMutateID;
 
+  ModulePass *createPPCLowerMASSVEntriesPass();
+  void initializePPCLowerMASSVEntriesPass(PassRegistry &);
+  extern char &PPCLowerMASSVEntriesID;
+  
   namespace PPCII {
 
   /// Target Operand Flag enum.

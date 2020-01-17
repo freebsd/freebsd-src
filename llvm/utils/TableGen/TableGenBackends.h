@@ -61,10 +61,8 @@ namespace llvm {
 class raw_ostream;
 class RecordKeeper;
 
-void EmitIntrinsicEnums(RecordKeeper &RK, raw_ostream &OS,
-                        bool TargetOnly = false);
-void EmitIntrinsicImpl(RecordKeeper &RK, raw_ostream &OS,
-                       bool TargetOnly = false);
+void EmitIntrinsicEnums(RecordKeeper &RK, raw_ostream &OS);
+void EmitIntrinsicImpl(RecordKeeper &RK, raw_ostream &OS);
 void EmitAsmMatcher(RecordKeeper &RK, raw_ostream &OS);
 void EmitAsmWriter(RecordKeeper &RK, raw_ostream &OS);
 void EmitCallingConv(RecordKeeper &RK, raw_ostream &OS);
@@ -81,6 +79,7 @@ void EmitRegisterInfo(RecordKeeper &RK, raw_ostream &OS);
 void EmitSubtarget(RecordKeeper &RK, raw_ostream &OS);
 void EmitMapTable(RecordKeeper &RK, raw_ostream &OS);
 void EmitOptParser(RecordKeeper &RK, raw_ostream &OS);
+void EmitOptRST(RecordKeeper &RK, raw_ostream &OS);
 void EmitCTags(RecordKeeper &RK, raw_ostream &OS);
 void EmitAttributes(RecordKeeper &RK, raw_ostream &OS);
 void EmitSearchableTables(RecordKeeper &RK, raw_ostream &OS);

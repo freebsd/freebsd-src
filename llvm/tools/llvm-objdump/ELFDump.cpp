@@ -105,9 +105,12 @@ static Error getRelocationValueString(const ELFObjectFile<ELFT> *Obj,
   } else {
     Fmt << "*ABS*";
   }
-
-  if (Addend != 0)
-    Fmt << (Addend < 0 ? "" : "+") << Addend;
+  if (Addend != 0) {
+      Fmt << (Addend < 0
+          ? "-"
+          : "+") << format("0x%" PRIx64,
+                          (Addend < 0 ? -(uint64_t)Addend : (uint64_t)Addend));
+  }
   Fmt.flush();
   Result.append(FmtBuf.begin(), FmtBuf.end());
   return Error::success();
@@ -200,6 +203,9 @@ template <class ELFT> void printProgramHeaders(const ELFFile<ELFT> *o) {
       break;
     case ELF::PT_GNU_RELRO:
       outs() << "   RELRO ";
+      break;
+    case ELF::PT_GNU_PROPERTY:
+      outs() << "   PROPERTY ";
       break;
     case ELF::PT_GNU_STACK:
       outs() << "   STACK ";

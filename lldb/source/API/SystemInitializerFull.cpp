@@ -7,11 +7,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "SystemInitializerFull.h"
-
 #include "lldb/API/SBCommandInterpreter.h"
+#include "lldb/Host/Config.h"
 
-#if !defined(LLDB_DISABLE_PYTHON)
+#if LLDB_ENABLE_PYTHON
 #include "Plugins/ScriptInterpreter/Python/ScriptInterpreterPython.h"
+#endif
+
+#if LLDB_ENABLE_LUA
+#include "Plugins/ScriptInterpreter/Lua/ScriptInterpreterLua.h"
 #endif
 
 #include "lldb/Core/Debugger.h"
@@ -179,12 +183,16 @@ llvm::Error SystemInitializerFull::Initialize() {
 
   ScriptInterpreterNone::Initialize();
 
-#ifndef LLDB_DISABLE_PYTHON
+#if LLDB_ENABLE_PYTHON
   OperatingSystemPython::Initialize();
 #endif
 
-#if !defined(LLDB_DISABLE_PYTHON)
+#if LLDB_ENABLE_PYTHON
   ScriptInterpreterPython::Initialize();
+#endif
+
+#if LLDB_ENABLE_LUA
+  ScriptInterpreterLua::Initialize();
 #endif
 
   platform_freebsd::PlatformFreeBSD::Initialize();
@@ -375,7 +383,7 @@ void SystemInitializerFull::Terminate() {
   DynamicLoaderStatic::Terminate();
   DynamicLoaderWindowsDYLD::Terminate();
 
-#ifndef LLDB_DISABLE_PYTHON
+#if LLDB_ENABLE_PYTHON
   OperatingSystemPython::Terminate();
 #endif
 

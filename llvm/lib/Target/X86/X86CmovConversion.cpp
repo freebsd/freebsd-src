@@ -61,6 +61,7 @@
 #include "llvm/CodeGen/TargetSchedule.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/DebugLoc.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/MCSchedule.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
@@ -111,9 +112,9 @@ public:
   static char ID;
 
 private:
-  MachineRegisterInfo *MRI;
-  const TargetInstrInfo *TII;
-  const TargetRegisterInfo *TRI;
+  MachineRegisterInfo *MRI = nullptr;
+  const TargetInstrInfo *TII = nullptr;
+  const TargetRegisterInfo *TRI = nullptr;
   TargetSchedModel TSchedModel;
 
   /// List of consecutive CMOV instructions.

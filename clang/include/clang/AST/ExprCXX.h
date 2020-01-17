@@ -14,6 +14,7 @@
 #ifndef LLVM_CLANG_AST_EXPRCXX_H
 #define LLVM_CLANG_AST_EXPRCXX_H
 
+#include "clang/AST/ASTConcept.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclCXX.h"
@@ -4421,70 +4422,66 @@ private:
   friend class ASTStmtReader;
   friend class ASTStmtWriter;
 
-  struct ExtraState {
-    /// The temporary-generating expression whose value will be
-    /// materialized.
-    Stmt *Temporary;
-
-    /// The declaration which lifetime-extended this reference, if any.
-    /// Either a VarDecl, or (for a ctor-initializer) a FieldDecl.
-    const ValueDecl *ExtendingDecl;
-
-    unsigned ManglingNumber;
-  };
-  llvm::PointerUnion<Stmt *, ExtraState *> State;
+  llvm::PointerUnion<Stmt *, LifetimeExtendedTemporaryDecl *> State;
 
 public:
   MaterializeTemporaryExpr(QualType T, Expr *Temporary,
-                           bool BoundToLvalueReference)
-      : Expr(MaterializeTemporaryExprClass, T,
-             BoundToLvalueReference? VK_LValue : VK_XValue, OK_Ordinary,
-             Temporary->isTypeDependent(), Temporary->isValueDependent(),
-             Temporary->isInstantiationDependent(),
-             Temporary->containsUnexpandedParameterPack()),
-        State(Temporary) {}
+                           bool BoundToLvalueReference,
+                           LifetimeExtendedTemporaryDecl *MTD = nullptr);
 
   MaterializeTemporaryExpr(EmptyShell Empty)
       : Expr(MaterializeTemporaryExprClass, Empty) {}
 
-  Stmt *getTemporary() const {
-    return State.is<Stmt *>() ? State.get<Stmt *>()
-                              : State.get<ExtraState *>()->Temporary;
-  }
-
   /// Retrieve the temporary-generating subexpression whose value will
   /// be materialized into a glvalue.
-  Expr *GetTemporaryExpr() const { return static_cast<Expr *>(getTemporary()); }
+  Expr *getSubExpr() const {
+    return cast<Expr>(
+        State.is<Stmt *>()
+            ? State.get<Stmt *>()
+            : State.get<LifetimeExtendedTemporaryDecl *>()->getTemporaryExpr());
+  }
 
   /// Retrieve the storage duration for the materialized temporary.
   StorageDuration getStorageDuration() const {
-    const ValueDecl *ExtendingDecl = getExtendingDecl();
-    if (!ExtendingDecl)
-      return SD_FullExpression;
-    // FIXME: This is not necessarily correct for a temporary materialized
-    // within a default initializer.
-    if (isa<FieldDecl>(ExtendingDecl))
-      return SD_Automatic;
-    // FIXME: This only works because storage class specifiers are not allowed
-    // on decomposition declarations.
-    if (isa<BindingDecl>(ExtendingDecl))
-      return ExtendingDecl->getDeclContext()->isFunctionOrMethod()
-                 ? SD_Automatic
-                 : SD_Static;
-    return cast<VarDecl>(ExtendingDecl)->getStorageDuration();
+    return State.is<Stmt *>() ? SD_FullExpression
+                              : State.get<LifetimeExtendedTemporaryDecl *>()
+                                    ->getStorageDuration();
+  }
+
+  /// Get the storage for the constant value of a materialized temporary
+  /// of static storage duration.
+  APValue *getOrCreateValue(bool MayCreate) const {
+    assert(State.is<LifetimeExtendedTemporaryDecl *>() &&
+           "the temporary has not been lifetime extended");
+    return State.get<LifetimeExtendedTemporaryDecl *>()->getOrCreateValue(
+        MayCreate);
+  }
+
+  LifetimeExtendedTemporaryDecl *getLifetimeExtendedTemporaryDecl() {
+    return State.dyn_cast<LifetimeExtendedTemporaryDecl *>();
+  }
+  const LifetimeExtendedTemporaryDecl *
+  getLifetimeExtendedTemporaryDecl() const {
+    return State.dyn_cast<LifetimeExtendedTemporaryDecl *>();
   }
 
   /// Get the declaration which triggered the lifetime-extension of this
   /// temporary, if any.
-  const ValueDecl *getExtendingDecl() const {
+  ValueDecl *getExtendingDecl() {
     return State.is<Stmt *>() ? nullptr
-                              : State.get<ExtraState *>()->ExtendingDecl;
+                              : State.get<LifetimeExtendedTemporaryDecl *>()
+                                    ->getExtendingDecl();
+  }
+  const ValueDecl *getExtendingDecl() const {
+    return const_cast<MaterializeTemporaryExpr *>(this)->getExtendingDecl();
   }
 
-  void setExtendingDecl(const ValueDecl *ExtendedBy, unsigned ManglingNumber);
+  void setExtendingDecl(ValueDecl *ExtendedBy, unsigned ManglingNumber);
 
   unsigned getManglingNumber() const {
-    return State.is<Stmt *>() ? 0 : State.get<ExtraState *>()->ManglingNumber;
+    return State.is<Stmt *>() ? 0
+                              : State.get<LifetimeExtendedTemporaryDecl *>()
+                                    ->getManglingNumber();
   }
 
   /// Determine whether this materialized temporary is bound to an
@@ -4494,11 +4491,11 @@ public:
   }
 
   SourceLocation getBeginLoc() const LLVM_READONLY {
-    return getTemporary()->getBeginLoc();
+    return getSubExpr()->getBeginLoc();
   }
 
   SourceLocation getEndLoc() const LLVM_READONLY {
-    return getTemporary()->getEndLoc();
+    return getSubExpr()->getEndLoc();
   }
 
   static bool classof(const Stmt *T) {
@@ -4507,20 +4504,18 @@ public:
 
   // Iterators
   child_range children() {
-    if (State.is<Stmt *>())
-      return child_range(State.getAddrOfPtr1(), State.getAddrOfPtr1() + 1);
-
-    auto ES = State.get<ExtraState *>();
-    return child_range(&ES->Temporary, &ES->Temporary + 1);
+    return State.is<Stmt *>()
+               ? child_range(State.getAddrOfPtr1(), State.getAddrOfPtr1() + 1)
+               : State.get<LifetimeExtendedTemporaryDecl *>()->childrenExpr();
   }
 
   const_child_range children() const {
-    if (State.is<Stmt *>())
-      return const_child_range(State.getAddrOfPtr1(),
-                               State.getAddrOfPtr1() + 1);
-
-    auto ES = State.get<ExtraState *>();
-    return const_child_range(&ES->Temporary, &ES->Temporary + 1);
+    return State.is<Stmt *>()
+               ? const_child_range(State.getAddrOfPtr1(),
+                                   State.getAddrOfPtr1() + 1)
+               : const_cast<const LifetimeExtendedTemporaryDecl *>(
+                     State.get<LifetimeExtendedTemporaryDecl *>())
+                     ->childrenExpr();
   }
 };
 
@@ -4846,107 +4841,81 @@ public:
 ///
 /// According to C++2a [expr.prim.id]p3 an id-expression that denotes the
 /// specialization of a concept results in a prvalue of type bool.
-class ConceptSpecializationExpr final : public Expr,
+class ConceptSpecializationExpr final : public Expr, public ConceptReference,
       private llvm::TrailingObjects<ConceptSpecializationExpr,
                                     TemplateArgument> {
   friend class ASTStmtReader;
   friend TrailingObjects;
+public:
+  using SubstitutionDiagnostic = std::pair<SourceLocation, std::string>;
 
-  // \brief The optional nested name specifier used when naming the concept.
-  NestedNameSpecifierLoc NestedNameSpec;
-
-  /// \brief The location of the template keyword, if specified when naming the
-  /// concept.
-  SourceLocation TemplateKWLoc;
-
-  /// \brief The location of the concept name in the expression.
-  SourceLocation ConceptNameLoc;
-
-  /// \brief The declaration found by name lookup when the expression was
-  /// created.
-  /// Can differ from NamedConcept when, for example, the concept was found
-  /// through a UsingShadowDecl.
-  NamedDecl *FoundDecl;
-
-  /// \brief The concept named, and whether or not the concept with the given
-  /// arguments was satisfied when the expression was created.
-  /// If any of the template arguments are dependent (this expr would then be
-  /// isValueDependent()), this bit is to be ignored.
-  llvm::PointerIntPair<ConceptDecl *, 1, bool> NamedConcept;
-
-  /// \brief The template argument list source info used to specialize the
-  /// concept.
-  const ASTTemplateArgumentListInfo *ArgsAsWritten = nullptr;
-
+protected:
   /// \brief The number of template arguments in the tail-allocated list of
   /// converted template arguments.
   unsigned NumTemplateArgs;
 
-  ConceptSpecializationExpr(ASTContext &C, NestedNameSpecifierLoc NNS,
+  /// \brief Information about the satisfaction of the named concept with the
+  /// given arguments. If this expression is value dependent, this is to be
+  /// ignored.
+  ASTConstraintSatisfaction *Satisfaction;
+
+  ConceptSpecializationExpr(const ASTContext &C, NestedNameSpecifierLoc NNS,
                             SourceLocation TemplateKWLoc,
-                            SourceLocation ConceptNameLoc, NamedDecl *FoundDecl,
-                            ConceptDecl *NamedConcept,
+                            DeclarationNameInfo ConceptNameInfo,
+                            NamedDecl *FoundDecl, ConceptDecl *NamedConcept,
                             const ASTTemplateArgumentListInfo *ArgsAsWritten,
                             ArrayRef<TemplateArgument> ConvertedArgs,
-                            Optional<bool> IsSatisfied);
+                            const ConstraintSatisfaction *Satisfaction);
 
   ConceptSpecializationExpr(EmptyShell Empty, unsigned NumTemplateArgs);
 
 public:
 
   static ConceptSpecializationExpr *
-  Create(ASTContext &C, NestedNameSpecifierLoc NNS,
-         SourceLocation TemplateKWLoc, SourceLocation ConceptNameLoc,
+  Create(const ASTContext &C, NestedNameSpecifierLoc NNS,
+         SourceLocation TemplateKWLoc, DeclarationNameInfo ConceptNameInfo,
          NamedDecl *FoundDecl, ConceptDecl *NamedConcept,
          const ASTTemplateArgumentListInfo *ArgsAsWritten,
-         ArrayRef<TemplateArgument> ConvertedArgs, Optional<bool> IsSatisfied);
+         ArrayRef<TemplateArgument> ConvertedArgs,
+         const ConstraintSatisfaction *Satisfaction);
 
   static ConceptSpecializationExpr *
   Create(ASTContext &C, EmptyShell Empty, unsigned NumTemplateArgs);
-
-  const NestedNameSpecifierLoc &getNestedNameSpecifierLoc() const {
-    return NestedNameSpec;
-  }
-
-  NamedDecl *getFoundDecl() const {
-    return FoundDecl;
-  }
-
-  ConceptDecl *getNamedConcept() const {
-    return NamedConcept.getPointer();
-  }
 
   ArrayRef<TemplateArgument> getTemplateArguments() const {
     return ArrayRef<TemplateArgument>(getTrailingObjects<TemplateArgument>(),
                                       NumTemplateArgs);
   }
 
-  const ASTTemplateArgumentListInfo *getTemplateArgsAsWritten() const {
-    return ArgsAsWritten;
-  }
-
   /// \brief Set new template arguments for this concept specialization.
-  void setTemplateArguments(const ASTTemplateArgumentListInfo *ArgsAsWritten,
-                            ArrayRef<TemplateArgument> Converted);
+  void setTemplateArguments(ArrayRef<TemplateArgument> Converted);
 
   /// \brief Whether or not the concept with the given arguments was satisfied
-  /// when the expression was created. This method assumes that the expression
-  /// is not dependent!
+  /// when the expression was created.
+  /// The expression must not be dependent.
   bool isSatisfied() const {
     assert(!isValueDependent()
            && "isSatisfied called on a dependent ConceptSpecializationExpr");
-    return NamedConcept.getInt();
+    return Satisfaction->IsSatisfied;
   }
 
-  SourceLocation getConceptNameLoc() const { return ConceptNameLoc; }
-
-  SourceLocation getTemplateKWLoc() const { return TemplateKWLoc; }
+  /// \brief Get elaborated satisfaction info about the template arguments'
+  /// satisfaction of the named concept.
+  /// The expression must not be dependent.
+  const ASTConstraintSatisfaction &getSatisfaction() const {
+    assert(!isValueDependent()
+           && "getSatisfaction called on dependent ConceptSpecializationExpr");
+    return *Satisfaction;
+  }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ConceptSpecializationExprClass;
   }
 
-  SourceLocation getBeginLoc() const LLVM_READONLY { return ConceptNameLoc; }
+  SourceLocation getBeginLoc() const LLVM_READONLY {
+    return ConceptName.getBeginLoc();
+  }
+
   SourceLocation getEndLoc() const LLVM_READONLY {
     return ArgsAsWritten->RAngleLoc;
   }

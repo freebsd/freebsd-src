@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/AST/Attr.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
@@ -685,7 +686,7 @@ void MoveChecker::checkDeadSymbols(SymbolReaper &SymReaper,
                                    CheckerContext &C) const {
   ProgramStateRef State = C.getState();
   TrackedRegionMapTy TrackedRegions = State->get<TrackedRegionMap>();
-  for (TrackedRegionMapTy::value_type E : TrackedRegions) {
+  for (auto E : TrackedRegions) {
     const MemRegion *Region = E.first;
     bool IsRegDead = !SymReaper.isLiveRegion(Region);
 

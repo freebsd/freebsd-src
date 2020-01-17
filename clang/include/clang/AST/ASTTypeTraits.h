@@ -16,10 +16,7 @@
 #define LLVM_CLANG_AST_ASTTYPETRAITS_H
 
 #include "clang/AST/ASTFwd.h"
-#include "clang/AST/Decl.h"
 #include "clang/AST/NestedNameSpecifier.h"
-#include "clang/AST/OpenMPClause.h"
-#include "clang/AST/Stmt.h"
 #include "clang/AST/TemplateBase.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/Basic/LLVM.h"
@@ -46,7 +43,10 @@ enum TraversalKind {
 
   /// Will not traverse implicit casts and parentheses.
   /// Corresponds to Expr::IgnoreParenImpCasts()
-  TK_IgnoreImplicitCastsAndParentheses
+  TK_IgnoreImplicitCastsAndParentheses,
+
+  /// Ignore AST nodes not written in the source
+  TK_IgnoreUnlessSpelledInSource
 };
 
 /// Kind identifier.

@@ -18,7 +18,8 @@ def MipsP5600Model : SchedMachineModel {
   list<Predicate> UnsupportedFeatures = [HasMips3, HasMips32r6, HasMips64,
                                          HasMips64r2, HasMips64r5, HasMips64r6,
                                          IsGP64bit, IsPTR64bit,
-                                         InMicroMips, InMips16Mode, HasCnMips,
+                                         InMicroMips, InMips16Mode,
+                                         HasCnMips, HasCnMipsP,
                                          HasDSP, HasDSPR2, HasMT, HasCRC];
 }
 
@@ -631,5 +632,6 @@ def : InstRW<[P5600WriteAtomic],
 def : InstRW<[P5600WriteAtomic],
     (instregex "^ATOMIC_CMP_SWAP_I(8|16|32|64)_POSTRA$")>;
 def : InstRW<[P5600WriteAtomic],
-    (instregex "^ATOMIC_LOAD_(ADD|SUB|AND|OR|XOR|NAND)_I(8|16|32|64)_POSTRA$")>;
+    (instregex "^ATOMIC_LOAD_(ADD|SUB|AND|OR|XOR|NAND|MIN|MAX|UMIN|UMAX)"
+               "_I(8|16|32|64)_POSTRA$")>;
 }

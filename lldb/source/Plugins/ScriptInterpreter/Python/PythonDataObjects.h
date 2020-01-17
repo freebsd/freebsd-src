@@ -48,7 +48,9 @@
 #ifndef LLDB_PLUGINS_SCRIPTINTERPRETER_PYTHON_PYTHONDATAOBJECTS_H
 #define LLDB_PLUGINS_SCRIPTINTERPRETER_PYTHON_PYTHONDATAOBJECTS_H
 
-#ifndef LLDB_DISABLE_PYTHON
+#include "lldb/Host/Config.h"
+
+#if LLDB_ENABLE_PYTHON
 
 // LLDB Python header must be included first
 #include "lldb-python.h"
@@ -130,7 +132,7 @@ template <typename T> T Take(PyObject *obj) {
   assert(!PyErr_Occurred());
   T thing(PyRefType::Owned, obj);
   assert(thing.IsValid());
-  return std::move(thing);
+  return thing;
 }
 
 // Retain a reference you have borrowed, and turn it into
@@ -148,7 +150,7 @@ template <typename T> T Retain(PyObject *obj) {
   assert(!PyErr_Occurred());
   T thing(PyRefType::Borrowed, obj);
   assert(thing.IsValid());
-  return std::move(thing);
+  return thing;
 }
 
 // This class can be used like a utility function to convert from
@@ -188,6 +190,14 @@ inline llvm::Error keyError() {
   return llvm::createStringError(llvm::inconvertibleErrorCode(),
                                  "key not in dict");
 }
+
+#if PY_MAJOR_VERSION < 3
+// The python 2 API declares some arguments as char* that should
+// be const char *, but it doesn't actually modify them.
+inline char *py2_const_cast(const char *s) { return const_cast<char *>(s); }
+#else
+inline const char *py2_const_cast(const char *s) { return s; }
+#endif
 
 enum class PyInitialValue { Invalid, Empty };
 
@@ -308,16 +318,6 @@ public:
   }
 
   StructuredData::ObjectSP CreateStructuredObject() const;
-
-protected:
-
-#if PY_MAJOR_VERSION < 3
-  // The python 2 API declares some arguments as char* that should
-  // be const char *, but it doesn't actually modify them.
-  static char *py2_const_cast(const char *s) { return const_cast<char *>(s); }
-#else
-  static const char *py2_const_cast(const char *s) { return s; }
-#endif
 
 public:
   template <typename... T>
@@ -621,29 +621,11 @@ public:
      * function and can accept an arbitrary number */
     unsigned max_positional_args;
     static constexpr unsigned UNBOUNDED = UINT_MAX; // FIXME c++17 inline
-    /* the number of positional arguments, including optional ones,
-     * and excluding varargs.  If this is a bound method, then the
-     * count will still include a +1 for self.
-     *
-     * FIXME. That's crazy.  This should be replaced with
-     * an accurate min and max for positional args.
-     */
-    int count;
-    /* does the callable have positional varargs? */
-    bool has_varargs : 1; // FIXME delete this
   };
 
   static bool Check(PyObject *py_obj);
 
   llvm::Expected<ArgInfo> GetArgInfo() const;
-
-  llvm::Expected<ArgInfo> GetInitArgInfo() const;
-
-  ArgInfo GetNumArguments() const; // DEPRECATED
-
-  // If the callable is a Py_Class, then find the number of arguments
-  // of the __init__ method.
-  ArgInfo GetNumInitArguments() const; // DEPRECATED
 
   PythonObject operator()();
 

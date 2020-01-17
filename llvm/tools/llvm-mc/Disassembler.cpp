@@ -46,8 +46,7 @@ static bool PrintInsts(const MCDisassembler &DisAsm,
     MCInst Inst;
 
     MCDisassembler::DecodeStatus S;
-    S = DisAsm.getInstruction(Inst, Size, Data.slice(Index), Index,
-                              /*REMOVE*/ nulls(), nulls());
+    S = DisAsm.getInstruction(Inst, Size, Data.slice(Index), Index, nulls());
     switch (S) {
     case MCDisassembler::Fail:
       SM.PrintMessage(SMLoc::getFromPointer(Bytes.second[Index]),
@@ -133,7 +132,8 @@ static bool ByteArrayFromString(ByteArrayTy &ByteArray,
 int Disassembler::disassemble(const Target &T, const std::string &Triple,
                               MCSubtargetInfo &STI, MCStreamer &Streamer,
                               MemoryBuffer &Buffer, SourceMgr &SM,
-                              MCContext &Ctx, raw_ostream &Out) {
+                              MCContext &Ctx, raw_ostream &Out,
+                              const MCTargetOptions &MCOptions) {
 
   std::unique_ptr<const MCRegisterInfo> MRI(T.createMCRegInfo(Triple));
   if (!MRI) {
@@ -141,7 +141,8 @@ int Disassembler::disassemble(const Target &T, const std::string &Triple,
     return -1;
   }
 
-  std::unique_ptr<const MCAsmInfo> MAI(T.createMCAsmInfo(*MRI, Triple));
+  std::unique_ptr<const MCAsmInfo> MAI(
+      T.createMCAsmInfo(*MRI, Triple, MCOptions));
   if (!MAI) {
     errs() << "error: no assembly info for target " << Triple << "\n";
     return -1;

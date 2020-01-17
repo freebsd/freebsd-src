@@ -78,9 +78,9 @@ public:
   AllocaInst(Type *Ty, unsigned AddrSpace,
              const Twine &Name, BasicBlock *InsertAtEnd);
 
-  AllocaInst(Type *Ty, unsigned AddrSpace, Value *ArraySize, unsigned Align,
+  AllocaInst(Type *Ty, unsigned AddrSpace, Value *ArraySize, MaybeAlign Align,
              const Twine &Name = "", Instruction *InsertBefore = nullptr);
-  AllocaInst(Type *Ty, unsigned AddrSpace, Value *ArraySize, unsigned Align,
+  AllocaInst(Type *Ty, unsigned AddrSpace, Value *ArraySize, MaybeAlign Align,
              const Twine &Name, BasicBlock *InsertAtEnd);
 
   /// Return true if there is an allocation size parameter to the allocation
@@ -239,14 +239,20 @@ public:
   }
 
   /// Return the alignment of the access that is being performed.
+  /// FIXME: Remove this function once transition to Align is over.
+  /// Use getAlign() instead.
   unsigned getAlignment() const {
-    if (const auto MA =
-            decodeMaybeAlign((getSubclassDataFromInstruction() >> 1) & 31))
+    if (const auto MA = getAlign())
       return MA->value();
     return 0;
   }
 
-  void setAlignment(MaybeAlign Align);
+  /// Return the alignment of the access that is being performed.
+  MaybeAlign getAlign() const {
+    return decodeMaybeAlign((getSubclassDataFromInstruction() >> 1) & 31);
+  }
+
+  void setAlignment(MaybeAlign Alignment);
 
   /// Returns the ordering constraint of this load instruction.
   AtomicOrdering getOrdering() const {
@@ -365,14 +371,19 @@ public:
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
 
   /// Return the alignment of the access that is being performed
+  /// FIXME: Remove this function once transition to Align is over.
+  /// Use getAlign() instead.
   unsigned getAlignment() const {
-    if (const auto MA =
-            decodeMaybeAlign((getSubclassDataFromInstruction() >> 1) & 31))
+    if (const auto MA = getAlign())
       return MA->value();
     return 0;
   }
 
-  void setAlignment(MaybeAlign Align);
+  MaybeAlign getAlign() const {
+    return decodeMaybeAlign((getSubclassDataFromInstruction() >> 1) & 31);
+  }
+
+  void setAlignment(MaybeAlign Alignment);
 
   /// Returns the ordering constraint of this store instruction.
   AtomicOrdering getOrdering() const {
@@ -1039,11 +1050,6 @@ public:
 
   /// Returns the pointer type returned by the GEP
   /// instruction, which may be a vector of pointers.
-  static Type *getGEPReturnType(Value *Ptr, ArrayRef<Value *> IdxList) {
-    return getGEPReturnType(
-      cast<PointerType>(Ptr->getType()->getScalarType())->getElementType(),
-      Ptr, IdxList);
-  }
   static Type *getGEPReturnType(Type *ElTy, Value *Ptr,
                                 ArrayRef<Value *> IdxList) {
     Type *PtrTy = PointerType::get(checkGEPType(getIndexedType(ElTy, IdxList)),
@@ -4142,13 +4148,9 @@ CallBrInst::CallBrInst(FunctionType *Ty, Value *Func, BasicBlock *DefaultDest,
                        ArrayRef<Value *> Args,
                        ArrayRef<OperandBundleDef> Bundles, int NumOperands,
                        const Twine &NameStr, BasicBlock *InsertAtEnd)
-    : CallBase(
-          cast<FunctionType>(
-              cast<PointerType>(Func->getType())->getElementType())
-              ->getReturnType(),
-          Instruction::CallBr,
-          OperandTraits<CallBase>::op_end(this) - NumOperands, NumOperands,
-          InsertAtEnd) {
+    : CallBase(Ty->getReturnType(), Instruction::CallBr,
+               OperandTraits<CallBase>::op_end(this) - NumOperands, NumOperands,
+               InsertAtEnd) {
   init(Ty, Func, DefaultDest, IndirectDests, Args, Bundles, NameStr);
 }
 
@@ -5298,6 +5300,35 @@ inline unsigned getLoadStoreAddressSpace(Value *I) {
     return LI->getPointerAddressSpace();
   return cast<StoreInst>(I)->getPointerAddressSpace();
 }
+
+//===----------------------------------------------------------------------===//
+//                              FreezeInst Class
+//===----------------------------------------------------------------------===//
+
+/// This class represents a freeze function that returns random concrete
+/// value if an operand is either a poison value or an undef value
+class FreezeInst : public UnaryInstruction {
+protected:
+  // Note: Instruction needs to be a friend here to call cloneImpl.
+  friend class Instruction;
+
+  /// Clone an identical FreezeInst
+  FreezeInst *cloneImpl() const;
+
+public:
+  explicit FreezeInst(Value *S,
+                      const Twine &NameStr = "",
+                      Instruction *InsertBefore = nullptr);
+  FreezeInst(Value *S, const Twine &NameStr, BasicBlock *InsertAtEnd);
+
+  // Methods for support type inquiry through isa, cast, and dyn_cast:
+  static inline bool classof(const Instruction *I) {
+    return I->getOpcode() == Freeze;
+  }
+  static inline bool classof(const Value *V) {
+    return isa<Instruction>(V) && classof(cast<Instruction>(V));
+  }
+};
 
 } // end namespace llvm
 

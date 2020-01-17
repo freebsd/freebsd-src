@@ -253,12 +253,87 @@ any option of a multiversioned function is undefined.
   }];
 }
 
+def SYCLKernelDocs : Documentation {
+  let Category = DocCatFunction;
+  let Content = [{
+The ``sycl_kernel`` attribute specifies that a function template will be used
+to outline device code and to generate an OpenCL kernel.
+Here is a code example of the SYCL program, which demonstrates the compiler's
+outlining job:
+.. code-block:: c++
+
+  int foo(int x) { return ++x; }
+
+  using namespace cl::sycl;
+  queue Q;
+  buffer<int, 1> a(range<1>{1024});
+  Q.submit([&](handler& cgh) {
+    auto A = a.get_access<access::mode::write>(cgh);
+    cgh.parallel_for<init_a>(range<1>{1024}, [=](id<1> index) {
+      A[index] = index[0] + foo(42);
+    });
+  }
+
+A C++ function object passed to the ``parallel_for`` is called a "SYCL kernel".
+A SYCL kernel defines the entry point to the "device part" of the code. The
+compiler will emit all symbols accessible from a "kernel". In this code
+example, the compiler will emit "foo" function.  More details about the
+compilation of functions for the device part can be found in the SYCL 1.2.1
+specification Section 6.4.
+To show to the compiler entry point to the "device part" of the code, the SYCL
+runtime can use the ``sycl_kernel`` attribute in the following way:
+.. code-block:: c++
+namespace cl {
+namespace sycl {
+class handler {
+  template <typename KernelName, typename KernelType/*, ...*/>
+  __attribute__((sycl_kernel)) void sycl_kernel_function(KernelType KernelFuncObj) {
+    // ...
+    KernelFuncObj();
+  }
+
+  template <typename KernelName, typename KernelType, int Dims>
+  void parallel_for(range<Dims> NumWorkItems, KernelType KernelFunc) {
+#ifdef __SYCL_DEVICE_ONLY__
+    sycl_kernel_function<KernelName, KernelType, Dims>(KernelFunc);
+#else
+    // Host implementation
+#endif
+  }
+};
+} // namespace sycl
+} // namespace cl
+
+The compiler will also generate an OpenCL kernel using the function marked with
+the ``sycl_kernel`` attribute.
+Here is the list of SYCL device compiler expectations with regard to the
+function marked with the ``sycl_kernel`` attribute:
+
+- The function must be a template with at least two type template parameters.
+  The compiler generates an OpenCL kernel and uses the first template parameter
+  as a unique name for the generated OpenCL kernel. The host application uses
+  this unique name to invoke the OpenCL kernel generated for the SYCL kernel
+  specialized by this name and second template parameter ``KernelType`` (which
+  might be an unnamed function object type).
+- The function must have at least one parameter. The first parameter is
+  required to be a function object type (named or unnamed i.e. lambda). The
+  compiler uses function object type fields to generate OpenCL kernel
+  parameters.
+- The function must return void. The compiler reuses the body of marked functions to
+  generate the OpenCL kernel body, and the OpenCL kernel must return `void`.
+
+The SYCL kernel in the previous code sample meets these expectations.
+  }];
+}
+
 def C11NoReturnDocs : Documentation {
   let Category = DocCatFunction;
   let Content = [{
 A function declared as ``_Noreturn`` shall not return to its caller. The
 compiler will generate a diagnostic for a function declared as ``_Noreturn``
-that appears to be capable of returning to its caller.
+that appears to be capable of returning to its caller. Despite being a type
+specifier, the ``_Noreturn`` attribute cannot be specified on a function
+pointer type.
   }];
 }
 
@@ -1632,6 +1707,17 @@ The semantics are as follows:
   }];
 }
 
+def BPFPreserveAccessIndexDocs : Documentation {
+  let Category = DocCatFunction;
+  let Content = [{
+Clang supports the ``__attribute__((preserve_access_index))``
+attribute for the BPF target. This attribute may be attached to a
+struct or union declaration, where if -g is specified, it enables
+preserving struct or union member access debuginfo indicies of this
+struct or union, similar to clang ``__builtin_preserve_acceess_index()``.
+  }];
+}
+
 def MipsInterruptDocs : Documentation {
   let Category = DocCatFunction;
   let Heading = "interrupt (MIPS)";
@@ -1792,6 +1878,10 @@ The current set of options correspond to the existing "subtarget features" for
 the target with or without a "-mno-" in front corresponding to the absence
 of the feature, as well as ``arch="CPU"`` which will change the default "CPU"
 for the function.
+
+For AArch64, the attribute also allows the "branch-protection=<args>" option,
+where the permissible arguments and their effect on code generation are the same
+as for the command-line option ``-mbranch-protection``.
 
 Example "subtarget features" from the x86 backend include: "mmx", "sse", "sse4.2",
 "avx", "xop" and largely correspond to the machine specific options handled by
@@ -2976,6 +3066,7 @@ More details can be found in the OpenCL C language Spec v2.0, Section 6.5.
 
 def OpenCLAddressSpaceGenericDocs : Documentation {
   let Category = DocOpenCLAddressSpaces;
+  let Heading = "__generic, generic, [[clang::opencl_generic]]";
   let Content = [{
 The generic address space attribute is only available with OpenCL v2.0 and later.
 It can be used with pointer types. Variables in global and local scope and
@@ -2988,6 +3079,7 @@ spaces.
 
 def OpenCLAddressSpaceConstantDocs : Documentation {
   let Category = DocOpenCLAddressSpaces;
+  let Heading = "__constant, constant, [[clang::opencl_constant]]";
   let Content = [{
 The constant address space attribute signals that an object is located in
 a constant (non-modifiable) memory region. It is available to all work items.
@@ -2999,6 +3091,7 @@ have an initializer.
 
 def OpenCLAddressSpaceGlobalDocs : Documentation {
   let Category = DocOpenCLAddressSpaces;
+  let Heading = "__global, global, [[clang::opencl_global]]";
   let Content = [{
 The global address space attribute specifies that an object is allocated in
 global memory, which is accessible by all work items. The content stored in this
@@ -3011,6 +3104,7 @@ scope) variables and static local variable as well.
 
 def OpenCLAddressSpaceLocalDocs : Documentation {
   let Category = DocOpenCLAddressSpaces;
+  let Heading = "__local, local, [[clang::opencl_local]]";
   let Content = [{
 The local address space specifies that an object is allocated in the local (work
 group) memory area, which is accessible to all work items in the same work
@@ -3023,6 +3117,7 @@ space are allowed. Local address space variables cannot have an initializer.
 
 def OpenCLAddressSpacePrivateDocs : Documentation {
   let Category = DocOpenCLAddressSpaces;
+  let Heading = "__private, private, [[clang::opencl_private]]";
   let Content = [{
 The private address space specifies that an object is allocated in the private
 (work item) memory. Other work items cannot access the same memory area and its
@@ -3044,6 +3139,44 @@ Since it is not widely used and has been removed from OpenCL 2.1, it is ignored
 by Clang.
   }];
 }
+
+def Ptr32Docs : Documentation {
+  let Category = DocCatType;
+  let Content = [{
+The ``__ptr32`` qualifier represents a native pointer on a 32-bit system. On a
+64-bit system, a pointer with ``__ptr32`` is extended to a 64-bit pointer. The
+``__sptr`` and ``__uptr`` qualifiers can be used to specify whether the pointer
+is sign extended or zero extended. This qualifier is enabled under
+``-fms-extensions``.
+  }];
+}
+
+def Ptr64Docs : Documentation {
+  let Category = DocCatType;
+  let Content = [{
+The ``__ptr64`` qualifier represents a native pointer on a 64-bit system. On a
+32-bit system, a ``__ptr64`` pointer is truncated to a 32-bit pointer. This
+qualifier is enabled under ``-fms-extensions``.
+  }];
+}
+
+def SPtrDocs : Documentation {
+  let Category = DocCatType;
+  let Content = [{
+The ``__sptr`` qualifier specifies that a 32-bit pointer should be sign
+extended when converted to a 64-bit pointer.
+  }];
+}
+
+def UPtrDocs : Documentation {
+  let Category = DocCatType;
+  let Content = [{
+The ``__uptr`` qualifier specifies that a 32-bit pointer should be zero
+extended when converted to a 64-bit pointer.
+  }];
+}
+
+
 def NullabilityDocs : DocumentationCategory<"Nullability Attributes"> {
   let Content = [{
 Whether a particular pointer may be "null" is an important concern when working with pointers in the C family of languages. The various nullability attributes indicate whether a particular pointer can be null or not, which makes APIs more expressive and can help static analysis tools identify bugs involving null pointers. Clang supports several kinds of nullability attributes: the ``nonnull`` and ``returns_nonnull`` attributes indicate which function or method parameters and result types can never be null, while nullability type qualifiers indicate which pointer types can be null (``_Nullable``) or cannot be null (``_Nonnull``).
@@ -3855,6 +3988,18 @@ If a function has neither of these attributes, they become subject to the XRay h
   }];
 }
 
+def PatchableFunctionEntryDocs : Documentation {
+  let Category = DocCatFunction;
+  let Content = [{
+``__attribute__((patchable_function_entry(N,M)))`` is used to generate M NOPs
+before the function entry and N-M NOPs after the function entry. This attribute
+takes precedence over the command line option ``-fpatchable-function-entry=N,M``.
+``M`` defaults to 0 if omitted.
+
+Currently, only M=0 is supported.
+}];
+}
+
 def TransparentUnionDocs : Documentation {
   let Category = DocCatDecl;
   let Content = [{
@@ -3895,6 +4040,104 @@ overheads associated with defining and calling such a method.
   }];
 }
 
+def ObjCDirectDocs : Documentation {
+  let Category = DocCatDecl;
+  let Content = [{
+The ``objc_direct`` attribute can be used to mark an Objective-C method as
+being *direct*.  A direct method is treated statically like an ordinary method,
+but dynamically it behaves more like a C function.  This lowers some of the costs
+associated with the method but also sacrifices some of the ordinary capabilities
+of Objective-C methods.
+
+A message send of a direct method calls the implementation directly, as if it
+were a C function, rather than using ordinary Objective-C method dispatch. This
+is substantially faster and potentially allows the implementation to be inlined,
+but it also means the method cannot be overridden in subclasses or replaced
+dynamically, as ordinary Objective-C methods can.
+
+Furthermore, a direct method is not listed in the class's method lists. This
+substantially reduces the code-size overhead of the method but also means it
+cannot be called dynamically using ordinary Objective-C method dispatch at all;
+in particular, this means that it cannot override a superclass method or satisfy
+a protocol requirement.
+
+Because a direct method cannot be overridden, it is an error to perform
+a ``super`` message send of one.
+
+Although a message send of a direct method causes the method to be called
+directly as if it were a C function, it still obeys Objective-C semantics in other
+ways:
+
+- If the receiver is ``nil``, the message send does nothing and returns the zero value
+  for the return type.
+
+- A message send of a direct class method will cause the class to be initialized,
+  including calling the ``+initialize`` method if present.
+
+- The implicit ``_cmd`` parameter containing the method's selector is still defined.
+ In order to minimize code-size costs, the implementation will not emit a reference
+ to the selector if the parameter is unused within the method.
+
+Symbols for direct method implementations are implicitly given hidden
+visibility, meaning that they can only be called within the same linkage unit.
+
+It is an error to do any of the following:
+
+- declare a direct method in a protocol,
+- declare an override of a direct method with a method in a subclass,
+- declare an override of a non-direct method with a direct method in a subclass,
+- declare a method with different directness in different class interfaces, or
+- implement a non-direct method (as declared in any class interface) with a direct method.
+
+If any of these rules would be violated if every method defined in an
+``@implementation`` within a single linkage unit were declared in an
+appropriate class interface, the program is ill-formed with no diagnostic
+required.  If a violation of this rule is not diagnosed, behavior remains
+well-defined; this paragraph is simply reserving the right to diagnose such
+conflicts in the future, not to treat them as undefined behavior.
+
+Additionally, Clang will warn about any ``@selector`` expression that
+names a selector that is only known to be used for direct methods.
+
+For the purpose of these rules, a "class interface" includes a class's primary
+``@interface`` block, its class extensions, its categories, its declared protocols,
+and all the class interfaces of its superclasses.
+
+An Objective-C property can be declared with the ``direct`` property
+attribute.  If a direct property declaration causes an implicit declaration of
+a getter or setter method (that is, if the given method is not explicitly
+declared elsewhere), the method is declared to be direct.
+
+Some programmers may wish to make many methods direct at once.  In order
+to simplify this, the ``objc_direct_members`` attribute is provided; see its
+documentation for more information.
+  }];
+}
+
+def ObjCDirectMembersDocs : Documentation {
+  let Category = DocCatDecl;
+  let Content = [{
+The ``objc_direct_members`` attribute can be placed on an  Objective-C
+``@interface`` or ``@implementation`` to mark that methods declared
+therein should be considered direct by default.  See the documentation
+for ``objc_direct`` for more information about direct methods.
+
+When ``objc_direct_members`` is placed on an ``@interface`` block, every
+method in the block is considered to be declared as direct.  This includes any
+implicit method declarations introduced by property declarations.  If the method
+redeclares a non-direct method, the declaration is ill-formed, exactly as if the
+method was annotated with the ``objc_direct`` attribute.  ``objc_direct_members``
+cannot be placed on the primary interface of a class, only on category or class
+extension interfaces.
+
+When ``objc_direct_members`` is placed on an ``@implementation`` block,
+methods defined in the block are considered to be declared as direct unless
+they have been previously declared as non-direct in any interface of the class.
+This includes the implicit method definitions introduced by synthesized
+properties, including auto-synthesized properties.
+  }];
+}
+
 def SelectAnyDocs : Documentation {
   let Category = DocCatDecl;
   let Content = [{
@@ -3908,10 +4151,25 @@ For more information see
 or `msvc documentation <https://docs.microsoft.com/pl-pl/cpp/cpp/selectany>`_.
 }]; }
 
+def WebAssemblyExportNameDocs : Documentation {
+  let Category = DocCatFunction;
+  let Content = [{
+Clang supports the ``__attribute__((export_name(<name>)))``
+attribute for the WebAssembly target. This attribute may be attached to a
+function declaration, where it modifies how the symbol is to be exported
+from the linked WebAssembly.
+
+WebAssembly functions are exported via string name. By default when a symbol
+is exported, the export name for C/C++ symbols are the same as their C/C++
+symbol names. This attribute can be used to override the default behavior, and
+request a specific string name be used instead.
+  }];
+}
+
 def WebAssemblyImportModuleDocs : Documentation {
   let Category = DocCatFunction;
   let Content = [{
-Clang supports the ``__attribute__((import_module(<module_name>)))`` 
+Clang supports the ``__attribute__((import_module(<module_name>)))``
 attribute for the WebAssembly target. This attribute may be attached to a
 function declaration, where it modifies how the symbol is to be imported
 within the WebAssembly linking environment.
@@ -3921,14 +4179,14 @@ name, which typically identifies a module from which to import, and a field
 name, which typically identifies a field from that module to import. By
 default, module names for C/C++ symbols are assigned automatically by the
 linker. This attribute can be used to override the default behavior, and
-reuqest a specific module name be used instead.
+request a specific module name be used instead.
   }];
 }
 
 def WebAssemblyImportNameDocs : Documentation {
   let Category = DocCatFunction;
   let Content = [{
-Clang supports the ``__attribute__((import_name(<name>)))`` 
+Clang supports the ``__attribute__((import_name(<name>)))``
 attribute for the WebAssembly target. This attribute may be attached to a
 function declaration, where it modifies how the symbol is to be imported
 within the WebAssembly linking environment.
@@ -3938,7 +4196,7 @@ name, which typically identifies a module from which to import, and a field
 name, which typically identifies a field from that module to import. By
 default, field names for C/C++ symbols are the same as their C/C++ symbol
 names. This attribute can be used to override the default behavior, and
-reuqest a specific field name be used instead.
+request a specific field name be used instead.
   }];
 }
 
@@ -4132,7 +4390,7 @@ below. The explicit attribute annotation indicates that the third parameter
 (`start_routine`) is called zero or more times by the `pthread_create` function,
 and that the fourth parameter (`arg`) is passed along. Note that the callback
 behavior of `pthread_create` is automatically recognized by Clang. In addition,
-the declarations of `__kmpc_fork_teams` and `__kmpc_fork_call`, generated for 
+the declarations of `__kmpc_fork_teams` and `__kmpc_fork_call`, generated for
 `#pragma omp target teams` and `#pragma omp parallel`, respectively, are also
 automatically recognized as broker functions. Further functions might be added
 in the future.
@@ -4312,6 +4570,26 @@ This attribute does not affect optimizations in any way, unlike GCC's
 }];
 }
 
+def CFGuardDocs : Documentation {
+  let Category = DocCatFunction;
+  let Content = [{
+Code can indicate CFG checks are not wanted with the ``__declspec(guard(nocf))``
+attribute. This directs the compiler to not insert any CFG checks for the entire
+function. This approach is typically used only sparingly in specific situations 
+where the programmer has manually inserted "CFG-equivalent" protection. The 
+programmer knows that they are calling through some read-only function table 
+whose address is obtained through read-only memory references and for which the 
+index is masked to the function table limit. This approach may also be applied 
+to small wrapper functions that are not inlined and that do nothing more than 
+make a call through a function pointer. Since incorrect usage of this directive 
+can compromise the security of CFG, the programmer must be very careful using 
+the directive. Typically, this usage is limited to very small functions that 
+only call one function.
+
+`Control Flow Guard documentation <https://docs.microsoft.com/en-us/windows/win32/secbp/pe-metadata>`
+}];
+}
+
 def HIPPinnedShadowDocs : Documentation {
   let Category = DocCatType;
   let Content = [{
@@ -4344,7 +4622,7 @@ object of type ``T``:
 
 The argument ``T`` is optional and is ignored.
 This attribute may be used by analysis tools and has no effect on code
-generation.
+generation. A ``void`` argument means that the class can own any type.
 
 See Pointer_ for an example.
 }];
@@ -4370,7 +4648,7 @@ like pointers to an object of type ``T``:
 
 The argument ``T`` is optional and is ignored.
 This attribute may be used by analysis tools and has no effect on code
-generation.
+generation. A ``void`` argument means that the pointer can point to any type.
 
 Example:
 When constructing an instance of a class annotated like this (a Pointer) from
@@ -4390,4 +4668,124 @@ When the Owner's lifetime ends, it will consider the Pointer to be dangling.
   }
 
 }];
+}
+
+def ArmMveAliasDocs : Documentation {
+  let Category = DocCatFunction;
+  let Content = [{
+This attribute is used in the implementation of the ACLE intrinsics
+for the Arm MVE instruction set. It allows the intrinsic functions to
+be declared using the names defined in ACLE, and still be recognized
+as clang builtins equivalent to the underlying name. For example,
+``arm_mve.h`` declares the function ``vaddq_u32`` with
+``__attribute__((__clang_arm_mve_alias(__builtin_arm_mve_vaddq_u32)))``,
+and similarly, one of the type-overloaded declarations of ``vaddq``
+will have the same attribute. This ensures that both functions are
+recognized as that clang builtin, and in the latter case, the choice
+of which builtin to identify the function as can be deferred until
+after overload resolution.
+
+This attribute can only be used to set up the aliases for the MVE
+intrinsic functions; it is intended for use only inside ``arm_mve.h``,
+and is not a general mechanism for declaring arbitrary aliases for
+clang builtin functions.
+  }];
+}
+
+def NoBuiltinDocs : Documentation {
+  let Category = DocCatFunction;
+  let Content = [{
+.. Note:: This attribute is not yet fully implemented, it is validated but has
+no effect on the generated code.
+
+The ``__attribute__((no_builtin))`` is similar to the ``-fno-builtin`` flag
+except it is specific to the body of a function. The attribute may also be
+applied to a virtual function but has no effect on the behavior of overriding
+functions in a derived class.
+
+It accepts one or more strings corresponding to the specific names of the
+builtins to disable (e.g. "memcpy", "memset").
+If the attribute is used without parameters it will disable all buitins at
+once.
+
+.. code-block:: c++
+
+  // The compiler is not allowed to add any builtin to foo's body.
+  void foo(char* data, size_t count) __attribute__((no_builtin)) {
+    // The compiler is not allowed to convert the loop into
+    // `__builtin_memset(data, 0xFE, count);`.
+    for (size_t i = 0; i < count; ++i)
+      data[i] = 0xFE;
+  }
+
+  // The compiler is not allowed to add the `memcpy` builtin to bar's body.
+  void bar(char* data, size_t count) __attribute__((no_builtin("memcpy"))) {
+    // The compiler is allowed to convert the loop into
+    // `__builtin_memset(data, 0xFE, count);` but cannot generate any
+    // `__builtin_memcpy`
+    for (size_t i = 0; i < count; ++i)
+      data[i] = 0xFE;
+  }
+  }];
+}
+
+def HandleDocs : DocumentationCategory<"Handle Attributes"> {
+  let Content = [{
+Handles are a way to identify resources like files, sockets, and processes.
+They are more opaque than pointers and widely used in system programming. They
+have similar risks such as never releasing a resource associated with a handle,
+attempting to use a handle that was already released, or trying to release a
+handle twice. Using the annotations below it is possible to make the ownership
+of the handles clear: whose responsibility is to release them. They can also
+aid static analysis tools to find bugs.
+  }];
+}
+
+def AcquireHandleDocs : Documentation {
+  let Category = HandleDocs;
+  let Content = [{
+If this annotation is on a function or a function type it is assumed to return
+a new handle. In case this annotation is on an output parameter,
+the function is assumed to fill the corresponding argument with a new
+handle.
+
+.. code-block:: c++
+
+  // Output arguments from Zircon.
+  zx_status_t zx_socket_create(uint32_t options,
+                               zx_handle_t __attribute__((acquire_handle)) * out0,
+                               zx_handle_t* out1 [[clang::acquire_handle]]);
+
+
+  // Returned handle.
+  [[clang::acquire_handle]] int open(const char *path, int oflag, ... );
+  int open(const char *path, int oflag, ... ) __attribute__((acquire_handle));
+  }];
+}
+
+def UseHandleDocs : Documentation {
+  let Category = HandleDocs;
+  let Content = [{
+A function taking a handle by value might close the handle. If a function
+parameter is annotated with `use_handle` it is assumed to not to change
+the state of the handle. It is also assumed to require an open handle to work with.
+
+.. code-block:: c++
+
+  zx_status_t zx_port_wait(zx_handle_t handle [[clang::use_handle]],
+                           zx_time_t deadline,
+                           zx_port_packet_t* packet);
+  }];
+}
+
+def ReleaseHandleDocs : Documentation {
+  let Category = HandleDocs;
+  let Content = [{
+If a function parameter is annotated with `release_handle` it is assumed to
+close the handle. It is also assumed to require an open handle to work with.
+
+.. code-block:: c++
+
+  zx_status_t zx_handle_close(zx_handle_t handle [[clang::release_handle]]);
+  }];
 }

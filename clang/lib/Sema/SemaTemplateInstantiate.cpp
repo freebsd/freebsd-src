@@ -150,7 +150,7 @@ Sema::getTemplateInstantiationArgs(NamedDecl *D,
           break;
 
         // If this function is a generic lambda specialization, we are done.
-        if (isGenericLambdaCallOperatorSpecialization(Function))
+        if (isGenericLambdaCallOperatorOrStaticInvokerSpecialization(Function))
           break;
 
       } else if (FunctionTemplateDecl *FunTmpl
@@ -203,9 +203,12 @@ bool Sema::CodeSynthesisContext::isInstantiationRecord() const {
 
   case DefaultTemplateArgumentChecking:
   case DeclaringSpecialMember:
+  case DeclaringImplicitEqualityComparison:
   case DefiningSynthesizedFunction:
   case ExceptionSpecEvaluation:
   case ConstraintSubstitution:
+  case ParameterMappingSubstitution:
+  case ConstraintNormalization:
   case RewritingOperatorAsSpaceship:
     return false;
 
@@ -363,7 +366,7 @@ Sema::InstantiatingTemplate::InstantiatingTemplate(
 
 Sema::InstantiatingTemplate::InstantiatingTemplate(
     Sema &SemaRef, SourceLocation PointOfInstantiation,
-    ConstraintsCheck, TemplateDecl *Template,
+    ConstraintsCheck, NamedDecl *Template,
     ArrayRef<TemplateArgument> TemplateArgs, SourceRange InstantiationRange)
     : InstantiatingTemplate(
           SemaRef, CodeSynthesisContext::ConstraintsCheck,
@@ -372,12 +375,28 @@ Sema::InstantiatingTemplate::InstantiatingTemplate(
 
 Sema::InstantiatingTemplate::InstantiatingTemplate(
     Sema &SemaRef, SourceLocation PointOfInstantiation,
-    ConstraintSubstitution, TemplateDecl *Template,
+    ConstraintSubstitution, NamedDecl *Template,
     sema::TemplateDeductionInfo &DeductionInfo, SourceRange InstantiationRange)
     : InstantiatingTemplate(
           SemaRef, CodeSynthesisContext::ConstraintSubstitution,
           PointOfInstantiation, InstantiationRange, Template, nullptr,
           {}, &DeductionInfo) {}
+
+Sema::InstantiatingTemplate::InstantiatingTemplate(
+    Sema &SemaRef, SourceLocation PointOfInstantiation,
+    ConstraintNormalization, NamedDecl *Template,
+    SourceRange InstantiationRange)
+    : InstantiatingTemplate(
+          SemaRef, CodeSynthesisContext::ConstraintNormalization,
+          PointOfInstantiation, InstantiationRange, Template) {}
+
+Sema::InstantiatingTemplate::InstantiatingTemplate(
+    Sema &SemaRef, SourceLocation PointOfInstantiation,
+    ParameterMappingSubstitution, NamedDecl *Template,
+    SourceRange InstantiationRange)
+    : InstantiatingTemplate(
+          SemaRef, CodeSynthesisContext::ParameterMappingSubstitution,
+          PointOfInstantiation, InstantiationRange, Template) {}
 
 void Sema::pushCodeSynthesisContext(CodeSynthesisContext Ctx) {
   Ctx.SavedInNonInstantiationSFINAEContext = InNonInstantiationSFINAEContext;
@@ -671,14 +690,29 @@ void Sema::PrintInstantiationStack() {
         << cast<CXXRecordDecl>(Active->Entity) << Active->SpecialMember;
       break;
 
+    case CodeSynthesisContext::DeclaringImplicitEqualityComparison:
+      Diags.Report(Active->Entity->getLocation(),
+                   diag::note_in_declaration_of_implicit_equality_comparison);
+      break;
+
     case CodeSynthesisContext::DefiningSynthesizedFunction: {
-      // FIXME: For synthesized members other than special members, produce a note.
-      auto *MD = dyn_cast<CXXMethodDecl>(Active->Entity);
-      auto CSM = MD ? getSpecialMember(MD) : CXXInvalid;
-      if (CSM != CXXInvalid) {
+      // FIXME: For synthesized functions that are not defaulted,
+      // produce a note.
+      auto *FD = dyn_cast<FunctionDecl>(Active->Entity);
+      DefaultedFunctionKind DFK =
+          FD ? getDefaultedFunctionKind(FD) : DefaultedFunctionKind();
+      if (DFK.isSpecialMember()) {
+        auto *MD = cast<CXXMethodDecl>(FD);
         Diags.Report(Active->PointOfInstantiation,
                      diag::note_member_synthesized_at)
-          << CSM << Context.getTagDeclType(MD->getParent());
+            << MD->isExplicitlyDefaulted() << DFK.asSpecialMember()
+            << Context.getTagDeclType(MD->getParent());
+      } else if (DFK.isComparison()) {
+        Diags.Report(Active->PointOfInstantiation,
+                     diag::note_comparison_synthesized_at)
+            << (int)DFK.asComparison()
+            << Context.getTagDeclType(
+                   cast<CXXRecordDecl>(FD->getLexicalDeclContext()));
       }
       break;
     }
@@ -691,27 +725,41 @@ void Sema::PrintInstantiationStack() {
     case CodeSynthesisContext::Memoization:
       break;
     
-    case CodeSynthesisContext::ConstraintsCheck:
-      if (auto *CD = dyn_cast<ConceptDecl>(Active->Entity)) {
-        SmallVector<char, 128> TemplateArgsStr;
-        llvm::raw_svector_ostream OS(TemplateArgsStr);
-        CD->printName(OS);
-        printTemplateArgumentList(OS, Active->template_arguments(),
-                                  getPrintingPolicy());
-        Diags.Report(Active->PointOfInstantiation,
-                     diag::note_concept_specialization_here)
-          << OS.str()
-          << Active->InstantiationRange;
-        break;
+    case CodeSynthesisContext::ConstraintsCheck: {
+      unsigned DiagID = 0;
+      if (isa<ConceptDecl>(Active->Entity))
+        DiagID = diag::note_concept_specialization_here;
+      else if (isa<TemplateDecl>(Active->Entity))
+        DiagID = diag::note_checking_constraints_for_template_id_here;
+      else if (isa<VarTemplatePartialSpecializationDecl>(Active->Entity))
+        DiagID = diag::note_checking_constraints_for_var_spec_id_here;
+      else {
+        assert(isa<ClassTemplatePartialSpecializationDecl>(Active->Entity));
+        DiagID = diag::note_checking_constraints_for_class_spec_id_here;
       }
-      // TODO: Concepts - implement this for constrained templates and partial
-      // specializations.
-      llvm_unreachable("only concept constraints are supported right now");
+      SmallVector<char, 128> TemplateArgsStr;
+      llvm::raw_svector_ostream OS(TemplateArgsStr);
+      cast<NamedDecl>(Active->Entity)->printName(OS);
+      printTemplateArgumentList(OS, Active->template_arguments(),
+                                getPrintingPolicy());
+      Diags.Report(Active->PointOfInstantiation, DiagID) << OS.str()
+        << Active->InstantiationRange;
       break;
-      
+    }
     case CodeSynthesisContext::ConstraintSubstitution:
       Diags.Report(Active->PointOfInstantiation,
                    diag::note_constraint_substitution_here)
+          << Active->InstantiationRange;
+      break;
+    case CodeSynthesisContext::ConstraintNormalization:
+      Diags.Report(Active->PointOfInstantiation,
+                   diag::note_constraint_normalization_here)
+          << cast<NamedDecl>(Active->Entity)->getName()
+          << Active->InstantiationRange;
+      break;
+    case CodeSynthesisContext::ParameterMappingSubstitution:
+      Diags.Report(Active->PointOfInstantiation,
+                   diag::note_parameter_mapping_substitution_here)
           << Active->InstantiationRange;
       break;
     }
@@ -738,6 +786,8 @@ Optional<TemplateDeductionInfo *> Sema::isSFINAEContext() const {
     case CodeSynthesisContext::DefaultFunctionArgumentInstantiation:
     case CodeSynthesisContext::ExceptionSpecInstantiation:
     case CodeSynthesisContext::ConstraintsCheck:
+    case CodeSynthesisContext::ParameterMappingSubstitution:
+    case CodeSynthesisContext::ConstraintNormalization:
       // This is a template instantiation, so there is no SFINAE.
       return None;
 
@@ -759,6 +809,7 @@ Optional<TemplateDeductionInfo *> Sema::isSFINAEContext() const {
       return Active->DeductionInfo;
 
     case CodeSynthesisContext::DeclaringSpecialMember:
+    case CodeSynthesisContext::DeclaringImplicitEqualityComparison:
     case CodeSynthesisContext::DefiningSynthesizedFunction:
     case CodeSynthesisContext::RewritingOperatorAsSpaceship:
       // This happens in a context unrelated to template instantiation, so
@@ -1514,8 +1565,12 @@ TemplateInstantiator::TransformFunctionTypeParam(ParmVarDecl *OldParm,
                                                  int indexAdjustment,
                                                Optional<unsigned> NumExpansions,
                                                  bool ExpectParameterPack) {
-  return SemaRef.SubstParmVarDecl(OldParm, TemplateArgs, indexAdjustment,
-                                  NumExpansions, ExpectParameterPack);
+  auto NewParm =
+      SemaRef.SubstParmVarDecl(OldParm, TemplateArgs, indexAdjustment,
+                               NumExpansions, ExpectParameterPack);
+  if (NewParm && SemaRef.getLangOpts().OpenCL)
+    SemaRef.deduceOpenCLAddressSpace(NewParm);
+  return NewParm;
 }
 
 QualType
@@ -2219,11 +2274,13 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
   // Finish checking fields.
   ActOnFields(nullptr, Instantiation->getLocation(), Instantiation, Fields,
               SourceLocation(), SourceLocation(), ParsedAttributesView());
-  CheckCompletedCXXClass(Instantiation);
+  CheckCompletedCXXClass(nullptr, Instantiation);
 
   // Default arguments are parsed, if not instantiated. We can go instantiate
-  // default arg exprs for default constructors if necessary now.
-  ActOnFinishCXXNonNestedClass(Instantiation);
+  // default arg exprs for default constructors if necessary now. Unless we're
+  // parsing a class, in which case wait until that's finished.
+  if (ParsingClassDepth == 0)
+    ActOnFinishCXXNonNestedClass();
 
   // Instantiate late parsed attributes, and attach them to their decls.
   // See Sema::InstantiateAttrs
@@ -2898,6 +2955,17 @@ Sema::SubstStmt(Stmt *S, const MultiLevelTemplateArgumentList &TemplateArgs) {
                                     SourceLocation(),
                                     DeclarationName());
   return Instantiator.TransformStmt(S);
+}
+
+bool Sema::SubstTemplateArguments(
+    ArrayRef<TemplateArgumentLoc> Args,
+    const MultiLevelTemplateArgumentList &TemplateArgs,
+    TemplateArgumentListInfo &Out) {
+  TemplateInstantiator Instantiator(*this, TemplateArgs,
+                                    SourceLocation(),
+                                    DeclarationName());
+  return Instantiator.TransformTemplateArguments(Args.begin(), Args.end(),
+                                                 Out);
 }
 
 ExprResult

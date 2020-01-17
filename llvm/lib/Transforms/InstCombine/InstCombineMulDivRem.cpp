@@ -1239,6 +1239,14 @@ Instruction *InstCombiner::visitFDiv(BinaryOperator &I) {
       Value *YZ = Builder.CreateFMulFMF(Y, Op0, &I);
       return BinaryOperator::CreateFDivFMF(YZ, X, &I);
     }
+    // Z / (1.0 / Y) => (Y * Z)
+    //
+    // This is a special case of Z / (X / Y) => (Y * Z) / X, with X = 1.0. The
+    // m_OneUse check is avoided because even in the case of the multiple uses
+    // for 1.0/Y, the number of instructions remain the same and a division is
+    // replaced by a multiplication.
+    if (match(Op1, m_FDiv(m_SpecificFP(1.0), m_Value(Y))))
+      return BinaryOperator::CreateFMulFMF(Y, Op0, &I);
   }
 
   if (I.hasAllowReassoc() && Op0->hasOneUse() && Op1->hasOneUse()) {
@@ -1368,8 +1376,10 @@ Instruction *InstCombiner::visitURem(BinaryOperator &I) {
   }
 
   // 1 urem X -> zext(X != 1)
-  if (match(Op0, m_One()))
-    return CastInst::CreateZExtOrBitCast(Builder.CreateICmpNE(Op1, Op0), Ty);
+  if (match(Op0, m_One())) {
+    Value *Cmp = Builder.CreateICmpNE(Op1, ConstantInt::get(Ty, 1));
+    return CastInst::CreateZExtOrBitCast(Cmp, Ty);
+  }
 
   // X urem C -> X < C ? X : X - C, where C >= signbit.
   if (match(Op1, m_Negative())) {

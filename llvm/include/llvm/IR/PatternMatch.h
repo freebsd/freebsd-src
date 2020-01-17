@@ -35,6 +35,7 @@
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Operator.h"
 #include "llvm/IR/Value.h"
@@ -365,7 +366,7 @@ inline api_pred_ty<is_negative> m_Negative(const APInt *&V) {
 struct is_nonnegative {
   bool isValue(const APInt &C) { return C.isNonNegative(); }
 };
-/// Match an integer or vector of nonnegative values.
+/// Match an integer or vector of non-negative values.
 /// For vectors, this includes constants with undefined elements.
 inline cst_pred_ty<is_nonnegative> m_NonNegative() {
   return cst_pred_ty<is_nonnegative>();
@@ -373,6 +374,28 @@ inline cst_pred_ty<is_nonnegative> m_NonNegative() {
 inline api_pred_ty<is_nonnegative> m_NonNegative(const APInt *&V) {
   return V;
 }
+
+struct is_strictlypositive {
+  bool isValue(const APInt &C) { return C.isStrictlyPositive(); }
+};
+/// Match an integer or vector of strictly positive values.
+/// For vectors, this includes constants with undefined elements.
+inline cst_pred_ty<is_strictlypositive> m_StrictlyPositive() {
+  return cst_pred_ty<is_strictlypositive>();
+}
+inline api_pred_ty<is_strictlypositive> m_StrictlyPositive(const APInt *&V) {
+  return V;
+}
+
+struct is_nonpositive {
+  bool isValue(const APInt &C) { return C.isNonPositive(); }
+};
+/// Match an integer or vector of non-positive values.
+/// For vectors, this includes constants with undefined elements.
+inline cst_pred_ty<is_nonpositive> m_NonPositive() {
+  return cst_pred_ty<is_nonpositive>();
+}
+inline api_pred_ty<is_nonpositive> m_NonPositive(const APInt *&V) { return V; }
 
 struct is_one {
   bool isValue(const APInt &C) { return C.isOneValue(); }
@@ -558,6 +581,8 @@ inline bind_ty<const Value> m_Value(const Value *&V) { return V; }
 inline bind_ty<Instruction> m_Instruction(Instruction *&I) { return I; }
 /// Match a binary operator, capturing it if we match.
 inline bind_ty<BinaryOperator> m_BinOp(BinaryOperator *&I) { return I; }
+/// Match a with overflow intrinsic, capturing it if we match.
+inline bind_ty<WithOverflowInst> m_WithOverflowInst(WithOverflowInst *&I) { return I; }
 
 /// Match a ConstantInt, capturing the value if we match.
 inline bind_ty<ConstantInt> m_ConstantInt(ConstantInt *&CI) { return CI; }
@@ -1230,6 +1255,12 @@ m_SelectCst(const Cond &C) {
   return m_Select(C, m_ConstantInt<L>(), m_ConstantInt<R>());
 }
 
+/// Matches FreezeInst.
+template <typename OpTy>
+inline OneOps_match<OpTy, Instruction::Freeze> m_Freeze(const OpTy &Op) {
+  return OneOps_match<OpTy, Instruction::Freeze>(Op);
+}
+
 /// Matches InsertElementInst.
 template <typename Val_t, typename Elt_t, typename Idx_t>
 inline ThreeOps_match<Val_t, Elt_t, Idx_t, Instruction::InsertElement>
@@ -1727,6 +1758,12 @@ struct m_Intrinsic_Ty<T0, T1, T2, T3> {
                         Argument_match<T3>>;
 };
 
+template <typename T0, typename T1, typename T2, typename T3, typename T4>
+struct m_Intrinsic_Ty<T0, T1, T2, T3, T4> {
+  using Ty = match_combine_and<typename m_Intrinsic_Ty<T0, T1, T2, T3>::Ty,
+                               Argument_match<T4>>;
+};
+
 /// Match intrinsic calls like this:
 /// m_Intrinsic<Intrinsic::fabs>(m_Value(X))
 template <Intrinsic::ID IntrID> inline IntrinsicID_match m_Intrinsic() {
@@ -1755,6 +1792,15 @@ template <Intrinsic::ID IntrID, typename T0, typename T1, typename T2,
 inline typename m_Intrinsic_Ty<T0, T1, T2, T3>::Ty
 m_Intrinsic(const T0 &Op0, const T1 &Op1, const T2 &Op2, const T3 &Op3) {
   return m_CombineAnd(m_Intrinsic<IntrID>(Op0, Op1, Op2), m_Argument<3>(Op3));
+}
+
+template <Intrinsic::ID IntrID, typename T0, typename T1, typename T2,
+          typename T3, typename T4>
+inline typename m_Intrinsic_Ty<T0, T1, T2, T3, T4>::Ty
+m_Intrinsic(const T0 &Op0, const T1 &Op1, const T2 &Op2, const T3 &Op3,
+            const T4 &Op4) {
+  return m_CombineAnd(m_Intrinsic<IntrID>(Op0, Op1, Op2, Op3),
+                      m_Argument<4>(Op4));
 }
 
 // Helper intrinsic matching specializations.
@@ -1935,6 +1981,25 @@ template <typename Opnd_t> struct Signum_match {
 ///      x <  0  -> -1
 template <typename Val_t> inline Signum_match<Val_t> m_Signum(const Val_t &V) {
   return Signum_match<Val_t>(V);
+}
+
+template <int Ind, typename Opnd_t> struct ExtractValue_match {
+  Opnd_t Val;
+  ExtractValue_match(const Opnd_t &V) : Val(V) {}
+
+  template <typename OpTy> bool match(OpTy *V) {
+    if (auto *I = dyn_cast<ExtractValueInst>(V))
+      return I->getNumIndices() == 1 && I->getIndices()[0] == Ind &&
+             Val.match(I->getAggregateOperand());
+    return false;
+  }
+};
+
+/// Match a single index ExtractValue instruction.
+/// For example m_ExtractValue<1>(...)
+template <int Ind, typename Val_t>
+inline ExtractValue_match<Ind, Val_t> m_ExtractValue(const Val_t &V) {
+  return ExtractValue_match<Ind, Val_t>(V);
 }
 
 } // end namespace PatternMatch

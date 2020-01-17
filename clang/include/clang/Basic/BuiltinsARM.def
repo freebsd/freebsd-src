@@ -115,6 +115,8 @@ BUILTIN(__builtin_arm_smusdx, "iii", "nc")
 
 // Bit manipulation
 BUILTIN(__builtin_arm_rbit, "UiUi", "nc")
+BUILTIN(__builtin_arm_cls, "UiZUi", "nc")
+BUILTIN(__builtin_arm_cls64, "UiWUi", "nc")
 
 // Store and load exclusive
 BUILTIN(__builtin_arm_ldrexd, "LLUiv*", "")
@@ -164,6 +166,12 @@ BUILTIN(__builtin_arm_crc32cw, "UiUiUi", "nc")
 BUILTIN(__builtin_arm_crc32d, "UiUiLLUi", "nc")
 BUILTIN(__builtin_arm_crc32cd, "UiUiLLUi", "nc")
 
+// ARMv8-M Security Extensions a.k.a CMSE
+BUILTIN(__builtin_arm_cmse_TT, "Uiv*", "n")
+BUILTIN(__builtin_arm_cmse_TTT, "Uiv*", "n")
+BUILTIN(__builtin_arm_cmse_TTA, "Uiv*", "n")
+BUILTIN(__builtin_arm_cmse_TTAT, "Uiv*", "n")
+
 // HINT
 BUILTIN(__builtin_arm_nop, "v", "")
 BUILTIN(__builtin_arm_yield, "v", "")
@@ -188,6 +196,11 @@ BUILTIN(__builtin_arm_rsrp, "v*cC*", "nc")
 BUILTIN(__builtin_arm_wsr, "vcC*Ui", "nc")
 BUILTIN(__builtin_arm_wsr64, "vcC*LLUi", "nc")
 BUILTIN(__builtin_arm_wsrp, "vcC*vC*", "nc")
+
+// Builtins for implementing ACLE MVE intrinsics. (Unlike NEON, these
+// don't need to live in a separate BuiltinsMVE.def, because they
+// aren't included from both here and BuiltinsAArch64.def.)
+#include "clang/Basic/arm_mve_builtins.inc"
 
 // MSVC
 LANGBUILTIN(__emit, "vIUiC", "", ALL_MS_LANGUAGES)

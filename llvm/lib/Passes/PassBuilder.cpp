@@ -61,6 +61,7 @@
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/SafepointIRVerifier.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/Regex.h"
@@ -85,6 +86,7 @@
 #include "llvm/Transforms/IPO/Inliner.h"
 #include "llvm/Transforms/IPO/Internalize.h"
 #include "llvm/Transforms/IPO/LowerTypeTests.h"
+#include "llvm/Transforms/IPO/MergeFunctions.h"
 #include "llvm/Transforms/IPO/PartialInlining.h"
 #include "llvm/Transforms/IPO/SCCP.h"
 #include "llvm/Transforms/IPO/SampleProfile.h"
@@ -145,6 +147,7 @@
 #include "llvm/Transforms/Scalar/LowerConstantIntrinsics.h"
 #include "llvm/Transforms/Scalar/LowerExpectIntrinsic.h"
 #include "llvm/Transforms/Scalar/LowerGuardIntrinsic.h"
+#include "llvm/Transforms/Scalar/LowerMatrixIntrinsics.h"
 #include "llvm/Transforms/Scalar/LowerWidenableCondition.h"
 #include "llvm/Transforms/Scalar/MakeGuardsExplicit.h"
 #include "llvm/Transforms/Scalar/MemCpyOptimizer.h"
@@ -169,6 +172,7 @@
 #include "llvm/Transforms/Utils/BreakCriticalEdges.h"
 #include "llvm/Transforms/Utils/CanonicalizeAliases.h"
 #include "llvm/Transforms/Utils/EntryExitInstrumenter.h"
+#include "llvm/Transforms/Utils/InjectTLIMappings.h"
 #include "llvm/Transforms/Utils/LCSSA.h"
 #include "llvm/Transforms/Utils/LibCallsShrinkWrap.h"
 #include "llvm/Transforms/Utils/LoopSimplify.h"
@@ -188,6 +192,11 @@ static cl::opt<bool>
     RunPartialInlining("enable-npm-partial-inlining", cl::init(false),
                        cl::Hidden, cl::ZeroOrMore,
                        cl::desc("Run Partial inlinining pass"));
+
+static cl::opt<int> PreInlineThreshold(
+    "npm-preinline-threshold", cl::Hidden, cl::init(75), cl::ZeroOrMore,
+    cl::desc("Control the amount of inlining in pre-instrumentation inliner "
+             "(default = 75)"));
 
 static cl::opt<bool>
     RunNewGVN("enable-npm-newgvn", cl::init(false),
@@ -398,21 +407,25 @@ PassBuilder::buildFunctionSimplificationPipeline(OptimizationLevel Level,
   FPM.addPass(EarlyCSEPass(true /* Enable mem-ssa. */));
 
   // Hoisting of scalars and load expressions.
-  if (EnableGVNHoist)
-    FPM.addPass(GVNHoistPass());
+  if (Level > O1) {
+    if (EnableGVNHoist)
+      FPM.addPass(GVNHoistPass());
 
-  // Global value numbering based sinking.
-  if (EnableGVNSink) {
-    FPM.addPass(GVNSinkPass());
-    FPM.addPass(SimplifyCFGPass());
+    // Global value numbering based sinking.
+    if (EnableGVNSink) {
+      FPM.addPass(GVNSinkPass());
+      FPM.addPass(SimplifyCFGPass());
+    }
   }
 
   // Speculative execution if the target has divergent branches; otherwise nop.
-  FPM.addPass(SpeculativeExecutionPass());
+  if (Level > O1) {
+    FPM.addPass(SpeculativeExecutionPass());
 
-  // Optimize based on known information about branches, and cleanup afterward.
-  FPM.addPass(JumpThreadingPass());
-  FPM.addPass(CorrelatedValuePropagationPass());
+    // Optimize based on known information about branches, and cleanup afterward.
+    FPM.addPass(JumpThreadingPass());
+    FPM.addPass(CorrelatedValuePropagationPass());
+  }
   FPM.addPass(SimplifyCFGPass());
   if (Level == O3)
     FPM.addPass(AggressiveInstCombinePass());
@@ -426,10 +439,12 @@ PassBuilder::buildFunctionSimplificationPipeline(OptimizationLevel Level,
   // For PGO use pipeline, try to optimize memory intrinsics such as memcpy
   // using the size value profile. Don't perform this when optimizing for size.
   if (PGOOpt && PGOOpt->Action == PGOOptions::IRUse &&
-      !isOptimizingForSize(Level))
+      !isOptimizingForSize(Level) && Level > O1)
     FPM.addPass(PGOMemOPSizeOpt());
 
-  FPM.addPass(TailCallElimPass());
+  // TODO: Investigate the cost/benefit of tail call elimination on debugging.
+  if (Level > O1)
+    FPM.addPass(TailCallElimPass());
   FPM.addPass(SimplifyCFGPass());
 
   // Form canonically associated expression trees, and simplify the trees using
@@ -456,6 +471,7 @@ PassBuilder::buildFunctionSimplificationPipeline(OptimizationLevel Level,
 
   // Rotate Loop - disable header duplication at -Oz
   LPM1.addPass(LoopRotatePass(Level != Oz));
+  // TODO: Investigate promotion cap for O1.
   LPM1.addPass(LICMPass(PTO.LicmMssaOptCap, PTO.LicmMssaNoAccForPromotionCap));
   LPM1.addPass(SimpleLoopUnswitchPass());
   LPM2.addPass(IndVarSimplifyPass());
@@ -490,6 +506,9 @@ PassBuilder::buildFunctionSimplificationPipeline(OptimizationLevel Level,
   FPM.addPass(createFunctionToLoopPassAdaptor(
       std::move(LPM2), /*UseMemorySSA=*/false, DebugLogging));
 
+  // Delete small array after loop unroll.
+  FPM.addPass(SROA());
+
   // Eliminate redundancies.
   if (Level != O1) {
     // These passes add substantial compile time so skip them at O1.
@@ -520,18 +539,21 @@ PassBuilder::buildFunctionSimplificationPipeline(OptimizationLevel Level,
 
   // Re-consider control flow based optimizations after redundancy elimination,
   // redo DCE, etc.
-  FPM.addPass(JumpThreadingPass());
-  FPM.addPass(CorrelatedValuePropagationPass());
-  FPM.addPass(DSEPass());
-  FPM.addPass(createFunctionToLoopPassAdaptor(
-      LICMPass(PTO.LicmMssaOptCap, PTO.LicmMssaNoAccForPromotionCap),
-      EnableMSSALoopDependency, DebugLogging));
+  if (Level > O1) {
+    FPM.addPass(JumpThreadingPass());
+    FPM.addPass(CorrelatedValuePropagationPass());
+    FPM.addPass(DSEPass());
+    FPM.addPass(createFunctionToLoopPassAdaptor(
+        LICMPass(PTO.LicmMssaOptCap, PTO.LicmMssaNoAccForPromotionCap),
+        EnableMSSALoopDependency, DebugLogging));
+  }
 
   for (auto &C : ScalarOptimizerLateEPCallbacks)
     C(FPM, Level);
 
   // Finally, do an expensive DCE pass to catch all the dead code exposed by
   // the simplifications and basic cleanup after all the simplifications.
+  // TODO: Investigate if this is too expensive.
   FPM.addPass(ADCEPass());
   FPM.addPass(SimplifyCFGPass());
   FPM.addPass(InstCombinePass());
@@ -559,8 +581,7 @@ void PassBuilder::addPGOInstrPasses(ModulePassManager &MPM, bool DebugLogging,
   if (!isOptimizingForSize(Level) && !IsCS) {
     InlineParams IP;
 
-    // In the old pass manager, this is a cl::opt. Should still this be one?
-    IP.DefaultThreshold = 75;
+    IP.DefaultThreshold = PreInlineThreshold;
 
     // FIXME: The hint threshold has the same value used by the regular inliner.
     // This should probably be lowered after performance testing.
@@ -954,8 +975,7 @@ ModulePassManager PassBuilder::buildModuleOptimizationPipeline(
   // across the loop nests.
   // We do UnrollAndJam in a separate LPM to ensure it happens before unroll
   if (EnableUnrollAndJam && PTO.LoopUnrolling) {
-    OptimizePM.addPass(
-        createFunctionToLoopPassAdaptor(LoopUnrollAndJamPass(Level)));
+    OptimizePM.addPass(LoopUnrollAndJamPass(Level));
   }
   OptimizePM.addPass(LoopUnrollPass(
       LoopUnrollOptions(Level, /*OnlyWhenForced=*/!PTO.LoopUnrolling,
@@ -1445,7 +1465,7 @@ auto parsePassParameters(ParametersParseCallableT &&Parser, StringRef Name,
   Expected<ParametersT> Result = Parser(Params);
   assert((Result || Result.template errorIsA<StringError>()) &&
          "Pass parameter parser can only return StringErrors.");
-  return std::move(Result);
+  return Result;
 }
 
 /// Parser of parameters for LoopUnroll pass.
@@ -1886,6 +1906,12 @@ Error PassBuilder::parseModulePass(ModulePassManager &MPM,
       // Do nothing else at all!
       return Error::success();
     }
+
+    // This is consistent with old pass manager invoked via opt, but
+    // inconsistent with clang. Clang doesn't enable loop vectorization
+    // but does enable slp vectorization at Oz.
+    PTO.LoopVectorization = L > O1 && L < Oz;
+    PTO.SLPVectorization = L > O1 && L < Oz;
 
     if (Matches[1] == "default") {
       MPM.addPass(buildPerModuleDefaultPipeline(L, DebugLogging));

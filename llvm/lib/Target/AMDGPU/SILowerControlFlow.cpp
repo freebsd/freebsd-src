@@ -244,9 +244,9 @@ void SILowerControlFlow::emitIf(MachineInstr &MI) {
     BuildMI(MBB, I, DL, TII->get(MovTermOpc), Exec)
     .addReg(Tmp, RegState::Kill);
 
-  // Insert a pseudo terminator to help keep the verifier happy. This will also
-  // be used later when inserting skips.
-  MachineInstr *NewBr = BuildMI(MBB, I, DL, TII->get(AMDGPU::SI_MASK_BRANCH))
+  // Insert the S_CBRANCH_EXECZ instruction which will be optimized later
+  // during SIRemoveShortExecBranches.
+  MachineInstr *NewBr = BuildMI(MBB, I, DL, TII->get(AMDGPU::S_CBRANCH_EXECZ))
                             .add(MI.getOperand(2));
 
   if (!LIS) {
@@ -323,8 +323,8 @@ void SILowerControlFlow::emitElse(MachineInstr &MI) {
     .addReg(DstReg);
 
   MachineInstr *Branch =
-    BuildMI(MBB, ElsePt, DL, TII->get(AMDGPU::SI_MASK_BRANCH))
-    .addMBB(DestBB);
+      BuildMI(MBB, ElsePt, DL, TII->get(AMDGPU::S_CBRANCH_EXECZ))
+          .addMBB(DestBB);
 
   if (!LIS) {
     MI.eraseFromParent();
@@ -372,12 +372,15 @@ void SILowerControlFlow::emitIfBreak(MachineInstr &MI) {
   // exit" mask.
   MachineInstr *And = nullptr, *Or = nullptr;
   if (!SkipAnding) {
-    And = BuildMI(MBB, &MI, DL, TII->get(AndOpc), Dst)
+    Register AndReg = MRI->createVirtualRegister(BoolRC);
+    And = BuildMI(MBB, &MI, DL, TII->get(AndOpc), AndReg)
              .addReg(Exec)
              .add(MI.getOperand(1));
     Or = BuildMI(MBB, &MI, DL, TII->get(OrOpc), Dst)
-             .addReg(Dst)
+             .addReg(AndReg)
              .add(MI.getOperand(2));
+    if (LIS)
+      LIS->createAndComputeVirtRegInterval(AndReg);
   } else
     Or = BuildMI(MBB, &MI, DL, TII->get(OrOpc), Dst)
              .add(MI.getOperand(1))

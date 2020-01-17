@@ -423,7 +423,7 @@ static bool tryDiagnoseOverloadedCast(Sema &S, CastType CT,
 
   case OR_Ambiguous:
     msg = diag::err_ovl_ambiguous_conversion_in_cast;
-    howManyCandidates = OCD_ViableCandidates;
+    howManyCandidates = OCD_AmbiguousCandidates;
     break;
 
   case OR_Deleted:
@@ -740,7 +740,7 @@ void CastOperation::CheckDynamicCast() {
     assert(DestPointer && "Reference to void is not possible");
   } else if (DestRecord) {
     if (Self.RequireCompleteType(OpRange.getBegin(), DestPointee,
-                                 diag::err_bad_dynamic_cast_incomplete,
+                                 diag::err_bad_cast_incomplete,
                                  DestRange)) {
       SrcExpr = ExprError();
       return;
@@ -763,7 +763,7 @@ void CastOperation::CheckDynamicCast() {
       SrcPointee = SrcPointer->getPointeeType();
     } else {
       Self.Diag(OpRange.getBegin(), diag::err_bad_dynamic_cast_not_ptr)
-        << OrigSrcType << SrcExpr.get()->getSourceRange();
+          << OrigSrcType << this->DestType << SrcExpr.get()->getSourceRange();
       SrcExpr = ExprError();
       return;
     }
@@ -785,7 +785,7 @@ void CastOperation::CheckDynamicCast() {
   const RecordType *SrcRecord = SrcPointee->getAs<RecordType>();
   if (SrcRecord) {
     if (Self.RequireCompleteType(OpRange.getBegin(), SrcPointee,
-                                 diag::err_bad_dynamic_cast_incomplete,
+                                 diag::err_bad_cast_incomplete,
                                  SrcExpr.get())) {
       SrcExpr = ExprError();
       return;
@@ -1182,6 +1182,11 @@ static TryCastResult TryStaticCast(Sema &Self, ExprResult &SrcExpr,
   // The same goes for reverse floating point promotion/conversion and
   // floating-integral conversions. Again, only floating->enum is relevant.
   if (DestType->isEnumeralType()) {
+    if (Self.RequireCompleteType(OpRange.getBegin(), DestType,
+                                 diag::err_bad_cast_incomplete)) {
+      SrcExpr = ExprError();
+      return TC_Failed;
+    }
     if (SrcType->isIntegralOrEnumerationType()) {
       Kind = CK_IntegralCast;
       return TC_Success;
@@ -1301,10 +1306,6 @@ TryCastResult TryLValueToRValueCast(Sema &Self, Expr *SrcExpr,
   // Because we try the reference downcast before this function, from now on
   // this is the only cast possibility, so we issue an error if we fail now.
   // FIXME: Should allow casting away constness if CStyle.
-  bool DerivedToBase;
-  bool ObjCConversion;
-  bool ObjCLifetimeConversion;
-  bool FunctionConversion;
   QualType FromType = SrcExpr->getType();
   QualType ToType = R->getPointeeType();
   if (CStyle) {
@@ -1312,9 +1313,9 @@ TryCastResult TryLValueToRValueCast(Sema &Self, Expr *SrcExpr,
     ToType = ToType.getUnqualifiedType();
   }
 
+  Sema::ReferenceConversions RefConv;
   Sema::ReferenceCompareResult RefResult = Self.CompareReferenceRelationship(
-      SrcExpr->getBeginLoc(), ToType, FromType, DerivedToBase, ObjCConversion,
-      ObjCLifetimeConversion, FunctionConversion);
+      SrcExpr->getBeginLoc(), ToType, FromType, &RefConv);
   if (RefResult != Sema::Ref_Compatible) {
     if (CStyle || RefResult == Sema::Ref_Incompatible)
       return TC_NotApplicable;
@@ -1326,7 +1327,7 @@ TryCastResult TryLValueToRValueCast(Sema &Self, Expr *SrcExpr,
     return TC_Failed;
   }
 
-  if (DerivedToBase) {
+  if (RefConv & Sema::ReferenceConversions::DerivedToBase) {
     Kind = CK_DerivedToBase;
     CXXBasePaths Paths(/*FindAmbiguities=*/true, /*RecordPaths=*/true,
                        /*DetectVirtual=*/true);
@@ -1651,7 +1652,7 @@ TryStaticImplicitCast(Sema &Self, ExprResult &SrcExpr, QualType DestType,
                       CastKind &Kind, bool ListInitialization) {
   if (DestType->isRecordType()) {
     if (Self.RequireCompleteType(OpRange.getBegin(), DestType,
-                                 diag::err_bad_dynamic_cast_incomplete) ||
+                                 diag::err_bad_cast_incomplete) ||
         Self.RequireNonAbstractType(OpRange.getBegin(), DestType,
                                     diag::err_allocation_of_abstract_type)) {
       msg = 0;
@@ -2007,7 +2008,7 @@ static bool fixOverloadedReinterpretCastExpr(Sema &Self, QualType DestType,
   // No guarantees that ResolveAndFixSingleFunctionTemplateSpecialization
   // preserves Result.
   Result = E;
-  if (!Self.resolveAndFixAddressOfOnlyViableOverloadCandidate(
+  if (!Self.resolveAndFixAddressOfSingleOverloadCandidate(
           Result, /*DoFunctionPointerConversion=*/true))
     return false;
   return Result.isUsable();

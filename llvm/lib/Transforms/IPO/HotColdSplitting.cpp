@@ -25,6 +25,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Transforms/IPO/HotColdSplitting.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
@@ -53,13 +54,14 @@
 #include "llvm/IR/Use.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/BlockFrequency.h"
 #include "llvm/Support/BranchProbability.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO.h"
-#include "llvm/Transforms/IPO/HotColdSplitting.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Cloning.h"
@@ -205,6 +207,11 @@ bool HotColdSplitting::shouldOutlineFrom(const Function &F) const {
   if (F.hasFnAttribute(Attribute::NoInline))
     return false;
 
+  // A function marked `noreturn` may contain unreachable terminators: these
+  // should not be considered cold, as the function may be a trampoline.
+  if (F.hasFnAttribute(Attribute::NoReturn))
+    return false;
+
   if (F.hasFnAttribute(Attribute::SanitizeAddress) ||
       F.hasFnAttribute(Attribute::SanitizeHWAddress) ||
       F.hasFnAttribute(Attribute::SanitizeThread) ||
@@ -325,6 +332,9 @@ Function *HotColdSplitting::extractColdRegion(
       CS.setCallingConv(CallingConv::Cold);
     }
     CI->setIsNoInline();
+
+    if (OrigF->hasSection())
+      OutF->setSection(OrigF->getSection());
 
     markFunctionCold(*OutF, BFI != nullptr);
 

@@ -30,8 +30,21 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsAArch64.h"
+#include "llvm/IR/IntrinsicsAMDGPU.h"
+#include "llvm/IR/IntrinsicsARM.h"
+#include "llvm/IR/IntrinsicsBPF.h"
+#include "llvm/IR/IntrinsicsHexagon.h"
+#include "llvm/IR/IntrinsicsMips.h"
+#include "llvm/IR/IntrinsicsNVPTX.h"
+#include "llvm/IR/IntrinsicsPowerPC.h"
+#include "llvm/IR/IntrinsicsR600.h"
+#include "llvm/IR/IntrinsicsRISCV.h"
+#include "llvm/IR/IntrinsicsS390.h"
+#include "llvm/IR/IntrinsicsWebAssembly.h"
+#include "llvm/IR/IntrinsicsX86.h"
+#include "llvm/IR/IntrinsicsXCore.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/IR/Metadata.h"
@@ -111,6 +124,11 @@ bool Argument::hasByValOrInAllocaAttr() const {
 unsigned Argument::getParamAlignment() const {
   assert(getType()->isPointerTy() && "Only pointers have alignments");
   return getParent()->getParamAlignment(getArgNo());
+}
+
+MaybeAlign Argument::getParamAlign() const {
+  assert(getType()->isPointerTy() && "Only pointers have alignments");
+  return getParent()->getParamAlign(getArgNo());
 }
 
 Type *Argument::getParamByValType() const {
@@ -560,7 +578,8 @@ Intrinsic::ID Function::lookupIntrinsicID(StringRef Name) {
   const auto MatchSize = strlen(NameTable[Idx]);
   assert(Name.size() >= MatchSize && "Expected either exact or prefix match");
   bool IsExactMatch = Name.size() == MatchSize;
-  return IsExactMatch || isOverloaded(ID) ? ID : Intrinsic::not_intrinsic;
+  return IsExactMatch || Intrinsic::isOverloaded(ID) ? ID
+                                                     : Intrinsic::not_intrinsic;
 }
 
 void Function::recalculateIntrinsicID() {
@@ -639,7 +658,7 @@ static std::string getMangledTypeStr(Type* Ty) {
 
 StringRef Intrinsic::getName(ID id) {
   assert(id < num_intrinsics && "Invalid intrinsic ID!");
-  assert(!isOverloaded(id) &&
+  assert(!Intrinsic::isOverloaded(id) &&
          "This version of getName does not support overloading");
   return IntrinsicNameTable[id];
 }
@@ -1533,6 +1552,11 @@ void Function::setEntryCount(ProfileCount Count,
   auto PrevCount = getEntryCount();
   assert(!PrevCount.hasValue() || PrevCount.getType() == Count.getType());
 #endif
+
+  auto ImportGUIDs = getImportGUIDs();
+  if (S == nullptr && ImportGUIDs.size())
+    S = &ImportGUIDs;
+
   MDBuilder MDB(getContext());
   setMetadata(
       LLVMContext::MD_prof,

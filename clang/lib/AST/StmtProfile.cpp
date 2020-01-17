@@ -769,7 +769,13 @@ void OMPClauseProfiler::VisitOMPIsDevicePtrClause(
     const OMPIsDevicePtrClause *C) {
   VisitOMPClauseList(C);
 }
+void OMPClauseProfiler::VisitOMPNontemporalClause(
+    const OMPNontemporalClause *C) {
+  VisitOMPClauseList(C);
+  for (auto *E : C->private_refs())
+    Profiler->VisitStmt(E);
 }
+} // namespace
 
 void
 StmtProfiler::VisitOMPExecutableDirective(const OMPExecutableDirective *S) {
@@ -831,6 +837,11 @@ StmtProfiler::VisitOMPParallelForDirective(const OMPParallelForDirective *S) {
 void StmtProfiler::VisitOMPParallelForSimdDirective(
     const OMPParallelForSimdDirective *S) {
   VisitOMPLoopDirective(S);
+}
+
+void StmtProfiler::VisitOMPParallelMasterDirective(
+    const OMPParallelMasterDirective *S) {
+  VisitOMPExecutableDirective(S);
 }
 
 void StmtProfiler::VisitOMPParallelSectionsDirective(
@@ -934,6 +945,11 @@ void StmtProfiler::VisitOMPMasterTaskLoopSimdDirective(
 
 void StmtProfiler::VisitOMPParallelMasterTaskLoopDirective(
     const OMPParallelMasterTaskLoopDirective *S) {
+  VisitOMPLoopDirective(S);
+}
+
+void StmtProfiler::VisitOMPParallelMasterTaskLoopSimdDirective(
+    const OMPParallelMasterTaskLoopSimdDirective *S) {
   VisitOMPLoopDirective(S);
 }
 
@@ -1291,7 +1307,7 @@ void StmtProfiler::VisitBlockExpr(const BlockExpr *S) {
 
 void StmtProfiler::VisitGenericSelectionExpr(const GenericSelectionExpr *S) {
   VisitExpr(S);
-  for (const GenericSelectionExpr::ConstAssociation &Assoc :
+  for (const GenericSelectionExpr::ConstAssociation Assoc :
        S->associations()) {
     QualType T = Assoc.getType();
     if (T.isNull())

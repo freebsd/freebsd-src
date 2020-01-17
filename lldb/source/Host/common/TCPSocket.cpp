@@ -20,7 +20,7 @@
 #include "llvm/Support/Errno.h"
 #include "llvm/Support/raw_ostream.h"
 
-#ifndef LLDB_DISABLE_POSIX
+#if LLDB_ENABLE_POSIX
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
@@ -149,9 +149,9 @@ Status TCPSocket::Connect(llvm::StringRef name) {
   if (!DecodeHostAndPort(name, host_str, port_str, port, &error))
     return error;
 
-  auto addresses = lldb_private::SocketAddress::GetAddressInfo(
+  std::vector<SocketAddress> addresses = SocketAddress::GetAddressInfo(
       host_str.c_str(), nullptr, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP);
-  for (auto address : addresses) {
+  for (SocketAddress &address : addresses) {
     error = CreateSocket(address.GetFamily());
     if (error.Fail())
       continue;
@@ -187,9 +187,9 @@ Status TCPSocket::Listen(llvm::StringRef name, int backlog) {
 
   if (host_str == "*")
     host_str = "0.0.0.0";
-  auto addresses = lldb_private::SocketAddress::GetAddressInfo(
+  std::vector<SocketAddress> addresses = SocketAddress::GetAddressInfo(
       host_str.c_str(), nullptr, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP);
-  for (auto address : addresses) {
+  for (SocketAddress &address : addresses) {
     int fd = Socket::CreateSocket(address.GetFamily(), kType, IPPROTO_TCP,
                                   m_child_processes_inherit, error);
     if (error.Fail()) {
@@ -273,7 +273,7 @@ Status TCPSocket::Accept(Socket *&conn_socket) {
   // Loop until we are happy with our connection
   while (!accept_connection) {
     accept_loop.Run();
-    
+
     if (error.Fail())
         return error;
 

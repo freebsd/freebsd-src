@@ -30,6 +30,8 @@
 #include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/IR/Dominators.h"
+#include "llvm/InitializePasses.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/LoopPassManager.h"
 #include "llvm/Transforms/Utils.h"
@@ -659,6 +661,9 @@ static bool mergeBlocksIntoPredecessors(Loop &L, DominatorTree &DT,
 
     // Merge Succ into Pred and delete it.
     MergeBlockIntoPredecessor(Succ, &DTU, &LI, MSSAU);
+
+    if (MSSAU && VerifyMemorySSA)
+      MSSAU->getMemorySSA()->verifyMemorySSA();
 
     Changed = true;
   }

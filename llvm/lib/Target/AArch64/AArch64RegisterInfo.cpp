@@ -43,6 +43,8 @@ AArch64RegisterInfo::AArch64RegisterInfo(const Triple &TT)
 const MCPhysReg *
 AArch64RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   assert(MF && "Invalid MachineFunction pointer.");
+  if (MF->getFunction().getCallingConv() == CallingConv::CFGuard_Check)
+    return CSR_Win_AArch64_CFGuard_Check_SaveList;
   if (MF->getSubtarget<AArch64Subtarget>().isTargetWindows())
     return CSR_Win_AArch64_AAPCS_SaveList;
   if (MF->getFunction().getCallingConv() == CallingConv::GHC)
@@ -53,6 +55,8 @@ AArch64RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
     return CSR_AArch64_AllRegs_SaveList;
   if (MF->getFunction().getCallingConv() == CallingConv::AArch64_VectorCall)
     return CSR_AArch64_AAVPCS_SaveList;
+  if (MF->getFunction().getCallingConv() == CallingConv::AArch64_SVE_VectorCall)
+    return CSR_AArch64_SVE_AAPCS_SaveList;
   if (MF->getFunction().getCallingConv() == CallingConv::CXX_FAST_TLS)
     return MF->getInfo<AArch64FunctionInfo>()->isSplitCSR() ?
            CSR_AArch64_CXX_TLS_Darwin_PE_SaveList :
@@ -123,7 +127,10 @@ AArch64RegisterInfo::getCallPreservedMask(const MachineFunction &MF,
   if (CC == CallingConv::AArch64_VectorCall)
     return SCS ? CSR_AArch64_AAVPCS_SCS_RegMask : CSR_AArch64_AAVPCS_RegMask;
   if (CC == CallingConv::AArch64_SVE_VectorCall)
-    return CSR_AArch64_SVE_AAPCS_RegMask;
+    return SCS ? CSR_AArch64_SVE_AAPCS_SCS_RegMask
+               : CSR_AArch64_SVE_AAPCS_RegMask;
+  if (CC == CallingConv::CFGuard_Check)
+    return CSR_Win_AArch64_CFGuard_Check_RegMask;
   if (MF.getSubtarget<AArch64Subtarget>().getTargetLowering()
           ->supportSwiftError() &&
       MF.getFunction().getAttributes().hasAttrSomewhere(Attribute::SwiftError))
@@ -390,7 +397,6 @@ bool AArch64RegisterInfo::needsFrameBaseReg(MachineInstr *MI,
 bool AArch64RegisterInfo::isFrameOffsetLegal(const MachineInstr *MI,
                                              unsigned BaseReg,
                                              int64_t Offset) const {
-  assert(Offset <= INT_MAX && "Offset too big to fit in int.");
   assert(MI && "Unable to get the legal offset for nil instruction.");
   StackOffset SaveOffset(Offset, MVT::i8);
   return isAArch64FrameOffsetLegal(*MI, SaveOffset) & AArch64FrameOffsetIsLegal;

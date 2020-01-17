@@ -8,6 +8,7 @@
 
 #include "clang/Driver/Driver.h"
 #include "InputInfo.h"
+#include "ToolChains/AIX.h"
 #include "ToolChains/AMDGPU.h"
 #include "ToolChains/AVR.h"
 #include "ToolChains/Ananas.h"
@@ -177,6 +178,7 @@ void Driver::setDriverModeFromOption(StringRef Opt) {
                    .Case("g++", GXXMode)
                    .Case("cpp", CPPMode)
                    .Case("cl", CLMode)
+                   .Case("flang", FlangMode)
                    .Default(None))
     Mode = *M;
   else
@@ -289,10 +291,6 @@ phases::ID Driver::getFinalPhase(const DerivedArgList &DAL,
              (PhaseArg = DAL.getLastArg(options::OPT__analyze)) ||
              (PhaseArg = DAL.getLastArg(options::OPT_emit_ast))) {
     FinalPhase = phases::Compile;
-
-  // clang interface stubs
-  } else if ((PhaseArg = DAL.getLastArg(options::OPT_emit_interface_stubs))) {
-    FinalPhase = phases::IfsMerge;
 
   // -S only runs up to the backend.
   } else if ((PhaseArg = DAL.getLastArg(options::OPT_S))) {
@@ -539,6 +537,17 @@ static llvm::Triple computeTargetTriple(const Driver &D,
     }
   }
 
+  // If target is RISC-V adjust the target triple according to
+  // provided architecture name
+  A = Args.getLastArg(options::OPT_march_EQ);
+  if (A && Target.isRISCV()) {
+    StringRef ArchName = A->getValue();
+    if (ArchName.startswith_lower("rv32"))
+      Target.setArch(llvm::Triple::riscv32);
+    else if (ArchName.startswith_lower("rv64"))
+      Target.setArch(llvm::Triple::riscv64);
+  }
+
   return Target;
 }
 
@@ -735,7 +744,7 @@ static bool searchForFile(SmallVectorImpl<char> &FilePath,
                           ArrayRef<std::string> Dirs,
                           StringRef FileName) {
   SmallString<128> WPath;
-  for (const StringRef &Dir : Dirs) {
+  for (const std::string &Dir : Dirs) {
     if (Dir.empty())
       continue;
     WPath.clear();
@@ -1981,8 +1990,9 @@ void Driver::BuildUniversalActions(Compilation &C, const ToolChain &TC,
 
     // Handle debug info queries.
     Arg *A = Args.getLastArg(options::OPT_g_Group);
-    if (A && !A->getOption().matches(options::OPT_g0) &&
-        !A->getOption().matches(options::OPT_gstabs) &&
+    bool enablesDebugInfo = A && !A->getOption().matches(options::OPT_g0) &&
+                            !A->getOption().matches(options::OPT_gstabs);
+    if ((enablesDebugInfo || willEmitRemarks(Args)) &&
         ContainsCompileOrAssembleAction(Actions.back())) {
 
       // Add a 'dsymutil' step if necessary, when debug info is enabled and we
@@ -3489,6 +3499,68 @@ void Driver::BuildActions(Compilation &C, DerivedArgList &Args,
     Actions.push_back(
         C.MakeAction<IfsMergeJobAction>(MergerInputs, types::TY_Image));
 
+  if (Args.hasArg(options::OPT_emit_interface_stubs)) {
+    llvm::SmallVector<phases::ID, phases::MaxNumberOfPhases> PhaseList;
+    if (Args.hasArg(options::OPT_c)) {
+      llvm::SmallVector<phases::ID, phases::MaxNumberOfPhases> CompilePhaseList;
+      types::getCompilationPhases(types::TY_IFS_CPP, CompilePhaseList);
+      llvm::copy_if(CompilePhaseList, std::back_inserter(PhaseList),
+                    [&](phases::ID Phase) { return Phase <= phases::Compile; });
+    } else {
+      types::getCompilationPhases(types::TY_IFS_CPP, PhaseList);
+    }
+
+    ActionList MergerInputs;
+
+    for (auto &I : Inputs) {
+      types::ID InputType = I.first;
+      const Arg *InputArg = I.second;
+
+      // Currently clang and the llvm assembler do not support generating symbol
+      // stubs from assembly, so we skip the input on asm files. For ifs files
+      // we rely on the normal pipeline setup in the pipeline setup code above.
+      if (InputType == types::TY_IFS || InputType == types::TY_PP_Asm ||
+          InputType == types::TY_Asm)
+        continue;
+
+      Action *Current = C.MakeAction<InputAction>(*InputArg, InputType);
+
+      for (auto Phase : PhaseList) {
+        switch (Phase) {
+        default:
+          llvm_unreachable(
+              "IFS Pipeline can only consist of Compile followed by IfsMerge.");
+        case phases::Compile: {
+          // Only IfsMerge (llvm-ifs) can handle .o files by looking for ifs
+          // files where the .o file is located. The compile action can not
+          // handle this.
+          if (InputType == types::TY_Object)
+            break;
+
+          Current = C.MakeAction<CompileJobAction>(Current, types::TY_IFS_CPP);
+          break;
+        }
+        case phases::IfsMerge: {
+          assert(Phase == PhaseList.back() &&
+                 "merging must be final compilation step.");
+          MergerInputs.push_back(Current);
+          Current = nullptr;
+          break;
+        }
+        }
+      }
+
+      // If we ended with something, add to the output list.
+      if (Current)
+        Actions.push_back(Current);
+    }
+
+    // Add an interface stubs merge action if necessary.
+    if (!MergerInputs.empty())
+      Actions.push_back(
+          C.MakeAction<IfsMergeJobAction>(MergerInputs, types::TY_Image));
+  }
+
   // If --print-supported-cpus, -mcpu=? or -mtune=? is specified, build a custom
   // Compile phase that prints out supported cpu models and quits.
   if (Arg *A = Args.getLastArg(options::OPT_print_supported_cpus)) {
@@ -3590,8 +3662,6 @@ Action *Driver::ConstructPhaseAction(
       return C.MakeAction<CompileJobAction>(Input, types::TY_ModuleFile);
     if (Args.hasArg(options::OPT_verify_pch))
       return C.MakeAction<VerifyPCHJobAction>(Input, types::TY_Nothing);
-    if (Args.hasArg(options::OPT_emit_interface_stubs))
-      return C.MakeAction<CompileJobAction>(Input, types::TY_IFS_CPP);
     return C.MakeAction<CompileJobAction>(Input, types::TY_LLVM_BC);
   }
   case phases::Backend: {
@@ -3620,11 +3690,29 @@ void Driver::BuildJobs(Compilation &C) const {
   Arg *FinalOutput = C.getArgs().getLastArg(options::OPT_o);
 
   // It is an error to provide a -o option if we are making multiple output
-  // files.
+  // files. There are exceptions:
+  //
+  // IfsMergeJob: when generating interface stubs enabled we want to be able to
+  // generate the stub file at the same time that we generate the real
+  // library/a.out. So when a .o, .so, etc are the output, with clang interface
+  // stubs there will also be a .ifs and .ifso at the same location.
+  //
+  // CompileJob of type TY_IFS_CPP: when generating interface stubs is enabled
+  // and -c is passed, we still want to be able to generate a .ifs file while
+  // we are also generating .o files. So we allow more than one output file in
+  // this case as well.
+  //
   if (FinalOutput) {
     unsigned NumOutputs = 0;
+    unsigned NumIfsOutputs = 0;
     for (const Action *A : C.getActions())
-      if (A->getType() != types::TY_Nothing)
+      if (A->getType() != types::TY_Nothing &&
+          !(A->getKind() == Action::IfsMergeJobClass ||
+            (A->getType() == clang::driver::types::TY_IFS_CPP &&
+             A->getKind() == clang::driver::Action::CompileJobClass &&
+             0 == NumIfsOutputs++) ||
+            (A->getKind() == Action::BindArchClass && A->getInputs().size() &&
+             A->getInputs().front()->getKind() == Action::IfsMergeJobClass)))
         ++NumOutputs;
 
     if (NumOutputs > 1) {
@@ -4699,6 +4787,9 @@ const ToolChain &Driver::getToolChain(const ArgList &Args,
   auto &TC = ToolChains[Target.str()];
   if (!TC) {
     switch (Target.getOS()) {
+    case llvm::Triple::AIX:
+      TC = std::make_unique<toolchains::AIX>(*this, Target, Args);
+      break;
     case llvm::Triple::Haiku:
       TC = std::make_unique<toolchains::Haiku>(*this, Target, Args);
       break;
@@ -4872,6 +4963,19 @@ bool Driver::ShouldUseClangCompiler(const JobAction &JA) const {
   return true;
 }
 
+bool Driver::ShouldUseFlangCompiler(const JobAction &JA) const {
+  // Say "no" if there is not exactly one input of a type flang understands.
+  if (JA.size() != 1 ||
+      !types::isFortran((*JA.input_begin())->getType()))
+    return false;
+
+  // And say "no" if this is not a kind of action flang understands.
+  if (!isa<PreprocessJobAction>(JA) && !isa<CompileJobAction>(JA) && !isa<BackendJobAction>(JA))
+    return false;
+
+  return true;
+}
+
 /// GetReleaseVersion - Parse (([0-9]+)(.([0-9]+)(.([0-9]+)?))?)? and return the
 /// grouped values as integers. Numbers which are not provided are set to 0.
 ///
@@ -4956,4 +5060,27 @@ Driver::getIncludeExcludeOptionFlagMasks(bool IsClCompatMode) const {
 
 bool clang::driver::isOptimizationLevelFast(const ArgList &Args) {
   return Args.hasFlag(options::OPT_Ofast, options::OPT_O_Group, false);
+}
+
+bool clang::driver::willEmitRemarks(const ArgList &Args) {
+  // -fsave-optimization-record enables it.
+  if (Args.hasFlag(options::OPT_fsave_optimization_record,
+                   options::OPT_fno_save_optimization_record, false))
+    return true;
+
+  // -fsave-optimization-record=<format> enables it as well.
+  if (Args.hasFlag(options::OPT_fsave_optimization_record_EQ,
+                   options::OPT_fno_save_optimization_record, false))
+    return true;
+
+  // -foptimization-record-file alone enables it too.
+  if (Args.hasFlag(options::OPT_foptimization_record_file_EQ,
+                   options::OPT_fno_save_optimization_record, false))
+    return true;
+
+  // -foptimization-record-passes alone enables it too.
+  if (Args.hasFlag(options::OPT_foptimization_record_passes_EQ,
+                   options::OPT_fno_save_optimization_record, false))
+    return true;
+  return false;
 }

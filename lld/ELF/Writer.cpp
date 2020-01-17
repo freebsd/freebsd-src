@@ -135,7 +135,7 @@ StringRef getOutputSectionName(const InputSectionBase *s) {
 }
 
 static bool needsInterpSection() {
-  return !sharedFiles.empty() && !config->dynamicLinker.empty() &&
+  return !config->shared && !config->dynamicLinker.empty() &&
          script->needsInterpSection();
 }
 
@@ -283,7 +283,7 @@ void addReservedSymbols() {
   // different in different DSOs, so we chose the start address of the DSO.
   addOptionalRegular("__dso_handle", Out::elfHeader, 0, STV_HIDDEN);
 
-  // If linker script do layout we do not need to create any standart symbols.
+  // If linker script do layout we do not need to create any standard symbols.
   if (script->hasSectionsCommand)
     return;
 
@@ -515,9 +515,15 @@ template <class ELFT> void createSyntheticSections() {
       /*sort=*/false);
   add(in.relaIplt);
 
-  in.plt = make<PltSection>(false);
+  if ((config->emachine == EM_386 || config->emachine == EM_X86_64) &&
+      (config->andFeatures & GNU_PROPERTY_X86_FEATURE_1_IBT)) {
+    in.ibtPlt = make<IBTPltSection>();
+    add(in.ibtPlt);
+  }
+
+  in.plt = make<PltSection>();
   add(in.plt);
-  in.iplt = make<PltSection>(true);
+  in.iplt = make<IpltSection>();
   add(in.iplt);
 
   if (config->andFeatures)
@@ -1238,10 +1244,9 @@ static DenseMap<const InputSectionBase *, int> buildSectionOrder() {
 
   // We want both global and local symbols. We get the global ones from the
   // symbol table and iterate the object files for the local ones.
-  symtab->forEachSymbol([&](Symbol *sym) {
+  for (Symbol *sym : symtab->symbols())
     if (!sym->isLazy())
       addSym(*sym);
-  });
 
   for (InputFile *file : objectFiles)
     for (Symbol *sym : file->getSymbols())
@@ -1637,37 +1642,6 @@ static void removeUnusedSyntheticSections() {
   }
 }
 
-// Returns true if a symbol can be replaced at load-time by a symbol
-// with the same name defined in other ELF executable or DSO.
-static bool computeIsPreemptible(const Symbol &b) {
-  assert(!b.isLocal());
-
-  // Only symbols that appear in dynsym can be preempted.
-  if (!b.includeInDynsym())
-    return false;
-
-  // Only default visibility symbols can be preempted.
-  if (b.visibility != STV_DEFAULT)
-    return false;
-
-  // At this point copy relocations have not been created yet, so any
-  // symbol that is not defined locally is preemptible.
-  if (!b.isDefined())
-    return true;
-
-  if (!config->shared)
-    return false;
-
-  // If the dynamic list is present, it specifies preemptable symbols in a DSO.
-  if (config->hasDynamicList)
-    return b.inDynamicList;
-
-  // -Bsymbolic means that definitions are not preempted.
-  if (config->bsymbolic || (config->bsymbolicFunctions && b.isFunc()))
-    return false;
-  return true;
-}
-
 // Create output section objects and add them to OutputSections.
 template <class ELFT> void Writer<ELFT>::finalizeSections() {
   Out::preinitArray = findSection(".preinit_array");
@@ -1734,8 +1708,8 @@ template <class ELFT> void Writer<ELFT>::finalizeSections() {
   for (Partition &part : partitions)
     finalizeSynthetic(part.ehFrame);
 
-  symtab->forEachSymbol(
-      [](Symbol *s) { s->isPreemptible = computeIsPreemptible(*s); });
+  for (Symbol *sym : symtab->symbols())
+    sym->isPreemptible = computeIsPreemptible(*sym);
 
   // Change values of linker-script-defined symbols from placeholders (assigned
   // by declareSymbols) to actual definitions.
@@ -1757,7 +1731,7 @@ template <class ELFT> void Writer<ELFT>::finalizeSections() {
 
   if (!config->allowShlibUndefined) {
     // Error on undefined symbols in a shared object, if all of its DT_NEEDED
-    // entires are seen. These cases would otherwise lead to runtime errors
+    // entries are seen. These cases would otherwise lead to runtime errors
     // reported by the dynamic linker.
     //
     // ld.bfd traces all DT_NEEDED to emulate the logic of the dynamic linker to
@@ -1769,19 +1743,18 @@ template <class ELFT> void Writer<ELFT>::finalizeSections() {
             return symtab->soNames.count(needed);
           });
 
-    symtab->forEachSymbol([](Symbol *sym) {
+    for (Symbol *sym : symtab->symbols())
       if (sym->isUndefined() && !sym->isWeak())
         if (auto *f = dyn_cast_or_null<SharedFile>(sym->file))
           if (f->allNeededIsKnown)
             error(toString(f) + ": undefined reference to " + toString(*sym));
-    });
   }
 
   // Now that we have defined all possible global symbols including linker-
   // synthesized ones. Visit all symbols to give the finishing touches.
-  symtab->forEachSymbol([](Symbol *sym) {
+  for (Symbol *sym : symtab->symbols()) {
     if (!includeInSymtab(*sym))
-      return;
+      continue;
     if (in.symTab)
       in.symTab->addSymbol(sym);
 
@@ -1791,7 +1764,7 @@ template <class ELFT> void Writer<ELFT>::finalizeSections() {
         if (file->isNeeded && !sym->isUndefined())
           addVerneed(sym);
     }
-  });
+  }
 
   // We also need to scan the dynamic relocation tables of the other partitions
   // and add any referenced symbols to the partition's dynsym.
@@ -1979,7 +1952,7 @@ template <class ELFT> void Writer<ELFT>::addStartEndSymbols() {
   // program text is above 2 GiB. We use the address of the .text
   // section instead to prevent that failure.
   //
-  // In a rare sitaution, .text section may not exist. If that's the
+  // In rare situations, the .text section may not exist. If that's the
   // case, use the image base address as a last resort.
   OutputSection *Default = findSection(".text");
   if (!Default)
@@ -2085,7 +2058,7 @@ std::vector<PhdrEntry *> Writer<ELFT>::createPhdrs(Partition &part) {
   }
 
   // PT_GNU_RELRO includes all sections that should be marked as
-  // read-only by dynamic linker after proccessing relocations.
+  // read-only by dynamic linker after processing relocations.
   // Current dynamic loaders only support one PT_GNU_RELRO PHDR, give
   // an error message if more than one PT_GNU_RELRO PHDR is required.
   PhdrEntry *relRo = make<PhdrEntry>(PT_GNU_RELRO, PF_R);
@@ -2172,14 +2145,16 @@ std::vector<PhdrEntry *> Writer<ELFT>::createPhdrs(Partition &part) {
   if (OutputSection *cmd = findSection(".openbsd.randomdata", partNo))
     addHdr(PT_OPENBSD_RANDOMIZE, cmd->getPhdrFlags())->add(cmd);
 
-  // PT_GNU_STACK is a special section to tell the loader to make the
-  // pages for the stack non-executable. If you really want an executable
-  // stack, you can pass -z execstack, but that's not recommended for
-  // security reasons.
-  unsigned perm = PF_R | PF_W;
-  if (config->zExecstack)
-    perm |= PF_X;
-  addHdr(PT_GNU_STACK, perm)->p_memsz = config->zStackSize;
+  if (config->zGnustack != GnuStackKind::None) {
+    // PT_GNU_STACK is a special section to tell the loader to make the
+    // pages for the stack non-executable. If you really want an executable
+    // stack, you can pass -z execstack, but that's not recommended for
+    // security reasons.
+    unsigned perm = PF_R | PF_W;
+    if (config->zGnustack == GnuStackKind::Exec)
+      perm |= PF_X;
+    addHdr(PT_GNU_STACK, perm)->p_memsz = config->zStackSize;
+  }
 
   // PT_OPENBSD_WXNEEDED is a OpenBSD-specific header to mark the executable
   // is expected to perform W^X violations, such as calling mprotect(2) or
@@ -2187,6 +2162,9 @@ std::vector<PhdrEntry *> Writer<ELFT>::createPhdrs(Partition &part) {
   // OpenBSD.
   if (config->zWxneeded)
     addHdr(PT_OPENBSD_WXNEEDED, PF_X);
+
+  if (OutputSection *cmd = findSection(".note.gnu.property", partNo))
+    addHdr(PT_GNU_PROPERTY, PF_R)->add(cmd);
 
   // Create one PT_NOTE per a group of contiguous SHT_NOTE sections with the
   // same alignment.
@@ -2423,7 +2401,7 @@ struct SectionOffset {
 } // namespace
 
 // Check whether sections overlap for a specific address range (file offsets,
-// load and virtual adresses).
+// load and virtual addresses).
 static void checkOverlap(StringRef name, std::vector<SectionOffset> &sections,
                          bool isVirtualAddr) {
   llvm::sort(sections, [=](const SectionOffset &a, const SectionOffset &b) {
@@ -2593,7 +2571,9 @@ template <class ELFT> void Writer<ELFT>::openFile() {
   unlinkAsync(config->outputFile);
   unsigned flags = 0;
   if (!config->relocatable)
-    flags = FileOutputBuffer::F_executable;
+    flags |= FileOutputBuffer::F_executable;
+  if (!config->mmapOutputFile)
+    flags |= FileOutputBuffer::F_no_mmap;
   Expected<std::unique_ptr<FileOutputBuffer>> bufferOrErr =
       FileOutputBuffer::create(config->outputFile, fileSize, flags);
 

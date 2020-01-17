@@ -36,7 +36,6 @@
 #include "lldb/Core/Disassembler.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
-#include "lldb/Core/STLUtils.h"
 #include "lldb/Core/SearchFilter.h"
 #include "lldb/Core/Section.h"
 #include "lldb/Core/StructuredDataImpl.h"
@@ -1177,12 +1176,15 @@ bool SBTarget::FindBreakpointsByName(const char *name,
   TargetSP target_sp(GetSP());
   if (target_sp) {
     std::lock_guard<std::recursive_mutex> guard(target_sp->GetAPIMutex());
-    BreakpointList bkpt_list(false);
-    bool is_valid =
-        target_sp->GetBreakpointList().FindBreakpointsByName(name, bkpt_list);
-    if (!is_valid)
+    llvm::Expected<std::vector<BreakpointSP>> expected_vector =
+        target_sp->GetBreakpointList().FindBreakpointsByName(name);
+    if (!expected_vector) {
+      LLDB_LOG(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_BREAKPOINTS),
+               "invalid breakpoint name: {}",
+               llvm::toString(expected_vector.takeError()));
       return false;
-    for (BreakpointSP bkpt_sp : bkpt_list.Breakpoints()) {
+    }
+    for (BreakpointSP bkpt_sp : *expected_vector) {
       bkpts.AppendByID(bkpt_sp->GetID());
     }
   }
@@ -1598,7 +1600,7 @@ lldb::SBModule SBTarget::AddModule(const SBModuleSpec &module_spec) {
   lldb::SBModule sb_module;
   TargetSP target_sp(GetSP());
   if (target_sp)
-    sb_module.SetSP(target_sp->GetOrCreateModule(*module_spec.m_opaque_up, 
+    sb_module.SetSP(target_sp->GetOrCreateModule(*module_spec.m_opaque_up,
                                                  true /* notify */));
   return LLDB_RECORD_RESULT(sb_module);
 }
@@ -1930,14 +1932,13 @@ SBValueList SBTarget::FindGlobalVariables(const char *name,
     VariableList variable_list;
     target_sp->GetImages().FindGlobalVariables(ConstString(name), max_matches,
                                                variable_list);
-    const uint32_t match_count = variable_list.GetSize();
-    if (match_count > 0) {
+    if (!variable_list.Empty()) {
       ExecutionContextScope *exe_scope = target_sp->GetProcessSP().get();
       if (exe_scope == nullptr)
         exe_scope = target_sp.get();
-      for (uint32_t i = 0; i < match_count; ++i) {
-        lldb::ValueObjectSP valobj_sp(ValueObjectVariable::Create(
-            exe_scope, variable_list.GetVariableAtIndex(i)));
+      for (const VariableSP &var_sp : variable_list) {
+        lldb::ValueObjectSP valobj_sp(
+            ValueObjectVariable::Create(exe_scope, var_sp));
         if (valobj_sp)
           sb_value_list.Append(SBValue(valobj_sp));
       }
@@ -1962,7 +1963,6 @@ SBValueList SBTarget::FindGlobalVariables(const char *name,
     VariableList variable_list;
 
     std::string regexstr;
-    uint32_t match_count;
     switch (matchtype) {
     case eMatchTypeNormal:
       target_sp->GetImages().FindGlobalVariables(ConstString(name), max_matches,
@@ -1978,14 +1978,13 @@ SBValueList SBTarget::FindGlobalVariables(const char *name,
                                                  max_matches, variable_list);
       break;
     }
-    match_count = variable_list.GetSize();
-    if (match_count > 0) {
+    if (!variable_list.Empty()) {
       ExecutionContextScope *exe_scope = target_sp->GetProcessSP().get();
       if (exe_scope == nullptr)
         exe_scope = target_sp.get();
-      for (uint32_t i = 0; i < match_count; ++i) {
-        lldb::ValueObjectSP valobj_sp(ValueObjectVariable::Create(
-            exe_scope, variable_list.GetVariableAtIndex(i)));
+      for (const VariableSP &var_sp : variable_list) {
+        lldb::ValueObjectSP valobj_sp(
+            ValueObjectVariable::Create(exe_scope, var_sp));
         if (valobj_sp)
           sb_value_list.Append(SBValue(valobj_sp));
       }

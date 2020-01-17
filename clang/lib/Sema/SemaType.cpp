@@ -1976,6 +1976,19 @@ bool Sema::CheckQualifiedFunctionForTypeId(QualType T, SourceLocation Loc) {
   return true;
 }
 
+// Helper to deduce addr space of a pointee type in OpenCL mode.
+static QualType deduceOpenCLPointeeAddrSpace(Sema &S, QualType PointeeType) {
+  if (!PointeeType->isUndeducedAutoType() && !PointeeType->isDependentType() &&
+      !PointeeType->isSamplerT() &&
+      !PointeeType.hasAddressSpace())
+    PointeeType = S.getASTContext().getAddrSpaceQualType(
+        PointeeType,
+        S.getLangOpts().OpenCLCPlusPlus || S.getLangOpts().OpenCLVersion == 200
+            ? LangAS::opencl_generic
+            : LangAS::opencl_private);
+  return PointeeType;
+}
+
 /// Build a pointer type.
 ///
 /// \param T The type to which we'll be building a pointer.
@@ -2011,6 +2024,9 @@ QualType Sema::BuildPointerType(QualType T,
   // In ARC, it is forbidden to build pointers to unqualified pointers.
   if (getLangOpts().ObjCAutoRefCount)
     T = inferARCLifetimeForPointee(*this, T, Loc, /*reference*/ false);
+
+  if (getLangOpts().OpenCL)
+    T = deduceOpenCLPointeeAddrSpace(*this, T);
 
   // Build the pointer type.
   return Context.getPointerType(T);
@@ -2071,6 +2087,9 @@ QualType Sema::BuildReferenceType(QualType T, bool SpelledAsLValue,
   // In ARC, it is forbidden to build references to unqualified pointers.
   if (getLangOpts().ObjCAutoRefCount)
     T = inferARCLifetimeForPointee(*this, T, Loc, /*reference*/ true);
+
+  if (getLangOpts().OpenCL)
+    T = deduceOpenCLPointeeAddrSpace(*this, T);
 
   // Handle restrict on references.
   if (LValueRef)
@@ -2655,6 +2674,9 @@ QualType Sema::BuildBlockPointerType(QualType T,
   if (checkQualifiedFunction(*this, T, Loc, QFK_BlockPointer))
     return QualType();
 
+  if (getLangOpts().OpenCL)
+    T = deduceOpenCLPointeeAddrSpace(*this, T);
+
   return Context.getBlockPointerType(T);
 }
 
@@ -2994,7 +3016,8 @@ static QualType GetDeclSpecTypeForDeclarator(TypeProcessingState &state,
                 SemaRef.Context, SemaRef.Context.getTranslationUnitDecl(),
                 /*KeyLoc*/ SourceLocation(), /*NameLoc*/ D.getBeginLoc(),
                 TemplateParameterDepth, AutoParameterPosition,
-                /*Identifier*/ nullptr, false, IsParameterPack);
+                /*Identifier*/ nullptr, false, IsParameterPack,
+                /*HasTypeConstraint=*/false);
         CorrespondingTemplateParam->setImplicit();
         LSI->TemplateParams.push_back(CorrespondingTemplateParam);
         // Replace the 'auto' in the function parameter with this invented
@@ -3139,7 +3162,7 @@ static QualType GetDeclSpecTypeForDeclarator(TypeProcessingState &state,
 
       T = SemaRef.Context.IntTy;
       D.setInvalidType(true);
-    } else if (!HaveTrailing &&
+    } else if (Auto && !HaveTrailing &&
                D.getContext() != DeclaratorContext::LambdaExprContext) {
       // If there was a trailing return type, we already got
       // warn_cxx98_compat_trailing_return_type in the parser.
@@ -4788,6 +4811,7 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
         FunctionProtoType::ExtProtoInfo EPI;
         EPI.ExtInfo = EI;
         EPI.Variadic = FTI.isVariadic;
+        EPI.EllipsisLoc = FTI.getEllipsisLoc();
         EPI.HasTrailingReturn = FTI.hasTrailingReturnType();
         EPI.TypeQuals.addCVRUQualifiers(
             FTI.MethodQualifiers ? FTI.MethodQualifiers->getTypeQualifiers()
@@ -4927,7 +4951,9 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
                           .getScopeRep()
                           ->getKind() == NestedNameSpecifier::TypeSpec) ||
                  state.getDeclarator().getContext() ==
-                     DeclaratorContext::MemberContext;
+                     DeclaratorContext::MemberContext ||
+                 state.getDeclarator().getContext() ==
+                     DeclaratorContext::LambdaExprContext;
         };
 
         if (state.getSema().getLangOpts().OpenCLCPlusPlus && IsClassMember()) {
@@ -4946,7 +4972,8 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
           // If a class member function's address space is not set, set it to
           // __generic.
           LangAS AS =
-              (ASIdx == LangAS::Default ? LangAS::opencl_generic : ASIdx);
+              (ASIdx == LangAS::Default ? S.getDefaultCXXMethodAddrSpace()
+                                        : ASIdx);
           EPI.TypeQuals.addAddressSpace(AS);
         }
         T = Context.getFunctionType(T, ParamTys, EPI);
@@ -6325,7 +6352,8 @@ namespace {
       Pointer,
       BlockPointer,
       Reference,
-      MemberPointer
+      MemberPointer,
+      MacroQualified,
     };
 
     QualType Original;
@@ -6356,6 +6384,9 @@ namespace {
         } else if (isa<AttributedType>(Ty)) {
           T = cast<AttributedType>(Ty)->getEquivalentType();
           Stack.push_back(Attributed);
+        } else if (isa<MacroQualifiedType>(Ty)) {
+          T = cast<MacroQualifiedType>(Ty)->getUnderlyingType();
+          Stack.push_back(MacroQualified);
         } else {
           const Type *DTy = Ty->getUnqualifiedDesugaredType();
           if (Ty == DTy) {
@@ -6412,6 +6443,9 @@ namespace {
         return C.getParenType(New);
       }
 
+      case MacroQualified:
+        return wrap(C, cast<MacroQualifiedType>(Old)->getUnderlyingType(), I);
+
       case Pointer: {
         QualType New = wrap(C, cast<PointerType>(Old)->getPointeeType(), I);
         return C.getPointerType(New);
@@ -6464,35 +6498,36 @@ static bool handleMSPointerTypeQualifierAttr(TypeProcessingState &State,
     break;
   }
 
+  llvm::SmallSet<attr::Kind, 2> Attrs;
   attr::Kind NewAttrKind = A->getKind();
   QualType Desugared = Type;
   const AttributedType *AT = dyn_cast<AttributedType>(Type);
   while (AT) {
-    attr::Kind CurAttrKind = AT->getAttrKind();
-
-    // You cannot specify duplicate type attributes, so if the attribute has
-    // already been applied, flag it.
-    if (NewAttrKind == CurAttrKind) {
-      S.Diag(PAttr.getLoc(), diag::warn_duplicate_attribute_exact) << PAttr;
-      return true;
-    }
-
-    // You cannot have both __sptr and __uptr on the same type, nor can you
-    // have __ptr32 and __ptr64.
-    if ((CurAttrKind == attr::Ptr32 && NewAttrKind == attr::Ptr64) ||
-        (CurAttrKind == attr::Ptr64 && NewAttrKind == attr::Ptr32)) {
-      S.Diag(PAttr.getLoc(), diag::err_attributes_are_not_compatible)
-        << "'__ptr32'" << "'__ptr64'";
-      return true;
-    } else if ((CurAttrKind == attr::SPtr && NewAttrKind == attr::UPtr) ||
-               (CurAttrKind == attr::UPtr && NewAttrKind == attr::SPtr)) {
-      S.Diag(PAttr.getLoc(), diag::err_attributes_are_not_compatible)
-        << "'__sptr'" << "'__uptr'";
-      return true;
-    }
-
-    Desugared = AT->getEquivalentType();
+    Attrs.insert(AT->getAttrKind());
+    Desugared = AT->getModifiedType();
     AT = dyn_cast<AttributedType>(Desugared);
+  }
+
+  // You cannot specify duplicate type attributes, so if the attribute has
+  // already been applied, flag it.
+  if (Attrs.count(NewAttrKind)) {
+    S.Diag(PAttr.getLoc(), diag::warn_duplicate_attribute_exact) << PAttr;
+    return true;
+  }
+  Attrs.insert(NewAttrKind);
+
+  // You cannot have both __sptr and __uptr on the same type, nor can you
+  // have __ptr32 and __ptr64.
+  if (Attrs.count(attr::Ptr32) && Attrs.count(attr::Ptr64)) {
+    S.Diag(PAttr.getLoc(), diag::err_attributes_are_not_compatible)
+        << "'__ptr32'"
+        << "'__ptr64'";
+    return true;
+  } else if (Attrs.count(attr::SPtr) && Attrs.count(attr::UPtr)) {
+    S.Diag(PAttr.getLoc(), diag::err_attributes_are_not_compatible)
+        << "'__sptr'"
+        << "'__uptr'";
+    return true;
   }
 
   // Pointer type qualifiers can only operate on pointer types, but not
@@ -6510,7 +6545,26 @@ static bool handleMSPointerTypeQualifierAttr(TypeProcessingState &State,
     return true;
   }
 
-  Type = State.getAttributedType(A, Type, Type);
+  // Add address space to type based on its attributes.
+  LangAS ASIdx = LangAS::Default;
+  uint64_t PtrWidth = S.Context.getTargetInfo().getPointerWidth(0);
+  if (PtrWidth == 32) {
+    if (Attrs.count(attr::Ptr64))
+      ASIdx = LangAS::ptr64;
+    else if (Attrs.count(attr::UPtr))
+      ASIdx = LangAS::ptr32_uptr;
+  } else if (PtrWidth == 64 && Attrs.count(attr::Ptr32)) {
+    if (Attrs.count(attr::UPtr))
+      ASIdx = LangAS::ptr32_uptr;
+    else
+      ASIdx = LangAS::ptr32_sptr;
+  }
+
+  QualType Pointee = Type->getPointeeType();
+  if (ASIdx != LangAS::Default)
+    Pointee = S.Context.getAddrSpaceQualType(
+        S.Context.removeAddrSpaceQualType(Pointee), ASIdx);
+  Type = State.getAttributedType(A, Type, S.Context.getPointerType(Pointee));
   return false;
 }
 
@@ -7215,6 +7269,7 @@ static bool isPermittedNeonBaseType(QualType &Ty,
   // Signed poly is mathematically wrong, but has been baked into some ABIs by
   // now.
   bool IsPolyUnsigned = Triple.getArch() == llvm::Triple::aarch64 ||
+                        Triple.getArch() == llvm::Triple::aarch64_32 ||
                         Triple.getArch() == llvm::Triple::aarch64_be;
   if (VecKind == VectorType::NeonPolyVector) {
     if (IsPolyUnsigned) {
@@ -7232,10 +7287,8 @@ static bool isPermittedNeonBaseType(QualType &Ty,
 
   // Non-polynomial vector types: the usual suspects are allowed, as well as
   // float64_t on AArch64.
-  bool Is64Bit = Triple.getArch() == llvm::Triple::aarch64 ||
-                 Triple.getArch() == llvm::Triple::aarch64_be;
-
-  if (Is64Bit && BTy->getKind() == BuiltinType::Double)
+  if ((Triple.isArch64Bit() || Triple.getArch() == llvm::Triple::aarch64_32) &&
+      BTy->getKind() == BuiltinType::Double)
     return true;
 
   return BTy->getKind() == BuiltinType::SChar ||
@@ -7261,8 +7314,10 @@ static bool isPermittedNeonBaseType(QualType &Ty,
 /// match one of the standard Neon vector types.
 static void HandleNeonVectorTypeAttr(QualType &CurType, const ParsedAttr &Attr,
                                      Sema &S, VectorType::VectorKind VecKind) {
-  // Target must have NEON
-  if (!S.Context.getTargetInfo().hasFeature("neon")) {
+  // Target must have NEON (or MVE, whose vectors are similar enough
+  // not to need a separate attribute)
+  if (!S.Context.getTargetInfo().hasFeature("neon") &&
+      !S.Context.getTargetInfo().hasFeature("mve")) {
     S.Diag(Attr.getLoc(), diag::err_attribute_unsupported) << Attr;
     Attr.setInvalid();
     return;
@@ -7361,137 +7416,6 @@ static void HandleOpenCLAccessAttr(QualType &CurType, const ParsedAttr &Attr,
   }
 }
 
-static void deduceOpenCLImplicitAddrSpace(TypeProcessingState &State,
-                                          QualType &T, TypeAttrLocation TAL) {
-  Declarator &D = State.getDeclarator();
-
-  // Handle the cases where address space should not be deduced.
-  //
-  // The pointee type of a pointer type is always deduced since a pointer always
-  // points to some memory location which should has an address space.
-  //
-  // There are situations that at the point of certain declarations, the address
-  // space may be unknown and better to be left as default. For example, when
-  // defining a typedef or struct type, they are not associated with any
-  // specific address space. Later on, they may be used with any address space
-  // to declare a variable.
-  //
-  // The return value of a function is r-value, therefore should not have
-  // address space.
-  //
-  // The void type does not occupy memory, therefore should not have address
-  // space, except when it is used as a pointee type.
-  //
-  // Since LLVM assumes function type is in default address space, it should not
-  // have address space.
-  auto ChunkIndex = State.getCurrentChunkIndex();
-  bool IsPointee =
-      ChunkIndex > 0 &&
-      (D.getTypeObject(ChunkIndex - 1).Kind == DeclaratorChunk::Pointer ||
-       D.getTypeObject(ChunkIndex - 1).Kind == DeclaratorChunk::Reference ||
-       D.getTypeObject(ChunkIndex - 1).Kind == DeclaratorChunk::BlockPointer);
-  // For pointers/references to arrays the next chunk is always an array
-  // followed by any number of parentheses.
-  if (!IsPointee && ChunkIndex > 1) {
-    auto AdjustedCI = ChunkIndex - 1;
-    if (D.getTypeObject(AdjustedCI).Kind == DeclaratorChunk::Array)
-      AdjustedCI--;
-    // Skip over all parentheses.
-    while (AdjustedCI > 0 &&
-           D.getTypeObject(AdjustedCI).Kind == DeclaratorChunk::Paren)
-      AdjustedCI--;
-    if (D.getTypeObject(AdjustedCI).Kind == DeclaratorChunk::Pointer ||
-        D.getTypeObject(AdjustedCI).Kind == DeclaratorChunk::Reference)
-      IsPointee = true;
-  }
-  bool IsFuncReturnType =
-      ChunkIndex > 0 &&
-      D.getTypeObject(ChunkIndex - 1).Kind == DeclaratorChunk::Function;
-  bool IsFuncType =
-      ChunkIndex < D.getNumTypeObjects() &&
-      D.getTypeObject(ChunkIndex).Kind == DeclaratorChunk::Function;
-  if ( // Do not deduce addr space for function return type and function type,
-       // otherwise it will fail some sema check.
-      IsFuncReturnType || IsFuncType ||
-      // Do not deduce addr space for member types of struct, except the pointee
-      // type of a pointer member type or static data members.
-      (D.getContext() == DeclaratorContext::MemberContext &&
-       (!IsPointee &&
-        D.getDeclSpec().getStorageClassSpec() != DeclSpec::SCS_static)) ||
-      // Do not deduce addr space of non-pointee in type alias because it
-      // doesn't define any object.
-      (D.getContext() == DeclaratorContext::AliasDeclContext && !IsPointee) ||
-      // Do not deduce addr space for types used to define a typedef and the
-      // typedef itself, except the pointee type of a pointer type which is used
-      // to define the typedef.
-      (D.getDeclSpec().getStorageClassSpec() == DeclSpec::SCS_typedef &&
-       !IsPointee) ||
-      // Do not deduce addr space of the void type, e.g. in f(void), otherwise
-      // it will fail some sema check.
-      (T->isVoidType() && !IsPointee) ||
-      // Do not deduce addr spaces for dependent types because they might end
-      // up instantiating to a type with an explicit address space qualifier.
-      // Except for pointer or reference types because the addr space in
-      // template argument can only belong to a pointee.
-      (T->isDependentType() && !T->isPointerType() && !T->isReferenceType()) ||
-      // Do not deduce addr space of decltype because it will be taken from
-      // its argument.
-      T->isDecltypeType() ||
-      // OpenCL spec v2.0 s6.9.b:
-      // The sampler type cannot be used with the __local and __global address
-      // space qualifiers.
-      // OpenCL spec v2.0 s6.13.14:
-      // Samplers can also be declared as global constants in the program
-      // source using the following syntax.
-      //   const sampler_t <sampler name> = <value>
-      // In codegen, file-scope sampler type variable has special handing and
-      // does not rely on address space qualifier. On the other hand, deducing
-      // address space of const sampler file-scope variable as global address
-      // space causes spurious diagnostic about __global address space
-      // qualifier, therefore do not deduce address space of file-scope sampler
-      // type variable.
-      (D.getContext() == DeclaratorContext::FileContext && T->isSamplerT()))
-    return;
-
-  LangAS ImpAddr = LangAS::Default;
-  // Put OpenCL automatic variable in private address space.
-  // OpenCL v1.2 s6.5:
-  // The default address space name for arguments to a function in a
-  // program, or local variables of a function is __private. All function
-  // arguments shall be in the __private address space.
-  if (State.getSema().getLangOpts().OpenCLVersion <= 120 &&
-      !State.getSema().getLangOpts().OpenCLCPlusPlus) {
-    ImpAddr = LangAS::opencl_private;
-  } else {
-    // If address space is not set, OpenCL 2.0 defines non private default
-    // address spaces for some cases:
-    // OpenCL 2.0, section 6.5:
-    // The address space for a variable at program scope or a static variable
-    // inside a function can either be __global or __constant, but defaults to
-    // __global if not specified.
-    // (...)
-    // Pointers that are declared without pointing to a named address space
-    // point to the generic address space.
-    if (IsPointee) {
-      ImpAddr = LangAS::opencl_generic;
-    } else {
-      if (D.getContext() == DeclaratorContext::TemplateArgContext) {
-        // Do not deduce address space for non-pointee type in template arg.
-      } else if (D.getContext() == DeclaratorContext::FileContext) {
-        ImpAddr = LangAS::opencl_global;
-      } else {
-        if (D.getDeclSpec().getStorageClassSpec() == DeclSpec::SCS_static ||
-            D.getDeclSpec().getStorageClassSpec() == DeclSpec::SCS_extern) {
-          ImpAddr = LangAS::opencl_global;
-        } else {
-          ImpAddr = LangAS::opencl_private;
-        }
-      }
-    }
-  }
-  T = State.getSema().Context.getAddrSpaceQualType(T, ImpAddr);
-}
-
 static void HandleLifetimeBoundAttr(TypeProcessingState &State,
                                     QualType &CurType,
                                     ParsedAttr &Attr) {
@@ -7504,6 +7428,16 @@ static void HandleLifetimeBoundAttr(TypeProcessingState &State,
   }
 }
 
+static bool isAddressSpaceKind(const ParsedAttr &attr) {
+  auto attrKind = attr.getKind();
+
+  return attrKind == ParsedAttr::AT_AddressSpace ||
+         attrKind == ParsedAttr::AT_OpenCLPrivateAddressSpace ||
+         attrKind == ParsedAttr::AT_OpenCLGlobalAddressSpace ||
+         attrKind == ParsedAttr::AT_OpenCLLocalAddressSpace ||
+         attrKind == ParsedAttr::AT_OpenCLConstantAddressSpace ||
+         attrKind == ParsedAttr::AT_OpenCLGenericAddressSpace;
+}
 
 static void processTypeAttrs(TypeProcessingState &state, QualType &type,
                              TypeAttrLocation TAL,
@@ -7542,11 +7476,11 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
           if (!IsTypeAttr)
             continue;
         }
-      } else if (TAL != TAL_DeclChunk &&
-                 attr.getKind() != ParsedAttr::AT_AddressSpace) {
+      } else if (TAL != TAL_DeclChunk && !isAddressSpaceKind(attr)) {
         // Otherwise, only consider type processing for a C++11 attribute if
         // it's actually been applied to a type.
-        // We also allow C++11 address_space attributes to pass through.
+        // We also allow C++11 address_space and
+        // OpenCL language address space attributes to pass through.
         continue;
       }
     }
@@ -7701,6 +7635,18 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
       else if (!handleFunctionTypeAttr(state, attr, type))
         distributeFunctionTypeAttr(state, attr, type);
       break;
+    case ParsedAttr::AT_AcquireHandle: {
+      if (!type->isFunctionType())
+        return;
+      StringRef HandleType;
+      if (!state.getSema().checkStringLiteralArgumentAttr(attr, 0, HandleType))
+        return;
+      type = state.getAttributedType(
+          AcquireHandleAttr::Create(state.getSema().Context, HandleType, attr),
+          type, type);
+      attr.setUsedAsTypeAttr();
+      break;
+    }
     }
 
     // Handle attributes that are defined in a macro. We do not want this to be
@@ -7721,8 +7667,6 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
   if (!state.getSema().getLangOpts().OpenCL ||
       type.getAddressSpace() != LangAS::Default)
     return;
-
-  deduceOpenCLImplicitAddrSpace(state, type, TAL);
 }
 
 void Sema::completeExprArrayBound(Expr *E) {
@@ -7944,33 +7888,31 @@ bool Sema::hasVisibleDefinition(NamedDecl *D, NamedDecl **Suggested,
 static void assignInheritanceModel(Sema &S, CXXRecordDecl *RD) {
   RD = RD->getMostRecentNonInjectedDecl();
   if (!RD->hasAttr<MSInheritanceAttr>()) {
-    MSInheritanceAttr::Spelling IM;
-
+    MSInheritanceModel IM;
+    bool BestCase = false;
     switch (S.MSPointerToMemberRepresentationMethod) {
     case LangOptions::PPTMK_BestCase:
+      BestCase = true;
       IM = RD->calculateInheritanceModel();
       break;
     case LangOptions::PPTMK_FullGeneralitySingleInheritance:
-      IM = MSInheritanceAttr::Keyword_single_inheritance;
+      IM = MSInheritanceModel::Single;
       break;
     case LangOptions::PPTMK_FullGeneralityMultipleInheritance:
-      IM = MSInheritanceAttr::Keyword_multiple_inheritance;
+      IM = MSInheritanceModel::Multiple;
       break;
     case LangOptions::PPTMK_FullGeneralityVirtualInheritance:
-      IM = MSInheritanceAttr::Keyword_unspecified_inheritance;
+      IM = MSInheritanceModel::Unspecified;
       break;
     }
 
-    SourceRange Loc = 
-    S.ImplicitMSInheritanceAttrLoc.isValid()
-                                 ? S.ImplicitMSInheritanceAttrLoc
-                                 : RD->getSourceRange();
-  RD->addAttr(MSInheritanceAttr::CreateImplicit(
-      S.getASTContext(),
-      /*BestCase=*/S.MSPointerToMemberRepresentationMethod ==
-          LangOptions::PPTMK_BestCase,
-      Loc, AttributeCommonInfo::AS_Microsoft, IM));
-  S.Consumer.AssignInheritanceModel(RD);
+    SourceRange Loc = S.ImplicitMSInheritanceAttrLoc.isValid()
+                          ? S.ImplicitMSInheritanceAttrLoc
+                          : RD->getSourceRange();
+    RD->addAttr(MSInheritanceAttr::CreateImplicit(
+        S.getASTContext(), BestCase, Loc, AttributeCommonInfo::AS_Microsoft,
+        MSInheritanceAttr::Spelling(IM)));
+    S.Consumer.AssignInheritanceModel(RD);
   }
 }
 

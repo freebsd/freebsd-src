@@ -23,6 +23,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/InitializePasses.h"
 
 using namespace llvm;
 
@@ -54,11 +55,12 @@ public:
     if (MF.empty())
       return Changed;
 
-    NamedVRegCursor NVC(MF.getRegInfo());
+    VRegRenamer Renamer(MF.getRegInfo());
 
+    unsigned BBIndex = 0;
     ReversePostOrderTraversal<MachineBasicBlock *> RPOT(&*MF.begin());
     for (auto &MBB : RPOT)
-      Changed |= NVC.renameVRegs(MBB);
+      Changed |= Renamer.renameVRegs(MBB, BBIndex++);
 
     return Changed;
   }

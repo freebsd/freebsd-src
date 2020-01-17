@@ -18,6 +18,7 @@
 #include "llvm/DebugInfo/DWARF/DWARFAddressRange.h"
 #include "llvm/DebugInfo/DWARF/DWARFAttribute.h"
 #include "llvm/DebugInfo/DWARF/DWARFDebugInfoEntry.h"
+#include "llvm/DebugInfo/DWARF/DWARFDebugLoc.h"
 #include <cassert>
 #include <cstdint>
 #include <iterator>
@@ -188,6 +189,7 @@ public:
   ///
   /// \returns anm optional absolute section offset value for the attribute.
   Optional<uint64_t> getRangesBaseAttribute() const;
+  Optional<uint64_t> getLocBaseAttribute() const;
 
   /// Get the DW_AT_high_pc attribute value as an address.
   ///
@@ -229,6 +231,9 @@ public:
   void collectChildrenAddressRanges(DWARFAddressRangesVector &Ranges) const;
 
   bool addressRangeContainsAddress(const uint64_t Address) const;
+
+  Expected<DWARFLocationExpressionsVector>
+  getLocations(dwarf::Attribute Attr) const;
 
   /// If a DIE represents a subprogram (or inlined subroutine), returns its
   /// mangled name (or short name, if mangled is missing). This name may be

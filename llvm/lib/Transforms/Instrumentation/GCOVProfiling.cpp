@@ -30,6 +30,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -128,9 +129,9 @@ private:
   // Checksum, produced by hash of EdgeDestinations
   SmallVector<uint32_t, 4> FileChecksums;
 
-  Module *M;
+  Module *M = nullptr;
   std::function<const TargetLibraryInfo &(Function &F)> GetTLI;
-  LLVMContext *Ctx;
+  LLVMContext *Ctx = nullptr;
   SmallVector<std::unique_ptr<GCOVFunction>, 16> Funcs;
   std::vector<Regex> FilterRe;
   std::vector<Regex> ExcludeRe;
@@ -384,7 +385,7 @@ namespace {
       return EdgeDestinations;
     }
 
-    uint32_t getFuncChecksum() {
+    uint32_t getFuncChecksum() const {
       return FuncChecksum;
     }
 
@@ -713,7 +714,10 @@ void GCOVProfiler::emitProfileNotes() {
       // to have a counter for the function definition.
       uint32_t Line = SP->getLine();
       auto Filename = getFilename(SP);
-      Func.getBlock(&EntryBlock).getFile(Filename).addLine(Line);
+
+      // Artificial functions such as global initializers
+      if (!SP->isArtificial())
+        Func.getBlock(&EntryBlock).getFile(Filename).addLine(Line);
 
       for (auto &BB : F) {
         GCOVBlock &Block = Func.getBlock(&BB);

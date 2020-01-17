@@ -298,8 +298,8 @@ static size_t getHashSize() {
 // sets is empty, or some input files didn't have .note.gnu.property sections),
 // we don't create this section.
 GnuPropertySection::GnuPropertySection()
-    : SyntheticSection(llvm::ELF::SHF_ALLOC, llvm::ELF::SHT_NOTE, 4,
-                       ".note.gnu.property") {}
+    : SyntheticSection(llvm::ELF::SHF_ALLOC, llvm::ELF::SHT_NOTE,
+                       config->wordsize, ".note.gnu.property") {}
 
 void GnuPropertySection::writeTo(uint8_t *buf) {
   uint32_t featureAndType = config->emachine == EM_AARCH64
@@ -893,7 +893,7 @@ void MipsGotSection::build() {
   std::swap(gots, mergedGots);
 
   // Reduce number of "reloc-only" entries in the primary GOT
-  // by substracting "global" entries exist in the primary GOT.
+  // by subtracting "global" entries in the primary GOT.
   primGot = &gots.front();
   primGot->relocs.remove_if([&](const std::pair<Symbol *, size_t> &p) {
     return primGot->global.count(p.first);
@@ -1055,7 +1055,7 @@ void MipsGotSection::writeTo(uint8_t *buf) {
     // Write VA to the primary GOT only. For secondary GOTs that
     // will be done by REL32 dynamic relocations.
     if (&g == &gots.front())
-      for (const std::pair<const Symbol *, size_t> &p : g.global)
+      for (const std::pair<Symbol *, size_t> &p : g.global)
         write(p.second, p.first, 0);
     for (const std::pair<Symbol *, size_t> &p : g.relocs)
       write(p.second, p.first, 0);
@@ -1079,7 +1079,7 @@ void MipsGotSection::writeTo(uint8_t *buf) {
 // On PowerPC the .plt section is used to hold the table of function addresses
 // instead of the .got.plt, and the type is SHT_NOBITS similar to a .bss
 // section. I don't know why we have a BSS style type for the section but it is
-// consitent across both 64-bit PowerPC ABIs as well as the 32-bit PowerPC ABI.
+// consistent across both 64-bit PowerPC ABIs as well as the 32-bit PowerPC ABI.
 GotPltSection::GotPltSection()
     : SyntheticSection(SHF_ALLOC | SHF_WRITE, SHT_PROGBITS, config->wordsize,
                        ".got.plt") {
@@ -1333,7 +1333,7 @@ template <class ELFT> void DynamicSection<ELFT>::finalizeContents() {
   if (dtFlags1)
     addInt(DT_FLAGS_1, dtFlags1);
 
-  // DT_DEBUG is a pointer to debug informaion used by debuggers at runtime. We
+  // DT_DEBUG is a pointer to debug information used by debuggers at runtime. We
   // need it for each process, so we don't write it for DSOs. The loader writes
   // the pointer into this entry.
   //
@@ -1378,7 +1378,7 @@ template <class ELFT> void DynamicSection<ELFT>::finalizeContents() {
   // iplt relocations. It is possible to have only iplt relocations in the
   // output. In that case relaPlt is empty and have zero offset, the same offset
   // as relaIplt has. And we still want to emit proper dynamic tags for that
-  // case, so here we always use relaPlt as marker for the begining of
+  // case, so here we always use relaPlt as marker for the beginning of
   // .rel[a].plt section.
   if (isMain && (in.relaPlt->isNeeded() || in.relaIplt->isNeeded())) {
     addInSec(DT_JMPREL, in.relaPlt);
@@ -1437,14 +1437,13 @@ template <class ELFT> void DynamicSection<ELFT>::finalizeContents() {
         addSym(DT_FINI, b);
   }
 
-  bool hasVerNeed = SharedFile::vernauxNum != 0;
-  if (hasVerNeed || part.verDef)
+  if (part.verSym && part.verSym->isNeeded())
     addInSec(DT_VERSYM, part.verSym);
-  if (part.verDef) {
+  if (part.verDef && part.verDef->isLive()) {
     addInSec(DT_VERDEF, part.verDef);
     addInt(DT_VERDEFNUM, getVerDefNum());
   }
-  if (hasVerNeed) {
+  if (part.verNeed && part.verNeed->isNeeded()) {
     addInSec(DT_VERNEED, part.verNeed);
     unsigned needNum = 0;
     for (SharedFile *f : sharedFiles)
@@ -2265,7 +2264,7 @@ size_t SymtabShndxSection::getSize() const {
 // .gnu.hash has a bloom filter in addition to a hash table to skip
 // DSOs very quickly. If you are sure that your dynamic linker knows
 // about .gnu.hash, you want to specify -hash-style=gnu. Otherwise, a
-// safe bet is to specify -hash-style=both for backward compatibilty.
+// safe bet is to specify -hash-style=both for backward compatibility.
 GnuHashTableSection::GnuHashTableSection()
     : SyntheticSection(SHF_ALLOC, SHT_GNU_HASH, config->wordsize, ".gnu.hash") {
 }
@@ -2443,16 +2442,21 @@ void HashTableSection::writeTo(uint8_t *buf) {
   }
 }
 
-// On PowerPC64 the lazy symbol resolvers go into the `global linkage table`
-// in the .glink section, rather then the typical .plt section.
-PltSection::PltSection(bool isIplt)
-    : SyntheticSection(
-          SHF_ALLOC | SHF_EXECINSTR, SHT_PROGBITS, 16,
-          (config->emachine == EM_PPC || config->emachine == EM_PPC64)
-              ? ".glink"
-              : ".plt"),
-      headerSize(!isIplt || config->zRetpolineplt ? target->pltHeaderSize : 0),
-      isIplt(isIplt) {
+PltSection::PltSection()
+    : SyntheticSection(SHF_ALLOC | SHF_EXECINSTR, SHT_PROGBITS, 16, ".plt"),
+      headerSize(target->pltHeaderSize) {
+  // On PowerPC, this section contains lazy symbol resolvers.
+  if (config->emachine == EM_PPC || config->emachine == EM_PPC64) {
+    name = ".glink";
+    alignment = 4;
+  }
+
+  // On x86 when IBT is enabled, this section contains the second PLT (lazy
+  // symbol resolvers).
+  if ((config->emachine == EM_386 || config->emachine == EM_X86_64) &&
+      (config->andFeatures & GNU_PROPERTY_X86_FEATURE_1_IBT))
+    name = ".plt.sec";
+
   // The PLT needs to be writable on SPARC as the dynamic linker will
   // modify the instructions in the PLT entries.
   if (config->emachine == EM_SPARCV9)
@@ -2465,28 +2469,18 @@ void PltSection::writeTo(uint8_t *buf) {
     return;
   }
 
-  // At beginning of PLT or retpoline IPLT, we have code to call the dynamic
+  // At beginning of PLT, we have code to call the dynamic
   // linker to resolve dynsyms at runtime. Write such code.
-  if (headerSize)
-    target->writePltHeader(buf);
+  target->writePltHeader(buf);
   size_t off = headerSize;
 
-  RelocationBaseSection *relSec = isIplt ? in.relaIplt : in.relaPlt;
-
-  // The IPlt is immediately after the Plt, account for this in relOff
-  size_t pltOff = isIplt ? in.plt->getSize() : 0;
-
-  for (size_t i = 0, e = entries.size(); i != e; ++i) {
-    const Symbol *b = entries[i];
-    unsigned relOff = relSec->entsize * i + pltOff;
-    uint64_t got = b->getGotPltVA();
-    uint64_t plt = this->getVA() + off;
-    target->writePlt(buf + off, got, plt, b->pltIndex, relOff);
+  for (const Symbol *sym : entries) {
+    target->writePlt(buf + off, *sym, getVA() + off);
     off += target->pltEntrySize;
   }
 }
 
-template <class ELFT> void PltSection::addEntry(Symbol &sym) {
+void PltSection::addEntry(Symbol &sym) {
   sym.pltIndex = entries.size();
   entries.push_back(&sym);
 }
@@ -2495,18 +2489,125 @@ size_t PltSection::getSize() const {
   return headerSize + entries.size() * target->pltEntrySize;
 }
 
-// Some architectures such as additional symbols in the PLT section. For
-// example ARM uses mapping symbols to aid disassembly
+bool PltSection::isNeeded() const {
+  // For -z retpolineplt, .iplt needs the .plt header.
+  return !entries.empty() || (config->zRetpolineplt && in.iplt->isNeeded());
+}
+
+// Used by ARM to add mapping symbols in the PLT section, which aid
+// disassembly.
 void PltSection::addSymbols() {
-  // The PLT may have symbols defined for the Header, the IPLT has no header
-  if (!isIplt)
-    target->addPltHeaderSymbols(*this);
+  target->addPltHeaderSymbols(*this);
 
   size_t off = headerSize;
   for (size_t i = 0; i < entries.size(); ++i) {
     target->addPltSymbols(*this, off);
     off += target->pltEntrySize;
   }
+}
+
+IpltSection::IpltSection()
+    : SyntheticSection(SHF_ALLOC | SHF_EXECINSTR, SHT_PROGBITS, 16, ".iplt") {
+  if (config->emachine == EM_PPC || config->emachine == EM_PPC64) {
+    name = ".glink";
+    alignment = 4;
+  }
+}
+
+void IpltSection::writeTo(uint8_t *buf) {
+  uint32_t off = 0;
+  for (const Symbol *sym : entries) {
+    target->writeIplt(buf + off, *sym, getVA() + off);
+    off += target->ipltEntrySize;
+  }
+}
+
+size_t IpltSection::getSize() const {
+  return entries.size() * target->ipltEntrySize;
+}
+
+void IpltSection::addEntry(Symbol &sym) {
+  sym.pltIndex = entries.size();
+  entries.push_back(&sym);
+}
+
+// ARM uses mapping symbols to aid disassembly.
+void IpltSection::addSymbols() {
+  size_t off = 0;
+  for (size_t i = 0, e = entries.size(); i != e; ++i) {
+    target->addPltSymbols(*this, off);
+    off += target->pltEntrySize;
+  }
+}
+
+// This is an x86-only extra PLT section and used only when a security
+// enhancement feature called CET is enabled. In this comment, I'll explain what
+// the feature is and why we have two PLT sections if CET is enabled.
+//
+// So, what does CET do? CET introduces a new restriction to indirect jump
+// instructions. CET works this way. Assume that CET is enabled. Then, if you
+// execute an indirect jump instruction, the processor verifies that a special
+// "landing pad" instruction (which is actually a repurposed NOP instruction and
+// now called "endbr32" or "endbr64") is at the jump target. If the jump target
+// does not start with that instruction, the processor raises an exception
+// instead of continuing executing code.
+//
+// If CET is enabled, the compiler emits endbr to all locations where indirect
+// jumps may jump to.
+//
+// This mechanism makes it extremely hard to transfer the control to a middle of
+// a function that is not supporsed to be a indirect jump target, preventing
+// certain types of attacks such as ROP or JOP.
+//
+// Note that the processors in the market as of 2019 don't actually support the
+// feature. Only the spec is available at the moment.
+//
+// Now, I'll explain why we have this extra PLT section for CET.
+//
+// Since you can indirectly jump to a PLT entry, we have to make PLT entries
+// start with endbr. The problem is there's no extra space for endbr (which is 4
+// bytes long), as the PLT entry is only 16 bytes long and all bytes are already
+// used.
+//
+// In order to deal with the issue, we split a PLT entry into two PLT entries.
+// Remember that each PLT entry contains code to jump to an address read from
+// .got.plt AND code to resolve a dynamic symbol lazily. With the 2-PLT scheme,
+// the former code is written to .plt.sec, and the latter code is written to
+// .plt.
+//
+// Lazy symbol resolution in the 2-PLT scheme works in the usual way, except
+// that the regular .plt is now called .plt.sec and .plt is repurposed to
+// contain only code for lazy symbol resolution.
+//
+// In other words, this is how the 2-PLT scheme works. Application code is
+// supposed to jump to .plt.sec to call an external function. Each .plt.sec
+// entry contains code to read an address from a corresponding .got.plt entry
+// and jump to that address. Addresses in .got.plt initially point to .plt, so
+// when an application calls an external function for the first time, the
+// control is transferred to a function that resolves a symbol name from
+// external shared object files. That function then rewrites a .got.plt entry
+// with a resolved address, so that the subsequent function calls directly jump
+// to a desired location from .plt.sec.
+//
+// There is an open question as to whether the 2-PLT scheme was desirable or
+// not. We could have simply extended the PLT entry size to 32-bytes to
+// accommodate endbr, and that scheme would have been much simpler than the
+// 2-PLT scheme. One reason to split PLT was, by doing that, we could keep hot
+// code (.plt.sec) from cold code (.plt). But as far as I know no one proved
+// that the optimization actually makes a difference.
+//
+// That said, the 2-PLT scheme is a part of the ABI, debuggers and other tools
+// depend on it, so we implement the ABI.
+IBTPltSection::IBTPltSection()
+    : SyntheticSection(SHF_ALLOC | SHF_EXECINSTR, SHT_PROGBITS, 16, ".plt") {}
+
+void IBTPltSection::writeTo(uint8_t *buf) {
+  target->writeIBTPlt(buf, in.plt->getNumEntries());
+}
+
+size_t IBTPltSection::getSize() const {
+  // 16 is the header size of .plt.
+  return 16 + in.plt->getNumEntries() * target->pltEntrySize;
 }
 
 // The string hash function for .gdb_index.
@@ -2936,7 +3037,8 @@ void VersionTableSection::writeTo(uint8_t *buf) {
 }
 
 bool VersionTableSection::isNeeded() const {
-  return getPartition().verDef || getPartition().verNeed->isNeeded();
+  return isLive() &&
+         (getPartition().verDef || getPartition().verNeed->isNeeded());
 }
 
 void addVerneed(Symbol *ss) {
@@ -3024,7 +3126,7 @@ template <class ELFT> size_t VersionNeedSection<ELFT>::getSize() const {
 }
 
 template <class ELFT> bool VersionNeedSection<ELFT>::isNeeded() const {
-  return SharedFile::vernauxNum != 0;
+  return isLive() && SharedFile::vernauxNum != 0;
 }
 
 void MergeSyntheticSection::addSection(MergeInputSection *ms) {
@@ -3164,12 +3266,10 @@ static bool isValidExidxSectionDep(InputSection *isec) {
 
 bool ARMExidxSyntheticSection::addSection(InputSection *isec) {
   if (isec->type == SHT_ARM_EXIDX) {
-    if (InputSection* dep = isec->getLinkOrderDep())
-      if (isValidExidxSectionDep(dep)) {
+    if (InputSection *dep = isec->getLinkOrderDep())
+      if (isValidExidxSectionDep(dep))
         exidxSections.push_back(isec);
-        return true;
-      }
-    return false;
+    return true;
   }
 
   if (isValidExidxSectionDep(isec)) {
@@ -3357,6 +3457,17 @@ ThunkSection::ThunkSection(OutputSection *os, uint64_t off)
   this->outSecOff = off;
 }
 
+// When the errata patching is on, we round the size up to a 4 KiB
+// boundary. This limits the effect that adding Thunks has on the addresses
+// of the program modulo 4 KiB. As the errata patching is sensitive to address
+// modulo 4 KiB this can prevent further patches from being needed due to
+// Thunk insertion.
+size_t ThunkSection::getSize() const {
+  if (config->fixCortexA53Errata843419 || config->fixCortexA8)
+    return alignTo(size, 4096);
+  return size;
+}
+
 void ThunkSection::addThunk(Thunk *t) {
   thunks.push_back(t);
   t->addSymbols(*this);
@@ -3428,10 +3539,19 @@ PPC64LongBranchTargetSection::PPC64LongBranchTargetSection()
                        config->isPic ? SHT_NOBITS : SHT_PROGBITS, 8,
                        ".branch_lt") {}
 
-void PPC64LongBranchTargetSection::addEntry(Symbol &sym) {
-  assert(sym.ppc64BranchltIndex == 0xffff);
-  sym.ppc64BranchltIndex = entries.size();
-  entries.push_back(&sym);
+uint64_t PPC64LongBranchTargetSection::getEntryVA(const Symbol *sym,
+                                                  int64_t addend) {
+  return getVA() + entry_index.find({sym, addend})->second * 8;
+}
+
+Optional<uint32_t> PPC64LongBranchTargetSection::addEntry(const Symbol *sym,
+                                                          int64_t addend) {
+  auto res =
+      entry_index.try_emplace(std::make_pair(sym, addend), entries.size());
+  if (!res.second)
+    return None;
+  entries.emplace_back(sym, addend);
+  return res.first->second;
 }
 
 size_t PPC64LongBranchTargetSection::getSize() const {
@@ -3445,12 +3565,14 @@ void PPC64LongBranchTargetSection::writeTo(uint8_t *buf) {
   if (config->isPic)
     return;
 
-  for (const Symbol *sym : entries) {
+  for (auto entry : entries) {
+    const Symbol *sym = entry.first;
+    int64_t addend = entry.second;
     assert(sym->getVA());
     // Need calls to branch to the local entry-point since a long-branch
     // must be a local-call.
-    write64(buf,
-            sym->getVA() + getPPC64GlobalEntryToLocalEntryOffset(sym->stOther));
+    write64(buf, sym->getVA(addend) +
+                     getPPC64GlobalEntryToLocalEntryOffset(sym->stOther));
     buf += 8;
   }
 }
@@ -3460,7 +3582,7 @@ bool PPC64LongBranchTargetSection::isNeeded() const {
   // is too early to determine if this section will be empty or not. We need
   // Finalized to keep the section alive until after thunk creation. Finalized
   // only gets set to true once `finalizeSections()` is called after thunk
-  // creation. Becuase of this, if we don't create any long-branch thunks we end
+  // creation. Because of this, if we don't create any long-branch thunks we end
   // up with an empty .branch_lt section in the binary.
   return !finalized || !entries.empty();
 }
@@ -3600,11 +3722,6 @@ template void splitSections<ELF32LE>();
 template void splitSections<ELF32BE>();
 template void splitSections<ELF64LE>();
 template void splitSections<ELF64BE>();
-
-template void PltSection::addEntry<ELF32LE>(Symbol &Sym);
-template void PltSection::addEntry<ELF32BE>(Symbol &Sym);
-template void PltSection::addEntry<ELF64LE>(Symbol &Sym);
-template void PltSection::addEntry<ELF64BE>(Symbol &Sym);
 
 template class MipsAbiFlagsSection<ELF32LE>;
 template class MipsAbiFlagsSection<ELF32BE>;

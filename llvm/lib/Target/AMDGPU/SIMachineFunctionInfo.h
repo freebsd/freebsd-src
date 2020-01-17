@@ -236,17 +236,23 @@ template <> struct MappingTraits<SIArgumentInfo> {
 struct SIMode {
   bool IEEE = true;
   bool DX10Clamp = true;
+  bool FP32Denormals = true;
+  bool FP64FP16Denormals = true;
 
   SIMode() = default;
-
 
   SIMode(const AMDGPU::SIModeRegisterDefaults &Mode) {
     IEEE = Mode.IEEE;
     DX10Clamp = Mode.DX10Clamp;
+    FP32Denormals = Mode.FP32Denormals;
+    FP64FP16Denormals = Mode.FP64FP16Denormals;
   }
 
   bool operator ==(const SIMode Other) const {
-    return IEEE == Other.IEEE && DX10Clamp == Other.DX10Clamp;
+    return IEEE == Other.IEEE &&
+           DX10Clamp == Other.DX10Clamp &&
+           FP32Denormals == Other.FP32Denormals &&
+           FP64FP16Denormals == Other.FP64FP16Denormals;
   }
 };
 
@@ -254,6 +260,8 @@ template <> struct MappingTraits<SIMode> {
   static void mapping(IO &YamlIO, SIMode &Mode) {
     YamlIO.mapOptional("ieee", Mode.IEEE, true);
     YamlIO.mapOptional("dx10-clamp", Mode.DX10Clamp, true);
+    YamlIO.mapOptional("fp32-denormals", Mode.FP32Denormals, true);
+    YamlIO.mapOptional("fp64-fp16-denormals", Mode.FP64FP16Denormals, true);
   }
 };
 
@@ -331,9 +339,6 @@ class SIMachineFunctionInfo final : public AMDGPUMachineFunction {
   unsigned StackPtrOffsetReg = AMDGPU::SP_REG;
 
   AMDGPUFunctionArgInfo ArgInfo;
-
-  // State of MODE register, assumed FP mode.
-  AMDGPU::SIModeRegisterDefaults Mode;
 
   // Graphics info.
   unsigned PSInputAddr = 0;
@@ -505,10 +510,6 @@ public:
     auto I = VGPRToAGPRSpills.find(FrameIndex);
     return (I == VGPRToAGPRSpills.end()) ? (MCPhysReg)AMDGPU::NoRegister
                                          : I->second.Lanes[Lane];
-  }
-
-  AMDGPU::SIModeRegisterDefaults getMode() const {
-    return Mode;
   }
 
   bool haveFreeLanesForSGPRSpill(const MachineFunction &MF,

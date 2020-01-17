@@ -75,14 +75,17 @@ LinkerDriver *driver;
 static void setConfigs(opt::InputArgList &args);
 static void readConfigs(opt::InputArgList &args);
 
-bool link(ArrayRef<const char *> args, bool canExitEarly, raw_ostream &error) {
+bool link(ArrayRef<const char *> args, bool canExitEarly, raw_ostream &stdoutOS,
+          raw_ostream &stderrOS) {
+  lld::stdoutOS = &stdoutOS;
+  lld::stderrOS = &stderrOS;
+
   errorHandler().logName = args::getFilenameWithoutExe(args[0]);
   errorHandler().errorLimitExceededMsg =
       "too many errors emitted, stopping now (use "
       "-error-limit=0 to see all errors)";
-  errorHandler().errorOS = &error;
   errorHandler().exitEarly = canExitEarly;
-  enableColors(error.has_colors());
+  stderrOS.enable_colors(stderrOS.has_colors());
 
   inputSections.clear();
   outputSections.clear();
@@ -162,10 +165,7 @@ std::vector<std::pair<MemoryBufferRef, uint64_t>> static getArchiveMembers(
   std::vector<std::pair<MemoryBufferRef, uint64_t>> v;
   Error err = Error::success();
   bool addToTar = file->isThin() && tar;
-  for (const ErrorOr<Archive::Child> &cOrErr : file->children(err)) {
-    Archive::Child c =
-        CHECK(cOrErr, mb.getBufferIdentifier() +
-                          ": could not get the child of the archive");
+  for (const Archive::Child &c : file->children(err)) {
     MemoryBufferRef mbref =
         CHECK(c.getMemoryBufferRef(),
               mb.getBufferIdentifier() +
@@ -346,14 +346,14 @@ static void checkOptions() {
       error("-execute-only and -no-rosegment cannot be used together");
   }
 
-  if (config->zRetpolineplt && config->requireCET)
-    error("--require-cet may not be used with -z retpolineplt");
+  if (config->zRetpolineplt && config->zForceIbt)
+    error("-z force-ibt may not be used with -z retpolineplt");
 
   if (config->emachine != EM_AARCH64) {
     if (config->pacPlt)
-      error("--pac-plt only supported on AArch64");
+      error("-z pac-plt only supported on AArch64");
     if (config->forceBTI)
-      error("--force-bti only supported on AArch64");
+      error("-z force-bti only supported on AArch64");
   }
 }
 
@@ -394,18 +394,33 @@ static SeparateSegmentKind getZSeparate(opt::InputArgList &args) {
   return SeparateSegmentKind::None;
 }
 
+static GnuStackKind getZGnuStack(opt::InputArgList &args) {
+  for (auto *arg : args.filtered_reverse(OPT_z)) {
+    if (StringRef("execstack") == arg->getValue())
+      return GnuStackKind::Exec;
+    if (StringRef("noexecstack") == arg->getValue())
+      return GnuStackKind::NoExec;
+    if (StringRef("nognustack") == arg->getValue())
+      return GnuStackKind::None;
+  }
+
+  return GnuStackKind::NoExec;
+}
+
 static bool isKnownZFlag(StringRef s) {
   return s == "combreloc" || s == "copyreloc" || s == "defs" ||
-         s == "execstack" || s == "global" || s == "hazardplt" ||
-         s == "ifunc-noplt" || s == "initfirst" || s == "interpose" ||
+         s == "execstack" || s == "force-bti" || s == "force-ibt" ||
+         s == "global" || s == "hazardplt" || s == "ifunc-noplt" ||
+         s == "initfirst" || s == "interpose" ||
          s == "keep-text-section-prefix" || s == "lazy" || s == "muldefs" ||
          s == "separate-code" || s == "separate-loadable-segments" ||
          s == "nocombreloc" || s == "nocopyreloc" || s == "nodefaultlib" ||
          s == "nodelete" || s == "nodlopen" || s == "noexecstack" ||
-         s == "nokeep-text-section-prefix" || s == "norelro" ||
-         s == "noseparate-code" || s == "notext" || s == "now" ||
-         s == "origin" || s == "relro" || s == "retpolineplt" ||
-         s == "rodynamic" || s == "text" || s == "undefs" || s == "wxneeded" ||
+         s == "nognustack" || s == "nokeep-text-section-prefix" ||
+         s == "norelro" || s == "noseparate-code" || s == "notext" ||
+         s == "now" || s == "origin" || s == "pac-plt" || s == "relro" ||
+         s == "retpolineplt" || s == "rodynamic" || s == "shstk" ||
+         s == "text" || s == "undefs" || s == "wxneeded" ||
          s.startswith("common-page-size=") || s.startswith("max-page-size=") ||
          s.startswith("stack-size=");
 }
@@ -861,8 +876,7 @@ static void readConfigs(opt::InputArgList &args) {
   config->fini = args.getLastArgValue(OPT_fini, "_fini");
   config->fixCortexA53Errata843419 = args.hasArg(OPT_fix_cortex_a53_843419);
   config->fixCortexA8 = args.hasArg(OPT_fix_cortex_a8);
-  config->forceBTI = args.hasArg(OPT_force_bti);
-  config->requireCET = args.hasArg(OPT_require_cet);
+  config->forceBTI = hasZOption(args, "force-bti");
   config->gcSections = args.hasFlag(OPT_gc_sections, OPT_no_gc_sections, false);
   config->gnuUnique = args.hasFlag(OPT_gnu_unique, OPT_no_gnu_unique, true);
   config->gdbIndex = args.hasFlag(OPT_gdb_index, OPT_no_gdb_index, false);
@@ -886,6 +900,8 @@ static void readConfigs(opt::InputArgList &args) {
   config->mipsGotSize = args::getInteger(args, OPT_mips_got_size, 0xfff0);
   config->mergeArmExidx =
       args.hasFlag(OPT_merge_exidx_entries, OPT_no_merge_exidx_entries, true);
+  config->mmapOutputFile =
+      args.hasFlag(OPT_mmap_output_file, OPT_no_mmap_output_file, true);
   config->nmagic = args.hasFlag(OPT_nmagic, OPT_no_nmagic, false);
   config->noinhibitExec = args.hasArg(OPT_noinhibit_exec);
   config->nostdlib = args.hasArg(OPT_nostdlib);
@@ -898,7 +914,7 @@ static void readConfigs(opt::InputArgList &args) {
   config->optimize = args::getInteger(args, OPT_O, 1);
   config->orphanHandling = getOrphanHandling(args);
   config->outputFile = args.getLastArgValue(OPT_o);
-  config->pacPlt = args.hasArg(OPT_pac_plt);
+  config->pacPlt = hasZOption(args, "pac-plt");
   config->pie = args.hasFlag(OPT_pie, OPT_no_pie, false);
   config->printIcfSections =
       args.hasFlag(OPT_print_icf_sections, OPT_no_print_icf_sections, false);
@@ -949,8 +965,9 @@ static void readConfigs(opt::InputArgList &args) {
       args.hasFlag(OPT_warn_symbol_ordering, OPT_no_warn_symbol_ordering, true);
   config->zCombreloc = getZFlag(args, "combreloc", "nocombreloc", true);
   config->zCopyreloc = getZFlag(args, "copyreloc", "nocopyreloc", true);
-  config->zExecstack = getZFlag(args, "execstack", "noexecstack", false);
+  config->zForceIbt = hasZOption(args, "force-ibt");
   config->zGlobal = hasZOption(args, "global");
+  config->zGnustack = getZGnuStack(args);
   config->zHazardplt = hasZOption(args, "hazardplt");
   config->zIfuncNoplt = hasZOption(args, "ifunc-noplt");
   config->zInitfirst = hasZOption(args, "initfirst");
@@ -966,6 +983,7 @@ static void readConfigs(opt::InputArgList &args) {
   config->zRetpolineplt = hasZOption(args, "retpolineplt");
   config->zRodynamic = hasZOption(args, "rodynamic");
   config->zSeparate = getZSeparate(args);
+  config->zShstk = hasZOption(args, "shstk");
   config->zStackSize = args::getZOptionValue(args, OPT_z, "stack-size", 0);
   config->zText = getZFlag(args, "text", "notext", true);
   config->zWxneeded = hasZOption(args, "wxneeded");
@@ -991,6 +1009,14 @@ static void readConfigs(opt::InputArgList &args) {
 
   if (config->splitStackAdjustSize < 0)
     error("--split-stack-adjust-size: size must be >= 0");
+
+  // The text segment is traditionally the first segment, whose address equals
+  // the base address. However, lld places the R PT_LOAD first. -Ttext-segment
+  // is an old-fashioned option that does not play well with lld's layout.
+  // Suggest --image-base as a likely alternative.
+  if (args.hasArg(OPT_Ttext_segment))
+    error("-Ttext-segment is not supported. Use --image-base if you "
+          "intend to set the base address");
 
   // Parse ELF{32,64}{LE,BE} and CPU type.
   if (auto *arg = args.getLastArg(OPT_m)) {
@@ -1349,7 +1375,7 @@ static void excludeLibs(opt::InputArgList &args) {
     if (!file->archiveName.empty())
       if (all || libs.count(path::filename(file->archiveName)))
         for (Symbol *sym : file->getSymbols())
-          if (!sym->isLocal() && sym->file == file)
+          if (!sym->isUndefined() && !sym->isLocal() && sym->file == file)
             sym->versionId = VER_NDX_LOCAL;
   };
 
@@ -1370,7 +1396,7 @@ static void handleUndefined(Symbol *sym) {
     sym->fetch();
 }
 
-// As an extention to GNU linkers, lld supports a variant of `-u`
+// As an extension to GNU linkers, lld supports a variant of `-u`
 // which accepts wildcard patterns. All symbols that match a given
 // pattern are handled as if they were given by `-u`.
 static void handleUndefinedGlob(StringRef arg) {
@@ -1381,13 +1407,13 @@ static void handleUndefinedGlob(StringRef arg) {
   }
 
   std::vector<Symbol *> syms;
-  symtab->forEachSymbol([&](Symbol *sym) {
+  for (Symbol *sym : symtab->symbols()) {
     // Calling Sym->fetch() from here is not safe because it may
     // add new symbols to the symbol table, invalidating the
     // current iterator. So we just keep a note.
     if (pat->match(sym->getName()))
       syms.push_back(sym);
-  });
+  }
 
   for (Symbol *sym : syms)
     handleUndefined(sym);
@@ -1413,10 +1439,10 @@ static void handleLibcall(StringRef name) {
 // result, the passes after the symbol resolution won't see any
 // symbols of type CommonSymbol.
 static void replaceCommonSymbols() {
-  symtab->forEachSymbol([](Symbol *sym) {
+  for (Symbol *sym : symtab->symbols()) {
     auto *s = dyn_cast<CommonSymbol>(sym);
     if (!s)
-      return;
+      continue;
 
     auto *bss = make<BssSection>("COMMON", s->size, s->alignment);
     bss->file = s->file;
@@ -1424,7 +1450,7 @@ static void replaceCommonSymbols() {
     inputSections.push_back(bss);
     s->replace(Defined{s->file, s->getName(), s->binding, s->stOther, s->type,
                        /*value=*/0, s->size, bss});
-  });
+  }
 }
 
 // If all references to a DSO happen to be weak, the DSO is not added
@@ -1432,15 +1458,15 @@ static void replaceCommonSymbols() {
 // created from the DSO. Otherwise, they become dangling references
 // that point to a non-existent DSO.
 static void demoteSharedSymbols() {
-  symtab->forEachSymbol([](Symbol *sym) {
+  for (Symbol *sym : symtab->symbols()) {
     auto *s = dyn_cast<SharedSymbol>(sym);
     if (!s || s->getFile().isNeeded)
-      return;
+      continue;
 
     bool used = s->used;
     s->replace(Undefined{nullptr, s->getName(), STB_WEAK, s->stOther, s->type});
     s->used = used;
-  });
+  }
 }
 
 // The section referred to by `s` is considered address-significant. Set the
@@ -1476,10 +1502,9 @@ static void findKeepUniqueSections(opt::InputArgList &args) {
 
   // Symbols in the dynsym could be address-significant in other executables
   // or DSOs, so we conservatively mark them as address-significant.
-  symtab->forEachSymbol([&](Symbol *sym) {
+  for (Symbol *sym : symtab->symbols())
     if (sym->includeInDynsym())
       markAddrsig(sym);
-  });
 
   // Visit the address-significance table in each object file and mark each
   // referenced symbol as address-significant.
@@ -1663,12 +1688,8 @@ static void wrapSymbols(ArrayRef<WrappedSymbol> wrapped) {
 // with CET. We enable the feature only when all object files are compatible
 // with CET.
 //
-// This function returns the merged feature flags. If 0, we cannot enable CET.
 // This is also the case with AARCH64's BTI and PAC which use the similar
 // GNU_PROPERTY_AARCH64_FEATURE_1_AND mechanism.
-//
-// Note that the CET-aware PLT is not implemented yet. We do error
-// check only.
 template <class ELFT> static uint32_t getAndFeatures() {
   if (config->emachine != EM_386 && config->emachine != EM_X86_64 &&
       config->emachine != EM_AARCH64)
@@ -1678,10 +1699,14 @@ template <class ELFT> static uint32_t getAndFeatures() {
   for (InputFile *f : objectFiles) {
     uint32_t features = cast<ObjFile<ELFT>>(f)->andFeatures;
     if (config->forceBTI && !(features & GNU_PROPERTY_AARCH64_FEATURE_1_BTI)) {
-      warn(toString(f) + ": --force-bti: file does not have BTI property");
+      warn(toString(f) + ": -z force-bti: file does not have BTI property");
       features |= GNU_PROPERTY_AARCH64_FEATURE_1_BTI;
-    } else if (!features && config->requireCET)
-      error(toString(f) + ": --require-cet: file is not compatible with CET");
+    } else if (config->zForceIbt &&
+               !(features & GNU_PROPERTY_X86_FEATURE_1_IBT)) {
+      warn(toString(f) + ": -z force-ibt: file does not have "
+                         "GNU_PROPERTY_X86_FEATURE_1_IBT property");
+      features |= GNU_PROPERTY_X86_FEATURE_1_IBT;
+    }
     ret &= features;
   }
 
@@ -1689,6 +1714,9 @@ template <class ELFT> static uint32_t getAndFeatures() {
   // this does not require support in the object for correctness.
   if (config->pacPlt)
     ret |= GNU_PROPERTY_AARCH64_FEATURE_1_PAC;
+  // Force enable Shadow Stack.
+  if (config->zShstk)
+    ret |= GNU_PROPERTY_X86_FEATURE_1_SHSTK;
 
   return ret;
 }
@@ -1764,6 +1792,12 @@ template <class ELFT> void LinkerDriver::link(opt::InputArgList &args) {
   // Handle the `--undefined-glob <pattern>` options.
   for (StringRef pat : args::getStrings(args, OPT_undefined_glob))
     handleUndefinedGlob(pat);
+
+  // Mark -init and -fini symbols so that the LTO doesn't eliminate them.
+  if (Symbol *sym = symtab->find(config->init))
+    sym->isUsedInRegularObj = true;
+  if (Symbol *sym = symtab->find(config->fini))
+    sym->isUsedInRegularObj = true;
 
   // If any of our inputs are bitcode files, the LTO code generator may create
   // references to certain library functions that might not be explicit in the

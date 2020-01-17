@@ -20,8 +20,6 @@
 // per packet, it also means fewer packets, and ultimately fewer cycles.
 //===---------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "hexagon-widen-stores"
-
 #include "HexagonInstrInfo.h"
 #include "HexagonRegisterInfo.h"
 #include "HexagonSubtarget.h"
@@ -37,6 +35,7 @@
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/IR/DebugLoc.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/MCInstrDesc.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
@@ -48,6 +47,8 @@
 #include <cstdint>
 #include <iterator>
 #include <vector>
+
+#define DEBUG_TYPE "hexagon-widen-stores"
 
 using namespace llvm;
 
@@ -270,7 +271,7 @@ void HexagonStoreWidening::createStoreGroup(MachineInstr *BaseStore,
     if (MI->isCall() || MI->hasUnmodeledSideEffects())
       return;
 
-    if (MI->mayLoad() || MI->mayStore()) {
+    if (MI->mayLoadOrStore()) {
       if (MI->hasOrderedMemoryRef() || instrAliased(Group, MI))
         return;
       Other.push_back(MI);

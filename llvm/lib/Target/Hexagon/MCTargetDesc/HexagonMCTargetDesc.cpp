@@ -137,14 +137,15 @@ public:
                            MCInstPrinter &IP)
       : HexagonTargetStreamer(S) {}
 
-  void prettyPrintAsm(MCInstPrinter &InstPrinter, raw_ostream &OS,
-                      const MCInst &Inst, const MCSubtargetInfo &STI) override {
+  void prettyPrintAsm(MCInstPrinter &InstPrinter, uint64_t Address,
+                      const MCInst &Inst, const MCSubtargetInfo &STI,
+                      raw_ostream &OS) override {
     assert(HexagonMCInstrInfo::isBundle(Inst));
     assert(HexagonMCInstrInfo::bundleSize(Inst) <= HEXAGON_PACKET_SIZE);
     std::string Buffer;
     {
       raw_string_ostream TempStream(Buffer);
-      InstPrinter.printInst(&Inst, TempStream, "", STI);
+      InstPrinter.printInst(&Inst, Address, "", STI, TempStream);
     }
     StringRef Contents(Buffer);
     auto PacketBundle = Contents.rsplit('\n');
@@ -219,7 +220,8 @@ static MCRegisterInfo *createHexagonMCRegisterInfo(const Triple &TT) {
 }
 
 static MCAsmInfo *createHexagonMCAsmInfo(const MCRegisterInfo &MRI,
-                                         const Triple &TT) {
+                                         const Triple &TT,
+                                         const MCTargetOptions &Options) {
   MCAsmInfo *MAI = new HexagonMCAsmInfo(TT);
 
   // VirtualFP = (R30 + #0).
@@ -454,7 +456,7 @@ static MCInstrAnalysis *createHexagonMCInstrAnalysis(const MCInstrInfo *Info) {
 }
 
 // Force static initialization.
-extern "C" void LLVMInitializeHexagonTargetMC() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeHexagonTargetMC() {
   // Register the MC asm info.
   RegisterMCAsmInfoFn X(getTheHexagonTarget(), createHexagonMCAsmInfo);
 

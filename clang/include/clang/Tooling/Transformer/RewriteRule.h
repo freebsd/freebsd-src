@@ -30,7 +30,7 @@
 
 namespace clang {
 namespace transformer {
-using TextGenerator = MatchConsumer<std::string>;
+using TextGenerator = std::shared_ptr<MatchComputation<std::string>>;
 
 // Description of a source-code edit, expressed in terms of an AST node.
 // Includes: an ID for the (bound) node, a selector for source related to the
@@ -55,18 +55,18 @@ using TextGenerator = MatchConsumer<std::string>;
 // `ASTEdit` should be built using the `change` convenience functions. For
 // example,
 // \code
-//   change(name(fun), text("Frodo"))
+//   changeTo(name(fun), cat("Frodo"))
 // \endcode
 // Or, if we use Stencil for the TextGenerator:
 // \code
 //   using stencil::cat;
-//   change(statement(thenNode), cat("{", thenNode, "}"))
-//   change(callArgs(call), cat(x, ",", y))
+//   changeTo(statement(thenNode), cat("{", thenNode, "}"))
+//   changeTo(callArgs(call), cat(x, ",", y))
 // \endcode
 // Or, if you are changing the node corresponding to the rule's matcher, you can
 // use the single-argument override of \c change:
 // \code
-//   change(cat("different_expr"))
+//   changeTo(cat("different_expr"))
 // \endcode
 struct ASTEdit {
   RangeSelector TargetRange;
@@ -141,7 +141,7 @@ inline RewriteRule makeRule(ast_matchers::internal::DynTypedMatcher M,
 /// could write:
 /// \code
 ///   auto R = makeRule(callExpr(callee(functionDecl(hasName("foo")))),
-///            change(text("bar()")));
+///            changeTo(cat("bar()")));
 ///   AddInclude(R, "path/to/bar_header.h");
 ///   AddInclude(R, "vector", IncludeFormat::Angled);
 /// \endcode
@@ -190,36 +190,40 @@ void addInclude(RewriteRule &Rule, llvm::StringRef Header,
 RewriteRule applyFirst(ArrayRef<RewriteRule> Rules);
 
 /// Replaces a portion of the source text with \p Replacement.
-ASTEdit change(RangeSelector Target, TextGenerator Replacement);
+ASTEdit changeTo(RangeSelector Target, TextGenerator Replacement);
+/// DEPRECATED: use \c changeTo.
+inline ASTEdit change(RangeSelector Target, TextGenerator Replacement) {
+  return changeTo(std::move(Target), std::move(Replacement));
+}
 
 /// Replaces the entirety of a RewriteRule's match with \p Replacement.  For
 /// example, to replace a function call, one could write:
 /// \code
 ///   makeRule(callExpr(callee(functionDecl(hasName("foo")))),
-///            change(text("bar()")))
+///            changeTo(cat("bar()")))
 /// \endcode
+inline ASTEdit changeTo(TextGenerator Replacement) {
+  return changeTo(node(RewriteRule::RootID), std::move(Replacement));
+}
+/// DEPRECATED: use \c changeTo.
 inline ASTEdit change(TextGenerator Replacement) {
-  return change(node(RewriteRule::RootID), std::move(Replacement));
+  return changeTo(std::move(Replacement));
 }
 
 /// Inserts \p Replacement before \p S, leaving the source selected by \S
 /// unchanged.
 inline ASTEdit insertBefore(RangeSelector S, TextGenerator Replacement) {
-  return change(before(std::move(S)), std::move(Replacement));
+  return changeTo(before(std::move(S)), std::move(Replacement));
 }
 
 /// Inserts \p Replacement after \p S, leaving the source selected by \S
 /// unchanged.
 inline ASTEdit insertAfter(RangeSelector S, TextGenerator Replacement) {
-  return change(after(std::move(S)), std::move(Replacement));
+  return changeTo(after(std::move(S)), std::move(Replacement));
 }
 
 /// Removes the source selected by \p S.
-inline ASTEdit remove(RangeSelector S) {
-  return change(std::move(S),
-                [](const ast_matchers::MatchFinder::MatchResult &)
-                    -> Expected<std::string> { return ""; });
-}
+ASTEdit remove(RangeSelector S);
 
 /// The following three functions are a low-level part of the RewriteRule
 /// API. We expose them for use in implementing the fixtures that interpret
@@ -286,10 +290,7 @@ namespace tooling {
 /// Wraps a string as a TextGenerator.
 using TextGenerator = transformer::TextGenerator;
 
-inline TextGenerator text(std::string M) {
-  return [M](const ast_matchers::MatchFinder::MatchResult &)
-             -> Expected<std::string> { return M; };
-}
+TextGenerator text(std::string M);
 
 using transformer::addInclude;
 using transformer::applyFirst;

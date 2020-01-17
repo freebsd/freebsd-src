@@ -44,6 +44,7 @@ using namespace llvm;
 namespace {
 
 constexpr unsigned DefaultSectionAlign = 4;
+constexpr int16_t MaxSectionIndex = INT16_MAX;
 
 // Packs the csect's alignment and type into a byte.
 uint8_t getEncodedType(const MCSectionXCOFF *);
@@ -73,6 +74,14 @@ struct ControlSection {
       : MCCsect(MCSec), SymbolTableIndex(-1), Address(-1), Size(0) {}
 };
 
+// Type to be used for a container representing a set of csects with
+// (approximately) the same storage mapping class. For example all the csects
+// with a storage mapping class of `xmc_pr` will get placed into the same
+// container.
+using CsectGroup = std::deque<ControlSection>;
+
+using CsectGroups = std::deque<CsectGroup *>;
+
 // Represents the data related to a section excluding the csects that make up
 // the raw data of the section. The csects are stored separately as not all
 // sections contain csects, and some sections contain csects which are better
@@ -94,49 +103,70 @@ struct Section {
   // Virtual sections do not need storage allocated in the object file.
   const bool IsVirtual;
 
+  // XCOFF has special section numbers for symbols:
+  // -2 Specifies N_DEBUG, a special symbolic debugging symbol.
+  // -1 Specifies N_ABS, an absolute symbol. The symbol has a value but is not
+  // relocatable.
+  //  0 Specifies N_UNDEF, an undefined external symbol.
+  // Therefore, we choose -3 (N_DEBUG - 1) to represent a section index that
+  // hasn't been initialized.
+  static constexpr int16_t UninitializedIndex =
+      XCOFF::ReservedSectionNum::N_DEBUG - 1;
+
+  CsectGroups Groups;
+
   void reset() {
     Address = 0;
     Size = 0;
     FileOffsetToData = 0;
     FileOffsetToRelocations = 0;
     RelocationCount = 0;
-    Index = -1;
+    Index = UninitializedIndex;
+    // Clear any csects we have stored.
+    for (auto *Group : Groups)
+      Group->clear();
   }
 
-  Section(const char *N, XCOFF::SectionTypeFlags Flags, bool IsVirtual)
+  Section(const char *N, XCOFF::SectionTypeFlags Flags, bool IsVirtual,
+          CsectGroups Groups)
       : Address(0), Size(0), FileOffsetToData(0), FileOffsetToRelocations(0),
-        RelocationCount(0), Flags(Flags), Index(-1), IsVirtual(IsVirtual) {
+        RelocationCount(0), Flags(Flags), Index(UninitializedIndex),
+        IsVirtual(IsVirtual), Groups(Groups) {
     strncpy(Name, N, XCOFF::NameSize);
   }
 };
 
 class XCOFFObjectWriter : public MCObjectWriter {
-  // Type to be used for a container representing a set of csects with
-  // (approximately) the same storage mapping class. For example all the csects
-  // with a storage mapping class of `xmc_pr` will get placed into the same
-  // container.
-  using CsectGroup = std::deque<ControlSection>;
+
+  uint32_t SymbolTableEntryCount = 0;
+  uint32_t SymbolTableOffset = 0;
+  uint16_t SectionCount = 0;
 
   support::endian::Writer W;
   std::unique_ptr<MCXCOFFObjectTargetWriter> TargetObjectWriter;
   StringTableBuilder Strings;
 
-  // The non-empty sections, in the order they will appear in the section header
-  // table.
-  std::vector<Section *> Sections;
-
-  // The Predefined sections.
-  Section Text;
-  Section BSS;
-
   // CsectGroups. These store the csects which make up different parts of
   // the sections. Should have one for each set of csects that get mapped into
   // the same section and get handled in a 'similar' way.
+  CsectGroup UndefinedCsects;
   CsectGroup ProgramCodeCsects;
+  CsectGroup ReadOnlyCsects;
+  CsectGroup DataCsects;
+  CsectGroup FuncDSCsects;
+  CsectGroup TOCCsects;
   CsectGroup BSSCsects;
 
-  uint32_t SymbolTableEntryCount = 0;
-  uint32_t SymbolTableOffset = 0;
+  // The Predefined sections.
+  Section Text;
+  Section Data;
+  Section BSS;
+
+  // All the XCOFF sections, in the order they will appear in the section header
+  // table.
+  std::array<Section *const, 3> Sections{{&Text, &Data, &BSS}};
+
+  CsectGroup &getCsectGroup(const MCSectionXCOFF *MCSec);
 
   virtual void reset() override;
 
@@ -190,25 +220,70 @@ XCOFFObjectWriter::XCOFFObjectWriter(
     std::unique_ptr<MCXCOFFObjectTargetWriter> MOTW, raw_pwrite_stream &OS)
     : W(OS, support::big), TargetObjectWriter(std::move(MOTW)),
       Strings(StringTableBuilder::XCOFF),
-      Text(".text", XCOFF::STYP_TEXT, /* IsVirtual */ false),
-      BSS(".bss", XCOFF::STYP_BSS, /* IsVirtual */ true) {}
+      Text(".text", XCOFF::STYP_TEXT, /* IsVirtual */ false,
+           CsectGroups{&ProgramCodeCsects, &ReadOnlyCsects}),
+      Data(".data", XCOFF::STYP_DATA, /* IsVirtual */ false,
+           CsectGroups{&DataCsects, &FuncDSCsects, &TOCCsects}),
+      BSS(".bss", XCOFF::STYP_BSS, /* IsVirtual */ true,
+          CsectGroups{&BSSCsects}) {}
 
 void XCOFFObjectWriter::reset() {
+  UndefinedCsects.clear();
+
   // Reset any sections we have written to, and empty the section header table.
   for (auto *Sec : Sections)
     Sec->reset();
-  Sections.clear();
-
-  // Clear any csects we have stored.
-  ProgramCodeCsects.clear();
-  BSSCsects.clear();
 
   // Reset the symbol table and string table.
   SymbolTableEntryCount = 0;
   SymbolTableOffset = 0;
+  SectionCount = 0;
   Strings.clear();
 
   MCObjectWriter::reset();
+}
+
+CsectGroup &XCOFFObjectWriter::getCsectGroup(const MCSectionXCOFF *MCSec) {
+  switch (MCSec->getMappingClass()) {
+  case XCOFF::XMC_PR:
+    assert(XCOFF::XTY_SD == MCSec->getCSectType() &&
+           "Only an initialized csect can contain program code.");
+    return ProgramCodeCsects;
+  case XCOFF::XMC_RO:
+    assert(XCOFF::XTY_SD == MCSec->getCSectType() &&
+           "Only an initialized csect can contain read only data.");
+    return ReadOnlyCsects;
+  case XCOFF::XMC_RW:
+    if (XCOFF::XTY_CM == MCSec->getCSectType())
+      return BSSCsects;
+
+    if (XCOFF::XTY_SD == MCSec->getCSectType())
+      return DataCsects;
+
+    report_fatal_error("Unhandled mapping of read-write csect to section.");
+  case XCOFF::XMC_DS:
+    return FuncDSCsects;
+  case XCOFF::XMC_BS:
+    assert(XCOFF::XTY_CM == MCSec->getCSectType() &&
+           "Mapping invalid csect. CSECT with bss storage class must be "
+           "common type.");
+    return BSSCsects;
+  case XCOFF::XMC_TC0:
+    assert(XCOFF::XTY_SD == MCSec->getCSectType() &&
+           "Only an initialized csect can contain TOC-base.");
+    assert(TOCCsects.empty() &&
+           "We should have only one TOC-base, and it should be the first csect "
+           "in this CsectGroup.");
+    return TOCCsects;
+  case XCOFF::XMC_TC:
+    assert(XCOFF::XTY_SD == MCSec->getCSectType() &&
+           "Only an initialized csect can contain TC entry.");
+    assert(!TOCCsects.empty() &&
+           "We should at least have a TOC-base in this CsectGroup.");
+    return TOCCsects;
+  default:
+    report_fatal_error("Unhandled mapping of csect to section.");
+  }
 }
 
 void XCOFFObjectWriter::executePostLayoutBinding(MCAssembler &Asm,
@@ -225,49 +300,38 @@ void XCOFFObjectWriter::executePostLayoutBinding(MCAssembler &Asm,
     const auto *MCSec = cast<const MCSectionXCOFF>(&S);
     assert(WrapperMap.find(MCSec) == WrapperMap.end() &&
            "Cannot add a csect twice.");
+    assert(XCOFF::XTY_ER != MCSec->getCSectType() &&
+           "An undefined csect should not get registered.");
 
     // If the name does not fit in the storage provided in the symbol table
     // entry, add it to the string table.
     if (nameShouldBeInStringTable(MCSec->getSectionName()))
       Strings.add(MCSec->getSectionName());
 
-    switch (MCSec->getMappingClass()) {
-    case XCOFF::XMC_PR:
-      assert(XCOFF::XTY_SD == MCSec->getCSectType() &&
-             "Only an initialized csect can contain program code.");
-      ProgramCodeCsects.emplace_back(MCSec);
-      WrapperMap[MCSec] = &ProgramCodeCsects.back();
-      break;
-    case XCOFF::XMC_RW:
-      if (XCOFF::XTY_CM == MCSec->getCSectType()) {
-        BSSCsects.emplace_back(MCSec);
-        WrapperMap[MCSec] = &BSSCsects.back();
-        break;
-      }
-      report_fatal_error("Unhandled mapping of read-write csect to section.");
-    case XCOFF::XMC_TC0:
-      // TODO FIXME Handle emiting the TOC base.
-      break;
-    case XCOFF::XMC_BS:
-      assert(XCOFF::XTY_CM == MCSec->getCSectType() &&
-             "Mapping invalid csect. CSECT with bss storage class must be "
-             "common type.");
-      BSSCsects.emplace_back(MCSec);
-      WrapperMap[MCSec] = &BSSCsects.back();
-      break;
-    default:
-      report_fatal_error("Unhandled mapping of csect to section.");
-    }
+    CsectGroup &Group = getCsectGroup(MCSec);
+    Group.emplace_back(MCSec);
+    WrapperMap[MCSec] = &Group.back();
   }
 
   for (const MCSymbol &S : Asm.symbols()) {
     // Nothing to do for temporary symbols.
     if (S.isTemporary())
       continue;
-    const MCSymbolXCOFF *XSym = cast<MCSymbolXCOFF>(&S);
 
-    // Map the symbol into its containing csect.
+    const MCSymbolXCOFF *XSym = cast<MCSymbolXCOFF>(&S);
     const MCSectionXCOFF *ContainingCsect = XSym->getContainingCsect();
+
+    // Handle undefined symbol.
+    if (ContainingCsect->getCSectType() == XCOFF::XTY_ER) {
+      UndefinedCsects.emplace_back(ContainingCsect);
+      continue;
+    }
+
+    // If the symbol is the csect itself, we don't need to put the symbol
+    // into csect's Syms.
+    if (XSym == ContainingCsect->getQualNameSymbol())
+      continue;
+
     assert(WrapperMap.find(ContainingCsect) != WrapperMap.end() &&
            "Expected containing csect to exist in map");
 
@@ -287,27 +351,37 @@ void XCOFFObjectWriter::executePostLayoutBinding(MCAssembler &Asm,
 void XCOFFObjectWriter::recordRelocation(MCAssembler &, const MCAsmLayout &,
                                          const MCFragment *, const MCFixup &,
                                          MCValue, uint64_t &) {
-  report_fatal_error("XCOFF relocations not supported.");
+  // TODO: recordRelocation is not yet implemented.
 }
 
 void XCOFFObjectWriter::writeSections(const MCAssembler &Asm,
                                       const MCAsmLayout &Layout) {
-  // Write the program code control sections one at a time.
-  uint32_t CurrentAddressLocation = Text.Address;
-  for (const auto &Csect : ProgramCodeCsects) {
-    if (uint32_t PaddingSize = Csect.Address - CurrentAddressLocation)
-      W.OS.write_zeros(PaddingSize);
-    Asm.writeSectionData(W.OS, Csect.MCCsect, Layout);
-    CurrentAddressLocation = Csect.Address + Csect.Size;
-  }
+  uint32_t CurrentAddressLocation = 0;
+  for (const auto *Section : Sections) {
+    // Nothing to write for this Section.
+    if (Section->Index == Section::UninitializedIndex || Section->IsVirtual)
+      continue;
 
-  if (Text.Index != -1) {
+    assert(CurrentAddressLocation == Section->Address &&
+           "Sections should be written consecutively.");
+    for (const auto *Group : Section->Groups) {
+      for (const auto &Csect : *Group) {
+        if (uint32_t PaddingSize = Csect.Address - CurrentAddressLocation)
+          W.OS.write_zeros(PaddingSize);
+        if (Csect.Size)
+          Asm.writeSectionData(W.OS, Csect.MCCsect, Layout);
+        CurrentAddressLocation = Csect.Address + Csect.Size;
+      }
+    }
+
     // The size of the tail padding in a section is the end virtual address of
     // the current section minus the the end virtual address of the last csect
     // in that section.
     if (uint32_t PaddingSize =
-            Text.Address + Text.Size - CurrentAddressLocation)
+            Section->Address + Section->Size - CurrentAddressLocation) {
       W.OS.write_zeros(PaddingSize);
+      CurrentAddressLocation += PaddingSize;
+    }
   }
 }
 
@@ -345,7 +419,7 @@ void XCOFFObjectWriter::writeSymbolName(const StringRef &SymbolName) {
     W.write<int32_t>(0);
     W.write<uint32_t>(Strings.getOffset(SymbolName));
   } else {
-    char Name[XCOFF::NameSize];
+    char Name[XCOFF::NameSize+1];
     std::strncpy(Name, SymbolName.data(), XCOFF::NameSize);
     ArrayRef<char> NameRef(Name, XCOFF::NameSize);
     W.write(NameRef);
@@ -431,7 +505,7 @@ void XCOFFObjectWriter::writeFileHeader() {
   // Magic.
   W.write<uint16_t>(0x01df);
   // Number of sections.
-  W.write<uint16_t>(Sections.size());
+  W.write<uint16_t>(SectionCount);
   // Timestamp field. For reproducible output we write a 0, which represents no
   // timestamp.
   W.write<int32_t>(0);
@@ -447,6 +521,10 @@ void XCOFFObjectWriter::writeFileHeader() {
 
 void XCOFFObjectWriter::writeSectionHeaderTable() {
   for (const auto *Sec : Sections) {
+    // Nothing to write for this Section.
+    if (Sec->Index == Section::UninitializedIndex)
+      continue;
+
     // Write Name.
     ArrayRef<char> NameRef(Sec->Name, XCOFF::NameSize);
     W.write(NameRef);
@@ -472,104 +550,112 @@ void XCOFFObjectWriter::writeSectionHeaderTable() {
 }
 
 void XCOFFObjectWriter::writeSymbolTable(const MCAsmLayout &Layout) {
-  // Print out symbol table for the program code.
-  for (const auto &Csect : ProgramCodeCsects) {
-    // Write out the control section first and then each symbol in it.
-    writeSymbolTableEntryForControlSection(Csect, Text.Index,
-                                           Csect.MCCsect->getStorageClass());
-    for (const auto &Sym : Csect.Syms)
-      writeSymbolTableEntryForCsectMemberLabel(
-          Sym, Csect, Text.Index, Layout.getSymbolOffset(*Sym.MCSym));
+  for (const auto &Csect : UndefinedCsects) {
+    writeSymbolTableEntryForControlSection(
+        Csect, XCOFF::ReservedSectionNum::N_UNDEF, Csect.MCCsect->getStorageClass());
   }
 
-  // The BSS Section is special in that the csects must contain a single symbol,
-  // and the contained symbol cannot be represented in the symbol table as a
-  // label definition.
-  for (auto &Csect : BSSCsects) {
-    assert(Csect.Syms.size() == 1 &&
-           "Uninitialized csect cannot contain more then 1 symbol.");
-    Symbol &Sym = Csect.Syms.back();
-    writeSymbolTableEntryForControlSection(Csect, BSS.Index,
-                                           Sym.getStorageClass());
+  for (const auto *Section : Sections) {
+    // Nothing to write for this Section.
+    if (Section->Index == Section::UninitializedIndex)
+      continue;
+
+    for (const auto *Group : Section->Groups) {
+      if (Group->empty())
+        continue;
+
+      const int16_t SectionIndex = Section->Index;
+      for (const auto &Csect : *Group) {
+        // Write out the control section first and then each symbol in it.
+        writeSymbolTableEntryForControlSection(
+            Csect, SectionIndex, Csect.MCCsect->getStorageClass());
+
+        for (const auto &Sym : Csect.Syms)
+          writeSymbolTableEntryForCsectMemberLabel(
+              Sym, Csect, SectionIndex, Layout.getSymbolOffset(*(Sym.MCSym)));
+      }
+    }
   }
 }
 
 void XCOFFObjectWriter::assignAddressesAndIndices(const MCAsmLayout &Layout) {
+  // The first symbol table entry is for the file name. We are not emitting it
+  // yet, so start at index 0.
+  uint32_t SymbolTableIndex = 0;
+
+  // Calculate indices for undefined symbols.
+  for (auto &Csect : UndefinedCsects) {
+    Csect.Size = 0;
+    Csect.Address = 0;
+    Csect.SymbolTableIndex = SymbolTableIndex;
+    // 1 main and 1 auxiliary symbol table entry for each contained symbol.
+    SymbolTableIndex += 2;
+  }
+
   // The address corrresponds to the address of sections and symbols in the
   // object file. We place the shared address 0 immediately after the
   // section header table.
   uint32_t Address = 0;
   // Section indices are 1-based in XCOFF.
-  int16_t SectionIndex = 1;
-  // The first symbol table entry is for the file name. We are not emitting it
-  // yet, so start at index 0.
-  uint32_t SymbolTableIndex = 0;
+  int32_t SectionIndex = 1;
 
-  // Text section comes first.
-  if (!ProgramCodeCsects.empty()) {
-    Sections.push_back(&Text);
-    Text.Index = SectionIndex++;
-    for (auto &Csect : ProgramCodeCsects) {
-      const MCSectionXCOFF *MCSec = Csect.MCCsect;
-      Csect.Address = alignTo(Address, MCSec->getAlignment());
-      Csect.Size = Layout.getSectionAddressSize(MCSec);
-      Address = Csect.Address + Csect.Size;
-      Csect.SymbolTableIndex = SymbolTableIndex;
-      // 1 main and 1 auxiliary symbol table entry for the csect.
-      SymbolTableIndex += 2;
-      for (auto &Sym : Csect.Syms) {
-        Sym.SymbolTableIndex = SymbolTableIndex;
-        // 1 main and 1 auxiliary symbol table entry for each contained symbol
+  for (auto *Section : Sections) {
+    const bool IsEmpty =
+        llvm::all_of(Section->Groups,
+                     [](const CsectGroup *Group) { return Group->empty(); });
+    if (IsEmpty)
+      continue;
+
+    if (SectionIndex > MaxSectionIndex)
+      report_fatal_error("Section index overflow!");
+    Section->Index = SectionIndex++;
+    SectionCount++;
+
+    bool SectionAddressSet = false;
+    for (auto *Group : Section->Groups) {
+      if (Group->empty())
+        continue;
+
+      for (auto &Csect : *Group) {
+        const MCSectionXCOFF *MCSec = Csect.MCCsect;
+        Csect.Address = alignTo(Address, MCSec->getAlignment());
+        Csect.Size = Layout.getSectionAddressSize(MCSec);
+        Address = Csect.Address + Csect.Size;
+        Csect.SymbolTableIndex = SymbolTableIndex;
+        // 1 main and 1 auxiliary symbol table entry for the csect.
         SymbolTableIndex += 2;
+        
+        for (auto &Sym : Csect.Syms) {
+          Sym.SymbolTableIndex = SymbolTableIndex;
+          // 1 main and 1 auxiliary symbol table entry for each contained
+          // symbol.
+          SymbolTableIndex += 2;
+        }
+      }
+
+      if (!SectionAddressSet) {
+        Section->Address = Group->front().Address;
+        SectionAddressSet = true;
       }
     }
+
+    // Make sure the address of the next section aligned to
+    // DefaultSectionAlign.
     Address = alignTo(Address, DefaultSectionAlign);
-
-    // The first csect of a section can be aligned by adjusting the virtual
-    // address of its containing section instead of writing zeroes into the
-    // object file.
-    Text.Address = ProgramCodeCsects.front().Address;
-
-    Text.Size = Address - Text.Address;
-  }
-
-  // Data section Second. TODO
-
-  // BSS Section third.
-  if (!BSSCsects.empty()) {
-    Sections.push_back(&BSS);
-    BSS.Index = SectionIndex++;
-    for (auto &Csect : BSSCsects) {
-      const MCSectionXCOFF *MCSec = Csect.MCCsect;
-      Csect.Address = alignTo(Address, MCSec->getAlignment());
-      Csect.Size = Layout.getSectionAddressSize(MCSec);
-      Address = Csect.Address + Csect.Size;
-      Csect.SymbolTableIndex = SymbolTableIndex;
-      // 1 main and 1 auxiliary symbol table entry for the csect.
-      SymbolTableIndex += 2;
-
-      assert(Csect.Syms.size() == 1 &&
-             "csect in the BSS can only contain a single symbol.");
-      Csect.Syms[0].SymbolTableIndex = Csect.SymbolTableIndex;
-    }
-    // Pad out Address to the default alignment. This is to match how the system
-    // assembler handles the .bss section. Its size is always a multiple of 4.
-    Address = alignTo(Address, DefaultSectionAlign);
-
-    BSS.Address = BSSCsects.front().Address;
-    BSS.Size = Address - BSS.Address;
+    Section->Size = Address - Section->Address;
   }
 
   SymbolTableEntryCount = SymbolTableIndex;
 
   // Calculate the RawPointer value for each section.
   uint64_t RawPointer = sizeof(XCOFF::FileHeader32) + auxiliaryHeaderSize() +
-                        Sections.size() * sizeof(XCOFF::SectionHeader32);
+                        SectionCount * sizeof(XCOFF::SectionHeader32);
   for (auto *Sec : Sections) {
-    if (!Sec->IsVirtual) {
-      Sec->FileOffsetToData = RawPointer;
-      RawPointer += Sec->Size;
-    }
+    if (Sec->Index == Section::UninitializedIndex || Sec->IsVirtual)
+      continue;
+
+    Sec->FileOffsetToData = RawPointer;
+    RawPointer += Sec->Size;
   }
 
   // TODO Add in Relocation storage to the RawPointer Calculation.

@@ -330,7 +330,7 @@ def G_SELECT : GenericInstruction {
 }
 
 // Generic pointer offset.
-def G_GEP : GenericInstruction {
+def G_PTR_ADD : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
   let InOperandList = (ins type0:$src1, type1:$src2);
   let hasSideEffects = 0;
@@ -670,7 +670,7 @@ def G_FEXP2 : GenericInstruction {
   let hasSideEffects = 0;
 }
 
-// Floating point base-2 logarithm of a value.
+// Floating point base-e logarithm of a value.
 def G_FLOG : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
   let InOperandList = (ins type0:$src1);
@@ -756,6 +756,12 @@ def G_INTRINSIC_ROUND : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
   let InOperandList = (ins type0:$src1);
   let hasSideEffects = 0;
+}
+
+def G_READCYCLECOUNTER : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins);
+  let hasSideEffects = 1;
 }
 
 //------------------------------------------------------------------------------
@@ -1004,6 +1010,26 @@ def G_BRJT : GenericInstruction {
   let hasSideEffects = 0;
   let isBranch = 1;
   let isTerminator = 1;
+}
+
+def G_READ_REGISTER : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins unknown:$register);
+  let hasSideEffects = 1;
+
+  // Assume convergent. It's probably not worth the effort of somehow
+  // modeling convergent and nonconvergent register accesses.
+  let isConvergent = 1;
+}
+
+def G_WRITE_REGISTER : GenericInstruction {
+  let OutOperandList = (outs);
+  let InOperandList = (ins unknown:$register, type0:$value);
+  let hasSideEffects = 1;
+
+  // Assume convergent. It's probably not worth the effort of somehow
+  // modeling convergent and nonconvergent register accesses.
+  let isConvergent = 1;
 }
 
 //------------------------------------------------------------------------------

@@ -782,8 +782,7 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF,
   MachineModuleInfo &MMI = MF.getMMI();
   const MCRegisterInfo *MRI = MMI.getContext().getRegisterInfo();
   DebugLoc dl;
-  bool needsCFI = MMI.hasDebugInfo() ||
-    MF.getFunction().needsUnwindTableEntry();
+  bool needsCFI = MF.needsFrameMoves();
 
   // Get processor type.
   bool isPPC64 = Subtarget.isPPC64();
@@ -2442,10 +2441,6 @@ PPCFrameLowering::restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
 }
 
 unsigned PPCFrameLowering::getTOCSaveOffset() const {
-  if (Subtarget.isAIXABI())
-    // TOC save/restore is normally handled by the linker.
-    // Indirect calls should hit this limitation.
-    report_fatal_error("TOC save is not implemented on AIX yet.");
   return TOCSaveOffset;
 }
 

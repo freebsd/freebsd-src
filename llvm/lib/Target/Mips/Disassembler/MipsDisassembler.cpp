@@ -63,6 +63,8 @@ public:
 
   bool hasCnMips() const { return STI.getFeatureBits()[Mips::FeatureCnMips]; }
 
+  bool hasCnMipsP() const { return STI.getFeatureBits()[Mips::FeatureCnMipsP]; }
+
   bool hasCOP3() const {
     // Only present in MIPS-I and MIPS-II
     return !hasMips32() && !hasMips3();
@@ -70,7 +72,6 @@ public:
 
   DecodeStatus getInstruction(MCInst &Instr, uint64_t &Size,
                               ArrayRef<uint8_t> Bytes, uint64_t Address,
-                              raw_ostream &VStream,
                               raw_ostream &CStream) const override;
 };
 
@@ -446,16 +447,16 @@ static DecodeStatus DecodeINSVE_DF(MCInst &MI, InsnType insn, uint64_t Address,
                                    const void *Decoder);
 
 template <typename InsnType>
-static DecodeStatus DecodeDAHIDATIMMR6(MCInst &MI, InsnType insn, uint64_t Address,
-                                   const void *Decoder);
+static DecodeStatus DecodeDAHIDATIMMR6(MCInst &MI, InsnType insn,
+                                       uint64_t Address, const void *Decoder);
 
 template <typename InsnType>
 static DecodeStatus DecodeDAHIDATI(MCInst &MI, InsnType insn, uint64_t Address,
                                    const void *Decoder);
 
 template <typename InsnType>
-static DecodeStatus DecodeDAHIDATIMMR6(MCInst &MI, InsnType insn, uint64_t Address,
-                                   const void *Decoder);
+static DecodeStatus DecodeDAHIDATIMMR6(MCInst &MI, InsnType insn,
+                                       uint64_t Address, const void *Decoder);
 
 template <typename InsnType>
 static DecodeStatus DecodeDAHIDATI(MCInst &MI, InsnType insn, uint64_t Address,
@@ -562,7 +563,7 @@ static MCDisassembler *createMipselDisassembler(
   return new MipsDisassembler(STI, Ctx, false);
 }
 
-extern "C" void LLVMInitializeMipsDisassembler() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeMipsDisassembler() {
   // Register the disassembler.
   TargetRegistry::RegisterMCDisassembler(getTheMipsTarget(),
                                          createMipsDisassembler);
@@ -630,8 +631,8 @@ static DecodeStatus DecodeINSVE_DF(MCInst &MI, InsnType insn, uint64_t Address,
 }
 
 template <typename InsnType>
-static DecodeStatus DecodeDAHIDATIMMR6(MCInst &MI, InsnType insn, uint64_t Address,
-                               const void *Decoder) {
+static DecodeStatus DecodeDAHIDATIMMR6(MCInst &MI, InsnType insn,
+                                       uint64_t Address, const void *Decoder) {
   InsnType Rs = fieldFromInstruction(insn, 16, 5);
   InsnType Imm = fieldFromInstruction(insn, 0, 16);
   MI.addOperand(MCOperand::createReg(getReg(Decoder, Mips::GPR64RegClassID,
@@ -1091,8 +1092,10 @@ static DecodeStatus DecodeDEXT(MCInst &MI, InsnType Insn, uint64_t Address,
   InsnType Rs = fieldFromInstruction(Insn, 21, 5);
   InsnType Rt = fieldFromInstruction(Insn, 16, 5);
 
-  MI.addOperand(MCOperand::createReg(getReg(Decoder, Mips::GPR64RegClassID, Rt)));
-  MI.addOperand(MCOperand::createReg(getReg(Decoder, Mips::GPR64RegClassID, Rs)));
+  MI.addOperand(
+      MCOperand::createReg(getReg(Decoder, Mips::GPR64RegClassID, Rt)));
+  MI.addOperand(
+      MCOperand::createReg(getReg(Decoder, Mips::GPR64RegClassID, Rs)));
   MI.addOperand(MCOperand::createImm(Pos));
   MI.addOperand(MCOperand::createImm(Size));
 
@@ -1132,8 +1135,10 @@ static DecodeStatus DecodeDINS(MCInst &MI, InsnType Insn, uint64_t Address,
   InsnType Rt = fieldFromInstruction(Insn, 16, 5);
 
   MI.setOpcode(Mips::DINS);
-  MI.addOperand(MCOperand::createReg(getReg(Decoder, Mips::GPR64RegClassID, Rt)));
-  MI.addOperand(MCOperand::createReg(getReg(Decoder, Mips::GPR64RegClassID, Rs)));
+  MI.addOperand(
+      MCOperand::createReg(getReg(Decoder, Mips::GPR64RegClassID, Rt)));
+  MI.addOperand(
+      MCOperand::createReg(getReg(Decoder, Mips::GPR64RegClassID, Rs)));
   MI.addOperand(MCOperand::createImm(Pos));
   MI.addOperand(MCOperand::createImm(Size));
 
@@ -1214,7 +1219,6 @@ static DecodeStatus readInstruction32(ArrayRef<uint8_t> Bytes, uint64_t Address,
 DecodeStatus MipsDisassembler::getInstruction(MCInst &Instr, uint64_t &Size,
                                               ArrayRef<uint8_t> Bytes,
                                               uint64_t Address,
-                                              raw_ostream &VStream,
                                               raw_ostream &CStream) const {
   uint32_t Insn;
   DecodeStatus Result;
@@ -1256,8 +1260,8 @@ DecodeStatus MipsDisassembler::getInstruction(MCInst &Instr, uint64_t &Size,
       LLVM_DEBUG(
           dbgs() << "Trying MicroMips32r632 table (32-bit instructions):\n");
       // Calling the auto-generated decoder function.
-      Result = decodeInstruction(DecoderTableMicroMipsR632, Instr, Insn, Address,
-                                 this, STI);
+      Result = decodeInstruction(DecoderTableMicroMipsR632, Instr, Insn,
+                                 Address, this, STI);
       if (Result != MCDisassembler::Fail) {
         Size = 4;
         return Result;
@@ -1348,6 +1352,14 @@ DecodeStatus MipsDisassembler::getInstruction(MCInst &Instr, uint64_t &Size,
   if (hasCnMips()) {
     LLVM_DEBUG(dbgs() << "Trying CnMips table (32-bit opcodes):\n");
     Result = decodeInstruction(DecoderTableCnMips32, Instr, Insn,
+                               Address, this, STI);
+    if (Result != MCDisassembler::Fail)
+      return Result;
+  }
+
+  if (hasCnMipsP()) {
+    LLVM_DEBUG(dbgs() << "Trying CnMipsP table (32-bit opcodes):\n");
+    Result = decodeInstruction(DecoderTableCnMipsP32, Instr, Insn,
                                Address, this, STI);
     if (Result != MCDisassembler::Fail)
       return Result;

@@ -32,10 +32,11 @@ public:
   RelType getDynRel(RelType type) const override;
   void writeGotPlt(uint8_t *buf, const Symbol &s) const override;
   void writePltHeader(uint8_t *buf) const override;
-  void writePlt(uint8_t *buf, uint64_t gotPltEntryAddr, uint64_t pltEntryAddr,
-                int32_t index, unsigned relOff) const override;
+  void writePlt(uint8_t *buf, const Symbol &sym,
+                uint64_t pltEntryAddr) const override;
   bool needsThunk(RelExpr expr, RelType type, const InputFile *file,
-                  uint64_t branchAddr, const Symbol &s) const override;
+                  uint64_t branchAddr, const Symbol &s,
+                  int64_t a) const override;
   void relocateOne(uint8_t *loc, RelType type, uint64_t val) const override;
   bool usesOnlyLowPageBits(RelType type) const override;
 };
@@ -83,6 +84,17 @@ RelExpr MIPS<ELFT>::getRelExpr(RelType type, const Symbol &s,
 
   switch (type) {
   case R_MIPS_JALR:
+    // Older versions of clang would erroneously emit this relocation not only
+    // against functions (loaded from the GOT) but also against data symbols
+    // (e.g. a table of function pointers). When we encounter this, ignore the
+    // relocation and emit a warning instead.
+    if (!s.isFunc() && s.type != STT_NOTYPE) {
+      warn(getErrorLocation(loc) +
+           "found R_MIPS_JALR relocation against non-function symbol " +
+           toString(s) + ". This is invalid and most likely a compiler bug.");
+      return R_NONE;
+    }
+
     // If the target symbol is not preemptible and is not microMIPS,
     // it might be possible to replace jalr/jr instruction by bal/b.
     // It depends on the target symbol's offset.
@@ -306,9 +318,9 @@ template <class ELFT> void MIPS<ELFT>::writePltHeader(uint8_t *buf) const {
 }
 
 template <class ELFT>
-void MIPS<ELFT>::writePlt(uint8_t *buf, uint64_t gotPltEntryAddr,
-                          uint64_t pltEntryAddr, int32_t index,
-                          unsigned relOff) const {
+void MIPS<ELFT>::writePlt(uint8_t *buf, const Symbol &sym,
+                          uint64_t pltEntryAddr) const {
+  uint64_t gotPltEntryAddr = sym.getGotPltVA();
   if (isMicroMips()) {
     // Overwrite trap instructions written by Writer::writeTrapInstr.
     memset(buf, 0, pltEntrySize);
@@ -345,7 +357,8 @@ void MIPS<ELFT>::writePlt(uint8_t *buf, uint64_t gotPltEntryAddr,
 
 template <class ELFT>
 bool MIPS<ELFT>::needsThunk(RelExpr expr, RelType type, const InputFile *file,
-                            uint64_t branchAddr, const Symbol &s) const {
+                            uint64_t branchAddr, const Symbol &s,
+                            int64_t /*a*/) const {
   // Any MIPS PIC code function is invoked with its address in register $t9.
   // So if we have a branch instruction from non-PIC code to the PIC one
   // we cannot make the jump directly and need to create a small stubs

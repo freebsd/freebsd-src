@@ -35,7 +35,7 @@
 #ifdef _MSC_VER
 #include <intrin.h>
 #endif
-#if defined(__APPLE__) && (defined(__ppc__) || defined(__powerpc__))
+#if defined(__APPLE__) && (!defined(__x86_64__))
 #include <mach/host_info.h>
 #include <mach/mach.h>
 #include <mach/mach_host.h>
@@ -140,6 +140,9 @@ StringRef sys::detail::getHostCPUNameForPowerPC(StringRef ProcCpuinfoContent) {
       .Case("POWER8E", "pwr8")
       .Case("POWER8NVL", "pwr8")
       .Case("POWER9", "pwr9")
+      // FIXME: If we get a simulator or machine with the capabilities of
+      // mcpu=future, we should revisit this and add the name reported by the
+      // simulator/machine.
       .Default(generic);
 }
 
@@ -265,14 +268,12 @@ StringRef sys::detail::getHostCPUNameForARM(StringRef ProcCpuinfoContent) {
     unsigned Exynos = (Variant << 12) | Part;
     switch (Exynos) {
     default:
-      // Default by falling through to Exynos M1.
+      // Default by falling through to Exynos M3.
       LLVM_FALLTHROUGH;
-
-    case 0x1001:
-      return "exynos-m1";
-
-    case 0x4001:
-      return "exynos-m2";
+    case 0x1002:
+      return "exynos-m3";
+    case 0x1003:
+      return "exynos-m4";
     }
   }
 
@@ -961,9 +962,9 @@ static void getAMDProcessorTypeAndSubtype(unsigned Family, unsigned Model,
     break; // "btver2"
   case 23:
     *Type = X86::AMDFAM17H;
-    if (Model >= 0x30 && Model <= 0x3f) {
+    if ((Model >= 0x30 && Model <= 0x3f) || Model == 0x71) {
       *Subtype = X86::AMDFAM17H_ZNVER2;
-      break; // "znver2"; 30h-3fh: Zen2
+      break; // "znver2"; 30h-3fh, 71h: Zen2
     }
     if (Model <= 0x0f) {
       *Subtype = X86::AMDFAM17H_ZNVER1;
@@ -1029,7 +1030,15 @@ static void getAvailableFeatures(unsigned ECX, unsigned EDX, unsigned MaxLeaf,
   const unsigned AVXBits = (1 << 27) | (1 << 28);
   bool HasAVX = ((ECX & AVXBits) == AVXBits) && !getX86XCR0(&EAX, &EDX) &&
                 ((EAX & 0x6) == 0x6);
+#if defined(__APPLE__)
+  // Darwin lazily saves the AVX512 context on first use: trust that the OS will
+  // save the AVX512 context if we use AVX512 instructions, even the bit is not
+  // set right now.
+  bool HasAVX512Save = true;
+#else
+  // AVX512 requires additional context to be saved by the OS.
   bool HasAVX512Save = HasAVX && ((EAX & 0xe0) == 0xe0);
+#endif
 
   if (HasAVX)
     setFeature(X86::FEATURE_AVX);
@@ -1222,6 +1231,33 @@ StringRef sys::getHostCPUName() {
   StringRef Content = P ? P->getBuffer() : "";
   return detail::getHostCPUNameForS390x(Content);
 }
+#elif defined(__APPLE__) && defined(__aarch64__)
+StringRef sys::getHostCPUName() {
+  return "cyclone";
+}
+#elif defined(__APPLE__) && defined(__arm__)
+StringRef sys::getHostCPUName() {
+  host_basic_info_data_t hostInfo;
+  mach_msg_type_number_t infoCount;
+
+  infoCount = HOST_BASIC_INFO_COUNT;
+  mach_port_t hostPort = mach_host_self();
+  host_info(hostPort, HOST_BASIC_INFO, (host_info_t)&hostInfo,
+            &infoCount);
+  mach_port_deallocate(mach_task_self(), hostPort);
+
+  if (hostInfo.cpu_type != CPU_TYPE_ARM) {
+    assert(false && "CPUType not equal to ARM should not be possible on ARM");
+    return "generic";
+  }
+  switch (hostInfo.cpu_subtype) {
+    case CPU_SUBTYPE_ARM_V7S:
+      return "swift";
+    default:;
+    }
+  
+  return "generic";
+}
 #else
 StringRef sys::getHostCPUName() { return "generic"; }
 #endif
@@ -1339,8 +1375,15 @@ bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
   // switch, then we have full AVX support.
   bool HasAVXSave = ((ECX >> 27) & 1) && ((ECX >> 28) & 1) &&
                     !getX86XCR0(&EAX, &EDX) && ((EAX & 0x6) == 0x6);
+#if defined(__APPLE__)
+  // Darwin lazily saves the AVX512 context on first use: trust that the OS will
+  // save the AVX512 context if we use AVX512 instructions, even the bit is not
+  // set right now.
+  bool HasAVX512Save = true;
+#else
   // AVX512 requires additional context to be saved by the OS.
   bool HasAVX512Save = HasAVXSave && ((EAX & 0xe0) == 0xe0);
+#endif
 
   Features["avx"]   = HasAVXSave;
   Features["fma"]   = ((ECX >> 12) & 1) && HasAVXSave;

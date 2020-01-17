@@ -2724,7 +2724,7 @@ static void DiagnoseForRangeReferenceVariableCopies(Sema &SemaRef,
   if (!MTE)
     return;
 
-  const Expr *E = MTE->GetTemporaryExpr()->IgnoreImpCasts();
+  const Expr *E = MTE->getSubExpr()->IgnoreImpCasts();
 
   // Searching for either UnaryOperator for dereference of a pointer or
   // CXXOperatorCallExpr for handling iterators.
@@ -2736,7 +2736,7 @@ static void DiagnoseForRangeReferenceVariableCopies(Sema &SemaRef,
       E = ME->getBase();
     } else {
       const MaterializeTemporaryExpr *MTE = cast<MaterializeTemporaryExpr>(E);
-      E = MTE->GetTemporaryExpr();
+      E = MTE->getSubExpr();
     }
     E = E->IgnoreImpCasts();
   }
@@ -2762,17 +2762,30 @@ static void DiagnoseForRangeReferenceVariableCopies(Sema &SemaRef,
     QualType NewReferenceType =
         SemaRef.Context.getLValueReferenceType(E->getType().withConst());
     SemaRef.Diag(VD->getBeginLoc(), diag::note_use_type_or_non_reference)
-        << NonReferenceType << NewReferenceType << VD->getSourceRange();
-  } else {
+        << NonReferenceType << NewReferenceType << VD->getSourceRange()
+        << FixItHint::CreateRemoval(VD->getTypeSpecEndLoc());
+  } else if (!VariableType->isRValueReferenceType()) {
     // The range always returns a copy, so a temporary is always created.
     // Suggest removing the reference from the loop variable.
+    // If the type is a rvalue reference do not warn since that changes the
+    // semantic of the code.
     SemaRef.Diag(VD->getLocation(), diag::warn_for_range_variable_always_copy)
         << VD << RangeInitType;
     QualType NonReferenceType = VariableType.getNonReferenceType();
     NonReferenceType.removeLocalConst();
     SemaRef.Diag(VD->getBeginLoc(), diag::note_use_non_reference_type)
-        << NonReferenceType << VD->getSourceRange();
+        << NonReferenceType << VD->getSourceRange()
+        << FixItHint::CreateRemoval(VD->getTypeSpecEndLoc());
   }
+}
+
+/// Determines whether the @p VariableType's declaration is a record with the
+/// clang::trivial_abi attribute.
+static bool hasTrivialABIAttr(QualType VariableType) {
+  if (CXXRecordDecl *RD = VariableType->getAsCXXRecordDecl())
+    return RD->hasAttr<TrivialABIAttr>();
+
+  return false;
 }
 
 // Warns when the loop variable can be changed to a reference type to
@@ -2796,10 +2809,13 @@ static void DiagnoseForRangeConstVariableCopies(Sema &SemaRef,
     return;
   }
 
-  // TODO: Determine a maximum size that a POD type can be before a diagnostic
-  // should be emitted.  Also, only ignore POD types with trivial copy
-  // constructors.
-  if (VariableType.isPODType(SemaRef.Context))
+  // Small trivially copyable types are cheap to copy. Do not emit the
+  // diagnostic for these instances. 64 bytes is a common size of a cache line.
+  // (The function `getTypeSize` returns the size in bits.)
+  ASTContext &Ctx = SemaRef.Context;
+  if (Ctx.getTypeSize(VariableType) <= 64 * 8 &&
+      (VariableType.isTriviallyCopyableType(Ctx) ||
+       hasTrivialABIAttr(VariableType)))
     return;
 
   // Suggest changing from a const variable to a const reference variable
@@ -2808,7 +2824,8 @@ static void DiagnoseForRangeConstVariableCopies(Sema &SemaRef,
       << VD << VariableType << InitExpr->getType();
   SemaRef.Diag(VD->getBeginLoc(), diag::note_use_reference_type)
       << SemaRef.Context.getLValueReferenceType(VariableType)
-      << VD->getSourceRange();
+      << VD->getSourceRange()
+      << FixItHint::CreateInsertion(VD->getLocation(), "&");
 }
 
 /// DiagnoseForRangeVariableCopies - Diagnose three cases and fixes for them.
@@ -4184,19 +4201,16 @@ StmtResult Sema::ActOnSEHTryBlock(bool IsCXXTry, SourceLocation TryLoc,
   return SEHTryStmt::Create(Context, IsCXXTry, TryLoc, TryBlock, Handler);
 }
 
-StmtResult
-Sema::ActOnSEHExceptBlock(SourceLocation Loc,
-                          Expr *FilterExpr,
-                          Stmt *Block) {
+StmtResult Sema::ActOnSEHExceptBlock(SourceLocation Loc, Expr *FilterExpr,
+                                     Stmt *Block) {
   assert(FilterExpr && Block);
-
-  if(!FilterExpr->getType()->isIntegerType()) {
-    return StmtError(Diag(FilterExpr->getExprLoc(),
-                     diag::err_filter_expression_integral)
-                     << FilterExpr->getType());
+  QualType FTy = FilterExpr->getType();
+  if (!FTy->isIntegerType() && !FTy->isDependentType()) {
+    return StmtError(
+        Diag(FilterExpr->getExprLoc(), diag::err_filter_expression_integral)
+        << FTy);
   }
-
-  return SEHExceptStmt::Create(Context,Loc,FilterExpr,Block);
+  return SEHExceptStmt::Create(Context, Loc, FilterExpr, Block);
 }
 
 void Sema::ActOnStartSEHFinallyBlock() {

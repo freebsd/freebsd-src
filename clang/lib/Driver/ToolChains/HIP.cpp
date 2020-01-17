@@ -62,6 +62,34 @@ static const char *getOutputFileName(Compilation &C, StringRef Base,
   }
   return OutputFileName;
 }
+
+static void addOptLevelArgs(const llvm::opt::ArgList &Args,
+                            llvm::opt::ArgStringList &CmdArgs,
+                            bool IsLlc = false) {
+  if (Arg *A = Args.getLastArg(options::OPT_O_Group)) {
+    StringRef OOpt = "3";
+    if (A->getOption().matches(options::OPT_O4) ||
+        A->getOption().matches(options::OPT_Ofast))
+      OOpt = "3";
+    else if (A->getOption().matches(options::OPT_O0))
+      OOpt = "0";
+    else if (A->getOption().matches(options::OPT_O)) {
+      // Clang and opt support -Os/-Oz; llc only supports -O0, -O1, -O2 and -O3
+      // so we map -Os/-Oz to -O2.
+      // Only clang supports -Og, and maps it to -O1.
+      // We map anything else to -O2.
+      OOpt = llvm::StringSwitch<const char *>(A->getValue())
+                 .Case("1", "1")
+                 .Case("2", "2")
+                 .Case("3", "3")
+                 .Case("s", IsLlc ? "2" : "s")
+                 .Case("z", IsLlc ? "2" : "z")
+                 .Case("g", "1")
+                 .Default("2");
+    }
+    CmdArgs.push_back(Args.MakeArgString("-O" + OOpt));
+  }
+}
 } // namespace
 
 const char *AMDGCN::Linker::constructLLVMLinkCommand(
@@ -93,25 +121,7 @@ const char *AMDGCN::Linker::constructOptCommand(
   // The input to opt is the output from llvm-link.
   OptArgs.push_back(InputFileName);
   // Pass optimization arg to opt.
-  if (Arg *A = Args.getLastArg(options::OPT_O_Group)) {
-    StringRef OOpt = "3";
-    if (A->getOption().matches(options::OPT_O4) ||
-        A->getOption().matches(options::OPT_Ofast))
-      OOpt = "3";
-    else if (A->getOption().matches(options::OPT_O0))
-      OOpt = "0";
-    else if (A->getOption().matches(options::OPT_O)) {
-      // -Os, -Oz, and -O(anything else) map to -O2
-      OOpt = llvm::StringSwitch<const char *>(A->getValue())
-                 .Case("1", "1")
-                 .Case("2", "2")
-                 .Case("3", "3")
-                 .Case("s", "2")
-                 .Case("z", "2")
-                 .Default("2");
-    }
-    OptArgs.push_back(Args.MakeArgString("-O" + OOpt));
-  }
+  addOptLevelArgs(Args, OptArgs);
   OptArgs.push_back("-mtriple=amdgcn-amd-amdhsa");
   OptArgs.push_back(Args.MakeArgString("-mcpu=" + SubArchName));
 
@@ -136,10 +146,15 @@ const char *AMDGCN::Linker::constructLlcCommand(
     llvm::StringRef OutputFilePrefix, const char *InputFileName,
     bool OutputIsAsm) const {
   // Construct llc command.
-  ArgStringList LlcArgs{
-      InputFileName, "-mtriple=amdgcn-amd-amdhsa",
-      Args.MakeArgString(Twine("-filetype=") + (OutputIsAsm ? "asm" : "obj")),
-      Args.MakeArgString("-mcpu=" + SubArchName)};
+  ArgStringList LlcArgs;
+  // The input to llc is the output from opt.
+  LlcArgs.push_back(InputFileName);
+  // Pass optimization arg to llc.
+  addOptLevelArgs(Args, LlcArgs, /*IsLlc=*/true);
+  LlcArgs.push_back("-mtriple=amdgcn-amd-amdhsa");
+  LlcArgs.push_back(Args.MakeArgString("-mcpu=" + SubArchName));
+  LlcArgs.push_back(
+      Args.MakeArgString(Twine("-filetype=") + (OutputIsAsm ? "asm" : "obj")));
 
   // Extract all the -m options
   std::vector<llvm::StringRef> Features;
@@ -292,6 +307,20 @@ void HIPToolChain::addClangTargetOptions(
                          false))
     CC1Args.push_back("-fgpu-rdc");
 
+  StringRef MaxThreadsPerBlock =
+      DriverArgs.getLastArgValue(options::OPT_gpu_max_threads_per_block_EQ);
+  if (!MaxThreadsPerBlock.empty()) {
+    std::string ArgStr =
+        std::string("--gpu-max-threads-per-block=") + MaxThreadsPerBlock.str();
+    CC1Args.push_back(DriverArgs.MakeArgStringRef(ArgStr));
+  }
+
+  if (DriverArgs.hasFlag(options::OPT_fgpu_allow_device_init,
+                         options::OPT_fno_gpu_allow_device_init, false))
+    CC1Args.push_back("-fgpu-allow-device-init");
+
+  CC1Args.push_back("-fcuda-allow-variadic-functions");
+
   // Default to "hidden" visibility, as object level linking will not be
   // supported for the foreseeable future.
   if (!DriverArgs.hasArg(options::OPT_fvisibility_EQ,
@@ -337,9 +366,8 @@ void HIPToolChain::addClangTargetOptions(
     else
       WaveFrontSizeBC = "oclc_wavefrontsize64_off.amdgcn.bc";
 
-    BCLibs.append({"hip.amdgcn.bc", "opencl.amdgcn.bc", "ocml.amdgcn.bc",
-                   "ockl.amdgcn.bc", "oclc_finite_only_off.amdgcn.bc",
-                   FlushDenormalControlBC,
+    BCLibs.append({"hip.amdgcn.bc", "ocml.amdgcn.bc", "ockl.amdgcn.bc",
+                   "oclc_finite_only_off.amdgcn.bc", FlushDenormalControlBC,
                    "oclc_correctly_rounded_sqrt_on.amdgcn.bc",
                    "oclc_unsafe_math_off.amdgcn.bc", ISAVerBC,
                    WaveFrontSizeBC});

@@ -150,7 +150,7 @@ bool llvm::isDereferenceableAndAlignedPointer(const Value *V, Type *Ty,
 
   // Require ABI alignment for loads without alignment specification
   const Align Alignment = DL.getValueOrABITypeAlignment(MA, Ty);
-  APInt AccessSize(DL.getIndexTypeSizeInBits(V->getType()),
+  APInt AccessSize(DL.getPointerTypeSizeInBits(V->getType()),
                    DL.getTypeStoreSize(Ty));
   return isDereferenceableAndAlignedPointer(V, Alignment, AccessSize, DL, CtxI,
                                             DT);
@@ -383,10 +383,6 @@ Value *llvm::FindAvailablePtrLoadStore(Value *Ptr, Type *AccessTy,
     MaxInstsToScan = ~0U;
 
   const DataLayout &DL = ScanBB->getModule()->getDataLayout();
-
-  // Try to get the store size for the type.
-  auto AccessSize = LocationSize::precise(DL.getTypeStoreSize(AccessTy));
-
   Value *StrippedPtr = Ptr->stripPointerCasts();
 
   while (ScanFrom != ScanBB->begin()) {
@@ -424,6 +420,9 @@ Value *llvm::FindAvailablePtrLoadStore(Value *Ptr, Type *AccessTy,
             *IsLoadCSE = true;
         return LI;
       }
+
+    // Try to get the store size for the type.
+    auto AccessSize = LocationSize::precise(DL.getTypeStoreSize(AccessTy));
 
     if (StoreInst *SI = dyn_cast<StoreInst>(Inst)) {
       Value *StorePtr = SI->getPointerOperand()->stripPointerCasts();

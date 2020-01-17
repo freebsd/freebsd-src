@@ -10,6 +10,7 @@
 #include "Symbols.h"
 #include "SyntheticSections.h"
 #include "Target.h"
+#include "Thunks.h"
 #include "lld/Common/ErrorHandler.h"
 #include "llvm/Support/Endian.h"
 
@@ -31,13 +32,16 @@ public:
   void writePltHeader(uint8_t *buf) const override {
     llvm_unreachable("should call writePPC32GlinkSection() instead");
   }
-  void writePlt(uint8_t *buf, uint64_t gotPltEntryAddr, uint64_t pltEntryAddr,
-    int32_t index, unsigned relOff) const override {
+  void writePlt(uint8_t *buf, const Symbol &sym,
+                uint64_t pltEntryAddr) const override {
     llvm_unreachable("should call writePPC32GlinkSection() instead");
   }
+  void writeIplt(uint8_t *buf, const Symbol &sym,
+                 uint64_t pltEntryAddr) const override;
   void writeGotPlt(uint8_t *buf, const Symbol &s) const override;
   bool needsThunk(RelExpr expr, RelType relocType, const InputFile *file,
-                  uint64_t branchAddr, const Symbol &s) const override;
+                  uint64_t branchAddr, const Symbol &s,
+                  int64_t a) const override;
   uint32_t getThunkSectionSpacing() const override;
   bool inBranchRange(RelType type, uint64_t src, uint64_t dst) const override;
   void relocateOne(uint8_t *loc, RelType type, uint64_t val) const override;
@@ -143,6 +147,7 @@ PPC::PPC() {
   gotPltHeaderEntriesNum = 0;
   pltHeaderSize = 64; // size of PLTresolve in .glink
   pltEntrySize = 4;
+  ipltEntrySize = 16;
 
   needsThunks = true;
 
@@ -154,6 +159,13 @@ PPC::PPC() {
   defaultImageBase = 0x10000000;
 
   write32(trapInstr.data(), 0x7fe00008);
+}
+
+void PPC::writeIplt(uint8_t *buf, const Symbol &sym,
+                    uint64_t /*pltEntryAddr*/) const {
+  // In -pie or -shared mode, assume r30 points to .got2+0x8000, and use a
+  // .got2.plt_pic32. thunk.
+  writePPC32PltCallStub(buf, sym.getGotPltVA(), sym.file, 0x8000);
 }
 
 void PPC::writeGotHeader(uint8_t *buf) const {
@@ -169,7 +181,7 @@ void PPC::writeGotPlt(uint8_t *buf, const Symbol &s) const {
 }
 
 bool PPC::needsThunk(RelExpr expr, RelType type, const InputFile *file,
-                     uint64_t branchAddr, const Symbol &s) const {
+                     uint64_t branchAddr, const Symbol &s, int64_t /*a*/) const {
   if (type != R_PPC_REL24 && type != R_PPC_PLTREL24)
     return false;
   if (s.isInPlt())

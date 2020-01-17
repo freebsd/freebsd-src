@@ -16,6 +16,7 @@
 
 #include "llvm/ADT/StringMap.h"
 #include "llvm/CodeGen/DebugHandlerBase.h"
+#include <set>
 #include <unordered_map>
 #include "BTF.h"
 
@@ -151,7 +152,7 @@ class BTFTypeFunc : public BTFTypeBase {
   StringRef Name;
 
 public:
-  BTFTypeFunc(StringRef FuncName, uint32_t ProtoTypeId);
+  BTFTypeFunc(StringRef FuncName, uint32_t ProtoTypeId, uint32_t Scope);
   uint32_t getSize() { return BTFTypeBase::getSize(); }
   void completeType(BTFDebug &BDebug);
   void emitType(MCStreamer &OS);
@@ -223,7 +224,7 @@ struct BTFLineInfo {
   uint32_t ColumnNum;   ///< the column number
 };
 
-/// Represent one offset relocation.
+/// Represent one field relocation.
 struct BTFFieldReloc {
   const MCSymbol *Label;  ///< MCSymbol identifying insn for the reloc
   uint32_t TypeID;        ///< Type ID
@@ -251,6 +252,7 @@ class BTFDebug : public DebugHandlerBase {
   std::map<std::string, uint32_t> PatchImms;
   std::map<StringRef, std::pair<bool, std::vector<BTFTypeDerived *>>>
       FixupDerivedTypes;
+  std::set<const Function *>ProtoFunctions;
 
   /// Add types to TypeEntries.
   /// @{
@@ -293,15 +295,18 @@ class BTFDebug : public DebugHandlerBase {
   /// Generate types and variables for globals.
   void processGlobals(bool ProcessingMapDef);
 
-  /// Generate one offset relocation record.
-  void generateFieldReloc(const MachineInstr *MI, const MCSymbol *ORSym,
-                           DIType *RootTy, StringRef AccessPattern);
+  /// Generate types for function prototypes.
+  void processFuncPrototypes(const Function *);
+
+  /// Generate one field relocation record.
+  void generateFieldReloc(const MCSymbol *ORSym, DIType *RootTy,
+                          StringRef AccessPattern);
 
   /// Populating unprocessed struct type.
   unsigned populateStructType(const DIType *Ty);
 
-  /// Process LD_imm64 instructions.
-  void processLDimm64(const MachineInstr *MI);
+  /// Process relocation instructions.
+  void processReloc(const MachineOperand &MO);
 
   /// Emit common header of .BTF and .BTF.ext sections.
   void emitCommonHeader();

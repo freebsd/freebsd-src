@@ -6,11 +6,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <sys/stat.h>
-#if defined(__APPLE__) || defined(__linux__)
-#include <pwd.h>
-#endif
-
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringSet.h"
 
@@ -23,13 +18,10 @@
 #include "lldb/Interpreter/OptionValueProperties.h"
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/Variable.h"
-#include "lldb/Target/Target.h"
-#include "lldb/Utility/Args.h"
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/StreamString.h"
 #include "lldb/Utility/TildeExpressionResolver.h"
 
-#include "llvm/ADT/SmallString.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 
@@ -378,8 +370,10 @@ CommandCompletions::SourceFileCompleter::SearchCallback(SearchFilter &filter,
         }
       }
     } else {
-      const char *cur_file_name = context.comp_unit->GetFilename().GetCString();
-      const char *cur_dir_name = context.comp_unit->GetDirectory().GetCString();
+      const char *cur_file_name =
+          context.comp_unit->GetPrimaryFile().GetFilename().GetCString();
+      const char *cur_dir_name =
+          context.comp_unit->GetPrimaryFile().GetDirectory().GetCString();
 
       bool match = false;
       if (m_file_name && cur_file_name &&
@@ -391,7 +385,7 @@ CommandCompletions::SourceFileCompleter::SearchCallback(SearchFilter &filter,
         match = false;
 
       if (match) {
-        m_matching_files.AppendIfUnique(context.comp_unit);
+        m_matching_files.AppendIfUnique(context.comp_unit->GetPrimaryFile());
       }
     }
   }
@@ -411,10 +405,7 @@ void CommandCompletions::SourceFileCompleter::DoCompletion(
 // SymbolCompleter
 
 static bool regex_chars(const char comp) {
-  return (comp == '[' || comp == ']' || comp == '(' || comp == ')' ||
-          comp == '{' || comp == '}' || comp == '+' || comp == '.' ||
-          comp == '*' || comp == '|' || comp == '^' || comp == '$' ||
-          comp == '\\' || comp == '?');
+  return llvm::StringRef("[](){}+.*|^$\\?").contains(comp);
 }
 
 CommandCompletions::SymbolCompleter::SymbolCompleter(

@@ -203,6 +203,12 @@ class Value;
   ///   x < -0 --> false
   bool CannotBeOrderedLessThanZero(const Value *V, const TargetLibraryInfo *TLI);
 
+  /// Return true if the floating-point scalar value is not an infinity or if
+  /// the floating-point vector value has no infinities. Return false if a value
+  /// could ever be infinity.
+  bool isKnownNeverInfinity(const Value *V, const TargetLibraryInfo *TLI,
+                            unsigned Depth = 0);
+
   /// Return true if the floating-point scalar value is not a NaN or if the
   /// floating-point vector value has no NaN elements. Return false if a value
   /// could ever be NaN.
@@ -226,9 +232,9 @@ class Value;
   /// return undef.
   Value *isBytewiseValue(Value *V, const DataLayout &DL);
 
-  /// Given an aggregrate and an sequence of indices, see if the scalar value
+  /// Given an aggregate and an sequence of indices, see if the scalar value
   /// indexed is already around as a register, for example if it were inserted
-  /// directly into the aggregrate.
+  /// directly into the aggregate.
   ///
   /// If InsertBefore is not null, this function will duplicate (modified)
   /// insertvalues when a part of a nested struct is extracted.
@@ -560,6 +566,10 @@ class Value;
   /// Note that this currently only considers the basic block that is
   /// the parent of I.
   bool programUndefinedIfFullPoison(const Instruction *PoisonI);
+
+  /// Return true if this function can prove that V is never undef value
+  /// or poison value.
+  bool isGuaranteedNotToBeUndefOrPoison(const Value *V);
 
   /// Specific patterns of select instructions we can match.
   enum SelectPatternFlavor {

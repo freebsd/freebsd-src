@@ -10,6 +10,7 @@
 #include "clang/AST/ASTDiagnostic.h"
 #include "clang/AST/ExternalASTSource.h"
 #include "clang/AST/PrettyPrinter.h"
+#include "clang/Basic/Builtins.h"
 #include "clang/Basic/DiagnosticIDs.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/TargetInfo.h"
@@ -582,15 +583,16 @@ ClangExpressionParser::ClangExpressionParser(
 
   if (ClangModulesDeclVendor *decl_vendor =
           target_sp->GetClangModulesDeclVendor()) {
-    ClangPersistentVariables *clang_persistent_vars =
-        llvm::cast<ClangPersistentVariables>(
+    if (auto *clang_persistent_vars = llvm::cast<ClangPersistentVariables>(
             target_sp->GetPersistentExpressionStateForLanguage(
-                lldb::eLanguageTypeC));
-    std::unique_ptr<PPCallbacks> pp_callbacks(new LLDBPreprocessorCallbacks(
-        *decl_vendor, *clang_persistent_vars, m_compiler->getSourceManager()));
-    m_pp_callbacks =
-        static_cast<LLDBPreprocessorCallbacks *>(pp_callbacks.get());
-    m_compiler->getPreprocessor().addPPCallbacks(std::move(pp_callbacks));
+                lldb::eLanguageTypeC))) {
+      std::unique_ptr<PPCallbacks> pp_callbacks(
+          new LLDBPreprocessorCallbacks(*decl_vendor, *clang_persistent_vars,
+                                        m_compiler->getSourceManager()));
+      m_pp_callbacks =
+          static_cast<LLDBPreprocessorCallbacks *>(pp_callbacks.get());
+      m_compiler->getPreprocessor().addPPCallbacks(std::move(pp_callbacks));
+    }
   }
 
   // 8. Most of this we get from the CompilerInstance, but we also want to give
@@ -696,10 +698,7 @@ class CodeComplete : public CodeCompleteConsumer {
 
 public:
   /// Constructs a CodeComplete consumer that can be attached to a Sema.
-  /// \param[out] matches
-  ///    The list of matches that the lldb completion API expects as a result.
-  ///    This may already contain matches, so it's only allowed to append
-  ///    to this variable.
+  ///
   /// \param[out] expr
   ///    The whole expression string that we are currently parsing. This
   ///    string needs to be equal to the input the user typed, and NOT the
@@ -976,7 +975,7 @@ ClangExpressionParser::ParseInternal(DiagnosticManager &diagnostic_manager,
   m_compiler->setASTConsumer(std::move(Consumer));
 
   if (ast_context.getLangOpts().Modules) {
-    m_compiler->createModuleManager();
+    m_compiler->createASTReader();
     m_ast_context->setSema(&m_compiler->getSema());
   }
 
@@ -999,7 +998,7 @@ ClangExpressionParser::ParseInternal(DiagnosticManager &diagnostic_manager,
     } else {
       ast_context.setExternalSource(ast_source);
     }
-    decl_map->InstallASTContext(ast_context, m_compiler->getFileManager());
+    decl_map->InstallASTContext(*m_ast_context);
   }
 
   // Check that the ASTReader is properly attached to ASTContext and Sema.
@@ -1033,15 +1032,6 @@ ClangExpressionParser::ParseInternal(DiagnosticManager &diagnostic_manager,
                                  "while importing modules:");
     diagnostic_manager.AppendMessageToDiagnostic(
         m_pp_callbacks->getErrorString());
-  }
-
-  if (!num_errors) {
-    if (type_system_helper->DeclMap() &&
-        !type_system_helper->DeclMap()->ResolveUnknownTypes()) {
-      diagnostic_manager.Printf(eDiagnosticSeverityError,
-                                "Couldn't infer the type of a variable");
-      num_errors++;
-    }
   }
 
   if (!num_errors) {
@@ -1268,8 +1258,9 @@ lldb_private::Status ClangExpressionParser::PrepareForExecution(
           interpret_error, interpret_function_calls);
 
       if (!can_interpret && execution_policy == eExecutionPolicyNever) {
-        err.SetErrorStringWithFormat("Can't run the expression locally: %s",
-                                     interpret_error.AsCString());
+        err.SetErrorStringWithFormat(
+            "Can't evaluate the expression without a running target due to: %s",
+            interpret_error.AsCString());
         return err;
       }
     }

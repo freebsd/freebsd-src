@@ -136,17 +136,17 @@ static std::unique_ptr<Writer> createELFWriter(const CopyConfig &Config,
   // Depending on the initial ELFT and OutputFormat we need a different Writer.
   switch (OutputElfType) {
   case ELFT_ELF32LE:
-    return std::make_unique<ELFWriter<ELF32LE>>(Obj, Buf,
-                                                 !Config.StripSections);
+    return std::make_unique<ELFWriter<ELF32LE>>(Obj, Buf, !Config.StripSections,
+                                                Config.OnlyKeepDebug);
   case ELFT_ELF64LE:
-    return std::make_unique<ELFWriter<ELF64LE>>(Obj, Buf,
-                                                 !Config.StripSections);
+    return std::make_unique<ELFWriter<ELF64LE>>(Obj, Buf, !Config.StripSections,
+                                                Config.OnlyKeepDebug);
   case ELFT_ELF32BE:
-    return std::make_unique<ELFWriter<ELF32BE>>(Obj, Buf,
-                                                 !Config.StripSections);
+    return std::make_unique<ELFWriter<ELF32BE>>(Obj, Buf, !Config.StripSections,
+                                                Config.OnlyKeepDebug);
   case ELFT_ELF64BE:
-    return std::make_unique<ELFWriter<ELF64BE>>(Obj, Buf,
-                                                 !Config.StripSections);
+    return std::make_unique<ELFWriter<ELF64BE>>(Obj, Buf, !Config.StripSections,
+                                                Config.OnlyKeepDebug);
   }
   llvm_unreachable("Invalid output format");
 }
@@ -175,7 +175,7 @@ findBuildID(const CopyConfig &Config, const object::ELFFile<ELFT> &In) {
     if (Phdr.p_type != PT_NOTE)
       continue;
     Error Err = Error::success();
-    for (const auto &Note : In.notes(Phdr, Err))
+    for (auto Note : In.notes(Phdr, Err))
       if (Note.getType() == NT_GNU_BUILD_ID && Note.getName() == ELF_NOTE_GNU)
         return Note.getDesc();
     if (Err)
@@ -503,6 +503,12 @@ static Error replaceAndRemoveSections(const CopyConfig &Config, Object &Obj) {
         return false;
       if (StringRef(Sec.Name).startswith(".gnu.warning"))
         return false;
+      // We keep the .ARM.attribute section to maintain compatibility
+      // with Debian derived distributions. This is a bug in their
+      // patchset as documented here:
+      // https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=943798
+      if (Sec.Type == SHT_ARM_ATTRIBUTES)
+        return false;
       if (Sec.ParentSegment != nullptr)
         return false;
       return (Sec.Flags & SHF_ALLOC) == 0;
@@ -687,6 +693,11 @@ static Error handleArgs(const CopyConfig &Config, Object &Obj,
       }
     }
   }
+
+  if (Config.OnlyKeepDebug)
+    for (auto &Sec : Obj.sections())
+      if (Sec.Flags & SHF_ALLOC && Sec.Type != SHT_NOTE)
+        Sec.Type = SHT_NOBITS;
 
   for (const auto &Flag : Config.AddSection) {
     std::pair<StringRef, StringRef> SecPair = Flag.split("=");

@@ -116,7 +116,7 @@ def mem_mm_9 : Operand<i32> {
   let PrintMethod = "printMemOperand";
   let MIOperandInfo = (ops ptr_rc, simm9);
   let EncoderMethod = "getMemEncodingMMImm9";
-  let ParserMatchClass = MipsMemSimm9AsmOperand;
+  let ParserMatchClass = MipsMemSimmAsmOperand<9>;
   let OperandType = "OPERAND_MEMORY";
 }
 
@@ -124,7 +124,7 @@ def mem_mm_11 : Operand<i32> {
   let PrintMethod = "printMemOperand";
   let MIOperandInfo = (ops GPR32, simm11);
   let EncoderMethod = "getMemEncodingMMImm11";
-  let ParserMatchClass = MipsMemSimm11AsmOperand;
+  let ParserMatchClass = MipsMemSimmAsmOperand<11>;
   let OperandType = "OPERAND_MEMORY";
 }
 
@@ -141,7 +141,7 @@ def mem_mm_16 : Operand<i32> {
   let MIOperandInfo = (ops ptr_rc, simm16);
   let EncoderMethod = "getMemEncodingMMImm16";
   let DecoderMethod = "DecodeMemMMImm16";
-  let ParserMatchClass = MipsMemSimm16AsmOperand;
+  let ParserMatchClass = MipsMemSimmAsmOperand<16>;
   let OperandType = "OPERAND_MEMORY";
 }
 
@@ -506,7 +506,8 @@ class LoadWordIndexedScaledMM<string opstr, RegisterOperand RO,
 
 class PrefetchIndexed<string opstr> :
   InstSE<(outs), (ins PtrRC:$base, PtrRC:$index, uimm5:$hint),
-         !strconcat(opstr, "\t$hint, ${index}(${base})"), [], II_PREF, FrmOther>;
+         !strconcat(opstr, "\t$hint, ${index}(${base})"),
+         [], II_PREF, FrmOther>;
 
 class AddImmUPC<string opstr, RegisterOperand RO> :
   InstSE<(outs RO:$rs), (ins simm23_lsl2:$imm),

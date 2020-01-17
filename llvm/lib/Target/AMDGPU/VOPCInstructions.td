@@ -650,7 +650,7 @@ class getVOPCClassPat64 <VOPProfile P> {
   list<dag> ret =
     [(set i1:$sdst,
       (AMDGPUfp_class
-        (P.Src0VT (VOP3Mods0Clamp0OMod P.Src0VT:$src0, i32:$src0_modifiers)),
+        (P.Src0VT (VOP3Mods P.Src0VT:$src0, i32:$src0_modifiers)),
         P.Src1VT:$src1))];
 }
 
@@ -1218,7 +1218,7 @@ defm V_CMPX_T_U64     : VOPCX_Real_gfx6_gfx7_gfx10<0x0f7>;
 //===----------------------------------------------------------------------===//
 
 multiclass VOPC_Real_vi <bits<10> op> {
-  let AssemblerPredicates = [isGFX8GFX9], DecoderNamespace = "GFX8" in {
+  let AssemblerPredicate = isGFX8GFX9, DecoderNamespace = "GFX8" in {
     def _e32_vi :
       VOPC_Real<!cast<VOPC_Pseudo>(NAME#"_e32"), SIEncodingFamily.VI>,
       VOPCe<op{7-0}>;

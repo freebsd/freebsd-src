@@ -1469,6 +1469,9 @@ void MallocChecker::checkPostObjCMessage(const ObjCMethodCall &Call,
     if (!*FreeWhenDone)
       return;
 
+  if (Call.hasNonZeroCallbackArg())
+    return;
+
   bool IsKnownToBeAllocatedMemory;
   ProgramStateRef State =
       FreeMemAux(C, Call.getArgExpr(0), Call.getOriginExpr(), C.getState(),
@@ -2525,19 +2528,18 @@ MallocChecker::LeakInfo MallocChecker::getAllocationSite(const ExplodedNode *N,
 
     // Find the most recent expression bound to the symbol in the current
     // context.
-      if (!ReferenceRegion) {
-        if (const MemRegion *MR = C.getLocationRegionIfPostStore(N)) {
-          SVal Val = State->getSVal(MR);
-          if (Val.getAsLocSymbol() == Sym) {
-            const VarRegion* VR = MR->getBaseRegion()->getAs<VarRegion>();
-            // Do not show local variables belonging to a function other than
-            // where the error is reported.
-            if (!VR ||
-                (VR->getStackFrame() == LeakContext->getStackFrame()))
-              ReferenceRegion = MR;
-          }
+    if (!ReferenceRegion) {
+      if (const MemRegion *MR = C.getLocationRegionIfPostStore(N)) {
+        SVal Val = State->getSVal(MR);
+        if (Val.getAsLocSymbol() == Sym) {
+          const VarRegion *VR = MR->getBaseRegion()->getAs<VarRegion>();
+          // Do not show local variables belonging to a function other than
+          // where the error is reported.
+          if (!VR || (VR->getStackFrame() == LeakContext->getStackFrame()))
+            ReferenceRegion = MR;
         }
       }
+    }
 
     // Allocation node, is the last node in the current or parent context in
     // which the symbol was tracked.

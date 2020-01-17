@@ -51,7 +51,7 @@ public:
   /// \param[in] echo_comments
   ///    If \b true, echo command even if it is a pure comment line. If
   ///    \b false, print no ouput in this case. This setting has an effect only
-  ///    if \param echo_commands is \b true.
+  ///    if echo_commands is \b true.
   /// \param[in] print_results
   ///    If \b true and the command succeeds, print the results of the command
   ///    after executing it. If \b false, execute silently.
@@ -428,13 +428,14 @@ public:
 
   void RunCommandInterpreter(bool auto_handle_events, bool spawn_thread,
                              CommandInterpreterRunOptions &options);
+
   void GetLLDBCommandsFromIOHandler(const char *prompt,
                                     IOHandlerDelegate &delegate,
-                                    bool asynchronously, void *baton);
+                                    void *baton = nullptr);
 
   void GetPythonCommandsFromIOHandler(const char *prompt,
                                       IOHandlerDelegate &delegate,
-                                      bool asynchronously, void *baton);
+                                      void *baton = nullptr);
 
   const char *GetCommandPrefix();
 
@@ -443,13 +444,13 @@ public:
 
   bool GetPromptOnQuit() const;
 
-  void SetPromptOnQuit(bool b);
+  void SetPromptOnQuit(bool enable);
 
   bool GetEchoCommands() const;
-  void SetEchoCommands(bool b);
+  void SetEchoCommands(bool enable);
 
   bool GetEchoCommentCommands() const;
-  void SetEchoCommentCommands(bool b);
+  void SetEchoCommentCommands(bool enable);
 
   /// Specify if the command interpreter should allow that the user can
   /// specify a custom exit code when calling 'quit'.

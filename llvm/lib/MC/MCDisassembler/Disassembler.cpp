@@ -24,6 +24,7 @@
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSchedule.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MC/MCTargetOptions.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/TargetRegistry.h"
@@ -56,8 +57,10 @@ LLVMCreateDisasmCPUFeatures(const char *TT, const char *CPU,
   if (!MRI)
     return nullptr;
 
+  MCTargetOptions MCOptions;
   // Get the assembler info needed to setup the MCContext.
-  std::unique_ptr<const MCAsmInfo> MAI(TheTarget->createMCAsmInfo(*MRI, TT));
+  std::unique_ptr<const MCAsmInfo> MAI(
+      TheTarget->createMCAsmInfo(*MRI, TT, MCOptions));
   if (!MAI)
     return nullptr;
 
@@ -260,8 +263,7 @@ size_t LLVMDisasmInstruction(LLVMDisasmContextRef DCR, uint8_t *Bytes,
   MCDisassembler::DecodeStatus S;
   SmallVector<char, 64> InsnStr;
   raw_svector_ostream Annotations(InsnStr);
-  S = DisAsm->getInstruction(Inst, Size, Data, PC,
-                             /*REMOVE*/ nulls(), Annotations);
+  S = DisAsm->getInstruction(Inst, Size, Data, PC, Annotations);
   switch (S) {
   case MCDisassembler::Fail:
   case MCDisassembler::SoftFail:
@@ -274,7 +276,8 @@ size_t LLVMDisasmInstruction(LLVMDisasmContextRef DCR, uint8_t *Bytes,
     SmallVector<char, 64> InsnStr;
     raw_svector_ostream OS(InsnStr);
     formatted_raw_ostream FormattedOS(OS);
-    IP->printInst(&Inst, FormattedOS, AnnotationsStr, *DC->getSubtargetInfo());
+    IP->printInst(&Inst, PC, AnnotationsStr, *DC->getSubtargetInfo(),
+                  FormattedOS);
 
     if (DC->getOptions() & LLVMDisassembler_Option_PrintLatency)
       emitLatency(DC, Inst);

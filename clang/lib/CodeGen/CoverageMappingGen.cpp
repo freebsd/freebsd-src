@@ -1114,8 +1114,8 @@ struct CounterCoverageMappingBuilder
         // Make a region for the body of the switch.  If the body starts with
         // a case, that case will reuse this region; otherwise, this covers
         // the unreachable code at the beginning of the switch body.
-        size_t Index =
-            pushRegion(Counter::getZero(), getStart(CS->body_front()));
+        size_t Index = pushRegion(Counter::getZero(), getStart(CS));
+        getRegion().setGap(true);
         for (const auto *Child : CS->children())
           Visit(Child);
 
@@ -1278,6 +1278,13 @@ std::string getCoverageSection(const CodeGenModule &CGM) {
       CGM.getContext().getTargetInfo().getTriple().getObjectFormat());
 }
 
+std::string normalizeFilename(StringRef Filename) {
+  llvm::SmallString<256> Path(Filename);
+  llvm::sys::fs::make_absolute(Path);
+  llvm::sys::path::remove_dots(Path, /*remove_dot_dot=*/true);
+  return Path.str().str();
+}
+
 } // end anonymous namespace
 
 static void dump(llvm::raw_ostream &OS, StringRef FunctionName,
@@ -1308,24 +1315,6 @@ static void dump(llvm::raw_ostream &OS, StringRef FunctionName,
       OS << " (Expanded file = " << R.ExpandedFileID << ")";
     OS << "\n";
   }
-}
-
-CoverageMappingModuleGen::CoverageMappingModuleGen(
-    CodeGenModule &CGM, CoverageSourceInfo &SourceInfo)
-    : CGM(CGM), SourceInfo(SourceInfo), FunctionRecordTy(nullptr) {
-  // Honor -fdebug-compilation-dir in paths in coverage data. Otherwise, use the
-  // regular working directory when normalizing paths.
-  if (!CGM.getCodeGenOpts().DebugCompilationDir.empty())
-    CWD = CGM.getCodeGenOpts().DebugCompilationDir;
-  else
-    llvm::sys::fs::current_path(CWD);
-}
-
-std::string CoverageMappingModuleGen::normalizeFilename(StringRef Filename) {
-  llvm::SmallString<256> Path(Filename);
-  llvm::sys::fs::make_absolute(CWD, Path);
-  llvm::sys::path::remove_dots(Path, /*remove_dot_dot=*/true);
-  return Path.str().str();
 }
 
 void CoverageMappingModuleGen::addFunctionMappingRecord(

@@ -80,8 +80,12 @@ const char *Section::GetTypeAsCString() const {
     return "dwarf-line-str";
   case eSectionTypeDWARFDebugLoc:
     return "dwarf-loc";
+  case eSectionTypeDWARFDebugLocDwo:
+    return "dwarf-loc-dwo";
   case eSectionTypeDWARFDebugLocLists:
     return "dwarf-loclists";
+  case eSectionTypeDWARFDebugLocListsDwo:
+    return "dwarf-loclists-dwo";
   case eSectionTypeDWARFDebugMacInfo:
     return "dwarf-macinfo";
   case eSectionTypeDWARFDebugMacro:
@@ -94,6 +98,8 @@ const char *Section::GetTypeAsCString() const {
     return "dwarf-ranges";
   case eSectionTypeDWARFDebugRngLists:
     return "dwarf-rnglists";
+  case eSectionTypeDWARFDebugRngListsDwo:
+    return "dwarf-rnglists-dwo";
   case eSectionTypeDWARFDebugStr:
     return "dwarf-str";
   case eSectionTypeDWARFDebugStrDwo:
@@ -278,29 +284,6 @@ bool Section::ContainsFileAddress(addr_t vm_addr) const {
   return false;
 }
 
-int Section::Compare(const Section &a, const Section &b) {
-  if (&a == &b)
-    return 0;
-
-  const ModuleSP a_module_sp = a.GetModule();
-  const ModuleSP b_module_sp = b.GetModule();
-  if (a_module_sp == b_module_sp) {
-    user_id_t a_sect_uid = a.GetID();
-    user_id_t b_sect_uid = b.GetID();
-    if (a_sect_uid < b_sect_uid)
-      return -1;
-    if (a_sect_uid > b_sect_uid)
-      return 1;
-    return 0;
-  } else {
-    // The modules are different, just compare the module pointers
-    if (a_module_sp.get() < b_module_sp.get())
-      return -1;
-    else
-      return 1; // We already know the modules aren't equal
-  }
-}
-
 void Section::Dump(Stream *s, Target *target, uint32_t depth) const {
   //    s->Printf("%.*p: ", (int)sizeof(void*) * 2, this);
   s->Indent();
@@ -321,7 +304,7 @@ void Section::Dump(Stream *s, Target *target, uint32_t depth) const {
     }
 
     VMRange range(addr, addr + m_byte_size);
-    range.Dump(s, 0);
+    range.Dump(s->AsRawOstream(), 0);
   }
 
   s->Printf("%c %c%c%c  0x%8.8" PRIx64 " 0x%8.8" PRIx64 " 0x%8.8x ",
