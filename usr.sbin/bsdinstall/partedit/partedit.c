@@ -93,7 +93,7 @@ main(int argc, const char **argv)
 	tmpdir = getenv("TMPDIR");
 	if (tmpdir == NULL)
 		tmpdir = "/tmp";
-	tmpdfd = open(tmpdir, O_RDWR | O_DIRECTORY);
+	tmpdfd = open(tmpdir, O_DIRECTORY);
 	if (tmpdfd < 0)
 		err(EX_OSERR, "%s", tmpdir);
 	unlinkat(tmpdfd, "bsdinstall-esps", 0);
