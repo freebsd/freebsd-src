@@ -283,7 +283,7 @@ __opendir_common(int fd, int flags, bool use_current_pos)
 	DIR *dirp;
 	int incr;
 	int saved_errno;
-	int unionstack;
+	bool unionstack;
 
 	if ((dirp = malloc(sizeof(DIR) + sizeof(struct _telldir))) == NULL)
 		return (NULL);
@@ -310,15 +310,14 @@ __opendir_common(int fd, int flags, bool use_current_pos)
 	/*
 	 * Determine whether this directory is the top of a union stack.
 	 */
+	unionstack = false;
 	if (flags & DTF_NODUP) {
 		struct statfs sfb;
 
-		if (_fstatfs(fd, &sfb) < 0)
-			goto fail;
-		unionstack = !strcmp(sfb.f_fstypename, "unionfs")
-		    || (sfb.f_flags & MNT_UNION);
-	} else {
-		unionstack = 0;
+		if (_fstatfs(fd, &sfb) == 0) {
+			unionstack = strcmp(sfb.f_fstypename, "unionfs") == 0 ||
+			    (sfb.f_flags & MNT_UNION);
+		}
 	}
 
 	if (unionstack) {
