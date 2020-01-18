@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/md_var.h>
+#include <machine/ofw_machdep.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
 #include <machine/smp.h>
@@ -309,6 +310,12 @@ cpu_topo(void)
 	return (PLATFORM_SMP_TOPO(plat_obj));
 }
 #endif
+
+int
+platform_node_numa_domain(phandle_t node)
+{
+	return (PLATFORM_NODE_NUMA_DOMAIN(plat_obj, node));
+}
 
 /*
  * Reset back to firmware.
