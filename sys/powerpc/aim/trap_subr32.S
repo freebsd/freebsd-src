@@ -348,7 +348,7 @@ CNAME(trapcode):
 	mtsprg1	%r1			/* save SP */
 	mflr	%r1			/* Save the old LR in r1 */
 	mtsprg2 %r1			/* And then in SPRG2 */
-	lwz	%r1, TRAP_GENTRAP(0)	/* Get branch address */
+	lwz	%r1, TRAP_ENTRY(0)	/* Get branch address */
 	mtlr	%r1
 	li	%r1, 0xe0		/* How to get the vector from LR */
 	blrl				/* LR & (0xff00 | r1) is exception # */
@@ -908,7 +908,7 @@ CNAME(dblow):
         mflr	%r1			/* save LR */
 	mtsprg2 %r1			/* And then in SPRG2 */
 
-	lwz	%r1, TRAP_GENTRAP(0)	/* Get branch address */
+	lwz	%r1, TRAP_ENTRY(0)	/* Get branch address */
 	mtlr	%r1
 	li	%r1, 0			/* How to get the vector from LR */
 	blrl				/* LR & (0xff00 | r1) is exception # */
