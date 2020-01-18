@@ -138,6 +138,7 @@ and
 .Vt void *
 are 8 bytes.
 .El
+.Pp
 Compilers define the
 .Dv _LP64
 symbol when compiling for an
@@ -161,6 +162,7 @@ Examples are:
 .It Dv powerpc64   Ta Dv powerpc
 .It Dv mips64*     Ta Dv mips*
 .El
+.Pp
 .Dv aarch64
 currently does not support execution of
 .Dv armv6
@@ -178,6 +180,7 @@ On all supported architectures:
 .It float Ta 4
 .It double Ta 8
 .El
+.Pp
 Integers are represented in two's complement.
 Alignment of integer and pointer types is natural, that is,
 the address of the variable must be congruent to zero modulo the type size.
