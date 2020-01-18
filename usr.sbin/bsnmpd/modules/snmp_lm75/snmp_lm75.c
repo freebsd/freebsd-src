@@ -100,7 +100,6 @@ lm75_init(struct lmodule *mod, int argc __unused, char *argv[] __unused)
 	module = mod;
 
 	lm75_sensors = 0;
-	openlog("snmp_lm75", LOG_NDELAY | LOG_PID, LOG_DAEMON);
 
 	return(0);
 }
