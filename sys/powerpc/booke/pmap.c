@@ -4028,7 +4028,22 @@ tlb1_mapin_region(vm_offset_t va, vm_paddr_t pa, vm_size_t size, int wimge)
 				sz >>= 2;
 			} while (va % sz != 0);
 		}
-		/* Now align from there to VA */
+#ifdef __powerpc64__
+		/*
+		 * Clamp TLB1 entries to 4G.
+		 *
+		 * While the e6500 supports up to 1TB mappings, the e5500
+		 * only supports up to 4G mappings. (0b1011)
+		 *
+		 * If any e6500 machines capable of supporting a very
+		 * large amount of memory appear in the future, we can
+		 * revisit this.
+		 *
+		 * For now, though, since we have plenty of space in TLB1,
+		 * always avoid creating entries larger than 4GB.
+		 */
+		sz = MIN(sz, 1UL << 32);
+#endif
 		if (bootverbose)
 			printf("Wiring VA=%p to PA=%jx (size=%lx)\n",
 			    (void *)va, (uintmax_t)pa, (long)sz);
