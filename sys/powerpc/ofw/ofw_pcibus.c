@@ -385,39 +385,13 @@ ofw_pcibus_get_devinfo(device_t bus, device_t dev)
 	return (&dinfo->opd_obdinfo);
 }
 
-static int
-ofw_pcibus_parse_associativity(device_t dev, int *domain)
-{
-	phandle_t node;
-	cell_t associativity[5];
-	int res;
-
-	if ((node = ofw_bus_get_node(dev)) == -1) {
-		if (bootverbose)
-			device_printf(dev, "no ofw node found\n");
-		return (ENXIO);
-	}
-	res = OF_getproplen(node, "ibm,associativity");
-	if (res <= 0)
-		return (ENXIO);
-	OF_getencprop(node, "ibm,associativity",
-		associativity, res);
-
-	*domain = associativity[3];
-	if (bootverbose)
-		device_printf(dev, "domain(%d)\n", *domain);
-	return (0);
-}
-
 int
 ofw_pcibus_get_cpus(device_t dev, device_t child, enum cpu_sets op, size_t setsize,
     cpuset_t *cpuset)
 {
 	int d, error;
 
-	error = ofw_pcibus_parse_associativity(child, &d);
-	if (error)
-		return (bus_generic_get_cpus(dev, child, op, setsize, cpuset));
+	d = platform_node_numa_domain(ofw_bus_get_node(dev));
 
 	switch (op) {
 	case LOCAL_CPUS:
@@ -450,12 +424,7 @@ ofw_pcibus_get_cpus(device_t dev, device_t child, enum cpu_sets op, size_t setsi
 int
 ofw_pcibus_get_domain(device_t dev, device_t child, int *domain)
 {
-	int d, error;
+	*domain = platform_node_numa_domain(ofw_bus_get_node(child));
 
-	error = ofw_pcibus_parse_associativity(child, &d);
-	/* No ofw node; go up a level */
-	if (error)
-		return (bus_generic_get_domain(dev, child, domain));
-	*domain = d;
 	return (0);
 }
