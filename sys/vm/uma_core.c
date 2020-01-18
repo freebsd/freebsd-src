@@ -1521,7 +1521,11 @@ pcpu_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 			p = vm_page_alloc(NULL, 0, flags);
 #else
 			pc = pcpu_find(cpu);
-			p = vm_page_alloc_domain(NULL, 0, pc->pc_domain, flags);
+			if (__predict_false(VM_DOMAIN_EMPTY(pc->pc_domain)))
+				p = NULL;
+			else
+				p = vm_page_alloc_domain(NULL, 0,
+				    pc->pc_domain, flags);
 			if (__predict_false(p == NULL))
 				p = vm_page_alloc(NULL, 0, flags);
 #endif
