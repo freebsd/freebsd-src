@@ -174,7 +174,7 @@
 		)
 	      )
 	      (10 pfAltq
-	        (1 pfAltqQueueNumber INTEGER32 pf_altq GET)
+	        (1 pfAltqQueueNumber INTEGER32 pf_altq_num GET)
 		(2 pfAltqQueueTable
 		  (1 pfAltqQueueEntry : INTEGER32 pf_altqq
 		    (1 pfAltqQueueIndex INTEGER32)

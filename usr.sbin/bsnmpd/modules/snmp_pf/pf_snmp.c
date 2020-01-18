@@ -907,7 +907,7 @@ pf_tbladdr(struct snmp_context __unused *ctx, struct snmp_value __unused *val,
 }
 
 int
-pf_altq(struct snmp_context __unused *ctx, struct snmp_value *val,
+pf_altq_num(struct snmp_context __unused *ctx, struct snmp_value *val,
 	u_int sub, u_int __unused vindex, enum snmp_op op)
 {
 	asn_subid_t	which = val->var.subs[sub - 1];
