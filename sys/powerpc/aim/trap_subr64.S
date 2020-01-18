@@ -318,7 +318,7 @@ CNAME(rstcode):
 	 * It is software reset when 46:47 = 0b00
 	 */
 	/* 0x00 */
-	ld	%r2,TRAP_GENTRAP(0)	/* Real-mode &generictrap */
+	ld	%r2,TRAP_ENTRY(0)	/* Real-mode &generictrap */
 	mfsrr1	%r9			/* Load SRR1 into r9 */
 	andis.	%r9,%r9,0x3		/* Logic AND with 46:47 bits */
 
@@ -446,7 +446,7 @@ CNAME(trapcode):
 	mtsprg1	%r1			/* save SP */
 	mflr	%r1			/* Save the old LR in r1 */
 	mtsprg2 %r1			/* And then in SPRG2 */
-	ld	%r1,TRAP_GENTRAP(0)
+	ld	%r1,TRAP_ENTRY(0)
 	mtlr	%r1
 	li	%r1, 0xe0		/* How to get the vector from LR */
 	blrl				/* Branch to generictrap */
@@ -493,7 +493,7 @@ CNAME(slbtrap):
 	mflr	%r1
 	/* 0x30 */
 	mtsprg2 %r1				/* save LR in SPRG2 */
-	ld	%r1,TRAP_GENTRAP(0)		/* real-mode &generictrap */
+	ld	%r1,TRAP_ENTRY(0)		/* real-mode &generictrap */
 	mtlr	%r1
 	li	%r1, 0x80		/* How to get the vector from LR */
 	/* 0x40 */
@@ -955,7 +955,7 @@ CNAME(dblow):
         mflr	%r1			/* save LR */
 	mtsprg2 %r1			/* And then in SPRG2 */
 
-	ld	%r1, TRAP_GENTRAP(0)	/* Get branch address */
+	ld	%r1, TRAP_ENTRY(0)	/* Get branch address */
 	mtlr	%r1
 	li	%r1, 0	 		/* How to get the vector from LR */
 	blrl				/* Branch to generictrap */

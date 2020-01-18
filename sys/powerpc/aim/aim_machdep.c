@@ -388,16 +388,18 @@ aim_cpu_init(vm_offset_t toc)
 	bcopy(&dsitrap,  (void *)(EXC_DSI + trap_offset),  (size_t)&dsiend -
 	    (size_t)&dsitrap);
 
+	/* Set address of generictrap for self-reloc calculations */
+	*((void **)TRAP_GENTRAP) = &generictrap;
 	#ifdef __powerpc64__
 	/* Set TOC base so that the interrupt code can get at it */
-	*((void **)TRAP_GENTRAP) = &generictrap;
+	*((void **)TRAP_ENTRY) = &generictrap;
 	*((register_t *)TRAP_TOCBASE) = toc;
 	#else
 	/* Set branch address for trap code */
 	if (cpu_features & PPC_FEATURE_64)
-		*((void **)TRAP_GENTRAP) = &generictrap64;
+		*((void **)TRAP_ENTRY) = &generictrap64;
 	else
-		*((void **)TRAP_GENTRAP) = &generictrap;
+		*((void **)TRAP_ENTRY) = &generictrap;
 	*((void **)TRAP_TOCBASE) = _GLOBAL_OFFSET_TABLE_;
 
 	/* G2-specific TLB miss helper handlers */
