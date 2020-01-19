@@ -143,7 +143,6 @@ phys_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 {
 	int i;
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
 	for (i = 0; i < count; i++) {
 		if (vm_page_none_valid(m[i])) {
 			if ((m[i]->flags & PG_ZERO) == 0)

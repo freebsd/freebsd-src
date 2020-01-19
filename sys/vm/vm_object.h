@@ -264,6 +264,13 @@ extern struct vm_object kernel_object_store;
 #define	VM_OBJECT_PICKUP(object, state)					\
 	lock_class_rw.lc_lock(&(object)->lock.lock_object, (state))
 
+#define	VM_OBJECT_ASSERT_PAGING(object)					\
+	KASSERT((object)->paging_in_progress != 0,			\
+	    ("vm_object %p is not paging", object))
+#define	VM_OBJECT_ASSERT_REFERENCE(object)				\
+	KASSERT((object)->reference_count != 0,				\
+	    ("vm_object %p is not referenced", object))
+
 struct vnode;
 
 /*

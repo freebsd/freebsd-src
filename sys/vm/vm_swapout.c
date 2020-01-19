@@ -560,6 +560,7 @@ vm_thread_swapin(struct thread *td, int oom_alloc)
 	VM_OBJECT_WLOCK(ksobj);
 	(void)vm_page_grab_pages(ksobj, 0, oom_alloc | VM_ALLOC_WIRED, ma,
 	    pages);
+	VM_OBJECT_WUNLOCK(ksobj);
 	for (i = 0; i < pages;) {
 		vm_page_assert_xbusied(ma[i]);
 		if (vm_page_all_valid(ma[i])) {
@@ -571,7 +572,9 @@ vm_thread_swapin(struct thread *td, int oom_alloc)
 		for (j = i + 1; j < pages; j++)
 			if (vm_page_all_valid(ma[j]))
 				break;
+		VM_OBJECT_WLOCK(ksobj);
 		rv = vm_pager_has_page(ksobj, ma[i]->pindex, NULL, &a);
+		VM_OBJECT_WUNLOCK(ksobj);
 		KASSERT(rv == 1, ("%s: missing page %p", __func__, ma[i]));
 		count = min(a + 1, j - i);
 		rv = vm_pager_get_pages(ksobj, ma + i, count, NULL, NULL);
@@ -582,7 +585,6 @@ vm_thread_swapin(struct thread *td, int oom_alloc)
 			vm_page_xunbusy(ma[j]);
 		i += count;
 	}
-	VM_OBJECT_WUNLOCK(ksobj);
 	pmap_qenter(td->td_kstack, ma, pages);
 	cpu_thread_swapin(td);
 }
