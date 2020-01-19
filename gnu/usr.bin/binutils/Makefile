@@ -8,8 +8,14 @@ SUBDIR=	libiberty \
 
 SUBDIR.${MK_BINUTILS}+=	doc
 SUBDIR.${MK_BINUTILS}+=	libbinutils
-SUBDIR.${MK_BINUTILS}+=	as
 SUBDIR.${MK_BINUTILS}+=	objdump
+
+# GNU as is used on x86 only, for a few files that cannot be assembled by
+# Clang IAS. Other archs either use Clang IAS for every assembly file, or
+# use external toolchain.
+.if ${TARGET} == "amd64" || ${TARGET} == "i386"
+SUBDIR.${MK_BINUTILS}+=	as
+.endif
 
 # All archs except powerpc either use lld or require external toolchain.
 # powerpc still needs binutils ld to link 32-bit binaries.
