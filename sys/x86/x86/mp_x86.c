@@ -1233,7 +1233,8 @@ ipi_send_cpu(int cpu, u_int ipi)
 	u_int bitmap, old, new;
 	u_int *cpu_bitmap;
 
-	KASSERT(cpu_apic_ids[cpu] != -1, ("IPI to non-existent CPU %d", cpu));
+	KASSERT((u_int)cpu < MAXCPU && cpu_apic_ids[cpu] != -1,
+	    ("IPI to non-existent CPU %d", cpu));
 
 	if (IPI_IS_BITMAPED(ipi)) {
 		bitmap = 1 << ipi;
