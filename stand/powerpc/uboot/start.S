@@ -38,10 +38,11 @@ _start:
 	lis	%r11, uboot_address@ha
 	addi	%r11, %r11, uboot_address@l
 	stw	%r1, 0(%r11)
-	/* Save U-Boot's r14 */
+	/* Save U-Boot's r14 and r30 */
 	lis	%r11, saved_regs@ha
 	addi	%r11, %r11, saved_regs@l
 	stw	%r14, 0(%r11)
+	stw	%r30, 4(%r11)
 	/* Disable interrupts */
 	mfmsr	%r11
 	andi.	%r11, %r11, ~0x8000@l
@@ -52,14 +53,16 @@ _start:
  * syscall()
  */
 ENTRY(syscall)
-	stwu	%r1, -16(%r1)
+	stwu	%r1, -32(%r1)
 	mflr	%r0
 	stw	%r14, 8(%r1)
-	stw	%r0, 20(%r1)
-	/* Restore U-Boot's r14 */
+	stw	%r30, 12(%r1)
+	stw	%r0, 36(%r1)
+	/* Restore U-Boot's r14 and r30 */
 	lis	%r11, saved_regs@ha
 	addi	%r11, %r11, saved_regs@l
 	lwz	%r14, 0(%r11)
+	lwz	%r30, 4(%r11)
 	/* Enable interrupts */
 	mfmsr	%r11
 	ori	%r11, %r11, 0x8000@l
@@ -79,6 +82,7 @@ ENTRY(syscall)
 	lwz	%r0, 4(%r11)
 	mtlr	%r0
 	lwz	%r14, 8(%r1)
+	lwz	%r30, 12(%r1)
 	mr	%r1, %r11
 	blr
 
@@ -90,5 +94,6 @@ GLOBAL(syscall_ptr)
 	.long	0
 GLOBAL(saved_regs)
 	.long	0	/* R14 */
+	.long	0	/* R30 */
 GLOBAL(uboot_address)
 	.long	0
