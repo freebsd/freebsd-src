@@ -82,7 +82,6 @@ be_mount_iter(zfs_handle_t *zfs_hdl, void *data)
 	char *mountpoint;
 	char tmp[BE_MAXPATHLEN], zfs_mnt[BE_MAXPATHLEN];
 	struct be_mount_info *info;
-	char opt;
 
 	info = (struct be_mount_info *)data;
 
@@ -121,9 +120,7 @@ be_mount_iter(zfs_handle_t *zfs_hdl, void *data)
 		    mountpoint);
 	}
 
-	opt = '\0';
-	if ((err = zmount(zfs_get_name(zfs_hdl), tmp, info->mntflags,
-	    __DECONST(char *, MNTTYPE_ZFS), NULL, 0, &opt, 1)) != 0) {
+	if ((err = zfs_mount_at(zfs_hdl, NULL, info->mntflags, tmp)) != 0) {
 		switch (errno) {
 		case ENAMETOOLONG:
 			return (set_error(info->lbh, BE_ERR_PATHLEN));
