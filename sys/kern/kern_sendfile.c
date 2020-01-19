@@ -89,6 +89,7 @@ struct sf_io {
 	int		npages;
 	struct socket	*so;
 	struct mbuf	*m;
+	vm_object_t	obj;
 #ifdef KERN_TLS
 	struct ktls_session *tls;
 #endif
@@ -269,6 +270,8 @@ sendfile_iodone(void *arg, vm_page_t *pg, int count, int error)
 	if (!refcount_release(&sfio->nios))
 		return;
 
+	vm_object_pip_wakeup(sfio->obj);
+
 	if (__predict_false(sfio->error && sfio->m == NULL)) {
 		/*
 		 * I/O operation failed, but pru_send hadn't been executed -
@@ -421,9 +424,11 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 			}
 
 		refcount_acquire(&sfio->nios);
+		VM_OBJECT_WUNLOCK(obj);
 		rv = vm_pager_get_pages_async(obj, pa + i, count, NULL,
 		    i + count == npages ? &rhpages : NULL,
 		    &sendfile_iodone, sfio);
+		VM_OBJECT_WLOCK(obj);
 		if (__predict_false(rv != VM_PAGER_OK)) {
 			/*
 			 * Perform full pages recovery before returning EIO.
@@ -815,7 +820,9 @@ retry_space:
 		    npages * sizeof(vm_page_t), M_TEMP, M_WAITOK);
 		refcount_init(&sfio->nios, 1);
 		sfio->so = so;
+		sfio->obj = obj;
 		sfio->error = 0;
+		vm_object_pip_add(obj, 1);
 
 #ifdef KERN_TLS
 		/*
@@ -1053,6 +1060,7 @@ prepend_header:
 			 * we can send data right now without the
 			 * PRUS_NOTREADY flag.
 			 */
+			vm_object_pip_wakeup(sfio->obj);
 			free(sfio, M_TEMP);
 #ifdef KERN_TLS
 			if (tls != NULL && tls->mode == TCP_TLS_MODE_SW) {

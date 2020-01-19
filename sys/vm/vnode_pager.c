@@ -735,12 +735,11 @@ vnode_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	struct vnode *vp;
 	int rtval;
 
+	/* Handle is stable with paging in progress. */
 	vp = object->handle;
-	VM_OBJECT_WUNLOCK(object);
 	rtval = VOP_GETPAGES(vp, m, count, rbehind, rahead);
 	KASSERT(rtval != EOPNOTSUPP,
 	    ("vnode_pager: FS getpages not implemented\n"));
-	VM_OBJECT_WLOCK(object);
 	return rtval;
 }
 
@@ -752,11 +751,9 @@ vnode_pager_getpages_async(vm_object_t object, vm_page_t *m, int count,
 	int rtval;
 
 	vp = object->handle;
-	VM_OBJECT_WUNLOCK(object);
 	rtval = VOP_GETPAGES_ASYNC(vp, m, count, rbehind, rahead, iodone, arg);
 	KASSERT(rtval != EOPNOTSUPP,
 	    ("vnode_pager: FS getpages_async not implemented\n"));
-	VM_OBJECT_WLOCK(object);
 	return (rtval);
 }
 
