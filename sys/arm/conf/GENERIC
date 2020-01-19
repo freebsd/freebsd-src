@@ -172,6 +172,7 @@ device		spigen
 device		bcm2835_spi
 device		mv_spi
 device		ti_spi
+device		zy7_qspi		# Xilinx Zynq QSPI controller
 
 # ADC support
 device		ti_adc
