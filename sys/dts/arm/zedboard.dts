@@ -60,6 +60,15 @@
 	status = "okay";
 };
 
+&qspi0 {
+	status = "okay";
+
+	flash0 {
+	       compatible = "st,m25p", "s25fl128";
+	       spi-chipselect = <0>;
+	};
+};
+
 &sdhci0 {
 	status = "okay";
 };
