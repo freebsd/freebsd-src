@@ -526,7 +526,7 @@ vop_stdunlock(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	return (lockmgr_unlock_fast_path(vp->v_vnlock, 0, NULL));
+	return (lockmgr_unlock(vp->v_vnlock));
 }
 
 /* See above. */
