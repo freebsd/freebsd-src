@@ -190,6 +190,8 @@ struct vm_object {
 #define	OBJ_SIZEVNLOCK	0x0040		/* lock vnode to check obj size */
 #define	OBJ_PG_DTOR	0x0080		/* dont reset object, leave that for dtor */
 #define	OBJ_TMPFS_NODE	0x0200		/* object belongs to tmpfs VREG node */
+#define	OBJ_SPLIT	0x0400		/* object is being split */
+#define	OBJ_COLLAPSING	0x0800		/* Parent of collapse. */
 #define	OBJ_COLORED	0x1000		/* pg_color is defined */
 #define	OBJ_ONEMAPPING	0x2000		/* One USE (a single, non-forked) mapping flag */
 #define	OBJ_SHADOWLIST	0x4000		/* Object is on the shadow list. */
