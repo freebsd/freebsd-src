@@ -57,6 +57,10 @@ device		pty
 device		uart
 device		gpio
 
+device		spibus
+device		mx25l
+device		zy7_qspi		# Xilinx Zynq QSPI controller
+
 device		md
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
