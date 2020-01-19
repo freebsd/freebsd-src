@@ -412,14 +412,14 @@ static void
 cache_numcachehv_inc(void)
 {
 
-	counter_u64_add_protected(numcachehv, 1);
+	counter_u64_add(numcachehv, 1);
 }
 
 static void
 cache_numcachehv_dec(void)
 {
 
-	counter_u64_add_protected(numcachehv, -1);
+	counter_u64_add(numcachehv, -1);
 }
 #else
 static void
