@@ -1669,11 +1669,15 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	 * that we can compare pointers rather than doing a strcmp().
 	 */
 	lo = &vp->v_vnlock->lock_object;
+#ifdef WITNESS
 	if (lo->lo_name != tag) {
+#endif
 		lo->lo_name = tag;
+#ifdef WITNESS
 		WITNESS_DESTROY(lo);
 		WITNESS_INIT(lo, tag);
 	}
+#endif
 	/*
 	 * By default, don't allow shared locks unless filesystems opt-in.
 	 */
