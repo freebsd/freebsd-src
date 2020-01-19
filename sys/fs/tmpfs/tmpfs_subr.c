@@ -1480,8 +1480,12 @@ retry:
 				    VM_ALLOC_WAITFAIL);
 				if (m == NULL)
 					goto retry;
+				vm_object_pip_add(uobj, 1);
+				VM_OBJECT_WUNLOCK(uobj);
 				rv = vm_pager_get_pages(uobj, &m, 1, NULL,
 				    NULL);
+				VM_OBJECT_WLOCK(uobj);
+				vm_object_pip_wakeup(uobj);
 				if (rv == VM_PAGER_OK) {
 					/*
 					 * Since the page was not resident,

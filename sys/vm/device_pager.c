@@ -289,9 +289,9 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 
 	/* Since our haspage reports zero after/before, the count is 1. */
 	KASSERT(count == 1, ("%s: count %d", __func__, count));
-	VM_OBJECT_ASSERT_WLOCKED(object);
 	if (object->un_pager.devp.ops->cdev_pg_fault == NULL)
 		return (VM_PAGER_FAIL);
+	VM_OBJECT_WLOCK(object);
 	error = object->un_pager.devp.ops->cdev_pg_fault(object,
 	    IDX_TO_OFF(ma[0]->pindex), PROT_READ, &ma[0]);
 
@@ -312,6 +312,7 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 		if (rahead)
 			*rahead = 0;
 	}
+	VM_OBJECT_WUNLOCK(object);
 
 	return (error);
 }
