@@ -200,36 +200,24 @@ vnode_destroy_vobject(struct vnode *vp)
 	MPASS(obj->type == OBJT_VNODE);
 	umtx_shm_object_terminated(obj);
 	if (obj->ref_count == 0) {
+		KASSERT((obj->flags & OBJ_DEAD) == 0,
+		   ("vnode_destroy_vobject: Terminating dead object"));
+		vm_object_set_flag(obj, OBJ_DEAD);
+
 		/*
-		 * don't double-terminate the object
+		 * Clean pages and flush buffers.
 		 */
-		if ((obj->flags & OBJ_DEAD) == 0) {
-			vm_object_set_flag(obj, OBJ_DEAD);
+		vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
+		VM_OBJECT_WUNLOCK(obj);
 
-			/*
-			 * Clean pages and flush buffers.
-			 */
-			vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
-			VM_OBJECT_WUNLOCK(obj);
+		vinvalbuf(vp, V_SAVE, 0, 0);
 
-			vinvalbuf(vp, V_SAVE, 0, 0);
+		BO_LOCK(&vp->v_bufobj);
+		vp->v_bufobj.bo_flag |= BO_DEAD;
+		BO_UNLOCK(&vp->v_bufobj);
 
-			BO_LOCK(&vp->v_bufobj);
-			vp->v_bufobj.bo_flag |= BO_DEAD;
-			BO_UNLOCK(&vp->v_bufobj);
-
-			VM_OBJECT_WLOCK(obj);
-			vm_object_terminate(obj);
-		} else {
-			/*
-			 * Waiters were already handled during object
-			 * termination.  The exclusive vnode lock hopefully
-			 * prevented new waiters from referencing the dying
-			 * object.
-			 */
-			vp->v_object = NULL;
-			VM_OBJECT_WUNLOCK(obj);
-		}
+		VM_OBJECT_WLOCK(obj);
+		vm_object_terminate(obj);
 	} else {
 		/*
 		 * Woe to the process that tries to page now :-).
