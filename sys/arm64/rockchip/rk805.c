@@ -97,6 +97,9 @@ struct rk805_softc {
 	int			nregs;
 };
 
+static int rk805_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
+    int max_uvolt, int *udelay);
+
 static struct rk805_regdef rk805_regdefs[] = {
 	{
 		.id = RK805_DCDC1,
@@ -354,7 +357,26 @@ rk805_write(device_t dev, uint8_t reg, uint8_t data)
 static int
 rk805_regnode_init(struct regnode *regnode)
 {
-	return (0);
+	struct rk805_reg_sc *sc;
+	struct regnode_std_param *param;
+	int rv, udelay;
+
+	sc = regnode_get_softc(regnode);
+	param = regnode_get_stdparam(regnode);
+	if (param->min_uvolt == 0)
+		return (0);
+
+	/* 
+	 * Set the regulator at the correct voltage
+	 * Do not enable it, this is will be done either by a
+	 * consumer or by regnode_set_constraint if boot_on is true
+	 */
+	rv = rk805_regnode_set_voltage(regnode, param->min_uvolt,
+	    param->max_uvolt, &udelay);
+	if (rv != 0)
+		DELAY(udelay);
+
+	return (rv);
 }
 
 static int
