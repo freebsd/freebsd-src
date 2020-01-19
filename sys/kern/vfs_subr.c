@@ -2826,36 +2826,24 @@ v_decr_devcount(struct vnode *vp)
  * see doomed vnodes.  If inactive processing was delayed in
  * vput try to do it here.
  *
- * Both holdcnt and usecount can be manipulated using atomics without holding
- * any locks except in these cases which require the vnode interlock:
- * holdcnt: 1->0 and 0->1
- * usecount: 0->1
- *
- * usecount is permitted to transition 1->0 without the interlock because
- * vnode is kept live by holdcnt.
+ * usecount is manipulated using atomics without holding any locks,
+ * except when transitioning 0->1 in which case the interlock is held.
+
+ * holdcnt is manipulated using atomics without holding any locks,
+ * except when transitioning 1->0 in which case the interlock is held.
  */
-static enum vgetstate __always_inline
-_vget_prep(struct vnode *vp, bool interlock)
+enum vgetstate
+vget_prep(struct vnode *vp)
 {
 	enum vgetstate vs;
 
 	if (refcount_acquire_if_not_zero(&vp->v_usecount)) {
 		vs = VGET_USECOUNT;
 	} else {
-		if (interlock)
-			vholdl(vp);
-		else
-			vhold(vp);
+		vhold(vp);
 		vs = VGET_HOLDCNT;
 	}
 	return (vs);
-}
-
-enum vgetstate
-vget_prep(struct vnode *vp)
-{
-
-	return (_vget_prep(vp, false));
 }
 
 int
@@ -2865,7 +2853,7 @@ vget(struct vnode *vp, int flags, struct thread *td)
 
 	MPASS(td == curthread);
 
-	vs = _vget_prep(vp, (flags & LK_INTERLOCK) != 0);
+	vs = vget_prep(vp);
 	return (vget_finish(vp, flags, vs));
 }
 
@@ -3234,37 +3222,21 @@ vunref(struct vnode *vp)
 	vputx(vp, VPUTX_VUNREF);
 }
 
-/*
- * Increase the hold count and activate if this is the first reference.
- */
-static void
-vhold_activate(struct vnode *vp)
+void
+vhold(struct vnode *vp)
 {
 	struct vdbatch *vd;
+	int old;
 
-	ASSERT_VI_LOCKED(vp, __func__);
-	VNASSERT(vp->v_holdcnt == 0, vp,
-	    ("%s: wrong hold count", __func__));
-	VNASSERT(vp->v_op != NULL, vp,
-	    ("%s: vnode already reclaimed.", __func__));
+	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+	old = atomic_fetchadd_int(&vp->v_holdcnt, 1);
+	VNASSERT(old >= 0, vp, ("%s: wrong hold count %d", __func__, old));
+	if (old != 0)
+		return;
 	critical_enter();
 	vd = DPCPU_PTR(vd);
 	vd->freevnodes--;
 	critical_exit();
-	refcount_acquire(&vp->v_holdcnt);
-}
-
-void
-vhold(struct vnode *vp)
-{
-
-	ASSERT_VI_UNLOCKED(vp, __func__);
-	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
-	if (refcount_acquire_if_not_zero(&vp->v_holdcnt))
-		return;
-	VI_LOCK(vp);
-	vholdl(vp);
-	VI_UNLOCK(vp);
 }
 
 void
@@ -3273,11 +3245,7 @@ vholdl(struct vnode *vp)
 
 	ASSERT_VI_LOCKED(vp, __func__);
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
-	if (vp->v_holdcnt > 0) {
-		refcount_acquire(&vp->v_holdcnt);
-		return;
-	}
-	vhold_activate(vp);
+	vhold(vp);
 }
 
 void
@@ -3417,8 +3385,6 @@ vdrop_deactivate(struct vnode *vp)
 	    ("vdrop: returning doomed vnode"));
 	VNASSERT(vp->v_op != NULL, vp,
 	    ("vdrop: vnode already reclaimed."));
-	VNASSERT(vp->v_holdcnt == 0, vp,
-	    ("vdrop: freeing when we shouldn't"));
 	VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
 	    ("vnode with VI_OWEINACT set"));
 	VNASSERT((vp->v_iflag & VI_DEFINACT) == 0, vp,
@@ -3426,9 +3392,18 @@ vdrop_deactivate(struct vnode *vp)
 	if (vp->v_mflag & VMP_LAZYLIST) {
 		mp = vp->v_mount;
 		mtx_lock(&mp->mnt_listmtx);
-		vp->v_mflag &= ~VMP_LAZYLIST;
-		TAILQ_REMOVE(&mp->mnt_lazyvnodelist, vp, v_lazylist);
-		mp->mnt_lazyvnodelistsize--;
+		VNASSERT(vp->v_mflag & VMP_LAZYLIST, vp, ("lost VMP_LAZYLIST"));
+		/*
+		 * Don't remove the vnode from the lazy list if another thread
+		 * has increased the hold count. It may have re-enqueued the
+		 * vnode to the lazy list and is now responsible for its
+		 * removal.
+		 */
+		if (vp->v_holdcnt == 0) {
+			vp->v_mflag &= ~VMP_LAZYLIST;
+			TAILQ_REMOVE(&mp->mnt_lazyvnodelist, vp, v_lazylist);
+			mp->mnt_lazyvnodelistsize--;
+		}
 		mtx_unlock(&mp->mnt_listmtx);
 	}
 	vdbatch_enqueue(vp);
