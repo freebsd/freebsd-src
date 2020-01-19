@@ -974,15 +974,12 @@ swp_pager_xfer_source(vm_object_t srcobject, vm_object_t dstobject,
 	 * Destination has no swapblk and is not resident, transfer source.
 	 * swp_pager_meta_build() can sleep.
 	 */
-	vm_object_pip_add(srcobject, 1);
 	VM_OBJECT_WUNLOCK(srcobject);
-	vm_object_pip_add(dstobject, 1);
 	dstaddr = swp_pager_meta_build(dstobject, pindex, addr);
 	KASSERT(dstaddr == SWAPBLK_NONE,
 	    ("Unexpected destination swapblk"));
-	vm_object_pip_wakeup(dstobject);
 	VM_OBJECT_WLOCK(srcobject);
-	vm_object_pip_wakeup(srcobject);
+
 	return (true);
 }
 
@@ -995,8 +992,7 @@ swp_pager_xfer_source(vm_object_t srcobject, vm_object_t dstobject,
  *	we keep the destination's.
  *
  *	This routine is allowed to sleep.  It may sleep allocating metadata
- *	indirectly through swp_pager_meta_build() or if paging is still in
- *	progress on the source.
+ *	indirectly through swp_pager_meta_build().
  *
  *	The source object contains no vm_page_t's (which is just as well)
  *
@@ -1019,18 +1015,14 @@ swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
 	 */
 	if (destroysource && (srcobject->flags & OBJ_ANON) == 0 &&
 	    srcobject->handle != NULL) {
-		vm_object_pip_add(srcobject, 1);
 		VM_OBJECT_WUNLOCK(srcobject);
-		vm_object_pip_add(dstobject, 1);
 		VM_OBJECT_WUNLOCK(dstobject);
 		sx_xlock(&sw_alloc_sx);
 		TAILQ_REMOVE(NOBJLIST(srcobject->handle), srcobject,
 		    pager_object_list);
 		sx_xunlock(&sw_alloc_sx);
 		VM_OBJECT_WLOCK(dstobject);
-		vm_object_pip_wakeup(dstobject);
 		VM_OBJECT_WLOCK(srcobject);
-		vm_object_pip_wakeup(srcobject);
 	}
 
 	/*
@@ -1207,26 +1199,29 @@ swap_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 
 	reqcount = count;
 
-	/*
-	 * Determine the final number of read-behind pages and
-	 * allocate them BEFORE releasing the object lock.  Otherwise,
-	 * there can be a problematic race with vm_object_split().
-	 * Specifically, vm_object_split() might first transfer pages
-	 * that precede ma[0] in the current object to a new object,
-	 * and then this function incorrectly recreates those pages as
-	 * read-behind pages in the current object.
-	 */
 	KASSERT(object->type == OBJT_SWAP,
 	    ("%s: object not swappable", __func__));
 	if (!swap_pager_haspage(object, ma[0]->pindex, &maxbehind, &maxahead))
 		return (VM_PAGER_FAIL);
 
+	KASSERT(reqcount - 1 <= maxahead,
+	    ("page count %d extends beyond swap block", reqcount));
+
+	/*
+	 * Do not transfer any pages other than those that are xbusied
+	 * when running during a split or collapse operation.  This
+	 * prevents clustering from re-creating pages which are being
+	 * moved into another object.
+	 */
+	if ((object->flags & (OBJ_SPLIT | OBJ_DEAD)) != 0) {
+		maxahead = reqcount - 1;
+		maxbehind = 0;
+	}
+
 	/*
 	 * Clip the readahead and readbehind ranges to exclude resident pages.
 	 */
 	if (rahead != NULL) {
-		KASSERT(reqcount - 1 <= maxahead,
-		    ("page count %d extends beyond swap block", reqcount));
 		*rahead = imin(*rahead, maxahead - (reqcount - 1));
 		pindex = ma[reqcount - 1]->pindex;
 		msucc = TAILQ_NEXT(ma[reqcount - 1], listq);
