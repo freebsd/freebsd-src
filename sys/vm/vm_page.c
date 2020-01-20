@@ -4398,7 +4398,11 @@ retrylookup:
 			}
 		}
 		after = i;
+		vm_object_pip_add(object, after);
+		VM_OBJECT_WUNLOCK(object);
 		rv = vm_pager_get_pages(object, ma, after, NULL, NULL);
+		VM_OBJECT_WLOCK(object);
+		vm_object_pip_wakeupn(object, after);
 		/* Pager may have replaced a page. */
 		m = ma[0];
 		if (rv != VM_PAGER_OK) {

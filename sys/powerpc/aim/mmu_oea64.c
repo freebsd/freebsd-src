@@ -185,7 +185,6 @@ uma_zone_t	moea64_pvo_zone; /* zone for pvo entries */
 static struct	pvo_entry *moea64_bpvo_pool;
 static int	moea64_bpvo_pool_index = 0;
 static int	moea64_bpvo_pool_size = 327680;
-TUNABLE_INT("machdep.moea64_bpvo_pool_size", &moea64_bpvo_pool_size);
 SYSCTL_INT(_machdep, OID_AUTO, moea64_allocated_bpvo_entries, CTLFLAG_RD, 
     &moea64_bpvo_pool_index, 0, "");
 
@@ -390,9 +389,11 @@ alloc_pvo_entry(int bootstrap)
 
 	if (!moea64_initialized || bootstrap) {
 		if (moea64_bpvo_pool_index >= moea64_bpvo_pool_size) {
-			panic("moea64_enter: bpvo pool exhausted, %d, %d, %zd",
-			      moea64_bpvo_pool_index, moea64_bpvo_pool_size,
-			      moea64_bpvo_pool_size * sizeof(struct pvo_entry));
+			panic("%s: bpvo pool exhausted, index=%d, size=%d, bytes=%zd."
+			    "Try setting machdep.moea64_bpvo_pool_size tunable",
+			    __func__, moea64_bpvo_pool_index,
+			    moea64_bpvo_pool_size,
+			    moea64_bpvo_pool_size * sizeof(struct pvo_entry));
 		}
 		pvo = &moea64_bpvo_pool[
 		    atomic_fetchadd_int(&moea64_bpvo_pool_index, 1)];
@@ -914,6 +915,7 @@ moea64_mid_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	/*
 	 * Initialise the bootstrap pvo pool.
 	 */
+	TUNABLE_INT_FETCH("machdep.moea64_bpvo_pool_size", &moea64_bpvo_pool_size);
 	moea64_bpvo_pool = (struct pvo_entry *)moea64_bootstrap_alloc(
 		moea64_bpvo_pool_size*sizeof(struct pvo_entry), PAGE_SIZE);
 	moea64_bpvo_pool_index = 0;

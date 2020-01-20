@@ -1080,8 +1080,10 @@ readrest:
 				}
 				ahead = ulmin(ahead, atop(e_end - vaddr) - 1);
 			}
+			VM_OBJECT_WUNLOCK(fs.object);
 			rv = vm_pager_get_pages(fs.object, &fs.m, 1,
 			    &behind, &ahead);
+			VM_OBJECT_WLOCK(fs.object);
 			if (rv == VM_PAGER_OK) {
 				faultcount = behind + 1 + ahead;
 				hardfault = true;

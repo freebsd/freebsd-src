@@ -319,6 +319,7 @@ s32 e1000_set_mac_type(struct e1000_hw *hw)
 	case E1000_DEV_ID_PCH_ICP_I219_V8:
 	case E1000_DEV_ID_PCH_ICP_I219_LM9:
 	case E1000_DEV_ID_PCH_ICP_I219_V9:
+	case E1000_DEV_ID_PCH_ICP_I219_V10:
 		mac->type = e1000_pch_cnp;
 		break;
 	case E1000_DEV_ID_82575EB_COPPER:

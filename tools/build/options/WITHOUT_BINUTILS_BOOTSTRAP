@@ -1,7 +1,3 @@
 .\" $FreeBSD$
 Do not build binutils (as, ld.bfd, and objdump)
 as part of the bootstrap process.
-.Bf -symbolic
-The option does not work for build targets unless some alternative
-toolchain is provided.
-.Ef

@@ -43,6 +43,7 @@
  */
 
 INTERFACE moea64;
+SINGLETON;
 
 CODE {
 	static moea64_pte_replace_t moea64_pte_replace_default;

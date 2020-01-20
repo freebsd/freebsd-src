@@ -63,7 +63,6 @@ __DEFAULT_YES_OPTIONS = \
     AUTOFS \
     BHYVE \
     BINUTILS \
-    BINUTILS_BOOTSTRAP \
     BLACKLIST \
     BLUETOOTH \
     BOOT \
@@ -313,6 +312,11 @@ __DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_IS_CC LLD
 # In-tree binutils/gcc are older versions without modern architecture support.
 .if ${__T} == "aarch64" || ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GCC GCC_BOOTSTRAP GDB
+.endif
+.if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
+__DEFAULT_YES_OPTIONS+=BINUTILS_BOOTSTRAP
+.else
+__DEFAULT_NO_OPTIONS+=BINUTILS_BOOTSTRAP
 .endif
 .if ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=OFED

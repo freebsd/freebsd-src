@@ -32,6 +32,7 @@
 #include <sys/systm.h>
 #include <sys/smp.h>
 
+#include <machine/ofw_machdep.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
 #include <machine/smp.h>
@@ -87,6 +88,11 @@ CODE {
 	static void platform_null_smp_probe_threads(void)
 	{
 		return;
+	}
+	static int platform_null_node_numa_domain(platform_t plat,
+	    phandle_t node)
+	{
+		return (0);
 	}
 };
 
@@ -255,3 +261,12 @@ METHOD void smp_timebase_sync {
 	int		_ap;
 };
 
+/**
+ * @brief Return the NUMA domain for the given device tree node.  Always returns
+ * a valid domain.
+ *
+ */
+METHOD int node_numa_domain {
+	platform_t	_plat;
+	phandle_t	_node;
+} DEFAULT platform_null_node_numa_domain;

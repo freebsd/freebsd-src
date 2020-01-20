@@ -1853,6 +1853,7 @@ PORTSDIR?=	/usr/ports
 WSTAGEDIR?=	${OBJTOP}/worldstage
 KSTAGEDIR?=	${OBJTOP}/kernelstage
 REPODIR?=	${OBJROOT}repo
+PKG_FORMAT?=	txz
 PKGSIGNKEY?=	# empty
 
 .ORDER:		stage-packages create-packages
@@ -1925,6 +1926,10 @@ create-world-packages:	_pkgbootstrap .PHONY
 .include "${WSTAGEDIR}/packages.mk"
 .endif
 
+.if make(create-world-packages-jobs) || make(create-kernel-packages*)
+PKG_ABI!=${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI
+.endif
+
 create-world-packages-jobs: .PHONY
 .for pkgname in ${_PKGS}
 create-world-packages-jobs: create-world-package-${pkgname}
@@ -1939,10 +1944,10 @@ create-world-package-${pkgname}: .PHONY
 		sed -i '' -e "s/%VCS_REVISION%/${VCS_REVISION}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
 	fi
 	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname -o ALLOW_BASE_SHLIBS=yes \
-		create -M ${WSTAGEDIR}/${pkgname}.ucl \
+		create -f ${PKG_FORMAT} -M ${WSTAGEDIR}/${pkgname}.ucl \
 		-p ${WSTAGEDIR}/${pkgname}.plist \
 		-r ${WSTAGEDIR} \
-		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/${PKG_VERSION}
+		-o ${REPODIR}/${PKG_ABI}/${PKG_VERSION}
 .endfor
 
 _default_flavor=	-default
@@ -1971,10 +1976,11 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 		/version/ {print $$2; next } ' \
 		${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
 	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname -o ALLOW_BASE_SHLIBS=yes \
-		create -M ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl \
+		create -f ${PKG_FORMAT} \
+		-M ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl \
 		-p ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.plist \
 		-r ${KSTAGEDIR}/${DISTDIR} \
-		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/${PKG_VERSION}
+		-o ${REPODIR}/${PKG_ABI}/${PKG_VERSION}
 . endfor
 .endif
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
@@ -2003,19 +2009,22 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 		/version/ {print $$2; next } ' \
 		${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
 	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname -o ALLOW_BASE_SHLIBS=yes \
-		create -M ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl \
+		create -f ${PKG_FORMAT} \
+		-M ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl \
 		-p ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.plist \
 		-r ${KSTAGEDIR}/kernel.${_kernel} \
-		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/${PKG_VERSION}
+		-o ${REPODIR}/${PKG_ABI}/${PKG_VERSION}
 .   endfor
 .  endif
 . endfor
 .endif
 
 sign-packages:	_pkgbootstrap .PHONY
+	printf "version = 2;\npacking_format = \"${PKG_FORMAT}\";\n" > ${WSTAGEDIR}/meta
 	@[ -L "${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/latest" ] && \
 		unlink ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/latest ; \
 	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname repo \
+		-m ${WSTAGEDIR}/meta \
 		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/${PKG_VERSION} \
 		${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/${PKG_VERSION} \
 		${PKGSIGNKEY} ; \

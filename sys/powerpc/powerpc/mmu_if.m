@@ -46,6 +46,7 @@
  */
 
 INTERFACE mmu;
+SINGLETON;
 
 #
 # Default implementations of some methods

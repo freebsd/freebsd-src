@@ -466,9 +466,8 @@ void
 ofw_numa_mem_regions(struct numa_mem_region *memp, int *memsz)
 {
 	phandle_t phandle;
-	int res, count, msz;
+	int count, msz;
 	char name[31];
-	cell_t associativity[5];
 	struct numa_mem_region *curmemp;
 
 	msz = 0;
@@ -486,13 +485,8 @@ ofw_numa_mem_regions(struct numa_mem_region *memp, int *memsz)
 		if (count == 0)
 			continue;
 		curmemp = &memp[msz];
-		res = OF_getproplen(phandle, "ibm,associativity");
-		if (res <= 0)
-			continue;
 		MPASS(count == 1);
-		OF_getencprop(phandle, "ibm,associativity",
-			associativity, res);
-		curmemp->mr_domain = associativity[3];
+		curmemp->mr_domain = platform_node_numa_domain(phandle);
 		if (bootverbose)
 			printf("%s %#jx-%#jx domain(%ju)\n",
 			    name, (uintmax_t)curmemp->mr_start,
