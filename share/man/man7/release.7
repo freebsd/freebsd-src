@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 28, 2018
+.Dd January 16, 2020
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -570,8 +570,10 @@ target invoked by
 Optional variables:
 .Bl -tag -width ".Ev TARGET_ARCH"
 .It Ev OSRELEASE
-Optional base name for generated media images
-.Pq e.g., FreeBSD-9.0-RC2-amd64 .
+Optional base name for generated media images when invoking the
+.Cm install
+target
+.Pq e.g., FreeBSD-12.1-RELEASE-amd64 .
 Defaults to the output of
 .Ic `uname -s`-`uname -r`-`uname -p`
 within the chroot.
@@ -659,6 +661,7 @@ svn co svn://svn.freebsd.org/base/head src
 cd src
 make buildworld buildkernel
 cd release
+make obj
 make release
 make install DESTDIR=/var/freebsd-snapshot
 .Ed
