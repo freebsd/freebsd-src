@@ -37,6 +37,9 @@
 #include <dev/ofw/openfirm.h>
 #include <machine/platform.h>
 
+struct mem_region;
+struct numa_mem_region;
+
 typedef	uint32_t	cell_t;
 
 void OF_getetheraddr(device_t dev, u_char *addr);

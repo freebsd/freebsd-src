@@ -35,9 +35,6 @@ __FBSDID("$FreeBSD$");
  * mappings for use in DMA/mailbox interactions.  This is only used for the
  * arm64 SoC because the 32-bit SoC used the same mappings.
  */
-#if defined (__aarch64__)
-#include "opt_soc.h"
-#endif
 
 #include <sys/types.h>
 #include <sys/systm.h>
@@ -67,7 +64,6 @@ struct bcm283x_memory_mapping {
 	vm_paddr_t	vcbus_start;
 };
 
-#ifdef SOC_BCM2835
 static struct bcm283x_memory_mapping bcm2835_memmap[] = {
 	{
 		/* SDRAM */
@@ -83,9 +79,7 @@ static struct bcm283x_memory_mapping bcm2835_memmap[] = {
 	},
 	{ 0, 0, 0 },
 };
-#endif
 
-#ifdef SOC_BCM2836
 static struct bcm283x_memory_mapping bcm2836_memmap[] = {
 	{
 		/* SDRAM */
@@ -101,9 +95,7 @@ static struct bcm283x_memory_mapping bcm2836_memmap[] = {
 	},
 	{ 0, 0, 0 },
 };
-#endif
 
-#ifdef SOC_BRCM_BCM2837
 static struct bcm283x_memory_mapping bcm2837_memmap[] = {
 	{
 		/* SDRAM */
@@ -119,9 +111,6 @@ static struct bcm283x_memory_mapping bcm2837_memmap[] = {
 	},
 	{ 0, 0, 0 },
 };
-#endif
-
-#ifdef SOC_BRCM_BCM2838
 
 /*
  * The BCM2838 supports up to 4GB of SDRAM, but unfortunately we can still only
@@ -144,14 +133,12 @@ static struct bcm283x_memory_mapping bcm2838_memmap[] = {
 	},
 	{ 0, 0, 0 },
 };
-#endif
 
 static struct bcm283x_memory_soc_cfg {
 	struct bcm283x_memory_mapping	*memmap;
 	const char			*soc_compat;
 	bus_addr_t			 busdma_lowaddr;
 } bcm283x_memory_configs[] = {
-#ifdef SOC_BCM2835
 	/* Legacy */
 	{
 		.memmap = bcm2835_memmap,
@@ -164,8 +151,6 @@ static struct bcm283x_memory_soc_cfg {
 		.soc_compat = "brcm,bcm2835",
 		.busdma_lowaddr = BUS_SPACE_MAXADDR_32BIT,
 	},
-#endif
-#ifdef SOC_BCM2836
 	/* Legacy */
 	{
 		.memmap = bcm2836_memmap,
@@ -178,16 +163,11 @@ static struct bcm283x_memory_soc_cfg {
 		.soc_compat = "brcm,bcm2836",
 		.busdma_lowaddr = BUS_SPACE_MAXADDR_32BIT,
 	},
-
-#endif
-#ifdef SOC_BRCM_BCM2837
 	{
 		.memmap = bcm2837_memmap,
 		.soc_compat = "brcm,bcm2837",
 		.busdma_lowaddr = BUS_SPACE_MAXADDR_32BIT,
 	},
-#endif
-#ifdef SOC_BRCM_BCM2838
 	{
 		.memmap = bcm2838_memmap,
 		.soc_compat = "brcm,bcm2711",
@@ -198,7 +178,6 @@ static struct bcm283x_memory_soc_cfg {
 		.soc_compat = "brcm,bcm2838",
 		.busdma_lowaddr = BCM2838_PERIPH_MAXADDR,
 	},
-#endif
 };
 
 static struct bcm283x_memory_soc_cfg *booted_soc_memcfg;

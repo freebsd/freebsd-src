@@ -202,7 +202,8 @@
 			reg = <0xd000 0x1000>;
 			interrupts = <0 19 4>;
 			interrupt-parent = <&GIC>;
-			spi-clock = <50000000>;
+			ref-clock = <200000000>; // 200 Mhz
+			spi-clock = <50000000>;  // 50 Mhz
 		};
 
 		// SDIO controllers

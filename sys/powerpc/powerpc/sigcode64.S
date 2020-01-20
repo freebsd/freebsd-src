@@ -63,9 +63,13 @@ CNAME(sigcode64_elfv2):
 	addi	3,1,112+SF_UC		/* restore sp, and get &frame->sf_uc */
 	li	0,SYS_sigreturn
 	sc				/* sigreturn(scp) */
+	/*
+	 * If we get back to here, it means sigreturn failed.
+	 * As such, we are now stuck in the wrong context.
+	 * Exit immediately without touching the stack.
+	 */
 	li	0,SYS_exit
 	sc				/* exit(errno) */
-	nop				/* align to doubleword */
 endsigcode64:
 	
 	.data

@@ -205,7 +205,6 @@ SYSCTL_ULONG(_vfs, OID_AUTO, ncnegfactor, CTLFLAG_RW, &ncnegfactor, 0,
     "Ratio of negative namecache entries");
 static u_long __exclusive_cache_line	numneg;	/* number of negative entries allocated */
 static u_long __exclusive_cache_line	numcache;/* number of cache entries allocated */
-static u_long __exclusive_cache_line	numcachehv;/* number of cache entries with vnodes held */
 u_int ncsizefactor = 2;
 SYSCTL_UINT(_vfs, OID_AUTO, ncsizefactor, CTLFLAG_RW, &ncsizefactor, 0,
     "Size factor for namecache");
@@ -352,7 +351,7 @@ static SYSCTL_NODE(_vfs, OID_AUTO, cache, CTLFLAG_RW, 0,
 	SYSCTL_COUNTER_U64(_vfs_cache, OID_AUTO, name, CTLFLAG_RD, &name, descr);
 STATNODE_ULONG(numneg, "Number of negative cache entries");
 STATNODE_ULONG(numcache, "Number of cache entries");
-STATNODE_ULONG(numcachehv, "Number of namecache entries with vnodes held");
+STATNODE_COUNTER(numcachehv, "Number of namecache entries with vnodes held");
 STATNODE_COUNTER(numcalls, "Number of cache lookups");
 STATNODE_COUNTER(dothits, "Number of '.' hits");
 STATNODE_COUNTER(dotdothits, "Number of '..' hits");
@@ -873,7 +872,7 @@ cache_zap_locked(struct namecache *ncp, bool neg_locked)
 		LIST_REMOVE(ncp, nc_src);
 		if (LIST_EMPTY(&ncp->nc_dvp->v_cache_src)) {
 			ncp->nc_flag |= NCF_DVDROP;
-			atomic_subtract_rel_long(&numcachehv, 1);
+			counter_u64_add(numcachehv, -1);
 		}
 	}
 	atomic_subtract_rel_long(&numcache, 1);
@@ -1742,7 +1741,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	held_dvp = false;
 	if (LIST_EMPTY(&dvp->v_cache_src) && flag != NCF_ISDOTDOT) {
 		vhold(dvp);
-		atomic_add_long(&numcachehv, 1);
+		counter_u64_add(numcachehv, 1);
 		held_dvp = true;
 	}
 
@@ -1837,7 +1836,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 		if (LIST_EMPTY(&dvp->v_cache_src)) {
 			if (!held_dvp) {
 				vhold(dvp);
-				atomic_add_long(&numcachehv, 1);
+				counter_u64_add(numcachehv, 1);
 			}
 		} else {
 			if (held_dvp) {
@@ -1848,7 +1847,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 				 * this from changing.
 				 */
 				vdrop(dvp);
-				atomic_subtract_long(&numcachehv, 1);
+				counter_u64_add(numcachehv, -1);
 			}
 		}
 		LIST_INSERT_HEAD(&dvp->v_cache_src, ncp, nc_src);
@@ -1886,7 +1885,7 @@ out_unlock_free:
 	cache_free(ncp);
 	if (held_dvp) {
 		vdrop(dvp);
-		atomic_subtract_long(&numcachehv, 1);
+		counter_u64_add(numcachehv, -1);
 	}
 	return;
 }
@@ -1957,6 +1956,7 @@ nchinit(void *dummy __unused)
 
 	mtx_init(&ncneg_shrink_lock, "ncnegs", NULL, MTX_DEF);
 
+	numcachehv = counter_u64_alloc(M_WAITOK);
 	numcalls = counter_u64_alloc(M_WAITOK);
 	dothits = counter_u64_alloc(M_WAITOK);
 	dotdothits = counter_u64_alloc(M_WAITOK);
