@@ -164,15 +164,17 @@ cpld_attach(device_t dev)
 		return (ENXIO);
 	}
 	mtx_init(&sc->sc_mutex, "cpld", NULL, MTX_DEF);
-	date = (cpld_read(sc, CPLD_REG_DATE_UW) << 16) |
-	    cpld_read(sc, CPLD_REG_DATE_LW);
-	time = (cpld_read(sc, CPLD_REG_TIME_UW) << 16) |
-	    cpld_read(sc, CPLD_REG_TIME_LW);
+	if (bootverbose) {
+		date = (cpld_read(sc, CPLD_REG_DATE_UW) << 16) |
+		    cpld_read(sc, CPLD_REG_DATE_LW);
+		time = (cpld_read(sc, CPLD_REG_TIME_UW) << 16) |
+		    cpld_read(sc, CPLD_REG_TIME_LW);
 
-	device_printf(dev, "Build date: %04x-%02x-%02x\n", (date >> 16) & 0xffff,
-	    (date >> 8) & 0xff, date & 0xff);
-	device_printf(dev, "Build time: %02x:%02x:%02x\n", (time >> 16) & 0xff,
-	    (time >> 8) & 0xff, time & 0xff);
+		device_printf(dev, "Build date: %04x-%02x-%02x\n",
+		    (date >> 16) & 0xffff, (date >> 8) & 0xff, date & 0xff);
+		device_printf(dev, "Build time: %02x:%02x:%02x\n",
+		    (time >> 16) & 0xff, (time >> 8) & 0xff, time & 0xff);
+	}
 
 	tmp = cpld_read(sc, CPLD_REG_HWREV);
 	device_printf(dev, "Hardware revision: %d\n", tmp);
