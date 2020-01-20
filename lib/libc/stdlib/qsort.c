@@ -35,10 +35,16 @@ static char sccsid[] = "@(#)qsort.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
+#include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
+#include "libc_private.h"
 
-#ifdef I_AM_QSORT_R
+#if defined(I_AM_QSORT_R)
 typedef int		 cmp_t(void *, const void *, const void *);
+#elif defined(I_AM_QSORT_S)
+typedef int		 cmp_t(const void *, const void *, void *);
 #else
 typedef int		 cmp_t(const void *, const void *);
 #endif
@@ -65,15 +71,17 @@ swapfunc(char *a, char *b, size_t es)
 #define	vecswap(a, b, n)				\
 	if ((n) > 0) swapfunc(a, b, n)
 
-#ifdef I_AM_QSORT_R
+#if defined(I_AM_QSORT_R)
 #define	CMP(t, x, y) (cmp((t), (x), (y)))
+#elif defined(I_AM_QSORT_S)
+#define	CMP(t, x, y) (cmp((x), (y), (t)))
 #else
 #define	CMP(t, x, y) (cmp((x), (y)))
 #endif
 
 static inline char *
 med3(char *a, char *b, char *c, cmp_t *cmp, void *thunk
-#ifndef I_AM_QSORT_R
+#if !defined(I_AM_QSORT_R) && !defined(I_AM_QSORT_S)
 __unused
 #endif
 )
@@ -83,9 +91,12 @@ __unused
 	      :(CMP(thunk, b, c) > 0 ? b : (CMP(thunk, a, c) < 0 ? a : c ));
 }
 
-#ifdef I_AM_QSORT_R
+#if defined(I_AM_QSORT_R)
 void
 qsort_r(void *a, size_t n, size_t es, void *thunk, cmp_t *cmp)
+#elif defined(I_AM_QSORT_S)
+errno_t
+qsort_s(void *a, rsize_t n, rsize_t es, cmp_t *cmp, void *thunk)
 #else
 #define	thunk NULL
 void
@@ -97,6 +108,24 @@ qsort(void *a, size_t n, size_t es, cmp_t *cmp)
 	int cmp_result;
 	int swap_cnt;
 
+#ifdef I_AM_QSORT_S
+	if (n > RSIZE_MAX) {
+		__throw_constraint_handler_s("qsort_s : n > RSIZE_MAX", EINVAL);
+		return (EINVAL);
+	} else if (es > RSIZE_MAX) {
+		__throw_constraint_handler_s("qsort_s : es > RSIZE_MAX", EINVAL);
+		return (EINVAL);
+	} else if (n != 0) {
+		if (a == NULL) {
+			__throw_constraint_handler_s("qsort_s : a == NULL", EINVAL);
+			return (EINVAL);
+		} else if (cmp == NULL) {
+			__throw_constraint_handler_s("qsort_s : cmp == NULL", EINVAL);
+			return (EINVAL);
+		}
+	}
+#endif
+
 loop:
 	swap_cnt = 0;
 	if (n < 7) {
@@ -105,7 +134,11 @@ loop:
 			     pl > (char *)a && CMP(thunk, pl - es, pl) > 0;
 			     pl -= es)
 				swapfunc(pl, pl - es, es);
+#ifdef I_AM_QSORT_S
+		return (0);
+#else
 		return;
+#endif
 	}
 	pm = (char *)a + (n / 2) * es;
 	if (n > 7) {
@@ -154,7 +187,11 @@ loop:
 			     pl > (char *)a && CMP(thunk, pl - es, pl) > 0;
 			     pl -= es)
 				swapfunc(pl, pl - es, es);
+#ifdef I_AM_QSORT_S
+		return (0);
+#else
 		return;
+#endif
 	}
 
 	pn = (char *)a + n * es;
@@ -168,8 +205,10 @@ loop:
 	if (d1 <= d2) {
 		/* Recurse on left partition, then iterate on right partition */
 		if (d1 > es) {
-#ifdef I_AM_QSORT_R
+#if defined(I_AM_QSORT_R)
 			qsort_r(a, d1 / es, es, thunk, cmp);
+#elif defined(I_AM_QSORT_S)
+			qsort_s(a, d1 / es, es, cmp, thunk);
 #else
 			qsort(a, d1 / es, es, cmp);
 #endif
@@ -184,8 +223,10 @@ loop:
 	} else {
 		/* Recurse on right partition, then iterate on left partition */
 		if (d2 > es) {
-#ifdef I_AM_QSORT_R
+#if defined(I_AM_QSORT_R)
 			qsort_r(pn - d2, d2 / es, es, thunk, cmp);
+#elif defined(I_AM_QSORT_S)
+			qsort_s(pn - d2, d2 / es, es, cmp, thunk);
 #else
 			qsort(pn - d2, d2 / es, es, cmp);
 #endif
@@ -197,4 +238,8 @@ loop:
 			goto loop;
 		}
 	}
+
+#ifdef I_AM_QSORT_S
+	return (0);
+#endif
 }
