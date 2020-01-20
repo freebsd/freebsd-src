@@ -1078,9 +1078,14 @@ int
 linux_umount(struct thread *td, struct linux_umount_args *args)
 {
 	struct unmount_args bsd;
+	int flags;
+
+	flags = 0;
+	if ((args->flags & LINUX_MNT_FORCE) != 0)
+		flags |= MNT_FORCE;
 
 	bsd.path = args->path;
-	bsd.flags = args->flags;	/* XXX correct? */
+	bsd.flags = flags;
 	return (sys_unmount(td, &bsd));
 }
 #endif
