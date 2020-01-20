@@ -57,6 +57,11 @@
 #define	LINUX_MS_REMOUNT	0x0020
 
 /*
+ * umount2 flags
+ */
+#define	LINUX_MNT_FORCE		0x0001
+
+/*
  * common open/fcntl flags
  */
 #define	LINUX_O_RDONLY		00000000
