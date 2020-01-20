@@ -9,6 +9,7 @@ UNBOUNDDIR= ${SRCTOP}/contrib/unbound
 PROG=	local-unbound-control
 SRCS=	ub_event.c unbound-control.c worker_cb.c
 CFLAGS+=	-I${UNBOUNDDIR} -I${LDNSDIR}
+CFLAGS+=	-I${.CURDIR:H} -I${.CURDIR}
 LIBADD=	unbound crypto ssl pthread
 MAN=	local-unbound-control.8
 
