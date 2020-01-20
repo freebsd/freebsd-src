@@ -32,7 +32,7 @@
 .\"     @(#)qsort.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2020
+.Dd January 20, 2020
 .Dt QSORT 3
 .Os
 .Sh NAME
@@ -342,6 +342,13 @@ to replace
 with
 .Fn qsort_s
 to work around this problem.
+.Pp
+.Fn qsort_s
+is part of the
+.Em optional
+Annex K portion of
+.St -isoC-2011
+and may not be portable to other standards-conforming platforms.
 .Pp
 Previous versions of
 .Fn qsort
