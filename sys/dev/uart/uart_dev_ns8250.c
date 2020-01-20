@@ -479,6 +479,7 @@ ns8250_bus_attach(struct uart_softc *sc)
 
 	bas = &sc->sc_bas;
 
+	ns8250->busy_detect = bas->busy_detect;
 	ns8250->mcr = uart_getreg(bas, REG_MCR);
 	ns8250->fcr = FCR_ENABLE;
 	if (!resource_int_value("uart", device_get_unit(sc->sc_dev), "flags",
