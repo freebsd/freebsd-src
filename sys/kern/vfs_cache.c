@@ -1701,7 +1701,6 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	uint32_t hash;
 	int flag;
 	int len;
-	bool held_dvp;
 	u_long lnumcache;
 
 	CTR3(KTR_VFS, "cache_enter(%p, %p, %s)", dvp, vp, cnp->cn_nameptr);
@@ -1737,13 +1736,6 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	cache_celockstate_init(&cel);
 	ndd = NULL;
 	ncp_ts = NULL;
-
-	held_dvp = false;
-	if (LIST_EMPTY(&dvp->v_cache_src) && flag != NCF_ISDOTDOT) {
-		vhold(dvp);
-		counter_u64_add(numcachehv, 1);
-		held_dvp = true;
-	}
 
 	/*
 	 * Calculate the hash key and setup as much of the new
@@ -1834,21 +1826,8 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 
 	if (flag != NCF_ISDOTDOT) {
 		if (LIST_EMPTY(&dvp->v_cache_src)) {
-			if (!held_dvp) {
-				vhold(dvp);
-				counter_u64_add(numcachehv, 1);
-			}
-		} else {
-			if (held_dvp) {
-				/*
-				 * This will not take the interlock as someone
-				 * else already holds the vnode on account of
-				 * the namecache and we hold locks preventing
-				 * this from changing.
-				 */
-				vdrop(dvp);
-				counter_u64_add(numcachehv, -1);
-			}
+			vhold(dvp);
+			counter_u64_add(numcachehv, 1);
 		}
 		LIST_INSERT_HEAD(&dvp->v_cache_src, ncp, nc_src);
 	}
@@ -1883,10 +1862,6 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 out_unlock_free:
 	cache_enter_unlock(&cel);
 	cache_free(ncp);
-	if (held_dvp) {
-		vdrop(dvp);
-		counter_u64_add(numcachehv, -1);
-	}
 	return;
 }
 
