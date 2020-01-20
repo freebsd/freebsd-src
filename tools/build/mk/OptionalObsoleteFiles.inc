@@ -1141,19 +1141,6 @@ OLD_DIRS+=usr/tests/usr.bin/calendar
 .endif
 
 .if ${MK_CASPER} == no
-OLD_FILES+=usr/include/libcasper.h
-OLD_FILES+=usr/share/man/man3/cap_clone.3.gz
-OLD_FILES+=usr/share/man/man3/cap_close.3.gz
-OLD_FILES+=usr/share/man/man3/cap_init.3.gz
-OLD_FILES+=usr/share/man/man3/cap_limit_get.3.gz
-OLD_FILES+=usr/share/man/man3/cap_limit_set.3.gz
-OLD_FILES+=usr/share/man/man3/cap_recv_nvlist.3.gz
-OLD_FILES+=usr/share/man/man3/cap_send_nvlist.3.gz
-OLD_FILES+=usr/share/man/man3/cap_service_open.3.gz
-OLD_FILES+=usr/share/man/man3/cap_sock.3.gz
-OLD_FILES+=usr/share/man/man3/cap_unwrap.3.gz
-OLD_FILES+=usr/share/man/man3/cap_wrap.3.gz
-OLD_FILES+=usr/share/man/man3/cap_xfer_nvlist.3.gz
 .endif
 
 .if ${MK_CCD} == no
