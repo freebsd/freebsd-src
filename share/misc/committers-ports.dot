@@ -193,6 +193,7 @@ meta [label="Koichiro Iwao\nmeta@FreeBSD.org\n2018/03/19"]
 mezz [label="Jeremy Messenger\nmezz@FreeBSD.org\n2004/04/30"]
 mfechner [label="Matthias Fechner\nmfechner@FreeBSD.org\n2018/03/01"]
 mharo [label="Michael Haro\nmharo@FreeBSD.org\n1999/04/13"]
+mikael [label="Mikael Urankar\nmikael@FreeBSD.org\n2020/01/16"]
 milki [label="Jonathan Chu\nmilki@FreeBSD.org\n2013/12/15"]
 misha [label="Mikhail Pchelin\nmisha@FreeBSD.org\n2016/11/15"]
 miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2006/06/04"]
@@ -539,6 +540,8 @@ lwhsu -> yzlin
 
 maho -> stephen
 maho -> tota
+
+manu -> mikael
 
 marcus -> ahze
 marcus -> bland
