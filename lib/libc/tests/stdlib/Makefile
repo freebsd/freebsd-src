@@ -6,6 +6,7 @@ ATF_TESTS_C+=		dynthr_test
 ATF_TESTS_C+=		heapsort_test
 ATF_TESTS_C+=		mergesort_test
 ATF_TESTS_C+=		qsort_test
+ATF_TESTS_C+=		qsort_r_test
 ATF_TESTS_C+=		qsort_s_test
 ATF_TESTS_C+=		set_constraint_handler_s_test
 ATF_TESTS_C+=		strfmon_test
