@@ -126,6 +126,8 @@ void PPCSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
     // If cross-compiling with -march=ppc64le without -mcpu
     if (TargetTriple.getArch() == Triple::ppc64le)
       CPUName = "ppc64le";
+    else if (TargetTriple.getSubArch() == Triple::PPCSubArch_spe)
+      CPUName = "e500";
     else
       CPUName = "generic";
   }
