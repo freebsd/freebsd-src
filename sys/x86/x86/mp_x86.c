@@ -1092,13 +1092,12 @@ init_secondary_tail(void)
 static void
 smp_after_idle_runnable(void *arg __unused)
 {
-	struct thread *idle_td;
+	struct pcpu *pc;
 	int cpu;
 
 	for (cpu = 1; cpu < mp_ncpus; cpu++) {
-		idle_td = pcpu_find(cpu)->pc_idlethread;
-		while (atomic_load_int(&idle_td->td_lastcpu) == NOCPU &&
-		    atomic_load_int(&idle_td->td_oncpu) == NOCPU)
+		pc = pcpu_find(cpu);
+		while (atomic_load_ptr(&pc->pc_curthread) == (uintptr_t)NULL)
 			cpu_spinwait();
 		kmem_free((vm_offset_t)bootstacks[cpu], kstack_pages *
 		    PAGE_SIZE);
