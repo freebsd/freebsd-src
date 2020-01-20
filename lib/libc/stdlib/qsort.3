@@ -32,7 +32,7 @@
 .\"     @(#)qsort.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd February 20, 2013
+.Dd January 14, 2020
 .Dt QSORT 3
 .Os
 .Sh NAME
@@ -97,6 +97,15 @@
 .Fa "size_t nmemb"
 .Fa "size_t size"
 .Fa "int \*[lp]^compar\*[rp]\*[lp]const void *, const void *\*[rp]"
+.Fc
+.Fd #define __STDC_WANT_LIB_EXT1__ 1
+.Ft errno_t
+.Fo qsort_s
+.Fa "void *base"
+.Fa "rsize_t nmemb"
+.Fa "rsize_t size"
+.Fa "int \*[lp]*compar\*[rp]\*[lp]const void *, const void *, void *\*[rp]"
+.Fa "void *thunk"
 .Fc
 .Sh DESCRIPTION
 The
@@ -238,6 +247,36 @@ is faster than
 .Fn heapsort .
 Memory availability and pre-existing order in the data can make this
 untrue.
+.Pp
+The
+.Fn qsort_s
+function behaves the same as
+.Fn qsort_r , except that:
+.Bl -dash
+.It
+The order of arguments is different
+.It
+The order of arguments to
+.Fa compar
+is different
+.It
+if
+.Fa nmemb
+or
+.Fa size
+are greater than
+.Dv RSIZE_MAX ,
+or
+.Fa nmemb
+is not zero and
+.Fa compar
+is NULL, then the runtime-constraint handler is called, and
+.Fn qsort_s
+returns an error.
+Note that the handler is called before
+.Fn qsort_s
+returns the error, and the handler function might not return.
+.El
 .Sh RETURN VALUES
 The
 .Fn qsort
@@ -245,6 +284,9 @@ and
 .Fn qsort_r
 functions
 return no value.
+The
+.Fn qsort_s
+function returns zero on success, non-zero on error.
 .Pp
 .Rv -std heapsort mergesort
 .Sh EXAMPLES
@@ -288,6 +330,19 @@ main(void)
 }
 .Ed
 .Sh COMPATIBILITY
+The order of arguments for the comparison function used with
+.Fn qsort_r
+is different from the one used by
+.Fn qsort_s ,
+and the GNU libc implementation of
+.Fn qsort_r .
+When porting software written for GNU libc, it is usually possible
+to replace
+.Fn qsort_r
+with
+.Fn qsort_s
+to work around this problem.
+.Pp
 Previous versions of
 .Fn qsort
 did not permit the comparison routine itself to call
@@ -366,6 +421,10 @@ The
 function
 conforms to
 .St -isoC .
+.Fn qsort_s
+conforms to
+.St -isoC-2011
+K.3.6.3.2.
 .Sh HISTORY
 The variants of these functions that take blocks as arguments first appeared in
 Mac OS X.
