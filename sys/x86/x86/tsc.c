@@ -250,6 +250,7 @@ probe_tsc_freq(void)
 
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:
+	case CPU_VENDOR_HYGON:
 		if ((amd_pminfo & AMDPM_TSC_INVARIANT) != 0 ||
 		    (vm_guest == VM_GUEST_NO &&
 		    CPUID_TO_FAMILY(cpu_id) >= 0x10))
@@ -513,6 +514,7 @@ retry:
 	if (smp_tsc && tsc_is_invariant) {
 		switch (cpu_vendor_id) {
 		case CPU_VENDOR_AMD:
+		case CPU_VENDOR_HYGON:
 			/*
 			 * Starting with Family 15h processors, TSC clock
 			 * source is in the north bridge.  Check whether
@@ -610,7 +612,8 @@ init:
 	for (shift = 0; shift <= 31 && (tsc_freq >> shift) > max_freq; shift++)
 		;
 	if ((cpu_feature & CPUID_SSE2) != 0 && mp_ncpus > 1) {
-		if (cpu_vendor_id == CPU_VENDOR_AMD) {
+		if (cpu_vendor_id == CPU_VENDOR_AMD ||
+		    cpu_vendor_id == CPU_VENDOR_HYGON) {
 			tsc_timecounter.tc_get_timecount = shift > 0 ?
 			    tsc_get_timecount_low_mfence :
 			    tsc_get_timecount_mfence;
