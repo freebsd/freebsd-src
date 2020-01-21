@@ -61,6 +61,30 @@ struct rib_head {
 #define	RIB_LOCK_ASSERT(rh)	rm_assert(&(rh)->rib_lock, RA_LOCKED)
 #define	RIB_WLOCK_ASSERT(rh)	rm_assert(&(rh)->rib_lock, RA_WLOCKED)
 
+/* Macro for verifying fields in af-specific 'struct route' structures */
+#define CHK_STRUCT_FIELD_GENERIC(_s1, _f1, _s2, _f2)			\
+_Static_assert(sizeof(((_s1 *)0)->_f1) == sizeof(((_s2 *)0)->_f2),	\
+		"Fields " #_f1 " and " #_f2 " size differs");		\
+_Static_assert(__offsetof(_s1, _f1) == __offsetof(_s2, _f2),		\
+		"Fields " #_f1 " and " #_f2 " offset differs");
+
+#define _CHK_ROUTE_FIELD(_route_new, _field) \
+	CHK_STRUCT_FIELD_GENERIC(struct route, _field, _route_new, _field)
+
+#define CHK_STRUCT_ROUTE_FIELDS(_route_new)	\
+	_CHK_ROUTE_FIELD(_route_new, ro_rt)	\
+	_CHK_ROUTE_FIELD(_route_new, ro_lle)	\
+	_CHK_ROUTE_FIELD(_route_new, ro_prepend)\
+	_CHK_ROUTE_FIELD(_route_new, ro_plen)	\
+	_CHK_ROUTE_FIELD(_route_new, ro_flags)	\
+	_CHK_ROUTE_FIELD(_route_new, ro_mtu)	\
+	_CHK_ROUTE_FIELD(_route_new, spare)
+
+#define CHK_STRUCT_ROUTE_COMPAT(_ro_new, _dst_new)				\
+CHK_STRUCT_ROUTE_FIELDS(_ro_new);						\
+_Static_assert(__offsetof(struct route, ro_dst) == __offsetof(_ro_new, _dst_new),\
+		"ro_dst and " #_dst_new " are at different offset")
+
 struct rib_head *rt_tables_get_rnh(int fib, int family);
 
 /* rte<>nhop translation */
