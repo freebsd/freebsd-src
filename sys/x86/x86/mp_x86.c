@@ -515,7 +515,8 @@ topo_probe(void)
 
 	if (mp_ncpus <= 1)
 		; /* nothing */
-	else if (cpu_vendor_id == CPU_VENDOR_AMD)
+	else if (cpu_vendor_id == CPU_VENDOR_AMD ||
+	    cpu_vendor_id == CPU_VENDOR_HYGON)
 		topo_probe_amd();
 	else if (cpu_vendor_id == CPU_VENDOR_INTEL)
 		topo_probe_intel();
