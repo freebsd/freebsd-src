@@ -75,6 +75,8 @@ static void fib6_rte_to_nh_basic(struct rtentry *rte, const struct in6_addr *dst
 static struct ifnet *fib6_get_ifaifp(struct rtentry *rte);
 #define RNTORT(p)	((struct rtentry *)(p))
 
+CHK_STRUCT_ROUTE_COMPAT(struct route_in6, ro_dst);
+
 /*
  * Gets real interface for the @rte.
  * Returns rt_ifp for !IFF_LOOPBACK routers.
