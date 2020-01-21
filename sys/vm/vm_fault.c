@@ -120,6 +120,7 @@ __FBSDID("$FreeBSD$");
 #define	VM_FAULT_DONTNEED_MIN	1048576
 
 struct faultstate {
+	vm_offset_t vaddr;
 	vm_page_t m;
 	vm_page_t m_cow;
 	vm_object_t object;
@@ -680,6 +681,59 @@ vm_fault_lock_vnode(struct faultstate *fs, bool objlocked)
 }
 
 /*
+ * Calculate the desired readahead.  Handle drop-behind.
+ *
+ * Returns the number of readahead blocks to pass to the pager.
+ */
+static int
+vm_fault_readahead(struct faultstate *fs)
+{
+	int era, nera;
+	u_char behavior;
+
+	KASSERT(fs->lookup_still_valid, ("map unlocked"));
+	era = fs->entry->read_ahead;
+	behavior = vm_map_entry_behavior(fs->entry);
+	if (behavior == MAP_ENTRY_BEHAV_RANDOM) {
+		nera = 0;
+	} else if (behavior == MAP_ENTRY_BEHAV_SEQUENTIAL) {
+		nera = VM_FAULT_READ_AHEAD_MAX;
+		if (fs->vaddr == fs->entry->next_read)
+			vm_fault_dontneed(fs, fs->vaddr, nera);
+	} else if (fs->vaddr == fs->entry->next_read) {
+		/*
+		 * This is a sequential fault.  Arithmetically
+		 * increase the requested number of pages in
+		 * the read-ahead window.  The requested
+		 * number of pages is "# of sequential faults
+		 * x (read ahead min + 1) + read ahead min"
+		 */
+		nera = VM_FAULT_READ_AHEAD_MIN;
+		if (era > 0) {
+			nera += era + 1;
+			if (nera > VM_FAULT_READ_AHEAD_MAX)
+				nera = VM_FAULT_READ_AHEAD_MAX;
+		}
+		if (era == VM_FAULT_READ_AHEAD_MAX)
+			vm_fault_dontneed(fs, fs->vaddr, nera);
+	} else {
+		/*
+		 * This is a non-sequential fault.
+		 */
+		nera = 0;
+	}
+	if (era != nera) {
+		/*
+		 * A read lock on the map suffices to update
+		 * the read ahead count safely.
+		 */
+		fs->entry->read_ahead = nera;
+	}
+
+	return (nera);
+}
+
+/*
  * Wait/Retry if the page is busy.  We have to do this if the page is
  * either exclusive or shared busy because the vm_pager may be using
  * read busy for pageouts (and even pageins if it is the vnode pager),
@@ -725,7 +779,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	vm_offset_t e_end, e_start;
 	vm_pindex_t retry_pindex;
 	vm_prot_t prot, retry_prot;
-	int ahead, alloc_req, behind, cluster_offset, era, faultcount;
+	int ahead, alloc_req, behind, cluster_offset, faultcount;
 	int nera, oom, result, rv;
 	u_char behavior;
 	boolean_t wired;	/* Passed by reference. */
@@ -737,6 +791,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 		return (KERN_PROTECTION_FAILURE);
 
 	fs.vp = NULL;
+	fs.vaddr = vaddr;
 	faultcount = 0;
 	nera = -1;
 	hardfault = false;
@@ -989,45 +1044,7 @@ readrest:
 		 * apply to subsequent objects in the shadow chain.
 		 */
 		if (nera == -1 && !P_KILLED(curproc)) {
-			KASSERT(fs.lookup_still_valid, ("map unlocked"));
-			era = fs.entry->read_ahead;
-			behavior = vm_map_entry_behavior(fs.entry);
-			if (behavior == MAP_ENTRY_BEHAV_RANDOM) {
-				nera = 0;
-			} else if (behavior == MAP_ENTRY_BEHAV_SEQUENTIAL) {
-				nera = VM_FAULT_READ_AHEAD_MAX;
-				if (vaddr == fs.entry->next_read)
-					vm_fault_dontneed(&fs, vaddr, nera);
-			} else if (vaddr == fs.entry->next_read) {
-				/*
-				 * This is a sequential fault.  Arithmetically
-				 * increase the requested number of pages in
-				 * the read-ahead window.  The requested
-				 * number of pages is "# of sequential faults
-				 * x (read ahead min + 1) + read ahead min"
-				 */
-				nera = VM_FAULT_READ_AHEAD_MIN;
-				if (era > 0) {
-					nera += era + 1;
-					if (nera > VM_FAULT_READ_AHEAD_MAX)
-						nera = VM_FAULT_READ_AHEAD_MAX;
-				}
-				if (era == VM_FAULT_READ_AHEAD_MAX)
-					vm_fault_dontneed(&fs, vaddr, nera);
-			} else {
-				/*
-				 * This is a non-sequential fault.
-				 */
-				nera = 0;
-			}
-			if (era != nera) {
-				/*
-				 * A read lock on the map suffices to update
-				 * the read ahead count safely.
-				 */
-				fs.entry->read_ahead = nera;
-			}
-
+			nera = vm_fault_readahead(&fs);
 			/*
 			 * Prepare for unlocking the map.  Save the map
 			 * entry's start and end addresses, which are used to
@@ -1038,6 +1055,7 @@ readrest:
 			 */
 			e_start = fs.entry->start;
 			e_end = fs.entry->end;
+			behavior = vm_map_entry_behavior(fs.entry);
 		}
 
 		/*
