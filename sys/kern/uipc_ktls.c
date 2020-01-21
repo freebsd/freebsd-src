@@ -1141,7 +1141,9 @@ ktls_reset_send_tag(void *context, int pending)
 			if (!(inp->inp_flags & INP_TIMEWAIT) &&
 			    !(inp->inp_flags & INP_DROPPED)) {
 				tp = intotcpcb(inp);
+				CURVNET_SET(tp->t_vnet);
 				tp = tcp_drop(tp, ECONNABORTED);
+				CURVNET_RESTORE();
 				if (tp != NULL)
 					INP_WUNLOCK(inp);
 				counter_u64_add(ktls_ifnet_reset_dropped, 1);
