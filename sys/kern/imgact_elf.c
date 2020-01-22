@@ -466,106 +466,37 @@ __elfN(check_header)(const Elf_Ehdr *hdr)
 }
 
 static int
-__elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
-    vm_offset_t start, vm_offset_t end, vm_prot_t prot)
-{
-	struct sf_buf *sf;
-	int error;
-	vm_offset_t off;
-
-	/*
-	 * Create the page if it doesn't exist yet. Ignore errors.
-	 */
-	vm_map_fixed(map, NULL, 0, trunc_page(start), round_page(end) -
-	    trunc_page(start), VM_PROT_ALL, VM_PROT_ALL, MAP_CHECK_EXCL);
-
-	/*
-	 * Find the page from the underlying object.
-	 */
-	if (object != NULL) {
-		sf = vm_imgact_map_page(object, offset);
-		if (sf == NULL)
-			return (KERN_FAILURE);
-		off = offset - trunc_page(offset);
-		error = copyout((caddr_t)sf_buf_kva(sf) + off, (caddr_t)start,
-		    end - start);
-		vm_imgact_unmap_page(sf);
-		if (error != 0)
-			return (KERN_FAILURE);
-	}
-
-	return (KERN_SUCCESS);
-}
-
-static int
 __elfN(map_insert)(struct image_params *imgp, vm_map_t map, vm_object_t object,
     vm_ooffset_t offset, vm_offset_t start, vm_offset_t end, vm_prot_t prot,
     int cow)
 {
-	struct sf_buf *sf;
-	vm_offset_t off;
-	vm_size_t sz;
-	int error, locked, rv;
+	int locked, rv;
 
-	if (start != trunc_page(start)) {
-		rv = __elfN(map_partial)(map, object, offset, start,
-		    round_page(start), prot);
-		if (rv != KERN_SUCCESS)
-			return (rv);
-		offset += round_page(start) - start;
-		start = round_page(start);
-	}
-	if (end != round_page(end)) {
-		rv = __elfN(map_partial)(map, object, offset +
-		    trunc_page(end) - start, trunc_page(end), end, prot);
-		if (rv != KERN_SUCCESS)
-			return (rv);
-		end = trunc_page(end);
-	}
+	KASSERT(((u_long)start & PAGE_MASK) == 0,
+	    ("%s: start not page aligned", __func__));
+	KASSERT(((u_long)end & PAGE_MASK) == 0,
+	    ("%s: end not page aligned", __func__));
+	KASSERT(((u_long)offset & PAGE_MASK) == 0, 
+	    ("%s: offset not page aligned", __func__));
+
 	if (start >= end)
 		return (KERN_SUCCESS);
-	if ((offset & PAGE_MASK) != 0) {
-		/*
-		 * The mapping is not page aligned.  This means that we have
-		 * to copy the data.
-		 */
-		rv = vm_map_fixed(map, NULL, 0, start, end - start,
-		    prot | VM_PROT_WRITE, VM_PROT_ALL, MAP_CHECK_EXCL);
-		if (rv != KERN_SUCCESS)
-			return (rv);
-		if (object == NULL)
-			return (KERN_SUCCESS);
-		for (; start < end; start += sz) {
-			sf = vm_imgact_map_page(object, offset);
-			if (sf == NULL)
-				return (KERN_FAILURE);
-			off = offset - trunc_page(offset);
-			sz = end - start;
-			if (sz > PAGE_SIZE - off)
-				sz = PAGE_SIZE - off;
-			error = copyout((caddr_t)sf_buf_kva(sf) + off,
-			    (caddr_t)start, sz);
-			vm_imgact_unmap_page(sf);
-			if (error != 0)
-				return (KERN_FAILURE);
-			offset += sz;
-		}
-	} else {
-		vm_object_reference(object);
-		rv = vm_map_fixed(map, object, offset, start, end - start,
-		    prot, VM_PROT_ALL, cow | MAP_CHECK_EXCL |
-		    (object != NULL ? MAP_VN_EXEC : 0));
-		if (rv != KERN_SUCCESS) {
-			locked = VOP_ISLOCKED(imgp->vp);
-			VOP_UNLOCK(imgp->vp);
-			vm_object_deallocate(object);
-			vn_lock(imgp->vp, locked | LK_RETRY);
-			return (rv);
-		} else if (object != NULL) {
-			MPASS(imgp->vp->v_object == object);
-			VOP_SET_TEXT_CHECKED(imgp->vp);
-		}
+
+	vm_object_reference(object);
+	rv = vm_map_fixed(map, object, offset, start, end - start,
+	    prot, VM_PROT_ALL, cow | MAP_CHECK_EXCL |
+	    (object != NULL ? MAP_VN_EXEC : 0));
+	if (rv != KERN_SUCCESS) {
+		locked = VOP_ISLOCKED(imgp->vp);
+		VOP_UNLOCK(imgp->vp);
+		vm_object_deallocate(object);
+		vn_lock(imgp->vp, locked | LK_RETRY);
+		return (rv);
+	} else if (object != NULL) {
+		MPASS(imgp->vp->v_object == object);
+		VOP_SET_TEXT_CHECKED(imgp->vp);
 	}
+
 	return (KERN_SUCCESS);
 }
 
@@ -581,6 +512,12 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 	int error, rv, cow;
 	size_t copy_len;
 	vm_ooffset_t file_addr;
+
+	/*
+	 * 'offset' and 'vmaddr' should have the same offset within a page
+	 */
+	if (((u_long)offset & PAGE_MASK) != ((u_long)vmaddr & PAGE_MASK))
+		return (ENOEXEC);
 
 	/*
 	 * It's necessary to fail if the filsz + offset taken from the
@@ -627,9 +564,8 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 
 		/* we can stop now if we've covered it all */
 		if (memsz == filsz)
-			return (0);
+			return (ESUCCESS);
 	}
-
 
 	/*
 	 * We have to get the remaining bit of the file into the first part
@@ -659,19 +595,18 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 		error = copyout((caddr_t)sf_buf_kva(sf), (caddr_t)map_addr,
 		    copy_len);
 		vm_imgact_unmap_page(sf);
-		if (error != 0)
+		if (error != ESUCCESS)
 			return (error);
 	}
 
 	/*
-	 * Remove write access to the page if it was only granted by map_insert
-	 * to allow copyout.
+	 * If the code reaches here it means that this is a data section and
+	 * data section always has WRITE permission.
 	 */
 	if ((prot & VM_PROT_WRITE) == 0)
-		vm_map_protect(map, trunc_page(map_addr), round_page(map_addr +
-		    map_len), prot, FALSE);
+		return (ENOEXEC);
 
-	return (0);
+	return (ESUCCESS);
 }
 
 static int
