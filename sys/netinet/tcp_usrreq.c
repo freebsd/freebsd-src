@@ -531,6 +531,7 @@ out:
 static int
 tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+	struct epoch_tracker et;
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
@@ -571,7 +572,9 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		goto out;
 #endif
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
+	NET_EPOCH_ENTER(et);
 	error = tp->t_fb->tfb_tcp_output(tp);
+	NET_EPOCH_EXIT(et);
 out:
 	TCPDEBUG2(PRU_CONNECT);
 	TCP_PROBE2(debug__user, tp, PRU_CONNECT);
@@ -584,6 +587,7 @@ out:
 static int
 tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+	struct epoch_tracker et;
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
@@ -654,7 +658,9 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		    (error = tcp_offload_connect(so, nam)) == 0)
 			goto out;
 #endif
+		NET_EPOCH_ENTER(et);
 		error = tp->t_fb->tfb_tcp_output(tp);
+		NET_EPOCH_EXIT(et);
 		goto out;
 	} else {
 		if ((inp->inp_vflag & INP_IPV6) == 0) {
@@ -677,8 +683,9 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		goto out;
 #endif
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
+	NET_EPOCH_ENTER(et);
 	error = tp->t_fb->tfb_tcp_output(tp);
-
+	NET_EPOCH_EXIT(et);
 out:
 	/*
 	 * If the implicit bind in the connect call fails, restore
@@ -882,6 +889,7 @@ out:
 static int
 tcp_usr_rcvd(struct socket *so, int flags)
 {
+	struct epoch_tracker et;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
 	int error = 0;
@@ -911,8 +919,9 @@ tcp_usr_rcvd(struct socket *so, int flags)
 		tcp_offload_rcvd(tp);
 	else
 #endif
+	NET_EPOCH_ENTER(et);
 	tp->t_fb->tfb_tcp_output(tp);
-
+	NET_EPOCH_EXIT(et);
 out:
 	TCPDEBUG2(PRU_RCVD);
 	TCP_PROBE2(debug__user, tp, PRU_RCVD);
@@ -953,8 +962,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	 * We require the pcbinfo "read lock" if we will close the socket
 	 * as part of this call.
 	 */
-	if (flags & PRUS_EOF)
-		NET_EPOCH_ENTER(et);
+	NET_EPOCH_ENTER(et);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_send: inp == NULL"));
 	INP_WLOCK(inp);
@@ -1240,14 +1248,14 @@ out:
 	TCP_PROBE2(debug__user, tp, (flags & PRUS_OOB) ? PRU_SENDOOB :
 		   ((flags & PRUS_EOF) ? PRU_SEND_EOF : PRU_SEND));
 	INP_WUNLOCK(inp);
-	if (flags & PRUS_EOF)
-		NET_EPOCH_EXIT(et);
+	NET_EPOCH_EXIT(et);
 	return (error);
 }
 
 static int
 tcp_usr_ready(struct socket *so, struct mbuf *m, int count)
 {
+	struct epoch_tracker et;
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	int error;
@@ -1264,8 +1272,11 @@ tcp_usr_ready(struct socket *so, struct mbuf *m, int count)
 	SOCKBUF_LOCK(&so->so_snd);
 	error = sbready(&so->so_snd, m, count);
 	SOCKBUF_UNLOCK(&so->so_snd);
-	if (error == 0)
+	if (error == 0) {
+		NET_EPOCH_ENTER(et);
 		error = tp->t_fb->tfb_tcp_output(tp);
+		NET_EPOCH_EXIT(et);
+	}
 	INP_WUNLOCK(inp);
 
 	return (error);
@@ -1921,8 +1932,13 @@ unlock_and_done:
 				tp->t_flags |= TF_NOPUSH;
 			else if (tp->t_flags & TF_NOPUSH) {
 				tp->t_flags &= ~TF_NOPUSH;
-				if (TCPS_HAVEESTABLISHED(tp->t_state))
+				if (TCPS_HAVEESTABLISHED(tp->t_state)) {
+					struct epoch_tracker et;
+
+					NET_EPOCH_ENTER(et);
 					error = tp->t_fb->tfb_tcp_output(tp);
+					NET_EPOCH_EXIT(et);
+				}
 			}
 			goto unlock_and_done;
 

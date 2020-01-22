@@ -193,7 +193,6 @@ cc_after_idle(struct tcpcb *tp)
 int
 tcp_output(struct tcpcb *tp)
 {
-	struct epoch_tracker et;
 	struct socket *so = tp->t_inpcb->inp_socket;
 	int32_t len;
 	uint32_t recwin, sendwin;
@@ -233,6 +232,7 @@ tcp_output(struct tcpcb *tp)
 	const bool hw_tls = false;
 #endif
 
+	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 #ifdef TCP_OFFLOAD
@@ -1372,7 +1372,6 @@ send:
 	 * m->m_pkthdr.len should have been set before checksum calculation,
 	 * because in6_cksum() need it.
 	 */
-	NET_EPOCH_ENTER(et);
 #ifdef INET6
 	if (isipv6) {
 		/*
@@ -1458,7 +1457,6 @@ send:
 		mtu = tp->t_inpcb->inp_route.ro_rt->rt_mtu;
     }
 #endif /* INET */
-	NET_EPOCH_EXIT(et);
 
 out:
 	/*
