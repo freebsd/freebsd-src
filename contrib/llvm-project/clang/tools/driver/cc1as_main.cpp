@@ -131,6 +131,7 @@ struct AssemblerInvocation {
   unsigned RelaxAll : 1;
   unsigned NoExecStack : 1;
   unsigned FatalWarnings : 1;
+  unsigned NoWarn : 1;
   unsigned IncrementalLinkerCompatible : 1;
   unsigned EmbedBitcode : 1;
 
@@ -156,6 +157,7 @@ public:
     RelaxAll = 0;
     NoExecStack = 0;
     FatalWarnings = 0;
+    NoWarn = 0;
     IncrementalLinkerCompatible = 0;
     DwarfVersion = 0;
     EmbedBitcode = 0;
@@ -174,12 +176,12 @@ bool AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
   bool Success = true;
 
   // Parse the arguments.
-  std::unique_ptr<OptTable> OptTbl(createDriverOptTable());
+  const OptTable &OptTbl = getDriverOptTable();
 
   const unsigned IncludedFlagsBitmask = options::CC1AsOption;
   unsigned MissingArgIndex, MissingArgCount;
-  InputArgList Args = OptTbl->ParseArgs(Argv, MissingArgIndex, MissingArgCount,
-                                        IncludedFlagsBitmask);
+  InputArgList Args = OptTbl.ParseArgs(Argv, MissingArgIndex, MissingArgCount,
+                                       IncludedFlagsBitmask);
 
   // Check for missing argument error.
   if (MissingArgCount) {
@@ -192,7 +194,7 @@ bool AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
   for (const Arg *A : Args.filtered(OPT_UNKNOWN)) {
     auto ArgString = A->getAsString(Args);
     std::string Nearest;
-    if (OptTbl->findNearest(ArgString, Nearest, IncludedFlagsBitmask) > 1)
+    if (OptTbl.findNearest(ArgString, Nearest, IncludedFlagsBitmask) > 1)
       Diags.Report(diag::err_drv_unknown_argument) << ArgString;
     else
       Diags.Report(diag::err_drv_unknown_argument_with_suggestion)
@@ -285,6 +287,7 @@ bool AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
   Opts.RelaxAll = Args.hasArg(OPT_mrelax_all);
   Opts.NoExecStack = Args.hasArg(OPT_mno_exec_stack);
   Opts.FatalWarnings = Args.hasArg(OPT_massembler_fatal_warnings);
+  Opts.NoWarn = Args.hasArg(OPT_massembler_no_warn);
   Opts.RelocationModel = Args.getLastArgValue(OPT_mrelocation_model, "pic");
   Opts.TargetABI = Args.getLastArgValue(OPT_target_abi);
   Opts.IncrementalLinkerCompatible =
@@ -312,8 +315,8 @@ getOutputStream(StringRef Path, DiagnosticsEngine &Diags, bool Binary) {
     sys::RemoveFileOnSignal(Path);
 
   std::error_code EC;
-  auto Out = llvm::make_unique<raw_fd_ostream>(
-      Path, EC, (Binary ? sys::fs::F_None : sys::fs::F_Text));
+  auto Out = std::make_unique<raw_fd_ostream>(
+      Path, EC, (Binary ? sys::fs::OF_None : sys::fs::OF_Text));
   if (EC) {
     Diags.Report(diag::err_fe_unable_to_open_output) << Path << EC.message();
     return nullptr;
@@ -374,7 +377,8 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts,
   // MCObjectFileInfo needs a MCContext reference in order to initialize itself.
   std::unique_ptr<MCObjectFileInfo> MOFI(new MCObjectFileInfo());
 
-  MCContext Ctx(MAI.get(), MRI.get(), MOFI.get(), &SrcMgr);
+  MCTargetOptions MCOptions;
+  MCContext Ctx(MAI.get(), MRI.get(), MOFI.get(), &SrcMgr, &MCOptions);
 
   bool PIC = false;
   if (Opts.RelocationModel == "static") {
@@ -431,7 +435,8 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts,
   raw_pwrite_stream *Out = FDOS.get();
   std::unique_ptr<buffer_ostream> BOS;
 
-  MCTargetOptions MCOptions;
+  MCOptions.MCNoWarn = Opts.NoWarn;
+  MCOptions.MCFatalWarnings = Opts.FatalWarnings;
   MCOptions.ABIName = Opts.TargetABI;
 
   // FIXME: There is a bit of code duplication with addPassesToEmitFile.
@@ -445,7 +450,7 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts,
     std::unique_ptr<MCAsmBackend> MAB(
         TheTarget->createMCAsmBackend(*STI, *MRI, MCOptions));
 
-    auto FOut = llvm::make_unique<formatted_raw_ostream>(*Out);
+    auto FOut = std::make_unique<formatted_raw_ostream>(*Out);
     Str.reset(TheTarget->createAsmStreamer(
         Ctx, std::move(FOut), /*asmverbose*/ true,
         /*useDwarfDirectory*/ true, IP, std::move(CE), std::move(MAB),
@@ -456,7 +461,7 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts,
     assert(Opts.OutputType == AssemblerInvocation::FT_Obj &&
            "Invalid file type!");
     if (!FDOS->supportsSeeking()) {
-      BOS = make_unique<buffer_ostream>(*FDOS);
+      BOS = std::make_unique<buffer_ostream>(*FDOS);
       Out = BOS.get();
     }
 
@@ -569,11 +574,11 @@ int cc1as_main(ArrayRef<const char *> Argv, const char *Argv0, void *MainAddr) {
     return 1;
 
   if (Asm.ShowHelp) {
-    std::unique_ptr<OptTable> Opts(driver::createDriverOptTable());
-    Opts->PrintHelp(llvm::outs(), "clang -cc1as [options] file...",
-                    "Clang Integrated Assembler",
-                    /*Include=*/driver::options::CC1AsOption, /*Exclude=*/0,
-                    /*ShowAllAliases=*/false);
+    getDriverOptTable().PrintHelp(
+        llvm::outs(), "clang -cc1as [options] file...",
+        "Clang Integrated Assembler",
+        /*Include=*/driver::options::CC1AsOption, /*Exclude=*/0,
+        /*ShowAllAliases=*/false);
     return 0;
   }
 
@@ -590,7 +595,7 @@ int cc1as_main(ArrayRef<const char *> Argv, const char *Argv0, void *MainAddr) {
   // FIXME: Remove this, one day.
   if (!Asm.LLVMArgs.empty()) {
     unsigned NumArgs = Asm.LLVMArgs.size();
-    auto Args = llvm::make_unique<const char*[]>(NumArgs + 2);
+    auto Args = std::make_unique<const char*[]>(NumArgs + 2);
     Args[0] = "clang (LLVM option parsing)";
     for (unsigned i = 0; i != NumArgs; ++i)
       Args[i + 1] = Asm.LLVMArgs[i].c_str();
@@ -604,6 +609,7 @@ int cc1as_main(ArrayRef<const char *> Argv, const char *Argv0, void *MainAddr) {
   // If any timers were active but haven't been destroyed yet, print their
   // results now.
   TimerGroup::printAll(errs());
+  TimerGroup::clearAll();
 
   return !!Failed;
 }

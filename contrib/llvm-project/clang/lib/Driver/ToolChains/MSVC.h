@@ -78,10 +78,12 @@ public:
   bool isPIEDefault() const override;
   bool isPICDefaultForced() const override;
 
-  /// Set CodeView as the default debug info format. Users can use -gcodeview
-  /// and -gdwarf to override the default.
+  /// Set CodeView as the default debug info format for non-MachO binary
+  /// formats, and to DWARF otherwise. Users can use -gcodeview and -gdwarf to
+  /// override the default.
   codegenoptions::DebugInfoFormat getDefaultDebugFormat() const override {
-    return codegenoptions::DIF_CodeView;
+    return getTriple().isOSBinFormatMachO() ? codegenoptions::DIF_DWARF
+                                            : codegenoptions::DIF_CodeView;
   }
 
   /// Set the debugger tuning to "default", since we're definitely not tuning
@@ -96,12 +98,14 @@ public:
     Lib,
   };
   std::string getSubDirectoryPath(SubDirectoryType Type,
+                                  llvm::StringRef SubdirParent,
                                   llvm::Triple::ArchType TargetArch) const;
 
   // Convenience overload.
   // Uses the current target arch.
-  std::string getSubDirectoryPath(SubDirectoryType Type) const {
-    return getSubDirectoryPath(Type, getArch());
+  std::string getSubDirectoryPath(SubDirectoryType Type,
+                                  llvm::StringRef SubdirParent = "") const {
+    return getSubDirectoryPath(Type, SubdirParent, getArch());
   }
 
   enum class ToolsetLayout {

@@ -683,8 +683,9 @@ void TextDiagnostic::emitDiagnosticMessage(
   if (DiagOpts->ShowColors)
     OS.resetColor();
 
-  printDiagnosticLevel(OS, Level, DiagOpts->ShowColors,
-                       DiagOpts->CLFallbackMode);
+  if (DiagOpts->ShowLevel)
+    printDiagnosticLevel(OS, Level, DiagOpts->ShowColors,
+                         DiagOpts->CLFallbackMode);
   printDiagnosticMessage(OS,
                          /*IsSupplemental*/ Level == DiagnosticsEngine::Note,
                          Message, OS.tell() - StartOfLocationInfo,
@@ -762,7 +763,7 @@ void TextDiagnostic::printDiagnosticMessage(raw_ostream &OS,
 void TextDiagnostic::emitFilename(StringRef Filename, const SourceManager &SM) {
   SmallVector<char, 128> AbsoluteFilename;
   if (DiagOpts->AbsolutePath) {
-    const DirectoryEntry *Dir = SM.getFileManager().getDirectory(
+    auto Dir = SM.getFileManager().getDirectory(
         llvm::sys::path::parent_path(Filename));
     if (Dir) {
       // We want to print a simplified absolute path, i. e. without "dots".
@@ -780,12 +781,12 @@ void TextDiagnostic::emitFilename(StringRef Filename, const SourceManager &SM) {
       // on Windows we can just use llvm::sys::path::remove_dots(), because,
       // on that system, both aforementioned paths point to the same place.
 #ifdef _WIN32
-      SmallString<4096> DirName = Dir->getName();
+      SmallString<4096> DirName = (*Dir)->getName();
       llvm::sys::fs::make_absolute(DirName);
       llvm::sys::path::native(DirName);
       llvm::sys::path::remove_dots(DirName, /* remove_dot_dot */ true);
 #else
-      StringRef DirName = SM.getFileManager().getCanonicalName(Dir);
+      StringRef DirName = SM.getFileManager().getCanonicalName(*Dir);
 #endif
       llvm::sys::path::append(AbsoluteFilename, DirName,
                               llvm::sys::path::filename(Filename));

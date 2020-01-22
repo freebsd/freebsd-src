@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RISCVToolchain.h"
+#include "Arch/RISCV.h"
 #include "CommonArgs.h"
 #include "InputInfo.h"
 #include "clang/Driver/Compilation.h"
@@ -100,6 +101,12 @@ void RISCV::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   std::string Linker = getToolChain().GetProgramPath(getShortName());
 
+  if (D.isUsingLTO()) {
+    assert(!Inputs.empty() && "Must have at least one input.");
+    AddGoldPlugin(ToolChain, Args, CmdArgs, Output, Inputs[0],
+                  D.getLTOMode() == LTOK_Thin);
+  }
+
   bool WantCRTs =
       !Args.hasArg(options::OPT_nostdlib, options::OPT_nostartfiles);
 
@@ -134,7 +141,7 @@ void RISCV::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   CmdArgs.push_back("-o");
   CmdArgs.push_back(Output.getFilename());
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Args.MakeArgString(Linker),
+  C.addCommand(std::make_unique<Command>(JA, *this, Args.MakeArgString(Linker),
                                           CmdArgs, Inputs));
 }
 // RISCV tools end.

@@ -13,7 +13,7 @@
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/Support/AlignOf.h"
 #include "llvm/Support/Errno.h"
-#include "llvm/Support/Mutex.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/Path.h"
 #include <atomic>
 #include <condition_variable>
@@ -183,9 +183,10 @@ void DirectoryWatcherLinux::InotifyPollingLoop() {
   // the inotify file descriptor should have the same alignment as
   // struct inotify_event.
 
-  auto ManagedBuffer =
-      llvm::make_unique<llvm::AlignedCharArray<alignof(struct inotify_event),
-                                               EventBufferLength>>();
+  struct Buffer {
+    alignas(struct inotify_event) char buffer[EventBufferLength];
+  };
+  auto ManagedBuffer = std::make_unique<Buffer>();
   char *const Buf = ManagedBuffer->buffer;
 
   const int EpollFD = epoll_create1(EPOLL_CLOEXEC);
@@ -319,16 +320,19 @@ DirectoryWatcherLinux::DirectoryWatcherLinux(
 
 } // namespace
 
-std::unique_ptr<DirectoryWatcher> clang::DirectoryWatcher::create(
+llvm::Expected<std::unique_ptr<DirectoryWatcher>> clang::DirectoryWatcher::create(
     StringRef Path,
     std::function<void(llvm::ArrayRef<DirectoryWatcher::Event>, bool)> Receiver,
     bool WaitForInitialSync) {
   if (Path.empty())
-    return nullptr;
+    llvm::report_fatal_error(
+        "DirectoryWatcher::create can not accept an empty Path.");
 
   const int InotifyFD = inotify_init1(IN_CLOEXEC);
   if (InotifyFD == -1)
-    return nullptr;
+    return llvm::make_error<llvm::StringError>(
+        std::string("inotify_init1() error: ") + strerror(errno),
+        llvm::inconvertibleErrorCode());
 
   const int InotifyWD = inotify_add_watch(
       InotifyFD, Path.str().c_str(),
@@ -339,14 +343,18 @@ std::unique_ptr<DirectoryWatcher> clang::DirectoryWatcher::create(
 #endif
       );
   if (InotifyWD == -1)
-    return nullptr;
+    return llvm::make_error<llvm::StringError>(
+        std::string("inotify_add_watch() error: ") + strerror(errno),
+        llvm::inconvertibleErrorCode());
 
   auto InotifyPollingStopper = SemaphorePipe::create();
 
   if (!InotifyPollingStopper)
-    return nullptr;
+    return llvm::make_error<llvm::StringError>(
+        std::string("SemaphorePipe::create() error: ") + strerror(errno),
+        llvm::inconvertibleErrorCode());
 
-  return llvm::make_unique<DirectoryWatcherLinux>(
+  return std::make_unique<DirectoryWatcherLinux>(
       Path, Receiver, WaitForInitialSync, InotifyFD, InotifyWD,
       std::move(*InotifyPollingStopper));
 }

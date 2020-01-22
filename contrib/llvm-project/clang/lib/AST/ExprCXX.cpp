@@ -58,6 +58,76 @@ bool CXXOperatorCallExpr::isInfixBinaryOp() const {
   }
 }
 
+CXXRewrittenBinaryOperator::DecomposedForm
+CXXRewrittenBinaryOperator::getDecomposedForm() const {
+  DecomposedForm Result = {};
+  const Expr *E = getSemanticForm()->IgnoreImplicit();
+
+  // Remove an outer '!' if it exists (only happens for a '!=' rewrite).
+  bool SkippedNot = false;
+  if (auto *NotEq = dyn_cast<UnaryOperator>(E)) {
+    assert(NotEq->getOpcode() == UO_LNot);
+    E = NotEq->getSubExpr()->IgnoreImplicit();
+    SkippedNot = true;
+  }
+
+  // Decompose the outer binary operator.
+  if (auto *BO = dyn_cast<BinaryOperator>(E)) {
+    assert(!SkippedNot || BO->getOpcode() == BO_EQ);
+    Result.Opcode = SkippedNot ? BO_NE : BO->getOpcode();
+    Result.LHS = BO->getLHS();
+    Result.RHS = BO->getRHS();
+    Result.InnerBinOp = BO;
+  } else if (auto *BO = dyn_cast<CXXOperatorCallExpr>(E)) {
+    assert(!SkippedNot || BO->getOperator() == OO_EqualEqual);
+    assert(BO->isInfixBinaryOp());
+    switch (BO->getOperator()) {
+    case OO_Less: Result.Opcode = BO_LT; break;
+    case OO_LessEqual: Result.Opcode = BO_LE; break;
+    case OO_Greater: Result.Opcode = BO_GT; break;
+    case OO_GreaterEqual: Result.Opcode = BO_GE; break;
+    case OO_Spaceship: Result.Opcode = BO_Cmp; break;
+    case OO_EqualEqual: Result.Opcode = SkippedNot ? BO_NE : BO_EQ; break;
+    default: llvm_unreachable("unexpected binop in rewritten operator expr");
+    }
+    Result.LHS = BO->getArg(0);
+    Result.RHS = BO->getArg(1);
+    Result.InnerBinOp = BO;
+  } else {
+    llvm_unreachable("unexpected rewritten operator form");
+  }
+
+  // Put the operands in the right order for == and !=, and canonicalize the
+  // <=> subexpression onto the LHS for all other forms.
+  if (isReversed())
+    std::swap(Result.LHS, Result.RHS);
+
+  // If this isn't a spaceship rewrite, we're done.
+  if (Result.Opcode == BO_EQ || Result.Opcode == BO_NE)
+    return Result;
+
+  // Otherwise, we expect a <=> to now be on the LHS.
+  E = Result.LHS->IgnoreImplicit();
+  if (auto *BO = dyn_cast<BinaryOperator>(E)) {
+    assert(BO->getOpcode() == BO_Cmp);
+    Result.LHS = BO->getLHS();
+    Result.RHS = BO->getRHS();
+    Result.InnerBinOp = BO;
+  } else if (auto *BO = dyn_cast<CXXOperatorCallExpr>(E)) {
+    assert(BO->getOperator() == OO_Spaceship);
+    Result.LHS = BO->getArg(0);
+    Result.RHS = BO->getArg(1);
+    Result.InnerBinOp = BO;
+  } else {
+    llvm_unreachable("unexpected rewritten operator form");
+  }
+
+  // Put the comparison operands in the right order.
+  if (isReversed())
+    std::swap(Result.LHS, Result.RHS);
+  return Result;
+}
+
 bool CXXTypeidExpr::isPotentiallyEvaluated() const {
   if (isTypeOperand())
     return false;
@@ -124,6 +194,8 @@ CXXNewExpr::CXXNewExpr(bool IsGlobalNew, FunctionDecl *OperatorNew,
 
   if (ArraySize) {
     if (Expr *SizeExpr = *ArraySize) {
+      if (SizeExpr->isValueDependent())
+        ExprBits.ValueDependent = true;
       if (SizeExpr->isInstantiationDependent())
         ExprBits.InstantiationDependent = true;
       if (SizeExpr->containsUnexpandedParameterPack())
@@ -134,6 +206,8 @@ CXXNewExpr::CXXNewExpr(bool IsGlobalNew, FunctionDecl *OperatorNew,
   }
 
   if (Initializer) {
+    if (Initializer->isValueDependent())
+      ExprBits.ValueDependent = true;
     if (Initializer->isInstantiationDependent())
       ExprBits.InstantiationDependent = true;
     if (Initializer->containsUnexpandedParameterPack())
@@ -143,6 +217,8 @@ CXXNewExpr::CXXNewExpr(bool IsGlobalNew, FunctionDecl *OperatorNew,
   }
 
   for (unsigned I = 0; I != PlacementArgs.size(); ++I) {
+    if (PlacementArgs[I]->isValueDependent())
+      ExprBits.ValueDependent = true;
     if (PlacementArgs[I]->isInstantiationDependent())
       ExprBits.InstantiationDependent = true;
     if (PlacementArgs[I]->containsUnexpandedParameterPack())
@@ -245,7 +321,7 @@ QualType CXXDeleteExpr::getDestroyedType() const {
   if (ArgType->isDependentType() && !ArgType->isPointerType())
     return QualType();
 
-  return ArgType->getAs<PointerType>()->getPointeeType();
+  return ArgType->castAs<PointerType>()->getPointeeType();
 }
 
 // CXXPseudoDestructorExpr
@@ -1212,6 +1288,11 @@ CXXMethodDecl *LambdaExpr::getCallOperator() const {
   return Record->getLambdaCallOperator();
 }
 
+FunctionTemplateDecl *LambdaExpr::getDependentCallOperator() const {
+  CXXRecordDecl *Record = getLambdaClass();
+  return Record->getDependentLambdaCallOperator();
+}
+
 TemplateParameterList *LambdaExpr::getTemplateParameterList() const {
   CXXRecordDecl *Record = getLambdaClass();
   return Record->getGenericLambdaTemplateParameterList();
@@ -1501,11 +1582,8 @@ CXXRecordDecl *UnresolvedMemberExpr::getNamingClass() {
   // Otherwise the naming class must have been the base class.
   else {
     QualType BaseType = getBaseType().getNonReferenceType();
-    if (isArrow()) {
-      const auto *PT = BaseType->getAs<PointerType>();
-      assert(PT && "base of arrow member access is not pointer");
-      BaseType = PT->getPointeeType();
-    }
+    if (isArrow())
+      BaseType = BaseType->castAs<PointerType>()->getPointeeType();
 
     Record = BaseType->getAsCXXRecordDecl();
     assert(Record && "base of member expression does not name record");
@@ -1671,4 +1749,83 @@ CUDAKernelCallExpr *CUDAKernelCallExpr::CreateEmpty(const ASTContext &Ctx,
   void *Mem = Ctx.Allocate(sizeof(CUDAKernelCallExpr) + SizeOfTrailingObjects,
                            alignof(CUDAKernelCallExpr));
   return new (Mem) CUDAKernelCallExpr(NumArgs, Empty);
+}
+
+ConceptSpecializationExpr::ConceptSpecializationExpr(ASTContext &C,
+    NestedNameSpecifierLoc NNS, SourceLocation TemplateKWLoc,
+    SourceLocation ConceptNameLoc, NamedDecl *FoundDecl,
+    ConceptDecl *NamedConcept, const ASTTemplateArgumentListInfo *ArgsAsWritten,
+    ArrayRef<TemplateArgument> ConvertedArgs, Optional<bool> IsSatisfied)
+    : Expr(ConceptSpecializationExprClass, C.BoolTy, VK_RValue, OK_Ordinary,
+           /*TypeDependent=*/false,
+           // All the flags below are set in setTemplateArguments.
+           /*ValueDependent=*/!IsSatisfied.hasValue(),
+           /*InstantiationDependent=*/false,
+           /*ContainsUnexpandedParameterPacks=*/false),
+      NestedNameSpec(NNS), TemplateKWLoc(TemplateKWLoc),
+      ConceptNameLoc(ConceptNameLoc), FoundDecl(FoundDecl),
+      NamedConcept(NamedConcept, IsSatisfied ? *IsSatisfied : true),
+      NumTemplateArgs(ConvertedArgs.size()) {
+
+  setTemplateArguments(ArgsAsWritten, ConvertedArgs);
+}
+
+ConceptSpecializationExpr::ConceptSpecializationExpr(EmptyShell Empty,
+    unsigned NumTemplateArgs)
+    : Expr(ConceptSpecializationExprClass, Empty),
+      NumTemplateArgs(NumTemplateArgs) { }
+
+void ConceptSpecializationExpr::setTemplateArguments(
+    const ASTTemplateArgumentListInfo *ArgsAsWritten,
+    ArrayRef<TemplateArgument> Converted) {
+  assert(Converted.size() == NumTemplateArgs);
+  assert(!this->ArgsAsWritten && "setTemplateArguments can only be used once");
+  this->ArgsAsWritten = ArgsAsWritten;
+  std::uninitialized_copy(Converted.begin(), Converted.end(),
+                          getTrailingObjects<TemplateArgument>());
+  bool IsInstantiationDependent = false;
+  bool ContainsUnexpandedParameterPack = false;
+  for (const TemplateArgumentLoc& LocInfo : ArgsAsWritten->arguments()) {
+    if (LocInfo.getArgument().isInstantiationDependent())
+      IsInstantiationDependent = true;
+    if (LocInfo.getArgument().containsUnexpandedParameterPack())
+      ContainsUnexpandedParameterPack = true;
+    if (ContainsUnexpandedParameterPack && IsInstantiationDependent)
+      break;
+  }
+
+  // Currently guaranteed by the fact concepts can only be at namespace-scope.
+  assert(!NestedNameSpec ||
+         (!NestedNameSpec.getNestedNameSpecifier()->isInstantiationDependent() &&
+          !NestedNameSpec.getNestedNameSpecifier()
+              ->containsUnexpandedParameterPack()));
+  setInstantiationDependent(IsInstantiationDependent);
+  setContainsUnexpandedParameterPack(ContainsUnexpandedParameterPack);
+  assert((!isValueDependent() || isInstantiationDependent()) &&
+         "should not be value-dependent");
+}
+
+ConceptSpecializationExpr *
+ConceptSpecializationExpr::Create(ASTContext &C, NestedNameSpecifierLoc NNS,
+                                  SourceLocation TemplateKWLoc,
+                                  SourceLocation ConceptNameLoc,
+                                  NamedDecl *FoundDecl,
+                                  ConceptDecl *NamedConcept,
+                               const ASTTemplateArgumentListInfo *ArgsAsWritten,
+                                  ArrayRef<TemplateArgument> ConvertedArgs,
+                                  Optional<bool> IsSatisfied) {
+  void *Buffer = C.Allocate(totalSizeToAlloc<TemplateArgument>(
+                                ConvertedArgs.size()));
+  return new (Buffer) ConceptSpecializationExpr(C, NNS, TemplateKWLoc,
+                                                ConceptNameLoc, FoundDecl,
+                                                NamedConcept, ArgsAsWritten,
+                                                ConvertedArgs, IsSatisfied);
+}
+
+ConceptSpecializationExpr *
+ConceptSpecializationExpr::Create(ASTContext &C, EmptyShell Empty,
+                                  unsigned NumTemplateArgs) {
+  void *Buffer = C.Allocate(totalSizeToAlloc<TemplateArgument>(
+                                NumTemplateArgs));
+  return new (Buffer) ConceptSpecializationExpr(Empty, NumTemplateArgs);
 }

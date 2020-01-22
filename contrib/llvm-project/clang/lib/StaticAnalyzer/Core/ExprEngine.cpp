@@ -977,8 +977,8 @@ void ExprEngine::ProcessAutomaticObjDtor(const CFGAutomaticObjDtor Dtor,
   Region = makeZeroElementRegion(state, loc::MemRegionVal(Region), varType,
                                  CallOpts.IsArrayCtorOrDtor).getAsRegion();
 
-  VisitCXXDestructor(varType, Region, Dtor.getTriggerStmt(), /*IsBase=*/ false,
-                     Pred, Dst, CallOpts);
+  VisitCXXDestructor(varType, Region, Dtor.getTriggerStmt(),
+                     /*IsBase=*/false, Pred, Dst, CallOpts);
 }
 
 void ExprEngine::ProcessDeleteDtor(const CFGDeleteDtor Dtor,
@@ -1036,8 +1036,9 @@ void ExprEngine::ProcessBaseDtor(const CFGBaseDtor D,
   SVal BaseVal = getStoreManager().evalDerivedToBase(ThisVal, BaseTy,
                                                      Base->isVirtual());
 
-  VisitCXXDestructor(BaseTy, BaseVal.castAs<loc::MemRegionVal>().getRegion(),
-                     CurDtor->getBody(), /*IsBase=*/ true, Pred, Dst, {});
+  EvalCallOptions CallOpts;
+  VisitCXXDestructor(BaseTy, BaseVal.getAsRegion(), CurDtor->getBody(),
+                     /*IsBase=*/true, Pred, Dst, CallOpts);
 }
 
 void ExprEngine::ProcessMemberDtor(const CFGMemberDtor D,
@@ -1048,10 +1049,10 @@ void ExprEngine::ProcessMemberDtor(const CFGMemberDtor D,
   const LocationContext *LCtx = Pred->getLocationContext();
 
   const auto *CurDtor = cast<CXXDestructorDecl>(LCtx->getDecl());
-  Loc ThisVal = getSValBuilder().getCXXThis(CurDtor,
-                                            LCtx->getStackFrame());
-  SVal FieldVal =
-      State->getLValue(Member, State->getSVal(ThisVal).castAs<Loc>());
+  Loc ThisStorageLoc =
+      getSValBuilder().getCXXThis(CurDtor, LCtx->getStackFrame());
+  Loc ThisLoc = State->getSVal(ThisStorageLoc).castAs<Loc>();
+  SVal FieldVal = State->getLValue(Member, ThisLoc);
 
   // FIXME: We need to run the same destructor on every element of the array.
   // This workaround will just run the first destructor (which will still
@@ -1060,8 +1061,8 @@ void ExprEngine::ProcessMemberDtor(const CFGMemberDtor D,
   FieldVal = makeZeroElementRegion(State, FieldVal, T,
                                    CallOpts.IsArrayCtorOrDtor);
 
-  VisitCXXDestructor(T, FieldVal.castAs<loc::MemRegionVal>().getRegion(),
-                     CurDtor->getBody(), /*IsBase=*/false, Pred, Dst, CallOpts);
+  VisitCXXDestructor(T, FieldVal.getAsRegion(), CurDtor->getBody(),
+                     /*IsBase=*/false, Pred, Dst, CallOpts);
 }
 
 void ExprEngine::ProcessTemporaryDtor(const CFGTemporaryDtor D,
@@ -1109,8 +1110,6 @@ void ExprEngine::ProcessTemporaryDtor(const CFGTemporaryDtor D,
   EvalCallOptions CallOpts;
   CallOpts.IsTemporaryCtorOrDtor = true;
   if (!MR) {
-    CallOpts.IsCtorOrDtorWithImproperlyModeledTargetRegion = true;
-
     // If we have no MR, we still need to unwrap the array to avoid destroying
     // the whole array at once. Regardless, we'd eventually need to model array
     // destructors properly, element-by-element.
@@ -1266,6 +1265,9 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
     case Stmt::OMPCancelDirectiveClass:
     case Stmt::OMPTaskLoopDirectiveClass:
     case Stmt::OMPTaskLoopSimdDirectiveClass:
+    case Stmt::OMPMasterTaskLoopDirectiveClass:
+    case Stmt::OMPMasterTaskLoopSimdDirectiveClass:
+    case Stmt::OMPParallelMasterTaskLoopDirectiveClass:
     case Stmt::OMPDistributeDirectiveClass:
     case Stmt::OMPDistributeParallelForDirectiveClass:
     case Stmt::OMPDistributeParallelForSimdDirectiveClass:
@@ -1369,6 +1371,8 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
     case Stmt::CUDAKernelCallExprClass:
     case Stmt::OpaqueValueExprClass:
     case Stmt::AsTypeExprClass:
+    case Stmt::ConceptSpecializationExprClass:
+    case Stmt::CXXRewrittenBinaryOperatorClass:
       // Fall through.
 
     // Cases we intentionally don't evaluate, since they don't need
@@ -3005,9 +3009,13 @@ struct DOTGraphTraits<ExplodedGraph*> : public DefaultDOTGraphTraits {
         llvm::make_range(BR.EQClasses_begin(), BR.EQClasses_end());
 
     for (const auto &EQ : EQClasses) {
-      for (const BugReport &Report : EQ) {
-        if (Report.getErrorNode()->getState() == N->getState() &&
-            Report.getErrorNode()->getLocation() == N->getLocation())
+      for (const auto &I : EQ.getReports()) {
+        const auto *PR = dyn_cast<PathSensitiveBugReport>(I.get());
+        if (!PR)
+          continue;
+        const ExplodedNode *EN = PR->getErrorNode();
+        if (EN->getState() == N->getState() &&
+            EN->getLocation() == N->getLocation())
           return true;
       }
     }
@@ -3023,22 +3031,16 @@ struct DOTGraphTraits<ExplodedGraph*> : public DefaultDOTGraphTraits {
       llvm::function_ref<void(const ExplodedNode *)> PreCallback,
       llvm::function_ref<void(const ExplodedNode *)> PostCallback,
       llvm::function_ref<bool(const ExplodedNode *)> Stop) {
-    const ExplodedNode *FirstHiddenNode = N;
-    while (FirstHiddenNode->pred_size() == 1 &&
-           isNodeHidden(*FirstHiddenNode->pred_begin())) {
-      FirstHiddenNode = *FirstHiddenNode->pred_begin();
-    }
-    const ExplodedNode *OtherNode = FirstHiddenNode;
     while (true) {
-      PreCallback(OtherNode);
-      if (Stop(OtherNode))
+      PreCallback(N);
+      if (Stop(N))
         return true;
 
-      if (OtherNode == N)
+      if (N->succ_size() != 1 || !isNodeHidden(N->getFirstSucc()))
         break;
-      PostCallback(OtherNode);
+      PostCallback(N);
 
-      OtherNode = *OtherNode->succ_begin();
+      N = N->getFirstSucc();
     }
     return false;
   }
@@ -3055,16 +3057,7 @@ struct DOTGraphTraits<ExplodedGraph*> : public DefaultDOTGraphTraits {
     const unsigned int Space = 1;
     ProgramStateRef State = N->getState();
 
-    auto Noop = [](const ExplodedNode*){};
-    bool HasReport = traverseHiddenNodes(
-        N, Noop, Noop, &nodeHasBugReport);
-    bool IsSink = traverseHiddenNodes(
-        N, Noop, Noop, [](const ExplodedNode *N) { return N->isSink(); });
-
-    Out << "{ \"node_id\": " << N->getID(G) << ", \"pointer\": \""
-        << (const void *)N << "\", \"state_id\": " << State->getID()
-        << ", \"has_report\": " << (HasReport ? "true" : "false")
-        << ", \"is_sink\": " << (IsSink ? "true" : "false")
+    Out << "{ \"state_id\": " << State->getID()
         << ",\\l";
 
     Indent(Out, Space, IsDot) << "\"program_points\": [\\l";
@@ -3077,9 +3070,12 @@ struct DOTGraphTraits<ExplodedGraph*> : public DefaultDOTGraphTraits {
           OtherNode->getLocation().printJson(Out, /*NL=*/"\\l");
           Out << ", \"tag\": ";
           if (const ProgramPointTag *Tag = OtherNode->getLocation().getTag())
-            Out << '\"' << Tag->getTagDescription() << "\" }";
+            Out << '\"' << Tag->getTagDescription() << "\"";
           else
-            Out << "null }";
+            Out << "null";
+          Out << ", \"node_id\": " << OtherNode->getID() <<
+                 ", \"is_sink\": " << OtherNode->isSink() <<
+                 ", \"has_report\": " << nodeHasBugReport(OtherNode) << " }";
         },
         // Adds a comma and a new-line between each program point.
         [&](const ExplodedNode *) { Out << ",\\l"; },
@@ -3088,16 +3084,7 @@ struct DOTGraphTraits<ExplodedGraph*> : public DefaultDOTGraphTraits {
     Out << "\\l"; // Adds a new-line to the last program point.
     Indent(Out, Space, IsDot) << "],\\l";
 
-    bool SameAsAllPredecessors =
-        std::all_of(N->pred_begin(), N->pred_end(), [&](const ExplodedNode *P) {
-          return P->getState() == State;
-        });
-
-    if (!SameAsAllPredecessors) {
-      State->printDOT(Out, N->getLocationContext(), Space);
-    } else {
-      Indent(Out, Space, IsDot) << "\"program_state\": null";
-    }
+    State->printDOT(Out, N->getLocationContext(), Space);
 
     Out << "\\l}\\l";
     return Out.str();
@@ -3132,8 +3119,12 @@ std::string ExprEngine::DumpGraph(bool trim, StringRef Filename) {
     // Iterate through the reports and get their nodes.
     for (BugReporter::EQClasses_iterator
            EI = BR.EQClasses_begin(), EE = BR.EQClasses_end(); EI != EE; ++EI) {
-      const auto *N = const_cast<ExplodedNode *>(EI->begin()->getErrorNode());
-      if (N) Src.push_back(N);
+      const auto *R =
+          dyn_cast<PathSensitiveBugReport>(EI->getReports()[0].get());
+      if (!R)
+        continue;
+      const auto *N = const_cast<ExplodedNode *>(R->getErrorNode());
+      Src.push_back(N);
     }
     return DumpGraph(Src, Filename);
   } else {

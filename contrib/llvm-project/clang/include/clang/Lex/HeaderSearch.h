@@ -250,12 +250,6 @@ class HeaderSearch {
   /// Entity used to look up stored header file information.
   ExternalHeaderFileInfoSource *ExternalSource = nullptr;
 
-  // Various statistics we track for performance analysis.
-  unsigned NumIncluded = 0;
-  unsigned NumMultiIncludeFileOptzn = 0;
-  unsigned NumFrameworkLookups = 0;
-  unsigned NumSubFrameworkLookups = 0;
-
 public:
   HeaderSearch(std::shared_ptr<HeaderSearchOptions> HSOpts,
                SourceManager &SourceMgr, DiagnosticsEngine &Diags,
@@ -395,7 +389,7 @@ public:
   /// found in any of searched SearchDirs. Will be set to false if a framework
   /// is found only through header maps. Doesn't guarantee the requested file is
   /// found.
-  const FileEntry *LookupFile(
+  Optional<FileEntryRef> LookupFile(
       StringRef Filename, SourceLocation IncludeLoc, bool isAngled,
       const DirectoryLookup *FromDir, const DirectoryLookup *&CurDir,
       ArrayRef<std::pair<const FileEntry *, const DirectoryEntry *>> Includers,
@@ -410,7 +404,7 @@ public:
   /// within ".../Carbon.framework/Headers/Carbon.h", check to see if
   /// HIToolbox is a subframework within Carbon.framework.  If so, return
   /// the FileEntry for the designated file, otherwise return null.
-  const FileEntry *LookupSubframeworkHeader(
+  Optional<FileEntryRef> LookupSubframeworkHeader(
       StringRef Filename, const FileEntry *ContextFileEnt,
       SmallVectorImpl<char> *SearchPath, SmallVectorImpl<char> *RelativePath,
       Module *RequestingModule, ModuleMap::KnownHeader *SuggestedModule);
@@ -544,8 +538,6 @@ public:
   const FileEntry *lookupModuleMapFile(const DirectoryEntry *Dir,
                                        bool IsFramework);
 
-  void IncrementFrameworkLookupCount() { ++NumFrameworkLookups; }
-
   /// Determine whether there is a module map that may map the header
   /// with the given file name to a (sub)module.
   /// Always returns false if modules are disabled.
@@ -649,7 +641,7 @@ private:
 
   /// Look up the file with the specified name and determine its owning
   /// module.
-  const FileEntry *
+  Optional<FileEntryRef>
   getFileAndSuggestModule(StringRef FileName, SourceLocation IncludeLoc,
                           const DirectoryEntry *Dir, bool IsSystemHeaderDir,
                           Module *RequestingModule,

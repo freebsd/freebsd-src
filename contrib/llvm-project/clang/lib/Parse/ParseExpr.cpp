@@ -228,18 +228,16 @@ ExprResult Parser::ParseCaseExpression(SourceLocation CaseLoc) {
 /// Parse a constraint-expression.
 ///
 /// \verbatim
-///       constraint-expression: [Concepts TS temp.constr.decl p1]
+///       constraint-expression: C++2a[temp.constr.decl]p1
 ///         logical-or-expression
 /// \endverbatim
 ExprResult Parser::ParseConstraintExpression() {
-  // FIXME: this may erroneously consume a function-body as the braced
-  // initializer list of a compound literal
-  //
-  // FIXME: this may erroneously consume a parenthesized rvalue reference
-  // declarator as a parenthesized address-of-label expression
+  EnterExpressionEvaluationContext ConstantEvaluated(
+      Actions, Sema::ExpressionEvaluationContext::ConstantEvaluated);
   ExprResult LHS(ParseCastExpression(/*isUnaryExpression=*/false));
   ExprResult Res(ParseRHSOfBinaryExpression(LHS, prec::LogicalOr));
-
+  if (Res.isUsable() && !Actions.CheckConstraintExpression(Res.get()))
+    return ExprError();
   return Res;
 }
 
@@ -573,7 +571,7 @@ class CastExpressionIdValidator final : public CorrectionCandidateCallback {
   }
 
   std::unique_ptr<CorrectionCandidateCallback> clone() override {
-    return llvm::make_unique<CastExpressionIdValidator>(*this);
+    return std::make_unique<CastExpressionIdValidator>(*this);
   }
 
  private:
@@ -840,12 +838,22 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
     return Actions.ActOnCXXNullPtrLiteral(ConsumeToken());
 
   case tok::annot_primary_expr:
-    assert(Res.get() == nullptr && "Stray primary-expression annotation?");
     Res = getExprAnnotation(Tok);
     ConsumeAnnotationToken();
     if (!Res.isInvalid() && Tok.is(tok::less))
       checkPotentialAngleBracket(Res);
     break;
+
+  case tok::annot_non_type:
+  case tok::annot_non_type_dependent:
+  case tok::annot_non_type_undeclared: {
+    CXXScopeSpec SS;
+    Token Replacement;
+    Res = tryParseCXXIdExpression(SS, isAddressOfOperand, Replacement);
+    assert(!Res.isUnset() &&
+           "should not perform typo correction on annotation token");
+    break;
+  }
 
   case tok::kw___super:
   case tok::kw_decltype:
@@ -1191,7 +1199,7 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
   }
   case tok::kw__Alignof:   // unary-expression: '_Alignof' '(' type-name ')'
     if (!getLangOpts().C11)
-      Diag(Tok, diag::ext_c11_alignment) << Tok.getName();
+      Diag(Tok, diag::ext_c11_feature) << Tok.getName();
     LLVM_FALLTHROUGH;
   case tok::kw_alignof:    // unary-expression: 'alignof' '(' type-id ')'
   case tok::kw___alignof:  // unary-expression: '__alignof' unary-expression
@@ -1772,12 +1780,12 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
             OpKind == tok::arrow ? tok::period : tok::arrow;
         ExprResult CorrectedLHS(/*Invalid=*/true);
         if (getLangOpts().CPlusPlus && OrigLHS) {
-          const bool DiagsAreSuppressed = Diags.getSuppressAllDiagnostics();
-          Diags.setSuppressAllDiagnostics(true);
+          // FIXME: Creating a TentativeAnalysisScope from outside Sema is a
+          // hack.
+          Sema::TentativeAnalysisScope Trap(Actions);
           CorrectedLHS = Actions.ActOnStartCXXMemberReference(
               getCurScope(), OrigLHS, OpLoc, CorrectedOpKind, ObjectType,
               MayBePseudoDestructor);
-          Diags.setSuppressAllDiagnostics(DiagsAreSuppressed);
         }
 
         Expr *Base = LHS.get();
@@ -2733,11 +2741,10 @@ ExprResult Parser::ParseStringLiteralExpression(bool AllowUserDefinedLiteral) {
 /// \endverbatim
 ExprResult Parser::ParseGenericSelectionExpression() {
   assert(Tok.is(tok::kw__Generic) && "_Generic keyword expected");
-  SourceLocation KeyLoc = ConsumeToken();
-
   if (!getLangOpts().C11)
-    Diag(KeyLoc, diag::ext_c11_generic_selection);
+    Diag(Tok, diag::ext_c11_feature) << Tok.getName();
 
+  SourceLocation KeyLoc = ConsumeToken();
   BalancedDelimiterTracker T(*this, tok::l_paren);
   if (T.expectAndConsume())
     return ExprError();

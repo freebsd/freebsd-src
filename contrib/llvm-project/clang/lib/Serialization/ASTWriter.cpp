@@ -166,7 +166,7 @@ namespace clang {
 #define TYPE(Class, Base) \
         case Type::Class: Visit##Class##Type(cast<Class##Type>(T)); break;
 #define ABSTRACT_TYPE(Class, Base)
-#include "clang/AST/TypeNodes.def"
+#include "clang/AST/TypeNodes.inc"
         }
       }
     }
@@ -177,7 +177,7 @@ namespace clang {
 
 #define TYPE(Class, Base) void Visit##Class##Type(const Class##Type *T);
 #define ABSTRACT_TYPE(Class, Base)
-#include "clang/AST/TypeNodes.def"
+#include "clang/AST/TypeNodes.inc"
   };
 
 } // namespace clang
@@ -238,6 +238,7 @@ void ASTTypeWriter::VisitArrayType(const ArrayType *T) {
 void ASTTypeWriter::VisitConstantArrayType(const ConstantArrayType *T) {
   VisitArrayType(T);
   Record.AddAPInt(T->getSize());
+  Record.AddStmt(const_cast<Expr*>(T->getSizeExpr()));
   Code = TYPE_CONSTANT_ARRAY;
 }
 
@@ -1023,6 +1024,7 @@ static void AddStmtsExprs(llvm::BitstreamWriter &Stream,
   RECORD(STMT_CXX_FOR_RANGE);
   RECORD(EXPR_CXX_OPERATOR_CALL);
   RECORD(EXPR_CXX_MEMBER_CALL);
+  RECORD(EXPR_CXX_REWRITTEN_BINARY_OPERATOR);
   RECORD(EXPR_CXX_CONSTRUCT);
   RECORD(EXPR_CXX_TEMPORARY_OBJECT);
   RECORD(EXPR_CXX_STATIC_CAST);
@@ -1098,6 +1100,7 @@ void ASTWriter::WriteBlockInfoBlock() {
 
   BLOCK(INPUT_FILES_BLOCK);
   RECORD(INPUT_FILE);
+  RECORD(INPUT_FILE_HASH);
 
   // AST Top-Level Block.
   BLOCK(AST_BLOCK);
@@ -1763,6 +1766,7 @@ struct InputFileEntry {
   bool IsTransient;
   bool BufferOverridden;
   bool IsTopLevelModuleMap;
+  uint32_t ContentHash[2];
 };
 
 } // namespace
@@ -1786,6 +1790,13 @@ void ASTWriter::WriteInputFiles(SourceManager &SourceMgr,
   IFAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // File name
   unsigned IFAbbrevCode = Stream.EmitAbbrev(std::move(IFAbbrev));
 
+  // Create input file hash abbreviation.
+  auto IFHAbbrev = std::make_shared<BitCodeAbbrev>();
+  IFHAbbrev->Add(BitCodeAbbrevOp(INPUT_FILE_HASH));
+  IFHAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32));
+  IFHAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32));
+  unsigned IFHAbbrevCode = Stream.EmitAbbrev(std::move(IFHAbbrev));
+
   // Get all ContentCache objects for files, sorted by whether the file is a
   // system one or not. System files go at the back, users files at the front.
   std::deque<InputFileEntry> SortedFiles;
@@ -1804,12 +1815,31 @@ void ASTWriter::WriteInputFiles(SourceManager &SourceMgr,
 
     InputFileEntry Entry;
     Entry.File = Cache->OrigEntry;
-    Entry.IsSystemFile = Cache->IsSystemFile;
+    Entry.IsSystemFile = isSystem(File.getFileCharacteristic());
     Entry.IsTransient = Cache->IsTransient;
     Entry.BufferOverridden = Cache->BufferOverridden;
     Entry.IsTopLevelModuleMap = isModuleMap(File.getFileCharacteristic()) &&
                                 File.getIncludeLoc().isInvalid();
-    if (Cache->IsSystemFile)
+
+    auto ContentHash = hash_code(-1);
+    if (PP->getHeaderSearchInfo()
+            .getHeaderSearchOpts()
+            .ValidateASTInputFilesContent) {
+      auto *MemBuff = Cache->getRawBuffer();
+      if (MemBuff)
+        ContentHash = hash_value(MemBuff->getBuffer());
+      else
+        // FIXME: The path should be taken from the FileEntryRef.
+        PP->Diag(SourceLocation(), diag::err_module_unable_to_hash_content)
+            << Entry.File->getName();
+    }
+    auto CH = llvm::APInt(64, ContentHash);
+    Entry.ContentHash[0] =
+        static_cast<uint32_t>(CH.getLoBits(32).getZExtValue());
+    Entry.ContentHash[1] =
+        static_cast<uint32_t>(CH.getHiBits(32).getZExtValue());
+
+    if (Entry.IsSystemFile)
       SortedFiles.push_back(Entry);
     else
       SortedFiles.push_front(Entry);
@@ -1833,16 +1863,26 @@ void ASTWriter::WriteInputFiles(SourceManager &SourceMgr,
 
     // Emit size/modification time for this file.
     // And whether this file was overridden.
-    RecordData::value_type Record[] = {
-        INPUT_FILE,
-        InputFileOffsets.size(),
-        (uint64_t)Entry.File->getSize(),
-        (uint64_t)getTimestampForOutput(Entry.File),
-        Entry.BufferOverridden,
-        Entry.IsTransient,
-        Entry.IsTopLevelModuleMap};
+    {
+      RecordData::value_type Record[] = {
+          INPUT_FILE,
+          InputFileOffsets.size(),
+          (uint64_t)Entry.File->getSize(),
+          (uint64_t)getTimestampForOutput(Entry.File),
+          Entry.BufferOverridden,
+          Entry.IsTransient,
+          Entry.IsTopLevelModuleMap};
 
-    EmitRecordWithPath(IFAbbrevCode, Record, Entry.File->getName());
+      // FIXME: The path should be taken from the FileEntryRef.
+      EmitRecordWithPath(IFAbbrevCode, Record, Entry.File->getName());
+    }
+
+    // Emit content hash for this file.
+    {
+      RecordData::value_type Record[] = {INPUT_FILE_HASH, Entry.ContentHash[0],
+                                         Entry.ContentHash[1]};
+      Stream.EmitRecordWithAbbrev(IFHAbbrevCode, Record);
+    }
   }
 
   Stream.ExitBlock();
@@ -2314,8 +2354,8 @@ void ASTWriter::WriteSourceManagerBlock(SourceManager &SourceMgr,
         // We add one to the size so that we capture the trailing NULL
         // that is required by llvm::MemoryBuffer::getMemBuffer (on
         // the reader side).
-        const llvm::MemoryBuffer *Buffer
-          = Content->getBuffer(PP.getDiagnostics(), PP.getSourceManager());
+        const llvm::MemoryBuffer *Buffer =
+            Content->getBuffer(PP.getDiagnostics(), PP.getFileManager());
         StringRef Name = Buffer->getBufferIdentifier();
         Stream.EmitRecordWithBlob(SLocBufferAbbrv, Record,
                                   StringRef(Name.data(), Name.size() + 1));
@@ -2329,7 +2369,7 @@ void ASTWriter::WriteSourceManagerBlock(SourceManager &SourceMgr,
         // Include the implicit terminating null character in the on-disk buffer
         // if we're writing it uncompressed.
         const llvm::MemoryBuffer *Buffer =
-            Content->getBuffer(PP.getDiagnostics(), PP.getSourceManager());
+            Content->getBuffer(PP.getDiagnostics(), PP.getFileManager());
         StringRef Blob(Buffer->getBufferStart(), Buffer->getBufferSize() + 1);
         emitBlob(Stream, Blob, SLocBufferBlobCompressedAbbrv,
                  SLocBufferBlobAbbrv);
@@ -2506,7 +2546,7 @@ void ASTWriter::WritePreprocessor(const Preprocessor &PP, bool IsModule) {
       MacroIdentifiers.push_back(Id.second);
   // Sort the set of macro definitions that need to be serialized by the
   // name of the macro, to provide a stable ordering.
-  llvm::sort(MacroIdentifiers, llvm::less_ptr<IdentifierInfo>());
+  llvm::sort(MacroIdentifiers, llvm::deref<std::less<>>());
 
   // Emit the macro directives as a list and associate the offset with the
   // identifier they belong to.
@@ -3266,15 +3306,17 @@ void ASTWriter::WriteComments() {
   auto _ = llvm::make_scope_exit([this] { Stream.ExitBlock(); });
   if (!PP->getPreprocessorOpts().WriteCommentListToPCH)
     return;
-  ArrayRef<RawComment *> RawComments = Context->Comments.getComments();
   RecordData Record;
-  for (const auto *I : RawComments) {
-    Record.clear();
-    AddSourceRange(I->getSourceRange(), Record);
-    Record.push_back(I->getKind());
-    Record.push_back(I->isTrailingComment());
-    Record.push_back(I->isAlmostTrailingComment());
-    Stream.EmitRecord(COMMENTS_RAW_COMMENT, Record);
+  for (const auto &FO : Context->Comments.OrderedComments) {
+    for (const auto &OC : FO.second) {
+      const RawComment *I = OC.second;
+      Record.clear();
+      AddSourceRange(I->getSourceRange(), Record);
+      Record.push_back(I->getKind());
+      Record.push_back(I->isTrailingComment());
+      Record.push_back(I->isAlmostTrailingComment());
+      Stream.EmitRecord(COMMENTS_RAW_COMMENT, Record);
+    }
   }
 }
 
@@ -3746,7 +3788,7 @@ void ASTWriter::WriteIdentifierTable(Preprocessor &PP,
       IIs.push_back(ID.second);
     // Sort the identifiers lexicographically before getting them references so
     // that their order is stable.
-    llvm::sort(IIs, llvm::less_ptr<IdentifierInfo>());
+    llvm::sort(IIs, llvm::deref<std::less<>>());
     for (const IdentifierInfo *II : IIs)
       if (Trait.isInterestingNonMacroIdentifier(II))
         getIdentifierRef(II);
@@ -4519,7 +4561,14 @@ void ASTRecordWriter::AddAttr(const Attr *A) {
   if (!A)
     return Record.push_back(0);
   Record.push_back(A->getKind() + 1); // FIXME: stable encoding, target attrs
+
+  Record.AddIdentifierRef(A->getAttrName());
+  Record.AddIdentifierRef(A->getScopeName());
   Record.AddSourceRange(A->getRange());
+  Record.AddSourceLocation(A->getScopeLoc());
+  Record.push_back(A->getParsedKind());
+  Record.push_back(A->getSyntax());
+  Record.push_back(A->getAttributeSpellingListIndexRaw());
 
 #include "clang/Serialization/AttrPCHWrite.inc"
 }
@@ -4922,7 +4971,7 @@ ASTFileSignature ASTWriter::WriteASTCore(Sema &SemaRef, StringRef isysroot,
         IIs.push_back(II);
     }
     // Sort the identifiers to visit based on their name.
-    llvm::sort(IIs, llvm::less_ptr<IdentifierInfo>());
+    llvm::sort(IIs, llvm::deref<std::less<>>());
     for (const IdentifierInfo *II : IIs) {
       for (IdentifierResolver::iterator D = SemaRef.IdResolver.begin(II),
                                      DEnd = SemaRef.IdResolver.end();
@@ -6022,10 +6071,16 @@ void ASTRecordWriter::AddTemplateParameterList(
   AddSourceLocation(TemplateParams->getTemplateLoc());
   AddSourceLocation(TemplateParams->getLAngleLoc());
   AddSourceLocation(TemplateParams->getRAngleLoc());
-  // TODO: Concepts
+
   Record->push_back(TemplateParams->size());
   for (const auto &P : *TemplateParams)
     AddDeclRef(P);
+  if (const Expr *RequiresClause = TemplateParams->getRequiresClause()) {
+    Record->push_back(true);
+    AddStmt(const_cast<Expr*>(RequiresClause));
+  } else {
+    Record->push_back(false);
+  }
 }
 
 /// Emit a template argument list.
@@ -6130,54 +6185,10 @@ void ASTRecordWriter::AddCXXCtorInitializers(
 void ASTRecordWriter::AddCXXDefinitionData(const CXXRecordDecl *D) {
   auto &Data = D->data();
   Record->push_back(Data.IsLambda);
-  Record->push_back(Data.UserDeclaredConstructor);
-  Record->push_back(Data.UserDeclaredSpecialMembers);
-  Record->push_back(Data.Aggregate);
-  Record->push_back(Data.PlainOldData);
-  Record->push_back(Data.Empty);
-  Record->push_back(Data.Polymorphic);
-  Record->push_back(Data.Abstract);
-  Record->push_back(Data.IsStandardLayout);
-  Record->push_back(Data.IsCXX11StandardLayout);
-  Record->push_back(Data.HasBasesWithFields);
-  Record->push_back(Data.HasBasesWithNonStaticDataMembers);
-  Record->push_back(Data.HasPrivateFields);
-  Record->push_back(Data.HasProtectedFields);
-  Record->push_back(Data.HasPublicFields);
-  Record->push_back(Data.HasMutableFields);
-  Record->push_back(Data.HasVariantMembers);
-  Record->push_back(Data.HasOnlyCMembers);
-  Record->push_back(Data.HasInClassInitializer);
-  Record->push_back(Data.HasUninitializedReferenceMember);
-  Record->push_back(Data.HasUninitializedFields);
-  Record->push_back(Data.HasInheritedConstructor);
-  Record->push_back(Data.HasInheritedAssignment);
-  Record->push_back(Data.NeedOverloadResolutionForCopyConstructor);
-  Record->push_back(Data.NeedOverloadResolutionForMoveConstructor);
-  Record->push_back(Data.NeedOverloadResolutionForMoveAssignment);
-  Record->push_back(Data.NeedOverloadResolutionForDestructor);
-  Record->push_back(Data.DefaultedCopyConstructorIsDeleted);
-  Record->push_back(Data.DefaultedMoveConstructorIsDeleted);
-  Record->push_back(Data.DefaultedMoveAssignmentIsDeleted);
-  Record->push_back(Data.DefaultedDestructorIsDeleted);
-  Record->push_back(Data.HasTrivialSpecialMembers);
-  Record->push_back(Data.HasTrivialSpecialMembersForCall);
-  Record->push_back(Data.DeclaredNonTrivialSpecialMembers);
-  Record->push_back(Data.DeclaredNonTrivialSpecialMembersForCall);
-  Record->push_back(Data.HasIrrelevantDestructor);
-  Record->push_back(Data.HasConstexprNonCopyMoveConstructor);
-  Record->push_back(Data.HasDefaultedDefaultConstructor);
-  Record->push_back(Data.DefaultedDefaultConstructorIsConstexpr);
-  Record->push_back(Data.HasConstexprDefaultConstructor);
-  Record->push_back(Data.HasNonLiteralTypeFieldsOrBases);
-  Record->push_back(Data.ComputedVisibleConversions);
-  Record->push_back(Data.UserProvidedDefaultConstructor);
-  Record->push_back(Data.DeclaredSpecialMembers);
-  Record->push_back(Data.ImplicitCopyConstructorCanHaveConstParamForVBase);
-  Record->push_back(Data.ImplicitCopyConstructorCanHaveConstParamForNonVBase);
-  Record->push_back(Data.ImplicitCopyAssignmentHasConstParam);
-  Record->push_back(Data.HasDeclaredCopyConstructorWithConstParam);
-  Record->push_back(Data.HasDeclaredCopyAssignmentWithConstParam);
+
+  #define FIELD(Name, Width, Merge) \
+  Record->push_back(Data.Name);
+  #include "clang/AST/CXXRecordDeclDefinitionBits.def"
 
   // getODRHash will compute the ODRHash if it has not been previously computed.
   Record->push_back(D->getODRHash());
@@ -6199,7 +6210,9 @@ void ASTRecordWriter::AddCXXDefinitionData(const CXXRecordDecl *D) {
     AddCXXBaseSpecifiers(Data.vbases());
 
   AddUnresolvedSet(Data.Conversions.get(*Writer->Context));
-  AddUnresolvedSet(Data.VisibleConversions.get(*Writer->Context));
+  Record->push_back(Data.ComputedVisibleConversions);
+  if (Data.ComputedVisibleConversions)
+    AddUnresolvedSet(Data.VisibleConversions.get(*Writer->Context));
   // Data.Definition is the owning decl, no need to write it.
   AddDeclRef(D->getFirstFriend());
 
@@ -6211,6 +6224,7 @@ void ASTRecordWriter::AddCXXDefinitionData(const CXXRecordDecl *D) {
     Record->push_back(Lambda.CaptureDefault);
     Record->push_back(Lambda.NumCaptures);
     Record->push_back(Lambda.NumExplicitCaptures);
+    Record->push_back(Lambda.HasKnownInternalLinkage);
     Record->push_back(Lambda.ManglingNumber);
     AddDeclRef(D->getLambdaContextDecl());
     AddTypeSourceInfo(Lambda.MethodTyInfo);
@@ -6627,6 +6641,7 @@ void OMPClauseWriter::VisitOMPIfClause(OMPIfClause *C) {
 }
 
 void OMPClauseWriter::VisitOMPFinalClause(OMPFinalClause *C) {
+  VisitOMPClauseWithPreInit(C);
   Record.AddStmt(C->getCondition());
   Record.AddSourceLocation(C->getLParenLoc());
 }
@@ -6846,6 +6861,8 @@ void OMPClauseWriter::VisitOMPLinearClause(OMPLinearClause *C) {
   }
   Record.AddStmt(C->getStep());
   Record.AddStmt(C->getCalcStep());
+  for (auto *VE : C->used_expressions())
+    Record.AddStmt(VE);
 }
 
 void OMPClauseWriter::VisitOMPAlignedClause(OMPAlignedClause *C) {
@@ -6962,16 +6979,19 @@ void OMPClauseWriter::VisitOMPThreadLimitClause(OMPThreadLimitClause *C) {
 }
 
 void OMPClauseWriter::VisitOMPPriorityClause(OMPPriorityClause *C) {
+  VisitOMPClauseWithPreInit(C);
   Record.AddStmt(C->getPriority());
   Record.AddSourceLocation(C->getLParenLoc());
 }
 
 void OMPClauseWriter::VisitOMPGrainsizeClause(OMPGrainsizeClause *C) {
+  VisitOMPClauseWithPreInit(C);
   Record.AddStmt(C->getGrainsize());
   Record.AddSourceLocation(C->getLParenLoc());
 }
 
 void OMPClauseWriter::VisitOMPNumTasksClause(OMPNumTasksClause *C) {
+  VisitOMPClauseWithPreInit(C);
   Record.AddStmt(C->getNumTasks());
   Record.AddSourceLocation(C->getLParenLoc());
 }

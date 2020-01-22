@@ -102,6 +102,10 @@ public:
 
 private:
   void handleCXXRecordDecl(const CXXRecordDecl *RecordDecl) {
+    if (!RecordDecl->getDefinition()) {
+      USRSet.insert(getUSRForDecl(RecordDecl));
+      return;
+    }
     RecordDecl = RecordDecl->getDefinition();
     if (const auto *ClassTemplateSpecDecl =
             dyn_cast<ClassTemplateSpecializationDecl>(RecordDecl))
@@ -264,7 +268,7 @@ private:
 };
 
 std::unique_ptr<ASTConsumer> USRFindingAction::newASTConsumer() {
-  return llvm::make_unique<NamedDeclFindingConsumer>(
+  return std::make_unique<NamedDeclFindingConsumer>(
       SymbolOffsets, QualifiedNames, SpellingNames, USRList, Force,
       ErrorOccurred);
 }
