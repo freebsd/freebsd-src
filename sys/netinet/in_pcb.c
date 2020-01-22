@@ -1639,13 +1639,6 @@ in_pcbfree(struct inpcb *inp)
 		return;
 	}
 
-#ifdef INVARIANTS
-	if (pcbinfo == &V_tcbinfo) {
-		INP_INFO_LOCK_ASSERT(pcbinfo);
-	} else {
-		INP_INFO_WLOCK_ASSERT(pcbinfo);
-	}
-#endif
 	INP_WLOCK_ASSERT(inp);
 	INP_LIST_WLOCK(pcbinfo);
 	in_pcbremlists(inp);
@@ -2640,14 +2633,6 @@ static void
 in_pcbremlists(struct inpcb *inp)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
-
-#ifdef INVARIANTS
-	if (pcbinfo == &V_tcbinfo) {
-		NET_EPOCH_ASSERT();
-	} else {
-		INP_INFO_WLOCK_ASSERT(pcbinfo);
-	}
-#endif
 
 	INP_WLOCK_ASSERT(inp);
 	INP_LIST_WLOCK_ASSERT(pcbinfo);
