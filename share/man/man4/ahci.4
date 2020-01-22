@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 2, 2018
+.Dd August 21, 2019
 .Dt AHCI 4
 .Os
 .Sh NAME
@@ -153,6 +153,26 @@ subclass 6 (SATA) and programming interface 1 (AHCI).
 Also, in cooperation with atamarvell and atajmicron drivers of ata(4),
 it supports AHCI part of legacy-PATA + AHCI-SATA combined controllers,
 such as JMicron JMB36x and Marvell 88SE61xx.
+.Pp
+The
+.Nm
+driver also supports AHCI devices that act as PCI bridges for
+.Xr nvme 4
+using Intel Rapid Storage Technology (RST).
+To use the
+.Xr nvme 4
+device, either one must set the SATA mode in the BIOS to AHCI (from RST),
+or one must accept the performance with RST enabled due to interrupt sharing.
+.Fx
+will automatically detect AHCI devices with this extension that are in RST
+mode.
+When that happens,
+.Nm
+will attach
+.Xr nvme 4
+children to the
+.Xr ahci 4
+device.
 .Sh FILES
 .Bl -tag -width /dev/led/ahcich*.locate
 .It Pa /dev/led/ahci*.*.act
