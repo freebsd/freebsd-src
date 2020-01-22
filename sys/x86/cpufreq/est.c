@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 #include "acpi_if.h"
 
+#include <x86/cpufreq/hwpstate_intel_internal.h>
+
 /* Status/control registers (from the IA-32 System Programming Guide). */
 #define MSR_PERF_STATUS		0x198
 #define MSR_PERF_CTL		0x199
@@ -898,6 +900,7 @@ static driver_t est_driver = {
 
 static devclass_t est_devclass;
 DRIVER_MODULE(est, cpu, est_driver, est_devclass, 0, 0);
+MODULE_DEPEND(est, hwpstate_intel, 1, 1, 1);
 
 static int
 est_features(driver_t *driver, u_int *features)
@@ -915,6 +918,15 @@ static void
 est_identify(driver_t *driver, device_t parent)
 {
 	device_t child;
+
+	/*
+	 * Defer to hwpstate if it is present. This priority logic
+	 * should be replaced with normal newbus probing in the
+	 * future.
+	 */
+	intel_hwpstate_identify(NULL, parent);
+	if (device_find_child(parent, "hwpstate_intel", -1) != NULL)
+		return;
 
 	/* Make sure we're not being doubly invoked. */
 	if (device_find_child(parent, "est", -1) != NULL)
