@@ -389,6 +389,7 @@ rip6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 int
 rip6_output(struct mbuf *m, struct socket *so, ...)
 {
+	struct epoch_tracker et;
 	struct mbuf *control;
 	struct m_tag *mtag;
 	struct sockaddr_in6 *dstsock;
@@ -536,7 +537,9 @@ rip6_output(struct mbuf *m, struct socket *so, ...)
 		}
 	}
 
+	NET_EPOCH_ENTER(et);
 	error = ip6_output(m, optp, NULL, 0, inp->in6p_moptions, &oifp, inp);
+	NET_EPOCH_EXIT(et);
 	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6) {
 		if (oifp)
 			icmp6_ifoutstat_inc(oifp, type, code);

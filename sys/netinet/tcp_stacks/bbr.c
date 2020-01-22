@@ -12091,6 +12091,7 @@ bbr_window_update_needed(struct tcpcb *tp, struct socket *so, uint32_t recwin, i
 static int
 bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 {
+	struct epoch_tracker et;
 	struct socket *so;
 	int32_t len;
 	uint32_t cts;
@@ -13937,6 +13938,7 @@ send:
 	 * m->m_pkthdr.len should have been set before cksum calcuration,
 	 * because in6_cksum() need it.
 	 */
+	NET_EPOCH_ENTER(et);
 #ifdef INET6
 	if (isipv6) {
 		/*
@@ -14014,6 +14016,7 @@ send:
 			mtu = inp->inp_route.ro_rt->rt_mtu;
 	}
 #endif				/* INET */
+	NET_EPOCH_EXIT(et);
 out:
 
 	if (lgb) {
