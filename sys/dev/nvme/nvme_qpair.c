@@ -444,8 +444,15 @@ nvme_qpair_complete_tracker(struct nvme_tracker *tr,
 
 	KASSERT(cpl->cid == req->cmd.cid, ("cpl cid does not match cmd cid\n"));
 
-	if (req->cb_fn && !retry)
-		req->cb_fn(req->cb_arg, cpl);
+	if (!retry) {
+		if (req->type != NVME_REQUEST_NULL) {
+			bus_dmamap_sync(qpair->dma_tag_payload,
+			    tr->payload_dma_map,
+			    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+		}
+		if (req->cb_fn)
+			req->cb_fn(req->cb_arg, cpl);
+	}
 
 	mtx_lock(&qpair->lock);
 	callout_stop(&tr->timer);
@@ -455,9 +462,6 @@ nvme_qpair_complete_tracker(struct nvme_tracker *tr,
 		nvme_qpair_submit_tracker(qpair, tr);
 	} else {
 		if (req->type != NVME_REQUEST_NULL) {
-			bus_dmamap_sync(qpair->dma_tag_payload,
-			    tr->payload_dma_map,
-			    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(qpair->dma_tag_payload,
 			    tr->payload_dma_map);
 		}
