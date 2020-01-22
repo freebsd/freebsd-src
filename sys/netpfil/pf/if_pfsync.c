@@ -1806,6 +1806,7 @@ pfsync_undefer(struct pfsync_deferral *pd, int drop)
 static void
 pfsync_defer_tmo(void *arg)
 {
+	struct epoch_tracker et;
 	struct pfsync_deferral *pd = arg;
 	struct pfsync_softc *sc = pd->pd_sc;
 	struct mbuf *m = pd->pd_m;
@@ -1814,6 +1815,7 @@ pfsync_defer_tmo(void *arg)
 
 	PFSYNC_BUCKET_LOCK_ASSERT(b);
 
+	NET_EPOCH_ENTER(et);
 	CURVNET_SET(m->m_pkthdr.rcvif->if_vnet);
 
 	TAILQ_REMOVE(&b->b_deferrals, pd, pd_entry);
@@ -1828,6 +1830,7 @@ pfsync_defer_tmo(void *arg)
 	pf_release_state(st);
 
 	CURVNET_RESTORE();
+	NET_EPOCH_EXIT(et);
 }
 
 static void
@@ -2307,11 +2310,13 @@ pfsync_push_all(struct pfsync_softc *sc)
 static void
 pfsyncintr(void *arg)
 {
+	struct epoch_tracker et;
 	struct pfsync_softc *sc = arg;
 	struct pfsync_bucket *b;
 	struct mbuf *m, *n;
 	int c;
 
+	NET_EPOCH_ENTER(et);
 	CURVNET_SET(sc->sc_ifp->if_vnet);
 
 	for (c = 0; c < pfsync_buckets; c++) {
@@ -2345,6 +2350,7 @@ pfsyncintr(void *arg)
 		}
 	}
 	CURVNET_RESTORE();
+	NET_EPOCH_EXIT(et);
 }
 
 static int
