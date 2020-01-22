@@ -679,7 +679,9 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
 	NET_EPOCH_ENTER(et);
 	error = tp->t_fb->tfb_tcp_output(tp);
+#ifdef INET
 out_in_epoch:
+#endif
 	NET_EPOCH_EXIT(et);
 out:
 	/*
