@@ -673,6 +673,14 @@ def ImmSExti64i8AsmOperand : ImmSExtAsmOperandClass {
                       ImmSExti64i32AsmOperand];
 }
 
+// 4-bit immediate used by some XOP instructions
+// [0, 0xF]
+def ImmUnsignedi4AsmOperand : AsmOperandClass {
+  let Name = "ImmUnsignedi4";
+  let RenderMethod = "addImmOperands";
+  let DiagnosticType = "InvalidImmUnsignedi4";
+}
+
 // Unsigned immediate used by SSE/AVX instructions
 // [0, 0xFF]
 //   [0xFFFFFFFFFFFFFF80, 0xFFFFFFFFFFFFFFFF]
@@ -702,6 +710,13 @@ def i64i32imm  : Operand<i64> {
 // 64-bits but only 8 bits are significant.
 def i64i8imm   : Operand<i64> {
   let ParserMatchClass = ImmSExti64i8AsmOperand;
+  let OperandType = "OPERAND_IMMEDIATE";
+}
+
+// Unsigned 4-bit immediate used by some XOP instructions.
+def u4imm : Operand<i8> {
+  let PrintMethod = "printU8Imm";
+  let ParserMatchClass = ImmUnsignedi4AsmOperand;
   let OperandType = "OPERAND_IMMEDIATE";
 }
 
@@ -925,7 +940,6 @@ def HasMOVDIR64B : Predicate<"Subtarget->hasMOVDIR64B()">;
 def HasPTWRITE   : Predicate<"Subtarget->hasPTWRITE()">;
 def FPStackf32   : Predicate<"!Subtarget->hasSSE1()">;
 def FPStackf64   : Predicate<"!Subtarget->hasSSE2()">;
-def HasMPX       : Predicate<"Subtarget->hasMPX()">;
 def HasSHSTK     : Predicate<"Subtarget->hasSHSTK()">;
 def HasCLFLUSHOPT : Predicate<"Subtarget->hasCLFLUSHOPT()">;
 def HasCLWB      : Predicate<"Subtarget->hasCLWB()">;
@@ -1103,7 +1117,7 @@ def loadi16 : PatFrag<(ops node:$ptr), (i16 (unindexedload node:$ptr)), [{
   if (ExtType == ISD::NON_EXTLOAD)
     return true;
   if (ExtType == ISD::EXTLOAD)
-    return LD->getAlignment() >= 2 && !LD->isVolatile();
+    return LD->getAlignment() >= 2 && LD->isSimple();
   return false;
 }]>;
 
@@ -1113,7 +1127,7 @@ def loadi32 : PatFrag<(ops node:$ptr), (i32 (unindexedload node:$ptr)), [{
   if (ExtType == ISD::NON_EXTLOAD)
     return true;
   if (ExtType == ISD::EXTLOAD)
-    return LD->getAlignment() >= 4 && !LD->isVolatile();
+    return LD->getAlignment() >= 4 && LD->isSimple();
   return false;
 }]>;
 
@@ -1170,7 +1184,7 @@ def extloadi64i32  : PatFrag<(ops node:$ptr), (i64 (unindexedload node:$ptr)), [
   if (LD->getMemoryVT() == MVT::i32)
     return true;
 
-  return LD->getAlignment() >= 4 && !LD->isVolatile();
+  return LD->getAlignment() >= 4 && LD->isSimple();
 }]>;
 
 
@@ -2404,25 +2418,26 @@ let Predicates = [HasBMI], Defs = [EFLAGS] in {
 }
 
 multiclass bmi_bls<string mnemonic, Format RegMRM, Format MemMRM,
-                  RegisterClass RC, X86MemOperand x86memop> {
+                  RegisterClass RC, X86MemOperand x86memop,
+                  X86FoldableSchedWrite sched> {
 let hasSideEffects = 0 in {
   def rr : I<0xF3, RegMRM, (outs RC:$dst), (ins RC:$src),
              !strconcat(mnemonic, "\t{$src, $dst|$dst, $src}"), []>,
-             T8PS, VEX_4V, Sched<[WriteBLS]>;
+             T8PS, VEX_4V, Sched<[sched]>;
   let mayLoad = 1 in
   def rm : I<0xF3, MemMRM, (outs RC:$dst), (ins x86memop:$src),
              !strconcat(mnemonic, "\t{$src, $dst|$dst, $src}"), []>,
-             T8PS, VEX_4V, Sched<[WriteBLS.Folded]>;
+             T8PS, VEX_4V, Sched<[sched.Folded]>;
 }
 }
 
 let Predicates = [HasBMI], Defs = [EFLAGS] in {
-  defm BLSR32 : bmi_bls<"blsr{l}", MRM1r, MRM1m, GR32, i32mem>;
-  defm BLSR64 : bmi_bls<"blsr{q}", MRM1r, MRM1m, GR64, i64mem>, VEX_W;
-  defm BLSMSK32 : bmi_bls<"blsmsk{l}", MRM2r, MRM2m, GR32, i32mem>;
-  defm BLSMSK64 : bmi_bls<"blsmsk{q}", MRM2r, MRM2m, GR64, i64mem>, VEX_W;
-  defm BLSI32 : bmi_bls<"blsi{l}", MRM3r, MRM3m, GR32, i32mem>;
-  defm BLSI64 : bmi_bls<"blsi{q}", MRM3r, MRM3m, GR64, i64mem>, VEX_W;
+  defm BLSR32 : bmi_bls<"blsr{l}", MRM1r, MRM1m, GR32, i32mem, WriteBLS>;
+  defm BLSR64 : bmi_bls<"blsr{q}", MRM1r, MRM1m, GR64, i64mem, WriteBLS>, VEX_W;
+  defm BLSMSK32 : bmi_bls<"blsmsk{l}", MRM2r, MRM2m, GR32, i32mem, WriteBLS>;
+  defm BLSMSK64 : bmi_bls<"blsmsk{q}", MRM2r, MRM2m, GR64, i64mem, WriteBLS>, VEX_W;
+  defm BLSI32 : bmi_bls<"blsi{l}", MRM3r, MRM3m, GR32, i32mem, WriteBLS>;
+  defm BLSI64 : bmi_bls<"blsi{q}", MRM3r, MRM3m, GR64, i64mem, WriteBLS>, VEX_W;
 }
 
 //===----------------------------------------------------------------------===//
@@ -2683,12 +2698,12 @@ def SLWPCB64 : I<0x12, MRM1r, (outs GR64:$dst), (ins), "slwpcb\t$dst",
 multiclass lwpins_intr<RegisterClass RC> {
   def rri : Ii32<0x12, MRM0r, (outs), (ins RC:$src0, GR32:$src1, i32imm:$cntl),
                  "lwpins\t{$cntl, $src1, $src0|$src0, $src1, $cntl}",
-                 [(set EFLAGS, (X86lwpins RC:$src0, GR32:$src1, imm:$cntl))]>,
+                 [(set EFLAGS, (X86lwpins RC:$src0, GR32:$src1, timm:$cntl))]>,
                  XOP_4V, XOPA;
   let mayLoad = 1 in
   def rmi : Ii32<0x12, MRM0m, (outs), (ins RC:$src0, i32mem:$src1, i32imm:$cntl),
                  "lwpins\t{$cntl, $src1, $src0|$src0, $src1, $cntl}",
-                 [(set EFLAGS, (X86lwpins RC:$src0, (loadi32 addr:$src1), imm:$cntl))]>,
+                 [(set EFLAGS, (X86lwpins RC:$src0, (loadi32 addr:$src1), timm:$cntl))]>,
                  XOP_4V, XOPA;
 }
 
@@ -2700,11 +2715,11 @@ let Defs = [EFLAGS] in {
 multiclass lwpval_intr<RegisterClass RC, Intrinsic Int> {
   def rri : Ii32<0x12, MRM1r, (outs), (ins RC:$src0, GR32:$src1, i32imm:$cntl),
                  "lwpval\t{$cntl, $src1, $src0|$src0, $src1, $cntl}",
-                 [(Int RC:$src0, GR32:$src1, imm:$cntl)]>, XOP_4V, XOPA;
+                 [(Int RC:$src0, GR32:$src1, timm:$cntl)]>, XOP_4V, XOPA;
   let mayLoad = 1 in
   def rmi : Ii32<0x12, MRM1m, (outs), (ins RC:$src0, i32mem:$src1, i32imm:$cntl),
                  "lwpval\t{$cntl, $src1, $src0|$src0, $src1, $cntl}",
-                 [(Int RC:$src0, (loadi32 addr:$src1), imm:$cntl)]>,
+                 [(Int RC:$src0, (loadi32 addr:$src1), timm:$cntl)]>,
                  XOP_4V, XOPA;
 }
 
@@ -3205,13 +3220,13 @@ def : InstAlias<"aam", (AAM8i8 10)>, Requires<[Not64BitMode]>;
 // Disambiguate the mem/imm form of bt-without-a-suffix as btl.
 // Likewise for btc/btr/bts.
 def : InstAlias<"bt\t{$imm, $mem|$mem, $imm}",
-                (BT32mi8 i32mem:$mem, i32i8imm:$imm), 0, "att">;
+                (BT32mi8 i32mem:$mem, i32u8imm:$imm), 0, "att">;
 def : InstAlias<"btc\t{$imm, $mem|$mem, $imm}",
-                (BTC32mi8 i32mem:$mem, i32i8imm:$imm), 0, "att">;
+                (BTC32mi8 i32mem:$mem, i32u8imm:$imm), 0, "att">;
 def : InstAlias<"btr\t{$imm, $mem|$mem, $imm}",
-                (BTR32mi8 i32mem:$mem, i32i8imm:$imm), 0, "att">;
+                (BTR32mi8 i32mem:$mem, i32u8imm:$imm), 0, "att">;
 def : InstAlias<"bts\t{$imm, $mem|$mem, $imm}",
-                (BTS32mi8 i32mem:$mem, i32i8imm:$imm), 0, "att">;
+                (BTS32mi8 i32mem:$mem, i32u8imm:$imm), 0, "att">;
 
 // clr aliases.
 def : InstAlias<"clr{b}\t$reg", (XOR8rr  GR8 :$reg, GR8 :$reg), 0>;

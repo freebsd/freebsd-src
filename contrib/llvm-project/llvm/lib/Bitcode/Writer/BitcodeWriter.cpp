@@ -86,7 +86,7 @@ static cl::opt<unsigned>
                    cl::desc("Number of metadatas above which we emit an index "
                             "to enable lazy-loading"));
 
-cl::opt<bool> WriteRelBFToSummary(
+static cl::opt<bool> WriteRelBFToSummary(
     "write-relbf-to-summary", cl::Hidden, cl::init(false),
     cl::desc("Write relative block frequency to function summary "));
 
@@ -520,7 +520,7 @@ static unsigned getEncodedCastOpcode(unsigned Opcode) {
 static unsigned getEncodedUnaryOpcode(unsigned Opcode) {
   switch (Opcode) {
   default: llvm_unreachable("Unknown binary instruction!");
-  case Instruction::FNeg: return bitc::UNOP_NEG;
+  case Instruction::FNeg: return bitc::UNOP_FNEG;
   }
 }
 
@@ -2880,6 +2880,11 @@ void ModuleBitcodeWriter::writeInstruction(const Instruction &I,
       pushValueSigned(PN.getIncomingValue(i), InstID, Vals64);
       Vals64.push_back(VE.getValueID(PN.getIncomingBlock(i)));
     }
+
+    uint64_t Flags = getOptimizationFlags(&I);
+    if (Flags != 0)
+      Vals64.push_back(Flags);
+
     // Emit a Vals64 vector and exit.
     Stream.EmitRecord(Code, Vals64, AbbrevToUse);
     Vals64.clear();

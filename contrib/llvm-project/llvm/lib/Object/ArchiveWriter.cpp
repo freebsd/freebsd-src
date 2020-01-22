@@ -16,8 +16,10 @@
 #include "llvm/BinaryFormat/Magic.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Object/Archive.h"
+#include "llvm/Object/Error.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Object/SymbolicFile.h"
+#include "llvm/Support/Alignment.h"
 #include "llvm/Support/EndianStream.h"
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -147,7 +149,7 @@ static void print(raw_ostream &Out, object::Archive::Kind Kind, T Val) {
 
 static void printRestOfMemberHeader(
     raw_ostream &Out, const sys::TimePoint<std::chrono::seconds> &ModTime,
-    unsigned UID, unsigned GID, unsigned Perms, unsigned Size) {
+    unsigned UID, unsigned GID, unsigned Perms, uint64_t Size) {
   printWithSpacePadding(Out, sys::toTimeT(ModTime), 12);
 
   // The format has only 6 chars for uid and gid. Truncate if the provided
@@ -164,7 +166,7 @@ static void
 printGNUSmallMemberHeader(raw_ostream &Out, StringRef Name,
                           const sys::TimePoint<std::chrono::seconds> &ModTime,
                           unsigned UID, unsigned GID, unsigned Perms,
-                          unsigned Size) {
+                          uint64_t Size) {
   printWithSpacePadding(Out, Twine(Name) + "/", 16);
   printRestOfMemberHeader(Out, ModTime, UID, GID, Perms, Size);
 }
@@ -172,11 +174,10 @@ printGNUSmallMemberHeader(raw_ostream &Out, StringRef Name,
 static void
 printBSDMemberHeader(raw_ostream &Out, uint64_t Pos, StringRef Name,
                      const sys::TimePoint<std::chrono::seconds> &ModTime,
-                     unsigned UID, unsigned GID, unsigned Perms,
-                     unsigned Size) {
+                     unsigned UID, unsigned GID, unsigned Perms, uint64_t Size) {
   uint64_t PosAfterHeader = Pos + 60 + Name.size();
   // Pad so that even 64 bit object files are aligned.
-  unsigned Pad = OffsetToAlignment(PosAfterHeader, 8);
+  unsigned Pad = offsetToAlignment(PosAfterHeader, Align(8));
   unsigned NameWithPadding = Name.size() + Pad;
   printWithSpacePadding(Out, Twine("#1/") + Twine(NameWithPadding), 16);
   printRestOfMemberHeader(Out, ModTime, UID, GID, Perms,
@@ -208,7 +209,7 @@ static void
 printMemberHeader(raw_ostream &Out, uint64_t Pos, raw_ostream &StringTable,
                   StringMap<uint64_t> &MemberNames, object::Archive::Kind Kind,
                   bool Thin, const NewArchiveMember &M,
-                  sys::TimePoint<std::chrono::seconds> ModTime, unsigned Size) {
+                  sys::TimePoint<std::chrono::seconds> ModTime, uint64_t Size) {
   if (isBSDLike(Kind))
     return printBSDMemberHeader(Out, Pos, M.MemberName, ModTime, M.UID, M.GID,
                                 M.Perms, Size);
@@ -243,7 +244,7 @@ struct MemberData {
 
 static MemberData computeStringTable(StringRef Names) {
   unsigned Size = Names.size();
-  unsigned Pad = OffsetToAlignment(Size, 2);
+  unsigned Pad = offsetToAlignment(Size, Align(2));
   std::string Header;
   raw_string_ostream Out(Header);
   printWithSpacePadding(Out, "//", 48);
@@ -307,8 +308,8 @@ static void writeSymbolTable(raw_ostream &Out, object::Archive::Kind Kind,
   // least 4-byte aligned for 32-bit content.  Opt for the larger encoding
   // uniformly.
   // We do this for all bsd formats because it simplifies aligning members.
-  unsigned Alignment = isBSDLike(Kind) ? 8 : 2;
-  unsigned Pad = OffsetToAlignment(Size, Alignment);
+  const Align Alignment(isBSDLike(Kind) ? 8 : 2);
+  unsigned Pad = offsetToAlignment(Size, Alignment);
   Size += Pad;
 
   if (isBSDLike(Kind)) {
@@ -464,8 +465,9 @@ computeMemberData(raw_ostream &StringTable, raw_ostream &SymNames,
     // uniformly.  This matches the behaviour with cctools and ensures that ld64
     // is happy with archives that we generate.
     unsigned MemberPadding =
-        isDarwin(Kind) ? OffsetToAlignment(Data.size(), 8) : 0;
-    unsigned TailPadding = OffsetToAlignment(Data.size() + MemberPadding, 2);
+        isDarwin(Kind) ? offsetToAlignment(Data.size(), Align(8)) : 0;
+    unsigned TailPadding =
+        offsetToAlignment(Data.size() + MemberPadding, Align(2));
     StringRef Padding = StringRef(PaddingData, MemberPadding + TailPadding);
 
     sys::TimePoint<std::chrono::seconds> ModTime;
@@ -474,8 +476,17 @@ computeMemberData(raw_ostream &StringTable, raw_ostream &SymNames,
       ModTime = sys::toTimePoint(FilenameCount[M.MemberName]++);
     else
       ModTime = M.ModTime;
+
+    uint64_t Size = Buf.getBufferSize() + MemberPadding;
+    if (Size > object::Archive::MaxMemberSize) {
+      std::string StringMsg =
+          "File " + M.MemberName.str() + " exceeds size limit";
+      return make_error<object::GenericBinaryError>(
+          std::move(StringMsg), object::object_error::parse_failed);
+    }
+
     printMemberHeader(Out, Pos, StringTable, MemberNames, Kind, Thin, M,
-                      ModTime, Buf.getBufferSize() + MemberPadding);
+                      ModTime, Size);
     Out.flush();
 
     Expected<std::vector<unsigned>> Symbols =

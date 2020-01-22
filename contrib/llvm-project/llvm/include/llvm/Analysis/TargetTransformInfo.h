@@ -368,6 +368,20 @@ public:
   /// optimize away.
   unsigned getFlatAddressSpace() const;
 
+  /// Return any intrinsic address operand indexes which may be rewritten if
+  /// they use a flat address space pointer.
+  ///
+  /// \returns true if the intrinsic was handled.
+  bool collectFlatAddressOperands(SmallVectorImpl<int> &OpIndexes,
+                                  Intrinsic::ID IID) const;
+
+  /// Rewrite intrinsic call \p II such that \p OldV will be replaced with \p
+  /// NewV, which has a different address space. This should happen for every
+  /// operand index that collectFlatAddressOperands returned for the intrinsic.
+  /// \returns true if the intrinsic /// was handled.
+  bool rewriteIntrinsicWithAddressSpace(IntrinsicInst *II,
+                                        Value *OldV, Value *NewV) const;
+
   /// Test whether calls to a function lower to actual program function
   /// calls.
   ///
@@ -469,12 +483,17 @@ public:
     bool Force;
     /// Allow using trip count upper bound to unroll loops.
     bool UpperBound;
-    /// Allow peeling off loop iterations for loops with low dynamic tripcount.
+    /// Allow peeling off loop iterations.
     bool AllowPeeling;
     /// Allow unrolling of all the iterations of the runtime loop remainder.
     bool UnrollRemainder;
     /// Allow unroll and jam. Used to enable unroll and jam for the target.
     bool UnrollAndJam;
+    /// Allow peeling basing on profile. Uses to enable peeling off all
+    /// iterations basing on provided profile.
+    /// If the value is true the peeling cost model can decide to peel only
+    /// some iterations and in this case it will set this to false.
+    bool PeelProfiledIterations;
     /// Threshold for unroll and jam, for inner loop size. The 'Threshold'
     /// value above is used during unroll and jam for the outer loop size.
     /// This value is used in the same manner to limit the size of the inner
@@ -555,15 +574,15 @@ public:
   /// modes that operate across loop iterations.
   bool shouldFavorBackedgeIndex(const Loop *L) const;
 
-  /// Return true if the target supports masked load.
-  bool isLegalMaskedStore(Type *DataType) const;
   /// Return true if the target supports masked store.
-  bool isLegalMaskedLoad(Type *DataType) const;
+  bool isLegalMaskedStore(Type *DataType, MaybeAlign Alignment) const;
+  /// Return true if the target supports masked load.
+  bool isLegalMaskedLoad(Type *DataType, MaybeAlign Alignment) const;
 
   /// Return true if the target supports nontemporal store.
-  bool isLegalNTStore(Type *DataType, unsigned Alignment) const;
+  bool isLegalNTStore(Type *DataType, Align Alignment) const;
   /// Return true if the target supports nontemporal load.
-  bool isLegalNTLoad(Type *DataType, unsigned Alignment) const;
+  bool isLegalNTLoad(Type *DataType, Align Alignment) const;
 
   /// Return true if the target supports masked scatter.
   bool isLegalMaskedScatter(Type *DataType) const;
@@ -621,12 +640,6 @@ public:
 
   /// Return true if this type is legal.
   bool isTypeLegal(Type *Ty) const;
-
-  /// Returns the target's jmp_buf alignment in bytes.
-  unsigned getJumpBufAlignment() const;
-
-  /// Returns the target's jmp_buf size in bytes.
-  unsigned getJumpBufSize() const;
 
   /// Return true if switches should be turned into lookup tables for the
   /// target.
@@ -775,10 +788,23 @@ public:
   /// Additional properties of an operand's values.
   enum OperandValueProperties { OP_None = 0, OP_PowerOf2 = 1 };
 
-  /// \return The number of scalar or vector registers that the target has.
-  /// If 'Vectors' is true, it returns the number of vector registers. If it is
-  /// set to false, it returns the number of scalar registers.
-  unsigned getNumberOfRegisters(bool Vector) const;
+  /// \return the number of registers in the target-provided register class.
+  unsigned getNumberOfRegisters(unsigned ClassID) const;
+
+  /// \return the target-provided register class ID for the provided type,
+  /// accounting for type promotion and other type-legalization techniques that the target might apply.
+  /// However, it specifically does not account for the scalarization or splitting of vector types.
+  /// Should a vector type require scalarization or splitting into multiple underlying vector registers,
+  /// that type should be mapped to a register class containing no registers.
+  /// Specifically, this is designed to provide a simple, high-level view of the register allocation
+  /// later performed by the backend. These register classes don't necessarily map onto the
+  /// register classes used by the backend.
+  /// FIXME: It's not currently possible to determine how many registers
+  /// are used by the provided type.
+  unsigned getRegisterClassForType(bool Vector, Type *Ty = nullptr) const;
+
+  /// \return the target-provided register class name
+  const char* getRegisterClassName(unsigned ClassID) const;
 
   /// \return The width of the largest scalar or vector register type.
   unsigned getRegisterBitWidth(bool Vector) const;
@@ -824,18 +850,20 @@ public:
   /// \return The associativity of the cache level, if available.
   llvm::Optional<unsigned> getCacheAssociativity(CacheLevel Level) const;
 
-  /// \return How much before a load we should place the prefetch instruction.
-  /// This is currently measured in number of instructions.
+  /// \return How much before a load we should place the prefetch
+  /// instruction.  This is currently measured in number of
+  /// instructions.
   unsigned getPrefetchDistance() const;
 
-  /// \return Some HW prefetchers can handle accesses up to a certain constant
-  /// stride.  This is the minimum stride in bytes where it makes sense to start
-  /// adding SW prefetches.  The default is 1, i.e. prefetch with any stride.
+  /// \return Some HW prefetchers can handle accesses up to a certain
+  /// constant stride.  This is the minimum stride in bytes where it
+  /// makes sense to start adding SW prefetches.  The default is 1,
+  /// i.e. prefetch with any stride.
   unsigned getMinPrefetchStride() const;
 
-  /// \return The maximum number of iterations to prefetch ahead.  If the
-  /// required number of iterations is more than this number, no prefetching is
-  /// performed.
+  /// \return The maximum number of iterations to prefetch ahead.  If
+  /// the required number of iterations is more than this number, no
+  /// prefetching is performed.
   unsigned getMaxPrefetchIterationsAhead() const;
 
   /// \return The maximum interleave factor that any transform should try to
@@ -1155,6 +1183,10 @@ public:
   virtual bool isSourceOfDivergence(const Value *V) = 0;
   virtual bool isAlwaysUniform(const Value *V) = 0;
   virtual unsigned getFlatAddressSpace() = 0;
+  virtual bool collectFlatAddressOperands(SmallVectorImpl<int> &OpIndexes,
+                                          Intrinsic::ID IID) const = 0;
+  virtual bool rewriteIntrinsicWithAddressSpace(
+    IntrinsicInst *II, Value *OldV, Value *NewV) const = 0;
   virtual bool isLoweredToCall(const Function *F) = 0;
   virtual void getUnrollingPreferences(Loop *L, ScalarEvolution &,
                                        UnrollingPreferences &UP) = 0;
@@ -1177,10 +1209,10 @@ public:
                           TargetLibraryInfo *LibInfo) = 0;
   virtual bool shouldFavorPostInc() const = 0;
   virtual bool shouldFavorBackedgeIndex(const Loop *L) const = 0;
-  virtual bool isLegalMaskedStore(Type *DataType) = 0;
-  virtual bool isLegalMaskedLoad(Type *DataType) = 0;
-  virtual bool isLegalNTStore(Type *DataType, unsigned Alignment) = 0;
-  virtual bool isLegalNTLoad(Type *DataType, unsigned Alignment) = 0;
+  virtual bool isLegalMaskedStore(Type *DataType, MaybeAlign Alignment) = 0;
+  virtual bool isLegalMaskedLoad(Type *DataType, MaybeAlign Alignment) = 0;
+  virtual bool isLegalNTStore(Type *DataType, Align Alignment) = 0;
+  virtual bool isLegalNTLoad(Type *DataType, Align Alignment) = 0;
   virtual bool isLegalMaskedScatter(Type *DataType) = 0;
   virtual bool isLegalMaskedGather(Type *DataType) = 0;
   virtual bool isLegalMaskedCompressStore(Type *DataType) = 0;
@@ -1196,8 +1228,6 @@ public:
   virtual bool isProfitableToHoist(Instruction *I) = 0;
   virtual bool useAA() = 0;
   virtual bool isTypeLegal(Type *Ty) = 0;
-  virtual unsigned getJumpBufAlignment() = 0;
-  virtual unsigned getJumpBufSize() = 0;
   virtual bool shouldBuildLookupTables() = 0;
   virtual bool shouldBuildLookupTablesForConstant(Constant *C) = 0;
   virtual bool useColdCCForColdCall(Function &F) = 0;
@@ -1228,19 +1258,35 @@ public:
                             Type *Ty) = 0;
   virtual int getIntImmCost(Intrinsic::ID IID, unsigned Idx, const APInt &Imm,
                             Type *Ty) = 0;
-  virtual unsigned getNumberOfRegisters(bool Vector) = 0;
+  virtual unsigned getNumberOfRegisters(unsigned ClassID) const = 0;
+  virtual unsigned getRegisterClassForType(bool Vector, Type *Ty = nullptr) const = 0;
+  virtual const char* getRegisterClassName(unsigned ClassID) const = 0;
   virtual unsigned getRegisterBitWidth(bool Vector) const = 0;
   virtual unsigned getMinVectorRegisterBitWidth() = 0;
   virtual bool shouldMaximizeVectorBandwidth(bool OptSize) const = 0;
   virtual unsigned getMinimumVF(unsigned ElemWidth) const = 0;
   virtual bool shouldConsiderAddressTypePromotion(
       const Instruction &I, bool &AllowPromotionWithoutCommonHeader) = 0;
-  virtual unsigned getCacheLineSize() = 0;
-  virtual llvm::Optional<unsigned> getCacheSize(CacheLevel Level) = 0;
-  virtual llvm::Optional<unsigned> getCacheAssociativity(CacheLevel Level) = 0;
-  virtual unsigned getPrefetchDistance() = 0;
-  virtual unsigned getMinPrefetchStride() = 0;
-  virtual unsigned getMaxPrefetchIterationsAhead() = 0;
+  virtual unsigned getCacheLineSize() const = 0;
+  virtual llvm::Optional<unsigned> getCacheSize(CacheLevel Level) const = 0;
+  virtual llvm::Optional<unsigned> getCacheAssociativity(CacheLevel Level) const = 0;
+
+  /// \return How much before a load we should place the prefetch
+  /// instruction.  This is currently measured in number of
+  /// instructions.
+  virtual unsigned getPrefetchDistance() const = 0;
+
+  /// \return Some HW prefetchers can handle accesses up to a certain
+  /// constant stride.  This is the minimum stride in bytes where it
+  /// makes sense to start adding SW prefetches.  The default is 1,
+  /// i.e. prefetch with any stride.
+  virtual unsigned getMinPrefetchStride() const = 0;
+
+  /// \return The maximum number of iterations to prefetch ahead.  If
+  /// the required number of iterations is more than this number, no
+  /// prefetching is performed.
+  virtual unsigned getMaxPrefetchIterationsAhead() const = 0;
+
   virtual unsigned getMaxInterleaveFactor(unsigned VF) = 0;
   virtual unsigned
   getArithmeticInstrCost(unsigned Opcode, Type *Ty, OperandValueKind Opd1Info,
@@ -1395,6 +1441,16 @@ public:
     return Impl.getFlatAddressSpace();
   }
 
+  bool collectFlatAddressOperands(SmallVectorImpl<int> &OpIndexes,
+                                  Intrinsic::ID IID) const override {
+    return Impl.collectFlatAddressOperands(OpIndexes, IID);
+  }
+
+  bool rewriteIntrinsicWithAddressSpace(
+    IntrinsicInst *II, Value *OldV, Value *NewV) const override {
+    return Impl.rewriteIntrinsicWithAddressSpace(II, OldV, NewV);
+  }
+
   bool isLoweredToCall(const Function *F) override {
     return Impl.isLoweredToCall(F);
   }
@@ -1440,16 +1496,16 @@ public:
   bool shouldFavorBackedgeIndex(const Loop *L) const override {
     return Impl.shouldFavorBackedgeIndex(L);
   }
-  bool isLegalMaskedStore(Type *DataType) override {
-    return Impl.isLegalMaskedStore(DataType);
+  bool isLegalMaskedStore(Type *DataType, MaybeAlign Alignment) override {
+    return Impl.isLegalMaskedStore(DataType, Alignment);
   }
-  bool isLegalMaskedLoad(Type *DataType) override {
-    return Impl.isLegalMaskedLoad(DataType);
+  bool isLegalMaskedLoad(Type *DataType, MaybeAlign Alignment) override {
+    return Impl.isLegalMaskedLoad(DataType, Alignment);
   }
-  bool isLegalNTStore(Type *DataType, unsigned Alignment) override {
+  bool isLegalNTStore(Type *DataType, Align Alignment) override {
     return Impl.isLegalNTStore(DataType, Alignment);
   }
-  bool isLegalNTLoad(Type *DataType, unsigned Alignment) override {
+  bool isLegalNTLoad(Type *DataType, Align Alignment) override {
     return Impl.isLegalNTLoad(DataType, Alignment);
   }
   bool isLegalMaskedScatter(Type *DataType) override {
@@ -1490,8 +1546,6 @@ public:
   }
   bool useAA() override { return Impl.useAA(); }
   bool isTypeLegal(Type *Ty) override { return Impl.isTypeLegal(Ty); }
-  unsigned getJumpBufAlignment() override { return Impl.getJumpBufAlignment(); }
-  unsigned getJumpBufSize() override { return Impl.getJumpBufSize(); }
   bool shouldBuildLookupTables() override {
     return Impl.shouldBuildLookupTables();
   }
@@ -1563,8 +1617,14 @@ public:
                     Type *Ty) override {
     return Impl.getIntImmCost(IID, Idx, Imm, Ty);
   }
-  unsigned getNumberOfRegisters(bool Vector) override {
-    return Impl.getNumberOfRegisters(Vector);
+  unsigned getNumberOfRegisters(unsigned ClassID) const override {
+    return Impl.getNumberOfRegisters(ClassID);
+  }
+  unsigned getRegisterClassForType(bool Vector, Type *Ty = nullptr) const override {
+    return Impl.getRegisterClassForType(Vector, Ty);
+  }
+  const char* getRegisterClassName(unsigned ClassID) const override {
+    return Impl.getRegisterClassName(ClassID);
   }
   unsigned getRegisterBitWidth(bool Vector) const override {
     return Impl.getRegisterBitWidth(Vector);
@@ -1583,22 +1643,36 @@ public:
     return Impl.shouldConsiderAddressTypePromotion(
         I, AllowPromotionWithoutCommonHeader);
   }
-  unsigned getCacheLineSize() override {
+  unsigned getCacheLineSize() const override {
     return Impl.getCacheLineSize();
   }
-  llvm::Optional<unsigned> getCacheSize(CacheLevel Level) override {
+  llvm::Optional<unsigned> getCacheSize(CacheLevel Level) const override {
     return Impl.getCacheSize(Level);
   }
-  llvm::Optional<unsigned> getCacheAssociativity(CacheLevel Level) override {
+  llvm::Optional<unsigned> getCacheAssociativity(CacheLevel Level) const override {
     return Impl.getCacheAssociativity(Level);
   }
-  unsigned getPrefetchDistance() override { return Impl.getPrefetchDistance(); }
-  unsigned getMinPrefetchStride() override {
+
+  /// Return the preferred prefetch distance in terms of instructions.
+  ///
+  unsigned getPrefetchDistance() const override {
+    return Impl.getPrefetchDistance();
+  }
+
+  /// Return the minimum stride necessary to trigger software
+  /// prefetching.
+  ///
+  unsigned getMinPrefetchStride() const override {
     return Impl.getMinPrefetchStride();
   }
-  unsigned getMaxPrefetchIterationsAhead() override {
+
+  /// Return the maximum prefetch distance in terms of loop
+  /// iterations.
+  ///
+  unsigned getMaxPrefetchIterationsAhead() const override {
     return Impl.getMaxPrefetchIterationsAhead();
   }
+
   unsigned getMaxInterleaveFactor(unsigned VF) override {
     return Impl.getMaxInterleaveFactor(VF);
   }

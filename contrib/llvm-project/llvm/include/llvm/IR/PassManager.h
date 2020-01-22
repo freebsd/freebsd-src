@@ -45,6 +45,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassInstrumentation.h"
 #include "llvm/IR/PassManagerInternal.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/TypeName.h"
 #include "llvm/Support/raw_ostream.h"
@@ -418,7 +419,7 @@ template <typename PassT, typename IRUnitT, typename AnalysisManagerT,
 typename PassT::Result
 getAnalysisResultUnpackTuple(AnalysisManagerT &AM, IRUnitT &IR,
                              std::tuple<ArgTs...> Args,
-                             llvm::index_sequence<Ns...>) {
+                             std::index_sequence<Ns...>) {
   (void)Args;
   return AM.template getResult<PassT>(IR, std::get<Ns>(Args)...);
 }
@@ -435,7 +436,7 @@ getAnalysisResult(AnalysisManager<IRUnitT, AnalysisArgTs...> &AM, IRUnitT &IR,
                   std::tuple<MainArgTs...> Args) {
   return (getAnalysisResultUnpackTuple<
           PassT, IRUnitT>)(AM, IR, Args,
-                           llvm::index_sequence_for<AnalysisArgTs...>{});
+                           std::index_sequence_for<AnalysisArgTs...>{});
 }
 
 } // namespace detail

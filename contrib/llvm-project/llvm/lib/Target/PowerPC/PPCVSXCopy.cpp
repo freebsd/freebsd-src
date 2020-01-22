@@ -50,7 +50,7 @@ namespace {
 
     bool IsRegInClass(unsigned Reg, const TargetRegisterClass *RC,
                       MachineRegisterInfo &MRI) {
-      if (TargetRegisterInfo::isVirtualRegister(Reg)) {
+      if (Register::isVirtualRegister(Reg)) {
         return RC->hasSubClassEq(MRI.getRegClass(Reg));
       } else if (RC->contains(Reg)) {
         return true;
@@ -102,7 +102,7 @@ protected:
                   IsVSFReg(SrcMO.getReg(), MRI)) &&
                  "Unknown source for a VSX copy");
 
-          unsigned NewVReg = MRI.createVirtualRegister(SrcRC);
+          Register NewVReg = MRI.createVirtualRegister(SrcRC);
           BuildMI(MBB, MI, MI.getDebugLoc(),
                   TII->get(TargetOpcode::SUBREG_TO_REG), NewVReg)
               .addImm(1) // add 1, not 0, because there is no implicit clearing
@@ -124,7 +124,7 @@ protected:
                  "Unknown destination for a VSX copy");
 
           // Copy the VSX value into a new VSX register of the correct subclass.
-          unsigned NewVReg = MRI.createVirtualRegister(DstRC);
+          Register NewVReg = MRI.createVirtualRegister(DstRC);
           BuildMI(MBB, MI, MI.getDebugLoc(), TII->get(TargetOpcode::COPY),
                   NewVReg)
               .add(SrcMO);

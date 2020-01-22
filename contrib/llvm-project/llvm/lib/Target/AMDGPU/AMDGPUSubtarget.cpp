@@ -175,6 +175,7 @@ AMDGPUSubtarget::AMDGPUSubtarget(const Triple &TT) :
   HasFminFmaxLegacy(true),
   EnablePromoteAlloca(false),
   HasTrigReducedRange(false),
+  MaxWavesPerEU(10),
   LocalMemorySize(0),
   WavefrontSize(0)
   { }
@@ -261,6 +262,7 @@ GCNSubtarget::GCNSubtarget(const Triple &TT, StringRef GPU, StringRef FS,
     AddNoCarryInsts(false),
     HasUnpackedD16VMem(false),
     LDSMisalignedBug(false),
+    HasMFMAInlineLiteralBug(false),
 
     ScalarizeGlobal(false),
 
@@ -278,9 +280,10 @@ GCNSubtarget::GCNSubtarget(const Triple &TT, StringRef GPU, StringRef FS,
     InstrInfo(initializeSubtargetDependencies(TT, GPU, FS)),
     TLInfo(TM, *this),
     FrameLowering(TargetFrameLowering::StackGrowsUp, getStackAlignment(), 0) {
+  MaxWavesPerEU = AMDGPU::IsaInfo::getMaxWavesPerEU(this);
   CallLoweringInfo.reset(new AMDGPUCallLowering(*getTargetLowering()));
   Legalizer.reset(new AMDGPULegalizerInfo(*this, TM));
-  RegBankInfo.reset(new AMDGPURegisterBankInfo(*getRegisterInfo()));
+  RegBankInfo.reset(new AMDGPURegisterBankInfo(*this));
   InstSelector.reset(new AMDGPUInstructionSelector(
   *this, *static_cast<AMDGPURegisterBankInfo *>(RegBankInfo.get()), TM));
 }
@@ -489,28 +492,28 @@ bool AMDGPUSubtarget::makeLIDRangeMetadata(Instruction *I) const {
 }
 
 uint64_t AMDGPUSubtarget::getExplicitKernArgSize(const Function &F,
-                                                 unsigned &MaxAlign) const {
+                                                 Align &MaxAlign) const {
   assert(F.getCallingConv() == CallingConv::AMDGPU_KERNEL ||
          F.getCallingConv() == CallingConv::SPIR_KERNEL);
 
   const DataLayout &DL = F.getParent()->getDataLayout();
   uint64_t ExplicitArgBytes = 0;
-  MaxAlign = 1;
+  MaxAlign = Align::None();
 
   for (const Argument &Arg : F.args()) {
     Type *ArgTy = Arg.getType();
 
-    unsigned Align = DL.getABITypeAlignment(ArgTy);
+    const Align Alignment(DL.getABITypeAlignment(ArgTy));
     uint64_t AllocSize = DL.getTypeAllocSize(ArgTy);
-    ExplicitArgBytes = alignTo(ExplicitArgBytes, Align) + AllocSize;
-    MaxAlign = std::max(MaxAlign, Align);
+    ExplicitArgBytes = alignTo(ExplicitArgBytes, Alignment) + AllocSize;
+    MaxAlign = std::max(MaxAlign, Alignment);
   }
 
   return ExplicitArgBytes;
 }
 
 unsigned AMDGPUSubtarget::getKernArgSegmentSize(const Function &F,
-                                                unsigned &MaxAlign) const {
+                                                Align &MaxAlign) const {
   uint64_t ExplicitArgBytes = getExplicitKernArgSize(F, MaxAlign);
 
   unsigned ExplicitOffset = getExplicitKernelArgOffset(F);
@@ -518,7 +521,7 @@ unsigned AMDGPUSubtarget::getKernArgSegmentSize(const Function &F,
   uint64_t TotalSize = ExplicitOffset + ExplicitArgBytes;
   unsigned ImplicitBytes = getImplicitArgNumBytes(F);
   if (ImplicitBytes != 0) {
-    unsigned Alignment = getAlignmentForImplicitArgPtr();
+    const Align Alignment = getAlignmentForImplicitArgPtr();
     TotalSize = alignTo(ExplicitArgBytes, Alignment) + ImplicitBytes;
   }
 
@@ -566,7 +569,7 @@ bool GCNSubtarget::hasMadF16() const {
 
 unsigned GCNSubtarget::getOccupancyWithNumSGPRs(unsigned SGPRs) const {
   if (getGeneration() >= AMDGPUSubtarget::GFX10)
-    return 10;
+    return getMaxWavesPerEU();
 
   if (getGeneration() >= AMDGPUSubtarget::VOLCANIC_ISLANDS) {
     if (SGPRs <= 80)
@@ -591,25 +594,12 @@ unsigned GCNSubtarget::getOccupancyWithNumSGPRs(unsigned SGPRs) const {
 }
 
 unsigned GCNSubtarget::getOccupancyWithNumVGPRs(unsigned VGPRs) const {
-  if (VGPRs <= 24)
-    return 10;
-  if (VGPRs <= 28)
-    return 9;
-  if (VGPRs <= 32)
-    return 8;
-  if (VGPRs <= 36)
-    return 7;
-  if (VGPRs <= 40)
-    return 6;
-  if (VGPRs <= 48)
-    return 5;
-  if (VGPRs <= 64)
-    return 4;
-  if (VGPRs <= 84)
-    return 3;
-  if (VGPRs <= 128)
-    return 2;
-  return 1;
+  unsigned MaxWaves = getMaxWavesPerEU();
+  unsigned Granule = getVGPRAllocGranule();
+  if (VGPRs < Granule)
+    return MaxWaves;
+  unsigned RoundedRegs = ((VGPRs + Granule - 1) / Granule) * Granule;
+  return std::min(std::max(getTotalNumVGPRs() / RoundedRegs, 1u), MaxWaves);
 }
 
 unsigned GCNSubtarget::getReservedNumSGPRs(const MachineFunction &MF) const {
@@ -627,6 +617,20 @@ unsigned GCNSubtarget::getReservedNumSGPRs(const MachineFunction &MF) const {
   if (isXNACKEnabled())
     return 4; // XNACK, VCC (in that order).
   return 2; // VCC.
+}
+
+unsigned GCNSubtarget::computeOccupancy(const MachineFunction &MF,
+                                        unsigned LDSSize,
+                                        unsigned NumSGPRs,
+                                        unsigned NumVGPRs) const {
+  unsigned Occupancy =
+    std::min(getMaxWavesPerEU(),
+             getOccupancyWithLocalMemSize(LDSSize, MF.getFunction()));
+  if (NumSGPRs)
+    Occupancy = std::min(Occupancy, getOccupancyWithNumSGPRs(NumSGPRs));
+  if (NumVGPRs)
+    Occupancy = std::min(Occupancy, getOccupancyWithNumVGPRs(NumVGPRs));
+  return Occupancy;
 }
 
 unsigned GCNSubtarget::getMaxNumSGPRs(const MachineFunction &MF) const {
@@ -878,8 +882,8 @@ struct FillMFMAShadowMutation : ScheduleDAGMutation {
 
 void GCNSubtarget::getPostRAMutations(
     std::vector<std::unique_ptr<ScheduleDAGMutation>> &Mutations) const {
-  Mutations.push_back(llvm::make_unique<MemOpClusterMutation>(&InstrInfo));
-  Mutations.push_back(llvm::make_unique<FillMFMAShadowMutation>(&InstrInfo));
+  Mutations.push_back(std::make_unique<MemOpClusterMutation>(&InstrInfo));
+  Mutations.push_back(std::make_unique<FillMFMAShadowMutation>(&InstrInfo));
 }
 
 const AMDGPUSubtarget &AMDGPUSubtarget::get(const MachineFunction &MF) {

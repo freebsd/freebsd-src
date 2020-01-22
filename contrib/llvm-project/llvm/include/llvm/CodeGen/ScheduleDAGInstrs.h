@@ -34,6 +34,7 @@
 
 namespace llvm {
 
+  class AAResults;
   class LiveIntervals;
   class MachineFrameInfo;
   class MachineFunction;
@@ -57,7 +58,7 @@ namespace llvm {
       : VirtReg(VReg), LaneMask(LaneMask), SU(SU) {}
 
     unsigned getSparseSetIndex() const {
-      return TargetRegisterInfo::virtReg2Index(VirtReg);
+      return Register::virtReg2Index(VirtReg);
     }
   };
 
@@ -173,7 +174,7 @@ namespace llvm {
     /// Tracks the last instructions in this region using each virtual register.
     VReg2SUnitOperIdxMultiMap CurrentVRegUses;
 
-    AliasAnalysis *AAForDep = nullptr;
+    AAResults *AAForDep = nullptr;
 
     /// Remember a generic side-effecting instruction as we proceed.
     /// No other SU ever gets scheduled around it (except in the special
@@ -201,7 +202,7 @@ namespace llvm {
                                Value2SUsMap &loads, unsigned N);
 
     /// Adds a chain edge between SUa and SUb, but only if both
-    /// AliasAnalysis and Target fail to deny the dependency.
+    /// AAResults and Target fail to deny the dependency.
     void addChainDependency(SUnit *SUa, SUnit *SUb,
                             unsigned Latency = 0);
 
@@ -306,7 +307,7 @@ namespace llvm {
     /// If \p RPTracker is non-null, compute register pressure as a side effect.
     /// The DAG builder is an efficient place to do it because it already visits
     /// operands.
-    void buildSchedGraph(AliasAnalysis *AA,
+    void buildSchedGraph(AAResults *AA,
                          RegPressureTracker *RPTracker = nullptr,
                          PressureDiffs *PDiffs = nullptr,
                          LiveIntervals *LIS = nullptr,
@@ -374,6 +375,9 @@ namespace llvm {
     /// Returns a mask for which lanes get read/written by the given (register)
     /// machine operand.
     LaneBitmask getLaneMaskForMO(const MachineOperand &MO) const;
+
+    /// Returns true if the def register in \p MO has no uses.
+    bool deadDefHasNoUse(const MachineOperand &MO);
   };
 
   /// Creates a new SUnit and return a ptr to it.

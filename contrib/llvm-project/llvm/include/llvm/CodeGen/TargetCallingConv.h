@@ -14,6 +14,7 @@
 #define LLVM_CODEGEN_TARGETCALLINGCONV_H
 
 #include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/Support/Alignment.h"
 #include "llvm/Support/MachineValueType.h"
 #include "llvm/Support/MathExtras.h"
 #include <cassert>
@@ -120,16 +121,22 @@ namespace ISD {
     bool isPointer()  const { return IsPointer; }
     void setPointer() { IsPointer = 1; }
 
-    unsigned getByValAlign() const { return (1U << ByValAlign) / 2; }
-    void setByValAlign(unsigned A) {
-      ByValAlign = Log2_32(A) + 1;
-      assert(getByValAlign() == A && "bitfield overflow");
+    unsigned getByValAlign() const {
+      MaybeAlign A = decodeMaybeAlign(ByValAlign);
+      return A ? A->value() : 0;
+    }
+    void setByValAlign(Align A) {
+      ByValAlign = encode(A);
+      assert(getByValAlign() == A.value() && "bitfield overflow");
     }
 
-    unsigned getOrigAlign() const { return (1U << OrigAlign) / 2; }
-    void setOrigAlign(unsigned A) {
-      OrigAlign = Log2_32(A) + 1;
-      assert(getOrigAlign() == A && "bitfield overflow");
+    unsigned getOrigAlign() const {
+      MaybeAlign A = decodeMaybeAlign(OrigAlign);
+      return A ? A->value() : 0;
+    }
+    void setOrigAlign(Align A) {
+      OrigAlign = encode(A);
+      assert(getOrigAlign() == A.value() && "bitfield overflow");
     }
 
     unsigned getByValSize() const { return ByValSize; }

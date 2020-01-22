@@ -56,7 +56,7 @@ Error Decompressor::consumeCompressedZLibHeader(bool Is64Bit,
     return createError("corrupted compressed section header");
 
   DataExtractor Extractor(SectionData, IsLittleEndian, 0);
-  uint32_t Offset = 0;
+  uint64_t Offset = 0;
   if (Extractor.getUnsigned(&Offset, Is64Bit ? sizeof(Elf64_Word)
                                              : sizeof(Elf32_Word)) !=
       ELFCOMPRESS_ZLIB)
@@ -77,10 +77,15 @@ bool Decompressor::isGnuStyle(StringRef Name) {
 }
 
 bool Decompressor::isCompressed(const object::SectionRef &Section) {
-  StringRef Name;
-  if (Section.getName(Name))
-    return false;
-  return Section.isCompressed() || isGnuStyle(Name);
+  if (Section.isCompressed())
+    return true;
+
+  Expected<StringRef> SecNameOrErr = Section.getName();
+  if (SecNameOrErr)
+    return isGnuStyle(*SecNameOrErr);
+
+  consumeError(SecNameOrErr.takeError());
+  return false;
 }
 
 bool Decompressor::isCompressedELFSection(uint64_t Flags, StringRef Name) {

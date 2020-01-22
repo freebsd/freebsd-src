@@ -1263,7 +1263,14 @@ class FieldInit : public TypedInit {
 
   FieldInit(Init *R, StringInit *FN)
       : TypedInit(IK_FieldInit, R->getFieldType(FN)), Rec(R), FieldName(FN) {
-    assert(getType() && "FieldInit with non-record type!");
+#ifndef NDEBUG
+    if (!getType()) {
+      llvm::errs() << "In Record = " << Rec->getAsString()
+                   << ", got FieldName = " << *FieldName
+                   << " with non-record type!\n";
+      llvm_unreachable("FieldInit with non-record type!");
+    }
+#endif
   }
 
 public:
@@ -1323,6 +1330,7 @@ public:
   void Profile(FoldingSetNodeID &ID) const;
 
   Init *getOperator() const { return Val; }
+  Record *getOperatorAsDef(ArrayRef<SMLoc> Loc) const;
 
   StringInit *getName() const { return ValName; }
 
@@ -1680,10 +1688,10 @@ raw_ostream &operator<<(raw_ostream &OS, const Record &R);
 
 class RecordKeeper {
   friend class RecordRecTy;
-  using RecordMap = std::map<std::string, std::unique_ptr<Record>>;
+  using RecordMap = std::map<std::string, std::unique_ptr<Record>, std::less<>>;
   RecordMap Classes, Defs;
   FoldingSet<RecordRecTy> RecordTypePool;
-  std::map<std::string, Init *> ExtraGlobals;
+  std::map<std::string, Init *, std::less<>> ExtraGlobals;
   unsigned AnonCounter = 0;
 
 public:

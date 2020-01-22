@@ -111,7 +111,7 @@ BT::BitMask HexagonEvaluator::mask(unsigned Reg, unsigned Sub) const {
 }
 
 uint16_t HexagonEvaluator::getPhysRegBitWidth(unsigned Reg) const {
-  assert(TargetRegisterInfo::isPhysicalRegister(Reg));
+  assert(Register::isPhysicalRegister(Reg));
 
   using namespace Hexagon;
   const auto &HST = MF.getSubtarget<HexagonSubtarget>();
@@ -1042,8 +1042,8 @@ unsigned HexagonEvaluator::getUniqueDefVReg(const MachineInstr &MI) const {
   for (const MachineOperand &Op : MI.operands()) {
     if (!Op.isReg() || !Op.isDef())
       continue;
-    unsigned R = Op.getReg();
-    if (!TargetRegisterInfo::isVirtualRegister(R))
+    Register R = Op.getReg();
+    if (!Register::isVirtualRegister(R))
       continue;
     if (DefReg != 0)
       return 0;
@@ -1220,7 +1220,7 @@ bool HexagonEvaluator::evaluateFormalCopy(const MachineInstr &MI,
   RegisterRef RD = MI.getOperand(0);
   RegisterRef RS = MI.getOperand(1);
   assert(RD.Sub == 0);
-  if (!TargetRegisterInfo::isPhysicalRegister(RS.Reg))
+  if (!Register::isPhysicalRegister(RS.Reg))
     return false;
   RegExtMap::const_iterator F = VRX.find(RD.Reg);
   if (F == VRX.end())

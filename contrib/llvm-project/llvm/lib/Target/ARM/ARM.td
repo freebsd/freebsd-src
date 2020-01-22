@@ -84,20 +84,14 @@ multiclass VFPver<string name, string query, string description,
         !cast<SubtargetFeature>(NAME # "_SP")]>;
 }
 
-def FeatureVFP2_D16_SP     : SubtargetFeature<"vfp2d16sp", "HasVFPv2D16SP", "true",
-                                             "Enable VFP2 instructions with "
-                                             "no double precision",
-                                             [FeatureFPRegs]>;
 def FeatureVFP2_SP        : SubtargetFeature<"vfp2sp", "HasVFPv2SP", "true",
                                              "Enable VFP2 instructions with "
                                              "no double precision",
-                                             [FeatureVFP2_D16_SP]>;
-def FeatureVFP2_D16       : SubtargetFeature<"vfp2d16", "HasVFPv2D16", "true",
-                                             "Enable VFP2 instructions",
-                                             [FeatureFP64, FeatureVFP2_D16_SP]>;
+                                             [FeatureFPRegs]>;
+
 def FeatureVFP2           : SubtargetFeature<"vfp2", "HasVFPv2", "true",
                                              "Enable VFP2 instructions",
-                                             [FeatureVFP2_D16, FeatureVFP2_SP]>;
+                                             [FeatureFP64, FeatureVFP2_SP]>;
 
 defm FeatureVFP3: VFPver<"vfp3", "HasVFPv3", "Enable VFP3 instructions",
                          [], [], [FeatureVFP2]>;
@@ -318,8 +312,17 @@ def FeatureVMLxForwarding : SubtargetFeature<"vmlx-forwarding",
 def FeaturePref32BitThumb : SubtargetFeature<"32bit", "Pref32BitThumb", "true",
                                              "Prefer 32-bit Thumb instrs">;
 
-def FeaturePrefLoopAlign32 : SubtargetFeature<"loop-align", "PrefLoopAlignment","2",
+def FeaturePrefLoopAlign32 : SubtargetFeature<"loop-align", "PrefLoopLogAlignment","2",
                                               "Prefer 32-bit alignment for loops">;
+
+def FeatureMVEVectorCostFactor1 : SubtargetFeature<"mve1beat", "MVEVectorCostFactor", "1",
+                        "Model MVE instructions as a 1 beat per tick architecture">;
+
+def FeatureMVEVectorCostFactor2 : SubtargetFeature<"mve2beat", "MVEVectorCostFactor", "2",
+                        "Model MVE instructions as a 2 beats per tick architecture">;
+
+def FeatureMVEVectorCostFactor4 : SubtargetFeature<"mve4beat", "MVEVectorCostFactor", "4",
+                        "Model MVE instructions as a 4 beats per tick architecture">;
 
 /// Some instructions update CPSR partially, which can add false dependency for
 /// out-of-order implementation, e.g. Cortex-A9, unless each individual bit is
@@ -1170,6 +1173,13 @@ def : ProcNoItin<"cortex-a76ae",                        [ARMv82a, ProcA76,
                                                          FeatureCrypto,
                                                          FeatureCRC,
                                                          FeatureFullFP16,
+                                                         FeatureDotProd]>;
+
+def : ProcNoItin<"neoverse-n1",                         [ARMv82a,
+                                                         FeatureHWDivThumb,
+                                                         FeatureHWDivARM,
+                                                         FeatureCrypto,
+                                                         FeatureCRC,
                                                          FeatureDotProd]>;
 
 def : ProcessorModel<"cyclone",     SwiftModel,         [ARMv8a, ProcSwift,

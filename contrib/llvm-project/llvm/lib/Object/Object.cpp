@@ -138,7 +138,7 @@ LLVMBinaryRef LLVMMachOUniversalBinaryCopyObjectForArch(LLVMBinaryRef BR,
                                                         char **ErrorMessage) {
   auto universal = cast<MachOUniversalBinary>(unwrap(BR));
   Expected<std::unique_ptr<ObjectFile>> ObjOrErr(
-      universal->getObjectForArch({Arch, ArchLen}));
+      universal->getMachOObjectForArch({Arch, ArchLen}));
   if (!ObjOrErr) {
     *ErrorMessage = strdup(toString(ObjOrErr.takeError()).c_str());
     return nullptr;
@@ -251,10 +251,10 @@ void LLVMMoveToNextSymbol(LLVMSymbolIteratorRef SI) {
 
 // SectionRef accessors
 const char *LLVMGetSectionName(LLVMSectionIteratorRef SI) {
-  StringRef ret;
-  if (std::error_code ec = (*unwrap(SI))->getName(ret))
-   report_fatal_error(ec.message());
-  return ret.data();
+  auto NameOrErr = (*unwrap(SI))->getName();
+  if (!NameOrErr)
+    report_fatal_error(NameOrErr.takeError());
+  return NameOrErr->data();
 }
 
 uint64_t LLVMGetSectionSize(LLVMSectionIteratorRef SI) {

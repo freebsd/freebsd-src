@@ -30,6 +30,7 @@ static bool supportsX86_64(uint64_t Type) {
   case ELF::R_X86_64_DTPOFF32:
   case ELF::R_X86_64_DTPOFF64:
   case ELF::R_X86_64_PC32:
+  case ELF::R_X86_64_PC64:
   case ELF::R_X86_64_32:
   case ELF::R_X86_64_32S:
     return true;
@@ -47,6 +48,7 @@ static uint64_t resolveX86_64(RelocationRef R, uint64_t S, uint64_t A) {
   case ELF::R_X86_64_DTPOFF64:
     return S + getELFAddend(R);
   case ELF::R_X86_64_PC32:
+  case ELF::R_X86_64_PC64:
     return S + getELFAddend(R) - R.getOffset();
   case ELF::R_X86_64_32:
   case ELF::R_X86_64_32S:
@@ -429,6 +431,47 @@ static uint64_t resolveCOFFX86_64(RelocationRef R, uint64_t S, uint64_t A) {
   }
 }
 
+static bool supportsCOFFARM(uint64_t Type) {
+  switch (Type) {
+  case COFF::IMAGE_REL_ARM_SECREL:
+  case COFF::IMAGE_REL_ARM_ADDR32:
+    return true;
+  default:
+    return false;
+  }
+}
+
+static uint64_t resolveCOFFARM(RelocationRef R, uint64_t S, uint64_t A) {
+  switch (R.getType()) {
+  case COFF::IMAGE_REL_ARM_SECREL:
+  case COFF::IMAGE_REL_ARM_ADDR32:
+    return (S + A) & 0xFFFFFFFF;
+  default:
+    llvm_unreachable("Invalid relocation type");
+  }
+}
+
+static bool supportsCOFFARM64(uint64_t Type) {
+  switch (Type) {
+  case COFF::IMAGE_REL_ARM64_SECREL:
+  case COFF::IMAGE_REL_ARM64_ADDR64:
+    return true;
+  default:
+    return false;
+  }
+}
+
+static uint64_t resolveCOFFARM64(RelocationRef R, uint64_t S, uint64_t A) {
+  switch (R.getType()) {
+  case COFF::IMAGE_REL_ARM64_SECREL:
+    return (S + A) & 0xFFFFFFFF;
+  case COFF::IMAGE_REL_ARM64_ADDR64:
+    return S + A;
+  default:
+    llvm_unreachable("Invalid relocation type");
+  }
+}
+
 static bool supportsMachOX86_64(uint64_t Type) {
   return Type == MachO::X86_64_RELOC_UNSIGNED;
 }
@@ -481,9 +524,19 @@ static uint64_t resolveWasm32(RelocationRef R, uint64_t S, uint64_t A) {
 std::pair<bool (*)(uint64_t), RelocationResolver>
 getRelocationResolver(const ObjectFile &Obj) {
   if (Obj.isCOFF()) {
-    if (Obj.getBytesInAddress() == 8)
+    switch (Obj.getArch()) {
+    case Triple::x86_64:
       return {supportsCOFFX86_64, resolveCOFFX86_64};
-    return {supportsCOFFX86, resolveCOFFX86};
+    case Triple::x86:
+      return {supportsCOFFX86, resolveCOFFX86};
+    case Triple::arm:
+    case Triple::thumb:
+      return {supportsCOFFARM, resolveCOFFARM};
+    case Triple::aarch64:
+      return {supportsCOFFARM64, resolveCOFFARM64};
+    default:
+      return {nullptr, nullptr};
+    }
   } else if (Obj.isELF()) {
     if (Obj.getBytesInAddress() == 8) {
       switch (Obj.getArch()) {

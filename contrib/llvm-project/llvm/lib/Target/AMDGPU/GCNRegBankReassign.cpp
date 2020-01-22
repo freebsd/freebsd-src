@@ -230,7 +230,7 @@ private:
 public:
   Printable printReg(unsigned Reg, unsigned SubReg = 0) const {
     return Printable([Reg, SubReg, this](raw_ostream &OS) {
-      if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+      if (Register::isPhysicalRegister(Reg)) {
         OS << llvm::printReg(Reg, TRI);
         return;
       }
@@ -275,7 +275,7 @@ char GCNRegBankReassign::ID = 0;
 char &llvm::GCNRegBankReassignID = GCNRegBankReassign::ID;
 
 unsigned GCNRegBankReassign::getPhysRegBank(unsigned Reg) const {
-  assert (TargetRegisterInfo::isPhysicalRegister(Reg));
+  assert(Register::isPhysicalRegister(Reg));
 
   const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
   unsigned Size = TRI->getRegSizeInBits(*RC);
@@ -293,7 +293,7 @@ unsigned GCNRegBankReassign::getPhysRegBank(unsigned Reg) const {
 
 unsigned GCNRegBankReassign::getRegBankMask(unsigned Reg, unsigned SubReg,
                                             int Bank) {
-  if (TargetRegisterInfo::isVirtualRegister(Reg)) {
+  if (Register::isVirtualRegister(Reg)) {
     if (!VRM->isAssignedReg(Reg))
       return 0;
 
@@ -364,7 +364,7 @@ unsigned GCNRegBankReassign::analyzeInst(const MachineInstr& MI,
     if (!Op.isReg() || Op.isUndef())
       continue;
 
-    unsigned R = Op.getReg();
+    Register R = Op.getReg();
     if (TRI->hasAGPRs(TRI->getRegClassForReg(*MRI, R)))
       continue;
 
@@ -420,12 +420,12 @@ unsigned GCNRegBankReassign::getOperandGatherWeight(const MachineInstr& MI,
 }
 
 bool GCNRegBankReassign::isReassignable(unsigned Reg) const {
-  if (TargetRegisterInfo::isPhysicalRegister(Reg) || !VRM->isAssignedReg(Reg))
+  if (Register::isPhysicalRegister(Reg) || !VRM->isAssignedReg(Reg))
     return false;
 
   const MachineInstr *Def = MRI->getUniqueVRegDef(Reg);
 
-  unsigned PhysReg = VRM->getPhys(Reg);
+  Register PhysReg = VRM->getPhys(Reg);
 
   if (Def && Def->isCopy() && Def->getOperand(1).getReg() == PhysReg)
     return false;
@@ -654,7 +654,7 @@ unsigned GCNRegBankReassign::tryReassign(Candidate &C) {
   }
   std::sort(BankStalls.begin(), BankStalls.end());
 
-  unsigned OrigReg = VRM->getPhys(C.Reg);
+  Register OrigReg = VRM->getPhys(C.Reg);
   LRM->unassign(LI);
   while (!BankStalls.empty()) {
     BankStall BS = BankStalls.pop_back_val();

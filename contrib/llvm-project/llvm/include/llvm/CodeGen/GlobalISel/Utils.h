@@ -16,6 +16,8 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/CodeGen/Register.h"
+#include "llvm/Support/LowLevelTypeImpl.h"
+#include "llvm/Support/MachineValueType.h"
 
 namespace llvm {
 
@@ -117,14 +119,16 @@ struct ValueAndVReg {
   unsigned VReg;
 };
 /// If \p VReg is defined by a statically evaluable chain of
-/// instructions rooted on a G_CONSTANT (\p LookThroughInstrs == true)
-/// and that constant fits in int64_t, returns its value as well as
-/// the virtual register defined by this G_CONSTANT.
-/// When \p LookThroughInstrs == false, this function behaves like
+/// instructions rooted on a G_F/CONSTANT (\p LookThroughInstrs == true)
+/// and that constant fits in int64_t, returns its value as well as the
+/// virtual register defined by this G_F/CONSTANT.
+/// When \p LookThroughInstrs == false this function behaves like
 /// getConstantVRegVal.
+/// When \p HandleFConstants == false the function bails on G_FCONSTANTs.
 Optional<ValueAndVReg>
 getConstantVRegValWithLookThrough(unsigned VReg, const MachineRegisterInfo &MRI,
-                                  bool LookThroughInstrs = true);
+                                  bool LookThroughInstrs = true,
+                                  bool HandleFConstants = true);
 const ConstantFP* getConstantFPVRegVal(unsigned VReg,
                                        const MachineRegisterInfo &MRI);
 
@@ -151,6 +155,9 @@ Optional<APInt> ConstantFoldBinOp(unsigned Opcode, const unsigned Op1,
                                   const unsigned Op2,
                                   const MachineRegisterInfo &MRI);
 
+Optional<APInt> ConstantFoldExtOp(unsigned Opcode, const unsigned Op1,
+                                  uint64_t Imm, const MachineRegisterInfo &MRI);
+
 /// Returns true if \p Val can be assumed to never be a NaN. If \p SNaN is true,
 /// this returns if \p Val can be assumed to never be a signaling NaN.
 bool isKnownNeverNaN(Register Val, const MachineRegisterInfo &MRI,
@@ -160,6 +167,11 @@ bool isKnownNeverNaN(Register Val, const MachineRegisterInfo &MRI,
 inline bool isKnownNeverSNaN(Register Val, const MachineRegisterInfo &MRI) {
   return isKnownNeverNaN(Val, MRI, true);
 }
+
+/// Get a rough equivalent of an MVT for a given LLT.
+MVT getMVTForLLT(LLT Ty);
+/// Get a rough equivalent of an LLT for a given MVT.
+LLT getLLTForMVT(MVT Ty);
 
 } // End namespace llvm.
 #endif

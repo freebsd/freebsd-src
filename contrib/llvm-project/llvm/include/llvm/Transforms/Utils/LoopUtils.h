@@ -215,6 +215,9 @@ makeFollowupLoopID(MDNode *OrigLoopID, ArrayRef<StringRef> FollowupAttrs,
 /// Look for the loop attribute that disables all transformation heuristic.
 bool hasDisableAllTransformsHint(const Loop *L);
 
+/// Look for the loop attribute that disables the LICM transformation heuristics.
+bool hasDisableLICMTransformsHint(const Loop *L);
+
 /// The mode sets how eager a transformation should be applied.
 enum TransformationMode {
   /// The pass can use heuristics to determine whether a transformation should
@@ -252,6 +255,8 @@ TransformationMode hasLICMVersioningTransformation(Loop *L);
 /// @}
 
 /// Set input string into loop metadata by keeping other values intact.
+/// If the string is already in loop metadata update value if it is
+/// different.
 void addStringMetadataToLoop(Loop *TheLoop, const char *MDString,
                              unsigned V = 0);
 

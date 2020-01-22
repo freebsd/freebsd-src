@@ -49,6 +49,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cassert>
+#include <cstdlib>
 #include <iterator>
 #include <memory>
 #include <utility>
@@ -83,7 +84,7 @@ bool llvm::VerifyMemorySSA = false;
 #endif
 /// Enables memory ssa as a dependency for loop passes in legacy pass manager.
 cl::opt<bool> llvm::EnableMSSALoopDependency(
-    "enable-mssa-loop-dependency", cl::Hidden, cl::init(false),
+    "enable-mssa-loop-dependency", cl::Hidden, cl::init(true),
     cl::desc("Enable MemorySSA dependency for loop pass manager"));
 
 static cl::opt<bool, true>
@@ -284,6 +285,11 @@ instructionClobbersQuery(const MemoryDef *MD, const MemoryLocation &UseLoc,
     case Intrinsic::invariant_end:
     case Intrinsic::assume:
       return {false, NoAlias};
+    case Intrinsic::dbg_addr:
+    case Intrinsic::dbg_declare:
+    case Intrinsic::dbg_label:
+    case Intrinsic::dbg_value:
+      llvm_unreachable("debuginfo shouldn't have associated defs!");
     default:
       break;
     }
@@ -369,7 +375,7 @@ static bool isUseTriviallyOptimizableToLiveOnEntry(AliasAnalysisType &AA,
                                                    const Instruction *I) {
   // If the memory can't be changed, then loads of the memory can't be
   // clobbered.
-  return isa<LoadInst>(I) && (I->getMetadata(LLVMContext::MD_invariant_load) ||
+  return isa<LoadInst>(I) && (I->hasMetadata(LLVMContext::MD_invariant_load) ||
                               AA.pointsToConstantMemory(MemoryLocation(
                                   cast<LoadInst>(I)->getPointerOperand())));
 }
@@ -867,6 +873,7 @@ template <class AliasAnalysisType> class ClobberWalker {
         if (!DefChainEnd)
           for (auto *MA : def_chain(const_cast<MemoryAccess *>(Target)))
             DefChainEnd = MA;
+        assert(DefChainEnd && "Failed to find dominating phi/liveOnEntry");
 
         // If any of the terminated paths don't dominate the phi we'll try to
         // optimize, we need to figure out what they are and quit.
@@ -1087,9 +1094,14 @@ void MemorySSA::renameSuccessorPhis(BasicBlock *BB, MemoryAccess *IncomingVal,
     AccessList *Accesses = It->second.get();
     auto *Phi = cast<MemoryPhi>(&Accesses->front());
     if (RenameAllUses) {
-      int PhiIndex = Phi->getBasicBlockIndex(BB);
-      assert(PhiIndex != -1 && "Incomplete phi during partial rename");
-      Phi->setIncomingValue(PhiIndex, IncomingVal);
+      bool ReplacementDone = false;
+      for (unsigned I = 0, E = Phi->getNumIncomingValues(); I != E; ++I)
+        if (Phi->getIncomingBlock(I) == BB) {
+          Phi->setIncomingValue(I, IncomingVal);
+          ReplacementDone = true;
+        }
+      (void) ReplacementDone;
+      assert(ReplacementDone && "Incomplete phi during partial rename");
     } else
       Phi->addIncoming(IncomingVal, BB);
   }
@@ -1237,7 +1249,7 @@ MemorySSA::AccessList *MemorySSA::getOrCreateAccessList(const BasicBlock *BB) {
   auto Res = PerBlockAccesses.insert(std::make_pair(BB, nullptr));
 
   if (Res.second)
-    Res.first->second = llvm::make_unique<AccessList>();
+    Res.first->second = std::make_unique<AccessList>();
   return Res.first->second.get();
 }
 
@@ -1245,7 +1257,7 @@ MemorySSA::DefsList *MemorySSA::getOrCreateDefsList(const BasicBlock *BB) {
   auto Res = PerBlockDefs.insert(std::make_pair(BB, nullptr));
 
   if (Res.second)
-    Res.first->second = llvm::make_unique<DefsList>();
+    Res.first->second = std::make_unique<DefsList>();
   return Res.first->second.get();
 }
 
@@ -1554,10 +1566,10 @@ MemorySSA::CachingWalker<AliasAnalysis> *MemorySSA::getWalkerImpl() {
 
   if (!WalkerBase)
     WalkerBase =
-        llvm::make_unique<ClobberWalkerBase<AliasAnalysis>>(this, AA, DT);
+        std::make_unique<ClobberWalkerBase<AliasAnalysis>>(this, AA, DT);
 
   Walker =
-      llvm::make_unique<CachingWalker<AliasAnalysis>>(this, WalkerBase.get());
+      std::make_unique<CachingWalker<AliasAnalysis>>(this, WalkerBase.get());
   return Walker.get();
 }
 
@@ -1567,10 +1579,10 @@ MemorySSAWalker *MemorySSA::getSkipSelfWalker() {
 
   if (!WalkerBase)
     WalkerBase =
-        llvm::make_unique<ClobberWalkerBase<AliasAnalysis>>(this, AA, DT);
+        std::make_unique<ClobberWalkerBase<AliasAnalysis>>(this, AA, DT);
 
   SkipWalker =
-      llvm::make_unique<SkipSelfWalker<AliasAnalysis>>(this, WalkerBase.get());
+      std::make_unique<SkipSelfWalker<AliasAnalysis>>(this, WalkerBase.get());
   return SkipWalker.get();
  }
 
@@ -1687,13 +1699,15 @@ MemoryPhi *MemorySSA::createMemoryPhi(BasicBlock *BB) {
 
 MemoryUseOrDef *MemorySSA::createDefinedAccess(Instruction *I,
                                                MemoryAccess *Definition,
-                                               const MemoryUseOrDef *Template) {
+                                               const MemoryUseOrDef *Template,
+                                               bool CreationMustSucceed) {
   assert(!isa<PHINode>(I) && "Cannot create a defined access for a PHI");
   MemoryUseOrDef *NewAccess = createNewAccess(I, AA, Template);
-  assert(
-      NewAccess != nullptr &&
-      "Tried to create a memory access for a non-memory touching instruction");
-  NewAccess->setDefiningAccess(Definition);
+  if (CreationMustSucceed)
+    assert(NewAccess != nullptr && "Tried to create a memory access for a "
+                                   "non-memory touching instruction");
+  if (NewAccess)
+    NewAccess->setDefiningAccess(Definition);
   return NewAccess;
 }
 
@@ -1717,12 +1731,20 @@ MemoryUseOrDef *MemorySSA::createNewAccess(Instruction *I,
                                            AliasAnalysisType *AAP,
                                            const MemoryUseOrDef *Template) {
   // The assume intrinsic has a control dependency which we model by claiming
-  // that it writes arbitrarily. Ignore that fake memory dependency here.
+  // that it writes arbitrarily. Debuginfo intrinsics may be considered
+  // clobbers when we have a nonstandard AA pipeline. Ignore these fake memory
+  // dependencies here.
   // FIXME: Replace this special casing with a more accurate modelling of
   // assume's control dependency.
   if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(I))
     if (II->getIntrinsicID() == Intrinsic::assume)
       return nullptr;
+
+  // Using a nonstandard AA pipelines might leave us with unexpected modref
+  // results for I, so add a check to not model instructions that may not read
+  // from or write to memory. This is necessary for correctness.
+  if (!I->mayReadFromMemory() && !I->mayWriteToMemory())
+    return nullptr;
 
   bool Def, Use;
   if (Template) {
@@ -1850,6 +1872,7 @@ void MemorySSA::verifyMemorySSA() const {
   verifyDomination(F);
   verifyOrdering(F);
   verifyDominationNumbers(F);
+  verifyPrevDefInPhis(F);
   // Previously, the verification used to also verify that the clobberingAccess
   // cached by MemorySSA is the same as the clobberingAccess found at a later
   // query to AA. This does not hold true in general due to the current fragility
@@ -1860,6 +1883,40 @@ void MemorySSA::verifyMemorySSA() const {
   // random, in the worst case we'd need to rebuild MemorySSA from scratch after
   // every transformation, which defeats the purpose of using it. For such an
   // example, see test4 added in D51960.
+}
+
+void MemorySSA::verifyPrevDefInPhis(Function &F) const {
+#if !defined(NDEBUG) && defined(EXPENSIVE_CHECKS)
+  for (const BasicBlock &BB : F) {
+    if (MemoryPhi *Phi = getMemoryAccess(&BB)) {
+      for (unsigned I = 0, E = Phi->getNumIncomingValues(); I != E; ++I) {
+        auto *Pred = Phi->getIncomingBlock(I);
+        auto *IncAcc = Phi->getIncomingValue(I);
+        // If Pred has no unreachable predecessors, get last def looking at
+        // IDoms. If, while walkings IDoms, any of these has an unreachable
+        // predecessor, then the incoming def can be any access.
+        if (auto *DTNode = DT->getNode(Pred)) {
+          while (DTNode) {
+            if (auto *DefList = getBlockDefs(DTNode->getBlock())) {
+              auto *LastAcc = &*(--DefList->end());
+              assert(LastAcc == IncAcc &&
+                     "Incorrect incoming access into phi.");
+              break;
+            }
+            DTNode = DTNode->getIDom();
+          }
+        } else {
+          // If Pred has unreachable predecessors, but has at least a Def, the
+          // incoming access can be the last Def in Pred, or it could have been
+          // optimized to LoE. After an update, though, the LoE may have been
+          // replaced by another access, so IncAcc may be any access.
+          // If Pred has unreachable predecessors and no Defs, incoming access
+          // should be LoE; However, after an update, it may be any access.
+        }
+      }
+    }
+  }
+#endif
 }
 
 /// Verify that all of the blocks we believe to have valid domination numbers
@@ -2005,7 +2062,7 @@ void MemorySSA::verifyUseInDefs(MemoryAccess *Def, MemoryAccess *Use) const {
 /// accesses and verifying that, for each use, it appears in the
 /// appropriate def's use list
 void MemorySSA::verifyDefUses(Function &F) const {
-#ifndef NDEBUG
+#if !defined(NDEBUG) && defined(EXPENSIVE_CHECKS)
   for (BasicBlock &B : F) {
     // Phi nodes are attached to basic blocks
     if (MemoryPhi *Phi = getMemoryAccess(&B)) {
@@ -2212,7 +2269,7 @@ MemorySSAAnalysis::Result MemorySSAAnalysis::run(Function &F,
                                                  FunctionAnalysisManager &AM) {
   auto &DT = AM.getResult<DominatorTreeAnalysis>(F);
   auto &AA = AM.getResult<AAManager>(F);
-  return MemorySSAAnalysis::Result(llvm::make_unique<MemorySSA>(F, &AA, &DT));
+  return MemorySSAAnalysis::Result(std::make_unique<MemorySSA>(F, &AA, &DT));
 }
 
 bool MemorySSAAnalysis::Result::invalidate(

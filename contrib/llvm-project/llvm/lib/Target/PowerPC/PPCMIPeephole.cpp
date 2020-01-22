@@ -148,8 +148,8 @@ static MachineInstr *getVRegDefOrNull(MachineOperand *Op,
   if (!Op->isReg())
     return nullptr;
 
-  unsigned Reg = Op->getReg();
-  if (!TargetRegisterInfo::isVirtualRegister(Reg))
+  Register Reg = Op->getReg();
+  if (!Register::isVirtualRegister(Reg))
     return nullptr;
 
   return MRI->getVRegDef(Reg);
@@ -344,8 +344,7 @@ bool PPCMIPeephole::simplifyCode(void) {
           unsigned TrueReg2 =
             TRI->lookThruCopyLike(MI.getOperand(2).getReg(), MRI);
 
-          if (TrueReg1 == TrueReg2
-              && TargetRegisterInfo::isVirtualRegister(TrueReg1)) {
+          if (TrueReg1 == TrueReg2 && Register::isVirtualRegister(TrueReg1)) {
             MachineInstr *DefMI = MRI->getVRegDef(TrueReg1);
             unsigned DefOpc = DefMI ? DefMI->getOpcode() : 0;
 
@@ -358,7 +357,7 @@ bool PPCMIPeephole::simplifyCode(void) {
                 return false;
               unsigned DefReg =
                 TRI->lookThruCopyLike(DefMI->getOperand(1).getReg(), MRI);
-              if (TargetRegisterInfo::isVirtualRegister(DefReg)) {
+              if (Register::isVirtualRegister(DefReg)) {
                 MachineInstr *LoadMI = MRI->getVRegDef(DefReg);
                 if (LoadMI && LoadMI->getOpcode() == PPC::LXVDSX)
                   return true;
@@ -444,7 +443,7 @@ bool PPCMIPeephole::simplifyCode(void) {
         unsigned OpNo = MyOpcode == PPC::XXSPLTW ? 1 : 2;
         unsigned TrueReg =
           TRI->lookThruCopyLike(MI.getOperand(OpNo).getReg(), MRI);
-        if (!TargetRegisterInfo::isVirtualRegister(TrueReg))
+        if (!Register::isVirtualRegister(TrueReg))
           break;
         MachineInstr *DefMI = MRI->getVRegDef(TrueReg);
         if (!DefMI)
@@ -453,8 +452,8 @@ bool PPCMIPeephole::simplifyCode(void) {
         auto isConvertOfSplat = [=]() -> bool {
           if (DefOpcode != PPC::XVCVSPSXWS && DefOpcode != PPC::XVCVSPUXWS)
             return false;
-          unsigned ConvReg = DefMI->getOperand(1).getReg();
-          if (!TargetRegisterInfo::isVirtualRegister(ConvReg))
+          Register ConvReg = DefMI->getOperand(1).getReg();
+          if (!Register::isVirtualRegister(ConvReg))
             return false;
           MachineInstr *Splt = MRI->getVRegDef(ConvReg);
           return Splt && (Splt->getOpcode() == PPC::LXVWSX ||
@@ -481,9 +480,9 @@ bool PPCMIPeephole::simplifyCode(void) {
         // Splat fed by a shift. Usually when we align value to splat into
         // vector element zero.
         if (DefOpcode == PPC::XXSLDWI) {
-          unsigned ShiftRes = DefMI->getOperand(0).getReg();
-          unsigned ShiftOp1 = DefMI->getOperand(1).getReg();
-          unsigned ShiftOp2 = DefMI->getOperand(2).getReg();
+          Register ShiftRes = DefMI->getOperand(0).getReg();
+          Register ShiftOp1 = DefMI->getOperand(1).getReg();
+          Register ShiftOp2 = DefMI->getOperand(2).getReg();
           unsigned ShiftImm = DefMI->getOperand(3).getImm();
           unsigned SplatImm = MI.getOperand(2).getImm();
           if (ShiftOp1 == ShiftOp2) {
@@ -507,7 +506,7 @@ bool PPCMIPeephole::simplifyCode(void) {
         // If this is a DP->SP conversion fed by an FRSP, the FRSP is redundant.
         unsigned TrueReg =
           TRI->lookThruCopyLike(MI.getOperand(1).getReg(), MRI);
-        if (!TargetRegisterInfo::isVirtualRegister(TrueReg))
+        if (!Register::isVirtualRegister(TrueReg))
           break;
         MachineInstr *DefMI = MRI->getVRegDef(TrueReg);
 
@@ -518,8 +517,8 @@ bool PPCMIPeephole::simplifyCode(void) {
             TRI->lookThruCopyLike(DefMI->getOperand(1).getReg(), MRI);
           unsigned DefsReg2 =
             TRI->lookThruCopyLike(DefMI->getOperand(2).getReg(), MRI);
-          if (!TargetRegisterInfo::isVirtualRegister(DefsReg1) ||
-              !TargetRegisterInfo::isVirtualRegister(DefsReg2))
+          if (!Register::isVirtualRegister(DefsReg1) ||
+              !Register::isVirtualRegister(DefsReg2))
             break;
           MachineInstr *P1 = MRI->getVRegDef(DefsReg1);
           MachineInstr *P2 = MRI->getVRegDef(DefsReg2);
@@ -533,8 +532,8 @@ bool PPCMIPeephole::simplifyCode(void) {
             if (RoundInstr->getOpcode() == PPC::FRSP &&
                 MRI->hasOneNonDBGUse(RoundInstr->getOperand(0).getReg())) {
               Simplified = true;
-              unsigned ConvReg1 = RoundInstr->getOperand(1).getReg();
-              unsigned FRSPDefines = RoundInstr->getOperand(0).getReg();
+              Register ConvReg1 = RoundInstr->getOperand(1).getReg();
+              Register FRSPDefines = RoundInstr->getOperand(0).getReg();
               MachineInstr &Use = *(MRI->use_instr_begin(FRSPDefines));
               for (int i = 0, e = Use.getNumOperands(); i < e; ++i)
                 if (Use.getOperand(i).isReg() &&
@@ -566,8 +565,8 @@ bool PPCMIPeephole::simplifyCode(void) {
       case PPC::EXTSH8:
       case PPC::EXTSH8_32_64: {
         if (!EnableSExtElimination) break;
-        unsigned NarrowReg = MI.getOperand(1).getReg();
-        if (!TargetRegisterInfo::isVirtualRegister(NarrowReg))
+        Register NarrowReg = MI.getOperand(1).getReg();
+        if (!Register::isVirtualRegister(NarrowReg))
           break;
 
         MachineInstr *SrcMI = MRI->getVRegDef(NarrowReg);
@@ -610,8 +609,8 @@ bool PPCMIPeephole::simplifyCode(void) {
       case PPC::EXTSW_32:
       case PPC::EXTSW_32_64: {
         if (!EnableSExtElimination) break;
-        unsigned NarrowReg = MI.getOperand(1).getReg();
-        if (!TargetRegisterInfo::isVirtualRegister(NarrowReg))
+        Register NarrowReg = MI.getOperand(1).getReg();
+        if (!Register::isVirtualRegister(NarrowReg))
           break;
 
         MachineInstr *SrcMI = MRI->getVRegDef(NarrowReg);
@@ -652,8 +651,8 @@ bool PPCMIPeephole::simplifyCode(void) {
           // We can eliminate EXTSW if the input is known to be already
           // sign-extended.
           LLVM_DEBUG(dbgs() << "Removing redundant sign-extension\n");
-          unsigned TmpReg =
-            MF->getRegInfo().createVirtualRegister(&PPC::G8RCRegClass);
+          Register TmpReg =
+              MF->getRegInfo().createVirtualRegister(&PPC::G8RCRegClass);
           BuildMI(MBB, &MI, MI.getDebugLoc(), TII->get(PPC::IMPLICIT_DEF),
                   TmpReg);
           BuildMI(MBB, &MI, MI.getDebugLoc(), TII->get(PPC::INSERT_SUBREG),
@@ -679,8 +678,8 @@ bool PPCMIPeephole::simplifyCode(void) {
         if (MI.getOperand(2).getImm() != 0)
           break;
 
-        unsigned SrcReg = MI.getOperand(1).getReg();
-        if (!TargetRegisterInfo::isVirtualRegister(SrcReg))
+        Register SrcReg = MI.getOperand(1).getReg();
+        if (!Register::isVirtualRegister(SrcReg))
           break;
 
         MachineInstr *SrcMI = MRI->getVRegDef(SrcReg);
@@ -695,8 +694,8 @@ bool PPCMIPeephole::simplifyCode(void) {
 
         SrcMI = SubRegMI;
         if (SubRegMI->getOpcode() == PPC::COPY) {
-          unsigned CopyReg = SubRegMI->getOperand(1).getReg();
-          if (TargetRegisterInfo::isVirtualRegister(CopyReg))
+          Register CopyReg = SubRegMI->getOperand(1).getReg();
+          if (Register::isVirtualRegister(CopyReg))
             SrcMI = MRI->getVRegDef(CopyReg);
         }
 
@@ -757,7 +756,7 @@ bool PPCMIPeephole::simplifyCode(void) {
           break; // We don't have an ADD fed by LI's that can be transformed
 
         // Now we know that Op1 is the PHI node and Op2 is the dominator
-        unsigned DominatorReg = Op2.getReg();
+        Register DominatorReg = Op2.getReg();
 
         const TargetRegisterClass *TRC = MI.getOpcode() == PPC::ADD8
                                              ? &PPC::G8RC_and_G8RC_NOX0RegClass
@@ -927,7 +926,7 @@ static unsigned getSrcVReg(unsigned Reg, MachineBasicBlock *BB1,
     }
     else if (Inst->isFullCopy())
       NextReg = Inst->getOperand(1).getReg();
-    if (NextReg == SrcReg || !TargetRegisterInfo::isVirtualRegister(NextReg))
+    if (NextReg == SrcReg || !Register::isVirtualRegister(NextReg))
       break;
     SrcReg = NextReg;
   }
@@ -949,9 +948,8 @@ static bool eligibleForCompareElimination(MachineBasicBlock &MBB,
         (*BII).getOpcode() == PPC::BCC &&
         (*BII).getOperand(1).isReg()) {
       // We optimize only if the condition code is used only by one BCC.
-      unsigned CndReg = (*BII).getOperand(1).getReg();
-      if (!TargetRegisterInfo::isVirtualRegister(CndReg) ||
-          !MRI->hasOneNonDBGUse(CndReg))
+      Register CndReg = (*BII).getOperand(1).getReg();
+      if (!Register::isVirtualRegister(CndReg) || !MRI->hasOneNonDBGUse(CndReg))
         return false;
 
       MachineInstr *CMPI = MRI->getVRegDef(CndReg);
@@ -961,7 +959,7 @@ static bool eligibleForCompareElimination(MachineBasicBlock &MBB,
 
       // We skip this BB if a physical register is used in comparison.
       for (MachineOperand &MO : CMPI->operands())
-        if (MO.isReg() && !TargetRegisterInfo::isVirtualRegister(MO.getReg()))
+        if (MO.isReg() && !Register::isVirtualRegister(MO.getReg()))
           return false;
 
       return true;
@@ -1271,8 +1269,8 @@ bool PPCMIPeephole::eliminateRedundantCompare(void) {
       // We touch up the compare instruction in MBB2 and move it to
       // a previous BB to handle partially redundant case.
       if (SwapOperands) {
-        unsigned Op1 = CMPI2->getOperand(1).getReg();
-        unsigned Op2 = CMPI2->getOperand(2).getReg();
+        Register Op1 = CMPI2->getOperand(1).getReg();
+        Register Op2 = CMPI2->getOperand(2).getReg();
         CMPI2->getOperand(1).setReg(Op2);
         CMPI2->getOperand(2).setReg(Op1);
       }
@@ -1295,7 +1293,7 @@ bool PPCMIPeephole::eliminateRedundantCompare(void) {
       MBBtoMoveCmp->splice(I, &MBB2, MachineBasicBlock::iterator(CMPI2));
 
       DebugLoc DL = CMPI2->getDebugLoc();
-      unsigned NewVReg = MRI->createVirtualRegister(&PPC::CRRCRegClass);
+      Register NewVReg = MRI->createVirtualRegister(&PPC::CRRCRegClass);
       BuildMI(MBB2, MBB2.begin(), DL,
               TII->get(PPC::PHI), NewVReg)
         .addReg(BI1->getOperand(1).getReg()).addMBB(MBB1)
@@ -1334,8 +1332,8 @@ bool PPCMIPeephole::emitRLDICWhenLoweringJumpTables(MachineInstr &MI) {
   if (MI.getOpcode() != PPC::RLDICR)
     return false;
 
-  unsigned SrcReg = MI.getOperand(1).getReg();
-  if (!TargetRegisterInfo::isVirtualRegister(SrcReg))
+  Register SrcReg = MI.getOperand(1).getReg();
+  if (!Register::isVirtualRegister(SrcReg))
     return false;
 
   MachineInstr *SrcMI = MRI->getVRegDef(SrcReg);
@@ -1414,8 +1412,8 @@ bool PPCMIPeephole::combineSEXTAndSHL(MachineInstr &MI,
   if (SHMI + MEMI != 63)
     return false;
 
-  unsigned SrcReg = MI.getOperand(1).getReg();
-  if (!TargetRegisterInfo::isVirtualRegister(SrcReg))
+  Register SrcReg = MI.getOperand(1).getReg();
+  if (!Register::isVirtualRegister(SrcReg))
     return false;
 
   MachineInstr *SrcMI = MRI->getVRegDef(SrcReg);
@@ -1426,6 +1424,12 @@ bool PPCMIPeephole::combineSEXTAndSHL(MachineInstr &MI,
   // If the register defined by extsw has more than one use, combination is not
   // needed.
   if (!MRI->hasOneNonDBGUse(SrcReg))
+    return false;
+
+  assert(SrcMI->getNumOperands() == 2 && "EXTSW should have 2 operands");
+  assert(SrcMI->getOperand(1).isReg() &&
+         "EXTSW's second operand should be a register");
+  if (!Register::isVirtualRegister(SrcMI->getOperand(1).getReg()))
     return false;
 
   LLVM_DEBUG(dbgs() << "Combining pair: ");

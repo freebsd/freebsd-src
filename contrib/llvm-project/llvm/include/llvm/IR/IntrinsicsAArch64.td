@@ -691,7 +691,7 @@ def int_aarch64_crc32cx : Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i64_ty],
 // Memory Tagging Extensions (MTE) Intrinsics
 let TargetPrefix = "aarch64" in {
 def int_aarch64_irg   : Intrinsic<[llvm_ptr_ty], [llvm_ptr_ty, llvm_i64_ty],
-    [IntrInaccessibleMemOnly]>;
+    [IntrNoMem, IntrHasSideEffects]>;
 def int_aarch64_addg  : Intrinsic<[llvm_ptr_ty], [llvm_ptr_ty, llvm_i64_ty],
     [IntrNoMem]>;
 def int_aarch64_gmi   : Intrinsic<[llvm_i64_ty], [llvm_ptr_ty, llvm_i64_ty],
@@ -707,7 +707,7 @@ def int_aarch64_subp :  Intrinsic<[llvm_i64_ty], [llvm_ptr_ty, llvm_ptr_ty],
 
 // Generate a randomly tagged stack base pointer.
 def int_aarch64_irg_sp   : Intrinsic<[llvm_ptr_ty], [llvm_i64_ty],
-    [IntrInaccessibleMemOnly]>;
+    [IntrNoMem, IntrHasSideEffects]>;
 
 // Transfer pointer tag with offset.
 // ptr1 = tagp(ptr0, baseptr, tag_offset) returns a pointer where
@@ -732,4 +732,125 @@ def int_aarch64_settag_zero  : Intrinsic<[], [llvm_ptr_ty, llvm_i64_ty],
 // Update allocation tags for 16-aligned, 16-sized memory region, and store a pair 8-byte values.
 def int_aarch64_stgp  : Intrinsic<[], [llvm_ptr_ty, llvm_i64_ty, llvm_i64_ty],
     [IntrWriteMem, IntrArgMemOnly, NoCapture<0>, WriteOnly<0>]>;
+}
+
+// Transactional Memory Extension (TME) Intrinsics
+let TargetPrefix = "aarch64" in {
+def int_aarch64_tstart  : GCCBuiltin<"__builtin_arm_tstart">,
+                         Intrinsic<[llvm_i64_ty]>;
+
+def int_aarch64_tcommit : GCCBuiltin<"__builtin_arm_tcommit">, Intrinsic<[]>;
+
+def int_aarch64_tcancel : GCCBuiltin<"__builtin_arm_tcancel">,
+                          Intrinsic<[], [llvm_i64_ty], [ImmArg<0>]>;
+
+def int_aarch64_ttest   : GCCBuiltin<"__builtin_arm_ttest">,
+                          Intrinsic<[llvm_i64_ty], [],
+                                    [IntrNoMem, IntrHasSideEffects]>;
+}
+
+def llvm_nxv2i1_ty  : LLVMType<nxv2i1>;
+def llvm_nxv4i1_ty  : LLVMType<nxv4i1>;
+def llvm_nxv8i1_ty  : LLVMType<nxv8i1>;
+def llvm_nxv16i1_ty : LLVMType<nxv16i1>;
+def llvm_nxv16i8_ty : LLVMType<nxv16i8>;
+def llvm_nxv4i32_ty : LLVMType<nxv4i32>;
+def llvm_nxv2i64_ty : LLVMType<nxv2i64>;
+def llvm_nxv8f16_ty : LLVMType<nxv8f16>;
+def llvm_nxv4f32_ty : LLVMType<nxv4f32>;
+def llvm_nxv2f64_ty : LLVMType<nxv2f64>;
+
+let TargetPrefix = "aarch64" in {  // All intrinsics start with "llvm.aarch64.".
+  class AdvSIMD_Merged1VectorArg_Intrinsic
+    : Intrinsic<[llvm_anyvector_ty],
+                [LLVMMatchType<0>,
+                 LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                 LLVMMatchType<0>],
+                [IntrNoMem]>;
+
+  class AdvSIMD_SVE_CNT_Intrinsic
+    : Intrinsic<[LLVMVectorOfBitcastsToInt<0>],
+                [LLVMVectorOfBitcastsToInt<0>,
+                 LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                 llvm_anyvector_ty],
+                [IntrNoMem]>;
+
+  class AdvSIMD_SVE_Unpack_Intrinsic
+   : Intrinsic<[llvm_anyvector_ty],
+               [LLVMSubdivide2VectorType<0>],
+               [IntrNoMem]>;
+
+  class AdvSIMD_SVE_PUNPKHI_Intrinsic
+    : Intrinsic<[LLVMHalfElementsVectorType<0>],
+                [llvm_anyvector_ty],
+                [IntrNoMem]>;
+
+  class AdvSIMD_SVE_DOT_Intrinsic
+    : Intrinsic<[llvm_anyvector_ty],
+                [LLVMMatchType<0>,
+                 LLVMSubdivide4VectorType<0>,
+                 LLVMSubdivide4VectorType<0>],
+                [IntrNoMem]>;
+
+  class AdvSIMD_SVE_DOT_Indexed_Intrinsic
+    : Intrinsic<[llvm_anyvector_ty],
+                [LLVMMatchType<0>,
+                 LLVMSubdivide4VectorType<0>,
+                 LLVMSubdivide4VectorType<0>,
+                 llvm_i32_ty],
+                [IntrNoMem]>;
+
+  // This class of intrinsics are not intended to be useful within LLVM IR but
+  // are instead here to support some of the more regid parts of the ACLE.
+  class Builtin_SVCVT<string name, LLVMType OUT, LLVMType IN>
+  : GCCBuiltin<"__builtin_sve_" # name>,
+    Intrinsic<[OUT], [OUT, llvm_nxv16i1_ty, IN], [IntrNoMem]>;
+}
+
+//===----------------------------------------------------------------------===//
+// SVE
+
+let TargetPrefix = "aarch64" in {  // All intrinsics start with "llvm.aarch64.".
+
+//
+// Integer arithmetic
+//
+
+def int_aarch64_sve_abs : AdvSIMD_Merged1VectorArg_Intrinsic;
+def int_aarch64_sve_neg : AdvSIMD_Merged1VectorArg_Intrinsic;
+
+def int_aarch64_sve_sdot      : AdvSIMD_SVE_DOT_Intrinsic;
+def int_aarch64_sve_sdot_lane : AdvSIMD_SVE_DOT_Indexed_Intrinsic;
+
+def int_aarch64_sve_udot      : AdvSIMD_SVE_DOT_Intrinsic;
+def int_aarch64_sve_udot_lane : AdvSIMD_SVE_DOT_Indexed_Intrinsic;
+
+//
+// Counting bits
+//
+
+def int_aarch64_sve_cnt : AdvSIMD_SVE_CNT_Intrinsic;
+
+//
+// Permutations and selection
+//
+
+def int_aarch64_sve_sunpkhi   : AdvSIMD_SVE_Unpack_Intrinsic;
+def int_aarch64_sve_sunpklo   : AdvSIMD_SVE_Unpack_Intrinsic;
+
+def int_aarch64_sve_uunpkhi   : AdvSIMD_SVE_Unpack_Intrinsic;
+def int_aarch64_sve_uunpklo   : AdvSIMD_SVE_Unpack_Intrinsic;
+
+//
+// Floating-point comparisons
+//
+
+def int_aarch64_sve_fcvtzs_i32f16 : Builtin_SVCVT<"svcvt_s32_f16_m", llvm_nxv4i32_ty, llvm_nxv8f16_ty>;
+
+//
+// Predicate operations
+//
+
+def int_aarch64_sve_punpkhi : AdvSIMD_SVE_PUNPKHI_Intrinsic;
+def int_aarch64_sve_punpklo : AdvSIMD_SVE_PUNPKHI_Intrinsic;
 }

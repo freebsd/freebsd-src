@@ -170,7 +170,8 @@ bool llvm::DeleteDeadPHIs(BasicBlock *BB, const TargetLibraryInfo *TLI) {
 
 bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, DomTreeUpdater *DTU,
                                      LoopInfo *LI, MemorySSAUpdater *MSSAU,
-                                     MemoryDependenceResults *MemDep) {
+                                     MemoryDependenceResults *MemDep,
+                                     bool PredecessorWithTwoSuccessors) {
   if (BB->hasAddressTaken())
     return false;
 
@@ -185,8 +186,23 @@ bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, DomTreeUpdater *DTU,
     return false;
 
   // Can't merge if there are multiple distinct successors.
-  if (PredBB->getUniqueSuccessor() != BB)
+  if (!PredecessorWithTwoSuccessors && PredBB->getUniqueSuccessor() != BB)
     return false;
+
+  // Currently only allow PredBB to have two predecessors, one being BB.
+  // Update BI to branch to BB's only successor instead of BB.
+  BranchInst *PredBB_BI;
+  BasicBlock *NewSucc = nullptr;
+  unsigned FallThruPath;
+  if (PredecessorWithTwoSuccessors) {
+    if (!(PredBB_BI = dyn_cast<BranchInst>(PredBB->getTerminator())))
+      return false;
+    BranchInst *BB_JmpI = dyn_cast<BranchInst>(BB->getTerminator());
+    if (!BB_JmpI || !BB_JmpI->isUnconditional())
+      return false;
+    NewSucc = BB_JmpI->getSuccessor(0);
+    FallThruPath = PredBB_BI->getSuccessor(0) == BB ? 0 : 1;
+  }
 
   // Can't merge if there is PHI loop.
   for (PHINode &PN : BB->phis())
@@ -227,18 +243,39 @@ bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, DomTreeUpdater *DTU,
     Updates.push_back({DominatorTree::Delete, PredBB, BB});
   }
 
-  if (MSSAU)
-    MSSAU->moveAllAfterMergeBlocks(BB, PredBB, &*(BB->begin()));
+  Instruction *PTI = PredBB->getTerminator();
+  Instruction *STI = BB->getTerminator();
+  Instruction *Start = &*BB->begin();
+  // If there's nothing to move, mark the starting instruction as the last
+  // instruction in the block.
+  if (Start == STI)
+    Start = PTI;
 
-  // Delete the unconditional branch from the predecessor...
-  PredBB->getInstList().pop_back();
+  // Move all definitions in the successor to the predecessor...
+  PredBB->getInstList().splice(PTI->getIterator(), BB->getInstList(),
+                               BB->begin(), STI->getIterator());
+
+  if (MSSAU)
+    MSSAU->moveAllAfterMergeBlocks(BB, PredBB, Start);
 
   // Make all PHI nodes that referred to BB now refer to Pred as their
   // source...
   BB->replaceAllUsesWith(PredBB);
 
-  // Move all definitions in the successor to the predecessor...
-  PredBB->getInstList().splice(PredBB->end(), BB->getInstList());
+  if (PredecessorWithTwoSuccessors) {
+    // Delete the unconditional branch from BB.
+    BB->getInstList().pop_back();
+
+    // Update branch in the predecessor.
+    PredBB_BI->setSuccessor(FallThruPath, NewSucc);
+  } else {
+    // Delete the unconditional branch from the predecessor.
+    PredBB->getInstList().pop_back();
+
+    // Move terminator instruction.
+    PredBB->getInstList().splice(PredBB->end(), BB->getInstList());
+  }
+  // Add unreachable to now empty BB.
   new UnreachableInst(BB->getContext(), BB);
 
   // Eliminate duplicate dbg.values describing the entry PHI node post-splice.
@@ -274,11 +311,10 @@ bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, DomTreeUpdater *DTU,
            "applying corresponding DTU updates.");
     DTU->applyUpdatesPermissive(Updates);
     DTU->deleteBB(BB);
-  }
-
-  else {
+  } else {
     BB->eraseFromParent(); // Nuke BB if DTU is nullptr.
   }
+
   return true;
 }
 
@@ -365,11 +401,13 @@ llvm::SplitAllCriticalEdges(Function &F,
 
 BasicBlock *llvm::SplitBlock(BasicBlock *Old, Instruction *SplitPt,
                              DominatorTree *DT, LoopInfo *LI,
-                             MemorySSAUpdater *MSSAU) {
+                             MemorySSAUpdater *MSSAU, const Twine &BBName) {
   BasicBlock::iterator SplitIt = SplitPt->getIterator();
   while (isa<PHINode>(SplitIt) || SplitIt->isEHPad())
     ++SplitIt;
-  BasicBlock *New = Old->splitBasicBlock(SplitIt, Old->getName()+".split");
+  std::string Name = BBName.str();
+  BasicBlock *New = Old->splitBasicBlock(
+      SplitIt, Name.empty() ? Old->getName() + ".split" : Name);
 
   // The new block lives in whichever loop the old one did. This preserves
   // LCSSA as well, because we force the split point to be after any PHI nodes.

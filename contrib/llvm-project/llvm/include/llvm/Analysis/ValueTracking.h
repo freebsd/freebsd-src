@@ -242,19 +242,21 @@ class Value;
   /// This is a wrapper around Value::stripAndAccumulateConstantOffsets that
   /// creates and later unpacks the required APInt.
   inline Value *GetPointerBaseWithConstantOffset(Value *Ptr, int64_t &Offset,
-                                                 const DataLayout &DL) {
+                                                 const DataLayout &DL,
+                                                 bool AllowNonInbounds = true) {
     APInt OffsetAPInt(DL.getIndexTypeSizeInBits(Ptr->getType()), 0);
     Value *Base =
-        Ptr->stripAndAccumulateConstantOffsets(DL, OffsetAPInt,
-                                               /* AllowNonInbounds */ true);
+        Ptr->stripAndAccumulateConstantOffsets(DL, OffsetAPInt, AllowNonInbounds);
+
     Offset = OffsetAPInt.getSExtValue();
     return Base;
   }
-  inline const Value *GetPointerBaseWithConstantOffset(const Value *Ptr,
-                                                       int64_t &Offset,
-                                                       const DataLayout &DL) {
-    return GetPointerBaseWithConstantOffset(const_cast<Value *>(Ptr), Offset,
-                                            DL);
+  inline const Value *
+  GetPointerBaseWithConstantOffset(const Value *Ptr, int64_t &Offset,
+                                   const DataLayout &DL,
+                                   bool AllowNonInbounds = true) {
+    return GetPointerBaseWithConstantOffset(const_cast<Value *>(Ptr), Offset, DL,
+                                            AllowNonInbounds);
   }
 
   /// Returns true if the GEP is based on a pointer to a string (array of
@@ -307,20 +309,26 @@ class Value;
   uint64_t GetStringLength(const Value *V, unsigned CharSize = 8);
 
   /// This function returns call pointer argument that is considered the same by
-  /// aliasing rules. You CAN'T use it to replace one value with another.
-  const Value *getArgumentAliasingToReturnedPointer(const CallBase *Call);
-  inline Value *getArgumentAliasingToReturnedPointer(CallBase *Call) {
+  /// aliasing rules. You CAN'T use it to replace one value with another. If
+  /// \p MustPreserveNullness is true, the call must preserve the nullness of
+  /// the pointer.
+  const Value *getArgumentAliasingToReturnedPointer(const CallBase *Call,
+                                                    bool MustPreserveNullness);
+  inline Value *
+  getArgumentAliasingToReturnedPointer(CallBase *Call,
+                                       bool MustPreserveNullness) {
     return const_cast<Value *>(getArgumentAliasingToReturnedPointer(
-        const_cast<const CallBase *>(Call)));
+        const_cast<const CallBase *>(Call), MustPreserveNullness));
   }
 
-  // {launder,strip}.invariant.group returns pointer that aliases its argument,
-  // and it only captures pointer by returning it.
-  // These intrinsics are not marked as nocapture, because returning is
-  // considered as capture. The arguments are not marked as returned neither,
-  // because it would make it useless.
+  /// {launder,strip}.invariant.group returns pointer that aliases its argument,
+  /// and it only captures pointer by returning it.
+  /// These intrinsics are not marked as nocapture, because returning is
+  /// considered as capture. The arguments are not marked as returned neither,
+  /// because it would make it useless. If \p MustPreserveNullness is true,
+  /// the intrinsic must preserve the nullness of the pointer.
   bool isIntrinsicReturningPointerAliasingArgumentWithoutCapturing(
-      const CallBase *Call);
+      const CallBase *Call, bool MustPreserveNullness);
 
   /// This method strips off any GEP address adjustments and pointer casts from
   /// the specified value, returning the original object being addressed. Note
@@ -375,6 +383,13 @@ class Value;
 
   /// Return true if the only users of this pointer are lifetime markers.
   bool onlyUsedByLifetimeMarkers(const Value *V);
+
+  /// Return true if speculation of the given load must be suppressed to avoid
+  /// ordering or interfering with an active sanitizer.  If not suppressed,
+  /// dereferenceability and alignment must be proven separately.  Note: This
+  /// is only needed for raw reasoning; if you use the interface below
+  /// (isSafeToSpeculativelyExecute), this is handled internally.
+  bool mustSuppressSpeculation(const LoadInst &LI);
 
   /// Return true if the instruction does not have any effects besides
   /// calculating the result and does not have undefined behavior.
@@ -605,12 +620,12 @@ class Value;
   SelectPatternResult matchSelectPattern(Value *V, Value *&LHS, Value *&RHS,
                                          Instruction::CastOps *CastOp = nullptr,
                                          unsigned Depth = 0);
+
   inline SelectPatternResult
-  matchSelectPattern(const Value *V, const Value *&LHS, const Value *&RHS,
-                     Instruction::CastOps *CastOp = nullptr) {
-    Value *L = const_cast<Value*>(LHS);
-    Value *R = const_cast<Value*>(RHS);
-    auto Result = matchSelectPattern(const_cast<Value*>(V), L, R);
+  matchSelectPattern(const Value *V, const Value *&LHS, const Value *&RHS) {
+    Value *L = const_cast<Value *>(LHS);
+    Value *R = const_cast<Value *>(RHS);
+    auto Result = matchSelectPattern(const_cast<Value *>(V), L, R);
     LHS = L;
     RHS = R;
     return Result;
@@ -654,6 +669,12 @@ class Value;
   Optional<bool> isImpliedByDomCondition(const Value *Cond,
                                          const Instruction *ContextI,
                                          const DataLayout &DL);
+
+  /// If Ptr1 is provably equal to Ptr2 plus a constant offset, return that
+  /// offset. For example, Ptr1 might be &A[42], and Ptr2 might be &A[40]. In
+  /// this case offset would be -8.
+  Optional<int64_t> isPointerOffset(const Value *Ptr1, const Value *Ptr2,
+                                    const DataLayout &DL);
 } // end namespace llvm
 
 #endif // LLVM_ANALYSIS_VALUETRACKING_H

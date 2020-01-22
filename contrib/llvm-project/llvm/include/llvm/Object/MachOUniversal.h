@@ -31,6 +31,8 @@ class MachOUniversalBinary : public Binary {
   uint32_t Magic;
   uint32_t NumberOfObjects;
 public:
+  static constexpr uint32_t MaxSectionAlignment = 15; /* 2**15 or 0x8000 */
+
   class ObjectForArch {
     const MachOUniversalBinary *Parent;
     /// Index of object in the universal binary.
@@ -64,13 +66,13 @@ public:
       else // Parent->getMagic() == MachO::FAT_MAGIC_64
         return Header64.cpusubtype;
     }
-    uint32_t getOffset() const {
+    uint64_t getOffset() const {
       if (Parent->getMagic() == MachO::FAT_MAGIC)
         return Header.offset;
       else // Parent->getMagic() == MachO::FAT_MAGIC_64
         return Header64.offset;
     }
-    uint32_t getSize() const {
+    uint64_t getSize() const {
       if (Parent->getMagic() == MachO::FAT_MAGIC)
         return Header.size;
       else // Parent->getMagic() == MachO::FAT_MAGIC_64
@@ -157,8 +159,14 @@ public:
     return V->isMachOUniversalBinary();
   }
 
-  Expected<std::unique_ptr<MachOObjectFile>>
+  Expected<ObjectForArch>
   getObjectForArch(StringRef ArchName) const;
+
+  Expected<std::unique_ptr<MachOObjectFile>>
+  getMachOObjectForArch(StringRef ArchName) const;
+
+  Expected<std::unique_ptr<Archive>>
+  getArchiveForArch(StringRef ArchName) const;
 };
 
 }

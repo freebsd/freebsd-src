@@ -159,7 +159,7 @@ public:
 };
 
 class TypeAttributeImpl : public EnumAttributeImpl {
-  virtual void anchor();
+  void anchor() override;
 
   Type *Ty;
 
@@ -208,8 +208,8 @@ public:
   Attribute getAttribute(Attribute::AttrKind Kind) const;
   Attribute getAttribute(StringRef Kind) const;
 
-  unsigned getAlignment() const;
-  unsigned getStackAlignment() const;
+  MaybeAlign getAlignment() const;
+  MaybeAlign getStackAlignment() const;
   uint64_t getDereferenceableBytes() const;
   uint64_t getDereferenceableOrNullBytes() const;
   std::pair<unsigned, Optional<unsigned>> getAllocSizeArgs() const;

@@ -480,7 +480,7 @@ NVPTXTargetLowering::NVPTXTargetLowering(const NVPTXTargetMachine &TM,
   setOperationAction(ISD::TRAP, MVT::Other, Legal);
 
   // Register custom handling for vector loads/stores
-  for (MVT VT : MVT::vector_valuetypes()) {
+  for (MVT VT : MVT::fixedlen_vector_valuetypes()) {
     if (IsPTXVectorType(VT)) {
       setOperationAction(ISD::LOAD, VT, Custom);
       setOperationAction(ISD::STORE, VT, Custom);
@@ -1291,8 +1291,8 @@ std::string NVPTXTargetLowering::getPrototype(
       O << ".param .b" << size << " _";
     } else if (isa<PointerType>(retTy)) {
       O << ".param .b" << PtrVT.getSizeInBits() << " _";
-    } else if (retTy->isAggregateType() || retTy->isVectorTy() || retTy->isIntegerTy(128)) {
-      auto &DL = CS.getCalledFunction()->getParent()->getDataLayout();
+    } else if (retTy->isAggregateType() || retTy->isVectorTy() ||
+               retTy->isIntegerTy(128)) {
       O << ".param .align " << retAlignment << " .b8 _["
         << DL.getTypeAllocSize(retTy) << "]";
     } else {
@@ -2230,8 +2230,8 @@ SDValue NVPTXTargetLowering::LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
   if (Op.getValueType() == MVT::v2f16) {
     LoadSDNode *Load = cast<LoadSDNode>(Op);
     EVT MemVT = Load->getMemoryVT();
-    if (!allowsMemoryAccess(*DAG.getContext(), DAG.getDataLayout(), MemVT,
-                            *Load->getMemOperand())) {
+    if (!allowsMemoryAccessForAlignment(*DAG.getContext(), DAG.getDataLayout(),
+                                        MemVT, *Load->getMemOperand())) {
       SDValue Ops[2];
       std::tie(Ops[0], Ops[1]) = expandUnalignedLoad(Load, DAG);
       return DAG.getMergeValues(Ops, SDLoc(Op));
@@ -2273,8 +2273,8 @@ SDValue NVPTXTargetLowering::LowerSTORE(SDValue Op, SelectionDAG &DAG) const {
   // v2f16 is legal, so we can't rely on legalizer to handle unaligned
   // stores and have to handle it here.
   if (VT == MVT::v2f16 &&
-      !allowsMemoryAccess(*DAG.getContext(), DAG.getDataLayout(), VT,
-                          *Store->getMemOperand()))
+      !allowsMemoryAccessForAlignment(*DAG.getContext(), DAG.getDataLayout(),
+                                      VT, *Store->getMemOperand()))
     return expandUnalignedStore(Store, DAG);
 
   if (VT.isVector())
@@ -3497,7 +3497,7 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = I.getArgOperand(0);
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOLoad;
-    Info.align = 16;
+    Info.align = Align(16);
     return true;
   }
   case Intrinsic::nvvm_wmma_m16n16k16_load_a_s8_col:
@@ -3521,7 +3521,7 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = I.getArgOperand(0);
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOLoad;
-    Info.align = 8;
+    Info.align = Align(8);
     return true;
   }
 
@@ -3547,7 +3547,7 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = I.getArgOperand(0);
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOLoad;
-    Info.align = 16;
+    Info.align = Align(16);
     return true;
   }
 
@@ -3585,7 +3585,7 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = I.getArgOperand(0);
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOLoad;
-    Info.align = 4;
+    Info.align = Align(4);
     return true;
   }
 
@@ -3606,7 +3606,7 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = I.getArgOperand(0);
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOLoad;
-    Info.align = 16;
+    Info.align = Align(16);
     return true;
   }
 
@@ -3627,7 +3627,7 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = I.getArgOperand(0);
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOLoad;
-    Info.align = 16;
+    Info.align = Align(16);
     return true;
   }
 
@@ -3648,7 +3648,7 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = I.getArgOperand(0);
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOLoad;
-    Info.align = 16;
+    Info.align = Align(16);
     return true;
   }
 
@@ -3665,7 +3665,7 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = I.getArgOperand(0);
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOLoad;
-    Info.align = 8;
+    Info.align = Align(8);
     return true;
   }
 
@@ -3686,7 +3686,7 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = I.getArgOperand(0);
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOStore;
-    Info.align = 16;
+    Info.align = Align(16);
     return true;
   }
 
@@ -3707,7 +3707,7 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = I.getArgOperand(0);
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOStore;
-    Info.align = 16;
+    Info.align = Align(16);
     return true;
   }
 
@@ -3728,7 +3728,7 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = I.getArgOperand(0);
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOStore;
-    Info.align = 16;
+    Info.align = Align(16);
     return true;
   }
 
@@ -3745,7 +3745,7 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = I.getArgOperand(0);
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOStore;
-    Info.align = 8;
+    Info.align = Align(8);
     return true;
   }
 
@@ -3780,7 +3780,7 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = I.getArgOperand(0);
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOLoad | MachineMemOperand::MOStore;
-    Info.align = 0;
+    Info.align.reset();
     return true;
   }
 
@@ -3798,7 +3798,8 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = I.getArgOperand(0);
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOLoad;
-    Info.align = cast<ConstantInt>(I.getArgOperand(1))->getZExtValue();
+    Info.align =
+        MaybeAlign(cast<ConstantInt>(I.getArgOperand(1))->getZExtValue());
 
     return true;
   }
@@ -3817,7 +3818,8 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = I.getArgOperand(0);
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOLoad;
-    Info.align = cast<ConstantInt>(I.getArgOperand(1))->getZExtValue();
+    Info.align =
+        MaybeAlign(cast<ConstantInt>(I.getArgOperand(1))->getZExtValue());
 
     return true;
   }
@@ -3883,7 +3885,7 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = nullptr;
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOLoad;
-    Info.align = 16;
+    Info.align = Align(16);
     return true;
 
   case Intrinsic::nvvm_tex_1d_v4s32_s32:
@@ -4003,7 +4005,7 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = nullptr;
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOLoad;
-    Info.align = 16;
+    Info.align = Align(16);
     return true;
 
   case Intrinsic::nvvm_suld_1d_i8_clamp:
@@ -4056,7 +4058,7 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = nullptr;
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOLoad;
-    Info.align = 16;
+    Info.align = Align(16);
     return true;
 
   case Intrinsic::nvvm_suld_1d_i16_clamp:
@@ -4109,7 +4111,7 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = nullptr;
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOLoad;
-    Info.align = 16;
+    Info.align = Align(16);
     return true;
 
   case Intrinsic::nvvm_suld_1d_i32_clamp:
@@ -4162,7 +4164,7 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = nullptr;
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOLoad;
-    Info.align = 16;
+    Info.align = Align(16);
     return true;
 
   case Intrinsic::nvvm_suld_1d_i64_clamp:
@@ -4200,7 +4202,7 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
     Info.ptrVal = nullptr;
     Info.offset = 0;
     Info.flags = MachineMemOperand::MOLoad;
-    Info.align = 16;
+    Info.align = Align(16);
     return true;
   }
   return false;

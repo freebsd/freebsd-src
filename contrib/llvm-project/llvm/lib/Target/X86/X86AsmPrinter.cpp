@@ -242,7 +242,7 @@ void X86AsmPrinter::PrintModifiedOperand(const MachineInstr *MI, unsigned OpNo,
     return PrintOperand(MI, OpNo, O);
   if (MI->getInlineAsmDialect() == InlineAsm::AD_ATT)
     O << '%';
-  unsigned Reg = MO.getReg();
+  Register Reg = MO.getReg();
   if (strncmp(Modifier, "subreg", strlen("subreg")) == 0) {
     unsigned Size = (strcmp(Modifier+6,"64") == 0) ? 64 :
         (strcmp(Modifier+6,"32") == 0) ? 32 :
@@ -388,7 +388,7 @@ void X86AsmPrinter::PrintIntelMemReference(const MachineInstr *MI,
 
 static bool printAsmMRegister(X86AsmPrinter &P, const MachineOperand &MO,
                               char Mode, raw_ostream &O) {
-  unsigned Reg = MO.getReg();
+  Register Reg = MO.getReg();
   bool EmitPercent = true;
 
   if (!X86::GR8RegClass.contains(Reg) &&
@@ -575,7 +575,7 @@ void X86AsmPrinter::EmitStartOfAsmFile(Module &M) {
 
       // Emitting note header.
       int WordSize = TT.isArch64Bit() ? 8 : 4;
-      EmitAlignment(WordSize == 4 ? 2 : 3);
+      EmitAlignment(WordSize == 4 ? Align(4) : Align(8));
       OutStreamer->EmitIntValue(4, 4 /*size*/); // data size for "GNU\0"
       OutStreamer->EmitIntValue(8 + WordSize, 4 /*size*/); // Elf_Prop size
       OutStreamer->EmitIntValue(ELF::NT_GNU_PROPERTY_TYPE_0, 4 /*size*/);
@@ -585,7 +585,7 @@ void X86AsmPrinter::EmitStartOfAsmFile(Module &M) {
       OutStreamer->EmitIntValue(ELF::GNU_PROPERTY_X86_FEATURE_1_AND, 4);
       OutStreamer->EmitIntValue(4, 4);               // data size
       OutStreamer->EmitIntValue(FeatureFlagsAnd, 4); // data
-      EmitAlignment(WordSize == 4 ? 2 : 3);          // padding
+      EmitAlignment(WordSize == 4 ? Align(4) : Align(8)); // padding
 
       OutStreamer->endSection(Nt);
       OutStreamer->SwitchSection(Cur);

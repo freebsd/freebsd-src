@@ -309,7 +309,8 @@ static const Value *getNoopInput(const Value *V,
         NoopInput = Op;
     } else if (isa<TruncInst>(I) &&
                TLI.allowTruncateForTailCall(Op->getType(), I->getType())) {
-      DataBits = std::min(DataBits, I->getType()->getPrimitiveSizeInBits());
+      DataBits = std::min((uint64_t)DataBits,
+                         I->getType()->getPrimitiveSizeInBits().getFixedSize());
       NoopInput = Op;
     } else if (auto CS = ImmutableCallSite(I)) {
       const Value *ReturnedOp = CS.getReturnedArgOperand();
@@ -523,7 +524,8 @@ bool llvm::isInTailCallPosition(ImmutableCallSite CS, const TargetMachine &TM) {
   // longjmp on x86), it can end up causing miscompilation that has not
   // been fully understood.
   if (!Ret &&
-      (!TM.Options.GuaranteedTailCallOpt || !isa<UnreachableInst>(Term)))
+      ((!TM.Options.GuaranteedTailCallOpt &&
+        CS.getCallingConv() != CallingConv::Tail) || !isa<UnreachableInst>(Term)))
     return false;
 
   // If I will have a chain, make sure no other instruction that will have a
@@ -536,9 +538,11 @@ bool llvm::isInTailCallPosition(ImmutableCallSite CS, const TargetMachine &TM) {
       // Debug info intrinsics do not get in the way of tail call optimization.
       if (isa<DbgInfoIntrinsic>(BBI))
         continue;
-      // A lifetime end intrinsic should not stop tail call optimization.
+      // A lifetime end or assume intrinsic should not stop tail call
+      // optimization.
       if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(BBI))
-        if (II->getIntrinsicID() == Intrinsic::lifetime_end)
+        if (II->getIntrinsicID() == Intrinsic::lifetime_end ||
+            II->getIntrinsicID() == Intrinsic::assume)
           continue;
       if (BBI->mayHaveSideEffects() || BBI->mayReadFromMemory() ||
           !isSafeToSpeculativelyExecute(&*BBI))

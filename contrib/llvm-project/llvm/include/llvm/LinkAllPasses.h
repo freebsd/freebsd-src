@@ -140,6 +140,7 @@ namespace {
       (void) llvm::createLoopVersioningLICMPass();
       (void) llvm::createLoopIdiomPass();
       (void) llvm::createLoopRotatePass();
+      (void) llvm::createLowerConstantIntrinsicsPass();
       (void) llvm::createLowerExpectIntrinsicPass();
       (void) llvm::createLowerInvokePass();
       (void) llvm::createLowerSwitchPass();
@@ -219,6 +220,7 @@ namespace {
       (void) llvm::createStraightLineStrengthReducePass();
       (void) llvm::createMemDerefPrinter();
       (void) llvm::createMustExecutePrinter();
+      (void) llvm::createMustBeExecutedContextPrinter();
       (void) llvm::createFloat2IntPass();
       (void) llvm::createEliminateAvailableExternallyPass();
       (void) llvm::createScalarizeMaskedMemIntrinPass();

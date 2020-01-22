@@ -12,14 +12,15 @@
 
 using namespace llvm;
 
-uint64_t DWARFDataExtractor::getRelocatedValue(uint32_t Size, uint32_t *Off,
-                                               uint64_t *SecNdx) const {
+uint64_t DWARFDataExtractor::getRelocatedValue(uint32_t Size, uint64_t *Off,
+                                               uint64_t *SecNdx,
+                                               Error *Err) const {
   if (SecNdx)
     *SecNdx = object::SectionedAddress::UndefSection;
   if (!Section)
-    return getUnsigned(Off, Size);
+    return getUnsigned(Off, Size, Err);
   Optional<RelocAddrEntry> E = Obj->find(*Section, *Off);
-  uint64_t A = getUnsigned(Off, Size);
+  uint64_t A = getUnsigned(Off, Size, Err);
   if (!E)
     return A;
   if (SecNdx)
@@ -31,13 +32,13 @@ uint64_t DWARFDataExtractor::getRelocatedValue(uint32_t Size, uint32_t *Off,
 }
 
 Optional<uint64_t>
-DWARFDataExtractor::getEncodedPointer(uint32_t *Offset, uint8_t Encoding,
+DWARFDataExtractor::getEncodedPointer(uint64_t *Offset, uint8_t Encoding,
                                       uint64_t PCRelOffset) const {
   if (Encoding == dwarf::DW_EH_PE_omit)
     return None;
 
   uint64_t Result = 0;
-  uint32_t OldOffset = *Offset;
+  uint64_t OldOffset = *Offset;
   // First get value
   switch (Encoding & 0x0F) {
   case dwarf::DW_EH_PE_absptr:

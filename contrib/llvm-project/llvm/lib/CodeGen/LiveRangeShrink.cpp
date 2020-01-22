@@ -172,10 +172,10 @@ bool LiveRangeShrink::runOnMachineFunction(MachineFunction &MF) {
       for (const MachineOperand &MO : MI.operands()) {
         if (!MO.isReg() || MO.isDead() || MO.isDebug())
           continue;
-        unsigned Reg = MO.getReg();
+        Register Reg = MO.getReg();
         // Do not move the instruction if it def/uses a physical register,
         // unless it is a constant physical register or a noreg.
-        if (!TargetRegisterInfo::isVirtualRegister(Reg)) {
+        if (!Register::isVirtualRegister(Reg)) {
           if (!Reg || MRI.isConstantPhysReg(Reg))
             continue;
           Insert = nullptr;

@@ -1386,7 +1386,9 @@ void Cost::RateFormula(const Formula &F,
 
   // Treat every new register that exceeds TTI.getNumberOfRegisters() - 1 as
   // additional instruction (at least fill).
-  unsigned TTIRegNum = TTI->getNumberOfRegisters(false) - 1;
+  // TODO: Need distinguish register class?
+  unsigned TTIRegNum = TTI->getNumberOfRegisters(
+                       TTI->getRegisterClassForType(false, F.getType())) - 1;
   if (C.NumRegs > TTIRegNum) {
     // Cost already exceeded TTIRegNum, then only newly added register can add
     // new instructions.
@@ -3165,6 +3167,7 @@ void LSRInstance::GenerateIVChain(const IVChain &Chain, SCEVExpander &Rewriter,
     LLVM_DEBUG(dbgs() << "Concealed chain head: " << *Head.UserInst << "\n");
     return;
   }
+  assert(IVSrc && "Failed to find IV chain source");
 
   LLVM_DEBUG(dbgs() << "Generate chain at: " << *IVSrc << "\n");
   Type *IVTy = IVSrc->getType();
@@ -3265,12 +3268,12 @@ void LSRInstance::CollectFixupsAndInitialFormulae() {
     // requirements for both N and i at the same time. Limiting this code to
     // equality icmps is not a problem because all interesting loops use
     // equality icmps, thanks to IndVarSimplify.
-    if (ICmpInst *CI = dyn_cast<ICmpInst>(UserInst))
+    if (ICmpInst *CI = dyn_cast<ICmpInst>(UserInst)) {
+      // If CI can be saved in some target, like replaced inside hardware loop
+      // in PowerPC, no need to generate initial formulae for it.
+      if (SaveCmp && CI == dyn_cast<ICmpInst>(ExitBranch->getCondition()))
+        continue;
       if (CI->isEquality()) {
-        // If CI can be saved in some target, like replaced inside hardware loop
-        // in PowerPC, no need to generate initial formulae for it.
-        if (SaveCmp && CI == dyn_cast<ICmpInst>(ExitBranch->getCondition()))
-          continue;
         // Swap the operands if needed to put the OperandValToReplace on the
         // left, for consistency.
         Value *NV = CI->getOperand(1);
@@ -3298,6 +3301,7 @@ void LSRInstance::CollectFixupsAndInitialFormulae() {
             Factors.insert(-(uint64_t)Factors[i]);
         Factors.insert(-1);
       }
+    }
 
     // Get or create an LSRUse.
     std::pair<size_t, int64_t> P = getUse(S, Kind, AccessTy);
@@ -4834,6 +4838,7 @@ void LSRInstance::NarrowSearchSpaceByPickingWinnerRegs() {
         }
       }
     }
+    assert(Best && "Failed to find best LSRUse candidate");
 
     LLVM_DEBUG(dbgs() << "Narrowing the search space by assuming " << *Best
                       << " will yield profitable reuse.\n");
@@ -5740,7 +5745,8 @@ bool LoopStrengthReduce::runOnLoop(Loop *L, LPPassManager & /*LPM*/) {
       *L->getHeader()->getParent());
   auto &AC = getAnalysis<AssumptionCacheTracker>().getAssumptionCache(
       *L->getHeader()->getParent());
-  auto &LibInfo = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
+  auto &LibInfo = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(
+      *L->getHeader()->getParent());
   return ReduceLoopStrength(L, IU, SE, DT, LI, TTI, AC, LibInfo);
 }
 

@@ -54,9 +54,9 @@ namespace llvm {
   /// module is modified.
   bool UpgradeModuleFlags(Module &M);
 
-  /// This checks for objc retain release marker which should be upgraded. It
-  /// returns true if module is modified.
-  bool UpgradeRetainReleaseMarker(Module &M);
+  /// Convert calls to ARC runtime functions to intrinsic calls and upgrade the
+  /// old retain release marker to new module flag format.
+  void UpgradeARCRuntime(Module &M);
 
   void UpgradeSectionAttributes(Module &M);
 
@@ -86,6 +86,10 @@ namespace llvm {
 
   /// Upgrade the loop attachment metadata node.
   MDNode *upgradeInstructionLoopAttachment(MDNode &N);
+
+  /// Upgrade the datalayout string by adding a section for address space
+  /// pointers.
+  std::string UpgradeDataLayoutString(StringRef DL, StringRef Triple);
 
 } // End llvm namespace
 

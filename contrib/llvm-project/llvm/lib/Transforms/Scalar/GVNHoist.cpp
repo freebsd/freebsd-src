@@ -257,7 +257,7 @@ public:
   GVNHoist(DominatorTree *DT, PostDominatorTree *PDT, AliasAnalysis *AA,
            MemoryDependenceResults *MD, MemorySSA *MSSA)
       : DT(DT), PDT(PDT), AA(AA), MD(MD), MSSA(MSSA),
-        MSSAUpdater(llvm::make_unique<MemorySSAUpdater>(MSSA)) {}
+        MSSAUpdater(std::make_unique<MemorySSAUpdater>(MSSA)) {}
 
   bool run(Function &F) {
     NumFuncArgs = F.arg_size();
@@ -539,7 +539,7 @@ private:
 
     // Check for unsafe hoistings due to side effects.
     if (K == InsKind::Store) {
-      if (hasEHOrLoadsOnPath(NewPt, dyn_cast<MemoryDef>(U), NBBsOnAllPaths))
+      if (hasEHOrLoadsOnPath(NewPt, cast<MemoryDef>(U), NBBsOnAllPaths))
         return false;
     } else if (hasEHOnPath(NewBB, OldBB, NBBsOnAllPaths))
       return false;
@@ -889,19 +889,18 @@ private:
 
   void updateAlignment(Instruction *I, Instruction *Repl) {
     if (auto *ReplacementLoad = dyn_cast<LoadInst>(Repl)) {
-      ReplacementLoad->setAlignment(
-          std::min(ReplacementLoad->getAlignment(),
-                   cast<LoadInst>(I)->getAlignment()));
+      ReplacementLoad->setAlignment(MaybeAlign(std::min(
+          ReplacementLoad->getAlignment(), cast<LoadInst>(I)->getAlignment())));
       ++NumLoadsRemoved;
     } else if (auto *ReplacementStore = dyn_cast<StoreInst>(Repl)) {
       ReplacementStore->setAlignment(
-          std::min(ReplacementStore->getAlignment(),
-                   cast<StoreInst>(I)->getAlignment()));
+          MaybeAlign(std::min(ReplacementStore->getAlignment(),
+                              cast<StoreInst>(I)->getAlignment())));
       ++NumStoresRemoved;
     } else if (auto *ReplacementAlloca = dyn_cast<AllocaInst>(Repl)) {
       ReplacementAlloca->setAlignment(
-          std::max(ReplacementAlloca->getAlignment(),
-                   cast<AllocaInst>(I)->getAlignment()));
+          MaybeAlign(std::max(ReplacementAlloca->getAlignment(),
+                              cast<AllocaInst>(I)->getAlignment())));
     } else if (isa<CallInst>(Repl)) {
       ++NumCallsRemoved;
     }

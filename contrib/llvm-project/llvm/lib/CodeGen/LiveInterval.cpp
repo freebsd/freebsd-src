@@ -886,7 +886,7 @@ static void stripValuesNotDefiningMask(unsigned Reg, LiveInterval::SubRange &SR,
                                        const TargetRegisterInfo &TRI) {
   // Phys reg should not be tracked at subreg level.
   // Same for noreg (Reg == 0).
-  if (!TargetRegisterInfo::isVirtualRegister(Reg) || !Reg)
+  if (!Register::isVirtualRegister(Reg) || !Reg)
     return;
   // Remove the values that don't define those lanes.
   SmallVector<VNInfo *, 8> ToBeRemoved;
@@ -917,7 +917,8 @@ static void stripValuesNotDefiningMask(unsigned Reg, LiveInterval::SubRange &SR,
   for (VNInfo *VNI : ToBeRemoved)
     SR.removeValNo(VNI);
 
-  assert(!SR.empty() && "At least one value should be defined by this mask");
+  // If the subrange is empty at this point, the MIR is invalid. Do not assert
+  // and let the verifier catch this case.
 }
 
 void LiveInterval::refineSubRanges(
@@ -967,7 +968,7 @@ void LiveInterval::computeSubRangeUndefs(SmallVectorImpl<SlotIndex> &Undefs,
                                          LaneBitmask LaneMask,
                                          const MachineRegisterInfo &MRI,
                                          const SlotIndexes &Indexes) const {
-  assert(TargetRegisterInfo::isVirtualRegister(reg));
+  assert(Register::isVirtualRegister(reg));
   LaneBitmask VRegMask = MRI.getMaxLaneMaskForVReg(reg);
   assert((VRegMask & LaneMask).any());
   const TargetRegisterInfo &TRI = *MRI.getTargetRegisterInfo();

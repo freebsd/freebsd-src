@@ -113,7 +113,7 @@ StackMaps::parseOperand(MachineInstr::const_mop_iterator MOI,
       unsigned Size = DL.getPointerSizeInBits();
       assert((Size % 8) == 0 && "Need pointer size in bytes.");
       Size /= 8;
-      unsigned Reg = (++MOI)->getReg();
+      Register Reg = (++MOI)->getReg();
       int64_t Imm = (++MOI)->getImm();
       Locs.emplace_back(StackMaps::Location::Direct, Size,
                         getDwarfRegNum(Reg, TRI), Imm);
@@ -122,7 +122,7 @@ StackMaps::parseOperand(MachineInstr::const_mop_iterator MOI,
     case StackMaps::IndirectMemRefOp: {
       int64_t Size = (++MOI)->getImm();
       assert(Size > 0 && "Need a valid size for indirect memory locations.");
-      unsigned Reg = (++MOI)->getReg();
+      Register Reg = (++MOI)->getReg();
       int64_t Imm = (++MOI)->getImm();
       Locs.emplace_back(StackMaps::Location::Indirect, Size,
                         getDwarfRegNum(Reg, TRI), Imm);
@@ -148,14 +148,14 @@ StackMaps::parseOperand(MachineInstr::const_mop_iterator MOI,
     if (MOI->isImplicit())
       return ++MOI;
 
-    assert(TargetRegisterInfo::isPhysicalRegister(MOI->getReg()) &&
+    assert(Register::isPhysicalRegister(MOI->getReg()) &&
            "Virtreg operands should have been rewritten before now.");
     const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(MOI->getReg());
     assert(!MOI->getSubReg() && "Physical subreg still around.");
 
     unsigned Offset = 0;
     unsigned DwarfRegNum = getDwarfRegNum(MOI->getReg(), TRI);
-    unsigned LLVMRegNum = TRI->getLLVMRegNum(DwarfRegNum, false);
+    unsigned LLVMRegNum = *TRI->getLLVMRegNum(DwarfRegNum, false);
     unsigned SubRegIdx = TRI->getSubRegIndex(LLVMRegNum, MOI->getReg());
     if (SubRegIdx)
       Offset = TRI->getSubRegIdxOffset(SubRegIdx);

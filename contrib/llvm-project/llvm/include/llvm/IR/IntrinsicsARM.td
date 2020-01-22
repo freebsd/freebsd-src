@@ -777,5 +777,14 @@ class Neon_Dot_Intrinsic
 def int_arm_neon_udot : Neon_Dot_Intrinsic;
 def int_arm_neon_sdot : Neon_Dot_Intrinsic;
 
+def int_arm_vctp8  : Intrinsic<[llvm_v16i1_ty], [llvm_i32_ty], [IntrNoMem]>;
+def int_arm_vctp16 : Intrinsic<[llvm_v8i1_ty], [llvm_i32_ty], [IntrNoMem]>;
+def int_arm_vctp32 : Intrinsic<[llvm_v4i1_ty], [llvm_i32_ty], [IntrNoMem]>;
+def int_arm_vctp64 : Intrinsic<[llvm_v2i1_ty], [llvm_i32_ty], [IntrNoMem]>;
+
+// GNU eabi mcount
+def int_arm_gnu_eabi_mcount : Intrinsic<[],
+                                    [],
+                                    [IntrReadMem, IntrWriteMem]>;
 
 } // end TargetPrefix

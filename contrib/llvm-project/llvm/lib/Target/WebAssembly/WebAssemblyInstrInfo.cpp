@@ -38,7 +38,7 @@ WebAssemblyInstrInfo::WebAssemblyInstrInfo(const WebAssemblySubtarget &STI)
       RI(STI.getTargetTriple()) {}
 
 bool WebAssemblyInstrInfo::isReallyTriviallyReMaterializable(
-    const MachineInstr &MI, AliasAnalysis *AA) const {
+    const MachineInstr &MI, AAResults *AA) const {
   switch (MI.getOpcode()) {
   case WebAssembly::CONST_I32:
   case WebAssembly::CONST_I64:
@@ -60,7 +60,7 @@ void WebAssemblyInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   // exist. However we need to handle both here.
   auto &MRI = MBB.getParent()->getRegInfo();
   const TargetRegisterClass *RC =
-      TargetRegisterInfo::isVirtualRegister(DestReg)
+      Register::isVirtualRegister(DestReg)
           ? MRI.getRegClass(DestReg)
           : MRI.getTargetRegisterInfo()->getMinimalPhysRegClass(DestReg);
 
