@@ -1559,13 +1559,16 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 	 */
 	if (m->m_pkthdr.rcvif == NULL) {
 		struct ip6_moptions im6o;
+		struct epoch_tracker et;
 
 		im6o.im6o_multicast_ifp = ifp;
 		/* XXX: ip6_output will override ip6->ip6_hlim */
 		im6o.im6o_multicast_hlim = ip6->ip6_hlim;
 		im6o.im6o_multicast_loop = 1;
+		NET_EPOCH_ENTER(et);
 		error = ip6_output(mb_copy, NULL, NULL, IPV6_FORWARDING, &im6o,
 		    NULL, NULL);
+		NET_EPOCH_EXIT(et);
 
 		MRT6_DLOG(DEBUG_XMIT, "mif %u err %d",
 		    (uint16_t)(mifp - mif6table), error);

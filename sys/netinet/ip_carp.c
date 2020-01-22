@@ -904,6 +904,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 {
 	struct carp_header ch;
 	struct timeval tv;
+	struct epoch_tracker et;
 	struct ifaddr *ifa;
 	struct carp_header *ch_ptr;
 	struct mbuf *m;
@@ -972,8 +973,10 @@ carp_send_ad_locked(struct carp_softc *sc)
 
 		CARPSTATS_INC(carps_opackets);
 
+		NET_EPOCH_ENTER(et);
 		carp_send_ad_error(sc, ip_output(m, NULL, NULL, IP_RAWOUTPUT,
 		    &sc->sc_carpdev->if_carp->cif_imo, NULL));
+		NET_EPOCH_EXIT(et);
 	}
 #endif /* INET */
 #ifdef INET6
@@ -1031,8 +1034,10 @@ carp_send_ad_locked(struct carp_softc *sc)
 
 		CARPSTATS_INC(carps_opackets6);
 
+		NET_EPOCH_ENTER(et);
 		carp_send_ad_error(sc, ip6_output(m, NULL, NULL, 0,
 		    &sc->sc_carpdev->if_carp->cif_im6o, NULL, NULL));
+		NET_EPOCH_EXIT(et);
 	}
 #endif /* INET6 */
 

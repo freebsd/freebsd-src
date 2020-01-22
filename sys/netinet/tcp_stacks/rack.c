@@ -8091,6 +8091,7 @@ old_method:
 static int
 rack_output(struct tcpcb *tp)
 {
+	struct epoch_tracker et;
 	struct socket *so;
 	uint32_t recwin, sendwin;
 	uint32_t sb_offset;
@@ -9733,6 +9734,7 @@ send:
 	 * m->m_pkthdr.len should have been set before cksum calcuration,
 	 * because in6_cksum() need it.
 	 */
+	NET_EPOCH_ENTER(et);
 #ifdef INET6
 	if (isipv6) {
 		/*
@@ -9810,6 +9812,7 @@ send:
 			mtu = inp->inp_route.ro_rt->rt_mtu;
 	}
 #endif				/* INET */
+	NET_EPOCH_EXIT(et);
 
 out:
 	if (lgb) {

@@ -307,6 +307,7 @@ static int
 div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
     struct mbuf *control)
 {
+	struct epoch_tracker et;
 	struct ip *const ip = mtod(m, struct ip *);
 	struct m_tag *mtag;
 	struct ipfw_rule_ref *dt;
@@ -440,6 +441,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		}
 		INP_RUNLOCK(inp);
 
+		NET_EPOCH_ENTER(et);
 		switch (ip->ip_v) {
 		case IPVERSION:
 			error = ip_output(m, options, NULL,
@@ -452,6 +454,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 			break;
 #endif
 		}
+		NET_EPOCH_EXIT(et);
 		if (options != NULL)
 			m_freem(options);
 	} else {
