@@ -27,11 +27,11 @@
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/Support/JamCRC.h"
-#include "llvm/Support/xxhash.h"
+#include "llvm/Support/CRC.h"
 #include "llvm/Support/MD5.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/StringSaver.h"
+#include "llvm/Support/xxhash.h"
 
 using namespace clang;
 
@@ -364,7 +364,7 @@ private:
 #define TYPE(CLASS, PARENT) void mangleType(const CLASS##Type *T, \
                                             Qualifiers Quals, \
                                             SourceRange Range);
-#include "clang/AST/TypeNodes.def"
+#include "clang/AST/TypeNodes.inc"
 #undef ABSTRACT_TYPE
 #undef NON_CANONICAL_TYPE
 #undef TYPE
@@ -615,6 +615,8 @@ void MicrosoftCXXNameMangler::mangleMemberDataPointer(const CXXRecordDecl *RD,
   case MSInheritanceAttr::Keyword_multiple_inheritance:    Code = '0'; break;
   case MSInheritanceAttr::Keyword_virtual_inheritance:     Code = 'F'; break;
   case MSInheritanceAttr::Keyword_unspecified_inheritance: Code = 'G'; break;
+  case MSInheritanceAttr::SpellingNotCalculated:
+    llvm_unreachable("not reachable");
   }
 
   Out << '$' << Code;
@@ -646,6 +648,8 @@ MicrosoftCXXNameMangler::mangleMemberFunctionPointer(const CXXRecordDecl *RD,
   case MSInheritanceAttr::Keyword_multiple_inheritance:    Code = 'H'; break;
   case MSInheritanceAttr::Keyword_virtual_inheritance:     Code = 'I'; break;
   case MSInheritanceAttr::Keyword_unspecified_inheritance: Code = 'J'; break;
+  case MSInheritanceAttr::SpellingNotCalculated:
+    llvm_unreachable("not reachable");
   }
 
   // If non-virtual, mangle the name.  If virtual, mangle as a virtual memptr
@@ -842,7 +846,7 @@ void MicrosoftCXXNameMangler::mangleUnqualifiedName(const NamedDecl *ND,
               TemplateArgStringStorage.save(TemplateMangling.str());
         }
       } else {
-        Out << Found->second; // Outputs a StringRef.
+        Out << Found->second << '@'; // Outputs a StringRef.
       }
     } else {
       Out << Found->second; // Outputs a back reference (an int).
@@ -868,16 +872,11 @@ void MicrosoftCXXNameMangler::mangleUnqualifiedName(const NamedDecl *ND,
       }
 
       if (const DecompositionDecl *DD = dyn_cast<DecompositionDecl>(ND)) {
-        // FIXME: Invented mangling for decomposition declarations:
-        //   [X,Y,Z]
-        // where X,Y,Z are the names of the bindings.
-        llvm::SmallString<128> Name("[");
-        for (auto *BD : DD->bindings()) {
-          if (Name.size() > 1)
-            Name += ',';
-          Name += BD->getDeclName().getAsIdentifierInfo()->getName();
-        }
-        Name += ']';
+        // Decomposition declarations are considered anonymous, and get
+        // numbered with a $S prefix.
+        llvm::SmallString<64> Name("$S");
+        // Get a unique id for the anonymous struct.
+        Name += llvm::utostr(Context.getAnonymousStructId(DD) + 1);
         mangleSourceName(Name);
         break;
       }
@@ -1942,7 +1941,7 @@ void MicrosoftCXXNameMangler::mangleType(QualType T, SourceRange Range,
   case Type::CLASS: \
     mangleType(cast<CLASS##Type>(ty), Quals, Range); \
     break;
-#include "clang/AST/TypeNodes.def"
+#include "clang/AST/TypeNodes.inc"
 #undef ABSTRACT_TYPE
 #undef NON_CANONICAL_TYPE
 #undef TYPE
@@ -2109,6 +2108,9 @@ void MicrosoftCXXNameMangler::mangleType(const BuiltinType *T, Qualifiers,
     mangleArtificialTagType(TTK_Struct, "_Half", {"__clang"});
     break;
 
+#define SVE_TYPE(Name, Id, SingletonId) \
+  case BuiltinType::Id:
+#include "clang/Basic/AArch64SVEACLETypes.def"
   case BuiltinType::ShortAccum:
   case BuiltinType::Accum:
   case BuiltinType::LongAccum:
