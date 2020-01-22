@@ -1167,6 +1167,7 @@ ufs_dirremove(dvp, ip, flags, isrmdir)
 	struct inode *dp;
 	struct direct *ep, *rep;
 	struct buf *bp;
+	off_t offset;
 	int error;
 
 	dp = VTOI(dvp);
@@ -1185,22 +1186,32 @@ ufs_dirremove(dvp, ip, flags, isrmdir)
 			ip->i_flag |= IN_CHANGE;
 		}
 	}
+	if (flags & DOWHITEOUT)
+		offset = dp->i_offset;
+	else
+		offset = dp->i_offset - dp->i_count;
+	if ((error = UFS_BLKATOFF(dvp, offset, (char **)&ep, &bp)) != 0) {
+		if (ip) {
+			ip->i_effnlink++;
+			ip->i_flag |= IN_CHANGE;
+			if (DOINGSOFTDEP(dvp)) {
+				softdep_change_linkcnt(ip);
+			} else {
+				ip->i_nlink++;
+				DIP_SET(ip, i_nlink, ip->i_nlink);
+				ip->i_flag |= IN_CHANGE;
+			}
+		}
+		return (error);
+	}
 	if (flags & DOWHITEOUT) {
 		/*
 		 * Whiteout entry: set d_ino to WINO.
 		 */
-		if ((error =
-		    UFS_BLKATOFF(dvp, (off_t)dp->i_offset, (char **)&ep, &bp)) != 0)
-			return (error);
 		ep->d_ino = WINO;
 		ep->d_type = DT_WHT;
 		goto out;
 	}
-
-	if ((error = UFS_BLKATOFF(dvp,
-	    (off_t)(dp->i_offset - dp->i_count), (char **)&ep, &bp)) != 0)
-		return (error);
-
 	/* Set 'rep' to the entry being removed. */
 	if (dp->i_count == 0)
 		rep = ep;
@@ -1300,12 +1311,22 @@ ufs_dirrewrite(dp, oip, newinum, newtype, isrmdir)
 	}
 
 	error = UFS_BLKATOFF(vdp, (off_t)dp->i_offset, (char **)&ep, &bp);
-	if (error)
-		return (error);
-	if (ep->d_namlen == 2 && ep->d_name[1] == '.' && ep->d_name[0] == '.' &&
-	    ep->d_ino != oip->i_number) {
+	if (error == 0 && ep->d_namlen == 2 && ep->d_name[1] == '.' &&
+	    ep->d_name[0] == '.' && ep->d_ino != oip->i_number) {
 		brelse(bp);
-		return (EIDRM);
+		error = EIDRM;
+	}
+	if (error) {
+		oip->i_effnlink++;
+		oip->i_flag |= IN_CHANGE;
+		if (DOINGSOFTDEP(vdp)) {
+			softdep_change_linkcnt(oip);
+		} else {
+			oip->i_nlink++;
+			DIP_SET(oip, i_nlink, oip->i_nlink);
+			oip->i_flag |= IN_CHANGE;
+		}
+		return (error);
 	}
 	ep->d_ino = newinum;
 	if (!OFSFMT(vdp))
