@@ -305,12 +305,19 @@ void CrashHandler(zx_handle_t *Event) {
 
 } // namespace
 
-bool Mprotect(void *Ptr, size_t Size, bool AllowReadWrite) {
-  return false;  // UNIMPLEMENTED
-}
-
 // Platform specific functions.
 void SetSignalHandler(const FuzzingOptions &Options) {
+  // Make sure information from libFuzzer and the sanitizers are easy to
+  // reassemble. `__sanitizer_log_write` has the added benefit of ensuring the
+  // DSO map is always available for the symbolizer.
+  // A uint64_t fits in 20 chars, so 64 is plenty.
+  char Buf[64];
+  memset(Buf, 0, sizeof(Buf));
+  snprintf(Buf, sizeof(Buf), "==%lu== INFO: libFuzzer starting.\n", GetPid());
+  if (EF->__sanitizer_log_write)
+    __sanitizer_log_write(Buf, sizeof(Buf));
+  Printf("%s", Buf);
+
   // Set up alarm handler if needed.
   if (Options.UnitTimeoutSec > 0) {
     std::thread T(AlarmHandler, Options.UnitTimeoutSec / 2 + 1);
@@ -400,13 +407,14 @@ int ExecuteCommand(const Command &Cmd) {
   // that lacks a mutable working directory. Fortunately, when this is the case
   // a mutable output directory must be specified using "-artifact_prefix=...",
   // so write the log file(s) there.
+  // However, we don't want to apply this logic for absolute paths.
   int FdOut = STDOUT_FILENO;
   if (Cmd.hasOutputFile()) {
-    std::string Path;
-    if (Cmd.hasFlag("artifact_prefix"))
-      Path = Cmd.getFlagValue("artifact_prefix") + "/" + Cmd.getOutputFile();
-    else
-      Path = Cmd.getOutputFile();
+    std::string Path = Cmd.getOutputFile();
+    bool IsAbsolutePath = Path.length() > 1 && Path[0] == '/';
+    if (!IsAbsolutePath && Cmd.hasFlag("artifact_prefix"))
+      Path = Cmd.getFlagValue("artifact_prefix") + "/" + Path;
+
     FdOut = open(Path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0);
     if (FdOut == -1) {
       Printf("libFuzzer: failed to open %s: %s\n", Path.c_str(),

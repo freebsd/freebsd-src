@@ -12,6 +12,7 @@
 #include "common.h"
 #include "mutex.h"
 #include "stats.h"
+#include "string_utils.h"
 
 namespace scudo {
 
@@ -50,7 +51,7 @@ class MapAllocator {
 public:
   void initLinkerInitialized(GlobalStats *S) {
     Stats.initLinkerInitialized();
-    if (S)
+    if (LIKELY(S))
       S->link(&Stats);
   }
   void init(GlobalStats *S) {
@@ -70,7 +71,7 @@ public:
     return getBlockEnd(Ptr) - reinterpret_cast<uptr>(Ptr);
   }
 
-  void printStats() const;
+  void getStats(ScopedString *Str) const;
 
   void disable() { Mutex.lock(); }
 
