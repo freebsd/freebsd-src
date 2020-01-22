@@ -201,23 +201,22 @@ out:
 }
 
 /*
- * tcp_detach is called when the socket layer loses its final reference
+ * tcp_usr_detach is called when the socket layer loses its final reference
  * to the socket, be it a file descriptor reference, a reference from TCP,
  * etc.  At this point, there is only one case in which we will keep around
  * inpcb state: time wait.
- *
- * This function can probably be re-absorbed back into tcp_usr_detach() now
- * that there is a single detach path.
  */
 static void
-tcp_detach(struct socket *so, struct inpcb *inp)
+tcp_usr_detach(struct socket *so)
 {
+	struct inpcb *inp;
 	struct tcpcb *tp;
 
-	INP_WLOCK_ASSERT(inp);
-
-	KASSERT(so->so_pcb == inp, ("tcp_detach: so_pcb != inp"));
-	KASSERT(inp->inp_socket == so, ("tcp_detach: inp_socket != so"));
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("%s: inp == NULL", __func__));
+	INP_WLOCK(inp);
+	KASSERT(so->so_pcb == inp && inp->inp_socket == so,
+		("%s: socket %p inp %p mismatch", __func__, so, inp));
 
 	tp = intotcpcb(inp);
 
@@ -237,16 +236,16 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 		 * Astute question indeed, from twtcp perspective there are
 		 * four cases to consider:
 		 *
-		 * #1 tcp_detach is called at tcptw creation time by
+		 * #1 tcp_usr_detach is called at tcptw creation time by
 		 *  tcp_twstart, then do not discard the newly created tcptw
 		 *  and leave inpcb present until timewait ends
-		 * #2 tcp_detach is called at tcptw creation time by
+		 * #2 tcp_usr_detach is called at tcptw creation time by
 		 *  tcp_twstart, but connection is local and tw will be
 		 *  discarded immediately
-		 * #3 tcp_detach is called at timewait end (or reuse) by
+		 * #3 tcp_usr_detach is called at timewait end (or reuse) by
 		 *  tcp_twclose, then the tcptw has already been discarded
 		 *  (or reused) and inpcb is freed here
-		 * #4 tcp_detach is called() after timewait ends (or reuse)
+		 * #4 tcp_usr_detach is called() after timewait ends (or reuse)
 		 *  (e.g. by soclose), then tcptw has already been discarded
 		 *  (or reused) and inpcb is freed here
 		 *
@@ -297,26 +296,6 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 			INP_WUNLOCK(inp);
 		}
 	}
-}
-
-/*
- * pru_detach() detaches the TCP protocol from the socket.
- * If the protocol state is non-embryonic, then can't
- * do this directly: have to initiate a pru_disconnect(),
- * which may finish later; embryonic TCB's can just
- * be discarded here.
- */
-static void
-tcp_usr_detach(struct socket *so)
-{
-	struct inpcb *inp;
-
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("tcp_usr_detach: inp == NULL"));
-	INP_WLOCK(inp);
-	KASSERT(inp->inp_socket != NULL,
-	    ("tcp_usr_detach: inp_socket == NULL"));
-	tcp_detach(so, inp);
 }
 
 #ifdef INET
