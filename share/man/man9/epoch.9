@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 27, 2019
+.Dd January 16, 2020
 .Dt EPOCH 9
 .Os
 .Sh NAME
@@ -60,6 +60,7 @@ struct epoch_context {
 };
 .Ed
 .Vt typedef "struct epoch_context *epoch_context_t" ;
+.Vt typedef "void epoch_callback_t(epoch_context_t)" ;
 .Bd -literal
 struct epoch_tracker;	/* Opaque */
 .Ed
@@ -82,7 +83,7 @@ struct epoch_tracker;	/* Opaque */
 .Ft void
 .Fn epoch_wait_preempt "epoch_t epoch"
 .Ft void
-.Fn epoch_call "epoch_t epoch" "epoch_context_t ctx" "void (*callback)(epoch_context_t)"
+.Fn epoch_call "epoch_t epoch" "epoch_callback_t callback" "epoch_context_t ctx"
 .Ft void
 .Fn epoch_drain_callbacks "epoch_t epoch"
 .Ft int
@@ -254,7 +255,7 @@ ifa_free(struct ifaddr *ifa)
 {
 
     if (refcount_release(&ifa->ifa_refcnt))
-        epoch_call(net_epoch, &ifa->ifa_epoch_ctx, ifa_destroy);
+        epoch_call(net_epoch, ifa_destroy, &ifa->ifa_epoch_ctx);
 }
 
 void
