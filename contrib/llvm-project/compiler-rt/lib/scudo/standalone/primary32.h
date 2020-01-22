@@ -72,7 +72,7 @@ public:
       SizeClassInfo *Sci = getSizeClassInfo(I);
       Sci->RandState = getRandomU32(&Seed);
       // See comment in the 64-bit primary about releasing smaller size classes.
-      Sci->CanRelease = (ReleaseToOsInterval > 0) &&
+      Sci->CanRelease = (ReleaseToOsInterval >= 0) &&
                         (I != SizeClassMap::BatchClassId) &&
                         (getSizeByClassId(I) >= (PageSize / 32));
     }
@@ -99,9 +99,9 @@ public:
     SizeClassInfo *Sci = getSizeClassInfo(ClassId);
     ScopedLock L(Sci->Mutex);
     TransferBatch *B = Sci->FreeList.front();
-    if (B)
+    if (B) {
       Sci->FreeList.pop_front();
-    else {
+    } else {
       B = populateFreeList(C, ClassId, Sci);
       if (UNLIKELY(!B))
         return nullptr;
@@ -129,7 +129,7 @@ public:
 
   void enable() {
     for (sptr I = static_cast<sptr>(NumClasses) - 1; I >= 0; I--)
-      getSizeClassInfo(I)->Mutex.unlock();
+      getSizeClassInfo(static_cast<uptr>(I))->Mutex.unlock();
   }
 
   template <typename F> void iterateOverBlocks(F Callback) {
@@ -143,7 +143,7 @@ public:
       }
   }
 
-  void printStats() {
+  void getStats(ScopedString *Str) {
     // TODO(kostyak): get the RSS per region.
     uptr TotalMapped = 0;
     uptr PoppedBlocks = 0;
@@ -154,21 +154,23 @@ public:
       PoppedBlocks += Sci->Stats.PoppedBlocks;
       PushedBlocks += Sci->Stats.PushedBlocks;
     }
-    Printf("Stats: SizeClassAllocator32: %zuM mapped in %zu allocations; "
-           "remains %zu\n",
-           TotalMapped >> 20, PoppedBlocks, PoppedBlocks - PushedBlocks);
+    Str->append("Stats: SizeClassAllocator32: %zuM mapped in %zu allocations; "
+                "remains %zu\n",
+                TotalMapped >> 20, PoppedBlocks, PoppedBlocks - PushedBlocks);
     for (uptr I = 0; I < NumClasses; I++)
-      printStats(I, 0);
+      getStats(Str, I, 0);
   }
 
-  void releaseToOS() {
+  uptr releaseToOS() {
+    uptr TotalReleasedBytes = 0;
     for (uptr I = 0; I < NumClasses; I++) {
       if (I == SizeClassMap::BatchClassId)
         continue;
       SizeClassInfo *Sci = getSizeClassInfo(I);
       ScopedLock L(Sci->Mutex);
-      releaseToOSMaybe(Sci, I, /*Force=*/true);
+      TotalReleasedBytes += releaseToOSMaybe(Sci, I, /*Force=*/true);
     }
+    return TotalReleasedBytes;
   }
 
 private:
@@ -318,53 +320,59 @@ private:
     }
     DCHECK(B);
     DCHECK_GT(B->getCount(), 0);
+
+    C->getStats().add(StatFree, AllocatedUser);
     Sci->AllocatedUser += AllocatedUser;
     if (Sci->CanRelease)
       Sci->ReleaseInfo.LastReleaseAtNs = getMonotonicTime();
     return B;
   }
 
-  void printStats(uptr ClassId, uptr Rss) {
+  void getStats(ScopedString *Str, uptr ClassId, uptr Rss) {
     SizeClassInfo *Sci = getSizeClassInfo(ClassId);
     if (Sci->AllocatedUser == 0)
       return;
     const uptr InUse = Sci->Stats.PoppedBlocks - Sci->Stats.PushedBlocks;
     const uptr AvailableChunks = Sci->AllocatedUser / getSizeByClassId(ClassId);
-    Printf("  %02zu (%6zu): mapped: %6zuK popped: %7zu pushed: %7zu inuse: %6zu"
-           " avail: %6zu rss: %6zuK\n",
-           ClassId, getSizeByClassId(ClassId), Sci->AllocatedUser >> 10,
-           Sci->Stats.PoppedBlocks, Sci->Stats.PushedBlocks, InUse,
-           AvailableChunks, Rss >> 10);
+    Str->append("  %02zu (%6zu): mapped: %6zuK popped: %7zu pushed: %7zu "
+                "inuse: %6zu avail: %6zu rss: %6zuK\n",
+                ClassId, getSizeByClassId(ClassId), Sci->AllocatedUser >> 10,
+                Sci->Stats.PoppedBlocks, Sci->Stats.PushedBlocks, InUse,
+                AvailableChunks, Rss >> 10);
   }
 
-  NOINLINE void releaseToOSMaybe(SizeClassInfo *Sci, uptr ClassId,
+  NOINLINE uptr releaseToOSMaybe(SizeClassInfo *Sci, uptr ClassId,
                                  bool Force = false) {
     const uptr BlockSize = getSizeByClassId(ClassId);
     const uptr PageSize = getPageSizeCached();
 
     CHECK_GE(Sci->Stats.PoppedBlocks, Sci->Stats.PushedBlocks);
-    const uptr N = Sci->Stats.PoppedBlocks - Sci->Stats.PushedBlocks;
-    if (N * BlockSize < PageSize)
-      return; // No chance to release anything.
+    const uptr BytesInFreeList =
+        Sci->AllocatedUser -
+        (Sci->Stats.PoppedBlocks - Sci->Stats.PushedBlocks) * BlockSize;
+    if (BytesInFreeList < PageSize)
+      return 0; // No chance to release anything.
     if ((Sci->Stats.PushedBlocks - Sci->ReleaseInfo.PushedBlocksAtLastRelease) *
             BlockSize <
         PageSize) {
-      return; // Nothing new to release.
+      return 0; // Nothing new to release.
     }
 
     if (!Force) {
       const s32 IntervalMs = ReleaseToOsIntervalMs;
       if (IntervalMs < 0)
-        return;
-      if (Sci->ReleaseInfo.LastReleaseAtNs + IntervalMs * 1000000ULL >
+        return 0;
+      if (Sci->ReleaseInfo.LastReleaseAtNs +
+              static_cast<uptr>(IntervalMs) * 1000000ULL >
           getMonotonicTime()) {
-        return; // Memory was returned recently.
+        return 0; // Memory was returned recently.
       }
     }
 
     // TODO(kostyak): currently not ideal as we loop over all regions and
     // iterate multiple times over the same freelist if a ClassId spans multiple
     // regions. But it will have to do for now.
+    uptr TotalReleasedBytes = 0;
     for (uptr I = MinRegionIndex; I <= MaxRegionIndex; I++) {
       if (PossibleRegions[I] == ClassId) {
         ReleaseRecorder Recorder(I * RegionSize);
@@ -374,10 +382,12 @@ private:
           Sci->ReleaseInfo.PushedBlocksAtLastRelease = Sci->Stats.PushedBlocks;
           Sci->ReleaseInfo.RangesReleased += Recorder.getReleasedRangesCount();
           Sci->ReleaseInfo.LastReleasedBytes = Recorder.getReleasedBytes();
+          TotalReleasedBytes += Sci->ReleaseInfo.LastReleasedBytes;
         }
       }
     }
     Sci->ReleaseInfo.LastReleaseAtNs = getMonotonicTime();
+    return TotalReleasedBytes;
   }
 
   SizeClassInfo SizeClassInfoArray[NumClasses];

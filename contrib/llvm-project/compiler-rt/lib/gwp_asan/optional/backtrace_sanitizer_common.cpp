@@ -13,6 +13,9 @@
 
 #include "gwp_asan/optional/backtrace.h"
 #include "gwp_asan/options.h"
+#include "sanitizer_common/sanitizer_common.h"
+#include "sanitizer_common/sanitizer_flag_parser.h"
+#include "sanitizer_common/sanitizer_flags.h"
 #include "sanitizer_common/sanitizer_stacktrace.h"
 
 void __sanitizer::BufferedStackTrace::UnwindImpl(uptr pc, uptr bp,
@@ -26,7 +29,7 @@ void __sanitizer::BufferedStackTrace::UnwindImpl(uptr pc, uptr bp,
 }
 
 namespace {
-void Backtrace(uintptr_t *TraceBuffer, size_t Size) {
+size_t Backtrace(uintptr_t *TraceBuffer, size_t Size) {
   __sanitizer::BufferedStackTrace Trace;
   Trace.Reset();
   if (Size > __sanitizer::kStackTraceMax)
@@ -38,19 +41,14 @@ void Backtrace(uintptr_t *TraceBuffer, size_t Size) {
                /* fast unwind */ true, Size - 1);
 
   memcpy(TraceBuffer, Trace.trace, Trace.size * sizeof(uintptr_t));
-  TraceBuffer[Trace.size] = 0;
+  return Trace.size;
 }
 
-static void PrintBacktrace(uintptr_t *Trace,
+static void PrintBacktrace(uintptr_t *Trace, size_t TraceLength,
                            gwp_asan::options::Printf_t Printf) {
   __sanitizer::StackTrace StackTrace;
   StackTrace.trace = reinterpret_cast<__sanitizer::uptr *>(Trace);
-
-  for (StackTrace.size = 0; StackTrace.size < __sanitizer::kStackTraceMax;
-       ++StackTrace.size) {
-    if (Trace[StackTrace.size] == 0)
-      break;
-  }
+  StackTrace.size = TraceLength;
 
   if (StackTrace.size == 0) {
     Printf("  <unknown (does your allocator support backtracing?)>\n\n");
@@ -63,7 +61,18 @@ static void PrintBacktrace(uintptr_t *Trace,
 
 namespace gwp_asan {
 namespace options {
-Backtrace_t getBacktraceFunction() { return Backtrace; }
+// This function is thread-compatible. It must be synchronised in respect to any
+// other calls to getBacktraceFunction(), calls to getPrintBacktraceFunction(),
+// and calls to either of the functions that they return. Furthermore, this may
+// require synchronisation with any calls to sanitizer_common that use flags.
+// Generally, this function will be called during the initialisation of the
+// allocator, which is done in a thread-compatible manner.
+Backtrace_t getBacktraceFunction() {
+  // The unwinder requires the default flags to be set.
+  __sanitizer::SetCommonFlagsDefaults();
+  __sanitizer::InitializeCommonFlags();
+  return Backtrace;
+}
 PrintBacktrace_t getPrintBacktraceFunction() { return PrintBacktrace; }
 } // namespace options
 } // namespace gwp_asan
