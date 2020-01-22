@@ -557,17 +557,18 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	tp = intotcpcb(inp);
 	TCPDEBUG1();
+	NET_EPOCH_ENTER(et);
 	if ((error = tcp_connect(tp, nam, td)) != 0)
-		goto out;
+		goto out_in_epoch;
 #ifdef TCP_OFFLOAD
 	if (registered_toedevs > 0 &&
 	    (so->so_options & SO_NO_OFFLOAD) == 0 &&
 	    (error = tcp_offload_connect(so, nam)) == 0)
-		goto out;
+		goto out_in_epoch;
 #endif
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
-	NET_EPOCH_ENTER(et);
 	error = tp->t_fb->tfb_tcp_output(tp);
+out_in_epoch:
 	NET_EPOCH_EXIT(et);
 out:
 	TCPDEBUG2(PRU_CONNECT);
@@ -644,18 +645,17 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 			goto out;
 		inp->inp_vflag |= INP_IPV4;
 		inp->inp_vflag &= ~INP_IPV6;
+		NET_EPOCH_ENTER(et);
 		if ((error = tcp_connect(tp, (struct sockaddr *)&sin, td)) != 0)
-			goto out;
+			goto out_in_epoch;
 #ifdef TCP_OFFLOAD
 		if (registered_toedevs > 0 &&
 		    (so->so_options & SO_NO_OFFLOAD) == 0 &&
 		    (error = tcp_offload_connect(so, nam)) == 0)
-			goto out;
+			goto out_in_epoch;
 #endif
-		NET_EPOCH_ENTER(et);
 		error = tp->t_fb->tfb_tcp_output(tp);
-		NET_EPOCH_EXIT(et);
-		goto out;
+		goto out_in_epoch;
 	} else {
 		if ((inp->inp_vflag & INP_IPV6) == 0) {
 			error = EAFNOSUPPORT;
@@ -679,6 +679,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
 	NET_EPOCH_ENTER(et);
 	error = tp->t_fb->tfb_tcp_output(tp);
+out_in_epoch:
 	NET_EPOCH_EXIT(et);
 out:
 	/*
@@ -1468,6 +1469,7 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	u_short lport;
 	int error;
 
+	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK(&V_tcbinfo);
 
