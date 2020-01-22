@@ -37,7 +37,6 @@
 .Nm callout_deactivate ,
 .Nm callout_async_drain ,
 .Nm callout_drain ,
-.Nm callout_handle_init ,
 .Nm callout_init ,
 .Nm callout_init_mtx ,
 .Nm callout_init_rm ,
@@ -72,11 +71,6 @@ typedef void callout_func_t (void *);
 .Fn callout_async_drain "struct callout *c" "callout_func_t *drain"
 .Ft int
 .Fn callout_drain "struct callout *c"
-.Ft void
-.Fn callout_handle_init "struct callout_handle *handle"
-.Bd -literal
-struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle);
-.Ed
 .Ft void
 .Fn callout_init "struct callout *c" "int mpsafe"
 .Ft void
