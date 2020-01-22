@@ -478,6 +478,8 @@ void	rt_updatemtu(struct ifnet *);
 
 typedef int rt_walktree_f_t(struct rtentry *, void *);
 typedef void rt_setwarg_t(struct rib_head *, uint32_t, int, void *);
+void	rib_walk_del(u_int fibnum, int family, rt_filter_f_t *filter_f,
+	    void *arg, bool report);
 void	rt_foreach_fib_walk(int af, rt_setwarg_t *, rt_walktree_f_t *, void *);
 void	rt_foreach_fib_walk_del(int af, rt_filter_f_t *filter_f, void *arg);
 void	rt_flushifroutes_af(struct ifnet *, int);
@@ -495,14 +497,15 @@ int	 rtinit(struct ifaddr *, int, int);
 void	 rtalloc_ign_fib(struct route *ro, u_long ignflags, u_int fibnum);
 struct rtentry *rtalloc1_fib(struct sockaddr *, int, u_long, u_int);
 int	 rtioctl_fib(u_long, caddr_t, u_int);
-void	 rtredirect_fib(struct sockaddr *, struct sockaddr *,
-	    struct sockaddr *, int, struct sockaddr *, u_int);
 int	 rtrequest_fib(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **, u_int);
 int	 rtrequest1_fib(int, struct rt_addrinfo *, struct rtentry **, u_int);
 int	rib_lookup_info(uint32_t, const struct sockaddr *, uint32_t, uint32_t,
 	    struct rt_addrinfo *);
 void	rib_free_info(struct rt_addrinfo *info);
+int	rib_add_redirect(u_int fibnum, struct sockaddr *dst,
+	   struct sockaddr *gateway, struct sockaddr *author, struct ifnet *ifp,
+	   int flags, int expire_sec);
 
 #endif
 

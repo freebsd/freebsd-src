@@ -49,6 +49,8 @@ struct rib_head {
 	struct vnet		*rib_vnet;	/* vnet pointer */
 	int			rib_family;	/* AF of the rtable */
 	u_int			rib_fibnum;	/* fib number */
+	struct callout		expire_callout;	/* Callout for expiring dynamic routes */
+	time_t			next_expire;	/* Next expire run ts */
 };
 
 #define	RIB_RLOCK_TRACKER	struct rm_priotracker _rib_tracker
@@ -103,5 +105,8 @@ fib_rte_to_nh_flags(int rt_flags)
 	return (res);
 }
 
+void tmproutes_update(struct rib_head *rnh, struct rtentry *rt);
+void tmproutes_init(struct rib_head *rh);
+void tmproutes_destroy(struct rib_head *rh);
 
 #endif

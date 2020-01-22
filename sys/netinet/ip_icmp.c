@@ -128,6 +128,12 @@ SYSCTL_INT(_net_inet_icmp, OID_AUTO, log_redirect, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(log_redirect), 0,
 	"Log ICMP redirects to the console");
 
+VNET_DEFINE_STATIC(int, redirtimeout) = 60 * 10; /* 10 minutes */
+#define	V_redirtimeout			VNET(redirtimeout)
+SYSCTL_INT(_net_inet_icmp, OID_AUTO, redirtimeout, CTLFLAG_VNET | CTLFLAG_RW,
+	&VNET_NAME(redirtimeout), 0,
+	"Delay in seconds before expiring redirect route");
+
 VNET_DEFINE_STATIC(char, reply_src[IFNAMSIZ]);
 #define	V_reply_src			VNET(reply_src)
 SYSCTL_STRING(_net_inet_icmp, OID_AUTO, reply_src, CTLFLAG_VNET | CTLFLAG_RW,
@@ -170,6 +176,8 @@ int	icmpprintfs = 0;
 
 static void	icmp_reflect(struct mbuf *);
 static void	icmp_send(struct mbuf *, struct mbuf *);
+static int	icmp_verify_redirect_gateway(struct sockaddr_in *,
+    struct sockaddr_in *, struct sockaddr_in *, u_int);
 
 extern	struct protosw inetsw[];
 
@@ -689,11 +697,31 @@ reflect:
 		}
 #endif
 		icmpsrc.sin_addr = icp->icmp_ip.ip_dst;
+
+		/*
+		 * RFC 1122 says network (code 0,2) redirects SHOULD
+		 * be treated identically to the host redirects.
+		 * Given that, ignore network masks.
+		 */
+
+		/*
+		 * Variable values:
+		 * icmpsrc: route destination
+		 * icmpdst: route gateway
+		 * icmpgw: message source
+		 */
+
+		if (icmp_verify_redirect_gateway(&icmpgw, &icmpsrc, &icmpdst,
+		    M_GETFIB(m)) != 0) {
+			/* TODO: increment bad redirects here */
+			break;
+		}
+
 		for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-			in_rtredirect((struct sockaddr *)&icmpsrc,
-			  (struct sockaddr *)&icmpdst,
-			  (struct sockaddr *)0, RTF_GATEWAY | RTF_HOST,
-			  (struct sockaddr *)&icmpgw, fibnum);
+			rib_add_redirect(fibnum, (struct sockaddr *)&icmpsrc,
+			    (struct sockaddr *)&icmpdst,
+			    (struct sockaddr *)&icmpgw, m->m_pkthdr.rcvif,
+			    RTF_GATEWAY, V_redirtimeout);
 		}
 		pfctlinput(PRC_REDIRECT_HOST, (struct sockaddr *)&icmpsrc);
 		break;
@@ -903,6 +931,68 @@ done:
 	if (opts)
 		(void)m_free(opts);
 }
+
+/*
+ * Verifies if redirect message is valid, according to RFC 1122
+ *
+ * @src: sockaddr with address of redirect originator
+ * @dst: sockaddr with destination in question
+ * @gateway: new proposed gateway 
+ *
+ * Returns 0 on success.
+ */
+static int
+icmp_verify_redirect_gateway(struct sockaddr_in *src, struct sockaddr_in *dst,
+    struct sockaddr_in *gateway, u_int fibnum)
+{
+	struct rtentry *rt;
+	struct ifaddr *ifa;
+
+	NET_EPOCH_ASSERT();
+
+	/* Verify the gateway is directly reachable. */
+	if ((ifa = ifa_ifwithnet((struct sockaddr *)gateway, 0, fibnum))==NULL)
+		return (ENETUNREACH);
+
+	/* TODO: fib-aware. */
+	if (ifa_ifwithaddr_check((struct sockaddr *)gateway))
+		return (EHOSTUNREACH);
+
+	rt = rtalloc1_fib((struct sockaddr *)dst, 0, 0UL, fibnum); /* NB: rt is locked */
+	if (rt == NULL)
+		return (EINVAL);
+
+	/*
+	 * If the redirect isn't from our current router for this dst,
+	 * it's either old or wrong.  If it redirects us to ourselves,
+	 * we have a routing loop, perhaps as a result of an interface
+	 * going down recently.
+	 */
+	if (!sa_equal((struct sockaddr *)src, rt->rt_gateway)) {
+		RTFREE_LOCKED(rt);
+		return (EINVAL);
+	}
+	if (rt->rt_ifa != ifa && ifa->ifa_addr->sa_family != AF_LINK) {
+		RTFREE_LOCKED(rt);
+		return (EINVAL);
+	}
+
+	/* If host route already exists, ignore redirect. */
+	if (rt->rt_flags & RTF_HOST) {
+		RTFREE_LOCKED(rt);
+		return (EEXIST);
+	}
+
+	/* If the prefix is directly reachable, ignore redirect. */
+	if (!(rt->rt_flags & RTF_GATEWAY)) {
+		RTFREE_LOCKED(rt);
+		return (EEXIST);
+	}
+
+	RTFREE_LOCKED(rt);
+	return (0);
+}
+
 
 /*
  * Send an icmp packet back to the ip level,

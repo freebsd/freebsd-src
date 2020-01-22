@@ -566,7 +566,7 @@ SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_REDIRACCEPT, rediraccept,
 	"Accept ICMPv6 redirect messages");
 SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_REDIRTIMEOUT, redirtimeout,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(icmp6_redirtimeout), 0,
-	""); /* XXX unused */
+	"Delay in seconds before expiring redirect route");
 SYSCTL_VNET_PCPUSTAT(_net_inet6_icmp6, ICMPV6CTL_STATS, stats,
 	struct icmp6stat, icmp6stat,
 	"ICMPv6 statistics (struct icmp6stat, netinet/icmp6.h)");

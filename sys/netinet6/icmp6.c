@@ -2375,7 +2375,7 @@ icmp6_redirect_input(struct mbuf *m, int off)
 		sdst.sin6_len = ssrc.sin6_len = sizeof(struct sockaddr_in6);
 		bcopy(&reddst6, &sdst.sin6_addr, sizeof(struct in6_addr));
 		bcopy(&src6, &ssrc.sin6_addr, sizeof(struct in6_addr));
-		rt_flags = RTF_HOST;
+		rt_flags = 0;
 		if (is_router) {
 			bzero(&sgw, sizeof(sgw));
 			sgw.sin6_family = AF_INET6;
@@ -2387,9 +2387,9 @@ icmp6_redirect_input(struct mbuf *m, int off)
 		} else
 			gw = ifp->if_addr->ifa_addr;
 		for (fibnum = 0; fibnum < rt_numfibs; fibnum++)
-			in6_rtredirect((struct sockaddr *)&sdst, gw,
-			    (struct sockaddr *)NULL, rt_flags,
-			    (struct sockaddr *)&ssrc, fibnum);
+			rib_add_redirect(fibnum, (struct sockaddr *)&sdst, gw,
+			    (struct sockaddr *)&ssrc, ifp, rt_flags,
+			    V_icmp6_redirtimeout);
 	}
 	/* finally update cached route in each socket via pfctlinput */
     {
