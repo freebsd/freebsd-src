@@ -1871,6 +1871,7 @@ tcp_drop(struct tcpcb *tp, int errno)
 {
 	struct socket *so = tp->t_inpcb->inp_socket;
 
+	NET_EPOCH_ASSERT();
 	INP_INFO_LOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
