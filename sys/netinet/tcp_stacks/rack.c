@@ -8091,7 +8091,6 @@ old_method:
 static int
 rack_output(struct tcpcb *tp)
 {
-	struct epoch_tracker et;
 	struct socket *so;
 	uint32_t recwin, sendwin;
 	uint32_t sb_offset;
@@ -8155,8 +8154,10 @@ rack_output(struct tcpcb *tp)
 #ifdef KERN_TLS
 	hw_tls = (so->so_snd.sb_flags & SB_TLS_IFNET) != 0;
 #endif
-	
+
+	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
+
 #ifdef TCP_OFFLOAD
 	if (tp->t_flags & TF_TOE)
 		return (tcp_offload_output(tp));
@@ -9734,7 +9735,6 @@ send:
 	 * m->m_pkthdr.len should have been set before cksum calcuration,
 	 * because in6_cksum() need it.
 	 */
-	NET_EPOCH_ENTER(et);
 #ifdef INET6
 	if (isipv6) {
 		/*
@@ -9812,7 +9812,6 @@ send:
 			mtu = inp->inp_route.ro_rt->rt_mtu;
 	}
 #endif				/* INET */
-	NET_EPOCH_EXIT(et);
 
 out:
 	if (lgb) {
