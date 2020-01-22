@@ -62,10 +62,6 @@
 #define	C_PRECALC		0x0400 /* event time is pre-calculated. */
 #define	C_CATCH			0x0800 /* catch signals, used by pause_sbt(9) */
 
-struct callout_handle {
-	struct callout *callout;
-};
-
 /* Flags for callout_stop_safe() */
 #define	CS_DRAIN		0x0001 /* callout_drain(), wait allowed */
 #define	CS_EXECUTING		0x0002 /* Positive return value indicates that
