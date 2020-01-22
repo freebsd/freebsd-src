@@ -72,7 +72,7 @@ struct ccb_hdr_0x17 {
 	ccb_ppriv_area	periph_priv;
 	ccb_spriv_area	sim_priv;
 	u_int32_t	timeout;	/* Hard timeout value in seconds */
-	struct callout_handle timeout_ch;
+	struct callout	*timeout_ch;
 };
 
 struct ccb_pathinq_0x17 {
