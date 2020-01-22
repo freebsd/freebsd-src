@@ -3095,6 +3095,7 @@ mld_dispatch_packet(struct mbuf *m)
 	uint32_t		 ifindex;
 
 	CTR2(KTR_MLD, "%s: transmit %p", __func__, m);
+	NET_EPOCH_ASSERT();
 
 	/*
 	 * Set VNET image pointer from enqueued mbuf chain

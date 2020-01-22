@@ -1394,6 +1394,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	bool incl_opts;
 
 	KASSERT(tp != NULL || m != NULL, ("tcp_respond: tp and m both NULL"));
+	NET_EPOCH_ASSERT();
 
 #ifdef INET6
 	isipv6 = ((struct ip *)ipgen)->ip_v == (IPV6_VERSION >> 4);
