@@ -73,6 +73,12 @@ static char *canary, *pagesizes, *execpath;
 static void *timekeep;
 static u_long hwcap, hwcap2;
 
+#ifdef __powerpc__
+static int powerpc_new_auxv_format = 0;
+static void _init_aux_powerpc_fixup(void);
+int _powerpc_elf_aux_info(int, void *, int);
+#endif
+
 static void
 init_aux(void)
 {
@@ -125,11 +131,107 @@ init_aux(void)
 		case AT_TIMEKEEP:
 			timekeep = aux->a_un.a_ptr;
 			break;
+#ifdef __powerpc__
+		/*
+		 * Since AT_STACKPROT is always set, and the common
+		 * value 23 is mutually exclusive with the legacy powerpc
+		 * value 21, the existence of AT_STACKPROT proves we are
+		 * on the common format.
+		 */
+		case AT_STACKPROT:	/* 23 */
+			powerpc_new_auxv_format = 1;
+			break;
+#endif
+		}
+	}
+#ifdef __powerpc__
+	if (!powerpc_new_auxv_format)
+		_init_aux_powerpc_fixup();
+#endif
+}
+
+#ifdef __powerpc__
+static void
+_init_aux_powerpc_fixup(void)
+{
+	Elf_Auxinfo *aux;
+
+	/*
+	 * Before 1300070, PowerPC platforms had nonstandard numbering for
+	 * the aux vector. When running old binaries, the kernel will pass
+	 * the vector using the old numbering. Reload affected variables.
+	 */
+	for (aux = __elf_aux_vector; aux->a_type != AT_NULL; aux++) {
+		switch (aux->a_type) {
+		case AT_OLD_CANARY:
+			canary = (char *)(aux->a_un.a_ptr);
+			break;
+		case AT_OLD_CANARYLEN:
+			canary_len = aux->a_un.a_val;
+			break;
+		case AT_OLD_EXECPATH:
+			execpath = (char *)(aux->a_un.a_ptr);
+			break;
+		case AT_OLD_PAGESIZES:
+			pagesizes = (char *)(aux->a_un.a_ptr);
+			break;
+		case AT_OLD_PAGESIZESLEN:
+			pagesizes_len = aux->a_un.a_val;
+			break;
+		case AT_OLD_OSRELDATE:
+			osreldate = aux->a_un.a_val;
+			break;
+		case AT_OLD_NCPUS:
+			ncpus = aux->a_un.a_val;
+			break;
 		}
 	}
 }
 
+int
+_powerpc_elf_aux_info(int aux, void *buf, int buflen)
+{
+
+	/*
+	 * If we are in the old auxv format, we need to translate the aux
+	 * parameter of elf_aux_info() calls into the common auxv format.
+	 * Internal libc calls always use the common format, and they
+	 * directly call _elf_aux_info instead of using the weak symbol.
+	 */
+	if (!powerpc_new_auxv_format) {
+		switch (aux) {
+		case AT_OLD_EXECPATH:
+			aux = AT_EXECPATH;
+			break;
+		case AT_OLD_CANARY:
+			aux = AT_CANARY;
+			break;
+		case AT_OLD_CANARYLEN:
+			aux = AT_CANARYLEN;
+			break;
+		case AT_OLD_OSRELDATE:
+			aux = AT_OSRELDATE;
+			break;
+		case AT_OLD_NCPUS:
+			aux = AT_NCPUS;
+			break;
+		case AT_OLD_PAGESIZES:
+			aux = AT_PAGESIZES;
+			break;
+		case AT_OLD_PAGESIZESLEN:
+			aux = AT_PAGESIZESLEN;
+			break;
+		case AT_OLD_STACKPROT:
+			aux = AT_STACKPROT;
+			break;
+		}
+	}
+	return _elf_aux_info(aux, buf, buflen);
+}
+__weak_reference(_powerpc_elf_aux_info, elf_aux_info);
+#else
 __weak_reference(_elf_aux_info, elf_aux_info);
+#endif
 
 int
 _elf_aux_info(int aux, void *buf, int buflen)
