@@ -600,7 +600,7 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 	}
 
 	/*
-	 * If the code reaches here it means that this is a data section and
+	 * If the program reaches here it means that this is a data section and
 	 * data section always has WRITE permission.
 	 */
 	if ((prot & VM_PROT_WRITE) == 0)
