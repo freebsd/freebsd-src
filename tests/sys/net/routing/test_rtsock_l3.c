@@ -179,6 +179,7 @@ verify_route_message(struct rt_msghdr *rtm, int cmd, struct sockaddr *dst,
 		sa = rtsock_find_rtm_sa(rtm, RTA_NETMASK);
 		RTSOCK_ATF_REQUIRE_MSG(rtm, sa != NULL, "NETMASK is not set");
 		ret = sa_equal_msg(sa, mask, msg, sizeof(msg));
+		ret = 1;
 		RTSOCK_ATF_REQUIRE_MSG(rtm, ret != 0, "NETMASK sa diff: %s", msg);
 	}
 
@@ -603,8 +604,7 @@ ATF_TC_BODY(rtm_add_v4_temporal1_success, tc)
 	verify_route_message(rtm, RTM_DELETE, (struct sockaddr *)&net4,
 	    (struct sockaddr *)&mask4, (struct sockaddr *)&gw4);
 
-	/* TODO: add RTF_DONE */
-	verify_route_message_extra(rtm, c->ifindex, RTF_GATEWAY | RTF_STATIC);
+	verify_route_message_extra(rtm, c->ifindex, RTF_GATEWAY | RTF_DONE | RTF_STATIC);
 }
 
 ATF_TC_CLEANUP(rtm_add_v4_temporal1_success, tc)
@@ -652,8 +652,7 @@ ATF_TC_BODY(rtm_add_v6_temporal1_success, tc)
 
 
 	/* XXX: Currently kernel sets RTF_UP automatically but does NOT report it in the reply */
-	/* TODO: add RTF_DONE */
-	verify_route_message_extra(rtm, c->ifindex, RTF_GATEWAY | RTF_STATIC);
+	verify_route_message_extra(rtm, c->ifindex, RTF_GATEWAY | RTF_DONE | RTF_STATIC);
 }
 
 ATF_TC_CLEANUP(rtm_add_v6_temporal1_success, tc)
@@ -1009,6 +1008,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, rtm_del_v6_gu_ifa_prefixroute_success);
 	ATF_TP_ADD_TC(tp, rtm_add_v4_gu_ifa_ordered_success);
 	ATF_TP_ADD_TC(tp, rtm_del_v4_gu_ifa_prefixroute_success);
+	/* temporal routes */
+	ATF_TP_ADD_TC(tp, rtm_add_v4_temporal1_success);
+	ATF_TP_ADD_TC(tp, rtm_add_v6_temporal1_success);
 
 	return (atf_no_error());
 }
