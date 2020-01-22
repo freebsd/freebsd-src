@@ -445,6 +445,7 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 int
 rip_output(struct mbuf *m, struct socket *so, ...)
 {
+	struct epoch_tracker et;
 	struct ip *ip;
 	int error;
 	struct inpcb *inp = sotoinpcb(so);
@@ -584,8 +585,10 @@ rip_output(struct mbuf *m, struct socket *so, ...)
 	mac_inpcb_create_mbuf(inp, m);
 #endif
 
+	NET_EPOCH_ENTER(et);
 	error = ip_output(m, inp->inp_options, NULL, flags,
 	    inp->inp_moptions, inp);
+	NET_EPOCH_EXIT(et);
 	INP_RUNLOCK(inp);
 	return (error);
 }

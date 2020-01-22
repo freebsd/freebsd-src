@@ -467,6 +467,7 @@ syncache_timer(void *xsch)
 {
 	struct syncache_head *sch = (struct syncache_head *)xsch;
 	struct syncache *sc, *nsc;
+	struct epoch_tracker et;
 	int tick = ticks;
 	char *s;
 	bool paused;
@@ -526,7 +527,9 @@ syncache_timer(void *xsch)
 			free(s, M_TCPLOG);
 		}
 
+		NET_EPOCH_ENTER(et);
 		syncache_respond(sc, NULL, TH_SYN|TH_ACK);
+		NET_EPOCH_EXIT(et);
 		TCPSTAT_INC(tcps_sc_retransmitted);
 		syncache_timeout(sc, sch, 0);
 	}
