@@ -357,7 +357,7 @@ nvme_qpair_print_completion(struct nvme_qpair *qpair,
 	    cpl->cdw0);
 }
 
-static boolean_t
+static bool
 nvme_completion_is_retry(const struct nvme_completion *cpl)
 {
 	uint8_t sct, sc, dnr;
@@ -423,7 +423,7 @@ nvme_qpair_complete_tracker(struct nvme_tracker *tr,
 {
 	struct nvme_qpair * qpair = tr->qpair;
 	struct nvme_request	*req;
-	boolean_t		retry, error, retriable;
+	bool			retry, error, retriable;
 
 	req = tr->req;
 	error = nvme_completion_is_error(cpl);
@@ -508,7 +508,7 @@ nvme_qpair_manual_complete_request(struct nvme_qpair *qpair,
     struct nvme_request *req, uint32_t sct, uint32_t sc)
 {
 	struct nvme_completion	cpl;
-	boolean_t		error;
+	bool			error;
 
 	memset(&cpl, 0, sizeof(cpl));
 	cpl.sqid = qpair->id;
@@ -1127,7 +1127,7 @@ static void
 nvme_qpair_enable(struct nvme_qpair *qpair)
 {
 
-	qpair->is_enabled = TRUE;
+	qpair->is_enabled = true;
 }
 
 void
@@ -1215,7 +1215,7 @@ nvme_qpair_disable(struct nvme_qpair *qpair)
 {
 	struct nvme_tracker *tr;
 
-	qpair->is_enabled = FALSE;
+	qpair->is_enabled = false;
 	mtx_lock(&qpair->lock);
 	TAILQ_FOREACH(tr, &qpair->outstanding_tr, tailq)
 		callout_stop(&tr->timer);
