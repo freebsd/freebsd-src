@@ -1177,6 +1177,7 @@ udp6_close(struct socket *so)
 static int
 udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+	struct epoch_tracker et;
 	struct inpcb *inp;
 	struct inpcbinfo *pcbinfo;
 	struct sockaddr_in6 *sin6;
@@ -1215,10 +1216,12 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		vflagsav = inp->inp_vflag;
 		inp->inp_vflag |= INP_IPV4;
 		inp->inp_vflag &= ~INP_IPV6;
+		NET_EPOCH_ENTER(et);
 		INP_HASH_WLOCK(pcbinfo);
 		error = in_pcbconnect(inp, (struct sockaddr *)&sin,
 		    td->td_ucred);
 		INP_HASH_WUNLOCK(pcbinfo);
+		NET_EPOCH_EXIT(et);
 		/*
 		 * If connect succeeds, mark socket as connected. If
 		 * connect fails and socket is unbound, reset inp_vflag
