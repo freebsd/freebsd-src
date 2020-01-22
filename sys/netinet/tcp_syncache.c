@@ -1751,6 +1751,9 @@ syncache_respond(struct syncache *sc, const struct mbuf *m0, int flags)
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
 #endif
+
+	NET_EPOCH_ASSERT();
+
 	hlen =
 #ifdef INET6
 	       (sc->sc_inc.inc_flags & INC_ISIPV6) ? sizeof(struct ip6_hdr) :
