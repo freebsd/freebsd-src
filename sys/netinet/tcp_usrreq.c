@@ -121,7 +121,6 @@ __FBSDID("$FreeBSD$");
 /*
  * TCP protocol interface to socket abstraction.
  */
-static int	tcp_attach(struct socket *);
 #ifdef INET
 static int	tcp_connect(struct tcpcb *, struct sockaddr *,
 		    struct thread *td);
@@ -152,6 +151,7 @@ static void	tcp_fill_info(struct tcpcb *, struct tcp_info *);
 static int
 tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 {
+	struct epoch_tracker et;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
 	int error;
@@ -161,19 +161,49 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 	KASSERT(inp == NULL, ("tcp_usr_attach: inp != NULL"));
 	TCPDEBUG1();
 
-	error = tcp_attach(so);
-	if (error)
-		goto out;
+	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
+		error = soreserve(so, V_tcp_sendspace, V_tcp_recvspace);
+		if (error)
+			goto out;
+	}
 
+	so->so_rcv.sb_flags |= SB_AUTOSIZE;
+	so->so_snd.sb_flags |= SB_AUTOSIZE;
+	NET_EPOCH_ENTER(et);
+	error = in_pcballoc(so, &V_tcbinfo);
+	if (error) {
+		NET_EPOCH_EXIT(et);
+		goto out;
+	}
+	inp = sotoinpcb(so);
+#ifdef INET6
+	if (inp->inp_vflag & INP_IPV6PROTO) {
+		inp->inp_vflag |= INP_IPV6;
+		if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0)
+			inp->inp_vflag |= INP_IPV4;
+		inp->in6p_hops = -1;	/* use kernel default */
+	}
+	else
+#endif
+		inp->inp_vflag |= INP_IPV4;
+	tp = tcp_newtcpcb(inp);
+	if (tp == NULL) {
+		in_pcbdetach(inp);
+		in_pcbfree(inp);
+		NET_EPOCH_EXIT(et);
+		error = ENOBUFS;
+		goto out;
+	}
+	tp->t_state = TCPS_CLOSED;
+	INP_WUNLOCK(inp);
+	NET_EPOCH_EXIT(et);
+	TCPSTATES_INC(TCPS_CLOSED);
 	if ((so->so_options & SO_LINGER) && so->so_linger == 0)
 		so->so_linger = TCP_LINGERTIME;
-
-	inp = sotoinpcb(so);
-	tp = intotcpcb(inp);
 out:
 	TCPDEBUG2(PRU_ATTACH);
 	TCP_PROBE2(debug__user, tp, PRU_ATTACH);
-	return error;
+	return (error);
 }
 
 /*
@@ -2403,57 +2433,6 @@ unhold:
 }
 #undef INP_WLOCK_RECHECK
 #undef INP_WLOCK_RECHECK_CLEANUP
-
-/*
- * Attach TCP protocol to socket, allocating
- * internet protocol control block, tcp control block,
- * bufer space, and entering LISTEN state if to accept connections.
- */
-static int
-tcp_attach(struct socket *so)
-{
-	struct tcpcb *tp;
-	struct inpcb *inp;
-	struct epoch_tracker et;
-	int error;
-
-	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
-		error = soreserve(so, V_tcp_sendspace, V_tcp_recvspace);
-		if (error)
-			return (error);
-	}
-	so->so_rcv.sb_flags |= SB_AUTOSIZE;
-	so->so_snd.sb_flags |= SB_AUTOSIZE;
-	NET_EPOCH_ENTER(et);
-	error = in_pcballoc(so, &V_tcbinfo);
-	if (error) {
-		NET_EPOCH_EXIT(et);
-		return (error);
-	}
-	inp = sotoinpcb(so);
-#ifdef INET6
-	if (inp->inp_vflag & INP_IPV6PROTO) {
-		inp->inp_vflag |= INP_IPV6;
-		if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0)
-			inp->inp_vflag |= INP_IPV4;
-		inp->in6p_hops = -1;	/* use kernel default */
-	}
-	else
-#endif
-	inp->inp_vflag |= INP_IPV4;
-	tp = tcp_newtcpcb(inp);
-	if (tp == NULL) {
-		in_pcbdetach(inp);
-		in_pcbfree(inp);
-		NET_EPOCH_EXIT(et);
-		return (ENOBUFS);
-	}
-	tp->t_state = TCPS_CLOSED;
-	INP_WUNLOCK(inp);
-	NET_EPOCH_EXIT(et);
-	TCPSTATES_INC(TCPS_CLOSED);
-	return (0);
-}
 
 /*
  * Initiate (or continue) disconnect.
