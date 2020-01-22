@@ -491,8 +491,10 @@ rip_output(struct mbuf *m, struct socket *so, ...)
 			 * want to see from jails.
 			 */
 			if (ip->ip_src.s_addr == INADDR_ANY) {
-				error = in_pcbladdr(inp, &ip->ip_dst, &ip->ip_src,
-				    inp->inp_cred);
+				NET_EPOCH_ENTER(et);
+				error = in_pcbladdr(inp, &ip->ip_dst,
+				    &ip->ip_src, inp->inp_cred);
+				NET_EPOCH_EXIT(et);
 			} else {
 				error = prison_local_ip4(inp->inp_cred,
 				    &ip->ip_src);

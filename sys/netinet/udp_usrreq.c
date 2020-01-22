@@ -1606,6 +1606,7 @@ udp_close(struct socket *so)
 static int
 udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+	struct epoch_tracker et;
 	struct inpcb *inp;
 	struct inpcbinfo *pcbinfo;
 	struct sockaddr_in *sin;
@@ -1625,9 +1626,11 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		INP_WUNLOCK(inp);
 		return (error);
 	}
+	NET_EPOCH_ENTER(et);
 	INP_HASH_WLOCK(pcbinfo);
 	error = in_pcbconnect(inp, nam, td->td_ucred);
 	INP_HASH_WUNLOCK(pcbinfo);
+	NET_EPOCH_EXIT(et);
 	if (error == 0)
 		soisconnected(so);
 	INP_WUNLOCK(inp);
