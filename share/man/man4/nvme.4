@@ -120,11 +120,28 @@ hw.nvme.force_intx=1
 .Pp
 Note that use of INTx implies disabling of per-CPU I/O queue pairs.
 .Pp
-When there is an error,
-.Nm
-prints only the most relevant information about the command by default.
-To enable dumping of all information about the command, set the following tunable
-value in
+The
+.Xr nvd 4
+driver is used to provide a disk driver to the system by default.
+The
+.Xr nda 4
+driver can also be used instead.
+The
+.Xr nvd 4
+driver performs better with smaller transactions and few TRIM
+commands.
+It sends all commands directly to the drive immediately.
+The
+.Xr nda 4
+driver performs better with larger transactions and also collapses
+TRIM commands giving better performance.
+It can queue commands to the drive; combine
+.Dv BIO_DELETE
+commands into a single trip; and
+use the CAM I/O scheduler to bias one type of operation over another.
+To select the
+.Xr nda 4
+driver, set the following tunable value in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 hw.nvme.verbose_cmd_dump=1
