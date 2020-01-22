@@ -186,14 +186,6 @@ in6_detachhead(void **head, int off)
 /*
  * Extended API for IPv6 FIB support.
  */
-void
-in6_rtredirect(struct sockaddr *dst, struct sockaddr *gw, struct sockaddr *nm,
-    int flags, struct sockaddr *src, u_int fibnum)
-{
-
-	rtredirect_fib(dst, gw, nm, flags, src, fibnum);
-}
-
 int
 in6_rtrequest(int req, struct sockaddr *dst, struct sockaddr *gw,
     struct sockaddr *mask, int flags, struct rtentry **ret_nrt, u_int fibnum)
