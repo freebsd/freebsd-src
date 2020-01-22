@@ -1147,7 +1147,6 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			 * Close the send side of the connection after
 			 * the data is sent.
 			 */
-			NET_EPOCH_ASSERT();
 			socantsendmore(so);
 			tcp_usrclosed(tp);
 		}
