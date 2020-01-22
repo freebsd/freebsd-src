@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 27, 2018
+.Dd March 2, 2023
 .Dt MERGEMASTER 8
 .Os
 .Sh NAME
@@ -43,6 +43,17 @@
 .Op Fl A Ar Target architecture
 .Op Fl D Ar /destdir/path
 .Sh DESCRIPTION
+.Bf -symbolic
+The
+.Nm
+utility is deprecated and may not be available in
+.Fx 14.0
+or later.
+Users are advised to use
+.Xr etcupdate 8
+instead.
+.Ef
+.Pp
 The
 .Nm
 utility is a Bourne shell script which is designed to aid you
