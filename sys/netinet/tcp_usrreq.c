@@ -151,7 +151,6 @@ static void	tcp_fill_info(struct tcpcb *, struct tcp_info *);
 static int
 tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 {
-	struct epoch_tracker et;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
 	int error;
@@ -169,12 +168,9 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 
 	so->so_rcv.sb_flags |= SB_AUTOSIZE;
 	so->so_snd.sb_flags |= SB_AUTOSIZE;
-	NET_EPOCH_ENTER(et);
 	error = in_pcballoc(so, &V_tcbinfo);
-	if (error) {
-		NET_EPOCH_EXIT(et);
+	if (error)
 		goto out;
-	}
 	inp = sotoinpcb(so);
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6PROTO) {
@@ -188,15 +184,13 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 		inp->inp_vflag |= INP_IPV4;
 	tp = tcp_newtcpcb(inp);
 	if (tp == NULL) {
+		error = ENOBUFS;
 		in_pcbdetach(inp);
 		in_pcbfree(inp);
-		NET_EPOCH_EXIT(et);
-		error = ENOBUFS;
 		goto out;
 	}
 	tp->t_state = TCPS_CLOSED;
 	INP_WUNLOCK(inp);
-	NET_EPOCH_EXIT(et);
 	TCPSTATES_INC(TCPS_CLOSED);
 	if ((so->so_options & SO_LINGER) && so->so_linger == 0)
 		so->so_linger = TCP_LINGERTIME;
